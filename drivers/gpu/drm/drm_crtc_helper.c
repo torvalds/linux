@@ -324,35 +324,6 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_helper_disable_unused_functions);
 
-/**
- * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
- * @encoder: encoder to test
- * @crtc: crtc to test
- *
- * Return false if @encoder can't be driven by @crtc, true otherwise.
- */
-static bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
-				struct drm_crtc *crtc)
-{
-	struct drm_device *dev;
-	struct drm_crtc *tmp;
-	int crtc_mask = 1;
-
-	WARN(!crtc, "checking null crtc?\n");
-
-	dev = crtc->dev;
-
-	list_for_each_entry(tmp, &dev->mode_config.crtc_list, head) {
-		if (tmp == crtc)
-			break;
-		crtc_mask <<= 1;
-	}
-
-	if (encoder->possible_crtcs & crtc_mask)
-		return true;
-	return false;
-}
-
 /*
  * Check the CRTC we're going to map each output to vs. its current
  * CRTC.  If they don't match, we have to disable the output and the CRTC
@@ -536,7 +507,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	 * are later needed by vblank and swap-completion
 	 * timestamping. They are derived from true hwmode.
 	 */
-	drm_calc_timestamping_constants(crtc);
+	drm_calc_timestamping_constants(crtc, &crtc->hwmode);
 
 	/* FIXME: add subpixel order */
 done:

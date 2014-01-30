@@ -17,7 +17,7 @@
 
 
 #include "msm_drv.h"
-#include "mdp4_kms.h"
+#include "mdp_kms.h"
 
 #define FMT(name, a, r, g, b, e0, e1, e2, e3, alpha, tight, c, cnt) { \
 		.base = { .pixel_format = DRM_FORMAT_ ## name }, \
@@ -34,7 +34,7 @@
 
 #define BPC0A 0
 
-static const struct mdp4_format formats[] = {
+static const struct mdp_format formats[] = {
 	/*  name      a  r  g  b   e0 e1 e2 e3  alpha   tight  cpp cnt */
 	FMT(ARGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  true,   true,  4,  4),
 	FMT(XRGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  false,  true,  4,  4),
@@ -44,12 +44,11 @@ static const struct mdp4_format formats[] = {
 	FMT(BGR565,   0, 5, 6, 5,  2, 0, 1, 0,  false,  true,  2,  3),
 };
 
-uint32_t mdp4_get_formats(enum mdp4_pipe pipe_id, uint32_t *pixel_formats,
-		uint32_t max_formats)
+uint32_t mdp_get_formats(uint32_t *pixel_formats, uint32_t max_formats)
 {
 	uint32_t i;
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		const struct mdp4_format *f = &formats[i];
+		const struct mdp_format *f = &formats[i];
 
 		if (i == max_formats)
 			break;
@@ -60,11 +59,11 @@ uint32_t mdp4_get_formats(enum mdp4_pipe pipe_id, uint32_t *pixel_formats,
 	return i;
 }
 
-const struct msm_format *mdp4_get_format(struct msm_kms *kms, uint32_t format)
+const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		const struct mdp4_format *f = &formats[i];
+		const struct mdp_format *f = &formats[i];
 		if (f->base.pixel_format == format)
 			return &f->base;
 	}

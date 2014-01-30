@@ -28,6 +28,10 @@
 #ifndef __VMWGFX_DRM_H__
 #define __VMWGFX_DRM_H__
 
+#ifndef __KERNEL__
+#include <drm.h>
+#endif
+
 #define DRM_VMW_MAX_SURFACE_FACES 6
 #define DRM_VMW_MAX_MIP_LEVELS 24
 
@@ -55,6 +59,11 @@
 #define DRM_VMW_PRESENT              18
 #define DRM_VMW_PRESENT_READBACK     19
 #define DRM_VMW_UPDATE_LAYOUT        20
+#define DRM_VMW_CREATE_SHADER        21
+#define DRM_VMW_UNREF_SHADER         22
+#define DRM_VMW_GB_SURFACE_CREATE    23
+#define DRM_VMW_GB_SURFACE_REF       24
+#define DRM_VMW_SYNCCPU              25
 
 /*************************************************************************/
 /**
@@ -76,6 +85,8 @@
 #define DRM_VMW_PARAM_MAX_FB_SIZE      5
 #define DRM_VMW_PARAM_FIFO_HW_VERSION  6
 #define DRM_VMW_PARAM_MAX_SURF_MEMORY  7
+#define DRM_VMW_PARAM_3D_CAPS_SIZE     8
+#define DRM_VMW_PARAM_MAX_MOB_MEMORY   9
 
 /**
  * struct drm_vmw_getparam_arg
@@ -786,6 +797,255 @@ struct drm_vmw_update_layout_arg {
 	uint32_t num_outputs;
 	uint32_t pad64;
 	uint64_t rects;
+};
+
+
+/*************************************************************************/
+/**
+ * DRM_VMW_CREATE_SHADER - Create shader
+ *
+ * Creates a shader and optionally binds it to a dma buffer containing
+ * the shader byte-code.
+ */
+
+/**
+ * enum drm_vmw_shader_type - Shader types
+ */
+enum drm_vmw_shader_type {
+	drm_vmw_shader_type_vs = 0,
+	drm_vmw_shader_type_ps,
+	drm_vmw_shader_type_gs
+};
+
+
+/**
+ * struct drm_vmw_shader_create_arg
+ *
+ * @shader_type: Shader type of the shader to create.
+ * @size: Size of the byte-code in bytes.
+ * where the shader byte-code starts
+ * @buffer_handle: Buffer handle identifying the buffer containing the
+ * shader byte-code
+ * @shader_handle: On successful completion contains a handle that
+ * can be used to subsequently identify the shader.
+ * @offset: Offset in bytes into the buffer given by @buffer_handle,
+ *
+ * Input / Output argument to the DRM_VMW_CREATE_SHADER Ioctl.
+ */
+struct drm_vmw_shader_create_arg {
+	enum drm_vmw_shader_type shader_type;
+	uint32_t size;
+	uint32_t buffer_handle;
+	uint32_t shader_handle;
+	uint64_t offset;
+};
+
+/*************************************************************************/
+/**
+ * DRM_VMW_UNREF_SHADER - Unreferences a shader
+ *
+ * Destroys a user-space reference to a shader, optionally destroying
+ * it.
+ */
+
+/**
+ * struct drm_vmw_shader_arg
+ *
+ * @handle: Handle identifying the shader to destroy.
+ *
+ * Input argument to the DRM_VMW_UNREF_SHADER ioctl.
+ */
+struct drm_vmw_shader_arg {
+	uint32_t handle;
+	uint32_t pad64;
+};
+
+/*************************************************************************/
+/**
+ * DRM_VMW_GB_SURFACE_CREATE - Create a host guest-backed surface.
+ *
+ * Allocates a surface handle and queues a create surface command
+ * for the host on the first use of the surface. The surface ID can
+ * be used as the surface ID in commands referencing the surface.
+ */
+
+/**
+ * enum drm_vmw_surface_flags
+ *
+ * @drm_vmw_surface_flag_shareable:     Whether the surface is shareable
+ * @drm_vmw_surface_flag_scanout:       Whether the surface is a scanout
+ *                                      surface.
+ * @drm_vmw_surface_flag_create_buffer: Create a backup buffer if none is
+ *                                      given.
+ */
+enum drm_vmw_surface_flags {
+	drm_vmw_surface_flag_shareable = (1 << 0),
+	drm_vmw_surface_flag_scanout = (1 << 1),
+	drm_vmw_surface_flag_create_buffer = (1 << 2)
+};
+
+/**
+ * struct drm_vmw_gb_surface_create_req
+ *
+ * @svga3d_flags:     SVGA3d surface flags for the device.
+ * @format:           SVGA3d format.
+ * @mip_level:        Number of mip levels for all faces.
+ * @drm_surface_flags Flags as described above.
+ * @multisample_count Future use. Set to 0.
+ * @autogen_filter    Future use. Set to 0.
+ * @buffer_handle     Buffer handle of backup buffer. SVGA3D_INVALID_ID
+ *                    if none.
+ * @base_size         Size of the base mip level for all faces.
+ *
+ * Input argument to the  DRM_VMW_GB_SURFACE_CREATE Ioctl.
+ * Part of output argument for the DRM_VMW_GB_SURFACE_REF Ioctl.
+ */
+struct drm_vmw_gb_surface_create_req {
+	uint32_t svga3d_flags;
+	uint32_t format;
+	uint32_t mip_levels;
+	enum drm_vmw_surface_flags drm_surface_flags;
+	uint32_t multisample_count;
+	uint32_t autogen_filter;
+	uint32_t buffer_handle;
+	uint32_t pad64;
+	struct drm_vmw_size base_size;
+};
+
+/**
+ * struct drm_vmw_gb_surface_create_rep
+ *
+ * @handle:            Surface handle.
+ * @backup_size:       Size of backup buffers for this surface.
+ * @buffer_handle:     Handle of backup buffer. SVGA3D_INVALID_ID if none.
+ * @buffer_size:       Actual size of the buffer identified by
+ *                     @buffer_handle
+ * @buffer_map_handle: Offset into device address space for the buffer
+ *                     identified by @buffer_handle.
+ *
+ * Part of output argument for the DRM_VMW_GB_SURFACE_REF ioctl.
+ * Output argument for the DRM_VMW_GB_SURFACE_CREATE ioctl.
+ */
+struct drm_vmw_gb_surface_create_rep {
+	uint32_t handle;
+	uint32_t backup_size;
+	uint32_t buffer_handle;
+	uint32_t buffer_size;
+	uint64_t buffer_map_handle;
+};
+
+/**
+ * union drm_vmw_gb_surface_create_arg
+ *
+ * @req: Input argument as described above.
+ * @rep: Output argument as described above.
+ *
+ * Argument to the DRM_VMW_GB_SURFACE_CREATE ioctl.
+ */
+union drm_vmw_gb_surface_create_arg {
+	struct drm_vmw_gb_surface_create_rep rep;
+	struct drm_vmw_gb_surface_create_req req;
+};
+
+/*************************************************************************/
+/**
+ * DRM_VMW_GB_SURFACE_REF - Reference a host surface.
+ *
+ * Puts a reference on a host surface with a given handle, as previously
+ * returned by the DRM_VMW_GB_SURFACE_CREATE ioctl.
+ * A reference will make sure the surface isn't destroyed while we hold
+ * it and will allow the calling client to use the surface handle in
+ * the command stream.
+ *
+ * On successful return, the Ioctl returns the surface information given
+ * to and returned from the DRM_VMW_GB_SURFACE_CREATE ioctl.
+ */
+
+/**
+ * struct drm_vmw_gb_surface_reference_arg
+ *
+ * @creq: The data used as input when the surface was created, as described
+ *        above at "struct drm_vmw_gb_surface_create_req"
+ * @crep: Additional data output when the surface was created, as described
+ *        above at "struct drm_vmw_gb_surface_create_rep"
+ *
+ * Output Argument to the DRM_VMW_GB_SURFACE_REF ioctl.
+ */
+struct drm_vmw_gb_surface_ref_rep {
+	struct drm_vmw_gb_surface_create_req creq;
+	struct drm_vmw_gb_surface_create_rep crep;
+};
+
+/**
+ * union drm_vmw_gb_surface_reference_arg
+ *
+ * @req: Input data as described above at "struct drm_vmw_surface_arg"
+ * @rep: Output data as described above at "struct drm_vmw_gb_surface_ref_rep"
+ *
+ * Argument to the DRM_VMW_GB_SURFACE_REF Ioctl.
+ */
+union drm_vmw_gb_surface_reference_arg {
+	struct drm_vmw_gb_surface_ref_rep rep;
+	struct drm_vmw_surface_arg req;
+};
+
+
+/*************************************************************************/
+/**
+ * DRM_VMW_SYNCCPU - Sync a DMA buffer / MOB for CPU access.
+ *
+ * Idles any previously submitted GPU operations on the buffer and
+ * by default blocks command submissions that reference the buffer.
+ * If the file descriptor used to grab a blocking CPU sync is closed, the
+ * cpu sync is released.
+ * The flags argument indicates how the grab / release operation should be
+ * performed:
+ */
+
+/**
+ * enum drm_vmw_synccpu_flags - Synccpu flags:
+ *
+ * @drm_vmw_synccpu_read: Sync for read. If sync is done for read only, it's a
+ * hint to the kernel to allow command submissions that references the buffer
+ * for read-only.
+ * @drm_vmw_synccpu_write: Sync for write. Block all command submissions
+ * referencing this buffer.
+ * @drm_vmw_synccpu_dontblock: Dont wait for GPU idle, but rather return
+ * -EBUSY should the buffer be busy.
+ * @drm_vmw_synccpu_allow_cs: Allow command submission that touches the buffer
+ * while the buffer is synced for CPU. This is similar to the GEM bo idle
+ * behavior.
+ */
+enum drm_vmw_synccpu_flags {
+	drm_vmw_synccpu_read = (1 << 0),
+	drm_vmw_synccpu_write = (1 << 1),
+	drm_vmw_synccpu_dontblock = (1 << 2),
+	drm_vmw_synccpu_allow_cs = (1 << 3)
+};
+
+/**
+ * enum drm_vmw_synccpu_op - Synccpu operations:
+ *
+ * @drm_vmw_synccpu_grab:    Grab the buffer for CPU operations
+ * @drm_vmw_synccpu_release: Release a previous grab.
+ */
+enum drm_vmw_synccpu_op {
+	drm_vmw_synccpu_grab,
+	drm_vmw_synccpu_release
+};
+
+/**
+ * struct drm_vmw_synccpu_arg
+ *
+ * @op:			     The synccpu operation as described above.
+ * @handle:		     Handle identifying the buffer object.
+ * @flags:		     Flags as described above.
+ */
+struct drm_vmw_synccpu_arg {
+	enum drm_vmw_synccpu_op op;
+	enum drm_vmw_synccpu_flags flags;
+	uint32_t handle;
+	uint32_t pad64;
 };
 
 #endif

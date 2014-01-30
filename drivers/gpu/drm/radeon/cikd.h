@@ -724,6 +724,17 @@
 
 #define ATC_MISC_CG           				0x3350
 
+#define GMCON_RENG_EXECUTE				0x3508
+#define 	RENG_EXECUTE_ON_PWR_UP			(1 << 0)
+#define GMCON_MISC					0x350c
+#define 	RENG_EXECUTE_ON_REG_UPDATE		(1 << 11)
+#define 	STCTRL_STUTTER_EN			(1 << 16)
+
+#define GMCON_PGFSM_CONFIG				0x3538
+#define GMCON_PGFSM_WRITE				0x353c
+#define GMCON_PGFSM_READ				0x3540
+#define GMCON_MISC3					0x3544
+
 #define MC_SEQ_CNTL_3                                     0x3600
 #       define CAC_EN                                     (1 << 31)
 #define MC_SEQ_G5PDX_CTRL                                 0x3604

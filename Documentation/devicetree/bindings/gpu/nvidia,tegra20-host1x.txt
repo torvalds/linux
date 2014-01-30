@@ -118,6 +118,9 @@ of the following host1x client modules:
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - dc
+  - nvidia,head: The number of the display controller head. This is used to
+    setup the various types of output to receive video data from the given
+    head.
 
   Each display controller node has a child node, named "rgb", that represents
   the RGB output associated with the controller. It can take the following
@@ -125,6 +128,7 @@ of the following host1x client modules:
   - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
   - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
   - nvidia,edid: supplies a binary EDID blob
+  - nvidia,panel: phandle of a display panel
 
 - hdmi: High Definition Multimedia Interface
 
@@ -149,6 +153,7 @@ of the following host1x client modules:
   - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
   - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
   - nvidia,edid: supplies a binary EDID blob
+  - nvidia,panel: phandle of a display panel
 
 - tvo: TV encoder output
 
@@ -169,11 +174,21 @@ of the following host1x client modules:
   - clock-names: Must include the following entries:
     - dsi
       This MUST be the first entry.
+    - lp
     - parent
   - resets: Must contain an entry for each entry in reset-names.
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - dsi
+  - nvidia,mipi-calibrate: Should contain a phandle and a specifier specifying
+    which pads are used by this DSI output and need to be calibrated. See also
+    ../mipi/nvidia,tegra114-mipi.txt.
+
+  Optional properties:
+  - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
+  - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
+  - nvidia,edid: supplies a binary EDID blob
+  - nvidia,panel: phandle of a display panel
 
 Example:
 
@@ -253,7 +268,7 @@ Example:
 			interrupts = <0 73 0x04>;
 			clocks = <&tegra_car TEGRA20_CLK_DISP1>,
 				 <&tegra_car TEGRA20_CLK_PLL_P>;
-			clock-names = "disp1", "parent";
+			clock-names = "dc", "parent";
 			resets = <&tegra_car 27>;
 			reset-names = "dc";
 
@@ -268,7 +283,7 @@ Example:
 			interrupts = <0 74 0x04>;
 			clocks = <&tegra_car TEGRA20_CLK_DISP2>,
 				 <&tegra_car TEGRA20_CLK_PLL_P>;
-			clock-names = "disp2", "parent";
+			clock-names = "dc", "parent";
 			resets = <&tegra_car 26>;
 			reset-names = "dc";
 

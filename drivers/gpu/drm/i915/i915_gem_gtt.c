@@ -240,10 +240,16 @@ static int gen8_ppgtt_enable(struct drm_device *dev)
 		for_each_ring(ring, dev_priv, j) {
 			ret = gen8_write_pdp(ring, i, addr);
 			if (ret)
-				return ret;
+				goto err_out;
 		}
 	}
 	return 0;
+
+err_out:
+	for_each_ring(ring, dev_priv, j)
+		I915_WRITE(RING_MODE_GEN7(ring),
+			   _MASKED_BIT_DISABLE(GFX_PPGTT_ENABLE));
+	return ret;
 }
 
 static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
@@ -293,23 +299,23 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 	unsigned act_pte = first_entry % GEN8_PTES_PER_PAGE;
 	struct sg_page_iter sg_iter;
 
-	pt_vaddr = kmap_atomic(&ppgtt->gen8_pt_pages[act_pt]);
+	pt_vaddr = NULL;
 	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
-		dma_addr_t page_addr;
+		if (pt_vaddr == NULL)
+			pt_vaddr = kmap_atomic(&ppgtt->gen8_pt_pages[act_pt]);
 
-		page_addr = sg_dma_address(sg_iter.sg) +
-				(sg_iter.sg_pgoffset << PAGE_SHIFT);
-		pt_vaddr[act_pte] = gen8_pte_encode(page_addr, cache_level,
-						    true);
+		pt_vaddr[act_pte] =
+			gen8_pte_encode(sg_page_iter_dma_address(&sg_iter),
+					cache_level, true);
 		if (++act_pte == GEN8_PTES_PER_PAGE) {
 			kunmap_atomic(pt_vaddr);
+			pt_vaddr = NULL;
 			act_pt++;
-			pt_vaddr = kmap_atomic(&ppgtt->gen8_pt_pages[act_pt]);
 			act_pte = 0;
-
 		}
 	}
-	kunmap_atomic(pt_vaddr);
+	if (pt_vaddr)
+		kunmap_atomic(pt_vaddr);
 }
 
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
@@ -317,6 +323,8 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
 	int i, j;
+
+	drm_mm_takedown(&vm->mm);
 
 	for (i = 0; i < ppgtt->num_pd_pages ; i++) {
 		if (ppgtt->pd_dma_addr[i]) {
@@ -381,6 +389,8 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
+	ppgtt->base.start = 0;
+	ppgtt->base.total = ppgtt->num_pt_pages * GEN8_PTES_PER_PAGE * PAGE_SIZE;
 
 	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPS);
 
@@ -573,21 +583,23 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	unsigned act_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	struct sg_page_iter sg_iter;
 
-	pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
+	pt_vaddr = NULL;
 	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
-		dma_addr_t page_addr;
+		if (pt_vaddr == NULL)
+			pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
 
-		page_addr = sg_page_iter_dma_address(&sg_iter);
-		pt_vaddr[act_pte] = vm->pte_encode(page_addr, cache_level, true);
+		pt_vaddr[act_pte] =
+			vm->pte_encode(sg_page_iter_dma_address(&sg_iter),
+				       cache_level, true);
 		if (++act_pte == I915_PPGTT_PT_ENTRIES) {
 			kunmap_atomic(pt_vaddr);
+			pt_vaddr = NULL;
 			act_pt++;
-			pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
 			act_pte = 0;
-
 		}
 	}
-	kunmap_atomic(pt_vaddr);
+	if (pt_vaddr)
+		kunmap_atomic(pt_vaddr);
 }
 
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
@@ -632,6 +644,8 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->base.scratch = dev_priv->gtt.base.scratch;
+	ppgtt->base.start = 0;
+	ppgtt->base.total = GEN6_PPGTT_PD_ENTRIES * I915_PPGTT_PT_ENTRIES * PAGE_SIZE;
 	ppgtt->pt_pages = kcalloc(ppgtt->num_pd_entries, sizeof(struct page *),
 				  GFP_KERNEL);
 	if (!ppgtt->pt_pages)
@@ -1124,7 +1138,6 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 		if (ret)
 			DRM_DEBUG_KMS("Reservation failed\n");
 		obj->has_global_gtt_mapping = 1;
-		list_add(&vma->vma_link, &obj->vma_list);
 	}
 
 	dev_priv->gtt.base.start = start;
@@ -1400,6 +1413,8 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 {
 
 	struct i915_gtt *gtt = container_of(vm, struct i915_gtt, base);
+
+	drm_mm_takedown(&vm->mm);
 	iounmap(gtt->gsm);
 	teardown_scratch_page(vm->dev);
 }
@@ -1424,6 +1439,9 @@ static int i915_gmch_probe(struct drm_device *dev,
 	dev_priv->gtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
 	dev_priv->gtt.base.clear_range = i915_ggtt_clear_range;
 	dev_priv->gtt.base.insert_entries = i915_ggtt_insert_entries;
+
+	if (unlikely(dev_priv->gtt.do_idle_maps))
+		DRM_INFO("applying Ironlake quirks for intel_iommu\n");
 
 	return 0;
 }

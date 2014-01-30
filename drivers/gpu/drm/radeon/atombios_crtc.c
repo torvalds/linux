@@ -209,6 +209,16 @@ static void atombios_enable_crtc_memreq(struct drm_crtc *crtc, int state)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+static const u32 vga_control_regs[6] =
+{
+	AVIVO_D1VGA_CONTROL,
+	AVIVO_D2VGA_CONTROL,
+	EVERGREEN_D3VGA_CONTROL,
+	EVERGREEN_D4VGA_CONTROL,
+	EVERGREEN_D5VGA_CONTROL,
+	EVERGREEN_D6VGA_CONTROL,
+};
+
 static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -216,13 +226,23 @@ static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 	struct radeon_device *rdev = dev->dev_private;
 	int index = GetIndexIntoMasterTable(COMMAND, BlankCRTC);
 	BLANK_CRTC_PS_ALLOCATION args;
+	u32 vga_control = 0;
 
 	memset(&args, 0, sizeof(args));
+
+	if (ASIC_IS_DCE8(rdev)) {
+		vga_control = RREG32(vga_control_regs[radeon_crtc->crtc_id]);
+		WREG32(vga_control_regs[radeon_crtc->crtc_id], vga_control | 1);
+	}
 
 	args.ucCRTC = radeon_crtc->crtc_id;
 	args.ucBlanking = state;
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+	if (ASIC_IS_DCE8(rdev)) {
+		WREG32(vga_control_regs[radeon_crtc->crtc_id], vga_control);
+	}
 }
 
 static void atombios_powergate_crtc(struct drm_crtc *crtc, int state)
@@ -423,7 +443,17 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 	int index = GetIndexIntoMasterTable(COMMAND, EnableSpreadSpectrumOnPPLL);
 	union atom_enable_ss args;
 
-	if (!enable) {
+	if (enable) {
+		/* Don't mess with SS if percentage is 0 or external ss.
+		 * SS is already disabled previously, and disabling it
+		 * again can cause display problems if the pll is already
+		 * programmed.
+		 */
+		if (ss->percentage == 0)
+			return;
+		if (ss->type & ATOM_EXTERNAL_SS_MASK)
+			return;
+	} else {
 		for (i = 0; i < rdev->num_crtc; i++) {
 			if (rdev->mode_info.crtcs[i] &&
 			    rdev->mode_info.crtcs[i]->enabled &&
@@ -459,8 +489,6 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.v3.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
 		args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 		args.v3.ucEnable = enable;
-		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE61(rdev))
-			args.v3.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE4(rdev)) {
 		args.v2.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
 		args.v2.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
@@ -480,8 +508,6 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.v2.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
 		args.v2.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 		args.v2.ucEnable = enable;
-		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE41(rdev))
-			args.v2.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		args.v1.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
 		args.v1.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
@@ -503,8 +529,7 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.lvds_ss_2.ucSpreadSpectrumRange = ss->range;
 		args.lvds_ss_2.ucEnable = enable;
 	} else {
-		if ((enable == ATOM_DISABLE) || (ss->percentage == 0) ||
-		    (ss->type & ATOM_EXTERNAL_SS_MASK)) {
+		if (enable == ATOM_DISABLE) {
 			atombios_disable_ss(rdev, pll_id);
 			return;
 		}
@@ -938,11 +963,14 @@ static bool atombios_crtc_prepare_pll(struct drm_crtc *crtc, struct drm_display_
 							radeon_atombios_get_ppll_ss_info(rdev,
 											 &radeon_crtc->ss,
 											 ATOM_DP_SS_ID1);
-				} else
+				} else {
 					radeon_crtc->ss_enabled =
 						radeon_atombios_get_ppll_ss_info(rdev,
 										 &radeon_crtc->ss,
 										 ATOM_DP_SS_ID1);
+				}
+				/* disable spread spectrum on DCE3 DP */
+				radeon_crtc->ss_enabled = false;
 			}
 			break;
 		case ATOM_ENCODER_MODE_LVDS:
@@ -1039,15 +1067,17 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		/* calculate ss amount and step size */
 		if (ASIC_IS_DCE4(rdev)) {
 			u32 step_size;
-			u32 amount = (((fb_div * 10) + frac_fb_div) * radeon_crtc->ss.percentage) / 10000;
+			u32 amount = (((fb_div * 10) + frac_fb_div) *
+				      (u32)radeon_crtc->ss.percentage) /
+				(100 * (u32)radeon_crtc->ss.percentage_divider);
 			radeon_crtc->ss.amount = (amount / 10) & ATOM_PPLL_SS_AMOUNT_V2_FBDIV_MASK;
 			radeon_crtc->ss.amount |= ((amount - (amount / 10)) << ATOM_PPLL_SS_AMOUNT_V2_NFRAC_SHIFT) &
 				ATOM_PPLL_SS_AMOUNT_V2_NFRAC_MASK;
 			if (radeon_crtc->ss.type & ATOM_PPLL_SS_TYPE_V2_CENTRE_SPREAD)
-				step_size = (4 * amount * ref_div * (radeon_crtc->ss.rate * 2048)) /
+				step_size = (4 * amount * ref_div * ((u32)radeon_crtc->ss.rate * 2048)) /
 					(125 * 25 * pll->reference_freq / 100);
 			else
-				step_size = (2 * amount * ref_div * (radeon_crtc->ss.rate * 2048)) /
+				step_size = (2 * amount * ref_div * ((u32)radeon_crtc->ss.rate * 2048)) /
 					(125 * 25 * pll->reference_freq / 100);
 			radeon_crtc->ss.step = step_size;
 		}

@@ -69,6 +69,7 @@ extern struct nouveau_oclass *nvd7_graph_oclass;
 extern struct nouveau_oclass *nvd9_graph_oclass;
 extern struct nouveau_oclass *nve4_graph_oclass;
 extern struct nouveau_oclass *nvf0_graph_oclass;
+extern struct nouveau_oclass *nv108_graph_oclass;
 
 extern const struct nouveau_bitfield nv04_graph_nsource[];
 extern struct nouveau_ofuncs nv04_graph_ofuncs;

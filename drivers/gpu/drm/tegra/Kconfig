@@ -1,14 +1,12 @@
 config DRM_TEGRA
-	bool "NVIDIA Tegra DRM"
-	depends on ARCH_TEGRA || ARCH_MULTIPLATFORM
+	tristate "NVIDIA Tegra DRM"
+	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
 	depends on DRM
 	depends on RESET_CONTROLLER
-	select TEGRA_HOST1X
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	select TEGRA_HOST1X
 	help
 	  Choose this option if you have an NVIDIA Tegra SoC.
 
@@ -16,6 +14,18 @@ config DRM_TEGRA
 	  will be called tegra-drm.
 
 if DRM_TEGRA
+
+config DRM_TEGRA_FBDEV
+	bool "Enable legacy fbdev support"
+	select DRM_KMS_FB_HELPER
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	default y
+	help
+	  Choose this option if you have a need for the legacy fbdev support.
+	  Note that this support also provides the Linux console on top of
+	  the Tegra modesetting driver.
 
 config DRM_TEGRA_DEBUG
 	bool "NVIDIA Tegra DRM debug support"
