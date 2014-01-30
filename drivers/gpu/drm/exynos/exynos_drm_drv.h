@@ -123,6 +123,7 @@ struct exynos_drm_overlay {
  *	- this structure is common to analog tv, digital tv and lcd panel.
  *
  * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
+ * @initialize: initializes the display with drm_dev
  * @is_connected: check for that display is connected or not.
  * @get_edid: get edid modes from display driver.
  * @get_panel: get panel object from display driver.
@@ -131,6 +132,7 @@ struct exynos_drm_overlay {
  */
 struct exynos_drm_display_ops {
 	enum exynos_drm_output_type type;
+	int (*initialize)(struct device *dev, struct drm_device *drm_dev);
 	bool (*is_connected)(struct device *dev);
 	struct edid *(*get_edid)(struct device *dev,
 			struct drm_connector *connector);
@@ -142,6 +144,7 @@ struct exynos_drm_display_ops {
 /*
  * Exynos drm manager ops
  *
+ * @initialize: initializes the manager with drm_dev
  * @dpms: control device power.
  * @apply: set timing, vblank and overlay data to registers.
  * @mode_fixup: fix mode data comparing to hw specific display mode.
@@ -159,6 +162,8 @@ struct exynos_drm_display_ops {
  * @win_disable: disable hardware specific overlay.
  */
 struct exynos_drm_manager_ops {
+	int (*initialize)(struct device *subdrv_dev,
+			struct drm_device *drm_dev);
 	void (*dpms)(struct device *subdrv_dev, int mode);
 	void (*apply)(struct device *subdrv_dev);
 	void (*mode_fixup)(struct device *subdrv_dev,

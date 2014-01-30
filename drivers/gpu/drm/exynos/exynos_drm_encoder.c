@@ -316,6 +316,7 @@ exynos_drm_encoder_create(struct drm_device *dev,
 {
 	struct drm_encoder *encoder;
 	struct exynos_drm_encoder *exynos_encoder;
+	int ret;
 
 	if (!manager || !possible_crtcs)
 		return NULL;
@@ -339,9 +340,29 @@ exynos_drm_encoder_create(struct drm_device *dev,
 
 	drm_encoder_helper_add(encoder, &exynos_encoder_helper_funcs);
 
+	if (manager->ops && manager->ops->initialize) {
+		ret = manager->ops->initialize(manager->dev, dev);
+		if (ret) {
+			DRM_ERROR("Manager initialize failed %d\n", ret);
+			goto error;
+		}
+	}
+
+	if (manager->display_ops && manager->display_ops->initialize) {
+		ret = manager->display_ops->initialize(manager->dev, dev);
+		if (ret) {
+			DRM_ERROR("Display initialize failed %d\n", ret);
+			goto error;
+		}
+	}
+
 	DRM_DEBUG_KMS("encoder has been created\n");
 
 	return encoder;
+
+error:
+	exynos_drm_encoder_destroy(&exynos_encoder->drm_encoder);
+	return NULL;
 }
 
 struct exynos_drm_manager *exynos_drm_get_manager(struct drm_encoder *encoder)
