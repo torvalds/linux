@@ -39,6 +39,8 @@ Required properties:
 
 Optional Properties:
 - samsung,power-domain: a phandle to FIMD power domain node.
+- samsung,invert-vden: video enable signal is inverted
+- samsung,invert-vclk: video clock signal is inverted
 
 Example:
 

@@ -144,39 +144,6 @@ static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	return (struct fimd_driver_data *)of_id->data;
 }
 
-static bool fimd_display_is_connected(struct exynos_drm_display *display)
-{
-	/* TODO. */
-
-	return true;
-}
-
-static void *fimd_get_panel(struct exynos_drm_display *display)
-{
-	struct fimd_context *ctx = display->ctx;
-
-	return &ctx->panel;
-}
-
-static int fimd_check_mode(struct exynos_drm_display *display,
-			struct drm_display_mode *mode)
-{
-	/* TODO. */
-
-	return 0;
-}
-
-static struct exynos_drm_display_ops fimd_display_ops = {
-	.is_connected = fimd_display_is_connected,
-	.get_panel = fimd_get_panel,
-	.check_mode = fimd_check_mode,
-};
-
-static struct exynos_drm_display fimd_display = {
-	.type = EXYNOS_DISPLAY_TYPE_LCD,
-	.ops = &fimd_display_ops,
-};
-
 static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
 			struct drm_device *drm_dev, int pipe)
 {
@@ -253,7 +220,7 @@ static void fimd_commit(struct exynos_drm_manager *mgr)
 	struct fimd_context *ctx = mgr->ctx;
 	struct drm_display_mode *mode = &ctx->mode;
 	struct fimd_driver_data *driver_data;
-	u32 val, clkdiv;
+	u32 val, clkdiv, vidcon1;
 	int hblank, vblank, vsync_len, vbpd, vfpd, hsync_len, hbpd, hfpd;
 
 	driver_data = ctx->driver_data;
@@ -264,8 +231,13 @@ static void fimd_commit(struct exynos_drm_manager *mgr)
 	if (mode->htotal == 0 || mode->vtotal == 0)
 		return;
 
-	/* setup polarity values from machine code. */
-	writel(ctx->vidcon1, ctx->regs + driver_data->timing_base + VIDCON1);
+	/* setup polarity values */
+	vidcon1 = ctx->vidcon1;
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		vidcon1 |= VIDCON1_INV_VSYNC;
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		vidcon1 |= VIDCON1_INV_HSYNC;
+	writel(vidcon1, ctx->regs + driver_data->timing_base + VIDCON1);
 
 	/* setup vertical timing values. */
 	vblank = mode->crtc_vblank_end - mode->crtc_vblank_start;
@@ -871,30 +843,6 @@ static int fimd_activate(struct exynos_drm_manager *mgr, bool enable)
 	return 0;
 }
 
-static int fimd_get_platform_data(struct fimd_context *ctx, struct device *dev)
-{
-	struct videomode *vm;
-	int ret;
-
-	vm = &ctx->panel.vm;
-	ret = of_get_videomode(dev->of_node, vm, OF_USE_NATIVE_MODE);
-	if (ret) {
-		DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
-		return ret;
-	}
-
-	if (vm->flags & DISPLAY_FLAGS_VSYNC_LOW)
-		ctx->vidcon1 |= VIDCON1_INV_VSYNC;
-	if (vm->flags & DISPLAY_FLAGS_HSYNC_LOW)
-		ctx->vidcon1 |= VIDCON1_INV_HSYNC;
-	if (vm->flags & DISPLAY_FLAGS_DE_LOW)
-		ctx->vidcon1 |= VIDCON1_INV_VDEN;
-	if (vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
-		ctx->vidcon1 |= VIDCON1_INV_VCLK;
-
-	return 0;
-}
-
 static int fimd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -912,9 +860,10 @@ static int fimd_probe(struct platform_device *pdev)
 
 	ctx->dev = dev;
 
-	ret = fimd_get_platform_data(ctx, dev);
-	if (ret)
-		return ret;
+	if (of_property_read_bool(dev->of_node, "samsung,invert-vden"))
+		ctx->vidcon1 |= VIDCON1_INV_VDEN;
+	if (of_property_read_bool(dev->of_node, "samsung,invert-vclk"))
+		ctx->vidcon1 |= VIDCON1_INV_VCLK;
 
 	ctx->bus_clk = devm_clk_get(dev, "fimd");
 	if (IS_ERR(ctx->bus_clk)) {
@@ -956,9 +905,6 @@ static int fimd_probe(struct platform_device *pdev)
 	fimd_manager.ctx = ctx;
 	exynos_drm_manager_register(&fimd_manager);
 
-	fimd_display.ctx = ctx;
-	exynos_drm_display_register(&fimd_display);
-
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
@@ -974,7 +920,6 @@ static int fimd_remove(struct platform_device *pdev)
 	struct exynos_drm_manager *mgr = platform_get_drvdata(pdev);
 	struct fimd_context *ctx = mgr->ctx;
 
-	exynos_drm_display_unregister(&fimd_display);
 	exynos_drm_manager_unregister(&fimd_manager);
 
 	if (ctx->suspended)

@@ -370,6 +370,7 @@ int exynos_platform_device_ipp_register(void);
  */
 void exynos_platform_device_ipp_unregister(void);
 
+extern struct platform_driver dp_driver;
 extern struct platform_driver fimd_driver;
 extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
