@@ -355,6 +355,21 @@ static __always_inline void slab_unlock(struct page *page)
 	__bit_spin_unlock(PG_locked, &page->flags);
 }
 
+static inline void set_page_slub_counters(struct page *page, unsigned long counters_new)
+{
+	struct page tmp;
+	tmp.counters = counters_new;
+	/*
+	 * page->counters can cover frozen/inuse/objects as well
+	 * as page->_count.  If we assign to ->counters directly
+	 * we run the risk of losing updates to page->_count, so
+	 * be careful and only assign to the fields we need.
+	 */
+	page->frozen  = tmp.frozen;
+	page->inuse   = tmp.inuse;
+	page->objects = tmp.objects;
+}
+
 /* Interrupts must be disabled (for the fallback code to work right) */
 static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
 		void *freelist_old, unsigned long counters_old,
@@ -376,7 +391,7 @@ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page
 		if (page->freelist == freelist_old &&
 					page->counters == counters_old) {
 			page->freelist = freelist_new;
-			page->counters = counters_new;
+			set_page_slub_counters(page, counters_new);
 			slab_unlock(page);
 			return 1;
 		}
@@ -415,7 +430,7 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
 		if (page->freelist == freelist_old &&
 					page->counters == counters_old) {
 			page->freelist = freelist_new;
-			page->counters = counters_new;
+			set_page_slub_counters(page, counters_new);
 			slab_unlock(page);
 			local_irq_restore(flags);
 			return 1;
