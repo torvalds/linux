@@ -2801,7 +2801,7 @@ int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	 */
 	VM_BUG_ON(maxlen < strlen("interleave") + strlen("relative") + 16);
 
-	if (!pol || pol == &default_policy)
+	if (!pol || pol == &default_policy || (pol->flags & MPOL_F_MORON))
 		mode = MPOL_DEFAULT;
 	else
 		mode = pol->mode;
