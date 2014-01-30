@@ -146,7 +146,6 @@ struct exynos_drm_display_ops {
  *
  * @initialize: initializes the manager with drm_dev
  * @dpms: control device power.
- * @apply: set timing, vblank and overlay data to registers.
  * @mode_fixup: fix mode data comparing to hw specific display mode.
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
@@ -166,7 +165,6 @@ struct exynos_drm_manager_ops {
 	int (*initialize)(struct exynos_drm_manager *mgr,
 				struct drm_device *drm_dev);
 	void (*dpms)(struct exynos_drm_manager *mgr, int mode);
-	void (*apply)(struct exynos_drm_manager *mgr);
 	void (*mode_fixup)(struct exynos_drm_manager *mgr,
 				struct drm_connector *connector,
 				const struct drm_display_mode *mode,

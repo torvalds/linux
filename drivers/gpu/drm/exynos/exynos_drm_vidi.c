@@ -333,7 +333,6 @@ static void vidi_win_disable(struct exynos_drm_manager *mgr, int zpos)
 
 static struct exynos_drm_manager_ops vidi_manager_ops = {
 	.dpms = vidi_dpms,
-	.apply = vidi_apply,
 	.commit = vidi_commit,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,

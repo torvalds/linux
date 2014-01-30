@@ -302,22 +302,6 @@ static void drm_hdmi_dpms(struct exynos_drm_manager *mgr, int mode)
 		hdmi_ops->dpms(ctx->hdmi_ctx->ctx, mode);
 }
 
-static void drm_hdmi_apply(struct exynos_drm_manager *mgr)
-{
-	struct drm_hdmi_context *ctx = mgr->ctx;
-	int i;
-
-	for (i = 0; i < MIXER_WIN_NR; i++) {
-		if (!ctx->enabled[i])
-			continue;
-		if (mixer_ops && mixer_ops->win_commit)
-			mixer_ops->win_commit(ctx->mixer_ctx->ctx, i);
-	}
-
-	if (hdmi_ops && hdmi_ops->commit)
-		hdmi_ops->commit(ctx->hdmi_ctx->ctx);
-}
-
 static void drm_mixer_win_mode_set(struct exynos_drm_manager *mgr,
 				struct exynos_drm_overlay *overlay)
 {
@@ -362,7 +346,6 @@ static void drm_mixer_win_disable(struct exynos_drm_manager *mgr, int zpos)
 static struct exynos_drm_manager_ops drm_hdmi_manager_ops = {
 	.initialize = drm_hdmi_mgr_initialize,
 	.dpms = drm_hdmi_dpms,
-	.apply = drm_hdmi_apply,
 	.enable_vblank = drm_hdmi_enable_vblank,
 	.disable_vblank = drm_hdmi_disable_vblank,
 	.wait_for_vblank = drm_hdmi_wait_for_vblank,

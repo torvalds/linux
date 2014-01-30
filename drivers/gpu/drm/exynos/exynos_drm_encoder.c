@@ -57,8 +57,6 @@ static void exynos_drm_connector_power(struct drm_encoder *encoder, int mode)
 static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
-	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
 
 	DRM_DEBUG_KMS("encoder dpms: %d\n", mode);
@@ -72,10 +70,6 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		if (manager_ops && manager_ops->apply)
-			if (!exynos_encoder->updated)
-				manager_ops->apply(manager);
-
 		exynos_drm_connector_power(encoder, mode);
 		exynos_encoder->dpms = mode;
 		break;
