@@ -1529,6 +1529,39 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 }
 
 /**
+ * vmw_cmd_set_shader_const - Validate an SVGA_3D_CMD_SET_SHADER_CONST
+ * command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_set_shader_const(struct vmw_private *dev_priv,
+				    struct vmw_sw_context *sw_context,
+				    SVGA3dCmdHeader *header)
+{
+	struct vmw_set_shader_const_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdSetShaderConst body;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, struct vmw_set_shader_const_cmd,
+			   header);
+
+	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
+				user_context_converter, &cmd->body.cid,
+				NULL);
+	if (unlikely(ret != 0))
+		return ret;
+
+	if (dev_priv->has_mob)
+		header->id = SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE;
+
+	return 0;
+}
+
+/**
  * vmw_cmd_bind_gb_shader - Validate an SVGA_3D_CMD_BIND_GB_SHADER
  * command
  *
@@ -1642,8 +1675,8 @@ static const struct vmw_cmd_entry const vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    true, true, false),
 	VMW_CMD_DEF(SVGA_3D_CMD_SET_SHADER, &vmw_cmd_set_shader,
 		    true, false, false),
-	VMW_CMD_DEF(SVGA_3D_CMD_SET_SHADER_CONST, &vmw_cmd_cid_check,
-		    true, true, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SET_SHADER_CONST, &vmw_cmd_set_shader_const,
+		    true, false, false),
 	VMW_CMD_DEF(SVGA_3D_CMD_DRAW_PRIMITIVES, &vmw_cmd_draw,
 		    true, false, false),
 	VMW_CMD_DEF(SVGA_3D_CMD_SETSCISSORRECT, &vmw_cmd_cid_check,
