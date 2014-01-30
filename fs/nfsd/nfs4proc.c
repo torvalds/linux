@@ -1400,7 +1400,7 @@ encode_op:
 		}
 		if (op->status == nfserr_replay_me) {
 			op->replay = &cstate->replay_owner->so_replay;
-			nfsd4_encode_replay(resp, op);
+			nfsd4_encode_replay(&resp->xdr, op);
 			status = op->status = op->replay->rp_status;
 		} else {
 			nfsd4_encode_operation(resp, op);
