@@ -31,6 +31,13 @@ config DRM_EXYNOS_FIMD
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
 
+config DRM_EXYNOS_DP
+	bool "EXYNOS DRM DP driver support"
+	depends on DRM_EXYNOS && ARCH_EXYNOS
+	default DRM_EXYNOS
+	help
+	  This enables support for DP device.
+
 config DRM_EXYNOS_HDMI
 	bool "Exynos DRM HDMI"
 	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_TV
