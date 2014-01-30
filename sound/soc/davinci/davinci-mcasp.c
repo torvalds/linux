@@ -631,8 +631,10 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 
 	active_serializers = (channels + slots - 1) / slots;
 
-	if (mcasp_common_hw_param(mcasp, substream->stream, channels) == -EINVAL)
-		return -EINVAL;
+	ret = mcasp_common_hw_param(mcasp, substream->stream, channels);
+	if (ret)
+		return ret;
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		fifo_level = mcasp->txnumevt * active_serializers;
 	else
