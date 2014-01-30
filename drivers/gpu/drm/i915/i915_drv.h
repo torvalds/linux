@@ -361,6 +361,14 @@ struct drm_i915_error_state {
 			u32 seqno;
 			u32 tail;
 		} *requests;
+
+		struct {
+			u32 gfx_mode;
+			union {
+				u64 pdp[4];
+				u32 pp_dir_base;
+			};
+		} vm_info;
 	} ring[I915_NUM_RINGS];
 	struct drm_i915_error_buffer {
 		u32 size;
@@ -377,6 +385,7 @@ struct drm_i915_error_state {
 		s32 ring:4;
 		u32 cache_level:3;
 	} **active_bo, **pinned_bo;
+
 	u32 *active_bo_count, *pinned_bo_count;
 };
 

@@ -270,6 +270,19 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 				   ring->semaphore_seqno[2]);
 		}
 	}
+	if (USES_PPGTT(dev)) {
+		err_printf(m, "  GFX_MODE: 0x%08x\n", ring->vm_info.gfx_mode);
+
+		if (INTEL_INFO(dev)->gen >= 8) {
+			int i;
+			for (i = 0; i < 4; i++)
+				err_printf(m, "  PDP%d: 0x%016llx\n",
+					   i, ring->vm_info.pdp[i]);
+		} else {
+			err_printf(m, "  PP_DIR_BASE: 0x%08x\n",
+				   ring->vm_info.pp_dir_base);
+		}
+	}
 	err_printf(m, "  seqno: 0x%08x\n", ring->seqno);
 	err_printf(m, "  waiting: %s\n", yesno(ring->waiting));
 	err_printf(m, "  ring->head: 0x%08x\n", ring->cpu_ring_head);
@@ -835,6 +848,30 @@ static void i915_record_ring_state(struct drm_device *dev,
 
 	ering->hangcheck_score = ring->hangcheck.score;
 	ering->hangcheck_action = ring->hangcheck.action;
+
+	if (USES_PPGTT(dev)) {
+		int i;
+
+		ering->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(ring));
+
+		switch (INTEL_INFO(dev)->gen) {
+		case 8:
+			for (i = 0; i < 4; i++) {
+				ering->vm_info.pdp[i] =
+					I915_READ(GEN8_RING_PDP_UDW(ring, i));
+				ering->vm_info.pdp[i] <<= 32;
+				ering->vm_info.pdp[i] |=
+					I915_READ(GEN8_RING_PDP_LDW(ring, i));
+			}
+			break;
+		case 7:
+			ering->vm_info.pp_dir_base = RING_PP_DIR_BASE(ring);
+			break;
+		case 6:
+			ering->vm_info.pp_dir_base = RING_PP_DIR_BASE_READ(ring);
+			break;
+		}
+	}
 }
 
 
