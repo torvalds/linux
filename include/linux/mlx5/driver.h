@@ -227,6 +227,7 @@ struct mlx5_uuar_info {
 	 * protect uuar allocation data structs
 	 */
 	struct mutex		lock;
+	u32			ver;
 };
 
 struct mlx5_bf {

@@ -430,11 +430,17 @@ static int alloc_uuar(struct mlx5_uuar_info *uuari,
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_MEDIUM:
-		uuarn = alloc_med_class_uuar(uuari);
+		if (uuari->ver < 2)
+			uuarn = -ENOMEM;
+		else
+			uuarn = alloc_med_class_uuar(uuari);
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_HIGH:
-		uuarn = alloc_high_class_uuar(uuari);
+		if (uuari->ver < 2)
+			uuarn = -ENOMEM;
+		else
+			uuarn = alloc_high_class_uuar(uuari);
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_FAST_PATH:
