@@ -198,7 +198,7 @@ static int exynos_drm_connector_fill_modes(struct drm_connector *connector,
 	 * resolution then get max width and height from that driver.
 	 */
 	if (ops && ops->get_max_resol)
-		ops->get_max_resol(manager->dev, &width, &height);
+		ops->get_max_resol(manager, &width, &height);
 
 	return drm_helper_probe_single_connector_modes(connector, width,
 							height);

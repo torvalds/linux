@@ -74,7 +74,7 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 	case DRM_MODE_DPMS_ON:
 		if (manager_ops && manager_ops->apply)
 			if (!exynos_encoder->updated)
-				manager_ops->apply(manager->dev);
+				manager_ops->apply(manager);
 
 		exynos_drm_connector_power(encoder, mode);
 		exynos_encoder->dpms = mode;
@@ -107,7 +107,7 @@ exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder)
 			if (manager_ops && manager_ops->mode_fixup)
-				manager_ops->mode_fixup(manager->dev, connector,
+				manager_ops->mode_fixup(manager, connector,
 							mode, adjusted_mode);
 	}
 
@@ -175,8 +175,7 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 			manager_ops = manager->ops;
 
 			if (manager_ops && manager_ops->mode_set)
-				manager_ops->mode_set(manager->dev,
-							adjusted_mode);
+				manager_ops->mode_set(manager, adjusted_mode);
 
 			exynos_encoder->old_crtc = encoder->crtc;
 		}
@@ -195,7 +194,7 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 
 	if (manager_ops && manager_ops->commit)
-		manager_ops->commit(manager->dev);
+		manager_ops->commit(manager);
 
 	/*
 	 * this will avoid one issue that overlay data is updated to
@@ -233,7 +232,7 @@ void exynos_drm_encoder_complete_scanout(struct drm_framebuffer *fb)
 		 *	real hardware.
 		 */
 		if (ops->wait_for_vblank)
-			ops->wait_for_vblank(exynos_encoder->manager->dev);
+			ops->wait_for_vblank(exynos_encoder->manager);
 	}
 }
 
@@ -341,7 +340,7 @@ exynos_drm_encoder_create(struct drm_device *dev,
 	drm_encoder_helper_add(encoder, &exynos_encoder_helper_funcs);
 
 	if (manager->ops && manager->ops->initialize) {
-		ret = manager->ops->initialize(manager->dev, dev);
+		ret = manager->ops->initialize(manager, dev);
 		if (ret) {
 			DRM_ERROR("Manager initialize failed %d\n", ret);
 			goto error;
@@ -408,7 +407,7 @@ void exynos_drm_enable_vblank(struct drm_encoder *encoder, void *data)
 		return;
 
 	if (manager_ops->enable_vblank)
-		manager_ops->enable_vblank(manager->dev);
+		manager_ops->enable_vblank(manager);
 }
 
 void exynos_drm_disable_vblank(struct drm_encoder *encoder, void *data)
@@ -422,7 +421,7 @@ void exynos_drm_disable_vblank(struct drm_encoder *encoder, void *data)
 		return;
 
 	if (manager_ops->disable_vblank)
-		manager_ops->disable_vblank(manager->dev);
+		manager_ops->disable_vblank(manager);
 }
 
 void exynos_drm_encoder_crtc_dpms(struct drm_encoder *encoder, void *data)
@@ -433,7 +432,7 @@ void exynos_drm_encoder_crtc_dpms(struct drm_encoder *encoder, void *data)
 	int mode = *(int *)data;
 
 	if (manager_ops && manager_ops->dpms)
-		manager_ops->dpms(manager->dev, mode);
+		manager_ops->dpms(manager, mode);
 
 	/*
 	 * if this condition is ok then it means that the crtc is already
@@ -467,7 +466,7 @@ void exynos_drm_encoder_plane_mode_set(struct drm_encoder *encoder, void *data)
 	struct exynos_drm_overlay *overlay = data;
 
 	if (manager_ops && manager_ops->win_mode_set)
-		manager_ops->win_mode_set(manager->dev, overlay);
+		manager_ops->win_mode_set(manager, overlay);
 }
 
 void exynos_drm_encoder_plane_commit(struct drm_encoder *encoder, void *data)
@@ -481,7 +480,7 @@ void exynos_drm_encoder_plane_commit(struct drm_encoder *encoder, void *data)
 		zpos = *(int *)data;
 
 	if (manager_ops && manager_ops->win_commit)
-		manager_ops->win_commit(manager->dev, zpos);
+		manager_ops->win_commit(manager, zpos);
 }
 
 void exynos_drm_encoder_plane_enable(struct drm_encoder *encoder, void *data)
@@ -495,7 +494,7 @@ void exynos_drm_encoder_plane_enable(struct drm_encoder *encoder, void *data)
 		zpos = *(int *)data;
 
 	if (manager_ops && manager_ops->win_enable)
-		manager_ops->win_enable(manager->dev, zpos);
+		manager_ops->win_enable(manager, zpos);
 }
 
 void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
@@ -509,5 +508,5 @@ void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
 		zpos = *(int *)data;
 
 	if (manager_ops && manager_ops->win_disable)
-		manager_ops->win_disable(manager->dev, zpos);
+		manager_ops->win_disable(manager, zpos);
 }

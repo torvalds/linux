@@ -161,27 +161,28 @@ struct exynos_drm_display_ops {
  * @win_enable: enable hardware specific overlay.
  * @win_disable: disable hardware specific overlay.
  */
+struct exynos_drm_manager;
 struct exynos_drm_manager_ops {
-	int (*initialize)(struct device *subdrv_dev,
-			struct drm_device *drm_dev);
-	void (*dpms)(struct device *subdrv_dev, int mode);
-	void (*apply)(struct device *subdrv_dev);
-	void (*mode_fixup)(struct device *subdrv_dev,
+	int (*initialize)(struct exynos_drm_manager *mgr,
+				struct drm_device *drm_dev);
+	void (*dpms)(struct exynos_drm_manager *mgr, int mode);
+	void (*apply)(struct exynos_drm_manager *mgr);
+	void (*mode_fixup)(struct exynos_drm_manager *mgr,
 				struct drm_connector *connector,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
-	void (*mode_set)(struct device *subdrv_dev, void *mode);
-	void (*get_max_resol)(struct device *subdrv_dev, unsigned int *width,
-				unsigned int *height);
-	void (*commit)(struct device *subdrv_dev);
-	int (*enable_vblank)(struct device *subdrv_dev);
-	void (*disable_vblank)(struct device *subdrv_dev);
-	void (*wait_for_vblank)(struct device *subdrv_dev);
-	void (*win_mode_set)(struct device *subdrv_dev,
+	void (*mode_set)(struct exynos_drm_manager *mgr, void *mode);
+	void (*get_max_resol)(struct exynos_drm_manager *mgr,
+				unsigned int *width, unsigned int *height);
+	void (*commit)(struct exynos_drm_manager *mgr);
+	int (*enable_vblank)(struct exynos_drm_manager *mgr);
+	void (*disable_vblank)(struct exynos_drm_manager *mgr);
+	void (*wait_for_vblank)(struct exynos_drm_manager *mgr);
+	void (*win_mode_set)(struct exynos_drm_manager *mgr,
 				struct exynos_drm_overlay *overlay);
-	void (*win_commit)(struct device *subdrv_dev, int zpos);
-	void (*win_enable)(struct device *subdrv_dev, int zpos);
-	void (*win_disable)(struct device *subdrv_dev, int zpos);
+	void (*win_commit)(struct exynos_drm_manager *mgr, int zpos);
+	void (*win_enable)(struct exynos_drm_manager *mgr, int zpos);
+	void (*win_disable)(struct exynos_drm_manager *mgr, int zpos);
 };
 
 /*
@@ -197,12 +198,14 @@ struct exynos_drm_manager_ops {
  *	these callbacks should be set by specific drivers such fimd
  *	or hdmi driver and are used to control display devices such as
  *	analog tv, digital tv and lcd panel and also get timing data for them.
+ * @ctx: A pointer to the manager's implementation specific context
  */
 struct exynos_drm_manager {
 	struct device *dev;
 	int pipe;
 	struct exynos_drm_manager_ops *ops;
 	struct exynos_drm_display_ops *display_ops;
+	void *ctx;
 };
 
 struct exynos_drm_g2d_private {

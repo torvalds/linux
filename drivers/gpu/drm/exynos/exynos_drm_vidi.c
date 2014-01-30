@@ -28,7 +28,7 @@
 /* vidi has totally three virtual windows. */
 #define WINDOWS_NR		3
 
-#define get_vidi_context(dev)	platform_get_drvdata(to_platform_device(dev))
+#define get_vidi_mgr(dev)	platform_get_drvdata(to_platform_device(dev))
 
 struct vidi_win_data {
 	unsigned int		offset_x;
@@ -87,7 +87,8 @@ static const char fake_edid_info[] = {
 
 static bool vidi_display_is_connected(struct device *dev)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
+	struct vidi_context *ctx = mgr->ctx;
 
 	/*
 	 * connection request would come from user side
@@ -99,7 +100,8 @@ static bool vidi_display_is_connected(struct device *dev)
 static struct edid *vidi_get_edid(struct device *dev,
 			struct drm_connector *connector)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
+	struct vidi_context *ctx = mgr->ctx;
 	struct edid *edid;
 
 	/*
@@ -150,9 +152,9 @@ static struct exynos_drm_display_ops vidi_display_ops = {
 	.power_on = vidi_display_power_on,
 };
 
-static void vidi_dpms(struct device *subdrv_dev, int mode)
+static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
 {
-	struct vidi_context *ctx = get_vidi_context(subdrv_dev);
+	struct vidi_context *ctx = mgr->ctx;
 
 	DRM_DEBUG_KMS("%d\n", mode);
 
@@ -175,10 +177,9 @@ static void vidi_dpms(struct device *subdrv_dev, int mode)
 	mutex_unlock(&ctx->lock);
 }
 
-static void vidi_apply(struct device *subdrv_dev)
+static void vidi_apply(struct exynos_drm_manager *mgr)
 {
-	struct vidi_context *ctx = get_vidi_context(subdrv_dev);
-	struct exynos_drm_manager *mgr = ctx->subdrv.manager;
+	struct vidi_context *ctx = mgr->ctx;
 	struct exynos_drm_manager_ops *mgr_ops = mgr->ops;
 	struct vidi_win_data *win_data;
 	int i;
@@ -186,24 +187,24 @@ static void vidi_apply(struct device *subdrv_dev)
 	for (i = 0; i < WINDOWS_NR; i++) {
 		win_data = &ctx->win_data[i];
 		if (win_data->enabled && (mgr_ops && mgr_ops->win_commit))
-			mgr_ops->win_commit(subdrv_dev, i);
+			mgr_ops->win_commit(mgr, i);
 	}
 
 	if (mgr_ops && mgr_ops->commit)
-		mgr_ops->commit(subdrv_dev);
+		mgr_ops->commit(mgr);
 }
 
-static void vidi_commit(struct device *dev)
+static void vidi_commit(struct exynos_drm_manager *mgr)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct vidi_context *ctx = mgr->ctx;
 
 	if (ctx->suspended)
 		return;
 }
 
-static int vidi_enable_vblank(struct device *dev)
+static int vidi_enable_vblank(struct exynos_drm_manager *mgr)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct vidi_context *ctx = mgr->ctx;
 
 	if (ctx->suspended)
 		return -EPERM;
@@ -223,9 +224,9 @@ static int vidi_enable_vblank(struct device *dev)
 	return 0;
 }
 
-static void vidi_disable_vblank(struct device *dev)
+static void vidi_disable_vblank(struct exynos_drm_manager *mgr)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct vidi_context *ctx = mgr->ctx;
 
 	if (ctx->suspended)
 		return;
@@ -234,16 +235,16 @@ static void vidi_disable_vblank(struct device *dev)
 		ctx->vblank_on = false;
 }
 
-static void vidi_win_mode_set(struct device *dev,
-			      struct exynos_drm_overlay *overlay)
+static void vidi_win_mode_set(struct exynos_drm_manager *mgr,
+			struct exynos_drm_overlay *overlay)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct vidi_context *ctx = mgr->ctx;
 	struct vidi_win_data *win_data;
 	int win;
 	unsigned long offset;
 
 	if (!overlay) {
-		dev_err(dev, "overlay is NULL\n");
+		DRM_ERROR("overlay is NULL\n");
 		return;
 	}
 
@@ -287,9 +288,9 @@ static void vidi_win_mode_set(struct device *dev,
 			overlay->fb_width, overlay->crtc_width);
 }
 
-static void vidi_win_commit(struct device *dev, int zpos)
+static void vidi_win_commit(struct exynos_drm_manager *mgr, int zpos)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct vidi_context *ctx = mgr->ctx;
 	struct vidi_win_data *win_data;
 	int win = zpos;
 
@@ -312,9 +313,9 @@ static void vidi_win_commit(struct device *dev, int zpos)
 		schedule_work(&ctx->work);
 }
 
-static void vidi_win_disable(struct device *dev, int zpos)
+static void vidi_win_disable(struct exynos_drm_manager *mgr, int zpos)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct vidi_context *ctx = mgr->ctx;
 	struct vidi_win_data *win_data;
 	int win = zpos;
 
@@ -401,19 +402,23 @@ static void vidi_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 	/* TODO. */
 }
 
-static int vidi_power_on(struct vidi_context *ctx, bool enable)
+static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
 {
-	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct device *dev = subdrv->dev;
+	struct vidi_context *ctx = mgr->ctx;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (enable != false && enable != true)
+		return -EINVAL;
 
 	if (enable) {
 		ctx->suspended = false;
 
 		/* if vblank was enabled status, enable it again. */
 		if (test_and_clear_bit(0, &ctx->irq_flags))
-			vidi_enable_vblank(dev);
+			vidi_enable_vblank(mgr);
 
-		vidi_apply(dev);
+		vidi_apply(mgr);
 	} else {
 		ctx->suspended = true;
 	}
@@ -425,7 +430,8 @@ static int vidi_show_connection(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int rc;
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
+	struct vidi_context *ctx = mgr->ctx;
 
 	mutex_lock(&ctx->lock);
 
@@ -440,7 +446,8 @@ static int vidi_store_connection(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t len)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
+	struct vidi_context *ctx = mgr->ctx;
 	int ret;
 
 	ret = kstrtoint(buf, 0, &ctx->connected);
@@ -495,7 +502,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 		display_ops = manager->display_ops;
 
 		if (display_ops->type == EXYNOS_DISPLAY_TYPE_VIDI) {
-			ctx = get_vidi_context(manager->dev);
+			ctx = manager->ctx;
 			break;
 		}
 	}
@@ -554,6 +561,8 @@ static int vidi_probe(struct platform_device *pdev)
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
+	vidi_manager.ctx = ctx;
+
 	subdrv = &ctx->subdrv;
 	subdrv->dev = dev;
 	subdrv->manager = &vidi_manager;
@@ -562,7 +571,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	mutex_init(&ctx->lock);
 
-	platform_set_drvdata(pdev, ctx);
+	platform_set_drvdata(pdev, &vidi_manager);
 
 	ret = device_create_file(dev, &dev_attr_connection);
 	if (ret < 0)
@@ -590,16 +599,16 @@ static int vidi_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int vidi_suspend(struct device *dev)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
 
-	return vidi_power_on(ctx, false);
+	return vidi_power_on(mgr, false);
 }
 
 static int vidi_resume(struct device *dev)
 {
-	struct vidi_context *ctx = get_vidi_context(dev);
+	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
 
-	return vidi_power_on(ctx, true);
+	return vidi_power_on(mgr, true);
 }
 #endif
 
