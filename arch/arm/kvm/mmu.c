@@ -144,6 +144,7 @@ static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
 	while (addr < end) {
 		pgd = pgdp + pgd_index(addr);
 		pud = pud_offset(pgd, addr);
+		pte = NULL;
 		if (pud_none(*pud)) {
 			addr = kvm_pud_addr_end(addr, end);
 			continue;
@@ -174,7 +175,7 @@ static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
 		/*
 		 * If the pmd entry is to be cleared, walk back up the ladder
 		 */
-		if (kvm_pmd_huge(*pmd) || page_empty(pte)) {
+		if (kvm_pmd_huge(*pmd) || (pte && page_empty(pte))) {
 			clear_pmd_entry(kvm, pmd, addr);
 			next = kvm_pmd_addr_end(addr, end);
 			if (page_empty(pmd) && !page_empty(pud)) {
