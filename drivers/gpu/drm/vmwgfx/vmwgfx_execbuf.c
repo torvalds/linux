@@ -114,8 +114,10 @@ static void vmw_resource_list_unreserve(struct list_head *list,
 		 * persistent context binding tracker.
 		 */
 		if (unlikely(val->staged_bindings)) {
-			vmw_context_binding_state_transfer
-				(val->res, val->staged_bindings);
+			if (!backoff) {
+				vmw_context_binding_state_transfer
+					(val->res, val->staged_bindings);
+			}
 			kfree(val->staged_bindings);
 			val->staged_bindings = NULL;
 		}
