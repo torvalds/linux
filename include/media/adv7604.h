@@ -79,6 +79,23 @@ enum adv7604_int1_config {
 	ADV7604_INT1_CONFIG_DISABLED,
 };
 
+enum adv7604_page {
+	ADV7604_PAGE_IO,
+	ADV7604_PAGE_AVLINK,
+	ADV7604_PAGE_CEC,
+	ADV7604_PAGE_INFOFRAME,
+	ADV7604_PAGE_ESDP,
+	ADV7604_PAGE_DPP,
+	ADV7604_PAGE_AFE,
+	ADV7604_PAGE_REP,
+	ADV7604_PAGE_EDID,
+	ADV7604_PAGE_HDMI,
+	ADV7604_PAGE_TEST,
+	ADV7604_PAGE_CP,
+	ADV7604_PAGE_VDP,
+	ADV7604_PAGE_MAX,
+};
+
 /* Platform dependent definition */
 struct adv7604_platform_data {
 	/* DIS_PWRDNB: 1 if the PWRDNB pin is unused and unconnected */
@@ -125,18 +142,7 @@ struct adv7604_platform_data {
 	unsigned hdmi_free_run_mode;
 
 	/* i2c addresses: 0 == use default */
-	u8 i2c_avlink;
-	u8 i2c_cec;
-	u8 i2c_infoframe;
-	u8 i2c_esdp;
-	u8 i2c_dpp;
-	u8 i2c_afe;
-	u8 i2c_repeater;
-	u8 i2c_edid;
-	u8 i2c_hdmi;
-	u8 i2c_test;
-	u8 i2c_cp;
-	u8 i2c_vdp;
+	u8 i2c_addresses[ADV7604_PAGE_MAX];
 };
 
 enum adv7604_pad {
