@@ -159,7 +159,7 @@ void iwl_opmode_deregister(const char *name);
 
 /**
  * struct iwl_op_mode - operational mode
- * @ops - pointer to its own ops
+ * @ops: pointer to its own ops
  *
  * This holds an implementation of the mac80211 / fw API.
  */
