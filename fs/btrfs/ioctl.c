@@ -1990,8 +1990,20 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 		if (!key_in_sk(key, sk))
 			continue;
 
-		if (sizeof(sh) + item_len > buf_size)
+		if (sizeof(sh) + item_len > buf_size) {
+			if (*num_found) {
+				ret = 1;
+				goto out;
+			}
+
+			/*
+			 * return one empty item back for v1, which does not
+			 * handle -EOVERFLOW
+			 */
+
 			item_len = 0;
+			ret = -EOVERFLOW;
+		}
 
 		if (sizeof(sh) + item_len + *sk_offset > buf_size) {
 			ret = 1;
@@ -2016,6 +2028,9 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 			*sk_offset += item_len;
 		}
 		(*num_found)++;
+
+		if (ret) /* -EOVERFLOW from above */
+			goto out;
 
 		if (*num_found >= sk->nr_items) {
 			ret = 1;
@@ -2095,7 +2110,8 @@ static noinline int search_ioctl(struct inode *inode,
 			break;
 
 	}
-	ret = 0;
+	if (ret > 0)
+		ret = 0;
 err:
 	sk->nr_items = num_found;
 	btrfs_free_path(path);
@@ -2118,6 +2134,14 @@ static noinline int btrfs_ioctl_tree_search(struct file *file,
 
 	inode = file_inode(file);
 	ret = search_ioctl(inode, &args->key, sizeof(args->buf), args->buf);
+
+	/*
+	 * In the origin implementation an overflow is handled by returning a
+	 * search header with a len of zero, so reset ret.
+	 */
+	if (ret == -EOVERFLOW)
+		ret = 0;
+
 	if (ret == 0 && copy_to_user(argp, args, sizeof(*args)))
 		ret = -EFAULT;
 	kfree(args);
