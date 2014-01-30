@@ -53,7 +53,6 @@ enum ipi_message_type {
 	BFIN_IPI_TIMER,
 	BFIN_IPI_RESCHEDULE,
 	BFIN_IPI_CALL_FUNC,
-	BFIN_IPI_CALL_FUNC_SINGLE,
 	BFIN_IPI_CPU_STOP,
 };
 
@@ -162,9 +161,6 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 			case BFIN_IPI_CALL_FUNC:
 				generic_smp_call_function_interrupt();
 				break;
-			case BFIN_IPI_CALL_FUNC_SINGLE:
-				generic_smp_call_function_single_interrupt();
-				break;
 			case BFIN_IPI_CPU_STOP:
 				ipi_cpu_stop(cpu);
 				break;
@@ -210,7 +206,7 @@ void send_ipi(const struct cpumask *cpumask, enum ipi_message_type msg)
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	send_ipi(cpumask_of(cpu), BFIN_IPI_CALL_FUNC_SINGLE);
+	send_ipi(cpumask_of(cpu), BFIN_IPI_CALL_FUNC);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
