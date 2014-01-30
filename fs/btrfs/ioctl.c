@@ -1957,7 +1957,7 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 			       struct btrfs_path *path,
 			       struct btrfs_key *key,
 			       struct btrfs_ioctl_search_key *sk,
-			       size_t buf_size,
+			       size_t *buf_size,
 			       char *buf,
 			       unsigned long *sk_offset,
 			       int *num_found)
@@ -1990,7 +1990,7 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 		if (!key_in_sk(key, sk))
 			continue;
 
-		if (sizeof(sh) + item_len > buf_size) {
+		if (sizeof(sh) + item_len > *buf_size) {
 			if (*num_found) {
 				ret = 1;
 				goto out;
@@ -2001,11 +2001,12 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 			 * handle -EOVERFLOW
 			 */
 
+			*buf_size = sizeof(sh) + item_len;
 			item_len = 0;
 			ret = -EOVERFLOW;
 		}
 
-		if (sizeof(sh) + item_len + *sk_offset > buf_size) {
+		if (sizeof(sh) + item_len + *sk_offset > *buf_size) {
 			ret = 1;
 			goto out;
 		}
@@ -2056,7 +2057,7 @@ out:
 
 static noinline int search_ioctl(struct inode *inode,
 				 struct btrfs_ioctl_search_key *sk,
-				 size_t buf_size,
+				 size_t *buf_size,
 				 char *buf)
 {
 	struct btrfs_root *root;
@@ -2067,8 +2068,10 @@ static noinline int search_ioctl(struct inode *inode,
 	int num_found = 0;
 	unsigned long sk_offset = 0;
 
-	if (buf_size < sizeof(struct btrfs_ioctl_search_header))
+	if (*buf_size < sizeof(struct btrfs_ioctl_search_header)) {
+		*buf_size = sizeof(struct btrfs_ioctl_search_header);
 		return -EOVERFLOW;
+	}
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -2121,9 +2124,10 @@ err:
 static noinline int btrfs_ioctl_tree_search(struct file *file,
 					   void __user *argp)
 {
-	 struct btrfs_ioctl_search_args *args;
-	 struct inode *inode;
-	 int ret;
+	struct btrfs_ioctl_search_args *args;
+	struct inode *inode;
+	int ret;
+	size_t buf_size;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -2132,8 +2136,10 @@ static noinline int btrfs_ioctl_tree_search(struct file *file,
 	if (IS_ERR(args))
 		return PTR_ERR(args);
 
+	buf_size = sizeof(args->buf);
+
 	inode = file_inode(file);
-	ret = search_ioctl(inode, &args->key, sizeof(args->buf), args->buf);
+	ret = search_ioctl(inode, &args->key, &buf_size, args->buf);
 
 	/*
 	 * In the origin implementation an overflow is handled by returning a
