@@ -637,14 +637,8 @@ static u8 create_adv_data(struct hci_dev *hdev, u8 *ptr)
 
 	flags |= get_adv_discov_flags(hdev);
 
-	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
-		if (lmp_le_br_capable(hdev))
-			flags |= LE_AD_SIM_LE_BREDR_CTRL;
-		if (lmp_host_le_br_capable(hdev))
-			flags |= LE_AD_SIM_LE_BREDR_HOST;
-	} else {
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
 		flags |= LE_AD_NO_BREDR;
-	}
 
 	if (flags) {
 		BT_DBG("adv flags 0x%02x", flags);
