@@ -528,6 +528,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			list_for_each_entry_safe(inti, n, &fi->list, list) {
 				if (__interrupt_is_deliverable(vcpu, inti)) {
 					list_del(&inti->list);
+					fi->irq_count--;
 					deliver = 1;
 					break;
 				}
@@ -583,6 +584,7 @@ void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu)
 				if ((inti->type == KVM_S390_MCHK) &&
 				    __interrupt_is_deliverable(vcpu, inti)) {
 					list_del(&inti->list);
+					fi->irq_count--;
 					deliver = 1;
 					break;
 				}
@@ -650,8 +652,10 @@ struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 		inti = iter;
 		break;
 	}
-	if (inti)
+	if (inti) {
 		list_del_init(&inti->list);
+		fi->irq_count--;
+	}
 	if (list_empty(&fi->list))
 		atomic_set(&fi->active, 0);
 	spin_unlock(&fi->lock);
@@ -659,16 +663,22 @@ struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 	return inti;
 }
 
-static void __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
+static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 {
 	struct kvm_s390_local_interrupt *li;
 	struct kvm_s390_float_interrupt *fi;
 	struct kvm_s390_interrupt_info *iter;
 	int sigcpu;
+	int rc = 0;
 
 	mutex_lock(&kvm->lock);
 	fi = &kvm->arch.float_int;
 	spin_lock(&fi->lock);
+	if (fi->irq_count >= KVM_S390_MAX_FLOAT_IRQS) {
+		rc = -EINVAL;
+		goto unlock_fi;
+	}
+	fi->irq_count++;
 	if (!is_ioint(inti->type)) {
 		list_add_tail(&inti->list, &fi->list);
 	} else {
@@ -700,8 +710,10 @@ static void __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	if (waitqueue_active(li->wq))
 		wake_up_interruptible(li->wq);
 	spin_unlock_bh(&li->lock);
+unlock_fi:
 	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
+	return rc;
 }
 
 int kvm_s390_inject_vm(struct kvm *kvm,
@@ -751,8 +763,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	trace_kvm_s390_inject_vm(s390int->type, s390int->parm, s390int->parm64,
 				 2);
 
-	__inject_vm(kvm, inti);
-	return 0;
+	return __inject_vm(kvm, inti);
 }
 
 int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
@@ -852,6 +863,7 @@ static void clear_floating_interrupts(struct kvm *kvm)
 		list_del(&inti->list);
 		kfree(inti);
 	}
+	fi->irq_count = 0;
 	atomic_set(&fi->active, 0);
 	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
@@ -992,7 +1004,11 @@ static int enqueue_floating_irq(struct kvm_device *dev,
 			kfree(inti);
 			return r;
 		}
-		__inject_vm(dev->kvm, inti);
+		r = __inject_vm(dev->kvm, inti);
+		if (r) {
+			kfree(inti);
+			return r;
+		}
 		len -= sizeof(struct kvm_s390_irq);
 		attr->addr += sizeof(struct kvm_s390_irq);
 	}

@@ -27,7 +27,7 @@
  * sizeof(kvm_s390_irq)*(4*65536+8+64*64+1+1) = 72 * 266250 = 19170000
  * Lets round up to 8192 pages.
  */
-
+#define KVM_S390_MAX_FLOAT_IRQS	266250
 #define KVM_S390_FLIC_MAX_BUFFER	0x2000000
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
