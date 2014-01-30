@@ -3227,7 +3227,10 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 				 * dirs, we always have one new and one deleted
 				 * ref. The deleted ref is ignored later.
 				 */
-				if (wait_for_parent_move(sctx, cur)) {
+				ret = wait_for_parent_move(sctx, cur);
+				if (ret < 0)
+					goto out;
+				if (ret) {
 					ret = add_pending_dir_move(sctx,
 								   cur->dir);
 					*pending_move = 1;
