@@ -82,6 +82,7 @@ enum mixer_version_id {
 };
 
 struct mixer_context {
+	struct platform_device *pdev;
 	struct device		*dev;
 	struct drm_device	*drm_dev;
 	int			pipe;
@@ -685,20 +686,183 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 }
 
+static irqreturn_t mixer_irq_handler(int irq, void *arg)
+{
+	struct mixer_context *ctx = arg;
+	struct mixer_resources *res = &ctx->mixer_res;
+	u32 val, base, shadow;
+
+	spin_lock(&res->reg_slock);
+
+	/* read interrupt status for handling and clearing flags for VSYNC */
+	val = mixer_reg_read(res, MXR_INT_STATUS);
+
+	/* handling VSYNC */
+	if (val & MXR_INT_STATUS_VSYNC) {
+		/* interlace scan need to check shadow register */
+		if (ctx->interlace) {
+			base = mixer_reg_read(res, MXR_GRAPHIC_BASE(0));
+			shadow = mixer_reg_read(res, MXR_GRAPHIC_BASE_S(0));
+			if (base != shadow)
+				goto out;
+
+			base = mixer_reg_read(res, MXR_GRAPHIC_BASE(1));
+			shadow = mixer_reg_read(res, MXR_GRAPHIC_BASE_S(1));
+			if (base != shadow)
+				goto out;
+		}
+
+		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
+		exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
+
+		/* set wait vsync event to zero and wake up queue. */
+		if (atomic_read(&ctx->wait_vsync_event)) {
+			atomic_set(&ctx->wait_vsync_event, 0);
+			wake_up(&ctx->wait_vsync_queue);
+		}
+	}
+
+out:
+	/* clear interrupts */
+	if (~val & MXR_INT_EN_VSYNC) {
+		/* vsync interrupt use different bit for read and clear */
+		val &= ~MXR_INT_EN_VSYNC;
+		val |= MXR_INT_CLEAR_VSYNC;
+	}
+	mixer_reg_write(res, MXR_INT_STATUS, val);
+
+	spin_unlock(&res->reg_slock);
+
+	return IRQ_HANDLED;
+}
+
+static int mixer_resources_init(struct mixer_context *mixer_ctx)
+{
+	struct device *dev = &mixer_ctx->pdev->dev;
+	struct mixer_resources *mixer_res = &mixer_ctx->mixer_res;
+	struct resource *res;
+	int ret;
+
+	spin_lock_init(&mixer_res->reg_slock);
+
+	mixer_res->mixer = devm_clk_get(dev, "mixer");
+	if (IS_ERR(mixer_res->mixer)) {
+		dev_err(dev, "failed to get clock 'mixer'\n");
+		return -ENODEV;
+	}
+
+	mixer_res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
+	if (IS_ERR(mixer_res->sclk_hdmi)) {
+		dev_err(dev, "failed to get clock 'sclk_hdmi'\n");
+		return -ENODEV;
+	}
+	res = platform_get_resource(mixer_ctx->pdev, IORESOURCE_MEM, 0);
+	if (res == NULL) {
+		dev_err(dev, "get memory resource failed.\n");
+		return -ENXIO;
+	}
+
+	mixer_res->mixer_regs = devm_ioremap(dev, res->start,
+							resource_size(res));
+	if (mixer_res->mixer_regs == NULL) {
+		dev_err(dev, "register mapping failed.\n");
+		return -ENXIO;
+	}
+
+	res = platform_get_resource(mixer_ctx->pdev, IORESOURCE_IRQ, 0);
+	if (res == NULL) {
+		dev_err(dev, "get interrupt resource failed.\n");
+		return -ENXIO;
+	}
+
+	ret = devm_request_irq(dev, res->start, mixer_irq_handler,
+						0, "drm_mixer", mixer_ctx);
+	if (ret) {
+		dev_err(dev, "request interrupt failed.\n");
+		return ret;
+	}
+	mixer_res->irq = res->start;
+
+	return 0;
+}
+
+static int vp_resources_init(struct mixer_context *mixer_ctx)
+{
+	struct device *dev = &mixer_ctx->pdev->dev;
+	struct mixer_resources *mixer_res = &mixer_ctx->mixer_res;
+	struct resource *res;
+
+	mixer_res->vp = devm_clk_get(dev, "vp");
+	if (IS_ERR(mixer_res->vp)) {
+		dev_err(dev, "failed to get clock 'vp'\n");
+		return -ENODEV;
+	}
+	mixer_res->sclk_mixer = devm_clk_get(dev, "sclk_mixer");
+	if (IS_ERR(mixer_res->sclk_mixer)) {
+		dev_err(dev, "failed to get clock 'sclk_mixer'\n");
+		return -ENODEV;
+	}
+	mixer_res->sclk_dac = devm_clk_get(dev, "sclk_dac");
+	if (IS_ERR(mixer_res->sclk_dac)) {
+		dev_err(dev, "failed to get clock 'sclk_dac'\n");
+		return -ENODEV;
+	}
+
+	if (mixer_res->sclk_hdmi)
+		clk_set_parent(mixer_res->sclk_mixer, mixer_res->sclk_hdmi);
+
+	res = platform_get_resource(mixer_ctx->pdev, IORESOURCE_MEM, 1);
+	if (res == NULL) {
+		dev_err(dev, "get memory resource failed.\n");
+		return -ENXIO;
+	}
+
+	mixer_res->vp_regs = devm_ioremap(dev, res->start,
+							resource_size(res));
+	if (mixer_res->vp_regs == NULL) {
+		dev_err(dev, "register mapping failed.\n");
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int mixer_initialize(void *ctx, struct drm_device *drm_dev)
+{
+	int ret;
+	struct mixer_context *mixer_ctx = ctx;
+
+	mixer_ctx->drm_dev = drm_dev;
+
+	/* acquire resources: regs, irqs, clocks */
+	ret = mixer_resources_init(mixer_ctx);
+	if (ret) {
+		DRM_ERROR("mixer_resources_init failed ret=%d\n", ret);
+		return ret;
+	}
+
+	if (mixer_ctx->vp_enabled) {
+		/* acquire vp resources: regs, irqs, clocks */
+		ret = vp_resources_init(mixer_ctx);
+		if (ret) {
+			DRM_ERROR("vp_resources_init failed ret=%d\n", ret);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static int mixer_iommu_on(void *ctx, bool enable)
 {
-	struct exynos_drm_hdmi_context *drm_hdmi_ctx;
 	struct mixer_context *mdata = ctx;
-	struct drm_device *drm_dev;
 
-	drm_hdmi_ctx = mdata->parent_ctx;
-	drm_dev = drm_hdmi_ctx->drm_dev;
-
-	if (is_drm_iommu_supported(drm_dev)) {
+	if (is_drm_iommu_supported(mdata->drm_dev)) {
 		if (enable)
-			return drm_iommu_attach_device(drm_dev, mdata->dev);
+			return drm_iommu_attach_device(mdata->drm_dev,
+					mdata->dev);
 
-		drm_iommu_detach_device(drm_dev, mdata->dev);
+		drm_iommu_detach_device(mdata->drm_dev, mdata->dev);
 	}
 	return 0;
 }
@@ -970,6 +1134,7 @@ static void mixer_dpms(void *ctx, int mode)
 
 static struct exynos_mixer_ops mixer_ops = {
 	/* manager */
+	.initialize		= mixer_initialize,
 	.iommu_on		= mixer_iommu_on,
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
@@ -982,153 +1147,6 @@ static struct exynos_mixer_ops mixer_ops = {
 	/* display */
 	.check_mode		= mixer_check_mode,
 };
-
-static irqreturn_t mixer_irq_handler(int irq, void *arg)
-{
-	struct exynos_drm_hdmi_context *drm_hdmi_ctx = arg;
-	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
-	struct mixer_resources *res = &ctx->mixer_res;
-	u32 val, base, shadow;
-
-	spin_lock(&res->reg_slock);
-
-	/* read interrupt status for handling and clearing flags for VSYNC */
-	val = mixer_reg_read(res, MXR_INT_STATUS);
-
-	/* handling VSYNC */
-	if (val & MXR_INT_STATUS_VSYNC) {
-		/* interlace scan need to check shadow register */
-		if (ctx->interlace) {
-			base = mixer_reg_read(res, MXR_GRAPHIC_BASE(0));
-			shadow = mixer_reg_read(res, MXR_GRAPHIC_BASE_S(0));
-			if (base != shadow)
-				goto out;
-
-			base = mixer_reg_read(res, MXR_GRAPHIC_BASE(1));
-			shadow = mixer_reg_read(res, MXR_GRAPHIC_BASE_S(1));
-			if (base != shadow)
-				goto out;
-		}
-
-		drm_handle_vblank(drm_hdmi_ctx->drm_dev, ctx->pipe);
-		exynos_drm_crtc_finish_pageflip(drm_hdmi_ctx->drm_dev,
-				ctx->pipe);
-
-		/* set wait vsync event to zero and wake up queue. */
-		if (atomic_read(&ctx->wait_vsync_event)) {
-			atomic_set(&ctx->wait_vsync_event, 0);
-			wake_up(&ctx->wait_vsync_queue);
-		}
-	}
-
-out:
-	/* clear interrupts */
-	if (~val & MXR_INT_EN_VSYNC) {
-		/* vsync interrupt use different bit for read and clear */
-		val &= ~MXR_INT_EN_VSYNC;
-		val |= MXR_INT_CLEAR_VSYNC;
-	}
-	mixer_reg_write(res, MXR_INT_STATUS, val);
-
-	spin_unlock(&res->reg_slock);
-
-	return IRQ_HANDLED;
-}
-
-static int mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
-				struct platform_device *pdev)
-{
-	struct mixer_context *mixer_ctx = ctx->ctx;
-	struct device *dev = &pdev->dev;
-	struct mixer_resources *mixer_res = &mixer_ctx->mixer_res;
-	struct resource *res;
-	int ret;
-
-	spin_lock_init(&mixer_res->reg_slock);
-
-	mixer_res->mixer = devm_clk_get(dev, "mixer");
-	if (IS_ERR(mixer_res->mixer)) {
-		dev_err(dev, "failed to get clock 'mixer'\n");
-		return -ENODEV;
-	}
-
-	mixer_res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
-	if (IS_ERR(mixer_res->sclk_hdmi)) {
-		dev_err(dev, "failed to get clock 'sclk_hdmi'\n");
-		return -ENODEV;
-	}
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(dev, "get memory resource failed.\n");
-		return -ENXIO;
-	}
-
-	mixer_res->mixer_regs = devm_ioremap(dev, res->start,
-							resource_size(res));
-	if (mixer_res->mixer_regs == NULL) {
-		dev_err(dev, "register mapping failed.\n");
-		return -ENXIO;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
-		dev_err(dev, "get interrupt resource failed.\n");
-		return -ENXIO;
-	}
-
-	ret = devm_request_irq(dev, res->start, mixer_irq_handler,
-							0, "drm_mixer", ctx);
-	if (ret) {
-		dev_err(dev, "request interrupt failed.\n");
-		return ret;
-	}
-	mixer_res->irq = res->start;
-
-	return 0;
-}
-
-static int vp_resources_init(struct exynos_drm_hdmi_context *ctx,
-			     struct platform_device *pdev)
-{
-	struct mixer_context *mixer_ctx = ctx->ctx;
-	struct device *dev = &pdev->dev;
-	struct mixer_resources *mixer_res = &mixer_ctx->mixer_res;
-	struct resource *res;
-
-	mixer_res->vp = devm_clk_get(dev, "vp");
-	if (IS_ERR(mixer_res->vp)) {
-		dev_err(dev, "failed to get clock 'vp'\n");
-		return -ENODEV;
-	}
-	mixer_res->sclk_mixer = devm_clk_get(dev, "sclk_mixer");
-	if (IS_ERR(mixer_res->sclk_mixer)) {
-		dev_err(dev, "failed to get clock 'sclk_mixer'\n");
-		return -ENODEV;
-	}
-	mixer_res->sclk_dac = devm_clk_get(dev, "sclk_dac");
-	if (IS_ERR(mixer_res->sclk_dac)) {
-		dev_err(dev, "failed to get clock 'sclk_dac'\n");
-		return -ENODEV;
-	}
-
-	if (mixer_res->sclk_hdmi)
-		clk_set_parent(mixer_res->sclk_mixer, mixer_res->sclk_hdmi);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (res == NULL) {
-		dev_err(dev, "get memory resource failed.\n");
-		return -ENXIO;
-	}
-
-	mixer_res->vp_regs = devm_ioremap(dev, res->start,
-							resource_size(res));
-	if (mixer_res->vp_regs == NULL) {
-		dev_err(dev, "register mapping failed.\n");
-		return -ENXIO;
-	}
-
-	return 0;
-}
 
 static struct mixer_drv_data exynos5420_mxr_drv_data = {
 	.version = MXR_VER_128_0_0_184,
@@ -1178,7 +1196,6 @@ static int mixer_probe(struct platform_device *pdev)
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx;
 	struct mixer_context *ctx;
 	struct mixer_drv_data *drv;
-	int ret;
 
 	dev_info(dev, "probe start\n");
 
@@ -1202,6 +1219,7 @@ static int mixer_probe(struct platform_device *pdev)
 			platform_get_device_id(pdev)->driver_data;
 	}
 
+	ctx->pdev = pdev;
 	ctx->dev = dev;
 	ctx->parent_ctx = (void *)drm_hdmi_ctx;
 	drm_hdmi_ctx->ctx = (void *)ctx;
@@ -1212,22 +1230,6 @@ static int mixer_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, drm_hdmi_ctx);
 
-	/* acquire resources: regs, irqs, clocks */
-	ret = mixer_resources_init(drm_hdmi_ctx, pdev);
-	if (ret) {
-		DRM_ERROR("mixer_resources_init failed\n");
-		goto fail;
-	}
-
-	if (ctx->vp_enabled) {
-		/* acquire vp resources: regs, irqs, clocks */
-		ret = vp_resources_init(drm_hdmi_ctx, pdev);
-		if (ret) {
-			DRM_ERROR("vp_resources_init failed\n");
-			goto fail;
-		}
-	}
-
 	/* attach mixer driver to common hdmi. */
 	exynos_mixer_drv_attach(drm_hdmi_ctx);
 
@@ -1237,11 +1239,6 @@ static int mixer_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	return 0;
-
-
-fail:
-	dev_info(dev, "probe failed\n");
-	return ret;
 }
 
 static int mixer_remove(struct platform_device *pdev)

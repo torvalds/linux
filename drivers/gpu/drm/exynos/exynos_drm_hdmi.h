@@ -23,12 +23,12 @@
  *	this context should be hdmi_context or mixer_context.
  */
 struct exynos_drm_hdmi_context {
-	struct drm_device	*drm_dev;
 	void			*ctx;
 };
 
 struct exynos_hdmi_ops {
 	/* display */
+	int (*initialize)(void *ctx, struct drm_device *drm_dev);
 	bool (*is_connected)(void *ctx);
 	struct edid *(*get_edid)(void *ctx,
 			struct drm_connector *connector);
@@ -45,6 +45,7 @@ struct exynos_hdmi_ops {
 
 struct exynos_mixer_ops {
 	/* manager */
+	int (*initialize)(void *ctx, struct drm_device *drm_dev);
 	int (*iommu_on)(void *ctx, bool enable);
 	int (*enable_vblank)(void *ctx, int pipe);
 	void (*disable_vblank)(void *ctx);
