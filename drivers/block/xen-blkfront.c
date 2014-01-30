@@ -1547,7 +1547,7 @@ static int blkif_recover(struct blkfront_info *info)
 			for (i = 0; i < pending; i++) {
 				offset = (i * segs * PAGE_SIZE) >> 9;
 				size = min((unsigned int)(segs * PAGE_SIZE) >> 9,
-					   (unsigned int)(bio->bi_size >> 9) - offset);
+					   (unsigned int)bio_sectors(bio) - offset);
 				cloned_bio = bio_clone(bio, GFP_NOIO);
 				BUG_ON(cloned_bio == NULL);
 				bio_trim(cloned_bio, offset, size);

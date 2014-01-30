@@ -1,6 +1,7 @@
 #ifndef __FS_CEPH_MESSENGER_H
 #define __FS_CEPH_MESSENGER_H
 
+#include <linux/blk_types.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
@@ -119,8 +120,7 @@ struct ceph_msg_data_cursor {
 #ifdef CONFIG_BLOCK
 		struct {				/* bio */
 			struct bio	*bio;		/* bio from list */
-			unsigned int	vector_index;	/* vector from bio */
-			unsigned int	vector_offset;	/* bytes from vector */
+			struct bvec_iter bvec_iter;
 		};
 #endif /* CONFIG_BLOCK */
 		struct {				/* pages */

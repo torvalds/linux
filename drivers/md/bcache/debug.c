@@ -173,7 +173,8 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 {
 	char name[BDEVNAME_SIZE];
 	struct bio *check;
-	struct bio_vec *bv;
+	struct bio_vec bv, *bv2;
+	struct bvec_iter iter;
 	int i;
 
 	check = bio_clone(bio, GFP_NOIO);
@@ -185,23 +186,23 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 
 	submit_bio_wait(READ_SYNC, check);
 
-	bio_for_each_segment(bv, bio, i) {
-		void *p1 = kmap_atomic(bv->bv_page);
-		void *p2 = page_address(check->bi_io_vec[i].bv_page);
+	bio_for_each_segment(bv, bio, iter) {
+		void *p1 = kmap_atomic(bv.bv_page);
+		void *p2 = page_address(check->bi_io_vec[iter.bi_idx].bv_page);
 
-		cache_set_err_on(memcmp(p1 + bv->bv_offset,
-					p2 + bv->bv_offset,
-					bv->bv_len),
+		cache_set_err_on(memcmp(p1 + bv.bv_offset,
+					p2 + bv.bv_offset,
+					bv.bv_len),
 				 dc->disk.c,
 				 "verify failed at dev %s sector %llu",
 				 bdevname(dc->bdev, name),
-				 (uint64_t) bio->bi_sector);
+				 (uint64_t) bio->bi_iter.bi_sector);
 
 		kunmap_atomic(p1);
 	}
 
-	bio_for_each_segment_all(bv, check, i)
-		__free_page(bv->bv_page);
+	bio_for_each_segment_all(bv2, check, i)
+		__free_page(bv2->bv_page);
 out_put:
 	bio_put(check);
 }

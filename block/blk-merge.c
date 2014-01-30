@@ -12,10 +12,11 @@
 static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					     struct bio *bio)
 {
-	struct bio_vec *bv, *bvprv = NULL;
-	int cluster, i, high, highprv = 1;
+	struct bio_vec bv, bvprv = { NULL };
+	int cluster, high, highprv = 1;
 	unsigned int seg_size, nr_phys_segs;
 	struct bio *fbio, *bbio;
+	struct bvec_iter iter;
 
 	if (!bio)
 		return 0;
@@ -25,25 +26,23 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	seg_size = 0;
 	nr_phys_segs = 0;
 	for_each_bio(bio) {
-		bio_for_each_segment(bv, bio, i) {
+		bio_for_each_segment(bv, bio, iter) {
 			/*
 			 * the trick here is making sure that a high page is
 			 * never considered part of another segment, since that
 			 * might change with the bounce page.
 			 */
-			high = page_to_pfn(bv->bv_page) > queue_bounce_pfn(q);
-			if (high || highprv)
-				goto new_segment;
-			if (cluster) {
-				if (seg_size + bv->bv_len
+			high = page_to_pfn(bv.bv_page) > queue_bounce_pfn(q);
+			if (!high && !highprv && cluster) {
+				if (seg_size + bv.bv_len
 				    > queue_max_segment_size(q))
 					goto new_segment;
-				if (!BIOVEC_PHYS_MERGEABLE(bvprv, bv))
+				if (!BIOVEC_PHYS_MERGEABLE(&bvprv, &bv))
 					goto new_segment;
-				if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bv))
+				if (!BIOVEC_SEG_BOUNDARY(q, &bvprv, &bv))
 					goto new_segment;
 
-				seg_size += bv->bv_len;
+				seg_size += bv.bv_len;
 				bvprv = bv;
 				continue;
 			}
@@ -54,7 +53,7 @@ new_segment:
 
 			nr_phys_segs++;
 			bvprv = bv;
-			seg_size = bv->bv_len;
+			seg_size = bv.bv_len;
 			highprv = high;
 		}
 		bbio = bio;
@@ -87,6 +86,9 @@ EXPORT_SYMBOL(blk_recount_segments);
 static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 				   struct bio *nxt)
 {
+	struct bio_vec end_bv = { NULL }, nxt_bv;
+	struct bvec_iter iter;
+
 	if (!blk_queue_cluster(q))
 		return 0;
 
@@ -97,34 +99,40 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 	if (!bio_has_data(bio))
 		return 1;
 
-	if (!BIOVEC_PHYS_MERGEABLE(__BVEC_END(bio), __BVEC_START(nxt)))
+	bio_for_each_segment(end_bv, bio, iter)
+		if (end_bv.bv_len == iter.bi_size)
+			break;
+
+	nxt_bv = bio_iovec(nxt);
+
+	if (!BIOVEC_PHYS_MERGEABLE(&end_bv, &nxt_bv))
 		return 0;
 
 	/*
 	 * bio and nxt are contiguous in memory; check if the queue allows
 	 * these two to be merged into one
 	 */
-	if (BIO_SEG_BOUNDARY(q, bio, nxt))
+	if (BIOVEC_SEG_BOUNDARY(q, &end_bv, &nxt_bv))
 		return 1;
 
 	return 0;
 }
 
-static void
+static inline void
 __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
-		     struct scatterlist *sglist, struct bio_vec **bvprv,
+		     struct scatterlist *sglist, struct bio_vec *bvprv,
 		     struct scatterlist **sg, int *nsegs, int *cluster)
 {
 
 	int nbytes = bvec->bv_len;
 
-	if (*bvprv && *cluster) {
+	if (*sg && *cluster) {
 		if ((*sg)->length + nbytes > queue_max_segment_size(q))
 			goto new_segment;
 
-		if (!BIOVEC_PHYS_MERGEABLE(*bvprv, bvec))
+		if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
 			goto new_segment;
-		if (!BIOVEC_SEG_BOUNDARY(q, *bvprv, bvec))
+		if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
 			goto new_segment;
 
 		(*sg)->length += nbytes;
@@ -150,7 +158,7 @@ new_segment:
 		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
 		(*nsegs)++;
 	}
-	*bvprv = bvec;
+	*bvprv = *bvec;
 }
 
 /*
@@ -160,7 +168,7 @@ new_segment:
 int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		  struct scatterlist *sglist)
 {
-	struct bio_vec *bvec, *bvprv;
+	struct bio_vec bvec, bvprv = { NULL };
 	struct req_iterator iter;
 	struct scatterlist *sg;
 	int nsegs, cluster;
@@ -171,10 +179,9 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	/*
 	 * for each bio in rq
 	 */
-	bvprv = NULL;
 	sg = NULL;
 	rq_for_each_segment(bvec, rq, iter) {
-		__blk_segment_map_sg(q, bvec, sglist, &bvprv, &sg,
+		__blk_segment_map_sg(q, &bvec, sglist, &bvprv, &sg,
 				     &nsegs, &cluster);
 	} /* segments in rq */
 
@@ -223,18 +230,17 @@ EXPORT_SYMBOL(blk_rq_map_sg);
 int blk_bio_map_sg(struct request_queue *q, struct bio *bio,
 		   struct scatterlist *sglist)
 {
-	struct bio_vec *bvec, *bvprv;
+	struct bio_vec bvec, bvprv = { NULL };
 	struct scatterlist *sg;
 	int nsegs, cluster;
-	unsigned long i;
+	struct bvec_iter iter;
 
 	nsegs = 0;
 	cluster = blk_queue_cluster(q);
 
-	bvprv = NULL;
 	sg = NULL;
-	bio_for_each_segment(bvec, bio, i) {
-		__blk_segment_map_sg(q, bvec, sglist, &bvprv, &sg,
+	bio_for_each_segment(bvec, bio, iter) {
+		__blk_segment_map_sg(q, &bvec, sglist, &bvprv, &sg,
 				     &nsegs, &cluster);
 	} /* segments in bio */
 
@@ -543,9 +549,9 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 
 int blk_try_merge(struct request *rq, struct bio *bio)
 {
-	if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_sector)
+	if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
 		return ELEVATOR_BACK_MERGE;
-	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_sector)
+	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_iter.bi_sector)
 		return ELEVATOR_FRONT_MERGE;
 	return ELEVATOR_NO_MERGE;
 }

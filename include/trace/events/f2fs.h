@@ -629,8 +629,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 		__entry->dev		= sb->s_dev;
 		__entry->rw		= rw;
 		__entry->type		= type;
-		__entry->sector		= bio->bi_sector;
-		__entry->size		= bio->bi_size;
+		__entry->sector		= bio->bi_iter.bi_sector;
+		__entry->size		= bio->bi_iter.bi_size;
 	),
 
 	TP_printk("dev = (%d,%d), %s%s, %s, sector = %lld, size = %u",

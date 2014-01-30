@@ -1577,7 +1577,7 @@ int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
 			 unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-	u64 logical = (u64)bio->bi_sector << 9;
+	u64 logical = (u64)bio->bi_iter.bi_sector << 9;
 	u64 length = 0;
 	u64 map_length;
 	int ret;
@@ -1585,7 +1585,7 @@ int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
 	if (bio_flags & EXTENT_BIO_COMPRESSED)
 		return 0;
 
-	length = bio->bi_size;
+	length = bio->bi_iter.bi_size;
 	map_length = length;
 	ret = btrfs_map_block(root->fs_info, rw, logical,
 			      &map_length, NULL, 0);
@@ -6783,17 +6783,16 @@ unlock_err:
 static void btrfs_endio_direct_read(struct bio *bio, int err)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
-	struct bio_vec *bvec_end = bio->bi_io_vec + bio->bi_vcnt - 1;
-	struct bio_vec *bvec = bio->bi_io_vec;
+	struct bio_vec *bvec;
 	struct inode *inode = dip->inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct bio *dio_bio;
 	u32 *csums = (u32 *)dip->csum;
-	int index = 0;
 	u64 start;
+	int i;
 
 	start = dip->logical_offset;
-	do {
+	bio_for_each_segment_all(bvec, bio, i) {
 		if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 			struct page *page = bvec->bv_page;
 			char *kaddr;
@@ -6809,18 +6808,16 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 			local_irq_restore(flags);
 
 			flush_dcache_page(bvec->bv_page);
-			if (csum != csums[index]) {
+			if (csum != csums[i]) {
 				btrfs_err(root->fs_info, "csum failed ino %llu off %llu csum %u expected csum %u",
 					  btrfs_ino(inode), start, csum,
-					  csums[index]);
+					  csums[i]);
 				err = -EIO;
 			}
 		}
 
 		start += bvec->bv_len;
-		bvec++;
-		index++;
-	} while (bvec <= bvec_end);
+	}
 
 	unlock_extent(&BTRFS_I(inode)->io_tree, dip->logical_offset,
 		      dip->logical_offset + dip->bytes - 1);
@@ -6901,7 +6898,8 @@ static void btrfs_end_dio_bio(struct bio *bio, int err)
 		printk(KERN_ERR "btrfs direct IO failed ino %llu rw %lu "
 		      "sector %#Lx len %u err no %d\n",
 		      btrfs_ino(dip->inode), bio->bi_rw,
-		      (unsigned long long)bio->bi_sector, bio->bi_size, err);
+		      (unsigned long long)bio->bi_iter.bi_sector,
+		      bio->bi_iter.bi_size, err);
 		dip->errors = 1;
 
 		/*
@@ -6992,7 +6990,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	struct bio *bio;
 	struct bio *orig_bio = dip->orig_bio;
 	struct bio_vec *bvec = orig_bio->bi_io_vec;
-	u64 start_sector = orig_bio->bi_sector;
+	u64 start_sector = orig_bio->bi_iter.bi_sector;
 	u64 file_offset = dip->logical_offset;
 	u64 submit_len = 0;
 	u64 map_length;
@@ -7000,7 +6998,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	int ret = 0;
 	int async_submit = 0;
 
-	map_length = orig_bio->bi_size;
+	map_length = orig_bio->bi_iter.bi_size;
 	ret = btrfs_map_block(root->fs_info, rw, start_sector << 9,
 			      &map_length, NULL, 0);
 	if (ret) {
@@ -7008,7 +7006,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 		return -EIO;
 	}
 
-	if (map_length >= orig_bio->bi_size) {
+	if (map_length >= orig_bio->bi_iter.bi_size) {
 		bio = orig_bio;
 		goto submit;
 	}
@@ -7060,7 +7058,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 			bio->bi_private = dip;
 			bio->bi_end_io = btrfs_end_dio_bio;
 
-			map_length = orig_bio->bi_size;
+			map_length = orig_bio->bi_iter.bi_size;
 			ret = btrfs_map_block(root->fs_info, rw,
 					      start_sector << 9,
 					      &map_length, NULL, 0);
@@ -7118,7 +7116,8 @@ static void btrfs_submit_direct(int rw, struct bio *dio_bio,
 
 	if (!skip_sum && !write) {
 		csum_size = btrfs_super_csum_size(root->fs_info->super_copy);
-		sum_len = dio_bio->bi_size >> inode->i_sb->s_blocksize_bits;
+		sum_len = dio_bio->bi_iter.bi_size >>
+			inode->i_sb->s_blocksize_bits;
 		sum_len *= csum_size;
 	} else {
 		sum_len = 0;
@@ -7133,8 +7132,8 @@ static void btrfs_submit_direct(int rw, struct bio *dio_bio,
 	dip->private = dio_bio->bi_private;
 	dip->inode = inode;
 	dip->logical_offset = file_offset;
-	dip->bytes = dio_bio->bi_size;
-	dip->disk_bytenr = (u64)dio_bio->bi_sector << 9;
+	dip->bytes = dio_bio->bi_iter.bi_size;
+	dip->disk_bytenr = (u64)dio_bio->bi_iter.bi_sector << 9;
 	io_bio->bi_private = dip;
 	dip->errors = 0;
 	dip->orig_bio = io_bio;

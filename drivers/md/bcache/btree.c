@@ -299,7 +299,7 @@ void bch_btree_node_read(struct btree *b)
 
 	bio = bch_bbio_alloc(b->c);
 	bio->bi_rw	= REQ_META|READ_SYNC;
-	bio->bi_size	= KEY_SIZE(&b->key) << 9;
+	bio->bi_iter.bi_size = KEY_SIZE(&b->key) << 9;
 	bio->bi_end_io	= btree_node_read_endio;
 	bio->bi_private	= &cl;
 
@@ -362,7 +362,7 @@ static void btree_node_write_done(struct closure *cl)
 	struct bio_vec *bv;
 	int n;
 
-	__bio_for_each_segment(bv, b->bio, n, 0)
+	bio_for_each_segment_all(bv, b->bio, n)
 		__free_page(bv->bv_page);
 
 	__btree_node_write_done(cl);
@@ -395,7 +395,7 @@ static void do_btree_node_write(struct btree *b)
 	b->bio->bi_end_io	= btree_node_write_endio;
 	b->bio->bi_private	= cl;
 	b->bio->bi_rw		= REQ_META|WRITE_SYNC|REQ_FUA;
-	b->bio->bi_size		= set_blocks(i, b->c) * block_bytes(b->c);
+	b->bio->bi_iter.bi_size	= set_blocks(i, b->c) * block_bytes(b->c);
 	bch_bio_map(b->bio, i);
 
 	/*
@@ -421,7 +421,7 @@ static void do_btree_node_write(struct btree *b)
 		struct bio_vec *bv;
 		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
 
-		bio_for_each_segment(bv, b->bio, j)
+		bio_for_each_segment_all(bv, b->bio, j)
 			memcpy(page_address(bv->bv_page),
 			       base + j * PAGE_SIZE, PAGE_SIZE);
 

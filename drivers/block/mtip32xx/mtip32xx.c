@@ -3962,8 +3962,9 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 {
 	struct driver_data *dd = queue->queuedata;
 	struct scatterlist *sg;
-	struct bio_vec *bvec;
-	int i, nents = 0;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+	int nents = 0;
 	int tag = 0, unaligned = 0;
 
 	if (unlikely(dd->dd_flag & MTIP_DDF_STOP_IO)) {
@@ -3993,7 +3994,7 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 	}
 
 	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
-		bio_endio(bio, mtip_send_trim(dd, bio->bi_sector,
+		bio_endio(bio, mtip_send_trim(dd, bio->bi_iter.bi_sector,
 						bio_sectors(bio)));
 		return;
 	}
@@ -4006,7 +4007,8 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 
 	if (bio_data_dir(bio) == WRITE && bio_sectors(bio) <= 64 &&
 							dd->unal_qdepth) {
-		if (bio->bi_sector % 8 != 0) /* Unaligned on 4k boundaries */
+		if (bio->bi_iter.bi_sector % 8 != 0)
+			/* Unaligned on 4k boundaries */
 			unaligned = 1;
 		else if (bio_sectors(bio) % 8 != 0) /* Aligned but not 4k/8k */
 			unaligned = 1;
@@ -4025,17 +4027,17 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 		}
 
 		/* Create the scatter list for this bio. */
-		bio_for_each_segment(bvec, bio, i) {
+		bio_for_each_segment(bvec, bio, iter) {
 			sg_set_page(&sg[nents],
-					bvec->bv_page,
-					bvec->bv_len,
-					bvec->bv_offset);
+					bvec.bv_page,
+					bvec.bv_len,
+					bvec.bv_offset);
 			nents++;
 		}
 
 		/* Issue the read/write. */
 		mtip_hw_submit_io(dd,
-				bio->bi_sector,
+				bio->bi_iter.bi_sector,
 				bio_sectors(bio),
 				nents,
 				tag,

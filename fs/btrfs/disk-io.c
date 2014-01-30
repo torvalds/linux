@@ -842,20 +842,17 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 
 static int btree_csum_one_bio(struct bio *bio)
 {
-	struct bio_vec *bvec = bio->bi_io_vec;
-	int bio_index = 0;
+	struct bio_vec *bvec;
 	struct btrfs_root *root;
-	int ret = 0;
+	int i, ret = 0;
 
-	WARN_ON(bio->bi_vcnt <= 0);
-	while (bio_index < bio->bi_vcnt) {
+	bio_for_each_segment_all(bvec, bio, i) {
 		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
 		ret = csum_dirty_buffer(root, bvec->bv_page);
 		if (ret)
 			break;
-		bio_index++;
-		bvec++;
 	}
+
 	return ret;
 }
 
@@ -1695,7 +1692,7 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	bio->bi_private = end_io_wq->private;
 	bio->bi_end_io = end_io_wq->end_io;
 	kfree(end_io_wq);
-	bio_endio(bio, error);
+	bio_endio_nodec(bio, error);
 }
 
 static int cleaner_kthread(void *arg)

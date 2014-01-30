@@ -1984,7 +1984,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio)
 		return -EIO;
-	bio->bi_size = 0;
+	bio->bi_iter.bi_size = 0;
 	map_length = length;
 
 	ret = btrfs_map_block(fs_info, WRITE, logical,
@@ -1995,7 +1995,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	}
 	BUG_ON(mirror_num != bbio->mirror_num);
 	sector = bbio->stripes[mirror_num-1].physical >> 9;
-	bio->bi_sector = sector;
+	bio->bi_iter.bi_sector = sector;
 	dev = bbio->stripes[mirror_num-1].dev;
 	kfree(bbio);
 	if (!dev || !dev->bdev || !dev->writeable) {
@@ -2268,9 +2268,9 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 		return -EIO;
 	}
 	bio->bi_end_io = failed_bio->bi_end_io;
-	bio->bi_sector = failrec->logical >> 9;
+	bio->bi_iter.bi_sector = failrec->logical >> 9;
 	bio->bi_bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
-	bio->bi_size = 0;
+	bio->bi_iter.bi_size = 0;
 
 	btrfs_failed_bio = btrfs_io_bio(failed_bio);
 	if (btrfs_failed_bio->csum) {
@@ -2332,12 +2332,13 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
  */
 static void end_bio_extent_writepage(struct bio *bio, int err)
 {
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec;
 	struct extent_io_tree *tree;
 	u64 start;
 	u64 end;
+	int i;
 
-	do {
+	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
 
@@ -2355,14 +2356,11 @@ static void end_bio_extent_writepage(struct bio *bio, int err)
 		start = page_offset(page);
 		end = start + bvec->bv_offset + bvec->bv_len - 1;
 
-		if (--bvec >= bio->bi_io_vec)
-			prefetchw(&bvec->bv_page->flags);
-
 		if (end_extent_writepage(page, err, start, end))
 			continue;
 
 		end_page_writeback(page);
-	} while (bvec >= bio->bi_io_vec);
+	}
 
 	bio_put(bio);
 }
@@ -2392,9 +2390,8 @@ endio_readpage_release_extent(struct extent_io_tree *tree, u64 start, u64 len,
  */
 static void end_bio_extent_readpage(struct bio *bio, int err)
 {
+	struct bio_vec *bvec;
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct bio_vec *bvec_end = bio->bi_io_vec + bio->bi_vcnt - 1;
-	struct bio_vec *bvec = bio->bi_io_vec;
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 	struct extent_io_tree *tree;
 	u64 offset = 0;
@@ -2405,16 +2402,17 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 	u64 extent_len = 0;
 	int mirror;
 	int ret;
+	int i;
 
 	if (err)
 		uptodate = 0;
 
-	do {
+	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 		struct inode *inode = page->mapping->host;
 
 		pr_debug("end_bio_extent_readpage: bi_sector=%llu, err=%d, "
-			 "mirror=%lu\n", (u64)bio->bi_sector, err,
+			 "mirror=%lu\n", (u64)bio->bi_iter.bi_sector, err,
 			 io_bio->mirror_num);
 		tree = &BTRFS_I(inode)->io_tree;
 
@@ -2432,9 +2430,6 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		start = page_offset(page);
 		end = start + bvec->bv_offset + bvec->bv_len - 1;
 		len = bvec->bv_len;
-
-		if (++bvec <= bvec_end)
-			prefetchw(&bvec->bv_page->flags);
 
 		mirror = io_bio->mirror_num;
 		if (likely(uptodate && tree->ops &&
@@ -2516,7 +2511,7 @@ readpage_ok:
 			extent_start = start;
 			extent_len = end + 1 - start;
 		}
-	} while (bvec <= bvec_end);
+	}
 
 	if (extent_len)
 		endio_readpage_release_extent(tree, extent_start, extent_len,
@@ -2547,9 +2542,8 @@ btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 	}
 
 	if (bio) {
-		bio->bi_size = 0;
 		bio->bi_bdev = bdev;
-		bio->bi_sector = first_sector;
+		bio->bi_iter.bi_sector = first_sector;
 		btrfs_bio = btrfs_io_bio(bio);
 		btrfs_bio->csum = NULL;
 		btrfs_bio->csum_allocated = NULL;
@@ -2643,7 +2637,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 	if (bio_ret && *bio_ret) {
 		bio = *bio_ret;
 		if (old_compressed)
-			contig = bio->bi_sector == sector;
+			contig = bio->bi_iter.bi_sector == sector;
 		else
 			contig = bio_end_sector(bio) == sector;
 
@@ -3410,20 +3404,18 @@ static void end_extent_buffer_writeback(struct extent_buffer *eb)
 
 static void end_bio_extent_buffer_writepage(struct bio *bio, int err)
 {
-	int uptodate = err == 0;
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec;
 	struct extent_buffer *eb;
-	int done;
+	int i, done;
 
-	do {
+	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 
-		bvec--;
 		eb = (struct extent_buffer *)page->private;
 		BUG_ON(!eb);
 		done = atomic_dec_and_test(&eb->io_pages);
 
-		if (!uptodate || test_bit(EXTENT_BUFFER_IOERR, &eb->bflags)) {
+		if (err || test_bit(EXTENT_BUFFER_IOERR, &eb->bflags)) {
 			set_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
 			ClearPageUptodate(page);
 			SetPageError(page);
@@ -3435,10 +3427,9 @@ static void end_bio_extent_buffer_writepage(struct bio *bio, int err)
 			continue;
 
 		end_extent_buffer_writeback(eb);
-	} while (bvec >= bio->bi_io_vec);
+	}
 
 	bio_put(bio);
-
 }
 
 static int write_one_eb(struct extent_buffer *eb,
