@@ -340,11 +340,6 @@ static inline struct adv7604_state *to_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct adv7604_state, sd);
 }
 
-static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
-{
-	return &container_of(ctrl->handler, struct adv7604_state, hdl)->sd;
-}
-
 static inline unsigned hblanking(const struct v4l2_bt_timings *t)
 {
 	return V4L2_DV_BT_BLANKING_WIDTH(t);
@@ -1270,7 +1265,9 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 
 static int adv7604_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct v4l2_subdev *sd = to_sd(ctrl);
+	struct v4l2_subdev *sd =
+		&container_of(ctrl->handler, struct adv7604_state, hdl)->sd;
+
 	struct adv7604_state *state = to_state(sd);
 
 	switch (ctrl->id) {
