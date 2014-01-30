@@ -1077,6 +1077,9 @@ static void * __init memblock_virt_alloc_internal(
 	if (!align)
 		align = SMP_CACHE_BYTES;
 
+	if (max_addr > memblock.current_limit)
+		max_addr = memblock.current_limit;
+
 again:
 	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
 					    nid);
