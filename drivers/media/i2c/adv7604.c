@@ -27,19 +27,19 @@
  * REF_03 - Analog devices, ADV7604, Hardware Manual, Rev. F, August 2010
  */
 
-
+#include <linux/delay.h>
+#include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/i2c.h>
-#include <linux/delay.h>
+#include <linux/v4l2-dv-timings.h>
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
-#include <linux/v4l2-dv-timings.h>
-#include <media/v4l2-device.h>
-#include <media/v4l2-ctrls.h>
-#include <media/v4l2-dv-timings.h>
+
 #include <media/adv7604.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-dv-timings.h>
 
 static int debug;
 module_param(debug, int, 0644);
