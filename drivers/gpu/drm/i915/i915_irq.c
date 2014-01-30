@@ -2532,7 +2532,6 @@ static void i915_hangcheck_elapsed(unsigned long data)
 #define BUSY 1
 #define KICK 5
 #define HUNG 20
-#define FIRE 30
 
 	if (!i915.enable_hangcheck)
 		return;
@@ -2616,7 +2615,7 @@ static void i915_hangcheck_elapsed(unsigned long data)
 	}
 
 	for_each_ring(ring, dev_priv, i) {
-		if (ring->hangcheck.score > FIRE) {
+		if (ring->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG) {
 			DRM_INFO("%s on %s\n",
 				 stuck[i] ? "stuck" : "no progress",
 				 ring->name);
