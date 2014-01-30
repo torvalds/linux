@@ -1117,9 +1117,14 @@ static void probe_pcache(void)
 	case CPU_PROAPTIV:
 		if (current_cpu_type() == CPU_74K)
 			alias_74k_erratum(c);
-		if ((read_c0_config7() & (1 << 16))) {
-			/* effectively physically indexed dcache,
-			   thus no virtual aliases. */
+		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
+		    (c->icache.waysize > PAGE_SIZE))
+			c->icache.flags |= MIPS_CACHE_ALIASES;
+		if (read_c0_config7() & MIPS_CONF7_AR) {
+			/*
+			 * Effectively physically indexed dcache,
+			 * thus no virtual aliases.
+			*/
 			c->dcache.flags |= MIPS_CACHE_PINDEX;
 			break;
 		}

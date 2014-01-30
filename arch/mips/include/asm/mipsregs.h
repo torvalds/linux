@@ -653,6 +653,9 @@
 
 #define MIPS_CONF7_RPS		(_ULCAST_(1) << 2)
 
+#define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
+#define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
+
 /*  EntryHI bit definition */
 #define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
 
