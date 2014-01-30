@@ -291,6 +291,7 @@ struct queue_limits {
 	unsigned char		discard_misaligned;
 	unsigned char		cluster;
 	unsigned char		discard_zeroes_data;
+	unsigned char		raid_partial_stripes_expensive;
 };
 
 struct request_queue {

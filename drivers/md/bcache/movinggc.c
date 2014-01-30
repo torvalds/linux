@@ -211,7 +211,7 @@ void bch_moving_gc(struct cache_set *c)
 	for_each_cache(ca, c, i) {
 		unsigned sectors_to_move = 0;
 		unsigned reserve_sectors = ca->sb.bucket_size *
-			min(fifo_used(&ca->free), ca->free.size / 2);
+			fifo_used(&ca->free[RESERVE_MOVINGGC]);
 
 		ca->heap.used = 0;
 

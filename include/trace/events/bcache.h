@@ -247,7 +247,7 @@ TRACE_EVENT(bcache_btree_write,
 	TP_fast_assign(
 		__entry->bucket	= PTR_BUCKET_NR(b->c, &b->key, 0);
 		__entry->block	= b->written;
-		__entry->keys	= b->sets[b->nsets].data->keys;
+		__entry->keys	= b->keys.set[b->keys.nsets].data->keys;
 	),
 
 	TP_printk("bucket %zu", __entry->bucket)
@@ -411,7 +411,7 @@ TRACE_EVENT(bcache_alloc_invalidate,
 	),
 
 	TP_fast_assign(
-		__entry->free		= fifo_used(&ca->free);
+		__entry->free		= fifo_used(&ca->free[RESERVE_NONE]);
 		__entry->free_inc	= fifo_used(&ca->free_inc);
 		__entry->free_inc_size	= ca->free_inc.size;
 		__entry->unused		= fifo_used(&ca->unused);
@@ -422,8 +422,8 @@ TRACE_EVENT(bcache_alloc_invalidate,
 );
 
 TRACE_EVENT(bcache_alloc_fail,
-	TP_PROTO(struct cache *ca),
-	TP_ARGS(ca),
+	TP_PROTO(struct cache *ca, unsigned reserve),
+	TP_ARGS(ca, reserve),
 
 	TP_STRUCT__entry(
 		__field(unsigned,	free			)
@@ -433,7 +433,7 @@ TRACE_EVENT(bcache_alloc_fail,
 	),
 
 	TP_fast_assign(
-		__entry->free		= fifo_used(&ca->free);
+		__entry->free		= fifo_used(&ca->free[reserve]);
 		__entry->free_inc	= fifo_used(&ca->free_inc);
 		__entry->unused		= fifo_used(&ca->unused);
 		__entry->blocked	= atomic_read(&ca->set->prio_blocked);
