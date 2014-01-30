@@ -182,20 +182,6 @@ static int tcm_qla2xxx_npiv_parse_wwn(
 	return 0;
 }
 
-static ssize_t tcm_qla2xxx_npiv_format_wwn(char *buf, size_t len,
-					u64 wwpn, u64 wwnn)
-{
-	u8 b[8], b2[8];
-
-	put_unaligned_be64(wwpn, b);
-	put_unaligned_be64(wwnn, b2);
-	return snprintf(buf, len,
-		"%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x,"
-		"%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x",
-		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
-		b2[0], b2[1], b2[2], b2[3], b2[4], b2[5], b2[6], b2[7]);
-}
-
 static char *tcm_qla2xxx_npiv_get_fabric_name(void)
 {
 	return "qla2xxx_npiv";
@@ -225,15 +211,6 @@ static char *tcm_qla2xxx_get_fabric_wwn(struct se_portal_group *se_tpg)
 	struct tcm_qla2xxx_lport *lport = tpg->lport;
 
 	return lport->lport_naa_name;
-}
-
-static char *tcm_qla2xxx_npiv_get_fabric_wwn(struct se_portal_group *se_tpg)
-{
-	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
-				struct tcm_qla2xxx_tpg, se_tpg);
-	struct tcm_qla2xxx_lport *lport = tpg->lport;
-
-	return &lport->lport_npiv_name[0];
 }
 
 static u16 tcm_qla2xxx_get_tag(struct se_portal_group *se_tpg)
@@ -1811,8 +1788,6 @@ static struct se_wwn *tcm_qla2xxx_npiv_make_lport(
 	}
 	lport->lport_npiv_wwpn = npiv_wwpn;
 	lport->lport_npiv_wwnn = npiv_wwnn;
-	tcm_qla2xxx_npiv_format_wwn(&lport->lport_npiv_name[0],
-			TCM_QLA2XXX_NAMELEN, npiv_wwpn, npiv_wwnn);
 	sprintf(lport->lport_naa_name, "naa.%016llx", (unsigned long long) npiv_wwpn);
 
 	ret = tcm_qla2xxx_init_lport(lport);
@@ -1921,7 +1896,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 static struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.get_fabric_name		= tcm_qla2xxx_npiv_get_fabric_name,
 	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
-	.tpg_get_wwn			= tcm_qla2xxx_npiv_get_fabric_wwn,
+	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,
 	.tpg_get_default_depth		= tcm_qla2xxx_get_default_depth,
 	.tpg_get_pr_transport_id	= tcm_qla2xxx_get_pr_transport_id,
