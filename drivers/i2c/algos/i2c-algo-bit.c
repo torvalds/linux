@@ -20,7 +20,7 @@
  * ------------------------------------------------------------------------- */
 
 /* With some changes from Frodo Looijaard <frodol@dds.nl>, Kyösti Mälkki
-   <kmalkki@cc.hut.fi> and Jean Delvare <khali@linux-fr.org> */
+   <kmalkki@cc.hut.fi> and Jean Delvare <jdelvare@suse.de> */
 
 #include <linux/kernel.h>
 #include <linux/module.h>

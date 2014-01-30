@@ -5,7 +5,7 @@
  * Copyright (C) 2012  Guenter Roeck <linux@roeck-us.net>
  *
  * Derived from w83627ehf driver
- * Copyright (C) 2005-2012  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2005-2012  Jean Delvare <jdelvare@suse.de>
  * Copyright (C) 2006  Yuan Mu (Winbond),
  *		       Rudolf Marek <r.marek@assembler.cz>
  *		       David Hubbard <david.c.hubbard@gmail.com>
