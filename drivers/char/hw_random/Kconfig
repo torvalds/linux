@@ -342,11 +342,11 @@ config HW_RANDOM_TPM
 	  If unsure, say Y.
 
 config HW_RANDOM_MSM
-	tristate "Qualcomm MSM Random Number Generator support"
-	depends on HW_RANDOM && ARCH_MSM
+	tristate "Qualcomm SoCs Random Number Generator support"
+	depends on HW_RANDOM && ARCH_QCOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on Qualcomm MSM SoCs.
+	  Generator hardware found on Qualcomm SoCs.
 
 	  To compile this driver as a module, choose M here. the
 	  module will be called msm-rng.
