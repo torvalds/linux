@@ -199,7 +199,7 @@ EXPORT_SYMBOL_GPL(torture_onoff_init);
 /*
  * Clean up after online/offline testing.
  */
-void torture_onoff_cleanup(void)
+static void torture_onoff_cleanup(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
 	if (onoff_task == NULL)
@@ -403,7 +403,7 @@ EXPORT_SYMBOL_GPL(torture_shuffle_init);
 /*
  * Stop the shuffling.
  */
-void torture_shuffle_cleanup(void)
+static void torture_shuffle_cleanup(void)
 {
 	torture_shuffle_task_unregister_all();
 	if (shuffler_task) {
@@ -453,3 +453,29 @@ void __init torture_init_end(void)
 	mutex_unlock(&fullstop_mutex);
 }
 EXPORT_SYMBOL_GPL(torture_init_end);
+
+/*
+ * Clean up torture module.  Please note that this is -not- invoked via
+ * the usual module_exit() mechanism, but rather by an explicit call from
+ * the client torture module.  Returns true if a race with system shutdown
+ * is detected.
+ *
+ * This must be called before the caller starts shutting down its own
+ * kthreads.
+ */
+bool torture_cleanup(void)
+{
+	mutex_lock(&fullstop_mutex);
+	if (fullstop == FULLSTOP_SHUTDOWN) {
+		pr_warn("Concurrent rmmod and shutdown illegal!\n");
+		mutex_unlock(&fullstop_mutex);
+		schedule_timeout_uninterruptible(10);
+		return true;
+	}
+	fullstop = FULLSTOP_RMMOD;
+	mutex_unlock(&fullstop_mutex);
+	torture_shuffle_cleanup();
+	torture_onoff_cleanup();
+	return false;
+}
+EXPORT_SYMBOL_GPL(torture_cleanup);

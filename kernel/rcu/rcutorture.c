@@ -1423,21 +1423,13 @@ rcu_torture_cleanup(void)
 	int i;
 
 	rcutorture_record_test_transition();
-	mutex_lock(&fullstop_mutex);
-	if (fullstop == FULLSTOP_SHUTDOWN) {
-		pr_warn(/* but going down anyway, so... */
-		       "Concurrent 'rmmod rcutorture' and shutdown illegal!\n");
-		mutex_unlock(&fullstop_mutex);
-		schedule_timeout_uninterruptible(10);
+	if (torture_cleanup()) {
 		if (cur_ops->cb_barrier != NULL)
 			cur_ops->cb_barrier();
 		return;
 	}
-	fullstop = FULLSTOP_RMMOD;
-	mutex_unlock(&fullstop_mutex);
 	unregister_reboot_notifier(&rcutorture_shutdown_nb);
 
-	torture_shuffle_cleanup(); /* Must be first task cleaned up. */
 	rcu_torture_barrier_cleanup();
 	rcu_torture_stall_cleanup();
 	if (stutter_task) {
@@ -1501,7 +1493,6 @@ rcu_torture_cleanup(void)
 		kthread_stop(shutdown_task);
 	}
 	shutdown_task = NULL;
-	torture_onoff_cleanup();
 
 	/* Wait for all RCU callbacks to fire.  */
 

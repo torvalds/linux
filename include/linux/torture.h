@@ -65,7 +65,6 @@ extern struct mutex fullstop_mutex;
 
 /* Definitions for online/offline exerciser. */
 int torture_onoff_init(long ooholdoff, long oointerval);
-void torture_onoff_cleanup(void);
 char *torture_onoff_stats(char *page);
 bool torture_onoff_failures(void);
 
@@ -80,14 +79,13 @@ unsigned long torture_random(struct torture_random_state *trsp);
 /* Task shuffler, which causes CPUs to occasionally go idle. */
 void torture_shuffle_task_register(struct task_struct *tp);
 int torture_shuffle_init(long shuffint);
-void torture_shuffle_cleanup(void);
 
 /* Shutdown task absorption, for when the tasks cannot safely be killed. */
 void torture_shutdown_absorb(const char *title);
 
 /* Initialization and cleanup. */
-
 void torture_init_begin(char *ttype, bool v);
 void torture_init_end(void);
+bool torture_cleanup(void);
 
 #endif /* __LINUX_TORTURE_H */
