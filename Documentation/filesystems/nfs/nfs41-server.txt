@@ -5,11 +5,11 @@ Server support for minorversion 1 can be controlled using the
 by reading this file will contain either "+4.1" or "-4.1"
 correspondingly.
 
-Currently, server support for minorversion 1 is disabled by default.
-It can be enabled at run time by writing the string "+4.1" to
+Currently, server support for minorversion 1 is enabled by default.
+It can be disabled at run time by writing the string "-4.1" to
 the /proc/fs/nfsd/versions control file.  Note that to write this
-control file, the nfsd service must be taken down.  Use your user-mode
-nfs-utils to set this up; see rpc.nfsd(8)
+control file, the nfsd service must be taken down.  You can use rpc.nfsd
+for this; see rpc.nfsd(8).
 
 (Warning: older servers will interpret "+4.1" and "-4.1" as "+4" and
 "-4", respectively.  Therefore, code meant to work on both new and old
@@ -28,29 +28,6 @@ Other NFSv4.1 features, Parallel NFS operations in particular,
 are still under development out of tree.
 See http://wiki.linux-nfs.org/wiki/index.php/PNFS_prototype_design
 for more information.
-
-The current implementation is intended for developers only: while it
-does support ordinary file operations on clients we have tested against
-(including the linux client), it is incomplete in ways which may limit
-features unexpectedly, cause known bugs in rare cases, or cause
-interoperability problems with future clients.  Known issues:
-
-	- gss support is questionable: currently mounts with kerberos
-	  from a linux client are possible, but we aren't really
-	  conformant with the spec (for example, we don't use kerberos
-	  on the backchannel correctly).
-	- We do not support SSV, which provides security for shared
-	  client-server state (thus preventing unauthorized tampering
-	  with locks and opens, for example).  It is mandatory for
-	  servers to support this, though no clients use it yet.
-
-In addition, some limitations are inherited from the current NFSv4
-implementation:
-
-	- Incomplete delegation enforcement: if a file is renamed or
-	  unlinked by a local process, a client holding a delegation may
-	  continue to indefinitely allow opens of the file under the old
-	  name.
 
 The table below, taken from the NFSv4.1 document, lists
 the operations that are mandatory to implement (REQ), optional
@@ -169,6 +146,16 @@ NS*| CB_WANTS_CANCELLED      | OPT       | FDELG,      | Section 20.10 |
 
 Implementation notes:
 
+SSV:
+* The spec claims this is mandatory, but we don't actually know of any
+  implementations, so we're ignoring it for now.  The server returns
+  NFS4ERR_ENCR_ALG_UNSUPP on EXCHANGE_ID, which should be future-proof.
+
+GSS on the backchannel:
+* Again, theoretically required but not widely implemented (in
+  particular, the current Linux client doesn't request it).  We return
+  NFS4ERR_ENCR_ALG_UNSUPP on CREATE_SESSION.
+
 DELEGPURGE:
 * mandatory only for servers that support CLAIM_DELEGATE_PREV and/or
   CLAIM_DELEG_PREV_FH (which allows clients to keep delegations that
@@ -176,7 +163,6 @@ DELEGPURGE:
   now.
 
 EXCHANGE_ID:
-* only SP4_NONE state protection supported
 * implementation ids are ignored
 
 CREATE_SESSION:

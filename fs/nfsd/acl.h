@@ -45,7 +45,7 @@ struct svc_rqst;
 
 struct nfs4_acl *nfs4_acl_new(int);
 int nfs4_acl_get_whotype(char *, u32);
-int nfs4_acl_write_who(int who, char *p);
+__be32 nfs4_acl_write_who(int who, __be32 **p, int *len);
 
 int nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 		struct nfs4_acl **acl);

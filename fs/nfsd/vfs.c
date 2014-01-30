@@ -207,7 +207,12 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				goto out_nfserr;
 		}
 	} else {
-		fh_lock(fhp);
+		/*
+		 * In the nfsd4_open() case, this may be held across
+		 * subsequent open and delegation acquisition which may
+		 * need to take the child's i_mutex:
+		 */
+		fh_lock_nested(fhp, I_MUTEX_PARENT);
 		dentry = lookup_one_len(name, dparent, len);
 		host_err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
@@ -271,13 +276,6 @@ out:
 	dput(dentry);
 	exp_put(exp);
 	return err;
-}
-
-static int nfsd_break_lease(struct inode *inode)
-{
-	if (!S_ISREG(inode->i_mode))
-		return 0;
-	return break_lease(inode, O_WRONLY | O_NONBLOCK);
 }
 
 /*
@@ -348,8 +346,7 @@ nfsd_sanitize_attrs(struct inode *inode, struct iattr *iap)
 
 	/* Revoke setuid/setgid on chown */
 	if (!S_ISDIR(inode->i_mode) &&
-	    (((iap->ia_valid & ATTR_UID) && !uid_eq(iap->ia_uid, inode->i_uid)) ||
-	     ((iap->ia_valid & ATTR_GID) && !gid_eq(iap->ia_gid, inode->i_gid)))) {
+	    ((iap->ia_valid & ATTR_UID) || (iap->ia_valid & ATTR_GID))) {
 		iap->ia_valid |= ATTR_KILL_PRIV;
 		if (iap->ia_valid & ATTR_MODE) {
 			/* we're setting mode too, just clear the s*id bits */
@@ -449,16 +446,10 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		goto out_put_write_access;
 	}
 
-	host_err = nfsd_break_lease(inode);
-	if (host_err)
-		goto out_put_write_access_nfserror;
-
 	fh_lock(fhp);
 	host_err = notify_change(dentry, iap, NULL);
 	fh_unlock(fhp);
 
-out_put_write_access_nfserror:
-	err = nfserrno(host_err);
 out_put_write_access:
 	if (size_change)
 		put_write_access(inode);
@@ -1609,11 +1600,6 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = nfserr_noent;
 	if (!dold->d_inode)
 		goto out_dput;
-	host_err = nfsd_break_lease(dold->d_inode);
-	if (host_err) {
-		err = nfserrno(host_err);
-		goto out_dput;
-	}
 	host_err = vfs_link(dold, dirp, dnew, NULL);
 	if (!host_err) {
 		err = nfserrno(commit_metadata(ffhp));
@@ -1707,14 +1693,6 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	if (ffhp->fh_export->ex_path.dentry != tfhp->fh_export->ex_path.dentry)
 		goto out_dput_new;
 
-	host_err = nfsd_break_lease(odentry->d_inode);
-	if (host_err)
-		goto out_dput_new;
-	if (ndentry->d_inode) {
-		host_err = nfsd_break_lease(ndentry->d_inode);
-		if (host_err)
-			goto out_dput_new;
-	}
 	host_err = vfs_rename(fdir, odentry, tdir, ndentry, NULL);
 	if (!host_err) {
 		host_err = commit_metadata(tfhp);
@@ -1784,16 +1762,12 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (!type)
 		type = rdentry->d_inode->i_mode & S_IFMT;
 
-	host_err = nfsd_break_lease(rdentry->d_inode);
-	if (host_err)
-		goto out_put;
 	if (type != S_IFDIR)
 		host_err = vfs_unlink(dirp, rdentry, NULL);
 	else
 		host_err = vfs_rmdir(dirp, rdentry);
 	if (!host_err)
 		host_err = commit_metadata(fhp);
-out_put:
 	dput(rdentry);
 
 out_nfserr:
