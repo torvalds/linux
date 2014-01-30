@@ -1865,10 +1865,12 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 
 	mutex_unlock(&dev_priv->dpio_lock);
 
-	/* init power sequencer on this pipe and port */
-	intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
-	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
-						      &power_seq);
+	if (is_edp(intel_dp)) {
+		/* init power sequencer on this pipe and port */
+		intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
+		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
+							      &power_seq);
+	}
 
 	intel_enable_dp(encoder);
 
