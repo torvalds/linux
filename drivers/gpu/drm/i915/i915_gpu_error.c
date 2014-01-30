@@ -985,41 +985,54 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	int pipe;
 
-	error->eir = I915_READ(EIR);
-	error->pgtbl_er = I915_READ(PGTBL_ER);
+	/* General organization
+	 * 1. Registers specific to a single generation
+	 * 2. Registers which belong to multiple generations
+	 * 3. Feature specific registers.
+	 * 4. Everything else
+	 * Please try to follow the order.
+	 */
+
+	/* 1: Registers specific to a single generation */
+	if (IS_VALLEYVIEW(dev)) {
+		error->ier = I915_READ(GTIER) | I915_READ(VLV_IER);
+		error->forcewake = I915_READ(FORCEWAKE_VLV);
+	}
+
+	if (IS_GEN7(dev))
+		error->err_int = I915_READ(GEN7_ERR_INT);
+
+	if (IS_GEN6(dev))
+		error->forcewake = I915_READ(FORCEWAKE);
+
+	if (IS_GEN2(dev))
+		error->ier = I915_READ16(IER);
+
+	/* 2: Registers which belong to multiple generations */
+	if (INTEL_INFO(dev)->gen >= 7)
+		error->forcewake = I915_READ(FORCEWAKE_MT);
+
+	if (INTEL_INFO(dev)->gen >= 6) {
+		error->derrmr = I915_READ(DERRMR);
+		error->error = I915_READ(ERROR_GEN6);
+		error->done_reg = I915_READ(DONE_REG);
+	}
+
+	/* 3: Feature specific registers */
 	if (HAS_HW_CONTEXTS(dev))
 		error->ccid = I915_READ(CCID);
 
 	if (HAS_PCH_SPLIT(dev))
 		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
-	else if (IS_VALLEYVIEW(dev))
-		error->ier = I915_READ(GTIER) | I915_READ(VLV_IER);
-	else if (IS_GEN2(dev))
-		error->ier = I915_READ16(IER);
-	else
+	else {
 		error->ier = I915_READ(IER);
-
-	if (INTEL_INFO(dev)->gen >= 6)
-		error->derrmr = I915_READ(DERRMR);
-
-	if (IS_VALLEYVIEW(dev))
-		error->forcewake = I915_READ(FORCEWAKE_VLV);
-	else if (INTEL_INFO(dev)->gen >= 7)
-		error->forcewake = I915_READ(FORCEWAKE_MT);
-	else if (INTEL_INFO(dev)->gen == 6)
-		error->forcewake = I915_READ(FORCEWAKE);
-
-	if (!HAS_PCH_SPLIT(dev))
 		for_each_pipe(pipe)
 			error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
-
-	if (INTEL_INFO(dev)->gen >= 6) {
-		error->error = I915_READ(ERROR_GEN6);
-		error->done_reg = I915_READ(DONE_REG);
 	}
 
-	if (INTEL_INFO(dev)->gen == 7)
-		error->err_int = I915_READ(GEN7_ERR_INT);
+	/* 4: Everything else */
+	error->eir = I915_READ(EIR);
+	error->pgtbl_er = I915_READ(PGTBL_ER);
 
 	i915_get_extra_instdone(dev, error->extra_instdone);
 }
