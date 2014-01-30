@@ -263,7 +263,9 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 					 unsigned int fmt)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
+	int ret = 0;
 
+	pm_runtime_get_sync(mcasp->dev);
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 	case SND_SOC_DAIFMT_AC97:
@@ -317,7 +319,8 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		break;
 
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
@@ -354,10 +357,12 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		break;
 
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
-
-	return 0;
+out:
+	pm_runtime_put_sync(mcasp->dev);
+	return ret;
 }
 
 static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
@@ -676,19 +681,9 @@ static int davinci_mcasp_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = pm_runtime_get_sync(mcasp->dev);
-		if (IS_ERR_VALUE(ret))
-			dev_err(mcasp->dev, "pm_runtime_get_sync() failed\n");
 		davinci_mcasp_start(mcasp, substream->stream);
 		break;
-
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		davinci_mcasp_stop(mcasp, substream->stream);
-		ret = pm_runtime_put_sync(mcasp->dev);
-		if (IS_ERR_VALUE(ret))
-			dev_err(mcasp->dev, "pm_runtime_put_sync() failed\n");
-		break;
-
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		davinci_mcasp_stop(mcasp, substream->stream);
