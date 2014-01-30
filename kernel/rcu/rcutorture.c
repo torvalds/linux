@@ -91,15 +91,12 @@ torture_param(int, test_boost_interval, 7,
 	     "Interval between boost tests, seconds.");
 torture_param(bool, test_no_idle_hz, true,
 	     "Test support for tickless idle CPUs");
+torture_param(bool, verbose, true,
+	     "Enable verbose debugging printk()s");
 
-char *torture_type = "rcu";
-EXPORT_SYMBOL_GPL(torture_type);
+static char *torture_type = "rcu";
 module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, ...)");
-bool verbose;
-EXPORT_SYMBOL_GPL(verbose);
-module_param(verbose, bool, 0444);
-MODULE_PARM_DESC(verbose, "Enable verbose debugging printk()s");
 
 static int nrealreaders;
 static struct task_struct *writer_task;
@@ -1425,8 +1422,8 @@ rcu_torture_cleanup(void)
 {
 	int i;
 
-	mutex_lock(&fullstop_mutex);
 	rcutorture_record_test_transition();
+	mutex_lock(&fullstop_mutex);
 	if (fullstop == FULLSTOP_SHUTDOWN) {
 		pr_warn(/* but going down anyway, so... */
 		       "Concurrent 'rmmod rcutorture' and shutdown illegal!\n");
@@ -1589,7 +1586,7 @@ rcu_torture_init(void)
 		&rcu_ops, &rcu_bh_ops, &srcu_ops, &sched_ops,
 	};
 
-	mutex_lock(&fullstop_mutex);
+	torture_init_begin(torture_type, verbose);
 
 	/* Process args and tell the world that the torturer is on the job. */
 	for (i = 0; i < ARRAY_SIZE(torture_ops); i++) {
@@ -1604,7 +1601,7 @@ rcu_torture_init(void)
 		for (i = 0; i < ARRAY_SIZE(torture_ops); i++)
 			pr_alert(" %s", torture_ops[i]->name);
 		pr_alert("\n");
-		mutex_unlock(&fullstop_mutex);
+		torture_init_end();
 		return -EINVAL;
 	}
 	if (cur_ops->fqs == NULL && fqs_duration != 0) {
@@ -1800,11 +1797,11 @@ rcu_torture_init(void)
 	if (object_debug)
 		rcu_test_debug_objects();
 	rcutorture_record_test_transition();
-	mutex_unlock(&fullstop_mutex);
+	torture_init_end();
 	return 0;
 
 unwind:
-	mutex_unlock(&fullstop_mutex);
+	torture_init_end();
 	rcu_torture_cleanup();
 	return firsterr;
 }

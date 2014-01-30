@@ -49,6 +49,9 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com>");
 
+static char *torture_type;
+static bool verbose;
+
 int fullstop = FULLSTOP_RMMOD;
 EXPORT_SYMBOL_GPL(fullstop);
 DEFINE_MUTEX(fullstop_mutex);
@@ -426,3 +429,27 @@ void torture_shutdown_absorb(const char *title)
 	}
 }
 EXPORT_SYMBOL_GPL(torture_shutdown_absorb);
+
+/*
+ * Initialize torture module.  Please note that this is -not- invoked via
+ * the usual module_init() mechanism, but rather by an explicit call from
+ * the client torture module.  This call must be paired with a later
+ * torture_init_end().
+ */
+void __init torture_init_begin(char *ttype, bool v)
+{
+	mutex_lock(&fullstop_mutex);
+	torture_type = ttype;
+	verbose = v;
+
+}
+EXPORT_SYMBOL_GPL(torture_init_begin);
+
+/*
+ * Tell the torture module that initialization is complete.
+ */
+void __init torture_init_end(void)
+{
+	mutex_unlock(&fullstop_mutex);
+}
+EXPORT_SYMBOL_GPL(torture_init_end);

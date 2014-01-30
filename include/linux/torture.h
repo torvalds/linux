@@ -49,10 +49,6 @@ extern int fullstop;
 /* Protect fullstop transitions and spawning of kthreads.  */
 extern struct mutex fullstop_mutex;
 
-/* Common module parameters. */
-extern char *torture_type;
-extern bool verbose;
-
 #define TORTURE_FLAG "-torture:"
 #define TOROUT_STRING(s) \
 	pr_alert("%s" TORTURE_FLAG s "\n", torture_type)
@@ -88,5 +84,10 @@ void torture_shuffle_cleanup(void);
 
 /* Shutdown task absorption, for when the tasks cannot safely be killed. */
 void torture_shutdown_absorb(const char *title);
+
+/* Initialization and cleanup. */
+
+void torture_init_begin(char *ttype, bool v);
+void torture_init_end(void);
 
 #endif /* __LINUX_TORTURE_H */
