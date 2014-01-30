@@ -259,7 +259,7 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane)
 }
 
 struct drm_plane *exynos_plane_init(struct drm_device *dev,
-				    unsigned int possible_crtcs, bool priv)
+				    unsigned long possible_crtcs, bool priv)
 {
 	struct exynos_plane *exynos_plane;
 	int err;

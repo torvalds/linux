@@ -249,7 +249,7 @@ void exynos_drm_encoder_setup(struct drm_device *dev)
 struct drm_encoder *
 exynos_drm_encoder_create(struct drm_device *dev,
 			   struct exynos_drm_manager *manager,
-			   unsigned int possible_crtcs)
+			   unsigned long possible_crtcs)
 {
 	struct drm_encoder *encoder;
 	struct exynos_drm_encoder *exynos_encoder;
