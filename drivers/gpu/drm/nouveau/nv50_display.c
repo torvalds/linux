@@ -1035,6 +1035,7 @@ static bool
 nv50_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 		     struct drm_display_mode *adjusted_mode)
 {
+	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
 	return true;
 }
 

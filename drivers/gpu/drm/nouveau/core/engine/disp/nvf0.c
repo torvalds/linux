@@ -41,7 +41,7 @@ nvf0_disp_sclass[] = {
 
 static struct nouveau_oclass
 nvf0_disp_base_oclass[] = {
-	{ NVF0_DISP_CLASS, &nvd0_disp_base_ofuncs, nva3_disp_base_omthds },
+	{ NVF0_DISP_CLASS, &nvd0_disp_base_ofuncs, nvd0_disp_base_omthds },
 	{}
 };
 
