@@ -106,6 +106,14 @@ PNAME(group2_p)		= { "fin_pll", "fin_pll", "none", "none",
 			"none", "none", "sclk_mpll_bpll",
 			 "none", "none", "sclk_cpll" };
 
+/* fixed rate clocks generated inside the soc */
+static struct samsung_fixed_rate_clock exynos5410_fixed_rate_clks[] __initdata = {
+	FRATE(CLK_SCLK_HDMIPHY, "sclk_hdmiphy", NULL, CLK_IS_ROOT, 24000000),
+	FRATE(0, "sclk_hdmi27m", NULL, CLK_IS_ROOT, 24000000),
+	FRATE(0, "sclk_dptxphy", NULL, CLK_IS_ROOT, 24000000),
+	FRATE(0, "sclk_uhostphy", NULL, CLK_IS_ROOT, 48000000),
+};
+
 static struct samsung_mux_clock exynos5410_mux_clks[] __initdata = {
 	MUX(0, "mout_apll", apll_p, SRC_CPU, 0, 1),
 	MUX(0, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1),
@@ -236,6 +244,8 @@ static void __init exynos5410_clk_init(struct device_node *np)
 	samsung_clk_register_pll(exynos5410_plls, ARRAY_SIZE(exynos5410_plls),
 					reg_base);
 
+	samsung_clk_register_fixed_rate(exynos5410_fixed_rate_clks,
+			ARRAY_SIZE(exynos5410_fixed_rate_clks));
 	samsung_clk_register_mux(exynos5410_mux_clks,
 			ARRAY_SIZE(exynos5410_mux_clks));
 	samsung_clk_register_div(exynos5410_div_clks,

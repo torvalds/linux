@@ -16,6 +16,7 @@
 #define CLK_SCLK_MMC0 132
 #define CLK_SCLK_MMC1 133
 #define CLK_SCLK_MMC2 134
+#define CLK_SCLK_HDMIPHY 135
 
 /* gate clocks */
 #define CLK_UART0 257
