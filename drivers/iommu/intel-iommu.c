@@ -63,6 +63,7 @@
 #define DEFAULT_DOMAIN_ADDRESS_WIDTH 48
 
 #define MAX_AGAW_WIDTH 64
+#define MAX_AGAW_PFN_WIDTH	(MAX_AGAW_WIDTH - VTD_PAGE_SHIFT)
 
 #define __DOMAIN_MAX_PFN(gaw)  ((((uint64_t)1) << (gaw-VTD_PAGE_SHIFT)) - 1)
 #define __DOMAIN_MAX_ADDR(gaw) ((((uint64_t)1) << gaw) - 1)
@@ -106,12 +107,12 @@ static inline int agaw_to_level(int agaw)
 
 static inline int agaw_to_width(int agaw)
 {
-	return 30 + agaw * LEVEL_STRIDE;
+	return min_t(int, 30 + agaw * LEVEL_STRIDE, MAX_AGAW_WIDTH);
 }
 
 static inline int width_to_agaw(int width)
 {
-	return (width - 30) / LEVEL_STRIDE;
+	return DIV_ROUND_UP(width - 30, LEVEL_STRIDE);
 }
 
 static inline unsigned int level_to_offset_bits(int level)
@@ -141,7 +142,7 @@ static inline unsigned long align_to_level(unsigned long pfn, int level)
 
 static inline unsigned long lvl_to_nr_pages(unsigned int lvl)
 {
-	return  1 << ((lvl - 1) * LEVEL_STRIDE);
+	return  1 << min_t(int, (lvl - 1) * LEVEL_STRIDE, MAX_AGAW_PFN_WIDTH);
 }
 
 /* VT-d pages must always be _smaller_ than MM pages. Otherwise things
@@ -288,26 +289,6 @@ static inline void dma_clear_pte(struct dma_pte *pte)
 	pte->val = 0;
 }
 
-static inline void dma_set_pte_readable(struct dma_pte *pte)
-{
-	pte->val |= DMA_PTE_READ;
-}
-
-static inline void dma_set_pte_writable(struct dma_pte *pte)
-{
-	pte->val |= DMA_PTE_WRITE;
-}
-
-static inline void dma_set_pte_snp(struct dma_pte *pte)
-{
-	pte->val |= DMA_PTE_SNP;
-}
-
-static inline void dma_set_pte_prot(struct dma_pte *pte, unsigned long prot)
-{
-	pte->val = (pte->val & ~3) | (prot & 3);
-}
-
 static inline u64 dma_pte_addr(struct dma_pte *pte)
 {
 #ifdef CONFIG_64BIT
@@ -316,11 +297,6 @@ static inline u64 dma_pte_addr(struct dma_pte *pte)
 	/* Must have a full atomic 64-bit read */
 	return  __cmpxchg64(&pte->val, 0ULL, 0ULL) & VTD_PAGE_MASK;
 #endif
-}
-
-static inline void dma_set_pte_pfn(struct dma_pte *pte, unsigned long pfn)
-{
-	pte->val |= (uint64_t)pfn << VTD_PAGE_SHIFT;
 }
 
 static inline bool dma_pte_present(struct dma_pte *pte)
@@ -406,7 +382,7 @@ struct device_domain_info {
 
 static void flush_unmaps_timeout(unsigned long data);
 
-DEFINE_TIMER(unmap_timer,  flush_unmaps_timeout, 0, 0);
+static DEFINE_TIMER(unmap_timer,  flush_unmaps_timeout, 0, 0);
 
 #define HIGH_WATER_MARK 250
 struct deferred_flush_tables {
@@ -652,9 +628,7 @@ static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
 	struct dmar_drhd_unit *drhd = NULL;
 	int i;
 
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
+	for_each_active_drhd_unit(drhd) {
 		if (segment != drhd->segment)
 			continue;
 
@@ -865,7 +839,6 @@ static int dma_pte_clear_range(struct dmar_domain *domain,
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 	unsigned int large_page = 1;
 	struct dma_pte *first_pte, *pte;
-	int order;
 
 	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
 	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
@@ -890,8 +863,7 @@ static int dma_pte_clear_range(struct dmar_domain *domain,
 
 	} while (start_pfn && start_pfn <= last_pfn);
 
-	order = (large_page - 1) * 9;
-	return order;
+	return min_t(int, (large_page - 1) * 9, MAX_AGAW_PFN_WIDTH);
 }
 
 static void dma_pte_free_level(struct dmar_domain *domain, int level,
@@ -1255,8 +1227,8 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	unsigned long nlongs;
 
 	ndomains = cap_ndoms(iommu->cap);
-	pr_debug("IOMMU %d: Number of Domains supported <%ld>\n", iommu->seq_id,
-			ndomains);
+	pr_debug("IOMMU%d: Number of Domains supported <%ld>\n",
+		 iommu->seq_id, ndomains);
 	nlongs = BITS_TO_LONGS(ndomains);
 
 	spin_lock_init(&iommu->lock);
@@ -1266,13 +1238,17 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	 */
 	iommu->domain_ids = kcalloc(nlongs, sizeof(unsigned long), GFP_KERNEL);
 	if (!iommu->domain_ids) {
-		printk(KERN_ERR "Allocating domain id array failed\n");
+		pr_err("IOMMU%d: allocating domain id array failed\n",
+		       iommu->seq_id);
 		return -ENOMEM;
 	}
 	iommu->domains = kcalloc(ndomains, sizeof(struct dmar_domain *),
 			GFP_KERNEL);
 	if (!iommu->domains) {
-		printk(KERN_ERR "Allocating domain array failed\n");
+		pr_err("IOMMU%d: allocating domain array failed\n",
+		       iommu->seq_id);
+		kfree(iommu->domain_ids);
+		iommu->domain_ids = NULL;
 		return -ENOMEM;
 	}
 
@@ -1289,10 +1265,10 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 static void domain_exit(struct dmar_domain *domain);
 static void vm_domain_exit(struct dmar_domain *domain);
 
-void free_dmar_iommu(struct intel_iommu *iommu)
+static void free_dmar_iommu(struct intel_iommu *iommu)
 {
 	struct dmar_domain *domain;
-	int i;
+	int i, count;
 	unsigned long flags;
 
 	if ((iommu->domains) && (iommu->domain_ids)) {
@@ -1301,28 +1277,24 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 			clear_bit(i, iommu->domain_ids);
 
 			spin_lock_irqsave(&domain->iommu_lock, flags);
-			if (--domain->iommu_count == 0) {
+			count = --domain->iommu_count;
+			spin_unlock_irqrestore(&domain->iommu_lock, flags);
+			if (count == 0) {
 				if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE)
 					vm_domain_exit(domain);
 				else
 					domain_exit(domain);
 			}
-			spin_unlock_irqrestore(&domain->iommu_lock, flags);
 		}
 	}
 
 	if (iommu->gcmd & DMA_GCMD_TE)
 		iommu_disable_translation(iommu);
 
-	if (iommu->irq) {
-		irq_set_handler_data(iommu->irq, NULL);
-		/* This will mask the irq */
-		free_irq(iommu->irq, iommu);
-		destroy_irq(iommu->irq);
-	}
-
 	kfree(iommu->domains);
 	kfree(iommu->domain_ids);
+	iommu->domains = NULL;
+	iommu->domain_ids = NULL;
 
 	g_iommus[iommu->seq_id] = NULL;
 
@@ -2245,8 +2217,6 @@ static int __init si_domain_init(int hw)
 	if (!si_domain)
 		return -EFAULT;
 
-	pr_debug("Identity mapping domain is domain %d\n", si_domain->id);
-
 	for_each_active_iommu(iommu, drhd) {
 		ret = iommu_attach_domain(si_domain, iommu);
 		if (ret) {
@@ -2261,6 +2231,8 @@ static int __init si_domain_init(int hw)
 	}
 
 	si_domain->flags = DOMAIN_FLAG_STATIC_IDENTITY;
+	pr_debug("IOMMU: identity mapping domain is domain %d\n",
+		 si_domain->id);
 
 	if (hw)
 		return 0;
@@ -2492,11 +2464,7 @@ static int __init init_dmars(void)
 		goto error;
 	}
 
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-
-		iommu = drhd->iommu;
+	for_each_active_iommu(iommu, drhd) {
 		g_iommus[iommu->seq_id] = iommu;
 
 		ret = iommu_init_domains(iommu);
@@ -2520,12 +2488,7 @@ static int __init init_dmars(void)
 	/*
 	 * Start from the sane iommu hardware state.
 	 */
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-
-		iommu = drhd->iommu;
-
+	for_each_active_iommu(iommu, drhd) {
 		/*
 		 * If the queued invalidation is already initialized by us
 		 * (for example, while enabling interrupt-remapping) then
@@ -2545,12 +2508,7 @@ static int __init init_dmars(void)
 		dmar_disable_qi(iommu);
 	}
 
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-
-		iommu = drhd->iommu;
-
+	for_each_active_iommu(iommu, drhd) {
 		if (dmar_enable_qi(iommu)) {
 			/*
 			 * Queued Invalidate not enabled, use Register Based
@@ -2633,17 +2591,16 @@ static int __init init_dmars(void)
 	 *   global invalidate iotlb
 	 *   enable translation
 	 */
-	for_each_drhd_unit(drhd) {
+	for_each_iommu(iommu, drhd) {
 		if (drhd->ignored) {
 			/*
 			 * we always have to disable PMRs or DMA may fail on
 			 * this device
 			 */
 			if (force_on)
-				iommu_disable_protect_mem_regions(drhd->iommu);
+				iommu_disable_protect_mem_regions(iommu);
 			continue;
 		}
-		iommu = drhd->iommu;
 
 		iommu_flush_write_buffer(iommu);
 
@@ -2665,12 +2622,9 @@ static int __init init_dmars(void)
 
 	return 0;
 error:
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-		iommu = drhd->iommu;
-		free_iommu(iommu);
-	}
+	for_each_active_iommu(iommu, drhd)
+		free_dmar_iommu(iommu);
+	kfree(deferred_flush);
 	kfree(g_iommus);
 	return ret;
 }
@@ -2758,7 +2712,7 @@ static int iommu_no_mapping(struct device *dev)
 	struct pci_dev *pdev;
 	int found;
 
-	if (unlikely(dev->bus != &pci_bus_type))
+	if (unlikely(!dev_is_pci(dev)))
 		return 1;
 
 	pdev = to_pci_dev(dev);
@@ -3318,9 +3272,9 @@ static void __init init_no_remapping_devices(void)
 		}
 	}
 
-	for_each_drhd_unit(drhd) {
+	for_each_active_drhd_unit(drhd) {
 		int i;
-		if (drhd->ignored || drhd->include_all)
+		if (drhd->include_all)
 			continue;
 
 		for (i = 0; i < drhd->devices_cnt; i++)
@@ -3514,18 +3468,12 @@ static int __init
 rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
 {
 	struct acpi_dmar_reserved_memory *rmrr;
-	int ret;
 
 	rmrr = (struct acpi_dmar_reserved_memory *) rmrru->hdr;
-	ret = dmar_parse_dev_scope((void *)(rmrr + 1),
-		((void *)rmrr) + rmrr->header.length,
-		&rmrru->devices_cnt, &rmrru->devices, rmrr->segment);
-
-	if (ret || (rmrru->devices_cnt == 0)) {
-		list_del(&rmrru->list);
-		kfree(rmrru);
-	}
-	return ret;
+	return dmar_parse_dev_scope((void *)(rmrr + 1),
+				    ((void *)rmrr) + rmrr->header.length,
+				    &rmrru->devices_cnt, &rmrru->devices,
+				    rmrr->segment);
 }
 
 static LIST_HEAD(dmar_atsr_units);
@@ -3550,23 +3498,39 @@ int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
 
 static int __init atsr_parse_dev(struct dmar_atsr_unit *atsru)
 {
-	int rc;
 	struct acpi_dmar_atsr *atsr;
 
 	if (atsru->include_all)
 		return 0;
 
 	atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
-	rc = dmar_parse_dev_scope((void *)(atsr + 1),
-				(void *)atsr + atsr->header.length,
-				&atsru->devices_cnt, &atsru->devices,
-				atsr->segment);
-	if (rc || !atsru->devices_cnt) {
-		list_del(&atsru->list);
-		kfree(atsru);
+	return dmar_parse_dev_scope((void *)(atsr + 1),
+				    (void *)atsr + atsr->header.length,
+				    &atsru->devices_cnt, &atsru->devices,
+				    atsr->segment);
+}
+
+static void intel_iommu_free_atsr(struct dmar_atsr_unit *atsru)
+{
+	dmar_free_dev_scope(&atsru->devices, &atsru->devices_cnt);
+	kfree(atsru);
+}
+
+static void intel_iommu_free_dmars(void)
+{
+	struct dmar_rmrr_unit *rmrru, *rmrr_n;
+	struct dmar_atsr_unit *atsru, *atsr_n;
+
+	list_for_each_entry_safe(rmrru, rmrr_n, &dmar_rmrr_units, list) {
+		list_del(&rmrru->list);
+		dmar_free_dev_scope(&rmrru->devices, &rmrru->devices_cnt);
+		kfree(rmrru);
 	}
 
-	return rc;
+	list_for_each_entry_safe(atsru, atsr_n, &dmar_atsr_units, list) {
+		list_del(&atsru->list);
+		intel_iommu_free_atsr(atsru);
+	}
 }
 
 int dmar_find_matched_atsr_unit(struct pci_dev *dev)
@@ -3610,17 +3574,17 @@ found:
 
 int __init dmar_parse_rmrr_atsr_dev(void)
 {
-	struct dmar_rmrr_unit *rmrr, *rmrr_n;
-	struct dmar_atsr_unit *atsr, *atsr_n;
+	struct dmar_rmrr_unit *rmrr;
+	struct dmar_atsr_unit *atsr;
 	int ret = 0;
 
-	list_for_each_entry_safe(rmrr, rmrr_n, &dmar_rmrr_units, list) {
+	list_for_each_entry(rmrr, &dmar_rmrr_units, list) {
 		ret = rmrr_parse_dev(rmrr);
 		if (ret)
 			return ret;
 	}
 
-	list_for_each_entry_safe(atsr, atsr_n, &dmar_atsr_units, list) {
+	list_for_each_entry(atsr, &dmar_atsr_units, list) {
 		ret = atsr_parse_dev(atsr);
 		if (ret)
 			return ret;
@@ -3667,8 +3631,9 @@ static struct notifier_block device_nb = {
 
 int __init intel_iommu_init(void)
 {
-	int ret = 0;
+	int ret = -ENODEV;
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 
 	/* VT-d is required for a TXT/tboot launch, so enforce that */
 	force_on = tboot_force_iommu();
@@ -3676,36 +3641,29 @@ int __init intel_iommu_init(void)
 	if (dmar_table_init()) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMAR table\n");
-		return 	-ENODEV;
+		goto out_free_dmar;
 	}
 
 	/*
 	 * Disable translation if already enabled prior to OS handover.
 	 */
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu;
-
-		if (drhd->ignored)
-			continue;
-
-		iommu = drhd->iommu;
+	for_each_active_iommu(iommu, drhd)
 		if (iommu->gcmd & DMA_GCMD_TE)
 			iommu_disable_translation(iommu);
-	}
 
 	if (dmar_dev_scope_init() < 0) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMAR device scope\n");
-		return 	-ENODEV;
+		goto out_free_dmar;
 	}
 
 	if (no_iommu || dmar_disabled)
-		return -ENODEV;
+		goto out_free_dmar;
 
 	if (iommu_init_mempool()) {
 		if (force_on)
 			panic("tboot: Failed to initialize iommu memory\n");
-		return 	-ENODEV;
+		goto out_free_dmar;
 	}
 
 	if (list_empty(&dmar_rmrr_units))
@@ -3717,7 +3675,7 @@ int __init intel_iommu_init(void)
 	if (dmar_init_reserved_ranges()) {
 		if (force_on)
 			panic("tboot: Failed to reserve iommu ranges\n");
-		return 	-ENODEV;
+		goto out_free_mempool;
 	}
 
 	init_no_remapping_devices();
@@ -3727,9 +3685,7 @@ int __init intel_iommu_init(void)
 		if (force_on)
 			panic("tboot: Failed to initialize DMARs\n");
 		printk(KERN_ERR "IOMMU: dmar init failed\n");
-		put_iova_domain(&reserved_iova_list);
-		iommu_exit_mempool();
-		return ret;
+		goto out_free_reserved_range;
 	}
 	printk(KERN_INFO
 	"PCI-DMA: Intel(R) Virtualization Technology for Directed I/O\n");
@@ -3749,6 +3705,14 @@ int __init intel_iommu_init(void)
 	intel_iommu_enabled = 1;
 
 	return 0;
+
+out_free_reserved_range:
+	put_iova_domain(&reserved_iova_list);
+out_free_mempool:
+	iommu_exit_mempool();
+out_free_dmar:
+	intel_iommu_free_dmars();
+	return ret;
 }
 
 static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
@@ -3877,7 +3841,7 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 }
 
 /* domain id for virtual machine, it won't be set in context */
-static unsigned long vm_domid;
+static atomic_t vm_domid = ATOMIC_INIT(0);
 
 static struct dmar_domain *iommu_alloc_vm_domain(void)
 {
@@ -3887,7 +3851,7 @@ static struct dmar_domain *iommu_alloc_vm_domain(void)
 	if (!domain)
 		return NULL;
 
-	domain->id = vm_domid++;
+	domain->id = atomic_inc_return(&vm_domid);
 	domain->nid = -1;
 	memset(domain->iommu_bmp, 0, sizeof(domain->iommu_bmp));
 	domain->flags = DOMAIN_FLAG_VIRTUAL_MACHINE;
@@ -3934,11 +3898,7 @@ static void iommu_free_vm_domain(struct dmar_domain *domain)
 	unsigned long i;
 	unsigned long ndomains;
 
-	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
-		iommu = drhd->iommu;
-
+	for_each_active_iommu(iommu, drhd) {
 		ndomains = cap_ndoms(iommu->cap);
 		for_each_set_bit(i, iommu->domain_ids, ndomains) {
 			if (iommu->domains[i] == domain) {
