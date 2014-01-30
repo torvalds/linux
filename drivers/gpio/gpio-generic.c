@@ -531,6 +531,8 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 		return err;
 
 	if (pdata) {
+		if (pdata->label)
+			bgc->gc.label = pdata->label;
 		bgc->gc.base = pdata->base;
 		if (pdata->ngpio > 0)
 			bgc->gc.ngpio = pdata->ngpio;
