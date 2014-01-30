@@ -244,15 +244,7 @@ int lustre_pack_request(struct ptlrpc_request *req, __u32 magic, int count,
 	LASSERT(lens[MSG_PTLRPC_BODY_OFF] == sizeof(struct ptlrpc_body));
 
 	/* only use new format, we don't need to be compatible with 1.4 */
-	magic = LUSTRE_MSG_MAGIC_V2;
-
-	switch (magic) {
-	case LUSTRE_MSG_MAGIC_V2:
-		return lustre_pack_request_v2(req, count, lens, bufs);
-	default:
-		LASSERTF(0, "incorrect message magic: %08x\n", magic);
-		return -EINVAL;
-	}
+	return lustre_pack_request_v2(req, count, lens, bufs);
 }
 EXPORT_SYMBOL(lustre_pack_request);
 
