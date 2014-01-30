@@ -217,8 +217,8 @@
 				interrupts = <17>;
 				fifosize = <128>;
 				clocks = <&clks 13>;
-				sirf,uart-dma-rx-channel = <21>;
-				sirf,uart-dma-tx-channel = <2>;
+				dmas = <&dmac1 5>, <&dmac0 2>;
+				dma-names = "rx", "tx";
 			};
 
 			uart1: uart@b0060000 {
@@ -228,6 +228,7 @@
 				interrupts = <18>;
 				fifosize = <32>;
 				clocks = <&clks 14>;
+				dma-names = "no-rx", "no-tx";
 			};
 
 			uart2: uart@b0070000 {
@@ -237,8 +238,8 @@
 				interrupts = <19>;
 				fifosize = <128>;
 				clocks = <&clks 15>;
-				sirf,uart-dma-rx-channel = <6>;
-				sirf,uart-dma-tx-channel = <7>;
+				dmas = <&dmac0 6>, <&dmac0 7>;
+				dma-names = "rx", "tx";
 			};
 
 			usp0: usp@b0080000 {
@@ -248,8 +249,8 @@
 				interrupts = <20>;
 				fifosize = <128>;
 				clocks = <&clks 28>;
-				sirf,usp-dma-rx-channel = <17>;
-				sirf,usp-dma-tx-channel = <18>;
+				dmas = <&dmac1 1>, <&dmac1 2>;
+				dma-names = "rx", "tx";
 			};
 
 			usp1: usp@b0090000 {
@@ -259,8 +260,8 @@
 				interrupts = <21>;
 				fifosize = <128>;
 				clocks = <&clks 29>;
-				sirf,usp-dma-rx-channel = <14>;
-				sirf,usp-dma-tx-channel = <15>;
+				dmas = <&dmac0 14>, <&dmac0 15>;
+				dma-names = "rx", "tx";
 			};
 
 			dmac0: dma-controller@b00b0000 {

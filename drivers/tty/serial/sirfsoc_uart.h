@@ -392,9 +392,6 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 /* Indicate how many buffers used */
 #define SIRFSOC_RX_LOOP_BUF_CNT		2
 
-/* Indicate if DMA channel valid */
-#define IS_DMA_CHAN_VALID(x)	((x) != -1)
-#define UNVALID_DMA_CHAN	-1
 /* For Fast Baud Rate Calculation */
 struct sirfsoc_baudrate_to_regv {
 	unsigned int baud_rate;
@@ -423,8 +420,6 @@ struct sirfsoc_uart_port {
 	/* for SiRFmarco, there are SET/CLR for UART_INT_EN */
 	bool				is_marco;
 	struct sirfsoc_uart_register	*uart_reg;
-	int				rx_dma_no;
-	int				tx_dma_no;
 	struct dma_chan			*rx_dma_chan;
 	struct dma_chan			*tx_dma_chan;
 	dma_addr_t			tx_dma_addr;
