@@ -594,6 +594,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 	bool cur_cs = true;
 	bool keep_cs = false;
 	int ret = 0;
+	int ms = 1;
 
 	spi_set_cs(msg->spi, true);
 
@@ -611,7 +612,16 @@ static int spi_transfer_one_message(struct spi_master *master,
 
 		if (ret > 0) {
 			ret = 0;
-			wait_for_completion(&master->xfer_completion);
+			ms = xfer->len * 8 * 1000 / xfer->speed_hz;
+			ms += 10; /* some tolerance */
+
+			ms = wait_for_completion_timeout(&master->xfer_completion,
+							 msecs_to_jiffies(ms));
+		}
+
+		if (ms == 0) {
+			dev_err(&msg->spi->dev, "SPI transfer timed out\n");
+			msg->status = -ETIMEDOUT;
 		}
 
 		trace_spi_transfer_stop(msg, xfer);
