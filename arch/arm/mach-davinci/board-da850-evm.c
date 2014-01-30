@@ -358,6 +358,9 @@ static inline void da850_evm_setup_nor_nand(void)
 
 		platform_add_devices(da850_evm_devices,
 					ARRAY_SIZE(da850_evm_devices));
+
+		if (davinci_aemif_setup(&da850_evm_nandflash_device))
+			pr_warn("%s: Cannot configure AEMIF.\n", __func__);
 	}
 }
 
