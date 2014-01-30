@@ -986,7 +986,7 @@ static void notify_ring(struct drm_device *dev,
 	i915_queue_hangcheck(dev);
 }
 
-static void gen6_set_pm_mask(struct drm_i915_private *dev_priv,
+void gen6_set_pm_mask(struct drm_i915_private *dev_priv,
 			     u32 pm_iir, int new_delay)
 {
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
