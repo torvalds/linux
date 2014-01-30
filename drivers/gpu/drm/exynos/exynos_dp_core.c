@@ -23,9 +23,14 @@
 #include <video/of_videomode.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_dp_core.h"
+
+#define ctx_from_connector(c)	container_of(c, struct exynos_dp_device, \
+					connector)
 
 static int exynos_dp_init_dp(struct exynos_dp_device *dp)
 {
@@ -897,21 +902,98 @@ static void exynos_dp_hotplug(struct work_struct *work)
 		dev_err(dp->dev, "unable to config video\n");
 }
 
-static bool exynos_dp_display_is_connected(struct exynos_drm_display *display)
+static enum drm_connector_status exynos_dp_detect(
+				struct drm_connector *connector, bool force)
 {
-	return true;
+	return connector_status_connected;
 }
 
-static void *exynos_dp_get_panel(struct exynos_drm_display *display)
+static void exynos_dp_connector_destroy(struct drm_connector *connector)
+{
+}
+
+static struct drm_connector_funcs exynos_dp_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.detect = exynos_dp_detect,
+	.destroy = exynos_dp_connector_destroy,
+};
+
+static int exynos_dp_get_modes(struct drm_connector *connector)
+{
+	struct exynos_dp_device *dp = ctx_from_connector(connector);
+	struct drm_display_mode *mode;
+
+	mode = drm_mode_create(connector->dev);
+	if (!mode) {
+		DRM_ERROR("failed to create a new display mode.\n");
+		return 0;
+	}
+
+	drm_display_mode_from_videomode(&dp->panel.vm, mode);
+	mode->width_mm = dp->panel.width_mm;
+	mode->height_mm = dp->panel.height_mm;
+	connector->display_info.width_mm = mode->width_mm;
+	connector->display_info.height_mm = mode->height_mm;
+
+	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+	drm_mode_set_name(mode);
+	drm_mode_probed_add(connector, mode);
+
+	return 1;
+}
+
+static int exynos_dp_mode_valid(struct drm_connector *connector,
+			struct drm_display_mode *mode)
+{
+	return MODE_OK;
+}
+
+static struct drm_encoder *exynos_dp_best_encoder(
+			struct drm_connector *connector)
+{
+	struct exynos_dp_device *dp = ctx_from_connector(connector);
+
+	return dp->encoder;
+}
+
+static struct drm_connector_helper_funcs exynos_dp_connector_helper_funcs = {
+	.get_modes = exynos_dp_get_modes,
+	.mode_valid = exynos_dp_mode_valid,
+	.best_encoder = exynos_dp_best_encoder,
+};
+
+static int exynos_dp_initialize(struct exynos_drm_display *display,
+				struct drm_device *drm_dev)
 {
 	struct exynos_dp_device *dp = display->ctx;
 
-	return &dp->panel;
+	dp->drm_dev = drm_dev;
+
+	return 0;
 }
 
-static int exynos_dp_check_mode(struct exynos_drm_display *display,
-			struct drm_display_mode *mode)
+static int exynos_dp_create_connector(struct exynos_drm_display *display,
+				struct drm_encoder *encoder)
 {
+	struct exynos_dp_device *dp = display->ctx;
+	struct drm_connector *connector = &dp->connector;
+	int ret;
+
+	dp->encoder = encoder;
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
+
+	ret = drm_connector_init(dp->drm_dev, connector,
+			&exynos_dp_connector_funcs, DRM_MODE_CONNECTOR_eDP);
+	if (ret) {
+		DRM_ERROR("Failed to initialize connector with drm\n");
+		return ret;
+	}
+
+	drm_connector_helper_add(connector, &exynos_dp_connector_helper_funcs);
+	drm_sysfs_connector_add(connector);
+	drm_mode_connector_attach_encoder(connector, encoder);
+
 	return 0;
 }
 
@@ -983,9 +1065,8 @@ static void exynos_dp_dpms(struct exynos_drm_display *display, int mode)
 }
 
 static struct exynos_drm_display_ops exynos_dp_display_ops = {
-	.is_connected = exynos_dp_display_is_connected,
-	.get_panel = exynos_dp_get_panel,
-	.check_mode = exynos_dp_check_mode,
+	.initialize = exynos_dp_initialize,
+	.create_connector = exynos_dp_create_connector,
 	.dpms = exynos_dp_dpms,
 };
 
