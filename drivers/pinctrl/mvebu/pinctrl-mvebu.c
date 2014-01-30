@@ -598,6 +598,9 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	void __iomem *base;
 	struct pinctrl_pin_desc *pdesc;
 	unsigned gid, n, k;
+	unsigned size, noname = 0;
+	char *noname_buf;
+	void *p;
 	int ret;
 
 	if (!soc || !soc->controls || !soc->modes) {
@@ -660,6 +663,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 			sprintf(names + 8*k, "mpp%d", ctrl->pid+k);
 		ctrl->name = names;
 		pctl->num_groups += ctrl->npins;
+		noname += ctrl->npins;
 	}
 
 	pdesc = devm_kzalloc(&pdev->dev, pctl->desc.npins *
@@ -673,12 +677,17 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		pdesc[n].number = n;
 	pctl->desc.pins = pdesc;
 
-	pctl->groups = devm_kzalloc(&pdev->dev, pctl->num_groups *
-			     sizeof(struct mvebu_pinctrl_group), GFP_KERNEL);
-	if (!pctl->groups) {
-		dev_err(&pdev->dev, "failed to alloc pinctrl groups\n");
+	/*
+	 * allocate groups and name buffers for unnamed groups.
+	 */
+	size = pctl->num_groups * sizeof(*pctl->groups) + noname * 8;
+	p = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!p) {
+		dev_err(&pdev->dev, "failed to alloc group data\n");
 		return -ENOMEM;
 	}
+	pctl->groups = p;
+	noname_buf = p + pctl->num_groups * sizeof(*pctl->groups);
 
 	/* assign mpp controls to groups */
 	gid = 0;
@@ -692,15 +701,20 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 
 		/* generic mvebu register control maps to a number of groups */
 		if (!ctrl->mpp_get && !ctrl->mpp_set) {
+			pctl->groups[gid].name = noname_buf;
 			pctl->groups[gid].npins = 1;
+			sprintf(noname_buf, "mpp%d", ctrl->pid+0);
+			noname_buf += 8;
 
 			for (k = 1; k < ctrl->npins; k++) {
 				gid++;
 				pctl->groups[gid].gid = gid;
 				pctl->groups[gid].ctrl = ctrl;
-				pctl->groups[gid].name = &ctrl->name[8*k];
+				pctl->groups[gid].name = noname_buf;
 				pctl->groups[gid].pins = &ctrl->pins[k];
 				pctl->groups[gid].npins = 1;
+				sprintf(noname_buf, "mpp%d", ctrl->pid+k);
+				noname_buf += 8;
 			}
 		}
 		gid++;
