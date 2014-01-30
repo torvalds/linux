@@ -286,7 +286,7 @@ awk < $T/cfgcpu.pack \
 # Dump out the scripting required to run one test batch.
 function dump(first, pastlast)
 {
-	print "echo ----start batch----"
+	print "echo ----Start batch: `date`"
 	jn=1
 	for (j = first; j < pastlast; j++) {
 		builddir=KVM "/b" jn
@@ -302,27 +302,27 @@ function dump(first, pastlast)
 			ovf = "(!)";
 		else
 			ovf = "";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build.";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date`";
 		print "rm -f " builddir ".*";
 		print "touch " builddir ".wait";
 		print "mkdir " builddir " > /dev/null 2>&1 || :";
 		print "mkdir " rd cfr[jn] " || :";
 		print "kvm-test-1-rcu.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" RCU_QEMU_ARG "\" \"" RCU_BOOTARGS "\" > " builddir ".out 2>&1 &"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete."
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date`"
 		print "while test -f " builddir ".wait"
 		print "do"
 		print "\tsleep 1"
 		print "done"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete."
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date`"
 		jn++;
 	}
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
 		print "rm -f " builddir ".ready"
-		print "echo ----", cfr[j], cpusr[j] ovf ": Starting kernel"
+		print "echo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date`"
 	}
 	print "wait"
-	print "echo ---- All kernel runs complete"
+	print "echo ---- All kernel runs complete. `date`"
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
 		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results:"
