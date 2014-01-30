@@ -978,43 +978,13 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 		i915_gem_capture_vm(dev_priv, error, vm, i++);
 }
 
-/**
- * i915_capture_error_state - capture an error record for later analysis
- * @dev: drm device
- *
- * Should be called when an error is detected (either a hang or an error
- * interrupt) to capture error state from the time of the error.  Fills
- * out a structure which becomes available in debugfs for user level tools
- * to pick up.
- */
-void i915_capture_error_state(struct drm_device *dev)
+/* Capture all registers which don't fit into another category. */
+static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
+				   struct drm_i915_error_state *error)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_error_state *error;
-	unsigned long flags;
+	struct drm_device *dev = dev_priv->dev;
 	int pipe;
 
-	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
-	error = dev_priv->gpu_error.first_error;
-	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
-	if (error)
-		return;
-
-	/* Account for pipe specific data like PIPE*STAT */
-	error = kzalloc(sizeof(*error), GFP_ATOMIC);
-	if (!error) {
-		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
-		return;
-	}
-
-	DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
-		 dev->primary->index);
-	DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
-	DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
-	DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
-	DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
-
-	kref_init(&error->ref);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	if (HAS_HW_CONTEXTS(dev))
@@ -1052,7 +1022,46 @@ void i915_capture_error_state(struct drm_device *dev)
 		error->err_int = I915_READ(GEN7_ERR_INT);
 
 	i915_get_extra_instdone(dev, error->extra_instdone);
+}
 
+/**
+ * i915_capture_error_state - capture an error record for later analysis
+ * @dev: drm device
+ *
+ * Should be called when an error is detected (either a hang or an error
+ * interrupt) to capture error state from the time of the error.  Fills
+ * out a structure which becomes available in debugfs for user level tools
+ * to pick up.
+ */
+void i915_capture_error_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_error_state *error;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	error = dev_priv->gpu_error.first_error;
+	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
+	if (error)
+		return;
+
+	/* Account for pipe specific data like PIPE*STAT */
+	error = kzalloc(sizeof(*error), GFP_ATOMIC);
+	if (!error) {
+		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
+		return;
+	}
+
+	DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
+		 dev->primary->index);
+	DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
+	DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
+	DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
+	DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
+
+	kref_init(&error->ref);
+
+	i915_capture_reg_state(dev_priv, error);
 	i915_gem_capture_buffers(dev_priv, error);
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
