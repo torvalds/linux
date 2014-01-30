@@ -4,35 +4,40 @@ Required properties:
 - compatible:
   - "altr,pio-1.0"
 - reg: Physical base address and length of the controller's registers.
-- #gpio-cells : Should be two.
-  - first cell is the pin number
-  - second cell is used to specify optional parameters (unused)
+- #gpio-cells : Should be 1
+  - The first cell is the gpio offset number
 - gpio-controller : Marks the device node as a GPIO controller.
 - #interrupt-cells : Should be 1.
+  - The first cell is the GPIO offset number within the GPIO controller.
 - interrupts: Specify the interrupt.
 - interrupt-controller: Mark the device node as an interrupt controller
-  The first cell is the GPIO number.
 
-Altera GPIO specific properties:
-- width: Width of the GPIO bank, range from 1-32
-- level_trigger: Specifies whether the GPIO interrupt is level trigger.
-  This field is required if the Altera GPIO controller used has IRQ enabled.
-- edge_type: Specifies the GPIO edge trigger type. This field will only exist
-  if IRQ is enabled in the core and level_trigger is 0
+Altera GPIO specific required properties:
+- altr,interrupt_trigger: Specifies the interrupt trigger type the GPIO
+  hardware is synthesized. This field is required if the Altera GPIO controller
+  used has IRQ enabled as the interrupt type is not software controlled,
+  but hardware synthesized. Required if GPIO is used as an interrupt
+  controller. The value is defined in <dt-bindings/interrupt-controller/irq.h>
+  Only the following flags are supported:
+    IRQ_TYPE_EDGE_RISING
+    IRQ_TYPE_EDGE_FALLING
+    IRQ_TYPE_EDGE_BOTH
+    IRQ_TYPE_LEVEL_HIGH
 
-Note: If the Altera GPIO is set to be built as a module, peripherals that uses
-Altera GPIO as interrupt-parent should be a module so that the peripheral
-doesn't get initialized before Altera GPIO is initialized.
+Altera GPIO specific optional properties:
+- altr,gpio-bank-width: Width of the GPIO bank. This defines how many pins the
+  GPIO device has. Ranges between 1-32. Optional and defaults to 32 is not
+  specified.
 
 Example:
 
-gpio_altr: gpio_altr {
+gpio_altr: gpio@40000 {
     compatible = "altr,pio-1.0";
     reg = <0xff200000 0x10>;
     interrupts = <0 45 4>;
-    width = <32>;
-    level_trigger = <0>;
-    #gpio-cells = <2>;
+    altr,gpio-bank-width = <32>;
+    altr,interrupt_trigger = <IRQ_TYPE_EDGE_RISING>;
+    #gpio-cells = <1>;
     gpio-controller;
     #interrupt-cells = <1>;
     interrupt-controller;
