@@ -152,6 +152,31 @@ config NR_CPUS
 	depends on SMP
 	default "4"
 
+config SWP_EMULATE
+	bool "Emulate SWP/SWPB instructions"
+	help
+	  ARMv6 architecture deprecates use of the SWP/SWPB instructions. ARMv8
+	  oblosetes the use of SWP/SWPB instructions. ARMv7 multiprocessing
+	  extensions introduce the ability to disable these instructions,
+	  triggering an undefined instruction exception when executed. Say Y
+	  here to enable software emulation of these instructions for userspace
+	  (not kernel) using LDREX/STREX. Also creates /proc/cpu/swp_emulation
+	  for statistics.
+
+	  In some older versions of glibc [<=2.8] SWP is used during futex
+	  trylock() operations with the assumption that the code will not
+	  be preempted. This invalid assumption may be more likely to fail
+	  with SWP emulation enabled, leading to deadlock of the user
+	  application.
+
+	  NOTE: when accessing uncached shared regions, LDREX/STREX rely
+	  on an external transaction monitoring block called a global
+	  monitor to maintain update atomicity. If your system does not
+	  implement a global monitor, this option can cause programs that
+	  perform SWP operations to uncached memory to deadlock.
+
+	  If unsure, say Y.
+
 source kernel/Kconfig.preempt
 
 config HZ
@@ -185,6 +210,7 @@ config HW_PERF_EVENTS
 config ARMV7_COMPAT
 	bool "Kernel support for ARMv7 applications"
 	depends on COMPAT
+	select SWP_EMULATE
 	help
 	 This option enables features that allow that ran on an ARMv7 or older
 	 processor to continue functioning.
