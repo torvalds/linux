@@ -29,7 +29,6 @@
 #include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/irqreturn.h>
 #include <uapi/linux/pci.h>
 
 #include <linux/pci_ids.h>
@@ -1577,7 +1576,6 @@ void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar);
 #ifdef CONFIG_PCI_IOV
 int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn);
 void pci_disable_sriov(struct pci_dev *dev);
-irqreturn_t pci_sriov_migration(struct pci_dev *dev);
 int pci_num_vf(struct pci_dev *dev);
 int pci_vfs_assigned(struct pci_dev *dev);
 int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs);
@@ -1586,8 +1584,6 @@ int pci_sriov_get_totalvfs(struct pci_dev *dev);
 static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 { return -ENODEV; }
 static inline void pci_disable_sriov(struct pci_dev *dev) { }
-static inline irqreturn_t pci_sriov_migration(struct pci_dev *dev)
-{ return IRQ_NONE; }
 static inline int pci_num_vf(struct pci_dev *dev) { return 0; }
 static inline int pci_vfs_assigned(struct pci_dev *dev)
 { return 0; }
