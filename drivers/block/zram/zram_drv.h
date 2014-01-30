@@ -88,13 +88,11 @@ struct zram_meta {
 	void *compress_buffer;
 	struct table *table;
 	struct zs_pool *mem_pool;
+	struct mutex buffer_lock; /* protect compress buffers */
 };
 
 struct zram {
 	struct zram_meta *meta;
-	struct rw_semaphore lock; /* protect compression buffers,
-				   * reads and writes
-				   */
 	struct request_queue *queue;
 	struct gendisk *disk;
 	int init_done;
