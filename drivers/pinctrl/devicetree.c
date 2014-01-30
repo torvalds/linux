@@ -186,7 +186,9 @@ int pinctrl_dt_to_map(struct pinctrl *p)
 
 	/* CONFIG_OF enabled, p->dev not instantiated from DT */
 	if (!np) {
-		dev_dbg(p->dev, "no of_node; not parsing pinctrl DT\n");
+		if (of_have_populated_dt())
+			dev_dbg(p->dev,
+				"no of_node; not parsing pinctrl DT\n");
 		return 0;
 	}
 
