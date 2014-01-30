@@ -430,8 +430,7 @@ static void pSeries_machine_kexec(struct kimage *image)
 {
 	long rc;
 
-	if (firmware_has_feature(FW_FEATURE_SET_MODE) &&
-	    (image->type != KEXEC_TYPE_CRASH)) {
+	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		rc = pSeries_disable_reloc_on_exc();
 		if (rc != H_SUCCESS)
 			pr_warning("Warning: Failed to disable relocation on "
