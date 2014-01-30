@@ -29,6 +29,8 @@
 #define WINDOWS_NR		3
 
 #define get_vidi_mgr(dev)	platform_get_drvdata(to_platform_device(dev))
+#define ctx_from_connector(c)	container_of(c, struct vidi_context, \
+					connector)
 
 struct vidi_win_data {
 	unsigned int		offset_x;
@@ -47,6 +49,8 @@ struct vidi_win_data {
 struct vidi_context {
 	struct drm_device		*drm_dev;
 	struct drm_crtc			*crtc;
+	struct drm_encoder		*encoder;
+	struct drm_connector		connector;
 	struct vidi_win_data		win_data[WINDOWS_NR];
 	struct edid			*raw_edid;
 	unsigned int			clkdiv;
@@ -84,60 +88,6 @@ static const char fake_edid_info[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x06
-};
-
-static bool vidi_display_is_connected(struct exynos_drm_display *display)
-{
-	struct vidi_context *ctx = display->ctx;
-
-	/*
-	 * connection request would come from user side
-	 * to do hotplug through specific ioctl.
-	 */
-	return ctx->connected ? true : false;
-}
-
-static struct edid *vidi_get_edid(struct exynos_drm_display *display,
-			struct drm_connector *connector)
-{
-	struct vidi_context *ctx = display->ctx;
-	struct edid *edid;
-
-	/*
-	 * the edid data comes from user side and it would be set
-	 * to ctx->raw_edid through specific ioctl.
-	 */
-	if (!ctx->raw_edid) {
-		DRM_DEBUG_KMS("raw_edid is null.\n");
-		return ERR_PTR(-EFAULT);
-	}
-
-	edid = drm_edid_duplicate(ctx->raw_edid);
-	if (!edid) {
-		DRM_DEBUG_KMS("failed to allocate edid\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	return edid;
-}
-
-static int vidi_check_mode(struct exynos_drm_display *display,
-			struct drm_display_mode *mode)
-{
-	/* TODO. */
-
-	return 0;
-}
-
-static struct exynos_drm_display_ops vidi_display_ops = {
-	.is_connected = vidi_display_is_connected,
-	.get_edid = vidi_get_edid,
-	.check_mode = vidi_check_mode,
-};
-
-static struct exynos_drm_display vidi_display = {
-	.type = EXYNOS_DISPLAY_TYPE_VIDI,
-	.ops = &vidi_display_ops,
 };
 
 static void vidi_apply(struct exynos_drm_manager *mgr)
@@ -531,6 +481,110 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 
 	return 0;
 }
+
+static enum drm_connector_status vidi_detect(struct drm_connector *connector,
+			bool force)
+{
+	struct vidi_context *ctx = ctx_from_connector(connector);
+
+	/*
+	 * connection request would come from user side
+	 * to do hotplug through specific ioctl.
+	 */
+	return ctx->connected ? connector_status_connected :
+			connector_status_disconnected;
+}
+
+static void vidi_connector_destroy(struct drm_connector *connector)
+{
+}
+
+static struct drm_connector_funcs vidi_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.detect = vidi_detect,
+	.destroy = vidi_connector_destroy,
+};
+
+static int vidi_get_modes(struct drm_connector *connector)
+{
+	struct vidi_context *ctx = ctx_from_connector(connector);
+	struct edid *edid;
+	int edid_len;
+
+	/*
+	 * the edid data comes from user side and it would be set
+	 * to ctx->raw_edid through specific ioctl.
+	 */
+	if (!ctx->raw_edid) {
+		DRM_DEBUG_KMS("raw_edid is null.\n");
+		return -EFAULT;
+	}
+
+	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
+	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
+	if (!edid) {
+		DRM_DEBUG_KMS("failed to allocate edid\n");
+		return -ENOMEM;
+	}
+
+	drm_mode_connector_update_edid_property(connector, edid);
+
+	return drm_add_edid_modes(connector, edid);
+}
+
+static int vidi_mode_valid(struct drm_connector *connector,
+			struct drm_display_mode *mode)
+{
+	return MODE_OK;
+}
+
+static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
+{
+	struct vidi_context *ctx = ctx_from_connector(connector);
+
+	return ctx->encoder;
+}
+
+static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
+	.get_modes = vidi_get_modes,
+	.mode_valid = vidi_mode_valid,
+	.best_encoder = vidi_best_encoder,
+};
+
+static int vidi_create_connector(struct exynos_drm_display *display,
+				struct drm_encoder *encoder)
+{
+	struct vidi_context *ctx = display->ctx;
+	struct drm_connector *connector = &ctx->connector;
+	int ret;
+
+	ctx->encoder = encoder;
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
+
+	ret = drm_connector_init(ctx->drm_dev, connector,
+			&vidi_connector_funcs, DRM_MODE_CONNECTOR_VIRTUAL);
+	if (ret) {
+		DRM_ERROR("Failed to initialize connector with drm\n");
+		return ret;
+	}
+
+	drm_connector_helper_add(connector, &vidi_connector_helper_funcs);
+	drm_sysfs_connector_add(connector);
+	drm_mode_connector_attach_encoder(connector, encoder);
+
+	return 0;
+}
+
+
+static struct exynos_drm_display_ops vidi_display_ops = {
+	.create_connector = vidi_create_connector,
+};
+
+static struct exynos_drm_display vidi_display = {
+	.type = EXYNOS_DISPLAY_TYPE_VIDI,
+	.ops = &vidi_display_ops,
+};
 
 static int vidi_probe(struct platform_device *pdev)
 {
