@@ -304,7 +304,7 @@ rcu_torture_cb(struct rcu_head *p)
 	int i;
 	struct rcu_torture *rp = container_of(p, struct rcu_torture, rtort_rcu);
 
-	if (fullstop != FULLSTOP_DONTSTOP) {
+	if (torture_must_stop_irq()) {
 		/* Test is ending, just drop callbacks on the floor. */
 		/* The next initialization will pick up the pieces. */
 		return;
@@ -572,8 +572,7 @@ static int rcu_torture_boost(void *arg)
 		while (ULONG_CMP_LT(jiffies, oldstarttime)) {
 			schedule_timeout_interruptible(oldstarttime - jiffies);
 			rcu_stutter_wait("rcu_torture_boost");
-			if (kthread_should_stop() ||
-			    fullstop != FULLSTOP_DONTSTOP)
+			if (torture_must_stop())
 				goto checkwait;
 		}
 
@@ -595,8 +594,7 @@ static int rcu_torture_boost(void *arg)
 			}
 			cond_resched();
 			rcu_stutter_wait("rcu_torture_boost");
-			if (kthread_should_stop() ||
-			    fullstop != FULLSTOP_DONTSTOP)
+			if (torture_must_stop())
 				goto checkwait;
 		}
 
@@ -621,7 +619,7 @@ static int rcu_torture_boost(void *arg)
 
 		/* Go do the stutter. */
 checkwait:	rcu_stutter_wait("rcu_torture_boost");
-	} while (!kthread_should_stop() && fullstop  == FULLSTOP_DONTSTOP);
+	} while (!torture_must_stop());
 
 	/* Clean up and exit. */
 	VERBOSE_TOROUT_STRING("rcu_torture_boost task stopping");
@@ -659,7 +657,7 @@ rcu_torture_fqs(void *arg)
 			fqs_burst_remaining -= fqs_holdoff;
 		}
 		rcu_stutter_wait("rcu_torture_fqs");
-	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
+	} while (!torture_must_stop());
 	VERBOSE_TOROUT_STRING("rcu_torture_fqs task stopping");
 	torture_shutdown_absorb("rcu_torture_fqs");
 	while (!kthread_should_stop())
@@ -731,7 +729,7 @@ rcu_torture_writer(void *arg)
 		}
 		rcutorture_record_progress(++rcu_torture_current_version);
 		rcu_stutter_wait("rcu_torture_writer");
-	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
+	} while (!torture_must_stop());
 	VERBOSE_TOROUT_STRING("rcu_torture_writer task stopping");
 	torture_shutdown_absorb("rcu_torture_writer");
 	while (!kthread_should_stop())
@@ -768,7 +766,7 @@ rcu_torture_fakewriter(void *arg)
 			cur_ops->exp_sync();
 		}
 		rcu_stutter_wait("rcu_torture_fakewriter");
-	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
+	} while (!torture_must_stop());
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fakewriter task stopping");
 	torture_shutdown_absorb("rcu_torture_fakewriter");
@@ -913,7 +911,7 @@ rcu_torture_reader(void *arg)
 		cur_ops->readunlock(idx);
 		schedule();
 		rcu_stutter_wait("rcu_torture_reader");
-	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
+	} while (!torture_must_stop());
 	VERBOSE_TOROUT_STRING("rcu_torture_reader task stopping");
 	torture_shutdown_absorb("rcu_torture_reader");
 	if (irqreader && cur_ops->irq_capable)
@@ -1022,9 +1020,6 @@ rcu_torture_stats_print(void)
 /*
  * Periodically prints torture statistics, if periodic statistics printing
  * was specified via the stat_interval module parameter.
- *
- * No need to worry about fullstop here, since this one doesn't reference
- * volatile state or register callbacks.
  */
 static int
 rcu_torture_stats(void *arg)
@@ -1034,7 +1029,7 @@ rcu_torture_stats(void *arg)
 		schedule_timeout_interruptible(stat_interval * HZ);
 		rcu_torture_stats_print();
 		torture_shutdown_absorb("rcu_torture_stats");
-	} while (!kthread_should_stop());
+	} while (!torture_must_stop());
 	VERBOSE_TOROUT_STRING("rcu_torture_stats task stopping");
 	return 0;
 }
@@ -1241,16 +1236,15 @@ static int rcu_torture_barrier_cbs(void *arg)
 		wait_event(barrier_cbs_wq[myid],
 			   (newphase =
 			    ACCESS_ONCE(barrier_phase)) != lastphase ||
-			   kthread_should_stop() ||
-			   fullstop != FULLSTOP_DONTSTOP);
+			   torture_must_stop());
 		lastphase = newphase;
 		smp_mb(); /* ensure barrier_phase load before ->call(). */
-		if (kthread_should_stop() || fullstop != FULLSTOP_DONTSTOP)
+		if (torture_must_stop())
 			break;
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);
 		if (atomic_dec_and_test(&barrier_cbs_count))
 			wake_up(&barrier_wq);
-	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
+	} while (!torture_must_stop());
 	VERBOSE_TOROUT_STRING("rcu_torture_barrier_cbs task stopping");
 	torture_shutdown_absorb("rcu_torture_barrier_cbs");
 	while (!kthread_should_stop())
@@ -1275,9 +1269,8 @@ static int rcu_torture_barrier(void *arg)
 			wake_up(&barrier_cbs_wq[i]);
 		wait_event(barrier_wq,
 			   atomic_read(&barrier_cbs_count) == 0 ||
-			   kthread_should_stop() ||
-			   fullstop != FULLSTOP_DONTSTOP);
-		if (kthread_should_stop() || fullstop != FULLSTOP_DONTSTOP)
+			   torture_must_stop());
+		if (torture_must_stop())
 			break;
 		n_barrier_attempts++;
 		cur_ops->cb_barrier(); /* Implies smp_mb() for wait_event(). */
@@ -1287,7 +1280,7 @@ static int rcu_torture_barrier(void *arg)
 		}
 		n_barrier_successes++;
 		schedule_timeout_interruptible(HZ / 10);
-	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
+	} while (!torture_must_stop());
 	VERBOSE_TOROUT_STRING("rcu_torture_barrier task stopping");
 	torture_shutdown_absorb("rcu_torture_barrier");
 	while (!kthread_should_stop())
@@ -1585,7 +1578,6 @@ rcu_torture_init(void)
 	else
 		nrealreaders = 2 * num_online_cpus();
 	rcu_torture_print_module_parms(cur_ops, "Start of test");
-	fullstop = FULLSTOP_DONTSTOP;
 
 	/* Set up the freelist. */
 

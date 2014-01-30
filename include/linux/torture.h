@@ -41,12 +41,6 @@
 	module_param(name, type, 0444); \
 	MODULE_PARM_DESC(name, msg);
 
-/* Mediate rmmod and system shutdown.  Concurrent rmmod & shutdown illegal! */
-#define FULLSTOP_DONTSTOP 0	/* Normal operation. */
-#define FULLSTOP_SHUTDOWN 1	/* System shutdown with rcutorture running. */
-#define FULLSTOP_RMMOD    2	/* Normal rmmod of rcutorture. */
-extern int fullstop;
-
 #define TORTURE_FLAG "-torture:"
 #define TOROUT_STRING(s) \
 	pr_alert("%s" TORTURE_FLAG s "\n", torture_type)
@@ -85,5 +79,7 @@ void torture_shutdown_absorb(const char *title);
 void torture_init_begin(char *ttype, bool v);
 void torture_init_end(void);
 bool torture_cleanup(void);
+bool torture_must_stop(void);
+bool torture_must_stop_irq(void);
 
 #endif /* __LINUX_TORTURE_H */
