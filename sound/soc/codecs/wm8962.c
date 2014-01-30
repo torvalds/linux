@@ -2898,8 +2898,6 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	dev_dbg(codec->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
 
-	ret = 0;
-
 	/* This should be a massive overestimate but go even
 	 * higher if we'll error out
 	 */
@@ -2913,14 +2911,17 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	if (timeout == 0 && wm8962->irq) {
 		dev_err(codec->dev, "FLL lock timed out");
-		ret = -ETIMEDOUT;
+		snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
+				    WM8962_FLL_ENA, 0);
+		pm_runtime_put(codec->dev);
+		return -ETIMEDOUT;
 	}
 
 	wm8962->fll_fref = Fref;
 	wm8962->fll_fout = Fout;
 	wm8962->fll_src = source;
 
-	return ret;
+	return 0;
 }
 
 static int wm8962_mute(struct snd_soc_dai *dai, int mute)
