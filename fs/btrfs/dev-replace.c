@@ -431,6 +431,35 @@ leave_no_lock:
 	return ret;
 }
 
+/*
+ * blocked until all flighting bios are finished.
+ */
+static void btrfs_rm_dev_replace_blocked(struct btrfs_fs_info *fs_info)
+{
+	s64 writers;
+	DEFINE_WAIT(wait);
+
+	set_bit(BTRFS_FS_STATE_DEV_REPLACING, &fs_info->fs_state);
+	do {
+		prepare_to_wait(&fs_info->replace_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		writers = percpu_counter_sum(&fs_info->bio_counter);
+		if (writers)
+			schedule();
+		finish_wait(&fs_info->replace_wait, &wait);
+	} while (writers);
+}
+
+/*
+ * we have removed target device, it is safe to allow new bios request.
+ */
+static void btrfs_rm_dev_replace_unblocked(struct btrfs_fs_info *fs_info)
+{
+	clear_bit(BTRFS_FS_STATE_DEV_REPLACING, &fs_info->fs_state);
+	if (waitqueue_active(&fs_info->replace_wait))
+		wake_up(&fs_info->replace_wait);
+}
+
 static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 				       int scrub_ret)
 {
@@ -457,12 +486,6 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	tgt_device = dev_replace->tgtdev;
 	src_device = dev_replace->srcdev;
 	btrfs_dev_replace_unlock(dev_replace);
-
-	/* replace old device with new one in mapping tree */
-	if (!scrub_ret)
-		btrfs_dev_replace_update_device_in_mapping_tree(fs_info,
-								src_device,
-								tgt_device);
 
 	/*
 	 * flush all outstanding I/O and inode extent mappings before the
@@ -495,7 +518,12 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	dev_replace->time_stopped = get_seconds();
 	dev_replace->item_needs_writeback = 1;
 
-	if (scrub_ret) {
+	/* replace old device with new one in mapping tree */
+	if (!scrub_ret) {
+		btrfs_dev_replace_update_device_in_mapping_tree(fs_info,
+								src_device,
+								tgt_device);
+	} else {
 		printk_in_rcu(KERN_ERR
 			      "BTRFS: btrfs_scrub_dev(%s, %llu, %s) failed %d\n",
 			      src_device->missing ? "<missing disk>" :
@@ -534,7 +562,11 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		fs_info->fs_devices->latest_bdev = tgt_device->bdev;
 	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
 
+	btrfs_rm_dev_replace_blocked(fs_info);
+
 	btrfs_rm_dev_replace_srcdev(fs_info, src_device);
+
+	btrfs_rm_dev_replace_unblocked(fs_info);
 
 	/*
 	 * this is again a consistent state where no dev_replace procedure
@@ -864,4 +896,32 @@ void btrfs_dev_replace_unlock(struct btrfs_dev_replace *dev_replace)
 	} else {
 		mutex_unlock(&dev_replace->lock_management_lock);
 	}
+}
+
+void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
+{
+	percpu_counter_inc(&fs_info->bio_counter);
+}
+
+void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info)
+{
+	percpu_counter_dec(&fs_info->bio_counter);
+
+	if (waitqueue_active(&fs_info->replace_wait))
+		wake_up(&fs_info->replace_wait);
+}
+
+void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info)
+{
+	DEFINE_WAIT(wait);
+again:
+	percpu_counter_inc(&fs_info->bio_counter);
+	if (test_bit(BTRFS_FS_STATE_DEV_REPLACING, &fs_info->fs_state)) {
+		btrfs_bio_counter_dec(fs_info);
+		wait_event(fs_info->replace_wait,
+			   !test_bit(BTRFS_FS_STATE_DEV_REPLACING,
+				     &fs_info->fs_state));
+		goto again;
+	}
+
 }

@@ -192,6 +192,7 @@ typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
 
 struct btrfs_bio {
 	atomic_t stripes_pending;
+	struct btrfs_fs_info *fs_info;
 	bio_end_io_t *end_io;
 	struct bio *orig_bio;
 	void *private;

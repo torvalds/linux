@@ -2136,10 +2136,16 @@ int open_ctree(struct super_block *sb,
 		goto fail_dirty_metadata_bytes;
 	}
 
+	ret = percpu_counter_init(&fs_info->bio_counter, 0);
+	if (ret) {
+		err = ret;
+		goto fail_delalloc_bytes;
+	}
+
 	fs_info->btree_inode = new_inode(sb);
 	if (!fs_info->btree_inode) {
 		err = -ENOMEM;
-		goto fail_delalloc_bytes;
+		goto fail_bio_counter;
 	}
 
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
@@ -2214,6 +2220,7 @@ int open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->scrub_pause_req, 0);
 	atomic_set(&fs_info->scrubs_paused, 0);
 	atomic_set(&fs_info->scrub_cancel_req, 0);
+	init_waitqueue_head(&fs_info->replace_wait);
 	init_waitqueue_head(&fs_info->scrub_pause_wait);
 	fs_info->scrub_workers_refcnt = 0;
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
@@ -2966,6 +2973,8 @@ fail_iput:
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
 	iput(fs_info->btree_inode);
+fail_bio_counter:
+	percpu_counter_destroy(&fs_info->bio_counter);
 fail_delalloc_bytes:
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
 fail_dirty_metadata_bytes:
@@ -3613,6 +3622,7 @@ int close_ctree(struct btrfs_root *root)
 
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
+	percpu_counter_destroy(&fs_info->bio_counter);
 	bdi_destroy(&fs_info->bdi);
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 
