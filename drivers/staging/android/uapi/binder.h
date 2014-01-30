@@ -21,6 +21,9 @@
 #define _UAPI_LINUX_BINDER_H
 
 #include <linux/ioctl.h>
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#endif
 
 #define B_PACK_CHARS(c1, c2, c3, c4) \
 	((((c1)<<24)) | (((c2)<<16)) | (((c3)<<8)) | (c4))
@@ -48,13 +51,13 @@ enum {
  */
 struct flat_binder_object {
 	/* 8 bytes for large_flat_header. */
-	unsigned long		type;
-	unsigned long		flags;
+	__u32	type;
+	__u32	flags;
 
 	/* 8 bytes of data. */
 	union {
 		void __user	*binder;	/* local object */
-		signed long	handle;		/* remote object */
+		__u32		handle;		/* remote object */
 	};
 
 	/* extra data associated with local object */
@@ -67,18 +70,18 @@ struct flat_binder_object {
  */
 
 struct binder_write_read {
-	signed long	write_size;	/* bytes to write */
-	signed long	write_consumed;	/* bytes consumed by driver */
+	size_t	write_size;	/* bytes to write */
+	size_t	write_consumed;	/* bytes consumed by driver */
 	unsigned long	write_buffer;
-	signed long	read_size;	/* bytes to read */
-	signed long	read_consumed;	/* bytes consumed by driver */
+	size_t	read_size;	/* bytes to read */
+	size_t	read_consumed;	/* bytes consumed by driver */
 	unsigned long	read_buffer;
 };
 
 /* Use with BINDER_VERSION, driver fills in fields. */
 struct binder_version {
 	/* driver protocol version -- increment with incompatible change */
-	signed long	protocol_version;
+	__s32	protocol_version;
 };
 
 /* This is the current protocol version. */
@@ -86,7 +89,7 @@ struct binder_version {
 
 #define BINDER_WRITE_READ		_IOWR('b', 1, struct binder_write_read)
 #define	BINDER_SET_IDLE_TIMEOUT		_IOW('b', 3, __s64)
-#define	BINDER_SET_MAX_THREADS		_IOW('b', 5, size_t)
+#define	BINDER_SET_MAX_THREADS		_IOW('b', 5, __u32)
 #define	BINDER_SET_IDLE_PRIORITY	_IOW('b', 6, __s32)
 #define	BINDER_SET_CONTEXT_MGR		_IOW('b', 7, __s32)
 #define	BINDER_THREAD_EXIT		_IOW('b', 8, __s32)
@@ -119,14 +122,14 @@ struct binder_transaction_data {
 	 * identifying the target and contents of the transaction.
 	 */
 	union {
-		size_t	handle;	/* target descriptor of command transaction */
+		__u32	handle;	/* target descriptor of command transaction */
 		void	*ptr;	/* target descriptor of return transaction */
 	} target;
 	void		*cookie;	/* target object cookie */
-	unsigned int	code;		/* transaction command */
+	__u32		code;		/* transaction command */
 
 	/* General information about the transaction. */
-	unsigned int	flags;
+	__u32		flags;
 	pid_t		sender_pid;
 	uid_t		sender_euid;
 	size_t		data_size;	/* number of bytes of data */
@@ -143,7 +146,7 @@ struct binder_transaction_data {
 			/* offsets from buffer to flat_binder_object structs */
 			const void __user	*offsets;
 		} ptr;
-		uint8_t	buf[8];
+		__u8	buf[8];
 	} data;
 };
 
@@ -152,19 +155,24 @@ struct binder_ptr_cookie {
 	void *cookie;
 };
 
+struct binder_handle_cookie {
+	__u32 handle;
+	void *cookie;
+} __attribute__((packed));
+
 struct binder_pri_desc {
-	int priority;
-	int desc;
+	__s32 priority;
+	__u32 desc;
 };
 
 struct binder_pri_ptr_cookie {
-	int priority;
+	__s32 priority;
 	void *ptr;
 	void *cookie;
 };
 
 enum binder_driver_return_protocol {
-	BR_ERROR = _IOR('r', 0, int),
+	BR_ERROR = _IOR('r', 0, __s32),
 	/*
 	 * int: error code
 	 */
@@ -178,7 +186,7 @@ enum binder_driver_return_protocol {
 	 * binder_transaction_data: the received command.
 	 */
 
-	BR_ACQUIRE_RESULT = _IOR('r', 4, int),
+	BR_ACQUIRE_RESULT = _IOR('r', 4, __s32),
 	/*
 	 * not currently supported
 	 * int: 0 if the last bcATTEMPT_ACQUIRE was not successful.
@@ -258,22 +266,22 @@ enum binder_driver_command_protocol {
 	 * binder_transaction_data: the sent command.
 	 */
 
-	BC_ACQUIRE_RESULT = _IOW('c', 2, int),
+	BC_ACQUIRE_RESULT = _IOW('c', 2, __s32),
 	/*
 	 * not currently supported
 	 * int:  0 if the last BR_ATTEMPT_ACQUIRE was not successful.
 	 * Else you have acquired a primary reference on the object.
 	 */
 
-	BC_FREE_BUFFER = _IOW('c', 3, int),
+	BC_FREE_BUFFER = _IOW('c', 3, void *),
 	/*
 	 * void *: ptr to transaction data received on a read
 	 */
 
-	BC_INCREFS = _IOW('c', 4, int),
-	BC_ACQUIRE = _IOW('c', 5, int),
-	BC_RELEASE = _IOW('c', 6, int),
-	BC_DECREFS = _IOW('c', 7, int),
+	BC_INCREFS = _IOW('c', 4, __u32),
+	BC_ACQUIRE = _IOW('c', 5, __u32),
+	BC_RELEASE = _IOW('c', 6, __u32),
+	BC_DECREFS = _IOW('c', 7, __u32),
 	/*
 	 * int:	descriptor
 	 */
@@ -308,15 +316,15 @@ enum binder_driver_command_protocol {
 	 * of looping threads it has available.
 	 */
 
-	BC_REQUEST_DEATH_NOTIFICATION = _IOW('c', 14, struct binder_ptr_cookie),
+	BC_REQUEST_DEATH_NOTIFICATION = _IOW('c', 14, struct binder_handle_cookie),
 	/*
-	 * void *: ptr to binder
+	 * int: handle
 	 * void *: cookie
 	 */
 
-	BC_CLEAR_DEATH_NOTIFICATION = _IOW('c', 15, struct binder_ptr_cookie),
+	BC_CLEAR_DEATH_NOTIFICATION = _IOW('c', 15, struct binder_handle_cookie),
 	/*
-	 * void *: ptr to binder
+	 * int: handle
 	 * void *: cookie
 	 */
 
@@ -325,6 +333,112 @@ enum binder_driver_command_protocol {
 	 * void *: cookie
 	 */
 };
+
+/* Support for 32bit userspace on a 64bit system */
+#ifdef CONFIG_COMPAT
+struct compat_flat_binder_object {
+	/* 8 bytes for large_flat_header. */
+	__u32		type;
+	__u32		flags;
+
+	/* 8 bytes of data. */
+	union {
+		compat_uptr_t	binder;	/* local object */
+		__u32	handle;	        /* remote object */
+	};
+
+	/* extra data associated with local object */
+	compat_uptr_t	cookie;
+};
+
+struct compat_binder_write_read {
+	compat_size_t	write_size;     /* bytes to write */
+	compat_size_t	write_consumed;	/* bytes consumed by driver */
+	compat_ulong_t	write_buffer;
+	compat_size_t	read_size;      /* bytes to read */
+	compat_size_t	read_consumed;	/* bytes consumed by driver */
+	compat_ulong_t	read_buffer;
+};
+
+#define COMPAT_BINDER_WRITE_READ	_IOWR('b', 1, struct compat_binder_write_read)
+
+struct compat_binder_transaction_data {
+	/* The first two are only used for bcTRANSACTION and brTRANSACTION,
+	 * identifying the target and contents of the transaction.
+	 */
+	union {
+		__u32	handle;		    /* target descriptor of command transaction */
+		compat_uptr_t	ptr;	/* target descriptor of return transaction */
+	} target;
+	compat_uptr_t	cookie;	/* target object cookie */
+	__u32		code;	    /* transaction command */
+
+	/* General information about the transaction. */
+	__u32	flags;
+	pid_t	sender_pid;
+	uid_t	sender_euid;
+	compat_size_t	data_size;	    /* number of bytes of data */
+	compat_size_t	offsets_size;	/* number of bytes of offsets */
+
+	/* If this transaction is inline, the data immediately
+	 * follows here; otherwise, it ends with a pointer to
+	 * the data buffer.
+	 */
+	union {
+		struct {
+			/* transaction data */
+			compat_uptr_t	buffer;
+			/* offsets from buffer to flat_binder_object structs */
+			compat_uptr_t	offsets;
+		} ptr;
+		__u8	buf[8];
+	} data;
+};
+
+struct compat_binder_ptr_cookie {
+	compat_uptr_t ptr;
+	compat_uptr_t cookie;
+};
+
+/* legacy - not used anymore */
+struct compat_binder_pri_ptr_cookie {
+	__s32 priority;
+	compat_uptr_t ptr;
+	compat_uptr_t cookie;
+};
+
+enum compat_binder_driver_return_protocol {
+	COMPAT_BR_TRANSACTION = _IOR('r', 2, struct compat_binder_transaction_data),
+	COMPAT_BR_REPLY = _IOR('r', 3, struct compat_binder_transaction_data),
+
+	COMPAT_BR_INCREFS = _IOR('r', 7, struct compat_binder_ptr_cookie),
+	COMPAT_BR_ACQUIRE = _IOR('r', 8, struct compat_binder_ptr_cookie),
+	COMPAT_BR_RELEASE = _IOR('r', 9, struct compat_binder_ptr_cookie),
+	COMPAT_BR_DECREFS = _IOR('r', 10, struct compat_binder_ptr_cookie),
+
+	/* legacy - not used anymore */
+	COMPAT_BR_ATTEMPT_ACQUIRE = _IOR('r', 11, struct compat_binder_pri_ptr_cookie),
+
+	COMPAT_BR_DEAD_BINDER = _IOR('r', 15, compat_uptr_t),
+	COMPAT_BR_CLEAR_DEATH_NOTIFICATION_DONE = _IOR('r', 16, compat_uptr_t),
+};
+
+enum compat_binder_driver_command_protocol {
+	COMPAT_BC_TRANSACTION = _IOW('c', 0, struct compat_binder_transaction_data),
+	COMPAT_BC_REPLY = _IOW('c', 1, struct compat_binder_transaction_data),
+
+	COMPAT_BC_FREE_BUFFER = _IOW('c', 3, compat_uptr_t),
+
+	COMPAT_BC_INCREFS_DONE = _IOW('c', 8, struct compat_binder_ptr_cookie),
+	COMPAT_BC_ACQUIRE_DONE = _IOW('c', 9, struct compat_binder_ptr_cookie),
+
+	COMPAT_BC_REQUEST_DEATH_NOTIFICATION = _IOW('c', 14, struct compat_binder_ptr_cookie),
+	COMPAT_BC_CLEAR_DEATH_NOTIFICATION = _IOW('c', 15, struct compat_binder_ptr_cookie),
+
+	COMPAT_BC_DEAD_BINDER_DONE = _IOW('c', 16, compat_uptr_t),
+};
+#endif /* CONFIG_COMPAT */
+
 
 #endif /* _UAPI_LINUX_BINDER_H */
 
