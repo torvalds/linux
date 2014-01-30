@@ -1483,11 +1483,11 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	ret = vmw_cmd_check_all(dev_priv, sw_context, kernel_commands,
 				command_size);
 	if (unlikely(ret != 0))
-		goto out_err;
+		goto out_err_nores;
 
 	ret = vmw_resources_reserve(sw_context);
 	if (unlikely(ret != 0))
-		goto out_err;
+		goto out_err_nores;
 
 	ret = ttm_eu_reserve_buffers(&ticket, &sw_context->validate_nodes);
 	if (unlikely(ret != 0))
@@ -1569,10 +1569,11 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	return 0;
 
 out_err:
+	ttm_eu_backoff_reservation(&ticket, &sw_context->validate_nodes);
+out_err_nores:
+	vmw_resource_list_unreserve(&sw_context->resource_list, true);
 	vmw_resource_relocations_free(&sw_context->res_relocations);
 	vmw_free_relocations(sw_context);
-	ttm_eu_backoff_reservation(&ticket, &sw_context->validate_nodes);
-	vmw_resource_list_unreserve(&sw_context->resource_list, true);
 	vmw_clear_validations(sw_context);
 	if (unlikely(dev_priv->pinned_bo != NULL &&
 		     !dev_priv->query_cid_valid))
