@@ -259,18 +259,15 @@ struct hci_dev {
 	__u32			req_status;
 	__u32			req_result;
 
-	struct list_head	mgmt_pending;
 
 	struct discovery_state	discovery;
 	struct hci_conn_hash	conn_hash;
+
+	struct list_head	mgmt_pending;
 	struct list_head	blacklist;
-
 	struct list_head	uuids;
-
 	struct list_head	link_keys;
-
 	struct list_head	long_term_keys;
-
 	struct list_head	remote_oob_data;
 
 	struct hci_dev_stats	stat;
