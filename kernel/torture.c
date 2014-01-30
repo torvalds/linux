@@ -54,8 +54,7 @@ static bool verbose;
 
 int fullstop = FULLSTOP_RMMOD;
 EXPORT_SYMBOL_GPL(fullstop);
-DEFINE_MUTEX(fullstop_mutex);
-EXPORT_SYMBOL_GPL(fullstop_mutex);
+static DEFINE_MUTEX(fullstop_mutex);
 
 #ifdef CONFIG_HOTPLUG_CPU
 
@@ -422,13 +421,31 @@ EXPORT_SYMBOL_GPL(torture_shuffle_cleanup);
 void torture_shutdown_absorb(const char *title)
 {
 	while (ACCESS_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
-		pr_notice(
-		       "torture thread %s parking due to system shutdown\n",
-		       title);
+		pr_notice("torture thread %s parking due to system shutdown\n",
+			  title);
 		schedule_timeout_uninterruptible(MAX_SCHEDULE_TIMEOUT);
 	}
 }
 EXPORT_SYMBOL_GPL(torture_shutdown_absorb);
+
+/*
+ * Detect and respond to a system shutdown.
+ */
+static int torture_shutdown_notify(struct notifier_block *unused1,
+				   unsigned long unused2, void *unused3)
+{
+	mutex_lock(&fullstop_mutex);
+	if (fullstop == FULLSTOP_DONTSTOP)
+		fullstop = FULLSTOP_SHUTDOWN;
+	else
+		pr_warn("Concurrent rmmod and shutdown illegal!\n");
+	mutex_unlock(&fullstop_mutex);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block torture_shutdown_nb = {
+	.notifier_call = torture_shutdown_notify,
+};
 
 /*
  * Initialize torture module.  Please note that this is -not- invoked via
@@ -451,6 +468,7 @@ EXPORT_SYMBOL_GPL(torture_init_begin);
 void __init torture_init_end(void)
 {
 	mutex_unlock(&fullstop_mutex);
+	register_reboot_notifier(&torture_shutdown_nb);
 }
 EXPORT_SYMBOL_GPL(torture_init_end);
 
@@ -474,6 +492,7 @@ bool torture_cleanup(void)
 	}
 	fullstop = FULLSTOP_RMMOD;
 	mutex_unlock(&fullstop_mutex);
+	unregister_reboot_notifier(&torture_shutdown_nb);
 	torture_shuffle_cleanup();
 	torture_onoff_cleanup();
 	return false;

@@ -190,23 +190,6 @@ static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
 static void rcu_torture_cleanup(void);
 
 /*
- * Detect and respond to a system shutdown.
- */
-static int
-rcutorture_shutdown_notify(struct notifier_block *unused1,
-			   unsigned long unused2, void *unused3)
-{
-	mutex_lock(&fullstop_mutex);
-	if (fullstop == FULLSTOP_DONTSTOP)
-		fullstop = FULLSTOP_SHUTDOWN;
-	else
-		pr_warn(/* but going down anyway, so... */
-		       "Concurrent 'rmmod rcutorture' and shutdown illegal!\n");
-	mutex_unlock(&fullstop_mutex);
-	return NOTIFY_DONE;
-}
-
-/*
  * Allocate an element from the rcu_tortures pool.
  */
 static struct rcu_torture *
@@ -1098,10 +1081,6 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 onoff_interval, onoff_holdoff);
 }
 
-static struct notifier_block rcutorture_shutdown_nb = {
-	.notifier_call = rcutorture_shutdown_notify,
-};
-
 static void rcutorture_booster_cleanup(int cpu)
 {
 	struct task_struct *t;
@@ -1428,7 +1407,6 @@ rcu_torture_cleanup(void)
 			cur_ops->cb_barrier();
 		return;
 	}
-	unregister_reboot_notifier(&rcutorture_shutdown_nb);
 
 	rcu_torture_barrier_cleanup();
 	rcu_torture_stall_cleanup();
@@ -1774,7 +1752,6 @@ rcu_torture_init(void)
 		firsterr = i;
 		goto unwind;
 	}
-	register_reboot_notifier(&rcutorture_shutdown_nb);
 	i = rcu_torture_stall_init();
 	if (i != 0) {
 		firsterr = i;

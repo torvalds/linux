@@ -46,8 +46,6 @@
 #define FULLSTOP_SHUTDOWN 1	/* System shutdown with rcutorture running. */
 #define FULLSTOP_RMMOD    2	/* Normal rmmod of rcutorture. */
 extern int fullstop;
-/* Protect fullstop transitions and spawning of kthreads.  */
-extern struct mutex fullstop_mutex;
 
 #define TORTURE_FLAG "-torture:"
 #define TOROUT_STRING(s) \
