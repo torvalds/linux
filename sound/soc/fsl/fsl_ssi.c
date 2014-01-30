@@ -164,6 +164,7 @@ struct fsl_ssi_private {
 	bool baudclk_locked;
 	bool irq_stats;
 	bool offline_config;
+	bool use_dual_fifo;
 	u8 i2s_mode;
 	spinlock_t baudclk_lock;
 	struct clk *baudclk;
@@ -721,6 +722,12 @@ static int fsl_ssi_setup(struct fsl_ssi_private *ssi_private)
 				CCSR_SSI_SxCCR_DC(2));
 	}
 
+	if (ssi_private->use_dual_fifo) {
+		write_ssi_mask(&ssi->srcr, 0, CCSR_SSI_SRCR_RFEN1);
+		write_ssi_mask(&ssi->stcr, 0, CCSR_SSI_STCR_TFEN1);
+		write_ssi_mask(&ssi->scr, 0, CCSR_SSI_SCR_TCH_EN);
+	}
+
 	return 0;
 }
 
@@ -751,6 +758,15 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		ssi_private->baudclk_locked = false;
 		spin_unlock_irqrestore(&ssi_private->baudclk_lock, flags);
 	}
+
+	/* When using dual fifo mode, it is safer to ensure an even period
+	 * size. If appearing to an odd number while DMA always starts its
+	 * task from fifo0, fifo1 would be neglected at the end of each
+	 * period. But SSI would still access fifo1 with an invalid data.
+	 */
+	if (ssi_private->use_dual_fifo)
+		snd_pcm_hw_constraint_step(substream->runtime, 0,
+				SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 2);
 
 	return 0;
 }
@@ -1370,7 +1386,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 	if (hw_type == FSL_SSI_MX21 || hw_type == FSL_SSI_MX51 ||
 			hw_type == FSL_SSI_MX35) {
-		u32 dma_events[2];
+		u32 dma_events[2], dmas[4];
 		ssi_private->ssi_on_imx = true;
 
 		ssi_private->clk = devm_clk_get(&pdev->dev, NULL);
@@ -1425,6 +1441,16 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 				dev_err(&pdev->dev, "could not get dma events but fsl-ssi is configured to use DMA\n");
 				goto error_clk;
 			}
+		}
+		/* Should this be merge with the above? */
+		if (!of_property_read_u32_array(pdev->dev.of_node, "dmas", dmas, 4)
+				&& dmas[2] == IMX_DMATYPE_SSI_DUAL) {
+			ssi_private->use_dual_fifo = true;
+			/* When using dual fifo mode, we need to keep watermark
+			 * as even numbers due to dma script limitation.
+			 */
+			ssi_private->dma_params_tx.maxburst &= ~0x1;
+			ssi_private->dma_params_rx.maxburst &= ~0x1;
 		}
 
 		shared = of_device_is_compatible(of_get_parent(np),
