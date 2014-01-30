@@ -38,10 +38,10 @@ struct mvebu_mpp_ctrl {
 	u8 pid;
 	u8 npins;
 	unsigned *pins;
-	int (*mpp_get)(struct mvebu_mpp_ctrl *ctrl, unsigned long *config);
-	int (*mpp_set)(struct mvebu_mpp_ctrl *ctrl, unsigned long config);
-	int (*mpp_gpio_req)(struct mvebu_mpp_ctrl *ctrl, u8 pid);
-	int (*mpp_gpio_dir)(struct mvebu_mpp_ctrl *ctrl, u8 pid, bool input);
+	int (*mpp_get)(unsigned pid, unsigned long *config);
+	int (*mpp_set)(unsigned pid, unsigned long config);
+	int (*mpp_gpio_req)(unsigned pid);
+	int (*mpp_gpio_dir)(unsigned pid, bool input);
 };
 
 /**

@@ -55,15 +55,14 @@
 
 #define CONFIG_PMU	BIT(4)
 
-static int dove_pmu_mpp_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
-				 unsigned long *config)
+static int dove_pmu_mpp_ctrl_get(unsigned pid, unsigned long *config)
 {
-	unsigned off = (ctrl->pid / MPPS_PER_REG) * MPP_BITS;
-	unsigned shift = (ctrl->pid % MPPS_PER_REG) * MPP_BITS;
+	unsigned off = (pid / MPPS_PER_REG) * MPP_BITS;
+	unsigned shift = (pid % MPPS_PER_REG) * MPP_BITS;
 	unsigned long pmu = readl(DOVE_PMU_MPP_GENERAL_CTRL);
 	unsigned long func;
 
-	if (pmu & (1 << ctrl->pid)) {
+	if (pmu & (1 << pid)) {
 		func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
 		*config = (func >> shift) & MPP_MASK;
 		*config |= CONFIG_PMU;
@@ -74,22 +73,21 @@ static int dove_pmu_mpp_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_pmu_mpp_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
-				 unsigned long config)
+static int dove_pmu_mpp_ctrl_set(unsigned pid, unsigned long config)
 {
-	unsigned off = (ctrl->pid / MPPS_PER_REG) * MPP_BITS;
-	unsigned shift = (ctrl->pid % MPPS_PER_REG) * MPP_BITS;
+	unsigned off = (pid / MPPS_PER_REG) * MPP_BITS;
+	unsigned shift = (pid % MPPS_PER_REG) * MPP_BITS;
 	unsigned long pmu = readl(DOVE_PMU_MPP_GENERAL_CTRL);
 	unsigned long func;
 
 	if (config & CONFIG_PMU) {
-		writel(pmu | (1 << ctrl->pid), DOVE_PMU_MPP_GENERAL_CTRL);
+		writel(pmu | (1 << pid), DOVE_PMU_MPP_GENERAL_CTRL);
 		func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
 		func &= ~(MPP_MASK << shift);
 		func |= (config & MPP_MASK) << shift;
 		writel(func, DOVE_PMU_SIGNAL_SELECT_0 + off);
 	} else {
-		writel(pmu & ~(1 << ctrl->pid), DOVE_PMU_MPP_GENERAL_CTRL);
+		writel(pmu & ~(1 << pid), DOVE_PMU_MPP_GENERAL_CTRL);
 		func = readl(DOVE_MPP_VIRT_BASE + off);
 		func &= ~(MPP_MASK << shift);
 		func |= (config & MPP_MASK) << shift;
@@ -98,13 +96,12 @@ static int dove_pmu_mpp_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_mpp4_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
-			      unsigned long *config)
+static int dove_mpp4_ctrl_get(unsigned pid, unsigned long *config)
 {
 	unsigned long mpp4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
 	unsigned long mask;
 
-	switch (ctrl->pid) {
+	switch (pid) {
 	case 24: /* mpp_camera */
 		mask = DOVE_CAM_GPIO_SEL;
 		break;
@@ -129,13 +126,12 @@ static int dove_mpp4_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_mpp4_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
-			      unsigned long config)
+static int dove_mpp4_ctrl_set(unsigned pid, unsigned long config)
 {
 	unsigned long mpp4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
 	unsigned long mask;
 
-	switch (ctrl->pid) {
+	switch (pid) {
 	case 24: /* mpp_camera */
 		mask = DOVE_CAM_GPIO_SEL;
 		break;
@@ -164,8 +160,7 @@ static int dove_mpp4_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_nand_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
-			      unsigned long *config)
+static int dove_nand_ctrl_get(unsigned pid, unsigned long *config)
 {
 	unsigned long gmpp = readl(DOVE_MPP_GENERAL_VIRT_BASE);
 
@@ -174,8 +169,7 @@ static int dove_nand_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_nand_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
-			      unsigned long config)
+static int dove_nand_ctrl_set(unsigned pid, unsigned long config)
 {
 	unsigned long gmpp = readl(DOVE_MPP_GENERAL_VIRT_BASE);
 
@@ -188,8 +182,7 @@ static int dove_nand_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_audio0_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
-				unsigned long *config)
+static int dove_audio0_ctrl_get(unsigned pid, unsigned long *config)
 {
 	unsigned long pmu = readl(DOVE_PMU_MPP_GENERAL_CTRL);
 
@@ -198,8 +191,7 @@ static int dove_audio0_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_audio0_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
-				unsigned long config)
+static int dove_audio0_ctrl_set(unsigned pid, unsigned long config)
 {
 	unsigned long pmu = readl(DOVE_PMU_MPP_GENERAL_CTRL);
 
@@ -211,8 +203,7 @@ static int dove_audio0_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_audio1_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
-				unsigned long *config)
+static int dove_audio1_ctrl_get(unsigned pid, unsigned long *config)
 {
 	unsigned long mpp4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
 	unsigned long sspc1 = readl(DOVE_SSP_CTRL_STATUS_1);
@@ -238,8 +229,7 @@ static int dove_audio1_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_audio1_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
-				unsigned long config)
+static int dove_audio1_ctrl_set(unsigned pid, unsigned long config)
 {
 	unsigned long mpp4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
 	unsigned long sspc1 = readl(DOVE_SSP_CTRL_STATUS_1);
@@ -276,11 +266,11 @@ static int dove_audio1_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
  * break other functions. If you require all mpps as gpio
  * enforce gpio setting by pinctrl mapping.
  */
-static int dove_audio1_ctrl_gpio_req(struct mvebu_mpp_ctrl *ctrl, u8 pid)
+static int dove_audio1_ctrl_gpio_req(unsigned pid)
 {
 	unsigned long config;
 
-	dove_audio1_ctrl_get(ctrl, &config);
+	dove_audio1_ctrl_get(pid, &config);
 
 	switch (config) {
 	case 0x02: /* i2s1 : gpio[56:57] */
@@ -303,16 +293,14 @@ static int dove_audio1_ctrl_gpio_req(struct mvebu_mpp_ctrl *ctrl, u8 pid)
 }
 
 /* mpp[52:57] has gpio pins capable of in and out */
-static int dove_audio1_ctrl_gpio_dir(struct mvebu_mpp_ctrl *ctrl, u8 pid,
-				bool input)
+static int dove_audio1_ctrl_gpio_dir(unsigned pid, bool input)
 {
 	if (pid < 52 || pid > 57)
 		return -ENOTSUPP;
 	return 0;
 }
 
-static int dove_twsi_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
-			      unsigned long *config)
+static int dove_twsi_ctrl_get(unsigned pid, unsigned long *config)
 {
 	unsigned long gcfg1 = readl(DOVE_GLOBAL_CONFIG_1);
 	unsigned long gcfg2 = readl(DOVE_GLOBAL_CONFIG_2);
@@ -328,8 +316,7 @@ static int dove_twsi_ctrl_get(struct mvebu_mpp_ctrl *ctrl,
 	return 0;
 }
 
-static int dove_twsi_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
-				unsigned long config)
+static int dove_twsi_ctrl_set(unsigned pid, unsigned long config)
 {
 	unsigned long gcfg1 = readl(DOVE_GLOBAL_CONFIG_1);
 	unsigned long gcfg2 = readl(DOVE_GLOBAL_CONFIG_2);

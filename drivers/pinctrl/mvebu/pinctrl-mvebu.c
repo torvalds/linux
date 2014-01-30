@@ -185,7 +185,7 @@ static int mvebu_pinconf_group_get(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	if (grp->ctrl->mpp_get)
-		return grp->ctrl->mpp_get(grp->ctrl, config);
+		return grp->ctrl->mpp_get(grp->pins[0], config);
 
 	return mvebu_common_mpp_get(pctl, grp, config);
 }
@@ -203,7 +203,7 @@ static int mvebu_pinconf_group_set(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < num_configs; i++) {
 		if (grp->ctrl->mpp_set)
-			ret = grp->ctrl->mpp_set(grp->ctrl, configs[i]);
+			ret = grp->ctrl->mpp_set(grp->pins[0], configs[i]);
 		else
 			ret = mvebu_common_mpp_set(pctl, grp, configs[i]);
 
@@ -347,7 +347,7 @@ static int mvebu_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	if (grp->ctrl->mpp_gpio_req)
-		return grp->ctrl->mpp_gpio_req(grp->ctrl, offset);
+		return grp->ctrl->mpp_gpio_req(offset);
 
 	setting = mvebu_pinctrl_find_gpio_setting(pctl, grp);
 	if (!setting)
@@ -370,7 +370,7 @@ static int mvebu_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	if (grp->ctrl->mpp_gpio_dir)
-		return grp->ctrl->mpp_gpio_dir(grp->ctrl, offset, input);
+		return grp->ctrl->mpp_gpio_dir(offset, input);
 
 	setting = mvebu_pinctrl_find_gpio_setting(pctl, grp);
 	if (!setting)
