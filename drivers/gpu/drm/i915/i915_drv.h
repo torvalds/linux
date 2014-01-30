@@ -307,6 +307,10 @@ struct drm_i915_error_state {
 	u32 error; /* gen6+ */
 	u32 err_int; /* gen7 */
 	u32 done_reg;
+	u32 gac_eco;
+	u32 gam_ecochk;
+	u32 gab_ctl;
+	u32 gfx_mode;
 	u32 extra_instdone[I915_NUM_INSTDONE_REG];
 	u32 pipestat[I915_MAX_PIPES];
 	u64 fence[I915_MAX_NUM_FENCES];

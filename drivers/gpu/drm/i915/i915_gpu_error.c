@@ -1001,8 +1001,11 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (IS_GEN7(dev))
 		error->err_int = I915_READ(GEN7_ERR_INT);
 
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev)) {
 		error->forcewake = I915_READ(FORCEWAKE);
+		error->gab_ctl = I915_READ(GAB_CTL);
+		error->gfx_mode = I915_READ(GFX_MODE);
+	}
 
 	if (IS_GEN2(dev))
 		error->ier = I915_READ16(IER);
@@ -1018,6 +1021,12 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	}
 
 	/* 3: Feature specific registers */
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
+		error->gam_ecochk = I915_READ(GAM_ECOCHK);
+		error->gac_eco = I915_READ(GAC_ECO_BITS);
+	}
+
+	/* 4: Everything else */
 	if (HAS_HW_CONTEXTS(dev))
 		error->ccid = I915_READ(CCID);
 
