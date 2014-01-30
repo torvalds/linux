@@ -154,7 +154,6 @@ TRACE_EVENT(kvm_s390_intercept_instruction,
 	    TP_STRUCT__entry(
 		    VCPU_FIELD_COMMON
 		    __field(__u64, instruction)
-		    __field(char, insn[8])
 		    ),
 
 	    TP_fast_assign(
@@ -165,10 +164,8 @@ TRACE_EVENT(kvm_s390_intercept_instruction,
 
 	    VCPU_TP_PRINTK("intercepted instruction %016llx (%s)",
 			   __entry->instruction,
-			   insn_to_mnemonic((unsigned char *)
-					    &__entry->instruction,
-					 __entry->insn, sizeof(__entry->insn)) ?
-			   "unknown" : __entry->insn)
+			   __print_symbolic(icpt_insn_decoder(__entry->instruction),
+					    icpt_insn_codes))
 	);
 
 /*
