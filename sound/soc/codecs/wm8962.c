@@ -2886,7 +2886,11 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	try_wait_for_completion(&wm8962->fll_lock);
 
-	pm_runtime_get_sync(codec->dev);
+	ret = pm_runtime_get_sync(codec->dev);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to resume device: %d\n", ret);
+		return ret;
+	}
 
 	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 			    WM8962_FLL_FRAC | WM8962_FLL_REFCLK_SRC_MASK |
