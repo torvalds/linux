@@ -570,39 +570,20 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
-int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
-				 u32 *changed)
+static int __ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
+					  struct ieee80211_chanctx *ctx,
+					  u32 *changed)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_chanctx_conf *conf;
-	struct ieee80211_chanctx *ctx;
 	const struct cfg80211_chan_def *chandef = &sdata->csa_chandef;
-	int ret;
 	u32 chanctx_changed = 0;
-
-	lockdep_assert_held(&local->mtx);
-
-	/* should never be called if not performing a channel switch. */
-	if (WARN_ON(!sdata->vif.csa_active))
-		return -EINVAL;
 
 	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, chandef,
 				     IEEE80211_CHAN_DISABLED))
 		return -EINVAL;
 
-	mutex_lock(&local->chanctx_mtx);
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
-					 lockdep_is_held(&local->chanctx_mtx));
-	if (!conf) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ctx = container_of(conf, struct ieee80211_chanctx, conf);
-	if (ctx->refcount != 1) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (ctx->refcount != 1)
+		return -EINVAL;
 
 	if (sdata->vif.bss_conf.chandef.width != chandef->width) {
 		chanctx_changed = IEEE80211_CHANCTX_CHANGE_WIDTH;
@@ -620,7 +601,34 @@ int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_radar_chanctx(local, ctx);
 	ieee80211_recalc_chanctx_min_def(local, ctx);
 
-	ret = 0;
+	return 0;
+}
+
+int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
+				 u32 *changed)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+	int ret;
+
+	lockdep_assert_held(&local->mtx);
+
+	/* should never be called if not performing a channel switch. */
+	if (WARN_ON(!sdata->vif.csa_active))
+		return -EINVAL;
+
+	mutex_lock(&local->chanctx_mtx);
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ctx = container_of(conf, struct ieee80211_chanctx, conf);
+
+	ret = __ieee80211_vif_change_channel(sdata, ctx, changed);
  out:
 	mutex_unlock(&local->chanctx_mtx);
 	return ret;
