@@ -140,31 +140,6 @@ static struct exynos_drm_display vidi_display = {
 	.ops = &vidi_display_ops,
 };
 
-static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
-{
-	struct vidi_context *ctx = mgr->ctx;
-
-	DRM_DEBUG_KMS("%d\n", mode);
-
-	mutex_lock(&ctx->lock);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		/* TODO. */
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		/* TODO. */
-		break;
-	default:
-		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
-		break;
-	}
-
-	mutex_unlock(&ctx->lock);
-}
-
 static void vidi_apply(struct exynos_drm_manager *mgr)
 {
 	struct vidi_context *ctx = mgr->ctx;
@@ -319,6 +294,55 @@ static void vidi_win_disable(struct exynos_drm_manager *mgr, int zpos)
 	/* TODO. */
 }
 
+static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
+{
+	struct vidi_context *ctx = mgr->ctx;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (enable != false && enable != true)
+		return -EINVAL;
+
+	if (enable) {
+		ctx->suspended = false;
+
+		/* if vblank was enabled status, enable it again. */
+		if (test_and_clear_bit(0, &ctx->irq_flags))
+			vidi_enable_vblank(mgr);
+
+		vidi_apply(mgr);
+	} else {
+		ctx->suspended = true;
+	}
+
+	return 0;
+}
+
+static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
+{
+	struct vidi_context *ctx = mgr->ctx;
+
+	DRM_DEBUG_KMS("%d\n", mode);
+
+	mutex_lock(&ctx->lock);
+
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		vidi_power_on(mgr, true);
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		vidi_power_on(mgr, false);
+		break;
+	default:
+		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
+		break;
+	}
+
+	mutex_unlock(&ctx->lock);
+}
+
 static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
 			struct drm_device *drm_dev, int pipe)
 {
@@ -388,30 +412,6 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 	mutex_unlock(&ctx->lock);
 
 	exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
-}
-
-static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
-{
-	struct vidi_context *ctx = mgr->ctx;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	if (enable != false && enable != true)
-		return -EINVAL;
-
-	if (enable) {
-		ctx->suspended = false;
-
-		/* if vblank was enabled status, enable it again. */
-		if (test_and_clear_bit(0, &ctx->irq_flags))
-			vidi_enable_vblank(mgr);
-
-		vidi_apply(mgr);
-	} else {
-		ctx->suspended = true;
-	}
-
-	return 0;
 }
 
 static int vidi_show_connection(struct device *dev,
@@ -578,32 +578,11 @@ static int vidi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int vidi_suspend(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
-
-	return vidi_power_on(mgr, false);
-}
-
-static int vidi_resume(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
-
-	return vidi_power_on(mgr, true);
-}
-#endif
-
-static const struct dev_pm_ops vidi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(vidi_suspend, vidi_resume)
-};
-
 struct platform_driver vidi_driver = {
 	.probe		= vidi_probe,
 	.remove		= vidi_remove,
 	.driver		= {
 		.name	= "exynos-drm-vidi",
 		.owner	= THIS_MODULE,
-		.pm	= &vidi_pm_ops,
 	},
 };

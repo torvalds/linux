@@ -732,6 +732,8 @@ static int fimd_poweron(struct exynos_drm_manager *mgr)
 
 	ctx->suspended = false;
 
+	pm_runtime_get_sync(ctx->dev);
+
 	ret = clk_prepare_enable(ctx->bus_clk);
 	if (ret < 0) {
 		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
@@ -785,32 +787,24 @@ static int fimd_poweroff(struct exynos_drm_manager *mgr)
 	clk_disable_unprepare(ctx->lcd_clk);
 	clk_disable_unprepare(ctx->bus_clk);
 
+	pm_runtime_put_sync(ctx->dev);
+
 	ctx->suspended = true;
 	return 0;
 }
 
 static void fimd_dpms(struct exynos_drm_manager *mgr, int mode)
 {
-	struct fimd_context *ctx = mgr->ctx;
-
-	DRM_DEBUG_KMS("%d\n", mode);
+	DRM_DEBUG_KMS("%s, %d\n", __FILE__, mode);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		/*
-		 * enable fimd hardware only if suspended status.
-		 *
-		 * P.S. fimd_dpms function would be called at booting time so
-		 * clk_enable could be called double time.
-		 */
-		if (ctx->suspended)
-			pm_runtime_get_sync(ctx->dev);
+		fimd_poweron(mgr);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		if (!ctx->suspended)
-			pm_runtime_put_sync(ctx->dev);
+		fimd_poweroff(mgr);
 		break;
 	default:
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
@@ -929,7 +923,6 @@ static int fimd_probe(struct platform_device *pdev)
 	exynos_drm_manager_register(&fimd_manager);
 
 	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
 
 	for (win = 0; win < WINDOWS_NR; win++)
 		fimd_clear_win(ctx, win);
@@ -939,76 +932,16 @@ static int fimd_probe(struct platform_device *pdev)
 
 static int fimd_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct exynos_drm_manager *mgr = platform_get_drvdata(pdev);
-	struct fimd_context *ctx = mgr->ctx;
 
 	exynos_drm_manager_unregister(&fimd_manager);
 
-	if (ctx->suspended)
-		goto out;
+	fimd_dpms(mgr, DRM_MODE_DPMS_OFF);
 
-	pm_runtime_set_suspended(dev);
-	pm_runtime_put_sync(dev);
-
-out:
-	pm_runtime_disable(dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
-
-#ifdef CONFIG_PM_SLEEP
-static int fimd_suspend(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
-
-	/*
-	 * do not use pm_runtime_suspend(). if pm_runtime_suspend() is
-	 * called here, an error would be returned by that interface
-	 * because the usage_count of pm runtime is more than 1.
-	 */
-	if (!pm_runtime_suspended(dev))
-		return fimd_poweroff(mgr);
-
-	return 0;
-}
-
-static int fimd_resume(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
-
-	/*
-	 * if entered to sleep when lcd panel was on, the usage_count
-	 * of pm runtime would still be 1 so in this case, fimd driver
-	 * should be on directly not drawing on pm runtime interface.
-	 */
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	return fimd_poweron(mgr);
-}
-#endif
-
-#ifdef CONFIG_PM_RUNTIME
-static int fimd_runtime_suspend(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
-
-	return fimd_poweroff(mgr);
-}
-
-static int fimd_runtime_resume(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
-
-	return fimd_poweron(mgr);
-}
-#endif
-
-static const struct dev_pm_ops fimd_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(fimd_suspend, fimd_resume)
-	SET_RUNTIME_PM_OPS(fimd_runtime_suspend, fimd_runtime_resume, NULL)
-};
 
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
@@ -1016,7 +949,6 @@ struct platform_driver fimd_driver = {
 	.driver		= {
 		.name	= "exynos4-fb",
 		.owner	= THIS_MODULE,
-		.pm	= &fimd_pm_ops,
 		.of_match_table = fimd_driver_dt_match,
 	},
 };

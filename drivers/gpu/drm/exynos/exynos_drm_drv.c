@@ -11,6 +11,7 @@
  * option) any later version.
  */
 
+#include <linux/pm_runtime.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -53,6 +54,7 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&private->pageflip_event_list);
+	dev_set_drvdata(dev->dev, dev);
 	dev->dev_private = (void *)private;
 
 	/*
@@ -162,6 +164,41 @@ static int exynos_drm_unload(struct drm_device *dev)
 static const struct file_operations exynos_drm_gem_fops = {
 	.mmap = exynos_drm_gem_mmap_buffer,
 };
+
+static int exynos_drm_suspend(struct drm_device *dev, pm_message_t state)
+{
+	struct drm_connector *connector;
+
+	drm_modeset_lock_all(dev);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		int old_dpms = connector->dpms;
+
+		if (connector->funcs->dpms)
+			connector->funcs->dpms(connector, DRM_MODE_DPMS_OFF);
+
+		/* Set the old mode back to the connector for resume */
+		connector->dpms = old_dpms;
+	}
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
+static int exynos_drm_resume(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+
+	drm_modeset_lock_all(dev);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->funcs->dpms)
+			connector->funcs->dpms(connector, connector->dpms);
+	}
+
+	drm_helper_resume_force_mode(dev);
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
 
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -300,6 +337,8 @@ static struct drm_driver exynos_drm_driver = {
 					DRIVER_GEM | DRIVER_PRIME,
 	.load			= exynos_drm_load,
 	.unload			= exynos_drm_unload,
+	.suspend		= exynos_drm_suspend,
+	.resume			= exynos_drm_resume,
 	.open			= exynos_drm_open,
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
@@ -334,6 +373,9 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	return drm_platform_init(&exynos_drm_driver, pdev);
 }
 
@@ -344,12 +386,67 @@ static int exynos_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int exynos_drm_sys_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	pm_message_t message;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	message.event = PM_EVENT_SUSPEND;
+	return exynos_drm_suspend(drm_dev, message);
+}
+
+static int exynos_drm_sys_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return exynos_drm_resume(drm_dev);
+}
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+static int exynos_drm_runtime_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	pm_message_t message;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	message.event = PM_EVENT_SUSPEND;
+	return exynos_drm_suspend(drm_dev, message);
+}
+
+static int exynos_drm_runtime_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	if (!pm_runtime_suspended(dev))
+		return 0;
+
+	return exynos_drm_resume(drm_dev);
+}
+#endif
+
+static const struct dev_pm_ops exynos_drm_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(exynos_drm_sys_suspend, exynos_drm_sys_resume)
+	SET_RUNTIME_PM_OPS(exynos_drm_runtime_suspend,
+			exynos_drm_runtime_resume, NULL)
+};
+
 static struct platform_driver exynos_drm_platform_driver = {
 	.probe		= exynos_drm_platform_probe,
 	.remove		= exynos_drm_platform_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "exynos-drm",
+		.pm	= &exynos_drm_pm_ops,
 	},
 };
 

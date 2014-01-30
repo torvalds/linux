@@ -1061,6 +1061,8 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 	ctx->powered = true;
 	mutex_unlock(&ctx->mixer_mutex);
 
+	pm_runtime_get_sync(ctx->dev);
+
 	clk_prepare_enable(res->mixer);
 	if (ctx->vp_enabled) {
 		clk_prepare_enable(res->vp);
@@ -1093,6 +1095,8 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 		clk_disable_unprepare(res->sclk_mixer);
 	}
 
+	pm_runtime_put_sync(ctx->dev);
+
 	mutex_lock(&ctx->mixer_mutex);
 	ctx->powered = false;
 
@@ -1102,18 +1106,14 @@ out:
 
 static void mixer_dpms(struct exynos_drm_manager *mgr, int mode)
 {
-	struct mixer_context *mixer_ctx = mgr->ctx;
-
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		if (pm_runtime_suspended(mixer_ctx->dev))
-			pm_runtime_get_sync(mixer_ctx->dev);
+		mixer_poweron(mgr);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		if (!pm_runtime_suspended(mixer_ctx->dev))
-			pm_runtime_put_sync(mixer_ctx->dev);
+		mixer_poweroff(mgr);
 		break;
 	default:
 		DRM_DEBUG_KMS("unknown dpms mode: %d\n", mode);
@@ -1250,66 +1250,10 @@ static int mixer_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mixer_suspend(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_mixer_manager(dev);
-
-	if (pm_runtime_suspended(dev)) {
-		DRM_DEBUG_KMS("Already suspended\n");
-		return 0;
-	}
-
-	mixer_poweroff(mgr);
-
-	return 0;
-}
-
-static int mixer_resume(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_mixer_manager(dev);
-
-	if (!pm_runtime_suspended(dev)) {
-		DRM_DEBUG_KMS("Already resumed\n");
-		return 0;
-	}
-
-	mixer_poweron(mgr);
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_PM_RUNTIME
-static int mixer_runtime_suspend(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_mixer_manager(dev);
-
-	mixer_poweroff(mgr);
-
-	return 0;
-}
-
-static int mixer_runtime_resume(struct device *dev)
-{
-	struct exynos_drm_manager *mgr = get_mixer_manager(dev);
-
-	mixer_poweron(mgr);
-
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops mixer_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(mixer_suspend, mixer_resume)
-	SET_RUNTIME_PM_OPS(mixer_runtime_suspend, mixer_runtime_resume, NULL)
-};
-
 struct platform_driver mixer_driver = {
 	.driver = {
 		.name = "exynos-mixer",
 		.owner = THIS_MODULE,
-		.pm = &mixer_pm_ops,
 		.of_match_table = mixer_match_types,
 	},
 	.probe = mixer_probe,
