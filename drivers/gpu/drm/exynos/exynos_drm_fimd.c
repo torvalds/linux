@@ -106,6 +106,7 @@ struct fimd_win_data {
 
 struct fimd_context {
 	struct exynos_drm_subdrv	subdrv;
+	struct drm_device		*drm_dev;
 	int				irq;
 	struct drm_crtc			*crtc;
 	struct clk			*bus_clk;
@@ -180,6 +181,16 @@ static struct exynos_drm_display_ops fimd_display_ops = {
 	.check_mode = fimd_check_mode,
 	.power_on = fimd_display_power_on,
 };
+
+static int fimd_mgr_initialize(struct device *subdrv_dev,
+		struct drm_device *drm_dev)
+{
+	struct fimd_context *ctx = get_fimd_context(subdrv_dev);
+
+	ctx->drm_dev = drm_dev;
+
+	return 0;
+}
 
 static void fimd_dpms(struct device *subdrv_dev, int mode)
 {
@@ -660,6 +671,7 @@ static void fimd_win_disable(struct device *dev, int zpos)
 }
 
 static struct exynos_drm_manager_ops fimd_manager_ops = {
+	.initialize = fimd_mgr_initialize,
 	.dpms = fimd_dpms,
 	.apply = fimd_apply,
 	.commit = fimd_commit,
@@ -681,7 +693,6 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
 	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct drm_device *drm_dev = subdrv->drm_dev;
 	struct exynos_drm_manager *manager = subdrv->manager;
 	u32 val;
 
@@ -692,11 +703,11 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 		writel(VIDINTCON1_INT_FRAME, ctx->regs + VIDINTCON1);
 
 	/* check the crtc is detached already from encoder */
-	if (manager->pipe < 0)
+	if (manager->pipe < 0 || !ctx->drm_dev)
 		goto out;
 
-	drm_handle_vblank(drm_dev, manager->pipe);
-	exynos_drm_crtc_finish_pageflip(drm_dev, manager->pipe);
+	drm_handle_vblank(ctx->drm_dev, manager->pipe);
+	exynos_drm_crtc_finish_pageflip(ctx->drm_dev, manager->pipe);
 
 	/* set wait vsync event to zero and wake up queue. */
 	if (atomic_read(&ctx->wait_vsync_event)) {
