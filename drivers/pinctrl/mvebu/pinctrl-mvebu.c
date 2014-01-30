@@ -638,23 +638,21 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		struct mvebu_mpp_ctrl *ctrl = &soc->controls[n];
 
 		pctl->desc.npins += ctrl->npins;
-		/* initial control pins */
+		/* initialize control's pins[] array */
 		for (k = 0; k < ctrl->npins; k++)
 			ctrl->pins[k] = ctrl->pid + k;
 
-		/* special soc specific control */
-		if (ctrl->mpp_get || ctrl->mpp_set) {
-			if (!ctrl->name || !ctrl->mpp_get || !ctrl->mpp_set) {
-				dev_err(&pdev->dev, "wrong soc control info\n");
-				return -EINVAL;
-			}
+		/*
+		 * We allow to pass controls with NULL name that we treat
+		 * as a range of one-pin groups with generic mvebu register
+		 * controls.
+		 */
+		if (!ctrl->name) {
+			pctl->num_groups += ctrl->npins;
+			noname += ctrl->npins;
+		} else {
 			pctl->num_groups += 1;
-			continue;
 		}
-
-		/* generic mvebu register control */
-		pctl->num_groups += ctrl->npins;
-		noname += ctrl->npins;
 	}
 
 	pdesc = devm_kzalloc(&pdev->dev, pctl->desc.npins *
@@ -690,8 +688,12 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		pctl->groups[gid].pins = ctrl->pins;
 		pctl->groups[gid].npins = ctrl->npins;
 
-		/* generic mvebu register control maps to a number of groups */
-		if (!ctrl->mpp_get && !ctrl->mpp_set) {
+		/*
+		 * We treat unnamed controls as a range of one-pin groups
+		 * with generic mvebu register controls. Use one group for
+		 * each in this range and assign a default group name.
+		 */
+		if (!ctrl->name) {
 			pctl->groups[gid].name = noname_buf;
 			pctl->groups[gid].npins = 1;
 			sprintf(noname_buf, "mpp%d", ctrl->pid+0);
