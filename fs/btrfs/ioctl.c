@@ -59,6 +59,32 @@
 #include "props.h"
 #include "sysfs.h"
 
+#ifdef CONFIG_64BIT
+/* If we have a 32-bit userspace and 64-bit kernel, then the UAPI
+ * structures are incorrect, as the timespec structure from userspace
+ * is 4 bytes too small. We define these alternatives here to teach
+ * the kernel about the 32-bit struct packing.
+ */
+struct btrfs_ioctl_timespec_32 {
+	__u64 sec;
+	__u32 nsec;
+} __attribute__ ((__packed__));
+
+struct btrfs_ioctl_received_subvol_args_32 {
+	char	uuid[BTRFS_UUID_SIZE];	/* in */
+	__u64	stransid;		/* in */
+	__u64	rtransid;		/* out */
+	struct btrfs_ioctl_timespec_32 stime; /* in */
+	struct btrfs_ioctl_timespec_32 rtime; /* out */
+	__u64	flags;			/* in */
+	__u64	reserved[16];		/* in */
+} __attribute__ ((__packed__));
+
+#define BTRFS_IOC_SET_RECEIVED_SUBVOL_32 _IOWR(BTRFS_IOCTL_MAGIC, 37, \
+				struct btrfs_ioctl_received_subvol_args_32)
+#endif
+
+
 static int btrfs_clone(struct inode *src, struct inode *inode,
 		       u64 off, u64 olen, u64 olen_aligned, u64 destoff);
 
@@ -4375,10 +4401,9 @@ static long btrfs_ioctl_quota_rescan_wait(struct file *file, void __user *arg)
 	return btrfs_qgroup_wait_for_completion(root->fs_info);
 }
 
-static long btrfs_ioctl_set_received_subvol(struct file *file,
-					    void __user *arg)
+static long _btrfs_ioctl_set_received_subvol(struct file *file,
+					    struct btrfs_ioctl_received_subvol_args *sa)
 {
-	struct btrfs_ioctl_received_subvol_args *sa = NULL;
 	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_root_item *root_item = &root->root_item;
@@ -4403,13 +4428,6 @@ static long btrfs_ioctl_set_received_subvol(struct file *file,
 
 	if (btrfs_root_readonly(root)) {
 		ret = -EROFS;
-		goto out;
-	}
-
-	sa = memdup_user(arg, sizeof(*sa));
-	if (IS_ERR(sa)) {
-		ret = PTR_ERR(sa);
-		sa = NULL;
 		goto out;
 	}
 
@@ -4466,14 +4484,91 @@ static long btrfs_ioctl_set_received_subvol(struct file *file,
 		goto out;
 	}
 
+out:
+	up_write(&root->fs_info->subvol_sem);
+	mnt_drop_write_file(file);
+	return ret;
+}
+
+#ifdef CONFIG_64BIT
+static long btrfs_ioctl_set_received_subvol_32(struct file *file,
+						void __user *arg)
+{
+	struct btrfs_ioctl_received_subvol_args_32 *args32 = NULL;
+	struct btrfs_ioctl_received_subvol_args *args64 = NULL;
+	int ret = 0;
+
+	args32 = memdup_user(arg, sizeof(*args32));
+	if (IS_ERR(args32)) {
+		ret = PTR_ERR(args32);
+		args32 = NULL;
+		goto out;
+	}
+
+	args64 = kmalloc(sizeof(*args64), GFP_NOFS);
+	if (IS_ERR(args64)) {
+		ret = PTR_ERR(args64);
+		args64 = NULL;
+		goto out;
+	}
+
+	memcpy(args64->uuid, args32->uuid, BTRFS_UUID_SIZE);
+	args64->stransid = args32->stransid;
+	args64->rtransid = args32->rtransid;
+	args64->stime.sec = args32->stime.sec;
+	args64->stime.nsec = args32->stime.nsec;
+	args64->rtime.sec = args32->rtime.sec;
+	args64->rtime.nsec = args32->rtime.nsec;
+	args64->flags = args32->flags;
+
+	ret = _btrfs_ioctl_set_received_subvol(file, args64);
+	if (ret)
+		goto out;
+
+	memcpy(args32->uuid, args64->uuid, BTRFS_UUID_SIZE);
+	args32->stransid = args64->stransid;
+	args32->rtransid = args64->rtransid;
+	args32->stime.sec = args64->stime.sec;
+	args32->stime.nsec = args64->stime.nsec;
+	args32->rtime.sec = args64->rtime.sec;
+	args32->rtime.nsec = args64->rtime.nsec;
+	args32->flags = args64->flags;
+
+	ret = copy_to_user(arg, args32, sizeof(*args32));
+	if (ret)
+		ret = -EFAULT;
+
+out:
+	kfree(args32);
+	kfree(args64);
+	return ret;
+}
+#endif
+
+static long btrfs_ioctl_set_received_subvol(struct file *file,
+					    void __user *arg)
+{
+	struct btrfs_ioctl_received_subvol_args *sa = NULL;
+	int ret = 0;
+
+	sa = memdup_user(arg, sizeof(*sa));
+	if (IS_ERR(sa)) {
+		ret = PTR_ERR(sa);
+		sa = NULL;
+		goto out;
+	}
+
+	ret = _btrfs_ioctl_set_received_subvol(file, sa);
+
+	if (ret)
+		goto out;
+
 	ret = copy_to_user(arg, sa, sizeof(*sa));
 	if (ret)
 		ret = -EFAULT;
 
 out:
 	kfree(sa);
-	up_write(&root->fs_info->subvol_sem);
-	mnt_drop_write_file(file);
 	return ret;
 }
 
@@ -4792,6 +4887,10 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_balance_progress(root, argp);
 	case BTRFS_IOC_SET_RECEIVED_SUBVOL:
 		return btrfs_ioctl_set_received_subvol(file, argp);
+#ifdef CONFIG_64BIT
+	case BTRFS_IOC_SET_RECEIVED_SUBVOL_32:
+		return btrfs_ioctl_set_received_subvol_32(file, argp);
+#endif
 	case BTRFS_IOC_SEND:
 		return btrfs_ioctl_send(file, argp);
 	case BTRFS_IOC_GET_DEV_STATS:
