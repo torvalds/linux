@@ -554,6 +554,18 @@
                                                 sirf,function = "usp0_uart_nostreamctrl";
                                         };
                                 };
+				usp0_only_utfs_pins_a: usp0@2 {
+					usp0 {
+						sirf,pins = "usp0_only_utfs_grp";
+						sirf,function = "usp0_only_utfs";
+					};
+				};
+				usp0_only_urfs_pins_a: usp0@3 {
+					usp0 {
+						sirf,pins = "usp0_only_urfs_grp";
+						sirf,function = "usp0_only_urfs";
+					};
+				};
                                 usp1_pins_a: usp1@0 {
                                         usp1 {
                                                 sirf,pins = "usp1grp";
