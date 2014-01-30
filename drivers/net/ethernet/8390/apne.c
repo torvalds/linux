@@ -212,7 +212,6 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     int neX000, ctron;
 #endif
     static unsigned version_printed;
-    struct ei_device *ei_local = netdev_priv(dev);
 
     if ((apne_msg_enable & NETIF_MSG_DRV) && (version_printed++ == 0))
 		netdev_info(dev, version);

@@ -40,6 +40,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/rculist.h>
+#include <linux/err.h>
 
 #include <net/sock.h>
 #include <net/ip.h>
@@ -930,7 +931,7 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 	}
 	rtnl_unlock();
 
-	return PTR_RET(itn->fb_tunnel_dev);
+	return PTR_ERR_OR_ZERO(itn->fb_tunnel_dev);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_init_net);
 
