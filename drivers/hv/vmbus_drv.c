@@ -43,6 +43,10 @@ static struct acpi_device  *hv_acpi_dev;
 static struct tasklet_struct msg_dpc;
 static struct completion probe_event;
 static int irq;
+u64 hyperv_mmio_start;
+EXPORT_SYMBOL_GPL(hyperv_mmio_start);
+u64 hyperv_mmio_size;
+EXPORT_SYMBOL_GPL(hyperv_mmio_size);
 
 static int vmbus_exists(void)
 {
@@ -886,18 +890,19 @@ void vmbus_device_unregister(struct hv_device *device_obj)
 
 
 /*
- * VMBUS is an acpi enumerated device. Get the the IRQ information
- * from DSDT.
+ * VMBUS is an acpi enumerated device. Get the the information we
+ * need from DSDT.
  */
 
-static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *irq)
+static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 {
+	switch (res->type) {
+	case ACPI_RESOURCE_TYPE_IRQ:
+		irq = res->data.irq.interrupts[0];
 
-	if (res->type == ACPI_RESOURCE_TYPE_IRQ) {
-		struct acpi_resource_irq *irqp;
-		irqp = &res->data.irq;
-
-		*((unsigned int *)irq) = irqp->interrupts[0];
+	case ACPI_RESOURCE_TYPE_ADDRESS64:
+		hyperv_mmio_start = res->data.address64.minimum;
+		hyperv_mmio_size = res->data.address64.address_length;
 	}
 
 	return AE_OK;
@@ -906,18 +911,32 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *irq)
 static int vmbus_acpi_add(struct acpi_device *device)
 {
 	acpi_status result;
+	int ret_val = -ENODEV;
 
 	hv_acpi_dev = device;
 
 	result = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
-					vmbus_walk_resources, &irq);
+					vmbus_walk_resources, NULL);
 
-	if (ACPI_FAILURE(result)) {
-		complete(&probe_event);
-		return -ENODEV;
+	if (ACPI_FAILURE(result))
+		goto acpi_walk_err;
+	/*
+	 * The parent of the vmbus acpi device (Gen2 firmware) is the VMOD that
+	 * has the mmio ranges. Get that.
+	 */
+	if (device->parent) {
+		result = acpi_walk_resources(device->parent->handle,
+					METHOD_NAME__CRS,
+					vmbus_walk_resources, NULL);
+
+		if (ACPI_FAILURE(result))
+			goto acpi_walk_err;
 	}
+	ret_val = 0;
+
+acpi_walk_err:
 	complete(&probe_event);
-	return 0;
+	return ret_val;
 }
 
 static const struct acpi_device_id vmbus_acpi_device_ids[] = {
