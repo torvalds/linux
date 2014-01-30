@@ -245,6 +245,10 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 void omap2_init_clk_clkdm(struct clk_hw *clk);
 unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
 				    unsigned long parent_rate);
+int omap3_clkoutx2_set_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate);
+long omap3_clkoutx2_round_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate);
 int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 int omap2_clk_disable_autoidle_all(void);
