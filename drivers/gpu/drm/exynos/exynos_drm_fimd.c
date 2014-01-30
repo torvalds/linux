@@ -519,6 +519,12 @@ static void fimd_win_commit(struct exynos_drm_manager *mgr, int zpos)
 
 	win_data = &ctx->win_data[win];
 
+	/* If suspended, enable this on resume */
+	if (ctx->suspended) {
+		win_data->resume = true;
+		return;
+	}
+
 	/*
 	 * SHADOWCON/PRTCON register is used for enabling timing.
 	 *
@@ -660,6 +666,129 @@ static void fimd_win_disable(struct exynos_drm_manager *mgr, int zpos)
 	win_data->enabled = false;
 }
 
+static void fimd_clear_win(struct fimd_context *ctx, int win)
+{
+	writel(0, ctx->regs + WINCON(win));
+	writel(0, ctx->regs + VIDOSD_A(win));
+	writel(0, ctx->regs + VIDOSD_B(win));
+	writel(0, ctx->regs + VIDOSD_C(win));
+
+	if (win == 1 || win == 2)
+		writel(0, ctx->regs + VIDOSD_D(win));
+
+	fimd_shadow_protect_win(ctx, win, false);
+}
+
+static void fimd_window_suspend(struct exynos_drm_manager *mgr)
+{
+	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_win_data *win_data;
+	int i;
+
+	for (i = 0; i < WINDOWS_NR; i++) {
+		win_data = &ctx->win_data[i];
+		win_data->resume = win_data->enabled;
+		if (win_data->enabled)
+			fimd_win_disable(mgr, i);
+	}
+	fimd_wait_for_vblank(mgr);
+}
+
+static void fimd_window_resume(struct exynos_drm_manager *mgr)
+{
+	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_win_data *win_data;
+	int i;
+
+	for (i = 0; i < WINDOWS_NR; i++) {
+		win_data = &ctx->win_data[i];
+		win_data->enabled = win_data->resume;
+		win_data->resume = false;
+	}
+}
+
+static void fimd_apply(struct exynos_drm_manager *mgr)
+{
+	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_win_data *win_data;
+	int i;
+
+	for (i = 0; i < WINDOWS_NR; i++) {
+		win_data = &ctx->win_data[i];
+		if (win_data->enabled)
+			fimd_win_commit(mgr, i);
+	}
+
+	fimd_commit(mgr);
+}
+
+static int fimd_poweron(struct exynos_drm_manager *mgr)
+{
+	struct fimd_context *ctx = mgr->ctx;
+	int ret;
+
+	if (!ctx->suspended)
+		return 0;
+
+	ctx->suspended = false;
+
+	ret = clk_prepare_enable(ctx->bus_clk);
+	if (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
+		goto bus_clk_err;
+	}
+
+	ret = clk_prepare_enable(ctx->lcd_clk);
+	if  (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
+		goto lcd_clk_err;
+	}
+
+	/* if vblank was enabled status, enable it again. */
+	if (test_and_clear_bit(0, &ctx->irq_flags)) {
+		ret = fimd_enable_vblank(mgr);
+		if (ret) {
+			DRM_ERROR("Failed to re-enable vblank [%d]\n", ret);
+			goto enable_vblank_err;
+		}
+	}
+
+	fimd_window_resume(mgr);
+
+	fimd_apply(mgr);
+
+	return 0;
+
+enable_vblank_err:
+	clk_disable_unprepare(ctx->lcd_clk);
+lcd_clk_err:
+	clk_disable_unprepare(ctx->bus_clk);
+bus_clk_err:
+	ctx->suspended = true;
+	return ret;
+}
+
+static int fimd_poweroff(struct exynos_drm_manager *mgr)
+{
+	struct fimd_context *ctx = mgr->ctx;
+
+	if (ctx->suspended)
+		return 0;
+
+	/*
+	 * We need to make sure that all windows are disabled before we
+	 * suspend that connector. Otherwise we might try to scan from
+	 * a destroyed buffer later.
+	 */
+	fimd_window_suspend(mgr);
+
+	clk_disable_unprepare(ctx->lcd_clk);
+	clk_disable_unprepare(ctx->bus_clk);
+
+	ctx->suspended = true;
+	return 0;
+}
+
 static void fimd_dpms(struct exynos_drm_manager *mgr, int mode)
 {
 	struct fimd_context *ctx = mgr->ctx;
@@ -736,113 +865,6 @@ out:
 	return IRQ_HANDLED;
 }
 
-static void fimd_clear_win(struct fimd_context *ctx, int win)
-{
-	writel(0, ctx->regs + WINCON(win));
-	writel(0, ctx->regs + VIDOSD_A(win));
-	writel(0, ctx->regs + VIDOSD_B(win));
-	writel(0, ctx->regs + VIDOSD_C(win));
-
-	if (win == 1 || win == 2)
-		writel(0, ctx->regs + VIDOSD_D(win));
-
-	fimd_shadow_protect_win(ctx, win, false);
-}
-
-static int fimd_clock(struct fimd_context *ctx, bool enable)
-{
-	if (enable) {
-		int ret;
-
-		ret = clk_prepare_enable(ctx->bus_clk);
-		if (ret < 0)
-			return ret;
-
-		ret = clk_prepare_enable(ctx->lcd_clk);
-		if  (ret < 0) {
-			clk_disable_unprepare(ctx->bus_clk);
-			return ret;
-		}
-	} else {
-		clk_disable_unprepare(ctx->lcd_clk);
-		clk_disable_unprepare(ctx->bus_clk);
-	}
-
-	return 0;
-}
-
-static void fimd_window_suspend(struct exynos_drm_manager *mgr)
-{
-	struct fimd_context *ctx = mgr->ctx;
-	struct fimd_win_data *win_data;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		win_data->resume = win_data->enabled;
-		fimd_win_disable(mgr, i);
-	}
-	fimd_wait_for_vblank(mgr);
-}
-
-static void fimd_window_resume(struct exynos_drm_manager *mgr)
-{
-	struct fimd_context *ctx = mgr->ctx;
-	struct fimd_win_data *win_data;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		win_data->enabled = win_data->resume;
-		win_data->resume = false;
-	}
-}
-
-static void fimd_apply(struct exynos_drm_manager *mgr)
-{
-	struct fimd_context *ctx = mgr->ctx;
-	struct fimd_win_data *win_data;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		if (win_data->enabled)
-			fimd_win_commit(mgr, i);
-	}
-
-	fimd_commit(mgr);
-}
-
-static int fimd_activate(struct exynos_drm_manager *mgr, bool enable)
-{
-	struct fimd_context *ctx = mgr->ctx;
-
-	if (enable) {
-		int ret;
-
-		ret = fimd_clock(ctx, true);
-		if (ret < 0)
-			return ret;
-
-		ctx->suspended = false;
-
-		/* if vblank was enabled status, enable it again. */
-		if (test_and_clear_bit(0, &ctx->irq_flags))
-			fimd_enable_vblank(mgr);
-
-		fimd_window_resume(mgr);
-
-		fimd_apply(mgr);
-	} else {
-		fimd_window_suspend(mgr);
-
-		fimd_clock(ctx, false);
-		ctx->suspended = true;
-	}
-
-	return 0;
-}
-
 static int fimd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -859,6 +881,7 @@ static int fimd_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctx->dev = dev;
+	ctx->suspended = true;
 
 	if (of_property_read_bool(dev->of_node, "samsung,invert-vden"))
 		ctx->vidcon1 |= VIDCON1_INV_VDEN;
@@ -945,7 +968,7 @@ static int fimd_suspend(struct device *dev)
 	 * because the usage_count of pm runtime is more than 1.
 	 */
 	if (!pm_runtime_suspended(dev))
-		return fimd_activate(mgr, false);
+		return fimd_poweroff(mgr);
 
 	return 0;
 }
@@ -962,7 +985,7 @@ static int fimd_resume(struct device *dev)
 	if (pm_runtime_suspended(dev))
 		return 0;
 
-	return fimd_activate(mgr, true);
+	return fimd_poweron(mgr);
 }
 #endif
 
@@ -971,14 +994,14 @@ static int fimd_runtime_suspend(struct device *dev)
 {
 	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
 
-	return fimd_activate(mgr, false);
+	return fimd_poweroff(mgr);
 }
 
 static int fimd_runtime_resume(struct device *dev)
 {
 	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
 
-	return fimd_activate(mgr, true);
+	return fimd_poweron(mgr);
 }
 #endif
 
