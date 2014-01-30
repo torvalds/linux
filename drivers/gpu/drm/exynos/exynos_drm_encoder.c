@@ -28,32 +28,22 @@
  * @drm_encoder: encoder object.
  * @manager: specific encoder has its own manager to control a hardware
  *	appropriately and we can access a hardware drawing on this manager.
- * @dpms: store the encoder dpms value.
  */
 struct exynos_drm_encoder {
 	struct drm_crtc			*old_crtc;
 	struct drm_encoder		drm_encoder;
 	struct exynos_drm_manager	*manager;
-	int				dpms;
 };
 
 static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
-	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
 	struct exynos_drm_display_ops *display_ops = manager->display_ops;
 
 	DRM_DEBUG_KMS("encoder dpms: %d\n", mode);
 
-	if (exynos_encoder->dpms == mode) {
-		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
-		return;
-	}
-
 	if (display_ops && display_ops->dpms)
 		display_ops->dpms(manager->ctx, mode);
-
-	exynos_encoder->dpms = mode;
 }
 
 static bool
@@ -157,12 +147,6 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 
 	if (manager_ops && manager_ops->commit)
 		manager_ops->commit(manager);
-
-	/*
-	 * In case of setcrtc, there is no way to update encoder's dpms
-	 * so update it here.
-	 */
-	exynos_encoder->dpms = DRM_MODE_DPMS_ON;
 }
 
 void exynos_drm_encoder_complete_scanout(struct drm_framebuffer *fb)
@@ -281,7 +265,6 @@ exynos_drm_encoder_create(struct drm_device *dev,
 	if (!exynos_encoder)
 		return NULL;
 
-	exynos_encoder->dpms = DRM_MODE_DPMS_OFF;
 	exynos_encoder->manager = manager;
 	encoder = &exynos_encoder->drm_encoder;
 	encoder->possible_crtcs = possible_crtcs;
