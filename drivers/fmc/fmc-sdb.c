@@ -153,20 +153,17 @@ EXPORT_SYMBOL(fmc_reprogram);
 static void __fmc_show_sdb_tree(const struct fmc_device *fmc,
 				const struct sdb_array *arr)
 {
+	unsigned long base = arr->baseaddr;
 	int i, j, n = arr->len, level = arr->level;
-	const struct sdb_array *ap;
 
 	for (i = 0; i < n; i++) {
-		unsigned long base;
 		union  sdb_record *r;
 		struct sdb_product *p;
 		struct sdb_component *c;
 		r = &arr->record[i];
 		c = &r->dev.sdb_component;
 		p = &c->product;
-		base = 0;
-		for (ap = arr; ap; ap = ap->parent)
-			base += ap->baseaddr;
+
 		dev_info(&fmc->dev, "SDB: ");
 
 		for (j = 0; j < level; j++)
