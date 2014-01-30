@@ -95,10 +95,7 @@ enum rq_cmd_type_bits {
  * as well!
  */
 struct request {
-	union {
-		struct list_head queuelist;
-		struct llist_node ll_list;
-	};
+	struct list_head queuelist;
 	union {
 		struct call_single_data csd;
 		struct work_struct mq_flush_data;
