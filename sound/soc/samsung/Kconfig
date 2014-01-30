@@ -59,7 +59,7 @@ config SND_SOC_SAMSUNG_JIVE_WM8750
 	select SND_SOC_WM8750
 	select SND_S3C2412_SOC_I2S
 	help
-	  Sat Y if you want to add support for SoC audio on the Jive.
+	  Say Y if you want to add support for SoC audio on the Jive.
 
 config SND_SOC_SAMSUNG_SMDK_WM8580
 	tristate "SoC I2S Audio support for WM8580 on SMDK"
@@ -149,7 +149,7 @@ config SND_SOC_SAMSUNG_SMDK_WM9713
 	select SND_SOC_WM9713
 	select SND_SAMSUNG_AC97
 	help
-	  Sat Y if you want to add support for SoC audio on the SMDK.
+	  Say Y if you want to add support for SoC audio on the SMDK.
 
 config SND_SOC_SMARTQ
 	tristate "SoC I2S Audio support for SmartQ board"
