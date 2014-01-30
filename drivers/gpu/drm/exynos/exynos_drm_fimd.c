@@ -107,8 +107,6 @@ struct fimd_win_data {
 struct fimd_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
-	int				irq;
-	struct drm_crtc			*crtc;
 	struct clk			*bus_clk;
 	struct clk			*lcd_clk;
 	void __iomem			*regs;
@@ -120,7 +118,6 @@ struct fimd_context {
 	u32				vidcon1;
 	bool				suspended;
 	int				pipe;
-	struct mutex			lock;
 	wait_queue_head_t		wait_vsync_queue;
 	atomic_t			wait_vsync_event;
 
@@ -697,8 +694,6 @@ static void fimd_dpms(struct exynos_drm_manager *mgr, int mode)
 
 	DRM_DEBUG_KMS("%d\n", mode);
 
-	mutex_lock(&ctx->lock);
-
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		/*
@@ -720,8 +715,6 @@ static void fimd_dpms(struct exynos_drm_manager *mgr, int mode)
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
 		break;
 	}
-
-	mutex_unlock(&ctx->lock);
 }
 
 static struct exynos_drm_manager_ops fimd_manager_ops = {
@@ -947,9 +940,7 @@ static int fimd_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	ctx->irq = res->start;
-
-	ret = devm_request_irq(dev, ctx->irq, fimd_irq_handler,
+	ret = devm_request_irq(dev, res->start, fimd_irq_handler,
 							0, "drm_fimd", ctx);
 	if (ret) {
 		dev_err(dev, "irq request failed.\n");
@@ -959,8 +950,6 @@ static int fimd_probe(struct platform_device *pdev)
 	ctx->driver_data = drm_fimd_get_driver_data(pdev);
 	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
-
-	mutex_init(&ctx->lock);
 
 	platform_set_drvdata(pdev, &fimd_manager);
 
