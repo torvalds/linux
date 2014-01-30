@@ -3003,9 +3003,16 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	unsigned int active;
 	int reg, ret;
 
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "Failed to resume: %d\n", ret);
+		return IRQ_NONE;
+	}
+
 	ret = regmap_read(wm8962->regmap, WM8962_INTERRUPT_STATUS_2_MASK,
 			  &mask);
 	if (ret != 0) {
+		pm_runtime_put(dev);
 		dev_err(dev, "Failed to read interrupt mask: %d\n",
 			ret);
 		return IRQ_NONE;
@@ -3013,14 +3020,17 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 
 	ret = regmap_read(wm8962->regmap, WM8962_INTERRUPT_STATUS_2, &active);
 	if (ret != 0) {
+		pm_runtime_put(dev);
 		dev_err(dev, "Failed to read interrupt: %d\n", ret);
 		return IRQ_NONE;
 	}
 
 	active &= ~mask;
 
-	if (!active)
+	if (!active) {
+		pm_runtime_put(dev);
 		return IRQ_NONE;
+	}
 
 	/* Acknowledge the interrupts */
 	ret = regmap_write(wm8962->regmap, WM8962_INTERRUPT_STATUS_2, active);
@@ -3069,6 +3079,8 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 				   &wm8962->mic_work,
 				   msecs_to_jiffies(250));
 	}
+
+	pm_runtime_put(dev);
 
 	return IRQ_HANDLED;
 }
