@@ -302,7 +302,6 @@ err_misc_dereg:
 
 int hwrng_register(struct hwrng *rng)
 {
-	int must_register_misc;
 	int err = -EINVAL;
 	struct hwrng *old_rng, *tmp;
 
@@ -327,7 +326,6 @@ int hwrng_register(struct hwrng *rng)
 			goto out_unlock;
 	}
 
-	must_register_misc = (current_rng == NULL);
 	old_rng = current_rng;
 	if (!old_rng) {
 		err = hwrng_init(rng);
@@ -336,13 +334,11 @@ int hwrng_register(struct hwrng *rng)
 		current_rng = rng;
 	}
 	err = 0;
-	if (must_register_misc) {
+	if (!old_rng) {
 		err = register_miscdev();
 		if (err) {
-			if (!old_rng) {
-				hwrng_cleanup(rng);
-				current_rng = NULL;
-			}
+			hwrng_cleanup(rng);
+			current_rng = NULL;
 			goto out_unlock;
 		}
 	}
