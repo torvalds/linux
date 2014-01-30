@@ -468,8 +468,8 @@ void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 	} else {
 		list_for_each_entry_safe(dev, tmp, &driver->legacy_dev_list,
 					 legacy_dev_list) {
-			drm_put_dev(dev);
 			list_del(&dev->legacy_dev_list);
+			drm_put_dev(dev);
 		}
 	}
 	DRM_INFO("Module unloaded\n");
