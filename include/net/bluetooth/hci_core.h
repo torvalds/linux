@@ -334,6 +334,8 @@ struct hci_conn {
 	__u8		passkey_entered;
 	__u16		disc_timeout;
 	__u16		setting;
+	__u16		le_conn_min_interval;
+	__u16		le_conn_max_interval;
 	unsigned long	flags;
 
 	__u8		remote_cap;

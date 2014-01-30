@@ -558,8 +558,8 @@ static int hci_create_le_conn(struct hci_conn *conn)
 	bacpy(&cp.peer_addr, &conn->dst);
 	cp.peer_addr_type = conn->dst_type;
 	cp.own_address_type = conn->src_type;
-	cp.conn_interval_min = cpu_to_le16(hdev->le_conn_min_interval);
-	cp.conn_interval_max = cpu_to_le16(hdev->le_conn_max_interval);
+	cp.conn_interval_min = cpu_to_le16(conn->le_conn_min_interval);
+	cp.conn_interval_max = cpu_to_le16(conn->le_conn_max_interval);
 	cp.supervision_timeout = __constant_cpu_to_le16(0x002a);
 	cp.min_ce_len = __constant_cpu_to_le16(0x0000);
 	cp.max_ce_len = __constant_cpu_to_le16(0x0000);
@@ -624,6 +624,8 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->pending_sec_level = sec_level;
 	conn->auth_type = auth_type;
+	conn->le_conn_min_interval = hdev->le_conn_min_interval;
+	conn->le_conn_max_interval = hdev->le_conn_max_interval;
 
 	err = hci_create_le_conn(conn);
 	if (err)
