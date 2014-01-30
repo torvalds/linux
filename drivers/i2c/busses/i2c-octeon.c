@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/of.h>
