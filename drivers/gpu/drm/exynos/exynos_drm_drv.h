@@ -54,22 +54,6 @@ enum exynos_drm_output_type {
 };
 
 /*
- * Exynos drm overlay ops structure.
- *
- * @mode_set: copy drm overlay info to hw specific overlay info.
- * @commit: apply hardware specific overlay data to registers.
- * @enable: enable hardware specific overlay.
- * @disable: disable hardware specific overlay.
- */
-struct exynos_drm_overlay_ops {
-	void (*mode_set)(struct device *subdrv_dev,
-			 struct exynos_drm_overlay *overlay);
-	void (*commit)(struct device *subdrv_dev, int zpos);
-	void (*enable)(struct device *subdrv_dev, int zpos);
-	void (*disable)(struct device *subdrv_dev, int zpos);
-};
-
-/*
  * Exynos drm common overlay structure.
  *
  * @fb_x: offset x on a framebuffer to be displayed.
@@ -169,6 +153,10 @@ struct exynos_drm_display_ops {
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @wait_for_vblank: wait for vblank interrupt to make sure that
  *	hardware overlay is updated.
+ * @win_mode_set: copy drm overlay info to hw specific overlay info.
+ * @win_commit: apply hardware specific overlay data to registers.
+ * @win_enable: enable hardware specific overlay.
+ * @win_disable: disable hardware specific overlay.
  */
 struct exynos_drm_manager_ops {
 	void (*dpms)(struct device *subdrv_dev, int mode);
@@ -184,6 +172,11 @@ struct exynos_drm_manager_ops {
 	int (*enable_vblank)(struct device *subdrv_dev);
 	void (*disable_vblank)(struct device *subdrv_dev);
 	void (*wait_for_vblank)(struct device *subdrv_dev);
+	void (*win_mode_set)(struct device *subdrv_dev,
+				struct exynos_drm_overlay *overlay);
+	void (*win_commit)(struct device *subdrv_dev, int zpos);
+	void (*win_enable)(struct device *subdrv_dev, int zpos);
+	void (*win_disable)(struct device *subdrv_dev, int zpos);
 };
 
 /*
@@ -195,9 +188,6 @@ struct exynos_drm_manager_ops {
  * @ops: pointer to callbacks for exynos drm specific framebuffer.
  *	these callbacks should be set by specific drivers such fimd
  *	or hdmi driver and are used to control hardware global registers.
- * @overlay_ops: pointer to callbacks for exynos drm specific framebuffer.
- *	these callbacks should be set by specific drivers such fimd
- *	or hdmi driver and are used to control hardware overlay reigsters.
  * @display: pointer to callbacks for exynos drm specific framebuffer.
  *	these callbacks should be set by specific drivers such fimd
  *	or hdmi driver and are used to control display devices such as
@@ -207,7 +197,6 @@ struct exynos_drm_manager {
 	struct device *dev;
 	int pipe;
 	struct exynos_drm_manager_ops *ops;
-	struct exynos_drm_overlay_ops *overlay_ops;
 	struct exynos_drm_display_ops *display_ops;
 };
 

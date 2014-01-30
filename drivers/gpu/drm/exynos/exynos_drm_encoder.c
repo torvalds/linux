@@ -133,7 +133,7 @@ static void disable_plane_to_crtc(struct drm_device *dev,
 			 *
 			 * plane->funcs->disable_plane call checks
 			 * if encoder->crtc is same as plane->crtc and if same
-			 * then overlay_ops->disable callback will be called
+			 * then manager_ops->win_disable callback will be called
 			 * to diasble current hw overlay so plane->crtc should
 			 * have new_crtc because new_crtc was set to
 			 * encoder->crtc in advance.
@@ -442,51 +442,51 @@ void exynos_drm_encoder_plane_mode_set(struct drm_encoder *encoder, void *data)
 {
 	struct exynos_drm_manager *manager =
 		to_exynos_encoder(encoder)->manager;
-	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 	struct exynos_drm_overlay *overlay = data;
 
-	if (overlay_ops && overlay_ops->mode_set)
-		overlay_ops->mode_set(manager->dev, overlay);
+	if (manager_ops && manager_ops->win_mode_set)
+		manager_ops->win_mode_set(manager->dev, overlay);
 }
 
 void exynos_drm_encoder_plane_commit(struct drm_encoder *encoder, void *data)
 {
 	struct exynos_drm_manager *manager =
 		to_exynos_encoder(encoder)->manager;
-	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 	int zpos = DEFAULT_ZPOS;
 
 	if (data)
 		zpos = *(int *)data;
 
-	if (overlay_ops && overlay_ops->commit)
-		overlay_ops->commit(manager->dev, zpos);
+	if (manager_ops && manager_ops->win_commit)
+		manager_ops->win_commit(manager->dev, zpos);
 }
 
 void exynos_drm_encoder_plane_enable(struct drm_encoder *encoder, void *data)
 {
 	struct exynos_drm_manager *manager =
 		to_exynos_encoder(encoder)->manager;
-	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 	int zpos = DEFAULT_ZPOS;
 
 	if (data)
 		zpos = *(int *)data;
 
-	if (overlay_ops && overlay_ops->enable)
-		overlay_ops->enable(manager->dev, zpos);
+	if (manager_ops && manager_ops->win_enable)
+		manager_ops->win_enable(manager->dev, zpos);
 }
 
 void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
 {
 	struct exynos_drm_manager *manager =
 		to_exynos_encoder(encoder)->manager;
-	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 	int zpos = DEFAULT_ZPOS;
 
 	if (data)
 		zpos = *(int *)data;
 
-	if (overlay_ops && overlay_ops->disable)
-		overlay_ops->disable(manager->dev, zpos);
+	if (manager_ops && manager_ops->win_disable)
+		manager_ops->win_disable(manager->dev, zpos);
 }

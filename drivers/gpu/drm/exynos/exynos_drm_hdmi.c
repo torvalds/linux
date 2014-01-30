@@ -284,19 +284,7 @@ static void drm_hdmi_apply(struct device *subdrv_dev)
 		hdmi_ops->commit(ctx->hdmi_ctx->ctx);
 }
 
-static struct exynos_drm_manager_ops drm_hdmi_manager_ops = {
-	.dpms = drm_hdmi_dpms,
-	.apply = drm_hdmi_apply,
-	.enable_vblank = drm_hdmi_enable_vblank,
-	.disable_vblank = drm_hdmi_disable_vblank,
-	.wait_for_vblank = drm_hdmi_wait_for_vblank,
-	.mode_fixup = drm_hdmi_mode_fixup,
-	.mode_set = drm_hdmi_mode_set,
-	.get_max_resol = drm_hdmi_get_max_resol,
-	.commit = drm_hdmi_commit,
-};
-
-static void drm_mixer_mode_set(struct device *subdrv_dev,
+static void drm_mixer_win_mode_set(struct device *subdrv_dev,
 		struct exynos_drm_overlay *overlay)
 {
 	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
@@ -305,7 +293,7 @@ static void drm_mixer_mode_set(struct device *subdrv_dev,
 		mixer_ops->win_mode_set(ctx->mixer_ctx->ctx, overlay);
 }
 
-static void drm_mixer_commit(struct device *subdrv_dev, int zpos)
+static void drm_mixer_win_commit(struct device *subdrv_dev, int zpos)
 {
 	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
 	int win = (zpos == DEFAULT_ZPOS) ? MIXER_DEFAULT_WIN : zpos;
@@ -321,7 +309,7 @@ static void drm_mixer_commit(struct device *subdrv_dev, int zpos)
 	ctx->enabled[win] = true;
 }
 
-static void drm_mixer_disable(struct device *subdrv_dev, int zpos)
+static void drm_mixer_win_disable(struct device *subdrv_dev, int zpos)
 {
 	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
 	int win = (zpos == DEFAULT_ZPOS) ? MIXER_DEFAULT_WIN : zpos;
@@ -337,16 +325,24 @@ static void drm_mixer_disable(struct device *subdrv_dev, int zpos)
 	ctx->enabled[win] = false;
 }
 
-static struct exynos_drm_overlay_ops drm_hdmi_overlay_ops = {
-	.mode_set = drm_mixer_mode_set,
-	.commit = drm_mixer_commit,
-	.disable = drm_mixer_disable,
+static struct exynos_drm_manager_ops drm_hdmi_manager_ops = {
+	.dpms = drm_hdmi_dpms,
+	.apply = drm_hdmi_apply,
+	.enable_vblank = drm_hdmi_enable_vblank,
+	.disable_vblank = drm_hdmi_disable_vblank,
+	.wait_for_vblank = drm_hdmi_wait_for_vblank,
+	.mode_fixup = drm_hdmi_mode_fixup,
+	.mode_set = drm_hdmi_mode_set,
+	.get_max_resol = drm_hdmi_get_max_resol,
+	.commit = drm_hdmi_commit,
+	.win_mode_set = drm_mixer_win_mode_set,
+	.win_commit = drm_mixer_win_commit,
+	.win_disable = drm_mixer_win_disable,
 };
 
 static struct exynos_drm_manager hdmi_manager = {
 	.pipe		= -1,
 	.ops		= &drm_hdmi_manager_ops,
-	.overlay_ops	= &drm_hdmi_overlay_ops,
 	.display_ops	= &drm_hdmi_display_ops,
 };
 

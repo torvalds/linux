@@ -180,14 +180,13 @@ static void vidi_apply(struct device *subdrv_dev)
 	struct vidi_context *ctx = get_vidi_context(subdrv_dev);
 	struct exynos_drm_manager *mgr = ctx->subdrv.manager;
 	struct exynos_drm_manager_ops *mgr_ops = mgr->ops;
-	struct exynos_drm_overlay_ops *ovl_ops = mgr->overlay_ops;
 	struct vidi_win_data *win_data;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
 		win_data = &ctx->win_data[i];
-		if (win_data->enabled && (ovl_ops && ovl_ops->commit))
-			ovl_ops->commit(subdrv_dev, i);
+		if (win_data->enabled && (mgr_ops && mgr_ops->win_commit))
+			mgr_ops->win_commit(subdrv_dev, i);
 	}
 
 	if (mgr_ops && mgr_ops->commit)
@@ -217,7 +216,7 @@ static int vidi_enable_vblank(struct device *dev)
 	/*
 	 * in case of page flip request, vidi_finish_pageflip function
 	 * will not be called because direct_vblank is true and then
-	 * that function will be called by overlay_ops->commit callback
+	 * that function will be called by manager_ops->win_commit callback
 	 */
 	schedule_work(&ctx->work);
 
@@ -234,14 +233,6 @@ static void vidi_disable_vblank(struct device *dev)
 	if (test_and_clear_bit(0, &ctx->irq_flags))
 		ctx->vblank_on = false;
 }
-
-static struct exynos_drm_manager_ops vidi_manager_ops = {
-	.dpms = vidi_dpms,
-	.apply = vidi_apply,
-	.commit = vidi_commit,
-	.enable_vblank = vidi_enable_vblank,
-	.disable_vblank = vidi_disable_vblank,
-};
 
 static void vidi_win_mode_set(struct device *dev,
 			      struct exynos_drm_overlay *overlay)
@@ -339,16 +330,20 @@ static void vidi_win_disable(struct device *dev, int zpos)
 	/* TODO. */
 }
 
-static struct exynos_drm_overlay_ops vidi_overlay_ops = {
-	.mode_set = vidi_win_mode_set,
-	.commit = vidi_win_commit,
-	.disable = vidi_win_disable,
+static struct exynos_drm_manager_ops vidi_manager_ops = {
+	.dpms = vidi_dpms,
+	.apply = vidi_apply,
+	.commit = vidi_commit,
+	.enable_vblank = vidi_enable_vblank,
+	.disable_vblank = vidi_disable_vblank,
+	.win_mode_set = vidi_win_mode_set,
+	.win_commit = vidi_win_commit,
+	.win_disable = vidi_win_disable,
 };
 
 static struct exynos_drm_manager vidi_manager = {
 	.pipe		= -1,
 	.ops		= &vidi_manager_ops,
-	.overlay_ops	= &vidi_overlay_ops,
 	.display_ops	= &vidi_display_ops,
 };
 
