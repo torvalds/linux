@@ -897,21 +897,13 @@ static void hdmi_mode_fixup(struct exynos_drm_display *display,
 		mode_ok = hdmi_check_mode(display, m);
 
 		if (mode_ok == 0) {
-			struct drm_mode_object base;
-			struct list_head head;
-
 			DRM_INFO("desired mode doesn't exist so\n");
 			DRM_INFO("use the most suitable mode among modes.\n");
 
 			DRM_DEBUG_KMS("Adjusted Mode: [%d]x[%d] [%d]Hz\n",
 				m->hdisplay, m->vdisplay, m->vrefresh);
 
-			/* preserve display mode header while copying. */
-			head = adjusted_mode->head;
-			base = adjusted_mode->base;
-			memcpy(adjusted_mode, m, sizeof(*m));
-			adjusted_mode->head = head;
-			adjusted_mode->base = base;
+			drm_mode_copy(adjusted_mode, m);
 			break;
 		}
 	}
