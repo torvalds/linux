@@ -33,14 +33,13 @@ struct exynos_hdmi_ops {
 	struct edid *(*get_edid)(void *ctx,
 			struct drm_connector *connector);
 	int (*check_mode)(void *ctx, struct drm_display_mode *mode);
-	int (*power_on)(void *ctx, int mode);
+	void (*dpms)(void *ctx, int mode);
 
 	/* manager */
 	void (*mode_set)(void *ctx, struct drm_display_mode *mode);
 	void (*get_max_resol)(void *ctx, unsigned int *width,
 				unsigned int *height);
 	void (*commit)(void *ctx);
-	void (*dpms)(void *ctx, int mode);
 };
 
 struct exynos_mixer_ops {

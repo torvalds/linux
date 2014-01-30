@@ -50,8 +50,8 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 		return;
 	}
 
-	if (display_ops && display_ops->power_on)
-		display_ops->power_on(manager->ctx, mode);
+	if (display_ops && display_ops->dpms)
+		display_ops->dpms(manager->ctx, mode);
 
 	exynos_encoder->dpms = mode;
 }

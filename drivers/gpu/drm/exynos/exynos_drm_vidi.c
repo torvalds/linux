@@ -136,20 +136,12 @@ static int vidi_check_mode(struct device *dev, struct drm_display_mode *mode)
 	return 0;
 }
 
-static int vidi_display_power_on(struct device *dev, int mode)
-{
-	/* TODO */
-
-	return 0;
-}
-
 static struct exynos_drm_display_ops vidi_display_ops = {
 	.type = EXYNOS_DISPLAY_TYPE_VIDI,
 	.is_connected = vidi_display_is_connected,
 	.get_edid = vidi_get_edid,
 	.get_panel = vidi_get_panel,
 	.check_mode = vidi_check_mode,
-	.power_on = vidi_display_power_on,
 };
 
 static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)

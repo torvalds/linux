@@ -159,12 +159,12 @@ static int drm_hdmi_check_mode(struct device *dev,
 	return drm_hdmi_check_mode_ctx(ctx, mode);
 }
 
-static int drm_hdmi_power_on(struct device *dev, int mode)
+static int drm_hdmi_display_dpms(struct device *dev, int mode)
 {
 	struct drm_hdmi_context *ctx = to_context(dev);
 
-	if (hdmi_ops && hdmi_ops->power_on)
-		return hdmi_ops->power_on(ctx->hdmi_ctx->ctx, mode);
+	if (hdmi_ops && hdmi_ops->dpms)
+		hdmi_ops->dpms(ctx->hdmi_ctx->ctx, mode);
 
 	return 0;
 }
@@ -175,7 +175,7 @@ static struct exynos_drm_display_ops drm_hdmi_display_ops = {
 	.is_connected = drm_hdmi_is_connected,
 	.get_edid = drm_hdmi_get_edid,
 	.check_mode = drm_hdmi_check_mode,
-	.power_on = drm_hdmi_power_on,
+	.dpms = drm_hdmi_display_dpms,
 };
 
 static int drm_hdmi_enable_vblank(struct exynos_drm_manager *mgr)

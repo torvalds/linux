@@ -1813,12 +1813,12 @@ static struct exynos_hdmi_ops hdmi_ops = {
 	.is_connected	= hdmi_is_connected,
 	.get_edid	= hdmi_get_edid,
 	.check_mode	= hdmi_check_mode,
+	.dpms		= hdmi_dpms,
 
 	/* manager */
 	.mode_set	= hdmi_mode_set,
 	.get_max_resol	= hdmi_get_max_resol,
 	.commit		= hdmi_commit,
-	.dpms		= hdmi_dpms,
 };
 
 static irqreturn_t hdmi_irq_thread(int irq, void *arg)
