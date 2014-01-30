@@ -154,7 +154,7 @@ int fmc_device_register_n(struct fmc_device **devs, int n)
 			ret = -EINVAL;
 			break;
 		}
-		if (fmc->flags == FMC_DEVICE_NO_MEZZANINE) {
+		if (fmc->flags & FMC_DEVICE_NO_MEZZANINE) {
 			dev_info(fmc->hwdev, "absent mezzanine in slot %d\n",
 				 fmc->slot_id);
 			continue;
@@ -188,9 +188,6 @@ int fmc_device_register_n(struct fmc_device **devs, int n)
 	/* Validation is ok. Now init and register the devices */
 	for (i = 0; i < n; i++) {
 		fmc = devarray[i];
-
-		if (fmc->flags == FMC_DEVICE_NO_MEZZANINE)
-			continue; /* dev_info already done above */
 
 		fmc->nr_slots = n; /* each slot must know how many are there */
 		fmc->devarray = devarray;
@@ -263,8 +260,6 @@ void fmc_device_unregister_n(struct fmc_device **devs, int n)
 	kfree(devs[0]->devarray);
 
 	for (i = 0; i < n; i++) {
-		if (devs[i]->flags == FMC_DEVICE_NO_MEZZANINE)
-			continue;
 		sysfs_remove_bin_file(&devs[i]->dev.kobj, &fmc_eeprom_attr);
 		device_del(&devs[i]->dev);
 		fmc_free_id_info(devs[i]);
