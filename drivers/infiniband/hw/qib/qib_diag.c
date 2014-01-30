@@ -694,28 +694,23 @@ int qib_register_observer(struct qib_devdata *dd,
 			  const struct diag_observer *op)
 {
 	struct diag_observer_list_elt *olp;
-	int ret = -EINVAL;
+	unsigned long flags;
 
 	if (!dd || !op)
-		goto bail;
-	ret = -ENOMEM;
+		return -EINVAL;
 	olp = vmalloc(sizeof *olp);
 	if (!olp) {
 		pr_err("vmalloc for observer failed\n");
-		goto bail;
+		return -ENOMEM;
 	}
-	if (olp) {
-		unsigned long flags;
 
-		spin_lock_irqsave(&dd->qib_diag_trans_lock, flags);
-		olp->op = op;
-		olp->next = dd->diag_observer_list;
-		dd->diag_observer_list = olp;
-		spin_unlock_irqrestore(&dd->qib_diag_trans_lock, flags);
-		ret = 0;
-	}
-bail:
-	return ret;
+	spin_lock_irqsave(&dd->qib_diag_trans_lock, flags);
+	olp->op = op;
+	olp->next = dd->diag_observer_list;
+	dd->diag_observer_list = olp;
+	spin_unlock_irqrestore(&dd->qib_diag_trans_lock, flags);
+
+	return 0;
 }
 
 /* Remove all registered observers when device is closed */
