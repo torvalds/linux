@@ -184,6 +184,7 @@ struct exynos_drm_display {
  * @initialize: initializes the manager with drm_dev
  * @remove: cleans up the manager for removal
  * @dpms: control device power.
+ * @mode_fixup: fix mode data before applying it
  * @mode_set: set the given mode to the manager
  * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
@@ -201,6 +202,9 @@ struct exynos_drm_manager_ops {
 				struct drm_device *drm_dev, int pipe);
 	void (*remove)(struct exynos_drm_manager *mgr);
 	void (*dpms)(struct exynos_drm_manager *mgr, int mode);
+	bool (*mode_fixup)(struct exynos_drm_manager *mgr,
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode);
 	void (*mode_set)(struct exynos_drm_manager *mgr,
 				const struct drm_display_mode *mode);
 	void (*commit)(struct exynos_drm_manager *mgr);

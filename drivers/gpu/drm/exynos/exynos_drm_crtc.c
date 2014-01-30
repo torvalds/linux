@@ -105,7 +105,12 @@ exynos_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 			    const struct drm_display_mode *mode,
 			    struct drm_display_mode *adjusted_mode)
 {
-	/* drm framework doesn't check NULL */
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct exynos_drm_manager *manager = exynos_crtc->manager;
+
+	if (manager->ops->mode_fixup)
+		return manager->ops->mode_fixup(manager, mode, adjusted_mode);
+
 	return true;
 }
 
