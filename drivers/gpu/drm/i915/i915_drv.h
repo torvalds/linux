@@ -295,14 +295,26 @@ struct intel_display_error_state;
 
 struct drm_i915_error_state {
 	struct kref ref;
+	struct timeval time;
+
+	/* Generic register state */
 	u32 eir;
 	u32 pgtbl_er;
 	u32 ier;
 	u32 ccid;
 	u32 derrmr;
 	u32 forcewake;
-	bool waiting[I915_NUM_RINGS];
+	u32 error; /* gen6+ */
+	u32 err_int; /* gen7 */
+	u32 done_reg;
+	u32 extra_instdone[I915_NUM_INSTDONE_REG];
 	u32 pipestat[I915_MAX_PIPES];
+	u64 fence[I915_MAX_NUM_FENCES];
+	struct intel_overlay_error_state *overlay;
+	struct intel_display_error_state *display;
+
+	/* Per ring register state
+	 * TODO: Move these to per ring */
 	u32 tail[I915_NUM_RINGS];
 	u32 head[I915_NUM_RINGS];
 	u32 ctl[I915_NUM_RINGS];
@@ -311,25 +323,25 @@ struct drm_i915_error_state {
 	u32 ipehr[I915_NUM_RINGS];
 	u32 instdone[I915_NUM_RINGS];
 	u32 acthd[I915_NUM_RINGS];
-	u32 semaphore_mboxes[I915_NUM_RINGS][I915_NUM_RINGS - 1];
-	u32 semaphore_seqno[I915_NUM_RINGS][I915_NUM_RINGS - 1];
-	u32 rc_psmi[I915_NUM_RINGS]; /* sleep state */
-	/* our own tracking of ring head and tail */
-	u32 cpu_ring_head[I915_NUM_RINGS];
-	u32 cpu_ring_tail[I915_NUM_RINGS];
-	u32 error; /* gen6+ */
-	u32 err_int; /* gen7 */
 	u32 bbstate[I915_NUM_RINGS];
 	u32 instpm[I915_NUM_RINGS];
 	u32 instps[I915_NUM_RINGS];
-	u32 extra_instdone[I915_NUM_INSTDONE_REG];
 	u32 seqno[I915_NUM_RINGS];
 	u64 bbaddr[I915_NUM_RINGS];
 	u32 fault_reg[I915_NUM_RINGS];
-	u32 done_reg;
 	u32 faddr[I915_NUM_RINGS];
-	u64 fence[I915_MAX_NUM_FENCES];
-	struct timeval time;
+	u32 rc_psmi[I915_NUM_RINGS]; /* sleep state */
+	u32 semaphore_mboxes[I915_NUM_RINGS][I915_NUM_RINGS - 1];
+
+	/* Software tracked state */
+	bool waiting[I915_NUM_RINGS];
+	int hangcheck_score[I915_NUM_RINGS];
+	enum intel_ring_hangcheck_action hangcheck_action[I915_NUM_RINGS];
+
+	/* our own tracking of ring head and tail */
+	u32 cpu_ring_head[I915_NUM_RINGS];
+	u32 cpu_ring_tail[I915_NUM_RINGS];
+	u32 semaphore_seqno[I915_NUM_RINGS][I915_NUM_RINGS - 1];
 	struct drm_i915_error_ring {
 		bool valid;
 		struct drm_i915_error_object {
@@ -360,10 +372,6 @@ struct drm_i915_error_state {
 		u32 cache_level:3;
 	} **active_bo, **pinned_bo;
 	u32 *active_bo_count, *pinned_bo_count;
-	struct intel_overlay_error_state *overlay;
-	struct intel_display_error_state *display;
-	int hangcheck_score[I915_NUM_RINGS];
-	enum intel_ring_hangcheck_action hangcheck_action[I915_NUM_RINGS];
 };
 
 struct intel_connector;
