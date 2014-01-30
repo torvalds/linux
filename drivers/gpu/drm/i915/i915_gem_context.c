@@ -228,11 +228,6 @@ err_out:
 	return ERR_PTR(ret);
 }
 
-static inline bool is_default_context(struct i915_hw_context *ctx)
-{
-	return (ctx->id == DEFAULT_CONTEXT_ID);
-}
-
 /**
  * The default context needs to exist per ring that uses contexts. It stores the
  * context state of the GPU for applications that don't utilize HW contexts, as
@@ -478,7 +473,7 @@ static int context_idr_cleanup(int id, void *p, void *data)
 	struct i915_hw_context *ctx = p;
 
 	/* Ignore the default context because close will handle it */
-	if (is_default_context(ctx))
+	if (i915_gem_context_is_default(ctx))
 		return 0;
 
 	i915_gem_context_unreference(ctx);
@@ -656,7 +651,7 @@ static int do_switch(struct intel_ring_buffer *ring,
 		vma->bind_vma(vma, to->obj->cache_level, GLOBAL_BIND);
 	}
 
-	if (!to->is_initialized || is_default_context(to))
+	if (!to->is_initialized || i915_gem_context_is_default(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
 
 	ret = mi_set_context(ring, to, hw_flags);

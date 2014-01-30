@@ -2297,6 +2297,11 @@ static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
 		kref_put(&ctx->ref, i915_gem_context_free);
 }
 
+static inline bool i915_gem_context_is_default(const struct i915_hw_context *c)
+{
+	return c->id == DEFAULT_CONTEXT_ID;
+}
+
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
