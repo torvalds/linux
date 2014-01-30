@@ -600,10 +600,17 @@ static const struct i2c_device_id cs42l51_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cs42l51_id);
 
+static const struct of_device_id cs42l51_of_match[] = {
+	{ .compatible = "cirrus,cs42l51", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, cs42l51_of_match);
+
 static struct i2c_driver cs42l51_i2c_driver = {
 	.driver = {
 		.name = "cs42l51-codec",
 		.owner = THIS_MODULE,
+		.of_match_table = cs42l51_of_match,
 	},
 	.id_table = cs42l51_id,
 	.probe = cs42l51_i2c_probe,
