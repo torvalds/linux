@@ -1,8 +1,6 @@
 zram: Compressed RAM based block devices
 ----------------------------------------
 
-Project home: http://compcache.googlecode.com/
-
 * Introduction
 
 The zram module creates RAM based block devices named /dev/zram<id>
@@ -68,10 +66,6 @@ Following shows a typical sequence of steps for using zram.
 	This frees all the memory allocated for the given device and
 	resets the disksize to zero. You must set the disksize again
 	before reusing the device.
-
-Please report any problems at:
- - Mailing list: linux-mm-cc at laptop dot org
- - Issue tracker: http://code.google.com/p/compcache/issues/list
 
 Nitin Gupta
 ngupta@vflare.org
