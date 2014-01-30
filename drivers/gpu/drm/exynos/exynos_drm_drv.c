@@ -370,13 +370,6 @@ static int __init exynos_drm_init(void)
 	ret = platform_driver_register(&mixer_driver);
 	if (ret < 0)
 		goto out_mixer;
-	ret = platform_driver_register(&exynos_drm_common_hdmi_driver);
-	if (ret < 0)
-		goto out_common_hdmi;
-
-	ret = exynos_platform_device_hdmi_register();
-	if (ret < 0)
-		goto out_common_hdmi_dev;
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_VIDI
@@ -469,10 +462,6 @@ out_vidi:
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_HDMI
-	exynos_platform_device_hdmi_unregister();
-out_common_hdmi_dev:
-	platform_driver_unregister(&exynos_drm_common_hdmi_driver);
-out_common_hdmi:
 	platform_driver_unregister(&mixer_driver);
 out_mixer:
 	platform_driver_unregister(&hdmi_driver);
@@ -514,8 +503,6 @@ static void __exit exynos_drm_exit(void)
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_HDMI
-	exynos_platform_device_hdmi_unregister();
-	platform_driver_unregister(&exynos_drm_common_hdmi_driver);
 	platform_driver_unregister(&mixer_driver);
 	platform_driver_unregister(&hdmi_driver);
 #endif
