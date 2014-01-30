@@ -1995,7 +1995,7 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 		if (sizeof(sh) + item_len + *sk_offset >
 		    BTRFS_SEARCH_ARGS_BUFSIZE) {
 			ret = 1;
-			goto overflow;
+			goto out;
 		}
 
 		sh.objectid = key->objectid;
@@ -2017,8 +2017,10 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 		}
 		(*num_found)++;
 
-		if (*num_found >= sk->nr_items)
-			break;
+		if (*num_found >= sk->nr_items) {
+			ret = 1;
+			goto out;
+		}
 	}
 advance_key:
 	ret = 0;
@@ -2033,7 +2035,7 @@ advance_key:
 		key->objectid++;
 	} else
 		ret = 1;
-overflow:
+out:
 	return ret;
 }
 
@@ -2085,7 +2087,7 @@ static noinline int search_ioctl(struct inode *inode,
 		ret = copy_to_sk(root, path, &key, sk, args->buf,
 				 &sk_offset, &num_found);
 		btrfs_release_path(path);
-		if (ret || num_found >= sk->nr_items)
+		if (ret)
 			break;
 
 	}
