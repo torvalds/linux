@@ -234,7 +234,7 @@ static int __init xen_guest_init(void)
 	const char *version = NULL;
 	const char *xen_prefix = "xen,xen-";
 	struct resource res;
-	unsigned long grant_frames;
+	phys_addr_t grant_frames;
 
 	node = of_find_compatible_node(NULL, NULL, "xen,xen");
 	if (!node) {
@@ -253,8 +253,8 @@ static int __init xen_guest_init(void)
 		return 0;
 	grant_frames = res.start;
 	xen_events_irq = irq_of_parse_and_map(node, 0);
-	pr_info("Xen %s support found, events_irq=%d gnttab_frame_pfn=%lx\n",
-			version, xen_events_irq, (grant_frames >> PAGE_SHIFT));
+	pr_info("Xen %s support found, events_irq=%d gnttab_frame=%pa\n",
+			version, xen_events_irq, &grant_frames);
 
 	if (xen_events_irq < 0)
 		return -ENODEV;

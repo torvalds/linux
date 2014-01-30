@@ -185,7 +185,7 @@ struct grant_frames {
 };
 extern struct grant_frames xen_auto_xlat_grant_frames;
 unsigned int gnttab_max_grant_frames(void);
-int gnttab_setup_auto_xlat_frames(unsigned long addr);
+int gnttab_setup_auto_xlat_frames(phys_addr_t addr);
 void gnttab_free_auto_xlat_frames(void);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
