@@ -90,8 +90,7 @@
 #include <linux/hardirq.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
-
-#include "zsmalloc.h"
+#include <linux/zsmalloc.h>
 
 /*
  * This must be power of 2 and greater than of equal to sizeof(link_free).
