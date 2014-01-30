@@ -313,48 +313,50 @@ struct drm_i915_error_state {
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
 
-	/* Per ring register state
-	 * TODO: Move these to per ring */
-	u32 tail[I915_NUM_RINGS];
-	u32 head[I915_NUM_RINGS];
-	u32 ctl[I915_NUM_RINGS];
-	u32 hws[I915_NUM_RINGS];
-	u32 ipeir[I915_NUM_RINGS];
-	u32 ipehr[I915_NUM_RINGS];
-	u32 instdone[I915_NUM_RINGS];
-	u32 acthd[I915_NUM_RINGS];
-	u32 bbstate[I915_NUM_RINGS];
-	u32 instpm[I915_NUM_RINGS];
-	u32 instps[I915_NUM_RINGS];
-	u32 seqno[I915_NUM_RINGS];
-	u64 bbaddr[I915_NUM_RINGS];
-	u32 fault_reg[I915_NUM_RINGS];
-	u32 faddr[I915_NUM_RINGS];
-	u32 rc_psmi[I915_NUM_RINGS]; /* sleep state */
-	u32 semaphore_mboxes[I915_NUM_RINGS][I915_NUM_RINGS - 1];
-
-	/* Software tracked state */
-	bool waiting[I915_NUM_RINGS];
-	int hangcheck_score[I915_NUM_RINGS];
-	enum intel_ring_hangcheck_action hangcheck_action[I915_NUM_RINGS];
-
-	/* our own tracking of ring head and tail */
-	u32 cpu_ring_head[I915_NUM_RINGS];
-	u32 cpu_ring_tail[I915_NUM_RINGS];
-	u32 semaphore_seqno[I915_NUM_RINGS][I915_NUM_RINGS - 1];
 	struct drm_i915_error_ring {
 		bool valid;
+		/* Software tracked state */
+		bool waiting;
+		int hangcheck_score;
+		enum intel_ring_hangcheck_action hangcheck_action;
+		int num_requests;
+
+		/* our own tracking of ring head and tail */
+		u32 cpu_ring_head;
+		u32 cpu_ring_tail;
+
+		u32 semaphore_seqno[I915_NUM_RINGS - 1];
+
+		/* Register state */
+		u32 tail;
+		u32 head;
+		u32 ctl;
+		u32 hws;
+		u32 ipeir;
+		u32 ipehr;
+		u32 instdone;
+		u32 acthd;
+		u32 bbstate;
+		u32 instpm;
+		u32 instps;
+		u32 seqno;
+		u64 bbaddr;
+		u32 fault_reg;
+		u32 faddr;
+		u32 rc_psmi; /* sleep state */
+		u32 semaphore_mboxes[I915_NUM_RINGS - 1];
+
 		struct drm_i915_error_object {
 			int page_count;
 			u32 gtt_offset;
 			u32 *pages[0];
-		} *ringbuffer, *batchbuffer, *ctx, *hws;
+		} *ringbuffer, *batchbuffer, *ctx, *hws_page;
+
 		struct drm_i915_error_request {
 			long jiffies;
 			u32 seqno;
 			u32 tail;
 		} *requests;
-		int num_requests;
 	} ring[I915_NUM_RINGS];
 	struct drm_i915_error_buffer {
 		u32 size;

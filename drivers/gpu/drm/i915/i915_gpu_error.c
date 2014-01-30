@@ -235,51 +235,48 @@ static const char *hangcheck_action_to_str(enum intel_ring_hangcheck_action a)
 
 static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 				  struct drm_device *dev,
-				  struct drm_i915_error_state *error,
-				  unsigned ring)
+				  struct drm_i915_error_ring *ring)
 {
-	BUG_ON(ring >= I915_NUM_RINGS); /* shut up confused gcc */
-	if (!error->ring[ring].valid)
+	if (!ring->valid)
 		return;
 
-	err_printf(m, "%s command stream:\n", ring_str(ring));
-	err_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
-	err_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
-	err_printf(m, "  CTL: 0x%08x\n", error->ctl[ring]);
-	err_printf(m, "  HWS: 0x%08x\n", error->hws[ring]);
-	err_printf(m, "  ACTHD: 0x%08x\n", error->acthd[ring]);
-	err_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
-	err_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
-	err_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
+	err_printf(m, "  HEAD: 0x%08x\n", ring->head);
+	err_printf(m, "  TAIL: 0x%08x\n", ring->tail);
+	err_printf(m, "  CTL: 0x%08x\n", ring->ctl);
+	err_printf(m, "  HWS: 0x%08x\n", ring->hws);
+	err_printf(m, "  ACTHD: 0x%08x\n", ring->acthd);
+	err_printf(m, "  IPEIR: 0x%08x\n", ring->ipeir);
+	err_printf(m, "  IPEHR: 0x%08x\n", ring->ipehr);
+	err_printf(m, "  INSTDONE: 0x%08x\n", ring->instdone);
 	if (INTEL_INFO(dev)->gen >= 4) {
-		err_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr[ring]);
-		err_printf(m, "  BB_STATE: 0x%08x\n", error->bbstate[ring]);
-		err_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
+		err_printf(m, "  BBADDR: 0x%08llx\n", ring->bbaddr);
+		err_printf(m, "  BB_STATE: 0x%08x\n", ring->bbstate);
+		err_printf(m, "  INSTPS: 0x%08x\n", ring->instps);
 	}
-	err_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
-	err_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
+	err_printf(m, "  INSTPM: 0x%08x\n", ring->instpm);
+	err_printf(m, "  FADDR: 0x%08x\n", ring->faddr);
 	if (INTEL_INFO(dev)->gen >= 6) {
-		err_printf(m, "  RC PSMI: 0x%08x\n", error->rc_psmi[ring]);
-		err_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
+		err_printf(m, "  RC PSMI: 0x%08x\n", ring->rc_psmi);
+		err_printf(m, "  FAULT_REG: 0x%08x\n", ring->fault_reg);
 		err_printf(m, "  SYNC_0: 0x%08x [last synced 0x%08x]\n",
-			   error->semaphore_mboxes[ring][0],
-			   error->semaphore_seqno[ring][0]);
+			   ring->semaphore_mboxes[0],
+			   ring->semaphore_seqno[0]);
 		err_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
-			   error->semaphore_mboxes[ring][1],
-			   error->semaphore_seqno[ring][1]);
+			   ring->semaphore_mboxes[1],
+			   ring->semaphore_seqno[1]);
 		if (HAS_VEBOX(dev)) {
 			err_printf(m, "  SYNC_2: 0x%08x [last synced 0x%08x]\n",
-				   error->semaphore_mboxes[ring][2],
-				   error->semaphore_seqno[ring][2]);
+				   ring->semaphore_mboxes[2],
+				   ring->semaphore_seqno[2]);
 		}
 	}
-	err_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
-	err_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));
-	err_printf(m, "  ring->head: 0x%08x\n", error->cpu_ring_head[ring]);
-	err_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
+	err_printf(m, "  seqno: 0x%08x\n", ring->seqno);
+	err_printf(m, "  waiting: %s\n", yesno(ring->waiting));
+	err_printf(m, "  ring->head: 0x%08x\n", ring->cpu_ring_head);
+	err_printf(m, "  ring->tail: 0x%08x\n", ring->cpu_ring_tail);
 	err_printf(m, "  hangcheck: %s [%d]\n",
-		   hangcheck_action_to_str(error->hangcheck_action[ring]),
-		   error->hangcheck_score[ring]);
+		   hangcheck_action_to_str(ring->hangcheck_action),
+		   ring->hangcheck_score);
 }
 
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
@@ -331,8 +328,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	if (INTEL_INFO(dev)->gen == 7)
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
-	for (i = 0; i < ARRAY_SIZE(error->ring); i++)
-		i915_ring_error_state(m, dev, error, i);
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		err_printf(m, "%s command stream:\n", ring_str(i));
+		i915_ring_error_state(m, dev, &error->ring[i]);
+	}
 
 	if (error->active_bo)
 		print_error_buffers(m, "Active",
@@ -388,7 +387,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
-		if ((obj = error->ring[i].hws)) {
+		if ((obj = error->ring[i].hws_page)) {
 			err_printf(m, "%s --- HW Status = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
@@ -486,7 +485,7 @@ static void i915_error_state_free(struct kref *error_ref)
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		i915_error_object_free(error->ring[i].batchbuffer);
 		i915_error_object_free(error->ring[i].ringbuffer);
-		i915_error_object_free(error->ring[i].hws);
+		i915_error_object_free(error->ring[i].hws_page);
 		i915_error_object_free(error->ring[i].ctx);
 		kfree(error->ring[i].requests);
 	}
@@ -755,52 +754,52 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 }
 
 static void i915_record_ring_state(struct drm_device *dev,
-				   struct drm_i915_error_state *error,
-				   struct intel_ring_buffer *ring)
+				   struct intel_ring_buffer *ring,
+				   struct drm_i915_error_ring *ering)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		error->rc_psmi[ring->id] = I915_READ(ring->mmio_base + 0x50);
-		error->fault_reg[ring->id] = I915_READ(RING_FAULT_REG(ring));
-		error->semaphore_mboxes[ring->id][0]
+		ering->rc_psmi = I915_READ(ring->mmio_base + 0x50);
+		ering->fault_reg = I915_READ(RING_FAULT_REG(ring));
+		ering->semaphore_mboxes[0]
 			= I915_READ(RING_SYNC_0(ring->mmio_base));
-		error->semaphore_mboxes[ring->id][1]
+		ering->semaphore_mboxes[1]
 			= I915_READ(RING_SYNC_1(ring->mmio_base));
-		error->semaphore_seqno[ring->id][0] = ring->sync_seqno[0];
-		error->semaphore_seqno[ring->id][1] = ring->sync_seqno[1];
+		ering->semaphore_seqno[0] = ring->sync_seqno[0];
+		ering->semaphore_seqno[1] = ring->sync_seqno[1];
 	}
 
 	if (HAS_VEBOX(dev)) {
-		error->semaphore_mboxes[ring->id][2] =
+		ering->semaphore_mboxes[2] =
 			I915_READ(RING_SYNC_2(ring->mmio_base));
-		error->semaphore_seqno[ring->id][2] = ring->sync_seqno[2];
+		ering->semaphore_seqno[2] = ring->sync_seqno[2];
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
-		error->ipeir[ring->id] = I915_READ(RING_IPEIR(ring->mmio_base));
-		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
-		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
-		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
-		error->bbaddr[ring->id] = I915_READ(RING_BBADDR(ring->mmio_base));
+		ering->faddr = I915_READ(RING_DMA_FADD(ring->mmio_base));
+		ering->ipeir = I915_READ(RING_IPEIR(ring->mmio_base));
+		ering->ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
+		ering->instdone = I915_READ(RING_INSTDONE(ring->mmio_base));
+		ering->instps = I915_READ(RING_INSTPS(ring->mmio_base));
+		ering->bbaddr = I915_READ(RING_BBADDR(ring->mmio_base));
 		if (INTEL_INFO(dev)->gen >= 8)
-			error->bbaddr[ring->id] |= (u64) I915_READ(RING_BBADDR_UDW(ring->mmio_base)) << 32;
-		error->bbstate[ring->id] = I915_READ(RING_BBSTATE(ring->mmio_base));
+			ering->bbaddr |= (u64) I915_READ(RING_BBADDR_UDW(ring->mmio_base)) << 32;
+		ering->bbstate = I915_READ(RING_BBSTATE(ring->mmio_base));
 	} else {
-		error->faddr[ring->id] = I915_READ(DMA_FADD_I8XX);
-		error->ipeir[ring->id] = I915_READ(IPEIR);
-		error->ipehr[ring->id] = I915_READ(IPEHR);
-		error->instdone[ring->id] = I915_READ(INSTDONE);
+		ering->faddr = I915_READ(DMA_FADD_I8XX);
+		ering->ipeir = I915_READ(IPEIR);
+		ering->ipehr = I915_READ(IPEHR);
+		ering->instdone = I915_READ(INSTDONE);
 	}
 
-	error->waiting[ring->id] = waitqueue_active(&ring->irq_queue);
-	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
-	error->seqno[ring->id] = ring->get_seqno(ring, false);
-	error->acthd[ring->id] = intel_ring_get_active_head(ring);
-	error->head[ring->id] = I915_READ_HEAD(ring);
-	error->tail[ring->id] = I915_READ_TAIL(ring);
-	error->ctl[ring->id] = I915_READ_CTL(ring);
+	ering->waiting = waitqueue_active(&ring->irq_queue);
+	ering->instpm = I915_READ(RING_INSTPM(ring->mmio_base));
+	ering->seqno = ring->get_seqno(ring, false);
+	ering->acthd = intel_ring_get_active_head(ring);
+	ering->head = I915_READ_HEAD(ring);
+	ering->tail = I915_READ_TAIL(ring);
+	ering->ctl = I915_READ_CTL(ring);
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		int mmio;
@@ -828,14 +827,14 @@ static void i915_record_ring_state(struct drm_device *dev,
 			mmio = RING_HWS_PGA(ring->mmio_base);
 		}
 
-		error->hws[ring->id] = I915_READ(mmio);
+		ering->hws = I915_READ(mmio);
 	}
 
-	error->cpu_ring_head[ring->id] = ring->head;
-	error->cpu_ring_tail[ring->id] = ring->tail;
+	ering->cpu_ring_head = ring->head;
+	ering->cpu_ring_tail = ring->tail;
 
-	error->hangcheck_score[ring->id] = ring->hangcheck.score;
-	error->hangcheck_action[ring->id] = ring->hangcheck.action;
+	ering->hangcheck_score = ring->hangcheck.score;
+	ering->hangcheck_action = ring->hangcheck.action;
 }
 
 
@@ -876,7 +875,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		error->ring[i].valid = true;
 
-		i915_record_ring_state(dev, error, ring);
+		i915_record_ring_state(dev, ring, &error->ring[i]);
 
 		error->ring[i].batchbuffer =
 			i915_error_first_batchbuffer(dev_priv, ring);
@@ -885,7 +884,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			i915_error_ggtt_object_create(dev_priv, ring->obj);
 
 		if (ring->status_page.obj)
-			error->ring[i].hws =
+			error->ring[i].hws_page =
 				i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
 
 		i915_gem_record_active_context(ring, error, &error->ring[i]);
