@@ -1006,8 +1006,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 				dev_err(&priv->i2c->dev, "%s: firmware " \
 						"download failed=%d\n",
 						KBUILD_MODNAME, ret);
-				if (ret)
-					goto error_release_firmware;
+				goto error_release_firmware;
 			}
 		}
 		release_firmware(fw);
