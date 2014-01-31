@@ -472,12 +472,13 @@ static void hugepd_free(struct mmu_gather *tlb, void *hugepte)
 {
 	struct hugepd_freelist **batchp;
 
-	batchp = &__get_cpu_var(hugepd_freelist_cur);
+	batchp = &get_cpu_var(hugepd_freelist_cur);
 
 	if (atomic_read(&tlb->mm->mm_users) < 2 ||
 	    cpumask_equal(mm_cpumask(tlb->mm),
 			  cpumask_of(smp_processor_id()))) {
 		kmem_cache_free(hugepte_cache, hugepte);
+        put_cpu_var(hugepd_freelist_cur);
 		return;
 	}
 
@@ -491,6 +492,7 @@ static void hugepd_free(struct mmu_gather *tlb, void *hugepte)
 		call_rcu_sched(&(*batchp)->rcu, hugepd_free_rcu_callback);
 		*batchp = NULL;
 	}
+	put_cpu_var(hugepd_freelist_cur);
 }
 #endif
 

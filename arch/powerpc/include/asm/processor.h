@@ -450,13 +450,6 @@ enum idle_boot_override {IDLE_NO_OVERRIDE = 0, IDLE_POWERSAVE_OFF};
 
 extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 extern void power7_nap(void);
-
-#ifdef CONFIG_PSERIES_IDLE
-extern void update_smt_snooze_delay(int cpu, int residency);
-#else
-static inline void update_smt_snooze_delay(int cpu, int residency) {}
-#endif
-
 extern void flush_instruction_cache(void);
 extern void hard_reset_now(void);
 extern void poweroff_now(void);
