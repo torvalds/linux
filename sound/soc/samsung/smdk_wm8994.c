@@ -152,13 +152,11 @@ static struct snd_soc_card smdk = {
 	.num_links = ARRAY_SIZE(smdk_dai),
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id samsung_wm8994_of_match[] = {
 	{ .compatible = "samsung,smdk-wm8994", .data = &smdk_board_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_wm8994_of_match);
-#endif /* CONFIG_OF */
 
 static int smdk_audio_probe(struct platform_device *pdev)
 {
@@ -188,7 +186,7 @@ static int smdk_audio_probe(struct platform_device *pdev)
 		smdk_dai[0].platform_of_node = smdk_dai[0].cpu_of_node;
 	}
 
-	id = of_match_device(samsung_wm8994_of_match, &pdev->dev);
+	id = of_match_device(of_match_ptr(samsung_wm8994_of_match), &pdev->dev);
 	if (id)
 		*board = *((struct smdk_wm8994_data *)id->data);
 

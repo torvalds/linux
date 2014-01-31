@@ -43,7 +43,7 @@ Example:
 sound {
 	compatible = "simple-audio-card";
 	simple-audio-card,format = "left_j";
-	simple-audio-routing =
+	simple-audio-card,routing =
 		"MIC_IN", "Mic Jack",
 		"Headphone Jack", "HP_OUT",
 		"Ext Spk", "LINE_OUT";
