@@ -5,7 +5,6 @@ config ARCH_ZYNQ
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select ICST
-	select MIGHT_HAVE_CACHE_L2X0
 	select CADENCE_TTC_TIMER
 	select ARM_GLOBAL_TIMER
 	help

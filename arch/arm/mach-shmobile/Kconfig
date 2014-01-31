@@ -8,7 +8,6 @@ config ARCH_SHMOBILE_MULTI
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select ARM_GIC
-	select MIGHT_HAVE_CACHE_L2X0
 	select MIGHT_HAVE_PCI
 	select NO_IOPORT
 	select PINCTRL

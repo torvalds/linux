@@ -19,7 +19,6 @@ config ARCH_SPEAR13XX
 	select GPIO_SPEAR_SPICS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select MIGHT_HAVE_CACHE_L2X0
 	select PINCTRL
 	help
 	  Supports for ARM's SPEAR13XX family

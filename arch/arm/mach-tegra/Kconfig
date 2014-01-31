@@ -7,7 +7,6 @@ config ARCH_TEGRA
 	select CLKSRC_MMIO
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select MIGHT_HAVE_CACHE_L2X0
 	select MIGHT_HAVE_PCI
 	select PINCTRL
 	select ARCH_HAS_RESET_CONTROLLER

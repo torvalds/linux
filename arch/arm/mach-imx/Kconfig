@@ -5,7 +5,6 @@ config ARCH_MXC
 	select CLKSRC_MMIO
 	select GENERIC_ALLOCATOR
 	select GENERIC_IRQ_CHIP
-	select MIGHT_HAVE_CACHE_L2X0 if ARCH_MULTI_V6_V7
 	select PINCTRL
 	select SOC_BUS
 	help

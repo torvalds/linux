@@ -2,7 +2,6 @@ config ARCH_SIRF
 	bool "CSR SiRF" if ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_IRQ_CHIP
-	select MIGHT_HAVE_CACHE_L2X0
 	select NO_IOPORT
 	select PINCTRL
 	select PINCTRL_SIRF
