@@ -439,9 +439,9 @@ static int torture_shutdown_notify(struct notifier_block *unused1,
 				   unsigned long unused2, void *unused3)
 {
 	mutex_lock(&fullstop_mutex);
-	if (fullstop == FULLSTOP_DONTSTOP) {
+	if (ACCESS_ONCE(fullstop) == FULLSTOP_DONTSTOP) {
 		VERBOSE_TOROUT_STRING("Unscheduled system shutdown detected");
-		fullstop = FULLSTOP_SHUTDOWN;
+		ACCESS_ONCE(fullstop) = FULLSTOP_SHUTDOWN;
 	} else {
 		pr_warn("Concurrent rmmod and shutdown illegal!\n");
 	}
@@ -575,13 +575,13 @@ EXPORT_SYMBOL_GPL(torture_init_end);
 bool torture_cleanup(void)
 {
 	mutex_lock(&fullstop_mutex);
-	if (fullstop == FULLSTOP_SHUTDOWN) {
+	if (ACCESS_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
 		pr_warn("Concurrent rmmod and shutdown illegal!\n");
 		mutex_unlock(&fullstop_mutex);
 		schedule_timeout_uninterruptible(10);
 		return true;
 	}
-	fullstop = FULLSTOP_RMMOD;
+	ACCESS_ONCE(fullstop) = FULLSTOP_RMMOD;
 	mutex_unlock(&fullstop_mutex);
 	unregister_reboot_notifier(&torture_shutdown_nb);
 	torture_shuffle_cleanup();
@@ -605,6 +605,6 @@ EXPORT_SYMBOL_GPL(torture_must_stop);
  */
 bool torture_must_stop_irq(void)
 {
-	return fullstop != FULLSTOP_DONTSTOP;
+	return ACCESS_ONCE(fullstop) != FULLSTOP_DONTSTOP;
 }
 EXPORT_SYMBOL_GPL(torture_must_stop_irq);
