@@ -185,7 +185,7 @@ format_mf_symlink(u8 *buf, unsigned int buf_len, const char *link_str)
 bool
 couldbe_mf_symlink(const struct cifs_fattr *fattr)
 {
-	if (!(fattr->cf_mode & S_IFREG))
+	if (!S_ISREG(fattr->cf_mode))
 		/* it's not a symlink */
 		return false;
 
