@@ -6,7 +6,6 @@ config ARCH_ROCKCHIP
 	select ARM_GIC
 	select CACHE_L2X0
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
 	select DW_APB_TIMER_OF
 	select ARM_GLOBAL_TIMER
 	select CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK

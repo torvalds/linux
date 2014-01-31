@@ -917,6 +917,7 @@ config ARCH_MULTI_V7
 	default y
 	select ARCH_MULTI_V6_V7
 	select CPU_V7
+	select HAVE_SMP
 
 config ARCH_MULTI_V6_V7
 	bool

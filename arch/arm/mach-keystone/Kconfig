@@ -3,7 +3,6 @@ config ARCH_KEYSTONE
 	depends on ARCH_MULTI_V7
 	select ARM_GIC
 	select HAVE_ARM_ARCH_TIMER
-	select HAVE_SMP
 	select CLKSRC_MMIO
 	select ARM_ERRATA_798181 if SMP
 	select COMMON_CLK_KEYSTONE

@@ -9,7 +9,6 @@ config ARCH_VEXPRESS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select HAVE_PATA_PLATFORM
-	select HAVE_SMP
 	select ICST
 	select MIGHT_HAVE_CACHE_L2X0
 	select NO_IOPORT

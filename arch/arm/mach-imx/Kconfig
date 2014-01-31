@@ -791,7 +791,6 @@ config SOC_IMX6Q
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
-	select HAVE_SMP
 	select MFD_SYSCON
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI

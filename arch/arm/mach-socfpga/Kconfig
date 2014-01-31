@@ -7,5 +7,4 @@ config ARCH_SOCFPGA
 	select GPIO_PL061 if GPIOLIB
 	select HAVE_ARM_SCU
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
 	select MFD_SYSCON

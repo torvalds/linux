@@ -15,7 +15,6 @@ config ARCH_HIGHBANK
 	select CACHE_L2X0
 	select HAVE_ARM_SCU
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
 	select MAILBOX
 	select PL320_MBOX
 	select ZONE_DMA if ARM_LPAE

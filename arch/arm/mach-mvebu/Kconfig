@@ -19,7 +19,6 @@ menu "Marvell SOC with device tree"
 config MACH_ARMADA_370_XP
 	bool
 	select ARMADA_370_XP_TIMER
-	select HAVE_SMP
 	select CACHE_L2X0
 	select CPU_PJ4B
 
