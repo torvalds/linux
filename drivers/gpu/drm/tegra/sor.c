@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
@@ -34,6 +35,8 @@ struct tegra_sor {
 	struct tegra_dpaux *dpaux;
 
 	bool enabled;
+
+	struct dentry *debugfs;
 };
 
 static inline struct tegra_sor *
@@ -914,6 +917,110 @@ static const struct tegra_output_ops sor_ops = {
 	.detect = tegra_output_sor_detect,
 };
 
+static int tegra_sor_crc_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+
+	return 0;
+}
+
+static int tegra_sor_crc_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static int tegra_sor_crc_wait(struct tegra_sor *sor, unsigned long timeout)
+{
+	u32 value;
+
+	timeout = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_before(jiffies, timeout)) {
+		value = tegra_sor_readl(sor, SOR_CRC_A);
+		if (value & SOR_CRC_A_VALID)
+			return 0;
+
+		usleep_range(100, 200);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static ssize_t tegra_sor_crc_read(struct file *file, char __user *buffer,
+				  size_t size, loff_t *ppos)
+{
+	struct tegra_sor *sor = file->private_data;
+	char buf[10];
+	ssize_t num;
+	u32 value;
+	int err;
+
+	value = tegra_sor_readl(sor, SOR_STATE_1);
+	value &= ~SOR_STATE_ASY_CRC_MODE_MASK;
+	tegra_sor_writel(sor, value, SOR_STATE_1);
+
+	value = tegra_sor_readl(sor, SOR_CRC_CNTRL);
+	value |= SOR_CRC_CNTRL_ENABLE;
+	tegra_sor_writel(sor, value, SOR_CRC_CNTRL);
+
+	value = tegra_sor_readl(sor, SOR_TEST);
+	value &= ~SOR_TEST_CRC_POST_SERIALIZE;
+	tegra_sor_writel(sor, value, SOR_TEST);
+
+	err = tegra_sor_crc_wait(sor, 100);
+	if (err < 0)
+		return err;
+
+	tegra_sor_writel(sor, SOR_CRC_A_RESET, SOR_CRC_A);
+	value = tegra_sor_readl(sor, SOR_CRC_B);
+
+	num = scnprintf(buf, sizeof(buf), "%08x\n", value);
+
+	return simple_read_from_buffer(buffer, size, ppos, buf, num);
+}
+
+static const struct file_operations tegra_sor_crc_fops = {
+	.owner = THIS_MODULE,
+	.open = tegra_sor_crc_open,
+	.read = tegra_sor_crc_read,
+	.release = tegra_sor_crc_release,
+};
+
+static int tegra_sor_debugfs_init(struct tegra_sor *sor, struct dentry *root)
+{
+	struct dentry *entry;
+	int err = 0;
+
+	sor->debugfs = debugfs_create_dir("sor", root);
+	if (!sor->debugfs)
+		return -ENOMEM;
+
+	entry = debugfs_create_file("crc", 0644, sor->debugfs, sor,
+				    &tegra_sor_crc_fops);
+	if (!entry) {
+		dev_err(sor->dev,
+			"cannot create /sys/kernel/debug/dri/%s/sor/crc\n",
+			root->d_name.name);
+		err = -ENOMEM;
+		goto remove;
+	}
+
+	return err;
+
+remove:
+	debugfs_remove(sor->debugfs);
+	sor->debugfs = NULL;
+	return err;
+}
+
+static int tegra_sor_debugfs_exit(struct tegra_sor *sor)
+{
+	debugfs_remove(sor->debugfs);
+	sor->debugfs = NULL;
+
+	return 0;
+}
+
 static int tegra_sor_init(struct host1x_client *client)
 {
 	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
@@ -932,6 +1039,14 @@ static int tegra_sor_init(struct host1x_client *client)
 	if (err < 0) {
 		dev_err(sor->dev, "output setup failed: %d\n", err);
 		return err;
+	}
+
+	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+		struct dentry *root = tegra->drm->primary->debugfs_root;
+
+		err = tegra_sor_debugfs_init(sor, root);
+		if (err < 0)
+			dev_err(sor->dev, "debugfs setup failed: %d\n", err);
 	}
 
 	if (sor->dpaux) {
@@ -962,6 +1077,12 @@ static int tegra_sor_exit(struct host1x_client *client)
 			dev_err(sor->dev, "failed to detach DP: %d\n", err);
 			return err;
 		}
+	}
+
+	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+		err = tegra_sor_debugfs_exit(sor);
+		if (err < 0)
+			dev_err(sor->dev, "debugfs cleanup failed: %d\n", err);
 	}
 
 	err = tegra_output_exit(&sor->output);
