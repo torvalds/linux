@@ -3,6 +3,7 @@
 
 #include <linux/io.h>
 #include <linux/scatterlist.h>
+#include <linux/gpio.h>
 
 /* Register offsets */
 #define DW_SPI_CTRL0			0x00
@@ -178,15 +179,20 @@ static inline void spi_set_clk(struct dw_spi *dws, u16 div)
 	dw_writel(dws, DW_SPI_BAUDR, div);
 }
 
-static inline void spi_chip_sel(struct dw_spi *dws, u16 cs)
+static inline void spi_chip_sel(struct dw_spi *dws, struct spi_device *spi,
+		int active)
 {
-	if (cs > dws->num_cs)
-		return;
+	u16 cs = spi->chip_select;
+	int gpio_val = active ? (spi->mode & SPI_CS_HIGH) :
+		!(spi->mode & SPI_CS_HIGH);
 
 	if (dws->cs_control)
-		dws->cs_control(1);
+		dws->cs_control(active);
+	if (gpio_is_valid(spi->cs_gpio))
+		gpio_set_value(spi->cs_gpio, gpio_val);
 
-	dw_writel(dws, DW_SPI_SER, 1 << cs);
+	if (active)
+		dw_writel(dws, DW_SPI_SER, 1 << cs);
 }
 
 /* Disable IRQ bits */

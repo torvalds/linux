@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio.h>
 
 #include "spi-dw.h"
 
@@ -35,9 +36,6 @@
 #define RUNNING_STATE	((void *)1)
 #define DONE_STATE	((void *)2)
 #define ERROR_STATE	((void *)-1)
-
-#define MRST_SPI_DEASSERT	0
-#define MRST_SPI_ASSERT		1
 
 /* Slave spi_dev related */
 struct chip_data {
@@ -272,8 +270,8 @@ static void giveback(struct dw_spi *dws)
 	last_transfer = list_last_entry(&msg->transfers, struct spi_transfer,
 					transfer_list);
 
-	if (!last_transfer->cs_change && dws->cs_control)
-		dws->cs_control(MRST_SPI_DEASSERT);
+	if (!last_transfer->cs_change)
+		spi_chip_sel(dws, dws->cur_msg->spi, 0);
 
 	spi_finalize_current_message(dws->master);
 }
@@ -493,7 +491,7 @@ static void pump_transfers(unsigned long data)
 			dw_writew(dws, DW_SPI_CTRL0, cr0);
 
 		spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);
-		spi_chip_sel(dws, spi->chip_select);
+		spi_chip_sel(dws, spi, 1);
 
 		/* Set the interrupt mask, for poll mode just disable all int */
 		spi_mask_intr(dws, 0xff);
@@ -544,6 +542,7 @@ static int dw_spi_setup(struct spi_device *spi)
 {
 	struct dw_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
+	int ret;
 
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
@@ -596,6 +595,13 @@ static int dw_spi_setup(struct spi_device *spi)
 			| (chip->type << SPI_FRF_OFFSET)
 			| (spi->mode  << SPI_MODE_OFFSET)
 			| (chip->tmode << SPI_TMOD_OFFSET);
+
+	if (gpio_is_valid(spi->cs_gpio)) {
+		ret = gpio_direction_output(spi->cs_gpio,
+				!(spi->mode & SPI_CS_HIGH));
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
