@@ -438,10 +438,12 @@ static int torture_shutdown_notify(struct notifier_block *unused1,
 				   unsigned long unused2, void *unused3)
 {
 	mutex_lock(&fullstop_mutex);
-	if (fullstop == FULLSTOP_DONTSTOP)
+	if (fullstop == FULLSTOP_DONTSTOP) {
+		VERBOSE_TOROUT_STRING("Unscheduled system shutdown detected");
 		fullstop = FULLSTOP_SHUTDOWN;
-	else
+	} else {
 		pr_warn("Concurrent rmmod and shutdown illegal!\n");
+	}
 	mutex_unlock(&fullstop_mutex);
 	return NOTIFY_DONE;
 }
