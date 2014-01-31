@@ -432,8 +432,6 @@ static const struct v4l2_subdev_video_ops ths8200_video_ops = {
 	.s_stream = ths8200_s_stream,
 	.s_dv_timings = ths8200_s_dv_timings,
 	.g_dv_timings = ths8200_g_dv_timings,
-	.enum_dv_timings = ths8200_enum_dv_timings,
-	.dv_timings_cap = ths8200_dv_timings_cap,
 };
 
 static const struct v4l2_subdev_pad_ops ths8200_pad_ops = {
