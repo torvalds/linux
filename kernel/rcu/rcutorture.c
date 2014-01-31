@@ -1460,7 +1460,6 @@ rcu_torture_init(void)
 	int i;
 	int cpu;
 	int firsterr = 0;
-	int retval;
 	static struct rcu_torture_ops *torture_ops[] = {
 		&rcu_ops, &rcu_bh_ops, &srcu_ops, &sched_ops,
 	};
@@ -1629,33 +1628,23 @@ rcu_torture_init(void)
 		for_each_possible_cpu(i) {
 			if (cpu_is_offline(i))
 				continue;  /* Heuristic: CPU can go offline. */
-			retval = rcutorture_booster_init(i);
-			if (retval < 0) {
-				firsterr = retval;
+			firsterr = rcutorture_booster_init(i);
+			if (firsterr)
 				goto unwind;
-			}
 		}
 	}
-	i = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
-	if (i != 0) {
-		firsterr = i;
+	firsterr = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
+	if (firsterr)
 		goto unwind;
-	}
-	i = torture_onoff_init(onoff_holdoff * HZ, onoff_interval * HZ);
-	if (i != 0) {
-		firsterr = i;
+	firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval * HZ);
+	if (firsterr)
 		goto unwind;
-	}
-	i = rcu_torture_stall_init();
-	if (i != 0) {
-		firsterr = i;
+	firsterr = rcu_torture_stall_init();
+	if (firsterr)
 		goto unwind;
-	}
-	retval = rcu_torture_barrier_init();
-	if (retval != 0) {
-		firsterr = retval;
+	firsterr = rcu_torture_barrier_init();
+	if (firsterr)
 		goto unwind;
-	}
 	if (object_debug)
 		rcu_test_debug_objects();
 	rcutorture_record_test_transition();
