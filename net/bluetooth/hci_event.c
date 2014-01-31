@@ -3650,7 +3650,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn == NULL)
 		goto not_found;
 
-	ltk = hci_find_ltk(hdev, ev->ediv, ev->random);
+	ltk = hci_find_ltk(hdev, ev->ediv, ev->random, conn->out);
 	if (ltk == NULL)
 		goto not_found;
 
