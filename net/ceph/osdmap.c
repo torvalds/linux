@@ -698,7 +698,9 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	map = kzalloc(sizeof(*map), GFP_NOFS);
 	if (map == NULL)
 		return ERR_PTR(-ENOMEM);
+
 	map->pg_temp = RB_ROOT;
+	mutex_init(&map->crush_scratch_mutex);
 
 	ceph_decode_16_safe(p, end, version, bad);
 	if (version > 6) {
@@ -1142,14 +1144,20 @@ int ceph_oloc_oid_to_pg(struct ceph_osdmap *osdmap,
 }
 EXPORT_SYMBOL(ceph_oloc_oid_to_pg);
 
-static int crush_do_rule_ary(const struct crush_map *map, int ruleno, int x,
-			     int *result, int result_max,
-			     const __u32 *weight, int weight_max)
+static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
+		    int *result, int result_max,
+		    const __u32 *weight, int weight_max)
 {
-	int scratch[result_max * 3];
+	int r;
 
-	return crush_do_rule(map, ruleno, x, result, result_max,
-			     weight, weight_max, scratch);
+	BUG_ON(result_max > CEPH_PG_MAX_SIZE);
+
+	mutex_lock(&map->crush_scratch_mutex);
+	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
+			  weight, weight_max, map->crush_scratch_ary);
+	mutex_unlock(&map->crush_scratch_mutex);
+
+	return r;
 }
 
 /*
@@ -1205,9 +1213,8 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 				      pool->pgp_num_mask) +
 			(unsigned)pgid.pool;
 	}
-	r = crush_do_rule_ary(osdmap->crush, ruleno, pps,
-			      osds, min_t(int, pool->size, *num),
-			      osdmap->osd_weight, osdmap->max_osd);
+	r = do_crush(osdmap, ruleno, pps, osds, min_t(int, pool->size, *num),
+		     osdmap->osd_weight, osdmap->max_osd);
 	if (r < 0) {
 		pr_err("error %d from crush rule: pool %lld ruleset %d type %d"
 		       " size %d\n", r, pgid.pool, pool->crush_ruleset,

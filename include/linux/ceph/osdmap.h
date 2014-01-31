@@ -84,6 +84,9 @@ struct ceph_osdmap {
 	/* the CRUSH map specifies the mapping of placement groups to
 	 * the list of osds that store+replicate them. */
 	struct crush_map *crush;
+
+	struct mutex crush_scratch_mutex;
+	int crush_scratch_ary[CEPH_PG_MAX_SIZE * 3];
 };
 
 static inline void ceph_oid_set_name(struct ceph_object_id *oid,
