@@ -50,7 +50,6 @@ struct mvebu_pinctrl {
 	struct device *dev;
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_desc desc;
-	void __iomem *base;
 	struct mvebu_pinctrl_group *groups;
 	unsigned num_groups;
 	struct mvebu_pinctrl_function *functions;
@@ -138,43 +137,6 @@ static struct mvebu_pinctrl_function *mvebu_pinctrl_find_function_by_name(
 	return NULL;
 }
 
-/*
- * Common mpp pin configuration registers on MVEBU are
- * registers of eight 4-bit values for each mpp setting.
- * Register offset and bit mask are calculated accordingly below.
- */
-static int mvebu_common_mpp_get(struct mvebu_pinctrl *pctl,
-				struct mvebu_pinctrl_group *grp,
-				unsigned long *config)
-{
-	unsigned pin = grp->gid;
-	unsigned off = (pin / MPPS_PER_REG) * MPP_BITS;
-	unsigned shift = (pin % MPPS_PER_REG) * MPP_BITS;
-
-	*config = readl(pctl->base + off);
-	*config >>= shift;
-	*config &= MPP_MASK;
-
-	return 0;
-}
-
-static int mvebu_common_mpp_set(struct mvebu_pinctrl *pctl,
-				struct mvebu_pinctrl_group *grp,
-				unsigned long config)
-{
-	unsigned pin = grp->gid;
-	unsigned off = (pin / MPPS_PER_REG) * MPP_BITS;
-	unsigned shift = (pin % MPPS_PER_REG) * MPP_BITS;
-	unsigned long reg;
-
-	reg = readl(pctl->base + off);
-	reg &= ~(MPP_MASK << shift);
-	reg |= (config << shift);
-	writel(reg, pctl->base + off);
-
-	return 0;
-}
-
 static int mvebu_pinconf_group_get(struct pinctrl_dev *pctldev,
 				unsigned gid, unsigned long *config)
 {
@@ -184,10 +146,7 @@ static int mvebu_pinconf_group_get(struct pinctrl_dev *pctldev,
 	if (!grp->ctrl)
 		return -EINVAL;
 
-	if (grp->ctrl->mpp_get)
-		return grp->ctrl->mpp_get(grp->pins[0], config);
-
-	return mvebu_common_mpp_get(pctl, grp, config);
+	return grp->ctrl->mpp_get(grp->pins[0], config);
 }
 
 static int mvebu_pinconf_group_set(struct pinctrl_dev *pctldev,
@@ -202,11 +161,7 @@ static int mvebu_pinconf_group_set(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	for (i = 0; i < num_configs; i++) {
-		if (grp->ctrl->mpp_set)
-			ret = grp->ctrl->mpp_set(grp->pins[0], configs[i]);
-		else
-			ret = mvebu_common_mpp_set(pctl, grp, configs[i]);
-
+		ret = grp->ctrl->mpp_set(grp->pins[0], configs[i]);
 		if (ret)
 			return ret;
 	} /* for each config */
