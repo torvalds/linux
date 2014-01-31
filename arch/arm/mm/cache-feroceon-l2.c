@@ -331,7 +331,9 @@ static void __init enable_l2(void)
 			enable_icache();
 		if (d)
 			enable_dcache();
-	}
+	} else
+		pr_err(FW_BUG
+		       "Feroceon L2: bootloader left the L2 cache on!\n");
 }
 
 void __init feroceon_l2_init(int __l2_wt_override)
