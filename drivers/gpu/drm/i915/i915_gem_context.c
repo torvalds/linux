@@ -489,6 +489,10 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 		/* Cheat for hang stats */
 		file_priv->private_default_ctx =
 			kzalloc(sizeof(struct i915_hw_context), GFP_KERNEL);
+
+		if (file_priv->private_default_ctx == NULL)
+			return -ENOMEM;
+
 		file_priv->private_default_ctx->vm = &dev_priv->gtt.base;
 		return 0;
 	}
