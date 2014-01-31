@@ -387,6 +387,8 @@ struct mgmt_cp_set_scan_params {
 
 #define MGMT_OP_SET_SECURE_CONN		0x002D
 
+#define MGMT_OP_SET_DEBUG_KEYS		0x002E
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;

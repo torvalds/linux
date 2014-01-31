@@ -80,6 +80,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_STATIC_ADDRESS,
 	MGMT_OP_SET_SCAN_PARAMS,
 	MGMT_OP_SET_SECURE_CONN,
+	MGMT_OP_SET_DEBUG_KEYS,
 };
 
 static const u16 mgmt_events[] = {
@@ -4111,6 +4112,38 @@ failed:
 	return err;
 }
 
+static int set_debug_keys(struct sock *sk, struct hci_dev *hdev,
+			  void *data, u16 len)
+{
+	struct mgmt_mode *cp = data;
+	bool changed;
+	int err;
+
+	BT_DBG("request for %s", hdev->name);
+
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_DEBUG_KEYS,
+				  MGMT_STATUS_INVALID_PARAMS);
+
+	hci_dev_lock(hdev);
+
+	if (cp->val)
+		changed = !test_and_set_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+	else
+		changed = test_and_clear_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+
+	err = send_settings_rsp(sk, MGMT_OP_SET_DEBUG_KEYS, hdev);
+	if (err < 0)
+		goto unlock;
+
+	if (changed)
+		err = new_settings(hdev, sk);
+
+unlock:
+	hci_dev_unlock(hdev);
+	return err;
+}
+
 static bool ltk_is_valid(struct mgmt_ltk_info *key)
 {
 	if (key->authenticated != 0x00 && key->authenticated != 0x01)
@@ -4240,6 +4273,7 @@ static const struct mgmt_handler {
 	{ set_static_address,     false, MGMT_SET_STATIC_ADDRESS_SIZE },
 	{ set_scan_params,        false, MGMT_SET_SCAN_PARAMS_SIZE },
 	{ set_secure_conn,        false, MGMT_SETTING_SIZE },
+	{ set_debug_keys,         false, MGMT_SETTING_SIZE },
 };
 
 
