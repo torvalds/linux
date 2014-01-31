@@ -1,9 +1,9 @@
 config ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family" if ARCH_MULTI_V6
 	select ARM_GIC
-	select CPU_V6K
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
+	select CPU_V6
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
