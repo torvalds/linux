@@ -2441,6 +2441,13 @@ static int adv7604_core_init(struct v4l2_subdev *sd)
 
 	disable_input(sd);
 
+	if (pdata->default_input >= 0 &&
+	    pdata->default_input < state->source_pad) {
+		state->selected_input = pdata->default_input;
+		select_input(sd);
+		enable_input(sd);
+	}
+
 	/* power */
 	io_write(sd, 0x0c, 0x42);   /* Power up part and power down VDP */
 	io_write(sd, 0x0b, 0x44);   /* Power down ESDP block */

@@ -104,6 +104,8 @@ struct adv7604_platform_data {
 	/* DIS_CABLE_DET_RST: 1 if the 5V pins are unused and unconnected */
 	unsigned disable_cable_det_rst:1;
 
+	int default_input;
+
 	/* Analog input muxing mode */
 	enum adv7604_ain_sel ain_sel;
 
