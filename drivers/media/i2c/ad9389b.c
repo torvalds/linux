@@ -670,8 +670,6 @@ static const struct v4l2_subdev_video_ops ad9389b_video_ops = {
 	.s_stream = ad9389b_s_stream,
 	.s_dv_timings = ad9389b_s_dv_timings,
 	.g_dv_timings = ad9389b_g_dv_timings,
-	.enum_dv_timings = ad9389b_enum_dv_timings,
-	.dv_timings_cap = ad9389b_dv_timings_cap,
 };
 
 /* ------------------------------ PAD OPS ------------------------------ */
