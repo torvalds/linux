@@ -80,7 +80,7 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type)
 	}
 
 	if (res.acl_access != NULL) {
-		if (posix_acl_equiv_mode(res.acl_access, NULL) ||
+		if ((posix_acl_equiv_mode(res.acl_access, NULL) == 0) ||
 		    res.acl_access->a_count == 0) {
 			posix_acl_release(res.acl_access);
 			res.acl_access = NULL;
