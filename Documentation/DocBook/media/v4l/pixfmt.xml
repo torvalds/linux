@@ -817,6 +817,8 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
     <para>These formats are used for <link linkend="sdr">SDR Capture</link>
 interface only.</para>
 
+    &sub-sdr-cu08;
+
   </section>
 
   <section id="pixfmt-reserved">
