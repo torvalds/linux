@@ -51,13 +51,15 @@ struct hid_sensor_hub_attribute_info {
  * @hdev:		Stores the hid instance.
  * @vendor_id:		Vendor id of hub device.
  * @product_id:		Product id of hub device.
- * @ref_cnt:		Number of MFD clients have opened this device
+ * @start_collection_index: Starting index for a phy type collection
+ * @end_collection_index: Last index for a phy type collection
  */
 struct hid_sensor_hub_device {
 	struct hid_device *hdev;
 	u32 vendor_id;
 	u32 product_id;
-	int ref_cnt;
+	int start_collection_index;
+	int end_collection_index;
 };
 
 /**
