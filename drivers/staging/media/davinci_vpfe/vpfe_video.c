@@ -986,8 +986,10 @@ vpfe_enum_dv_timings(struct file *file, void *fh,
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	struct v4l2_subdev *subdev = video->current_ext_subdev->subdev;
 
+	timings->pad = 0;
+
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_enum_dv_timings\n");
-	return v4l2_subdev_call(subdev, video, enum_dv_timings, timings);
+	return v4l2_subdev_call(subdev, pad, enum_dv_timings, timings);
 }
 
 /*
