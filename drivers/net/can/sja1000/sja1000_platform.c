@@ -101,8 +101,24 @@ static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
 	int err;
 	u32 prop;
 
-	priv->read_reg = sp_read_reg8;
-	priv->write_reg = sp_write_reg8;
+	err = of_property_read_u32(of, "reg-io-width", &prop);
+	if (err)
+		prop = 1; /* 8 bit is default */
+
+	switch (prop) {
+	case 4:
+		priv->read_reg = sp_read_reg32;
+		priv->write_reg = sp_write_reg32;
+		break;
+	case 2:
+		priv->read_reg = sp_read_reg16;
+		priv->write_reg = sp_write_reg16;
+		break;
+	case 1:	/* fallthrough */
+	default:
+		priv->read_reg = sp_read_reg8;
+		priv->write_reg = sp_write_reg8;
+	}
 
 	err = of_property_read_u32(of, "nxp,external-clock-frequency", &prop);
 	if (!err)
