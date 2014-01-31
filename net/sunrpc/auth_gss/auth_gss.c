@@ -532,13 +532,7 @@ gss_setup_upcall(struct gss_auth *gss_auth, struct rpc_cred *cred)
 
 static void warn_gssd(void)
 {
-	static unsigned long ratelimit;
-	unsigned long now = jiffies;
-
-	if (time_after(now, ratelimit)) {
-		pr_warn("RPC: AUTH_GSS upcall failed. Please check user daemon is running.\n");
-		ratelimit = now + 15*HZ;
-	}
+	dprintk("AUTH_GSS upcall failed. Please check user daemon is running.\n");
 }
 
 static inline int

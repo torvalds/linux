@@ -539,7 +539,7 @@ static int nfs40_sequence_done(struct rpc_task *task,
 	struct nfs4_slot *slot = res->sr_slot;
 	struct nfs4_slot_table *tbl;
 
-	if (!RPC_WAS_SENT(task))
+	if (slot == NULL)
 		goto out;
 
 	tbl = slot->table;
@@ -559,15 +559,10 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 {
 	struct nfs4_session *session;
 	struct nfs4_slot_table *tbl;
+	struct nfs4_slot *slot = res->sr_slot;
 	bool send_new_highest_used_slotid = false;
 
-	if (!res->sr_slot) {
-		/* just wake up the next guy waiting since
-		 * we may have not consumed a slot after all */
-		dprintk("%s: No slot\n", __func__);
-		return;
-	}
-	tbl = res->sr_slot->table;
+	tbl = slot->table;
 	session = tbl->session;
 
 	spin_lock(&tbl->slot_tbl_lock);
@@ -577,11 +572,11 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 	if (tbl->highest_used_slotid > tbl->target_highest_slotid)
 		send_new_highest_used_slotid = true;
 
-	if (nfs41_wake_and_assign_slot(tbl, res->sr_slot)) {
+	if (nfs41_wake_and_assign_slot(tbl, slot)) {
 		send_new_highest_used_slotid = false;
 		goto out_unlock;
 	}
-	nfs4_free_slot(tbl, res->sr_slot);
+	nfs4_free_slot(tbl, slot);
 
 	if (tbl->highest_used_slotid != NFS4_NO_SLOT)
 		send_new_highest_used_slotid = false;
@@ -592,19 +587,20 @@ out_unlock:
 		nfs41_server_notify_highest_slotid_update(session->clp);
 }
 
-static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
+int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
 {
 	struct nfs4_session *session;
-	struct nfs4_slot *slot;
+	struct nfs4_slot *slot = res->sr_slot;
 	struct nfs_client *clp;
 	bool interrupted = false;
 	int ret = 1;
 
+	if (slot == NULL)
+		goto out_noaction;
 	/* don't increment the sequence number if the task wasn't sent */
 	if (!RPC_WAS_SENT(task))
 		goto out;
 
-	slot = res->sr_slot;
 	session = slot->table->session;
 
 	if (slot->interrupted) {
@@ -679,6 +675,7 @@ out:
 	/* The session may be reset by one of the error handlers. */
 	dprintk("%s: Error %d free the slot \n", __func__, res->sr_status);
 	nfs41_sequence_free_slot(res);
+out_noaction:
 	return ret;
 retry_nowait:
 	if (rpc_restart_call_prepare(task)) {
@@ -692,6 +689,7 @@ out_retry:
 	rpc_delay(task, NFS4_POLL_RETRY_MAX);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs41_sequence_done);
 
 static int nfs4_sequence_done(struct rpc_task *task,
 			       struct nfs4_sequence_res *res)
@@ -2744,7 +2742,8 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 				NFS_CAP_OWNER_GROUP|NFS_CAP_ATIME|
 				NFS_CAP_CTIME|NFS_CAP_MTIME|
 				NFS_CAP_SECURITY_LABEL);
-		if (res.attr_bitmask[0] & FATTR4_WORD0_ACL)
+		if (res.attr_bitmask[0] & FATTR4_WORD0_ACL &&
+				res.acl_bitmask & ACL4_SUPPORT_ALLOW_ACL)
 			server->caps |= NFS_CAP_ACLS;
 		if (res.has_links != 0)
 			server->caps |= NFS_CAP_HARDLINKS;
@@ -4321,9 +4320,7 @@ static int nfs4_proc_renew(struct nfs_client *clp, struct rpc_cred *cred)
 
 static inline int nfs4_server_supports_acls(struct nfs_server *server)
 {
-	return (server->caps & NFS_CAP_ACLS)
-		&& (server->acl_bitmask & ACL4_SUPPORT_ALLOW_ACL)
-		&& (server->acl_bitmask & ACL4_SUPPORT_DENY_ACL);
+	return server->caps & NFS_CAP_ACLS;
 }
 
 /* Assuming that XATTR_SIZE_MAX is a multiple of PAGE_SIZE, and that
