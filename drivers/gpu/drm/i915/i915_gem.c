@@ -1619,7 +1619,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 
 	if (obj->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to mmap a purgeable buffer\n");
-		ret = -EINVAL;
+		ret = -EFAULT;
 		goto out;
 	}
 
@@ -1973,7 +1973,7 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 
 	if (obj->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to obtain a purgeable object\n");
-		return -EINVAL;
+		return -EFAULT;
 	}
 
 	BUG_ON(obj->pages_pin_count);
@@ -3917,7 +3917,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 
 	if (obj->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to pin a purgeable buffer\n");
-		ret = -EINVAL;
+		ret = -EFAULT;
 		goto out;
 	}
 
