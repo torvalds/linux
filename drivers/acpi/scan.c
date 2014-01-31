@@ -2105,6 +2105,7 @@ void acpi_bus_trim(struct acpi_device *adev)
 	list_for_each_entry_reverse(child, &adev->children, node)
 		acpi_bus_trim(child);
 
+	adev->flags.match_driver = false;
 	if (handler) {
 		if (handler->detach)
 			handler->detach(adev);

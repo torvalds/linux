@@ -261,7 +261,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 
 	apic_id = acpi_get_apicid(pr->handle, device_declaration, pr->acpi_id);
 	if (apic_id < 0) {
-		acpi_handle_err(pr->handle, "failed to get CPU APIC ID.\n");
+		acpi_handle_debug(pr->handle, "failed to get CPU APIC ID.\n");
 		return -ENODEV;
 	}
 	pr->apic_id = apic_id;
