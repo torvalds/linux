@@ -283,6 +283,7 @@ struct per_bio_data {
 	bool tick:1;
 	unsigned req_nr:2;
 	struct dm_deferred_entry *all_io_entry;
+	struct dm_hook_info hook_info;
 
 	/*
 	 * writethrough fields.  These MUST remain at the end of this
@@ -291,7 +292,6 @@ struct per_bio_data {
 	 */
 	struct cache *cache;
 	dm_cblock_t cblock;
-	struct dm_hook_info hook_info;
 	struct dm_bio_details bio_details;
 };
 
