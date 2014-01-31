@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007 Oracle.  All rights reserved.
+ * Copyright (C) 2014 Filipe David Borba Manana <fdmanana@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -16,27 +16,27 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __HASH__
-#define __HASH__
+#ifndef __BTRFS_PROPS_H
+#define __BTRFS_PROPS_H
 
-int __init btrfs_hash_init(void);
+#include "ctree.h"
 
-void btrfs_hash_exit(void);
+void __init btrfs_props_init(void);
 
-u32 btrfs_crc32c(u32 crc, const void *address, unsigned int length);
+int btrfs_set_prop(struct inode *inode,
+		   const char *name,
+		   const char *value,
+		   size_t value_len,
+		   int flags);
 
-static inline u64 btrfs_name_hash(const char *name, int len)
-{
-	return btrfs_crc32c((u32)~1, name, len);
-}
+int btrfs_load_inode_props(struct inode *inode, struct btrfs_path *path);
 
-/*
- * Figure the key offset of an extended inode ref
- */
-static inline u64 btrfs_extref_hash(u64 parent_objectid, const char *name,
-				    int len)
-{
-	return (u64) btrfs_crc32c(parent_objectid, name, len);
-}
+int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
+			      struct inode *inode,
+			      struct inode *dir);
+
+int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct btrfs_root *parent_root);
 
 #endif
