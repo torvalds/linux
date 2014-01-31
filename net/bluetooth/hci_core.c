@@ -620,9 +620,9 @@ static int long_term_keys_show(struct seq_file *f, void *ptr)
 	struct list_head *p, *n;
 
 	hci_dev_lock(hdev);
-	list_for_each_safe(p, n, &hdev->link_keys) {
+	list_for_each_safe(p, n, &hdev->long_term_keys) {
 		struct smp_ltk *ltk = list_entry(p, struct smp_ltk, list);
-		seq_printf(f, "%pMR (type %u) %u %u %u %.4x %*phN %*phN\\n",
+		seq_printf(f, "%pMR (type %u) %u 0x%02x %u %.4x %*phN %*phN\n",
 			   &ltk->bdaddr, ltk->bdaddr_type, ltk->authenticated,
 			   ltk->type, ltk->enc_size, __le16_to_cpu(ltk->ediv),
 			   8, ltk->rand, 16, ltk->val);
