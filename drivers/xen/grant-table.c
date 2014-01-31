@@ -837,7 +837,7 @@ unsigned int gnttab_max_grant_frames(void)
 }
 EXPORT_SYMBOL_GPL(gnttab_max_grant_frames);
 
-int gnttab_setup_auto_xlat_frames(unsigned long addr)
+int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 {
 	xen_pfn_t *pfn;
 	unsigned int max_nr_gframes = __max_nr_grant_frames();
@@ -849,8 +849,8 @@ int gnttab_setup_auto_xlat_frames(unsigned long addr)
 
 	vaddr = xen_remap(addr, PAGE_SIZE * max_nr_gframes);
 	if (vaddr == NULL) {
-		pr_warn("Failed to ioremap gnttab share frames (addr=0x%08lx)!\n",
-			addr);
+		pr_warn("Failed to ioremap gnttab share frames (addr=%pa)!\n",
+			&addr);
 		return -ENOMEM;
 	}
 	pfn = kcalloc(max_nr_gframes, sizeof(pfn[0]), GFP_KERNEL);
@@ -928,15 +928,17 @@ void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count)
 }
 EXPORT_SYMBOL_GPL(gnttab_batch_copy);
 
-int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
+int __gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
-		    struct page **pages, unsigned int count)
+		    struct page **pages, unsigned int count,
+		    bool m2p_override)
 {
 	int i, ret;
 	bool lazy = false;
 	pte_t *pte;
-	unsigned long mfn;
+	unsigned long mfn, pfn;
 
+	BUG_ON(kmap_ops && !m2p_override);
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map_ops, count);
 	if (ret)
 		return ret;
@@ -955,10 +957,12 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 			set_phys_to_machine(map_ops[i].host_addr >> PAGE_SHIFT,
 					map_ops[i].dev_bus_addr >> PAGE_SHIFT);
 		}
-		return ret;
+		return 0;
 	}
 
-	if (!in_interrupt() && paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+	if (m2p_override &&
+	    !in_interrupt() &&
+	    paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
 		arch_enter_lazy_mmu_mode();
 		lazy = true;
 	}
@@ -975,8 +979,20 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		} else {
 			mfn = PFN_DOWN(map_ops[i].dev_bus_addr);
 		}
-		ret = m2p_add_override(mfn, pages[i], kmap_ops ?
-				       &kmap_ops[i] : NULL);
+		pfn = page_to_pfn(pages[i]);
+
+		WARN_ON(PagePrivate(pages[i]));
+		SetPagePrivate(pages[i]);
+		set_page_private(pages[i], mfn);
+
+		pages[i]->index = pfn_to_mfn(pfn);
+		if (unlikely(!set_phys_to_machine(pfn, FOREIGN_FRAME(mfn)))) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		if (m2p_override)
+			ret = m2p_add_override(mfn, pages[i], kmap_ops ?
+					       &kmap_ops[i] : NULL);
 		if (ret)
 			goto out;
 	}
@@ -987,15 +1003,32 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 
 	return ret;
 }
+
+int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
+		    struct page **pages, unsigned int count)
+{
+	return __gnttab_map_refs(map_ops, NULL, pages, count, false);
+}
 EXPORT_SYMBOL_GPL(gnttab_map_refs);
 
-int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
+int gnttab_map_refs_userspace(struct gnttab_map_grant_ref *map_ops,
+			      struct gnttab_map_grant_ref *kmap_ops,
+			      struct page **pages, unsigned int count)
+{
+	return __gnttab_map_refs(map_ops, kmap_ops, pages, count, true);
+}
+EXPORT_SYMBOL_GPL(gnttab_map_refs_userspace);
+
+int __gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct gnttab_map_grant_ref *kmap_ops,
-		      struct page **pages, unsigned int count)
+		      struct page **pages, unsigned int count,
+		      bool m2p_override)
 {
 	int i, ret;
 	bool lazy = false;
+	unsigned long pfn, mfn;
 
+	BUG_ON(kmap_ops && !m2p_override);
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap_ops, count);
 	if (ret)
 		return ret;
@@ -1006,17 +1039,33 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 			set_phys_to_machine(unmap_ops[i].host_addr >> PAGE_SHIFT,
 					INVALID_P2M_ENTRY);
 		}
-		return ret;
+		return 0;
 	}
 
-	if (!in_interrupt() && paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+	if (m2p_override &&
+	    !in_interrupt() &&
+	    paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
 		arch_enter_lazy_mmu_mode();
 		lazy = true;
 	}
 
 	for (i = 0; i < count; i++) {
-		ret = m2p_remove_override(pages[i], kmap_ops ?
-				       &kmap_ops[i] : NULL);
+		pfn = page_to_pfn(pages[i]);
+		mfn = get_phys_to_machine(pfn);
+		if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		set_page_private(pages[i], INVALID_P2M_ENTRY);
+		WARN_ON(!PagePrivate(pages[i]));
+		ClearPagePrivate(pages[i]);
+		set_phys_to_machine(pfn, pages[i]->index);
+		if (m2p_override)
+			ret = m2p_remove_override(pages[i],
+						  kmap_ops ?
+						   &kmap_ops[i] : NULL,
+						  mfn);
 		if (ret)
 			goto out;
 	}
@@ -1027,7 +1076,21 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 
 	return ret;
 }
+
+int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *map_ops,
+		    struct page **pages, unsigned int count)
+{
+	return __gnttab_unmap_refs(map_ops, NULL, pages, count, false);
+}
 EXPORT_SYMBOL_GPL(gnttab_unmap_refs);
+
+int gnttab_unmap_refs_userspace(struct gnttab_unmap_grant_ref *map_ops,
+				struct gnttab_map_grant_ref *kmap_ops,
+				struct page **pages, unsigned int count)
+{
+	return __gnttab_unmap_refs(map_ops, kmap_ops, pages, count, true);
+}
+EXPORT_SYMBOL_GPL(gnttab_unmap_refs_userspace);
 
 static unsigned nr_status_frames(unsigned nr_grant_frames)
 {

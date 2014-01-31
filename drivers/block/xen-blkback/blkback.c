@@ -285,8 +285,7 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
 			!rb_next(&persistent_gnt->node)) {
-			ret = gnttab_unmap_refs(unmap, NULL, pages,
-				segs_to_unmap);
+			ret = gnttab_unmap_refs(unmap, pages, segs_to_unmap);
 			BUG_ON(ret);
 			put_free_pages(blkif, pages, segs_to_unmap);
 			segs_to_unmap = 0;
@@ -321,8 +320,7 @@ static void unmap_purged_grants(struct work_struct *work)
 		pages[segs_to_unmap] = persistent_gnt->page;
 
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
-			ret = gnttab_unmap_refs(unmap, NULL, pages,
-				segs_to_unmap);
+			ret = gnttab_unmap_refs(unmap, pages, segs_to_unmap);
 			BUG_ON(ret);
 			put_free_pages(blkif, pages, segs_to_unmap);
 			segs_to_unmap = 0;
@@ -330,7 +328,7 @@ static void unmap_purged_grants(struct work_struct *work)
 		kfree(persistent_gnt);
 	}
 	if (segs_to_unmap > 0) {
-		ret = gnttab_unmap_refs(unmap, NULL, pages, segs_to_unmap);
+		ret = gnttab_unmap_refs(unmap, pages, segs_to_unmap);
 		BUG_ON(ret);
 		put_free_pages(blkif, pages, segs_to_unmap);
 	}
@@ -670,15 +668,14 @@ static void xen_blkbk_unmap(struct xen_blkif *blkif,
 				    GNTMAP_host_map, pages[i]->handle);
 		pages[i]->handle = BLKBACK_INVALID_HANDLE;
 		if (++invcount == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
-			ret = gnttab_unmap_refs(unmap, NULL, unmap_pages,
-			                        invcount);
+			ret = gnttab_unmap_refs(unmap, unmap_pages, invcount);
 			BUG_ON(ret);
 			put_free_pages(blkif, unmap_pages, invcount);
 			invcount = 0;
 		}
 	}
 	if (invcount) {
-		ret = gnttab_unmap_refs(unmap, NULL, unmap_pages, invcount);
+		ret = gnttab_unmap_refs(unmap, unmap_pages, invcount);
 		BUG_ON(ret);
 		put_free_pages(blkif, unmap_pages, invcount);
 	}
@@ -740,7 +737,7 @@ again:
 	}
 
 	if (segs_to_map) {
-		ret = gnttab_map_refs(map, NULL, pages_to_gnt, segs_to_map);
+		ret = gnttab_map_refs(map, pages_to_gnt, segs_to_map);
 		BUG_ON(ret);
 	}
 
