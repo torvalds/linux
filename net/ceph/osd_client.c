@@ -1427,6 +1427,40 @@ static void __send_queued(struct ceph_osd_client *osdc)
 }
 
 /*
+ * Caller should hold map_sem for read and request_mutex.
+ */
+static int __ceph_osdc_start_request(struct ceph_osd_client *osdc,
+				     struct ceph_osd_request *req,
+				     bool nofail)
+{
+	int rc;
+
+	__register_request(osdc, req);
+	req->r_sent = 0;
+	req->r_got_reply = 0;
+	rc = __map_request(osdc, req, 0);
+	if (rc < 0) {
+		if (nofail) {
+			dout("osdc_start_request failed map, "
+				" will retry %lld\n", req->r_tid);
+			rc = 0;
+		} else {
+			__unregister_request(osdc, req);
+		}
+		return rc;
+	}
+
+	if (req->r_osd == NULL) {
+		dout("send_request %p no up osds in pg\n", req);
+		ceph_monc_request_next_osdmap(&osdc->client->monc);
+	} else {
+		__send_queued(osdc);
+	}
+
+	return 0;
+}
+
+/*
  * Timeout callback, called every N seconds when 1 or more osd
  * requests has been active for more than N seconds.  When this
  * happens, we ping all OSDs with requests who have timed out to
@@ -2351,34 +2385,16 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 			    struct ceph_osd_request *req,
 			    bool nofail)
 {
-	int rc = 0;
+	int rc;
 
 	down_read(&osdc->map_sem);
 	mutex_lock(&osdc->request_mutex);
-	__register_request(osdc, req);
-	req->r_sent = 0;
-	req->r_got_reply = 0;
-	rc = __map_request(osdc, req, 0);
-	if (rc < 0) {
-		if (nofail) {
-			dout("osdc_start_request failed map, "
-				" will retry %lld\n", req->r_tid);
-			rc = 0;
-		} else {
-			__unregister_request(osdc, req);
-		}
-		goto out_unlock;
-	}
-	if (req->r_osd == NULL) {
-		dout("send_request %p no up osds in pg\n", req);
-		ceph_monc_request_next_osdmap(&osdc->client->monc);
-	} else {
-		__send_queued(osdc);
-	}
-	rc = 0;
-out_unlock:
+
+	rc = __ceph_osdc_start_request(osdc, req, nofail);
+
 	mutex_unlock(&osdc->request_mutex);
 	up_read(&osdc->map_sem);
+
 	return rc;
 }
 EXPORT_SYMBOL(ceph_osdc_start_request);
