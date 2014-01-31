@@ -410,6 +410,9 @@ static int ths8200_g_dv_timings(struct v4l2_subdev *sd,
 static int ths8200_enum_dv_timings(struct v4l2_subdev *sd,
 				   struct v4l2_enum_dv_timings *timings)
 {
+	if (timings->pad != 0)
+		return -EINVAL;
+
 	return v4l2_enum_dv_timings_cap(timings, &ths8200_timings_cap,
 			NULL, NULL);
 }
@@ -417,6 +420,9 @@ static int ths8200_enum_dv_timings(struct v4l2_subdev *sd,
 static int ths8200_dv_timings_cap(struct v4l2_subdev *sd,
 				  struct v4l2_dv_timings_cap *cap)
 {
+	if (cap->pad != 0)
+		return -EINVAL;
+
 	*cap = ths8200_timings_cap;
 	return 0;
 }
@@ -430,10 +436,16 @@ static const struct v4l2_subdev_video_ops ths8200_video_ops = {
 	.dv_timings_cap = ths8200_dv_timings_cap,
 };
 
+static const struct v4l2_subdev_pad_ops ths8200_pad_ops = {
+	.enum_dv_timings = ths8200_enum_dv_timings,
+	.dv_timings_cap = ths8200_dv_timings_cap,
+};
+
 /* V4L2 top level operation handlers */
 static const struct v4l2_subdev_ops ths8200_ops = {
 	.core  = &ths8200_core_ops,
 	.video = &ths8200_video_ops,
+	.pad = &ths8200_pad_ops,
 };
 
 static int ths8200_probe(struct i2c_client *client,
