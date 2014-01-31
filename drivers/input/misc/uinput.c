@@ -20,6 +20,8 @@
  * Author: Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
  *
  * Changes/Revisions:
+ *	0.4	01/09/2014 (Benjamin Tissoires <benjamin.tissoires@redhat.com>)
+ *		- add UI_GET_SYSNAME ioctl
  *	0.3	09/04/2006 (Anssi Hannula <anssi.hannula@gmail.com>)
  *		- updated ff support for the changes in kernel interface
  *		- added MODULE_VERSION
@@ -670,6 +672,31 @@ static int uinput_ff_upload_from_user(const char __user *buffer,
 	__ret;						\
 })
 
+static int uinput_str_to_user(void __user *dest, const char *str,
+			      unsigned int maxlen)
+{
+	char __user *p = dest;
+	int len, ret;
+
+	if (!str)
+		return -ENOENT;
+
+	if (maxlen == 0)
+		return -EINVAL;
+
+	len = strlen(str) + 1;
+	if (len > maxlen)
+		len = maxlen;
+
+	ret = copy_to_user(p, str, len);
+	if (ret)
+		return -EFAULT;
+
+	/* force terminating '\0' */
+	ret = put_user(0, p + len - 1);
+	return ret ? -EFAULT : len;
+}
+
 static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 				 unsigned long arg, void __user *p)
 {
@@ -679,6 +706,8 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 	struct uinput_ff_erase  ff_erase;
 	struct uinput_request   *req;
 	char			*phys;
+	const char		*name;
+	unsigned int		size;
 
 	retval = mutex_lock_interruptible(&udev->mutex);
 	if (retval)
@@ -829,6 +858,20 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 			req->retval = ff_erase.retval;
 			uinput_request_done(udev, req);
 			goto out;
+	}
+
+	size = _IOC_SIZE(cmd);
+
+	/* Now check variable-length commands */
+	switch (cmd & ~IOCSIZE_MASK) {
+	case UI_GET_SYSNAME(0):
+		if (udev->state != UIST_CREATED) {
+			retval = -ENOENT;
+			goto out;
+		}
+		name = dev_name(&udev->dev->dev);
+		retval = uinput_str_to_user(p, name, size);
+		goto out;
 	}
 
 	retval = -EINVAL;
