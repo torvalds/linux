@@ -897,7 +897,9 @@ vpif_enum_dv_timings(struct file *file, void *priv,
 	if (output.capabilities != V4L2_OUT_CAP_DV_TIMINGS)
 		return -ENODATA;
 
-	ret = v4l2_subdev_call(ch->sd, video, enum_dv_timings, timings);
+	timings->pad = 0;
+
+	ret = v4l2_subdev_call(ch->sd, pad, enum_dv_timings, timings);
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		return -EINVAL;
 	return ret;
