@@ -2692,9 +2692,6 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 {
 	struct smp_ltk *key, *old_key;
 
-	if (!(type & HCI_SMP_STK) && !(type & HCI_SMP_LTK))
-		return 0;
-
 	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type);
 	if (old_key)
 		key = old_key;
