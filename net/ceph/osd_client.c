@@ -2504,9 +2504,12 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	err = -ENOMEM;
 	osdc->notify_wq = create_singlethread_workqueue("ceph-watch-notify");
 	if (!osdc->notify_wq)
-		goto out_msgpool;
+		goto out_msgpool_reply;
+
 	return 0;
 
+out_msgpool_reply:
+	ceph_msgpool_destroy(&osdc->msgpool_op_reply);
 out_msgpool:
 	ceph_msgpool_destroy(&osdc->msgpool_op);
 out_mempool:
