@@ -29,6 +29,13 @@ extern void secondary_startup(void);
 
 static DEFINE_SPINLOCK(boot_lock);
 
+#ifdef CONFIG_HOTPLUG_CPU
+static void __ref msm_cpu_die(unsigned int cpu)
+{
+	wfi();
+}
+#endif
+
 static inline int get_core_count(void)
 {
 	/* 1 + the PART[1:0] field of MIDR */
