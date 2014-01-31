@@ -70,14 +70,13 @@ static int dove_pmu_mpp_ctrl_get(unsigned pid, unsigned long *config)
 	unsigned long pmu = readl(DOVE_PMU_MPP_GENERAL_CTRL);
 	unsigned long func;
 
-	if (pmu & (1 << pid)) {
-		func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
-		*config = (func >> shift) & MVEBU_MPP_MASK;
-		*config |= CONFIG_PMU;
-	} else {
-		func = readl(DOVE_MPP_VIRT_BASE + off);
-		*config = (func >> shift) & MVEBU_MPP_MASK;
-	}
+	if ((pmu & BIT(pid)) == 0)
+		return default_mpp_ctrl_get(mpp_base, pid, config);
+
+	func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
+	*config = (func >> shift) & MVEBU_MPP_MASK;
+	*config |= CONFIG_PMU;
+
 	return 0;
 }
 
@@ -88,19 +87,17 @@ static int dove_pmu_mpp_ctrl_set(unsigned pid, unsigned long config)
 	unsigned long pmu = readl(DOVE_PMU_MPP_GENERAL_CTRL);
 	unsigned long func;
 
-	if (config & CONFIG_PMU) {
-		writel(pmu | (1 << pid), DOVE_PMU_MPP_GENERAL_CTRL);
-		func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
-		func &= ~(MVEBU_MPP_MASK << shift);
-		func |= (config & MVEBU_MPP_MASK) << shift;
-		writel(func, DOVE_PMU_SIGNAL_SELECT_0 + off);
-	} else {
-		writel(pmu & ~(1 << pid), DOVE_PMU_MPP_GENERAL_CTRL);
-		func = readl(DOVE_MPP_VIRT_BASE + off);
-		func &= ~(MVEBU_MPP_MASK << shift);
-		func |= (config & MVEBU_MPP_MASK) << shift;
-		writel(func, DOVE_MPP_VIRT_BASE + off);
+	if ((config & CONFIG_PMU) == 0) {
+		writel(pmu & ~BIT(pid), DOVE_PMU_MPP_GENERAL_CTRL);
+		return default_mpp_ctrl_set(mpp_base, pid, config);
 	}
+
+	writel(pmu | BIT(pid), DOVE_PMU_MPP_GENERAL_CTRL);
+	func = readl(DOVE_PMU_SIGNAL_SELECT_0 + off);
+	func &= ~(MVEBU_MPP_MASK << shift);
+	func |= (config & MVEBU_MPP_MASK) << shift;
+	writel(func, DOVE_PMU_SIGNAL_SELECT_0 + off);
+
 	return 0;
 }
 
