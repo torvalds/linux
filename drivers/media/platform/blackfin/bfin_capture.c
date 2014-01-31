@@ -644,7 +644,9 @@ static int bcap_enum_dv_timings(struct file *file, void *priv,
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 
-	return v4l2_subdev_call(bcap_dev->sd, video,
+	timings->pad = 0;
+
+	return v4l2_subdev_call(bcap_dev->sd, pad,
 			enum_dv_timings, timings);
 }
 
