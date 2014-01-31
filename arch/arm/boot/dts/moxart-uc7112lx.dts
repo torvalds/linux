@@ -17,6 +17,14 @@
 		reg = <0x0 0x2000000>;
 	};
 
+	clocks {
+		ref12: ref12M {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <12000000>;
+		};
+	};
+
 	flash@80000000,0 {
 		compatible = "numonyx,js28f128", "cfi-flash";
 		reg = <0x80000000 0x1000000>;
