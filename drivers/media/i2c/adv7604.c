@@ -1527,16 +1527,20 @@ static int adv7604_enum_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int __adv7604_dv_timings_cap(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings_cap *cap,
-			unsigned int pad)
+static int adv7604_dv_timings_cap(struct v4l2_subdev *sd,
+			struct v4l2_dv_timings_cap *cap)
 {
+	struct adv7604_state *state = to_state(sd);
+
+	if (cap->pad >= state->source_pad)
+		return -EINVAL;
+
 	cap->type = V4L2_DV_BT_656_1120;
 	cap->bt.max_width = 1920;
 	cap->bt.max_height = 1200;
 	cap->bt.min_pixelclock = 25000000;
 
-	switch (pad) {
+	switch (cap->pad) {
 	case ADV7604_PAD_HDMI_PORT_A:
 	case ADV7604_PAD_HDMI_PORT_B:
 	case ADV7604_PAD_HDMI_PORT_C:
@@ -1555,25 +1559,6 @@ static int __adv7604_dv_timings_cap(struct v4l2_subdev *sd,
 	cap->bt.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |
 		V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM;
 	return 0;
-}
-
-static int adv7604_dv_timings_cap(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings_cap *cap)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return __adv7604_dv_timings_cap(sd, cap, state->selected_input);
-}
-
-static int adv7604_pad_dv_timings_cap(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings_cap *cap)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	if (cap->pad >= state->source_pad)
-		return -EINVAL;
-
-	return __adv7604_dv_timings_cap(sd, cap, cap->pad);
 }
 
 /* Fill the optional fields .standards and .flags in struct v4l2_dv_timings
@@ -2453,8 +2438,6 @@ static const struct v4l2_subdev_video_ops adv7604_video_ops = {
 	.s_dv_timings = adv7604_s_dv_timings,
 	.g_dv_timings = adv7604_g_dv_timings,
 	.query_dv_timings = adv7604_query_dv_timings,
-	.enum_dv_timings = adv7604_enum_dv_timings,
-	.dv_timings_cap = adv7604_dv_timings_cap,
 };
 
 static const struct v4l2_subdev_pad_ops adv7604_pad_ops = {
@@ -2463,7 +2446,7 @@ static const struct v4l2_subdev_pad_ops adv7604_pad_ops = {
 	.set_fmt = adv7604_set_format,
 	.get_edid = adv7604_get_edid,
 	.set_edid = adv7604_set_edid,
-	.dv_timings_cap = adv7604_pad_dv_timings_cap,
+	.dv_timings_cap = adv7604_dv_timings_cap,
 	.enum_dv_timings = adv7604_enum_dv_timings,
 };
 
