@@ -35,6 +35,7 @@
 #include "core.h"
 #include "socfpga_cti.h"
 #include "dma.h"
+#include "l2_cache.h"
 #include "ocram.h"
 
 void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
@@ -322,6 +323,7 @@ static void __init socfpga_cyclone5_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	u32 aux_ctrl = 0;
+	socfpga_init_l2_ecc();
 	aux_ctrl |= (1 << L2X0_AUX_CTRL_SHARE_OVERRIDE_SHIFT) |
 			(1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
 			(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT);
