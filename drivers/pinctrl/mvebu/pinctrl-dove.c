@@ -351,22 +351,7 @@ static int dove_twsi_ctrl_set(unsigned pid, unsigned long config)
 }
 
 static struct mvebu_mpp_ctrl dove_mpp_controls[] = {
-	MPP_FUNC_CTRL(0, 0, "mpp0", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(1, 1, "mpp1", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(2, 2, "mpp2", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(3, 3, "mpp3", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(4, 4, "mpp4", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(5, 5, "mpp5", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(6, 6, "mpp6", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(7, 7, "mpp7", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(8, 8, "mpp8", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(9, 9, "mpp9", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(10, 10, "mpp10", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(11, 11, "mpp11", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(12, 12, "mpp12", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(13, 13, "mpp13", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(14, 14, "mpp14", dove_pmu_mpp_ctrl),
-	MPP_FUNC_CTRL(15, 15, "mpp15", dove_pmu_mpp_ctrl),
+	MPP_FUNC_CTRL(0, 15, NULL, dove_pmu_mpp_ctrl),
 	MPP_FUNC_CTRL(16, 23, NULL, dove_mpp_ctrl),
 	MPP_FUNC_CTRL(24, 39, "mpp_camera", dove_mpp4_ctrl),
 	MPP_FUNC_CTRL(40, 45, "mpp_sdio0", dove_mpp4_ctrl),
