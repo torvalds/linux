@@ -1716,10 +1716,31 @@ static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
 #define nvme_compat_ioctl	NULL
 #endif
 
+static int nvme_open(struct block_device *bdev, fmode_t mode)
+{
+	struct nvme_ns *ns = bdev->bd_disk->private_data;
+	struct nvme_dev *dev = ns->dev;
+
+	kref_get(&dev->kref);
+	return 0;
+}
+
+static void nvme_free_dev(struct kref *kref);
+
+static void nvme_release(struct gendisk *disk, fmode_t mode)
+{
+	struct nvme_ns *ns = disk->private_data;
+	struct nvme_dev *dev = ns->dev;
+
+	kref_put(&dev->kref, nvme_free_dev);
+}
+
 static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
 	.compat_ioctl	= nvme_compat_ioctl,
+	.open		= nvme_open,
+	.release	= nvme_release,
 };
 
 static void nvme_resubmit_bios(struct nvme_queue *nvmeq)
@@ -1847,13 +1868,6 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid,
  out_free_ns:
 	kfree(ns);
 	return NULL;
-}
-
-static void nvme_ns_free(struct nvme_ns *ns)
-{
-	put_disk(ns->disk);
-	blk_cleanup_queue(ns->queue);
-	kfree(ns);
 }
 
 static int set_queue_count(struct nvme_dev *dev, int count)
@@ -2287,12 +2301,13 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 
 static void nvme_dev_remove(struct nvme_dev *dev)
 {
-	struct nvme_ns *ns, *next;
+	struct nvme_ns *ns;
 
-	list_for_each_entry_safe(ns, next, &dev->namespaces, list) {
-		list_del(&ns->list);
-		del_gendisk(ns->disk);
-		nvme_ns_free(ns);
+	list_for_each_entry(ns, &dev->namespaces, list) {
+		if (ns->disk->flags & GENHD_FL_UP)
+			del_gendisk(ns->disk);
+		if (!blk_queue_dying(ns->queue))
+			blk_cleanup_queue(ns->queue);
 	}
 }
 
@@ -2349,9 +2364,22 @@ static void nvme_release_instance(struct nvme_dev *dev)
 	spin_unlock(&dev_list_lock);
 }
 
+static void nvme_free_namespaces(struct nvme_dev *dev)
+{
+	struct nvme_ns *ns, *next;
+
+	list_for_each_entry_safe(ns, next, &dev->namespaces, list) {
+		list_del(&ns->list);
+		put_disk(ns->disk);
+		kfree(ns);
+	}
+}
+
 static void nvme_free_dev(struct kref *kref)
 {
 	struct nvme_dev *dev = container_of(kref, struct nvme_dev, kref);
+
+	nvme_free_namespaces(dev);
 	kfree(dev->queues);
 	kfree(dev->entry);
 	kfree(dev);
@@ -2525,6 +2553,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto release_pools;
 	}
 
+	kref_init(&dev->kref);
 	result = nvme_dev_add(dev);
 	if (result)
 		goto shutdown;
@@ -2540,11 +2569,11 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto remove;
 
 	dev->initialized = 1;
-	kref_init(&dev->kref);
 	return 0;
 
  remove:
 	nvme_dev_remove(dev);
+	nvme_free_namespaces(dev);
  shutdown:
 	nvme_dev_shutdown(dev);
  release_pools:
