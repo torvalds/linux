@@ -168,6 +168,7 @@ config SSB_DRIVER_GIGE
 config SSB_DRIVER_GPIO
 	bool "SSB GPIO driver"
 	depends on SSB && GPIOLIB
+	select IRQ_DOMAIN if SSB_EMBEDDED
 	help
 	  Driver to provide access to the GPIO pins on the bus.
 

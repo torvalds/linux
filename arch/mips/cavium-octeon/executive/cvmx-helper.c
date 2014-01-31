@@ -67,7 +67,7 @@ void (*cvmx_override_pko_queue_priority) (int pko_port,
 void (*cvmx_override_ipd_port_setup) (int ipd_port);
 
 /* Port count per interface */
-static int interface_port_count[4] = { 0, 0, 0, 0 };
+static int interface_port_count[5];
 
 /* Port last configured link info index by IPD/PKO port */
 static cvmx_helper_link_info_t
@@ -88,6 +88,7 @@ int cvmx_helper_get_number_of_interfaces(void)
 	else
 		return 3;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_get_number_of_interfaces);
 
 /**
  * Return the number of ports on an interface. Depending on the
@@ -102,6 +103,7 @@ int cvmx_helper_ports_on_interface(int interface)
 {
 	return interface_port_count[interface];
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_ports_on_interface);
 
 /**
  * Get the operating mode of an interface. Depending on the Octeon
@@ -179,6 +181,7 @@ cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
 			return CVMX_HELPER_INTERFACE_MODE_RGMII;
 	}
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_interface_get_mode);
 
 /**
  * Configure the IPD/PIP tagging and QoS options for a specific
@@ -825,6 +828,7 @@ int cvmx_helper_ipd_and_packet_input_enable(void)
 		__cvmx_helper_errata_fix_ipd_ptr_alignment();
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_ipd_and_packet_input_enable);
 
 /**
  * Initialize the PIP, IPD, and PKO hardware to support
@@ -903,6 +907,7 @@ int cvmx_helper_initialize_packet_io_global(void)
 #endif
 	return result;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_initialize_packet_io_global);
 
 /**
  * Does core local initialization for packet io
@@ -947,6 +952,7 @@ cvmx_helper_link_info_t cvmx_helper_link_autoconf(int ipd_port)
 	 */
 	return port_link_info[ipd_port];
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_link_autoconf);
 
 /**
  * Return the link state of an IPD/PKO port as returned by
@@ -1005,6 +1011,7 @@ cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port)
 	}
 	return result;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_link_get);
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
@@ -1060,6 +1067,7 @@ int cvmx_helper_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
 		port_link_info[ipd_port].u64 = link_info.u64;
 	return result;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_link_set);
 
 /**
  * Configure a port for internal and/or external loopback. Internal loopback
