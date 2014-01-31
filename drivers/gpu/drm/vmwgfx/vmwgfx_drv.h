@@ -75,10 +75,14 @@
 #define VMW_RES_FENCE ttm_driver_type3
 #define VMW_RES_SHADER ttm_driver_type4
 
+struct vmw_compat_shader_manager;
+
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
 	struct list_head fence_events;
+	bool gb_aware;
+	struct vmw_compat_shader_manager *shman;
 };
 
 struct vmw_dma_buffer {
@@ -318,7 +322,7 @@ struct vmw_sw_context{
 	struct drm_open_hash res_ht;
 	bool res_ht_initialized;
 	bool kernel; /**< is the called made from the kernel */
-	struct ttm_object_file *tfile;
+	struct vmw_fpriv *fp;
 	struct list_head validate_nodes;
 	struct vmw_relocation relocs[VMWGFX_MAX_RELOCATIONS];
 	uint32_t cur_reloc;
@@ -336,6 +340,7 @@ struct vmw_sw_context{
 	bool needs_post_query_barrier;
 	struct vmw_resource *error_resource;
 	struct vmw_ctx_binding_state staged_bindings;
+	struct list_head staged_shaders;
 };
 
 struct vmw_legacy_display;
@@ -991,6 +996,28 @@ extern int vmw_shader_define_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
+extern int vmw_compat_shader_lookup(struct vmw_compat_shader_manager *man,
+				    SVGA3dShaderType shader_type,
+				    u32 *user_key);
+extern void vmw_compat_shaders_commit(struct vmw_compat_shader_manager *man,
+				      struct list_head *list);
+extern void vmw_compat_shaders_revert(struct vmw_compat_shader_manager *man,
+				      struct list_head *list);
+extern int vmw_compat_shader_remove(struct vmw_compat_shader_manager *man,
+				    u32 user_key,
+				    SVGA3dShaderType shader_type,
+				    struct list_head *list);
+extern int vmw_compat_shader_add(struct vmw_compat_shader_manager *man,
+				 u32 user_key, const void *bytecode,
+				 SVGA3dShaderType shader_type,
+				 size_t size,
+				 struct ttm_object_file *tfile,
+				 struct list_head *list);
+extern struct vmw_compat_shader_manager *
+vmw_compat_shader_man_create(struct vmw_private *dev_priv);
+extern void
+vmw_compat_shader_man_destroy(struct vmw_compat_shader_manager *man);
+
 
 /**
  * Inline helper functions
