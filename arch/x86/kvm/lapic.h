@@ -65,7 +65,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, int *r, unsigned long *dest_map);
 
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
-void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data);
+int kvm_set_apic_base(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
 void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 		struct kvm_lapic_state *s);
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
