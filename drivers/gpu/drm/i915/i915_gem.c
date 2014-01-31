@@ -4467,8 +4467,10 @@ int i915_gem_init(struct drm_device *dev)
 	i915_gem_init_global_gtt(dev);
 
 	ret = i915_gem_context_init(dev);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&dev->struct_mutex);
 		return ret;
+	}
 
 	ret = i915_gem_init_hw(dev);
 	mutex_unlock(&dev->struct_mutex);
