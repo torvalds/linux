@@ -592,7 +592,7 @@ static int make_resync_request(struct drbd_device *const device, int cancel)
 	const sector_t capacity = drbd_get_capacity(device->this_bdev);
 	int max_bio_size;
 	int number, rollback_i, size;
-	int align, queued, sndbuf;
+	int align, requeue = 0;
 	int i = 0;
 
 	if (unlikely(cancel))
@@ -619,17 +619,22 @@ static int make_resync_request(struct drbd_device *const device, int cancel)
 		goto requeue;
 
 	for (i = 0; i < number; i++) {
-		/* Stop generating RS requests, when half of the send buffer is filled */
+		/* Stop generating RS requests when half of the send buffer is filled,
+		 * but notify TCP that we'd like to have more space. */
 		mutex_lock(&connection->data.mutex);
 		if (connection->data.socket) {
-			queued = connection->data.socket->sk->sk_wmem_queued;
-			sndbuf = connection->data.socket->sk->sk_sndbuf;
-		} else {
-			queued = 1;
-			sndbuf = 0;
-		}
+			struct sock *sk = connection->data.socket->sk;
+			int queued = sk->sk_wmem_queued;
+			int sndbuf = sk->sk_sndbuf;
+			if (queued > sndbuf / 2) {
+				requeue = 1;
+				if (sk->sk_socket)
+					set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+			}
+		} else
+			requeue = 1;
 		mutex_unlock(&connection->data.mutex);
-		if (queued > sndbuf / 2)
+		if (requeue)
 			goto requeue;
 
 next_sector:
