@@ -90,7 +90,7 @@ int __init mem_reserve(unsigned long start, unsigned long end, int must_exist)
 
 
 /*
- * Initialize the bootmem system and give it all the memory we have available.
+ * Initialize the bootmem system and give it all low memory we have available.
  */
 
 void __init bootmem_init(void)
@@ -142,9 +142,14 @@ void __init bootmem_init(void)
 
 	/* Add all remaining memory pieces into the bootmem map */
 
-	for (i=0; i<sysmem.nr_banks; i++)
-		free_bootmem(sysmem.bank[i].start,
-			     sysmem.bank[i].end - sysmem.bank[i].start);
+	for (i = 0; i < sysmem.nr_banks; i++) {
+		if (sysmem.bank[i].start >> PAGE_SHIFT < max_low_pfn) {
+			unsigned long end = min(max_low_pfn << PAGE_SHIFT,
+						sysmem.bank[i].end);
+			free_bootmem(sysmem.bank[i].start,
+				     end - sysmem.bank[i].start);
+		}
+	}
 
 }
 
