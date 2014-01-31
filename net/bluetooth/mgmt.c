@@ -364,6 +364,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 
 	settings |= MGMT_SETTING_POWERED;
 	settings |= MGMT_SETTING_PAIRABLE;
+	settings |= MGMT_SETTING_DEBUG_KEYS;
 
 	if (lmp_bredr_capable(hdev)) {
 		settings |= MGMT_SETTING_CONNECTABLE;
@@ -430,6 +431,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 	if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags))
 		settings |= MGMT_SETTING_SECURE_CONN;
+
+	if (test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags))
+		settings |= MGMT_SETTING_DEBUG_KEYS;
 
 	return settings;
 }
@@ -2207,6 +2211,7 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_load_link_keys *cp = data;
 	u16 key_count, expected_len;
+	bool changed;
 	int i;
 
 	BT_DBG("request for %s", hdev->name);
@@ -2246,9 +2251,12 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_link_keys_clear(hdev);
 
 	if (cp->debug_keys)
-		set_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+		changed = !test_and_set_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
 	else
-		clear_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+		changed = test_and_clear_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+
+	if (changed)
+		new_settings(hdev, NULL);
 
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_link_key_info *key = &cp->keys[i];
