@@ -187,6 +187,7 @@ int torture_onoff_init(long ooholdoff, long oointerval)
 	onoff_interval = oointerval;
 	if (onoff_interval <= 0)
 		return 0;
+	VERBOSE_TOROUT_STRING("Creating torture_onoff task");
 	onoff_task = kthread_run(torture_onoff, NULL, "torture_onoff");
 	if (IS_ERR(onoff_task)) {
 		ret = PTR_ERR(onoff_task);
@@ -390,6 +391,7 @@ int torture_shuffle_init(long shuffint)
 	}
 
 	/* Create the shuffler thread */
+	VERBOSE_TOROUT_STRING("Creating torture_shuffle task");
 	shuffler_task = kthread_run(torture_shuffle, NULL, "torture_shuffle");
 	if (IS_ERR(shuffler_task)) {
 		ret = PTR_ERR(shuffler_task);
@@ -486,6 +488,7 @@ int torture_shutdown_init(int ssecs, void (*cleanup)(void))
 	shutdown_secs = ssecs;
 	torture_shutdown_hook = cleanup;
 	if (shutdown_secs > 0) {
+		VERBOSE_TOROUT_STRING("Creating torture_shutdown task");
 		shutdown_time = jiffies + shutdown_secs * HZ;
 		shutdown_task = kthread_create(torture_shutdown, NULL,
 					       "torture_shutdown");
@@ -592,6 +595,7 @@ int torture_stutter_init(int s)
 	int ret;
 
 	stutter = s;
+	VERBOSE_TOROUT_STRING("Creating torture_stutter task");
 	stutter_task = kthread_run(torture_stutter, NULL, "torture_stutter");
 	if (IS_ERR(stutter_task)) {
 		ret = PTR_ERR(stutter_task);

@@ -1120,6 +1120,7 @@ static int __init rcu_torture_stall_init(void)
 
 	if (stall_cpu <= 0)
 		return 0;
+	VERBOSE_TOROUT_STRING("Creating rcu_torture_stall task");
 	stall_task = kthread_run(rcu_torture_stall, NULL, "rcu_torture_stall");
 	if (IS_ERR(stall_task)) {
 		ret = PTR_ERR(stall_task);
@@ -1242,6 +1243,7 @@ static int rcu_torture_barrier_init(void)
 		return -ENOMEM;
 	for (i = 0; i < n_barrier_cbs; i++) {
 		init_waitqueue_head(&barrier_cbs_wq[i]);
+		VERBOSE_TOROUT_STRING("Creating rcu_torture_barrier_cbs task");
 		barrier_cbs_tasks[i] = kthread_run(rcu_torture_barrier_cbs,
 						   (void *)(long)i,
 						   "rcu_torture_barrier_cbs");
@@ -1253,6 +1255,7 @@ static int rcu_torture_barrier_init(void)
 		}
 		torture_shuffle_task_register(barrier_cbs_tasks[i]);
 	}
+	VERBOSE_TOROUT_STRING("Creating rcu_torture_barrier task");
 	barrier_task = kthread_run(rcu_torture_barrier, NULL,
 				   "rcu_torture_barrier");
 	if (IS_ERR(barrier_task)) {
@@ -1606,6 +1609,7 @@ rcu_torture_init(void)
 		fqs_duration = 0;
 	if (fqs_duration) {
 		/* Create the fqs thread */
+		VERBOSE_TOROUT_STRING("Creating rcu_torture_fqs task");
 		fqs_task = kthread_run(rcu_torture_fqs, NULL,
 				       "rcu_torture_fqs");
 		if (IS_ERR(fqs_task)) {
