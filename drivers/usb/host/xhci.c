@@ -4719,9 +4719,6 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	/* Limit the block layer scatter-gather lists to half a segment. */
 	hcd->self.sg_tablesize = TRBS_PER_SEGMENT / 2;
 
-	/* support to build packet from discontinuous buffers */
-	hcd->self.no_sg_constraint = 1;
-
 	/* XHCI controllers don't stop the ep queue on short packets :| */
 	hcd->self.no_stop_on_short = 1;
 
@@ -4746,6 +4743,14 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		/* xHCI private pointer was set in xhci_pci_probe for the second
 		 * registered roothub.
 		 */
+		xhci = hcd_to_xhci(hcd);
+		/*
+		 * Support arbitrarily aligned sg-list entries on hosts without
+		 * TD fragment rules (which are currently unsupported).
+		 */
+		if (xhci->hci_version < 0x100)
+			hcd->self.no_sg_constraint = 1;
+
 		return 0;
 	}
 
@@ -4771,6 +4776,9 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	 */
 	if (xhci->hci_version > 0x96)
 		xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
+
+	if (xhci->hci_version < 0x100)
+		hcd->self.no_sg_constraint = 1;
 
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);
