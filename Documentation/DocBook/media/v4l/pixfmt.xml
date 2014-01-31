@@ -818,6 +818,7 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 interface only.</para>
 
     &sub-sdr-cu08;
+    &sub-sdr-cu16le;
 
   </section>
 
