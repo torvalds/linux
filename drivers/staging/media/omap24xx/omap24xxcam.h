@@ -28,8 +28,8 @@
 #define OMAP24XXCAM_H
 
 #include <media/videobuf-dma-sg.h>
-#include <media/v4l2-int-device.h>
 #include <media/v4l2-device.h>
+#include "v4l2-int-device.h"
 
 /*
  *

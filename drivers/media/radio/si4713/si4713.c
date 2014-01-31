@@ -27,13 +27,12 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/regulator/consumer.h>
 #include <linux/module.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
 
-#include "si4713-i2c.h"
+#include "si4713.h"
 
 /* module parameters */
 static int debug;
@@ -45,23 +44,18 @@ MODULE_AUTHOR("Eduardo Valentin <eduardo.valentin@nokia.com>");
 MODULE_DESCRIPTION("I2C driver for Si4713 FM Radio Transmitter");
 MODULE_VERSION("0.0.1");
 
-static const char *si4713_supply_names[SI4713_NUM_SUPPLIES] = {
-	"vio",
-	"vdd",
-};
-
 #define DEFAULT_RDS_PI			0x00
 #define DEFAULT_RDS_PTY			0x00
 #define DEFAULT_RDS_DEVIATION		0x00C8
 #define DEFAULT_RDS_PS_REPEAT_COUNT	0x0003
 #define DEFAULT_LIMITER_RTIME		0x1392
 #define DEFAULT_LIMITER_DEV		0x102CA
-#define DEFAULT_PILOT_FREQUENCY 	0x4A38
+#define DEFAULT_PILOT_FREQUENCY		0x4A38
 #define DEFAULT_PILOT_DEVIATION		0x1A5E
 #define DEFAULT_ACOMP_ATIME		0x0000
 #define DEFAULT_ACOMP_RTIME		0xF4240L
 #define DEFAULT_ACOMP_GAIN		0x0F
-#define DEFAULT_ACOMP_THRESHOLD 	(-0x28)
+#define DEFAULT_ACOMP_THRESHOLD		(-0x28)
 #define DEFAULT_MUTE			0x01
 #define DEFAULT_POWER_LEVEL		88
 #define DEFAULT_FREQUENCY		8800
@@ -213,6 +207,7 @@ static int si4713_send_command(struct si4713_device *sdev, const u8 command,
 				u8 response[], const int respn, const int usecs)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sdev->sd);
+	unsigned long until_jiffies;
 	u8 data1[MAX_ARGS + 1];
 	int err;
 
@@ -228,30 +223,42 @@ static int si4713_send_command(struct si4713_device *sdev, const u8 command,
 	if (err != argn + 1) {
 		v4l2_err(&sdev->sd, "Error while sending command 0x%02x\n",
 			command);
-		return (err > 0) ? -EIO : err;
+		return err < 0 ? err : -EIO;
 	}
+
+	until_jiffies = jiffies + usecs_to_jiffies(usecs) + 1;
 
 	/* Wait response from interrupt */
-	if (!wait_for_completion_timeout(&sdev->work,
+	if (client->irq) {
+		if (!wait_for_completion_timeout(&sdev->work,
 				usecs_to_jiffies(usecs) + 1))
-		v4l2_warn(&sdev->sd,
+			v4l2_warn(&sdev->sd,
 				"(%s) Device took too much time to answer.\n",
 				__func__);
-
-	/* Then get the response */
-	err = i2c_master_recv(client, response, respn);
-	if (err != respn) {
-		v4l2_err(&sdev->sd,
-			"Error while reading response for command 0x%02x\n",
-			command);
-		return (err > 0) ? -EIO : err;
 	}
 
-	DBG_BUFFER(&sdev->sd, "Response", response, respn);
-	if (check_command_failed(response[0]))
-		return -EBUSY;
+	do {
+		err = i2c_master_recv(client, response, respn);
+		if (err != respn) {
+			v4l2_err(&sdev->sd,
+				"Error %d while reading response for command 0x%02x\n",
+				err, command);
+			return err < 0 ? err : -EIO;
+		}
 
-	return 0;
+		DBG_BUFFER(&sdev->sd, "Response", response, respn);
+		if (!check_command_failed(response[0]))
+			return 0;
+
+		if (client->irq)
+			return -EBUSY;
+		if (usecs <= 1000)
+			usleep_range(usecs, 1000);
+		else
+			usleep_range(1000, 2000);
+	} while (time_is_after_jiffies(until_jiffies));
+
+	return -EBUSY;
 }
 
 /*
@@ -265,9 +272,9 @@ static int si4713_read_property(struct si4713_device *sdev, u16 prop, u32 *pv)
 	int err;
 	u8 val[SI4713_GET_PROP_NRESP];
 	/*
-	 * 	.First byte = 0
-	 * 	.Second byte = property's MSB
-	 * 	.Third byte = property's LSB
+	 *	.First byte = 0
+	 *	.Second byte = property's MSB
+	 *	.Third byte = property's LSB
 	 */
 	const u8 args[SI4713_GET_PROP_NARGS] = {
 		0x00,
@@ -302,11 +309,11 @@ static int si4713_write_property(struct si4713_device *sdev, u16 prop, u16 val)
 	int rval;
 	u8 resp[SI4713_SET_PROP_NRESP];
 	/*
-	 * 	.First byte = 0
-	 * 	.Second byte = property's MSB
-	 * 	.Third byte = property's LSB
-	 * 	.Fourth byte = value's MSB
-	 * 	.Fifth byte = value's LSB
+	 *	.First byte = 0
+	 *	.Second byte = property's MSB
+	 *	.Third byte = property's LSB
+	 *	.Fourth byte = value's MSB
+	 *	.Fifth byte = value's LSB
 	 */
 	const u8 args[SI4713_SET_PROP_NARGS] = {
 		0x00,
@@ -344,30 +351,35 @@ static int si4713_write_property(struct si4713_device *sdev, u16 prop, u16 val)
  */
 static int si4713_powerup(struct si4713_device *sdev)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&sdev->sd);
 	int err;
 	u8 resp[SI4713_PWUP_NRESP];
 	/*
-	 * 	.First byte = Enabled interrupts and boot function
-	 * 	.Second byte = Input operation mode
+	 *	.First byte = Enabled interrupts and boot function
+	 *	.Second byte = Input operation mode
 	 */
-	const u8 args[SI4713_PWUP_NARGS] = {
-		SI4713_PWUP_CTSIEN | SI4713_PWUP_GPO2OEN | SI4713_PWUP_FUNC_TX,
+	u8 args[SI4713_PWUP_NARGS] = {
+		SI4713_PWUP_GPO2OEN | SI4713_PWUP_FUNC_TX,
 		SI4713_PWUP_OPMOD_ANALOG,
 	};
 
 	if (sdev->power_state)
 		return 0;
 
-	err = regulator_bulk_enable(ARRAY_SIZE(sdev->supplies),
-				    sdev->supplies);
-	if (err) {
-		v4l2_err(&sdev->sd, "Failed to enable supplies: %d\n", err);
-		return err;
+	if (sdev->supplies) {
+		err = regulator_bulk_enable(sdev->supplies, sdev->supply_data);
+		if (err) {
+			v4l2_err(&sdev->sd, "Failed to enable supplies: %d\n", err);
+			return err;
+		}
 	}
 	if (gpio_is_valid(sdev->gpio_reset)) {
 		udelay(50);
 		gpio_set_value(sdev->gpio_reset, 1);
 	}
+
+	if (client->irq)
+		args[0] |= SI4713_PWUP_CTSIEN;
 
 	err = si4713_send_command(sdev, SI4713_CMD_POWER_UP,
 					args, ARRAY_SIZE(args),
@@ -380,13 +392,15 @@ static int si4713_powerup(struct si4713_device *sdev)
 		v4l2_dbg(1, debug, &sdev->sd, "Device in power up mode\n");
 		sdev->power_state = POWER_ON;
 
-		err = si4713_write_property(sdev, SI4713_GPO_IEN,
+		if (client->irq)
+			err = si4713_write_property(sdev, SI4713_GPO_IEN,
 						SI4713_STC_INT | SI4713_CTS);
-	} else {
-		if (gpio_is_valid(sdev->gpio_reset))
-			gpio_set_value(sdev->gpio_reset, 0);
-		err = regulator_bulk_disable(ARRAY_SIZE(sdev->supplies),
-					     sdev->supplies);
+		return err;
+	}
+	if (gpio_is_valid(sdev->gpio_reset))
+		gpio_set_value(sdev->gpio_reset, 0);
+	if (sdev->supplies) {
+		err = regulator_bulk_disable(sdev->supplies, sdev->supply_data);
 		if (err)
 			v4l2_err(&sdev->sd,
 				 "Failed to disable supplies: %d\n", err);
@@ -418,11 +432,13 @@ static int si4713_powerdown(struct si4713_device *sdev)
 		v4l2_dbg(1, debug, &sdev->sd, "Device in reset mode\n");
 		if (gpio_is_valid(sdev->gpio_reset))
 			gpio_set_value(sdev->gpio_reset, 0);
-		err = regulator_bulk_disable(ARRAY_SIZE(sdev->supplies),
-					     sdev->supplies);
-		if (err)
-			v4l2_err(&sdev->sd,
-				 "Failed to disable supplies: %d\n", err);
+		if (sdev->supplies) {
+			err = regulator_bulk_disable(sdev->supplies,
+						     sdev->supply_data);
+			if (err)
+				v4l2_err(&sdev->sd,
+					 "Failed to disable supplies: %d\n", err);
+		}
 		sdev->power_state = POWER_OFF;
 	}
 
@@ -451,7 +467,7 @@ static int si4713_checkrev(struct si4713_device *sdev)
 		v4l2_info(&sdev->sd, "chip found @ 0x%02x (%s)\n",
 				client->addr << 1, client->adapter->name);
 	} else {
-		v4l2_err(&sdev->sd, "Invalid product number\n");
+		v4l2_err(&sdev->sd, "Invalid product number 0x%X\n", resp[1]);
 		rval = -EINVAL;
 	}
 	return rval;
@@ -465,39 +481,45 @@ static int si4713_checkrev(struct si4713_device *sdev)
  */
 static int si4713_wait_stc(struct si4713_device *sdev, const int usecs)
 {
-	int err;
+	struct i2c_client *client = v4l2_get_subdevdata(&sdev->sd);
 	u8 resp[SI4713_GET_STATUS_NRESP];
+	unsigned long start_jiffies = jiffies;
+	int err;
 
-	/* Wait response from STC interrupt */
-	if (!wait_for_completion_timeout(&sdev->work,
-			usecs_to_jiffies(usecs) + 1))
+	if (client->irq &&
+	    !wait_for_completion_timeout(&sdev->work, usecs_to_jiffies(usecs) + 1))
 		v4l2_warn(&sdev->sd,
-			"%s: device took too much time to answer (%d usec).\n",
-				__func__, usecs);
+			"(%s) Device took too much time to answer.\n", __func__);
 
-	/* Clear status bits */
-	err = si4713_send_command(sdev, SI4713_CMD_GET_INT_STATUS,
-					NULL, 0,
-					resp, ARRAY_SIZE(resp),
-					DEFAULT_TIMEOUT);
+	for (;;) {
+		/* Clear status bits */
+		err = si4713_send_command(sdev, SI4713_CMD_GET_INT_STATUS,
+				NULL, 0,
+				resp, ARRAY_SIZE(resp),
+				DEFAULT_TIMEOUT);
+		/* The USB device returns errors when it waits for the
+		 * STC bit to be set. Hence polling */
+		if (err >= 0) {
+			v4l2_dbg(1, debug, &sdev->sd,
+				"%s: status bits: 0x%02x\n", __func__, resp[0]);
 
-	if (err < 0)
-		goto exit;
-
-	v4l2_dbg(1, debug, &sdev->sd,
-			"%s: status bits: 0x%02x\n", __func__, resp[0]);
-
-	if (!(resp[0] & SI4713_STC_INT))
-		err = -EIO;
-
-exit:
-	return err;
+			if (resp[0] & SI4713_STC_INT)
+				return 0;
+		}
+		if (jiffies_to_usecs(jiffies - start_jiffies) > usecs)
+			return err < 0 ? err : -EIO;
+		/* We sleep here for 3-4 ms in order to avoid flooding the device
+		 * with USB requests. The si4713 USB driver was developed
+		 * by reverse engineering the Windows USB driver. The windows
+		 * driver also has a ~2.5 ms delay between responses. */
+		usleep_range(3000, 4000);
+	}
 }
 
 /*
  * si4713_tx_tune_freq - Sets the state of the RF carrier and sets the tuning
- * 			frequency between 76 and 108 MHz in 10 kHz units and
- * 			steps of 50 kHz.
+ *			frequency between 76 and 108 MHz in 10 kHz units and
+ *			steps of 50 kHz.
  * @sdev: si4713_device structure for the device we are communicating
  * @frequency: desired frequency (76 - 108 MHz, unit 10 KHz, step 50 kHz)
  */
@@ -506,9 +528,9 @@ static int si4713_tx_tune_freq(struct si4713_device *sdev, u16 frequency)
 	int err;
 	u8 val[SI4713_TXFREQ_NRESP];
 	/*
-	 * 	.First byte = 0
-	 * 	.Second byte = frequency's MSB
-	 * 	.Third byte = frequency's LSB
+	 *	.First byte = 0
+	 *	.Second byte = frequency's MSB
+	 *	.Third byte = frequency's LSB
 	 */
 	const u8 args[SI4713_TXFREQ_NARGS] = {
 		0x00,
@@ -535,14 +557,14 @@ static int si4713_tx_tune_freq(struct si4713_device *sdev, u16 frequency)
 }
 
 /*
- * si4713_tx_tune_power - Sets the RF voltage level between 88 and 115 dBuV in
- * 			1 dB units. A value of 0x00 indicates off. The command
- * 			also sets the antenna tuning capacitance. A value of 0
- * 			indicates autotuning, and a value of 1 - 191 indicates
- * 			a manual override, which results in a tuning
- * 			capacitance of 0.25 pF x @antcap.
+ * si4713_tx_tune_power - Sets the RF voltage level between 88 and 120 dBuV in
+ *			1 dB units. A value of 0x00 indicates off. The command
+ *			also sets the antenna tuning capacitance. A value of 0
+ *			indicates autotuning, and a value of 1 - 191 indicates
+ *			a manual override, which results in a tuning
+ *			capacitance of 0.25 pF x @antcap.
  * @sdev: si4713_device structure for the device we are communicating
- * @power: tuning power (88 - 115 dBuV, unit/step 1 dB)
+ * @power: tuning power (88 - 120 dBuV, unit/step 1 dB)
  * @antcap: value of antenna tuning capacitor (0 - 191)
  */
 static int si4713_tx_tune_power(struct si4713_device *sdev, u8 power,
@@ -551,21 +573,21 @@ static int si4713_tx_tune_power(struct si4713_device *sdev, u8 power,
 	int err;
 	u8 val[SI4713_TXPWR_NRESP];
 	/*
-	 * 	.First byte = 0
-	 * 	.Second byte = 0
-	 * 	.Third byte = power
-	 * 	.Fourth byte = antcap
+	 *	.First byte = 0
+	 *	.Second byte = 0
+	 *	.Third byte = power
+	 *	.Fourth byte = antcap
 	 */
-	const u8 args[SI4713_TXPWR_NARGS] = {
+	u8 args[SI4713_TXPWR_NARGS] = {
 		0x00,
 		0x00,
 		power,
 		antcap,
 	};
 
-	if (((power > 0) && (power < SI4713_MIN_POWER)) ||
-		power > SI4713_MAX_POWER || antcap > SI4713_MAX_ANTCAP)
-		return -EDOM;
+	/* Map power values 1-87 to MIN_POWER (88) */
+	if (power > 0 && power < SI4713_MIN_POWER)
+		args[2] = power = SI4713_MIN_POWER;
 
 	err = si4713_send_command(sdev, SI4713_CMD_TX_TUNE_POWER,
 				  args, ARRAY_SIZE(args), val,
@@ -583,12 +605,12 @@ static int si4713_tx_tune_power(struct si4713_device *sdev, u8 power,
 
 /*
  * si4713_tx_tune_measure - Enters receive mode and measures the received noise
- * 			level in units of dBuV on the selected frequency.
- * 			The Frequency must be between 76 and 108 MHz in 10 kHz
- * 			units and steps of 50 kHz. The command also sets the
- * 			antenna	tuning capacitance. A value of 0 means
- * 			autotuning, and a value of 1 to 191 indicates manual
- * 			override.
+ *			level in units of dBuV on the selected frequency.
+ *			The Frequency must be between 76 and 108 MHz in 10 kHz
+ *			units and steps of 50 kHz. The command also sets the
+ *			antenna	tuning capacitance. A value of 0 means
+ *			autotuning, and a value of 1 to 191 indicates manual
+ *			override.
  * @sdev: si4713_device structure for the device we are communicating
  * @frequency: desired frequency (76 - 108 MHz, unit 10 KHz, step 50 kHz)
  * @antcap: value of antenna tuning capacitor (0 - 191)
@@ -599,10 +621,10 @@ static int si4713_tx_tune_measure(struct si4713_device *sdev, u16 frequency,
 	int err;
 	u8 val[SI4713_TXMEA_NRESP];
 	/*
-	 * 	.First byte = 0
-	 * 	.Second byte = frequency's MSB
-	 * 	.Third byte = frequency's LSB
-	 * 	.Fourth byte = antcap
+	 *	.First byte = 0
+	 *	.Second byte = frequency's MSB
+	 *	.Third byte = frequency's LSB
+	 *	.Fourth byte = antcap
 	 */
 	const u8 args[SI4713_TXMEA_NARGS] = {
 		0x00,
@@ -632,11 +654,11 @@ static int si4713_tx_tune_measure(struct si4713_device *sdev, u16 frequency,
 
 /*
  * si4713_tx_tune_status- Returns the status of the tx_tune_freq, tx_tune_mea or
- * 			tx_tune_power commands. This command return the current
- * 			frequency, output voltage in dBuV, the antenna tunning
- * 			capacitance value and the received noise level. The
- * 			command also clears the stcint interrupt bit when the
- * 			first bit of its arguments is high.
+ *			tx_tune_power commands. This command return the current
+ *			frequency, output voltage in dBuV, the antenna tunning
+ *			capacitance value and the received noise level. The
+ *			command also clears the stcint interrupt bit when the
+ *			first bit of its arguments is high.
  * @sdev: si4713_device structure for the device we are communicating
  * @intack: 0x01 to clear the seek/tune complete interrupt status indicator.
  * @frequency: returned frequency
@@ -651,7 +673,7 @@ static int si4713_tx_tune_status(struct si4713_device *sdev, u8 intack,
 	int err;
 	u8 val[SI4713_TXSTATUS_NRESP];
 	/*
-	 * 	.First byte = intack bit
+	 *	.First byte = intack bit
 	 */
 	const u8 args[SI4713_TXSTATUS_NARGS] = {
 		intack & SI4713_INTACK_MASK,
@@ -812,8 +834,9 @@ static int si4713_set_rds_ps_name(struct si4713_device *sdev, char *ps_name)
 	return rval;
 }
 
-static int si4713_set_rds_radio_text(struct si4713_device *sdev, char *rt)
+static int si4713_set_rds_radio_text(struct si4713_device *sdev, const char *rt)
 {
+	static const char cr[RDS_RADIOTEXT_BLK_SIZE] = { RDS_CARRIAGE_RETURN, 0 };
 	int rval = 0, i;
 	u16 t_index = 0;
 	u8 b_index = 0, cr_inserted = 0;
@@ -837,7 +860,7 @@ static int si4713_set_rds_radio_text(struct si4713_device *sdev, char *rt)
 			for (i = 0; i < RDS_RADIOTEXT_BLK_SIZE; i++) {
 				if (!rt[t_index + i] ||
 				    rt[t_index + i] == RDS_CARRIAGE_RETURN) {
-					rt[t_index + i] = RDS_CARRIAGE_RETURN;
+					rt = cr;
 					cr_inserted = 1;
 					break;
 				}
@@ -1023,7 +1046,6 @@ static int si4713_initialize(struct si4713_device *sdev)
 	rval = si4713_set_power_state(sdev, POWER_OFF);
 	if (rval < 0)
 		return rval;
-
 
 	sdev->frequency = DEFAULT_FREQUENCY;
 	sdev->stereo = 1;
@@ -1345,7 +1367,7 @@ static int si4713_probe(struct i2c_client *client,
 	struct v4l2_ctrl_handler *hdl;
 	int rval, i;
 
-	sdev = kzalloc(sizeof *sdev, GFP_KERNEL);
+	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
 		dev_err(&client->dev, "Failed to alloc video device.\n");
 		rval = -ENOMEM;
@@ -1362,13 +1384,14 @@ static int si4713_probe(struct i2c_client *client,
 		}
 		sdev->gpio_reset = pdata->gpio_reset;
 		gpio_direction_output(sdev->gpio_reset, 0);
+		sdev->supplies = pdata->supplies;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sdev->supplies); i++)
-		sdev->supplies[i].supply = si4713_supply_names[i];
+	for (i = 0; i < sdev->supplies; i++)
+		sdev->supply_data[i].supply = pdata->supply_names[i];
 
-	rval = regulator_bulk_get(&client->dev, ARRAY_SIZE(sdev->supplies),
-				  sdev->supplies);
+	rval = regulator_bulk_get(&client->dev, sdev->supplies,
+				  sdev->supply_data);
 	if (rval) {
 		dev_err(&client->dev, "Cannot get regulators: %d\n", rval);
 		goto free_gpio;
@@ -1420,8 +1443,8 @@ static int si4713_probe(struct i2c_client *client,
 			V4L2_CID_AUDIO_COMPRESSION_GAIN, 0, MAX_ACOMP_GAIN, 1,
 			DEFAULT_ACOMP_GAIN);
 	sdev->compression_threshold = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
-			V4L2_CID_AUDIO_COMPRESSION_THRESHOLD, MIN_ACOMP_THRESHOLD,
-			MAX_ACOMP_THRESHOLD, 1,
+			V4L2_CID_AUDIO_COMPRESSION_THRESHOLD,
+			MIN_ACOMP_THRESHOLD, MAX_ACOMP_THRESHOLD, 1,
 			DEFAULT_ACOMP_THRESHOLD);
 	sdev->compression_attack_time = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
 			V4L2_CID_AUDIO_COMPRESSION_ATTACK_TIME, 0,
@@ -1443,9 +1466,11 @@ static int si4713_probe(struct i2c_client *client,
 			V4L2_CID_TUNE_PREEMPHASIS,
 			V4L2_PREEMPHASIS_75_uS, 0, V4L2_PREEMPHASIS_50_uS);
 	sdev->tune_pwr_level = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
-			V4L2_CID_TUNE_POWER_LEVEL, 0, 120, 1, DEFAULT_POWER_LEVEL);
+			V4L2_CID_TUNE_POWER_LEVEL, 0, SI4713_MAX_POWER,
+			1, DEFAULT_POWER_LEVEL);
 	sdev->tune_ant_cap = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
-			V4L2_CID_TUNE_ANTENNA_CAPACITOR, 0, 191, 1, 0);
+			V4L2_CID_TUNE_ANTENNA_CAPACITOR, 0, SI4713_MAX_ANTCAP,
+			1, 0);
 
 	if (hdl->error) {
 		rval = hdl->error;
@@ -1481,7 +1506,7 @@ free_irq:
 free_ctrls:
 	v4l2_ctrl_handler_free(hdl);
 put_reg:
-	regulator_bulk_free(ARRAY_SIZE(sdev->supplies), sdev->supplies);
+	regulator_bulk_free(sdev->supplies, sdev->supply_data);
 free_gpio:
 	if (gpio_is_valid(sdev->gpio_reset))
 		gpio_free(sdev->gpio_reset);
@@ -1505,7 +1530,7 @@ static int si4713_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	regulator_bulk_free(ARRAY_SIZE(sdev->supplies), sdev->supplies);
+	regulator_bulk_free(sdev->supplies, sdev->supply_data);
 	if (gpio_is_valid(sdev->gpio_reset))
 		gpio_free(sdev->gpio_reset);
 	kfree(sdev);

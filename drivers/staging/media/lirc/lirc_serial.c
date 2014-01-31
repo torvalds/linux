@@ -650,7 +650,7 @@ static void frbwrite(int l)
 	rbwrite(l);
 }
 
-static irqreturn_t irq_handler(int i, void *blah)
+static irqreturn_t lirc_irq_handler(int i, void *blah)
 {
 	struct timeval tv;
 	int counter, dcd;
@@ -852,7 +852,7 @@ static int lirc_serial_probe(struct platform_device *dev)
 		return result;
 #endif
 
-	result = request_irq(irq, irq_handler,
+	result = request_irq(irq, lirc_irq_handler,
 			     (share_irq ? IRQF_SHARED : 0),
 			     LIRC_DRIVER_NAME, (void *)&hardware);
 	if (result < 0) {

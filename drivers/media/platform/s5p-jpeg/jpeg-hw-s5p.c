@@ -9,27 +9,15 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef JPEG_HW_H_
-#define JPEG_HW_H_
 
 #include <linux/io.h>
 #include <linux/videodev2.h>
 
-#include "jpeg-hw.h"
+#include "jpeg-core.h"
 #include "jpeg-regs.h"
+#include "jpeg-hw-s5p.h"
 
-#define S5P_JPEG_MIN_WIDTH		32
-#define S5P_JPEG_MIN_HEIGHT		32
-#define S5P_JPEG_MAX_WIDTH		8192
-#define S5P_JPEG_MAX_HEIGHT		8192
-#define S5P_JPEG_ENCODE			0
-#define S5P_JPEG_DECODE			1
-#define S5P_JPEG_RAW_IN_565		0
-#define S5P_JPEG_RAW_IN_422		1
-#define S5P_JPEG_RAW_OUT_422		0
-#define S5P_JPEG_RAW_OUT_420		1
-
-static inline void jpeg_reset(void __iomem *regs)
+void s5p_jpeg_reset(void __iomem *regs)
 {
 	unsigned long reg;
 
@@ -42,12 +30,12 @@ static inline void jpeg_reset(void __iomem *regs)
 	}
 }
 
-static inline void jpeg_poweron(void __iomem *regs)
+void s5p_jpeg_poweron(void __iomem *regs)
 {
 	writel(S5P_POWER_ON, regs + S5P_JPGCLKCON);
 }
 
-static inline void jpeg_input_raw_mode(void __iomem *regs, unsigned long mode)
+void s5p_jpeg_input_raw_mode(void __iomem *regs, unsigned long mode)
 {
 	unsigned long reg, m;
 
@@ -63,7 +51,7 @@ static inline void jpeg_input_raw_mode(void __iomem *regs, unsigned long mode)
 	writel(reg, regs + S5P_JPGCMOD);
 }
 
-static inline void jpeg_input_raw_y16(void __iomem *regs, bool y16)
+void s5p_jpeg_input_raw_y16(void __iomem *regs, bool y16)
 {
 	unsigned long reg;
 
@@ -75,7 +63,7 @@ static inline void jpeg_input_raw_y16(void __iomem *regs, bool y16)
 	writel(reg, regs + S5P_JPGCMOD);
 }
 
-static inline void jpeg_proc_mode(void __iomem *regs, unsigned long mode)
+void s5p_jpeg_proc_mode(void __iomem *regs, unsigned long mode)
 {
 	unsigned long reg, m;
 
@@ -90,7 +78,7 @@ static inline void jpeg_proc_mode(void __iomem *regs, unsigned long mode)
 	writel(reg, regs + S5P_JPGMOD);
 }
 
-static inline void jpeg_subsampling_mode(void __iomem *regs, unsigned int mode)
+void s5p_jpeg_subsampling_mode(void __iomem *regs, unsigned int mode)
 {
 	unsigned long reg, m;
 
@@ -105,12 +93,12 @@ static inline void jpeg_subsampling_mode(void __iomem *regs, unsigned int mode)
 	writel(reg, regs + S5P_JPGMOD);
 }
 
-static inline unsigned int jpeg_get_subsampling_mode(void __iomem *regs)
+unsigned int s5p_jpeg_get_subsampling_mode(void __iomem *regs)
 {
 	return readl(regs + S5P_JPGMOD) & S5P_SUBSAMPLING_MODE_MASK;
 }
 
-static inline void jpeg_dri(void __iomem *regs, unsigned int dri)
+void s5p_jpeg_dri(void __iomem *regs, unsigned int dri)
 {
 	unsigned long reg;
 
@@ -125,7 +113,7 @@ static inline void jpeg_dri(void __iomem *regs, unsigned int dri)
 	writel(reg, regs + S5P_JPGDRI_L);
 }
 
-static inline void jpeg_qtbl(void __iomem *regs, unsigned int t, unsigned int n)
+void s5p_jpeg_qtbl(void __iomem *regs, unsigned int t, unsigned int n)
 {
 	unsigned long reg;
 
@@ -135,7 +123,7 @@ static inline void jpeg_qtbl(void __iomem *regs, unsigned int t, unsigned int n)
 	writel(reg, regs + S5P_JPG_QTBL);
 }
 
-static inline void jpeg_htbl_ac(void __iomem *regs, unsigned int t)
+void s5p_jpeg_htbl_ac(void __iomem *regs, unsigned int t)
 {
 	unsigned long reg;
 
@@ -146,7 +134,7 @@ static inline void jpeg_htbl_ac(void __iomem *regs, unsigned int t)
 	writel(reg, regs + S5P_JPG_HTBL);
 }
 
-static inline void jpeg_htbl_dc(void __iomem *regs, unsigned int t)
+void s5p_jpeg_htbl_dc(void __iomem *regs, unsigned int t)
 {
 	unsigned long reg;
 
@@ -157,7 +145,7 @@ static inline void jpeg_htbl_dc(void __iomem *regs, unsigned int t)
 	writel(reg, regs + S5P_JPG_HTBL);
 }
 
-static inline void jpeg_y(void __iomem *regs, unsigned int y)
+void s5p_jpeg_y(void __iomem *regs, unsigned int y)
 {
 	unsigned long reg;
 
@@ -172,7 +160,7 @@ static inline void jpeg_y(void __iomem *regs, unsigned int y)
 	writel(reg, regs + S5P_JPGY_L);
 }
 
-static inline void jpeg_x(void __iomem *regs, unsigned int x)
+void s5p_jpeg_x(void __iomem *regs, unsigned int x)
 {
 	unsigned long reg;
 
@@ -187,7 +175,7 @@ static inline void jpeg_x(void __iomem *regs, unsigned int x)
 	writel(reg, regs + S5P_JPGX_L);
 }
 
-static inline void jpeg_rst_int_enable(void __iomem *regs, bool enable)
+void s5p_jpeg_rst_int_enable(void __iomem *regs, bool enable)
 {
 	unsigned long reg;
 
@@ -198,7 +186,7 @@ static inline void jpeg_rst_int_enable(void __iomem *regs, bool enable)
 	writel(reg, regs + S5P_JPGINTSE);
 }
 
-static inline void jpeg_data_num_int_enable(void __iomem *regs, bool enable)
+void s5p_jpeg_data_num_int_enable(void __iomem *regs, bool enable)
 {
 	unsigned long reg;
 
@@ -209,7 +197,7 @@ static inline void jpeg_data_num_int_enable(void __iomem *regs, bool enable)
 	writel(reg, regs + S5P_JPGINTSE);
 }
 
-static inline void jpeg_final_mcu_num_int_enable(void __iomem *regs, bool enbl)
+void s5p_jpeg_final_mcu_num_int_enable(void __iomem *regs, bool enbl)
 {
 	unsigned long reg;
 
@@ -220,7 +208,7 @@ static inline void jpeg_final_mcu_num_int_enable(void __iomem *regs, bool enbl)
 	writel(reg, regs + S5P_JPGINTSE);
 }
 
-static inline void jpeg_timer_enable(void __iomem *regs, unsigned long val)
+void s5p_jpeg_timer_enable(void __iomem *regs, unsigned long val)
 {
 	unsigned long reg;
 
@@ -231,7 +219,7 @@ static inline void jpeg_timer_enable(void __iomem *regs, unsigned long val)
 	writel(reg, regs + S5P_JPG_TIMER_SE);
 }
 
-static inline void jpeg_timer_disable(void __iomem *regs)
+void s5p_jpeg_timer_disable(void __iomem *regs)
 {
 	unsigned long reg;
 
@@ -240,13 +228,13 @@ static inline void jpeg_timer_disable(void __iomem *regs)
 	writel(reg, regs + S5P_JPG_TIMER_SE);
 }
 
-static inline int jpeg_timer_stat(void __iomem *regs)
+int s5p_jpeg_timer_stat(void __iomem *regs)
 {
 	return (int)((readl(regs + S5P_JPG_TIMER_ST) & S5P_TIMER_INT_STAT_MASK)
 		     >> S5P_TIMER_INT_STAT_SHIFT);
 }
 
-static inline void jpeg_clear_timer_stat(void __iomem *regs)
+void s5p_jpeg_clear_timer_stat(void __iomem *regs)
 {
 	unsigned long reg;
 
@@ -255,7 +243,7 @@ static inline void jpeg_clear_timer_stat(void __iomem *regs)
 	writel(reg, regs + S5P_JPG_TIMER_SE);
 }
 
-static inline void jpeg_enc_stream_int(void __iomem *regs, unsigned long size)
+void s5p_jpeg_enc_stream_int(void __iomem *regs, unsigned long size)
 {
 	unsigned long reg;
 
@@ -266,13 +254,13 @@ static inline void jpeg_enc_stream_int(void __iomem *regs, unsigned long size)
 	writel(reg, regs + S5P_JPG_ENC_STREAM_INTSE);
 }
 
-static inline int jpeg_enc_stream_stat(void __iomem *regs)
+int s5p_jpeg_enc_stream_stat(void __iomem *regs)
 {
 	return (int)(readl(regs + S5P_JPG_ENC_STREAM_INTST) &
 		     S5P_ENC_STREAM_INT_STAT_MASK);
 }
 
-static inline void jpeg_clear_enc_stream_stat(void __iomem *regs)
+void s5p_jpeg_clear_enc_stream_stat(void __iomem *regs)
 {
 	unsigned long reg;
 
@@ -281,7 +269,7 @@ static inline void jpeg_clear_enc_stream_stat(void __iomem *regs)
 	writel(reg, regs + S5P_JPG_ENC_STREAM_INTSE);
 }
 
-static inline void jpeg_outform_raw(void __iomem *regs, unsigned long format)
+void s5p_jpeg_outform_raw(void __iomem *regs, unsigned long format)
 {
 	unsigned long reg, f;
 
@@ -296,17 +284,17 @@ static inline void jpeg_outform_raw(void __iomem *regs, unsigned long format)
 	writel(reg, regs + S5P_JPG_OUTFORM);
 }
 
-static inline void jpeg_jpgadr(void __iomem *regs, unsigned long addr)
+void s5p_jpeg_jpgadr(void __iomem *regs, unsigned long addr)
 {
 	writel(addr, regs + S5P_JPG_JPGADR);
 }
 
-static inline void jpeg_imgadr(void __iomem *regs, unsigned long addr)
+void s5p_jpeg_imgadr(void __iomem *regs, unsigned long addr)
 {
 	writel(addr, regs + S5P_JPG_IMGADR);
 }
 
-static inline void jpeg_coef(void __iomem *regs, unsigned int i,
+void s5p_jpeg_coef(void __iomem *regs, unsigned int i,
 			     unsigned int j, unsigned int coef)
 {
 	unsigned long reg;
@@ -317,24 +305,24 @@ static inline void jpeg_coef(void __iomem *regs, unsigned int i,
 	writel(reg, regs + S5P_JPG_COEF(i));
 }
 
-static inline void jpeg_start(void __iomem *regs)
+void s5p_jpeg_start(void __iomem *regs)
 {
 	writel(1, regs + S5P_JSTART);
 }
 
-static inline int jpeg_result_stat_ok(void __iomem *regs)
+int s5p_jpeg_result_stat_ok(void __iomem *regs)
 {
 	return (int)((readl(regs + S5P_JPGINTST) & S5P_RESULT_STAT_MASK)
 		     >> S5P_RESULT_STAT_SHIFT);
 }
 
-static inline int jpeg_stream_stat_ok(void __iomem *regs)
+int s5p_jpeg_stream_stat_ok(void __iomem *regs)
 {
 	return !(int)((readl(regs + S5P_JPGINTST) & S5P_STREAM_STAT_MASK)
 		      >> S5P_STREAM_STAT_SHIFT);
 }
 
-static inline void jpeg_clear_int(void __iomem *regs)
+void s5p_jpeg_clear_int(void __iomem *regs)
 {
 	unsigned long reg;
 
@@ -343,7 +331,7 @@ static inline void jpeg_clear_int(void __iomem *regs)
 	reg = readl(regs + S5P_JPGOPR);
 }
 
-static inline unsigned int jpeg_compressed_size(void __iomem *regs)
+unsigned int s5p_jpeg_compressed_size(void __iomem *regs)
 {
 	unsigned long jpeg_size = 0;
 
@@ -353,5 +341,3 @@ static inline unsigned int jpeg_compressed_size(void __iomem *regs)
 
 	return (unsigned int)jpeg_size;
 }
-
-#endif /* JPEG_HW_H_ */

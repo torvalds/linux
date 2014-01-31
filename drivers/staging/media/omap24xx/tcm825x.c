@@ -28,7 +28,7 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <media/v4l2-int-device.h>
+#include "v4l2-int-device.h"
 
 #include "tcm825x.h"
 

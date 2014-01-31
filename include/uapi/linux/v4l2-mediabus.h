@@ -110,6 +110,9 @@ enum v4l2_mbus_pixelcode {
 
 	/* S5C73M3 sensor specific interleaved UYVY and JPEG */
 	V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8 = 0x5001,
+
+	/* HSV - next is 0x6002 */
+	V4L2_MBUS_FMT_AHSV8888_1X32 = 0x6001,
 };
 
 /**

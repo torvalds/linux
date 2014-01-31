@@ -17,7 +17,7 @@
 
 #include <linux/videodev2.h>
 
-#include <media/v4l2-int-device.h>
+#include "v4l2-int-device.h"
 
 #define TCM825X_NAME "tcm825x"
 
