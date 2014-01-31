@@ -1399,6 +1399,9 @@ static int read_stdi(struct v4l2_subdev *sd, struct stdi_readback *stdi)
 static int adv7842_enum_dv_timings(struct v4l2_subdev *sd,
 				   struct v4l2_enum_dv_timings *timings)
 {
+	if (timings->pad != 0)
+		return -EINVAL;
+
 	return v4l2_enum_dv_timings_cap(timings,
 		adv7842_get_dv_timings_cap(sd), adv7842_check_dv_timings, NULL);
 }
@@ -1406,6 +1409,9 @@ static int adv7842_enum_dv_timings(struct v4l2_subdev *sd,
 static int adv7842_dv_timings_cap(struct v4l2_subdev *sd,
 				  struct v4l2_dv_timings_cap *cap)
 {
+	if (cap->pad != 0)
+		return -EINVAL;
+
 	*cap = *adv7842_get_dv_timings_cap(sd);
 	return 0;
 }
@@ -2901,6 +2907,8 @@ static const struct v4l2_subdev_video_ops adv7842_video_ops = {
 static const struct v4l2_subdev_pad_ops adv7842_pad_ops = {
 	.get_edid = adv7842_get_edid,
 	.set_edid = adv7842_set_edid,
+	.enum_dv_timings = adv7842_enum_dv_timings,
+	.dv_timings_cap = adv7842_dv_timings_cap,
 };
 
 static const struct v4l2_subdev_ops adv7842_ops = {
