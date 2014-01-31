@@ -172,11 +172,22 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	if (!config->gpios)
 		return ERR_PTR(-ENOMEM);
 
+	prop = of_find_property(np, "gpios-states", NULL);
+	if (prop) {
+		proplen = prop->length / sizeof(int);
+		if (proplen != config->nr_gpios) {
+			/* gpios <-> gpios-states mismatch */
+			prop = NULL;
+		}
+	}
+
 	for (i = 0; i < config->nr_gpios; i++) {
 		gpio = of_get_named_gpio(np, "gpios", i);
 		if (gpio < 0)
 			break;
 		config->gpios[i].gpio = gpio;
+		if (prop && be32_to_cpup((int *)prop->value + i))
+			config->gpios[i].flags = GPIOF_OUT_INIT_HIGH;
 	}
 
 	/* Fetch states. */
