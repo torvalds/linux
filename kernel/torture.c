@@ -419,6 +419,15 @@ static void torture_shuffle_cleanup(void)
 EXPORT_SYMBOL_GPL(torture_shuffle_cleanup);
 
 /*
+ * Variables for auto-shutdown.  This allows "lights out" torture runs
+ * to be fully scripted.
+ */
+static int shutdown_secs;		/* desired test duration in seconds. */
+static struct task_struct *shutdown_task;
+static unsigned long shutdown_time;	/* jiffies to system shutdown. */
+static void (*torture_shutdown_hook)(void);
+
+/*
  * Absorb kthreads into a kernel function that won't return, so that
  * they won't ever access module text or data again.
  */
@@ -431,6 +440,81 @@ void torture_shutdown_absorb(const char *title)
 	}
 }
 EXPORT_SYMBOL_GPL(torture_shutdown_absorb);
+
+/*
+ * Cause the torture test to shutdown the system after the test has
+ * run for the time specified by the shutdown_secs parameter.
+ */
+static int torture_shutdown(void *arg)
+{
+	long delta;
+	unsigned long jiffies_snap;
+
+	VERBOSE_TOROUT_STRING("torture_shutdown task started");
+	jiffies_snap = jiffies;
+	while (ULONG_CMP_LT(jiffies_snap, shutdown_time) &&
+	       !torture_must_stop()) {
+		delta = shutdown_time - jiffies_snap;
+		if (verbose)
+			pr_alert("%s" TORTURE_FLAG
+				 "torture_shutdown task: %lu jiffies remaining\n",
+				 torture_type, delta);
+		schedule_timeout_interruptible(delta);
+		jiffies_snap = jiffies;
+	}
+	if (torture_must_stop()) {
+		VERBOSE_TOROUT_STRING("torture_shutdown task stopping");
+		return 0;
+	}
+
+	/* OK, shut down the system. */
+
+	VERBOSE_TOROUT_STRING("torture_shutdown task shutting down system");
+	shutdown_task = NULL;	/* Avoid self-kill deadlock. */
+	torture_shutdown_hook();/* Shut down the enclosing torture test. */
+	kernel_power_off();	/* Shut down the system. */
+	return 0;
+}
+
+/*
+ * Start up the shutdown task.
+ */
+int torture_shutdown_init(int ssecs, void (*cleanup)(void))
+{
+	int ret;
+
+	shutdown_secs = ssecs;
+	torture_shutdown_hook = cleanup;
+	if (shutdown_secs > 0) {
+		shutdown_time = jiffies + shutdown_secs * HZ;
+		shutdown_task = kthread_create(torture_shutdown, NULL,
+					       "torture_shutdown");
+		if (IS_ERR(shutdown_task)) {
+			ret = PTR_ERR(shutdown_task);
+			VERBOSE_TOROUT_ERRSTRING("Failed to create shutdown");
+			shutdown_task = NULL;
+			return ret;
+		}
+		torture_shuffle_task_register(shutdown_task);
+		wake_up_process(shutdown_task);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(torture_shutdown_init);
+
+/*
+ * Shut down the shutdown task.  Say what???  Heh!  This can happen if
+ * the torture module gets an rmmod before the shutdown time arrives.  ;-)
+ */
+void torture_shutdown_cleanup(void)
+{
+	if (shutdown_task != NULL) {
+		VERBOSE_TOROUT_STRING("Stopping torture_shutdown task");
+		kthread_stop(shutdown_task);
+	}
+	shutdown_task = NULL;
+}
+EXPORT_SYMBOL_GPL(torture_shutdown_cleanup);
 
 /*
  * Detect and respond to a system shutdown.

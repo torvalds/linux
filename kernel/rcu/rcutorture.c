@@ -105,7 +105,6 @@ static struct task_struct **reader_tasks;
 static struct task_struct *stats_task;
 static struct task_struct *fqs_task;
 static struct task_struct *boost_tasks[NR_CPUS];
-static struct task_struct *shutdown_task;
 static struct task_struct *stall_task;
 static struct task_struct **barrier_cbs_tasks;
 static struct task_struct *barrier_task;
@@ -173,7 +172,6 @@ static u64 notrace rcu_trace_clock_local(void)
 }
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
-static unsigned long shutdown_time;	/* jiffies to system shutdown. */
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
 DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
 					/*  and boost task create/destroy. */
@@ -182,9 +180,6 @@ static bool barrier_phase;		/* Test phase. */
 static atomic_t barrier_cbs_invoked;	/* Barrier callbacks invoked. */
 static wait_queue_head_t *barrier_cbs_wq; /* Coordinate barrier testing. */
 static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
-
-/* Forward reference. */
-static void rcu_torture_cleanup(void);
 
 /*
  * Allocate an element from the rcu_tortures pool.
@@ -1087,42 +1082,6 @@ static int rcutorture_booster_init(int cpu)
 }
 
 /*
- * Cause the rcutorture test to shutdown the system after the test has
- * run for the time specified by the shutdown_secs module parameter.
- */
-static int
-rcu_torture_shutdown(void *arg)
-{
-	long delta;
-	unsigned long jiffies_snap;
-
-	VERBOSE_TOROUT_STRING("rcu_torture_shutdown task started");
-	jiffies_snap = ACCESS_ONCE(jiffies);
-	while (ULONG_CMP_LT(jiffies_snap, shutdown_time) &&
-	       !kthread_should_stop()) {
-		delta = shutdown_time - jiffies_snap;
-		if (verbose)
-			pr_alert("%s" TORTURE_FLAG
-				 "rcu_torture_shutdown task: %lu jiffies remaining\n",
-				 torture_type, delta);
-		schedule_timeout_interruptible(delta);
-		jiffies_snap = ACCESS_ONCE(jiffies);
-	}
-	if (kthread_should_stop()) {
-		VERBOSE_TOROUT_STRING("rcu_torture_shutdown task stopping");
-		return 0;
-	}
-
-	/* OK, shut down the system. */
-
-	VERBOSE_TOROUT_STRING("rcu_torture_shutdown task shutting down system");
-	shutdown_task = NULL;	/* Avoid self-kill deadlock. */
-	rcu_torture_cleanup();	/* Get the success/failure message. */
-	kernel_power_off();	/* Shut down the system. */
-	return 0;
-}
-
-/*
  * CPU-stall kthread.  It waits as specified by stall_cpu_holdoff, then
  * induces a CPU stall for the time specified by stall_cpu.
  */
@@ -1421,11 +1380,7 @@ rcu_torture_cleanup(void)
 		for_each_possible_cpu(i)
 			rcutorture_booster_cleanup(i);
 	}
-	if (shutdown_task != NULL) {
-		VERBOSE_TOROUT_STRING("Stopping rcu_torture_shutdown task");
-		kthread_stop(shutdown_task);
-	}
-	shutdown_task = NULL;
+	torture_shutdown_cleanup();
 
 	/* Wait for all RCU callbacks to fire.  */
 
@@ -1681,18 +1636,10 @@ rcu_torture_init(void)
 			}
 		}
 	}
-	if (shutdown_secs > 0) {
-		shutdown_time = jiffies + shutdown_secs * HZ;
-		shutdown_task = kthread_create(rcu_torture_shutdown, NULL,
-					       "rcu_torture_shutdown");
-		if (IS_ERR(shutdown_task)) {
-			firsterr = PTR_ERR(shutdown_task);
-			VERBOSE_TOROUT_ERRSTRING("Failed to create shutdown");
-			shutdown_task = NULL;
-			goto unwind;
-		}
-		torture_shuffle_task_register(shutdown_task);
-		wake_up_process(shutdown_task);
+	i = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
+	if (i != 0) {
+		firsterr = i;
+		goto unwind;
 	}
 	i = torture_onoff_init(onoff_holdoff * HZ, onoff_interval * HZ);
 	if (i != 0) {
