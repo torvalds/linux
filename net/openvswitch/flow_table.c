@@ -158,11 +158,13 @@ void ovs_flow_free(struct sw_flow *flow, bool deferred)
 	if (!flow)
 		return;
 
-	ASSERT_OVSL();
-
 	if (flow->mask) {
 		struct sw_flow_mask *mask = flow->mask;
 
+		/* ovs-lock is required to protect mask-refcount and
+		 * mask list.
+		 */
+		ASSERT_OVSL();
 		BUG_ON(!mask->ref_count);
 		mask->ref_count--;
 
