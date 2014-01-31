@@ -371,7 +371,7 @@ static struct mvebu_mpp_mode mv88f6xxx_mpp_modes[] = {
 };
 
 static struct mvebu_mpp_ctrl mv88f6180_mpp_controls[] = {
-	MPP_REG_CTRL(0, 29),
+	MPP_FUNC_CTRL(0, 29, NULL, kirkwood_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range mv88f6180_gpio_ranges[] = {
@@ -379,7 +379,7 @@ static struct pinctrl_gpio_range mv88f6180_gpio_ranges[] = {
 };
 
 static struct mvebu_mpp_ctrl mv88f619x_mpp_controls[] = {
-	MPP_REG_CTRL(0, 35),
+	MPP_FUNC_CTRL(0, 35, NULL, kirkwood_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range mv88f619x_gpio_ranges[] = {
@@ -388,7 +388,7 @@ static struct pinctrl_gpio_range mv88f619x_gpio_ranges[] = {
 };
 
 static struct mvebu_mpp_ctrl mv88f628x_mpp_controls[] = {
-	MPP_REG_CTRL(0, 49),
+	MPP_FUNC_CTRL(0, 49, NULL, kirkwood_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range mv88f628x_gpio_ranges[] = {
@@ -468,9 +468,16 @@ static struct of_device_id kirkwood_pinctrl_of_match[] = {
 
 static int kirkwood_pinctrl_probe(struct platform_device *pdev)
 {
+	struct resource *res;
 	const struct of_device_id *match =
 		of_match_device(kirkwood_pinctrl_of_match, &pdev->dev);
 	pdev->dev.platform_data = (void *)match->data;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mpp_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mpp_base))
+		return PTR_ERR(mpp_base);
+
 	return mvebu_pinctrl_probe(pdev);
 }
 
