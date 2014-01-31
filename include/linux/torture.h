@@ -75,8 +75,13 @@ int torture_shuffle_init(long shuffint);
 /* Shutdown task absorption, for when the tasks cannot safely be killed. */
 void torture_shutdown_absorb(const char *title);
 
+/* Task stuttering, which forces load/no-load transitions. */
+void stutter_wait(const char *title);
+int torture_stutter_init(int s);
+void torture_stutter_cleanup(void);
+
 /* Initialization and cleanup. */
-void torture_init_begin(char *ttype, bool v);
+void torture_init_begin(char *ttype, bool v, int *runnable);
 void torture_init_end(void);
 bool torture_cleanup(void);
 bool torture_must_stop(void);

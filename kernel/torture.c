@@ -58,6 +58,7 @@ static bool verbose;
 #define FULLSTOP_RMMOD    2	/* Normal rmmod of torture. */
 static int fullstop = FULLSTOP_RMMOD;
 static DEFINE_MUTEX(fullstop_mutex);
+static int *torture_runnable;
 
 #ifdef CONFIG_HOTPLUG_CPU
 
@@ -453,16 +454,100 @@ static struct notifier_block torture_shutdown_nb = {
 };
 
 /*
+ * Variables for stuttering, which means to periodically pause and
+ * restart testing in order to catch bugs that appear when load is
+ * suddenly applied to or removed from the system.
+ */
+static struct task_struct *stutter_task;
+static int stutter_pause_test;
+static int stutter;
+
+/*
+ * Block until the stutter interval ends.  This must be called periodically
+ * by all running kthreads that need to be subject to stuttering.
+ */
+void stutter_wait(const char *title)
+{
+	while (ACCESS_ONCE(stutter_pause_test) ||
+	       (torture_runnable && !ACCESS_ONCE(*torture_runnable))) {
+		if (stutter_pause_test)
+			schedule_timeout_interruptible(1);
+		else
+			schedule_timeout_interruptible(round_jiffies_relative(HZ));
+		torture_shutdown_absorb(title);
+	}
+}
+EXPORT_SYMBOL_GPL(stutter_wait);
+
+/*
+ * Cause the torture test to "stutter", starting and stopping all
+ * threads periodically.
+ */
+static int torture_stutter(void *arg)
+{
+	VERBOSE_TOROUT_STRING("torture_stutter task started");
+	do {
+		if (!torture_must_stop()) {
+			schedule_timeout_interruptible(stutter);
+			ACCESS_ONCE(stutter_pause_test) = 1;
+		}
+		if (!torture_must_stop())
+			schedule_timeout_interruptible(stutter);
+		ACCESS_ONCE(stutter_pause_test) = 0;
+		torture_shutdown_absorb("torture_stutter");
+	} while (!torture_must_stop());
+	VERBOSE_TOROUT_STRING("torture_stutter task stopping");
+	return 0;
+}
+
+/*
+ * Initialize and kick off the torture_stutter kthread.
+ */
+int torture_stutter_init(int s)
+{
+	int ret;
+
+	stutter = s;
+	stutter_task = kthread_run(torture_stutter, NULL, "torture_stutter");
+	if (IS_ERR(stutter_task)) {
+		ret = PTR_ERR(stutter_task);
+		VERBOSE_TOROUT_ERRSTRING("Failed to create stutter");
+		stutter_task = NULL;
+		return ret;
+	}
+	torture_shuffle_task_register(stutter_task);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(torture_stutter_init);
+
+/*
+ * Cleanup after the torture_stutter kthread.
+ */
+void torture_stutter_cleanup(void)
+{
+	if (!stutter_task)
+		return;
+	VERBOSE_TOROUT_STRING("Stopping torture_stutter task");
+	kthread_stop(stutter_task);
+	stutter_task = NULL;
+}
+EXPORT_SYMBOL_GPL(torture_stutter_cleanup);
+
+/*
  * Initialize torture module.  Please note that this is -not- invoked via
  * the usual module_init() mechanism, but rather by an explicit call from
  * the client torture module.  This call must be paired with a later
  * torture_init_end().
+ *
+ * The runnable parameter points to a flag that controls whether or not
+ * the test is currently runnable.  If there is no such flag, pass in NULL.
  */
-void __init torture_init_begin(char *ttype, bool v)
+void __init torture_init_begin(char *ttype, bool v, int *runnable)
 {
 	mutex_lock(&fullstop_mutex);
 	torture_type = ttype;
 	verbose = v;
+	torture_runnable = runnable;
 	fullstop = FULLSTOP_DONTSTOP;
 
 }
