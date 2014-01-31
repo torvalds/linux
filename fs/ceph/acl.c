@@ -107,7 +107,7 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	char *value = NULL;
 	struct iattr newattrs;
 	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
-	struct dentry *dentry = d_find_alias(inode);
+	struct dentry *dentry;
 
 	if (acl) {
 		ret = posix_acl_valid(acl);
@@ -151,12 +151,13 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			goto out_free;
 	}
 
+	dentry = d_find_alias(inode);
 	if (new_mode != old_mode) {
 		newattrs.ia_mode = new_mode;
 		newattrs.ia_valid = ATTR_MODE;
 		ret = ceph_setattr(dentry, &newattrs);
 		if (ret)
-			goto out_free;
+			goto out_dput;
 	}
 
 	if (value)
@@ -170,11 +171,13 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			newattrs.ia_valid = ATTR_MODE;
 			ceph_setattr(dentry, &newattrs);
 		}
-		goto out_free;
+		goto out_dput;
 	}
 
 	ceph_set_cached_acl(inode, type, acl);
 
+out_dput:
+	dput(dentry);
 out_free:
 	kfree(value);
 out:
