@@ -262,7 +262,6 @@ static const struct v4l2_subdev_core_ops hdmiphy_core_ops = {
 
 static const struct v4l2_subdev_video_ops hdmiphy_video_ops = {
 	.s_dv_timings = hdmiphy_s_dv_timings,
-	.dv_timings_cap = hdmiphy_dv_timings_cap,
 	.s_stream =  hdmiphy_s_stream,
 };
 
