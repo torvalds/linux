@@ -2973,58 +2973,8 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	}
 
 	while (1) {
-		if (room_on_ring(xhci, ep_ring, num_trbs)) {
-			union xhci_trb *trb = ep_ring->enqueue;
-			unsigned int usable = ep_ring->enq_seg->trbs +
-					TRBS_PER_SEGMENT - 1 - trb;
-			u32 nop_cmd;
-
-			/*
-			 * Section 4.11.7.1 TD Fragments states that a link
-			 * TRB must only occur at the boundary between
-			 * data bursts (eg 512 bytes for 480M).
-			 * While it is possible to split a large fragment
-			 * we don't know the size yet.
-			 * Simplest solution is to fill the trb before the
-			 * LINK with nop commands.
-			 */
-			if (num_trbs == 1 || num_trbs <= usable || usable == 0)
-				break;
-
-			if (ep_ring->type != TYPE_BULK)
-				/*
-				 * While isoc transfers might have a buffer that
-				 * crosses a 64k boundary it is unlikely.
-				 * Since we can't add NOPs without generating
-				 * gaps in the traffic just hope it never
-				 * happens at the end of the ring.
-				 * This could be fixed by writing a LINK TRB
-				 * instead of the first NOP - however the
-				 * TRB_TYPE_LINK_LE32() calls would all need
-				 * changing to check the ring length.
-				 */
-				break;
-
-			if (num_trbs >= TRBS_PER_SEGMENT) {
-				xhci_err(xhci, "Too many fragments %d, max %d\n",
-						num_trbs, TRBS_PER_SEGMENT - 1);
-				return -ENOMEM;
-			}
-
-			nop_cmd = cpu_to_le32(TRB_TYPE(TRB_TR_NOOP) |
-					ep_ring->cycle_state);
-			ep_ring->num_trbs_free -= usable;
-			do {
-				trb->generic.field[0] = 0;
-				trb->generic.field[1] = 0;
-				trb->generic.field[2] = 0;
-				trb->generic.field[3] = nop_cmd;
-				trb++;
-			} while (--usable);
-			ep_ring->enqueue = trb;
-			if (room_on_ring(xhci, ep_ring, num_trbs))
-				break;
-		}
+		if (room_on_ring(xhci, ep_ring, num_trbs))
+			break;
 
 		if (ep_ring == xhci->cmd_ring) {
 			xhci_err(xhci, "Do not support expand command ring\n");
