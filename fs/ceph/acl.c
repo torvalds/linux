@@ -66,13 +66,6 @@ struct posix_acl *ceph_get_acl(struct inode *inode, int type)
 	char *value = NULL;
 	struct posix_acl *acl;
 
-	if (!IS_POSIXACL(inode))
-		return NULL;
-
-	acl = ceph_get_cached_acl(inode, type);
-	if (acl != ACL_NOT_CACHED)
-		return acl;
-
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		name = POSIX_ACL_XATTR_ACCESS;
@@ -190,41 +183,24 @@ out:
 
 int ceph_init_acl(struct dentry *dentry, struct inode *inode, struct inode *dir)
 {
-	struct posix_acl *acl = NULL;
-	int ret = 0;
+	struct posix_acl *default_acl, *acl;
+	int error;
 
-	if (!S_ISLNK(inode->i_mode)) {
-		if (IS_POSIXACL(dir)) {
-			acl = ceph_get_acl(dir, ACL_TYPE_DEFAULT);
-			if (IS_ERR(acl)) {
-				ret = PTR_ERR(acl);
-				goto out;
-			}
-		}
+	error = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
+	if (error)
+		return error;
 
-		if (!acl)
-			inode->i_mode &= ~current_umask();
-	}
-
-	if (IS_POSIXACL(dir) && acl) {
-		if (S_ISDIR(inode->i_mode)) {
-			ret = ceph_set_acl(inode, acl, ACL_TYPE_DEFAULT);
-			if (ret)
-				goto out_release;
-		}
-		ret = __posix_acl_create(&acl, GFP_NOFS, &inode->i_mode);
-		if (ret < 0)
-			goto out;
-		else if (ret > 0)
-			ret = ceph_set_acl(inode, acl, ACL_TYPE_ACCESS);
-		else
-			cache_no_acl(inode);
-	} else {
+	if (!default_acl && !acl)
 		cache_no_acl(inode);
-	}
 
-out_release:
-	posix_acl_release(acl);
-out:
-	return ret;
+	if (default_acl) {
+		error = ceph_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		posix_acl_release(default_acl);
+	}
+	if (acl) {
+		if (!error)
+			error = ceph_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		posix_acl_release(acl);
+	}
+	return error;
 }
