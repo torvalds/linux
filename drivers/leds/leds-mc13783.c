@@ -210,16 +210,12 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 static int mc13xxx_led_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_leds *leds = platform_get_drvdata(pdev);
-	struct mc13xxx *mcdev = leds->master;
 	int i;
 
 	for (i = 0; i < leds->num_leds; i++) {
 		led_classdev_unregister(&leds->led[i].cdev);
 		cancel_work_sync(&leds->led[i].work);
 	}
-
-	for (i = 0; i < leds->devtype->num_regs; i++)
-		mc13xxx_reg_write(mcdev, leds->devtype->ledctrl_base + i, 0);
 
 	return 0;
 }
