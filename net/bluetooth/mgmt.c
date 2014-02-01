@@ -4146,8 +4146,6 @@ unlock:
 
 static bool ltk_is_valid(struct mgmt_ltk_info *key)
 {
-	if (key->authenticated != 0x00 && key->authenticated != 0x01)
-		return false;
 	if (key->master != 0x00 && key->master != 0x01)
 		return false;
 	if (!bdaddr_type_is_le(key->addr.type))
