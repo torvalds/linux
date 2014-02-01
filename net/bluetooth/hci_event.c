@@ -1988,34 +1988,35 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
-	if (conn) {
-		if (!ev->status) {
-			if (ev->encrypt) {
-				/* Encryption implies authentication */
-				conn->link_mode |= HCI_LM_AUTH;
-				conn->link_mode |= HCI_LM_ENCRYPT;
-				conn->sec_level = conn->pending_sec_level;
-			} else
-				conn->link_mode &= ~HCI_LM_ENCRYPT;
-		}
+	if (!conn)
+		goto unlock;
 
-		clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
-
-		if (ev->status && conn->state == BT_CONNECTED) {
-			hci_disconnect(conn, HCI_ERROR_AUTH_FAILURE);
-			hci_conn_drop(conn);
-			goto unlock;
-		}
-
-		if (conn->state == BT_CONFIG) {
-			if (!ev->status)
-				conn->state = BT_CONNECTED;
-
-			hci_proto_connect_cfm(conn, ev->status);
-			hci_conn_drop(conn);
+	if (!ev->status) {
+		if (ev->encrypt) {
+			/* Encryption implies authentication */
+			conn->link_mode |= HCI_LM_AUTH;
+			conn->link_mode |= HCI_LM_ENCRYPT;
+			conn->sec_level = conn->pending_sec_level;
 		} else
-			hci_encrypt_cfm(conn, ev->status, ev->encrypt);
+			conn->link_mode &= ~HCI_LM_ENCRYPT;
 	}
+
+	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
+
+	if (ev->status && conn->state == BT_CONNECTED) {
+		hci_disconnect(conn, HCI_ERROR_AUTH_FAILURE);
+		hci_conn_drop(conn);
+		goto unlock;
+	}
+
+	if (conn->state == BT_CONFIG) {
+		if (!ev->status)
+			conn->state = BT_CONNECTED;
+
+		hci_proto_connect_cfm(conn, ev->status);
+		hci_conn_drop(conn);
+	} else
+		hci_encrypt_cfm(conn, ev->status, ev->encrypt);
 
 unlock:
 	hci_dev_unlock(hdev);
