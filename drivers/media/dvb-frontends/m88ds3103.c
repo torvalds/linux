@@ -428,16 +428,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		goto err;
 
 	switch (target_mclk) {
-	case 72000:
-		u8tmp1 = 0x00; /* 0b00 */
-		u8tmp2 = 0x03; /* 0b11 */
-		break;
 	case 96000:
 		u8tmp1 = 0x02; /* 0b10 */
-		u8tmp2 = 0x01; /* 0b01 */
-		break;
-	case 115200:
-		u8tmp1 = 0x01; /* 0b01 */
 		u8tmp2 = 0x01; /* 0b01 */
 		break;
 	case 144000:
@@ -448,10 +440,6 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		u8tmp1 = 0x03; /* 0b11 */
 		u8tmp2 = 0x00; /* 0b00 */
 		break;
-	default:
-		dev_dbg(&priv->i2c->dev, "%s: invalid target_mclk\n", __func__);
-		ret = -EINVAL;
-		goto err;
 	}
 
 	ret = m88ds3103_wr_reg_mask(priv, 0x22, u8tmp1 << 6, 0xc0);
