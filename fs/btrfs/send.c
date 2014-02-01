@@ -2131,8 +2131,6 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 	u64 parent_inode = 0;
 	u64 parent_gen = 0;
 	int stop = 0;
-	u64 start_ino = ino;
-	u64 start_gen = gen;
 	int skip_name_cache = 0;
 
 	name = fs_path_alloc();
@@ -2144,7 +2142,6 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 	if (is_waiting_for_move(sctx, ino))
 		skip_name_cache = 1;
 
-again:
 	dest->reversed = 1;
 	fs_path_reset(dest);
 
@@ -2159,13 +2156,8 @@ again:
 			stop = 1;
 
 		if (!skip_name_cache &&
-		    is_waiting_for_move(sctx, parent_inode)) {
-			ino = start_ino;
-			gen = start_gen;
-			stop = 0;
+		    is_waiting_for_move(sctx, parent_inode))
 			skip_name_cache = 1;
-			goto again;
-		}
 
 		ret = fs_path_add_path(dest, name);
 		if (ret < 0)
