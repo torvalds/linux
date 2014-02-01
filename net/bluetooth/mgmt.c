@@ -4207,7 +4207,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 			type = HCI_SMP_LTK_SLAVE;
 
 		hci_add_ltk(hdev, &key->addr.bdaddr, addr_type,
-			    type, 0, key->authenticated, key->val,
+			    type, 0, key->type, key->val,
 			    key->enc_size, key->ediv, key->rand);
 	}
 
@@ -4648,7 +4648,7 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent)
 	ev.store_hint = persistent;
 	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
 	ev.key.addr.type = link_to_bdaddr(LE_LINK, key->bdaddr_type);
-	ev.key.authenticated = key->authenticated;
+	ev.key.type = key->authenticated;
 	ev.key.enc_size = key->enc_size;
 	ev.key.ediv = key->ediv;
 
