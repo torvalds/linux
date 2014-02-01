@@ -327,7 +327,12 @@ These controls are described in <xref
 These controls are described in <xref
 		linkend="fm-rx-controls" />.</entry>
 	  </row>
-
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_RF_TUNER</constant></entry>
+	    <entry>0xa20000</entry>
+	    <entry>The class containing RF tuner controls.
+These controls are described in <xref linkend="rf-tuner-controls" />.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
