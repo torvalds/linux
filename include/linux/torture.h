@@ -45,7 +45,7 @@
 #define TOROUT_STRING(s) \
 	pr_alert("%s" TORTURE_FLAG s "\n", torture_type)
 #define VERBOSE_TOROUT_STRING(s) \
-	do { if (verbose) pr_alert("%s" TORTURE_FLAG s "\n", torture_type); } while (0)
+	do { if (verbose) pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s); } while (0)
 #define VERBOSE_TOROUT_ERRSTRING(s) \
 	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! " s "\n", torture_type); } while (0)
 
@@ -88,5 +88,6 @@ void torture_init_end(void);
 bool torture_cleanup(void);
 bool torture_must_stop(void);
 bool torture_must_stop_irq(void);
+void torture_kthread_stopping(char *title);
 
 #endif /* __LINUX_TORTURE_H */

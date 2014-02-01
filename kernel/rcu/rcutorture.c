@@ -602,12 +602,13 @@ checkwait:	stutter_wait("rcu_torture_boost");
 	} while (!torture_must_stop());
 
 	/* Clean up and exit. */
-	VERBOSE_TOROUT_STRING("rcu_torture_boost task stopping");
-	torture_shutdown_absorb("rcu_torture_boost");
-	while (!kthread_should_stop() || rbi.inflight)
+	while (!kthread_should_stop() || rbi.inflight) {
+		torture_shutdown_absorb("rcu_torture_boost");
 		schedule_timeout_uninterruptible(1);
+	}
 	smp_mb(); /* order accesses to ->inflight before stack-frame death. */
 	destroy_rcu_head_on_stack(&rbi.rcu);
+	torture_kthread_stopping("rcu_torture_boost");
 	return 0;
 }
 
@@ -638,10 +639,7 @@ rcu_torture_fqs(void *arg)
 		}
 		stutter_wait("rcu_torture_fqs");
 	} while (!torture_must_stop());
-	VERBOSE_TOROUT_STRING("rcu_torture_fqs task stopping");
-	torture_shutdown_absorb("rcu_torture_fqs");
-	while (!kthread_should_stop())
-		schedule_timeout_uninterruptible(1);
+	torture_kthread_stopping("rcu_torture_fqs");
 	return 0;
 }
 
@@ -710,10 +708,7 @@ rcu_torture_writer(void *arg)
 		rcutorture_record_progress(++rcu_torture_current_version);
 		stutter_wait("rcu_torture_writer");
 	} while (!torture_must_stop());
-	VERBOSE_TOROUT_STRING("rcu_torture_writer task stopping");
-	torture_shutdown_absorb("rcu_torture_writer");
-	while (!kthread_should_stop())
-		schedule_timeout_uninterruptible(1);
+	torture_kthread_stopping("rcu_torture_writer");
 	return 0;
 }
 
@@ -748,10 +743,7 @@ rcu_torture_fakewriter(void *arg)
 		stutter_wait("rcu_torture_fakewriter");
 	} while (!torture_must_stop());
 
-	VERBOSE_TOROUT_STRING("rcu_torture_fakewriter task stopping");
-	torture_shutdown_absorb("rcu_torture_fakewriter");
-	while (!kthread_should_stop())
-		schedule_timeout_uninterruptible(1);
+	torture_kthread_stopping("rcu_torture_fakewriter");
 	return 0;
 }
 
@@ -892,12 +884,9 @@ rcu_torture_reader(void *arg)
 		schedule();
 		stutter_wait("rcu_torture_reader");
 	} while (!torture_must_stop());
-	VERBOSE_TOROUT_STRING("rcu_torture_reader task stopping");
-	torture_shutdown_absorb("rcu_torture_reader");
 	if (irqreader && cur_ops->irq_capable)
 		del_timer_sync(&t);
-	while (!kthread_should_stop())
-		schedule_timeout_uninterruptible(1);
+	torture_kthread_stopping("rcu_torture_reader");
 	return 0;
 }
 
@@ -1010,7 +999,7 @@ rcu_torture_stats(void *arg)
 		rcu_torture_stats_print();
 		torture_shutdown_absorb("rcu_torture_stats");
 	} while (!torture_must_stop());
-	VERBOSE_TOROUT_STRING("rcu_torture_stats task stopping");
+	torture_kthread_stopping("rcu_torture_stats");
 	return 0;
 }
 
@@ -1171,12 +1160,9 @@ static int rcu_torture_barrier_cbs(void *arg)
 		if (atomic_dec_and_test(&barrier_cbs_count))
 			wake_up(&barrier_wq);
 	} while (!torture_must_stop());
-	VERBOSE_TOROUT_STRING("rcu_torture_barrier_cbs task stopping");
-	torture_shutdown_absorb("rcu_torture_barrier_cbs");
-	while (!kthread_should_stop())
-		schedule_timeout_interruptible(1);
 	cur_ops->cb_barrier();
 	destroy_rcu_head_on_stack(&rcu);
+	torture_kthread_stopping("rcu_torture_barrier_cbs");
 	return 0;
 }
 
@@ -1207,10 +1193,7 @@ static int rcu_torture_barrier(void *arg)
 		n_barrier_successes++;
 		schedule_timeout_interruptible(HZ / 10);
 	} while (!torture_must_stop());
-	VERBOSE_TOROUT_STRING("rcu_torture_barrier task stopping");
-	torture_shutdown_absorb("rcu_torture_barrier");
-	while (!kthread_should_stop())
-		schedule_timeout_interruptible(1);
+	torture_kthread_stopping("rcu_torture_barrier");
 	return 0;
 }
 

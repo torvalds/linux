@@ -169,7 +169,7 @@ torture_onoff(void *arg)
 		}
 		schedule_timeout_interruptible(onoff_interval);
 	}
-	VERBOSE_TOROUT_STRING("torture_onoff task stopping");
+	torture_kthread_stopping("torture_onoff");
 	return 0;
 }
 
@@ -370,7 +370,7 @@ static int torture_shuffle(void *arg)
 		torture_shuffle_tasks();
 		torture_shutdown_absorb("torture_shuffle");
 	} while (!torture_must_stop());
-	VERBOSE_TOROUT_STRING("torture_shuffle task stopping");
+	torture_kthread_stopping("torture_shuffle");
 	return 0;
 }
 
@@ -465,7 +465,7 @@ static int torture_shutdown(void *arg)
 		jiffies_snap = jiffies;
 	}
 	if (torture_must_stop()) {
-		VERBOSE_TOROUT_STRING("torture_shutdown task stopping");
+		torture_kthread_stopping("torture_shutdown");
 		return 0;
 	}
 
@@ -583,7 +583,7 @@ static int torture_stutter(void *arg)
 		ACCESS_ONCE(stutter_pause_test) = 0;
 		torture_shutdown_absorb("torture_stutter");
 	} while (!torture_must_stop());
-	VERBOSE_TOROUT_STRING("torture_stutter task stopping");
+	torture_kthread_stopping("torture_stutter");
 	return 0;
 }
 
@@ -696,3 +696,21 @@ bool torture_must_stop_irq(void)
 	return ACCESS_ONCE(fullstop) != FULLSTOP_DONTSTOP;
 }
 EXPORT_SYMBOL_GPL(torture_must_stop_irq);
+
+/*
+ * Each kthread must wait for kthread_should_stop() before returning from
+ * its top-level function, otherwise segfaults ensue.  This function
+ * prints a "stopping" message and waits for kthread_should_stop(), and
+ * should be called from all torture kthreads immediately prior to
+ * returning.
+ */
+void torture_kthread_stopping(char *title)
+{
+	if (verbose)
+		VERBOSE_TOROUT_STRING(title);
+	while (!kthread_should_stop()) {
+		torture_shutdown_absorb(title);
+		schedule_timeout_uninterruptible(1);
+	}
+}
+EXPORT_SYMBOL_GPL(torture_kthread_stopping);
