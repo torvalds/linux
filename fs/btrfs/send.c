@@ -3053,8 +3053,8 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 
 	len1 = fs_path_len(path_before);
 	len2 = fs_path_len(path_after);
-	if ((parent_ino_before != parent_ino_after) && (len1 != len2 ||
-	     memcmp(path_before->start, path_after->start, len1))) {
+	if (parent_ino_before != parent_ino_after || len1 != len2 ||
+	     memcmp(path_before->start, path_after->start, len1)) {
 		ret = 1;
 		goto out;
 	}
