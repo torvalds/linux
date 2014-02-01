@@ -1998,6 +1998,10 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->link_mode |= HCI_LM_ENCRYPT;
 			conn->sec_level = conn->pending_sec_level;
 
+			/* P-256 authentication key implies FIPS */
+			if (conn->key_type == HCI_LK_AUTH_COMBINATION_P256)
+				conn->link_mode |= HCI_LM_FIPS;
+
 			if ((conn->type == ACL_LINK && ev->encrypt == 0x02) ||
 			    conn->type == LE_LINK)
 				set_bit(HCI_CONN_AES_CCM, &conn->flags);
