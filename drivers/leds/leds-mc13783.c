@@ -184,6 +184,7 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 		leds->led[i].leds = leds;
 		leds->led[i].cdev.name = name;
 		leds->led[i].cdev.default_trigger = trig;
+		leds->led[i].cdev.flags = LED_CORE_SUSPENDRESUME;
 		leds->led[i].cdev.brightness_set = mc13xxx_led_set;
 		leds->led[i].cdev.brightness = LED_OFF;
 
