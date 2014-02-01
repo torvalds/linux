@@ -346,6 +346,10 @@ enum {
 #define HCI_SMP_LTK			0x82
 #define HCI_SMP_LTK_SLAVE		0x83
 
+/* Long Term Key types */
+#define HCI_LTK_UNAUTH			0x00
+#define HCI_LTK_AUTH			0x01
+
 /* ---- HCI Error Codes ---- */
 #define HCI_ERROR_AUTH_FAILURE		0x05
 #define HCI_ERROR_CONNECTION_TIMEOUT	0x08
