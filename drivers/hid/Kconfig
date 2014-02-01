@@ -608,7 +608,7 @@ config HID_SAMSUNG
 	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
-	tristate "Sony PS2/3 accessories"
+	tristate "Sony PS2/3/4 accessories"
 	depends on USB_HID
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
@@ -617,17 +617,18 @@ config HID_SONY
 	Support for
 
 	  * Sony PS3 6-axis controllers
+	  * Sony PS4 DualShock 4 controllers
 	  * Buzz controllers
 	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
 	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
 
 config SONY_FF
-	bool "Sony PS2/3 accessories force feedback support"
+	bool "Sony PS2/3/4 accessories force feedback support" 
 	depends on HID_SONY
 	select INPUT_FF_MEMLESS
 	---help---
-	Say Y here if you have a Sony PS2/3 accessory and want to enable force
-	feedback support for it.
+	Say Y here if you have a Sony PS2/3/4 accessory and want to enable
+	force feedback support for it.
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
