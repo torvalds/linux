@@ -271,6 +271,13 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		ret = fe->ops.tuner_ops.get_frequency(fe, &tuner_frequency);
 		if (ret)
 			goto err;
+	} else {
+		/*
+		 * Use nominal target frequency as tuner driver does not provide
+		 * actual frequency used. Carrier offset calculation is not
+		 * valid.
+		 */
+		tuner_frequency = c->frequency;
 	}
 
 	/* reset */
