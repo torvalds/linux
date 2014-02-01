@@ -416,7 +416,7 @@ config LEDS_MC13783
 	depends on MFD_MC13XXX
 	help
 	  This option enable support for on-chip LED drivers found
-	  on Freescale Semiconductor MC13783/MC13892 PMIC.
+	  on Freescale Semiconductor MC13783/MC13892/MC34708 PMIC.
 
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
