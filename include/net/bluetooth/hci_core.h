@@ -101,7 +101,7 @@ struct smp_ltk {
 	__le16 ediv;
 	u8 rand[8];
 	u8 val[16];
-} __packed;
+};
 
 struct link_key {
 	struct list_head list;
