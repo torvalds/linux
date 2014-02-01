@@ -944,7 +944,7 @@ static int m88ds3103_set_tone(struct dvb_frontend *fe,
 	switch (fe_sec_tone_mode) {
 	case SEC_TONE_ON:
 		tone = 0;
-		reg_a1_mask = 0x87;
+		reg_a1_mask = 0x47;
 		break;
 	case SEC_TONE_OFF:
 		tone = 1;
