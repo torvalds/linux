@@ -1997,8 +1997,14 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->link_mode |= HCI_LM_AUTH;
 			conn->link_mode |= HCI_LM_ENCRYPT;
 			conn->sec_level = conn->pending_sec_level;
-		} else
+
+			if ((conn->type == ACL_LINK && ev->encrypt == 0x02) ||
+			    conn->type == LE_LINK)
+				set_bit(HCI_CONN_AES_CCM, &conn->flags);
+		} else {
 			conn->link_mode &= ~HCI_LM_ENCRYPT;
+			clear_bit(HCI_CONN_AES_CCM, &conn->flags);
+		}
 	}
 
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
