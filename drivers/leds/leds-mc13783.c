@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/of.h>
 #include <linux/workqueue.h>
 #include <linux/mfd/mc13xxx.h>
 
@@ -42,7 +43,7 @@ struct mc13xxx_leds {
 	struct mc13xxx			*master;
 	struct mc13xxx_led_devtype	*devtype;
 	int				num_leds;
-	struct mc13xxx_led		led[0];
+	struct mc13xxx_led		*led;
 };
 
 static unsigned int mc13xxx_max_brightness(int id)
@@ -120,6 +121,74 @@ static void mc13xxx_led_set(struct led_classdev *led_cdev,
 	schedule_work(&led->work);
 }
 
+#ifdef CONFIG_OF
+static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
+	struct platform_device *pdev)
+{
+	struct mc13xxx_leds *leds = platform_get_drvdata(pdev);
+	struct mc13xxx_leds_platform_data *pdata;
+	struct device_node *parent, *child;
+	struct device *dev = &pdev->dev;
+	int i = 0, ret = -ENODATA;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	of_node_get(dev->parent->of_node);
+
+	parent = of_find_node_by_name(dev->parent->of_node, "leds");
+	if (!parent)
+		goto out_node_put;
+
+	ret = of_property_read_u32_array(parent, "led-control",
+					 pdata->led_control,
+					 leds->devtype->num_regs);
+	if (ret)
+		goto out_node_put;
+
+	pdata->num_leds = of_get_child_count(parent);
+
+	pdata->led = devm_kzalloc(dev, pdata->num_leds * sizeof(*pdata->led),
+				  GFP_KERNEL);
+	if (!pdata->led) {
+		ret = -ENOMEM;
+		goto out_node_put;
+	}
+
+	for_each_child_of_node(parent, child) {
+		const char *str;
+		u32 tmp;
+
+		if (of_property_read_u32(child, "reg", &tmp))
+			continue;
+		pdata->led[i].id = leds->devtype->led_min + tmp;
+
+		if (!of_property_read_string(child, "label", &str))
+			pdata->led[i].name = str;
+		if (!of_property_read_string(child, "linux,default-trigger",
+					     &str))
+			pdata->led[i].default_trigger = str;
+
+		i++;
+	}
+
+	pdata->num_leds = i;
+	ret = i > 0 ? 0 : -ENODATA;
+
+out_node_put:
+	of_node_put(parent);
+
+	return ret ? ERR_PTR(ret) : pdata;
+}
+#else
+static inline struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
+	struct platform_device *pdev)
+{
+	return ERR_PTR(-ENOSYS);
+}
+#endif
+
 static int __init mc13xxx_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -128,31 +197,36 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 	struct mc13xxx_led_devtype *devtype =
 		(struct mc13xxx_led_devtype *)pdev->id_entry->driver_data;
 	struct mc13xxx_leds *leds;
-	int i, id, num_leds, ret = -ENODATA;
+	int i, id, ret = -ENODATA;
 	u32 init_led = 0;
 
-	if (!pdata) {
-		dev_err(dev, "Missing platform data\n");
-		return -ENODEV;
-	}
-
-	num_leds = pdata->num_leds;
-
-	if ((num_leds < 1) ||
-	    (num_leds > (devtype->led_max - devtype->led_min + 1))) {
-		dev_err(dev, "Invalid LED count %d\n", num_leds);
-		return -EINVAL;
-	}
-
-	leds = devm_kzalloc(dev, num_leds * sizeof(struct mc13xxx_led) +
-			    sizeof(struct mc13xxx_leds), GFP_KERNEL);
+	leds = devm_kzalloc(dev, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
 
 	leds->devtype = devtype;
-	leds->num_leds = num_leds;
 	leds->master = mcdev;
 	platform_set_drvdata(pdev, leds);
+
+	if (dev->parent->of_node) {
+		pdata = mc13xxx_led_probe_dt(pdev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	} else if (!pdata)
+		return -ENODATA;
+
+	leds->num_leds = pdata->num_leds;
+
+	if ((leds->num_leds < 1) ||
+	    (leds->num_leds > (devtype->led_max - devtype->led_min + 1))) {
+		dev_err(dev, "Invalid LED count %d\n", leds->num_leds);
+		return -EINVAL;
+	}
+
+	leds->led = devm_kzalloc(dev, leds->num_leds * sizeof(*leds->led),
+				 GFP_KERNEL);
+	if (!leds->led)
+		return -ENOMEM;
 
 	for (i = 0; i < devtype->num_regs; i++) {
 		ret = mc13xxx_reg_write(mcdev, leds->devtype->ledctrl_base + i,
@@ -161,7 +235,7 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	for (i = 0; i < num_leds; i++) {
+	for (i = 0; i < leds->num_leds; i++) {
 		const char *name, *trig;
 
 		ret = -EINVAL;
