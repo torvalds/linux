@@ -40,8 +40,6 @@ static inline ssize_t hfsplus_getxattr(struct dentry *dentry,
 
 ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
-int hfsplus_removexattr(struct dentry *dentry, const char *name);
-
 int hfsplus_init_security(struct inode *inode, struct inode *dir,
 				const struct qstr *qstr);
 
