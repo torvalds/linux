@@ -1057,12 +1057,15 @@ static void omap2_mcspi_work(struct omap2_mcspi *mcspi, struct spi_message *m)
 			status = -EINVAL;
 			break;
 		}
-		if (par_override || t->speed_hz || t->bits_per_word) {
+		if (par_override ||
+		    (t->speed_hz != spi->max_speed_hz) ||
+		    (t->bits_per_word != spi->bits_per_word)) {
 			par_override = 1;
 			status = omap2_mcspi_setup_transfer(spi, t);
 			if (status < 0)
 				break;
-			if (!t->speed_hz && !t->bits_per_word)
+			if (t->speed_hz == spi->max_speed_hz &&
+			    t->bits_per_word == spi->bits_per_word)
 				par_override = 0;
 		}
 		if (cd && cd->cs_per_word) {
