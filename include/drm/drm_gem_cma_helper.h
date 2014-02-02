@@ -46,4 +46,13 @@ struct dma_buf *drm_gem_cma_dmabuf_export(struct drm_device *drm_dev,
 struct drm_gem_object *drm_gem_cma_dmabuf_import(struct drm_device *drm_dev,
 						 struct dma_buf *dma_buf);
 
+struct sg_table *drm_gem_cma_prime_get_sg_table(struct drm_gem_object *obj);
+struct drm_gem_object *
+drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
+				  struct sg_table *sgt);
+int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
+			   struct vm_area_struct *vma);
+void *drm_gem_cma_prime_vmap(struct drm_gem_object *obj);
+void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+
 #endif /* __DRM_GEM_CMA_HELPER_H__ */

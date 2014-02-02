@@ -586,3 +586,82 @@ error_gem_free:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_dmabuf_import);
+
+/* low-level interface prime helpers */
+struct sg_table *drm_gem_cma_prime_get_sg_table(struct drm_gem_object *obj)
+{
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+	struct sg_table *sgt;
+	int ret;
+
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	if (!sgt)
+		return NULL;
+
+	ret = dma_get_sgtable(obj->dev->dev, sgt, cma_obj->vaddr,
+			      cma_obj->paddr, obj->size);
+	if (ret < 0)
+		goto out;
+
+	return sgt;
+
+out:
+	kfree(sgt);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(drm_gem_cma_prime_get_sg_table);
+
+struct drm_gem_object *
+drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
+				  struct sg_table *sgt)
+{
+	struct drm_gem_cma_object *cma_obj;
+
+	if (sgt->nents != 1)
+		return ERR_PTR(-EINVAL);
+
+	/* Create a CMA GEM buffer. */
+	cma_obj = __drm_gem_cma_create(dev, size);
+	if (IS_ERR(cma_obj))
+		return ERR_PTR(PTR_ERR(cma_obj));
+
+	cma_obj->paddr = sg_dma_address(sgt->sgl);
+	cma_obj->sgt = sgt;
+
+	DRM_DEBUG_PRIME("dma_addr = 0x%x, size = %zu\n", cma_obj->paddr, size);
+
+	return &cma_obj->base;
+}
+EXPORT_SYMBOL_GPL(drm_gem_cma_prime_import_sg_table);
+
+int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
+			   struct vm_area_struct *vma)
+{
+	struct drm_gem_cma_object *cma_obj;
+	struct drm_device *dev = obj->dev;
+	int ret;
+
+	mutex_lock(&dev->struct_mutex);
+	ret = drm_gem_mmap_obj(obj, obj->size, vma);
+	mutex_unlock(&dev->struct_mutex);
+	if (ret < 0)
+		return ret;
+
+	cma_obj = to_drm_gem_cma_obj(obj);
+	return drm_gem_cma_mmap_obj(cma_obj, vma);
+}
+EXPORT_SYMBOL_GPL(drm_gem_cma_prime_mmap);
+
+void *drm_gem_cma_prime_vmap(struct drm_gem_object *obj)
+{
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+
+	return cma_obj->vaddr;
+}
+EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vmap);
+
+void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+{
+	/* Nothing to do */
+}
+EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vunmap);
