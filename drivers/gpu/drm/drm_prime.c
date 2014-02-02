@@ -155,7 +155,13 @@ static void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf,
 static int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf,
 		struct vm_area_struct *vma)
 {
-	return -EINVAL;
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+
+	if (!dev->driver->gem_prime_mmap)
+		return -ENOSYS;
+
+	return dev->driver->gem_prime_mmap(obj, vma);
 }
 
 static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {

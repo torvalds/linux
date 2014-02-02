@@ -950,6 +950,8 @@ struct drm_driver {
 				struct sg_table *sgt);
 	void *(*gem_prime_vmap)(struct drm_gem_object *obj);
 	void (*gem_prime_vunmap)(struct drm_gem_object *obj, void *vaddr);
+	int (*gem_prime_mmap)(struct drm_gem_object *obj,
+				struct vm_area_struct *vma);
 
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
