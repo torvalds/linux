@@ -233,25 +233,6 @@ fail:
 	return PTR_ERR(alloc);
 }
 
-int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
-		umode_t mode)
-{
-	struct posix_acl *default_acl, *acl;
-	int error;
-
-	error = posix_acl_create(dir, &mode, &default_acl, &acl);
-	if (error)
-		return (error == -EOPNOTSUPP) ? 0 : error;
-
-	error = nfs3_proc_setacls(inode, acl, default_acl);
-
-	if (acl)
-		posix_acl_release(acl);
-	if (default_acl)
-		posix_acl_release(default_acl);
-	return error;
-}
-
 const struct xattr_handler *nfs3_xattr_handlers[] = {
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
