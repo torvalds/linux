@@ -40,12 +40,6 @@ extern const struct vm_operations_struct drm_gem_cma_vm_ops;
 void drm_gem_cma_describe(struct drm_gem_cma_object *obj, struct seq_file *m);
 #endif
 
-struct dma_buf *drm_gem_cma_dmabuf_export(struct drm_device *drm_dev,
-					  struct drm_gem_object *obj,
-					  int flags);
-struct drm_gem_object *drm_gem_cma_dmabuf_import(struct drm_device *drm_dev,
-						 struct dma_buf *dma_buf);
-
 struct sg_table *drm_gem_cma_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
 drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
