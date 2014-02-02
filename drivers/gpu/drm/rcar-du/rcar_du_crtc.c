@@ -497,7 +497,8 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 
 static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
 				  struct drm_framebuffer *fb,
-				  struct drm_pending_vblank_event *event)
+				  struct drm_pending_vblank_event *event,
+				  uint32_t page_flip_flags)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct drm_device *dev = rcrtc->crtc.dev;
