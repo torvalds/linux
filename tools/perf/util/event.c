@@ -470,23 +470,32 @@ static int find_symbol_cb(void *arg, const char *name, char type,
 	return 1;
 }
 
+u64 kallsyms__get_function_start(const char *kallsyms_filename,
+				 const char *symbol_name)
+{
+	struct process_symbol_args args = { .name = symbol_name, };
+
+	if (kallsyms__parse(kallsyms_filename, &args, find_symbol_cb) <= 0)
+		return 0;
+
+	return args.start;
+}
+
 int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
-				       struct machine *machine,
-				       const char *symbol_name)
+				       struct machine *machine)
 {
 	size_t size;
-	const char *filename, *mmap_name;
-	char path[PATH_MAX];
+	const char *mmap_name;
 	char name_buff[PATH_MAX];
 	struct map *map;
+	struct kmap *kmap;
 	int err;
 	/*
 	 * We should get this from /sys/kernel/sections/.text, but till that is
 	 * available use this, and after it is use this as a fallback for older
 	 * kernels.
 	 */
-	struct process_symbol_args args = { .name = symbol_name, };
 	union perf_event *event = zalloc((sizeof(event->mmap) +
 					  machine->id_hdr_size));
 	if (event == NULL) {
@@ -502,30 +511,19 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		 * see kernel/perf_event.c __perf_event_mmap
 		 */
 		event->header.misc = PERF_RECORD_MISC_KERNEL;
-		filename = "/proc/kallsyms";
 	} else {
 		event->header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
-		if (machine__is_default_guest(machine))
-			filename = (char *) symbol_conf.default_guest_kallsyms;
-		else {
-			sprintf(path, "%s/proc/kallsyms", machine->root_dir);
-			filename = path;
-		}
-	}
-
-	if (kallsyms__parse(filename, &args, find_symbol_cb) <= 0) {
-		free(event);
-		return -ENOENT;
 	}
 
 	map = machine->vmlinux_maps[MAP__FUNCTION];
+	kmap = map__kmap(map);
 	size = snprintf(event->mmap.filename, sizeof(event->mmap.filename),
-			"%s%s", mmap_name, symbol_name) + 1;
+			"%s%s", mmap_name, kmap->ref_reloc_sym->name) + 1;
 	size = PERF_ALIGN(size, sizeof(u64));
 	event->mmap.header.type = PERF_RECORD_MMAP;
 	event->mmap.header.size = (sizeof(event->mmap) -
 			(sizeof(event->mmap.filename) - size) + machine->id_hdr_size);
-	event->mmap.pgoff = args.start;
+	event->mmap.pgoff = kmap->ref_reloc_sym->addr;
 	event->mmap.start = map->start;
 	event->mmap.len   = map->end - event->mmap.start;
 	event->mmap.pid   = machine->pid;
