@@ -7,6 +7,7 @@
 #define CLK_FOUT_MPLL 3
 #define CLK_FOUT_BPLL 4
 #define CLK_FOUT_KPLL 5
+#define CLK_FOUT_VPLL 6
 
 /* gate for special clocks (sclk) */
 #define CLK_SCLK_UART0 128
@@ -17,6 +18,8 @@
 #define CLK_SCLK_MMC1 133
 #define CLK_SCLK_MMC2 134
 #define CLK_SCLK_HDMIPHY 135
+#define CLK_SCLK_PIXEL 136
+#define CLK_SCLK_HDMI 137
 
 /* gate clocks */
 #define CLK_UART0 257
@@ -36,7 +39,15 @@
 #define CLK_MMC0 351
 #define CLK_MMC1 352
 #define CLK_MMC2 353
+#define CLK_MIXER 354
+#define CLK_HDMI 355
+#define CLK_FIMD1 356
+#define CLK_MIE1 357
+#define CLK_DSIM0 358
+#define CLK_DP 359
 
+/* mux clocks */
+#define CLK_MOUT_HDMI 500
 #define CLK_NR_CLKS 512
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_5410_H */
