@@ -802,7 +802,7 @@ extern int vmbus_open(struct vmbus_channel *channel,
 extern void vmbus_close(struct vmbus_channel *channel);
 
 extern int vmbus_sendpacket(struct vmbus_channel *channel,
-				  const void *buffer,
+				  void *buffer,
 				  u32 bufferLen,
 				  u64 requestid,
 				  enum vmbus_packet_type type,
