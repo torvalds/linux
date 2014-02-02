@@ -36,8 +36,7 @@
 #include <linux/suspend.h>
 #include <asm/unaligned.h>
 
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/power_supply.h>
 
 #define PREFIX "ACPI: "

@@ -1276,7 +1276,7 @@ arc4_out_tfm:
 arc4_out_key:
 		rawobj_free(&arc4_keye);
 arc4_out:
-		do {} while(0); /* just to avoid compile warning */
+		do {} while (0); /* just to avoid compile warning */
 	} else {
 		rc = krb5_encrypt_rawobjs(kctx->kc_keye.kb_tfm, 0,
 					  3, data_desc, &cipher, 1);

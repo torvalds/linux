@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -530,14 +530,13 @@ struct iwl_scan_offload_schedule {
 /*
  * iwl_scan_offload_flags
  *
- * IWL_SCAN_OFFLOAD_FLAG_FILTER_SSID: filter mode - upload every beacon or match
- *	ssid list.
+ * IWL_SCAN_OFFLOAD_FLAG_PASS_ALL: pass all results - no filtering.
  * IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL: add cached channels to partial scan.
  * IWL_SCAN_OFFLOAD_FLAG_ENERGY_SCAN: use energy based scan before partial scan
  *	on A band.
  */
 enum iwl_scan_offload_flags {
-	IWL_SCAN_OFFLOAD_FLAG_FILTER_SSID	= BIT(0),
+	IWL_SCAN_OFFLOAD_FLAG_PASS_ALL		= BIT(0),
 	IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL	= BIT(2),
 	IWL_SCAN_OFFLOAD_FLAG_ENERGY_SCAN	= BIT(3),
 };

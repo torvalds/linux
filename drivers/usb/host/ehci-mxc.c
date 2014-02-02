@@ -155,6 +155,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_add;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
 err_add:

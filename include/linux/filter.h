@@ -83,6 +83,11 @@ static inline void bpf_jit_free(struct sk_filter *fp)
 #define SK_RUN_FILTER(FILTER, SKB) sk_run_filter(SKB, FILTER->insns)
 #endif
 
+static inline int bpf_tell_extensions(void)
+{
+	return SKF_AD_MAX;
+}
+
 enum {
 	BPF_S_RET_K = 1,
 	BPF_S_RET_A,

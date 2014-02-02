@@ -565,7 +565,7 @@ static struct gpio_chip wmt_gpio_chip = {
 	.direction_output = wmt_gpio_direction_output,
 	.get = wmt_gpio_get_value,
 	.set = wmt_gpio_set_value,
-	.can_sleep = 0,
+	.can_sleep = false,
 };
 
 int wmt_pinctrl_probe(struct platform_device *pdev,

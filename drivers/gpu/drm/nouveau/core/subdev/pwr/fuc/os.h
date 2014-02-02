@@ -7,6 +7,7 @@
 #define PROC_HOST 0x54534f48
 #define PROC_MEMX 0x584d454d
 #define PROC_PERF 0x46524550
+#define PROC_I2C_ 0x5f433249
 #define PROC_TEST 0x54534554
 
 /* KERN: message identifiers */
@@ -23,5 +24,23 @@
 #define MEMX_WR32   2
 #define MEMX_WAIT   3
 #define MEMX_DELAY  4
+
+/* I2C_: message identifiers */
+#define I2C__MSG_RD08 0
+#define I2C__MSG_WR08 1
+
+#define I2C__MSG_DATA0_PORT 24:31
+#define I2C__MSG_DATA0_ADDR 14:23
+
+#define I2C__MSG_DATA0_RD08_PORT I2C__MSG_DATA0_PORT
+#define I2C__MSG_DATA0_RD08_ADDR I2C__MSG_DATA0_ADDR
+#define I2C__MSG_DATA0_RD08_REG 0:7
+#define I2C__MSG_DATA1_RD08_VAL 0:7
+
+#define I2C__MSG_DATA0_WR08_PORT I2C__MSG_DATA0_PORT
+#define I2C__MSG_DATA0_WR08_ADDR I2C__MSG_DATA0_ADDR
+#define I2C__MSG_DATA0_WR08_SYNC 8:8
+#define I2C__MSG_DATA0_WR08_REG 0:7
+#define I2C__MSG_DATA1_WR08_VAL 0:7
 
 #endif

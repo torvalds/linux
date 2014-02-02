@@ -1,5 +1,6 @@
 # Makefile for individual comedi drivers
 #
+ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
 
 # Comedi "helper" modules
 
@@ -110,6 +111,7 @@ obj-$(CONFIG_COMEDI_NI_PCIMIO)		+= ni_pcimio.o
 obj-$(CONFIG_COMEDI_RTD520)		+= rtd520.o
 obj-$(CONFIG_COMEDI_S626)		+= s626.o
 obj-$(CONFIG_COMEDI_SSV_DNP)		+= ssv_dnp.o
+obj-$(CONFIG_COMEDI_MF6X4)		+= mf6x4.o
 
 # Comedi PCMCIA drivers
 obj-$(CONFIG_COMEDI_CB_DAS16_CS)	+= cb_das16_cs.o

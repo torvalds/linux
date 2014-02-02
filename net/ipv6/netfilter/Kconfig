@@ -28,15 +28,27 @@ config NF_CONNTRACK_IPV6
 config NF_TABLES_IPV6
 	depends on NF_TABLES
 	tristate "IPv6 nf_tables support"
+	help
+	  This option enables the IPv6 support for nf_tables.
 
 config NFT_CHAIN_ROUTE_IPV6
 	depends on NF_TABLES_IPV6
 	tristate "IPv6 nf_tables route chain support"
+	help
+	  This option enables the "route" chain for IPv6 in nf_tables. This
+	  chain type is used to force packet re-routing after mangling header
+	  fields such as the source, destination, flowlabel, hop-limit and
+	  the packet mark.
 
 config NFT_CHAIN_NAT_IPV6
 	depends on NF_TABLES_IPV6
 	depends on NF_NAT_IPV6 && NFT_NAT
 	tristate "IPv6 nf_tables nat chain support"
+	help
+	  This option enables the "nat" chain for IPv6 in nf_tables. This
+	  chain type is used to perform Network Address Translation (NAT)
+	  packet transformations such as the source, destination address and
+	  source and destination ports.
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"

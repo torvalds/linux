@@ -132,7 +132,8 @@ static int osdc_show(struct seq_file *s, void *pp)
 			   req->r_osd ? req->r_osd->o_osd : -1,
 			   req->r_pgid.pool, req->r_pgid.seed);
 
-		seq_printf(s, "%.*s", req->r_oid_len, req->r_oid);
+		seq_printf(s, "%.*s", req->r_base_oid.name_len,
+			   req->r_base_oid.name);
 
 		if (req->r_reassert_version.epoch)
 			seq_printf(s, "\t%u'%llu",

@@ -311,11 +311,11 @@ error:
 static int switch_map(struct dm_target *ti, struct bio *bio)
 {
 	struct switch_ctx *sctx = ti->private;
-	sector_t offset = dm_target_offset(ti, bio->bi_sector);
+	sector_t offset = dm_target_offset(ti, bio->bi_iter.bi_sector);
 	unsigned path_nr = switch_get_path_nr(sctx, offset);
 
 	bio->bi_bdev = sctx->path_list[path_nr].dmdev->bdev;
-	bio->bi_sector = sctx->path_list[path_nr].start + offset;
+	bio->bi_iter.bi_sector = sctx->path_list[path_nr].start + offset;
 
 	return DM_MAPIO_REMAPPED;
 }

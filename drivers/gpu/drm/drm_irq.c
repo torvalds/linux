@@ -368,7 +368,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 	if (dev->num_crtcs) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		for (i = 0; i < dev->num_crtcs; i++) {
-			DRM_WAKEUP(&dev->vblank[i].queue);
+			wake_up(&dev->vblank[i].queue);
 			dev->vblank[i].enabled = false;
 			dev->vblank[i].last =
 				dev->driver->get_vblank_counter(dev, i);
@@ -436,45 +436,41 @@ int drm_control(struct drm_device *dev, void *data,
 }
 
 /**
- * drm_calc_timestamping_constants - Calculate and
- * store various constants which are later needed by
- * vblank and swap-completion timestamping, e.g, by
- * drm_calc_vbltimestamp_from_scanoutpos().
- * They are derived from crtc's true scanout timing,
- * so they take things like panel scaling or other
- * adjustments into account.
+ * drm_calc_timestamping_constants - Calculate vblank timestamp constants
  *
  * @crtc drm_crtc whose timestamp constants should be updated.
+ * @mode display mode containing the scanout timings
  *
+ * Calculate and store various constants which are later
+ * needed by vblank and swap-completion timestamping, e.g,
+ * by drm_calc_vbltimestamp_from_scanoutpos(). They are
+ * derived from crtc's true scanout timing, so they take
+ * things like panel scaling or other adjustments into account.
  */
-void drm_calc_timestamping_constants(struct drm_crtc *crtc)
+void drm_calc_timestamping_constants(struct drm_crtc *crtc,
+				     const struct drm_display_mode *mode)
 {
-	s64 linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
-	u64 dotclock;
-
-	/* Dot clock in Hz: */
-	dotclock = (u64) crtc->hwmode.clock * 1000;
-
-	/* Fields of interlaced scanout modes are only half a frame duration.
-	 * Double the dotclock to get half the frame-/line-/pixelduration.
-	 */
-	if (crtc->hwmode.flags & DRM_MODE_FLAG_INTERLACE)
-		dotclock *= 2;
+	int linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
+	int dotclock = mode->crtc_clock;
 
 	/* Valid dotclock? */
 	if (dotclock > 0) {
-		int frame_size;
-		/* Convert scanline length in pixels and video dot clock to
-		 * line duration, frame duration and pixel duration in
-		 * nanoseconds:
+		int frame_size = mode->crtc_htotal * mode->crtc_vtotal;
+
+		/*
+		 * Convert scanline length in pixels and video
+		 * dot clock to line duration, frame duration
+		 * and pixel duration in nanoseconds:
 		 */
-		pixeldur_ns = (s64) div64_u64(1000000000, dotclock);
-		linedur_ns  = (s64) div64_u64(((u64) crtc->hwmode.crtc_htotal *
-					      1000000000), dotclock);
-		frame_size = crtc->hwmode.crtc_htotal *
-				crtc->hwmode.crtc_vtotal;
-		framedur_ns = (s64) div64_u64((u64) frame_size * 1000000000,
-					      dotclock);
+		pixeldur_ns = 1000000 / dotclock;
+		linedur_ns  = div_u64((u64) mode->crtc_htotal * 1000000, dotclock);
+		framedur_ns = div_u64((u64) frame_size * 1000000, dotclock);
+
+		/*
+		 * Fields of interlaced scanout modes are only half a frame duration.
+		 */
+		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+			framedur_ns /= 2;
 	} else
 		DRM_ERROR("crtc %d: Can't calculate constants, dotclock = 0!\n",
 			  crtc->base.id);
@@ -484,11 +480,11 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc)
 	crtc->framedur_ns = framedur_ns;
 
 	DRM_DEBUG("crtc %d: hwmode: htotal %d, vtotal %d, vdisplay %d\n",
-		  crtc->base.id, crtc->hwmode.crtc_htotal,
-		  crtc->hwmode.crtc_vtotal, crtc->hwmode.crtc_vdisplay);
+		  crtc->base.id, mode->crtc_htotal,
+		  mode->crtc_vtotal, mode->crtc_vdisplay);
 	DRM_DEBUG("crtc %d: clock %d kHz framedur %d linedur %d, pixeldur %d\n",
-		  crtc->base.id, (int) dotclock/1000, (int) framedur_ns,
-		  (int) linedur_ns, (int) pixeldur_ns);
+		  crtc->base.id, dotclock, framedur_ns,
+		  linedur_ns, pixeldur_ns);
 }
 EXPORT_SYMBOL(drm_calc_timestamping_constants);
 
@@ -521,6 +517,7 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  *         0 = Default.
  *         DRM_CALLED_FROM_VBLIRQ = If function is called from vbl irq handler.
  * @refcrtc: drm_crtc* of crtc which defines scanout timing.
+ * @mode: mode which defines the scanout timings
  *
  * Returns negative value on error, failure or if not supported in current
  * video mode:
@@ -540,14 +537,14 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 					  int *max_error,
 					  struct timeval *vblank_time,
 					  unsigned flags,
-					  struct drm_crtc *refcrtc)
+					  const struct drm_crtc *refcrtc,
+					  const struct drm_display_mode *mode)
 {
 	ktime_t stime, etime, mono_time_offset;
 	struct timeval tv_etime;
-	struct drm_display_mode *mode;
-	int vbl_status, vtotal, vdisplay;
+	int vbl_status;
 	int vpos, hpos, i;
-	s64 framedur_ns, linedur_ns, pixeldur_ns, delta_ns, duration_ns;
+	int framedur_ns, linedur_ns, pixeldur_ns, delta_ns, duration_ns;
 	bool invbl;
 
 	if (crtc < 0 || crtc >= dev->num_crtcs) {
@@ -561,10 +558,6 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		return -EIO;
 	}
 
-	mode = &refcrtc->hwmode;
-	vtotal = mode->crtc_vtotal;
-	vdisplay = mode->crtc_vdisplay;
-
 	/* Durations of frames, lines, pixels in nanoseconds. */
 	framedur_ns = refcrtc->framedur_ns;
 	linedur_ns  = refcrtc->linedur_ns;
@@ -573,7 +566,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	/* If mode timing undefined, just return as no-op:
 	 * Happens during initial modesetting of a crtc.
 	 */
-	if (vtotal <= 0 || vdisplay <= 0 || framedur_ns == 0) {
+	if (framedur_ns == 0) {
 		DRM_DEBUG("crtc %d: Noop due to uninitialized mode.\n", crtc);
 		return -EAGAIN;
 	}
@@ -590,7 +583,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		 * Get vertical and horizontal scanout position vpos, hpos,
 		 * and bounding timestamps stime, etime, pre/post query.
 		 */
-		vbl_status = dev->driver->get_scanout_position(dev, crtc, &vpos,
+		vbl_status = dev->driver->get_scanout_position(dev, crtc, flags, &vpos,
 							       &hpos, &stime, &etime);
 
 		/*
@@ -611,18 +604,18 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		duration_ns = ktime_to_ns(etime) - ktime_to_ns(stime);
 
 		/* Accept result with <  max_error nsecs timing uncertainty. */
-		if (duration_ns <= (s64) *max_error)
+		if (duration_ns <= *max_error)
 			break;
 	}
 
 	/* Noisy system timing? */
 	if (i == DRM_TIMESTAMP_MAXRETRIES) {
 		DRM_DEBUG("crtc %d: Noisy timestamp %d us > %d us [%d reps].\n",
-			  crtc, (int) duration_ns/1000, *max_error/1000, i);
+			  crtc, duration_ns/1000, *max_error/1000, i);
 	}
 
 	/* Return upper bound of timestamp precision error. */
-	*max_error = (int) duration_ns;
+	*max_error = duration_ns;
 
 	/* Check if in vblank area:
 	 * vpos is >=0 in video scanout area, but negative
@@ -635,25 +628,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	 * since start of scanout at first display scanline. delta_ns
 	 * can be negative if start of scanout hasn't happened yet.
 	 */
-	delta_ns = (s64) vpos * linedur_ns + (s64) hpos * pixeldur_ns;
-
-	/* Is vpos outside nominal vblank area, but less than
-	 * 1/100 of a frame height away from start of vblank?
-	 * If so, assume this isn't a massively delayed vblank
-	 * interrupt, but a vblank interrupt that fired a few
-	 * microseconds before true start of vblank. Compensate
-	 * by adding a full frame duration to the final timestamp.
-	 * Happens, e.g., on ATI R500, R600.
-	 *
-	 * We only do this if DRM_CALLED_FROM_VBLIRQ.
-	 */
-	if ((flags & DRM_CALLED_FROM_VBLIRQ) && !invbl &&
-	    ((vdisplay - vpos) < vtotal / 100)) {
-		delta_ns = delta_ns - framedur_ns;
-
-		/* Signal this correction as "applied". */
-		vbl_status |= 0x8;
-	}
+	delta_ns = vpos * linedur_ns + hpos * pixeldur_ns;
 
 	if (!drm_timestamp_monotonic)
 		etime = ktime_sub(etime, mono_time_offset);
@@ -673,7 +648,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		  crtc, (int)vbl_status, hpos, vpos,
 		  (long)tv_etime.tv_sec, (long)tv_etime.tv_usec,
 		  (long)vblank_time->tv_sec, (long)vblank_time->tv_usec,
-		  (int)duration_ns/1000, i);
+		  duration_ns/1000, i);
 
 	vbl_status = DRM_VBLANKTIME_SCANOUTPOS_METHOD;
 	if (invbl)
@@ -960,7 +935,7 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 	if (atomic_dec_and_test(&dev->vblank[crtc].refcount) &&
 	    (drm_vblank_offdelay > 0))
 		mod_timer(&dev->vblank_disable_timer,
-			  jiffies + ((drm_vblank_offdelay * DRM_HZ)/1000));
+			  jiffies + ((drm_vblank_offdelay * HZ)/1000));
 }
 EXPORT_SYMBOL(drm_vblank_put);
 
@@ -980,7 +955,7 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	vblank_disable_and_save(dev, crtc);
-	DRM_WAKEUP(&dev->vblank[crtc].queue);
+	wake_up(&dev->vblank[crtc].queue);
 
 	/* Send any queued vblank events, lest the natives grow disquiet */
 	seq = drm_vblank_count_and_time(dev, crtc, &now);
@@ -1244,7 +1219,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 	DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
 		  vblwait->request.sequence, crtc);
 	dev->vblank[crtc].last_wait = vblwait->request.sequence;
-	DRM_WAIT_ON(ret, dev->vblank[crtc].queue, 3 * DRM_HZ,
+	DRM_WAIT_ON(ret, dev->vblank[crtc].queue, 3 * HZ,
 		    (((drm_vblank_count(dev, crtc) -
 		       vblwait->request.sequence) <= (1 << 23)) ||
 		     !dev->irq_enabled));
@@ -1363,7 +1338,7 @@ bool drm_handle_vblank(struct drm_device *dev, int crtc)
 			  crtc, (int) diff_ns);
 	}
 
-	DRM_WAKEUP(&dev->vblank[crtc].queue);
+	wake_up(&dev->vblank[crtc].queue);
 	drm_handle_vblank_events(dev, crtc);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);

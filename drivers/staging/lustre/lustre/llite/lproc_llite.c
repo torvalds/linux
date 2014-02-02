@@ -42,9 +42,6 @@
 
 #include "llite_internal.h"
 
-struct proc_dir_entry *proc_lustre_fs_root;
-
-#ifdef LPROCFS
 /* /proc/lustre/llite mount point registration */
 extern struct file_operations vvp_dump_pgcache_file_ops;
 struct file_operations ll_rw_extents_stats_fops;
@@ -723,6 +720,41 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 }
 LPROC_SEQ_FOPS_RO(ll_sbi_flags);
 
+static int ll_xattr_cache_seq_show(struct seq_file *m, void *v)
+{
+	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	int rc;
+
+	rc = seq_printf(m, "%u\n", sbi->ll_xattr_cache_enabled);
+
+	return rc;
+}
+
+static ssize_t ll_xattr_cache_seq_write(struct file *file, const char *buffer,
+					size_t count, loff_t *off)
+{
+	struct seq_file *seq = file->private_data;
+	struct super_block *sb = seq->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	int val, rc;
+
+	rc = lprocfs_write_helper(buffer, count, &val);
+	if (rc)
+		return rc;
+
+	if (val != 0 && val != 1)
+		return -ERANGE;
+
+	if (val == 1 && !(sbi->ll_flags & LL_SBI_XATTR_CACHE))
+		return -ENOTSUPP;
+
+	sbi->ll_xattr_cache_enabled = val;
+
+	return count;
+}
+LPROC_SEQ_FOPS(ll_xattr_cache);
+
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "uuid",	  &ll_sb_uuid_fops,	  0, 0 },
 	//{ "mntpt_path",   ll_rd_path,	     0, 0 },
@@ -751,6 +783,7 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "lazystatfs",       &ll_lazystatfs_fops, 0 },
 	{ "max_easize",       &ll_maxea_size_fops, 0, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, 0, 0 },
+	{ "xattr_cache",      &ll_xattr_cache_fops, 0, 0 },
 	{ 0 }
 };
 
@@ -802,6 +835,7 @@ struct llite_file_opcode {
 	{ LPROC_LL_ALLOC_INODE,    LPROCFS_TYPE_REGS, "alloc_inode" },
 	{ LPROC_LL_SETXATTR,       LPROCFS_TYPE_REGS, "setxattr" },
 	{ LPROC_LL_GETXATTR,       LPROCFS_TYPE_REGS, "getxattr" },
+	{ LPROC_LL_GETXATTR_HITS,  LPROCFS_TYPE_REGS, "getxattr_hits" },
 	{ LPROC_LL_LISTXATTR,      LPROCFS_TYPE_REGS, "listxattr" },
 	{ LPROC_LL_REMOVEXATTR,    LPROCFS_TYPE_REGS, "removexattr" },
 	{ LPROC_LL_INODE_PERM,     LPROCFS_TYPE_REGS, "inode_permission" },
@@ -1367,4 +1401,3 @@ void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars)
     lvars->module_vars  = NULL;
     lvars->obd_vars     = lprocfs_llite_obd_vars;
 }
-#endif /* LPROCFS */

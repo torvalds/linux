@@ -6,34 +6,46 @@
 	model = "Toradex Colibri T20 512MB on Iris";
 	compatible = "toradex,iris", "toradex,colibri_t20-512", "nvidia,tegra20";
 
-	host1x {
-		hdmi {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 		};
 	};
 
-	pinmux {
+	pinmux@70000014 {
 		state_default: pinmux {
 			hdint {
-				nvidia,tristate = <0>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
 			i2cddc {
-				nvidia,tristate = <0>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
 			sdio4 {
-				nvidia,tristate = <0>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
 			uarta {
-				nvidia,tristate = <0>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
 			uartd {
-				nvidia,tristate = <0>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 		};
+	};
+
+	serial@70006000 {
+		status = "okay";
+	};
+
+	serial@70006300 {
+		status = "okay";
+	};
+
+	i2c_ddc: i2c@7000c400 {
+		status = "okay";
 	};
 
 	usb@c5000000 {
@@ -49,18 +61,6 @@
 	};
 
 	usb-phy@c5008000 {
-		status = "okay";
-	};
-
-	serial@70006000 {
-		status = "okay";
-	};
-
-	serial@70006300 {
-		status = "okay";
-	};
-
-	i2c_ddc: i2c@7000c400 {
 		status = "okay";
 	};
 

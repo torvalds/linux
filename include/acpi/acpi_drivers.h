@@ -26,9 +26,6 @@
 #ifndef __ACPI_DRIVERS_H__
 #define __ACPI_DRIVERS_H__
 
-#include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-
 #define ACPI_MAX_STRING			80
 
 /*

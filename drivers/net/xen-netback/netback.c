@@ -39,7 +39,6 @@
 #include <linux/udp.h>
 
 #include <net/tcp.h>
-#include <net/ip6_checksum.h>
 
 #include <xen/xen.h>
 #include <xen/events.h>
@@ -138,36 +137,26 @@ static inline pending_ring_idx_t nr_pending_reqs(struct xenvif *vif)
 		vif->pending_prod + vif->pending_cons;
 }
 
-static int max_required_rx_slots(struct xenvif *vif)
+bool xenvif_rx_ring_slots_available(struct xenvif *vif, int needed)
 {
-	int max = DIV_ROUND_UP(vif->dev->mtu, PAGE_SIZE);
+	RING_IDX prod, cons;
 
-	/* XXX FIXME: RX path dependent on MAX_SKB_FRAGS */
-	if (vif->can_sg || vif->gso_mask || vif->gso_prefix_mask)
-		max += MAX_SKB_FRAGS + 1; /* extra_info + frags */
+	do {
+		prod = vif->rx.sring->req_prod;
+		cons = vif->rx.req_cons;
 
-	return max;
-}
+		if (prod - cons >= needed)
+			return true;
 
-int xenvif_rx_ring_full(struct xenvif *vif)
-{
-	RING_IDX peek   = vif->rx_req_cons_peek;
-	RING_IDX needed = max_required_rx_slots(vif);
+		vif->rx.sring->req_event = prod + 1;
 
-	return ((vif->rx.sring->req_prod - peek) < needed) ||
-	       ((vif->rx.rsp_prod_pvt + XEN_NETIF_RX_RING_SIZE - peek) < needed);
-}
+		/* Make sure event is visible before we check prod
+		 * again.
+		 */
+		mb();
+	} while (vif->rx.sring->req_prod != prod);
 
-int xenvif_must_stop_queue(struct xenvif *vif)
-{
-	if (!xenvif_rx_ring_full(vif))
-		return 0;
-
-	vif->rx.sring->req_event = vif->rx_req_cons_peek +
-		max_required_rx_slots(vif);
-	mb(); /* request notification /then/ check the queue */
-
-	return xenvif_rx_ring_full(vif);
+	return false;
 }
 
 /*
@@ -208,93 +197,6 @@ static bool start_new_rx_buffer(int offset, unsigned long size, int head)
 		return true;
 
 	return false;
-}
-
-struct xenvif_count_slot_state {
-	unsigned long copy_off;
-	bool head;
-};
-
-unsigned int xenvif_count_frag_slots(struct xenvif *vif,
-				     unsigned long offset, unsigned long size,
-				     struct xenvif_count_slot_state *state)
-{
-	unsigned count = 0;
-
-	offset &= ~PAGE_MASK;
-
-	while (size > 0) {
-		unsigned long bytes;
-
-		bytes = PAGE_SIZE - offset;
-
-		if (bytes > size)
-			bytes = size;
-
-		if (start_new_rx_buffer(state->copy_off, bytes, state->head)) {
-			count++;
-			state->copy_off = 0;
-		}
-
-		if (state->copy_off + bytes > MAX_BUFFER_OFFSET)
-			bytes = MAX_BUFFER_OFFSET - state->copy_off;
-
-		state->copy_off += bytes;
-
-		offset += bytes;
-		size -= bytes;
-
-		if (offset == PAGE_SIZE)
-			offset = 0;
-
-		state->head = false;
-	}
-
-	return count;
-}
-
-/*
- * Figure out how many ring slots we're going to need to send @skb to
- * the guest. This function is essentially a dry run of
- * xenvif_gop_frag_copy.
- */
-unsigned int xenvif_count_skb_slots(struct xenvif *vif, struct sk_buff *skb)
-{
-	struct xenvif_count_slot_state state;
-	unsigned int count;
-	unsigned char *data;
-	unsigned i;
-
-	state.head = true;
-	state.copy_off = 0;
-
-	/* Slot for the first (partial) page of data. */
-	count = 1;
-
-	/* Need a slot for the GSO prefix for GSO extra data? */
-	if (skb_shinfo(skb)->gso_size)
-		count++;
-
-	data = skb->data;
-	while (data < skb_tail_pointer(skb)) {
-		unsigned long offset = offset_in_page(data);
-		unsigned long size = PAGE_SIZE - offset;
-
-		if (data + size > skb_tail_pointer(skb))
-			size = skb_tail_pointer(skb) - data;
-
-		count += xenvif_count_frag_slots(vif, offset, size, &state);
-
-		data += size;
-	}
-
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		unsigned long size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
-		unsigned long offset = skb_shinfo(skb)->frags[i].page_offset;
-
-		count += xenvif_count_frag_slots(vif, offset, size, &state);
-	}
-	return count;
 }
 
 struct netrx_pending_operations {
@@ -557,12 +459,12 @@ struct skb_cb_overlay {
 	int meta_slots_used;
 };
 
-static void xenvif_kick_thread(struct xenvif *vif)
+void xenvif_kick_thread(struct xenvif *vif)
 {
 	wake_up(&vif->wq);
 }
 
-void xenvif_rx_action(struct xenvif *vif)
+static void xenvif_rx_action(struct xenvif *vif)
 {
 	s8 status;
 	u16 flags;
@@ -571,11 +473,10 @@ void xenvif_rx_action(struct xenvif *vif)
 	struct sk_buff *skb;
 	LIST_HEAD(notify);
 	int ret;
-	int nr_frags;
-	int count;
 	unsigned long offset;
 	struct skb_cb_overlay *sco;
-	int need_to_notify = 0;
+	bool need_to_notify = false;
+	bool ring_full = false;
 
 	struct netrx_pending_operations npo = {
 		.copy  = vif->grant_copy_op,
@@ -584,37 +485,53 @@ void xenvif_rx_action(struct xenvif *vif)
 
 	skb_queue_head_init(&rxq);
 
-	count = 0;
-
 	while ((skb = skb_dequeue(&vif->rx_queue)) != NULL) {
-		vif = netdev_priv(skb->dev);
-		nr_frags = skb_shinfo(skb)->nr_frags;
+		int max_slots_needed;
+		int i;
+
+		/* We need a cheap worse case estimate for the number of
+		 * slots we'll use.
+		 */
+
+		max_slots_needed = DIV_ROUND_UP(offset_in_page(skb->data) +
+						skb_headlen(skb),
+						PAGE_SIZE);
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			unsigned int size;
+			size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
+			max_slots_needed += DIV_ROUND_UP(size, PAGE_SIZE);
+		}
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4 ||
+		    skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
+			max_slots_needed++;
+
+		/* If the skb may not fit then bail out now */
+		if (!xenvif_rx_ring_slots_available(vif, max_slots_needed)) {
+			skb_queue_head(&vif->rx_queue, skb);
+			need_to_notify = true;
+			ring_full = true;
+			break;
+		}
 
 		sco = (struct skb_cb_overlay *)skb->cb;
 		sco->meta_slots_used = xenvif_gop_skb(skb, &npo);
-
-		count += nr_frags + 1;
+		BUG_ON(sco->meta_slots_used > max_slots_needed);
 
 		__skb_queue_tail(&rxq, skb);
-
-		/* Filled the batch queue? */
-		/* XXX FIXME: RX path dependent on MAX_SKB_FRAGS */
-		if (count + MAX_SKB_FRAGS >= XEN_NETIF_RX_RING_SIZE)
-			break;
 	}
 
 	BUG_ON(npo.meta_prod > ARRAY_SIZE(vif->meta));
 
+	vif->rx_queue_stopped = !npo.copy_prod && ring_full;
+
 	if (!npo.copy_prod)
-		return;
+		goto done;
 
 	BUG_ON(npo.copy_prod > MAX_GRANT_COPY_OPS);
 	gnttab_batch_copy(vif->grant_copy_op, npo.copy_prod);
 
 	while ((skb = __skb_dequeue(&rxq)) != NULL) {
 		sco = (struct skb_cb_overlay *)skb->cb;
-
-		vif = netdev_priv(skb->dev);
 
 		if ((1 << vif->meta[npo.meta_cons].gso_type) &
 		    vif->gso_prefix_mask) {
@@ -678,28 +595,15 @@ void xenvif_rx_action(struct xenvif *vif)
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&vif->rx, ret);
 
-		if (ret)
-			need_to_notify = 1;
-
-		xenvif_notify_tx_completion(vif);
+		need_to_notify |= !!ret;
 
 		npo.meta_cons += sco->meta_slots_used;
 		dev_kfree_skb(skb);
 	}
 
+done:
 	if (need_to_notify)
 		notify_remote_via_irq(vif->rx_irq);
-
-	/* More work to do? */
-	if (!skb_queue_empty(&vif->rx_queue))
-		xenvif_kick_thread(vif);
-}
-
-void xenvif_queue_tx_skb(struct xenvif *vif, struct sk_buff *skb)
-{
-	skb_queue_tail(&vif->rx_queue, skb);
-
-	xenvif_kick_thread(vif);
 }
 
 void xenvif_check_rx_xenvif(struct xenvif *vif)
@@ -1141,265 +1045,14 @@ static int xenvif_set_skb_gso(struct xenvif *vif,
 	}
 
 	skb_shinfo(skb)->gso_size = gso->u.gso.size;
-
-	/* Header must be checked, and gso_segs computed. */
-	skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
-	skb_shinfo(skb)->gso_segs = 0;
+	/* gso_segs will be calculated later */
 
 	return 0;
-}
-
-static inline int maybe_pull_tail(struct sk_buff *skb, unsigned int len,
-				  unsigned int max)
-{
-	if (skb_headlen(skb) >= len)
-		return 0;
-
-	/* If we need to pullup then pullup to the max, so we
-	 * won't need to do it again.
-	 */
-	if (max > skb->len)
-		max = skb->len;
-
-	if (__pskb_pull_tail(skb, max - skb_headlen(skb)) == NULL)
-		return -ENOMEM;
-
-	if (skb_headlen(skb) < len)
-		return -EPROTO;
-
-	return 0;
-}
-
-/* This value should be large enough to cover a tagged ethernet header plus
- * maximally sized IP and TCP or UDP headers.
- */
-#define MAX_IP_HDR_LEN 128
-
-static int checksum_setup_ip(struct xenvif *vif, struct sk_buff *skb,
-			     int recalculate_partial_csum)
-{
-	unsigned int off;
-	bool fragment;
-	int err;
-
-	fragment = false;
-
-	err = maybe_pull_tail(skb,
-			      sizeof(struct iphdr),
-			      MAX_IP_HDR_LEN);
-	if (err < 0)
-		goto out;
-
-	if (ip_hdr(skb)->frag_off & htons(IP_OFFSET | IP_MF))
-		fragment = true;
-
-	off = ip_hdrlen(skb);
-
-	err = -EPROTO;
-
-	if (fragment)
-		goto out;
-
-	switch (ip_hdr(skb)->protocol) {
-	case IPPROTO_TCP:
-		err = maybe_pull_tail(skb,
-				      off + sizeof(struct tcphdr),
-				      MAX_IP_HDR_LEN);
-		if (err < 0)
-			goto out;
-
-		if (!skb_partial_csum_set(skb, off,
-					  offsetof(struct tcphdr, check))) {
-			err = -EPROTO;
-			goto out;
-		}
-
-		if (recalculate_partial_csum)
-			tcp_hdr(skb)->check =
-				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
-						   ip_hdr(skb)->daddr,
-						   skb->len - off,
-						   IPPROTO_TCP, 0);
-		break;
-	case IPPROTO_UDP:
-		err = maybe_pull_tail(skb,
-				      off + sizeof(struct udphdr),
-				      MAX_IP_HDR_LEN);
-		if (err < 0)
-			goto out;
-
-		if (!skb_partial_csum_set(skb, off,
-					  offsetof(struct udphdr, check))) {
-			err = -EPROTO;
-			goto out;
-		}
-
-		if (recalculate_partial_csum)
-			udp_hdr(skb)->check =
-				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
-						   ip_hdr(skb)->daddr,
-						   skb->len - off,
-						   IPPROTO_UDP, 0);
-		break;
-	default:
-		goto out;
-	}
-
-	err = 0;
-
-out:
-	return err;
-}
-
-/* This value should be large enough to cover a tagged ethernet header plus
- * an IPv6 header, all options, and a maximal TCP or UDP header.
- */
-#define MAX_IPV6_HDR_LEN 256
-
-#define OPT_HDR(type, skb, off) \
-	(type *)(skb_network_header(skb) + (off))
-
-static int checksum_setup_ipv6(struct xenvif *vif, struct sk_buff *skb,
-			       int recalculate_partial_csum)
-{
-	int err;
-	u8 nexthdr;
-	unsigned int off;
-	unsigned int len;
-	bool fragment;
-	bool done;
-
-	fragment = false;
-	done = false;
-
-	off = sizeof(struct ipv6hdr);
-
-	err = maybe_pull_tail(skb, off, MAX_IPV6_HDR_LEN);
-	if (err < 0)
-		goto out;
-
-	nexthdr = ipv6_hdr(skb)->nexthdr;
-
-	len = sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len);
-	while (off <= len && !done) {
-		switch (nexthdr) {
-		case IPPROTO_DSTOPTS:
-		case IPPROTO_HOPOPTS:
-		case IPPROTO_ROUTING: {
-			struct ipv6_opt_hdr *hp;
-
-			err = maybe_pull_tail(skb,
-					      off +
-					      sizeof(struct ipv6_opt_hdr),
-					      MAX_IPV6_HDR_LEN);
-			if (err < 0)
-				goto out;
-
-			hp = OPT_HDR(struct ipv6_opt_hdr, skb, off);
-			nexthdr = hp->nexthdr;
-			off += ipv6_optlen(hp);
-			break;
-		}
-		case IPPROTO_AH: {
-			struct ip_auth_hdr *hp;
-
-			err = maybe_pull_tail(skb,
-					      off +
-					      sizeof(struct ip_auth_hdr),
-					      MAX_IPV6_HDR_LEN);
-			if (err < 0)
-				goto out;
-
-			hp = OPT_HDR(struct ip_auth_hdr, skb, off);
-			nexthdr = hp->nexthdr;
-			off += ipv6_authlen(hp);
-			break;
-		}
-		case IPPROTO_FRAGMENT: {
-			struct frag_hdr *hp;
-
-			err = maybe_pull_tail(skb,
-					      off +
-					      sizeof(struct frag_hdr),
-					      MAX_IPV6_HDR_LEN);
-			if (err < 0)
-				goto out;
-
-			hp = OPT_HDR(struct frag_hdr, skb, off);
-
-			if (hp->frag_off & htons(IP6_OFFSET | IP6_MF))
-				fragment = true;
-
-			nexthdr = hp->nexthdr;
-			off += sizeof(struct frag_hdr);
-			break;
-		}
-		default:
-			done = true;
-			break;
-		}
-	}
-
-	err = -EPROTO;
-
-	if (!done || fragment)
-		goto out;
-
-	switch (nexthdr) {
-	case IPPROTO_TCP:
-		err = maybe_pull_tail(skb,
-				      off + sizeof(struct tcphdr),
-				      MAX_IPV6_HDR_LEN);
-		if (err < 0)
-			goto out;
-
-		if (!skb_partial_csum_set(skb, off,
-					  offsetof(struct tcphdr, check))) {
-			err = -EPROTO;
-			goto out;
-		}
-
-		if (recalculate_partial_csum)
-			tcp_hdr(skb)->check =
-				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-						 &ipv6_hdr(skb)->daddr,
-						 skb->len - off,
-						 IPPROTO_TCP, 0);
-		break;
-	case IPPROTO_UDP:
-		err = maybe_pull_tail(skb,
-				      off + sizeof(struct udphdr),
-				      MAX_IPV6_HDR_LEN);
-		if (err < 0)
-			goto out;
-
-		if (!skb_partial_csum_set(skb, off,
-					  offsetof(struct udphdr, check))) {
-			err = -EPROTO;
-			goto out;
-		}
-
-		if (recalculate_partial_csum)
-			udp_hdr(skb)->check =
-				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-						 &ipv6_hdr(skb)->daddr,
-						 skb->len - off,
-						 IPPROTO_UDP, 0);
-		break;
-	default:
-		goto out;
-	}
-
-	err = 0;
-
-out:
-	return err;
 }
 
 static int checksum_setup(struct xenvif *vif, struct sk_buff *skb)
 {
-	int err = -EPROTO;
-	int recalculate_partial_csum = 0;
+	bool recalculate_partial_csum = false;
 
 	/* A GSO SKB must be CHECKSUM_PARTIAL. However some buggy
 	 * peers can fail to set NETRXF_csum_blank when sending a GSO
@@ -1409,19 +1062,14 @@ static int checksum_setup(struct xenvif *vif, struct sk_buff *skb)
 	if (skb->ip_summed != CHECKSUM_PARTIAL && skb_is_gso(skb)) {
 		vif->rx_gso_checksum_fixup++;
 		skb->ip_summed = CHECKSUM_PARTIAL;
-		recalculate_partial_csum = 1;
+		recalculate_partial_csum = true;
 	}
 
 	/* A non-CHECKSUM_PARTIAL SKB does not require setup. */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
-	if (skb->protocol == htons(ETH_P_IP))
-		err = checksum_setup_ip(vif, skb, recalculate_partial_csum);
-	else if (skb->protocol == htons(ETH_P_IPV6))
-		err = checksum_setup_ipv6(vif, skb, recalculate_partial_csum);
-
-	return err;
+	return skb_checksum_setup(skb, recalculate_partial_csum);
 }
 
 static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
@@ -1687,6 +1335,20 @@ static int xenvif_tx_submit(struct xenvif *vif)
 
 		skb_probe_transport_header(skb, 0);
 
+		/* If the packet is GSO then we will have just set up the
+		 * transport header offset in checksum_setup so it's now
+		 * straightforward to calculate gso_segs.
+		 */
+		if (skb_is_gso(skb)) {
+			int mss = skb_shinfo(skb)->gso_size;
+			int hdrlen = skb_transport_header(skb) -
+				skb_mac_header(skb) +
+				tcp_hdrlen(skb);
+
+			skb_shinfo(skb)->gso_segs =
+				DIV_ROUND_UP(skb->len - hdrlen, mss);
+		}
+
 		vif->dev->stats.rx_bytes += skb->len;
 		vif->dev->stats.rx_packets++;
 
@@ -1811,7 +1473,8 @@ static struct xen_netif_rx_response *make_rx_response(struct xenvif *vif,
 
 static inline int rx_work_todo(struct xenvif *vif)
 {
-	return !skb_queue_empty(&vif->rx_queue);
+	return (!skb_queue_empty(&vif->rx_queue) && !vif->rx_queue_stopped) ||
+		vif->rx_event;
 }
 
 static inline int tx_work_todo(struct xenvif *vif)
@@ -1861,8 +1524,6 @@ int xenvif_map_frontend_rings(struct xenvif *vif,
 	rxs = (struct xen_netif_rx_sring *)addr;
 	BACK_RING_INIT(&vif->rx, rxs, PAGE_SIZE);
 
-	vif->rx_req_cons_peek = 0;
-
 	return 0;
 
 err:
@@ -1870,9 +1531,24 @@ err:
 	return err;
 }
 
+void xenvif_stop_queue(struct xenvif *vif)
+{
+	if (!vif->can_queue)
+		return;
+
+	netif_stop_queue(vif->dev);
+}
+
+static void xenvif_start_queue(struct xenvif *vif)
+{
+	if (xenvif_schedulable(vif))
+		netif_wake_queue(vif->dev);
+}
+
 int xenvif_kthread(void *data)
 {
 	struct xenvif *vif = data;
+	struct sk_buff *skb;
 
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(vif->wq,
@@ -1881,11 +1557,21 @@ int xenvif_kthread(void *data)
 		if (kthread_should_stop())
 			break;
 
-		if (rx_work_todo(vif))
+		if (!skb_queue_empty(&vif->rx_queue))
 			xenvif_rx_action(vif);
+
+		vif->rx_event = false;
+
+		if (skb_queue_empty(&vif->rx_queue) &&
+		    netif_queue_stopped(vif->dev))
+			xenvif_start_queue(vif);
 
 		cond_resched();
 	}
+
+	/* Bin any remaining skbs */
+	while ((skb = skb_dequeue(&vif->rx_queue)) != NULL)
+		dev_kfree_skb(skb);
 
 	return 0;
 }

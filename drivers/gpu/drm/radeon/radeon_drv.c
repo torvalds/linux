@@ -102,13 +102,14 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev);
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev);
 void radeon_driver_irq_uninstall_kms(struct drm_device *dev);
-irqreturn_t radeon_driver_irq_handler_kms(DRM_IRQ_ARGS);
+irqreturn_t radeon_driver_irq_handler_kms(int irq, void *arg);
 void radeon_gem_object_free(struct drm_gem_object *obj);
 int radeon_gem_object_open(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 void radeon_gem_object_close(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
+				      unsigned int flags,
 				      int *vpos, int *hpos, ktime_t *stime,
 				      ktime_t *etime);
 extern const struct drm_ioctl_desc radeon_ioctls_kms[];
@@ -168,6 +169,7 @@ int radeon_fastfb = 0;
 int radeon_dpm = -1;
 int radeon_aspm = -1;
 int radeon_runtime_pm = -1;
+int radeon_hard_reset = 0;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -231,6 +233,9 @@ module_param_named(aspm, radeon_aspm, int, 0444);
 
 MODULE_PARM_DESC(runpm, "PX runtime pm (1 = force enable, 0 = disable, -1 = PX only default)");
 module_param_named(runpm, radeon_runtime_pm, int, 0444);
+
+MODULE_PARM_DESC(hard_reset, "PCI config reset (1 = force enable, 0 = disable (default))");
+module_param_named(hard_reset, radeon_hard_reset, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
@@ -400,6 +405,9 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	if (radeon_runtime_pm == 0)
 		return -EINVAL;
 
+	if (radeon_runtime_pm == -1 && !radeon_is_px())
+		return -EINVAL;
+
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 	drm_kms_helper_poll_disable(drm_dev);
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
@@ -420,6 +428,9 @@ static int radeon_pmops_runtime_resume(struct device *dev)
 	int ret;
 
 	if (radeon_runtime_pm == 0)
+		return -EINVAL;
+
+	if (radeon_runtime_pm == -1 && !radeon_is_px())
 		return -EINVAL;
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;

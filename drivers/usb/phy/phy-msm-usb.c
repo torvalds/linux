@@ -40,8 +40,6 @@
 #include <linux/usb/msm_hsusb_hw.h>
 #include <linux/regulator/consumer.h>
 
-#include <mach/clk.h>
-
 #define MSM_USB_BASE	(motg->regs)
 #define DRIVER_NAME	"msm_otg"
 
@@ -308,33 +306,30 @@ static void ulpi_init(struct msm_otg *motg)
 
 static int msm_otg_link_clk_reset(struct msm_otg *motg, bool assert)
 {
-	int ret;
+	int ret = 0;
 
-	if (assert) {
-		ret = clk_reset(motg->clk, CLK_RESET_ASSERT);
-		if (ret)
-			dev_err(motg->phy.dev, "usb hs_clk assert failed\n");
-	} else {
-		ret = clk_reset(motg->clk, CLK_RESET_DEASSERT);
-		if (ret)
-			dev_err(motg->phy.dev, "usb hs_clk deassert failed\n");
-	}
+	if (!motg->pdata->link_clk_reset)
+		return ret;
+
+	ret = motg->pdata->link_clk_reset(motg->clk, assert);
+	if (ret)
+		dev_err(motg->phy.dev, "usb link clk reset %s failed\n",
+			assert ? "assert" : "deassert");
+
 	return ret;
 }
 
 static int msm_otg_phy_clk_reset(struct msm_otg *motg)
 {
-	int ret;
+	int ret = 0;
 
-	ret = clk_reset(motg->phy_reset_clk, CLK_RESET_ASSERT);
-	if (ret) {
-		dev_err(motg->phy.dev, "usb phy clk assert failed\n");
+	if (!motg->pdata->phy_clk_reset)
 		return ret;
-	}
-	usleep_range(10000, 12000);
-	ret = clk_reset(motg->phy_reset_clk, CLK_RESET_DEASSERT);
+
+	ret = motg->pdata->phy_clk_reset(motg->phy_reset_clk);
 	if (ret)
-		dev_err(motg->phy.dev, "usb phy clk deassert failed\n");
+		dev_err(motg->phy.dev, "usb phy clk reset failed\n");
+
 	return ret;
 }
 
@@ -669,6 +664,7 @@ static void msm_otg_start_host(struct usb_phy *phy, int on)
 			pdata->setup_gpio(OTG_STATE_A_HOST);
 #ifdef CONFIG_USB
 		usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
+		device_wakeup_enable(hcd->self.controller);
 #endif
 	} else {
 		dev_dbg(phy->dev, "host off\n");

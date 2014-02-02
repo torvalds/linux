@@ -10,7 +10,6 @@
  * by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/types.h>
 #include <linux/ioport.h>

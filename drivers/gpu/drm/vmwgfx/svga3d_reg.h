@@ -34,6 +34,8 @@
 
 #include "svga_reg.h"
 
+typedef uint32 PPN;
+typedef __le64 PPN64;
 
 /*
  * 3D Hardware Version
@@ -71,6 +73,9 @@ typedef uint32 SVGA3dBool; /* 32-bit Bool definition */
 #define SVGA3D_MAX_CONTEXT_IDS                  256
 #define SVGA3D_MAX_SURFACE_IDS                  (32 * 1024)
 
+#define SVGA3D_NUM_TEXTURE_UNITS                32
+#define SVGA3D_NUM_LIGHTS                       8
+
 /*
  * Surface formats.
  *
@@ -81,6 +86,7 @@ typedef uint32 SVGA3dBool; /* 32-bit Bool definition */
  */
 
 typedef enum SVGA3dSurfaceFormat {
+   SVGA3D_FORMAT_MIN                   = 0,
    SVGA3D_FORMAT_INVALID               = 0,
 
    SVGA3D_X8R8G8B8                     = 1,
@@ -134,12 +140,6 @@ typedef enum SVGA3dSurfaceFormat {
    SVGA3D_RG_S10E5                     = 35,
    SVGA3D_RG_S23E8                     = 36,
 
-   /*
-    * Any surface can be used as a buffer object, but SVGA3D_BUFFER is
-    * the most efficient format to use when creating new surfaces
-    * expressly for index or vertex data.
-    */
-
    SVGA3D_BUFFER                       = 37,
 
    SVGA3D_Z_D24X8                      = 38,
@@ -159,15 +159,114 @@ typedef enum SVGA3dSurfaceFormat {
    /* Video format with alpha */
    SVGA3D_AYUV                         = 45,
 
+   SVGA3D_R32G32B32A32_TYPELESS        = 46,
+   SVGA3D_R32G32B32A32_FLOAT           = 25,
+   SVGA3D_R32G32B32A32_UINT            = 47,
+   SVGA3D_R32G32B32A32_SINT            = 48,
+   SVGA3D_R32G32B32_TYPELESS           = 49,
+   SVGA3D_R32G32B32_FLOAT              = 50,
+   SVGA3D_R32G32B32_UINT               = 51,
+   SVGA3D_R32G32B32_SINT               = 52,
+   SVGA3D_R16G16B16A16_TYPELESS        = 53,
+   SVGA3D_R16G16B16A16_FLOAT           = 24,
+   SVGA3D_R16G16B16A16_UNORM           = 41,
+   SVGA3D_R16G16B16A16_UINT            = 54,
+   SVGA3D_R16G16B16A16_SNORM           = 55,
+   SVGA3D_R16G16B16A16_SINT            = 56,
+   SVGA3D_R32G32_TYPELESS              = 57,
+   SVGA3D_R32G32_FLOAT                 = 36,
+   SVGA3D_R32G32_UINT                  = 58,
+   SVGA3D_R32G32_SINT                  = 59,
+   SVGA3D_R32G8X24_TYPELESS            = 60,
+   SVGA3D_D32_FLOAT_S8X24_UINT         = 61,
+   SVGA3D_R32_FLOAT_X8X24_TYPELESS     = 62,
+   SVGA3D_X32_TYPELESS_G8X24_UINT      = 63,
+   SVGA3D_R10G10B10A2_TYPELESS         = 64,
+   SVGA3D_R10G10B10A2_UNORM            = 26,
+   SVGA3D_R10G10B10A2_UINT             = 65,
+   SVGA3D_R11G11B10_FLOAT              = 66,
+   SVGA3D_R8G8B8A8_TYPELESS            = 67,
+   SVGA3D_R8G8B8A8_UNORM               = 68,
+   SVGA3D_R8G8B8A8_UNORM_SRGB          = 69,
+   SVGA3D_R8G8B8A8_UINT                = 70,
+   SVGA3D_R8G8B8A8_SNORM               = 28,
+   SVGA3D_R8G8B8A8_SINT                = 71,
+   SVGA3D_R16G16_TYPELESS              = 72,
+   SVGA3D_R16G16_FLOAT                 = 35,
+   SVGA3D_R16G16_UNORM                 = 40,
+   SVGA3D_R16G16_UINT                  = 73,
+   SVGA3D_R16G16_SNORM                 = 39,
+   SVGA3D_R16G16_SINT                  = 74,
+   SVGA3D_R32_TYPELESS                 = 75,
+   SVGA3D_D32_FLOAT                    = 76,
+   SVGA3D_R32_FLOAT                    = 34,
+   SVGA3D_R32_UINT                     = 77,
+   SVGA3D_R32_SINT                     = 78,
+   SVGA3D_R24G8_TYPELESS               = 79,
+   SVGA3D_D24_UNORM_S8_UINT            = 80,
+   SVGA3D_R24_UNORM_X8_TYPELESS        = 81,
+   SVGA3D_X24_TYPELESS_G8_UINT         = 82,
+   SVGA3D_R8G8_TYPELESS                = 83,
+   SVGA3D_R8G8_UNORM                   = 84,
+   SVGA3D_R8G8_UINT                    = 85,
+   SVGA3D_R8G8_SNORM                   = 27,
+   SVGA3D_R8G8_SINT                    = 86,
+   SVGA3D_R16_TYPELESS                 = 87,
+   SVGA3D_R16_FLOAT                    = 33,
+   SVGA3D_D16_UNORM                    = 8,
+   SVGA3D_R16_UNORM                    = 88,
+   SVGA3D_R16_UINT                     = 89,
+   SVGA3D_R16_SNORM                    = 90,
+   SVGA3D_R16_SINT                     = 91,
+   SVGA3D_R8_TYPELESS                  = 92,
+   SVGA3D_R8_UNORM                     = 93,
+   SVGA3D_R8_UINT                      = 94,
+   SVGA3D_R8_SNORM                     = 95,
+   SVGA3D_R8_SINT                      = 96,
+   SVGA3D_A8_UNORM                     = 32,
+   SVGA3D_R1_UNORM                     = 97,
+   SVGA3D_R9G9B9E5_SHAREDEXP           = 98,
+   SVGA3D_R8G8_B8G8_UNORM              = 99,
+   SVGA3D_G8R8_G8B8_UNORM              = 100,
+   SVGA3D_BC1_TYPELESS                 = 101,
+   SVGA3D_BC1_UNORM                    = 15,
+   SVGA3D_BC1_UNORM_SRGB               = 102,
+   SVGA3D_BC2_TYPELESS                 = 103,
+   SVGA3D_BC2_UNORM                    = 17,
+   SVGA3D_BC2_UNORM_SRGB               = 104,
+   SVGA3D_BC3_TYPELESS                 = 105,
+   SVGA3D_BC3_UNORM                    = 19,
+   SVGA3D_BC3_UNORM_SRGB               = 106,
+   SVGA3D_BC4_TYPELESS                 = 107,
    SVGA3D_BC4_UNORM                    = 108,
+   SVGA3D_BC4_SNORM                    = 109,
+   SVGA3D_BC5_TYPELESS                 = 110,
    SVGA3D_BC5_UNORM                    = 111,
+   SVGA3D_BC5_SNORM                    = 112,
+   SVGA3D_B5G6R5_UNORM                 = 3,
+   SVGA3D_B5G5R5A1_UNORM               = 5,
+   SVGA3D_B8G8R8A8_UNORM               = 2,
+   SVGA3D_B8G8R8X8_UNORM               = 1,
+   SVGA3D_R10G10B10_XR_BIAS_A2_UNORM   = 113,
+   SVGA3D_B8G8R8A8_TYPELESS            = 114,
+   SVGA3D_B8G8R8A8_UNORM_SRGB          = 115,
+   SVGA3D_B8G8R8X8_TYPELESS            = 116,
+   SVGA3D_B8G8R8X8_UNORM_SRGB          = 117,
 
    /* Advanced D3D9 depth formats. */
    SVGA3D_Z_DF16                       = 118,
    SVGA3D_Z_DF24                       = 119,
    SVGA3D_Z_D24S8_INT                  = 120,
 
-   SVGA3D_FORMAT_MAX
+   /* Planar video formats. */
+   SVGA3D_YV12                         = 121,
+
+   /* Shader constant formats. */
+   SVGA3D_SURFACE_SHADERCONST_FLOAT    = 122,
+   SVGA3D_SURFACE_SHADERCONST_INT      = 123,
+   SVGA3D_SURFACE_SHADERCONST_BOOL     = 124,
+
+   SVGA3D_FORMAT_MAX                   = 125,
 } SVGA3dSurfaceFormat;
 
 typedef uint32 SVGA3dColor; /* a, r, g, b */
@@ -957,15 +1056,21 @@ typedef enum {
 } SVGA3dCubeFace;
 
 typedef enum {
+   SVGA3D_SHADERTYPE_INVALID                    = 0,
+   SVGA3D_SHADERTYPE_MIN                        = 1,
    SVGA3D_SHADERTYPE_VS                         = 1,
    SVGA3D_SHADERTYPE_PS                         = 2,
-   SVGA3D_SHADERTYPE_MAX
+   SVGA3D_SHADERTYPE_MAX                        = 3,
+   SVGA3D_SHADERTYPE_GS                         = 3,
 } SVGA3dShaderType;
+
+#define SVGA3D_NUM_SHADERTYPE (SVGA3D_SHADERTYPE_MAX - SVGA3D_SHADERTYPE_MIN)
 
 typedef enum {
    SVGA3D_CONST_TYPE_FLOAT                      = 0,
    SVGA3D_CONST_TYPE_INT                        = 1,
    SVGA3D_CONST_TYPE_BOOL                       = 2,
+   SVGA3D_CONST_TYPE_MAX
 } SVGA3dShaderConstType;
 
 #define SVGA3D_MAX_SURFACE_FACES                6
@@ -1056,9 +1161,74 @@ typedef enum {
 #define SVGA_3D_CMD_GENERATE_MIPMAPS       SVGA_3D_CMD_BASE + 31
 #define SVGA_3D_CMD_ACTIVATE_SURFACE       SVGA_3D_CMD_BASE + 40
 #define SVGA_3D_CMD_DEACTIVATE_SURFACE     SVGA_3D_CMD_BASE + 41
-#define SVGA_3D_CMD_MAX                    SVGA_3D_CMD_BASE + 42
+#define SVGA_3D_CMD_SCREEN_DMA               1082
+#define SVGA_3D_CMD_SET_UNITY_SURFACE_COOKIE 1083
+#define SVGA_3D_CMD_OPEN_CONTEXT_SURFACE     1084
 
-#define SVGA_3D_CMD_FUTURE_MAX             2000
+#define SVGA_3D_CMD_LOGICOPS_BITBLT          1085
+#define SVGA_3D_CMD_LOGICOPS_TRANSBLT        1086
+#define SVGA_3D_CMD_LOGICOPS_STRETCHBLT      1087
+#define SVGA_3D_CMD_LOGICOPS_COLORFILL       1088
+#define SVGA_3D_CMD_LOGICOPS_ALPHABLEND      1089
+#define SVGA_3D_CMD_LOGICOPS_CLEARTYPEBLEND  1090
+
+#define SVGA_3D_CMD_SET_OTABLE_BASE          1091
+#define SVGA_3D_CMD_READBACK_OTABLE          1092
+
+#define SVGA_3D_CMD_DEFINE_GB_MOB            1093
+#define SVGA_3D_CMD_DESTROY_GB_MOB           1094
+#define SVGA_3D_CMD_REDEFINE_GB_MOB          1095
+#define SVGA_3D_CMD_UPDATE_GB_MOB_MAPPING    1096
+
+#define SVGA_3D_CMD_DEFINE_GB_SURFACE        1097
+#define SVGA_3D_CMD_DESTROY_GB_SURFACE       1098
+#define SVGA_3D_CMD_BIND_GB_SURFACE          1099
+#define SVGA_3D_CMD_COND_BIND_GB_SURFACE     1100
+#define SVGA_3D_CMD_UPDATE_GB_IMAGE          1101
+#define SVGA_3D_CMD_UPDATE_GB_SURFACE        1102
+#define SVGA_3D_CMD_READBACK_GB_IMAGE        1103
+#define SVGA_3D_CMD_READBACK_GB_SURFACE      1104
+#define SVGA_3D_CMD_INVALIDATE_GB_IMAGE      1105
+#define SVGA_3D_CMD_INVALIDATE_GB_SURFACE    1106
+
+#define SVGA_3D_CMD_DEFINE_GB_CONTEXT        1107
+#define SVGA_3D_CMD_DESTROY_GB_CONTEXT       1108
+#define SVGA_3D_CMD_BIND_GB_CONTEXT          1109
+#define SVGA_3D_CMD_READBACK_GB_CONTEXT      1110
+#define SVGA_3D_CMD_INVALIDATE_GB_CONTEXT    1111
+
+#define SVGA_3D_CMD_DEFINE_GB_SHADER         1112
+#define SVGA_3D_CMD_DESTROY_GB_SHADER        1113
+#define SVGA_3D_CMD_BIND_GB_SHADER           1114
+
+#define SVGA_3D_CMD_SET_OTABLE_BASE64        1115
+
+#define SVGA_3D_CMD_BEGIN_GB_QUERY           1116
+#define SVGA_3D_CMD_END_GB_QUERY             1117
+#define SVGA_3D_CMD_WAIT_FOR_GB_QUERY        1118
+
+#define SVGA_3D_CMD_NOP                      1119
+
+#define SVGA_3D_CMD_ENABLE_GART              1120
+#define SVGA_3D_CMD_DISABLE_GART             1121
+#define SVGA_3D_CMD_MAP_MOB_INTO_GART        1122
+#define SVGA_3D_CMD_UNMAP_GART_RANGE         1123
+
+#define SVGA_3D_CMD_DEFINE_GB_SCREENTARGET   1124
+#define SVGA_3D_CMD_DESTROY_GB_SCREENTARGET  1125
+#define SVGA_3D_CMD_BIND_GB_SCREENTARGET     1126
+#define SVGA_3D_CMD_UPDATE_GB_SCREENTARGET   1127
+
+#define SVGA_3D_CMD_READBACK_GB_IMAGE_PARTIAL   1128
+#define SVGA_3D_CMD_INVALIDATE_GB_IMAGE_PARTIAL 1129
+
+#define SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE  1130
+
+#define SVGA_3D_CMD_DEFINE_GB_MOB64          1135
+#define SVGA_3D_CMD_REDEFINE_GB_MOB64        1136
+
+#define SVGA_3D_CMD_MAX                      1142
+#define SVGA_3D_CMD_FUTURE_MAX               3000
 
 /*
  * Common substructures used in multiple FIFO commands:
@@ -1750,6 +1920,495 @@ struct {
 
 
 /*
+ * Guest-backed surface definitions.
+ */
+
+typedef uint32 SVGAMobId;
+
+typedef enum SVGAMobFormat {
+   SVGA3D_MOBFMT_INVALID = SVGA3D_INVALID_ID,
+   SVGA3D_MOBFMT_PTDEPTH_0 = 0,
+   SVGA3D_MOBFMT_PTDEPTH_1 = 1,
+   SVGA3D_MOBFMT_PTDEPTH_2 = 2,
+   SVGA3D_MOBFMT_RANGE     = 3,
+   SVGA3D_MOBFMT_PTDEPTH64_0 = 4,
+   SVGA3D_MOBFMT_PTDEPTH64_1 = 5,
+   SVGA3D_MOBFMT_PTDEPTH64_2 = 6,
+   SVGA3D_MOBFMT_MAX,
+} SVGAMobFormat;
+
+/*
+ * Sizes of opaque types.
+ */
+
+#define SVGA3D_OTABLE_MOB_ENTRY_SIZE 16
+#define SVGA3D_OTABLE_CONTEXT_ENTRY_SIZE 8
+#define SVGA3D_OTABLE_SURFACE_ENTRY_SIZE 64
+#define SVGA3D_OTABLE_SHADER_ENTRY_SIZE 16
+#define SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE 64
+#define SVGA3D_CONTEXT_DATA_SIZE 16384
+
+/*
+ * SVGA3dCmdSetOTableBase --
+ *
+ * This command allows the guest to specify the base PPN of the
+ * specified object table.
+ */
+
+typedef enum {
+   SVGA_OTABLE_MOB           = 0,
+   SVGA_OTABLE_MIN           = 0,
+   SVGA_OTABLE_SURFACE       = 1,
+   SVGA_OTABLE_CONTEXT       = 2,
+   SVGA_OTABLE_SHADER        = 3,
+   SVGA_OTABLE_SCREEN_TARGET = 4,
+   SVGA_OTABLE_DX9_MAX       = 5,
+   SVGA_OTABLE_MAX           = 8
+} SVGAOTableType;
+
+typedef
+struct {
+   SVGAOTableType type;
+   PPN baseAddress;
+   uint32 sizeInBytes;
+   uint32 validSizeInBytes;
+   SVGAMobFormat ptDepth;
+}
+__attribute__((__packed__))
+SVGA3dCmdSetOTableBase;  /* SVGA_3D_CMD_SET_OTABLE_BASE */
+
+typedef
+struct {
+   SVGAOTableType type;
+   PPN64 baseAddress;
+   uint32 sizeInBytes;
+   uint32 validSizeInBytes;
+   SVGAMobFormat ptDepth;
+}
+__attribute__((__packed__))
+SVGA3dCmdSetOTableBase64;  /* SVGA_3D_CMD_SET_OTABLE_BASE64 */
+
+typedef
+struct {
+   SVGAOTableType type;
+}
+__attribute__((__packed__))
+SVGA3dCmdReadbackOTable;  /* SVGA_3D_CMD_READBACK_OTABLE */
+
+/*
+ * Define a memory object (Mob) in the OTable.
+ */
+
+typedef
+struct SVGA3dCmdDefineGBMob {
+   SVGAMobId mobid;
+   SVGAMobFormat ptDepth;
+   PPN base;
+   uint32 sizeInBytes;
+}
+__attribute__((__packed__))
+SVGA3dCmdDefineGBMob;   /* SVGA_3D_CMD_DEFINE_GB_MOB */
+
+
+/*
+ * Destroys an object in the OTable.
+ */
+
+typedef
+struct SVGA3dCmdDestroyGBMob {
+   SVGAMobId mobid;
+}
+__attribute__((__packed__))
+SVGA3dCmdDestroyGBMob;   /* SVGA_3D_CMD_DESTROY_GB_MOB */
+
+/*
+ * Redefine an object in the OTable.
+ */
+
+typedef
+struct SVGA3dCmdRedefineGBMob {
+   SVGAMobId mobid;
+   SVGAMobFormat ptDepth;
+   PPN base;
+   uint32 sizeInBytes;
+}
+__attribute__((__packed__))
+SVGA3dCmdRedefineGBMob;   /* SVGA_3D_CMD_REDEFINE_GB_MOB */
+
+/*
+ * Define a memory object (Mob) in the OTable with a PPN64 base.
+ */
+
+typedef
+struct SVGA3dCmdDefineGBMob64 {
+   SVGAMobId mobid;
+   SVGAMobFormat ptDepth;
+   PPN64 base;
+   uint32 sizeInBytes;
+}
+__attribute__((__packed__))
+SVGA3dCmdDefineGBMob64;   /* SVGA_3D_CMD_DEFINE_GB_MOB64 */
+
+/*
+ * Redefine an object in the OTable with PPN64 base.
+ */
+
+typedef
+struct SVGA3dCmdRedefineGBMob64 {
+   SVGAMobId mobid;
+   SVGAMobFormat ptDepth;
+   PPN64 base;
+   uint32 sizeInBytes;
+}
+__attribute__((__packed__))
+SVGA3dCmdRedefineGBMob64;   /* SVGA_3D_CMD_REDEFINE_GB_MOB64 */
+
+/*
+ * Notification that the page tables have been modified.
+ */
+
+typedef
+struct SVGA3dCmdUpdateGBMobMapping {
+   SVGAMobId mobid;
+}
+__attribute__((__packed__))
+SVGA3dCmdUpdateGBMobMapping;   /* SVGA_3D_CMD_UPDATE_GB_MOB_MAPPING */
+
+/*
+ * Define a guest-backed surface.
+ */
+
+typedef
+struct SVGA3dCmdDefineGBSurface {
+   uint32 sid;
+   SVGA3dSurfaceFlags surfaceFlags;
+   SVGA3dSurfaceFormat format;
+   uint32 numMipLevels;
+   uint32 multisampleCount;
+   SVGA3dTextureFilter autogenFilter;
+   SVGA3dSize size;
+} SVGA3dCmdDefineGBSurface;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE */
+
+/*
+ * Destroy a guest-backed surface.
+ */
+
+typedef
+struct SVGA3dCmdDestroyGBSurface {
+   uint32 sid;
+} SVGA3dCmdDestroyGBSurface;   /* SVGA_3D_CMD_DESTROY_GB_SURFACE */
+
+/*
+ * Bind a guest-backed surface to an object.
+ */
+
+typedef
+struct SVGA3dCmdBindGBSurface {
+   uint32 sid;
+   SVGAMobId mobid;
+} SVGA3dCmdBindGBSurface;   /* SVGA_3D_CMD_BIND_GB_SURFACE */
+
+/*
+ * Conditionally bind a mob to a guest backed surface if testMobid
+ * matches the currently bound mob.  Optionally issue a readback on
+ * the surface while it is still bound to the old mobid if the mobid
+ * is changed by this command.
+ */
+
+#define SVGA3D_COND_BIND_GB_SURFACE_FLAG_READBACK (1 << 0)
+
+typedef
+struct{
+   uint32 sid;
+   SVGAMobId testMobid;
+   SVGAMobId mobid;
+   uint32 flags;
+}
+SVGA3dCmdCondBindGBSurface;          /* SVGA_3D_CMD_COND_BIND_GB_SURFACE */
+
+/*
+ * Update an image in a guest-backed surface.
+ * (Inform the device that the guest-contents have been updated.)
+ */
+
+typedef
+struct SVGA3dCmdUpdateGBImage {
+   SVGA3dSurfaceImageId image;
+   SVGA3dBox box;
+} SVGA3dCmdUpdateGBImage;   /* SVGA_3D_CMD_UPDATE_GB_IMAGE */
+
+/*
+ * Update an entire guest-backed surface.
+ * (Inform the device that the guest-contents have been updated.)
+ */
+
+typedef
+struct SVGA3dCmdUpdateGBSurface {
+   uint32 sid;
+} SVGA3dCmdUpdateGBSurface;   /* SVGA_3D_CMD_UPDATE_GB_SURFACE */
+
+/*
+ * Readback an image in a guest-backed surface.
+ * (Request the device to flush the dirty contents into the guest.)
+ */
+
+typedef
+struct SVGA3dCmdReadbackGBImage {
+   SVGA3dSurfaceImageId image;
+} SVGA3dCmdReadbackGBImage;   /* SVGA_3D_CMD_READBACK_GB_IMAGE*/
+
+/*
+ * Readback an entire guest-backed surface.
+ * (Request the device to flush the dirty contents into the guest.)
+ */
+
+typedef
+struct SVGA3dCmdReadbackGBSurface {
+   uint32 sid;
+} SVGA3dCmdReadbackGBSurface;   /* SVGA_3D_CMD_READBACK_GB_SURFACE */
+
+/*
+ * Readback a sub rect of an image in a guest-backed surface.  After
+ * issuing this command the driver is required to issue an update call
+ * of the same region before issuing any other commands that reference
+ * this surface or rendering is not guaranteed.
+ */
+
+typedef
+struct SVGA3dCmdReadbackGBImagePartial {
+   SVGA3dSurfaceImageId image;
+   SVGA3dBox box;
+   uint32 invertBox;
+}
+SVGA3dCmdReadbackGBImagePartial; /* SVGA_3D_CMD_READBACK_GB_IMAGE_PARTIAL */
+
+/*
+ * Invalidate an image in a guest-backed surface.
+ * (Notify the device that the contents can be lost.)
+ */
+
+typedef
+struct SVGA3dCmdInvalidateGBImage {
+   SVGA3dSurfaceImageId image;
+} SVGA3dCmdInvalidateGBImage;   /* SVGA_3D_CMD_INVALIDATE_GB_IMAGE */
+
+/*
+ * Invalidate an entire guest-backed surface.
+ * (Notify the device that the contents if all images can be lost.)
+ */
+
+typedef
+struct SVGA3dCmdInvalidateGBSurface {
+   uint32 sid;
+} SVGA3dCmdInvalidateGBSurface; /* SVGA_3D_CMD_INVALIDATE_GB_SURFACE */
+
+/*
+ * Invalidate a sub rect of an image in a guest-backed surface.  After
+ * issuing this command the driver is required to issue an update call
+ * of the same region before issuing any other commands that reference
+ * this surface or rendering is not guaranteed.
+ */
+
+typedef
+struct SVGA3dCmdInvalidateGBImagePartial {
+   SVGA3dSurfaceImageId image;
+   SVGA3dBox box;
+   uint32 invertBox;
+}
+SVGA3dCmdInvalidateGBImagePartial; /* SVGA_3D_CMD_INVALIDATE_GB_IMAGE_PARTIAL */
+
+/*
+ * Define a guest-backed context.
+ */
+
+typedef
+struct SVGA3dCmdDefineGBContext {
+   uint32 cid;
+} SVGA3dCmdDefineGBContext;   /* SVGA_3D_CMD_DEFINE_GB_CONTEXT */
+
+/*
+ * Destroy a guest-backed context.
+ */
+
+typedef
+struct SVGA3dCmdDestroyGBContext {
+   uint32 cid;
+} SVGA3dCmdDestroyGBContext;   /* SVGA_3D_CMD_DESTROY_GB_CONTEXT */
+
+/*
+ * Bind a guest-backed context.
+ *
+ * validContents should be set to 0 for new contexts,
+ * and 1 if this is an old context which is getting paged
+ * back on to the device.
+ *
+ * For new contexts, it is recommended that the driver
+ * issue commands to initialize all interesting state
+ * prior to rendering.
+ */
+
+typedef
+struct SVGA3dCmdBindGBContext {
+   uint32 cid;
+   SVGAMobId mobid;
+   uint32 validContents;
+} SVGA3dCmdBindGBContext;   /* SVGA_3D_CMD_BIND_GB_CONTEXT */
+
+/*
+ * Readback a guest-backed context.
+ * (Request that the device flush the contents back into guest memory.)
+ */
+
+typedef
+struct SVGA3dCmdReadbackGBContext {
+   uint32 cid;
+} SVGA3dCmdReadbackGBContext;   /* SVGA_3D_CMD_READBACK_GB_CONTEXT */
+
+/*
+ * Invalidate a guest-backed context.
+ */
+typedef
+struct SVGA3dCmdInvalidateGBContext {
+   uint32 cid;
+} SVGA3dCmdInvalidateGBContext;   /* SVGA_3D_CMD_INVALIDATE_GB_CONTEXT */
+
+/*
+ * Define a guest-backed shader.
+ */
+
+typedef
+struct SVGA3dCmdDefineGBShader {
+   uint32 shid;
+   SVGA3dShaderType type;
+   uint32 sizeInBytes;
+} SVGA3dCmdDefineGBShader;   /* SVGA_3D_CMD_DEFINE_GB_SHADER */
+
+/*
+ * Bind a guest-backed shader.
+ */
+
+typedef struct SVGA3dCmdBindGBShader {
+   uint32 shid;
+   SVGAMobId mobid;
+   uint32 offsetInBytes;
+} SVGA3dCmdBindGBShader;   /* SVGA_3D_CMD_BIND_GB_SHADER */
+
+/*
+ * Destroy a guest-backed shader.
+ */
+
+typedef struct SVGA3dCmdDestroyGBShader {
+   uint32 shid;
+} SVGA3dCmdDestroyGBShader;   /* SVGA_3D_CMD_DESTROY_GB_SHADER */
+
+typedef
+struct {
+   uint32                  cid;
+   uint32                  regStart;
+   SVGA3dShaderType        shaderType;
+   SVGA3dShaderConstType   constType;
+
+   /*
+    * Followed by a variable number of shader constants.
+    *
+    * Note that FLOAT and INT constants are 4-dwords in length, while
+    * BOOL constants are 1-dword in length.
+    */
+} SVGA3dCmdSetGBShaderConstInline;
+/* SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE */
+
+typedef
+struct {
+   uint32               cid;
+   SVGA3dQueryType      type;
+} SVGA3dCmdBeginGBQuery;           /* SVGA_3D_CMD_BEGIN_GB_QUERY */
+
+typedef
+struct {
+   uint32               cid;
+   SVGA3dQueryType      type;
+   SVGAMobId mobid;
+   uint32 offset;
+} SVGA3dCmdEndGBQuery;                  /* SVGA_3D_CMD_END_GB_QUERY */
+
+
+/*
+ * SVGA_3D_CMD_WAIT_FOR_GB_QUERY --
+ *
+ *    The semantics of this command are identical to the
+ *    SVGA_3D_CMD_WAIT_FOR_QUERY except that the results are written
+ *    to a Mob instead of a GMR.
+ */
+
+typedef
+struct {
+   uint32               cid;
+   SVGA3dQueryType      type;
+   SVGAMobId mobid;
+   uint32 offset;
+} SVGA3dCmdWaitForGBQuery;          /* SVGA_3D_CMD_WAIT_FOR_GB_QUERY */
+
+typedef
+struct {
+   SVGAMobId mobid;
+   uint32 fbOffset;
+   uint32 initalized;
+}
+SVGA3dCmdEnableGart;              /* SVGA_3D_CMD_ENABLE_GART */
+
+typedef
+struct {
+   SVGAMobId mobid;
+   uint32 gartOffset;
+}
+SVGA3dCmdMapMobIntoGart;          /* SVGA_3D_CMD_MAP_MOB_INTO_GART */
+
+
+typedef
+struct {
+   uint32 gartOffset;
+   uint32 numPages;
+}
+SVGA3dCmdUnmapGartRange;          /* SVGA_3D_CMD_UNMAP_GART_RANGE */
+
+
+/*
+ * Screen Targets
+ */
+#define SVGA_STFLAG_PRIMARY (1 << 0)
+
+typedef
+struct {
+   uint32 stid;
+   uint32 width;
+   uint32 height;
+   int32 xRoot;
+   int32 yRoot;
+   uint32 flags;
+}
+SVGA3dCmdDefineGBScreenTarget;    /* SVGA_3D_CMD_DEFINE_GB_SCREENTARGET */
+
+typedef
+struct {
+   uint32 stid;
+}
+SVGA3dCmdDestroyGBScreenTarget;  /* SVGA_3D_CMD_DESTROY_GB_SCREENTARGET */
+
+typedef
+struct {
+   uint32 stid;
+   SVGA3dSurfaceImageId image;
+}
+SVGA3dCmdBindGBScreenTarget;  /* SVGA_3D_CMD_BIND_GB_SCREENTARGET */
+
+typedef
+struct {
+   uint32 stid;
+   SVGA3dBox box;
+}
+SVGA3dCmdUpdateGBScreenTarget;  /* SVGA_3D_CMD_UPDATE_GB_SCREENTARGET */
+
+/*
  * Capability query index.
  *
  * Notes:
@@ -1879,10 +2538,41 @@ typedef enum {
    SVGA3D_DEVCAP_SURFACEFMT_BC5_UNORM              = 83,
 
    /*
-    * Don't add new caps into the previous section; the values in this
-    * enumeration must not change. You can put new values right before
-    * SVGA3D_DEVCAP_MAX.
+    * Deprecated.
     */
+   SVGA3D_DEVCAP_VGPU10                            = 84,
+
+   /*
+    * This contains several SVGA_3D_CAPS_VIDEO_DECODE elements
+    * ored together, one for every type of video decoding supported.
+    */
+   SVGA3D_DEVCAP_VIDEO_DECODE                      = 85,
+
+   /*
+    * This contains several SVGA_3D_CAPS_VIDEO_PROCESS elements
+    * ored together, one for every type of video processing supported.
+    */
+   SVGA3D_DEVCAP_VIDEO_PROCESS                     = 86,
+
+   SVGA3D_DEVCAP_LINE_AA                           = 87,  /* boolean */
+   SVGA3D_DEVCAP_LINE_STIPPLE                      = 88,  /* boolean */
+   SVGA3D_DEVCAP_MAX_LINE_WIDTH                    = 89,  /* float */
+   SVGA3D_DEVCAP_MAX_AA_LINE_WIDTH                 = 90,  /* float */
+
+   SVGA3D_DEVCAP_SURFACEFMT_YV12                   = 91,
+
+   /*
+    * Does the host support the SVGA logic ops commands?
+    */
+   SVGA3D_DEVCAP_LOGICOPS                          = 92,
+
+   /*
+    * What support does the host have for screen targets?
+    *
+    * See the SVGA3D_SCREENTARGET_CAP bits below.
+    */
+   SVGA3D_DEVCAP_SCREENTARGETS                     = 93,
+
    SVGA3D_DEVCAP_MAX                                  /* This must be the last index. */
 } SVGA3dDevCapIndex;
 

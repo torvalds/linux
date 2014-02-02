@@ -126,17 +126,17 @@
 
 		led-red {
 			label = "obsa7:red:stat";
-			gpios = <&gpio1 9 1>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 
 		led-green {
 			label = "obsa7:green:stat";
-			gpios = <&gpio1 10 1>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 		};
 
 		led-yellow {
 			label = "obsa7:yellow:stat";
-			gpios = <&gpio1 11 1>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 		};
         };
 
@@ -149,8 +149,8 @@
 
 		button@1 {
 			label = "Init Button";
-			linux,code = <116>;
-			gpios = <&gpio1 6 0>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
@@ -196,12 +196,10 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 
 	ethphy1: ethernet-phy@1 {
-		device_type = "ethernet-phy";
 		reg = <1>;
 	};
 };

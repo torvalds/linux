@@ -23,6 +23,10 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/clk-provider.h>
+#include <linux/clk/ti.h>
 
 #include "soc.h"
 #include "prm2xxx_3xxx.h"
@@ -30,6 +34,7 @@
 #include "prm3xxx.h"
 #include "prm44xx.h"
 #include "common.h"
+#include "clock.h"
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
@@ -461,6 +466,67 @@ int prm_unregister(struct prm_ll_data *pld)
 		return -EINVAL;
 
 	prm_ll_data = &null_prm_ll_data;
+
+	return 0;
+}
+
+static struct of_device_id omap_prcm_dt_match_table[] = {
+	{ .compatible = "ti,am3-prcm" },
+	{ .compatible = "ti,am3-scrm" },
+	{ .compatible = "ti,am4-prcm" },
+	{ .compatible = "ti,am4-scrm" },
+	{ .compatible = "ti,omap3-prm" },
+	{ .compatible = "ti,omap3-cm" },
+	{ .compatible = "ti,omap3-scrm" },
+	{ .compatible = "ti,omap4-cm1" },
+	{ .compatible = "ti,omap4-prm" },
+	{ .compatible = "ti,omap4-cm2" },
+	{ .compatible = "ti,omap4-scrm" },
+	{ .compatible = "ti,omap5-prm" },
+	{ .compatible = "ti,omap5-cm-core-aon" },
+	{ .compatible = "ti,omap5-scrm" },
+	{ .compatible = "ti,omap5-cm-core" },
+	{ .compatible = "ti,dra7-prm" },
+	{ .compatible = "ti,dra7-cm-core-aon" },
+	{ .compatible = "ti,dra7-cm-core" },
+	{ }
+};
+
+static struct clk_hw_omap memmap_dummy_ck = {
+	.flags = MEMMAP_ADDRESSING,
+};
+
+static u32 prm_clk_readl(void __iomem *reg)
+{
+	return omap2_clk_readl(&memmap_dummy_ck, reg);
+}
+
+static void prm_clk_writel(u32 val, void __iomem *reg)
+{
+	omap2_clk_writel(val, &memmap_dummy_ck, reg);
+}
+
+static struct ti_clk_ll_ops omap_clk_ll_ops = {
+	.clk_readl = prm_clk_readl,
+	.clk_writel = prm_clk_writel,
+};
+
+int __init of_prcm_init(void)
+{
+	struct device_node *np;
+	void __iomem *mem;
+	int memmap_index = 0;
+
+	ti_clk_ll_ops = &omap_clk_ll_ops;
+
+	for_each_matching_node(np, omap_prcm_dt_match_table) {
+		mem = of_iomap(np, 0);
+		clk_memmaps[memmap_index] = mem;
+		ti_dt_clk_init_provider(np, memmap_index);
+		memmap_index++;
+	}
+
+	ti_dt_clockdomains_setup();
 
 	return 0;
 }

@@ -131,7 +131,7 @@ dm_thin_id dm_thin_dev_id(struct dm_thin_device *td);
 
 struct dm_thin_lookup_result {
 	dm_block_t block;
-	unsigned shared:1;
+	bool shared:1;
 };
 
 /*
@@ -180,6 +180,8 @@ int dm_pool_get_metadata_dev_size(struct dm_pool_metadata *pmd,
 int dm_pool_get_data_block_size(struct dm_pool_metadata *pmd, sector_t *result);
 
 int dm_pool_get_data_dev_size(struct dm_pool_metadata *pmd, dm_block_t *result);
+
+int dm_pool_block_is_used(struct dm_pool_metadata *pmd, dm_block_t b, bool *result);
 
 /*
  * Returns -ENOSPC if the new size is too small and already allocated

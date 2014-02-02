@@ -182,7 +182,7 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	palmas_gpio->gpio_chip.owner = THIS_MODULE;
 	palmas_gpio->gpio_chip.label = dev_name(&pdev->dev);
 	palmas_gpio->gpio_chip.ngpio = dev_data->ngpio;
-	palmas_gpio->gpio_chip.can_sleep = 1;
+	palmas_gpio->gpio_chip.can_sleep = true;
 	palmas_gpio->gpio_chip.direction_input = palmas_gpio_input;
 	palmas_gpio->gpio_chip.direction_output = palmas_gpio_output;
 	palmas_gpio->gpio_chip.to_irq = palmas_gpio_to_irq;

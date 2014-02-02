@@ -488,7 +488,11 @@ static int cm36651_write_raw(struct iio_dev *indio_dev,
 }
 
 static int cm36651_read_prox_thresh(struct iio_dev *indio_dev,
-					u64 event_code, int *val)
+					const struct iio_chan_spec *chan,
+					enum iio_event_type type,
+					enum iio_event_direction dir,
+					enum iio_event_info info,
+					int *val, int *val2)
 {
 	struct cm36651_data *cm36651 = iio_priv(indio_dev);
 
@@ -498,7 +502,11 @@ static int cm36651_read_prox_thresh(struct iio_dev *indio_dev,
 }
 
 static int cm36651_write_prox_thresh(struct iio_dev *indio_dev,
-					u64 event_code, int val)
+					const struct iio_chan_spec *chan,
+					enum iio_event_type type,
+					enum iio_event_direction dir,
+					enum iio_event_info info,
+					int val, int val2)
 {
 	struct cm36651_data *cm36651 = iio_priv(indio_dev);
 	struct i2c_client *client = cm36651->client;
@@ -520,7 +528,10 @@ static int cm36651_write_prox_thresh(struct iio_dev *indio_dev,
 }
 
 static int cm36651_write_prox_event_config(struct iio_dev *indio_dev,
-					u64 event_code, int state)
+					const struct iio_chan_spec *chan,
+					enum iio_event_type type,
+					enum iio_event_direction dir,
+					int state)
 {
 	struct cm36651_data *cm36651 = iio_priv(indio_dev);
 	int cmd, ret = -EINVAL;
@@ -536,7 +547,9 @@ static int cm36651_write_prox_event_config(struct iio_dev *indio_dev,
 }
 
 static int cm36651_read_prox_event_config(struct iio_dev *indio_dev,
-							u64 event_code)
+					const struct iio_chan_spec *chan,
+					enum iio_event_type type,
+					enum iio_event_direction dir)
 {
 	struct cm36651_data *cm36651 = iio_priv(indio_dev);
 	int event_en;
@@ -559,12 +572,22 @@ static int cm36651_read_prox_event_config(struct iio_dev *indio_dev,
 	.channel2 = IIO_MOD_LIGHT_##_color,		\
 }							\
 
+static const struct iio_event_spec cm36651_event_spec[] = {
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_EITHER,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
+				BIT(IIO_EV_INFO_ENABLE),
+	}
+};
+
 static const struct iio_chan_spec cm36651_channels[] = {
 	{
 		.type = IIO_PROXIMITY,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				BIT(IIO_CHAN_INFO_INT_TIME),
-		.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_EITHER)
+		.event_spec = cm36651_event_spec,
+		.num_event_specs = ARRAY_SIZE(cm36651_event_spec),
 	},
 	CM36651_LIGHT_CHANNEL(RED, CM36651_LIGHT_CHANNEL_IDX_RED),
 	CM36651_LIGHT_CHANNEL(GREEN, CM36651_LIGHT_CHANNEL_IDX_GREEN),
@@ -693,7 +716,7 @@ static const struct of_device_id cm36651_of_match[] = {
 static struct i2c_driver cm36651_driver = {
 	.driver = {
 		.name	= "cm36651",
-		.of_match_table = of_match_ptr(cm36651_of_match),
+		.of_match_table = cm36651_of_match,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= cm36651_probe,

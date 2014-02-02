@@ -6,7 +6,7 @@
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
-	depends on USB_GADGET
+	depends on (USB || USB_GADGET)
 	help
 	  Say Y here if your system has a dual role high speed USB
 	  controller based on the Mentor Graphics silicon IP.  Then
@@ -35,21 +35,21 @@ choice
 
 config USB_MUSB_HOST
 	bool "Host only mode"
-	depends on USB
+	depends on USB=y || USB=USB_MUSB_HDRC
 	help
 	  Select this when you want to use MUSB in host mode only,
 	  thereby the gadget feature will be regressed.
 
 config USB_MUSB_GADGET
 	bool "Gadget only mode"
-	depends on USB_GADGET
+	depends on USB_GADGET=y || USB_GADGET=USB_MUSB_HDRC
 	help
 	  Select this when you want to use MUSB in gadget mode only,
 	  thereby the host feature will be regressed.
 
 config USB_MUSB_DUAL_ROLE
 	bool "Dual Role mode"
-	depends on (USB && USB_GADGET)
+	depends on ((USB=y || USB=USB_MUSB_HDRC) && (USB_GADGET=y || USB_GADGET=USB_MUSB_HDRC))
 	help
 	  This is the default mode of working of MUSB controller where
 	  both host and gadget features are enabled.
@@ -93,6 +93,12 @@ config USB_MUSB_BLACKFIN
 config USB_MUSB_UX500
 	tristate "Ux500 platforms"
 
+config USB_MUSB_JZ4740
+	tristate "JZ4740"
+	depends on MACH_JZ4740 || COMPILE_TEST
+	depends on USB_MUSB_GADGET
+	depends on USB_OTG_BLACKLIST_HUB
+
 endchoice
 
 config USB_MUSB_AM335X_CHILD
@@ -100,7 +106,7 @@ config USB_MUSB_AM335X_CHILD
 
 choice
 	prompt 'MUSB DMA mode'
-	default MUSB_PIO_ONLY if ARCH_MULTIPLATFORM
+	default MUSB_PIO_ONLY if ARCH_MULTIPLATFORM || USB_MUSB_JZ4740
 	default USB_UX500_DMA if USB_MUSB_UX500
 	default USB_INVENTRA_DMA if USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
 	default USB_TI_CPPI_DMA if USB_MUSB_DAVINCI

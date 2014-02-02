@@ -475,7 +475,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 		 &bus->busn_res);
 
 	res = bus->resource[0];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_IO) {
 		/*
 		 * The IO resource is allocated a range twice as large as it
@@ -489,7 +489,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	}
 
 	res = bus->resource[1];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_IO) {
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_IO_BASE_1,
@@ -499,7 +499,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	}
 
 	res = bus->resource[2];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_MEM) {
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_0,
@@ -509,7 +509,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	}
 
 	res = bus->resource[3];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_MEM) {
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_1,
@@ -538,7 +538,8 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 	struct pci_bus_region region;
 	unsigned long io_mask;
 	u8 io_base_lo, io_limit_lo;
-	u32 l, io_upper16;
+	u16 l;
+	u32 io_upper16;
 
 	io_mask = PCI_IO_RANGE_MASK;
 	if (bridge->io_window_1k)
@@ -546,13 +547,12 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 
 	/* Set up the top and bottom of the PCI I/O segment for this bus. */
 	res = bus->resource[0];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_IO) {
-		pci_read_config_dword(bridge, PCI_IO_BASE, &l);
-		l &= 0xffff0000;
+		pci_read_config_word(bridge, PCI_IO_BASE, &l);
 		io_base_lo = (region.start >> 8) & io_mask;
 		io_limit_lo = (region.end >> 8) & io_mask;
-		l |= ((u32) io_limit_lo << 8) | io_base_lo;
+		l = ((u16) io_limit_lo << 8) | io_base_lo;
 		/* Set up upper 16 bits of I/O base/limit. */
 		io_upper16 = (region.end & 0xffff0000) | (region.start >> 16);
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
@@ -564,7 +564,7 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 	/* Temporarily disable the I/O range before updating PCI_IO_BASE. */
 	pci_write_config_dword(bridge, PCI_IO_BASE_UPPER16, 0x0000ffff);
 	/* Update lower 16 bits of I/O base/limit. */
-	pci_write_config_dword(bridge, PCI_IO_BASE, l);
+	pci_write_config_word(bridge, PCI_IO_BASE, l);
 	/* Update upper 16 bits of I/O base/limit. */
 	pci_write_config_dword(bridge, PCI_IO_BASE_UPPER16, io_upper16);
 }
@@ -578,7 +578,7 @@ static void pci_setup_bridge_mmio(struct pci_bus *bus)
 
 	/* Set up the top and bottom of the PCI Memory segment for this bus. */
 	res = bus->resource[1];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_MEM) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
@@ -604,7 +604,7 @@ static void pci_setup_bridge_mmio_pref(struct pci_bus *bus)
 	/* Set up PREF base/limit. */
 	bu = lu = 0;
 	res = bus->resource[2];
-	pcibios_resource_to_bus(bridge, &region, res);
+	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_PREFETCH) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
@@ -665,21 +665,23 @@ static void pci_bridge_check_ranges(struct pci_bus *bus)
 
 	pci_read_config_word(bridge, PCI_IO_BASE, &io);
 	if (!io) {
-		pci_write_config_word(bridge, PCI_IO_BASE, 0xf0f0);
+		pci_write_config_word(bridge, PCI_IO_BASE, 0xe0f0);
 		pci_read_config_word(bridge, PCI_IO_BASE, &io);
 		pci_write_config_word(bridge, PCI_IO_BASE, 0x0);
 	}
 	if (io)
 		b_res[0].flags |= IORESOURCE_IO;
+
 	/*  DECchip 21050 pass 2 errata: the bridge may miss an address
 	    disconnect boundary by one PCI data phase.
 	    Workaround: do not use prefetching on this device. */
 	if (bridge->vendor == PCI_VENDOR_ID_DEC && bridge->device == 0x0001)
 		return;
+
 	pci_read_config_dword(bridge, PCI_PREF_MEMORY_BASE, &pmem);
 	if (!pmem) {
 		pci_write_config_dword(bridge, PCI_PREF_MEMORY_BASE,
-					       0xfff0fff0);
+					       0xffe0fff0);
 		pci_read_config_dword(bridge, PCI_PREF_MEMORY_BASE, &pmem);
 		pci_write_config_dword(bridge, PCI_PREF_MEMORY_BASE, 0x0);
 	}
@@ -1422,7 +1424,7 @@ static int iov_resources_unassigned(struct pci_dev *dev, void *data)
 		if (!r->flags)
 			continue;
 
-		pcibios_resource_to_bus(dev, &region, r);
+		pcibios_resource_to_bus(dev->bus, &region, r);
 		if (!region.start) {
 			*unassigned = true;
 			return 1; /* return early from pci_walk_bus() */

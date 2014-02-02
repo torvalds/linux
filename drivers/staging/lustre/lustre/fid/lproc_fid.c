@@ -54,7 +54,6 @@
 #include <lustre_fid.h>
 #include "fid_internal.h"
 
-#ifdef LPROCFS
 /*
  * Note: this function is only used for testing, it is no safe for production
  * use.
@@ -209,4 +208,3 @@ struct lprocfs_vars seq_client_proc_list[] = {
 	{ "fid", &lprocfs_fid_fid_fops },
 	{ NULL }
 };
-#endif

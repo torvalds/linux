@@ -377,8 +377,13 @@ static inline bool of_have_populated_dt(void)
 	return false;
 }
 
+/* Kill an unused variable warning on a device_node pointer */
+static inline void __of_use_dn(const struct device_node *np)
+{
+}
+
 #define for_each_child_of_node(parent, child) \
-	while (0)
+	while (__of_use_dn(parent), __of_use_dn(child), 0)
 
 #define for_each_available_child_of_node(parent, child) \
 	while (0)

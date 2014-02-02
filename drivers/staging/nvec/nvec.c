@@ -36,7 +36,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
-#include <linux/clk/tegra.h>
 
 #include "nvec.h"
 
@@ -83,7 +82,7 @@ enum nvec_sleep_subcmds {
 
 static struct nvec_chip *nvec_power_handle;
 
-static struct mfd_cell nvec_devices[] = {
+static const struct mfd_cell nvec_devices[] = {
 	{
 		.name = "nvec-kbd",
 		.id = 1,
@@ -734,9 +733,9 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 
 	clk_prepare_enable(nvec->i2c_clk);
 
-	tegra_periph_reset_assert(nvec->i2c_clk);
+	reset_control_assert(nvec->rst);
 	udelay(2);
-	tegra_periph_reset_deassert(nvec->i2c_clk);
+	reset_control_deassert(nvec->rst);
 
 	val = I2C_CNFG_NEW_MASTER_SFM | I2C_CNFG_PACKET_MODE_EN |
 	    (0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
@@ -835,6 +834,12 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c_clk)) {
 		dev_err(nvec->dev, "failed to get controller clock\n");
 		return -ENODEV;
+	}
+
+	nvec->rst = devm_reset_control_get(&pdev->dev, "i2c");
+	if (IS_ERR(nvec->rst)) {
+		dev_err(nvec->dev, "failed to get controller reset\n");
+		return PTR_ERR(nvec->rst);
 	}
 
 	nvec->base = base;

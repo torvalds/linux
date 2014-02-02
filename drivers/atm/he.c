@@ -419,7 +419,6 @@ static void he_remove_one(struct pci_dev *pci_dev)
 	atm_dev_deregister(atm_dev);
 	kfree(he_dev);
 
-	pci_set_drvdata(pci_dev, NULL);
 	pci_disable_device(pci_dev);
 }
 

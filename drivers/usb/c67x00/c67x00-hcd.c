@@ -384,6 +384,8 @@ int c67x00_hcd_probe(struct c67x00_sie *sie)
 		goto err2;
 	}
 
+	device_wakeup_enable(hcd->self.controller);
+
 	spin_lock_irqsave(&sie->lock, flags);
 	sie->private_data = c67x00;
 	sie->irq = c67x00_hcd_irq;

@@ -14,7 +14,6 @@ TODO:
 	- use net_device_ops
 	- use dev->stats rather than adapter->stats
 	- don't cast netdev_priv it is already void
-	- use compare_ether_addr
 	- GET RID OF MACROS
 	- work on all architectures
 	   - without CONFIG_X86_64 confusion

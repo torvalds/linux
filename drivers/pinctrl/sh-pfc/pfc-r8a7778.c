@@ -1260,7 +1260,7 @@ static const u16 pinmux_data[] = {
  */
 #define PIN_NUMBER(row, col)		(1000+((row)-1)*25+(col)-1)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
 
 	/* Pins not associated with a GPIO port */
@@ -2104,7 +2104,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(vin1),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("GPSR0", 0xfffc0004, 32, 1) {
 		GP_0_31_FN,	FN_IP1_14_11,
 		GP_0_30_FN,	FN_IP1_10_8,

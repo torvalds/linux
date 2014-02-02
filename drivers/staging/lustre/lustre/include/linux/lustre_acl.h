@@ -47,17 +47,17 @@
 #error	Shoud not include direectly. use #include <lustre_acl.h> instead
 #endif
 
-# include <linux/fs.h>
-# include <linux/dcache.h>
-# ifdef CONFIG_FS_POSIX_ACL
-#  include <linux/posix_acl_xattr.h>
-#  define LUSTRE_POSIX_ACL_MAX_ENTRIES	32
-#  define LUSTRE_POSIX_ACL_MAX_SIZE					\
+#include <linux/fs.h>
+#include <linux/dcache.h>
+
+#include <linux/posix_acl_xattr.h>
+#define LUSTRE_POSIX_ACL_MAX_ENTRIES	32
+#define LUSTRE_POSIX_ACL_MAX_SIZE					\
 	(sizeof(posix_acl_xattr_header) +				\
 	 LUSTRE_POSIX_ACL_MAX_ENTRIES * sizeof(posix_acl_xattr_entry))
-# endif /* CONFIG_FS_POSIX_ACL */
-# include <linux/lustre_intent.h>
-# include <linux/xattr.h> /* XATTR_{REPLACE,CREATE} */
+
+#include <linux/lustre_intent.h>
+#include <linux/xattr.h> /* XATTR_{REPLACE,CREATE} */
 
 #ifndef LUSTRE_POSIX_ACL_MAX_SIZE
 # define LUSTRE_POSIX_ACL_MAX_SIZE   0

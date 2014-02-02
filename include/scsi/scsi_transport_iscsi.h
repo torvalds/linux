@@ -166,6 +166,7 @@ struct iscsi_transport {
 	int (*logout_flashnode) (struct iscsi_bus_flash_session *fnode_sess,
 				 struct iscsi_bus_flash_conn *fnode_conn);
 	int (*logout_flashnode_sid) (struct iscsi_cls_session *cls_sess);
+	int (*get_host_stats) (struct Scsi_Host *shost, char *buf, int len);
 };
 
 /*
@@ -478,4 +479,7 @@ iscsi_find_flashnode_sess(struct Scsi_Host *shost, void *data,
 extern struct device *
 iscsi_find_flashnode_conn(struct iscsi_bus_flash_session *fnode_sess);
 
+extern char *
+iscsi_get_ipaddress_state_name(enum iscsi_ipaddress_state port_state);
+extern char *iscsi_get_router_state_name(enum iscsi_router_state router_state);
 #endif
