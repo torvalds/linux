@@ -96,8 +96,11 @@ static int sunxi_sid_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sunxi_sid_of_match[] = {
-	{ .compatible = "allwinner,sun4i-sid", .data = (void *)16},
+	{ .compatible = "allwinner,sun4i-a10-sid", .data = (void *)16},
 	{ .compatible = "allwinner,sun7i-a20-sid", .data = (void *)512},
+
+	/* Deprecated */
+	{ .compatible = "allwinner,sun4i-sid", .data = (void *)16},
 	{/* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, sunxi_sid_of_match);
