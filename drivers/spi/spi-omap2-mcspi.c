@@ -45,6 +45,7 @@
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #define OMAP2_MCSPI_MAX_FREQ		48000000
+#define OMAP2_MCSPI_MAX_DIVIDER		4096
 #define OMAP2_MCSPI_MAX_FIFODEPTH	64
 #define OMAP2_MCSPI_MAX_FIFOWCNT	0xFFFF
 #define SPI_AUTOSUSPEND_TIMEOUT		2000
@@ -89,6 +90,7 @@
 #define OMAP2_MCSPI_CHCONF_FORCE	BIT(20)
 #define OMAP2_MCSPI_CHCONF_FFET		BIT(27)
 #define OMAP2_MCSPI_CHCONF_FFER		BIT(28)
+#define OMAP2_MCSPI_CHCONF_CLKG		BIT(29)
 
 #define OMAP2_MCSPI_CHSTAT_RXS		BIT(0)
 #define OMAP2_MCSPI_CHSTAT_TXS		BIT(1)
@@ -96,6 +98,7 @@
 #define OMAP2_MCSPI_CHSTAT_TXFFE	BIT(3)
 
 #define OMAP2_MCSPI_CHCTRL_EN		BIT(0)
+#define OMAP2_MCSPI_CHCTRL_EXTCLK_MASK	(0xff << 8)
 
 #define OMAP2_MCSPI_WAKEUPENABLE_WKEN	BIT(0)
 
@@ -149,7 +152,7 @@ struct omap2_mcspi_cs {
 	int			word_len;
 	struct list_head	node;
 	/* Context save and restore shadow register */
-	u32			chconf0;
+	u32			chconf0, chctrl0;
 };
 
 static inline void mcspi_write_reg(struct spi_master *master,
@@ -230,10 +233,16 @@ static void omap2_mcspi_set_dma_req(const struct spi_device *spi,
 
 static void omap2_mcspi_set_enable(const struct spi_device *spi, int enable)
 {
+	struct omap2_mcspi_cs *cs = spi->controller_state;
 	u32 l;
 
-	l = enable ? OMAP2_MCSPI_CHCTRL_EN : 0;
-	mcspi_write_cs_reg(spi, OMAP2_MCSPI_CHCTRL0, l);
+	l = cs->chctrl0;
+	if (enable)
+		l |= OMAP2_MCSPI_CHCTRL_EN;
+	else
+		l &= ~OMAP2_MCSPI_CHCTRL_EN;
+	cs->chctrl0 = l;
+	mcspi_write_cs_reg(spi, OMAP2_MCSPI_CHCTRL0, cs->chctrl0);
 	/* Flash post-writes */
 	mcspi_read_cs_reg(spi, OMAP2_MCSPI_CHCTRL0);
 }
@@ -840,7 +849,7 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 	struct omap2_mcspi_cs *cs = spi->controller_state;
 	struct omap2_mcspi *mcspi;
 	struct spi_master *spi_cntrl;
-	u32 l = 0, div = 0;
+	u32 l = 0, clkd = 0, div, extclk = 0, clkg = 0;
 	u8 word_len = spi->bits_per_word;
 	u32 speed_hz = spi->max_speed_hz;
 
@@ -856,7 +865,17 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 		speed_hz = t->speed_hz;
 
 	speed_hz = min_t(u32, speed_hz, OMAP2_MCSPI_MAX_FREQ);
-	div = omap2_mcspi_calc_divisor(speed_hz);
+	if (speed_hz < (OMAP2_MCSPI_MAX_FREQ / OMAP2_MCSPI_MAX_DIVIDER)) {
+		clkd = omap2_mcspi_calc_divisor(speed_hz);
+		speed_hz = OMAP2_MCSPI_MAX_FREQ >> clkd;
+		clkg = 0;
+	} else {
+		div = (OMAP2_MCSPI_MAX_FREQ + speed_hz - 1) / speed_hz;
+		speed_hz = OMAP2_MCSPI_MAX_FREQ / div;
+		clkd = (div - 1) & 0xf;
+		extclk = (div - 1) >> 4;
+		clkg = OMAP2_MCSPI_CHCONF_CLKG;
+	}
 
 	l = mcspi_cached_chconf0(spi);
 
@@ -885,7 +904,16 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 
 	/* set clock divisor */
 	l &= ~OMAP2_MCSPI_CHCONF_CLKD_MASK;
-	l |= div << 2;
+	l |= clkd << 2;
+
+	/* set clock granularity */
+	l &= ~OMAP2_MCSPI_CHCONF_CLKG;
+	l |= clkg;
+	if (clkg) {
+		cs->chctrl0 &= ~OMAP2_MCSPI_CHCTRL_EXTCLK_MASK;
+		cs->chctrl0 |= extclk << 8;
+		mcspi_write_cs_reg(spi, OMAP2_MCSPI_CHCTRL0, cs->chctrl0);
+	}
 
 	/* set SPI mode 0..3 */
 	if (spi->mode & SPI_CPOL)
@@ -900,7 +928,7 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 	mcspi_write_chconf0(spi, l);
 
 	dev_dbg(&spi->dev, "setup: speed %d, sample %s edge, clk %s\n",
-			OMAP2_MCSPI_MAX_FREQ >> div,
+			speed_hz,
 			(spi->mode & SPI_CPHA) ? "trailing" : "leading",
 			(spi->mode & SPI_CPOL) ? "inverted" : "normal");
 
@@ -972,6 +1000,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 		cs->base = mcspi->base + spi->chip_select * 0x14;
 		cs->phys = mcspi->phys + spi->chip_select * 0x14;
 		cs->chconf0 = 0;
+		cs->chctrl0 = 0;
 		spi->controller_state = cs;
 		/* Link this to context save list */
 		list_add_tail(&cs->node, &ctx->cs);
