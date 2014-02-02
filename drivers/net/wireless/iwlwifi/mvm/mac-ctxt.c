@@ -90,6 +90,7 @@ static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
 {
 	struct iwl_mvm_mac_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u16 min_bi;
 
 	/* Skip the interface for which we are trying to assign a tsf_id  */
 	if (vif == data->vif)
@@ -114,42 +115,57 @@ static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
 	switch (data->vif->type) {
 	case NL80211_IFTYPE_STATION:
 		/*
-		 * The new interface is client, so if the existing one
-		 * we're iterating is an AP, and both interfaces have the
-		 * same beacon interval, the same TSF should be used to
-		 * avoid drift between the new client and existing AP,
-		 * the existing AP will get drift updates from the new
-		 * client context in this case
+		 * The new interface is a client, so if the one we're iterating
+		 * is an AP, and the beacon interval of the AP is a multiple or
+		 * divisor of the beacon interval of the client, the same TSF
+		 * should be used to avoid drift between the new client and
+		 * existing AP. The existing AP will get drift updates from the
+		 * new client context in this case.
 		 */
-		if (vif->type == NL80211_IFTYPE_AP) {
-			if (data->preferred_tsf == NUM_TSF_IDS &&
-			    test_bit(mvmvif->tsf_id, data->available_tsf_ids) &&
-			    (vif->bss_conf.beacon_int ==
-			     data->vif->bss_conf.beacon_int)) {
-				data->preferred_tsf = mvmvif->tsf_id;
-				return;
-			}
+		if (vif->type != NL80211_IFTYPE_AP ||
+		    data->preferred_tsf != NUM_TSF_IDS ||
+		    !test_bit(mvmvif->tsf_id, data->available_tsf_ids))
+			break;
+
+		min_bi = min(data->vif->bss_conf.beacon_int,
+			     vif->bss_conf.beacon_int);
+
+		if (!min_bi)
+			break;
+
+		if ((data->vif->bss_conf.beacon_int -
+		     vif->bss_conf.beacon_int) % min_bi == 0) {
+			data->preferred_tsf = mvmvif->tsf_id;
+			return;
 		}
 		break;
+
 	case NL80211_IFTYPE_AP:
 		/*
-		 * The new interface is AP/GO, so in case both interfaces
-		 * have the same beacon interval, it should get drift
-		 * updates from an existing client or use the same
-		 * TSF as an existing GO. There's no drift between
-		 * TSFs internally but if they used different TSFs
-		 * then a new client MAC could update one of them
-		 * and cause drift that way.
+		 * The new interface is AP/GO, so if its beacon interval is a
+		 * multiple or a divisor of the beacon interval of an existing
+		 * interface, it should get drift updates from an existing
+		 * client or use the same TSF as an existing GO. There's no
+		 * drift between TSFs internally but if they used different
+		 * TSFs then a new client MAC could update one of them and
+		 * cause drift that way.
 		 */
-		if (vif->type == NL80211_IFTYPE_STATION ||
-		    vif->type == NL80211_IFTYPE_AP) {
-			if (data->preferred_tsf == NUM_TSF_IDS &&
-			    test_bit(mvmvif->tsf_id, data->available_tsf_ids) &&
-			    (vif->bss_conf.beacon_int ==
-			     data->vif->bss_conf.beacon_int)) {
-				data->preferred_tsf = mvmvif->tsf_id;
-				return;
-			}
+		if ((vif->type != NL80211_IFTYPE_AP &&
+		     vif->type != NL80211_IFTYPE_STATION) ||
+		    data->preferred_tsf != NUM_TSF_IDS ||
+		    !test_bit(mvmvif->tsf_id, data->available_tsf_ids))
+			break;
+
+		min_bi = min(data->vif->bss_conf.beacon_int,
+			     vif->bss_conf.beacon_int);
+
+		if (!min_bi)
+			break;
+
+		if ((data->vif->bss_conf.beacon_int -
+		     vif->bss_conf.beacon_int) % min_bi == 0) {
+			data->preferred_tsf = mvmvif->tsf_id;
+			return;
 		}
 		break;
 	default:
