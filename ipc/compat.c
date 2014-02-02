@@ -752,14 +752,8 @@ long compat_sys_shmctl(int first, int second, void __user *uptr)
 long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
 		unsigned nsops, const struct compat_timespec __user *timeout)
 {
-	struct timespec __user *ts64 = NULL;
-	if (timeout) {
-		struct timespec ts;
-		ts64 = compat_alloc_user_space(sizeof(*ts64));
-		if (get_compat_timespec(&ts, timeout))
-			return -EFAULT;
-		if (copy_to_user(ts64, &ts, sizeof(ts)))
-			return -EFAULT;
-	}
+	struct timespec __user *ts64;
+	if (compat_convert_timespec(&ts64, timeout))
+		return -EFAULT;
 	return sys_semtimedop(semid, tsems, nsops, ts64);
 }

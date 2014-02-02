@@ -64,20 +64,6 @@ asmlinkage long compat_sys_mq_open(const char __user *u_name,
 	return sys_mq_open(u_name, oflag, mode, p);
 }
 
-static int compat_prepare_timeout(struct timespec __user **p,
-				  const struct compat_timespec __user *u)
-{
-	struct timespec ts;
-	if (!u) {
-		*p = NULL;
-		return 0;
-	}
-	*p = compat_alloc_user_space(sizeof(ts));
-	if (get_compat_timespec(&ts, u) || copy_to_user(*p, &ts, sizeof(ts)))
-		return -EFAULT;
-	return 0;
-}
-
 asmlinkage long compat_sys_mq_timedsend(mqd_t mqdes,
 			const char __user *u_msg_ptr,
 			size_t msg_len, unsigned int msg_prio,
@@ -85,7 +71,7 @@ asmlinkage long compat_sys_mq_timedsend(mqd_t mqdes,
 {
 	struct timespec __user *u_ts;
 
-	if (compat_prepare_timeout(&u_ts, u_abs_timeout))
+	if (compat_convert_timespec(&u_ts, u_abs_timeout))
 		return -EFAULT;
 
 	return sys_mq_timedsend(mqdes, u_msg_ptr, msg_len,
@@ -98,7 +84,8 @@ asmlinkage ssize_t compat_sys_mq_timedreceive(mqd_t mqdes,
 			const struct compat_timespec __user *u_abs_timeout)
 {
 	struct timespec __user *u_ts;
-	if (compat_prepare_timeout(&u_ts, u_abs_timeout))
+
+	if (compat_convert_timespec(&u_ts, u_abs_timeout))
 		return -EFAULT;
 
 	return sys_mq_timedreceive(mqdes, u_msg_ptr, msg_len,

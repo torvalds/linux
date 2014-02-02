@@ -92,8 +92,8 @@ asmlinkage long compat_sys_utimensat(unsigned int dfd, const char __user *filena
 	struct timespec tv[2];
 
 	if  (t) {
-		if (get_compat_timespec(&tv[0], &t[0]) ||
-		    get_compat_timespec(&tv[1], &t[1]))
+		if (compat_get_timespec(&tv[0], &t[0]) ||
+		    compat_get_timespec(&tv[1], &t[1]))
 			return -EFAULT;
 
 		if (tv[0].tv_nsec == UTIME_OMIT && tv[1].tv_nsec == UTIME_OMIT)
@@ -512,7 +512,7 @@ compat_sys_io_getevents(aio_context_t ctx_id,
 				nr * sizeof(struct io_event))))
 		goto out;
 	if (timeout) {
-		if (get_compat_timespec(&t, timeout))
+		if (compat_get_timespec(&t, timeout))
 			goto out;
 
 		ut = compat_alloc_user_space(sizeof(*ut));
