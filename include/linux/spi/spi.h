@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/completion.h>
+#include <linux/scatterlist.h>
 
 struct dma_chan;
 
@@ -268,6 +269,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @auto_runtime_pm: the core should ensure a runtime PM reference is held
  *                   while the hardware is prepared, using the parent
  *                   device for the spidev
+ * @max_dma_len: Maximum length of a DMA transfer for the device.
  * @prepare_transfer_hardware: a message will soon arrive from the queue
  *	so the subsystem requests the driver to prepare the transfer hardware
  *	by issuing this call
@@ -421,6 +423,7 @@ struct spi_master {
 	bool                            cur_msg_prepared;
 	bool				cur_msg_mapped;
 	struct completion               xfer_completion;
+	size_t				max_dma_len;
 
 	int (*prepare_transfer_hardware)(struct spi_master *master);
 	int (*transfer_one_message)(struct spi_master *master,
@@ -533,6 +536,8 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  *	(optionally) changing the chipselect status, then starting
  *	the next transfer or completing this @spi_message.
  * @transfer_list: transfers are sequenced through @spi_message.transfers
+ * @tx_sg: Scatterlist for transmit, currently not for client use
+ * @rx_sg: Scatterlist for receive, currently not for client use
  *
  * SPI transfers always write the same number of bytes as they read.
  * Protocol drivers should always provide @rx_buf and/or @tx_buf.
@@ -600,6 +605,8 @@ struct spi_transfer {
 
 	dma_addr_t	tx_dma;
 	dma_addr_t	rx_dma;
+	struct sg_table tx_sg;
+	struct sg_table rx_sg;
 
 	unsigned	cs_change:1;
 	unsigned	tx_nbits:3;
