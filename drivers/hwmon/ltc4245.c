@@ -512,24 +512,10 @@ static int ltc4245_probe(struct i2c_client *client,
 	/* Add sysfs hooks */
 	ltc4245_sysfs_add_groups(data);
 
-	hwmon_dev = hwmon_device_register_with_groups(&client->dev,
-						      client->name, data,
-						      data->groups);
-	if (IS_ERR(hwmon_dev))
-		return PTR_ERR(hwmon_dev);
-
-	i2c_set_clientdata(client, hwmon_dev);
-
-	return 0;
-}
-
-static int ltc4245_remove(struct i2c_client *client)
-{
-	struct device *hwmon_dev = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(hwmon_dev);
-
-	return 0;
+	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
+							   client->name, data,
+							   data->groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static const struct i2c_device_id ltc4245_id[] = {
@@ -544,7 +530,6 @@ static struct i2c_driver ltc4245_driver = {
 		.name	= "ltc4245",
 	},
 	.probe		= ltc4245_probe,
-	.remove		= ltc4245_remove,
 	.id_table	= ltc4245_id,
 };
 
