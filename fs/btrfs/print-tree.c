@@ -154,7 +154,7 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 			    u32 item_size)
 {
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
-		pr_warn("btrfs: uuid item with illegal size %lu!\n",
+		pr_warn("BTRFS: uuid item with illegal size %lu!\n",
 			(unsigned long)item_size);
 		return;
 	}
@@ -249,7 +249,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			    BTRFS_FILE_EXTENT_INLINE) {
 				printk(KERN_INFO "\t\tinline extent data "
 				       "size %u\n",
-				       btrfs_file_extent_inline_len(l, fi));
+				       btrfs_file_extent_inline_len(l, i, fi));
 				break;
 			}
 			printk(KERN_INFO "\t\textent data disk bytenr %llu "

@@ -29,6 +29,11 @@
 
 };
 
+&gem0 {
+	status = "okay";
+	phy-mode = "rgmii";
+};
+
 &uart1 {
 	status = "okay";
 };

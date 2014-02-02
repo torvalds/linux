@@ -164,7 +164,8 @@ int vme_lm_attach(struct vme_resource *, int, void (*callback)(int));
 int vme_lm_detach(struct vme_resource *, int);
 void vme_lm_free(struct vme_resource *);
 
-int vme_slot_get(struct vme_dev *);
+int vme_slot_num(struct vme_dev *);
+int vme_bus_num(struct vme_dev *);
 
 int vme_register_driver(struct vme_driver *, unsigned int);
 void vme_unregister_driver(struct vme_driver *);

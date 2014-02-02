@@ -46,7 +46,6 @@
 
 struct mxc_w1_device {
 	void __iomem *regs;
-	unsigned int clkdiv;
 	struct clk *clk;
 	struct w1_bus_master bus_master;
 };
@@ -106,8 +105,10 @@ static u8 mxc_w1_ds2_touch_bit(void *data, u8 bit)
 static int mxc_w1_probe(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev;
+	unsigned long clkrate;
 	struct resource *res;
-	int err = 0;
+	unsigned int clkdiv;
+	int err;
 
 	mdev = devm_kzalloc(&pdev->dev, sizeof(struct mxc_w1_device),
 			    GFP_KERNEL);
@@ -118,27 +119,39 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	if (IS_ERR(mdev->clk))
 		return PTR_ERR(mdev->clk);
 
-	mdev->clkdiv = (clk_get_rate(mdev->clk) / 1000000) - 1;
+	clkrate = clk_get_rate(mdev->clk);
+	if (clkrate < 10000000)
+		dev_warn(&pdev->dev,
+			 "Low clock frequency causes improper function\n");
+
+	clkdiv = DIV_ROUND_CLOSEST(clkrate, 1000000);
+	clkrate /= clkdiv;
+	if ((clkrate < 980000) || (clkrate > 1020000))
+		dev_warn(&pdev->dev,
+			 "Incorrect time base frequency %lu Hz\n", clkrate);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mdev->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(mdev->regs))
 		return PTR_ERR(mdev->regs);
 
-	clk_prepare_enable(mdev->clk);
-	__raw_writeb(mdev->clkdiv, mdev->regs + MXC_W1_TIME_DIVIDER);
+	err = clk_prepare_enable(mdev->clk);
+	if (err)
+		return err;
+
+	__raw_writeb(clkdiv - 1, mdev->regs + MXC_W1_TIME_DIVIDER);
 
 	mdev->bus_master.data = mdev;
 	mdev->bus_master.reset_bus = mxc_w1_ds2_reset_bus;
 	mdev->bus_master.touch_bit = mxc_w1_ds2_touch_bit;
 
-	err = w1_add_master_device(&mdev->bus_master);
-
-	if (err)
-		return err;
-
 	platform_set_drvdata(pdev, mdev);
-	return 0;
+
+	err = w1_add_master_device(&mdev->bus_master);
+	if (err)
+		clk_disable_unprepare(mdev->clk);
+
+	return err;
 }
 
 /*

@@ -75,7 +75,7 @@ static unsigned int nf_nat_fn(const struct nf_hook_ops *ops,
 
 		nft_set_pktinfo_ipv4(&pkt, ops, skb, in, out);
 
-		ret = nft_do_chain_pktinfo(&pkt, ops);
+		ret = nft_do_chain(&pkt, ops);
 		if (ret != NF_ACCEPT)
 			return ret;
 		if (!nf_nat_initialized(ct, maniptype)) {
@@ -164,21 +164,21 @@ static unsigned int nf_nat_output(const struct nf_hook_ops *ops,
 	return ret;
 }
 
-static struct nf_chain_type nft_chain_nat_ipv4 = {
-	.family		= NFPROTO_IPV4,
+static const struct nf_chain_type nft_chain_nat_ipv4 = {
 	.name		= "nat",
 	.type		= NFT_CHAIN_T_NAT,
+	.family		= NFPROTO_IPV4,
+	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_POST_ROUTING) |
 			  (1 << NF_INET_LOCAL_OUT) |
 			  (1 << NF_INET_LOCAL_IN),
-	.fn		= {
+	.hooks		= {
 		[NF_INET_PRE_ROUTING]	= nf_nat_prerouting,
 		[NF_INET_POST_ROUTING]	= nf_nat_postrouting,
 		[NF_INET_LOCAL_OUT]	= nf_nat_output,
 		[NF_INET_LOCAL_IN]	= nf_nat_fn,
 	},
-	.me		= THIS_MODULE,
 };
 
 static int __init nft_chain_nat_init(void)

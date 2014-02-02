@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,6 +129,12 @@ enum iwl_led_mode {
 #define ANT_BC		(ANT_B | ANT_C)
 #define ANT_ABC		(ANT_A | ANT_B | ANT_C)
 
+static inline u8 num_of_ant(u8 mask)
+{
+	return  !!((mask) & ANT_A) +
+		!!((mask) & ANT_B) +
+		!!((mask) & ANT_C);
+}
 
 /*
  * @max_ll_items: max number of OTP blocks
@@ -156,12 +162,14 @@ struct iwl_base_params {
 };
 
 /*
+ * @stbc: support Tx STBC and 1*SS Rx STBC
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
  * @ht40_bands: bitmap of bands (using %IEEE80211_BAND_*) that support HT40
  */
 struct iwl_ht_params {
 	enum ieee80211_smps_mode smps_mode;
 	const bool ht_greenfield_support; /* if used set to true */
+	const bool stbc;
 	bool use_rts_for_aggregation;
 	u8 ht40_bands;
 };

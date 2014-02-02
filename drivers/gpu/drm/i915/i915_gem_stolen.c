@@ -250,7 +250,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	}
 
 	sg = st->sgl;
-	sg->offset = offset;
+	sg->offset = 0;
 	sg->length = size;
 
 	sg_dma_address(sg) = (dma_addr_t)dev_priv->mm.stolen_base + offset;
@@ -420,6 +420,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->mm_list, &ggtt->inactive_list);
+	i915_gem_object_pin_pages(obj);
 
 	return obj;
 

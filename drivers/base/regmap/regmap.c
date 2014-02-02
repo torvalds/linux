@@ -1514,21 +1514,49 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 {
 	int ret = 0, i;
 	size_t val_bytes = map->format.val_bytes;
-	void *wval;
 
-	if (!map->bus)
-		return -EINVAL;
-	if (!map->format.parse_inplace)
+	if (map->bus && !map->format.parse_inplace)
 		return -EINVAL;
 	if (reg % map->reg_stride)
 		return -EINVAL;
 
 	map->lock(map->lock_arg);
+	/*
+	 * Some devices don't support bulk write, for
+	 * them we have a series of single write operations.
+	 */
+	if (!map->bus || map->use_single_rw) {
+		for (i = 0; i < val_count; i++) {
+			unsigned int ival;
 
-	/* No formatting is require if val_byte is 1 */
-	if (val_bytes == 1) {
-		wval = (void *)val;
+			switch (val_bytes) {
+			case 1:
+				ival = *(u8 *)(val + (i * val_bytes));
+				break;
+			case 2:
+				ival = *(u16 *)(val + (i * val_bytes));
+				break;
+			case 4:
+				ival = *(u32 *)(val + (i * val_bytes));
+				break;
+#ifdef CONFIG_64BIT
+			case 8:
+				ival = *(u64 *)(val + (i * val_bytes));
+				break;
+#endif
+			default:
+				ret = -EINVAL;
+				goto out;
+			}
+
+			ret = _regmap_write(map, reg + (i * map->reg_stride),
+					ival);
+			if (ret != 0)
+				goto out;
+		}
 	} else {
+		void *wval;
+
 		wval = kmemdup(val, val_count * val_bytes, GFP_KERNEL);
 		if (!wval) {
 			ret = -ENOMEM;
@@ -1537,27 +1565,11 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 		}
 		for (i = 0; i < val_count * val_bytes; i += val_bytes)
 			map->format.parse_inplace(wval + i);
-	}
-	/*
-	 * Some devices does not support bulk write, for
-	 * them we have a series of single write operations.
-	 */
-	if (map->use_single_rw) {
-		for (i = 0; i < val_count; i++) {
-			ret = _regmap_raw_write(map,
-						reg + (i * map->reg_stride),
-						val + (i * val_bytes),
-						val_bytes);
-			if (ret != 0)
-				goto out;
-		}
-	} else {
+
 		ret = _regmap_raw_write(map, reg, wval, val_bytes * val_count);
-	}
 
-	if (val_bytes != 1)
 		kfree(wval);
-
+	}
 out:
 	map->unlock(map->lock_arg);
 	return ret;
@@ -1897,14 +1909,10 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 	size_t val_bytes = map->format.val_bytes;
 	bool vol = regmap_volatile_range(map, reg, val_count);
 
-	if (!map->bus)
-		return -EINVAL;
-	if (!map->format.parse_inplace)
-		return -EINVAL;
 	if (reg % map->reg_stride)
 		return -EINVAL;
 
-	if (vol || map->cache_type == REGCACHE_NONE) {
+	if (map->bus && map->format.parse_inplace && (vol || map->cache_type == REGCACHE_NONE)) {
 		/*
 		 * Some devices does not support bulk read, for
 		 * them we have a series of single read operations.
@@ -2172,6 +2180,10 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	struct reg_default *p;
 	int i, ret;
 	bool bypass;
+
+	if (WARN_ONCE(num_regs <= 0, "invalid registers number (%d)\n",
+	    num_regs))
+		return 0;
 
 	map->lock(map->lock_arg);
 

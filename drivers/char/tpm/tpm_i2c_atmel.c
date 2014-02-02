@@ -135,50 +135,12 @@ static u8 i2c_atmel_read_status(struct tpm_chip *chip)
 	return ATMEL_STS_OK;
 }
 
-static const struct file_operations i2c_atmel_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
-static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
-static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
-static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
-static DEVICE_ATTR(active, S_IRUGO, tpm_show_active, NULL);
-static DEVICE_ATTR(owned, S_IRUGO, tpm_show_owned, NULL);
-static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated, NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
-static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
-static DEVICE_ATTR(durations, S_IRUGO, tpm_show_durations, NULL);
-static DEVICE_ATTR(timeouts, S_IRUGO, tpm_show_timeouts, NULL);
-
-static struct attribute *i2c_atmel_attrs[] = {
-	&dev_attr_pubek.attr,
-	&dev_attr_pcrs.attr,
-	&dev_attr_enabled.attr,
-	&dev_attr_active.attr,
-	&dev_attr_owned.attr,
-	&dev_attr_temp_deactivated.attr,
-	&dev_attr_caps.attr,
-	&dev_attr_cancel.attr,
-	&dev_attr_durations.attr,
-	&dev_attr_timeouts.attr,
-	NULL,
-};
-
-static struct attribute_group i2c_atmel_attr_grp = {
-	.attrs = i2c_atmel_attrs
-};
-
 static bool i2c_atmel_req_canceled(struct tpm_chip *chip, u8 status)
 {
-	return 0;
+	return false;
 }
 
-static const struct tpm_vendor_specific i2c_atmel = {
+static const struct tpm_class_ops i2c_atmel = {
 	.status = i2c_atmel_read_status,
 	.recv = i2c_atmel_recv,
 	.send = i2c_atmel_send,
@@ -186,8 +148,6 @@ static const struct tpm_vendor_specific i2c_atmel = {
 	.req_complete_mask = ATMEL_STS_OK,
 	.req_complete_val = ATMEL_STS_OK,
 	.req_canceled = i2c_atmel_req_canceled,
-	.attr_group = &i2c_atmel_attr_grp,
-	.miscdev.fops = &i2c_atmel_ops,
 };
 
 static int i2c_atmel_probe(struct i2c_client *client,

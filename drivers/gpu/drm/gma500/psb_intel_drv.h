@@ -250,11 +250,6 @@ extern void psb_intel_sdvo_set_hotplug(struct drm_connector *connector,
 extern int intelfb_probe(struct drm_device *dev);
 extern int intelfb_remove(struct drm_device *dev,
 			  struct drm_framebuffer *fb);
-extern struct drm_framebuffer *psb_intel_framebuffer_create(struct drm_device
-							*dev, struct
-							drm_mode_fb_cmd
-							*mode_cmd,
-							void *mm_private);
 extern bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode);

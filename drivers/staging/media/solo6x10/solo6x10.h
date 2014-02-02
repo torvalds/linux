@@ -398,7 +398,7 @@ int solo_p2m_dma_desc(struct solo_dev *solo_dev,
 		      int desc_cnt);
 
 /* Global s_std ioctl */
-int solo_set_video_type(struct solo_dev *solo_dev, bool type);
+int solo_set_video_type(struct solo_dev *solo_dev, bool is_50hz);
 void solo_update_mode(struct solo_enc_dev *solo_enc);
 
 /* Set the threshold for motion detection */

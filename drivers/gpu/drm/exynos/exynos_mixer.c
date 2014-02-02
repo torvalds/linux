@@ -868,7 +868,7 @@ static void mixer_wait_for_vblank(void *ctx)
 	 */
 	if (!wait_event_timeout(mixer_ctx->wait_vsync_queue,
 				!atomic_read(&mixer_ctx->wait_vsync_event),
-				DRM_HZ/20))
+				HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
@@ -1019,7 +1019,7 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 		/* set wait vsync event to zero and wake up queue. */
 		if (atomic_read(&ctx->wait_vsync_event)) {
 			atomic_set(&ctx->wait_vsync_event, 0);
-			DRM_WAKEUP(&ctx->wait_vsync_queue);
+			wake_up(&ctx->wait_vsync_queue);
 		}
 	}
 
@@ -1209,7 +1209,7 @@ static int mixer_probe(struct platform_device *pdev)
 	drm_hdmi_ctx->ctx = (void *)ctx;
 	ctx->vp_enabled = drv->is_vp_enabled;
 	ctx->mxr_ver = drv->version;
-	DRM_INIT_WAITQUEUE(&ctx->wait_vsync_queue);
+	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
 
 	platform_set_drvdata(pdev, drm_hdmi_ctx);

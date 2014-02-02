@@ -35,15 +35,6 @@ struct attrlist_cursor_kern;
 	{ IO_INVIS,	"INVIS"}
 
 /*
- * Flush/Invalidate options for vop_toss/flush/flushinval_pages.
- */
-#define FI_NONE			0	/* none */
-#define FI_REMAPF		1	/* Do a remapf prior to the operation */
-#define FI_REMAPF_LOCKED	2	/* Do a remapf prior to the operation.
-					   Prevent VM access to the pages until
-					   the operation completes. */
-
-/*
  * Some useful predicates.
  */
 #define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)

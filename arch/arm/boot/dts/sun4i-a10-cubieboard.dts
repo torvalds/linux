@@ -17,15 +17,6 @@
 	model = "Cubietech Cubieboard";
 	compatible = "cubietech,a10-cubieboard", "allwinner,sun4i-a10";
 
-	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-	};
-
-	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
-	};
-
 	soc@01c00000 {
 		emac: ethernet@01c0b000 {
 			pinctrl-names = "default";

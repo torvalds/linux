@@ -80,7 +80,7 @@ static int mgag200_ttm_global_init(struct mga_device *ast)
 	return 0;
 }
 
-void
+static void
 mgag200_ttm_global_release(struct mga_device *ast)
 {
 	if (ast->ttm.mem_global_ref.release == NULL)
@@ -102,7 +102,7 @@ static void mgag200_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
-bool mgag200_ttm_bo_is_mgag200_bo(struct ttm_buffer_object *bo)
+static bool mgag200_ttm_bo_is_mgag200_bo(struct ttm_buffer_object *bo)
 {
 	if (bo->destroy == &mgag200_bo_ttm_destroy)
 		return true;
@@ -208,7 +208,7 @@ static struct ttm_backend_func mgag200_tt_backend_func = {
 };
 
 
-struct ttm_tt *mgag200_ttm_tt_create(struct ttm_bo_device *bdev,
+static struct ttm_tt *mgag200_ttm_tt_create(struct ttm_bo_device *bdev,
 				 unsigned long size, uint32_t page_flags,
 				 struct page *dummy_read_page)
 {

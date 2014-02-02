@@ -45,10 +45,10 @@
 			nr-ports = <1>;
 		};
 
+		/* AzureWave AW-GH381 WiFi/BT */
 		mvsdio@90000 {
 			status = "okay";
-			/* No CD or WP GPIOs */
-			broken-cd;
+			non-removable;
 		};
 	};
 
@@ -60,19 +60,19 @@
 
 		health-r {
 			label = "guruplug:red:health";
-			gpios = <&gpio1 14 1>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 		health-g {
 			label = "guruplug:green:health";
-			gpios = <&gpio1 15 1>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 		wmode-r {
 			label = "guruplug:red:wmode";
-			gpios = <&gpio1 16 1>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
 		wmode-g {
 			label = "guruplug:green:wmode";
-			gpios = <&gpio1 17 1>;
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -101,13 +101,11 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		compatible = "marvell,88e1121";
 		reg = <0>;
 	};
 
 	ethphy1: ethernet-phy@1 {
-		device_type = "ethernet-phy";
 		compatible = "marvell,88e1121";
 		reg = <1>;
 	};

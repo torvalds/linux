@@ -92,8 +92,8 @@ static int cis820x_config_intr(struct phy_device *phydev)
 {
 	int err;
 
-	if(phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		err = phy_write(phydev, MII_CIS8201_IMASK, 
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		err = phy_write(phydev, MII_CIS8201_IMASK,
 				MII_CIS8201_IMASK_MASK);
 	else
 		err = phy_write(phydev, MII_CIS8201_IMASK, 0);

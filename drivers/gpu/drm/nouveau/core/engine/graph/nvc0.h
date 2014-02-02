@@ -205,6 +205,11 @@ extern struct nvc0_graph_init nve4_graph_init_regs[];
 extern struct nvc0_graph_init nve4_graph_init_unk[];
 extern struct nvc0_graph_init nve4_graph_init_unk88xx[];
 
+extern struct nvc0_graph_init nvf0_graph_init_unk40xx[];
+extern struct nvc0_graph_init nvf0_graph_init_unk70xx[];
+extern struct nvc0_graph_init nvf0_graph_init_unk5bxx[];
+extern struct nvc0_graph_init nvf0_graph_init_tpc[];
+
 int  nvc0_grctx_generate(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
@@ -266,6 +271,11 @@ extern struct nvc0_graph_init nve4_grctx_init_unk80xx[];
 extern struct nvc0_graph_init nve4_grctx_init_unk90xx[];
 
 extern struct nouveau_oclass *nvf0_grctx_oclass;
+extern struct nvc0_graph_init nvf0_grctx_init_unk44xx[];
+extern struct nvc0_graph_init nvf0_grctx_init_unk5bxx[];
+extern struct nvc0_graph_init nvf0_grctx_init_unk60xx[];
+
+extern struct nouveau_oclass *nv108_grctx_oclass;
 
 #define mmio_data(s,a,p) do {                                                  \
 	info->buffer[info->buffer_nr] = round_up(info->addr, (a));             \

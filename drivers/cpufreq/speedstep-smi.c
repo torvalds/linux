@@ -141,38 +141,6 @@ static int speedstep_smi_get_freqs(unsigned int *low, unsigned int *high)
 }
 
 /**
- * speedstep_get_state - set the SpeedStep state
- * @state: processor frequency state (SPEEDSTEP_LOW or SPEEDSTEP_HIGH)
- *
- */
-static int speedstep_get_state(void)
-{
-	u32 function = GET_SPEEDSTEP_STATE;
-	u32 result, state, edi, command, dummy;
-
-	command = (smi_sig & 0xffffff00) | (smi_cmd & 0xff);
-
-	pr_debug("trying to determine current setting with command %x "
-		"at port %x\n", command, smi_port);
-
-	__asm__ __volatile__(
-		"push %%ebp\n"
-		"out %%al, (%%dx)\n"
-		"pop %%ebp\n"
-		: "=a" (result),
-		  "=b" (state), "=D" (edi),
-		  "=c" (dummy), "=d" (dummy), "=S" (dummy)
-		: "a" (command), "b" (function), "c" (0),
-		  "d" (smi_port), "S" (0), "D" (0)
-	);
-
-	pr_debug("state is %x, result is %x\n", state, result);
-
-	return state & 1;
-}
-
-
-/**
  * speedstep_set_state - set the SpeedStep state
  * @state: new processor frequency state (SPEEDSTEP_LOW or SPEEDSTEP_HIGH)
  *

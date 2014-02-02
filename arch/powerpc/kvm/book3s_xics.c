@@ -1246,8 +1246,10 @@ static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 		kvm->arch.xics = xics;
 	mutex_unlock(&kvm->lock);
 
-	if (ret)
+	if (ret) {
+		kfree(xics);
 		return ret;
+	}
 
 	xics_debugfs_init(xics);
 

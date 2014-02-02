@@ -519,3 +519,15 @@ void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 		}
 	}
 }
+
+void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *rx_nodesc_drops)
+{
+	/* if down, or this is the first update after coming up */
+	if (!(efx->net_dev->flags & IFF_UP) || !efx->rx_nodesc_drops_prev_state)
+		efx->rx_nodesc_drops_while_down +=
+			*rx_nodesc_drops - efx->rx_nodesc_drops_total;
+	efx->rx_nodesc_drops_total = *rx_nodesc_drops;
+	efx->rx_nodesc_drops_prev_state = !!(efx->net_dev->flags & IFF_UP);
+	*rx_nodesc_drops -= efx->rx_nodesc_drops_while_down;
+}
+

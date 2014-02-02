@@ -77,35 +77,50 @@ __read_mostly int sched_clock_running;
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
 static struct static_key __sched_clock_stable = STATIC_KEY_INIT;
+static int __sched_clock_stable_early;
 
 int sched_clock_stable(void)
 {
-	if (static_key_false(&__sched_clock_stable))
-		return false;
-	return true;
+	return static_key_false(&__sched_clock_stable);
+}
+
+static void __set_sched_clock_stable(void)
+{
+	if (!sched_clock_stable())
+		static_key_slow_inc(&__sched_clock_stable);
 }
 
 void set_sched_clock_stable(void)
 {
-	if (!sched_clock_stable())
-		static_key_slow_dec(&__sched_clock_stable);
+	__sched_clock_stable_early = 1;
+
+	smp_mb(); /* matches sched_clock_init() */
+
+	if (!sched_clock_running)
+		return;
+
+	__set_sched_clock_stable();
 }
 
 static void __clear_sched_clock_stable(struct work_struct *work)
 {
 	/* XXX worry about clock continuity */
 	if (sched_clock_stable())
-		static_key_slow_inc(&__sched_clock_stable);
+		static_key_slow_dec(&__sched_clock_stable);
 }
 
 static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
 
 void clear_sched_clock_stable(void)
 {
-	if (keventd_up())
-		schedule_work(&sched_clock_work);
-	else
-		__clear_sched_clock_stable(&sched_clock_work);
+	__sched_clock_stable_early = 0;
+
+	smp_mb(); /* matches sched_clock_init() */
+
+	if (!sched_clock_running)
+		return;
+
+	schedule_work(&sched_clock_work);
 }
 
 struct sched_clock_data {
@@ -140,6 +155,20 @@ void sched_clock_init(void)
 	}
 
 	sched_clock_running = 1;
+
+	/*
+	 * Ensure that it is impossible to not do a static_key update.
+	 *
+	 * Either {set,clear}_sched_clock_stable() must see sched_clock_running
+	 * and do the update, or we must see their __sched_clock_stable_early
+	 * and do the update, or both.
+	 */
+	smp_mb(); /* matches {set,clear}_sched_clock_stable() */
+
+	if (__sched_clock_stable_early)
+		__set_sched_clock_stable();
+	else
+		__clear_sched_clock_stable(NULL);
 }
 
 /*
@@ -340,7 +369,7 @@ EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
  */
 u64 cpu_clock(int cpu)
 {
-	if (static_key_false(&__sched_clock_stable))
+	if (!sched_clock_stable())
 		return sched_clock_cpu(cpu);
 
 	return sched_clock();
@@ -355,7 +384,7 @@ u64 cpu_clock(int cpu)
  */
 u64 local_clock(void)
 {
-	if (static_key_false(&__sched_clock_stable))
+	if (!sched_clock_stable())
 		return sched_clock_cpu(raw_smp_processor_id());
 
 	return sched_clock();

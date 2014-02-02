@@ -70,18 +70,11 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	if (rdev->scan_req)
 		return -EBUSY;
 
-	if (wdev->conn->params.channel) {
+	if (wdev->conn->params.channel)
 		n_channels = 1;
-	} else {
-		enum ieee80211_band band;
-		n_channels = 0;
+	else
+		n_channels = ieee80211_get_num_supported_channels(wdev->wiphy);
 
-		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-			if (!wdev->wiphy->bands[band])
-				continue;
-			n_channels += wdev->wiphy->bands[band]->n_channels;
-		}
-	}
 	request = kzalloc(sizeof(*request) + sizeof(request->ssids[0]) +
 			  sizeof(request->channels[0]) * n_channels,
 			  GFP_KERNEL);
@@ -871,6 +864,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	if (rdev->ops->del_key)
 		for (i = 0; i < 6; i++)
 			rdev_del_key(rdev, dev, i, false, NULL);
+
+	rdev_set_qos_map(rdev, dev, NULL);
 
 #ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));

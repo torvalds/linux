@@ -1,6 +1,4 @@
 /*
- * arch/arm/include/asm/hardware/sp810.h
- *
  * ARM PrimeXsys System Controller SP810 header file
  *
  * Copyright (C) 2009 ST Microelectronics
@@ -11,8 +9,8 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_ARM_SP810_H
-#define __ASM_ARM_SP810_H
+#ifndef __AMBA_SP810_H
+#define __AMBA_SP810_H
 
 #include <linux/io.h>
 
@@ -61,4 +59,4 @@ static inline void sysctl_soft_reset(void __iomem *base)
 	writel(0, base + SCSYSSTAT);
 }
 
-#endif	/* __ASM_ARM_SP810_H */
+#endif /* __AMBA_SP810_H */

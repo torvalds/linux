@@ -1863,8 +1863,8 @@ void rv770_enable_auto_throttle_source(struct radeon_device *rdev,
 	}
 }
 
-int rv770_set_thermal_temperature_range(struct radeon_device *rdev,
-					int min_temp, int max_temp)
+static int rv770_set_thermal_temperature_range(struct radeon_device *rdev,
+					       int min_temp, int max_temp)
 {
 	int low_temp = 0 * 1000;
 	int high_temp = 255 * 1000;
@@ -1966,6 +1966,15 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 	if (pi->mg_clock_gating)
 		rv770_mg_clock_gating_enable(rdev, true);
 
+	rv770_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
+
+	return 0;
+}
+
+int rv770_dpm_late_enable(struct radeon_device *rdev)
+{
+	int ret;
+
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		PPSMC_Result result;
@@ -1980,8 +1989,6 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 		if (result != PPSMC_Result_OK)
 			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
 	}
-
-	rv770_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
 	return 0;
 }
@@ -2244,14 +2251,12 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 		pl->vddci = vddci;
 	}
 
-	if (rdev->family >= CHIP_BARTS) {
-		if ((rps->class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) ==
-		    ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE) {
-			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk = pl->sclk;
-			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.mclk = pl->mclk;
-			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.vddc = pl->vddc;
-			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.vddci = pl->vddci;
-		}
+	if ((rps->class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) ==
+	    ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE) {
+		rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk = pl->sclk;
+		rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.mclk = pl->mclk;
+		rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.vddc = pl->vddc;
+		rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.vddci = pl->vddci;
 	}
 }
 
@@ -2530,6 +2535,12 @@ bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
 	    (rdev->pdev->subsystem_vendor == 0x1043) &&
 	    (rdev->pdev->subsystem_device == 0x1c42))
 		switch_limit = 200;
+
+	/* RV770 */
+	/* mclk switching doesn't seem to work reliably on desktop RV770s */
+	if ((rdev->family == CHIP_RV770) &&
+	    !(rdev->flags & RADEON_IS_MOBILITY))
+		switch_limit = 0xffffffff; /* disable mclk switching */
 
 	if (vblank_time < switch_limit)
 		return true;

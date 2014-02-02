@@ -41,10 +41,9 @@
 #include <linux/kmod.h>
 #include <linux/reboot.h>
 #include <linux/device.h>
-#include <asm/uaccess.h>
 #include <linux/thermal.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
+#include <asm/uaccess.h>
 
 #define PREFIX "ACPI: "
 
@@ -862,7 +861,7 @@ acpi_thermal_unbind_cooling_device(struct thermal_zone_device *thermal,
 	return acpi_thermal_cooling_device_cb(thermal, cdev, false);
 }
 
-static const struct thermal_zone_device_ops acpi_thermal_zone_ops = {
+static struct thermal_zone_device_ops acpi_thermal_zone_ops = {
 	.bind = acpi_thermal_bind_cooling_device,
 	.unbind	= acpi_thermal_unbind_cooling_device,
 	.get_temp = thermal_get_temp,

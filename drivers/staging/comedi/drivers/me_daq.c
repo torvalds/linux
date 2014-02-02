@@ -576,7 +576,7 @@ static int me_daq_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &me_daq_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(me_daq_pci_table) = {
+static const struct pci_device_id me_daq_pci_table[] = {
 	{ PCI_VDEVICE(MEILHAUS, 0x2600), BOARD_ME2600 },
 	{ PCI_VDEVICE(MEILHAUS, 0x2000), BOARD_ME2000 },
 	{ 0 }

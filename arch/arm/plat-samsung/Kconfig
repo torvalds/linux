@@ -24,7 +24,6 @@ config PLAT_S5P
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR
 	select SAMSUNG_CLKSRC if !COMMON_CLK
-	select SAMSUNG_GPIOLIB_4BIT
 	help
 	  Base platform code for Samsung's S5P series SoC.
 
@@ -114,13 +113,6 @@ config S5P_GPIO_INT
 	  Common code for the GPIO interrupts (other than external interrupts.)
 
 # options for gpio configuration support
-
-config SAMSUNG_GPIOLIB_4BIT
-	bool
-	help
-	  GPIOlib file contains the 4 bit modification functions for gpio
-	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
-	  series of processors.
 
 config S5P_GPIO_DRVSTR
 	bool

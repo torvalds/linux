@@ -104,9 +104,10 @@ enum {
 };
 
 enum {
-	MLX5_BF_REGS_PER_PAGE	= 4,
-	MLX5_MAX_UAR_PAGES	= 1 << 8,
-	MLX5_MAX_UUARS		= MLX5_MAX_UAR_PAGES * MLX5_BF_REGS_PER_PAGE,
+	MLX5_BF_REGS_PER_PAGE		= 4,
+	MLX5_MAX_UAR_PAGES		= 1 << 8,
+	MLX5_NON_FP_BF_REGS_PER_PAGE	= 2,
+	MLX5_MAX_UUARS	= MLX5_MAX_UAR_PAGES * MLX5_NON_FP_BF_REGS_PER_PAGE,
 };
 
 enum {
@@ -176,6 +177,8 @@ enum {
 	MLX5_DEV_CAP_FLAG_APM		= 1LL << 17,
 	MLX5_DEV_CAP_FLAG_ATOMIC	= 1LL << 18,
 	MLX5_DEV_CAP_FLAG_ON_DMND_PG	= 1LL << 24,
+	MLX5_DEV_CAP_FLAG_CQ_MODER	= 1LL << 29,
+	MLX5_DEV_CAP_FLAG_RESIZE_CQ	= 1LL << 30,
 	MLX5_DEV_CAP_FLAG_RESIZE_SRQ	= 1LL << 32,
 	MLX5_DEV_CAP_FLAG_REMOTE_FENCE	= 1LL << 38,
 	MLX5_DEV_CAP_FLAG_TLP_HINTS	= 1LL << 39,
@@ -231,7 +234,8 @@ enum {
 };
 
 enum {
-	MLX5_ADAPTER_PAGE_SHIFT		= 12
+	MLX5_ADAPTER_PAGE_SHIFT		= 12,
+	MLX5_ADAPTER_PAGE_SIZE		= 1 << MLX5_ADAPTER_PAGE_SHIFT,
 };
 
 enum {
@@ -697,6 +701,20 @@ struct mlx5_query_cq_mbox_out {
 	__be64			pas[0];
 };
 
+struct mlx5_modify_cq_mbox_in {
+	struct mlx5_inbox_hdr	hdr;
+	__be32			cqn;
+	__be32			field_select;
+	struct mlx5_cq_context	ctx;
+	u8			rsvd[192];
+	__be64			pas[0];
+};
+
+struct mlx5_modify_cq_mbox_out {
+	struct mlx5_outbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
 struct mlx5_enable_hca_mbox_in {
 	struct mlx5_inbox_hdr	hdr;
 	u8			rsvd[8];
@@ -831,8 +849,8 @@ struct mlx5_create_mkey_mbox_in {
 	struct mlx5_mkey_seg	seg;
 	u8			rsvd1[16];
 	__be32			xlat_oct_act_size;
-	__be32			bsf_coto_act_size;
-	u8			rsvd2[168];
+	__be32			rsvd2;
+	u8			rsvd3[168];
 	__be64			pas[0];
 };
 
@@ -871,6 +889,7 @@ struct mlx5_modify_mkey_mbox_in {
 
 struct mlx5_modify_mkey_mbox_out {
 	struct mlx5_outbox_hdr	hdr;
+	u8			rsvd[8];
 };
 
 struct mlx5_dump_mkey_mbox_in {

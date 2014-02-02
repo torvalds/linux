@@ -36,7 +36,8 @@
 	#address-cells = <2>;
 	#size-cells = <1>;
 	compatible = "fsl,p1023-elbc", "fsl,elbc", "simple-bus";
-	interrupts = <19 2 0 0>;
+	interrupts = <19 2 0 0>,
+		     <16 2 0 0>;
 };
 
 /* controller at 0xa000 */

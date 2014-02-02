@@ -133,7 +133,7 @@ EXPORT_SYMBOL(clk_get_rate);
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	if (clk == NULL || IS_ERR(clk))
-		return -EINVAL;
+		return 0;
 
 	if (clk->round_rate)
 		return clk->round_rate(clk, rate);

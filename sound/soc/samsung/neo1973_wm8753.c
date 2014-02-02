@@ -20,6 +20,7 @@
 
 #include <sound/soc.h>
 
+#include <mach/gpio-samsung.h>
 #include <asm/mach-types.h>
 #include "regs-iis.h"
 

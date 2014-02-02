@@ -313,15 +313,7 @@ static struct attribute *mtd_attrs[] = {
 	&dev_attr_bitflip_threshold.attr,
 	NULL,
 };
-
-static struct attribute_group mtd_group = {
-	.attrs		= mtd_attrs,
-};
-
-static const struct attribute_group *mtd_groups[] = {
-	&mtd_group,
-	NULL,
-};
+ATTRIBUTE_GROUPS(mtd);
 
 static struct device_type mtd_devtype = {
 	.name		= "mtd",
