@@ -113,7 +113,7 @@ getout:
 	return ERR_PTR(status);
 }
 
-int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
+static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		struct posix_acl *dfacl)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -198,6 +198,15 @@ out:
 	return status;
 }
 
+int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
+		struct posix_acl *dfacl)
+{
+	int ret;
+	ret = __nfs3_proc_setacls(inode, acl, dfacl);
+	return (ret == -EOPNOTSUPP) ? 0 : ret;
+
+}
+
 int nfs3_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	struct posix_acl *alloc = NULL, *dfacl = NULL;
@@ -225,7 +234,7 @@ int nfs3_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		if (IS_ERR(alloc))
 			goto fail;
 	}
-	status = nfs3_proc_setacls(inode, acl, dfacl);
+	status = __nfs3_proc_setacls(inode, acl, dfacl);
 	posix_acl_release(alloc);
 	return status;
 
