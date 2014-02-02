@@ -62,8 +62,14 @@ static inline int omap3_pm_init(void)
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP4)
 int omap4_pm_init(void);
+int omap4_pm_init_early(void);
 #else
 static inline int omap4_pm_init(void)
+{
+	return 0;
+}
+
+static inline int omap4_pm_init_early(void)
 {
 	return 0;
 }
@@ -236,6 +242,7 @@ static inline void __iomem *omap4_get_scu_base(void)
 
 extern void __init gic_init_irq(void);
 extern void gic_dist_disable(void);
+extern void gic_dist_enable(void);
 extern bool gic_dist_disabled(void);
 extern void gic_timer_retrigger(void);
 extern void omap_smc1(u32 fn, u32 arg);
