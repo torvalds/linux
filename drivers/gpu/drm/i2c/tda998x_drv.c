@@ -1169,7 +1169,7 @@ tda998x_encoder_init(struct i2c_client *client,
 		    struct drm_encoder_slave *encoder_slave)
 {
 	struct tda998x_priv *priv;
-	int ret;
+	int rev_lo, rev_hi, ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1198,11 +1198,14 @@ tda998x_encoder_init(struct i2c_client *client,
 	tda998x_reset(priv);
 
 	/* read version: */
-	ret = reg_read(priv, REG_VERSION_LSB) |
-		(reg_read(priv, REG_VERSION_MSB) << 8);
-	if (ret < 0)
+	rev_lo = reg_read(priv, REG_VERSION_LSB);
+	rev_hi = reg_read(priv, REG_VERSION_MSB);
+	if (rev_lo < 0 || rev_hi < 0) {
+		ret = rev_lo < 0 ? rev_lo : rev_hi;
 		goto fail;
-	priv->rev = ret;
+	}
+
+	priv->rev = rev_lo | rev_hi << 8;
 
 	/* mask off feature bits: */
 	priv->rev &= ~0x30; /* not-hdcp and not-scalar bit */
