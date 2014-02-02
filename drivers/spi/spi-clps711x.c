@@ -34,17 +34,12 @@ struct spi_clps711x_data {
 	u8			*rx_buf;
 	unsigned int		bpw;
 	int			len;
-
-	int			chipselect[0];
 };
 
 static int spi_clps711x_setup(struct spi_device *spi)
 {
-	struct spi_clps711x_data *hw = spi_master_get_devdata(spi->master);
-
 	/* We are expect that SPI-device is not selected */
-	gpio_direction_output(hw->chipselect[spi->chip_select],
-			      !(spi->mode & SPI_CS_HIGH));
+	gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 
 	return 0;
 }
@@ -85,7 +80,6 @@ static int spi_clps711x_transfer_one_message(struct spi_master *master,
 	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
 	struct spi_device *spi = msg->spi;
 	struct spi_transfer *xfer;
-	int cs = hw->chipselect[spi->chip_select];
 
 	spi_clps711x_setup_mode(spi);
 
@@ -94,7 +88,7 @@ static int spi_clps711x_transfer_one_message(struct spi_master *master,
 
 		spi_clps711x_setup_xfer(spi, xfer);
 
-		gpio_set_value(cs, !!(spi->mode & SPI_CS_HIGH));
+		gpio_set_value(spi->cs_gpio, !!(spi->mode & SPI_CS_HIGH));
 
 		reinit_completion(&hw->done);
 
@@ -115,7 +109,7 @@ static int spi_clps711x_transfer_one_message(struct spi_master *master,
 
 		if (xfer->cs_change ||
 		    list_is_last(&xfer->transfer_list, &msg->transfers))
-			gpio_set_value(cs, !(spi->mode & SPI_CS_HIGH));
+			gpio_set_value(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 
 		msg->actual_length += xfer->len;
 	}
@@ -164,12 +158,15 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	master = spi_alloc_master(&pdev->dev,
-				  sizeof(struct spi_clps711x_data) +
-				  sizeof(int) * pdata->num_chipselect);
-	if (!master) {
-		dev_err(&pdev->dev, "SPI allocating memory error\n");
+	master = spi_alloc_master(&pdev->dev, sizeof(*hw));
+	if (!master)
 		return -ENOMEM;
+
+	master->cs_gpios = devm_kzalloc(&pdev->dev, sizeof(int) *
+					pdata->num_chipselect, GFP_KERNEL);
+	if (!master->cs_gpios) {
+		ret = -ENOMEM;
+		goto err_out;
 	}
 
 	master->bus_num = pdev->id;
@@ -182,13 +179,13 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	hw = spi_master_get_devdata(master);
 
 	for (i = 0; i < master->num_chipselect; i++) {
-		hw->chipselect[i] = pdata->chipselect[i];
-		if (!gpio_is_valid(hw->chipselect[i])) {
+		master->cs_gpios[i] = pdata->chipselect[i];
+		if (!gpio_is_valid(master->cs_gpios[i])) {
 			dev_err(&pdev->dev, "Invalid CS GPIO %i\n", i);
 			ret = -EINVAL;
 			goto err_out;
 		}
-		if (devm_gpio_request(&pdev->dev, hw->chipselect[i], NULL)) {
+		if (devm_gpio_request(&pdev->dev, master->cs_gpios[i], NULL)) {
 			dev_err(&pdev->dev, "Can't get CS GPIO %i\n", i);
 			ret = -EINVAL;
 			goto err_out;
