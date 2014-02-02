@@ -39,6 +39,14 @@ config IMGPDC_IRQ
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config CLPS711X_IRQCHIP
+	bool
+	depends on ARCH_CLPS711X
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+	default y
+
 config ORION_IRQCHIP
 	bool
 	select IRQ_DOMAIN
