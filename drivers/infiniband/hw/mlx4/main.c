@@ -1810,6 +1810,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	int i, j;
 	int err;
 	struct mlx4_ib_iboe *iboe;
+	int ib_num_ports = 0;
 
 	pr_info_once("%s", mlx4_ib_version);
 
@@ -1985,10 +1986,14 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 				ibdev->counters[i] = -1;
 	}
 
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+		ib_num_ports++;
+
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
 
-	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED) {
+	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED &&
+	    ib_num_ports) {
 		ibdev->steer_qpn_count = MLX4_IB_UC_MAX_NUM_QPS;
 		err = mlx4_qp_reserve_range(dev, ibdev->steer_qpn_count,
 					    MLX4_IB_UC_STEER_QPN_ALIGN,
