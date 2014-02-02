@@ -32,7 +32,6 @@ struct spi_clps711x_data {
 
 	u8			*tx_buf;
 	u8			*rx_buf;
-	int			count;
 	int			len;
 
 	int			chipselect[0];
@@ -93,11 +92,12 @@ static int spi_clps711x_transfer_one_message(struct spi_master *master,
 	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
 	struct spi_transfer *xfer;
 	int status = 0, cs = hw->chipselect[msg->spi->chip_select];
-	u32 data;
 
 	spi_clps711x_setup_mode(msg->spi);
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		u8 data;
+
 		if (spi_clps711x_setup_xfer(msg->spi, xfer)) {
 			status = -EINVAL;
 			goto out_xfr;
@@ -107,13 +107,12 @@ static int spi_clps711x_transfer_one_message(struct spi_master *master,
 
 		reinit_completion(&hw->done);
 
-		hw->count = 0;
 		hw->len = xfer->len;
 		hw->tx_buf = (u8 *)xfer->tx_buf;
 		hw->rx_buf = (u8 *)xfer->rx_buf;
 
 		/* Initiate transfer */
-		data = hw->tx_buf ? hw->tx_buf[hw->count] : 0;
+		data = hw->tx_buf ? *hw->tx_buf++ : 0;
 		clps_writel(data | SYNCIO_FRMLEN(8) | SYNCIO_TXFRMEN, SYNCIO);
 
 		wait_for_completion(&hw->done);
@@ -138,18 +137,16 @@ out_xfr:
 static irqreturn_t spi_clps711x_isr(int irq, void *dev_id)
 {
 	struct spi_clps711x_data *hw = (struct spi_clps711x_data *)dev_id;
-	u32 data;
+	u8 data;
 
 	/* Handle RX */
 	data = clps_readb(SYNCIO);
 	if (hw->rx_buf)
-		hw->rx_buf[hw->count] = (u8)data;
-
-	hw->count++;
+		*hw->rx_buf++ = data;
 
 	/* Handle TX */
-	if (hw->count < hw->len) {
-		data = hw->tx_buf ? hw->tx_buf[hw->count] : 0;
+	if (--hw->len > 0) {
+		data = hw->tx_buf ? *hw->tx_buf++ : 0;
 		clps_writel(data | SYNCIO_FRMLEN(8) | SYNCIO_TXFRMEN, SYNCIO);
 	} else
 		complete(&hw->done);
