@@ -467,19 +467,15 @@ static void ltc4245_sysfs_add_groups(struct ltc4245_data *data)
 static bool ltc4245_use_extra_gpios(struct i2c_client *client)
 {
 	struct ltc4245_platform_data *pdata = dev_get_platdata(&client->dev);
-#ifdef CONFIG_OF
 	struct device_node *np = client->dev.of_node;
-#endif
 
 	/* prefer platform data */
 	if (pdata)
 		return pdata->use_extra_gpios;
 
-#ifdef CONFIG_OF
 	/* fallback on OF */
 	if (of_find_property(np, "ltc4245,use-extra-gpios", NULL))
 		return true;
-#endif
 
 	return false;
 }
