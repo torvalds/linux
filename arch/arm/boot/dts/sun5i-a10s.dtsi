@@ -378,7 +378,7 @@
 		};
 
 		sid: eeprom@01c23800 {
-			compatible = "allwinner,sun4i-sid";
+			compatible = "allwinner,sun4i-a10-sid";
 			reg = <0x01c23800 0x10>;
 		};
 
