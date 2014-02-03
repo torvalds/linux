@@ -191,9 +191,6 @@ static void __init u8500_init_machine(void)
 {
 	struct device *parent = db8500_soc_device_init();
 
-	/* Pinmaps must be in place before devices register */
-	if (of_machine_is_compatible("st-ericsson,mop500"))
-		mop500_pinmaps_init();
 	/* automatically probe child nodes of dbx5x0 devices */
 	if (of_machine_is_compatible("st-ericsson,u8540"))
 		of_platform_populate(NULL, u8500_local_bus_nodes,
