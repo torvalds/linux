@@ -57,30 +57,6 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	AB8500_PIN_STATE("GPIO3_U9", in_pd, "regulator.36", PINCTRL_STATE_SLEEP),
 
 	/*
-	 * pins 27,28 are muxed in DMIC12
-	 * configured in INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("dmic12_d_1", "dmic"),
-	AB8500_PIN_HOG("GPIO27_J6", in_pd),
-	AB8500_PIN_HOG("GPIO28_K6", in_pd),
-
-	/*
-	 * pins 29,30 are muxed in DMIC34
-	 * configured in INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("dmic34_d_1", "dmic"),
-	AB8500_PIN_HOG("GPIO29_G6", in_pd),
-	AB8500_PIN_HOG("GPIO30_H6", in_pd),
-
-	/*
-	 * pins 31,32 are muxed in DMIC56
-	 * configured in INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("dmic56_d_1", "dmic"),
-	AB8500_PIN_HOG("GPIO31_F5", in_pd),
-	AB8500_PIN_HOG("GPIO32_G5", in_pd),
-
-	/*
 	 * pins 34 is muxed in EXTCPENA
 	 * configured INPUT PULL DOWN
 	 */

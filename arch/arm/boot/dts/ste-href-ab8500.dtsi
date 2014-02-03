@@ -35,7 +35,8 @@
 						    <&ycbcr_default_mode>,
 						    <&pwm_default_mode>,
 						    <&adi1_default_mode>,
-						    <&usbuicc_default_mode>;
+						    <&usbuicc_default_mode>,
+						    <&dmic_default_mode>;
 
 					/*
 					 * Pins 2, 4, 10, 11, 12, 13, 16, 24, 25, 36, 37, 38, 39 and 42
@@ -318,6 +319,28 @@
 							};
 						};
 					};
+					/* This sets up the microphone pins */
+					dmic {
+						dmic_default_mode: dmic_default {
+							default_mux {
+								ste,function = "dmic";
+								ste,pins = "dmic12_d_1",
+									 "dmic34_d_1",
+									 "dmic56_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO27_J6",
+									 "GPIO28_K6",
+									 "GPIO29_G6",
+									 "GPIO30_H6",
+									 "GPIO31_F5",
+									 "GPIO32_G5";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+
 				};
 			};
 		};
