@@ -146,6 +146,7 @@ struct kernfs_open_file {
 	/* published fields */
 	struct kernfs_node	*kn;
 	struct file		*file;
+	void			*priv;
 
 	/* private fields, do not use outside kernfs proper */
 	struct mutex		mutex;
