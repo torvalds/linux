@@ -3809,12 +3809,12 @@ void print_modules(void)
 	list_for_each_entry_rcu(mod, &modules, list) {
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
-		printk(" %s%s", mod->name, module_flags(mod, buf));
+		pr_cont(" %s%s", mod->name, module_flags(mod, buf));
 	}
 	preempt_enable();
 	if (last_unloaded_module[0])
-		printk(" [last unloaded: %s]", last_unloaded_module);
-	printk("\n");
+		pr_cont(" [last unloaded: %s]", last_unloaded_module);
+	pr_cont("\n");
 }
 
 #ifdef CONFIG_MODVERSIONS
