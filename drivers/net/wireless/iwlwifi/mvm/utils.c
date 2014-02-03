@@ -376,8 +376,66 @@ struct iwl_error_event_table {
 	u32 flow_handler;	/* FH read/write pointers, RX credit */
 } __packed;
 
+/*
+ * UMAC error struct - relevant starting from family 8000 chip.
+ * Note: This structure is read from the device with IO accesses,
+ * and the reading already does the endian conversion. As it is
+ * read with u32-sized accesses, any members with a different size
+ * need to be ordered correctly though!
+ */
+struct iwl_umac_error_event_table {
+	u32 valid;		/* (nonzero) valid, (0) log is empty */
+	u32 error_id;		/* type of error */
+	u32 pc;			/* program counter */
+	u32 blink1;		/* branch link */
+	u32 blink2;		/* branch link */
+	u32 ilink1;		/* interrupt link */
+	u32 ilink2;		/* interrupt link */
+	u32 data1;		/* error-specific data */
+	u32 data2;		/* error-specific data */
+	u32 line;		/* source code line of error */
+	u32 umac_ver;		/* umac version */
+} __packed;
+
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
 #define ERROR_ELEM_SIZE     (7 * sizeof(u32))
+
+static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
+{
+	struct iwl_trans *trans = mvm->trans;
+	struct iwl_umac_error_event_table table;
+	u32 base;
+
+	base = mvm->umac_error_event_table;
+
+	if (base < 0x800000 || base >= 0x80C000) {
+		IWL_ERR(mvm,
+			"Not valid error log pointer 0x%08X for %s uCode\n",
+			base,
+			(mvm->cur_ucode == IWL_UCODE_INIT)
+					? "Init" : "RT");
+		return;
+	}
+
+	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
+
+	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
+		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
+		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
+			mvm->status, table.valid);
+	}
+
+	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
+		desc_lookup(table.error_id));
+	IWL_ERR(mvm, "0x%08X | umac uPc\n", table.pc);
+	IWL_ERR(mvm, "0x%08X | umac branchlink1\n", table.blink1);
+	IWL_ERR(mvm, "0x%08X | umac branchlink2\n", table.blink2);
+	IWL_ERR(mvm, "0x%08X | umac interruptlink1\n", table.ilink1);
+	IWL_ERR(mvm, "0x%08X | umac interruptlink2\n", table.ilink2);
+	IWL_ERR(mvm, "0x%08X | umac data1\n", table.data1);
+	IWL_ERR(mvm, "0x%08X | umac data2\n", table.data2);
+	IWL_ERR(mvm, "0x%08X | umac version\n", table.umac_ver);
+}
 
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 {
@@ -451,6 +509,9 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
 	IWL_ERR(mvm, "0x%08X | timestamp\n", table.u_timestamp);
 	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
+
+	if (mvm->support_umac_log)
+		iwl_mvm_dump_umac_error_log(mvm);
 }
 
 void iwl_mvm_dump_sram(struct iwl_mvm *mvm)

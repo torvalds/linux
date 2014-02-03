@@ -457,6 +457,8 @@ struct iwl_mvm {
 	bool init_ucode_complete;
 	u32 error_event_table;
 	u32 log_event_table;
+	u32 umac_error_event_table;
+	bool support_umac_log;
 
 	u32 ampdu_ref;
 
