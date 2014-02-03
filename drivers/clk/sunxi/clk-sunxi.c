@@ -389,6 +389,7 @@ struct factors_data {
 	int mux;
 	struct clk_factors_config *table;
 	void (*getter) (u32 *rate, u32 parent_rate, u8 *n, u8 *k, u8 *m, u8 *p);
+	const char *name;
 };
 
 static struct clk_factors_config sun4i_pll1_config = {
@@ -457,6 +458,14 @@ static const struct factors_data sun4i_pll5_data __initconst = {
 	.enable = 31,
 	.table = &sun4i_pll5_config,
 	.getter = sun4i_get_pll5_factors,
+	.name = "pll5",
+};
+
+static const struct factors_data sun4i_pll6_data __initconst = {
+	.enable = 31,
+	.table = &sun4i_pll5_config,
+	.getter = sun4i_get_pll5_factors,
+	.name = "pll6",
 };
 
 static const struct factors_data sun4i_apb1_data __initconst = {
@@ -499,14 +508,14 @@ static struct clk * __init sunxi_factors_clk_setup(struct device_node *node,
 	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
 		i++;
 
-	/* Nodes should be providing the name via clock-output-names
-	 * but originally our dts didn't, and so we used node->name.
-	 * The new, better nodes look like clk@deadbeef, so we pull the
-	 * name just in this case */
-	if (!strcmp("clk", clk_name)) {
-		of_property_read_string_index(node, "clock-output-names",
-					      0, &clk_name);
-	}
+	/*
+	 * some factor clocks, such as pll5 and pll6, may have multiple
+	 * outputs, and have their name designated in factors_data
+	 */
+	if (data->name)
+		clk_name = data->name;
+	else
+		of_property_read_string(node, "clock-output-names", &clk_name);
 
 	factors = kzalloc(sizeof(struct clk_factors), GFP_KERNEL);
 	if (!factors)
@@ -838,7 +847,7 @@ static const struct divs_data pll5_divs_data __initconst = {
 };
 
 static const struct divs_data pll6_divs_data __initconst = {
-	.factors = &sun4i_pll5_data,
+	.factors = &sun4i_pll6_data,
 	.div = {
 		{ .shift = 0, .table = pll6_sata_tbl, .gate = 14 }, /* M, SATA */
 		{ .fixed = 2 }, /* P, other */
