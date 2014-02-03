@@ -120,4 +120,13 @@ const struct iwl_cfg iwl8260_2ac_cfg = {
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 };
 
+const struct iwl_cfg iwl8260_n_cfg = {
+	.name = "Intel(R) Dual Band Wireless-AC 8260",
+	.fw_name_pre = IWL8000_FW_PRE,
+	IWL_DEVICE_8000,
+	.ht_params = &iwl8000_ht_params,
+	.nvm_ver = IWL8000_NVM_VERSION,
+	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
+};
+
 MODULE_FIRMWARE(IWL8000_MODULE_FIRMWARE(IWL8000_UCODE_API_OK));
