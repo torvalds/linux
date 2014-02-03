@@ -411,10 +411,9 @@ static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 	s = &dev->subdevices[0];
 	/* digital i/o subdevice (8255) */
 	ret = subdev_8255_init(dev, s, NULL, iobase);
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
+	if (ret)
 		return ret;
-	}
+
 	s = &dev->subdevices[1];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_UNUSED;
