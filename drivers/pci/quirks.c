@@ -3461,3 +3461,28 @@ int pci_dev_specific_acs_enabled(struct pci_dev *dev, u16 acs_flags)
 
 	return -ENOTTY;
 }
+
+static const struct pci_dev_enable_acs {
+	u16 vendor;
+	u16 device;
+	int (*enable_acs)(struct pci_dev *dev);
+} pci_dev_enable_acs[] = {
+	{ 0 }
+};
+
+void pci_dev_specific_enable_acs(struct pci_dev *dev)
+{
+	const struct pci_dev_enable_acs *i;
+	int ret;
+
+	for (i = pci_dev_enable_acs; i->enable_acs; i++) {
+		if ((i->vendor == dev->vendor ||
+		     i->vendor == (u16)PCI_ANY_ID) &&
+		    (i->device == dev->device ||
+		     i->device == (u16)PCI_ANY_ID)) {
+			ret = i->enable_acs(dev);
+			if (ret >= 0)
+				return;
+		}
+	}
+}
