@@ -437,7 +437,10 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 		if (on) {
 			gpio_num = gpio_tab[EXTTS0_GPIO + index];
 			evnt |= (gpio_num & EVNT_GPIO_MASK) << EVNT_GPIO_SHIFT;
-			evnt |= EVNT_RISE;
+			if (rq->extts.flags & PTP_FALLING_EDGE)
+				evnt |= EVNT_FALL;
+			else
+				evnt |= EVNT_RISE;
 		}
 		ext_write(0, phydev, PAGE5, PTP_EVNT, evnt);
 		return 0;
