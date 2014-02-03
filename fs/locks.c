@@ -511,8 +511,7 @@ static int posix_same_owner(struct file_lock *fl1, struct file_lock *fl2)
 }
 
 /* Must be called with the i_lock held! */
-static inline void
-locks_insert_global_locks(struct file_lock *fl)
+static void locks_insert_global_locks(struct file_lock *fl)
 {
 	lg_local_lock(&file_lock_lglock);
 	fl->fl_link_cpu = smp_processor_id();
@@ -521,8 +520,7 @@ locks_insert_global_locks(struct file_lock *fl)
 }
 
 /* Must be called with the i_lock held! */
-static inline void
-locks_delete_global_locks(struct file_lock *fl)
+static void locks_delete_global_locks(struct file_lock *fl)
 {
 	/*
 	 * Avoid taking lock if already unhashed. This is safe since this check
@@ -544,14 +542,12 @@ posix_owner_key(struct file_lock *fl)
 	return (unsigned long)fl->fl_owner;
 }
 
-static inline void
-locks_insert_global_blocked(struct file_lock *waiter)
+static void locks_insert_global_blocked(struct file_lock *waiter)
 {
 	hash_add(blocked_hash, &waiter->fl_link, posix_owner_key(waiter));
 }
 
-static inline void
-locks_delete_global_blocked(struct file_lock *waiter)
+static void locks_delete_global_blocked(struct file_lock *waiter)
 {
 	hash_del(&waiter->fl_link);
 }
