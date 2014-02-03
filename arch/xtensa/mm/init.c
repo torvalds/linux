@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <linux/bootmem.h>
 #include <linux/gfp.h>
+#include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
@@ -296,19 +297,13 @@ void __init bootmem_init(void)
 
 void __init zones_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES];
-	int i;
-
 	/* All pages are DMA-able, so we put them all in the DMA zone. */
-
-	zones_size[ZONE_DMA] = max_low_pfn - ARCH_PFN_OFFSET;
-	for (i = 1; i < MAX_NR_ZONES; i++)
-		zones_size[i] = 0;
-
+	unsigned long zones_size[MAX_NR_ZONES] = {
+		[ZONE_DMA] = max_low_pfn - ARCH_PFN_OFFSET,
 #ifdef CONFIG_HIGHMEM
-	zones_size[ZONE_HIGHMEM] = max_pfn - max_low_pfn;
+		[ZONE_HIGHMEM] = max_pfn - max_low_pfn,
 #endif
-
+	};
 	free_area_init_node(0, zones_size, ARCH_PFN_OFFSET, NULL);
 }
 
@@ -318,16 +313,38 @@ void __init zones_init(void)
 
 void __init mem_init(void)
 {
-	max_mapnr = max_low_pfn - ARCH_PFN_OFFSET;
-	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
-
 #ifdef CONFIG_HIGHMEM
-#error HIGHGMEM not implemented in init.c
+	unsigned long tmp;
+
+	reset_all_zones_managed_pages();
+	for (tmp = max_low_pfn; tmp < max_pfn; tmp++)
+		free_highmem_page(pfn_to_page(tmp));
 #endif
+
+	max_mapnr = max_pfn - ARCH_PFN_OFFSET;
+	high_memory = (void *)__va(max_low_pfn << PAGE_SHIFT);
 
 	free_all_bootmem();
 
 	mem_init_print_info(NULL);
+	pr_info("virtual kernel memory layout:\n"
+#ifdef CONFIG_HIGHMEM
+		"    pkmap   : 0x%08lx - 0x%08lx  (%5lu kB)\n"
+		"    fixmap  : 0x%08lx - 0x%08lx  (%5lu kB)\n"
+#endif
+		"    vmalloc : 0x%08x - 0x%08x  (%5u MB)\n"
+		"    lowmem  : 0x%08x - 0x%08lx  (%5lu MB)\n",
+#ifdef CONFIG_HIGHMEM
+		PKMAP_BASE, PKMAP_BASE + LAST_PKMAP * PAGE_SIZE,
+		(LAST_PKMAP*PAGE_SIZE) >> 10,
+		FIXADDR_START, FIXADDR_TOP,
+		(FIXADDR_TOP - FIXADDR_START) >> 10,
+#endif
+		VMALLOC_START, VMALLOC_END,
+		(VMALLOC_END - VMALLOC_START) >> 20,
+		PAGE_OFFSET, PAGE_OFFSET +
+		(max_low_pfn - min_low_pfn) * PAGE_SIZE,
+		((max_low_pfn - min_low_pfn) * PAGE_SIZE) >> 20);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
