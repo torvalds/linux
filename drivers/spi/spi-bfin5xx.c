@@ -1030,10 +1030,6 @@ static int bfin_spi_setup(struct spi_device *spi)
 	}
 
 	/* translate common spi framework into our register */
-	if (spi->mode & ~(SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST)) {
-		dev_err(&spi->dev, "unsupported spi modes detected\n");
-		goto error;
-	}
 	if (spi->mode & SPI_CPOL)
 		chip->ctl_reg |= BIT_CTL_CPOL;
 	if (spi->mode & SPI_CPHA)
