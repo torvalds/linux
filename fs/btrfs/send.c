@@ -55,7 +55,6 @@ struct fs_path {
 			char *buf;
 			int buf_len;
 			unsigned int reversed:1;
-			unsigned int virtual_mem:1;
 			char inline_buf[];
 		};
 		char pad[PAGE_SIZE];
@@ -241,7 +240,6 @@ static struct fs_path *fs_path_alloc(void)
 	if (!p)
 		return NULL;
 	p->reversed = 0;
-	p->virtual_mem = 0;
 	p->buf = p->inline_buf;
 	p->buf_len = FS_PATH_INLINE_SIZE;
 	fs_path_reset(p);
@@ -265,7 +263,7 @@ static void fs_path_free(struct fs_path *p)
 	if (!p)
 		return;
 	if (p->buf != p->inline_buf) {
-		if (p->virtual_mem)
+		if (is_vmalloc_addr(p->buf))
 			vfree(p->buf);
 		else
 			kfree(p->buf);
@@ -299,13 +297,12 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 			tmp_buf = vmalloc(len);
 			if (!tmp_buf)
 				return -ENOMEM;
-			p->virtual_mem = 1;
 		}
 		memcpy(tmp_buf, p->buf, p->buf_len);
 		p->buf = tmp_buf;
 		p->buf_len = len;
 	} else {
-		if (p->virtual_mem) {
+		if (is_vmalloc_addr(p->buf)) {
 			tmp_buf = vmalloc(len);
 			if (!tmp_buf)
 				return -ENOMEM;
@@ -319,7 +316,6 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 					return -ENOMEM;
 				memcpy(tmp_buf, p->buf, p->buf_len);
 				kfree(p->buf);
-				p->virtual_mem = 1;
 			}
 		}
 		p->buf = tmp_buf;
