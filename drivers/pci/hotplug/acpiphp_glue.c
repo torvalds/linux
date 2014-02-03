@@ -852,6 +852,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 
 	mutex_unlock(&acpiphp_context_lock);
 
+	pci_lock_rescan_remove();
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
 	switch (type) {
@@ -905,6 +906,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 		break;
 	}
 
+	pci_unlock_rescan_remove();
 	if (bridge)
 		put_bridge(bridge);
 }
@@ -915,11 +917,9 @@ static void hotplug_event_work(void *data, u32 type)
 	acpi_handle handle = context->handle;
 
 	acpi_scan_lock_acquire();
-	pci_lock_rescan_remove();
 
 	hotplug_event(handle, type, context);
 
-	pci_unlock_rescan_remove();
 	acpi_scan_lock_release();
 	acpi_evaluate_hotplug_ost(handle, type, ACPI_OST_SC_SUCCESS, NULL);
 	put_bridge(context->func.parent);
