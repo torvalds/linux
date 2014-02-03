@@ -1061,6 +1061,13 @@ static void dp83640_remove(struct phy_device *phydev)
 	kfree(dp83640);
 }
 
+static int dp83640_config_init(struct phy_device *phydev)
+{
+	enable_status_frames(phydev, true);
+	ext_write(0, phydev, PAGE4, PTP_CTL, PTP_ENABLE);
+	return 0;
+}
+
 static int dp83640_ack_interrupt(struct phy_device *phydev)
 {
 	int err = phy_read(phydev, MII_DP83640_MISR);
@@ -1198,11 +1205,6 @@ static int dp83640_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 
 	mutex_lock(&dp83640->clock->extreg_lock);
 
-	if (dp83640->hwts_tx_en || dp83640->hwts_rx_en) {
-		enable_status_frames(phydev, true);
-		ext_write(0, phydev, PAGE4, PTP_CTL, PTP_ENABLE);
-	}
-
 	ext_write(0, phydev, PAGE5, PTP_TXCFG0, txcfg0);
 	ext_write(0, phydev, PAGE5, PTP_RXCFG0, rxcfg0);
 
@@ -1334,6 +1336,7 @@ static struct phy_driver dp83640_driver = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.probe		= dp83640_probe,
 	.remove		= dp83640_remove,
+	.config_init	= dp83640_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt  = dp83640_ack_interrupt,
