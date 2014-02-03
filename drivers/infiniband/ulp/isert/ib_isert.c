@@ -1213,7 +1213,7 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 	case ISCSI_OP_SCSI_CMD:
 		spin_lock_bh(&conn->cmd_lock);
 		if (!list_empty(&cmd->i_conn_node))
-			list_del(&cmd->i_conn_node);
+			list_del_init(&cmd->i_conn_node);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		if (cmd->data_direction == DMA_TO_DEVICE)
@@ -1225,7 +1225,7 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 	case ISCSI_OP_SCSI_TMFUNC:
 		spin_lock_bh(&conn->cmd_lock);
 		if (!list_empty(&cmd->i_conn_node))
-			list_del(&cmd->i_conn_node);
+			list_del_init(&cmd->i_conn_node);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		transport_generic_free_cmd(&cmd->se_cmd, 0);
@@ -1234,7 +1234,7 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 	case ISCSI_OP_NOOP_OUT:
 		spin_lock_bh(&conn->cmd_lock);
 		if (!list_empty(&cmd->i_conn_node))
-			list_del(&cmd->i_conn_node);
+			list_del_init(&cmd->i_conn_node);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		/*
