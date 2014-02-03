@@ -1,0 +1,253 @@
+/*
+ * Copyright 2014 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/ {
+	soc {
+		prcmu@80157000 {
+			ab8500 {
+				ab8500-gpio {
+					/* Hog a few default settings */
+					pinctrl-names = "default";
+					pinctrl-0 = <&gpio2_default_mode>,
+						    <&gpio4_default_mode>,
+						    <&gpio10_default_mode>,
+						    <&gpio11_default_mode>,
+						    <&gpio12_default_mode>,
+						    <&gpio13_default_mode>,
+						    <&gpio16_default_mode>,
+						    <&gpio24_default_mode>,
+						    <&gpio25_default_mode>,
+						    <&gpio36_default_mode>,
+						    <&gpio37_default_mode>,
+						    <&gpio38_default_mode>,
+						    <&gpio39_default_mode>,
+						    <&gpio42_default_mode>,
+						    <&gpio26_default_mode>,
+						    <&gpio35_default_mode>;
+
+					/*
+					 * Pins 2, 4, 10, 11, 12, 13, 16, 24, 25, 36, 37, 38, 39 and 42
+					 * are muxed in as GPIO, and configured as INPUT PULL DOWN
+					 */
+					gpio2 {
+						gpio2_default_mode: gpio2_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio2_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO2_T9";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio4 {
+						gpio4_default_mode: gpio4_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio4_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO4_W2";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio10 {
+						gpio10_default_mode: gpio10_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio10_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO10_U17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio11 {
+						gpio11_default_mode: gpio11_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio11_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO11_AA18";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio12 {
+						gpio12_default_mode: gpio12_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio12_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO12_U16";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio13 {
+						gpio13_default_mode: gpio13_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio13_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO13_W17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio16 {
+						gpio16_default_mode: gpio16_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio16_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO16_F15";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio24 {
+						gpio24_default_mode: gpio24_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio24_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO24_T14";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio25 {
+						gpio25_default_mode: gpio25_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio25_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO25_R16";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio36 {
+						gpio36_default_mode: gpio36_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio36_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO36_A17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio37 {
+						gpio37_default_mode: gpio37_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio37_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO37_E15";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio38 {
+						gpio38_default_mode: gpio38_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio38_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO38_C17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio39 {
+						gpio39_default_mode: gpio39_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio39_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO39_E16";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio42 {
+						gpio42_default_mode: gpio42_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio42_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO42_U2";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/*
+					 * Pins 26 and 35 muxed in as GPIO, and configured as OUTPUT LOW
+					 */
+					gpio26 {
+						gpio26_default_mode: gpio26_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio26_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO26_M16";
+								output-low;
+							};
+						};
+					};
+					gpio35 {
+						gpio35_default_mode: gpio35_default {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio35_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO35_W15";
+								output-low;
+							};
+						};
+					};
+				};
+			};
+		};
+	};
+};

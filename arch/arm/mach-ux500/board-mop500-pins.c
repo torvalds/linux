@@ -18,7 +18,6 @@
 /* These simply sets bias for pins */
 #define BIAS(a,b) static unsigned long a[] = { b }
 
-BIAS(abx500_out_lo, PIN_CONF_PACKED(PIN_CONFIG_OUTPUT, 0));
 BIAS(abx500_in_pd, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 1));
 BIAS(abx500_in_nopull, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 0));
 
@@ -50,20 +49,12 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	AB8500_MUX_STATE("gpio1_a_1", "gpio", "regulator.35", PINCTRL_STATE_SLEEP),
 	AB8500_PIN_STATE("GPIO1_T10", in_pd, "regulator.35", PINCTRL_STATE_SLEEP),
 
-	/* pins 2 is muxed in GPIO, configured in INPUT PULL DOWN */
-	AB8500_MUX_HOG("gpio2_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO2_T9", in_pd),
-
 	/* Sysclkreq4 */
 	AB8500_MUX_STATE("sysclkreq4_d_1", "sysclkreq", "regulator.36", PINCTRL_STATE_DEFAULT),
 	AB8500_PIN_STATE("GPIO3_U9", in_nopull, "regulator.36", PINCTRL_STATE_DEFAULT),
 	/* sysclkreq4 disable, mux in gpio configured in input pulldown */
 	AB8500_MUX_STATE("gpio3_a_1", "gpio", "regulator.36", PINCTRL_STATE_SLEEP),
 	AB8500_PIN_STATE("GPIO3_U9", in_pd, "regulator.36", PINCTRL_STATE_SLEEP),
-
-	/* pins 4 is muxed in GPIO, configured in INPUT PULL DOWN */
-	AB8500_MUX_HOG("gpio4_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO4_W2", in_pd),
 
 	/*
 	 * pins 6,7,8 and 9 are muxed in YCBCR0123
@@ -76,22 +67,6 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	AB8500_PIN_HOG("GPIO9_AA19", in_nopull),
 
 	/*
-	 * pins 10,11,12 and 13 are muxed in GPIO
-	 * configured in INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("gpio10_d_1", "gpio"),
-	AB8500_PIN_HOG("GPIO10_U17", in_pd),
-
-	AB8500_MUX_HOG("gpio11_d_1", "gpio"),
-	AB8500_PIN_HOG("GPIO11_AA18", in_pd),
-
-	AB8500_MUX_HOG("gpio12_d_1", "gpio"),
-	AB8500_PIN_HOG("GPIO12_U16", in_pd),
-
-	AB8500_MUX_HOG("gpio13_d_1", "gpio"),
-	AB8500_PIN_HOG("GPIO13_W17", in_pd),
-
-	/*
 	 * pins 14,15 are muxed in PWM1 and PWM2
 	 * configured in INPUT PULL DOWN
 	 */
@@ -100,13 +75,6 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 
 	AB8500_MUX_HOG("pwmout2_d_1", "pwmout"),
 	AB8500_PIN_HOG("GPIO15_B17", in_pd),
-
-	/*
-	 * pins 16 is muxed in GPIO
-	 * configured in INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("gpio16_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO14_F14", in_pd),
 
 	/*
 	 * pins 17,18,19 and 20 are muxed in AUDIO interface 1
@@ -126,23 +94,6 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	AB8500_PIN_HOG("GPIO21_H19", in_pd),
 	AB8500_PIN_HOG("GPIO22_G20", in_pd),
 	AB8500_PIN_HOG("GPIO23_G19", in_pd),
-
-	/*
-	 * pins 24,25 are muxed in GPIO
-	 * configured in INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("gpio24_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO24_T14", in_pd),
-
-	AB8500_MUX_HOG("gpio25_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO25_R16", in_pd),
-
-	/*
-	 * pins 26 is muxed in GPIO
-	 * configured in OUTPUT LOW
-	 */
-	AB8500_MUX_HOG("gpio26_d_1", "gpio"),
-	AB8500_PIN_HOG("GPIO26_M16", out_lo),
 
 	/*
 	 * pins 27,28 are muxed in DMIC12
@@ -176,42 +127,12 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	AB8500_PIN_HOG("GPIO34_R17", in_pd),
 
 	/*
-	 * pins 35 is muxed in GPIO
-	 * configured in OUTPUT LOW
-	 */
-	AB8500_MUX_HOG("gpio35_d_1", "gpio"),
-	AB8500_PIN_HOG("GPIO35_W15", in_pd),
-
-	/*
-	 * pins 36,37,38 and 39 are muxed in GPIO
-	 * configured in INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("gpio36_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO36_A17", in_pd),
-
-	AB8500_MUX_HOG("gpio37_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO37_E15", in_pd),
-
-	AB8500_MUX_HOG("gpio38_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO38_C17", in_pd),
-
-	AB8500_MUX_HOG("gpio39_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO39_E16", in_pd),
-
-	/*
 	 * pins 40 and 41 are muxed in MODCSLSDA
 	 * configured INPUT PULL DOWN
 	 */
 	AB8500_MUX_HOG("modsclsda_d_1", "modsclsda"),
 	AB8500_PIN_HOG("GPIO40_T19", in_pd),
 	AB8500_PIN_HOG("GPIO41_U19", in_pd),
-
-	/*
-	 * pins 42 is muxed in GPIO
-	 * configured INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("gpio42_a_1", "gpio"),
-	AB8500_PIN_HOG("GPIO42_U2", in_pd),
 };
 
 static struct pinctrl_map __initdata ab8505_pinmap[] = {
