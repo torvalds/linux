@@ -52,8 +52,7 @@ extern unsigned long set_phys_range_identity(unsigned long pfn_s,
 extern int m2p_add_override(unsigned long mfn, struct page *page,
 			    struct gnttab_map_grant_ref *kmap_op);
 extern int m2p_remove_override(struct page *page,
-			       struct gnttab_map_grant_ref *kmap_op,
-			       unsigned long mfn);
+				struct gnttab_map_grant_ref *kmap_op);
 extern struct page *m2p_find_override(unsigned long mfn);
 extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
 
@@ -122,7 +121,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 		pfn = m2p_find_override_pfn(mfn, ~0);
 	}
 
-	/*
+	/* 
 	 * pfn is ~0 if there are no entries in the m2p for mfn or if the
 	 * entry doesn't map back to the mfn and m2p_override doesn't have a
 	 * valid entry for it.
