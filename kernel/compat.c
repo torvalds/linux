@@ -451,7 +451,7 @@ asmlinkage long compat_sys_old_getrlimit(unsigned int resource,
 	mm_segment_t old_fs = get_fs();
 
 	set_fs(KERNEL_DS);
-	ret = sys_old_getrlimit(resource, &r);
+	ret = sys_old_getrlimit(resource, (struct rlimit __user *)&r);
 	set_fs(old_fs);
 
 	if (!ret) {
@@ -799,7 +799,7 @@ static long compat_clock_nanosleep_restart(struct restart_block *restart)
 	long err;
 	mm_segment_t oldfs;
 	struct timespec tu;
-	struct compat_timespec *rmtp = restart->nanosleep.compat_rmtp;
+	struct compat_timespec __user *rmtp = restart->nanosleep.compat_rmtp;
 
 	restart->nanosleep.rmtp = (struct timespec __user *) &tu;
 	oldfs = get_fs();
