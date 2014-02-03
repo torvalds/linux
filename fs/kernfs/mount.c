@@ -48,6 +48,20 @@ static const struct super_operations kernfs_sops = {
 	.show_options	= kernfs_sop_show_options,
 };
 
+/**
+ * kernfs_root_from_sb - determine kernfs_root associated with a super_block
+ * @sb: the super_block in question
+ *
+ * Return the kernfs_root associated with @sb.  If @sb is not a kernfs one,
+ * %NULL is returned.
+ */
+struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
+{
+	if (sb->s_op == &kernfs_sops)
+		return kernfs_info(sb)->root;
+	return NULL;
+}
+
 static int kernfs_fill_super(struct super_block *sb)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);

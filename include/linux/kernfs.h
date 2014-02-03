@@ -234,6 +234,9 @@ struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
 void kernfs_get(struct kernfs_node *kn);
 void kernfs_put(struct kernfs_node *kn);
 
+struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry);
+struct kernfs_root *kernfs_root_from_sb(struct super_block *sb);
+
 struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 				       unsigned int flags, void *priv);
 void kernfs_destroy_root(struct kernfs_root *root);
@@ -287,6 +290,12 @@ kernfs_find_and_get_ns(struct kernfs_node *parent, const char *name,
 
 static inline void kernfs_get(struct kernfs_node *kn) { }
 static inline void kernfs_put(struct kernfs_node *kn) { }
+
+static inline struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
+{ return NULL; }
+
+static inline struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
+{ return NULL; }
 
 static inline struct kernfs_root *
 kernfs_create_root(struct kernfs_syscall_ops *scops, unsigned int flags,
@@ -386,6 +395,13 @@ static inline int kernfs_remove_by_name(struct kernfs_node *parent,
 					const char *name)
 {
 	return kernfs_remove_by_name_ns(parent, name, NULL);
+}
+
+static inline int kernfs_rename(struct kernfs_node *kn,
+				struct kernfs_node *new_parent,
+				const char *new_name)
+{
+	return kernfs_rename_ns(kn, new_parent, new_name, NULL);
 }
 
 static inline struct dentry *

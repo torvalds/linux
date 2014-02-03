@@ -350,6 +350,24 @@ const struct dentry_operations kernfs_dops = {
 	.d_release	= kernfs_dop_release,
 };
 
+/**
+ * kernfs_node_from_dentry - determine kernfs_node associated with a dentry
+ * @dentry: the dentry in question
+ *
+ * Return the kernfs_node associated with @dentry.  If @dentry is not a
+ * kernfs one, %NULL is returned.
+ *
+ * While the returned kernfs_node will stay accessible as long as @dentry
+ * is accessible, the returned node can be in any state and the caller is
+ * fully responsible for determining what's accessible.
+ */
+struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
+{
+	if (dentry->d_op == &kernfs_dops)
+		return dentry->d_fsdata;
+	return NULL;
+}
+
 static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 					     const char *name, umode_t mode,
 					     unsigned flags)
