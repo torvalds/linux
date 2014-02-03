@@ -347,7 +347,6 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	slot->bus = bridge->pci_bus;
 	slot->device = device;
 	INIT_LIST_HEAD(&slot->funcs);
-	mutex_init(&slot->crit_sect);
 
 	list_add_tail(&slot->node, &bridge->slots);
 
@@ -744,7 +743,6 @@ static void acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 		struct pci_bus *bus = slot->bus;
 		struct pci_dev *dev, *tmp;
 
-		mutex_lock(&slot->crit_sect);
 		if (slot_no_hotplug(slot)) {
 			; /* do nothing */
 		} else if (get_slot_status(slot) == ACPI_STA_ALL) {
@@ -759,7 +757,6 @@ static void acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 		} else {
 			disable_slot(slot);
 		}
-		mutex_unlock(&slot->crit_sect);
 	}
 }
 
@@ -846,12 +843,8 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 		} else {
 			struct acpiphp_slot *slot = func->slot;
 
-			if (slot->flags & SLOT_IS_GOING_AWAY)
-				break;
-
-			mutex_lock(&slot->crit_sect);
-			enable_slot(slot);
-			mutex_unlock(&slot->crit_sect);
+			if (!(slot->flags & SLOT_IS_GOING_AWAY))
+				enable_slot(slot);
 		}
 		break;
 
@@ -862,7 +855,6 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 			acpiphp_check_bridge(bridge);
 		} else {
 			struct acpiphp_slot *slot = func->slot;
-			int ret;
 
 			if (slot->flags & SLOT_IS_GOING_AWAY)
 				break;
@@ -871,10 +863,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 			 * Check if anything has changed in the slot and rescan
 			 * from the parent if that's the case.
 			 */
-			mutex_lock(&slot->crit_sect);
-			ret = acpiphp_rescan_slot(slot);
-			mutex_unlock(&slot->crit_sect);
-			if (ret)
+			if (acpiphp_rescan_slot(slot))
 				acpiphp_check_bridge(func->parent);
 		}
 		break;
@@ -1088,12 +1077,9 @@ int acpiphp_enable_slot(struct acpiphp_slot *slot)
 	if (slot->flags & SLOT_IS_GOING_AWAY)
 		return -ENODEV;
 
-	mutex_lock(&slot->crit_sect);
 	/* configure all functions */
 	if (!(slot->flags & SLOT_ENABLED))
 		enable_slot(slot);
-
-	mutex_unlock(&slot->crit_sect);
 
 	pci_unlock_rescan_remove();
 	return 0;
@@ -1110,8 +1096,6 @@ static int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot)
 	if (slot->flags & SLOT_IS_GOING_AWAY)
 		return -ENODEV;
 
-	mutex_lock(&slot->crit_sect);
-
 	/* unconfigure all functions */
 	disable_slot(slot);
 
@@ -1125,7 +1109,6 @@ static int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot)
 			break;
 		}
 
-	mutex_unlock(&slot->crit_sect);
 	return 0;
 }
 

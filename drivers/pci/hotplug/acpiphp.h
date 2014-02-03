@@ -93,7 +93,6 @@ struct acpiphp_slot {
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */
 	struct slot *slot;
-	struct mutex crit_sect;
 
 	u8		device;		/* pci device# */
 	u32		flags;		/* see below */
