@@ -3606,7 +3606,10 @@ static int process_all_refs(struct send_ctx *sctx,
 		root = sctx->parent_root;
 		cb = __record_deleted_ref;
 	} else {
-		BUG();
+		btrfs_err(sctx->send_root->fs_info,
+				"Wrong command %d in process_all_refs", cmd);
+		ret = -EINVAL;
+		goto out;
 	}
 
 	key.objectid = sctx->cmp_key->objectid;
