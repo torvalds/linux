@@ -661,7 +661,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	struct phy_provider	*phy_provider;
 	struct phy_init_data	*init_data = NULL;
 
-	twl = devm_kzalloc(&pdev->dev, sizeof *twl, GFP_KERNEL);
+	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
 		return -ENOMEM;
 
@@ -676,7 +676,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	otg = devm_kzalloc(&pdev->dev, sizeof *otg, GFP_KERNEL);
+	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
 		return -ENOMEM;
 
