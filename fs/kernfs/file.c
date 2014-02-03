@@ -820,7 +820,6 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 bool name_is_static,
 					 struct lock_class_key *key)
 {
-	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 	unsigned flags;
 	int rc;
@@ -855,10 +854,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 	if (ops->mmap)
 		kn->flags |= KERNFS_HAS_MMAP;
 
-	kernfs_addrm_start(&acxt);
-	rc = kernfs_add_one(&acxt, kn);
-	kernfs_addrm_finish(&acxt);
-
+	rc = kernfs_add_one(kn);
 	if (rc) {
 		kernfs_put(kn);
 		return ERR_PTR(rc);
