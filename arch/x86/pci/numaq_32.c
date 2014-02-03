@@ -135,11 +135,11 @@ static void pci_fixup_i450nx(struct pci_dev *d)
 			pxb, busno, suba, subb);
 		if (busno) {
 			/* Bus A */
-			pci_scan_bus_with_sysdata(QUADLOCAL2BUS(quad, busno));
+			pcibios_scan_root(QUADLOCAL2BUS(quad, busno));
 		}
 		if (suba < subb) {
 			/* Bus B */
-			pci_scan_bus_with_sysdata(QUADLOCAL2BUS(quad, suba+1));
+			pcibios_scan_root(QUADLOCAL2BUS(quad, suba+1));
 		}
 	}
 	pcibios_last_bus = -1;
@@ -159,7 +159,7 @@ int __init pci_numaq_init(void)
 				continue;
 			printk("Scanning PCI bus %d for quad %d\n", 
 				QUADLOCAL2BUS(quad,0), quad);
-			pci_scan_bus_with_sysdata(QUADLOCAL2BUS(quad, 0));
+			pcibios_scan_root(QUADLOCAL2BUS(quad, 0));
 		}
 	return 0;
 }

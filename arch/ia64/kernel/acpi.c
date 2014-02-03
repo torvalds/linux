@@ -803,14 +803,9 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
  *  ACPI based hotplug CPU support
  */
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
-static
-int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
-	int pxm_id;
-	int nid;
-
-	pxm_id = acpi_get_pxm(handle);
 	/*
 	 * We don't have cpu-only-node hotadd. But if the system equips
 	 * SRAT table, pxm is already found and node is ready.
@@ -818,11 +813,10 @@ int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 	 * This code here is for the system which doesn't have full SRAT
   	 * table for possible cpus.
 	 */
-	nid = acpi_map_pxm_to_node(pxm_id);
 	node_cpuid[cpu].phys_id = physid;
-	node_cpuid[cpu].nid = nid;
+	node_cpuid[cpu].nid = acpi_get_node(handle);
 #endif
-	return (0);
+	return 0;
 }
 
 int additional_cpus __initdata = -1;
@@ -929,7 +923,7 @@ static acpi_status acpi_map_iosapic(acpi_handle handle, u32 depth,
 	union acpi_object *obj;
 	struct acpi_madt_io_sapic *iosapic;
 	unsigned int gsi_base;
-	int pxm, node;
+	int node;
 
 	/* Only care about objects w/ a method that returns the MADT */
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
@@ -956,17 +950,9 @@ static acpi_status acpi_map_iosapic(acpi_handle handle, u32 depth,
 
 	kfree(buffer.pointer);
 
-	/*
-	 * OK, it's an IOSAPIC MADT entry, look for a _PXM value to tell
-	 * us which node to associate this with.
-	 */
-	pxm = acpi_get_pxm(handle);
-	if (pxm < 0)
-		return AE_OK;
-
-	node = pxm_to_node(pxm);
-
-	if (node >= MAX_NUMNODES || !node_online(node) ||
+	/* OK, it's an IOSAPIC MADT entry; associate it with a node */
+	node = acpi_get_node(handle);
+	if (node == NUMA_NO_NODE || !node_online(node) ||
 	    cpumask_empty(cpumask_of_node(node)))
 		return AE_OK;
 
