@@ -1270,53 +1270,15 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 }
 
-static int ath9k_htc_sta_add(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_sta *sta)
+static void ath9k_htc_sta_rc_update_work(struct work_struct *work)
 {
-	struct ath9k_htc_priv *priv = hw->priv;
-	int ret;
-
-	mutex_lock(&priv->mutex);
-	ath9k_htc_ps_wakeup(priv);
-	ret = ath9k_htc_add_station(priv, vif, sta);
-	if (!ret)
-		ath9k_htc_init_rate(priv, sta);
-	ath9k_htc_ps_restore(priv);
-	mutex_unlock(&priv->mutex);
-
-	return ret;
-}
-
-static int ath9k_htc_sta_remove(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta)
-{
-	struct ath9k_htc_priv *priv = hw->priv;
-	struct ath9k_htc_sta *ista;
-	int ret;
-
-	mutex_lock(&priv->mutex);
-	ath9k_htc_ps_wakeup(priv);
-	ista = (struct ath9k_htc_sta *) sta->drv_priv;
-	htc_sta_drain(priv->htc, ista->index);
-	ret = ath9k_htc_remove_station(priv, vif, sta);
-	ath9k_htc_ps_restore(priv);
-	mutex_unlock(&priv->mutex);
-
-	return ret;
-}
-
-static void ath9k_htc_sta_rc_update(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_sta *sta, u32 changed)
-{
-	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath9k_htc_sta *ista =
+	    container_of(work, struct ath9k_htc_sta, rc_update_work);
+	struct ieee80211_sta *sta =
+	    container_of((void *)ista, struct ieee80211_sta, drv_priv);
+	struct ath9k_htc_priv *priv = ista->htc_priv;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_target_rate trate;
-
-	if (!(changed & IEEE80211_RC_SUPP_RATES_CHANGED))
-		return;
 
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
@@ -1334,6 +1296,60 @@ static void ath9k_htc_sta_rc_update(struct ieee80211_hw *hw,
 
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
+}
+
+static int ath9k_htc_sta_add(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath9k_htc_sta *ista = (struct ath9k_htc_sta *) sta->drv_priv;
+	int ret;
+
+	mutex_lock(&priv->mutex);
+	ath9k_htc_ps_wakeup(priv);
+	ret = ath9k_htc_add_station(priv, vif, sta);
+	if (!ret) {
+		INIT_WORK(&ista->rc_update_work, ath9k_htc_sta_rc_update_work);
+		ista->htc_priv = priv;
+		ath9k_htc_init_rate(priv, sta);
+	}
+	ath9k_htc_ps_restore(priv);
+	mutex_unlock(&priv->mutex);
+
+	return ret;
+}
+
+static int ath9k_htc_sta_remove(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath9k_htc_sta *ista = (struct ath9k_htc_sta *) sta->drv_priv;
+	int ret;
+
+	cancel_work_sync(&ista->rc_update_work);
+
+	mutex_lock(&priv->mutex);
+	ath9k_htc_ps_wakeup(priv);
+	htc_sta_drain(priv->htc, ista->index);
+	ret = ath9k_htc_remove_station(priv, vif, sta);
+	ath9k_htc_ps_restore(priv);
+	mutex_unlock(&priv->mutex);
+
+	return ret;
+}
+
+static void ath9k_htc_sta_rc_update(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta, u32 changed)
+{
+	struct ath9k_htc_sta *ista = (struct ath9k_htc_sta *) sta->drv_priv;
+
+	if (!(changed & IEEE80211_RC_SUPP_RATES_CHANGED))
+		return;
+
+	schedule_work(&ista->rc_update_work);
 }
 
 static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
