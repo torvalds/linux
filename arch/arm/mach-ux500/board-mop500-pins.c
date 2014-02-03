@@ -57,16 +57,6 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	AB8500_PIN_STATE("GPIO3_U9", in_pd, "regulator.36", PINCTRL_STATE_SLEEP),
 
 	/*
-	 * pins 17,18,19 and 20 are muxed in AUDIO interface 1
-	 * configured in INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("adi1_d_1", "adi1"),
-	AB8500_PIN_HOG("GPIO17_P5", in_pd),
-	AB8500_PIN_HOG("GPIO18_R5", in_pd),
-	AB8500_PIN_HOG("GPIO19_U5", in_pd),
-	AB8500_PIN_HOG("GPIO20_T5", in_pd),
-
-	/*
 	 * pins 21,22 and 23 are muxed in USB UICC
 	 * configured in INPUT PULL DOWN
 	 */

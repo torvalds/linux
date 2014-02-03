@@ -33,7 +33,8 @@
 						    <&gpio26_default_mode>,
 						    <&gpio35_default_mode>,
 						    <&ycbcr_default_mode>,
-						    <&pwm_default_mode>;
+						    <&pwm_default_mode>,
+						    <&adi1_default_mode>;
 
 					/*
 					 * Pins 2, 4, 10, 11, 12, 13, 16, 24, 25, 36, 37, 38, 39 and 42
@@ -278,6 +279,23 @@
 							default_cfg {
 								ste,pins = "GPIO14_F14",
 									 "GPIO15_B17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/* This sets up audio interface 1 */
+					adi1 {
+						adi1_default_mode: adi1_default {
+							default_mux {
+								ste,function = "adi1";
+								ste,pins = "adi1_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO17_P5",
+									 "GPIO18_R5",
+									 "GPIO19_U5",
+									 "GPIO20_T5";
 								input-enable;
 								bias-pull-down;
 							};
