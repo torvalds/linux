@@ -1520,116 +1520,48 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
-	char *src;
-	int ret;
-
-	/*
-	 * See if we can use the atomic maps, by prefaulting in the
-	 * pages and doing an atomic copy
-	 */
-	if (!fault_in_pages_writeable(sd->u.userptr, sd->len)) {
-		src = kmap_atomic(buf->page);
-		ret = __copy_to_user_inatomic(sd->u.userptr, src + buf->offset,
-							sd->len);
-		kunmap_atomic(src);
-		if (!ret) {
-			ret = sd->len;
-			goto out;
-		}
-	}
-
-	/*
-	 * No dice, use slow non-atomic map and copy
- 	 */
-	src = kmap(buf->page);
-
-	ret = sd->len;
-	if (copy_to_user(sd->u.userptr, src + buf->offset, sd->len))
-		ret = -EFAULT;
-
-	kunmap(buf->page);
-out:
-	if (ret > 0)
-		sd->u.userptr += ret;
-	return ret;
+	int n = copy_page_to_iter(buf->page, buf->offset, sd->len, sd->u.data);
+	return n == sd->len ? n : -EFAULT;
 }
 
 /*
  * For lack of a better implementation, implement vmsplice() to userspace
  * as a simple copy of the pipes pages to the user iov.
  */
-static long vmsplice_to_user(struct file *file, const struct iovec __user *iov,
+static long vmsplice_to_user(struct file *file, const struct iovec __user *uiov,
 			     unsigned long nr_segs, unsigned int flags)
 {
 	struct pipe_inode_info *pipe;
 	struct splice_desc sd;
-	ssize_t size;
-	int error;
 	long ret;
+	struct iovec iovstack[UIO_FASTIOV];
+	struct iovec *iov = iovstack;
+	struct iov_iter iter;
+	ssize_t count = 0;
 
 	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 
+	ret = rw_copy_check_uvector(READ, uiov, nr_segs,
+				    ARRAY_SIZE(iovstack), iovstack, &iov);
+	if (ret <= 0)
+		return ret;
+
+	iov_iter_init(&iter, iov, nr_segs, count, 0);
+
+	sd.len = 0;
+	sd.total_len = count;
+	sd.flags = flags;
+	sd.u.data = &iter;
+	sd.pos = 0;
+
 	pipe_lock(pipe);
-
-	error = ret = 0;
-	while (nr_segs) {
-		void __user *base;
-		size_t len;
-
-		/*
-		 * Get user address base and length for this iovec.
-		 */
-		error = get_user(base, &iov->iov_base);
-		if (unlikely(error))
-			break;
-		error = get_user(len, &iov->iov_len);
-		if (unlikely(error))
-			break;
-
-		/*
-		 * Sanity check this iovec. 0 read succeeds.
-		 */
-		if (unlikely(!len))
-			break;
-		if (unlikely(!base)) {
-			error = -EFAULT;
-			break;
-		}
-
-		if (unlikely(!access_ok(VERIFY_WRITE, base, len))) {
-			error = -EFAULT;
-			break;
-		}
-
-		sd.len = 0;
-		sd.total_len = len;
-		sd.flags = flags;
-		sd.u.userptr = base;
-		sd.pos = 0;
-
-		size = __splice_from_pipe(pipe, &sd, pipe_to_user);
-		if (size < 0) {
-			if (!ret)
-				ret = size;
-
-			break;
-		}
-
-		ret += size;
-
-		if (size < len)
-			break;
-
-		nr_segs--;
-		iov++;
-	}
-
+	ret = __splice_from_pipe(pipe, &sd, pipe_to_user);
 	pipe_unlock(pipe);
 
-	if (!ret)
-		ret = error;
+	if (iov != iovstack)
+		kfree(iov);
 
 	return ret;
 }
