@@ -952,6 +952,10 @@ struct smb_version_operations smb1_operations = {
 	.query_all_EAs = CIFSSMBQAllEAs,
 	.set_EA = CIFSSMBSetEA,
 #endif /* CIFS_XATTR */
+#ifdef CONFIG_CIFS_ACL
+	.get_acl = get_cifs_acl,
+	.set_acl = set_cifs_acl,
+#endif /* CIFS_ACL */
 };
 
 struct smb_version_values smb1_values = {
