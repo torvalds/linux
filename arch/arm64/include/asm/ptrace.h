@@ -68,6 +68,7 @@
 
 /* Architecturally defined mapping between AArch32 and AArch64 registers */
 #define compat_usr(x)	regs[(x)]
+#define compat_fp	regs[11]
 #define compat_sp	regs[13]
 #define compat_lr	regs[14]
 #define compat_sp_hyp	regs[15]
