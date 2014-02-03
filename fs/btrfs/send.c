@@ -1890,13 +1890,20 @@ static void name_cache_delete(struct send_ctx *sctx,
 
 	nce_head = radix_tree_lookup(&sctx->name_cache,
 			(unsigned long)nce->ino);
-	BUG_ON(!nce_head);
+	if (!nce_head) {
+		btrfs_err(sctx->send_root->fs_info,
+	      "name_cache_delete lookup failed ino %llu cache size %d, leaking memory",
+			nce->ino, sctx->name_cache_size);
+	}
 
 	list_del(&nce->radix_list);
 	list_del(&nce->list);
 	sctx->name_cache_size--;
 
-	if (list_empty(nce_head)) {
+	/*
+	 * We may not get to the final release of nce_head if the lookup fails
+	 */
+	if (nce_head && list_empty(nce_head)) {
 		radix_tree_delete(&sctx->name_cache, (unsigned long)nce->ino);
 		kfree(nce_head);
 	}
