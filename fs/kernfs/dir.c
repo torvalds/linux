@@ -435,7 +435,7 @@ int kernfs_add_one(struct kernfs_node *kn)
 		goto out_unlock;
 
 	ret = -ENOENT;
-	if (!kernfs_active(parent))
+	if ((parent->flags & KERNFS_ACTIVATED) && !kernfs_active(parent))
 		goto out_unlock;
 
 	kn->hash = kernfs_name_hash(kn->name, kn->ns);
@@ -451,9 +451,19 @@ int kernfs_add_one(struct kernfs_node *kn)
 		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
 	}
 
-	/* Mark the entry added into directory tree */
-	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
-	ret = 0;
+	mutex_unlock(&kernfs_mutex);
+
+	/*
+	 * Activate the new node unless CREATE_DEACTIVATED is requested.
+	 * If not activated here, the kernfs user is responsible for
+	 * activating the node with kernfs_activate().  A node which hasn't
+	 * been activated is not visible to userland and its removal won't
+	 * trigger deactivation.
+	 */
+	if (!(kernfs_root(kn)->flags & KERNFS_ROOT_CREATE_DEACTIVATED))
+		kernfs_activate(kn);
+	return 0;
+
 out_unlock:
 	mutex_unlock(&kernfs_mutex);
 	return ret;
@@ -528,13 +538,14 @@ EXPORT_SYMBOL_GPL(kernfs_find_and_get_ns);
 /**
  * kernfs_create_root - create a new kernfs hierarchy
  * @scops: optional syscall operations for the hierarchy
+ * @flags: KERNFS_ROOT_* flags
  * @priv: opaque data associated with the new directory
  *
  * Returns the root of the new hierarchy on success, ERR_PTR() value on
  * failure.
  */
 struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
-				       void *priv)
+				       unsigned int flags, void *priv)
 {
 	struct kernfs_root *root;
 	struct kernfs_node *kn;
@@ -553,13 +564,16 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
 	kn->priv = priv;
 	kn->dir.root = root;
 
 	root->syscall_ops = scops;
+	root->flags = flags;
 	root->kn = kn;
 	init_waitqueue_head(&root->deactivate_waitq);
+
+	if (!(root->flags & KERNFS_ROOT_CREATE_DEACTIVATED))
+		kernfs_activate(kn);
 
 	return root;
 }
@@ -783,6 +797,40 @@ static struct kernfs_node *kernfs_next_descendant_post(struct kernfs_node *pos,
 	return pos->parent;
 }
 
+/**
+ * kernfs_activate - activate a node which started deactivated
+ * @kn: kernfs_node whose subtree is to be activated
+ *
+ * If the root has KERNFS_ROOT_CREATE_DEACTIVATED set, a newly created node
+ * needs to be explicitly activated.  A node which hasn't been activated
+ * isn't visible to userland and deactivation is skipped during its
+ * removal.  This is useful to construct atomic init sequences where
+ * creation of multiple nodes should either succeed or fail atomically.
+ *
+ * The caller is responsible for ensuring that this function is not called
+ * after kernfs_remove*() is invoked on @kn.
+ */
+void kernfs_activate(struct kernfs_node *kn)
+{
+	struct kernfs_node *pos;
+
+	mutex_lock(&kernfs_mutex);
+
+	pos = NULL;
+	while ((pos = kernfs_next_descendant_post(pos, kn))) {
+		if (!pos || (pos->flags & KERNFS_ACTIVATED))
+			continue;
+
+		WARN_ON_ONCE(pos->parent && RB_EMPTY_NODE(&pos->rb));
+		WARN_ON_ONCE(atomic_read(&pos->active) != KN_DEACTIVATED_BIAS);
+
+		atomic_sub(KN_DEACTIVATED_BIAS, &pos->active);
+		pos->flags |= KERNFS_ACTIVATED;
+	}
+
+	mutex_unlock(&kernfs_mutex);
+}
+
 static void __kernfs_remove(struct kernfs_node *kn)
 {
 	struct kernfs_node *pos;
@@ -817,7 +865,16 @@ static void __kernfs_remove(struct kernfs_node *kn)
 		 */
 		kernfs_get(pos);
 
-		kernfs_drain(pos);
+		/*
+		 * Drain iff @kn was activated.  This avoids draining and
+		 * its lockdep annotations for nodes which have never been
+		 * activated and allows embedding kernfs_remove() in create
+		 * error paths without worrying about draining.
+		 */
+		if (kn->flags & KERNFS_ACTIVATED)
+			kernfs_drain(pos);
+		else
+			WARN_ON_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS);
 
 		/*
 		 * kernfs_unlink_sibling() succeeds once per node.  Use it

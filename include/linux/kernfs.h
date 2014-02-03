@@ -38,6 +38,7 @@ enum kernfs_node_type {
 #define KERNFS_FLAG_MASK	~KERNFS_TYPE_MASK
 
 enum kernfs_node_flag {
+	KERNFS_ACTIVATED	= 0x0010,
 	KERNFS_NS		= 0x0020,
 	KERNFS_HAS_SEQ_SHOW	= 0x0040,
 	KERNFS_HAS_MMAP		= 0x0080,
@@ -45,6 +46,11 @@ enum kernfs_node_flag {
 	KERNFS_STATIC_NAME	= 0x0200,
 	KERNFS_SUICIDAL		= 0x0400,
 	KERNFS_SUICIDED		= 0x0800,
+};
+
+/* @flags for kernfs_create_root() */
+enum kernfs_root_flag {
+	KERNFS_ROOT_CREATE_DEACTIVATED = 0x0001,
 };
 
 /* type-specific structures for kernfs_node union members */
@@ -128,6 +134,7 @@ struct kernfs_syscall_ops {
 struct kernfs_root {
 	/* published fields */
 	struct kernfs_node	*kn;
+	unsigned int		flags;	/* KERNFS_ROOT_* flags */
 
 	/* private fields, do not use outside kernfs proper */
 	struct ida		ino_ida;
@@ -223,7 +230,7 @@ void kernfs_get(struct kernfs_node *kn);
 void kernfs_put(struct kernfs_node *kn);
 
 struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
-				       void *priv);
+				       unsigned int flags, void *priv);
 void kernfs_destroy_root(struct kernfs_root *root);
 
 struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
@@ -239,6 +246,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 				       const char *name,
 				       struct kernfs_node *target);
+void kernfs_activate(struct kernfs_node *kn);
 void kernfs_remove(struct kernfs_node *kn);
 void kernfs_break_active_protection(struct kernfs_node *kn);
 void kernfs_unbreak_active_protection(struct kernfs_node *kn);
@@ -276,7 +284,8 @@ static inline void kernfs_get(struct kernfs_node *kn) { }
 static inline void kernfs_put(struct kernfs_node *kn) { }
 
 static inline struct kernfs_root *
-kernfs_create_root(struct kernfs_syscall_ops *scops, void *priv)
+kernfs_create_root(struct kernfs_syscall_ops *scops, unsigned int flags,
+		   void *priv)
 { return ERR_PTR(-ENOSYS); }
 
 static inline void kernfs_destroy_root(struct kernfs_root *root) { }
@@ -297,6 +306,8 @@ static inline struct kernfs_node *
 kernfs_create_link(struct kernfs_node *parent, const char *name,
 		   struct kernfs_node *target)
 { return ERR_PTR(-ENOSYS); }
+
+static inline void kernfs_activate(struct kernfs_node *kn) { }
 
 static inline void kernfs_remove(struct kernfs_node *kn) { }
 
