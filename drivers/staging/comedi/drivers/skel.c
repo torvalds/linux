@@ -456,8 +456,6 @@ static int skel_common_attach(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	dev_info(dev->class_dev, "skel: attached\n");
-
 	return 0;
 }
 

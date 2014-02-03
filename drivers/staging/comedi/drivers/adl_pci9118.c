@@ -1936,28 +1936,6 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 	return NULL;
 }
 
-static void pci9118_report_attach(struct comedi_device *dev, unsigned int irq)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct pci9118_private *devpriv = dev->private;
-	char irqbuf[30];
-	char muxbuf[30];
-
-	if (irq)
-		snprintf(irqbuf, sizeof(irqbuf), "irq %u%s", irq,
-			 (dev->irq ? "" : " UNAVAILABLE"));
-	else
-		snprintf(irqbuf, sizeof(irqbuf), "irq DISABLED");
-	if (devpriv->usemux)
-		snprintf(muxbuf, sizeof(muxbuf), "ext mux %u chans",
-			 devpriv->usemux);
-	else
-		snprintf(muxbuf, sizeof(muxbuf), "no ext mux");
-	dev_info(dev->class_dev, "%s (pci %s, %s, %sbus master, %s) attached\n",
-		 dev->board_name, pci_name(pcidev), irqbuf,
-		 (devpriv->master ? "" : "no "), muxbuf);
-}
-
 static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 				 int master, int ext_mux, int softsshdelay,
 				 int hw_err_mask)
@@ -2113,7 +2091,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 		break;
 	}
 
-	pci9118_report_attach(dev, dev->irq);
 	return 0;
 }
 

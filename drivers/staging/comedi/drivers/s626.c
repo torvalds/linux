@@ -2902,8 +2902,6 @@ static int s626_auto_attach(struct comedi_device *dev,
 
 	s626_initialize(dev);
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
 }
 

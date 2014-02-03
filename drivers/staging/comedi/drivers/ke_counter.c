@@ -119,9 +119,6 @@ static int cnt_auto_attach(struct comedi_device *dev,
 	outb(0, dev->iobase + 0x20);
 	outb(0, dev->iobase + 0x40);
 
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
-
 	return 0;
 }
 

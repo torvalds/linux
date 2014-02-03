@@ -1237,20 +1237,6 @@ static struct pci_dev *pci224_find_pci_dev(struct comedi_device *dev,
 	return NULL;
 }
 
-static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	char tmpbuf[30];
-
-	if (irq)
-		snprintf(tmpbuf, sizeof(tmpbuf), "irq %u%s", irq,
-			 (dev->irq ? "" : " UNAVAILABLE"));
-	else
-		snprintf(tmpbuf, sizeof(tmpbuf), "no irq");
-	dev_info(dev->class_dev, "%s (pci %s) (%s) attached\n",
-		 dev->board_name, pci_name(pcidev), tmpbuf);
-}
-
 /*
  * Common part of attach and auto_attach.
  */
@@ -1399,8 +1385,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 		}
 	}
 
-	pci224_report_attach(dev, irq);
-	return 1;
+	return 0;
 }
 
 static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)

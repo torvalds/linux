@@ -84,8 +84,6 @@ static int pci263_auto_attach(struct comedi_device *dev,
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
-	dev_info(dev->class_dev, "%s (pci %s) attached\n", dev->board_name,
-		 pci_name(pci_dev));
 	return 0;
 }
 

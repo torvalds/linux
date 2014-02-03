@@ -229,11 +229,6 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	s->insn_read = daq700_ai_rinsn;
 	daq700_ai_config(dev, s);
 
-	dev_info(dev->class_dev, "%s: %s, io 0x%lx\n",
-		dev->driver->driver_name,
-		dev->board_name,
-		dev->iobase);
-
 	return 0;
 }
 

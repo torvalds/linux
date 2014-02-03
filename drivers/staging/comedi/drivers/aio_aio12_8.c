@@ -247,9 +247,6 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	/* 8254 counter/timer subdevice */
 	s->type		= COMEDI_SUBD_UNUSED;
 
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
-
 	return 0;
 }
 

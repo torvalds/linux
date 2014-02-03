@@ -1208,7 +1208,7 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 				 "warning! irq %u unavailable!\n", irq);
 		}
 	}
-	dev_info(dev->class_dev, "attached\n");
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(amplc_dio200_common_attach);

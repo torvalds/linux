@@ -542,9 +542,6 @@ static int me_auto_attach(struct comedi_device *dev,
 	s->insn_bits	= me_dio_insn_bits;
 	s->insn_config	= me_dio_insn_config;
 
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
-
 	return 0;
 }
 

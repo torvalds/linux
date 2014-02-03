@@ -235,9 +235,6 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 			return ret;
 	}
 
-	dev_info(dev->class_dev, "%s attached (%d digital i/o channels)\n",
-		dev->board_name, board->n_8255 * 24);
-
 	return 0;
 }
 

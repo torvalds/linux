@@ -4497,7 +4497,6 @@ static int ni_E_init(struct comedi_device *dev)
 		ni_writeb(0x0, M_Offset_AO_Calibration);
 	}
 
-	printk("\n");
 	return 0;
 }
 

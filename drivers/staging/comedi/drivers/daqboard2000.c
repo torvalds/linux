@@ -737,9 +737,6 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	if (result)
 		return result;
 
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
-
 	return 0;
 }
 

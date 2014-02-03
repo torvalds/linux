@@ -388,8 +388,6 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < thisboard->ao_chans; i++)
 		cb_pcidda_calibrate(dev, i, devpriv->ao_range[i]);
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
 }
 

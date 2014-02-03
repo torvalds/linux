@@ -565,9 +565,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 	devpriv->valid = 1;
 
-	dev_info(dev->class_dev, "%s attached, irq %sabled\n",
-		dev->board_name, dev->irq ? "en" : "dis");
-
 	return 0;
 }
 

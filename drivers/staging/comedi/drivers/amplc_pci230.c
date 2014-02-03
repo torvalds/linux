@@ -2768,8 +2768,8 @@ static int pci230_attach_common(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	dev_info(dev->class_dev, "attached\n");
-	return 1;
+
+	return 0;
 }
 
 static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)

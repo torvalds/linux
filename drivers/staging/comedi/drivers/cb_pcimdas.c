@@ -251,8 +251,6 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
 }
 

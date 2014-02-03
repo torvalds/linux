@@ -1187,7 +1187,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
 			       NI660X_GLOBAL_INT_CFG);
-	dev_info(dev->class_dev, "ni_660x: %s attached\n", dev->board_name);
+
 	return 0;
 }
 

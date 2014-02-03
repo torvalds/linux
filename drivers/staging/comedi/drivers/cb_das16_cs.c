@@ -451,10 +451,6 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	s->insn_bits	= das16cs_dio_insn_bits;
 	s->insn_config	= das16cs_dio_insn_config;
 
-	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx, irq=%u\n",
-		dev->driver->driver_name, dev->board_name,
-		dev->iobase, dev->irq);
-
 	return 0;
 }
 

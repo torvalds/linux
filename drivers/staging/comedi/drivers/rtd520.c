@@ -1382,8 +1382,6 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	if (dev->irq)
 		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + PLX_INTRCS_REG);
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
 }
 

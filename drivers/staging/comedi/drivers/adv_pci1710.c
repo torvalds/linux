@@ -1347,9 +1347,6 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	dev_info(dev->class_dev, "%s attached, irq %sabled\n",
-		dev->board_name, dev->irq ? "en" : "dis");
-
 	return 0;
 }
 
