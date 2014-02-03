@@ -2500,7 +2500,7 @@ static int rtw_mp_ioctl_hdl(struct net_device *dev, struct iw_request_info *info
 		 ("rtw_mp_ioctl_hdl: subcode [%d], len[%d], buffer_len[%d]\r\n",
 		  poidparam->subcode, poidparam->len, len));
 
-	if (poidparam->subcode >= MAX_MP_IOCTL_SUBCODE) {
+	if (poidparam->subcode >= ARRAY_SIZE(mp_ioctl_hdl)) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, ("no matching drvext subcodes\r\n"));
 		ret = -EINVAL;
 		goto _rtw_mp_ioctl_hdl_exit;
