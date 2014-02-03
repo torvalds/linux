@@ -216,14 +216,14 @@ static bool match_validate(const struct sw_flow_match *match,
 	if ((key_attrs & key_expected) != key_expected) {
 		/* Key attributes check failed. */
 		OVS_NLERR("Missing expected key attributes (key_attrs=%llx, expected=%llx).\n",
-				key_attrs, key_expected);
+				(unsigned long long)key_attrs, (unsigned long long)key_expected);
 		return false;
 	}
 
 	if ((mask_attrs & mask_allowed) != mask_attrs) {
 		/* Mask attributes check failed. */
 		OVS_NLERR("Contain more than allowed mask fields (mask_attrs=%llx, mask_allowed=%llx).\n",
-				mask_attrs, mask_allowed);
+				(unsigned long long)mask_attrs, (unsigned long long)mask_allowed);
 		return false;
 	}
 
