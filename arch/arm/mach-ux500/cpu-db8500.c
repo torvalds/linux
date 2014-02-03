@@ -27,7 +27,6 @@
 #include <asm/mach/map.h>
 
 #include "setup.h"
-#include "irqs.h"
 
 #include "board-mop500-regulators.h"
 #include "board-mop500.h"
@@ -35,14 +34,11 @@
 #include "id.h"
 
 struct ab8500_platform_data ab8500_platdata = {
-	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator	= &ab8500_regulator_plat_data,
 };
 
 struct prcmu_pdata db8500_prcmu_pdata = {
 	.ab_platdata	= &ab8500_platdata,
-	.ab_irq		= IRQ_DB8500_AB8500,
-	.irq_base	= IRQ_PRCMU_BASE,
 	.version_offset	= DB8500_PRCMU_FW_VERSION_OFFSET,
 	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
 };
