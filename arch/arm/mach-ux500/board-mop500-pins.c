@@ -57,13 +57,6 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	AB8500_PIN_STATE("GPIO3_U9", in_pd, "regulator.36", PINCTRL_STATE_SLEEP),
 
 	/*
-	 * pins 34 is muxed in EXTCPENA
-	 * configured INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("extcpena_d_1", "extcpena"),
-	AB8500_PIN_HOG("GPIO34_R17", in_pd),
-
-	/*
 	 * pins 40 and 41 are muxed in MODCSLSDA
 	 * configured INPUT PULL DOWN
 	 */
