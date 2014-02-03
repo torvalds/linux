@@ -869,7 +869,7 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 					struct divs_data *data)
 {
 	struct clk_onecell_data *clk_data;
-	const char *parent  = node->name;
+	const char *parent;
 	const char *clk_name;
 	struct clk **clks, *pclk;
 	struct clk_hw *gate_hw, *rate_hw;
@@ -883,6 +883,7 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 
 	/* Set up factor clock that we will be dividing */
 	pclk = sunxi_factors_clk_setup(node, data->factors);
+	parent = __clk_get_name(pclk);
 
 	reg = of_iomap(node, 0);
 
