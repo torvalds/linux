@@ -2762,8 +2762,8 @@ static int pci230_attach_common(struct comedi_device *dev,
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
 		rc = subdev_8255_init(dev, s, NULL,
-				      (devpriv->iobase1 + PCI230_PPI_X_BASE));
-		if (rc < 0)
+				      devpriv->iobase1 + PCI230_PPI_X_BASE);
+		if (rc)
 			return rc;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
