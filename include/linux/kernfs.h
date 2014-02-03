@@ -108,13 +108,13 @@ struct kernfs_node {
 };
 
 /*
- * kernfs_dir_ops may be specified on kernfs_create_root() to support
- * directory manipulation syscalls.  These optional callbacks are invoked
- * on the matching syscalls and can perform any kernfs operations which
- * don't necessarily have to be the exact operation requested.  An active
- * reference is held for each kernfs_node parameter.
+ * kernfs_syscall_ops may be specified on kernfs_create_root() to support
+ * syscalls.  These optional callbacks are invoked on the matching syscalls
+ * and can perform any kernfs operations which don't necessarily have to be
+ * the exact operation requested.  An active reference is held for each
+ * kernfs_node parameter.
  */
-struct kernfs_dir_ops {
+struct kernfs_syscall_ops {
 	int (*mkdir)(struct kernfs_node *parent, const char *name,
 		     umode_t mode);
 	int (*rmdir)(struct kernfs_node *kn);
@@ -128,7 +128,7 @@ struct kernfs_root {
 
 	/* private fields, do not use outside kernfs proper */
 	struct ida		ino_ida;
-	struct kernfs_dir_ops	*dir_ops;
+	struct kernfs_syscall_ops *syscall_ops;
 	wait_queue_head_t	deactivate_waitq;
 };
 
@@ -219,7 +219,7 @@ struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
 void kernfs_get(struct kernfs_node *kn);
 void kernfs_put(struct kernfs_node *kn);
 
-struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops,
+struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 				       void *priv);
 void kernfs_destroy_root(struct kernfs_root *root);
 
@@ -273,7 +273,7 @@ static inline void kernfs_get(struct kernfs_node *kn) { }
 static inline void kernfs_put(struct kernfs_node *kn) { }
 
 static inline struct kernfs_root *
-kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
+kernfs_create_root(struct kernfs_syscall_ops *scops, void *priv)
 { return ERR_PTR(-ENOSYS); }
 
 static inline void kernfs_destroy_root(struct kernfs_root *root) { }

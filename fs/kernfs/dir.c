@@ -527,13 +527,14 @@ EXPORT_SYMBOL_GPL(kernfs_find_and_get_ns);
 
 /**
  * kernfs_create_root - create a new kernfs hierarchy
- * @kdops: optional directory syscall operations for the hierarchy
+ * @scops: optional syscall operations for the hierarchy
  * @priv: opaque data associated with the new directory
  *
  * Returns the root of the new hierarchy on success, ERR_PTR() value on
  * failure.
  */
-struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
+struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
+				       void *priv)
 {
 	struct kernfs_root *root;
 	struct kernfs_node *kn;
@@ -556,7 +557,7 @@ struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
 	kn->priv = priv;
 	kn->dir.root = root;
 
-	root->dir_ops = kdops;
+	root->syscall_ops = scops;
 	root->kn = kn;
 	init_waitqueue_head(&root->deactivate_waitq);
 
@@ -653,16 +654,16 @@ static int kernfs_iop_mkdir(struct inode *dir, struct dentry *dentry,
 			    umode_t mode)
 {
 	struct kernfs_node *parent = dir->i_private;
-	struct kernfs_dir_ops *kdops = kernfs_root(parent)->dir_ops;
+	struct kernfs_syscall_ops *scops = kernfs_root(parent)->syscall_ops;
 	int ret;
 
-	if (!kdops || !kdops->mkdir)
+	if (!scops || !scops->mkdir)
 		return -EPERM;
 
 	if (!kernfs_get_active(parent))
 		return -ENODEV;
 
-	ret = kdops->mkdir(parent, dentry->d_name.name, mode);
+	ret = scops->mkdir(parent, dentry->d_name.name, mode);
 
 	kernfs_put_active(parent);
 	return ret;
@@ -671,16 +672,16 @@ static int kernfs_iop_mkdir(struct inode *dir, struct dentry *dentry,
 static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct kernfs_node *kn  = dentry->d_fsdata;
-	struct kernfs_dir_ops *kdops = kernfs_root(kn)->dir_ops;
+	struct kernfs_syscall_ops *scops = kernfs_root(kn)->syscall_ops;
 	int ret;
 
-	if (!kdops || !kdops->rmdir)
+	if (!scops || !scops->rmdir)
 		return -EPERM;
 
 	if (!kernfs_get_active(kn))
 		return -ENODEV;
 
-	ret = kdops->rmdir(kn);
+	ret = scops->rmdir(kn);
 
 	kernfs_put_active(kn);
 	return ret;
@@ -691,10 +692,10 @@ static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
 {
 	struct kernfs_node *kn  = old_dentry->d_fsdata;
 	struct kernfs_node *new_parent = new_dir->i_private;
-	struct kernfs_dir_ops *kdops = kernfs_root(kn)->dir_ops;
+	struct kernfs_syscall_ops *scops = kernfs_root(kn)->syscall_ops;
 	int ret;
 
-	if (!kdops || !kdops->rename)
+	if (!scops || !scops->rename)
 		return -EPERM;
 
 	if (!kernfs_get_active(kn))
@@ -705,7 +706,7 @@ static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
 		return -ENODEV;
 	}
 
-	ret = kdops->rename(kn, new_parent, new_dentry->d_name.name);
+	ret = scops->rename(kn, new_parent, new_dentry->d_name.name);
 
 	kernfs_put_active(new_parent);
 	kernfs_put_active(kn);
