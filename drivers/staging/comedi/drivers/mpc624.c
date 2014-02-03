@@ -341,7 +341,7 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 1;
 	s->insn_read = mpc624_ai_rinsn;
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver mpc624_driver = {

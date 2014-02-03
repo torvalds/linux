@@ -773,7 +773,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	devpriv->timer.expires = jiffies + msecs_to_jiffies(1000);
 	add_timer(&devpriv->timer);
 
-	return result;
+	return 0;
 }
 
 static void jr3_pci_detach(struct comedi_device *dev)

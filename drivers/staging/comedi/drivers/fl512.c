@@ -159,7 +159,7 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* function to call when reading DA */
 	s->insn_read = fl512_ao_insn_readback;
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver fl512_driver = {

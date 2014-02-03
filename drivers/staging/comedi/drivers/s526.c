@@ -604,7 +604,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits = s526_dio_insn_bits;
 	s->insn_config = s526_dio_insn_config;
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver s526_driver = {
