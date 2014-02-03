@@ -2597,9 +2597,9 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	/*
 	 * Sanity check
 	 */
-	if ((read && !(q->io_modes & VB2_READ)) ||
-	   (!read && !(q->io_modes & VB2_WRITE)))
-		BUG();
+	if (WARN_ON((read && !(q->io_modes & VB2_READ)) ||
+		    (!read && !(q->io_modes & VB2_WRITE))))
+		return -EINVAL;
 
 	/*
 	 * Check if device supports mapping buffers to kernel virtual space.
