@@ -13,6 +13,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
+#include <linux/clk.h>
 #include <linux/crc32.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -219,6 +220,7 @@ struct ethoc {
 
 	struct phy_device *phy;
 	struct mii_bus *mdio;
+	struct clk *clk;
 	s8 phy_id;
 };
 
@@ -1021,6 +1023,8 @@ static int ethoc_probe(struct platform_device *pdev)
 	int num_bd;
 	int ret = 0;
 	bool random_mac = false;
+	struct ethoc_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	u32 eth_clkfreq = pdata ? pdata->eth_clkfreq : 0;
 
 	/* allocate networking device */
 	netdev = alloc_etherdev(sizeof(struct ethoc));
@@ -1135,8 +1139,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	}
 
 	/* Allow the platform setup code to pass in a MAC address. */
-	if (dev_get_platdata(&pdev->dev)) {
-		struct ethoc_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	if (pdata) {
 		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
 		priv->phy_id = pdata->phy_id;
 	} else {
@@ -1173,6 +1176,27 @@ static int ethoc_probe(struct platform_device *pdev)
 
 	if (random_mac)
 		netdev->addr_assign_type = NET_ADDR_RANDOM;
+
+	/* Allow the platform setup code to adjust MII management bus clock. */
+	if (!eth_clkfreq) {
+		struct clk *clk = devm_clk_get(&pdev->dev, NULL);
+
+		if (!IS_ERR(clk)) {
+			priv->clk = clk;
+			clk_prepare_enable(clk);
+			eth_clkfreq = clk_get_rate(clk);
+		}
+	}
+	if (eth_clkfreq) {
+		u32 clkdiv = MIIMODER_CLKDIV(eth_clkfreq / 2500000 + 1);
+
+		if (!clkdiv)
+			clkdiv = 2;
+		dev_dbg(&pdev->dev, "setting MII clkdiv to %u\n", clkdiv);
+		ethoc_write(priv, MIIMODER,
+			    (ethoc_read(priv, MIIMODER) & MIIMODER_NOPRE) |
+			    clkdiv);
+	}
 
 	/* register MII bus */
 	priv->mdio = mdiobus_alloc();
@@ -1239,6 +1263,8 @@ free_mdio:
 	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 free:
+	if (priv->clk)
+		clk_disable_unprepare(priv->clk);
 	free_netdev(netdev);
 out:
 	return ret;
@@ -1263,6 +1289,8 @@ static int ethoc_remove(struct platform_device *pdev)
 			kfree(priv->mdio->irq);
 			mdiobus_free(priv->mdio);
 		}
+		if (priv->clk)
+			clk_disable_unprepare(priv->clk);
 		unregister_netdev(netdev);
 		free_netdev(netdev);
 	}
