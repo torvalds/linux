@@ -42,7 +42,7 @@ typedef unsigned char	__u8;
 
 /* This array collects all instances that use the generic do_table */
 struct devtable {
-	const char *device_id; /* name of table, __mod_<name>_device_table. */
+	const char *device_id; /* name of table, __mod_<name>__*_device_table. */
 	unsigned long id_size;
 	void *function;
 };
@@ -146,7 +146,8 @@ static void device_id_check(const char *modname, const char *device_id,
 
 	if (size % id_size || size < id_size) {
 		fatal("%s: sizeof(struct %s_device_id)=%lu is not a modulo "
-		      "of the size of section __mod_%s_device_table=%lu.\n"
+		      "of the size of "
+		      "section __mod_%s__<identifier>_device_table=%lu.\n"
 		      "Fix definition of struct %s_device_id "
 		      "in mod_devicetable.h\n",
 		      modname, device_id, id_size, device_id, size, device_id);
@@ -1206,7 +1207,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 {
 	void *symval;
 	char *zeros = NULL;
-	const char *name;
+	const char *name, *identifier;
 	unsigned int namelen;
 
 	/* We're looking for a section relative symbol */
@@ -1217,7 +1218,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
 		return;
 
-	/* All our symbols are of form <prefix>__mod_XXX_device_table. */
+	/* All our symbols are of form <prefix>__mod_<name>__<identifier>_device_table. */
 	name = strstr(symname, "__mod_");
 	if (!name)
 		return;
@@ -1227,7 +1228,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		return;
 	if (strcmp(name + namelen - strlen("_device_table"), "_device_table"))
 		return;
-	namelen -= strlen("_device_table");
+	identifier = strstr(name, "__");
+	if (!identifier)
+		return;
+	namelen = identifier - name;
 
 	/* Handle all-NULL symbols allocated into .bss */
 	if (info->sechdrs[get_secindex(info, sym)].sh_type & SHT_NOBITS) {
