@@ -1148,7 +1148,7 @@ find_page:
 			if (!page->mapping)
 				goto page_not_up_to_date_locked;
 			if (!mapping->a_ops->is_partially_uptodate(page,
-								desc, offset))
+							offset, desc->count))
 				goto page_not_up_to_date_locked;
 			unlock_page(page);
 		}
