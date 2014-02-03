@@ -161,15 +161,22 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 		return rc;
 
 	for (i = 0; i < num_fields; i++) {
+		u8 buffer[IMA_EVENT_NAME_LEN_MAX + 1] = { 0 };
+		u8 *data_to_hash = field_data[i].data;
+		u32 datalen = field_data[i].len;
+
 		if (strcmp(td->name, IMA_TEMPLATE_IMA_NAME) != 0) {
 			rc = crypto_shash_update(&desc.shash,
 						(const u8 *) &field_data[i].len,
 						sizeof(field_data[i].len));
 			if (rc)
 				break;
+		} else if (strcmp(td->fields[i]->field_id, "n") == 0) {
+			memcpy(buffer, data_to_hash, datalen);
+			data_to_hash = buffer;
+			datalen = IMA_EVENT_NAME_LEN_MAX + 1;
 		}
-		rc = crypto_shash_update(&desc.shash, field_data[i].data,
-					 field_data[i].len);
+		rc = crypto_shash_update(&desc.shash, data_to_hash, datalen);
 		if (rc)
 			break;
 	}
