@@ -491,20 +491,6 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
 	return max;
 }
 
-/**
- * acpiphp_bus_add - Scan ACPI namespace subtree.
- * @handle: ACPI object handle to start the scan from.
- */
-static void acpiphp_bus_add(acpi_handle handle)
-{
-	struct acpi_device *adev = NULL;
-
-	acpi_bus_scan(handle);
-	acpi_bus_get_device(handle, &adev);
-	if (acpi_device_enumerated(adev))
-		acpi_device_set_power(adev, ACPI_STATE_D0);
-}
-
 static void acpiphp_set_acpi_region(struct acpiphp_slot *slot)
 {
 	struct acpiphp_func *func;
@@ -544,9 +530,13 @@ static int acpiphp_rescan_slot(struct acpiphp_slot *slot)
 {
 	struct acpiphp_func *func;
 
-	list_for_each_entry(func, &slot->funcs, sibling)
-		acpiphp_bus_add(func_to_handle(func));
+	list_for_each_entry(func, &slot->funcs, sibling) {
+		struct acpi_device *adev = func_to_acpi_device(func);
 
+		acpi_bus_scan(adev->handle);
+		if (acpi_device_enumerated(adev))
+			acpi_device_set_power(adev, ACPI_STATE_D0);
+	}
 	return pci_scan_slot(slot->bus, PCI_DEVFN(slot->device, 0));
 }
 
