@@ -441,7 +441,9 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 	list_del(&bridge->list);
 	mutex_unlock(&bridge_mutex);
 
+	mutex_lock(&acpiphp_context_lock);
 	bridge->is_going_away = true;
+	mutex_unlock(&acpiphp_context_lock);
 }
 
 /**
@@ -941,6 +943,7 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 {
 	struct acpiphp_context *context;
 	u32 ost_code = ACPI_OST_SC_SUCCESS;
+	acpi_status status;
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
@@ -976,13 +979,20 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 
 	mutex_lock(&acpiphp_context_lock);
 	context = acpiphp_get_context(handle);
-	if (context && !WARN_ON(context->handle != handle)) {
-		get_bridge(context->func.parent);
-		acpiphp_put_context(context);
-		acpi_hotplug_execute(hotplug_event_work, context, type);
+	if (!context || WARN_ON(context->handle != handle)
+	    || context->func.parent->is_going_away)
+		goto err_out;
+
+	get_bridge(context->func.parent);
+	acpiphp_put_context(context);
+	status = acpi_hotplug_execute(hotplug_event_work, context, type);
+	if (ACPI_SUCCESS(status)) {
 		mutex_unlock(&acpiphp_context_lock);
 		return;
 	}
+	put_bridge(context->func.parent);
+
+ err_out:
 	mutex_unlock(&acpiphp_context_lock);
 	ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 
