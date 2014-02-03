@@ -34,7 +34,8 @@
 						    <&gpio35_default_mode>,
 						    <&ycbcr_default_mode>,
 						    <&pwm_default_mode>,
-						    <&adi1_default_mode>;
+						    <&adi1_default_mode>,
+						    <&usbuicc_default_mode>;
 
 					/*
 					 * Pins 2, 4, 10, 11, 12, 13, 16, 24, 25, 36, 37, 38, 39 and 42
@@ -296,6 +297,22 @@
 									 "GPIO18_R5",
 									 "GPIO19_U5",
 									 "GPIO20_T5";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/* This sets up the USB UICC pins */
+					usbuicc {
+						usbuicc_default_mode: usbuicc_default {
+							default_mux {
+								ste,function = "usbuicc";
+								ste,pins = "usbuicc_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO21_H19",
+									 "GPIO22_G20",
+									 "GPIO23_G19";
 								input-enable;
 								bias-pull-down;
 							};
