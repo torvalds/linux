@@ -1164,6 +1164,7 @@ static int rspi_parse_dt(struct device *dev, struct spi_master *master)
 	return 0;
 }
 #else
+#define rspi_of_match	NULL
 static inline int rspi_parse_dt(struct device *dev, struct spi_master *master)
 {
 	return -EINVAL;
