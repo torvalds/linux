@@ -860,11 +860,8 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 			goto err_unlock_ovs;
 
 		/* The unmasked key has to be the same for flow updates. */
-		error = -EINVAL;
-		if (!ovs_flow_cmp_unmasked_key(flow, &match)) {
-			OVS_NLERR("Flow modification message rejected, unmasked key does not match.\n");
+		if (!ovs_flow_cmp_unmasked_key(flow, &match))
 			goto err_unlock_ovs;
-		}
 
 		/* Update actions. */
 		old_acts = ovsl_dereference(flow->sf_acts);
