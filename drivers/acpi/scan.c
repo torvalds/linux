@@ -476,7 +476,7 @@ static void acpi_device_hotplug(void *data, u32 src)
 
  out:
 	acpi_evaluate_hotplug_ost(adev->handle, src, ost_code, NULL);
-	put_device(&adev->dev);
+	acpi_bus_put_acpi_device(adev);
 	mutex_unlock(&acpi_scan_lock);
 	unlock_device_hotplug();
 }
@@ -487,9 +487,6 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 	struct acpi_scan_handler *handler = data;
 	struct acpi_device *adev;
 	acpi_status status;
-
-	if (acpi_bus_get_device(handle, &adev))
-		goto err_out;
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
@@ -512,12 +509,15 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 		/* non-hotplug event; possibly handled by other handler */
 		return;
 	}
-	get_device(&adev->dev);
+	adev = acpi_bus_get_acpi_device(handle);
+	if (!adev)
+		goto err_out;
+
 	status = acpi_hotplug_execute(acpi_device_hotplug, adev, type);
 	if (ACPI_SUCCESS(status))
 		return;
 
-	put_device(&adev->dev);
+	acpi_bus_put_acpi_device(adev);
 
  err_out:
 	acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
@@ -1112,14 +1112,16 @@ static void acpi_scan_drop_device(acpi_handle handle, void *context)
 	mutex_unlock(&acpi_device_del_lock);
 }
 
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
+static int acpi_get_device_data(acpi_handle handle, struct acpi_device **device,
+				void (*callback)(void *))
 {
 	acpi_status status;
 
 	if (!device)
 		return -EINVAL;
 
-	status = acpi_get_data(handle, acpi_scan_drop_device, (void **)device);
+	status = acpi_get_data_full(handle, acpi_scan_drop_device,
+				    (void **)device, callback);
 	if (ACPI_FAILURE(status) || !*device) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
 				  handle));
@@ -1127,7 +1129,31 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 	}
 	return 0;
 }
+
+int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
+{
+	return acpi_get_device_data(handle, device, NULL);
+}
 EXPORT_SYMBOL(acpi_bus_get_device);
+
+static void get_acpi_device(void *dev)
+{
+	if (dev)
+		get_device(&((struct acpi_device *)dev)->dev);
+}
+
+struct acpi_device *acpi_bus_get_acpi_device(acpi_handle handle)
+{
+	struct acpi_device *adev = NULL;
+
+	acpi_get_device_data(handle, &adev, get_acpi_device);
+	return adev;
+}
+
+void acpi_bus_put_acpi_device(struct acpi_device *adev)
+{
+	put_device(&adev->dev);
+}
 
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *))

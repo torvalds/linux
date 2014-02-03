@@ -381,6 +381,8 @@ extern int unregister_acpi_notifier(struct notifier_block *);
  */
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
+struct acpi_device *acpi_bus_get_acpi_device(acpi_handle handle);
+void acpi_bus_put_acpi_device(struct acpi_device *adev);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);

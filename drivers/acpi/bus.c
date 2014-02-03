@@ -340,7 +340,7 @@ static void acpi_bus_osc_support(void)
  */
 static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 {
-	struct acpi_device *device = NULL;
+	struct acpi_device *device;
 	struct acpi_driver *driver;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Notification %#02x to handle %p\n",
@@ -387,12 +387,14 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 	}
 
-	acpi_bus_get_device(handle, &device);
+	device = acpi_bus_get_acpi_device(handle);
 	if (device) {
 		driver = device->driver;
 		if (driver && driver->ops.notify &&
 		    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
 			driver->ops.notify(device, type);
+
+		acpi_bus_put_acpi_device(device);
 	}
 }
 
