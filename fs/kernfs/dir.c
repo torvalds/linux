@@ -8,6 +8,7 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/idr.h>
@@ -151,6 +152,7 @@ struct kernfs_node *kernfs_get_active(struct kernfs_node *kn)
  */
 void kernfs_put_active(struct kernfs_node *kn)
 {
+	struct kernfs_root *root = kernfs_root(kn);
 	int v;
 
 	if (unlikely(!kn))
@@ -162,11 +164,7 @@ void kernfs_put_active(struct kernfs_node *kn)
 	if (likely(v != KN_DEACTIVATED_BIAS))
 		return;
 
-	/*
-	 * atomic_dec_return() is a mb(), we'll always see the updated
-	 * kn->u.completion.
-	 */
-	complete(kn->u.completion);
+	wake_up_all(&root->deactivate_waitq);
 }
 
 /**
@@ -177,28 +175,24 @@ void kernfs_put_active(struct kernfs_node *kn)
  */
 static void kernfs_deactivate(struct kernfs_node *kn)
 {
-	DECLARE_COMPLETION_ONSTACK(wait);
-	int v;
+	struct kernfs_root *root = kernfs_root(kn);
 
 	BUG_ON(!(kn->flags & KERNFS_REMOVED));
 
 	if (!(kernfs_type(kn) & KERNFS_ACTIVE_REF))
 		return;
 
-	kn->u.completion = (void *)&wait;
-
 	if (kn->flags & KERNFS_LOCKDEP)
 		rwsem_acquire(&kn->dep_map, 0, 0, _RET_IP_);
-	/* atomic_add_return() is a mb(), put_active() will always see
-	 * the updated kn->u.completion.
-	 */
-	v = atomic_add_return(KN_DEACTIVATED_BIAS, &kn->active);
 
-	if (v != KN_DEACTIVATED_BIAS) {
-		if (kn->flags & KERNFS_LOCKDEP)
-			lock_contended(&kn->dep_map, _RET_IP_);
-		wait_for_completion(&wait);
-	}
+	atomic_add(KN_DEACTIVATED_BIAS, &kn->active);
+
+	if ((kn->flags & KERNFS_LOCKDEP) &&
+	    atomic_read(&kn->active) != KN_DEACTIVATED_BIAS)
+		lock_contended(&kn->dep_map, _RET_IP_);
+
+	wait_event(root->deactivate_waitq,
+		   atomic_read(&kn->active) == KN_DEACTIVATED_BIAS);
 
 	if (kn->flags & KERNFS_LOCKDEP) {
 		lock_acquired(&kn->dep_map, _RET_IP_);
@@ -630,6 +624,7 @@ struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
 
 	root->dir_ops = kdops;
 	root->kn = kn;
+	init_waitqueue_head(&root->deactivate_waitq);
 
 	return root;
 }
