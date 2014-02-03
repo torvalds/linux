@@ -2308,10 +2308,7 @@ __init int intel_pmu_init(void)
 	if (version > 1)
 		x86_pmu.num_counters_fixed = max((int)edx.split.num_counters_fixed, 3);
 
-	/*
-	 * v2 and above have a perf capabilities MSR
-	 */
-	if (version > 1) {
+	if (boot_cpu_has(X86_FEATURE_PDCM)) {
 		u64 capabilities;
 
 		rdmsrl(MSR_IA32_PERF_CAPABILITIES, capabilities);
