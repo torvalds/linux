@@ -176,8 +176,12 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 			rc = -ENOMEM;
 		} else {
 			memcpy(pacl, ea_value, value_size);
-			rc = set_cifs_acl(pacl, value_size,
-				direntry->d_inode, full_path, CIFS_ACL_DACL);
+			if (pTcon->ses->server->ops->set_acl)
+				rc = pTcon->ses->server->ops->set_acl(pacl,
+						value_size, direntry->d_inode,
+						full_path, CIFS_ACL_DACL);
+			else
+				rc = -EOPNOTSUPP;
 			if (rc == 0) /* force revalidate of the inode */
 				CIFS_I(direntry->d_inode)->time = 0;
 			kfree(pacl);
@@ -323,8 +327,11 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 			u32 acllen;
 			struct cifs_ntsd *pacl;
 
-			pacl = get_cifs_acl(cifs_sb, direntry->d_inode,
-						full_path, &acllen);
+			if (pTcon->ses->server->ops->get_acl == NULL)
+				goto get_ea_exit; /* rc already EOPNOTSUPP */
+
+			pacl = pTcon->ses->server->ops->get_acl(cifs_sb,
+					direntry->d_inode, full_path, &acllen);
 			if (IS_ERR(pacl)) {
 				rc = PTR_ERR(pacl);
 				cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
