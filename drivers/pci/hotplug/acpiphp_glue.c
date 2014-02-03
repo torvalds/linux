@@ -210,10 +210,29 @@ static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
 	}
 }
 
+static void dock_event(acpi_handle handle, u32 type, void *data)
+{
+	struct acpiphp_context *context;
+
+	mutex_lock(&acpiphp_context_lock);
+	context = acpiphp_get_context(handle);
+	if (!context || WARN_ON(context->handle != handle)
+	    || context->func.parent->is_going_away) {
+		mutex_unlock(&acpiphp_context_lock);
+		return;
+	}
+	get_bridge(context->func.parent);
+	acpiphp_put_context(context);
+	mutex_unlock(&acpiphp_context_lock);
+
+	hotplug_event(handle, type, data);
+
+	put_bridge(context->func.parent);
+}
 
 static const struct acpi_dock_ops acpiphp_dock_ops = {
 	.fixup = post_dock_fixups,
-	.handler = hotplug_event,
+	.handler = dock_event,
 };
 
 /* Check whether the PCI device is managed by native PCIe hotplug driver */
