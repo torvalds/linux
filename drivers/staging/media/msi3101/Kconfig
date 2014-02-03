@@ -3,3 +3,7 @@ config USB_MSI3101
 	depends on USB && VIDEO_DEV && VIDEO_V4L2
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_VMALLOC
+
+config MEDIA_TUNER_MSI001
+	tristate "Mirics MSi001"
+	depends on VIDEO_V4L2 && SPI
