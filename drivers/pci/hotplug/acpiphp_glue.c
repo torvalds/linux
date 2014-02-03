@@ -819,9 +819,6 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 	struct acpiphp_func *func = &context->func;
 	struct acpiphp_slot *slot = func->slot;
 	struct acpiphp_bridge *bridge;
-	char objname[64];
-	struct acpi_buffer buffer = { .length = sizeof(objname),
-				      .pointer = objname };
 
 	mutex_lock(&acpiphp_context_lock);
 	bridge = context->bridge;
@@ -831,14 +828,11 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 	mutex_unlock(&acpiphp_context_lock);
 
 	pci_lock_rescan_remove();
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
 		/* bus re-enumerate */
-		pr_debug("%s: Bus check notify on %s\n", __func__, objname);
-		pr_debug("%s: re-enumerating slots under %s\n",
-			 __func__, objname);
+		acpi_handle_debug(handle, "Bus check in %s()\n", __func__);
 		if (bridge)
 			acpiphp_check_bridge(bridge);
 		else if (!(slot->flags & SLOT_IS_GOING_AWAY))
@@ -848,7 +842,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		/* device check */
-		pr_debug("%s: Device check notify on %s\n", __func__, objname);
+		acpi_handle_debug(handle, "Device check in %s()\n", __func__);
 		if (bridge) {
 			acpiphp_check_bridge(bridge);
 		} else if (!(slot->flags & SLOT_IS_GOING_AWAY)) {
@@ -863,7 +857,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
-		pr_debug("%s: Device eject notify on %s\n", __func__, objname);
+		acpi_handle_debug(handle, "Eject request in %s()\n", __func__);
 		acpiphp_disable_and_eject_slot(slot);
 		break;
 	}
