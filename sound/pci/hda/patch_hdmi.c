@@ -86,6 +86,9 @@ struct hdmi_spec {
 	unsigned int channels_max; /* max over all cvts */
 
 	struct hdmi_eld temp_eld;
+
+	bool dyn_pin_out;
+
 	/*
 	 * Non-generic ATI/NVIDIA specific
 	 */
@@ -450,15 +453,25 @@ static void hdmi_write_dip_byte(struct hda_codec *codec, hda_nid_t pin_nid,
 
 static void hdmi_init_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 {
+	struct hdmi_spec *spec = codec->spec;
+	int pin_out;
+
 	/* Unmute */
 	if (get_wcaps(codec, pin_nid) & AC_WCAP_OUT_AMP)
 		snd_hda_codec_write(codec, pin_nid, 0,
 				AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
-	/* Enable pin out: some machines with GM965 gets broken output when
-	 * the pin is disabled or changed while using with HDMI
-	 */
+
+	if (spec->dyn_pin_out)
+		/* Disable pin out until stream is active */
+		pin_out = 0;
+	else
+		/* Enable pin out: some machines with GM965 gets broken output
+		 * when the pin is disabled or changed while using with HDMI
+		 */
+		pin_out = PIN_OUT;
+
 	snd_hda_codec_write(codec, pin_nid, 0,
-			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, pin_out);
 }
 
 static int hdmi_get_channel_count(struct hda_codec *codec, hda_nid_t cvt_nid)
@@ -1473,6 +1486,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 	hda_nid_t pin_nid = per_pin->pin_nid;
 	bool non_pcm;
+	int pinctl;
 
 	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 	per_pin->channels = substream->runtime->channels;
@@ -1481,6 +1495,14 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	hdmi_set_channel_count(codec, cvt_nid, substream->runtime->channels);
 
 	hdmi_setup_audio_infoframe(codec, per_pin, non_pcm);
+
+	if (spec->dyn_pin_out) {
+		pinctl = snd_hda_codec_read(codec, pin_nid, 0,
+					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		snd_hda_codec_write(codec, pin_nid, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    pinctl | PIN_OUT);
+	}
 
 	return hdmi_setup_stream(codec, cvt_nid, pin_nid, stream_tag, format);
 }
@@ -1501,6 +1523,7 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 	int cvt_idx, pin_idx;
 	struct hdmi_spec_per_cvt *per_cvt;
 	struct hdmi_spec_per_pin *per_pin;
+	int pinctl;
 
 	if (hinfo->nid) {
 		cvt_idx = cvt_nid_to_cvt_index(spec, hinfo->nid);
@@ -1516,6 +1539,14 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 		if (snd_BUG_ON(pin_idx < 0))
 			return -EINVAL;
 		per_pin = get_pin(spec, pin_idx);
+
+		if (spec->dyn_pin_out) {
+			pinctl = snd_hda_codec_read(codec, per_pin->pin_nid, 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+			snd_hda_codec_write(codec, per_pin->pin_nid, 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    pinctl & ~PIN_OUT);
+		}
 
 		snd_hda_spdif_ctls_unassign(codec, pin_idx);
 		per_pin->chmap_set = false;
@@ -2486,6 +2517,7 @@ static int patch_nvhdmi(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	spec->dyn_pin_out = true;
 
 	return 0;
 }
