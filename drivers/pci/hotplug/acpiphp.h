@@ -117,8 +117,8 @@ struct acpiphp_func {
 };
 
 struct acpiphp_context {
-	acpi_handle handle;
 	struct acpiphp_func func;
+	struct acpi_device *adev;
 	struct acpiphp_bridge *bridge;
 	unsigned int refcount;
 };
@@ -128,9 +128,14 @@ static inline struct acpiphp_context *func_to_context(struct acpiphp_func *func)
 	return container_of(func, struct acpiphp_context, func);
 }
 
+static inline struct acpi_device *func_to_acpi_device(struct acpiphp_func *func)
+{
+	return func_to_context(func)->adev;
+}
+
 static inline acpi_handle func_to_handle(struct acpiphp_func *func)
 {
-	return func_to_context(func)->handle;
+	return func_to_acpi_device(func)->handle;
 }
 
 /*
