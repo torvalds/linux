@@ -587,8 +587,6 @@ struct iwl_mvm {
 	u8 first_agg_queue;
 	u8 last_agg_queue;
 
-	u8 bound_vif_cnt;
-
 	/* Indicate if device power save is allowed */
 	bool ps_disabled;
 	/* Indicate if device power management is allowed */
