@@ -654,22 +654,36 @@ static int kernfs_iop_mkdir(struct inode *dir, struct dentry *dentry,
 {
 	struct kernfs_node *parent = dir->i_private;
 	struct kernfs_dir_ops *kdops = kernfs_root(parent)->dir_ops;
+	int ret;
 
 	if (!kdops || !kdops->mkdir)
 		return -EPERM;
 
-	return kdops->mkdir(parent, dentry->d_name.name, mode);
+	if (!kernfs_get_active(parent))
+		return -ENODEV;
+
+	ret = kdops->mkdir(parent, dentry->d_name.name, mode);
+
+	kernfs_put_active(parent);
+	return ret;
 }
 
 static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct kernfs_node *kn  = dentry->d_fsdata;
 	struct kernfs_dir_ops *kdops = kernfs_root(kn)->dir_ops;
+	int ret;
 
 	if (!kdops || !kdops->rmdir)
 		return -EPERM;
 
-	return kdops->rmdir(kn);
+	if (!kernfs_get_active(kn))
+		return -ENODEV;
+
+	ret = kdops->rmdir(kn);
+
+	kernfs_put_active(kn);
+	return ret;
 }
 
 static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
@@ -678,11 +692,24 @@ static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct kernfs_node *kn  = old_dentry->d_fsdata;
 	struct kernfs_node *new_parent = new_dir->i_private;
 	struct kernfs_dir_ops *kdops = kernfs_root(kn)->dir_ops;
+	int ret;
 
 	if (!kdops || !kdops->rename)
 		return -EPERM;
 
-	return kdops->rename(kn, new_parent, new_dentry->d_name.name);
+	if (!kernfs_get_active(kn))
+		return -ENODEV;
+
+	if (!kernfs_get_active(new_parent)) {
+		kernfs_put_active(kn);
+		return -ENODEV;
+	}
+
+	ret = kdops->rename(kn, new_parent, new_dentry->d_name.name);
+
+	kernfs_put_active(new_parent);
+	kernfs_put_active(kn);
+	return ret;
 }
 
 const struct inode_operations kernfs_dir_iops = {

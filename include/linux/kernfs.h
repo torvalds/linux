@@ -111,7 +111,8 @@ struct kernfs_node {
  * kernfs_dir_ops may be specified on kernfs_create_root() to support
  * directory manipulation syscalls.  These optional callbacks are invoked
  * on the matching syscalls and can perform any kernfs operations which
- * don't necessarily have to be the exact operation requested.
+ * don't necessarily have to be the exact operation requested.  An active
+ * reference is held for each kernfs_node parameter.
  */
 struct kernfs_dir_ops {
 	int (*mkdir)(struct kernfs_node *parent, const char *name,
