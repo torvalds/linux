@@ -196,7 +196,7 @@ config HP_ACCEL
 	  be called hp_accel.
 
 config HP_WIRELESS
-	tristate "HP WIRELESS"
+	tristate "HP wireless button"
 	depends on ACPI
 	depends on INPUT
 	help
