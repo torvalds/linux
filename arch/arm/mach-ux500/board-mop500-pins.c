@@ -55,14 +55,6 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	/* sysclkreq4 disable, mux in gpio configured in input pulldown */
 	AB8500_MUX_STATE("gpio3_a_1", "gpio", "regulator.36", PINCTRL_STATE_SLEEP),
 	AB8500_PIN_STATE("GPIO3_U9", in_pd, "regulator.36", PINCTRL_STATE_SLEEP),
-
-	/*
-	 * pins 40 and 41 are muxed in MODCSLSDA
-	 * configured INPUT PULL DOWN
-	 */
-	AB8500_MUX_HOG("modsclsda_d_1", "modsclsda"),
-	AB8500_PIN_HOG("GPIO40_T19", in_pd),
-	AB8500_PIN_HOG("GPIO41_U19", in_pd),
 };
 
 static struct pinctrl_map __initdata ab8505_pinmap[] = {

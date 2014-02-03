@@ -37,7 +37,8 @@
 						    <&adi1_default_mode>,
 						    <&usbuicc_default_mode>,
 						    <&dmic_default_mode>,
-						    <&extcpena_default_mode>;
+						    <&extcpena_default_mode>,
+						    <&modsclsda_default_mode>;
 
 					/*
 					 * Pins 2, 4, 10, 11, 12, 13, 16, 24, 25, 36, 37, 38, 39 and 42
@@ -349,6 +350,21 @@
 							};
 							default_cfg {
 								ste,pins = "GPIO34_R17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/* Modem I2C setup (SCL and SDA pins) */
+					modsclsda {
+						modsclsda_default_mode: modsclsda_default {
+							default_mux {
+								ste,function = "modsclsda";
+								ste,pins = "modsclsda_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO40_T19",
+									"GPIO41_U19";
 								input-enable;
 								bias-pull-down;
 							};
