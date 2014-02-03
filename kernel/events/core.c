@@ -231,11 +231,29 @@ int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
 #define NR_ACCUMULATED_SAMPLES 128
 static DEFINE_PER_CPU(u64, running_sample_length);
 
-void perf_sample_event_took(u64 sample_len_ns)
+static void perf_duration_warn(struct irq_work *w)
 {
+	u64 allowed_ns = ACCESS_ONCE(perf_sample_allowed_ns);
 	u64 avg_local_sample_len;
 	u64 local_samples_len;
+
+	local_samples_len = __get_cpu_var(running_sample_length);
+	avg_local_sample_len = local_samples_len/NR_ACCUMULATED_SAMPLES;
+
+	printk_ratelimited(KERN_WARNING
+			"perf interrupt took too long (%lld > %lld), lowering "
+			"kernel.perf_event_max_sample_rate to %d\n",
+			avg_local_sample_len, allowed_ns,
+			sysctl_perf_event_sample_rate);
+}
+
+static DEFINE_IRQ_WORK(perf_duration_work, perf_duration_warn);
+
+void perf_sample_event_took(u64 sample_len_ns)
+{
 	u64 allowed_ns = ACCESS_ONCE(perf_sample_allowed_ns);
+	u64 avg_local_sample_len;
+	u64 local_samples_len;
 
 	if (allowed_ns == 0)
 		return;
@@ -263,13 +281,9 @@ void perf_sample_event_took(u64 sample_len_ns)
 	sysctl_perf_event_sample_rate = max_samples_per_tick * HZ;
 	perf_sample_period_ns = NSEC_PER_SEC / sysctl_perf_event_sample_rate;
 
-	printk_ratelimited(KERN_WARNING
-			"perf samples too long (%lld > %lld), lowering "
-			"kernel.perf_event_max_sample_rate to %d\n",
-			avg_local_sample_len, allowed_ns,
-			sysctl_perf_event_sample_rate);
-
 	update_perf_cpu_limits();
+
+	irq_work_queue(&perf_duration_work);
 }
 
 static atomic64_t perf_event_id;

@@ -30,6 +30,8 @@ void init_irq_work(struct irq_work *work, void (*func)(struct irq_work *))
 	work->func = func;
 }
 
+#define DEFINE_IRQ_WORK(name, _f) struct irq_work name = { .func = (_f), }
+
 void irq_work_queue(struct irq_work *work);
 void irq_work_run(void);
 void irq_work_sync(struct irq_work *work);
