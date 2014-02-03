@@ -344,104 +344,68 @@ static int assign_type(struct file_lock *fl, long type)
 	return 0;
 }
 
+static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
+				 struct flock64 *l)
+{
+	switch (l->l_whence) {
+	case SEEK_SET:
+		fl->fl_start = 0;
+		break;
+	case SEEK_CUR:
+		fl->fl_start = filp->f_pos;
+		break;
+	case SEEK_END:
+		fl->fl_start = i_size_read(file_inode(filp));
+		break;
+	default:
+		return -EINVAL;
+	}
+	if (l->l_start > OFFSET_MAX - fl->fl_start)
+		return -EOVERFLOW;
+	fl->fl_start += l->l_start;
+	if (fl->fl_start < 0)
+		return -EINVAL;
+
+	/* POSIX-1996 leaves the case l->l_len < 0 undefined;
+	   POSIX-2001 defines it. */
+	if (l->l_len > 0) {
+		if (l->l_len - 1 > OFFSET_MAX - fl->fl_start)
+			return -EOVERFLOW;
+		fl->fl_end = fl->fl_start + l->l_len - 1;
+
+	} else if (l->l_len < 0) {
+		if (fl->fl_start + l->l_len < 0)
+			return -EINVAL;
+		fl->fl_end = fl->fl_start - 1;
+		fl->fl_start += l->l_len;
+	} else
+		fl->fl_end = OFFSET_MAX;
+
+	fl->fl_owner = current->files;
+	fl->fl_pid = current->tgid;
+	fl->fl_file = filp;
+	fl->fl_flags = FL_POSIX;
+	fl->fl_ops = NULL;
+	fl->fl_lmops = NULL;
+
+	return assign_type(fl, l->l_type);
+}
+
 /* Verify a "struct flock" and copy it to a "struct file_lock" as a POSIX
  * style lock.
  */
 static int flock_to_posix_lock(struct file *filp, struct file_lock *fl,
 			       struct flock *l)
 {
-	off_t start, end;
+	struct flock64 ll = {
+		.l_type = l->l_type,
+		.l_whence = l->l_whence,
+		.l_start = l->l_start,
+		.l_len = l->l_len,
+	};
 
-	switch (l->l_whence) {
-	case SEEK_SET:
-		start = 0;
-		break;
-	case SEEK_CUR:
-		start = filp->f_pos;
-		break;
-	case SEEK_END:
-		start = i_size_read(file_inode(filp));
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* POSIX-1996 leaves the case l->l_len < 0 undefined;
-	   POSIX-2001 defines it. */
-	start += l->l_start;
-	if (start < 0)
-		return -EINVAL;
-	fl->fl_end = OFFSET_MAX;
-	if (l->l_len > 0) {
-		end = start + l->l_len - 1;
-		fl->fl_end = end;
-	} else if (l->l_len < 0) {
-		end = start - 1;
-		fl->fl_end = end;
-		start += l->l_len;
-		if (start < 0)
-			return -EINVAL;
-	}
-	fl->fl_start = start;	/* we record the absolute position */
-	if (fl->fl_end < fl->fl_start)
-		return -EOVERFLOW;
-	
-	fl->fl_owner = current->files;
-	fl->fl_pid = current->tgid;
-	fl->fl_file = filp;
-	fl->fl_flags = FL_POSIX;
-	fl->fl_ops = NULL;
-	fl->fl_lmops = NULL;
-
-	return assign_type(fl, l->l_type);
+	return flock64_to_posix_lock(filp, fl, &ll);
 }
-
-#if BITS_PER_LONG == 32
-static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
-				 struct flock64 *l)
-{
-	loff_t start;
-
-	switch (l->l_whence) {
-	case SEEK_SET:
-		start = 0;
-		break;
-	case SEEK_CUR:
-		start = filp->f_pos;
-		break;
-	case SEEK_END:
-		start = i_size_read(file_inode(filp));
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	start += l->l_start;
-	if (start < 0)
-		return -EINVAL;
-	fl->fl_end = OFFSET_MAX;
-	if (l->l_len > 0) {
-		fl->fl_end = start + l->l_len - 1;
-	} else if (l->l_len < 0) {
-		fl->fl_end = start - 1;
-		start += l->l_len;
-		if (start < 0)
-			return -EINVAL;
-	}
-	fl->fl_start = start;	/* we record the absolute position */
-	if (fl->fl_end < fl->fl_start)
-		return -EOVERFLOW;
-	
-	fl->fl_owner = current->files;
-	fl->fl_pid = current->tgid;
-	fl->fl_file = filp;
-	fl->fl_flags = FL_POSIX;
-	fl->fl_ops = NULL;
-	fl->fl_lmops = NULL;
-
-	return assign_type(fl, l->l_type);
-}
-#endif
 
 /* default lease lock manager operations */
 static void lease_break_callback(struct file_lock *fl)
