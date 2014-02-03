@@ -761,7 +761,12 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 	lockdep_assert_held(&kernfs_mutex);
 
-	if (!kn)
+	/*
+	 * Short-circuit if non-root @kn has already finished removal.
+	 * This is for kernfs_remove_self() which plays with active ref
+	 * after removal.
+	 */
+	if (!kn || (kn->parent && RB_EMPTY_NODE(&kn->rb)))
 		return;
 
 	pr_debug("kernfs %s: removing\n", kn->name);
@@ -818,6 +823,137 @@ void kernfs_remove(struct kernfs_node *kn)
 	mutex_lock(&kernfs_mutex);
 	__kernfs_remove(kn);
 	mutex_unlock(&kernfs_mutex);
+}
+
+/**
+ * kernfs_break_active_protection - break out of active protection
+ * @kn: the self kernfs_node
+ *
+ * The caller must be running off of a kernfs operation which is invoked
+ * with an active reference - e.g. one of kernfs_ops.  Each invocation of
+ * this function must also be matched with an invocation of
+ * kernfs_unbreak_active_protection().
+ *
+ * This function releases the active reference of @kn the caller is
+ * holding.  Once this function is called, @kn may be removed at any point
+ * and the caller is solely responsible for ensuring that the objects it
+ * dereferences are accessible.
+ */
+void kernfs_break_active_protection(struct kernfs_node *kn)
+{
+	/*
+	 * Take out ourself out of the active ref dependency chain.  If
+	 * we're called without an active ref, lockdep will complain.
+	 */
+	kernfs_put_active(kn);
+}
+
+/**
+ * kernfs_unbreak_active_protection - undo kernfs_break_active_protection()
+ * @kn: the self kernfs_node
+ *
+ * If kernfs_break_active_protection() was called, this function must be
+ * invoked before finishing the kernfs operation.  Note that while this
+ * function restores the active reference, it doesn't and can't actually
+ * restore the active protection - @kn may already or be in the process of
+ * being removed.  Once kernfs_break_active_protection() is invoked, that
+ * protection is irreversibly gone for the kernfs operation instance.
+ *
+ * While this function may be called at any point after
+ * kernfs_break_active_protection() is invoked, its most useful location
+ * would be right before the enclosing kernfs operation returns.
+ */
+void kernfs_unbreak_active_protection(struct kernfs_node *kn)
+{
+	/*
+	 * @kn->active could be in any state; however, the increment we do
+	 * here will be undone as soon as the enclosing kernfs operation
+	 * finishes and this temporary bump can't break anything.  If @kn
+	 * is alive, nothing changes.  If @kn is being deactivated, the
+	 * soon-to-follow put will either finish deactivation or restore
+	 * deactivated state.  If @kn is already removed, the temporary
+	 * bump is guaranteed to be gone before @kn is released.
+	 */
+	atomic_inc(&kn->active);
+	if (kernfs_lockdep(kn))
+		rwsem_acquire(&kn->dep_map, 0, 1, _RET_IP_);
+}
+
+/**
+ * kernfs_remove_self - remove a kernfs_node from its own method
+ * @kn: the self kernfs_node to remove
+ *
+ * The caller must be running off of a kernfs operation which is invoked
+ * with an active reference - e.g. one of kernfs_ops.  This can be used to
+ * implement a file operation which deletes itself.
+ *
+ * For example, the "delete" file for a sysfs device directory can be
+ * implemented by invoking kernfs_remove_self() on the "delete" file
+ * itself.  This function breaks the circular dependency of trying to
+ * deactivate self while holding an active ref itself.  It isn't necessary
+ * to modify the usual removal path to use kernfs_remove_self().  The
+ * "delete" implementation can simply invoke kernfs_remove_self() on self
+ * before proceeding with the usual removal path.  kernfs will ignore later
+ * kernfs_remove() on self.
+ *
+ * kernfs_remove_self() can be called multiple times concurrently on the
+ * same kernfs_node.  Only the first one actually performs removal and
+ * returns %true.  All others will wait until the kernfs operation which
+ * won self-removal finishes and return %false.  Note that the losers wait
+ * for the completion of not only the winning kernfs_remove_self() but also
+ * the whole kernfs_ops which won the arbitration.  This can be used to
+ * guarantee, for example, all concurrent writes to a "delete" file to
+ * finish only after the whole operation is complete.
+ */
+bool kernfs_remove_self(struct kernfs_node *kn)
+{
+	bool ret;
+
+	mutex_lock(&kernfs_mutex);
+	kernfs_break_active_protection(kn);
+
+	/*
+	 * SUICIDAL is used to arbitrate among competing invocations.  Only
+	 * the first one will actually perform removal.  When the removal
+	 * is complete, SUICIDED is set and the active ref is restored
+	 * while holding kernfs_mutex.  The ones which lost arbitration
+	 * waits for SUICDED && drained which can happen only after the
+	 * enclosing kernfs operation which executed the winning instance
+	 * of kernfs_remove_self() finished.
+	 */
+	if (!(kn->flags & KERNFS_SUICIDAL)) {
+		kn->flags |= KERNFS_SUICIDAL;
+		__kernfs_remove(kn);
+		kn->flags |= KERNFS_SUICIDED;
+		ret = true;
+	} else {
+		wait_queue_head_t *waitq = &kernfs_root(kn)->deactivate_waitq;
+		DEFINE_WAIT(wait);
+
+		while (true) {
+			prepare_to_wait(waitq, &wait, TASK_UNINTERRUPTIBLE);
+
+			if ((kn->flags & KERNFS_SUICIDED) &&
+			    atomic_read(&kn->active) == KN_DEACTIVATED_BIAS)
+				break;
+
+			mutex_unlock(&kernfs_mutex);
+			schedule();
+			mutex_lock(&kernfs_mutex);
+		}
+		finish_wait(waitq, &wait);
+		WARN_ON_ONCE(!RB_EMPTY_NODE(&kn->rb));
+		ret = false;
+	}
+
+	/*
+	 * This must be done while holding kernfs_mutex; otherwise, waiting
+	 * for SUICIDED && deactivated could finish prematurely.
+	 */
+	kernfs_unbreak_active_protection(kn);
+
+	mutex_unlock(&kernfs_mutex);
+	return ret;
 }
 
 /**

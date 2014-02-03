@@ -43,6 +43,8 @@ enum kernfs_node_flag {
 	KERNFS_HAS_MMAP		= 0x0080,
 	KERNFS_LOCKDEP		= 0x0100,
 	KERNFS_STATIC_NAME	= 0x0200,
+	KERNFS_SUICIDAL		= 0x0400,
+	KERNFS_SUICIDED		= 0x0800,
 };
 
 /* type-specific structures for kernfs_node union members */
@@ -234,6 +236,9 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 				       const char *name,
 				       struct kernfs_node *target);
 void kernfs_remove(struct kernfs_node *kn);
+void kernfs_break_active_protection(struct kernfs_node *kn);
+void kernfs_unbreak_active_protection(struct kernfs_node *kn);
+bool kernfs_remove_self(struct kernfs_node *kn);
 int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 			     const void *ns);
 int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
@@ -290,6 +295,9 @@ kernfs_create_link(struct kernfs_node *parent, const char *name,
 { return ERR_PTR(-ENOSYS); }
 
 static inline void kernfs_remove(struct kernfs_node *kn) { }
+
+static inline bool kernfs_remove_self(struct kernfs_node *kn)
+{ return false; }
 
 static inline int kernfs_remove_by_name_ns(struct kernfs_node *kn,
 					   const char *name, const void *ns)
