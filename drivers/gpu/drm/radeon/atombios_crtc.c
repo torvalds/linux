@@ -559,7 +559,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	u32 adjusted_clock = mode->clock;
 	int encoder_mode = atombios_get_encoder_mode(encoder);
 	u32 dp_clock = mode->clock;
-	int bpc = radeon_get_monitor_bpc(connector);
+	int bpc = radeon_crtc->bpc;
 	bool is_duallink = radeon_dig_monitor_is_duallink(encoder, mode->clock);
 
 	/* reset the pll flags */
