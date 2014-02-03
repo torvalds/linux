@@ -652,15 +652,18 @@ static void locks_insert_lock(struct file_lock **pos, struct file_lock *fl)
 	locks_insert_global_locks(fl);
 }
 
-/*
- * Delete a lock and then free it.
- * Wake up processes that are blocked waiting for this lock,
- * notify the FS that the lock has been cleared and
- * finally free the lock.
+/**
+ * locks_delete_lock - Delete a lock and then free it.
+ * @thisfl_p: pointer that points to the fl_next field of the previous
+ * 	      inode->i_flock list entry
+ *
+ * Unlink a lock from all lists and free the namespace reference, but don't
+ * free it yet. Wake up processes that are blocked waiting for this lock and
+ * notify the FS that the lock has been cleared.
  *
  * Must be called with the i_lock held!
  */
-static void locks_delete_lock(struct file_lock **thisfl_p)
+static void locks_unlink_lock(struct file_lock **thisfl_p)
 {
 	struct file_lock *fl = *thisfl_p;
 
@@ -675,6 +678,18 @@ static void locks_delete_lock(struct file_lock **thisfl_p)
 	}
 
 	locks_wake_up_blocks(fl);
+}
+
+/*
+ * Unlink a lock from all lists and free it.
+ *
+ * Must be called with i_lock held!
+ */
+static void locks_delete_lock(struct file_lock **thisfl_p)
+{
+	struct file_lock *fl = *thisfl_p;
+
+	locks_unlink_lock(thisfl_p);
 	locks_free_lock(fl);
 }
 
@@ -1472,6 +1487,32 @@ int fcntl_getlease(struct file *filp)
 	return type;
 }
 
+/**
+ * check_conflicting_open - see if the given dentry points to a file that has
+ * 			    an existing open that would conflict with the
+ * 			    desired lease.
+ * @dentry:	dentry to check
+ * @arg:	type of lease that we're trying to acquire
+ *
+ * Check to see if there's an existing open fd on this file that would
+ * conflict with the lease we're trying to set.
+ */
+static int
+check_conflicting_open(const struct dentry *dentry, const long arg)
+{
+	int ret = 0;
+	struct inode *inode = dentry->d_inode;
+
+	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
+		return -EAGAIN;
+
+	if ((arg == F_WRLCK) && ((d_count(dentry) > 1) ||
+	    (atomic_read(&inode->i_count) > 1)))
+		ret = -EAGAIN;
+
+	return ret;
+}
+
 static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp)
 {
 	struct file_lock *fl, **before, **my_before = NULL, *lease;
@@ -1499,12 +1540,8 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 		return -EINVAL;
 	}
 
-	error = -EAGAIN;
-	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
-		goto out;
-	if ((arg == F_WRLCK)
-	    && ((d_count(dentry) > 1)
-		|| (atomic_read(&inode->i_count) > 1)))
+	error = check_conflicting_open(dentry, arg);
+	if (error)
 		goto out;
 
 	/*
@@ -1549,7 +1586,19 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 		goto out;
 
 	locks_insert_lock(before, lease);
-	error = 0;
+	/*
+	 * The check in break_lease() is lockless. It's possible for another
+	 * open to race in after we did the earlier check for a conflicting
+	 * open but before the lease was inserted. Check again for a
+	 * conflicting open and cancel the lease if there is one.
+	 *
+	 * We also add a barrier here to ensure that the insertion of the lock
+	 * precedes these checks.
+	 */
+	smp_mb();
+	error = check_conflicting_open(dentry, arg);
+	if (error)
+		locks_unlink_lock(flp);
 out:
 	if (is_deleg)
 		mutex_unlock(&inode->i_mutex);
