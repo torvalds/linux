@@ -468,6 +468,13 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	}
 	osq_unlock(&lock->osq);
 slowpath:
+	/*
+	 * If we fell out of the spin path because of need_resched(),
+	 * reschedule now, before we try-lock the mutex. This avoids getting
+	 * scheduled out right after we obtained the mutex.
+	 */
+	if (need_resched())
+		schedule_preempt_disabled();
 #endif
 	spin_lock_mutex(&lock->wait_lock, flags);
 
