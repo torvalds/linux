@@ -667,7 +667,7 @@ static void fuse_copy_finish(struct fuse_copy_state *cs)
 		struct pipe_buffer *buf = cs->currbuf;
 
 		if (!cs->write) {
-			buf->ops->unmap(cs->pipe, buf, cs->mapaddr);
+			kunmap_atomic(cs->mapaddr);
 		} else {
 			kunmap_atomic(cs->mapaddr);
 			buf->len = PAGE_SIZE - cs->len;
@@ -706,7 +706,7 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 
 			BUG_ON(!cs->nr_segs);
 			cs->currbuf = buf;
-			cs->mapaddr = buf->ops->map(cs->pipe, buf, 1);
+			cs->mapaddr = kmap_atomic(buf->page);
 			cs->len = buf->len;
 			cs->buf = cs->mapaddr + buf->offset;
 			cs->pipebufs++;
@@ -874,7 +874,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 out_fallback_unlock:
 	unlock_page(newpage);
 out_fallback:
-	cs->mapaddr = buf->ops->map(cs->pipe, buf, 1);
+	cs->mapaddr = kmap_atomic(buf->page);
 	cs->buf = cs->mapaddr + buf->offset;
 
 	err = lock_request(cs->fc, cs->req);
