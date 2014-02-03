@@ -370,6 +370,57 @@
 							};
 						};
 					};
+					/*
+					 * Clock output pins associated with regulators.
+					 */
+					sysclkreq2 {
+						sysclkreq2_default_mode: sysclkreq2_default {
+							default_mux {
+								ste,function = "sysclkreq";
+								ste,pins = "sysclkreq2_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO1_T10";
+								input-enable;
+								bias-disable;
+							};
+						};
+						sysclkreq2_sleep_mode: sysclkreq2_sleep {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio1_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO1_T10";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					sysclkreq4 {
+						sysclkreq4_default_mode: sysclkreq4_default {
+							default_mux {
+								ste,function = "sysclkreq";
+								ste,pins = "sysclkreq4_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO3_U9";
+								input-enable;
+								bias-disable;
+							};
+						};
+						sysclkreq4_sleep_mode: sysclkreq4_sleep {
+							default_mux {
+								ste,function = "gpio";
+								ste,pins = "gpio3_a_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO3_U9";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
 				};
 			};
 		};

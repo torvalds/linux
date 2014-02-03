@@ -21,16 +21,6 @@
 BIAS(abx500_in_pd, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 1));
 BIAS(abx500_in_nopull, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 0));
 
-#define AB8500_MUX_HOG(group, func) \
-	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-ab8500.0", group, func)
-#define AB8500_PIN_HOG(pin, conf) \
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-ab8500.0", pin, abx500_##conf)
-
-#define AB8500_MUX_STATE(group, func, dev, state) \
-	PIN_MAP_MUX_GROUP(dev, state, "pinctrl-ab8500.0", group, func)
-#define AB8500_PIN_STATE(pin, conf, dev, state) \
-	PIN_MAP_CONFIGS_PIN(dev, state, "pinctrl-ab8500.0", pin, abx500_##conf)
-
 #define AB8505_MUX_HOG(group, func) \
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-ab8505.0", group, func)
 #define AB8505_PIN_HOG(pin, conf) \
@@ -40,22 +30,6 @@ BIAS(abx500_in_nopull, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 0));
 	PIN_MAP_MUX_GROUP(dev, state, "pinctrl-ab8505.0", group, func)
 #define AB8505_PIN_STATE(pin, conf, dev, state) \
 	PIN_MAP_CONFIGS_PIN(dev, state, "pinctrl-ab8505.0", pin, abx500_##conf)
-
-static struct pinctrl_map __initdata ab8500_pinmap[] = {
-	/* Sysclkreq2 */
-	AB8500_MUX_STATE("sysclkreq2_d_1", "sysclkreq", "regulator.35", PINCTRL_STATE_DEFAULT),
-	AB8500_PIN_STATE("GPIO1_T10", in_nopull, "regulator.35", PINCTRL_STATE_DEFAULT),
-	/* sysclkreq2 disable, mux in gpio configured in input pulldown */
-	AB8500_MUX_STATE("gpio1_a_1", "gpio", "regulator.35", PINCTRL_STATE_SLEEP),
-	AB8500_PIN_STATE("GPIO1_T10", in_pd, "regulator.35", PINCTRL_STATE_SLEEP),
-
-	/* Sysclkreq4 */
-	AB8500_MUX_STATE("sysclkreq4_d_1", "sysclkreq", "regulator.36", PINCTRL_STATE_DEFAULT),
-	AB8500_PIN_STATE("GPIO3_U9", in_nopull, "regulator.36", PINCTRL_STATE_DEFAULT),
-	/* sysclkreq4 disable, mux in gpio configured in input pulldown */
-	AB8500_MUX_STATE("gpio3_a_1", "gpio", "regulator.36", PINCTRL_STATE_SLEEP),
-	AB8500_PIN_STATE("GPIO3_U9", in_pd, "regulator.36", PINCTRL_STATE_SLEEP),
-};
 
 static struct pinctrl_map __initdata ab8505_pinmap[] = {
 	/* Sysclkreq2 */
@@ -116,19 +90,4 @@ void __init mop500_pinmaps_init(void)
 	if (machine_is_u8520())
 		pinctrl_register_mappings(ab8505_pinmap,
 					  ARRAY_SIZE(ab8505_pinmap));
-	else
-		pinctrl_register_mappings(ab8500_pinmap,
-					  ARRAY_SIZE(ab8500_pinmap));
-}
-
-void __init snowball_pinmaps_init(void)
-{
-	pinctrl_register_mappings(ab8500_pinmap,
-				  ARRAY_SIZE(ab8500_pinmap));
-}
-
-void __init hrefv60_pinmaps_init(void)
-{
-	pinctrl_register_mappings(ab8500_pinmap,
-				  ARRAY_SIZE(ab8500_pinmap));
 }
