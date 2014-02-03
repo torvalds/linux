@@ -382,14 +382,10 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	return AE_OK;
 }
 
-static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
+static struct acpiphp_bridge *acpiphp_dev_to_bridge(struct acpi_device *adev)
 {
-	struct acpi_device *adev = acpi_bus_get_acpi_device(handle);
 	struct acpiphp_context *context;
 	struct acpiphp_bridge *bridge = NULL;
-
-	if (!adev)
-		return NULL;
 
 	acpi_lock_hp_context();
 	context = acpiphp_get_context(adev);
@@ -401,7 +397,6 @@ static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
 		acpiphp_put_context(context);
 	}
 	acpi_unlock_hp_context();
-	acpi_bus_put_acpi_device(adev);
 	return bridge;
 }
 
@@ -768,11 +763,11 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
  * ACPI event handlers
  */
 
-void acpiphp_check_host_bridge(acpi_handle handle)
+void acpiphp_check_host_bridge(struct acpi_device *adev)
 {
 	struct acpiphp_bridge *bridge;
 
-	bridge = acpiphp_handle_to_bridge(handle);
+	bridge = acpiphp_dev_to_bridge(adev);
 	if (bridge) {
 		pci_lock_rescan_remove();
 
