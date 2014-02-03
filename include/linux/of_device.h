@@ -78,11 +78,13 @@ static inline int of_device_uevent_modalias(struct device *dev,
 
 static inline void of_device_node_put(struct device *dev) { }
 
-static inline const struct of_device_id *of_match_device(
+static inline const struct of_device_id *__of_match_device(
 		const struct of_device_id *matches, const struct device *dev)
 {
 	return NULL;
 }
+#define of_match_device(matches, dev)	\
+	__of_match_device(of_match_ptr(matches), (dev))
 
 static inline struct device_node *of_cpu_device_node_get(int cpu)
 {
