@@ -73,7 +73,7 @@ static const u32 hsw_ddi_translations_hdmi[] = {
 };
 
 static const u32 bdw_ddi_translations_edp[] = {
-	0x00FFFFFF, 0x00000012,		/* DP parameters */
+	0x00FFFFFF, 0x00000012,		/* eDP parameters */
 	0x00EBAFFF, 0x00020011,
 	0x00C71FFF, 0x0006000F,
 	0x00FFFFFF, 0x00020011,
@@ -173,7 +173,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations = ddi_translations_dp;
 		break;
 	case PORT_D:
-		if (intel_dpd_is_edp(dev))
+		if (intel_dp_is_edp(dev, PORT_D))
 			ddi_translations = ddi_translations_edp;
 		else
 			ddi_translations = ddi_translations_dp;
@@ -696,24 +696,24 @@ intel_ddi_calculate_wrpll(int clock /* in Hz */,
 	*n2_out = best.n2;
 	*p_out = best.p;
 	*r2_out = best.r2;
-
-	DRM_DEBUG_KMS("WRPLL: %dHz refresh rate with p=%d, n2=%d r2=%d\n",
-		      clock, *p_out, *n2_out, *r2_out);
 }
 
-bool intel_ddi_pll_mode_set(struct drm_crtc *crtc)
+/*
+ * Tries to find a PLL for the CRTC. If it finds, it increases the refcount and
+ * stores it in intel_crtc->ddi_pll_sel, so other mode sets won't be able to
+ * steal the selected PLL. You need to call intel_ddi_pll_enable to actually
+ * enable the PLL.
+ */
+bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_crtc *crtc = &intel_crtc->base;
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	int type = intel_encoder->type;
 	enum pipe pipe = intel_crtc->pipe;
-	uint32_t reg, val;
 	int clock = intel_crtc->config.port_clock;
-
-	/* TODO: reuse PLLs when possible (compare values) */
 
 	intel_ddi_put_crtc_pll(crtc);
 
@@ -736,31 +736,9 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc)
 			return false;
 		}
 
-		/* We don't need to turn any PLL on because we'll use LCPLL. */
-		return true;
-
 	} else if (type == INTEL_OUTPUT_HDMI) {
+		uint32_t reg, val;
 		unsigned p, n2, r2;
-
-		if (plls->wrpll1_refcount == 0) {
-			DRM_DEBUG_KMS("Using WRPLL 1 on pipe %c\n",
-				      pipe_name(pipe));
-			plls->wrpll1_refcount++;
-			reg = WRPLL_CTL1;
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL1;
-		} else if (plls->wrpll2_refcount == 0) {
-			DRM_DEBUG_KMS("Using WRPLL 2 on pipe %c\n",
-				      pipe_name(pipe));
-			plls->wrpll2_refcount++;
-			reg = WRPLL_CTL2;
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
-		} else {
-			DRM_ERROR("No WRPLLs available!\n");
-			return false;
-		}
-
-		WARN(I915_READ(reg) & WRPLL_PLL_ENABLE,
-		     "WRPLL already enabled\n");
 
 		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
 
@@ -768,32 +746,133 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc)
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 		      WRPLL_DIVIDER_POST(p);
 
+		if (val == I915_READ(WRPLL_CTL1)) {
+			DRM_DEBUG_KMS("Reusing WRPLL 1 on pipe %c\n",
+				      pipe_name(pipe));
+			reg = WRPLL_CTL1;
+		} else if (val == I915_READ(WRPLL_CTL2)) {
+			DRM_DEBUG_KMS("Reusing WRPLL 2 on pipe %c\n",
+				      pipe_name(pipe));
+			reg = WRPLL_CTL2;
+		} else if (plls->wrpll1_refcount == 0) {
+			DRM_DEBUG_KMS("Using WRPLL 1 on pipe %c\n",
+				      pipe_name(pipe));
+			reg = WRPLL_CTL1;
+		} else if (plls->wrpll2_refcount == 0) {
+			DRM_DEBUG_KMS("Using WRPLL 2 on pipe %c\n",
+				      pipe_name(pipe));
+			reg = WRPLL_CTL2;
+		} else {
+			DRM_ERROR("No WRPLLs available!\n");
+			return false;
+		}
+
+		DRM_DEBUG_KMS("WRPLL: %dKHz refresh rate with p=%d, n2=%d r2=%d\n",
+			      clock, p, n2, r2);
+
+		if (reg == WRPLL_CTL1) {
+			plls->wrpll1_refcount++;
+			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL1;
+		} else {
+			plls->wrpll2_refcount++;
+			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
+		}
+
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		if (plls->spll_refcount == 0) {
 			DRM_DEBUG_KMS("Using SPLL on pipe %c\n",
 				      pipe_name(pipe));
 			plls->spll_refcount++;
-			reg = SPLL_CTL;
 			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_SPLL;
 		} else {
 			DRM_ERROR("SPLL already in use\n");
 			return false;
 		}
 
-		WARN(I915_READ(reg) & SPLL_PLL_ENABLE,
-		     "SPLL already enabled\n");
-
-		val = SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
-
 	} else {
 		WARN(1, "Invalid DDI encoder type %d\n", type);
 		return false;
 	}
 
-	I915_WRITE(reg, val);
-	udelay(20);
-
 	return true;
+}
+
+/*
+ * To be called after intel_ddi_pll_select(). That one selects the PLL to be
+ * used, this one actually enables the PLL.
+ */
+void intel_ddi_pll_enable(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
+	int clock = crtc->config.port_clock;
+	uint32_t reg, cur_val, new_val;
+	int refcount;
+	const char *pll_name;
+	uint32_t enable_bit = (1 << 31);
+	unsigned int p, n2, r2;
+
+	BUILD_BUG_ON(enable_bit != SPLL_PLL_ENABLE);
+	BUILD_BUG_ON(enable_bit != WRPLL_PLL_ENABLE);
+
+	switch (crtc->ddi_pll_sel) {
+	case PORT_CLK_SEL_LCPLL_2700:
+	case PORT_CLK_SEL_LCPLL_1350:
+	case PORT_CLK_SEL_LCPLL_810:
+		/*
+		 * LCPLL should always be enabled at this point of the mode set
+		 * sequence, so nothing to do.
+		 */
+		return;
+
+	case PORT_CLK_SEL_SPLL:
+		pll_name = "SPLL";
+		reg = SPLL_CTL;
+		refcount = plls->spll_refcount;
+		new_val = SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz |
+			  SPLL_PLL_SSC;
+		break;
+
+	case PORT_CLK_SEL_WRPLL1:
+	case PORT_CLK_SEL_WRPLL2:
+		if (crtc->ddi_pll_sel == PORT_CLK_SEL_WRPLL1) {
+			pll_name = "WRPLL1";
+			reg = WRPLL_CTL1;
+			refcount = plls->wrpll1_refcount;
+		} else {
+			pll_name = "WRPLL2";
+			reg = WRPLL_CTL2;
+			refcount = plls->wrpll2_refcount;
+		}
+
+		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
+
+		new_val = WRPLL_PLL_ENABLE | WRPLL_PLL_SELECT_LCPLL_2700 |
+			  WRPLL_DIVIDER_REFERENCE(r2) |
+			  WRPLL_DIVIDER_FEEDBACK(n2) | WRPLL_DIVIDER_POST(p);
+
+		break;
+
+	case PORT_CLK_SEL_NONE:
+		WARN(1, "Bad selected pll: PORT_CLK_SEL_NONE\n");
+		return;
+	default:
+		WARN(1, "Bad selected pll: 0x%08x\n", crtc->ddi_pll_sel);
+		return;
+	}
+
+	cur_val = I915_READ(reg);
+
+	WARN(refcount < 1, "Bad %s refcount: %d\n", pll_name, refcount);
+	if (refcount == 1) {
+		WARN(cur_val & enable_bit, "%s already enabled\n", pll_name);
+		I915_WRITE(reg, new_val);
+		POSTING_READ(reg);
+		udelay(20);
+	} else {
+		WARN((cur_val & enable_bit) == 0, "%s disabled\n", pll_name);
+	}
 }
 
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
@@ -1057,12 +1136,18 @@ void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
 	enum pipe pipe;
 	struct intel_crtc *intel_crtc;
 
+	dev_priv->ddi_plls.spll_refcount = 0;
+	dev_priv->ddi_plls.wrpll1_refcount = 0;
+	dev_priv->ddi_plls.wrpll2_refcount = 0;
+
 	for_each_pipe(pipe) {
 		intel_crtc =
 			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
-		if (!intel_crtc->active)
+		if (!intel_crtc->active) {
+			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_NONE;
 			continue;
+		}
 
 		intel_crtc->ddi_pll_sel = intel_ddi_get_crtc_pll(dev_priv,
 								 pipe);
@@ -1115,9 +1200,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		ironlake_edp_panel_vdd_on(intel_dp);
 		ironlake_edp_panel_on(intel_dp);
-		ironlake_edp_panel_vdd_off(intel_dp, true);
 	}
 
 	WARN_ON(intel_crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
@@ -1158,9 +1241,9 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	if (wait)
 		intel_wait_ddi_buf_idle(dev_priv, port);
 
-	if (type == INTEL_OUTPUT_EDP) {
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		ironlake_edp_panel_vdd_on(intel_dp);
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 		ironlake_edp_panel_off(intel_dp);
 	}
 

@@ -169,6 +169,7 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	scsi_autopm_get_host(shost);
+	flush_workqueue(shost->tmf_work_q);
 	scsi_forget_host(shost);
 	mutex_unlock(&shost->scan_mutex);
 	scsi_proc_host_rm(shost);
@@ -294,6 +295,8 @@ static void scsi_host_dev_release(struct device *dev)
 
 	scsi_proc_hostdir_rm(shost->hostt);
 
+	if (shost->tmf_work_q)
+		destroy_workqueue(shost->tmf_work_q);
 	if (shost->ehandler)
 		kthread_stop(shost->ehandler);
 	if (shost->work_q)
@@ -316,11 +319,11 @@ static void scsi_host_dev_release(struct device *dev)
 	kfree(shost);
 }
 
-static unsigned int shost_eh_deadline;
+static int shost_eh_deadline = -1;
 
-module_param_named(eh_deadline, shost_eh_deadline, uint, S_IRUGO|S_IWUSR);
+module_param_named(eh_deadline, shost_eh_deadline, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(eh_deadline,
-		 "SCSI EH timeout in seconds (should be between 1 and 2^32-1)");
+		 "SCSI EH timeout in seconds (should be between 0 and 2^31-1)");
 
 static struct device_type scsi_host_type = {
 	.name =		"scsi_host",
@@ -360,7 +363,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	INIT_LIST_HEAD(&shost->eh_cmd_q);
 	INIT_LIST_HEAD(&shost->starved_list);
 	init_waitqueue_head(&shost->host_wait);
-
 	mutex_init(&shost->scan_mutex);
 
 	/*
@@ -394,7 +396,17 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->unchecked_isa_dma = sht->unchecked_isa_dma;
 	shost->use_clustering = sht->use_clustering;
 	shost->ordered_tag = sht->ordered_tag;
-	shost->eh_deadline = shost_eh_deadline * HZ;
+	shost->no_write_same = sht->no_write_same;
+
+	if (shost_eh_deadline == -1)
+		shost->eh_deadline = -1;
+	else if ((ulong) shost_eh_deadline * HZ > INT_MAX) {
+		shost_printk(KERN_WARNING, shost,
+			     "eh_deadline %u too large, setting to %u\n",
+			     shost_eh_deadline, INT_MAX / HZ);
+		shost->eh_deadline = INT_MAX;
+	} else
+		shost->eh_deadline = shost_eh_deadline * HZ;
 
 	if (sht->supported_mode == MODE_UNKNOWN)
 		/* means we didn't set it ... default to INITIATOR */
@@ -443,9 +455,19 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 		goto fail_kfree;
 	}
 
+	shost->tmf_work_q = alloc_workqueue("scsi_tmf_%d",
+					    WQ_UNBOUND | WQ_MEM_RECLAIM,
+					   1, shost->host_no);
+	if (!shost->tmf_work_q) {
+		printk(KERN_WARNING "scsi%d: failed to create tmf workq\n",
+		       shost->host_no);
+		goto fail_kthread;
+	}
 	scsi_proc_hostdir_add(shost->hostt);
 	return shost;
 
+ fail_kthread:
+	kthread_stop(shost->ehandler);
  fail_kfree:
 	kfree(shost);
 	return NULL;

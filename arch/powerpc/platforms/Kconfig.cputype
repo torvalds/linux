@@ -72,6 +72,7 @@ config PPC_BOOK3S_64
 	select PPC_HAVE_PMU_SUPPORT
 	select SYS_SUPPORTS_HUGETLBFS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
+	select ARCH_SUPPORTS_NUMA_BALANCING
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -404,13 +405,27 @@ config PPC_DOORBELL
 
 endmenu
 
-config CPU_LITTLE_ENDIAN
-	bool "Build little endian kernel"
-	default n
+choice
+	prompt "Endianness selection"
+	default CPU_BIG_ENDIAN
 	help
 	  This option selects whether a big endian or little endian kernel will
 	  be built.
 
+config CPU_BIG_ENDIAN
+	bool "Build big endian kernel"
+	help
+	  Build a big endian kernel.
+
+	  If unsure, select this option.
+
+config CPU_LITTLE_ENDIAN
+	bool "Build little endian kernel"
+	help
+	  Build a little endian kernel.
+
 	  Note that if cross compiling a little endian kernel,
 	  CROSS_COMPILE must point to a toolchain capable of targeting
 	  little endian powerpc.
+
+endchoice

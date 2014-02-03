@@ -157,7 +157,7 @@ enum assoc_array_walk_status {
 	assoc_array_walk_tree_empty,
 	assoc_array_walk_found_terminal_node,
 	assoc_array_walk_found_wrong_shortcut,
-} status;
+};
 
 struct assoc_array_walk_result {
 	struct {
@@ -759,8 +759,8 @@ all_leaves_cluster_together:
 	pr_devel("all leaves cluster together\n");
 	diff = INT_MAX;
 	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
-		int x = ops->diff_objects(assoc_array_ptr_to_leaf(edit->leaf),
-					  assoc_array_ptr_to_leaf(node->slots[i]));
+		int x = ops->diff_objects(assoc_array_ptr_to_leaf(node->slots[i]),
+					  index_key);
 		if (x < diff) {
 			BUG_ON(x < 0);
 			diff = x;

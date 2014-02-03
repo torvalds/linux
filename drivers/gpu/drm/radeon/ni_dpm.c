@@ -720,6 +720,8 @@ static const u32 cayman_sysls_enable[] =
 struct rv7xx_power_info *rv770_get_pi(struct radeon_device *rdev);
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
+extern int ni_mc_load_microcode(struct radeon_device *rdev);
+
 struct ni_power_info *ni_get_pi(struct radeon_device *rdev)
 {
         struct ni_power_info *pi = rdev->pm.dpm.priv;
@@ -785,8 +787,8 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
-	u32 mclk, sclk;
-	u16 vddc, vddci;
+	u32 mclk;
+	u16 vddci;
 	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
@@ -839,23 +841,13 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 
 	/* XXX validate the min clocks required for display */
 
+	/* adjust low state */
 	if (disable_mclk_switching) {
-		mclk  = ps->performance_levels[ps->performance_level_count - 1].mclk;
-		sclk = ps->performance_levels[0].sclk;
-		vddc = ps->performance_levels[0].vddc;
-		vddci = ps->performance_levels[ps->performance_level_count - 1].vddci;
-	} else {
-		sclk = ps->performance_levels[0].sclk;
-		mclk = ps->performance_levels[0].mclk;
-		vddc = ps->performance_levels[0].vddc;
-		vddci = ps->performance_levels[0].vddci;
+		ps->performance_levels[0].mclk =
+			ps->performance_levels[ps->performance_level_count - 1].mclk;
+		ps->performance_levels[0].vddci =
+			ps->performance_levels[ps->performance_level_count - 1].vddci;
 	}
-
-	/* adjusted low state */
-	ps->performance_levels[0].sclk = sclk;
-	ps->performance_levels[0].mclk = mclk;
-	ps->performance_levels[0].vddc = vddc;
-	ps->performance_levels[0].vddci = vddci;
 
 	btc_skip_blacklist_clocks(rdev, max_limits->sclk, max_limits->mclk,
 				  &ps->performance_levels[0].sclk,
@@ -868,11 +860,15 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 			ps->performance_levels[i].vddc = ps->performance_levels[i - 1].vddc;
 	}
 
+	/* adjust remaining states */
 	if (disable_mclk_switching) {
 		mclk = ps->performance_levels[0].mclk;
+		vddci = ps->performance_levels[0].vddci;
 		for (i = 1; i < ps->performance_level_count; i++) {
 			if (mclk < ps->performance_levels[i].mclk)
 				mclk = ps->performance_levels[i].mclk;
+			if (vddci < ps->performance_levels[i].vddci)
+				vddci = ps->performance_levels[i].vddci;
 		}
 		for (i = 0; i < ps->performance_level_count; i++) {
 			ps->performance_levels[i].mclk = mclk;
@@ -3571,7 +3567,11 @@ void ni_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
 void ni_dpm_setup_asic(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	int r;
 
+	r = ni_mc_load_microcode(rdev);
+	if (r)
+		DRM_ERROR("Failed to load MC firmware!\n");
 	ni_read_clock_registers(rdev);
 	btc_read_arb_registers(rdev);
 	rv770_get_memory_type(rdev);
@@ -3715,21 +3715,6 @@ int ni_dpm_enable(struct radeon_device *rdev)
 		ni_mg_clockgating_enable(rdev, true);
 	if (eg_pi->ls_clock_gating)
 		ni_ls_clockgating_enable(rdev, true);
-
-	if (rdev->irq.installed &&
-	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		PPSMC_Result result;
-
-		ret = rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, 0xff * 1000);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-		result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-	}
 
 	rv770_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 

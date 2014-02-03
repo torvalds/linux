@@ -120,6 +120,8 @@ active_logs=%u         Support configuring the number of active logs. In the
 disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
                        does not aware of cold files such as media files.
 inline_xattr           Enable the inline xattrs feature.
+inline_data            Enable the inline data feature: New created small(<~3.4k)
+                       files can be written into inode block.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -170,6 +172,28 @@ Files in /sys/fs/f2fs/<devname>
 			      segments is larger than this number, f2fs tries to
 			      conduct checkpoint to reclaim the prefree segments
 			      to free segments. By default, 100 segments, 200MB.
+
+ max_small_discards	      This parameter controls the number of discard
+			      commands that consist small blocks less than 2MB.
+			      The candidates to be discarded are cached until
+			      checkpoint is triggered, and issued during the
+			      checkpoint. By default, it is disabled with 0.
+
+ ipu_policy                   This parameter controls the policy of in-place
+                              updates in f2fs. There are five policies:
+                               0: F2FS_IPU_FORCE, 1: F2FS_IPU_SSR,
+                               2: F2FS_IPU_UTIL,  3: F2FS_IPU_SSR_UTIL,
+                               4: F2FS_IPU_DISABLE.
+
+ min_ipu_util                 This parameter controls the threshold to trigger
+                              in-place-updates. The number indicates percentage
+                              of the filesystem utilization, and used by
+                              F2FS_IPU_UTIL and F2FS_IPU_SSR_UTIL policies.
+
+ max_victim_search	      This parameter controls the number of trials to
+			      find a victim segment when conducting SSR and
+			      cleaning operations. The default value is 4096
+			      which covers 8GB block address range.
 
 ================================================================================
 USAGE

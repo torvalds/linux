@@ -749,7 +749,10 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 		}
 
 		for (i = 0; i < 8; i++) {
-			if ((tmp >> (i * 4)) & 0xF) {
+			u32 format = G_0280A0_FORMAT(track->cb_color_info[i]);
+
+			if (format != V_0280A0_COLOR_INVALID &&
+			    (tmp >> (i * 4)) & 0xF) {
 				/* at least one component is enabled */
 				if (track->cb_color_bo[i] == NULL) {
 					dev_warn(p->dev, "%s:%d mask 0x%08X | 0x%08X no cb for %d\n",
@@ -2386,7 +2389,7 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
 	parser.ib.length_dw = ib_chunk->length_dw;
 	*l = parser.ib.length_dw;
-	if (DRM_COPY_FROM_USER(ib, ib_chunk->user_ptr, ib_chunk->length_dw * 4)) {
+	if (copy_from_user(ib, ib_chunk->user_ptr, ib_chunk->length_dw * 4)) {
 		r = -EFAULT;
 		r600_cs_parser_fini(&parser, r);
 		return r;

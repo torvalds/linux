@@ -70,8 +70,6 @@ static int s2mps11_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 		ramp_delay = s2mps11->ramp_delay2;
 		break;
 	case S2MPS11_BUCK3:
-		ramp_delay = s2mps11->ramp_delay34;
-		break;
 	case S2MPS11_BUCK4:
 		ramp_delay = s2mps11->ramp_delay34;
 		break;
@@ -438,7 +436,7 @@ common_reg:
 	platform_set_drvdata(pdev, s2mps11);
 
 	config.dev = &pdev->dev;
-	config.regmap = iodev->regmap;
+	config.regmap = iodev->regmap_pmic;
 	config.driver_data = s2mps11;
 	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++) {
 		if (!reg_np) {

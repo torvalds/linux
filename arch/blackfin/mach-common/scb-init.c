@@ -6,7 +6,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <asm/scb.h>

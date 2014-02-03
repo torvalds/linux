@@ -378,7 +378,6 @@ static int eeprom_93xx46_remove(struct spi_device *spi)
 		device_remove_file(&spi->dev, &dev_attr_erase);
 
 	sysfs_remove_bin_file(&spi->dev.kobj, &edev->bin);
-	spi_set_drvdata(spi, NULL);
 	kfree(edev);
 	return 0;
 }

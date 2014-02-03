@@ -62,6 +62,7 @@ config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
+	select DMA_ENGINE_RAID
 	select DCA
 	help
 	  Enable support for the Intel(R) I/OAT DMA engine present
@@ -112,6 +113,7 @@ config MV_XOR
 	bool "Marvell XOR engine support"
 	depends on PLAT_ORION
 	select DMA_ENGINE
+	select DMA_ENGINE_RAID
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	---help---
 	  Enable support for the Marvell XOR engine.
@@ -187,6 +189,7 @@ config AMCC_PPC440SPE_ADMA
 	tristate "AMCC PPC440SPe ADMA support"
 	depends on 440SPe || 440SP
 	select DMA_ENGINE
+	select DMA_ENGINE_RAID
 	select ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
@@ -289,15 +292,23 @@ config MMP_TDMA
 	bool "MMP Two-Channel DMA support"
 	depends on ARCH_MMP
 	select DMA_ENGINE
+	select MMP_SRAM
 	help
 	  Support the MMP Two-Channel DMA engine.
 	  This engine used for MMP Audio DMA and pxa910 SQU.
+	  It needs sram driver under mach-mmp.
 
 	  Say Y here if you enabled MMP ADMA, otherwise say N.
 
 config DMA_OMAP
 	tristate "OMAP DMA support"
 	depends on ARCH_OMAP
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
+config DMA_BCM2835
+	tristate "BCM2835 DMA engine support"
+	depends on (ARCH_BCM2835 || MACH_BCM2708)
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
@@ -331,6 +342,14 @@ config K3_DMA
 	  Support the DMA engine for Hisilicon K3 platform
 	  devices.
 
+config MOXART_DMA
+	tristate "MOXART DMA support"
+	depends on ARCH_MOXART
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the MOXA ART SoC DMA controller.
+
 config DMA_ENGINE
 	bool
 
@@ -352,6 +371,7 @@ config NET_DMA
 	bool "Network: TCP receive copy offload"
 	depends on DMA_ENGINE && NET
 	default (INTEL_IOATDMA || FSL_DMA)
+	depends on BROKEN
 	help
 	  This enables the use of DMA engines in the network stack to
 	  offload receive copy-to-user operations, freeing CPU cycles.
@@ -376,5 +396,8 @@ config DMATEST
 	help
 	  Simple DMA test client. Say N unless you're debugging a
 	  DMA Device driver.
+
+config DMA_ENGINE_RAID
+	bool
 
 endif

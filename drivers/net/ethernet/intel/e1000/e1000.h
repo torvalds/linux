@@ -36,7 +36,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
-#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -82,6 +81,11 @@ struct e1000_adapter;
 #include "e1000_hw.h"
 
 #define E1000_MAX_INTR			10
+
+/*
+ * Count for polling __E1000_RESET condition every 10-20msec.
+ */
+#define E1000_CHECK_RESET_COUNT	50
 
 /* TX/RX descriptor defines */
 #define E1000_DEFAULT_TXD		256
@@ -312,8 +316,6 @@ struct e1000_adapter {
 	struct delayed_work watchdog_task;
 	struct delayed_work fifo_stall_task;
 	struct delayed_work phy_info_task;
-
-	struct mutex mutex;
 };
 
 enum e1000_state_t {

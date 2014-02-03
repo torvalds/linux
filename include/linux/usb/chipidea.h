@@ -24,6 +24,7 @@ struct ci_hdrc_platform_data {
 	 * but otg is not supported (no register otgsc).
 	 */
 #define CI_HDRC_DUAL_ROLE_NOT_OTG	BIT(4)
+#define CI_HDRC_IMX28_WRITE_FIX		BIT(5)
 	enum usb_dr_mode	dr_mode;
 #define CI_HDRC_CONTROLLER_RESET_EVENT		0
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1

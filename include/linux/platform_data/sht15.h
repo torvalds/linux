@@ -12,6 +12,9 @@
  * For further information, see the Documentation/hwmon/sht15 file.
  */
 
+#ifndef _PDATA_SHT15_H
+#define _PDATA_SHT15_H
+
 /**
  * struct sht15_platform_data - sht15 connectivity info
  * @gpio_data:		no. of gpio to which bidirectional data line is
@@ -31,3 +34,5 @@ struct sht15_platform_data {
 	bool no_otp_reload;
 	bool low_resolution;
 };
+
+#endif /* _PDATA_SHT15_H */

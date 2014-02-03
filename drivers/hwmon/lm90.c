@@ -1,7 +1,7 @@
 /*
  * lm90.c - Part of lm_sensors, Linux kernel modules for hardware
  *          monitoring
- * Copyright (C) 2003-2010  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2010  Jean Delvare <jdelvare@suse.de>
  *
  * Based on the lm83 driver. The LM90 is a sensor chip made by National
  * Semiconductor. It reports up to two temperatures (its own plus up to
@@ -1610,12 +1610,14 @@ static int lm90_probe(struct i2c_client *client,
 						"lm90", client);
 		if (err < 0) {
 			dev_err(dev, "cannot request IRQ %d\n", client->irq);
-			goto exit_remove_files;
+			goto exit_unregister;
 		}
 	}
 
 	return 0;
 
+exit_unregister:
+	hwmon_device_unregister(data->hwmon_dev);
 exit_remove_files:
 	lm90_remove_files(client, data);
 exit_restore:
@@ -1677,6 +1679,6 @@ static struct i2c_driver lm90_driver = {
 
 module_i2c_driver(lm90_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("LM90/ADM1032 driver");
 MODULE_LICENSE("GPL");

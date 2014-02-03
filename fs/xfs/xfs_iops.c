@@ -123,7 +123,7 @@ xfs_vn_mknod(
 {
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
-	struct posix_acl *default_acl = NULL;
+	struct posix_acl *default_acl, *acl;
 	struct xfs_name	name;
 	int		error;
 
@@ -139,14 +139,9 @@ xfs_vn_mknod(
 		rdev = 0;
 	}
 
-	if (IS_POSIXACL(dir)) {
-		default_acl = xfs_get_acl(dir, ACL_TYPE_DEFAULT);
-		if (IS_ERR(default_acl))
-			return PTR_ERR(default_acl);
-
-		if (!default_acl)
-			mode &= ~current_umask();
-	}
+	error = posix_acl_create(dir, &mode, &default_acl, &acl);
+	if (error)
+		return error;
 
 	xfs_dentry_to_name(&name, dentry, mode);
 	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
@@ -159,22 +154,30 @@ xfs_vn_mknod(
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
+#ifdef CONFIG_XFS_POSIX_ACL
 	if (default_acl) {
-		error = -xfs_inherit_acl(inode, default_acl);
-		default_acl = NULL;
-		if (unlikely(error))
+		error = xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		if (error)
 			goto out_cleanup_inode;
 	}
-
+	if (acl) {
+		error = xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		if (error)
+			goto out_cleanup_inode;
+	}
+#endif
 
 	d_instantiate(dentry, inode);
+ out_free_acl:
+	if (default_acl)
+		posix_acl_release(default_acl);
+	if (acl)
+		posix_acl_release(acl);
 	return -error;
 
  out_cleanup_inode:
 	xfs_cleanup_inode(dir, inode, dentry);
- out_free_acl:
-	posix_acl_release(default_acl);
-	return -error;
+	goto out_free_acl;
 }
 
 STATIC int
@@ -391,18 +394,6 @@ xfs_vn_follow_link(
 	return NULL;
 }
 
-STATIC void
-xfs_vn_put_link(
-	struct dentry	*dentry,
-	struct nameidata *nd,
-	void		*p)
-{
-	char		*s = nd_get_link(nd);
-
-	if (!IS_ERR(s))
-		kfree(s);
-}
-
 STATIC int
 xfs_vn_getattr(
 	struct vfsmount		*mnt,
@@ -459,14 +450,12 @@ xfs_vn_getattr(
 
 static void
 xfs_setattr_mode(
-	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
 {
-	struct inode	*inode = VFS_I(ip);
-	umode_t		mode = iattr->ia_mode;
+	struct inode		*inode = VFS_I(ip);
+	umode_t			mode = iattr->ia_mode;
 
-	ASSERT(tp);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	ip->i_d.di_mode &= S_IFMT;
@@ -474,6 +463,32 @@ xfs_setattr_mode(
 
 	inode->i_mode &= S_IFMT;
 	inode->i_mode |= mode & ~S_IFMT;
+}
+
+static void
+xfs_setattr_time(
+	struct xfs_inode	*ip,
+	struct iattr		*iattr)
+{
+	struct inode		*inode = VFS_I(ip);
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+
+	if (iattr->ia_valid & ATTR_ATIME) {
+		inode->i_atime = iattr->ia_atime;
+		ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
+		ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
+	}
+	if (iattr->ia_valid & ATTR_CTIME) {
+		inode->i_ctime = iattr->ia_ctime;
+		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
+		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
+	}
+	if (iattr->ia_valid & ATTR_MTIME) {
+		inode->i_mtime = iattr->ia_mtime;
+		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
+		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
+	}
 }
 
 int
@@ -618,7 +633,8 @@ xfs_setattr_nonsize(
 		}
 		if (!gid_eq(igid, gid)) {
 			if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_GQUOTA_ON(mp)) {
-				ASSERT(!XFS_IS_PQUOTA_ON(mp));
+				ASSERT(xfs_sb_version_has_pquotino(&mp->m_sb) ||
+				       !XFS_IS_PQUOTA_ON(mp));
 				ASSERT(mask & ATTR_GID);
 				ASSERT(gdqp);
 				olddquot2 = xfs_qm_vop_chown(tp, ip,
@@ -629,30 +645,10 @@ xfs_setattr_nonsize(
 		}
 	}
 
-	/*
-	 * Change file access modes.
-	 */
 	if (mask & ATTR_MODE)
-		xfs_setattr_mode(tp, ip, iattr);
-
-	/*
-	 * Change file access or modified times.
-	 */
-	if (mask & ATTR_ATIME) {
-		inode->i_atime = iattr->ia_atime;
-		ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
-		ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
-	}
-	if (mask & ATTR_CTIME) {
-		inode->i_ctime = iattr->ia_ctime;
-		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
-		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
-	}
-	if (mask & ATTR_MTIME) {
-		inode->i_mtime = iattr->ia_mtime;
-		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
-		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
-	}
+		xfs_setattr_mode(ip, iattr);
+	if (mask & (ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
+		xfs_setattr_time(ip, iattr);
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
@@ -683,7 +679,7 @@ xfs_setattr_nonsize(
 	 * 	     Posix ACL code seems to care about this issue either.
 	 */
 	if ((mask & ATTR_MODE) && !(flags & XFS_ATTR_NOACL)) {
-		error = -xfs_acl_chmod(inode);
+		error = -posix_acl_chmod(inode, inode->i_mode);
 		if (error)
 			return XFS_ERROR(error);
 	}
@@ -867,22 +863,10 @@ xfs_setattr_size(
 		xfs_inode_clear_eofblocks_tag(ip);
 	}
 
-	/*
-	 * Change file access modes.
-	 */
 	if (mask & ATTR_MODE)
-		xfs_setattr_mode(tp, ip, iattr);
-
-	if (mask & ATTR_CTIME) {
-		inode->i_ctime = iattr->ia_ctime;
-		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
-		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
-	}
-	if (mask & ATTR_MTIME) {
-		inode->i_mtime = iattr->ia_mtime;
-		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
-		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
-	}
+		xfs_setattr_mode(ip, iattr);
+	if (mask & (ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
+		xfs_setattr_time(ip, iattr);
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
@@ -1052,6 +1036,7 @@ xfs_vn_fiemap(
 
 static const struct inode_operations xfs_inode_operations = {
 	.get_acl		= xfs_get_acl,
+	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -1079,6 +1064,7 @@ static const struct inode_operations xfs_dir_inode_operations = {
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
 	.get_acl		= xfs_get_acl,
+	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -1105,6 +1091,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
 	.get_acl		= xfs_get_acl,
+	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -1117,8 +1104,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 static const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
 	.follow_link		= xfs_vn_follow_link,
-	.put_link		= xfs_vn_put_link,
-	.get_acl		= xfs_get_acl,
+	.put_link		= kfree_put_link,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,

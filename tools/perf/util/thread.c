@@ -66,18 +66,20 @@ struct comm *thread__comm(const struct thread *thread)
 int thread__set_comm(struct thread *thread, const char *str, u64 timestamp)
 {
 	struct comm *new, *curr = thread__comm(thread);
+	int err;
 
 	/* Override latest entry if it had no specific time coverage */
 	if (!curr->start) {
-		comm__override(curr, str, timestamp);
-		return 0;
+		err = comm__override(curr, str, timestamp);
+		if (err)
+			return err;
+	} else {
+		new = comm__new(str, timestamp);
+		if (!new)
+			return -ENOMEM;
+		list_add(&new->list, &thread->comm_list);
 	}
 
-	new = comm__new(str, timestamp);
-	if (!new)
-		return -ENOMEM;
-
-	list_add(&new->list, &thread->comm_list);
 	thread->comm_set = true;
 
 	return 0;
@@ -127,7 +129,7 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 		if (!comm)
 			return -ENOMEM;
 		err = thread__set_comm(thread, comm, timestamp);
-		if (!err)
+		if (err)
 			return err;
 		thread->comm_set = true;
 	}

@@ -14,6 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/pm.h>
 #include <linux/gcd.h>
 #include <linux/gpio.h>
@@ -2141,6 +2142,7 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wm5100_detect);
 
 static irqreturn_t wm5100_irq(int irq, void *data)
 {

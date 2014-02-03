@@ -21,6 +21,10 @@
 #define MX25_USB_PHY_CTRL_OFFSET	0x08
 #define MX25_BM_EXTERNAL_VBUS_DIVIDER	BIT(23)
 
+#define MX27_H1_PM_BIT			BIT(8)
+#define MX27_H2_PM_BIT			BIT(16)
+#define MX27_OTG_PM_BIT			BIT(24)
+
 #define MX53_USB_OTG_PHY_CTRL_0_OFFSET	0x08
 #define MX53_USB_UH2_CTRL_OFFSET	0x14
 #define MX53_USB_UH3_CTRL_OFFSET	0x18
@@ -64,6 +68,36 @@ static int usbmisc_imx25_post(struct imx_usbmisc_data *data)
 		spin_unlock_irqrestore(&usbmisc->lock, flags);
 		usleep_range(5000, 10000); /* needed to stabilize voltage */
 	}
+
+	return 0;
+}
+
+static int usbmisc_imx27_init(struct imx_usbmisc_data *data)
+{
+	unsigned long flags;
+	u32 val;
+
+	switch (data->index) {
+	case 0:
+		val = MX27_OTG_PM_BIT;
+		break;
+	case 1:
+		val = MX27_H1_PM_BIT;
+		break;
+	case 2:
+		val = MX27_H2_PM_BIT;
+		break;
+	default:
+		return -EINVAL;
+	};
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	if (data->disable_oc)
+		val = readl(usbmisc->base) | val;
+	else
+		val = readl(usbmisc->base) & ~val;
+	writel(val, usbmisc->base);
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
 
 	return 0;
 }
@@ -128,6 +162,10 @@ static const struct usbmisc_ops imx25_usbmisc_ops = {
 	.post = usbmisc_imx25_post,
 };
 
+static const struct usbmisc_ops imx27_usbmisc_ops = {
+	.init = usbmisc_imx27_init,
+};
+
 static const struct usbmisc_ops imx53_usbmisc_ops = {
 	.init = usbmisc_imx53_init,
 };
@@ -160,6 +198,14 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	{
 		.compatible = "fsl,imx25-usbmisc",
 		.data = &imx25_usbmisc_ops,
+	},
+	{
+		.compatible = "fsl,imx27-usbmisc",
+		.data = &imx27_usbmisc_ops,
+	},
+	{
+		.compatible = "fsl,imx51-usbmisc",
+		.data = &imx53_usbmisc_ops,
 	},
 	{
 		.compatible = "fsl,imx53-usbmisc",

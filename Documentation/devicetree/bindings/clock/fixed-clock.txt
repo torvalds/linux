@@ -10,6 +10,8 @@ Required properties:
 - clock-frequency : frequency of clock in Hz. Should be a single cell.
 
 Optional properties:
+- clock-accuracy : accuracy of clock in ppb (parts per billion).
+		   Should be a single cell.
 - gpios : From common gpio binding; gpio connection to clock enable pin.
 - clock-output-names : From common clock binding.
 
@@ -18,4 +20,5 @@ Example:
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <1000000000>;
+		clock-accuracy = <100>;
 	};

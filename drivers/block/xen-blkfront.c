@@ -489,7 +489,7 @@ static int blkif_queue_request(struct request *req)
 
 			if ((ring_req->operation == BLKIF_OP_INDIRECT) &&
 			    (i % SEGS_PER_INDIRECT_FRAME == 0)) {
-				unsigned long pfn;
+				unsigned long uninitialized_var(pfn);
 
 				if (segments)
 					kunmap_atomic(segments);
@@ -1356,7 +1356,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 		char *type;
 		int len;
 		/* no unplug has been done: do not hook devices != xen vbds */
-		if (xen_platform_pci_unplug & XEN_UNPLUG_UNNECESSARY) {
+		if (xen_has_pv_and_legacy_disk_devices()) {
 			int major;
 
 			if (!VDEV_IS_EXTENDED(vdevice))
@@ -1547,7 +1547,7 @@ static int blkif_recover(struct blkfront_info *info)
 			for (i = 0; i < pending; i++) {
 				offset = (i * segs * PAGE_SIZE) >> 9;
 				size = min((unsigned int)(segs * PAGE_SIZE) >> 9,
-					   (unsigned int)(bio->bi_size >> 9) - offset);
+					   (unsigned int)bio_sectors(bio) - offset);
 				cloned_bio = bio_clone(bio, GFP_NOIO);
 				BUG_ON(cloned_bio == NULL);
 				bio_trim(cloned_bio, offset, size);
@@ -2011,6 +2011,10 @@ static void blkif_release(struct gendisk *disk, fmode_t mode)
 
 	bdev = bdget_disk(disk, 0);
 
+	if (!bdev) {
+		WARN(1, "Block device %s yanked out from us!\n", disk->disk_name);
+		goto out_mutex;
+	}
 	if (bdev->bd_openers)
 		goto out;
 
@@ -2041,6 +2045,7 @@ static void blkif_release(struct gendisk *disk, fmode_t mode)
 
 out:
 	bdput(bdev);
+out_mutex:
 	mutex_unlock(&blkfront_mutex);
 }
 
@@ -2074,7 +2079,7 @@ static int __init xlblk_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+	if (!xen_has_pv_disk_devices())
 		return -ENODEV;
 
 	if (register_blkdev(XENVBD_MAJOR, DEV_NAME)) {

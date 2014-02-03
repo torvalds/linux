@@ -130,7 +130,7 @@ static void scm_request_prepare(struct scm_request *scmrq)
 	struct aidaw *aidaw = scmrq->aidaw;
 	struct msb *msb = &scmrq->aob->msb[0];
 	struct req_iterator iter;
-	struct bio_vec *bv;
+	struct bio_vec bv;
 
 	msb->bs = MSB_BS_4K;
 	scmrq->aob->request.msb_count = 1;
@@ -142,9 +142,9 @@ static void scm_request_prepare(struct scm_request *scmrq)
 	msb->data_addr = (u64) aidaw;
 
 	rq_for_each_segment(bv, scmrq->request, iter) {
-		WARN_ON(bv->bv_offset);
-		msb->blk_count += bv->bv_len >> 12;
-		aidaw->data_addr = (u64) page_address(bv->bv_page);
+		WARN_ON(bv.bv_offset);
+		msb->blk_count += bv.bv_len >> 12;
+		aidaw->data_addr = (u64) page_address(bv.bv_page);
 		aidaw++;
 	}
 }

@@ -67,6 +67,7 @@ PPC64_CACHES:
 
 _KPROBE(flush_icache_range)
 BEGIN_FTR_SECTION
+	PURGE_PREFETCHED_INS
 	blr
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 /*
@@ -211,6 +212,11 @@ _GLOBAL(__flush_dcache_icache)
  * Different systems have different cache line sizes
  */
 
+BEGIN_FTR_SECTION
+	PURGE_PREFETCHED_INS
+	blr
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
+
 /* Flush the dcache */
  	ld	r7,PPC64_CACHES@toc(r2)
 	clrrdi	r3,r3,PAGE_SHIFT           	    /* Page align */
@@ -246,8 +252,8 @@ _GLOBAL(__bswapdi2)
 	or	r3,r7,r9
 	blr
 
-#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
 
+#ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
 _GLOBAL(rmci_on)
 	sync
 	isync
@@ -277,6 +283,9 @@ _GLOBAL(rmci_off)
 	isync
 	sync
 	blr
+#endif /* CONFIG_PPC_EARLY_DEBUG_BOOTX */
+
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
 
 /*
  * Do an IO access in real mode

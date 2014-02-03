@@ -1126,7 +1126,7 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	 * G2D interrupt event once current command list execution is
 	 * finished.
 	 * Otherwise only ACF bit should be set to INTEN register so
-	 * that one interrupt is occured after all command lists
+	 * that one interrupt is occurred after all command lists
 	 * have been completed.
 	 */
 	if (node->event) {

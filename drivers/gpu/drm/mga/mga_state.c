@@ -1029,7 +1029,7 @@ static int mga_getparam(struct drm_device *dev, void *data, struct drm_file *fil
 		return -EINVAL;
 	}
 
-	if (DRM_COPY_TO_USER(param->value, &value, sizeof(int))) {
+	if (copy_to_user(param->value, &value, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}

@@ -486,6 +486,7 @@ struct ssb_bus {
 #endif /* EMBEDDED */
 #ifdef CONFIG_SSB_DRIVER_GPIO
 	struct gpio_chip gpio;
+	struct irq_domain *irq_domain;
 #endif /* DRIVER_GPIO */
 
 	/* Internal-only stuff follows. Do not touch. */

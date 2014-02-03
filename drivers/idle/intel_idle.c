@@ -123,7 +123,7 @@ static struct cpuidle_state *cpuidle_state_table;
  * which is also the index into the MWAIT hint array.
  * Thus C0 is a dummy.
  */
-static struct cpuidle_state nehalem_cstates[] __initdata = {
+static struct cpuidle_state nehalem_cstates[] = {
 	{
 		.name = "C1-NHM",
 		.desc = "MWAIT 0x00",
@@ -156,7 +156,7 @@ static struct cpuidle_state nehalem_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state snb_cstates[] __initdata = {
+static struct cpuidle_state snb_cstates[] = {
 	{
 		.name = "C1-SNB",
 		.desc = "MWAIT 0x00",
@@ -196,7 +196,7 @@ static struct cpuidle_state snb_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state ivb_cstates[] __initdata = {
+static struct cpuidle_state ivb_cstates[] = {
 	{
 		.name = "C1-IVB",
 		.desc = "MWAIT 0x00",
@@ -236,7 +236,7 @@ static struct cpuidle_state ivb_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state hsw_cstates[] __initdata = {
+static struct cpuidle_state hsw_cstates[] = {
 	{
 		.name = "C1-HSW",
 		.desc = "MWAIT 0x00",
@@ -297,7 +297,7 @@ static struct cpuidle_state hsw_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state atom_cstates[] __initdata = {
+static struct cpuidle_state atom_cstates[] = {
 	{
 		.name = "C1E-ATM",
 		.desc = "MWAIT 0x00",
@@ -329,7 +329,7 @@ static struct cpuidle_state atom_cstates[] __initdata = {
 	{
 		.enter = NULL }
 };
-static struct cpuidle_state avn_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state avn_cstates[] = {
 	{
 		.name = "C1-AVN",
 		.desc = "MWAIT 0x00",
@@ -340,10 +340,12 @@ static struct cpuidle_state avn_cstates[CPUIDLE_STATE_MAX] = {
 	{
 		.name = "C6-AVN",
 		.desc = "MWAIT 0x51",
-		.flags = MWAIT2flg(0x58) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x51) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 15,
 		.target_residency = 45,
 		.enter = &intel_idle },
+	{
+		.enter = NULL }
 };
 
 /**
@@ -375,13 +377,7 @@ static int intel_idle(struct cpuidle_device *dev,
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 
-	if (!current_set_polling_and_test()) {
-
-		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
-		if (!need_resched())
-			__mwait(eax, ecx);
-	}
+	mwait_idle_with_hints(eax, ecx);
 
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
@@ -639,38 +635,9 @@ static int __init intel_idle_cpuidle_driver_init(void)
  */
 static int intel_idle_cpu_init(int cpu)
 {
-	int cstate;
 	struct cpuidle_device *dev;
 
 	dev = per_cpu_ptr(intel_idle_cpuidle_devices, cpu);
-
-	dev->state_count = 1;
-
-	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
-		int num_substates, mwait_hint, mwait_cstate, mwait_substate;
-
-		if (cpuidle_state_table[cstate].enter == NULL)
-			break;
-
-		if (cstate + 1 > max_cstate) {
-			printk(PREFIX "max_cstate %d reached\n", max_cstate);
-			break;
-		}
-
-		mwait_hint = flg2MWAIT(cpuidle_state_table[cstate].flags);
-		mwait_cstate = MWAIT_HINT2CSTATE(mwait_hint);
-		mwait_substate = MWAIT_HINT2SUBSTATE(mwait_hint);
-
-		/* does the state exist in CPUID.MWAIT? */
-		num_substates = (mwait_substates >> ((mwait_cstate + 1) * 4))
-					& MWAIT_SUBSTATE_MASK;
-
-		/* if sub-state in table is not enumerated by CPUID */
-		if ((mwait_substate + 1) > num_substates)
-			continue;
-
-		dev->state_count += 1;
-	}
 
 	dev->cpu = cpu;
 
@@ -682,6 +649,9 @@ static int intel_idle_cpu_init(int cpu)
 
 	if (icpu->auto_demotion_disable_flags)
 		smp_call_function_single(cpu, auto_demotion_disable, NULL, 1);
+
+	if (icpu->disable_promotion_to_c1e)
+		smp_call_function_single(cpu, c1e_promotion_disable, NULL, 1);
 
 	return 0;
 }

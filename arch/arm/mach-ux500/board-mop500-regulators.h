@@ -18,7 +18,6 @@ extern struct ab8500_regulator_platform_data ab8500_regulator_plat_data;
 extern struct ab8500_regulator_platform_data ab8505_regulator_plat_data;
 extern struct regulator_init_data tps61052_regulator;
 extern struct regulator_init_data gpio_en_3v3_regulator;
-extern struct regulator_init_data sdi0_reg_init_data;
 
 void mop500_regulator_init(void);
 

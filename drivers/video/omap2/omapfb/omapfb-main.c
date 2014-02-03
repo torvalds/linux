@@ -1833,6 +1833,16 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	if (fbdev == NULL)
 		return;
 
+	for (i = 0; i < fbdev->num_fbs; i++) {
+		struct omapfb_info *ofbi = FB2OFB(fbdev->fbs[i]);
+		int j;
+
+		for (j = 0; j < ofbi->num_overlays; j++) {
+			struct omap_overlay *ovl = ofbi->overlays[j];
+			ovl->disable(ovl);
+		}
+	}
+
 	for (i = 0; i < fbdev->num_fbs; i++)
 		unregister_framebuffer(fbdev->fbs[i]);
 
@@ -2555,6 +2565,15 @@ static int omapfb_probe(struct platform_device *pdev)
 	if (r) {
 		dev_err(fbdev->dev, "failed to create sysfs entries\n");
 		goto cleanup;
+	}
+
+	if (def_display) {
+		u16 w, h;
+
+		def_display->driver->get_resolution(def_display, &w, &h);
+
+		dev_info(fbdev->dev, "using display '%s' mode %dx%d\n",
+			def_display->name, w, h);
 	}
 
 	return 0;

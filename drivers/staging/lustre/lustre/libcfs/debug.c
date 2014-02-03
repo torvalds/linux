@@ -47,44 +47,44 @@
 static char debug_file_name[1024];
 
 unsigned int libcfs_subsystem_debug = ~0;
-CFS_MODULE_PARM(libcfs_subsystem_debug, "i", int, 0644,
-		"Lustre kernel debug subsystem mask");
+module_param(libcfs_subsystem_debug, int, 0644);
+MODULE_PARM_DESC(libcfs_subsystem_debug, "Lustre kernel debug subsystem mask");
 EXPORT_SYMBOL(libcfs_subsystem_debug);
 
 unsigned int libcfs_debug = (D_CANTMASK |
 			     D_NETERROR | D_HA | D_CONFIG | D_IOCTL);
-CFS_MODULE_PARM(libcfs_debug, "i", int, 0644,
-		"Lustre kernel debug mask");
+module_param(libcfs_debug, int, 0644);
+MODULE_PARM_DESC(libcfs_debug, "Lustre kernel debug mask");
 EXPORT_SYMBOL(libcfs_debug);
 
 unsigned int libcfs_debug_mb = 0;
-CFS_MODULE_PARM(libcfs_debug_mb, "i", uint, 0644,
-		"Total debug buffer size.");
+module_param(libcfs_debug_mb, uint, 0644);
+MODULE_PARM_DESC(libcfs_debug_mb, "Total debug buffer size.");
 EXPORT_SYMBOL(libcfs_debug_mb);
 
 unsigned int libcfs_printk = D_CANTMASK;
-CFS_MODULE_PARM(libcfs_printk, "i", uint, 0644,
-		"Lustre kernel debug console mask");
+module_param(libcfs_printk, uint, 0644);
+MODULE_PARM_DESC(libcfs_printk, "Lustre kernel debug console mask");
 EXPORT_SYMBOL(libcfs_printk);
 
 unsigned int libcfs_console_ratelimit = 1;
-CFS_MODULE_PARM(libcfs_console_ratelimit, "i", uint, 0644,
-		"Lustre kernel debug console ratelimit (0 to disable)");
+module_param(libcfs_console_ratelimit, uint, 0644);
+MODULE_PARM_DESC(libcfs_console_ratelimit, "Lustre kernel debug console ratelimit (0 to disable)");
 EXPORT_SYMBOL(libcfs_console_ratelimit);
 
 unsigned int libcfs_console_max_delay;
-CFS_MODULE_PARM(libcfs_console_max_delay, "l", uint, 0644,
-		"Lustre kernel debug console max delay (jiffies)");
+module_param(libcfs_console_max_delay, uint, 0644);
+MODULE_PARM_DESC(libcfs_console_max_delay, "Lustre kernel debug console max delay (jiffies)");
 EXPORT_SYMBOL(libcfs_console_max_delay);
 
 unsigned int libcfs_console_min_delay;
-CFS_MODULE_PARM(libcfs_console_min_delay, "l", uint, 0644,
-		"Lustre kernel debug console min delay (jiffies)");
+module_param(libcfs_console_min_delay, uint, 0644);
+MODULE_PARM_DESC(libcfs_console_min_delay, "Lustre kernel debug console min delay (jiffies)");
 EXPORT_SYMBOL(libcfs_console_min_delay);
 
 unsigned int libcfs_console_backoff = CDEBUG_DEFAULT_BACKOFF;
-CFS_MODULE_PARM(libcfs_console_backoff, "i", uint, 0644,
-		"Lustre kernel debug console backoff factor");
+module_param(libcfs_console_backoff, uint, 0644);
+MODULE_PARM_DESC(libcfs_console_backoff, "Lustre kernel debug console backoff factor");
 EXPORT_SYMBOL(libcfs_console_backoff);
 
 unsigned int libcfs_debug_binary = 1;
@@ -103,8 +103,8 @@ unsigned int libcfs_watchdog_ratelimit = 300;
 EXPORT_SYMBOL(libcfs_watchdog_ratelimit);
 
 unsigned int libcfs_panic_on_lbug = 1;
-CFS_MODULE_PARM(libcfs_panic_on_lbug, "i", uint, 0644,
-		"Lustre kernel panic on LBUG");
+module_param(libcfs_panic_on_lbug, uint, 0644);
+MODULE_PARM_DESC(libcfs_panic_on_lbug, "Lustre kernel panic on LBUG");
 EXPORT_SYMBOL(libcfs_panic_on_lbug);
 
 atomic_t libcfs_kmemory = ATOMIC_INIT(0);
@@ -116,9 +116,9 @@ char libcfs_debug_file_path_arr[PATH_MAX] = LIBCFS_DEBUG_FILE_PATH_DEFAULT;
 
 /* We need to pass a pointer here, but elsewhere this must be a const */
 char *libcfs_debug_file_path;
-CFS_MODULE_PARM(libcfs_debug_file_path, "s", charp, 0644,
-		"Path for dumping debug logs, "
-		"set 'NONE' to prevent log dumping");
+module_param(libcfs_debug_file_path, charp, 0644);
+MODULE_PARM_DESC(libcfs_debug_file_path,
+		 "Path for dumping debug logs, set 'NONE' to prevent log dumping");
 
 int libcfs_panic_in_progress;
 

@@ -29,8 +29,10 @@ struct vfsmount;
 /* The hash is always the low bits of hash_len */
 #ifdef __LITTLE_ENDIAN
  #define HASH_LEN_DECLARE u32 hash; u32 len;
+ #define bytemask_from_count(cnt)	(~(~0ul << (cnt)*8))
 #else
  #define HASH_LEN_DECLARE u32 len; u32 hash;
+ #define bytemask_from_count(cnt)	(~(~0ul >> (cnt)*8))
 #endif
 
 /*

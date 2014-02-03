@@ -541,14 +541,93 @@ static inline int cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
 		return slave_num;
 }
 
+static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_ale *ale = priv->ale;
+	int i;
+
+	if (priv->data.dual_emac) {
+		bool flag = false;
+
+		/* Enabling promiscuous mode for one interface will be
+		 * common for both the interface as the interface shares
+		 * the same hardware resource.
+		 */
+		for (i = 0; i <= priv->data.slaves; i++)
+			if (priv->slaves[i].ndev->flags & IFF_PROMISC)
+				flag = true;
+
+		if (!enable && flag) {
+			enable = true;
+			dev_err(&ndev->dev, "promiscuity not disabled as the other interface is still in promiscuity mode\n");
+		}
+
+		if (enable) {
+			/* Enable Bypass */
+			cpsw_ale_control_set(ale, 0, ALE_BYPASS, 1);
+
+			dev_dbg(&ndev->dev, "promiscuity enabled\n");
+		} else {
+			/* Disable Bypass */
+			cpsw_ale_control_set(ale, 0, ALE_BYPASS, 0);
+			dev_dbg(&ndev->dev, "promiscuity disabled\n");
+		}
+	} else {
+		if (enable) {
+			unsigned long timeout = jiffies + HZ;
+
+			/* Disable Learn for all ports */
+			for (i = 0; i <= priv->data.slaves; i++) {
+				cpsw_ale_control_set(ale, i,
+						     ALE_PORT_NOLEARN, 1);
+				cpsw_ale_control_set(ale, i,
+						     ALE_PORT_NO_SA_UPDATE, 1);
+			}
+
+			/* Clear All Untouched entries */
+			cpsw_ale_control_set(ale, 0, ALE_AGEOUT, 1);
+			do {
+				cpu_relax();
+				if (cpsw_ale_control_get(ale, 0, ALE_AGEOUT))
+					break;
+			} while (time_after(timeout, jiffies));
+			cpsw_ale_control_set(ale, 0, ALE_AGEOUT, 1);
+
+			/* Clear all mcast from ALE */
+			cpsw_ale_flush_multicast(ale, ALE_ALL_PORTS <<
+						 priv->host_port);
+
+			/* Flood All Unicast Packets to Host port */
+			cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 1);
+			dev_dbg(&ndev->dev, "promiscuity enabled\n");
+		} else {
+			/* Flood All Unicast Packets to Host port */
+			cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 0);
+
+			/* Enable Learn for all ports */
+			for (i = 0; i <= priv->data.slaves; i++) {
+				cpsw_ale_control_set(ale, i,
+						     ALE_PORT_NOLEARN, 0);
+				cpsw_ale_control_set(ale, i,
+						     ALE_PORT_NO_SA_UPDATE, 0);
+			}
+			dev_dbg(&ndev->dev, "promiscuity disabled\n");
+		}
+	}
+}
+
 static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
 	if (ndev->flags & IFF_PROMISC) {
 		/* Enable promiscuous mode */
-		dev_err(priv->dev, "Ignoring Promiscuous mode\n");
+		cpsw_set_promiscious(ndev, true);
 		return;
+	} else {
+		/* Disable promiscuous mode */
+		cpsw_set_promiscious(ndev, false);
 	}
 
 	/* Clear all mcast from ALE */
@@ -582,7 +661,7 @@ static void cpsw_intr_disable(struct cpsw_priv *priv)
 	return;
 }
 
-void cpsw_tx_handler(void *token, int len, int status)
+static void cpsw_tx_handler(void *token, int len, int status)
 {
 	struct sk_buff		*skb = token;
 	struct net_device	*ndev = skb->dev;
@@ -599,7 +678,7 @@ void cpsw_tx_handler(void *token, int len, int status)
 	dev_kfree_skb_any(skb);
 }
 
-void cpsw_rx_handler(void *token, int len, int status)
+static void cpsw_rx_handler(void *token, int len, int status)
 {
 	struct sk_buff		*skb = token;
 	struct sk_buff		*new_skb;
@@ -740,6 +819,8 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 		/* set speed_in input in case RMII mode is used in 100Mbps */
 		if (phy->speed == 100)
 			mac_control |= BIT(15);
+		else if (phy->speed == 10)
+			mac_control |= BIT(18); /* In Band mode */
 
 		*link = true;
 	} else {
@@ -1151,6 +1232,12 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		 * receive descs
 		 */
 		cpsw_info(priv, ifup, "submitted %d rx descriptors\n", i);
+
+		if (cpts_register(&priv->pdev->dev, priv->cpts,
+				  priv->data.cpts_clock_mult,
+				  priv->data.cpts_clock_shift))
+			dev_err(priv->dev, "error registering cpts device\n");
+
 	}
 
 	/* Enable Interrupt pacing if configured */
@@ -1197,6 +1284,7 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	netif_carrier_off(priv->ndev);
 
 	if (cpsw_common_res_usage_state(priv) <= 1) {
+		cpts_unregister(priv->cpts);
 		cpsw_intr_disable(priv);
 		cpdma_ctlr_int_ctrl(priv->dma, false);
 		cpdma_ctlr_stop(priv->dma);
@@ -1246,29 +1334,6 @@ fail:
 	priv->stats.tx_dropped++;
 	netif_stop_queue(ndev);
 	return NETDEV_TX_BUSY;
-}
-
-static void cpsw_ndo_change_rx_flags(struct net_device *ndev, int flags)
-{
-	/*
-	 * The switch cannot operate in promiscuous mode without substantial
-	 * headache.  For promiscuous mode to work, we would need to put the
-	 * ALE in bypass mode and route all traffic to the host port.
-	 * Subsequently, the host will need to operate as a "bridge", learn,
-	 * and flood as needed.  For now, we simply complain here and
-	 * do nothing about it :-)
-	 */
-	if ((flags & IFF_PROMISC) && (ndev->flags & IFF_PROMISC))
-		dev_err(&ndev->dev, "promiscuity ignored!\n");
-
-	/*
-	 * The switch cannot filter multicast traffic unless it is configured
-	 * in "VLAN Aware" mode.  Unfortunately, VLAN awareness requires a
-	 * whole bunch of additional logic that this driver does not implement
-	 * at present.
-	 */
-	if ((flags & IFF_ALLMULTI) && !(ndev->flags & IFF_ALLMULTI))
-		dev_err(&ndev->dev, "multicast traffic cannot be filtered!\n");
 }
 
 #ifdef CONFIG_TI_CPTS
@@ -1322,7 +1387,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	__raw_writel(ETH_P_1588, &priv->regs->ts_ltype);
 }
 
-static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
+static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 {
 	struct cpsw_priv *priv = netdev_priv(dev);
 	struct cpts *cpts = priv->cpts;
@@ -1383,6 +1448,24 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
 
+static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
+{
+	struct cpsw_priv *priv = netdev_priv(dev);
+	struct cpts *cpts = priv->cpts;
+	struct hwtstamp_config cfg;
+
+	if (priv->version != CPSW_VERSION_1 &&
+	    priv->version != CPSW_VERSION_2)
+		return -EOPNOTSUPP;
+
+	cfg.flags = 0;
+	cfg.tx_type = cpts->tx_enable ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	cfg.rx_filter = (cpts->rx_enable ?
+			 HWTSTAMP_FILTER_PTP_V2_EVENT : HWTSTAMP_FILTER_NONE);
+
+	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+}
+
 #endif /*CONFIG_TI_CPTS*/
 
 static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
@@ -1397,7 +1480,9 @@ static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	switch (cmd) {
 #ifdef CONFIG_TI_CPTS
 	case SIOCSHWTSTAMP:
-		return cpsw_hwtstamp_ioctl(dev, req);
+		return cpsw_hwtstamp_set(dev, req);
+	case SIOCGHWTSTAMP:
+		return cpsw_hwtstamp_get(dev, req);
 #endif
 	case SIOCGMIIPHY:
 		data->phy_id = priv->slaves[slave_no].phy->addr;
@@ -1546,7 +1631,6 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
 	.ndo_stop		= cpsw_ndo_stop,
 	.ndo_start_xmit		= cpsw_ndo_start_xmit,
-	.ndo_change_rx_flags	= cpsw_ndo_change_rx_flags,
 	.ndo_set_mac_address	= cpsw_ndo_set_mac_address,
 	.ndo_do_ioctl		= cpsw_ndo_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1816,6 +1900,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		}
 
 		i++;
+		if (i == data->slaves)
+			break;
 	}
 
 	return 0;
@@ -1983,8 +2069,14 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_runtime_disable_ret;
 	}
 	priv->regs = ss_regs;
-	priv->version = __raw_readl(&priv->regs->id_ver);
 	priv->host_port = HOST_PORT_NUM;
+
+	/* Need to enable clocks with runtime PM api to access module
+	 * registers
+	 */
+	pm_runtime_get_sync(&pdev->dev);
+	priv->version = readl(&priv->regs->id_ver);
+	pm_runtime_put_sync(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	priv->wr_regs = devm_ioremap_resource(&pdev->dev, res);
@@ -2091,7 +2183,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (devm_request_irq(&pdev->dev, i, cpsw_interrupt, 0,
-					     dev_name(priv->dev), priv)) {
+					     dev_name(&pdev->dev), priv)) {
 				dev_err(priv->dev, "error attaching irq\n");
 				goto clean_ale_ret;
 			}
@@ -2120,8 +2212,8 @@ static int cpsw_probe(struct platform_device *pdev)
 			  data->cpts_clock_mult, data->cpts_clock_shift))
 		dev_err(priv->dev, "error registering cpts device\n");
 
-	cpsw_notice(priv, probe, "initialized device (regs %x, irq %d)\n",
-		    ss_res->start, ndev->irq);
+	cpsw_notice(priv, probe, "initialized device (regs %pa, irq %d)\n",
+		    &ss_res->start, ndev->irq);
 
 	if (priv->data.dual_emac) {
 		ret = cpsw_probe_dual_emac(pdev, priv);
@@ -2154,8 +2246,6 @@ static int cpsw_remove(struct platform_device *pdev)
 	if (priv->data.dual_emac)
 		unregister_netdev(cpsw_get_slave_ndev(priv, 1));
 	unregister_netdev(ndev);
-
-	cpts_unregister(priv->cpts);
 
 	cpsw_ale_destroy(priv->ale);
 	cpdma_chan_destroy(priv->txch);

@@ -102,7 +102,8 @@ no_valid_dev_replace_entry_found:
 	ptr = btrfs_item_ptr(eb, slot, struct btrfs_dev_replace_item);
 
 	if (item_size != sizeof(struct btrfs_dev_replace_item)) {
-		pr_warn("btrfs: dev_replace entry found has unexpected size, ignore entry\n");
+		btrfs_warn(fs_info,
+			"dev_replace entry found has unexpected size, ignore entry");
 		goto no_valid_dev_replace_entry_found;
 	}
 
@@ -145,13 +146,19 @@ no_valid_dev_replace_entry_found:
 		if (!dev_replace->srcdev &&
 		    !btrfs_test_opt(dev_root, DEGRADED)) {
 			ret = -EIO;
-			pr_warn("btrfs: cannot mount because device replace operation is ongoing and\n" "srcdev (devid %llu) is missing, need to run 'btrfs dev scan'?\n",
-				src_devid);
+			btrfs_warn(fs_info,
+			   "cannot mount because device replace operation is ongoing and");
+			btrfs_warn(fs_info,
+			   "srcdev (devid %llu) is missing, need to run 'btrfs dev scan'?",
+			   src_devid);
 		}
 		if (!dev_replace->tgtdev &&
 		    !btrfs_test_opt(dev_root, DEGRADED)) {
 			ret = -EIO;
-			pr_warn("btrfs: cannot mount because device replace operation is ongoing and\n" "tgtdev (devid %llu) is missing, need to run btrfs dev scan?\n",
+			btrfs_warn(fs_info,
+			   "cannot mount because device replace operation is ongoing and");
+			btrfs_warn(fs_info,
+			   "tgtdev (devid %llu) is missing, need to run 'btrfs dev scan'?",
 				BTRFS_DEV_REPLACE_DEVID);
 		}
 		if (dev_replace->tgtdev) {
@@ -210,7 +217,7 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans,
 	}
 	ret = btrfs_search_slot(trans, dev_root, &key, path, -1, 1);
 	if (ret < 0) {
-		pr_warn("btrfs: error %d while searching for dev_replace item!\n",
+		btrfs_warn(fs_info, "error %d while searching for dev_replace item!",
 			ret);
 		goto out;
 	}
@@ -230,7 +237,7 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans,
 		 */
 		ret = btrfs_del_item(trans, dev_root, path);
 		if (ret != 0) {
-			pr_warn("btrfs: delete too small dev_replace item failed %d!\n",
+			btrfs_warn(fs_info, "delete too small dev_replace item failed %d!",
 				ret);
 			goto out;
 		}
@@ -243,7 +250,7 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans,
 		ret = btrfs_insert_empty_item(trans, dev_root, path,
 					      &key, sizeof(*ptr));
 		if (ret < 0) {
-			pr_warn("btrfs: insert dev_replace item failed %d!\n",
+			btrfs_warn(fs_info, "insert dev_replace item failed %d!",
 				ret);
 			goto out;
 		}
@@ -305,7 +312,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	struct btrfs_device *src_device = NULL;
 
 	if (btrfs_fs_incompat(fs_info, RAID56)) {
-		pr_warn("btrfs: dev_replace cannot yet handle RAID5/RAID6\n");
+		btrfs_warn(fs_info, "dev_replace cannot yet handle RAID5/RAID6");
 		return -EINVAL;
 	}
 
@@ -325,7 +332,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	ret = btrfs_init_dev_replace_tgtdev(root, args->start.tgtdev_name,
 					    &tgt_device);
 	if (ret) {
-		pr_err("btrfs: target device %s is invalid!\n",
+		btrfs_err(fs_info, "target device %s is invalid!",
 		       args->start.tgtdev_name);
 		mutex_unlock(&fs_info->volume_mutex);
 		return -EINVAL;
@@ -341,7 +348,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	}
 
 	if (tgt_device->total_bytes < src_device->total_bytes) {
-		pr_err("btrfs: target device is smaller than source device!\n");
+		btrfs_err(fs_info, "target device is smaller than source device!");
 		ret = -EINVAL;
 		goto leave_no_lock;
 	}
@@ -366,7 +373,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	dev_replace->tgtdev = tgt_device;
 
 	printk_in_rcu(KERN_INFO
-		      "btrfs: dev_replace from %s (devid %llu) to %s started\n",
+		      "BTRFS: dev_replace from %s (devid %llu) to %s started\n",
 		      src_device->missing ? "<missing disk>" :
 		        rcu_str_deref(src_device->name),
 		      src_device->devid,
@@ -489,7 +496,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 
 	if (scrub_ret) {
 		printk_in_rcu(KERN_ERR
-			      "btrfs: btrfs_scrub_dev(%s, %llu, %s) failed %d\n",
+			      "BTRFS: btrfs_scrub_dev(%s, %llu, %s) failed %d\n",
 			      src_device->missing ? "<missing disk>" :
 			        rcu_str_deref(src_device->name),
 			      src_device->devid,
@@ -504,7 +511,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	}
 
 	printk_in_rcu(KERN_INFO
-		      "btrfs: dev_replace from %s (devid %llu) to %s) finished\n",
+		      "BTRFS: dev_replace from %s (devid %llu) to %s) finished\n",
 		      src_device->missing ? "<missing disk>" :
 		        rcu_str_deref(src_device->name),
 		      src_device->devid,
@@ -699,7 +706,7 @@ void btrfs_dev_replace_suspend_for_unmount(struct btrfs_fs_info *fs_info)
 			BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED;
 		dev_replace->time_stopped = get_seconds();
 		dev_replace->item_needs_writeback = 1;
-		pr_info("btrfs: suspending dev_replace for unmount\n");
+		btrfs_info(fs_info, "suspending dev_replace for unmount");
 		break;
 	}
 
@@ -728,8 +735,9 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 		break;
 	}
 	if (!dev_replace->tgtdev || !dev_replace->tgtdev->bdev) {
-		pr_info("btrfs: cannot continue dev_replace, tgtdev is missing\n"
-			"btrfs: you may cancel the operation after 'mount -o degraded'\n");
+		btrfs_info(fs_info, "cannot continue dev_replace, tgtdev is missing");
+		btrfs_info(fs_info,
+			"you may cancel the operation after 'mount -o degraded'");
 		btrfs_dev_replace_unlock(dev_replace);
 		return 0;
 	}
@@ -755,14 +763,14 @@ static int btrfs_dev_replace_kthread(void *data)
 		kfree(status_args);
 		do_div(progress, 10);
 		printk_in_rcu(KERN_INFO
-			      "btrfs: continuing dev_replace from %s (devid %llu) to %s @%u%%\n",
-			      dev_replace->srcdev->missing ? "<missing disk>" :
-				rcu_str_deref(dev_replace->srcdev->name),
-			      dev_replace->srcdev->devid,
-			      dev_replace->tgtdev ?
-				rcu_str_deref(dev_replace->tgtdev->name) :
-				"<missing target disk>",
-			      (unsigned int)progress);
+			"BTRFS: continuing dev_replace from %s (devid %llu) to %s @%u%%\n",
+			dev_replace->srcdev->missing ? "<missing disk>" :
+			rcu_str_deref(dev_replace->srcdev->name),
+			dev_replace->srcdev->devid,
+			dev_replace->tgtdev ?
+			rcu_str_deref(dev_replace->tgtdev->name) :
+			"<missing target disk>",
+			(unsigned int)progress);
 	}
 	btrfs_dev_replace_continue_on_mount(fs_info);
 	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);

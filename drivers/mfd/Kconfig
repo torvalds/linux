@@ -32,7 +32,7 @@ config MFD_AS3722
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C && OF
+	depends on I2C=y && OF
 	help
 	  The ams AS3722 is a compact system PMU suitable for mobile phones,
 	  tablets etc. It has 4 DC/DC step-down regulators, 3 DC/DC step-down
@@ -80,7 +80,7 @@ config MFD_CROS_EC_I2C
 
 config MFD_CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
-	depends on MFD_CROS_EC && SPI
+	depends on MFD_CROS_EC && SPI && OF
 
 	---help---
 	  If you say Y here, you get support for talking to the ChromeOS EC
@@ -163,14 +163,10 @@ config MFD_DA9063
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
 
-config MFD_MC13783
-	tristate
-
 config MFD_MC13XXX
 	tristate
 	depends on (SPI_MASTER || I2C)
 	select MFD_CORE
-	select MFD_MC13783
 	help
 	  Enable support for the Freescale MC13783 and MC13892 PMICs.
 	  This driver provides common support for accessing the device,
@@ -320,6 +316,19 @@ config MFD_88PM860X
 	  This includes the I2C driver and the core APIs _only_, you have to
 	  select individual components like voltage regulators, RTC and
 	  battery-charger under the corresponding menus.
+
+config MFD_MAX14577
+	bool "Maxim Semiconductor MAX14577 MUIC + Charger Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select IRQ_DOMAIN
+	help
+	  Say yes here to support for Maxim Semiconductor MAX14577.
+	  This is a Micro-USB IC with Charger controls on chip.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 config MFD_MAX77686
 	bool "Maxim Semiconductor MAX77686 PMIC Support"
@@ -724,6 +733,17 @@ config MFD_DM355EVM_MSP
 	  This driver supports the MSP430 microcontroller used on these
 	  boards.  MSP430 firmware manages resets and power sequencing,
 	  inputs from buttons and the IR remote, LEDs, an RTC, and more.
+
+config MFD_LP3943
+	tristate "TI/National Semiconductor LP3943 MFD Driver"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Support for the TI/National Semiconductor LP3943.
+	  This driver consists of GPIO and PWM drivers.
+	  With these functionalities, it can be used for LED string control or
+	  general usage such like a GPIO controller and a PWM controller.
 
 config MFD_LP8788
 	bool "TI LP8788 Power Management Unit Driver"

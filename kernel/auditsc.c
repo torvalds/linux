@@ -1969,18 +1969,24 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 				   int rc)
 {
 	struct audit_buffer *ab;
-	uid_t uid, ologinuid, nloginuid;
+	uid_t uid, oldloginuid, loginuid;
+
+	if (!audit_enabled)
+		return;
 
 	uid = from_kuid(&init_user_ns, task_uid(current));
-	ologinuid = from_kuid(&init_user_ns, koldloginuid);
-	nloginuid = from_kuid(&init_user_ns, kloginuid),
+	oldloginuid = from_kuid(&init_user_ns, koldloginuid);
+	loginuid = from_kuid(&init_user_ns, kloginuid),
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
 	if (!ab)
 		return;
-	audit_log_format(ab, "pid=%d uid=%u old auid=%u new auid=%u old "
-			 "ses=%u new ses=%u res=%d", current->pid, uid, ologinuid,
-			 nloginuid, oldsessionid, sessionid, !rc);
+	audit_log_format(ab, "pid=%d uid=%u"
+			 " old-auid=%u new-auid=%u old-ses=%u new-ses=%u"
+			 " res=%d",
+			 current->pid, uid,
+			 oldloginuid, loginuid, oldsessionid, sessionid,
+			 !rc);
 	audit_log_end(ab);
 }
 
@@ -2008,7 +2014,7 @@ int audit_set_loginuid(kuid_t loginuid)
 
 	/* are we setting or clearing? */
 	if (uid_valid(loginuid))
-		sessionid = atomic_inc_return(&session_id);
+		sessionid = (unsigned int)atomic_inc_return(&session_id);
 
 	task->sessionid = sessionid;
 	task->loginuid = loginuid;
@@ -2321,18 +2327,16 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 
 /**
  * __audit_log_capset - store information about the arguments to the capset syscall
- * @pid: target pid of the capset call
  * @new: the new credentials
  * @old: the old (current) credentials
  *
  * Record the aguments userspace sent to sys_capset for later printing by the
  * audit system if applicable
  */
-void __audit_log_capset(pid_t pid,
-		       const struct cred *new, const struct cred *old)
+void __audit_log_capset(const struct cred *new, const struct cred *old)
 {
 	struct audit_context *context = current->audit_context;
-	context->capset.pid = pid;
+	context->capset.pid = task_pid_nr(current);
 	context->capset.cap.effective   = new->cap_effective;
 	context->capset.cap.inheritable = new->cap_effective;
 	context->capset.cap.permitted   = new->cap_permitted;
@@ -2352,6 +2356,7 @@ static void audit_log_task(struct audit_buffer *ab)
 	kuid_t auid, uid;
 	kgid_t gid;
 	unsigned int sessionid;
+	struct mm_struct *mm = current->mm;
 
 	auid = audit_get_loginuid(current);
 	sessionid = audit_get_sessionid(current);
@@ -2365,15 +2370,15 @@ static void audit_log_task(struct audit_buffer *ab)
 	audit_log_task_context(ab);
 	audit_log_format(ab, " pid=%d comm=", current->pid);
 	audit_log_untrustedstring(ab, current->comm);
+	if (mm) {
+		down_read(&mm->mmap_sem);
+		if (mm->exe_file)
+			audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
+		up_read(&mm->mmap_sem);
+	} else
+		audit_log_format(ab, " exe=(null)");
 }
 
-static void audit_log_abend(struct audit_buffer *ab, char *reason, long signr)
-{
-	audit_log_task(ab);
-	audit_log_format(ab, " reason=");
-	audit_log_string(ab, reason);
-	audit_log_format(ab, " sig=%ld", signr);
-}
 /**
  * audit_core_dumps - record information about processes that end abnormally
  * @signr: signal value
@@ -2394,7 +2399,8 @@ void audit_core_dumps(long signr)
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_ANOM_ABEND);
 	if (unlikely(!ab))
 		return;
-	audit_log_abend(ab, "memory violation", signr);
+	audit_log_task(ab);
+	audit_log_format(ab, " sig=%ld", signr);
 	audit_log_end(ab);
 }
 

@@ -178,17 +178,28 @@ int arch_gnttab_map_status(uint64_t *frames, unsigned long nr_gframes,
 			   grant_status_t **__shared);
 void arch_gnttab_unmap(void *shared, unsigned long nr_gframes);
 
-extern unsigned long xen_hvm_resume_frames;
+struct grant_frames {
+	xen_pfn_t *pfn;
+	unsigned int count;
+	void *vaddr;
+};
+extern struct grant_frames xen_auto_xlat_grant_frames;
 unsigned int gnttab_max_grant_frames(void);
+int gnttab_setup_auto_xlat_frames(phys_addr_t addr);
+void gnttab_free_auto_xlat_frames(void);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
 
 int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
-		    struct gnttab_map_grant_ref *kmap_ops,
 		    struct page **pages, unsigned int count);
+int gnttab_map_refs_userspace(struct gnttab_map_grant_ref *map_ops,
+			      struct gnttab_map_grant_ref *kmap_ops,
+			      struct page **pages, unsigned int count);
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
-		      struct gnttab_map_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count);
+int gnttab_unmap_refs_userspace(struct gnttab_unmap_grant_ref *unmap_ops,
+				struct gnttab_map_grant_ref *kunmap_ops,
+				struct page **pages, unsigned int count);
 
 /* Perform a batch of grant map/copy operations. Retry every batch slot
  * for which the hypervisor returns GNTST_eagain. This is typically due

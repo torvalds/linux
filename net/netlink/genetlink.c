@@ -74,9 +74,12 @@ static struct list_head family_ht[GENL_FAM_TAB_SIZE];
  * Bit 17 is marked as already used since the VFS quota code
  * also abused this API and relied on family == group ID, we
  * cater to that by giving it a static family and group ID.
+ * Bit 18 is marked as already used since the PMCRAID driver
+ * did the same thing as the VFS quota code (maybe copied?)
  */
 static unsigned long mc_group_start = 0x3 | BIT(GENL_ID_CTRL) |
-				      BIT(GENL_ID_VFS_DQUOT);
+				      BIT(GENL_ID_VFS_DQUOT) |
+				      BIT(GENL_ID_PMCRAID);
 static unsigned long *mc_groups = &mc_group_start;
 static unsigned long mc_groups_longs = 1;
 
@@ -139,6 +142,7 @@ static u16 genl_generate_id(void)
 
 	for (i = 0; i <= GENL_MAX_ID - GENL_MIN_ID; i++) {
 		if (id_gen_idx != GENL_ID_VFS_DQUOT &&
+		    id_gen_idx != GENL_ID_PMCRAID &&
 		    !genl_family_find_byid(id_gen_idx))
 			return id_gen_idx;
 		if (++id_gen_idx > GENL_MAX_ID)
@@ -214,7 +218,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 {
 	int first_id;
 	int n_groups = family->n_mcgrps;
-	int err, i;
+	int err = 0, i;
 	bool groups_allocated = false;
 
 	if (!n_groups)
@@ -236,8 +240,11 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 	} else if (strcmp(family->name, "NET_DM") == 0) {
 		first_id = 1;
 		BUG_ON(n_groups != 1);
-	} else if (strcmp(family->name, "VFS_DQUOT") == 0) {
+	} else if (family->id == GENL_ID_VFS_DQUOT) {
 		first_id = GENL_ID_VFS_DQUOT;
+		BUG_ON(n_groups != 1);
+	} else if (family->id == GENL_ID_PMCRAID) {
+		first_id = GENL_ID_PMCRAID;
 		BUG_ON(n_groups != 1);
 	} else {
 		groups_allocated = true;
@@ -454,6 +461,26 @@ int genl_unregister_family(struct genl_family *family)
 EXPORT_SYMBOL(genl_unregister_family);
 
 /**
+ * genlmsg_new_unicast - Allocate generic netlink message for unicast
+ * @payload: size of the message payload
+ * @info: information on destination
+ * @flags: the type of memory to allocate
+ *
+ * Allocates a new sk_buff large enough to cover the specified payload
+ * plus required Netlink headers. Will check receiving socket for
+ * memory mapped i/o capability and use it if enabled. Will fall back
+ * to non-mapped skb if message size exceeds the frame size of the ring.
+ */
+struct sk_buff *genlmsg_new_unicast(size_t payload, struct genl_info *info,
+				    gfp_t flags)
+{
+	size_t len = nlmsg_total_size(genlmsg_total_size(payload));
+
+	return netlink_alloc_skb(info->dst_sk, len, info->snd_portid, flags);
+}
+EXPORT_SYMBOL_GPL(genlmsg_new_unicast);
+
+/**
  * genlmsg_put - Add generic netlink header to netlink message
  * @skb: socket buffer holding the message
  * @portid: netlink portid the message is addressed to
@@ -593,6 +620,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	info.genlhdr = nlmsg_data(nlh);
 	info.userhdr = nlmsg_data(nlh) + GENL_HDRLEN;
 	info.attrs = attrbuf;
+	info.dst_sk = skb->sk;
 	genl_info_net_set(&info, net);
 	memset(&info.user_ptr, 0, sizeof(info.user_ptr));
 

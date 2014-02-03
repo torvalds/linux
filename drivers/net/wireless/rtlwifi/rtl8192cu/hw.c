@@ -1022,7 +1022,7 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	if (ppsc->rfpwr_state == ERFON) {
 		rtl92c_phy_set_rfpath_switch(hw, 1);
 		if (iqk_initialized) {
-			rtl92c_phy_iq_calibrate(hw, false);
+			rtl92c_phy_iq_calibrate(hw, true);
 		} else {
 			rtl92c_phy_iq_calibrate(hw, false);
 			iqk_initialized = true;

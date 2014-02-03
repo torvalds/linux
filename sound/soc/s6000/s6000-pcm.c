@@ -33,13 +33,6 @@ static struct snd_pcm_hardware s6000_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_JOINT_DUPLEX),
-	.formats = (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE),
-	.rates = (SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_5512 | \
-		  SNDRV_PCM_RATE_8000_192000),
-	.rate_min = 0,
-	.rate_max = 1562500,
-	.channels_min = 2,
-	.channels_max = 8,
 	.buffer_bytes_max = 0x7ffffff0,
 	.period_bytes_min = 16,
 	.period_bytes_max = 0xfffff0,

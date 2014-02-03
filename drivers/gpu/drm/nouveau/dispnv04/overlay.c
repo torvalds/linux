@@ -55,11 +55,14 @@ struct nouveau_plane {
 	int hue;
 	int saturation;
 	int iturbt_709;
+
+	void (*set_params)(struct nouveau_plane *);
 };
 
 static uint32_t formats[] = {
-	DRM_FORMAT_NV12,
+	DRM_FORMAT_YUYV,
 	DRM_FORMAT_UYVY,
+	DRM_FORMAT_NV12,
 };
 
 /* Sine can be approximated with
@@ -99,25 +102,34 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_bo *cur = nv_plane->cur;
 	bool flip = nv_plane->flip;
-	int format = ALIGN(src_w * 4, 0x100);
 	int soff = NV_PCRTC0_SIZE * nv_crtc->index;
 	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->index;
-	int ret;
+	int format, ret;
+
+	/* Source parameters given in 16.16 fixed point, ignore fractional. */
+	src_x >>= 16;
+	src_y >>= 16;
+	src_w >>= 16;
+	src_h >>= 16;
+
+	format = ALIGN(src_w * 4, 0x100);
 
 	if (format > 0xffff)
-		return -EINVAL;
+		return -ERANGE;
+
+	if (dev->chipset >= 0x30) {
+		if (crtc_w < (src_w >> 1) || crtc_h < (src_h >> 1))
+			return -ERANGE;
+	} else {
+		if (crtc_w < (src_w >> 3) || crtc_h < (src_h >> 3))
+			return -ERANGE;
+	}
 
 	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM);
 	if (ret)
 		return ret;
 
 	nv_plane->cur = nv_fb->nvbo;
-
-	/* Source parameters given in 16.16 fixed point, ignore fractional. */
-	src_x = src_x >> 16;
-	src_y = src_y >> 16;
-	src_w = src_w >> 16;
-	src_h = src_h >> 16;
 
 	nv_mask(dev, NV_PCRTC_ENGINE_CTRL + soff, NV_CRTC_FSEL_OVERLAY, NV_CRTC_FSEL_OVERLAY);
 	nv_mask(dev, NV_PCRTC_ENGINE_CTRL + soff2, NV_CRTC_FSEL_OVERLAY, 0);
@@ -131,10 +143,10 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	nv_wr32(dev, NV_PVIDEO_POINT_OUT(flip), crtc_y << 16 | crtc_x);
 	nv_wr32(dev, NV_PVIDEO_SIZE_OUT(flip), crtc_h << 16 | crtc_w);
 
-	if (fb->pixel_format == DRM_FORMAT_NV12) {
+	if (fb->pixel_format != DRM_FORMAT_UYVY)
 		format |= NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8;
+	if (fb->pixel_format == DRM_FORMAT_NV12)
 		format |= NV_PVIDEO_FORMAT_PLANAR;
-	}
 	if (nv_plane->iturbt_709)
 		format |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 	if (nv_plane->colorkey & (1 << 24))
@@ -173,9 +185,9 @@ nv10_disable_plane(struct drm_plane *plane)
 }
 
 static void
-nv10_destroy_plane(struct drm_plane *plane)
+nv_destroy_plane(struct drm_plane *plane)
 {
-	nv10_disable_plane(plane);
+	plane->funcs->disable_plane(plane);
 	drm_plane_cleanup(plane);
 	kfree(plane);
 }
@@ -208,9 +220,9 @@ nv10_set_params(struct nouveau_plane *plane)
 }
 
 static int
-nv10_set_property(struct drm_plane *plane,
-		  struct drm_property *property,
-		  uint64_t value)
+nv_set_property(struct drm_plane *plane,
+		struct drm_property *property,
+		uint64_t value)
 {
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 
@@ -229,15 +241,16 @@ nv10_set_property(struct drm_plane *plane,
 	else
 		return -EINVAL;
 
-	nv10_set_params(nv_plane);
+	if (nv_plane->set_params)
+		nv_plane->set_params(nv_plane);
 	return 0;
 }
 
 static const struct drm_plane_funcs nv10_plane_funcs = {
 	.update_plane = nv10_update_plane,
 	.disable_plane = nv10_disable_plane,
-	.set_property = nv10_set_property,
-	.destroy = nv10_destroy_plane,
+	.set_property = nv_set_property,
+	.destroy = nv_destroy_plane,
 };
 
 static void
@@ -245,14 +258,25 @@ nv10_overlay_init(struct drm_device *device)
 {
 	struct nouveau_device *dev = nouveau_dev(device);
 	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
+	int num_formats = ARRAY_SIZE(formats);
 	int ret;
 
 	if (!plane)
 		return;
 
+	switch (dev->chipset) {
+	case 0x10:
+	case 0x11:
+	case 0x15:
+	case 0x1a:
+	case 0x20:
+		num_formats = 2;
+		break;
+	}
+
 	ret = drm_plane_init(device, &plane->base, 3 /* both crtc's */,
 			     &nv10_plane_funcs,
-			     formats, ARRAY_SIZE(formats), false);
+			     formats, num_formats, false);
 	if (ret)
 		goto err;
 
@@ -301,8 +325,159 @@ nv10_overlay_init(struct drm_device *device)
 	drm_object_attach_property(&plane->base.base,
 				   plane->props.iturbt_709, plane->iturbt_709);
 
+	plane->set_params = nv10_set_params;
 	nv10_set_params(plane);
-	nv_wr32(dev, NV_PVIDEO_STOP, 1);
+	nv10_disable_plane(&plane->base);
+	return;
+cleanup:
+	drm_plane_cleanup(&plane->base);
+err:
+	kfree(plane);
+	nv_error(dev, "Failed to create plane\n");
+}
+
+static int
+nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
+		  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+		  unsigned int crtc_w, unsigned int crtc_h,
+		  uint32_t src_x, uint32_t src_y,
+		  uint32_t src_w, uint32_t src_h)
+{
+	struct nouveau_device *dev = nouveau_dev(plane->dev);
+	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
+	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
+	struct nouveau_bo *cur = nv_plane->cur;
+	uint32_t overlay = 1;
+	int brightness = (nv_plane->brightness - 512) * 62 / 512;
+	int pitch, ret, i;
+
+	/* Source parameters given in 16.16 fixed point, ignore fractional. */
+	src_x >>= 16;
+	src_y >>= 16;
+	src_w >>= 16;
+	src_h >>= 16;
+
+	pitch = ALIGN(src_w * 4, 0x100);
+
+	if (pitch > 0xffff)
+		return -ERANGE;
+
+	/* TODO: Compute an offset? Not sure how to do this for YUYV. */
+	if (src_x != 0 || src_y != 0)
+		return -ERANGE;
+
+	if (crtc_w < src_w || crtc_h < src_h)
+		return -ERANGE;
+
+	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM);
+	if (ret)
+		return ret;
+
+	nv_plane->cur = nv_fb->nvbo;
+
+	nv_wr32(dev, NV_PVIDEO_OE_STATE, 0);
+	nv_wr32(dev, NV_PVIDEO_SU_STATE, 0);
+	nv_wr32(dev, NV_PVIDEO_RM_STATE, 0);
+
+	for (i = 0; i < 2; i++) {
+		nv_wr32(dev, NV_PVIDEO_BUFF0_START_ADDRESS + 4 * i,
+			nv_fb->nvbo->bo.offset);
+		nv_wr32(dev, NV_PVIDEO_BUFF0_PITCH_LENGTH + 4 * i, pitch);
+		nv_wr32(dev, NV_PVIDEO_BUFF0_OFFSET + 4 * i, 0);
+	}
+	nv_wr32(dev, NV_PVIDEO_WINDOW_START, crtc_y << 16 | crtc_x);
+	nv_wr32(dev, NV_PVIDEO_WINDOW_SIZE, crtc_h << 16 | crtc_w);
+	nv_wr32(dev, NV_PVIDEO_STEP_SIZE,
+		(uint32_t)(((src_h - 1) << 11) / (crtc_h - 1)) << 16 | (uint32_t)(((src_w - 1) << 11) / (crtc_w - 1)));
+
+	/* It should be possible to convert hue/contrast to this */
+	nv_wr32(dev, NV_PVIDEO_RED_CSC_OFFSET, 0x69 - brightness);
+	nv_wr32(dev, NV_PVIDEO_GREEN_CSC_OFFSET, 0x3e + brightness);
+	nv_wr32(dev, NV_PVIDEO_BLUE_CSC_OFFSET, 0x89 - brightness);
+	nv_wr32(dev, NV_PVIDEO_CSC_ADJUST, 0);
+
+	nv_wr32(dev, NV_PVIDEO_CONTROL_Y, 0x001); /* (BLUR_ON, LINE_HALF) */
+	nv_wr32(dev, NV_PVIDEO_CONTROL_X, 0x111); /* (WEIGHT_HEAVY, SHARPENING_ON, SMOOTHING_ON) */
+
+	nv_wr32(dev, NV_PVIDEO_FIFO_BURST_LENGTH, 0x03);
+	nv_wr32(dev, NV_PVIDEO_FIFO_THRES_SIZE, 0x38);
+
+	nv_wr32(dev, NV_PVIDEO_KEY, nv_plane->colorkey);
+
+	if (nv_plane->colorkey & (1 << 24))
+		overlay |= 0x10;
+	if (fb->pixel_format == DRM_FORMAT_YUYV)
+		overlay |= 0x100;
+
+	nv_wr32(dev, NV_PVIDEO_OVERLAY, overlay);
+
+	nv_wr32(dev, NV_PVIDEO_SU_STATE, nv_rd32(dev, NV_PVIDEO_SU_STATE) ^ (1 << 16));
+
+	if (cur)
+		nouveau_bo_unpin(cur);
+
+	return 0;
+}
+
+static int
+nv04_disable_plane(struct drm_plane *plane)
+{
+	struct nouveau_device *dev = nouveau_dev(plane->dev);
+	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
+
+	nv_mask(dev, NV_PVIDEO_OVERLAY, 1, 0);
+	nv_wr32(dev, NV_PVIDEO_OE_STATE, 0);
+	nv_wr32(dev, NV_PVIDEO_SU_STATE, 0);
+	nv_wr32(dev, NV_PVIDEO_RM_STATE, 0);
+	if (nv_plane->cur) {
+		nouveau_bo_unpin(nv_plane->cur);
+		nv_plane->cur = NULL;
+	}
+
+	return 0;
+}
+
+static const struct drm_plane_funcs nv04_plane_funcs = {
+	.update_plane = nv04_update_plane,
+	.disable_plane = nv04_disable_plane,
+	.set_property = nv_set_property,
+	.destroy = nv_destroy_plane,
+};
+
+static void
+nv04_overlay_init(struct drm_device *device)
+{
+	struct nouveau_device *dev = nouveau_dev(device);
+	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
+	int ret;
+
+	if (!plane)
+		return;
+
+	ret = drm_plane_init(device, &plane->base, 1 /* single crtc */,
+			     &nv04_plane_funcs,
+			     formats, 2, false);
+	if (ret)
+		goto err;
+
+	/* Set up the plane properties */
+	plane->props.colorkey = drm_property_create_range(
+			device, 0, "colorkey", 0, 0x01ffffff);
+	plane->props.brightness = drm_property_create_range(
+			device, 0, "brightness", 0, 1024);
+	if (!plane->props.colorkey ||
+	    !plane->props.brightness)
+		goto cleanup;
+
+	plane->colorkey = 0;
+	drm_object_attach_property(&plane->base.base,
+				   plane->props.colorkey, plane->colorkey);
+
+	plane->brightness = 512;
+	drm_object_attach_property(&plane->base.base,
+				   plane->props.brightness, plane->brightness);
+
+	nv04_disable_plane(&plane->base);
 	return;
 cleanup:
 	drm_plane_cleanup(&plane->base);
@@ -315,6 +490,8 @@ void
 nouveau_overlay_init(struct drm_device *device)
 {
 	struct nouveau_device *dev = nouveau_dev(device);
-	if (dev->chipset >= 0x10 && dev->chipset <= 0x40)
+	if (dev->chipset < 0x10)
+		nv04_overlay_init(device);
+	else if (dev->chipset <= 0x40)
 		nv10_overlay_init(device);
 }

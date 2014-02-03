@@ -10,7 +10,7 @@
 #include "symbol.h"
 #include "cache.h"
 #include "header.h"
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 #include "parse-events-bison.h"
 #define YY_EXTRA_TYPE int
 #include "parse-events-flex.h"
@@ -204,7 +204,7 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 				}
 				path->name = malloc(MAX_EVENT_LENGTH);
 				if (!path->name) {
-					free(path->system);
+					zfree(&path->system);
 					free(path);
 					return NULL;
 				}
@@ -236,8 +236,8 @@ struct tracepoint_path *tracepoint_name_to_path(const char *name)
 	path->name = strdup(str+1);
 
 	if (path->system == NULL || path->name == NULL) {
-		free(path->system);
-		free(path->name);
+		zfree(&path->system);
+		zfree(&path->name);
 		free(path);
 		path = NULL;
 	}
@@ -269,9 +269,10 @@ const char *event_type(int type)
 
 
 
-static int __add_event(struct list_head *list, int *idx,
-		       struct perf_event_attr *attr,
-		       char *name, struct cpu_map *cpus)
+static struct perf_evsel *
+__add_event(struct list_head *list, int *idx,
+	    struct perf_event_attr *attr,
+	    char *name, struct cpu_map *cpus)
 {
 	struct perf_evsel *evsel;
 
@@ -279,19 +280,19 @@ static int __add_event(struct list_head *list, int *idx,
 
 	evsel = perf_evsel__new_idx(attr, (*idx)++);
 	if (!evsel)
-		return -ENOMEM;
+		return NULL;
 
 	evsel->cpus = cpus;
 	if (name)
 		evsel->name = strdup(name);
 	list_add_tail(&evsel->node, list);
-	return 0;
+	return evsel;
 }
 
 static int add_event(struct list_head *list, int *idx,
 		     struct perf_event_attr *attr, char *name)
 {
-	return __add_event(list, idx, attr, name, NULL);
+	return __add_event(list, idx, attr, name, NULL) ? 0 : -ENOMEM;
 }
 
 static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
@@ -633,6 +634,9 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 {
 	struct perf_event_attr attr;
 	struct perf_pmu *pmu;
+	struct perf_evsel *evsel;
+	const char *unit;
+	double scale;
 
 	pmu = perf_pmu__find(name);
 	if (!pmu)
@@ -640,7 +644,7 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 
 	memset(&attr, 0, sizeof(attr));
 
-	if (perf_pmu__check_alias(pmu, head_config))
+	if (perf_pmu__check_alias(pmu, head_config, &unit, &scale))
 		return -EINVAL;
 
 	/*
@@ -652,8 +656,14 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 	if (perf_pmu__config(pmu, &attr, head_config))
 		return -EINVAL;
 
-	return __add_event(list, idx, &attr, pmu_event_name(head_config),
-			   pmu->cpus);
+	evsel = __add_event(list, idx, &attr, pmu_event_name(head_config),
+			    pmu->cpus);
+	if (evsel) {
+		evsel->unit = unit;
+		evsel->scale = scale;
+	}
+
+	return evsel ? 0 : -ENOMEM;
 }
 
 int parse_events__modifier_group(struct list_head *list,
@@ -810,8 +820,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 	if (!add && get_event_modifier(&mod, str, NULL))
 		return -EINVAL;
 
-	list_for_each_entry(evsel, list, node) {
-
+	__evlist__for_each(list, evsel) {
 		if (add && get_event_modifier(&mod, str, evsel))
 			return -EINVAL;
 
@@ -835,7 +844,7 @@ int parse_events_name(struct list_head *list, char *name)
 {
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, list, node) {
+	__evlist__for_each(list, evsel) {
 		if (!evsel->name)
 			evsel->name = strdup(name);
 	}
@@ -907,7 +916,7 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	ret = parse_events__scanner(str, &data, PE_START_TERMS);
 	if (!ret) {
 		list_splice(data.terms, terms);
-		free(data.terms);
+		zfree(&data.terms);
 		return 0;
 	}
 

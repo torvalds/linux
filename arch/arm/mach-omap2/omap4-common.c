@@ -35,7 +35,6 @@
 #include "iomap.h"
 #include "common.h"
 #include "mmc.h"
-#include "hsmmc.h"
 #include "prminst44xx.h"
 #include "prcm_mpu44xx.h"
 #include "omap4-sar-layout.h"
@@ -88,7 +87,7 @@ void __init omap_barriers_init(void)
 	dram_io_desc[0].virtual = OMAP4_DRAM_BARRIER_VA;
 	dram_io_desc[0].pfn = __phys_to_pfn(paddr);
 	dram_io_desc[0].length = size;
-	dram_io_desc[0].type = MT_MEMORY_SO;
+	dram_io_desc[0].type = MT_MEMORY_RW_SO;
 	iotable_init(dram_io_desc, ARRAY_SIZE(dram_io_desc));
 	dram_sync = (void __iomem *) dram_io_desc[0].virtual;
 	sram_sync = (void __iomem *) OMAP4_SRAM_VA;
@@ -128,6 +127,12 @@ void gic_dist_disable(void)
 		__raw_writel(0x0, gic_dist_base_addr + GIC_DIST_CTRL);
 }
 
+void gic_dist_enable(void)
+{
+	if (gic_dist_base_addr)
+		__raw_writel(0x1, gic_dist_base_addr + GIC_DIST_CTRL);
+}
+
 bool gic_dist_disabled(void)
 {
 	return !(__raw_readl(gic_dist_base_addr + GIC_DIST_CTRL) & 0x1);
@@ -163,6 +168,7 @@ void __iomem *omap4_get_l2cache_base(void)
 
 static void omap4_l2x0_disable(void)
 {
+	outer_flush_all();
 	/* Disable PL310 L2 Cache controller */
 	omap_smc1(0x102, 0x0);
 }
@@ -284,59 +290,3 @@ skip_errata_init:
 	omap_wakeupgen_init();
 	irqchip_init();
 }
-
-#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
-static int omap4_twl6030_hsmmc_late_init(struct device *dev)
-{
-	int irq = 0;
-	struct platform_device *pdev = container_of(dev,
-				struct platform_device, dev);
-	struct omap_mmc_platform_data *pdata = dev->platform_data;
-
-	/* Setting MMC1 Card detect Irq */
-	if (pdev->id == 0) {
-		irq = twl6030_mmc_card_detect_config();
-		if (irq < 0) {
-			dev_err(dev, "%s: Error card detect config(%d)\n",
-				__func__, irq);
-			return irq;
-		}
-		pdata->slots[0].card_detect_irq = irq;
-		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
-	}
-	return 0;
-}
-
-static __init void omap4_twl6030_hsmmc_set_late_init(struct device *dev)
-{
-	struct omap_mmc_platform_data *pdata;
-
-	/* dev can be null if CONFIG_MMC_OMAP_HS is not set */
-	if (!dev) {
-		pr_err("Failed %s\n", __func__);
-		return;
-	}
-	pdata = dev->platform_data;
-	pdata->init =	omap4_twl6030_hsmmc_late_init;
-}
-
-int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
-{
-	struct omap2_hsmmc_info *c;
-
-	omap_hsmmc_init(controllers);
-	for (c = controllers; c->mmc; c++) {
-		/* pdev can be null if CONFIG_MMC_OMAP_HS is not set */
-		if (!c->pdev)
-			continue;
-		omap4_twl6030_hsmmc_set_late_init(&c->pdev->dev);
-	}
-
-	return 0;
-}
-#else
-int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
-{
-	return 0;
-}
-#endif

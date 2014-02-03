@@ -333,7 +333,6 @@ static void btrfsic_release_block_ctx(struct btrfsic_block_data_ctx *block_ctx);
 static int btrfsic_read_block(struct btrfsic_state *state,
 			      struct btrfsic_block_data_ctx *block_ctx);
 static void btrfsic_dump_database(struct btrfsic_state *state);
-static void btrfsic_complete_bio_end_io(struct bio *bio, int err);
 static int btrfsic_test_for_metadata(struct btrfsic_state *state,
 				     char **datav, unsigned int num_pages);
 static void btrfsic_process_written_block(struct btrfsic_dev_state *dev_state,
@@ -1457,10 +1456,14 @@ static int btrfsic_handle_extent_data(
 	btrfsic_read_from_block_data(block_ctx, &file_extent_item,
 				     file_extent_item_offset,
 				     sizeof(struct btrfs_file_extent_item));
-	next_bytenr = btrfs_stack_file_extent_disk_bytenr(&file_extent_item) +
-		      btrfs_stack_file_extent_offset(&file_extent_item);
-	generation = btrfs_stack_file_extent_generation(&file_extent_item);
-	num_bytes = btrfs_stack_file_extent_num_bytes(&file_extent_item);
+	next_bytenr = btrfs_stack_file_extent_disk_bytenr(&file_extent_item);
+	if (btrfs_stack_file_extent_compression(&file_extent_item) ==
+	    BTRFS_COMPRESS_NONE) {
+		next_bytenr += btrfs_stack_file_extent_offset(&file_extent_item);
+		num_bytes = btrfs_stack_file_extent_num_bytes(&file_extent_item);
+	} else {
+		num_bytes = btrfs_stack_file_extent_disk_num_bytes(&file_extent_item);
+	}
 	generation = btrfs_stack_file_extent_generation(&file_extent_item);
 
 	if (state->print_mask & BTRFSIC_PRINT_MASK_VERY_VERBOSE)
@@ -1687,7 +1690,6 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 	for (i = 0; i < num_pages;) {
 		struct bio *bio;
 		unsigned int j;
-		DECLARE_COMPLETION_ONSTACK(complete);
 
 		bio = btrfs_io_bio_alloc(GFP_NOFS, num_pages - i);
 		if (!bio) {
@@ -1697,9 +1699,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 			return -1;
 		}
 		bio->bi_bdev = block_ctx->dev->bdev;
-		bio->bi_sector = dev_bytenr >> 9;
-		bio->bi_end_io = btrfsic_complete_bio_end_io;
-		bio->bi_private = &complete;
+		bio->bi_iter.bi_sector = dev_bytenr >> 9;
 
 		for (j = i; j < num_pages; j++) {
 			ret = bio_add_page(bio, block_ctx->pagev[j],
@@ -1712,12 +1712,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 			       "btrfsic: error, failed to add a single page!\n");
 			return -1;
 		}
-		submit_bio(READ, bio);
-
-		/* this will also unplug the queue */
-		wait_for_completion(&complete);
-
-		if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
+		if (submit_bio_wait(READ, bio)) {
 			printk(KERN_INFO
 			       "btrfsic: read error at logical %llu dev %s!\n",
 			       block_ctx->start, block_ctx->dev->name);
@@ -1738,11 +1733,6 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 	}
 
 	return block_ctx->len;
-}
-
-static void btrfsic_complete_bio_end_io(struct bio *bio, int err)
-{
-	complete((struct completion *)bio->bi_private);
 }
 
 static void btrfsic_dump_database(struct btrfsic_state *state)
@@ -3008,14 +2998,12 @@ int btrfsic_submit_bh(int rw, struct buffer_head *bh)
 	return submit_bh(rw, bh);
 }
 
-void btrfsic_submit_bio(int rw, struct bio *bio)
+static void __btrfsic_submit_bio(int rw, struct bio *bio)
 {
 	struct btrfsic_dev_state *dev_state;
 
-	if (!btrfsic_is_initialized) {
-		submit_bio(rw, bio);
+	if (!btrfsic_is_initialized)
 		return;
-	}
 
 	mutex_lock(&btrfsic_mutex);
 	/* since btrfsic_submit_bio() is also called before
@@ -3029,7 +3017,7 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 		int bio_is_patched;
 		char **mapped_datav;
 
-		dev_bytenr = 512 * bio->bi_sector;
+		dev_bytenr = 512 * bio->bi_iter.bi_sector;
 		bio_is_patched = 0;
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
@@ -3037,8 +3025,8 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 			       "submit_bio(rw=0x%x, bi_vcnt=%u,"
 			       " bi_sector=%llu (bytenr %llu), bi_bdev=%p)\n",
 			       rw, bio->bi_vcnt,
-			       (unsigned long long)bio->bi_sector, dev_bytenr,
-			       bio->bi_bdev);
+			       (unsigned long long)bio->bi_iter.bi_sector,
+			       dev_bytenr, bio->bi_bdev);
 
 		mapped_datav = kmalloc(sizeof(*mapped_datav) * bio->bi_vcnt,
 				       GFP_NOFS);
@@ -3106,8 +3094,18 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 	}
 leave:
 	mutex_unlock(&btrfsic_mutex);
+}
 
+void btrfsic_submit_bio(int rw, struct bio *bio)
+{
+	__btrfsic_submit_bio(rw, bio);
 	submit_bio(rw, bio);
+}
+
+int btrfsic_submit_bio_wait(int rw, struct bio *bio)
+{
+	__btrfsic_submit_bio(rw, bio);
+	return submit_bio_wait(rw, bio);
 }
 
 int btrfsic_mount(struct btrfs_root *root,

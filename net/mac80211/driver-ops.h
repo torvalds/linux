@@ -242,22 +242,6 @@ static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
 	return ret;
 }
 
-static inline void drv_set_multicast_list(struct ieee80211_local *local,
-					  struct ieee80211_sub_if_data *sdata,
-					  struct netdev_hw_addr_list *mc_list)
-{
-	bool allmulti = sdata->flags & IEEE80211_SDATA_ALLMULTI;
-
-	trace_drv_set_multicast_list(local, sdata, mc_list->count);
-
-	check_sdata_in_driver(sdata);
-
-	if (local->ops->set_multicast_list)
-		local->ops->set_multicast_list(&local->hw, &sdata->vif,
-					       allmulti, mc_list);
-	trace_drv_return_void(local);
-}
-
 static inline void drv_configure_filter(struct ieee80211_local *local,
 					unsigned int changed_flags,
 					unsigned int *total_flags,
@@ -549,6 +533,22 @@ static inline void drv_sta_remove_debugfs(struct ieee80211_local *local,
 					       sta, dir);
 }
 #endif
+
+static inline void drv_sta_pre_rcu_remove(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata,
+					  struct sta_info *sta)
+{
+	might_sleep();
+
+	sdata = get_bss_sdata(sdata);
+	check_sdata_in_driver(sdata);
+
+	trace_drv_sta_pre_rcu_remove(local, sdata, &sta->sta);
+	if (local->ops->sta_pre_rcu_remove)
+		local->ops->sta_pre_rcu_remove(&local->hw, &sdata->vif,
+					       &sta->sta);
+	trace_drv_return_void(local);
+}
 
 static inline __must_check
 int drv_sta_state(struct ieee80211_local *local,

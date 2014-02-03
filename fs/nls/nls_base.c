@@ -232,13 +232,14 @@ int utf16s_to_utf8s(const wchar_t *pwcs, int inlen, enum utf16_endian endian,
 }
 EXPORT_SYMBOL(utf16s_to_utf8s);
 
-int register_nls(struct nls_table * nls)
+int __register_nls(struct nls_table *nls, struct module *owner)
 {
 	struct nls_table ** tmp = &tables;
 
 	if (nls->next)
 		return -EBUSY;
 
+	nls->owner = owner;
 	spin_lock(&nls_lock);
 	while (*tmp) {
 		if (nls == *tmp) {
@@ -252,6 +253,7 @@ int register_nls(struct nls_table * nls)
 	spin_unlock(&nls_lock);
 	return 0;	
 }
+EXPORT_SYMBOL(__register_nls);
 
 int unregister_nls(struct nls_table * nls)
 {
@@ -538,7 +540,6 @@ struct nls_table *load_nls_default(void)
 		return &default_table;
 }
 
-EXPORT_SYMBOL(register_nls);
 EXPORT_SYMBOL(unregister_nls);
 EXPORT_SYMBOL(unload_nls);
 EXPORT_SYMBOL(load_nls);

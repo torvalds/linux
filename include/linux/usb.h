@@ -965,6 +965,7 @@ struct usb_dynid {
 };
 
 extern ssize_t usb_store_new_id(struct usb_dynids *dynids,
+				const struct usb_device_id *id_table,
 				struct device_driver *driver,
 				const char *buf, size_t count);
 
@@ -1264,6 +1265,8 @@ typedef void (*usb_complete_t)(struct urb *);
  * @sg: scatter gather buffer list, the buffer size of each element in
  * 	the list (except the last) must be divisible by the endpoint's
  * 	max packet size if no_sg_constraint isn't set in 'struct usb_bus'
+ * 	(FIXME: scatter-gather under xHCI is broken for periodic transfers.
+ * 	Do not use urb->sg for interrupt endpoints for now, only bulk.)
  * @num_mapped_sgs: (internal) number of mapped sg entries
  * @num_sgs: number of entries in the sg list
  * @transfer_buffer_length: How big is transfer_buffer.  The transfer may

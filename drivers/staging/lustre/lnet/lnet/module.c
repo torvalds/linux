@@ -38,8 +38,8 @@
 #include <linux/lnet/lib-lnet.h>
 
 static int config_on_load;
-CFS_MODULE_PARM(config_on_load, "i", int, 0444,
-		"configure network at module load");
+module_param(config_on_load, int, 0444);
+MODULE_PARM_DESC(config_on_load, "configure network at module load");
 
 static struct mutex lnet_config_mutex;
 

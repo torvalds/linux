@@ -16,7 +16,11 @@
 #include <mach/at91_ramc.h>
 #include <mach/at91rm9200_sdramc.h>
 
+#ifdef CONFIG_PM
 extern void at91_pm_set_standby(void (*at91_standby)(void));
+#else
+static inline void at91_pm_set_standby(void (*at91_standby)(void)) { }
+#endif
 
 /*
  * The AT91RM9200 goes into self-refresh mode with this command, and will

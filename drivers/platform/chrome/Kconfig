@@ -1,0 +1,42 @@
+#
+# Platform support for Chrome OS hardware (Chromebooks and Chromeboxes)
+#
+
+menuconfig CHROME_PLATFORMS
+	bool "Platform support for Chrome hardware"
+	depends on X86
+	---help---
+	  Say Y here to get to see options for platform support for
+	  various Chromebooks and Chromeboxes. This option alone does
+	  not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if CHROME_PLATFORMS
+
+config CHROMEOS_LAPTOP
+	tristate "Chrome OS Laptop"
+	depends on I2C
+	depends on DMI
+	---help---
+	  This driver instantiates i2c and smbus devices such as
+	  light sensors and touchpads.
+
+	  If you have a supported Chromebook, choose Y or M here.
+	  The module will be called chromeos_laptop.
+
+config CHROMEOS_PSTORE
+	tristate "Chrome OS pstore support"
+	---help---
+	  This module instantiates the persistent storage on x86 ChromeOS
+	  devices. It can be used to store away console logs and crash
+	  information across reboots.
+
+	  The range of memory used is 0xf00000-0x1000000, traditionally
+	  the memory used to back VGA controller memory.
+
+	  If you have a supported Chromebook, choose Y or M here.
+	  The module will be called chromeos_pstore.
+
+
+endif # CHROMEOS_PLATFORMS

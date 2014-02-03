@@ -356,7 +356,7 @@ static int pc236_intr_cancel(struct comedi_device *dev,
 static irqreturn_t pc236_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = &dev->subdevices[1];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int handled;
 
 	handled = pc236_intr_check(dev);
@@ -567,7 +567,7 @@ static struct comedi_driver amplc_pc236_driver = {
 };
 
 #if DO_PCI
-static DEFINE_PCI_DEVICE_TABLE(pc236_pci_table) = {
+static const struct pci_device_id pc236_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236) },
 	{0}
 };

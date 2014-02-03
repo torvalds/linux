@@ -121,7 +121,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
 	(*fence)->seq = ++rdev->fence_drv[ring].sync_seq[ring];
 	(*fence)->ring = ring;
 	radeon_fence_ring_emit(rdev, ring, *fence);
-	trace_radeon_fence_emit(rdev->ddev, (*fence)->seq);
+	trace_radeon_fence_emit(rdev->ddev, ring, (*fence)->seq);
 	return 0;
 }
 
@@ -313,7 +313,7 @@ static int radeon_fence_wait_seq(struct radeon_device *rdev, u64 *target_seq,
 				continue;
 
 			last_seq[i] = atomic64_read(&rdev->fence_drv[i].last_seq);
-			trace_radeon_fence_wait_begin(rdev->ddev, target_seq[i]);
+			trace_radeon_fence_wait_begin(rdev->ddev, i, target_seq[i]);
 			radeon_irq_kms_sw_irq_get(rdev, i);
 		}
 
@@ -332,7 +332,7 @@ static int radeon_fence_wait_seq(struct radeon_device *rdev, u64 *target_seq,
 				continue;
 
 			radeon_irq_kms_sw_irq_put(rdev, i);
-			trace_radeon_fence_wait_end(rdev->ddev, target_seq[i]);
+			trace_radeon_fence_wait_end(rdev->ddev, i, target_seq[i]);
 		}
 
 		if (unlikely(r < 0))
@@ -840,6 +840,8 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 		if (!rdev->fence_drv[i].initialized)
 			continue;
+
+		radeon_fence_process(rdev, i);
 
 		seq_printf(m, "--- ring %d ---\n", i);
 		seq_printf(m, "Last signaled fence 0x%016llx\n",

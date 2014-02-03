@@ -1,6 +1,7 @@
 #ifndef __PERF_SESSION_H
 #define __PERF_SESSION_H
 
+#include "trace-event.h"
 #include "hist.h"
 #include "event.h"
 #include "header.h"
@@ -32,7 +33,7 @@ struct perf_session {
 	struct perf_header	header;
 	struct machines		machines;
 	struct perf_evlist	*evlist;
-	struct pevent		*pevent;
+	struct trace_event	tevent;
 	struct events_stats	stats;
 	bool			repipe;
 	struct ordered_samples	ordered_samples;
@@ -44,6 +45,7 @@ struct perf_session {
 #define PRINT_IP_OPT_DSO		(1<<2)
 #define PRINT_IP_OPT_SYMOFFSET	(1<<3)
 #define PRINT_IP_OPT_ONELINE	(1<<4)
+#define PRINT_IP_OPT_SRCLINE	(1<<5)
 
 struct perf_tool;
 
@@ -72,8 +74,6 @@ int perf_session__resolve_callchain(struct perf_session *session,
 
 bool perf_session__has_traces(struct perf_session *session, const char *msg);
 
-void mem_bswap_64(void *src, int byte_size);
-void mem_bswap_32(void *src, int byte_size);
 void perf_event__attr_swap(struct perf_event_attr *attr);
 
 int perf_session__create_kernel_maps(struct perf_session *session);
@@ -105,8 +105,8 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
-void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
-			  struct perf_sample *sample, struct machine *machine,
+void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
+			  struct addr_location *al,
 			  unsigned int print_opts, unsigned int stack_depth);
 
 int perf_session__cpu_bitmap(struct perf_session *session,

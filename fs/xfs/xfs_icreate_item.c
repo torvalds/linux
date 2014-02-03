@@ -28,6 +28,7 @@
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
 #include "xfs_icreate_item.h"
+#include "xfs_log.h"
 
 kmem_zone_t	*xfs_icreate_zone;		/* inode create item zone */
 
@@ -58,13 +59,14 @@ xfs_icreate_item_size(
 STATIC void
 xfs_icreate_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_iovec	*log_vector)
+	struct xfs_log_vec	*lv)
 {
 	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
+	struct xfs_log_iovec	*vecp = NULL;
 
-	log_vector->i_addr = (xfs_caddr_t)&icp->ic_format;
-	log_vector->i_len  = sizeof(struct xfs_icreate_log);
-	log_vector->i_type = XLOG_REG_TYPE_ICREATE;
+	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ICREATE,
+			&icp->ic_format,
+			sizeof(struct xfs_icreate_log));
 }
 
 

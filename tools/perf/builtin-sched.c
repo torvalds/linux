@@ -469,7 +469,7 @@ static void *thread_func(void *ctx)
 	char comm2[22];
 	int fd;
 
-	free(parms);
+	zfree(&parms);
 
 	sprintf(comm2, ":%s", this_task->comm);
 	prctl(PR_SET_NAME, comm2);

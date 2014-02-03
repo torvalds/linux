@@ -17,8 +17,6 @@
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
 
-#include <mach/regs-clock.h>
-
 #include "exynos-cpufreq.h"
 
 static struct clk *cpu_clk;
@@ -32,7 +30,7 @@ static unsigned int exynos4x12_volt_table[] = {
 };
 
 static struct cpufreq_frequency_table exynos4x12_freq_table[] = {
-	{L0, CPUFREQ_ENTRY_INVALID},
+	{CPUFREQ_BOOST_FREQ, 1500 * 1000},
 	{L1, 1400 * 1000},
 	{L2, 1300 * 1000},
 	{L3, 1200 * 1000},
@@ -211,4 +209,3 @@ err_moutcore:
 	pr_debug("%s: failed initialization\n", __func__);
 	return -EINVAL;
 }
-EXPORT_SYMBOL(exynos4x12_cpufreq_init);

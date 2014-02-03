@@ -9,10 +9,6 @@
  *
  *  Init/reset quirks for USB host controllers should be in the
  *  USB quirks file, where their drivers can access reuse it.
- *
- *  The bridge optimization stuff has been removed. If you really
- *  have a silly BIOS which is unable to set your host bridge right,
- *  use the PowerTweak utility (see http://powertweak.sourceforge.net).
  */
 
 #include <linux/types.h>
@@ -343,7 +339,7 @@ static void quirk_io_region(struct pci_dev *dev, int port,
 	/* Convert from PCI bus to resource space */
 	bus_region.start = region;
 	bus_region.end = region + size - 1;
-	pcibios_bus_to_resource(dev, res, &bus_region);
+	pcibios_bus_to_resource(dev->bus, res, &bus_region);
 
 	if (!pci_claim_resource(dev, nr))
 		dev_info(&dev->dev, "quirk: %pR claimed by %s\n", res, name);

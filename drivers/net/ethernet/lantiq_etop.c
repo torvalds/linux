@@ -9,8 +9,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+ *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *   Copyright (C) 2011 John Crispin <blogic@openwrt.org>
  */
@@ -619,7 +618,8 @@ ltq_etop_set_multicast_list(struct net_device *dev)
 }
 
 static u16
-ltq_etop_select_queue(struct net_device *dev, struct sk_buff *skb)
+ltq_etop_select_queue(struct net_device *dev, struct sk_buff *skb,
+		      void *accel_priv)
 {
 	/* we are currently only using the first queue */
 	return 0;

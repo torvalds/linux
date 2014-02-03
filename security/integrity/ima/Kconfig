@@ -123,11 +123,3 @@ config IMA_APPRAISE
 	  For more information on integrity appraisal refer to:
 	  <http://linux-ima.sourceforge.net>
 	  If unsure, say N.
-
-config IMA_TRUSTED_KEYRING
-	bool "Require all keys on the _ima keyring be signed"
-	depends on IMA_APPRAISE && SYSTEM_TRUSTED_KEYRING
-	default y
-	help
-	   This option requires that all keys added to the _ima
-	   keyring be signed by a key on the system trusted keyring.

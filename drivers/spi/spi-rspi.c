@@ -37,117 +37,145 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/rspi.h>
 
-#define RSPI_SPCR		0x00
-#define RSPI_SSLP		0x01
-#define RSPI_SPPCR		0x02
-#define RSPI_SPSR		0x03
-#define RSPI_SPDR		0x04
-#define RSPI_SPSCR		0x08
-#define RSPI_SPSSR		0x09
-#define RSPI_SPBR		0x0a
-#define RSPI_SPDCR		0x0b
-#define RSPI_SPCKD		0x0c
-#define RSPI_SSLND		0x0d
-#define RSPI_SPND		0x0e
-#define RSPI_SPCR2		0x0f
-#define RSPI_SPCMD0		0x10
-#define RSPI_SPCMD1		0x12
-#define RSPI_SPCMD2		0x14
-#define RSPI_SPCMD3		0x16
-#define RSPI_SPCMD4		0x18
-#define RSPI_SPCMD5		0x1a
-#define RSPI_SPCMD6		0x1c
-#define RSPI_SPCMD7		0x1e
+#define RSPI_SPCR		0x00	/* Control Register */
+#define RSPI_SSLP		0x01	/* Slave Select Polarity Register */
+#define RSPI_SPPCR		0x02	/* Pin Control Register */
+#define RSPI_SPSR		0x03	/* Status Register */
+#define RSPI_SPDR		0x04	/* Data Register */
+#define RSPI_SPSCR		0x08	/* Sequence Control Register */
+#define RSPI_SPSSR		0x09	/* Sequence Status Register */
+#define RSPI_SPBR		0x0a	/* Bit Rate Register */
+#define RSPI_SPDCR		0x0b	/* Data Control Register */
+#define RSPI_SPCKD		0x0c	/* Clock Delay Register */
+#define RSPI_SSLND		0x0d	/* Slave Select Negation Delay Register */
+#define RSPI_SPND		0x0e	/* Next-Access Delay Register */
+#define RSPI_SPCR2		0x0f	/* Control Register 2 */
+#define RSPI_SPCMD0		0x10	/* Command Register 0 */
+#define RSPI_SPCMD1		0x12	/* Command Register 1 */
+#define RSPI_SPCMD2		0x14	/* Command Register 2 */
+#define RSPI_SPCMD3		0x16	/* Command Register 3 */
+#define RSPI_SPCMD4		0x18	/* Command Register 4 */
+#define RSPI_SPCMD5		0x1a	/* Command Register 5 */
+#define RSPI_SPCMD6		0x1c	/* Command Register 6 */
+#define RSPI_SPCMD7		0x1e	/* Command Register 7 */
+#define RSPI_SPBFCR		0x20	/* Buffer Control Register */
+#define RSPI_SPBFDR		0x22	/* Buffer Data Count Setting Register */
 
 /*qspi only */
-#define QSPI_SPBFCR		0x18
-#define QSPI_SPBDCR		0x1a
-#define QSPI_SPBMUL0		0x1c
-#define QSPI_SPBMUL1		0x20
-#define QSPI_SPBMUL2		0x24
-#define QSPI_SPBMUL3		0x28
+#define QSPI_SPBFCR		0x18	/* Buffer Control Register */
+#define QSPI_SPBDCR		0x1a	/* Buffer Data Count Register */
+#define QSPI_SPBMUL0		0x1c	/* Transfer Data Length Multiplier Setting Register 0 */
+#define QSPI_SPBMUL1		0x20	/* Transfer Data Length Multiplier Setting Register 1 */
+#define QSPI_SPBMUL2		0x24	/* Transfer Data Length Multiplier Setting Register 2 */
+#define QSPI_SPBMUL3		0x28	/* Transfer Data Length Multiplier Setting Register 3 */
 
-/* SPCR */
-#define SPCR_SPRIE		0x80
-#define SPCR_SPE		0x40
-#define SPCR_SPTIE		0x20
-#define SPCR_SPEIE		0x10
-#define SPCR_MSTR		0x08
-#define SPCR_MODFEN		0x04
-#define SPCR_TXMD		0x02
-#define SPCR_SPMS		0x01
+/* SPCR - Control Register */
+#define SPCR_SPRIE		0x80	/* Receive Interrupt Enable */
+#define SPCR_SPE		0x40	/* Function Enable */
+#define SPCR_SPTIE		0x20	/* Transmit Interrupt Enable */
+#define SPCR_SPEIE		0x10	/* Error Interrupt Enable */
+#define SPCR_MSTR		0x08	/* Master/Slave Mode Select */
+#define SPCR_MODFEN		0x04	/* Mode Fault Error Detection Enable */
+/* RSPI on SH only */
+#define SPCR_TXMD		0x02	/* TX Only Mode (vs. Full Duplex) */
+#define SPCR_SPMS		0x01	/* 3-wire Mode (vs. 4-wire) */
+/* QSPI on R-Car M2 only */
+#define SPCR_WSWAP		0x02	/* Word Swap of read-data for DMAC */
+#define SPCR_BSWAP		0x01	/* Byte Swap of read-data for DMAC */
 
-/* SSLP */
-#define SSLP_SSL1P		0x02
-#define SSLP_SSL0P		0x01
+/* SSLP - Slave Select Polarity Register */
+#define SSLP_SSL1P		0x02	/* SSL1 Signal Polarity Setting */
+#define SSLP_SSL0P		0x01	/* SSL0 Signal Polarity Setting */
 
-/* SPPCR */
-#define SPPCR_MOIFE		0x20
-#define SPPCR_MOIFV		0x10
+/* SPPCR - Pin Control Register */
+#define SPPCR_MOIFE		0x20	/* MOSI Idle Value Fixing Enable */
+#define SPPCR_MOIFV		0x10	/* MOSI Idle Fixed Value */
 #define SPPCR_SPOM		0x04
-#define SPPCR_SPLP2		0x02
-#define SPPCR_SPLP		0x01
+#define SPPCR_SPLP2		0x02	/* Loopback Mode 2 (non-inverting) */
+#define SPPCR_SPLP		0x01	/* Loopback Mode (inverting) */
 
-/* SPSR */
-#define SPSR_SPRF		0x80
-#define SPSR_SPTEF		0x20
-#define SPSR_PERF		0x08
-#define SPSR_MODF		0x04
-#define SPSR_IDLNF		0x02
-#define SPSR_OVRF		0x01
+#define SPPCR_IO3FV		0x04	/* Single-/Dual-SPI Mode IO3 Output Fixed Value */
+#define SPPCR_IO2FV		0x04	/* Single-/Dual-SPI Mode IO2 Output Fixed Value */
 
-/* SPSCR */
-#define SPSCR_SPSLN_MASK	0x07
+/* SPSR - Status Register */
+#define SPSR_SPRF		0x80	/* Receive Buffer Full Flag */
+#define SPSR_TEND		0x40	/* Transmit End */
+#define SPSR_SPTEF		0x20	/* Transmit Buffer Empty Flag */
+#define SPSR_PERF		0x08	/* Parity Error Flag */
+#define SPSR_MODF		0x04	/* Mode Fault Error Flag */
+#define SPSR_IDLNF		0x02	/* RSPI Idle Flag */
+#define SPSR_OVRF		0x01	/* Overrun Error Flag */
 
-/* SPSSR */
-#define SPSSR_SPECM_MASK	0x70
-#define SPSSR_SPCP_MASK		0x07
+/* SPSCR - Sequence Control Register */
+#define SPSCR_SPSLN_MASK	0x07	/* Sequence Length Specification */
 
-/* SPDCR */
-#define SPDCR_SPLW		0x20
-#define SPDCR_SPRDTD		0x10
+/* SPSSR - Sequence Status Register */
+#define SPSSR_SPECM_MASK	0x70	/* Command Error Mask */
+#define SPSSR_SPCP_MASK		0x07	/* Command Pointer Mask */
+
+/* SPDCR - Data Control Register */
+#define SPDCR_TXDMY		0x80	/* Dummy Data Transmission Enable */
+#define SPDCR_SPLW1		0x40	/* Access Width Specification (RZ) */
+#define SPDCR_SPLW0		0x20	/* Access Width Specification (RZ) */
+#define SPDCR_SPLLWORD		(SPDCR_SPLW1 | SPDCR_SPLW0)
+#define SPDCR_SPLWORD		SPDCR_SPLW1
+#define SPDCR_SPLBYTE		SPDCR_SPLW0
+#define SPDCR_SPLW		0x20	/* Access Width Specification (SH) */
+#define SPDCR_SPRDTD		0x10	/* Receive Transmit Data Select */
 #define SPDCR_SLSEL1		0x08
 #define SPDCR_SLSEL0		0x04
-#define SPDCR_SLSEL_MASK	0x0c
+#define SPDCR_SLSEL_MASK	0x0c	/* SSL1 Output Select */
 #define SPDCR_SPFC1		0x02
 #define SPDCR_SPFC0		0x01
+#define SPDCR_SPFC_MASK		0x03	/* Frame Count Setting (1-4) */
 
-/* SPCKD */
-#define SPCKD_SCKDL_MASK	0x07
+/* SPCKD - Clock Delay Register */
+#define SPCKD_SCKDL_MASK	0x07	/* Clock Delay Setting (1-8) */
 
-/* SSLND */
-#define SSLND_SLNDL_MASK	0x07
+/* SSLND - Slave Select Negation Delay Register */
+#define SSLND_SLNDL_MASK	0x07	/* SSL Negation Delay Setting (1-8) */
 
-/* SPND */
-#define SPND_SPNDL_MASK		0x07
+/* SPND - Next-Access Delay Register */
+#define SPND_SPNDL_MASK		0x07	/* Next-Access Delay Setting (1-8) */
 
-/* SPCR2 */
-#define SPCR2_PTE		0x08
-#define SPCR2_SPIE		0x04
-#define SPCR2_SPOE		0x02
-#define SPCR2_SPPE		0x01
+/* SPCR2 - Control Register 2 */
+#define SPCR2_PTE		0x08	/* Parity Self-Test Enable */
+#define SPCR2_SPIE		0x04	/* Idle Interrupt Enable */
+#define SPCR2_SPOE		0x02	/* Odd Parity Enable (vs. Even) */
+#define SPCR2_SPPE		0x01	/* Parity Enable */
 
-/* SPCMDn */
-#define SPCMD_SCKDEN		0x8000
-#define SPCMD_SLNDEN		0x4000
-#define SPCMD_SPNDEN		0x2000
-#define SPCMD_LSBF		0x1000
-#define SPCMD_SPB_MASK		0x0f00
+/* SPCMDn - Command Registers */
+#define SPCMD_SCKDEN		0x8000	/* Clock Delay Setting Enable */
+#define SPCMD_SLNDEN		0x4000	/* SSL Negation Delay Setting Enable */
+#define SPCMD_SPNDEN		0x2000	/* Next-Access Delay Enable */
+#define SPCMD_LSBF		0x1000	/* LSB First */
+#define SPCMD_SPB_MASK		0x0f00	/* Data Length Setting */
 #define SPCMD_SPB_8_TO_16(bit)	(((bit - 1) << 8) & SPCMD_SPB_MASK)
 #define SPCMD_SPB_8BIT		0x0000	/* qspi only */
 #define SPCMD_SPB_16BIT		0x0100
 #define SPCMD_SPB_20BIT		0x0000
 #define SPCMD_SPB_24BIT		0x0100
 #define SPCMD_SPB_32BIT		0x0200
-#define SPCMD_SSLKP		0x0080
-#define SPCMD_SSLA_MASK		0x0030
-#define SPCMD_BRDV_MASK		0x000c
-#define SPCMD_CPOL		0x0002
-#define SPCMD_CPHA		0x0001
+#define SPCMD_SSLKP		0x0080	/* SSL Signal Level Keeping */
+#define SPCMD_SPIMOD_MASK	0x0060	/* SPI Operating Mode (QSPI only) */
+#define SPCMD_SPIMOD1		0x0040
+#define SPCMD_SPIMOD0		0x0020
+#define SPCMD_SPIMOD_SINGLE	0
+#define SPCMD_SPIMOD_DUAL	SPCMD_SPIMOD0
+#define SPCMD_SPIMOD_QUAD	SPCMD_SPIMOD1
+#define SPCMD_SPRW		0x0010	/* SPI Read/Write Access (Dual/Quad) */
+#define SPCMD_SSLA_MASK		0x0030	/* SSL Assert Signal Setting (RSPI) */
+#define SPCMD_BRDV_MASK		0x000c	/* Bit Rate Division Setting */
+#define SPCMD_CPOL		0x0002	/* Clock Polarity Setting */
+#define SPCMD_CPHA		0x0001	/* Clock Phase Setting */
 
-/* SPBFCR */
-#define SPBFCR_TXRST		0x80	/* qspi only */
-#define SPBFCR_RXRST		0x40	/* qspi only */
+/* SPBFCR - Buffer Control Register */
+#define SPBFCR_TXRST		0x80	/* Transmit Buffer Data Reset (qspi only) */
+#define SPBFCR_RXRST		0x40	/* Receive Buffer Data Reset (qspi only) */
+#define SPBFCR_TXTRG_MASK	0x30	/* Transmit Buffer Data Triggering Number */
+#define SPBFCR_RXTRG_MASK	0x07	/* Receive Buffer Data Triggering Number */
+
+#define DUMMY_DATA		0x00
 
 struct rspi_data {
 	void __iomem *addr;
@@ -158,7 +186,8 @@ struct rspi_data {
 	wait_queue_head_t wait;
 	spinlock_t lock;
 	struct clk *clk;
-	unsigned char spsr;
+	u8 spsr;
+	u16 spcmd;
 	const struct spi_ops *ops;
 
 	/* for dmaengine */
@@ -170,34 +199,35 @@ struct rspi_data {
 	unsigned dma_callbacked:1;
 };
 
-static void rspi_write8(struct rspi_data *rspi, u8 data, u16 offset)
+static void rspi_write8(const struct rspi_data *rspi, u8 data, u16 offset)
 {
 	iowrite8(data, rspi->addr + offset);
 }
 
-static void rspi_write16(struct rspi_data *rspi, u16 data, u16 offset)
+static void rspi_write16(const struct rspi_data *rspi, u16 data, u16 offset)
 {
 	iowrite16(data, rspi->addr + offset);
 }
 
-static void rspi_write32(struct rspi_data *rspi, u32 data, u16 offset)
+static void rspi_write32(const struct rspi_data *rspi, u32 data, u16 offset)
 {
 	iowrite32(data, rspi->addr + offset);
 }
 
-static u8 rspi_read8(struct rspi_data *rspi, u16 offset)
+static u8 rspi_read8(const struct rspi_data *rspi, u16 offset)
 {
 	return ioread8(rspi->addr + offset);
 }
 
-static u16 rspi_read16(struct rspi_data *rspi, u16 offset)
+static u16 rspi_read16(const struct rspi_data *rspi, u16 offset)
 {
 	return ioread16(rspi->addr + offset);
 }
 
 /* optional functions */
 struct spi_ops {
-	int (*set_config_register)(struct rspi_data *rspi, int access_size);
+	int (*set_config_register)(const struct rspi_data *rspi,
+				   int access_size);
 	int (*send_pio)(struct rspi_data *rspi, struct spi_message *mesg,
 			struct spi_transfer *t);
 	int (*receive_pio)(struct rspi_data *rspi, struct spi_message *mesg,
@@ -208,7 +238,8 @@ struct spi_ops {
 /*
  * functions for RSPI
  */
-static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
+static int rspi_set_config_register(const struct rspi_data *rspi,
+				    int access_size)
 {
 	int spbr;
 
@@ -231,7 +262,7 @@ static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
 	rspi_write8(rspi, 0x00, RSPI_SPCR2);
 
 	/* Sets SPCMD */
-	rspi_write16(rspi, SPCMD_SPB_8_TO_16(access_size) | SPCMD_SSLKP,
+	rspi_write16(rspi, SPCMD_SPB_8_TO_16(access_size) | rspi->spcmd,
 		     RSPI_SPCMD0);
 
 	/* Sets RSPI mode */
@@ -243,7 +274,8 @@ static int rspi_set_config_register(struct rspi_data *rspi, int access_size)
 /*
  * functions for QSPI
  */
-static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
+static int qspi_set_config_register(const struct rspi_data *rspi,
+				    int access_size)
 {
 	u16 spcmd;
 	int spbr;
@@ -268,10 +300,10 @@ static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
 		spcmd = SPCMD_SPB_8BIT;
 	else if (access_size == 16)
 		spcmd = SPCMD_SPB_16BIT;
-	else if (access_size == 32)
+	else
 		spcmd = SPCMD_SPB_32BIT;
 
-	spcmd |= SPCMD_SCKDEN | SPCMD_SLNDEN | SPCMD_SSLKP | SPCMD_SPNDEN;
+	spcmd |= SPCMD_SCKDEN | SPCMD_SLNDEN | rspi->spcmd | SPCMD_SPNDEN;
 
 	/* Resets transfer data length */
 	rspi_write32(rspi, 0, QSPI_SPBMUL0);
@@ -292,12 +324,12 @@ static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
 
 #define set_config_register(spi, n) spi->ops->set_config_register(spi, n)
 
-static void rspi_enable_irq(struct rspi_data *rspi, u8 enable)
+static void rspi_enable_irq(const struct rspi_data *rspi, u8 enable)
 {
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | enable, RSPI_SPCR);
 }
 
-static void rspi_disable_irq(struct rspi_data *rspi, u8 disable)
+static void rspi_disable_irq(const struct rspi_data *rspi, u8 disable)
 {
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~disable, RSPI_SPCR);
 }
@@ -316,12 +348,12 @@ static int rspi_wait_for_interrupt(struct rspi_data *rspi, u8 wait_mask,
 	return 0;
 }
 
-static void rspi_assert_ssl(struct rspi_data *rspi)
+static void rspi_assert_ssl(const struct rspi_data *rspi)
 {
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_SPE, RSPI_SPCR);
 }
 
-static void rspi_negate_ssl(struct rspi_data *rspi)
+static void rspi_negate_ssl(const struct rspi_data *rspi)
 {
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_SPE, RSPI_SPCR);
 }
@@ -330,9 +362,7 @@ static int rspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 			 struct spi_transfer *t)
 {
 	int remain = t->len;
-	u8 *data;
-
-	data = (u8 *)t->tx_buf;
+	const u8 *data = t->tx_buf;
 	while (remain > 0) {
 		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_TXMD,
 			    RSPI_SPCR);
@@ -348,7 +378,7 @@ static int rspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 		remain--;
 	}
 
-	/* Waiting for the last transmition */
+	/* Waiting for the last transmission */
 	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
 
 	return 0;
@@ -358,12 +388,11 @@ static int qspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 			 struct spi_transfer *t)
 {
 	int remain = t->len;
-	u8 *data;
+	const u8 *data = t->tx_buf;
 
 	rspi_write8(rspi, SPBFCR_TXRST, QSPI_SPBFCR);
 	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
 
-	data = (u8 *)t->tx_buf;
 	while (remain > 0) {
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
@@ -383,7 +412,7 @@ static int qspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 		remain--;
 	}
 
-	/* Waiting for the last transmition */
+	/* Waiting for the last transmission */
 	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
 
 	return 0;
@@ -399,8 +428,8 @@ static void rspi_dma_complete(void *arg)
 	wake_up_interruptible(&rspi->wait);
 }
 
-static int rspi_dma_map_sg(struct scatterlist *sg, void *buf, unsigned len,
-			   struct dma_chan *chan,
+static int rspi_dma_map_sg(struct scatterlist *sg, const void *buf,
+			   unsigned len, struct dma_chan *chan,
 			   enum dma_transfer_direction dir)
 {
 	sg_init_table(sg, 1);
@@ -440,12 +469,13 @@ static void rspi_memory_from_8bit(void *buf, const void *data, unsigned len)
 static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	struct scatterlist sg;
-	void *buf = NULL;
+	const void *buf = NULL;
 	struct dma_async_tx_descriptor *desc;
 	unsigned len;
 	int ret = 0;
 
 	if (rspi->dma_width_16bit) {
+		void *tmp;
 		/*
 		 * If DMAC bus width is 16-bit, the driver allocates a dummy
 		 * buffer. And, the driver converts original data into the
@@ -454,13 +484,14 @@ static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 		 *  DMAC data:     1st byte, dummy, 2nd byte, dummy ...
 		 */
 		len = t->len * 2;
-		buf = kmalloc(len, GFP_KERNEL);
-		if (!buf)
+		tmp = kmalloc(len, GFP_KERNEL);
+		if (!tmp)
 			return -ENOMEM;
-		rspi_memory_to_8bit(buf, t->tx_buf, t->len);
+		rspi_memory_to_8bit(tmp, t->tx_buf, t->len);
+		buf = tmp;
 	} else {
 		len = t->len;
-		buf = (void *)t->tx_buf;
+		buf = t->tx_buf;
 	}
 
 	if (!rspi_dma_map_sg(&sg, buf, len, rspi->chan_tx, DMA_TO_DEVICE)) {
@@ -508,16 +539,16 @@ end_nomap:
 	return ret;
 }
 
-static void rspi_receive_init(struct rspi_data *rspi)
+static void rspi_receive_init(const struct rspi_data *rspi)
 {
-	unsigned char spsr;
+	u8 spsr;
 
 	spsr = rspi_read8(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPRF)
 		rspi_read16(rspi, RSPI_SPDR);	/* dummy read */
 	if (spsr & SPSR_OVRF)
 		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPSR) & ~SPSR_OVRF,
-			    RSPI_SPCR);
+			    RSPI_SPSR);
 }
 
 static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
@@ -528,7 +559,7 @@ static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 
 	rspi_receive_init(rspi);
 
-	data = (u8 *)t->rx_buf;
+	data = t->rx_buf;
 	while (remain > 0) {
 		rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_TXMD,
 			    RSPI_SPCR);
@@ -539,7 +570,7 @@ static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 			return -ETIMEDOUT;
 		}
 		/* dummy write for generate clock */
-		rspi_write16(rspi, 0x00, RSPI_SPDR);
+		rspi_write16(rspi, DUMMY_DATA, RSPI_SPDR);
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
 			dev_err(&rspi->master->dev,
@@ -556,9 +587,9 @@ static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 	return 0;
 }
 
-static void qspi_receive_init(struct rspi_data *rspi)
+static void qspi_receive_init(const struct rspi_data *rspi)
 {
-	unsigned char spsr;
+	u8 spsr;
 
 	spsr = rspi_read8(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPRF)
@@ -575,7 +606,7 @@ static int qspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 
 	qspi_receive_init(rspi);
 
-	data = (u8 *)t->rx_buf;
+	data = t->rx_buf;
 	while (remain > 0) {
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
@@ -584,7 +615,7 @@ static int qspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 			return -ETIMEDOUT;
 		}
 		/* dummy write for generate clock */
-		rspi_write8(rspi, 0x00, RSPI_SPDR);
+		rspi_write8(rspi, DUMMY_DATA, RSPI_SPDR);
 
 		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
 			dev_err(&rspi->master->dev,
@@ -704,7 +735,7 @@ end_nomap:
 	return ret;
 }
 
-static int rspi_is_dma(struct rspi_data *rspi, struct spi_transfer *t)
+static int rspi_is_dma(const struct rspi_data *rspi, struct spi_transfer *t)
 {
 	if (t->tx_buf && rspi->chan_tx)
 		return 1;
@@ -771,9 +802,13 @@ static int rspi_setup(struct spi_device *spi)
 {
 	struct rspi_data *rspi = spi_master_get_devdata(spi->master);
 
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
 	rspi->max_speed_hz = spi->max_speed_hz;
+
+	rspi->spcmd = SPCMD_SSLKP;
+	if (spi->mode & SPI_CPOL)
+		rspi->spcmd |= SPCMD_CPOL;
+	if (spi->mode & SPI_CPHA)
+		rspi->spcmd |= SPCMD_CPHA;
 
 	set_config_register(rspi, 8);
 
@@ -802,10 +837,10 @@ static void rspi_cleanup(struct spi_device *spi)
 
 static irqreturn_t rspi_irq(int irq, void *_sr)
 {
-	struct rspi_data *rspi = (struct rspi_data *)_sr;
-	unsigned long spsr;
+	struct rspi_data *rspi = _sr;
+	u8 spsr;
 	irqreturn_t ret = IRQ_NONE;
-	unsigned char disable_irq = 0;
+	u8 disable_irq = 0;
 
 	rspi->spsr = spsr = rspi_read8(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPRF)
@@ -825,7 +860,7 @@ static irqreturn_t rspi_irq(int irq, void *_sr)
 static int rspi_request_dma(struct rspi_data *rspi,
 				      struct platform_device *pdev)
 {
-	struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
+	const struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dma_cap_mask_t mask;
 	struct dma_slave_config cfg;
@@ -885,14 +920,10 @@ static void rspi_release_dma(struct rspi_data *rspi)
 
 static int rspi_remove(struct platform_device *pdev)
 {
-	struct rspi_data *rspi = spi_master_get(platform_get_drvdata(pdev));
+	struct rspi_data *rspi = platform_get_drvdata(pdev);
 
-	spi_unregister_master(rspi->master);
 	rspi_release_dma(rspi);
-	free_irq(platform_get_irq(pdev, 0), rspi);
-	clk_put(rspi->clk);
-	iounmap(rspi->addr);
-	spi_master_put(rspi->master);
+	clk_disable(rspi->clk);
 
 	return 0;
 }
@@ -904,7 +935,7 @@ static int rspi_probe(struct platform_device *pdev)
 	struct rspi_data *rspi;
 	int ret, irq;
 	char clk_name[16];
-	struct rspi_plat_data *rspi_pd = pdev->dev.platform_data;
+	const struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
 	const struct spi_ops *ops;
 	const struct platform_device_id *id_entry = pdev->id_entry;
 
@@ -913,12 +944,6 @@ static int rspi_probe(struct platform_device *pdev)
 	if (!ops->set_config_register) {
 		dev_err(&pdev->dev, "there is no set_config_register\n");
 		return -ENODEV;
-	}
-	/* get base addr */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(res == NULL)) {
-		dev_err(&pdev->dev, "invalid resource\n");
-		return -EINVAL;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -937,19 +962,20 @@ static int rspi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rspi);
 	rspi->ops = ops;
 	rspi->master = master;
-	rspi->addr = ioremap(res->start, resource_size(res));
-	if (rspi->addr == NULL) {
-		dev_err(&pdev->dev, "ioremap error.\n");
-		ret = -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rspi->addr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(rspi->addr)) {
+		ret = PTR_ERR(rspi->addr);
 		goto error1;
 	}
 
 	snprintf(clk_name, sizeof(clk_name), "%s%d", id_entry->name, pdev->id);
-	rspi->clk = clk_get(&pdev->dev, clk_name);
+	rspi->clk = devm_clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(rspi->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		ret = PTR_ERR(rspi->clk);
-		goto error2;
+		goto error1;
 	}
 	clk_enable(rspi->clk);
 
@@ -958,45 +984,45 @@ static int rspi_probe(struct platform_device *pdev)
 	INIT_WORK(&rspi->ws, rspi_work);
 	init_waitqueue_head(&rspi->wait);
 
-	master->num_chipselect = rspi_pd->num_chipselect;
-	if (!master->num_chipselect)
+	if (rspi_pd && rspi_pd->num_chipselect)
+		master->num_chipselect = rspi_pd->num_chipselect;
+	else
 		master->num_chipselect = 2; /* default */
 
 	master->bus_num = pdev->id;
 	master->setup = rspi_setup;
 	master->transfer = rspi_transfer;
 	master->cleanup = rspi_cleanup;
+	master->mode_bits = SPI_CPHA | SPI_CPOL;
 
-	ret = request_irq(irq, rspi_irq, 0, dev_name(&pdev->dev), rspi);
+	ret = devm_request_irq(&pdev->dev, irq, rspi_irq, 0,
+			       dev_name(&pdev->dev), rspi);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request_irq error\n");
-		goto error3;
+		goto error2;
 	}
 
 	rspi->irq = irq;
 	ret = rspi_request_dma(rspi, pdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "rspi_request_dma failed.\n");
-		goto error4;
+		goto error3;
 	}
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
-		goto error4;
+		goto error3;
 	}
 
 	dev_info(&pdev->dev, "probed\n");
 
 	return 0;
 
-error4:
-	rspi_release_dma(rspi);
-	free_irq(irq, rspi);
 error3:
-	clk_put(rspi->clk);
+	rspi_release_dma(rspi);
 error2:
-	iounmap(rspi->addr);
+	clk_disable(rspi->clk);
 error1:
 	spi_master_put(master);
 

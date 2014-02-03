@@ -53,7 +53,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		param->value = dev_priv->fifo.capabilities;
 		break;
 	case DRM_VMW_PARAM_MAX_FB_SIZE:
-		param->value = dev_priv->vram_size;
+		param->value = dev_priv->prim_bb_mem;
 		break;
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{
@@ -68,6 +68,20 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 				  SVGA_FIFO_3D_HWVERSION));
 		break;
 	}
+	case DRM_VMW_PARAM_MAX_SURF_MEMORY:
+		param->value = dev_priv->memory_size;
+		break;
+	case DRM_VMW_PARAM_3D_CAPS_SIZE:
+		if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS)
+			param->value = SVGA3D_DEVCAP_MAX;
+		else
+			param->value = (SVGA_FIFO_3D_CAPS_LAST -
+					SVGA_FIFO_3D_CAPS + 1);
+		param->value *= sizeof(uint32_t);
+		break;
+	case DRM_VMW_PARAM_MAX_MOB_MEMORY:
+		param->value = dev_priv->max_mob_pages * PAGE_SIZE;
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);
@@ -89,13 +103,19 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 	void __user *buffer = (void __user *)((unsigned long)(arg->buffer));
 	void *bounce;
 	int ret;
+	bool gb_objects = !!(dev_priv->capabilities & SVGA_CAP_GBOBJECTS);
 
 	if (unlikely(arg->pad64 != 0)) {
 		DRM_ERROR("Illegal GET_3D_CAP argument.\n");
 		return -EINVAL;
 	}
 
-	size = (SVGA_FIFO_3D_CAPS_LAST - SVGA_FIFO_3D_CAPS + 1) << 2;
+	if (gb_objects)
+		size = SVGA3D_DEVCAP_MAX;
+	else
+		size = (SVGA_FIFO_3D_CAPS_LAST - SVGA_FIFO_3D_CAPS + 1);
+
+	size *= sizeof(uint32_t);
 
 	if (arg->max_size < size)
 		size = arg->max_size;
@@ -106,8 +126,22 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 
-	fifo_mem = dev_priv->mmio_virt;
-	memcpy_fromio(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
+	if (gb_objects) {
+		int i;
+		uint32_t *bounce32 = (uint32_t *) bounce;
+
+		mutex_lock(&dev_priv->hw_mutex);
+		for (i = 0; i < SVGA3D_DEVCAP_MAX; ++i) {
+			vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
+			*bounce32++ = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
+		}
+		mutex_unlock(&dev_priv->hw_mutex);
+
+	} else {
+
+		fifo_mem = dev_priv->mmio_virt;
+		memcpy_fromio(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
+	}
 
 	ret = copy_to_user(buffer, bounce, size);
 	if (ret)

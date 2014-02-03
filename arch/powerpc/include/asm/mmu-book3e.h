@@ -286,8 +286,21 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 extern int mmu_linear_psize;
 extern int mmu_vmemmap_psize;
 
+struct tlb_core_data {
+	/* For software way selection, as on Freescale TLB1 */
+	u8 esel_next, esel_max, esel_first;
+
+	/* Per-core spinlock for e6500 TLB handlers (no tlbsrx.) */
+	u8 lock;
+};
+
 #ifdef CONFIG_PPC64
 extern unsigned long linear_map_top;
+extern int book3e_htw_mode;
+
+#define PPC_HTW_NONE	0
+#define PPC_HTW_IBM	1
+#define PPC_HTW_E6500	2
 
 /*
  * 64-bit booke platforms don't load the tlb in the tlb miss handler code.

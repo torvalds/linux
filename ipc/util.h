@@ -15,9 +15,9 @@
 
 #define SEQ_MULTIPLIER	(IPCMNI)
 
-void sem_init (void);
-void msg_init (void);
-void shm_init (void);
+void sem_init(void);
+void msg_init(void);
+void shm_init(void);
 
 struct ipc_namespace;
 
@@ -100,6 +100,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 
 #define ipcid_to_idx(id) ((id) % SEQ_MULTIPLIER)
 #define ipcid_to_seqx(id) ((id) / SEQ_MULTIPLIER)
+#define IPCID_SEQ_MAX min_t(int, INT_MAX/SEQ_MULTIPLIER, USHRT_MAX)
 
 /* must be called with ids->rwsem acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
@@ -116,8 +117,8 @@ int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
 /* for rare, potentially huge allocations.
  * both function can sleep
  */
-void* ipc_alloc(int size);
-void ipc_free(void* ptr, int size);
+void *ipc_alloc(int size);
+void ipc_free(void *ptr, int size);
 
 /*
  * For allocation that need to be freed by RCU.
@@ -125,7 +126,7 @@ void ipc_free(void* ptr, int size);
  * getref increases the refcount, the putref call that reduces the recount
  * to 0 schedules the rcu destruction. Caller must guarantee locking.
  */
-void* ipc_rcu_alloc(int size);
+void *ipc_rcu_alloc(int size);
 int ipc_rcu_getref(void *ptr);
 void ipc_rcu_putref(void *ptr, void (*func)(struct rcu_head *head));
 void ipc_rcu_free(struct rcu_head *head);
@@ -144,7 +145,7 @@ struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
   /* On IA-64, we always use the "64-bit version" of the IPC structures.  */ 
 # define ipc_parse_version(cmd)	IPC_64
 #else
-int ipc_parse_version (int *cmd);
+int ipc_parse_version(int *cmd);
 #endif
 
 extern void free_msg(struct msg_msg *msg);
@@ -183,6 +184,19 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
 {
 	ipc_unlock_object(perm);
 	rcu_read_unlock();
+}
+
+/*
+ * ipc_valid_object() - helper to sort out IPC_RMID races for codepaths
+ * where the respective ipc_ids.rwsem is not being held down.
+ * Checks whether the ipc object is still around or if it's gone already, as
+ * ipc_rmid() may have already freed the ID while the ipc lock was spinning.
+ * Needs to be called with kern_ipc_perm.lock held -- exception made for one
+ * checkpoint case at sys_semtimedop() as noted in code commentary.
+ */
+static inline bool ipc_valid_object(struct kern_ipc_perm *perm)
+{
+	return !perm->deleted;
 }
 
 struct kern_ipc_perm *ipc_obtain_object_check(struct ipc_ids *ids, int id);

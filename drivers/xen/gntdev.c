@@ -284,8 +284,10 @@ static int map_grant_pages(struct grant_map *map)
 	}
 
 	pr_debug("map %d+%d\n", map->index, map->count);
-	err = gnttab_map_refs(map->map_ops, use_ptemod ? map->kmap_ops : NULL,
-			map->pages, map->count);
+	err = gnttab_map_refs_userspace(map->map_ops,
+					use_ptemod ? map->kmap_ops : NULL,
+					map->pages,
+					map->count);
 	if (err)
 		return err;
 
@@ -315,9 +317,10 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		}
 	}
 
-	err = gnttab_unmap_refs(map->unmap_ops + offset,
-			use_ptemod ? map->kmap_ops + offset : NULL, map->pages + offset,
-			pages);
+	err = gnttab_unmap_refs_userspace(map->unmap_ops + offset,
+					  use_ptemod ? map->kmap_ops + offset : NULL,
+					  map->pages + offset,
+					  pages);
 	if (err)
 		return err;
 
@@ -846,7 +849,7 @@ static int __init gntdev_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	use_ptemod = xen_pv_domain();
+	use_ptemod = !xen_feature(XENFEAT_auto_translated_physmap);
 
 	err = misc_register(&gntdev_miscdev);
 	if (err != 0) {

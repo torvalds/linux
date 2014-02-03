@@ -37,8 +37,8 @@
 
 extern char bfa_version[];
 
-#define CNA_FW_FILE_CT	"ctfw-3.2.1.1.bin"
-#define CNA_FW_FILE_CT2	"ct2fw-3.2.1.1.bin"
+#define CNA_FW_FILE_CT	"ctfw-3.2.3.0.bin"
+#define CNA_FW_FILE_CT2	"ct2fw-3.2.3.0.bin"
 #define FC_SYMNAME_MAX	256	/*!< max name server symbolic name size */
 
 #pragma pack(1)

@@ -94,7 +94,7 @@ static int sis_driver_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-void sis_driver_postclose(struct drm_device *dev, struct drm_file *file)
+static void sis_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct sis_file_private *file_priv = file->driver_priv;
 

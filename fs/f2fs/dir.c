@@ -190,9 +190,6 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 	unsigned int max_depth;
 	unsigned int level;
 
-	if (namelen > F2FS_NAME_LEN)
-		return NULL;
-
 	if (npages == 0)
 		return NULL;
 
@@ -259,20 +256,17 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(dir);
 
-	/* update parent inode number before releasing dentry page */
-	F2FS_I(inode)->i_pino = dir->i_ino;
-
 	f2fs_put_page(page, 1);
 }
 
 static void init_dent_inode(const struct qstr *name, struct page *ipage)
 {
-	struct f2fs_node *rn;
+	struct f2fs_inode *ri;
 
 	/* copy name info. to this inode page */
-	rn = F2FS_NODE(ipage);
-	rn->i.i_namelen = cpu_to_le32(name->len);
-	memcpy(rn->i.i_name, name->name, name->len);
+	ri = F2FS_INODE(ipage);
+	ri->i_namelen = cpu_to_le32(name->len);
+	memcpy(ri->i_name, name->name, name->len);
 	set_page_dirty(ipage);
 }
 
@@ -348,11 +342,11 @@ static struct page *init_inode_metadata(struct inode *inode,
 
 		err = f2fs_init_acl(inode, dir, page);
 		if (err)
-			goto error;
+			goto put_error;
 
 		err = f2fs_init_security(inode, dir, name, page);
 		if (err)
-			goto error;
+			goto put_error;
 
 		wait_on_page_writeback(page);
 	} else {
@@ -376,8 +370,9 @@ static struct page *init_inode_metadata(struct inode *inode,
 	}
 	return page;
 
-error:
+put_error:
 	f2fs_put_page(page, 1);
+error:
 	remove_inode_page(inode);
 	return ERR_PTR(err);
 }
@@ -393,6 +388,8 @@ static void update_parent_metadata(struct inode *dir, struct inode *inode,
 		clear_inode_flag(F2FS_I(inode), FI_NEW_INODE);
 	}
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+	mark_inode_dirty(dir);
+
 	if (F2FS_I(dir)->i_current_depth != current_depth) {
 		F2FS_I(dir)->i_current_depth = current_depth;
 		set_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
@@ -400,8 +397,6 @@ static void update_parent_metadata(struct inode *dir, struct inode *inode,
 
 	if (is_inode_flag_set(F2FS_I(dir), FI_UPDATE_DIR))
 		update_inode_page(dir);
-	else
-		mark_inode_dirty(dir);
 
 	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK))
 		clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
@@ -432,10 +427,11 @@ next:
 }
 
 /*
- * Caller should grab and release a mutex by calling mutex_lock_op() and
- * mutex_unlock_op().
+ * Caller should grab and release a rwsem by calling f2fs_lock_op() and
+ * f2fs_unlock_op().
  */
-int __f2fs_add_link(struct inode *dir, const struct qstr *name, struct inode *inode)
+int __f2fs_add_link(struct inode *dir, const struct qstr *name,
+						struct inode *inode)
 {
 	unsigned int bit_pos;
 	unsigned int level;
@@ -461,7 +457,7 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name, struct inode *in
 	}
 
 start:
-	if (current_depth == MAX_DIR_HASH_DEPTH)
+	if (unlikely(current_depth == MAX_DIR_HASH_DEPTH))
 		return -ENOSPC;
 
 	/* Increase the depth, if required */
@@ -554,14 +550,11 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 
-	if (inode && S_ISDIR(inode->i_mode)) {
-		drop_nlink(dir);
-		update_inode_page(dir);
-	} else {
-		mark_inode_dirty(dir);
-	}
-
 	if (inode) {
+		if (S_ISDIR(inode->i_mode)) {
+			drop_nlink(dir);
+			update_inode_page(dir);
+		}
 		inode->i_ctime = CURRENT_TIME;
 		drop_nlink(inode);
 		if (S_ISDIR(inode->i_mode)) {
@@ -636,7 +629,7 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 
 	bit_pos = ((unsigned long)ctx->pos % NR_DENTRY_IN_BLOCK);
 
-	for ( ; n < npages; n++) {
+	for (; n < npages; n++) {
 		dentry_page = get_lock_data_page(inode, n);
 		if (IS_ERR(dentry_page))
 			continue;

@@ -983,6 +983,10 @@ struct drm_radeon_cs {
 #define RADEON_INFO_SI_CP_DMA_COMPUTE	0x17
 /* CIK macrotile mode array */
 #define RADEON_INFO_CIK_MACROTILE_MODE_ARRAY	0x18
+/* query the number of render backends */
+#define RADEON_INFO_SI_BACKEND_ENABLED_MASK	0x19
+/* max engine clock - needed for OpenCL */
+#define RADEON_INFO_MAX_SCLK		0x1a
 
 
 struct drm_radeon_info {

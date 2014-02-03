@@ -248,7 +248,10 @@ struct tcp_sock {
 	struct sk_buff* lost_skb_hint;
 	struct sk_buff *retransmit_skb_hint;
 
-	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
+	/* OOO segments go in this list. Note that socket lock must be held,
+	 * as we do not use sk_buff_head lock.
+	 */
+	struct sk_buff_head	out_of_order_queue;
 
 	/* SACKs data, these 2 need to be together (see tcp_options_write) */
 	struct tcp_sack_block duplicate_sack[1]; /* D-SACK block */

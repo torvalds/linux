@@ -203,17 +203,8 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 
 	rdev->opencount--;
 
-	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
-		/*
-		 * If the scan request wasn't notified as done, set it
-		 * to aborted and leak it after a warning. The driver
-		 * should have notified us that it ended at the latest
-		 * during rdev_stop_p2p_device().
-		 */
-		if (WARN_ON(!rdev->scan_req->notified))
-			rdev->scan_req->aborted = true;
-		___cfg80211_scan_done(rdev, !rdev->scan_req->notified);
-	}
+	WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev &&
+		!rdev->scan_req->notified);
 }
 
 static int cfg80211_rfkill_set_block(void *data, bool blocked)
@@ -357,8 +348,6 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy.rts_threshold = (u32) -1;
 	rdev->wiphy.coverage_class = 0;
 
-	rdev->wiphy.features = NL80211_FEATURE_SCAN_FLUSH;
-
 	return &rdev->wiphy;
 }
 EXPORT_SYMBOL(wiphy_new);
@@ -450,6 +439,15 @@ int wiphy_register(struct wiphy *wiphy)
 	bool have_band = false;
 	int i;
 	u16 ifmodes = wiphy->interface_modes;
+
+	/* support for 5/10 MHz is broken due to nl80211 API mess - disable */
+	wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_5_10_MHZ;
+
+	/*
+	 * There are major locking problems in nl80211/mac80211 for CSA,
+	 * disable for all drivers until this has been reworked.
+	 */
+	wiphy->flags &= ~WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 #ifdef CONFIG_PM
 	if (WARN_ON(wiphy->wowlan &&
@@ -566,6 +564,8 @@ int wiphy_register(struct wiphy *wiphy)
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
+	rdev->wiphy.features |= NL80211_FEATURE_SCAN_FLUSH;
+
 	rtnl_lock();
 	res = device_add(&rdev->wiphy.dev);
 	if (res) {
@@ -586,7 +586,7 @@ int wiphy_register(struct wiphy *wiphy)
 	if (IS_ERR(rdev->wiphy.debugfsdir))
 		rdev->wiphy.debugfsdir = NULL;
 
-	if (wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
+	if (wiphy->regulatory_flags & REGULATORY_CUSTOM_REG) {
 		struct regulatory_request request;
 
 		request.wiphy_idx = get_wiphy_idx(wiphy);
@@ -756,13 +756,16 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 {
 	struct net_device *dev = wdev->netdev;
 
+	ASSERT_RTNL();
+
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_ADHOC:
 		cfg80211_leave_ibss(rdev, dev, true);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
-		__cfg80211_stop_sched_scan(rdev, false);
+		if (rdev->sched_scan_req && dev == rdev->sched_scan_req->dev)
+			__cfg80211_stop_sched_scan(rdev, false);
 
 		wdev_lock(wdev);
 #ifdef CONFIG_CFG80211_WEXT
@@ -856,11 +859,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		break;
 	case NETDEV_DOWN:
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
-		if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
-			if (WARN_ON(!rdev->scan_req->notified))
-				rdev->scan_req->aborted = true;
-			___cfg80211_scan_done(rdev, true);
-		}
+		WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev &&
+			!rdev->scan_req->notified);
 
 		if (WARN_ON(rdev->sched_scan_req &&
 			    rdev->sched_scan_req->dev == wdev->netdev)) {

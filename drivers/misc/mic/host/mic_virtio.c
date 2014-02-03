@@ -41,7 +41,7 @@ static int mic_virtio_copy_to_user(struct mic_vdev *mvdev,
 	 * We are copying from IO below an should ideally use something
 	 * like copy_to_user_fromio(..) if it existed.
 	 */
-	if (copy_to_user(ubuf, dbuf, len)) {
+	if (copy_to_user(ubuf, (void __force *)dbuf, len)) {
 		err = -EFAULT;
 		dev_err(mic_dev(mvdev), "%s %d err %d\n",
 			__func__, __LINE__, err);
@@ -66,7 +66,7 @@ static int mic_virtio_copy_from_user(struct mic_vdev *mvdev,
 	 * We are copying to IO below and should ideally use something
 	 * like copy_from_user_toio(..) if it existed.
 	 */
-	if (copy_from_user(dbuf, ubuf, len)) {
+	if (copy_from_user((void __force *)dbuf, ubuf, len)) {
 		err = -EFAULT;
 		dev_err(mic_dev(mvdev), "%s %d err %d\n",
 			__func__, __LINE__, err);
@@ -293,7 +293,7 @@ static void mic_virtio_init_post(struct mic_vdev *mvdev)
 			continue;
 		}
 		mvdev->mvr[i].vrh.vring.used =
-			mvdev->mdev->aper.va +
+			(void __force *)mvdev->mdev->aper.va +
 			le64_to_cpu(vqconfig[i].used_address);
 	}
 
@@ -369,7 +369,7 @@ static irqreturn_t mic_virtio_intr_handler(int irq, void *data)
 	struct mic_vdev *mvdev = data;
 	struct mic_device *mdev = mvdev->mdev;
 
-	mdev->ops->ack_interrupt(mdev);
+	mdev->ops->intr_workarounds(mdev);
 	schedule_work(&mvdev->virtio_bh_work);
 	return IRQ_HANDLED;
 }
@@ -378,7 +378,7 @@ int mic_virtio_config_change(struct mic_vdev *mvdev,
 			void __user *argp)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wake);
-	int ret = 0, retry = 100, i;
+	int ret = 0, retry, i;
 	struct mic_bootparam *bootparam = mvdev->mdev->dp;
 	s8 db = bootparam->h2c_config_db;
 
@@ -401,7 +401,7 @@ int mic_virtio_config_change(struct mic_vdev *mvdev,
 	mvdev->dc->config_change = MIC_VIRTIO_PARAM_CONFIG_CHANGED;
 	mvdev->mdev->ops->send_intr(mvdev->mdev, db);
 
-	for (i = retry; i--;) {
+	for (retry = 100; retry--;) {
 		ret = wait_event_timeout(wake,
 			mvdev->dc->guest_ack, msecs_to_jiffies(100));
 		if (ret)
@@ -467,7 +467,7 @@ static int mic_copy_dp_entry(struct mic_vdev *mvdev,
 	}
 
 	/* Find the first free device page entry */
-	for (i = mic_aligned_size(struct mic_bootparam);
+	for (i = sizeof(struct mic_bootparam);
 		i < MIC_DP_SIZE - mic_total_desc_size(dd_config);
 		i += mic_total_desc_size(devp)) {
 		devp = mdev->dp + i;
@@ -525,6 +525,7 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 	char irqname[10];
 	struct mic_bootparam *bootparam = mdev->dp;
 	u16 num;
+	dma_addr_t vr_addr;
 
 	mutex_lock(&mdev->mic_mutex);
 
@@ -559,17 +560,16 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 		}
 		vr->len = vr_size;
 		vr->info = vr->va + vring_size(num, MIC_VIRTIO_RING_ALIGN);
-		vr->info->magic = MIC_MAGIC + mvdev->virtio_id + i;
-		vqconfig[i].address = mic_map_single(mdev,
-			vr->va, vr_size);
-		if (mic_map_error(vqconfig[i].address)) {
+		vr->info->magic = cpu_to_le32(MIC_MAGIC + mvdev->virtio_id + i);
+		vr_addr = mic_map_single(mdev, vr->va, vr_size);
+		if (mic_map_error(vr_addr)) {
 			free_pages((unsigned long)vr->va, get_order(vr_size));
 			ret = -ENOMEM;
 			dev_err(mic_dev(mvdev), "%s %d err %d\n",
 				__func__, __LINE__, ret);
 			goto err;
 		}
-		vqconfig[i].address = cpu_to_le64(vqconfig[i].address);
+		vqconfig[i].address = cpu_to_le64(vr_addr);
 
 		vring_init(&vr->vr, num, vr->va, MIC_VIRTIO_RING_ALIGN);
 		ret = vringh_init_kern(&mvr->vrh,
@@ -639,7 +639,7 @@ void mic_virtio_del_device(struct mic_vdev *mvdev)
 	struct mic_vdev *tmp_mvdev;
 	struct mic_device *mdev = mvdev->mdev;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wake);
-	int i, ret, retry = 100;
+	int i, ret, retry;
 	struct mic_vqconfig *vqconfig;
 	struct mic_bootparam *bootparam = mdev->dp;
 	s8 db;
@@ -652,16 +652,16 @@ void mic_virtio_del_device(struct mic_vdev *mvdev)
 		"Requesting hot remove id %d\n", mvdev->virtio_id);
 	mvdev->dc->config_change = MIC_VIRTIO_PARAM_DEV_REMOVE;
 	mdev->ops->send_intr(mdev, db);
-	for (i = retry; i--;) {
+	for (retry = 100; retry--;) {
 		ret = wait_event_timeout(wake,
 			mvdev->dc->guest_ack, msecs_to_jiffies(100));
 		if (ret)
 			break;
 	}
 	dev_dbg(mdev->sdev->parent,
-		"Device id %d config_change %d guest_ack %d\n",
+		"Device id %d config_change %d guest_ack %d retry %d\n",
 		mvdev->virtio_id, mvdev->dc->config_change,
-		mvdev->dc->guest_ack);
+		mvdev->dc->guest_ack, retry);
 	mvdev->dc->config_change = 0;
 	mvdev->dc->guest_ack = 0;
 skip_hot_remove:

@@ -105,7 +105,8 @@ sense_reason_t transport_lookup_cmd_lun(struct se_cmd *, u32);
 sense_reason_t target_setup_cmd_from_cdb(struct se_cmd *, unsigned char *);
 int	target_submit_cmd_map_sgls(struct se_cmd *, struct se_session *,
 		unsigned char *, unsigned char *, u32, u32, int, int, int,
-		struct scatterlist *, u32, struct scatterlist *, u32);
+		struct scatterlist *, u32, struct scatterlist *, u32,
+		struct scatterlist *, u32);
 int	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 		unsigned char *, u32, u32, int, int, int);
 int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,

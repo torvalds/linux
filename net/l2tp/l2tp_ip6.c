@@ -371,6 +371,9 @@ static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (addr_len < sizeof(*lsa))
 		return -EINVAL;
 
+	if (usin->sin6_family != AF_INET6)
+		return -EINVAL;
+
 	addr_type = ipv6_addr_type(&usin->sin6_addr);
 	if (addr_type & IPV6_ADDR_MULTICAST)
 		return -EINVAL;
@@ -481,8 +484,7 @@ static int l2tp_ip6_sendmsg(struct kiocb *iocb, struct sock *sk,
 			    struct msghdr *msg, size_t len)
 {
 	struct ipv6_txoptions opt_space;
-	struct sockaddr_l2tpip6 *lsa =
-		(struct sockaddr_l2tpip6 *) msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_l2tpip6 *, lsa, msg->msg_name);
 	struct in6_addr *daddr, *final_p, final;
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_txoptions *opt = NULL;
@@ -528,7 +530,6 @@ static int l2tp_ip6_sendmsg(struct kiocb *iocb, struct sock *sk,
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
 				if (flowlabel == NULL)
 					return -EINVAL;
-				daddr = &flowlabel->dst;
 			}
 		}
 
@@ -598,7 +599,7 @@ static int l2tp_ip6_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, true);
+	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto out;
@@ -653,7 +654,7 @@ static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
 			    int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct sockaddr_l2tpip6 *lsa = (struct sockaddr_l2tpip6 *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_l2tpip6 *, lsa, msg->msg_name);
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
 	struct sk_buff *skb;
@@ -665,7 +666,7 @@ static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		*addr_len = sizeof(*lsa);
 
 	if (flags & MSG_ERRQUEUE)
-		return ipv6_recv_error(sk, msg, len);
+		return ipv6_recv_error(sk, msg, len, addr_len);
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)

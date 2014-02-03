@@ -419,7 +419,7 @@ int reiserfs_proc_info_init(struct super_block *sb)
 	char *s;
 
 	/* Some block devices use /'s */
-	strlcpy(b, reiserfs_bdevname(sb), BDEVNAME_SIZE);
+	strlcpy(b, sb->s_id, BDEVNAME_SIZE);
 	s = strchr(b, '/');
 	if (s)
 		*s = '!';
@@ -449,7 +449,7 @@ int reiserfs_proc_info_done(struct super_block *sb)
 		char *s;
 
 		/* Some block devices use /'s */
-		strlcpy(b, reiserfs_bdevname(sb), BDEVNAME_SIZE);
+		strlcpy(b, sb->s_id, BDEVNAME_SIZE);
 		s = strchr(b, '/');
 		if (s)
 			*s = '!';

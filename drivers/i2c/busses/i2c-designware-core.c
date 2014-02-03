@@ -26,7 +26,6 @@
  *
  */
 #include <linux/export.h>
-#include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/i2c.h>

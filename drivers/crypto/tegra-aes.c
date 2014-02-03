@@ -27,6 +27,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -198,8 +200,6 @@ static DEFINE_MUTEX(aes_lock);
 static void aes_workqueue_handler(struct work_struct *work);
 static DECLARE_WORK(aes_work, aes_workqueue_handler);
 static struct workqueue_struct *aes_wq;
-
-extern unsigned long long tegra_chip_uid(void);
 
 static inline u32 aes_readl(struct tegra_aes_dev *dd, u32 offset)
 {
@@ -713,13 +713,12 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	struct tegra_aes_dev *dd = aes_dev;
 	struct tegra_aes_ctx *ctx = &rng_ctx;
 	struct tegra_aes_slot *key_slot;
-	struct timespec ts;
 	int ret = 0;
-	u64 nsec, tmp[2];
+	u8 tmp[16]; /* 16 bytes = 128 bits of entropy */
 	u8 *dt;
 
 	if (!ctx || !dd) {
-		dev_err(dd->dev, "ctx=0x%x, dd=0x%x\n",
+		pr_err("ctx=0x%x, dd=0x%x\n",
 			(unsigned int)ctx, (unsigned int)dd);
 		return -EINVAL;
 	}
@@ -778,14 +777,8 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	if (dd->ivlen >= (2 * DEFAULT_RNG_BLK_SZ + AES_KEYSIZE_128)) {
 		dt = dd->iv + DEFAULT_RNG_BLK_SZ + AES_KEYSIZE_128;
 	} else {
-		getnstimeofday(&ts);
-		nsec = timespec_to_ns(&ts);
-		do_div(nsec, 1000);
-		nsec ^= dd->ctr << 56;
-		dd->ctr++;
-		tmp[0] = nsec;
-		tmp[1] = tegra_chip_uid();
-		dt = (u8 *)tmp;
+		get_random_bytes(tmp, sizeof(tmp));
+		dt = tmp;
 	}
 	memcpy(dd->dt, dt, DEFAULT_RNG_BLK_SZ);
 
@@ -804,7 +797,7 @@ static int tegra_aes_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
-void tegra_aes_cra_exit(struct crypto_tfm *tfm)
+static void tegra_aes_cra_exit(struct crypto_tfm *tfm)
 {
 	struct tegra_aes_ctx *ctx =
 		crypto_ablkcipher_ctx((struct crypto_ablkcipher *)tfm);
@@ -924,7 +917,7 @@ static int tegra_aes_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize the vde clock */
-	dd->aes_clk = clk_get(dev, "vde");
+	dd->aes_clk = devm_clk_get(dev, "vde");
 	if (IS_ERR(dd->aes_clk)) {
 		dev_err(dev, "iclock intialization failed.\n");
 		err = -ENODEV;
@@ -1033,8 +1026,6 @@ out:
 	if (dd->buf_out)
 		dma_free_coherent(dev, AES_HW_DMA_BUFFER_SIZE_BYTES,
 			dd->buf_out, dd->dma_buf_out);
-	if (!IS_ERR(dd->aes_clk))
-		clk_put(dd->aes_clk);
 	if (aes_wq)
 		destroy_workqueue(aes_wq);
 	spin_lock(&list_lock);
@@ -1068,7 +1059,6 @@ static int tegra_aes_remove(struct platform_device *pdev)
 			  dd->buf_in, dd->dma_buf_in);
 	dma_free_coherent(dev, AES_HW_DMA_BUFFER_SIZE_BYTES,
 			  dd->buf_out, dd->dma_buf_out);
-	clk_put(dd->aes_clk);
 	aes_dev = NULL;
 
 	return 0;

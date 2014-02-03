@@ -41,7 +41,7 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	 * then the BO is being moved and we should
 	 * store up the damage until later.
 	 */
-	if (!in_interrupt())
+	if (!drm_can_sleep())
 		ret = mgag200_bo_reserve(bo, true);
 	if (ret) {
 		if (ret != -EBUSY)
@@ -282,6 +282,11 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 {
 	struct mga_fbdev *mfbdev;
 	int ret;
+	int bpp_sel = 32;
+
+	/* prefer 16bpp on low end gpus with limited VRAM */
+	if (IS_G200_SE(mdev) && mdev->mc.vram_size < (2048*1024))
+		bpp_sel = 16;
 
 	mfbdev = devm_kzalloc(mdev->dev->dev, sizeof(struct mga_fbdev), GFP_KERNEL);
 	if (!mfbdev)
@@ -301,7 +306,7 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(mdev->dev);
 
-	drm_fb_helper_initial_config(&mfbdev->helper, 32);
+	drm_fb_helper_initial_config(&mfbdev->helper, bpp_sel);
 
 	return 0;
 }

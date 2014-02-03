@@ -43,6 +43,7 @@
 #include <asm/tlb.h>
 #include <asm/code-patching.h>
 #include <asm/hugetlb.h>
+#include <asm/paca.h>
 
 #include "mmu_decl.h"
 
@@ -57,6 +58,10 @@ struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
 		.enc	= BOOK3E_PAGESZ_4K,
+	},
+	[MMU_PAGE_2M] = {
+		.shift	= 21,
+		.enc	= BOOK3E_PAGESZ_2M,
 	},
 	[MMU_PAGE_4M] = {
 		.shift	= 22,
@@ -136,7 +141,7 @@ static inline int mmu_get_tsize(int psize)
 int mmu_linear_psize;		/* Page size used for the linear mapping */
 int mmu_pte_psize;		/* Page size used for PTE pages */
 int mmu_vmemmap_psize;		/* Page size used for the virtual mem map */
-int book3e_htw_enabled;		/* Is HW tablewalk enabled ? */
+int book3e_htw_mode;		/* HW tablewalk?  Value is PPC_HTW_* */
 unsigned long linear_map_top;	/* Top of linear mapping */
 
 #endif /* CONFIG_PPC64 */
@@ -305,7 +310,7 @@ void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 {
 #ifdef CONFIG_HUGETLB_PAGE
-	if (is_vm_hugetlb_page(vma))
+	if (vma && is_vm_hugetlb_page(vma))
 		flush_hugetlb_page(vma, vmaddr);
 #endif
 
@@ -377,7 +382,7 @@ void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address)
 {
 	int tsize = mmu_psize_defs[mmu_pte_psize].enc;
 
-	if (book3e_htw_enabled) {
+	if (book3e_htw_mode != PPC_HTW_NONE) {
 		unsigned long start = address & PMD_MASK;
 		unsigned long end = address + PMD_SIZE;
 		unsigned long size = 1UL << mmu_psize_defs[mmu_pte_psize].shift;
@@ -430,7 +435,7 @@ static void setup_page_sizes(void)
 			def = &mmu_psize_defs[psize];
 			shift = def->shift;
 
-			if (shift == 0)
+			if (shift == 0 || shift & 1)
 				continue;
 
 			/* adjust to be in terms of 4^shift Kb */
@@ -440,21 +445,40 @@ static void setup_page_sizes(void)
 				def->flags |= MMU_PAGE_SIZE_DIRECT;
 		}
 
-		goto no_indirect;
+		goto out;
 	}
 
 	if (fsl_mmu && (mmucfg & MMUCFG_MAVN) == MMUCFG_MAVN_V2) {
-		u32 tlb1ps = mfspr(SPRN_TLB1PS);
+		u32 tlb1cfg, tlb1ps;
+
+		tlb0cfg = mfspr(SPRN_TLB0CFG);
+		tlb1cfg = mfspr(SPRN_TLB1CFG);
+		tlb1ps = mfspr(SPRN_TLB1PS);
+		eptcfg = mfspr(SPRN_EPTCFG);
+
+		if ((tlb1cfg & TLBnCFG_IND) && (tlb0cfg & TLBnCFG_PT))
+			book3e_htw_mode = PPC_HTW_E6500;
+
+		/*
+		 * We expect 4K subpage size and unrestricted indirect size.
+		 * The lack of a restriction on indirect size is a Freescale
+		 * extension, indicated by PSn = 0 but SPSn != 0.
+		 */
+		if (eptcfg != 2)
+			book3e_htw_mode = PPC_HTW_NONE;
 
 		for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
 			struct mmu_psize_def *def = &mmu_psize_defs[psize];
 
 			if (tlb1ps & (1U << (def->shift - 10))) {
 				def->flags |= MMU_PAGE_SIZE_DIRECT;
+
+				if (book3e_htw_mode && psize == MMU_PAGE_2M)
+					def->flags |= MMU_PAGE_SIZE_INDIRECT;
 			}
 		}
 
-		goto no_indirect;
+		goto out;
 	}
 #endif
 
@@ -471,8 +495,11 @@ static void setup_page_sizes(void)
 	}
 
 	/* Indirect page sizes supported ? */
-	if ((tlb0cfg & TLBnCFG_IND) == 0)
-		goto no_indirect;
+	if ((tlb0cfg & TLBnCFG_IND) == 0 ||
+	    (tlb0cfg & TLBnCFG_PT) == 0)
+		goto out;
+
+	book3e_htw_mode = PPC_HTW_IBM;
 
 	/* Now, we only deal with one IND page size for each
 	 * direct size. Hopefully all implementations today are
@@ -497,8 +524,8 @@ static void setup_page_sizes(void)
 				def->ind = ps + 10;
 		}
 	}
- no_indirect:
 
+out:
 	/* Cleanup array and print summary */
 	pr_info("MMU: Supported page sizes\n");
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
@@ -518,44 +545,27 @@ static void setup_page_sizes(void)
 	}
 }
 
-static void __patch_exception(int exc, unsigned long addr)
-{
-	extern unsigned int interrupt_base_book3e;
- 	unsigned int *ibase = &interrupt_base_book3e;
- 
-	/* Our exceptions vectors start with a NOP and -then- a branch
-	 * to deal with single stepping from userspace which stops on
-	 * the second instruction. Thus we need to patch the second
-	 * instruction of the exception, not the first one
-	 */
-
-	patch_branch(ibase + (exc / 4) + 1, addr, 0);
-}
-
-#define patch_exception(exc, name) do { \
-	extern unsigned int name; \
-	__patch_exception((exc), (unsigned long)&name); \
-} while (0)
-
 static void setup_mmu_htw(void)
 {
-	/* Check if HW tablewalk is present, and if yes, enable it by:
-	 *
-	 * - patching the TLB miss handlers to branch to the
-	 *   one dedicates to it
-	 *
-	 * - setting the global book3e_htw_enabled
-       	 */
-	unsigned int tlb0cfg = mfspr(SPRN_TLB0CFG);
+	/*
+	 * If we want to use HW tablewalk, enable it by patching the TLB miss
+	 * handlers to branch to the one dedicated to it.
+	 */
 
-	if ((tlb0cfg & TLBnCFG_IND) &&
-	    (tlb0cfg & TLBnCFG_PT)) {
+	switch (book3e_htw_mode) {
+	case PPC_HTW_IBM:
 		patch_exception(0x1c0, exc_data_tlb_miss_htw_book3e);
 		patch_exception(0x1e0, exc_instruction_tlb_miss_htw_book3e);
-		book3e_htw_enabled = 1;
+		break;
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	case PPC_HTW_E6500:
+		patch_exception(0x1c0, exc_data_tlb_miss_e6500_book3e);
+		patch_exception(0x1e0, exc_instruction_tlb_miss_e6500_book3e);
+		break;
+#endif
 	}
 	pr_info("MMU: Book3E HW tablewalk %s\n",
-		book3e_htw_enabled ? "enabled" : "not supported");
+		book3e_htw_mode != PPC_HTW_NONE ? "enabled" : "not supported");
 }
 
 /*
@@ -595,8 +605,16 @@ static void __early_init_mmu(int boot_cpu)
 	/* Set MAS4 based on page table setting */
 
 	mas4 = 0x4 << MAS4_WIMGED_SHIFT;
-	if (book3e_htw_enabled) {
-		mas4 |= mas4 | MAS4_INDD;
+	switch (book3e_htw_mode) {
+	case PPC_HTW_E6500:
+		mas4 |= MAS4_INDD;
+		mas4 |= BOOK3E_PAGESZ_2M << MAS4_TSIZED_SHIFT;
+		mas4 |= MAS4_TLBSELD(1);
+		mmu_pte_psize = MMU_PAGE_2M;
+		break;
+
+	case PPC_HTW_IBM:
+		mas4 |= MAS4_INDD;
 #ifdef CONFIG_PPC_64K_PAGES
 		mas4 |=	BOOK3E_PAGESZ_256M << MAS4_TSIZED_SHIFT;
 		mmu_pte_psize = MMU_PAGE_256M;
@@ -604,13 +622,16 @@ static void __early_init_mmu(int boot_cpu)
 		mas4 |=	BOOK3E_PAGESZ_1M << MAS4_TSIZED_SHIFT;
 		mmu_pte_psize = MMU_PAGE_1M;
 #endif
-	} else {
+		break;
+
+	case PPC_HTW_NONE:
 #ifdef CONFIG_PPC_64K_PAGES
 		mas4 |=	BOOK3E_PAGESZ_64K << MAS4_TSIZED_SHIFT;
 #else
 		mas4 |=	BOOK3E_PAGESZ_4K << MAS4_TSIZED_SHIFT;
 #endif
 		mmu_pte_psize = mmu_virtual_psize;
+		break;
 	}
 	mtspr(SPRN_MAS4, mas4);
 
@@ -630,8 +651,11 @@ static void __early_init_mmu(int boot_cpu)
 		/* limit memory so we dont have linear faults */
 		memblock_enforce_memory_limit(linear_map_top);
 
-		patch_exception(0x1c0, exc_data_tlb_miss_bolted_book3e);
-		patch_exception(0x1e0, exc_instruction_tlb_miss_bolted_book3e);
+		if (book3e_htw_mode == PPC_HTW_NONE) {
+			patch_exception(0x1c0, exc_data_tlb_miss_bolted_book3e);
+			patch_exception(0x1e0,
+				exc_instruction_tlb_miss_bolted_book3e);
+		}
 	}
 #endif
 

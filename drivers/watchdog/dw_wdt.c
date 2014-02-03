@@ -8,7 +8,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  * This file implements a driver for the Synopsys DesignWare watchdog device
- * in the many ARM subsystems. The watchdog has 16 different timeout periods
+ * in the many subsystems. The watchdog has 16 different timeout periods
  * and these are a function of the input clock frequency.
  *
  * The DesignWare watchdog cannot be stopped once it has been started so we

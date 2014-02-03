@@ -70,12 +70,8 @@ struct tcm_qla2xxx_lport {
 	struct tcm_qla2xxx_fc_loopid *lport_loopid_map;
 	/* Pointer to struct scsi_qla_host from qla2xxx LLD */
 	struct scsi_qla_host *qla_vha;
-	/* Pointer to struct scsi_qla_host for NPIV VP from qla2xxx LLD */
-	struct scsi_qla_host *qla_npiv_vp;
 	/* Pointer to struct qla_tgt pointer */
 	struct qla_tgt lport_qla_tgt;
-	/* Pointer to struct fc_vport for NPIV vport from libfc */
-	struct fc_vport *npiv_vport;
 	/* Pointer to TPG=1 for non NPIV mode */
 	struct tcm_qla2xxx_tpg *tpg_1;
 	/* Returned by tcm_qla2xxx_make_lport() */

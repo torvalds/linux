@@ -64,13 +64,12 @@ s_vCheckKeyTableValid(PSKeyManagement pTable, unsigned long dwIoBase)
 	int i;
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    (pTable->KeyTable[i].PairwiseKey.bKeyValid == false) &&
-		    (pTable->KeyTable[i].GroupKey[0].bKeyValid == false) &&
-		    (pTable->KeyTable[i].GroupKey[1].bKeyValid == false) &&
-		    (pTable->KeyTable[i].GroupKey[2].bKeyValid == false) &&
-		    (pTable->KeyTable[i].GroupKey[3].bKeyValid == false)
-) {
+		if (pTable->KeyTable[i].bInUse &&
+		    !pTable->KeyTable[i].PairwiseKey.bKeyValid &&
+		    !pTable->KeyTable[i].GroupKey[0].bKeyValid &&
+		    !pTable->KeyTable[i].GroupKey[1].bKeyValid &&
+		    !pTable->KeyTable[i].GroupKey[2].bKeyValid &&
+		    !pTable->KeyTable[i].GroupKey[3].bKeyValid) {
 			pTable->KeyTable[i].bInUse = false;
 			pTable->KeyTable[i].wKeyCtl = 0;
 			pTable->KeyTable[i].bSoftWEP = false;
@@ -140,17 +139,17 @@ bool KeybGetKey(
 
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
+		if (pTable->KeyTable[i].bInUse &&
 		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if (dwKeyIndex == 0xFFFFFFFF) {
-				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
+				if (pTable->KeyTable[i].PairwiseKey.bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
 					return true;
 				} else {
 					return false;
 				}
 			} else if (dwKeyIndex < MAX_GROUP_KEY) {
-				if (pTable->KeyTable[i].GroupKey[dwKeyIndex].bKeyValid == true) {
+				if (pTable->KeyTable[i].GroupKey[dwKeyIndex].bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].GroupKey[dwKeyIndex]);
 					return true;
 				} else {
@@ -202,12 +201,11 @@ bool KeybSetKey(
 
 	j = (MAX_KEY_TABLE-1);
 	for (i = 0; i < (MAX_KEY_TABLE - 1); i++) {
-		if ((pTable->KeyTable[i].bInUse == false) &&
-		    (j == (MAX_KEY_TABLE-1))) {
+		if (!pTable->KeyTable[i].bInUse && (j == (MAX_KEY_TABLE-1))) {
 			// found empty table
 			j = i;
 		}
-		if ((pTable->KeyTable[i].bInUse == true) &&
+		if (pTable->KeyTable[i].bInUse &&
 		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			// found table already exist
 			if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
@@ -384,7 +382,7 @@ bool KeybRemoveKey(
 	}
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
+		if (pTable->KeyTable[i].bInUse &&
 		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
 				pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
@@ -428,7 +426,7 @@ bool KeybRemoveAllKey(
 	int i, u;
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
+		if (pTable->KeyTable[i].bInUse &&
 		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 			for (u = 0; u < MAX_GROUP_KEY; u++) {
@@ -461,7 +459,7 @@ void KeyvRemoveWEPKey(
 )
 {
 	if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
-		if (pTable->KeyTable[MAX_KEY_TABLE-1].bInUse == true) {
+		if (pTable->KeyTable[MAX_KEY_TABLE-1].bInUse) {
 			if (pTable->KeyTable[MAX_KEY_TABLE-1].GroupKey[dwKeyIndex & 0x000000FF].byCipherSuite == KEY_CTL_WEP) {
 				pTable->KeyTable[MAX_KEY_TABLE-1].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = false;
 				if ((dwKeyIndex & 0x7FFFFFFF) == (pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex & 0x7FFFFFFF)) {
@@ -511,10 +509,10 @@ bool KeybGetTransmitKey(
 
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
+		if (pTable->KeyTable[i].bInUse &&
 		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if (dwKeyType == PAIRWISE_KEY) {
-				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
+				if (pTable->KeyTable[i].PairwiseKey.bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
 
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetTransmitKey:");
@@ -535,7 +533,7 @@ bool KeybGetTransmitKey(
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ERROR: dwGTKeyIndex == 0 !!!\n");
 					return false;
 				}
-				if (pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)].bKeyValid == true) {
+				if (pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)].bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)]);
 
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetTransmitKey:");
@@ -583,8 +581,8 @@ bool KeybCheckPairewiseKey(
 
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
-		if ((pTable->KeyTable[i].bInUse == true) &&
-		    (pTable->KeyTable[i].PairwiseKey.bKeyValid == true)) {
+		if (pTable->KeyTable[i].bInUse &&
+		    pTable->KeyTable[i].PairwiseKey.bKeyValid) {
 			*pKey = &(pTable->KeyTable[i].PairwiseKey);
 			return true;
 		}
@@ -657,7 +655,7 @@ bool KeybSetDefaultKey(
 		pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl |= 0x4000;              // disable on-fly disable address match
 		pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP = true;
 	} else {
-		if (pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP == false)
+		if (!pTable->KeyTable[MAX_KEY_TABLE-1].bSoftWEP)
 			pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl |= 0xC000;          // enable on-fly disable address match
 	}
 
@@ -740,7 +738,7 @@ bool KeybSetAllGroupKey(
 	}
 
 	for (i = 0; i < MAX_KEY_TABLE - 1; i++) {
-		if (pTable->KeyTable[i].bInUse == true) {
+		if (pTable->KeyTable[i].bInUse) {
 			// found table already exist
 			// Group key
 			pKey = &(pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF]);

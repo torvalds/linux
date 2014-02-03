@@ -282,8 +282,9 @@ ENDPROC(secondary_holding_pen)
 	 * be used where CPUs are brought online dynamically by the kernel.
 	 */
 ENTRY(secondary_entry)
-	bl	__calc_phys_offset		// x2=phys offset
 	bl	el2_setup			// Drop to EL1
+	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
+	bl	set_cpu_boot_mode_flag
 	b	secondary_startup
 ENDPROC(secondary_entry)
 
@@ -481,8 +482,6 @@ ENDPROC(__create_page_tables)
 	.type	__switch_data, %object
 __switch_data:
 	.quad	__mmap_switched
-	.quad	__data_loc			// x4
-	.quad	_data				// x5
 	.quad	__bss_start			// x6
 	.quad	_end				// x7
 	.quad	processor_id			// x4
@@ -497,15 +496,7 @@ __switch_data:
 __mmap_switched:
 	adr	x3, __switch_data + 8
 
-	ldp	x4, x5, [x3], #16
 	ldp	x6, x7, [x3], #16
-	cmp	x4, x5				// Copy data segment if needed
-1:	ccmp	x5, x6, #4, ne
-	b.eq	2f
-	ldr	x16, [x4], #8
-	str	x16, [x5], #8
-	b	1b
-2:
 1:	cmp	x6, x7
 	b.hs	2f
 	str	xzr, [x6], #8			// Clear BSS

@@ -54,7 +54,7 @@ enum wcn36xx_debug_mask {
 };
 
 #define wcn36xx_err(fmt, arg...)				\
-	printk(KERN_ERR pr_fmt("ERROR " fmt), ##arg);
+	printk(KERN_ERR pr_fmt("ERROR " fmt), ##arg)
 
 #define wcn36xx_warn(fmt, arg...)				\
 	printk(KERN_WARNING pr_fmt("WARNING " fmt), ##arg)

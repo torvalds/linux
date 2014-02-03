@@ -24,7 +24,6 @@
 #include <linux/hw_random.h>
 #include <asm/vio.h>
 
-#define MODULE_NAME "pseries-rng"
 
 static int pseries_rng_data_read(struct hwrng *rng, u32 *data)
 {
@@ -55,7 +54,7 @@ static unsigned long pseries_rng_get_desired_dma(struct vio_dev *vdev)
 };
 
 static struct hwrng pseries_rng = {
-	.name		= MODULE_NAME,
+	.name		= KBUILD_MODNAME,
 	.data_read	= pseries_rng_data_read,
 };
 
@@ -78,7 +77,7 @@ static struct vio_device_id pseries_rng_driver_ids[] = {
 MODULE_DEVICE_TABLE(vio, pseries_rng_driver_ids);
 
 static struct vio_driver pseries_rng_driver = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.probe = pseries_rng_probe,
 	.remove = pseries_rng_remove,
 	.get_desired_dma = pseries_rng_get_desired_dma,

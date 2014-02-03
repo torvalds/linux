@@ -532,14 +532,7 @@ gss_setup_upcall(struct gss_auth *gss_auth, struct rpc_cred *cred)
 
 static void warn_gssd(void)
 {
-	static unsigned long ratelimit;
-	unsigned long now = jiffies;
-
-	if (time_after(now, ratelimit)) {
-		printk(KERN_WARNING "RPC: AUTH_GSS upcall timed out.\n"
-				"Please check user daemon is running.\n");
-		ratelimit = now + 15*HZ;
-	}
+	dprintk("AUTH_GSS upcall failed. Please check user daemon is running.\n");
 }
 
 static inline int
@@ -600,7 +593,6 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	struct rpc_pipe *pipe;
 	struct rpc_cred *cred = &gss_cred->gc_base;
 	struct gss_upcall_msg *gss_msg;
-	unsigned long timeout;
 	DEFINE_WAIT(wait);
 	int err;
 
@@ -608,17 +600,16 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 		__func__, from_kuid(&init_user_ns, cred->cr_uid));
 retry:
 	err = 0;
-	/* Default timeout is 15s unless we know that gssd is not running */
-	timeout = 15 * HZ;
-	if (!sn->gssd_running)
-		timeout = HZ >> 2;
+	/* if gssd is down, just skip upcalling altogether */
+	if (!gssd_running(net)) {
+		warn_gssd();
+		return -EACCES;
+	}
 	gss_msg = gss_setup_upcall(gss_auth, cred);
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		err = wait_event_interruptible_timeout(pipe_version_waitqueue,
-				sn->pipe_version >= 0, timeout);
+				sn->pipe_version >= 0, 15 * HZ);
 		if (sn->pipe_version < 0) {
-			if (err == 0)
-				sn->gssd_running = 0;
 			warn_gssd();
 			err = -EACCES;
 		}
@@ -1517,7 +1508,7 @@ out:
 static int
 gss_refresh_null(struct rpc_task *task)
 {
-	return -EACCES;
+	return 0;
 }
 
 static __be32 *

@@ -108,9 +108,10 @@
  * 1.31- Add support for num Z pipes from GET_PARAM
  * 1.32- fixes for rv740 setup
  * 1.33- Add r6xx/r7xx const buffer support
+ * 1.34- fix evergreen/cayman GS register
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		33
+#define DRIVER_MINOR		34
 #define DRIVER_PATCHLEVEL	0
 
 long radeon_drm_ioctl(struct file *filp,
@@ -404,7 +405,7 @@ extern void radeon_do_release(struct drm_device * dev);
 extern u32 radeon_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int radeon_enable_vblank(struct drm_device *dev, int crtc);
 extern void radeon_disable_vblank(struct drm_device *dev, int crtc);
-extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
+extern irqreturn_t radeon_driver_irq_handler(int irq, void *arg);
 extern void radeon_driver_irq_preinstall(struct drm_device * dev);
 extern int radeon_driver_irq_postinstall(struct drm_device *dev);
 extern void radeon_driver_irq_uninstall(struct drm_device * dev);

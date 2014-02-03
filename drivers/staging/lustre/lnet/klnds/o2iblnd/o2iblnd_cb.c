@@ -529,8 +529,7 @@ kiblnd_kvaddr_to_page (unsigned long vaddr)
 {
 	struct page *page;
 
-	if (vaddr >= VMALLOC_START &&
-	    vaddr < VMALLOC_END) {
+	if (is_vmalloc_addr(vaddr)) {
 		page = vmalloc_to_page ((void *)vaddr);
 		LASSERT (page != NULL);
 		return page;

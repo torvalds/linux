@@ -1,4 +1,5 @@
 #include <linux/module.h>
+
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -65,7 +66,7 @@ enum {
 	NULL_Q_MQ		= 2,
 };
 
-static int submit_queues = 1;
+static int submit_queues;
 module_param(submit_queues, int, S_IRUGO);
 MODULE_PARM_DESC(submit_queues, "Number of submission queues");
 
@@ -101,9 +102,9 @@ static int hw_queue_depth = 64;
 module_param(hw_queue_depth, int, S_IRUGO);
 MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
 
-static bool use_per_node_hctx = true;
+static bool use_per_node_hctx = false;
 module_param(use_per_node_hctx, bool, S_IRUGO);
-MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: true");
+MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
 
 static void put_tag(struct nullb_queue *nq, unsigned int tag)
 {
@@ -346,13 +347,51 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
 
 static struct blk_mq_hw_ctx *null_alloc_hctx(struct blk_mq_reg *reg, unsigned int hctx_index)
 {
-	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL,
-				hctx_index);
+	int b_size = DIV_ROUND_UP(reg->nr_hw_queues, nr_online_nodes);
+	int tip = (reg->nr_hw_queues % nr_online_nodes);
+	int node = 0, i, n;
+
+	/*
+	 * Split submit queues evenly wrt to the number of nodes. If uneven,
+	 * fill the first buckets with one extra, until the rest is filled with
+	 * no extra.
+	 */
+	for (i = 0, n = 1; i < hctx_index; i++, n++) {
+		if (n % b_size == 0) {
+			n = 0;
+			node++;
+
+			tip--;
+			if (!tip)
+				b_size = reg->nr_hw_queues / nr_online_nodes;
+		}
+	}
+
+	/*
+	 * A node might not be online, therefore map the relative node id to the
+	 * real node id.
+	 */
+	for_each_online_node(n) {
+		if (!node)
+			break;
+		node--;
+	}
+
+	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL, n);
 }
 
 static void null_free_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_index)
 {
 	kfree(hctx);
+}
+
+static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
+{
+	BUG_ON(!nullb);
+	BUG_ON(!nq);
+
+	init_waitqueue_head(&nq->wait);
+	nq->queue_depth = nullb->queue_depth;
 }
 
 static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
@@ -361,10 +400,9 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct nullb *nullb = data;
 	struct nullb_queue *nq = &nullb->queues[index];
 
-	init_waitqueue_head(&nq->wait);
-	nq->queue_depth = nullb->queue_depth;
-	nullb->nr_queues++;
 	hctx->driver_data = nq;
+	null_init_queue(nullb, nq);
+	nullb->nr_queues++;
 
 	return 0;
 }
@@ -387,10 +425,7 @@ static void null_del_dev(struct nullb *nullb)
 	list_del_init(&nullb->list);
 
 	del_gendisk(nullb->disk);
-	if (queue_mode == NULL_Q_MQ)
-		blk_mq_free_queue(nullb->q);
-	else
-		blk_cleanup_queue(nullb->q);
+	blk_cleanup_queue(nullb->q);
 	put_disk(nullb->disk);
 	kfree(nullb);
 }
@@ -417,13 +452,13 @@ static int setup_commands(struct nullb_queue *nq)
 
 	nq->cmds = kzalloc(nq->queue_depth * sizeof(*cmd), GFP_KERNEL);
 	if (!nq->cmds)
-		return 1;
+		return -ENOMEM;
 
 	tag_size = ALIGN(nq->queue_depth, BITS_PER_LONG) / BITS_PER_LONG;
 	nq->tag_map = kzalloc(tag_size * sizeof(unsigned long), GFP_KERNEL);
 	if (!nq->tag_map) {
 		kfree(nq->cmds);
-		return 1;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < nq->queue_depth; i++) {
@@ -454,33 +489,37 @@ static void cleanup_queues(struct nullb *nullb)
 
 static int setup_queues(struct nullb *nullb)
 {
-	struct nullb_queue *nq;
-	int i;
-
-	nullb->queues = kzalloc(submit_queues * sizeof(*nq), GFP_KERNEL);
+	nullb->queues = kzalloc(submit_queues * sizeof(struct nullb_queue),
+								GFP_KERNEL);
 	if (!nullb->queues)
-		return 1;
+		return -ENOMEM;
 
 	nullb->nr_queues = 0;
 	nullb->queue_depth = hw_queue_depth;
 
-	if (queue_mode == NULL_Q_MQ)
-		return 0;
+	return 0;
+}
+
+static int init_driver_queues(struct nullb *nullb)
+{
+	struct nullb_queue *nq;
+	int i, ret = 0;
 
 	for (i = 0; i < submit_queues; i++) {
 		nq = &nullb->queues[i];
-		init_waitqueue_head(&nq->wait);
-		nq->queue_depth = hw_queue_depth;
-		if (setup_commands(nq))
-			break;
+
+		null_init_queue(nullb, nq);
+
+		ret = setup_commands(nq);
+		if (ret)
+			goto err_queue;
 		nullb->nr_queues++;
 	}
 
-	if (i == submit_queues)
-		return 0;
-
+	return 0;
+err_queue:
 	cleanup_queues(nullb);
-	return 1;
+	return ret;
 }
 
 static int null_add_dev(void)
@@ -495,34 +534,36 @@ static int null_add_dev(void)
 
 	spin_lock_init(&nullb->lock);
 
+	if (queue_mode == NULL_Q_MQ && use_per_node_hctx)
+		submit_queues = nr_online_nodes;
+
 	if (setup_queues(nullb))
 		goto err;
 
 	if (queue_mode == NULL_Q_MQ) {
 		null_mq_reg.numa_node = home_node;
 		null_mq_reg.queue_depth = hw_queue_depth;
+		null_mq_reg.nr_hw_queues = submit_queues;
 
 		if (use_per_node_hctx) {
 			null_mq_reg.ops->alloc_hctx = null_alloc_hctx;
 			null_mq_reg.ops->free_hctx = null_free_hctx;
-
-			null_mq_reg.nr_hw_queues = nr_online_nodes;
 		} else {
 			null_mq_reg.ops->alloc_hctx = blk_mq_alloc_single_hw_queue;
 			null_mq_reg.ops->free_hctx = blk_mq_free_single_hw_queue;
-
-			null_mq_reg.nr_hw_queues = submit_queues;
 		}
 
 		nullb->q = blk_mq_init_queue(&null_mq_reg, nullb);
 	} else if (queue_mode == NULL_Q_BIO) {
 		nullb->q = blk_alloc_queue_node(GFP_KERNEL, home_node);
 		blk_queue_make_request(nullb->q, null_queue_bio);
+		init_driver_queues(nullb);
 	} else {
 		nullb->q = blk_init_queue_node(null_request_fn, &nullb->lock, home_node);
 		blk_queue_prep_rq(nullb->q, null_rq_prep_fn);
 		if (nullb->q)
 			blk_queue_softirq_done(nullb->q, null_softirq_done_fn);
+		init_driver_queues(nullb);
 	}
 
 	if (!nullb->q)
@@ -534,10 +575,7 @@ static int null_add_dev(void)
 	disk = nullb->disk = alloc_disk_node(1, home_node);
 	if (!disk) {
 queue_fail:
-		if (queue_mode == NULL_Q_MQ)
-			blk_mq_free_queue(nullb->q);
-		else
-			blk_cleanup_queue(nullb->q);
+		blk_cleanup_queue(nullb->q);
 		cleanup_queues(nullb);
 err:
 		kfree(nullb);
@@ -578,8 +616,19 @@ static int __init null_init(void)
 		irqmode = NULL_IRQ_NONE;
 	}
 #endif
+	if (bs > PAGE_SIZE) {
+		pr_warn("null_blk: invalid block size\n");
+		pr_warn("null_blk: defaults block size to %lu\n", PAGE_SIZE);
+		bs = PAGE_SIZE;
+	}
 
-	if (submit_queues > nr_cpu_ids)
+	if (queue_mode == NULL_Q_MQ && use_per_node_hctx) {
+		if (submit_queues < nr_online_nodes) {
+			pr_warn("null_blk: submit_queues param is set to %u.",
+							nr_online_nodes);
+			submit_queues = nr_online_nodes;
+		}
+	} else if (submit_queues > nr_cpu_ids)
 		submit_queues = nr_cpu_ids;
 	else if (!submit_queues)
 		submit_queues = 1;

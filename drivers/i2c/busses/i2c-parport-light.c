@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------------ *
  * i2c-parport-light.c I2C bus over parallel port                           *
  * ------------------------------------------------------------------------ *
-   Copyright (C) 2003-2010 Jean Delvare <khali@linux-fr.org>
+   Copyright (C) 2003-2010 Jean Delvare <jdelvare@suse.de>
 
    Based on older i2c-velleman.c driver
    Copyright (C) 1995-2000 Simon G. Vogl
@@ -273,7 +273,7 @@ static void __exit i2c_parport_exit(void)
 	release_region(base, 3);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("I2C bus over parallel port (light)");
 MODULE_LICENSE("GPL");
 

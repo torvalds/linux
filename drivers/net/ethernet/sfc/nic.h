@@ -412,8 +412,8 @@ enum {
 	EF10_STAT_rx_dp_q_disabled_packets,
 	EF10_STAT_rx_dp_di_dropped_packets,
 	EF10_STAT_rx_dp_streaming_packets,
-	EF10_STAT_rx_dp_emerg_fetch,
-	EF10_STAT_rx_dp_emerg_wait,
+	EF10_STAT_rx_dp_hlb_fetch,
+	EF10_STAT_rx_dp_hlb_wait,
 	EF10_STAT_COUNT
 };
 
@@ -554,12 +554,31 @@ int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
 			      bool spoofchk);
 
 struct ethtool_ts_info;
-void efx_ptp_probe(struct efx_nic *efx);
-int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd);
+int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel);
+void efx_ptp_defer_probe_with_channel(struct efx_nic *efx);
+void efx_ptp_remove(struct efx_nic *efx);
+int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr);
+int efx_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr);
 void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info);
 bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
+int efx_ptp_get_mode(struct efx_nic *efx);
+int efx_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
+			unsigned int new_mode);
 int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
+size_t efx_ptp_describe_stats(struct efx_nic *efx, u8 *strings);
+size_t efx_ptp_update_stats(struct efx_nic *efx, u64 *stats);
+void efx_time_sync_event(struct efx_channel *channel, efx_qword_t *ev);
+void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
+				   struct sk_buff *skb);
+static inline void efx_rx_skb_attach_timestamp(struct efx_channel *channel,
+					       struct sk_buff *skb)
+{
+	if (channel->sync_events_state == SYNC_EVENTS_VALID)
+		__efx_rx_skb_attach_timestamp(channel, skb);
+}
+void efx_ptp_start_datapath(struct efx_nic *efx);
+void efx_ptp_stop_datapath(struct efx_nic *efx);
 
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
@@ -676,8 +695,8 @@ int efx_farch_filter_remove_safe(struct efx_nic *efx,
 int efx_farch_filter_get_safe(struct efx_nic *efx,
 			      enum efx_filter_priority priority, u32 filter_id,
 			      struct efx_filter_spec *);
-void efx_farch_filter_clear_rx(struct efx_nic *efx,
-			       enum efx_filter_priority priority);
+int efx_farch_filter_clear_rx(struct efx_nic *efx,
+			      enum efx_filter_priority priority);
 u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
 				   enum efx_filter_priority priority);
 u32 efx_farch_filter_get_rx_id_limit(struct efx_nic *efx);
@@ -745,10 +764,6 @@ int falcon_reset_xaui(struct efx_nic *efx);
 void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
 void efx_farch_init_common(struct efx_nic *efx);
 void efx_ef10_handle_drain_event(struct efx_nic *efx);
-static inline void efx_nic_push_rx_indir_table(struct efx_nic *efx)
-{
-	efx->type->rx_push_indir_table(efx);
-}
 void efx_farch_rx_push_indir_table(struct efx_nic *efx);
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
@@ -772,6 +787,7 @@ size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
 void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			  const unsigned long *mask, u64 *stats,
 			  const void *dma_buf, bool accumulate);
+void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *stat);
 
 #define EFX_MAX_FLUSH_TIME 5000
 

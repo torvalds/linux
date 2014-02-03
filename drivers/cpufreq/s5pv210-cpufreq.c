@@ -23,7 +23,6 @@
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 
-static struct clk *cpu_clk;
 static struct clk *dmc0_clk;
 static struct clk *dmc1_clk;
 static DEFINE_MUTEX(set_freq_lock);
@@ -164,14 +163,6 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	__raw_writel(tmp1, reg);
 }
 
-static unsigned int s5pv210_getspeed(unsigned int cpu)
-{
-	if (cpu)
-		return 0;
-
-	return clk_get_rate(cpu_clk) / 1000;
-}
-
 static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned long reg;
@@ -193,7 +184,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 		goto exit;
 	}
 
-	old_freq = s5pv210_getspeed(0);
+	old_freq = policy->cur;
 	new_freq = s5pv210_freq_table[index].frequency;
 
 	/* Finding current running level index */
@@ -471,9 +462,9 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 	unsigned long mem_type;
 	int ret;
 
-	cpu_clk = clk_get(NULL, "armclk");
-	if (IS_ERR(cpu_clk))
-		return PTR_ERR(cpu_clk);
+	policy->clk = clk_get(NULL, "armclk");
+	if (IS_ERR(policy->clk))
+		return PTR_ERR(policy->clk);
 
 	dmc0_clk = clk_get(NULL, "sclk_dmc0");
 	if (IS_ERR(dmc0_clk)) {
@@ -516,7 +507,7 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 out_dmc1:
 	clk_put(dmc0_clk);
 out_dmc0:
-	clk_put(cpu_clk);
+	clk_put(policy->clk);
 	return ret;
 }
 
@@ -560,10 +551,10 @@ static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
 }
 
 static struct cpufreq_driver s5pv210_driver = {
-	.flags		= CPUFREQ_STICKY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= s5pv210_target,
-	.get		= s5pv210_getspeed,
+	.get		= cpufreq_generic_get,
 	.init		= s5pv210_cpu_init,
 	.name		= "s5pv210",
 #ifdef CONFIG_PM

@@ -82,6 +82,52 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
+		aes: aes@480c5000 {
+			compatible = "ti,omap3-aes";
+			ti,hwmods = "aes";
+			reg = <0x480c5000 0x50>;
+			interrupts = <0>;
+		};
+
+		prm: prm@48306000 {
+			compatible = "ti,omap3-prm";
+			reg = <0x48306000 0x4000>;
+
+			prm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prm_clockdomains: clockdomains {
+			};
+		};
+
+		cm: cm@48004000 {
+			compatible = "ti,omap3-cm";
+			reg = <0x48004000 0x4000>;
+
+			cm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			cm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@48002000 {
+			compatible = "ti,omap3-scrm";
+			reg = <0x48002000 0x2000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
 		counter32k: counter@48320000 {
 			compatible = "ti,omap-counter32k";
 			reg = <0x48320000 0x20>;
@@ -110,7 +156,7 @@
 
 		omap3_pmx_core: pinmux@48002030 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
-			reg = <0x48002030 0x05cc>;
+			reg = <0x48002030 0x0238>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#interrupt-cells = <1>;
@@ -260,6 +306,13 @@
 			ti,hwmods = "i2c3";
 		};
 
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap3-mailbox";
+			ti,hwmods = "mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>;
+		};
+
 		mcspi1: spi@48098000 {
 			compatible = "ti,omap2-mcspi";
 			reg = <0x48098000 0x100>;
@@ -357,6 +410,13 @@
 			dma-names = "tx", "rx";
 		};
 
+		mmu_isp: mmu@480bd400 {
+			compatible = "ti,omap3-mmu-isp";
+			ti,hwmods = "mmu_isp";
+			reg = <0x480bd400 0x80>;
+			interrupts = <8>;
+		};
+
 		wdt2: wdt@48314000 {
 			compatible = "ti,omap3-wdt";
 			reg = <0x48314000 0x80>;
@@ -440,6 +500,27 @@
 			dmas = <&sdma 21>,
 			       <&sdma 22>;
 			dma-names = "tx", "rx";
+		};
+
+		sham: sham@480c3000 {
+			compatible = "ti,omap3-sham";
+			ti,hwmods = "sham";
+			reg = <0x480c3000 0x64>;
+			interrupts = <49>;
+		};
+
+		smartreflex_core: smartreflex@480cb000 {
+			compatible = "ti,omap3-smartreflex-core";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x480cb000 0x400>;
+			interrupts = <19>;
+		};
+
+		smartreflex_mpu_iva: smartreflex@480c9000 {
+			compatible = "ti,omap3-smartreflex-iva";
+			ti,hwmods = "smartreflex_mpu_iva";
+			reg = <0x480c9000 0x400>;
+			interrupts = <18>;
 		};
 
 		timer1: timer@48318000 {
@@ -590,3 +671,5 @@
 		};
 	};
 };
+
+/include/ "omap3xxx-clocks.dtsi"

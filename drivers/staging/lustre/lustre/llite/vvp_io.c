@@ -121,8 +121,38 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 
-	CDEBUG(D_VFSTRACE, "ignore/verify layout %d/%d, layout version %d.\n",
-		io->ci_ignore_layout, io->ci_verify_layout, cio->cui_layout_gen);
+	CDEBUG(D_VFSTRACE, DFID
+	       " ignore/verify layout %d/%d, layout version %d restore needed %d\n",
+	       PFID(lu_object_fid(&obj->co_lu)),
+	       io->ci_ignore_layout, io->ci_verify_layout,
+	       cio->cui_layout_gen, io->ci_restore_needed);
+
+	if (io->ci_restore_needed == 1) {
+		int	rc;
+
+		/* file was detected release, we need to restore it
+		 * before finishing the io
+		 */
+		rc = ll_layout_restore(ccc_object_inode(obj));
+		/* if restore registration failed, no restart,
+		 * we will return -ENODATA */
+		/* The layout will change after restore, so we need to
+		 * block on layout lock hold by the MDT
+		 * as MDT will not send new layout in lvb (see LU-3124)
+		 * we have to explicitly fetch it, all this will be done
+		 * by ll_layout_refresh()
+		 */
+		if (rc == 0) {
+			io->ci_restore_needed = 0;
+			io->ci_need_restart = 1;
+			io->ci_verify_layout = 1;
+		} else {
+			io->ci_restore_needed = 1;
+			io->ci_need_restart = 0;
+			io->ci_verify_layout = 0;
+			io->ci_result = rc;
+		}
+	}
 
 	if (!io->ci_ignore_layout && io->ci_verify_layout) {
 		__u32 gen = 0;
@@ -130,9 +160,17 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		/* check layout version */
 		ll_layout_refresh(ccc_object_inode(obj), &gen);
 		io->ci_need_restart = cio->cui_layout_gen != gen;
-		if (io->ci_need_restart)
-			CDEBUG(D_VFSTRACE, "layout changed from %d to %d.\n",
-				cio->cui_layout_gen, gen);
+		if (io->ci_need_restart) {
+			CDEBUG(D_VFSTRACE,
+			       DFID" layout changed from %d to %d.\n",
+			       PFID(lu_object_fid(&obj->co_lu)),
+			       cio->cui_layout_gen, gen);
+			/* today successful restore is the only possible
+			 * case */
+			/* restore was done, clear restoring state */
+			ll_i2info(ccc_object_inode(obj))->lli_flags &=
+				~LLIF_FILE_RESTORING;
+		}
 	}
 }
 
@@ -590,8 +628,11 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	cfio->fault.ft_flags = filemap_fault(cfio->ft_vma, vmf);
 
 	if (vmf->page) {
-		LL_CDEBUG_PAGE(D_PAGE, vmf->page, "got addr %p type NOPAGE\n",
-			       vmf->virtual_address);
+		CDEBUG(D_PAGE,
+		       "page %p map %p index %lu flags %lx count %u priv %0lx: got addr %p type NOPAGE\n",
+		       vmf->page, vmf->page->mapping, vmf->page->index,
+		       (long)vmf->page->flags, page_count(vmf->page),
+		       page_private(vmf->page), vmf->virtual_address);
 		if (unlikely(!(cfio->fault.ft_flags & VM_FAULT_LOCKED))) {
 			lock_page(vmf->page);
 			cfio->fault.ft_flags &= VM_FAULT_LOCKED;
@@ -1110,6 +1151,12 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 	int		 result;
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
+
+	CDEBUG(D_VFSTRACE, DFID
+	       " ignore/verify layout %d/%d, layout version %d restore needed %d\n",
+	       PFID(lu_object_fid(&obj->co_lu)),
+	       io->ci_ignore_layout, io->ci_verify_layout,
+	       cio->cui_layout_gen, io->ci_restore_needed);
 
 	CL_IO_SLICE_CLEAN(cio, cui_cl);
 	cl_io_slice_add(io, &cio->cui_cl, obj, &vvp_io_ops);

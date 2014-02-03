@@ -155,8 +155,9 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 
 	dev_dbg(dev, "parent %p, bus %p\n", udev->parent, udev->bus);
 
-	dev_dbg(dev, "descriptor %p, config %p, actconfig %p, "
-		"rawdescriptors %p\n", &udev->descriptor, udev->config,
+	dev_dbg(dev,
+		"descriptor %p, config %p, actconfig %p, rawdescriptors %p\n",
+		&udev->descriptor, udev->config,
 		udev->actconfig, udev->rawdescriptors);
 
 	dev_dbg(dev, "have_langid %d, string_langid %d\n",
@@ -366,7 +367,6 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;
 		msg.msg_controllen = 0;
-		msg.msg_namelen    = 0;
 		msg.msg_flags      = MSG_NOSIGNAL;
 
 		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);
