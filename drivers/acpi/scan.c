@@ -41,6 +41,7 @@ static DEFINE_MUTEX(acpi_scan_lock);
 static LIST_HEAD(acpi_scan_handlers_list);
 DEFINE_MUTEX(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
+static DEFINE_MUTEX(acpi_hp_context_lock);
 
 struct acpi_device_bus_id{
 	char bus_id[15];
@@ -59,6 +60,16 @@ void acpi_scan_lock_release(void)
 	mutex_unlock(&acpi_scan_lock);
 }
 EXPORT_SYMBOL_GPL(acpi_scan_lock_release);
+
+void acpi_lock_hp_context(void)
+{
+	mutex_lock(&acpi_hp_context_lock);
+}
+
+void acpi_unlock_hp_context(void)
+{
+	mutex_unlock(&acpi_hp_context_lock);
+}
 
 int acpi_scan_add_handler(struct acpi_scan_handler *handler)
 {

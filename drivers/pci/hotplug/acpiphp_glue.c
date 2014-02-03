@@ -58,7 +58,6 @@
 
 static LIST_HEAD(bridge_list);
 static DEFINE_MUTEX(bridge_mutex);
-static DEFINE_MUTEX(acpiphp_context_lock);
 
 static void handle_hotplug_event(acpi_handle handle, u32 type, void *data);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
@@ -75,7 +74,7 @@ static void acpiphp_context_handler(acpi_handle handle, void *context)
  * acpiphp_init_context - Create hotplug context and grab a reference to it.
  * @adev: ACPI device object to create the context for.
  *
- * Call under acpiphp_context_lock.
+ * Call under acpi_hp_context_lock.
  */
 static struct acpiphp_context *acpiphp_init_context(struct acpi_device *adev)
 {
@@ -100,7 +99,7 @@ static struct acpiphp_context *acpiphp_init_context(struct acpi_device *adev)
  * acpiphp_get_context - Get hotplug context and grab a reference to it.
  * @handle: ACPI object handle to get the context for.
  *
- * Call under acpiphp_context_lock.
+ * Call under acpi_hp_context_lock.
  */
 static struct acpiphp_context *acpiphp_get_context(acpi_handle handle)
 {
@@ -122,7 +121,7 @@ static struct acpiphp_context *acpiphp_get_context(acpi_handle handle)
  *
  * The context object is removed if there are no more references to it.
  *
- * Call under acpiphp_context_lock.
+ * Call under acpi_hp_context_lock.
  */
 static void acpiphp_put_context(struct acpiphp_context *context)
 {
@@ -151,7 +150,7 @@ static void free_bridge(struct kref *kref)
 	struct acpiphp_slot *slot, *next;
 	struct acpiphp_func *func, *tmp;
 
-	mutex_lock(&acpiphp_context_lock);
+	acpi_lock_hp_context();
 
 	bridge = container_of(kref, struct acpiphp_bridge, ref);
 
@@ -175,7 +174,7 @@ static void free_bridge(struct kref *kref)
 	pci_dev_put(bridge->pci_dev);
 	kfree(bridge);
 
-	mutex_unlock(&acpiphp_context_lock);
+	acpi_unlock_hp_context();
 }
 
 /*
@@ -214,16 +213,16 @@ static void dock_event(acpi_handle handle, u32 type, void *data)
 {
 	struct acpiphp_context *context;
 
-	mutex_lock(&acpiphp_context_lock);
+	acpi_lock_hp_context();
 	context = acpiphp_get_context(handle);
 	if (!context || WARN_ON(context->adev->handle != handle)
 	    || context->func.parent->is_going_away) {
-		mutex_unlock(&acpiphp_context_lock);
+		acpi_unlock_hp_context();
 		return;
 	}
 	get_bridge(context->func.parent);
 	acpiphp_put_context(context);
-	mutex_unlock(&acpiphp_context_lock);
+	acpi_unlock_hp_context();
 
 	hotplug_event(type, context);
 
@@ -310,17 +309,17 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	device = (adr >> 16) & 0xffff;
 	function = adr & 0xffff;
 
-	mutex_lock(&acpiphp_context_lock);
+	acpi_lock_hp_context();
 	context = acpiphp_init_context(adev);
 	if (!context) {
-		mutex_unlock(&acpiphp_context_lock);
+		acpi_unlock_hp_context();
 		acpi_handle_err(handle, "No hotplug context\n");
 		return AE_NOT_EXIST;
 	}
 	newfunc = &context->func;
 	newfunc->function = function;
 	newfunc->parent = bridge;
-	mutex_unlock(&acpiphp_context_lock);
+	acpi_unlock_hp_context();
 
 	if (acpi_has_method(handle, "_EJ0"))
 		newfunc->flags = FUNC_HAS_EJ0;
@@ -338,9 +337,9 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
 	slot = kzalloc(sizeof(struct acpiphp_slot), GFP_KERNEL);
 	if (!slot) {
-		mutex_lock(&acpiphp_context_lock);
+		acpi_lock_hp_context();
 		acpiphp_put_context(context);
-		mutex_unlock(&acpiphp_context_lock);
+		acpi_unlock_hp_context();
 		return AE_NO_MEMORY;
 	}
 
@@ -415,7 +414,7 @@ static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
 	struct acpiphp_context *context;
 	struct acpiphp_bridge *bridge = NULL;
 
-	mutex_lock(&acpiphp_context_lock);
+	acpi_lock_hp_context();
 	context = acpiphp_get_context(handle);
 	if (context) {
 		bridge = context->bridge;
@@ -424,7 +423,7 @@ static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
 
 		acpiphp_put_context(context);
 	}
-	mutex_unlock(&acpiphp_context_lock);
+	acpi_unlock_hp_context();
 	return bridge;
 }
 
@@ -458,9 +457,9 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 	list_del(&bridge->list);
 	mutex_unlock(&bridge_mutex);
 
-	mutex_lock(&acpiphp_context_lock);
+	acpi_lock_hp_context();
 	bridge->is_going_away = true;
-	mutex_unlock(&acpiphp_context_lock);
+	acpi_unlock_hp_context();
 }
 
 /**
@@ -820,12 +819,12 @@ static void hotplug_event(u32 type, struct acpiphp_context *context)
 	struct acpiphp_slot *slot = func->slot;
 	struct acpiphp_bridge *bridge;
 
-	mutex_lock(&acpiphp_context_lock);
+	acpi_lock_hp_context();
 	bridge = context->bridge;
 	if (bridge)
 		get_bridge(bridge);
 
-	mutex_unlock(&acpiphp_context_lock);
+	acpi_unlock_hp_context();
 
 	pci_lock_rescan_remove();
 
@@ -927,7 +926,7 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 		goto out;
 	}
 
-	mutex_lock(&acpiphp_context_lock);
+	acpi_lock_hp_context();
 	context = acpiphp_get_context(handle);
 	if (!context || WARN_ON(context->adev->handle != handle)
 	    || context->func.parent->is_going_away)
@@ -937,13 +936,13 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 	acpiphp_put_context(context);
 	status = acpi_hotplug_execute(hotplug_event_work, context, type);
 	if (ACPI_SUCCESS(status)) {
-		mutex_unlock(&acpiphp_context_lock);
+		acpi_unlock_hp_context();
 		return;
 	}
 	put_bridge(context->func.parent);
 
  err_out:
-	mutex_unlock(&acpiphp_context_lock);
+	acpi_unlock_hp_context();
 	ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 
  out:
@@ -999,10 +998,10 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		 * parent is going to be handled by pciehp, in which case this
 		 * bridge is not interesting to us either.
 		 */
-		mutex_lock(&acpiphp_context_lock);
+		acpi_lock_hp_context();
 		context = acpiphp_get_context(handle);
 		if (!context) {
-			mutex_unlock(&acpiphp_context_lock);
+			acpi_unlock_hp_context();
 			put_device(&bus->dev);
 			pci_dev_put(bridge->pci_dev);
 			kfree(bridge);
@@ -1012,7 +1011,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		context->bridge = bridge;
 		/* Get a reference to the parent bridge. */
 		get_bridge(context->func.parent);
-		mutex_unlock(&acpiphp_context_lock);
+		acpi_unlock_hp_context();
 	}
 
 	/* must be added to the list prior to calling register_slot */
