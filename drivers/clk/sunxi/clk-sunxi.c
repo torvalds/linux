@@ -51,6 +51,8 @@ static void __init sun4i_osc_clk_setup(struct device_node *node)
 	if (!gate)
 		goto err_free_fixed;
 
+	of_property_read_string(node, "clock-output-names", &clk_name);
+
 	/* set up gate and fixed rate properties */
 	gate->reg = of_iomap(node, 0);
 	gate->bit_idx = SUNXI_OSC24M_GATE;
@@ -601,6 +603,8 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 	       (parents[i] = of_clk_get_parent_name(node, i)) != NULL)
 		i++;
 
+	of_property_read_string(node, "clock-output-names", &clk_name);
+
 	clk = clk_register_mux(NULL, clk_name, parents, i,
 			       CLK_SET_RATE_NO_REPARENT, reg,
 			       data->shift, SUNXI_MUX_GATE_WIDTH,
@@ -659,6 +663,8 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 	reg = of_iomap(node, 0);
 
 	clk_parent = of_clk_get_parent_name(node, 0);
+
+	of_property_read_string(node, "clock-output-names", &clk_name);
 
 	clk = clk_register_divider(NULL, clk_name, clk_parent, 0,
 				   reg, data->shift, data->width,
