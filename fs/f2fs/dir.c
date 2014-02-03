@@ -395,9 +395,6 @@ static void update_parent_metadata(struct inode *dir, struct inode *inode,
 		set_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
 	}
 
-	if (is_inode_flag_set(F2FS_I(dir), FI_UPDATE_DIR))
-		update_inode_page(dir);
-
 	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK))
 		clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
 }
@@ -511,7 +508,10 @@ add_dentry:
 
 	update_parent_metadata(dir, inode, current_depth);
 fail:
-	clear_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
+	if (is_inode_flag_set(F2FS_I(dir), FI_UPDATE_DIR)) {
+		update_inode_page(dir);
+		clear_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
+	}
 	kunmap(dentry_page);
 	f2fs_put_page(dentry_page, 1);
 	return err;
