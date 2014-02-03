@@ -742,7 +742,7 @@ static void trim_stale_devices(struct pci_dev *dev)
 
 		/* The device is a bridge. so check the bus below it. */
 		pm_runtime_get_sync(&dev->dev);
-		list_for_each_entry_safe(child, tmp, &bus->devices, bus_list)
+		list_for_each_entry_safe_reverse(child, tmp, &bus->devices, bus_list)
 			trim_stale_devices(child);
 
 		pm_runtime_put(&dev->dev);
@@ -773,8 +773,8 @@ static void acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 			; /* do nothing */
 		} else if (get_slot_status(slot) == ACPI_STA_ALL) {
 			/* remove stale devices if any */
-			list_for_each_entry_safe(dev, tmp, &bus->devices,
-						 bus_list)
+			list_for_each_entry_safe_reverse(dev, tmp,
+							 &bus->devices, bus_list)
 				if (PCI_SLOT(dev->devfn) == slot->device)
 					trim_stale_devices(dev);
 
@@ -805,7 +805,7 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
 	int i;
 	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM;
 
-	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
+	list_for_each_entry_safe_reverse(dev, tmp, &bus->devices, bus_list) {
 		for (i=0; i<PCI_BRIDGE_RESOURCES; i++) {
 			struct resource *res = &dev->resource[i];
 			if ((res->flags & type_mask) && !res->start &&
