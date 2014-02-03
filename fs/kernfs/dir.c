@@ -22,6 +22,12 @@ DEFINE_MUTEX(kernfs_mutex);
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
+static bool kernfs_active(struct kernfs_node *kn)
+{
+	lockdep_assert_held(&kernfs_mutex);
+	return atomic_read(&kn->active) >= 0;
+}
+
 static bool kernfs_lockdep(struct kernfs_node *kn)
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -183,25 +189,20 @@ void kernfs_put_active(struct kernfs_node *kn)
 }
 
 /**
- *	kernfs_deactivate - deactivate kernfs_node
- *	@kn: kernfs_node to deactivate
+ * kernfs_drain - drain kernfs_node
+ * @kn: kernfs_node to drain
  *
- *	Deny new active references, drain existing ones and nuke all
- *	existing mmaps.  Mutiple removers may invoke this function
- *	concurrently on @kn and all will return after deactivation and
- *	draining are complete.
+ * Drain existing usages and nuke all existing mmaps of @kn.  Mutiple
+ * removers may invoke this function concurrently on @kn and all will
+ * return after draining is complete.
  */
-static void kernfs_deactivate(struct kernfs_node *kn)
+static void kernfs_drain(struct kernfs_node *kn)
 	__releases(&kernfs_mutex) __acquires(&kernfs_mutex)
 {
 	struct kernfs_root *root = kernfs_root(kn);
 
 	lockdep_assert_held(&kernfs_mutex);
-	BUG_ON(!(kn->flags & KERNFS_REMOVED));
-
-	/* only the first invocation on @kn should deactivate it */
-	if (atomic_read(&kn->active) >= 0)
-		atomic_add(KN_DEACTIVATED_BIAS, &kn->active);
+	WARN_ON_ONCE(kernfs_active(kn));
 
 	mutex_unlock(&kernfs_mutex);
 
@@ -253,13 +254,15 @@ void kernfs_put(struct kernfs_node *kn)
 		return;
 	root = kernfs_root(kn);
  repeat:
-	/* Moving/renaming is always done while holding reference.
+	/*
+	 * Moving/renaming is always done while holding reference.
 	 * kn->parent won't change beneath us.
 	 */
 	parent = kn->parent;
 
-	WARN(!(kn->flags & KERNFS_REMOVED), "kernfs: free using entry: %s/%s\n",
-	     parent ? parent->name : "", kn->name);
+	WARN_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS,
+		  "kernfs_put: %s/%s: released with incorrect active_ref %d\n",
+		  parent ? parent->name : "", kn->name, atomic_read(&kn->active));
 
 	if (kernfs_type(kn) == KERNFS_LINK)
 		kernfs_put(kn->symlink.target_kn);
@@ -301,8 +304,8 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 	kn = dentry->d_fsdata;
 	mutex_lock(&kernfs_mutex);
 
-	/* The kernfs node has been deleted */
-	if (kn->flags & KERNFS_REMOVED)
+	/* The kernfs node has been deactivated */
+	if (!kernfs_active(kn))
 		goto out_bad;
 
 	/* The kernfs node has been moved? */
@@ -371,12 +374,12 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	kn->ino = ret;
 
 	atomic_set(&kn->count, 1);
-	atomic_set(&kn->active, 0);
+	atomic_set(&kn->active, KN_DEACTIVATED_BIAS);
 	RB_CLEAR_NODE(&kn->rb);
 
 	kn->name = name;
 	kn->mode = mode;
-	kn->flags = flags | KERNFS_REMOVED;
+	kn->flags = flags;
 
 	return kn;
 
@@ -432,7 +435,7 @@ int kernfs_add_one(struct kernfs_node *kn)
 		goto out_unlock;
 
 	ret = -ENOENT;
-	if (parent->flags & KERNFS_REMOVED)
+	if (!kernfs_active(parent))
 		goto out_unlock;
 
 	kn->hash = kernfs_name_hash(kn->name, kn->ns);
@@ -449,7 +452,7 @@ int kernfs_add_one(struct kernfs_node *kn)
 	}
 
 	/* Mark the entry added into directory tree */
-	kn->flags &= ~KERNFS_REMOVED;
+	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
 	ret = 0;
 out_unlock:
 	mutex_unlock(&kernfs_mutex);
@@ -549,7 +552,7 @@ struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	kn->flags &= ~KERNFS_REMOVED;
+	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
 	kn->priv = priv;
 	kn->dir.root = root;
 
@@ -763,24 +766,25 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 	pr_debug("kernfs %s: removing\n", kn->name);
 
-	/* disable lookup and node creation under @kn */
+	/* prevent any new usage under @kn by deactivating all nodes */
 	pos = NULL;
 	while ((pos = kernfs_next_descendant_post(pos, kn)))
-		pos->flags |= KERNFS_REMOVED;
+		if (kernfs_active(pos))
+			atomic_add(KN_DEACTIVATED_BIAS, &pos->active);
 
 	/* deactivate and unlink the subtree node-by-node */
 	do {
 		pos = kernfs_leftmost_descendant(kn);
 
 		/*
-		 * kernfs_deactivate() drops kernfs_mutex temporarily and
-		 * @pos's base ref could have been put by someone else by
-		 * the time the function returns.  Make sure it doesn't go
-		 * away underneath us.
+		 * kernfs_drain() drops kernfs_mutex temporarily and @pos's
+		 * base ref could have been put by someone else by the time
+		 * the function returns.  Make sure it doesn't go away
+		 * underneath us.
 		 */
 		kernfs_get(pos);
 
-		kernfs_deactivate(pos);
+		kernfs_drain(pos);
 
 		/*
 		 * kernfs_unlink_sibling() succeeds once per node.  Use it
@@ -865,7 +869,7 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	mutex_lock(&kernfs_mutex);
 
 	error = -ENOENT;
-	if ((kn->flags | new_parent->flags) & KERNFS_REMOVED)
+	if (!kernfs_active(kn) || !kernfs_active(new_parent))
 		goto out;
 
 	error = 0;
@@ -925,7 +929,7 @@ static struct kernfs_node *kernfs_dir_pos(const void *ns,
 	struct kernfs_node *parent, loff_t hash, struct kernfs_node *pos)
 {
 	if (pos) {
-		int valid = !(pos->flags & KERNFS_REMOVED) &&
+		int valid = kernfs_active(pos) &&
 			pos->parent == parent && hash == pos->hash;
 		kernfs_put(pos);
 		if (!valid)
