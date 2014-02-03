@@ -459,6 +459,12 @@ static int acpi_generic_hotplug_event(struct acpi_device *adev, u32 type)
 		return acpi_scan_device_check(adev);
 	case ACPI_NOTIFY_EJECT_REQUEST:
 	case ACPI_OST_EC_OSPM_EJECT:
+		if (adev->handler && !adev->handler->hotplug.enabled) {
+			dev_info(&adev->dev, "Eject disabled\n");
+			return -EPERM;
+		}
+		acpi_evaluate_hotplug_ost(adev->handle, ACPI_NOTIFY_EJECT_REQUEST,
+					  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 		return acpi_scan_hot_remove(adev);
 	}
 	return -EINVAL;
@@ -483,6 +489,10 @@ static void acpi_device_hotplug(void *data, u32 src)
 
 	if (adev->flags.hotplug_notify) {
 		error = acpi_generic_hotplug_event(adev, src);
+		if (error == -EPERM) {
+			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
+			goto err_out;
+		}
 	} else {
 		int (*event)(struct acpi_device *, u32);
 
@@ -512,7 +522,6 @@ static void acpi_device_hotplug(void *data, u32 src)
 
 static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 {
-	struct acpi_scan_handler *handler = data;
 	u32 ost_code = ACPI_OST_SC_SUCCESS;
 	struct acpi_device *adev;
 	acpi_status status;
@@ -528,13 +537,6 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
-		if (handler && !handler->hotplug.enabled) {
-			acpi_handle_err(handle, "Eject disabled\n");
-			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
-			goto out;
-		}
-		acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
-					  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:
@@ -632,8 +634,6 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	if (ACPI_FAILURE(status) || !acpi_device->flags.ejectable)
 		return -ENODEV;
 
-	acpi_evaluate_hotplug_ost(acpi_device->handle, ACPI_OST_EC_OSPM_EJECT,
-				  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 	get_device(&acpi_device->dev);
 	status = acpi_hotplug_execute(acpi_device_hotplug, acpi_device,
 				      ACPI_OST_EC_OSPM_EJECT);
