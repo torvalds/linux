@@ -581,7 +581,7 @@ static void locks_delete_block(struct file_lock *waiter)
  * it seems like the reasonable thing to do.
  *
  * Must be called with both the i_lock and blocked_lock_lock held. The fl_block
- * list itself is protected by the file_lock_list, but by ensuring that the
+ * list itself is protected by the blocked_lock_lock, but by ensuring that the
  * i_lock is also held on insertions we can avoid taking the blocked_lock_lock
  * in some cases when we see that the fl_block list is empty.
  */
