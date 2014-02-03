@@ -273,7 +273,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		err = setfl(fd, filp, arg);
 		break;
 	case F_GETLK:
-		err = fcntl_getlk(filp, (struct flock __user *) arg);
+		err = fcntl_getlk(filp, cmd, (struct flock __user *) arg);
 		break;
 	case F_SETLK:
 	case F_SETLKW:
@@ -389,7 +389,7 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 	
 	switch (cmd) {
 		case F_GETLK64:
-			err = fcntl_getlk64(f.file, (struct flock64 __user *) arg);
+			err = fcntl_getlk64(f.file, cmd, (struct flock64 __user *) arg);
 			break;
 		case F_SETLK64:
 		case F_SETLKW64:
