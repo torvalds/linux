@@ -638,11 +638,8 @@ static void disable_slot(struct acpiphp_slot *slot)
 	slot->flags &= (~SLOT_ENABLED);
 }
 
-static bool acpiphp_no_hotplug(acpi_handle handle)
+static bool acpiphp_no_hotplug(struct acpi_device *adev)
 {
-	struct acpi_device *adev = NULL;
-
-	acpi_bus_get_device(handle, &adev);
 	return adev && adev->flags.no_hotplug;
 }
 
@@ -650,10 +647,13 @@ static bool slot_no_hotplug(struct acpiphp_slot *slot)
 {
 	struct acpiphp_func *func;
 
-	list_for_each_entry(func, &slot->funcs, sibling)
-		if (acpiphp_no_hotplug(func_to_handle(func)))
-			return true;
+	list_for_each_entry(func, &slot->funcs, sibling) {
+		struct acpi_device *adev = NULL;
 
+		acpi_bus_get_device(func_to_handle(func), &adev);
+		if (acpiphp_no_hotplug(adev))
+			return true;
+	}
 	return false;
 }
 
@@ -710,13 +710,12 @@ static void trim_stale_devices(struct pci_dev *dev)
 	bool alive = false;
 
 	if (adev) {
-		acpi_handle handle = adev->handle;
 		acpi_status status;
 		unsigned long long sta;
 
-		status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
+		status = acpi_evaluate_integer(adev->handle, "_STA", NULL, &sta);
 		alive = (ACPI_SUCCESS(status) && sta == ACPI_STA_ALL)
-			|| acpiphp_no_hotplug(handle);
+			|| acpiphp_no_hotplug(adev);
 	}
 	if (!alive) {
 		u32 v;
