@@ -103,6 +103,7 @@ mali-y += \
 	common/mali_pm_domain.o \
 	linux/mali_osk_pm.o \
 	linux/mali_pmu_power_up_down.o \
+	platform/pegasus-m400/mali_platform.o \
 	__malidrv_build_info.o
 
 ifneq ($(MALI_PLATFORM_FILES),)

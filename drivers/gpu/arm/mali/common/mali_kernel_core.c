@@ -35,6 +35,7 @@
 #include "mali_timeline.h"
 #include "mali_soft_job.h"
 #include "mali_pm_domain.h"
+#include "mali_platform.h"
 #if defined(CONFIG_MALI400_PROFILING)
 #include "mali_osk_profiling.h"
 #endif
@@ -974,6 +975,8 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 	/* Allowing the system to be turned off */
 	_mali_osk_pm_dev_ref_dec();
 
+	mali_platform_init();
+
 	MALI_SUCCESS; /* all ok */
 
 	/* Error handling */
@@ -1038,6 +1041,7 @@ void mali_terminate_subsystems(void)
 	MALI_DEBUG_PRINT(2, ("terminate_subsystems() called\n"));
 
 	/* shut down subsystems in reverse order from startup */
+	mali_platform_deinit();
 
 	/* We need the GPU to be powered up for the terminate sequence */
 	_mali_osk_pm_dev_ref_add();
