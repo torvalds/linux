@@ -178,9 +178,13 @@ struct kernfs_ops {
 			loff_t off);
 
 	/*
-	 * write() is bounced through kernel buffer and a write larger than
-	 * PAGE_SIZE results in partial operation of PAGE_SIZE.
+	 * write() is bounced through kernel buffer.  If atomic_write_len
+	 * is not set, a write larger than PAGE_SIZE results in partial
+	 * operations of PAGE_SIZE chunks.  If atomic_write_len is set,
+	 * writes upto the specified size are executed atomically but
+	 * larger ones are rejected with -E2BIG.
 	 */
+	size_t atomic_write_len;
 	ssize_t (*write)(struct kernfs_open_file *of, char *buf, size_t bytes,
 			 loff_t off);
 
