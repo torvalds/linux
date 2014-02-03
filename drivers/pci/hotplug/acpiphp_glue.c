@@ -489,19 +489,6 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
 }
 
 /**
- * acpiphp_bus_trim - Trim device objects in an ACPI namespace subtree.
- * @handle: ACPI device object handle to start from.
- */
-static void acpiphp_bus_trim(acpi_handle handle)
-{
-	struct acpi_device *adev = NULL;
-
-	acpi_bus_get_device(handle, &adev);
-	if (adev)
-		acpi_bus_trim(adev);
-}
-
-/**
  * acpiphp_bus_add - Scan ACPI namespace subtree.
  * @handle: ACPI object handle to start the scan from.
  */
@@ -641,8 +628,12 @@ static void disable_slot(struct acpiphp_slot *slot)
 		if (PCI_SLOT(dev->devfn) == slot->device)
 			pci_stop_and_remove_bus_device(dev);
 
-	list_for_each_entry(func, &slot->funcs, sibling)
-		acpiphp_bus_trim(func_to_handle(func));
+	list_for_each_entry(func, &slot->funcs, sibling) {
+		struct acpi_device *adev;
+
+		if (!acpi_bus_get_device(func_to_handle(func), &adev))
+			acpi_bus_trim(adev);
+	}
 
 	slot->flags &= (~SLOT_ENABLED);
 }
@@ -714,11 +705,12 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
  */
 static void trim_stale_devices(struct pci_dev *dev)
 {
-	acpi_handle handle = ACPI_HANDLE(&dev->dev);
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
 	struct pci_bus *bus = dev->subordinate;
 	bool alive = false;
 
-	if (handle) {
+	if (adev) {
+		acpi_handle handle = adev->handle;
 		acpi_status status;
 		unsigned long long sta;
 
@@ -734,8 +726,8 @@ static void trim_stale_devices(struct pci_dev *dev)
 	}
 	if (!alive) {
 		pci_stop_and_remove_bus_device(dev);
-		if (handle)
-			acpiphp_bus_trim(handle);
+		if (adev)
+			acpi_bus_trim(adev);
 	} else if (bus) {
 		struct pci_dev *child, *tmp;
 
