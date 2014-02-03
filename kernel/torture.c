@@ -180,23 +180,16 @@ torture_onoff(void *arg)
  */
 int torture_onoff_init(long ooholdoff, long oointerval)
 {
-#ifdef CONFIG_HOTPLUG_CPU
-	int ret;
+	int ret = 0;
 
+#ifdef CONFIG_HOTPLUG_CPU
 	onoff_holdoff = ooholdoff;
 	onoff_interval = oointerval;
 	if (onoff_interval <= 0)
 		return 0;
-	VERBOSE_TOROUT_STRING("Creating torture_onoff task");
-	onoff_task = kthread_run(torture_onoff, NULL, "torture_onoff");
-	if (IS_ERR(onoff_task)) {
-		ret = PTR_ERR(onoff_task);
-		onoff_task = NULL;
-		return ret;
-	}
-	torture_shuffle_task_register(onoff_task);
+	ret = torture_create_kthread(torture_onoff, NULL, onoff_task);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(torture_onoff_init);
 
@@ -379,8 +372,6 @@ static int torture_shuffle(void *arg)
  */
 int torture_shuffle_init(long shuffint)
 {
-	int ret;
-
 	shuffle_interval = shuffint;
 
 	shuffle_idle_cpu = -1;
@@ -391,17 +382,7 @@ int torture_shuffle_init(long shuffint)
 	}
 
 	/* Create the shuffler thread */
-	VERBOSE_TOROUT_STRING("Creating torture_shuffle task");
-	shuffler_task = kthread_run(torture_shuffle, NULL, "torture_shuffle");
-	if (IS_ERR(shuffler_task)) {
-		ret = PTR_ERR(shuffler_task);
-		free_cpumask_var(shuffle_tmp_mask);
-		VERBOSE_TOROUT_ERRSTRING("Failed to create shuffler");
-		shuffler_task = NULL;
-		return ret;
-	}
-	torture_shuffle_task_register(shuffler_task);
-	return 0;
+	return torture_create_kthread(torture_shuffle, NULL, shuffler_task);
 }
 EXPORT_SYMBOL_GPL(torture_shuffle_init);
 
@@ -483,25 +464,16 @@ static int torture_shutdown(void *arg)
  */
 int torture_shutdown_init(int ssecs, void (*cleanup)(void))
 {
-	int ret;
+	int ret = 0;
 
 	shutdown_secs = ssecs;
 	torture_shutdown_hook = cleanup;
 	if (shutdown_secs > 0) {
-		VERBOSE_TOROUT_STRING("Creating torture_shutdown task");
 		shutdown_time = jiffies + shutdown_secs * HZ;
-		shutdown_task = kthread_create(torture_shutdown, NULL,
-					       "torture_shutdown");
-		if (IS_ERR(shutdown_task)) {
-			ret = PTR_ERR(shutdown_task);
-			VERBOSE_TOROUT_ERRSTRING("Failed to create shutdown");
-			shutdown_task = NULL;
-			return ret;
-		}
-		torture_shuffle_task_register(shutdown_task);
-		wake_up_process(shutdown_task);
+		ret = torture_create_kthread(torture_shutdown, NULL,
+					     shutdown_task);
 	}
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(torture_shutdown_init);
 
@@ -595,16 +567,8 @@ int torture_stutter_init(int s)
 	int ret;
 
 	stutter = s;
-	VERBOSE_TOROUT_STRING("Creating torture_stutter task");
-	stutter_task = kthread_run(torture_stutter, NULL, "torture_stutter");
-	if (IS_ERR(stutter_task)) {
-		ret = PTR_ERR(stutter_task);
-		VERBOSE_TOROUT_ERRSTRING("Failed to create stutter");
-		stutter_task = NULL;
-		return ret;
-	}
-	torture_shuffle_task_register(stutter_task);
-	return 0;
+	ret = torture_create_kthread(torture_stutter, NULL, stutter_task);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(torture_stutter_init);
 
@@ -714,3 +678,25 @@ void torture_kthread_stopping(char *title)
 	}
 }
 EXPORT_SYMBOL_GPL(torture_kthread_stopping);
+
+/*
+ * Create a generic torture kthread that is immediately runnable.  If you
+ * need the kthread to be stopped so that you can do something to it before
+ * it starts, you will need to open-code your own.
+ */
+int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
+			    char *f, struct task_struct **tp)
+{
+	int ret = 0;
+
+	VERBOSE_TOROUT_STRING(m);
+	*tp = kthread_run(fn, arg, s);
+	if (IS_ERR(*tp)) {
+		ret = PTR_ERR(*tp);
+		VERBOSE_TOROUT_ERRSTRING(f);
+		*tp = NULL;
+	}
+	torture_shuffle_task_register(*tp);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(_torture_create_kthread);

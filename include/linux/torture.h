@@ -47,7 +47,7 @@
 #define VERBOSE_TOROUT_STRING(s) \
 	do { if (verbose) pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s); } while (0)
 #define VERBOSE_TOROUT_ERRSTRING(s) \
-	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! " s "\n", torture_type); } while (0)
+	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s); } while (0)
 
 /* Definitions for a non-string torture-test module parameter. */
 #define torture_parm(type, name, init, msg) \
@@ -89,5 +89,11 @@ bool torture_cleanup(void);
 bool torture_must_stop(void);
 bool torture_must_stop_irq(void);
 void torture_kthread_stopping(char *title);
+int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
+			     char *f, struct task_struct **tp);
+
+#define torture_create_kthread(n, arg, tp) \
+	_torture_create_kthread(n, (arg), #n, "Creating " #n " task", \
+				"Failed to create " #n, &(tp))
 
 #endif /* __LINUX_TORTURE_H */

@@ -1105,19 +1105,9 @@ static int rcu_torture_stall(void *args)
 /* Spawn CPU-stall kthread, if stall_cpu specified. */
 static int __init rcu_torture_stall_init(void)
 {
-	int ret;
-
 	if (stall_cpu <= 0)
 		return 0;
-	VERBOSE_TOROUT_STRING("Creating rcu_torture_stall task");
-	stall_task = kthread_run(rcu_torture_stall, NULL, "rcu_torture_stall");
-	if (IS_ERR(stall_task)) {
-		ret = PTR_ERR(stall_task);
-		stall_task = NULL;
-		return ret;
-	}
-	torture_shuffle_task_register(stall_task);
-	return 0;
+	return torture_create_kthread(rcu_torture_stall, NULL, stall_task);
 }
 
 /* Clean up after the CPU-stall kthread, if one was spawned. */
@@ -1226,29 +1216,13 @@ static int rcu_torture_barrier_init(void)
 		return -ENOMEM;
 	for (i = 0; i < n_barrier_cbs; i++) {
 		init_waitqueue_head(&barrier_cbs_wq[i]);
-		VERBOSE_TOROUT_STRING("Creating rcu_torture_barrier_cbs task");
-		barrier_cbs_tasks[i] = kthread_run(rcu_torture_barrier_cbs,
-						   (void *)(long)i,
-						   "rcu_torture_barrier_cbs");
-		if (IS_ERR(barrier_cbs_tasks[i])) {
-			ret = PTR_ERR(barrier_cbs_tasks[i]);
-			VERBOSE_TOROUT_ERRSTRING("Failed to create rcu_torture_barrier_cbs");
-			barrier_cbs_tasks[i] = NULL;
+		ret = torture_create_kthread(rcu_torture_barrier_cbs,
+					     (void *)(long)i,
+					     barrier_cbs_tasks[i]);
+		if (ret)
 			return ret;
-		}
-		torture_shuffle_task_register(barrier_cbs_tasks[i]);
 	}
-	VERBOSE_TOROUT_STRING("Creating rcu_torture_barrier task");
-	barrier_task = kthread_run(rcu_torture_barrier, NULL,
-				   "rcu_torture_barrier");
-	if (IS_ERR(barrier_task)) {
-		ret = PTR_ERR(barrier_task);
-		VERBOSE_TOROUT_ERRSTRING("Failed to create rcu_torture_barrier");
-		barrier_task = NULL;
-		return ret;
-	}
-	torture_shuffle_task_register(barrier_task);
-	return 0;
+	return torture_create_kthread(rcu_torture_barrier, NULL, barrier_task);
 }
 
 /* Clean up after RCU barrier testing. */
@@ -1516,17 +1490,10 @@ rcu_torture_init(void)
 
 	/* Start up the kthreads. */
 
-	VERBOSE_TOROUT_STRING("Creating rcu_torture_writer task");
-	writer_task = kthread_create(rcu_torture_writer, NULL,
-				     "rcu_torture_writer");
-	if (IS_ERR(writer_task)) {
-		firsterr = PTR_ERR(writer_task);
-		VERBOSE_TOROUT_ERRSTRING("Failed to create writer");
-		writer_task = NULL;
+	firsterr = torture_create_kthread(rcu_torture_writer, NULL,
+					  writer_task);
+	if (firsterr)
 		goto unwind;
-	}
-	torture_shuffle_task_register(writer_task);
-	wake_up_process(writer_task);
 	fakewriter_tasks = kzalloc(nfakewriters * sizeof(fakewriter_tasks[0]),
 				   GFP_KERNEL);
 	if (fakewriter_tasks == NULL) {
@@ -1535,16 +1502,10 @@ rcu_torture_init(void)
 		goto unwind;
 	}
 	for (i = 0; i < nfakewriters; i++) {
-		VERBOSE_TOROUT_STRING("Creating rcu_torture_fakewriter task");
-		fakewriter_tasks[i] = kthread_run(rcu_torture_fakewriter, NULL,
-						  "rcu_torture_fakewriter");
-		if (IS_ERR(fakewriter_tasks[i])) {
-			firsterr = PTR_ERR(fakewriter_tasks[i]);
-			VERBOSE_TOROUT_ERRSTRING("Failed to create fakewriter");
-			fakewriter_tasks[i] = NULL;
+		firsterr = torture_create_kthread(rcu_torture_fakewriter,
+						  NULL, fakewriter_tasks[i]);
+		if (firsterr)
 			goto unwind;
-		}
-		torture_shuffle_task_register(fakewriter_tasks[i]);
 	}
 	reader_tasks = kzalloc(nrealreaders * sizeof(reader_tasks[0]),
 			       GFP_KERNEL);
@@ -1554,28 +1515,16 @@ rcu_torture_init(void)
 		goto unwind;
 	}
 	for (i = 0; i < nrealreaders; i++) {
-		VERBOSE_TOROUT_STRING("Creating rcu_torture_reader task");
-		reader_tasks[i] = kthread_run(rcu_torture_reader, NULL,
-					      "rcu_torture_reader");
-		if (IS_ERR(reader_tasks[i])) {
-			firsterr = PTR_ERR(reader_tasks[i]);
-			VERBOSE_TOROUT_ERRSTRING("Failed to create reader");
-			reader_tasks[i] = NULL;
+		firsterr = torture_create_kthread(rcu_torture_reader, NULL,
+						  reader_tasks[i]);
+		if (firsterr)
 			goto unwind;
-		}
-		torture_shuffle_task_register(reader_tasks[i]);
 	}
 	if (stat_interval > 0) {
-		VERBOSE_TOROUT_STRING("Creating rcu_torture_stats task");
-		stats_task = kthread_run(rcu_torture_stats, NULL,
-					"rcu_torture_stats");
-		if (IS_ERR(stats_task)) {
-			firsterr = PTR_ERR(stats_task);
-			VERBOSE_TOROUT_ERRSTRING("Failed to create stats");
-			stats_task = NULL;
+		firsterr = torture_create_kthread(rcu_torture_stats, NULL,
+						  stats_task);
+		if (firsterr)
 			goto unwind;
-		}
-		torture_shuffle_task_register(stats_task);
 	}
 	if (test_no_idle_hz) {
 		firsterr = torture_shuffle_init(shuffle_interval * HZ);
@@ -1593,16 +1542,9 @@ rcu_torture_init(void)
 		fqs_duration = 0;
 	if (fqs_duration) {
 		/* Create the fqs thread */
-		VERBOSE_TOROUT_STRING("Creating rcu_torture_fqs task");
-		fqs_task = kthread_run(rcu_torture_fqs, NULL,
-				       "rcu_torture_fqs");
-		if (IS_ERR(fqs_task)) {
-			firsterr = PTR_ERR(fqs_task);
-			VERBOSE_TOROUT_ERRSTRING("Failed to create fqs");
-			fqs_task = NULL;
+		torture_create_kthread(rcu_torture_fqs, NULL, fqs_task);
+		if (firsterr)
 			goto unwind;
-		}
-		torture_shuffle_task_register(fqs_task);
 	}
 	if (test_boost_interval < 1)
 		test_boost_interval = 1;
