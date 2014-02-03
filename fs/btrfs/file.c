@@ -425,13 +425,8 @@ static noinline int btrfs_copy_from_user(loff_t pos, int num_pages,
 		struct page *page = prepared_pages[pg];
 		/*
 		 * Copy data from userspace to the current page
-		 *
-		 * Disable pagefault to avoid recursive lock since
-		 * the pages are already locked
 		 */
-		pagefault_disable();
 		copied = iov_iter_copy_from_user_atomic(page, i, offset, count);
-		pagefault_enable();
 
 		/* Flush processor's dcache for this page */
 		flush_dcache_page(page);
