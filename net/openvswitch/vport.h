@@ -172,7 +172,7 @@ void ovs_vport_deferred_free(struct vport *vport);
  */
 static inline void *vport_priv(const struct vport *vport)
 {
-	return (u8 *)vport + ALIGN(sizeof(struct vport), VPORT_ALIGN);
+	return (u8 *)(uintptr_t)vport + ALIGN(sizeof(struct vport), VPORT_ALIGN);
 }
 
 /**
