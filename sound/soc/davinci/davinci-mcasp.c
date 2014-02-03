@@ -823,28 +823,28 @@ static const struct snd_soc_component_driver davinci_mcasp_component = {
 };
 
 /* Some HW specific values and defaults. The rest is filled in from DT. */
-static struct snd_platform_data dm646x_mcasp_pdata = {
+static struct davinci_mcasp_pdata dm646x_mcasp_pdata = {
 	.tx_dma_offset = 0x400,
 	.rx_dma_offset = 0x400,
 	.asp_chan_q = EVENTQ_0,
 	.version = MCASP_VERSION_1,
 };
 
-static struct snd_platform_data da830_mcasp_pdata = {
+static struct davinci_mcasp_pdata da830_mcasp_pdata = {
 	.tx_dma_offset = 0x2000,
 	.rx_dma_offset = 0x2000,
 	.asp_chan_q = EVENTQ_0,
 	.version = MCASP_VERSION_2,
 };
 
-static struct snd_platform_data am33xx_mcasp_pdata = {
+static struct davinci_mcasp_pdata am33xx_mcasp_pdata = {
 	.tx_dma_offset = 0,
 	.rx_dma_offset = 0,
 	.asp_chan_q = EVENTQ_0,
 	.version = MCASP_VERSION_3,
 };
 
-static struct snd_platform_data dra7_mcasp_pdata = {
+static struct davinci_mcasp_pdata dra7_mcasp_pdata = {
 	.tx_dma_offset = 0x200,
 	.rx_dma_offset = 0x284,
 	.asp_chan_q = EVENTQ_0,
@@ -912,11 +912,11 @@ err1:
 	return ret;
 }
 
-static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
+static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 						struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct snd_platform_data *pdata = NULL;
+	struct davinci_mcasp_pdata *pdata = NULL;
 	const struct of_device_id *match =
 			of_match_device(mcasp_dt_ids, &pdev->dev);
 	struct of_phandle_args dma_spec;
@@ -929,7 +929,7 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 		pdata = pdev->dev.platform_data;
 		return pdata;
 	} else if (match) {
-		pdata = (struct snd_platform_data *) match->data;
+		pdata = (struct davinci_mcasp_pdata*) match->data;
 	} else {
 		/* control shouldn't reach here. something is wrong */
 		ret = -EINVAL;
@@ -1023,7 +1023,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct davinci_pcm_dma_params *dma_data;
 	struct resource *mem, *ioarea, *res, *dat;
-	struct snd_platform_data *pdata;
+	struct davinci_mcasp_pdata *pdata;
 	struct davinci_mcasp *mcasp;
 	int ret;
 
