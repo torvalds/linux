@@ -1245,6 +1245,7 @@ static int rcu_torture_barrier_init(void)
 		ret = PTR_ERR(barrier_task);
 		VERBOSE_TOROUT_ERRSTRING("Failed to create rcu_torture_barrier");
 		barrier_task = NULL;
+		return ret;
 	}
 	torture_shuffle_task_register(barrier_task);
 	return 0;
