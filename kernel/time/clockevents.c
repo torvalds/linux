@@ -439,17 +439,7 @@ void clockevents_config_and_register(struct clock_event_device *dev,
 }
 EXPORT_SYMBOL_GPL(clockevents_config_and_register);
 
-/**
- * clockevents_update_freq - Update frequency and reprogram a clock event device.
- * @dev:	device to modify
- * @freq:	new device frequency
- *
- * Reconfigure and reprogram a clock event device in oneshot
- * mode. Must be called on the cpu for which the device delivers per
- * cpu timer events with interrupts disabled!  Returns 0 on success,
- * -ETIME when the event is in the past.
- */
-int clockevents_update_freq(struct clock_event_device *dev, u32 freq)
+int __clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 {
 	clockevents_config(dev, freq);
 
@@ -457,6 +447,31 @@ int clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 		return 0;
 
 	return clockevents_program_event(dev, dev->next_event, false);
+}
+
+/**
+ * clockevents_update_freq - Update frequency and reprogram a clock event device.
+ * @dev:	device to modify
+ * @freq:	new device frequency
+ *
+ * Reconfigure and reprogram a clock event device in oneshot
+ * mode. Must be called on the cpu for which the device delivers per
+ * cpu timer events. If called for the broadcast device the core takes
+ * care of serialization.
+ *
+ * Returns 0 on success, -ETIME when the event is in the past.
+ */
+int clockevents_update_freq(struct clock_event_device *dev, u32 freq)
+{
+	unsigned long flags;
+	int ret;
+
+	local_irq_save(flags);
+	ret = tick_broadcast_update_freq(dev, freq);
+	if (ret == -ENODEV)
+		ret = __clockevents_update_freq(dev, freq);
+	local_irq_restore(flags);
+	return ret;
 }
 
 /*
