@@ -3302,6 +3302,9 @@ static int selinux_file_fcntl(struct file *file, unsigned int cmd,
 	case F_GETLK:
 	case F_SETLK:
 	case F_SETLKW:
+	case F_GETLKP:
+	case F_SETLKP:
+	case F_SETLKPW:
 #if BITS_PER_LONG == 32
 	case F_GETLK64:
 	case F_SETLK64:
