@@ -905,7 +905,7 @@ static void rs_get_lower_rate_down_column(struct iwl_lq_sta *lq_sta,
 
 		rate->bw = RATE_MCS_CHAN_WIDTH_20;
 
-		WARN_ON_ONCE(rate->index < IWL_RATE_MCS_0_INDEX &&
+		WARN_ON_ONCE(rate->index < IWL_RATE_MCS_0_INDEX ||
 			     rate->index > IWL_RATE_MCS_9_INDEX);
 
 		rate->index = rs_ht_to_legacy[rate->index];
