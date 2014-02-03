@@ -230,6 +230,10 @@ acpi_attach_data(acpi_handle object, acpi_object_handler handler, void *data);
 acpi_status acpi_detach_data(acpi_handle object, acpi_object_handler handler);
 
 acpi_status
+acpi_get_data_full(acpi_handle object, acpi_object_handler handler, void **data,
+		   void (*callback)(void *));
+
+acpi_status
 acpi_get_data(acpi_handle object, acpi_object_handler handler, void **data);
 
 acpi_status
