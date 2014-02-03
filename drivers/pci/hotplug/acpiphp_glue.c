@@ -817,6 +817,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 {
 	struct acpiphp_context *context = data;
 	struct acpiphp_func *func = &context->func;
+	struct acpiphp_slot *slot = func->slot;
 	struct acpiphp_bridge *bridge;
 	char objname[64];
 	struct acpi_buffer buffer = { .length = sizeof(objname),
@@ -838,14 +839,11 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 		pr_debug("%s: Bus check notify on %s\n", __func__, objname);
 		pr_debug("%s: re-enumerating slots under %s\n",
 			 __func__, objname);
-		if (bridge) {
+		if (bridge)
 			acpiphp_check_bridge(bridge);
-		} else {
-			struct acpiphp_slot *slot = func->slot;
+		else if (!(slot->flags & SLOT_IS_GOING_AWAY))
+			enable_slot(slot);
 
-			if (!(slot->flags & SLOT_IS_GOING_AWAY))
-				enable_slot(slot);
-		}
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
@@ -853,12 +851,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 		pr_debug("%s: Device check notify on %s\n", __func__, objname);
 		if (bridge) {
 			acpiphp_check_bridge(bridge);
-		} else {
-			struct acpiphp_slot *slot = func->slot;
-
-			if (slot->flags & SLOT_IS_GOING_AWAY)
-				break;
-
+		} else if (!(slot->flags & SLOT_IS_GOING_AWAY)) {
 			/*
 			 * Check if anything has changed in the slot and rescan
 			 * from the parent if that's the case.
@@ -871,7 +864,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
 		pr_debug("%s: Device eject notify on %s\n", __func__, objname);
-		acpiphp_disable_and_eject_slot(func->slot);
+		acpiphp_disable_and_eject_slot(slot);
 		break;
 	}
 
