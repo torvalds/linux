@@ -443,10 +443,13 @@ int __clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 {
 	clockevents_config(dev, freq);
 
-	if (dev->mode != CLOCK_EVT_MODE_ONESHOT)
-		return 0;
+	if (dev->mode == CLOCK_EVT_MODE_ONESHOT)
+		return clockevents_program_event(dev, dev->next_event, false);
 
-	return clockevents_program_event(dev, dev->next_event, false);
+	if (dev->mode == CLOCK_EVT_MODE_PERIODIC)
+		dev->set_mode(CLOCK_EVT_MODE_PERIODIC, dev);
+
+	return 0;
 }
 
 /**
