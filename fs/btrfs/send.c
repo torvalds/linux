@@ -51,7 +51,6 @@ struct fs_path {
 		struct {
 			char *start;
 			char *end;
-			char *prepared;
 
 			char *buf;
 			int buf_len;
@@ -338,7 +337,8 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 	return 0;
 }
 
-static int fs_path_prepare_for_add(struct fs_path *p, int name_len)
+static int fs_path_prepare_for_add(struct fs_path *p, int name_len,
+				   char **prepared)
 {
 	int ret;
 	int new_len;
@@ -354,11 +354,11 @@ static int fs_path_prepare_for_add(struct fs_path *p, int name_len)
 		if (p->start != p->end)
 			*--p->start = '/';
 		p->start -= name_len;
-		p->prepared = p->start;
+		*prepared = p->start;
 	} else {
 		if (p->start != p->end)
 			*p->end++ = '/';
-		p->prepared = p->end;
+		*prepared = p->end;
 		p->end += name_len;
 		*p->end = 0;
 	}
@@ -370,12 +370,12 @@ out:
 static int fs_path_add(struct fs_path *p, const char *name, int name_len)
 {
 	int ret;
+	char *prepared;
 
-	ret = fs_path_prepare_for_add(p, name_len);
+	ret = fs_path_prepare_for_add(p, name_len, &prepared);
 	if (ret < 0)
 		goto out;
-	memcpy(p->prepared, name, name_len);
-	p->prepared = NULL;
+	memcpy(prepared, name, name_len);
 
 out:
 	return ret;
@@ -384,12 +384,12 @@ out:
 static int fs_path_add_path(struct fs_path *p, struct fs_path *p2)
 {
 	int ret;
+	char *prepared;
 
-	ret = fs_path_prepare_for_add(p, p2->end - p2->start);
+	ret = fs_path_prepare_for_add(p, p2->end - p2->start, &prepared);
 	if (ret < 0)
 		goto out;
-	memcpy(p->prepared, p2->start, p2->end - p2->start);
-	p->prepared = NULL;
+	memcpy(prepared, p2->start, p2->end - p2->start);
 
 out:
 	return ret;
@@ -400,13 +400,13 @@ static int fs_path_add_from_extent_buffer(struct fs_path *p,
 					  unsigned long off, int len)
 {
 	int ret;
+	char *prepared;
 
-	ret = fs_path_prepare_for_add(p, len);
+	ret = fs_path_prepare_for_add(p, len, &prepared);
 	if (ret < 0)
 		goto out;
 
-	read_extent_buffer(eb, p->prepared, off, len);
-	p->prepared = NULL;
+	read_extent_buffer(eb, prepared, off, len);
 
 out:
 	return ret;
