@@ -32,7 +32,8 @@
 						    <&gpio42_default_mode>,
 						    <&gpio26_default_mode>,
 						    <&gpio35_default_mode>,
-						    <&ycbcr_default_mode>;
+						    <&ycbcr_default_mode>,
+						    <&pwm_default_mode>;
 
 					/*
 					 * Pins 2, 4, 10, 11, 12, 13, 16, 24, 25, 36, 37, 38, 39 and 42
@@ -264,6 +265,21 @@
 									 "GPIO9_AA19";
 								input-enable;
 								bias-disable;
+							};
+						};
+					};
+					/* This sets up the PWM pins 14 and 15 */
+					pwm {
+						pwm_default_mode: pwm_default {
+							default_mux {
+								ste,function = "pwmout";
+								ste,pins = "pwmout1_d_1", "pwmout2_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO14_F14",
+									 "GPIO15_B17";
+								input-enable;
+								bias-pull-down;
 							};
 						};
 					};
