@@ -749,6 +749,8 @@ int record_parse_callchain_opt(const struct option *opt,
 	struct record_opts *opts = opt->value;
 	int ret;
 
+	opts->call_graph_enabled = !unset;
+
 	/* --no-call-graph */
 	if (unset) {
 		opts->call_graph = CALLCHAIN_NONE;
@@ -769,11 +771,23 @@ int record_callchain_opt(const struct option *opt,
 {
 	struct record_opts *opts = opt->value;
 
+	opts->call_graph_enabled = !unset;
+
 	if (opts->call_graph == CALLCHAIN_NONE)
 		opts->call_graph = CALLCHAIN_FP;
 
 	callchain_debug(opts);
 	return 0;
+}
+
+static int perf_record_config(const char *var, const char *value, void *cb)
+{
+	struct record *rec = cb;
+
+	if (!strcmp(var, "record.call-graph"))
+		return record_parse_callchain(value, &rec->opts);
+
+	return perf_default_config(var, value, cb);
 }
 
 static const char * const record_usage[] = {
@@ -906,6 +920,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	rec->evlist = perf_evlist__new();
 	if (rec->evlist == NULL)
 		return -ENOMEM;
+
+	perf_config(perf_record_config, rec);
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
