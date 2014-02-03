@@ -37,6 +37,16 @@
 #include "davinci-pcm.h"
 #include "davinci-mcasp.h"
 
+struct davinci_mcasp_context {
+	u32	txfmtctl;
+	u32	rxfmtctl;
+	u32	txfmt;
+	u32	rxfmt;
+	u32	aclkxctl;
+	u32	aclkrctl;
+	u32	pdir;
+};
+
 struct davinci_mcasp {
 	struct davinci_pcm_dma_params dma_params[2];
 	struct snd_dmaengine_dai_dma_data dma_data[2];
@@ -63,15 +73,7 @@ struct davinci_mcasp {
 	bool	dat_port;
 
 #ifdef CONFIG_PM_SLEEP
-	struct {
-		u32	txfmtctl;
-		u32	rxfmtctl;
-		u32	txfmt;
-		u32	rxfmt;
-		u32	aclkxctl;
-		u32	aclkrctl;
-		u32	pdir;
-	} context;
+	struct davinci_mcasp_context context;
 #endif
 };
 
@@ -741,14 +743,15 @@ static const struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
 static int davinci_mcasp_suspend(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
+	struct davinci_mcasp_context *context = &mcasp->context;
 
-	mcasp->context.txfmtctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXFMCTL_REG);
-	mcasp->context.rxfmtctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG);
-	mcasp->context.txfmt = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXFMT_REG);
-	mcasp->context.rxfmt = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMT_REG);
-	mcasp->context.aclkxctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG);
-	mcasp->context.aclkrctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKRCTL_REG);
-	mcasp->context.pdir = mcasp_get_reg(mcasp, DAVINCI_MCASP_PDIR_REG);
+	context->txfmtctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXFMCTL_REG);
+	context->rxfmtctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG);
+	context->txfmt = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXFMT_REG);
+	context->rxfmt = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMT_REG);
+	context->aclkxctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG);
+	context->aclkrctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKRCTL_REG);
+	context->pdir = mcasp_get_reg(mcasp, DAVINCI_MCASP_PDIR_REG);
 
 	return 0;
 }
@@ -756,14 +759,15 @@ static int davinci_mcasp_suspend(struct snd_soc_dai *dai)
 static int davinci_mcasp_resume(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
+	struct davinci_mcasp_context *context = &mcasp->context;
 
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXFMCTL_REG, mcasp->context.txfmtctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG, mcasp->context.rxfmtctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXFMT_REG, mcasp->context.txfmt);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXFMT_REG, mcasp->context.rxfmt);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, mcasp->context.aclkxctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, mcasp->context.aclkrctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_PDIR_REG, mcasp->context.pdir);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXFMCTL_REG, context->txfmtctl);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG, context->rxfmtctl);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXFMT_REG, context->txfmt);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXFMT_REG, context->rxfmt);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, context->aclkxctl);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, context->aclkrctl);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_PDIR_REG, context->pdir);
 
 	return 0;
 }
