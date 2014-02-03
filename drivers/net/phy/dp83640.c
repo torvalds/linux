@@ -1281,6 +1281,7 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 		}
 		/* fall through */
 	case HWTSTAMP_TX_ON:
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		skb_queue_tail(&dp83640->tx_queue, skb);
 		schedule_work(&dp83640->ts_work);
 		break;
