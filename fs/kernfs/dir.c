@@ -177,9 +177,10 @@ void kernfs_put_active(struct kernfs_node *kn)
  *	kernfs_deactivate - deactivate kernfs_node
  *	@kn: kernfs_node to deactivate
  *
- *	Deny new active references and drain existing ones.  Mutiple
- *	removers may invoke this function concurrently on @kn and all will
- *	return after deactivation and draining are complete.
+ *	Deny new active references, drain existing ones and nuke all
+ *	existing mmaps.  Mutiple removers may invoke this function
+ *	concurrently on @kn and all will return after deactivation and
+ *	draining are complete.
  */
 static void kernfs_deactivate(struct kernfs_node *kn)
 	__releases(&kernfs_mutex) __acquires(&kernfs_mutex)
@@ -212,6 +213,8 @@ static void kernfs_deactivate(struct kernfs_node *kn)
 		lock_acquired(&kn->dep_map, _RET_IP_);
 		rwsem_release(&kn->dep_map, 1, _RET_IP_);
 	}
+
+	kernfs_unmap_bin_file(kn);
 
 	mutex_lock(&kernfs_mutex);
 }
@@ -493,7 +496,6 @@ void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt)
 
 		acxt->removed = kn->u.removed_list;
 
-		kernfs_unmap_bin_file(kn);
 		kernfs_put(kn);
 	}
 }
