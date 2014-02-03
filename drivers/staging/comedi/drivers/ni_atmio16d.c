@@ -723,10 +723,13 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 	/* 8255 subdevice */
 	s = &dev->subdevices[3];
-	if (board->has_8255)
-		subdev_8255_init(dev, s, NULL, dev->iobase);
-	else
+	if (board->has_8255) {
+		ret = subdev_8255_init(dev, s, NULL, dev->iobase);
+		if (ret)
+			return ret;
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 /* don't yet know how to deal with counter/timers */
 #if 0

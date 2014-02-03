@@ -247,7 +247,9 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	subdev_8255_init(dev, s, NULL, iobase_8255);
+	ret = subdev_8255_init(dev, s, NULL, iobase_8255);
+	if (ret)
+		return ret;
 
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 

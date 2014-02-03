@@ -3816,16 +3816,19 @@ static int setup_subdevices(struct comedi_device *dev)
 	if (thisboard->has_8255) {
 		if (thisboard->layout == LAYOUT_4020) {
 			dio_8255_iobase = devpriv->main_iobase + I8255_4020_REG;
-			subdev_8255_init(dev, s, dio_callback_4020,
-					 (unsigned long)dio_8255_iobase);
+			ret = subdev_8255_init(dev, s, dio_callback_4020,
+					       (unsigned long)dio_8255_iobase);
 		} else {
 			dio_8255_iobase =
 				devpriv->dio_counter_iobase + DIO_8255_OFFSET;
-			subdev_8255_init(dev, s, dio_callback,
-					 (unsigned long)dio_8255_iobase);
+			ret = subdev_8255_init(dev, s, dio_callback,
+					       (unsigned long)dio_8255_iobase);
 		}
-	} else
+		if (ret)
+			return ret;
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  8 channel dio for 60xx */
 	s = &dev->subdevices[5];

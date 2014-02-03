@@ -4292,10 +4292,14 @@ static int ni_E_init(struct comedi_device *dev)
 
 	/* 8255 device */
 	s = &dev->subdevices[NI_8255_DIO_SUBDEV];
-	if (board->has_8255)
-		subdev_8255_init(dev, s, ni_8255_callback, (unsigned long)dev);
-	else
+	if (board->has_8255) {
+		ret = subdev_8255_init(dev, s, ni_8255_callback,
+				       (unsigned long)dev);
+		if (ret)
+			return ret;
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/* formerly general purpose counter/timer device, but no longer used */
 	s = &dev->subdevices[NI_UNUSED_SUBDEV];
