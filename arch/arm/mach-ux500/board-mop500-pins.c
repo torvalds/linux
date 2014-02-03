@@ -57,16 +57,6 @@ static struct pinctrl_map __initdata ab8500_pinmap[] = {
 	AB8500_PIN_STATE("GPIO3_U9", in_pd, "regulator.36", PINCTRL_STATE_SLEEP),
 
 	/*
-	 * pins 6,7,8 and 9 are muxed in YCBCR0123
-	 * configured in INPUT PULL UP
-	 */
-	AB8500_MUX_HOG("ycbcr0123_d_1", "ycbcr"),
-	AB8500_PIN_HOG("GPIO6_Y18", in_nopull),
-	AB8500_PIN_HOG("GPIO7_AA20", in_nopull),
-	AB8500_PIN_HOG("GPIO8_W18", in_nopull),
-	AB8500_PIN_HOG("GPIO9_AA19", in_nopull),
-
-	/*
 	 * pins 14,15 are muxed in PWM1 and PWM2
 	 * configured in INPUT PULL DOWN
 	 */

@@ -31,7 +31,8 @@
 						    <&gpio39_default_mode>,
 						    <&gpio42_default_mode>,
 						    <&gpio26_default_mode>,
-						    <&gpio35_default_mode>;
+						    <&gpio35_default_mode>,
+						    <&ycbcr_default_mode>;
 
 					/*
 					 * Pins 2, 4, 10, 11, 12, 13, 16, 24, 25, 36, 37, 38, 39 and 42
@@ -243,6 +244,26 @@
 							default_cfg {
 								ste,pins = "GPIO35_W15";
 								output-low;
+							};
+						};
+					};
+					/*
+					 * This sets up the YCBCR connector pins, i.e. analog video out.
+					 * Set as input with no bias.
+					 */
+					ycbcr {
+						ycbcr_default_mode: ycbcr_default {
+							default_mux {
+								ste,function = "ycbcr";
+								ste,pins = "ycbcr0123_d_1";
+							};
+							default_cfg {
+								ste,pins = "GPIO6_Y18",
+									 "GPIO7_AA20",
+									 "GPIO8_W18",
+									 "GPIO9_AA19";
+								input-enable;
+								bias-disable;
 							};
 						};
 					};
