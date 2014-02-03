@@ -691,6 +691,11 @@ static int ethoc_mdio_probe(struct net_device *dev)
 	}
 
 	priv->phy = phy;
+	phy->advertising &= ~(ADVERTISED_1000baseT_Full |
+			      ADVERTISED_1000baseT_Half);
+	phy->supported &= ~(SUPPORTED_1000baseT_Full |
+			    SUPPORTED_1000baseT_Half);
+
 	return 0;
 }
 
