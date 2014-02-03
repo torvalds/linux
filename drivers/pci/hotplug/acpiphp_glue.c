@@ -63,7 +63,7 @@ static DEFINE_MUTEX(acpiphp_context_lock);
 static void handle_hotplug_event(acpi_handle handle, u32 type, void *data);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(struct pci_bus *bus);
-static void hotplug_event(acpi_handle handle, u32 type, void *data);
+static void hotplug_event(u32 type, struct acpiphp_context *context);
 static void free_bridge(struct kref *kref);
 
 static void acpiphp_context_handler(acpi_handle handle, void *context)
@@ -225,7 +225,7 @@ static void dock_event(acpi_handle handle, u32 type, void *data)
 	acpiphp_put_context(context);
 	mutex_unlock(&acpiphp_context_lock);
 
-	hotplug_event(handle, type, data);
+	hotplug_event(type, context);
 
 	put_bridge(context->func.parent);
 }
@@ -813,9 +813,9 @@ void acpiphp_check_host_bridge(acpi_handle handle)
 
 static int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot);
 
-static void hotplug_event(acpi_handle handle, u32 type, void *data)
+static void hotplug_event(u32 type, struct acpiphp_context *context)
 {
-	struct acpiphp_context *context = data;
+	acpi_handle handle = context->adev->handle;
 	struct acpiphp_func *func = &context->func;
 	struct acpiphp_slot *slot = func->slot;
 	struct acpiphp_bridge *bridge;
@@ -870,14 +870,14 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 static void hotplug_event_work(void *data, u32 type)
 {
 	struct acpiphp_context *context = data;
-	acpi_handle handle = context->adev->handle;
 
 	acpi_scan_lock_acquire();
 
-	hotplug_event(handle, type, context);
+	hotplug_event(type, context);
 
 	acpi_scan_lock_release();
-	acpi_evaluate_hotplug_ost(handle, type, ACPI_OST_SC_SUCCESS, NULL);
+	acpi_evaluate_hotplug_ost(context->adev->handle, type,
+				  ACPI_OST_SC_SUCCESS, NULL);
 	put_bridge(context->func.parent);
 }
 
