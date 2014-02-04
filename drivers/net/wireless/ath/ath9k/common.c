@@ -27,6 +27,48 @@ MODULE_AUTHOR("Atheros Communications");
 MODULE_DESCRIPTION("Shared library for Atheros wireless 802.11n LAN cards.");
 MODULE_LICENSE("Dual BSD/GPL");
 
+int ath9k_cmn_process_rate(struct ath_common *common,
+			   struct ieee80211_hw *hw,
+			   struct ath_rx_status *rx_stats,
+			   struct ieee80211_rx_status *rxs)
+{
+	struct ieee80211_supported_band *sband;
+	enum ieee80211_band band;
+	unsigned int i = 0;
+	struct ath_hw *ah = common->ah;
+
+	band = ah->curchan->chan->band;
+	sband = hw->wiphy->bands[band];
+
+	if (IS_CHAN_QUARTER_RATE(ah->curchan))
+		rxs->flag |= RX_FLAG_5MHZ;
+	else if (IS_CHAN_HALF_RATE(ah->curchan))
+		rxs->flag |= RX_FLAG_10MHZ;
+
+	if (rx_stats->rs_rate & 0x80) {
+		/* HT rate */
+		rxs->flag |= RX_FLAG_HT;
+		rxs->flag |= rx_stats->flag;
+		rxs->rate_idx = rx_stats->rs_rate & 0x7f;
+		return 0;
+	}
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if (sband->bitrates[i].hw_value == rx_stats->rs_rate) {
+			rxs->rate_idx = i;
+			return 0;
+		}
+		if (sband->bitrates[i].hw_value_short == rx_stats->rs_rate) {
+			rxs->flag |= RX_FLAG_SHORTPRE;
+			rxs->rate_idx = i;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(ath9k_cmn_process_rate);
+
 void ath9k_cmn_process_rssi(struct ath_common *common,
 			    struct ieee80211_hw *hw,
 			    struct ath_rx_status *rx_stats,
