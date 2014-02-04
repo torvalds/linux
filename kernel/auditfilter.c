@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/security.h>
+#include <net/net_namespace.h>
 #include "audit.h"
 
 /*
@@ -1083,8 +1084,8 @@ int audit_list_rules_send(__u32 portid, int seq)
 	dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
 	if (!dest)
 		return -ENOMEM;
+	dest->net = get_net(current->nsproxy->net_ns);
 	dest->portid = portid;
-	dest->pid = task_pid_vnr(current);
 	skb_queue_head_init(&dest->q);
 
 	mutex_lock(&audit_filter_mutex);

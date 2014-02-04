@@ -182,7 +182,7 @@ struct audit_buffer {
 
 struct audit_reply {
 	__u32 portid;
-	pid_t pid;
+	struct net *net;	
 	struct sk_buff *skb;
 };
 
@@ -500,7 +500,7 @@ int audit_send_list(void *_dest)
 {
 	struct audit_netlink_list *dest = _dest;
 	struct sk_buff *skb;
-	struct net *net = get_net_ns_by_pid(dest->pid);
+	struct net *net = dest->net;
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
 	/* wait for parent to finish and send an ACK */
@@ -510,6 +510,7 @@ int audit_send_list(void *_dest)
 	while ((skb = __skb_dequeue(&dest->q)) != NULL)
 		netlink_unicast(aunet->nlsk, skb, dest->portid, 0);
 
+	put_net(net);
 	kfree(dest);
 
 	return 0;
@@ -543,7 +544,7 @@ out_kfree_skb:
 static int audit_send_reply_thread(void *arg)
 {
 	struct audit_reply *reply = (struct audit_reply *)arg;
-	struct net *net = get_net_ns_by_pid(reply->pid);
+	struct net *net = reply->net;
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
 	mutex_lock(&audit_cmd_mutex);
@@ -552,6 +553,7 @@ static int audit_send_reply_thread(void *arg)
 	/* Ignore failure. It'll only happen if the sender goes away,
 	   because our timeout is set to infinite. */
 	netlink_unicast(aunet->nlsk , reply->skb, reply->portid, 0);
+	put_net(net);
 	kfree(reply);
 	return 0;
 }
@@ -583,8 +585,8 @@ static void audit_send_reply(__u32 portid, int seq, int type, int done,
 	if (!skb)
 		goto out;
 
+	reply->net = get_net(current->nsproxy->net_ns);
 	reply->portid = portid;
-	reply->pid = task_pid_vnr(current);
 	reply->skb = skb;
 
 	tsk = kthread_run(audit_send_reply_thread, reply, "audit_send_reply");
