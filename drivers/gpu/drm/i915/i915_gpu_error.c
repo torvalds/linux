@@ -653,6 +653,33 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 	return i;
 }
 
+/* Generate a semi-unique error code. The code is not meant to have meaning, The
+ * code's only purpose is to try to prevent false duplicated bug reports by
+ * grossly estimating a GPU error state.
+ *
+ * TODO Ideally, hashing the batchbuffer would be a very nice way to determine
+ * the hang if we could strip the GTT offset information from it.
+ *
+ * It's only a small step better than a random number in its current form.
+ */
+static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
+					 struct drm_i915_error_state *error)
+{
+	uint32_t error_code = 0;
+	int i;
+
+	/* IPEHR would be an ideal way to detect errors, as it's the gross
+	 * measure of "the command that hung." However, has some very common
+	 * synchronization commands which almost always appear in the case
+	 * strictly a client bug. Use instdone to differentiate those some.
+	 */
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		if (error->ring[i].hangcheck_action == HANGCHECK_HUNG)
+			return error->ring[i].ipehr ^ error->ring[i].instdone;
+
+	return error_code;
+}
+
 static void i915_gem_record_fences(struct drm_device *dev,
 				   struct drm_i915_error_state *error)
 {
@@ -1098,6 +1125,7 @@ void i915_capture_error_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
 	unsigned long flags;
+	uint32_t ecode;
 
 	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
 	error = dev_priv->gpu_error.first_error;
@@ -1114,20 +1142,22 @@ void i915_capture_error_state(struct drm_device *dev)
 
 	DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
 		 dev->primary->index);
-	if (!warned) {
-		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
-		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
-		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
-		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
-		warned = true;
-	}
-
 	kref_init(&error->ref);
 
 	i915_capture_reg_state(dev_priv, error);
 	i915_gem_capture_buffers(dev_priv, error);
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
+	ecode = i915_error_generate_code(dev_priv, error);
+
+	if (!warned) {
+		DRM_INFO("GPU HANG [%x]\n", ecode);
+		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
+		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
+		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
+		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
+		warned = true;
+	}
 
 	do_gettimeofday(&error->time);
 
