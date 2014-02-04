@@ -375,7 +375,7 @@ static void purge_persistent_gnt(struct xen_blkif *blkif)
 
 	pr_debug(DRV_PFX "Going to purge %u persistent grants\n", num_clean);
 
-	INIT_LIST_HEAD(&blkif->persistent_purge_list);
+	BUG_ON(!list_empty(&blkif->persistent_purge_list));
 	root = &blkif->persistent_gnts;
 purge_list:
 	foreach_grant_safe(persistent_gnt, n, root, node) {
@@ -625,6 +625,23 @@ purge_gnt_list:
 			print_stats(blkif);
 	}
 
+	/* Drain pending purge work */
+	flush_work(&blkif->persistent_purge_work);
+
+	if (log_stats)
+		print_stats(blkif);
+
+	blkif->xenblkd = NULL;
+	xen_blkif_put(blkif);
+
+	return 0;
+}
+
+/*
+ * Remove persistent grants and empty the pool of free pages
+ */
+void xen_blkbk_free_caches(struct xen_blkif *blkif)
+{
 	/* Free all persistent grant pages */
 	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts))
 		free_persistent_gnts(blkif, &blkif->persistent_gnts,
@@ -635,14 +652,6 @@ purge_gnt_list:
 
 	/* Since we are shutting down remove all pages from the buffer */
 	shrink_free_pagepool(blkif, 0 /* All */);
-
-	if (log_stats)
-		print_stats(blkif);
-
-	blkif->xenblkd = NULL;
-	xen_blkif_put(blkif);
-
-	return 0;
 }
 
 /*
