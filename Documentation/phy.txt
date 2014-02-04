@@ -84,6 +84,12 @@ The only difference between the two APIs is that devm_phy_get associates the
 device with the PHY using devres on successful PHY get. On driver detach,
 release function is invoked on the the devres data and devres data is freed.
 
+It should be noted that NULL is a valid phy reference. All phy
+consumer calls on the NULL phy become NOPs. That is the release calls,
+the phy_init() and phy_exit() calls, and phy_power_on() and
+phy_power_off() calls are all NOP when applied to a NULL phy. The NULL
+phy is useful in devices for handling optional phy devices.
+
 5. Releasing a reference to the PHY
 
 When the controller no longer needs the PHY, it has to release the reference

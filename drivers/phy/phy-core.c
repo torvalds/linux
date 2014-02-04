@@ -162,6 +162,9 @@ int phy_init(struct phy *phy)
 {
 	int ret;
 
+	if (!phy)
+		return 0;
+
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
@@ -187,6 +190,9 @@ int phy_exit(struct phy *phy)
 {
 	int ret;
 
+	if (!phy)
+		return 0;
+
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
@@ -211,6 +217,9 @@ EXPORT_SYMBOL_GPL(phy_exit);
 int phy_power_on(struct phy *phy)
 {
 	int ret;
+
+	if (!phy)
+		return 0;
 
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
@@ -239,6 +248,9 @@ EXPORT_SYMBOL_GPL(phy_power_on);
 int phy_power_off(struct phy *phy)
 {
 	int ret;
+
+	if (!phy)
+		return 0;
 
 	mutex_lock(&phy->mutex);
 	if (phy->power_count == 1 && phy->ops->power_off) {
@@ -308,7 +320,7 @@ err0:
  */
 void phy_put(struct phy *phy)
 {
-	if (IS_ERR(phy))
+	if (!phy || IS_ERR(phy))
 		return;
 
 	module_put(phy->ops->owner);
@@ -327,6 +339,9 @@ EXPORT_SYMBOL_GPL(phy_put);
 void devm_phy_put(struct device *dev, struct phy *phy)
 {
 	int r;
+
+	if (!phy)
+		return;
 
 	r = devres_destroy(dev, devm_phy_release, devm_phy_match, phy);
 	dev_WARN_ONCE(dev, r, "couldn't find PHY resource\n");
