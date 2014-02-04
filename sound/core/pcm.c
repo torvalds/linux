@@ -338,7 +338,8 @@ static void snd_pcm_proc_info_read(struct snd_pcm_substream *substream,
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (! info) {
-		printk(KERN_DEBUG "snd_pcm_proc_info_read: cannot malloc\n");
+		pcm_dbg(substream->pcm,
+			"snd_pcm_proc_info_read: cannot malloc\n");
 		return;
 	}
 
@@ -660,7 +661,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	if (substream_count > 0 && !pcm->internal) {
 		err = snd_pcm_stream_proc_init(pstr);
 		if (err < 0) {
-			snd_printk(KERN_ERR "Error in snd_pcm_stream_proc_init\n");
+			pcm_err(pcm, "Error in snd_pcm_stream_proc_init\n");
 			return err;
 		}
 	}
@@ -668,7 +669,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	for (idx = 0, prev = NULL; idx < substream_count; idx++) {
 		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
 		if (substream == NULL) {
-			snd_printk(KERN_ERR "Cannot allocate PCM substream\n");
+			pcm_err(pcm, "Cannot allocate PCM substream\n");
 			return -ENOMEM;
 		}
 		substream->pcm = pcm;
@@ -685,7 +686,8 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 		if (!pcm->internal) {
 			err = snd_pcm_substream_proc_init(substream);
 			if (err < 0) {
-				snd_printk(KERN_ERR "Error in snd_pcm_stream_proc_init\n");
+				pcm_err(pcm,
+					"Error in snd_pcm_stream_proc_init\n");
 				if (prev == NULL)
 					pstr->substream = NULL;
 				else
@@ -724,7 +726,7 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 		*rpcm = NULL;
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (pcm == NULL) {
-		snd_printk(KERN_ERR "Cannot allocate PCM\n");
+		dev_err(card->dev, "Cannot allocate PCM\n");
 		return -ENOMEM;
 	}
 	pcm->card = card;
