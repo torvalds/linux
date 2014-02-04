@@ -16,6 +16,7 @@
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/kvm_host.h>
+#include <linux/kvm.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
 
@@ -168,18 +169,6 @@ struct kvm_vcpu_stat {
 	u32 diagnose_9c;
 };
 
-struct kvm_s390_io_info {
-	__u16        subchannel_id;            /* 0x0b8 */
-	__u16        subchannel_nr;            /* 0x0ba */
-	__u32        io_int_parm;              /* 0x0bc */
-	__u32        io_int_word;              /* 0x0c0 */
-};
-
-struct kvm_s390_ext_info {
-	__u32 ext_params;
-	__u64 ext_params2;
-};
-
 #define PGM_OPERATION            0x01
 #define PGM_PRIVILEGED_OP	 0x02
 #define PGM_EXECUTE              0x03
@@ -187,27 +176,6 @@ struct kvm_s390_ext_info {
 #define PGM_ADDRESSING           0x05
 #define PGM_SPECIFICATION        0x06
 #define PGM_DATA                 0x07
-
-struct kvm_s390_pgm_info {
-	__u16 code;
-};
-
-struct kvm_s390_prefix_info {
-	__u32 address;
-};
-
-struct kvm_s390_extcall_info {
-	__u16 code;
-};
-
-struct kvm_s390_emerg_info {
-	__u16 code;
-};
-
-struct kvm_s390_mchk_info {
-	__u64 cr14;
-	__u64 mcic;
-};
 
 struct kvm_s390_interrupt_info {
 	struct list_head list;
@@ -246,6 +214,7 @@ struct kvm_s390_float_interrupt {
 	unsigned long idle_mask[(KVM_MAX_VCPUS + sizeof(long) - 1)
 				/ sizeof(long)];
 	struct kvm_s390_local_interrupt *local_int[KVM_MAX_VCPUS];
+	unsigned int irq_count;
 };
 
 
@@ -262,6 +231,10 @@ struct kvm_vcpu_arch {
 		u64		stidp_data;
 	};
 	struct gmap *gmap;
+#define KVM_S390_PFAULT_TOKEN_INVALID	(-1UL)
+	unsigned long pfault_token;
+	unsigned long pfault_select;
+	unsigned long pfault_compare;
 };
 
 struct kvm_vm_stat {
@@ -275,6 +248,7 @@ struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
+	struct kvm_device *flic;
 	struct gmap *gmap;
 	int css_support;
 };
@@ -286,6 +260,24 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 {
 	return IS_ERR_VALUE(addr);
 }
+
+#define ASYNC_PF_PER_VCPU	64
+struct kvm_vcpu;
+struct kvm_async_pf;
+struct kvm_arch_async_pf {
+	unsigned long pfault_token;
+};
+
+bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
+
+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
+			       struct kvm_async_pf *work);
+
+void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+				     struct kvm_async_pf *work);
+
+void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+				 struct kvm_async_pf *work);
 
 extern int sie64a(struct kvm_s390_sie_block *, u64 *);
 extern char sie_exit;

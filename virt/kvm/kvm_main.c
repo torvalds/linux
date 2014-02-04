@@ -2284,6 +2284,11 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 		ops = &kvm_arm_vgic_v2_ops;
 		break;
 #endif
+#ifdef CONFIG_S390
+	case KVM_DEV_TYPE_FLIC:
+		ops = &kvm_flic_ops;
+		break;
+#endif
 	default:
 		return -ENODEV;
 	}

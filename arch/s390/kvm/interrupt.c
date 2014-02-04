@@ -31,7 +31,7 @@ static int is_ioint(u64 type)
 	return ((type & 0xfffe0000u) != 0xfffe0000u);
 }
 
-static int psw_extint_disabled(struct kvm_vcpu *vcpu)
+int psw_extint_disabled(struct kvm_vcpu *vcpu)
 {
 	return !(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_EXT);
 }
@@ -78,11 +78,8 @@ static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 			return 1;
 		return 0;
 	case KVM_S390_INT_SERVICE:
-		if (psw_extint_disabled(vcpu))
-			return 0;
-		if (vcpu->arch.sie_block->gcr[0] & 0x200ul)
-			return 1;
-		return 0;
+	case KVM_S390_INT_PFAULT_INIT:
+	case KVM_S390_INT_PFAULT_DONE:
 	case KVM_S390_INT_VIRTIO:
 		if (psw_extint_disabled(vcpu))
 			return 0;
@@ -150,6 +147,8 @@ static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
 	case KVM_S390_INT_EXTERNAL_CALL:
 	case KVM_S390_INT_EMERGENCY:
 	case KVM_S390_INT_SERVICE:
+	case KVM_S390_INT_PFAULT_INIT:
+	case KVM_S390_INT_PFAULT_DONE:
 	case KVM_S390_INT_VIRTIO:
 		if (psw_extint_disabled(vcpu))
 			__set_cpuflag(vcpu, CPUSTAT_EXT_INT);
@@ -222,6 +221,30 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 				      __LC_EXT_NEW_PSW, sizeof(psw_t));
 		rc |= put_guest(vcpu, inti->ext.ext_params,
 				(u32 __user *)__LC_EXT_PARAMS);
+		break;
+	case KVM_S390_INT_PFAULT_INIT:
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type, 0,
+						 inti->ext.ext_params2);
+		rc  = put_guest(vcpu, 0x2603, (u16 __user *) __LC_EXT_INT_CODE);
+		rc |= put_guest(vcpu, 0x0600, (u16 __user *) __LC_EXT_CPU_ADDR);
+		rc |= copy_to_guest(vcpu, __LC_EXT_OLD_PSW,
+				    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
+		rc |= copy_from_guest(vcpu, &vcpu->arch.sie_block->gpsw,
+				      __LC_EXT_NEW_PSW, sizeof(psw_t));
+		rc |= put_guest(vcpu, inti->ext.ext_params2,
+				(u64 __user *) __LC_EXT_PARAMS2);
+		break;
+	case KVM_S390_INT_PFAULT_DONE:
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type, 0,
+						 inti->ext.ext_params2);
+		rc  = put_guest(vcpu, 0x2603, (u16 __user *) __LC_EXT_INT_CODE);
+		rc |= put_guest(vcpu, 0x0680, (u16 __user *) __LC_EXT_CPU_ADDR);
+		rc |= copy_to_guest(vcpu, __LC_EXT_OLD_PSW,
+				    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
+		rc |= copy_from_guest(vcpu, &vcpu->arch.sie_block->gpsw,
+				      __LC_EXT_NEW_PSW, sizeof(psw_t));
+		rc |= put_guest(vcpu, inti->ext.ext_params2,
+				(u64 __user *) __LC_EXT_PARAMS2);
 		break;
 	case KVM_S390_INT_VIRTIO:
 		VCPU_EVENT(vcpu, 4, "interrupt: virtio parm:%x,parm64:%llx",
@@ -357,7 +380,7 @@ static int __try_deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
+int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
@@ -528,6 +551,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			list_for_each_entry_safe(inti, n, &fi->list, list) {
 				if (__interrupt_is_deliverable(vcpu, inti)) {
 					list_del(&inti->list);
+					fi->irq_count--;
 					deliver = 1;
 					break;
 				}
@@ -583,6 +607,7 @@ void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu)
 				if ((inti->type == KVM_S390_MCHK) &&
 				    __interrupt_is_deliverable(vcpu, inti)) {
 					list_del(&inti->list);
+					fi->irq_count--;
 					deliver = 1;
 					break;
 				}
@@ -650,8 +675,10 @@ struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 		inti = iter;
 		break;
 	}
-	if (inti)
+	if (inti) {
 		list_del_init(&inti->list);
+		fi->irq_count--;
+	}
 	if (list_empty(&fi->list))
 		atomic_set(&fi->active, 0);
 	spin_unlock(&fi->lock);
@@ -659,71 +686,25 @@ struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 	return inti;
 }
 
-int kvm_s390_inject_vm(struct kvm *kvm,
-		       struct kvm_s390_interrupt *s390int)
+static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 {
 	struct kvm_s390_local_interrupt *li;
 	struct kvm_s390_float_interrupt *fi;
-	struct kvm_s390_interrupt_info *inti, *iter;
+	struct kvm_s390_interrupt_info *iter;
 	int sigcpu;
-
-	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
-	if (!inti)
-		return -ENOMEM;
-
-	switch (s390int->type) {
-	case KVM_S390_INT_VIRTIO:
-		VM_EVENT(kvm, 5, "inject: virtio parm:%x,parm64:%llx",
-			 s390int->parm, s390int->parm64);
-		inti->type = s390int->type;
-		inti->ext.ext_params = s390int->parm;
-		inti->ext.ext_params2 = s390int->parm64;
-		break;
-	case KVM_S390_INT_SERVICE:
-		VM_EVENT(kvm, 5, "inject: sclp parm:%x", s390int->parm);
-		inti->type = s390int->type;
-		inti->ext.ext_params = s390int->parm;
-		break;
-	case KVM_S390_PROGRAM_INT:
-	case KVM_S390_SIGP_STOP:
-	case KVM_S390_INT_EXTERNAL_CALL:
-	case KVM_S390_INT_EMERGENCY:
-		kfree(inti);
-		return -EINVAL;
-	case KVM_S390_MCHK:
-		VM_EVENT(kvm, 5, "inject: machine check parm64:%llx",
-			 s390int->parm64);
-		inti->type = s390int->type;
-		inti->mchk.cr14 = s390int->parm; /* upper bits are not used */
-		inti->mchk.mcic = s390int->parm64;
-		break;
-	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
-		if (s390int->type & IOINT_AI_MASK)
-			VM_EVENT(kvm, 5, "%s", "inject: I/O (AI)");
-		else
-			VM_EVENT(kvm, 5, "inject: I/O css %x ss %x schid %04x",
-				 s390int->type & IOINT_CSSID_MASK,
-				 s390int->type & IOINT_SSID_MASK,
-				 s390int->type & IOINT_SCHID_MASK);
-		inti->type = s390int->type;
-		inti->io.subchannel_id = s390int->parm >> 16;
-		inti->io.subchannel_nr = s390int->parm & 0x0000ffffu;
-		inti->io.io_int_parm = s390int->parm64 >> 32;
-		inti->io.io_int_word = s390int->parm64 & 0x00000000ffffffffull;
-		break;
-	default:
-		kfree(inti);
-		return -EINVAL;
-	}
-	trace_kvm_s390_inject_vm(s390int->type, s390int->parm, s390int->parm64,
-				 2);
+	int rc = 0;
 
 	mutex_lock(&kvm->lock);
 	fi = &kvm->arch.float_int;
 	spin_lock(&fi->lock);
-	if (!is_ioint(inti->type))
+	if (fi->irq_count >= KVM_S390_MAX_FLOAT_IRQS) {
+		rc = -EINVAL;
+		goto unlock_fi;
+	}
+	fi->irq_count++;
+	if (!is_ioint(inti->type)) {
 		list_add_tail(&inti->list, &fi->list);
-	else {
+	} else {
 		u64 isc_bits = int_word_to_isc_bits(inti->io.io_int_word);
 
 		/* Keep I/O interrupts sorted in isc order. */
@@ -752,9 +733,64 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	if (waitqueue_active(li->wq))
 		wake_up_interruptible(li->wq);
 	spin_unlock_bh(&li->lock);
+unlock_fi:
 	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
-	return 0;
+	return rc;
+}
+
+int kvm_s390_inject_vm(struct kvm *kvm,
+		       struct kvm_s390_interrupt *s390int)
+{
+	struct kvm_s390_interrupt_info *inti;
+
+	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
+	if (!inti)
+		return -ENOMEM;
+
+	inti->type = s390int->type;
+	switch (inti->type) {
+	case KVM_S390_INT_VIRTIO:
+		VM_EVENT(kvm, 5, "inject: virtio parm:%x,parm64:%llx",
+			 s390int->parm, s390int->parm64);
+		inti->ext.ext_params = s390int->parm;
+		inti->ext.ext_params2 = s390int->parm64;
+		break;
+	case KVM_S390_INT_SERVICE:
+		VM_EVENT(kvm, 5, "inject: sclp parm:%x", s390int->parm);
+		inti->ext.ext_params = s390int->parm;
+		break;
+	case KVM_S390_INT_PFAULT_DONE:
+		inti->type = s390int->type;
+		inti->ext.ext_params2 = s390int->parm64;
+		break;
+	case KVM_S390_MCHK:
+		VM_EVENT(kvm, 5, "inject: machine check parm64:%llx",
+			 s390int->parm64);
+		inti->mchk.cr14 = s390int->parm; /* upper bits are not used */
+		inti->mchk.mcic = s390int->parm64;
+		break;
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		if (inti->type & IOINT_AI_MASK)
+			VM_EVENT(kvm, 5, "%s", "inject: I/O (AI)");
+		else
+			VM_EVENT(kvm, 5, "inject: I/O css %x ss %x schid %04x",
+				 s390int->type & IOINT_CSSID_MASK,
+				 s390int->type & IOINT_SSID_MASK,
+				 s390int->type & IOINT_SCHID_MASK);
+		inti->io.subchannel_id = s390int->parm >> 16;
+		inti->io.subchannel_nr = s390int->parm & 0x0000ffffu;
+		inti->io.io_int_parm = s390int->parm64 >> 32;
+		inti->io.io_int_word = s390int->parm64 & 0x00000000ffffffffull;
+		break;
+	default:
+		kfree(inti);
+		return -EINVAL;
+	}
+	trace_kvm_s390_inject_vm(s390int->type, s390int->parm, s390int->parm64,
+				 2);
+
+	return __inject_vm(kvm, inti);
 }
 
 int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
@@ -814,6 +850,10 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 		inti->type = s390int->type;
 		inti->mchk.mcic = s390int->parm64;
 		break;
+	case KVM_S390_INT_PFAULT_INIT:
+		inti->type = s390int->type;
+		inti->ext.ext_params2 = s390int->parm64;
+		break;
 	case KVM_S390_INT_VIRTIO:
 	case KVM_S390_INT_SERVICE:
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
@@ -841,3 +881,232 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 	mutex_unlock(&vcpu->kvm->lock);
 	return 0;
 }
+
+static void clear_floating_interrupts(struct kvm *kvm)
+{
+	struct kvm_s390_float_interrupt *fi;
+	struct kvm_s390_interrupt_info	*n, *inti = NULL;
+
+	mutex_lock(&kvm->lock);
+	fi = &kvm->arch.float_int;
+	spin_lock(&fi->lock);
+	list_for_each_entry_safe(inti, n, &fi->list, list) {
+		list_del(&inti->list);
+		kfree(inti);
+	}
+	fi->irq_count = 0;
+	atomic_set(&fi->active, 0);
+	spin_unlock(&fi->lock);
+	mutex_unlock(&kvm->lock);
+}
+
+static inline int copy_irq_to_user(struct kvm_s390_interrupt_info *inti,
+				   u8 *addr)
+{
+	struct kvm_s390_irq __user *uptr = (struct kvm_s390_irq __user *) addr;
+	struct kvm_s390_irq irq = {0};
+
+	irq.type = inti->type;
+	switch (inti->type) {
+	case KVM_S390_INT_PFAULT_INIT:
+	case KVM_S390_INT_PFAULT_DONE:
+	case KVM_S390_INT_VIRTIO:
+	case KVM_S390_INT_SERVICE:
+		irq.u.ext = inti->ext;
+		break;
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		irq.u.io = inti->io;
+		break;
+	case KVM_S390_MCHK:
+		irq.u.mchk = inti->mchk;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (copy_to_user(uptr, &irq, sizeof(irq)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int get_all_floating_irqs(struct kvm *kvm, __u8 *buf, __u64 len)
+{
+	struct kvm_s390_interrupt_info *inti;
+	struct kvm_s390_float_interrupt *fi;
+	int ret = 0;
+	int n = 0;
+
+	mutex_lock(&kvm->lock);
+	fi = &kvm->arch.float_int;
+	spin_lock(&fi->lock);
+
+	list_for_each_entry(inti, &fi->list, list) {
+		if (len < sizeof(struct kvm_s390_irq)) {
+			/* signal userspace to try again */
+			ret = -ENOMEM;
+			break;
+		}
+		ret = copy_irq_to_user(inti, buf);
+		if (ret)
+			break;
+		buf += sizeof(struct kvm_s390_irq);
+		len -= sizeof(struct kvm_s390_irq);
+		n++;
+	}
+
+	spin_unlock(&fi->lock);
+	mutex_unlock(&kvm->lock);
+
+	return ret < 0 ? ret : n;
+}
+
+static int flic_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
+{
+	int r;
+
+	switch (attr->group) {
+	case KVM_DEV_FLIC_GET_ALL_IRQS:
+		r = get_all_floating_irqs(dev->kvm, (u8 *) attr->addr,
+					  attr->attr);
+		break;
+	default:
+		r = -EINVAL;
+	}
+
+	return r;
+}
+
+static inline int copy_irq_from_user(struct kvm_s390_interrupt_info *inti,
+				     u64 addr)
+{
+	struct kvm_s390_irq __user *uptr = (struct kvm_s390_irq __user *) addr;
+	void *target = NULL;
+	void __user *source;
+	u64 size;
+
+	if (get_user(inti->type, (u64 __user *)addr))
+		return -EFAULT;
+
+	switch (inti->type) {
+	case KVM_S390_INT_PFAULT_INIT:
+	case KVM_S390_INT_PFAULT_DONE:
+	case KVM_S390_INT_VIRTIO:
+	case KVM_S390_INT_SERVICE:
+		target = (void *) &inti->ext;
+		source = &uptr->u.ext;
+		size = sizeof(inti->ext);
+		break;
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		target = (void *) &inti->io;
+		source = &uptr->u.io;
+		size = sizeof(inti->io);
+		break;
+	case KVM_S390_MCHK:
+		target = (void *) &inti->mchk;
+		source = &uptr->u.mchk;
+		size = sizeof(inti->mchk);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (copy_from_user(target, source, size))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int enqueue_floating_irq(struct kvm_device *dev,
+				struct kvm_device_attr *attr)
+{
+	struct kvm_s390_interrupt_info *inti = NULL;
+	int r = 0;
+	int len = attr->attr;
+
+	if (len % sizeof(struct kvm_s390_irq) != 0)
+		return -EINVAL;
+	else if (len > KVM_S390_FLIC_MAX_BUFFER)
+		return -EINVAL;
+
+	while (len >= sizeof(struct kvm_s390_irq)) {
+		inti = kzalloc(sizeof(*inti), GFP_KERNEL);
+		if (!inti)
+			return -ENOMEM;
+
+		r = copy_irq_from_user(inti, attr->addr);
+		if (r) {
+			kfree(inti);
+			return r;
+		}
+		r = __inject_vm(dev->kvm, inti);
+		if (r) {
+			kfree(inti);
+			return r;
+		}
+		len -= sizeof(struct kvm_s390_irq);
+		attr->addr += sizeof(struct kvm_s390_irq);
+	}
+
+	return r;
+}
+
+static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
+{
+	int r = 0;
+	unsigned int i;
+	struct kvm_vcpu *vcpu;
+
+	switch (attr->group) {
+	case KVM_DEV_FLIC_ENQUEUE:
+		r = enqueue_floating_irq(dev, attr);
+		break;
+	case KVM_DEV_FLIC_CLEAR_IRQS:
+		r = 0;
+		clear_floating_interrupts(dev->kvm);
+		break;
+	case KVM_DEV_FLIC_APF_ENABLE:
+		dev->kvm->arch.gmap->pfault_enabled = 1;
+		break;
+	case KVM_DEV_FLIC_APF_DISABLE_WAIT:
+		dev->kvm->arch.gmap->pfault_enabled = 0;
+		/*
+		 * Make sure no async faults are in transition when
+		 * clearing the queues. So we don't need to worry
+		 * about late coming workers.
+		 */
+		synchronize_srcu(&dev->kvm->srcu);
+		kvm_for_each_vcpu(i, vcpu, dev->kvm)
+			kvm_clear_async_pf_completion_queue(vcpu);
+		break;
+	default:
+		r = -EINVAL;
+	}
+
+	return r;
+}
+
+static int flic_create(struct kvm_device *dev, u32 type)
+{
+	if (!dev)
+		return -EINVAL;
+	if (dev->kvm->arch.flic)
+		return -EINVAL;
+	dev->kvm->arch.flic = dev;
+	return 0;
+}
+
+static void flic_destroy(struct kvm_device *dev)
+{
+	dev->kvm->arch.flic = NULL;
+	kfree(dev);
+}
+
+/* s390 floating irq controller (flic) */
+struct kvm_device_ops kvm_flic_ops = {
+	.name = "kvm-flic",
+	.get_attr = flic_get_attr,
+	.set_attr = flic_set_attr,
+	.create = flic_create,
+	.destroy = flic_destroy,
+};

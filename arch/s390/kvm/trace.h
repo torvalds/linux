@@ -30,6 +30,52 @@
 	TP_printk("%02d[%016lx-%016lx]: " p_str, __entry->id,		\
 		  __entry->pswmask, __entry->pswaddr, p_args)
 
+TRACE_EVENT(kvm_s390_major_guest_pfault,
+	    TP_PROTO(VCPU_PROTO_COMMON),
+	    TP_ARGS(VCPU_ARGS_COMMON),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    ),
+	    VCPU_TP_PRINTK("%s", "major fault, maybe applicable for pfault")
+	);
+
+TRACE_EVENT(kvm_s390_pfault_init,
+	    TP_PROTO(VCPU_PROTO_COMMON, long pfault_token),
+	    TP_ARGS(VCPU_ARGS_COMMON, pfault_token),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    __field(long, pfault_token)
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    __entry->pfault_token = pfault_token;
+		    ),
+	    VCPU_TP_PRINTK("init pfault token %ld", __entry->pfault_token)
+	);
+
+TRACE_EVENT(kvm_s390_pfault_done,
+	    TP_PROTO(VCPU_PROTO_COMMON, long pfault_token),
+	    TP_ARGS(VCPU_ARGS_COMMON, pfault_token),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    __field(long, pfault_token)
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    __entry->pfault_token = pfault_token;
+		    ),
+	    VCPU_TP_PRINTK("done pfault token %ld", __entry->pfault_token)
+	);
+
 /*
  * Tracepoints for SIE entry and exit.
  */
