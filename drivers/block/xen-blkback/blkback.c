@@ -847,7 +847,7 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 	struct grant_page **pages = pending_req->indirect_pages;
 	struct xen_blkif *blkif = pending_req->blkif;
 	int indirect_grefs, rc, n, nseg, i;
-	struct blkif_request_segment_aligned *segments = NULL;
+	struct blkif_request_segment *segments = NULL;
 
 	nseg = pending_req->nr_pages;
 	indirect_grefs = INDIRECT_PAGES(nseg);
