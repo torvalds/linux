@@ -1538,7 +1538,7 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 	int discard_cnt = 0;
 	u32 cur_getp, stop_getp;
 	struct ocrdma_cqe *cqe;
-	u32 qpn = 0;
+	u32 qpn = 0, wqe_idx = 0;
 
 	spin_lock_irqsave(&cq->cq_lock, cq_flags);
 
@@ -1567,24 +1567,29 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 		if (qpn == 0 || qpn != qp->id)
 			goto skip_cqe;
 
-		/* mark cqe discarded so that it is not picked up later
-		 * in the poll_cq().
-		 */
-		discard_cnt += 1;
-		cqe->cmn.qpn = 0;
 		if (is_cqe_for_sq(cqe)) {
 			ocrdma_hwq_inc_tail(&qp->sq);
 		} else {
 			if (qp->srq) {
+				wqe_idx = (le32_to_cpu(cqe->rq.buftag_qpn) >>
+					OCRDMA_CQE_BUFTAG_SHIFT) &
+					qp->srq->rq.max_wqe_idx;
+				if (wqe_idx < 1)
+					BUG();
 				spin_lock_irqsave(&qp->srq->q_lock, flags);
 				ocrdma_hwq_inc_tail(&qp->srq->rq);
-				ocrdma_srq_toggle_bit(qp->srq, cur_getp);
+				ocrdma_srq_toggle_bit(qp->srq, wqe_idx - 1);
 				spin_unlock_irqrestore(&qp->srq->q_lock, flags);
 
 			} else {
 				ocrdma_hwq_inc_tail(&qp->rq);
 			}
 		}
+		/* mark cqe discarded so that it is not picked up later
+		 * in the poll_cq().
+		 */
+		discard_cnt += 1;
+		cqe->cmn.qpn = 0;
 skip_cqe:
 		cur_getp = (cur_getp + 1) % cq->max_hw_cqe;
 	} while (cur_getp != stop_getp);
@@ -2238,7 +2243,7 @@ static int ocrdma_srq_get_idx(struct ocrdma_srq *srq)
 
 	if (row == srq->bit_fields_len)
 		BUG();
-	return indx;
+	return indx + 1; /* Use from index 1 */
 }
 
 static void ocrdma_ring_srq_db(struct ocrdma_srq *srq)
@@ -2575,10 +2580,13 @@ static void ocrdma_update_free_srq_cqe(struct ib_wc *ibwc,
 
 	srq = get_ocrdma_srq(qp->ibqp.srq);
 	wqe_idx = (le32_to_cpu(cqe->rq.buftag_qpn) >>
-			OCRDMA_CQE_BUFTAG_SHIFT) & srq->rq.max_wqe_idx;
+		OCRDMA_CQE_BUFTAG_SHIFT) & srq->rq.max_wqe_idx;
+	if (wqe_idx < 1)
+		BUG();
+
 	ibwc->wr_id = srq->rqe_wr_id_tbl[wqe_idx];
 	spin_lock_irqsave(&srq->q_lock, flags);
-	ocrdma_srq_toggle_bit(srq, wqe_idx);
+	ocrdma_srq_toggle_bit(srq, wqe_idx - 1);
 	spin_unlock_irqrestore(&srq->q_lock, flags);
 	ocrdma_hwq_inc_tail(&srq->rq);
 }
