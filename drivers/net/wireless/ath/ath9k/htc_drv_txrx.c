@@ -971,6 +971,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct ieee80211_hw *hw = priv->hw;
 	struct sk_buff *skb = rxbuf->skb;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath_hw *ah = common->ah;
 	struct ath_htc_rx_status *rxstatus;
 	struct ath_rx_status rx_stats;
 	int hdrlen, padsize;
@@ -1042,10 +1043,10 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	ath9k_cmn_process_rssi(common, hw, &rx_stats, rx_status);
 
 	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
-	rx_status->band = hw->conf.chandef.chan->band;
-	rx_status->freq = hw->conf.chandef.chan->center_freq;
-	rx_status->signal =  rxbuf->rxstatus.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
-	rx_status->antenna = rxbuf->rxstatus.rs_antenna;
+
+	rx_status->band = ah->curchan->chan->band;
+	rx_status->freq = ah->curchan->chan->center_freq;
+	rx_status->antenna = rx_stats.rs_antenna;
 	rx_status->flag |= RX_FLAG_MACTIME_END;
 
 	return true;
