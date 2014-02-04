@@ -192,6 +192,26 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define __STK_PARAM(i)	(48 + ((i)-3)*8)
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
 
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+
+#define _GLOBAL(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name:
+
+#define _KPROBE(name) \
+	.section ".kprobes.text","a"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name:
+
+#define DOTSYM(a)	a
+
+#else
+
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
 
@@ -224,6 +244,8 @@ name: \
 GLUE(.,name):
 
 #define DOTSYM(a)	GLUE(.,a)
+
+#endif
 
 #else /* 32-bit */
 
