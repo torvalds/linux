@@ -39,12 +39,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_SEQUENCER);
 MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_MUSIC);
 
-#ifdef SNDRV_SEQ_OSS_DEBUG
-module_param(seq_oss_debug, int, 0644);
-MODULE_PARM_DESC(seq_oss_debug, "debug option");
-int seq_oss_debug = 0;
-#endif
-
 
 /*
  * prototypes
@@ -244,7 +238,6 @@ register_device(void)
 		mutex_unlock(&register_mutex);
 		return rc;
 	}
-	debug_printk(("device registered\n"));
 	mutex_unlock(&register_mutex);
 	return 0;
 }
@@ -253,7 +246,6 @@ static void
 unregister_device(void)
 {
 	mutex_lock(&register_mutex);
-	debug_printk(("device unregistered\n"));
 	if (snd_unregister_oss_device(SNDRV_OSS_DEVICE_TYPE_MUSIC, NULL, 0) < 0)		
 		snd_printk(KERN_ERR "error unregister device music\n");
 	if (snd_unregister_oss_device(SNDRV_OSS_DEVICE_TYPE_SEQUENCER, NULL, 0) < 0)

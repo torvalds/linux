@@ -153,7 +153,6 @@ snd_seq_oss_midi_check_new_port(struct snd_seq_port_info *pinfo)
 	struct seq_oss_midi *mdev;
 	unsigned long flags;
 
-	debug_printk(("check for MIDI client %d port %d\n", pinfo->addr.client, pinfo->addr.port));
 	/* the port must include generic midi */
 	if (! (pinfo->type & SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC))
 		return 0;
@@ -406,7 +405,6 @@ snd_seq_oss_midi_close(struct seq_oss_devinfo *dp, int dev)
 		return 0;
 	}
 
-	debug_printk(("closing client %d port %d mode %d\n", mdev->client, mdev->port, mdev->opened));
 	memset(&subs, 0, sizeof(subs));
 	if (mdev->opened & PERM_WRITE) {
 		subs.sender = dp->addr;
@@ -470,7 +468,6 @@ snd_seq_oss_midi_reset(struct seq_oss_devinfo *dp, int dev)
 		struct snd_seq_event ev;
 		int c;
 
-		debug_printk(("resetting client %d port %d\n", mdev->client, mdev->port));
 		memset(&ev, 0, sizeof(ev));
 		ev.dest.client = mdev->client;
 		ev.dest.port = mdev->port;

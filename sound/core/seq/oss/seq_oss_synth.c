@@ -138,7 +138,6 @@ snd_seq_oss_synth_register(struct snd_seq_device *dev)
 	}
 	rec->seq_device = i;
 	synth_devs[i] = rec;
-	debug_printk(("synth %s registered %d\n", rec->name, i));
 	spin_unlock_irqrestore(&register_lock, flags);
 	dev->driver_data = rec;
 #ifdef SNDRV_OSS_INFO_DEV_SYNTH
@@ -256,7 +255,6 @@ snd_seq_oss_synth_setup(struct seq_oss_devinfo *dp)
 			}
 			reset_channels(info);
 		}
-		debug_printk(("synth %d assigned\n", i));
 		info->opened++;
 		rec->opened++;
 		dp->synth_opened++;
@@ -326,7 +324,6 @@ snd_seq_oss_synth_cleanup(struct seq_oss_devinfo *dp)
 			if (rec == NULL)
 				continue;
 			if (rec->opened > 0) {
-				debug_printk(("synth %d closed\n", i));
 				rec->oper.close(&info->arg);
 				module_put(rec->oper.owner);
 				rec->opened = 0;
