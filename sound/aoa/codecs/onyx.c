@@ -889,7 +889,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 		return -ENODEV;
 	}
 
-	if (aoa_snd_device_new(SNDRV_DEV_LOWLEVEL, onyx, &ops)) {
+	if (aoa_snd_device_new(SNDRV_DEV_CODEC, onyx, &ops)) {
 		printk(KERN_ERR PFX "failed to create onyx snd device!\n");
 		return -ENODEV;
 	}
