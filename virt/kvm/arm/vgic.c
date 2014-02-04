@@ -100,8 +100,10 @@ static void vgic_kick_vcpus(struct kvm *kvm);
 static void vgic_dispatch_sgi(struct kvm_vcpu *vcpu, u32 reg);
 static struct vgic_lr vgic_get_lr(const struct kvm_vcpu *vcpu, int lr);
 static void vgic_set_lr(struct kvm_vcpu *vcpu, int lr, struct vgic_lr lr_desc);
-static u32 vgic_nr_lr;
+static void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
+static void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 
+static u32 vgic_nr_lr;
 static unsigned int vgic_maint_irq;
 
 static u32 *vgic_bitmap_get_reg(struct vgic_bitmap *x,
@@ -1073,6 +1075,28 @@ static void vgic_v2_disable_underflow(struct kvm_vcpu *vcpu)
 	vcpu->arch.vgic_cpu.vgic_v2.vgic_hcr &= ~GICH_HCR_UIE;
 }
 
+static void vgic_v2_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
+{
+	u32 vmcr = vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr;
+
+	vmcrp->ctlr = (vmcr & GICH_VMCR_CTRL_MASK) >> GICH_VMCR_CTRL_SHIFT;
+	vmcrp->abpr = (vmcr & GICH_VMCR_ALIAS_BINPOINT_MASK) >> GICH_VMCR_ALIAS_BINPOINT_SHIFT;
+	vmcrp->bpr  = (vmcr & GICH_VMCR_BINPOINT_MASK) >> GICH_VMCR_BINPOINT_SHIFT;
+	vmcrp->pmr  = (vmcr & GICH_VMCR_PRIMASK_MASK) >> GICH_VMCR_PRIMASK_SHIFT;
+}
+
+static void vgic_v2_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
+{
+	u32 vmcr;
+
+	vmcr  = (vmcrp->ctlr << GICH_VMCR_CTRL_SHIFT) & GICH_VMCR_CTRL_MASK;
+	vmcr |= (vmcrp->abpr << GICH_VMCR_ALIAS_BINPOINT_SHIFT) & GICH_VMCR_ALIAS_BINPOINT_MASK;
+	vmcr |= (vmcrp->bpr << GICH_VMCR_BINPOINT_SHIFT) & GICH_VMCR_BINPOINT_MASK;
+	vmcr |= (vmcrp->pmr << GICH_VMCR_PRIMASK_SHIFT) & GICH_VMCR_PRIMASK_MASK;
+
+	vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr = vmcr;
+}
+
 static const struct vgic_ops vgic_ops = {
 	.get_lr			= vgic_v2_get_lr,
 	.set_lr			= vgic_v2_set_lr,
@@ -1082,6 +1106,8 @@ static const struct vgic_ops vgic_ops = {
 	.get_interrupt_status	= vgic_v2_get_interrupt_status,
 	.enable_underflow	= vgic_v2_enable_underflow,
 	.disable_underflow	= vgic_v2_disable_underflow,
+	.get_vmcr		= vgic_v2_get_vmcr,
+	.set_vmcr		= vgic_v2_set_vmcr,
 };
 
 static struct vgic_lr vgic_get_lr(const struct kvm_vcpu *vcpu, int lr)
@@ -1124,6 +1150,16 @@ static inline void vgic_enable_underflow(struct kvm_vcpu *vcpu)
 static inline void vgic_disable_underflow(struct kvm_vcpu *vcpu)
 {
 	vgic_ops.disable_underflow(vcpu);
+}
+
+static inline void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
+{
+	vgic_ops.get_vmcr(vcpu, vmcr);
+}
+
+static void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
+{
+	vgic_ops.set_vmcr(vcpu, vmcr);
 }
 
 static void vgic_retire_lr(int lr_nr, int irq, struct kvm_vcpu *vcpu)
@@ -1879,39 +1915,40 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 static bool handle_cpu_mmio_misc(struct kvm_vcpu *vcpu,
 				 struct kvm_exit_mmio *mmio, phys_addr_t offset)
 {
-	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
-	u32 reg, mask = 0, shift = 0;
 	bool updated = false;
+	struct vgic_vmcr vmcr;
+	u32 *vmcr_field;
+	u32 reg;
+
+	vgic_get_vmcr(vcpu, &vmcr);
 
 	switch (offset & ~0x3) {
 	case GIC_CPU_CTRL:
-		mask = GICH_VMCR_CTRL_MASK;
-		shift = GICH_VMCR_CTRL_SHIFT;
+		vmcr_field = &vmcr.ctlr;
 		break;
 	case GIC_CPU_PRIMASK:
-		mask = GICH_VMCR_PRIMASK_MASK;
-		shift = GICH_VMCR_PRIMASK_SHIFT;
+		vmcr_field = &vmcr.pmr;
 		break;
 	case GIC_CPU_BINPOINT:
-		mask = GICH_VMCR_BINPOINT_MASK;
-		shift = GICH_VMCR_BINPOINT_SHIFT;
+		vmcr_field = &vmcr.bpr;
 		break;
 	case GIC_CPU_ALIAS_BINPOINT:
-		mask = GICH_VMCR_ALIAS_BINPOINT_MASK;
-		shift = GICH_VMCR_ALIAS_BINPOINT_SHIFT;
+		vmcr_field = &vmcr.abpr;
 		break;
+	default:
+		BUG();
 	}
 
 	if (!mmio->is_write) {
-		reg = (vgic_cpu->vgic_v2.vgic_vmcr & mask) >> shift;
+		reg = *vmcr_field;
 		mmio_data_write(mmio, ~0, reg);
 	} else {
 		reg = mmio_data_read(mmio, ~0);
-		reg = (reg << shift) & mask;
-		if (reg != (vgic_cpu->vgic_v2.vgic_vmcr & mask))
+		if (reg != *vmcr_field) {
+			*vmcr_field = reg;
+			vgic_set_vmcr(vcpu, &vmcr);
 			updated = true;
-		vgic_cpu->vgic_v2.vgic_vmcr &= ~mask;
-		vgic_cpu->vgic_v2.vgic_vmcr |= reg;
+		}
 	}
 	return updated;
 }
