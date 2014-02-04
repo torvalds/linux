@@ -2109,8 +2109,6 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
 					  GFP_KERNEL);
 
-	pinctrl_pm_select_default_state(dev);
-
 	/*
 	 * Bus Number Which has been Assigned to this SSP controller
 	 * on this board
