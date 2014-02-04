@@ -758,7 +758,6 @@ struct ath_softc {
 #endif
 
 	struct ath9k_hw_cal_data caldata;
-	int last_rssi;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;

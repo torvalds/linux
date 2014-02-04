@@ -42,6 +42,10 @@
 #define ATH_EP_RND(x, mul) 						\
 	(((x) + ((mul)/2)) / (mul))
 
+void ath9k_cmn_process_rssi(struct ath_common *common,
+			    struct ieee80211_hw *hw,
+			    struct ath_rx_status *rx_stats,
+			    struct ieee80211_rx_status *rxs);
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
 struct ath9k_channel *ath9k_cmn_get_channel(struct ieee80211_hw *hw,
 					    struct ath_hw *ah,

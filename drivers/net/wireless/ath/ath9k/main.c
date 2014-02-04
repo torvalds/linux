@@ -1606,7 +1606,7 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 	common->curaid = bss_conf->aid;
 	ath9k_hw_write_associd(sc->sc_ah);
 
-	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
+	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);

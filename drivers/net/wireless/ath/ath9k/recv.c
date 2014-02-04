@@ -891,68 +891,6 @@ static int ath9k_process_rate(struct ath_common *common,
 	return -EINVAL;
 }
 
-static void ath9k_process_rssi(struct ath_common *common,
-			       struct ieee80211_hw *hw,
-			       struct ath_rx_status *rx_stats,
-			       struct ieee80211_rx_status *rxs)
-{
-	struct ath_softc *sc = hw->priv;
-	struct ath_hw *ah = common->ah;
-	int last_rssi;
-	int rssi = rx_stats->rs_rssi;
-	int i, j;
-
-	/*
-	 * RSSI is not available for subframes in an A-MPDU.
-	 */
-	if (rx_stats->rs_moreaggr) {
-		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
-		return;
-	}
-
-	/*
-	 * Check if the RSSI for the last subframe in an A-MPDU
-	 * or an unaggregated frame is valid.
-	 */
-	if (rx_stats->rs_rssi == ATH9K_RSSI_BAD) {
-		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
-		return;
-	}
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(rx_stats->rs_rssi_ctl); i++) {
-		s8 rssi;
-
-		if (!(ah->rxchainmask & BIT(i)))
-			continue;
-
-		rssi = rx_stats->rs_rssi_ctl[i];
-		if (rssi != ATH9K_RSSI_BAD) {
-		    rxs->chains |= BIT(j);
-		    rxs->chain_signal[j] = ah->noise + rssi;
-		}
-		j++;
-	}
-
-	/*
-	 * Update Beacon RSSI, this is used by ANI.
-	 */
-	if (rx_stats->is_mybeacon &&
-	    ((ah->opmode == NL80211_IFTYPE_STATION) ||
-	     (ah->opmode == NL80211_IFTYPE_ADHOC))) {
-		ATH_RSSI_LPF(sc->last_rssi, rx_stats->rs_rssi);
-		last_rssi = sc->last_rssi;
-
-		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-			rssi = ATH_EP_RND(last_rssi, ATH_RSSI_EP_MULTIPLIER);
-		if (rssi < 0)
-			rssi = 0;
-
-		ah->stats.avgbrssi = rssi;
-	}
-
-	rxs->signal = ah->noise + rx_stats->rs_rssi;
-}
-
 static void ath9k_process_tsf(struct ath_rx_status *rs,
 			      struct ieee80211_rx_status *rxs,
 			      u64 tsf)
@@ -1074,7 +1012,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		goto exit;
 	}
 
-	ath9k_process_rssi(common, hw, rx_stats, rx_status);
+	ath9k_cmn_process_rssi(common, hw, rx_stats, rx_status);
 
 	rx_status->band = ah->curchan->chan->band;
 	rx_status->freq = ah->curchan->chan->center_freq;
