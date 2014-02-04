@@ -488,7 +488,7 @@ static int ocrdma_close(struct ocrdma_dev *dev)
 		cur_qp = dev->qp_tbl;
 		for (i = 0; i < OCRDMA_MAX_QP; i++) {
 			qp = cur_qp[i];
-			if (qp) {
+			if (qp && qp->ibqp.qp_type != IB_QPT_GSI) {
 				/* change the QP state to ERROR */
 				_ocrdma_modify_qp(&qp->ibqp, &attrs, attr_mask);
 

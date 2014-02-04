@@ -32,7 +32,6 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
-#include <rdma/ib_addr.h>
 
 #include "ocrdma.h"
 #include "ocrdma_hw.h"
@@ -386,8 +385,8 @@ static void ocrdma_build_q_pages(struct ocrdma_pa *q_pa, int cnt,
 	}
 }
 
-static int ocrdma_mbx_delete_q(struct ocrdma_dev *dev, struct ocrdma_queue_info *q,
-			       int queue_type)
+static int ocrdma_mbx_delete_q(struct ocrdma_dev *dev,
+			       struct ocrdma_queue_info *q, int queue_type)
 {
 	u8 opcode = 0;
 	int status;
@@ -778,7 +777,6 @@ static void ocrdma_process_grp5_aync(struct ocrdma_dev *dev,
 	}
 }
 
-
 static void ocrdma_process_acqe(struct ocrdma_dev *dev, void *ae_cqe)
 {
 	/* async CQE processing */
@@ -825,8 +823,6 @@ static int ocrdma_mq_cq_handler(struct ocrdma_dev *dev, u16 cq_id)
 			ocrdma_process_acqe(dev, cqe);
 		else if (cqe->valid_ae_cmpl_cons & OCRDMA_MCQE_CMPL_MASK)
 			ocrdma_process_mcqe(dev, cqe);
-		else
-			pr_err("%s() cqe->compl is not set.\n", __func__);
 		memset(cqe, 0, sizeof(struct ocrdma_mcqe));
 		ocrdma_mcq_inc_tail(dev);
 	}
@@ -1050,6 +1046,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_qp =
 	    (rsp->qp_srq_cq_ird_ord & OCRDMA_MBX_QUERY_CFG_MAX_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_QP_SHIFT;
+	attr->max_srq =
+		(rsp->max_srq_rpir_qps & OCRDMA_MBX_QUERY_CFG_MAX_SRQ_MASK) >>
+		OCRDMA_MBX_QUERY_CFG_MAX_SRQ_OFFSET;
 	attr->max_send_sge = ((rsp->max_write_send_sge &
 			       OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_MASK) >>
 			      OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_SHIFT);
@@ -1065,9 +1064,6 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_ord_per_qp = (rsp->max_ird_ord_per_qp &
 				OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_SHIFT;
-	attr->max_srq =
-		(rsp->max_srq_rpir_qps & OCRDMA_MBX_QUERY_CFG_MAX_SRQ_MASK) >>
-		OCRDMA_MBX_QUERY_CFG_MAX_SRQ_OFFSET;
 	attr->max_ird_per_qp = (rsp->max_ird_ord_per_qp &
 				OCRDMA_MBX_QUERY_CFG_MAX_IRD_PER_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_IRD_PER_QP_SHIFT;
@@ -1411,7 +1407,7 @@ static int ocrdma_build_q_conf(u32 *num_entries, int entry_size,
 
 static int ocrdma_mbx_create_ah_tbl(struct ocrdma_dev *dev)
 {
-	int i ;
+	int i;
 	int status = 0;
 	int max_ah;
 	struct ocrdma_create_ah_tbl *cmd;
@@ -2279,7 +2275,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	memcpy(&cmd->params.dgid[0], &ah_attr->grh.dgid.raw[0],
 	       sizeof(cmd->params.dgid));
 	status = ocrdma_query_gid(&qp->dev->ibdev, 1,
-			 ah_attr->grh.sgid_index, &sgid);
+			ah_attr->grh.sgid_index, &sgid);
 	if (status)
 		return status;
 
@@ -2666,7 +2662,7 @@ static int ocrdma_create_eqs(struct ocrdma_dev *dev)
 
 	for (i = 0; i < num_eq; i++) {
 		status = ocrdma_create_eq(dev, &dev->eq_tbl[i],
-					  OCRDMA_EQ_LEN);
+					OCRDMA_EQ_LEN);
 		if (status) {
 			status = -EINVAL;
 			break;

@@ -53,7 +53,7 @@ int ocrdma_query_gid(struct ib_device *ibdev, u8 port,
 
 	dev = get_ocrdma_dev(ibdev);
 	memset(sgid, 0, sizeof(*sgid));
-	if (index >= OCRDMA_MAX_SGID)
+	if (index > OCRDMA_MAX_SGID)
 		return -EINVAL;
 
 	memcpy(sgid, &dev->sgid_tbl[index], sizeof(*sgid));
@@ -143,7 +143,6 @@ static inline void get_link_speed_and_width(struct ocrdma_dev *dev,
 		*ib_width = IB_WIDTH_1X;
 	}
 }
-
 
 int ocrdma_query_port(struct ib_device *ibdev,
 		      u8 port, struct ib_port_attr *props)
@@ -1210,7 +1209,6 @@ static void ocrdma_set_qp_init_params(struct ocrdma_qp *qp,
 	qp->signaled = (attrs->sq_sig_type == IB_SIGNAL_ALL_WR) ? true : false;
 }
 
-
 static void ocrdma_store_gsi_qp_cq(struct ocrdma_dev *dev,
 				   struct ib_qp_init_attr *attrs)
 {
@@ -1296,17 +1294,6 @@ gen_err:
 	return ERR_PTR(status);
 }
 
-
-static void ocrdma_flush_rq_db(struct ocrdma_qp *qp)
-{
-	if (qp->db_cache) {
-		u32 val = qp->rq.dbid | (qp->db_cache <<
-				OCRDMA_DB_RQ_SHIFT);
-		iowrite32(val, qp->rq_db);
-		qp->db_cache = 0;
-	}
-}
-
 int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask)
 {
@@ -1325,8 +1312,6 @@ int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (status < 0)
 		return status;
 	status = ocrdma_mbx_modify_qp(dev, qp, attr, attr_mask);
-	if (!status && attr_mask & IB_QP_STATE && attr->qp_state == IB_QPS_RTR)
-		ocrdma_flush_rq_db(qp);
 
 	return status;
 }
@@ -2042,7 +2027,7 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 	fast_reg->num_sges = wr->wr.fast_reg.page_list_len;
 	fast_reg->size_sge =
 		get_encoded_page_size(1 << wr->wr.fast_reg.page_shift);
-	mr = (struct ocrdma_mr *) (unsigned long) qp->dev->stag_arr[(hdr->lkey >> 8) &
+	mr = (struct ocrdma_mr *)qp->dev->stag_arr[(hdr->lkey >> 8) &
 		(OCRDMA_MAX_STAG - 1)];
 	build_frmr_pbes(wr, mr->hwmr.pbl_table, &mr->hwmr);
 	return 0;
@@ -2877,7 +2862,7 @@ struct ib_mr *ocrdma_alloc_frmr(struct ib_pd *ibpd, int max_page_list_len)
 		goto mbx_err;
 	mr->ibmr.rkey = mr->hwmr.lkey;
 	mr->ibmr.lkey = mr->hwmr.lkey;
-	dev->stag_arr[(mr->hwmr.lkey >> 8) & (OCRDMA_MAX_STAG - 1)] = mr;
+	dev->stag_arr[(mr->hwmr.lkey >> 8) & (OCRDMA_MAX_STAG - 1)] = (u64)mr;
 	return &mr->ibmr;
 mbx_err:
 	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);

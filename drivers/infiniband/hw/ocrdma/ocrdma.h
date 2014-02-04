@@ -35,6 +35,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/ib_addr.h>
 
 #include <be_roce.h>
 #include "ocrdma_sli.h"
@@ -234,7 +235,7 @@ struct ocrdma_dev {
 	struct list_head entry;
 	struct rcu_head rcu;
 	int id;
-	struct ocrdma_mr *stag_arr[OCRDMA_MAX_STAG];
+	u64 stag_arr[OCRDMA_MAX_STAG];
 	u16 pvid;
 	u32 asic_id;
 
@@ -287,7 +288,6 @@ struct ocrdma_cq {
 
 struct ocrdma_pd {
 	struct ib_pd ibpd;
-	struct ocrdma_dev *dev;
 	struct ocrdma_ucontext *uctx;
 	u32 id;
 	int num_dpp_qp;
@@ -372,9 +372,7 @@ struct ocrdma_qp {
 	bool dpp_enabled;
 	u8 *ird_q_va;
 	bool signaled;
-	u16 db_cache;
 };
-
 
 struct ocrdma_ucontext {
 	struct ib_ucontext ibucontext;

@@ -152,11 +152,10 @@ enum {
 #define OCRDMA_MIN_Q_PAGE_SIZE (4096)
 #define OCRDMA_MAX_Q_PAGES     (8)
 
-#define OCRDMA_SLI_ASIC_ID_OFFSET      0x9C
-#define OCRDMA_SLI_ASIC_REV_MASK       0x000000FF
-#define OCRDMA_SLI_ASIC_GEN_NUM_MASK   0x0000FF00
-#define OCRDMA_SLI_ASIC_GEN_NUM_SHIFT  0x08
-
+#define OCRDMA_SLI_ASIC_ID_OFFSET	0x9C
+#define OCRDMA_SLI_ASIC_REV_MASK	0x000000FF
+#define OCRDMA_SLI_ASIC_GEN_NUM_MASK	0x0000FF00
+#define OCRDMA_SLI_ASIC_GEN_NUM_SHIFT	0x08
 /*
 # 0: 4K Bytes
 # 1: 8K Bytes
@@ -633,7 +632,7 @@ enum {
 
 enum {
 	OCRDMA_CREATE_CQ_VER2			= 2,
-	OCRDMA_CREATE_CQ_VER3                   = 3,
+	OCRDMA_CREATE_CQ_VER3			= 3,
 
 	OCRDMA_CREATE_CQ_PAGE_CNT_MASK		= 0xFFFF,
 	OCRDMA_CREATE_CQ_PAGE_SIZE_SHIFT	= 16,
@@ -1093,6 +1092,7 @@ enum {
 	OCRDMA_MODIFY_QP_RSP_MAX_ORD_MASK	= 0xFFFF <<
 					OCRDMA_MODIFY_QP_RSP_MAX_ORD_SHIFT
 };
+
 struct ocrdma_modify_qp_rsp {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_mbx_rsp rsp;
@@ -1105,8 +1105,8 @@ struct ocrdma_query_qp {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_mbx_hdr req;
 
-#define OCRDMA_QUERY_UP_QP_ID_SHIFT 0
-#define OCRDMA_QUERY_UP_QP_ID_MASK   0xFFFFFF
+#define OCRDMA_QUERY_UP_QP_ID_SHIFT	0
+#define OCRDMA_QUERY_UP_QP_ID_MASK	0xFFFFFF
 	u32 qp_id;
 };
 
