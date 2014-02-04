@@ -1500,7 +1500,7 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
 			drm_handle_vblank(dev, pipe);
 
-		if (pipe_stats[pipe] & PLANE_FLIPDONE_INT_STATUS_VLV) {
+		if (pipe_stats[pipe] & PLANE_FLIP_DONE_INT_STATUS_VLV) {
 			intel_prepare_page_flip(dev, pipe);
 			intel_finish_page_flip(dev, pipe);
 		}
