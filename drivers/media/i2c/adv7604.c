@@ -2467,7 +2467,8 @@ static int adv7604_core_init(struct v4l2_subdev *sd)
 	cp_write(sd, 0x69, 0x30);   /* Enable CP CSC */
 
 	/* VS, HS polarities */
-	io_write(sd, 0x06, 0xa0 | pdata->inv_vs_pol << 2 | pdata->inv_hs_pol << 1);
+	io_write(sd, 0x06, 0xa0 | pdata->inv_vs_pol << 2 |
+		 pdata->inv_hs_pol << 1 | pdata->inv_llc_pol);
 
 	/* Adjust drive strength */
 	io_write(sd, 0x14, 0x40 | pdata->dr_str_data << 4 |

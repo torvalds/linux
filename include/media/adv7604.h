@@ -131,6 +131,7 @@ struct adv7604_platform_data {
 	/* IO register 0x06 */
 	unsigned inv_vs_pol:1;
 	unsigned inv_hs_pol:1;
+	unsigned inv_llc_pol:1;
 
 	/* IO register 0x14 */
 	enum adv7604_drive_strength dr_str_data;
