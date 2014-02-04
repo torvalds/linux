@@ -645,6 +645,59 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 }
 
 /**
+ * guest_translate_address - translate guest logical into guest absolute address
+ *
+ * Parameter semantics are the same as the ones from guest_translate.
+ * The memory contents at the guest address are not changed.
+ *
+ * Note: The IPTE lock is not taken during this function, so the caller
+ * has to take care of this.
+ */
+int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
+			    unsigned long *gpa, int write)
+{
+	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
+	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+	struct trans_exc_code_bits *tec;
+	union asce asce;
+	int rc;
+
+	/* Access register mode is not supported yet. */
+	if (psw_bits(*psw).t && psw_bits(*psw).as == PSW_AS_ACCREG)
+		return -EOPNOTSUPP;
+
+	gva = kvm_s390_logical_to_effective(vcpu, gva);
+	memset(pgm, 0, sizeof(*pgm));
+	tec = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
+	tec->as = psw_bits(*psw).as;
+	tec->fsi = write ? FSI_STORE : FSI_FETCH;
+	tec->addr = gva >> PAGE_SHIFT;
+	if (is_low_address(gva) && low_address_protection_enabled(vcpu)) {
+		if (write) {
+			rc = pgm->code = PGM_PROTECTION;
+			return rc;
+		}
+	}
+
+	asce.val = get_vcpu_asce(vcpu);
+	if (psw_bits(*psw).t && !asce.r) {	/* Use DAT? */
+		rc = guest_translate(vcpu, gva, gpa, write);
+		if (rc > 0) {
+			if (rc == PGM_PROTECTION)
+				tec->b61 = 1;
+			pgm->code = rc;
+		}
+	} else {
+		rc = 0;
+		*gpa = kvm_s390_real_to_abs(vcpu, gva);
+		if (kvm_is_error_gpa(vcpu->kvm, *gpa))
+			rc = pgm->code = PGM_ADDRESSING;
+	}
+
+	return rc;
+}
+
+/**
  * kvm_s390_check_low_addr_protection - check for low-address protection
  * @ga: Guest address
  *
