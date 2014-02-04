@@ -85,9 +85,9 @@
 .Lexit:
 	addi	r1,r1,STACKFRAMESIZE
 .Ldo_err1:
-	ld	r3,48(r1)
-	ld	r4,56(r1)
-	ld	r5,64(r1)
+	ld	r3,STK_PARAM(R3)(r1)
+	ld	r4,STK_PARAM(R4)(r1)
+	ld	r5,STK_PARAM(R5)(r1)
 	b	__copy_tofrom_user_base
 
 
@@ -96,18 +96,18 @@ _GLOBAL(__copy_tofrom_user_power7)
 	cmpldi	r5,16
 	cmpldi	cr1,r5,4096
 
-	std	r3,48(r1)
-	std	r4,56(r1)
-	std	r5,64(r1)
+	std	r3,STK_PARAM(R3)(r1)
+	std	r4,STK_PARAM(R4)(r1)
+	std	r5,STK_PARAM(R5)(r1)
 
 	blt	.Lshort_copy
 	bgt	cr1,.Lvmx_copy
 #else
 	cmpldi	r5,16
 
-	std	r3,48(r1)
-	std	r4,56(r1)
-	std	r5,64(r1)
+	std	r3,STK_PARAM(R3)(r1)
+	std	r4,STK_PARAM(R4)(r1)
+	std	r5,STK_PARAM(R5)(r1)
 
 	blt	.Lshort_copy
 #endif
@@ -298,9 +298,9 @@ err1;	stb	r0,0(r3)
 	bl	enter_vmx_usercopy
 	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
-	ld	r3,STACKFRAMESIZE+48(r1)
-	ld	r4,STACKFRAMESIZE+56(r1)
-	ld	r5,STACKFRAMESIZE+64(r1)
+	ld	r3,STACKFRAMESIZE+STK_PARAM(R3)(r1)
+	ld	r4,STACKFRAMESIZE+STK_PARAM(R4)(r1)
+	ld	r5,STACKFRAMESIZE+STK_PARAM(R5)(r1)
 	mtlr	r0
 
 	/*
