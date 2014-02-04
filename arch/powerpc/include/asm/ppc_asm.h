@@ -209,49 +209,11 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
-#define _INIT_GLOBAL(name) \
-	__REF; \
-	.align 2 ; \
-	.globl name; \
-	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
-
 #define _KPROBE(name) \
 	.section ".kprobes.text","a"; \
 	.align 2 ; \
 	.globl name; \
 	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
-
-#define _STATIC(name) \
-	.section ".text"; \
-	.align 2 ; \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
-
-#define _INIT_STATIC(name) \
-	__REF; \
-	.align 2 ; \
 	.section ".opd","aw"; \
 name: \
 	.quad GLUE(.,name); \
