@@ -298,4 +298,34 @@
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
+	hdmi {
+		compatible = "samsung,exynos5410-hdmi";
+		reg = <0x14530000 0x70000>;
+		interrupts = <0 95 0>;
+		clocks = <&clock CLK_HDMI>, <&clock CLK_SCLK_HDMI>, <&clock CLK_SCLK_PIXEL>,
+				<&clock CLK_SCLK_HDMIPHY>, <&clock CLK_MOUT_HDMI>;
+		clock-names = "hdmi", "sclk_hdmi", "sclk_pixel",
+				"sclk_hdmiphy", "mout_hdmi";
+		phy = <&hdmiphy>;
+	};
+
+	hdmiphy: hdmiphy@145D0000 {
+		compatible = "samsung,exynos5410-hdmiphy";
+		reg = <0x145D0000 0x20>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		phy-power-control {
+			reg = <0x10040700 0x04>;
+		};
+	};
+
+	mixer {
+		compatible = "samsung,exynos5250-mixer";
+		reg = <0x14450000 0x10000>;
+		interrupts = <0 94 0>;
+		clocks = <&clock CLK_MIXER>, <&clock CLK_SCLK_HDMI>;
+		clock-names = "mixer", "sclk_hdmi";
+	};
+
 };
