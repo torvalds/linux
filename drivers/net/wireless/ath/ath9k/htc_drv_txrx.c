@@ -974,6 +974,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct ath_htc_rx_status *rxstatus;
 	struct ath_rx_status rx_stats;
 	int hdrlen, padsize;
+	bool decrypt_error;
 	__le16 fc;
 
 	if (skb->len < HTC_RX_FRAME_HEADER_SIZE) {
@@ -1012,43 +1013,13 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 
 	rx_status_htc_to_ath(&rx_stats, &rxbuf->rxstatus);
 
-	if (rxbuf->rxstatus.rs_status != 0) {
-		if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_CRC)
-			rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-		if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_PHY)
-			goto rx_next;
-
-		if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_DECRYPT) {
-			/* FIXME */
-		} else if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_MIC) {
-			if (ieee80211_is_ctl(fc))
-				/*
-				 * Sometimes, we get invalid
-				 * MIC failures on valid control frames.
-				 * Remove these mic errors.
-				 */
-				rxbuf->rxstatus.rs_status &= ~ATH9K_RXERR_MIC;
-			else
-				rx_status->flag |= RX_FLAG_MMIC_ERROR;
-		}
-
-		/*
-		 * Reject error frames with the exception of
-		 * decryption and MIC failures. For monitor mode,
-		 * we also ignore the CRC error.
-		 */
-		if (priv->ah->opmode == NL80211_IFTYPE_MONITOR) {
-			if (rxbuf->rxstatus.rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
-			      ATH9K_RXERR_CRC))
-				goto rx_next;
-		} else {
-			if (rxbuf->rxstatus.rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
-				goto rx_next;
-			}
-		}
-	}
+	/*
+	 * everything but the rate is checked here, the rate check is done
+	 * separately to avoid doing two lookups for a rate for each frame.
+	 */
+	if (!ath9k_cmn_rx_accept(common, hdr, rx_status, &rx_stats,
+			&decrypt_error, priv->rxfilter))
+		goto rx_next;
 
 	if (!(rxbuf->rxstatus.rs_status & ATH9K_RXERR_DECRYPT)) {
 		u8 keyix;
