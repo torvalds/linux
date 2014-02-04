@@ -347,9 +347,9 @@ struct gfs2_leaf {
  * metadata header. Each inode, if it has extended attributes, will
  * have either a single block containing the extended attribute headers
  * or a single indirect block pointing to blocks containing the
- * extended attribure headers.
+ * extended attribute headers.
  *
- * The maximim size of the data part of an extended attribute is 64k
+ * The maximum size of the data part of an extended attribute is 64k
  * so the number of blocks required depends upon block size. Since the
  * block size also determines the number of pointers in an indirect
  * block, its a fairly complicated calculation to work out the maximum

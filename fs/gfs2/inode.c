@@ -376,12 +376,11 @@ static void munge_mode_uid_gid(const struct gfs2_inode *dip,
 		inode->i_gid = current_fsgid();
 }
 
-static int alloc_dinode(struct gfs2_inode *ip, u32 flags)
+static int alloc_dinode(struct gfs2_inode *ip, u32 flags, unsigned *dblocks)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_alloc_parms ap = { .target = RES_DINODE, .aflags = flags, };
+	struct gfs2_alloc_parms ap = { .target = *dblocks, .aflags = flags, };
 	int error;
-	int dblocks = 1;
 
 	error = gfs2_quota_lock_check(ip);
 	if (error)
@@ -391,11 +390,11 @@ static int alloc_dinode(struct gfs2_inode *ip, u32 flags)
 	if (error)
 		goto out_quota;
 
-	error = gfs2_trans_begin(sdp, RES_RG_BIT + RES_STATFS + RES_QUOTA, 0);
+	error = gfs2_trans_begin(sdp, (*dblocks * RES_RG_BIT) + RES_STATFS + RES_QUOTA, 0);
 	if (error)
 		goto out_ipreserv;
 
-	error = gfs2_alloc_blocks(ip, &ip->i_no_addr, &dblocks, 1, &ip->i_generation);
+	error = gfs2_alloc_blocks(ip, &ip->i_no_addr, dblocks, 1, &ip->i_generation);
 	ip->i_no_formal_ino = ip->i_generation;
 	ip->i_inode.i_ino = ip->i_no_addr;
 	ip->i_goal = ip->i_no_addr;
@@ -425,6 +424,33 @@ static void gfs2_init_dir(struct buffer_head *dibh,
 	gfs2_inum_out(parent, dent);
 	dent->de_type = cpu_to_be16(DT_DIR);
 	
+}
+
+/**
+ * gfs2_init_xattr - Initialise an xattr block for a new inode
+ * @ip: The inode in question
+ *
+ * This sets up an empty xattr block for a new inode, ready to
+ * take any ACLs, LSM xattrs, etc.
+ */
+
+static void gfs2_init_xattr(struct gfs2_inode *ip)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct buffer_head *bh;
+	struct gfs2_ea_header *ea;
+
+	bh = gfs2_meta_new(ip->i_gl, ip->i_eattr);
+	gfs2_trans_add_meta(ip->i_gl, bh);
+	gfs2_metatype_set(bh, GFS2_METATYPE_EA, GFS2_FORMAT_EA);
+	gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
+
+	ea = GFS2_EA_BH2FIRST(bh);
+	ea->ea_rec_len = cpu_to_be32(sdp->sd_jbsize);
+	ea->ea_type = GFS2_EATYPE_UNUSED;
+	ea->ea_flags = GFS2_EAFLAG_LAST;
+
+	brelse(bh);
 }
 
 /**
@@ -580,6 +606,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	struct dentry *d;
 	int error;
 	u32 aflags = 0;
+	unsigned blocks = 1;
 	struct gfs2_diradd da = { .bh = NULL, };
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
@@ -676,9 +703,14 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	    (dip->i_diskflags & GFS2_DIF_TOPDIR))
 		aflags |= GFS2_AF_ORLOV;
 
-	error = alloc_dinode(ip, aflags);
+	if (default_acl || acl)
+		blocks++;
+
+	error = alloc_dinode(ip, aflags, &blocks);
 	if (error)
 		goto fail_free_inode;
+
+	gfs2_set_inode_blocks(inode, blocks);
 
 	error = gfs2_glock_get(sdp, ip->i_no_addr, &gfs2_inode_glops, CREATE, &ip->i_gl);
 	if (error)
@@ -689,10 +721,14 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_free_inode;
 
-	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
+	error = gfs2_trans_begin(sdp, blocks, 0);
 	if (error)
 		goto fail_gunlock2;
 
+	if (blocks > 1) {
+		ip->i_eattr = ip->i_no_addr + 1;
+		gfs2_init_xattr(ip);
+	}
 	init_dinode(dip, ip, symname);
 	gfs2_trans_end(sdp);
 
