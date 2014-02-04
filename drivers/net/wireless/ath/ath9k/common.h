@@ -42,6 +42,12 @@
 #define ATH_EP_RND(x, mul) 						\
 	(((x) + ((mul)/2)) / (mul))
 
+bool ath9k_cmn_rx_accept(struct ath_common *common,
+			 struct ieee80211_hdr *hdr,
+			 struct ieee80211_rx_status *rxs,
+			 struct ath_rx_status *rx_stats,
+			 bool *decrypt_error,
+			 unsigned int rxfilter);
 int ath9k_cmn_process_rate(struct ath_common *common,
 			   struct ieee80211_hw *hw,
 			   struct ath_rx_status *rx_stats,
