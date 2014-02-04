@@ -39,7 +39,9 @@
 #include <be_roce.h>
 #include "ocrdma_sli.h"
 
-#define OCRDMA_ROCE_DEV_VERSION "1.0.0"
+#define OCRDMA_ROCE_DRV_VERSION "10.2.145.0u"
+
+#define OCRDMA_ROCE_DRV_DESC "Emulex OneConnect RoCE Driver"
 #define OCRDMA_NODE_DESC "Emulex OneConnect RoCE HCA"
 
 #define OCRDMA_MAX_AH 512
