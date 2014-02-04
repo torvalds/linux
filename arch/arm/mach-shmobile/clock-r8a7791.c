@@ -101,6 +101,7 @@ static struct clk main_clk = {
  */
 SH_FIXED_RATIO_CLK_SET(pll1_clk,		main_clk,	1, 1);
 SH_FIXED_RATIO_CLK_SET(pll3_clk,		main_clk,	1, 1);
+SH_FIXED_RATIO_CLK_SET(qspi_clk,		pll1_clk,	1, 1);
 
 /* fixed ratio clock */
 SH_FIXED_RATIO_CLK_SET(extal_div2_clk,		extal_clk,	1, 2);
@@ -124,6 +125,7 @@ static struct clk *main_clks[] = {
 	&pll3_clk,
 	&hp_clk,
 	&p_clk,
+	&qspi_clk,
 	&rclk_clk,
 	&mp_clk,
 	&cp_clk,
@@ -135,6 +137,7 @@ static struct clk *main_clks[] = {
 /* MSTP */
 enum {
 	MSTP931, MSTP930, MSTP929, MSTP928, MSTP927, MSTP925,
+	MSTP917,
 	MSTP815, MSTP814,
 	MSTP813,
 	MSTP811, MSTP810, MSTP809,
@@ -154,6 +157,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP928] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR9, 28, MSTPSR9, 0), /* I2C3 */
 	[MSTP927] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR9, 27, MSTPSR9, 0), /* I2C4 */
 	[MSTP925] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR9, 25, MSTPSR9, 0), /* I2C5 */
+	[MSTP917] = SH_CLK_MSTP32_STS(&qspi_clk, SMSTPCR9, 17, MSTPSR9, 0), /* QSPI */
 	[MSTP815] = SH_CLK_MSTP32_STS(&zs_clk, SMSTPCR8, 15, MSTPSR8, 0), /* SATA0 */
 	[MSTP814] = SH_CLK_MSTP32_STS(&zs_clk, SMSTPCR8, 14, MSTPSR8, 0), /* SATA1 */
 	[MSTP813] = SH_CLK_MSTP32_STS(&p_clk, SMSTPCR8, 13, MSTPSR8, 0), /* Ether */
@@ -195,6 +199,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("zs",		&zs_clk),
 	CLKDEV_CON_ID("hp",		&hp_clk),
 	CLKDEV_CON_ID("p",		&p_clk),
+	CLKDEV_CON_ID("qspi",		&qspi_clk),
 	CLKDEV_CON_ID("rclk",		&rclk_clk),
 	CLKDEV_CON_ID("mp",		&mp_clk),
 	CLKDEV_CON_ID("cp",		&cp_clk),
@@ -220,6 +225,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-sci.13", &mstp_clks[MSTP1106]), /* SCIFA4 */
 	CLKDEV_DEV_ID("sh-sci.14", &mstp_clks[MSTP1107]), /* SCIFA5 */
 	CLKDEV_DEV_ID("sh_cmt.0", &mstp_clks[MSTP124]),
+	CLKDEV_DEV_ID("qspi.0", &mstp_clks[MSTP917]),
 	CLKDEV_DEV_ID("e61f0000.thermal", &mstp_clks[MSTP522]),
 	CLKDEV_DEV_ID("rcar_thermal", &mstp_clks[MSTP522]),
 	CLKDEV_DEV_ID("i2c-rcar_gen2.0", &mstp_clks[MSTP931]),
@@ -270,6 +276,11 @@ void __init r8a7791_clock_init(void)
 		R8A7791_CLOCK_ROOT(30, &extal_div2_clk, 172, 208, 106, 88);
 		break;
 	}
+
+	if ((mode & (MD(3) | MD(2) | MD(1))) == MD(2))
+		SH_CLK_SET_RATIO(&qspi_clk_ratio, 1, 16);
+	else
+		SH_CLK_SET_RATIO(&qspi_clk_ratio, 1, 20);
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
 		ret = clk_register(main_clks[k]);
