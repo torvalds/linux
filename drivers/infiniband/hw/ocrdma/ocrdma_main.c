@@ -478,6 +478,7 @@ static struct ocrdma_driver ocrdma_drv = {
 	.add			= ocrdma_add,
 	.remove			= ocrdma_remove,
 	.state_change_handler	= ocrdma_event_handler,
+	.be_abi_version		= OCRDMA_BE_ROCE_ABI_VERSION,
 };
 
 static void ocrdma_unregister_inet6addr_notifier(void)
