@@ -1477,15 +1477,53 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 	}
 }
 
+static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pipe_stats[I915_MAX_PIPES];
+	unsigned long irqflags;
+	int pipe;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	for_each_pipe(pipe) {
+		int reg = PIPESTAT(pipe);
+		pipe_stats[pipe] = I915_READ(reg);
+
+		/*
+		 * Clear the PIPE*STAT regs before the IIR
+		 */
+		if (pipe_stats[pipe] & 0x8000ffff)
+			I915_WRITE(reg, pipe_stats[pipe]);
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	for_each_pipe(pipe) {
+		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
+			drm_handle_vblank(dev, pipe);
+
+		if (pipe_stats[pipe] & PLANE_FLIPDONE_INT_STATUS_VLV) {
+			intel_prepare_page_flip(dev, pipe);
+			intel_finish_page_flip(dev, pipe);
+		}
+
+		if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
+			i9xx_pipe_crc_irq_handler(dev, pipe);
+
+		if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
+		    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
+			DRM_ERROR("pipe %c underrun\n", pipe_name(pipe));
+	}
+
+	if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
+		gmbus_irq_handler(dev);
+}
+
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 iir, gt_iir, pm_iir;
 	irqreturn_t ret = IRQ_NONE;
-	unsigned long irqflags;
-	int pipe;
-	u32 pipe_stats[I915_MAX_PIPES];
 
 	while (true) {
 		iir = I915_READ(VLV_IIR);
@@ -1499,35 +1537,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 		snb_gt_irq_handler(dev, dev_priv, gt_iir);
 
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-		for_each_pipe(pipe) {
-			int reg = PIPESTAT(pipe);
-			pipe_stats[pipe] = I915_READ(reg);
-
-			/*
-			 * Clear the PIPE*STAT regs before the IIR
-			 */
-			if (pipe_stats[pipe] & 0x8000ffff)
-				I915_WRITE(reg, pipe_stats[pipe]);
-		}
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-
-		for_each_pipe(pipe) {
-			if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
-				drm_handle_vblank(dev, pipe);
-
-			if (pipe_stats[pipe] & PLANE_FLIPDONE_INT_STATUS_VLV) {
-				intel_prepare_page_flip(dev, pipe);
-				intel_finish_page_flip(dev, pipe);
-			}
-
-			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
-				i9xx_pipe_crc_irq_handler(dev, pipe);
-
-			if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS &&
-			    intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
-				DRM_ERROR("pipe %c underrun\n", pipe_name(pipe));
-		}
+		valleyview_pipestat_irq_handler(dev, iir);
 
 		/* Consume port.  Then clear IIR or we'll miss events */
 		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
@@ -1543,8 +1553,6 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			I915_READ(PORT_HOTPLUG_STAT);
 		}
 
-		if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
-			gmbus_irq_handler(dev);
 
 		if (pm_iir)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
