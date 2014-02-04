@@ -299,7 +299,7 @@ generic_secondary_common_init:
  * Assumes we're mapped EA == RA if the MMU is on.
  */
 #ifdef CONFIG_PPC_BOOK3S
-_STATIC(__mmu_off)
+__mmu_off:
 	mfmsr	r3
 	andi.	r0,r3,MSR_IR|MSR_DR
 	beqlr
@@ -324,7 +324,7 @@ _STATIC(__mmu_off)
  *                 DT block, r4 is a physical pointer to the kernel itself
  *
  */
-_GLOBAL(__start_initialization_multiplatform)
+__start_initialization_multiplatform:
 	/* Make sure we are running in 64 bits mode */
 	bl	enable_64b_mode
 
@@ -376,7 +376,7 @@ _GLOBAL(__start_initialization_multiplatform)
 	b	__after_prom_start
 #endif /* CONFIG_PPC_BOOK3E */
 
-_INIT_STATIC(__boot_from_prom)
+__boot_from_prom:
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
 	/* Save parameters */
 	mr	r31,r3
@@ -414,7 +414,7 @@ _INIT_STATIC(__boot_from_prom)
 	 * from OF while CONFIG_PPC_OF_BOOT_TRAMPOLINE isn't selected */
 	trap
 
-_STATIC(__after_prom_start)
+__after_prom_start:
 #ifdef CONFIG_RELOCATABLE
 	/* process relocations for the final address of the kernel */
 	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
@@ -674,7 +674,7 @@ _GLOBAL(start_secondary_resume)
 /*
  * This subroutine clobbers r11 and r12
  */
-_GLOBAL(enable_64b_mode)
+enable_64b_mode:
 	mfmsr	r11			/* grab the current MSR */
 #ifdef CONFIG_PPC_BOOK3E
 	oris	r11,r11,0x8000		/* CM bit set, we'll set ICM later */
@@ -715,7 +715,7 @@ p_toc:	.llong	__toc_start + 0x8000 - 0b
 /*
  * This is where the main kernel code starts.
  */
-_INIT_STATIC(start_here_multiplatform)
+start_here_multiplatform:
 	/* set up the TOC */
 	bl      relative_toc
 	tovirt(r2,r2)

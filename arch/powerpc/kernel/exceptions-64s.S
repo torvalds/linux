@@ -1536,7 +1536,7 @@ power4_fixup_nap:
  * Hash table stuff
  */
 	.align	7
-_STATIC(do_hash_page)
+do_hash_page:
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
 
