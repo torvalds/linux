@@ -974,9 +974,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct ath_hw *ah = common->ah;
 	struct ath_htc_rx_status *rxstatus;
 	struct ath_rx_status rx_stats;
-	int hdrlen, padsize;
 	bool decrypt_error;
-	__le16 fc;
 
 	if (skb->len < HTC_RX_FRAME_HEADER_SIZE) {
 		ath_err(common, "Corrupted RX frame, dropping (len: %d)\n",
@@ -1000,16 +998,6 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
 	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
 
-	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = hdr->frame_control;
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-
-	padsize = hdrlen & 3;
-	if (padsize && skb->len >= hdrlen+padsize+FCS_LEN) {
-		memmove(skb->data + padsize, skb->data, hdrlen);
-		skb_pull(skb, padsize);
-	}
-
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
 	rx_status_htc_to_ath(&rx_stats, &rxbuf->rxstatus);
@@ -1018,23 +1006,13 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	 * everything but the rate is checked here, the rate check is done
 	 * separately to avoid doing two lookups for a rate for each frame.
 	 */
+	hdr = (struct ieee80211_hdr *)skb->data;
 	if (!ath9k_cmn_rx_accept(common, hdr, rx_status, &rx_stats,
 			&decrypt_error, priv->rxfilter))
 		goto rx_next;
 
-	if (!(rxbuf->rxstatus.rs_status & ATH9K_RXERR_DECRYPT)) {
-		u8 keyix;
-		keyix = rxbuf->rxstatus.rs_keyix;
-		if (keyix != ATH9K_RXKEYIX_INVALID) {
-			rx_status->flag |= RX_FLAG_DECRYPTED;
-		} else if (ieee80211_has_protected(fc) &&
-			   skb->len >= hdrlen + 4) {
-			keyix = skb->data[hdrlen + 3] >> 6;
-			if (test_bit(keyix, common->keymap))
-				rx_status->flag |= RX_FLAG_DECRYPTED;
-		}
-	}
-
+	ath9k_cmn_rx_skb_postprocess(common, skb, &rx_stats,
+				     rx_status, decrypt_error);
 
 	if (ath9k_cmn_process_rate(common, hw, &rx_stats, rx_status))
 		goto rx_next;
