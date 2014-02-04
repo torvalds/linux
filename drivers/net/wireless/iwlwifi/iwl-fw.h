@@ -288,6 +288,8 @@ struct iwl_fw {
 
 	struct iwl_tlv_calib_ctrl default_calib[IWL_UCODE_TYPE_MAX];
 	u32 phy_config;
+	u8 valid_tx_ant;
+	u8 valid_rx_ant;
 
 	bool mvm_fw;
 
@@ -296,14 +298,12 @@ struct iwl_fw {
 
 static inline u8 iwl_fw_valid_tx_ant(const struct iwl_fw *fw)
 {
-	return (fw->phy_config & FW_PHY_CFG_TX_CHAIN) >>
-		FW_PHY_CFG_TX_CHAIN_POS;
+	return fw->valid_tx_ant;
 }
 
 static inline u8 iwl_fw_valid_rx_ant(const struct iwl_fw *fw)
 {
-	return (fw->phy_config & FW_PHY_CFG_RX_CHAIN) >>
-		FW_PHY_CFG_RX_CHAIN_POS;
+	return fw->valid_rx_ant;
 }
 
 #endif  /* __iwl_fw_h__ */

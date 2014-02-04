@@ -728,6 +728,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
 			drv->fw.phy_config = le32_to_cpup((__le32 *)tlv_data);
+			drv->fw.valid_tx_ant = (drv->fw.phy_config &
+						FW_PHY_CFG_TX_CHAIN) >>
+						FW_PHY_CFG_TX_CHAIN_POS;
+			drv->fw.valid_rx_ant = (drv->fw.phy_config &
+						FW_PHY_CFG_RX_CHAIN) >>
+						FW_PHY_CFG_RX_CHAIN_POS;
 			break;
 		 case IWL_UCODE_TLV_SECURE_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
