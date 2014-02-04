@@ -30,8 +30,16 @@
 
 #define Bit(_b) (1 << (_b))
 
-#define OCRDMA_GEN1_FAMILY	0xB
-#define OCRDMA_GEN2_FAMILY	0x0F
+enum {
+	OCRDMA_ASIC_GEN_SKH_R = 0x04,
+	OCRDMA_ASIC_GEN_LANCER = 0x0B
+};
+
+enum {
+	OCRDMA_ASIC_REV_A0 = 0x00,
+	OCRDMA_ASIC_REV_B0 = 0x10,
+	OCRDMA_ASIC_REV_C0 = 0x20
+};
 
 #define OCRDMA_SUBSYS_ROCE 10
 enum {
@@ -140,6 +148,11 @@ enum {
 
 #define OCRDMA_MIN_Q_PAGE_SIZE (4096)
 #define OCRDMA_MAX_Q_PAGES     (8)
+
+#define OCRDMA_SLI_ASIC_ID_OFFSET      0x9C
+#define OCRDMA_SLI_ASIC_REV_MASK       0x000000FF
+#define OCRDMA_SLI_ASIC_GEN_NUM_MASK   0x0000FF00
+#define OCRDMA_SLI_ASIC_GEN_NUM_SHIFT  0x08
 
 /*
 # 0: 4K Bytes

@@ -1037,7 +1037,7 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_inline_data =
 	    attr->wqe_size - (sizeof(struct ocrdma_hdr_wqe) +
 			      sizeof(struct ocrdma_sge));
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
+	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
 		attr->ird = 1;
 		attr->ird_page_size = OCRDMA_MIN_Q_PAGE_SIZE;
 		attr->num_ird_pages = MAX_OCRDMA_IRD_PAGES;
@@ -1379,7 +1379,7 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 		       __func__, dev->id, dev->attr.max_cqe, entries);
 		return -EINVAL;
 	}
-	if (dpp_cq && (dev->nic_info.dev_family != OCRDMA_GEN2_FAMILY))
+	if (dpp_cq && (ocrdma_get_asic_type(dev) != OCRDMA_ASIC_GEN_SKH_R))
 		return -EINVAL;
 
 	if (dpp_cq) {
@@ -1439,7 +1439,7 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	}
 	/* shared eq between all the consumer cqs. */
 	cmd->cmd.eqn = cq->eqn;
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
+	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
 		if (dpp_cq)
 			cmd->cmd.pgsz_pgcnt |= OCRDMA_CREATE_CQ_DPP <<
 				OCRDMA_CREATE_CQ_TYPE_SHIFT;

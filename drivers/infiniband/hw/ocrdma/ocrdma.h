@@ -197,6 +197,7 @@ struct ocrdma_dev {
 	int id;
 	struct ocrdma_mr *stag_arr[OCRDMA_MAX_STAG];
 	u16 pvid;
+	u32 asic_id;
 };
 
 struct ocrdma_cq {
@@ -441,6 +442,18 @@ static inline int ocrdma_get_eq_table_index(struct ocrdma_dev *dev,
 	}
 
 	return -EINVAL;
+}
+
+static inline u8 ocrdma_get_asic_type(struct ocrdma_dev *dev)
+{
+	if (dev->nic_info.dev_family == 0xF && !dev->asic_id) {
+		pci_read_config_dword(
+			dev->nic_info.pdev,
+			OCRDMA_SLI_ASIC_ID_OFFSET, &dev->asic_id);
+	}
+
+	return (dev->asic_id & OCRDMA_SLI_ASIC_GEN_NUM_MASK) >>
+				OCRDMA_SLI_ASIC_GEN_NUM_SHIFT;
 }
 
 #endif
