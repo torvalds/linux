@@ -263,15 +263,6 @@ void sd_recv_consume(void *token, size_t len, void *user)
 
 extern ci_t *CI;                /* dummy pointer to board ZERO's data */
 void
-VMETRO_TRACE (void *x)
-{
-    u_int32_t   y = (u_int32_t) x;
-
-    pci_write_32 ((u_int32_t *) &CI->cpldbase->leds, y);
-}
-
-
-void
 VMETRO_TRIGGER (ci_t *ci, int x)
 {
     struct s_comet_reg    *comet;
