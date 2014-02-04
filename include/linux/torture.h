@@ -75,12 +75,10 @@ int torture_shuffle_init(long shuffint);
 /* Test auto-shutdown handling. */
 void torture_shutdown_absorb(const char *title);
 int torture_shutdown_init(int ssecs, void (*cleanup)(void));
-void torture_shutdown_cleanup(void);
 
 /* Task stuttering, which forces load/no-load transitions. */
 void stutter_wait(const char *title);
 int torture_stutter_init(int s);
-void torture_stutter_cleanup(void);
 
 /* Initialization and cleanup. */
 void torture_init_begin(char *ttype, bool v, int *runnable);

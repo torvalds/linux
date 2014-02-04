@@ -53,11 +53,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@freedesktop.org>");
 
-MODULE_ALIAS("rcutorture");
-#ifdef MODULE_PARAM_PREFIX
-#undef MODULE_PARAM_PREFIX
-#endif
-#define MODULE_PARAM_PREFIX "rcutorture."
 
 torture_param(int, fqs_duration, 0,
 	      "Duration of fqs bursts (us), 0 to disable");
@@ -1269,7 +1264,6 @@ rcu_torture_cleanup(void)
 
 	rcu_torture_barrier_cleanup();
 	torture_stop_kthread(rcu_torture_stall, stall_task);
-	torture_stutter_cleanup();
 	torture_stop_kthread(rcu_torture_writer, writer_task);
 
 	if (reader_tasks) {
@@ -1297,7 +1291,6 @@ rcu_torture_cleanup(void)
 		for_each_possible_cpu(i)
 			rcutorture_booster_cleanup(i);
 	}
-	torture_shutdown_cleanup();
 
 	/* Wait for all RCU callbacks to fire.  */
 
