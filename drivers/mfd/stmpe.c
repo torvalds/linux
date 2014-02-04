@@ -706,7 +706,7 @@ static int stmpe1801_reset(struct stmpe *stmpe)
 		if (!(ret & STMPE1801_MSK_SYS_CTRL_RESET))
 			return 0;
 		usleep_range(100, 200);
-	};
+	}
 	return -EIO;
 }
 
