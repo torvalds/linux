@@ -58,7 +58,8 @@ enum pipe {
 	PIPE_A = 0,
 	PIPE_B,
 	PIPE_C,
-	I915_MAX_PIPES
+	_PIPE_EDP,
+	I915_MAX_PIPES = _PIPE_EDP
 };
 #define pipe_name(p) ((p) + 'A')
 
@@ -66,7 +67,8 @@ enum transcoder {
 	TRANSCODER_A = 0,
 	TRANSCODER_B,
 	TRANSCODER_C,
-	TRANSCODER_EDP = 0xF,
+	TRANSCODER_EDP,
+	I915_MAX_TRANSCODERS
 };
 #define transcoder_name(t) ((t) + 'A')
 
@@ -531,6 +533,12 @@ struct intel_device_info {
 	u8 gen;
 	u8 ring_mask; /* Rings supported by the HW */
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
+	/* Register offsets for the various display pipes and transcoders */
+	int pipe_offsets[I915_MAX_TRANSCODERS];
+	int trans_offsets[I915_MAX_TRANSCODERS];
+	int dpll_offsets[I915_MAX_PIPES];
+	int dpll_md_offsets[I915_MAX_PIPES];
+	int palette_offsets[I915_MAX_PIPES];
 };
 
 #undef DEFINE_FLAG
