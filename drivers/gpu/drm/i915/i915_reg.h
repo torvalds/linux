@@ -798,6 +798,7 @@
 # define ASYNC_FLIP_PERF_DISABLE			(1 << 14)
 
 #define GEN6_GT_MODE	0x20d0
+#define GEN7_GT_MODE	0x7008
 #define   GEN6_WIZ_HASHING(hi, lo)			(((hi) << 9) | ((lo) << 7))
 #define   GEN6_WIZ_HASHING_8x8				GEN6_WIZ_HASHING(0, 0)
 #define   GEN6_WIZ_HASHING_8x4				GEN6_WIZ_HASHING(0, 1)

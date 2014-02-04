@@ -4954,6 +4954,13 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 
+	/*
+	 * BSpec recommends 8x4 when MSAA is used,
+	 * however in practice 16x4 seems fastest.
+	 */
+	I915_WRITE(GEN7_GT_MODE,
+		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 	snpcr &= ~GEN6_MBC_SNPCR_MASK;
 	snpcr |= GEN6_MBC_SNPCR_MED;
