@@ -114,7 +114,7 @@ static void usbtv_disconnect(struct usb_interface *intf)
 	v4l2_device_put(&usbtv->v4l2_dev);
 }
 
-struct usb_device_id usbtv_id_table[] = {
+static struct usb_device_id usbtv_id_table[] = {
 	{ USB_DEVICE(0x1b71, 0x3002) },
 	{}
 };
@@ -124,7 +124,7 @@ MODULE_AUTHOR("Lubomir Rintel");
 MODULE_DESCRIPTION("Fushicai USBTV007 Video Grabber Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
-struct usb_driver usbtv_usb_driver = {
+static struct usb_driver usbtv_usb_driver = {
 	.name = "usbtv",
 	.id_table = usbtv_id_table,
 	.probe = usbtv_probe,
