@@ -81,6 +81,7 @@ silabs	Silicon Laboratories
 simtek
 sirf	SiRF Technology, Inc.
 snps 	Synopsys, Inc.
+spansion	Spansion Inc.
 st	STMicroelectronics
 ste	ST-Ericsson
 stericsson	ST-Ericsson
