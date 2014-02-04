@@ -175,6 +175,15 @@ config HID_PRODIKEYS
 	  multimedia keyboard, but will lack support for the musical keyboard
 	  and some additional multimedia keys.
 
+config HID_CP2112
+	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
+	depends on USB_HID && I2C
+	---help---
+	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
+	This is a HID device driver which registers as an i2c adapter
+	and gpiochip to expose these functions of the CP2112. The
+	customizable USB descriptor fields are exposed as sysfs attributes.
+
 config HID_CYPRESS
 	tristate "Cypress mouse and barcode readers" if EXPERT
 	depends on HID
