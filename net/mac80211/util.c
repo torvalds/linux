@@ -1281,13 +1281,32 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	 * that calculates local->scan_ies_len.
 	 */
 
-	/* add any remaining custom IEs */
+	/* insert custom IEs that go before VHT */
 	if (ie && ie_len) {
-		noffset = ie_len;
+		static const u8 before_vht[] = {
+			WLAN_EID_SSID,
+			WLAN_EID_SUPP_RATES,
+			WLAN_EID_REQUEST,
+			WLAN_EID_EXT_SUPP_RATES,
+			WLAN_EID_DS_PARAMS,
+			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+			WLAN_EID_HT_CAPABILITY,
+			WLAN_EID_BSS_COEX_2040,
+			WLAN_EID_EXT_CAPABILITY,
+			WLAN_EID_SSID_LIST,
+			WLAN_EID_CHANNEL_USAGE,
+			WLAN_EID_INTERWORKING,
+			/* mesh ID can't happen here */
+			/* 60 GHz can't happen here right now */
+		};
+		noffset = ieee80211_ie_split(ie, ie_len,
+					     before_vht, ARRAY_SIZE(before_vht),
+					     offset);
 		if (end - pos < noffset - offset)
 			goto out_err;
 		memcpy(pos, ie + offset, noffset - offset);
 		pos += noffset - offset;
+		offset = noffset;
 	}
 
 	if (sband->vht_cap.vht_supported) {
@@ -1295,6 +1314,15 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			goto out_err;
 		pos = ieee80211_ie_build_vht_cap(pos, &sband->vht_cap,
 						 sband->vht_cap.cap);
+	}
+
+	/* add any remaining custom IEs */
+	if (ie && ie_len) {
+		noffset = ie_len;
+		if (end - pos < noffset - offset)
+			goto out_err;
+		memcpy(pos, ie + offset, noffset - offset);
+		pos += noffset - offset;
 	}
 
 	return pos - buffer;
