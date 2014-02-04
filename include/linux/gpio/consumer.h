@@ -4,8 +4,6 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 
-#ifdef CONFIG_GPIOLIB
-
 struct device;
 struct gpio_chip;
 
@@ -17,6 +15,8 @@ struct gpio_chip;
  * until the GPIO is released.
  */
 struct gpio_desc;
+
+#ifdef CONFIG_GPIOLIB
 
 /* Acquire and dispose GPIOs */
 struct gpio_desc *__must_check gpiod_get(struct device *dev,
