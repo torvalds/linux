@@ -625,9 +625,6 @@ purge_gnt_list:
 			print_stats(blkif);
 	}
 
-	/* Since we are shutting down remove all pages from the buffer */
-	shrink_free_pagepool(blkif, 0 /* All */);
-
 	/* Free all persistent grant pages */
 	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts))
 		free_persistent_gnts(blkif, &blkif->persistent_gnts,
@@ -635,6 +632,9 @@ purge_gnt_list:
 
 	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
 	blkif->persistent_gnt_c = 0;
+
+	/* Since we are shutting down remove all pages from the buffer */
+	shrink_free_pagepool(blkif, 0 /* All */);
 
 	if (log_stats)
 		print_stats(blkif);
