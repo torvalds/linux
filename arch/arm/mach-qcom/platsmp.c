@@ -30,7 +30,7 @@ extern void secondary_startup(void);
 static DEFINE_SPINLOCK(boot_lock);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __ref msm_cpu_die(unsigned int cpu)
+static void __ref qcom_cpu_die(unsigned int cpu)
 {
 	wfi();
 }
@@ -42,7 +42,7 @@ static inline int get_core_count(void)
 	return ((read_cpuid_id() >> 4) & 3) + 1;
 }
 
-static void msm_secondary_init(unsigned int cpu)
+static void qcom_secondary_init(unsigned int cpu)
 {
 	/*
 	 * Synchronise with the boot thread.
@@ -70,7 +70,7 @@ static void prepare_cold_cpu(unsigned int cpu)
 				  "address\n");
 }
 
-static int msm_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int qcom_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	static int cold_boot_done;
 
@@ -108,7 +108,7 @@ static int msm_boot_secondary(unsigned int cpu, struct task_struct *idle)
  * does not support the ARM SCU, so just set the possible cpu mask to
  * NR_CPUS.
  */
-static void __init msm_smp_init_cpus(void)
+static void __init qcom_smp_init_cpus(void)
 {
 	unsigned int i, ncores = get_core_count();
 
@@ -122,16 +122,16 @@ static void __init msm_smp_init_cpus(void)
 		set_cpu_possible(i, true);
 }
 
-static void __init msm_smp_prepare_cpus(unsigned int max_cpus)
+static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 {
 }
 
-struct smp_operations msm_smp_ops __initdata = {
-	.smp_init_cpus		= msm_smp_init_cpus,
-	.smp_prepare_cpus	= msm_smp_prepare_cpus,
-	.smp_secondary_init	= msm_secondary_init,
-	.smp_boot_secondary	= msm_boot_secondary,
+struct smp_operations qcom_smp_ops __initdata = {
+	.smp_init_cpus		= qcom_smp_init_cpus,
+	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
+	.smp_secondary_init	= qcom_secondary_init,
+	.smp_boot_secondary	= qcom_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
-	.cpu_die		= msm_cpu_die,
+	.cpu_die		= qcom_cpu_die,
 #endif
 };

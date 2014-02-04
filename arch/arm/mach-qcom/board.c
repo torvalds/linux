@@ -17,7 +17,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-extern struct smp_operations msm_smp_ops;
+extern struct smp_operations qcom_smp_ops;
 
 static const char * const qcom_dt_match[] __initconst = {
 	"qcom,msm8660-surf",
@@ -31,7 +31,7 @@ static const char * const apq8074_dt_match[] __initconst = {
 };
 
 DT_MACHINE_START(QCOM_DT, "Qualcomm (Flattened Device Tree)")
-	.smp = smp_ops(msm_smp_ops),
+	.smp = smp_ops(qcom_smp_ops),
 	.dt_compat = qcom_dt_match,
 MACHINE_END
 
