@@ -378,9 +378,11 @@ _GLOBAL(ret_from_fork)
 _GLOBAL(ret_from_kernel_thread)
 	bl	schedule_tail
 	REST_NVGPRS(r1)
-	ld	r14, 0(r14)
 	mtlr	r14
 	mr	r3,r15
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+	mr	r12,r14
+#endif
 	blrl
 	li	r3,0
 	b	syscall_exit
