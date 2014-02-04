@@ -32,7 +32,8 @@
 #define VGIC_NR_PRIVATE_IRQS	(VGIC_NR_SGIS + VGIC_NR_PPIS)
 #define VGIC_NR_SHARED_IRQS	(VGIC_NR_IRQS - VGIC_NR_PRIVATE_IRQS)
 #define VGIC_MAX_CPUS		KVM_MAX_VCPUS
-#define VGIC_MAX_LRS		(1 << 6)
+
+#define VGIC_V2_MAX_LRS		(1 << 6)
 
 /* Sanity checks... */
 #if (VGIC_MAX_CPUS > 8)
@@ -162,7 +163,7 @@ struct vgic_v2_cpu_if {
 	u32		vgic_eisr[2];	/* Saved only */
 	u32		vgic_elrsr[2];	/* Saved only */
 	u32		vgic_apr;
-	u32		vgic_lr[VGIC_MAX_LRS];
+	u32		vgic_lr[VGIC_V2_MAX_LRS];
 };
 
 struct vgic_cpu {
@@ -175,7 +176,7 @@ struct vgic_cpu {
 	DECLARE_BITMAP(	pending_shared, VGIC_NR_SHARED_IRQS);
 
 	/* Bitmap of used/free list registers */
-	DECLARE_BITMAP(	lr_used, VGIC_MAX_LRS);
+	DECLARE_BITMAP(	lr_used, VGIC_V2_MAX_LRS);
 
 	/* Number of list registers on this CPU */
 	int		nr_lr;
@@ -213,6 +214,10 @@ bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.vctrl_base))
 #define vgic_initialized(k)	((k)->arch.vgic.ready)
+
+int vgic_v2_probe(struct device_node *vgic_node,
+		  const struct vgic_ops **ops,
+		  const struct vgic_params **params);
 
 #else
 static inline int kvm_vgic_hyp_init(void)
