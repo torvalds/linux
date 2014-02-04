@@ -1481,10 +1481,9 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pipe_stats[I915_MAX_PIPES];
-	unsigned long irqflags;
 	int pipe;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock(&dev_priv->irq_lock);
 	for_each_pipe(pipe) {
 		int reg = PIPESTAT(pipe);
 		pipe_stats[pipe] = I915_READ(reg);
@@ -1495,7 +1494,7 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 		if (pipe_stats[pipe] & 0x8000ffff)
 			I915_WRITE(reg, pipe_stats[pipe]);
 	}
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	spin_unlock(&dev_priv->irq_lock);
 
 	for_each_pipe(pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
