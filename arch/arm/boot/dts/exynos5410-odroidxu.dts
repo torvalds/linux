@@ -112,6 +112,12 @@
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <0>;
 		};
+		hdmi_hpd_irq: hdmi-hpd-irq {
+			samsung,pins = "gpx3-7";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <1>;
+			samsung,pin-drv = <0>;
+		};
 	};
 
 	/* ic21 */
@@ -141,6 +147,24 @@
 			reg = <0x50>;
 		};
 	};
+
+	hdmi {
+		hpd-gpio = <&gpx3 7 0>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&hdmi_hpd_irq>;
+		hdmi-en-supply = <&fixed_regulator>;
+		vdd_osc-supply = <&ldo10_reg>;
+		vdd_pll-supply = <&ldo8_reg>;
+		vdd-supply = <&ldo8_reg>;
+		phy = <&hdmiphy>;
+	};
+
+    fixed_regulator: fixed_regulator@0 {
+        compatible = "regulator-fixed";
+        regulator-name = "hdmi-en";
+        regulator-min-microvolt = <5000000>;
+        regulator-max-microvolt = <5000000>;
+    };
 
 	/* hsic24 */
 	hsi2c@12CA0000 {
