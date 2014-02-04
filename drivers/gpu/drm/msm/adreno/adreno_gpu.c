@@ -73,6 +73,12 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 	case MSM_PARAM_GMEM_SIZE:
 		*value = adreno_gpu->gmem;
 		return 0;
+	case MSM_PARAM_CHIP_ID:
+		*value = adreno_gpu->rev.patchid |
+				(adreno_gpu->rev.minor << 8) |
+				(adreno_gpu->rev.major << 16) |
+				(adreno_gpu->rev.core << 24);
+		return 0;
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);
 		return -EINVAL;
