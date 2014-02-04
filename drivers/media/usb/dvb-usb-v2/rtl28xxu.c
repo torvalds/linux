@@ -907,7 +907,6 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		/* attach SDR */
 		dvb_attach(rtl2832_sdr_attach, adap->fe[0], &d->i2c_adap,
 				&rtl28xxu_rtl2832_fc0012_config, NULL);
-		return 0;
 		break;
 	case TUNER_RTL2832_FC0013:
 		fe = dvb_attach(fc0013_attach, adap->fe[0],
@@ -920,7 +919,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		/* attach SDR */
 		dvb_attach(rtl2832_sdr_attach, adap->fe[0], &d->i2c_adap,
 				&rtl28xxu_rtl2832_fc0013_config, NULL);
-		return 0;
+		break;
 	case TUNER_RTL2832_E4000: {
 			struct v4l2_subdev *sd;
 			struct e4000_config e4000_config = {
