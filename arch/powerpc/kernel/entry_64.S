@@ -1021,7 +1021,7 @@ _GLOBAL(enter_rtas)
         std	r6,PACASAVEDMSR(r13)
 
 	/* Setup our real return addr */	
-	LOAD_REG_ADDR(r4,.rtas_return_loc)
+	LOAD_REG_ADDR(r4,rtas_return_loc)
 	clrldi	r4,r4,2			/* convert to realmode address */
        	mtlr	r4
 
@@ -1045,7 +1045,7 @@ _GLOBAL(enter_rtas)
 	rfid
 	b	.	/* prevent speculative execution */
 
-_STATIC(rtas_return_loc)
+rtas_return_loc:
 	FIXUP_ENDIAN
 
 	/* relocation is off at this point */
@@ -1054,7 +1054,7 @@ _STATIC(rtas_return_loc)
 
 	bcl	20,31,$+4
 0:	mflr	r3
-	ld	r3,(1f-0b)(r3)		/* get &.rtas_restore_regs */
+	ld	r3,(1f-0b)(r3)		/* get &rtas_restore_regs */
 
 	mfmsr   r6
 	li	r0,MSR_RI
@@ -1071,9 +1071,9 @@ _STATIC(rtas_return_loc)
 	b	.	/* prevent speculative execution */
 
 	.align	3
-1:	.llong	.rtas_restore_regs
+1:	.llong	rtas_restore_regs
 
-_STATIC(rtas_restore_regs)
+rtas_restore_regs:
 	/* relocation is on at this point */
 	REST_GPR(2, r1)			/* Restore the TOC */
 	REST_GPR(13, r1)		/* Restore paca */

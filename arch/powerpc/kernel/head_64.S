@@ -639,7 +639,7 @@ __secondary_start:
 	stb	r0,PACAIRQHAPPENED(r13)
 
 	/* enable MMU and jump to start_secondary */
-	LOAD_REG_ADDR(r3, .start_secondary_prolog)
+	LOAD_REG_ADDR(r3, start_secondary_prolog)
 	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL)
 
 	mtspr	SPRN_SRR0,r3
@@ -652,7 +652,7 @@ __secondary_start:
  * zero the stack back-chain pointer and get the TOC virtual address
  * before going into C code.
  */
-_GLOBAL(start_secondary_prolog)
+start_secondary_prolog:
 	ld	r2,PACATOC(r13)
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
@@ -778,7 +778,7 @@ _INIT_STATIC(start_here_multiplatform)
 	mr	r3,r31
 	bl	early_setup		/* also sets r13 and SPRG_PACA */
 
-	LOAD_REG_ADDR(r3, .start_here_common)
+	LOAD_REG_ADDR(r3, start_here_common)
 	ld	r4,PACAKMSR(r13)
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
@@ -786,7 +786,8 @@ _INIT_STATIC(start_here_multiplatform)
 	b	.	/* prevent speculative execution */
 	
 	/* This is where all platforms converge execution */
-_INIT_GLOBAL(start_here_common)
+
+start_here_common:
 	/* relocation is on at this point */
 	std	r1,PACAKSAVE(r13)
 
