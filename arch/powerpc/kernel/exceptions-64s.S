@@ -769,38 +769,38 @@ kvmppc_skip_Hinterrupt:
 
 /*** Common interrupt handlers ***/
 
-	STD_EXCEPTION_COMMON(0x100, system_reset, .system_reset_exception)
+	STD_EXCEPTION_COMMON(0x100, system_reset, system_reset_exception)
 
 	STD_EXCEPTION_COMMON_ASYNC(0x500, hardware_interrupt, do_IRQ)
-	STD_EXCEPTION_COMMON_ASYNC(0x900, decrementer, .timer_interrupt)
-	STD_EXCEPTION_COMMON(0x980, hdecrementer, .hdec_interrupt)
+	STD_EXCEPTION_COMMON_ASYNC(0x900, decrementer, timer_interrupt)
+	STD_EXCEPTION_COMMON(0x980, hdecrementer, hdec_interrupt)
 #ifdef CONFIG_PPC_DOORBELL
-	STD_EXCEPTION_COMMON_ASYNC(0xa00, doorbell_super, .doorbell_exception)
+	STD_EXCEPTION_COMMON_ASYNC(0xa00, doorbell_super, doorbell_exception)
 #else
-	STD_EXCEPTION_COMMON_ASYNC(0xa00, doorbell_super, .unknown_exception)
+	STD_EXCEPTION_COMMON_ASYNC(0xa00, doorbell_super, unknown_exception)
 #endif
-	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
-	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
-	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
-	STD_EXCEPTION_COMMON(0xe40, emulation_assist, .emulation_assist_interrupt)
-	STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
+	STD_EXCEPTION_COMMON(0xb00, trap_0b, unknown_exception)
+	STD_EXCEPTION_COMMON(0xd00, single_step, single_step_exception)
+	STD_EXCEPTION_COMMON(0xe00, trap_0e, unknown_exception)
+	STD_EXCEPTION_COMMON(0xe40, emulation_assist, emulation_assist_interrupt)
+	STD_EXCEPTION_COMMON(0xe60, hmi_exception, unknown_exception)
 #ifdef CONFIG_PPC_DOORBELL
-	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, .doorbell_exception)
+	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, doorbell_exception)
 #else
-	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, .unknown_exception)
+	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, unknown_exception)
 #endif
-	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, .performance_monitor_exception)
-	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
-	STD_EXCEPTION_COMMON(0x1502, denorm, .unknown_exception)
+	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, performance_monitor_exception)
+	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, instruction_breakpoint_exception)
+	STD_EXCEPTION_COMMON(0x1502, denorm, unknown_exception)
 #ifdef CONFIG_ALTIVEC
-	STD_EXCEPTION_COMMON(0x1700, altivec_assist, .altivec_assist_exception)
+	STD_EXCEPTION_COMMON(0x1700, altivec_assist, altivec_assist_exception)
 #else
-	STD_EXCEPTION_COMMON(0x1700, altivec_assist, .unknown_exception)
+	STD_EXCEPTION_COMMON(0x1700, altivec_assist, unknown_exception)
 #endif
 #ifdef CONFIG_CBE_RAS
-	STD_EXCEPTION_COMMON(0x1200, cbe_system_error, .cbe_system_error_exception)
-	STD_EXCEPTION_COMMON(0x1600, cbe_maintenance, .cbe_maintenance_exception)
-	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, .cbe_thermal_exception)
+	STD_EXCEPTION_COMMON(0x1200, cbe_system_error, cbe_system_error_exception)
+	STD_EXCEPTION_COMMON(0x1600, cbe_maintenance, cbe_maintenance_exception)
+	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, cbe_thermal_exception)
 #endif /* CONFIG_CBE_RAS */
 
 	/*
@@ -1073,7 +1073,7 @@ instruction_access_common:
 	li	r5,0x400
 	b	do_hash_page		/* Try to handle as hpte fault */
 
-	STD_EXCEPTION_COMMON(0xe20, h_instr_storage, .unknown_exception)
+	STD_EXCEPTION_COMMON(0xe20, h_instr_storage, unknown_exception)
 
 /*
  * Here is the common SLB miss user that is used when going to virtual
@@ -1290,8 +1290,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	bl	vsx_unavailable_exception
 	b	ret_from_except
 
-	STD_EXCEPTION_COMMON(0xf60, facility_unavailable, .facility_unavailable_exception)
-	STD_EXCEPTION_COMMON(0xf80, hv_facility_unavailable, .facility_unavailable_exception)
+	STD_EXCEPTION_COMMON(0xf60, facility_unavailable, facility_unavailable_exception)
+	STD_EXCEPTION_COMMON(0xf80, hv_facility_unavailable, facility_unavailable_exception)
 
 	.align	7
 	.globl	__end_handlers

@@ -591,7 +591,7 @@ interrupt_end_book3e:
 
 /* External Input Interrupt */
 	MASKABLE_EXCEPTION(0x500, BOOKE_INTERRUPT_EXTERNAL,
-			   external_input, .do_IRQ, ACK_NONE)
+			   external_input, do_IRQ, ACK_NONE)
 
 /* Alignment */
 	START_EXCEPTION(alignment);
@@ -676,11 +676,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 /* Decrementer Interrupt */
 	MASKABLE_EXCEPTION(0x900, BOOKE_INTERRUPT_DECREMENTER,
-			   decrementer, .timer_interrupt, ACK_DEC)
+			   decrementer, timer_interrupt, ACK_DEC)
 
 /* Fixed Interval Timer Interrupt */
 	MASKABLE_EXCEPTION(0x980, BOOKE_INTERRUPT_FIT,
-			   fixed_interval, .unknown_exception, ACK_FIT)
+			   fixed_interval, unknown_exception, ACK_FIT)
 
 /* Watchdog Timer Interrupt */
 	START_EXCEPTION(watchdog);
@@ -855,7 +855,7 @@ kernel_dbg_exc:
 
 /* Doorbell interrupt */
 	MASKABLE_EXCEPTION(0x280, BOOKE_INTERRUPT_DOORBELL,
-			   doorbell, .doorbell_exception, ACK_NONE)
+			   doorbell, doorbell_exception, ACK_NONE)
 
 /* Doorbell critical Interrupt */
 	START_EXCEPTION(doorbell_crit);
