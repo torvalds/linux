@@ -953,7 +953,8 @@ static int ocrdma_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe)
 {
 	int status = 0;
 	u16 cqe_status, ext_status;
-	struct ocrdma_mqe *rsp;
+	struct ocrdma_mqe *rsp_mqe;
+	struct ocrdma_mbx_rsp *rsp = NULL;
 
 	mutex_lock(&dev->mqe_ctx.lock);
 	ocrdma_post_mqe(dev, mqe);
@@ -962,20 +963,58 @@ static int ocrdma_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe)
 		goto mbx_err;
 	cqe_status = dev->mqe_ctx.cqe_status;
 	ext_status = dev->mqe_ctx.ext_status;
-	rsp = ocrdma_get_mqe_rsp(dev);
-	ocrdma_copy_le32_to_cpu(mqe, rsp, (sizeof(*mqe)));
+	rsp_mqe = ocrdma_get_mqe_rsp(dev);
+	ocrdma_copy_le32_to_cpu(mqe, rsp_mqe, (sizeof(*mqe)));
+	if ((mqe->hdr.spcl_sge_cnt_emb & OCRDMA_MQE_HDR_EMB_MASK) >>
+				OCRDMA_MQE_HDR_EMB_SHIFT)
+		rsp = &mqe->u.rsp;
+
 	if (cqe_status || ext_status) {
-		pr_err("%s() opcode=0x%x, cqe_status=0x%x, ext_status=0x%x\n",
-		       __func__,
-		     (rsp->u.rsp.subsys_op & OCRDMA_MBX_RSP_OPCODE_MASK) >>
-		     OCRDMA_MBX_RSP_OPCODE_SHIFT, cqe_status, ext_status);
+		pr_err("%s() cqe_status=0x%x, ext_status=0x%x,",
+		       __func__, cqe_status, ext_status);
+		if (rsp) {
+			/* This is for embedded cmds. */
+			pr_err("opcode=0x%x, subsystem=0x%x\n",
+			       (rsp->subsys_op & OCRDMA_MBX_RSP_OPCODE_MASK) >>
+				OCRDMA_MBX_RSP_OPCODE_SHIFT,
+				(rsp->subsys_op & OCRDMA_MBX_RSP_SUBSYS_MASK) >>
+				OCRDMA_MBX_RSP_SUBSYS_SHIFT);
+		}
 		status = ocrdma_get_mbx_cqe_errno(cqe_status);
 		goto mbx_err;
 	}
-	if (mqe->u.rsp.status & OCRDMA_MBX_RSP_STATUS_MASK)
+	/* For non embedded, rsp errors are handled in ocrdma_nonemb_mbx_cmd */
+	if (rsp && (mqe->u.rsp.status & OCRDMA_MBX_RSP_STATUS_MASK))
 		status = ocrdma_get_mbx_errno(mqe->u.rsp.status);
 mbx_err:
 	mutex_unlock(&dev->mqe_ctx.lock);
+	return status;
+}
+
+static int ocrdma_nonemb_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe,
+				 void *payload_va)
+{
+	int status = 0;
+	struct ocrdma_mbx_rsp *rsp = payload_va;
+
+	if ((mqe->hdr.spcl_sge_cnt_emb & OCRDMA_MQE_HDR_EMB_MASK) >>
+				OCRDMA_MQE_HDR_EMB_SHIFT)
+		BUG();
+
+	status = ocrdma_mbx_cmd(dev, mqe);
+	if (!status)
+		/* For non embedded, only CQE failures are handled in
+		 * ocrdma_mbx_cmd. We need to check for RSP errors.
+		 */
+		if (rsp->status & OCRDMA_MBX_RSP_STATUS_MASK)
+			status = ocrdma_get_mbx_errno(rsp->status);
+
+	if (status)
+		pr_err("opcode=0x%x, subsystem=0x%x\n",
+		       (rsp->subsys_op & OCRDMA_MBX_RSP_OPCODE_MASK) >>
+			OCRDMA_MBX_RSP_OPCODE_SHIFT,
+			(rsp->subsys_op & OCRDMA_MBX_RSP_SUBSYS_MASK) >>
+			OCRDMA_MBX_RSP_SUBSYS_SHIFT);
 	return status;
 }
 
