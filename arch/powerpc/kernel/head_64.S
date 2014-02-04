@@ -140,16 +140,18 @@ __secondary_hold:
 	tovirt(r26,r26)
 #endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r4,__secondary_hold_spinloop-_stext(r26)
-	cmpdi	0,r4,0
+100:	ld	r12,__secondary_hold_spinloop-_stext(r26)
+	cmpdi	0,r12,0
 	beq	100b
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
 #ifdef CONFIG_PPC_BOOK3E
-	tovirt(r4,r4)
+	tovirt(r12,r12)
 #endif
-	ld	r4,0(r4)		/* deref function descriptor */
-	mtctr	r4
+#if !defined(_CALL_ELF) || _CALL_ELF != 2
+	ld	r12,0(r12)		/* deref function descriptor */
+#endif
+	mtctr	r12
 	mr	r3,r24
 	/*
 	 * it may be the case that other platforms have r4 right to
@@ -267,8 +269,8 @@ generic_secondary_common_init:
 	ld	r23,CPU_SPEC_RESTORE(r23)
 	cmpdi	0,r23,0
 	beq	3f
-	ld	r23,0(r23)
-	mtctr	r23
+	ld	r12,0(r23)
+	mtctr	r12
 	bctrl
 
 3:	LOAD_REG_ADDR(r3, spinning_secondaries) /* Decrement spinning_secondaries */
@@ -468,8 +470,8 @@ __after_prom_start:
 					/* this includes the code being	 */
 					/* executed here.		 */
 	addis	r8,r3,(4f - _stext)@ha	/* Jump to the copy of this code */
-	addi	r8,r8,(4f - _stext)@l	/* that we just made */
-	mtctr	r8
+	addi	r12,r8,(4f - _stext)@l	/* that we just made */
+	mtctr	r12
 	bctr
 
 .balign 8

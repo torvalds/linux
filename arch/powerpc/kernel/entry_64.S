@@ -174,8 +174,8 @@ system_call:			/* label this so stack traces look sane */
 	clrldi	r8,r8,32
 15:
 	slwi	r0,r0,4
-	ldx	r10,r11,r0	/* Fetch system call handler [ptr] */
-	mtctr   r10
+	ldx	r12,r11,r0	/* Fetch system call handler [ptr] */
+	mtctr   r12
 	bctrl			/* Call handler */
 
 syscall_exit:

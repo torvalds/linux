@@ -595,8 +595,12 @@ _GLOBAL(kexec_sequence)
 	stw	r6,kexec_flag-1b(5)
 
 	/* clear out hardware hash page table and tlb */
-	ld	r5,0(r27)		/* deref function descriptor */
-	mtctr	r5
+#if !defined(_CALL_ELF) || _CALL_ELF != 2
+	ld	r12,0(r27)		/* deref function descriptor */
+#else
+	mr	r12,r27
+#endif
+	mtctr	r12
 	bctrl				/* ppc_md.hpte_clear_all(void); */
 
 /*
