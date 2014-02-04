@@ -50,7 +50,7 @@ int snd_device_new(struct snd_card *card, snd_device_type_t type,
 		return -ENXIO;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		snd_printk(KERN_ERR "Cannot allocate device\n");
+		dev_err(card->dev, "Cannot allocate device, type=%d\n", type);
 		return -ENOMEM;
 	}
 	dev->card = card;
@@ -90,17 +90,17 @@ int snd_device_free(struct snd_card *card, void *device_data)
 		if (dev->state == SNDRV_DEV_REGISTERED &&
 		    dev->ops->dev_disconnect)
 			if (dev->ops->dev_disconnect(dev))
-				snd_printk(KERN_ERR
-					   "device disconnect failure\n");
+				dev_err(card->dev,
+					"device disconnect failure\n");
 		if (dev->ops->dev_free) {
 			if (dev->ops->dev_free(dev))
-				snd_printk(KERN_ERR "device free failure\n");
+				dev_err(card->dev, "device free failure\n");
 		}
 		kfree(dev);
 		return 0;
 	}
-	snd_printd("device free %p (from %pF), not found\n", device_data,
-		   __builtin_return_address(0));
+	dev_dbg(card->dev, "device free %p (from %pF), not found\n",
+		device_data, __builtin_return_address(0));
 	return -ENXIO;
 }
 
@@ -131,13 +131,14 @@ int snd_device_disconnect(struct snd_card *card, void *device_data)
 		if (dev->state == SNDRV_DEV_REGISTERED &&
 		    dev->ops->dev_disconnect) {
 			if (dev->ops->dev_disconnect(dev))
-				snd_printk(KERN_ERR "device disconnect failure\n");
+				dev_err(card->dev,
+					"device disconnect failure\n");
 			dev->state = SNDRV_DEV_DISCONNECTED;
 		}
 		return 0;
 	}
-	snd_printd("device disconnect %p (from %pF), not found\n", device_data,
-		   __builtin_return_address(0));
+	dev_dbg(card->dev, "device disconnect %p (from %pF), not found\n",
+		device_data, __builtin_return_address(0));
 	return -ENXIO;
 }
 
@@ -170,7 +171,7 @@ int snd_device_register(struct snd_card *card, void *device_data)
 			dev->state = SNDRV_DEV_REGISTERED;
 			return 0;
 		}
-		snd_printd("snd_device_register busy\n");
+		dev_dbg(card->dev, "snd_device_register busy\n");
 		return -EBUSY;
 	}
 	snd_BUG();

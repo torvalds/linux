@@ -418,9 +418,14 @@ static int snd_info_entry_release(struct inode *inode, struct file *file)
 			if (entry->c.text.write) {
 				entry->c.text.write(entry, data->wbuffer);
 				if (data->wbuffer->error) {
-					snd_printk(KERN_WARNING "data write error to %s (%i)\n",
-						entry->name,
-						data->wbuffer->error);
+					if (entry->card)
+						dev_warn(entry->card->dev, "info: data write error to %s (%i)\n",
+							 entry->name,
+							 data->wbuffer->error);
+					else
+						pr_warn("ALSA: info: data write error to %s (%i)\n",
+							entry->name,
+							data->wbuffer->error);
 				}
 			}
 			kfree(data->wbuffer->buffer);

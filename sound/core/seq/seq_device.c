@@ -168,7 +168,7 @@ void snd_seq_device_load_drivers(void)
 
 /*
  * register a sequencer device
- * card = card info (NULL allowed)
+ * card = card info
  * device = device number (if any)
  * id = id of driver
  * result = return pointer (NULL allowed if unnecessary)

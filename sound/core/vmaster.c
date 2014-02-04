@@ -101,7 +101,7 @@ static int slave_init(struct link_slave *slave)
 	if (slave->info.count > 2  ||
 	    (slave->info.type != SNDRV_CTL_ELEM_TYPE_INTEGER &&
 	     slave->info.type != SNDRV_CTL_ELEM_TYPE_BOOLEAN)) {
-		snd_printk(KERN_ERR "invalid slave element\n");
+		pr_err("ALSA: vmaster: invalid slave element\n");
 		kfree(uinfo);
 		return -EINVAL;
 	}
