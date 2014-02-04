@@ -2373,7 +2373,7 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 
 	snd_usb_mixer_apply_create_quirk(mixer);
 
-	err = snd_device_new(chip->card, SNDRV_DEV_LOWLEVEL, mixer, &dev_ops);
+	err = snd_device_new(chip->card, SNDRV_DEV_CODEC, mixer, &dev_ops);
 	if (err < 0)
 		goto _error;
 
