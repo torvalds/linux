@@ -1612,6 +1612,8 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	struct nfsd4_op *op;
 	bool cachethis = false;
 	int max_reply = 2 * RPC_MAX_AUTH_SIZE + 8; /* opcnt, status */
+	int readcount = 0;
+	int readbytes = 0;
 	int i;
 
 	READ_BUF(4);
@@ -1658,7 +1660,11 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		 */
 		cachethis |= nfsd4_cache_this_op(op);
 
-		max_reply += nfsd4_max_reply(argp->rqstp, op);
+		if (op->opnum == OP_READ) {
+			readcount++;
+			readbytes += nfsd4_max_reply(argp->rqstp, op);
+		} else
+			max_reply += nfsd4_max_reply(argp->rqstp, op);
 
 		if (op->status) {
 			argp->opcnt = i+1;
@@ -1668,8 +1674,11 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	/* Sessions make the DRC unnecessary: */
 	if (argp->minorversion)
 		cachethis = false;
-	svc_reserve(argp->rqstp, max_reply);
+	svc_reserve(argp->rqstp, max_reply + readbytes);
 	argp->rqstp->rq_cachetype = cachethis ? RC_REPLBUFF : RC_NOCACHE;
+
+	if (readcount > 1 || max_reply > PAGE_SIZE - 2*RPC_MAX_AUTH_SIZE)
+		argp->rqstp->rq_splice_ok = false;
 
 	DECODE_TAIL;
 }
@@ -3078,15 +3087,19 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 		return nfserr;
 
 	p = xdr_reserve_space(xdr, 8); /* eof flag and byte count */
-	if (!p)
+	if (!p) {
+		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
 		return nfserr_resource;
+	}
 
 	/* Make sure there will be room for padding if needed: */
 	if (xdr->end - xdr->p < 1)
 		return nfserr_resource;
 
-	if (resp->xdr.buf->page_len)
+	if (resp->xdr.buf->page_len) {
+		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
 		return nfserr_resource;
+	}
 
 	maxcount = svc_max_payload(resp->rqstp);
 	if (maxcount > read->rd_length)
