@@ -2918,8 +2918,8 @@ error:
 		rc = 0;
 
 	/* the loop below should proceed in the order of increasing offsets */
-restart_loop:
 	list_for_each_entry_safe(rdata, tmp, &rdata_list, list) {
+	again:
 		if (!rc) {
 			ssize_t copied;
 
@@ -2927,20 +2927,20 @@ restart_loop:
 			rc = wait_for_completion_killable(&rdata->done);
 			if (rc)
 				rc = -EINTR;
-			else if (rdata->result)
+			else if (rdata->result) {
 				rc = rdata->result;
-			else {
+				/* resend call if it's a retryable error */
+				if (rc == -EAGAIN) {
+					rc = cifs_retry_async_readv(rdata);
+					goto again;
+				}
+			} else {
 				rc = cifs_readdata_to_iov(rdata, iov,
 							nr_segs, *poffset,
 							&copied);
 				total_read += copied;
 			}
 
-			/* resend call if it's a retryable error */
-			if (rc == -EAGAIN) {
-				rc = cifs_retry_async_readv(rdata);
-				goto restart_loop;
-			}
 		}
 		list_del_init(&rdata->list);
 		kref_put(&rdata->refcount, cifs_uncached_readdata_release);
