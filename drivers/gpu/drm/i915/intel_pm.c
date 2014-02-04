@@ -3003,6 +3003,9 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 	dev_priv->rps.last_adj = 0;
 }
 
+/* gen6_set_rps is called to update the frequency request, but should also be
+ * called when the range (min_delay and max_delay) is modified so that we can
+ * update the GEN6_RP_INTERRUPT_LIMITS register accordingly. */
 void gen6_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3011,8 +3014,14 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	WARN_ON(val > dev_priv->rps.max_delay);
 	WARN_ON(val < dev_priv->rps.min_delay);
 
-	if (val == dev_priv->rps.cur_delay)
+	if (val == dev_priv->rps.cur_delay) {
+		/* min/max delay may still have been modified so be sure to
+		 * write the limits value */
+		I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
+			   gen6_rps_limits(dev_priv, val));
+
 		return;
+	}
 
 	gen6_set_rps_thresholds(dev_priv, val);
 
