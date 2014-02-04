@@ -995,12 +995,14 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	ath9k_htc_err_stat_rx(priv, rxstatus);
 
 	/* Get the RX status information */
-	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
-	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
 
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
-	rx_status_htc_to_ath(&rx_stats, &rxbuf->rxstatus);
+	/* Copy everything from ath_htc_rx_status (HTC_RX_FRAME_HEADER).
+	 * After this, we can drop this part of skb. */
+	rx_status_htc_to_ath(&rx_stats, rxstatus);
+	rx_status->mactime = be64_to_cpu(rxstatus->rs_tstamp);
+	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
 
 	/*
 	 * everything but the rate is checked here, the rate check is done
@@ -1019,8 +1021,6 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 
 	rx_stats.is_mybeacon = ath_is_mybeacon(common, hdr);
 	ath9k_cmn_process_rssi(common, hw, &rx_stats, rx_status);
-
-	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
 
 	rx_status->band = ah->curchan->chan->band;
 	rx_status->freq = ah->curchan->chan->center_freq;
