@@ -2297,18 +2297,11 @@ static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
-	u32 imr;
 
 	if (!i915_pipe_enabled(dev, pipe))
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	imr = I915_READ(VLV_IMR);
-	if (pipe == PIPE_A)
-		imr &= ~I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT;
-	else
-		imr &= ~I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-	I915_WRITE(VLV_IMR, imr);
 	i915_enable_pipestat(dev_priv, pipe,
 			     PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
@@ -2366,17 +2359,10 @@ static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
-	u32 imr;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_disable_pipestat(dev_priv, pipe,
 			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
-	imr = I915_READ(VLV_IMR);
-	if (pipe == PIPE_A)
-		imr |= I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT;
-	else
-		imr |= I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-	I915_WRITE(VLV_IMR, imr);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
