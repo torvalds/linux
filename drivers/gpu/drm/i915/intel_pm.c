@@ -4661,6 +4661,13 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		I915_WRITE(GEN6_GT_MODE,
 			   _MASKED_BIT_ENABLE(GEN6_TD_FOUR_ROW_DISPATCH_DISABLE));
 
+	/*
+	 * BSpec recoomends 8x4 when MSAA is used,
+	 * however in practice 16x4 seems fastest.
+	 */
+	I915_WRITE(GEN6_GT_MODE,
+		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+
 	ilk_init_lp_watermarks(dev);
 
 	I915_WRITE(CACHE_MODE_0,
@@ -4723,11 +4730,6 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   ILK_DPFDUNIT_CLOCK_GATE_ENABLE);
 
 	g4x_disable_trickle_feed(dev);
-
-	/* The default value should be 0x200 according to docs, but the two
-	 * platforms I checked have a 0 for this. (Maybe BIOS overrides?) */
-	I915_WRITE(GEN6_GT_MODE, _MASKED_BIT_DISABLE(0xffff));
-	I915_WRITE(GEN6_GT_MODE, _MASKED_BIT_ENABLE(GEN6_GT_MODE_HI));
 
 	cpt_init_clock_gating(dev);
 
