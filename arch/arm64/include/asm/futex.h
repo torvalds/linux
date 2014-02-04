@@ -24,10 +24,11 @@
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, tmp, oparg)		\
 	asm volatile(							\
-"1:	ldaxr	%w1, %2\n"						\
+"1:	ldxr	%w1, %2\n"						\
 	insn "\n"							\
 "2:	stlxr	%w3, %w0, %2\n"						\
 "	cbnz	%w3, 1b\n"						\
+"	dmb	ish\n"							\
 "3:\n"									\
 "	.pushsection .fixup,\"ax\"\n"					\
 "4:	mov	%w0, %w5\n"						\
@@ -110,11 +111,12 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		return -EFAULT;
 
 	asm volatile("// futex_atomic_cmpxchg_inatomic\n"
-"1:	ldaxr	%w1, %2\n"
+"1:	ldxr	%w1, %2\n"
 "	sub	%w3, %w1, %w4\n"
 "	cbnz	%w3, 3f\n"
 "2:	stlxr	%w3, %w5, %2\n"
 "	cbnz	%w3, 1b\n"
+"	dmb	ish\n"
 "3:\n"
 "	.pushsection .fixup,\"ax\"\n"
 "4:	mov	%w0, %w6\n"

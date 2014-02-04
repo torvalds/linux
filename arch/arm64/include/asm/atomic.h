@@ -64,7 +64,7 @@ static inline int atomic_add_return(int i, atomic_t *v)
 	int result;
 
 	asm volatile("// atomic_add_return\n"
-"1:	ldaxr	%w0, %2\n"
+"1:	ldxr	%w0, %2\n"
 "	add	%w0, %w0, %w3\n"
 "	stlxr	%w1, %w0, %2\n"
 "	cbnz	%w1, 1b"
@@ -72,6 +72,7 @@ static inline int atomic_add_return(int i, atomic_t *v)
 	: "Ir" (i)
 	: "cc", "memory");
 
+	smp_mb();
 	return result;
 }
 
@@ -96,7 +97,7 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	int result;
 
 	asm volatile("// atomic_sub_return\n"
-"1:	ldaxr	%w0, %2\n"
+"1:	ldxr	%w0, %2\n"
 "	sub	%w0, %w0, %w3\n"
 "	stlxr	%w1, %w0, %2\n"
 "	cbnz	%w1, 1b"
@@ -104,6 +105,7 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	: "Ir" (i)
 	: "cc", "memory");
 
+	smp_mb();
 	return result;
 }
 
@@ -112,17 +114,20 @@ static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 	unsigned long tmp;
 	int oldval;
 
+	smp_mb();
+
 	asm volatile("// atomic_cmpxchg\n"
-"1:	ldaxr	%w1, %2\n"
+"1:	ldxr	%w1, %2\n"
 "	cmp	%w1, %w3\n"
 "	b.ne	2f\n"
-"	stlxr	%w0, %w4, %2\n"
+"	stxr	%w0, %w4, %2\n"
 "	cbnz	%w0, 1b\n"
 "2:"
 	: "=&r" (tmp), "=&r" (oldval), "+Q" (ptr->counter)
 	: "Ir" (old), "r" (new)
 	: "cc", "memory");
 
+	smp_mb();
 	return oldval;
 }
 
@@ -183,7 +188,7 @@ static inline long atomic64_add_return(long i, atomic64_t *v)
 	unsigned long tmp;
 
 	asm volatile("// atomic64_add_return\n"
-"1:	ldaxr	%0, %2\n"
+"1:	ldxr	%0, %2\n"
 "	add	%0, %0, %3\n"
 "	stlxr	%w1, %0, %2\n"
 "	cbnz	%w1, 1b"
@@ -191,6 +196,7 @@ static inline long atomic64_add_return(long i, atomic64_t *v)
 	: "Ir" (i)
 	: "cc", "memory");
 
+	smp_mb();
 	return result;
 }
 
@@ -215,7 +221,7 @@ static inline long atomic64_sub_return(long i, atomic64_t *v)
 	unsigned long tmp;
 
 	asm volatile("// atomic64_sub_return\n"
-"1:	ldaxr	%0, %2\n"
+"1:	ldxr	%0, %2\n"
 "	sub	%0, %0, %3\n"
 "	stlxr	%w1, %0, %2\n"
 "	cbnz	%w1, 1b"
@@ -223,6 +229,7 @@ static inline long atomic64_sub_return(long i, atomic64_t *v)
 	: "Ir" (i)
 	: "cc", "memory");
 
+	smp_mb();
 	return result;
 }
 
@@ -231,17 +238,20 @@ static inline long atomic64_cmpxchg(atomic64_t *ptr, long old, long new)
 	long oldval;
 	unsigned long res;
 
+	smp_mb();
+
 	asm volatile("// atomic64_cmpxchg\n"
-"1:	ldaxr	%1, %2\n"
+"1:	ldxr	%1, %2\n"
 "	cmp	%1, %3\n"
 "	b.ne	2f\n"
-"	stlxr	%w0, %4, %2\n"
+"	stxr	%w0, %4, %2\n"
 "	cbnz	%w0, 1b\n"
 "2:"
 	: "=&r" (res), "=&r" (oldval), "+Q" (ptr->counter)
 	: "Ir" (old), "r" (new)
 	: "cc", "memory");
 
+	smp_mb();
 	return oldval;
 }
 
@@ -253,11 +263,12 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	unsigned long tmp;
 
 	asm volatile("// atomic64_dec_if_positive\n"
-"1:	ldaxr	%0, %2\n"
+"1:	ldxr	%0, %2\n"
 "	subs	%0, %0, #1\n"
 "	b.mi	2f\n"
 "	stlxr	%w1, %0, %2\n"
 "	cbnz	%w1, 1b\n"
+"	dmb	ish\n"
 "2:"
 	: "=&r" (result), "=&r" (tmp), "+Q" (v->counter)
 	:
