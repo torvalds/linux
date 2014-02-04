@@ -470,8 +470,12 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 				if (index == ie_len)
 					break;
 
-				if (data[index] & (1 << bit))
+				if (data[index] & (1 << bit)) {
+					ath10k_dbg(ATH10K_DBG_BOOT,
+						   "Enabling feature bit: %i\n",
+						   i);
 					__set_bit(i, ar->fw_features);
+				}
 			}
 
 			ath10k_dbg_dump(ATH10K_DBG_BOOT, "features", "",
