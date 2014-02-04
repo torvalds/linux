@@ -223,6 +223,8 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
+#define DOTSYM(a)	GLUE(.,a)
+
 #else /* 32-bit */
 
 #define _ENTRY(n)	\

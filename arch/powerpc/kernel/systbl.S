@@ -17,12 +17,12 @@
 #include <asm/ppc_asm.h>
 
 #ifdef CONFIG_PPC64
-#define SYSCALL(func)		.llong	.sys_##func,.sys_##func
-#define COMPAT_SYS(func)	.llong	.sys_##func,.compat_sys_##func
-#define PPC_SYS(func)		.llong	.ppc_##func,.ppc_##func
-#define OLDSYS(func)		.llong	.sys_ni_syscall,.sys_ni_syscall
-#define SYS32ONLY(func)		.llong	.sys_ni_syscall,.compat_sys_##func
-#define SYSX(f, f3264, f32)	.llong	.f,.f3264
+#define SYSCALL(func)		.llong	DOTSYM(sys_##func),DOTSYM(sys_##func)
+#define COMPAT_SYS(func)	.llong	DOTSYM(sys_##func),DOTSYM(compat_sys_##func)
+#define PPC_SYS(func)		.llong	DOTSYM(ppc_##func),DOTSYM(ppc_##func)
+#define OLDSYS(func)		.llong	DOTSYM(sys_ni_syscall),DOTSYM(sys_ni_syscall)
+#define SYS32ONLY(func)		.llong	DOTSYM(sys_ni_syscall),DOTSYM(compat_sys_##func)
+#define SYSX(f, f3264, f32)	.llong	DOTSYM(f),DOTSYM(f3264)
 #else
 #define SYSCALL(func)		.long	sys_##func
 #define COMPAT_SYS(func)	.long	sys_##func

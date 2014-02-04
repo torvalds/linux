@@ -1795,16 +1795,16 @@ hcall_real_fallback:
 	.globl	hcall_real_table
 hcall_real_table:
 	.long	0		/* 0 - unused */
-	.long	.kvmppc_h_remove - hcall_real_table
-	.long	.kvmppc_h_enter - hcall_real_table
-	.long	.kvmppc_h_read - hcall_real_table
+	.long	DOTSYM(kvmppc_h_remove) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_enter) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_read) - hcall_real_table
 	.long	0		/* 0x10 - H_CLEAR_MOD */
 	.long	0		/* 0x14 - H_CLEAR_REF */
-	.long	.kvmppc_h_protect - hcall_real_table
-	.long	.kvmppc_h_get_tce - hcall_real_table
-	.long	.kvmppc_h_put_tce - hcall_real_table
+	.long	DOTSYM(kvmppc_h_protect) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_get_tce) - hcall_real_table
+	.long	DOTSYM(kvmppc_h_put_tce) - hcall_real_table
 	.long	0		/* 0x24 - H_SET_SPRG0 */
-	.long	.kvmppc_h_set_dabr - hcall_real_table
+	.long	DOTSYM(kvmppc_h_set_dabr) - hcall_real_table
 	.long	0		/* 0x2c */
 	.long	0		/* 0x30 */
 	.long	0		/* 0x34 */
@@ -1820,11 +1820,11 @@ hcall_real_table:
 	.long	0		/* 0x5c */
 	.long	0		/* 0x60 */
 #ifdef CONFIG_KVM_XICS
-	.long	.kvmppc_rm_h_eoi - hcall_real_table
-	.long	.kvmppc_rm_h_cppr - hcall_real_table
-	.long	.kvmppc_rm_h_ipi - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_eoi) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_cppr) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_ipi) - hcall_real_table
 	.long	0		/* 0x70 - H_IPOLL */
-	.long	.kvmppc_rm_h_xirr - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_xirr) - hcall_real_table
 #else
 	.long	0		/* 0x64 - H_EOI */
 	.long	0		/* 0x68 - H_CPPR */
@@ -1858,7 +1858,7 @@ hcall_real_table:
 	.long	0		/* 0xd4 */
 	.long	0		/* 0xd8 */
 	.long	0		/* 0xdc */
-	.long	.kvmppc_h_cede - hcall_real_table
+	.long	DOTSYM(kvmppc_h_cede) - hcall_real_table
 	.long	0		/* 0xe4 */
 	.long	0		/* 0xe8 */
 	.long	0		/* 0xec */
@@ -1875,11 +1875,11 @@ hcall_real_table:
 	.long	0		/* 0x118 */
 	.long	0		/* 0x11c */
 	.long	0		/* 0x120 */
-	.long	.kvmppc_h_bulk_remove - hcall_real_table
+	.long	DOTSYM(kvmppc_h_bulk_remove) - hcall_real_table
 	.long	0		/* 0x128 */
 	.long	0		/* 0x12c */
 	.long	0		/* 0x130 */
-	.long	.kvmppc_h_set_xdabr - hcall_real_table
+	.long	DOTSYM(kvmppc_h_set_xdabr) - hcall_real_table
 hcall_real_table_end:
 
 ignore_hdec:
