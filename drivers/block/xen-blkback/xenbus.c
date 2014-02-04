@@ -128,6 +128,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	INIT_LIST_HEAD(&blkif->persistent_purge_list);
 	blkif->free_pages_num = 0;
 	atomic_set(&blkif->persistent_gnt_in_use, 0);
+	atomic_set(&blkif->inflight, 0);
 
 	INIT_LIST_HEAD(&blkif->pending_free);
 

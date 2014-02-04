@@ -943,9 +943,7 @@ static void xen_blk_drain_io(struct xen_blkif *blkif)
 {
 	atomic_set(&blkif->drain, 1);
 	do {
-		/* The initial value is one, and one refcnt taken at the
-		 * start of the xen_blkif_schedule thread. */
-		if (atomic_read(&blkif->refcnt) <= 2)
+		if (atomic_read(&blkif->inflight) == 0)
 			break;
 		wait_for_completion_interruptible_timeout(
 				&blkif->drain_complete, HZ);
@@ -985,17 +983,30 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	 * the proper response on the ring.
 	 */
 	if (atomic_dec_and_test(&pending_req->pendcnt)) {
-		xen_blkbk_unmap(pending_req->blkif,
+		struct xen_blkif *blkif = pending_req->blkif;
+
+		xen_blkbk_unmap(blkif,
 		                pending_req->segments,
 		                pending_req->nr_pages);
-		make_response(pending_req->blkif, pending_req->id,
+		make_response(blkif, pending_req->id,
 			      pending_req->operation, pending_req->status);
-		xen_blkif_put(pending_req->blkif);
-		if (atomic_read(&pending_req->blkif->refcnt) <= 2) {
-			if (atomic_read(&pending_req->blkif->drain))
-				complete(&pending_req->blkif->drain_complete);
+		free_req(blkif, pending_req);
+		/*
+		 * Make sure the request is freed before releasing blkif,
+		 * or there could be a race between free_req and the
+		 * cleanup done in xen_blkif_free during shutdown.
+		 *
+		 * NB: The fact that we might try to wake up pending_free_wq
+		 * before drain_complete (in case there's a drain going on)
+		 * it's not a problem with our current implementation
+		 * because we can assure there's no thread waiting on
+		 * pending_free_wq if there's a drain going on, but it has
+		 * to be taken into account if the current model is changed.
+		 */
+		if (atomic_dec_and_test(&blkif->inflight) && atomic_read(&blkif->drain)) {
+			complete(&blkif->drain_complete);
 		}
-		free_req(pending_req->blkif, pending_req);
+		xen_blkif_put(blkif);
 	}
 }
 
@@ -1249,6 +1260,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * below (in "!bio") if we are handling a BLKIF_OP_DISCARD.
 	 */
 	xen_blkif_get(blkif);
+	atomic_inc(&blkif->inflight);
 
 	for (i = 0; i < nseg; i++) {
 		while ((bio == NULL) ||

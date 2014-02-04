@@ -278,6 +278,7 @@ struct xen_blkif {
 	/* for barrier (drain) requests */
 	struct completion	drain_complete;
 	atomic_t		drain;
+	atomic_t		inflight;
 	/* One thread per one blkif. */
 	struct task_struct	*xenblkd;
 	unsigned int		waiting_reqs;
