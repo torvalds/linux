@@ -33,6 +33,19 @@ Optional Properties:
 
   - reset-gpios: Reference to the GPIO connected to the device's reset pin.
 
+Optional Endpoint Properties:
+
+  The following three properties are defined in video-interfaces.txt and are
+  valid for source endpoints only.
+
+  - hsync-active: Horizontal synchronization polarity. Defaults to active low.
+  - vsync-active: Vertical synchronization polarity. Defaults to active low.
+  - pclk-sample: Pixel clock polarity. Defaults to output on the falling edge.
+
+  If none of hsync-active, vsync-active and pclk-sample is specified the
+  endpoint will use embedded BT.656 synchronization.
+
+
 Example:
 
 	hdmi_receiver@4c {
