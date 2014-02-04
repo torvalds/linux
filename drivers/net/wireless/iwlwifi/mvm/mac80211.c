@@ -68,6 +68,7 @@
 #include <linux/ip.h>
 #include <linux/if_arp.h>
 #include <net/mac80211.h>
+#include <net/ieee80211_radiotap.h>
 #include <net/tcp.h>
 
 #include "iwl-op-mode.h"
@@ -280,6 +281,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->queues = mvm->first_agg_queue;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
+	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FEC |
+				    IEEE80211_RADIOTAP_MCS_HAVE_STBC;
+	hw->radiotap_vht_details |= IEEE80211_RADIOTAP_VHT_KNOWN_STBC;
 	hw->rate_control_algorithm = "iwl-mvm-rs";
 
 	/*
