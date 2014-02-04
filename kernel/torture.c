@@ -700,3 +700,16 @@ int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(_torture_create_kthread);
+
+/*
+ * Stop a generic kthread, emitting a message.
+ */
+void _torture_stop_kthread(char *m, struct task_struct **tp)
+{
+	if (*tp == NULL)
+		return;
+	VERBOSE_TOROUT_STRING(m);
+	kthread_stop(*tp);
+	*tp = NULL;
+}
+EXPORT_SYMBOL_GPL(_torture_stop_kthread);
