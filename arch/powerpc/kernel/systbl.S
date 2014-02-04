@@ -36,6 +36,8 @@
 #define PPC_SYS_SPU(func)	PPC_SYS(func)
 #define SYSX_SPU(f, f3264, f32)	SYSX(f, f3264, f32)
 
+.section .rodata,"a"
+
 #ifdef CONFIG_PPC64
 #define sys_sigpending	sys_ni_syscall
 #define sys_old_getrlimit sys_ni_syscall
@@ -43,5 +45,7 @@
 	.p2align	3
 #endif
 
-_GLOBAL(sys_call_table)
+.globl sys_call_table
+sys_call_table:
+
 #include <asm/systbl.h>

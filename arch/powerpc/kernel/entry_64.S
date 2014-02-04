@@ -39,8 +39,8 @@
  * System calls.
  */
 	.section	".toc","aw"
-.SYS_CALL_TABLE:
-	.tc .sys_call_table[TC],.sys_call_table
+SYS_CALL_TABLE:
+	.tc sys_call_table[TC],sys_call_table
 
 /* This value is used to mark exception frames on the stack. */
 exception_marker:
@@ -162,7 +162,7 @@ system_call:			/* label this so stack traces look sane */
  * Need to vector to 32 Bit or default sys_call_table here,
  * based on caller's run-mode / personality.
  */
-	ld	r11,.SYS_CALL_TABLE@toc(2)
+	ld	r11,SYS_CALL_TABLE@toc(2)
 	andi.	r10,r10,_TIF_32BIT
 	beq	15f
 	addi	r11,r11,8	/* use 32-bit syscall entries */
