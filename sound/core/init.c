@@ -454,10 +454,7 @@ static int snd_card_do_free(struct snd_card *card)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_FREE);
 #endif
-	if (snd_device_free_all(card) < 0) {
-		dev_err(card->dev, "unable to free all devices\n");
-		/* Fatal, but this situation should never occur */
-	}
+	snd_device_free_all(card);
 	if (card->private_free)
 		card->private_free(card);
 	snd_info_free_entry(card->proc_id);
