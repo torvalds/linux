@@ -60,7 +60,7 @@ _GLOBAL(copypage_power7)
 	std	r4,56(r1)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	.enter_vmx_copy
+	bl	enter_vmx_copy
 	cmpwi	r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STACKFRAMESIZE+48(r1)
@@ -103,7 +103,7 @@ _GLOBAL(copypage_power7)
 	addi	r3,r3,128
 	bdnz	1b
 
-	b	.exit_vmx_copy		/* tail call optimise */
+	b	exit_vmx_copy		/* tail call optimise */
 
 #else
 	li	r0,(PAGE_SIZE/128)

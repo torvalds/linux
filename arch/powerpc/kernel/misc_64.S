@@ -34,7 +34,7 @@ _GLOBAL(call_do_softirq)
 	std	r0,16(r1)
 	stdu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r3)
 	mr	r1,r3
-	bl	.__do_softirq
+	bl	__do_softirq
 	ld	r1,0(r1)
 	ld	r0,16(r1)
 	mtlr	r0
@@ -45,7 +45,7 @@ _GLOBAL(call_do_irq)
 	std	r0,16(r1)
 	stdu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r4)
 	mr	r1,r4
-	bl	.__do_irq
+	bl	__do_irq
 	ld	r1,0(r1)
 	ld	r0,16(r1)
 	mtlr	r0
@@ -506,7 +506,7 @@ _GLOBAL(kexec_smp_wait)
 	stb	r4,PACAKEXECSTATE(r13)
 	SYNC
 
-	b	.kexec_wait
+	b	kexec_wait
 
 /*
  * switch to real mode (turn mmu off)
@@ -576,7 +576,7 @@ _GLOBAL(kexec_sequence)
 
 	/* copy dest pages, flush whole dest image */
 	mr	r3,r29
-	bl	.kexec_copy_flush	/* (image) */
+	bl	kexec_copy_flush	/* (image) */
 
 	/* turn off mmu */
 	bl	real_mode
@@ -586,7 +586,7 @@ _GLOBAL(kexec_sequence)
 	mr	r4,r30		/* start, aka phys mem offset */
 	li	r5,0x100
 	li	r6,0
-	bl	.copy_and_flush	/* (dest, src, copy limit, start offset) */
+	bl	copy_and_flush	/* (dest, src, copy limit, start offset) */
 1:	/* assume normal blr return */
 
 	/* release other cpus to the new kernel secondary start at 0x60 */

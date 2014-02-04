@@ -159,7 +159,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 BEGIN_FTR_SECTION
 	mr	r4,r30
 	mr	r5,r7
-	bl	.hash_page_do_lazy_icache
+	bl	hash_page_do_lazy_icache
 END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 
 	/* At this point, r3 contains new PP bits, save them in
@@ -471,7 +471,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 BEGIN_FTR_SECTION
 	mr	r4,r30
 	mr	r5,r7
-	bl	.hash_page_do_lazy_icache
+	bl	hash_page_do_lazy_icache
 END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 
 	/* At this point, r3 contains new PP bits, save them in
@@ -588,7 +588,7 @@ htab_inval_old_hpte:
 	li	r6,MMU_PAGE_64K		/* psize */
 	ld	r7,STK_PARAM(R9)(r1)	/* ssize */
 	ld	r8,STK_PARAM(R8)(r1)	/* local */
-	bl	.flush_hash_page
+	bl	flush_hash_page
 	/* Clear out _PAGE_HPTE_SUB bits in the new linux PTE */
 	lis	r0,_PAGE_HPTE_SUB@h
 	ori	r0,r0,_PAGE_HPTE_SUB@l
@@ -812,7 +812,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 BEGIN_FTR_SECTION
 	mr	r4,r30
 	mr	r5,r7
-	bl	.hash_page_do_lazy_icache
+	bl	hash_page_do_lazy_icache
 END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 
 	/* At this point, r3 contains new PP bits, save them in

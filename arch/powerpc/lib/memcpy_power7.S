@@ -230,7 +230,7 @@ _GLOBAL(memcpy_power7)
 	std	r5,64(r1)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	.enter_vmx_copy
+	bl	enter_vmx_copy
 	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STACKFRAMESIZE+48(r1)
@@ -448,7 +448,7 @@ _GLOBAL(memcpy_power7)
 
 15:	addi	r1,r1,STACKFRAMESIZE
 	ld	r3,48(r1)
-	b	.exit_vmx_copy		/* tail call optimise */
+	b	exit_vmx_copy		/* tail call optimise */
 
 .Lvmx_unaligned_copy:
 	/* Get the destination 16B aligned */
@@ -652,5 +652,5 @@ _GLOBAL(memcpy_power7)
 
 15:	addi	r1,r1,STACKFRAMESIZE
 	ld	r3,48(r1)
-	b	.exit_vmx_copy		/* tail call optimise */
+	b	exit_vmx_copy		/* tail call optimise */
 #endif /* CONFiG_ALTIVEC */

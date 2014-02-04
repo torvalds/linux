@@ -49,7 +49,7 @@ END_FTR_SECTION(0, 1);						\
 	std	r0,16(r1);					\
 	addi	r4,r1,STK_PARAM(FIRST_REG);			\
 	stdu	r1,-STACK_FRAME_OVERHEAD(r1);			\
-	bl	.__trace_hcall_entry;				\
+	bl	__trace_hcall_entry;				\
 	addi	r1,r1,STACK_FRAME_OVERHEAD;			\
 	ld	r0,16(r1);					\
 	ld	r3,STK_PARAM(R3)(r1);				\
@@ -83,7 +83,7 @@ END_FTR_SECTION(0, 1);						\
 	mr	r3,r6;						\
 	std	r0,16(r1);					\
 	stdu	r1,-STACK_FRAME_OVERHEAD(r1);			\
-	bl	.__trace_hcall_exit;				\
+	bl	__trace_hcall_exit;				\
 	addi	r1,r1,STACK_FRAME_OVERHEAD;			\
 	ld	r0,16(r1);					\
 	ld	r3,STK_PARAM(R3)(r1);				\
