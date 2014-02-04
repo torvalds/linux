@@ -1127,15 +1127,9 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 	}
 	uresp.db_page_addr = usr_db;
 	uresp.db_page_size = dev->nic_info.db_page_size;
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		uresp.db_sq_offset = OCRDMA_DB_GEN2_SQ_OFFSET;
-		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ_OFFSET;
-		uresp.db_shift = 24;
-	} else {
-		uresp.db_sq_offset = OCRDMA_DB_SQ_OFFSET;
-		uresp.db_rq_offset = OCRDMA_DB_RQ_OFFSET;
-		uresp.db_shift = 16;
-	}
+	uresp.db_sq_offset = OCRDMA_DB_GEN2_SQ_OFFSET;
+	uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ_OFFSET;
+	uresp.db_shift = OCRDMA_DB_RQ_SHIFT;
 
 	if (qp->dpp_enabled) {
 		uresp.dpp_credit = dpp_credit_lmt;
@@ -1308,7 +1302,7 @@ static void ocrdma_flush_rq_db(struct ocrdma_qp *qp)
 {
 	if (qp->db_cache) {
 		u32 val = qp->rq.dbid | (qp->db_cache <<
-				ocrdma_get_num_posted_shift(qp));
+				OCRDMA_DB_RQ_SHIFT);
 		iowrite32(val, qp->rq_db);
 		qp->db_cache = 0;
 	}
@@ -2052,7 +2046,7 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 
 static void ocrdma_ring_sq_db(struct ocrdma_qp *qp)
 {
-	u32 val = qp->sq.dbid | (1 << 16);
+	u32 val = qp->sq.dbid | (1 << OCRDMA_DB_SQ_SHIFT);
 
 	iowrite32(val, qp->sq_db);
 }
@@ -2157,12 +2151,9 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 static void ocrdma_ring_rq_db(struct ocrdma_qp *qp)
 {
-	u32 val = qp->rq.dbid | (1 << ocrdma_get_num_posted_shift(qp));
+	u32 val = qp->rq.dbid | (1 << OCRDMA_DB_RQ_SHIFT);
 
-	if (qp->state != OCRDMA_QPS_INIT)
-		iowrite32(val, qp->rq_db);
-	else
-		qp->db_cache++;
+	iowrite32(val, qp->rq_db);
 }
 
 static void ocrdma_build_rqe(struct ocrdma_hdr_wqe *rqe, struct ib_recv_wr *wr,
