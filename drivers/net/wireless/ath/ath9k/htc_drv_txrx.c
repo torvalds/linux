@@ -929,42 +929,6 @@ void ath9k_host_rx_init(struct ath9k_htc_priv *priv)
 	ath9k_hw_startpcureceive(priv->ah, test_bit(OP_SCANNING, &priv->op_flags));
 }
 
-static void ath9k_process_rate(struct ieee80211_hw *hw,
-			       struct ieee80211_rx_status *rxs,
-			       u8 rx_rate, u8 rs_flags)
-{
-	struct ieee80211_supported_band *sband;
-	enum ieee80211_band band;
-	unsigned int i = 0;
-
-	if (rx_rate & 0x80) {
-		/* HT rate */
-		rxs->flag |= RX_FLAG_HT;
-		if (rs_flags & ATH9K_RX_2040)
-			rxs->flag |= RX_FLAG_40MHZ;
-		if (rs_flags & ATH9K_RX_GI)
-			rxs->flag |= RX_FLAG_SHORT_GI;
-		rxs->rate_idx = rx_rate & 0x7f;
-		return;
-	}
-
-	band = hw->conf.chandef.chan->band;
-	sband = hw->wiphy->bands[band];
-
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sband->bitrates[i].hw_value == rx_rate) {
-			rxs->rate_idx = i;
-			return;
-		}
-		if (sband->bitrates[i].hw_value_short == rx_rate) {
-			rxs->rate_idx = i;
-			rxs->flag |= RX_FLAG_SHORTPRE;
-			return;
-		}
-	}
-
-}
-
 static inline void convert_htc_flag(struct ath_rx_status *rx_stats,
 				   struct ath_htc_rx_status *rxstatus)
 {
@@ -1099,9 +1063,9 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 		}
 	}
 
-	ath9k_process_rate(hw, rx_status, rxbuf->rxstatus.rs_rate,
-			   rxbuf->rxstatus.rs_flags);
 
+	if (ath9k_cmn_process_rate(common, hw, &rx_stats, rx_status))
+		goto rx_next;
 
 	rx_stats.is_mybeacon = ath_is_mybeacon(common, hdr);
 	ath9k_cmn_process_rssi(common, hw, &rx_stats, rx_status);
