@@ -131,5 +131,6 @@ int ocrdma_qp_state_change(struct ocrdma_qp *, enum ib_qp_state new_state,
 bool ocrdma_is_qp_in_sq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);
 bool ocrdma_is_qp_in_rq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);
 void ocrdma_flush_qp(struct ocrdma_qp *);
+int ocrdma_get_irq(struct ocrdma_dev *dev, struct ocrdma_eq *eq);
 
 #endif				/* __OCRDMA_HW_H__ */

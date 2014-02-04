@@ -444,7 +444,7 @@ mbx_err:
 	return status;
 }
 
-static int ocrdma_get_irq(struct ocrdma_dev *dev, struct ocrdma_eq *eq)
+int ocrdma_get_irq(struct ocrdma_dev *dev, struct ocrdma_eq *eq)
 {
 	int irq;
 
@@ -574,6 +574,7 @@ static int ocrdma_create_mq(struct ocrdma_dev *dev)
 	if (status)
 		goto alloc_err;
 
+	dev->eq_tbl[0].cq_cnt++;
 	status = ocrdma_mbx_mq_cq_create(dev, &dev->mq.cq, &dev->eq_tbl[0].q);
 	if (status)
 		goto mbx_cq_free;
@@ -858,16 +859,8 @@ static void ocrdma_qp_cq_handler(struct ocrdma_dev *dev, u16 cq_idx)
 		BUG();
 
 	cq = dev->cq_tbl[cq_idx];
-	if (cq == NULL) {
-		pr_err("%s%d invalid id=0x%x\n", __func__, dev->id, cq_idx);
+	if (cq == NULL)
 		return;
-	}
-	spin_lock_irqsave(&cq->cq_lock, flags);
-	cq->armed = false;
-	cq->solicited = false;
-	spin_unlock_irqrestore(&cq->cq_lock, flags);
-
-	ocrdma_ring_cq_db(dev, cq->id, false, false, 0);
 
 	if (cq->ibcq.comp_handler) {
 		spin_lock_irqsave(&cq->comp_handler_lock, flags);
@@ -892,27 +885,35 @@ static irqreturn_t ocrdma_irq_handler(int irq, void *handle)
 	struct ocrdma_dev *dev = eq->dev;
 	struct ocrdma_eqe eqe;
 	struct ocrdma_eqe *ptr;
-	u16 eqe_popped = 0;
 	u16 cq_id;
-	while (1) {
+	int budget = eq->cq_cnt;
+
+	do {
 		ptr = ocrdma_get_eqe(eq);
 		eqe = *ptr;
 		ocrdma_le32_to_cpu(&eqe, sizeof(eqe));
 		if ((eqe.id_valid & OCRDMA_EQE_VALID_MASK) == 0)
 			break;
-		eqe_popped += 1;
+
 		ptr->id_valid = 0;
+		/* ring eq doorbell as soon as its consumed. */
+		ocrdma_ring_eq_db(dev, eq->q.id, false, true, 1);
 		/* check whether its CQE or not. */
 		if ((eqe.id_valid & OCRDMA_EQE_FOR_CQE_MASK) == 0) {
 			cq_id = eqe.id_valid >> OCRDMA_EQE_RESOURCE_ID_SHIFT;
 			ocrdma_cq_handler(dev, cq_id);
 		}
 		ocrdma_eq_inc_tail(eq);
-	}
-	ocrdma_ring_eq_db(dev, eq->q.id, true, true, eqe_popped);
-	/* Ring EQ doorbell with num_popped to 0 to enable interrupts again. */
-	if (dev->nic_info.intr_mode == BE_INTERRUPT_MODE_INTX)
-		ocrdma_ring_eq_db(dev, eq->q.id, true, true, 0);
+
+		/* There can be a stale EQE after the last bound CQ is
+		 * destroyed. EQE valid and budget == 0 implies this.
+		 */
+		if (budget)
+			budget--;
+
+	} while (budget);
+
+	ocrdma_ring_eq_db(dev, eq->q.id, true, true, 0);
 	return IRQ_HANDLED;
 }
 
@@ -1357,12 +1358,10 @@ static void ocrdma_unbind_eq(struct ocrdma_dev *dev, u16 eq_id)
 	int i;
 
 	mutex_lock(&dev->dev_lock);
-	for (i = 0; i < dev->eq_cnt; i++) {
-		if (dev->eq_tbl[i].q.id != eq_id)
-			continue;
-		dev->eq_tbl[i].cq_cnt -= 1;
-		break;
-	}
+	i = ocrdma_get_eq_table_index(dev, eq_id);
+	if (i == -EINVAL)
+		BUG();
+	dev->eq_tbl[i].cq_cnt -= 1;
 	mutex_unlock(&dev->dev_lock);
 }
 
@@ -1417,6 +1416,7 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	cq->eqn = ocrdma_bind_eq(dev);
 	cmd->cmd.req.rsvd_version = OCRDMA_CREATE_CQ_VER3;
 	cqe_count = cq->len / cqe_size;
+	cq->cqe_cnt = cqe_count;
 	if (cqe_count > 1024) {
 		/* Set cnt to 3 to indicate more than 1024 cq entries */
 		cmd->cmd.ev_cnt_flags |= (0x3 << OCRDMA_CREATE_CQ_CNT_SHIFT);
@@ -1484,12 +1484,9 @@ int ocrdma_mbx_destroy_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq)
 	    (cq->id << OCRDMA_DESTROY_CQ_QID_SHIFT) &
 	    OCRDMA_DESTROY_CQ_QID_MASK;
 
-	ocrdma_unbind_eq(dev, cq->eqn);
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
-	if (status)
-		goto mbx_err;
+	ocrdma_unbind_eq(dev, cq->eqn);
 	dma_free_coherent(&dev->nic_info.pdev->dev, cq->len, cq->va, cq->pa);
-mbx_err:
 	kfree(cmd);
 	return status;
 }

@@ -209,8 +209,8 @@ struct ocrdma_cq {
 			 */
 	u32 max_hw_cqe;
 	bool phase_change;
-	bool armed, solicited;
-	bool arm_needed;
+	bool deferred_arm, deferred_sol;
+	bool first_arm;
 
 	spinlock_t cq_lock ____cacheline_aligned; /* provide synchronization
 						   * to cq polling
@@ -223,6 +223,7 @@ struct ocrdma_cq {
 	struct ocrdma_ucontext *ucontext;
 	dma_addr_t pa;
 	u32 len;
+	u32 cqe_cnt;
 
 	/* head of all qp's sq and rq for which cqes need to be flushed
 	 * by the software.
@@ -434,6 +435,19 @@ static inline int ocrdma_resolve_dmac(struct ocrdma_dev *dev,
 	else
 		memcpy(mac_addr, ah_attr->dmac, ETH_ALEN);
 	return 0;
+}
+
+static inline int ocrdma_get_eq_table_index(struct ocrdma_dev *dev,
+		int eqid)
+{
+	int indx;
+
+	for (indx = 0; indx < dev->eq_cnt; indx++) {
+		if (dev->eq_tbl[indx].q.id == eqid)
+			return indx;
+	}
+
+	return -EINVAL;
 }
 
 #endif
