@@ -442,8 +442,7 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 		} else {
 			if (snd_register_oss_device(hwdep->oss_type,
 						    hwdep->card, hwdep->device,
-						    &snd_hwdep_f_ops, hwdep,
-						    hwdep->oss_dev) < 0) {
+						    &snd_hwdep_f_ops, hwdep) < 0) {
 				snd_printk(KERN_ERR "unable to register OSS compatibility device %i:%i\n",
 					   hwdep->card->number, hwdep->device);
 			} else

@@ -1574,7 +1574,7 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 	if ((int)rmidi->device == midi_map[rmidi->card->number]) {
 		if (snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_MIDI,
 					    rmidi->card, 0, &snd_rawmidi_f_ops,
-					    rmidi, name) < 0) {
+					    rmidi) < 0) {
 			snd_printk(KERN_ERR "unable to register OSS rawmidi device %i:%i\n", rmidi->card->number, 0);
 		} else {
 			rmidi->ossreg++;
@@ -1586,7 +1586,7 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 	if ((int)rmidi->device == amidi_map[rmidi->card->number]) {
 		if (snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_MIDI,
 					    rmidi->card, 1, &snd_rawmidi_f_ops,
-					    rmidi, name) < 0) {
+					    rmidi) < 0) {
 			snd_printk(KERN_ERR "unable to register OSS rawmidi device %i:%i\n", rmidi->card->number, 1);
 		} else {
 			rmidi->ossreg++;

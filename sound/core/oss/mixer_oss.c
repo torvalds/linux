@@ -1343,18 +1343,15 @@ static int snd_mixer_oss_notify_handler(struct snd_card *card, int cmd)
 	struct snd_mixer_oss *mixer;
 
 	if (cmd == SND_MIXER_OSS_NOTIFY_REGISTER) {
-		char name[128];
 		int idx, err;
 
 		mixer = kcalloc(2, sizeof(*mixer), GFP_KERNEL);
 		if (mixer == NULL)
 			return -ENOMEM;
 		mutex_init(&mixer->reg_mutex);
-		sprintf(name, "mixer%i%i", card->number, 0);
 		if ((err = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_MIXER,
 						   card, 0,
-						   &snd_mixer_oss_f_ops, card,
-						   name)) < 0) {
+						   &snd_mixer_oss_f_ops, card)) < 0) {
 			snd_printk(KERN_ERR "unable to register OSS mixer device %i:%i\n",
 				   card->number, 0);
 			kfree(mixer);
@@ -1365,7 +1362,8 @@ static int snd_mixer_oss_notify_handler(struct snd_card *card, int cmd)
 		if (*card->mixername)
 			strlcpy(mixer->name, card->mixername, sizeof(mixer->name));
 		else
-			strlcpy(mixer->name, name, sizeof(mixer->name));
+			snprintf(mixer->name, sizeof(mixer->name),
+				 "mixer%i", card->number);
 #ifdef SNDRV_OSS_INFO_DEV_MIXERS
 		snd_oss_info_register(SNDRV_OSS_INFO_DEV_MIXERS,
 				      card->number,

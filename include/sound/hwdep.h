@@ -60,7 +60,6 @@ struct snd_hwdep {
 	int iface;
 
 #ifdef CONFIG_SND_OSSEMUL
-	char oss_dev[32];
 	int oss_type;
 	int ossreg;
 #endif

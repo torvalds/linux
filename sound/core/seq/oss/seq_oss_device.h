@@ -46,7 +46,6 @@
 #define SNDRV_SEQ_OSS_VERSION_STR	"0.1.8"
 
 /* device and proc interface name */
-#define SNDRV_SEQ_OSS_DEVNAME		"seq_oss"
 #define SNDRV_SEQ_OSS_PROCNAME		"oss"
 
 
