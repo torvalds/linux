@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
 #include <linux/phy.h>
@@ -92,6 +93,7 @@ static void __init koelsch_add_du_device(void)
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
 	.phy			= 0x1,
+	.phy_irq		= irq_pin(0),
 	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
 	.phy_interface		= PHY_INTERFACE_MODE_RMII,
 	.ether_link_active_low	= 1,
@@ -231,6 +233,8 @@ static int koelsch_ksz8041_fixup(struct phy_device *phydev)
 static void __init koelsch_init(void)
 {
 	koelsch_add_standard_devices();
+
+	irq_set_irq_type(irq_pin(0), IRQ_TYPE_LEVEL_LOW);
 
 	if (IS_ENABLED(CONFIG_PHYLIB))
 		phy_register_fixup_for_id("r8a7791-ether-ff:01",
