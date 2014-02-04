@@ -28,7 +28,7 @@
 #ifndef __OCRDMA_ABI_H__
 #define __OCRDMA_ABI_H__
 
-#define OCRDMA_ABI_VERSION 1
+#define OCRDMA_ABI_VERSION 2
 #define OCRDMA_BE_ROCE_ABI_VERSION 1
 /* user kernel communication data structures. */
 
