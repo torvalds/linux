@@ -72,6 +72,7 @@ enum {
 
 	OCRDMA_CMD_ATTACH_MCAST,
 	OCRDMA_CMD_DETACH_MCAST,
+	OCRDMA_CMD_GET_RDMA_STATS,
 
 	OCRDMA_CMD_MAX
 };
@@ -82,12 +83,14 @@ enum {
 	OCRDMA_CMD_CREATE_CQ		= 12,
 	OCRDMA_CMD_CREATE_EQ		= 13,
 	OCRDMA_CMD_CREATE_MQ		= 21,
+	OCRDMA_CMD_GET_CTRL_ATTRIBUTES  = 32,
 	OCRDMA_CMD_GET_FW_VER		= 35,
 	OCRDMA_CMD_DELETE_MQ		= 53,
 	OCRDMA_CMD_DELETE_CQ		= 54,
 	OCRDMA_CMD_DELETE_EQ		= 55,
 	OCRDMA_CMD_GET_FW_CONFIG	= 58,
-	OCRDMA_CMD_CREATE_MQ_EXT	= 90
+	OCRDMA_CMD_CREATE_MQ_EXT	= 90,
+	OCRDMA_CMD_PHY_DETAILS		= 102
 };
 
 enum {
@@ -577,6 +580,30 @@ struct ocrdma_fw_conf_rsp {
 enum {
 	OCRDMA_FN_MODE_RDMA	= 0x4
 };
+
+struct ocrdma_get_phy_info_rsp {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_rsp rsp;
+
+	u16 phy_type;
+	u16 interface_type;
+	u32 misc_params;
+	u16 ext_phy_details;
+	u16 rsvd;
+	u16 auto_speeds_supported;
+	u16 fixed_speeds_supported;
+	u32 future_use[2];
+};
+
+enum {
+	OCRDMA_PHY_SPEED_ZERO = 0x0,
+	OCRDMA_PHY_SPEED_10MBPS = 0x1,
+	OCRDMA_PHY_SPEED_100MBPS = 0x2,
+	OCRDMA_PHY_SPEED_1GBPS = 0x4,
+	OCRDMA_PHY_SPEED_10GBPS = 0x8,
+	OCRDMA_PHY_SPEED_40GBPS = 0x20
+};
+
 
 struct ocrdma_get_link_speed_rsp {
 	struct ocrdma_mqe_hdr hdr;
@@ -1718,5 +1745,209 @@ struct ocrdma_av {
 	struct ocrdma_grh grh;
 	u32 valid;
 } __packed;
+
+struct ocrdma_rsrc_stats {
+	u32 dpp_pds;
+	u32 non_dpp_pds;
+	u32 rc_dpp_qps;
+	u32 uc_dpp_qps;
+	u32 ud_dpp_qps;
+	u32 rc_non_dpp_qps;
+	u32 rsvd;
+	u32 uc_non_dpp_qps;
+	u32 ud_non_dpp_qps;
+	u32 rsvd1;
+	u32 srqs;
+	u32 rbqs;
+	u32 r64K_nsmr;
+	u32 r64K_to_2M_nsmr;
+	u32 r2M_to_44M_nsmr;
+	u32 r44M_to_1G_nsmr;
+	u32 r1G_to_4G_nsmr;
+	u32 nsmr_count_4G_to_32G;
+	u32 r32G_to_64G_nsmr;
+	u32 r64G_to_128G_nsmr;
+	u32 r128G_to_higher_nsmr;
+	u32 embedded_nsmr;
+	u32 frmr;
+	u32 prefetch_qps;
+	u32 ondemand_qps;
+	u32 phy_mr;
+	u32 mw;
+	u32 rsvd2[7];
+};
+
+struct ocrdma_db_err_stats {
+	u32 sq_doorbell_errors;
+	u32 cq_doorbell_errors;
+	u32 rq_srq_doorbell_errors;
+	u32 cq_overflow_errors;
+	u32 rsvd[4];
+};
+
+struct ocrdma_wqe_stats {
+	u32 large_send_rc_wqes_lo;
+	u32 large_send_rc_wqes_hi;
+	u32 large_write_rc_wqes_lo;
+	u32 large_write_rc_wqes_hi;
+	u32 rsvd[4];
+	u32 read_wqes_lo;
+	u32 read_wqes_hi;
+	u32 frmr_wqes_lo;
+	u32 frmr_wqes_hi;
+	u32 mw_bind_wqes_lo;
+	u32 mw_bind_wqes_hi;
+	u32 invalidate_wqes_lo;
+	u32 invalidate_wqes_hi;
+	u32 rsvd1[2];
+	u32 dpp_wqe_drops;
+	u32 rsvd2[5];
+};
+
+struct ocrdma_tx_stats {
+	u32 send_pkts_lo;
+	u32 send_pkts_hi;
+	u32 write_pkts_lo;
+	u32 write_pkts_hi;
+	u32 read_pkts_lo;
+	u32 read_pkts_hi;
+	u32 read_rsp_pkts_lo;
+	u32 read_rsp_pkts_hi;
+	u32 ack_pkts_lo;
+	u32 ack_pkts_hi;
+	u32 send_bytes_lo;
+	u32 send_bytes_hi;
+	u32 write_bytes_lo;
+	u32 write_bytes_hi;
+	u32 read_req_bytes_lo;
+	u32 read_req_bytes_hi;
+	u32 read_rsp_bytes_lo;
+	u32 read_rsp_bytes_hi;
+	u32 ack_timeouts;
+	u32 rsvd[5];
+};
+
+
+struct ocrdma_tx_qp_err_stats {
+	u32 local_length_errors;
+	u32 local_protection_errors;
+	u32 local_qp_operation_errors;
+	u32 retry_count_exceeded_errors;
+	u32 rnr_retry_count_exceeded_errors;
+	u32 rsvd[3];
+};
+
+struct ocrdma_rx_stats {
+	u32 roce_frame_bytes_lo;
+	u32 roce_frame_bytes_hi;
+	u32 roce_frame_icrc_drops;
+	u32 roce_frame_payload_len_drops;
+	u32 ud_drops;
+	u32 qp1_drops;
+	u32 psn_error_request_packets;
+	u32 psn_error_resp_packets;
+	u32 rnr_nak_timeouts;
+	u32 rnr_nak_receives;
+	u32 roce_frame_rxmt_drops;
+	u32 nak_count_psn_sequence_errors;
+	u32 rc_drop_count_lookup_errors;
+	u32 rq_rnr_naks;
+	u32 srq_rnr_naks;
+	u32 roce_frames_lo;
+	u32 roce_frames_hi;
+	u32 rsvd;
+};
+
+struct ocrdma_rx_qp_err_stats {
+	u32 nak_invalid_requst_errors;
+	u32 nak_remote_operation_errors;
+	u32 nak_count_remote_access_errors;
+	u32 local_length_errors;
+	u32 local_protection_errors;
+	u32 local_qp_operation_errors;
+	u32 rsvd[2];
+};
+
+struct ocrdma_tx_dbg_stats {
+	u32 data[100];
+};
+
+struct ocrdma_rx_dbg_stats {
+	u32 data[200];
+};
+
+struct ocrdma_rdma_stats_req {
+	struct ocrdma_mbx_hdr hdr;
+	u8 reset_stats;
+	u8 rsvd[3];
+} __packed;
+
+struct ocrdma_rdma_stats_resp {
+	struct ocrdma_mbx_hdr hdr;
+	struct ocrdma_rsrc_stats act_rsrc_stats;
+	struct ocrdma_rsrc_stats th_rsrc_stats;
+	struct ocrdma_db_err_stats	db_err_stats;
+	struct ocrdma_wqe_stats		wqe_stats;
+	struct ocrdma_tx_stats		tx_stats;
+	struct ocrdma_tx_qp_err_stats	tx_qp_err_stats;
+	struct ocrdma_rx_stats		rx_stats;
+	struct ocrdma_rx_qp_err_stats	rx_qp_err_stats;
+	struct ocrdma_tx_dbg_stats	tx_dbg_stats;
+	struct ocrdma_rx_dbg_stats	rx_dbg_stats;
+} __packed;
+
+
+struct mgmt_hba_attribs {
+	u8 flashrom_version_string[32];
+	u8 manufacturer_name[32];
+	u32 supported_modes;
+	u32 rsvd0[3];
+	u8 ncsi_ver_string[12];
+	u32 default_extended_timeout;
+	u8 controller_model_number[32];
+	u8 controller_description[64];
+	u8 controller_serial_number[32];
+	u8 ip_version_string[32];
+	u8 firmware_version_string[32];
+	u8 bios_version_string[32];
+	u8 redboot_version_string[32];
+	u8 driver_version_string[32];
+	u8 fw_on_flash_version_string[32];
+	u32 functionalities_supported;
+	u16 max_cdblength;
+	u8 asic_revision;
+	u8 generational_guid[16];
+	u8 hba_port_count;
+	u16 default_link_down_timeout;
+	u8 iscsi_ver_min_max;
+	u8 multifunction_device;
+	u8 cache_valid;
+	u8 hba_status;
+	u8 max_domains_supported;
+	u8 phy_port;
+	u32 firmware_post_status;
+	u32 hba_mtu[8];
+	u32 rsvd1[4];
+};
+
+struct mgmt_controller_attrib {
+	struct mgmt_hba_attribs hba_attribs;
+	u16 pci_vendor_id;
+	u16 pci_device_id;
+	u16 pci_sub_vendor_id;
+	u16 pci_sub_system_id;
+	u8 pci_bus_number;
+	u8 pci_device_number;
+	u8 pci_function_number;
+	u8 interface_type;
+	u64 unique_identifier;
+	u32 rsvd0[5];
+};
+
+struct ocrdma_get_ctrl_attribs_rsp {
+	struct ocrdma_mbx_hdr hdr;
+	struct mgmt_controller_attrib ctrl_attribs;
+};
+
 
 #endif				/* __OCRDMA_SLI_H__ */

@@ -133,4 +133,6 @@ bool ocrdma_is_qp_in_rq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);
 void ocrdma_flush_qp(struct ocrdma_qp *);
 int ocrdma_get_irq(struct ocrdma_dev *dev, struct ocrdma_eq *eq);
 
+int ocrdma_mbx_rdma_stats(struct ocrdma_dev *, bool reset);
+char *port_speed_string(struct ocrdma_dev *dev);
 #endif				/* __OCRDMA_HW_H__ */

@@ -39,6 +39,7 @@
 #include "ocrdma_ah.h"
 #include "be_roce.h"
 #include "ocrdma_hw.h"
+#include "ocrdma_stats.h"
 #include "ocrdma_abi.h"
 
 MODULE_VERSION(OCRDMA_ROCE_DRV_VERSION);
@@ -372,6 +373,15 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	spin_lock(&ocrdma_devlist_lock);
 	list_add_tail_rcu(&dev->entry, &ocrdma_dev_list);
 	spin_unlock(&ocrdma_devlist_lock);
+	/* Init stats */
+	ocrdma_add_port_stats(dev);
+
+	pr_info("%s %s: %s \"%s\" port %d\n",
+		dev_name(&dev->nic_info.pdev->dev), hca_name(dev),
+		port_speed_string(dev), dev->model_number,
+		dev->hba_port_num);
+	pr_info("%s ocrdma%d driver loaded successfully\n",
+		dev_name(&dev->nic_info.pdev->dev), dev->id);
 	return dev;
 
 alloc_err:
@@ -400,6 +410,7 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	/* first unregister with stack to stop all the active traffic
 	 * of the registered clients.
 	 */
+	ocrdma_rem_port_stats(dev);
 	ib_unregister_device(&dev->ibdev);
 
 	spin_lock(&ocrdma_devlist_lock);
@@ -492,6 +503,8 @@ static int __init ocrdma_init_module(void)
 {
 	int status;
 
+	ocrdma_init_debugfs();
+
 	status = register_inetaddr_notifier(&ocrdma_inetaddr_notifier);
 	if (status)
 		return status;
@@ -513,6 +526,7 @@ static void __exit ocrdma_exit_module(void)
 {
 	be_roce_unregister_driver(&ocrdma_drv);
 	ocrdma_unregister_inet6addr_notifier();
+	ocrdma_rem_debugfs();
 }
 
 module_init(ocrdma_init_module);
