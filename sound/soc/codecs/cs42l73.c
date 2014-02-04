@@ -1255,9 +1255,6 @@ static int cs42l73_pcm_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/* SNDRV_PCM_RATE_KNOT -> 12000, 24000 Hz, limit with constraint list */
-#define CS42L73_RATES (SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_KNOT)
-
 
 #define CS42L73_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
@@ -1278,14 +1275,14 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.stream_name = "XSP Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = CS42L73_RATES,
+			.rates = SNDRV_PCM_RATE_KNOT,
 			.formats = CS42L73_FORMATS,
 		},
 		.capture = {
 			.stream_name = "XSP Capture",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = CS42L73_RATES,
+			.rates = SNDRV_PCM_RATE_KNOT,
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
@@ -1298,14 +1295,14 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.stream_name = "ASP Playback",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = CS42L73_RATES,
+			.rates = SNDRV_PCM_RATE_KNOT,
 			.formats = CS42L73_FORMATS,
 		},
 		.capture = {
 			.stream_name = "ASP Capture",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = CS42L73_RATES,
+			.rates = SNDRV_PCM_RATE_KNOT,
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
@@ -1318,14 +1315,14 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.stream_name = "VSP Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = CS42L73_RATES,
+			.rates = SNDRV_PCM_RATE_KNOT,
 			.formats = CS42L73_FORMATS,
 		},
 		.capture = {
 			.stream_name = "VSP Capture",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = CS42L73_RATES,
+			.rates = SNDRV_PCM_RATE_KNOT,
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
