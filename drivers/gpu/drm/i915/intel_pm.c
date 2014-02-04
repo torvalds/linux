@@ -4698,6 +4698,14 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   _3D_CHICKEN3_SF_DISABLE_FASTCLIP_CULL);
 
 	/*
+	 * Bspec says:
+	 * "This bit must be set if 3DSTATE_CLIP clip mode is set to normal and
+	 * 3DSTATE_SF number of SF output attributes is more than 16."
+	 */
+	I915_WRITE(_3D_CHICKEN3,
+		   _MASKED_BIT_ENABLE(_3D_CHICKEN3_SF_DISABLE_PIPELINED_ATTR_FETCH));
+
+	/*
 	 * According to the spec the following bits should be
 	 * set in order to enable memory self-refresh and fbc:
 	 * The bit21 and bit22 of 0x42000
