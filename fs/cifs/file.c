@@ -2808,14 +2808,14 @@ cifs_uncached_read_into_pages(struct TCP_Server_Info *server,
 	return total_read > 0 ? total_read : result;
 }
 
-static ssize_t
-cifs_iovec_read(struct file *file, const struct iovec *iov,
-		 unsigned long nr_segs, loff_t *poffset)
+ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t pos)
 {
+	struct file *file = iocb->ki_filp;
 	ssize_t rc;
 	size_t len, cur_len;
 	ssize_t total_read = 0;
-	loff_t offset = *poffset;
+	loff_t offset = pos;
 	unsigned int npages;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
@@ -2919,25 +2919,16 @@ error:
 	total_read = len - iov_iter_count(&to);
 
 	cifs_stats_bytes_read(tcon, total_read);
-	*poffset += total_read;
 
 	/* mask nodata case */
 	if (rc == -ENODATA)
 		rc = 0;
 
-	return total_read ? total_read : rc;
-}
-
-ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
-			       unsigned long nr_segs, loff_t pos)
-{
-	ssize_t read;
-
-	read = cifs_iovec_read(iocb->ki_filp, iov, nr_segs, &pos);
-	if (read > 0)
-		iocb->ki_pos = pos;
-
-	return read;
+	if (total_read) {
+		iocb->ki_pos = pos + total_read;
+		return total_read;
+	}
+	return rc;
 }
 
 ssize_t
