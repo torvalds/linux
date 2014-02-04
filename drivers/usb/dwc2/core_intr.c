@@ -76,6 +76,26 @@ static const char *dwc2_op_state_str(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * dwc2_handle_usb_port_intr - handles OTG PRTINT interrupts.
+ * When the PRTINT interrupt fires, there are certain status bits in the Host
+ * Port that needs to get cleared.
+ *
+ * @hsotg: Programming view of DWC_otg controller
+ */
+static void dwc2_handle_usb_port_intr(struct dwc2_hsotg *hsotg)
+{
+	u32 hprt0 = readl(hsotg->regs + HPRT0);
+
+	if (hprt0 & HPRT0_ENACHG) {
+		hprt0 &= ~HPRT0_ENA;
+		writel(hprt0, hsotg->regs + HPRT0);
+	}
+
+	/* Clear interrupt */
+	writel(GINTSTS_PRTINT, hsotg->regs + GINTSTS);
+}
+
+/**
  * dwc2_handle_mode_mismatch_intr() - Logs a mode mismatch warning message
  *
  * @hsotg: Programming view of DWC_otg controller
@@ -579,9 +599,8 @@ irq_retry:
 		if (dwc2_is_device_mode(hsotg)) {
 			dev_dbg(hsotg->dev,
 				" --Port interrupt received in Device mode--\n");
-			gintsts = GINTSTS_PRTINT;
-			writel(gintsts, hsotg->regs + GINTSTS);
-			retval = 1;
+			dwc2_handle_usb_port_intr(hsotg);
+			retval = IRQ_HANDLED;
 		}
 	}
 
