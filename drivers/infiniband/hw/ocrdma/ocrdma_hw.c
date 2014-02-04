@@ -640,7 +640,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 {
 	struct ocrdma_qp *qp = NULL;
 	struct ocrdma_cq *cq = NULL;
-	struct ib_event ib_evt;
+	struct ib_event ib_evt = { 0 };
 	int cq_event = 0;
 	int qp_event = 1;
 	int srq_event = 0;
@@ -665,6 +665,8 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 	case OCRDMA_CQ_OVERRUN_ERROR:
 		ib_evt.element.cq = &cq->ibcq;
 		ib_evt.event = IB_EVENT_CQ_ERR;
+		cq_event = 1;
+		qp_event = 0;
 		break;
 	case OCRDMA_CQ_QPCAT_ERROR:
 		ib_evt.element.qp = &qp->ibqp;
@@ -726,6 +728,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 						     qp->srq->ibsrq.
 						     srq_context);
 	} else if (dev_event) {
+		pr_err("%s: Fatal event received\n", dev->ibdev.name);
 		ib_dispatch_event(&ib_evt);
 	}
 
