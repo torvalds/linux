@@ -250,7 +250,7 @@ static int spi_gpio_setup(struct spi_device *spi)
 		/*
 		 * ... otherwise, take it from spi->controller_data
 		 */
-		cs = (unsigned int) spi->controller_data;
+		cs = (unsigned int)(uintptr_t) spi->controller_data;
 	}
 
 	if (!spi->controller_state) {
