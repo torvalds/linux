@@ -339,9 +339,42 @@ static void ocrdma_free_resources(struct ocrdma_dev *dev)
 	kfree(dev->sgid_tbl);
 }
 
+/* OCRDMA sysfs interface */
+static ssize_t show_rev(struct device *device, struct device_attribute *attr,
+			char *buf)
+{
+	struct ocrdma_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
+}
+
+static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
+			char *buf)
+{
+	struct ocrdma_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%s", &dev->attr.fw_ver[0]);
+}
+
+static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
+static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+
+static struct device_attribute *ocrdma_attributes[] = {
+	&dev_attr_hw_rev,
+	&dev_attr_fw_ver
+};
+
+static void ocrdma_remove_sysfiles(struct ocrdma_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ocrdma_attributes); i++)
+		device_remove_file(&dev->ibdev.dev, ocrdma_attributes[i]);
+}
+
 static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 {
-	int status = 0;
+	int status = 0, i;
 	struct ocrdma_dev *dev;
 
 	dev = (struct ocrdma_dev *)ib_alloc_device(sizeof(struct ocrdma_dev));
@@ -370,6 +403,9 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	if (status)
 		goto alloc_err;
 
+	for (i = 0; i < ARRAY_SIZE(ocrdma_attributes); i++)
+		if (device_create_file(&dev->ibdev.dev, ocrdma_attributes[i]))
+			goto sysfs_err;
 	spin_lock(&ocrdma_devlist_lock);
 	list_add_tail_rcu(&dev->entry, &ocrdma_dev_list);
 	spin_unlock(&ocrdma_devlist_lock);
@@ -384,6 +420,8 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		dev_name(&dev->nic_info.pdev->dev), dev->id);
 	return dev;
 
+sysfs_err:
+	ocrdma_remove_sysfiles(dev);
 alloc_err:
 	ocrdma_free_resources(dev);
 	ocrdma_cleanup_hw(dev);
@@ -411,6 +449,8 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	 * of the registered clients.
 	 */
 	ocrdma_rem_port_stats(dev);
+	ocrdma_remove_sysfiles(dev);
+
 	ib_unregister_device(&dev->ibdev);
 
 	spin_lock(&ocrdma_devlist_lock);
