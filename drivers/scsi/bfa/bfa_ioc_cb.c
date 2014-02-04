@@ -81,6 +81,29 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 static bfa_boolean_t
 bfa_ioc_cb_firmware_lock(struct bfa_ioc_s *ioc)
 {
+	enum bfi_ioc_state alt_fwstate, cur_fwstate;
+	struct bfi_ioc_image_hdr_s fwhdr;
+
+	cur_fwstate = bfa_ioc_cb_get_cur_ioc_fwstate(ioc);
+	bfa_trc(ioc, cur_fwstate);
+	alt_fwstate = bfa_ioc_cb_get_alt_ioc_fwstate(ioc);
+	bfa_trc(ioc, alt_fwstate);
+
+	/*
+	 * Uninit implies this is the only driver as of now.
+	 */
+	if (cur_fwstate == BFI_IOC_UNINIT)
+		return BFA_TRUE;
+	/*
+	 * Check if another driver with a different firmware is active
+	 */
+	bfa_ioc_fwver_get(ioc, &fwhdr);
+	if (!bfa_ioc_fwver_cmp(ioc, &fwhdr) &&
+		alt_fwstate != BFI_IOC_DISABLED) {
+		bfa_trc(ioc, alt_fwstate);
+		return BFA_FALSE;
+	}
+
 	return BFA_TRUE;
 }
 

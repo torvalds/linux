@@ -299,6 +299,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	strlcpy(adap->name, "bcm2835 I2C adapter", sizeof(adap->name));
 	adap->algo = &bcm2835_i2c_algo;
 	adap->dev.parent = &pdev->dev;
+	adap->dev.of_node = pdev->dev.of_node;
 
 	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, 0);
 

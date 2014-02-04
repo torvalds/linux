@@ -138,6 +138,7 @@ static struct regulator_ops max77693_charger_ops = {
 	.n_voltages	= 4,					\
 	.ops		= &max77693_safeout_ops,		\
 	.type		= REGULATOR_VOLTAGE,			\
+	.owner		= THIS_MODULE,				\
 	.volt_table	= max77693_safeout_table,		\
 	.vsel_reg	= MAX77693_CHG_REG_SAFEOUT_CTRL,	\
 	.vsel_mask	= SAFEOUT_CTRL_SAFEOUT##_num##_MASK,	\

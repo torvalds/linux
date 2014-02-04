@@ -79,6 +79,8 @@
 				#dma-cells = <1>;
 				#dma-channels = <8>;
 				#dma-requests = <32>;
+				clocks = <&l4_main_clk>;
+				clock-names = "apb_pclk";
 			};
 		};
 
@@ -245,14 +247,14 @@
 
 					mpu_periph_clk: mpu_periph_clk {
 						#clock-cells = <0>;
-						compatible = "altr,socfpga-gate-clk";
+						compatible = "altr,socfpga-perip-clk";
 						clocks = <&mpuclk>;
 						fixed-divider = <4>;
 					};
 
 					mpu_l2_ram_clk: mpu_l2_ram_clk {
 						#clock-cells = <0>;
-						compatible = "altr,socfpga-gate-clk";
+						compatible = "altr,socfpga-perip-clk";
 						clocks = <&mpuclk>;
 						fixed-divider = <2>;
 					};
@@ -266,8 +268,9 @@
 
 					l3_main_clk: l3_main_clk {
 						#clock-cells = <0>;
-						compatible = "altr,socfpga-gate-clk";
+						compatible = "altr,socfpga-perip-clk";
 						clocks = <&mainclk>;
+						fixed-divider = <1>;
 					};
 
 					l3_mp_clk: l3_mp_clk {
@@ -466,6 +469,8 @@
 			interrupts = <0 38 0x04>;
 			cache-unified;
 			cache-level = <2>;
+			arm,tag-latency = <1 1 1>;
+			arm,data-latency = <2 1 1>;
 		};
 
 		/* Local timer */

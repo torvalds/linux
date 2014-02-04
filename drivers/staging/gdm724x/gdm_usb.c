@@ -830,23 +830,18 @@ static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	if (bInterfaceNumber > NETWORK_INTERFACE) {
 		pr_info("not a network device\n");
-		return -1;
+		return -ENODEV;
 	}
 
-	phy_dev = kmalloc(sizeof(struct phy_dev), GFP_ATOMIC);
-	if (!phy_dev) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	phy_dev = kzalloc(sizeof(struct phy_dev), GFP_KERNEL);
+	if (!phy_dev)
+		return -ENOMEM;
 
-	udev = kmalloc(sizeof(struct lte_udev), GFP_ATOMIC);
+	udev = kzalloc(sizeof(struct lte_udev), GFP_KERNEL);
 	if (!udev) {
 		ret = -ENOMEM;
-		goto out;
+		goto err_udev;
 	}
-
-	memset(phy_dev, 0, sizeof(struct phy_dev));
-	memset(udev, 0, sizeof(struct lte_udev));
 
 	phy_dev->priv_dev = (void *)udev;
 	phy_dev->send_hci_func = gdm_usb_hci_send;
@@ -858,7 +853,7 @@ static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	ret = init_usb(udev);
 	if (ret < 0) {
 		pr_err("init_usb func failed\n");
-		goto out;
+		goto err_init_usb;
 	}
 	udev->intf = intf;
 
@@ -875,22 +870,21 @@ static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	ret = request_mac_address(udev);
 	if (ret < 0) {
 		pr_err("request Mac address failed\n");
-		goto out;
+		goto err_mac_address;
 	}
 
 	start_rx_proc(phy_dev);
-out:
-
-	if (ret < 0) {
-		kfree(phy_dev);
-		if (udev) {
-			release_usb(udev);
-			kfree(udev);
-		}
-	}
-
 	usb_get_dev(usbdev);
 	usb_set_intfdata(intf, phy_dev);
+
+	return 0;
+
+err_mac_address:
+	release_usb(udev);
+err_init_usb:
+	kfree(udev);
+err_udev:
+	kfree(phy_dev);
 
 	return ret;
 }

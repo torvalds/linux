@@ -325,6 +325,8 @@ int r420_resume(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = r420_startup(rdev);
 	if (r) {
@@ -335,6 +337,7 @@ int r420_resume(struct radeon_device *rdev)
 
 int r420_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r420_cp_errata_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
@@ -348,6 +351,7 @@ int r420_suspend(struct radeon_device *rdev)
 
 void r420_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
@@ -443,6 +447,9 @@ int r420_init(struct radeon_device *rdev)
 			return r;
 	}
 	r420_set_reg_safe(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = r420_startup(rdev);

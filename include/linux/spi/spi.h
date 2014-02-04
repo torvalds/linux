@@ -75,6 +75,7 @@ struct spi_device {
 	struct spi_master	*master;
 	u32			max_speed_hz;
 	u8			chip_select;
+	u8			bits_per_word;
 	u16			mode;
 #define	SPI_CPHA	0x01			/* clock phase */
 #define	SPI_CPOL	0x02			/* clock polarity */
@@ -92,7 +93,6 @@ struct spi_device {
 #define	SPI_TX_QUAD	0x200			/* transmit with 4 wires */
 #define	SPI_RX_DUAL	0x400			/* receive with 2 wires */
 #define	SPI_RX_QUAD	0x800			/* receive with 4 wires */
-	u8			bits_per_word;
 	int			irq;
 	void			*controller_state;
 	void			*controller_data;
@@ -277,15 +277,17 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @unprepare_transfer_hardware: there are currently no more messages on the
  *	queue so the subsystem notifies the driver that it may relax the
  *	hardware by issuing this call
- * @set_cs: assert or deassert chip select, true to assert.  May be called
+ * @set_cs: set the logic level of the chip select line.  May be called
  *          from interrupt context.
  * @prepare_message: set up the controller to transfer a single message,
  *                   for example doing DMA mapping.  Called from threaded
  *                   context.
- * @transfer_one: transfer a single spi_transfer. When the
- *	          driver is finished with this transfer it must call
- *	          spi_finalize_current_transfer() so the subsystem can issue
- *                the next transfer
+ * @transfer_one: transfer a single spi_transfer.
+ *                  - return 0 if the transfer is finished,
+ *                  - return 1 if the transfer is still in progress. When
+ *                    the driver is finished with this transfer it must
+ *                    call spi_finalize_current_transfer() so the subsystem
+ *                    can issue the next transfer
  * @unprepare_message: undo any work done by prepare_message().
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
@@ -576,8 +578,8 @@ struct spi_transfer {
 	dma_addr_t	rx_dma;
 
 	unsigned	cs_change:1;
-	u8		tx_nbits;
-	u8		rx_nbits;
+	unsigned	tx_nbits:3;
+	unsigned	rx_nbits:3;
 #define	SPI_NBITS_SINGLE	0x01 /* 1bit transfer */
 #define	SPI_NBITS_DUAL		0x02 /* 2bits transfer */
 #define	SPI_NBITS_QUAD		0x04 /* 4bits transfer */
@@ -847,7 +849,7 @@ static inline ssize_t spi_w8r16(struct spi_device *spi, u8 cmd)
 	ssize_t			status;
 	u16			result;
 
-	status = spi_write_then_read(spi, &cmd, 1, (u8 *) &result, 2);
+	status = spi_write_then_read(spi, &cmd, 1, &result, 2);
 
 	/* return negative errno or unsigned value */
 	return (status < 0) ? status : result;

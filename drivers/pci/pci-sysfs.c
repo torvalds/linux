@@ -10,7 +10,7 @@
  *
  * File attributes for PCI devices
  *
- * Modeled after usb's driverfs.c 
+ * Modeled after usb's driverfs.c
  *
  */
 
@@ -270,13 +270,17 @@ msi_bus_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
-	/* bad things may happen if the no_msi flag is changed
-	 * while some drivers are loaded */
+	/*
+	 * Bad things may happen if the no_msi flag is changed
+	 * while drivers are loaded.
+	 */
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	/* Maybe pci devices without subordinate busses shouldn't even have this
-	 * attribute in the first place?  */
+	/*
+	 * Maybe devices without subordinate buses shouldn't have this
+	 * attribute in the first place?
+	 */
 	if (!pdev->subordinate)
 		return count;
 
@@ -293,7 +297,6 @@ msi_bus_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(msi_bus);
 
-static DEFINE_MUTEX(pci_remove_rescan_mutex);
 static ssize_t bus_rescan_store(struct bus_type *bus, const char *buf,
 				size_t count)
 {
@@ -304,10 +307,10 @@ static ssize_t bus_rescan_store(struct bus_type *bus, const char *buf,
 		return -EINVAL;
 
 	if (val) {
-		mutex_lock(&pci_remove_rescan_mutex);
+		pci_lock_rescan_remove();
 		while ((b = pci_find_next_bus(b)) != NULL)
 			pci_rescan_bus(b);
-		mutex_unlock(&pci_remove_rescan_mutex);
+		pci_unlock_rescan_remove();
 	}
 	return count;
 }
@@ -338,9 +341,9 @@ dev_rescan_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	if (val) {
-		mutex_lock(&pci_remove_rescan_mutex);
+		pci_lock_rescan_remove();
 		pci_rescan_bus(pdev->bus);
-		mutex_unlock(&pci_remove_rescan_mutex);
+		pci_unlock_rescan_remove();
 	}
 	return count;
 }
@@ -350,11 +353,7 @@ static struct device_attribute dev_rescan_attr = __ATTR(rescan,
 
 static void remove_callback(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-
-	mutex_lock(&pci_remove_rescan_mutex);
-	pci_stop_and_remove_bus_device(pdev);
-	mutex_unlock(&pci_remove_rescan_mutex);
+	pci_stop_and_remove_bus_device_locked(to_pci_dev(dev));
 }
 
 static ssize_t
@@ -391,12 +390,12 @@ dev_bus_rescan_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	if (val) {
-		mutex_lock(&pci_remove_rescan_mutex);
+		pci_lock_rescan_remove();
 		if (!pci_is_root_bus(bus) && list_empty(&bus->devices))
 			pci_rescan_bus_bridge_resize(bus->self);
 		else
 			pci_rescan_bus(bus);
-		mutex_unlock(&pci_remove_rescan_mutex);
+		pci_unlock_rescan_remove();
 	}
 	return count;
 }
@@ -670,7 +669,7 @@ pci_write_config(struct file* filp, struct kobject *kobj,
 		size = dev->cfg_size - off;
 		count = size;
 	}
-	
+
 	pci_config_pm_runtime_get(dev);
 
 	if ((off & 1) && size) {
@@ -678,7 +677,7 @@ pci_write_config(struct file* filp, struct kobject *kobj,
 		off++;
 		size--;
 	}
-	
+
 	if ((off & 3) && size > 2) {
 		u16 val = data[off - init_off];
 		val |= (u16) data[off - init_off + 1] << 8;
@@ -696,7 +695,7 @@ pci_write_config(struct file* filp, struct kobject *kobj,
 		off += 4;
 		size -= 4;
 	}
-	
+
 	if (size >= 2) {
 		u16 val = data[off - init_off];
 		val |= (u16) data[off - init_off + 1] << 8;
@@ -1229,21 +1228,21 @@ pci_read_rom(struct file *filp, struct kobject *kobj,
 
 	if (!pdev->rom_attr_enabled)
 		return -EINVAL;
-	
+
 	rom = pci_map_rom(pdev, &size);	/* size starts out as PCI window size */
 	if (!rom || !size)
 		return -EIO;
-		
+
 	if (off >= size)
 		count = 0;
 	else {
 		if (off + count > size)
 			count = size - off;
-		
+
 		memcpy_fromio(buf, rom + off, count);
 	}
 	pci_unmap_rom(pdev, rom);
-		
+
 	return count;
 }
 

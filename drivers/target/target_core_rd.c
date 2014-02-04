@@ -27,7 +27,6 @@
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/timer.h>
-#include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <scsi/scsi.h>
@@ -79,23 +78,14 @@ static void rd_detach_hba(struct se_hba *hba)
 	hba->hba_ptr = NULL;
 }
 
-/*	rd_release_device_space():
- *
- *
- */
-static void rd_release_device_space(struct rd_dev *rd_dev)
+static u32 rd_release_sgl_table(struct rd_dev *rd_dev, struct rd_dev_sg_table *sg_table,
+				 u32 sg_table_count)
 {
-	u32 i, j, page_count = 0, sg_per_table;
-	struct rd_dev_sg_table *sg_table;
 	struct page *pg;
 	struct scatterlist *sg;
+	u32 i, j, page_count = 0, sg_per_table;
 
-	if (!rd_dev->sg_table_array || !rd_dev->sg_table_count)
-		return;
-
-	sg_table = rd_dev->sg_table_array;
-
-	for (i = 0; i < rd_dev->sg_table_count; i++) {
+	for (i = 0; i < sg_table_count; i++) {
 		sg = sg_table[i].sg_table;
 		sg_per_table = sg_table[i].rd_sg_count;
 
@@ -106,16 +96,28 @@ static void rd_release_device_space(struct rd_dev *rd_dev)
 				page_count++;
 			}
 		}
-
 		kfree(sg);
 	}
+
+	kfree(sg_table);
+	return page_count;
+}
+
+static void rd_release_device_space(struct rd_dev *rd_dev)
+{
+	u32 page_count;
+
+	if (!rd_dev->sg_table_array || !rd_dev->sg_table_count)
+		return;
+
+	page_count = rd_release_sgl_table(rd_dev, rd_dev->sg_table_array,
+					  rd_dev->sg_table_count);
 
 	pr_debug("CORE_RD[%u] - Released device space for Ramdisk"
 		" Device ID: %u, pages %u in %u tables total bytes %lu\n",
 		rd_dev->rd_host->rd_host_id, rd_dev->rd_dev_id, page_count,
 		rd_dev->sg_table_count, (unsigned long)page_count * PAGE_SIZE);
 
-	kfree(sg_table);
 	rd_dev->sg_table_array = NULL;
 	rd_dev->sg_table_count = 0;
 }
@@ -125,38 +127,15 @@ static void rd_release_device_space(struct rd_dev *rd_dev)
  *
  *
  */
-static int rd_build_device_space(struct rd_dev *rd_dev)
+static int rd_allocate_sgl_table(struct rd_dev *rd_dev, struct rd_dev_sg_table *sg_table,
+				 u32 total_sg_needed, unsigned char init_payload)
 {
-	u32 i = 0, j, page_offset = 0, sg_per_table, sg_tables, total_sg_needed;
+	u32 i = 0, j, page_offset = 0, sg_per_table;
 	u32 max_sg_per_table = (RD_MAX_ALLOCATION_SIZE /
 				sizeof(struct scatterlist));
-	struct rd_dev_sg_table *sg_table;
 	struct page *pg;
 	struct scatterlist *sg;
-
-	if (rd_dev->rd_page_count <= 0) {
-		pr_err("Illegal page count: %u for Ramdisk device\n",
-			rd_dev->rd_page_count);
-		return -EINVAL;
-	}
-
-	/* Don't need backing pages for NULLIO */
-	if (rd_dev->rd_flags & RDF_NULLIO)
-		return 0;
-
-	total_sg_needed = rd_dev->rd_page_count;
-
-	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
-
-	sg_table = kzalloc(sg_tables * sizeof(struct rd_dev_sg_table), GFP_KERNEL);
-	if (!sg_table) {
-		pr_err("Unable to allocate memory for Ramdisk"
-			" scatterlist tables\n");
-		return -ENOMEM;
-	}
-
-	rd_dev->sg_table_array = sg_table;
-	rd_dev->sg_table_count = sg_tables;
+	unsigned char *p;
 
 	while (total_sg_needed) {
 		sg_per_table = (total_sg_needed > max_sg_per_table) ?
@@ -187,16 +166,114 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 			}
 			sg_assign_page(&sg[j], pg);
 			sg[j].length = PAGE_SIZE;
+
+			p = kmap(pg);
+			memset(p, init_payload, PAGE_SIZE);
+			kunmap(pg);
 		}
 
 		page_offset += sg_per_table;
 		total_sg_needed -= sg_per_table;
 	}
 
+	return 0;
+}
+
+static int rd_build_device_space(struct rd_dev *rd_dev)
+{
+	struct rd_dev_sg_table *sg_table;
+	u32 sg_tables, total_sg_needed;
+	u32 max_sg_per_table = (RD_MAX_ALLOCATION_SIZE /
+				sizeof(struct scatterlist));
+	int rc;
+
+	if (rd_dev->rd_page_count <= 0) {
+		pr_err("Illegal page count: %u for Ramdisk device\n",
+		       rd_dev->rd_page_count);
+		return -EINVAL;
+	}
+
+	/* Don't need backing pages for NULLIO */
+	if (rd_dev->rd_flags & RDF_NULLIO)
+		return 0;
+
+	total_sg_needed = rd_dev->rd_page_count;
+
+	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
+
+	sg_table = kzalloc(sg_tables * sizeof(struct rd_dev_sg_table), GFP_KERNEL);
+	if (!sg_table) {
+		pr_err("Unable to allocate memory for Ramdisk"
+		       " scatterlist tables\n");
+		return -ENOMEM;
+	}
+
+	rd_dev->sg_table_array = sg_table;
+	rd_dev->sg_table_count = sg_tables;
+
+	rc = rd_allocate_sgl_table(rd_dev, sg_table, total_sg_needed, 0x00);
+	if (rc)
+		return rc;
+
 	pr_debug("CORE_RD[%u] - Built Ramdisk Device ID: %u space of"
-		" %u pages in %u tables\n", rd_dev->rd_host->rd_host_id,
-		rd_dev->rd_dev_id, rd_dev->rd_page_count,
-		rd_dev->sg_table_count);
+		 " %u pages in %u tables\n", rd_dev->rd_host->rd_host_id,
+		 rd_dev->rd_dev_id, rd_dev->rd_page_count,
+		 rd_dev->sg_table_count);
+
+	return 0;
+}
+
+static void rd_release_prot_space(struct rd_dev *rd_dev)
+{
+	u32 page_count;
+
+	if (!rd_dev->sg_prot_array || !rd_dev->sg_prot_count)
+		return;
+
+	page_count = rd_release_sgl_table(rd_dev, rd_dev->sg_prot_array,
+					  rd_dev->sg_prot_count);
+
+	pr_debug("CORE_RD[%u] - Released protection space for Ramdisk"
+		 " Device ID: %u, pages %u in %u tables total bytes %lu\n",
+		 rd_dev->rd_host->rd_host_id, rd_dev->rd_dev_id, page_count,
+		 rd_dev->sg_table_count, (unsigned long)page_count * PAGE_SIZE);
+
+	rd_dev->sg_prot_array = NULL;
+	rd_dev->sg_prot_count = 0;
+}
+
+static int rd_build_prot_space(struct rd_dev *rd_dev, int prot_length)
+{
+	struct rd_dev_sg_table *sg_table;
+	u32 total_sg_needed, sg_tables;
+	u32 max_sg_per_table = (RD_MAX_ALLOCATION_SIZE /
+				sizeof(struct scatterlist));
+	int rc;
+
+	if (rd_dev->rd_flags & RDF_NULLIO)
+		return 0;
+
+	total_sg_needed = rd_dev->rd_page_count / prot_length;
+
+	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
+
+	sg_table = kzalloc(sg_tables * sizeof(struct rd_dev_sg_table), GFP_KERNEL);
+	if (!sg_table) {
+		pr_err("Unable to allocate memory for Ramdisk protection"
+		       " scatterlist tables\n");
+		return -ENOMEM;
+	}
+
+	rd_dev->sg_prot_array = sg_table;
+	rd_dev->sg_prot_count = sg_tables;
+
+	rc = rd_allocate_sgl_table(rd_dev, sg_table, total_sg_needed, 0xff);
+	if (rc)
+		return rc;
+
+	pr_debug("CORE_RD[%u] - Built Ramdisk Device ID: %u prot space of"
+		 " %u pages in %u tables\n", rd_dev->rd_host->rd_host_id,
+		 rd_dev->rd_dev_id, total_sg_needed, rd_dev->sg_prot_count);
 
 	return 0;
 }
@@ -279,6 +356,26 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 	return NULL;
 }
 
+static struct rd_dev_sg_table *rd_get_prot_table(struct rd_dev *rd_dev, u32 page)
+{
+	struct rd_dev_sg_table *sg_table;
+	u32 i, sg_per_table = (RD_MAX_ALLOCATION_SIZE /
+				sizeof(struct scatterlist));
+
+	i = page / sg_per_table;
+	if (i < rd_dev->sg_prot_count) {
+		sg_table = &rd_dev->sg_prot_array[i];
+		if ((sg_table->page_start_offset <= page) &&
+		     (sg_table->page_end_offset >= page))
+			return sg_table;
+	}
+
+	pr_err("Unable to locate struct prot rd_dev_sg_table for page: %u\n",
+			page);
+
+	return NULL;
+}
+
 static sense_reason_t
 rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	      enum dma_data_direction data_direction)
@@ -293,6 +390,7 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	u32 rd_page;
 	u32 src_len;
 	u64 tmp;
+	sense_reason_t rc;
 
 	if (dev->rd_flags & RDF_NULLIO) {
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
@@ -314,6 +412,28 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			dev->rd_dev_id,
 			data_direction == DMA_FROM_DEVICE ? "Read" : "Write",
 			cmd->t_task_lba, rd_size, rd_page, rd_offset);
+
+	if (cmd->prot_type && data_direction == DMA_TO_DEVICE) {
+		struct rd_dev_sg_table *prot_table;
+		struct scatterlist *prot_sg;
+		u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
+		u32 prot_offset, prot_page;
+
+		tmp = cmd->t_task_lba * se_dev->prot_length;
+		prot_offset = do_div(tmp, PAGE_SIZE);
+		prot_page = tmp;
+
+		prot_table = rd_get_prot_table(dev, prot_page);
+		if (!prot_table)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+		prot_sg = &prot_table->sg_table[prot_page - prot_table->page_start_offset];
+
+		rc = sbc_dif_verify_write(cmd, cmd->t_task_lba, sectors, 0,
+					  prot_sg, prot_offset);
+		if (rc)
+			return rc;
+	}
 
 	src_len = PAGE_SIZE - rd_offset;
 	sg_miter_start(&m, sgl, sgl_nents,
@@ -375,6 +495,28 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		rd_sg = table->sg_table;
 	}
 	sg_miter_stop(&m);
+
+	if (cmd->prot_type && data_direction == DMA_FROM_DEVICE) {
+		struct rd_dev_sg_table *prot_table;
+		struct scatterlist *prot_sg;
+		u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
+		u32 prot_offset, prot_page;
+
+		tmp = cmd->t_task_lba * se_dev->prot_length;
+		prot_offset = do_div(tmp, PAGE_SIZE);
+		prot_page = tmp;
+
+		prot_table = rd_get_prot_table(dev, prot_page);
+		if (!prot_table)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+		prot_sg = &prot_table->sg_table[prot_page - prot_table->page_start_offset];
+
+		rc = sbc_dif_verify_read(cmd, cmd->t_task_lba, sectors, 0,
+					 prot_sg, prot_offset);
+		if (rc)
+			return rc;
+	}
 
 	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
@@ -457,6 +599,23 @@ static sector_t rd_get_blocks(struct se_device *dev)
 	return blocks_long;
 }
 
+static int rd_init_prot(struct se_device *dev)
+{
+	struct rd_dev *rd_dev = RD_DEV(dev);
+
+        if (!dev->dev_attrib.pi_prot_type)
+		return 0;
+
+	return rd_build_prot_space(rd_dev, dev->prot_length);
+}
+
+static void rd_free_prot(struct se_device *dev)
+{
+	struct rd_dev *rd_dev = RD_DEV(dev);
+
+	rd_release_prot_space(rd_dev);
+}
+
 static struct sbc_ops rd_sbc_ops = {
 	.execute_rw		= rd_execute_rw,
 };
@@ -482,6 +641,8 @@ static struct se_subsystem_api rd_mcp_template = {
 	.show_configfs_dev_params = rd_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= rd_get_blocks,
+	.init_prot		= rd_init_prot,
+	.free_prot		= rd_free_prot,
 };
 
 int __init rd_module_init(void)

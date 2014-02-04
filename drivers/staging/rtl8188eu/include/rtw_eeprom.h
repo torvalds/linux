@@ -108,7 +108,7 @@ enum RT_CUSTOMER_ID {
 	RT_CID_CC_C = 38,
 	RT_CID_819x_Xavi = 39,
 	RT_CID_819x_FUNAI_TV = 40,
-	RT_CID_819x_ALPHA_WD=41,
+	RT_CID_819x_ALPHA_WD = 41,
 };
 
 struct eeprom_priv {

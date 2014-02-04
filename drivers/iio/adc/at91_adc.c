@@ -1047,6 +1047,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	} else {
 		if (!st->caps->has_tsmr) {
 			dev_err(&pdev->dev, "We don't support non-TSMR adc\n");
+			ret = -ENODEV;
 			goto error_disable_adc_clk;
 		}
 

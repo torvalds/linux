@@ -39,7 +39,8 @@ enum sec_device_type {
 struct sec_pmic_dev {
 	struct device *dev;
 	struct sec_platform_data *pdata;
-	struct regmap *regmap;
+	struct regmap *regmap_pmic;
+	struct regmap *regmap_rtc;
 	struct i2c_client *i2c;
 	struct i2c_client *rtc;
 
@@ -57,12 +58,6 @@ struct sec_pmic_dev {
 int sec_irq_init(struct sec_pmic_dev *sec_pmic);
 void sec_irq_exit(struct sec_pmic_dev *sec_pmic);
 int sec_irq_resume(struct sec_pmic_dev *sec_pmic);
-
-extern int sec_reg_read(struct sec_pmic_dev *sec_pmic, u8 reg, void *dest);
-extern int sec_bulk_read(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf);
-extern int sec_reg_write(struct sec_pmic_dev *sec_pmic, u8 reg, u8 value);
-extern int sec_bulk_write(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf);
-extern int sec_reg_update(struct sec_pmic_dev *sec_pmic, u8 reg, u8 val, u8 mask);
 
 struct sec_platform_data {
 	struct sec_regulator_data	*regulators;

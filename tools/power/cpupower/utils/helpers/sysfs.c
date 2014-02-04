@@ -278,7 +278,7 @@ static char *sysfs_idlestate_get_one_string(unsigned int cpu,
 int sysfs_is_idlestate_disabled(unsigned int cpu,
 				unsigned int idlestate)
 {
-	if (sysfs_get_idlestate_count(cpu) < idlestate)
+	if (sysfs_get_idlestate_count(cpu) <= idlestate)
 		return -1;
 
 	if (!sysfs_idlestate_file_exists(cpu, idlestate,
@@ -303,7 +303,7 @@ int sysfs_idlestate_disable(unsigned int cpu,
 	char value[SYSFS_PATH_MAX];
 	int bytes_written;
 
-	if (sysfs_get_idlestate_count(cpu) < idlestate)
+	if (sysfs_get_idlestate_count(cpu) <= idlestate)
 		return -1;
 
 	if (!sysfs_idlestate_file_exists(cpu, idlestate,

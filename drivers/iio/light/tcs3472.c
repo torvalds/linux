@@ -67,7 +67,12 @@ struct tcs3472_data {
 	.channel2 = IIO_MOD_LIGHT_##_color, \
 	.address = _addr, \
 	.scan_index = _si, \
-	.scan_type = IIO_ST('u', 16, 16, 0), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = 16, \
+		.storagebits = 16, \
+		.endianness = IIO_CPU, \
+	}, \
 }
 
 static const int tcs3472_agains[] = { 1, 4, 16, 60 };

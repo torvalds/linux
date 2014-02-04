@@ -23,10 +23,15 @@
 
 &gpio {
 	pinctrl-names = "default";
-	pinctrl-0 = <&alt0 &alt3>;
+	pinctrl-0 = <&gpioout &alt0 &alt3>;
+
+	gpioout: gpioout {
+		brcm,pins = <6>;
+		brcm,function = <1>; /* GPIO out */
+	};
 
 	alt0: alt0 {
-		brcm,pins = <0 1 2 3 4 5 6 7 8 9 10 11 14 15 40 45>;
+		brcm,pins = <0 1 2 3 4 5 7 8 9 10 11 14 15 40 45>;
 		brcm,function = <4>; /* alt0 */
 	};
 

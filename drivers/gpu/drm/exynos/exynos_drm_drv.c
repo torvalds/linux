@@ -14,6 +14,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
+#include <linux/anon_inodes.h>
+
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
@@ -119,6 +121,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
+	platform_set_drvdata(dev->platformdev, dev);
+
 	return 0;
 
 err_drm_device:
@@ -150,9 +154,14 @@ static int exynos_drm_unload(struct drm_device *dev)
 	return 0;
 }
 
+static const struct file_operations exynos_drm_gem_fops = {
+	.mmap = exynos_drm_gem_mmap_buffer,
+};
+
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;
+	struct file *anon_filp;
 	int ret;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
@@ -167,34 +176,57 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 		file->driver_priv = NULL;
 	}
 
+	anon_filp = anon_inode_getfile("exynos_gem", &exynos_drm_gem_fops,
+					NULL, 0);
+	if (IS_ERR(anon_filp)) {
+		kfree(file_priv);
+		return PTR_ERR(anon_filp);
+	}
+
+	anon_filp->f_mode = FMODE_READ | FMODE_WRITE;
+	file_priv->anon_filp = anon_filp;
+
 	return ret;
 }
 
 static void exynos_drm_preclose(struct drm_device *dev,
 					struct drm_file *file)
 {
-	struct exynos_drm_private *private = dev->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	unsigned long flags;
-
-	/* release events of current file */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	list_for_each_entry_safe(e, t, &private->pageflip_event_list,
-			base.link) {
-		if (e->base.file_priv == file) {
-			list_del(&e->base.link);
-			e->base.destroy(&e->base);
-		}
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
 	exynos_drm_subdrv_close(dev, file);
 }
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_exynos_file_private *file_priv;
+	struct drm_pending_vblank_event *v, *vt;
+	struct drm_pending_event *e, *et;
+	unsigned long flags;
+
 	if (!file->driver_priv)
 		return;
+
+	/* Release all events not unhandled by page flip handler. */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	list_for_each_entry_safe(v, vt, &private->pageflip_event_list,
+			base.link) {
+		if (v->base.file_priv == file) {
+			list_del(&v->base.link);
+			drm_vblank_put(dev, v->pipe);
+			v->base.destroy(&v->base);
+		}
+	}
+
+	/* Release all events handled by page flip handler but not freed. */
+	list_for_each_entry_safe(e, et, &file->event_list, link) {
+		list_del(&e->link);
+		e->destroy(e);
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	file_priv = file->driver_priv;
+	if (file_priv->anon_filp)
+		fput(file_priv->anon_filp);
 
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
@@ -296,7 +328,7 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 
 static int exynos_drm_platform_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&exynos_drm_driver, pdev);
+	drm_put_dev(platform_get_drvdata(pdev));
 
 	return 0;
 }

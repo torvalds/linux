@@ -72,7 +72,7 @@ static enum io_pattern iot_pattern(struct io_tracker *t)
 
 static void iot_update_stats(struct io_tracker *t, struct bio *bio)
 {
-	if (bio->bi_sector == from_oblock(t->last_end_oblock) + 1)
+	if (bio->bi_iter.bi_sector == from_oblock(t->last_end_oblock) + 1)
 		t->nr_seq_samples++;
 	else {
 		/*
@@ -87,7 +87,7 @@ static void iot_update_stats(struct io_tracker *t, struct bio *bio)
 		t->nr_rand_samples++;
 	}
 
-	t->last_end_oblock = to_oblock(bio->bi_sector + bio_sectors(bio) - 1);
+	t->last_end_oblock = to_oblock(bio_end_sector(bio) - 1);
 }
 
 static void iot_check_for_pattern_switch(struct io_tracker *t)
@@ -287,9 +287,8 @@ static struct entry *alloc_entry(struct entry_pool *ep)
 static struct entry *alloc_particular_entry(struct entry_pool *ep, dm_cblock_t cblock)
 {
 	struct entry *e = ep->entries + from_cblock(cblock);
-	list_del(&e->list);
 
-	INIT_LIST_HEAD(&e->list);
+	list_del_init(&e->list);
 	INIT_HLIST_NODE(&e->hlist);
 	ep->nr_allocated++;
 
@@ -391,6 +390,10 @@ struct mq_policy {
 	 */
 	unsigned promote_threshold;
 
+	unsigned discard_promote_adjustment;
+	unsigned read_promote_adjustment;
+	unsigned write_promote_adjustment;
+
 	/*
 	 * The hash table allows us to quickly find an entry by origin
 	 * block.  Both pre_cache and cache entries are in here.
@@ -399,6 +402,10 @@ struct mq_policy {
 	dm_block_t hash_bits;
 	struct hlist_head *table;
 };
+
+#define DEFAULT_DISCARD_PROMOTE_ADJUSTMENT 1
+#define DEFAULT_READ_PROMOTE_ADJUSTMENT 4
+#define DEFAULT_WRITE_PROMOTE_ADJUSTMENT 8
 
 /*----------------------------------------------------------------*/
 
@@ -642,25 +649,21 @@ static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
  * We bias towards reads, since they can be demoted at no cost if they
  * haven't been dirtied.
  */
-#define DISCARDED_PROMOTE_THRESHOLD 1
-#define READ_PROMOTE_THRESHOLD 4
-#define WRITE_PROMOTE_THRESHOLD 8
-
 static unsigned adjusted_promote_threshold(struct mq_policy *mq,
 					   bool discarded_oblock, int data_dir)
 {
 	if (data_dir == READ)
-		return mq->promote_threshold + READ_PROMOTE_THRESHOLD;
+		return mq->promote_threshold + mq->read_promote_adjustment;
 
 	if (discarded_oblock && (any_free_cblocks(mq) || any_clean_cblocks(mq))) {
 		/*
 		 * We don't need to do any copying at all, so give this a
 		 * very low threshold.
 		 */
-		return DISCARDED_PROMOTE_THRESHOLD;
+		return mq->discard_promote_adjustment;
 	}
 
-	return mq->promote_threshold + WRITE_PROMOTE_THRESHOLD;
+	return mq->promote_threshold + mq->write_promote_adjustment;
 }
 
 static bool should_promote(struct mq_policy *mq, struct entry *e,
@@ -730,15 +733,18 @@ static int pre_cache_entry_found(struct mq_policy *mq, struct entry *e,
 	int r = 0;
 	bool updated = updated_this_tick(mq, e);
 
-	requeue_and_update_tick(mq, e);
-
 	if ((!discarded_oblock && updated) ||
-	    !should_promote(mq, e, discarded_oblock, data_dir))
+	    !should_promote(mq, e, discarded_oblock, data_dir)) {
+		requeue_and_update_tick(mq, e);
 		result->op = POLICY_MISS;
-	else if (!can_migrate)
+
+	} else if (!can_migrate)
 		r = -EWOULDBLOCK;
-	else
+
+	else {
+		requeue_and_update_tick(mq, e);
 		r = pre_cache_to_cache(mq, e, result);
+	}
 
 	return r;
 }
@@ -806,7 +812,7 @@ static int no_entry_found(struct mq_policy *mq, dm_oblock_t oblock,
 			  bool can_migrate, bool discarded_oblock,
 			  int data_dir, struct policy_result *result)
 {
-	if (adjusted_promote_threshold(mq, discarded_oblock, data_dir) == 1) {
+	if (adjusted_promote_threshold(mq, discarded_oblock, data_dir) <= 1) {
 		if (can_migrate)
 			insert_in_cache(mq, oblock, result);
 		else
@@ -1132,20 +1138,28 @@ static int mq_set_config_value(struct dm_cache_policy *p,
 			       const char *key, const char *value)
 {
 	struct mq_policy *mq = to_mq_policy(p);
-	enum io_pattern pattern;
 	unsigned long tmp;
-
-	if (!strcasecmp(key, "random_threshold"))
-		pattern = PATTERN_RANDOM;
-	else if (!strcasecmp(key, "sequential_threshold"))
-		pattern = PATTERN_SEQUENTIAL;
-	else
-		return -EINVAL;
 
 	if (kstrtoul(value, 10, &tmp))
 		return -EINVAL;
 
-	mq->tracker.thresholds[pattern] = tmp;
+	if (!strcasecmp(key, "random_threshold")) {
+		mq->tracker.thresholds[PATTERN_RANDOM] = tmp;
+
+	} else if (!strcasecmp(key, "sequential_threshold")) {
+		mq->tracker.thresholds[PATTERN_SEQUENTIAL] = tmp;
+
+	} else if (!strcasecmp(key, "discard_promote_adjustment"))
+		mq->discard_promote_adjustment = tmp;
+
+	else if (!strcasecmp(key, "read_promote_adjustment"))
+		mq->read_promote_adjustment = tmp;
+
+	else if (!strcasecmp(key, "write_promote_adjustment"))
+		mq->write_promote_adjustment = tmp;
+
+	else
+		return -EINVAL;
 
 	return 0;
 }
@@ -1155,9 +1169,16 @@ static int mq_emit_config_values(struct dm_cache_policy *p, char *result, unsign
 	ssize_t sz = 0;
 	struct mq_policy *mq = to_mq_policy(p);
 
-	DMEMIT("4 random_threshold %u sequential_threshold %u",
+	DMEMIT("10 random_threshold %u "
+	       "sequential_threshold %u "
+	       "discard_promote_adjustment %u "
+	       "read_promote_adjustment %u "
+	       "write_promote_adjustment %u",
 	       mq->tracker.thresholds[PATTERN_RANDOM],
-	       mq->tracker.thresholds[PATTERN_SEQUENTIAL]);
+	       mq->tracker.thresholds[PATTERN_SEQUENTIAL],
+	       mq->discard_promote_adjustment,
+	       mq->read_promote_adjustment,
+	       mq->write_promote_adjustment);
 
 	return 0;
 }
@@ -1210,6 +1231,9 @@ static struct dm_cache_policy *mq_create(dm_cblock_t cache_size,
 	mq->hit_count = 0;
 	mq->generation = 0;
 	mq->promote_threshold = 0;
+	mq->discard_promote_adjustment = DEFAULT_DISCARD_PROMOTE_ADJUSTMENT;
+	mq->read_promote_adjustment = DEFAULT_READ_PROMOTE_ADJUSTMENT;
+	mq->write_promote_adjustment = DEFAULT_WRITE_PROMOTE_ADJUSTMENT;
 	mutex_init(&mq->lock);
 	spin_lock_init(&mq->tick_lock);
 
@@ -1241,7 +1265,7 @@ bad_pre_cache_init:
 
 static struct dm_cache_policy_type mq_policy_type = {
 	.name = "mq",
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = mq_create
@@ -1249,10 +1273,11 @@ static struct dm_cache_policy_type mq_policy_type = {
 
 static struct dm_cache_policy_type default_policy_type = {
 	.name = "default",
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
-	.create = mq_create
+	.create = mq_create,
+	.real = &mq_policy_type
 };
 
 static int __init mq_init(void)

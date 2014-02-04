@@ -39,8 +39,6 @@
 #include <obd_class.h>
 #include <lprocfs_status.h>
 
-#ifdef LPROCFS
-
 static int mdc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
@@ -214,4 +212,3 @@ void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)
     lvars->module_vars  = lprocfs_mdc_module_vars;
     lvars->obd_vars     = lprocfs_mdc_obd_vars;
 }
-#endif /* LPROCFS */

@@ -498,17 +498,7 @@ static struct attribute_group wireless_group = {
 #define net_class_groups	NULL
 #endif /* CONFIG_SYSFS */
 
-#ifdef CONFIG_RPS
-/*
- * RX queue sysfs structures and functions.
- */
-struct rx_queue_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct netdev_rx_queue *queue,
-	    struct rx_queue_attribute *attr, char *buf);
-	ssize_t (*store)(struct netdev_rx_queue *queue,
-	    struct rx_queue_attribute *attr, const char *buf, size_t len);
-};
+#ifdef CONFIG_SYSFS
 #define to_rx_queue_attr(_attr) container_of(_attr,		\
     struct rx_queue_attribute, attr)
 
@@ -543,6 +533,7 @@ static const struct sysfs_ops rx_queue_sysfs_ops = {
 	.store = rx_queue_attr_store,
 };
 
+#ifdef CONFIG_RPS
 static ssize_t show_rps_map(struct netdev_rx_queue *queue,
 			    struct rx_queue_attribute *attribute, char *buf)
 {
@@ -676,8 +667,8 @@ static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 		while ((mask | (mask >> 1)) != mask)
 			mask |= (mask >> 1);
 		/* On 64 bit arches, must check mask fits in table->mask (u32),
-		 * and on 32bit arches, must check RPS_DEV_FLOW_TABLE_SIZE(mask + 1)
-		 * doesnt overflow.
+		 * and on 32bit arches, must check
+		 * RPS_DEV_FLOW_TABLE_SIZE(mask + 1) doesn't overflow.
 		 */
 #if BITS_PER_LONG > 32
 		if (mask > (unsigned long)(u32)mask)
@@ -718,16 +709,20 @@ static struct rx_queue_attribute rps_cpus_attribute =
 static struct rx_queue_attribute rps_dev_flow_table_cnt_attribute =
 	__ATTR(rps_flow_cnt, S_IRUGO | S_IWUSR,
 	    show_rps_dev_flow_table_cnt, store_rps_dev_flow_table_cnt);
+#endif /* CONFIG_RPS */
 
 static struct attribute *rx_queue_default_attrs[] = {
+#ifdef CONFIG_RPS
 	&rps_cpus_attribute.attr,
 	&rps_dev_flow_table_cnt_attribute.attr,
+#endif
 	NULL
 };
 
 static void rx_queue_release(struct kobject *kobj)
 {
 	struct netdev_rx_queue *queue = to_rx_queue(kobj);
+#ifdef CONFIG_RPS
 	struct rps_map *map;
 	struct rps_dev_flow_table *flow_table;
 
@@ -743,15 +738,29 @@ static void rx_queue_release(struct kobject *kobj)
 		RCU_INIT_POINTER(queue->rps_flow_table, NULL);
 		call_rcu(&flow_table->rcu, rps_dev_flow_table_release);
 	}
+#endif
 
 	memset(kobj, 0, sizeof(*kobj));
 	dev_put(queue->dev);
+}
+
+static const void *rx_queue_namespace(struct kobject *kobj)
+{
+	struct netdev_rx_queue *queue = to_rx_queue(kobj);
+	struct device *dev = &queue->dev->dev;
+	const void *ns = NULL;
+
+	if (dev->class && dev->class->ns_type)
+		ns = dev->class->namespace(dev);
+
+	return ns;
 }
 
 static struct kobj_type rx_queue_ktype = {
 	.sysfs_ops = &rx_queue_sysfs_ops,
 	.release = rx_queue_release,
 	.default_attrs = rx_queue_default_attrs,
+	.namespace = rx_queue_namespace
 };
 
 static int rx_queue_add_kobject(struct net_device *net, int index)
@@ -763,25 +772,36 @@ static int rx_queue_add_kobject(struct net_device *net, int index)
 	kobj->kset = net->queues_kset;
 	error = kobject_init_and_add(kobj, &rx_queue_ktype, NULL,
 	    "rx-%u", index);
-	if (error) {
-		kobject_put(kobj);
-		return error;
+	if (error)
+		goto exit;
+
+	if (net->sysfs_rx_queue_group) {
+		error = sysfs_create_group(kobj, net->sysfs_rx_queue_group);
+		if (error)
+			goto exit;
 	}
 
 	kobject_uevent(kobj, KOBJ_ADD);
 	dev_hold(queue->dev);
 
 	return error;
+exit:
+	kobject_put(kobj);
+	return error;
 }
-#endif /* CONFIG_RPS */
+#endif /* CONFIG_SYFS */
 
 int
 net_rx_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 {
-#ifdef CONFIG_RPS
+#ifdef CONFIG_SYSFS
 	int i;
 	int error = 0;
 
+#ifndef CONFIG_RPS
+	if (!net->sysfs_rx_queue_group)
+		return 0;
+#endif
 	for (i = old_num; i < new_num; i++) {
 		error = rx_queue_add_kobject(net, i);
 		if (error) {
@@ -790,8 +810,12 @@ net_rx_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 		}
 	}
 
-	while (--i >= new_num)
+	while (--i >= new_num) {
+		if (net->sysfs_rx_queue_group)
+			sysfs_remove_group(&net->_rx[i].kobj,
+					   net->sysfs_rx_queue_group);
 		kobject_put(&net->_rx[i].kobj);
+	}
 
 	return error;
 #else
@@ -1082,10 +1106,23 @@ static void netdev_queue_release(struct kobject *kobj)
 	dev_put(queue->dev);
 }
 
+static const void *netdev_queue_namespace(struct kobject *kobj)
+{
+	struct netdev_queue *queue = to_netdev_queue(kobj);
+	struct device *dev = &queue->dev->dev;
+	const void *ns = NULL;
+
+	if (dev->class && dev->class->ns_type)
+		ns = dev->class->namespace(dev);
+
+	return ns;
+}
+
 static struct kobj_type netdev_queue_ktype = {
 	.sysfs_ops = &netdev_queue_sysfs_ops,
 	.release = netdev_queue_release,
 	.default_attrs = netdev_queue_default_attrs,
+	.namespace = netdev_queue_namespace,
 };
 
 static int netdev_queue_add_kobject(struct net_device *net, int index)
@@ -1155,9 +1192,6 @@ static int register_queue_kobjects(struct net_device *net)
 	    NULL, &net->dev.kobj);
 	if (!net->queues_kset)
 		return -ENOMEM;
-#endif
-
-#ifdef CONFIG_RPS
 	real_rx = net->real_num_rx_queues;
 #endif
 	real_tx = net->real_num_tx_queues;
@@ -1184,7 +1218,7 @@ static void remove_queue_kobjects(struct net_device *net)
 {
 	int real_rx = 0, real_tx = 0;
 
-#ifdef CONFIG_RPS
+#ifdef CONFIG_SYSFS
 	real_rx = net->real_num_rx_queues;
 #endif
 	real_tx = net->real_num_tx_queues;
@@ -1358,7 +1392,7 @@ void netdev_class_remove_file_ns(struct class_attribute *class_attr,
 }
 EXPORT_SYMBOL(netdev_class_remove_file_ns);
 
-int netdev_kobject_init(void)
+int __init netdev_kobject_init(void)
 {
 	kobj_ns_type_register(&net_ns_type_operations);
 	return class_register(&net_class);

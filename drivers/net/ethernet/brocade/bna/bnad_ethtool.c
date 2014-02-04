@@ -1131,6 +1131,7 @@ static const struct ethtool_ops bnad_ethtool_ops = {
 	.get_eeprom = bnad_get_eeprom,
 	.set_eeprom = bnad_set_eeprom,
 	.flash_device = bnad_flash_device,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 void

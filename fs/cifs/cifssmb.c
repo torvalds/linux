@@ -1273,104 +1273,124 @@ OldOpenRetry:
 }
 
 int
-CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
-	    const char *fileName, const int openDisposition,
-	    const int access_flags, const int create_options, __u16 *netfid,
-	    int *pOplock, FILE_ALL_INFO *pfile_info,
-	    const struct nls_table *nls_codepage, int remap)
+CIFS_open(const unsigned int xid, struct cifs_open_parms *oparms, int *oplock,
+	  FILE_ALL_INFO *buf)
 {
 	int rc = -EACCES;
-	OPEN_REQ *pSMB = NULL;
-	OPEN_RSP *pSMBr = NULL;
+	OPEN_REQ *req = NULL;
+	OPEN_RSP *rsp = NULL;
 	int bytes_returned;
 	int name_len;
 	__u16 count;
+	struct cifs_sb_info *cifs_sb = oparms->cifs_sb;
+	struct cifs_tcon *tcon = oparms->tcon;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
+	const struct nls_table *nls = cifs_sb->local_nls;
+	int create_options = oparms->create_options;
+	int desired_access = oparms->desired_access;
+	int disposition = oparms->disposition;
+	const char *path = oparms->path;
 
 openRetry:
-	rc = smb_init(SMB_COM_NT_CREATE_ANDX, 24, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = smb_init(SMB_COM_NT_CREATE_ANDX, 24, tcon, (void **)&req,
+		      (void **)&rsp);
 	if (rc)
 		return rc;
 
-	pSMB->AndXCommand = 0xFF;	/* none */
+	/* no commands go after this */
+	req->AndXCommand = 0xFF;
 
-	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		count = 1;	/* account for one byte pad to word boundary */
-		name_len =
-		    cifsConvertToUTF16((__le16 *) (pSMB->fileName + 1),
-				       fileName, PATH_MAX, nls_codepage, remap);
-		name_len++;	/* trailing null */
+	if (req->hdr.Flags2 & SMBFLG2_UNICODE) {
+		/* account for one byte pad to word boundary */
+		count = 1;
+		name_len = cifsConvertToUTF16((__le16 *)(req->fileName + 1),
+					      path, PATH_MAX, nls, remap);
+		/* trailing null */
+		name_len++;
 		name_len *= 2;
-		pSMB->NameLength = cpu_to_le16(name_len);
-	} else {		/* BB improve check for buffer overruns BB */
-		count = 0;	/* no pad */
-		name_len = strnlen(fileName, PATH_MAX);
-		name_len++;	/* trailing null */
-		pSMB->NameLength = cpu_to_le16(name_len);
-		strncpy(pSMB->fileName, fileName, name_len);
+		req->NameLength = cpu_to_le16(name_len);
+	} else {
+		/* BB improve check for buffer overruns BB */
+		/* no pad */
+		count = 0;
+		name_len = strnlen(path, PATH_MAX);
+		/* trailing null */
+		name_len++;
+		req->NameLength = cpu_to_le16(name_len);
+		strncpy(req->fileName, path, name_len);
 	}
-	if (*pOplock & REQ_OPLOCK)
-		pSMB->OpenFlags = cpu_to_le32(REQ_OPLOCK);
-	else if (*pOplock & REQ_BATCHOPLOCK)
-		pSMB->OpenFlags = cpu_to_le32(REQ_BATCHOPLOCK);
-	pSMB->DesiredAccess = cpu_to_le32(access_flags);
-	pSMB->AllocationSize = 0;
-	/* set file as system file if special file such
-	   as fifo and server expecting SFU style and
-	   no Unix extensions */
-	if (create_options & CREATE_OPTION_SPECIAL)
-		pSMB->FileAttributes = cpu_to_le32(ATTR_SYSTEM);
-	else
-		pSMB->FileAttributes = cpu_to_le32(ATTR_NORMAL);
 
-	/* XP does not handle ATTR_POSIX_SEMANTICS */
-	/* but it helps speed up case sensitive checks for other
-	servers such as Samba */
+	if (*oplock & REQ_OPLOCK)
+		req->OpenFlags = cpu_to_le32(REQ_OPLOCK);
+	else if (*oplock & REQ_BATCHOPLOCK)
+		req->OpenFlags = cpu_to_le32(REQ_BATCHOPLOCK);
+
+	req->DesiredAccess = cpu_to_le32(desired_access);
+	req->AllocationSize = 0;
+
+	/*
+	 * Set file as system file if special file such as fifo and server
+	 * expecting SFU style and no Unix extensions.
+	 */
+	if (create_options & CREATE_OPTION_SPECIAL)
+		req->FileAttributes = cpu_to_le32(ATTR_SYSTEM);
+	else
+		req->FileAttributes = cpu_to_le32(ATTR_NORMAL);
+
+	/*
+	 * XP does not handle ATTR_POSIX_SEMANTICS but it helps speed up case
+	 * sensitive checks for other servers such as Samba.
+	 */
 	if (tcon->ses->capabilities & CAP_UNIX)
-		pSMB->FileAttributes |= cpu_to_le32(ATTR_POSIX_SEMANTICS);
+		req->FileAttributes |= cpu_to_le32(ATTR_POSIX_SEMANTICS);
 
 	if (create_options & CREATE_OPTION_READONLY)
-		pSMB->FileAttributes |= cpu_to_le32(ATTR_READONLY);
+		req->FileAttributes |= cpu_to_le32(ATTR_READONLY);
 
-	pSMB->ShareAccess = cpu_to_le32(FILE_SHARE_ALL);
-	pSMB->CreateDisposition = cpu_to_le32(openDisposition);
-	pSMB->CreateOptions = cpu_to_le32(create_options & CREATE_OPTIONS_MASK);
+	req->ShareAccess = cpu_to_le32(FILE_SHARE_ALL);
+	req->CreateDisposition = cpu_to_le32(disposition);
+	req->CreateOptions = cpu_to_le32(create_options & CREATE_OPTIONS_MASK);
+
 	/* BB Expirement with various impersonation levels and verify */
-	pSMB->ImpersonationLevel = cpu_to_le32(SECURITY_IMPERSONATION);
-	pSMB->SecurityFlags =
-	    SECURITY_CONTEXT_TRACKING | SECURITY_EFFECTIVE_ONLY;
+	req->ImpersonationLevel = cpu_to_le32(SECURITY_IMPERSONATION);
+	req->SecurityFlags = SECURITY_CONTEXT_TRACKING|SECURITY_EFFECTIVE_ONLY;
 
 	count += name_len;
-	inc_rfc1001_len(pSMB, count);
+	inc_rfc1001_len(req, count);
 
-	pSMB->ByteCount = cpu_to_le16(count);
-	/* long_op set to 1 to allow for oplock break timeouts */
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
-			(struct smb_hdr *)pSMBr, &bytes_returned, 0);
+	req->ByteCount = cpu_to_le16(count);
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *)req,
+			 (struct smb_hdr *)rsp, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_opens);
 	if (rc) {
 		cifs_dbg(FYI, "Error in Open = %d\n", rc);
-	} else {
-		*pOplock = pSMBr->OplockLevel; /* 1 byte no need to le_to_cpu */
-		*netfid = pSMBr->Fid;	/* cifs fid stays in le */
-		/* Let caller know file was created so we can set the mode. */
-		/* Do we care about the CreateAction in any other cases? */
-		if (cpu_to_le32(FILE_CREATE) == pSMBr->CreateAction)
-			*pOplock |= CIFS_CREATE_ACTION;
-		if (pfile_info) {
-			memcpy((char *)pfile_info, (char *)&pSMBr->CreationTime,
-				36 /* CreationTime to Attributes */);
-			/* the file_info buf is endian converted by caller */
-			pfile_info->AllocationSize = pSMBr->AllocationSize;
-			pfile_info->EndOfFile = pSMBr->EndOfFile;
-			pfile_info->NumberOfLinks = cpu_to_le32(1);
-			pfile_info->DeletePending = 0;
-		}
+		cifs_buf_release(req);
+		if (rc == -EAGAIN)
+			goto openRetry;
+		return rc;
 	}
 
-	cifs_buf_release(pSMB);
-	if (rc == -EAGAIN)
-		goto openRetry;
+	/* 1 byte no need to le_to_cpu */
+	*oplock = rsp->OplockLevel;
+	/* cifs fid stays in le */
+	oparms->fid->netfid = rsp->Fid;
+
+	/* Let caller know file was created so we can set the mode. */
+	/* Do we care about the CreateAction in any other cases? */
+	if (cpu_to_le32(FILE_CREATE) == rsp->CreateAction)
+		*oplock |= CIFS_CREATE_ACTION;
+
+	if (buf) {
+		/* copy from CreationTime to Attributes */
+		memcpy((char *)buf, (char *)&rsp->CreationTime, 36);
+		/* the file_info buf is endian converted by caller */
+		buf->AllocationSize = rsp->AllocationSize;
+		buf->EndOfFile = rsp->EndOfFile;
+		buf->NumberOfLinks = cpu_to_le32(1);
+		buf->DeletePending = 0;
+	}
+
+	cifs_buf_release(req);
 	return rc;
 }
 
@@ -4010,7 +4030,7 @@ QFileInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cifs_dbg(FYI, "Send error in QPathInfo = %d\n", rc);
+		cifs_dbg(FYI, "Send error in QFileInfo = %d", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -4179,7 +4199,7 @@ UnixQFileInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cifs_dbg(FYI, "Send error in QPathInfo = %d\n", rc);
+		cifs_dbg(FYI, "Send error in UnixQFileInfo = %d", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -4263,7 +4283,7 @@ UnixQPathInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cifs_dbg(FYI, "Send error in QPathInfo = %d\n", rc);
+		cifs_dbg(FYI, "Send error in UnixQPathInfo = %d", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 

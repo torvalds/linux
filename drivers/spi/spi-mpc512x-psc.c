@@ -40,6 +40,7 @@ struct mpc512x_psc_spi {
 	unsigned int irq;
 	u8 bits_per_word;
 	struct clk *clk_mclk;
+	struct clk *clk_ipg;
 	u32 mclk_rate;
 
 	struct completion txisrdone;
@@ -475,8 +476,6 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	struct spi_master *master;
 	int ret;
 	void *tempp;
-	int psc_num;
-	char clk_name[16];
 	struct clk *clk;
 
 	master = spi_alloc_master(dev, sizeof *mps);
@@ -504,7 +503,7 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	master->cleanup = mpc512x_psc_spi_cleanup;
 	master->dev.of_node = dev->of_node;
 
-	tempp = ioremap(regaddr, size);
+	tempp = devm_ioremap(dev, regaddr, size);
 	if (!tempp) {
 		dev_err(dev, "could not ioremap I/O port range\n");
 		ret = -EFAULT;
@@ -513,43 +512,48 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	mps->psc = tempp;
 	mps->fifo =
 		(struct mpc512x_psc_fifo *)(tempp + sizeof(struct mpc52xx_psc));
-
-	ret = request_irq(mps->irq, mpc512x_psc_spi_isr, IRQF_SHARED,
-			  "mpc512x-psc-spi", mps);
+	ret = devm_request_irq(dev, mps->irq, mpc512x_psc_spi_isr, IRQF_SHARED,
+				"mpc512x-psc-spi", mps);
 	if (ret)
 		goto free_master;
 	init_completion(&mps->txisrdone);
 
-	psc_num = master->bus_num;
-	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
-	clk = devm_clk_get(dev, clk_name);
+	clk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		goto free_irq;
+		goto free_master;
 	}
 	ret = clk_prepare_enable(clk);
 	if (ret)
-		goto free_irq;
+		goto free_master;
 	mps->clk_mclk = clk;
 	mps->mclk_rate = clk_get_rate(clk);
 
+	clk = devm_clk_get(dev, "ipg");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		goto free_mclk_clock;
+	}
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		goto free_mclk_clock;
+	mps->clk_ipg = clk;
+
 	ret = mpc512x_psc_spi_port_config(master, mps);
 	if (ret < 0)
-		goto free_clock;
+		goto free_ipg_clock;
 
 	ret = devm_spi_register_master(dev, master);
 	if (ret < 0)
-		goto free_clock;
+		goto free_ipg_clock;
 
 	return ret;
 
-free_clock:
+free_ipg_clock:
+	clk_disable_unprepare(mps->clk_ipg);
+free_mclk_clock:
 	clk_disable_unprepare(mps->clk_mclk);
-free_irq:
-	free_irq(mps->irq, mps);
 free_master:
-	if (mps->psc)
-		iounmap(mps->psc);
 	spi_master_put(master);
 
 	return ret;
@@ -557,13 +561,11 @@ free_master:
 
 static int mpc512x_psc_spi_do_remove(struct device *dev)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct mpc512x_psc_spi *mps = spi_master_get_devdata(master);
 
 	clk_disable_unprepare(mps->clk_mclk);
-	free_irq(mps->irq, mps);
-	if (mps->psc)
-		iounmap(mps->psc);
+	clk_disable_unprepare(mps->clk_ipg);
 
 	return 0;
 }

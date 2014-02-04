@@ -78,18 +78,6 @@ static u16 bcma_cc_core_id(struct bcma_bus *bus)
 	return BCMA_CORE_CHIPCOMMON;
 }
 
-struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid)
-{
-	struct bcma_device *core;
-
-	list_for_each_entry(core, &bus->cores, list) {
-		if (core->id.id == coreid)
-			return core;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(bcma_find_core);
-
 struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
 					u8 unit)
 {
@@ -101,6 +89,7 @@ struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(bcma_find_core_unit);
 
 bool bcma_wait_value(struct bcma_device *core, u16 reg, u32 mask, u32 value,
 		     int timeout)

@@ -160,7 +160,9 @@ static void hv_kbd_on_receive(struct hv_device *hv_dev,
 			if (info & IS_E0)
 				serio_interrupt(kbd_dev->hv_serio,
 						XTKBD_EMUL0, 0);
-
+			if (info & IS_E1)
+				serio_interrupt(kbd_dev->hv_serio,
+						XTKBD_EMUL1, 0);
 			scan_code = __le16_to_cpu(ks_msg->make_code);
 			if (info & IS_BREAK)
 				scan_code |= XTKBD_RELEASE;

@@ -177,9 +177,13 @@ struct smk_port_label {
 #define SMACK_CIPSO_MAXCATNUM           184     /* 23 * 8 */
 
 /*
- * Flag for transmute access
+ * Flags for untraditional access modes.
+ * It shouldn't be necessary to avoid conflicts with definitions
+ * in fs.h, but do so anyway.
  */
-#define MAY_TRANSMUTE	64
+#define MAY_TRANSMUTE	0x00001000	/* Controls directory labeling */
+#define MAY_LOCK	0x00002000	/* Locks should be writes, but ... */
+
 /*
  * Just to make the common cases easier to deal with
  */
@@ -188,9 +192,9 @@ struct smk_port_label {
 #define MAY_NOT		0
 
 /*
- * Number of access types used by Smack (rwxat)
+ * Number of access types used by Smack (rwxatl)
  */
-#define SMK_NUM_ACCESS_TYPE 5
+#define SMK_NUM_ACCESS_TYPE 6
 
 /* SMACK data */
 struct smack_audit_data {
@@ -237,7 +241,8 @@ u32 smack_to_secid(const char *);
 extern int smack_cipso_direct;
 extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;
-extern char *smack_onlycap;
+extern struct smack_known *smack_onlycap;
+extern struct smack_known *smack_syslog_label;
 extern const char *smack_cipso_option;
 
 extern struct smack_known smack_known_floor;
@@ -308,7 +313,7 @@ static inline int smack_privileged(int cap)
 
 	if (!capable(cap))
 		return 0;
-	if (smack_onlycap == NULL || smack_onlycap == skp->smk_known)
+	if (smack_onlycap == NULL || smack_onlycap == skp)
 		return 1;
 	return 0;
 }

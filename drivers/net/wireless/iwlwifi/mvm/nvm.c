@@ -392,17 +392,16 @@ out:
 /* Loads the NVM data stored in mvm->nvm_sections into the NIC */
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 {
-	int i, ret;
-	u16 section_id;
+	int i, ret = 0;
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "'Write to NVM\n");
 
-	for (i = 0; i < ARRAY_SIZE(nvm_to_read); i++) {
-		section_id = nvm_to_read[i];
-		ret = iwl_nvm_write_section(mvm, section_id,
-					    sections[section_id].data,
-					    sections[section_id].length);
+	for (i = 0; i < ARRAY_SIZE(mvm->nvm_sections); i++) {
+		if (!mvm->nvm_sections[i].data || !mvm->nvm_sections[i].length)
+			continue;
+		ret = iwl_nvm_write_section(mvm, i, sections[i].data,
+					    sections[i].length);
 		if (ret < 0) {
 			IWL_ERR(mvm, "iwl_mvm_send_cmd failed: %d\n", ret);
 			break;

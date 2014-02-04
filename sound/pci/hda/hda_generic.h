@@ -249,6 +249,9 @@ struct hda_gen_spec {
 	const struct badness_table *main_out_badness;
 	const struct badness_table *extra_out_badness;
 
+	/* preferred pin/DAC pairs; an array of paired NIDs */
+	const hda_nid_t *preferred_dacs;
+
 	/* loopback mixing mode */
 	bool aamix_mode;
 
@@ -332,5 +335,8 @@ void snd_hda_gen_update_outputs(struct hda_codec *codec);
 #ifdef CONFIG_PM
 int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid);
 #endif
+unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
+					   hda_nid_t nid,
+					   unsigned int power_state);
 
 #endif /* __SOUND_HDA_GENERIC_H */

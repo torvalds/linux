@@ -146,7 +146,7 @@ static void gsta_gpio_setup(struct gsta_gpio *chip) /* called from probe */
 	gpio->dbg_show = NULL;
 	gpio->base = gpio_base;
 	gpio->ngpio = GSTA_NR_GPIO;
-	gpio->can_sleep = 0;
+	gpio->can_sleep = false;
 	gpio->to_irq = gsta_gpio_to_irq;
 
 	/*

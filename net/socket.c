@@ -1445,48 +1445,61 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 		err = fd1;
 		goto out_release_both;
 	}
+
 	fd2 = get_unused_fd_flags(flags);
 	if (unlikely(fd2 < 0)) {
 		err = fd2;
-		put_unused_fd(fd1);
-		goto out_release_both;
+		goto out_put_unused_1;
 	}
 
 	newfile1 = sock_alloc_file(sock1, flags, NULL);
 	if (unlikely(IS_ERR(newfile1))) {
 		err = PTR_ERR(newfile1);
-		put_unused_fd(fd1);
-		put_unused_fd(fd2);
-		goto out_release_both;
+		goto out_put_unused_both;
 	}
 
 	newfile2 = sock_alloc_file(sock2, flags, NULL);
 	if (IS_ERR(newfile2)) {
 		err = PTR_ERR(newfile2);
-		fput(newfile1);
-		put_unused_fd(fd1);
-		put_unused_fd(fd2);
-		sock_release(sock2);
-		goto out;
+		goto out_fput_1;
 	}
 
+	err = put_user(fd1, &usockvec[0]);
+	if (err)
+		goto out_fput_both;
+
+	err = put_user(fd2, &usockvec[1]);
+	if (err)
+		goto out_fput_both;
+
 	audit_fd_pair(fd1, fd2);
+
 	fd_install(fd1, newfile1);
 	fd_install(fd2, newfile2);
 	/* fd1 and fd2 may be already another descriptors.
 	 * Not kernel problem.
 	 */
 
-	err = put_user(fd1, &usockvec[0]);
-	if (!err)
-		err = put_user(fd2, &usockvec[1]);
-	if (!err)
-		return 0;
+	return 0;
 
-	sys_close(fd2);
-	sys_close(fd1);
-	return err;
+out_fput_both:
+	fput(newfile2);
+	fput(newfile1);
+	put_unused_fd(fd2);
+	put_unused_fd(fd1);
+	goto out;
 
+out_fput_1:
+	fput(newfile1);
+	put_unused_fd(fd2);
+	put_unused_fd(fd1);
+	sock_release(sock2);
+	goto out;
+
+out_put_unused_both:
+	put_unused_fd(fd2);
+out_put_unused_1:
+	put_unused_fd(fd1);
 out_release_both:
 	sock_release(sock2);
 out_release_1:
@@ -1973,7 +1986,7 @@ static int copy_msghdr_from_user(struct msghdr *kmsg,
 	if (copy_from_user(kmsg, umsg, sizeof(struct msghdr)))
 		return -EFAULT;
 	if (kmsg->msg_namelen > sizeof(struct sockaddr_storage))
-		return -EINVAL;
+		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
 	return 0;
 }
 
@@ -2968,11 +2981,8 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 			 struct compat_ifreq __user *ifr32)
 {
 	struct ifreq kifr;
-	struct ifreq __user *uifr;
 	mm_segment_t old_fs;
 	int err;
-	u32 data;
-	void __user *datap;
 
 	switch (cmd) {
 	case SIOCBONDENSLAVE:
@@ -2989,26 +2999,13 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 		set_fs(old_fs);
 
 		return err;
-	case SIOCBONDSLAVEINFOQUERY:
-	case SIOCBONDINFOQUERY:
-		uifr = compat_alloc_user_space(sizeof(*uifr));
-		if (copy_in_user(&uifr->ifr_name, &ifr32->ifr_name, IFNAMSIZ))
-			return -EFAULT;
-
-		if (get_user(data, &ifr32->ifr_ifru.ifru_data))
-			return -EFAULT;
-
-		datap = compat_ptr(data);
-		if (put_user(datap, &uifr->ifr_ifru.ifru_data))
-			return -EFAULT;
-
-		return dev_ioctl(net, cmd, uifr);
 	default:
 		return -ENOIOCTLCMD;
 	}
 }
 
-static int siocdevprivate_ioctl(struct net *net, unsigned int cmd,
+/* Handle ioctls that use ifreq::ifr_data and just need struct ifreq converted */
+static int compat_ifr_data_ioctl(struct net *net, unsigned int cmd,
 				 struct compat_ifreq __user *u_ifreq32)
 {
 	struct ifreq __user *u_ifreq64;
@@ -3019,19 +3016,16 @@ static int siocdevprivate_ioctl(struct net *net, unsigned int cmd,
 	if (copy_from_user(&tmp_buf[0], &(u_ifreq32->ifr_ifrn.ifrn_name[0]),
 			   IFNAMSIZ))
 		return -EFAULT;
-	if (__get_user(data32, &u_ifreq32->ifr_ifru.ifru_data))
+	if (get_user(data32, &u_ifreq32->ifr_ifru.ifru_data))
 		return -EFAULT;
 	data64 = compat_ptr(data32);
 
 	u_ifreq64 = compat_alloc_user_space(sizeof(*u_ifreq64));
 
-	/* Don't check these user accesses, just let that get trapped
-	 * in the ioctl handler instead.
-	 */
 	if (copy_to_user(&u_ifreq64->ifr_ifrn.ifrn_name[0], &tmp_buf[0],
 			 IFNAMSIZ))
 		return -EFAULT;
-	if (__put_user(data64, &u_ifreq64->ifr_ifru.ifru_data))
+	if (put_user(data64, &u_ifreq64->ifr_ifru.ifru_data))
 		return -EFAULT;
 
 	return dev_ioctl(net, cmd, u_ifreq64);
@@ -3109,27 +3103,6 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 			err = -EFAULT;
 	}
 	return err;
-}
-
-static int compat_siocshwtstamp(struct net *net, struct compat_ifreq __user *uifr32)
-{
-	void __user *uptr;
-	compat_uptr_t uptr32;
-	struct ifreq __user *uifr;
-
-	uifr = compat_alloc_user_space(sizeof(*uifr));
-	if (copy_in_user(uifr, uifr32, sizeof(struct compat_ifreq)))
-		return -EFAULT;
-
-	if (get_user(uptr32, &uifr32->ifr_data))
-		return -EFAULT;
-
-	uptr = compat_ptr(uptr32);
-
-	if (put_user(uptr, &uifr->ifr_data))
-		return -EFAULT;
-
-	return dev_ioctl(net, SIOCSHWTSTAMP, uifr);
 }
 
 struct rtentry32 {
@@ -3243,7 +3216,7 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	struct net *net = sock_net(sk);
 
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15))
-		return siocdevprivate_ioctl(net, cmd, argp);
+		return compat_ifr_data_ioctl(net, cmd, argp);
 
 	switch (cmd) {
 	case SIOCSIFBR:
@@ -3263,8 +3236,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCBONDENSLAVE:
 	case SIOCBONDRELEASE:
 	case SIOCBONDSETHWADDR:
-	case SIOCBONDSLAVEINFOQUERY:
-	case SIOCBONDINFOQUERY:
 	case SIOCBONDCHANGEACTIVE:
 		return bond_ioctl(net, cmd, argp);
 	case SIOCADDRT:
@@ -3274,8 +3245,11 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 		return do_siocgstamp(net, sock, cmd, argp);
 	case SIOCGSTAMPNS:
 		return do_siocgstampns(net, sock, cmd, argp);
+	case SIOCBONDSLAVEINFOQUERY:
+	case SIOCBONDINFOQUERY:
 	case SIOCSHWTSTAMP:
-		return compat_siocshwtstamp(net, argp);
+	case SIOCGHWTSTAMP:
+		return compat_ifr_data_ioctl(net, cmd, argp);
 
 	case FIOSETOWN:
 	case SIOCSPGRP:

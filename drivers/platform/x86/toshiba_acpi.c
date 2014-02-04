@@ -54,10 +54,8 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/i8042.h>
-
+#include <linux/acpi.h>
 #include <asm/uaccess.h>
-
-#include <acpi/acpi_drivers.h>
 
 MODULE_AUTHOR("John Belmonte");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Extras Driver");
@@ -151,6 +149,7 @@ static const struct acpi_device_id toshiba_device_ids[] = {
 MODULE_DEVICE_TABLE(acpi, toshiba_device_ids);
 
 static const struct key_entry toshiba_acpi_keymap[] = {
+	{ KE_KEY, 0x9e, { KEY_RFKILL } },
 	{ KE_KEY, 0x101, { KEY_MUTE } },
 	{ KE_KEY, 0x102, { KEY_ZOOMOUT } },
 	{ KE_KEY, 0x103, { KEY_ZOOMIN } },
@@ -975,10 +974,8 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	u32 hci_result;
 
 	dev->hotkey_dev = input_allocate_device();
-	if (!dev->hotkey_dev) {
-		pr_info("Unable to register input device\n");
+	if (!dev->hotkey_dev)
 		return -ENOMEM;
-	}
 
 	dev->hotkey_dev->name = "Toshiba input device";
 	dev->hotkey_dev->phys = "toshiba_acpi/input0";

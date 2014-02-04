@@ -84,7 +84,7 @@
 #define EEH_MAX_FAILS	2100000
 
 /* Time to wait for a PCI slot to report status, in milliseconds */
-#define PCI_BUS_RESET_WAIT_MSEC (60*1000)
+#define PCI_BUS_RESET_WAIT_MSEC (5*60*1000)
 
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
@@ -686,6 +686,15 @@ void eeh_save_bars(struct eeh_dev *edev)
 
 	for (i = 0; i < 16; i++)
 		eeh_ops->read_config(dn, i * 4, 4, &edev->config_space[i]);
+
+	/*
+	 * For PCI bridges including root port, we need enable bus
+	 * master explicitly. Otherwise, it can't fetch IODA table
+	 * entries correctly. So we cache the bit in advance so that
+	 * we can restore it after reset, either PHB range or PE range.
+	 */
+	if (edev->mode & EEH_DEV_BRIDGE)
+		edev->config_space[1] |= PCI_COMMAND_MASTER;
 }
 
 /**
@@ -912,6 +921,13 @@ void eeh_add_device_late(struct pci_dev *dev)
 		eeh_sysfs_remove_device(edev->pdev);
 		edev->mode &= ~EEH_DEV_SYSFS;
 
+		/*
+		 * We definitely should have the PCI device removed
+		 * though it wasn't correctly. So we needn't call
+		 * into error handler afterwards.
+		 */
+		edev->mode |= EEH_DEV_NO_HANDLER;
+
 		edev->pdev = NULL;
 		dev->dev.archdata.edev = NULL;
 	}
@@ -1013,6 +1029,14 @@ void eeh_remove_device(struct pci_dev *dev)
 		eeh_rmv_from_parent_pe(edev);
 	else
 		edev->mode |= EEH_DEV_DISCONNECTED;
+
+	/*
+	 * We're removing from the PCI subsystem, that means
+	 * the PCI device driver can't support EEH or not
+	 * well. So we rely on hotplug completely to do recovery
+	 * for the specific PCI device.
+	 */
+	edev->mode |= EEH_DEV_NO_HANDLER;
 
 	eeh_addr_cache_rmv_dev(dev);
 	eeh_sysfs_remove_device(dev);

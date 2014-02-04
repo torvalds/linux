@@ -168,7 +168,7 @@ config INPUT_MAX8997_HAPTIC
 
 config INPUT_MC13783_PWRBUTTON
 	tristate "MC13783 ON buttons"
-	depends on MFD_MC13783
+	depends on MFD_MC13XXX
 	help
 	  Support the ON buttons of MC13783 PMIC as an input device
 	  reporting power button status.
@@ -221,6 +221,15 @@ config INPUT_GP2A
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap002a00f.
+
+config INPUT_GPIO_BEEPER
+	tristate "Generic GPIO Beeper support"
+	depends on OF_GPIO
+	help
+	  Say Y here if you have a beeper connected to a GPIO pin.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio-beeper.
 
 config INPUT_GPIO_TILT_POLLED
 	tristate "Polled GPIO tilt switch"

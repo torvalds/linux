@@ -200,9 +200,8 @@ static void rsnd_dma_do_work(struct work_struct *work)
 			return;
 		}
 
+		dma_async_issue_pending(dma->chan);
 	}
-
-	dma_async_issue_pending(dma->chan);
 }
 
 int rsnd_dma_available(struct rsnd_dma *dma)
@@ -288,15 +287,13 @@ int rsnd_dai_connect(struct rsnd_dai *rdai,
 		     struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	if (!mod) {
-		dev_err(dev, "NULL mod\n");
+	if (!mod)
 		return -EIO;
-	}
 
 	if (!list_empty(&mod->list)) {
+		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+		struct device *dev = rsnd_priv_to_dev(priv);
+
 		dev_err(dev, "%s%d is not empty\n",
 			rsnd_mod_name(mod),
 			rsnd_mod_id(mod));
@@ -631,12 +628,6 @@ static struct snd_pcm_hardware rsnd_pcm_hardware = {
 			SNDRV_PCM_INFO_MMAP		|
 			SNDRV_PCM_INFO_MMAP_VALID	|
 			SNDRV_PCM_INFO_PAUSE,
-	.formats		= RSND_FMTS,
-	.rates			= RSND_RATES,
-	.rate_min		= 8000,
-	.rate_max		= 192000,
-	.channels_min		= 2,
-	.channels_max		= 2,
 	.buffer_bytes_max	= 64 * 1024,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 8192,

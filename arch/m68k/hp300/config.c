@@ -14,6 +14,8 @@
 #include <linux/console.h>
 
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-hp300.h>
+#include <asm/byteorder.h>
 #include <asm/machdep.h>
 #include <asm/blinken.h>
 #include <asm/io.h>                               /* readb() and writeb() */
@@ -70,15 +72,15 @@ extern int hp300_setup_serial_console(void) __init;
 int __init hp300_parse_bootinfo(const struct bi_record *record)
 {
 	int unknown = 0;
-	const unsigned long *data = record->data;
+	const void *data = record->data;
 
-	switch (record->tag) {
+	switch (be16_to_cpu(record->tag)) {
 	case BI_HP300_MODEL:
-		hp300_model = *data;
+		hp300_model = be32_to_cpup(data);
 		break;
 
 	case BI_HP300_UART_SCODE:
-		hp300_uart_scode = *data;
+		hp300_uart_scode = be32_to_cpup(data);
 		break;
 
 	case BI_HP300_UART_ADDR:

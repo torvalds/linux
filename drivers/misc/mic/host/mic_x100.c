@@ -174,35 +174,38 @@ static void mic_x100_send_intr(struct mic_device *mdev, int doorbell)
 }
 
 /**
- * mic_ack_interrupt - Device specific interrupt handling.
- * @mdev: pointer to mic_device instance
+ * mic_x100_ack_interrupt - Read the interrupt sources register and
+ * clear it. This function will be called in the MSI/INTx case.
+ * @mdev: Pointer to mic_device instance.
  *
- * Returns: bitmask of doorbell events triggered.
+ * Returns: bitmask of interrupt sources triggered.
  */
 static u32 mic_x100_ack_interrupt(struct mic_device *mdev)
 {
-	u32 reg = 0;
-	struct mic_mw *mw = &mdev->mmio;
 	u32 sicr0 = MIC_X100_SBOX_BASE_ADDRESS + MIC_X100_SBOX_SICR0;
+	u32 reg = mic_mmio_read(&mdev->mmio, sicr0);
+	mic_mmio_write(&mdev->mmio, reg, sicr0);
+	return reg;
+}
+
+/**
+ * mic_x100_intr_workarounds - These hardware specific workarounds are
+ * to be invoked everytime an interrupt is handled.
+ * @mdev: Pointer to mic_device instance.
+ *
+ * Returns: none
+ */
+static void mic_x100_intr_workarounds(struct mic_device *mdev)
+{
+	struct mic_mw *mw = &mdev->mmio;
 
 	/* Clear pending bit array. */
 	if (MIC_A0_STEP == mdev->stepping)
 		mic_mmio_write(mw, 1, MIC_X100_SBOX_BASE_ADDRESS +
 			MIC_X100_SBOX_MSIXPBACR);
 
-	if (mdev->irq_info.num_vectors <= 1) {
-		reg = mic_mmio_read(mw, sicr0);
-
-		if (unlikely(!reg))
-			goto done;
-
-		mic_mmio_write(mw, reg, sicr0);
-	}
-
 	if (mdev->stepping >= MIC_B0_STEP)
 		mdev->intr_ops->enable_interrupts(mdev);
-done:
-	return reg;
 }
 
 /**
@@ -397,8 +400,8 @@ mic_x100_load_ramdisk(struct mic_device *mdev)
 	 * so copy over the ramdisk @ 128M.
 	 */
 	memcpy_toio(mdev->aper.va + (mdev->bootaddr << 1), fw->data, fw->size);
-	iowrite32(cpu_to_le32(mdev->bootaddr << 1), &bp->hdr.ramdisk_image);
-	iowrite32(cpu_to_le32(fw->size), &bp->hdr.ramdisk_size);
+	iowrite32(mdev->bootaddr << 1, &bp->hdr.ramdisk_image);
+	iowrite32(fw->size, &bp->hdr.ramdisk_size);
 	release_firmware(fw);
 error:
 	return rc;
@@ -553,6 +556,7 @@ struct mic_hw_ops mic_x100_ops = {
 	.write_spad = mic_x100_write_spad,
 	.send_intr = mic_x100_send_intr,
 	.ack_interrupt = mic_x100_ack_interrupt,
+	.intr_workarounds = mic_x100_intr_workarounds,
 	.reset = mic_x100_hw_reset,
 	.reset_fw_ready = mic_x100_reset_fw_ready,
 	.is_fw_ready = mic_x100_is_fw_ready,

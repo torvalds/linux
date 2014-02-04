@@ -488,11 +488,17 @@ static bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
  * This function completes the current buffer by filling its sequence number,
  * time stamp and payload size, and hands it back to the videobuf core.
  *
+ * When operating in DU output mode (deep pipeline to the DU through the LIF),
+ * the VSP1 needs to constantly supply frames to the display. In that case, if
+ * no other buffer is queued, reuse the one that has just been processed instead
+ * of handing it back to the videobuf core.
+ *
  * Return the next queued buffer or NULL if the queue is empty.
  */
 static struct vsp1_video_buffer *
 vsp1_video_complete_buffer(struct vsp1_video *video)
 {
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
 	struct vsp1_video_buffer *next = NULL;
 	struct vsp1_video_buffer *done;
 	unsigned long flags;
@@ -507,6 +513,13 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 
 	done = list_first_entry(&video->irqqueue,
 				struct vsp1_video_buffer, queue);
+
+	/* In DU output mode reuse the buffer if the list is singular. */
+	if (pipe->lif && list_is_singular(&video->irqqueue)) {
+		spin_unlock_irqrestore(&video->irqlock, flags);
+		return done;
+	}
+
 	list_del(&done->queue);
 
 	if (!list_empty(&video->irqqueue))
@@ -1026,8 +1039,10 @@ int vsp1_video_init(struct vsp1_video *video, struct vsp1_entity *rwpf)
 
 	/* ... and the buffers queue... */
 	video->alloc_ctx = vb2_dma_contig_init_ctx(video->vsp1->dev);
-	if (IS_ERR(video->alloc_ctx))
+	if (IS_ERR(video->alloc_ctx)) {
+		ret = PTR_ERR(video->alloc_ctx);
 		goto error;
+	}
 
 	video->queue.type = video->type;
 	video->queue.io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;

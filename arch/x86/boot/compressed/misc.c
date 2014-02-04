@@ -112,14 +112,8 @@ struct boot_params *real_mode;		/* Pointer to real-mode data */
 void *memset(void *s, int c, size_t n);
 void *memcpy(void *dest, const void *src, size_t n);
 
-#ifdef CONFIG_X86_64
-#define memptr long
-#else
-#define memptr unsigned
-#endif
-
-static memptr free_mem_ptr;
-static memptr free_mem_end_ptr;
+memptr free_mem_ptr;
+memptr free_mem_end_ptr;
 
 static char *vidmem;
 static int vidport;
@@ -395,7 +389,7 @@ static void parse_elf(void *output)
 	free(phdrs);
 }
 
-asmlinkage void decompress_kernel(void *rmode, memptr heap,
+asmlinkage void *decompress_kernel(void *rmode, memptr heap,
 				  unsigned char *input_data,
 				  unsigned long input_len,
 				  unsigned char *output,
@@ -422,6 +416,10 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
 
+	output = choose_kernel_location(input_data, input_len,
+					output, output_len);
+
+	/* Validate memory location choices. */
 	if ((unsigned long)output & (MIN_KERNEL_ALIGN - 1))
 		error("Destination address inappropriately aligned");
 #ifdef CONFIG_X86_64
@@ -441,5 +439,5 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 	parse_elf(output);
 	handle_relocations(output, output_len);
 	debug_putstr("done.\nBooting the kernel.\n");
-	return;
+	return output;
 }

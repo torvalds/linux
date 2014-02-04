@@ -61,7 +61,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, struct radeon_vm *vm,
 		  unsigned size)
 {
-	int i, r;
+	int r;
 
 	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &ib->sa_bo, size, 256, true);
 	if (r) {
@@ -87,8 +87,6 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
 	}
 	ib->is_const_ib = false;
-	for (i = 0; i < RADEON_NUM_RINGS; ++i)
-		ib->sync_to[i] = NULL;
 
 	return 0;
 }
@@ -106,25 +104,6 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_semaphore_free(rdev, &ib->semaphore, ib->fence);
 	radeon_sa_bo_free(rdev, &ib->sa_bo, ib->fence);
 	radeon_fence_unref(&ib->fence);
-}
-
-/**
- * radeon_ib_sync_to - sync to fence before executing the IB
- *
- * @ib: IB object to add fence to
- * @fence: fence to sync to
- *
- * Sync to the fence before executing the IB
- */
-void radeon_ib_sync_to(struct radeon_ib *ib, struct radeon_fence *fence)
-{
-	struct radeon_fence *other;
-
-	if (!fence)
-		return;
-
-	other = ib->sync_to[fence->ring];
-	ib->sync_to[fence->ring] = radeon_fence_later(fence, other);
 }
 
 /**
@@ -151,8 +130,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		       struct radeon_ib *const_ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
-	bool need_sync = false;
-	int i, r = 0;
+	int r = 0;
 
 	if (!ib->length_dw || !ring->ready) {
 		/* TODO: Nothings in the ib we should report. */
@@ -166,19 +144,15 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		dev_err(rdev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		struct radeon_fence *fence = ib->sync_to[i];
-		if (radeon_fence_need_sync(fence, ib->ring)) {
-			need_sync = true;
-			radeon_semaphore_sync_rings(rdev, ib->semaphore,
-						    fence->ring, ib->ring);
-			radeon_fence_note_sync(fence, ib->ring);
-		}
+
+	/* sync with other rings */
+	r = radeon_semaphore_sync_rings(rdev, ib->semaphore, ib->ring);
+	if (r) {
+		dev_err(rdev->dev, "failed to sync rings (%d)\n", r);
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
 	}
-	/* immediately free semaphore when we don't need to sync */
-	if (!need_sync) {
-		radeon_semaphore_free(rdev, &ib->semaphore, NULL);
-	}
+
 	/* if we can't remember our last VM flush then flush now! */
 	/* XXX figure out why we have to flush for every IB */
 	if (ib->vm /*&& !ib->vm->last_flush*/) {
@@ -358,36 +332,6 @@ bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
 	}
 }
 
-u32 radeon_ring_generic_get_rptr(struct radeon_device *rdev,
-				 struct radeon_ring *ring)
-{
-	u32 rptr;
-
-	if (rdev->wb.enabled)
-		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
-	else
-		rptr = RREG32(ring->rptr_reg);
-
-	return rptr;
-}
-
-u32 radeon_ring_generic_get_wptr(struct radeon_device *rdev,
-				 struct radeon_ring *ring)
-{
-	u32 wptr;
-
-	wptr = RREG32(ring->wptr_reg);
-
-	return wptr;
-}
-
-void radeon_ring_generic_set_wptr(struct radeon_device *rdev,
-				  struct radeon_ring *ring)
-{
-	WREG32(ring->wptr_reg, ring->wptr);
-	(void)RREG32(ring->wptr_reg);
-}
-
 /**
  * radeon_ring_free_size - update the free size
  *
@@ -489,7 +433,7 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 	while (ring->wptr & ring->align_mask) {
 		radeon_ring_write(ring, ring->nop);
 	}
-	DRM_MEMORYBARRIER();
+	mb();
 	radeon_ring_set_wptr(rdev, ring);
 }
 
@@ -715,22 +659,18 @@ int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
  * @ring: radeon_ring structure holding ring information
  * @ring_size: size of the ring
  * @rptr_offs: offset of the rptr writeback location in the WB buffer
- * @rptr_reg: MMIO offset of the rptr register
- * @wptr_reg: MMIO offset of the wptr register
  * @nop: nop packet for this ring
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
  */
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
-		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg, u32 nop)
+		     unsigned rptr_offs, u32 nop)
 {
 	int r;
 
 	ring->ring_size = ring_size;
 	ring->rptr_offs = rptr_offs;
-	ring->rptr_reg = rptr_reg;
-	ring->wptr_reg = wptr_reg;
 	ring->nop = nop;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
@@ -816,34 +756,54 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	struct radeon_device *rdev = dev->dev_private;
 	int ridx = *(int*)node->info_ent->data;
 	struct radeon_ring *ring = &rdev->ring[ridx];
+
+	uint32_t rptr, wptr, rptr_next;
 	unsigned count, i, j;
-	u32 tmp;
 
 	radeon_ring_free_size(rdev, ring);
 	count = (ring->ring_size / 4) - ring->ring_free_dw;
-	tmp = radeon_ring_get_wptr(rdev, ring);
-	seq_printf(m, "wptr(0x%04x): 0x%08x [%5d]\n", ring->wptr_reg, tmp, tmp);
-	tmp = radeon_ring_get_rptr(rdev, ring);
-	seq_printf(m, "rptr(0x%04x): 0x%08x [%5d]\n", ring->rptr_reg, tmp, tmp);
+
+	wptr = radeon_ring_get_wptr(rdev, ring);
+	seq_printf(m, "wptr: 0x%08x [%5d]\n",
+		   wptr, wptr);
+
+	rptr = radeon_ring_get_rptr(rdev, ring);
+	seq_printf(m, "rptr: 0x%08x [%5d]\n",
+		   rptr, rptr);
+
 	if (ring->rptr_save_reg) {
-		seq_printf(m, "rptr next(0x%04x): 0x%08x\n", ring->rptr_save_reg,
-			   RREG32(ring->rptr_save_reg));
-	}
-	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n", ring->wptr, ring->wptr);
-	seq_printf(m, "driver's copy of the rptr: 0x%08x [%5d]\n", ring->rptr, ring->rptr);
-	seq_printf(m, "last semaphore signal addr : 0x%016llx\n", ring->last_semaphore_signal_addr);
-	seq_printf(m, "last semaphore wait addr   : 0x%016llx\n", ring->last_semaphore_wait_addr);
+		rptr_next = RREG32(ring->rptr_save_reg);
+		seq_printf(m, "rptr next(0x%04x): 0x%08x [%5d]\n",
+			   ring->rptr_save_reg, rptr_next, rptr_next);
+	} else
+		rptr_next = ~0;
+
+	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n",
+		   ring->wptr, ring->wptr);
+	seq_printf(m, "driver's copy of the rptr: 0x%08x [%5d]\n",
+		   ring->rptr, ring->rptr);
+	seq_printf(m, "last semaphore signal addr : 0x%016llx\n",
+		   ring->last_semaphore_signal_addr);
+	seq_printf(m, "last semaphore wait addr   : 0x%016llx\n",
+		   ring->last_semaphore_wait_addr);
 	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
 	seq_printf(m, "%u dwords in ring\n", count);
+
+	if (!ring->ready)
+		return 0;
+
 	/* print 8 dw before current rptr as often it's the last executed
 	 * packet that is the root issue
 	 */
-	i = (ring->rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
-	if (ring->ready) {
-		for (j = 0; j <= (count + 32); j++) {
-			seq_printf(m, "r[%5d]=0x%08x\n", i, ring->ring[i]);
-			i = (i + 1) & ring->ptr_mask;
-		}
+	i = (rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
+	for (j = 0; j <= (count + 32); j++) {
+		seq_printf(m, "r[%5d]=0x%08x", i, ring->ring[i]);
+		if (rptr == i)
+			seq_puts(m, " *");
+		if (rptr_next == i)
+			seq_puts(m, " #");
+		seq_puts(m, "\n");
+		i = (i + 1) & ring->ptr_mask;
 	}
 	return 0;
 }

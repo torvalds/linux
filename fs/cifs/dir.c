@@ -193,7 +193,7 @@ check_name(struct dentry *direntry)
 static int
 cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	       struct tcon_link *tlink, unsigned oflags, umode_t mode,
-	       __u32 *oplock, struct cifs_fid *fid, int *created)
+	       __u32 *oplock, struct cifs_fid *fid)
 {
 	int rc = -ENOENT;
 	int create_options = CREATE_NOT_DIR;
@@ -349,7 +349,6 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 				.device	= 0,
 		};
 
-		*created |= FILE_CREATED;
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 			args.uid = current_fsuid();
 			if (inode->i_mode & S_ISGID)
@@ -480,12 +479,15 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	cifs_add_pending_open(&fid, tlink, &open);
 
 	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
-			    &oplock, &fid, opened);
+			    &oplock, &fid);
 
 	if (rc) {
 		cifs_del_pending_open(&open);
 		goto out;
 	}
+
+	if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
+		*opened |= FILE_CREATED;
 
 	rc = finish_open(file, direntry, generic_file_open, opened);
 	if (rc) {
@@ -529,7 +531,6 @@ int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 	struct TCP_Server_Info *server;
 	struct cifs_fid fid;
 	__u32 oplock;
-	int created = FILE_CREATED;
 
 	cifs_dbg(FYI, "cifs_create parent inode = 0x%p name is: %s and dentry = 0x%p\n",
 		 inode, direntry->d_name.name, direntry);
@@ -546,7 +547,7 @@ int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 		server->ops->new_lease_key(&fid);
 
 	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
-			    &oplock, &fid, &created);
+			    &oplock, &fid);
 	if (!rc && server->ops->close)
 		server->ops->close(xid, tcon, &fid);
 
@@ -564,12 +565,13 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	int create_options = CREATE_NOT_DIR | CREATE_OPTION_SPECIAL;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
 	struct cifs_io_parms io_parms;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 	int oplock = 0;
-	u16 fileHandle;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 	FILE_ALL_INFO *buf = NULL;
 	unsigned int bytes_written;
 	struct win_dev *pdev;
@@ -582,7 +584,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
 
-	pTcon = tlink_tcon(tlink);
+	tcon = tlink_tcon(tlink);
 
 	xid = get_xid();
 
@@ -592,7 +594,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 		goto mknod_out;
 	}
 
-	if (pTcon->unix_ext) {
+	if (tcon->unix_ext) {
 		struct cifs_unix_set_info_args args = {
 			.mode	= mode & ~current_umask(),
 			.ctime	= NO_CHANGE_64,
@@ -607,7 +609,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 			args.uid = INVALID_UID; /* no change */
 			args.gid = INVALID_GID; /* no change */
 		}
-		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, &args,
+		rc = CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
 					    cifs_sb->local_nls,
 					    cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -639,42 +641,44 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
-	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_CREATE,
-			 GENERIC_WRITE, create_options,
-			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = GENERIC_WRITE;
+	oparms.create_options = create_options;
+	oparms.disposition = FILE_CREATE;
+	oparms.path = full_path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, buf);
 	if (rc)
 		goto mknod_out;
 
-	/* BB Do not bother to decode buf since no local inode yet to put
-	 * timestamps in, but we can reuse it safely */
+	/*
+	 * BB Do not bother to decode buf since no local inode yet to put
+	 * timestamps in, but we can reuse it safely.
+	 */
 
 	pdev = (struct win_dev *)buf;
-	io_parms.netfid = fileHandle;
+	io_parms.netfid = fid.netfid;
 	io_parms.pid = current->tgid;
-	io_parms.tcon = pTcon;
+	io_parms.tcon = tcon;
 	io_parms.offset = 0;
 	io_parms.length = sizeof(struct win_dev);
 	if (S_ISCHR(mode)) {
 		memcpy(pdev->type, "IntxCHR", 8);
-		pdev->major =
-		      cpu_to_le64(MAJOR(device_number));
-		pdev->minor =
-		      cpu_to_le64(MINOR(device_number));
-		rc = CIFSSMBWrite(xid, &io_parms,
-			&bytes_written, (char *)pdev,
-			NULL, 0);
+		pdev->major = cpu_to_le64(MAJOR(device_number));
+		pdev->minor = cpu_to_le64(MINOR(device_number));
+		rc = CIFSSMBWrite(xid, &io_parms, &bytes_written, (char *)pdev,
+				  NULL, 0);
 	} else if (S_ISBLK(mode)) {
 		memcpy(pdev->type, "IntxBLK", 8);
-		pdev->major =
-		      cpu_to_le64(MAJOR(device_number));
-		pdev->minor =
-		      cpu_to_le64(MINOR(device_number));
-		rc = CIFSSMBWrite(xid, &io_parms,
-			&bytes_written, (char *)pdev,
-			NULL, 0);
+		pdev->major = cpu_to_le64(MAJOR(device_number));
+		pdev->minor = cpu_to_le64(MINOR(device_number));
+		rc = CIFSSMBWrite(xid, &io_parms, &bytes_written, (char *)pdev,
+				  NULL, 0);
 	} /* else if (S_ISFIFO) */
-	CIFSSMBClose(xid, pTcon, fileHandle);
+	CIFSSMBClose(xid, tcon, fid.netfid);
 	d_drop(direntry);
 
 	/* FIXME: add code here to set EAs */

@@ -17,8 +17,12 @@
 #ifndef _BRCMF_BUS_H_
 #define _BRCMF_BUS_H_
 
+#include "dhd_dbg.h"
+
 /* The level of bus communication with the dongle */
 enum brcmf_bus_state {
+	BRCMF_BUS_UNKNOWN,	/* Not determined yet */
+	BRCMF_BUS_NOMEDIUM,	/* No medium access to dongle */
 	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
 	BRCMF_BUS_LOAD,		/* Download access only (CPU reset) */
 	BRCMF_BUS_DATA		/* Ready for frame transfers */
@@ -144,6 +148,23 @@ struct pktq *brcmf_bus_gettxq(struct brcmf_bus *bus)
 
 	return bus->ops->gettxq(bus->dev);
 }
+
+static inline bool brcmf_bus_ready(struct brcmf_bus *bus)
+{
+	return bus->state == BRCMF_BUS_LOAD || bus->state == BRCMF_BUS_DATA;
+}
+
+static inline void brcmf_bus_change_state(struct brcmf_bus *bus,
+					  enum brcmf_bus_state new_state)
+{
+	/* NOMEDIUM is permanent */
+	if (bus->state == BRCMF_BUS_NOMEDIUM)
+		return;
+
+	brcmf_dbg(TRACE, "%d -> %d\n", bus->state, new_state);
+	bus->state = new_state;
+}
+
 /*
  * interface functions from common layer
  */

@@ -341,8 +341,7 @@ static void deinterlace_issue_dma(struct deinterlace_ctx *ctx, int op,
 	ctx->xt->dir = DMA_MEM_TO_MEM;
 	ctx->xt->src_sgl = false;
 	ctx->xt->dst_sgl = true;
-	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT |
-		DMA_COMPL_SKIP_DEST_UNMAP | DMA_COMPL_SKIP_SRC_UNMAP;
+	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 
 	tx = dmadev->device_prep_interleaved_dma(chan, ctx->xt, flags);
 	if (tx == NULL) {
@@ -919,7 +918,7 @@ static int deinterlace_open(struct file *file)
 		return ret;
 	}
 
-	ctx->xt = kzalloc(sizeof(struct dma_async_tx_descriptor) +
+	ctx->xt = kzalloc(sizeof(struct dma_interleaved_template) +
 				sizeof(struct data_chunk), GFP_KERNEL);
 	if (!ctx->xt) {
 		kfree(ctx);

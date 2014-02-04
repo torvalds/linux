@@ -12,7 +12,7 @@
 
 / {
 	cpus {
-		cpu@0 {
+		cpu0: cpu@0 {
 			/* OMAP443x variants OPP50-OPPNT */
 			operating-points = <
 				/* kHz    uV */
@@ -22,12 +22,27 @@
 				1008000 1375000
 			>;
 			clock-latency = <300000>; /* From legacy driver */
+
+			/* cooling options */
+			cooling-min-level = <0>;
+			cooling-max-level = <3>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
 
-	bandgap {
-		reg = <0x4a002260 0x4
-		       0x4a00232C 0x4>;
-		compatible = "ti,omap4430-bandgap";
+	thermal-zones {
+		#include "omap4-cpu-thermal.dtsi"
+	};
+
+	ocp {
+		bandgap: bandgap {
+			reg = <0x4a002260 0x4
+			       0x4a00232C 0x4>;
+			compatible = "ti,omap4430-bandgap";
+
+			#thermal-sensor-cells = <0>;
+		};
 	};
 };
+
+/include/ "omap443x-clocks.dtsi"

@@ -10,7 +10,7 @@
 
 /dts-v1/;
 #include "exynos5250.dtsi"
-#include "cros5250-common.dtsi"
+#include "exynos5250-cros-common.dtsi"
 
 / {
 	model = "Google Snow";
@@ -85,7 +85,7 @@
 				        keypad,num-rows = <8>;
 				        keypad,num-columns = <13>;
 				        google,needs-ghost-filter;
-					linux,keymap = <0x0001003a	/* CAPSLK */
+					linux,keymap = <0x0001007d	/* L_META */
 							0x0002003b	/* F1 */
 							0x00030030	/* B */
 							0x00040044	/* F10 */
@@ -130,6 +130,7 @@
 							0x04060024	/* J */
 							0x04080027	/* ; */
 							0x04090026	/* L */
+							0x040a002b	/* \ */
 							0x040b001c	/* ENTER */
 
 							0x0501002c	/* Z */
@@ -171,11 +172,20 @@
 		};
 	};
 
+	mmc@12200000 {
+		status = "okay";
+	};
+
+	mmc@12220000 {
+		status = "okay";
+	};
+
 	/*
 	 * On Snow we've got SIP WiFi and so can keep drive strengths low to
 	 * reduce EMI.
 	 */
-	dwmmc3@12230000 {
+	mmc@12230000 {
+		status = "okay";
 		slot@0 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&sd3_clk &sd3_cmd &sd3_bus4>;

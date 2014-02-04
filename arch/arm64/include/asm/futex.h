@@ -30,6 +30,7 @@
 "	cbnz	%w3, 1b\n"						\
 "3:\n"									\
 "	.pushsection .fixup,\"ax\"\n"					\
+"	.align	2\n"							\
 "4:	mov	%w0, %w5\n"						\
 "	b	3b\n"							\
 "	.popsection\n"							\

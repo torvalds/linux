@@ -356,7 +356,7 @@ static struct clk_lookup dm646x_clks[] = {
 	CLK(NULL, "pwm1", &pwm1_clk),
 	CLK(NULL, "timer0", &timer0_clk),
 	CLK(NULL, "timer1", &timer1_clk),
-	CLK("watchdog", NULL, &timer2_clk),
+	CLK("davinci-wdt", NULL, &timer2_clk),
 	CLK("palm_bk3710", NULL, &ide_clk),
 	CLK(NULL, "vpif0", &vpif0_clk),
 	CLK(NULL, "vpif1", &vpif1_clk),
@@ -621,7 +621,7 @@ static struct platform_device dm646x_edma_device = {
 
 static struct resource dm646x_mcasp0_resources[] = {
 	{
-		.name	= "mcasp0",
+		.name	= "mpu",
 		.start 	= DAVINCI_DM646X_MCASP0_REG_BASE,
 		.end 	= DAVINCI_DM646X_MCASP0_REG_BASE + (SZ_1K << 1) - 1,
 		.flags 	= IORESOURCE_MEM,
@@ -641,7 +641,7 @@ static struct resource dm646x_mcasp0_resources[] = {
 
 static struct resource dm646x_mcasp1_resources[] = {
 	{
-		.name	= "mcasp1",
+		.name	= "mpu",
 		.start	= DAVINCI_DM646X_MCASP1_REG_BASE,
 		.end	= DAVINCI_DM646X_MCASP1_REG_BASE + (SZ_1K << 1) - 1,
 		.flags	= IORESOURCE_MEM,
@@ -763,13 +763,12 @@ static struct resource dm646x_gpio_resources[] = {
 
 static struct davinci_gpio_platform_data dm646x_gpio_platform_data = {
 	.ngpio		= 43,
-	.intc_irq_num	= DAVINCI_N_AINTC_IRQ,
 };
 
 int __init dm646x_gpio_register(void)
 {
 	return davinci_gpio_register(dm646x_gpio_resources,
-				     sizeof(dm646x_gpio_resources),
+				     ARRAY_SIZE(dm646x_gpio_resources),
 				     &dm646x_gpio_platform_data);
 }
 /*----------------------------------------------------------------------*/

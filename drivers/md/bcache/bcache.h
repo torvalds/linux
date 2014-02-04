@@ -187,6 +187,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "bset.h"
 #include "util.h"
 #include "closure.h"
 
@@ -197,7 +198,7 @@ struct bucket {
 	uint8_t		disk_gen;
 	uint8_t		last_gc; /* Most out of date gen in the btree */
 	uint8_t		gc_gen;
-	uint16_t	gc_mark;
+	uint16_t	gc_mark; /* Bitfield used by GC. See below for field */
 };
 
 /*
@@ -209,7 +210,8 @@ BITMASK(GC_MARK,	 struct bucket, gc_mark, 0, 2);
 #define GC_MARK_RECLAIMABLE	0
 #define GC_MARK_DIRTY		1
 #define GC_MARK_METADATA	2
-BITMASK(GC_SECTORS_USED, struct bucket, gc_mark, 2, 14);
+BITMASK(GC_SECTORS_USED, struct bucket, gc_mark, 2, 13);
+BITMASK(GC_MOVE, struct bucket, gc_mark, 15, 1);
 
 #include "journal.h"
 #include "stats.h"
@@ -279,7 +281,6 @@ struct bcache_device {
 	unsigned long		sectors_dirty_last;
 	long			sectors_dirty_derivative;
 
-	mempool_t		*unaligned_bvec;
 	struct bio_set		*bio_split;
 
 	unsigned		data_csum:1;
@@ -309,7 +310,8 @@ struct cached_dev {
 	struct cache_sb		sb;
 	struct bio		sb_bio;
 	struct bio_vec		sb_bv[1];
-	struct closure_with_waitlist sb_write;
+	struct closure		sb_write;
+	struct semaphore	sb_write_mutex;
 
 	/* Refcount on the cache set. Always nonzero when we're caching. */
 	atomic_t		count;
@@ -372,22 +374,22 @@ struct cached_dev {
 	unsigned char		writeback_percent;
 	unsigned		writeback_delay;
 
-	int			writeback_rate_change;
-	int64_t			writeback_rate_derivative;
 	uint64_t		writeback_rate_target;
+	int64_t			writeback_rate_proportional;
+	int64_t			writeback_rate_derivative;
+	int64_t			writeback_rate_change;
 
 	unsigned		writeback_rate_update_seconds;
 	unsigned		writeback_rate_d_term;
 	unsigned		writeback_rate_p_term_inverse;
-	unsigned		writeback_rate_d_smooth;
 };
 
-enum alloc_watermarks {
-	WATERMARK_PRIO,
-	WATERMARK_METADATA,
-	WATERMARK_MOVINGGC,
-	WATERMARK_NONE,
-	WATERMARK_MAX
+enum alloc_reserve {
+	RESERVE_BTREE,
+	RESERVE_PRIO,
+	RESERVE_MOVINGGC,
+	RESERVE_NONE,
+	RESERVE_NR,
 };
 
 struct cache {
@@ -398,8 +400,6 @@ struct cache {
 
 	struct kobject		kobj;
 	struct block_device	*bdev;
-
-	unsigned		watermark[WATERMARK_MAX];
 
 	struct task_struct	*alloc_thread;
 
@@ -429,7 +429,7 @@ struct cache {
 	 * because all the data they contained was overwritten), so we only
 	 * need to discard them before they can be moved to the free list.
 	 */
-	DECLARE_FIFO(long, free);
+	DECLARE_FIFO(long, free)[RESERVE_NR];
 	DECLARE_FIFO(long, free_inc);
 	DECLARE_FIFO(long, unused);
 
@@ -445,7 +445,6 @@ struct cache {
 	 * call prio_write() to keep gens from wrapping.
 	 */
 	uint8_t			need_save_prio;
-	unsigned		gc_move_threshold;
 
 	/*
 	 * If nonzero, we know we aren't going to find any buckets to invalidate
@@ -515,7 +514,8 @@ struct cache_set {
 	uint64_t		cached_dev_sectors;
 	struct closure		caching;
 
-	struct closure_with_waitlist sb_write;
+	struct closure		sb_write;
+	struct semaphore	sb_write_mutex;
 
 	mempool_t		*search;
 	mempool_t		*bio_meta;
@@ -630,13 +630,15 @@ struct cache_set {
 
 #ifdef CONFIG_BCACHE_DEBUG
 	struct btree		*verify_data;
+	struct bset		*verify_ondisk;
 	struct mutex		verify_lock;
 #endif
 
 	unsigned		nr_uuids;
 	struct uuid_entry	*uuids;
 	BKEY_PADDED(uuid_bucket);
-	struct closure_with_waitlist uuid_write;
+	struct closure		uuid_write;
+	struct semaphore	uuid_write_mutex;
 
 	/*
 	 * A btree node on disk could have too many bsets for an iterator to fit
@@ -644,13 +646,7 @@ struct cache_set {
 	 */
 	mempool_t		*fill_iter;
 
-	/*
-	 * btree_sort() is a merge sort and requires temporary space - single
-	 * element mempool
-	 */
-	struct mutex		sort_lock;
-	struct bset		*sort;
-	unsigned		sort_crit_factor;
+	struct bset_sort_state	sort;
 
 	/* List of buckets we're currently writing data to */
 	struct list_head	data_buckets;
@@ -666,7 +662,6 @@ struct cache_set {
 	unsigned		congested_read_threshold_us;
 	unsigned		congested_write_threshold_us;
 
-	struct time_stats	sort_time;
 	struct time_stats	btree_gc_time;
 	struct time_stats	btree_split_time;
 	struct time_stats	btree_read_time;
@@ -684,9 +679,9 @@ struct cache_set {
 	unsigned		error_decay;
 
 	unsigned short		journal_delay_ms;
+	bool			expensive_debug_checks;
 	unsigned		verify:1;
 	unsigned		key_merging_disabled:1;
-	unsigned		expensive_debug_checks:1;
 	unsigned		gc_always_rewrite:1;
 	unsigned		shrinker_disabled:1;
 	unsigned		copy_gc_enabled:1;
@@ -708,13 +703,8 @@ struct bbio {
 	struct bio		bio;
 };
 
-static inline unsigned local_clock_us(void)
-{
-	return local_clock() >> 10;
-}
-
 #define BTREE_PRIO		USHRT_MAX
-#define INITIAL_PRIO		32768
+#define INITIAL_PRIO		32768U
 
 #define btree_bytes(c)		((c)->btree_pages * PAGE_SIZE)
 #define btree_blocks(b)							\
@@ -726,21 +716,6 @@ static inline unsigned local_clock_us(void)
 #define bucket_pages(c)		((c)->sb.bucket_size / PAGE_SECTORS)
 #define bucket_bytes(c)		((c)->sb.bucket_size << 9)
 #define block_bytes(c)		((c)->sb.block_size << 9)
-
-#define __set_bytes(i, k)	(sizeof(*(i)) + (k) * sizeof(uint64_t))
-#define set_bytes(i)		__set_bytes(i, i->keys)
-
-#define __set_blocks(i, k, c)	DIV_ROUND_UP(__set_bytes(i, k), block_bytes(c))
-#define set_blocks(i, c)	__set_blocks(i, (i)->keys, c)
-
-#define node(i, j)		((struct bkey *) ((i)->d + (j)))
-#define end(i)			node(i, (i)->keys)
-
-#define index(i, b)							\
-	((size_t) (((void *) i - (void *) (b)->sets[0].data) /		\
-		   block_bytes(b->c)))
-
-#define btree_data_space(b)	(PAGE_SIZE << (b)->page_order)
 
 #define prios_per_bucket(c)				\
 	((bucket_bytes(c) - sizeof(struct prio_set)) /	\
@@ -784,12 +759,25 @@ static inline struct bucket *PTR_BUCKET(struct cache_set *c,
 	return PTR_CACHE(c, k, ptr)->buckets + PTR_BUCKET_NR(c, k, ptr);
 }
 
-/* Btree key macros */
-
-static inline void bkey_init(struct bkey *k)
+static inline uint8_t gen_after(uint8_t a, uint8_t b)
 {
-	*k = ZERO_KEY;
+	uint8_t r = a - b;
+	return r > 128U ? 0 : r;
 }
+
+static inline uint8_t ptr_stale(struct cache_set *c, const struct bkey *k,
+				unsigned i)
+{
+	return gen_after(PTR_BUCKET(c, k, i)->gen, PTR_GEN(k, i));
+}
+
+static inline bool ptr_available(struct cache_set *c, const struct bkey *k,
+				 unsigned i)
+{
+	return (PTR_DEV(k, i) < MAX_CACHES_PER_SET) && PTR_CACHE(c, k, i);
+}
+
+/* Btree key macros */
 
 /*
  * This is used for various on disk data structures - cache_sb, prio_set, bset,
@@ -797,7 +785,8 @@ static inline void bkey_init(struct bkey *k)
  */
 #define csum_set(i)							\
 	bch_crc64(((void *) (i)) + sizeof(uint64_t),			\
-	      ((void *) end(i)) - (((void *) (i)) + sizeof(uint64_t)))
+		  ((void *) bset_bkey_last(i)) -			\
+		  (((void *) (i)) + sizeof(uint64_t)))
 
 /* Error handling macros */
 
@@ -902,7 +891,6 @@ void bch_bbio_endio(struct cache_set *, struct bio *, int, const char *);
 void bch_bbio_free(struct bio *, struct cache_set *);
 struct bio *bch_bbio_alloc(struct cache_set *);
 
-struct bio *bch_bio_split(struct bio *, int, gfp_t, struct bio_set *);
 void bch_generic_make_request(struct bio *, struct bio_split_pool *);
 void __bch_submit_bbio(struct bio *, struct cache_set *);
 void bch_submit_bbio(struct bio *, struct cache_set *, struct bkey *, unsigned);

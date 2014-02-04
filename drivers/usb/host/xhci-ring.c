@@ -156,8 +156,6 @@ static void next_trb(struct xhci_hcd *xhci,
  */
 static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
-	unsigned long long addr;
-
 	ring->deq_updates++;
 
 	/*
@@ -186,8 +184,6 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 			ring->dequeue++;
 		}
 	} while (last_trb(xhci, ring, ring->deq_seg, ring->dequeue));
-
-	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->deq_seg, ring->dequeue);
 }
 
 /*
@@ -212,7 +208,6 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 {
 	u32 chain;
 	union xhci_trb *next;
-	unsigned long long addr;
 
 	chain = le32_to_cpu(ring->enqueue->generic.field[3]) & TRB_CHAIN;
 	/* If this is not event ring, there is one less usable TRB */
@@ -264,7 +259,6 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		ring->enqueue = ring->enq_seg->trbs;
 		next = ring->enqueue;
 	}
-	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->enq_seg, ring->enqueue);
 }
 
 /*
@@ -295,9 +289,9 @@ void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 		return;
 
 	xhci_dbg(xhci, "// Ding dong!\n");
-	xhci_writel(xhci, DB_VALUE_HOST, &xhci->dba->doorbell[0]);
+	writel(DB_VALUE_HOST, &xhci->dba->doorbell[0]);
 	/* Flush PCI posted writes */
-	xhci_readl(xhci, &xhci->dba->doorbell[0]);
+	readl(&xhci->dba->doorbell[0]);
 }
 
 static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
@@ -313,14 +307,13 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 		return 0;
 	}
 
-	temp_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+	temp_64 = readq(&xhci->op_regs->cmd_ring);
 	if (!(temp_64 & CMD_RING_RUNNING)) {
 		xhci_dbg(xhci, "Command ring had been stopped\n");
 		return 0;
 	}
 	xhci->cmd_ring_state = CMD_RING_STATE_ABORTED;
-	xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
-			&xhci->op_regs->cmd_ring);
+	writeq(temp_64 | CMD_RING_ABORT, &xhci->op_regs->cmd_ring);
 
 	/* Section 4.6.1.2 of xHCI 1.0 spec says software should
 	 * time the completion od all xHCI commands, including
@@ -427,7 +420,7 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 	if ((ep_state & EP_HALT_PENDING) || (ep_state & SET_DEQ_PENDING) ||
 	    (ep_state & EP_HALTED))
 		return;
-	xhci_writel(xhci, DB_VALUE(ep_index, stream_id), db_addr);
+	writel(DB_VALUE(ep_index, stream_id), db_addr);
 	/* The CPU has better things to do at this point than wait for a
 	 * write-posting flush.  It'll get there soon enough.
 	 */
@@ -1655,7 +1648,7 @@ static void handle_device_notification(struct xhci_hcd *xhci,
 	u32 slot_id;
 	struct usb_device *udev;
 
-	slot_id = TRB_TO_SLOT_ID(event->generic.field[3]);
+	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->generic.field[3]));
 	if (!xhci->devs[slot_id]) {
 		xhci_warn(xhci, "Device Notification event for "
 				"unused slot %u\n", slot_id);
@@ -1739,7 +1732,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	faked_port_index = find_faked_portnum_from_hw_portnum(hcd, xhci,
 			port_id);
 
-	temp = xhci_readl(xhci, port_array[faked_port_index]);
+	temp = readl(port_array[faked_port_index]);
 	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
 		usb_hcd_resume_root_hub(hcd);
@@ -1748,7 +1741,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_RESUME) {
 		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
 
-		temp1 = xhci_readl(xhci, &xhci->op_regs->command);
+		temp1 = readl(&xhci->op_regs->command);
 		if (!(temp1 & CMD_RUN)) {
 			xhci_warn(xhci, "xHC is not running.\n");
 			goto cleanup;
@@ -2831,7 +2824,7 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 
 	spin_lock(&xhci->lock);
 	/* Check if the xHC generated the interrupt, or the irq is shared */
-	status = xhci_readl(xhci, &xhci->op_regs->status);
+	status = readl(&xhci->op_regs->status);
 	if (status == 0xffffffff)
 		goto hw_died;
 
@@ -2853,16 +2846,16 @@ hw_died:
 	 * Write 1 to clear the interrupt status.
 	 */
 	status |= STS_EINT;
-	xhci_writel(xhci, status, &xhci->op_regs->status);
+	writel(status, &xhci->op_regs->status);
 	/* FIXME when MSI-X is supported and there are multiple vectors */
 	/* Clear the MSI-X event interrupt status */
 
 	if (hcd->irq) {
 		u32 irq_pending;
 		/* Acknowledge the PCI interrupt */
-		irq_pending = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+		irq_pending = readl(&xhci->ir_set->irq_pending);
 		irq_pending |= IMAN_IP;
-		xhci_writel(xhci, irq_pending, &xhci->ir_set->irq_pending);
+		writel(irq_pending, &xhci->ir_set->irq_pending);
 	}
 
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
@@ -2871,9 +2864,8 @@ hw_died:
 		/* Clear the event handler busy flag (RW1C);
 		 * the event ring should be empty.
 		 */
-		temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
-		xhci_write_64(xhci, temp_64 | ERST_EHB,
-				&xhci->ir_set->erst_dequeue);
+		temp_64 = readq(&xhci->ir_set->erst_dequeue);
+		writeq(temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
 		spin_unlock(&xhci->lock);
 
 		return IRQ_HANDLED;
@@ -2885,7 +2877,7 @@ hw_died:
 	 */
 	while (xhci_handle_event(xhci) > 0) {}
 
-	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	temp_64 = readq(&xhci->ir_set->erst_dequeue);
 	/* If necessary, update the HW's version of the event ring deq ptr. */
 	if (event_ring_deq != xhci->event_ring->dequeue) {
 		deq = xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,
@@ -2900,7 +2892,7 @@ hw_died:
 
 	/* Clear the event handler busy flag (RW1C); event ring is empty. */
 	temp_64 |= ERST_EHB;
-	xhci_write_64(xhci, temp_64, &xhci->ir_set->erst_dequeue);
+	writeq(temp_64, &xhci->ir_set->erst_dequeue);
 
 	spin_unlock(&xhci->lock);
 
@@ -2973,8 +2965,58 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	}
 
 	while (1) {
-		if (room_on_ring(xhci, ep_ring, num_trbs))
-			break;
+		if (room_on_ring(xhci, ep_ring, num_trbs)) {
+			union xhci_trb *trb = ep_ring->enqueue;
+			unsigned int usable = ep_ring->enq_seg->trbs +
+					TRBS_PER_SEGMENT - 1 - trb;
+			u32 nop_cmd;
+
+			/*
+			 * Section 4.11.7.1 TD Fragments states that a link
+			 * TRB must only occur at the boundary between
+			 * data bursts (eg 512 bytes for 480M).
+			 * While it is possible to split a large fragment
+			 * we don't know the size yet.
+			 * Simplest solution is to fill the trb before the
+			 * LINK with nop commands.
+			 */
+			if (num_trbs == 1 || num_trbs <= usable || usable == 0)
+				break;
+
+			if (ep_ring->type != TYPE_BULK)
+				/*
+				 * While isoc transfers might have a buffer that
+				 * crosses a 64k boundary it is unlikely.
+				 * Since we can't add NOPs without generating
+				 * gaps in the traffic just hope it never
+				 * happens at the end of the ring.
+				 * This could be fixed by writing a LINK TRB
+				 * instead of the first NOP - however the
+				 * TRB_TYPE_LINK_LE32() calls would all need
+				 * changing to check the ring length.
+				 */
+				break;
+
+			if (num_trbs >= TRBS_PER_SEGMENT) {
+				xhci_err(xhci, "Too many fragments %d, max %d\n",
+						num_trbs, TRBS_PER_SEGMENT - 1);
+				return -EINVAL;
+			}
+
+			nop_cmd = cpu_to_le32(TRB_TYPE(TRB_TR_NOOP) |
+					ep_ring->cycle_state);
+			ep_ring->num_trbs_free -= usable;
+			do {
+				trb->generic.field[0] = 0;
+				trb->generic.field[1] = 0;
+				trb->generic.field[2] = 0;
+				trb->generic.field[3] = nop_cmd;
+				trb++;
+			} while (--usable);
+			ep_ring->enqueue = trb;
+			if (room_on_ring(xhci, ep_ring, num_trbs))
+				break;
+		}
 
 		if (ep_ring == xhci->cmd_ring) {
 			xhci_err(xhci, "Do not support expand command ring\n");
@@ -3931,7 +3973,7 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (ret)
 		return ret;
 
-	start_frame = xhci_readl(xhci, &xhci->run_regs->microframe_index);
+	start_frame = readl(&xhci->run_regs->microframe_index);
 	start_frame &= 0x3fff;
 
 	urb->start_frame = start_frame;
@@ -4006,12 +4048,12 @@ int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
 
 /* Queue an address device command TRB */
 int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id)
+			      u32 slot_id, enum xhci_setup_dev setup)
 {
 	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
-			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id),
-			false);
+			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id)
+			| (setup == SETUP_CONTEXT_ONLY ? TRB_BSR : 0), false);
 }
 
 int xhci_queue_vendor_command(struct xhci_hcd *xhci,

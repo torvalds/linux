@@ -573,8 +573,8 @@ config SENSORS_IT87
 	help
 	  If you say yes here you get support for ITE IT8705F, IT8712F,
 	  IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E,
-	  IT8771E, IT8772E, IT8782F, and IT8783E/F sensor chips, and the
-	  SiS950 clone.
+	  IT8771E, IT8772E, IT8782F, IT8783E/F and IT8603E sensor chips,
+	  and the SiS950 clone.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
@@ -650,12 +650,14 @@ config SENSORS_LM73
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on I2C
+	depends on THERMAL || !THERMAL_OF
 	help
 	  If you say yes here you get support for one common type of
 	  temperature sensor chip, with models including:
 
 		- Analog Devices ADT75
 		- Dallas Semiconductor DS75, DS1775 and DS7505
+		- Global Mixed-mode Technology (GMT) G751
 		- Maxim MAX6625 and MAX6626
 		- Microchip MCP980x
 		- National Semiconductor LM75, LM75A
@@ -1284,6 +1286,7 @@ config SENSORS_THMC50
 config SENSORS_TMP102
 	tristate "Texas Instruments TMP102"
 	depends on I2C
+	depends on THERMAL || !THERMAL_OF
 	help
 	  If you say yes here you get support for Texas Instruments TMP102
 	  sensor chips.

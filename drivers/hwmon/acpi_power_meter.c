@@ -30,8 +30,7 @@
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/err.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
+#include <linux/acpi.h>
 
 #define ACPI_POWER_METER_NAME		"power_meter"
 ACPI_MODULE_NAME(ACPI_POWER_METER_NAME);
@@ -602,9 +601,8 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 
 		/* Create a symlink to domain objects */
 		resource->domain_devices[i] = NULL;
-		status = acpi_bus_get_device(element->reference.handle,
-					     &resource->domain_devices[i]);
-		if (ACPI_FAILURE(status))
+		if (acpi_bus_get_device(element->reference.handle,
+					&resource->domain_devices[i]))
 			continue;
 
 		obj = resource->domain_devices[i];

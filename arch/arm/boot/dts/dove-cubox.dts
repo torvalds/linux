@@ -23,7 +23,7 @@
 		power {
 			label = "Power";
 			gpios = <&gpio0 18 1>;
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 	};
 

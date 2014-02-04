@@ -4,6 +4,7 @@
 #include <uapi/linux/ipv6.h>
 
 #define ipv6_optlen(p)  (((p)->hdrlen+1) << 3)
+#define ipv6_authlen(p) (((p)->hdrlen+2) << 2)
 /*
  * This structure contains configuration options per IPv6 link.
  */
@@ -190,7 +191,8 @@ struct ipv6_pinfo {
 	/* sockopt flags */
 	__u16			recverr:1,
 	                        sndflow:1,
-				pmtudisc:2,
+				repflow:1,
+				pmtudisc:3,
 				ipv6only:1,
 				srcprefs:3,	/* 001: prefer temporary address
 						 * 010: prefer public address
@@ -199,7 +201,7 @@ struct ipv6_pinfo {
 				dontfrag:1;
 	__u8			min_hopcount;
 	__u8			tclass;
-	__u8			rcv_tclass;
+	__be32			rcv_flowinfo;
 
 	__u32			dst_cookie;
 	__u32			rx_dst_cookie;
@@ -282,6 +284,8 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 
 #define __ipv6_only_sock(sk)	(inet6_sk(sk)->ipv6only)
 #define ipv6_only_sock(sk)	((sk)->sk_family == PF_INET6 && __ipv6_only_sock(sk))
+#define ipv6_sk_rxinfo(sk)	((sk)->sk_family == PF_INET6 && \
+				 inet6_sk(sk)->rxopt.bits.rxinfo)
 
 static inline const struct in6_addr *inet6_rcv_saddr(const struct sock *sk)
 {
@@ -298,6 +302,7 @@ static inline int inet_v6_ipv6only(const struct sock *sk)
 #else
 #define __ipv6_only_sock(sk)	0
 #define ipv6_only_sock(sk)	0
+#define ipv6_sk_rxinfo(sk)	0
 
 static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 {

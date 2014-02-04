@@ -144,6 +144,11 @@ void radeon_program_register_sequence(struct radeon_device *rdev,
 	}
 }
 
+void radeon_pci_config_reset(struct radeon_device *rdev)
+{
+	pci_write_config_dword(rdev->pdev, 0x7c, RADEON_ASIC_RESET_DATA);
+}
+
 /**
  * radeon_surface_init - Clear GPU surface registers.
  *
@@ -249,30 +254,25 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
  * Init doorbell driver information (CIK)
  * Returns 0 on success, error on failure.
  */
-int radeon_doorbell_init(struct radeon_device *rdev)
+static int radeon_doorbell_init(struct radeon_device *rdev)
 {
-	int i;
-
 	/* doorbell bar mapping */
 	rdev->doorbell.base = pci_resource_start(rdev->pdev, 2);
 	rdev->doorbell.size = pci_resource_len(rdev->pdev, 2);
 
-	/* limit to 4 MB for now */
-	if (rdev->doorbell.size > (4 * 1024 * 1024))
-		rdev->doorbell.size = 4 * 1024 * 1024;
+	rdev->doorbell.num_doorbells = min_t(u32, rdev->doorbell.size / sizeof(u32), RADEON_MAX_DOORBELLS);
+	if (rdev->doorbell.num_doorbells == 0)
+		return -EINVAL;
 
-	rdev->doorbell.ptr = ioremap(rdev->doorbell.base, rdev->doorbell.size);
+	rdev->doorbell.ptr = ioremap(rdev->doorbell.base, rdev->doorbell.num_doorbells * sizeof(u32));
 	if (rdev->doorbell.ptr == NULL) {
 		return -ENOMEM;
 	}
 	DRM_INFO("doorbell mmio base: 0x%08X\n", (uint32_t)rdev->doorbell.base);
 	DRM_INFO("doorbell mmio size: %u\n", (unsigned)rdev->doorbell.size);
 
-	rdev->doorbell.num_pages = rdev->doorbell.size / PAGE_SIZE;
+	memset(&rdev->doorbell.used, 0, sizeof(rdev->doorbell.used));
 
-	for (i = 0; i < rdev->doorbell.num_pages; i++) {
-		rdev->doorbell.free[i] = true;
-	}
 	return 0;
 }
 
@@ -283,47 +283,45 @@ int radeon_doorbell_init(struct radeon_device *rdev)
  *
  * Tear down doorbell driver information (CIK)
  */
-void radeon_doorbell_fini(struct radeon_device *rdev)
+static void radeon_doorbell_fini(struct radeon_device *rdev)
 {
 	iounmap(rdev->doorbell.ptr);
 	rdev->doorbell.ptr = NULL;
 }
 
 /**
- * radeon_doorbell_get - Allocate a doorbell page
+ * radeon_doorbell_get - Allocate a doorbell entry
  *
  * @rdev: radeon_device pointer
- * @doorbell: doorbell page number
+ * @doorbell: doorbell index
  *
- * Allocate a doorbell page for use by the driver (all asics).
+ * Allocate a doorbell for use by the driver (all asics).
  * Returns 0 on success or -EINVAL on failure.
  */
 int radeon_doorbell_get(struct radeon_device *rdev, u32 *doorbell)
 {
-	int i;
-
-	for (i = 0; i < rdev->doorbell.num_pages; i++) {
-		if (rdev->doorbell.free[i]) {
-			rdev->doorbell.free[i] = false;
-			*doorbell = i;
-			return 0;
-		}
+	unsigned long offset = find_first_zero_bit(rdev->doorbell.used, rdev->doorbell.num_doorbells);
+	if (offset < rdev->doorbell.num_doorbells) {
+		__set_bit(offset, rdev->doorbell.used);
+		*doorbell = offset;
+		return 0;
+	} else {
+		return -EINVAL;
 	}
-	return -EINVAL;
 }
 
 /**
- * radeon_doorbell_free - Free a doorbell page
+ * radeon_doorbell_free - Free a doorbell entry
  *
  * @rdev: radeon_device pointer
- * @doorbell: doorbell page number
+ * @doorbell: doorbell index
  *
- * Free a doorbell page allocated for use by the driver (all asics)
+ * Free a doorbell allocated for use by the driver (all asics)
  */
 void radeon_doorbell_free(struct radeon_device *rdev, u32 doorbell)
 {
-	if (doorbell < rdev->doorbell.num_pages)
-		rdev->doorbell.free[doorbell] = true;
+	if (doorbell < rdev->doorbell.num_doorbells)
+		__clear_bit(doorbell, rdev->doorbell.used);
 }
 
 /*
@@ -1337,6 +1335,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		if (r)
 			return r;
 	}
+
 	if ((radeon_testing & 1)) {
 		if (rdev->accel_working)
 			radeon_test_moves(rdev);
@@ -1462,7 +1461,6 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 
 	radeon_save_bios_scratch_regs(rdev);
 
-	radeon_pm_suspend(rdev);
 	radeon_suspend(rdev);
 	radeon_hpd_fini(rdev);
 	/* evict remaining vram memory */
@@ -1523,14 +1521,22 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
 
-	radeon_pm_resume(rdev);
+	if (rdev->pm.dpm_enabled) {
+		/* do dpm late init */
+		r = radeon_pm_late_init(rdev);
+		if (r) {
+			rdev->pm.dpm_enabled = false;
+			DRM_ERROR("radeon_pm_late_init failed, disabling dpm\n");
+		}
+	}
+
 	radeon_restore_bios_scratch_regs(rdev);
 
 	if (fbcon) {
 		radeon_fbdev_set_suspend(rdev, 0);
 		console_unlock();
 	}
-       
+
 	/* init dig PHYs, disp eng pll */
 	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);

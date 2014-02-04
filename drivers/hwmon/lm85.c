@@ -5,7 +5,7 @@
  * Copyright (c) 2002, 2003  Philip Pokorny <ppokorny@penguincomputing.com>
  * Copyright (c) 2003        Margit Schubert-While <margitsw@t-online.de>
  * Copyright (c) 2004        Justin Thiessen <jthiessen@penguincomputing.com>
- * Copyright (C) 2007--2009  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2007--2009  Jean Delvare <jdelvare@suse.de>
  *
  * Chip details at	      <http://www.national.com/ds/LM/LM85.pdf>
  *

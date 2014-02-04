@@ -14,10 +14,30 @@
 #include <linux/netfilter_bridge.h>
 #include <net/netfilter/nf_tables.h>
 
+static unsigned int
+nft_do_chain_bridge(const struct nf_hook_ops *ops,
+		    struct sk_buff *skb,
+		    const struct net_device *in,
+		    const struct net_device *out,
+		    int (*okfn)(struct sk_buff *))
+{
+	struct nft_pktinfo pkt;
+
+	nft_set_pktinfo(&pkt, ops, skb, in, out);
+
+	return nft_do_chain(&pkt, ops);
+}
+
 static struct nft_af_info nft_af_bridge __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.nhooks		= NF_BR_NUMHOOKS,
 	.owner		= THIS_MODULE,
+	.nops		= 1,
+	.hooks		= {
+		[NF_BR_LOCAL_IN]	= nft_do_chain_bridge,
+		[NF_BR_FORWARD]		= nft_do_chain_bridge,
+		[NF_BR_LOCAL_OUT]	= nft_do_chain_bridge,
+	},
 };
 
 static int nf_tables_bridge_init_net(struct net *net)
@@ -48,32 +68,14 @@ static struct pernet_operations nf_tables_bridge_net_ops = {
 	.exit	= nf_tables_bridge_exit_net,
 };
 
-static unsigned int
-nft_do_chain_bridge(const struct nf_hook_ops *ops,
-		    struct sk_buff *skb,
-		    const struct net_device *in,
-		    const struct net_device *out,
-		    int (*okfn)(struct sk_buff *))
-{
-	struct nft_pktinfo pkt;
-
-	nft_set_pktinfo(&pkt, ops, skb, in, out);
-
-	return nft_do_chain_pktinfo(&pkt, ops);
-}
-
-static struct nf_chain_type filter_bridge = {
-	.family		= NFPROTO_BRIDGE,
+static const struct nf_chain_type filter_bridge = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
+	.family		= NFPROTO_BRIDGE,
+	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_BR_LOCAL_IN) |
 			  (1 << NF_BR_FORWARD) |
 			  (1 << NF_BR_LOCAL_OUT),
-	.fn		= {
-		[NF_BR_LOCAL_IN]	= nft_do_chain_bridge,
-		[NF_BR_FORWARD]		= nft_do_chain_bridge,
-		[NF_BR_LOCAL_OUT]	= nft_do_chain_bridge,
-	},
 };
 
 static int __init nf_tables_bridge_init(void)

@@ -250,7 +250,7 @@ static void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 		 value, ~HDMI0_AUDIO_TEST_EN);
 }
 
-void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
+static void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -304,9 +304,9 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 			WREG32(DCCG_AUDIO_DTO1_MODULE, dto_modulo);
 			WREG32(DCCG_AUDIO_DTO_SELECT, 1); /* select DTO1 */
 		}
-	} else if (ASIC_IS_DCE3(rdev)) {
+	} else {
 		/* according to the reg specs, this should DCE3.2 only, but in
-		 * practice it seems to cover DCE3.0/3.1 as well.
+		 * practice it seems to cover DCE2.0/3.0/3.1 as well.
 		 */
 		if (dig->dig_encoder == 0) {
 			WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 100);
@@ -317,10 +317,6 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 			WREG32(DCCG_AUDIO_DTO1_MODULE, clock * 100);
 			WREG32(DCCG_AUDIO_DTO_SELECT, 1); /* select DTO1 */
 		}
-	} else {
-		/* according to the reg specs, this should be DCE2.0 and DCE3.0/3.1 */
-		WREG32(AUDIO_DTO, AUDIO_DTO_PHASE(base_rate / 10) |
-		       AUDIO_DTO_MODULE(clock / 10));
 	}
 }
 

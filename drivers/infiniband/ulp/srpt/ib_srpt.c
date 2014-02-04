@@ -1352,11 +1352,8 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 
 		/* XXX(hch): this is a horrible layering violation.. */
 		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
-		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
 		ioctx->cmd.transport_state &= ~CMD_T_ACTIVE;
 		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
-
-		complete(&ioctx->cmd.transport_lun_stop_comp);
 		break;
 	case SRPT_STATE_CMD_RSP_SENT:
 		/*
@@ -1364,9 +1361,6 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		 * not been received in time.
 		 */
 		srpt_unmap_sg_to_ib_sge(ioctx->ch, ioctx);
-		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
-		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
-		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
 		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
 		break;
 	case SRPT_STATE_MGMT_RSP_SENT:
@@ -1476,7 +1470,6 @@ static void srpt_handle_rdma_err_comp(struct srpt_rdma_ch *ch,
 {
 	struct se_cmd *cmd;
 	enum srpt_command_state state;
-	unsigned long flags;
 
 	cmd = &ioctx->cmd;
 	state = srpt_get_cmd_state(ioctx);
@@ -1496,9 +1489,6 @@ static void srpt_handle_rdma_err_comp(struct srpt_rdma_ch *ch,
 			       __func__, __LINE__, state);
 		break;
 	case SRPT_RDMA_WRITE_LAST:
-		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
-		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
-		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
 		break;
 	default:
 		printk(KERN_ERR "%s[%d]: opcode = %u\n", __func__,

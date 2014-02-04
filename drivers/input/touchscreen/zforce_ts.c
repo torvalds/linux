@@ -279,7 +279,8 @@ static int zforce_start(struct zforce_ts *ts)
 		goto error;
 	}
 
-	if (zforce_setconfig(ts, SETCONFIG_DUALTOUCH)) {
+	ret = zforce_setconfig(ts, SETCONFIG_DUALTOUCH);
+	if (ret) {
 		dev_err(&client->dev, "Unable to set config\n");
 		goto error;
 	}
@@ -455,7 +456,18 @@ static void zforce_complete(struct zforce_ts *ts, int cmd, int result)
 	}
 }
 
-static irqreturn_t zforce_interrupt(int irq, void *dev_id)
+static irqreturn_t zforce_irq(int irq, void *dev_id)
+{
+	struct zforce_ts *ts = dev_id;
+	struct i2c_client *client = ts->client;
+
+	if (ts->suspended && device_may_wakeup(&client->dev))
+		pm_wakeup_event(&client->dev, 500);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 {
 	struct zforce_ts *ts = dev_id;
 	struct i2c_client *client = ts->client;
@@ -465,12 +477,10 @@ static irqreturn_t zforce_interrupt(int irq, void *dev_id)
 	u8 *payload;
 
 	/*
-	 * When suspended, emit a wakeup signal if necessary and return.
+	 * When still suspended, return.
 	 * Due to the level-interrupt we will get re-triggered later.
 	 */
 	if (ts->suspended) {
-		if (device_may_wakeup(&client->dev))
-			pm_wakeup_event(&client->dev, 500);
 		msleep(20);
 		return IRQ_HANDLED;
 	}
@@ -763,8 +773,8 @@ static int zforce_probe(struct i2c_client *client,
 	 * Therefore we can trigger the interrupt anytime it is low and do
 	 * not need to limit it to the interrupt edge.
 	 */
-	ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					zforce_interrupt,
+	ret = devm_request_threaded_irq(&client->dev, client->irq,
+					zforce_irq, zforce_irq_thread,
 					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					input_dev->name, ts);
 	if (ret) {

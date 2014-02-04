@@ -12,6 +12,8 @@ if ASYMMETRIC_KEY_TYPE
 config ASYMMETRIC_PUBLIC_KEY_SUBTYPE
 	tristate "Asymmetric public-key crypto algorithm subtype"
 	select MPILIB
+	select PUBLIC_KEY_ALGO_RSA
+	select CRYPTO_HASH_INFO
 	help
 	  This option provides support for asymmetric public key type handling.
 	  If signature generation and/or verification are to be used,
@@ -20,8 +22,8 @@ config ASYMMETRIC_PUBLIC_KEY_SUBTYPE
 
 config PUBLIC_KEY_ALGO_RSA
 	tristate "RSA public-key algorithm"
-	depends on ASYMMETRIC_PUBLIC_KEY_SUBTYPE
 	select MPILIB_EXTRA
+	select MPILIB
 	help
 	  This option enables support for the RSA algorithm (PKCS#1, RFC3447).
 

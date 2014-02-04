@@ -89,8 +89,9 @@ int fpu_emulator_save_context32(struct sigcontext32 __user *sc)
 {
 	int i;
 	int err = 0;
+	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
 
-	for (i = 0; i < 32; i+=2) {
+	for (i = 0; i < 32; i += inc) {
 		err |=
 		    __put_user(current->thread.fpu.fpr[i], &sc->sc_fpregs[i]);
 	}
@@ -103,8 +104,9 @@ int fpu_emulator_restore_context32(struct sigcontext32 __user *sc)
 {
 	int i;
 	int err = 0;
+	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
 
-	for (i = 0; i < 32; i+=2) {
+	for (i = 0; i < 32; i += inc) {
 		err |=
 		    __get_user(current->thread.fpu.fpr[i], &sc->sc_fpregs[i]);
 	}

@@ -1606,6 +1606,24 @@ process_arg(struct event_format *event, struct print_arg *arg, char **tok)
 static enum event_type
 process_op(struct event_format *event, struct print_arg *arg, char **tok);
 
+/*
+ * For __print_symbolic() and __print_flags, we need to completely
+ * evaluate the first argument, which defines what to print next.
+ */
+static enum event_type
+process_field_arg(struct event_format *event, struct print_arg *arg, char **tok)
+{
+	enum event_type type;
+
+	type = process_arg(event, arg, tok);
+
+	while (type == EVENT_OP) {
+		type = process_op(event, arg, tok);
+	}
+
+	return type;
+}
+
 static enum event_type
 process_cond(struct event_format *event, struct print_arg *top, char **tok)
 {
@@ -2371,7 +2389,7 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 		goto out_free;
 	}
 
-	type = process_arg(event, field, &token);
+	type = process_field_arg(event, field, &token);
 
 	/* Handle operations in the first argument */
 	while (type == EVENT_OP)
@@ -2424,7 +2442,8 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 		goto out_free;
 	}
 
-	type = process_arg(event, field, &token);
+	type = process_field_arg(event, field, &token);
+
 	if (test_type_token(type, token, EVENT_DELIM, ","))
 		goto out_free_field;
 
@@ -2691,7 +2710,6 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 	struct print_arg *farg;
 	enum event_type type;
 	char *token;
-	const char *test;
 	int i;
 
 	arg->type = PRINT_FUNC;
@@ -2708,15 +2726,19 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 		}
 
 		type = process_arg(event, farg, &token);
-		if (i < (func->nr_args - 1))
-			test = ",";
-		else
-			test = ")";
-
-		if (test_type_token(type, token, EVENT_DELIM, test)) {
-			free_arg(farg);
-			free_token(token);
-			return EVENT_ERROR;
+		if (i < (func->nr_args - 1)) {
+			if (type != EVENT_DELIM || strcmp(token, ",") != 0) {
+				warning("Error: function '%s()' expects %d arguments but event %s only uses %d",
+					func->name, func->nr_args,
+					event->name, i + 1);
+				goto err;
+			}
+		} else {
+			if (type != EVENT_DELIM || strcmp(token, ")") != 0) {
+				warning("Error: function '%s()' only expects %d arguments but event %s has more",
+					func->name, func->nr_args, event->name);
+				goto err;
+			}
 		}
 
 		*next_arg = farg;
@@ -2728,6 +2750,11 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 	*tok = token;
 
 	return type;
+
+err:
+	free_arg(farg);
+	free_token(token);
+	return EVENT_ERROR;
 }
 
 static enum event_type
@@ -3446,7 +3473,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		 * is in the bottom half of the 32 bit field.
 		 */
 		offset &= 0xffff;
-		val = (unsigned long long)(data + offset);
+		val = (unsigned long long)((unsigned long)data + offset);
 		break;
 	default: /* not sure what to do there */
 		return 0;
@@ -4080,6 +4107,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 	unsigned long long val;
 	struct func_map *func;
 	const char *saveptr;
+	struct trace_seq p;
 	char *bprint_fmt = NULL;
 	char format[32];
 	int show_func;
@@ -4287,8 +4315,12 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				format[len] = 0;
 				if (!len_as_arg)
 					len_arg = -1;
-				print_str_arg(s, data, size, event,
+				/* Use helper trace_seq */
+				trace_seq_init(&p);
+				print_str_arg(&p, data, size, event,
 					      format, len_arg, arg);
+				trace_seq_terminate(&p);
+				trace_seq_puts(s, p.buffer);
 				arg = arg->next;
 				break;
 			default:
@@ -5097,8 +5129,38 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 	return ret;
 }
 
+static enum pevent_errno
+__pevent_parse_event(struct pevent *pevent,
+		     struct event_format **eventp,
+		     const char *buf, unsigned long size,
+		     const char *sys)
+{
+	int ret = __pevent_parse_format(eventp, pevent, buf, size, sys);
+	struct event_format *event = *eventp;
+
+	if (event == NULL)
+		return ret;
+
+	if (pevent && add_event(pevent, event)) {
+		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		goto event_add_failed;
+	}
+
+#define PRINT_ARGS 0
+	if (PRINT_ARGS && event->print_fmt.args)
+		print_args(event->print_fmt.args);
+
+	return 0;
+
+event_add_failed:
+	pevent_free_format(event);
+	return ret;
+}
+
 /**
  * pevent_parse_format - parse the event format
+ * @pevent: the handle to the pevent
+ * @eventp: returned format
  * @buf: the buffer storing the event format string
  * @size: the size of @buf
  * @sys: the system the event belongs to
@@ -5110,10 +5172,12 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno pevent_parse_format(struct event_format **eventp, const char *buf,
+enum pevent_errno pevent_parse_format(struct pevent *pevent,
+				      struct event_format **eventp,
+				      const char *buf,
 				      unsigned long size, const char *sys)
 {
-	return __pevent_parse_format(eventp, NULL, buf, size, sys);
+	return __pevent_parse_event(pevent, eventp, buf, size, sys);
 }
 
 /**
@@ -5134,25 +5198,7 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 				     unsigned long size, const char *sys)
 {
 	struct event_format *event = NULL;
-	int ret = __pevent_parse_format(&event, pevent, buf, size, sys);
-
-	if (event == NULL)
-		return ret;
-
-	if (add_event(pevent, event)) {
-		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
-		goto event_add_failed;
-	}
-
-#define PRINT_ARGS 0
-	if (PRINT_ARGS && event->print_fmt.args)
-		print_args(event->print_fmt.args);
-
-	return 0;
-
-event_add_failed:
-	pevent_free_format(event);
-	return ret;
+	return __pevent_parse_event(pevent, &event, buf, size, sys);
 }
 
 #undef _PE
@@ -5184,22 +5230,7 @@ int pevent_strerror(struct pevent *pevent __maybe_unused,
 
 	idx = errnum - __PEVENT_ERRNO__START - 1;
 	msg = pevent_error_str[idx];
-
-	switch (errnum) {
-	case PEVENT_ERRNO__MEM_ALLOC_FAILED:
-	case PEVENT_ERRNO__PARSE_EVENT_FAILED:
-	case PEVENT_ERRNO__READ_ID_FAILED:
-	case PEVENT_ERRNO__READ_FORMAT_FAILED:
-	case PEVENT_ERRNO__READ_PRINT_FAILED:
-	case PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED:
-	case PEVENT_ERRNO__INVALID_ARG_TYPE:
-		snprintf(buf, buflen, "%s", msg);
-		break;
-
-	default:
-		/* cannot reach here */
-		break;
-	}
+	snprintf(buf, buflen, "%s", msg);
 
 	return 0;
 }
@@ -5530,6 +5561,52 @@ int pevent_register_print_function(struct pevent *pevent,
 }
 
 /**
+ * pevent_unregister_print_function - unregister a helper function
+ * @pevent: the handle to the pevent
+ * @func: the function to process the helper function
+ * @name: the name of the helper function
+ *
+ * This function removes existing print handler for function @name.
+ *
+ * Returns 0 if the handler was removed successully, -1 otherwise.
+ */
+int pevent_unregister_print_function(struct pevent *pevent,
+				     pevent_func_handler func, char *name)
+{
+	struct pevent_function_handler *func_handle;
+
+	func_handle = find_func_handler(pevent, name);
+	if (func_handle && func_handle->func == func) {
+		remove_func_handler(pevent, name);
+		return 0;
+	}
+	return -1;
+}
+
+static struct event_format *pevent_search_event(struct pevent *pevent, int id,
+						const char *sys_name,
+						const char *event_name)
+{
+	struct event_format *event;
+
+	if (id >= 0) {
+		/* search by id */
+		event = pevent_find_event(pevent, id);
+		if (!event)
+			return NULL;
+		if (event_name && (strcmp(event_name, event->name) != 0))
+			return NULL;
+		if (sys_name && (strcmp(sys_name, event->system) != 0))
+			return NULL;
+	} else {
+		event = pevent_find_event_by_name(pevent, sys_name, event_name);
+		if (!event)
+			return NULL;
+	}
+	return event;
+}
+
+/**
  * pevent_register_event_handler - register a way to parse an event
  * @pevent: the handle to the pevent
  * @id: the id of the event to register
@@ -5553,20 +5630,9 @@ int pevent_register_event_handler(struct pevent *pevent, int id,
 	struct event_format *event;
 	struct event_handler *handle;
 
-	if (id >= 0) {
-		/* search by id */
-		event = pevent_find_event(pevent, id);
-		if (!event)
-			goto not_found;
-		if (event_name && (strcmp(event_name, event->name) != 0))
-			goto not_found;
-		if (sys_name && (strcmp(sys_name, event->system) != 0))
-			goto not_found;
-	} else {
-		event = pevent_find_event_by_name(pevent, sys_name, event_name);
-		if (!event)
-			goto not_found;
-	}
+	event = pevent_search_event(pevent, id, sys_name, event_name);
+	if (event == NULL)
+		goto not_found;
 
 	pr_stat("overriding event (%d) %s:%s with new print handler",
 		event->id, event->system, event->name);
@@ -5604,6 +5670,79 @@ int pevent_register_event_handler(struct pevent *pevent, int id,
 	handle->context = context;
 
 	return -1;
+}
+
+static int handle_matches(struct event_handler *handler, int id,
+			  const char *sys_name, const char *event_name,
+			  pevent_event_handler_func func, void *context)
+{
+	if (id >= 0 && id != handler->id)
+		return 0;
+
+	if (event_name && (strcmp(event_name, handler->event_name) != 0))
+		return 0;
+
+	if (sys_name && (strcmp(sys_name, handler->sys_name) != 0))
+		return 0;
+
+	if (func != handler->func || context != handler->context)
+		return 0;
+
+	return 1;
+}
+
+/**
+ * pevent_unregister_event_handler - unregister an existing event handler
+ * @pevent: the handle to the pevent
+ * @id: the id of the event to unregister
+ * @sys_name: the system name the handler belongs to
+ * @event_name: the name of the event handler
+ * @func: the function to call to parse the event information
+ * @context: the data to be passed to @func
+ *
+ * This function removes existing event handler (parser).
+ *
+ * If @id is >= 0, then it is used to find the event.
+ * else @sys_name and @event_name are used.
+ *
+ * Returns 0 if handler was removed successfully, -1 if event was not found.
+ */
+int pevent_unregister_event_handler(struct pevent *pevent, int id,
+				    const char *sys_name, const char *event_name,
+				    pevent_event_handler_func func, void *context)
+{
+	struct event_format *event;
+	struct event_handler *handle;
+	struct event_handler **next;
+
+	event = pevent_search_event(pevent, id, sys_name, event_name);
+	if (event == NULL)
+		goto not_found;
+
+	if (event->handler == func && event->context == context) {
+		pr_stat("removing override handler for event (%d) %s:%s. Going back to default handler.",
+			event->id, event->system, event->name);
+
+		event->handler = NULL;
+		event->context = NULL;
+		return 0;
+	}
+
+not_found:
+	for (next = &pevent->handlers; *next; next = &(*next)->next) {
+		handle = *next;
+		if (handle_matches(handle, id, sys_name, event_name,
+				   func, context))
+			break;
+	}
+
+	if (!(*next))
+		return -1;
+
+	*next = handle->next;
+	free_handler(handle);
+
+	return 0;
 }
 
 /**

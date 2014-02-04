@@ -367,7 +367,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 		string = (struct acpi_buffer){ ACPI_ALLOCATE_BUFFER, NULL };
 	}
 
-	handle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	handle = ACPI_HANDLE(&pdev->dev);
 	if (!handle) {
 		/*
 		 * This hotplug controller was not listed in the ACPI name

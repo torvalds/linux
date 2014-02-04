@@ -478,14 +478,44 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 	dev_put(dev);
 }
 
+/* Generate icmpv6 with type/code ICMPV6_DEST_UNREACH/ICMPV6_ADDR_UNREACH
+ * if sufficient data bytes are available
+ */
+static int ipip6_err_gen_icmpv6_unreach(struct sk_buff *skb)
+{
+	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	struct rt6_info *rt;
+	struct sk_buff *skb2;
+
+	if (!pskb_may_pull(skb, iph->ihl * 4 + sizeof(struct ipv6hdr) + 8))
+		return 1;
+
+	skb2 = skb_clone(skb, GFP_ATOMIC);
+
+	if (!skb2)
+		return 1;
+
+	skb_dst_drop(skb2);
+	skb_pull(skb2, iph->ihl * 4);
+	skb_reset_network_header(skb2);
+
+	rt = rt6_lookup(dev_net(skb->dev), &ipv6_hdr(skb2)->saddr, NULL, 0, 0);
+
+	if (rt && rt->dst.dev)
+		skb2->dev = rt->dst.dev;
+
+	icmpv6_send(skb2, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
+
+	if (rt)
+		ip6_rt_put(rt);
+
+	kfree_skb(skb2);
+
+	return 0;
+}
 
 static int ipip6_err(struct sk_buff *skb, u32 info)
 {
-
-/* All the routers (except for Linux) return only
-   8 bytes of packet payload. It means, that precise relaying of
-   ICMP in the real Internet is absolutely infeasible.
- */
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
@@ -500,7 +530,6 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 	case ICMP_DEST_UNREACH:
 		switch (code) {
 		case ICMP_SR_FAILED:
-		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
 			return 0;
 		default:
@@ -545,6 +574,9 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 		goto out;
 
 	err = 0;
+	if (!ipip6_err_gen_icmpv6_unreach(skb))
+		goto out;
+
 	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
 		goto out;
 
@@ -639,7 +671,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 	tunnel = ipip6_tunnel_lookup(dev_net(skb->dev), skb->dev,
 				     iph->saddr, iph->daddr);
 	if (tunnel != NULL) {
-		struct pcpu_tstats *tstats;
+		struct pcpu_sw_netstats *tstats;
 
 		if (tunnel->parms.iph.protocol != IPPROTO_IPV6 &&
 		    tunnel->parms.iph.protocol != 0)
@@ -670,8 +702,10 @@ static int ipip6_rcv(struct sk_buff *skb)
 		}
 
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
+		u64_stats_update_begin(&tstats->syncp);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
+		u64_stats_update_end(&tstats->syncp);
 
 		netif_rx(skb);
 
@@ -892,7 +926,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		if (tunnel->parms.iph.daddr && skb_dst(skb))
 			skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 
-		if (skb->len > mtu) {
+		if (skb->len > mtu && !skb_is_gso(skb)) {
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 			ip_rt_put(rt);
 			goto tx_error;
@@ -919,7 +953,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		if (!new_skb) {
 			ip_rt_put(rt);
 			dev->stats.tx_dropped++;
-			dev_kfree_skb(skb);
+			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
@@ -934,8 +968,10 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	tos = INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
 
 	skb = iptunnel_handle_offloads(skb, false, SKB_GSO_SIT);
-	if (IS_ERR(skb))
+	if (IS_ERR(skb)) {
+		ip_rt_put(rt);
 		goto out;
+	}
 
 	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, IPPROTO_IPV6, tos,
 			    ttl, df, !net_eq(tunnel->net, dev_net(dev)));
@@ -945,7 +981,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 out:
 	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
@@ -985,7 +1021,7 @@ static netdev_tx_t sit_tunnel_xmit(struct sk_buff *skb,
 
 tx_err:
 	dev->stats.tx_errors++;
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 
 }
@@ -1329,12 +1365,12 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
 
 	ipip6_tunnel_bind_dev(dev);
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ipip6_tunnel_stats;
+		struct pcpu_sw_netstats *ipip6_tunnel_stats;
 		ipip6_tunnel_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ipip6_tunnel_stats->syncp);
 	}
@@ -1359,12 +1395,12 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	iph->ihl		= 5;
 	iph->ttl		= 64;
 
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ipip6_fb_stats;
+		struct pcpu_sw_netstats *ipip6_fb_stats;
 		ipip6_fb_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ipip6_fb_stats->syncp);
 	}

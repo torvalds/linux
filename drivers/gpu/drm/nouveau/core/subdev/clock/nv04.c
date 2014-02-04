@@ -25,7 +25,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/clock.h>
-#include <subdev/devinit/priv.h>
+#include <subdev/devinit/nv04.h>
 
 #include "pll.h"
 
@@ -69,6 +69,11 @@ nv04_clock_pll_prog(struct nouveau_clock *clk, u32 reg1,
 	return 0;
 }
 
+static struct nouveau_clocks
+nv04_domain[] = {
+	{ nv_clk_src_max }
+};
+
 static int
 nv04_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
@@ -77,7 +82,7 @@ nv04_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv04_clock_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, NULL, &priv);
+	ret = nouveau_clock_create(parent, engine, oclass, nv04_domain, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;

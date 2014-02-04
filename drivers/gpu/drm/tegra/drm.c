@@ -104,9 +104,11 @@ static void tegra_drm_context_free(struct tegra_drm_context *context)
 
 static void tegra_drm_lastclose(struct drm_device *drm)
 {
+#ifdef CONFIG_TEGRA_DRM_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_restore_mode(tegra->fbdev);
+#endif
 }
 
 static struct host1x_bo *
@@ -135,11 +137,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	unsigned int num_relocs = args->num_relocs;
 	unsigned int num_waitchks = args->num_waitchks;
 	struct drm_tegra_cmdbuf __user *cmdbufs =
-		(void * __user)(uintptr_t)args->cmdbufs;
+		(void __user *)(uintptr_t)args->cmdbufs;
 	struct drm_tegra_reloc __user *relocs =
-		(void * __user)(uintptr_t)args->relocs;
+		(void __user *)(uintptr_t)args->relocs;
 	struct drm_tegra_waitchk __user *waitchks =
-		(void * __user)(uintptr_t)args->waitchks;
+		(void __user *)(uintptr_t)args->waitchks;
 	struct drm_tegra_syncpt syncpt;
 	struct host1x_job *job;
 	int err;
@@ -163,9 +165,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct drm_tegra_cmdbuf cmdbuf;
 		struct host1x_bo *bo;
 
-		err = copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf));
-		if (err)
+		if (copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf))) {
+			err = -EFAULT;
 			goto fail;
+		}
 
 		bo = host1x_bo_lookup(drm, file, cmdbuf.handle);
 		if (!bo) {
@@ -178,10 +181,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		cmdbufs++;
 	}
 
-	err = copy_from_user(job->relocarray, relocs,
-			     sizeof(*relocs) * num_relocs);
-	if (err)
+	if (copy_from_user(job->relocarray, relocs,
+			   sizeof(*relocs) * num_relocs)) {
+		err = -EFAULT;
 		goto fail;
+	}
 
 	while (num_relocs--) {
 		struct host1x_reloc *reloc = &job->relocarray[num_relocs];
@@ -199,15 +203,17 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		}
 	}
 
-	err = copy_from_user(job->waitchk, waitchks,
-			     sizeof(*waitchks) * num_waitchks);
-	if (err)
+	if (copy_from_user(job->waitchk, waitchks,
+			   sizeof(*waitchks) * num_waitchks)) {
+		err = -EFAULT;
 		goto fail;
+	}
 
-	err = copy_from_user(&syncpt, (void * __user)(uintptr_t)args->syncpts,
-			     sizeof(syncpt));
-	if (err)
+	if (copy_from_user(&syncpt, (void __user *)(uintptr_t)args->syncpts,
+			   sizeof(syncpt))) {
+		err = -EFAULT;
 		goto fail;
+	}
 
 	job->is_addr_reg = context->client->ops->is_addr_reg;
 	job->syncpt_incrs = syncpt.incrs;
@@ -573,8 +579,8 @@ static void tegra_debugfs_cleanup(struct drm_minor *minor)
 }
 #endif
 
-struct drm_driver tegra_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM,
+static struct drm_driver tegra_drm_driver = {
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load = tegra_drm_load,
 	.unload = tegra_drm_unload,
 	.open = tegra_drm_open,
@@ -592,6 +598,12 @@ struct drm_driver tegra_drm_driver = {
 
 	.gem_free_object = tegra_bo_free_object,
 	.gem_vm_ops = &tegra_bo_vm_ops,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = tegra_gem_prime_export,
+	.gem_prime_import = tegra_gem_prime_import,
+
 	.dumb_create = tegra_bo_dumb_create,
 	.dumb_map_offset = tegra_bo_dumb_map_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
@@ -649,8 +661,10 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra30-hdmi", },
 	{ .compatible = "nvidia,tegra30-gr2d", },
 	{ .compatible = "nvidia,tegra30-gr3d", },
+	{ .compatible = "nvidia,tegra114-dsi", },
 	{ .compatible = "nvidia,tegra114-hdmi", },
 	{ .compatible = "nvidia,tegra114-gr3d", },
+	{ .compatible = "nvidia,tegra124-dc", },
 	{ /* sentinel */ }
 };
 
@@ -673,9 +687,13 @@ static int __init host1x_drm_init(void)
 	if (err < 0)
 		goto unregister_host1x;
 
-	err = platform_driver_register(&tegra_hdmi_driver);
+	err = platform_driver_register(&tegra_dsi_driver);
 	if (err < 0)
 		goto unregister_dc;
+
+	err = platform_driver_register(&tegra_hdmi_driver);
+	if (err < 0)
+		goto unregister_dsi;
 
 	err = platform_driver_register(&tegra_gr2d_driver);
 	if (err < 0)
@@ -691,6 +709,8 @@ unregister_gr2d:
 	platform_driver_unregister(&tegra_gr2d_driver);
 unregister_hdmi:
 	platform_driver_unregister(&tegra_hdmi_driver);
+unregister_dsi:
+	platform_driver_unregister(&tegra_dsi_driver);
 unregister_dc:
 	platform_driver_unregister(&tegra_dc_driver);
 unregister_host1x:
@@ -704,6 +724,7 @@ static void __exit host1x_drm_exit(void)
 	platform_driver_unregister(&tegra_gr3d_driver);
 	platform_driver_unregister(&tegra_gr2d_driver);
 	platform_driver_unregister(&tegra_hdmi_driver);
+	platform_driver_unregister(&tegra_dsi_driver);
 	platform_driver_unregister(&tegra_dc_driver);
 	host1x_driver_unregister(&host1x_drm_driver);
 }

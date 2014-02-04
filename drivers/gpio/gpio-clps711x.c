@@ -77,7 +77,7 @@ static int clps711x_gpio_remove(struct platform_device *pdev)
 	return bgpio_remove(bgc);
 }
 
-static const struct of_device_id clps711x_gpio_ids[] = {
+static const struct of_device_id __maybe_unused clps711x_gpio_ids[] = {
 	{ .compatible = "cirrus,clps711x-gpio" },
 	{ }
 };
@@ -87,7 +87,7 @@ static struct platform_driver clps711x_gpio_driver = {
 	.driver	= {
 		.name		= "clps711x-gpio",
 		.owner		= THIS_MODULE,
-		.of_match_table	= clps711x_gpio_ids,
+		.of_match_table	= of_match_ptr(clps711x_gpio_ids),
 	},
 	.probe	= clps711x_gpio_probe,
 	.remove	= clps711x_gpio_remove,

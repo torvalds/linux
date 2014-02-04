@@ -52,7 +52,7 @@ static LIST_HEAD(slot_list);
 	do {							\
 		if (debug)					\
 			printk (KERN_DEBUG "%s: " format "\n",	\
-				MY_NAME , ## arg); 		\
+				MY_NAME , ## arg);		\
 	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME , ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME , ## arg)
@@ -287,7 +287,7 @@ static int __init init_slots(void)
 		hotplug_slot->release = &release_slot;
 		make_slot_name(slot);
 		hotplug_slot->ops = &skel_hotplug_slot_ops;
-		
+
 		/*
 		 * Initialize the slot info structure with some known
 		 * good values.
@@ -296,7 +296,7 @@ static int __init init_slots(void)
 		get_attention_status(hotplug_slot, &info->attention_status);
 		get_latch_status(hotplug_slot, &info->latch_status);
 		get_adapter_status(hotplug_slot, &info->adapter_status);
-		
+
 		dbg("registering slot %d\n", i);
 		retval = pci_hp_register(slot->hotplug_slot);
 		if (retval) {
@@ -336,7 +336,7 @@ static void __exit cleanup_slots(void)
 		pci_hp_deregister(slot->hotplug_slot);
 	}
 }
-		
+
 static int __init pcihp_skel_init(void)
 {
 	int retval;

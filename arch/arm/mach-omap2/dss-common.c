@@ -223,7 +223,7 @@ void __init omap_4430sdp_display_init_of(void)
 static struct connector_dvi_platform_data omap3_igep2_dvi_connector_pdata = {
 	.name                   = "dvi",
 	.source                 = "tfp410.0",
-	.i2c_bus_num            = 3,
+	.i2c_bus_num            = 2,
 };
 
 static struct platform_device omap3_igep2_dvi_connector_device = {

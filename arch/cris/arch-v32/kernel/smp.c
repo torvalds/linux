@@ -64,7 +64,7 @@ static irqreturn_t crisv32_ipi_interrupt(int irq, void *dev_id);
 static int send_ipi(int vector, int wait, cpumask_t cpu_mask);
 static struct irqaction irq_ipi  = {
 	.handler = crisv32_ipi_interrupt,
-	.flags = IRQF_DISABLED,
+	.flags = 0,
 	.name = "ipi",
 };
 

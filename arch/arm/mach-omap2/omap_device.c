@@ -36,6 +36,7 @@
 #include <linux/of.h>
 #include <linux/notifier.h>
 
+#include "common.h"
 #include "soc.h"
 #include "omap_device.h"
 #include "omap_hwmod.h"
@@ -183,6 +184,10 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 odbfd_exit1:
 	kfree(hwmods);
 odbfd_exit:
+	/* if data/we are at fault.. load up a fail handler */
+	if (ret)
+		pdev->dev.pm_domain = &omap_device_fail_pm_domain;
+
 	return ret;
 }
 
@@ -200,6 +205,7 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 	case BUS_NOTIFY_ADD_DEVICE:
 		if (pdev->dev.of_node)
 			omap_device_build_from_dt(pdev);
+		omap_auxdata_legacy_init(dev);
 		/* fall through */
 	default:
 		od = to_omap_device(pdev);
@@ -604,6 +610,19 @@ static int _od_runtime_resume(struct device *dev)
 
 	return pm_generic_runtime_resume(dev);
 }
+
+static int _od_fail_runtime_suspend(struct device *dev)
+{
+	dev_warn(dev, "%s: FIXME: missing hwmod/omap_dev info\n", __func__);
+	return -ENODEV;
+}
+
+static int _od_fail_runtime_resume(struct device *dev)
+{
+	dev_warn(dev, "%s: FIXME: missing hwmod/omap_dev info\n", __func__);
+	return -ENODEV;
+}
+
 #endif
 
 #ifdef CONFIG_SUSPEND
@@ -656,6 +675,13 @@ static int _od_resume_noirq(struct device *dev)
 #define _od_suspend_noirq NULL
 #define _od_resume_noirq NULL
 #endif
+
+struct dev_pm_domain omap_device_fail_pm_domain = {
+	.ops = {
+		SET_RUNTIME_PM_OPS(_od_fail_runtime_suspend,
+				   _od_fail_runtime_resume, NULL)
+	}
+};
 
 struct dev_pm_domain omap_device_pm_domain = {
 	.ops = {

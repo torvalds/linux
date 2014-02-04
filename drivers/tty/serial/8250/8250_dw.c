@@ -14,7 +14,6 @@
  * raised, the LCR needs to be rewritten and the uart status register read.
  */
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/serial_8250.h>
@@ -96,7 +95,8 @@ static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 	if (offset == UART_LCR) {
 		int tries = 1000;
 		while (tries--) {
-			if (value == p->serial_in(p, UART_LCR))
+			unsigned int lcr = p->serial_in(p, UART_LCR);
+			if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
 				return;
 			dw8250_force_idle(p);
 			writeb(value, p->membase + (UART_LCR << p->regshift));
@@ -132,7 +132,8 @@ static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 	if (offset == UART_LCR) {
 		int tries = 1000;
 		while (tries--) {
-			if (value == p->serial_in(p, UART_LCR))
+			unsigned int lcr = p->serial_in(p, UART_LCR);
+			if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
 				return;
 			dw8250_force_idle(p);
 			writel(value, p->membase + (UART_LCR << p->regshift));
@@ -272,7 +273,6 @@ static int dw8250_probe_of(struct uart_port *p,
 	return 0;
 }
 
-#ifdef CONFIG_ACPI
 static int dw8250_probe_acpi(struct uart_8250_port *up,
 			     struct dw8250_data *data)
 {
@@ -300,13 +300,6 @@ static int dw8250_probe_acpi(struct uart_8250_port *up,
 
 	return 0;
 }
-#else
-static inline int dw8250_probe_acpi(struct uart_8250_port *up,
-				    struct dw8250_data *data)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_ACPI */
 
 static int dw8250_probe(struct platform_device *pdev)
 {
@@ -455,6 +448,8 @@ MODULE_DEVICE_TABLE(of, dw8250_of_match);
 static const struct acpi_device_id dw8250_acpi_match[] = {
 	{ "INT33C4", 0 },
 	{ "INT33C5", 0 },
+	{ "INT3434", 0 },
+	{ "INT3435", 0 },
 	{ "80860F0A", 0 },
 	{ },
 };

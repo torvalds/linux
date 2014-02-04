@@ -2936,7 +2936,6 @@ static const struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0401, "Dell Vostro 1014", CXT5066_DELL_VOSTRO),
 	SND_PCI_QUIRK(0x1028, 0x0408, "Dell Inspiron One 19T", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x1028, 0x050f, "Dell Inspiron", CXT5066_IDEAPAD),
-	SND_PCI_QUIRK(0x1028, 0x0510, "Dell Vostro", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x103c, 0x360b, "HP G60", CXT5066_HP_LAPTOP),
 	SND_PCI_QUIRK(0x1043, 0x13f3, "Asus A52J", CXT5066_ASUS),
 	SND_PCI_QUIRK(0x1043, 0x1643, "Asus K52JU", CXT5066_ASUS),
@@ -3241,80 +3240,8 @@ enum {
 	CXT_FIXUP_THINKPAD_ACPI,
 };
 
-#if IS_ENABLED(CONFIG_THINKPAD_ACPI)
-
-#include <linux/thinkpad_acpi.h>
-
-static int (*led_set_func)(int, bool);
-
-static void update_tpacpi_mute_led(void *private_data, int enabled)
-{
-	struct hda_codec *codec = private_data;
-	struct conexant_spec *spec = codec->spec;
-
-	if (spec->dynamic_eapd)
-		cx_auto_vmaster_hook(private_data, enabled);
-
-	if (led_set_func)
-		led_set_func(TPACPI_LED_MUTE, !enabled);
-}
-
-static void update_tpacpi_micmute_led(struct hda_codec *codec,
-				      struct snd_ctl_elem_value *ucontrol)
-{
-	if (!ucontrol || !led_set_func)
-		return;
-	if (strcmp("Capture Switch", ucontrol->id.name) == 0 && ucontrol->id.index == 0) {
-		/* TODO: How do I verify if it's a mono or stereo here? */
-		bool val = ucontrol->value.integer.value[0] || ucontrol->value.integer.value[1];
-		led_set_func(TPACPI_LED_MICMUTE, !val);
-	}
-}
-
-static void cxt_fixup_thinkpad_acpi(struct hda_codec *codec,
-				  const struct hda_fixup *fix, int action)
-{
-	struct conexant_spec *spec = codec->spec;
-
-	bool removefunc = false;
-
-	if (action == HDA_FIXUP_ACT_PROBE) {
-		if (!led_set_func)
-			led_set_func = symbol_request(tpacpi_led_set);
-		if (!led_set_func) {
-			snd_printk(KERN_WARNING "Failed to find thinkpad-acpi symbol tpacpi_led_set\n");
-			return;
-		}
-
-		removefunc = true;
-		if (led_set_func(TPACPI_LED_MUTE, false) >= 0) {
-			spec->gen.vmaster_mute.hook = update_tpacpi_mute_led;
-			removefunc = false;
-		}
-		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0) {
-			if (spec->gen.num_adc_nids > 1)
-				snd_printdd("Skipping micmute LED control due to several ADCs");
-			else {
-				spec->gen.cap_sync_hook = update_tpacpi_micmute_led;
-				removefunc = false;
-			}
-		}
-	}
-
-	if (led_set_func && (action == HDA_FIXUP_ACT_FREE || removefunc)) {
-		symbol_put(tpacpi_led_set);
-		led_set_func = NULL;
-	}
-}
-
-#else
-
-static void cxt_fixup_thinkpad_acpi(struct hda_codec *codec,
-				  const struct hda_fixup *fix, int action)
-{
-}
-
-#endif
+/* for hda_fixup_thinkpad_acpi() */
+#include "thinkpad_helper.c"
 
 static void cxt_fixup_stereo_dmic(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)
@@ -3471,7 +3398,7 @@ static const struct hda_fixup cxt_fixups[] = {
 	},
 	[CXT_FIXUP_THINKPAD_ACPI] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = cxt_fixup_thinkpad_acpi,
+		.v.func = hda_fixup_thinkpad_acpi,
 	},
 };
 
@@ -3494,6 +3421,7 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Thinkpad", CXT_FIXUP_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x1c06, 0x2011, "Lemote A1004", CXT_PINCFG_LEMOTE_A1004),
 	SND_PCI_QUIRK(0x1c06, 0x2012, "Lemote A1205", CXT_PINCFG_LEMOTE_A1205),
 	{}

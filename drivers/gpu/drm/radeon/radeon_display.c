@@ -306,7 +306,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	 * to complete in this vblank?
 	 */
 	if (update_pending &&
-	    (DRM_SCANOUTPOS_VALID & radeon_get_crtc_scanoutpos(rdev->ddev, crtc_id,
+	    (DRM_SCANOUTPOS_VALID & radeon_get_crtc_scanoutpos(rdev->ddev, crtc_id, 0,
 							       &vpos, &hpos, NULL, NULL)) &&
 	    ((vpos >= (99 * rdev->mode_info.crtcs[crtc_id]->base.hwmode.crtc_vdisplay)/100) ||
 	     (vpos < 0 && !ASIC_IS_AVIVO(rdev)))) {
@@ -1464,11 +1464,21 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	/* setup afmt */
 	radeon_afmt_init(rdev);
 
-	/* Initialize power management */
-	radeon_pm_init(rdev);
-
 	radeon_fbdev_init(rdev);
 	drm_kms_helper_poll_init(rdev->ddev);
+
+	if (rdev->pm.dpm_enabled) {
+		/* do dpm late init */
+		ret = radeon_pm_late_init(rdev);
+		if (ret) {
+			rdev->pm.dpm_enabled = false;
+			DRM_ERROR("radeon_pm_late_init failed, disabling dpm\n");
+		}
+		/* set the dpm state for PX since there won't be
+		 * a modeset to call this.
+		 */
+		radeon_pm_compute_clocks(rdev);
+	}
 
 	return 0;
 }
@@ -1477,7 +1487,6 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 {
 	radeon_fbdev_fini(rdev);
 	kfree(rdev->mode_info.bios_hardcoded_edid);
-	radeon_pm_fini(rdev);
 
 	if (rdev->mode_info.mode_config_initialized) {
 		radeon_afmt_fini(rdev);
@@ -1601,6 +1610,7 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  *
  * \param dev Device to query.
  * \param crtc Crtc to query.
+ * \param flags Flags from caller (DRM_CALLED_FROM_VBLIRQ or 0).
  * \param *vpos Location where vertical scanout position should be stored.
  * \param *hpos Location where horizontal scanout position should go.
  * \param *stime Target location for timestamp taken immediately before
@@ -1622,8 +1632,8 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * unknown small number of scanlines wrt. real scanout position.
  *
  */
-int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, int *vpos, int *hpos,
-			       ktime_t *stime, ktime_t *etime)
+int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int flags,
+			       int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
 {
 	u32 stat_crtc = 0, vbl = 0, position = 0;
 	int vbl_start, vbl_end, vtotal, ret = 0;
@@ -1764,6 +1774,28 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, int *vpos, int 
 	/* In vblank? */
 	if (in_vbl)
 		ret |= DRM_SCANOUTPOS_INVBL;
+
+	/* Is vpos outside nominal vblank area, but less than
+	 * 1/100 of a frame height away from start of vblank?
+	 * If so, assume this isn't a massively delayed vblank
+	 * interrupt, but a vblank interrupt that fired a few
+	 * microseconds before true start of vblank. Compensate
+	 * by adding a full frame duration to the final timestamp.
+	 * Happens, e.g., on ATI R500, R600.
+	 *
+	 * We only do this if DRM_CALLED_FROM_VBLIRQ.
+	 */
+	if ((flags & DRM_CALLED_FROM_VBLIRQ) && !in_vbl) {
+		vbl_start = rdev->mode_info.crtcs[crtc]->base.hwmode.crtc_vdisplay;
+		vtotal = rdev->mode_info.crtcs[crtc]->base.hwmode.crtc_vtotal;
+
+		if (vbl_start - *vpos < vtotal / 100) {
+			*vpos -= vtotal;
+
+			/* Signal this correction as "applied". */
+			ret |= 0x8;
+		}
+	}
 
 	return ret;
 }

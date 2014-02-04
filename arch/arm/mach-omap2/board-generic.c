@@ -78,6 +78,7 @@ MACHINE_END
 
 #ifdef CONFIG_ARCH_OMAP3
 static const char *omap3_boards_compat[] __initdata = {
+	"ti,omap3430",
 	"ti,omap3",
 	NULL,
 };
@@ -131,6 +132,24 @@ DT_MACHINE_START(OMAP3_GP_DT, "Generic OMAP3-GP (Flattened Device Tree)")
 	.dt_compat	= omap3_gp_boards_compat,
 	.restart	= omap3xxx_restart,
 MACHINE_END
+
+static const char *am3517_boards_compat[] __initdata = {
+	"ti,am3517",
+	NULL,
+};
+
+DT_MACHINE_START(AM3517_DT, "Generic AM3517 (Flattened Device Tree)")
+	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= am35xx_init_early,
+	.init_irq	= omap_intc_of_init,
+	.handle_irq	= omap3_intc_handle_irq,
+	.init_machine	= omap_generic_init,
+	.init_late	= omap3_init_late,
+	.init_time	= omap3_gptimer_timer_init,
+	.dt_compat	= am3517_boards_compat,
+	.restart	= omap3xxx_restart,
+MACHINE_END
 #endif
 
 #ifdef CONFIG_SOC_AM33XX
@@ -155,6 +174,8 @@ MACHINE_END
 
 #ifdef CONFIG_ARCH_OMAP4
 static const char *omap4_boards_compat[] __initdata = {
+	"ti,omap4460",
+	"ti,omap4430",
 	"ti,omap4",
 	NULL,
 };
@@ -175,6 +196,8 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_OMAP5
 static const char *omap5_boards_compat[] __initdata = {
+	"ti,omap5432",
+	"ti,omap5430",
 	"ti,omap5",
 	NULL,
 };
@@ -195,6 +218,7 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_AM43XX
 static const char *am43_boards_compat[] __initdata = {
+	"ti,am4372",
 	"ti,am43",
 	NULL,
 };
@@ -212,6 +236,7 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_DRA7XX
 static const char *dra7xx_boards_compat[] __initdata = {
+	"ti,dra7xx",
 	"ti,dra7",
 	NULL,
 };

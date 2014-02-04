@@ -350,16 +350,6 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 			 DACL1_2_LLOPM_VOL, DACR1_2_RLOPM_VOL,
 			 0, 118, 1, output_stage_tlv),
 
-	SOC_DOUBLE_R_TLV("Mono Line2 Bypass Volume",
-			 LINE2L_2_MONOLOPM_VOL, LINE2R_2_MONOLOPM_VOL,
-			 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("Mono PGA Bypass Volume",
-			 PGAL_2_MONOLOPM_VOL, PGAR_2_MONOLOPM_VOL,
-			 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("Mono DAC Playback Volume",
-			 DACL1_2_MONOLOPM_VOL, DACR1_2_MONOLOPM_VOL,
-			 0, 118, 1, output_stage_tlv),
-
 	SOC_DOUBLE_R_TLV("HP Line2 Bypass Volume",
 			 LINE2L_2_HPLOUT_VOL, LINE2R_2_HPROUT_VOL,
 			 0, 118, 1, output_stage_tlv),
@@ -383,7 +373,6 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	/* Output pin mute controls */
 	SOC_DOUBLE_R("Line Playback Switch", LLOPM_CTRL, RLOPM_CTRL, 3,
 		     0x01, 0),
-	SOC_SINGLE("Mono Playback Switch", MONOLOPM_CTRL, 3, 0x01, 0),
 	SOC_DOUBLE_R("HP Playback Switch", HPLOUT_CTRL, HPROUT_CTRL, 3,
 		     0x01, 0),
 	SOC_DOUBLE_R("HPCOM Playback Switch", HPLCOM_CTRL, HPRCOM_CTRL, 3,
@@ -410,6 +399,20 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	SOC_DOUBLE_R("PGA Capture Switch", LADC_VOL, RADC_VOL, 7, 0x01, 1),
 
 	SOC_ENUM("ADC HPF Cut-off", aic3x_enum[ADC_HPF_ENUM]),
+};
+
+static const struct snd_kcontrol_new aic3x_mono_controls[] = {
+	SOC_DOUBLE_R_TLV("Mono Line2 Bypass Volume",
+			 LINE2L_2_MONOLOPM_VOL, LINE2R_2_MONOLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("Mono PGA Bypass Volume",
+			 PGAL_2_MONOLOPM_VOL, PGAR_2_MONOLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("Mono DAC Playback Volume",
+			 DACL1_2_MONOLOPM_VOL, DACR1_2_MONOLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
+
+	SOC_SINGLE("Mono Playback Switch", MONOLOPM_CTRL, 3, 0x01, 0),
 };
 
 /*
@@ -565,9 +568,6 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Right HP Out", HPROUT_CTRL, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Right HP Com", HPRCOM_CTRL, 0, 0, NULL, 0),
 
-	/* Mono Output */
-	SND_SOC_DAPM_PGA("Mono Out", MONOLOPM_CTRL, 0, 0, NULL, 0),
-
 	/* Inputs to Left ADC */
 	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", LINE1L_2_LADC_CTRL, 2, 0),
 	SND_SOC_DAPM_MIXER("Left PGA Mixer", SND_SOC_NOPM, 0, 0,
@@ -626,9 +626,6 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Right Line Mixer", SND_SOC_NOPM, 0, 0,
 			   &aic3x_right_line_mixer_controls[0],
 			   ARRAY_SIZE(aic3x_right_line_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Mono Mixer", SND_SOC_NOPM, 0, 0,
-			   &aic3x_mono_mixer_controls[0],
-			   ARRAY_SIZE(aic3x_mono_mixer_controls)),
 	SND_SOC_DAPM_MIXER("Left HP Mixer", SND_SOC_NOPM, 0, 0,
 			   &aic3x_left_hp_mixer_controls[0],
 			   ARRAY_SIZE(aic3x_left_hp_mixer_controls)),
@@ -644,7 +641,6 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUTPUT("LLOUT"),
 	SND_SOC_DAPM_OUTPUT("RLOUT"),
-	SND_SOC_DAPM_OUTPUT("MONO_LOUT"),
 	SND_SOC_DAPM_OUTPUT("HPLOUT"),
 	SND_SOC_DAPM_OUTPUT("HPROUT"),
 	SND_SOC_DAPM_OUTPUT("HPLCOM"),
@@ -664,6 +660,17 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	 * widgets.
 	 */
 	SND_SOC_DAPM_OUTPUT("Detection"),
+};
+
+static const struct snd_soc_dapm_widget aic3x_dapm_mono_widgets[] = {
+	/* Mono Output */
+	SND_SOC_DAPM_PGA("Mono Out", MONOLOPM_CTRL, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_MIXER("Mono Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_mono_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_mono_mixer_controls)),
+
+	SND_SOC_DAPM_OUTPUT("MONO_LOUT"),
 };
 
 static const struct snd_soc_dapm_widget aic3007_dapm_widgets[] = {
@@ -754,17 +761,6 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Right Line Out", NULL, "Right DAC Mux"},
 	{"RLOUT", NULL, "Right Line Out"},
 
-	/* Mono Output */
-	{"Mono Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
-	{"Mono Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
-	{"Mono Mixer", "DACL1 Switch", "Left DAC Mux"},
-	{"Mono Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
-	{"Mono Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
-	{"Mono Mixer", "DACR1 Switch", "Right DAC Mux"},
-
-	{"Mono Out", NULL, "Mono Mixer"},
-	{"MONO_LOUT", NULL, "Mono Out"},
-
 	/* Left HP Output */
 	{"Left HP Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
 	{"Left HP Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
@@ -820,6 +816,18 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"HPRCOM", NULL, "Right HP Com"},
 };
 
+static const struct snd_soc_dapm_route intercon_mono[] = {
+	/* Mono Output */
+	{"Mono Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Mono Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Mono Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Mono Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Mono Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Mono Mixer", "DACR1 Switch", "Right DAC Mux"},
+	{"Mono Out", NULL, "Mono Mixer"},
+	{"MONO_LOUT", NULL, "Mono Out"},
+};
+
 static const struct snd_soc_dapm_route intercon_3007[] = {
 	/* Class-D outputs */
 	{"Left Class-D Out", NULL, "Left Line Out"},
@@ -833,11 +841,20 @@ static int aic3x_add_widgets(struct snd_soc_codec *codec)
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	if (aic3x->model == AIC3X_MODEL_3007) {
+	switch (aic3x->model) {
+	case AIC3X_MODEL_3X:
+	case AIC3X_MODEL_33:
+		snd_soc_dapm_new_controls(dapm, aic3x_dapm_mono_widgets,
+			ARRAY_SIZE(aic3x_dapm_mono_widgets));
+		snd_soc_dapm_add_routes(dapm, intercon_mono,
+					ARRAY_SIZE(intercon_mono));
+		break;
+	case AIC3X_MODEL_3007:
 		snd_soc_dapm_new_controls(dapm, aic3007_dapm_widgets,
 			ARRAY_SIZE(aic3007_dapm_widgets));
 		snd_soc_dapm_add_routes(dapm, intercon_3007,
 					ARRAY_SIZE(intercon_3007));
+		break;
 	}
 
 	return 0;
@@ -1218,6 +1235,24 @@ static int aic3x_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static void aic3x_mono_init(struct snd_soc_codec *codec)
+{
+	/* DAC to Mono Line Out default volume and route to Output mixer */
+	snd_soc_write(codec, DACL1_2_MONOLOPM_VOL, DEFAULT_VOL | ROUTE_ON);
+	snd_soc_write(codec, DACR1_2_MONOLOPM_VOL, DEFAULT_VOL | ROUTE_ON);
+
+	/* unmute all outputs */
+	snd_soc_update_bits(codec, MONOLOPM_CTRL, UNMUTE, UNMUTE);
+
+	/* PGA to Mono Line Out default volume, disconnect from Output Mixer */
+	snd_soc_write(codec, PGAL_2_MONOLOPM_VOL, DEFAULT_VOL);
+	snd_soc_write(codec, PGAR_2_MONOLOPM_VOL, DEFAULT_VOL);
+
+	/* Line2 to Mono Out default volume, disconnect from Output Mixer */
+	snd_soc_write(codec, LINE2L_2_MONOLOPM_VOL, DEFAULT_VOL);
+	snd_soc_write(codec, LINE2R_2_MONOLOPM_VOL, DEFAULT_VOL);
+}
+
 /*
  * initialise the AIC3X driver
  * register the mixer and dsp interfaces with the kernel
@@ -1241,14 +1276,10 @@ static int aic3x_init(struct snd_soc_codec *codec)
 	/* DAC to Line Out default volume and route to Output mixer */
 	snd_soc_write(codec, DACL1_2_LLOPM_VOL, DEFAULT_VOL | ROUTE_ON);
 	snd_soc_write(codec, DACR1_2_RLOPM_VOL, DEFAULT_VOL | ROUTE_ON);
-	/* DAC to Mono Line Out default volume and route to Output mixer */
-	snd_soc_write(codec, DACL1_2_MONOLOPM_VOL, DEFAULT_VOL | ROUTE_ON);
-	snd_soc_write(codec, DACR1_2_MONOLOPM_VOL, DEFAULT_VOL | ROUTE_ON);
 
 	/* unmute all outputs */
 	snd_soc_update_bits(codec, LLOPM_CTRL, UNMUTE, UNMUTE);
 	snd_soc_update_bits(codec, RLOPM_CTRL, UNMUTE, UNMUTE);
-	snd_soc_update_bits(codec, MONOLOPM_CTRL, UNMUTE, UNMUTE);
 	snd_soc_update_bits(codec, HPLOUT_CTRL, UNMUTE, UNMUTE);
 	snd_soc_update_bits(codec, HPROUT_CTRL, UNMUTE, UNMUTE);
 	snd_soc_update_bits(codec, HPLCOM_CTRL, UNMUTE, UNMUTE);
@@ -1269,9 +1300,6 @@ static int aic3x_init(struct snd_soc_codec *codec)
 	/* PGA to Line Out default volume, disconnect from Output Mixer */
 	snd_soc_write(codec, PGAL_2_LLOPM_VOL, DEFAULT_VOL);
 	snd_soc_write(codec, PGAR_2_RLOPM_VOL, DEFAULT_VOL);
-	/* PGA to Mono Line Out default volume, disconnect from Output Mixer */
-	snd_soc_write(codec, PGAL_2_MONOLOPM_VOL, DEFAULT_VOL);
-	snd_soc_write(codec, PGAR_2_MONOLOPM_VOL, DEFAULT_VOL);
 
 	/* Line2 to HP Bypass default volume, disconnect from Output Mixer */
 	snd_soc_write(codec, LINE2L_2_HPLOUT_VOL, DEFAULT_VOL);
@@ -1281,12 +1309,15 @@ static int aic3x_init(struct snd_soc_codec *codec)
 	/* Line2 Line Out default volume, disconnect from Output Mixer */
 	snd_soc_write(codec, LINE2L_2_LLOPM_VOL, DEFAULT_VOL);
 	snd_soc_write(codec, LINE2R_2_RLOPM_VOL, DEFAULT_VOL);
-	/* Line2 to Mono Out default volume, disconnect from Output Mixer */
-	snd_soc_write(codec, LINE2L_2_MONOLOPM_VOL, DEFAULT_VOL);
-	snd_soc_write(codec, LINE2R_2_MONOLOPM_VOL, DEFAULT_VOL);
 
-	if (aic3x->model == AIC3X_MODEL_3007) {
+	switch (aic3x->model) {
+	case AIC3X_MODEL_3X:
+	case AIC3X_MODEL_33:
+		aic3x_mono_init(codec);
+		break;
+	case AIC3X_MODEL_3007:
 		snd_soc_write(codec, CLASSD_CTRL, 0);
+		break;
 	}
 
 	return 0;
@@ -1343,8 +1374,17 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 			      (aic3x->setup->gpio_func[1] & 0xf) << 4);
 	}
 
-	if (aic3x->model == AIC3X_MODEL_3007)
-		snd_soc_add_codec_controls(codec, &aic3x_classd_amp_gain_ctrl, 1);
+	switch (aic3x->model) {
+	case AIC3X_MODEL_3X:
+	case AIC3X_MODEL_33:
+		snd_soc_add_codec_controls(codec, aic3x_mono_controls,
+				ARRAY_SIZE(aic3x_mono_controls));
+		break;
+	case AIC3X_MODEL_3007:
+		snd_soc_add_codec_controls(codec,
+				&aic3x_classd_amp_gain_ctrl, 1);
+		break;
+	}
 
 	/* set mic bias voltage */
 	switch (aic3x->micbias_vg) {

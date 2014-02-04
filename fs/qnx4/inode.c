@@ -27,7 +27,6 @@
 
 static const struct super_operations qnx4_sops;
 
-static void qnx4_put_super(struct super_block *sb);
 static struct inode *qnx4_alloc_inode(struct super_block *sb);
 static void qnx4_destroy_inode(struct inode *inode);
 static int qnx4_remount(struct super_block *sb, int *flags, char *data);
@@ -37,7 +36,6 @@ static const struct super_operations qnx4_sops =
 {
 	.alloc_inode	= qnx4_alloc_inode,
 	.destroy_inode	= qnx4_destroy_inode,
-	.put_super	= qnx4_put_super,
 	.statfs		= qnx4_statfs,
 	.remount_fs	= qnx4_remount,
 };
@@ -148,18 +146,19 @@ static int qnx4_statfs(struct dentry *dentry, struct kstatfs *buf)
  * it really _is_ a qnx4 filesystem, and to check the size
  * of the directory entry.
  */
-static const char *qnx4_checkroot(struct super_block *sb)
+static const char *qnx4_checkroot(struct super_block *sb,
+				  struct qnx4_super_block *s)
 {
 	struct buffer_head *bh;
 	struct qnx4_inode_entry *rootdir;
 	int rd, rl;
 	int i, j;
 
-	if (*(qnx4_sb(sb)->sb->RootDir.di_fname) != '/')
+	if (s->RootDir.di_fname[0] != '/' || s->RootDir.di_fname[1] != '\0')
 		return "no qnx4 filesystem (no root dir).";
 	QNX4DEBUG((KERN_NOTICE "QNX4 filesystem found on dev %s.\n", sb->s_id));
-	rd = le32_to_cpu(qnx4_sb(sb)->sb->RootDir.di_first_xtnt.xtnt_blk) - 1;
-	rl = le32_to_cpu(qnx4_sb(sb)->sb->RootDir.di_first_xtnt.xtnt_size);
+	rd = le32_to_cpu(s->RootDir.di_first_xtnt.xtnt_blk) - 1;
+	rl = le32_to_cpu(s->RootDir.di_first_xtnt.xtnt_size);
 	for (j = 0; j < rl; j++) {
 		bh = sb_bread(sb, rd + j);	/* root dir, first block */
 		if (bh == NULL)
@@ -189,7 +188,6 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	struct inode *root;
 	const char *errmsg;
 	struct qnx4_sb_info *qs;
-	int ret = -EINVAL;
 
 	qs = kzalloc(sizeof(struct qnx4_sb_info), GFP_KERNEL);
 	if (!qs)
@@ -198,67 +196,50 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 
 	sb_set_blocksize(s, QNX4_BLOCK_SIZE);
 
+	s->s_op = &qnx4_sops;
+	s->s_magic = QNX4_SUPER_MAGIC;
+	s->s_flags |= MS_RDONLY;	/* Yup, read-only yet */
+
 	/* Check the superblock signature. Since the qnx4 code is
 	   dangerous, we should leave as quickly as possible
 	   if we don't belong here... */
 	bh = sb_bread(s, 1);
 	if (!bh) {
 		printk(KERN_ERR "qnx4: unable to read the superblock\n");
-		goto outnobh;
+		return -EINVAL;
 	}
-	if ( le32_to_cpup((__le32*) bh->b_data) != QNX4_SUPER_MAGIC ) {
-		if (!silent)
-			printk(KERN_ERR "qnx4: wrong fsid in superblock.\n");
-		goto out;
-	}
-	s->s_op = &qnx4_sops;
-	s->s_magic = QNX4_SUPER_MAGIC;
-	s->s_flags |= MS_RDONLY;	/* Yup, read-only yet */
-	qnx4_sb(s)->sb_buf = bh;
-	qnx4_sb(s)->sb = (struct qnx4_super_block *) bh->b_data;
-
 
  	/* check before allocating dentries, inodes, .. */
-	errmsg = qnx4_checkroot(s);
+	errmsg = qnx4_checkroot(s, (struct qnx4_super_block *) bh->b_data);
+	brelse(bh);
 	if (errmsg != NULL) {
  		if (!silent)
 			printk(KERN_ERR "qnx4: %s\n", errmsg);
-		goto out;
+		return -EINVAL;
 	}
 
  	/* does root not have inode number QNX4_ROOT_INO ?? */
 	root = qnx4_iget(s, QNX4_ROOT_INO * QNX4_INODES_PER_BLOCK);
 	if (IS_ERR(root)) {
 		printk(KERN_ERR "qnx4: get inode failed\n");
-		ret = PTR_ERR(root);
- 		goto outb;
+		return PTR_ERR(root);
  	}
 
-	ret = -ENOMEM;
  	s->s_root = d_make_root(root);
  	if (s->s_root == NULL)
- 		goto outb;
+ 		return -ENOMEM;
 
-	brelse(bh);
 	return 0;
-
-      outb:
-	kfree(qs->BitMap);
-      out:
-	brelse(bh);
-      outnobh:
-	kfree(qs);
-	s->s_fs_info = NULL;
-	return ret;
 }
 
-static void qnx4_put_super(struct super_block *sb)
+static void qnx4_kill_sb(struct super_block *sb)
 {
 	struct qnx4_sb_info *qs = qnx4_sb(sb);
-	kfree( qs->BitMap );
-	kfree( qs );
-	sb->s_fs_info = NULL;
-	return;
+	kill_block_super(sb);
+	if (qs) {
+		kfree(qs->BitMap);
+		kfree(qs);
+	}
 }
 
 static int qnx4_readpage(struct file *file, struct page *page)
@@ -409,7 +390,7 @@ static struct file_system_type qnx4_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "qnx4",
 	.mount		= qnx4_mount,
-	.kill_sb	= kill_block_super,
+	.kill_sb	= qnx4_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("qnx4");

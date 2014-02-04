@@ -452,6 +452,29 @@ static int adv7511_log_status(struct v4l2_subdev *sd)
 			  errors[adv7511_rd(sd, 0xc8) >> 4], state->edid_detect_counter,
 			  adv7511_rd(sd, 0x94), adv7511_rd(sd, 0x96));
 	v4l2_info(sd, "RGB quantization: %s range\n", adv7511_rd(sd, 0x18) & 0x80 ? "limited" : "full");
+	if (adv7511_rd(sd, 0xaf) & 0x02) {
+		/* HDMI only */
+		u8 manual_cts = adv7511_rd(sd, 0x0a) & 0x80;
+		u32 N = (adv7511_rd(sd, 0x01) & 0xf) << 16 |
+			adv7511_rd(sd, 0x02) << 8 |
+			adv7511_rd(sd, 0x03);
+		u8 vic_detect = adv7511_rd(sd, 0x3e) >> 2;
+		u8 vic_sent = adv7511_rd(sd, 0x3d) & 0x3f;
+		u32 CTS;
+
+		if (manual_cts)
+			CTS = (adv7511_rd(sd, 0x07) & 0xf) << 16 |
+			      adv7511_rd(sd, 0x08) << 8 |
+			      adv7511_rd(sd, 0x09);
+		else
+			CTS = (adv7511_rd(sd, 0x04) & 0xf) << 16 |
+			      adv7511_rd(sd, 0x05) << 8 |
+			      adv7511_rd(sd, 0x06);
+		v4l2_info(sd, "CTS %s mode: N %d, CTS %d\n",
+			  manual_cts ? "manual" : "automatic", N, CTS);
+		v4l2_info(sd, "VIC: detected %d, sent %d\n",
+			  vic_detect, vic_sent);
+	}
 	if (state->dv_timings.type == V4L2_DV_BT_656_1120)
 		v4l2_print_dv_timings(sd->name, "timings: ",
 				&state->dv_timings, false);
@@ -942,26 +965,38 @@ static void adv7511_check_monitor_present_status(struct v4l2_subdev *sd)
 
 static bool edid_block_verify_crc(uint8_t *edid_block)
 {
-	int i;
 	uint8_t sum = 0;
+	int i;
 
 	for (i = 0; i < 128; i++)
-		sum += *(edid_block + i);
-	return (sum == 0);
+		sum += edid_block[i];
+	return sum == 0;
 }
 
-static bool edid_segment_verify_crc(struct v4l2_subdev *sd, u32 segment)
+static bool edid_verify_crc(struct v4l2_subdev *sd, u32 segment)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 	u32 blocks = state->edid.blocks;
 	uint8_t *data = state->edid.data;
 
-	if (edid_block_verify_crc(&data[segment * 256])) {
-		if ((segment + 1) * 2 <= blocks)
-			return edid_block_verify_crc(&data[segment * 256 + 128]);
+	if (!edid_block_verify_crc(&data[segment * 256]))
+		return false;
+	if ((segment + 1) * 2 <= blocks)
+		return edid_block_verify_crc(&data[segment * 256 + 128]);
+	return true;
+}
+
+static bool edid_verify_header(struct v4l2_subdev *sd, u32 segment)
+{
+	static const u8 hdmi_header[] = {
+		0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
+	};
+	struct adv7511_state *state = get_adv7511_state(sd);
+	u8 *data = state->edid.data;
+
+	if (segment != 0)
 		return true;
-	}
-	return false;
+	return !memcmp(data, hdmi_header, sizeof(hdmi_header));
 }
 
 static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
@@ -990,9 +1025,10 @@ static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
 			state->edid.blocks = state->edid.data[0x7e] + 1;
 			v4l2_dbg(1, debug, sd, "%s: %d blocks in total\n", __func__, state->edid.blocks);
 		}
-		if (!edid_segment_verify_crc(sd, segment)) {
+		if (!edid_verify_crc(sd, segment) ||
+		    !edid_verify_header(sd, segment)) {
 			/* edid crc error, force reread of edid segment */
-			v4l2_dbg(1, debug, sd, "%s: edid crc error\n", __func__);
+			v4l2_err(sd, "%s: edid crc or header error\n", __func__);
 			state->have_monitor = false;
 			adv7511_s_power(sd, false);
 			adv7511_s_power(sd, true);
@@ -1038,6 +1074,12 @@ static void adv7511_init_setup(struct v4l2_subdev *sd)
 
 	/* clear all interrupts */
 	adv7511_wr(sd, 0x96, 0xff);
+	/*
+	 * Stop HPD from resetting a lot of registers.
+	 * It might leave the chip in a partly un-initialized state,
+	 * in particular with regards to hotplug bounces.
+	 */
+	adv7511_wr_and_or(sd, 0xd6, 0x3f, 0xc0);
 	memset(edid, 0, sizeof(struct adv7511_state_edid));
 	state->have_monitor = false;
 	adv7511_set_isr(sd, false);

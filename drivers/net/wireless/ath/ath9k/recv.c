@@ -969,21 +969,6 @@ static void ath9k_process_tsf(struct ath_rx_status *rs,
 		rxs->mactime += 0x100000000ULL;
 }
 
-static bool ath9k_is_mybeacon(struct ath_softc *sc, struct ieee80211_hdr *hdr)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (ieee80211_is_beacon(hdr->frame_control)) {
-		RX_STAT_INC(rx_beacons);
-		if (!is_zero_ether_addr(common->curbssid) &&
-		    ether_addr_equal_64bits(hdr->addr3, common->curbssid))
-			return true;
-	}
-
-	return false;
-}
-
 /*
  * For Decrypt or Demic errors, we only mark packet status here and always push
  * up the frame up to let mac80211 handle the actual error case, be it no
@@ -1071,7 +1056,10 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		goto exit;
 	}
 
-	rx_stats->is_mybeacon = ath9k_is_mybeacon(sc, hdr);
+	if (ath_is_mybeacon(common, hdr)) {
+		RX_STAT_INC(rx_beacons);
+		rx_stats->is_mybeacon = true;
+	}
 
 	/*
 	 * This shouldn't happen, but have a safety check anyway.

@@ -34,7 +34,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"4.9.224.0u"
+#define DRV_VER			"10.0.600.0u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -42,7 +42,7 @@
 #define OC_NAME_BE		OC_NAME	"(be3)"
 #define OC_NAME_LANCER		OC_NAME "(Lancer)"
 #define OC_NAME_SH		OC_NAME "(Skyhawk)"
-#define DRV_DESC		"Emulex OneConnect 10Gbps NIC Driver"
+#define DRV_DESC		"Emulex OneConnect NIC Driver"
 
 #define BE_VENDOR_ID 		0x19a2
 #define EMULEX_VENDOR_ID	0x10df
@@ -104,6 +104,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE3_MAX_RSS_QS		16
 #define BE3_MAX_TX_QS		16
 #define BE3_MAX_EVT_QS		16
+#define BE3_SRIOV_MAX_EVT_QS	8
 
 #define MAX_RX_QS		32
 #define MAX_EVT_QS		32
@@ -282,7 +283,6 @@ struct be_rx_compl_info {
 	u32 rss_hash;
 	u16 vlan_tag;
 	u16 pkt_size;
-	u16 rxq_idx;
 	u16 port;
 	u8 vlanf;
 	u8 num_rcvd;
@@ -480,7 +480,7 @@ struct be_adapter {
 	struct list_head entry;
 
 	u32 flash_status;
-	struct completion flash_compl;
+	struct completion et_cmd_compl;
 
 	struct be_resources res;	/* resources available for the func */
 	u16 num_vfs;			/* Number of VFs provisioned by PF */
@@ -492,7 +492,7 @@ struct be_adapter {
 	u16 pvid;
 	struct phy_info phy;
 	u8 wol_cap;
-	bool wol;
+	bool wol_en;
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u16 asic_rev;
 	u16 qnq_vid;
@@ -503,6 +503,7 @@ struct be_adapter {
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
+#define be_virtfn(adapter)		(adapter->virtfn)
 #define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
 #define sriov_want(adapter)             (be_physfn(adapter) &&	\
 					 (num_vfs || pci_num_vf(adapter->pdev)))

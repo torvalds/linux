@@ -81,14 +81,14 @@ static int ksz_config_flags(struct phy_device *phydev)
 }
 
 static int kszphy_extended_write(struct phy_device *phydev,
-                                 u32 regnum, u16 val)
+				u32 regnum, u16 val)
 {
 	phy_write(phydev, MII_KSZPHY_EXTREG, KSZPHY_EXTREG_WRITE | regnum);
 	return phy_write(phydev, MII_KSZPHY_EXTREG_WRITE, val);
 }
 
 static int kszphy_extended_read(struct phy_device *phydev,
-                                 u32 regnum)
+				u32 regnum)
 {
 	phy_write(phydev, MII_KSZPHY_EXTREG, regnum);
 	return phy_read(phydev, MII_KSZPHY_EXTREG_READ);
@@ -326,6 +326,21 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KSZ8041",
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
+	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.config_init	= kszphy_config_init,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.ack_interrupt	= kszphy_ack_interrupt,
+	.config_intr	= kszphy_config_intr,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+	.driver		= { .owner = THIS_MODULE,},
+}, {
+	.phy_id		= PHY_ID_KSZ8041RNLI,
+	.phy_id_mask	= 0x00fffff0,
+	.name		= "Micrel KSZ8041RNLI",
+	.features	= PHY_BASIC_FEATURES |
+			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,

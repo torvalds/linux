@@ -47,6 +47,8 @@
 #include <linux/in.h>
 #include <linux/inet.h>
 #include <linux/slab.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
 #include <linux/netdevice.h>
 #ifdef CONFIG_NET_CLS_ACT
 #include <net/pkt_sched.h>
@@ -65,6 +67,7 @@
 #include <net/dst.h>
 #include <net/sock.h>
 #include <net/checksum.h>
+#include <net/ip6_checksum.h>
 #include <net/xfrm.h>
 
 #include <asm/uaccess.h>
@@ -73,36 +76,6 @@
 
 struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
-
-static void sock_pipe_buf_release(struct pipe_inode_info *pipe,
-				  struct pipe_buffer *buf)
-{
-	put_page(buf->page);
-}
-
-static void sock_pipe_buf_get(struct pipe_inode_info *pipe,
-				struct pipe_buffer *buf)
-{
-	get_page(buf->page);
-}
-
-static int sock_pipe_buf_steal(struct pipe_inode_info *pipe,
-			       struct pipe_buffer *buf)
-{
-	return 1;
-}
-
-
-/* Pipe buffer operations for a socket. */
-static const struct pipe_buf_operations sock_pipe_buf_ops = {
-	.can_merge = 0,
-	.map = generic_pipe_buf_map,
-	.unmap = generic_pipe_buf_unmap,
-	.confirm = generic_pipe_buf_confirm,
-	.release = sock_pipe_buf_release,
-	.steal = sock_pipe_buf_steal,
-	.get = sock_pipe_buf_get,
-};
 
 /**
  *	skb_panic - private function for out-of-line support
@@ -712,9 +685,8 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->inner_network_header = old->inner_network_header;
 	new->inner_mac_header = old->inner_mac_header;
 	skb_dst_copy(new, old);
-	new->rxhash		= old->rxhash;
+	skb_copy_hash(new, old);
 	new->ooo_okay		= old->ooo_okay;
-	new->l4_rxhash		= old->l4_rxhash;
 	new->no_fcs		= old->no_fcs;
 	new->encapsulation	= old->encapsulation;
 #ifdef CONFIG_XFRM
@@ -1830,7 +1802,7 @@ int skb_splice_bits(struct sk_buff *skb, unsigned int offset,
 		.partial = partial,
 		.nr_pages_max = MAX_SKB_FRAGS,
 		.flags = flags,
-		.ops = &sock_pipe_buf_ops,
+		.ops = &nosteal_pipe_buf_ops,
 		.spd_release = sock_spd_release,
 	};
 	struct sk_buff *frag_iter;
@@ -2121,6 +2093,91 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 	return csum;
 }
 EXPORT_SYMBOL(skb_copy_and_csum_bits);
+
+ /**
+ *	skb_zerocopy_headlen - Calculate headroom needed for skb_zerocopy()
+ *	@from: source buffer
+ *
+ *	Calculates the amount of linear headroom needed in the 'to' skb passed
+ *	into skb_zerocopy().
+ */
+unsigned int
+skb_zerocopy_headlen(const struct sk_buff *from)
+{
+	unsigned int hlen = 0;
+
+	if (!from->head_frag ||
+	    skb_headlen(from) < L1_CACHE_BYTES ||
+	    skb_shinfo(from)->nr_frags >= MAX_SKB_FRAGS)
+		hlen = skb_headlen(from);
+
+	if (skb_has_frag_list(from))
+		hlen = from->len;
+
+	return hlen;
+}
+EXPORT_SYMBOL_GPL(skb_zerocopy_headlen);
+
+/**
+ *	skb_zerocopy - Zero copy skb to skb
+ *	@to: destination buffer
+ *	@from: source buffer
+ *	@len: number of bytes to copy from source buffer
+ *	@hlen: size of linear headroom in destination buffer
+ *
+ *	Copies up to `len` bytes from `from` to `to` by creating references
+ *	to the frags in the source buffer.
+ *
+ *	The `hlen` as calculated by skb_zerocopy_headlen() specifies the
+ *	headroom in the `to` buffer.
+ */
+void
+skb_zerocopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
+{
+	int i, j = 0;
+	int plen = 0; /* length of skb->head fragment */
+	struct page *page;
+	unsigned int offset;
+
+	BUG_ON(!from->head_frag && !hlen);
+
+	/* dont bother with small payloads */
+	if (len <= skb_tailroom(to)) {
+		skb_copy_bits(from, 0, skb_put(to, len), len);
+		return;
+	}
+
+	if (hlen) {
+		skb_copy_bits(from, 0, skb_put(to, hlen), hlen);
+		len -= hlen;
+	} else {
+		plen = min_t(int, skb_headlen(from), len);
+		if (plen) {
+			page = virt_to_head_page(from->head);
+			offset = from->data - (unsigned char *)page_address(page);
+			__skb_fill_page_desc(to, 0, page, offset, plen);
+			get_page(page);
+			j = 1;
+			len -= plen;
+		}
+	}
+
+	to->truesize += len + plen;
+	to->len += len + plen;
+	to->data_len += len + plen;
+
+	for (i = 0; i < skb_shinfo(from)->nr_frags; i++) {
+		if (!len)
+			break;
+		skb_shinfo(to)->frags[j] = skb_shinfo(from)->frags[i];
+		skb_shinfo(to)->frags[j].size = min_t(int, skb_shinfo(to)->frags[j].size, len);
+		len -= skb_shinfo(to)->frags[j].size;
+		skb_frag_ref(to, j);
+		j++;
+	}
+	skb_shinfo(to)->nr_frags = j;
+}
+EXPORT_SYMBOL_GPL(skb_zerocopy);
 
 void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 {
@@ -2982,10 +3039,7 @@ perform_csum_check:
 	return segs;
 
 err:
-	while ((skb = segs)) {
-		segs = skb->next;
-		kfree_skb(skb);
-	}
+	kfree_skb_list(segs);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(skb_segment);
@@ -3468,6 +3522,278 @@ bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off)
 }
 EXPORT_SYMBOL_GPL(skb_partial_csum_set);
 
+static int skb_maybe_pull_tail(struct sk_buff *skb, unsigned int len,
+			       unsigned int max)
+{
+	if (skb_headlen(skb) >= len)
+		return 0;
+
+	/* If we need to pullup then pullup to the max, so we
+	 * won't need to do it again.
+	 */
+	if (max > skb->len)
+		max = skb->len;
+
+	if (__pskb_pull_tail(skb, max - skb_headlen(skb)) == NULL)
+		return -ENOMEM;
+
+	if (skb_headlen(skb) < len)
+		return -EPROTO;
+
+	return 0;
+}
+
+/* This value should be large enough to cover a tagged ethernet header plus
+ * maximally sized IP and TCP or UDP headers.
+ */
+#define MAX_IP_HDR_LEN 128
+
+static int skb_checksum_setup_ip(struct sk_buff *skb, bool recalculate)
+{
+	unsigned int off;
+	bool fragment;
+	int err;
+
+	fragment = false;
+
+	err = skb_maybe_pull_tail(skb,
+				  sizeof(struct iphdr),
+				  MAX_IP_HDR_LEN);
+	if (err < 0)
+		goto out;
+
+	if (ip_hdr(skb)->frag_off & htons(IP_OFFSET | IP_MF))
+		fragment = true;
+
+	off = ip_hdrlen(skb);
+
+	err = -EPROTO;
+
+	if (fragment)
+		goto out;
+
+	switch (ip_hdr(skb)->protocol) {
+	case IPPROTO_TCP:
+		err = skb_maybe_pull_tail(skb,
+					  off + sizeof(struct tcphdr),
+					  MAX_IP_HDR_LEN);
+		if (err < 0)
+			goto out;
+
+		if (!skb_partial_csum_set(skb, off,
+					  offsetof(struct tcphdr, check))) {
+			err = -EPROTO;
+			goto out;
+		}
+
+		if (recalculate)
+			tcp_hdr(skb)->check =
+				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+						   ip_hdr(skb)->daddr,
+						   skb->len - off,
+						   IPPROTO_TCP, 0);
+		break;
+	case IPPROTO_UDP:
+		err = skb_maybe_pull_tail(skb,
+					  off + sizeof(struct udphdr),
+					  MAX_IP_HDR_LEN);
+		if (err < 0)
+			goto out;
+
+		if (!skb_partial_csum_set(skb, off,
+					  offsetof(struct udphdr, check))) {
+			err = -EPROTO;
+			goto out;
+		}
+
+		if (recalculate)
+			udp_hdr(skb)->check =
+				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+						   ip_hdr(skb)->daddr,
+						   skb->len - off,
+						   IPPROTO_UDP, 0);
+		break;
+	default:
+		goto out;
+	}
+
+	err = 0;
+
+out:
+	return err;
+}
+
+/* This value should be large enough to cover a tagged ethernet header plus
+ * an IPv6 header, all options, and a maximal TCP or UDP header.
+ */
+#define MAX_IPV6_HDR_LEN 256
+
+#define OPT_HDR(type, skb, off) \
+	(type *)(skb_network_header(skb) + (off))
+
+static int skb_checksum_setup_ipv6(struct sk_buff *skb, bool recalculate)
+{
+	int err;
+	u8 nexthdr;
+	unsigned int off;
+	unsigned int len;
+	bool fragment;
+	bool done;
+
+	fragment = false;
+	done = false;
+
+	off = sizeof(struct ipv6hdr);
+
+	err = skb_maybe_pull_tail(skb, off, MAX_IPV6_HDR_LEN);
+	if (err < 0)
+		goto out;
+
+	nexthdr = ipv6_hdr(skb)->nexthdr;
+
+	len = sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len);
+	while (off <= len && !done) {
+		switch (nexthdr) {
+		case IPPROTO_DSTOPTS:
+		case IPPROTO_HOPOPTS:
+		case IPPROTO_ROUTING: {
+			struct ipv6_opt_hdr *hp;
+
+			err = skb_maybe_pull_tail(skb,
+						  off +
+						  sizeof(struct ipv6_opt_hdr),
+						  MAX_IPV6_HDR_LEN);
+			if (err < 0)
+				goto out;
+
+			hp = OPT_HDR(struct ipv6_opt_hdr, skb, off);
+			nexthdr = hp->nexthdr;
+			off += ipv6_optlen(hp);
+			break;
+		}
+		case IPPROTO_AH: {
+			struct ip_auth_hdr *hp;
+
+			err = skb_maybe_pull_tail(skb,
+						  off +
+						  sizeof(struct ip_auth_hdr),
+						  MAX_IPV6_HDR_LEN);
+			if (err < 0)
+				goto out;
+
+			hp = OPT_HDR(struct ip_auth_hdr, skb, off);
+			nexthdr = hp->nexthdr;
+			off += ipv6_authlen(hp);
+			break;
+		}
+		case IPPROTO_FRAGMENT: {
+			struct frag_hdr *hp;
+
+			err = skb_maybe_pull_tail(skb,
+						  off +
+						  sizeof(struct frag_hdr),
+						  MAX_IPV6_HDR_LEN);
+			if (err < 0)
+				goto out;
+
+			hp = OPT_HDR(struct frag_hdr, skb, off);
+
+			if (hp->frag_off & htons(IP6_OFFSET | IP6_MF))
+				fragment = true;
+
+			nexthdr = hp->nexthdr;
+			off += sizeof(struct frag_hdr);
+			break;
+		}
+		default:
+			done = true;
+			break;
+		}
+	}
+
+	err = -EPROTO;
+
+	if (!done || fragment)
+		goto out;
+
+	switch (nexthdr) {
+	case IPPROTO_TCP:
+		err = skb_maybe_pull_tail(skb,
+					  off + sizeof(struct tcphdr),
+					  MAX_IPV6_HDR_LEN);
+		if (err < 0)
+			goto out;
+
+		if (!skb_partial_csum_set(skb, off,
+					  offsetof(struct tcphdr, check))) {
+			err = -EPROTO;
+			goto out;
+		}
+
+		if (recalculate)
+			tcp_hdr(skb)->check =
+				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+						 &ipv6_hdr(skb)->daddr,
+						 skb->len - off,
+						 IPPROTO_TCP, 0);
+		break;
+	case IPPROTO_UDP:
+		err = skb_maybe_pull_tail(skb,
+					  off + sizeof(struct udphdr),
+					  MAX_IPV6_HDR_LEN);
+		if (err < 0)
+			goto out;
+
+		if (!skb_partial_csum_set(skb, off,
+					  offsetof(struct udphdr, check))) {
+			err = -EPROTO;
+			goto out;
+		}
+
+		if (recalculate)
+			udp_hdr(skb)->check =
+				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+						 &ipv6_hdr(skb)->daddr,
+						 skb->len - off,
+						 IPPROTO_UDP, 0);
+		break;
+	default:
+		goto out;
+	}
+
+	err = 0;
+
+out:
+	return err;
+}
+
+/**
+ * skb_checksum_setup - set up partial checksum offset
+ * @skb: the skb to set up
+ * @recalculate: if true the pseudo-header checksum will be recalculated
+ */
+int skb_checksum_setup(struct sk_buff *skb, bool recalculate)
+{
+	int err;
+
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		err = skb_checksum_setup_ip(skb, recalculate);
+		break;
+
+	case htons(ETH_P_IPV6):
+		err = skb_checksum_setup_ipv6(skb, recalculate);
+		break;
+
+	default:
+		err = -EPROTO;
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(skb_checksum_setup);
+
 void __skb_warn_lro_forwarding(const struct sk_buff *skb)
 {
 	net_warn_ratelimited("%s: received packets cannot be forwarded while LRO is enabled\n",
@@ -3584,6 +3910,7 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 	skb->tstamp.tv64 = 0;
 	skb->pkt_type = PACKET_HOST;
 	skb->skb_iif = 0;
+	skb->local_df = 0;
 	skb_dst_drop(skb);
 	skb->mark = 0;
 	secpath_reset(skb);
@@ -3591,3 +3918,26 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 	nf_reset_trace(skb);
 }
 EXPORT_SYMBOL_GPL(skb_scrub_packet);
+
+/**
+ * skb_gso_transport_seglen - Return length of individual segments of a gso packet
+ *
+ * @skb: GSO skb
+ *
+ * skb_gso_transport_seglen is used to determine the real size of the
+ * individual segments, including Layer4 headers (TCP/UDP).
+ *
+ * The MAC/L2 or network (IP, IPv6) headers are not accounted for.
+ */
+unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
+{
+	const struct skb_shared_info *shinfo = skb_shinfo(skb);
+	unsigned int hdr_len;
+
+	if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)))
+		hdr_len = tcp_hdrlen(skb);
+	else
+		hdr_len = sizeof(struct udphdr);
+	return hdr_len + shinfo->gso_size;
+}
+EXPORT_SYMBOL_GPL(skb_gso_transport_seglen);

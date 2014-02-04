@@ -16,16 +16,23 @@ config GENERIC_PHY
 	  framework should select this config.
 
 config PHY_EXYNOS_MIPI_VIDEO
+	depends on HAS_IOMEM
 	tristate "S5P/EXYNOS SoC series MIPI CSI-2/DSI PHY driver"
 	help
 	  Support for MIPI CSI-2 and MIPI DSI DPHY found on Samsung S5P
 	  and EXYNOS SoCs.
 
+config PHY_MVEBU_SATA
+	def_bool y
+	depends on ARCH_KIRKWOOD || ARCH_DOVE
+	depends on OF
+	select GENERIC_PHY
+
 config OMAP_USB2
 	tristate "OMAP USB2 PHY Driver"
 	depends on ARCH_OMAP2PLUS
+	depends on USB_PHY
 	select GENERIC_PHY
-	select USB_PHY
 	select OMAP_CONTROL_USB
 	help
 	  Enable this to support the transceiver that is part of SOC. This
@@ -36,8 +43,8 @@ config OMAP_USB2
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030 && USB_MUSB_OMAP2PLUS
+	depends on USB_PHY
 	select GENERIC_PHY
-	select USB_PHY
 	help
 	  Enable this to support the USB OTG transceiver on TWL4030
 	  family chips (including the TWL5030 and TPS659x0 devices).
@@ -50,5 +57,11 @@ config PHY_EXYNOS_DP_VIDEO
 	select GENERIC_PHY
 	help
 	  Support for Display Port PHY found on Samsung EXYNOS SoCs.
+
+config BCM_KONA_USB2_PHY
+	tristate "Broadcom Kona USB2 PHY Driver"
+	depends on GENERIC_PHY
+	help
+	  Enable this to support the Broadcom Kona USB 2.0 PHY.
 
 endmenu

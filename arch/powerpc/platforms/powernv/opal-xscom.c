@@ -96,9 +96,11 @@ static int opal_scom_read(scom_map_t map, u64 reg, u64 *value)
 {
 	struct opal_scom_map *m = map;
 	int64_t rc;
+	__be64 v;
 
 	reg = opal_scom_unmangle(reg);
-	rc = opal_xscom_read(m->chip, m->addr + reg, (uint64_t *)__pa(value));
+	rc = opal_xscom_read(m->chip, m->addr + reg, (__be64 *)__pa(&v));
+	*value = be64_to_cpu(v);
 	return opal_xscom_err_xlate(rc);
 }
 

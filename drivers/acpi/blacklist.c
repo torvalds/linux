@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/dmi.h>
 
 #include "internal.h"
@@ -74,39 +73,6 @@ static struct acpi_blacklist_item acpi_blacklist[] __initdata = {
 
 	{""}
 };
-
-#if	CONFIG_ACPI_BLACKLIST_YEAR
-
-static int __init blacklist_by_year(void)
-{
-	int year;
-
-	/* Doesn't exist? Likely an old system */
-	if (!dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL)) {
-		printk(KERN_ERR PREFIX "no DMI BIOS year, "
-			"acpi=force is required to enable ACPI\n" );
-		return 1;
-	}
-	/* 0? Likely a buggy new BIOS */
-	if (year == 0) {
-		printk(KERN_ERR PREFIX "DMI BIOS year==0, "
-			"assuming ACPI-capable machine\n" );
-		return 0;
-	}
-	if (year < CONFIG_ACPI_BLACKLIST_YEAR) {
-		printk(KERN_ERR PREFIX "BIOS age (%d) fails cutoff (%d), "
-		       "acpi=force is required to enable ACPI\n",
-		       year, CONFIG_ACPI_BLACKLIST_YEAR);
-		return 1;
-	}
-	return 0;
-}
-#else
-static inline int blacklist_by_year(void)
-{
-	return 0;
-}
-#endif
 
 int __init acpi_blacklisted(void)
 {
@@ -165,8 +131,6 @@ int __init acpi_blacklisted(void)
 			i++;
 		}
 	}
-
-	blacklisted += blacklist_by_year();
 
 	dmi_check_system(acpi_osi_dmi_table);
 
@@ -356,6 +320,56 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		     DMI_MATCH(DMI_PRODUCT_VERSION, "2349D15"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP ProBook 2013 models",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP ProBook "),
+		     DMI_MATCH(DMI_PRODUCT_NAME, " G1"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP EliteBook 2013 models",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP EliteBook "),
+		     DMI_MATCH(DMI_PRODUCT_NAME, " G1"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP ZBook 14",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP ZBook 14"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP ZBook 15",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP ZBook 15"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP ZBook 17",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP ZBook 17"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP EliteBook 8780w",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP EliteBook 8780w"),
 		},
 	},
 

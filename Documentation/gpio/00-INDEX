@@ -1,0 +1,14 @@
+00-INDEX
+	- This file
+gpio.txt
+	- Introduction to GPIOs and their kernel interfaces
+consumer.txt
+	- How to obtain and use GPIOs in a driver
+driver.txt
+	- How to write a GPIO driver
+board.txt
+	- How to assign GPIOs to a consumer device and a function
+sysfs.txt
+	- Information about the GPIO sysfs interface
+gpio-legacy.txt
+	- Historical documentation of the deprecated GPIO integer interface

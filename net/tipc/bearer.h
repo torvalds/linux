@@ -1,7 +1,7 @@
 /*
  * net/tipc/bearer.h: Include file for TIPC bearer code
  *
- * Copyright (c) 1996-2006, Ericsson AB
+ * Copyright (c) 1996-2006, 2013, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -73,18 +73,18 @@ struct tipc_media_addr {
 struct tipc_bearer;
 
 /**
- * struct tipc_media - TIPC media information available to internal users
+ * struct tipc_media - Media specific info exposed to generic bearer layer
  * @send_msg: routine which handles buffer transmission
  * @enable_media: routine which enables a media
  * @disable_media: routine which disables a media
  * @addr2str: routine which converts media address to string
  * @addr2msg: routine which converts media address to protocol message area
  * @msg2addr: routine which converts media address from protocol message area
- * @bcast_addr: media address used in broadcasting
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
  * @type_id: TIPC media identifier
+ * @hwaddr_len: TIPC media address len
  * @name: media name
  */
 struct tipc_media {
@@ -101,18 +101,20 @@ struct tipc_media {
 	u32 tolerance;
 	u32 window;
 	u32 type_id;
+	u32 hwaddr_len;
 	char name[TIPC_MAX_MEDIA_NAME];
 };
 
 /**
- * struct tipc_bearer - TIPC bearer structure
+ * struct tipc_bearer - Generic TIPC bearer structure
+ * @dev: ptr to associated network device
  * @usr_handle: pointer to additional media-specific information about bearer
  * @mtu: max packet size bearer can support
- * @blocked: non-zero if bearer is blocked
  * @lock: spinlock for controlling access to bearer
  * @addr: media-specific address associated with bearer
  * @name: bearer name (format = media:interface)
  * @media: ptr to media structure associated with bearer
+ * @bcast_addr: media address used in broadcasting
  * @priority: default link priority for bearer
  * @window: default window size for bearer
  * @tolerance: default link tolerance for bearer
@@ -128,9 +130,8 @@ struct tipc_media {
  * care of initializing all other fields.
  */
 struct tipc_bearer {
-	void *usr_handle;			/* initalized by media */
+	void *media_ptr;			/* initalized by media */
 	u32 mtu;				/* initalized by media */
-	int blocked;				/* initalized by media */
 	struct tipc_media_addr addr;		/* initalized by media */
 	char name[TIPC_MAX_BEARER_NAME];
 	spinlock_t lock;
@@ -159,55 +160,40 @@ extern struct tipc_bearer tipc_bearers[];
 /*
  * TIPC routines available to supported media types
  */
-int tipc_register_media(struct tipc_media *m_ptr);
 
-void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
-
-int  tipc_block_bearer(struct tipc_bearer *b_ptr);
-void tipc_continue(struct tipc_bearer *tb_ptr);
-
+void tipc_rcv(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);
 int tipc_disable_bearer(const char *name);
 
 /*
  * Routines made available to TIPC by supported media types
  */
-int  tipc_eth_media_start(void);
-void tipc_eth_media_stop(void);
+extern struct tipc_media eth_media_info;
 
 #ifdef CONFIG_TIPC_MEDIA_IB
-int  tipc_ib_media_start(void);
-void tipc_ib_media_stop(void);
-#else
-static inline int tipc_ib_media_start(void) { return 0; }
-static inline void tipc_ib_media_stop(void) { return; }
+extern struct tipc_media ib_media_info;
 #endif
 
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);
 void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
+void tipc_l2_media_addr_set(const struct tipc_bearer *b,
+			    struct tipc_media_addr *a, char *mac);
+int tipc_enable_l2_media(struct tipc_bearer *b);
+void tipc_disable_l2_media(struct tipc_bearer *b);
+int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
+		     struct tipc_media_addr *dest);
 
 struct sk_buff *tipc_bearer_get_names(void);
 void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest);
 void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest);
 struct tipc_bearer *tipc_bearer_find(const char *name);
-struct tipc_bearer *tipc_bearer_find_interface(const char *if_name);
 struct tipc_media *tipc_media_find(const char *name);
-int tipc_bearer_blocked(struct tipc_bearer *b_ptr);
+int tipc_bearer_setup(void);
+void tipc_bearer_cleanup(void);
 void tipc_bearer_stop(void);
-
-/**
- * tipc_bearer_send- sends buffer to destination over bearer
- *
- * IMPORTANT:
- * The media send routine must not alter the buffer being passed in
- * as it may be needed for later retransmission!
- */
-static inline void tipc_bearer_send(struct tipc_bearer *b, struct sk_buff *buf,
-				   struct tipc_media_addr *dest)
-{
-	b->media->send_msg(buf, b, dest);
-}
+void tipc_bearer_send(struct tipc_bearer *b, struct sk_buff *buf,
+		      struct tipc_media_addr *dest);
 
 #endif	/* _TIPC_BEARER_H */

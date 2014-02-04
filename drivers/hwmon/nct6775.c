@@ -5,7 +5,7 @@
  * Copyright (C) 2012  Guenter Roeck <linux@roeck-us.net>
  *
  * Derived from w83627ehf driver
- * Copyright (C) 2005-2012  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2005-2012  Jean Delvare <jdelvare@suse.de>
  * Copyright (C) 2006  Yuan Mu (Winbond),
  *		       Rudolf Marek <r.marek@assembler.cz>
  *		       David Hubbard <david.c.hubbard@gmail.com>
@@ -274,6 +274,8 @@ static const u16 NCT6775_FAN_PULSE_SHIFT[] = { 0, 0, 0, 0, 0, 0 };
 static const u16 NCT6775_REG_TEMP[] = {
 	0x27, 0x150, 0x250, 0x62b, 0x62c, 0x62d };
 
+static const u16 NCT6775_REG_TEMP_MON[] = { 0x73, 0x75, 0x77 };
+
 static const u16 NCT6775_REG_TEMP_CONFIG[ARRAY_SIZE(NCT6775_REG_TEMP)] = {
 	0, 0x152, 0x252, 0x628, 0x629, 0x62A };
 static const u16 NCT6775_REG_TEMP_HYST[ARRAY_SIZE(NCT6775_REG_TEMP)] = {
@@ -454,6 +456,7 @@ static const u16 NCT6779_REG_CRITICAL_PWM[] = {
 	0x137, 0x237, 0x337, 0x837, 0x937, 0xa37 };
 
 static const u16 NCT6779_REG_TEMP[] = { 0x27, 0x150 };
+static const u16 NCT6779_REG_TEMP_MON[] = { 0x73, 0x75, 0x77, 0x79, 0x7b };
 static const u16 NCT6779_REG_TEMP_CONFIG[ARRAY_SIZE(NCT6779_REG_TEMP)] = {
 	0x18, 0x152 };
 static const u16 NCT6779_REG_TEMP_HYST[ARRAY_SIZE(NCT6779_REG_TEMP)] = {
@@ -507,6 +510,13 @@ static const u16 NCT6779_REG_TEMP_CRIT[ARRAY_SIZE(nct6779_temp_label) - 1]
 
 #define NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE	0x28
 
+static const u16 NCT6791_REG_WEIGHT_TEMP_SEL[6] = { 0, 0x239 };
+static const u16 NCT6791_REG_WEIGHT_TEMP_STEP[6] = { 0, 0x23a };
+static const u16 NCT6791_REG_WEIGHT_TEMP_STEP_TOL[6] = { 0, 0x23b };
+static const u16 NCT6791_REG_WEIGHT_DUTY_STEP[6] = { 0, 0x23c };
+static const u16 NCT6791_REG_WEIGHT_TEMP_BASE[6] = { 0, 0x23d };
+static const u16 NCT6791_REG_WEIGHT_DUTY_BASE[6] = { 0, 0x23e };
+
 static const u16 NCT6791_REG_ALARM[NUM_REG_ALARM] = {
 	0x459, 0x45A, 0x45B, 0x568, 0x45D };
 
@@ -534,6 +544,7 @@ static const u16 NCT6106_REG_IN[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x07, 0x08, 0x09 };
 
 static const u16 NCT6106_REG_TEMP[] = { 0x10, 0x11, 0x12, 0x13, 0x14, 0x15 };
+static const u16 NCT6106_REG_TEMP_MON[] = { 0x18, 0x19, 0x1a };
 static const u16 NCT6106_REG_TEMP_HYST[] = {
 	0xc3, 0xc7, 0xcb, 0xcf, 0xd3, 0xd7 };
 static const u16 NCT6106_REG_TEMP_OVER[] = {
@@ -1306,6 +1317,9 @@ static void nct6775_update_pwm(struct device *dev)
 		/* If fan can stop, report floor as 0 */
 		if (reg & 0x80)
 			data->pwm[2][i] = 0;
+
+		if (!data->REG_WEIGHT_TEMP_SEL[i])
+			continue;
 
 		reg = nct6775_read_value(data, data->REG_WEIGHT_TEMP_SEL[i]);
 		data->pwm_weight_temp_sel[i] = reg & 0x1f;
@@ -2852,6 +2866,9 @@ static umode_t nct6775_pwm_is_visible(struct kobject *kobj,
 	if (!(data->has_pwm & (1 << pwm)))
 		return 0;
 
+	if ((nr >= 14 && nr <= 18) || nr == 21)   /* weight */
+		if (!data->REG_WEIGHT_TEMP_SEL[pwm])
+			return 0;
 	if (nr == 19 && data->REG_PWM[3] == NULL) /* pwm_max */
 		return 0;
 	if (nr == 20 && data->REG_PWM[4] == NULL) /* pwm_step */
@@ -2945,11 +2962,11 @@ static struct sensor_device_template *nct6775_attributes_pwm_template[] = {
 	&sensor_dev_template_pwm_step_down_time,
 	&sensor_dev_template_pwm_start,
 	&sensor_dev_template_pwm_floor,
-	&sensor_dev_template_pwm_weight_temp_sel,
+	&sensor_dev_template_pwm_weight_temp_sel,	/* 14 */
 	&sensor_dev_template_pwm_weight_temp_step,
 	&sensor_dev_template_pwm_weight_temp_step_tol,
 	&sensor_dev_template_pwm_weight_temp_step_base,
-	&sensor_dev_template_pwm_weight_duty_step,
+	&sensor_dev_template_pwm_weight_duty_step,	/* 18 */
 	&sensor_dev_template_pwm_max,			/* 19 */
 	&sensor_dev_template_pwm_step,			/* 20 */
 	&sensor_dev_template_pwm_weight_duty_base,	/* 21 */
@@ -3253,9 +3270,9 @@ static int nct6775_probe(struct platform_device *pdev)
 	int i, s, err = 0;
 	int src, mask, available;
 	const u16 *reg_temp, *reg_temp_over, *reg_temp_hyst, *reg_temp_config;
-	const u16 *reg_temp_alternate, *reg_temp_crit;
+	const u16 *reg_temp_mon, *reg_temp_alternate, *reg_temp_crit;
 	const u16 *reg_temp_crit_l = NULL, *reg_temp_crit_h = NULL;
-	int num_reg_temp;
+	int num_reg_temp, num_reg_temp_mon;
 	u8 cr2a;
 	struct attribute_group *group;
 	struct device *hwmon_dev;
@@ -3338,7 +3355,9 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->BEEP_BITS = NCT6106_BEEP_BITS;
 
 		reg_temp = NCT6106_REG_TEMP;
+		reg_temp_mon = NCT6106_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6106_REG_TEMP);
+		num_reg_temp_mon = ARRAY_SIZE(NCT6106_REG_TEMP_MON);
 		reg_temp_over = NCT6106_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6106_REG_TEMP_HYST;
 		reg_temp_config = NCT6106_REG_TEMP_CONFIG;
@@ -3410,7 +3429,9 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_BEEP = NCT6775_REG_BEEP;
 
 		reg_temp = NCT6775_REG_TEMP;
+		reg_temp_mon = NCT6775_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6775_REG_TEMP);
+		num_reg_temp_mon = ARRAY_SIZE(NCT6775_REG_TEMP_MON);
 		reg_temp_over = NCT6775_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6775_REG_TEMP_HYST;
 		reg_temp_config = NCT6775_REG_TEMP_CONFIG;
@@ -3480,7 +3501,9 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_BEEP = NCT6776_REG_BEEP;
 
 		reg_temp = NCT6775_REG_TEMP;
+		reg_temp_mon = NCT6775_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6775_REG_TEMP);
+		num_reg_temp_mon = ARRAY_SIZE(NCT6775_REG_TEMP_MON);
 		reg_temp_over = NCT6775_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6775_REG_TEMP_HYST;
 		reg_temp_config = NCT6776_REG_TEMP_CONFIG;
@@ -3554,7 +3577,9 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_BEEP = NCT6776_REG_BEEP;
 
 		reg_temp = NCT6779_REG_TEMP;
+		reg_temp_mon = NCT6779_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6779_REG_TEMP);
+		num_reg_temp_mon = ARRAY_SIZE(NCT6779_REG_TEMP_MON);
 		reg_temp_over = NCT6779_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6779_REG_TEMP_HYST;
 		reg_temp_config = NCT6779_REG_TEMP_CONFIG;
@@ -3603,8 +3628,8 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_PWM[0] = NCT6775_REG_PWM;
 		data->REG_PWM[1] = NCT6775_REG_FAN_START_OUTPUT;
 		data->REG_PWM[2] = NCT6775_REG_FAN_STOP_OUTPUT;
-		data->REG_PWM[5] = NCT6775_REG_WEIGHT_DUTY_STEP;
-		data->REG_PWM[6] = NCT6776_REG_WEIGHT_DUTY_BASE;
+		data->REG_PWM[5] = NCT6791_REG_WEIGHT_DUTY_STEP;
+		data->REG_PWM[6] = NCT6791_REG_WEIGHT_DUTY_BASE;
 		data->REG_PWM_READ = NCT6775_REG_PWM_READ;
 		data->REG_PWM_MODE = NCT6776_REG_PWM_MODE;
 		data->PWM_MODE_MASK = NCT6776_PWM_MODE_MASK;
@@ -3620,15 +3645,17 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_TEMP_OFFSET = NCT6779_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_TEMP_SEL = NCT6775_REG_TEMP_SEL;
-		data->REG_WEIGHT_TEMP_SEL = NCT6775_REG_WEIGHT_TEMP_SEL;
-		data->REG_WEIGHT_TEMP[0] = NCT6775_REG_WEIGHT_TEMP_STEP;
-		data->REG_WEIGHT_TEMP[1] = NCT6775_REG_WEIGHT_TEMP_STEP_TOL;
-		data->REG_WEIGHT_TEMP[2] = NCT6775_REG_WEIGHT_TEMP_BASE;
+		data->REG_WEIGHT_TEMP_SEL = NCT6791_REG_WEIGHT_TEMP_SEL;
+		data->REG_WEIGHT_TEMP[0] = NCT6791_REG_WEIGHT_TEMP_STEP;
+		data->REG_WEIGHT_TEMP[1] = NCT6791_REG_WEIGHT_TEMP_STEP_TOL;
+		data->REG_WEIGHT_TEMP[2] = NCT6791_REG_WEIGHT_TEMP_BASE;
 		data->REG_ALARM = NCT6791_REG_ALARM;
 		data->REG_BEEP = NCT6776_REG_BEEP;
 
 		reg_temp = NCT6779_REG_TEMP;
+		reg_temp_mon = NCT6779_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6779_REG_TEMP);
+		num_reg_temp_mon = ARRAY_SIZE(NCT6779_REG_TEMP_MON);
 		reg_temp_over = NCT6779_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6779_REG_TEMP_HYST;
 		reg_temp_config = NCT6779_REG_TEMP_CONFIG;
@@ -3725,6 +3752,50 @@ static int nct6775_probe(struct platform_device *pdev)
 		if (reg_temp_crit_l && reg_temp_crit_l[i])
 			data->reg_temp[4][s] = reg_temp_crit_l[i];
 
+		data->temp_src[s] = src;
+		s++;
+	}
+
+	/*
+	 * Repeat with temperatures used for fan control.
+	 * This set of registers does not support limits.
+	 */
+	for (i = 0; i < num_reg_temp_mon; i++) {
+		if (reg_temp_mon[i] == 0)
+			continue;
+
+		src = nct6775_read_value(data, data->REG_TEMP_SEL[i]) & 0x1f;
+		if (!src || (mask & (1 << src)))
+			continue;
+
+		if (src >= data->temp_label_num ||
+		    !strlen(data->temp_label[src])) {
+			dev_info(dev,
+				 "Invalid temperature source %d at index %d, source register 0x%x, temp register 0x%x\n",
+				 src, i, data->REG_TEMP_SEL[i],
+				 reg_temp_mon[i]);
+			continue;
+		}
+
+		mask |= 1 << src;
+
+		/* Use fixed index for SYSTIN(1), CPUTIN(2), AUXTIN(3) */
+		if (src <= data->temp_fixed_num) {
+			if (data->have_temp & (1 << (src - 1)))
+				continue;
+			data->have_temp |= 1 << (src - 1);
+			data->have_temp_fixed |= 1 << (src - 1);
+			data->reg_temp[0][src - 1] = reg_temp_mon[i];
+			data->temp_src[src - 1] = src;
+			continue;
+		}
+
+		if (s >= NUM_TEMP)
+			continue;
+
+		/* Use dynamic index for other sources */
+		data->have_temp |= 1 << s;
+		data->reg_temp[0][s] = reg_temp_mon[i];
 		data->temp_src[s] = src;
 		s++;
 	}
@@ -3865,6 +3936,18 @@ static int nct6775_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
+static void nct6791_enable_io_mapping(int sioaddr)
+{
+	int val;
+
+	val = superio_inb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE);
+	if (val & 0x10) {
+		pr_info("Enabling hardware monitor logical device mappings.\n");
+		superio_outb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE,
+			     val & ~0x10);
+	}
+}
+
 #ifdef CONFIG_PM
 static int nct6775_suspend(struct device *dev)
 {
@@ -3884,10 +3967,19 @@ static int nct6775_suspend(struct device *dev)
 static int nct6775_resume(struct device *dev)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
-	int i, j;
+	int i, j, err = 0;
 
 	mutex_lock(&data->update_lock);
 	data->bank = 0xff;		/* Force initial bank selection */
+
+	if (data->kind == nct6791) {
+		err = superio_enter(data->sioreg);
+		if (err)
+			goto abort;
+
+		nct6791_enable_io_mapping(data->sioreg);
+		superio_exit(data->sioreg);
+	}
 
 	/* Restore limits */
 	for (i = 0; i < data->in_num; i++) {
@@ -3925,11 +4017,12 @@ static int nct6775_resume(struct device *dev)
 		nct6775_write_value(data, NCT6775_REG_FANDIV2, data->fandiv2);
 	}
 
+abort:
 	/* Force re-reading all values */
 	data->valid = false;
 	mutex_unlock(&data->update_lock);
 
-	return 0;
+	return err;
 }
 
 static const struct dev_pm_ops nct6775_dev_pm_ops = {
@@ -4017,15 +4110,9 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 		pr_warn("Forcibly enabling Super-I/O. Sensor is probably unusable.\n");
 		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
 	}
-	if (sio_data->kind == nct6791) {
-		val = superio_inb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE);
-		if (val & 0x10) {
-			pr_info("Enabling hardware monitor logical device mappings.\n");
-			superio_outb(sioaddr,
-				     NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE,
-				     val & ~0x10);
-		}
-	}
+
+	if (sio_data->kind == nct6791)
+		nct6791_enable_io_mapping(sioaddr);
 
 	superio_exit(sioaddr);
 	pr_info("Found %s or compatible chip at %#x:%#x\n",

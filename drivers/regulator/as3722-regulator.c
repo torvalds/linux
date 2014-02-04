@@ -99,7 +99,6 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD0_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD0_CONTROL_REG,
 		.mode_mask = AS3722_SD0_MODE_FAST,
-		.n_voltages = AS3722_SD0_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_SD1,
@@ -112,7 +111,6 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD1_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD1_CONTROL_REG,
 		.mode_mask = AS3722_SD1_MODE_FAST,
-		.n_voltages = AS3722_SD0_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_SD2,
@@ -181,7 +179,6 @@ static const struct as3722_register_mapping as3722_reg_lookup[] = {
 		.sleep_ctrl_mask = AS3722_SD6_EXT_ENABLE_MASK,
 		.control_reg = AS3722_SD6_CONTROL_REG,
 		.mode_mask = AS3722_SD6_MODE_FAST,
-		.n_voltages = AS3722_SD0_VSEL_MAX + 1,
 	},
 	{
 		.regulator_id = AS3722_REGULATOR_ID_LDO0,
@@ -590,9 +587,25 @@ static int as3722_sd016_set_current_limit(struct regulator_dev *rdev,
 	default:
 		return -EINVAL;
 	}
+	ret <<= ffs(mask) - 1;
 	val = ret & mask;
-	val <<= ffs(mask) - 1;
 	return as3722_update_bits(as3722, reg, mask, val);
+}
+
+static bool as3722_sd0_is_low_voltage(struct as3722_regulators *as3722_regs)
+{
+	int err;
+	unsigned val;
+
+	err = as3722_read(as3722_regs->as3722, AS3722_FUSE7_REG, &val);
+	if (err < 0) {
+		dev_err(as3722_regs->dev, "Reg 0x%02x read failed: %d\n",
+			AS3722_FUSE7_REG, err);
+		return false;
+	}
+	if (val & AS3722_FUSE7_SD0_LOW_VOLTAGE)
+		return true;
+	return false;
 }
 
 static const struct regulator_linear_range as3722_sd2345_ranges[] = {
@@ -820,9 +833,19 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 				ops = &as3722_sd016_extcntrl_ops;
 			else
 				ops = &as3722_sd016_ops;
-			as3722_regs->desc[id].min_uV = 610000;
+			if (id == AS3722_REGULATOR_ID_SD0 &&
+			    as3722_sd0_is_low_voltage(as3722_regs)) {
+				as3722_regs->desc[id].n_voltages =
+					AS3722_SD0_VSEL_LOW_VOL_MAX + 1;
+				as3722_regs->desc[id].min_uV = 410000;
+			} else {
+				as3722_regs->desc[id].n_voltages =
+					AS3722_SD0_VSEL_MAX + 1,
+				as3722_regs->desc[id].min_uV = 610000;
+			}
 			as3722_regs->desc[id].uV_step = 10000;
 			as3722_regs->desc[id].linear_min_sel = 1;
+			as3722_regs->desc[id].enable_time = 600;
 			break;
 		case AS3722_REGULATOR_ID_SD2:
 		case AS3722_REGULATOR_ID_SD3:
@@ -842,9 +865,6 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 				ops = &as3722_ldo_extcntrl_ops;
 			else
 				ops = &as3722_ldo_ops;
-			as3722_regs->desc[id].min_uV = 825000;
-			as3722_regs->desc[id].uV_step = 25000;
-			as3722_regs->desc[id].linear_min_sel = 1;
 			as3722_regs->desc[id].enable_time = 500;
 			as3722_regs->desc[id].linear_ranges = as3722_ldo_ranges;
 			as3722_regs->desc[id].n_linear_ranges =

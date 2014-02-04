@@ -217,36 +217,43 @@ the characteristics of a specific policy, always request it by name.
 Status
 ------
 
-<#used metadata blocks>/<#total metadata blocks> <#read hits> <#read misses>
-<#write hits> <#write misses> <#demotions> <#promotions> <#blocks in cache>
-<#dirty> <#features> <features>* <#core args> <core args>* <#policy args>
-<policy args>*
+<metadata block size> <#used metadata blocks>/<#total metadata blocks>
+<cache block size> <#used cache blocks>/<#total cache blocks>
+<#read hits> <#read misses> <#write hits> <#write misses>
+<#demotions> <#promotions> <#dirty> <#features> <features>*
+<#core args> <core args>* <policy name> <#policy args> <policy args>*
 
-#used metadata blocks    : Number of metadata blocks used
-#total metadata blocks   : Total number of metadata blocks
-#read hits               : Number of times a READ bio has been mapped
+metadata block size	 : Fixed block size for each metadata block in
+			     sectors
+#used metadata blocks	 : Number of metadata blocks used
+#total metadata blocks	 : Total number of metadata blocks
+cache block size	 : Configurable block size for the cache device
+			     in sectors
+#used cache blocks	 : Number of blocks resident in the cache
+#total cache blocks	 : Total number of cache blocks
+#read hits		 : Number of times a READ bio has been mapped
 			     to the cache
-#read misses             : Number of times a READ bio has been mapped
+#read misses		 : Number of times a READ bio has been mapped
 			     to the origin
-#write hits              : Number of times a WRITE bio has been mapped
+#write hits		 : Number of times a WRITE bio has been mapped
 			     to the cache
-#write misses            : Number of times a WRITE bio has been
+#write misses		 : Number of times a WRITE bio has been
 			     mapped to the origin
-#demotions               : Number of times a block has been removed
+#demotions		 : Number of times a block has been removed
 			     from the cache
-#promotions              : Number of times a block has been moved to
+#promotions		 : Number of times a block has been moved to
 			     the cache
-#blocks in cache         : Number of blocks resident in the cache
-#dirty                   : Number of blocks in the cache that differ
+#dirty			 : Number of blocks in the cache that differ
 			     from the origin
-#feature args            : Number of feature args to follow
-feature args             : 'writethrough' (optional)
-#core args               : Number of core arguments (must be even)
-core args                : Key/value pairs for tuning the core
+#feature args		 : Number of feature args to follow
+feature args		 : 'writethrough' (optional)
+#core args		 : Number of core arguments (must be even)
+core args		 : Key/value pairs for tuning the core
 			     e.g. migration_threshold
-#policy args             : Number of policy arguments to follow (must be even)
-policy args              : Key/value pairs
-			     e.g. 'sequential_threshold 1024
+policy name		 : Name of the policy
+#policy args		 : Number of policy arguments to follow (must be even)
+policy args		 : Key/value pairs
+			     e.g. sequential_threshold
 
 Messages
 --------
@@ -266,10 +273,12 @@ E.g.
 Invalidation is removing an entry from the cache without writing it
 back.  Cache blocks can be invalidated via the invalidate_cblocks
 message, which takes an arbitrary number of cblock ranges.  Each cblock
-must be expressed as a decimal value, in the future a variant message
-that takes cblock ranges expressed in hexidecimal may be needed to
-better support efficient invalidation of larger caches.  The cache must
-be in passthrough mode when invalidate_cblocks is used.
+range's end value is "one past the end", meaning 5-10 expresses a range
+of values from 5 to 9.  Each cblock must be expressed as a decimal
+value, in the future a variant message that takes cblock ranges
+expressed in hexidecimal may be needed to better support efficient
+invalidation of larger caches.  The cache must be in passthrough mode
+when invalidate_cblocks is used.
 
    invalidate_cblocks [<cblock>|<cblock begin>-<cblock end>]*
 

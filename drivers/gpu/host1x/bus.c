@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 
+#include "bus.h"
 #include "dev.h"
 
 static DEFINE_MUTEX(clients_lock);
@@ -187,6 +188,7 @@ int host1x_device_init(struct host1x_device *device)
 
 	return 0;
 }
+EXPORT_SYMBOL(host1x_device_init);
 
 int host1x_device_exit(struct host1x_device *device)
 {
@@ -212,6 +214,7 @@ int host1x_device_exit(struct host1x_device *device)
 
 	return 0;
 }
+EXPORT_SYMBOL(host1x_device_exit);
 
 static int host1x_register_client(struct host1x *host1x,
 				  struct host1x_client *client)
@@ -257,7 +260,7 @@ static int host1x_unregister_client(struct host1x *host1x,
 	return -ENODEV;
 }
 
-struct bus_type host1x_bus_type = {
+static struct bus_type host1x_bus_type = {
 	.name = "host1x",
 };
 
@@ -301,7 +304,7 @@ static int host1x_device_add(struct host1x *host1x,
 	device->dev.coherent_dma_mask = host1x->dev->coherent_dma_mask;
 	device->dev.dma_mask = &device->dev.coherent_dma_mask;
 	device->dev.release = host1x_device_release;
-	dev_set_name(&device->dev, driver->name);
+	dev_set_name(&device->dev, "%s", driver->name);
 	device->dev.bus = &host1x_bus_type;
 	device->dev.parent = host1x->dev;
 

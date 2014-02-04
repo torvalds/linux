@@ -976,7 +976,7 @@ bool RFbSetPower(
 	}
 
 	bResult = RFbRawSetPower(pDevice, byPwr, uRATE);
-	if (bResult == true) {
+	if (bResult) {
 		pDevice->byCurPwr = byPwr;
 	}
 	return bResult;

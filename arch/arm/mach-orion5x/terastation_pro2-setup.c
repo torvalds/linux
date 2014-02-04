@@ -77,7 +77,7 @@ static struct platform_device tsp2_nor_flash = {
 #define TSP2_PCI_SLOT0_OFFS		7
 #define TSP2_PCI_SLOT0_IRQ_PIN		11
 
-void __init tsp2_pci_preinit(void)
+static void __init tsp2_pci_preinit(void)
 {
 	int pin;
 

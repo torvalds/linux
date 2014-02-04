@@ -445,6 +445,12 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 #endif /* CONFIG_ALTIVEC */
 	if (copy_fpr_to_user(&frame->mc_fregs, current))
 		return 1;
+
+	/*
+	 * Clear the MSR VSX bit to indicate there is no valid state attached
+	 * to this context, except in the specific case below where we set it.
+	 */
+	msr &= ~MSR_VSX;
 #ifdef CONFIG_VSX
 	/*
 	 * Copy VSR 0-31 upper half from thread_struct to local
@@ -512,6 +518,13 @@ static int save_tm_user_regs(struct pt_regs *regs,
 			     struct mcontext __user *tm_frame, int sigret)
 {
 	unsigned long msr = regs->msr;
+
+	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
+	 * just indicates to userland that we were doing a transaction, but we
+	 * don't want to return in transactional state.  This also ensures
+	 * that flush_fp_to_thread won't set TIF_RESTORE_TM again.
+	 */
+	regs->msr &= ~MSR_TS_MASK;
 
 	/* Make sure floating point registers are stored in regs */
 	flush_fp_to_thread(current);
@@ -1009,28 +1022,23 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	tm_frame = &rt_sf->uc_transact.uc_mcontext;
 	if (MSR_TM_ACTIVE(regs->msr)) {
+		if (__put_user((unsigned long)&rt_sf->uc_transact,
+			       &rt_sf->uc.uc_link) ||
+		    __put_user((unsigned long)tm_frame,
+			       &rt_sf->uc_transact.uc_regs))
+			goto badframe;
 		if (save_tm_user_regs(regs, frame, tm_frame, sigret))
 			goto badframe;
 	}
 	else
 #endif
 	{
+		if (__put_user(0, &rt_sf->uc.uc_link))
+			goto badframe;
 		if (save_user_regs(regs, frame, tm_frame, sigret, 1))
 			goto badframe;
 	}
 	regs->link = tramp;
-
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	if (MSR_TM_ACTIVE(regs->msr)) {
-		if (__put_user((unsigned long)&rt_sf->uc_transact,
-			       &rt_sf->uc.uc_link)
-		    || __put_user((unsigned long)tm_frame, &rt_sf->uc_transact.uc_regs))
-			goto badframe;
-	}
-	else
-#endif
-		if (__put_user(0, &rt_sf->uc.uc_link))
-			goto badframe;
 
 	current->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
 
@@ -1050,13 +1058,6 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 	/* enter the signal handler in native-endian mode */
 	regs->msr &= ~MSR_LE;
 	regs->msr |= (MSR_KERNEL & MSR_LE);
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
-	 * just indicates to userland that we were doing a transaction, but we
-	 * don't want to return in transactional state:
-	 */
-	regs->msr &= ~MSR_TS_MASK;
-#endif
 	return 1;
 
 badframe:
@@ -1478,13 +1479,6 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 	regs->nip = (unsigned long) ka->sa.sa_handler;
 	/* enter the signal handler in big-endian mode */
 	regs->msr &= ~MSR_LE;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
-	 * just indicates to userland that we were doing a transaction, but we
-	 * don't want to return in transactional state:
-	 */
-	regs->msr &= ~MSR_TS_MASK;
-#endif
 	return 1;
 
 badframe:

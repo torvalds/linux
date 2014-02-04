@@ -240,7 +240,7 @@ static struct gpio_chip template_chip = {
 	.to_irq			= wm831x_gpio_to_irq,
 	.set_debounce		= wm831x_gpio_set_debounce,
 	.dbg_show		= wm831x_gpio_dbg_show,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int wm831x_gpio_probe(struct platform_device *pdev)

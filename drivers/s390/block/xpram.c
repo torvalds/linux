@@ -184,25 +184,26 @@ static unsigned long xpram_highest_page_index(void)
 static void xpram_make_request(struct request_queue *q, struct bio *bio)
 {
 	xpram_device_t *xdev = bio->bi_bdev->bd_disk->private_data;
-	struct bio_vec *bvec;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 	unsigned int index;
 	unsigned long page_addr;
 	unsigned long bytes;
-	int i;
 
-	if ((bio->bi_sector & 7) != 0 || (bio->bi_size & 4095) != 0)
+	if ((bio->bi_iter.bi_sector & 7) != 0 ||
+	    (bio->bi_iter.bi_size & 4095) != 0)
 		/* Request is not page-aligned. */
 		goto fail;
-	if ((bio->bi_size >> 12) > xdev->size)
+	if ((bio->bi_iter.bi_size >> 12) > xdev->size)
 		/* Request size is no page-aligned. */
 		goto fail;
-	if ((bio->bi_sector >> 3) > 0xffffffffU - xdev->offset)
+	if ((bio->bi_iter.bi_sector >> 3) > 0xffffffffU - xdev->offset)
 		goto fail;
-	index = (bio->bi_sector >> 3) + xdev->offset;
-	bio_for_each_segment(bvec, bio, i) {
+	index = (bio->bi_iter.bi_sector >> 3) + xdev->offset;
+	bio_for_each_segment(bvec, bio, iter) {
 		page_addr = (unsigned long)
-			kmap(bvec->bv_page) + bvec->bv_offset;
-		bytes = bvec->bv_len;
+			kmap(bvec.bv_page) + bvec.bv_offset;
+		bytes = bvec.bv_len;
 		if ((page_addr & 4095) != 0 || (bytes & 4095) != 0)
 			/* More paranoia. */
 			goto fail;
@@ -257,6 +258,7 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	unsigned long mem_needed;
 	unsigned long mem_auto;
 	unsigned long long size;
+	char *sizes_end;
 	int mem_auto_no;
 	int i;
 
@@ -275,8 +277,8 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	mem_auto_no = 0;
 	for (i = 0; i < xpram_devs; i++) {
 		if (sizes[i]) {
-			size = simple_strtoull(sizes[i], &sizes[i], 0);
-			switch (sizes[i][0]) {
+			size = simple_strtoull(sizes[i], &sizes_end, 0);
+			switch (*sizes_end) {
 			case 'g':
 			case 'G':
 				size <<= 20;

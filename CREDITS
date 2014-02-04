@@ -655,6 +655,11 @@ S: Stanford University
 S: Stanford, California 94305
 S: USA
 
+N: Carlos Chinea
+E: carlos.chinea@nokia.com
+E: cch.devel@gmail.com
+D: Author of HSI Subsystem
+
 N: Randolph Chung
 E: tausq@debian.org
 D: Linux/PA-RISC hacker
@@ -818,8 +823,8 @@ S: D-69231 Rauenberg
 S: Germany
 
 N: Jean Delvare
-E: khali@linux-fr.org
-W: http://khali.linux-fr.org/
+E: jdelvare@suse.de
+W: http://jdelvare.nerim.net/
 D: Several hardware monitoring drivers
 S: France
 

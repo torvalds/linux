@@ -52,6 +52,7 @@
 
 #include <linux/bitops.h>
 #include <linux/if_arp.h>
+#include <linux/module.h>
 #include <linux/netdevice.h>
 #include <net/ipv6.h>
 #include <net/af_ieee802154.h>
@@ -677,7 +678,7 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 			hc06_ptr += 3;
 		} else {
 			/* compress nothing */
-			memcpy(hc06_ptr, &hdr, 4);
+			memcpy(hc06_ptr, hdr, 4);
 			/* replace the top byte with new ECN | DSCP format */
 			*hc06_ptr = tmp;
 			hc06_ptr += 4;
@@ -797,3 +798,5 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lowpan_header_compress);
+
+MODULE_LICENSE("GPL");

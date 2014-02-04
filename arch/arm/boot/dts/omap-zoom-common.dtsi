@@ -13,7 +13,7 @@
 	 * they probably share the same GPIO IRQ
 	 * REVISIT: Add timing support from slls644g.pdf
 	 */
-	8250@3,0 {
+	uart@3,0 {
 		compatible = "ns16550a";
 		reg = <3 0 0x100>;
 		bank-width = <2>;

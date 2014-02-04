@@ -107,10 +107,10 @@ static void __rcar_gen2_usb_phy_init(struct rcar_gen2_usb_phy_priv *priv)
 	clk_prepare_enable(priv->clk);
 
 	/* Set USB channels in the USBHS UGCTRL2 register */
-	val = ioread32(priv->base);
+	val = ioread32(priv->base + USBHS_UGCTRL2_REG);
 	val &= ~(USBHS_UGCTRL2_USB0_HS | USBHS_UGCTRL2_USB2_SS);
 	val |= priv->ugctrl2;
-	iowrite32(val, priv->base);
+	iowrite32(val, priv->base + USBHS_UGCTRL2_REG);
 }
 
 /* Shutdown USB channels */
@@ -213,7 +213,7 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 	priv->phy.shutdown = rcar_gen2_usb_phy_shutdown;
 	priv->phy.set_suspend = rcar_gen2_usb_phy_set_suspend;
 
-	retval = usb_add_phy(&priv->phy, USB_PHY_TYPE_USB2);
+	retval = usb_add_phy_dev(&priv->phy);
 	if (retval < 0) {
 		dev_err(dev, "Failed to add USB phy\n");
 		return retval;

@@ -336,13 +336,14 @@ int btrfs_dec_test_first_ordered_pending(struct inode *inode,
 		      entry->len);
 	*file_offset = dec_end;
 	if (dec_start > dec_end) {
-		printk(KERN_CRIT "bad ordering dec_start %llu end %llu\n",
-		       dec_start, dec_end);
+		btrfs_crit(BTRFS_I(inode)->root->fs_info,
+			"bad ordering dec_start %llu end %llu", dec_start, dec_end);
 	}
 	to_dec = dec_end - dec_start;
 	if (to_dec > entry->bytes_left) {
-		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
-		       entry->bytes_left, to_dec);
+		btrfs_crit(BTRFS_I(inode)->root->fs_info,
+			"bad ordered accounting left %llu size %llu",
+			entry->bytes_left, to_dec);
 	}
 	entry->bytes_left -= to_dec;
 	if (!uptodate)
@@ -401,7 +402,8 @@ have_entry:
 	}
 
 	if (io_size > entry->bytes_left) {
-		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
+		btrfs_crit(BTRFS_I(inode)->root->fs_info,
+			   "bad ordered accounting left %llu size %llu",
 		       entry->bytes_left, io_size);
 	}
 	entry->bytes_left -= io_size;
@@ -520,7 +522,8 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 	spin_lock_irq(&tree->lock);
 	node = &entry->rb_node;
 	rb_erase(node, &tree->tree);
-	tree->last = NULL;
+	if (tree->last == node)
+		tree->last = NULL;
 	set_bit(BTRFS_ORDERED_COMPLETE, &entry->flags);
 	spin_unlock_irq(&tree->lock);
 
@@ -638,6 +641,7 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr)
 			WARN_ON(nr < 0);
 		}
 	}
+	list_splice_tail(&splice, &fs_info->ordered_roots);
 	spin_unlock(&fs_info->ordered_root_lock);
 }
 
@@ -803,7 +807,7 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 			btrfs_put_ordered_extent(ordered);
 			break;
 		}
-		if (ordered->file_offset + ordered->len < start) {
+		if (ordered->file_offset + ordered->len <= start) {
 			btrfs_put_ordered_extent(ordered);
 			break;
 		}

@@ -733,28 +733,6 @@ static void ep93xx_dma_advance_work(struct ep93xx_dma_chan *edmac)
 	spin_unlock_irqrestore(&edmac->lock, flags);
 }
 
-static void ep93xx_dma_unmap_buffers(struct ep93xx_dma_desc *desc)
-{
-	struct device *dev = desc->txd.chan->device->dev;
-
-	if (!(desc->txd.flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-		if (desc->txd.flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-			dma_unmap_single(dev, desc->src_addr, desc->size,
-					 DMA_TO_DEVICE);
-		else
-			dma_unmap_page(dev, desc->src_addr, desc->size,
-				       DMA_TO_DEVICE);
-	}
-	if (!(desc->txd.flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-		if (desc->txd.flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-			dma_unmap_single(dev, desc->dst_addr, desc->size,
-					 DMA_FROM_DEVICE);
-		else
-			dma_unmap_page(dev, desc->dst_addr, desc->size,
-				       DMA_FROM_DEVICE);
-	}
-}
-
 static void ep93xx_dma_tasklet(unsigned long data)
 {
 	struct ep93xx_dma_chan *edmac = (struct ep93xx_dma_chan *)data;
@@ -787,13 +765,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 
 	/* Now we can release all the chained descriptors */
 	list_for_each_entry_safe(desc, d, &list, node) {
-		/*
-		 * For the memcpy channels the API requires us to unmap the
-		 * buffers unless requested otherwise.
-		 */
-		if (!edmac->chan.private)
-			ep93xx_dma_unmap_buffers(desc);
-
+		dma_descriptor_unmap(&desc->txd);
 		ep93xx_dma_desc_put(edmac, desc);
 	}
 

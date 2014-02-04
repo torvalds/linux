@@ -52,8 +52,7 @@ static int am335x_phy_probe(struct platform_device *pdev)
 		return am_phy->id;
 	}
 
-	ret = usb_phy_gen_create_phy(dev, &am_phy->usb_phy_gen,
-			USB_PHY_TYPE_USB2, 0, false);
+	ret = usb_phy_gen_create_phy(dev, &am_phy->usb_phy_gen, NULL);
 	if (ret)
 		return ret;
 
@@ -64,10 +63,21 @@ static int am335x_phy_probe(struct platform_device *pdev)
 	am_phy->usb_phy_gen.phy.shutdown = am335x_shutdown;
 
 	platform_set_drvdata(pdev, am_phy);
+	device_init_wakeup(dev, true);
+
+	/*
+	 * If we leave PHY wakeup enabled then AM33XX wakes up
+	 * immediately from DS0. To avoid this we mark dev->power.can_wakeup
+	 * to false. The same is checked in suspend routine to decide
+	 * on whether to enable PHY wakeup or not.
+	 * PHY wakeup works fine in standby mode, there by allowing us to
+	 * handle remote wakeup, wakeup on disconnect and connect.
+	 */
+
+	device_set_wakeup_enable(dev, false);
+	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, false);
 
 	return 0;
-
-	return ret;
 }
 
 static int am335x_phy_remove(struct platform_device *pdev)
@@ -78,38 +88,48 @@ static int am335x_phy_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
-
-static int am335x_phy_runtime_suspend(struct device *dev)
+#ifdef CONFIG_PM_SLEEP
+static int am335x_phy_suspend(struct device *dev)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
 	struct am335x_phy *am_phy = platform_get_drvdata(pdev);
 
+	/*
+	 * Enable phy wakeup only if dev->power.can_wakeup is true.
+	 * Make sure to enable wakeup to support remote wakeup	in
+	 * standby mode ( same is not supported in OFF(DS0) mode).
+	 * Enable it by doing
+	 * echo enabled > /sys/bus/platform/devices/<usb-phy-id>/power/wakeup
+	 */
+
 	if (device_may_wakeup(dev))
 		phy_ctrl_wkup(am_phy->phy_ctrl, am_phy->id, true);
+
 	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, false);
+
 	return 0;
 }
 
-static int am335x_phy_runtime_resume(struct device *dev)
+static int am335x_phy_resume(struct device *dev)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
 	struct am335x_phy	*am_phy = platform_get_drvdata(pdev);
 
 	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, true);
+
 	if (device_may_wakeup(dev))
 		phy_ctrl_wkup(am_phy->phy_ctrl, am_phy->id, false);
+
 	return 0;
 }
 
 static const struct dev_pm_ops am335x_pm_ops = {
-	SET_RUNTIME_PM_OPS(am335x_phy_runtime_suspend,
-			am335x_phy_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(am335x_phy_suspend, am335x_phy_resume)
 };
 
-#define DEV_PM_OPS	(&am335x_pm_ops)
+#define DEV_PM_OPS     (&am335x_pm_ops)
 #else
-#define DEV_PM_OPS	NULL
+#define DEV_PM_OPS     NULL
 #endif
 
 static const struct of_device_id am335x_phy_ids[] = {

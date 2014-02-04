@@ -1,4 +1,4 @@
-/* Copyright (C) 2012-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2014 B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll, Jeppe Ledet-Pedersen
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/debugfs.h>
@@ -720,9 +718,21 @@ static bool batadv_can_nc_with_orig(struct batadv_priv *bat_priv,
 				    struct batadv_orig_node *orig_node,
 				    struct batadv_ogm_packet *ogm_packet)
 {
-	if (orig_node->last_real_seqno != ntohl(ogm_packet->seqno))
+	struct batadv_orig_ifinfo *orig_ifinfo;
+	uint32_t last_real_seqno;
+	uint8_t last_ttl;
+
+	orig_ifinfo = batadv_orig_ifinfo_get(orig_node, BATADV_IF_DEFAULT);
+	if (!orig_ifinfo)
 		return false;
-	if (orig_node->last_ttl != ogm_packet->header.ttl + 1)
+
+	last_ttl = orig_ifinfo->last_ttl;
+	last_real_seqno = orig_ifinfo->last_real_seqno;
+	batadv_orig_ifinfo_free_ref(orig_ifinfo);
+
+	if (last_real_seqno != ntohl(ogm_packet->seqno))
+		return false;
+	if (last_ttl != ogm_packet->ttl + 1)
 		return false;
 	if (!batadv_compare_eth(ogm_packet->orig, ogm_packet->prev_sender))
 		return false;
@@ -1010,6 +1020,8 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	struct batadv_coded_packet *coded_packet;
 	struct batadv_neigh_node *neigh_tmp, *router_neigh;
 	struct batadv_neigh_node *router_coding = NULL;
+	struct batadv_neigh_ifinfo *router_neigh_ifinfo = NULL;
+	struct batadv_neigh_ifinfo *router_coding_ifinfo = NULL;
 	uint8_t *first_source, *first_dest, *second_source, *second_dest;
 	__be32 packet_id1, packet_id2;
 	size_t count;
@@ -1019,19 +1031,34 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	int coded_size = sizeof(*coded_packet);
 	int header_add = coded_size - unicast_size;
 
-	router_neigh = batadv_orig_node_get_router(neigh_node->orig_node);
+	/* TODO: do we need to consider the outgoing interface for
+	 * coded packets?
+	 */
+	router_neigh = batadv_orig_router_get(neigh_node->orig_node,
+					      BATADV_IF_DEFAULT);
 	if (!router_neigh)
 		goto out;
 
+	router_neigh_ifinfo = batadv_neigh_ifinfo_get(router_neigh,
+						      BATADV_IF_DEFAULT);
+	if (!router_neigh_ifinfo)
+		goto out;
+
 	neigh_tmp = nc_packet->neigh_node;
-	router_coding = batadv_orig_node_get_router(neigh_tmp->orig_node);
+	router_coding = batadv_orig_router_get(neigh_tmp->orig_node,
+					       BATADV_IF_DEFAULT);
 	if (!router_coding)
 		goto out;
 
-	tq_tmp = batadv_nc_random_weight_tq(router_neigh->bat_iv.tq_avg);
-	tq_weighted_neigh = tq_tmp;
-	tq_tmp = batadv_nc_random_weight_tq(router_coding->bat_iv.tq_avg);
-	tq_weighted_coding = tq_tmp;
+	router_coding_ifinfo = batadv_neigh_ifinfo_get(router_coding,
+						       BATADV_IF_DEFAULT);
+	if (!router_coding_ifinfo)
+		goto out;
+
+	tq_tmp = router_neigh_ifinfo->bat_iv.tq_avg;
+	tq_weighted_neigh = batadv_nc_random_weight_tq(tq_tmp);
+	tq_tmp = router_coding_ifinfo->bat_iv.tq_avg;
+	tq_weighted_coding = batadv_nc_random_weight_tq(tq_tmp);
 
 	/* Select one destination for the MAC-header dst-field based on
 	 * weighted TQ-values.
@@ -1082,9 +1109,9 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	coded_packet = (struct batadv_coded_packet *)skb_dest->data;
 	skb_reset_mac_header(skb_dest);
 
-	coded_packet->header.packet_type = BATADV_CODED;
-	coded_packet->header.version = BATADV_COMPAT_VERSION;
-	coded_packet->header.ttl = packet1->header.ttl;
+	coded_packet->packet_type = BATADV_CODED;
+	coded_packet->version = BATADV_COMPAT_VERSION;
+	coded_packet->ttl = packet1->ttl;
 
 	/* Info about first unicast packet */
 	memcpy(coded_packet->first_source, first_source, ETH_ALEN);
@@ -1097,7 +1124,7 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	memcpy(coded_packet->second_source, second_source, ETH_ALEN);
 	memcpy(coded_packet->second_orig_dest, packet2->dest, ETH_ALEN);
 	coded_packet->second_crc = packet_id2;
-	coded_packet->second_ttl = packet2->header.ttl;
+	coded_packet->second_ttl = packet2->ttl;
 	coded_packet->second_ttvn = packet2->ttvn;
 	coded_packet->coded_len = htons(coding_len);
 
@@ -1155,6 +1182,10 @@ out:
 		batadv_neigh_node_free_ref(router_neigh);
 	if (router_coding)
 		batadv_neigh_node_free_ref(router_coding);
+	if (router_neigh_ifinfo)
+		batadv_neigh_ifinfo_free_ref(router_neigh_ifinfo);
+	if (router_coding_ifinfo)
+		batadv_neigh_ifinfo_free_ref(router_coding_ifinfo);
 	return res;
 }
 
@@ -1452,7 +1483,7 @@ bool batadv_nc_skb_forward(struct sk_buff *skb,
 	/* We only handle unicast packets */
 	payload = skb_network_header(skb);
 	packet = (struct batadv_unicast_packet *)payload;
-	if (packet->header.packet_type != BATADV_UNICAST)
+	if (packet->packet_type != BATADV_UNICAST)
 		goto out;
 
 	/* Try to find a coding opportunity and send the skb if one is found */
@@ -1505,7 +1536,7 @@ void batadv_nc_skb_store_for_decoding(struct batadv_priv *bat_priv,
 	/* Check for supported packet type */
 	payload = skb_network_header(skb);
 	packet = (struct batadv_unicast_packet *)payload;
-	if (packet->header.packet_type != BATADV_UNICAST)
+	if (packet->packet_type != BATADV_UNICAST)
 		goto out;
 
 	/* Find existing nc_path or create a new */
@@ -1623,7 +1654,7 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		ttvn = coded_packet_tmp.second_ttvn;
 	} else {
 		orig_dest = coded_packet_tmp.first_orig_dest;
-		ttl = coded_packet_tmp.header.ttl;
+		ttl = coded_packet_tmp.ttl;
 		ttvn = coded_packet_tmp.first_ttvn;
 	}
 
@@ -1648,9 +1679,9 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	/* Create decoded unicast packet */
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
-	unicast_packet->header.packet_type = BATADV_UNICAST;
-	unicast_packet->header.version = BATADV_COMPAT_VERSION;
-	unicast_packet->header.ttl = ttl;
+	unicast_packet->packet_type = BATADV_UNICAST;
+	unicast_packet->version = BATADV_COMPAT_VERSION;
+	unicast_packet->ttl = ttl;
 	memcpy(unicast_packet->dest, orig_dest, ETH_ALEN);
 	unicast_packet->ttvn = ttvn;
 

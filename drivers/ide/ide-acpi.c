@@ -7,19 +7,17 @@
  * Copyright (C) 2006 Hannes Reinecke
  */
 
+#include <linux/acpi.h>
 #include <linux/ata.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <acpi/acpi.h>
 #include <linux/ide.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
-
-#include <acpi/acpi_bus.h>
 
 #define REGS_PER_GTF		7
 
@@ -99,6 +97,17 @@ bool ide_port_acpi(ide_hwif_t *hwif)
 	return ide_noacpi == 0 && hwif->acpidata;
 }
 
+static acpi_handle acpi_get_child(acpi_handle handle, u64 addr)
+{
+	struct acpi_device *adev;
+
+	if (!handle || acpi_bus_get_device(handle, &adev))
+		return NULL;
+
+	adev = acpi_find_child_device(adev, addr, false);
+	return adev ? adev->handle : NULL;
+}
+
 /**
  * ide_get_dev_handle - finds acpi_handle and PCI device.function
  * @dev: device to locate
@@ -128,7 +137,7 @@ static int ide_get_dev_handle(struct device *dev, acpi_handle *handle,
 
 	DEBPRINT("ENTER: pci %02x:%02x.%01x\n", bus, devnum, func);
 
-	dev_handle = DEVICE_ACPI_HANDLE(dev);
+	dev_handle = ACPI_HANDLE(dev);
 	if (!dev_handle) {
 		DEBPRINT("no acpi handle for device\n");
 		goto err;

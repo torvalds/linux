@@ -9,20 +9,10 @@ config TILE_NET
 	select CRC32
 	select TILE_GXIO_MPIPE if TILEGX
 	select HIGH_RES_TIMERS if TILEGX
+	select PTP_1588_CLOCK if TILEGX
 	---help---
 	  This is a standard Linux network device driver for the
 	  on-chip Tilera Gigabit Ethernet and XAUI interfaces.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called tile_net.
-
-config PTP_1588_CLOCK_TILEGX
-        tristate "Tilera TILE-Gx mPIPE as PTP clock"
-        select PTP_1588_CLOCK
-        depends on TILE_NET
-        depends on TILEGX
-        ---help---
-          This driver adds support for using the mPIPE as a PTP
-          clock. This clock is only useful if your PTP programs are
-          getting hardware time stamps on the PTP Ethernet packets
-          using the SO_TIMESTAMPING API.

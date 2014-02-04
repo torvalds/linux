@@ -41,7 +41,7 @@
 bool pciehp_debug;
 bool pciehp_poll_mode;
 int pciehp_poll_time;
-bool pciehp_force;
+static bool pciehp_force;
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -160,7 +160,8 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		  __func__, slot_name(slot));
 
-	return pciehp_set_attention_status(slot, status);
+	pciehp_set_attention_status(slot, status);
+	return 0;
 }
 
 
@@ -192,7 +193,8 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		  __func__, slot_name(slot));
 
-	return pciehp_get_power_status(slot, value);
+	pciehp_get_power_status(slot, value);
+	return 0;
 }
 
 static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
@@ -202,7 +204,8 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		  __func__, slot_name(slot));
 
-	return pciehp_get_attention_status(slot, value);
+	pciehp_get_attention_status(slot, value);
+	return 0;
 }
 
 static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
@@ -212,7 +215,8 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		 __func__, slot_name(slot));
 
-	return pciehp_get_latch_status(slot, value);
+	pciehp_get_latch_status(slot, value);
+	return 0;
 }
 
 static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
@@ -222,7 +226,8 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		 __func__, slot_name(slot));
 
-	return pciehp_get_adapter_status(slot, value);
+	pciehp_get_adapter_status(slot, value);
+	return 0;
 }
 
 static int reset_slot(struct hotplug_slot *hotplug_slot, int probe)
@@ -351,8 +356,8 @@ static int __init pcied_init(void)
 
 	pciehp_firmware_init();
 	retval = pcie_port_service_register(&hpdriver_portdrv);
- 	dbg("pcie_port_service_register = %d\n", retval);
-  	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
+	dbg("pcie_port_service_register = %d\n", retval);
+	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	if (retval)
 		dbg("Failure to register service\n");
 

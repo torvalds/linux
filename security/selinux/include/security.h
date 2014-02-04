@@ -33,26 +33,28 @@
 #define POLICYDB_VERSION_ROLETRANS	26
 #define POLICYDB_VERSION_NEW_OBJECT_DEFAULTS	27
 #define POLICYDB_VERSION_DEFAULT_TYPE	28
+#define POLICYDB_VERSION_CONSTRAINT_NAMES	29
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
 #ifdef CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX
 #define POLICYDB_VERSION_MAX	CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
 #else
-#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_DEFAULT_TYPE
+#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_CONSTRAINT_NAMES
 #endif
 
 /* Mask for just the mount related flags */
 #define SE_MNTMASK	0x0f
 /* Super block security struct flags for mount options */
+/* BE CAREFUL, these need to be the low order bits for selinux_get_mnt_opts */
 #define CONTEXT_MNT	0x01
 #define FSCONTEXT_MNT	0x02
 #define ROOTCONTEXT_MNT	0x04
 #define DEFCONTEXT_MNT	0x08
+#define SBLABEL_MNT	0x10
 /* Non-mount related flags */
-#define SE_SBINITIALIZED	0x10
-#define SE_SBPROC		0x20
-#define SE_SBLABELSUPP	0x40
+#define SE_SBINITIALIZED	0x0100
+#define SE_SBPROC		0x0200
 
 #define CONTEXT_STR	"context="
 #define FSCONTEXT_STR	"fscontext="
@@ -68,12 +70,15 @@ extern int selinux_enabled;
 enum {
 	POLICYDB_CAPABILITY_NETPEER,
 	POLICYDB_CAPABILITY_OPENPERM,
+	POLICYDB_CAPABILITY_REDHAT1,
+	POLICYDB_CAPABILITY_ALWAYSNETWORK,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
 
 extern int selinux_policycap_netpeer;
 extern int selinux_policycap_openperm;
+extern int selinux_policycap_alwaysnetwork;
 
 /*
  * type_datum properties
@@ -172,8 +177,7 @@ int security_get_allow_unknown(void);
 #define SECURITY_FS_USE_NATIVE		7 /* use native label support */
 #define SECURITY_FS_USE_MAX		7 /* Highest SECURITY_FS_USE_XXX */
 
-int security_fs_use(const char *fstype, unsigned int *behavior,
-	u32 *sid);
+int security_fs_use(struct super_block *sb);
 
 int security_genfs_sid(const char *fstype, char *name, u16 sclass,
 	u32 *sid);

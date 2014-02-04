@@ -1386,7 +1386,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	*data = 0;
 
 	/* Hook up test interrupt handler just for this test */
-	if (adapter->msix_entries) {
+	if (adapter->flags & IGB_FLAG_HAS_MSIX) {
 		if (request_irq(adapter->msix_entries[0].vector,
 		                igb_test_intr, 0, netdev->name, adapter)) {
 			*data = 1;
@@ -1519,7 +1519,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	msleep(10);
 
 	/* Unhook test interrupt handler */
-	if (adapter->msix_entries)
+	if (adapter->flags & IGB_FLAG_HAS_MSIX)
 		free_irq(adapter->msix_entries[0].vector, adapter);
 	else
 		free_irq(irq, adapter);
@@ -1983,6 +1983,10 @@ static void igb_diag_test(struct net_device *netdev,
 	bool if_running = netif_running(netdev);
 
 	set_bit(__IGB_TESTING, &adapter->state);
+
+	/* can't do offline tests on media switching devices */
+	if (adapter->hw.dev_spec._82575.mas_capable)
+		eth_test->flags &= ~ETH_TEST_FL_OFFLINE;
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
@@ -2062,13 +2066,14 @@ static void igb_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	wol->supported = WAKE_UCAST | WAKE_MCAST |
-			 WAKE_BCAST | WAKE_MAGIC |
-			 WAKE_PHY;
 	wol->wolopts = 0;
 
 	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
 		return;
+
+	wol->supported = WAKE_UCAST | WAKE_MCAST |
+			 WAKE_BCAST | WAKE_MAGIC |
+			 WAKE_PHY;
 
 	/* apply any specific unsupported masks here */
 	switch (adapter->hw.device_id) {
@@ -2928,7 +2933,7 @@ static void igb_get_channels(struct net_device *netdev,
 	ch->max_combined = igb_max_channels(adapter);
 
 	/* Report info for other vector */
-	if (adapter->msix_entries) {
+	if (adapter->flags & IGB_FLAG_HAS_MSIX) {
 		ch->max_other = NON_Q_VECTORS;
 		ch->other_count = NON_Q_VECTORS;
 	}

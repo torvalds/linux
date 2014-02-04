@@ -250,7 +250,12 @@ done:
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) | \
 		BIT(IIO_CHAN_INFO_SCALE), \
 	.scan_index = idx, \
-	.scan_type = IIO_ST('s', 16, 16, IIO_BE), \
+	.scan_type = { \
+		.sign = 's', \
+		.realbits = 16, \
+		.storagebits = 16, \
+		.endianness = IIO_BE, \
+	}, \
 }
 
 static const struct iio_chan_spec mag3110_channels[] = {
@@ -261,7 +266,11 @@ static const struct iio_chan_spec mag3110_channels[] = {
 		.type = IIO_TEMP,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.scan_index = 3,
-		.scan_type = IIO_ST('s', 8, 8, 0),
+		.scan_type = {
+			.sign = 's',
+			.realbits = 8,
+			.storagebits = 8,
+			},
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };

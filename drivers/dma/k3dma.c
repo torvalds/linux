@@ -344,7 +344,7 @@ static enum dma_status k3_dma_tx_status(struct dma_chan *chan,
 	size_t bytes = 0;
 
 	ret = dma_cookie_status(&c->vc.chan, cookie, state);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	spin_lock_irqsave(&c->vc.lock, flags);
@@ -477,7 +477,7 @@ static struct dma_async_tx_descriptor *k3_dma_prep_slave_sg(
 	dma_addr_t addr, src = 0, dst = 0;
 	int num = sglen, i;
 
-	if (sgl == 0)
+	if (sgl == NULL)
 		return NULL;
 
 	for_each_sg(sgl, sg, sglen, i) {
@@ -693,7 +693,7 @@ static int k3_dma_probe(struct platform_device *op)
 
 	irq = platform_get_irq(op, 0);
 	ret = devm_request_irq(&op->dev, irq,
-			k3_dma_int_handler, IRQF_DISABLED, DRIVER_NAME, d);
+			k3_dma_int_handler, 0, DRIVER_NAME, d);
 	if (ret)
 		return ret;
 
@@ -817,7 +817,7 @@ static int k3_dma_resume(struct device *dev)
 	return 0;
 }
 
-SIMPLE_DEV_PM_OPS(k3_dma_pmops, k3_dma_suspend, k3_dma_resume);
+static SIMPLE_DEV_PM_OPS(k3_dma_pmops, k3_dma_suspend, k3_dma_resume);
 
 static struct platform_driver k3_pdma_driver = {
 	.driver		= {

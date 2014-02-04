@@ -655,7 +655,7 @@ static int hostap_join_ap(struct net_device *dev)
 		if (!local->last_scan_results)
 			break;
 		entry = &local->last_scan_results[i];
-		if (memcmp(local->preferred_ap, entry->bssid, ETH_ALEN) == 0) {
+		if (ether_addr_equal(local->preferred_ap, entry->bssid)) {
 			req.channel = entry->chid;
 			break;
 		}
@@ -1978,7 +1978,7 @@ static inline int prism2_translate_scan(local_info_t *local,
 		list_for_each(ptr, &local->bss_list) {
 			struct hostap_bss_info *bss;
 			bss = list_entry(ptr, struct hostap_bss_info, list);
-			if (memcmp(bss->bssid, scan->bssid, ETH_ALEN) == 0) {
+			if (ether_addr_equal(bss->bssid, scan->bssid)) {
 				bss->included = 1;
 				current_ev = __prism2_translate_scan(
 					local, info, scan, bss, current_ev,

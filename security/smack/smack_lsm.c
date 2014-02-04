@@ -185,7 +185,7 @@ static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, ctp);
 
-	rc = smk_curacc(skp->smk_known, MAY_READWRITE, &ad);
+	rc = smk_curacc(skp->smk_known, mode, &ad);
 	return rc;
 }
 
@@ -219,8 +219,6 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
  * smack_syslog - Smack approval on syslog
  * @type: message type
  *
- * Require that the task has the floor label
- *
  * Returns 0 on success, error code otherwise.
  */
 static int smack_syslog(int typefrom_file)
@@ -231,7 +229,7 @@ static int smack_syslog(int typefrom_file)
 	if (smack_privileged(CAP_MAC_OVERRIDE))
 		return 0;
 
-	 if (skp != &smack_known_floor)
+	if (smack_syslog_label != NULL && smack_syslog_label != skp)
 		rc = -EACCES;
 
 	return rc;
@@ -341,10 +339,12 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 	struct inode *inode = root->d_inode;
 	struct superblock_smack *sp = sb->s_security;
 	struct inode_smack *isp;
+	struct smack_known *skp;
 	char *op;
 	char *commap;
 	char *nsp;
 	int transmute = 0;
+	int specified = 0;
 
 	if (sp->smk_initialized)
 		return 0;
@@ -359,34 +359,56 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 		if (strncmp(op, SMK_FSHAT, strlen(SMK_FSHAT)) == 0) {
 			op += strlen(SMK_FSHAT);
 			nsp = smk_import(op, 0);
-			if (nsp != NULL)
+			if (nsp != NULL) {
 				sp->smk_hat = nsp;
+				specified = 1;
+			}
 		} else if (strncmp(op, SMK_FSFLOOR, strlen(SMK_FSFLOOR)) == 0) {
 			op += strlen(SMK_FSFLOOR);
 			nsp = smk_import(op, 0);
-			if (nsp != NULL)
+			if (nsp != NULL) {
 				sp->smk_floor = nsp;
+				specified = 1;
+			}
 		} else if (strncmp(op, SMK_FSDEFAULT,
 				   strlen(SMK_FSDEFAULT)) == 0) {
 			op += strlen(SMK_FSDEFAULT);
 			nsp = smk_import(op, 0);
-			if (nsp != NULL)
+			if (nsp != NULL) {
 				sp->smk_default = nsp;
+				specified = 1;
+			}
 		} else if (strncmp(op, SMK_FSROOT, strlen(SMK_FSROOT)) == 0) {
 			op += strlen(SMK_FSROOT);
 			nsp = smk_import(op, 0);
-			if (nsp != NULL)
+			if (nsp != NULL) {
 				sp->smk_root = nsp;
+				specified = 1;
+			}
 		} else if (strncmp(op, SMK_FSTRANS, strlen(SMK_FSTRANS)) == 0) {
 			op += strlen(SMK_FSTRANS);
 			nsp = smk_import(op, 0);
 			if (nsp != NULL) {
 				sp->smk_root = nsp;
 				transmute = 1;
+				specified = 1;
 			}
 		}
 	}
 
+	if (!smack_privileged(CAP_MAC_ADMIN)) {
+		/*
+		 * Unprivileged mounts don't get to specify Smack values.
+		 */
+		if (specified)
+			return -EPERM;
+		/*
+		 * Unprivileged mounts get root and default from the caller.
+		 */
+		skp = smk_of_current();
+		sp->smk_root = skp->smk_known;
+		sp->smk_default = skp->smk_known;
+	}
 	/*
 	 * Initialize the root inode.
 	 */
@@ -421,53 +443,6 @@ static int smack_sb_statfs(struct dentry *dentry)
 
 	rc = smk_curacc(sbp->smk_floor, MAY_READ, &ad);
 	return rc;
-}
-
-/**
- * smack_sb_mount - Smack check for mounting
- * @dev_name: unused
- * @path: mount point
- * @type: unused
- * @flags: unused
- * @data: unused
- *
- * Returns 0 if current can write the floor of the filesystem
- * being mounted on, an error code otherwise.
- */
-static int smack_sb_mount(const char *dev_name, struct path *path,
-			  const char *type, unsigned long flags, void *data)
-{
-	struct superblock_smack *sbp = path->dentry->d_sb->s_security;
-	struct smk_audit_info ad;
-
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
-	smk_ad_setfield_u_fs_path(&ad, *path);
-
-	return smk_curacc(sbp->smk_floor, MAY_WRITE, &ad);
-}
-
-/**
- * smack_sb_umount - Smack check for unmounting
- * @mnt: file system to unmount
- * @flags: unused
- *
- * Returns 0 if current can write the floor of the filesystem
- * being unmounted, an error code otherwise.
- */
-static int smack_sb_umount(struct vfsmount *mnt, int flags)
-{
-	struct superblock_smack *sbp;
-	struct smk_audit_info ad;
-	struct path path;
-
-	path.dentry = mnt->mnt_root;
-	path.mnt = mnt;
-
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
-	smk_ad_setfield_u_fs_path(&ad, path);
-
-	sbp = path.dentry->d_sb->s_security;
-	return smk_curacc(sbp->smk_floor, MAY_WRITE, &ad);
 }
 
 /*
@@ -837,30 +812,42 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 				const void *value, size_t size, int flags)
 {
 	struct smk_audit_info ad;
+	struct smack_known *skp;
+	int check_priv = 0;
+	int check_import = 0;
+	int check_star = 0;
 	int rc = 0;
 
+	/*
+	 * Check label validity here so import won't fail in post_setxattr
+	 */
 	if (strcmp(name, XATTR_NAME_SMACK) == 0 ||
 	    strcmp(name, XATTR_NAME_SMACKIPIN) == 0 ||
-	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0 ||
-	    strcmp(name, XATTR_NAME_SMACKEXEC) == 0 ||
-	    strcmp(name, XATTR_NAME_SMACKMMAP) == 0) {
-		if (!smack_privileged(CAP_MAC_ADMIN))
-			rc = -EPERM;
-		/*
-		 * check label validity here so import wont fail on
-		 * post_setxattr
-		 */
-		if (size == 0 || size >= SMK_LONGLABEL ||
-		    smk_import(value, size) == NULL)
-			rc = -EINVAL;
+	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0) {
+		check_priv = 1;
+		check_import = 1;
+	} else if (strcmp(name, XATTR_NAME_SMACKEXEC) == 0 ||
+		   strcmp(name, XATTR_NAME_SMACKMMAP) == 0) {
+		check_priv = 1;
+		check_import = 1;
+		check_star = 1;
 	} else if (strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0) {
-		if (!smack_privileged(CAP_MAC_ADMIN))
-			rc = -EPERM;
+		check_priv = 1;
 		if (size != TRANS_TRUE_SIZE ||
 		    strncmp(value, TRANS_TRUE, TRANS_TRUE_SIZE) != 0)
 			rc = -EINVAL;
 	} else
 		rc = cap_inode_setxattr(dentry, name, value, size, flags);
+
+	if (check_priv && !smack_privileged(CAP_MAC_ADMIN))
+		rc = -EPERM;
+
+	if (rc == 0 && check_import) {
+		skp = smk_import_entry(value, size);
+		if (skp == NULL || (check_star &&
+		    (skp == &smack_known_star || skp == &smack_known_web)))
+			rc = -EINVAL;
+	}
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
@@ -1146,7 +1133,7 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
  * @file: the object
  * @cmd: unused
  *
- * Returns 0 if current has write access, error code otherwise
+ * Returns 0 if current has lock access, error code otherwise
  */
 static int smack_file_lock(struct file *file, unsigned int cmd)
 {
@@ -1154,7 +1141,7 @@ static int smack_file_lock(struct file *file, unsigned int cmd)
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	return smk_curacc(file->f_security, MAY_WRITE, &ad);
+	return smk_curacc(file->f_security, MAY_LOCK, &ad);
 }
 
 /**
@@ -1178,8 +1165,13 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case F_GETLK:
+		break;
 	case F_SETLK:
 	case F_SETLKW:
+		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
+		smk_ad_setfield_u_fs_path(&ad, file->f_path);
+		rc = smk_curacc(file->f_security, MAY_LOCK, &ad);
+		break;
 	case F_SETOWN:
 	case F_SETSIG:
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
@@ -1359,7 +1351,7 @@ static int smack_file_receive(struct file *file)
 	int may = 0;
 	struct smk_audit_info ad;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 	/*
 	 * This code relies on bitmasks.
@@ -2842,8 +2834,17 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 			if (rc >= 0)
 				transflag = SMK_INODE_TRANSMUTE;
 		}
-		isp->smk_task = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
-		isp->smk_mmap = smk_fetch(XATTR_NAME_SMACKMMAP, inode, dp);
+		/*
+		 * Don't let the exec or mmap label be "*" or "@".
+		 */
+		skp = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
+		if (skp == &smack_known_star || skp == &smack_known_web)
+			skp = NULL;
+		isp->smk_task = skp;
+		skp = smk_fetch(XATTR_NAME_SMACKMMAP, inode, dp);
+		if (skp == &smack_known_star || skp == &smack_known_web)
+			skp = NULL;
+		isp->smk_mmap = skp;
 
 		dput(dp);
 		break;
@@ -3615,9 +3616,8 @@ static int smack_audit_rule_match(u32 secid, u32 field, u32 op, void *vrule,
 	struct smack_known *skp;
 	char *rule = vrule;
 
-	if (!rule) {
-		audit_log(actx, GFP_ATOMIC, AUDIT_SELINUX_ERR,
-			  "Smack: missing rule\n");
+	if (unlikely(!rule)) {
+		WARN_ONCE(1, "Smack: missing rule\n");
 		return -ENOENT;
 	}
 
@@ -3738,8 +3738,6 @@ struct security_operations smack_ops = {
 	.sb_copy_data = 		smack_sb_copy_data,
 	.sb_kern_mount = 		smack_sb_kern_mount,
 	.sb_statfs = 			smack_sb_statfs,
-	.sb_mount = 			smack_sb_mount,
-	.sb_umount = 			smack_sb_umount,
 
 	.bprm_set_creds =		smack_bprm_set_creds,
 	.bprm_committing_creds =	smack_bprm_committing_creds,

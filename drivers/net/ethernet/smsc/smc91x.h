@@ -18,8 +18,7 @@
  . GNU General Public License for more details.
  .
  . You should have received a copy of the GNU General Public License
- . along with this program; if not, write to the Free Software
- . Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ . along with this program; if not, see <http://www.gnu.org/licenses/>.
  .
  . Information contained in this file was obtained from the LAN91C111
  . manual from SMC.  To get a copy, if you really want one, you can find
@@ -46,7 +45,8 @@
     defined(CONFIG_MACH_LITTLETON) ||\
     defined(CONFIG_MACH_ZYLONITE2) ||\
     defined(CONFIG_ARCH_VIPER) ||\
-    defined(CONFIG_MACH_STARGATE2)
+    defined(CONFIG_MACH_STARGATE2) ||\
+    defined(CONFIG_ARCH_VERSATILE)
 
 #include <asm/mach-types.h>
 
@@ -154,6 +154,8 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_outl(v, a, r)	writel(v, (a) + (r))
 #define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
 #define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
+#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
+#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
 #define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 /* We actually can't write halfwords properly if not word aligned */
@@ -205,23 +207,6 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 
 #define RPC_LSA_DEFAULT		RPC_LED_TX_RX
 #define RPC_LSB_DEFAULT		RPC_LED_100_10
-
-#elif	defined(CONFIG_ARCH_VERSATILE)
-
-#define SMC_CAN_USE_8BIT	1
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	1
-#define SMC_NOWAIT		1
-
-#define SMC_inb(a, r)		readb((a) + (r))
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_inl(a, r)		readl((a) + (r))
-#define SMC_outb(v, a, r)	writeb(v, (a) + (r))
-#define SMC_outw(v, a, r)	writew(v, (a) + (r))
-#define SMC_outl(v, a, r)	writel(v, (a) + (r))
-#define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
-#define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
-#define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 #elif defined(CONFIG_MN10300)
 

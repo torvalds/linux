@@ -251,18 +251,15 @@ struct tipc_port *tipc_createport(struct sock *sk,
 	return p_ptr;
 }
 
-int tipc_deleteport(u32 ref)
+int tipc_deleteport(struct tipc_port *p_ptr)
 {
-	struct tipc_port *p_ptr;
 	struct sk_buff *buf = NULL;
 
-	tipc_withdraw(ref, 0, NULL);
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
+	tipc_withdraw(p_ptr, 0, NULL);
 
-	tipc_ref_discard(ref);
-	tipc_port_unlock(p_ptr);
+	spin_lock_bh(p_ptr->lock);
+	tipc_ref_discard(p_ptr->ref);
+	spin_unlock_bh(p_ptr->lock);
 
 	k_cancel_timer(&p_ptr->timer);
 	if (p_ptr->connected) {
@@ -704,47 +701,36 @@ int tipc_set_portimportance(u32 ref, unsigned int imp)
 }
 
 
-int tipc_publish(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
+int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
+		 struct tipc_name_seq const *seq)
 {
-	struct tipc_port *p_ptr;
 	struct publication *publ;
 	u32 key;
-	int res = -EINVAL;
-
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
 
 	if (p_ptr->connected)
-		goto exit;
-	key = ref + p_ptr->pub_count + 1;
-	if (key == ref) {
-		res = -EADDRINUSE;
-		goto exit;
-	}
+		return -EINVAL;
+	key = p_ptr->ref + p_ptr->pub_count + 1;
+	if (key == p_ptr->ref)
+		return -EADDRINUSE;
+
 	publ = tipc_nametbl_publish(seq->type, seq->lower, seq->upper,
 				    scope, p_ptr->ref, key);
 	if (publ) {
 		list_add(&publ->pport_list, &p_ptr->publications);
 		p_ptr->pub_count++;
 		p_ptr->published = 1;
-		res = 0;
+		return 0;
 	}
-exit:
-	tipc_port_unlock(p_ptr);
-	return res;
+	return -EINVAL;
 }
 
-int tipc_withdraw(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
+int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
+		  struct tipc_name_seq const *seq)
 {
-	struct tipc_port *p_ptr;
 	struct publication *publ;
 	struct publication *tpubl;
 	int res = -EINVAL;
 
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr)
-		return -EINVAL;
 	if (!seq) {
 		list_for_each_entry_safe(publ, tpubl,
 					 &p_ptr->publications, pport_list) {
@@ -771,7 +757,6 @@ int tipc_withdraw(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
 	}
 	if (list_empty(&p_ptr->publications))
 		p_ptr->published = 0;
-	tipc_port_unlock(p_ptr);
 	return res;
 }
 
@@ -832,17 +817,14 @@ exit:
  */
 int __tipc_disconnect(struct tipc_port *tp_ptr)
 {
-	int res;
-
 	if (tp_ptr->connected) {
 		tp_ptr->connected = 0;
 		/* let timer expire on it's own to avoid deadlock! */
 		tipc_nodesub_unsubscribe(&tp_ptr->subscription);
-		res = 0;
-	} else {
-		res = -ENOTCONN;
+		return 0;
 	}
-	return res;
+
+	return -ENOTCONN;
 }
 
 /*

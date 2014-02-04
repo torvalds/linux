@@ -216,6 +216,13 @@ config USB_FOTG210_UDC
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "fotg210_udc".
 
+config USB_GR_UDC
+       tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
+       depends on HAS_DMA
+       help
+          Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
+	  VHDL IP core library.
+
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
@@ -294,11 +301,11 @@ config USB_PXA27X
 	   gadget drivers to also be dynamically linked.
 
 config USB_S3C_HSOTG
-	tristate "S3C HS/OtG USB Device controller"
-	depends on S3C_DEV_USB_HSOTG
+	depends on ARM
+	tristate "Designware/S3C HS/OtG USB Device controller"
 	help
-	  The Samsung S3C64XX USB2.0 high-speed gadget controller
-	  integrated into the S3C64XX series SoC.
+	  The Designware USB2.0 high-speed gadget controller
+	  integrated into many SoCs.
 
 config USB_S3C2410
 	tristate "S3C2410 USB Device Controller"
@@ -512,9 +519,6 @@ config USB_U_SERIAL
 config USB_U_ETHER
 	tristate
 
-config USB_U_RNDIS
-	tristate
-
 config USB_F_SERIAL
 	tristate
 
@@ -540,6 +544,9 @@ config USB_F_RNDIS
 	tristate
 
 config USB_F_MASS_STORAGE
+	tristate
+
+config USB_F_FS
 	tristate
 
 choice
@@ -642,7 +649,6 @@ config USB_CONFIGFS_RNDIS
 	depends on USB_CONFIGFS
 	depends on NET
 	select USB_U_ETHER
-	select USB_U_RNDIS
 	select USB_F_RNDIS
 	help
 	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
@@ -682,12 +688,38 @@ config USB_CONFIGFS_PHONET
 config USB_CONFIGFS_MASS_STORAGE
 	boolean "Mass storage"
 	depends on USB_CONFIGFS
+	depends on BLOCK
 	select USB_F_MASS_STORAGE
 	help
 	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
 	  As its storage repository it can use a regular file or a block
 	  device (in much the same way as the "loop" device driver),
 	  specified as a module parameter or sysfs option.
+
+config USB_CONFIGFS_F_LB_SS
+	boolean "Loopback and sourcesink function (for testing)"
+	depends on USB_CONFIGFS
+	select USB_F_SS_LB
+	help
+	  Loopback function loops back a configurable number of transfers.
+	  Sourcesink function either sinks and sources bulk data.
+	  It also implements control requests, for "chapter 9" conformance.
+	  Make this be the first driver you try using on top of any new
+	  USB peripheral controller driver.  Then you can use host-side
+	  test software, like the "usbtest" driver, to put your hardware
+	  and its driver through a basic set of functional tests.
+
+config USB_CONFIGFS_F_FS
+	boolean "Function filesystem (FunctionFS)"
+	depends on USB_CONFIGFS
+	select USB_F_FS
+	help
+	  The Function Filesystem (FunctionFS) lets one create USB
+	  composite functions in user space in the same way GadgetFS
+	  lets one create USB gadgets in user space.  This allows creation
+	  of composite gadgets such that some of the functions are
+	  implemented in kernel space (for instance Ethernet, serial or
+	  mass storage) and other are implemented in user space.
 
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
@@ -759,7 +791,6 @@ config USB_ETH
 	depends on NET
 	select USB_LIBCOMPOSITE
 	select USB_U_ETHER
-	select USB_U_RNDIS
 	select USB_F_ECM
 	select USB_F_SUBSET
 	select CRC32
@@ -863,6 +894,7 @@ config USB_GADGETFS
 config USB_FUNCTIONFS
 	tristate "Function Filesystem"
 	select USB_LIBCOMPOSITE
+	select USB_F_FS
 	select USB_FUNCTIONFS_GENERIC if !(USB_FUNCTIONFS_ETH || USB_FUNCTIONFS_RNDIS)
 	help
 	  The Function Filesystem (FunctionFS) lets one create USB
@@ -882,6 +914,8 @@ config USB_FUNCTIONFS_ETH
 	bool "Include configuration with CDC ECM (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
 	select USB_U_ETHER
+	select USB_F_ECM
+	select USB_F_SUBSET
 	help
 	  Include a configuration with CDC ECM function (Ethernet) and the
 	  Function Filesystem.
@@ -890,7 +924,7 @@ config USB_FUNCTIONFS_RNDIS
 	bool "Include configuration with RNDIS (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
 	select USB_U_ETHER
-	select USB_U_RNDIS
+	select USB_F_RNDIS
 	help
 	  Include a configuration with RNDIS function (Ethernet) and the Filesystem.
 
@@ -1064,7 +1098,6 @@ config USB_G_MULTI
 config USB_G_MULTI_RNDIS
 	bool "RNDIS + CDC Serial + Storage configuration"
 	depends on USB_G_MULTI
-	select USB_U_RNDIS
 	select USB_F_RNDIS
 	default y
 	help

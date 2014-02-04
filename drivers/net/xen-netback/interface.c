@@ -34,6 +34,7 @@
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
+#include <linux/vmalloc.h>
 
 #include <xen/events.h>
 #include <asm/xen/hypercall.h>
@@ -44,11 +45,6 @@
 int xenvif_schedulable(struct xenvif *vif)
 {
 	return netif_running(vif->dev) && netif_carrier_ok(vif->dev);
-}
-
-static int xenvif_rx_schedulable(struct xenvif *vif)
-{
-	return xenvif_schedulable(vif) && !xenvif_rx_ring_full(vif);
 }
 
 static irqreturn_t xenvif_tx_interrupt(int irq, void *dev_id)
@@ -104,8 +100,8 @@ static irqreturn_t xenvif_rx_interrupt(int irq, void *dev_id)
 {
 	struct xenvif *vif = dev_id;
 
-	if (xenvif_rx_schedulable(vif))
-		netif_wake_queue(vif->dev);
+	vif->rx_event = true;
+	xenvif_kick_thread(vif);
 
 	return IRQ_HANDLED;
 }
@@ -121,24 +117,35 @@ static irqreturn_t xenvif_interrupt(int irq, void *dev_id)
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
+	int min_slots_needed;
 
 	BUG_ON(skb->dev != dev);
 
 	/* Drop the packet if vif is not ready */
-	if (vif->task == NULL)
+	if (vif->task == NULL || !xenvif_schedulable(vif))
 		goto drop;
 
-	/* Drop the packet if the target domain has no receive buffers. */
-	if (!xenvif_rx_schedulable(vif))
-		goto drop;
+	/* At best we'll need one slot for the header and one for each
+	 * frag.
+	 */
+	min_slots_needed = 1 + skb_shinfo(skb)->nr_frags;
 
-	/* Reserve ring slots for the worst-case number of fragments. */
-	vif->rx_req_cons_peek += xenvif_count_skb_slots(vif, skb);
+	/* If the skb is GSO then we'll also need an extra slot for the
+	 * metadata.
+	 */
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4 ||
+	    skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
+		min_slots_needed++;
 
-	if (vif->can_queue && xenvif_must_stop_queue(vif))
-		netif_stop_queue(dev);
+	/* If the skb can't possibly fit in the remaining slots
+	 * then turn off the queue to give the ring a chance to
+	 * drain.
+	 */
+	if (!xenvif_rx_ring_slots_available(vif, min_slots_needed))
+		xenvif_stop_queue(vif);
 
-	xenvif_queue_tx_skb(vif, skb);
+	skb_queue_tail(&vif->rx_queue, skb);
+	xenvif_kick_thread(vif);
 
 	return NETDEV_TX_OK;
 
@@ -146,12 +153,6 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	vif->dev->stats.tx_dropped++;
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
-}
-
-void xenvif_notify_tx_completion(struct xenvif *vif)
-{
-	if (netif_queue_stopped(vif->dev) && xenvif_rx_schedulable(vif))
-		netif_wake_queue(vif->dev);
 }
 
 static struct net_device_stats *xenvif_get_stats(struct net_device *dev)
@@ -307,6 +308,15 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	SET_NETDEV_DEV(dev, parent);
 
 	vif = netdev_priv(dev);
+
+	vif->grant_copy_op = vmalloc(sizeof(struct gnttab_copy) *
+				     MAX_GRANT_COPY_OPS);
+	if (vif->grant_copy_op == NULL) {
+		pr_warn("Could not allocate grant copy space for %s\n", name);
+		free_netdev(dev);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	vif->domid  = domid;
 	vif->handle = handle;
 	vif->can_sg = 1;
@@ -368,15 +378,17 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
 		   unsigned int rx_evtchn)
 {
+	struct task_struct *task;
 	int err = -ENOMEM;
 
-	/* Already connected through? */
-	if (vif->tx_irq)
-		return 0;
+	BUG_ON(vif->tx_irq);
+	BUG_ON(vif->task);
 
 	err = xenvif_map_frontend_rings(vif, tx_ring_ref, rx_ring_ref);
 	if (err < 0)
 		goto err;
+
+	init_waitqueue_head(&vif->wq);
 
 	if (tx_evtchn == rx_evtchn) {
 		/* feature-split-event-channels == 0 */
@@ -410,14 +422,15 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		disable_irq(vif->rx_irq);
 	}
 
-	init_waitqueue_head(&vif->wq);
-	vif->task = kthread_create(xenvif_kthread,
-				   (void *)vif, "%s", vif->dev->name);
-	if (IS_ERR(vif->task)) {
+	task = kthread_create(xenvif_kthread,
+			      (void *)vif, "%s", vif->dev->name);
+	if (IS_ERR(task)) {
 		pr_warn("Could not allocate kthread for %s\n", vif->dev->name);
-		err = PTR_ERR(vif->task);
+		err = PTR_ERR(task);
 		goto err_rx_unbind;
 	}
+
+	vif->task = task;
 
 	rtnl_lock();
 	if (!vif->can_sg && vif->dev->mtu > ETH_DATA_LEN)
@@ -461,8 +474,10 @@ void xenvif_disconnect(struct xenvif *vif)
 	if (netif_carrier_ok(vif->dev))
 		xenvif_carrier_off(vif);
 
-	if (vif->task)
+	if (vif->task) {
 		kthread_stop(vif->task);
+		vif->task = NULL;
+	}
 
 	if (vif->tx_irq) {
 		if (vif->tx_irq == vif->rx_irq)
@@ -483,6 +498,7 @@ void xenvif_free(struct xenvif *vif)
 
 	unregister_netdev(vif->dev);
 
+	vfree(vif->grant_copy_op);
 	free_netdev(vif->dev);
 
 	module_put(THIS_MODULE);

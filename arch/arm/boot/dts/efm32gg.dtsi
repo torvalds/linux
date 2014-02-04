@@ -1,0 +1,172 @@
+/*
+ * Device tree for Energy Micro EFM32 Giant Gecko SoC.
+ *
+ * Documentation available from
+ * http://www.silabs.com/Support%20Documents/TechnicalDocs/EFM32GG-RM.pdf
+ */
+#include "armv7-m.dtsi"
+#include "dt-bindings/clock/efm32-cmu.h"
+
+/ {
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
+	};
+
+	soc {
+		adc: adc@40002000 {
+			compatible = "efm32,adc";
+			reg = <0x40002000 0x400>;
+			interrupts = <7>;
+			clocks = <&cmu clk_HFPERCLKADC0>;
+			status = "disabled";
+		};
+
+		gpio: gpio@40006000 {
+			compatible = "efm32,gpio";
+			reg = <0x40006000 0x1000>;
+			interrupts = <1 11>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			clocks = <&cmu clk_HFPERCLKGPIO>;
+			status = "ok";
+		};
+
+		i2c0: i2c@4000a000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "efm32,i2c";
+			reg = <0x4000a000 0x400>;
+			interrupts = <9>;
+			clocks = <&cmu clk_HFPERCLKI2C0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@4000a400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "efm32,i2c";
+			reg = <0x4000a400 0x400>;
+			interrupts = <10>;
+			clocks = <&cmu clk_HFPERCLKI2C1>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		spi0: spi@4000c000 { /* USART0 */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "efm32,spi";
+			reg = <0x4000c000 0x400>;
+			interrupts = <3 4>;
+			clocks = <&cmu clk_HFPERCLKUSART0>;
+			status = "disabled";
+		};
+
+		spi1: spi@4000c400 { /* USART1 */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "efm32,spi";
+			reg = <0x4000c400 0x400>;
+			interrupts = <15 16>;
+			clocks = <&cmu clk_HFPERCLKUSART1>;
+			status = "disabled";
+		};
+
+		spi2: spi@40x4000c800 { /* USART2 */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "efm32,spi";
+			reg = <0x4000c800 0x400>;
+			interrupts = <18 19>;
+			clocks = <&cmu clk_HFPERCLKUSART2>;
+			status = "disabled";
+		};
+
+		uart0: uart@4000c000 { /* USART0 */
+			compatible = "efm32,uart";
+			reg = <0x4000c000 0x400>;
+			interrupts = <3 4>;
+			clocks = <&cmu clk_HFPERCLKUSART0>;
+			status = "disabled";
+		};
+
+		uart1: uart@4000c400 { /* USART1 */
+			compatible = "efm32,uart";
+			reg = <0x4000c400 0x400>;
+			interrupts = <15 16>;
+			clocks = <&cmu clk_HFPERCLKUSART1>;
+			status = "disabled";
+		};
+
+		uart2: uart@40x4000c800 { /* USART2 */
+			compatible = "efm32,uart";
+			reg = <0x4000c800 0x400>;
+			interrupts = <18 19>;
+			clocks = <&cmu clk_HFPERCLKUSART2>;
+			status = "disabled";
+		};
+
+		uart3: uart@4000e000 { /* UART0 */
+			compatible = "efm32,uart";
+			reg = <0x4000e000 0x400>;
+			interrupts = <20 21>;
+			clocks = <&cmu clk_HFPERCLKUART0>;
+			status = "disabled";
+		};
+
+		uart4: uart@4000e400 { /* UART1 */
+			compatible = "efm32,uart";
+			reg = <0x4000e400 0x400>;
+			interrupts = <22 23>;
+			clocks = <&cmu clk_HFPERCLKUART1>;
+			status = "disabled";
+		};
+
+		timer0: timer@40010000 {
+			compatible = "efm32,timer";
+			reg = <0x40010000 0x400>;
+			interrupts = <2>;
+			clocks = <&cmu clk_HFPERCLKTIMER0>;
+		};
+
+		timer1: timer@40010400 {
+			compatible = "efm32,timer";
+			reg = <0x40010400 0x400>;
+			interrupts = <12>;
+			clocks = <&cmu clk_HFPERCLKTIMER1>;
+		};
+
+		timer2: timer@40010800 {
+			compatible = "efm32,timer";
+			reg = <0x40010800 0x400>;
+			interrupts = <13>;
+			clocks = <&cmu clk_HFPERCLKTIMER2>;
+		};
+
+		timer3: timer@40010c00 {
+			compatible = "efm32,timer";
+			reg = <0x40010c00 0x400>;
+			interrupts = <14>;
+			clocks = <&cmu clk_HFPERCLKTIMER3>;
+		};
+
+		cmu: cmu@400c8000 {
+			compatible = "efm32gg,cmu";
+			reg = <0x400c8000 0x400>;
+			interrupts = <32>;
+			#clock-cells = <1>;
+		};
+	};
+};

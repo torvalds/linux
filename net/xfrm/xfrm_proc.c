@@ -52,7 +52,7 @@ static int xfrm_statistics_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq->private;
 	int i;
-	for (i=0; xfrm_mib_list[i].name; i++)
+	for (i = 0; xfrm_mib_list[i].name; i++)
 		seq_printf(seq, "%-24s\t%lu\n", xfrm_mib_list[i].name,
 			   snmp_fold_field((void __percpu **)
 					   net->mib.xfrm_statistics,

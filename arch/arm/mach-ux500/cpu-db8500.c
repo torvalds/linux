@@ -21,20 +21,31 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regulator/machine.h>
-#include <linux/platform_data/pinctrl-nomadik.h>
 #include <linux/random.h>
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
 
 #include "setup.h"
-#include "devices.h"
 #include "irqs.h"
 
-#include "devices-db8500.h"
-#include "db8500-regs.h"
+#include "board-mop500-regulators.h"
 #include "board-mop500.h"
+#include "db8500-regs.h"
 #include "id.h"
+
+struct ab8500_platform_data ab8500_platdata = {
+	.irq_base	= MOP500_AB8500_IRQ_BASE,
+	.regulator	= &ab8500_regulator_plat_data,
+};
+
+struct prcmu_pdata db8500_prcmu_pdata = {
+	.ab_platdata	= &ab8500_platdata,
+	.ab_irq		= IRQ_DB8500_AB8500,
+	.irq_base	= IRQ_PRCMU_BASE,
+	.version_offset	= DB8500_PRCMU_FW_VERSION_OFFSET,
+	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
+};
 
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_uart_io_desc[] __initdata = {
@@ -140,6 +151,10 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
 	/* Requires DMA bindings. */
+	OF_DEV_AUXDATA("arm,pl18x", 0x80126000, "sdi0",  &mop500_sdi0_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80118000, "sdi1",  &mop500_sdi1_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80005000, "sdi2",  &mop500_sdi2_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80114000, "sdi4",  &mop500_sdi4_data),
 	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80123000,
 		       "ux500-msp-i2s.0", &msp0_platform_data),
 	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80124000,
@@ -155,17 +170,10 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("stericsson,ux500-hash", 0xa03c2000, "hash1", NULL),
 	OF_DEV_AUXDATA("stericsson,snd-soc-mop500", 0, "snd-soc-mop500.0",
 			NULL),
-	/* Requires device name bindings. */
-	OF_DEV_AUXDATA("stericsson,db8500-pinctrl", U8500_PRCMU_BASE,
-		"pinctrl-db8500", NULL),
 	{},
 };
 
 static struct of_dev_auxdata u8540_auxdata_lookup[] __initdata = {
-	/* Requires DMA bindings. */
-	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", NULL),
-	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", NULL),
-	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", NULL),
 	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu",
 			&db8500_prcmu_pdata),
 	{},

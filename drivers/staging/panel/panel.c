@@ -1590,8 +1590,8 @@ static ssize_t keypad_read(struct file *file,
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
-		interruptible_sleep_on(&keypad_read_wait);
-		if (signal_pending(current))
+		if (wait_event_interruptible(keypad_read_wait,
+					     keypad_buflen != 0))
 			return -EINTR;
 	}
 

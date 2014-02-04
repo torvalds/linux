@@ -460,7 +460,7 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
 		return;
 
 	pe = &phb->ioda.pe_array[pdn->pe_number];
-	set_iommu_table_base(&pdev->dev, &pe->tce32_table);
+	set_iommu_table_base_and_group(&pdev->dev, &pe->tce32_table);
 }
 
 static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
@@ -468,7 +468,7 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		set_iommu_table_base(&dev->dev, &pe->tce32_table);
+		set_iommu_table_base_and_group(&dev->dev, &pe->tce32_table);
 		if (dev->subordinate)
 			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
 	}
@@ -644,7 +644,7 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
 
 	if (pe->pdev)
-		set_iommu_table_base(&pe->pdev->dev, tbl);
+		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
 	else
 		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 
@@ -720,9 +720,10 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
 	}
 	iommu_init_table(tbl, phb->hose->node);
+	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
 
 	if (pe->pdev)
-		set_iommu_table_base(&pe->pdev->dev, tbl);
+		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
 	else
 		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 
@@ -1143,7 +1144,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
-	unsigned long size, m32map_off, iomap_off, pemap_off;
+	unsigned long size, m32map_off, pemap_off, iomap_off = 0;
 	const __be64 *prop64;
 	const __be32 *prop32;
 	int len;
@@ -1230,7 +1231,6 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	size = _ALIGN_UP(phb->ioda.total_pe / 8, sizeof(unsigned long));
 	m32map_off = size;
 	size += phb->ioda.total_pe * sizeof(phb->ioda.m32_segmap[0]);
-	iomap_off = size;
 	if (phb->type == PNV_PHB_IODA1) {
 		iomap_off = size;
 		size += phb->ioda.total_pe * sizeof(phb->ioda.io_segmap[0]);

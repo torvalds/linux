@@ -27,6 +27,17 @@ config APDS9300
 	 To compile this driver as a module, choose M here: the
 	 module will be called apds9300.
 
+config CM32181
+	depends on I2C
+	tristate "CM32181 driver"
+	help
+	 Say Y here if you use cm32181.
+	 This option enables ambient light sensor using
+	 Capella cm32181 device driver.
+
+	 To compile this driver as a module, choose M here:
+	 the module will be called cm32181.
+
 config CM36651
 	depends on I2C
 	tristate "CM36651 driver"
@@ -43,6 +54,7 @@ config GP2AP020A00F
 	depends on I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	select IRQ_WORK
 	help
 	  Say Y here if you have a Sharp GP2AP020A00F proximity/ALS combo-chip
 	  hooked to an I2C bus.
@@ -81,6 +93,8 @@ config SENSORS_LM3533
 config TCS3472
 	tristate "TAOS TCS3472 color light-to-digital converter"
 	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	 If you say yes here you get support for the TAOS TCS3472
 	 family of color light-to-digital converters with IR filter.

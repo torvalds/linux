@@ -117,6 +117,21 @@ static int dma_unmap_sg_chained(struct device *dev, struct scatterlist *sg,
 	return nents;
 }
 
+/* Map SG page in kernel virtual address space and copy */
+static inline void sg_map_copy(u8 *dest, struct scatterlist *sg,
+			       int len, int offset)
+{
+	u8 *mapped_addr;
+
+	/*
+	 * Page here can be user-space pinned using get_user_pages
+	 * Same must be kmapped before use and kunmapped subsequently
+	 */
+	mapped_addr = kmap_atomic(sg_page(sg));
+	memcpy(dest, mapped_addr + offset, len);
+	kunmap_atomic(mapped_addr);
+}
+
 /* Copy from len bytes of sg to dest, starting from beginning */
 static inline void sg_copy(u8 *dest, struct scatterlist *sg, unsigned int len)
 {
@@ -124,15 +139,15 @@ static inline void sg_copy(u8 *dest, struct scatterlist *sg, unsigned int len)
 	int cpy_index = 0, next_cpy_index = current_sg->length;
 
 	while (next_cpy_index < len) {
-		memcpy(dest + cpy_index, (u8 *) sg_virt(current_sg),
-		       current_sg->length);
+		sg_map_copy(dest + cpy_index, current_sg, current_sg->length,
+			    current_sg->offset);
 		current_sg = scatterwalk_sg_next(current_sg);
 		cpy_index = next_cpy_index;
 		next_cpy_index += current_sg->length;
 	}
 	if (cpy_index < len)
-		memcpy(dest + cpy_index, (u8 *) sg_virt(current_sg),
-		       len - cpy_index);
+		sg_map_copy(dest + cpy_index, current_sg, len-cpy_index,
+			    current_sg->offset);
 }
 
 /* Copy sg data, from to_skip to end, to dest */
@@ -140,7 +155,7 @@ static inline void sg_copy_part(u8 *dest, struct scatterlist *sg,
 				      int to_skip, unsigned int end)
 {
 	struct scatterlist *current_sg = sg;
-	int sg_index, cpy_index;
+	int sg_index, cpy_index, offset;
 
 	sg_index = current_sg->length;
 	while (sg_index <= to_skip) {
@@ -148,9 +163,10 @@ static inline void sg_copy_part(u8 *dest, struct scatterlist *sg,
 		sg_index += current_sg->length;
 	}
 	cpy_index = sg_index - to_skip;
-	memcpy(dest, (u8 *) sg_virt(current_sg) +
-	       current_sg->length - cpy_index, cpy_index);
-	current_sg = scatterwalk_sg_next(current_sg);
-	if (end - sg_index)
+	offset = current_sg->offset + current_sg->length - cpy_index;
+	sg_map_copy(dest, current_sg, cpy_index, offset);
+	if (end - sg_index) {
+		current_sg = scatterwalk_sg_next(current_sg);
 		sg_copy(dest + cpy_index, current_sg, end - sg_index);
+	}
 }

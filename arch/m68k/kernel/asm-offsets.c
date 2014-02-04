@@ -98,6 +98,9 @@ int main(void)
 	DEFINE(CIABBASE, &ciab);
 	DEFINE(C_PRA, offsetof(struct CIA, pra));
 	DEFINE(ZTWOBASE, zTwoBase);
+
+	/* enum m68k_fixup_type */
+	DEFINE(M68K_FIXUP_MEMOFFSET, m68k_fixup_memoffset);
 #endif
 
 	return 0;

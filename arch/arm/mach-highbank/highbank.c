@@ -17,12 +17,15 @@
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
 #include <linux/dma-mapping.h>
+#include <linux/input.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
+#include <linux/mailbox.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/reboot.h>
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
 
@@ -50,6 +53,7 @@ static void __init highbank_scu_map_io(void)
 
 static void highbank_l2x0_disable(void)
 {
+	outer_flush_all();
 	/* Disable PL310 L2 Cache controller */
 	highbank_smc1(0x102, 0x0);
 }
@@ -130,6 +134,24 @@ static struct platform_device highbank_cpuidle_device = {
 	.name = "cpuidle-calxeda",
 };
 
+static int hb_keys_notifier(struct notifier_block *nb, unsigned long event, void *data)
+{
+	u32 key = *(u32 *)data;
+
+	if (event != 0x1000)
+		return 0;
+
+	if (key == KEY_POWER)
+		orderly_poweroff(false);
+	else if (key == 0xffff)
+		ctrl_alt_del();
+
+	return 0;
+}
+static struct notifier_block hb_keys_nb = {
+	.notifier_call = hb_keys_notifier,
+};
+
 static void __init highbank_init(void)
 {
 	struct device_node *np;
@@ -144,6 +166,8 @@ static void __init highbank_init(void)
 
 	bus_register_notifier(&platform_bus_type, &highbank_platform_nb);
 	bus_register_notifier(&amba_bustype, &highbank_amba_nb);
+
+	pl320_ipc_register_notifier(&hb_keys_nb);
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 

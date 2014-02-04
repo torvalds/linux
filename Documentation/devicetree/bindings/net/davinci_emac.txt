@@ -4,16 +4,12 @@ This file provides information, what the device node
 for the davinci_emac interface contains.
 
 Required properties:
-- compatible: "ti,davinci-dm6467-emac";
+- compatible: "ti,davinci-dm6467-emac" or "ti,am3517-emac"
 - reg: Offset and length of the register set for the device
 - ti,davinci-ctrl-reg-offset: offset to control register
 - ti,davinci-ctrl-mod-reg-offset: offset to control module register
 - ti,davinci-ctrl-ram-offset: offset to control module ram
 - ti,davinci-ctrl-ram-size: size of control module ram
-- ti,davinci-rmii-en: use RMII
-- ti,davinci-no-bd-ram: has the emac controller BD RAM
-- phy-handle: Contains a phandle to an Ethernet PHY.
-              if not, davinci_emac driver defaults to 100/FULL
 - interrupts: interrupt mapping for the davinci emac interrupts sources:
               4 sources: <Receive Threshold Interrupt
 			  Receive Interrupt
@@ -21,7 +17,11 @@ Required properties:
 			  Miscellaneous Interrupt>
 
 Optional properties:
+- phy-handle: Contains a phandle to an Ethernet PHY.
+              If absent, davinci_emac driver defaults to 100/FULL.
 - local-mac-address : 6 bytes, mac address
+- ti,davinci-rmii-en: 1 byte, 1 means use RMII
+- ti,davinci-no-bd-ram: boolean, does EMAC have BD RAM?
 
 Example (enbw_cmc board):
 	eth0: emac@1e20000 {

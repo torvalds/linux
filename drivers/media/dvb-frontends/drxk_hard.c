@@ -1191,7 +1191,7 @@ static int mpegts_configure_pins(struct drxk_state *state, bool mpeg_enable)
 			goto error;
 
 		if (state->m_enable_parallel == true) {
-			/* paralel -> enable MD1 to MD7 */
+			/* parallel -> enable MD1 to MD7 */
 			status = write16(state, SIO_PDR_MD1_CFG__A,
 					 sio_pdr_mdx_cfg);
 			if (status < 0)
@@ -1428,7 +1428,7 @@ static int mpegts_stop(struct drxk_state *state)
 
 	dprintk(1, "\n");
 
-	/* Gracefull shutdown (byte boundaries) */
+	/* Graceful shutdown (byte boundaries) */
 	status = read16(state, FEC_OC_SNC_MODE__A, &fec_oc_snc_mode);
 	if (status < 0)
 		goto error;
@@ -2021,7 +2021,7 @@ static int mpegts_dto_setup(struct drxk_state *state,
 		fec_oc_dto_burst_len = 204;
 	}
 
-	/* Check serial or parrallel output */
+	/* Check serial or parallel output */
 	fec_oc_reg_ipr_mode &= (~(FEC_OC_IPR_MODE_SERIAL__M));
 	if (state->m_enable_parallel == false) {
 		/* MPEG data output is serial -> set ipr_mode[0] */
@@ -2908,7 +2908,7 @@ static int adc_synchronization(struct drxk_state *state)
 		goto error;
 
 	if (count == 1) {
-		/* Try sampling on a diffrent edge */
+		/* Try sampling on a different edge */
 		u16 clk_neg = 0;
 
 		status = read16(state, IQM_AF_CLKNEG__A, &clk_neg);
@@ -3306,7 +3306,7 @@ static int dvbt_sc_command(struct drxk_state *state,
 	if (status < 0)
 		goto error;
 
-	/* Retreive results parameters from SC */
+	/* Retrieve results parameters from SC */
 	switch (cmd) {
 		/* All commands yielding 5 results */
 		/* All commands yielding 4 results */
@@ -3849,7 +3849,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 		break;
 	}
 #if 0
-	/* No hierachical channels support in BDA */
+	/* No hierarchical channels support in BDA */
 	/* Priority (only for hierarchical channels) */
 	switch (channel->priority) {
 	case DRX_PRIORITY_LOW:
@@ -4081,7 +4081,7 @@ error:
 /*============================================================================*/
 
 /**
-* \brief Retreive lock status .
+* \brief Retrieve lock status .
 * \param demod    Pointer to demodulator instance.
 * \param lockStat Pointer to lock status structure.
 * \return DRXStatus_t.
@@ -6174,7 +6174,7 @@ static int init_drxk(struct drxk_state *state)
 			goto error;
 
 		/* Stamp driver version number in SCU data RAM in BCD code
-			Done to enable field application engineers to retreive drxdriver version
+			Done to enable field application engineers to retrieve drxdriver version
 			via I2C from SCU RAM.
 			Not using SCU command interface for SCU register access since no
 			microcode may be present.
@@ -6399,7 +6399,7 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	start(state, 0, IF);
 
-	/* After set_frontend, stats aren't avaliable */
+	/* After set_frontend, stats aren't available */
 	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
 	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
@@ -6830,25 +6830,13 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 
 	/* Load firmware and initialize DRX-K */
 	if (state->microcode_name) {
-		if (config->load_firmware_sync) {
-			const struct firmware *fw = NULL;
+		const struct firmware *fw = NULL;
 
-			status = request_firmware(&fw, state->microcode_name,
-						  state->i2c->dev.parent);
-			if (status < 0)
-				fw = NULL;
-			load_firmware_cb(fw, state);
-		} else {
-			status = request_firmware_nowait(THIS_MODULE, 1,
-					      state->microcode_name,
-					      state->i2c->dev.parent,
-					      GFP_KERNEL,
-					      state, load_firmware_cb);
-			if (status < 0) {
-				pr_err("failed to request a firmware\n");
-				return NULL;
-			}
-		}
+		status = request_firmware(&fw, state->microcode_name,
+					  state->i2c->dev.parent);
+		if (status < 0)
+			fw = NULL;
+		load_firmware_cb(fw, state);
 	} else if (init_drxk(state) < 0)
 		goto error;
 
