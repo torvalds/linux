@@ -728,6 +728,17 @@ int i915_reset(struct drm_device *dev)
 
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
+
+		/* rps/rc6 re-init is necessary to restore state lost after the
+		 * reset and the re-install of drm irq. Skip for ironlake per
+		 * previous concerns that it doesn't respond well to some forms
+		 * of re-init after reset. */
+		if (INTEL_INFO(dev)->gen > 5) {
+			mutex_lock(&dev->struct_mutex);
+			intel_enable_gt_powersave(dev);
+			mutex_unlock(&dev->struct_mutex);
+		}
+
 		intel_hpd_init(dev);
 	} else {
 		mutex_unlock(&dev->struct_mutex);
