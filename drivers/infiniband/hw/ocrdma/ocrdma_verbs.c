@@ -840,8 +840,7 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 
 	status = ocrdma_mbx_dealloc_lkey(dev, mr->hwmr.fr_mr, mr->hwmr.lkey);
 
-	if (mr->hwmr.fr_mr == 0)
-		ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
+	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
 
 	/* it could be user registered memory. */
 	if (mr->umem)
