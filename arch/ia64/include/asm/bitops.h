@@ -65,11 +65,8 @@ __set_bit (int nr, volatile void *addr)
 	*((__u32 *) addr + (nr >> 5)) |= (1 << (nr & 31));
 }
 
-/*
- * clear_bit() has "acquire" semantics.
- */
-#define smp_mb__before_clear_bit()	smp_mb()
-#define smp_mb__after_clear_bit()	do { /* skip */; } while (0)
+#define smp_mb__before_clear_bit()	barrier();
+#define smp_mb__after_clear_bit()	barrier();
 
 /**
  * clear_bit - Clears a bit in memory
