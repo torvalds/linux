@@ -132,8 +132,7 @@ static int __init rtctimer_init(void)
 
 	if (rtctimer_freq < 2 || rtctimer_freq > 8192 ||
 	    !is_power_of_2(rtctimer_freq)) {
-		snd_printk(KERN_ERR "rtctimer: invalid frequency %d\n",
-			   rtctimer_freq);
+		pr_err("ALSA: rtctimer: invalid frequency %d\n", rtctimer_freq);
 		return -EINVAL;
 	}
 
