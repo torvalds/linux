@@ -292,7 +292,7 @@ static void ipte_unlock_siif(struct kvm_vcpu *vcpu)
 		wake_up(&vcpu->kvm->arch.ipte_wq);
 }
 
-static void ipte_lock(struct kvm_vcpu *vcpu)
+void ipte_lock(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.sie_block->eca & 1)
 		ipte_lock_siif(vcpu);
@@ -300,7 +300,7 @@ static void ipte_lock(struct kvm_vcpu *vcpu)
 		ipte_lock_simple(vcpu);
 }
 
-static void ipte_unlock(struct kvm_vcpu *vcpu)
+void ipte_unlock(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.sie_block->eca & 1)
 		ipte_unlock_siif(vcpu);
