@@ -19,6 +19,7 @@
  * GNU General Public License ("GPL").
  */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 

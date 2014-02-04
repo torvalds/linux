@@ -28,8 +28,6 @@
  * GNU General Public License ("GPL").
  */
 
-#include <linux/module.h>
-
 #include "usbtv.h"
 
 int usbtv_set_regs(struct usbtv *usbtv, const u16 regs[][2], int size)
