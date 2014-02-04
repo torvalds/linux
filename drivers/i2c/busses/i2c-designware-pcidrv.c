@@ -138,69 +138,25 @@ static struct i2c_algorithm i2c_dw_algo = {
 	.functionality	= i2c_dw_func,
 };
 
+#ifdef CONFIG_PM
 static int i2c_dw_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
-	struct dw_i2c_dev *i2c = pci_get_drvdata(pdev);
-	int err;
 
-
-	i2c_dw_disable(i2c);
-
-	err = pci_save_state(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "pci_save_state failed\n");
-		return err;
-	}
-
-	err = pci_set_power_state(pdev, PCI_D3hot);
-	if (err) {
-		dev_err(&pdev->dev, "pci_set_power_state failed\n");
-		return err;
-	}
-
+	i2c_dw_disable(pci_get_drvdata(pdev));
 	return 0;
 }
 
 static int i2c_dw_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
-	struct dw_i2c_dev *i2c = pci_get_drvdata(pdev);
-	int err;
-	u32 enabled;
 
-	enabled = i2c_dw_is_enabled(i2c);
-	if (enabled)
-		return 0;
-
-	err = pci_set_power_state(pdev, PCI_D0);
-	if (err) {
-		dev_err(&pdev->dev, "pci_set_power_state() failed\n");
-		return err;
-	}
-
-	pci_restore_state(pdev);
-
-	i2c_dw_init(i2c);
-	return 0;
+	return i2c_dw_init(pci_get_drvdata(pdev));
 }
+#endif
 
-static int i2c_dw_pci_runtime_idle(struct device *dev)
-{
-	int err = pm_schedule_suspend(dev, 500);
-	dev_dbg(dev, "runtime_idle called\n");
-
-	if (err != 0)
-		return 0;
-	return -EBUSY;
-}
-
-static const struct dev_pm_ops i2c_dw_pm_ops = {
-	.resume         = i2c_dw_pci_resume,
-	.suspend        = i2c_dw_pci_suspend,
-	SET_RUNTIME_PM_OPS(i2c_dw_pci_suspend, i2c_dw_pci_resume,
-			   i2c_dw_pci_runtime_idle)
-};
+static UNIVERSAL_DEV_PM_OPS(i2c_dw_pm_ops, i2c_dw_pci_suspend,
+			    i2c_dw_pci_resume, NULL);
 
 static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 {
@@ -290,6 +246,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
 	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
