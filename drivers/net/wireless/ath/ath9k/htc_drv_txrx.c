@@ -966,6 +966,39 @@ static void ath9k_process_rate(struct ieee80211_hw *hw,
 
 }
 
+static inline void convert_htc_flag(struct ath_rx_status *rx_stats,
+				   struct ath_htc_rx_status *rxstatus)
+{
+	rx_stats->flag = 0;
+	if (rxstatus->rs_flags & ATH9K_RX_2040)
+		rx_stats->flag |= RX_FLAG_40MHZ;
+	if (rxstatus->rs_flags & ATH9K_RX_GI)
+		rx_stats->flag |= RX_FLAG_SHORT_GI;
+}
+
+static void rx_status_htc_to_ath(struct ath_rx_status *rx_stats,
+				 struct ath_htc_rx_status *rxstatus)
+{
+	rx_stats->rs_datalen	= rxstatus->rs_datalen;
+	rx_stats->rs_status	= rxstatus->rs_status;
+	rx_stats->rs_phyerr	= rxstatus->rs_phyerr;
+	rx_stats->rs_rssi	= rxstatus->rs_rssi;
+	rx_stats->rs_keyix	= rxstatus->rs_keyix;
+	rx_stats->rs_rate	= rxstatus->rs_rate;
+	rx_stats->rs_antenna	= rxstatus->rs_antenna;
+	rx_stats->rs_more	= rxstatus->rs_more;
+
+	memcpy(rx_stats->rs_rssi_ctl, rxstatus->rs_rssi_ctl,
+		sizeof(rx_stats->rs_rssi_ctl));
+	memcpy(rx_stats->rs_rssi_ext, rxstatus->rs_rssi_ext,
+		sizeof(rx_stats->rs_rssi_ext));
+
+	rx_stats->rs_isaggr	= rxstatus->rs_isaggr;
+	rx_stats->rs_moreaggr	= rxstatus->rs_moreaggr;
+	rx_stats->rs_num_delims	= rxstatus->rs_num_delims;
+	convert_htc_flag(rx_stats, rxstatus);
+}
+
 static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 			     struct ath9k_htc_rxbuf *rxbuf,
 			     struct ieee80211_rx_status *rx_status)
@@ -976,6 +1009,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct sk_buff *skb = rxbuf->skb;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath_htc_rx_status *rxstatus;
+	struct ath_rx_status rx_stats;
 	int hdrlen, padsize;
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
 	__le16 fc;
@@ -1013,6 +1047,8 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	}
 
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
+
+	rx_status_htc_to_ath(&rx_stats, &rxbuf->rxstatus);
 
 	if (rxbuf->rxstatus.rs_status != 0) {
 		if (rxbuf->rxstatus.rs_status & ATH9K_RXERR_CRC)
@@ -1095,7 +1131,6 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	rx_status->flag |= RX_FLAG_MACTIME_END;
 
 	return true;
-
 rx_next:
 	return false;
 }
