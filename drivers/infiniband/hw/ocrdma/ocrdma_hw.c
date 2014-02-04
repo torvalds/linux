@@ -1016,6 +1016,7 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->local_ca_ack_delay = (rsp->max_pd_ca_ack_delay &
 				    OCRDMA_MBX_QUERY_CFG_CA_ACK_DELAY_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_CA_ACK_DELAY_SHIFT;
+	attr->max_mw = rsp->max_mw;
 	attr->max_mr = rsp->max_mr;
 	attr->max_mr_size = ~0ull;
 	attr->max_fmr = 0;

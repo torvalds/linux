@@ -67,6 +67,7 @@ struct ocrdma_dev_attr {
 	int max_mr;
 	u64 max_mr_size;
 	u32 max_num_mr_pbl;
+	int max_mw;
 	int max_fmr;
 	int max_map_per_fmr;
 	int max_pages_per_frmr;
