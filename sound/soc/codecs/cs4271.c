@@ -159,7 +159,6 @@ static bool cs4271_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 struct cs4271_private {
-	/* SND_SOC_I2C or SND_SOC_SPI */
 	unsigned int			mclk;
 	bool				master;
 	bool				deemph;
