@@ -662,6 +662,11 @@ static int __send_command(struct drbd_connection *connection, int vnr,
 			    msg_flags);
 	if (data && !err)
 		err = drbd_send_all(connection, sock->socket, data, size, 0);
+	/* DRBD protocol "pings" are latency critical.
+	 * This is supposed to trigger tcp_push_pending_frames() */
+	if (!err && (cmd == P_PING || cmd == P_PING_ACK))
+		drbd_tcp_nodelay(sock->socket);
+
 	return err;
 }
 
