@@ -60,6 +60,7 @@ static int process_vm_rw_pages(struct task_struct *task,
 	int ret;
 	ssize_t bytes_to_copy;
 	ssize_t rc = 0;
+	const struct iovec *iov = lvec + *lvec_current;
 
 	*bytes_copied = 0;
 
@@ -81,8 +82,10 @@ static int process_vm_rw_pages(struct task_struct *task,
 	     pgs_copied++) {
 		/* Make sure we have a non zero length iovec */
 		while (*lvec_current < lvec_cnt
-		       && lvec[*lvec_current].iov_len == 0)
+		       && iov->iov_len == 0) {
+			iov++;
 			(*lvec_current)++;
+		}
 		if (*lvec_current == lvec_cnt)
 			break;
 
@@ -94,18 +97,18 @@ static int process_vm_rw_pages(struct task_struct *task,
 		bytes_to_copy = min_t(ssize_t, PAGE_SIZE - start_offset,
 				      len - *bytes_copied);
 		bytes_to_copy = min_t(ssize_t, bytes_to_copy,
-				      lvec[*lvec_current].iov_len
+				      iov->iov_len
 				      - *lvec_offset);
 
 		target_kaddr = kmap(process_pages[pgs_copied]) + start_offset;
 
 		if (vm_write)
 			ret = copy_from_user(target_kaddr,
-					     lvec[*lvec_current].iov_base
+					     iov->iov_base
 					     + *lvec_offset,
 					     bytes_to_copy);
 		else
-			ret = copy_to_user(lvec[*lvec_current].iov_base
+			ret = copy_to_user(iov->iov_base
 					   + *lvec_offset,
 					   target_kaddr, bytes_to_copy);
 		kunmap(process_pages[pgs_copied]);
@@ -117,12 +120,13 @@ static int process_vm_rw_pages(struct task_struct *task,
 		}
 		*bytes_copied += bytes_to_copy;
 		*lvec_offset += bytes_to_copy;
-		if (*lvec_offset == lvec[*lvec_current].iov_len) {
+		if (*lvec_offset == iov->iov_len) {
 			/*
 			 * Need to copy remaining part of page into the
 			 * next iovec if there are any bytes left in page
 			 */
 			(*lvec_current)++;
+			iov++;
 			*lvec_offset = 0;
 			start_offset = (start_offset + bytes_to_copy)
 				% PAGE_SIZE;
