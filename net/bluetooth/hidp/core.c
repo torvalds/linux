@@ -223,51 +223,6 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 	input_sync(dev);
 }
 
-static int hidp_send_report(struct hidp_session *session, struct hid_report *report)
-{
-	unsigned char hdr;
-	u8 *buf;
-	int rsize, ret;
-
-	buf = hid_alloc_report_buf(report, GFP_ATOMIC);
-	if (!buf)
-		return -EIO;
-
-	hid_output_report(report, buf);
-	hdr = HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT;
-
-	rsize = ((report->size - 1) >> 3) + 1 + (report->id > 0);
-	ret = hidp_send_intr_message(session, hdr, buf, rsize);
-
-	kfree(buf);
-	return ret;
-}
-
-static int hidp_hidinput_event(struct input_dev *dev, unsigned int type,
-			       unsigned int code, int value)
-{
-	struct hid_device *hid = input_get_drvdata(dev);
-	struct hidp_session *session = hid->driver_data;
-	struct hid_field *field;
-	int offset;
-
-	BT_DBG("session %p type %d code %d value %d",
-	       session, type, code, value);
-
-	if (type != EV_LED)
-		return -1;
-
-	offset = hidinput_find_field(hid, type, code, &field);
-	if (offset == -1) {
-		hid_warn(dev, "event field not found\n");
-		return -1;
-	}
-
-	hid_set_field(field, offset, value);
-
-	return hidp_send_report(session, field->report);
-}
-
 static int hidp_get_raw_report(struct hid_device *hid,
 		unsigned char report_number,
 		unsigned char *data, size_t count,
@@ -817,7 +772,6 @@ static struct hid_ll_driver hidp_hid_driver = {
 	.close = hidp_close,
 	.raw_request = hidp_raw_request,
 	.output_report = hidp_output_report,
-	.hidinput_input_event = hidp_hidinput_event,
 };
 
 /* This function sets up the hid device. It does not add it
