@@ -197,34 +197,35 @@ static const struct nouveau_bitfield nv50_pgraph_status[] = {
 	{ 0x00000080, "UNK7" },
 	{ 0x00000100, "CTXPROG" },
 	{ 0x00000200, "VFETCH" },
-	{ 0x00000400, "CCACHE_UNK4" },
-	{ 0x00000800, "STRMOUT_GSCHED_UNK5" },
-	{ 0x00001000, "UNK14XX" },
-	{ 0x00002000, "UNK24XX_CSCHED" },
-	{ 0x00004000, "UNK1CXX" },
+	{ 0x00000400, "CCACHE_PREGEOM" },
+	{ 0x00000800, "STRMOUT_VATTR_POSTGEOM" },
+	{ 0x00001000, "VCLIP" },
+	{ 0x00002000, "RATTR_APLANE" },
+	{ 0x00004000, "TRAST" },
 	{ 0x00008000, "CLIPID" },
 	{ 0x00010000, "ZCULL" },
 	{ 0x00020000, "ENG2D" },
-	{ 0x00040000, "UNK34XX" },
-	{ 0x00080000, "TPRAST" },
-	{ 0x00100000, "TPROP" },
-	{ 0x00200000, "TEX" },
-	{ 0x00400000, "TPVP" },
-	{ 0x00800000, "MP" },
+	{ 0x00040000, "RMASK" },
+	{ 0x00080000, "TPC_RAST" },
+	{ 0x00100000, "TPC_PROP" },
+	{ 0x00200000, "TPC_TEX" },
+	{ 0x00400000, "TPC_GEOM" },
+	{ 0x00800000, "TPC_MP" },
 	{ 0x01000000, "ROP" },
 	{}
 };
 
 static const char *const nv50_pgraph_vstatus_0[] = {
-	"VFETCH", "CCACHE", "UNK4", "UNK5", "GSCHED", "STRMOUT", "UNK14XX", NULL
+	"VFETCH", "CCACHE", "PREGEOM", "POSTGEOM", "VATTR", "STRMOUT", "VCLIP",
+	NULL
 };
 
 static const char *const nv50_pgraph_vstatus_1[] = {
-	"TPRAST", "TPROP", "TEXTURE", "TPVP", "MP", NULL
+	"TPC_RAST", "TPC_PROP", "TPC_TEX", "TPC_GEOM", "TPC_MP", NULL
 };
 
 static const char *const nv50_pgraph_vstatus_2[] = {
-	"UNK24XX", "CSCHED", "UNK1CXX", "CLIPID", "ZCULL", "ENG2D", "UNK34XX",
+	"RATTR", "APLANE", "TRAST", "CLIPID", "ZCULL", "ENG2D", "RMASK",
 	"ROP", NULL
 };
 
