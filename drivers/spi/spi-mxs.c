@@ -371,7 +371,7 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 {
 	struct mxs_spi *spi = spi_master_get_devdata(master);
 	struct mxs_ssp *ssp = &spi->ssp;
-	struct spi_transfer *t, *tmp_t;
+	struct spi_transfer *t;
 	unsigned int flag;
 	int status = 0;
 
@@ -381,7 +381,7 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 	writel(mxs_spi_cs_to_reg(m->spi->chip_select),
 	       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 
-	list_for_each_entry_safe(t, tmp_t, &m->transfers, transfer_list) {
+	list_for_each_entry(t, &m->transfers, transfer_list) {
 
 		status = mxs_spi_setup_transfer(m->spi, t);
 		if (status)
