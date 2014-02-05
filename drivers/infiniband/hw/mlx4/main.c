@@ -1408,7 +1408,6 @@ static void reset_gids_task(struct work_struct *work)
 	struct mlx4_cmd_mailbox *mailbox;
 	union ib_gid *gids;
 	int err;
-	int i;
 	struct mlx4_dev	*dev = gw->dev->dev;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -1420,18 +1419,16 @@ static void reset_gids_task(struct work_struct *work)
 	gids = mailbox->buf;
 	memcpy(gids, gw->gids, sizeof(gw->gids));
 
-	for (i = 1; i < gw->dev->num_ports + 1; i++) {
-		if (mlx4_ib_port_link_layer(&gw->dev->ib_dev, i) ==
-					    IB_LINK_LAYER_ETHERNET) {
-			err = mlx4_cmd(dev, mailbox->dma,
-				       MLX4_SET_PORT_GID_TABLE << 8 | i,
-				       1, MLX4_CMD_SET_PORT,
-				       MLX4_CMD_TIME_CLASS_B,
-				       MLX4_CMD_WRAPPED);
-			if (err)
-				pr_warn(KERN_WARNING
-					"set port %d command failed\n", i);
-		}
+	if (mlx4_ib_port_link_layer(&gw->dev->ib_dev, gw->port) ==
+				    IB_LINK_LAYER_ETHERNET) {
+		err = mlx4_cmd(dev, mailbox->dma,
+			       MLX4_SET_PORT_GID_TABLE << 8 | gw->port,
+			       1, MLX4_CMD_SET_PORT,
+			       MLX4_CMD_TIME_CLASS_B,
+			       MLX4_CMD_WRAPPED);
+		if (err)
+			pr_warn(KERN_WARNING
+				"set port %d command failed\n", gw->port);
 	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
@@ -1506,7 +1503,7 @@ static void mlx4_make_default_gid(struct  net_device *dev, union ib_gid *gid)
 }
 
 
-static int reset_gid_table(struct mlx4_ib_dev *dev)
+static int reset_gid_table(struct mlx4_ib_dev *dev, u8 port)
 {
 	struct update_gid_work *work;
 
@@ -1514,10 +1511,12 @@ static int reset_gid_table(struct mlx4_ib_dev *dev)
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
 		return -ENOMEM;
-	memset(dev->iboe.gid_table, 0, sizeof(dev->iboe.gid_table));
+
+	memset(dev->iboe.gid_table[port - 1], 0, sizeof(work->gids));
 	memset(work->gids, 0, sizeof(work->gids));
 	INIT_WORK(&work->work, reset_gids_task);
 	work->dev = dev;
+	work->port = port;
 	queue_work(wq, &work->work);
 	return 0;
 }
@@ -1670,9 +1669,11 @@ static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 {
 	struct	net_device *dev;
 	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
+	int i;
 
-	if (reset_gid_table(ibdev))
-		return -1;
+	for (i = 1; i <= ibdev->num_ports; ++i)
+		if (reset_gid_table(ibdev, i))
+			return -1;
 
 	read_lock(&dev_base_lock);
 	spin_lock(&iboe->lock);
