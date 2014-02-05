@@ -505,8 +505,7 @@ static struct apic __refdata apic_numaq = {
 	.trampoline_phys_high		= NUMAQ_TRAMPOLINE_PHYS_HIGH,
 
 	/* We don't do anything here because we use NMI's to boot instead */
-	.wait_for_init_deassert		= NULL,
-
+	.wait_for_init_deassert		= false,
 	.smp_callin_clear_local_apic	= numaq_smp_callin_clear_local_apic,
 	.inquire_remote_apic		= NULL,
 

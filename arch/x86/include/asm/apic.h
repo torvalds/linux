@@ -351,7 +351,7 @@ struct apic {
 	int trampoline_phys_low;
 	int trampoline_phys_high;
 
-	void (*wait_for_init_deassert)(atomic_t *deassert);
+	bool wait_for_init_deassert;
 	void (*smp_callin_clear_local_apic)(void);
 	void (*inquire_remote_apic)(int apicid);
 
@@ -516,12 +516,6 @@ DECLARE_PER_CPU(int, x2apic_extra_bits);
 extern int default_cpu_present_to_apicid(int mps_cpu);
 extern int default_check_phys_apicid_present(int phys_apicid);
 #endif
-
-static inline void default_wait_for_init_deassert(atomic_t *deassert)
-{
-	while (!atomic_read(deassert))
-		cpu_relax();
-}
 
 extern void generic_bigsmp_probe(void);
 
