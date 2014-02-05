@@ -276,6 +276,13 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	mapping = pci_map_single(priv->pdev, skb->data,
 				 skb->len, PCI_DMA_TODEVICE);
 
+	if (pci_dma_mapping_error(priv->pdev, mapping)) {
+		kfree_skb(skb);
+		dev_err(&priv->pdev->dev, "TX DMA mapping error\n");
+		return;
+
+	}
+
 	tx_flags = RTL818X_TX_DESC_FLAG_OWN | RTL818X_TX_DESC_FLAG_FS |
 		   RTL818X_TX_DESC_FLAG_LS |
 		   (ieee80211_get_tx_rate(dev, info)->hw_value << 24) |
