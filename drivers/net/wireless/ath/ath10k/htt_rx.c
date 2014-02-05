@@ -937,6 +937,8 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			}
 
 			if (ath10k_htt_rx_has_decrypt_err(msdu_head)) {
+				ath10k_dbg(ATH10K_DBG_HTT,
+					   "htt rx dropping due to decrypt-err\n");
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
 				continue;
 			}
@@ -975,6 +977,15 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			info.skb     = msdu_head;
 			info.fcs_err = ath10k_htt_rx_has_fcs_err(msdu_head);
 			info.mic_err = ath10k_htt_rx_has_mic_err(msdu_head);
+
+			if (info.fcs_err)
+				ath10k_dbg(ATH10K_DBG_HTT,
+					   "htt rx has FCS err\n");
+
+			if (info.mic_err)
+				ath10k_dbg(ATH10K_DBG_HTT,
+					   "htt rx has MIC err\n");
+
 			info.signal  = ATH10K_DEFAULT_NOISE_FLOOR;
 			info.signal += rx->ppdu.combined_rssi;
 
