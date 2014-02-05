@@ -678,7 +678,7 @@ static void arm_smmu_flush_pgtable(struct arm_smmu_device *smmu, void *addr,
 
 	/* Ensure new page tables are visible to the hardware walker */
 	if (smmu->features & ARM_SMMU_FEAT_COHERENT_WALK) {
-		dsb();
+		dsb(ishst);
 	} else {
 		/*
 		 * If the SMMU can't walk tables in the CPU caches, treat them
