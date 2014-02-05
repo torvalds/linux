@@ -822,7 +822,8 @@ static int bfin_spi_probe(struct platform_device *pdev)
 	master->cleanup = bfin_spi_cleanup;
 	master->setup = bfin_spi_setup;
 	master->transfer_one_message = bfin_spi_transfer_one_message;
-	master->bits_per_word_mask = BIT(32 - 1) | BIT(16 - 1) | BIT(8 - 1);
+	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) |
+				     SPI_BPW_MASK(8);
 
 	drv_data = spi_master_get_devdata(master);
 	drv_data->master = master;
