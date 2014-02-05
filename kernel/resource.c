@@ -432,11 +432,6 @@ static void resource_clip(struct resource *res, resource_size_t min,
 		res->end = max;
 }
 
-static bool resource_contains(struct resource *res1, struct resource *res2)
-{
-	return res1->start <= res2->start && res1->end >= res2->end;
-}
-
 /*
  * Find empty slot in the resource tree with the given range and
  * alignment constraints
@@ -471,10 +466,11 @@ static int __find_resource(struct resource *root, struct resource *old,
 		arch_remove_reservations(&tmp);
 
 		/* Check for overflow after ALIGN() */
-		avail = *new;
 		avail.start = ALIGN(tmp.start, constraint->align);
 		avail.end = tmp.end;
+		avail.flags = new->flags & ~IORESOURCE_UNSET;
 		if (avail.start >= tmp.start) {
+			alloc.flags = avail.flags;
 			alloc.start = constraint->alignf(constraint->alignf_data, &avail,
 					size, constraint->align);
 			alloc.end = alloc.start + size - 1;
