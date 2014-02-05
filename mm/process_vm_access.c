@@ -41,19 +41,21 @@
  */
 static int process_vm_rw_pages(struct page **pages,
 			       unsigned offset,
-			       unsigned long len,
+			       size_t len,
 			       struct iov_iter *iter,
 			       int vm_write,
-			       unsigned int nr_pages_to_copy,
 			       ssize_t *bytes_copied)
 {
 	*bytes_copied = 0;
 
 	/* Do the copy for each page */
-	while (iov_iter_count(iter) && nr_pages_to_copy--) {
+	while (iov_iter_count(iter) && len) {
 		struct page *page = *pages++;
-		size_t copy = min_t(ssize_t, PAGE_SIZE - offset, len);
+		size_t copy = PAGE_SIZE - offset;
 		size_t copied;
+
+		if (copy > len)
+			copy = len;
 
 		if (vm_write) {
 			if (copy > iov_iter_count(iter))
@@ -121,6 +123,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 	while ((nr_pages_copied < nr_pages) && iov_iter_count(iter)) {
 		int nr_pages_to_copy;
 		int pages_pinned;
+		size_t n;
 		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
 				       max_pages_per_loop);
 
@@ -134,18 +137,21 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		if (pages_pinned <= 0)
 			return -EFAULT;
 
+		n = pages_pinned * PAGE_SIZE - start_offset;
+		if (n > len)
+			n = len;
+
 		rc = process_vm_rw_pages(process_pages,
-					 start_offset, len, iter,
-					 vm_write, pages_pinned,
+					 start_offset, n, iter,
+					 vm_write,
 					 &bytes_copied_loop);
+		len -= n;
 		start_offset = 0;
 		*bytes_copied += bytes_copied_loop;
-		len -= bytes_copied_loop;
 		nr_pages_copied += pages_pinned;
 		pa += pages_pinned * PAGE_SIZE;
 		while (pages_pinned)
 			put_page(process_pages[--pages_pinned]);
-
 		if (rc < 0)
 			break;
 	}
