@@ -513,7 +513,6 @@ config NFT_QUEUE
 
 config NFT_REJECT
 	depends on NF_TABLES
-	depends on NF_TABLES_IPV6 || !NF_TABLES_IPV6
 	default m if NETFILTER_ADVANCED=n
 	tristate "Netfilter nf_tables reject support"
 	help
