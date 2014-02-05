@@ -808,9 +808,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
  * @RX_FLAG_VHT: VHT MCS was used and rate_index is MCS index
  * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
- * @RX_FLAG_80MHZ: 80 MHz was used
- * @RX_FLAG_80P80MHZ: 80+80 MHz was used
- * @RX_FLAG_160MHZ: 160 MHz was used
  * @RX_FLAG_SHORT_GI: Short guard interval was used
  * @RX_FLAG_NO_SIGNAL_VAL: The signal strength value is not present.
  *	Valid only for data frames (mainly A-MPDU)
@@ -866,9 +863,6 @@ enum mac80211_rx_flags {
 	RX_FLAG_AMPDU_DELIM_CRC_KNOWN	= BIT(20),
 	RX_FLAG_MACTIME_END		= BIT(21),
 	RX_FLAG_VHT			= BIT(22),
-	RX_FLAG_80MHZ			= BIT(23),
-	RX_FLAG_80P80MHZ		= BIT(24),
-	RX_FLAG_160MHZ			= BIT(25),
 	RX_FLAG_STBC_MASK		= BIT(26) | BIT(27),
 	RX_FLAG_10MHZ			= BIT(28),
 	RX_FLAG_5MHZ			= BIT(29),
@@ -876,6 +870,21 @@ enum mac80211_rx_flags {
 };
 
 #define RX_FLAG_STBC_SHIFT		26
+
+/**
+ * enum mac80211_rx_vht_flags - receive VHT flags
+ *
+ * These flags are used with the @vht_flag member of
+ *	&struct ieee80211_rx_status.
+ * @RX_VHT_FLAG_80MHZ: 80 MHz was used
+ * @RX_VHT_FLAG_80P80MHZ: 80+80 MHz was used
+ * @RX_VHT_FLAG_160MHZ: 160 MHz was used
+ */
+enum mac80211_rx_vht_flags {
+	RX_VHT_FLAG_80MHZ		= BIT(0),
+	RX_VHT_FLAG_80P80MHZ		= BIT(1),
+	RX_VHT_FLAG_160MHZ		= BIT(2),
+};
 
 /**
  * struct ieee80211_rx_status - receive status
@@ -902,6 +911,7 @@ enum mac80211_rx_flags {
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
  * @vht_nss: number of streams (VHT only)
  * @flag: %RX_FLAG_*
+ * @vht_flag: %RX_VHT_FLAG_*
  * @rx_flags: internal RX flags for mac80211
  * @ampdu_reference: A-MPDU reference number, must be a different value for
  *	each A-MPDU but the same for each subframe within one A-MPDU
@@ -913,6 +923,7 @@ struct ieee80211_rx_status {
 	u32 ampdu_reference;
 	u32 flag;
 	u16 freq;
+	u8 vht_flag;
 	u8 rate_idx;
 	u8 vht_nss;
 	u8 rx_flags;

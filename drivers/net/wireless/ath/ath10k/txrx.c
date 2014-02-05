@@ -204,7 +204,7 @@ static void process_rx_rates(struct ath10k *ar, struct htt_rx_info *info,
 			break;
 		/* 80MHZ */
 		case 2:
-			status->flag |= RX_FLAG_80MHZ;
+			status->vht_flag |= RX_VHT_FLAG_80MHZ;
 		}
 
 		status->flag |= RX_FLAG_VHT;
@@ -266,7 +266,7 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 		   status->flag & RX_FLAG_HT ? "ht" : "",
 		   status->flag & RX_FLAG_VHT ? "vht" : "",
 		   status->flag & RX_FLAG_40MHZ ? "40" : "",
-		   status->flag & RX_FLAG_80MHZ ? "80" : "",
+		   status->vht_flag & RX_VHT_FLAG_80MHZ ? "80" : "",
 		   status->flag & RX_FLAG_SHORT_GI ? "sgi " : "",
 		   status->rate_idx,
 		   status->vht_nss,

@@ -261,6 +261,7 @@ struct ieee80211_tx_latency_stat {
  *	"the" transmit rate
  * @last_rx_rate_idx: rx status rate index of the last data packet
  * @last_rx_rate_flag: rx status flag of the last data packet
+ * @last_rx_rate_vht_flag: rx status vht flag of the last data packet
  * @last_rx_rate_vht_nss: rx status nss of last data packet
  * @lock: used for locking all fields that require locking, see comments
  *	in the header file.
@@ -397,6 +398,7 @@ struct sta_info {
 	struct ieee80211_tx_rate last_tx_rate;
 	int last_rx_rate_idx;
 	u32 last_rx_rate_flag;
+	u32 last_rx_rate_vht_flag;
 	u8 last_rx_rate_vht_nss;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 
