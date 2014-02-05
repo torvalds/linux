@@ -485,8 +485,6 @@ struct et131x_adapter {
 	u8 eeprom_data[2];
 
 	/* Spinlocks */
-	spinlock_t lock;
-
 	spinlock_t tcb_send_qlock;
 	spinlock_t tcb_ready_qlock;
 	spinlock_t send_hw_lock;
@@ -3762,7 +3760,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	adapter->netdev = netdev;
 
 	/* Initialize spinlocks here */
-	spin_lock_init(&adapter->lock);
 	spin_lock_init(&adapter->tcb_send_qlock);
 	spin_lock_init(&adapter->tcb_ready_qlock);
 	spin_lock_init(&adapter->send_hw_lock);
@@ -4294,11 +4291,8 @@ static void et131x_multicast(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	int packet_filter;
-	unsigned long flags;
 	struct netdev_hw_addr *ha;
 	int i;
-
-	spin_lock_irqsave(&adapter->lock, flags);
 
 	/* Before we modify the platform-independent filter flags, store them
 	 * locally. This allows us to determine if anything's changed and if
@@ -4351,8 +4345,6 @@ static void et131x_multicast(struct net_device *netdev)
 	 */
 	if (packet_filter != adapter->packet_filter)
 		et131x_set_packet_filter(adapter);
-
-	spin_unlock_irqrestore(&adapter->lock, flags);
 }
 
 /* et131x_tx - The handler to tx a packet on the device */
