@@ -85,6 +85,8 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_LIGHT_GREEN] = "green",
 	[IIO_MOD_LIGHT_BLUE] = "blue",
 	[IIO_MOD_QUATERNION] = "quaternion",
+	[IIO_MOD_TEMP_AMBIENT] = "ambient",
+	[IIO_MOD_TEMP_OBJECT] = "object",
 };
 
 /* relies on pairs of these shared then separate */

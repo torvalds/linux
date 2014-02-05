@@ -54,6 +54,8 @@ enum iio_modifier {
 	IIO_MOD_LIGHT_GREEN,
 	IIO_MOD_LIGHT_BLUE,
 	IIO_MOD_QUATERNION,
+	IIO_MOD_TEMP_AMBIENT,
+	IIO_MOD_TEMP_OBJECT,
 };
 
 enum iio_event_type {
