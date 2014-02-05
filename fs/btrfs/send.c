@@ -2501,17 +2501,26 @@ static int did_create_dir(struct send_ctx *sctx, u64 dir)
 	key.objectid = dir;
 	key.type = BTRFS_DIR_INDEX_KEY;
 	key.offset = 0;
+	ret = btrfs_search_slot(NULL, sctx->send_root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+
 	while (1) {
-		ret = btrfs_search_slot_for_read(sctx->send_root, &key, path,
-				1, 0);
-		if (ret < 0)
-			goto out;
-		if (!ret) {
-			eb = path->nodes[0];
-			slot = path->slots[0];
-			btrfs_item_key_to_cpu(eb, &found_key, slot);
+		eb = path->nodes[0];
+		slot = path->slots[0];
+		if (slot >= btrfs_header_nritems(eb)) {
+			ret = btrfs_next_leaf(sctx->send_root, path);
+			if (ret < 0) {
+				goto out;
+			} else if (ret > 0) {
+				ret = 0;
+				break;
+			}
+			continue;
 		}
-		if (ret || found_key.objectid != key.objectid ||
+
+		btrfs_item_key_to_cpu(eb, &found_key, slot);
+		if (found_key.objectid != key.objectid ||
 		    found_key.type != key.type) {
 			ret = 0;
 			goto out;
@@ -2526,8 +2535,7 @@ static int did_create_dir(struct send_ctx *sctx, u64 dir)
 			goto out;
 		}
 
-		key.offset = found_key.offset + 1;
-		btrfs_release_path(path);
+		path->slots[0]++;
 	}
 
 out:
@@ -2693,19 +2701,24 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 send_progress)
 	key.objectid = dir;
 	key.type = BTRFS_DIR_INDEX_KEY;
 	key.offset = 0;
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
 
 	while (1) {
-		ret = btrfs_search_slot_for_read(root, &key, path, 1, 0);
-		if (ret < 0)
-			goto out;
-		if (!ret) {
-			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
-					path->slots[0]);
+		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto out;
+			else if (ret > 0)
+				break;
+			continue;
 		}
-		if (ret || found_key.objectid != key.objectid ||
-		    found_key.type != key.type) {
+		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
+				      path->slots[0]);
+		if (found_key.objectid != key.objectid ||
+		    found_key.type != key.type)
 			break;
-		}
 
 		di = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				struct btrfs_dir_item);
@@ -2716,8 +2729,7 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 send_progress)
 			goto out;
 		}
 
-		btrfs_release_path(path);
-		key.offset = found_key.offset + 1;
+		path->slots[0]++;
 	}
 
 	ret = 1;
@@ -3620,15 +3632,22 @@ static int process_all_refs(struct send_ctx *sctx,
 	key.objectid = sctx->cmp_key->objectid;
 	key.type = BTRFS_INODE_REF_KEY;
 	key.offset = 0;
-	while (1) {
-		ret = btrfs_search_slot_for_read(root, &key, path, 1, 0);
-		if (ret < 0)
-			goto out;
-		if (ret)
-			break;
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
 
+	while (1) {
 		eb = path->nodes[0];
 		slot = path->slots[0];
+		if (slot >= btrfs_header_nritems(eb)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto out;
+			else if (ret > 0)
+				break;
+			continue;
+		}
+
 		btrfs_item_key_to_cpu(eb, &found_key, slot);
 
 		if (found_key.objectid != key.objectid ||
@@ -3637,11 +3656,10 @@ static int process_all_refs(struct send_ctx *sctx,
 			break;
 
 		ret = iterate_inode_ref(root, path, &found_key, 0, cb, sctx);
-		btrfs_release_path(path);
 		if (ret < 0)
 			goto out;
 
-		key.offset = found_key.offset + 1;
+		path->slots[0]++;
 	}
 	btrfs_release_path(path);
 
@@ -3922,19 +3940,25 @@ static int process_all_new_xattrs(struct send_ctx *sctx)
 	key.objectid = sctx->cmp_key->objectid;
 	key.type = BTRFS_XATTR_ITEM_KEY;
 	key.offset = 0;
-	while (1) {
-		ret = btrfs_search_slot_for_read(root, &key, path, 1, 0);
-		if (ret < 0)
-			goto out;
-		if (ret) {
-			ret = 0;
-			goto out;
-		}
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
 
+	while (1) {
 		eb = path->nodes[0];
 		slot = path->slots[0];
-		btrfs_item_key_to_cpu(eb, &found_key, slot);
+		if (slot >= btrfs_header_nritems(eb)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0) {
+				goto out;
+			} else if (ret > 0) {
+				ret = 0;
+				break;
+			}
+			continue;
+		}
 
+		btrfs_item_key_to_cpu(eb, &found_key, slot);
 		if (found_key.objectid != key.objectid ||
 		    found_key.type != key.type) {
 			ret = 0;
@@ -3946,8 +3970,7 @@ static int process_all_new_xattrs(struct send_ctx *sctx)
 		if (ret < 0)
 			goto out;
 
-		btrfs_release_path(path);
-		key.offset = found_key.offset + 1;
+		path->slots[0]++;
 	}
 
 out:
