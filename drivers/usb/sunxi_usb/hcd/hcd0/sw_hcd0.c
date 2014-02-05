@@ -1864,6 +1864,8 @@ static int sw_hcd_probe_host_only(struct platform_device *pdev)
 	}
 
 	usbc_no = 0;
+	hcd0_set_vbus_cnt--;
+	hcd0_enable--;
 
     memset(&g_sw_hcd_io, 0, sizeof(sw_hcd_io_t));
 	ret = sw_hcd_io_init(usbc_no, pdev, &g_sw_hcd_io);
