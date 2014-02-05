@@ -680,6 +680,8 @@ struct hid_driver {
  *	   shouldn't allocate anything to not leak memory
  * @request: send report request to device (e.g. feature report)
  * @wait: wait for buffered io to complete (send/recv reports)
+ * @raw_request: send raw report request to device (e.g. feature report)
+ * @output_report: send output report to device
  * @idle: send idle request to device
  */
 struct hid_ll_driver {
@@ -971,6 +973,49 @@ static inline void hid_hw_request(struct hid_device *hdev,
 {
 	if (hdev->ll_driver->request)
 		hdev->ll_driver->request(hdev, report, reqtype);
+}
+
+/**
+ * hid_hw_raw_request - send report request to device
+ *
+ * @hdev: hid device
+ * @reportnum: report ID
+ * @buf: in/out data to transfer
+ * @len: length of buf
+ * @rtype: HID report type
+ * @reqtype: HID_REQ_GET_REPORT or HID_REQ_SET_REPORT
+ *
+ * @return: count of data transfered, negative if error
+ *
+ * Same behavior as hid_hw_request, but with raw buffers instead.
+ */
+static inline int hid_hw_raw_request(struct hid_device *hdev,
+				  unsigned char reportnum, __u8 *buf,
+				  size_t len, unsigned char rtype, int reqtype)
+{
+	if (hdev->ll_driver->raw_request)
+		return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
+						    rtype, reqtype);
+
+	return -ENOSYS;
+}
+
+/**
+ * hid_hw_output_report - send output report to device
+ *
+ * @hdev: hid device
+ * @buf: raw data to transfer
+ * @len: length of buf
+ *
+ * @return: count of data transfered, negative if error
+ */
+static inline int hid_hw_output_report(struct hid_device *hdev, __u8 *buf,
+					size_t len)
+{
+	if (hdev->ll_driver->output_report)
+		return hdev->ll_driver->output_report(hdev, buf, len);
+
+	return -ENOSYS;
 }
 
 /**
