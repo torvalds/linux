@@ -39,69 +39,39 @@
  * @bytes_copied: returns number of bytes successfully copied
  * Returns 0 on success, error code otherwise
  */
-static int process_vm_rw_pages(struct task_struct *task,
-			       struct mm_struct *mm,
-			       struct page **process_pages,
-			       unsigned long pa,
-			       unsigned long start_offset,
+static int process_vm_rw_pages(struct page **pages,
+			       unsigned offset,
 			       unsigned long len,
 			       struct iov_iter *iter,
 			       int vm_write,
 			       unsigned int nr_pages_to_copy,
 			       ssize_t *bytes_copied)
 {
-	int pages_pinned;
-	int pgs_copied = 0;
-	int j;
-	int ret;
-	ssize_t bytes_to_copy;
-	ssize_t rc = 0;
-
 	*bytes_copied = 0;
 
-	/* Get the pages we're interested in */
-	down_read(&mm->mmap_sem);
-	pages_pinned = get_user_pages(task, mm, pa,
-				      nr_pages_to_copy,
-				      vm_write, 0, process_pages, NULL);
-	up_read(&mm->mmap_sem);
-
-	if (pages_pinned != nr_pages_to_copy) {
-		rc = -EFAULT;
-		goto end;
-	}
-
 	/* Do the copy for each page */
-	for (pgs_copied = 0;
-	     (pgs_copied < nr_pages_to_copy) && iov_iter_count(iter);
-	     pgs_copied++) {
-		struct page *page = process_pages[pgs_copied];
-		bytes_to_copy = min_t(ssize_t, PAGE_SIZE - start_offset, len);
+	while (iov_iter_count(iter) && nr_pages_to_copy--) {
+		struct page *page = *pages++;
+		size_t copy = min_t(ssize_t, PAGE_SIZE - offset, len);
+		size_t copied;
 
 		if (vm_write) {
-			if (bytes_to_copy > iov_iter_count(iter))
-				bytes_to_copy = iov_iter_count(iter);
-			ret = iov_iter_copy_from_user(page,
-					iter, start_offset, bytes_to_copy);
-			iov_iter_advance(iter, ret);
+			if (copy > iov_iter_count(iter))
+				copy = iov_iter_count(iter);
+			copied = iov_iter_copy_from_user(page, iter,
+					offset, copy);
+			iov_iter_advance(iter, copied);
 			set_page_dirty_lock(page);
 		} else {
-			ret = copy_page_to_iter(page, start_offset,
-					bytes_to_copy, iter);
+			copied = copy_page_to_iter(page, offset, copy, iter);
 		}
-		*bytes_copied += ret;
-		len -= ret;
-		if (ret < bytes_to_copy && iov_iter_count(iter)) {
-			rc = -EFAULT;
-			break;
-		}
-		start_offset = 0;
+		*bytes_copied += copied;
+		len -= copied;
+		if (copied < copy && iov_iter_count(iter))
+			return -EFAULT;
+		offset = 0;
 	}
-
-end:
-	for (j = 0; j < pages_pinned; j++)
-		put_page(process_pages[j]);
-	return rc;
+	return 0;
 }
 
 /* Maximum number of pages kmalloc'd to hold struct page's during copy */
@@ -138,7 +108,6 @@ static int process_vm_rw_single_vec(unsigned long addr,
 	ssize_t bytes_copied_loop;
 	ssize_t rc = 0;
 	unsigned long nr_pages_copied = 0;
-	unsigned long nr_pages_to_copy;
 	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
 		/ sizeof(struct pages *);
 
@@ -150,23 +119,35 @@ static int process_vm_rw_single_vec(unsigned long addr,
 	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
 
 	while ((nr_pages_copied < nr_pages) && iov_iter_count(iter)) {
+		int nr_pages_to_copy;
+		int pages_pinned;
 		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
 				       max_pages_per_loop);
 
-		rc = process_vm_rw_pages(task, mm, process_pages, pa,
+		/* Get the pages we're interested in */
+		down_read(&mm->mmap_sem);
+		pages_pinned = get_user_pages(task, mm, pa,
+					      nr_pages_to_copy,
+					      vm_write, 0, process_pages, NULL);
+		up_read(&mm->mmap_sem);
+
+		if (pages_pinned <= 0)
+			return -EFAULT;
+
+		rc = process_vm_rw_pages(process_pages,
 					 start_offset, len, iter,
-					 vm_write, nr_pages_to_copy,
+					 vm_write, pages_pinned,
 					 &bytes_copied_loop);
 		start_offset = 0;
 		*bytes_copied += bytes_copied_loop;
+		len -= bytes_copied_loop;
+		nr_pages_copied += pages_pinned;
+		pa += pages_pinned * PAGE_SIZE;
+		while (pages_pinned)
+			put_page(process_pages[--pages_pinned]);
 
-		if (rc < 0) {
-			return rc;
-		} else {
-			len -= bytes_copied_loop;
-			nr_pages_copied += nr_pages_to_copy;
-			pa += nr_pages_to_copy * PAGE_SIZE;
-		}
+		if (rc < 0)
+			break;
 	}
 
 	return rc;
