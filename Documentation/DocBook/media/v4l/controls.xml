@@ -5045,6 +5045,25 @@ descriptor. Calling &VIDIOC-QUERYCTRL; for this control will return a
 description of this control class.</entry>
             </row>
             <row>
+              <entry spanname="id"><constant>V4L2_CID_RF_TUNER_BANDWIDTH_AUTO</constant>&nbsp;</entry>
+              <entry>boolean</entry>
+            </row>
+            <row>
+              <entry spanname="descr">Enables/disables tuner radio channel
+bandwidth configuration. In automatic mode bandwidth configuration is performed
+by the driver.</entry>
+            </row>
+            <row>
+              <entry spanname="id"><constant>V4L2_CID_RF_TUNER_BANDWIDTH</constant>&nbsp;</entry>
+              <entry>integer</entry>
+            </row>
+            <row>
+              <entry spanname="descr">Filter(s) on tuner signal path are used to
+filter signal according to receiving party needs. Driver configures filters to
+fulfill desired bandwidth requirement. Used when V4L2_CID_RF_TUNER_BANDWIDTH_AUTO is not
+set. The range and step are driver-specific.</entry>
+            </row>
+            <row>
               <entry spanname="id"><constant>V4L2_CID_RF_TUNER_LNA_GAIN_AUTO</constant>&nbsp;</entry>
               <entry>boolean</entry>
             </row>
