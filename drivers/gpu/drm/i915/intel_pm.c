@@ -4664,6 +4664,10 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	/*
 	 * BSpec recoomends 8x4 when MSAA is used,
 	 * however in practice 16x4 seems fastest.
+	 *
+	 * Note that PS/WM thread counts depend on the WIZ hashing
+	 * disable bit, which we don't touch here, but it's good
+	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
 	I915_WRITE(GEN6_GT_MODE,
 		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
@@ -4847,6 +4851,10 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	/*
 	 * BSpec recommends 8x4 when MSAA is used,
 	 * however in practice 16x4 seems fastest.
+	 *
+	 * Note that PS/WM thread counts depend on the WIZ hashing
+	 * disable bit, which we don't touch here, but it's good
+	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
 	I915_WRITE(GEN7_GT_MODE,
 		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
@@ -4883,6 +4891,10 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	/*
 	 * BSpec recommends 8x4 when MSAA is used,
 	 * however in practice 16x4 seems fastest.
+	 *
+	 * Note that PS/WM thread counts depend on the WIZ hashing
+	 * disable bit, which we don't touch here, but it's good
+	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
 	I915_WRITE(GEN7_GT_MODE,
 		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
@@ -4971,6 +4983,10 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	/*
 	 * BSpec recommends 8x4 when MSAA is used,
 	 * however in practice 16x4 seems fastest.
+	 *
+	 * Note that PS/WM thread counts depend on the WIZ hashing
+	 * disable bit, which we don't touch here, but it's good
+	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
 	I915_WRITE(GEN7_GT_MODE,
 		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
