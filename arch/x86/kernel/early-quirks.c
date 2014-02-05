@@ -228,7 +228,7 @@ static void __init intel_remapping_check(int num, int slot, int func)
  *
  * And yes, so far on current devices the base addr is always under 4G.
  */
-static u32 __init intel_stolen_base(int num, int slot, int func)
+static u32 __init intel_stolen_base(int num, int slot, int func, size_t stolen_size)
 {
 	u32 base;
 
@@ -313,7 +313,7 @@ static size_t __init gen6_stolen_size(int num, int slot, int func)
 	return gmch_ctrl << 25; /* 32 MB units */
 }
 
-static inline size_t gen8_stolen_size(int num, int slot, int func)
+static size_t gen8_stolen_size(int num, int slot, int func)
 {
 	u16 gmch_ctrl;
 
@@ -323,31 +323,50 @@ static inline size_t gen8_stolen_size(int num, int slot, int func)
 	return gmch_ctrl << 25; /* 32 MB units */
 }
 
-typedef size_t (*stolen_size_fn)(int num, int slot, int func);
+
+struct intel_stolen_funcs {
+	size_t (*size)(int num, int slot, int func);
+	u32 (*base)(int num, int slot, int func, size_t size);
+};
+
+static const struct intel_stolen_funcs gen3_stolen_funcs = {
+	.base = intel_stolen_base,
+	.size = gen3_stolen_size,
+};
+
+static const struct intel_stolen_funcs gen6_stolen_funcs = {
+	.base = intel_stolen_base,
+	.size = gen6_stolen_size,
+};
+
+static const struct intel_stolen_funcs gen8_stolen_funcs = {
+	.base = intel_stolen_base,
+	.size = gen8_stolen_size,
+};
 
 static struct pci_device_id intel_stolen_ids[] __initdata = {
-	INTEL_I915G_IDS(gen3_stolen_size),
-	INTEL_I915GM_IDS(gen3_stolen_size),
-	INTEL_I945G_IDS(gen3_stolen_size),
-	INTEL_I945GM_IDS(gen3_stolen_size),
-	INTEL_VLV_M_IDS(gen6_stolen_size),
-	INTEL_VLV_D_IDS(gen6_stolen_size),
-	INTEL_PINEVIEW_IDS(gen3_stolen_size),
-	INTEL_I965G_IDS(gen3_stolen_size),
-	INTEL_G33_IDS(gen3_stolen_size),
-	INTEL_I965GM_IDS(gen3_stolen_size),
-	INTEL_GM45_IDS(gen3_stolen_size),
-	INTEL_G45_IDS(gen3_stolen_size),
-	INTEL_IRONLAKE_D_IDS(gen3_stolen_size),
-	INTEL_IRONLAKE_M_IDS(gen3_stolen_size),
-	INTEL_SNB_D_IDS(gen6_stolen_size),
-	INTEL_SNB_M_IDS(gen6_stolen_size),
-	INTEL_IVB_M_IDS(gen6_stolen_size),
-	INTEL_IVB_D_IDS(gen6_stolen_size),
-	INTEL_HSW_D_IDS(gen6_stolen_size),
-	INTEL_HSW_M_IDS(gen6_stolen_size),
-	INTEL_BDW_M_IDS(gen8_stolen_size),
-	INTEL_BDW_D_IDS(gen8_stolen_size)
+	INTEL_I915G_IDS(&gen3_stolen_funcs),
+	INTEL_I915GM_IDS(&gen3_stolen_funcs),
+	INTEL_I945G_IDS(&gen3_stolen_funcs),
+	INTEL_I945GM_IDS(&gen3_stolen_funcs),
+	INTEL_VLV_M_IDS(&gen6_stolen_funcs),
+	INTEL_VLV_D_IDS(&gen6_stolen_funcs),
+	INTEL_PINEVIEW_IDS(&gen3_stolen_funcs),
+	INTEL_I965G_IDS(&gen3_stolen_funcs),
+	INTEL_G33_IDS(&gen3_stolen_funcs),
+	INTEL_I965GM_IDS(&gen3_stolen_funcs),
+	INTEL_GM45_IDS(&gen3_stolen_funcs),
+	INTEL_G45_IDS(&gen3_stolen_funcs),
+	INTEL_IRONLAKE_D_IDS(&gen3_stolen_funcs),
+	INTEL_IRONLAKE_M_IDS(&gen3_stolen_funcs),
+	INTEL_SNB_D_IDS(&gen6_stolen_funcs),
+	INTEL_SNB_M_IDS(&gen6_stolen_funcs),
+	INTEL_IVB_M_IDS(&gen6_stolen_funcs),
+	INTEL_IVB_D_IDS(&gen6_stolen_funcs),
+	INTEL_HSW_D_IDS(&gen6_stolen_funcs),
+	INTEL_HSW_M_IDS(&gen6_stolen_funcs),
+	INTEL_BDW_M_IDS(&gen8_stolen_funcs),
+	INTEL_BDW_D_IDS(&gen8_stolen_funcs)
 };
 
 static void __init intel_graphics_stolen(int num, int slot, int func)
@@ -364,10 +383,10 @@ static void __init intel_graphics_stolen(int num, int slot, int func)
 
 	for (i = 0; i < ARRAY_SIZE(intel_stolen_ids); i++) {
 		if (intel_stolen_ids[i].device == device) {
-			stolen_size_fn stolen_size =
-				(stolen_size_fn)intel_stolen_ids[i].driver_data;
-			size = stolen_size(num, slot, func);
-			start = intel_stolen_base(num, slot, func);
+			const struct intel_stolen_funcs *stolen_funcs =
+				(const struct intel_stolen_funcs *)intel_stolen_ids[i].driver_data;
+			size = stolen_funcs->size(num, slot, func);
+			start = stolen_funcs->base(num, slot, func, size);
 			if (size && start) {
 				/* Mark this space as reserved */
 				e820_add_region(start, size, E820_RESERVED);
