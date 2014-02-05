@@ -753,7 +753,7 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 				return -EINVAL;
 			break;
 		case Opt_keyhandle:
-			res = strict_strtoul(args[0].from, 16, &handle);
+			res = kstrtoul(args[0].from, 16, &handle);
 			if (res < 0)
 				return -EINVAL;
 			opt->keytype = SEAL_keytype;
@@ -782,7 +782,7 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 				return -EINVAL;
 			break;
 		case Opt_pcrlock:
-			res = strict_strtoul(args[0].from, 10, &lock);
+			res = kstrtoul(args[0].from, 10, &lock);
 			if (res < 0)
 				return -EINVAL;
 			opt->pcrlock = lock;
@@ -820,7 +820,7 @@ static int datablob_parse(char *datablob, struct trusted_key_payload *p,
 		c = strsep(&datablob, " \t");
 		if (!c)
 			return -EINVAL;
-		ret = strict_strtol(c, 10, &keylen);
+		ret = kstrtol(c, 10, &keylen);
 		if (ret < 0 || keylen < MIN_KEY_SIZE || keylen > MAX_KEY_SIZE)
 			return -EINVAL;
 		p->key_len = keylen;

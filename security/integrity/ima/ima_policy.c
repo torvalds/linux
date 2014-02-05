@@ -520,7 +520,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				break;
 			}
 
-			result = strict_strtoul(args[0].from, 16,
+			result = kstrtoul(args[0].from, 16,
 						&entry->fsmagic);
 			if (!result)
 				entry->flags |= IMA_FSMAGIC;
@@ -547,7 +547,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				break;
 			}
 
-			result = strict_strtoul(args[0].from, 10, &lnum);
+			result = kstrtoul(args[0].from, 10, &lnum);
 			if (!result) {
 				entry->uid = make_kuid(current_user_ns(), (uid_t)lnum);
 				if (!uid_valid(entry->uid) || (((uid_t)lnum) != lnum))
@@ -564,7 +564,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				break;
 			}
 
-			result = strict_strtoul(args[0].from, 10, &lnum);
+			result = kstrtoul(args[0].from, 10, &lnum);
 			if (!result) {
 				entry->fowner = make_kuid(current_user_ns(), (uid_t)lnum);
 				if (!uid_valid(entry->fowner) || (((uid_t)lnum) != lnum))

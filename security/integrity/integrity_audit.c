@@ -22,7 +22,7 @@ static int __init integrity_audit_setup(char *str)
 {
 	unsigned long audit;
 
-	if (!strict_strtoul(str, 0, &audit))
+	if (!kstrtoul(str, 0, &audit))
 		integrity_audit_info = audit ? 1 : 0;
 	return 1;
 }
