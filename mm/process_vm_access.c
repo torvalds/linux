@@ -46,8 +46,7 @@ static int process_vm_rw_pages(struct task_struct *task,
 			       unsigned long start_offset,
 			       unsigned long len,
 			       const struct iovec **iovp,
-			       unsigned long lvec_cnt,
-			       unsigned long *lvec_current,
+			       unsigned long *left,
 			       size_t *lvec_offset,
 			       int vm_write,
 			       unsigned int nr_pages_to_copy,
@@ -78,15 +77,14 @@ static int process_vm_rw_pages(struct task_struct *task,
 
 	/* Do the copy for each page */
 	for (pgs_copied = 0;
-	     (pgs_copied < nr_pages_to_copy) && (*lvec_current < lvec_cnt);
+	     (pgs_copied < nr_pages_to_copy) && *left;
 	     pgs_copied++) {
 		/* Make sure we have a non zero length iovec */
-		while (*lvec_current < lvec_cnt
-		       && iov->iov_len == 0) {
+		while (*left && iov->iov_len == 0) {
 			iov++;
-			(*lvec_current)++;
+			(*left)--;
 		}
-		if (*lvec_current == lvec_cnt)
+		if (!*left)
 			break;
 
 		/*
@@ -125,7 +123,7 @@ static int process_vm_rw_pages(struct task_struct *task,
 			 * Need to copy remaining part of page into the
 			 * next iovec if there are any bytes left in page
 			 */
-			(*lvec_current)++;
+			(*left)--;
 			iov++;
 			*lvec_offset = 0;
 			start_offset = (start_offset + bytes_to_copy)
@@ -175,8 +173,7 @@ end:
 static int process_vm_rw_single_vec(unsigned long addr,
 				    unsigned long len,
 				    const struct iovec **iovp,
-				    unsigned long lvec_cnt,
-				    unsigned long *lvec_current,
+				    unsigned long *left,
 				    size_t *lvec_offset,
 				    struct page **process_pages,
 				    struct mm_struct *mm,
@@ -201,14 +198,14 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		return 0;
 	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
 
-	while ((nr_pages_copied < nr_pages) && (*lvec_current < lvec_cnt)) {
+	while ((nr_pages_copied < nr_pages) && *left) {
 		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
 				       max_pages_per_loop);
 
 		rc = process_vm_rw_pages(task, mm, process_pages, pa,
 					 start_offset, len,
-					 iovp, lvec_cnt,
-					 lvec_current, lvec_offset,
+					 iovp, left,
+					 lvec_offset,
 					 vm_write, nr_pages_to_copy,
 					 &bytes_copied_loop);
 		start_offset = 0;
@@ -259,7 +256,7 @@ static ssize_t process_vm_rw_core(pid_t pid, const struct iovec *lvec,
 	ssize_t bytes_copied = 0;
 	unsigned long nr_pages = 0;
 	unsigned long nr_pages_iov;
-	unsigned long iov_l_curr_idx = 0;
+	unsigned long left = liovcnt;
 	size_t iov_l_curr_offset = 0;
 	ssize_t iov_len;
 
@@ -315,10 +312,10 @@ static ssize_t process_vm_rw_core(pid_t pid, const struct iovec *lvec,
 		goto put_task_struct;
 	}
 
-	for (i = 0; i < riovcnt && iov_l_curr_idx < liovcnt; i++) {
+	for (i = 0; i < riovcnt && left; i++) {
 		rc = process_vm_rw_single_vec(
 			(unsigned long)rvec[i].iov_base, rvec[i].iov_len,
-			&lvec, liovcnt, &iov_l_curr_idx, &iov_l_curr_offset,
+			&lvec, &left, &iov_l_curr_offset,
 			process_pages, mm, task, vm_write, &bytes_copied_loop);
 		bytes_copied += bytes_copied_loop;
 		if (rc != 0) {
