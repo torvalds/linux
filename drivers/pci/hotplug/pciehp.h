@@ -109,6 +109,8 @@ struct controller {
 #define INT_BUTTON_PRESS		7
 #define INT_BUTTON_RELEASE		8
 #define INT_BUTTON_CANCEL		9
+#define INT_LINK_UP			10
+#define INT_LINK_DOWN			11
 
 #define STATIC_STATE			0
 #define BLINKINGON_STATE		1
@@ -132,6 +134,7 @@ u8 pciehp_handle_attention_button(struct slot *p_slot);
 u8 pciehp_handle_switch_change(struct slot *p_slot);
 u8 pciehp_handle_presence_change(struct slot *p_slot);
 u8 pciehp_handle_power_fault(struct slot *p_slot);
+void pciehp_handle_linkstate_change(struct slot *p_slot);
 int pciehp_configure_device(struct slot *p_slot);
 int pciehp_unconfigure_device(struct slot *p_slot);
 void pciehp_queue_pushbutton_work(struct work_struct *work);

@@ -150,6 +150,27 @@ u8 pciehp_handle_power_fault(struct slot *p_slot)
 	return 1;
 }
 
+void pciehp_handle_linkstate_change(struct slot *p_slot)
+{
+	u32 event_type;
+	struct controller *ctrl = p_slot->ctrl;
+
+	/* Link Status Change */
+	ctrl_dbg(ctrl, "Data Link Layer State change\n");
+
+	if (pciehp_check_link_active(ctrl)) {
+		ctrl_info(ctrl, "slot(%s): Link Up event\n",
+			  slot_name(p_slot));
+		event_type = INT_LINK_UP;
+	} else {
+		ctrl_info(ctrl, "slot(%s): Link Down event\n",
+			  slot_name(p_slot));
+		event_type = INT_LINK_DOWN;
+	}
+
+	queue_interrupt_event(p_slot, event_type);
+}
+
 /* The following routines constitute the bulk of the
    hotplug controller logic
  */
@@ -415,6 +436,69 @@ static void handle_surprise_event(struct slot *p_slot)
 	queue_work(p_slot->wq, &info->work);
 }
 
+/*
+ * Note: This function must be called with slot->lock held
+ */
+static void handle_link_event(struct slot *p_slot, u32 event)
+{
+	struct controller *ctrl = p_slot->ctrl;
+	struct power_work_info *info;
+
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		ctrl_err(p_slot->ctrl, "%s: Cannot allocate memory\n",
+			 __func__);
+		return;
+	}
+	info->p_slot = p_slot;
+	INIT_WORK(&info->work, pciehp_power_thread);
+
+	switch (p_slot->state) {
+	case BLINKINGON_STATE:
+	case BLINKINGOFF_STATE:
+		cancel_delayed_work(&p_slot->work);
+		/* Fall through */
+	case STATIC_STATE:
+		p_slot->state = event == INT_LINK_UP ?
+		    POWERON_STATE : POWEROFF_STATE;
+		queue_work(p_slot->wq, &info->work);
+		break;
+	case POWERON_STATE:
+		if (event == INT_LINK_UP) {
+			ctrl_info(ctrl,
+				  "Link Up event ignored on slot(%s): already powering on\n",
+				  slot_name(p_slot));
+			kfree(info);
+		} else {
+			ctrl_info(ctrl,
+				  "Link Down event queued on slot(%s): currently getting powered on\n",
+				  slot_name(p_slot));
+			p_slot->state = POWEROFF_STATE;
+			queue_work(p_slot->wq, &info->work);
+		}
+		break;
+	case POWEROFF_STATE:
+		if (event == INT_LINK_UP) {
+			ctrl_info(ctrl,
+				  "Link Up event queued on slot(%s): currently getting powered off\n",
+				  slot_name(p_slot));
+			p_slot->state = POWERON_STATE;
+			queue_work(p_slot->wq, &info->work);
+		} else {
+			ctrl_info(ctrl,
+				  "Link Down event ignored on slot(%s): already powering off\n",
+				  slot_name(p_slot));
+			kfree(info);
+		}
+		break;
+	default:
+		ctrl_err(ctrl, "Not a valid state on slot(%s)\n",
+			 slot_name(p_slot));
+		kfree(info);
+		break;
+	}
+}
+
 static void interrupt_event_handler(struct work_struct *work)
 {
 	struct event_info *info = container_of(work, struct event_info, work);
@@ -438,6 +522,10 @@ static void interrupt_event_handler(struct work_struct *work)
 			break;
 		ctrl_dbg(ctrl, "Surprise Removal\n");
 		handle_surprise_event(p_slot);
+		break;
+	case INT_LINK_UP:
+	case INT_LINK_DOWN:
+		handle_link_event(p_slot, info->event_type);
 		break;
 	default:
 		break;

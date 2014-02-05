@@ -540,7 +540,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 
 		detected &= (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 			     PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
-			     PCI_EXP_SLTSTA_CC);
+			     PCI_EXP_SLTSTA_CC | PCI_EXP_SLTSTA_DLLSC);
 		detected &= ~intr_loc;
 		intr_loc |= detected;
 		if (!intr_loc)
@@ -579,6 +579,10 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		ctrl->power_fault_detected = 1;
 		pciehp_handle_power_fault(slot);
 	}
+
+	if (intr_loc & PCI_EXP_SLTSTA_DLLSC)
+		pciehp_handle_linkstate_change(slot);
+
 	return IRQ_HANDLED;
 }
 
