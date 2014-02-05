@@ -602,8 +602,6 @@ void __init zynq_clock_init(void)
 	of_node_put(slcr);
 	of_node_put(np);
 
-	of_clk_init(NULL);
-
 	return;
 
 np_err:
