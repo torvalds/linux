@@ -45,7 +45,7 @@ static int process_vm_rw_pages(struct task_struct *task,
 			       unsigned long pa,
 			       unsigned long start_offset,
 			       unsigned long len,
-			       const struct iovec *lvec,
+			       const struct iovec **iovp,
 			       unsigned long lvec_cnt,
 			       unsigned long *lvec_current,
 			       size_t *lvec_offset,
@@ -60,7 +60,7 @@ static int process_vm_rw_pages(struct task_struct *task,
 	int ret;
 	ssize_t bytes_to_copy;
 	ssize_t rc = 0;
-	const struct iovec *iov = lvec + *lvec_current;
+	const struct iovec *iov = *iovp;
 
 	*bytes_copied = 0;
 
@@ -149,6 +149,7 @@ end:
 			put_page(process_pages[j]);
 	}
 
+	*iovp = iov;
 	return rc;
 }
 
@@ -192,6 +193,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 	unsigned long nr_pages_to_copy;
 	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
 		/ sizeof(struct pages *);
+	const struct iovec *iov = lvec + *lvec_current;
 
 	*bytes_copied = 0;
 
@@ -206,7 +208,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 
 		rc = process_vm_rw_pages(task, mm, process_pages, pa,
 					 start_offset, len,
-					 lvec, lvec_cnt,
+					 &iov, lvec_cnt,
 					 lvec_current, lvec_offset,
 					 vm_write, nr_pages_to_copy,
 					 &bytes_copied_loop);
