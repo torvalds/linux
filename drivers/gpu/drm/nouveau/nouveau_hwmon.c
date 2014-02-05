@@ -383,8 +383,9 @@ nouveau_hwmon_set_pwm1_enable(struct device *d, struct device_attribute *a,
 	long value;
 	int ret;
 
-	if (strict_strtol(buf, 10, &value) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 10, &value);
+	if (ret)
+		return ret;
 
 	ret = therm->attr_set(therm, NOUVEAU_THERM_ATTR_FAN_MODE, value);
 	if (ret)
