@@ -81,7 +81,7 @@ struct twl6040_data {
 };
 
 /* set of rates for each pll: low-power and high-performance */
-static unsigned int lp_rates[] = {
+static const unsigned int lp_rates[] = {
 	8000,
 	11250,
 	16000,
@@ -93,7 +93,7 @@ static unsigned int lp_rates[] = {
 	96000,
 };
 
-static unsigned int hp_rates[] = {
+static const unsigned int hp_rates[] = {
 	8000,
 	16000,
 	32000,
@@ -101,7 +101,7 @@ static unsigned int hp_rates[] = {
 	96000,
 };
 
-static struct snd_pcm_hw_constraint_list sysclk_constraints[] = {
+static const struct snd_pcm_hw_constraint_list sysclk_constraints[] = {
 	{ .count = ARRAY_SIZE(lp_rates), .list = lp_rates, },
 	{ .count = ARRAY_SIZE(hp_rates), .list = hp_rates, },
 };
