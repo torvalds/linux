@@ -1570,7 +1570,6 @@ static u8 mlx4_ib_get_dev_port(struct net_device *dev,
 				rdma_vlan_dev_real_dev(dev) : dev;
 
 	iboe = &ibdev->iboe;
-	spin_lock(&iboe->lock);
 
 	for (port = 1; port <= MLX4_MAX_PORTS; ++port)
 		if ((netif_is_bond_master(real_dev) &&
@@ -1578,8 +1577,6 @@ static u8 mlx4_ib_get_dev_port(struct net_device *dev,
 		     (!netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->netdevs[port - 1])))
 			break;
-
-	spin_unlock(&iboe->lock);
 
 	if ((port == 0) || (port > MLX4_MAX_PORTS))
 		return 0;
@@ -1672,11 +1669,13 @@ static void mlx4_ib_set_default_gid(struct mlx4_ib_dev *ibdev,
 static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 {
 	struct	net_device *dev;
+	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
 
 	if (reset_gid_table(ibdev))
 		return -1;
 
 	read_lock(&dev_base_lock);
+	spin_lock(&iboe->lock);
 
 	for_each_netdev(&init_net, dev) {
 		u8 port = mlx4_ib_get_dev_port(dev, ibdev);
@@ -1684,6 +1683,7 @@ static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 			mlx4_ib_get_dev_addr(dev, ibdev, port);
 	}
 
+	spin_unlock(&iboe->lock);
 	read_unlock(&dev_base_lock);
 
 	return 0;
