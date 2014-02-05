@@ -307,4 +307,19 @@
 			gpio-key,wakeup;
 		};
 	};
+
+	i2s0: i2s@03830000 {
+		status = "okay";
+	};
+
+	i2s_stub: i2s-stub {
+		compatible = "linux,i2s-stub";
+	};
+
+	sound {
+		compatible = "samsung,smdk-i2s-stub";
+
+		samsung,i2s-controller = <&i2s0>;
+		samsung,audio-codec = <&i2s_stub>;
+	};
 };
