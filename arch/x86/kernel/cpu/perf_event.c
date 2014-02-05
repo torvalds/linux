@@ -1826,7 +1826,7 @@ static ssize_t set_attr_rdpmc(struct device *cdev,
 
 	if (!!val != !!x86_pmu.attr_rdpmc) {
 		x86_pmu.attr_rdpmc = !!val;
-		smp_call_function(change_rdpmc, (void *)val, 1);
+		on_each_cpu(change_rdpmc, (void *)val, 1);
 	}
 
 	return count;
