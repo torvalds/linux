@@ -434,9 +434,9 @@
 	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
 	nand@0,0 {
 		reg = <0 0 0>; /* CS0, offset 0 */
-		nand-bus-width = <8>;
 		ti,nand-ecc-opt = "bch8";
-		gpmc,device-nand = "true";
+		ti,elm-id = <&elm>;
+		nand-bus-width = <8>;
 		gpmc,device-width = <1>;
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
@@ -460,7 +460,6 @@
 		gpmc,wait-monitoring-ns = <0>;
 		gpmc,wr-access-ns = <40>;
 		gpmc,wr-data-mux-bus-ns = <0>;
-		elm_id = <&elm>;
 		/* MTD partition table */
 		/* All SPL-* partitions are sized to minimal length
 		 * which can be independently programmable. For
