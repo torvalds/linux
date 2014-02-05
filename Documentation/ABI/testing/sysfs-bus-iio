@@ -895,6 +895,15 @@ Description:
 		on-chip EEPROM. After power-up or chip reset the device will
 		automatically load the saved configuration.
 
+What:		/sys/.../iio:deviceX/in_illuminanceY_input
+What:		/sys/.../iio:deviceX/in_illuminanceY_raw
+What:		/sys/.../iio:deviceX/in_illuminanceY_mean_raw
+KernelVersion:	3.4
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Illuminance measurement, units after application of scale
+		and offset are lux.
+
 What:		/sys/.../iio:deviceX/in_intensityY_raw
 What:		/sys/.../iio:deviceX/in_intensityY_ir_raw
 What:		/sys/.../iio:deviceX/in_intensityY_both_raw
