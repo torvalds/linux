@@ -1114,35 +1114,45 @@ void nft_unregister_expr(struct nft_expr_type *type)
 }
 EXPORT_SYMBOL_GPL(nft_unregister_expr);
 
-static const struct nft_expr_type *__nft_expr_type_get(struct nlattr *nla)
+static const struct nft_expr_type *__nft_expr_type_get(u8 family,
+						       struct nlattr *nla)
 {
 	const struct nft_expr_type *type;
 
 	list_for_each_entry(type, &nf_tables_expressions, list) {
-		if (!nla_strcmp(nla, type->name))
+		if (!nla_strcmp(nla, type->name) &&
+		    (!type->family || type->family == family))
 			return type;
 	}
 	return NULL;
 }
 
-static const struct nft_expr_type *nft_expr_type_get(struct nlattr *nla)
+static const struct nft_expr_type *nft_expr_type_get(u8 family,
+						     struct nlattr *nla)
 {
 	const struct nft_expr_type *type;
 
 	if (nla == NULL)
 		return ERR_PTR(-EINVAL);
 
-	type = __nft_expr_type_get(nla);
+	type = __nft_expr_type_get(family, nla);
 	if (type != NULL && try_module_get(type->owner))
 		return type;
 
 #ifdef CONFIG_MODULES
 	if (type == NULL) {
 		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
+		request_module("nft-expr-%u-%.*s", family,
+			       nla_len(nla), (char *)nla_data(nla));
+		nfnl_lock(NFNL_SUBSYS_NFTABLES);
+		if (__nft_expr_type_get(family, nla))
+			return ERR_PTR(-EAGAIN);
+
+		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 		request_module("nft-expr-%.*s",
 			       nla_len(nla), (char *)nla_data(nla));
 		nfnl_lock(NFNL_SUBSYS_NFTABLES);
-		if (__nft_expr_type_get(nla))
+		if (__nft_expr_type_get(family, nla))
 			return ERR_PTR(-EAGAIN);
 	}
 #endif
@@ -1193,7 +1203,7 @@ static int nf_tables_expr_parse(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	type = nft_expr_type_get(tb[NFTA_EXPR_NAME]);
+	type = nft_expr_type_get(ctx->afi->family, tb[NFTA_EXPR_NAME]);
 	if (IS_ERR(type))
 		return PTR_ERR(type);
 

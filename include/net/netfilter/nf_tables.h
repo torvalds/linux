@@ -252,6 +252,7 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
  *	@owner: module reference
  *	@policy: netlink attribute policy
  *	@maxattr: highest netlink attribute number
+ *	@family: address family for AF-specific types
  */
 struct nft_expr_type {
 	const struct nft_expr_ops	*(*select_ops)(const struct nft_ctx *,
@@ -262,6 +263,7 @@ struct nft_expr_type {
 	struct module			*owner;
 	const struct nla_policy		*policy;
 	unsigned int			maxattr;
+	u8				family;
 };
 
 /**
@@ -528,6 +530,9 @@ void nft_unregister_expr(struct nft_expr_type *);
 
 #define MODULE_ALIAS_NFT_CHAIN(family, name) \
 	MODULE_ALIAS("nft-chain-" __stringify(family) "-" name)
+
+#define MODULE_ALIAS_NFT_AF_EXPR(family, name) \
+	MODULE_ALIAS("nft-expr-" __stringify(family) "-" name)
 
 #define MODULE_ALIAS_NFT_EXPR(name) \
 	MODULE_ALIAS("nft-expr-" name)
