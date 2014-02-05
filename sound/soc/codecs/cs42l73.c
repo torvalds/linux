@@ -1108,7 +1108,7 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static u32 cs42l73_asrc_rates[] = {
+static const unsigned int cs42l73_asrc_rates[] = {
 	8000, 11025, 12000, 16000, 22050,
 	24000, 32000, 44100, 48000
 };
@@ -1241,7 +1241,7 @@ static int cs42l73_set_tristate(struct snd_soc_dai *dai, int tristate)
 					0x7F, tristate << 7);
 }
 
-static struct snd_pcm_hw_constraint_list constraints_12_24 = {
+static const struct snd_pcm_hw_constraint_list constraints_12_24 = {
 	.count  = ARRAY_SIZE(cs42l73_asrc_rates),
 	.list   = cs42l73_asrc_rates,
 };
