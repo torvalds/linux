@@ -350,9 +350,9 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 			ret = -ENOMEM;
 			break;
 		}
-		ret = dev->hid_get_raw_report(dev, dev->battery_report_id,
-					      buf, 2,
-					      dev->battery_report_type);
+		ret = hid_hw_raw_request(dev, dev->battery_report_id, buf, 2,
+					 dev->battery_report_type,
+					 HID_REQ_GET_REPORT);
 
 		if (ret != 2) {
 			ret = -ENODATA;

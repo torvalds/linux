@@ -706,7 +706,8 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 	if (!buf)
 		return -ENOMEM;
 
-	ret = hdev->hid_get_raw_report(hdev, 0xf2, buf, 17, HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, 0xf2, buf, 17, HID_FEATURE_REPORT,
+				 HID_REQ_GET_REPORT);
 
 	if (ret < 0)
 		hid_err(hdev, "can't set operational mode\n");

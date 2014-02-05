@@ -189,7 +189,7 @@ static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t 
 
 	dev = hidraw_table[minor]->hid;
 
-	if (!dev->hid_get_raw_report) {
+	if (!dev->ll_driver->raw_request) {
 		ret = -ENODEV;
 		goto out;
 	}
@@ -216,14 +216,15 @@ static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t 
 
 	/*
 	 * Read the first byte from the user. This is the report number,
-	 * which is passed to dev->hid_get_raw_report().
+	 * which is passed to hid_hw_raw_request().
 	 */
 	if (copy_from_user(&report_number, buffer, 1)) {
 		ret = -EFAULT;
 		goto out_free;
 	}
 
-	ret = dev->hid_get_raw_report(dev, report_number, buf, count, report_type);
+	ret = hid_hw_raw_request(dev, report_number, buf, count, report_type,
+				 HID_REQ_GET_REPORT);
 
 	if (ret < 0)
 		goto out_free;
