@@ -139,7 +139,7 @@ static int bgpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct bgpio_chip *bgc = to_bgpio_chip(gc);
 
-	return bgc->read_reg(bgc->reg_dat) & bgc->pin2mask(bgc, gpio);
+	return !!(bgc->read_reg(bgc->reg_dat) & bgc->pin2mask(bgc, gpio));
 }
 
 static void bgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
