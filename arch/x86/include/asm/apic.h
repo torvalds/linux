@@ -521,7 +521,6 @@ static inline void default_wait_for_init_deassert(atomic_t *deassert)
 {
 	while (!atomic_read(deassert))
 		cpu_relax();
-	return;
 }
 
 extern void generic_bigsmp_probe(void);
