@@ -46,7 +46,6 @@
 			regulator-name = "lcd-supply";
 			gpio = <&gpio2 5 0>;
 			startup-delay-us = <5000>;
-			enable-active-low;
 		};
 
 		reg_3p2v: regulator@1 {

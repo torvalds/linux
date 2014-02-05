@@ -103,7 +103,6 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 2 0>;
-			enable-active-low;
 		};
 	};
 
