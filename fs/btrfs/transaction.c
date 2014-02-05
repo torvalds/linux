@@ -1850,6 +1850,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	else
 		btrfs_clear_opt(root->fs_info->mount_opt, INODE_MAP_CACHE);
 
+	btrfs_apply_pending_changes(root->fs_info);
+
 	/* commit_fs_roots gets rid of all the tree log roots, it is now
 	 * safe to free the root of tree log roots
 	 */
@@ -2018,4 +2020,18 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 		ret = btrfs_drop_snapshot(root, NULL, 1, 0);
 
 	return (ret < 0) ? 0 : 1;
+}
+
+void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info)
+{
+	unsigned long prev;
+	unsigned long bit;
+
+	prev = cmpxchg(&fs_info->pending_changes, 0, 0);
+	if (!prev)
+		return;
+
+	if (prev)
+		btrfs_warn(fs_info,
+			"unknown pending changes left 0x%lx, ignoring", prev);
 }

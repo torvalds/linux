@@ -2834,6 +2834,12 @@ retry_root_backup:
 	if (btrfs_test_opt(tree_root, CHANGE_INODE_CACHE))
 		btrfs_set_opt(tree_root->fs_info->mount_opt, INODE_MAP_CACHE);
 
+	/*
+	 * Mount does not set all options immediatelly, we can do it now and do
+	 * not have to wait for transaction commit
+	 */
+	btrfs_apply_pending_changes(fs_info);
+
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_test_opt(tree_root, CHECK_INTEGRITY)) {
 		ret = btrfsic_mount(tree_root, fs_devices,
