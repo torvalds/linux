@@ -124,6 +124,7 @@ static struct page_info *alloc_largest_available(struct ion_system_heap *heap,
 
 		info->page = page;
 		info->order = orders[i];
+		INIT_LIST_HEAD(&info->list);
 		return info;
 	}
 	kfree(info);
@@ -145,11 +146,14 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	struct list_head pages;
 	struct page_info *info, *tmp_info;
 	int i = 0;
-	long size_remaining = PAGE_ALIGN(size);
+	unsigned long size_remaining = PAGE_ALIGN(size);
 	unsigned int max_order = orders[0];
 
 	if (align > PAGE_SIZE)
 		return -EINVAL;
+
+	if (size / PAGE_SIZE > totalram_pages / 2)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pages);
 	while (size_remaining > 0) {
