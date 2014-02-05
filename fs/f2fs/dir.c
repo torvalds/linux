@@ -372,6 +372,10 @@ static struct page *init_inode_metadata(struct inode *inode,
 
 put_error:
 	f2fs_put_page(page, 1);
+	/* once the failed inode becomes a bad inode, i_mode is S_IFREG */
+	truncate_inode_pages(&inode->i_data, 0);
+	truncate_blocks(inode, 0);
+	remove_dirty_dir_inode(inode);
 error:
 	remove_inode_page(inode);
 	return ERR_PTR(err);
