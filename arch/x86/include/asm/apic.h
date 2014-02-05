@@ -93,9 +93,6 @@ static inline int is_vsmp_box(void)
 	return 0;
 }
 #endif
-extern void xapic_wait_icr_idle(void);
-extern u32 safe_xapic_wait_icr_idle(void);
-extern void xapic_icr_write(u32, u32);
 extern int setup_profiling_timer(unsigned int);
 
 static inline void native_apic_mem_write(u32 reg, u32 v)
@@ -184,7 +181,6 @@ extern int x2apic_phys;
 extern int x2apic_preenabled;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
-extern void x2apic_icr_write(u32 low, u32 id);
 static inline int x2apic_enabled(void)
 {
 	u64 msr;
