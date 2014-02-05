@@ -324,7 +324,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 				 msdu->len + skb_tailroom(msdu),
 				 DMA_FROM_DEVICE);
 
-		ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "htt rx: ",
+		ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "htt rx pop: ",
 				msdu->data, msdu->len + skb_tailroom(msdu));
 
 		rx_desc = (struct htt_rx_desc *)msdu->data;
@@ -417,8 +417,8 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 					 next->len + skb_tailroom(next),
 					 DMA_FROM_DEVICE);
 
-			ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "htt rx: ",
-					next->data,
+			ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL,
+					"htt rx chained: ", next->data,
 					next->len + skb_tailroom(next));
 
 			skb_trim(next, 0);
@@ -751,7 +751,7 @@ static void ath10k_htt_rx_msdu(struct ath10k_htt *htt, struct htt_rx_info *info)
 
 	/* This shouldn't happen. If it does than it may be a FW bug. */
 	if (skb->next) {
-		ath10k_warn("received chained non A-MSDU frame\n");
+		ath10k_warn("htt rx received chained non A-MSDU frame\n");
 		ath10k_htt_rx_free_msdu_chain(skb->next);
 		skb->next = NULL;
 	}
@@ -947,6 +947,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 
 			/* Skip mgmt frames while we handle this in WMI */
 			if (status == HTT_RX_IND_MPDU_STATUS_MGMT_CTRL) {
+				ath10k_dbg(ATH10K_DBG_HTT, "htt rx mgmt ctrl\n");
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
 				continue;
 			}
@@ -962,6 +963,8 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			}
 
 			if (test_bit(ATH10K_CAC_RUNNING, &htt->ar->dev_flags)) {
+				ath10k_dbg(ATH10K_DBG_HTT,
+					   "htt rx CAC running\n");
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
 				continue;
 			}
@@ -969,7 +972,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			/* FIXME: we do not support chaining yet.
 			 * this needs investigation */
 			if (msdu_chaining) {
-				ath10k_warn("msdu_chaining is true\n");
+				ath10k_warn("htt rx msdu_chaining is true\n");
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
 				continue;
 			}
@@ -1106,7 +1109,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 
 	skb_trim(info.skb, info.skb->len - trim);
 
-	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "htt frag mpdu: ",
+	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "htt rx frag mpdu: ",
 			info.skb->data, info.skb->len);
 	ath10k_process_rx(htt->ar, &info);
 
@@ -1127,7 +1130,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	if (!IS_ALIGNED((unsigned long)skb->data, 4))
 		ath10k_warn("unaligned htt message, expect trouble\n");
 
-	ath10k_dbg(ATH10K_DBG_HTT, "HTT RX, msg_type: 0x%0X\n",
+	ath10k_dbg(ATH10K_DBG_HTT, "htt rx, msg_type: 0x%0X\n",
 		   resp->hdr.msg_type);
 	switch (resp->hdr.msg_type) {
 	case HTT_T2H_MSG_TYPE_VERSION_CONF: {
