@@ -1691,6 +1691,11 @@ static struct hdmi_drv_data exynos5420_hdmi_drv_data = {
 	.i2c_hdmiphy = 0,
 };
 
+static struct hdmi_drv_data exynos5410_hdmi_drv_data = {
+	.type = HDMI_TYPE14,
+	.i2c_hdmiphy = 0,
+};
+
 static struct of_device_id hdmi_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmi",
@@ -1701,6 +1706,9 @@ static struct of_device_id hdmi_match_types[] = {
 	}, {
 		.compatible = "samsung,exynos5420-hdmi",
 		.data	= &exynos5420_hdmi_drv_data,
+	}, {
+		.compatible = "samsung,exynos5410-hdmi",
+		.data	= &exynos5410_hdmi_drv_data,
 	}, {
 		/* end node */
 	}
