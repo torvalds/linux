@@ -352,6 +352,7 @@ void ir_raw_init(void)
 	load_jvc_decode();
 	load_sony_decode();
 	load_sanyo_decode();
+	load_sharp_decode();
 	load_mce_kbd_decode();
 	load_lirc_codec();
 

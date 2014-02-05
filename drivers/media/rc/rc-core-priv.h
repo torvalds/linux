@@ -210,6 +210,13 @@ static inline void load_sony_decode(void) { }
 static inline void load_sanyo_decode(void) { }
 #endif
 
+/* from ir-sharp-decoder.c */
+#ifdef CONFIG_IR_SHARP_DECODER_MODULE
+#define load_sharp_decode()	request_module_nowait("ir-sharp-decoder")
+#else
+static inline void load_sharp_decode(void) { }
+#endif
+
 /* from ir-mce_kbd-decoder.c */
 #ifdef CONFIG_IR_MCE_KBD_DECODER_MODULE
 #define load_mce_kbd_decode()	request_module_nowait("ir-mce_kbd-decoder")
