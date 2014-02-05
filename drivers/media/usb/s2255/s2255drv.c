@@ -69,7 +69,7 @@
 #define S2255_DSP_BOOTTIME      800
 /* maximum time to wait for firmware to load (ms) */
 #define S2255_LOAD_TIMEOUT      (5000 + S2255_DSP_BOOTTIME)
-#define S2255_DEF_BUFS          16
+#define S2255_MIN_BUFS          2
 #define S2255_SETMODE_TIMEOUT   500
 #define S2255_VIDSTATUS_TIMEOUT 350
 #define S2255_MARKER_FRAME	cpu_to_le32(0x2255DA4AL)
@@ -374,9 +374,6 @@ static long s2255_vendor_req(struct s2255_dev *dev, unsigned char req,
 
 static struct usb_driver s2255_driver;
 
-/* Declare static vars that will be used as parameters */
-static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
-
 /* start video number */
 static int video_nr = -1;	/* /dev/videoN, -1 for autodetect */
 
@@ -385,8 +382,6 @@ static int jpeg_enable = 1;
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level(0-100) default 0");
-module_param(vid_limit, int, 0644);
-MODULE_PARM_DESC(vid_limit, "video memory limit(Mb)");
 module_param(video_nr, int, 0644);
 MODULE_PARM_DESC(video_nr, "start video minor(-1 default autodetect)");
 module_param(jpeg_enable, int, 0644);
@@ -671,18 +666,15 @@ static void s2255_fillbuff(struct s2255_vc *vc,
    Videobuf operations
    ------------------------------------------------------------------*/
 
-static int buffer_setup(struct videobuf_queue *vq, unsigned int *count,
+static int buffer_setup(struct videobuf_queue *vq, unsigned int *nbuffers,
 			unsigned int *size)
 {
 	struct s2255_fh *fh = vq->priv_data;
 	struct s2255_vc *vc = fh->vc;
 	*size = vc->width * vc->height * (vc->fmt->depth >> 3);
 
-	if (0 == *count)
-		*count = S2255_DEF_BUFS;
-
-	if (*size * *count > vid_limit * 1024 * 1024)
-		*count = (vid_limit * 1024 * 1024) / *size;
+	if (*nbuffers < S2255_MIN_BUFS)
+		*nbuffers = S2255_MIN_BUFS;
 
 	return 0;
 }
