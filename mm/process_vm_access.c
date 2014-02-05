@@ -45,9 +45,7 @@ static int process_vm_rw_pages(struct task_struct *task,
 			       unsigned long pa,
 			       unsigned long start_offset,
 			       unsigned long len,
-			       const struct iovec **iovp,
-			       unsigned long *left,
-			       size_t *lvec_offset,
+			       struct iov_iter *iter,
 			       int vm_write,
 			       unsigned int nr_pages_to_copy,
 			       ssize_t *bytes_copied)
@@ -59,7 +57,7 @@ static int process_vm_rw_pages(struct task_struct *task,
 	int ret;
 	ssize_t bytes_to_copy;
 	ssize_t rc = 0;
-	const struct iovec *iov = *iovp;
+	const struct iovec *iov = iter->iov;
 
 	*bytes_copied = 0;
 
@@ -77,14 +75,14 @@ static int process_vm_rw_pages(struct task_struct *task,
 
 	/* Do the copy for each page */
 	for (pgs_copied = 0;
-	     (pgs_copied < nr_pages_to_copy) && *left;
+	     (pgs_copied < nr_pages_to_copy) && iter->nr_segs;
 	     pgs_copied++) {
 		/* Make sure we have a non zero length iovec */
-		while (*left && iov->iov_len == 0) {
+		while (iter->nr_segs && iov->iov_len == 0) {
 			iov++;
-			(*left)--;
+			iter->nr_segs--;
 		}
-		if (!*left)
+		if (!iter->nr_segs)
 			break;
 
 		/*
@@ -96,18 +94,18 @@ static int process_vm_rw_pages(struct task_struct *task,
 				      len - *bytes_copied);
 		bytes_to_copy = min_t(ssize_t, bytes_to_copy,
 				      iov->iov_len
-				      - *lvec_offset);
+				      - iter->iov_offset);
 
 		target_kaddr = kmap(process_pages[pgs_copied]) + start_offset;
 
 		if (vm_write)
 			ret = copy_from_user(target_kaddr,
 					     iov->iov_base
-					     + *lvec_offset,
+					     + iter->iov_offset,
 					     bytes_to_copy);
 		else
 			ret = copy_to_user(iov->iov_base
-					   + *lvec_offset,
+					   + iter->iov_offset,
 					   target_kaddr, bytes_to_copy);
 		kunmap(process_pages[pgs_copied]);
 		if (ret) {
@@ -117,15 +115,15 @@ static int process_vm_rw_pages(struct task_struct *task,
 			goto end;
 		}
 		*bytes_copied += bytes_to_copy;
-		*lvec_offset += bytes_to_copy;
-		if (*lvec_offset == iov->iov_len) {
+		iter->iov_offset += bytes_to_copy;
+		if (iter->iov_offset == iov->iov_len) {
 			/*
 			 * Need to copy remaining part of page into the
 			 * next iovec if there are any bytes left in page
 			 */
-			(*left)--;
+			iter->nr_segs--;
 			iov++;
-			*lvec_offset = 0;
+			iter->iov_offset = 0;
 			start_offset = (start_offset + bytes_to_copy)
 				% PAGE_SIZE;
 			if (start_offset)
@@ -147,7 +145,7 @@ end:
 			put_page(process_pages[j]);
 	}
 
-	*iovp = iov;
+	iter->iov = iov;
 	return rc;
 }
 
@@ -172,9 +170,7 @@ end:
  */
 static int process_vm_rw_single_vec(unsigned long addr,
 				    unsigned long len,
-				    const struct iovec **iovp,
-				    unsigned long *left,
-				    size_t *lvec_offset,
+				    struct iov_iter *iter,
 				    struct page **process_pages,
 				    struct mm_struct *mm,
 				    struct task_struct *task,
@@ -198,14 +194,12 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		return 0;
 	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
 
-	while ((nr_pages_copied < nr_pages) && *left) {
+	while ((nr_pages_copied < nr_pages) && iter->nr_segs) {
 		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
 				       max_pages_per_loop);
 
 		rc = process_vm_rw_pages(task, mm, process_pages, pa,
-					 start_offset, len,
-					 iovp, left,
-					 lvec_offset,
+					 start_offset, len, iter,
 					 vm_write, nr_pages_to_copy,
 					 &bytes_copied_loop);
 		start_offset = 0;
@@ -240,8 +234,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
  *  return less bytes than expected if an error occurs during the copying
  *  process.
  */
-static ssize_t process_vm_rw_core(pid_t pid, const struct iovec *lvec,
-				  unsigned long liovcnt,
+static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
 				  const struct iovec *rvec,
 				  unsigned long riovcnt,
 				  unsigned long flags, int vm_write)
@@ -256,8 +249,6 @@ static ssize_t process_vm_rw_core(pid_t pid, const struct iovec *lvec,
 	ssize_t bytes_copied = 0;
 	unsigned long nr_pages = 0;
 	unsigned long nr_pages_iov;
-	unsigned long left = liovcnt;
-	size_t iov_l_curr_offset = 0;
 	ssize_t iov_len;
 
 	/*
@@ -312,11 +303,11 @@ static ssize_t process_vm_rw_core(pid_t pid, const struct iovec *lvec,
 		goto put_task_struct;
 	}
 
-	for (i = 0; i < riovcnt && left; i++) {
+	for (i = 0; i < riovcnt && iter->nr_segs; i++) {
 		rc = process_vm_rw_single_vec(
 			(unsigned long)rvec[i].iov_base, rvec[i].iov_len,
-			&lvec, &left, &iov_l_curr_offset,
-			process_pages, mm, task, vm_write, &bytes_copied_loop);
+			iter, process_pages, mm, task, vm_write,
+			&bytes_copied_loop);
 		bytes_copied += bytes_copied_loop;
 		if (rc != 0) {
 			/* If we have managed to copy any data at all then
@@ -365,6 +356,7 @@ static ssize_t process_vm_rw(pid_t pid,
 	struct iovec iovstack_r[UIO_FASTIOV];
 	struct iovec *iov_l = iovstack_l;
 	struct iovec *iov_r = iovstack_r;
+	struct iov_iter iter;
 	ssize_t rc;
 
 	if (flags != 0)
@@ -380,13 +372,14 @@ static ssize_t process_vm_rw(pid_t pid,
 	if (rc <= 0)
 		goto free_iovecs;
 
+	iov_iter_init(&iter, iov_l, liovcnt, rc, 0);
+
 	rc = rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt, UIO_FASTIOV,
 				   iovstack_r, &iov_r);
 	if (rc <= 0)
 		goto free_iovecs;
 
-	rc = process_vm_rw_core(pid, iov_l, liovcnt, iov_r, riovcnt, flags,
-				vm_write);
+	rc = process_vm_rw_core(pid, &iter, iov_r, riovcnt, flags, vm_write);
 
 free_iovecs:
 	if (iov_r != iovstack_r)
@@ -426,6 +419,7 @@ compat_process_vm_rw(compat_pid_t pid,
 	struct iovec iovstack_r[UIO_FASTIOV];
 	struct iovec *iov_l = iovstack_l;
 	struct iovec *iov_r = iovstack_r;
+	struct iov_iter iter;
 	ssize_t rc = -EFAULT;
 
 	if (flags != 0)
@@ -441,14 +435,14 @@ compat_process_vm_rw(compat_pid_t pid,
 						  &iov_l);
 	if (rc <= 0)
 		goto free_iovecs;
+	iov_iter_init(&iter, iov_l, liovcnt, rc, 0);
 	rc = compat_rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt,
 					  UIO_FASTIOV, iovstack_r,
 					  &iov_r);
 	if (rc <= 0)
 		goto free_iovecs;
 
-	rc = process_vm_rw_core(pid, iov_l, liovcnt, iov_r, riovcnt, flags,
-			   vm_write);
+	rc = process_vm_rw_core(pid, &iter, iov_r, riovcnt, flags, vm_write);
 
 free_iovecs:
 	if (iov_r != iovstack_r)
