@@ -23,20 +23,11 @@
 
 /**
  * process_vm_rw_pages - read/write pages from task specified
- * @task: task to read/write from
- * @mm: mm for task
- * @process_pages: struct pages area that can store at least
- *  nr_pages_to_copy struct page pointers
- * @pa: address of page in task to start copying from/to
+ * @pages: array of pointers to pages we want to copy
  * @start_offset: offset in page to start copying from/to
  * @len: number of bytes to copy
- * @lvec: iovec array specifying where to copy to/from
- * @lvec_cnt: number of elements in iovec array
- * @lvec_current: index in iovec array we are up to
- * @lvec_offset: offset in bytes from current iovec iov_base we are up to
+ * @iter: where to copy to/from locally
  * @vm_write: 0 means copy from, 1 means copy to
- * @nr_pages_to_copy: number of pages to copy
- * @bytes_copied: returns number of bytes successfully copied
  * Returns 0 on success, error code otherwise
  */
 static int process_vm_rw_pages(struct page **pages,
@@ -79,16 +70,12 @@ static int process_vm_rw_pages(struct page **pages,
  * process_vm_rw_single_vec - read/write pages from task specified
  * @addr: start memory address of target process
  * @len: size of area to copy to/from
- * @lvec: iovec array specifying where to copy to/from locally
- * @lvec_cnt: number of elements in iovec array
- * @lvec_current: index in iovec array we are up to
- * @lvec_offset: offset in bytes from current iovec iov_base we are up to
+ * @iter: where to copy to/from locally
  * @process_pages: struct pages area that can store at least
  *  nr_pages_to_copy struct page pointers
  * @mm: mm for task
  * @task: task to read/write from
  * @vm_write: 0 means copy from, 1 means copy to
- * @bytes_copied: returns number of bytes successfully copied
  * Returns 0 on success or on failure error code
  */
 static int process_vm_rw_single_vec(unsigned long addr,
@@ -103,7 +90,6 @@ static int process_vm_rw_single_vec(unsigned long addr,
 	unsigned long start_offset = addr - pa;
 	unsigned long nr_pages;
 	ssize_t rc = 0;
-	unsigned long nr_pages_copied = 0;
 	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
 		/ sizeof(struct pages *);
 
@@ -112,38 +98,32 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		return 0;
 	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
 
-	while ((nr_pages_copied < nr_pages) && iov_iter_count(iter)) {
-		int nr_pages_to_copy;
-		int pages_pinned;
-		size_t n;
-		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
-				       max_pages_per_loop);
+	while (!rc && nr_pages && iov_iter_count(iter)) {
+		int pages = min(nr_pages, max_pages_per_loop);
+		size_t bytes;
 
 		/* Get the pages we're interested in */
 		down_read(&mm->mmap_sem);
-		pages_pinned = get_user_pages(task, mm, pa,
-					      nr_pages_to_copy,
-					      vm_write, 0, process_pages, NULL);
+		pages = get_user_pages(task, mm, pa, pages,
+				      vm_write, 0, process_pages, NULL);
 		up_read(&mm->mmap_sem);
 
-		if (pages_pinned <= 0)
+		if (pages <= 0)
 			return -EFAULT;
 
-		n = pages_pinned * PAGE_SIZE - start_offset;
-		if (n > len)
-			n = len;
+		bytes = pages * PAGE_SIZE - start_offset;
+		if (bytes > len)
+			bytes = len;
 
 		rc = process_vm_rw_pages(process_pages,
-					 start_offset, n, iter,
+					 start_offset, bytes, iter,
 					 vm_write);
-		len -= n;
+		len -= bytes;
 		start_offset = 0;
-		nr_pages_copied += pages_pinned;
-		pa += pages_pinned * PAGE_SIZE;
-		while (pages_pinned)
-			put_page(process_pages[--pages_pinned]);
-		if (rc < 0)
-			break;
+		nr_pages -= pages;
+		pa += pages * PAGE_SIZE;
+		while (pages)
+			put_page(process_pages[--pages]);
 	}
 
 	return rc;
@@ -156,8 +136,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 /**
  * process_vm_rw_core - core of reading/writing pages from task specified
  * @pid: PID of process to read/write from/to
- * @lvec: iovec array specifying where to copy to/from locally
- * @liovcnt: size of lvec array
+ * @iter: where to copy to/from locally
  * @rvec: iovec array specifying where to copy to/from in the other process
  * @riovcnt: size of rvec array
  * @flags: currently unused
