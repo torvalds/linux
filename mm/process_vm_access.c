@@ -43,13 +43,10 @@ static int process_vm_rw_pages(struct page **pages,
 			       unsigned offset,
 			       size_t len,
 			       struct iov_iter *iter,
-			       int vm_write,
-			       ssize_t *bytes_copied)
+			       int vm_write)
 {
-	*bytes_copied = 0;
-
 	/* Do the copy for each page */
-	while (iov_iter_count(iter) && len) {
+	while (len && iov_iter_count(iter)) {
 		struct page *page = *pages++;
 		size_t copy = PAGE_SIZE - offset;
 		size_t copied;
@@ -67,7 +64,6 @@ static int process_vm_rw_pages(struct page **pages,
 		} else {
 			copied = copy_page_to_iter(page, offset, copy, iter);
 		}
-		*bytes_copied += copied;
 		len -= copied;
 		if (copied < copy && iov_iter_count(iter))
 			return -EFAULT;
@@ -101,19 +97,15 @@ static int process_vm_rw_single_vec(unsigned long addr,
 				    struct page **process_pages,
 				    struct mm_struct *mm,
 				    struct task_struct *task,
-				    int vm_write,
-				    ssize_t *bytes_copied)
+				    int vm_write)
 {
 	unsigned long pa = addr & PAGE_MASK;
 	unsigned long start_offset = addr - pa;
 	unsigned long nr_pages;
-	ssize_t bytes_copied_loop;
 	ssize_t rc = 0;
 	unsigned long nr_pages_copied = 0;
 	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
 		/ sizeof(struct pages *);
-
-	*bytes_copied = 0;
 
 	/* Work out address and page range required */
 	if (len == 0)
@@ -143,11 +135,9 @@ static int process_vm_rw_single_vec(unsigned long addr,
 
 		rc = process_vm_rw_pages(process_pages,
 					 start_offset, n, iter,
-					 vm_write,
-					 &bytes_copied_loop);
+					 vm_write);
 		len -= n;
 		start_offset = 0;
-		*bytes_copied += bytes_copied_loop;
 		nr_pages_copied += pages_pinned;
 		pa += pages_pinned * PAGE_SIZE;
 		while (pages_pinned)
@@ -187,11 +177,10 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
 	struct mm_struct *mm;
 	unsigned long i;
 	ssize_t rc = 0;
-	ssize_t bytes_copied_loop;
-	ssize_t bytes_copied = 0;
 	unsigned long nr_pages = 0;
 	unsigned long nr_pages_iov;
 	ssize_t iov_len;
+	size_t total_len = iov_iter_count(iter);
 
 	/*
 	 * Work out how many pages of struct pages we're going to need
@@ -245,24 +234,20 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
 		goto put_task_struct;
 	}
 
-	for (i = 0; i < riovcnt && iov_iter_count(iter); i++) {
+	for (i = 0; i < riovcnt && iov_iter_count(iter) && !rc; i++)
 		rc = process_vm_rw_single_vec(
 			(unsigned long)rvec[i].iov_base, rvec[i].iov_len,
-			iter, process_pages, mm, task, vm_write,
-			&bytes_copied_loop);
-		bytes_copied += bytes_copied_loop;
-		if (rc != 0) {
-			/* If we have managed to copy any data at all then
-			   we return the number of bytes copied. Otherwise
-			   we return the error code */
-			if (bytes_copied)
-				rc = bytes_copied;
-			goto put_mm;
-		}
-	}
+			iter, process_pages, mm, task, vm_write);
 
-	rc = bytes_copied;
-put_mm:
+	/* copied = space before - space after */
+	total_len -= iov_iter_count(iter);
+
+	/* If we have managed to copy any data at all then
+	   we return the number of bytes copied. Otherwise
+	   we return the error code */
+	if (total_len)
+		rc = total_len;
+
 	mmput(mm);
 
 put_task_struct:
