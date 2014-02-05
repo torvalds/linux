@@ -2830,10 +2830,6 @@ retry_root_backup:
 		btrfs_set_opt(fs_info->mount_opt, SSD);
 	}
 
-	/* Set the real inode map cache flag */
-	if (btrfs_test_opt(tree_root, CHANGE_INODE_CACHE))
-		btrfs_set_opt(tree_root->fs_info->mount_opt, INODE_MAP_CACHE);
-
 	/*
 	 * Mount does not set all options immediatelly, we can do it now and do
 	 * not have to wait for transaction commit

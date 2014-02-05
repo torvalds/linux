@@ -1842,14 +1842,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	}
 
 	/*
-	 * Since the transaction is done, we should set the inode map cache flag
-	 * before any other comming transaction.
+	 * Since the transaction is done, we can apply the pending changes
+	 * before the next transaction.
 	 */
-	if (btrfs_test_opt(root, CHANGE_INODE_CACHE))
-		btrfs_set_opt(root->fs_info->mount_opt, INODE_MAP_CACHE);
-	else
-		btrfs_clear_opt(root->fs_info->mount_opt, INODE_MAP_CACHE);
-
 	btrfs_apply_pending_changes(root->fs_info);
 
 	/* commit_fs_roots gets rid of all the tree log roots, it is now
@@ -2030,6 +2025,16 @@ void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info)
 	prev = cmpxchg(&fs_info->pending_changes, 0, 0);
 	if (!prev)
 		return;
+
+	bit = 1 << BTRFS_PENDING_SET_INODE_MAP_CACHE;
+	if (prev & bit)
+		btrfs_set_opt(fs_info->mount_opt, INODE_MAP_CACHE);
+	prev &= ~bit;
+
+	bit = 1 << BTRFS_PENDING_CLEAR_INODE_MAP_CACHE;
+	if (prev & bit)
+		btrfs_clear_opt(fs_info->mount_opt, INODE_MAP_CACHE);
+	prev &= ~bit;
 
 	if (prev)
 		btrfs_warn(fs_info,
