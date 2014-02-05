@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2014 Ilia Mirkin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,30 +19,21 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ilia Mirkin
  */
 
 #include "nv04.h"
 
-int
-nv44_mc_init(struct nouveau_object *object)
+static void
+nv4c_mc_msi_rearm(struct nouveau_mc *pmc)
 {
-	struct nv04_mc_priv *priv = (void *)object;
-	u32 tmp = nv_rd32(priv, 0x10020c);
-
-	nv_wr32(priv, 0x000200, 0xffffffff); /* everything enabled */
-
-	nv_wr32(priv, 0x001700, tmp);
-	nv_wr32(priv, 0x001704, 0);
-	nv_wr32(priv, 0x001708, 0);
-	nv_wr32(priv, 0x00170c, tmp);
-
-	return nouveau_mc_init(&priv->base);
+	struct nv04_mc_priv *priv = (void *)pmc;
+	nv_wr08(priv, 0x088050, 0xff);
 }
 
 struct nouveau_oclass *
-nv44_mc_oclass = &(struct nouveau_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x44),
+nv4c_mc_oclass = &(struct nouveau_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0x4c),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_mc_ctor,
 		.dtor = _nouveau_mc_dtor,
@@ -50,5 +41,5 @@ nv44_mc_oclass = &(struct nouveau_mc_oclass) {
 		.fini = _nouveau_mc_fini,
 	},
 	.intr = nv04_mc_intr,
-	.msi_rearm = nv40_mc_msi_rearm,
+	.msi_rearm = nv4c_mc_msi_rearm,
 }.base;
