@@ -338,7 +338,7 @@ static int mag3110_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(mag3110_channels);
 	indio_dev->available_scan_masks = mag3110_scan_masks;
 
-	data->ctrl_reg1 = MAG3110_CTRL_DR_DEFAULT;
+	data->ctrl_reg1 = MAG3110_CTRL_DR_DEFAULT << MAG3110_CTRL_DR_SHIFT;
 	ret = i2c_smbus_write_byte_data(client, MAG3110_CTRL_REG1,
 		data->ctrl_reg1);
 	if (ret < 0)
