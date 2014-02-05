@@ -687,6 +687,7 @@ static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
 		log_error(ls, "find_rsb new from_other %d dir %d our %d %s",
 			  from_nodeid, dir_nodeid, our_nodeid, r->res_name);
 		dlm_free_rsb(r);
+		r = NULL;
 		error = -ENOTBLK;
 		goto out_unlock;
 	}
