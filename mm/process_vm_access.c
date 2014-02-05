@@ -51,13 +51,11 @@ static int process_vm_rw_pages(struct task_struct *task,
 			       ssize_t *bytes_copied)
 {
 	int pages_pinned;
-	void *target_kaddr;
 	int pgs_copied = 0;
 	int j;
 	int ret;
 	ssize_t bytes_to_copy;
 	ssize_t rc = 0;
-	const struct iovec *iov = iter->iov;
 
 	*bytes_copied = 0;
 
@@ -75,77 +73,34 @@ static int process_vm_rw_pages(struct task_struct *task,
 
 	/* Do the copy for each page */
 	for (pgs_copied = 0;
-	     (pgs_copied < nr_pages_to_copy) && iter->nr_segs;
+	     (pgs_copied < nr_pages_to_copy) && iov_iter_count(iter);
 	     pgs_copied++) {
-		/* Make sure we have a non zero length iovec */
-		while (iter->nr_segs && iov->iov_len == 0) {
-			iov++;
-			iter->nr_segs--;
-		}
-		if (!iter->nr_segs)
-			break;
+		struct page *page = process_pages[pgs_copied];
+		bytes_to_copy = min_t(ssize_t, PAGE_SIZE - start_offset, len);
 
-		/*
-		 * Will copy smallest of:
-		 * - bytes remaining in page
-		 * - bytes remaining in destination iovec
-		 */
-		bytes_to_copy = min_t(ssize_t, PAGE_SIZE - start_offset,
-				      len - *bytes_copied);
-		bytes_to_copy = min_t(ssize_t, bytes_to_copy,
-				      iov->iov_len
-				      - iter->iov_offset);
-
-		target_kaddr = kmap(process_pages[pgs_copied]) + start_offset;
-
-		if (vm_write)
-			ret = copy_from_user(target_kaddr,
-					     iov->iov_base
-					     + iter->iov_offset,
-					     bytes_to_copy);
-		else
-			ret = copy_to_user(iov->iov_base
-					   + iter->iov_offset,
-					   target_kaddr, bytes_to_copy);
-		kunmap(process_pages[pgs_copied]);
-		if (ret) {
-			*bytes_copied += bytes_to_copy - ret;
-			pgs_copied++;
-			rc = -EFAULT;
-			goto end;
-		}
-		*bytes_copied += bytes_to_copy;
-		iter->iov_offset += bytes_to_copy;
-		if (iter->iov_offset == iov->iov_len) {
-			/*
-			 * Need to copy remaining part of page into the
-			 * next iovec if there are any bytes left in page
-			 */
-			iter->nr_segs--;
-			iov++;
-			iter->iov_offset = 0;
-			start_offset = (start_offset + bytes_to_copy)
-				% PAGE_SIZE;
-			if (start_offset)
-				pgs_copied--;
+		if (vm_write) {
+			if (bytes_to_copy > iov_iter_count(iter))
+				bytes_to_copy = iov_iter_count(iter);
+			ret = iov_iter_copy_from_user(page,
+					iter, start_offset, bytes_to_copy);
+			iov_iter_advance(iter, ret);
+			set_page_dirty_lock(page);
 		} else {
-			start_offset = 0;
+			ret = copy_page_to_iter(page, start_offset,
+					bytes_to_copy, iter);
 		}
+		*bytes_copied += ret;
+		len -= ret;
+		if (ret < bytes_to_copy && iov_iter_count(iter)) {
+			rc = -EFAULT;
+			break;
+		}
+		start_offset = 0;
 	}
 
 end:
-	if (vm_write) {
-		for (j = 0; j < pages_pinned; j++) {
-			if (j < pgs_copied)
-				set_page_dirty_lock(process_pages[j]);
-			put_page(process_pages[j]);
-		}
-	} else {
-		for (j = 0; j < pages_pinned; j++)
-			put_page(process_pages[j]);
-	}
-
-	iter->iov = iov;
+	for (j = 0; j < pages_pinned; j++)
+		put_page(process_pages[j]);
 	return rc;
 }
 
@@ -194,7 +149,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		return 0;
 	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
 
-	while ((nr_pages_copied < nr_pages) && iter->nr_segs) {
+	while ((nr_pages_copied < nr_pages) && iov_iter_count(iter)) {
 		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
 				       max_pages_per_loop);
 
@@ -303,7 +258,7 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
 		goto put_task_struct;
 	}
 
-	for (i = 0; i < riovcnt && iter->nr_segs; i++) {
+	for (i = 0; i < riovcnt && iov_iter_count(iter); i++) {
 		rc = process_vm_rw_single_vec(
 			(unsigned long)rvec[i].iov_base, rvec[i].iov_len,
 			iter, process_pages, mm, task, vm_write,
