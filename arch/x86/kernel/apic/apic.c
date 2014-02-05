@@ -133,6 +133,10 @@ static inline void imcr_apic_to_pic(void)
  * +1=force-enable
  */
 static int force_enable_local_apic __initdata;
+
+/* Control whether x2APIC mode is enabled or not */
+static bool nox2apic __initdata;
+
 /*
  * APIC command line parameters
  */
@@ -162,8 +166,7 @@ int x2apic_mode;
 /* x2apic enabled before OS handover */
 int x2apic_preenabled;
 static int x2apic_disabled;
-static int nox2apic;
-static __init int setup_nox2apic(char *str)
+static int __init setup_nox2apic(char *str)
 {
 	if (x2apic_enabled()) {
 		int apicid = native_apic_msr_read(APIC_ID);
@@ -178,7 +181,7 @@ static __init int setup_nox2apic(char *str)
 	} else
 		setup_clear_cpu_cap(X86_FEATURE_X2APIC);
 
-	nox2apic = 1;
+	nox2apic = true;
 
 	return 0;
 }
