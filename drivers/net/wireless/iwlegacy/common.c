@@ -1572,8 +1572,9 @@ il_scan_initiate(struct il_priv *il, struct ieee80211_vif *vif)
 
 int
 il_mac_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	       struct cfg80211_scan_request *req)
+	       struct ieee80211_scan_request *hw_req)
 {
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct il_priv *il = hw->priv;
 	int ret;
 

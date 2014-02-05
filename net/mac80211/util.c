@@ -1219,20 +1219,25 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
-			     size_t buffer_len, const u8 *ie, size_t ie_len,
-			     enum ieee80211_band band, u32 rate_mask,
-			     struct cfg80211_chan_def *chandef)
+static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
+					 u8 *buffer, size_t buffer_len,
+					 const u8 *ie, size_t ie_len,
+					 enum ieee80211_band band,
+					 u32 rate_mask,
+					 struct cfg80211_chan_def *chandef,
+					 size_t *offset)
 {
 	struct ieee80211_supported_band *sband;
 	u8 *pos = buffer, *end = buffer + buffer_len;
-	size_t offset = 0, noffset;
+	size_t noffset;
 	int supp_rates_len, i;
 	u8 rates[32];
 	int num_rates;
 	int ext_rates_len;
 	int shift;
 	u32 rate_flags;
+
+	*offset = 0;
 
 	sband = local->hw.wiphy->bands[band];
 	if (WARN_ON_ONCE(!sband))
@@ -1272,12 +1277,12 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		noffset = ieee80211_ie_split(ie, ie_len,
 					     before_extrates,
 					     ARRAY_SIZE(before_extrates),
-					     offset);
-		if (end - pos < noffset - offset)
+					     *offset);
+		if (end - pos < noffset - *offset)
 			goto out_err;
-		memcpy(pos, ie + offset, noffset - offset);
-		pos += noffset - offset;
-		offset = noffset;
+		memcpy(pos, ie + *offset, noffset - *offset);
+		pos += noffset - *offset;
+		*offset = noffset;
 	}
 
 	ext_rates_len = num_rates - supp_rates_len;
@@ -1311,12 +1316,12 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		};
 		noffset = ieee80211_ie_split(ie, ie_len,
 					     before_ht, ARRAY_SIZE(before_ht),
-					     offset);
-		if (end - pos < noffset - offset)
+					     *offset);
+		if (end - pos < noffset - *offset)
 			goto out_err;
-		memcpy(pos, ie + offset, noffset - offset);
-		pos += noffset - offset;
-		offset = noffset;
+		memcpy(pos, ie + *offset, noffset - *offset);
+		pos += noffset - *offset;
+		*offset = noffset;
 	}
 
 	if (sband->ht_cap.ht_supported) {
@@ -1351,12 +1356,12 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		};
 		noffset = ieee80211_ie_split(ie, ie_len,
 					     before_vht, ARRAY_SIZE(before_vht),
-					     offset);
-		if (end - pos < noffset - offset)
+					     *offset);
+		if (end - pos < noffset - *offset)
 			goto out_err;
-		memcpy(pos, ie + offset, noffset - offset);
-		pos += noffset - offset;
-		offset = noffset;
+		memcpy(pos, ie + *offset, noffset - *offset);
+		pos += noffset - *offset;
+		*offset = noffset;
 	}
 
 	if (sband->vht_cap.vht_supported) {
@@ -1366,20 +1371,53 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 						 sband->vht_cap.cap);
 	}
 
-	/* add any remaining custom IEs */
-	if (ie && ie_len) {
-		noffset = ie_len;
-		if (end - pos < noffset - offset)
-			goto out_err;
-		memcpy(pos, ie + offset, noffset - offset);
-		pos += noffset - offset;
-	}
-
 	return pos - buffer;
  out_err:
 	WARN_ONCE(1, "not enough space for preq IEs\n");
 	return pos - buffer;
 }
+
+int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
+			     size_t buffer_len,
+			     struct ieee80211_scan_ies *ie_desc,
+			     const u8 *ie, size_t ie_len,
+			     u8 bands_used, u32 *rate_masks,
+			     struct cfg80211_chan_def *chandef)
+{
+	size_t pos = 0, old_pos = 0, custom_ie_offset = 0;
+	int i;
+
+	memset(ie_desc, 0, sizeof(*ie_desc));
+
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+		if (bands_used & BIT(i)) {
+			pos += ieee80211_build_preq_ies_band(local,
+							     buffer + pos,
+							     buffer_len - pos,
+							     ie, ie_len, i,
+							     rate_masks[i],
+							     chandef,
+							     &custom_ie_offset);
+			ie_desc->ies[i] = buffer + old_pos;
+			ie_desc->len[i] = pos - old_pos;
+			old_pos = pos;
+		}
+	}
+
+	/* add any remaining custom IEs */
+	if (ie && ie_len) {
+		if (WARN_ONCE(buffer_len - pos < ie_len - custom_ie_offset,
+			      "not enough space for preq custom IEs\n"))
+			return pos;
+		memcpy(buffer + pos, ie + custom_ie_offset,
+		       ie_len - custom_ie_offset);
+		ie_desc->common_ies = buffer + pos;
+		ie_desc->common_ie_len = ie_len - custom_ie_offset;
+		pos += ie_len - custom_ie_offset;
+	}
+
+	return pos;
+};
 
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  u8 *dst, u32 ratemask,
@@ -1393,6 +1431,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	int ies_len;
+	u32 rate_masks[IEEE80211_NUM_BANDS] = {};
+	struct ieee80211_scan_ies dummy_ie_desc;
 
 	/*
 	 * Do not send DS Channel parameter for directed probe requests
@@ -1410,10 +1450,11 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	if (!skb)
 		return NULL;
 
+	rate_masks[chan->band] = ratemask;
 	ies_len = ieee80211_build_preq_ies(local, skb_tail_pointer(skb),
-					   skb_tailroom(skb),
-					   ie, ie_len, chan->band,
-					   ratemask, &chandef);
+					   skb_tailroom(skb), &dummy_ie_desc,
+					   ie, ie_len, BIT(chan->band),
+					   rate_masks, &chandef);
 	skb_put(skb, ies_len);
 
 	if (dst) {

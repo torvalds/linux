@@ -1736,9 +1736,10 @@ static void hw_scan_work(struct work_struct *work)
 
 static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
-				  struct cfg80211_scan_request *req)
+				  struct ieee80211_scan_request *hw_req)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
+	struct cfg80211_scan_request *req = &hw_req->req;
 
 	mutex_lock(&hwsim->mutex);
 	if (WARN_ON(hwsim->tmp_chan || hwsim->hw_scan_request)) {

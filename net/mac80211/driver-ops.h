@@ -314,7 +314,7 @@ static inline void drv_update_tkip_key(struct ieee80211_local *local,
 
 static inline int drv_hw_scan(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata,
-			      struct cfg80211_scan_request *req)
+			      struct ieee80211_scan_request *req)
 {
 	int ret;
 

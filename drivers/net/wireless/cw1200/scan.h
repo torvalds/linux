@@ -41,7 +41,7 @@ struct cw1200_scan {
 
 int cw1200_hw_scan(struct ieee80211_hw *hw,
 		   struct ieee80211_vif *vif,
-		   struct cfg80211_scan_request *req);
+		   struct ieee80211_scan_request *hw_req);
 void cw1200_scan_work(struct work_struct *work);
 void cw1200_scan_timeout(struct work_struct *work);
 void cw1200_clear_recent_scan_work(struct work_struct *work);

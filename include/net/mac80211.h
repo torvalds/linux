@@ -768,6 +768,26 @@ struct ieee80211_sched_scan_ies {
 	size_t len[IEEE80211_NUM_BANDS];
 };
 
+/**
+ * struct ieee80211_scan_ies - descriptors for different blocks of IEs
+ *
+ * This structure is used to point to different blocks of IEs in HW scan.
+ * These blocks contain the IEs passed by userspace and the ones generated
+ * by mac80211.
+ *
+ * @ies: pointers to band specific IEs.
+ * @len: lengths of band_specific IEs.
+ * @common_ies: IEs for all bands (especially vendor specific ones)
+ * @common_ie_len: length of the common_ies
+ */
+struct ieee80211_scan_ies {
+	const u8 *ies[IEEE80211_NUM_BANDS];
+	size_t len[IEEE80211_NUM_BANDS];
+	const u8 *common_ies;
+	size_t common_ie_len;
+};
+
+
 static inline struct ieee80211_tx_info *IEEE80211_SKB_CB(struct sk_buff *skb)
 {
 	return (struct ieee80211_tx_info *)skb->cb;
@@ -1606,6 +1626,9 @@ struct ieee80211_tx_control {
  *	on single-channel hardware.  It can also be used as an
  *	optimization in certain channel switch cases with
  *	multi-channel.
+ *
+ * @IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS: The HW supports scanning on all bands
+ *	in one command, mac80211 doesn't have to run separate scans per band.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1638,6 +1661,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_HT_CCK_RATES		= 1<<27,
 	IEEE80211_HW_CHANCTX_STA_CSA			= 1<<28,
 	IEEE80211_HW_CHANGE_RUNNING_CHANCTX		= 1<<29,
+	IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS		= 1<<30,
 };
 
 /**
@@ -1761,6 +1785,19 @@ struct ieee80211_hw {
 	u8 uapsd_max_sp_len;
 	u8 n_cipher_schemes;
 	const struct ieee80211_cipher_scheme *cipher_schemes;
+};
+
+/**
+ * struct ieee80211_scan_request - hw scan request
+ *
+ * @ies: pointers different parts of IEs (in req.ie)
+ * @req: cfg80211 request.
+ */
+struct ieee80211_scan_request {
+	struct ieee80211_scan_ies ies;
+
+	/* Keep last */
+	struct cfg80211_scan_request req;
 };
 
 /**
@@ -2874,7 +2911,7 @@ struct ieee80211_ops {
 	void (*set_default_unicast_key)(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif, int idx);
 	int (*hw_scan)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct cfg80211_scan_request *req);
+		       struct ieee80211_scan_request *req);
 	void (*cancel_hw_scan)(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif);
 	int (*sched_scan_start)(struct ieee80211_hw *hw,

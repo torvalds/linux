@@ -1537,9 +1537,10 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 
 static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
-			       struct cfg80211_scan_request *req)
+			       struct ieee80211_scan_request *hw_req)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct cfg80211_scan_request *req = &hw_req->req;
 	int ret;
 
 	if (req->n_channels == 0 || req->n_channels > MAX_NUM_SCAN_CHANNELS)
