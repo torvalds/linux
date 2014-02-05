@@ -1388,6 +1388,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 			    mii_indicator);
 
 		status = -EIO;
+		goto out;
 	}
 
 	/* If we hit here we were able to read the register and we need to
@@ -1395,6 +1396,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 	 */
 	*value = readl(&mac->mii_mgmt_stat) & ET_MAC_MIIMGMT_STAT_PHYCRTL_MASK;
 
+out:
 	/* Stop the read operation */
 	writel(0, &mac->mii_mgmt_cmd);
 
