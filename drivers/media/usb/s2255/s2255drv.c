@@ -1230,12 +1230,16 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		vc->buffer.frame[j].cur_size = 0;
 	}
 	res = videobuf_streamon(&fh->vb_vidq);
-	if (res == 0) {
-		s2255_start_acquire(vc);
-		vc->b_acquire = 1;
-	} else
+	if (res != 0) {
 		res_free(fh);
-
+		return res;
+	}
+	res = s2255_start_acquire(vc);
+	if (res != 0) {
+		res_free(fh);
+		return res;
+	}
+	vc->b_acquire = 1;
 	return res;
 }
 
@@ -2373,7 +2377,7 @@ static int s2255_start_acquire(struct s2255_vc *vc)
 
 	dprintk(dev, 2, "start acquire exit[%d] %d\n", vc->idx, res);
 	mutex_unlock(&dev->cmdlock);
-	return 0;
+	return res;
 }
 
 static int s2255_stop_acquire(struct s2255_vc *vc)
