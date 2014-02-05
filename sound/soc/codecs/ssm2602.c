@@ -52,7 +52,7 @@ enum ssm2602_type {
 /* codec private data */
 struct ssm2602_priv {
 	unsigned int sysclk;
-	struct snd_pcm_hw_constraint_list *sysclk_constraints;
+	const struct snd_pcm_hw_constraint_list *sysclk_constraints;
 
 	struct regmap *regmap;
 
@@ -197,7 +197,7 @@ static const unsigned int ssm2602_rates_12288000[] = {
 	8000, 16000, 32000, 48000, 96000,
 };
 
-static struct snd_pcm_hw_constraint_list ssm2602_constraints_12288000 = {
+static const struct snd_pcm_hw_constraint_list ssm2602_constraints_12288000 = {
 	.list = ssm2602_rates_12288000,
 	.count = ARRAY_SIZE(ssm2602_rates_12288000),
 };
@@ -206,7 +206,7 @@ static const unsigned int ssm2602_rates_11289600[] = {
 	8000, 44100, 88200,
 };
 
-static struct snd_pcm_hw_constraint_list ssm2602_constraints_11289600 = {
+static const struct snd_pcm_hw_constraint_list ssm2602_constraints_11289600 = {
 	.list = ssm2602_rates_11289600,
 	.count = ARRAY_SIZE(ssm2602_rates_11289600),
 };
