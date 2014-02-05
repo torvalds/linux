@@ -895,6 +895,16 @@ Description:
 		on-chip EEPROM. After power-up or chip reset the device will
 		automatically load the saved configuration.
 
+What:		/sys/.../iio:deviceX/in_intensityY_raw
+What:		/sys/.../iio:deviceX/in_intensityY_ir_raw
+What:		/sys/.../iio:deviceX/in_intensityY_both_raw
+KernelVersion:	3.4
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Unit-less light intensity. Modifiers both and ir indicate
+		that measurements contains visible and infrared light
+		components or just infrared light, respectively.
+
 What:		/sys/.../iio:deviceX/in_intensity_red_integration_time
 What:		/sys/.../iio:deviceX/in_intensity_green_integration_time
 What:		/sys/.../iio:deviceX/in_intensity_blue_integration_time
