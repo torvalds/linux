@@ -247,6 +247,114 @@ static u32 __init intel_stolen_base(int num, int slot, int func, size_t stolen_s
 #define MB(x)	(KB (KB (x)))
 #define GB(x)	(MB (KB (x)))
 
+static size_t __init i830_tseg_size(void)
+{
+	u8 tmp = read_pci_config_byte(0, 0, 0, I830_ESMRAMC);
+
+	if (!(tmp & TSEG_ENABLE))
+		return 0;
+
+	if (tmp & I830_TSEG_SIZE_1M)
+		return MB(1);
+	else
+		return KB(512);
+}
+
+static size_t __init i845_tseg_size(void)
+{
+	u8 tmp = read_pci_config_byte(0, 0, 0, I845_ESMRAMC);
+
+	if (!(tmp & TSEG_ENABLE))
+		return 0;
+
+	switch (tmp & I845_TSEG_SIZE_MASK) {
+	case I845_TSEG_SIZE_512K:
+		return KB(512);
+	case I845_TSEG_SIZE_1M:
+		return MB(1);
+	default:
+		WARN_ON(1);
+		return 0;
+	}
+}
+
+static size_t __init i85x_tseg_size(void)
+{
+	u8 tmp = read_pci_config_byte(0, 0, 0, I85X_ESMRAMC);
+
+	if (!(tmp & TSEG_ENABLE))
+		return 0;
+
+	return MB(1);
+}
+
+static size_t __init i830_mem_size(void)
+{
+	return read_pci_config_byte(0, 0, 0, I830_DRB3) * MB(32);
+}
+
+static size_t __init i85x_mem_size(void)
+{
+	return read_pci_config_byte(0, 0, 1, I85X_DRB3) * MB(32);
+}
+
+/*
+ * On 830/845/85x the stolen memory base isn't available in any
+ * register. We need to calculate it as TOM-TSEG_SIZE-stolen_size.
+ */
+static u32 __init i830_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	return i830_mem_size() - i830_tseg_size() - stolen_size;
+}
+
+static u32 __init i845_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	return i830_mem_size() - i845_tseg_size() - stolen_size;
+}
+
+static u32 __init i85x_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	return i85x_mem_size() - i85x_tseg_size() - stolen_size;
+}
+
+static u32 __init i865_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	/*
+	 * FIXME is the graphics stolen memory region
+	 * always at TOUD? Ie. is it always the last
+	 * one to be allocated by the BIOS?
+	 */
+	return read_pci_config_16(0, 0, 0, I865_TOUD) << 16;
+}
+
+static size_t __init i830_stolen_size(int num, int slot, int func)
+{
+	size_t stolen_size;
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(0, 0, 0, I830_GMCH_CTRL);
+
+	switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
+	case I830_GMCH_GMS_STOLEN_512:
+		stolen_size = KB(512);
+		break;
+	case I830_GMCH_GMS_STOLEN_1024:
+		stolen_size = MB(1);
+		break;
+	case I830_GMCH_GMS_STOLEN_8192:
+		stolen_size = MB(8);
+		break;
+	case I830_GMCH_GMS_LOCAL:
+		/* local memory isn't part of the normal address space */
+		stolen_size = 0;
+		break;
+	default:
+		return 0;
+	}
+
+	return stolen_size;
+}
+
 static size_t __init gen3_stolen_size(int num, int slot, int func)
 {
 	size_t stolen_size;
@@ -329,6 +437,26 @@ struct intel_stolen_funcs {
 	u32 (*base)(int num, int slot, int func, size_t size);
 };
 
+static const struct intel_stolen_funcs i830_stolen_funcs = {
+	.base = i830_stolen_base,
+	.size = i830_stolen_size,
+};
+
+static const struct intel_stolen_funcs i845_stolen_funcs = {
+	.base = i845_stolen_base,
+	.size = i830_stolen_size,
+};
+
+static const struct intel_stolen_funcs i85x_stolen_funcs = {
+	.base = i85x_stolen_base,
+	.size = gen3_stolen_size,
+};
+
+static const struct intel_stolen_funcs i865_stolen_funcs = {
+	.base = i865_stolen_base,
+	.size = gen3_stolen_size,
+};
+
 static const struct intel_stolen_funcs gen3_stolen_funcs = {
 	.base = intel_stolen_base,
 	.size = gen3_stolen_size,
@@ -345,6 +473,10 @@ static const struct intel_stolen_funcs gen8_stolen_funcs = {
 };
 
 static struct pci_device_id intel_stolen_ids[] __initdata = {
+	INTEL_I830_IDS(&i830_stolen_funcs),
+	INTEL_I845G_IDS(&i845_stolen_funcs),
+	INTEL_I85X_IDS(&i85x_stolen_funcs),
+	INTEL_I865G_IDS(&i865_stolen_funcs),
 	INTEL_I915G_IDS(&gen3_stolen_funcs),
 	INTEL_I915GM_IDS(&gen3_stolen_funcs),
 	INTEL_I945G_IDS(&gen3_stolen_funcs),
