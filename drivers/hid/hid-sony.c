@@ -894,7 +894,6 @@ static enum led_brightness sony_led_get_brightness(struct led_classdev *led)
 	struct sony_sc *drv_data;
 
 	int n;
-	int on = 0;
 
 	drv_data = hid_get_drvdata(hdev);
 	if (!drv_data) {
@@ -903,13 +902,11 @@ static enum led_brightness sony_led_get_brightness(struct led_classdev *led)
 	}
 
 	for (n = 0; n < drv_data->led_count; n++) {
-		if (led == drv_data->leds[n]) {
-			on = !!(drv_data->led_state[n]);
-			break;
-		}
+		if (led == drv_data->leds[n])
+			return drv_data->led_state[n];
 	}
 
-	return on ? LED_FULL : LED_OFF;
+	return LED_OFF;
 }
 
 static void sony_leds_remove(struct hid_device *hdev)
