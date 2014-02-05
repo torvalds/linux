@@ -2071,11 +2071,11 @@ static int ath10k_wmi_ready_event_rx(struct ath10k *ar, struct sk_buff *skb)
 	memcpy(ar->mac_addr, ev->mac_addr.addr, ETH_ALEN);
 
 	ath10k_dbg(ATH10K_DBG_WMI,
-		   "wmi event ready sw_version %u abi_version %u mac_addr %pM status %d\n",
+		   "wmi event ready sw_version %u abi_version %u mac_addr %pM status %d skb->len %i ev-sz %zu\n",
 		   __le32_to_cpu(ev->sw_version),
 		   __le32_to_cpu(ev->abi_version),
 		   ev->mac_addr.addr,
-		   __le32_to_cpu(ev->status));
+		   __le32_to_cpu(ev->status), skb->len, sizeof(*ev));
 
 	complete(&ar->wmi.unified_ready);
 	return 0;
