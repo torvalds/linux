@@ -116,7 +116,7 @@ static bool wm8988_writeable(struct device *dev, unsigned int reg)
 struct wm8988_priv {
 	struct regmap *regmap;
 	unsigned int sysclk;
-	struct snd_pcm_hw_constraint_list *sysclk_constraints;
+	const struct snd_pcm_hw_constraint_list *sysclk_constraints;
 };
 
 #define wm8988_reset(c)	snd_soc_write(c, WM8988_RESET, 0)
@@ -521,30 +521,30 @@ static inline int get_coeff(int mclk, int rate)
 
 /* The set of rates we can generate from the above for each SYSCLK */
 
-static unsigned int rates_12288[] = {
+static const unsigned int rates_12288[] = {
 	8000, 12000, 16000, 24000, 24000, 32000, 48000, 96000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_12288 = {
+static const struct snd_pcm_hw_constraint_list constraints_12288 = {
 	.count	= ARRAY_SIZE(rates_12288),
 	.list	= rates_12288,
 };
 
-static unsigned int rates_112896[] = {
+static const unsigned int rates_112896[] = {
 	8000, 11025, 22050, 44100,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_112896 = {
+static const struct snd_pcm_hw_constraint_list constraints_112896 = {
 	.count	= ARRAY_SIZE(rates_112896),
 	.list	= rates_112896,
 };
 
-static unsigned int rates_12[] = {
+static const unsigned int rates_12[] = {
 	8000, 11025, 12000, 16000, 22050, 2400, 32000, 41100, 48000,
 	48000, 88235, 96000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_12 = {
+static const struct snd_pcm_hw_constraint_list constraints_12 = {
 	.count	= ARRAY_SIZE(rates_12),
 	.list	= rates_12,
 };
