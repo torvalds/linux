@@ -114,14 +114,17 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_temp_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_x_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_y_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_temp_z_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_ambient_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_object_raw
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw (unscaled no bias removal etc.) temperature measurement.
 		If an axis is specified it generally means that the temperature
 		sensor is associated with one part of a compound device (e.g.
-		a gyroscope axis). Units after application of scale and offset
+		a gyroscope axis). The ambient and object modifiers distinguish
+		between ambient (reference) and distant temperature for contact-
+		less measurements. Units after application of scale and offset
 		are milli degrees Celsius.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_input
