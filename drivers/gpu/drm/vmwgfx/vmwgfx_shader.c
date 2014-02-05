@@ -304,7 +304,7 @@ static int vmw_gb_shader_destroy(struct vmw_resource *res)
 		return 0;
 
 	mutex_lock(&dev_priv->binding_mutex);
-	vmw_context_binding_res_list_kill(&res->binding_head);
+	vmw_context_binding_res_list_scrub(&res->binding_head);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {

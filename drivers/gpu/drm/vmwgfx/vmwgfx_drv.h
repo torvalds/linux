@@ -276,6 +276,7 @@ struct vmw_ctx_bindinfo {
 	struct vmw_resource *ctx;
 	struct vmw_resource *res;
 	enum vmw_ctx_binding_type bt;
+	bool scrubbed;
 	union {
 		SVGA3dShaderType shader_type;
 		SVGA3dRenderTargetType rt_type;
@@ -574,6 +575,8 @@ struct vmw_user_resource_conv;
 
 extern void vmw_resource_unreference(struct vmw_resource **p_res);
 extern struct vmw_resource *vmw_resource_reference(struct vmw_resource *res);
+extern struct vmw_resource *
+vmw_resource_reference_unless_doomed(struct vmw_resource *res);
 extern int vmw_resource_validate(struct vmw_resource *res);
 extern int vmw_resource_reserve(struct vmw_resource *res, bool no_backup);
 extern bool vmw_resource_needs_backup(const struct vmw_resource *res);
@@ -962,6 +965,9 @@ extern void
 vmw_context_binding_state_transfer(struct vmw_resource *res,
 				   struct vmw_ctx_binding_state *cbs);
 extern void vmw_context_binding_res_list_kill(struct list_head *head);
+extern void vmw_context_binding_res_list_scrub(struct list_head *head);
+extern int vmw_context_rebind_all(struct vmw_resource *ctx);
+extern struct list_head *vmw_context_binding_list(struct vmw_resource *ctx);
 
 /*
  * Surface management - vmwgfx_surface.c

@@ -180,6 +180,44 @@ static int vmw_resource_val_add(struct vmw_sw_context *sw_context,
 }
 
 /**
+ * vmw_resource_context_res_add - Put resources previously bound to a context on
+ * the validation list
+ *
+ * @dev_priv: Pointer to a device private structure
+ * @sw_context: Pointer to a software context used for this command submission
+ * @ctx: Pointer to the context resource
+ *
+ * This function puts all resources that were previously bound to @ctx on
+ * the resource validation list. This is part of the context state reemission
+ */
+static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
+					struct vmw_sw_context *sw_context,
+					struct vmw_resource *ctx)
+{
+	struct list_head *binding_list;
+	struct vmw_ctx_binding *entry;
+	int ret = 0;
+	struct vmw_resource *res;
+
+	mutex_lock(&dev_priv->binding_mutex);
+	binding_list = vmw_context_binding_list(ctx);
+
+	list_for_each_entry(entry, binding_list, ctx_list) {
+		res = vmw_resource_reference_unless_doomed(entry->bi.res);
+		if (unlikely(res == NULL))
+			continue;
+
+		ret = vmw_resource_val_add(sw_context, entry->bi.res, NULL);
+		vmw_resource_unreference(&res);
+		if (unlikely(ret != 0))
+			break;
+	}
+
+	mutex_unlock(&dev_priv->binding_mutex);
+	return ret;
+}
+
+/**
  * vmw_resource_relocation_add - Add a relocation to the relocation list
  *
  * @list: Pointer to head of relocation list.
@@ -470,7 +508,11 @@ vmw_cmd_compat_res_check(struct vmw_private *dev_priv,
 	if (p_val)
 		*p_val = node;
 
-	if (node->first_usage && res_type == vmw_res_context) {
+	if (dev_priv->has_mob && node->first_usage &&
+	    res_type == vmw_res_context) {
+		ret = vmw_resource_context_res_add(dev_priv, sw_context, res);
+		if (unlikely(ret != 0))
+			goto out_no_reloc;
 		node->staged_bindings =
 			kzalloc(sizeof(*node->staged_bindings), GFP_KERNEL);
 		if (node->staged_bindings == NULL) {
@@ -514,6 +556,34 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 {
 	return vmw_cmd_compat_res_check(dev_priv, sw_context, res_type,
 					converter, *id_loc, id_loc, p_val);
+}
+
+/**
+ * vmw_rebind_contexts - Rebind all resources previously bound to
+ * referenced contexts.
+ *
+ * @sw_context: Pointer to the software context.
+ *
+ * Rebind context binding points that have been scrubbed because of eviction.
+ */
+static int vmw_rebind_contexts(struct vmw_sw_context *sw_context)
+{
+	struct vmw_resource_val_node *val;
+	int ret;
+
+	list_for_each_entry(val, &sw_context->resource_list, head) {
+		if (likely(!val->staged_bindings))
+			continue;
+
+		ret = vmw_context_rebind_all(val->res);
+		if (unlikely(ret != 0)) {
+			if (ret != -ERESTARTSYS)
+				DRM_ERROR("Failed to rebind context.\n");
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -1640,9 +1710,10 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 		struct vmw_resource_val_node *res_node;
 		u32 shid = cmd->body.shid;
 
-		(void) vmw_compat_shader_lookup(sw_context->fp->shman,
-						cmd->body.type,
-						&shid);
+		if (shid != SVGA3D_INVALID_ID)
+			(void) vmw_compat_shader_lookup(sw_context->fp->shman,
+							cmd->body.type,
+							&shid);
 
 		ret = vmw_cmd_compat_res_check(dev_priv, sw_context,
 					       vmw_res_shader,
@@ -2393,6 +2464,12 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (unlikely(ret != 0)) {
 		ret = -ERESTARTSYS;
 		goto out_err;
+	}
+
+	if (dev_priv->has_mob) {
+		ret = vmw_rebind_contexts(sw_context);
+		if (unlikely(ret != 0))
+			goto out_err;
 	}
 
 	cmd = vmw_fifo_reserve(dev_priv, command_size);
