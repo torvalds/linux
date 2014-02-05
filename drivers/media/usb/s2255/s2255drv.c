@@ -290,7 +290,6 @@ struct s2255_fmt {
 struct s2255_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct videobuf_buffer vb;
-	const struct s2255_fmt *fmt;
 };
 
 struct s2255_fh {
@@ -625,13 +624,13 @@ static void s2255_fillbuff(struct s2255_vc *vc,
 	if (last_frame != -1) {
 		tmpbuf =
 		    (const char *)vc->buffer.frame[last_frame].lpvbits;
-		switch (buf->fmt->fourcc) {
+		switch (vc->fmt->fourcc) {
 		case V4L2_PIX_FMT_YUYV:
 		case V4L2_PIX_FMT_UYVY:
 			planar422p_to_yuv_packed((const unsigned char *)tmpbuf,
 						 vbuf, buf->vb.width,
 						 buf->vb.height,
-						 buf->fmt->fourcc);
+						 vc->fmt->fourcc);
 			break;
 		case V4L2_PIX_FMT_GREY:
 			memcpy(vbuf, tmpbuf, buf->vb.width * buf->vb.height);
@@ -711,7 +710,6 @@ static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		return -EINVAL;
 	}
 
-	buf->fmt = vc->fmt;
 	buf->vb.width = w;
 	buf->vb.height = h;
 	buf->vb.field = field;
