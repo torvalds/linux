@@ -1981,9 +1981,6 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 		ret = btrfs_drop_snapshot(root, NULL, 0, 0);
 	else
 		ret = btrfs_drop_snapshot(root, NULL, 1, 0);
-	/*
-	 * If we encounter a transaction abort during snapshot cleaning, we
-	 * don't want to crash here
-	 */
+
 	return (ret < 0) ? 0 : 1;
 }
