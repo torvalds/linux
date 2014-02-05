@@ -14,4 +14,12 @@ int nft_reject_init(const struct nft_ctx *ctx,
 
 int nft_reject_dump(struct sk_buff *skb, const struct nft_expr *expr);
 
+void nft_reject_ipv4_eval(const struct nft_expr *expr,
+			  struct nft_data data[NFT_REG_MAX + 1],
+			  const struct nft_pktinfo *pkt);
+
+void nft_reject_ipv6_eval(const struct nft_expr *expr,
+			  struct nft_data data[NFT_REG_MAX + 1],
+			  const struct nft_pktinfo *pkt);
+
 #endif
