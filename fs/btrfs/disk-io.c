@@ -1573,8 +1573,8 @@ int btrfs_init_fs_root(struct btrfs_root *root)
 	root->subv_writers = writers;
 
 	btrfs_init_free_ino_ctl(root);
-	spin_lock_init(&root->cache_lock);
-	init_waitqueue_head(&root->cache_wait);
+	spin_lock_init(&root->ino_cache_lock);
+	init_waitqueue_head(&root->ino_cache_wait);
 
 	ret = get_anon_bdev(&root->anon_dev);
 	if (ret)
@@ -3532,7 +3532,7 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 
 static void free_fs_root(struct btrfs_root *root)
 {
-	iput(root->cache_inode);
+	iput(root->ino_cache_inode);
 	WARN_ON(!RB_EMPTY_ROOT(&root->inode_tree));
 	btrfs_free_block_rsv(root, root->orphan_block_rsv);
 	root->orphan_block_rsv = NULL;

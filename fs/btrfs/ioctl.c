@@ -2526,9 +2526,9 @@ out_unlock:
 		ASSERT(dest->send_in_progress == 0);
 
 		/* the last ref */
-		if (dest->cache_inode) {
-			iput(dest->cache_inode);
-			dest->cache_inode = NULL;
+		if (dest->ino_cache_inode) {
+			iput(dest->ino_cache_inode);
+			dest->ino_cache_inode = NULL;
 		}
 	}
 out_dput:
