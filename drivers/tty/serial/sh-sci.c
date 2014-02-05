@@ -2018,7 +2018,7 @@ static int sci_remap_port(struct uart_port *port)
 		 * need to do any remapping, just cast the cookie
 		 * directly.
 		 */
-		port->membase = (void __iomem *)port->mapbase;
+		port->membase = (void __iomem *)(uintptr_t)port->mapbase;
 	}
 
 	return 0;
