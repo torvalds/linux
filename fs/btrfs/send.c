@@ -1288,8 +1288,6 @@ static int find_extent_clone(struct send_ctx *sctx,
 		extent_item_pos = logical - found_key.objectid;
 	else
 		extent_item_pos = 0;
-
-	extent_item_pos = logical - found_key.objectid;
 	ret = iterate_extent_inodes(sctx->send_root->fs_info,
 					found_key.objectid, extent_item_pos, 1,
 					__iterate_backrefs, backref_ctx);
