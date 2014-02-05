@@ -675,7 +675,6 @@ struct hid_driver {
  * @stop: called on remove
  * @open: called by input layer on open
  * @close: called by input layer on close
- * @hidinput_input_event: event input event (e.g. ff or leds)
  * @parse: this method is called only once to parse the device data,
  *	   shouldn't allocate anything to not leak memory
  * @request: send report request to device (e.g. feature report)
@@ -692,9 +691,6 @@ struct hid_ll_driver {
 	void (*close)(struct hid_device *hdev);
 
 	int (*power)(struct hid_device *hdev, int level);
-
-	int (*hidinput_input_event) (struct input_dev *idev, unsigned int type,
-			unsigned int code, int value);
 
 	int (*parse)(struct hid_device *hdev);
 
