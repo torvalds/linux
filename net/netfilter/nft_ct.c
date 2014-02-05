@@ -226,6 +226,7 @@ static int nft_ct_init_validate_get(const struct nft_expr *expr,
 		if (tb[NFTA_CT_DIRECTION] != NULL)
 			return -EINVAL;
 		break;
+	case NFT_CT_L3PROTOCOL:
 	case NFT_CT_PROTOCOL:
 	case NFT_CT_SRC:
 	case NFT_CT_DST:
