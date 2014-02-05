@@ -41,11 +41,16 @@
 
 struct nvc0_fifo_priv {
 	struct nouveau_fifo base;
+
+	struct work_struct fault;
+	u64 mask;
+
 	struct {
 		struct nouveau_gpuobj *mem[2];
 		int active;
 		wait_queue_head_t wait;
 	} runlist;
+
 	struct {
 		struct nouveau_gpuobj *mem;
 		struct nouveau_vma bar;
@@ -359,6 +364,90 @@ nvc0_fifo_cclass = {
  * PFIFO engine
  ******************************************************************************/
 
+static inline int
+nvc0_fifo_engidx(struct nvc0_fifo_priv *priv, u32 engn)
+{
+	switch (engn) {
+	case NVDEV_ENGINE_GR   : engn = 0; break;
+	case NVDEV_ENGINE_BSP  : engn = 1; break;
+	case NVDEV_ENGINE_PPP  : engn = 2; break;
+	case NVDEV_ENGINE_VP   : engn = 3; break;
+	case NVDEV_ENGINE_COPY0: engn = 4; break;
+	case NVDEV_ENGINE_COPY1: engn = 5; break;
+	default:
+		return -1;
+	}
+
+	return engn;
+}
+
+static inline struct nouveau_engine *
+nvc0_fifo_engine(struct nvc0_fifo_priv *priv, u32 engn)
+{
+	switch (engn) {
+	case 0: engn = NVDEV_ENGINE_GR; break;
+	case 1: engn = NVDEV_ENGINE_BSP; break;
+	case 2: engn = NVDEV_ENGINE_PPP; break;
+	case 3: engn = NVDEV_ENGINE_VP; break;
+	case 4: engn = NVDEV_ENGINE_COPY0; break;
+	case 5: engn = NVDEV_ENGINE_COPY1; break;
+	default:
+		return NULL;
+	}
+
+	return nouveau_engine(priv, engn);
+}
+
+static void
+nvc0_fifo_recover_work(struct work_struct *work)
+{
+	struct nvc0_fifo_priv *priv = container_of(work, typeof(*priv), fault);
+	struct nouveau_object *engine;
+	unsigned long flags;
+	u32 engn, engm = 0;
+	u64 mask, todo;
+
+	spin_lock_irqsave(&priv->base.lock, flags);
+	mask = priv->mask;
+	priv->mask = 0ULL;
+	spin_unlock_irqrestore(&priv->base.lock, flags);
+
+	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn))
+		engm |= 1 << nvc0_fifo_engidx(priv, engn);
+	nv_mask(priv, 0x002630, engm, engm);
+
+	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn)) {
+		if ((engine = (void *)nouveau_engine(priv, engn))) {
+			nv_ofuncs(engine)->fini(engine, false);
+			WARN_ON(nv_ofuncs(engine)->init(engine));
+		}
+	}
+
+	nvc0_fifo_runlist_update(priv);
+	nv_wr32(priv, 0x00262c, engm);
+	nv_mask(priv, 0x002630, engm, 0x00000000);
+}
+
+static void
+nvc0_fifo_recover(struct nvc0_fifo_priv *priv, struct nouveau_engine *engine,
+		  struct nvc0_fifo_chan *chan)
+{
+	struct nouveau_object *engobj = nv_object(engine);
+	u32 chid = chan->base.chid;
+	unsigned long flags;
+
+	nv_error(priv, "%s engine fault on channel %d, recovering...\n",
+		       nv_subdev(engine)->name, chid);
+
+	nv_mask(priv, 0x003004 + (chid * 0x08), 0x00000001, 0x00000000);
+	chan->state = KILLED;
+
+	spin_lock_irqsave(&priv->base.lock, flags);
+	priv->mask |= 1ULL << nv_engidx(engobj);
+	spin_unlock_irqrestore(&priv->base.lock, flags);
+	schedule_work(&priv->fault);
+}
+
 static int
 nvc0_fifo_swmthd(struct nvc0_fifo_priv *priv, u32 chid, u32 mthd, u32 data)
 {
@@ -477,8 +566,8 @@ nvc0_fifo_intr_fault(struct nvc0_fifo_priv *priv, int unit)
 	u32 write  = (stat & 0x00000080);
 	u32 hub    = (stat & 0x00000040);
 	u32 reason = (stat & 0x0000000f);
-	struct nouveau_object *engctx = NULL;
-	struct nouveau_engine *engine;
+	struct nouveau_object *engctx = NULL, *object;
+	struct nouveau_engine *engine = NULL;
 	const struct nouveau_enum *er, *eu, *ec;
 	char erunk[6] = "";
 	char euunk[6] = "";
@@ -527,6 +616,16 @@ nvc0_fifo_intr_fault(struct nvc0_fifo_priv *priv, int unit)
 		 eu ? eu->name : euunk, hub ? "" : "GPC", gpcid, hub ? "" : "/",
 		 ec ? ec->name : ecunk, (u64)inst << 12,
 		 nouveau_client_name(engctx));
+
+	object = engctx;
+	while (object) {
+		switch (nv_mclass(object)) {
+		case NVC0_CHANNEL_IND_CLASS:
+			nvc0_fifo_recover(priv, engine, (void *)object);
+			break;
+		}
+		object = object->parent;
+	}
 
 	nouveau_engctx_put(engctx);
 }
@@ -719,6 +818,8 @@ nvc0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
+
+	INIT_WORK(&priv->fault, nvc0_fifo_recover_work);
 
 	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 0x1000, 0,
 				&priv->runlist.mem[0]);
