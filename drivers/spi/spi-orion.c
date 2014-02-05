@@ -260,11 +260,9 @@ orion_spi_write_read_16bit(struct spi_device *spi,
 static unsigned int
 orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct orion_spi *orion_spi;
 	unsigned int count;
 	int word_len;
 
-	orion_spi = spi_master_get_devdata(spi->master);
 	word_len = spi->bits_per_word;
 	count = xfer->len;
 
