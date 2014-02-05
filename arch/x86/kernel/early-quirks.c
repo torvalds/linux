@@ -520,6 +520,8 @@ static void __init intel_graphics_stolen(int num, int slot, int func)
 			size = stolen_funcs->size(num, slot, func);
 			start = stolen_funcs->base(num, slot, func, size);
 			if (size && start) {
+				printk(KERN_INFO "Reserving Intel graphics stolen memory at 0x%x-0x%x\n",
+				       start, start + (u32)size - 1);
 				/* Mark this space as reserved */
 				e820_add_region(start, size, E820_RESERVED);
 				sanitize_e820_map(e820.map,
