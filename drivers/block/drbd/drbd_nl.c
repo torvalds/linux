@@ -661,11 +661,11 @@ drbd_set_role(struct drbd_device *const device, enum drbd_role new_role, int for
 			put_ldev(device);
 		}
 	} else {
-		/* Called from drbd_adm_set_role only.
-		 * We are still holding the conf_update mutex. */
+		mutex_lock(&device->resource->conf_update);
 		nc = connection->net_conf;
 		if (nc)
 			nc->discard_my_data = 0; /* without copy; single bit op is atomic */
+		mutex_unlock(&device->resource->conf_update);
 
 		set_disk_ro(device->vdisk, false);
 		if (get_ldev(device)) {
