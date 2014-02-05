@@ -1012,6 +1012,22 @@ static inline int hid_hw_output_report(struct hid_device *hdev, __u8 *buf,
 }
 
 /**
+ * hid_output_raw_report - send an output or a feature report to the device
+ *
+ * @hdev: hid device
+ * @buf: raw data to transfer
+ * @len: length of buf
+ * @report_type: HID_FEATURE_REPORT or HID_OUTPUT_REPORT
+ *
+ * @return: count of data transfered, negative if error
+ */
+static inline int hid_output_raw_report(struct hid_device *hdev, __u8 *buf,
+					size_t len, unsigned char report_type)
+{
+	return hdev->hid_output_raw_report(hdev, buf, len, report_type);
+}
+
+/**
  * hid_hw_idle - send idle request to device
  *
  * @hdev: hid device

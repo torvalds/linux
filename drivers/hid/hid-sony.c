@@ -720,7 +720,8 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 static int sixaxis_set_operational_bt(struct hid_device *hdev)
 {
 	unsigned char buf[] = { 0xf4,  0x42, 0x03, 0x00, 0x00 };
-	return hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+	return hid_output_raw_report(hdev, buf, sizeof(buf),
+				     HID_FEATURE_REPORT);
 }
 
 static void buzz_set_leds(struct hid_device *hdev, const __u8 *leds)
@@ -942,8 +943,7 @@ static void sixaxis_state_worker(struct work_struct *work)
 	buf[10] |= sc->led_state[2] << 3;
 	buf[10] |= sc->led_state[3] << 4;
 
-	sc->hdev->hid_output_raw_report(sc->hdev, buf, sizeof(buf),
-					HID_OUTPUT_REPORT);
+	hid_output_raw_report(sc->hdev, buf, sizeof(buf), HID_OUTPUT_REPORT);
 }
 
 static void dualshock4_state_worker(struct work_struct *work)

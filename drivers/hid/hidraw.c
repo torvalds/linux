@@ -153,7 +153,7 @@ static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, 
 		goto out_free;
 	}
 
-	ret = dev->hid_output_raw_report(dev, buf, count, report_type);
+	ret = hid_output_raw_report(dev, buf, count, report_type);
 out_free:
 	kfree(buf);
 out:
