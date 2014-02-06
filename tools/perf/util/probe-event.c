@@ -383,6 +383,51 @@ static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
 	return ret;
 }
 
+static struct ref_reloc_sym *__kernel_get_ref_reloc_sym(void)
+{
+	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
+	struct kmap *kmap;
+
+	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
+	return kmap->ref_reloc_sym;
+}
+
+/* Post processing the probe events */
+static int post_process_probe_trace_events(struct probe_trace_event *tevs,
+					   int ntevs, const char *module,
+					   bool uprobe)
+{
+	struct ref_reloc_sym *reloc_sym;
+	char *tmp;
+	int i;
+
+	if (uprobe)
+		return add_exec_to_probe_trace_events(tevs, ntevs, module);
+
+	/* Note that currently ref_reloc_sym based probe is not for drivers */
+	if (module)
+		return add_module_to_probe_trace_events(tevs, ntevs, module);
+
+	reloc_sym = __kernel_get_ref_reloc_sym();
+	if (!reloc_sym) {
+		pr_warning("Relocated base symbol is not found!\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ntevs; i++) {
+		if (tevs[i].point.address) {
+			tmp = strdup(reloc_sym->name);
+			if (!tmp)
+				return -ENOMEM;
+			free(tevs[i].point.symbol);
+			tevs[i].point.symbol = tmp;
+			tevs[i].point.offset = tevs[i].point.address -
+					       reloc_sym->unrelocated_addr;
+		}
+	}
+	return 0;
+}
+
 static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 {
 	int i;
@@ -411,21 +456,16 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 		return 0;
 	}
 
+	pr_debug("Try to find probe point from debuginfo.\n");
 	/* Searching trace events corresponding to a probe event */
 	ntevs = debuginfo__find_trace_events(dinfo, pev, tevs, max_tevs);
 
 	debuginfo__delete(dinfo);
 
 	if (ntevs > 0) {	/* Succeeded to find trace events */
-		pr_debug("find %d probe_trace_events.\n", ntevs);
-		if (target) {
-			if (pev->uprobes)
-				ret = add_exec_to_probe_trace_events(*tevs,
-						 ntevs, target);
-			else
-				ret = add_module_to_probe_trace_events(*tevs,
-						 ntevs, target);
-		}
+		pr_debug("Found %d probe_trace_events.\n", ntevs);
+		ret = post_process_probe_trace_events(*tevs, ntevs,
+							target, pev->uprobes);
 		if (ret < 0) {
 			clear_probe_trace_events(*tevs, ntevs);
 			zfree(tevs);
