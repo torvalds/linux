@@ -79,6 +79,17 @@ struct symbol {
 void symbol__delete(struct symbol *sym);
 void symbols__delete(struct rb_root *symbols);
 
+/* symbols__for_each_entry - iterate over symbols (rb_root)
+ *
+ * @symbols: the rb_root of symbols
+ * @pos: the 'struct symbol *' to use as a loop cursor
+ * @nd: the 'struct rb_node *' to use as a temporary storage
+ */
+#define symbols__for_each_entry(symbols, pos, nd)			\
+	for (nd = rb_first(symbols);					\
+	     nd && (pos = rb_entry(nd, struct symbol, rb_node));	\
+	     nd = rb_next(nd))
+
 static inline size_t symbol__size(const struct symbol *sym)
 {
 	return sym->end - sym->start + 1;

@@ -70,8 +70,6 @@ static int e_snprintf(char *str, size_t size, const char *format, ...)
 }
 
 static char *synthesize_perf_probe_point(struct perf_probe_point *pp);
-static int convert_name_to_addr(struct perf_probe_event *pev,
-				const char *exec);
 static void clear_probe_trace_event(struct probe_trace_event *tev);
 static struct machine *host_machine;
 
@@ -249,6 +247,14 @@ out:
 	return ret;
 }
 
+static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
+{
+	int i;
+
+	for (i = 0; i < ntevs; i++)
+		clear_probe_trace_event(tevs + i);
+}
+
 #ifdef HAVE_DWARF_SUPPORT
 /* Open new debuginfo of given module */
 static struct debuginfo *open_debuginfo(const char *module)
@@ -353,8 +359,7 @@ static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
 					  int ntevs, const char *exec)
 {
 	int i, ret = 0;
-	unsigned long offset, stext = 0;
-	char buf[32];
+	unsigned long stext = 0;
 
 	if (!exec)
 		return 0;
@@ -365,15 +370,9 @@ static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
 
 	for (i = 0; i < ntevs && ret >= 0; i++) {
 		/* point.address is the addres of point.symbol + point.offset */
-		offset = tevs[i].point.address - stext;
-		tevs[i].point.offset = 0;
-		zfree(&tevs[i].point.symbol);
-		ret = e_snprintf(buf, 32, "0x%lx", offset);
-		if (ret < 0)
-			break;
+		tevs[i].point.address -= stext;
 		tevs[i].point.module = strdup(exec);
-		tevs[i].point.symbol = strdup(buf);
-		if (!tevs[i].point.symbol || !tevs[i].point.module) {
+		if (!tevs[i].point.module) {
 			ret = -ENOMEM;
 			break;
 		}
@@ -450,14 +449,6 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 		}
 	}
 	return 0;
-}
-
-static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
-{
-	int i;
-
-	for (i = 0; i < ntevs; i++)
-		clear_probe_trace_event(tevs + i);
 }
 
 /* Try to find perf_probe_event with debuginfo */
@@ -1586,20 +1577,27 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
 	if (buf == NULL)
 		return NULL;
 
+	len = e_snprintf(buf, MAX_CMDLEN, "%c:%s/%s ", tp->retprobe ? 'r' : 'p',
+			 tev->group, tev->event);
+	if (len <= 0)
+		goto error;
+
+	/* Uprobes must have tp->address and tp->module */
+	if (tev->uprobes && (!tp->address || !tp->module))
+		goto error;
+
+	/* Use the tp->address for uprobes */
 	if (tev->uprobes)
-		len = e_snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s:%s",
-				 tp->retprobe ? 'r' : 'p',
-				 tev->group, tev->event,
-				 tp->module, tp->symbol);
+		ret = e_snprintf(buf + len, MAX_CMDLEN - len, "%s:0x%lx",
+				 tp->module, tp->address);
 	else
-		len = e_snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s%s%s+%lu",
-				 tp->retprobe ? 'r' : 'p',
-				 tev->group, tev->event,
+		ret = e_snprintf(buf + len, MAX_CMDLEN - len, "%s%s%s+%lu",
 				 tp->module ?: "", tp->module ? ":" : "",
 				 tp->symbol, tp->offset);
 
-	if (len <= 0)
+	if (ret <= 0)
 		goto error;
+	len += ret;
 
 	for (i = 0; i < tev->nargs; i++) {
 		ret = synthesize_probe_trace_arg(&tev->args[i], buf + len,
@@ -2150,13 +2148,159 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	return ret;
 }
 
+static char *looking_function_name;
+static int num_matched_functions;
+
+static int probe_function_filter(struct map *map __maybe_unused,
+				      struct symbol *sym)
+{
+	if ((sym->binding == STB_GLOBAL || sym->binding == STB_LOCAL) &&
+	    strcmp(looking_function_name, sym->name) == 0) {
+		num_matched_functions++;
+		return 0;
+	}
+	return 1;
+}
+
+#define strdup_or_goto(str, label)	\
+	({ char *__p = strdup(str); if (!__p) goto label; __p; })
+
+/*
+ * Find probe function addresses from map.
+ * Return an error or the number of found probe_trace_event
+ */
+static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
+					    struct probe_trace_event **tevs,
+					    int max_tevs, const char *target)
+{
+	struct map *map = NULL;
+	struct kmap *kmap = NULL;
+	struct ref_reloc_sym *reloc_sym = NULL;
+	struct symbol *sym;
+	struct rb_node *nd;
+	struct probe_trace_event *tev;
+	struct perf_probe_point *pp = &pev->point;
+	struct probe_trace_point *tp;
+	int ret, i;
+
+	/* Init maps of given executable or kernel */
+	if (pev->uprobes)
+		map = dso__new_map(target);
+	else
+		map = kernel_get_module_map(target);
+	if (!map) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/*
+	 * Load matched symbols: Since the different local symbols may have
+	 * same name but different addresses, this lists all the symbols.
+	 */
+	num_matched_functions = 0;
+	looking_function_name = pp->function;
+	ret = map__load(map, probe_function_filter);
+	if (ret || num_matched_functions == 0) {
+		pr_err("Failed to find symbol %s in %s\n", pp->function,
+			target ? : "kernel");
+		ret = -ENOENT;
+		goto out;
+	} else if (num_matched_functions > max_tevs) {
+		pr_err("Too many functions matched in %s\n",
+			target ? : "kernel");
+		ret = -E2BIG;
+		goto out;
+	}
+
+	if (!pev->uprobes) {
+		kmap = map__kmap(map);
+		reloc_sym = kmap->ref_reloc_sym;
+		if (!reloc_sym) {
+			pr_warning("Relocated base symbol is not found!\n");
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	/* Setup result trace-probe-events */
+	*tevs = zalloc(sizeof(*tev) * num_matched_functions);
+	if (!*tevs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = 0;
+	map__for_each_symbol(map, sym, nd) {
+		tev = (*tevs) + ret;
+		tp = &tev->point;
+		if (ret == num_matched_functions) {
+			pr_warning("Too many symbols are listed. Skip it.\n");
+			break;
+		}
+		ret++;
+
+		if (pp->offset > sym->end - sym->start) {
+			pr_warning("Offset %ld is bigger than the size of %s\n",
+				   pp->offset, sym->name);
+			ret = -ENOENT;
+			goto err_out;
+		}
+		/* Add one probe point */
+		tp->address = map->unmap_ip(map, sym->start) + pp->offset;
+		if (reloc_sym) {
+			tp->symbol = strdup_or_goto(reloc_sym->name, nomem_out);
+			tp->offset = tp->address - reloc_sym->addr;
+		} else {
+			tp->symbol = strdup_or_goto(sym->name, nomem_out);
+			tp->offset = pp->offset;
+		}
+		tp->retprobe = pp->retprobe;
+		if (target)
+			tev->point.module = strdup_or_goto(target, nomem_out);
+		tev->uprobes = pev->uprobes;
+		tev->nargs = pev->nargs;
+		if (tev->nargs) {
+			tev->args = zalloc(sizeof(struct probe_trace_arg) *
+					   tev->nargs);
+			if (tev->args == NULL)
+				goto nomem_out;
+		}
+		for (i = 0; i < tev->nargs; i++) {
+			if (pev->args[i].name)
+				tev->args[i].name =
+					strdup_or_goto(pev->args[i].name,
+							nomem_out);
+
+			tev->args[i].value = strdup_or_goto(pev->args[i].var,
+							    nomem_out);
+			if (pev->args[i].type)
+				tev->args[i].type =
+					strdup_or_goto(pev->args[i].type,
+							nomem_out);
+		}
+	}
+
+out:
+	if (map && pev->uprobes) {
+		/* Only when using uprobe(exec) map needs to be released */
+		dso__delete(map->dso);
+		map__delete(map);
+	}
+	return ret;
+
+nomem_out:
+	ret = -ENOMEM;
+err_out:
+	clear_probe_trace_events(*tevs, num_matched_functions);
+	zfree(tevs);
+	goto out;
+}
+
 static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 					  struct probe_trace_event **tevs,
 					  int max_tevs, const char *target)
 {
-	struct symbol *sym;
-	int ret, i;
-	struct probe_trace_event *tev;
+	int ret;
 
 	if (pev->uprobes && !pev->group) {
 		/* Replace group name if not given */
@@ -2172,91 +2316,7 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 	if (ret != 0)
 		return ret;	/* Found in debuginfo or got an error */
 
-	if (pev->uprobes) {
-		ret = convert_name_to_addr(pev, target);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* Allocate trace event buffer */
-	tev = *tevs = zalloc(sizeof(struct probe_trace_event));
-	if (tev == NULL)
-		return -ENOMEM;
-
-	/* Copy parameters */
-	tev->point.symbol = strdup(pev->point.function);
-	if (tev->point.symbol == NULL) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	if (target) {
-		tev->point.module = strdup(target);
-		if (tev->point.module == NULL) {
-			ret = -ENOMEM;
-			goto error;
-		}
-	}
-
-	tev->point.offset = pev->point.offset;
-	tev->point.retprobe = pev->point.retprobe;
-	tev->nargs = pev->nargs;
-	tev->uprobes = pev->uprobes;
-
-	if (tev->nargs) {
-		tev->args = zalloc(sizeof(struct probe_trace_arg)
-				   * tev->nargs);
-		if (tev->args == NULL) {
-			ret = -ENOMEM;
-			goto error;
-		}
-		for (i = 0; i < tev->nargs; i++) {
-			if (pev->args[i].name) {
-				tev->args[i].name = strdup(pev->args[i].name);
-				if (tev->args[i].name == NULL) {
-					ret = -ENOMEM;
-					goto error;
-				}
-			}
-			tev->args[i].value = strdup(pev->args[i].var);
-			if (tev->args[i].value == NULL) {
-				ret = -ENOMEM;
-				goto error;
-			}
-			if (pev->args[i].type) {
-				tev->args[i].type = strdup(pev->args[i].type);
-				if (tev->args[i].type == NULL) {
-					ret = -ENOMEM;
-					goto error;
-				}
-			}
-		}
-	}
-
-	if (pev->uprobes)
-		return 1;
-
-	/* Currently just checking function name from symbol map */
-	sym = __find_kernel_function_by_name(tev->point.symbol, NULL);
-	if (!sym) {
-		pr_warning("Kernel symbol \'%s\' not found.\n",
-			   tev->point.symbol);
-		ret = -ENOENT;
-		goto error;
-	} else if (tev->point.offset > sym->end - sym->start) {
-		pr_warning("Offset specified is greater than size of %s\n",
-			   tev->point.symbol);
-		ret = -ENOENT;
-		goto error;
-
-	}
-
-	return 1;
-error:
-	clear_probe_trace_event(tev);
-	free(tev);
-	*tevs = NULL;
-	return ret;
+	return find_probe_trace_events_from_map(pev, tevs, max_tevs, target);
 }
 
 struct __event_package {
@@ -2461,7 +2521,7 @@ static struct strfilter *available_func_filter;
 static int filter_available_functions(struct map *map __maybe_unused,
 				      struct symbol *sym)
 {
-	if (sym->binding == STB_GLOBAL &&
+	if ((sym->binding == STB_GLOBAL || sym->binding == STB_LOCAL) &&
 	    strfilter__compare(available_func_filter, sym->name))
 		return 0;
 	return 1;
@@ -2509,95 +2569,3 @@ end:
 	return ret;
 }
 
-/*
- * uprobe_events only accepts address:
- * Convert function and any offset to address
- */
-static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
-{
-	struct perf_probe_point *pp = &pev->point;
-	struct symbol *sym;
-	struct map *map = NULL;
-	char *function = NULL;
-	int ret = -EINVAL;
-	unsigned long long vaddr = 0;
-
-	if (!pp->function) {
-		pr_warning("No function specified for uprobes");
-		goto out;
-	}
-
-	function = strdup(pp->function);
-	if (!function) {
-		pr_warning("Failed to allocate memory by strdup.\n");
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	map = dso__new_map(exec);
-	if (!map) {
-		pr_warning("Cannot find appropriate DSO for %s.\n", exec);
-		goto out;
-	}
-	available_func_filter = strfilter__new(function, NULL);
-	if (map__load(map, filter_available_functions)) {
-		pr_err("Failed to load map.\n");
-		goto out;
-	}
-
-	sym = map__find_symbol_by_name(map, function, NULL);
-	if (!sym) {
-		pr_warning("Cannot find %s in DSO %s\n", function, exec);
-		goto out;
-	}
-
-	if (map->start > sym->start)
-		vaddr = map->start;
-	vaddr += sym->start + pp->offset + map->pgoff;
-	pp->offset = 0;
-
-	if (!pev->event) {
-		pev->event = function;
-		function = NULL;
-	}
-	if (!pev->group) {
-		char *ptr1, *ptr2, *exec_copy;
-
-		pev->group = zalloc(sizeof(char *) * 64);
-		exec_copy = strdup(exec);
-		if (!exec_copy) {
-			ret = -ENOMEM;
-			pr_warning("Failed to copy exec string.\n");
-			goto out;
-		}
-
-		ptr1 = strdup(basename(exec_copy));
-		if (ptr1) {
-			ptr2 = strpbrk(ptr1, "-._");
-			if (ptr2)
-				*ptr2 = '\0';
-			e_snprintf(pev->group, 64, "%s_%s", PERFPROBE_GROUP,
-					ptr1);
-			free(ptr1);
-		}
-		free(exec_copy);
-	}
-	free(pp->function);
-	pp->function = zalloc(sizeof(char *) * MAX_PROBE_ARGS);
-	if (!pp->function) {
-		ret = -ENOMEM;
-		pr_warning("Failed to allocate memory by zalloc.\n");
-		goto out;
-	}
-	e_snprintf(pp->function, MAX_PROBE_ARGS, "0x%llx", vaddr);
-	ret = 0;
-
-out:
-	if (map) {
-		dso__delete(map->dso);
-		map__delete(map);
-	}
-	if (function)
-		free(function);
-	return ret;
-}
