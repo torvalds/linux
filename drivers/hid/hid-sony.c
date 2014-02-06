@@ -1266,11 +1266,18 @@ static void dualshock4_state_worker(struct work_struct *work)
 	struct hid_device *hdev = sc->hdev;
 	int offset;
 
-	__u8 buf[32] = { 0 };
+	__u8 buf[78] = { 0 };
 
-	buf[0] = 0x05;
-	buf[1] = 0x03;
-	offset = 4;
+	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
+		buf[0] = 0x05;
+		buf[1] = 0x03;
+		offset = 4;
+	} else {
+		buf[0] = 0x11;
+		buf[1] = 0xB0;
+		buf[3] = 0x0F;
+		offset = 6;
+	}
 
 #ifdef CONFIG_SONY_FF
 	buf[offset++] = sc->right;
@@ -1283,7 +1290,11 @@ static void dualshock4_state_worker(struct work_struct *work)
 	buf[offset++] = sc->led_state[1];
 	buf[offset++] = sc->led_state[2];
 
-	hid_hw_output_report(hdev, buf, sizeof(buf));
+	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB)
+		hid_hw_output_report(hdev, buf, 32);
+	else
+		hid_hw_raw_request(hdev, 0x11, buf, 78,
+				HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
 }
 
 #ifdef CONFIG_SONY_FF
