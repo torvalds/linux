@@ -864,10 +864,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	dspi = spi_master_get_devdata(master);
-	if (dspi == NULL) {
-		ret = -ENOENT;
-		goto free_master;
-	}
 
 	if (dev_get_platdata(&pdev->dev)) {
 		pdata = dev_get_platdata(&pdev->dev);
@@ -908,10 +904,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 
 	dspi->bitbang.master = master;
-	if (dspi->bitbang.master == NULL) {
-		ret = -ENODEV;
-		goto free_master;
-	}
 
 	dspi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dspi->clk)) {
