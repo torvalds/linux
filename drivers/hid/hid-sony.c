@@ -1402,6 +1402,11 @@ static int sony_battery_probe(struct sony_sc *sc)
 	struct hid_device *hdev = sc->hdev;
 	int ret;
 
+	/* Set the default battery level to 100% to avoid low battery warnings
+	 * if the battery is polled before the first device report is received.
+	 */
+	sc->battery_capacity = 100;
+
 	power_id = (unsigned long)atomic_inc_return(&power_id_seq);
 
 	sc->battery.properties = sony_battery_props;
