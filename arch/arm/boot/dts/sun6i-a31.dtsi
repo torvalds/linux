@@ -95,7 +95,7 @@
 
 		cpu: cpu@01c20050 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-cpu-clk";
+			compatible = "allwinner,sun4i-a10-cpu-clk";
 			reg = <0x01c20050 0x4>;
 
 			/*
@@ -110,7 +110,7 @@
 
 		axi: axi@01c20050 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-axi-clk";
+			compatible = "allwinner,sun4i-a10-axi-clk";
 			reg = <0x01c20050 0x4>;
 			clocks = <&cpu>;
 			clock-output-names = "axi";
@@ -126,7 +126,7 @@
 
 		ahb1: ahb1@01c20054 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-ahb-clk";
+			compatible = "allwinner,sun4i-a10-ahb-clk";
 			reg = <0x01c20054 0x4>;
 			clocks = <&ahb1_mux>;
 			clock-output-names = "ahb1";
@@ -155,7 +155,7 @@
 
 		apb1: apb1@01c20054 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-apb0-clk";
+			compatible = "allwinner,sun4i-a10-apb0-clk";
 			reg = <0x01c20054 0x4>;
 			clocks = <&ahb1>;
 			clock-output-names = "apb1";
@@ -173,7 +173,7 @@
 
 		apb2_mux: apb2_mux@01c20058 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-apb1-mux-clk";
+			compatible = "allwinner,sun4i-a10-apb1-mux-clk";
 			reg = <0x01c20058 0x4>;
 			clocks = <&osc32k>, <&osc24M>, <&pll6>, <&pll6>;
 			clock-output-names = "apb2_mux";
