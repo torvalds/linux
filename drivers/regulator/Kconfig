@@ -513,6 +513,15 @@ config REGULATOR_TPS65217
 	  voltage regulators. It supports software based voltage control
 	  for different voltage domains
 
+config REGULATOR_TPS65218
+	tristate "TI TPS65218 Power regulators"
+	depends on MFD_TPS65218
+	help
+	  This driver supports TPS65218 voltage regulator chips. TPS65218
+	  provides six step-down converters and one general-purpose LDO
+	  voltage regulators. It supports software based voltage control
+	  for different voltage domains
+
 config REGULATOR_TPS6524X
 	tristate "TI TPS6524X Power regulators"
 	depends on SPI
