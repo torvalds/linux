@@ -265,7 +265,7 @@ EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_register);
  */
 void devm_acpi_dma_controller_free(struct device *dev)
 {
-	WARN_ON(devres_destroy(dev, devm_acpi_dma_release, NULL, NULL));
+	WARN_ON(devres_release(dev, devm_acpi_dma_release, NULL, NULL));
 }
 EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_free);
 
