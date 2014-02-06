@@ -376,7 +376,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
 	/* install notify handler */
 	if (!(newfunc->flags & FUNC_HAS_DCK))
-		acpi_install_hotplug_notify_handler(handle, NULL);
+		acpi_install_hotplug_notify_handler(handle);
 
 	return AE_OK;
 }

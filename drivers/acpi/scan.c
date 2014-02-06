@@ -577,10 +577,10 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 	acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
 }
 
-void acpi_install_hotplug_notify_handler(acpi_handle handle, void *data)
+void acpi_install_hotplug_notify_handler(acpi_handle handle)
 {
 	acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-				    acpi_hotplug_notify_cb, data);
+				    acpi_hotplug_notify_cb, NULL);
 }
 
 void acpi_remove_hotplug_notify_handler(acpi_handle handle)
@@ -2040,7 +2040,7 @@ static void acpi_scan_init_hotplug(struct acpi_device *adev)
 		if (!handler)
 			continue;
 
-		acpi_install_hotplug_notify_handler(adev->handle, handler);
+		acpi_install_hotplug_notify_handler(adev->handle);
 		adev->flags.hotplug_notify = true;
 		break;
 	}
