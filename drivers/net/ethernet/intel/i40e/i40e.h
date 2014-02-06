@@ -86,12 +86,12 @@
 
 #define I40E_NVM_VERSION_LO_SHIFT  0
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
-#define I40E_NVM_VERSION_HI_SHIFT  8
-#define I40E_NVM_VERSION_HI_MASK   (0xff << I40E_NVM_VERSION_HI_SHIFT)
+#define I40E_NVM_VERSION_HI_SHIFT  12
+#define I40E_NVM_VERSION_HI_MASK   (0xf << I40E_NVM_VERSION_HI_SHIFT)
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
-#define I40E_CURRENT_NVM_VERSION_LO 0x30
+#define I40E_CURRENT_NVM_VERSION_LO 0x40
 
 /* magic for getting defines into strings */
 #define STRINGIFY(foo)  #foo
@@ -489,10 +489,10 @@ static inline char *i40e_fw_version_str(struct i40e_hw *hw)
 		 "f%d.%d a%d.%d n%02x.%02x e%08x",
 		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver,
 		 hw->aq.api_maj_ver, hw->aq.api_min_ver,
-		 (hw->nvm.version & I40E_NVM_VERSION_HI_MASK)
-						>> I40E_NVM_VERSION_HI_SHIFT,
-		 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK)
-						>> I40E_NVM_VERSION_LO_SHIFT,
+		 (hw->nvm.version & I40E_NVM_VERSION_HI_MASK) >>
+			I40E_NVM_VERSION_HI_SHIFT,
+		 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK) >>
+			I40E_NVM_VERSION_LO_SHIFT,
 		 hw->nvm.eetrack);
 
 	return buf;
