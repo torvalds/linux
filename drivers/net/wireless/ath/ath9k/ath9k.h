@@ -30,7 +30,6 @@
 #include "spectral.h"
 
 struct ath_node;
-struct ath_rate_table;
 
 extern struct ieee80211_ops ath9k_ops;
 extern int ath9k_modparam_nohwcrypt;
@@ -149,6 +148,11 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define IS_HT_RATE(rate)   (rate & 0x80)
 #define IS_CCK_RATE(rate)  ((rate >= 0x18) && (rate <= 0x1e))
 #define IS_OFDM_RATE(rate) ((rate >= 0x8) && (rate <= 0xf))
+
+enum {
+       WLAN_RC_PHY_OFDM,
+       WLAN_RC_PHY_CCK,
+};
 
 struct ath_txq {
 	int mac80211_qnum; /* mac80211 queue number, -1 means not mac80211 Q */
