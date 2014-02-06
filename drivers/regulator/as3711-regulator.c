@@ -221,7 +221,6 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct as3711 *as3711 = dev_get_drvdata(pdev->dev.parent);
-	struct regulator_init_data *reg_data;
 	struct regulator_config config = {.dev = &pdev->dev,};
 	struct as3711_regulator *reg = NULL;
 	struct as3711_regulator *regs;
@@ -252,16 +251,10 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 	}
 
 	for (id = 0, ri = as3711_reg_info; id < AS3711_REGULATOR_NUM; ++id, ri++) {
-		reg_data = pdata->init_data[id];
-
-		/* No need to register if there is no regulator data */
-		if (!reg_data)
-			continue;
-
 		reg = &regs[id];
 		reg->reg_info = ri;
 
-		config.init_data = reg_data;
+		config.init_data = pdata->init_data[id];
 		config.driver_data = reg;
 		config.regmap = as3711->regmap;
 		config.of_node = of_node[id];
