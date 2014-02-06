@@ -932,7 +932,7 @@ int snd_hda_bus_new(struct snd_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_hda_bus_new);
 
-#ifdef CONFIG_SND_HDA_GENERIC
+#if IS_ENABLED(CONFIG_SND_HDA_GENERIC)
 #define is_generic_config(codec) \
 	(codec->modelname && !strcmp(codec->modelname, "generic"))
 #else
@@ -1570,7 +1570,7 @@ int snd_hda_codec_update_widgets(struct hda_codec *codec)
 EXPORT_SYMBOL_GPL(snd_hda_codec_update_widgets);
 
 
-#ifdef CONFIG_SND_HDA_CODEC_HDMI
+#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 /* if all audio out widgets are digital, let's assume the codec as a HDMI/DP */
 static bool is_likely_hdmi_codec(struct hda_codec *codec)
 {
@@ -1622,7 +1622,7 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 		unload_parser(codec); /* to be sure */
 		if (is_likely_hdmi_codec(codec))
 			patch = load_parser(codec, snd_hda_parse_hdmi_codec);
-#ifdef CONFIG_SND_HDA_GENERIC
+#if IS_ENABLED(CONFIG_SND_HDA_GENERIC)
 		if (!patch)
 			patch = load_parser(codec, snd_hda_parse_generic_codec);
 #endif
