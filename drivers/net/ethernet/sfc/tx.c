@@ -429,7 +429,9 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	}
 
 	/* Transfer ownership of the skb to the final buffer */
+#ifdef EFX_USE_PIO
 finish_packet:
+#endif
 	buffer->skb = skb;
 	buffer->flags = EFX_TX_BUF_SKB | dma_flags;
 
