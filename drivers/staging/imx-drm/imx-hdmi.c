@@ -463,22 +463,27 @@ static void hdmi_video_sample(struct imx_hdmi *hdmi)
 
 static int is_color_space_conversion(struct imx_hdmi *hdmi)
 {
-	return (hdmi->hdmi_data.enc_in_format !=
-		hdmi->hdmi_data.enc_out_format);
+	return hdmi->hdmi_data.enc_in_format != hdmi->hdmi_data.enc_out_format;
 }
 
 static int is_color_space_decimation(struct imx_hdmi *hdmi)
 {
-	return ((hdmi->hdmi_data.enc_out_format == YCBCR422_8BITS) &&
-		(hdmi->hdmi_data.enc_in_format == RGB ||
-		hdmi->hdmi_data.enc_in_format == YCBCR444));
+	if (hdmi->hdmi_data.enc_out_format != YCBCR422_8BITS)
+		return 0;
+	if (hdmi->hdmi_data.enc_in_format == RGB ||
+	    hdmi->hdmi_data.enc_in_format == YCBCR444)
+		return 1;
+	return 0;
 }
 
 static int is_color_space_interpolation(struct imx_hdmi *hdmi)
 {
-	return ((hdmi->hdmi_data.enc_in_format == YCBCR422_8BITS) &&
-		(hdmi->hdmi_data.enc_out_format == RGB ||
-		hdmi->hdmi_data.enc_out_format == YCBCR444));
+	if (hdmi->hdmi_data.enc_in_format != YCBCR422_8BITS)
+		return 0;
+	if (hdmi->hdmi_data.enc_out_format == RGB ||
+	    hdmi->hdmi_data.enc_out_format == YCBCR444)
+		return 1;
+	return 0;
 }
 
 static void imx_hdmi_update_csc_coeffs(struct imx_hdmi *hdmi)
