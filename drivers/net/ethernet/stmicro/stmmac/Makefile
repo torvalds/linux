@@ -1,4 +1,5 @@
 obj-$(CONFIG_STMMAC_ETH) += stmmac.o
+stmmac-$(CONFIG_ARCH_SOCFPGA) += dwmac-socfpga.o
 stmmac-$(CONFIG_STMMAC_PLATFORM) += stmmac_platform.o
 stmmac-$(CONFIG_STMMAC_PCI) += stmmac_pci.o
 stmmac-$(CONFIG_DWMAC_SUNXI) += dwmac-sunxi.o
