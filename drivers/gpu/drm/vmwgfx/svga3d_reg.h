@@ -2583,4 +2583,28 @@ typedef union {
    float  f;
 } SVGA3dDevCapResult;
 
+typedef enum {
+   SVGA3DCAPS_RECORD_UNKNOWN        = 0,
+   SVGA3DCAPS_RECORD_DEVCAPS_MIN    = 0x100,
+   SVGA3DCAPS_RECORD_DEVCAPS        = 0x100,
+   SVGA3DCAPS_RECORD_DEVCAPS_MAX    = 0x1ff,
+} SVGA3dCapsRecordType;
+
+typedef
+struct SVGA3dCapsRecordHeader {
+   uint32 length;
+   SVGA3dCapsRecordType type;
+}
+SVGA3dCapsRecordHeader;
+
+typedef
+struct SVGA3dCapsRecord {
+   SVGA3dCapsRecordHeader header;
+   uint32 data[1];
+}
+SVGA3dCapsRecord;
+
+
+typedef uint32 SVGA3dCapPair[2];
+
 #endif /* _SVGA3D_REG_H_ */
