@@ -561,7 +561,7 @@ static int _show_one_line(FILE *fp, int l, bool skip, bool show_num)
 static int __show_line_range(struct line_range *lr, const char *module)
 {
 	int l = 1;
-	struct line_node *ln;
+	struct int_node *ln;
 	struct debuginfo *dinfo;
 	FILE *fp;
 	int ret;
@@ -614,8 +614,8 @@ static int __show_line_range(struct line_range *lr, const char *module)
 			goto end;
 	}
 
-	list_for_each_entry(ln, &lr->line_list, list) {
-		for (; ln->line > l; l++) {
+	intlist__for_each(ln, lr->line_list) {
+		for (; ln->i > l; l++) {
 			ret = show_one_line(fp, l - lr->offset);
 			if (ret < 0)
 				goto end;
@@ -775,24 +775,22 @@ int show_available_vars(struct perf_probe_event *pevs __maybe_unused,
 
 void line_range__clear(struct line_range *lr)
 {
-	struct line_node *ln;
-
 	free(lr->function);
 	free(lr->file);
 	free(lr->path);
 	free(lr->comp_dir);
-	while (!list_empty(&lr->line_list)) {
-		ln = list_first_entry(&lr->line_list, struct line_node, list);
-		list_del(&ln->list);
-		free(ln);
-	}
+	intlist__delete(lr->line_list);
 	memset(lr, 0, sizeof(*lr));
 }
 
-void line_range__init(struct line_range *lr)
+int line_range__init(struct line_range *lr)
 {
 	memset(lr, 0, sizeof(*lr));
-	INIT_LIST_HEAD(&lr->line_list);
+	lr->line_list = intlist__new(NULL);
+	if (!lr->line_list)
+		return -ENOMEM;
+	else
+		return 0;
 }
 
 static int parse_line_num(char **ptr, int *val, const char *what)

@@ -35,71 +35,13 @@
 #include <linux/bitops.h>
 #include "event.h"
 #include "debug.h"
+#include "intlist.h"
 #include "util.h"
 #include "symbol.h"
 #include "probe-finder.h"
 
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64
-
-/* Line number list operations */
-
-/* Add a line to line number list */
-static int line_list__add_line(struct list_head *head, int line)
-{
-	struct line_node *ln;
-	struct list_head *p;
-
-	/* Reverse search, because new line will be the last one */
-	list_for_each_entry_reverse(ln, head, list) {
-		if (ln->line < line) {
-			p = &ln->list;
-			goto found;
-		} else if (ln->line == line)	/* Already exist */
-			return 1;
-	}
-	/* List is empty, or the smallest entry */
-	p = head;
-found:
-	pr_debug("line list: add a line %u\n", line);
-	ln = zalloc(sizeof(struct line_node));
-	if (ln == NULL)
-		return -ENOMEM;
-	ln->line = line;
-	INIT_LIST_HEAD(&ln->list);
-	list_add(&ln->list, p);
-	return 0;
-}
-
-/* Check if the line in line number list */
-static int line_list__has_line(struct list_head *head, int line)
-{
-	struct line_node *ln;
-
-	/* Reverse search, because new line will be the last one */
-	list_for_each_entry(ln, head, list)
-		if (ln->line == line)
-			return 1;
-
-	return 0;
-}
-
-/* Init line number list */
-static void line_list__init(struct list_head *head)
-{
-	INIT_LIST_HEAD(head);
-}
-
-/* Free line number list */
-static void line_list__free(struct list_head *head)
-{
-	struct line_node *ln;
-	while (!list_empty(head)) {
-		ln = list_first_entry(head, struct line_node, list);
-		list_del(&ln->list);
-		free(ln);
-	}
-}
 
 /* Dwarf FL wrappers */
 static char *debuginfo_path;	/* Currently dummy */
@@ -880,7 +822,7 @@ static int find_probe_point_by_line(struct probe_finder *pf)
 }
 
 /* Find lines which match lazy pattern */
-static int find_lazy_match_lines(struct list_head *head,
+static int find_lazy_match_lines(struct intlist *list,
 				 const char *fname, const char *pat)
 {
 	FILE *fp;
@@ -901,7 +843,7 @@ static int find_lazy_match_lines(struct list_head *head,
 			line[len - 1] = '\0';
 
 		if (strlazymatch(line, pat)) {
-			line_list__add_line(head, linenum);
+			intlist__add(list, linenum);
 			count++;
 		}
 		linenum++;
@@ -924,7 +866,7 @@ static int probe_point_lazy_walker(const char *fname, int lineno,
 	Dwarf_Die *sc_die, die_mem;
 	int ret;
 
-	if (!line_list__has_line(&pf->lcache, lineno) ||
+	if (!intlist__has_entry(pf->lcache, lineno) ||
 	    strtailcmp(fname, pf->fname) != 0)
 		return 0;
 
@@ -952,9 +894,9 @@ static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
 	int ret = 0;
 
-	if (list_empty(&pf->lcache)) {
+	if (intlist__empty(pf->lcache)) {
 		/* Matching lazy line pattern */
-		ret = find_lazy_match_lines(&pf->lcache, pf->fname,
+		ret = find_lazy_match_lines(pf->lcache, pf->fname,
 					    pf->pev->point.lazy_line);
 		if (ret <= 0)
 			return ret;
@@ -1096,7 +1038,9 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 #endif
 
 	off = 0;
-	line_list__init(&pf->lcache);
+	pf->lcache = intlist__new(NULL);
+	if (!pf->lcache)
+		return -ENOMEM;
 
 	/* Fastpath: lookup by function name from .debug_pubnames section */
 	if (pp->function) {
@@ -1149,7 +1093,8 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 	}
 
 found:
-	line_list__free(&pf->lcache);
+	intlist__delete(pf->lcache);
+	pf->lcache = NULL;
 
 	return ret;
 }
@@ -1537,7 +1482,7 @@ static int line_range_add_line(const char *src, unsigned int lineno,
 		if (lr->path == NULL)
 			return -ENOMEM;
 	}
-	return line_list__add_line(&lr->line_list, lineno);
+	return intlist__add(lr->line_list, lineno);
 }
 
 static int line_range_walk_cb(const char *fname, int lineno,
@@ -1565,7 +1510,7 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 
 	/* Update status */
 	if (ret >= 0)
-		if (!list_empty(&lf->lr->line_list))
+		if (!intlist__empty(lf->lr->line_list))
 			ret = lf->found = 1;
 		else
 			ret = 0;	/* Lines are not found */

@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "util.h"
+#include "intlist.h"
 #include "probe-event.h"
 
 #define MAX_PROBE_BUFFER	1024
@@ -66,7 +67,7 @@ struct probe_finder {
 	const char		*fname;		/* Real file name */
 	Dwarf_Die		cu_die;		/* Current CU */
 	Dwarf_Die		sp_die;
-	struct list_head	lcache;		/* Line cache for lazy match */
+	struct intlist		*lcache;	/* Line cache for lazy match */
 
 	/* For variable searching */
 #if _ELFUTILS_PREREQ(0, 142)
