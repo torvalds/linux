@@ -248,6 +248,18 @@ static struct debuginfo *open_debuginfo(const char *module)
 	return debuginfo__new(path);
 }
 
+static struct ref_reloc_sym *__kernel_get_ref_reloc_sym(void)
+{
+	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
+	struct kmap *kmap;
+
+	if (map__load(host_machine->vmlinux_maps[MAP__FUNCTION], NULL) < 0)
+		return NULL;
+
+	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
+	return kmap->ref_reloc_sym;
+}
+
 /*
  * Convert trace point to probe point with debuginfo
  * Currently only handles kprobes.
@@ -256,18 +268,27 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 					struct perf_probe_point *pp)
 {
 	struct symbol *sym;
+	struct ref_reloc_sym *reloc_sym;
 	struct map *map;
-	u64 addr;
+	u64 addr = 0;
 	int ret = -ENOENT;
 	struct debuginfo *dinfo;
 
-	sym = __find_kernel_function_by_name(tp->symbol, &map);
-	if (sym) {
-		addr = map->unmap_ip(map, sym->start + tp->offset);
+	/* ref_reloc_sym is just a label. Need a special fix*/
+	reloc_sym = __kernel_get_ref_reloc_sym();
+	if (reloc_sym && strcmp(tp->symbol, reloc_sym->name) == 0)
+		addr = reloc_sym->unrelocated_addr + tp->offset;
+	else {
+		sym = __find_kernel_function_by_name(tp->symbol, &map);
+		if (sym)
+			addr = map->unmap_ip(map, sym->start + tp->offset) -
+				map->reloc;
+	}
+	if (addr) {
 		pr_debug("try to find %s+%ld@%" PRIx64 "\n", tp->symbol,
 			 tp->offset, addr);
 
-		dinfo = debuginfo__new_online_kernel(addr);
+		dinfo = open_debuginfo(tp->module);
 		if (dinfo) {
 			ret = debuginfo__find_probe_point(dinfo,
 						 (unsigned long)addr, pp);
@@ -381,15 +402,6 @@ static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
 
 	free(tmp);
 	return ret;
-}
-
-static struct ref_reloc_sym *__kernel_get_ref_reloc_sym(void)
-{
-	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
-	struct kmap *kmap;
-
-	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
-	return kmap->ref_reloc_sym;
 }
 
 /* Post processing the probe events */

@@ -89,79 +89,6 @@ error:
 	return -ENOENT;
 }
 
-#if _ELFUTILS_PREREQ(0, 148)
-/* This method is buggy if elfutils is older than 0.148 */
-static int __linux_kernel_find_elf(Dwfl_Module *mod,
-				   void **userdata,
-				   const char *module_name,
-				   Dwarf_Addr base,
-				   char **file_name, Elf **elfp)
-{
-	int fd;
-	const char *path = kernel_get_module_path(module_name);
-
-	pr_debug2("Use file %s for %s\n", path, module_name);
-	if (path) {
-		fd = open(path, O_RDONLY);
-		if (fd >= 0) {
-			*file_name = strdup(path);
-			return fd;
-		}
-	}
-	/* If failed, try to call standard method */
-	return dwfl_linux_kernel_find_elf(mod, userdata, module_name, base,
-					  file_name, elfp);
-}
-
-static const Dwfl_Callbacks kernel_callbacks = {
-	.find_debuginfo = dwfl_standard_find_debuginfo,
-	.debuginfo_path = &debuginfo_path,
-
-	.find_elf = __linux_kernel_find_elf,
-	.section_address = dwfl_linux_kernel_module_section_address,
-};
-
-/* Get a Dwarf from live kernel image */
-static int debuginfo__init_online_kernel_dwarf(struct debuginfo *dbg,
-					       Dwarf_Addr addr)
-{
-	dbg->dwfl = dwfl_begin(&kernel_callbacks);
-	if (!dbg->dwfl)
-		return -EINVAL;
-
-	/* Load the kernel dwarves: Don't care the result here */
-	dwfl_linux_kernel_report_kernel(dbg->dwfl);
-	dwfl_linux_kernel_report_modules(dbg->dwfl);
-
-	dbg->dbg = dwfl_addrdwarf(dbg->dwfl, addr, &dbg->bias);
-	/* Here, check whether we could get a real dwarf */
-	if (!dbg->dbg) {
-		pr_debug("Failed to find kernel dwarf at %lx\n",
-			 (unsigned long)addr);
-		dwfl_end(dbg->dwfl);
-		memset(dbg, 0, sizeof(*dbg));
-		return -ENOENT;
-	}
-
-	return 0;
-}
-#else
-/* With older elfutils, this just support kernel module... */
-static int debuginfo__init_online_kernel_dwarf(struct debuginfo *dbg,
-					       Dwarf_Addr addr __maybe_unused)
-{
-	const char *path = kernel_get_module_path("kernel");
-
-	if (!path) {
-		pr_err("Failed to find vmlinux path\n");
-		return -ENOENT;
-	}
-
-	pr_debug2("Use file %s for debuginfo\n", path);
-	return debuginfo__init_offline_dwarf(dbg, path);
-}
-#endif
-
 struct debuginfo *debuginfo__new(const char *path)
 {
 	struct debuginfo *dbg = zalloc(sizeof(*dbg));
@@ -169,19 +96,6 @@ struct debuginfo *debuginfo__new(const char *path)
 		return NULL;
 
 	if (debuginfo__init_offline_dwarf(dbg, path) < 0)
-		zfree(&dbg);
-
-	return dbg;
-}
-
-struct debuginfo *debuginfo__new_online_kernel(unsigned long addr)
-{
-	struct debuginfo *dbg = zalloc(sizeof(*dbg));
-
-	if (!dbg)
-		return NULL;
-
-	if (debuginfo__init_online_kernel_dwarf(dbg, (Dwarf_Addr)addr) < 0)
 		zfree(&dbg);
 
 	return dbg;

@@ -31,7 +31,6 @@ struct debuginfo {
 };
 
 extern struct debuginfo *debuginfo__new(const char *path);
-extern struct debuginfo *debuginfo__new_online_kernel(unsigned long addr);
 extern void debuginfo__delete(struct debuginfo *dbg);
 
 /* Find probe_trace_events specified by perf_probe_event from debuginfo */
