@@ -1530,7 +1530,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 		vcpu->arch.trap = 0;
 
 		if (vcpu->arch.ceded) {
-			if (ret != RESUME_GUEST)
+			if (!is_kvmppc_resume_guest(ret))
 				kvmppc_end_cede(vcpu);
 			else
 				kvmppc_set_timer(vcpu);
@@ -1541,7 +1541,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	vc->vcore_state = VCORE_INACTIVE;
 	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
 				 arch.run_list) {
-		if (vcpu->arch.ret != RESUME_GUEST) {
+		if (!is_kvmppc_resume_guest(vcpu->arch.ret)) {
 			kvmppc_remove_runnable(vc, vcpu);
 			wake_up(&vcpu->arch.cpu_run);
 		}
@@ -1731,7 +1731,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
 			srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 		}
-	} while (r == RESUME_GUEST);
+	} while (is_kvmppc_resume_guest(r));
 
  out:
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
