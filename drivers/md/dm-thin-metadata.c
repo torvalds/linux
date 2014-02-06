@@ -1489,6 +1489,23 @@ bool dm_thin_changed_this_transaction(struct dm_thin_device *td)
 	return r;
 }
 
+bool dm_pool_changed_this_transaction(struct dm_pool_metadata *pmd)
+{
+	bool r = false;
+	struct dm_thin_device *td, *tmp;
+
+	down_read(&pmd->root_lock);
+	list_for_each_entry_safe(td, tmp, &pmd->thin_devices, list) {
+		if (td->changed) {
+			r = td->changed;
+			break;
+		}
+	}
+	up_read(&pmd->root_lock);
+
+	return r;
+}
+
 bool dm_thin_aborted_changes(struct dm_thin_device *td)
 {
 	bool r;
