@@ -7581,11 +7581,10 @@ M:	Security Officers <security@kernel.org>
 S:	Supported
 
 SELINUX SECURITY MODULE
-M:	Stephen Smalley <sds@tycho.nsa.gov>
-M:	James Morris <james.l.morris@oracle.com>
-M:	Eric Paris <eparis@parisplace.org>
 M:	Paul Moore <paul@paul-moore.com>
-L:	selinux@tycho.nsa.gov (subscribers-only, general discussion)
+M:	Stephen Smalley <sds@tycho.nsa.gov>
+M:	Eric Paris <eparis@parisplace.org>
+L:	selinux@tycho.nsa.gov (moderated for non-subscribers)
 W:	http://selinuxproject.org
 T:	git git://git.infradead.org/users/pcmoore/selinux
 S:	Supported
