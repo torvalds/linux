@@ -119,7 +119,6 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 {
 	struct rc5t583 *rc5t583 = dev_get_drvdata(pdev->dev.parent);
 	struct rc5t583_platform_data *pdata = dev_get_platdata(rc5t583->dev);
-	struct regulator_init_data *reg_data;
 	struct regulator_config config = { };
 	struct rc5t583_regulator *reg = NULL;
 	struct rc5t583_regulator *regs;
@@ -142,12 +141,6 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 
 
 	for (id = 0; id < RC5T583_REGULATOR_MAX; ++id) {
-		reg_data = pdata->reg_init_data[id];
-
-		/* No need to register if there is no regulator data */
-		if (!reg_data)
-			continue;
-
 		reg = &regs[id];
 		ri = &rc5t583_reg_info[id];
 		reg->reg_info = ri;
@@ -169,7 +162,7 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 
 skip_ext_pwr_config:
 		config.dev = &pdev->dev;
-		config.init_data = reg_data;
+		config.init_data = pdata->reg_init_data[id];
 		config.driver_data = reg;
 		config.regmap = rc5t583->regmap;
 
