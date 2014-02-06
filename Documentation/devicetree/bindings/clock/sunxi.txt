@@ -6,37 +6,37 @@ This binding uses the common clock binding[1].
 
 Required properties:
 - compatible : shall be one of the following:
-	"allwinner,sun4i-osc-clk" - for a gatable oscillator
-	"allwinner,sun4i-pll1-clk" - for the main PLL clock and PLL4
+	"allwinner,sun4i-a10-osc-clk" - for a gatable oscillator
+	"allwinner,sun4i-a10-pll1-clk" - for the main PLL clock and PLL4
 	"allwinner,sun6i-a31-pll1-clk" - for the main PLL clock on A31
-	"allwinner,sun4i-pll5-clk" - for the PLL5 clock
-	"allwinner,sun4i-pll6-clk" - for the PLL6 clock
+	"allwinner,sun4i-a10-pll5-clk" - for the PLL5 clock
+	"allwinner,sun4i-a10-pll6-clk" - for the PLL6 clock
 	"allwinner,sun6i-a31-pll6-clk" - for the PLL6 clock on A31
-	"allwinner,sun4i-cpu-clk" - for the CPU multiplexer clock
-	"allwinner,sun4i-axi-clk" - for the AXI clock
-	"allwinner,sun4i-axi-gates-clk" - for the AXI gates
-	"allwinner,sun4i-ahb-clk" - for the AHB clock
-	"allwinner,sun4i-ahb-gates-clk" - for the AHB gates on A10
+	"allwinner,sun4i-a10-cpu-clk" - for the CPU multiplexer clock
+	"allwinner,sun4i-a10-axi-clk" - for the AXI clock
+	"allwinner,sun4i-a10-axi-gates-clk" - for the AXI gates
+	"allwinner,sun4i-a10-ahb-clk" - for the AHB clock
+	"allwinner,sun4i-a10-ahb-gates-clk" - for the AHB gates on A10
 	"allwinner,sun5i-a13-ahb-gates-clk" - for the AHB gates on A13
 	"allwinner,sun5i-a10s-ahb-gates-clk" - for the AHB gates on A10s
 	"allwinner,sun7i-a20-ahb-gates-clk" - for the AHB gates on A20
 	"allwinner,sun6i-a31-ahb1-mux-clk" - for the AHB1 multiplexer on A31
 	"allwinner,sun6i-a31-ahb1-gates-clk" - for the AHB1 gates on A31
-	"allwinner,sun4i-apb0-clk" - for the APB0 clock
-	"allwinner,sun4i-apb0-gates-clk" - for the APB0 gates on A10
+	"allwinner,sun4i-a10-apb0-clk" - for the APB0 clock
+	"allwinner,sun4i-a10-apb0-gates-clk" - for the APB0 gates on A10
 	"allwinner,sun5i-a13-apb0-gates-clk" - for the APB0 gates on A13
 	"allwinner,sun5i-a10s-apb0-gates-clk" - for the APB0 gates on A10s
 	"allwinner,sun7i-a20-apb0-gates-clk" - for the APB0 gates on A20
-	"allwinner,sun4i-apb1-clk" - for the APB1 clock
-	"allwinner,sun4i-apb1-mux-clk" - for the APB1 clock muxing
-	"allwinner,sun4i-apb1-gates-clk" - for the APB1 gates on A10
+	"allwinner,sun4i-a10-apb1-clk" - for the APB1 clock
+	"allwinner,sun4i-a10-apb1-mux-clk" - for the APB1 clock muxing
+	"allwinner,sun4i-a10-apb1-gates-clk" - for the APB1 gates on A10
 	"allwinner,sun5i-a13-apb1-gates-clk" - for the APB1 gates on A13
 	"allwinner,sun5i-a10s-apb1-gates-clk" - for the APB1 gates on A10s
 	"allwinner,sun6i-a31-apb1-gates-clk" - for the APB1 gates on A31
 	"allwinner,sun7i-a20-apb1-gates-clk" - for the APB1 gates on A20
 	"allwinner,sun6i-a31-apb2-div-clk" - for the APB2 gates on A31
 	"allwinner,sun6i-a31-apb2-gates-clk" - for the APB2 gates on A31
-	"allwinner,sun4i-mod0-clk" - for the module 0 family of clocks
+	"allwinner,sun4i-a10-mod0-clk" - for the module 0 family of clocks
 	"allwinner,sun7i-a20-out-clk" - for the external output clocks
 	"allwinner,sun7i-a20-gmac-clk" - for the GMAC clock module on A20/A31
 	"allwinner,sun4i-a10-usb-clk" - for usb gates + resets on A10 / A20
@@ -69,7 +69,7 @@ For example:
 
 osc24M: clk@01c20050 {
 	#clock-cells = <0>;
-	compatible = "allwinner,sun4i-osc-clk";
+	compatible = "allwinner,sun4i-a10-osc-clk";
 	reg = <0x01c20050 0x4>;
 	clocks = <&osc24M_fixed>;
 	clock-output-names = "osc24M";
@@ -77,7 +77,7 @@ osc24M: clk@01c20050 {
 
 pll1: clk@01c20000 {
 	#clock-cells = <0>;
-	compatible = "allwinner,sun4i-pll1-clk";
+	compatible = "allwinner,sun4i-a10-pll1-clk";
 	reg = <0x01c20000 0x4>;
 	clocks = <&osc24M>;
 	clock-output-names = "pll1";
@@ -93,7 +93,7 @@ pll5: clk@01c20020 {
 
 cpu: cpu@01c20054 {
 	#clock-cells = <0>;
-	compatible = "allwinner,sun4i-cpu-clk";
+	compatible = "allwinner,sun4i-a10-cpu-clk";
 	reg = <0x01c20054 0x4>;
 	clocks = <&osc32k>, <&osc24M>, <&pll1>;
 	clock-output-names = "cpu";
