@@ -81,7 +81,7 @@ static inline int
 execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 {
 	union irq_ctx *curctx, *irqctx;
-	u32 *isp, arg1, arg2;
+	u32 *isp, *prev_esp, arg1, arg2;
 
 	curctx = (union irq_ctx *) current_thread_info();
 	irqctx = __this_cpu_read(hardirq_ctx);
@@ -98,7 +98,10 @@ execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 	/* build the stack frame on the IRQ stack */
 	isp = (u32 *) ((char *)irqctx + sizeof(*irqctx));
 	irqctx->tinfo.task = curctx->tinfo.task;
-	irqctx->tinfo.previous_esp = current_stack_pointer;
+	/* Save the next esp after thread_info */
+	prev_esp = (u32 *) ((char *)irqctx + sizeof(struct thread_info) -
+			    sizeof(long));
+	*prev_esp = current_stack_pointer;
 
 	if (unlikely(overflow))
 		call_on_stack(print_stack_overflow, isp);
@@ -149,15 +152,19 @@ void do_softirq_own_stack(void)
 {
 	struct thread_info *curctx;
 	union irq_ctx *irqctx;
-	u32 *isp;
+	u32 *isp, *prev_esp;
 
 	curctx = current_thread_info();
 	irqctx = __this_cpu_read(softirq_ctx);
 	irqctx->tinfo.task = curctx->task;
-	irqctx->tinfo.previous_esp = current_stack_pointer;
 
 	/* build the stack frame on the softirq stack */
 	isp = (u32 *) ((char *)irqctx + sizeof(*irqctx));
+
+	/* Push the previous esp onto the stack */
+	prev_esp = (u32 *) ((char *)irqctx + sizeof(struct thread_info) -
+			    sizeof(long));
+	*prev_esp = current_stack_pointer;
 
 	call_on_stack(__do_softirq, isp);
 }

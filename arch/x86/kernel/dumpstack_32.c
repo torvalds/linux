@@ -22,6 +22,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		const struct stacktrace_ops *ops, void *data)
 {
 	int graph = 0;
+	u32 *prev_esp;
 
 	if (!task)
 		task = current;
@@ -44,9 +45,17 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
 		bp = ops->walk_stack(context, stack, bp, ops, data, NULL, &graph);
 
-		stack = (unsigned long *)context->previous_esp;
+		/* Stop if not on irq stack */
+		if (task_stack_page(task) == context)
+			break;
+
+		/* The previous esp is just above the context */
+		prev_esp = (u32 *) ((char *)context + sizeof(struct thread_info) -
+				    sizeof(long));
+		stack = (unsigned long *)*prev_esp;
 		if (!stack)
 			break;
+
 		if (ops->stack(data, "IRQ") < 0)
 			break;
 		touch_nmi_watchdog();
