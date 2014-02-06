@@ -121,6 +121,42 @@ static struct symbol *__find_kernel_function_by_name(const char *name,
 						     NULL);
 }
 
+static struct symbol *__find_kernel_function(u64 addr, struct map **mapp)
+{
+	return machine__find_kernel_function(host_machine, addr, mapp, NULL);
+}
+
+static struct ref_reloc_sym *kernel_get_ref_reloc_sym(void)
+{
+	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
+	struct kmap *kmap;
+
+	if (map__load(host_machine->vmlinux_maps[MAP__FUNCTION], NULL) < 0)
+		return NULL;
+
+	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
+	return kmap->ref_reloc_sym;
+}
+
+static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
+{
+	struct ref_reloc_sym *reloc_sym;
+	struct symbol *sym;
+	struct map *map;
+
+	/* ref_reloc_sym is just a label. Need a special fix*/
+	reloc_sym = kernel_get_ref_reloc_sym();
+	if (reloc_sym && strcmp(name, reloc_sym->name) == 0)
+		return (reloc) ? reloc_sym->addr : reloc_sym->unrelocated_addr;
+	else {
+		sym = __find_kernel_function_by_name(name, &map);
+		if (sym)
+			return map->unmap_ip(map, sym->start) -
+				(reloc) ? 0 : map->reloc;
+	}
+	return 0;
+}
+
 static struct map *kernel_get_module_map(const char *module)
 {
 	struct rb_node *nd;
@@ -216,12 +252,26 @@ out:
 static int convert_to_perf_probe_point(struct probe_trace_point *tp,
 					struct perf_probe_point *pp)
 {
-	pp->function = strdup(tp->symbol);
+	struct symbol *sym;
+	struct map *map;
+	u64 addr = kernel_get_symbol_address_by_name(tp->symbol, true);
+
+	if (addr) {
+		addr += tp->offset;
+		sym = __find_kernel_function(addr, &map);
+		if (!sym)
+			goto failed;
+		pp->function = strdup(sym->name);
+		pp->offset = addr - map->unmap_ip(map, sym->start);
+	} else {
+failed:
+		pp->function = strdup(tp->symbol);
+		pp->offset = tp->offset;
+	}
 
 	if (pp->function == NULL)
 		return -ENOMEM;
 
-	pp->offset = tp->offset;
 	pp->retprobe = tp->retprobe;
 
 	return 0;
@@ -248,18 +298,6 @@ static struct debuginfo *open_debuginfo(const char *module)
 	return debuginfo__new(path);
 }
 
-static struct ref_reloc_sym *__kernel_get_ref_reloc_sym(void)
-{
-	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
-	struct kmap *kmap;
-
-	if (map__load(host_machine->vmlinux_maps[MAP__FUNCTION], NULL) < 0)
-		return NULL;
-
-	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
-	return kmap->ref_reloc_sym;
-}
-
 /*
  * Convert trace point to probe point with debuginfo
  * Currently only handles kprobes.
@@ -267,24 +305,13 @@ static struct ref_reloc_sym *__kernel_get_ref_reloc_sym(void)
 static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 					struct perf_probe_point *pp)
 {
-	struct symbol *sym;
-	struct ref_reloc_sym *reloc_sym;
-	struct map *map;
 	u64 addr = 0;
 	int ret = -ENOENT;
 	struct debuginfo *dinfo;
 
-	/* ref_reloc_sym is just a label. Need a special fix*/
-	reloc_sym = __kernel_get_ref_reloc_sym();
-	if (reloc_sym && strcmp(tp->symbol, reloc_sym->name) == 0)
-		addr = reloc_sym->unrelocated_addr + tp->offset;
-	else {
-		sym = __find_kernel_function_by_name(tp->symbol, &map);
-		if (sym)
-			addr = map->unmap_ip(map, sym->start + tp->offset) -
-				map->reloc;
-	}
+	addr = kernel_get_symbol_address_by_name(tp->symbol, false);
 	if (addr) {
+		addr += tp->offset;
 		pr_debug("try to find %s+%ld@%" PRIx64 "\n", tp->symbol,
 			 tp->offset, addr);
 
@@ -420,7 +447,7 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 	if (module)
 		return add_module_to_probe_trace_events(tevs, ntevs, module);
 
-	reloc_sym = __kernel_get_ref_reloc_sym();
+	reloc_sym = kernel_get_ref_reloc_sym();
 	if (!reloc_sym) {
 		pr_warning("Relocated base symbol is not found!\n");
 		return -EINVAL;
