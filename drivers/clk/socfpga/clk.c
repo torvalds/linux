@@ -82,7 +82,8 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 					 unsigned long parent_rate)
 {
 	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
-	unsigned long divf, divq, vco_freq, reg;
+	unsigned long divf, divq, reg;
+	unsigned long long vco_freq;
 	unsigned long bypass;
 
 	reg = readl(socfpgaclk->hw.reg);
@@ -92,8 +93,9 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 
 	divf = (reg & SOCFPGA_PLL_DIVF_MASK) >> SOCFPGA_PLL_DIVF_SHIFT;
 	divq = (reg & SOCFPGA_PLL_DIVQ_MASK) >> SOCFPGA_PLL_DIVQ_SHIFT;
-	vco_freq = parent_rate * (divf + 1);
-	return vco_freq / (1 + divq);
+	vco_freq = (unsigned long long)parent_rate * (divf + 1);
+	do_div(vco_freq, (1 + divq));
+	return (unsigned long)vco_freq;
 }
 
 static u8 clk_pll_get_parent(struct clk_hw *hwclk)
