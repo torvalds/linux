@@ -47,6 +47,7 @@ trap 'rm -rf $T' 0
 . $KVPATH/ver_functions.sh
 
 config_template=${1}
+config_dir=`echo $config_template | sed -e 's,/[^/]*$,,'`
 title=`echo $config_template | sed -e 's/^.*\///'`
 builddir=${2}
 if test -z "$builddir" -o ! -d "$builddir" -o ! -w "$builddir"
@@ -63,9 +64,10 @@ fi
 cp $config_template $resdir/ConfigFragment
 echo ' ---' `date`: Starting build
 echo ' ---' Kconfig fragment at: $config_template >> $resdir/log
-cat << '___EOF___' >> $T
-CONFIG_RCU_TORTURE_TEST=y
-___EOF___
+if test -r "$config_dir/CFcommon"
+then
+	cat < $config_dir/CFcommon >> $T
+fi
 # Optimizations below this point
 # CONFIG_USB=n
 # CONFIG_SECURITY=n
