@@ -370,53 +370,6 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_machine	= v2m_init,
 MACHINE_END
 
-static struct map_desc v2m_rs1_io_desc __initdata = {
-	.virtual	= V2M_PERIPH,
-	.pfn		= __phys_to_pfn(0x1c000000),
-	.length		= SZ_2M,
-	.type		= MT_DEVICE,
-};
-
-static int __init v2m_dt_scan_memory_map(unsigned long node, const char *uname,
-		int depth, void *data)
-{
-	const char **map = data;
-
-	if (strcmp(uname, "motherboard") != 0)
-		return 0;
-
-	*map = of_get_flat_dt_prop(node, "arm,v2m-memory-map", NULL);
-
-	return 1;
-}
-
-void __init v2m_dt_map_io(void)
-{
-	const char *map = NULL;
-
-	of_scan_flat_dt(v2m_dt_scan_memory_map, &map);
-
-	if (map && strcmp(map, "rs1") == 0)
-		iotable_init(&v2m_rs1_io_desc, 1);
-	else
-		iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
-}
-
-void __init v2m_dt_init_early(void)
-{
-	u32 dt_hbi;
-
-	/* Confirm board type against DT property, if available */
-	if (of_property_read_u32(of_allnodes, "arm,hbi", &dt_hbi) == 0) {
-		u32 hbi = vexpress_get_hbi(VEXPRESS_SITE_MASTER);
-
-		if (WARN_ON(dt_hbi != hbi))
-			pr_warning("vexpress: DT HBI (%x) is not matching "
-					"hardware (%x)!\n", dt_hbi, hbi);
-	}
-}
-
-
 static void __init v2m_dt_init(void)
 {
 	l2x0_of_init(0x00400000, 0xfe0fffff);
@@ -432,7 +385,5 @@ DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.dt_compat	= v2m_dt_match,
 	.smp		= smp_ops(vexpress_smp_dt_ops),
 	.smp_init	= smp_init_ops(vexpress_smp_init_ops),
-	.map_io		= v2m_dt_map_io,
-	.init_early	= v2m_dt_init_early,
 	.init_machine	= v2m_dt_init,
 MACHINE_END

@@ -60,7 +60,6 @@ struct regmap *devm_regmap_init_vexpress_config(struct device *dev);
 
 unsigned int vexpress_get_mci_cardin(struct device *dev);
 u32 vexpress_get_procid(int site);
-u32 vexpress_get_hbi(int site);
 void *vexpress_get_24mhz_clock_base(void);
 void vexpress_flags_set(u32 data);
 

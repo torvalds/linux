@@ -45,7 +45,6 @@
 #define SYS_CFGSTAT		0x0a8
 
 #define SYS_HBI_MASK		0xfff
-#define SYS_ID_HBI_SHIFT	16
 #define SYS_PROCIDx_HBI_SHIFT	0
 
 #define SYS_MCI_CARDIN		(1 << 0)
@@ -97,24 +96,6 @@ u32 vexpress_get_procid(int site)
 
 	return readl(vexpress_sysreg_base() + (site == VEXPRESS_SITE_DB1 ?
 			SYS_PROCID0 : SYS_PROCID1));
-}
-
-u32 vexpress_get_hbi(int site)
-{
-	u32 id;
-
-	switch (site) {
-	case VEXPRESS_SITE_MB:
-		id = readl(vexpress_sysreg_base() + SYS_ID);
-		return (id >> SYS_ID_HBI_SHIFT) & SYS_HBI_MASK;
-	case VEXPRESS_SITE_MASTER:
-	case VEXPRESS_SITE_DB1:
-	case VEXPRESS_SITE_DB2:
-		id = vexpress_get_procid(site);
-		return (id >> SYS_PROCIDx_HBI_SHIFT) & SYS_HBI_MASK;
-	}
-
-	return ~0;
 }
 
 void __iomem *vexpress_get_24mhz_clock_base(void)
@@ -229,6 +210,7 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 	struct resource *mem;
 	void __iomem *base;
 	struct bgpio_chip *mmc_gpio_chip;
+	u32 dt_hbi;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem)
@@ -239,6 +221,16 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	vexpress_config_set_master(vexpress_sysreg_get_master());
+
+	/* Confirm board type against DT property, if available */
+	if (of_property_read_u32(of_allnodes, "arm,hbi", &dt_hbi) == 0) {
+		u32 id = vexpress_get_procid(VEXPRESS_SITE_MASTER);
+		u32 hbi = (id >> SYS_PROCIDx_HBI_SHIFT) & SYS_HBI_MASK;
+
+		if (WARN_ON(dt_hbi != hbi))
+			dev_warn(&pdev->dev, "DT HBI (%x) is not matching hardware (%x)!\n",
+					dt_hbi, hbi);
+	}
 
 	/*
 	 * Duplicated SYS_MCI pseudo-GPIO controller for compatibility with
