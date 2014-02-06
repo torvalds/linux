@@ -665,8 +665,8 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	int err;
 
 	uuari = &dev->mdev.priv.uuari;
-	if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK)
-		qp->flags |= MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK;
+	if (init_attr->create_flags)
+		return -EINVAL;
 
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
 		lc = MLX5_IB_LATENCY_CLASS_FAST_PATH;
