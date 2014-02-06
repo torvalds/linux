@@ -861,25 +861,34 @@ static void dualshock4_parse_report(struct sony_sc *sc, __u8 *rd, int size)
 						struct hid_input, list);
 	struct input_dev *input_dev = hidinput->input;
 	unsigned long flags;
-	int n, offset = 35;
+	int n, offset;
 	__u8 cable_state, battery_capacity, battery_charging;
+
+	/* Battery and touchpad data starts at byte 30 in the USB report and
+	 * 32 in Bluetooth report.
+	 */
+	offset = (sc->quirks & DUALSHOCK4_CONTROLLER_USB) ? 30 : 32;
 
 	/* The lower 4 bits of byte 30 contain the battery level
 	 * and the 5th bit contains the USB cable state.
 	 */
-	cable_state = (rd[30] >> 4) & 0x01;
-	battery_capacity = rd[30] & 0x0F;
+	cable_state = (rd[offset] >> 4) & 0x01;
+	battery_capacity = rd[offset] & 0x0F;
 
-	/* On USB the Dualshock 4 battery level goes from 0 to 11.
-	 * A battery level of 11 means fully charged.
+	/* When a USB power source is connected the battery level ranges from
+	 * 0 to 10, and when running on battery power it ranges from 0 to 9.
+	 * A battery level above 10 when plugged in means charge completed.
 	 */
-	if (cable_state && battery_capacity == 11)
+	if (!cable_state || battery_capacity > 10)
 		battery_charging = 0;
 	else
 		battery_charging = 1;
 
+	if (!cable_state)
+		battery_capacity++;
 	if (battery_capacity > 10)
-		battery_capacity--;
+		battery_capacity = 10;
+
 	battery_capacity *= 10;
 
 	spin_lock_irqsave(&sc->lock, flags);
@@ -888,7 +897,10 @@ static void dualshock4_parse_report(struct sony_sc *sc, __u8 *rd, int size)
 	sc->battery_charging = battery_charging;
 	spin_unlock_irqrestore(&sc->lock, flags);
 
-	/* The Dualshock 4 multi-touch trackpad data starts at offset 35 on USB.
+	offset += 5;
+
+	/* The Dualshock 4 multi-touch trackpad data starts at offset 35 on USB
+	 * and 37 on Bluetooth.
 	 * The first 7 bits of the first byte is a counter and bit 8 is a touch
 	 * indicator that is 0 when pressed and 1 when not pressed.
 	 * The next 3 bytes are two 12 bit touch coordinates, X and Y.
