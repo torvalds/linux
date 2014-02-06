@@ -361,7 +361,7 @@ struct v4l2_fh;
  * @bufs:	videobuf buffer structures
  * @num_buffers: number of allocated/used buffers
  * @queued_list: list of buffers currently queued from userspace
- * @queued_count: number of buffers owned by the driver
+ * @owned_by_drv_count: number of buffers owned by the driver
  * @done_list:	list of buffers ready to be dequeued to userspace
  * @done_lock:	lock to protect done_list list
  * @done_wq:	waitqueue for processes waiting for buffers ready to be dequeued
@@ -393,7 +393,7 @@ struct vb2_queue {
 
 	struct list_head		queued_list;
 
-	atomic_t			queued_count;
+	atomic_t			owned_by_drv_count;
 	struct list_head		done_list;
 	spinlock_t			done_lock;
 	wait_queue_head_t		done_wq;
