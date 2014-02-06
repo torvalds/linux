@@ -36,7 +36,6 @@ struct thread_info {
 	unsigned long           previous_esp;   /* ESP of the previous stack in
 						   case of nested (IRQ) stacks
 						*/
-	__u8			supervisor_stack[0];
 #endif
 	unsigned int		sig_on_uaccess_error:1;
 	unsigned int		uaccess_err:1;	/* uaccess failed */
