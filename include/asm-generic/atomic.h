@@ -16,6 +16,7 @@
 #define __ASM_GENERIC_ATOMIC_H
 
 #include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 
 #ifdef CONFIG_SMP
 /* Force people to define core atomics */
@@ -181,12 +182,6 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 	raw_local_irq_restore(flags);
 }
 #endif
-
-/* Assume that atomic operations are already serializing */
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_GENERIC_ATOMIC_H */
