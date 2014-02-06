@@ -34,6 +34,8 @@
 #define KPLL_CON0               0x28100
 #define VPLL_LOCK		0x10050
 #define VPLL_CON0		0x10140
+#define DPLL_LOCK		0x10030
+#define DPLL_CON0		0x10128
 
 #define SRC_CPU			0x200
 #define DIV_CPU0		0x500
@@ -68,6 +70,7 @@
 enum exynos5410_plls {
 	apll, cpll, mpll,
 	bpll, kpll, vpll,
+	dpll,
 	nr_plls                 /* number of PLLs */
 };
 
@@ -102,6 +105,7 @@ PNAME(bpll_p)		= { "fin_pll", "fout_bpll", };
 PNAME(cpll_p)		= { "fin_pll", "fout_cpll" };
 PNAME(mpll_p)		= { "fin_pll", "fout_mpll", };
 PNAME(kpll_p)		= { "fin_pll", "fout_kpll", };
+PNAME(dpll_p)		= { "fin_pll", "fout_dpll", };
 
 PNAME(mout_cpu_p)	= { "mout_apll", "sclk_mpll", };
 PNAME(mout_kfc_p)	= { "mout_kpll", "sclk_mpll", };
@@ -261,6 +265,8 @@ static struct samsung_pll_clock exynos5410_plls[nr_plls] __initdata = {
 		KPLL_CON0, NULL),
 	[vpll] = PLL(pll_35xx, CLK_FOUT_VPLL, "fout_vpll", "mout_vpllsrc",
 		VPLL_LOCK, VPLL_CON0,  NULL),
+	[dpll] = PLL(pll_35xx, CLK_FOUT_DPLL, "fout_dpll", "fin_pll", DPLL_LOCK,
+		DPLL_CON0, NULL),
 };
 
 /* register exynos5410 clocks */
