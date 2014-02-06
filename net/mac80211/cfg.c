@@ -1345,9 +1345,6 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 						    params->vht_capa, sta);
 
 	if (params->opmode_notif_used) {
-		enum ieee80211_band band =
-			ieee80211_get_sdata_band(sdata);
-
 		/* returned value is only needed for rc update, but the
 		 * rc isn't initialized here yet, so ignore it
 		 */
