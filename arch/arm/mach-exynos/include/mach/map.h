@@ -71,6 +71,10 @@
 #define EXYNOS4_PA_TIMER		0x139D0000
 #define EXYNOS5_PA_TIMER		0x12DD0000
 
+/* Compatibiltiy Defines */
+
+#define S3C_PA_WDT			EXYNOS4_PA_WATCHDOG
+
 /* Compatibility UART */
 
 #define EXYNOS5440_PA_UART0		0x000B0000
