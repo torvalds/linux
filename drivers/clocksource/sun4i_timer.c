@@ -196,5 +196,5 @@ static void __init sun4i_timer_init(struct device_node *node)
 	clockevents_config_and_register(&sun4i_clockevent, rate,
 					TIMER_SYNC_TICKS, 0xffffffff);
 }
-CLOCKSOURCE_OF_DECLARE(sun4i, "allwinner,sun4i-timer",
+CLOCKSOURCE_OF_DECLARE(sun4i, "allwinner,sun4i-a10-timer",
 		       sun4i_timer_init);
