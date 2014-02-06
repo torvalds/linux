@@ -69,8 +69,10 @@ static void nft_rbtree_elem_destroy(const struct nft_set *set,
 				    struct nft_rbtree_elem *rbe)
 {
 	nft_data_uninit(&rbe->key, NFT_DATA_VALUE);
-	if (set->flags & NFT_SET_MAP)
+	if (set->flags & NFT_SET_MAP &&
+	    !(rbe->flags & NFT_SET_ELEM_INTERVAL_END))
 		nft_data_uninit(rbe->data, set->dtype);
+
 	kfree(rbe);
 }
 
@@ -108,7 +110,8 @@ static int nft_rbtree_insert(const struct nft_set *set,
 	int err;
 
 	size = sizeof(*rbe);
-	if (set->flags & NFT_SET_MAP)
+	if (set->flags & NFT_SET_MAP &&
+	    !(elem->flags & NFT_SET_ELEM_INTERVAL_END))
 		size += sizeof(rbe->data[0]);
 
 	rbe = kzalloc(size, GFP_KERNEL);
@@ -117,7 +120,8 @@ static int nft_rbtree_insert(const struct nft_set *set,
 
 	rbe->flags = elem->flags;
 	nft_data_copy(&rbe->key, &elem->key);
-	if (set->flags & NFT_SET_MAP)
+	if (set->flags & NFT_SET_MAP &&
+	    !(rbe->flags & NFT_SET_ELEM_INTERVAL_END))
 		nft_data_copy(rbe->data, &elem->data);
 
 	err = __nft_rbtree_insert(set, rbe);
@@ -153,7 +157,8 @@ static int nft_rbtree_get(const struct nft_set *set, struct nft_set_elem *elem)
 			parent = parent->rb_right;
 		else {
 			elem->cookie = rbe;
-			if (set->flags & NFT_SET_MAP)
+			if (set->flags & NFT_SET_MAP &&
+			    !(rbe->flags & NFT_SET_ELEM_INTERVAL_END))
 				nft_data_copy(&elem->data, rbe->data);
 			elem->flags = rbe->flags;
 			return 0;
@@ -177,7 +182,8 @@ static void nft_rbtree_walk(const struct nft_ctx *ctx,
 
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
 		nft_data_copy(&elem.key, &rbe->key);
-		if (set->flags & NFT_SET_MAP)
+		if (set->flags & NFT_SET_MAP &&
+		    !(rbe->flags & NFT_SET_ELEM_INTERVAL_END))
 			nft_data_copy(&elem.data, rbe->data);
 		elem.flags = rbe->flags;
 
