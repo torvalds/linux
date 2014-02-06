@@ -602,7 +602,7 @@ static int vmw_cmd_cid_check(struct vmw_private *dev_priv,
 {
 	struct vmw_cid_cmd {
 		SVGA3dCmdHeader header;
-		__le32 cid;
+		uint32_t cid;
 	} *cmd;
 
 	cmd = container_of(header, struct vmw_cid_cmd, header);
