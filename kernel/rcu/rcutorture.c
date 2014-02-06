@@ -372,6 +372,48 @@ static struct rcu_torture_ops rcu_bh_ops = {
 };
 
 /*
+ * Don't even think about trying any of these in real life!!!
+ * The names includes "busted", and they really means it!
+ * The only purpose of these functions is to provide a buggy RCU
+ * implementation to make sure that rcutorture correctly emits
+ * buggy-RCU error messages.
+ */
+static void rcu_busted_torture_deferred_free(struct rcu_torture *p)
+{
+	/* This is a deliberate bug for testing purposes only! */
+	rcu_torture_cb(&p->rtort_rcu);
+}
+
+static void synchronize_rcu_busted(void)
+{
+	/* This is a deliberate bug for testing purposes only! */
+}
+
+static void
+call_rcu_busted(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+{
+	/* This is a deliberate bug for testing purposes only! */
+	func(head);
+}
+
+static struct rcu_torture_ops rcu_busted_ops = {
+	.init		= rcu_sync_torture_init,
+	.readlock	= rcu_torture_read_lock,
+	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock	= rcu_torture_read_unlock,
+	.completed	= rcu_no_completed,
+	.deferred_free	= rcu_busted_torture_deferred_free,
+	.sync		= synchronize_rcu_busted,
+	.exp_sync	= synchronize_rcu_busted,
+	.call		= call_rcu_busted,
+	.cb_barrier	= NULL,
+	.fqs		= NULL,
+	.stats		= NULL,
+	.irq_capable	= 1,
+	.name		= "rcu_busted"
+};
+
+/*
  * Definitions for srcu torture testing.
  */
 
@@ -1371,7 +1413,7 @@ rcu_torture_init(void)
 	int cpu;
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
-		&rcu_ops, &rcu_bh_ops, &srcu_ops, &sched_ops,
+		&rcu_ops, &rcu_bh_ops, &rcu_busted_ops, &srcu_ops, &sched_ops,
 	};
 
 	torture_init_begin(torture_type, verbose, &rcutorture_runnable);
