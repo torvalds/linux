@@ -83,6 +83,9 @@ static DEFINE_PCI_DEVICE_TABLE(dw_pci_id_table) = {
 	/* BayTrail */
 	{ PCI_VDEVICE(INTEL, 0x0f06), (kernel_ulong_t)&dw_pci_pdata },
 	{ PCI_VDEVICE(INTEL, 0x0f40), (kernel_ulong_t)&dw_pci_pdata },
+
+	/* Haswell */
+	{ PCI_VDEVICE(INTEL, 0x9c60), (kernel_ulong_t)&dw_pci_pdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dw_pci_id_table);
