@@ -1965,11 +1965,14 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
 
 	netdev_info(netdev, "adding %pM vid=%d\n", netdev->dev_addr, vid);
 
-	/* If the network stack called us with vid = 0, we should
-	 * indicate to i40e_vsi_add_vlan() that we want to receive
-	 * any traffic (i.e. with any vlan tag, or untagged)
+	/* If the network stack called us with vid = 0 then
+	 * it is asking to receive priority tagged packets with
+	 * vlan id 0.  Our HW receives them by default when configured
+	 * to receive untagged packets so there is no need to add an
+	 * extra filter for vlan 0 tagged packets.
 	 */
-	ret = i40e_vsi_add_vlan(vsi, vid ? vid : I40E_VLAN_ANY);
+	if (vid)
+		ret = i40e_vsi_add_vlan(vsi, vid);
 
 	if (!ret && (vid < VLAN_N_VID))
 		set_bit(vid, vsi->active_vlans);
