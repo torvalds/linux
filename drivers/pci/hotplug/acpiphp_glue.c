@@ -59,16 +59,11 @@
 static LIST_HEAD(bridge_list);
 static DEFINE_MUTEX(bridge_mutex);
 
-static void handle_hotplug_event(acpi_handle handle, u32 type, void *data);
+static int acpiphp_hotplug_event(struct acpi_device *adev, u32 type);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(struct pci_bus *bus);
 static void hotplug_event(u32 type, struct acpiphp_context *context);
 static void free_bridge(struct kref *kref);
-
-static void acpiphp_context_handler(acpi_handle handle, void *context)
-{
-	/* Intentionally empty. */
-}
 
 /**
  * acpiphp_init_context - Create hotplug context and grab a reference to it.
@@ -79,39 +74,31 @@ static void acpiphp_context_handler(acpi_handle handle, void *context)
 static struct acpiphp_context *acpiphp_init_context(struct acpi_device *adev)
 {
 	struct acpiphp_context *context;
-	acpi_status status;
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return NULL;
 
-	context->adev = adev;
 	context->refcount = 1;
-	status = acpi_attach_data(adev->handle, acpiphp_context_handler, context);
-	if (ACPI_FAILURE(status)) {
-		kfree(context);
-		return NULL;
-	}
+	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_event);
 	return context;
 }
 
 /**
  * acpiphp_get_context - Get hotplug context and grab a reference to it.
- * @handle: ACPI object handle to get the context for.
+ * @adev: ACPI device object to get the context for.
  *
  * Call under acpi_hp_context_lock.
  */
-static struct acpiphp_context *acpiphp_get_context(acpi_handle handle)
+static struct acpiphp_context *acpiphp_get_context(struct acpi_device *adev)
 {
-	struct acpiphp_context *context = NULL;
-	acpi_status status;
-	void *data;
+	struct acpiphp_context *context;
 
-	status = acpi_get_data(handle, acpiphp_context_handler, &data);
-	if (ACPI_SUCCESS(status)) {
-		context = data;
-		context->refcount++;
-	}
+	if (!adev->hp)
+		return NULL;
+
+	context = to_acpiphp_context(adev->hp);
+	context->refcount++;
 	return context;
 }
 
@@ -129,7 +116,7 @@ static void acpiphp_put_context(struct acpiphp_context *context)
 		return;
 
 	WARN_ON(context->bridge);
-	acpi_detach_data(context->adev->handle, acpiphp_context_handler);
+	context->hp.self->hp = NULL;
 	kfree(context);
 }
 
@@ -211,22 +198,13 @@ static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
 
 static void dock_event(acpi_handle handle, u32 type, void *data)
 {
-	struct acpiphp_context *context;
+	struct acpi_device *adev;
 
-	acpi_lock_hp_context();
-	context = acpiphp_get_context(handle);
-	if (!context || WARN_ON(context->adev->handle != handle)
-	    || context->func.parent->is_going_away) {
-		acpi_unlock_hp_context();
-		return;
+	adev = acpi_bus_get_acpi_device(handle);
+	if (adev) {
+		acpiphp_hotplug_event(adev, type);
+		acpi_bus_put_acpi_device(adev);
 	}
-	get_bridge(context->func.parent);
-	acpiphp_put_context(context);
-	acpi_unlock_hp_context();
-
-	hotplug_event(type, context);
-
-	put_bridge(context->func.parent);
 }
 
 static const struct acpi_dock_ops acpiphp_dock_ops = {
@@ -397,25 +375,23 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	}
 
 	/* install notify handler */
-	if (!(newfunc->flags & FUNC_HAS_DCK)) {
-		status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-						     handle_hotplug_event,
-						     context);
-		if (ACPI_FAILURE(status))
-			acpi_handle_err(handle,
-					"failed to install notify handler\n");
-	}
+	if (!(newfunc->flags & FUNC_HAS_DCK))
+		acpi_install_hotplug_notify_handler(handle, NULL);
 
 	return AE_OK;
 }
 
 static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
 {
+	struct acpi_device *adev = acpi_bus_get_acpi_device(handle);
 	struct acpiphp_context *context;
 	struct acpiphp_bridge *bridge = NULL;
 
+	if (!adev)
+		return NULL;
+
 	acpi_lock_hp_context();
-	context = acpiphp_get_context(handle);
+	context = acpiphp_get_context(adev);
 	if (context) {
 		bridge = context->bridge;
 		if (bridge)
@@ -424,6 +400,7 @@ static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
 		acpiphp_put_context(context);
 	}
 	acpi_unlock_hp_context();
+	acpi_bus_put_acpi_device(adev);
 	return bridge;
 }
 
@@ -431,7 +408,6 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 {
 	struct acpiphp_slot *slot;
 	struct acpiphp_func *func;
-	acpi_status status;
 
 	list_for_each_entry(slot, &bridge->slots, node) {
 		list_for_each_entry(func, &slot->funcs, sibling) {
@@ -440,13 +416,8 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 			if (is_dock_device(handle))
 				unregister_hotplug_dock_device(handle);
 
-			if (!(func->flags & FUNC_HAS_DCK)) {
-				status = acpi_remove_notify_handler(handle,
-							ACPI_SYSTEM_NOTIFY,
-							handle_hotplug_event);
-				if (ACPI_FAILURE(status))
-					pr_err("failed to remove notify handler\n");
-			}
+			if (!(func->flags & FUNC_HAS_DCK))
+				acpi_remove_hotplug_notify_handler(handle);
 		}
 		slot->flags |= SLOT_IS_GOING_AWAY;
 		if (slot->slot)
@@ -814,7 +785,7 @@ static int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot);
 
 static void hotplug_event(u32 type, struct acpiphp_context *context)
 {
-	acpi_handle handle = context->adev->handle;
+	acpi_handle handle = context->hp.self->handle;
 	struct acpiphp_func *func = &context->func;
 	struct acpiphp_slot *slot = func->slot;
 	struct acpiphp_bridge *bridge;
@@ -866,87 +837,24 @@ static void hotplug_event(u32 type, struct acpiphp_context *context)
 		put_bridge(bridge);
 }
 
-static void hotplug_event_work(void *data, u32 type)
+static int acpiphp_hotplug_event(struct acpi_device *adev, u32 type)
 {
-	struct acpiphp_context *context = data;
+	struct acpiphp_context *context;
 
-	acpi_scan_lock_acquire();
+	acpi_lock_hp_context();
+	context = acpiphp_get_context(adev);
+	if (!context || context->func.parent->is_going_away) {
+		acpi_unlock_hp_context();
+		return -ENODATA;
+	}
+	get_bridge(context->func.parent);
+	acpiphp_put_context(context);
+	acpi_unlock_hp_context();
 
 	hotplug_event(type, context);
 
-	acpi_scan_lock_release();
-	acpi_evaluate_hotplug_ost(context->adev->handle, type,
-				  ACPI_OST_SC_SUCCESS, NULL);
 	put_bridge(context->func.parent);
-}
-
-/**
- * handle_hotplug_event - handle ACPI hotplug event
- * @handle: Notify()'ed acpi_handle
- * @type: Notify code
- * @data: pointer to acpiphp_context structure
- *
- * Handles ACPI event notification on slots.
- */
-static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
-{
-	struct acpiphp_context *context;
-	u32 ost_code = ACPI_OST_SC_SUCCESS;
-	acpi_status status;
-
-	switch (type) {
-	case ACPI_NOTIFY_BUS_CHECK:
-	case ACPI_NOTIFY_DEVICE_CHECK:
-		break;
-	case ACPI_NOTIFY_EJECT_REQUEST:
-		ost_code = ACPI_OST_SC_EJECT_IN_PROGRESS;
-		acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
-		break;
-
-	case ACPI_NOTIFY_DEVICE_WAKE:
-		return;
-
-	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
-		acpi_handle_err(handle, "Device cannot be configured due "
-				"to a frequency mismatch\n");
-		goto out;
-
-	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
-		acpi_handle_err(handle, "Device cannot be configured due "
-				"to a bus mode mismatch\n");
-		goto out;
-
-	case ACPI_NOTIFY_POWER_FAULT:
-		acpi_handle_err(handle, "Device has suffered a power fault\n");
-		goto out;
-
-	default:
-		acpi_handle_warn(handle, "Unsupported event type 0x%x\n", type);
-		ost_code = ACPI_OST_SC_UNRECOGNIZED_NOTIFY;
-		goto out;
-	}
-
-	acpi_lock_hp_context();
-	context = acpiphp_get_context(handle);
-	if (!context || WARN_ON(context->adev->handle != handle)
-	    || context->func.parent->is_going_away)
-		goto err_out;
-
-	get_bridge(context->func.parent);
-	acpiphp_put_context(context);
-	status = acpi_hotplug_execute(hotplug_event_work, context, type);
-	if (ACPI_SUCCESS(status)) {
-		acpi_unlock_hp_context();
-		return;
-	}
-	put_bridge(context->func.parent);
-
- err_out:
-	acpi_unlock_hp_context();
-	ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
-
- out:
-	acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
+	return 0;
 }
 
 /**
@@ -999,7 +907,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		 * bridge is not interesting to us either.
 		 */
 		acpi_lock_hp_context();
-		context = acpiphp_get_context(handle);
+		context = acpiphp_get_context(adev);
 		if (!context) {
 			acpi_unlock_hp_context();
 			put_device(&bus->dev);
