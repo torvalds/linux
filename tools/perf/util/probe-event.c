@@ -2323,66 +2323,46 @@ static int filter_available_functions(struct map *map __maybe_unused,
 	return 1;
 }
 
-static int __show_available_funcs(struct map *map)
+int show_available_funcs(const char *target, struct strfilter *_filter,
+					bool user)
 {
-	if (map__load(map, filter_available_functions)) {
-		pr_err("Failed to load map.\n");
+	struct map *map;
+	int ret;
+
+	ret = init_symbol_maps(user);
+	if (ret < 0)
+		return ret;
+
+	/* Get a symbol map */
+	if (user)
+		map = dso__new_map(target);
+	else
+		map = kernel_get_module_map(target);
+	if (!map) {
+		pr_err("Failed to get a map for %s\n", (target) ? : "kernel");
 		return -EINVAL;
+	}
+
+	/* Load symbols with given filter */
+	available_func_filter = _filter;
+	if (map__load(map, filter_available_functions)) {
+		pr_err("Failed to load symbols in %s\n", (target) ? : "kernel");
+		goto end;
 	}
 	if (!dso__sorted_by_name(map->dso, map->type))
 		dso__sort_by_name(map->dso, map->type);
 
-	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
-	return 0;
-}
-
-static int available_kernel_funcs(const char *module)
-{
-	struct map *map;
-	int ret;
-
-	ret = init_symbol_maps(false);
-	if (ret < 0)
-		return ret;
-
-	map = kernel_get_module_map(module);
-	if (!map) {
-		pr_err("Failed to find %s map.\n", (module) ? : "kernel");
-		return -EINVAL;
-	}
-	ret = __show_available_funcs(map);
-	exit_symbol_maps();
-
-	return ret;
-}
-
-static int available_user_funcs(const char *target)
-{
-	struct map *map;
-	int ret;
-
-	ret = init_symbol_maps(true);
-	if (ret < 0)
-		return ret;
-
-	map = dso__new_map(target);
-	ret = __show_available_funcs(map);
-	dso__delete(map->dso);
-	map__delete(map);
-	exit_symbol_maps();
-	return ret;
-}
-
-int show_available_funcs(const char *target, struct strfilter *_filter,
-					bool user)
-{
+	/* Show all (filtered) symbols */
 	setup_pager();
-	available_func_filter = _filter;
+	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
+end:
+	if (user) {
+		dso__delete(map->dso);
+		map__delete(map);
+	}
+	exit_symbol_maps();
 
-	if (!user)
-		return available_kernel_funcs(target);
-
-	return available_user_funcs(target);
+	return ret;
 }
 
 /*
