@@ -30,7 +30,7 @@
 #include "pcm512x.h"
 
 #define PCM512x_NUM_SUPPLIES 3
-static const char *pcm512x_supply_names[PCM512x_NUM_SUPPLIES] = {
+static const char * const pcm512x_supply_names[PCM512x_NUM_SUPPLIES] = {
 	"AVDD",
 	"DVDD",
 	"CPVDD",
@@ -167,7 +167,7 @@ static bool pcm512x_volatile(struct device *dev, unsigned int reg)
 
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -10350, 50, 1);
 
-static const char *pcm512x_dsp_program_texts[] = {
+static const char * const pcm512x_dsp_program_texts[] = {
 	"FIR interpolation with de-emphasis",
 	"Low latency IIR with de-emphasis",
 	"Fixed process flow",
@@ -188,14 +188,14 @@ static const SOC_VALUE_ENUM_SINGLE_DECL(pcm512x_dsp_program,
 					pcm512x_dsp_program_texts,
 					pcm512x_dsp_program_values);
 
-static const char *pcm512x_clk_missing_text[] = {
+static const char * const pcm512x_clk_missing_text[] = {
 	"1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"
 };
 
 static const struct soc_enum pcm512x_clk_missing =
 	SOC_ENUM_SINGLE(PCM512x_CLKDET, 0,  8, pcm512x_clk_missing_text);
 
-static const char *pcm512x_autom_text[] = {
+static const char * const pcm512x_autom_text[] = {
 	"21ms", "106ms", "213ms", "533ms", "1.07s", "2.13s", "5.33s", "10.66s"
 };
 
@@ -207,7 +207,7 @@ static const struct soc_enum pcm512x_autom_r =
 	SOC_ENUM_SINGLE(PCM512x_AUTO_MUTE, PCM512x_ATMR_SHIFT, 8,
 			pcm512x_autom_text);
 
-static const char *pcm512x_ramp_rate_text[] = {
+static const char * const pcm512x_ramp_rate_text[] = {
 	"1 sample/update", "2 samples/update", "4 samples/update",
 	"Immediate"
 };
@@ -224,7 +224,7 @@ static const struct soc_enum pcm512x_vedf =
 	SOC_ENUM_SINGLE(PCM512x_DIGITAL_MUTE_2, PCM512x_VEDF_SHIFT, 4,
 			pcm512x_ramp_rate_text);
 
-static const char *pcm512x_ramp_step_text[] = {
+static const char * const pcm512x_ramp_step_text[] = {
 	"4dB/step", "2dB/step", "1dB/step", "0.5dB/step"
 };
 
