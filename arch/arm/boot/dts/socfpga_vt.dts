@@ -75,3 +75,11 @@
 		};
 	};
 };
+
+&ethernet0 {
+        status = "okay";
+};
+
+&gmac0 {
+	phy-mode = "gmii";
+};

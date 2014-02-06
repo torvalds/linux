@@ -1,0 +1,35 @@
+Altera SOCFPGA SoC DWMAC controller
+
+The device node has following properties.
+
+Required properties:
+ - compatible	: Should contain "altr,socfpga-stmmac"
+ - altr,sysmgr-syscon : Should be the phandle to the system manager node that
+   encompasses the glue register, and the register offset.
+
+Sub-nodes:
+The dwmac core should be added as subnode to SOCFPGA dwmac glue.
+- dwmac :	The binding details of dwmac can be found in
+  Documentation/devicetree/bindings/net/stmmac.txt
+
+Example:
+
+ethernet0: ethernet0 {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	compatible = "altr,socfpga-stmmac";
+	altr,sysmgr-syscon = <&sysmgr 0x60>;
+	status = "disabled";
+	ranges;
+
+	gmac0: gmac0@ff700000 {
+		compatible = "snps,dwmac-3.70a", "snps,dwmac";
+		reg = <0xff700000 0x2000>;
+		interrupts = <0 115 4>;
+		interrupt-names = "macirq";
+		mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
+		clocks = <&emac0_clk>;
+		clock-names = "stmmaceth";
+	};
+};
