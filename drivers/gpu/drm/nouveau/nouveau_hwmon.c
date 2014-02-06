@@ -587,18 +587,14 @@ nouveau_hwmon_init(struct drm_device *dev)
 
 	/* set the default attributes */
 	ret = sysfs_create_group(&hwmon_dev->kobj, &hwmon_default_attrgroup);
-	if (ret) {
-		if (ret)
-			goto error;
-	}
+	if (ret)
+		goto error;
 
 	/* if the card has a working thermal sensor */
 	if (therm->temp_get(therm) >= 0) {
 		ret = sysfs_create_group(&hwmon_dev->kobj, &hwmon_temp_attrgroup);
-		if (ret) {
-			if (ret)
-				goto error;
-		}
+		if (ret)
+			goto error;
 	}
 
 	/* if the card has a pwm fan */
