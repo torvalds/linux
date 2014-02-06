@@ -297,7 +297,6 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	newfunc = &context->func;
 	newfunc->function = function;
 	newfunc->parent = bridge;
-	acpi_unlock_hp_context();
 
 	if (acpi_has_method(handle, "_EJ0"))
 		newfunc->flags = FUNC_HAS_EJ0;
@@ -305,8 +304,14 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	if (acpi_has_method(handle, "_STA"))
 		newfunc->flags |= FUNC_HAS_STA;
 
+	/*
+	 * Dock stations' notify handler should be used for dock devices instead
+	 * of the common one, so clear hp.event in their contexts.
+	 */
 	if (acpi_has_method(handle, "_DCK"))
-		newfunc->flags |= FUNC_HAS_DCK;
+		context->hp.event = NULL;
+
+	acpi_unlock_hp_context();
 
 	/* search for objects that share the same slot */
 	list_for_each_entry(slot, &bridge->slots, node)
@@ -374,10 +379,6 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 			pr_debug("failed to register dock device\n");
 	}
 
-	/* install notify handler */
-	if (!(newfunc->flags & FUNC_HAS_DCK))
-		acpi_install_hotplug_notify_handler(handle);
-
 	return AE_OK;
 }
 
@@ -411,13 +412,14 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 
 	list_for_each_entry(slot, &bridge->slots, node) {
 		list_for_each_entry(func, &slot->funcs, sibling) {
-			acpi_handle handle = func_to_handle(func);
+			struct acpi_device *adev = func_to_acpi_device(func);
 
-			if (is_dock_device(handle))
-				unregister_hotplug_dock_device(handle);
+			if (is_dock_device(adev->handle))
+				unregister_hotplug_dock_device(adev->handle);
 
-			if (!(func->flags & FUNC_HAS_DCK))
-				acpi_remove_hotplug_notify_handler(handle);
+			acpi_lock_hp_context();
+			adev->hp->event = NULL;
+			acpi_unlock_hp_context();
 		}
 		slot->flags |= SLOT_IS_GOING_AWAY;
 		if (slot->slot)
