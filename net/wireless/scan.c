@@ -161,18 +161,25 @@ static void __cfg80211_bss_expire(struct cfg80211_registered_device *dev,
 		dev->bss_generation++;
 }
 
-void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev)
+void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
+			   bool send_message)
 {
 	struct cfg80211_scan_request *request;
 	struct wireless_dev *wdev;
+	struct sk_buff *msg;
 #ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
 	ASSERT_RTNL();
 
-	request = rdev->scan_req;
+	if (rdev->scan_msg) {
+		nl80211_send_scan_result(rdev, rdev->scan_msg);
+		rdev->scan_msg = NULL;
+		return;
+	}
 
+	request = rdev->scan_req;
 	if (!request)
 		return;
 
@@ -186,17 +193,15 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev)
 	if (wdev->netdev)
 		cfg80211_sme_scan_done(wdev->netdev);
 
-	if (request->aborted) {
-		nl80211_send_scan_aborted(rdev, wdev);
-	} else {
-		if (request->flags & NL80211_SCAN_FLAG_FLUSH) {
-			/* flush entries from previous scans */
-			spin_lock_bh(&rdev->bss_lock);
-			__cfg80211_bss_expire(rdev, request->scan_start);
-			spin_unlock_bh(&rdev->bss_lock);
-		}
-		nl80211_send_scan_done(rdev, wdev);
+	if (!request->aborted &&
+	    request->flags & NL80211_SCAN_FLAG_FLUSH) {
+		/* flush entries from previous scans */
+		spin_lock_bh(&rdev->bss_lock);
+		__cfg80211_bss_expire(rdev, request->scan_start);
+		spin_unlock_bh(&rdev->bss_lock);
 	}
+
+	msg = nl80211_build_scan_msg(rdev, wdev, request->aborted);
 
 #ifdef CONFIG_CFG80211_WEXT
 	if (wdev->netdev && !request->aborted) {
@@ -211,6 +216,11 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev)
 
 	rdev->scan_req = NULL;
 	kfree(request);
+
+	if (!send_message)
+		rdev->scan_msg = msg;
+	else
+		nl80211_send_scan_result(rdev, msg);
 }
 
 void __cfg80211_scan_done(struct work_struct *wk)
@@ -221,7 +231,7 @@ void __cfg80211_scan_done(struct work_struct *wk)
 			    scan_done_wk);
 
 	rtnl_lock();
-	___cfg80211_scan_done(rdev);
+	___cfg80211_scan_done(rdev, true);
 	rtnl_unlock();
 }
 
@@ -1079,7 +1089,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
-	if (rdev->scan_req) {
+	if (rdev->scan_req || rdev->scan_msg) {
 		err = -EBUSY;
 		goto out;
 	}
@@ -1481,7 +1491,7 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
-	if (rdev->scan_req)
+	if (rdev->scan_req || rdev->scan_msg)
 		return -EAGAIN;
 
 	res = ieee80211_scan_results(rdev, info, extra, data->length);
