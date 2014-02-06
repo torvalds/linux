@@ -346,7 +346,7 @@ static inline int
 drv_sched_scan_start(struct ieee80211_local *local,
 		     struct ieee80211_sub_if_data *sdata,
 		     struct cfg80211_sched_scan_request *req,
-		     struct ieee80211_sched_scan_ies *ies)
+		     struct ieee80211_scan_ies *ies)
 {
 	int ret;
 

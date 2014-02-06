@@ -1003,10 +1003,13 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 					struct cfg80211_sched_scan_request *req)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_sched_scan_ies sched_scan_ies = {};
+	struct ieee80211_scan_ies sched_scan_ies = {};
 	struct cfg80211_chan_def chandef;
-	int ret, i, iebufsz;
-	struct ieee80211_scan_ies dummy_ie_desc;
+	int ret, i, iebufsz, num_bands = 0;
+	u32 rate_masks[IEEE80211_NUM_BANDS] = {};
+	u8 bands_used = 0;
+	u8 *ie;
+	size_t len;
 
 	iebufsz = local->scan_ies_len + req->ie_len;
 
@@ -1016,26 +1019,25 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 		return -ENOTSUPP;
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
-		u32 rate_masks[IEEE80211_NUM_BANDS] = {};
-
-		if (!local->hw.wiphy->bands[i])
-			continue;
-
-		sched_scan_ies.ie[i] = kzalloc(iebufsz, GFP_KERNEL);
-		if (!sched_scan_ies.ie[i]) {
-			ret = -ENOMEM;
-			goto out_free;
+		if (local->hw.wiphy->bands[i]) {
+			bands_used |= BIT(i);
+			rate_masks[i] = (u32) -1;
+			num_bands++;
 		}
-
-		ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
-		rate_masks[i] = (u32) -1;
-
-		sched_scan_ies.len[i] =
-			ieee80211_build_preq_ies(local, sched_scan_ies.ie[i],
-						 iebufsz, &dummy_ie_desc,
-						 req->ie, req->ie_len, BIT(i),
-						 rate_masks, &chandef);
 	}
+
+	ie = kzalloc(num_bands * iebufsz, GFP_KERNEL);
+	if (!ie) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
+
+	len = ieee80211_build_preq_ies(local, ie, num_bands * iebufsz,
+				       &sched_scan_ies, req->ie,
+				       req->ie_len, bands_used,
+				       rate_masks, &chandef);
 
 	ret = drv_sched_scan_start(local, sdata, req, &sched_scan_ies);
 	if (ret == 0) {
@@ -1043,10 +1045,9 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 		local->sched_scan_req = req;
 	}
 
-out_free:
-	while (i > 0)
-		kfree(sched_scan_ies.ie[--i]);
+	kfree(ie);
 
+out:
 	if (ret) {
 		/* Clean in case of failure after HW restart or upon resume. */
 		RCU_INIT_POINTER(local->sched_scan_sdata, NULL);
