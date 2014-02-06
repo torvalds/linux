@@ -2102,7 +2102,7 @@ static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 
 	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
 	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,
-	 *       + 2 desc gap to keep tail from touching head,
+	 *       + 4 desc gap to avoid the cache line where head is,
 	 *       + 1 desc for context descriptor,
 	 * otherwise try next time
 	 */
@@ -2113,7 +2113,7 @@ static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 	count += skb_shinfo(skb)->nr_frags;
 #endif
 	count += TXD_USE_COUNT(skb_headlen(skb));
-	if (i40e_maybe_stop_tx(tx_ring, count + 3)) {
+	if (i40e_maybe_stop_tx(tx_ring, count + 4 + 1)) {
 		tx_ring->tx_stats.tx_busy++;
 		return 0;
 	}
