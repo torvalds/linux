@@ -49,14 +49,6 @@ config PPC_HOLLY
 	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
 	  Board with TSI108/9 bridge (Hickory/Holly)
 
-config PPC_PRPMC2800
-	bool "Motorola-PrPMC2800"
-	depends on EMBEDDED6xx
-	select MV64X60
-	select NOT_COHERENT_CACHE
-	help
-	  This option enables support for the Motorola PrPMC2800 board
-
 config PPC_C2K
 	bool "SBS/GEFanuc C2K board"
 	depends on EMBEDDED6xx
