@@ -627,18 +627,13 @@ EXPORT_SYMBOL_GPL(__dma_request_channel);
 struct dma_chan *dma_request_slave_channel_reason(struct device *dev,
 						  const char *name)
 {
-	struct dma_chan *chan;
-
 	/* If device-tree is present get slave info from here */
 	if (dev->of_node)
 		return of_dma_request_slave_channel(dev->of_node, name);
 
 	/* If device was enumerated by ACPI get slave info from here */
-	if (ACPI_HANDLE(dev)) {
-		chan = acpi_dma_request_slave_chan_by_name(dev, name);
-		if (chan)
-			return chan;
-	}
+	if (ACPI_HANDLE(dev))
+		return acpi_dma_request_slave_chan_by_name(dev, name);
 
 	return ERR_PTR(-ENODEV);
 }
