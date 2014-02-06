@@ -5093,6 +5093,12 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 	/* increment MSI-X count because current FW skips one */
 	pf->hw.func_caps.num_msix_vectors++;
 
+	if (((pf->hw.aq.fw_maj_ver == 2) && (pf->hw.aq.fw_min_ver < 22)) ||
+	    (pf->hw.aq.fw_maj_ver < 2)) {
+		pf->hw.func_caps.num_msix_vectors++;
+		pf->hw.func_caps.num_msix_vectors_vf++;
+	}
+
 	if (pf->hw.debug_mask & I40E_DEBUG_USER)
 		dev_info(&pf->pdev->dev,
 			 "pf=%d, num_vfs=%d, msix_pf=%d, msix_vf=%d, fd_g=%d, fd_b=%d, pf_max_q=%d num_vsi=%d\n",
