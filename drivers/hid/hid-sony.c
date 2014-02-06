@@ -44,8 +44,12 @@
 #define DUALSHOCK4_CONTROLLER_USB BIT(5)
 #define DUALSHOCK4_CONTROLLER_BT  BIT(6)
 
-#define SONY_LED_SUPPORT (SIXAXIS_CONTROLLER_USB | BUZZ_CONTROLLER | DUALSHOCK4_CONTROLLER_USB)
-#define SONY_BATTERY_SUPPORT (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT | DUALSHOCK4_CONTROLLER_USB)
+#define DUALSHOCK4_CONTROLLER (DUALSHOCK4_CONTROLLER_USB |\
+				DUALSHOCK4_CONTROLLER_BT)
+#define SONY_LED_SUPPORT (SIXAXIS_CONTROLLER_USB | BUZZ_CONTROLLER |\
+				DUALSHOCK4_CONTROLLER)
+#define SONY_BATTERY_SUPPORT (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT |\
+				DUALSHOCK4_CONTROLLER)
 
 #define MAX_LEDS 4
 
@@ -939,8 +943,9 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		swap(rd[47], rd[48]);
 
 		sixaxis_parse_report(sc, rd, size);
-	} else if ((sc->quirks & DUALSHOCK4_CONTROLLER_USB) && rd[0] == 0x01 &&
-			size == 64) {
+	} else if (((sc->quirks & DUALSHOCK4_CONTROLLER_USB) && rd[0] == 0x01 &&
+			size == 64) || ((sc->quirks & DUALSHOCK4_CONTROLLER_BT)
+			&& rd[0] == 0x11 && size == 78)) {
 		dualshock4_parse_report(sc, rd, size);
 	}
 
@@ -1053,6 +1058,17 @@ static int sixaxis_set_operational_bt(struct hid_device *hdev)
 				     HID_FEATURE_REPORT);
 }
 
+/* Requesting feature report 0x02 in Bluetooth mode changes the state of the
+ * controller so that it sends full input reports of type 0x11.
+ */
+static int dualshock4_set_operational_bt(struct hid_device *hdev)
+{
+	__u8 buf[37] = { 0 };
+
+	return hid_hw_raw_request(hdev, 0x02, buf, sizeof(buf),
+				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+}
+
 static void buzz_set_leds(struct hid_device *hdev, const __u8 *leds)
 {
 	struct list_head *report_list =
@@ -1081,7 +1097,7 @@ static void sony_set_leds(struct hid_device *hdev, const __u8 *leds, int count)
 	if (drv_data->quirks & BUZZ_CONTROLLER && count == 4) {
 		buzz_set_leds(hdev, leds);
 	} else if ((drv_data->quirks & SIXAXIS_CONTROLLER_USB) ||
-		   (drv_data->quirks & DUALSHOCK4_CONTROLLER_USB)) {
+		   (drv_data->quirks & DUALSHOCK4_CONTROLLER)) {
 		for (n = 0; n < count; n++)
 			drv_data->led_state[n] = leds[n];
 		schedule_work(&drv_data->state_worker);
@@ -1183,7 +1199,7 @@ static int sony_leds_init(struct hid_device *hdev)
 		/* Validate expected report characteristics. */
 		if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, 0, 0, 7))
 			return -ENODEV;
-	} else if (drv_data->quirks & DUALSHOCK4_CONTROLLER_USB) {
+	} else if (drv_data->quirks & DUALSHOCK4_CONTROLLER) {
 		drv_data->led_count = 3;
 		max_brightness = 255;
 		use_colors = 1;
@@ -1507,7 +1523,14 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 	else if (sc->quirks & SIXAXIS_CONTROLLER_BT)
 		ret = sixaxis_set_operational_bt(hdev);
-	else if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
+	else if (sc->quirks & DUALSHOCK4_CONTROLLER) {
+		if (sc->quirks & DUALSHOCK4_CONTROLLER_BT) {
+			ret = dualshock4_set_operational_bt(hdev);
+			if (ret < 0) {
+				hid_err(hdev, "failed to set the Dualshock 4 operational mode\n");
+				goto err_stop;
+			}
+		}
 		/* The Dualshock 4 touchpad supports 2 touches and has a
 		 * resolution of 1920x940.
 		 */
