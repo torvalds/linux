@@ -235,11 +235,23 @@ struct scsi_dh_data {
 #define sdev_printk(prefix, sdev, fmt, a...)	\
 	dev_printk(prefix, &(sdev)->sdev_gendev, fmt, ##a)
 
+#define sdev_dbg(sdev, fmt, a...) \
+	dev_dbg(&(sdev)->sdev_gendev, fmt, ##a)
+
 #define scmd_printk(prefix, scmd, fmt, a...)				\
         (scmd)->request->rq_disk ?					\
 	sdev_printk(prefix, (scmd)->device, "[%s] " fmt,		\
 		    (scmd)->request->rq_disk->disk_name, ##a) :		\
 	sdev_printk(prefix, (scmd)->device, fmt, ##a)
+
+#define scmd_dbg(scmd, fmt, a...)					   \
+	do {								   \
+		if ((scmd)->request->rq_disk)				   \
+			sdev_dbg((scmd)->device, "[%s] " fmt,		   \
+				 (scmd)->request->rq_disk->disk_name, ##a);\
+		else							   \
+			sdev_dbg((scmd)->device, fmt, ##a);		   \
+	} while (0)
 
 enum scsi_target_state {
 	STARGET_CREATED = 1,
