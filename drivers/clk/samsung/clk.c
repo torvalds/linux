@@ -54,13 +54,18 @@ struct samsung_clk_provider *__init samsung_clk_init(struct device_node *np,
 	struct samsung_clk_provider *ctx;
 	struct clk **clk_table;
 	int ret;
+	int i;
+
 	ctx = kzalloc(sizeof(struct samsung_clk_provider), GFP_KERNEL);
 	if (!ctx)
 		panic("could not allocate clock provider context.\n");
 
-	clk_table = kzalloc(sizeof(struct clk *) * nr_clks, GFP_KERNEL);
+	clk_table = kcalloc(nr_clks, sizeof(struct clk *), GFP_KERNEL);
 	if (!clk_table)
 		panic("could not allocate clock lookup table\n");
+
+	for (i = 0; i < nr_clks; ++i)
+		clk_table[i] = ERR_PTR(-ENOENT);
 
 	ctx->reg_base = base;
 	ctx->clk_data.clks = clk_table;
