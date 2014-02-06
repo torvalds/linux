@@ -30,6 +30,7 @@ struct debuginfo {
 	Dwarf_Addr	bias;
 };
 
+/* This also tries to open distro debuginfo */
 extern struct debuginfo *debuginfo__new(const char *path);
 extern void debuginfo__delete(struct debuginfo *dbg);
 

@@ -256,17 +256,14 @@ static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 }
 
 #ifdef HAVE_DWARF_SUPPORT
+
 /* Open new debuginfo of given module */
 static struct debuginfo *open_debuginfo(const char *module)
 {
-	const char *path;
+	const char *path = module;
 
-	/* A file path -- this is an offline module */
-	if (module && strchr(module, '/'))
-		path = module;
-	else {
+	if (!module || !strchr(module, '/')) {
 		path = kernel_get_module_path(module);
-
 		if (!path) {
 			pr_err("Failed to find path of %s module.\n",
 			       module ?: "kernel");
