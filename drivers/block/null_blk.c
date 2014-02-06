@@ -195,6 +195,7 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 	cq = &per_cpu(completion_queues, smp_processor_id());
 
 	while ((entry = llist_del_all(&cq->list)) != NULL) {
+		entry = llist_reverse_order(entry);
 		do {
 			cmd = container_of(entry, struct nullb_cmd, ll_list);
 			end_cmd(cmd);
@@ -235,6 +236,7 @@ static void null_ipi_cmd_end_io(void *data)
 	cq = &per_cpu(completion_queues, smp_processor_id());
 
 	entry = llist_del_all(&cq->list);
+	entry = llist_reverse_order(entry);
 
 	while (entry) {
 		next = entry->next;
