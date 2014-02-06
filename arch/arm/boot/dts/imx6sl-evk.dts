@@ -8,6 +8,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include "imx6sl.dtsi"
 
@@ -17,6 +18,18 @@
 
 	memory {
 		reg = <0x80000000 0x40000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_led>;
+
+		user {
+			label = "debug";
+			gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
 	};
 
 	regulators {
@@ -297,6 +310,12 @@
 			fsl,pins = <
 				MX6SL_PAD_I2C2_SCL__I2C2_SCL	0x4001b8b1
 				MX6SL_PAD_I2C2_SDA__I2C2_SDA	0x4001b8b1
+			>;
+		};
+
+		pinctrl_led: ledgrp {
+			fsl,pins = <
+				MX6SL_PAD_HSIC_STROBE__GPIO3_IO20 0x17059
 			>;
 		};
 
