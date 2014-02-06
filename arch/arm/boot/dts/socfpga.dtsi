@@ -415,6 +415,7 @@
 						compatible = "altr,socfpga-gate-clk";
 						clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
 						clk-gate = <0xa0 8>;
+						clk-phase = <0 135>;
 					};
 
 					nand_x_clk: nand_x_clk {
