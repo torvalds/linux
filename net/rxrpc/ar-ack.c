@@ -41,7 +41,7 @@ unsigned rxrpc_soft_ack_delay = 1 * HZ;
  * further packets aren't immediately received to decide when to send an IDLE
  * ACK let the other end know that it can free up its Tx buffer space.
  */
-unsigned rxrpc_idle_ack_delay = 1;
+unsigned rxrpc_idle_ack_delay = 0.5 * HZ;
 
 static const char *rxrpc_acks(u8 reason)
 {

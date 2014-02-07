@@ -90,7 +90,7 @@ static void rxrpc_hard_ACK_data(struct rxrpc_call *call,
 		 */
 		_debug("send Rx idle ACK");
 		__rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, sp->hdr.serial,
-				    true);
+				    false);
 	}
 
 	spin_unlock_bh(&call->lock);
