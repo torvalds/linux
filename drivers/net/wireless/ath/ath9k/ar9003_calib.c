@@ -1458,7 +1458,7 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	bool txiqcal_done = false;
-	bool is_reusable = true, status = true;
+	bool status = true;
 	bool run_agc_cal = false, sep_iq_cal = false;
 
 	/* Use chip chainmask only for calibration */
@@ -1528,7 +1528,7 @@ skip_tx_iqcal:
 	}
 
 	if (txiqcal_done)
-		ar9003_hw_tx_iq_cal_post_proc(ah, is_reusable);
+		ar9003_hw_tx_iq_cal_post_proc(ah, false);
 
 	/* Revert chainmask to runtime parameters */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
