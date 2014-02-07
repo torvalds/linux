@@ -69,7 +69,7 @@
 		cache-unified;
 		cache-level = <2>;
 		arm,tag-latency = <1 1 1>;
-		arm,data-latency = <2 3 1>;
+		arm,data-latency = <3 1 2>;
 		rockchip,prefetch-ctrl = <0x70000003>;
 		/* L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN */
 		rockchip,power-ctrl = <0x3>;
