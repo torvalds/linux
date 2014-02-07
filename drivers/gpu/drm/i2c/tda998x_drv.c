@@ -810,6 +810,12 @@ static int
 tda998x_encoder_mode_valid(struct drm_encoder *encoder,
 			  struct drm_display_mode *mode)
 {
+	if (mode->clock > 150000)
+		return MODE_CLOCK_HIGH;
+	if (mode->htotal >= BIT(13))
+		return MODE_BAD_HVALUE;
+	if (mode->vtotal >= BIT(11))
+		return MODE_BAD_VVALUE;
 	return MODE_OK;
 }
 
