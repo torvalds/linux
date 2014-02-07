@@ -714,13 +714,16 @@ static void blk_mq_work_fn(struct work_struct *work)
 }
 
 static void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx,
-				    struct request *rq)
+				    struct request *rq, bool at_head)
 {
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 
 	trace_block_rq_insert(hctx->queue, rq);
 
-	list_add_tail(&rq->queuelist, &ctx->rq_list);
+	if (at_head)
+		list_add(&rq->queuelist, &ctx->rq_list);
+	else
+		list_add_tail(&rq->queuelist, &ctx->rq_list);
 	blk_mq_hctx_mark_pending(hctx, ctx);
 
 	/*
@@ -730,7 +733,7 @@ static void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx,
 }
 
 void blk_mq_insert_request(struct request_queue *q, struct request *rq,
-			   bool run_queue)
+			   bool at_head, bool run_queue)
 {
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx, *current_ctx;
@@ -749,7 +752,7 @@ void blk_mq_insert_request(struct request_queue *q, struct request *rq,
 			rq->mq_ctx = ctx;
 		}
 		spin_lock(&ctx->lock);
-		__blk_mq_insert_request(hctx, rq);
+		__blk_mq_insert_request(hctx, rq, at_head);
 		spin_unlock(&ctx->lock);
 
 		blk_mq_put_ctx(current_ctx);
@@ -781,7 +784,7 @@ void blk_mq_run_request(struct request *rq, bool run_queue, bool async)
 
 	/* ctx->cpu might be offline */
 	spin_lock(&ctx->lock);
-	__blk_mq_insert_request(hctx, rq);
+	__blk_mq_insert_request(hctx, rq, false);
 	spin_unlock(&ctx->lock);
 
 	blk_mq_put_ctx(current_ctx);
@@ -819,7 +822,7 @@ static void blk_mq_insert_requests(struct request_queue *q,
 		rq = list_first_entry(list, struct request, queuelist);
 		list_del_init(&rq->queuelist);
 		rq->mq_ctx = ctx;
-		__blk_mq_insert_request(hctx, rq);
+		__blk_mq_insert_request(hctx, rq, false);
 	}
 	spin_unlock(&ctx->lock);
 
@@ -971,7 +974,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		__blk_mq_free_request(hctx, ctx, rq);
 	else {
 		blk_mq_bio_to_request(rq, bio);
-		__blk_mq_insert_request(hctx, rq);
+		__blk_mq_insert_request(hctx, rq, false);
 	}
 
 	spin_unlock(&ctx->lock);
