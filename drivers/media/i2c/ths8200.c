@@ -217,8 +217,8 @@ static void ths8200_core_init(struct v4l2_subdev *sd)
 	/* Disable embedded syncs on the output by setting
 	 * the amplitude to zero for all channels.
 	 */
-	ths8200_write(sd, THS8200_DTG1_Y_SYNC_MSB, 0x2a);
-	ths8200_write(sd, THS8200_DTG1_CBCR_SYNC_MSB, 0x2a);
+	ths8200_write(sd, THS8200_DTG1_Y_SYNC_MSB, 0x00);
+	ths8200_write(sd, THS8200_DTG1_CBCR_SYNC_MSB, 0x00);
 }
 
 static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
