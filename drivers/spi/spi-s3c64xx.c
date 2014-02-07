@@ -277,17 +277,6 @@ static void s3c64xx_spi_dmacb(void *data)
 	spin_unlock_irqrestore(&sdd->lock, flags);
 }
 
-static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_message *msg)
-{
-	return 0;
-}
-
-static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_message *msg)
-{
-}
-
 static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 			struct sg_table *sgt)
 {
@@ -385,12 +374,6 @@ static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
 
 	pm_runtime_put(&sdd->pdev->dev);
 	return 0;
-}
-
-static void s3c64xx_spi_dma_stop(struct s3c64xx_spi_driver_data *sdd,
-				 struct s3c64xx_spi_dma_data *dma)
-{
-	dmaengine_terminate_all(dma->ch);
 }
 
 static bool s3c64xx_spi_can_dma(struct spi_master *master,
@@ -691,13 +674,6 @@ static int s3c64xx_spi_prepare_message(struct spi_master *master,
 		s3c64xx_spi_config(sdd);
 	}
 
-	/* Map all the transfers if needed */
-	if (s3c64xx_spi_map_mssg(sdd, msg)) {
-		dev_err(&spi->dev,
-			"Xfer: Unable to map message buffers!\n");
-		return -ENOMEM;
-	}
-
 	/* Configure feedback delay */
 	writel(cs->fb_delay & 0x3, sdd->regs + S3C64XX_SPI_FB_CLK);
 
@@ -769,26 +745,16 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 		if (use_dma) {
 			if (xfer->tx_buf != NULL
 			    && (sdd->state & TXBUSY))
-				s3c64xx_spi_dma_stop(sdd, &sdd->tx_dma);
+				dmaengine_terminate_all(sdd->tx_dma.ch);
 			if (xfer->rx_buf != NULL
 			    && (sdd->state & RXBUSY))
-				s3c64xx_spi_dma_stop(sdd, &sdd->rx_dma);
+				dmaengine_terminate_all(sdd->rx_dma.ch);
 		}
 	} else {
 		flush_fifo(sdd);
 	}
 
 	return status;
-}
-
-static int s3c64xx_spi_unprepare_message(struct spi_master *master,
-					    struct spi_message *msg)
-{
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-
-	s3c64xx_spi_unmap_mssg(sdd, msg);
-
-	return 0;
 }
 
 static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata(
@@ -1164,7 +1130,6 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	master->prepare_transfer_hardware = s3c64xx_spi_prepare_transfer;
 	master->prepare_message = s3c64xx_spi_prepare_message;
 	master->transfer_one = s3c64xx_spi_transfer_one;
-	master->unprepare_message = s3c64xx_spi_unprepare_message;
 	master->unprepare_transfer_hardware = s3c64xx_spi_unprepare_transfer;
 	master->num_chipselect = sci->num_cs;
 	master->dma_alignment = 8;
