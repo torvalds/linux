@@ -106,7 +106,6 @@ static int lowpan_header_create(struct sk_buff *skb,
 			   unsigned short type, const void *_daddr,
 			   const void *_saddr, unsigned int len)
 {
-	struct ipv6hdr *hdr;
 	const u8 *saddr = _saddr;
 	const u8 *daddr = _daddr;
 	struct ieee802154_addr sa, da;
@@ -116,8 +115,6 @@ static int lowpan_header_create(struct sk_buff *skb,
 	 */
 	if (type != ETH_P_IPV6)
 		return 0;
-
-	hdr = ipv6_hdr(skb);
 
 	if (!saddr)
 		saddr = dev->dev_addr;
