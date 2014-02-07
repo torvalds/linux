@@ -80,8 +80,6 @@ typedef void (*RT_WORKITEM_CALL_BACK)(void *pContext);
 /*  Memory Relative Function. */
 
 /*  ODM Timer relative API. */
-void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer,
-		  u32 msDelay);
 
 void ODM_InitializeTimer(struct odm_dm_struct *pDM_Odm,
 			 struct timer_list *pTimer, void *CallBackFunc,
