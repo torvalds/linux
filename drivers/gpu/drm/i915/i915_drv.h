@@ -1500,8 +1500,8 @@ typedef struct drm_i915_private {
 
 	struct sdvo_device_mapping sdvo_mappings[2];
 
-	struct drm_crtc *plane_to_crtc_mapping[3];
-	struct drm_crtc *pipe_to_crtc_mapping[3];
+	struct drm_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
+	struct drm_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
 	wait_queue_head_t pending_flip_queue;
 
 #ifdef CONFIG_DEBUG_FS
