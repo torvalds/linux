@@ -91,7 +91,12 @@ struct kernfs_node {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
-	/* the following two fields are published */
+	/*
+	 * Use kernfs_get_parent() and kernfs_name/path() instead of
+	 * accessing the following two fields directly.  If the node is
+	 * never moved to a different parent, it is safe to access the
+	 * parent directly.
+	 */
 	struct kernfs_node	*parent;
 	const char		*name;
 
@@ -229,6 +234,12 @@ static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 	return kn->flags & KERNFS_NS;
 }
 
+int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen);
+char * __must_check kernfs_path(struct kernfs_node *kn, char *buf,
+				size_t buflen);
+void pr_cont_kernfs_name(struct kernfs_node *kn);
+void pr_cont_kernfs_path(struct kernfs_node *kn);
+struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn);
 struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
 					   const char *name, const void *ns);
 void kernfs_get(struct kernfs_node *kn);
@@ -282,6 +293,19 @@ static inline void kernfs_enable_ns(struct kernfs_node *kn) { }
 
 static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 { return false; }
+
+static inline int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
+{ return -ENOSYS; }
+
+static inline char * __must_check kernfs_path(struct kernfs_node *kn, char *buf,
+					      size_t buflen)
+{ return NULL; }
+
+static inline void pr_cont_kernfs_name(struct kernfs_node *kn) { }
+static inline void pr_cont_kernfs_path(struct kernfs_node *kn) { }
+
+static inline struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
+{ return NULL; }
 
 static inline struct kernfs_node *
 kernfs_find_and_get_ns(struct kernfs_node *parent, const char *name,

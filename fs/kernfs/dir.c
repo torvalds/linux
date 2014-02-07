@@ -19,6 +19,8 @@
 #include "kernfs-internal.h"
 
 DEFINE_MUTEX(kernfs_mutex);
+static DEFINE_SPINLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
+static char kernfs_pr_cont_buf[PATH_MAX];	/* protected by rename_lock */
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
@@ -35,6 +37,141 @@ static bool kernfs_lockdep(struct kernfs_node *kn)
 #else
 	return false;
 #endif
+}
+
+static int kernfs_name_locked(struct kernfs_node *kn, char *buf, size_t buflen)
+{
+	return strlcpy(buf, kn->parent ? kn->name : "/", buflen);
+}
+
+static char * __must_check kernfs_path_locked(struct kernfs_node *kn, char *buf,
+					      size_t buflen)
+{
+	char *p = buf + buflen;
+	int len;
+
+	*--p = '\0';
+
+	do {
+		len = strlen(kn->name);
+		if (p - buf < len + 1) {
+			buf[0] = '\0';
+			p = NULL;
+			break;
+		}
+		p -= len;
+		memcpy(p, kn->name, len);
+		*--p = '/';
+		kn = kn->parent;
+	} while (kn && kn->parent);
+
+	return p;
+}
+
+/**
+ * kernfs_name - obtain the name of a given node
+ * @kn: kernfs_node of interest
+ * @buf: buffer to copy @kn's name into
+ * @buflen: size of @buf
+ *
+ * Copies the name of @kn into @buf of @buflen bytes.  The behavior is
+ * similar to strlcpy().  It returns the length of @kn's name and if @buf
+ * isn't long enough, it's filled upto @buflen-1 and nul terminated.
+ *
+ * This function can be called from any context.
+ */
+int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&kernfs_rename_lock, flags);
+	ret = kernfs_name_locked(kn, buf, buflen);
+	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+	return ret;
+}
+
+/**
+ * kernfs_path - build full path of a given node
+ * @kn: kernfs_node of interest
+ * @buf: buffer to copy @kn's name into
+ * @buflen: size of @buf
+ *
+ * Builds and returns the full path of @kn in @buf of @buflen bytes.  The
+ * path is built from the end of @buf so the returned pointer usually
+ * doesn't match @buf.  If @buf isn't long enough, @buf is nul terminated
+ * and %NULL is returned.
+ */
+char *kernfs_path(struct kernfs_node *kn, char *buf, size_t buflen)
+{
+	unsigned long flags;
+	char *p;
+
+	spin_lock_irqsave(&kernfs_rename_lock, flags);
+	p = kernfs_path_locked(kn, buf, buflen);
+	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+	return p;
+}
+
+/**
+ * pr_cont_kernfs_name - pr_cont name of a kernfs_node
+ * @kn: kernfs_node of interest
+ *
+ * This function can be called from any context.
+ */
+void pr_cont_kernfs_name(struct kernfs_node *kn)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&kernfs_rename_lock, flags);
+
+	kernfs_name_locked(kn, kernfs_pr_cont_buf, sizeof(kernfs_pr_cont_buf));
+	pr_cont("%s", kernfs_pr_cont_buf);
+
+	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+}
+
+/**
+ * pr_cont_kernfs_path - pr_cont path of a kernfs_node
+ * @kn: kernfs_node of interest
+ *
+ * This function can be called from any context.
+ */
+void pr_cont_kernfs_path(struct kernfs_node *kn)
+{
+	unsigned long flags;
+	char *p;
+
+	spin_lock_irqsave(&kernfs_rename_lock, flags);
+
+	p = kernfs_path_locked(kn, kernfs_pr_cont_buf,
+			       sizeof(kernfs_pr_cont_buf));
+	if (p)
+		pr_cont("%s", p);
+	else
+		pr_cont("<name too long>");
+
+	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+}
+
+/**
+ * kernfs_get_parent - determine the parent node and pin it
+ * @kn: kernfs_node of interest
+ *
+ * Determines @kn's parent, pins and returns it.  This function can be
+ * called from any context.
+ */
+struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
+{
+	struct kernfs_node *parent;
+	unsigned long flags;
+
+	spin_lock_irqsave(&kernfs_rename_lock, flags);
+	parent = kn->parent;
+	kernfs_get(parent);
+	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+
+	return parent;
 }
 
 /**
@@ -1103,7 +1240,13 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		     const char *new_name, const void *new_ns)
 {
+	struct kernfs_node *old_parent;
+	const char *old_name = NULL;
 	int error;
+
+	/* can't move or rename root */
+	if (!kn->parent)
+		return -EINVAL;
 
 	mutex_lock(&kernfs_mutex);
 
@@ -1126,13 +1269,8 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		new_name = kstrdup(new_name, GFP_KERNEL);
 		if (!new_name)
 			goto out;
-
-		if (kn->flags & KERNFS_STATIC_NAME)
-			kn->flags &= ~KERNFS_STATIC_NAME;
-		else
-			kfree(kn->name);
-
-		kn->name = new_name;
+	} else {
+		new_name = NULL;
 	}
 
 	/*
@@ -1140,11 +1278,28 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	 */
 	kernfs_unlink_sibling(kn);
 	kernfs_get(new_parent);
-	kernfs_put(kn->parent);
-	kn->ns = new_ns;
-	kn->hash = kernfs_name_hash(kn->name, kn->ns);
+
+	/* rename_lock protects ->parent and ->name accessors */
+	spin_lock_irq(&kernfs_rename_lock);
+
+	old_parent = kn->parent;
 	kn->parent = new_parent;
+
+	kn->ns = new_ns;
+	if (new_name) {
+		if (!(kn->flags & KERNFS_STATIC_NAME))
+			old_name = kn->name;
+		kn->flags &= ~KERNFS_STATIC_NAME;
+		kn->name = new_name;
+	}
+
+	spin_unlock_irq(&kernfs_rename_lock);
+
+	kn->hash = kernfs_name_hash(new_name, new_ns);
 	kernfs_link_sibling(kn);
+
+	kernfs_put(old_parent);
+	kfree(old_name);
 
 	error = 0;
  out:
