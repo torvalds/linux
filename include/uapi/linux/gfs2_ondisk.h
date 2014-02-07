@@ -304,7 +304,13 @@ struct gfs2_dirent {
 	__be16 de_rec_len;
 	__be16 de_name_len;
 	__be16 de_type;
-	__u8 __pad[14];
+	union {
+		__u8 __pad[14];
+		struct {
+			__be16 de_rahead;
+			__u8 pad2[12];
+		};
+	};
 };
 
 /*
