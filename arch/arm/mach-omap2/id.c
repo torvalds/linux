@@ -465,8 +465,18 @@ void __init omap3xxx_check_revision(void)
 		}
 		break;
 	case 0xb98c:
-		omap_revision = AM437X_REV_ES1_0;
-		cpu_rev = "1.0";
+		switch (rev) {
+		case 0:
+			omap_revision = AM437X_REV_ES1_0;
+			cpu_rev = "1.0";
+			break;
+		case 1:
+		/* FALLTHROUGH */
+		default:
+			omap_revision = AM437X_REV_ES1_1;
+			cpu_rev = "1.1";
+			break;
+		}
 		break;
 	case 0xb8f2:
 		switch (rev) {
