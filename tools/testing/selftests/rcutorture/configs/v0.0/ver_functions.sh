@@ -20,16 +20,14 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-# rcutorture_param_n_barrier_cbs bootparam-string
+# per_version_boot_params bootparam-string config-file seconds
 #
-# Adds n_barrier_cbs rcutorture module parameter to kernels having it.
-rcutorture_param_n_barrier_cbs () {
-	echo $1
-}
-
-# rcutorture_param_onoff bootparam-string config-file
-#
-# Adds onoff rcutorture module parameters to kernels having it.
-rcutorture_param_onoff () {
-	echo $1
+# Adds per-version torture-module parameters to kernels supporting them.
+# Which old kernels do not.
+per_version_boot_params () {
+	echo	rcutorture.stat_interval=15 \
+		rcutorture.shutdown_secs=$3 \
+		rcutorture.rcutorture_runnable=1 \
+		rcutorture.test_no_idle_hz=1 \
+		rcutorture.verbose=1
 }
