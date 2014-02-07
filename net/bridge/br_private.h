@@ -585,6 +585,7 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags);
 int br_vlan_delete(struct net_bridge *br, u16 vid);
 void br_vlan_flush(struct net_bridge *br);
+bool br_vlan_find(struct net_bridge *br, u16 vid);
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
 int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
@@ -664,6 +665,11 @@ static inline int br_vlan_delete(struct net_bridge *br, u16 vid)
 
 static inline void br_vlan_flush(struct net_bridge *br)
 {
+}
+
+static inline bool br_vlan_find(struct net_bridge *br, u16 vid)
+{
+	return false;
 }
 
 static inline int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)

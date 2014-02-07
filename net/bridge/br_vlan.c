@@ -295,6 +295,25 @@ void br_vlan_flush(struct net_bridge *br)
 	__vlan_flush(pv);
 }
 
+bool br_vlan_find(struct net_bridge *br, u16 vid)
+{
+	struct net_port_vlans *pv;
+	bool found = false;
+
+	rcu_read_lock();
+	pv = rcu_dereference(br->vlan_info);
+
+	if (!pv)
+		goto out;
+
+	if (test_bit(vid, pv->vlan_bitmap))
+		found = true;
+
+out:
+	rcu_read_unlock();
+	return found;
+}
+
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
 	if (!rtnl_trylock())

@@ -114,10 +114,18 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 					if (op != p &&
 					    ether_addr_equal(op->dev->dev_addr,
 							     f->addr.addr) &&
-					    nbp_vlan_find(op, vid)) {
+					    (!vid || nbp_vlan_find(op, vid))) {
 						f->dst = op;
 						goto skip_delete;
 					}
+				}
+
+				/* maybe bridge device has same hw addr? */
+				if (ether_addr_equal(br->dev->dev_addr,
+						     f->addr.addr) &&
+				    (!vid || br_vlan_find(br, vid))) {
+					f->dst = NULL;
+					goto skip_delete;
 				}
 
 				/* delete old one */
