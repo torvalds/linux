@@ -92,6 +92,7 @@ struct nfs_open_context {
 };
 
 struct nfs_open_dir_context {
+	struct list_head list;
 	struct rpc_cred *cred;
 	unsigned long attr_gencount;
 	__u64 dir_cookie;
