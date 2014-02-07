@@ -653,6 +653,20 @@ plane, are stored in struct <structname>v4l2_plane</structname> instead.
 In that case, struct <structname>v4l2_buffer</structname> contains an array of
 plane structures.</para>
 
+    <para>Dequeued video buffers come with timestamps. The driver
+    decides at which part of the frame and with which clock the
+    timestamp is taken. Please see flags in the masks
+    <constant>V4L2_BUF_FLAG_TIMESTAMP_MASK</constant> and
+    <constant>V4L2_BUF_FLAG_TSTAMP_SRC_MASK</constant> in <xref
+    linkend="buffer-flags" />. These flags are always valid and constant
+    across all buffers during the whole video stream. Changes in these
+    flags may take place as a side effect of &VIDIOC-S-INPUT; or
+    &VIDIOC-S-OUTPUT; however. The
+    <constant>V4L2_BUF_FLAG_TIMESTAMP_COPY</constant> timestamp type
+    which is used by e.g. on mem-to-mem devices is an exception to the
+    rule: the timestamp source flags are copied from the OUTPUT video
+    buffer to the CAPTURE video buffer.</para>
+
     <table frame="none" pgwide="1" id="v4l2-buffer">
       <title>struct <structname>v4l2_buffer</structname></title>
       <tgroup cols="4">
