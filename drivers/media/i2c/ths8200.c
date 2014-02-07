@@ -356,7 +356,7 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 	/* Timing of video input bus is derived from HS, VS, and FID dedicated
 	 * inputs
 	 */
-	ths8200_write(sd, THS8200_DTG2_CNTL, 0x47 | polarity);
+	ths8200_write(sd, THS8200_DTG2_CNTL, 0x44 | polarity);
 
 	/* leave reset */
 	ths8200_s_stream(sd, true);
