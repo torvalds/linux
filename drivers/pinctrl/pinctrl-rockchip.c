@@ -2194,7 +2194,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	info->ctrl = ctrl;
 	info->dev = dev;
 	
-	atomic_set(&info->debug_flag, 1);
+	atomic_set(&info->debug_flag, 0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	info->reg_base = devm_ioremap_resource(&pdev->dev, res);
