@@ -20,9 +20,12 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_usb_otg1_vbus: usb_otg1_vbus {
+		reg_usb_otg1_vbus: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "usb_otg1_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
@@ -30,8 +33,9 @@
 			enable-active-high;
 		};
 
-		reg_usb_otg2_vbus: usb_otg2_vbus {
+		reg_usb_otg2_vbus: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "usb_otg2_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;

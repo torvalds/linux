@@ -17,9 +17,12 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_usb_otg_vbus: usb_otg_vbus {
+		reg_usb_otg_vbus: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "usb_otg_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
@@ -27,8 +30,9 @@
 			enable-active-high;
 		};
 
-		reg_usb_h1_vbus: usb_h1_vbus {
+		reg_usb_h1_vbus: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "usb_h1_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
@@ -36,8 +40,9 @@
 			enable-active-high;
 		};
 
-		reg_audio: wm8962_supply {
+		reg_audio: regulator@2 {
 			compatible = "regulator-fixed";
+			reg = <2>;
 			regulator-name = "wm8962-supply";
 			gpio = <&gpio4 10 0>;
 			enable-active-high;
