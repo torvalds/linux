@@ -33,6 +33,11 @@
 		i2c6 = &hsi2c_6;
 		i2c7 = &hsi2c_7;
 		i2c8 = &i2c_8;
+		gsc0 = &gsc_0;
+		gsc1 = &gsc_1;
+/*		gsc2 = &gsc_2;
+		gsc3 = &gsc_3;
+		gsc4 = &gsc_4; */
 	};
 
 	cpus {
@@ -101,6 +106,11 @@
 					<10 &gic 0 130 0>,
 					<11 &gic 0 131 0>;
 		};
+	};
+
+    gsc_pd: power-domain@10044000 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10044000 0x20>;
 	};
 
 	pinctrl_0: pinctrl@13400000 {
@@ -328,4 +338,69 @@
 		clock-names = "mixer", "sclk_hdmi";
 	};
 
+	dp_phy: video-phy@10040728 {
+		compatible = "samsung,exynos5250-dp-video-phy";
+		reg = <0x10040728 4>;
+		#phy-cells = <0>;
+	};
+
+	dp-controller@145B0000 {
+		clocks = <&clock CLK_DP>;
+		clock-names = "dp";
+		phys = <&dp_phy>;
+		phy-names = "dp";
+	};
+
+
+	fimd@14400000 {
+		/* samsung,power-domain = <&disp_pd>; */
+		clocks = <&clock CLK_SCLK_FIMD1>, <&clock CLK_FIMD1>;
+		clock-names = "sclk_fimd", "fimd";
+	};
+
+	gsc_0: video-scaler@13e00000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e00000 0x1000>;
+		interrupts = <0 85 0>;
+		clocks = <&clock CLK_GSCL0>;
+		clock-names = "gscl";
+		samsung,power-domain = <&gsc_pd>;
+	};
+
+	gsc_1: video-scaler@13e10000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e10000 0x1000>;
+		interrupts = <0 86 0>;
+		clocks = <&clock CLK_GSCL1>;
+		clock-names = "gscl";
+		samsung,power-domain = <&gsc_pd>;
+	};
+/*
+	gsc_2: video-scaler@13e20000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e20000 0x1000>;
+		interrupts = <0 87 0>;
+		clocks = <&clock CLK_GSCL2>;
+		clock-names = "gscl";
+		samsung,power-domain = <&gsc_pd>;
+	};
+
+	gsc_3: video-scaler@13e30000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e30000 0x1000>;
+		interrupts = <0 88 0>;
+		clocks = <&clock CLK_GSCL3>;
+		clock-names = "gscl";
+		samsung,power-domain = <&gsc_pd>;
+	};
+
+	gsc_4: video-scaler@13e40000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e40000 0x1000>;
+		interrupts = <0 90 0>;
+		clocks = <&clock CLK_GSCL4>;
+		clock-names = "gscl";
+		samsung,power-domain = <&gsc_pd>;
+	};
+*/
 };
