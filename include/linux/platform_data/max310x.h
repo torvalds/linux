@@ -46,7 +46,6 @@ struct max310x_pdata {
 #define MAX310X_EXT_CLK		(0x00000001)	/* External clock enable */
 	/* Flags global to UART port */
 	const u8		uart_flags[MAX310X_MAX_UARTS];
-#define MAX310X_LOOPBACK	(0x00000001)	/* Loopback mode enable */
 #define MAX310X_ECHO_SUPRESS	(0x00000002)	/* Enable echo supress */
 #define MAX310X_AUTO_DIR_CTRL	(0x00000004)	/* Enable Auto direction
 						 * control (RS-485)
