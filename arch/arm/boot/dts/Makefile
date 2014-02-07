@@ -146,6 +146,7 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx51-apf51.dtb \
 	imx51-apf51dev.dtb \
 	imx51-babbage.dtb \
+	imx51-eukrea-mbimxsd51-baseboard.dtb \
 	imx53-ard.dtb \
 	imx53-evk.dtb \
 	imx53-m53evk.dtb \
