@@ -409,7 +409,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 		if (pDevice->abyCCKPwrTbl[ii] == 0)
 			pDevice->abyCCKPwrTbl[ii] = pDevice->byCCKPwr;
-			pDevice->abyOFDMPwrTbl[ii] =
+		pDevice->abyOFDMPwrTbl[ii] =
 				pDevice->abyEEPROM[ii + EEP_OFS_OFDM_PWR_TBL];
 		if (pDevice->abyOFDMPwrTbl[ii] == 0)
 			pDevice->abyOFDMPwrTbl[ii] = pDevice->byOFDMPwrG;
