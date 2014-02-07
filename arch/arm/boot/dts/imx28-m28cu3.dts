@@ -229,33 +229,39 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_3p3v: 3p3v {
+		reg_3p3v: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "3P3V";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
 
-		reg_vddio_sd0: vddio-sd0 {
+		reg_vddio_sd0: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "vddio-sd0";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio3 29 0>;
 		};
 
-		reg_vddio_sd1: vddio-sd1 {
+		reg_vddio_sd1: regulator@2 {
 			compatible = "regulator-fixed";
+			reg = <2>;
 			regulator-name = "vddio-sd1";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio2 19 0>;
 		};
 
-		reg_usb1_vbus: usb1_vbus {
+		reg_usb1_vbus: regulator@3 {
 			compatible = "regulator-fixed";
+			reg = <3>;
 			regulator-name = "usb1_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;

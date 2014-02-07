@@ -282,9 +282,12 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_usb1_vbus: usb1_vbus {
+		reg_usb1_vbus: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&usb_pins_cfa10049>;
 			regulator-name = "usb1_vbus";

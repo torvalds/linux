@@ -37,17 +37,21 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_backlight: fixed@0 {
+		reg_backlight: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "lcd-supply";
 			gpio = <&gpio2 5 0>;
 			startup-delay-us = <5000>;
 			enable-active-low;
 		};
 
-		reg_3p2v: 3p2v {
+		reg_3p2v: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "3P2V";
 			regulator-min-microvolt = <3200000>;
 			regulator-max-microvolt = <3200000>;
