@@ -385,9 +385,9 @@ static void qla4xxx_passthru_status_entry(struct scsi_qla_host *ha,
 
 	cls_conn = ddb_entry->conn;
 	conn = cls_conn->dd_data;
-	spin_lock(&conn->session->lock);
+	spin_lock(&conn->session->back_lock);
 	task = iscsi_itt_to_task(conn, itt);
-	spin_unlock(&conn->session->lock);
+	spin_unlock(&conn->session->back_lock);
 
 	if (task == NULL) {
 		ql4_printk(KERN_ERR, ha, "%s: Task is NULL\n", __func__);
