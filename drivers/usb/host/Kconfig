@@ -255,6 +255,7 @@ config USB_EHCI_ATH79
 
 config USB_EHCI_HCD_PLATFORM
 	tristate "Generic EHCI driver for a platform device"
+	depends on !PPC_OF
 	default n
 	---help---
 	  Adds an EHCI host driver for a generic platform device, which
