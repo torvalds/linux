@@ -7769,11 +7769,11 @@ mode_fits_in_fbdev(struct drm_device *dev,
 	if (dev_priv->fbdev == NULL)
 		return NULL;
 
-	obj = dev_priv->fbdev->ifb.obj;
+	obj = dev_priv->fbdev->fb->obj;
 	if (obj == NULL)
 		return NULL;
 
-	fb = &dev_priv->fbdev->ifb.base;
+	fb = &dev_priv->fbdev->fb->base;
 	if (fb->pitches[0] < intel_framebuffer_pitch_for_width(mode->hdisplay,
 							       fb->bits_per_pixel))
 		return NULL;
