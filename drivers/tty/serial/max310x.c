@@ -1,7 +1,7 @@
 /*
  *  Maxim (Dallas) MAX3107/8/9, MAX14830 serial driver
  *
- *  Copyright (C) 2012-2013 Alexander Shiyan <shc_work@mail.ru>
+ *  Copyright (C) 2012-2014 Alexander Shiyan <shc_work@mail.ru>
  *
  *  Based on max3100.c, by Christian Pellegrin <chripell@evolware.org>
  *  Based on max3110.c, by Feng Tang <feng.tang@intel.com>
@@ -504,25 +504,33 @@ static bool max310x_reg_precious(struct device *dev, unsigned int reg)
 	return false;
 }
 
-static void max310x_set_baud(struct uart_port *port, int baud)
+static int max310x_set_baud(struct uart_port *port, int baud)
 {
-	unsigned int mode = 0, div = port->uartclk / baud;
+	unsigned int mode = 0, clk = port->uartclk, div = clk / baud;
 
-	if (!(div / 16)) {
+	/* Check for minimal value for divider */
+	if (div < 16)
+		div = 16;
+
+	if (clk % baud && (div / 16) < 0x8000) {
 		/* Mode x2 */
 		mode = MAX310X_BRGCFG_2XMODE_BIT;
-		div = (port->uartclk * 2) / baud;
-	}
+		clk = port->uartclk * 2;
+		div = clk / baud;
 
-	if (!(div / 16)) {
-		/* Mode x4 */
-		mode = MAX310X_BRGCFG_4XMODE_BIT;
-		div = (port->uartclk * 4) / baud;
+		if (clk % baud && (div / 16) < 0x8000) {
+			/* Mode x4 */
+			mode = MAX310X_BRGCFG_4XMODE_BIT;
+			clk = port->uartclk * 4;
+			div = clk / baud;
+		}
 	}
 
 	max310x_port_write(port, MAX310X_BRGDIVMSB_REG, (div / 16) >> 8);
 	max310x_port_write(port, MAX310X_BRGDIVLSB_REG, div / 16);
 	max310x_port_write(port, MAX310X_BRGCFG_REG, (div % 16) | mode);
+
+	return DIV_ROUND_CLOSEST(clk, div);
 }
 
 static int max310x_update_best_err(unsigned long f, long *besterr)
@@ -875,7 +883,7 @@ static void max310x_set_termios(struct uart_port *port,
 				  port->uartclk / 4);
 
 	/* Setup baudrate generator */
-	max310x_set_baud(port, baud);
+	baud = max310x_set_baud(port, baud);
 
 	/* Update timeout according to new baud rate */
 	uart_update_timeout(port, termios->c_cflag, baud);
