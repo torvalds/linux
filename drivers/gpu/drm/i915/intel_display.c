@@ -11508,12 +11508,21 @@ int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
 	unsigned reg = INTEL_INFO(dev)->gen >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
 	u16 gmch_ctrl;
 
-	pci_read_config_word(dev_priv->bridge_dev, reg, &gmch_ctrl);
+	if (pci_read_config_word(dev_priv->bridge_dev, reg, &gmch_ctrl)) {
+		DRM_ERROR("failed to read control word\n");
+		return -EIO;
+	}
+
 	if (state)
 		gmch_ctrl &= ~INTEL_GMCH_VGA_DISABLE;
 	else
 		gmch_ctrl |= INTEL_GMCH_VGA_DISABLE;
-	pci_write_config_word(dev_priv->bridge_dev, reg, gmch_ctrl);
+
+	if (pci_write_config_word(dev_priv->bridge_dev, reg, gmch_ctrl)) {
+		DRM_ERROR("failed to write control word\n");
+		return -EIO;
+	}
+
 	return 0;
 }
 
