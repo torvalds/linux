@@ -5134,6 +5134,15 @@ intermediate frequency output or baseband output. Used when
 <constant>V4L2_CID_RF_TUNER_IF_GAIN_AUTO</constant> is not set. The range and step are
 driver-specific.</entry>
             </row>
+            <row>
+              <entry spanname="id"><constant>V4L2_CID_RF_TUNER_PLL_LOCK</constant>&nbsp;</entry>
+              <entry>boolean</entry>
+            </row>
+            <row>
+              <entry spanname="descr">Is synthesizer PLL locked? RF tuner is
+receiving given frequency when that control is set. This is a read-only control.
+</entry>
+            </row>
           </tbody>
         </tgroup>
       </table>
