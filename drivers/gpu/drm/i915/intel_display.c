@@ -11513,6 +11513,9 @@ int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
 		return -EIO;
 	}
 
+	if (!!(gmch_ctrl & INTEL_GMCH_VGA_DISABLE) == !state)
+		return 0;
+
 	if (state)
 		gmch_ctrl &= ~INTEL_GMCH_VGA_DISABLE;
 	else
