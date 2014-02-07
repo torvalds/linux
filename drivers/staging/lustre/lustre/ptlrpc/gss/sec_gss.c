@@ -1215,7 +1215,7 @@ int gss_cli_ctx_fini_common(struct ptlrpc_sec *sec,
 	/*
 	 * remove UPTODATE flag of reverse ctx thus we won't send fini rpc,
 	 * this is to avoid potential problems of client side reverse svc ctx
-	 * be mis-destroyed in various recovery senarios. anyway client can
+	 * be mis-destroyed in various recovery scenarios. anyway client can
 	 * manage its reverse ctx well by associating it with its buddy ctx.
 	 */
 	if (sec_is_reverse(sec))
