@@ -145,6 +145,8 @@ static inline int tick_device_is_functional(struct clock_event_device *dev)
 	return !(dev->features & CLOCK_EVT_FEAT_DUMMY);
 }
 
+int __clockevents_update_freq(struct clock_event_device *dev, u32 freq);
+
 #endif
 
 extern void do_timer(unsigned long ticks);
