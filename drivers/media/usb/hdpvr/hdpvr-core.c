@@ -198,7 +198,6 @@ static int device_authorization(struct hdpvr_device *dev)
 	hex_dump_to_buffer(response, 8, 16, 1, print_buf, 5*buf_size+1, 0);
 	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, " response: %s\n",
 		 print_buf);
-	kfree(print_buf);
 #endif
 
 	msleep(100);
@@ -214,6 +213,9 @@ static int device_authorization(struct hdpvr_device *dev)
 	retval = ret != 8;
 unlock:
 	mutex_unlock(&dev->usbc_mutex);
+#ifdef HDPVR_DEBUG
+	kfree(print_buf);
+#endif
 	return retval;
 }
 
