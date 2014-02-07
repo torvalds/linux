@@ -1,5 +1,5 @@
 /*
- *  PCA953x 4/8/16 bit I/O ports
+ *  PCA953x 4/8/16/24/40 bit I/O ports
  *
  *  Copyright (C) 2005 Ben Gardner <bgardner@wabtec.com>
  *  Copyright (C) 2007 Marvell International Ltd.
