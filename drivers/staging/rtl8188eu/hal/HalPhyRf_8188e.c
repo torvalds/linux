@@ -868,7 +868,7 @@ _PHY_ReloadMACRegisters(
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Reload MAC parameters !\n"));
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		ODM_Write1Byte(dm_odm, MACReg[i], (u8)MACBackup[i]);
+		rtw_write8(adapt, MACReg[i], (u8)MACBackup[i]);
 	}
 	ODM_Write4Byte(dm_odm, MACReg[i], MACBackup[i]);
 }
@@ -912,12 +912,12 @@ _PHY_MACSettingCalibration(
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("MAC settings for Calibration.\n"));
 
-	ODM_Write1Byte(dm_odm, MACReg[i], 0x3F);
+	rtw_write8(adapt, MACReg[i], 0x3F);
 
 	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
-		ODM_Write1Byte(dm_odm, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
+		rtw_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
 	}
-	ODM_Write1Byte(dm_odm, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
+	rtw_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
 }
 
 void
@@ -1223,16 +1223,14 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 {
 	u8 tmpreg;
 	u32 RF_Amode = 0, RF_Bmode = 0, LC_Cal;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	/* Check continuous TX and Packet TX */
 	tmpreg = rtw_read8(adapt, 0xd03);
 
 	if ((tmpreg&0x70) != 0)			/* Deal with contisuous TX case */
-		ODM_Write1Byte(dm_odm, 0xd03, tmpreg&0x8F);	/* disable all continuous TX */
+		rtw_write8(adapt, 0xd03, tmpreg&0x8F);	/* disable all continuous TX */
 	else							/*  Deal with Packet TX case */
-		ODM_Write1Byte(dm_odm, REG_TXPAUSE, 0xFF);			/*  block all queues */
+		rtw_write8(adapt, REG_TXPAUSE, 0xFF);			/*  block all queues */
 
 	if ((tmpreg&0x70) != 0) {
 		/* 1. Read original RF mode */
@@ -1264,7 +1262,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	if ((tmpreg&0x70) != 0) {
 		/* Deal with continuous TX case */
 		/* Path-A */
-		ODM_Write1Byte(dm_odm, 0xd03, tmpreg);
+		rtw_write8(adapt, 0xd03, tmpreg);
 		PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
 
 		/* Path-B */
@@ -1272,7 +1270,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 			PHY_SetRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits, RF_Bmode);
 	} else {
 		/*  Deal with Packet TX case */
-		ODM_Write1Byte(dm_odm, REG_TXPAUSE, 0x00);
+		rtw_write8(adapt, REG_TXPAUSE, 0x00);
 	}
 }
 
@@ -1468,13 +1466,10 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 
 static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2t)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
 	if (!adapt->hw_init_completed) {
 		u8 u1btmp;
 		u1btmp = rtw_read8(adapt, REG_LEDCFG2) | BIT7;
-		ODM_Write1Byte(dm_odm, REG_LEDCFG2, u1btmp);
+		rtw_write8(adapt, REG_LEDCFG2, u1btmp);
 		PHY_SetBBReg(adapt, rFPGA0_XAB_RFParameter, BIT13, 0x01);
 	}
 
