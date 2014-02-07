@@ -41,6 +41,7 @@
 #include <mach/map.h>
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>

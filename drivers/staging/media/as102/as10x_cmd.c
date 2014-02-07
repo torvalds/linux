@@ -34,8 +34,6 @@ int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
 
-	ENTER();
-
 	pcmd = adap->cmd;
 	prsp = adap->rsp;
 
@@ -63,7 +61,6 @@ int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 	error = as10x_rsp_parse(prsp, CONTROL_PROC_TURNON_RSP);
 
 out:
-	LEAVE();
 	return error;
 }
 
@@ -77,8 +74,6 @@ int as10x_cmd_turn_off(struct as10x_bus_adapter_t *adap)
 {
 	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
-
-	ENTER();
 
 	pcmd = adap->cmd;
 	prsp = adap->rsp;
@@ -106,7 +101,6 @@ int as10x_cmd_turn_off(struct as10x_bus_adapter_t *adap)
 	error = as10x_rsp_parse(prsp, CONTROL_PROC_TURNOFF_RSP);
 
 out:
-	LEAVE();
 	return error;
 }
 
@@ -122,8 +116,6 @@ int as10x_cmd_set_tune(struct as10x_bus_adapter_t *adap,
 {
 	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *preq, *prsp;
-
-	ENTER();
 
 	preq = adap->cmd;
 	prsp = adap->rsp;
@@ -164,7 +156,6 @@ int as10x_cmd_set_tune(struct as10x_bus_adapter_t *adap,
 	error = as10x_rsp_parse(prsp, CONTROL_PROC_SETTUNE_RSP);
 
 out:
-	LEAVE();
 	return error;
 }
 
@@ -180,8 +171,6 @@ int as10x_cmd_get_tune_status(struct as10x_bus_adapter_t *adap,
 {
 	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t  *preq, *prsp;
-
-	ENTER();
 
 	preq = adap->cmd;
 	prsp = adap->rsp;
@@ -220,7 +209,6 @@ int as10x_cmd_get_tune_status(struct as10x_bus_adapter_t *adap,
 	pstatus->BER = le16_to_cpu(prsp->body.get_tune_status.rsp.sts.BER);
 
 out:
-	LEAVE();
 	return error;
 }
 
@@ -235,8 +223,6 @@ int as10x_cmd_get_tps(struct as10x_bus_adapter_t *adap, struct as10x_tps *ptps)
 {
 	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
-
-	ENTER();
 
 	pcmd = adap->cmd;
 	prsp = adap->rsp;
@@ -281,7 +267,6 @@ int as10x_cmd_get_tps(struct as10x_bus_adapter_t *adap, struct as10x_tps *ptps)
 	ptps->cell_ID = le16_to_cpu(prsp->body.get_tps.rsp.tps.cell_ID);
 
 out:
-	LEAVE();
 	return error;
 }
 
@@ -297,8 +282,6 @@ int as10x_cmd_get_demod_stats(struct as10x_bus_adapter_t *adap,
 {
 	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
-
-	ENTER();
 
 	pcmd = adap->cmd;
 	prsp = adap->rsp;
@@ -343,7 +326,6 @@ int as10x_cmd_get_demod_stats(struct as10x_bus_adapter_t *adap,
 		prsp->body.get_demod_stats.rsp.stats.has_started;
 
 out:
-	LEAVE();
 	return error;
 }
 
@@ -360,8 +342,6 @@ int as10x_cmd_get_impulse_resp(struct as10x_bus_adapter_t *adap,
 {
 	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
-
-	ENTER();
 
 	pcmd = adap->cmd;
 	prsp = adap->rsp;
@@ -397,7 +377,6 @@ int as10x_cmd_get_impulse_resp(struct as10x_bus_adapter_t *adap,
 	*is_ready = prsp->body.get_impulse_rsp.rsp.is_ready;
 
 out:
-	LEAVE();
 	return error;
 }
 

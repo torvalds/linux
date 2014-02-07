@@ -1,5 +1,5 @@
 /*
- * max8997.h - Voltage regulator driver for the Maxim 8997
+ * max8997-private.h - Voltage regulator driver for the Maxim 8997
  *
  *  Copyright (C) 2010 Samsung Electrnoics
  *  MyungJoo Ham <myungjoo.ham@samsung.com>

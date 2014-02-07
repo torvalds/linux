@@ -62,8 +62,14 @@ static inline int omap3_pm_init(void)
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP4)
 int omap4_pm_init(void);
+int omap4_pm_init_early(void);
 #else
 static inline int omap4_pm_init(void)
+{
+	return 0;
+}
+
+static inline int omap4_pm_init_early(void)
 {
 	return 0;
 }
@@ -236,6 +242,7 @@ static inline void __iomem *omap4_get_scu_base(void)
 
 extern void __init gic_init_irq(void);
 extern void gic_dist_disable(void);
+extern void gic_dist_enable(void);
 extern bool gic_dist_disabled(void);
 extern void gic_timer_retrigger(void);
 extern void omap_smc1(u32 fn, u32 arg);
@@ -293,6 +300,7 @@ static inline void omap4_cpu_resume(void)
 #endif
 
 void pdata_quirks_init(struct of_device_id *);
+void omap_auxdata_legacy_init(struct device *dev);
 void omap_pcs_legacy_init(int irq, void (*rearm)(void));
 
 struct omap_sdrc_params;
@@ -305,7 +313,7 @@ struct omap_hwmod;
 extern int omap_dss_reset(struct omap_hwmod *);
 
 /* SoC specific clock initializer */
-extern int (*omap_clk_init)(void);
+int omap_clk_init(void);
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

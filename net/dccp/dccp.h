@@ -479,7 +479,6 @@ void dccp_feat_list_purge(struct list_head *fn_list);
 
 int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
 int dccp_insert_options_rsk(struct dccp_request_sock *, struct sk_buff *);
-int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed);
 u32 dccp_timestamp(void);
 void dccp_timestamping_init(void);
 int dccp_insert_option(struct sk_buff *skb, unsigned char option,

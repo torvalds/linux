@@ -267,7 +267,7 @@ struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
 	return found;
 }
 
-struct se_node_acl *ft_tpg_alloc_fabric_acl(struct se_portal_group *se_tpg)
+static struct se_node_acl *ft_tpg_alloc_fabric_acl(struct se_portal_group *se_tpg)
 {
 	struct ft_node_acl *acl;
 
@@ -552,7 +552,7 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	.fabric_drop_nodeacl =		&ft_del_acl,
 };
 
-int ft_register_configfs(void)
+static int ft_register_configfs(void)
 {
 	struct target_fabric_configfs *fabric;
 	int ret;
@@ -599,7 +599,7 @@ int ft_register_configfs(void)
 	return 0;
 }
 
-void ft_deregister_configfs(void)
+static void ft_deregister_configfs(void)
 {
 	if (!ft_configfs)
 		return;

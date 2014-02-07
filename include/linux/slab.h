@@ -205,8 +205,8 @@ struct kmem_cache {
 
 #ifdef CONFIG_SLUB
 /*
- * SLUB allocates up to order 2 pages directly and otherwise
- * passes the request to the page allocator.
+ * SLUB directly allocates requests fitting in to an order-1 page
+ * (PAGE_SIZE*2).  Larger requests are passed to the page allocator.
  */
 #define KMALLOC_SHIFT_HIGH	(PAGE_SHIFT + 1)
 #define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT)
@@ -217,12 +217,12 @@ struct kmem_cache {
 
 #ifdef CONFIG_SLOB
 /*
- * SLOB passes all page size and larger requests to the page allocator.
+ * SLOB passes all requests larger than one page to the page allocator.
  * No kmalloc array is necessary since objects of different sizes can
  * be allocated from the same page.
  */
-#define KMALLOC_SHIFT_MAX	30
 #define KMALLOC_SHIFT_HIGH	PAGE_SHIFT
+#define KMALLOC_SHIFT_MAX	30
 #ifndef KMALLOC_SHIFT_LOW
 #define KMALLOC_SHIFT_LOW	3
 #endif
@@ -513,7 +513,9 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
  *
  * Both the root cache and the child caches will have it. For the root cache,
  * this will hold a dynamically allocated array large enough to hold
- * information about the currently limited memcgs in the system.
+ * information about the currently limited memcgs in the system. To allow the
+ * array to be accessed without taking any locks, on relocation we free the old
+ * version only after a grace period.
  *
  * Child caches will hold extra metadata needed for its operation. Fields are:
  *
@@ -528,7 +530,10 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 struct memcg_cache_params {
 	bool is_root_cache;
 	union {
-		struct kmem_cache *memcg_caches[0];
+		struct {
+			struct rcu_head rcu_head;
+			struct kmem_cache *memcg_caches[0];
+		};
 		struct {
 			struct mem_cgroup *memcg;
 			struct list_head list;

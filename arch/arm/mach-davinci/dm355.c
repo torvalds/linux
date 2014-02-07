@@ -375,7 +375,7 @@ static struct clk_lookup dm355_clks[] = {
 	CLK(NULL, "pwm3", &pwm3_clk),
 	CLK(NULL, "timer0", &timer0_clk),
 	CLK(NULL, "timer1", &timer1_clk),
-	CLK("watchdog", NULL, &timer2_clk),
+	CLK("davinci-wdt", NULL, &timer2_clk),
 	CLK(NULL, "timer3", &timer3_clk),
 	CLK(NULL, "rto", &rto_clk),
 	CLK(NULL, "usb", &usb_clk),
@@ -901,7 +901,6 @@ static struct resource dm355_gpio_resources[] = {
 
 static struct davinci_gpio_platform_data dm355_gpio_platform_data = {
 	.ngpio		= 104,
-	.intc_irq_num	= DAVINCI_N_AINTC_IRQ,
 };
 
 int __init dm355_gpio_register(void)

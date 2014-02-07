@@ -180,7 +180,7 @@ static void cyc2ns_write_end(int cpu, struct cyc2ns_data *data)
 
 static void cyc2ns_data_init(struct cyc2ns_data *data)
 {
-	data->cyc2ns_mul = 1U << CYC2NS_SCALE_FACTOR;
+	data->cyc2ns_mul = 0;
 	data->cyc2ns_shift = CYC2NS_SCALE_FACTOR;
 	data->cyc2ns_offset = 0;
 	data->__count = 0;

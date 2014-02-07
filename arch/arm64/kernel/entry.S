@@ -288,6 +288,8 @@ el1_dbg:
 	/*
 	 * Debug exception handling
 	 */
+	cmp	x24, #ESR_EL1_EC_BRK64		// if BRK64
+	cinc	x24, x24, eq			// set bit '0'
 	tbz	x24, #0, el1_inv		// EL1 only
 	mrs	x0, far_el1
 	mov	x2, sp				// struct pt_regs
@@ -314,7 +316,7 @@ el1_irq:
 
 #ifdef CONFIG_PREEMPT
 	get_thread_info tsk
-	ldr	w24, [tsk, #TI_PREEMPT]		// restore preempt count
+	ldr	w24, [tsk, #TI_PREEMPT]		// get preempt count
 	cbnz	w24, 1f				// preempt count != 0
 	ldr	x0, [tsk, #TI_FLAGS]		// get flags
 	tbz	x0, #TIF_NEED_RESCHED, 1f	// needs rescheduling?

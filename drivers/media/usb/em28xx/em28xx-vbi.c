@@ -27,6 +27,7 @@
 #include <linux/init.h>
 
 #include "em28xx.h"
+#include "em28xx-v4l.h"
 
 static unsigned int vbibufs = 5;
 module_param(vbibufs, int, 0644);

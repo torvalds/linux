@@ -678,7 +678,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 
 	/*
 	 * Can not refresh inode by passing in file_info buf to be returned by
-	 * CIFSSMBOpen and then calling get_inode_info with returned buf since
+	 * ops->open and then calling get_inode_info with returned buf since
 	 * file might have write behind data that needs to be flushed and server
 	 * version of file size can be stale. If we knew for sure that inode was
 	 * not dirty locally we could do this.

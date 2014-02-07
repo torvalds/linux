@@ -546,7 +546,7 @@ static int fimc_lite_release(struct file *file)
 		mutex_unlock(&entity->parent->graph_mutex);
 	}
 
-	vb2_fop_release(file);
+	_vb2_fop_release(file, NULL);
 	pm_runtime_put(&fimc->pdev->dev);
 	clear_bit(ST_FLITE_SUSPENDED, &fimc->state);
 
@@ -1549,38 +1549,40 @@ static int fimc_lite_probe(struct platform_device *pdev)
 			       0, dev_name(dev), fimc);
 	if (ret) {
 		dev_err(dev, "Failed to install irq (%d)\n", ret);
-		goto err_clk;
+		goto err_clk_put;
 	}
 
 	/* The video node will be created within the subdev's registered() op */
 	ret = fimc_lite_create_capture_subdev(fimc);
 	if (ret)
-		goto err_clk;
+		goto err_clk_put;
 
 	platform_set_drvdata(pdev, fimc);
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		goto err_sd;
+
+	if (!pm_runtime_enabled(dev)) {
+		ret = clk_enable(fimc->clock);
+		if (ret < 0)
+			goto err_clk_put;
+	}
 
 	fimc->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(fimc->alloc_ctx)) {
 		ret = PTR_ERR(fimc->alloc_ctx);
-		goto err_pm;
+		goto err_clk_dis;
 	}
-
-	pm_runtime_put(dev);
 
 	fimc_lite_set_default_config(fimc);
 
 	dev_dbg(dev, "FIMC-LITE.%d registered successfully\n",
 		fimc->index);
 	return 0;
-err_pm:
-	pm_runtime_put(dev);
+
+err_clk_dis:
+	clk_disable(fimc->clock);
 err_sd:
 	fimc_lite_unregister_capture_subdev(fimc);
-err_clk:
+err_clk_put:
 	fimc_lite_clk_put(fimc);
 	return ret;
 }

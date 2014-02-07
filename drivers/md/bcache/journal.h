@@ -104,6 +104,7 @@ struct journal {
 	/* used when waiting because the journal was full */
 	struct closure_waitlist	wait;
 	struct closure		io;
+	int			io_in_flight;
 	struct delayed_work	work;
 
 	/* Number of blocks free in the bucket(s) we're currently writing to */

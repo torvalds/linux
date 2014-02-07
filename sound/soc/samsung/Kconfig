@@ -1,16 +1,25 @@
 config SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
 	depends on PLAT_SAMSUNG
-	select S3C64XX_DMA if ARCH_S3C64XX
-	select S3C24XX_DMA if ARCH_S3C24XX
+	select S3C2410_DMA if ARCH_S3C24XX
+	select S3C64XX_PL080 if ARCH_S3C64XX
+	select SND_S3C_DMA if !ARCH_S3C24XX
+	select SND_S3C_DMA_LEGACY if ARCH_S3C24XX
+	select SND_SOC_GENERIC_DMAENGINE_PCM if !ARCH_S3C24XX
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the Samsung SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
 
+config SND_S3C_DMA
+	tristate
+
+config SND_S3C_DMA_LEGACY
+	tristate
+
 config SND_S3C24XX_I2S
 	tristate
-	select S3C2410_DMA
+	select S3C24XX_DMA
 
 config SND_S3C_I2SV2_SOC
 	tristate
@@ -201,7 +210,7 @@ config SND_SOC_TOBERMORY
 
 config SND_SOC_BELLS
 	tristate "Audio support for Wolfson Bells"
-	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410 && MFD_ARIZONA
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM5102
 	select SND_SOC_WM5110

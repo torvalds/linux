@@ -26,12 +26,19 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "bcm47xx_private.h"
+
 #include <linux/export.h>
 #include <linux/types.h>
+#include <linux/ethtool.h>
+#include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_embedded.h>
 #include <linux/bcma/bcma_soc.h>
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
+#include <asm/prom.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <bcm47xx.h>
@@ -210,12 +217,14 @@ void __init plat_mem_setup(void)
 #ifdef CONFIG_BCM47XX_BCMA
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
 		bcm47xx_register_bcma();
+		bcm47xx_set_system_type(bcm47xx_bus.bcma.bus.chipinfo.id);
 #endif
 	} else {
 		printk(KERN_INFO "bcm47xx: using ssb bus\n");
 #ifdef CONFIG_BCM47XX_SSB
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_SSB;
 		bcm47xx_register_ssb();
+		bcm47xx_set_system_type(bcm47xx_bus.ssb.chip_id);
 #endif
 	}
 
@@ -223,7 +232,39 @@ void __init plat_mem_setup(void)
 	_machine_halt = bcm47xx_machine_halt;
 	pm_power_off = bcm47xx_machine_halt;
 	bcm47xx_board_detect();
+	mips_set_machine_name(bcm47xx_board_get_name());
 }
+
+static int __init bcm47xx_cpu_fixes(void)
+{
+	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
+	case BCM47XX_BUS_TYPE_SSB:
+		/* Nothing to do */
+		break;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		/* The BCM4706 has a problem with the CPU wait instruction.
+		 * When r4k_wait or r4k_wait_irqoff is used will just hang and
+		 * not return from a msleep(). Removing the cpu_wait
+		 * functionality is a workaround for this problem. The BCM4716
+		 * does not have this problem.
+		 */
+		if (bcm47xx_bus.bcma.bus.chipinfo.id == BCMA_CHIP_ID_BCM4706)
+			cpu_wait = NULL;
+		break;
+#endif
+	}
+	return 0;
+}
+arch_initcall(bcm47xx_cpu_fixes);
+
+static struct fixed_phy_status bcm47xx_fixed_phy_status __initdata = {
+	.link	= 1,
+	.speed	= SPEED_100,
+	.duplex	= DUPLEX_FULL,
+};
 
 static int __init bcm47xx_register_bus_complete(void)
 {
@@ -239,6 +280,10 @@ static int __init bcm47xx_register_bus_complete(void)
 		break;
 #endif
 	}
+	bcm47xx_buttons_register();
+	bcm47xx_leds_register();
+
+	fixed_phy_add(PHY_POLL, 0, &bcm47xx_fixed_phy_status);
 	return 0;
 }
 device_initcall(bcm47xx_register_bus_complete);

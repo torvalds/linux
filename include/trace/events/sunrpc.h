@@ -301,6 +301,7 @@ DECLARE_EVENT_CLASS(xs_socket_event_done,
 
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_state_change);
 DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_connect);
+DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_error);
 DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);

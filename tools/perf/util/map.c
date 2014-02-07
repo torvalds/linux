@@ -69,7 +69,7 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		map->ino = ino;
 		map->ino_generation = ino_gen;
 
-		if (anon) {
+		if ((anon || no_dso) && type == MAP__FUNCTION) {
 			snprintf(newfilename, sizeof(newfilename), "/tmp/perf-%d.map", pid);
 			filename = newfilename;
 		}
@@ -93,7 +93,7 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 			 * functions still return NULL, and we avoid the
 			 * unnecessary map__load warning.
 			 */
-			if (no_dso)
+			if (type != MAP__FUNCTION)
 				dso__set_loaded(dso, map->type);
 		}
 	}
@@ -386,7 +386,8 @@ struct symbol *map_groups__find_symbol(struct map_groups *mg,
 {
 	struct map *map = map_groups__find(mg, type, addr);
 
-	if (map != NULL) {
+	/* Ensure map is loaded before using map->map_ip */
+	if (map != NULL && map__load(map, filter) >= 0) {
 		if (mapp != NULL)
 			*mapp = map;
 		return map__find_symbol(map, map->map_ip(map, addr), filter);

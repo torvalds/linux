@@ -163,7 +163,6 @@ void inet_putpeer(struct inet_peer *p);
 bool inet_peer_xrlim_allow(struct inet_peer *peer, int timeout);
 
 void inetpeer_invalidate_tree(struct inet_peer_base *);
-void inetpeer_invalidate_family(int family);
 
 /*
  * temporary check to make sure we dont access rid, ip_id_count, tcp_ts,

@@ -823,8 +823,8 @@ S: D-69231 Rauenberg
 S: Germany
 
 N: Jean Delvare
-E: khali@linux-fr.org
-W: http://khali.linux-fr.org/
+E: jdelvare@suse.de
+W: http://jdelvare.nerim.net/
 D: Several hardware monitoring drivers
 S: France
 

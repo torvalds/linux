@@ -71,9 +71,6 @@
 #define VEC_POS(v) ((v) & (32 - 1))
 #define REG_POS(v) (((v) >> 5) << 4)
 
-static unsigned int min_timer_period_us = 500;
-module_param(min_timer_period_us, uint, S_IRUGO | S_IWUSR);
-
 static inline void apic_set_reg(struct kvm_lapic *apic, int reg_off, u32 val)
 {
 	*((u32 *) (apic->regs + reg_off)) = val;
@@ -435,7 +432,7 @@ static bool pv_eoi_get_pending(struct kvm_vcpu *vcpu)
 	u8 val;
 	if (pv_eoi_get_user(vcpu, &val) < 0)
 		apic_debug("Can't read EOI MSR value: 0x%llx\n",
-			   (unsigned long long)vcpi->arch.pv_eoi.msr_val);
+			   (unsigned long long)vcpu->arch.pv_eoi.msr_val);
 	return val & 0x1;
 }
 
@@ -443,7 +440,7 @@ static void pv_eoi_set_pending(struct kvm_vcpu *vcpu)
 {
 	if (pv_eoi_put_user(vcpu, KVM_PV_EOI_ENABLED) < 0) {
 		apic_debug("Can't set EOI MSR value: 0x%llx\n",
-			   (unsigned long long)vcpi->arch.pv_eoi.msr_val);
+			   (unsigned long long)vcpu->arch.pv_eoi.msr_val);
 		return;
 	}
 	__set_bit(KVM_APIC_PV_EOI_PENDING, &vcpu->arch.apic_attention);
@@ -453,7 +450,7 @@ static void pv_eoi_clr_pending(struct kvm_vcpu *vcpu)
 {
 	if (pv_eoi_put_user(vcpu, KVM_PV_EOI_DISABLED) < 0) {
 		apic_debug("Can't clear EOI MSR value: 0x%llx\n",
-			   (unsigned long long)vcpi->arch.pv_eoi.msr_val);
+			   (unsigned long long)vcpu->arch.pv_eoi.msr_val);
 		return;
 	}
 	__clear_bit(KVM_APIC_PV_EOI_PENDING, &vcpu->arch.apic_attention);

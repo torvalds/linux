@@ -22,6 +22,7 @@
  */
 
 #include <asm/byteorder.h>
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/usb/c67x00.h>
@@ -62,8 +63,8 @@ struct c67x00_lcp_int_data {
  * HPI implementation
  *
  * The c67x00 chip also support control via SPI or HSS serial
- * interfaces.  However, this driver assumes that register access can
- * be performed from IRQ context.  While this is a safe assuption with
+ * interfaces. However, this driver assumes that register access can
+ * be performed from IRQ context. While this is a safe assumption with
  * the HPI interface, it is not true for the serial interfaces.
  */
 
@@ -73,13 +74,22 @@ struct c67x00_lcp_int_data {
 #define HPI_ADDR	2
 #define HPI_STATUS	3
 
+/*
+ * According to CY7C67300 specification (tables 140 and 141) HPI read and
+ * write cycle duration Tcyc must be at least 6T long, where T is 1/48MHz,
+ * which is 125ns.
+ */
+#define HPI_T_CYC_NS	125
+
 static inline u16 hpi_read_reg(struct c67x00_device *dev, int reg)
 {
+	ndelay(HPI_T_CYC_NS);
 	return __raw_readw(dev->hpi.base + reg * dev->hpi.regstep);
 }
 
 static inline void hpi_write_reg(struct c67x00_device *dev, int reg, u16 value)
 {
+	ndelay(HPI_T_CYC_NS);
 	__raw_writew(value, dev->hpi.base + reg * dev->hpi.regstep);
 }
 

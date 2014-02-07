@@ -223,8 +223,8 @@ static int l4f00242t03_probe(struct spi_device *spi)
 		return PTR_ERR(priv->core_reg);
 	}
 
-	priv->ld = lcd_device_register("l4f00242t03",
-					&spi->dev, priv, &l4f_ops);
+	priv->ld = devm_lcd_device_register(&spi->dev, "l4f00242t03", &spi->dev,
+					priv, &l4f_ops);
 	if (IS_ERR(priv->ld))
 		return PTR_ERR(priv->ld);
 
@@ -243,8 +243,6 @@ static int l4f00242t03_remove(struct spi_device *spi)
 	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 
 	l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_POWERDOWN);
-	lcd_device_unregister(priv->ld);
-
 	return 0;
 }
 

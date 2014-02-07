@@ -159,11 +159,6 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 	 *  We always write 0 to GNSWA bit, so the channel range is +-/10.1Vdc
 	 */
 	outb(insn->chanspec, dev->iobase + MPC624_GNMUXCH);
-/* printk("Channel %d:\n", insn->chanspec); */
-	if (!insn->n) {
-		printk(KERN_INFO "MPC624: Warning, no data to acquire\n");
-		return 0;
-	}
 
 	for (n = 0; n < insn->n; n++) {
 		/*  Trigger the conversion */
@@ -182,11 +177,9 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 			else
 				break;
 		}
-		if (i == TIMEOUT) {
-			printk(KERN_ERR "MPC624: timeout (%dms)\n", TIMEOUT);
-			data[n] = 0;
+		if (i == TIMEOUT)
 			return -ETIMEDOUT;
-		}
+
 		/*  Start reading data */
 		data_in = 0;
 		data_out = devpriv->ulConvertionRate;
@@ -245,11 +238,11 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 		 */
 
 		if (data_in & MPC624_EOC_BIT)
-			printk(KERN_INFO "MPC624:EOC bit is set (data_in=%lu)!",
-			       data_in);
+			dev_dbg(dev->class_dev,
+				"EOC bit is set (data_in=%lu)!", data_in);
 		if (data_in & MPC624_DMY_BIT)
-			printk(KERN_INFO "MPC624:DMY bit is set (data_in=%lu)!",
-			       data_in);
+			dev_dbg(dev->class_dev,
+				"DMY bit is set (data_in=%lu)!", data_in);
 		if (data_in & MPC624_SGN_BIT) {	/* Volatge is positive */
 			/*
 			 * comedi operates on unsigned numbers, so mask off EOC

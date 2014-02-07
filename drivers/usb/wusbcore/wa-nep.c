@@ -69,8 +69,8 @@ struct wa_notif_work {
  * [the wuswad daemon, basically]
  *
  * @_nw:	Pointer to a descriptor which has the pointer to the
- * 		@wa, the size of the buffer and the work queue
- * 		structure (so we can free all when done).
+ *		@wa, the size of the buffer and the work queue
+ *		structure (so we can free all when done).
  * @returns     0 if ok, < 0 errno code on error.
  *
  * All notifications follow the same format; they need to start with a
@@ -93,7 +93,8 @@ static void wa_notif_dispatch(struct work_struct *ws)
 {
 	void *itr;
 	u8 missing = 0;
-	struct wa_notif_work *nw = container_of(ws, struct wa_notif_work, work);
+	struct wa_notif_work *nw = container_of(ws, struct wa_notif_work,
+						work);
 	struct wahc *wa = nw->wa;
 	struct wa_notif_hdr *notif_hdr;
 	size_t size;
@@ -271,7 +272,8 @@ int wa_nep_create(struct wahc *wa, struct usb_interface *iface)
 	wa->nep_buffer_size = 1024;
 	wa->nep_buffer = kmalloc(wa->nep_buffer_size, GFP_KERNEL);
 	if (wa->nep_buffer == NULL) {
-		dev_err(dev, "Unable to allocate notification's read buffer\n");
+		dev_err(dev,
+			"Unable to allocate notification's read buffer\n");
 		goto error_nep_buffer;
 	}
 	wa->nep_urb = usb_alloc_urb(0, GFP_KERNEL);

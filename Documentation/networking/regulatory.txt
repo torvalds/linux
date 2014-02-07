@@ -159,10 +159,10 @@ struct ieee80211_regdomain mydriver_jp_regdom = {
 		REG_RULE(2412-20, 2484+20, 40, 6, 20, 0),
 		/* IEEE 802.11a, channels 34..48 */
 		REG_RULE(5170-20, 5240+20, 40, 6, 20,
-			NL80211_RRF_PASSIVE_SCAN),
+			NL80211_RRF_NO_IR),
 		/* IEEE 802.11a, channels 52..64 */
 		REG_RULE(5260-20, 5320+20, 40, 6, 20,
-			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_NO_IR|
 			NL80211_RRF_DFS),
 	}
 };

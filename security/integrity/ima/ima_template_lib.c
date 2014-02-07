@@ -162,8 +162,7 @@ void ima_show_template_sig(struct seq_file *m, enum ima_show_type show,
 }
 
 static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
-				       struct ima_field_data *field_data,
-				       bool size_limit)
+				       struct ima_field_data *field_data)
 {
 	/*
 	 * digest formats:
@@ -176,11 +175,10 @@ static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
 	enum data_formats fmt = DATA_FMT_DIGEST;
 	u32 offset = 0;
 
-	if (!size_limit) {
+	if (hash_algo < HASH_ALGO__LAST) {
 		fmt = DATA_FMT_DIGEST_WITH_ALGO;
-		if (hash_algo < HASH_ALGO__LAST)
-			offset += snprintf(buffer, CRYPTO_MAX_ALG_NAME + 1,
-					   "%s", hash_algo_name[hash_algo]);
+		offset += snprintf(buffer, CRYPTO_MAX_ALG_NAME + 1, "%s",
+				   hash_algo_name[hash_algo]);
 		buffer[offset] = ':';
 		offset += 2;
 	}
@@ -243,8 +241,8 @@ int ima_eventdigest_init(struct integrity_iint_cache *iint, struct file *file,
 	cur_digest = hash.hdr.digest;
 	cur_digestsize = hash.hdr.length;
 out:
-	return ima_eventdigest_init_common(cur_digest, cur_digestsize, -1,
-					   field_data, true);
+	return ima_eventdigest_init_common(cur_digest, cur_digestsize,
+					   HASH_ALGO__LAST, field_data);
 }
 
 /*
@@ -255,7 +253,7 @@ int ima_eventdigest_ng_init(struct integrity_iint_cache *iint,
 			    struct evm_ima_xattr_data *xattr_value,
 			    int xattr_len, struct ima_field_data *field_data)
 {
-	u8 *cur_digest = NULL, hash_algo = HASH_ALGO__LAST;
+	u8 *cur_digest = NULL, hash_algo = HASH_ALGO_SHA1;
 	u32 cur_digestsize = 0;
 
 	/* If iint is NULL, we are recording a violation. */
@@ -268,7 +266,7 @@ int ima_eventdigest_ng_init(struct integrity_iint_cache *iint,
 	hash_algo = iint->ima_hash->algo;
 out:
 	return ima_eventdigest_init_common(cur_digest, cur_digestsize,
-					   hash_algo, field_data, false);
+					   hash_algo, field_data);
 }
 
 static int ima_eventname_init_common(struct integrity_iint_cache *iint,

@@ -323,6 +323,7 @@ struct sdma_engine {
 	struct clk			*clk_ipg;
 	struct clk			*clk_ahb;
 	spinlock_t			channel_0_lock;
+	u32				script_number;
 	struct sdma_script_start_addrs	*script_addrs;
 	const struct sdma_driver_data	*drvdata;
 };
@@ -723,6 +724,10 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 	case IMX_DMATYPE_SSI:
 		per_2_emi = sdma->script_addrs->app_2_mcu_addr;
 		emi_2_per = sdma->script_addrs->mcu_2_app_addr;
+		break;
+	case IMX_DMATYPE_SSI_DUAL:
+		per_2_emi = sdma->script_addrs->ssish_2_mcu_addr;
+		emi_2_per = sdma->script_addrs->mcu_2_ssish_addr;
 		break;
 	case IMX_DMATYPE_SSI_SP:
 	case IMX_DMATYPE_MMC:
@@ -1238,6 +1243,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 }
 
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2	38
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
 		const struct sdma_script_start_addrs *addr)
@@ -1246,7 +1252,11 @@ static void sdma_add_scripts(struct sdma_engine *sdma,
 	s32 *saddr_arr = (u32 *)sdma->script_addrs;
 	int i;
 
-	for (i = 0; i < SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1; i++)
+	/* use the default firmware in ROM if missing external firmware */
+	if (!sdma->script_number)
+		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1;
+
+	for (i = 0; i < sdma->script_number; i++)
 		if (addr_arr[i] > 0)
 			saddr_arr[i] = addr_arr[i];
 }
@@ -1272,6 +1282,17 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 		goto err_firmware;
 	if (header->ram_code_start + header->ram_code_size > fw->size)
 		goto err_firmware;
+	switch (header->version_major) {
+		case 1:
+			sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1;
+			break;
+		case 2:
+			sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2;
+			break;
+		default:
+			dev_err(sdma->dev, "unknown firmware version\n");
+			goto err_firmware;
+	}
 
 	addr = (void *)header + header->script_addrs_start;
 	ram_code = (void *)header + header->ram_code_start;

@@ -135,7 +135,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 	u32 usecs;
 	int i;
 
-	for (i=0; i < MAX_THR_RATES; i++)
+	for (i = 0; i < MAX_THR_RATES; i++)
 	    tmp_tp_rate[i] = 0;
 
 	for (i = 0; i < mi->n_rates; i++) {
@@ -190,7 +190,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		 * choose the maximum throughput rate as max_prob_rate
 		 * (2) if all success probabilities < 95%, the rate with
 		 * highest success probability is choosen as max_prob_rate */
-		if (mr->probability >= MINSTREL_FRAC(95,100)) {
+		if (mr->probability >= MINSTREL_FRAC(95, 100)) {
 			if (mr->cur_tp >= mi->r[tmp_prob_rate].cur_tp)
 				tmp_prob_rate = i;
 		} else {
@@ -220,7 +220,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 
 static void
 minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
-                   struct ieee80211_sta *sta, void *priv_sta,
+		   struct ieee80211_sta *sta, void *priv_sta,
 		   struct sk_buff *skb)
 {
 	struct minstrel_priv *mp = priv;
@@ -260,7 +260,7 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 static inline unsigned int
 minstrel_get_retry_count(struct minstrel_rate *mr,
-                         struct ieee80211_tx_info *info)
+			 struct ieee80211_tx_info *info)
 {
 	unsigned int retry = mr->adjusted_retry_count;
 
@@ -422,10 +422,9 @@ init_sample_table(struct minstrel_sta_info *mi)
 	memset(mi->sample_table, 0xff, SAMPLE_COLUMNS * mi->n_rates);
 
 	for (col = 0; col < SAMPLE_COLUMNS; col++) {
+		prandom_bytes(rnd, sizeof(rnd));
 		for (i = 0; i < mi->n_rates; i++) {
-			get_random_bytes(rnd, sizeof(rnd));
 			new_idx = (i + rnd[i & 7]) % mi->n_rates;
-
 			while (SAMPLE_TBL(mi, new_idx, col) != 0xff)
 				new_idx = (new_idx + 1) % mi->n_rates;
 

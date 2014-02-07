@@ -125,17 +125,19 @@ struct neigh_table nd_tbl = {
 	.id =		"ndisc_cache",
 	.parms = {
 		.tbl			= &nd_tbl,
-		.base_reachable_time	= ND_REACHABLE_TIME,
-		.retrans_time		= ND_RETRANS_TIMER,
-		.gc_staletime		= 60 * HZ,
 		.reachable_time		= ND_REACHABLE_TIME,
-		.delay_probe_time	= 5 * HZ,
-		.queue_len_bytes	= 64*1024,
-		.ucast_probes		= 3,
-		.mcast_probes		= 3,
-		.anycast_delay		= 1 * HZ,
-		.proxy_delay		= (8 * HZ) / 10,
-		.proxy_qlen		= 64,
+		.data = {
+			[NEIGH_VAR_MCAST_PROBES] = 3,
+			[NEIGH_VAR_UCAST_PROBES] = 3,
+			[NEIGH_VAR_RETRANS_TIME] = ND_RETRANS_TIMER,
+			[NEIGH_VAR_BASE_REACHABLE_TIME] = ND_REACHABLE_TIME,
+			[NEIGH_VAR_DELAY_PROBE_TIME] = 5 * HZ,
+			[NEIGH_VAR_GC_STALETIME] = 60 * HZ,
+			[NEIGH_VAR_QUEUE_LEN_BYTES] = 64 * 1024,
+			[NEIGH_VAR_PROXY_QLEN] = 64,
+			[NEIGH_VAR_ANYCAST_DELAY] = 1 * HZ,
+			[NEIGH_VAR_PROXY_DELAY] = (8 * HZ) / 10,
+		},
 	},
 	.gc_interval =	  30 * HZ,
 	.gc_thresh1 =	 128,
@@ -656,14 +658,14 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	if (skb && ipv6_chk_addr(dev_net(dev), &ipv6_hdr(skb)->saddr, dev, 1))
 		saddr = &ipv6_hdr(skb)->saddr;
 
-	if ((probes -= neigh->parms->ucast_probes) < 0) {
+	if ((probes -= NEIGH_VAR(neigh->parms, UCAST_PROBES)) < 0) {
 		if (!(neigh->nud_state & NUD_VALID)) {
 			ND_PRINTK(1, dbg,
 				  "%s: trying to ucast probe in NUD_INVALID: %pI6\n",
 				  __func__, target);
 		}
 		ndisc_send_ns(dev, neigh, target, target, saddr);
-	} else if ((probes -= neigh->parms->app_probes) < 0) {
+	} else if ((probes -= NEIGH_VAR(neigh->parms, APP_PROBES)) < 0) {
 		neigh_app_ns(neigh);
 	} else {
 		addrconf_addr_solict_mult(target, &mcaddr);
@@ -790,7 +792,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
 			    inc &&
-			    idev->nd_parms->proxy_delay != 0) {
+			    NEIGH_VAR(idev->nd_parms, PROXY_DELAY) != 0) {
 				/*
 				 * for anycast or proxy,
 				 * sender should delay its response
@@ -1210,7 +1212,7 @@ skip_defrtr:
 			rtime = (rtime*HZ)/1000;
 			if (rtime < HZ/10)
 				rtime = HZ/10;
-			in6_dev->nd_parms->retrans_time = rtime;
+			NEIGH_VAR_SET(in6_dev->nd_parms, RETRANS_TIME, rtime);
 			in6_dev->tstamp = jiffies;
 			inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
 		}
@@ -1222,9 +1224,11 @@ skip_defrtr:
 			if (rtime < HZ/10)
 				rtime = HZ/10;
 
-			if (rtime != in6_dev->nd_parms->base_reachable_time) {
-				in6_dev->nd_parms->base_reachable_time = rtime;
-				in6_dev->nd_parms->gc_staletime = 3 * rtime;
+			if (rtime != NEIGH_VAR(in6_dev->nd_parms, BASE_REACHABLE_TIME)) {
+				NEIGH_VAR_SET(in6_dev->nd_parms,
+					      BASE_REACHABLE_TIME, rtime);
+				NEIGH_VAR_SET(in6_dev->nd_parms,
+					      GC_STALETIME, 3 * rtime);
 				in6_dev->nd_parms->reachable_time = neigh_rand_reach_time(rtime);
 				in6_dev->tstamp = jiffies;
 				inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
@@ -1651,22 +1655,23 @@ int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write, void __user *bu
 		ndisc_warn_deprecated_sysctl(ctl, "syscall", dev ? dev->name : "default");
 
 	if (strcmp(ctl->procname, "retrans_time") == 0)
-		ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+		ret = neigh_proc_dointvec(ctl, write, buffer, lenp, ppos);
 
 	else if (strcmp(ctl->procname, "base_reachable_time") == 0)
-		ret = proc_dointvec_jiffies(ctl, write,
-					    buffer, lenp, ppos);
+		ret = neigh_proc_dointvec_jiffies(ctl, write,
+						  buffer, lenp, ppos);
 
 	else if ((strcmp(ctl->procname, "retrans_time_ms") == 0) ||
 		 (strcmp(ctl->procname, "base_reachable_time_ms") == 0))
-		ret = proc_dointvec_ms_jiffies(ctl, write,
-					       buffer, lenp, ppos);
+		ret = neigh_proc_dointvec_ms_jiffies(ctl, write,
+						     buffer, lenp, ppos);
 	else
 		ret = -1;
 
 	if (write && ret == 0 && dev && (idev = in6_dev_get(dev)) != NULL) {
-		if (ctl->data == &idev->nd_parms->base_reachable_time)
-			idev->nd_parms->reachable_time = neigh_rand_reach_time(idev->nd_parms->base_reachable_time);
+		if (ctl->data == &NEIGH_VAR(idev->nd_parms, BASE_REACHABLE_TIME))
+			idev->nd_parms->reachable_time =
+					neigh_rand_reach_time(NEIGH_VAR(idev->nd_parms, BASE_REACHABLE_TIME));
 		idev->tstamp = jiffies;
 		inet6_ifinfo_notify(RTM_NEWLINK, idev);
 		in6_dev_put(idev);
@@ -1725,7 +1730,7 @@ int __init ndisc_init(void)
 	neigh_table_init(&nd_tbl);
 
 #ifdef CONFIG_SYSCTL
-	err = neigh_sysctl_register(NULL, &nd_tbl.parms, "ipv6",
+	err = neigh_sysctl_register(NULL, &nd_tbl.parms,
 				    &ndisc_ifinfo_sysctl_change);
 	if (err)
 		goto out_unregister_pernet;

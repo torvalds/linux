@@ -671,7 +671,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 	tunnel = ipip6_tunnel_lookup(dev_net(skb->dev), skb->dev,
 				     iph->saddr, iph->daddr);
 	if (tunnel != NULL) {
-		struct pcpu_tstats *tstats;
+		struct pcpu_sw_netstats *tstats;
 
 		if (tunnel->parms.iph.protocol != IPPROTO_IPV6 &&
 		    tunnel->parms.iph.protocol != 0)
@@ -1365,12 +1365,12 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
 
 	ipip6_tunnel_bind_dev(dev);
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ipip6_tunnel_stats;
+		struct pcpu_sw_netstats *ipip6_tunnel_stats;
 		ipip6_tunnel_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ipip6_tunnel_stats->syncp);
 	}
@@ -1395,12 +1395,12 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	iph->ihl		= 5;
 	iph->ttl		= 64;
 
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ipip6_fb_stats;
+		struct pcpu_sw_netstats *ipip6_fb_stats;
 		ipip6_fb_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ipip6_fb_stats->syncp);
 	}

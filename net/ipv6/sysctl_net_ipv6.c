@@ -24,6 +24,20 @@ static struct ctl_table ipv6_table_template[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
+	{
+		.procname	= "anycast_src_echo_reply",
+		.data		= &init_net.ipv6.sysctl.anycast_src_echo_reply,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "flowlabel_consistency",
+		.data		= &init_net.ipv6.sysctl.flowlabel_consistency,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
 	{ }
 };
 
@@ -51,6 +65,8 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	if (!ipv6_table)
 		goto out;
 	ipv6_table[0].data = &net->ipv6.sysctl.bindv6only;
+	ipv6_table[1].data = &net->ipv6.sysctl.anycast_src_echo_reply;
+	ipv6_table[2].data = &net->ipv6.sysctl.flowlabel_consistency;
 
 	ipv6_route_table = ipv6_route_sysctl_init(net);
 	if (!ipv6_route_table)

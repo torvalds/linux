@@ -87,8 +87,40 @@ static void tegra_dc_write_regs(struct tegra_dc *dc,
 static int tegra_output_rgb_enable(struct tegra_output *output)
 {
 	struct tegra_rgb *rgb = to_rgb(output);
+	unsigned long value;
 
 	tegra_dc_write_regs(rgb->dc, rgb_enable, ARRAY_SIZE(rgb_enable));
+
+	value = DE_SELECT_ACTIVE | DE_CONTROL_NORMAL;
+	tegra_dc_writel(rgb->dc, value, DC_DISP_DATA_ENABLE_OPTIONS);
+
+	/* XXX: parameterize? */
+	value = tegra_dc_readl(rgb->dc, DC_COM_PIN_OUTPUT_POLARITY(1));
+	value &= ~LVS_OUTPUT_POLARITY_LOW;
+	value &= ~LHS_OUTPUT_POLARITY_LOW;
+	tegra_dc_writel(rgb->dc, value, DC_COM_PIN_OUTPUT_POLARITY(1));
+
+	/* XXX: parameterize? */
+	value = DISP_DATA_FORMAT_DF1P1C | DISP_ALIGNMENT_MSB |
+		DISP_ORDER_RED_BLUE;
+	tegra_dc_writel(rgb->dc, value, DC_DISP_DISP_INTERFACE_CONTROL);
+
+	/* XXX: parameterize? */
+	value = SC0_H_QUALIFIER_NONE | SC1_H_QUALIFIER_NONE;
+	tegra_dc_writel(rgb->dc, value, DC_DISP_SHIFT_CLOCK_OPTIONS);
+
+	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	value |= DISP_CTRL_MODE_C_DISPLAY;
+	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_POWER_CONTROL);
+	value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
+	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+
+	tegra_dc_writel(rgb->dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(rgb->dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 
 	return 0;
 }
@@ -96,6 +128,19 @@ static int tegra_output_rgb_enable(struct tegra_output *output)
 static int tegra_output_rgb_disable(struct tegra_output *output)
 {
 	struct tegra_rgb *rgb = to_rgb(output);
+	unsigned long value;
+
+	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_POWER_CONTROL);
+	value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+		   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
+	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+
+	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	tegra_dc_writel(rgb->dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(rgb->dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 
 	tegra_dc_write_regs(rgb->dc, rgb_disable, ARRAY_SIZE(rgb_disable));
 
@@ -213,7 +258,7 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 	 * RGB outputs are an exception, so we make sure they can be attached
 	 * to only their parent display controller.
 	 */
-	rgb->output.encoder.possible_crtcs = 1 << dc->pipe;
+	rgb->output.encoder.possible_crtcs = drm_crtc_mask(&dc->base);
 
 	return 0;
 }

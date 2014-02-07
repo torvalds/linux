@@ -343,38 +343,6 @@ static inline int dccp_elapsed_time_len(const u32 elapsed_time)
 	return elapsed_time == 0 ? 0 : elapsed_time <= 0xFFFF ? 2 : 4;
 }
 
-/* FIXME: This function is currently not used anywhere */
-int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed_time)
-{
-	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
-	const int len = 2 + elapsed_time_len;
-	unsigned char *to;
-
-	if (elapsed_time_len == 0)
-		return 0;
-
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
-		return -1;
-
-	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
-
-	to    = skb_push(skb, len);
-	*to++ = DCCPO_ELAPSED_TIME;
-	*to++ = len;
-
-	if (elapsed_time_len == 2) {
-		const __be16 var16 = htons((u16)elapsed_time);
-		memcpy(to, &var16, 2);
-	} else {
-		const __be32 var32 = htonl(elapsed_time);
-		memcpy(to, &var32, 4);
-	}
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(dccp_insert_option_elapsed_time);
-
 static int dccp_insert_option_timestamp(struct sk_buff *skb)
 {
 	__be32 now = htonl(dccp_timestamp());

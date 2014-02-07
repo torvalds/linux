@@ -280,6 +280,8 @@
 #define __NR_s390_runtime_instr 342
 #define __NR_kcmp		343
 #define __NR_finit_module	344
+#define __NR_sched_setattr	345
+#define __NR_sched_getattr	346
 #define NR_syscalls 345
 
 /* 

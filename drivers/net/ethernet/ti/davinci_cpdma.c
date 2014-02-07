@@ -81,7 +81,7 @@ struct cpdma_desc {
 };
 
 struct cpdma_desc_pool {
-	u32			phys;
+	phys_addr_t		phys;
 	u32			hw_addr;
 	void __iomem		*iomap;		/* ioremap map */
 	void			*cpumap;	/* dma_alloc map */
@@ -219,8 +219,7 @@ static inline dma_addr_t desc_phys(struct cpdma_desc_pool *pool,
 {
 	if (!desc)
 		return 0;
-	return pool->hw_addr + (__force dma_addr_t)desc -
-			    (__force dma_addr_t)pool->iomap;
+	return pool->hw_addr + (__force long)desc - (__force long)pool->iomap;
 }
 
 static inline struct cpdma_desc __iomem *
@@ -972,7 +971,7 @@ struct cpdma_control_info {
 #define ACCESS_RW	(ACCESS_RO | ACCESS_WO)
 };
 
-struct cpdma_control_info controls[] = {
+static struct cpdma_control_info controls[] = {
 	[CPDMA_CMD_IDLE]	  = {CPDMA_DMACONTROL,	3,  1,      ACCESS_WO},
 	[CPDMA_COPY_ERROR_FRAMES] = {CPDMA_DMACONTROL,	4,  1,      ACCESS_RW},
 	[CPDMA_RX_OFF_LEN_UPDATE] = {CPDMA_DMACONTROL,	2,  1,      ACCESS_RW},

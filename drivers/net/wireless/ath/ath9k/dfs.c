@@ -158,8 +158,8 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 		return;
 	}
 
-	ard.rssi = rs->rs_rssi_ctl0;
-	ard.ext_rssi = rs->rs_rssi_ext0;
+	ard.rssi = rs->rs_rssi_ctl[0];
+	ard.ext_rssi = rs->rs_rssi_ext[0];
 
 	/*
 	 * hardware stores this as 8 bit signed value.

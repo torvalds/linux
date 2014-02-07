@@ -37,7 +37,7 @@
 
 #define RTC_I2C_ADDR		(0x0c >> 1)
 
-static struct mfd_cell max8998_devs[] = {
+static const struct mfd_cell max8998_devs[] = {
 	{
 		.name = "max8998-pmic",
 	}, {
@@ -47,7 +47,7 @@ static struct mfd_cell max8998_devs[] = {
 	},
 };
 
-static struct mfd_cell lp3974_devs[] = {
+static const struct mfd_cell lp3974_devs[] = {
 	{
 		.name = "lp3974-pmic",
 	}, {
@@ -175,7 +175,7 @@ static inline int max8998_i2c_get_driver_data(struct i2c_client *i2c,
 	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(max8998_dt_match, i2c->dev.of_node);
-		return (int)match->data;
+		return (int)(long)match->data;
 	}
 
 	return (int)id->driver_data;

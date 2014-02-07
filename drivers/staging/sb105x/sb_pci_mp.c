@@ -182,7 +182,7 @@ static int sb1054_get_register(struct sb_uart_port *port, int page, int reg)
 
 	if( page <= 0)
 	{
-		printk(" page 0 can not use this fuction\n");
+		printk(" page 0 can not use this function\n");
 		return -1;
 	}
 
@@ -243,7 +243,7 @@ static int sb1054_set_register(struct sb_uart_port *port, int page, int reg, int
 
 	if( page <= 0)
 	{
-		printk(" page 0 can not use this fuction\n");
+		printk(" page 0 can not use this function\n");
 		return -1;
 	}
 	switch(page)

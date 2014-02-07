@@ -418,7 +418,14 @@ static inline void bcma_maskset16(struct bcma_device *cc,
 	bcma_write16(cc, offset, (bcma_read16(cc, offset) & mask) | set);
 }
 
-extern struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid);
+extern struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
+					       u8 unit);
+static inline struct bcma_device *bcma_find_core(struct bcma_bus *bus,
+						 u16 coreid)
+{
+	return bcma_find_core_unit(bus, coreid, 0);
+}
+
 extern bool bcma_core_is_enabled(struct bcma_device *core);
 extern void bcma_core_disable(struct bcma_device *core, u32 flags);
 extern int bcma_core_enable(struct bcma_device *core, u32 flags);

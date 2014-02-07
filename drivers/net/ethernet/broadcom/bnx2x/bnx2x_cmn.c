@@ -30,6 +30,43 @@
 #include "bnx2x_init.h"
 #include "bnx2x_sp.h"
 
+static void bnx2x_free_fp_mem_cnic(struct bnx2x *bp);
+static int bnx2x_alloc_fp_mem_cnic(struct bnx2x *bp);
+static int bnx2x_alloc_fp_mem(struct bnx2x *bp);
+static int bnx2x_poll(struct napi_struct *napi, int budget);
+
+static void bnx2x_add_all_napi_cnic(struct bnx2x *bp)
+{
+	int i;
+
+	/* Add NAPI objects */
+	for_each_rx_queue_cnic(bp, i) {
+		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
+			       bnx2x_poll, NAPI_POLL_WEIGHT);
+		napi_hash_add(&bnx2x_fp(bp, i, napi));
+	}
+}
+
+static void bnx2x_add_all_napi(struct bnx2x *bp)
+{
+	int i;
+
+	/* Add NAPI objects */
+	for_each_eth_queue(bp, i) {
+		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
+			       bnx2x_poll, NAPI_POLL_WEIGHT);
+		napi_hash_add(&bnx2x_fp(bp, i, napi));
+	}
+}
+
+static int bnx2x_calc_num_queues(struct bnx2x *bp)
+{
+	return  bnx2x_num_queues ?
+		 min_t(int, bnx2x_num_queues, BNX2X_MAX_QUEUES(bp)) :
+		 min_t(int, netif_get_num_default_rss_queues(),
+		       BNX2X_MAX_QUEUES(bp));
+}
+
 /**
  * bnx2x_move_fp - move content of the fastpath structure.
  *
@@ -145,7 +182,7 @@ static void bnx2x_shrink_eth_fp(struct bnx2x *bp, int delta)
 	}
 }
 
-int load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 */
+int bnx2x_load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 */
 
 /* free skb in the packet ring at pos idx
  * return idx of last bd freed
@@ -359,7 +396,7 @@ static inline void bnx2x_update_sge_prod(struct bnx2x_fastpath *fp,
  */
 static u32 bnx2x_get_rxhash(const struct bnx2x *bp,
 			    const struct eth_fast_path_rx_cqe *cqe,
-			    bool *l4_rxhash)
+			    enum pkt_hash_types *rxhash_type)
 {
 	/* Get Toeplitz hash from CQE */
 	if ((bp->dev->features & NETIF_F_RXHASH) &&
@@ -367,11 +404,13 @@ static u32 bnx2x_get_rxhash(const struct bnx2x *bp,
 		enum eth_rss_hash_type htype;
 
 		htype = cqe->status_flags & ETH_FAST_PATH_RX_CQE_RSS_HASH_TYPE;
-		*l4_rxhash = (htype == TCP_IPV4_HASH_TYPE) ||
-			     (htype == TCP_IPV6_HASH_TYPE);
+		*rxhash_type = ((htype == TCP_IPV4_HASH_TYPE) ||
+				(htype == TCP_IPV6_HASH_TYPE)) ?
+			       PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3;
+
 		return le32_to_cpu(cqe->rss_hash_result);
 	}
-	*l4_rxhash = false;
+	*rxhash_type = PKT_HASH_TYPE_NONE;
 	return 0;
 }
 
@@ -425,7 +464,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 	tpa_info->tpa_state = BNX2X_TPA_START;
 	tpa_info->len_on_bd = le16_to_cpu(cqe->len_on_bd);
 	tpa_info->placement_offset = cqe->placement_offset;
-	tpa_info->rxhash = bnx2x_get_rxhash(bp, cqe, &tpa_info->l4_rxhash);
+	tpa_info->rxhash = bnx2x_get_rxhash(bp, cqe, &tpa_info->rxhash_type);
 	if (fp->mode == TPA_MODE_GRO) {
 		u16 gro_size = le16_to_cpu(cqe->pkt_len_or_gro_seg_len);
 		tpa_info->full_page = SGE_PAGES / gro_size * gro_size;
@@ -733,8 +772,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		skb_reserve(skb, pad + NET_SKB_PAD);
 		skb_put(skb, len);
-		skb->rxhash = tpa_info->rxhash;
-		skb->l4_rxhash = tpa_info->l4_rxhash;
+		skb_set_hash(skb, tpa_info->rxhash, tpa_info->rxhash_type);
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -817,7 +855,7 @@ void bnx2x_csum_validate(struct sk_buff *skb, union eth_rx_cqe *cqe,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
-int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
+static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 {
 	struct bnx2x *bp = fp->bp;
 	u16 bd_cons, bd_prod, bd_prod_fw, comp_ring_cons;
@@ -851,7 +889,8 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		enum eth_rx_cqe_type cqe_fp_type;
 		u16 len, pad, queue;
 		u8 *data;
-		bool l4_rxhash;
+		u32 rxhash;
+		enum pkt_hash_types rxhash_type;
 
 #ifdef BNX2X_STOP_ON_ERROR
 		if (unlikely(bp->panic))
@@ -992,8 +1031,8 @@ reuse_rx:
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
 		/* Set Toeplitz hash for a none-LRO skb */
-		skb->rxhash = bnx2x_get_rxhash(bp, cqe_fp, &l4_rxhash);
-		skb->l4_rxhash = l4_rxhash;
+		rxhash = bnx2x_get_rxhash(bp, cqe_fp, &rxhash_type);
+		skb_set_hash(skb, rxhash, rxhash_type);
 
 		skb_checksum_none_assert(skb);
 
@@ -1486,7 +1525,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 	}
 }
 
-void bnx2x_free_skbs_cnic(struct bnx2x *bp)
+static void bnx2x_free_skbs_cnic(struct bnx2x *bp)
 {
 	bnx2x_free_tx_skbs_cnic(bp);
 	bnx2x_free_rx_skbs_cnic(bp);
@@ -2265,7 +2304,7 @@ static int bnx2x_nic_load_request(struct bnx2x *bp, u32 *load_code)
  * virtualized environments a pf from another VM may have already
  * initialized the device including loading FW
  */
-int bnx2x_nic_load_analyze_req(struct bnx2x *bp, u32 load_code)
+int bnx2x_compare_fw_ver(struct bnx2x *bp, u32 load_code, bool print_err)
 {
 	/* is another pf loaded on this engine? */
 	if (load_code != FW_MSG_CODE_DRV_LOAD_COMMON_CHIP &&
@@ -2284,8 +2323,12 @@ int bnx2x_nic_load_analyze_req(struct bnx2x *bp, u32 load_code)
 
 		/* abort nic load if version mismatch */
 		if (my_fw != loaded_fw) {
-			BNX2X_ERR("bnx2x with FW %x was already loaded which mismatches my %x FW. Aborting\n",
-				  loaded_fw, my_fw);
+			if (print_err)
+				BNX2X_ERR("bnx2x with FW %x was already loaded which mismatches my %x FW. Aborting\n",
+					  loaded_fw, my_fw);
+			else
+				BNX2X_DEV_INFO("bnx2x with FW %x was already loaded which mismatches my %x FW, possibly due to MF UNDI\n",
+					       loaded_fw, my_fw);
 			return -EBUSY;
 		}
 	}
@@ -2298,16 +2341,16 @@ static int bnx2x_nic_load_no_mcp(struct bnx2x *bp, int port)
 	int path = BP_PATH(bp);
 
 	DP(NETIF_MSG_IFUP, "NO MCP - load counts[%d]      %d, %d, %d\n",
-	   path, load_count[path][0], load_count[path][1],
-	   load_count[path][2]);
-	load_count[path][0]++;
-	load_count[path][1 + port]++;
+	   path, bnx2x_load_count[path][0], bnx2x_load_count[path][1],
+	   bnx2x_load_count[path][2]);
+	bnx2x_load_count[path][0]++;
+	bnx2x_load_count[path][1 + port]++;
 	DP(NETIF_MSG_IFUP, "NO MCP - new load counts[%d]  %d, %d, %d\n",
-	   path, load_count[path][0], load_count[path][1],
-	   load_count[path][2]);
-	if (load_count[path][0] == 1)
+	   path, bnx2x_load_count[path][0], bnx2x_load_count[path][1],
+	   bnx2x_load_count[path][2]);
+	if (bnx2x_load_count[path][0] == 1)
 		return FW_MSG_CODE_DRV_LOAD_COMMON;
-	else if (load_count[path][1 + port] == 1)
+	else if (bnx2x_load_count[path][1 + port] == 1)
 		return FW_MSG_CODE_DRV_LOAD_PORT;
 	else
 		return FW_MSG_CODE_DRV_LOAD_FUNCTION;
@@ -2600,7 +2643,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 				LOAD_ERROR_EXIT(bp, load_error1);
 
 			/* what did mcp say? */
-			rc = bnx2x_nic_load_analyze_req(bp, load_code);
+			rc = bnx2x_compare_fw_ver(bp, load_code, true);
 			if (rc) {
 				bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE, 0);
 				LOAD_ERROR_EXIT(bp, load_error2);
@@ -3065,7 +3108,7 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 /*
  * net_device service functions
  */
-int bnx2x_poll(struct napi_struct *napi, int budget)
+static int bnx2x_poll(struct napi_struct *napi, int budget)
 {
 	int work_done = 0;
 	u8 cos;
@@ -4192,7 +4235,7 @@ static void bnx2x_free_fp_mem_at(struct bnx2x *bp, int fp_index)
 	/* end of fastpath */
 }
 
-void bnx2x_free_fp_mem_cnic(struct bnx2x *bp)
+static void bnx2x_free_fp_mem_cnic(struct bnx2x *bp)
 {
 	int i;
 	for_each_cnic_queue(bp, i)
@@ -4406,7 +4449,7 @@ alloc_mem_err:
 	return 0;
 }
 
-int bnx2x_alloc_fp_mem_cnic(struct bnx2x *bp)
+static int bnx2x_alloc_fp_mem_cnic(struct bnx2x *bp)
 {
 	if (!NO_FCOE(bp))
 		/* FCoE */
@@ -4419,7 +4462,7 @@ int bnx2x_alloc_fp_mem_cnic(struct bnx2x *bp)
 	return 0;
 }
 
-int bnx2x_alloc_fp_mem(struct bnx2x *bp)
+static int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 {
 	int i;
 

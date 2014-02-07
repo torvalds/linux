@@ -380,14 +380,13 @@ int ipmmu_iommu_init(struct shmobile_ipmmu *ipmmu)
 		kmem_cache_destroy(l1cache);
 		return -ENOMEM;
 	}
-	archdata = kmalloc(sizeof(*archdata), GFP_KERNEL);
+	archdata = kzalloc(sizeof(*archdata), GFP_KERNEL);
 	if (!archdata) {
 		kmem_cache_destroy(l1cache);
 		kmem_cache_destroy(l2cache);
 		return -ENOMEM;
 	}
 	spin_lock_init(&archdata->attach_lock);
-	archdata->attached = NULL;
 	archdata->ipmmu = ipmmu;
 	ipmmu_archdata = archdata;
 	bus_set_iommu(&platform_bus_type, &shmobile_iommu_ops);

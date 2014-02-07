@@ -18,7 +18,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/serial_8250.h>

@@ -3,7 +3,7 @@
  * Copyright (C) 2007-2008, Advanced Micro Devices, Inc.
  * Copyright (C) 2008 Jordan Crouse <jordan@cosmicpenguin.net>
  * Copyright (C) 2008 Hans de Goede <hdegoede@redhat.com>
- * Copyright (C) 2009 Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2009 Jean Delvare <jdelvare@suse.de>
  *
  * Derived from the lm83 driver by Jean Delvare
  *

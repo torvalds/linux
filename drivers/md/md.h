@@ -106,7 +106,7 @@ struct md_rdev {
 					   */
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
-	struct sysfs_dirent *sysfs_state; /* handle for 'state'
+	struct kernfs_node *sysfs_state; /* handle for 'state'
 					   * sysfs entry */
 
 	struct badblocks {
@@ -379,10 +379,10 @@ struct mddev {
 	sector_t			resync_max;	/* resync should pause
 							 * when it gets here */
 
-	struct sysfs_dirent		*sysfs_state;	/* handle for 'array_state'
+	struct kernfs_node		*sysfs_state;	/* handle for 'array_state'
 							 * file in sysfs.
 							 */
-	struct sysfs_dirent		*sysfs_action;  /* handle for 'sync_action' */
+	struct kernfs_node		*sysfs_action;  /* handle for 'sync_action' */
 
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
@@ -501,13 +501,13 @@ struct md_sysfs_entry {
 };
 extern struct attribute_group md_bitmap_group;
 
-static inline struct sysfs_dirent *sysfs_get_dirent_safe(struct sysfs_dirent *sd, char *name)
+static inline struct kernfs_node *sysfs_get_dirent_safe(struct kernfs_node *sd, char *name)
 {
 	if (sd)
 		return sysfs_get_dirent(sd, name);
 	return sd;
 }
-static inline void sysfs_notify_dirent_safe(struct sysfs_dirent *sd)
+static inline void sysfs_notify_dirent_safe(struct kernfs_node *sd)
 {
 	if (sd)
 		sysfs_notify_dirent(sd);

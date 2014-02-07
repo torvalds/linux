@@ -26,6 +26,24 @@
 
 #include "nv04.h"
 
+/******************************************************************************
+ * instmem subdev implementation
+ *****************************************************************************/
+
+static u32
+nv40_instmem_rd32(struct nouveau_object *object, u64 addr)
+{
+	struct nv04_instmem_priv *priv = (void *)object;
+	return ioread32_native(priv->iomem + addr);
+}
+
+static void
+nv40_instmem_wr32(struct nouveau_object *object, u64 addr, u32 data)
+{
+	struct nv04_instmem_priv *priv = (void *)object;
+	iowrite32_native(data, priv->iomem + addr);
+}
+
 static int
 nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
@@ -69,7 +87,6 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.reserved += 512 * 1024;	/* object storage */
 
 	priv->base.reserved = round_up(priv->base.reserved, 4096);
-	priv->base.alloc    = nv04_instmem_alloc;
 
 	ret = nouveau_mm_init(&priv->heap, 0, priv->base.reserved, 1);
 	if (ret)
@@ -106,24 +123,10 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static u32
-nv40_instmem_rd32(struct nouveau_object *object, u64 addr)
-{
-	struct nv04_instmem_priv *priv = (void *)object;
-	return ioread32_native(priv->iomem + addr);
-}
-
-static void
-nv40_instmem_wr32(struct nouveau_object *object, u64 addr, u32 data)
-{
-	struct nv04_instmem_priv *priv = (void *)object;
-	iowrite32_native(data, priv->iomem + addr);
-}
-
-struct nouveau_oclass
-nv40_instmem_oclass = {
-	.handle = NV_SUBDEV(INSTMEM, 0x40),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nv40_instmem_oclass = &(struct nouveau_instmem_impl) {
+	.base.handle = NV_SUBDEV(INSTMEM, 0x40),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv40_instmem_ctor,
 		.dtor = nv04_instmem_dtor,
 		.init = _nouveau_instmem_init,
@@ -131,4 +134,5 @@ nv40_instmem_oclass = {
 		.rd32 = nv40_instmem_rd32,
 		.wr32 = nv40_instmem_wr32,
 	},
-};
+	.instobj = &nv04_instobj_oclass.base,
+}.base;

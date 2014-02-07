@@ -215,7 +215,7 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd,
 	return 0;
 }
 
-int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
+static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
 							unsigned long temp)
 {
 	u32 l, h;

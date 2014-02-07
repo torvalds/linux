@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -256,13 +256,13 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @hw_base: pci hardware address support
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @ucode_write_waitq: wait queue for uCode load
- * @status - transport specific status flags
  * @cmd_queue - command queue number
  * @rx_buf_size_8k: 8 kB RX buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @rx_page_order: page order for receive buffer size
  * @wd_timeout: queue watchdog timeout (jiffies)
  * @reg_lock: protect hw register access
+ * @cmd_in_flight: true when we have a host command in flight
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq rxq;
@@ -274,7 +274,6 @@ struct iwl_trans_pcie {
 	__le32 *ict_tbl;
 	dma_addr_t ict_tbl_dma;
 	int ict_index;
-	u32 inta;
 	bool use_ict;
 	struct isr_statistics isr_stats;
 
@@ -296,7 +295,6 @@ struct iwl_trans_pcie {
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t wait_command_queue;
 
-	unsigned long status;
 	u8 cmd_queue;
 	u8 cmd_fifo;
 	u8 n_no_reclaim_cmds;
@@ -313,24 +311,7 @@ struct iwl_trans_pcie {
 
 	/*protect hw register */
 	spinlock_t reg_lock;
-};
-
-/**
- * enum iwl_pcie_status: status of the PCIe transport
- * @STATUS_HCMD_ACTIVE: a SYNC command is being processed
- * @STATUS_DEVICE_ENABLED: APM is enabled
- * @STATUS_TPOWER_PMI: the device might be asleep (need to wake it up)
- * @STATUS_INT_ENABLED: interrupts are enabled
- * @STATUS_RFKILL: the HW RFkill switch is in KILL position
- * @STATUS_FW_ERROR: the fw is in error state
- */
-enum iwl_pcie_status {
-	STATUS_HCMD_ACTIVE,
-	STATUS_DEVICE_ENABLED,
-	STATUS_TPOWER_PMI,
-	STATUS_INT_ENABLED,
-	STATUS_RFKILL,
-	STATUS_FW_ERROR,
+	bool cmd_in_flight;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
@@ -363,7 +344,7 @@ void iwl_pcie_rx_free(struct iwl_trans *trans);
 /*****************************************************
 * ICT - interrupt handling
 ******************************************************/
-irqreturn_t iwl_pcie_isr_ict(int irq, void *data);
+irqreturn_t iwl_pcie_isr(int irq, void *data);
 int iwl_pcie_alloc_ict(struct iwl_trans *trans);
 void iwl_pcie_free_ict(struct iwl_trans *trans);
 void iwl_pcie_reset_ict(struct iwl_trans *trans);
@@ -399,8 +380,7 @@ void iwl_pcie_dump_csr(struct iwl_trans *trans);
 ******************************************************/
 static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	clear_bit(STATUS_INT_ENABLED, &trans_pcie->status);
+	clear_bit(STATUS_INT_ENABLED, &trans->status);
 
 	/* disable interrupts from uCode/NIC to host */
 	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
@@ -417,14 +397,18 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	IWL_DEBUG_ISR(trans, "Enabling interrupts\n");
-	set_bit(STATUS_INT_ENABLED, &trans_pcie->status);
+	set_bit(STATUS_INT_ENABLED, &trans->status);
+	trans_pcie->inta_mask = CSR_INI_SET_MASK;
 	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	IWL_DEBUG_ISR(trans, "Enabling rfkill interrupt\n");
-	iwl_write32(trans, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
+	trans_pcie->inta_mask = CSR_INT_BIT_RF_KILL;
+	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
 static inline void iwl_wake_queue(struct iwl_trans *trans,
@@ -477,12 +461,31 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 }
 
-static inline void iwl_nic_error(struct iwl_trans *trans)
+static inline void __iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans,
+						  u32 reg, u32 mask, u32 value)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u32 v;
 
-	set_bit(STATUS_FW_ERROR, &trans_pcie->status);
-	iwl_op_mode_nic_error(trans->op_mode);
+#ifdef CONFIG_IWLWIFI_DEBUG
+	WARN_ON_ONCE(value & ~mask);
+#endif
+
+	v = iwl_read32(trans, reg);
+	v &= ~mask;
+	v |= value;
+	iwl_write32(trans, reg, v);
+}
+
+static inline void __iwl_trans_pcie_clear_bit(struct iwl_trans *trans,
+					      u32 reg, u32 mask)
+{
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, 0);
+}
+
+static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
+					    u32 reg, u32 mask)
+{
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, mask);
 }
 
 #endif /* __iwl_trans_int_pcie_h__ */

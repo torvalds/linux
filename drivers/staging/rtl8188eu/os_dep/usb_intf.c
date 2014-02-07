@@ -71,7 +71,7 @@ struct rtw_usb_drv {
 };
 
 static struct rtw_usb_drv rtl8188e_usb_drv = {
-	.usbdrv.name = (char *)"r8188eu",
+	.usbdrv.name = "r8188eu",
 	.usbdrv.probe = rtw_drv_init,
 	.usbdrv.disconnect = rtw_dev_remove,
 	.usbdrv.id_table = rtw_usb_id_tbl,
@@ -126,7 +126,7 @@ static u8 rtw_init_intf_priv(struct dvobj_priv *dvobj)
 {
 	u8 rst = _SUCCESS;
 
-	_rtw_mutex_init(&dvobj->usb_vendor_req_mutex);
+	mutex_init(&dvobj->usb_vendor_req_mutex);
 
 	dvobj->usb_alloc_vendor_req_buf = rtw_zmalloc(MAX_USB_IO_CTL_SIZE);
 	if (dvobj->usb_alloc_vendor_req_buf == NULL) {
@@ -144,7 +144,7 @@ static u8 rtw_deinit_intf_priv(struct dvobj_priv *dvobj)
 	u8 rst = _SUCCESS;
 
 	kfree(dvobj->usb_alloc_vendor_req_buf);
-	_rtw_mutex_free(&dvobj->usb_vendor_req_mutex);
+	mutex_destroy(&dvobj->usb_vendor_req_mutex);
 	return rst;
 }
 
@@ -240,7 +240,7 @@ _func_enter_;
 	}
 
 	/* 3 misc */
-	_rtw_init_sema(&(pdvobjpriv->usb_suspend_sema), 0);
+	sema_init(&(pdvobjpriv->usb_suspend_sema), 0);
 	rtw_reset_continual_urb_error(pdvobjpriv);
 
 	usb_get_dev(pusbd);
@@ -504,7 +504,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
 	int ret = 0;
-	u32 start_time = rtw_get_current_time();
+	u32 start_time = jiffies;
 
 	_func_enter_;
 
@@ -586,7 +586,7 @@ int rtw_resume_process(struct adapter *padapter)
 	struct net_device *pnetdev;
 	struct pwrctrl_priv *pwrpriv = NULL;
 	int ret = -1;
-	u32 start_time = rtw_get_current_time();
+	u32 start_time = jiffies;
 	_func_enter_;
 
 	DBG_88E("==> %s (%s:%d)\n", __func__, current->comm, current->pid);
@@ -657,7 +657,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	padapter->hw_init_mutex = &usb_drv->hw_init_mutex;
 
 	/* step 1-1., decide the chip_type via vid/pid */
-	padapter->interface_type = RTW_USB;
 	chip_by_usb_id(padapter, pdid);
 
 	if (rtw_handle_dualmac(padapter, 1) != _SUCCESS)
@@ -865,11 +864,8 @@ static int __init rtw_drv_entry(void)
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_entry\n"));
 
 	DBG_88E(DRV_NAME " driver version=%s\n", DRIVERVERSION);
-	DBG_88E("build time: %s %s\n", __DATE__, __TIME__);
 
-	rtw_suspend_lock_init();
-
-	_rtw_mutex_init(&usb_drv->hw_init_mutex);
+	mutex_init(&usb_drv->hw_init_mutex);
 
 	usb_drv->drv_registered = true;
 	return usb_register(&usb_drv->usbdrv);
@@ -880,12 +876,10 @@ static void __exit rtw_drv_halt(void)
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_halt\n"));
 	DBG_88E("+rtw_drv_halt\n");
 
-	rtw_suspend_lock_uninit();
-
 	usb_drv->drv_registered = false;
 	usb_deregister(&usb_drv->usbdrv);
 
-	_rtw_mutex_free(&usb_drv->hw_init_mutex);
+	mutex_destroy(&usb_drv->hw_init_mutex);
 	DBG_88E("-rtw_drv_halt\n");
 }
 

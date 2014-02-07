@@ -969,7 +969,7 @@ static int twl6030_gpadc_suspend(struct device *pdev)
 	ret = twl_i2c_write_u8(TWL6030_MODULE_ID1, TWL6030_GPADCR,
 				TWL6030_REG_TOGGLE1);
 	if (ret)
-		dev_err(pdev, "error reseting GPADC (%d)!\n", ret);
+		dev_err(pdev, "error resetting GPADC (%d)!\n", ret);
 
 	return 0;
 };

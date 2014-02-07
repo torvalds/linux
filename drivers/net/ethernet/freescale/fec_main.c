@@ -29,7 +29,6 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -1679,8 +1678,12 @@ static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	if (!phydev)
 		return -ENODEV;
 
-	if (cmd == SIOCSHWTSTAMP && fep->bufdesc_ex)
-		return fec_ptp_ioctl(ndev, rq, cmd);
+	if (fep->bufdesc_ex) {
+		if (cmd == SIOCSHWTSTAMP)
+			return fec_ptp_set(ndev, rq);
+		if (cmd == SIOCGHWTSTAMP)
+			return fec_ptp_get(ndev, rq);
+	}
 
 	return phy_mii_ioctl(phydev, rq, cmd);
 }

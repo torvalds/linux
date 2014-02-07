@@ -288,6 +288,7 @@ struct kvmppc_vcore {
 	int n_woken;
 	int nap_count;
 	int napping_threads;
+	int first_vcpuid;
 	u16 pcpu;
 	u16 last_cpu;
 	u8 vcore_state;
@@ -298,10 +299,12 @@ struct kvmppc_vcore {
 	u64 stolen_tb;
 	u64 preempt_tb;
 	struct kvm_vcpu *runner;
+	struct kvm *kvm;
 	u64 tb_offset;		/* guest timebase - host timebase */
 	ulong lpcr;
 	u32 arch_compat;
 	ulong pcr;
+	ulong dpdes;		/* doorbell state (POWER8) */
 };
 
 #define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
@@ -410,8 +413,7 @@ struct kvm_vcpu_arch {
 
 	ulong gpr[32];
 
-	u64 fpr[32];
-	u64 fpscr;
+	struct thread_fp_state fp;
 
 #ifdef CONFIG_SPE
 	ulong evr[32];
@@ -420,12 +422,7 @@ struct kvm_vcpu_arch {
 	u64 acc;
 #endif
 #ifdef CONFIG_ALTIVEC
-	vector128 vr[32];
-	vector128 vscr;
-#endif
-
-#ifdef CONFIG_VSX
-	u64 vsr[64];
+	struct thread_vr_state vr;
 #endif
 
 #ifdef CONFIG_KVM_BOOKE_HV
@@ -452,6 +449,7 @@ struct kvm_vcpu_arch {
 	ulong pc;
 	ulong ctr;
 	ulong lr;
+	ulong tar;
 
 	ulong xer;
 	u32 cr;
@@ -461,13 +459,30 @@ struct kvm_vcpu_arch {
 	ulong guest_owned_ext;
 	ulong purr;
 	ulong spurr;
+	ulong ic;
+	ulong vtb;
 	ulong dscr;
 	ulong amr;
 	ulong uamor;
+	ulong iamr;
 	u32 ctrl;
+	u32 dabrx;
 	ulong dabr;
+	ulong dawr;
+	ulong dawrx;
+	ulong ciabr;
 	ulong cfar;
 	ulong ppr;
+	ulong pspb;
+	ulong fscr;
+	ulong ebbhr;
+	ulong ebbrr;
+	ulong bescr;
+	ulong csigr;
+	ulong tacr;
+	ulong tcscr;
+	ulong acop;
+	ulong wort;
 	ulong shadow_srr1;
 #endif
 	u32 vrsave; /* also USPRG0 */
@@ -502,10 +517,33 @@ struct kvm_vcpu_arch {
 	u32 ccr1;
 	u32 dbsr;
 
-	u64 mmcr[3];
+	u64 mmcr[5];
 	u32 pmc[8];
+	u32 spmc[2];
 	u64 siar;
 	u64 sdar;
+	u64 sier;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	u64 tfhar;
+	u64 texasr;
+	u64 tfiar;
+
+	u32 cr_tm;
+	u64 lr_tm;
+	u64 ctr_tm;
+	u64 amr_tm;
+	u64 ppr_tm;
+	u64 dscr_tm;
+	u64 tar_tm;
+
+	ulong gpr_tm[32];
+
+	struct thread_fp_state fp_tm;
+
+	struct thread_vr_state vr_tm;
+	u32 vrsave_tm; /* also USPRG0 */
+
+#endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 	struct mutex exit_timing_lock;
@@ -546,6 +584,7 @@ struct kvm_vcpu_arch {
 #endif
 	gpa_t paddr_accessed;
 	gva_t vaddr_accessed;
+	pgd_t *pgdir;
 
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_is_bigendian;
@@ -603,7 +642,6 @@ struct kvm_vcpu_arch {
 	struct list_head run_list;
 	struct task_struct *run_task;
 	struct kvm_run *kvm_run;
-	pgd_t *pgdir;
 
 	spinlock_t vpa_update_lock;
 	struct kvmppc_vpa vpa;
@@ -616,8 +654,11 @@ struct kvm_vcpu_arch {
 	spinlock_t tbacct_lock;
 	u64 busy_stolen;
 	u64 busy_preempt;
+	unsigned long intr_msr;
 #endif
 };
+
+#define VCPU_FPR(vcpu, i)	(vcpu)->arch.fp.fpr[i][TS_FPROFFSET]
 
 /* Values for vcpu->arch.state */
 #define KVMPPC_VCPU_NOTREADY		0

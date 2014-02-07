@@ -117,7 +117,7 @@ static struct stmmac_dma_cfg eth_dma_cfg = {
 	.pbl	= 2,
 };
 
-int stmmac_ptp_clk_init(struct platform_device *pdev)
+int stmmac_ptp_clk_init(struct platform_device *pdev, void *priv)
 {
 	bfin_write32(PADS0_EMAC_PTP_CLKSEL, 0);
 	return 0;
@@ -1025,7 +1025,9 @@ static struct adv7842_platform_data adv7842_data = {
 	.ain_sel = ADV7842_AIN10_11_12_NC_SYNC_4_1,
 	.prim_mode = ADV7842_PRIM_MODE_SDP,
 	.vid_std_select = ADV7842_SDP_VID_STD_CVBS_SD_4x1,
-	.inp_color_space = ADV7842_INP_COLOR_SPACE_AUTO,
+	.hdmi_free_run_enable = 1,
+	.sdp_free_run_auto = 1,
+	.llc_dll_phase = 0x10,
 	.i2c_sdp_io = 0x40,
 	.i2c_sdp = 0x41,
 	.i2c_cp = 0x42,
