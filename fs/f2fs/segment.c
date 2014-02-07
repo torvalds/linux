@@ -1576,47 +1576,6 @@ static int build_curseg(struct f2fs_sb_info *sbi)
 	return restore_curseg_summaries(sbi);
 }
 
-static int ra_sit_pages(struct f2fs_sb_info *sbi, int start, int nrpages)
-{
-	struct address_space *mapping = META_MAPPING(sbi);
-	struct page *page;
-	block_t blk_addr, prev_blk_addr = 0;
-	int sit_blk_cnt = SIT_BLK_CNT(sbi);
-	int blkno = start;
-	struct f2fs_io_info fio = {
-		.type = META,
-		.rw = READ_SYNC | REQ_META | REQ_PRIO
-	};
-
-	for (; blkno < start + nrpages && blkno < sit_blk_cnt; blkno++) {
-
-		blk_addr = current_sit_addr(sbi, blkno * SIT_ENTRY_PER_BLOCK);
-
-		if (blkno != start && prev_blk_addr + 1 != blk_addr)
-			break;
-		prev_blk_addr = blk_addr;
-repeat:
-		page = grab_cache_page(mapping, blk_addr);
-		if (!page) {
-			cond_resched();
-			goto repeat;
-		}
-		if (PageUptodate(page)) {
-			mark_page_accessed(page);
-			f2fs_put_page(page, 1);
-			continue;
-		}
-
-		f2fs_submit_page_mbio(sbi, page, blk_addr, &fio);
-
-		mark_page_accessed(page);
-		f2fs_put_page(page, 0);
-	}
-
-	f2fs_submit_merged_bio(sbi, META, READ);
-	return blkno - start;
-}
-
 static void build_sit_entries(struct f2fs_sb_info *sbi)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
@@ -1628,7 +1587,7 @@ static void build_sit_entries(struct f2fs_sb_info *sbi)
 	int nrpages = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
 
 	do {
-		readed = ra_sit_pages(sbi, start_blk, nrpages);
+		readed = ra_meta_pages(sbi, start_blk, nrpages, META_SIT);
 
 		start = start_blk * sit_i->sents_per_block;
 		end = (start_blk + readed) * sit_i->sents_per_block;
