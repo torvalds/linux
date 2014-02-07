@@ -62,7 +62,7 @@ void ptlrpc_init_client(int req_portal, int rep_portal, char *name,
 EXPORT_SYMBOL(ptlrpc_init_client);
 
 /**
- * Return PortalRPC connection for remore uud \a uuid
+ * Return PortalRPC connection for remote uud \a uuid
  */
 struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid)
 {
@@ -127,7 +127,7 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
  * Prepare bulk descriptor for specified outgoing request \a req that
  * can fit \a npages * pages. \a type is bulk type. \a portal is where
  * the bulk to be sent. Used on client-side.
- * Returns pointer to newly allocatrd initialized bulk descriptor or NULL on
+ * Returns pointer to newly allocated initialized bulk descriptor or NULL on
  * error.
  */
 struct ptlrpc_bulk_desc *ptlrpc_prep_bulk_imp(struct ptlrpc_request *req,
@@ -631,7 +631,7 @@ int ptlrpc_request_pack(struct ptlrpc_request *request,
 
 	/* For some old 1.8 clients (< 1.8.7), they will LASSERT the size of
 	 * ptlrpc_body sent from server equal to local ptlrpc_body size, so we
-	 * have to send old ptlrpc_body to keep interoprability with these
+	 * have to send old ptlrpc_body to keep interoperability with these
 	 * clients.
 	 *
 	 * Only three kinds of server->client RPCs so far:
@@ -639,7 +639,7 @@ int ptlrpc_request_pack(struct ptlrpc_request *request,
 	 *  - LDLM_CP_CALLBACK
 	 *  - LDLM_GL_CALLBACK
 	 *
-	 * XXX This should be removed whenever we drop the interoprability with
+	 * XXX This should be removed whenever we drop the interoperability with
 	 *     the these old clients.
 	 */
 	if (opcode == LDLM_BL_CALLBACK || opcode == LDLM_CP_CALLBACK ||
@@ -686,7 +686,7 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
 
 /**
  * Helper function for creating a request.
- * Calls __ptlrpc_request_alloc to allocate new request sturcture and inits
+ * Calls __ptlrpc_request_alloc to allocate new request structure and inits
  * buffer structures according to capsule template \a format.
  * Returns allocated request structure pointer or NULL on error.
  */
@@ -743,7 +743,7 @@ void ptlrpc_request_free(struct ptlrpc_request *request)
 EXPORT_SYMBOL(ptlrpc_request_free);
 
 /**
- * Allocate new request for operatione \a opcode and immediatelly pack it for
+ * Allocate new request for operation \a opcode and immediately pack it for
  * network transfer.
  * Only used for simple requests like OBD_PING where the only important
  * part of the request is operation itself.
@@ -768,7 +768,7 @@ struct ptlrpc_request *ptlrpc_request_alloc_pack(struct obd_import *imp,
 EXPORT_SYMBOL(ptlrpc_request_alloc_pack);
 
 /**
- * Prepare request (fetched from pool \a poolif not NULL) on import \a imp
+ * Prepare request (fetched from pool \a pool if not NULL) on import \a imp
  * for operation \a opcode. Request would contain \a count buffers.
  * Sizes of buffers are described in array \a lengths and buffers themselves
  * are provided by a pointer \a bufs.
@@ -1073,7 +1073,7 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 }
 
 /**
- * Decide if the eror message regarding provided request \a req
+ * Decide if the error message regarding provided request \a req
  * should be printed to the console or not.
  * Makes it's decision on request status and other properties.
  * Returns 1 to print error on the system console or 0 if not.
@@ -1159,7 +1159,7 @@ static void ptlrpc_save_versions(struct ptlrpc_request *req)
 /**
  * Callback function called when client receives RPC reply for \a req.
  * Returns 0 on success or error code.
- * The return alue would be assigned to req->rq_status by the caller
+ * The return value would be assigned to req->rq_status by the caller
  * as request processing status.
  * This function also decides if the request needs to be saved for later replay.
  */
@@ -2031,7 +2031,7 @@ int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 EXPORT_SYMBOL(ptlrpc_set_next_timeout);
 
 /**
- * Send all unset request from the set and then wait untill all
+ * Send all unset request from the set and then wait until all
  * requests in the set complete (either get a reply, timeout, get an
  * error or otherwise be interrupted).
  * Returns 0 on success or error code otherwise.
@@ -2156,7 +2156,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 EXPORT_SYMBOL(ptlrpc_set_wait);
 
 /**
- * Helper fuction for request freeing.
+ * Helper function for request freeing.
  * Called when request count reached zero and request needs to be freed.
  * Removes request from all sorts of sending/replay lists it might be on,
  * frees network buffers if any are present.
@@ -2223,7 +2223,7 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 static int __ptlrpc_req_finished(struct ptlrpc_request *request, int locked);
 /**
  * Drop one request reference. Must be called with import imp_lock held.
- * When reference count drops to zero, reuqest is freed.
+ * When reference count drops to zero, request is freed.
  */
 void ptlrpc_req_finished_with_imp_lock(struct ptlrpc_request *request)
 {
@@ -2236,7 +2236,7 @@ EXPORT_SYMBOL(ptlrpc_req_finished_with_imp_lock);
  * Helper function
  * Drops one reference count for request \a request.
  * \a locked set indicates that caller holds import imp_lock.
- * Frees the request whe reference count reaches zero.
+ * Frees the request when reference count reaches zero.
  */
 static int __ptlrpc_req_finished(struct ptlrpc_request *request, int locked)
 {
@@ -2364,7 +2364,7 @@ EXPORT_SYMBOL(ptlrpc_unregister_reply);
  * Iterates through replay_list on import and prunes
  * all requests have transno smaller than last_committed for the
  * import and don't have rq_replay set.
- * Since requests are sorted in transno order, stops when meetign first
+ * Since requests are sorted in transno order, stops when meeting first
  * transno bigger than last_committed.
  * caller must hold imp->imp_lock
  */
@@ -2585,7 +2585,7 @@ struct ptlrpc_replay_async_args {
 
 /**
  * Callback used for replayed requests reply processing.
- * In case of succesful reply calls registeresd request replay callback.
+ * In case of successful reply calls registered request replay callback.
  * In case of error restart replay process.
  */
 static int ptlrpc_replay_interpret(const struct lu_env *env,
@@ -2834,7 +2834,7 @@ void ptlrpc_init_xid(void)
 		ptlrpc_last_xid = (__u64)now << 20;
 	}
 
-	/* Need to always be aligned to a power-of-two for mutli-bulk BRW */
+	/* Always need to be aligned to a power-of-two for multi-bulk BRW */
 	CLASSERT((PTLRPC_BULK_OPS_COUNT & (PTLRPC_BULK_OPS_COUNT - 1)) == 0);
 	ptlrpc_last_xid &= PTLRPC_BULK_OPS_MASK;
 }
