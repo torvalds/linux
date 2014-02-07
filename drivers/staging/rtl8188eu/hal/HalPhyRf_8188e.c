@@ -841,7 +841,7 @@ static void _PHY_SaveMACRegisters(
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
 		MACBackup[i] = rtw_read8(adapt, MACReg[i]);
 	}
-	MACBackup[i] = ODM_Read4Byte(dm_odm, MACReg[i]);
+	MACBackup[i] = rtw_read32(adapt, MACReg[i]);
 }
 
 static void reload_adda_reg(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
