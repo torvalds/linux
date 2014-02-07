@@ -113,7 +113,7 @@ static struct ptlrpc_enc_page_pool {
 	unsigned long    epp_st_missings;       /* # of cache missing */
 	unsigned long    epp_st_lowfree;	/* lowest free pages reached */
 	unsigned int     epp_st_max_wqlen;      /* highest waitqueue length */
-	cfs_time_t       epp_st_max_wait;       /* in jeffies */
+	cfs_time_t       epp_st_max_wait;       /* in jiffies */
 	/*
 	 * pointers to pools
 	 */

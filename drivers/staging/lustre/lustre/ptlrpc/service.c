@@ -752,7 +752,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	spin_lock_init(&service->srv_lock);
 	service->srv_name		= conf->psc_name;
 	service->srv_watchdog_factor	= conf->psc_watchdog_factor;
-	INIT_LIST_HEAD(&service->srv_list); /* for safty of cleanup */
+	INIT_LIST_HEAD(&service->srv_list); /* for safety of cleanup */
 
 	/* buffer configuration */
 	service->srv_nbuf_per_group	= test_req_buffer_pressure ?

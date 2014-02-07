@@ -1042,7 +1042,7 @@ finish:
 			if ((ocd->ocd_cksum_types &
 			     cksum_types_supported_client()) == 0) {
 				LCONSOLE_WARN("The negotiation of the checksum "
-					      "alogrithm to use with server %s "
+					      "algorithm to use with server %s "
 					      "failed (%x/%x), disabling "
 					      "checksums\n",
 					      obd2cli_tgt(imp->imp_obd),
@@ -1260,7 +1260,7 @@ static int ptlrpc_invalidate_import_thread(void *data)
 /**
  * This is the state machine for client-side recovery on import.
  *
- * Typicaly we have two possibly paths. If we came to server and it is not
+ * Typically we have two possibly paths. If we came to server and it is not
  * in recovery, we just enter IMP_EVICTED state, invalidate our import
  * state and reconnect from scratch.
  * If we came to server that is in recovery, we enter IMP_REPLAY import state.

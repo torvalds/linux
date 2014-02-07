@@ -255,7 +255,7 @@ void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
 EXPORT_SYMBOL(sptlrpc_rule_set_free);
 
 /*
- * return 0 if the rule set could accomodate one more rule.
+ * return 0 if the rule set could accommodate one more rule.
  */
 int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 {

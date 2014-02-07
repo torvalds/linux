@@ -2154,7 +2154,7 @@ EXPORT_SYMBOL(req_capsule_server_sized_swab_get);
  * request (if the caller is executing on the server-side) or reply (if the
  * caller is executing on the client-side).
  *
- * This function convienient for use is code that could be executed on the
+ * This function convenient for use is code that could be executed on the
  * client and server alike.
  */
 const void *req_capsule_other_get(struct req_capsule *pill,

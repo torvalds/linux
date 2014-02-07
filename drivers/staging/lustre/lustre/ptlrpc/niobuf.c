@@ -349,7 +349,7 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 /**
  * Send request reply from request \a req reply buffer.
  * \a flags defines reply types
- * Returns 0 on sucess or error code
+ * Returns 0 on success or error code
  */
 int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 {
@@ -389,7 +389,7 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 	 * ptlrpc_body in reply buffer to ptlrpc_body_v2, otherwise, the
 	 * reply buffer on client will be overflow.
 	 *
-	 * XXX Remove this whenver we drop the interoprability with such client.
+	 * XXX Remove this whenever we drop the interoprability with such client.
 	 */
 	req->rq_replen = lustre_shrink_msg(req->rq_repmsg, 0,
 					   sizeof(struct ptlrpc_body_v2), 1);
