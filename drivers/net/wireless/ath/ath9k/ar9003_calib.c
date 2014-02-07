@@ -888,6 +888,7 @@ static void ar9003_hw_tx_iq_cal_outlier_detection(struct ath_hw *ah,
 						  bool is_reusable)
 {
 	int i, im, nmeasurement;
+	int magnitude, phase;
 	u32 tx_corr_coeff[MAX_MEASUREMENT][AR9300_MAX_CHAINS];
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 
@@ -929,9 +930,11 @@ static void ar9003_hw_tx_iq_cal_outlier_detection(struct ath_hw *ah,
 		}
 
 		for (im = 0; im < nmeasurement; im++) {
+			magnitude = coeff->mag_coeff[i][im];
+			phase = coeff->phs_coeff[i][im];
 
-			coeff->iqc_coeff[0] = (coeff->mag_coeff[i][im] & 0x7f) |
-				((coeff->phs_coeff[i][im] & 0x7f) << 7);
+			coeff->iqc_coeff[0] =
+				(phase & 0x7f) | ((magnitude & 0x7f) << 7);
 
 			if ((im % 2) == 0)
 				REG_RMW_FIELD(ah, tx_corr_coeff[im][i],
@@ -1062,8 +1065,9 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 				goto tx_iqcal_fail;
 			}
 
-			coeff.mag_coeff[i][im] = coeff.iqc_coeff[0] & 0x7f;
 			coeff.phs_coeff[i][im] =
+				coeff.iqc_coeff[0] & 0x7f;
+			coeff.mag_coeff[i][im] =
 				(coeff.iqc_coeff[0] >> 7) & 0x7f;
 
 			if (coeff.mag_coeff[i][im] > 63)
