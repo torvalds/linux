@@ -21,6 +21,8 @@
 #define CLK_SCLK_HDMIPHY 135
 #define CLK_SCLK_PIXEL 136
 #define CLK_SCLK_HDMI 137
+#define CLK_SCLK_FIMD1 138
+#define CLK_SCLK_DP1 139
 
 /* gate clocks */
 #define CLK_UART0 257
@@ -44,8 +46,13 @@
 #define CLK_HDMI 355
 #define CLK_FIMD1 356
 #define CLK_MIE1 357
-#define CLK_DSIM0 358
+#define CLK_DSIM1 358
 #define CLK_DP 359
+#define CLK_GSCL0 360
+#define CLK_GSCL1 361
+#define CLK_GSCL2 362
+#define CLK_GSCL3 363
+#define CLK_GSCL4 364
 
 /* mux clocks */
 #define CLK_MOUT_HDMI 500
