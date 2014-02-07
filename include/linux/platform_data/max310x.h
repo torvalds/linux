@@ -55,10 +55,6 @@ struct max310x_pdata {
 	const int		frequency;
 	/* GPIO base number (can be negative) */
 	const int		gpio_base;
-	/* Called during startup */
-	void (*init)(void);
-	/* Called before finish */
-	void (*exit)(void);
 };
 
 #endif

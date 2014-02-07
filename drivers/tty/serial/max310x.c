@@ -1135,10 +1135,6 @@ static int max310x_probe(struct device *dev, int is_spi,
 		return PTR_ERR(s->regmap);
 	}
 
-	/* Board specific configure */
-	if (s->pdata->init)
-		s->pdata->init();
-
 	/* Check device to ensure we are talking to what we expect */
 	ret = devtype->detect(dev);
 	if (ret)
@@ -1264,9 +1260,6 @@ static int max310x_remove(struct device *dev)
 	if (s->gpio_used)
 		ret = gpiochip_remove(&s->gpio);
 #endif
-
-	if (s->pdata->exit)
-		s->pdata->exit();
 
 	return ret;
 }
