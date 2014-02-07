@@ -66,22 +66,29 @@ PCM512x_REGULATOR_EVENT(1)
 PCM512x_REGULATOR_EVENT(2)
 
 static const struct reg_default pcm512x_reg_defaults[] = {
-	{ PCM512x_RESET,            0x00 },
-	{ PCM512x_POWER,            0x00 },
-	{ PCM512x_MUTE,             0x00 },
-	{ PCM512x_DSP,              0x00 },
-	{ PCM512x_PLL_REF,          0x00 },
-	{ PCM512x_DAC_ROUTING,      0x11 },
-	{ PCM512x_DSP_PROGRAM,      0x01 },
-	{ PCM512x_CLKDET,           0x00 },
-	{ PCM512x_AUTO_MUTE,        0x00 },
-	{ PCM512x_ERROR_DETECT,     0x00 },
-	{ PCM512x_DIGITAL_VOLUME_1, 0x00 },
-	{ PCM512x_DIGITAL_VOLUME_2, 0x30 },
-	{ PCM512x_DIGITAL_VOLUME_3, 0x30 },
-	{ PCM512x_DIGITAL_MUTE_1,   0x22 },
-	{ PCM512x_DIGITAL_MUTE_2,   0x00 },
-	{ PCM512x_DIGITAL_MUTE_3,   0x07 },
+	{ PCM512x_RESET,             0x00 },
+	{ PCM512x_POWER,             0x00 },
+	{ PCM512x_MUTE,              0x00 },
+	{ PCM512x_DSP,               0x00 },
+	{ PCM512x_PLL_REF,           0x00 },
+	{ PCM512x_DAC_ROUTING,       0x11 },
+	{ PCM512x_DSP_PROGRAM,       0x01 },
+	{ PCM512x_CLKDET,            0x00 },
+	{ PCM512x_AUTO_MUTE,         0x00 },
+	{ PCM512x_ERROR_DETECT,      0x00 },
+	{ PCM512x_DIGITAL_VOLUME_1,  0x00 },
+	{ PCM512x_DIGITAL_VOLUME_2,  0x30 },
+	{ PCM512x_DIGITAL_VOLUME_3,  0x30 },
+	{ PCM512x_DIGITAL_MUTE_1,    0x22 },
+	{ PCM512x_DIGITAL_MUTE_2,    0x00 },
+	{ PCM512x_DIGITAL_MUTE_3,    0x07 },
+	{ PCM512x_OUTPUT_AMPLITUDE,  0x00 },
+	{ PCM512x_ANALOG_GAIN_CTRL,  0x00 },
+	{ PCM512x_UNDERVOLTAGE_PROT, 0x00 },
+	{ PCM512x_ANALOG_MUTE_CTRL,  0x00 },
+	{ PCM512x_ANALOG_GAIN_BOOST, 0x00 },
+	{ PCM512x_VCOM_CTRL_1,       0x00 },
+	{ PCM512x_VCOM_CTRL_2,       0x01 },
 };
 
 static bool pcm512x_readable(struct device *dev, unsigned int reg)
@@ -141,9 +148,18 @@ static bool pcm512x_readable(struct device *dev, unsigned int reg)
 	case PCM512x_ANALOG_MUTE_DET:
 	case PCM512x_GPIN:
 	case PCM512x_DIGITAL_MUTE_DET:
+	case PCM512x_OUTPUT_AMPLITUDE:
+	case PCM512x_ANALOG_GAIN_CTRL:
+	case PCM512x_UNDERVOLTAGE_PROT:
+	case PCM512x_ANALOG_MUTE_CTRL:
+	case PCM512x_ANALOG_GAIN_BOOST:
+	case PCM512x_VCOM_CTRL_1:
+	case PCM512x_VCOM_CTRL_2:
+	case PCM512x_CRAM_CTRL:
 		return true;
 	default:
-		return false;
+		/* There are 256 raw register addresses */
+		return reg < 0xff;
 	}
 }
 
@@ -159,9 +175,11 @@ static bool pcm512x_volatile(struct device *dev, unsigned int reg)
 	case PCM512x_ANALOG_MUTE_DET:
 	case PCM512x_GPIN:
 	case PCM512x_DIGITAL_MUTE_DET:
+	case PCM512x_CRAM_CTRL:
 		return true;
 	default:
-		return false;
+		/* There are 256 raw register addresses */
+		return reg < 0xff;
 	}
 }
 
@@ -343,12 +361,23 @@ static struct snd_soc_codec_driver pcm512x_codec_driver = {
 	.num_dapm_routes = ARRAY_SIZE(pcm512x_dapm_routes),
 };
 
+static const struct regmap_range_cfg pcm512x_range = {
+	.name = "Pages", .range_min = PCM512x_VIRT_BASE,
+	.range_max = PCM512x_MAX_REGISTER,
+	.selector_reg = PCM512x_PAGE,
+	.selector_mask = 0xff,
+	.window_start = 0, .window_len = 0x100,
+};
+
 static const struct regmap_config pcm512x_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
 	.readable_reg = pcm512x_readable,
 	.volatile_reg = pcm512x_volatile,
+
+	.ranges = &pcm512x_range,
+	.num_ranges = 1,
 
 	.max_register = PCM512x_MAX_REGISTER,
 	.reg_defaults = pcm512x_reg_defaults,
