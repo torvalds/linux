@@ -42,7 +42,6 @@ struct xfs_trans_resv {
 	struct xfs_trans_res	tr_ifree;	/* inode free trans */
 	struct xfs_trans_res	tr_ichange;	/* inode update trans */
 	struct xfs_trans_res	tr_growdata;	/* fs data section grow trans */
-	struct xfs_trans_res	tr_swrite;	/* sync write inode trans */
 	struct xfs_trans_res	tr_addafork;	/* add inode attr fork trans */
 	struct xfs_trans_res	tr_writeid;	/* write setuid/setgid file */
 	struct xfs_trans_res	tr_attrinval;	/* attr fork buffer
