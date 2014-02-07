@@ -6,7 +6,7 @@ Written by Doug Thompson <dougthompson@xmission.com>
 7 Dec 2005
 17 Jul 2007	Updated
 
-(c) Mauro Carvalho Chehab <mchehab@redhat.com>
+(c) Mauro Carvalho Chehab
 05 Aug 2009	Nehalem interface
 
 EDAC is maintained and written by:
