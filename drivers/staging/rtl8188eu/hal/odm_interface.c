@@ -19,13 +19,6 @@
  ******************************************************************************/
 
 #include "odm_precomp.h"
-/*  ODM IO Relative API. */
-
-void ODM_Write4Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 Data)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	rtw_write32(Adapter, RegAddr, Data);
-}
 
 /*  ODM Memory relative API. */
 void ODM_AllocateMemory(struct odm_dm_struct *pDM_Odm, void **pPtr, u32 length)
