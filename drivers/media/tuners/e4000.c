@@ -181,6 +181,8 @@ static int e4000_init(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
+	priv->active = true;
+
 	return 0;
 err:
 	if (fe->ops.i2c_gate_ctrl)
@@ -196,6 +198,8 @@ static int e4000_sleep(struct dvb_frontend *fe)
 	int ret;
 
 	dev_dbg(&priv->client->dev, "%s:\n", __func__);
+
+	priv->active = false;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -512,6 +516,50 @@ err:
 	return ret;
 }
 
+static int e4000_pll_lock(struct dvb_frontend *fe)
+{
+	struct e4000_priv *priv = fe->tuner_priv;
+	int ret;
+	u8 u8tmp;
+
+	if (priv->active == false)
+		return 0;
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	ret = e4000_rd_reg(priv, 0x07, &u8tmp);
+	if (ret)
+		goto err;
+
+	priv->pll_lock->val = (u8tmp & 0x01);
+err:
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (ret)
+		dev_dbg(&priv->client->dev, "%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+static int e4000_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct e4000_priv *priv =
+			container_of(ctrl->handler, struct e4000_priv, hdl);
+	int ret;
+
+	switch (ctrl->id) {
+	case  V4L2_CID_RF_TUNER_PLL_LOCK:
+		ret = e4000_pll_lock(priv->fe);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int e4000_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct e4000_priv *priv =
@@ -550,6 +598,7 @@ static int e4000_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static const struct v4l2_ctrl_ops e4000_ctrl_ops = {
+	.g_volatile_ctrl = e4000_g_volatile_ctrl,
 	.s_ctrl = e4000_s_ctrl,
 };
 
@@ -613,7 +662,7 @@ static int e4000_probe(struct i2c_client *client,
 		goto err;
 
 	/* Register controls */
-	v4l2_ctrl_handler_init(&priv->hdl, 8);
+	v4l2_ctrl_handler_init(&priv->hdl, 9);
 	priv->bandwidth_auto = v4l2_ctrl_new_std(&priv->hdl, &e4000_ctrl_ops,
 			V4L2_CID_RF_TUNER_BANDWIDTH_AUTO, 0, 1, 1, 1);
 	priv->bandwidth = v4l2_ctrl_new_std(&priv->hdl, &e4000_ctrl_ops,
@@ -634,6 +683,8 @@ static int e4000_probe(struct i2c_client *client,
 	priv->if_gain = v4l2_ctrl_new_std(&priv->hdl, &e4000_ctrl_ops,
 			V4L2_CID_RF_TUNER_IF_GAIN, 0, 54, 1, 0);
 	v4l2_ctrl_auto_cluster(2, &priv->if_gain_auto, 0, false);
+	priv->pll_lock = v4l2_ctrl_new_std(&priv->hdl, &e4000_ctrl_ops,
+			V4L2_CID_RF_TUNER_PLL_LOCK,  0, 1, 1, 0);
 	if (priv->hdl.error) {
 		ret = priv->hdl.error;
 		dev_err(&priv->client->dev, "Could not initialize controls\n");
