@@ -532,7 +532,6 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	unsigned int bit_pos;
 	struct address_space *mapping = page->mapping;
 	struct inode *dir = mapping->host;
-	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
 	void *kaddr = page_address(page);
 	int i;
@@ -555,6 +554,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 
 	if (inode) {
+		struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
+
 		if (S_ISDIR(inode->i_mode)) {
 			drop_nlink(dir);
 			update_inode_page(dir);
@@ -577,7 +578,6 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 		truncate_hole(dir, page->index, page->index + 1);
 		clear_page_dirty_for_io(page);
 		ClearPageUptodate(page);
-		dec_page_count(sbi, F2FS_DIRTY_DENTS);
 		inode_dec_dirty_dents(dir);
 	}
 	f2fs_put_page(page, 1);

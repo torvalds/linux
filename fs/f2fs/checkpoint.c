@@ -508,7 +508,6 @@ void set_dirty_dir_page(struct inode *inode, struct page *page)
 	if (__add_dirty_inode(inode, new))
 		kmem_cache_free(inode_entry_slab, new);
 
-	inc_page_count(sbi, F2FS_DIRTY_DENTS);
 	inode_inc_dirty_dents(inode);
 	SetPagePrivate(page);
 	spin_unlock(&sbi->dir_inode_lock);

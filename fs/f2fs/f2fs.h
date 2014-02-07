@@ -662,6 +662,7 @@ static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 
 static inline void inode_inc_dirty_dents(struct inode *inode)
 {
+	inc_page_count(F2FS_SB(inode->i_sb), F2FS_DIRTY_DENTS);
 	atomic_inc(&F2FS_I(inode)->dirty_dents);
 }
 
@@ -672,6 +673,10 @@ static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
 
 static inline void inode_dec_dirty_dents(struct inode *inode)
 {
+	if (!S_ISDIR(inode->i_mode))
+		return;
+
+	dec_page_count(F2FS_SB(inode->i_sb), F2FS_DIRTY_DENTS);
 	atomic_dec(&F2FS_I(inode)->dirty_dents);
 }
 

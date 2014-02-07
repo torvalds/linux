@@ -531,15 +531,10 @@ static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 		set_page_dirty(page);
 		set_cold_data(page);
 	} else {
-		struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-
 		f2fs_wait_on_page_writeback(page, DATA);
 
-		if (clear_page_dirty_for_io(page) &&
-			S_ISDIR(inode->i_mode)) {
-			dec_page_count(sbi, F2FS_DIRTY_DENTS);
+		if (clear_page_dirty_for_io(page))
 			inode_dec_dirty_dents(inode);
-		}
 		set_cold_data(page);
 		do_write_data_page(page, &fio);
 		clear_cold_data(page);
