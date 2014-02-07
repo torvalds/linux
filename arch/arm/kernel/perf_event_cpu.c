@@ -25,6 +25,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 
 #include <asm/cputype.h>
 #include <asm/irq_regs.h>
@@ -33,6 +35,7 @@
 /* Set at runtime when we know what CPU type we are. */
 static struct arm_pmu *cpu_pmu;
 
+static DEFINE_PER_CPU(struct arm_pmu *, percpu_pmu);
 static DEFINE_PER_CPU(struct perf_event * [ARMPMU_MAX_HWEVENTS], hw_events);
 static DEFINE_PER_CPU(unsigned long [BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)], used_mask);
 static DEFINE_PER_CPU(struct pmu_hw_events, cpu_hw_events);
@@ -71,6 +74,26 @@ static struct pmu_hw_events *cpu_pmu_get_cpu_events(void)
 	return this_cpu_ptr(&cpu_hw_events);
 }
 
+static void cpu_pmu_enable_percpu_irq(void *data)
+{
+	struct arm_pmu *cpu_pmu = data;
+	struct platform_device *pmu_device = cpu_pmu->plat_device;
+	int irq = platform_get_irq(pmu_device, 0);
+
+	enable_percpu_irq(irq, IRQ_TYPE_NONE);
+	cpumask_set_cpu(smp_processor_id(), &cpu_pmu->active_irqs);
+}
+
+static void cpu_pmu_disable_percpu_irq(void *data)
+{
+	struct arm_pmu *cpu_pmu = data;
+	struct platform_device *pmu_device = cpu_pmu->plat_device;
+	int irq = platform_get_irq(pmu_device, 0);
+
+	cpumask_clear_cpu(smp_processor_id(), &cpu_pmu->active_irqs);
+	disable_percpu_irq(irq);
+}
+
 static void cpu_pmu_free_irq(struct arm_pmu *cpu_pmu)
 {
 	int i, irq, irqs;
@@ -78,12 +101,18 @@ static void cpu_pmu_free_irq(struct arm_pmu *cpu_pmu)
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 
-	for (i = 0; i < irqs; ++i) {
-		if (!cpumask_test_and_clear_cpu(i, &cpu_pmu->active_irqs))
-			continue;
-		irq = platform_get_irq(pmu_device, i);
-		if (irq >= 0)
-			free_irq(irq, cpu_pmu);
+	irq = platform_get_irq(pmu_device, 0);
+	if (irq >= 0 && irq_is_percpu(irq)) {
+		on_each_cpu(cpu_pmu_disable_percpu_irq, cpu_pmu, 1);
+		free_percpu_irq(irq, &percpu_pmu);
+	} else {
+		for (i = 0; i < irqs; ++i) {
+			if (!cpumask_test_and_clear_cpu(i, &cpu_pmu->active_irqs))
+				continue;
+			irq = platform_get_irq(pmu_device, i);
+			if (irq >= 0)
+				free_irq(irq, cpu_pmu);
+		}
 	}
 }
 
@@ -101,33 +130,44 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < irqs; ++i) {
-		err = 0;
-		irq = platform_get_irq(pmu_device, i);
-		if (irq < 0)
-			continue;
-
-		/*
-		 * If we have a single PMU interrupt that we can't shift,
-		 * assume that we're running on a uniprocessor machine and
-		 * continue. Otherwise, continue without this interrupt.
-		 */
-		if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
-			pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
-				    irq, i);
-			continue;
-		}
-
-		err = request_irq(irq, handler,
-				  IRQF_NOBALANCING | IRQF_NO_THREAD, "arm-pmu",
-				  cpu_pmu);
+	irq = platform_get_irq(pmu_device, 0);
+	if (irq >= 0 && irq_is_percpu(irq)) {
+		err = request_percpu_irq(irq, handler, "arm-pmu", &percpu_pmu);
 		if (err) {
 			pr_err("unable to request IRQ%d for ARM PMU counters\n",
 				irq);
 			return err;
 		}
+		on_each_cpu(cpu_pmu_enable_percpu_irq, cpu_pmu, 1);
+	} else {
+		for (i = 0; i < irqs; ++i) {
+			err = 0;
+			irq = platform_get_irq(pmu_device, i);
+			if (irq < 0)
+				continue;
 
-		cpumask_set_cpu(i, &cpu_pmu->active_irqs);
+			/*
+			 * If we have a single PMU interrupt that we can't shift,
+			 * assume that we're running on a uniprocessor machine and
+			 * continue. Otherwise, continue without this interrupt.
+			 */
+			if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
+				pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
+					    irq, i);
+				continue;
+			}
+
+			err = request_irq(irq, handler,
+					  IRQF_NOBALANCING | IRQF_NO_THREAD, "arm-pmu",
+					  cpu_pmu);
+			if (err) {
+				pr_err("unable to request IRQ%d for ARM PMU counters\n",
+					irq);
+				return err;
+			}
+
+			cpumask_set_cpu(i, &cpu_pmu->active_irqs);
+		}
 	}
 
 	return 0;
@@ -141,6 +181,7 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 		events->events = per_cpu(hw_events, cpu);
 		events->used_mask = per_cpu(used_mask, cpu);
 		raw_spin_lock_init(&events->pmu_lock);
+		per_cpu(percpu_pmu, cpu) = cpu_pmu;
 	}
 
 	cpu_pmu->get_hw_events	= cpu_pmu_get_cpu_events;
