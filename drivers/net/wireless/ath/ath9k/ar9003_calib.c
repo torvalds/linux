@@ -920,15 +920,22 @@ static void ar9003_hw_tx_iq_cal_outlier_detection(struct ath_hw *ah,
 		if (nmeasurement > MAX_MEASUREMENT)
 			nmeasurement = MAX_MEASUREMENT;
 
-		/* detect outlier only if nmeasurement > 1 */
-		if (nmeasurement > 1) {
-			/* Detect magnitude outlier */
-			ar9003_hw_detect_outlier(coeff->mag_coeff[i],
-					nmeasurement, MAX_MAG_DELTA);
+		/*
+		 * Skip normal outlier detection for AR9550.
+		 */
+		if (!AR_SREV_9550(ah)) {
+			/* detect outlier only if nmeasurement > 1 */
+			if (nmeasurement > 1) {
+				/* Detect magnitude outlier */
+				ar9003_hw_detect_outlier(coeff->mag_coeff[i],
+							 nmeasurement,
+							 MAX_MAG_DELTA);
 
-			/* Detect phase outlier */
-			ar9003_hw_detect_outlier(coeff->phs_coeff[i],
-					nmeasurement, MAX_PHS_DELTA);
+				/* Detect phase outlier */
+				ar9003_hw_detect_outlier(coeff->phs_coeff[i],
+							 nmeasurement,
+							 MAX_PHS_DELTA);
+			}
 		}
 
 		for (im = 0; im < nmeasurement; im++) {
@@ -993,6 +1000,60 @@ static bool ar9003_hw_tx_iq_cal_run(struct ath_hw *ah)
 	return true;
 }
 
+static void __ar955x_tx_iq_cal_sort(struct ath_hw *ah,
+				    struct coeff *coeff,
+				    int i, int nmeasurement)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int im, ix, iy, temp;
+
+	for (im = 0; im < nmeasurement; im++) {
+		for (ix = 0; ix < MAXIQCAL - 1; ix++) {
+			for (iy = ix + 1; iy <= MAXIQCAL - 1; iy++) {
+				if (coeff->mag_coeff[i][im][iy] <
+				    coeff->mag_coeff[i][im][ix]) {
+					temp = coeff->mag_coeff[i][im][ix];
+					coeff->mag_coeff[i][im][ix] =
+						coeff->mag_coeff[i][im][iy];
+					coeff->mag_coeff[i][im][iy] = temp;
+				}
+				if (coeff->phs_coeff[i][im][iy] <
+				    coeff->phs_coeff[i][im][ix]) {
+					temp = coeff->phs_coeff[i][im][ix];
+					coeff->phs_coeff[i][im][ix] =
+						coeff->phs_coeff[i][im][iy];
+					coeff->phs_coeff[i][im][iy] = temp;
+				}
+			}
+		}
+		coeff->mag_coeff[i][im][0] = coeff->mag_coeff[i][im][MAXIQCAL / 2];
+		coeff->phs_coeff[i][im][0] = coeff->phs_coeff[i][im][MAXIQCAL / 2];
+
+		ath_dbg(common, CALIBRATE,
+			"IQCAL: Median [ch%d][gain%d]: mag = %d phase = %d\n",
+			i, im,
+			coeff->mag_coeff[i][im][0],
+			coeff->phs_coeff[i][im][0]);
+	}
+}
+
+static bool ar955x_tx_iq_cal_median(struct ath_hw *ah,
+				    struct coeff *coeff,
+				    int iqcal_idx,
+				    int nmeasurement)
+{
+	int i;
+
+	if ((iqcal_idx + 1) != MAXIQCAL)
+		return false;
+
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		__ar955x_tx_iq_cal_sort(ah, coeff, i, nmeasurement);
+	}
+
+	return true;
+}
+
 static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah,
 					  int iqcal_idx,
 					  bool is_reusable)
@@ -1008,10 +1069,11 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah,
 		AR_PHY_CHAN_INFO_TAB_1,
 		AR_PHY_CHAN_INFO_TAB_2,
 	};
-	struct coeff coeff;
+	static struct coeff coeff;
 	s32 iq_res[6];
 	int i, im, j;
-	int nmeasurement;
+	int nmeasurement = 0;
+	bool outlier_detect = true;
 
 	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 		if (!(ah->txchainmask & (1 << i)))
@@ -1080,7 +1142,12 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah,
 				coeff.phs_coeff[i][im][iqcal_idx] -= 128;
 		}
 	}
-	ar9003_hw_tx_iq_cal_outlier_detection(ah, &coeff, is_reusable);
+
+	if (AR_SREV_9550(ah))
+		outlier_detect = ar955x_tx_iq_cal_median(ah, &coeff,
+							 iqcal_idx, nmeasurement);
+	if (outlier_detect)
+		ar9003_hw_tx_iq_cal_outlier_detection(ah, &coeff, is_reusable);
 
 	return;
 
