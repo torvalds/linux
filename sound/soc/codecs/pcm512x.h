@@ -151,4 +151,12 @@
 #define PCM512x_AMLE_SHIFT 1
 #define PCM512x_AMLR_SHIFT 0
 
+/* Page 1, Register 2 - analog volume control */
+#define PCM512x_RAGN_SHIFT 0
+#define PCM512x_LAGN_SHIFT 4
+
+/* Page 1, Register 7 - analog boost control */
+#define PCM512x_AGBR_SHIFT 0
+#define PCM512x_AGBL_SHIFT 4
+
 #endif
