@@ -482,8 +482,7 @@ static int __init rkclk_init_pllcon(struct device_node *np)
 			return -EINVAL;
 		}
 		reg = of_iomap(node, 0);
-		if (reg_start == 0)
-			reg_start = reg;
+
 		for (i = 0; i < clknum; i++) {
 			pllinfo = kzalloc(sizeof(struct rkclk_pllinfo), GFP_KERNEL);
 			if (!pllinfo)
@@ -839,9 +838,17 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	struct device_node *node_init;
 	struct rkclk *rkclk;
 
+	reg_start = of_iomap(np, 0);
+	if (reg_start == NULL) {
+		clk_err("%s: can not get cru base!\n", __func__);
+		return;
+	} else {
+		printk("%s: get cru base = 0x%x\n", __func__, (u32)reg_start);
+	}
+
 	node_init=of_find_node_by_name(NULL,"clocks-init");
 	if (!node_init) {
-		clk_err("%s:can not get clocks-init node\n",__FUNCTION__);
+		clk_err("%s: can not get clocks-init node\n", __func__);
 		return;
 	}
 
@@ -953,6 +960,8 @@ static void __init rk_clk_tree_init(struct device_node *np)
 			clk_debug("\t\tNOT A MUX CLK, parent num=%d\n", clk->num_parents);
 		}
 	}
+
+	rk_clk_test();
 
 	rkclk_init_clks(node_init);
 
