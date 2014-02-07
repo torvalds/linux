@@ -6,6 +6,9 @@ Required properties:
 - interrupts : ohci controller interrupt
 
 Optional properties:
+- big-endian-regs : boolean, set this for hcds with big-endian registers
+- big-endian-desc : boolean, set this for hcds with big-endian descriptors
+- big-endian : boolean, for hcds with big-endian-regs + big-endian-desc
 - clocks : a list of phandle + clock specifier pairs
 - phys : phandle + phy specifier pair
 - phy-names : "usb"

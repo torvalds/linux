@@ -128,6 +128,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 	struct resource *res_mem;
 	struct usb_ohci_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct ohci_platform_priv *priv;
+	struct ohci_hcd *ohci;
 	int err, irq, clk = 0;
 
 	if (usb_disabled())
@@ -164,8 +165,34 @@ static int ohci_platform_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, hcd);
 	dev->dev.platform_data = pdata;
 	priv = hcd_to_ohci_priv(hcd);
+	ohci = hcd_to_ohci(hcd);
 
 	if (pdata == &ohci_platform_defaults && dev->dev.of_node) {
+		if (of_property_read_bool(dev->dev.of_node, "big-endian-regs"))
+			ohci->flags |= OHCI_QUIRK_BE_MMIO;
+
+		if (of_property_read_bool(dev->dev.of_node, "big-endian-desc"))
+			ohci->flags |= OHCI_QUIRK_BE_DESC;
+
+		if (of_property_read_bool(dev->dev.of_node, "big-endian"))
+			ohci->flags |= OHCI_QUIRK_BE_MMIO | OHCI_QUIRK_BE_DESC;
+
+#ifndef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
+		if (ohci->flags & OHCI_QUIRK_BE_MMIO) {
+			dev_err(&dev->dev,
+				"Error big-endian-regs not compiled in\n");
+			err = -EINVAL;
+			goto err_put_hcd;
+		}
+#endif
+#ifndef CONFIG_USB_OHCI_BIG_ENDIAN_DESC
+		if (ohci->flags & OHCI_QUIRK_BE_DESC) {
+			dev_err(&dev->dev,
+				"Error big-endian-desc not compiled in\n");
+			err = -EINVAL;
+			goto err_put_hcd;
+		}
+#endif
 		priv->phy = devm_phy_get(&dev->dev, "usb");
 		if (IS_ERR(priv->phy)) {
 			err = PTR_ERR(priv->phy);
