@@ -1189,7 +1189,7 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	if (IS_VALLEYVIEW(dev)) {
-		for (i = 0; i < dev_priv->num_plane; i++) {
+		for (i = 0; i < INTEL_INFO(dev)->num_sprites; i++) {
 			reg = SPCNTR(pipe, i);
 			val = I915_READ(reg);
 			WARN((val & SP_ENABLE),
@@ -11038,7 +11038,7 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for_each_pipe(i) {
 		intel_crtc_init(dev, i);
-		for (j = 0; j < dev_priv->num_plane; j++) {
+		for (j = 0; j < INTEL_INFO(dev)->num_sprites; j++) {
 			ret = intel_plane_init(dev, i, j);
 			if (ret)
 				DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",

@@ -1459,6 +1459,25 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 #undef SEP_COMMA
 }
 
+/*
+ * Determine various intel_device_info fields at runtime.
+ *
+ * Use it when either:
+ *   - it's judged too laborious to fill n static structures with the limit
+ *     when a simple if statement does the job,
+ *   - run-time checks (eg read fuse/strap registers) are needed.
+ */
+static void intel_device_info_runtime_init(struct drm_device *dev)
+{
+	struct intel_device_info *info;
+
+	info = (struct intel_device_info *)&to_i915(dev)->info;
+
+	info->num_sprites = 1;
+	if (IS_VALLEYVIEW(dev))
+		info->num_sprites = 2;
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -1638,9 +1657,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
 
-	dev_priv->num_plane = 1;
-	if (IS_VALLEYVIEW(dev))
-		dev_priv->num_plane = 2;
+	intel_device_info_runtime_init(dev);
 
 	if (INTEL_INFO(dev)->num_pipes) {
 		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
