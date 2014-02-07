@@ -2004,11 +2004,11 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 		/* For channels > 1 DFS is not allowed */
 		hw->wiphy->n_iface_combinations = 1;
 		hw->wiphy->iface_combinations = &data->if_combination;
-		data->if_combination.num_different_channels = data->channels;
 		if (p2p_device)
 			data->if_combination = hwsim_if_comb_p2p_dev[0];
 		else
 			data->if_combination = hwsim_if_comb[0];
+		data->if_combination.num_different_channels = data->channels;
 	} else if (p2p_device) {
 		hw->wiphy->iface_combinations = hwsim_if_comb_p2p_dev;
 		hw->wiphy->n_iface_combinations =
