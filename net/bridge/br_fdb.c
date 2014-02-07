@@ -27,6 +27,9 @@
 #include "br_private.h"
 
 static struct kmem_cache *br_fdb_cache __read_mostly;
+static struct net_bridge_fdb_entry *fdb_find(struct hlist_head *head,
+					     const unsigned char *addr,
+					     __u16 vid);
 static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		      const unsigned char *addr, u16 vid);
 static void fdb_notify(struct net_bridge *br,
@@ -117,6 +120,20 @@ static void fdb_delete_local(struct net_bridge *br,
 	}
 
 	fdb_delete(br, f);
+}
+
+void br_fdb_find_delete_local(struct net_bridge *br,
+			      const struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid)
+{
+	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
+	struct net_bridge_fdb_entry *f;
+
+	spin_lock_bh(&br->hash_lock);
+	f = fdb_find(head, addr, vid);
+	if (f && f->is_local && !f->added_by_user && f->dst == p)
+		fdb_delete_local(br, p, f);
+	spin_unlock_bh(&br->hash_lock);
 }
 
 void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
@@ -770,8 +787,7 @@ out:
 	return err;
 }
 
-int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr,
-		       u16 vlan)
+static int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr, u16 vlan)
 {
 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vlan)];
 	struct net_bridge_fdb_entry *fdb;

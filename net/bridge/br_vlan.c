@@ -275,9 +275,7 @@ int br_vlan_delete(struct net_bridge *br, u16 vid)
 	if (!pv)
 		return -EINVAL;
 
-	spin_lock_bh(&br->hash_lock);
-	fdb_delete_by_addr(br, br->dev->dev_addr, vid);
-	spin_unlock_bh(&br->hash_lock);
+	br_fdb_find_delete_local(br, NULL, br->dev->dev_addr, vid);
 
 	__vlan_del(pv, vid);
 	return 0;
@@ -378,9 +376,7 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 	if (!pv)
 		return -EINVAL;
 
-	spin_lock_bh(&port->br->hash_lock);
-	fdb_delete_by_addr(port->br, port->dev->dev_addr, vid);
-	spin_unlock_bh(&port->br->hash_lock);
+	br_fdb_find_delete_local(port->br, port, port->dev->dev_addr, vid);
 
 	return __vlan_del(pv, vid);
 }
