@@ -606,8 +606,10 @@ dead_call:
 	}
 
 	_debug("dead call");
-	skb->priority = RX_CALL_DEAD;
-	rxrpc_reject_packet(conn->trans->local, skb);
+	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
+		skb->priority = RX_CALL_DEAD;
+		rxrpc_reject_packet(conn->trans->local, skb);
+	}
 	goto done;
 
 	/* resend last packet of a completed call
@@ -790,8 +792,10 @@ cant_route_call:
 		skb->priority = RX_CALL_DEAD;
 	}
 
-	_debug("reject");
-	rxrpc_reject_packet(local, skb);
+	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
+		_debug("reject type %d",sp->hdr.type);
+		rxrpc_reject_packet(local, skb);
+	}
 	rxrpc_put_local(local);
 	_leave(" [no call]");
 	return;
