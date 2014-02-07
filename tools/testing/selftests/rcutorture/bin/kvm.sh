@@ -159,7 +159,7 @@ do
 		shift
 		;;
 	--torture)
-		checkarg --torture "(suite name)" "$#" "$2" '^rcu$' '^--'
+		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\)$' '^--'
 		TORTURE_SUITE=$2
 		shift
 		;;
