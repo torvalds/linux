@@ -344,7 +344,8 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 
 	iwl_mvm_scan_fill_ssids(cmd, req, basic_ssid ? 1 : 0);
 
-	cmd->tx_cmd.tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL);
+	cmd->tx_cmd.tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
+					   TX_CMD_FLG_BT_DIS);
 	cmd->tx_cmd.sta_id = mvm->aux_sta.sta_id;
 	cmd->tx_cmd.life_time = cpu_to_le32(TX_CMD_LIFE_TIME_INFINITE);
 	cmd->tx_cmd.rate_n_flags =
@@ -807,6 +808,8 @@ int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	profile_cfg->active_clients = SCAN_CLIENT_SCHED_SCAN;
 	profile_cfg->pass_match = SCAN_CLIENT_SCHED_SCAN;
 	profile_cfg->match_notify = SCAN_CLIENT_SCHED_SCAN;
+	if (!req->n_match_sets || !req->match_sets[0].ssid.ssid_len)
+		profile_cfg->any_beacon_notify = SCAN_CLIENT_SCHED_SCAN;
 
 	for (i = 0; i < req->n_match_sets; i++) {
 		profile = &profile_cfg->profiles[i];
