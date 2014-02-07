@@ -1932,6 +1932,14 @@ static bool need_vtd_wa(struct drm_device *dev)
 	return false;
 }
 
+static int intel_align_height(struct drm_device *dev, int height, bool tiled)
+{
+	int tile_height;
+
+	tile_height = tiled ? (IS_GEN2(dev) ? 16 : 8) : 1;
+	return ALIGN(height, tile_height);
+}
+
 int
 intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			   struct drm_i915_gem_object *obj,
@@ -10573,7 +10581,7 @@ int intel_framebuffer_init(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj)
 {
-	int aligned_height, tile_height;
+	int aligned_height;
 	int pitch_limit;
 	int ret;
 
@@ -10667,9 +10675,8 @@ int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->offsets[0] != 0)
 		return -EINVAL;
 
-	tile_height = IS_GEN2(dev) ? 16 : 8;
-	aligned_height = ALIGN(mode_cmd->height,
-			       obj->tiling_mode ? tile_height : 1);
+	aligned_height = intel_align_height(dev, mode_cmd->height,
+					    obj->tiling_mode);
 	/* FIXME drm helper for size checks (especially planar formats)? */
 	if (obj->base.size < aligned_height * mode_cmd->pitches[0])
 		return -EINVAL;
