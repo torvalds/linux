@@ -107,6 +107,16 @@ Remote Controller chapter.</contrib>
 	  </address>
 	</affiliation>
       </author>
+      <author>
+	<firstname>Antti</firstname>
+	<surname>Palosaari</surname>
+	<contrib>SDR API.</contrib>
+	<affiliation>
+	  <address>
+	    <email>crope@iki.fi</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
@@ -144,10 +154,10 @@ applications. -->
       <revision>
 	<revnumber>3.15</revnumber>
 	<date>2014-02-03</date>
-	<authorinitials>hv</authorinitials>
+	<authorinitials>hv, ap</authorinitials>
 	<revremark>Update several sections of "Common API Elements": "Opening and Closing Devices"
 "Querying Capabilities", "Application Priority", "Video Inputs and Outputs", "Audio Inputs and Outputs"
-"Tuners and Modulators", "Video Standards" and "Digital Video (DV) Timings".
+"Tuners and Modulators", "Video Standards" and "Digital Video (DV) Timings". Added SDR API.
 	</revremark>
       </revision>
 
