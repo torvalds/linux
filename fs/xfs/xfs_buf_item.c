@@ -796,20 +796,6 @@ xfs_buf_item_init(
 		bip->bli_formats[i].blf_map_size = map_size;
 	}
 
-#ifdef XFS_TRANS_DEBUG
-	/*
-	 * Allocate the arrays for tracking what needs to be logged
-	 * and what our callers request to be logged.  bli_orig
-	 * holds a copy of the original, clean buffer for comparison
-	 * against, and bli_logged keeps a 1 bit flag per byte in
-	 * the buffer to indicate which bytes the callers have asked
-	 * to have logged.
-	 */
-	bip->bli_orig = kmem_alloc(BBTOB(bp->b_length), KM_SLEEP);
-	memcpy(bip->bli_orig, bp->b_addr, BBTOB(bp->b_length));
-	bip->bli_logged = kmem_zalloc(BBTOB(bp->b_length) / NBBY, KM_SLEEP);
-#endif
-
 	/*
 	 * Put the buf item into the list of items attached to the
 	 * buffer at the front.
@@ -957,11 +943,6 @@ STATIC void
 xfs_buf_item_free(
 	xfs_buf_log_item_t	*bip)
 {
-#ifdef XFS_TRANS_DEBUG
-	kmem_free(bip->bli_orig);
-	kmem_free(bip->bli_logged);
-#endif /* XFS_TRANS_DEBUG */
-
 	xfs_buf_item_free_format(bip);
 	kmem_zone_free(xfs_buf_item_zone, bip);
 }
