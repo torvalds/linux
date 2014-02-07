@@ -1185,7 +1185,7 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
  */
 static __must_check int
 i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
-					    struct drm_file *file,
+					    struct drm_i915_file_private *file_priv,
 					    bool readonly)
 {
 	struct drm_device *dev = obj->base.dev;
@@ -1212,7 +1212,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	mutex_unlock(&dev->struct_mutex);
-	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL, file->driver_priv);
+	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL, file_priv);
 	mutex_lock(&dev->struct_mutex);
 	if (ret)
 		return ret;
@@ -1261,7 +1261,9 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	 * We will repeat the flush holding the lock in the normal manner
 	 * to catch cases where we are gazumped.
 	 */
-	ret = i915_gem_object_wait_rendering__nonblocking(obj, file, !write_domain);
+	ret = i915_gem_object_wait_rendering__nonblocking(obj,
+							  file->driver_priv,
+							  !write_domain);
 	if (ret)
 		goto unref;
 
@@ -1392,6 +1394,15 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		goto out;
 
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
+
+	/* Try to flush the object off the GPU first without holding the lock.
+	 * Upon reacquiring the lock, we will perform our sanity checks and then
+	 * repeat the flush holding the lock in the normal manner to catch cases
+	 * where we are gazumped.
+	 */
+	ret = i915_gem_object_wait_rendering__nonblocking(obj, NULL, !write);
+	if (ret)
+		goto unlock;
 
 	/* Access to snoopable pages through the GTT is incoherent. */
 	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(dev)) {
