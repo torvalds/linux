@@ -103,6 +103,7 @@ static void fdb_delete_local(struct net_bridge *br,
 		if (op != p && ether_addr_equal(op->dev->dev_addr, addr) &&
 		    (!vid || nbp_vlan_find(op, vid))) {
 			f->dst = op;
+			f->added_by_user = 0;
 			return;
 		}
 	}
@@ -111,6 +112,7 @@ static void fdb_delete_local(struct net_bridge *br,
 	if (p && ether_addr_equal(br->dev->dev_addr, addr) &&
 	    (!vid || br_vlan_find(br, vid))) {
 		f->dst = NULL;
+		f->added_by_user = 0;
 		return;
 	}
 
@@ -261,26 +263,11 @@ void br_fdb_delete_by_port(struct net_bridge *br,
 
 			if (f->is_static && !do_all)
 				continue;
-			/*
-			 * if multiple ports all have the same device address
-			 * then when one port is deleted, assign
-			 * the local entry to other port
-			 */
-			if (f->is_local) {
-				struct net_bridge_port *op;
-				list_for_each_entry(op, &br->port_list, list) {
-					if (op != p &&
-					    ether_addr_equal(op->dev->dev_addr,
-							     f->addr.addr)) {
-						f->dst = op;
-						f->added_by_user = 0;
-						goto skip_delete;
-					}
-				}
-			}
 
-			fdb_delete(br, f);
-		skip_delete: ;
+			if (f->is_local)
+				fdb_delete_local(br, p, f);
+			else
+				fdb_delete(br, f);
 		}
 	}
 	spin_unlock_bh(&br->hash_lock);
