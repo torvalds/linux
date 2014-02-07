@@ -41,6 +41,7 @@ PATH=${KVM}/bin:$PATH; export PATH
 builddir="${KVM}/b1"
 RCU_INITRD="$KVM/initrd"; export RCU_INITRD
 RCU_KMAKE_ARG=""; export RCU_KMAKE_ARG
+TORTURE_SUITE=rcu
 resdir=""
 configs=""
 cpus=0
@@ -66,8 +67,9 @@ usage () {
 	echo "       --no-initrd"
 	echo "       --qemu-args qemu-system-..."
 	echo "       --qemu-cmd qemu-system-..."
-	echo "       --results absolute-pathname"
 	echo "       --relbuilddir relative-pathname"
+	echo "       --results absolute-pathname"
+	echo "       --torture rcu"
 	exit 1
 }
 
@@ -156,6 +158,11 @@ do
 		resdir=$2
 		shift
 		;;
+	--torture)
+		checkarg --torture "(suite name)" "$#" "$2" '^rcu$' '^--'
+		TORTURE_SUITE=$2
+		shift
+		;;
 	*)
 		echo Unknown argument $1
 		usage
@@ -164,7 +171,7 @@ do
 	shift
 done
 
-CONFIGFRAG=${KVM}/configs; export CONFIGFRAG
+CONFIGFRAG=${KVM}/configs/${TORTURE_SUITE}; export CONFIGFRAG
 KVPATH=${CONFIGFRAG}/$kversion; export KVPATH
 
 if test -z "$configs"
@@ -191,6 +198,7 @@ then
 
 	touch $resdir/$ds/log
 	echo $scriptname $args >> $resdir/$ds/log
+	echo ${TORTURE_SUITE} > $resdir/$ds/TORTURE_SUITE
 
 	pwd > $resdir/$ds/testid.txt
 	if test -d .git
@@ -265,6 +273,9 @@ END {
 }'
 
 # Generate a script to execute the tests in appropriate batches.
+cat << ___EOF___ > $T/script
+TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
+___EOF___
 awk < $T/cfgcpu.pack \
 	-v CONFIGDIR="$CONFIGFRAG/$kversion/" \
 	-v KVM="$KVM" \
@@ -353,7 +364,7 @@ END {
 	# Dump the last batch.
 	if (ncpus != 0)
 		dump(first, i);
-}' > $T/script
+}' >> $T/script
 
 if test "$dryrun" = script
 then
