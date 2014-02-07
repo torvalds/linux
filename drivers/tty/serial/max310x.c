@@ -896,12 +896,6 @@ static int max310x_startup(struct uart_port *port)
 
 	s->devtype->power(port, 1);
 
-	/* Configure baud rate, 9600 as default */
-	max310x_set_baud(port, 9600);
-
-	/* Configure LCR register, 8N1 mode by default */
-	max310x_port_write(port, MAX310X_LCR_REG, MAX310X_LCR_WORD_LEN_8);
-
 	/* Configure MODE1 register */
 	max310x_port_update(port, MAX310X_MODE1_REG,
 			    MAX310X_MODE1_TRNSCVCTRL_BIT,
