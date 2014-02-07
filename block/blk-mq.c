@@ -582,6 +582,16 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 		list_del_init(&rq->queuelist);
 		blk_mq_start_request(rq);
 
+		if (q->dma_drain_size && blk_rq_bytes(rq)) {
+			/*
+			 * make sure space for the drain appears we
+			 * know we can do this because max_hw_segments
+			 * has been adjusted to be one fewer than the
+			 * device can handle
+			 */
+			rq->nr_phys_segments++;
+		}
+
 		/*
 		 * Last request in the series. Flag it as such, this
 		 * enables drivers to know when IO should be kicked off,
