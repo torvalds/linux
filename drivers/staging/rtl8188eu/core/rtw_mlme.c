@@ -129,9 +129,8 @@ _func_enter_;
 	rtw_free_mlme_priv_ie_data(pmlmepriv);
 
 	if (pmlmepriv) {
-		if (pmlmepriv->free_bss_buf) {
-			rtw_vmfree(pmlmepriv->free_bss_buf, MAX_BSS_CNT * sizeof(struct wlan_network));
-		}
+		if (pmlmepriv->free_bss_buf)
+			vfree(pmlmepriv->free_bss_buf);
 	}
 _func_exit_;
 }

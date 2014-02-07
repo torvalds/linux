@@ -26,12 +26,6 @@ void ODM_AllocateMemory(struct odm_dm_struct *pDM_Odm, void **pPtr, u32 length)
 	*pPtr = vzalloc(length);
 }
 
-/*  length could be ignored, used to detect memory leakage. */
-void ODM_FreeMemory(struct odm_dm_struct *pDM_Odm, void *pPtr, u32 length)
-{
-	rtw_vmfree(pPtr, length);
-}
-
 s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2, u32 length)
 {
 	return _rtw_memcmp(pBuf1, pBuf2, length);

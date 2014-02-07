@@ -129,7 +129,7 @@ _func_enter_;
 	rtw_os_recv_resource_free(precvpriv);
 
 	if (precvpriv->pallocated_frame_buf) {
-		rtw_vmfree(precvpriv->pallocated_frame_buf, NR_RECVFRAME * sizeof(union recv_frame) + RXFRAME_ALIGN_SZ);
+		vfree(precvpriv->pallocated_frame_buf);
 	}
 
 	rtw_hal_free_recv_priv(padapter);
