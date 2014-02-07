@@ -1482,7 +1482,12 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 	 * AGC calibration. Specifically, AR9550 in SoC chips.
 	 */
 	if (ah->enabled_cals & TX_IQ_ON_AGC_CAL) {
-		txiqcal_done = true;
+		if (REG_READ_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_0,
+				   AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL)) {
+				txiqcal_done = true;
+		} else {
+			txiqcal_done = false;
+		}
 		run_agc_cal = true;
 	} else {
 		sep_iq_cal = true;
