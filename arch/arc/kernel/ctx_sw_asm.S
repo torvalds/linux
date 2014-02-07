@@ -62,4 +62,4 @@ __switch_to:
 	ld.ab   blink, [sp, 4]
 	j       [blink]
 
-ARC_EXIT __switch_to
+END(__switch_to)
