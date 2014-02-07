@@ -1442,7 +1442,7 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 
 static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 {
-	const struct intel_device_info *info = dev_priv->info;
+	const struct intel_device_info *info = &dev_priv->info;
 
 #define PRINT_S(name) "%s"
 #define SEP_EMPTY
@@ -1473,7 +1473,7 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
-	struct intel_device_info *info;
+	struct intel_device_info *info, *device_info;
 	int ret = 0, mmio_bar, mmio_size;
 	uint32_t aperture_size;
 
@@ -1496,7 +1496,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->dev = dev;
-	dev_priv->info = info;
+
+	/* copy initial configuration to dev_priv->info */
+	device_info = (struct intel_device_info *)&dev_priv->info;
+	*device_info = *info;
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);

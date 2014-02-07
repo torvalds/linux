@@ -1390,7 +1390,7 @@ typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
 
-	const struct intel_device_info *info;
+	const struct intel_device_info info;
 
 	int relative_constants_mode;
 
@@ -1799,7 +1799,7 @@ struct drm_i915_file_private {
 	atomic_t rps_wait_boost;
 };
 
-#define INTEL_INFO(dev)	(to_i915(dev)->info)
+#define INTEL_INFO(dev)	(&to_i915(dev)->info)
 
 #define IS_I830(dev)		((dev)->pdev->device == 0x3577)
 #define IS_845G(dev)		((dev)->pdev->device == 0x2562)

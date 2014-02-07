@@ -1205,8 +1205,8 @@
  */
 #define DPLL_A_OFFSET 0x6014
 #define DPLL_B_OFFSET 0x6018
-#define DPLL(pipe) (dev_priv->info->dpll_offsets[pipe] + \
-		    dev_priv->info->display_mmio_offset)
+#define DPLL(pipe) (dev_priv->info.dpll_offsets[pipe] + \
+		    dev_priv->info.display_mmio_offset)
 
 #define VGA0	0x6000
 #define VGA1	0x6004
@@ -1283,8 +1283,8 @@
 
 #define DPLL_A_MD_OFFSET 0x601c /* 965+ only */
 #define DPLL_B_MD_OFFSET 0x6020 /* 965+ only */
-#define DPLL_MD(pipe) (dev_priv->info->dpll_md_offsets[pipe] + \
-		       dev_priv->info->display_mmio_offset)
+#define DPLL_MD(pipe) (dev_priv->info.dpll_md_offsets[pipe] + \
+		       dev_priv->info.display_mmio_offset)
 
 /*
  * UDI pixel divider, controlling how many pixels are stuffed into a packet.
@@ -1353,7 +1353,7 @@
 #define  DSTATE_PLL_D3_OFF			(1<<3)
 #define  DSTATE_GFX_CLOCK_GATING		(1<<1)
 #define  DSTATE_DOT_CLOCK_GATING		(1<<0)
-#define DSPCLK_GATE_D	(dev_priv->info->display_mmio_offset + 0x6200)
+#define DSPCLK_GATE_D	(dev_priv->info.display_mmio_offset + 0x6200)
 # define DPUNIT_B_CLOCK_GATE_DISABLE		(1 << 30) /* 965 */
 # define VSUNIT_CLOCK_GATE_DISABLE		(1 << 29) /* 965 */
 # define VRHUNIT_CLOCK_GATE_DISABLE		(1 << 28) /* 965 */
@@ -1479,8 +1479,8 @@
  */
 #define PALETTE_A_OFFSET 0xa000
 #define PALETTE_B_OFFSET 0xa800
-#define PALETTE(pipe) (dev_priv->info->palette_offsets[pipe] + \
-		       dev_priv->info->display_mmio_offset)
+#define PALETTE(pipe) (dev_priv->info.palette_offsets[pipe] + \
+		       dev_priv->info.display_mmio_offset)
 
 /* MCH MMIO space */
 
@@ -1970,9 +1970,9 @@
 #define TRANSCODER_C_OFFSET 0x62000
 #define TRANSCODER_EDP_OFFSET 0x6f000
 
-#define _TRANSCODER2(pipe, reg) (dev_priv->info->trans_offsets[(pipe)] - \
-	dev_priv->info->trans_offsets[TRANSCODER_A] + (reg) + \
-	dev_priv->info->display_mmio_offset)
+#define _TRANSCODER2(pipe, reg) (dev_priv->info.trans_offsets[(pipe)] - \
+	dev_priv->info.trans_offsets[TRANSCODER_A] + (reg) + \
+	dev_priv->info.display_mmio_offset)
 
 #define HTOTAL(trans) _TRANSCODER2(trans, _HTOTAL_A)
 #define HBLANK(trans) _TRANSCODER2(trans, _HBLANK_A)
@@ -2099,7 +2099,7 @@
 
 
 /* Hotplug control (945+ only) */
-#define PORT_HOTPLUG_EN		(dev_priv->info->display_mmio_offset + 0x61110)
+#define PORT_HOTPLUG_EN		(dev_priv->info.display_mmio_offset + 0x61110)
 #define   PORTB_HOTPLUG_INT_EN			(1 << 29)
 #define   PORTC_HOTPLUG_INT_EN			(1 << 28)
 #define   PORTD_HOTPLUG_INT_EN			(1 << 27)
@@ -2129,7 +2129,7 @@
 #define CRT_HOTPLUG_DETECT_VOLTAGE_325MV	(0 << 2)
 #define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
 
-#define PORT_HOTPLUG_STAT	(dev_priv->info->display_mmio_offset + 0x61114)
+#define PORT_HOTPLUG_STAT	(dev_priv->info.display_mmio_offset + 0x61114)
 /*
  * HDMI/DP bits are gen4+
  *
@@ -2406,7 +2406,7 @@
 #define PP_DIVISOR	0x61210
 
 /* Panel fitting */
-#define PFIT_CONTROL	(dev_priv->info->display_mmio_offset + 0x61230)
+#define PFIT_CONTROL	(dev_priv->info.display_mmio_offset + 0x61230)
 #define   PFIT_ENABLE		(1 << 31)
 #define   PFIT_PIPE_MASK	(3 << 29)
 #define   PFIT_PIPE_SHIFT	29
@@ -2424,7 +2424,7 @@
 #define   PFIT_SCALING_PROGRAMMED (1 << 26)
 #define   PFIT_SCALING_PILLAR	(2 << 26)
 #define   PFIT_SCALING_LETTER	(3 << 26)
-#define PFIT_PGM_RATIOS	(dev_priv->info->display_mmio_offset + 0x61234)
+#define PFIT_PGM_RATIOS	(dev_priv->info.display_mmio_offset + 0x61234)
 /* Pre-965 */
 #define		PFIT_VERT_SCALE_SHIFT		20
 #define		PFIT_VERT_SCALE_MASK		0xfff00000
@@ -2436,25 +2436,25 @@
 #define		PFIT_HORIZ_SCALE_SHIFT_965	0
 #define		PFIT_HORIZ_SCALE_MASK_965	0x00001fff
 
-#define PFIT_AUTO_RATIOS (dev_priv->info->display_mmio_offset + 0x61238)
+#define PFIT_AUTO_RATIOS (dev_priv->info.display_mmio_offset + 0x61238)
 
-#define _VLV_BLC_PWM_CTL2_A (dev_priv->info->display_mmio_offset + 0x61250)
-#define _VLV_BLC_PWM_CTL2_B (dev_priv->info->display_mmio_offset + 0x61350)
+#define _VLV_BLC_PWM_CTL2_A (dev_priv->info.display_mmio_offset + 0x61250)
+#define _VLV_BLC_PWM_CTL2_B (dev_priv->info.display_mmio_offset + 0x61350)
 #define VLV_BLC_PWM_CTL2(pipe) _PIPE(pipe, _VLV_BLC_PWM_CTL2_A, \
 				     _VLV_BLC_PWM_CTL2_B)
 
-#define _VLV_BLC_PWM_CTL_A (dev_priv->info->display_mmio_offset + 0x61254)
-#define _VLV_BLC_PWM_CTL_B (dev_priv->info->display_mmio_offset + 0x61354)
+#define _VLV_BLC_PWM_CTL_A (dev_priv->info.display_mmio_offset + 0x61254)
+#define _VLV_BLC_PWM_CTL_B (dev_priv->info.display_mmio_offset + 0x61354)
 #define VLV_BLC_PWM_CTL(pipe) _PIPE(pipe, _VLV_BLC_PWM_CTL_A, \
 				    _VLV_BLC_PWM_CTL_B)
 
-#define _VLV_BLC_HIST_CTL_A (dev_priv->info->display_mmio_offset + 0x61260)
-#define _VLV_BLC_HIST_CTL_B (dev_priv->info->display_mmio_offset + 0x61360)
+#define _VLV_BLC_HIST_CTL_A (dev_priv->info.display_mmio_offset + 0x61260)
+#define _VLV_BLC_HIST_CTL_B (dev_priv->info.display_mmio_offset + 0x61360)
 #define VLV_BLC_HIST_CTL(pipe) _PIPE(pipe, _VLV_BLC_HIST_CTL_A, \
 				     _VLV_BLC_HIST_CTL_B)
 
 /* Backlight control */
-#define BLC_PWM_CTL2	(dev_priv->info->display_mmio_offset + 0x61250) /* 965+ only */
+#define BLC_PWM_CTL2	(dev_priv->info.display_mmio_offset + 0x61250) /* 965+ only */
 #define   BLM_PWM_ENABLE		(1 << 31)
 #define   BLM_COMBINATION_MODE		(1 << 30) /* gen4 only */
 #define   BLM_PIPE_SELECT		(1 << 29)
@@ -2477,7 +2477,7 @@
 #define   BLM_PHASE_IN_COUNT_MASK	(0xff << 8)
 #define   BLM_PHASE_IN_INCR_SHIFT	(0)
 #define   BLM_PHASE_IN_INCR_MASK	(0xff << 0)
-#define BLC_PWM_CTL	(dev_priv->info->display_mmio_offset + 0x61254)
+#define BLC_PWM_CTL	(dev_priv->info.display_mmio_offset + 0x61254)
 /*
  * This is the most significant 15 bits of the number of backlight cycles in a
  * complete cycle of the modulated backlight control.
@@ -2499,7 +2499,7 @@
 #define   BACKLIGHT_DUTY_CYCLE_MASK_PNV		(0xfffe)
 #define   BLM_POLARITY_PNV			(1 << 0) /* pnv only */
 
-#define BLC_HIST_CTL	(dev_priv->info->display_mmio_offset + 0x61260)
+#define BLC_HIST_CTL	(dev_priv->info.display_mmio_offset + 0x61260)
 
 /* New registers for PCH-split platforms. Safe where new bits show up, the
  * register layout machtes with gen4 BLC_PWM_CTL[12]. */
@@ -3288,9 +3288,9 @@
  */
 #define PIPE_EDP_OFFSET	0x7f000
 
-#define _PIPE2(pipe, reg) (dev_priv->info->pipe_offsets[pipe] - \
-	dev_priv->info->pipe_offsets[PIPE_A] + (reg) + \
-	dev_priv->info->display_mmio_offset)
+#define _PIPE2(pipe, reg) (dev_priv->info.pipe_offsets[pipe] - \
+	dev_priv->info.pipe_offsets[PIPE_A] + (reg) + \
+	dev_priv->info.display_mmio_offset)
 
 #define PIPECONF(pipe) _PIPE2(pipe, _PIPEACONF)
 #define PIPEDSL(pipe)  _PIPE2(pipe, _PIPEADSL)
@@ -3352,7 +3352,7 @@
 #define   DSPARB_BEND_SHIFT	9 /* on 855 */
 #define   DSPARB_AEND_SHIFT	0
 
-#define DSPFW1			(dev_priv->info->display_mmio_offset + 0x70034)
+#define DSPFW1			(dev_priv->info.display_mmio_offset + 0x70034)
 #define   DSPFW_SR_SHIFT	23
 #define   DSPFW_SR_MASK		(0x1ff<<23)
 #define   DSPFW_CURSORB_SHIFT	16
@@ -3360,11 +3360,11 @@
 #define   DSPFW_PLANEB_SHIFT	8
 #define   DSPFW_PLANEB_MASK	(0x7f<<8)
 #define   DSPFW_PLANEA_MASK	(0x7f)
-#define DSPFW2			(dev_priv->info->display_mmio_offset + 0x70038)
+#define DSPFW2			(dev_priv->info.display_mmio_offset + 0x70038)
 #define   DSPFW_CURSORA_MASK	0x00003f00
 #define   DSPFW_CURSORA_SHIFT	8
 #define   DSPFW_PLANEC_MASK	(0x7f)
-#define DSPFW3			(dev_priv->info->display_mmio_offset + 0x7003c)
+#define DSPFW3			(dev_priv->info.display_mmio_offset + 0x7003c)
 #define   DSPFW_HPLL_SR_EN	(1<<31)
 #define   DSPFW_CURSOR_SR_SHIFT	24
 #define   PINEVIEW_SELF_REFRESH_EN	(1<<30)
@@ -3372,8 +3372,8 @@
 #define   DSPFW_HPLL_CURSOR_SHIFT	16
 #define   DSPFW_HPLL_CURSOR_MASK	(0x3f<<16)
 #define   DSPFW_HPLL_SR_MASK		(0x1ff)
-#define DSPFW4			(dev_priv->info->display_mmio_offset + 0x70070)
-#define DSPFW7			(dev_priv->info->display_mmio_offset + 0x7007c)
+#define DSPFW4			(dev_priv->info.display_mmio_offset + 0x70070)
+#define DSPFW7			(dev_priv->info.display_mmio_offset + 0x7007c)
 
 /* drain latency register values*/
 #define DRAIN_LATENCY_PRECISION_32	32
@@ -3497,12 +3497,12 @@
 #define   PIPE_PIXEL_MASK         0x00ffffff
 #define   PIPE_PIXEL_SHIFT        0
 /* GM45+ just has to be different */
-#define _PIPEA_FRMCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x70040)
-#define _PIPEA_FLIPCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x70044)
+#define _PIPEA_FRMCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x70040)
+#define _PIPEA_FLIPCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x70044)
 #define PIPE_FRMCOUNT_GM45(pipe) _PIPE(pipe, _PIPEA_FRMCOUNT_GM45, _PIPEB_FRMCOUNT_GM45)
 
 /* Cursor A & B regs */
-#define _CURACNTR		(dev_priv->info->display_mmio_offset + 0x70080)
+#define _CURACNTR		(dev_priv->info.display_mmio_offset + 0x70080)
 /* Old style CUR*CNTR flags (desktop 8xx) */
 #define   CURSOR_ENABLE		0x80000000
 #define   CURSOR_GAMMA_ENABLE	0x40000000
@@ -3525,16 +3525,16 @@
 #define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
 #define   CURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
-#define _CURABASE		(dev_priv->info->display_mmio_offset + 0x70084)
-#define _CURAPOS		(dev_priv->info->display_mmio_offset + 0x70088)
+#define _CURABASE		(dev_priv->info.display_mmio_offset + 0x70084)
+#define _CURAPOS		(dev_priv->info.display_mmio_offset + 0x70088)
 #define   CURSOR_POS_MASK       0x007FF
 #define   CURSOR_POS_SIGN       0x8000
 #define   CURSOR_X_SHIFT        0
 #define   CURSOR_Y_SHIFT        16
 #define CURSIZE			0x700a0
-#define _CURBCNTR		(dev_priv->info->display_mmio_offset + 0x700c0)
-#define _CURBBASE		(dev_priv->info->display_mmio_offset + 0x700c4)
-#define _CURBPOS		(dev_priv->info->display_mmio_offset + 0x700c8)
+#define _CURBCNTR		(dev_priv->info.display_mmio_offset + 0x700c0)
+#define _CURBBASE		(dev_priv->info.display_mmio_offset + 0x700c4)
+#define _CURBPOS		(dev_priv->info.display_mmio_offset + 0x700c8)
 
 #define _CURBCNTR_IVB		0x71080
 #define _CURBBASE_IVB		0x71084
@@ -3609,44 +3609,44 @@
 #define I915_HI_DISPBASE(val)	(val & DISP_BASEADDR_MASK)
 
 /* VBIOS flags */
-#define SWF00			(dev_priv->info->display_mmio_offset + 0x71410)
-#define SWF01			(dev_priv->info->display_mmio_offset + 0x71414)
-#define SWF02			(dev_priv->info->display_mmio_offset + 0x71418)
-#define SWF03			(dev_priv->info->display_mmio_offset + 0x7141c)
-#define SWF04			(dev_priv->info->display_mmio_offset + 0x71420)
-#define SWF05			(dev_priv->info->display_mmio_offset + 0x71424)
-#define SWF06			(dev_priv->info->display_mmio_offset + 0x71428)
-#define SWF10			(dev_priv->info->display_mmio_offset + 0x70410)
-#define SWF11			(dev_priv->info->display_mmio_offset + 0x70414)
-#define SWF14			(dev_priv->info->display_mmio_offset + 0x71420)
-#define SWF30			(dev_priv->info->display_mmio_offset + 0x72414)
-#define SWF31			(dev_priv->info->display_mmio_offset + 0x72418)
-#define SWF32			(dev_priv->info->display_mmio_offset + 0x7241c)
+#define SWF00			(dev_priv->info.display_mmio_offset + 0x71410)
+#define SWF01			(dev_priv->info.display_mmio_offset + 0x71414)
+#define SWF02			(dev_priv->info.display_mmio_offset + 0x71418)
+#define SWF03			(dev_priv->info.display_mmio_offset + 0x7141c)
+#define SWF04			(dev_priv->info.display_mmio_offset + 0x71420)
+#define SWF05			(dev_priv->info.display_mmio_offset + 0x71424)
+#define SWF06			(dev_priv->info.display_mmio_offset + 0x71428)
+#define SWF10			(dev_priv->info.display_mmio_offset + 0x70410)
+#define SWF11			(dev_priv->info.display_mmio_offset + 0x70414)
+#define SWF14			(dev_priv->info.display_mmio_offset + 0x71420)
+#define SWF30			(dev_priv->info.display_mmio_offset + 0x72414)
+#define SWF31			(dev_priv->info.display_mmio_offset + 0x72418)
+#define SWF32			(dev_priv->info.display_mmio_offset + 0x7241c)
 
 /* Pipe B */
-#define _PIPEBDSL		(dev_priv->info->display_mmio_offset + 0x71000)
-#define _PIPEBCONF		(dev_priv->info->display_mmio_offset + 0x71008)
-#define _PIPEBSTAT		(dev_priv->info->display_mmio_offset + 0x71024)
+#define _PIPEBDSL		(dev_priv->info.display_mmio_offset + 0x71000)
+#define _PIPEBCONF		(dev_priv->info.display_mmio_offset + 0x71008)
+#define _PIPEBSTAT		(dev_priv->info.display_mmio_offset + 0x71024)
 #define _PIPEBFRAMEHIGH		0x71040
 #define _PIPEBFRAMEPIXEL	0x71044
-#define _PIPEB_FRMCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x71040)
-#define _PIPEB_FLIPCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x71044)
+#define _PIPEB_FRMCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x71040)
+#define _PIPEB_FLIPCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x71044)
 
 
 /* Display B control */
-#define _DSPBCNTR		(dev_priv->info->display_mmio_offset + 0x71180)
+#define _DSPBCNTR		(dev_priv->info.display_mmio_offset + 0x71180)
 #define   DISPPLANE_ALPHA_TRANS_ENABLE		(1<<15)
 #define   DISPPLANE_ALPHA_TRANS_DISABLE		0
 #define   DISPPLANE_SPRITE_ABOVE_DISPLAY	0
 #define   DISPPLANE_SPRITE_ABOVE_OVERLAY	(1)
-#define _DSPBADDR		(dev_priv->info->display_mmio_offset + 0x71184)
-#define _DSPBSTRIDE		(dev_priv->info->display_mmio_offset + 0x71188)
-#define _DSPBPOS		(dev_priv->info->display_mmio_offset + 0x7118C)
-#define _DSPBSIZE		(dev_priv->info->display_mmio_offset + 0x71190)
-#define _DSPBSURF		(dev_priv->info->display_mmio_offset + 0x7119C)
-#define _DSPBTILEOFF		(dev_priv->info->display_mmio_offset + 0x711A4)
-#define _DSPBOFFSET		(dev_priv->info->display_mmio_offset + 0x711A4)
-#define _DSPBSURFLIVE		(dev_priv->info->display_mmio_offset + 0x711AC)
+#define _DSPBADDR		(dev_priv->info.display_mmio_offset + 0x71184)
+#define _DSPBSTRIDE		(dev_priv->info.display_mmio_offset + 0x71188)
+#define _DSPBPOS		(dev_priv->info.display_mmio_offset + 0x7118C)
+#define _DSPBSIZE		(dev_priv->info.display_mmio_offset + 0x71190)
+#define _DSPBSURF		(dev_priv->info.display_mmio_offset + 0x7119C)
+#define _DSPBTILEOFF		(dev_priv->info.display_mmio_offset + 0x711A4)
+#define _DSPBOFFSET		(dev_priv->info.display_mmio_offset + 0x711A4)
+#define _DSPBSURFLIVE		(dev_priv->info.display_mmio_offset + 0x711AC)
 
 /* Sprite A control */
 #define _DVSACNTR		0x72180
@@ -5052,7 +5052,7 @@
 #define   GEN8_CENTROID_PIXEL_OPT_DIS	(1<<8)
 #define   GEN8_SAMPLER_POWER_BYPASS_DIS	(1<<1)
 
-#define G4X_AUD_VID_DID			(dev_priv->info->display_mmio_offset + 0x62020)
+#define G4X_AUD_VID_DID			(dev_priv->info.display_mmio_offset + 0x62020)
 #define INTEL_AUDIO_DEVCL		0x808629FB
 #define INTEL_AUDIO_DEVBLC		0x80862801
 #define INTEL_AUDIO_DEVCTG		0x80862802
@@ -5905,11 +5905,11 @@
 #define  READ_DATA_VALID(n)				(1 << (n))
 
 /* For UMS only (deprecated): */
-#define _PALETTE_A (dev_priv->info->display_mmio_offset + 0xa000)
-#define _PALETTE_B (dev_priv->info->display_mmio_offset + 0xa800)
-#define _DPLL_A (dev_priv->info->display_mmio_offset + 0x6014)
-#define _DPLL_B (dev_priv->info->display_mmio_offset + 0x6018)
-#define _DPLL_A_MD (dev_priv->info->display_mmio_offset + 0x601c)
-#define _DPLL_B_MD (dev_priv->info->display_mmio_offset + 0x6020)
+#define _PALETTE_A (dev_priv->info.display_mmio_offset + 0xa000)
+#define _PALETTE_B (dev_priv->info.display_mmio_offset + 0xa800)
+#define _DPLL_A (dev_priv->info.display_mmio_offset + 0x6014)
+#define _DPLL_B (dev_priv->info.display_mmio_offset + 0x6018)
+#define _DPLL_A_MD (dev_priv->info.display_mmio_offset + 0x601c)
+#define _DPLL_B_MD (dev_priv->info.display_mmio_offset + 0x6020)
 
 #endif /* _I915_REG_H_ */
