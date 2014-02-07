@@ -310,7 +310,7 @@
 		};
 
 		wdt1: watchdog@01c20ca0 {
-			compatible = "allwinner,sun6i-wdt";
+			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x01c20ca0 0x20>;
 		};
 
