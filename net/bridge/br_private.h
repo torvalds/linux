@@ -104,6 +104,7 @@ struct net_bridge_fdb_entry
 	mac_addr			addr;
 	unsigned char			is_local;
 	unsigned char			is_static;
+	unsigned char			added_by_user;
 	__u16				vlan_id;
 };
 
@@ -383,7 +384,7 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf, unsigned long count,
 int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		  const unsigned char *addr, u16 vid);
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
-		   const unsigned char *addr, u16 vid);
+		   const unsigned char *addr, u16 vid, bool added_by_user);
 int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr, u16 vid);
 
 int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],

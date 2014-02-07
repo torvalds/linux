@@ -104,7 +104,7 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 			struct net_bridge_fdb_entry *f;
 
 			f = hlist_entry(h, struct net_bridge_fdb_entry, hlist);
-			if (f->dst == p && f->is_local) {
+			if (f->dst == p && f->is_local && !f->added_by_user) {
 				/* maybe another port has same hw addr? */
 				struct net_bridge_port *op;
 				u16 vid = f->vlan_id;
@@ -247,6 +247,7 @@ void br_fdb_delete_by_port(struct net_bridge *br,
 					    ether_addr_equal(op->dev->dev_addr,
 							     f->addr.addr)) {
 						f->dst = op;
+						f->added_by_user = 0;
 						goto skip_delete;
 					}
 				}
@@ -397,6 +398,7 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 		fdb->vlan_id = vid;
 		fdb->is_local = 0;
 		fdb->is_static = 0;
+		fdb->added_by_user = 0;
 		fdb->updated = fdb->used = jiffies;
 		hlist_add_head_rcu(&fdb->hlist, head);
 	}
@@ -447,7 +449,7 @@ int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 }
 
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
-		   const unsigned char *addr, u16 vid)
+		   const unsigned char *addr, u16 vid, bool added_by_user)
 {
 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
 	struct net_bridge_fdb_entry *fdb;
@@ -473,13 +475,18 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 			/* fastpath: update of existing entry */
 			fdb->dst = source;
 			fdb->updated = jiffies;
+			if (unlikely(added_by_user))
+				fdb->added_by_user = 1;
 		}
 	} else {
 		spin_lock(&br->hash_lock);
 		if (likely(!fdb_find(head, addr, vid))) {
 			fdb = fdb_create(head, source, addr, vid);
-			if (fdb)
+			if (fdb) {
+				if (unlikely(added_by_user))
+					fdb->added_by_user = 1;
 				fdb_notify(br, fdb, RTM_NEWNEIGH);
+			}
 		}
 		/* else  we lose race and someone else inserts
 		 * it first, don't bother updating
@@ -647,6 +654,7 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 
 		modified = true;
 	}
+	fdb->added_by_user = 1;
 
 	fdb->used = jiffies;
 	if (modified) {
@@ -664,7 +672,7 @@ static int __br_fdb_add(struct ndmsg *ndm, struct net_bridge_port *p,
 
 	if (ndm->ndm_flags & NTF_USE) {
 		rcu_read_lock();
-		br_fdb_update(p->br, p, addr, vid);
+		br_fdb_update(p->br, p, addr, vid, true);
 		rcu_read_unlock();
 	} else {
 		spin_lock_bh(&p->br->hash_lock);
