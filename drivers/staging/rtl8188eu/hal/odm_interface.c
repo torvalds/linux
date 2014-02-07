@@ -20,11 +20,6 @@
 
 #include "odm_precomp.h"
 
-s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2, u32 length)
-{
-	return _rtw_memcmp(pBuf1, pBuf2, length);
-}
-
 void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer, u32 msDelay)
 {
 	_set_timer(pTimer, msDelay); /* ms */
