@@ -864,7 +864,8 @@ static noinline int cow_file_range(struct inode *inode,
 
 	if (btrfs_is_free_space_inode(inode)) {
 		WARN_ON_ONCE(1);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock;
 	}
 
 	num_bytes = ALIGN(end - start + 1, blocksize);
