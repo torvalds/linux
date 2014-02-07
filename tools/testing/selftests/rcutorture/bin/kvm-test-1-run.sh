@@ -6,13 +6,13 @@
 # Execute this in the source tree.  Do not run it as a background task
 # because qemu does not seem to like that much.
 #
-# Usage: sh kvm-test-1-rcu.sh config builddir resdir minutes qemu-args boot_args
+# Usage: sh kvm-test-1-run.sh config builddir resdir minutes qemu-args boot_args
 #
-# qemu-args defaults to "" -- you will want "-nographic" if running headless.
-# boot_args defaults to	"root=/dev/sda noapic selinux=0 console=ttyS0"
-#			"initcall_debug debug rcutorture.stat_interval=15"
-#			"rcutorture.shutdown_secs=$((minutes * 60))"
-#			"rcutorture.rcutorture_runnable=1"
+# qemu-args defaults to "-nographic", along with arguments specifying the
+#			number of CPUs and other options generated from
+#			the underlying CPU architecture.
+# boot_args defaults to value returned by the per_version_boot_params
+#			shell function.
 #
 # Anything you specify for either qemu-args or boot_args is appended to
 # the default values.  The "-smp" value is deduced from the contents of
@@ -40,7 +40,7 @@
 
 grace=120
 
-T=/tmp/kvm-test-1-rcu.sh.$$
+T=/tmp/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
 
 . $KVM/bin/functions.sh
@@ -52,13 +52,13 @@ title=`echo $config_template | sed -e 's/^.*\///'`
 builddir=${2}
 if test -z "$builddir" -o ! -d "$builddir" -o ! -w "$builddir"
 then
-	echo "kvm-test-1-rcu.sh :$builddir: Not a writable directory, cannot build into it"
+	echo "kvm-test-1-run.sh :$builddir: Not a writable directory, cannot build into it"
 	exit 1
 fi
 resdir=${3}
 if test -z "$resdir" -o ! -d "$resdir" -o ! -w "$resdir"
 then
-	echo "kvm-test-1-rcu.sh :$resdir: Not a writable directory, cannot store results into it"
+	echo "kvm-test-1-run.sh :$resdir: Not a writable directory, cannot store results into it"
 	exit 1
 fi
 cp $config_template $resdir/ConfigFragment
