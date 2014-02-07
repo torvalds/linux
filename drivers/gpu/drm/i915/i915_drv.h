@@ -1944,18 +1944,19 @@ struct i915_params {
 	int vbt_sdvo_panel_type;
 	int enable_rc6;
 	int enable_fbc;
-	bool enable_hangcheck;
 	int enable_ppgtt;
 	int enable_psr;
 	unsigned int preliminary_hw_support;
 	int disable_power_well;
 	int enable_ips;
-	bool fastboot;
 	int enable_pc8;
 	int pc8_timeout;
+	int invert_brightness;
+	/* leave bools at the end to not create holes */
+	bool enable_hangcheck;
+	bool fastboot;
 	bool prefault_disable;
 	bool reset;
-	int invert_brightness;
 };
 extern struct i915_params i915 __read_mostly;
 
