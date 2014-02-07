@@ -1807,7 +1807,7 @@ void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev
 						      struct seq_file *m)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct radeon_ps *rps = &pi->current_rps;
 	struct sumo_ps *ps = sumo_get_ps(rps);
 	struct sumo_pl *pl;
 	u32 current_index =
