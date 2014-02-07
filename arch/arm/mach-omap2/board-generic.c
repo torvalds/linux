@@ -229,7 +229,7 @@ DT_MACHINE_START(AM43_DT, "Generic AM43 (Flattened Device Tree)")
 	.init_late	= am43xx_init_late,
 	.init_irq	= omap_gic_of_init,
 	.init_machine	= omap_generic_init,
-	.init_time	= omap3_sync32k_timer_init,
+	.init_time	= omap3_gptimer_timer_init,
 	.dt_compat	= am43_boards_compat,
 MACHINE_END
 #endif
