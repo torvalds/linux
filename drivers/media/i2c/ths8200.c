@@ -318,15 +318,15 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 			     (htotal(bt) >> 8) & 0x1f);
 	ths8200_write(sd, THS8200_DTG2_HLENGTH_HDLY_LSB, htotal(bt));
 
-	/* v sync width transmitted */
-	ths8200_write(sd, THS8200_DTG2_VLENGTH1_LSB, (bt->vsync) & 0xff);
+	/* v sync width transmitted (must add 1 to get correct output) */
+	ths8200_write(sd, THS8200_DTG2_VLENGTH1_LSB, (bt->vsync + 1) & 0xff);
 	ths8200_write_and_or(sd, THS8200_DTG2_VLENGTH1_MSB_VDLY1_MSB, 0x3f,
-			     ((bt->vsync) >> 2) & 0xc0);
+			     ((bt->vsync + 1) >> 2) & 0xc0);
 
-	/* The pixel value v sync is asserted on */
+	/* The pixel value v sync is asserted on (must add 1 to get correct output) */
 	ths8200_write_and_or(sd, THS8200_DTG2_VLENGTH1_MSB_VDLY1_MSB, 0xf8,
-			     (vtotal(bt)>>8) & 0x7);
-	ths8200_write(sd, THS8200_DTG2_VDLY1_LSB, vtotal(bt));
+			     ((vtotal(bt) + 1) >> 8) & 0x7);
+	ths8200_write(sd, THS8200_DTG2_VDLY1_LSB, vtotal(bt) + 1);
 
 	/* For progressive video vlength2 must be set to all 0 and vdly2 must
 	 * be set to all 1.
@@ -336,11 +336,11 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 	ths8200_write(sd, THS8200_DTG2_VDLY2_LSB, 0xff);
 
 	/* Internal delay factors to synchronize the sync pulses and the data */
-	/* Experimental values delays (hor 4, ver 1) */
-	ths8200_write(sd, THS8200_DTG2_HS_IN_DLY_MSB, (htotal(bt)>>8) & 0x1f);
-	ths8200_write(sd, THS8200_DTG2_HS_IN_DLY_LSB, (htotal(bt) - 4) & 0xff);
+	/* Experimental values delays (hor 0, ver 0) */
+	ths8200_write(sd, THS8200_DTG2_HS_IN_DLY_MSB, 0);
+	ths8200_write(sd, THS8200_DTG2_HS_IN_DLY_LSB, 0);
 	ths8200_write(sd, THS8200_DTG2_VS_IN_DLY_MSB, 0);
-	ths8200_write(sd, THS8200_DTG2_VS_IN_DLY_LSB, 1);
+	ths8200_write(sd, THS8200_DTG2_VS_IN_DLY_LSB, 0);
 
 	/* Polarity of received and transmitted sync signals */
 	if (bt->polarities & V4L2_DV_HSYNC_POS_POL) {
