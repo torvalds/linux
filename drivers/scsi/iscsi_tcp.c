@@ -759,6 +759,9 @@ static int iscsi_sw_tcp_host_get_param(struct Scsi_Host *shost,
 
 	switch (param) {
 	case ISCSI_HOST_PARAM_IPADDRESS:
+		if (!session)
+			return -ENOTCONN;
+
 		spin_lock_bh(&session->frwd_lock);
 		conn = session->leadconn;
 		if (!conn) {
