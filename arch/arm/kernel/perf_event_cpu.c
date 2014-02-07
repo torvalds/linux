@@ -311,6 +311,9 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	cpu_pmu = pmu;
+	cpu_pmu->plat_device = pdev;
+
 	if (node && (of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node))) {
 		init_fn = of_id->data;
 		ret = init_fn(pmu);
@@ -323,8 +326,6 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	cpu_pmu = pmu;
-	cpu_pmu->plat_device = pdev;
 	cpu_pmu_init(cpu_pmu);
 	ret = armpmu_register(cpu_pmu, PERF_TYPE_RAW);
 
