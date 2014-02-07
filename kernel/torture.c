@@ -454,7 +454,10 @@ static int torture_shutdown(void *arg)
 
 	VERBOSE_TOROUT_STRING("torture_shutdown task shutting down system");
 	shutdown_task = NULL;	/* Avoid self-kill deadlock. */
-	torture_shutdown_hook();/* Shut down the enclosing torture test. */
+	if (torture_shutdown_hook)
+		torture_shutdown_hook();
+	else
+		VERBOSE_TOROUT_STRING("No torture_shutdown_hook(), skipping.");
 	kernel_power_off();	/* Shut down the system. */
 	return 0;
 }
