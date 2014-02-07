@@ -529,6 +529,8 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 	struct iscsi_r2t_rsp *rhdr = (struct iscsi_r2t_rsp *)tcp_conn->in.hdr;
 	struct iscsi_r2t_info *r2t;
 	int r2tsn = be32_to_cpu(rhdr->r2tsn);
+	u32 data_length;
+	u32 data_offset;
 	int rc;
 
 	if (tcp_conn->in.datalen) {
@@ -554,7 +556,28 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 		return 0;
 	}
 
-	rc = kfifo_out(&tcp_task->r2tpool.queue, (void*)&r2t, sizeof(void*));
+	data_length = be32_to_cpu(rhdr->data_length);
+	if (data_length == 0) {
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "invalid R2T with zero data len\n");
+		return ISCSI_ERR_DATALEN;
+	}
+
+	if (data_length > session->max_burst)
+		ISCSI_DBG_TCP(conn, "invalid R2T with data len %u and max "
+			      "burst %u. Attempting to execute request.\n",
+			      data_length, session->max_burst);
+
+	data_offset = be32_to_cpu(rhdr->data_offset);
+	if (data_offset + data_length > scsi_out(task->sc)->length) {
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "invalid R2T with data len %u at offset %u "
+				  "and total length %d\n", data_length,
+				  data_offset, scsi_out(task->sc)->length);
+		return ISCSI_ERR_DATALEN;
+	}
+
+	rc = kfifo_out(&tcp_task->r2tpool.queue, (void *)&r2t, sizeof(void *));
 	if (!rc) {
 		iscsi_conn_printk(KERN_ERR, conn, "Could not allocate R2T. "
 				  "Target has sent more R2Ts than it "
@@ -563,30 +586,8 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 	}
 
 	r2t->exp_statsn = rhdr->statsn;
-	r2t->data_length = be32_to_cpu(rhdr->data_length);
-	if (r2t->data_length == 0) {
-		iscsi_conn_printk(KERN_ERR, conn,
-				  "invalid R2T with zero data len\n");
-		kfifo_in(&tcp_task->r2tpool.queue, (void*)&r2t,
-			    sizeof(void*));
-		return ISCSI_ERR_DATALEN;
-	}
-
-	if (r2t->data_length > session->max_burst)
-		ISCSI_DBG_TCP(conn, "invalid R2T with data len %u and max "
-			      "burst %u. Attempting to execute request.\n",
-			      r2t->data_length, session->max_burst);
-
-	r2t->data_offset = be32_to_cpu(rhdr->data_offset);
-	if (r2t->data_offset + r2t->data_length > scsi_out(task->sc)->length) {
-		iscsi_conn_printk(KERN_ERR, conn,
-				  "invalid R2T with data len %u at offset %u "
-				  "and total length %d\n", r2t->data_length,
-				  r2t->data_offset, scsi_out(task->sc)->length);
-		kfifo_in(&tcp_task->r2tpool.queue, (void*)&r2t,
-			    sizeof(void*));
-		return ISCSI_ERR_DATALEN;
-	}
+	r2t->data_length = data_length;
+	r2t->data_offset = data_offset;
 
 	r2t->ttt = rhdr->ttt; /* no flip */
 	r2t->datasn = 0;
