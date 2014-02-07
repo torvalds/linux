@@ -883,9 +883,9 @@ static void ar9003_hw_detect_outlier(int *mp_coeff, int nmeasurement,
 	}
 }
 
-static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
-						 struct coeff *coeff,
-						 bool is_reusable)
+static void ar9003_hw_tx_iq_cal_outlier_detection(struct ath_hw *ah,
+						  struct coeff *coeff,
+						  bool is_reusable)
 {
 	int i, im, nmeasurement;
 	u32 tx_corr_coeff[MAX_MEASUREMENT][AR9300_MAX_CHAINS];
@@ -1072,7 +1072,7 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 				coeff.phs_coeff[i][im] -= 128;
 		}
 	}
-	ar9003_hw_tx_iqcal_load_avg_2_passes(ah, &coeff, is_reusable);
+	ar9003_hw_tx_iq_cal_outlier_detection(ah, &coeff, is_reusable);
 
 	return;
 
