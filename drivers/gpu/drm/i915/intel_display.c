@@ -1030,7 +1030,7 @@ static void assert_fdi_tx_pll_enabled(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	/* ILK FDI PLL is always enabled */
-	if (dev_priv->info->gen == 5)
+	if (INTEL_INFO(dev_priv->dev)->gen == 5)
 		return;
 
 	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
@@ -1443,7 +1443,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
 	/* No really, not for ILK+ */
-	BUG_ON(dev_priv->info->gen >= 5);
+	BUG_ON(INTEL_INFO(dev)->gen >= 5);
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (IS_MOBILE(dev) && !IS_I830(dev))
@@ -1549,11 +1549,12 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
  */
 static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 
 	/* PCH PLLs only available on ILK, SNB and IVB */
-	BUG_ON(dev_priv->info->gen < 5);
+	BUG_ON(INTEL_INFO(dev)->gen < 5);
 	if (WARN_ON(pll == NULL))
 		return;
 
@@ -1578,11 +1579,12 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 
 static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 
 	/* PCH only available on ILK+ */
-	BUG_ON(dev_priv->info->gen < 5);
+	BUG_ON(INTEL_INFO(dev)->gen < 5);
 	if (WARN_ON(pll == NULL))
 	       return;
 
@@ -1617,7 +1619,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	uint32_t reg, val, pipeconf_val;
 
 	/* PCH only available on ILK+ */
-	BUG_ON(dev_priv->info->gen < 5);
+	BUG_ON(INTEL_INFO(dev)->gen < 5);
 
 	/* Make sure PCH DPLL is enabled */
 	assert_shared_dpll_enabled(dev_priv,
@@ -1670,7 +1672,7 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	u32 val, pipeconf_val;
 
 	/* PCH only available on ILK+ */
-	BUG_ON(dev_priv->info->gen < 5);
+	BUG_ON(INTEL_INFO(dev_priv->dev)->gen < 5);
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, (enum pipe) cpu_transcoder);
@@ -1851,7 +1853,8 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
 			       enum plane plane)
 {
-	u32 reg = dev_priv->info->gen >= 4 ? DSPSURF(plane) : DSPADDR(plane);
+	struct drm_device *dev = dev_priv->dev;
+	u32 reg = INTEL_INFO(dev)->gen >= 4 ? DSPSURF(plane) : DSPADDR(plane);
 
 	I915_WRITE(reg, I915_READ(reg));
 	POSTING_READ(reg);
@@ -7577,7 +7580,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
-	if (!dev_priv->info->cursor_needs_physical) {
+	if (!INTEL_INFO(dev)->cursor_needs_physical) {
 		unsigned alignment;
 
 		if (obj->tiling_mode) {
@@ -7625,7 +7628,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
  finish:
 	if (intel_crtc->cursor_bo) {
-		if (dev_priv->info->cursor_needs_physical) {
+		if (INTEL_INFO(dev)->cursor_needs_physical) {
 			if (intel_crtc->cursor_bo != obj)
 				i915_gem_detach_phys_object(dev, intel_crtc->cursor_bo);
 		} else
@@ -8220,7 +8223,7 @@ void intel_mark_idle(struct drm_device *dev)
 		intel_decrease_pllclock(crtc);
 	}
 
-	if (dev_priv->info->gen >= 6)
+	if (INTEL_INFO(dev)->gen >= 6)
 		gen6_rps_idle(dev->dev_private);
 }
 
