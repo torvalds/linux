@@ -164,6 +164,10 @@ enum hpd_pin {
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))
 
+#define for_each_connector_on_encoder(dev, __encoder, intel_connector) \
+	list_for_each_entry((intel_connector), &(dev)->mode_config.connector_list, base.head) \
+		if ((intel_connector)->base.encoder == (__encoder))
+
 struct drm_i915_private;
 
 enum intel_dpll_id {
