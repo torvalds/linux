@@ -1068,7 +1068,7 @@ struct cifs_writedata {
 	unsigned int			pagesz;
 	unsigned int			tailsz;
 	unsigned int			nr_pages;
-	struct page			*pages[1];
+	struct page			*pages[];
 };
 
 /*

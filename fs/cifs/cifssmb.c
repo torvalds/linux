@@ -1962,15 +1962,9 @@ cifs_writedata_alloc(unsigned int nr_pages, work_func_t complete)
 {
 	struct cifs_writedata *wdata;
 
-	/* this would overflow */
-	if (nr_pages == 0) {
-		cifs_dbg(VFS, "%s: called with nr_pages == 0!\n", __func__);
-		return NULL;
-	}
-
 	/* writedata + number of page pointers */
 	wdata = kzalloc(sizeof(*wdata) +
-			sizeof(struct page *) * (nr_pages - 1), GFP_NOFS);
+			sizeof(struct page *) * nr_pages, GFP_NOFS);
 	if (wdata != NULL) {
 		kref_init(&wdata->refcount);
 		INIT_LIST_HEAD(&wdata->list);
