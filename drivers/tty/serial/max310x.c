@@ -1081,12 +1081,6 @@ static int max310x_probe(struct device *dev, int is_spi,
 	struct max310x_pdata *pdata = dev_get_platdata(dev);
 	int i, ret, uartclk;
 
-	/* Check for IRQ */
-	if (irq <= 0) {
-		dev_err(dev, "No IRQ specified\n");
-		return -ENOTSUPP;
-	}
-
 	if (!pdata) {
 		dev_err(dev, "No platform data supplied\n");
 		return -EINVAL;
