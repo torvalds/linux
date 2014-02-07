@@ -943,3 +943,16 @@ u64 hists__total_period(struct hists *hists)
 	return symbol_conf.filter_relative ? hists->stats.total_non_filtered_period :
 		hists->stats.total_period;
 }
+
+int parse_filter_percentage(const struct option *opt __maybe_unused,
+			    const char *arg, int unset __maybe_unused)
+{
+	if (!strcmp(arg, "relative"))
+		symbol_conf.filter_relative = true;
+	else if (!strcmp(arg, "absolute"))
+		symbol_conf.filter_relative = false;
+	else
+		return -1;
+
+	return 0;
+}
