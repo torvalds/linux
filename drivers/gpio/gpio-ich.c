@@ -78,6 +78,12 @@ struct ichx_desc {
 	/* Some chipsets have quirks, let these use their own request/get */
 	int (*request)(struct gpio_chip *chip, unsigned offset);
 	int (*get)(struct gpio_chip *chip, unsigned offset);
+
+	/*
+	 * Some chipsets don't let reading output values on GPIO_LVL register
+	 * this option allows driver caching written output values
+	 */
+	bool use_outlvl_cache;
 };
 
 static struct {
@@ -89,6 +95,7 @@ static struct {
 	struct ichx_desc *desc;	/* Pointer to chipset-specific description */
 	u32 orig_gpio_ctrl;	/* Orig CTRL value, used to restore on exit */
 	u8 use_gpio;		/* Which GPIO groups are usable */
+	int outlvl_cache[3];	/* cached output values */
 } ichx_priv;
 
 static int modparam_gpiobase = -1;	/* dynamic */
@@ -106,14 +113,21 @@ static int ichx_write_bit(int reg, unsigned nr, int val, int verify)
 
 	spin_lock_irqsave(&ichx_priv.lock, flags);
 
-	data = ICHX_READ(ichx_priv.desc->regs[reg][reg_nr],
-			 ichx_priv.gpio_base);
+	if (reg == GPIO_LVL && ichx_priv.desc->use_outlvl_cache)
+		data = ichx_priv.outlvl_cache[reg_nr];
+	else
+		data = ICHX_READ(ichx_priv.desc->regs[reg][reg_nr],
+				 ichx_priv.gpio_base);
+
 	if (val)
 		data |= 1 << bit;
 	else
 		data &= ~(1 << bit);
 	ICHX_WRITE(data, ichx_priv.desc->regs[reg][reg_nr],
 			 ichx_priv.gpio_base);
+	if (reg == GPIO_LVL && ichx_priv.desc->use_outlvl_cache)
+		ichx_priv.outlvl_cache[reg_nr] = data;
+
 	tmp = ICHX_READ(ichx_priv.desc->regs[reg][reg_nr],
 			ichx_priv.gpio_base);
 	if (verify && data != tmp)
@@ -135,6 +149,9 @@ static int ichx_read_bit(int reg, unsigned nr)
 
 	data = ICHX_READ(ichx_priv.desc->regs[reg][reg_nr],
 			 ichx_priv.gpio_base);
+
+	if (reg == GPIO_LVL && ichx_priv.desc->use_outlvl_cache)
+		data = ichx_priv.outlvl_cache[reg_nr] | data;
 
 	spin_unlock_irqrestore(&ichx_priv.lock, flags);
 
