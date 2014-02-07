@@ -1044,7 +1044,7 @@ read_edid_block(struct drm_encoder *encoder, uint8_t *buf, int blk)
 					!priv->wq_edid_wait,
 					msecs_to_jiffies(100));
 		if (i < 0) {
-			dev_err(encoder->dev->dev, "read edid wait err %d\n", i);
+			dev_err(&priv->hdmi->dev, "read edid wait err %d\n", i);
 			return i;
 		}
 	} else {
@@ -1059,14 +1059,14 @@ read_edid_block(struct drm_encoder *encoder, uint8_t *buf, int blk)
 	}
 
 	if (i == 0) {
-		dev_err(encoder->dev->dev, "read edid timeout\n");
+		dev_err(&priv->hdmi->dev, "read edid timeout\n");
 		return -ETIMEDOUT;
 	}
 
 	ret = reg_read_range(priv, REG_EDID_DATA_0, buf, EDID_LENGTH);
 	if (ret != EDID_LENGTH) {
-		dev_err(encoder->dev->dev, "failed to read edid block %d: %d\n",
-				blk, ret);
+		dev_err(&priv->hdmi->dev, "failed to read edid block %d: %d\n",
+			blk, ret);
 		return ret;
 	}
 
@@ -1132,7 +1132,7 @@ done:
 fail:
 	if (priv->rev == TDA19988)
 		reg_set(priv, REG_TX4, TX4_PD_RAM);
-	dev_warn(encoder->dev->dev, "failed to read EDID\n");
+	dev_warn(&priv->hdmi->dev, "failed to read EDID\n");
 	kfree(block);
 	return NULL;
 }
