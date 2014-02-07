@@ -2741,6 +2741,9 @@ static int nft_add_set_elem(const struct nft_ctx *ctx, struct nft_set *set,
 		if (nla[NFTA_SET_ELEM_DATA] == NULL &&
 		    !(elem.flags & NFT_SET_ELEM_INTERVAL_END))
 			return -EINVAL;
+		if (nla[NFTA_SET_ELEM_DATA] != NULL &&
+		    elem.flags & NFT_SET_ELEM_INTERVAL_END)
+			return -EINVAL;
 	} else {
 		if (nla[NFTA_SET_ELEM_DATA] != NULL)
 			return -EINVAL;
