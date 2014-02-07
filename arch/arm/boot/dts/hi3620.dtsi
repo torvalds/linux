@@ -106,6 +106,21 @@
 			};
 		};
 
+		pctrl: pctrl@a09000 {
+			compatible = "hisilicon,pctrl";
+			ranges = <0 0xa09000 0x1000>;
+			reg = <0xa09000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mmc_clock: clock@1 {
+				compatible = "hisilicon,hi3620-mmc-clock";
+				reg = <0 0x10>;
+				#clock-cells = <1>;
+			};
+		};
+
+
 		dual_timer0: dual_timer@800000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x800000 0x1000>;
@@ -531,6 +546,96 @@
 			clock-names = "apb_pclk";
 		};
 
+		i2c0: i2c@b08000 {
+			compatible = "snps,designware-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xb08000 0x1000>;
+			interrupts = <0 28 4>;
+			clocks = <&clock HI3620_I2CCLK0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@b09000 {
+			compatible = "snps,designware-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xb09000 0x1000>;
+			interrupts = <0 29 4>;
+			clocks = <&clock HI3620_I2CCLK1>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@b0c000 {
+			compatible = "snps,designware-i2c";
+			reg = <0xb0c000 0x1000>;
+			interrupts = <0 62 4>;
+			clocks = <&clock HI3620_I2CCLK2>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@b0d000 {
+			compatible = "snps,designware-i2c";
+			reg = <0xb0d000 0x1000>;
+			interrupts = <0 63 4>;
+			clocks = <&clock HI3620_I2CCLK3>;
+			status = "disabled";
+		};
+
+		/* unremovable emmc as mmcblk0 */
+		dwmmc_1: dwmmc1@d04000 {
+			compatible = "hisilicon,hi4511-dw-mshc";
+			reg = <0xd04000 0x1000>;
+			interrupts = <0 17 4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&mmc_clock HI3620_MMC_CIUCLK1>, <&clock HI3620_DDRC_PER_CLK>;
+			clock-names = "ciu", "biu";
+			clock-freq-table =
+			<13000000 50000000 0 0 13000000 50000000 0 100000000>;
+
+		};
+
+		/* sd as mmcblk1 */
+		dwmmc_0: dwmmc0@d03000 {
+			compatible = "hisilicon,hi4511-dw-mshc";
+			reg = <0xd03000 0x1000>;
+			interrupts = <0 16 4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&mmc_clock HI3620_SD_CIUCLK>, <&clock HI3620_DDRC_PER_CLK>;
+			clock-names = "ciu", "biu";
+			clock-freq-table =
+			<25000000 0 50000000 25000000 50000000 100000000 0 50000000>;
+		};
+
+		dwmmc_2: dwmmc2@d05000 {
+			compatible = "hisilicon,hi4511-dw-mshc";
+			reg = <0xd05000 0x1000>;
+			interrupts = <0 18 4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&mmc_clock HI3620_MMC_CIUCLK2>, <&clock HI3620_DDRC_PER_CLK>;
+			clock-freq-table =
+			<25000000 25000000 50000000 50000000>;
+		};
+
+		dwmmc_3: dwmmc3@d06000 {
+			compatible = "hisilicon,hi4511-dw-mshc";
+			reg = <0xd06000 0x1000>;
+			interrupts = <0 19 4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&mmc_clock HI3620_MMC_CIUCLK3>, <&clock HI3620_DDRC_PER_CLK>;
+			clock-freq-table =
+			<25000000 25000000 50000000 50000000>;
+		};
+		pmic: pmic@c00000 {
+			compatible = "hisilicon,hi6421-pmic";
+			reg = <0xc00000 0x0180>; /* 0x60 << 2 */
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
 		pmx0: pinmux@803000 {
 			compatible = "pinctrl-single";
 			reg = <0x803000 0x188>;
