@@ -71,6 +71,8 @@ struct arm_pmu {
 	void		(*disable)(struct perf_event *event);
 	int		(*get_event_idx)(struct pmu_hw_events *hw_events,
 					 struct perf_event *event);
+	void		(*clear_event_idx)(struct pmu_hw_events *hw_events,
+					 struct perf_event *event);
 	int		(*set_event_filter)(struct hw_perf_event *evt,
 					    struct perf_event_attr *attr);
 	u32		(*read_counter)(struct perf_event *event);

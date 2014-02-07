@@ -207,6 +207,8 @@ armpmu_del(struct perf_event *event, int flags)
 	armpmu_stop(event, PERF_EF_UPDATE);
 	hw_events->events[idx] = NULL;
 	clear_bit(idx, hw_events->used_mask);
+	if (armpmu->clear_event_idx)
+		armpmu->clear_event_idx(hw_events, event);
 
 	perf_event_update_userpage(event);
 }
