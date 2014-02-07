@@ -474,7 +474,7 @@ config SND_SOC_WM8753
 
 config SND_SOC_WM8770
 	tristate "Wolfson Microelectronics WM8770 CODEC"
-	depends on SND_SOC_I2C_AND_SPI
+	depends on SPI_MASTER
 
 config SND_SOC_WM8776
 	tristate "Wolfson Microelectronics WM8776 CODEC"
