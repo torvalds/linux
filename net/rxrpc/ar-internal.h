@@ -436,6 +436,9 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 extern unsigned rxrpc_requested_ack_delay;
 extern unsigned rxrpc_soft_ack_delay;
 extern unsigned rxrpc_idle_ack_delay;
+extern unsigned rxrpc_rx_window_size;
+extern unsigned rxrpc_rx_mtu;
+extern unsigned rxrpc_rx_jumbo_max;
 
 void __rxrpc_propose_ACK(struct rxrpc_call *, u8, __be32, bool);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, __be32, bool);

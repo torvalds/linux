@@ -926,3 +926,22 @@ adjusted through sysctls in /proc/net/rxrpc/:
      The amount of time in seconds after a transport was last used before we
      remove it from the transport list.  Whilst a transport is in existence, it
      serves to anchor the peer data and keeps the connection ID counter.
+
+ (*) rxrpc_rx_window_size
+
+     The size of the receive window in packets.  This is the maximum number of
+     unconsumed received packets we're willing to hold in memory for any
+     particular call.
+
+ (*) rxrpc_rx_mtu
+
+     The maximum packet MTU size that we're willing to receive in bytes.  This
+     indicates to the peer whether we're willing to accept jumbo packets.
+
+ (*) rxrpc_rx_jumbo_max
+
+     The maximum number of packets that we're willing to accept in a jumbo
+     packet.  Non-terminal packets in a jumbo packet must contain a four byte
+     header plus exactly 1412 bytes of data.  The terminal packet must contain
+     a four byte header plus any amount of data.  In any event, a jumbo packet
+     may not exceed rxrpc_rx_mtu in size.

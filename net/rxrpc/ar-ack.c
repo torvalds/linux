@@ -43,6 +43,26 @@ unsigned rxrpc_soft_ack_delay = 1 * HZ;
  */
 unsigned rxrpc_idle_ack_delay = 0.5 * HZ;
 
+/*
+ * Receive window size in packets.  This indicates the maximum number of
+ * unconsumed received packets we're willing to retain in memory.  Once this
+ * limit is hit, we should generate an EXCEEDS_WINDOW ACK and discard further
+ * packets.
+ */
+unsigned rxrpc_rx_window_size = 32;
+
+/*
+ * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet
+ * made by gluing normal packets together that we're willing to handle.
+ */
+unsigned rxrpc_rx_mtu = 5692;
+
+/*
+ * The maximum number of fragments in a received jumbo packet that we tell the
+ * sender that we're willing to handle.
+ */
+unsigned rxrpc_rx_jumbo_max = 4;
+
 static const char *rxrpc_acks(u8 reason)
 {
 	static const char *const str[] = {
@@ -1195,11 +1215,11 @@ send_ACK:
 	mtu = call->conn->trans->peer->if_mtu;
 	mtu -= call->conn->trans->peer->hdrsize;
 	ackinfo.maxMTU	= htonl(mtu);
-	ackinfo.rwind	= htonl(32);
+	ackinfo.rwind	= htonl(rxrpc_rx_window_size);
 
 	/* permit the peer to send us jumbo packets if it wants to */
-	ackinfo.rxMTU	= htonl(5692);
-	ackinfo.jumbo_max = htonl(4);
+	ackinfo.rxMTU	= htonl(rxrpc_rx_mtu);
+	ackinfo.jumbo_max = htonl(rxrpc_rx_jumbo_max);
 
 	hdr.serial = htonl(atomic_inc_return(&call->conn->serial));
 	_proto("Tx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",

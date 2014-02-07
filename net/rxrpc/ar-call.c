@@ -99,7 +99,7 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	call->rx_data_expect = 1;
 	call->rx_data_eaten = 0;
 	call->rx_first_oos = 0;
-	call->ackr_win_top = call->rx_data_eaten + 1 + RXRPC_MAXACKS;
+	call->ackr_win_top = call->rx_data_eaten + 1 + rxrpc_rx_window_size;
 	call->creation_jif = jiffies;
 	return call;
 }
