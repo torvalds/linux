@@ -92,8 +92,10 @@ static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)
 void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 {
 	struct net_bridge *br = p->br;
-	bool no_vlan = (nbp_get_vlan_info(p) == NULL) ? true : false;
+	struct net_port_vlans *pv = nbp_get_vlan_info(p);
+	bool no_vlan = !pv;
 	int i;
+	u16 vid;
 
 	spin_lock_bh(&br->hash_lock);
 
@@ -114,27 +116,36 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 							     f->addr.addr) &&
 					    nbp_vlan_find(op, vid)) {
 						f->dst = op;
-						goto insert;
+						goto skip_delete;
 					}
 				}
 
 				/* delete old one */
 				fdb_delete(br, f);
-insert:
-				/* insert new address,  may fail if invalid
-				 * address or dup.
-				 */
-				fdb_insert(br, p, newaddr, vid);
-
+skip_delete:
 				/* if this port has no vlan information
 				 * configured, we can safely be done at
 				 * this point.
 				 */
 				if (no_vlan)
-					goto done;
+					goto insert;
 			}
 		}
 	}
+
+insert:
+	/* insert new address,  may fail if invalid address or dup. */
+	fdb_insert(br, p, newaddr, 0);
+
+	if (no_vlan)
+		goto done;
+
+	/* Now add entries for every VLAN configured on the port.
+	 * This function runs under RTNL so the bitmap will not change
+	 * from under us.
+	 */
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
+		fdb_insert(br, p, newaddr, vid);
 
 done:
 	spin_unlock_bh(&br->hash_lock);
