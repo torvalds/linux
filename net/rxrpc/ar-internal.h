@@ -433,6 +433,10 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * ar-ack.c
  */
+extern unsigned rxrpc_requested_ack_delay;
+extern unsigned rxrpc_soft_ack_delay;
+extern unsigned rxrpc_idle_ack_delay;
+
 void __rxrpc_propose_ACK(struct rxrpc_call *, u8, __be32, bool);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, __be32, bool);
 void rxrpc_process_call(struct work_struct *);
@@ -440,6 +444,8 @@ void rxrpc_process_call(struct work_struct *);
 /*
  * ar-call.c
  */
+extern unsigned rxrpc_max_call_lifetime;
+extern unsigned rxrpc_dead_call_expiry;
 extern struct kmem_cache *rxrpc_call_jar;
 extern struct list_head rxrpc_calls;
 extern rwlock_t rxrpc_call_lock;
@@ -460,6 +466,7 @@ void __exit rxrpc_destroy_all_calls(void);
 /*
  * ar-connection.c
  */
+extern unsigned rxrpc_connection_expiry;
 extern struct list_head rxrpc_connections;
 extern rwlock_t rxrpc_connection_lock;
 
@@ -493,7 +500,6 @@ void rxrpc_UDP_error_handler(struct work_struct *);
 /*
  * ar-input.c
  */
-extern unsigned long rxrpc_ack_timeout;
 extern const char *rxrpc_pkts[];
 
 void rxrpc_data_ready(struct sock *, int);
@@ -504,6 +510,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *, struct sk_buff *);
  * ar-local.c
  */
 extern rwlock_t rxrpc_local_lock;
+
 struct rxrpc_local *rxrpc_lookup_local(struct sockaddr_rxrpc *);
 void rxrpc_put_local(struct rxrpc_local *);
 void __exit rxrpc_destroy_all_locals(void);
@@ -522,7 +529,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
 /*
  * ar-output.c
  */
-extern int rxrpc_resend_timeout;
+extern unsigned rxrpc_resend_timeout;
 
 int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
 int rxrpc_client_sendmsg(struct kiocb *, struct rxrpc_sock *,
@@ -572,12 +579,25 @@ void rxrpc_packet_destructor(struct sk_buff *);
 /*
  * ar-transport.c
  */
+extern unsigned rxrpc_transport_expiry;
+
 struct rxrpc_transport *rxrpc_get_transport(struct rxrpc_local *,
 					    struct rxrpc_peer *, gfp_t);
 void rxrpc_put_transport(struct rxrpc_transport *);
 void __exit rxrpc_destroy_all_transports(void);
 struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
 					     struct rxrpc_peer *);
+
+/*
+ * sysctl.c
+ */
+#ifdef CONFIG_SYSCTL
+extern int __init rxrpc_sysctl_init(void);
+extern void rxrpc_sysctl_exit(void);
+#else
+static inline int __init rxrpc_sysctl_init(void) { return 0; }
+static inline void rxrpc_sysctl_exit(void) {}
+#endif
 
 /*
  * debug tracing

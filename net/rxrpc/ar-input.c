@@ -25,8 +25,6 @@
 #include <net/net_namespace.h>
 #include "ar-internal.h"
 
-unsigned long rxrpc_ack_timeout = 1;
-
 const char *rxrpc_pkts[] = {
 	"?00",
 	"DATA", "ACK", "BUSY", "ABORT", "ACKALL", "CHALL", "RESP", "DEBUG",

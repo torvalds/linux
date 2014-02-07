@@ -16,6 +16,16 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
+/*
+ * Maximum lifetime of a call (in jiffies).
+ */
+unsigned rxrpc_max_call_lifetime = 60 * HZ;
+
+/*
+ * Time till dead call expires after last use (in jiffies).
+ */
+unsigned rxrpc_dead_call_expiry = 2 * HZ;
+
 const char *const rxrpc_call_states[] = {
 	[RXRPC_CALL_CLIENT_SEND_REQUEST]	= "ClSndReq",
 	[RXRPC_CALL_CLIENT_AWAIT_REPLY]		= "ClAwtRpl",
@@ -38,8 +48,6 @@ const char *const rxrpc_call_states[] = {
 struct kmem_cache *rxrpc_call_jar;
 LIST_HEAD(rxrpc_calls);
 DEFINE_RWLOCK(rxrpc_call_lock);
-static unsigned int rxrpc_call_max_lifetime = 60;
-static unsigned int rxrpc_dead_call_timeout = 2;
 
 static void rxrpc_destroy_call(struct work_struct *work);
 static void rxrpc_call_life_expired(unsigned long _call);
@@ -132,7 +140,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
 	list_add(&call->error_link, &call->conn->trans->peer->error_targets);
 	spin_unlock(&call->conn->trans->peer->lock);
 
-	call->lifetimer.expires = jiffies + rxrpc_call_max_lifetime * HZ;
+	call->lifetimer.expires = jiffies + rxrpc_max_call_lifetime;
 	add_timer(&call->lifetimer);
 
 	_leave(" = %p", call);
@@ -349,7 +357,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 
 	_net("CALL incoming %d on CONN %d", call->debug_id, call->conn->debug_id);
 
-	call->lifetimer.expires = jiffies + rxrpc_call_max_lifetime * HZ;
+	call->lifetimer.expires = jiffies + rxrpc_max_call_lifetime;
 	add_timer(&call->lifetimer);
 	_leave(" = %p {%d} [new]", call, call->debug_id);
 	return call;
@@ -533,7 +541,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	del_timer_sync(&call->resend_timer);
 	del_timer_sync(&call->ack_timer);
 	del_timer_sync(&call->lifetimer);
-	call->deadspan.expires = jiffies + rxrpc_dead_call_timeout * HZ;
+	call->deadspan.expires = jiffies + rxrpc_dead_call_expiry;
 	add_timer(&call->deadspan);
 
 	_leave("");

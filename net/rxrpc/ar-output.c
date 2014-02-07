@@ -18,7 +18,10 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-int rxrpc_resend_timeout = 4;
+/*
+ * Time till packet resend (in jiffies).
+ */
+unsigned rxrpc_resend_timeout = 4 * HZ;
 
 static int rxrpc_send_data(struct kiocb *iocb,
 			   struct rxrpc_sock *rx,
@@ -487,7 +490,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	       ntohl(sp->hdr.serial), ntohl(sp->hdr.seq));
 
 	sp->need_resend = false;
-	sp->resend_at = jiffies + rxrpc_resend_timeout * HZ;
+	sp->resend_at = jiffies + rxrpc_resend_timeout;
 	if (!test_and_set_bit(RXRPC_CALL_RUN_RTIMER, &call->flags)) {
 		_debug("run timer");
 		call->resend_timer.expires = sp->resend_at;

@@ -19,7 +19,29 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-static unsigned int rxrpc_ack_defer = 1;
+/*
+ * How long to wait before scheduling ACK generation after seeing a
+ * packet with RXRPC_REQUEST_ACK set (in jiffies).
+ */
+unsigned rxrpc_requested_ack_delay = 1;
+
+/*
+ * How long to wait before scheduling an ACK with subtype DELAY (in jiffies).
+ *
+ * We use this when we've received new data packets.  If those packets aren't
+ * all consumed within this time we will send a DELAY ACK if an ACK was not
+ * requested to let the sender know it doesn't need to resend.
+ */
+unsigned rxrpc_soft_ack_delay = 1 * HZ;
+
+/*
+ * How long to wait before scheduling an ACK with subtype IDLE (in jiffies).
+ *
+ * We use this when we've consumed some previously soft-ACK'd packets when
+ * further packets aren't immediately received to decide when to send an IDLE
+ * ACK let the other end know that it can free up its Tx buffer space.
+ */
+unsigned rxrpc_idle_ack_delay = 1;
 
 static const char *rxrpc_acks(u8 reason)
 {
@@ -82,24 +104,23 @@ void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	switch (ack_reason) {
 	case RXRPC_ACK_DELAY:
 		_debug("run delay timer");
-		call->ack_timer.expires = jiffies + rxrpc_ack_timeout * HZ;
-		add_timer(&call->ack_timer);
-		return;
+		expiry = rxrpc_soft_ack_delay;
+		goto run_timer;
 
 	case RXRPC_ACK_IDLE:
 		if (!immediate) {
 			_debug("run defer timer");
-			expiry = 1;
+			expiry = rxrpc_idle_ack_delay;
 			goto run_timer;
 		}
 		goto cancel_timer;
 
 	case RXRPC_ACK_REQUESTED:
-		if (!rxrpc_ack_defer)
+		expiry = rxrpc_requested_ack_delay;
+		if (!expiry)
 			goto cancel_timer;
 		if (!immediate || serial == cpu_to_be32(1)) {
 			_debug("run defer timer");
-			expiry = rxrpc_ack_defer;
 			goto run_timer;
 		}
 
