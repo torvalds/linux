@@ -1101,7 +1101,7 @@ int snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
 /**
  * snd_rawmidi_transmit_ack - acknowledge the transmission
  * @substream: the rawmidi substream
- * @count: the tranferred count
+ * @count: the transferred count
  *
  * Advances the hardware pointer for the internal output buffer with
  * the given size and updates the condition.
