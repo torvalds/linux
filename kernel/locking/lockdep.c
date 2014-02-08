@@ -2557,7 +2557,7 @@ static void __trace_hardirqs_on_caller(unsigned long ip)
 	debug_atomic_inc(hardirqs_on_events);
 }
 
-void trace_hardirqs_on_caller(unsigned long ip)
+__visible void trace_hardirqs_on_caller(unsigned long ip)
 {
 	time_hardirqs_on(CALLER_ADDR0, ip);
 
@@ -2610,7 +2610,7 @@ EXPORT_SYMBOL(trace_hardirqs_on);
 /*
  * Hardirqs were disabled:
  */
-void trace_hardirqs_off_caller(unsigned long ip)
+__visible void trace_hardirqs_off_caller(unsigned long ip)
 {
 	struct task_struct *curr = current;
 
