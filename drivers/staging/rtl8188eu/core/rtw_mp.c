@@ -23,6 +23,7 @@
 
 #include "odm_precomp.h"
 #include "rtl8188e_hal.h"
+#include <linux/vmalloc.h>
 
 u32 read_macreg(struct adapter *padapter, u32 addr, u32 sz)
 {

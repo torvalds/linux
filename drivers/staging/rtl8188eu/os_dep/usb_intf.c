@@ -26,6 +26,7 @@
 #include <hal_intf.h>
 #include <rtw_version.h>
 #include <linux/usb.h>
+#include <linux/vmalloc.h>
 #include <osdep_intf.h>
 
 #include <usb_vendor_req.h>

@@ -25,6 +25,7 @@
 #include <xmit_osdep.h>
 #include <mlme_osdep.h>
 #include <sta_info.h>
+#include <linux/vmalloc.h>
 
 static void _rtw_init_stainfo(struct sta_info *psta)
 {

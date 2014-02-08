@@ -28,6 +28,7 @@
 #include <ethernet.h>
 #include <usb_ops.h>
 #include <wifi.h>
+#include <linux/vmalloc.h>
 
 static u8 SNAP_ETH_TYPE_IPX[2] = {0x81, 0x37};
 static u8 SNAP_ETH_TYPE_APPLETALK_AARP[2] = {0x80, 0xf3};
