@@ -627,11 +627,12 @@ pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, u32 *invert)
 	const __be32 *val;
 	int size;
 
+	*gpio_base = -1;
+
 	node = client->dev.of_node;
 	if (node == NULL)
 		return;
 
-	*gpio_base = -1;
 	val = of_get_property(node, "linux,gpio-base", &size);
 	WARN(val, "%s: device-tree property 'linux,gpio-base' is deprecated!", __func__);
 	if (val) {
