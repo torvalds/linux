@@ -548,7 +548,7 @@ int cgroup_taskset_size(struct cgroup_taskset *tset);
 	     (task) = cgroup_taskset_next((tset)))			\
 		if (!(skip_css) ||					\
 		    cgroup_taskset_cur_css((tset),			\
-			(skip_css)->ss->subsys_id) != (skip_css))
+			(skip_css)->ss->id) != (skip_css))
 
 /*
  * Control Group subsystem type.
@@ -592,7 +592,7 @@ struct cgroup_subsys {
 	bool warned_broken_hierarchy;
 
 	/* the following two fields are initialized automtically during boot */
-	int subsys_id;
+	int id;
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
