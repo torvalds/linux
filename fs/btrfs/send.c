@@ -5104,6 +5104,7 @@ out:
 static int full_send_tree(struct send_ctx *sctx)
 {
 	int ret;
+	struct btrfs_trans_handle *trans = NULL;
 	struct btrfs_root *send_root = sctx->send_root;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
@@ -5124,6 +5125,19 @@ static int full_send_tree(struct send_ctx *sctx)
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
+
+join_trans:
+	/*
+	 * We need to make sure the transaction does not get committed
+	 * while we do anything on commit roots. Join a transaction to prevent
+	 * this.
+	 */
+	trans = btrfs_join_transaction(send_root);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		trans = NULL;
+		goto out;
+	}
 
 	/*
 	 * Make sure the tree has not changed after re-joining. We detect this
@@ -5148,6 +5162,19 @@ static int full_send_tree(struct send_ctx *sctx)
 		goto out_finish;
 
 	while (1) {
+		/*
+		 * When someone want to commit while we iterate, end the
+		 * joined transaction and rejoin.
+		 */
+		if (btrfs_should_end_transaction(trans, send_root)) {
+			ret = btrfs_end_transaction(trans, send_root);
+			trans = NULL;
+			if (ret < 0)
+				goto out;
+			btrfs_release_path(path);
+			goto join_trans;
+		}
+
 		eb = path->nodes[0];
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(eb, &found_key, slot);
@@ -5175,6 +5202,12 @@ out_finish:
 
 out:
 	btrfs_free_path(path);
+	if (trans) {
+		if (!ret)
+			ret = btrfs_end_transaction(trans, send_root);
+		else
+			btrfs_end_transaction(trans, send_root);
+	}
 	return ret;
 }
 
