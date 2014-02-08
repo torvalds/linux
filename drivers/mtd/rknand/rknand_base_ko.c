@@ -213,7 +213,7 @@ static int rknand_read(struct mtd_info *mtd, loff_t from, size_t len,
 #ifdef RKNAND_TRAC_EN
     //trac_log(LBA,sector,0);
 #endif
-	printk("R %d %d \n",(int)LBA,sector);
+	//printk("R %d %d \n",(int)LBA,sector);
 	//if(rknand_debug)
     //   printk("rk28xxnand_read: from=%x,sector=%x,\n",(int)LBA,sector);
     if(sector && gpNandInfo->ftl_read)
@@ -234,7 +234,7 @@ static int rknand_write(struct mtd_info *mtd, loff_t from, size_t len,
 #ifdef RKNAND_TRAC_EN
     trac_log(LBA,sector,1);
 #endif
-	printk("W %d %d \n",(int)LBA,sector);
+	//printk("W %d %d \n",(int)LBA,sector);
     //return 0;
 	//printk("*");
 	//if(rknand_debug)
