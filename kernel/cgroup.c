@@ -1494,10 +1494,10 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		mutex_lock(&inode->i_mutex);
 		mutex_lock(&cgroup_mutex);
 
-		root_cgrp->id = idr_alloc(&root->cgroup_idr, root_cgrp,
-					   0, 1, GFP_KERNEL);
-		if (root_cgrp->id < 0)
+		ret = idr_alloc(&root->cgroup_idr, root_cgrp, 0, 1, GFP_KERNEL);
+		if (ret < 0)
 			goto unlock_drop;
+		root_cgrp->id = ret;
 
 		/* Check for name clashes with existing mounts */
 		ret = -EBUSY;
@@ -2687,10 +2687,7 @@ static int cgroup_cfts_commit(struct cftype *cfts, bool is_add)
 	 */
 	update_before = cgroup_serial_nr_next;
 
-	mutex_unlock(&cgroup_mutex);
-
 	/* add/rm files for all cgroups created before */
-	rcu_read_lock();
 	css_for_each_descendant_pre(css, cgroup_css(root, ss)) {
 		struct cgroup *cgrp = css->cgroup;
 
@@ -2699,23 +2696,19 @@ static int cgroup_cfts_commit(struct cftype *cfts, bool is_add)
 
 		inode = cgrp->dentry->d_inode;
 		dget(cgrp->dentry);
-		rcu_read_unlock();
-
 		dput(prev);
 		prev = cgrp->dentry;
 
+		mutex_unlock(&cgroup_mutex);
 		mutex_lock(&inode->i_mutex);
 		mutex_lock(&cgroup_mutex);
 		if (cgrp->serial_nr < update_before && !cgroup_is_dead(cgrp))
 			ret = cgroup_addrm_files(cgrp, cfts, is_add);
-		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&inode->i_mutex);
-
-		rcu_read_lock();
 		if (ret)
 			break;
 	}
-	rcu_read_unlock();
+	mutex_unlock(&cgroup_mutex);
 	dput(prev);
 	deactivate_super(sb);
 	return ret;
@@ -4082,7 +4075,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	struct cgroup *cgrp;
 	struct cgroup_name *name;
 	struct cgroupfs_root *root = parent->root;
-	int ssid, err = 0;
+	int ssid, err;
 	struct cgroup_subsys *ss;
 	struct super_block *sb = root->sb;
 
@@ -4092,8 +4085,10 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		return -ENOMEM;
 
 	name = cgroup_alloc_name(dentry);
-	if (!name)
+	if (!name) {
+		err = -ENOMEM;
 		goto err_free_cgrp;
+	}
 	rcu_assign_pointer(cgrp->name, name);
 
 	/*
@@ -4101,8 +4096,10 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	 * a half-baked cgroup.
 	 */
 	cgrp->id = idr_alloc(&root->cgroup_idr, NULL, 1, 0, GFP_KERNEL);
-	if (cgrp->id < 0)
+	if (cgrp->id < 0) {
+		err = -ENOMEM;
 		goto err_free_name;
+	}
 
 	/*
 	 * Only live parents can have children.  Note that the liveliness
@@ -4589,12 +4586,16 @@ static int __init cgroup_wq_init(void)
 	/*
 	 * There isn't much point in executing destruction path in
 	 * parallel.  Good chunk is serialized with cgroup_mutex anyway.
-	 * Use 1 for @max_active.
+	 *
+	 * XXX: Must be ordered to make sure parent is offlined after
+	 * children.  The ordering requirement is for memcg where a
+	 * parent's offline may wait for a child's leading to deadlock.  In
+	 * the long term, this should be fixed from memcg side.
 	 *
 	 * We would prefer to do this in cgroup_init() above, but that
 	 * is called before init_workqueues(): so leave this until after.
 	 */
-	cgroup_destroy_wq = alloc_workqueue("cgroup_destroy", 0, 1);
+	cgroup_destroy_wq = alloc_ordered_workqueue("cgroup_destroy", 0);
 	BUG_ON(!cgroup_destroy_wq);
 
 	/*
