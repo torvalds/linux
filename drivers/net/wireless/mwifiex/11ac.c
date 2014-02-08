@@ -126,9 +126,10 @@ mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
 		mcs_user = GET_VHTNSSMCS(mcs_map_user, nss);
 		mcs_resp = GET_VHTNSSMCS(mcs_map_resp, nss);
 
-		if ((mcs_user == NO_NSS_SUPPORT) ||
-		    (mcs_resp == NO_NSS_SUPPORT))
-			SET_VHTNSSMCS(mcs_map_result, nss, NO_NSS_SUPPORT);
+		if ((mcs_user == IEEE80211_VHT_MCS_NOT_SUPPORTED) ||
+		    (mcs_resp == IEEE80211_VHT_MCS_NOT_SUPPORTED))
+			SET_VHTNSSMCS(mcs_map_result, nss,
+				      IEEE80211_VHT_MCS_NOT_SUPPORTED);
 		else
 			SET_VHTNSSMCS(mcs_map_result, nss,
 				      min(mcs_user, mcs_resp));
@@ -147,9 +148,10 @@ mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
 	for (nss = 1; nss <= 8; nss++) {
 		mcs_user = GET_VHTNSSMCS(mcs_map_user, nss);
 		mcs_resp = GET_VHTNSSMCS(mcs_map_resp, nss);
-		if ((mcs_user == NO_NSS_SUPPORT) ||
-		    (mcs_resp == NO_NSS_SUPPORT))
-			SET_VHTNSSMCS(mcs_map_result, nss, NO_NSS_SUPPORT);
+		if ((mcs_user == IEEE80211_VHT_MCS_NOT_SUPPORTED) ||
+		    (mcs_resp == IEEE80211_VHT_MCS_NOT_SUPPORTED))
+			SET_VHTNSSMCS(mcs_map_result, nss,
+				      IEEE80211_VHT_MCS_NOT_SUPPORTED);
 		else
 			SET_VHTNSSMCS(mcs_map_result, nss,
 				      min(mcs_user, mcs_resp));
