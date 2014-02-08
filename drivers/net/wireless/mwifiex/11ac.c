@@ -96,21 +96,21 @@ mwifiex_convert_mcsmap_to_maxrate(struct mwifiex_private *priv,
 
 static void
 mwifiex_fill_vht_cap_info(struct mwifiex_private *priv,
-			  struct mwifiex_ie_types_vhtcap *vht_cap, u8 bands)
+			  struct ieee80211_vht_cap *vht_cap, u8 bands)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (bands & BAND_A)
-		vht_cap->vht_cap.vht_cap_info =
+		vht_cap->vht_cap_info =
 				cpu_to_le32(adapter->usr_dot_11ac_dev_cap_a);
 	else
-		vht_cap->vht_cap.vht_cap_info =
+		vht_cap->vht_cap_info =
 				cpu_to_le32(adapter->usr_dot_11ac_dev_cap_bg);
 }
 
 static void
 mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
-			 struct mwifiex_ie_types_vhtcap *vht_cap, u8 bands)
+			 struct ieee80211_vht_cap *vht_cap, u8 bands)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	u16 mcs_map_user, mcs_map_resp, mcs_map_result;
@@ -121,7 +121,7 @@ mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
 
 	/* rx MCS Set: find the minimum of the user rx mcs and ap rx mcs */
 	mcs_map_user = GET_DEVRXMCSMAP(adapter->usr_dot_11ac_mcs_support);
-	mcs_map_resp = le16_to_cpu(vht_cap->vht_cap.supp_mcs.rx_mcs_map);
+	mcs_map_resp = le16_to_cpu(vht_cap->supp_mcs.rx_mcs_map);
 	mcs_map_result = 0;
 
 	for (nss = 1; nss <= 8; nss++) {
@@ -137,14 +137,14 @@ mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
 				      min(mcs_user, mcs_resp));
 	}
 
-	vht_cap->vht_cap.supp_mcs.rx_mcs_map = cpu_to_le16(mcs_map_result);
+	vht_cap->supp_mcs.rx_mcs_map = cpu_to_le16(mcs_map_result);
 
 	tmp = mwifiex_convert_mcsmap_to_maxrate(priv, bands, mcs_map_result);
-	vht_cap->vht_cap.supp_mcs.rx_highest = cpu_to_le16(tmp);
+	vht_cap->supp_mcs.rx_highest = cpu_to_le16(tmp);
 
 	/* tx MCS Set: find the minimum of the user tx mcs and ap tx mcs */
 	mcs_map_user = GET_DEVTXMCSMAP(adapter->usr_dot_11ac_mcs_support);
-	mcs_map_resp = le16_to_cpu(vht_cap->vht_cap.supp_mcs.tx_mcs_map);
+	mcs_map_resp = le16_to_cpu(vht_cap->supp_mcs.tx_mcs_map);
 	mcs_map_result = 0;
 
 	for (nss = 1; nss <= 8; nss++) {
@@ -159,10 +159,10 @@ mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
 				      min(mcs_user, mcs_resp));
 	}
 
-	vht_cap->vht_cap.supp_mcs.tx_mcs_map = cpu_to_le16(mcs_map_result);
+	vht_cap->supp_mcs.tx_mcs_map = cpu_to_le16(mcs_map_result);
 
 	tmp = mwifiex_convert_mcsmap_to_maxrate(priv, bands, mcs_map_result);
-	vht_cap->vht_cap.supp_mcs.tx_highest = cpu_to_le16(tmp);
+	vht_cap->supp_mcs.tx_highest = cpu_to_le16(tmp);
 
 	return;
 }
@@ -197,7 +197,8 @@ int mwifiex_cmd_append_11ac_tlv(struct mwifiex_private *priv,
 		       sizeof(struct ieee_types_header),
 		       le16_to_cpu(vht_cap->header.len));
 
-		mwifiex_fill_vht_cap_tlv(priv, vht_cap, bss_desc->bss_band);
+		mwifiex_fill_vht_cap_tlv(priv, &vht_cap->vht_cap,
+					 bss_desc->bss_band);
 		*buffer += sizeof(*vht_cap);
 		ret_len += sizeof(*vht_cap);
 	}
