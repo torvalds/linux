@@ -262,18 +262,19 @@ static struct btrfs_work *get_next_work(struct btrfs_worker_thread *worker,
 	struct btrfs_work *work = NULL;
 	struct list_head *cur = NULL;
 
-	if (!list_empty(prio_head))
+	if (!list_empty(prio_head)) {
 		cur = prio_head->next;
+		goto out;
+	}
 
 	smp_mb();
 	if (!list_empty(&worker->prio_pending))
 		goto refill;
 
-	if (!list_empty(head))
+	if (!list_empty(head)) {
 		cur = head->next;
-
-	if (cur)
 		goto out;
+	}
 
 refill:
 	spin_lock_irq(&worker->lock);
