@@ -115,6 +115,8 @@ ACPI_HW_DEPENDENT_RETURN_VOID(void
 						   char *block_arg))
 ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_db_generate_sci(void))
 
+void acpi_db_execute_test(char *type_arg);
+
 /*
  * dbconvert - miscellaneous conversion routines
  */
