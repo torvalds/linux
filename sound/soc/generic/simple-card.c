@@ -150,6 +150,14 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	priv->daifmt = snd_soc_of_parse_daifmt(node, "simple-audio-card,") &
 		(SND_SOC_DAIFMT_FORMAT_MASK | SND_SOC_DAIFMT_INV_MASK);
 
+	/* off-codec widgets */
+	if (of_property_read_bool(node, "simple-audio-card,widgets")) {
+		ret = snd_soc_of_parse_audio_simple_widgets(&priv->snd_card,
+					"simple-audio-card,widgets");
+		if (ret)
+			return ret;
+	}
+
 	/* DAPM routes */
 	if (of_property_read_bool(node, "simple-audio-card,routing")) {
 		ret = snd_soc_of_parse_audio_routing(&priv->snd_card,
