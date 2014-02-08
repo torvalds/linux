@@ -532,8 +532,228 @@ mwifiex_set_keyparamset_wep(struct mwifiex_private *priv,
 	return 0;
 }
 
+/* This function populates key material v2 command
+ * to set network key for AES & CMAC AES.
+ */
+static int mwifiex_set_aes_key_v2(struct mwifiex_private *priv,
+				  struct host_cmd_ds_command *cmd,
+				  struct mwifiex_ds_encrypt_key *enc_key,
+				  struct host_cmd_ds_802_11_key_material_v2 *km)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	u16 size, len = KEY_PARAMS_FIXED_LEN;
+
+	if (enc_key->is_igtk_key) {
+		dev_dbg(adapter->dev, "%s: Set CMAC AES Key\n", __func__);
+		if (enc_key->is_rx_seq_valid)
+			memcpy(km->key_param_set.key_params.cmac_aes.ipn,
+			       enc_key->pn, enc_key->pn_len);
+		km->key_param_set.key_info &= cpu_to_le16(~KEY_MCAST);
+		km->key_param_set.key_info |= cpu_to_le16(KEY_IGTK);
+		km->key_param_set.key_type = KEY_TYPE_ID_AES_CMAC;
+		km->key_param_set.key_params.cmac_aes.key_len =
+					  cpu_to_le16(enc_key->key_len);
+		memcpy(km->key_param_set.key_params.cmac_aes.key,
+		       enc_key->key_material, enc_key->key_len);
+		len += sizeof(struct mwifiex_cmac_aes_param);
+	} else {
+		dev_dbg(adapter->dev, "%s: Set AES Key\n", __func__);
+		if (enc_key->is_rx_seq_valid)
+			memcpy(km->key_param_set.key_params.aes.pn,
+			       enc_key->pn, enc_key->pn_len);
+		km->key_param_set.key_type = KEY_TYPE_ID_AES;
+		km->key_param_set.key_params.aes.key_len =
+					  cpu_to_le16(enc_key->key_len);
+		memcpy(km->key_param_set.key_params.aes.key,
+		       enc_key->key_material, enc_key->key_len);
+		len += sizeof(struct mwifiex_aes_param);
+	}
+
+	km->key_param_set.len = cpu_to_le16(len);
+	size = len + sizeof(struct mwifiex_ie_types_header) +
+	       sizeof(km->action) + S_DS_GEN;
+	cmd->size = cpu_to_le16(size);
+
+	return 0;
+}
+
+/* This function prepares command to set/get/reset network key(s).
+ * This function prepares key material command for V2 format.
+ * Preparation includes -
+ *      - Setting command ID, action and proper size
+ *      - Setting WEP keys, WAPI keys or WPA keys along with required
+ *        encryption (TKIP, AES) (as required)
+ *      - Ensuring correct endian-ness
+ */
+static int
+mwifiex_cmd_802_11_key_material_v2(struct mwifiex_private *priv,
+				   struct host_cmd_ds_command *cmd,
+				   u16 cmd_action, u32 cmd_oid,
+				   struct mwifiex_ds_encrypt_key *enc_key)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	u8 *mac = enc_key->mac_addr;
+	u16 key_info, len = KEY_PARAMS_FIXED_LEN;
+	struct host_cmd_ds_802_11_key_material_v2 *km =
+						&cmd->params.key_material_v2;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_KEY_MATERIAL);
+	km->action = cpu_to_le16(cmd_action);
+
+	if (cmd_action == HostCmd_ACT_GEN_GET) {
+		dev_dbg(adapter->dev, "%s: Get key\n", __func__);
+		km->key_param_set.key_idx =
+					enc_key->key_index & KEY_INDEX_MASK;
+		km->key_param_set.type = cpu_to_le16(TLV_TYPE_KEY_PARAM_V2);
+		km->key_param_set.len = cpu_to_le16(KEY_PARAMS_FIXED_LEN);
+		memcpy(km->key_param_set.mac_addr, mac, ETH_ALEN);
+
+		if (enc_key->key_index & MWIFIEX_KEY_INDEX_UNICAST)
+			key_info = KEY_UNICAST;
+		else
+			key_info = KEY_MCAST;
+
+		if (enc_key->is_igtk_key)
+			key_info |= KEY_IGTK;
+
+		km->key_param_set.key_info = cpu_to_le16(key_info);
+
+		cmd->size = cpu_to_le16(sizeof(struct mwifiex_ie_types_header) +
+					S_DS_GEN + KEY_PARAMS_FIXED_LEN +
+					sizeof(km->action));
+		return 0;
+	}
+
+	memset(&km->key_param_set, 0,
+	       sizeof(struct mwifiex_ie_type_key_param_set_v2));
+
+	if (enc_key->key_disable) {
+		dev_dbg(adapter->dev, "%s: Remove key\n", __func__);
+		km->action = cpu_to_le16(HostCmd_ACT_GEN_REMOVE);
+		km->key_param_set.type = cpu_to_le16(TLV_TYPE_KEY_PARAM_V2);
+		km->key_param_set.len = cpu_to_le16(KEY_PARAMS_FIXED_LEN);
+		km->key_param_set.key_idx = enc_key->key_index & KEY_INDEX_MASK;
+		key_info = KEY_MCAST | KEY_UNICAST;
+		km->key_param_set.key_info = cpu_to_le16(key_info);
+		memcpy(km->key_param_set.mac_addr, mac, ETH_ALEN);
+		cmd->size = cpu_to_le16(sizeof(struct mwifiex_ie_types_header) +
+					S_DS_GEN + KEY_PARAMS_FIXED_LEN +
+					sizeof(km->action));
+		return 0;
+	}
+
+	km->action = cpu_to_le16(HostCmd_ACT_GEN_SET);
+	km->key_param_set.key_idx = enc_key->key_index & KEY_INDEX_MASK;
+	km->key_param_set.type = cpu_to_le16(TLV_TYPE_KEY_PARAM_V2);
+	key_info = KEY_ENABLED;
+	memcpy(km->key_param_set.mac_addr, mac, ETH_ALEN);
+
+	if (enc_key->key_len <= WLAN_KEY_LEN_WEP104) {
+		dev_dbg(adapter->dev, "%s: Set WEP Key\n", __func__);
+		len += sizeof(struct mwifiex_wep_param);
+		km->key_param_set.len = cpu_to_le16(len);
+		km->key_param_set.key_type = KEY_TYPE_ID_WEP;
+
+		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+				key_info |= KEY_MCAST | KEY_UNICAST;
+		} else {
+			if (enc_key->is_current_wep_key) {
+				key_info |= KEY_MCAST | KEY_UNICAST;
+				if (km->key_param_set.key_idx ==
+				    (priv->wep_key_curr_index & KEY_INDEX_MASK))
+					key_info |= KEY_DEFAULT;
+			} else {
+				if (mac) {
+					if (is_broadcast_ether_addr(mac))
+						key_info |= KEY_MCAST;
+					else
+						key_info |= KEY_UNICAST |
+							    KEY_DEFAULT;
+				} else {
+					key_info |= KEY_MCAST;
+				}
+			}
+		}
+		km->key_param_set.key_info = cpu_to_le16(key_info);
+
+		km->key_param_set.key_params.wep.key_len =
+						  cpu_to_le16(enc_key->key_len);
+		memcpy(km->key_param_set.key_params.wep.key,
+		       enc_key->key_material, enc_key->key_len);
+
+		cmd->size = cpu_to_le16(sizeof(struct mwifiex_ie_types_header) +
+					len + sizeof(km->action) + S_DS_GEN);
+		return 0;
+	}
+
+	if (is_broadcast_ether_addr(mac))
+		key_info |= KEY_MCAST | KEY_RX_KEY;
+	else
+		key_info |= KEY_UNICAST | KEY_TX_KEY | KEY_RX_KEY;
+
+	if (enc_key->is_wapi_key) {
+		dev_dbg(adapter->dev, "%s: Set WAPI Key\n", __func__);
+		km->key_param_set.key_type = KEY_TYPE_ID_WAPI;
+		memcpy(km->key_param_set.key_params.wapi.pn, enc_key->pn,
+		       PN_LEN);
+		km->key_param_set.key_params.wapi.key_len =
+						cpu_to_le16(enc_key->key_len);
+		memcpy(km->key_param_set.key_params.wapi.key,
+		       enc_key->key_material, enc_key->key_len);
+		if (is_broadcast_ether_addr(mac))
+			priv->sec_info.wapi_key_on = true;
+
+		if (!priv->sec_info.wapi_key_on)
+			key_info |= KEY_DEFAULT;
+		km->key_param_set.key_info = cpu_to_le16(key_info);
+
+		len += sizeof(struct mwifiex_wapi_param);
+		km->key_param_set.len = cpu_to_le16(len);
+		cmd->size = cpu_to_le16(sizeof(struct mwifiex_ie_types_header) +
+					len + sizeof(km->action) + S_DS_GEN);
+		return 0;
+	}
+
+	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
+		key_info |= KEY_DEFAULT;
+		/* Enable unicast bit for WPA-NONE/ADHOC_AES */
+		if (!priv->sec_info.wpa2_enabled &&
+		    !is_broadcast_ether_addr(mac))
+			key_info |= KEY_UNICAST;
+	} else {
+		/* Enable default key for WPA/WPA2 */
+		if (!priv->wpa_is_gtk_set)
+			key_info |= KEY_DEFAULT;
+	}
+
+	km->key_param_set.key_info = cpu_to_le16(key_info);
+
+	if (enc_key->key_len == WLAN_KEY_LEN_CCMP)
+		return mwifiex_set_aes_key_v2(priv, cmd, enc_key, km);
+
+	if (enc_key->key_len == WLAN_KEY_LEN_TKIP) {
+		dev_dbg(adapter->dev, "%s: Set TKIP Key\n", __func__);
+		if (enc_key->is_rx_seq_valid)
+			memcpy(km->key_param_set.key_params.tkip.pn,
+			       enc_key->pn, enc_key->pn_len);
+		km->key_param_set.key_type = KEY_TYPE_ID_TKIP;
+		km->key_param_set.key_params.tkip.key_len =
+						cpu_to_le16(enc_key->key_len);
+		memcpy(km->key_param_set.key_params.tkip.key,
+		       enc_key->key_material, enc_key->key_len);
+
+		len += sizeof(struct mwifiex_tkip_param);
+		km->key_param_set.len = cpu_to_le16(len);
+		cmd->size = cpu_to_le16(sizeof(struct mwifiex_ie_types_header) +
+					len + sizeof(km->action) + S_DS_GEN);
+	}
+
+	return 0;
+}
+
 /*
  * This function prepares command to set/get/reset network key(s).
+ * This function prepares key material command for V1 format.
  *
  * Preparation includes -
  *      - Setting command ID, action and proper size
@@ -542,10 +762,10 @@ mwifiex_set_keyparamset_wep(struct mwifiex_private *priv,
  *      - Ensuring correct endian-ness
  */
 static int
-mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *cmd,
-				u16 cmd_action, u32 cmd_oid,
-				struct mwifiex_ds_encrypt_key *enc_key)
+mwifiex_cmd_802_11_key_material_v1(struct mwifiex_private *priv,
+				   struct host_cmd_ds_command *cmd,
+				   u16 cmd_action, u32 cmd_oid,
+				   struct mwifiex_ds_encrypt_key *enc_key)
 {
 	struct host_cmd_ds_802_11_key_material *key_material =
 		&cmd->params.key_material;
@@ -722,6 +942,24 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 	}
 
 	return ret;
+}
+
+/* Wrapper function for setting network key depending upon FW KEY API version */
+static int
+mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
+				struct host_cmd_ds_command *cmd,
+				u16 cmd_action, u32 cmd_oid,
+				struct mwifiex_ds_encrypt_key *enc_key)
+{
+	if (priv->adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+		return mwifiex_cmd_802_11_key_material_v2(priv, cmd,
+							  cmd_action, cmd_oid,
+							  enc_key);
+
+	else
+		return mwifiex_cmd_802_11_key_material_v1(priv, cmd,
+							  cmd_action, cmd_oid,
+							  enc_key);
 }
 
 /*

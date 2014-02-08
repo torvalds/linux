@@ -562,13 +562,13 @@ static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of set/get key material.
+ * This function handles the command response of set/get v1 key material.
  *
  * Handling includes updating the driver parameters to reflect the
  * changes.
  */
-static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
-					   struct host_cmd_ds_command *resp)
+static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
+					      struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_key_material *key =
 						&resp->params.key_material;
@@ -588,6 +588,51 @@ static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 	       le16_to_cpu(priv->aes_key.key_param_set.key_len));
 
 	return 0;
+}
+
+/*
+ * This function handles the command response of set/get v2 key material.
+ *
+ * Handling includes updating the driver parameters to reflect the
+ * changes.
+ */
+static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
+					      struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_802_11_key_material_v2 *key_v2;
+	__le16 len;
+
+	key_v2 = &resp->params.key_material_v2;
+	if (le16_to_cpu(key_v2->action) == HostCmd_ACT_GEN_SET) {
+		if ((le16_to_cpu(key_v2->key_param_set.key_info) & KEY_MCAST)) {
+			dev_dbg(priv->adapter->dev, "info: key: GTK is set\n");
+			priv->wpa_is_gtk_set = true;
+			priv->scan_block = false;
+		}
+	}
+
+	if (key_v2->key_param_set.key_type != KEY_TYPE_ID_AES)
+		return 0;
+
+	memset(priv->aes_key_v2.key_param_set.key_params.aes.key, 0,
+	       WLAN_KEY_LEN_CCMP);
+	priv->aes_key_v2.key_param_set.key_params.aes.key_len =
+				key_v2->key_param_set.key_params.aes.key_len;
+	len = priv->aes_key_v2.key_param_set.key_params.aes.key_len;
+	memcpy(priv->aes_key_v2.key_param_set.key_params.aes.key,
+	       key_v2->key_param_set.key_params.aes.key, le16_to_cpu(len));
+
+	return 0;
+}
+
+/* Wrapper function for processing response of key material command */
+static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
+					   struct host_cmd_ds_command *resp)
+{
+	if (priv->adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+		return mwifiex_ret_802_11_key_material_v2(priv, resp);
+	else
+		return mwifiex_ret_802_11_key_material_v1(priv, resp);
 }
 
 /*

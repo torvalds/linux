@@ -469,6 +469,7 @@ struct mwifiex_private {
 	u8 wpa_ie_len;
 	u8 wpa_is_gtk_set;
 	struct host_cmd_ds_802_11_key_material aes_key;
+	struct host_cmd_ds_802_11_key_material_v2 aes_key_v2;
 	u8 wapi_ie[256];
 	u8 wapi_ie_len;
 	u8 *wps_ie;

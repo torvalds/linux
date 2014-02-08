@@ -79,12 +79,21 @@ enum KEY_TYPE_ID {
 	KEY_TYPE_ID_WAPI,
 	KEY_TYPE_ID_AES_CMAC,
 };
+
+#define WPA_PN_SIZE		8
+#define KEY_PARAMS_FIXED_LEN	10
+#define KEY_INDEX_MASK		0xf
+#define FW_KEY_API_VER_MAJOR_V2	2
+
 #define KEY_MCAST	BIT(0)
 #define KEY_UNICAST	BIT(1)
 #define KEY_ENABLED	BIT(2)
+#define KEY_DEFAULT	BIT(3)
+#define KEY_TX_KEY	BIT(4)
+#define KEY_RX_KEY	BIT(5)
 #define KEY_IGTK	BIT(10)
 
-#define WAPI_KEY_LEN			50
+#define WAPI_KEY_LEN			(WLAN_KEY_LEN_SMS4 + PN_LEN + 2)
 
 #define MAX_POLL_TRIES			100
 #define MAX_FIRMWARE_POLL_TRIES			100
@@ -159,6 +168,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_PWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 145)
 #define TLV_TYPE_GWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 146)
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
+#define TLV_TYPE_KEY_PARAM_V2       (PROPRIETARY_TLV_BASE_ID + 156)
 #define TLV_TYPE_FW_API_REV         (PROPRIETARY_TLV_BASE_ID + 199)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
@@ -699,6 +709,56 @@ struct mwifiex_ie_type_key_param_set {
 struct mwifiex_cmac_param {
 	u8 ipn[IGTK_PN_LEN];
 	u8 key[WLAN_KEY_LEN_AES_CMAC];
+} __packed;
+
+struct mwifiex_wep_param {
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_WEP104];
+} __packed;
+
+struct mwifiex_tkip_param {
+	u8 pn[WPA_PN_SIZE];
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_TKIP];
+} __packed;
+
+struct mwifiex_aes_param {
+	u8 pn[WPA_PN_SIZE];
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_CCMP];
+} __packed;
+
+struct mwifiex_wapi_param {
+	u8 pn[PN_LEN];
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_SMS4];
+} __packed;
+
+struct mwifiex_cmac_aes_param {
+	u8 ipn[IGTK_PN_LEN];
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_AES_CMAC];
+} __packed;
+
+struct mwifiex_ie_type_key_param_set_v2 {
+	__le16 type;
+	__le16 len;
+	u8 mac_addr[ETH_ALEN];
+	u8 key_idx;
+	u8 key_type;
+	__le16 key_info;
+	union {
+		struct mwifiex_wep_param wep;
+		struct mwifiex_tkip_param tkip;
+		struct mwifiex_aes_param aes;
+		struct mwifiex_wapi_param wapi;
+		struct mwifiex_cmac_aes_param cmac_aes;
+	} key_params;
+} __packed;
+
+struct host_cmd_ds_802_11_key_material_v2 {
+	__le16 action;
+	struct mwifiex_ie_type_key_param_set_v2 key_param_set;
 } __packed;
 
 struct host_cmd_ds_802_11_key_material {
@@ -1742,6 +1802,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_11n_cfg htcfg;
 		struct host_cmd_ds_wmm_get_status get_wmm_status;
 		struct host_cmd_ds_802_11_key_material key_material;
+		struct host_cmd_ds_802_11_key_material_v2 key_material_v2;
 		struct host_cmd_ds_version_ext verext;
 		struct host_cmd_ds_mgmt_frame_reg reg_mask;
 		struct host_cmd_ds_remain_on_chan roc_cfg;
