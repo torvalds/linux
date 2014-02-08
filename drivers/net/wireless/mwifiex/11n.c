@@ -537,16 +537,32 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 {
 	struct host_cmd_ds_11n_addba_req add_ba_req;
+	struct mwifiex_sta_node *sta_ptr;
+	u32 tx_win_size = priv->add_ba_param.tx_win_size;
 	static u8 dialog_tok;
 	int ret;
 
 	dev_dbg(priv->adapter->dev, "cmd: %s: tid %d\n", __func__, tid);
 
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
+	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+	    priv->adapter->is_hw_11ac_capable &&
+	    memcmp(priv->cfg_bssid, peer_mac, ETH_ALEN)) {
+		sta_ptr = mwifiex_get_sta_entry(priv, peer_mac);
+		if (!sta_ptr) {
+			dev_warn(priv->adapter->dev,
+				 "BA setup with unknown TDLS peer %pM!\n",
+				peer_mac);
+			return -1;
+		}
+		if (sta_ptr->is_11ac_enabled)
+			tx_win_size = MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE;
+	}
+
 	add_ba_req.block_ack_param_set = cpu_to_le16(
 		(u16) ((tid << BLOCKACKPARAM_TID_POS) |
-			 (priv->add_ba_param.
-			  tx_win_size << BLOCKACKPARAM_WINSIZE_POS) |
-			 IMMEDIATE_BLOCK_ACK));
+		       tx_win_size << BLOCKACKPARAM_WINSIZE_POS |
+		       IMMEDIATE_BLOCK_ACK));
 	add_ba_req.block_ack_tmo = cpu_to_le16((u16)priv->add_ba_param.timeout);
 
 	++dialog_tok;
