@@ -438,7 +438,6 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 			break;
 		case BAND_G:
 		case BAND_G | BAND_GN:
-		case BAND_G | BAND_GN | BAND_GAC:
 			dev_dbg(adapter->dev, "info: infra band=%d "
 				"supported_rates_g\n", adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_g,
@@ -449,10 +448,7 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 		case BAND_A | BAND_B:
 		case BAND_A | BAND_B | BAND_G | BAND_GN | BAND_AN:
 		case BAND_A | BAND_B | BAND_G | BAND_GN | BAND_AN | BAND_AAC:
-		case BAND_A | BAND_B | BAND_G | BAND_GN | BAND_AN |
-		     BAND_AAC | BAND_GAC:
 		case BAND_B | BAND_G | BAND_GN:
-		case BAND_B | BAND_G | BAND_GN | BAND_GAC:
 			dev_dbg(adapter->dev, "info: infra band=%d "
 				"supported_rates_bg\n", adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_bg,
@@ -476,7 +472,6 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 					       sizeof(supported_rates_a));
 			break;
 		case BAND_GN:
-		case BAND_GN | BAND_GAC:
 			dev_dbg(adapter->dev, "info: infra band=%d "
 				"supported_rates_n\n", adapter->config_bands);
 			k = mwifiex_copy_rates(rates, k, supported_rates_n,

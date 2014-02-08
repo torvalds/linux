@@ -1416,9 +1416,6 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 		if (params->chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
 			config_bands |= BAND_GN;
-
-		if (params->chandef.width > NL80211_CHAN_WIDTH_40)
-			config_bands |= BAND_GAC;
 	} else {
 		bss_cfg->band_cfg = BAND_CONFIG_A;
 		config_bands = BAND_A;

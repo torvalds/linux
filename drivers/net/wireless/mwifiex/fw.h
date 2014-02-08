@@ -50,21 +50,23 @@ struct tx_packet_hdr {
 #define HOSTCMD_SUPPORTED_RATES         14
 #define N_SUPPORTED_RATES               3
 #define ALL_802_11_BANDS           (BAND_A | BAND_B | BAND_G | BAND_GN | \
-				    BAND_AN | BAND_GAC | BAND_AAC)
+				    BAND_AN | BAND_AAC)
 
 #define FW_MULTI_BANDS_SUPPORT  (BIT(8) | BIT(9) | BIT(10) | BIT(11) | \
-				 BIT(12) | BIT(13))
+				 BIT(13))
 #define IS_SUPPORT_MULTI_BANDS(adapter)        \
 	(adapter->fw_cap_info & FW_MULTI_BANDS_SUPPORT)
 
-/* shift bit 12 and bit 13 in fw_cap_info from the firmware to bit 13 and 14
- * for 11ac so that bit 11 is for GN, bit 12 for AN, bit 13 for GAC, and bit
- * bit 14 for AAC, in order to be compatible with the band capability
- * defined in the driver after right shift of 8 bits.
+/* bit 13: 11ac BAND_AAC
+ * bit 12: reserved for lab testing, will be reused for BAND_AN
+ * bit 11: 11n  BAND_GN
+ * bit 10: 11a  BAND_A
+ * bit 9: 11g   BAND_G
+ * bit 8: 11b   BAND_B
+ * Map these bits to band capability by right shifting 8 bits.
  */
 #define GET_FW_DEFAULT_BANDS(adapter)  \
-	    (((((adapter->fw_cap_info & 0x3000) << 1) | \
-	       (adapter->fw_cap_info & ~0xF000)) >> 8) & \
+	    (((adapter->fw_cap_info & 0x2f00) >> 8) & \
 	     ALL_802_11_BANDS)
 
 #define HostCmd_WEP_KEY_INDEX_MASK              0x3fff
@@ -226,7 +228,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 /* HW_SPEC fw_cap_info */
 
-#define ISSUPP_11ACENABLED(fw_cap_info) (fw_cap_info & (BIT(12)|BIT(13)))
+#define ISSUPP_11ACENABLED(fw_cap_info) (fw_cap_info & BIT(13))
 
 #define GET_VHTCAP_CHWDSET(vht_cap_info)    ((vht_cap_info >> 2) & 0x3)
 #define GET_VHTNSSMCS(mcs_mapset, nss) ((mcs_mapset >> (2 * (nss - 1))) & 0x3)

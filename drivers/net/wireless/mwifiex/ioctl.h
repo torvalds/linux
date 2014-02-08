@@ -60,8 +60,7 @@ enum {
 	BAND_A = 4,
 	BAND_GN = 8,
 	BAND_AN = 16,
-	BAND_GAC = 32,
-	BAND_AAC = 64,
+	BAND_AAC = 32,
 };
 
 #define MWIFIEX_WPA_PASSHPHRASE_LEN 64
