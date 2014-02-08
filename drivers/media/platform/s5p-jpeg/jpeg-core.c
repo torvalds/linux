@@ -1766,6 +1766,9 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 
 	dst_buf->v4l2_buf.timecode = src_buf->v4l2_buf.timecode;
 	dst_buf->v4l2_buf.timestamp = src_buf->v4l2_buf.timestamp;
+	dst_buf->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_buf->v4l2_buf.flags |=
+		src_buf->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	v4l2_m2m_buf_done(src_buf, state);
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)

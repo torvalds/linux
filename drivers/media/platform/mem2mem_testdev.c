@@ -239,6 +239,9 @@ static int device_process(struct m2mtest_ctx *ctx,
 	memcpy(&out_vb->v4l2_buf.timestamp,
 			&in_vb->v4l2_buf.timestamp,
 			sizeof(struct timeval));
+	out_vb->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	out_vb->v4l2_buf.flags |=
+		in_vb->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	switch (ctx->mode) {
 	case MEM2MEM_HFLIP | MEM2MEM_VFLIP:

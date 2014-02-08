@@ -134,6 +134,9 @@ static void fimc_device_run(void *priv)
 		goto dma_unlock;
 
 	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+	dst_vb->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_vb->v4l2_buf.flags |=
+		src_vb->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	/* Reconfigure hardware if the context has changed. */
 	if (fimc->m2m.ctx != ctx) {

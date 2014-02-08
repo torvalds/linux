@@ -560,6 +560,9 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 
 	dst->v4l2_buf.timecode = src->v4l2_buf.timecode;
 	dst->v4l2_buf.timestamp = src->v4l2_buf.timestamp;
+	dst->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst->v4l2_buf.flags |=
+		src->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);

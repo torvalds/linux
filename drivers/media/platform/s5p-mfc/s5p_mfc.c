@@ -232,6 +232,11 @@ static void s5p_mfc_handle_frame_copy_time(struct s5p_mfc_ctx *ctx)
 						src_buf->b->v4l2_buf.timecode;
 			dst_buf->b->v4l2_buf.timestamp =
 						src_buf->b->v4l2_buf.timestamp;
+			dst_buf->b->v4l2_buf.flags &=
+				~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+			dst_buf->b->v4l2_buf.flags |=
+				src_buf->b->v4l2_buf.flags
+				& V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 			switch (frame_type) {
 			case S5P_FIMV_DECODE_FRAME_I_FRAME:
 				dst_buf->b->v4l2_buf.flags |=

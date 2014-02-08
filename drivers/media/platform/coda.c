@@ -2829,6 +2829,9 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	}
 
 	dst_buf->v4l2_buf.timestamp = src_buf->v4l2_buf.timestamp;
+	dst_buf->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_buf->v4l2_buf.flags |=
+		src_buf->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 	dst_buf->v4l2_buf.timecode = src_buf->v4l2_buf.timecode;
 
 	v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
