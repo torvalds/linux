@@ -652,10 +652,7 @@ static void batadv_softif_destroy_finish(struct work_struct *work)
 	}
 
 	batadv_sysfs_del_meshif(soft_iface);
-
-	rtnl_lock();
-	unregister_netdevice(soft_iface);
-	rtnl_unlock();
+	unregister_netdev(soft_iface);
 }
 
 /**
