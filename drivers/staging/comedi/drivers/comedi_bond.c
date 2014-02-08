@@ -254,6 +254,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 			if (!devs) {
 				dev_err(dev->class_dev,
 					"Could not allocate memory. Out of memory?\n");
+				kfree(bdev);
 				return -ENOMEM;
 			}
 			devpriv->devs = devs;
