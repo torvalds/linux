@@ -774,6 +774,9 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 		goto err;
 	}
 
+	/* RTL2832 I2C repeater */
+	priv->demod_i2c_adapter = rtl2832_get_i2c_adapter(adap->fe[0]);
+
 	/* set fe callback */
 	adap->fe[0]->callback = rtl2832u_frontend_callback;
 
@@ -922,6 +925,8 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		break;
 	case TUNER_RTL2832_E4000: {
 			struct v4l2_subdev *sd;
+			struct i2c_adapter *i2c_adap_internal =
+					rtl2832_get_private_i2c_adapter(adap->fe[0]);
 			struct e4000_config e4000_config = {
 				.fe = adap->fe[0],
 				.clock = 28800000,
@@ -932,7 +937,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 			info.platform_data = &e4000_config;
 
 			request_module(info.type);
-			client = i2c_new_device(&d->i2c_adap, &info);
+			client = i2c_new_device(priv->demod_i2c_adapter, &info);
 			if (client == NULL || client->dev.driver == NULL)
 				break;
 
@@ -943,10 +948,11 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 
 			priv->client = client;
 			sd = i2c_get_clientdata(client);
+			i2c_set_adapdata(i2c_adap_internal, d);
 
 			/* attach SDR */
 			dvb_attach(rtl2832_sdr_attach, adap->fe[0],
-					&d->i2c_adap,
+					i2c_adap_internal,
 					&rtl28xxu_rtl2832_e4000_config, sd);
 		}
 		break;
