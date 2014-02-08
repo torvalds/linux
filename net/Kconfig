@@ -239,7 +239,7 @@ config XPS
 	default y
 
 config CGROUP_NET_PRIO
-	tristate "Network priority cgroup"
+	bool "Network priority cgroup"
 	depends on CGROUPS
 	---help---
 	  Cgroup subsystem for use in assigning processes to network priorities on

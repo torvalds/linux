@@ -112,9 +112,3 @@ struct cgroup_subsys net_cls_subsys = {
 	.base_cftypes		= ss_files,
 	.module			= THIS_MODULE,
 };
-
-static int __init init_netclassid_cgroup(void)
-{
-	return cgroup_load_subsys(&net_cls_subsys);
-}
-__initcall(init_netclassid_cgroup);
