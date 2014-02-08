@@ -197,12 +197,10 @@ static void omap1_spi100k_force_cs(struct omap1_spi100k *spi100k, int enable)
 static unsigned
 omap1_spi100k_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct omap1_spi100k    *spi100k;
 	struct omap1_spi100k_cs *cs = spi->controller_state;
 	unsigned int            count, c;
 	int                     word_len;
 
-	spi100k = spi_master_get_devdata(spi->master);
 	count = xfer->len;
 	c = count;
 	word_len = cs->word_len;
