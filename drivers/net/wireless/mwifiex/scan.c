@@ -957,7 +957,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 				cpu_to_le16(sizeof(struct ieee80211_ht_cap));
 		radio_type =
 			mwifiex_band_to_radio_type(priv->adapter->config_bands);
-		mwifiex_fill_cap_info(priv, radio_type, ht_cap);
+		mwifiex_fill_cap_info(priv, radio_type, &ht_cap->ht_cap);
 		tlv_pos += sizeof(struct mwifiex_ie_types_htcap);
 	}
 

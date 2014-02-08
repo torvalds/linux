@@ -34,22 +34,26 @@
  *
  * RD responder bit to set to clear in the extended capability header.
  */
-void
-mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
-		      struct mwifiex_ie_types_htcap *ht_cap)
+int mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
+			  struct ieee80211_ht_cap *ht_cap)
 {
-	uint16_t ht_ext_cap = le16_to_cpu(ht_cap->ht_cap.extended_ht_cap_info);
+	uint16_t ht_ext_cap = le16_to_cpu(ht_cap->extended_ht_cap_info);
 	struct ieee80211_supported_band *sband =
 					priv->wdev->wiphy->bands[radio_type];
 
-	ht_cap->ht_cap.ampdu_params_info =
+	if (WARN_ON_ONCE(!sband)) {
+		dev_err(priv->adapter->dev, "Invalid radio type!\n");
+		return -EINVAL;
+	}
+
+	ht_cap->ampdu_params_info =
 		(sband->ht_cap.ampdu_factor &
 		 IEEE80211_HT_AMPDU_PARM_FACTOR) |
 		((sband->ht_cap.ampdu_density <<
 		 IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT) &
 		 IEEE80211_HT_AMPDU_PARM_DENSITY);
 
-	memcpy((u8 *) &ht_cap->ht_cap.mcs, &sband->ht_cap.mcs,
+	memcpy((u8 *)&ht_cap->mcs, &sband->ht_cap.mcs,
 	       sizeof(sband->ht_cap.mcs));
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
@@ -57,17 +61,18 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 	     (priv->adapter->sec_chan_offset !=
 					IEEE80211_HT_PARAM_CHA_SEC_NONE)))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
-		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
+		SETHT_MCS32(ht_cap->mcs.rx_mask);
 
 	/* Clear RD responder bit */
 	ht_ext_cap &= ~IEEE80211_HT_EXT_CAP_RD_RESPONDER;
 
-	ht_cap->ht_cap.cap_info = cpu_to_le16(sband->ht_cap.cap);
-	ht_cap->ht_cap.extended_ht_cap_info = cpu_to_le16(ht_ext_cap);
+	ht_cap->cap_info = cpu_to_le16(sband->ht_cap.cap);
+	ht_cap->extended_ht_cap_info = cpu_to_le16(ht_ext_cap);
 
 	if (ISSUPP_BEAMFORMING(priv->adapter->hw_dot_11n_dev_cap))
-		ht_cap->ht_cap.tx_BF_cap_info =
-				cpu_to_le32(MWIFIEX_DEF_11N_TX_BF_CAP);
+		ht_cap->tx_BF_cap_info = cpu_to_le32(MWIFIEX_DEF_11N_TX_BF_CAP);
+
+	return 0;
 }
 
 /*
@@ -316,7 +321,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		       sizeof(struct ieee_types_header),
 		       le16_to_cpu(ht_cap->header.len));
 
-		mwifiex_fill_cap_info(priv, radio_type, ht_cap);
+		mwifiex_fill_cap_info(priv, radio_type, &ht_cap->ht_cap);
 
 		*buffer += sizeof(struct mwifiex_ie_types_htcap);
 		ret_len += sizeof(struct mwifiex_ie_types_htcap);
