@@ -1292,6 +1292,8 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 	struct mwifiex_ie_types_htcap *ht_capab;
 	struct mwifiex_ie_types_qos_info *wmm_qos_info;
 	struct mwifiex_ie_types_extcap *extcap;
+	struct mwifiex_ie_types_vhtcap *vht_capab;
+	struct mwifiex_ie_types_aid *aid;
 	u8 *pos, qos_info;
 	u16 config_len = 0;
 	struct station_parameters *params = priv->sta_params;
@@ -1369,6 +1371,24 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 			       params->ext_capab_len);
 			config_len += sizeof(struct mwifiex_ie_types_extcap) +
 				      params->ext_capab_len;
+		}
+		if (params->vht_capa) {
+			vht_capab = (struct mwifiex_ie_types_vhtcap *)(pos +
+								    config_len);
+			vht_capab->header.type =
+					   cpu_to_le16(WLAN_EID_VHT_CAPABILITY);
+			vht_capab->header.len =
+				  cpu_to_le16(sizeof(struct ieee80211_vht_cap));
+			memcpy(&vht_capab->vht_cap, params->vht_capa,
+			       sizeof(struct ieee80211_vht_cap));
+			config_len += sizeof(struct mwifiex_ie_types_vhtcap);
+		}
+		if (params->aid) {
+			aid = (struct mwifiex_ie_types_aid *)(pos + config_len);
+			aid->header.type = cpu_to_le16(WLAN_EID_AID);
+			aid->header.len = cpu_to_le16(sizeof(params->aid));
+			aid->aid = cpu_to_le16(params->aid);
+			config_len += sizeof(struct mwifiex_ie_types_aid);
 		}
 
 		break;

@@ -108,9 +108,8 @@ mwifiex_fill_vht_cap_info(struct mwifiex_private *priv,
 				cpu_to_le32(adapter->usr_dot_11ac_dev_cap_bg);
 }
 
-static void
-mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
-			 struct ieee80211_vht_cap *vht_cap, u8 bands)
+void mwifiex_fill_vht_cap_tlv(struct mwifiex_private *priv,
+			      struct ieee80211_vht_cap *vht_cap, u8 bands)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	u16 mcs_map_user, mcs_map_resp, mcs_map_result;
@@ -304,4 +303,82 @@ void mwifiex_set_11ac_ba_params(struct mwifiex_private *priv)
 	}
 
 	return;
+}
+
+bool mwifiex_is_bss_in_11ac_mode(struct mwifiex_private *priv)
+{
+	struct mwifiex_bssdescriptor *bss_desc;
+	struct ieee80211_vht_operation *vht_oper;
+
+	bss_desc = &priv->curr_bss_params.bss_descriptor;
+	vht_oper = bss_desc->bcn_vht_oper;
+
+	if (!bss_desc->bcn_vht_cap || !vht_oper)
+		return false;
+
+	if (vht_oper->chan_width == IEEE80211_VHT_CHANWIDTH_USE_HT)
+		return false;
+
+	return true;
+}
+
+u8 mwifiex_get_center_freq_index(struct mwifiex_private *priv, u8 band,
+				 u32 pri_chan, u8 chan_bw)
+{
+	u8 center_freq_idx = 0;
+
+	if (band & BAND_AAC) {
+		switch (pri_chan) {
+		case 36:
+		case 40:
+		case 44:
+		case 48:
+			if (chan_bw == IEEE80211_VHT_CHANWIDTH_80MHZ)
+				center_freq_idx = 42;
+			break;
+		case 52:
+		case 56:
+		case 60:
+		case 64:
+			if (chan_bw == IEEE80211_VHT_CHANWIDTH_80MHZ)
+				center_freq_idx = 58;
+			else if (chan_bw == IEEE80211_VHT_CHANWIDTH_160MHZ)
+				center_freq_idx = 50;
+			break;
+		case 100:
+		case 104:
+		case 108:
+		case 112:
+			if (chan_bw == IEEE80211_VHT_CHANWIDTH_80MHZ)
+				center_freq_idx = 106;
+			break;
+		case 116:
+		case 120:
+		case 124:
+		case 128:
+			if (chan_bw == IEEE80211_VHT_CHANWIDTH_80MHZ)
+				center_freq_idx = 122;
+			else if (chan_bw == IEEE80211_VHT_CHANWIDTH_160MHZ)
+				center_freq_idx = 114;
+			break;
+		case 132:
+		case 136:
+		case 140:
+		case 144:
+			if (chan_bw == IEEE80211_VHT_CHANWIDTH_80MHZ)
+				center_freq_idx = 138;
+			break;
+		case 149:
+		case 153:
+		case 157:
+		case 161:
+			if (chan_bw == IEEE80211_VHT_CHANWIDTH_80MHZ)
+				center_freq_idx = 155;
+			break;
+		default:
+			center_freq_idx = 42;
+		}
+	}
+
+	return center_freq_idx;
 }

@@ -1356,6 +1356,11 @@ struct mwifiex_ie_types_vhtcap {
 	struct ieee80211_vht_cap vht_cap;
 } __packed;
 
+struct mwifiex_ie_types_aid {
+	struct mwifiex_ie_types_header header;
+	__le16 aid;
+} __packed;
+
 struct mwifiex_ie_types_oper_mode_ntf {
 	struct mwifiex_ie_types_header header;
 	u8 oper_mode;

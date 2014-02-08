@@ -19,6 +19,7 @@
 #include "wmm.h"
 #include "11n.h"
 #include "11n_rxreorder.h"
+#include "11ac.h"
 
 #define TDLS_REQ_FIX_LEN      6
 #define TDLS_RESP_FIX_LEN     8
@@ -151,7 +152,156 @@ mwifiex_tdls_append_rates_ie(struct mwifiex_private *priv,
 	return 0;
 }
 
-static void mwifiex_tdls_add_ext_capab(struct sk_buff *skb)
+static void mwifiex_tdls_add_aid(struct mwifiex_private *priv,
+				struct sk_buff *skb)
+{
+	struct ieee_types_assoc_rsp *assoc_rsp;
+	u8 *pos;
+
+	assoc_rsp = (struct ieee_types_assoc_rsp *)&priv->assoc_rsp_buf;
+	pos = (void *)skb_put(skb, 4);
+	*pos++ = WLAN_EID_AID;
+	*pos++ = 2;
+	*pos++ = le16_to_cpu(assoc_rsp->a_id);
+
+	return;
+}
+
+static int mwifiex_tdls_add_vht_capab(struct mwifiex_private *priv,
+				      struct sk_buff *skb)
+{
+	struct ieee80211_vht_cap vht_cap;
+	u8 *pos;
+
+	pos = (void *)skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
+	*pos++ = WLAN_EID_VHT_CAPABILITY;
+	*pos++ = sizeof(struct ieee80211_vht_cap);
+
+	memset(&vht_cap, 0, sizeof(struct ieee80211_vht_cap));
+
+	mwifiex_fill_vht_cap_tlv(priv, &vht_cap, priv->curr_bss_params.band);
+	memcpy(pos, &vht_cap, sizeof(struct ieee80211_ht_cap));
+
+	return 0;
+}
+
+static int mwifiex_tdls_add_vht_oper(struct mwifiex_private *priv,
+				     u8 *mac, struct sk_buff *skb)
+{
+	struct mwifiex_bssdescriptor *bss_desc;
+	struct ieee80211_vht_operation *vht_oper;
+	struct ieee80211_vht_cap *vht_cap, *ap_vht_cap = NULL;
+	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	u8 supp_chwd_set, peer_supp_chwd_set;
+	u8 *pos, ap_supp_chwd_set, chan_bw;
+	u16 mcs_map_user, mcs_map_resp, mcs_map_result;
+	u16 mcs_user, mcs_resp, nss;
+	u32 usr_vht_cap_info;
+
+	bss_desc = &priv->curr_bss_params.bss_descriptor;
+
+	sta_ptr = mwifiex_get_sta_entry(priv, mac);
+	if (unlikely(!sta_ptr)) {
+		dev_warn(adapter->dev, "TDLS peer station not found in list\n");
+		return -1;
+	}
+
+	if (!mwifiex_is_bss_in_11ac_mode(priv)) {
+		if (sta_ptr->tdls_cap.extcap.ext_capab[7] &
+		   WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED) {
+			dev_dbg(adapter->dev,
+				"TDLS peer doesn't support wider bandwitdh\n");
+			return 0;
+		}
+	} else {
+		ap_vht_cap = bss_desc->bcn_vht_cap;
+	}
+
+	pos = (void *)skb_put(skb, sizeof(struct ieee80211_vht_operation) + 2);
+	*pos++ = WLAN_EID_VHT_OPERATION;
+	*pos++ = sizeof(struct ieee80211_vht_operation);
+	vht_oper = (struct ieee80211_vht_operation *)pos;
+
+	if (bss_desc->bss_band & BAND_A)
+		usr_vht_cap_info = adapter->usr_dot_11ac_dev_cap_a;
+	else
+		usr_vht_cap_info = adapter->usr_dot_11ac_dev_cap_bg;
+
+	/* find the minmum bandwith between AP/TDLS peers */
+	vht_cap = &sta_ptr->tdls_cap.vhtcap;
+	supp_chwd_set = GET_VHTCAP_CHWDSET(usr_vht_cap_info);
+	peer_supp_chwd_set =
+			 GET_VHTCAP_CHWDSET(le32_to_cpu(vht_cap->vht_cap_info));
+	supp_chwd_set = min_t(u8, supp_chwd_set, peer_supp_chwd_set);
+
+	/* We need check AP's bandwidth when TDLS_WIDER_BANDWIDTH is off */
+
+	if (ap_vht_cap && sta_ptr->tdls_cap.extcap.ext_capab[7] &
+	    WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED) {
+		ap_supp_chwd_set =
+		      GET_VHTCAP_CHWDSET(le32_to_cpu(ap_vht_cap->vht_cap_info));
+		supp_chwd_set = min_t(u8, supp_chwd_set, ap_supp_chwd_set);
+	}
+
+	switch (supp_chwd_set) {
+	case IEEE80211_VHT_CHANWIDTH_80MHZ:
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		break;
+	case IEEE80211_VHT_CHANWIDTH_160MHZ:
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_160MHZ;
+		break;
+	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80P80MHZ;
+		break;
+	default:
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_USE_HT;
+		break;
+	}
+
+	mcs_map_user = GET_DEVRXMCSMAP(adapter->usr_dot_11ac_mcs_support);
+	mcs_map_resp = le16_to_cpu(vht_cap->supp_mcs.rx_mcs_map);
+	mcs_map_result = 0;
+
+	for (nss = 1; nss <= 8; nss++) {
+		mcs_user = GET_VHTNSSMCS(mcs_map_user, nss);
+		mcs_resp = GET_VHTNSSMCS(mcs_map_resp, nss);
+
+		if ((mcs_user == IEEE80211_VHT_MCS_NOT_SUPPORTED) ||
+		    (mcs_resp == IEEE80211_VHT_MCS_NOT_SUPPORTED))
+			SET_VHTNSSMCS(mcs_map_result, nss,
+				      IEEE80211_VHT_MCS_NOT_SUPPORTED);
+		else
+			SET_VHTNSSMCS(mcs_map_result, nss,
+				      min_t(u16, mcs_user, mcs_resp));
+	}
+
+	vht_oper->basic_mcs_set = cpu_to_le16(mcs_map_result);
+
+	switch (vht_oper->chan_width) {
+	case IEEE80211_VHT_CHANWIDTH_80MHZ:
+		chan_bw = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		break;
+	case IEEE80211_VHT_CHANWIDTH_160MHZ:
+		chan_bw = IEEE80211_VHT_CHANWIDTH_160MHZ;
+		break;
+	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
+		chan_bw = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		break;
+	default:
+		chan_bw = IEEE80211_VHT_CHANWIDTH_USE_HT;
+		break;
+	}
+	vht_oper->center_freq_seg1_idx =
+			mwifiex_get_center_freq_index(priv, BAND_AAC,
+						      bss_desc->channel,
+						      chan_bw);
+
+	return 0;
+}
+
+static void mwifiex_tdls_add_ext_capab(struct mwifiex_private *priv,
+				       struct sk_buff *skb)
 {
 	struct ieee_types_extcap *extcap;
 
@@ -160,6 +310,9 @@ static void mwifiex_tdls_add_ext_capab(struct sk_buff *skb)
 	extcap->ieee_hdr.len = 8;
 	memset(extcap->ext_capab, 0, 8);
 	extcap->ext_capab[4] |= WLAN_EXT_CAPA5_TDLS_ENABLED;
+
+	if (priv->adapter->is_hw_11ac_capable)
+		extcap->ext_capab[7] |= WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED;
 }
 
 static void mwifiex_tdls_add_qos_capab(struct sk_buff *skb)
@@ -213,7 +366,16 @@ static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
 			return ret;
 		}
 
-		mwifiex_tdls_add_ext_capab(skb);
+		if (priv->adapter->is_hw_11ac_capable) {
+			ret = mwifiex_tdls_add_vht_capab(priv, skb);
+			if (ret) {
+				dev_kfree_skb_any(skb);
+				return ret;
+			}
+			mwifiex_tdls_add_aid(priv, skb);
+		}
+
+		mwifiex_tdls_add_ext_capab(priv, skb);
 		mwifiex_tdls_add_qos_capab(skb);
 		break;
 
@@ -241,7 +403,16 @@ static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
 			return ret;
 		}
 
-		mwifiex_tdls_add_ext_capab(skb);
+		if (priv->adapter->is_hw_11ac_capable) {
+			ret = mwifiex_tdls_add_vht_capab(priv, skb);
+			if (ret) {
+				dev_kfree_skb_any(skb);
+				return ret;
+			}
+			mwifiex_tdls_add_aid(priv, skb);
+		}
+
+		mwifiex_tdls_add_ext_capab(priv, skb);
 		mwifiex_tdls_add_qos_capab(skb);
 		break;
 
@@ -251,6 +422,13 @@ static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
 		skb_put(skb, sizeof(tf->u.setup_cfm));
 		tf->u.setup_cfm.status_code = cpu_to_le16(status_code);
 		tf->u.setup_cfm.dialog_token = dialog_token;
+		if (priv->adapter->is_hw_11ac_capable) {
+			ret = mwifiex_tdls_add_vht_oper(priv, peer, skb);
+			if (ret) {
+				dev_kfree_skb_any(skb);
+				return ret;
+			}
+		}
 		break;
 
 	case WLAN_TDLS_TEARDOWN:
@@ -312,6 +490,11 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv,
 		  sizeof(struct ieee80211_ht_operation) +
 		  sizeof(struct ieee80211_tdls_lnkie) +
 		  extra_ies_len;
+
+	if (priv->adapter->is_hw_11ac_capable)
+		skb_len += sizeof(struct ieee_types_vht_cap) +
+			   sizeof(struct ieee_types_vht_oper) +
+			   sizeof(struct ieee_types_aid);
 
 	skb = dev_alloc_skb(skb_len);
 	if (!skb) {
@@ -435,7 +618,16 @@ mwifiex_construct_tdls_action_frame(struct mwifiex_private *priv, u8 *peer,
 			return ret;
 		}
 
-		mwifiex_tdls_add_ext_capab(skb);
+		if (priv->adapter->is_hw_11ac_capable) {
+			ret = mwifiex_tdls_add_vht_capab(priv, skb);
+			if (ret) {
+				dev_kfree_skb_any(skb);
+				return ret;
+			}
+			mwifiex_tdls_add_aid(priv, skb);
+		}
+
+		mwifiex_tdls_add_ext_capab(priv, skb);
 		mwifiex_tdls_add_qos_capab(skb);
 		break;
 	default:
@@ -471,6 +663,11 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv,
 		  extra_ies_len +
 		  3 + /* Qos Info */
 		  ETH_ALEN; /* Address4 */
+
+	if (priv->adapter->is_hw_11ac_capable)
+		skb_len += sizeof(struct ieee_types_vht_cap) +
+			   sizeof(struct ieee_types_vht_oper) +
+			   sizeof(struct ieee_types_aid);
 
 	skb = dev_alloc_skb(skb_len);
 	if (!skb) {
@@ -626,6 +823,22 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 		case WLAN_EID_QOS_CAPA:
 			sta_ptr->tdls_cap.qos_info = pos[2];
 			break;
+		case WLAN_EID_VHT_OPERATION:
+			if (priv->adapter->is_hw_11ac_capable)
+				memcpy(&sta_ptr->tdls_cap.vhtoper, pos,
+				       sizeof(struct ieee80211_vht_operation));
+			break;
+		case WLAN_EID_VHT_CAPABILITY:
+			if (priv->adapter->is_hw_11ac_capable) {
+				memcpy((u8 *)&sta_ptr->tdls_cap.vhtcap, pos,
+				       sizeof(struct ieee80211_vht_cap));
+				sta_ptr->is_11ac_enabled = 1;
+			}
+			break;
+		case WLAN_EID_AID:
+			if (priv->adapter->is_hw_11ac_capable)
+				sta_ptr->tdls_cap.aid =
+					      le16_to_cpu(*(__le16 *)(pos + 2));
 		default:
 			break;
 		}
