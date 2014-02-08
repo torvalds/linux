@@ -2058,7 +2058,6 @@ create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 
 	return pos;
 }
-EXPORT_SYMBOL(create_syslog_header);
 
 int dev_vprintk_emit(int level, const struct device *dev,
 		     const char *fmt, va_list args)
