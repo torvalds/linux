@@ -1226,7 +1226,7 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 		/* ra_list_spinlock has been freed in
 		   mwifiex_send_single_packet() */
 	} else {
-		if (mwifiex_is_ampdu_allowed(priv, tid) &&
+		if (mwifiex_is_ampdu_allowed(priv, ptr, tid) &&
 		    ptr->ba_pkt_count > ptr->ba_packet_thr) {
 			if (mwifiex_space_avail_for_new_ba_stream(adapter)) {
 				mwifiex_create_ba_tbl(priv, ptr->ra, tid,
