@@ -122,6 +122,8 @@ acpi-y +=		\
 	rsaddr.o	\
 	rscalc.o	\
 	rscreate.o	\
+	rsdump.o	\
+	rsdumpinfo.o	\
 	rsinfo.o	\
 	rsio.o		\
 	rsirq.o		\
@@ -131,8 +133,6 @@ acpi-y +=		\
 	rsserial.o	\
 	rsutils.o	\
 	rsxface.o
-
-acpi-$(ACPI_FUTURE_USAGE) += rsdump.o rsdumpinfo.o
 
 acpi-y +=		\
 	tbfadt.o	\
