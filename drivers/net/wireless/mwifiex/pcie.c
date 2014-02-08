@@ -1513,6 +1513,13 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 
 	mwifiex_unmap_pci_memory(adapter, skb, PCI_DMA_FROMDEVICE);
 
+	/* Unmap the command as a response has been received. */
+	if (card->cmd_buf) {
+		mwifiex_unmap_pci_memory(adapter, card->cmd_buf,
+					 PCI_DMA_TODEVICE);
+		card->cmd_buf = NULL;
+	}
+
 	pkt_len = *((__le16 *)skb->data);
 	rx_len = le16_to_cpu(pkt_len);
 	skb_trim(skb, rx_len);
@@ -1569,7 +1576,6 @@ static int mwifiex_pcie_cmdrsp_complete(struct mwifiex_adapter *adapter,
 					struct sk_buff *skb)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct sk_buff *skb_tmp;
 
 	if (skb) {
 		card->cmdrsp_buf = skb;
@@ -1577,12 +1583,6 @@ static int mwifiex_pcie_cmdrsp_complete(struct mwifiex_adapter *adapter,
 		if (mwifiex_map_pci_memory(adapter, skb, MWIFIEX_UPLD_SIZE,
 					   PCI_DMA_FROMDEVICE))
 			return -1;
-	}
-
-	skb_tmp = card->cmd_buf;
-	if (skb_tmp) {
-		mwifiex_unmap_pci_memory(adapter, skb_tmp, PCI_DMA_FROMDEVICE);
-		card->cmd_buf = NULL;
 	}
 
 	return 0;
