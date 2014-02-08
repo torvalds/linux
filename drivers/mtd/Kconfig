@@ -316,6 +316,8 @@ source "drivers/mtd/devices/Kconfig"
 
 source "drivers/mtd/nand/Kconfig"
 
+source "drivers/mtd/rknand/Kconfig"
+
 source "drivers/mtd/onenand/Kconfig"
 
 source "drivers/mtd/lpddr/Kconfig"

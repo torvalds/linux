@@ -351,6 +351,12 @@
 		rockchip,disp-mode = <DUAL>;
 	};
 
+	nandc: nandc {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x10050000 0x4000>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	lcdc0:lcdc@1010c000 {
 		compatible = "rockchip,rk3188-lcdc";
 		rockchip,prop = <PRMRY>;
