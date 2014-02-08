@@ -93,6 +93,14 @@ enum mwifiex_bss_role {
 	MWIFIEX_BSS_ROLE_ANY = 0xff,
 };
 
+enum mwifiex_tdls_status {
+	TDLS_NOT_SETUP = 0,
+	TDLS_SETUP_INPROGRESS,
+	TDLS_SETUP_COMPLETE,
+	TDLS_SETUP_FAILURE,
+	TDLS_LINK_TEARDOWN,
+};
+
 #define BSS_ROLE_BIT_MASK    BIT(0)
 
 #define GET_BSS_ROLE(priv)   ((priv)->bss_role & BSS_ROLE_BIT_MASK)

@@ -594,8 +594,20 @@ struct mwifiex_bss_priv {
 	u64 fw_tsf;
 };
 
-/* This is AP specific structure which stores information
- * about associated STA
+struct mwifiex_tdls_capab {
+	__le16 capab;
+	u8 rates[32];
+	u8 rates_len;
+	u8 qos_info;
+	u8 coex_2040;
+	struct ieee80211_ht_cap ht_capb;
+	struct ieee80211_ht_operation ht_oper;
+	struct ieee_types_extcap extcap;
+	struct ieee_types_generic rsn_ie;
+};
+
+/* This is AP/TDLS specific structure which stores information
+ * about associated/peer STA
  */
 struct mwifiex_sta_node {
 	struct list_head list;
@@ -605,6 +617,7 @@ struct mwifiex_sta_node {
 	u8 ampdu_sta[MAX_NUM_TID];
 	u16 rx_seq[MAX_NUM_TID];
 	u16 max_amsdu;
+	struct mwifiex_tdls_capab tdls_cap;
 };
 
 struct mwifiex_if_ops {
@@ -1194,6 +1207,8 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv,
 				 u8 *peer, u8 action_code, u8 dialog_token,
 				 u16 status_code, const u8 *extra_ies,
 				 size_t extra_ies_len);
+void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
+				       u8 *buf, int len);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

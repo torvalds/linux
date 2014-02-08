@@ -374,8 +374,7 @@ mwifiex_wmm_convert_tos_to_ac(struct mwifiex_adapter *adapter, u32 tos)
  * AP is disabled (due to call admission control (ACM bit). Mapping
  * of TID to AC is taken care of internally.
  */
-static u8
-mwifiex_wmm_downgrade_tid(struct mwifiex_private *priv, u32 tid)
+u8 mwifiex_wmm_downgrade_tid(struct mwifiex_private *priv, u32 tid)
 {
 	enum mwifiex_wmm_ac_e ac, ac_down;
 	u8 new_tid;
@@ -578,7 +577,7 @@ mwifiex_wmm_get_ralist_node(struct mwifiex_private *priv, u8 tid,
  * If no such node is found, a new node is added first and then
  * retrieved.
  */
-static struct mwifiex_ra_list_tbl *
+struct mwifiex_ra_list_tbl *
 mwifiex_wmm_get_queue_raptr(struct mwifiex_private *priv, u8 tid, u8 *ra_addr)
 {
 	struct mwifiex_ra_list_tbl *ra_list;

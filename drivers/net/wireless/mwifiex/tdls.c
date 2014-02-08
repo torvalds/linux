@@ -16,6 +16,11 @@
  */
 
 #include "main.h"
+#include "wmm.h"
+
+#define TDLS_REQ_FIX_LEN      6
+#define TDLS_RESP_FIX_LEN     8
+#define TDLS_CONFIRM_FIX_LEN  6
 
 /* This function appends rate TLV to scan config command. */
 static int
@@ -420,4 +425,118 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv,
 	mwifiex_queue_tx_pkt(priv, skb);
 
 	return 0;
+}
+
+/* This function process tdls action frame from peer.
+ * Peer capabilities are stored into station node structure.
+ */
+void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
+				       u8 *buf, int len)
+{
+	struct mwifiex_sta_node *sta_ptr;
+	u8 *peer, *pos, *end;
+	u8 i, action, basic;
+	int ie_len = 0;
+
+	if (len < (sizeof(struct ethhdr) + 3))
+		return;
+	if (*(u8 *)(buf + sizeof(struct ethhdr)) != WLAN_TDLS_SNAP_RFTYPE)
+		return;
+	if (*(u8 *)(buf + sizeof(struct ethhdr) + 1) != WLAN_CATEGORY_TDLS)
+		return;
+
+	peer = buf + ETH_ALEN;
+	action = *(u8 *)(buf + sizeof(struct ethhdr) + 2);
+
+	/* just handle TDLS setup request/response/confirm */
+	if (action > WLAN_TDLS_SETUP_CONFIRM)
+		return;
+
+	dev_dbg(priv->adapter->dev,
+		"rx:tdls action: peer=%pM, action=%d\n", peer, action);
+
+	sta_ptr = mwifiex_add_sta_entry(priv, peer);
+	if (!sta_ptr)
+		return;
+
+	switch (action) {
+	case WLAN_TDLS_SETUP_REQUEST:
+		if (len < (sizeof(struct ethhdr) + TDLS_REQ_FIX_LEN))
+			return;
+
+		pos = buf + sizeof(struct ethhdr) + 4;
+		/* payload 1+ category 1 + action 1 + dialog 1 */
+		sta_ptr->tdls_cap.capab = cpu_to_le16(*(u16 *)pos);
+		ie_len = len - sizeof(struct ethhdr) - TDLS_REQ_FIX_LEN;
+		pos += 2;
+		break;
+
+	case WLAN_TDLS_SETUP_RESPONSE:
+		if (len < (sizeof(struct ethhdr) + TDLS_RESP_FIX_LEN))
+			return;
+		/* payload 1+ category 1 + action 1 + dialog 1 + status code 2*/
+		pos = buf + sizeof(struct ethhdr) + 6;
+		sta_ptr->tdls_cap.capab = cpu_to_le16(*(u16 *)pos);
+		ie_len = len - sizeof(struct ethhdr) - TDLS_RESP_FIX_LEN;
+		pos += 2;
+		break;
+
+	case WLAN_TDLS_SETUP_CONFIRM:
+		if (len < (sizeof(struct ethhdr) + TDLS_CONFIRM_FIX_LEN))
+			return;
+		pos = buf + sizeof(struct ethhdr) + TDLS_CONFIRM_FIX_LEN;
+		ie_len = len - sizeof(struct ethhdr) - TDLS_CONFIRM_FIX_LEN;
+		break;
+	default:
+		dev_warn(priv->adapter->dev, "Unknown TDLS frame type.\n");
+		return;
+	}
+
+	for (end = pos + ie_len; pos + 1 < end; pos += 2 + pos[1]) {
+		if (pos + 2 + pos[1] > end)
+			break;
+
+		switch (*pos) {
+		case WLAN_EID_SUPP_RATES:
+			sta_ptr->tdls_cap.rates_len = pos[1];
+			for (i = 0; i < pos[1]; i++)
+				sta_ptr->tdls_cap.rates[i] = pos[i + 2];
+			break;
+
+		case WLAN_EID_EXT_SUPP_RATES:
+			basic = sta_ptr->tdls_cap.rates_len;
+			for (i = 0; i < pos[1]; i++)
+				sta_ptr->tdls_cap.rates[basic + i] = pos[i + 2];
+			sta_ptr->tdls_cap.rates_len += pos[1];
+			break;
+		case WLAN_EID_HT_CAPABILITY:
+			memcpy((u8 *)&sta_ptr->tdls_cap.ht_capb, pos,
+			       sizeof(struct ieee80211_ht_cap));
+			sta_ptr->is_11n_enabled = 1;
+			break;
+		case WLAN_EID_HT_OPERATION:
+			memcpy(&sta_ptr->tdls_cap.ht_oper, pos,
+			       sizeof(struct ieee80211_ht_operation));
+			break;
+		case WLAN_EID_BSS_COEX_2040:
+			sta_ptr->tdls_cap.coex_2040 = pos[2];
+			break;
+		case WLAN_EID_EXT_CAPABILITY:
+			memcpy((u8 *)&sta_ptr->tdls_cap.extcap, pos,
+			       sizeof(struct ieee_types_header) +
+			       min_t(u8, pos[1], 8));
+			break;
+		case WLAN_EID_RSN:
+			memcpy((u8 *)&sta_ptr->tdls_cap.rsn_ie, pos,
+			       sizeof(struct ieee_types_header) + pos[1]);
+			break;
+		case WLAN_EID_QOS_CAPA:
+			sta_ptr->tdls_cap.qos_info = pos[2];
+			break;
+		default:
+			break;
+		}
+	}
+
+	return;
 }
