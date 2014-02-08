@@ -58,11 +58,8 @@ struct nuc900_spi {
 	unsigned char		*rx;
 	struct clk		*clk;
 	struct spi_master	*master;
-	struct spi_device	*curdev;
-	struct device		*dev;
 	struct nuc900_spi_info *pdata;
 	spinlock_t		lock;
-	struct resource		*res;
 };
 
 static inline struct nuc900_spi *to_hw(struct spi_device *sdev)
@@ -338,6 +335,7 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 {
 	struct nuc900_spi *hw;
 	struct spi_master *master;
+	struct resource *res;
 	int err = 0;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct nuc900_spi));
@@ -349,7 +347,6 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	hw = spi_master_get_devdata(master);
 	hw->master = master;
 	hw->pdata  = dev_get_platdata(&pdev->dev);
-	hw->dev = &pdev->dev;
 
 	if (hw->pdata == NULL) {
 		dev_err(&pdev->dev, "No platform data supplied\n");
@@ -367,8 +364,8 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	hw->bitbang.chipselect     = nuc900_spi_chipsel;
 	hw->bitbang.txrx_bufs      = nuc900_spi_txrx;
 
-	hw->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hw->regs = devm_ioremap_resource(&pdev->dev, hw->res);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hw->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hw->regs)) {
 		err = PTR_ERR(hw->regs);
 		goto err_pdata;
