@@ -55,7 +55,7 @@ static u16
 mwifiex_convert_mcsmap_to_maxrate(struct mwifiex_private *priv,
 				  u8 bands, u16 mcs_map)
 {
-	u8 i, nss, max_mcs;
+	u8 i, nss, mcs;
 	u16 max_rate = 0;
 	u32 usr_vht_cap_info = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -66,29 +66,29 @@ mwifiex_convert_mcsmap_to_maxrate(struct mwifiex_private *priv,
 		usr_vht_cap_info = adapter->usr_dot_11ac_dev_cap_bg;
 
 	/* find the max NSS supported */
-	nss = 0;
-	for (i = 0; i < 8; i++) {
-		max_mcs = (mcs_map >> (2 * i)) & 0x3;
-		if (max_mcs < 3)
+	nss = 1;
+	for (i = 1; i <= 8; i++) {
+		mcs = GET_VHTNSSMCS(mcs_map, i);
+		if (mcs < IEEE80211_VHT_MCS_NOT_SUPPORTED)
 			nss = i;
 	}
-	max_mcs = (mcs_map >> (2 * nss)) & 0x3;
+	mcs = GET_VHTNSSMCS(mcs_map, nss);
 
-	/* if max_mcs is 3, nss must be 0 (SS = 1). Thus, max mcs is MCS 9 */
-	if (max_mcs >= 3)
-		max_mcs = 2;
+	/* if mcs is 3, nss must be 1 (NSS = 1). Default mcs to MCS 0~9 */
+	if (mcs == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+		mcs = IEEE80211_VHT_MCS_SUPPORT_0_9;
 
 	if (GET_VHTCAP_CHWDSET(usr_vht_cap_info)) {
 		/* support 160 MHz */
-		max_rate = max_rate_lgi_160MHZ[nss][max_mcs];
+		max_rate = max_rate_lgi_160MHZ[nss - 1][mcs];
 		if (!max_rate)
 			/* MCS9 is not supported in NSS6 */
-			max_rate = max_rate_lgi_160MHZ[nss][max_mcs - 1];
+			max_rate = max_rate_lgi_160MHZ[nss - 1][mcs - 1];
 	} else {
-		max_rate = max_rate_lgi_80MHZ[nss][max_mcs];
+		max_rate = max_rate_lgi_80MHZ[nss - 1][mcs];
 		if (!max_rate)
 			/* MCS9 is not supported in NSS3 */
-			max_rate = max_rate_lgi_80MHZ[nss][max_mcs - 1];
+			max_rate = max_rate_lgi_80MHZ[nss - 1][mcs - 1];
 	}
 
 	return max_rate;
