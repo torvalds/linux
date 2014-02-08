@@ -88,8 +88,8 @@ void gsc_m2m_job_finish(struct gsc_ctx *ctx, int vb_state)
 	dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
 	if (src_vb && dst_vb) {
-		src_vb->v4l2_buf.timestamp = dst_vb->v4l2_buf.timestamp;
-		src_vb->v4l2_buf.timecode = dst_vb->v4l2_buf.timecode;
+		dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+		dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
 
 		v4l2_m2m_buf_done(src_vb, vb_state);
 		v4l2_m2m_buf_done(dst_vb, vb_state);

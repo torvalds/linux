@@ -207,8 +207,8 @@ static void dma_callback(void *data)
 	src_vb = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);
 	dst_vb = v4l2_m2m_dst_buf_remove(curr_ctx->m2m_ctx);
 
-	src_vb->v4l2_buf.timestamp = dst_vb->v4l2_buf.timestamp;
-	src_vb->v4l2_buf.timecode = dst_vb->v4l2_buf.timecode;
+	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+	dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
 
 	v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_DONE);

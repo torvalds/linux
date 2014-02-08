@@ -377,8 +377,8 @@ static irqreturn_t emmaprp_irq(int irq_emma, void *data)
 			src_vb = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);
 			dst_vb = v4l2_m2m_dst_buf_remove(curr_ctx->m2m_ctx);
 
-			src_vb->v4l2_buf.timestamp = dst_vb->v4l2_buf.timestamp;
-			src_vb->v4l2_buf.timecode = dst_vb->v4l2_buf.timecode;
+			dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+			dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
 
 			spin_lock_irqsave(&pcdev->irqlock, flags);
 			v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_DONE);
