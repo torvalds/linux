@@ -37,28 +37,13 @@ extern void cgroup_post_fork(struct task_struct *p);
 extern void cgroup_exit(struct task_struct *p, int run_callbacks);
 extern int cgroupstats_build(struct cgroupstats *stats,
 				struct dentry *dentry);
-extern int cgroup_load_subsys(struct cgroup_subsys *ss);
-extern void cgroup_unload_subsys(struct cgroup_subsys *ss);
 
 extern int proc_cgroup_show(struct seq_file *, void *);
 
-/*
- * Define the enumeration of all cgroup subsystems.
- *
- * We define ids for builtin subsystems and then modular ones.
- */
+/* define the enumeration of all cgroup subsystems */
 #define SUBSYS(_x) _x ## _subsys_id,
 enum cgroup_subsys_id {
-#define IS_SUBSYS_ENABLED(option) IS_BUILTIN(option)
 #include <linux/cgroup_subsys.h>
-#undef IS_SUBSYS_ENABLED
-	CGROUP_BUILTIN_SUBSYS_COUNT,
-
-	__CGROUP_SUBSYS_TEMP_PLACEHOLDER = CGROUP_BUILTIN_SUBSYS_COUNT - 1,
-
-#define IS_SUBSYS_ENABLED(option) IS_MODULE(option)
-#include <linux/cgroup_subsys.h>
-#undef IS_SUBSYS_ENABLED
 	CGROUP_SUBSYS_COUNT,
 };
 #undef SUBSYS
@@ -370,10 +355,9 @@ struct css_set {
 	struct list_head cgrp_links;
 
 	/*
-	 * Set of subsystem states, one for each subsystem. This array
-	 * is immutable after creation apart from the init_css_set
-	 * during subsystem registration (at boot time) and modular subsystem
-	 * loading/unloading.
+	 * Set of subsystem states, one for each subsystem. This array is
+	 * immutable after creation apart from the init_css_set during
+	 * subsystem registration (at boot time).
 	 */
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
 
@@ -620,15 +604,10 @@ struct cgroup_subsys {
 	/* base cftypes, automatically [de]registered with subsys itself */
 	struct cftype *base_cftypes;
 	struct cftype_set base_cftset;
-
-	/* should be defined only by modular subsystems */
-	struct module *module;
 };
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _subsys;
-#define IS_SUBSYS_ENABLED(option) IS_BUILTIN(option)
 #include <linux/cgroup_subsys.h>
-#undef IS_SUBSYS_ENABLED
 #undef SUBSYS
 
 /**

@@ -252,7 +252,6 @@ struct cgroup_subsys net_prio_subsys = {
 	.attach		= net_prio_attach,
 	.subsys_id	= net_prio_subsys_id,
 	.base_cftypes	= ss_files,
-	.module		= THIS_MODULE,
 };
 
 static int netprio_device_event(struct notifier_block *unused,

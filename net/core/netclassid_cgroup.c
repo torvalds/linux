@@ -110,5 +110,4 @@ struct cgroup_subsys net_cls_subsys = {
 	.attach			= cgrp_attach,
 	.subsys_id		= net_cls_subsys_id,
 	.base_cftypes		= ss_files,
-	.module			= THIS_MODULE,
 };

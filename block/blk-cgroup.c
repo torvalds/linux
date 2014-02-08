@@ -914,7 +914,6 @@ struct cgroup_subsys blkio_subsys = {
 	.can_attach = blkcg_can_attach,
 	.subsys_id = blkio_subsys_id,
 	.base_cftypes = blkcg_files,
-	.module = THIS_MODULE,
 };
 EXPORT_SYMBOL_GPL(blkio_subsys);
 
