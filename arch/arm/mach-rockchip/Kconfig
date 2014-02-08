@@ -32,4 +32,5 @@ config DVFS
         bool "Enable dvfs"
 	default y
 	select PM_OPP
+	select CPU_FREQ
 endif
