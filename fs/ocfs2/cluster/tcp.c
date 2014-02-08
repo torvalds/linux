@@ -940,33 +940,21 @@ static int o2net_send_tcp_msg(struct socket *sock, struct kvec *vec,
 			      size_t veclen, size_t total)
 {
 	int ret;
-	mm_segment_t oldfs;
-	struct msghdr msg = {
-		.msg_iov = (struct iovec *)vec,
-		.msg_iovlen = veclen,
-	};
+	struct msghdr msg;
 
 	if (sock == NULL) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = sock_sendmsg(sock, &msg, total);
-	set_fs(oldfs);
-	if (ret != total) {
-		mlog(ML_ERROR, "sendmsg returned %d instead of %zu\n", ret,
-		     total);
-		if (ret >= 0)
-			ret = -EPIPE; /* should be smarter, I bet */
-		goto out;
-	}
-
-	ret = 0;
+	ret = kernel_sendmsg(sock, &msg, vec, veclen, total);
+	if (likely(ret == total))
+		return 0;
+	mlog(ML_ERROR, "sendmsg returned %d instead of %zu\n", ret, total);
+	if (ret >= 0)
+		ret = -EPIPE; /* should be smarter, I bet */
 out:
-	if (ret < 0)
-		mlog(0, "returning error: %d\n", ret);
+	mlog(0, "returning error: %d\n", ret);
 	return ret;
 }
 
