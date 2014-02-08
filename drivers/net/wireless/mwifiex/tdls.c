@@ -49,6 +49,7 @@ mwifiex_restore_tdls_packets(struct mwifiex_private *priv, u8 *mac, u8 status)
 
 		if (status == TDLS_SETUP_COMPLETE) {
 			ra_list = mwifiex_wmm_get_queue_raptr(priv, tid, mac);
+			ra_list->tdls_link = true;
 			tx_info->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
 		} else {
 			tid_list = &priv->wmm.tid_tbl_ptr[tid_down].ra_list;

@@ -160,8 +160,15 @@ mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra)
 			break;
 
 		ra_list->is_11n_enabled = 0;
+		ra_list->tdls_link = false;
 		if (!mwifiex_queuing_ra_based(priv)) {
-			ra_list->is_11n_enabled = IS_11N_ENABLED(priv);
+			if (mwifiex_get_tdls_link_status(priv, ra) ==
+			    TDLS_SETUP_COMPLETE) {
+				ra_list->is_11n_enabled =
+					mwifiex_tdls_peer_11n_enabled(priv, ra);
+			} else {
+				ra_list->is_11n_enabled = IS_11N_ENABLED(priv);
+			}
 		} else {
 			ra_list->is_11n_enabled =
 				      mwifiex_is_sta_11n_enabled(priv, node);

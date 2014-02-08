@@ -290,7 +290,11 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 				last_seq = node->rx_seq[tid];
 		}
 	} else {
-		last_seq = priv->rx_seq[tid];
+		node = mwifiex_get_sta_entry(priv, ta);
+		if (node)
+			last_seq = node->rx_seq[tid];
+		else
+			last_seq = priv->rx_seq[tid];
 	}
 
 	if (last_seq != MWIFIEX_DEF_11N_RX_SEQ_NUM &&

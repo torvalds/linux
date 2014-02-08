@@ -210,6 +210,7 @@ struct mwifiex_ra_list_tbl {
 	u16 ba_pkt_count;
 	u8 ba_packet_thr;
 	u16 total_pkt_count;
+	bool tdls_link;
 };
 
 struct mwifiex_tid_tbl {

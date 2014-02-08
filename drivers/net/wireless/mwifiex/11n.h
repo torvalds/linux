@@ -81,11 +81,15 @@ static inline u8
 mwifiex_is_ampdu_allowed(struct mwifiex_private *priv,
 			 struct mwifiex_ra_list_tbl *ptr, int tid)
 {
-	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP)
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
 		return mwifiex_is_station_ampdu_allowed(priv, ptr, tid);
-	else
+	} else {
+		if (ptr->tdls_link)
+			return mwifiex_is_station_ampdu_allowed(priv, ptr, tid);
+
 		return (priv->aggr_prio_tbl[tid].ampdu_ap !=
 			BA_STREAM_NOT_ALLOWED) ? true : false;
+	}
 }
 
 /*
@@ -178,5 +182,15 @@ static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
 		return 0;
 
 	return node->is_11n_enabled;
+}
+
+static inline u8
+mwifiex_tdls_peer_11n_enabled(struct mwifiex_private *priv, u8 *ra)
+{
+	struct mwifiex_sta_node *node = mwifiex_get_sta_entry(priv, ra);
+	if (node)
+		return node->is_11n_enabled;
+
+	return false;
 }
 #endif /* !_MWIFIEX_11N_H_ */
