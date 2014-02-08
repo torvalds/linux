@@ -14,6 +14,8 @@ config ARCH_ROCKCHIP
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select CLKSRC_OF if OF
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
 
 if ARCH_ROCKCHIP
 
@@ -26,4 +28,8 @@ config RK_DEBUG_UART
 config RK_FPGA
 	bool "FPGA Board"
 
+config DVFS
+        bool "Enable dvfs"
+	default y
+	select PM_OPP
 endif

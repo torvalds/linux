@@ -100,6 +100,38 @@
 &pwm3 {
         status = "okay";
 };
+
+&clk_core_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		312000 1100000
+		504000 1100000
+		816000 1100000
+		1008000 1100000
+		1200000 1200000
+		1416000 1300000
+		1608000 1350000
+		>;
+};
+
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1200000
+		300000 1200000
+		400000 1300000
+		>;
+};
+
+&clk_ddr_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1200000
+		300000 1200000
+		400000 1300000
+		>;
+};
+
 /include/ "act8846.dtsi"
 &act8846 {
 	gpios =<&gpio3 GPIO_D3 GPIO_ACTIVE_LOW>; 

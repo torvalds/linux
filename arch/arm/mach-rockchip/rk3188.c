@@ -32,6 +32,7 @@
 #include "loader.h"
 #include "pmu.h"
 #include "sram.h"
+#include "dvfs.h"
 
 #define RK3188_DEVICE(name) \
 	{ \
@@ -293,6 +294,7 @@ static void __init rk3188_dt_init_timer(void)
 	rockchip_pmu_ops.set_idle_request = rk3188_pmu_set_idle_request;
 	of_clk_init(NULL);
 	clocksource_of_init();
+	of_dvfs_init();
 }
 
 static const char * const rk3188_dt_compat[] __initconst = {

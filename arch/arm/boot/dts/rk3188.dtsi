@@ -416,4 +416,56 @@
                 status = "disabled";
 
         };
+	dvfs {
+		vd_cpu:
+		vd_cpu {
+			regulator_name="vdd_arm";
+			suspend_volt=<1000>; //mV
+			pd_a9 {
+				clk_core_dvfs_table:
+				clk_core {
+					operating-points = <
+						/* KHz    uV */
+						312000 900000
+						504000 950000
+						816000 1000000
+						1008000 1100000
+						1200000 1200000
+						1416000 1300000
+						1608000 1350000
+						>;
+				};
+			};
+		};
+
+		vd_core:
+		vd_core {
+			regulator_name="vdd_logic";
+			suspend_volt=<1000>; //mV
+
+			pd_gpu {
+				clk_gpu_dvfs_table:
+				clk_gpu {
+					operating-points = <
+						/* KHz    uV */
+						200000 1200000
+						300000 1200000
+						400000 1200000
+						>;
+				};
+			};
+
+			pd_ddr {
+				clk_ddr_dvfs_table:
+				clk_ddr {
+					operating-points = <
+						/* KHz    uV */
+						200000 1200000
+						300000 1200000
+						400000 1200000
+						>;
+				};
+			};
+		};
+	};
 };
