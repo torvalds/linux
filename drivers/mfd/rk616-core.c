@@ -472,12 +472,69 @@ static int rk616_core_resume(struct device* dev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static struct rk616_platform_data *rk616_parse_dt(struct mfd_rk616 *rk616)
+{
+	struct rk616_platform_data *pdata = NULL;
+	struct device_node *rk616_np = rk616->dev->of_node;
+	int val = 0,gpio = 0;
+
+	if (!rk616_np) {
+		printk("could not find rk616 node\n");
+		return NULL;
+	}
+
+	pdata = devm_kzalloc(rk616->dev, sizeof(struct rk616_platform_data), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(&rk616->dev, "rk616_platform_data kmalloc fail!");
+		return NULL;
+	}
+
+	if(!of_property_read_u32(rk616_np, "rk616,scl_rate", &val))
+		pdata->scl_rate = val;
+
+	if(!of_property_read_u32(rk616_np, "rk616,lcd0_func", &val))
+		pdata->lcd0_func = val;
+
+	if(!of_property_read_u32(rk616_np, "rk616,lcd1_func", &val))
+		pdata->lcd1_func = val;
+
+	if(!of_property_read_u32(rk616_np, "rk616,lvds_ch_nr", &val))
+		pdata->lvds_ch_nr = val;
+
+	gpio = of_get_named_gpio(rk616_np,"rk616,hdmi_irq_gpio", 0);
+	if (!gpio_is_valid(gpio))
+		printk("invalid hdmi_irq_gpio: %d\n",gpio);
+	pdata->hdmi_irq = gpio;
+
+	gpio = of_get_named_gpio(rk616_np,"rk616,spk_ctl_gpio", 0);
+	if (!gpio_is_valid(gpio))
+		printk("invalid spk_ctl_gpio: %d\n",gpio);
+	pdata->spk_ctl_gpio = gpio;
+	//TODO Daisen >>pwr gpio wait to add
+
+	return pdata;
+}
+#else
+static struct rk616_platform_data *rk616_parse_dt(struct mfd_rk616 *rk616)
+{
+	return NULL;
+}
+#endif
+
 
 static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	int ret;
 	struct mfd_rk616 *rk616 = NULL;
 	struct clk *iis_clk;
+
+	if (client->dev.of_node) {
+		if (!of_match_device(rk616_dt_ids, &client->dev)) {
+			dev_err(&client->dev, "Failed to find matching dt id\n");
+			return -EINVAL;
+		}
+	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
 	{
@@ -492,7 +549,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	}
 	
 	rk616->dev = &client->dev;
-	rk616->pdata = client->dev.platform_data;
+	rk616->pdata = rk616_parse_dt(rk616);
 	rk616->client = client;
 	i2c_set_clientdata(client, rk616);
 	dev_set_drvdata(rk616->dev,rk616);
@@ -565,6 +622,15 @@ static void rk616_core_shutdown(struct i2c_client *client)
 }
 
 
+#if defined(CONFIG_OF)
+static const struct of_device_id rk616_dt_ids[] = {
+	{.compatible = "rockchip,rk616",},
+	{}
+};
+MODULE_DEVICE_TABLE(of, rk616_dt_ids);
+#endif
+
+
 static const struct i2c_device_id id_table[] = {
 	{"rk616", 0 },
 	{ }
@@ -576,6 +642,7 @@ static struct i2c_driver rk616_i2c_driver  = {
 		.owner = THIS_MODULE,
 		.suspend        = &rk616_core_suspend,
 		.resume         = &rk616_core_resume,
+		.of_match_table = of_match_ptr(rk616_dt_ids),
 	},
 	.probe		= &rk616_i2c_probe,
 	.remove     	= &rk616_i2c_remove,

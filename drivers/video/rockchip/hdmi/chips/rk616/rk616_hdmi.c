@@ -211,6 +211,7 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
         struct rk616_hdmi *rk616_hdmi;
         struct resource __maybe_unused *mem;
         struct resource __maybe_unused *res;
+	struct device_node *np = pdev->dev.of_node;
 
         rk616_hdmi = devm_kzalloc(&pdev->dev, sizeof(*rk616_hdmi), GFP_KERNEL);
         if(!rk616_hdmi)
@@ -443,6 +444,15 @@ static void rk616_hdmi_shutdown(struct platform_device *pdev)
         hdmi_dbg(hdmi->dev,  "rk616 hdmi shut down.\n");
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id rk616_hdmi_of_match[] = {
+	{.compatible = "rockchip,rk616-hdmi",},
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, rk616_hdmi_of_match);
+#endif
+
 static struct platform_driver rk616_hdmi_driver = {
 	.probe		= rk616_hdmi_probe,
 	.remove		= __devexit_p(rk616_hdmi_remove),
@@ -453,6 +463,7 @@ static struct platform_driver rk616_hdmi_driver = {
 		.name	= "rk616-hdmi",
 #endif
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(rk616_hdmi_of_match),
 	},
 	.shutdown   = rk616_hdmi_shutdown,
 };
