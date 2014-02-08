@@ -285,7 +285,7 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 	if (ret < 0)
 		return ret;
 
-	/* Emable clock */
+	/* Enable clock */
 	if (mt9p031->clk)
 		clk_prepare_enable(mt9p031->clk);
 
