@@ -60,6 +60,10 @@ extern struct i2c_adapter *rtl2832_get_i2c_adapter(
 	struct dvb_frontend *fe
 );
 
+extern struct i2c_adapter *rtl2832_get_private_i2c_adapter(
+	struct dvb_frontend *fe
+);
+
 #else
 
 static inline struct dvb_frontend *rtl2832_attach(
@@ -77,6 +81,14 @@ static inline struct i2c_adapter *rtl2832_get_i2c_adapter(
 {
 	return NULL;
 }
+
+static inline struct i2c_adapter *rtl2832_get_private_i2c_adapter(
+	struct dvb_frontend *fe
+)
+{
+	return NULL;
+}
+
 #endif
 
 

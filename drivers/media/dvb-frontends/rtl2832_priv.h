@@ -37,6 +37,7 @@ struct rtl2832_priv {
 
 	u8 tuner;
 	u8 page; /* active register page */
+	struct delayed_work i2c_gate_work;
 };
 
 struct rtl2832_reg_entry {
