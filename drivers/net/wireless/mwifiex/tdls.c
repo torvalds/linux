@@ -544,6 +544,32 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 }
 
 static int
+mwifiex_tdls_process_create_link(struct mwifiex_private *priv, u8 *peer)
+{
+	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_ds_tdls_oper tdls_oper;
+
+	memset(&tdls_oper, 0, sizeof(struct mwifiex_ds_tdls_oper));
+	sta_ptr = mwifiex_get_sta_entry(priv, peer);
+
+	if (sta_ptr && sta_ptr->tdls_status == TDLS_SETUP_INPROGRESS) {
+		dev_dbg(priv->adapter->dev,
+			"Setup already in progress for peer %pM\n", peer);
+		return 0;
+	}
+
+	sta_ptr = mwifiex_add_sta_entry(priv, peer);
+	if (!sta_ptr)
+		return -ENOMEM;
+
+	sta_ptr->tdls_status = TDLS_SETUP_INPROGRESS;
+	memcpy(&tdls_oper.peer_mac, peer, ETH_ALEN);
+	tdls_oper.tdls_action = MWIFIEX_TDLS_CREATE_LINK;
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TDLS_OPER,
+				     HostCmd_ACT_GEN_SET, 0, &tdls_oper);
+}
+
+static int
 mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, u8 *peer)
 {
 	struct mwifiex_sta_node *sta_ptr;
@@ -634,6 +660,8 @@ int mwifiex_tdls_oper(struct mwifiex_private *priv, u8 *peer, u8 action)
 		return mwifiex_tdls_process_enable_link(priv, peer);
 	case MWIFIEX_TDLS_DISABLE_LINK:
 		return mwifiex_tdls_process_disable_link(priv, peer);
+	case MWIFIEX_TDLS_CREATE_LINK:
+		return mwifiex_tdls_process_create_link(priv, peer);
 	}
 	return 0;
 }

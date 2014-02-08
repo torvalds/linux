@@ -807,6 +807,8 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 	struct host_cmd_ds_tdls_oper *cmd_tdls_oper = &resp->params.tdls_oper;
 	u16 reason = le16_to_cpu(cmd_tdls_oper->reason);
 	u16 action = le16_to_cpu(cmd_tdls_oper->tdls_action);
+	struct mwifiex_sta_node *node =
+			   mwifiex_get_sta_entry(priv, cmd_tdls_oper->peer_mac);
 
 	switch (action) {
 	case ACT_TDLS_DELETE:
@@ -818,6 +820,19 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 			dev_dbg(priv->adapter->dev,
 				"TDLS link config for %pM successful\n",
 				cmd_tdls_oper->peer_mac);
+		break;
+	case ACT_TDLS_CREATE:
+		if (reason) {
+			dev_err(priv->adapter->dev,
+				"TDLS link creation for %pM failed: reason %d",
+				cmd_tdls_oper->peer_mac, reason);
+			if (node && reason != TDLS_ERR_LINK_EXISTS)
+				node->tdls_status = TDLS_SETUP_FAILURE;
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link creation for %pM successful",
+				cmd_tdls_oper->peer_mac);
+		}
 		break;
 	default:
 		dev_err(priv->adapter->dev,

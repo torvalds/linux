@@ -1300,6 +1300,9 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 	case MWIFIEX_TDLS_DISABLE_LINK:
 		tdls_oper->tdls_action = cpu_to_le16(ACT_TDLS_DELETE);
 		break;
+	case MWIFIEX_TDLS_CREATE_LINK:
+		tdls_oper->tdls_action = cpu_to_le16(ACT_TDLS_CREATE);
+		break;
 	default:
 		dev_err(priv->adapter->dev, "Unknown TDLS operation\n");
 		return -ENOTSUPP;
