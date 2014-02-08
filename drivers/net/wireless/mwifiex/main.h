@@ -617,6 +617,7 @@ struct mwifiex_sta_node {
 	u8 ampdu_sta[MAX_NUM_TID];
 	u16 rx_seq[MAX_NUM_TID];
 	u16 max_amsdu;
+	u8 tdls_status;
 	struct mwifiex_tdls_capab tdls_cap;
 };
 
@@ -1209,6 +1210,7 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv,
 				 size_t extra_ies_len);
 void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 				       u8 *buf, int len);
+int mwifiex_tdls_oper(struct mwifiex_private *priv, u8 *peer, u8 action);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

@@ -17,6 +17,8 @@
 
 #include "main.h"
 #include "wmm.h"
+#include "11n.h"
+#include "11n_rxreorder.h"
 
 #define TDLS_REQ_FIX_LEN      6
 #define TDLS_RESP_FIX_LEN     8
@@ -539,4 +541,99 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 	}
 
 	return;
+}
+
+static int
+mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, u8 *peer)
+{
+	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_ds_tdls_oper tdls_oper;
+	unsigned long flags;
+
+	memset(&tdls_oper, 0, sizeof(struct mwifiex_ds_tdls_oper));
+	sta_ptr = mwifiex_get_sta_entry(priv, peer);
+
+	if (sta_ptr) {
+		if (sta_ptr->is_11n_enabled) {
+			mwifiex_11n_cleanup_reorder_tbl(priv);
+			spin_lock_irqsave(&priv->wmm.ra_list_spinlock,
+					  flags);
+			mwifiex_11n_delete_all_tx_ba_stream_tbl(priv);
+			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
+					       flags);
+		}
+		mwifiex_del_sta_entry(priv, peer);
+	}
+
+	memcpy(&tdls_oper.peer_mac, peer, ETH_ALEN);
+	tdls_oper.tdls_action = MWIFIEX_TDLS_DISABLE_LINK;
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TDLS_OPER,
+				     HostCmd_ACT_GEN_SET, 0, &tdls_oper);
+}
+
+static int
+mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, u8 *peer)
+{
+	struct mwifiex_sta_node *sta_ptr;
+	struct ieee80211_mcs_info mcs;
+	unsigned long flags;
+	int i;
+
+	sta_ptr = mwifiex_get_sta_entry(priv, peer);
+
+	if (sta_ptr && (sta_ptr->tdls_status != TDLS_SETUP_FAILURE)) {
+		dev_dbg(priv->adapter->dev,
+			"tdls: enable link %pM success\n", peer);
+
+		sta_ptr->tdls_status = TDLS_SETUP_COMPLETE;
+
+		mcs = sta_ptr->tdls_cap.ht_capb.mcs;
+		if (mcs.rx_mask[0] != 0xff)
+			sta_ptr->is_11n_enabled = true;
+		if (sta_ptr->is_11n_enabled) {
+			if (le16_to_cpu(sta_ptr->tdls_cap.ht_capb.cap_info) &
+			    IEEE80211_HT_CAP_MAX_AMSDU)
+				sta_ptr->max_amsdu =
+					MWIFIEX_TX_DATA_BUF_SIZE_8K;
+			else
+				sta_ptr->max_amsdu =
+					MWIFIEX_TX_DATA_BUF_SIZE_4K;
+
+			for (i = 0; i < MAX_NUM_TID; i++)
+				sta_ptr->ampdu_sta[i] =
+					      priv->aggr_prio_tbl[i].ampdu_user;
+		} else {
+			for (i = 0; i < MAX_NUM_TID; i++)
+				sta_ptr->ampdu_sta[i] = BA_STREAM_NOT_ALLOWED;
+		}
+
+		memset(sta_ptr->rx_seq, 0xff, sizeof(sta_ptr->rx_seq));
+	} else {
+		dev_dbg(priv->adapter->dev,
+			"tdls: enable link %pM failed\n", peer);
+		if (sta_ptr) {
+			mwifiex_11n_cleanup_reorder_tbl(priv);
+			spin_lock_irqsave(&priv->wmm.ra_list_spinlock,
+					  flags);
+			mwifiex_11n_delete_all_tx_ba_stream_tbl(priv);
+			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
+					       flags);
+			mwifiex_del_sta_entry(priv, peer);
+		}
+
+		return -1;
+	}
+
+	return 0;
+}
+
+int mwifiex_tdls_oper(struct mwifiex_private *priv, u8 *peer, u8 action)
+{
+	switch (action) {
+	case MWIFIEX_TDLS_ENABLE_LINK:
+		return mwifiex_tdls_process_enable_link(priv, peer);
+	case MWIFIEX_TDLS_DISABLE_LINK:
+		return mwifiex_tdls_process_disable_link(priv, peer);
+	}
+	return 0;
 }

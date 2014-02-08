@@ -316,6 +316,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
 #define HostCmd_CMD_11AC_CFG			      0x0112
+#define HostCmd_CMD_TDLS_OPER                         0x0122
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -485,6 +486,10 @@ enum P2P_MODES {
 #define MWIFIEX_CRITERIA_BROADCAST	BIT(0)
 #define MWIFIEX_CRITERIA_UNICAST	BIT(1)
 #define MWIFIEX_CRITERIA_MULTICAST	BIT(3)
+
+#define ACT_TDLS_DELETE            0x00
+#define ACT_TDLS_CREATE            0x01
+#define ACT_TDLS_CONFIG            0x02
 
 struct mwifiex_ie_types_header {
 	__le16 type;
@@ -1065,6 +1070,12 @@ struct host_cmd_ds_rf_ant_siso {
 	__le16 action;
 	__le16 ant_mode;
 };
+
+struct host_cmd_ds_tdls_oper {
+	__le16 tdls_action;
+	__le16 reason;
+	u8 peer_mac[ETH_ALEN];
+} __packed;
 
 struct mwifiex_fixed_bcn_param {
 	__le64 timestamp;
@@ -1726,6 +1737,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_sta_deauth sta_deauth;
 		struct host_cmd_11ac_vht_cfg vht_cfg;
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
+		struct host_cmd_ds_tdls_oper tdls_oper;
 	} params;
 } __packed;
 

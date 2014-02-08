@@ -801,7 +801,32 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 
 	return 0;
 }
+static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
+				 struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_tdls_oper *cmd_tdls_oper = &resp->params.tdls_oper;
+	u16 reason = le16_to_cpu(cmd_tdls_oper->reason);
+	u16 action = le16_to_cpu(cmd_tdls_oper->tdls_action);
 
+	switch (action) {
+	case ACT_TDLS_DELETE:
+		if (reason)
+			dev_err(priv->adapter->dev,
+				"TDLS link delete for %pM failed: reason %d\n",
+				cmd_tdls_oper->peer_mac, reason);
+		else
+			dev_dbg(priv->adapter->dev,
+				"TDLS link config for %pM successful\n",
+				cmd_tdls_oper->peer_mac);
+		break;
+	default:
+		dev_err(priv->adapter->dev,
+			"Unknown TDLS command action respnse %d", action);
+		return -1;
+	}
+
+	return 0;
+}
 /*
  * This function handles the command response for subscribe event command.
  */
@@ -1003,6 +1028,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_MEF_CFG:
 		break;
 	case HostCmd_CMD_COALESCE_CFG:
+		break;
+	case HostCmd_CMD_TDLS_OPER:
+		ret = mwifiex_ret_tdls_oper(priv, resp);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

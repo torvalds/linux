@@ -1280,6 +1280,35 @@ mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int
+mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
+		      struct host_cmd_ds_command *cmd,
+		      void *data_buf)
+{
+	struct host_cmd_ds_tdls_oper *tdls_oper = &cmd->params.tdls_oper;
+	struct mwifiex_ds_tdls_oper *oper = data_buf;
+	struct mwifiex_sta_node *sta_ptr;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_TDLS_OPER);
+	cmd->size = cpu_to_le16(S_DS_GEN);
+
+	tdls_oper->reason = 0;
+	memcpy(tdls_oper->peer_mac, oper->peer_mac, ETH_ALEN);
+	sta_ptr = mwifiex_get_sta_entry(priv, oper->peer_mac);
+
+	switch (oper->tdls_action) {
+	case MWIFIEX_TDLS_DISABLE_LINK:
+		tdls_oper->tdls_action = cpu_to_le16(ACT_TDLS_DELETE);
+		break;
+	default:
+		dev_err(priv->adapter->dev, "Unknown TDLS operation\n");
+		return -ENOTSUPP;
+	}
+
+	le16_add_cpu(&cmd->size, sizeof(struct host_cmd_ds_tdls_oper));
+
+	return 0;
+}
 /*
  * This function prepares the commands before sending them to the firmware.
  *
@@ -1509,6 +1538,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_COALESCE_CFG:
 		ret = mwifiex_cmd_coalesce_cfg(priv, cmd_ptr, cmd_action,
 					       data_buf);
+		break;
+	case HostCmd_CMD_TDLS_OPER:
+		ret = mwifiex_cmd_tdls_oper(priv, cmd_ptr, data_buf);
 		break;
 	default:
 		dev_err(priv->adapter->dev,

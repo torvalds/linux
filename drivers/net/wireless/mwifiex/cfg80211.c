@@ -2669,6 +2669,54 @@ mwifiex_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+static int
+mwifiex_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
+			   u8 *peer, enum nl80211_tdls_operation action)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) ||
+	    !(wiphy->flags & WIPHY_FLAG_TDLS_EXTERNAL_SETUP))
+		return -ENOTSUPP;
+
+	/* make sure we are in station mode and connected */
+	if (!(priv->bss_type == MWIFIEX_BSS_TYPE_STA && priv->media_connected))
+		return -ENOTSUPP;
+
+	dev_dbg(priv->adapter->dev,
+		"TDLS peer=%pM, oper=%d\n", peer, action);
+
+	switch (action) {
+	case NL80211_TDLS_ENABLE_LINK:
+		action = MWIFIEX_TDLS_ENABLE_LINK;
+		break;
+	case NL80211_TDLS_DISABLE_LINK:
+		action = MWIFIEX_TDLS_DISABLE_LINK;
+		break;
+	case NL80211_TDLS_TEARDOWN:
+		/* shouldn't happen!*/
+		dev_warn(priv->adapter->dev,
+			 "tdls_oper: teardown from driver not supported\n");
+		return -EINVAL;
+	case NL80211_TDLS_SETUP:
+		/* shouldn't happen!*/
+		dev_warn(priv->adapter->dev,
+			 "tdls_oper: setup from driver not supported\n");
+		return -EINVAL;
+	case NL80211_TDLS_DISCOVERY_REQ:
+		/* shouldn't happen!*/
+		dev_warn(priv->adapter->dev,
+			 "tdls_oper: discovery from driver not supported\n");
+		return -EINVAL;
+	default:
+		dev_err(priv->adapter->dev,
+			"tdls_oper: operation not supported\n");
+		return -ENOTSUPP;
+	}
+
+	return mwifiex_tdls_oper(priv, peer, action);
+}
+
 /* station cfg80211 operations */
 static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.add_virtual_intf = mwifiex_add_virtual_intf,
@@ -2705,6 +2753,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 #endif
 	.set_coalesce = mwifiex_cfg80211_set_coalesce,
 	.tdls_mgmt = mwifiex_cfg80211_tdls_mgmt,
+	.tdls_oper = mwifiex_cfg80211_tdls_oper,
 };
 
 #ifdef CONFIG_PM
