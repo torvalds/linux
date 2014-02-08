@@ -8,9 +8,12 @@ Required properties:
 
 Optional properties:
 
+- simple-audio-card,name		: User specified audio sound card name, one string
+					  property.
 - simple-audio-card,format		: CPU/CODEC common audio format.
 					  "i2s", "right_j", "left_j" , "dsp_a"
 					  "dsp_b", "ac97", "pdm", "msb", "lsb"
+- simple-audio-card,widgets		: Please refer to widgets.txt.
 - simple-audio-card,routing		: A list of the connections between audio components.
 					  Each entry is a pair of strings, the first being the
 					  connection's sink, the second being the connection's
@@ -42,11 +45,16 @@ Example:
 
 sound {
 	compatible = "simple-audio-card";
+	simple-audio-card,name = "VF610-Tower-Sound-Card";
 	simple-audio-card,format = "left_j";
+	simple-audio-card,widgets =
+		"Microphone", "Microphone Jack",
+		"Headphone", "Headphone Jack",
+		"Speaker", "External Speaker";
 	simple-audio-card,routing =
-		"MIC_IN", "Mic Jack",
+		"MIC_IN", "Microphone Jack",
 		"Headphone Jack", "HP_OUT",
-		"Ext Spk", "LINE_OUT";
+		"External Speaker", "LINE_OUT";
 
 	simple-audio-card,cpu {
 		sound-dai = <&sh_fsi2 0>;
