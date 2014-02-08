@@ -1167,6 +1167,16 @@ void mwifiex_dnld_txpwr_table(struct mwifiex_private *priv);
 
 extern const struct ethtool_ops mwifiex_ethtool_ops;
 
+void mwifiex_del_all_sta_list(struct mwifiex_private *priv);
+void mwifiex_del_sta_entry(struct mwifiex_private *priv, u8 *mac);
+void
+mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
+		       int ies_len, struct mwifiex_sta_node *node);
+struct mwifiex_sta_node *
+mwifiex_add_sta_entry(struct mwifiex_private *priv, u8 *mac);
+struct mwifiex_sta_node *
+mwifiex_get_sta_entry(struct mwifiex_private *priv, u8 *mac);
+
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
 void mwifiex_debugfs_remove(void);

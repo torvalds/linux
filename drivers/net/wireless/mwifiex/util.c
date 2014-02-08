@@ -252,3 +252,117 @@ int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 
 	return 0;
 }
+
+/* This function will return the pointer to station entry in station list
+ * table which matches specified mac address.
+ * This function should be called after acquiring RA list spinlock.
+ * NULL is returned if station entry is not found in associated STA list.
+ */
+struct mwifiex_sta_node *
+mwifiex_get_sta_entry(struct mwifiex_private *priv, u8 *mac)
+{
+	struct mwifiex_sta_node *node;
+
+	if (!mac)
+		return NULL;
+
+	list_for_each_entry(node, &priv->sta_list, list) {
+		if (!memcmp(node->mac_addr, mac, ETH_ALEN))
+			return node;
+	}
+
+	return NULL;
+}
+
+/* This function will add a sta_node entry to associated station list
+ * table with the given mac address.
+ * If entry exist already, existing entry is returned.
+ * If received mac address is NULL, NULL is returned.
+ */
+struct mwifiex_sta_node *
+mwifiex_add_sta_entry(struct mwifiex_private *priv, u8 *mac)
+{
+	struct mwifiex_sta_node *node;
+	unsigned long flags;
+
+	if (!mac)
+		return NULL;
+
+	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+	node = mwifiex_get_sta_entry(priv, mac);
+	if (node)
+		goto done;
+
+	node = kzalloc(sizeof(*node), GFP_ATOMIC);
+	if (!node)
+		goto done;
+
+	memcpy(node->mac_addr, mac, ETH_ALEN);
+	list_add_tail(&node->list, &priv->sta_list);
+
+done:
+	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+	return node;
+}
+
+/* This function will search for HT IE in association request IEs
+ * and set station HT parameters accordingly.
+ */
+void
+mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
+		       int ies_len, struct mwifiex_sta_node *node)
+{
+	const struct ieee80211_ht_cap *ht_cap;
+
+	if (!ies)
+		return;
+
+	ht_cap = (void *)cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, ies, ies_len);
+	if (ht_cap) {
+		node->is_11n_enabled = 1;
+		node->max_amsdu = le16_to_cpu(ht_cap->cap_info) &
+				  IEEE80211_HT_CAP_MAX_AMSDU ?
+				  MWIFIEX_TX_DATA_BUF_SIZE_8K :
+				  MWIFIEX_TX_DATA_BUF_SIZE_4K;
+	} else {
+		node->is_11n_enabled = 0;
+	}
+
+	return;
+}
+
+/* This function will delete a station entry from station list */
+void mwifiex_del_sta_entry(struct mwifiex_private *priv, u8 *mac)
+{
+	struct mwifiex_sta_node *node;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+
+	node = mwifiex_get_sta_entry(priv, mac);
+	if (node) {
+		list_del(&node->list);
+		kfree(node);
+	}
+
+	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+	return;
+}
+
+/* This function will delete all stations from associated station list. */
+void mwifiex_del_all_sta_list(struct mwifiex_private *priv)
+{
+	struct mwifiex_sta_node *node, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+
+	list_for_each_entry_safe(node, tmp, &priv->sta_list, list) {
+		list_del(&node->list);
+		kfree(node);
+	}
+
+	INIT_LIST_HEAD(&priv->sta_list);
+	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+	return;
+}
