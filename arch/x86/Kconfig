@@ -127,6 +127,7 @@ config X86
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK if X86_64
 	select HAVE_CC_STACKPROTECTOR
+	select GENERIC_CPU_AUTOPROBE
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -193,9 +194,6 @@ config ARCH_HAS_CPU_RELAX
 	def_bool y
 
 config ARCH_HAS_CACHE_LINE_SIZE
-	def_bool y
-
-config ARCH_HAS_CPU_AUTOPROBE
 	def_bool y
 
 config HAVE_SETUP_PER_CPU_AREA
