@@ -276,7 +276,8 @@ acpi_ut_free_and_track(void *allocation,
 	}
 
 	acpi_os_free(debug_block);
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "%p freed\n", allocation));
+	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "%p freed (block %p)\n",
+			  allocation, debug_block));
 	return_VOID;
 }
 
