@@ -244,13 +244,11 @@ static struct cftype ss_files[] = {
 	{ }	/* terminate */
 };
 
-struct cgroup_subsys net_prio_subsys = {
-	.name		= "net_prio",
+struct cgroup_subsys net_prio_cgrp_subsys = {
 	.css_alloc	= cgrp_css_alloc,
 	.css_online	= cgrp_css_online,
 	.css_free	= cgrp_css_free,
 	.attach		= net_prio_attach,
-	.subsys_id	= net_prio_subsys_id,
 	.base_cftypes	= ss_files,
 };
 

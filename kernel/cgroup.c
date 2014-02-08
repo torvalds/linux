@@ -120,10 +120,18 @@ static struct workqueue_struct *cgroup_destroy_wq;
 static struct workqueue_struct *cgroup_pidlist_destroy_wq;
 
 /* generate an array of cgroup subsystem pointers */
-#define SUBSYS(_x) [_x ## _subsys_id] = &_x ## _subsys,
+#define SUBSYS(_x) [_x ## _cgrp_id] = &_x ## _cgrp_subsys,
 static struct cgroup_subsys *cgroup_subsys[] = {
 #include <linux/cgroup_subsys.h>
 };
+#undef SUBSYS
+
+/* array of cgroup subsystem names */
+#define SUBSYS(_x) [_x ## _cgrp_id] = #_x,
+static const char *cgroup_subsys_name[] = {
+#include <linux/cgroup_subsys.h>
+};
+#undef SUBSYS
 
 /*
  * The dummy hierarchy, reserved for the subsystems that are otherwise
@@ -1076,7 +1084,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	BUG_ON(!mutex_is_locked(&cgroup_mutex));
 
 #ifdef CONFIG_CPUSETS
-	mask = ~(1UL << cpuset_subsys_id);
+	mask = ~(1UL << cpuset_cgrp_id);
 #endif
 
 	memset(opts, 0, sizeof(*opts));
@@ -4528,15 +4536,15 @@ int __init cgroup_init_early(void)
 	list_add(&init_cgrp_cset_link.cgrp_link, &init_css_set.cgrp_links);
 
 	for_each_subsys(ss, i) {
-		BUG_ON(!ss->name);
-		BUG_ON(strlen(ss->name) > MAX_CGROUP_TYPE_NAMELEN);
-		BUG_ON(!ss->css_alloc);
-		BUG_ON(!ss->css_free);
-		if (ss->subsys_id != i) {
-			printk(KERN_ERR "cgroup: Subsys %s id == %d\n",
-			       ss->name, ss->subsys_id);
-			BUG();
-		}
+		WARN(!ss->css_alloc || !ss->css_free || ss->name || ss->subsys_id,
+		     "invalid cgroup_subsys %d:%s css_alloc=%p css_free=%p name:id=%d:%s\n",
+		     i, cgroup_subsys_name[i], ss->css_alloc, ss->css_free,
+		     ss->subsys_id, ss->name);
+		WARN(strlen(cgroup_subsys_name[i]) > MAX_CGROUP_TYPE_NAMELEN,
+		     "cgroup_subsys_name %s too long\n", cgroup_subsys_name[i]);
+
+		ss->subsys_id = i;
+		ss->name = cgroup_subsys_name[i];
 
 		if (ss->early_init)
 			cgroup_init_subsys(ss);
@@ -5167,11 +5175,9 @@ static struct cftype debug_files[] =  {
 	{ }	/* terminate */
 };
 
-struct cgroup_subsys debug_subsys = {
-	.name = "debug",
+struct cgroup_subsys debug_cgrp_subsys = {
 	.css_alloc = debug_css_alloc,
 	.css_free = debug_css_free,
-	.subsys_id = debug_subsys_id,
 	.base_cftypes = debug_files,
 };
 #endif /* CONFIG_CGROUP_DEBUG */

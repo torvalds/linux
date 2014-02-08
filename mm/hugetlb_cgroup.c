@@ -30,7 +30,6 @@ struct hugetlb_cgroup {
 #define MEMFILE_IDX(val)	(((val) >> 16) & 0xffff)
 #define MEMFILE_ATTR(val)	((val) & 0xffff)
 
-struct cgroup_subsys hugetlb_subsys __read_mostly;
 static struct hugetlb_cgroup *root_h_cgroup __read_mostly;
 
 static inline
@@ -42,7 +41,7 @@ struct hugetlb_cgroup *hugetlb_cgroup_from_css(struct cgroup_subsys_state *s)
 static inline
 struct hugetlb_cgroup *hugetlb_cgroup_from_task(struct task_struct *task)
 {
-	return hugetlb_cgroup_from_css(task_css(task, hugetlb_subsys_id));
+	return hugetlb_cgroup_from_css(task_css(task, hugetlb_cgrp_id));
 }
 
 static inline bool hugetlb_cgroup_is_root(struct hugetlb_cgroup *h_cg)
@@ -358,7 +357,7 @@ static void __init __hugetlb_cgroup_file_init(int idx)
 	cft = &h->cgroup_files[4];
 	memset(cft, 0, sizeof(*cft));
 
-	WARN_ON(cgroup_add_cftypes(&hugetlb_subsys, h->cgroup_files));
+	WARN_ON(cgroup_add_cftypes(&hugetlb_cgrp_subsys, h->cgroup_files));
 
 	return;
 }
@@ -402,10 +401,8 @@ void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
 	return;
 }
 
-struct cgroup_subsys hugetlb_subsys = {
-	.name = "hugetlb",
+struct cgroup_subsys hugetlb_cgrp_subsys = {
 	.css_alloc	= hugetlb_cgroup_css_alloc,
 	.css_offline	= hugetlb_cgroup_css_offline,
 	.css_free	= hugetlb_cgroup_css_free,
-	.subsys_id	= hugetlb_subsys_id,
 };

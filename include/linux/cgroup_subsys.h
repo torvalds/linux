@@ -12,7 +12,7 @@ SUBSYS(debug)
 #endif
 
 #if IS_ENABLED(CONFIG_CGROUP_SCHED)
-SUBSYS(cpu_cgroup)
+SUBSYS(cpu)
 #endif
 
 #if IS_ENABLED(CONFIG_CGROUP_CPUACCT)
@@ -20,7 +20,7 @@ SUBSYS(cpuacct)
 #endif
 
 #if IS_ENABLED(CONFIG_MEMCG)
-SUBSYS(mem_cgroup)
+SUBSYS(memory)
 #endif
 
 #if IS_ENABLED(CONFIG_CGROUP_DEVICE)
@@ -40,7 +40,7 @@ SUBSYS(blkio)
 #endif
 
 #if IS_ENABLED(CONFIG_CGROUP_PERF)
-SUBSYS(perf)
+SUBSYS(perf_event)
 #endif
 
 #if IS_ENABLED(CONFIG_CGROUP_NET_PRIO)

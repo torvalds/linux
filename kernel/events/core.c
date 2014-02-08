@@ -342,7 +342,7 @@ struct perf_cgroup {
 static inline struct perf_cgroup *
 perf_cgroup_from_task(struct task_struct *task)
 {
-	return container_of(task_css(task, perf_subsys_id),
+	return container_of(task_css(task, perf_event_cgrp_id),
 			    struct perf_cgroup, css);
 }
 
@@ -595,7 +595,7 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 
 	rcu_read_lock();
 
-	css = css_from_dir(f.file->f_dentry, &perf_subsys);
+	css = css_from_dir(f.file->f_dentry, &perf_event_cgrp_subsys);
 	if (IS_ERR(css)) {
 		ret = PTR_ERR(css);
 		goto out;
@@ -8055,9 +8055,7 @@ static void perf_cgroup_exit(struct cgroup_subsys_state *css,
 	task_function_call(task, __perf_cgroup_move, task);
 }
 
-struct cgroup_subsys perf_subsys = {
-	.name		= "perf_event",
-	.subsys_id	= perf_subsys_id,
+struct cgroup_subsys perf_event_cgrp_subsys = {
 	.css_alloc	= perf_cgroup_css_alloc,
 	.css_free	= perf_cgroup_css_free,
 	.exit		= perf_cgroup_exit,

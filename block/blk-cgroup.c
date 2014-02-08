@@ -906,16 +906,14 @@ static int blkcg_can_attach(struct cgroup_subsys_state *css,
 	return ret;
 }
 
-struct cgroup_subsys blkio_subsys = {
-	.name = "blkio",
+struct cgroup_subsys blkio_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
-	.subsys_id = blkio_subsys_id,
 	.base_cftypes = blkcg_files,
 };
-EXPORT_SYMBOL_GPL(blkio_subsys);
+EXPORT_SYMBOL_GPL(blkio_cgrp_subsys);
 
 /**
  * blkcg_activate_policy - activate a blkcg policy on a request_queue
@@ -1105,7 +1103,7 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 
 	/* everything is in place, add intf files for the new policy */
 	if (pol->cftypes)
-		WARN_ON(cgroup_add_cftypes(&blkio_subsys, pol->cftypes));
+		WARN_ON(cgroup_add_cftypes(&blkio_cgrp_subsys, pol->cftypes));
 	ret = 0;
 out_unlock:
 	mutex_unlock(&blkcg_pol_mutex);
