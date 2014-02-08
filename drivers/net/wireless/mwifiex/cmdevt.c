@@ -1499,8 +1499,10 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 		/* Copy 11AC cap */
 		adapter->hw_dot_11ac_dev_cap =
 					le32_to_cpu(hw_spec->dot_11ac_dev_cap);
-		adapter->usr_dot_11ac_dev_cap_bg = adapter->hw_dot_11ac_dev_cap;
-		adapter->usr_dot_11ac_dev_cap_a = adapter->hw_dot_11ac_dev_cap;
+		adapter->usr_dot_11ac_dev_cap_bg = adapter->hw_dot_11ac_dev_cap
+					& ~MWIFIEX_DEF_11AC_CAP_BF_RESET_MASK;
+		adapter->usr_dot_11ac_dev_cap_a = adapter->hw_dot_11ac_dev_cap
+					& ~MWIFIEX_DEF_11AC_CAP_BF_RESET_MASK;
 
 		/* Copy 11AC mcs */
 		adapter->hw_dot_11ac_mcs_support =

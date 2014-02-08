@@ -243,6 +243,15 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define GET_DEVTXMCSMAP(dev_mcs_map)      (dev_mcs_map >> 16)
 #define GET_DEVRXMCSMAP(dev_mcs_map)      (dev_mcs_map & 0xFFFF)
 
+/* Clear SU Beanformer, MU beanformer, MU beanformee and
+ * sounding dimensions bits
+ */
+#define MWIFIEX_DEF_11AC_CAP_BF_RESET_MASK \
+			(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE | \
+			 IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE | \
+			 IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE | \
+			 IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK)
+
 #define MOD_CLASS_HR_DSSS       0x03
 #define MOD_CLASS_OFDM          0x07
 #define MOD_CLASS_HT            0x08
