@@ -99,16 +99,7 @@ ksocknal_lib_send_iov (ksock_conn_t *conn, ksock_tx_t *tx)
 		struct iovec   *scratchiov = conn->ksnc_scheduler->kss_scratch_iov;
 		unsigned int    niov = tx->tx_niov;
 #endif
-		struct msghdr msg = {
-			.msg_name       = NULL,
-			.msg_namelen    = 0,
-			.msg_iov	= scratchiov,
-			.msg_iovlen     = niov,
-			.msg_control    = NULL,
-			.msg_controllen = 0,
-			.msg_flags      = MSG_DONTWAIT
-		};
-		mm_segment_t oldmm = get_fs();
+		struct msghdr msg = {.msg_flags = MSG_DONTWAIT};
 		int  i;
 
 		for (nob = i = 0; i < niov; i++) {
@@ -120,9 +111,7 @@ ksocknal_lib_send_iov (ksock_conn_t *conn, ksock_tx_t *tx)
 		    nob < tx->tx_resid)
 			msg.msg_flags |= MSG_MORE;
 
-		set_fs (KERNEL_DS);
-		rc = sock_sendmsg(sock, &msg, nob);
-		set_fs (oldmm);
+		rc = kernel_sendmsg(sock, &msg, (struct kvec *)scratchiov, niov, nob);
 	}
 	return rc;
 }
@@ -174,16 +163,7 @@ ksocknal_lib_send_kiov (ksock_conn_t *conn, ksock_tx_t *tx)
 		struct iovec *scratchiov = conn->ksnc_scheduler->kss_scratch_iov;
 		unsigned int  niov = tx->tx_nkiov;
 #endif
-		struct msghdr msg = {
-			.msg_name       = NULL,
-			.msg_namelen    = 0,
-			.msg_iov	= scratchiov,
-			.msg_iovlen     = niov,
-			.msg_control    = NULL,
-			.msg_controllen = 0,
-			.msg_flags      = MSG_DONTWAIT
-		};
-		mm_segment_t  oldmm = get_fs();
+		struct msghdr msg = {.msg_flags = MSG_DONTWAIT};
 		int	   i;
 
 		for (nob = i = 0; i < niov; i++) {
@@ -196,9 +176,7 @@ ksocknal_lib_send_kiov (ksock_conn_t *conn, ksock_tx_t *tx)
 		    nob < tx->tx_resid)
 			msg.msg_flags |= MSG_MORE;
 
-		set_fs (KERNEL_DS);
-		rc = sock_sendmsg(sock, &msg, nob);
-		set_fs (oldmm);
+		rc = kernel_sendmsg(sock, &msg, (struct kvec *)scratchiov, niov, nob);
 
 		for (i = 0; i < niov; i++)
 			kunmap(kiov[i].kiov_page);
