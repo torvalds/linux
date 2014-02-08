@@ -159,6 +159,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_PWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 145)
 #define TLV_TYPE_GWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 146)
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
+#define TLV_TYPE_FW_API_REV         (PROPRIETARY_TLV_BASE_ID + 199)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -751,6 +752,17 @@ struct host_cmd_ds_802_11_ps_mode_enh {
 	} params;
 } __packed;
 
+enum FW_API_VER_ID {
+	KEY_API_VER_ID = 1,
+};
+
+struct hw_spec_fw_api_rev {
+	struct mwifiex_ie_types_header header;
+	__le16 api_id;
+	u8 major_ver;
+	u8 minor_ver;
+} __packed;
+
 struct host_cmd_ds_get_hw_spec {
 	__le16 hw_if_version;
 	__le16 version;
@@ -772,6 +784,7 @@ struct host_cmd_ds_get_hw_spec {
 	__le32 reserved_6;
 	__le32 dot_11ac_dev_cap;
 	__le32 dot_11ac_mcs_support;
+	u8 tlvs[0];
 } __packed;
 
 struct host_cmd_ds_802_11_rssi_info {
