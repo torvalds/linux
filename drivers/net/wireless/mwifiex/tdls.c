@@ -782,3 +782,14 @@ int mwifiex_tdls_oper(struct mwifiex_private *priv, u8 *peer, u8 action)
 	}
 	return 0;
 }
+
+int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, u8 *mac)
+{
+	struct mwifiex_sta_node *sta_ptr;
+
+	sta_ptr = mwifiex_get_sta_entry(priv, mac);
+	if (sta_ptr)
+		return sta_ptr->tdls_status;
+
+	return TDLS_NOT_SETUP;
+}

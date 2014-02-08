@@ -1213,6 +1213,7 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv,
 void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 				       u8 *buf, int len);
 int mwifiex_tdls_oper(struct mwifiex_private *priv, u8 *peer, u8 action);
+int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, u8 *mac);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

@@ -631,6 +631,21 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	struct mwifiex_ra_list_tbl *ra_list;
 	u8 ra[ETH_ALEN], tid_down;
 	unsigned long flags;
+	struct list_head list_head;
+	int tdls_status = TDLS_NOT_SETUP;
+	struct ethhdr *eth_hdr = (struct ethhdr *)skb->data;
+	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
+
+	memcpy(ra, eth_hdr->h_dest, ETH_ALEN);
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA &&
+	    ISSUPP_TDLS_ENABLED(adapter->fw_cap_info)) {
+		if (ntohs(eth_hdr->h_proto) == ETH_P_TDLS)
+			dev_dbg(adapter->dev,
+				"TDLS setup packet for %pM. Don't block\n", ra);
+		else
+			tdls_status = mwifiex_get_tdls_link_status(priv, ra);
+	}
 
 	if (!priv->media_connected && !mwifiex_is_skb_mgmt_frame(skb)) {
 		dev_dbg(adapter->dev, "data: drop packet in disconnect\n");
@@ -649,12 +664,27 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	   have only 1 raptr for a tid in case of infra */
 	if (!mwifiex_queuing_ra_based(priv) &&
 	    !mwifiex_is_skb_mgmt_frame(skb)) {
-		if (!list_empty(&priv->wmm.tid_tbl_ptr[tid_down].ra_list))
-			ra_list = list_first_entry(
-				&priv->wmm.tid_tbl_ptr[tid_down].ra_list,
-				struct mwifiex_ra_list_tbl, list);
-		else
-			ra_list = NULL;
+		switch (tdls_status) {
+		case TDLS_SETUP_COMPLETE:
+			ra_list = mwifiex_wmm_get_queue_raptr(priv, tid_down,
+							      ra);
+			tx_info->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
+			break;
+		case TDLS_SETUP_INPROGRESS:
+			skb_queue_tail(&priv->tdls_txq, skb);
+			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
+					       flags);
+			return;
+		default:
+			list_head = priv->wmm.tid_tbl_ptr[tid_down].ra_list;
+			if (!list_empty(&list_head))
+				ra_list = list_first_entry(
+					&list_head, struct mwifiex_ra_list_tbl,
+					list);
+			else
+				ra_list = NULL;
+			break;
+		}
 	} else {
 		memcpy(ra, skb->data, ETH_ALEN);
 		if (ra[0] & 0x01 || mwifiex_is_skb_mgmt_frame(skb))
