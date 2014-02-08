@@ -1848,7 +1848,7 @@ int gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 EXPORT_SYMBOL_GPL(gpiod_direction_output_raw);
 
 /**
- * gpiod_direction_output - set the GPIO direction to input
+ * gpiod_direction_output - set the GPIO direction to output
  * @desc:	GPIO to set to output
  * @value:	initial output value of the GPIO
  *
