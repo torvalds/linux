@@ -56,10 +56,6 @@ struct pcidio_board {
 	const char *name;	/*  name of the board */
 	int dev_id;
 	int n_8255;		/*  number of 8255 chips on board */
-
-	/*  indices of base address regions */
-	int pcicontroler_badrindex;
-	int dioregs_badrindex;
 };
 
 static const struct pcidio_board pcidio_boards[] = {
@@ -67,22 +63,16 @@ static const struct pcidio_board pcidio_boards[] = {
 	 .name = "pci-dio24",
 	 .dev_id = 0x0028,
 	 .n_8255 = 1,
-	 .pcicontroler_badrindex = 1,
-	 .dioregs_badrindex = 2,
 	 },
 	{
 	 .name = "pci-dio24h",
 	 .dev_id = 0x0014,
 	 .n_8255 = 1,
-	 .pcicontroler_badrindex = 1,
-	 .dioregs_badrindex = 2,
 	 },
 	{
 	 .name = "pci-dio48h",
 	 .dev_id = 0x000b,
 	 .n_8255 = 2,
-	 .pcicontroler_badrindex = 0,
-	 .dioregs_badrindex = 1,
 	 },
 };
 
@@ -239,10 +229,15 @@ found:
 	if (comedi_pci_enable(pcidev, thisboard->name))
 		return -EIO;
 
-	devpriv->dio_reg_base
-	    =
+	/*
+	 * Use PCI BAR 2 region if non-zero length, else use PCI BAR 1 region.
+	 * PCI BAR 1 is only used for older PCI-DIO48H boards.  At some point
+	 * the PCI-DIO48H was redesigned to use the same PCI interface chip
+	 * (and same PCI BAR region) as the other boards.
+	 */
+	devpriv->dio_reg_base =
 	    pci_resource_start(devpriv->pci_dev,
-			       pcidio_boards[index].dioregs_badrindex);
+			       (pci_resource_len(pcidev, 2) ? 2 : 1));
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
