@@ -4417,6 +4417,93 @@ int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_card_name);
 
+static const struct snd_soc_dapm_widget simple_widgets[] = {
+	SND_SOC_DAPM_MIC("Microphone", NULL),
+	SND_SOC_DAPM_LINE("Line", NULL),
+	SND_SOC_DAPM_HP("Headphone", NULL),
+	SND_SOC_DAPM_SPK("Speaker", NULL),
+};
+
+int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
+					  const char *propname)
+{
+	struct device_node *np = card->dev->of_node;
+	struct snd_soc_dapm_widget *widgets;
+	const char *template, *wname;
+	int i, j, num_widgets, ret;
+
+	num_widgets = of_property_count_strings(np, propname);
+	if (num_widgets < 0) {
+		dev_err(card->dev,
+			"ASoC: Property '%s' does not exist\n",	propname);
+		return -EINVAL;
+	}
+	if (num_widgets & 1) {
+		dev_err(card->dev,
+			"ASoC: Property '%s' length is not even\n", propname);
+		return -EINVAL;
+	}
+
+	num_widgets /= 2;
+	if (!num_widgets) {
+		dev_err(card->dev, "ASoC: Property '%s's length is zero\n",
+			propname);
+		return -EINVAL;
+	}
+
+	widgets = devm_kcalloc(card->dev, num_widgets, sizeof(*widgets),
+			       GFP_KERNEL);
+	if (!widgets) {
+		dev_err(card->dev,
+			"ASoC: Could not allocate memory for widgets\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < num_widgets; i++) {
+		ret = of_property_read_string_index(np, propname,
+			2 * i, &template);
+		if (ret) {
+			dev_err(card->dev,
+				"ASoC: Property '%s' index %d read error:%d\n",
+				propname, 2 * i, ret);
+			return -EINVAL;
+		}
+
+		for (j = 0; j < ARRAY_SIZE(simple_widgets); j++) {
+			if (!strncmp(template, simple_widgets[j].name,
+				     strlen(simple_widgets[j].name))) {
+				widgets[i] = simple_widgets[j];
+				break;
+			}
+		}
+
+		if (j >= ARRAY_SIZE(simple_widgets)) {
+			dev_err(card->dev,
+				"ASoC: DAPM widget '%s' is not supported\n",
+				template);
+			return -EINVAL;
+		}
+
+		ret = of_property_read_string_index(np, propname,
+						    (2 * i) + 1,
+						    &wname);
+		if (ret) {
+			dev_err(card->dev,
+				"ASoC: Property '%s' index %d read error:%d\n",
+				propname, (2 * i) + 1, ret);
+			return -EINVAL;
+		}
+
+		widgets[i].name = wname;
+	}
+
+	card->dapm_widgets = widgets;
+	card->num_dapm_widgets = num_widgets;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_simple_widgets);
+
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname)
 {
