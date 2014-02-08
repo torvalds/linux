@@ -2240,6 +2240,11 @@ static noinline int relink_extent_backref(struct btrfs_path *path,
 		return PTR_ERR(root);
 	}
 
+	if (btrfs_root_readonly(root)) {
+		srcu_read_unlock(&fs_info->subvol_srcu, index);
+		return 0;
+	}
+
 	/* step 2: get inode */
 	key.objectid = backref->inum;
 	key.type = BTRFS_INODE_ITEM_KEY;
