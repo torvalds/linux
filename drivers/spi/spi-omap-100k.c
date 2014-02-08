@@ -99,13 +99,6 @@ struct omap1_spi100k_cs {
 	int                     word_len;
 };
 
-#define MOD_REG_BIT(val, mask, set) do { \
-	if (set) \
-		val |= mask; \
-	else \
-		val &= ~mask; \
-} while (0)
-
 static void spi100k_enable_clock(struct spi_master *master)
 {
 	unsigned int val;
