@@ -323,7 +323,8 @@ struct smb_version_operations {
 	/* async read from the server */
 	int (*async_readv)(struct cifs_readdata *);
 	/* async write to the server */
-	int (*async_writev)(struct cifs_writedata *);
+	int (*async_writev)(struct cifs_writedata *,
+			    void (*release)(struct kref *));
 	/* sync read from the server */
 	int (*sync_read)(const unsigned int, struct cifsFileInfo *,
 			 struct cifs_io_parms *, unsigned int *, char **,
