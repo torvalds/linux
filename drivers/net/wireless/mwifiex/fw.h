@@ -186,6 +186,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
 				 IEEE80211_HT_CAP_SM_PS)
 
+#define MWIFIEX_DEF_11N_TX_BF_CAP	0x09E1E008
+
 #define MWIFIEX_DEF_AMPDU	IEEE80211_HT_AMPDU_PARM_FACTOR
 
 /* dev_cap bitmap
@@ -209,6 +211,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISSUPP_GREENFIELD(Dot11nDevCap) (Dot11nDevCap & BIT(29))
 #define ISENABLED_40MHZ_INTOLERANT(Dot11nDevCap) (Dot11nDevCap & BIT(8))
 #define ISSUPP_RXLDPC(Dot11nDevCap) (Dot11nDevCap & BIT(22))
+#define ISSUPP_BEAMFORMING(Dot11nDevCap) (Dot11nDevCap & BIT(30))
 
 /* httxcfg bitmap
  * 0		reserved

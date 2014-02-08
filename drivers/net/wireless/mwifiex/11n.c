@@ -64,6 +64,10 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 
 	ht_cap->ht_cap.cap_info = cpu_to_le16(sband->ht_cap.cap);
 	ht_cap->ht_cap.extended_ht_cap_info = cpu_to_le16(ht_ext_cap);
+
+	if (ISSUPP_BEAMFORMING(priv->adapter->hw_dot_11n_dev_cap))
+		ht_cap->ht_cap.tx_BF_cap_info =
+				cpu_to_le32(MWIFIEX_DEF_11N_TX_BF_CAP);
 }
 
 /*
