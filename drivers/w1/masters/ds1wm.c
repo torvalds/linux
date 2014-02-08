@@ -326,14 +326,13 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 	unsigned slaves_found = 0;
 	unsigned int pass = 0;
 
-	mutex_lock(&master_dev->bus_mutex);
 	dev_dbg(&ds1wm_data->pdev->dev, "search begin\n");
 	while (true) {
 		++pass;
 		if (pass > 100) {
 			dev_dbg(&ds1wm_data->pdev->dev,
 				"too many attempts (100), search aborted\n");
-			break;
+			return;
 		}
 
 		mutex_lock(&master_dev->bus_mutex);
@@ -440,7 +439,6 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 	dev_dbg(&ds1wm_data->pdev->dev,
 		"pass: %d total: %d search done ms d bit pos: %d\n", pass,
 		slaves_found, ms_discrep_bit);
-	mutex_unlock(&master_dev->bus_mutex);
 }
 
 /* --------------------------------------------------------------------- */
