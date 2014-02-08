@@ -530,6 +530,7 @@ struct mwifiex_private {
 	u8 del_list_idx;
 	bool hs2_enabled;
 	struct station_parameters *sta_params;
+	struct sk_buff_head tdls_txq;
 };
 
 enum mwifiex_ba_status {

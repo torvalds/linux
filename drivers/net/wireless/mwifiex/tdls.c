@@ -24,6 +24,96 @@
 #define TDLS_RESP_FIX_LEN     8
 #define TDLS_CONFIRM_FIX_LEN  6
 
+static void
+mwifiex_restore_tdls_packets(struct mwifiex_private *priv, u8 *mac, u8 status)
+{
+	struct mwifiex_ra_list_tbl *ra_list;
+	struct list_head *tid_list;
+	struct sk_buff *skb, *tmp;
+	struct mwifiex_txinfo *tx_info;
+	unsigned long flags;
+	u32 tid;
+	u8 tid_down;
+
+	dev_dbg(priv->adapter->dev, "%s: %pM\n", __func__, mac);
+	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+
+	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp) {
+		if (!ether_addr_equal(mac, skb->data))
+			continue;
+
+		__skb_unlink(skb, &priv->tdls_txq);
+		tx_info = MWIFIEX_SKB_TXCB(skb);
+		tid = skb->priority;
+		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
+
+		if (status == TDLS_SETUP_COMPLETE) {
+			ra_list = mwifiex_wmm_get_queue_raptr(priv, tid, mac);
+			tx_info->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
+		} else {
+			tid_list = &priv->wmm.tid_tbl_ptr[tid_down].ra_list;
+			if (!list_empty(tid_list))
+				ra_list = list_first_entry(tid_list,
+					      struct mwifiex_ra_list_tbl, list);
+			else
+				ra_list = NULL;
+			tx_info->flags &= ~MWIFIEX_BUF_FLAG_TDLS_PKT;
+		}
+
+		if (!ra_list) {
+			mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+			continue;
+		}
+
+		skb_queue_tail(&ra_list->skb_head, skb);
+
+		ra_list->ba_pkt_count++;
+		ra_list->total_pkt_count++;
+
+		if (atomic_read(&priv->wmm.highest_queued_prio) <
+						       tos_to_tid_inv[tid_down])
+			atomic_set(&priv->wmm.highest_queued_prio,
+				   tos_to_tid_inv[tid_down]);
+
+		atomic_inc(&priv->wmm.tx_pkts_queued);
+	}
+
+	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	return;
+}
+
+static void mwifiex_hold_tdls_packets(struct mwifiex_private *priv, u8 *mac)
+{
+	struct mwifiex_ra_list_tbl *ra_list;
+	struct list_head *ra_list_head;
+	struct sk_buff *skb, *tmp;
+	unsigned long flags;
+	int i;
+
+	dev_dbg(priv->adapter->dev, "%s: %pM\n", __func__, mac);
+	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+
+	for (i = 0; i < MAX_NUM_TID; i++) {
+		if (!list_empty(&priv->wmm.tid_tbl_ptr[i].ra_list)) {
+			ra_list_head = &priv->wmm.tid_tbl_ptr[i].ra_list;
+			list_for_each_entry(ra_list, ra_list_head, list) {
+				skb_queue_walk_safe(&ra_list->skb_head, skb,
+						    tmp) {
+					if (!ether_addr_equal(mac, skb->data))
+						continue;
+					__skb_unlink(skb, &ra_list->skb_head);
+					atomic_dec(&priv->wmm.tx_pkts_queued);
+					ra_list->total_pkt_count--;
+					skb_queue_tail(&priv->tdls_txq, skb);
+				}
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	return;
+}
+
 /* This function appends rate TLV to scan config command. */
 static int
 mwifiex_tdls_append_rates_ie(struct mwifiex_private *priv,
@@ -584,6 +674,7 @@ mwifiex_tdls_process_create_link(struct mwifiex_private *priv, u8 *peer)
 		return -ENOMEM;
 
 	sta_ptr->tdls_status = TDLS_SETUP_INPROGRESS;
+	mwifiex_hold_tdls_packets(priv, peer);
 	memcpy(&tdls_oper.peer_mac, peer, ETH_ALEN);
 	tdls_oper.tdls_action = MWIFIEX_TDLS_CREATE_LINK;
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TDLS_OPER,
@@ -612,6 +703,7 @@ mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, u8 *peer)
 		mwifiex_del_sta_entry(priv, peer);
 	}
 
+	mwifiex_restore_tdls_packets(priv, peer, TDLS_LINK_TEARDOWN);
 	memcpy(&tdls_oper.peer_mac, peer, ETH_ALEN);
 	tdls_oper.tdls_action = MWIFIEX_TDLS_DISABLE_LINK;
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TDLS_OPER,
@@ -655,6 +747,7 @@ mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, u8 *peer)
 		}
 
 		memset(sta_ptr->rx_seq, 0xff, sizeof(sta_ptr->rx_seq));
+		mwifiex_restore_tdls_packets(priv, peer, TDLS_SETUP_COMPLETE);
 	} else {
 		dev_dbg(priv->adapter->dev,
 			"tdls: enable link %pM failed\n", peer);
@@ -667,6 +760,7 @@ mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, u8 *peer)
 					       flags);
 			mwifiex_del_sta_entry(priv, peer);
 		}
+		mwifiex_restore_tdls_packets(priv, peer, TDLS_LINK_TEARDOWN);
 
 		return -1;
 	}
