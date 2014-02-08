@@ -1007,3 +1007,38 @@ int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, u8 *mac)
 
 	return TDLS_NOT_SETUP;
 }
+
+void mwifiex_disable_all_tdls_links(struct mwifiex_private *priv)
+{
+	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_ds_tdls_oper tdls_oper;
+	unsigned long flags;
+
+	if (list_empty(&priv->sta_list))
+		return;
+
+	list_for_each_entry(sta_ptr, &priv->sta_list, list) {
+		memset(&tdls_oper, 0, sizeof(struct mwifiex_ds_tdls_oper));
+
+		if (sta_ptr->is_11n_enabled) {
+			mwifiex_11n_cleanup_reorder_tbl(priv);
+			spin_lock_irqsave(&priv->wmm.ra_list_spinlock,
+					  flags);
+			mwifiex_11n_delete_all_tx_ba_stream_tbl(priv);
+			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
+					       flags);
+		}
+
+		mwifiex_restore_tdls_packets(priv, sta_ptr->mac_addr,
+					     TDLS_LINK_TEARDOWN);
+		memcpy(&tdls_oper.peer_mac, sta_ptr->mac_addr, ETH_ALEN);
+		tdls_oper.tdls_action = MWIFIEX_TDLS_DISABLE_LINK;
+		if (mwifiex_send_cmd_async(priv, HostCmd_CMD_TDLS_OPER,
+					   HostCmd_ACT_GEN_SET, 0, &tdls_oper))
+			dev_warn(priv->adapter->dev,
+				 "Disable link failed for TDLS peer %pM",
+				 sta_ptr->mac_addr);
+	}
+
+	mwifiex_del_all_sta_list(priv);
+}
