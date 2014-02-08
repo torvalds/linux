@@ -529,6 +529,7 @@ struct mwifiex_private {
 	unsigned long csa_expire_time;
 	u8 del_list_idx;
 	bool hs2_enabled;
+	struct station_parameters *sta_params;
 };
 
 enum mwifiex_ba_status {

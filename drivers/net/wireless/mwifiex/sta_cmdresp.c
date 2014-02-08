@@ -834,6 +834,19 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 				cmd_tdls_oper->peer_mac);
 		}
 		break;
+	case ACT_TDLS_CONFIG:
+		if (reason) {
+			dev_err(priv->adapter->dev,
+				"TDLS link config for %pM failed, reason %d\n",
+				cmd_tdls_oper->peer_mac, reason);
+			if (node)
+				node->tdls_status = TDLS_SETUP_FAILURE;
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link config for %pM successful\n",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
 	default:
 		dev_err(priv->adapter->dev,
 			"Unknown TDLS command action respnse %d", action);

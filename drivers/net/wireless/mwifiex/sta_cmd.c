@@ -1288,13 +1288,23 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 	struct host_cmd_ds_tdls_oper *tdls_oper = &cmd->params.tdls_oper;
 	struct mwifiex_ds_tdls_oper *oper = data_buf;
 	struct mwifiex_sta_node *sta_ptr;
+	struct host_cmd_tlv_rates *tlv_rates;
+	struct mwifiex_ie_types_htcap *ht_capab;
+	struct mwifiex_ie_types_qos_info *wmm_qos_info;
+	struct mwifiex_ie_types_extcap *extcap;
+	u8 *pos, qos_info;
+	u16 config_len = 0;
+	struct station_parameters *params = priv->sta_params;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_TDLS_OPER);
 	cmd->size = cpu_to_le16(S_DS_GEN);
+	le16_add_cpu(&cmd->size, sizeof(struct host_cmd_ds_tdls_oper));
 
 	tdls_oper->reason = 0;
 	memcpy(tdls_oper->peer_mac, oper->peer_mac, ETH_ALEN);
 	sta_ptr = mwifiex_get_sta_entry(priv, oper->peer_mac);
+
+	pos = (u8 *)tdls_oper + sizeof(struct host_cmd_ds_tdls_oper);
 
 	switch (oper->tdls_action) {
 	case MWIFIEX_TDLS_DISABLE_LINK:
@@ -1303,12 +1313,71 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 	case MWIFIEX_TDLS_CREATE_LINK:
 		tdls_oper->tdls_action = cpu_to_le16(ACT_TDLS_CREATE);
 		break;
+	case MWIFIEX_TDLS_CONFIG_LINK:
+		tdls_oper->tdls_action = cpu_to_le16(ACT_TDLS_CONFIG);
+
+		if (!params) {
+			dev_err(priv->adapter->dev,
+				"TDLS config params not available for %pM\n",
+				oper->peer_mac);
+			return -ENODATA;
+		}
+
+		*(__le16 *)pos = cpu_to_le16(params->capability);
+		config_len += sizeof(params->capability);
+
+		qos_info = params->uapsd_queues | (params->max_sp << 5);
+		wmm_qos_info = (struct mwifiex_ie_types_qos_info *)(pos +
+								    config_len);
+		wmm_qos_info->header.type = cpu_to_le16(WLAN_EID_QOS_CAPA);
+		wmm_qos_info->header.len = cpu_to_le16(sizeof(qos_info));
+		wmm_qos_info->qos_info = qos_info;
+		config_len += sizeof(struct mwifiex_ie_types_qos_info);
+
+		if (params->ht_capa) {
+			ht_capab = (struct mwifiex_ie_types_htcap *)(pos +
+								    config_len);
+			ht_capab->header.type =
+					    cpu_to_le16(WLAN_EID_HT_CAPABILITY);
+			ht_capab->header.len =
+				   cpu_to_le16(sizeof(struct ieee80211_ht_cap));
+			memcpy(&ht_capab->ht_cap, params->ht_capa,
+			       sizeof(struct ieee80211_ht_cap));
+			config_len += sizeof(struct mwifiex_ie_types_htcap);
+		}
+
+		if (params->supported_rates && params->supported_rates_len) {
+			tlv_rates = (struct host_cmd_tlv_rates *)(pos +
+								  config_len);
+			tlv_rates->header.type =
+					       cpu_to_le16(WLAN_EID_SUPP_RATES);
+			tlv_rates->header.len =
+				       cpu_to_le16(params->supported_rates_len);
+			memcpy(tlv_rates->rates, params->supported_rates,
+			       params->supported_rates_len);
+			config_len += sizeof(struct host_cmd_tlv_rates) +
+				      params->supported_rates_len;
+		}
+
+		if (params->ext_capab && params->ext_capab_len) {
+			extcap = (struct mwifiex_ie_types_extcap *)(pos +
+								    config_len);
+			extcap->header.type =
+					   cpu_to_le16(WLAN_EID_EXT_CAPABILITY);
+			extcap->header.len = cpu_to_le16(params->ext_capab_len);
+			memcpy(extcap->ext_capab, params->ext_capab,
+			       params->ext_capab_len);
+			config_len += sizeof(struct mwifiex_ie_types_extcap) +
+				      params->ext_capab_len;
+		}
+
+		break;
 	default:
 		dev_err(priv->adapter->dev, "Unknown TDLS operation\n");
 		return -ENOTSUPP;
 	}
 
-	le16_add_cpu(&cmd->size, sizeof(struct host_cmd_ds_tdls_oper));
+	le16_add_cpu(&cmd->size, config_len);
 
 	return 0;
 }

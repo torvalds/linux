@@ -1391,6 +1391,11 @@ struct mwifiex_ie_types_extcap {
 	u8 ext_capab[0];
 } __packed;
 
+struct mwifiex_ie_types_qos_info {
+	struct mwifiex_ie_types_header header;
+	u8 qos_info;
+} __packed;
+
 struct host_cmd_ds_mac_reg_access {
 	__le16 action;
 	__le16 offset;
