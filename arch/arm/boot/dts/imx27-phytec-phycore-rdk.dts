@@ -19,6 +19,28 @@
 	cs-gpios = <&gpio4 28 0>, <&gpio4 27 0>;
 };
 
+&iomuxc {
+	imx27_phycore_rdk {
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX27_PAD_UART1_TXD__UART1_TXD 0x0
+				MX27_PAD_UART1_RXD__UART1_RXD 0x0
+				MX27_PAD_UART1_CTS__UART1_CTS 0x0
+				MX27_PAD_UART1_RTS__UART1_RTS 0x0
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX27_PAD_UART2_TXD__UART2_TXD 0x0
+				MX27_PAD_UART2_RXD__UART2_RXD 0x0
+				MX27_PAD_UART2_CTS__UART2_CTS 0x0
+				MX27_PAD_UART2_RTS__UART2_RTS 0x0
+			>;
+		};
+	};
+};
+
 &sdhci2 {
 	bus-width = <4>;
 	cd-gpios = <&gpio3 29 0>;
@@ -29,11 +51,15 @@
 
 &uart1 {
 	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };
 
 &uart2 {
 	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
 	status = "okay";
 };
 
