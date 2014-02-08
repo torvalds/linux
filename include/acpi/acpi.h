@@ -62,5 +62,8 @@
 #include <acpi/acrestyp.h>		/* Resource Descriptor structs */
 #include <acpi/acpiosxf.h>		/* OSL interfaces (ACPICA-to-OS) */
 #include <acpi/acpixf.h>		/* ACPI core subsystem external interfaces */
+#ifdef ACPI_NATIVE_INTERFACE_HEADER
+#include ACPI_NATIVE_INTERFACE_HEADER
+#endif
 
 #endif				/* __ACPI_H__ */
