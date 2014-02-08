@@ -64,21 +64,6 @@ static u8 tos_to_tid[] = {
 	0x07			/* 1 1 1 AC_VO */
 };
 
-/*
- * This table inverses the tos_to_tid operation to get a priority
- * which is in sequential order, and can be compared.
- * Use this to compare the priority of two different TIDs.
- */
-static u8 tos_to_tid_inv[] = {
-	0x02,  /* from tos_to_tid[2] = 0 */
-	0x00,  /* from tos_to_tid[0] = 1 */
-	0x01,  /* from tos_to_tid[1] = 2 */
-	0x03,
-	0x04,
-	0x05,
-	0x06,
-	0x07};
-
 static u8 ac_to_tid[4][2] = { {1, 2}, {0, 3}, {4, 5}, {6, 7} };
 
 /*
@@ -213,8 +198,9 @@ static void mwifiex_wmm_default_queue_priorities(struct mwifiex_private *priv)
  * This function map ACs to TIDs.
  */
 static void
-mwifiex_wmm_queue_priorities_tid(struct mwifiex_wmm_desc *wmm)
+mwifiex_wmm_queue_priorities_tid(struct mwifiex_private *priv)
 {
+	struct mwifiex_wmm_desc *wmm = &priv->wmm;
 	u8 *queue_priority = wmm->queue_priority;
 	int i;
 
@@ -224,7 +210,7 @@ mwifiex_wmm_queue_priorities_tid(struct mwifiex_wmm_desc *wmm)
 	}
 
 	for (i = 0; i < MAX_NUM_TID; ++i)
-		tos_to_tid_inv[tos_to_tid[i]] = (u8)i;
+		priv->tos_to_tid_inv[tos_to_tid[i]] = (u8)i;
 
 	atomic_set(&wmm->highest_queued_prio, HIGH_PRIO_TID);
 }
@@ -285,7 +271,7 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 		}
 	}
 
-	mwifiex_wmm_queue_priorities_tid(&priv->wmm);
+	mwifiex_wmm_queue_priorities_tid(priv);
 }
 
 /*
@@ -421,9 +407,11 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 			continue;
 
 		for (i = 0; i < MAX_NUM_TID; ++i) {
-			priv->aggr_prio_tbl[i].amsdu = tos_to_tid_inv[i];
-			priv->aggr_prio_tbl[i].ampdu_ap = tos_to_tid_inv[i];
-			priv->aggr_prio_tbl[i].ampdu_user = tos_to_tid_inv[i];
+			priv->aggr_prio_tbl[i].amsdu = priv->tos_to_tid_inv[i];
+			priv->aggr_prio_tbl[i].ampdu_ap =
+							priv->tos_to_tid_inv[i];
+			priv->aggr_prio_tbl[i].ampdu_user =
+							priv->tos_to_tid_inv[i];
 		}
 
 		priv->aggr_prio_tbl[6].amsdu
@@ -683,9 +671,9 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	ra_list->total_pkt_count++;
 
 	if (atomic_read(&priv->wmm.highest_queued_prio) <
-						tos_to_tid_inv[tid_down])
+						priv->tos_to_tid_inv[tid_down])
 		atomic_set(&priv->wmm.highest_queued_prio,
-			   tos_to_tid_inv[tid_down]);
+			   priv->tos_to_tid_inv[tid_down]);
 
 	atomic_inc(&priv->wmm.tx_pkts_queued);
 

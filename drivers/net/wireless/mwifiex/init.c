@@ -137,6 +137,7 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->csa_expire_time = 0;
 	priv->del_list_idx = 0;
 	priv->hs2_enabled = false;
+	memcpy(priv->tos_to_tid_inv, tos_to_tid_inv, MAX_NUM_TID);
 
 	return mwifiex_add_bss_prio_tbl(priv);
 }

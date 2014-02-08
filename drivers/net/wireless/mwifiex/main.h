@@ -461,6 +461,7 @@ struct mwifiex_private {
 	struct mwifiex_tx_aggr aggr_prio_tbl[MAX_NUM_TID];
 	struct mwifiex_add_ba_param add_ba_param;
 	u16 rx_seq[MAX_NUM_TID];
+	u8 tos_to_tid_inv[MAX_NUM_TID];
 	struct list_head rx_reorder_tbl_ptr;
 	/* spin lock for rx_reorder_tbl_ptr queue */
 	spinlock_t rx_reorder_tbl_lock;
