@@ -26,7 +26,8 @@ struct kernfs_iattrs {
 	struct simple_xattrs	xattrs;
 };
 
-#define KN_DEACTIVATED_BIAS		INT_MIN
+/* +1 to avoid triggering overflow warning when negating it */
+#define KN_DEACTIVATED_BIAS		(INT_MIN + 1)
 
 /* KERNFS_TYPE_MASK and types are defined in include/linux/kernfs.h */
 
@@ -43,13 +44,6 @@ static inline struct kernfs_root *kernfs_root(struct kernfs_node *kn)
 		kn = kn->parent;
 	return kn->dir.root;
 }
-
-/*
- * Context structure to be used while adding/removing nodes.
- */
-struct kernfs_addrm_cxt {
-	struct kernfs_node	*removed;
-};
 
 /*
  * mount.c
@@ -100,9 +94,7 @@ extern const struct inode_operations kernfs_dir_iops;
 
 struct kernfs_node *kernfs_get_active(struct kernfs_node *kn);
 void kernfs_put_active(struct kernfs_node *kn);
-void kernfs_addrm_start(struct kernfs_addrm_cxt *acxt);
-int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn);
-void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt);
+int kernfs_add_one(struct kernfs_node *kn);
 struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 				    const char *name, umode_t mode,
 				    unsigned flags);

@@ -15,7 +15,7 @@
 #include <linux/lockdep.h>
 #include <linux/rbtree.h>
 #include <linux/atomic.h>
-#include <linux/completion.h>
+#include <linux/wait.h>
 
 struct file;
 struct dentry;
@@ -35,16 +35,22 @@ enum kernfs_node_type {
 };
 
 #define KERNFS_TYPE_MASK	0x000f
-#define KERNFS_ACTIVE_REF	KERNFS_FILE
 #define KERNFS_FLAG_MASK	~KERNFS_TYPE_MASK
 
 enum kernfs_node_flag {
-	KERNFS_REMOVED		= 0x0010,
+	KERNFS_ACTIVATED	= 0x0010,
 	KERNFS_NS		= 0x0020,
 	KERNFS_HAS_SEQ_SHOW	= 0x0040,
 	KERNFS_HAS_MMAP		= 0x0080,
 	KERNFS_LOCKDEP		= 0x0100,
 	KERNFS_STATIC_NAME	= 0x0200,
+	KERNFS_SUICIDAL		= 0x0400,
+	KERNFS_SUICIDED		= 0x0800,
+};
+
+/* @flags for kernfs_create_root() */
+enum kernfs_root_flag {
+	KERNFS_ROOT_CREATE_DEACTIVATED = 0x0001,
 };
 
 /* type-specific structures for kernfs_node union members */
@@ -85,16 +91,16 @@ struct kernfs_node {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
-	/* the following two fields are published */
+	/*
+	 * Use kernfs_get_parent() and kernfs_name/path() instead of
+	 * accessing the following two fields directly.  If the node is
+	 * never moved to a different parent, it is safe to access the
+	 * parent directly.
+	 */
 	struct kernfs_node	*parent;
 	const char		*name;
 
 	struct rb_node		rb;
-
-	union {
-		struct completion	*completion;
-		struct kernfs_node	*removed_list;
-	} u;
 
 	const void		*ns;	/* namespace tag */
 	unsigned int		hash;	/* ns + name hash */
@@ -113,12 +119,16 @@ struct kernfs_node {
 };
 
 /*
- * kernfs_dir_ops may be specified on kernfs_create_root() to support
- * directory manipulation syscalls.  These optional callbacks are invoked
- * on the matching syscalls and can perform any kernfs operations which
- * don't necessarily have to be the exact operation requested.
+ * kernfs_syscall_ops may be specified on kernfs_create_root() to support
+ * syscalls.  These optional callbacks are invoked on the matching syscalls
+ * and can perform any kernfs operations which don't necessarily have to be
+ * the exact operation requested.  An active reference is held for each
+ * kernfs_node parameter.
  */
-struct kernfs_dir_ops {
+struct kernfs_syscall_ops {
+	int (*remount_fs)(struct kernfs_root *root, int *flags, char *data);
+	int (*show_options)(struct seq_file *sf, struct kernfs_root *root);
+
 	int (*mkdir)(struct kernfs_node *parent, const char *name,
 		     umode_t mode);
 	int (*rmdir)(struct kernfs_node *kn);
@@ -129,16 +139,19 @@ struct kernfs_dir_ops {
 struct kernfs_root {
 	/* published fields */
 	struct kernfs_node	*kn;
+	unsigned int		flags;	/* KERNFS_ROOT_* flags */
 
 	/* private fields, do not use outside kernfs proper */
 	struct ida		ino_ida;
-	struct kernfs_dir_ops	*dir_ops;
+	struct kernfs_syscall_ops *syscall_ops;
+	wait_queue_head_t	deactivate_waitq;
 };
 
 struct kernfs_open_file {
 	/* published fields */
 	struct kernfs_node	*kn;
 	struct file		*file;
+	void			*priv;
 
 	/* private fields, do not use outside kernfs proper */
 	struct mutex		mutex;
@@ -171,9 +184,13 @@ struct kernfs_ops {
 			loff_t off);
 
 	/*
-	 * write() is bounced through kernel buffer and a write larger than
-	 * PAGE_SIZE results in partial operation of PAGE_SIZE.
+	 * write() is bounced through kernel buffer.  If atomic_write_len
+	 * is not set, a write larger than PAGE_SIZE results in partial
+	 * operations of PAGE_SIZE chunks.  If atomic_write_len is set,
+	 * writes upto the specified size are executed atomically but
+	 * larger ones are rejected with -E2BIG.
 	 */
+	size_t atomic_write_len;
 	ssize_t (*write)(struct kernfs_open_file *of, char *buf, size_t bytes,
 			 loff_t off);
 
@@ -184,7 +201,7 @@ struct kernfs_ops {
 #endif
 };
 
-#ifdef CONFIG_SYSFS
+#ifdef CONFIG_KERNFS
 
 static inline enum kernfs_node_type kernfs_type(struct kernfs_node *kn)
 {
@@ -217,13 +234,22 @@ static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 	return kn->flags & KERNFS_NS;
 }
 
+int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen);
+char * __must_check kernfs_path(struct kernfs_node *kn, char *buf,
+				size_t buflen);
+void pr_cont_kernfs_name(struct kernfs_node *kn);
+void pr_cont_kernfs_path(struct kernfs_node *kn);
+struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn);
 struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
 					   const char *name, const void *ns);
 void kernfs_get(struct kernfs_node *kn);
 void kernfs_put(struct kernfs_node *kn);
 
-struct kernfs_root *kernfs_create_root(struct kernfs_dir_ops *kdops,
-				       void *priv);
+struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry);
+struct kernfs_root *kernfs_root_from_sb(struct super_block *sb);
+
+struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
+				       unsigned int flags, void *priv);
 void kernfs_destroy_root(struct kernfs_root *root);
 
 struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
@@ -239,7 +265,11 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 				       const char *name,
 				       struct kernfs_node *target);
+void kernfs_activate(struct kernfs_node *kn);
 void kernfs_remove(struct kernfs_node *kn);
+void kernfs_break_active_protection(struct kernfs_node *kn);
+void kernfs_unbreak_active_protection(struct kernfs_node *kn);
+bool kernfs_remove_self(struct kernfs_node *kn);
 int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 			     const void *ns);
 int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
@@ -254,7 +284,7 @@ void kernfs_kill_sb(struct super_block *sb);
 
 void kernfs_init(void);
 
-#else	/* CONFIG_SYSFS */
+#else	/* CONFIG_KERNFS */
 
 static inline enum kernfs_node_type kernfs_type(struct kernfs_node *kn)
 { return 0; }	/* whatever */
@@ -264,6 +294,19 @@ static inline void kernfs_enable_ns(struct kernfs_node *kn) { }
 static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 { return false; }
 
+static inline int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
+{ return -ENOSYS; }
+
+static inline char * __must_check kernfs_path(struct kernfs_node *kn, char *buf,
+					      size_t buflen)
+{ return NULL; }
+
+static inline void pr_cont_kernfs_name(struct kernfs_node *kn) { }
+static inline void pr_cont_kernfs_path(struct kernfs_node *kn) { }
+
+static inline struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
+{ return NULL; }
+
 static inline struct kernfs_node *
 kernfs_find_and_get_ns(struct kernfs_node *parent, const char *name,
 		       const void *ns)
@@ -272,8 +315,15 @@ kernfs_find_and_get_ns(struct kernfs_node *parent, const char *name,
 static inline void kernfs_get(struct kernfs_node *kn) { }
 static inline void kernfs_put(struct kernfs_node *kn) { }
 
+static inline struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
+{ return NULL; }
+
+static inline struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
+{ return NULL; }
+
 static inline struct kernfs_root *
-kernfs_create_root(struct kernfs_dir_ops *kdops, void *priv)
+kernfs_create_root(struct kernfs_syscall_ops *scops, unsigned int flags,
+		   void *priv)
 { return ERR_PTR(-ENOSYS); }
 
 static inline void kernfs_destroy_root(struct kernfs_root *root) { }
@@ -295,7 +345,12 @@ kernfs_create_link(struct kernfs_node *parent, const char *name,
 		   struct kernfs_node *target)
 { return ERR_PTR(-ENOSYS); }
 
+static inline void kernfs_activate(struct kernfs_node *kn) { }
+
 static inline void kernfs_remove(struct kernfs_node *kn) { }
+
+static inline bool kernfs_remove_self(struct kernfs_node *kn)
+{ return false; }
 
 static inline int kernfs_remove_by_name_ns(struct kernfs_node *kn,
 					   const char *name, const void *ns)
@@ -324,7 +379,7 @@ static inline void kernfs_kill_sb(struct super_block *sb) { }
 
 static inline void kernfs_init(void) { }
 
-#endif	/* CONFIG_SYSFS */
+#endif	/* CONFIG_KERNFS */
 
 static inline struct kernfs_node *
 kernfs_find_and_get(struct kernfs_node *kn, const char *name)
@@ -364,6 +419,13 @@ static inline int kernfs_remove_by_name(struct kernfs_node *parent,
 					const char *name)
 {
 	return kernfs_remove_by_name_ns(parent, name, NULL);
+}
+
+static inline int kernfs_rename(struct kernfs_node *kn,
+				struct kernfs_node *new_parent,
+				const char *new_name)
+{
+	return kernfs_rename_ns(kn, new_parent, new_name, NULL);
 }
 
 static inline struct dentry *
