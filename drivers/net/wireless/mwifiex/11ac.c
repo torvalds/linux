@@ -23,6 +23,31 @@
 #include "main.h"
 #include "11ac.h"
 
+/* Tables of the MCS map to the highest data rate (in Mbps) supported
+ * for long GI.
+ */
+static const u16 max_rate_lgi_80MHZ[8][3] = {
+	{0x124, 0x15F, 0x186},	/* NSS = 1 */
+	{0x249, 0x2BE, 0x30C},  /* NSS = 2 */
+	{0x36D, 0x41D, 0x492},  /* NSS = 3 */
+	{0x492, 0x57C, 0x618},  /* NSS = 4 */
+	{0x5B6, 0x6DB, 0x79E},  /* NSS = 5 */
+	{0x6DB, 0x83A, 0x0},    /* NSS = 6 */
+	{0x7FF, 0x999, 0xAAA},  /* NSS = 7 */
+	{0x924, 0xAF8, 0xC30}   /* NSS = 8 */
+};
+
+static const u16 max_rate_lgi_160MHZ[8][3] = {
+	{0x249, 0x2BE, 0x30C},   /* NSS = 1 */
+	{0x492, 0x57C, 0x618},   /* NSS = 2 */
+	{0x6DB, 0x83A, 0x0},     /* NSS = 3 */
+	{0x924, 0xAF8, 0xC30},   /* NSS = 4 */
+	{0xB6D, 0xDB6, 0xF3C},   /* NSS = 5 */
+	{0xDB6, 0x1074, 0x1248}, /* NSS = 6 */
+	{0xFFF, 0x1332, 0x1554}, /* NSS = 7 */
+	{0x1248, 0x15F0, 0x1860} /* NSS = 8 */
+};
+
 /* This function converts the 2-bit MCS map to the highest long GI
  * VHT data rate.
  */
@@ -34,29 +59,6 @@ mwifiex_convert_mcsmap_to_maxrate(struct mwifiex_private *priv,
 	u16 max_rate = 0;
 	u32 usr_vht_cap_info = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	/* tables of the MCS map to the highest data rate (in Mbps)
-	 * supported for long GI
-	 */
-	u16 max_rate_lgi_80MHZ[8][3] = {
-		{0x124, 0x15F, 0x186},	/* NSS = 1 */
-		{0x249, 0x2BE, 0x30C},  /* NSS = 2 */
-		{0x36D, 0x41D, 0x492},  /* NSS = 3 */
-		{0x492, 0x57C, 0x618},  /* NSS = 4 */
-		{0x5B6, 0x6DB, 0x79E},  /* NSS = 5 */
-		{0x6DB, 0x83A, 0x0},    /* NSS = 6 */
-		{0x7FF, 0x999, 0xAAA},  /* NSS = 7 */
-		{0x924, 0xAF8, 0xC30}   /* NSS = 8 */
-	};
-	u16 max_rate_lgi_160MHZ[8][3] = {
-		{0x249, 0x2BE, 0x30C},   /* NSS = 1 */
-		{0x492, 0x57C, 0x618},   /* NSS = 2 */
-		{0x6DB, 0x83A, 0x0},     /* NSS = 3 */
-		{0x924, 0xAF8, 0xC30},   /* NSS = 4 */
-		{0xB6D, 0xDB6, 0xF3C},   /* NSS = 5 */
-		{0xDB6, 0x1074, 0x1248}, /* NSS = 6 */
-		{0xFFF, 0x1332, 0x1554}, /* NSS = 7 */
-		{0x1248, 0x15F0, 0x1860} /* NSS = 8 */
-	};
 
 	if (bands & BAND_AAC)
 		usr_vht_cap_info = adapter->usr_dot_11ac_dev_cap_a;
