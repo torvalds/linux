@@ -85,6 +85,10 @@ struct wep_key {
 #define BAND_CONFIG_A           0x01
 #define MWIFIEX_SUPPORTED_RATES                 14
 #define MWIFIEX_SUPPORTED_RATES_EXT             32
+#define MWIFIEX_TDLS_SUPPORTED_RATES		8
+#define MWIFIEX_TDLS_DEF_QOS_CAPAB		0xf
+#define MWIFIEX_PRIO_BK				2
+#define MWIFIEX_PRIO_VI				5
 
 struct mwifiex_uap_bss_param {
 	u8 channel;

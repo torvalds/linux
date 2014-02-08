@@ -181,6 +181,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define MWIFIEX_TX_DATA_BUF_SIZE_8K        8192
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
+#define ISSUPP_TDLS_ENABLED(FwCapInfo) (FwCapInfo & BIT(14))
 
 #define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
 				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
@@ -497,6 +498,7 @@ struct mwifiex_ie_types_data {
 
 #define MWIFIEX_TxPD_POWER_MGMT_NULL_PACKET 0x01
 #define MWIFIEX_TxPD_POWER_MGMT_LAST_PACKET 0x08
+#define MWIFIEX_TXPD_FLAGS_TDLS_PACKET      0x10
 
 struct txpd {
 	u8 bss_type;

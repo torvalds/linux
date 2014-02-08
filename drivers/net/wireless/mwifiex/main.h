@@ -262,6 +262,16 @@ struct ieee_types_generic {
 	u8 data[IEEE_MAX_IE_SIZE - sizeof(struct ieee_types_header)];
 } __packed;
 
+struct ieee_types_bss_co_2040 {
+	struct ieee_types_header ieee_hdr;
+	u8 bss_2040co;
+} __packed;
+
+struct ieee_types_extcap {
+	struct ieee_types_header ieee_hdr;
+	u8 ext_capab[8];
+} __packed;
+
 struct mwifiex_bssdescriptor {
 	u8 mac_address[ETH_ALEN];
 	struct cfg80211_ssid ssid;
@@ -1176,6 +1186,14 @@ struct mwifiex_sta_node *
 mwifiex_add_sta_entry(struct mwifiex_private *priv, u8 *mac);
 struct mwifiex_sta_node *
 mwifiex_get_sta_entry(struct mwifiex_private *priv, u8 *mac);
+int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, u8 *peer,
+				 u8 action_code, u8 dialog_token,
+				 u16 status_code, const u8 *extra_ies,
+				 size_t extra_ies_len);
+int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv,
+				 u8 *peer, u8 action_code, u8 dialog_token,
+				 u16 status_code, const u8 *extra_ies,
+				 size_t extra_ies_len);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
