@@ -1047,9 +1047,7 @@ struct host_cmd_ds_rf_ant_siso {
 	__le16 ant_mode;
 };
 
-struct mwifiex_bcn_param {
-	u8 bssid[ETH_ALEN];
-	u8 rssi;
+struct mwifiex_fixed_bcn_param {
 	__le64 timestamp;
 	__le16 beacon_period;
 	__le16 cap_info_bitmap;

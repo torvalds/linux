@@ -1689,7 +1689,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		u16 cap_info_bitmap;
 		u8 *current_ptr;
 		u64 timestamp;
-		struct mwifiex_bcn_param *bcn_param;
+		struct mwifiex_fixed_bcn_param *bcn_param;
 		struct mwifiex_bss_priv *bss_priv;
 
 		if (bytes_left >= sizeof(beacon_size)) {
@@ -1716,24 +1716,29 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		curr_bcn_bytes = beacon_size;
 
-		/*
-		 * First 5 fields are bssid, RSSI, time stamp, beacon interval,
-		 *   and capability information
+		/* First 5 fields are bssid, RSSI(for legacy scan only),
+		 * time stamp, beacon interval, and capability information
 		 */
-		if (curr_bcn_bytes < sizeof(struct mwifiex_bcn_param)) {
+		if (curr_bcn_bytes < ETH_ALEN + sizeof(u8) +
+		    sizeof(struct mwifiex_fixed_bcn_param)) {
 			dev_err(adapter->dev,
 				"InterpretIE: not enough bytes left\n");
 			continue;
 		}
-		bcn_param = (struct mwifiex_bcn_param *)current_ptr;
+
+		memcpy(bssid, current_ptr, ETH_ALEN);
+		current_ptr += ETH_ALEN;
+		curr_bcn_bytes -= ETH_ALEN;
+
+		rssi = (s32) *(u8 *)current_ptr;
+		rssi = (-rssi) * 100;		/* Convert dBm to mBm */
+		current_ptr += sizeof(u8);
+		curr_bcn_bytes -= sizeof(u8);
+		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%d\n", rssi);
+
+		bcn_param = (struct mwifiex_fixed_bcn_param *)current_ptr;
 		current_ptr += sizeof(*bcn_param);
 		curr_bcn_bytes -= sizeof(*bcn_param);
-
-		memcpy(bssid, bcn_param->bssid, ETH_ALEN);
-
-		rssi = (s32) bcn_param->rssi;
-		rssi = (-rssi) * 100;		/* Convert dBm to mBm */
-		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%d\n", rssi);
 
 		timestamp = le64_to_cpu(bcn_param->timestamp);
 		beacon_period = le16_to_cpu(bcn_param->beacon_period);
