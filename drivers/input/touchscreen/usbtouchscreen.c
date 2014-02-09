@@ -51,7 +51,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <linux/hid.h>

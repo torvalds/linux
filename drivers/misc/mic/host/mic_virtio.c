@@ -369,7 +369,7 @@ static irqreturn_t mic_virtio_intr_handler(int irq, void *data)
 	struct mic_vdev *mvdev = data;
 	struct mic_device *mdev = mvdev->mdev;
 
-	mdev->ops->ack_interrupt(mdev);
+	mdev->ops->intr_workarounds(mdev);
 	schedule_work(&mvdev->virtio_bh_work);
 	return IRQ_HANDLED;
 }

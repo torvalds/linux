@@ -294,7 +294,7 @@ static struct resource da9055_ld05_6_resource = {
 	.flags = IORESOURCE_IRQ,
 };
 
-static struct mfd_cell da9055_devs[] = {
+static const struct mfd_cell da9055_devs[] = {
 	{
 		.of_compatible = "dialog,da9055-gpio",
 		.name = "da9055-gpio",

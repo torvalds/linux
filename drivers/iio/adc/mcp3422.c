@@ -362,18 +362,12 @@ static int mcp3422_probe(struct i2c_client *client,
 		| MCP3422_SAMPLE_RATE_VALUE(MCP3422_SRATE_240));
 	mcp3422_update_config(adc, config);
 
-	err = iio_device_register(indio_dev);
+	err = devm_iio_device_register(&client->dev, indio_dev);
 	if (err < 0)
 		return err;
 
 	i2c_set_clientdata(client, indio_dev);
 
-	return 0;
-}
-
-static int mcp3422_remove(struct i2c_client *client)
-{
-	iio_device_unregister(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -400,7 +394,6 @@ static struct i2c_driver mcp3422_driver = {
 		.of_match_table = of_match_ptr(mcp3422_of_match),
 	},
 	.probe = mcp3422_probe,
-	.remove = mcp3422_remove,
 	.id_table = mcp3422_id,
 };
 module_i2c_driver(mcp3422_driver);

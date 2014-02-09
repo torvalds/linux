@@ -660,6 +660,7 @@ static void srp_remove_target(struct srp_target_port *target)
 	srp_rport_get(target->rport);
 	srp_remove_host(target->scsi_host);
 	scsi_remove_host(target->scsi_host);
+	srp_stop_rport_timers(target->rport);
 	srp_disconnect_target(target);
 	ib_destroy_cm_id(target->cm_id);
 	srp_free_target_ib(target);

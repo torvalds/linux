@@ -359,6 +359,11 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 	struct drm_crtc *crtc;
 	int bound = 0, crtcs_bound = 0;
 
+	/* Sometimes user space wants everything disabled, so don't steal the
+	 * display if there's a master. */
+	if (dev->primary->master)
+		return false;
+
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc->fb)
 			crtcs_bound++;
@@ -368,6 +373,7 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 
 	if (bound < crtcs_bound)
 		return false;
+
 	return true;
 }
 

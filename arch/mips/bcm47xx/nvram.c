@@ -11,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/ssb/ssb.h>
@@ -22,11 +21,11 @@
 #include <asm/mach-bcm47xx/bcm47xx.h>
 
 static char nvram_buf[NVRAM_SPACE];
+static const u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
 
 static u32 find_nvram_size(u32 end)
 {
 	struct nvram_header *header;
-	u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {

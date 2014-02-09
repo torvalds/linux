@@ -414,47 +414,112 @@ config NETFILTER_SYNPROXY
 endif # NF_CONNTRACK
 
 config NF_TABLES
-	depends on NETFILTER_NETLINK
+	select NETFILTER_NETLINK
 	tristate "Netfilter nf_tables support"
+	help
+	  nftables is the new packet classification framework that intends to
+	  replace the existing {ip,ip6,arp,eb}_tables infrastructure. It
+	  provides a pseudo-state machine with an extensible instruction-set
+	  (also known as expressions) that the userspace 'nft' utility
+	  (http://www.netfilter.org/projects/nftables) uses to build the
+	  rule-set. It also comes with the generic set infrastructure that
+	  allows you to construct mappings between matchings and actions
+	  for performance lookups.
+
+	  To compile it as a module, choose M here.
+
+config NF_TABLES_INET
+	depends on NF_TABLES && IPV6
+	select NF_TABLES_IPV4
+	select NF_TABLES_IPV6
+	tristate "Netfilter nf_tables mixed IPv4/IPv6 tables support"
+	help
+	  This option enables support for a mixed IPv4/IPv6 "inet" table.
 
 config NFT_EXTHDR
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables IPv6 exthdr module"
+	help
+	  This option adds the "exthdr" expression that you can use to match
+	  IPv6 extension headers.
 
 config NFT_META
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables meta module"
+	help
+	  This option adds the "meta" expression that you can use to match and
+	  to set packet metainformation such as the packet mark.
 
 config NFT_CT
 	depends on NF_TABLES
 	depends on NF_CONNTRACK
 	tristate "Netfilter nf_tables conntrack module"
+	help
+	  This option adds the "meta" expression that you can use to match
+	  connection tracking information such as the flow state.
 
 config NFT_RBTREE
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables rbtree set module"
+	help
+	  This option adds the "rbtree" set type (Red Black tree) that is used
+	  to build interval-based sets.
 
 config NFT_HASH
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables hash set module"
+	help
+	  This option adds the "hash" set type that is used to build one-way
+	  mappings between matchings and actions.
 
 config NFT_COUNTER
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables counter module"
+	help
+	  This option adds the "counter" expression that you can use to
+	  include packet and byte counters in a rule.
 
 config NFT_LOG
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables log module"
+	help
+	  This option adds the "log" expression that you can use to log
+	  packets matching some criteria.
 
 config NFT_LIMIT
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables limit module"
+	help
+	  This option adds the "limit" expression that you can use to
+	  ratelimit rule matchings.
 
 config NFT_NAT
 	depends on NF_TABLES
 	depends on NF_CONNTRACK
 	depends on NF_NAT
 	tristate "Netfilter nf_tables nat module"
+	help
+	  This option adds the "nat" expression that you can use to perform
+	  typical Network Address Translation (NAT) packet transformations.
+
+config NFT_QUEUE
+	depends on NF_TABLES
+	depends on NETFILTER_XTABLES
+	depends on NETFILTER_NETLINK_QUEUE
+	tristate "Netfilter nf_tables queue module"
+	help
+	  This is required if you intend to use the userspace queueing
+	  infrastructure (also known as NFQUEUE) from nftables.
+
+config NFT_REJECT
+	depends on NF_TABLES
+	depends on NF_TABLES_IPV6 || !NF_TABLES_IPV6
+	default m if NETFILTER_ADVANCED=n
+	tristate "Netfilter nf_tables reject support"
+	help
+	  This option adds the "reject" expression that you can use to
+	  explicitly deny and notify via TCP reset/ICMP informational errors
+	  unallowed traffic.
 
 config NFT_COMPAT
 	depends on NF_TABLES
@@ -858,6 +923,16 @@ config NETFILTER_XT_MATCH_BPF
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_CGROUP
+	tristate '"control group" match support'
+	depends on NETFILTER_ADVANCED
+	depends on CGROUPS
+	select CGROUP_NET_CLASSID
+	---help---
+	Socket/process control group matching allows you to match locally
+	generated packets based on which net_cls control group processes
+	belong to.
+
 config NETFILTER_XT_MATCH_CLUSTER
 	tristate '"cluster" match support'
 	depends on NF_CONNTRACK
@@ -1035,6 +1110,15 @@ config NETFILTER_XT_MATCH_HL
 	in the IPv6 header, or the time-to-live field in the IPv4
 	header of the packet.
 
+config NETFILTER_XT_MATCH_IPCOMP
+	tristate '"ipcomp" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This match extension allows you to match a range of CPIs(16 bits)
+	  inside IPComp header of IPSec packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_IPRANGE
 	tristate '"iprange" address range match support'
 	depends on NETFILTER_ADVANCED
@@ -1054,6 +1138,16 @@ config NETFILTER_XT_MATCH_IPVS
 	  This option allows you to match against IPVS properties of a packet.
 
 	  If unsure, say N.
+
+config NETFILTER_XT_MATCH_L2TP
+	tristate '"l2tp" match support'
+	depends on NETFILTER_ADVANCED
+	default L2TP
+	---help---
+	This option adds an "L2TP" match, which allows you to match against
+	L2TP protocol header fields.
+
+	To compile it as a module, choose M here. If unsure, say N.
 
 config NETFILTER_XT_MATCH_LENGTH
 	tristate '"length" match support'

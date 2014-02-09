@@ -17,13 +17,14 @@ Required properties:
 - reg - pll control0 and pll multipler registers
 - reg-names : control and multiplier. The multiplier is applicable only for
 		main pll clock
-- fixed-postdiv : fixed post divider value
+- fixed-postdiv : fixed post divider value. If absent, use clkod register bits
+		for postdiv
 
 Example:
 	mainpllclk: mainpllclk@2310110 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,main-pll-clock";
-		clocks = <&refclkmain>;
+		clocks = <&refclksys>;
 		reg = <0x02620350 4>, <0x02310110 4>;
 		reg-names = "control", "multiplier";
 		fixed-postdiv = <2>;
@@ -32,11 +33,10 @@ Example:
 	papllclk: papllclk@2620358 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-clock";
-		clocks = <&refclkmain>;
+		clocks = <&refclkpass>;
 		clock-output-names = "pa-pll-clk";
 		reg = <0x02620358 4>;
 		reg-names = "control";
-		fixed-postdiv = <6>;
 	};
 
 Required properties:

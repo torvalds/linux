@@ -64,7 +64,7 @@ static struct resource charger_resources[] = {
 	}
 };
 
-static struct mfd_cell tps65090s[] = {
+static const struct mfd_cell tps65090s[] = {
 	{
 		.name = "tps65090-pmic",
 	},

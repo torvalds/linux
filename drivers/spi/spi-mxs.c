@@ -111,14 +111,6 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 	return 0;
 }
 
-static int mxs_spi_setup(struct spi_device *dev)
-{
-	if (!dev->bits_per_word)
-		dev->bits_per_word = 8;
-
-	return 0;
-}
-
 static u32 mxs_spi_cs_to_reg(unsigned cs)
 {
 	u32 select = 0;
@@ -502,7 +494,6 @@ static int mxs_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	master->transfer_one_message = mxs_spi_transfer_one;
-	master->setup = mxs_spi_setup;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 	master->num_chipselect = 3;

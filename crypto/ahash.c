@@ -213,7 +213,10 @@ static void ahash_op_unaligned_done(struct crypto_async_request *req, int err)
 
 	ahash_op_unaligned_finish(areq, err);
 
-	complete(data, err);
+	areq->base.complete = complete;
+	areq->base.data = data;
+
+	complete(&areq->base, err);
 }
 
 static int ahash_op_unaligned(struct ahash_request *req,

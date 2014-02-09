@@ -82,7 +82,7 @@ struct davinci_mdio_regs {
 	}	user[0];
 };
 
-struct mdio_platform_data default_pdata = {
+static const struct mdio_platform_data default_pdata = {
 	.bus_freq = DEF_OUT_FREQ,
 };
 

@@ -2,8 +2,6 @@
 # Makefile for USB Host Controller Drivers
 #
 
-ccflags-$(CONFIG_USB_DEBUG) := -DDEBUG
-
 # tell define_trace.h where to find the xhci trace header
 CFLAGS_xhci-trace.o := -I$(src)
 

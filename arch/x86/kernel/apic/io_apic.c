@@ -37,9 +37,6 @@
 #include <linux/kthread.h>
 #include <linux/jiffies.h>	/* time_after() */
 #include <linux/slab.h>
-#ifdef CONFIG_ACPI
-#include <acpi/acpi_bus.h>
-#endif
 #include <linux/bootmem.h>
 #include <linux/dmar.h>
 #include <linux/hpet.h>

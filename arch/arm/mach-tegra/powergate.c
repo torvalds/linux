@@ -25,6 +25,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/reset.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/clk/tegra.h>
@@ -33,12 +34,29 @@
 #include "fuse.h"
 #include "iomap.h"
 
+#define DPD_SAMPLE		0x020
+#define  DPD_SAMPLE_ENABLE	(1 << 0)
+#define  DPD_SAMPLE_DISABLE	(0 << 0)
+
 #define PWRGATE_TOGGLE		0x30
 #define  PWRGATE_TOGGLE_START	(1 << 8)
 
 #define REMOVE_CLAMPING		0x34
 
 #define PWRGATE_STATUS		0x38
+
+#define IO_DPD_REQ		0x1b8
+#define  IO_DPD_REQ_CODE_IDLE	(0 << 30)
+#define  IO_DPD_REQ_CODE_OFF	(1 << 30)
+#define  IO_DPD_REQ_CODE_ON	(2 << 30)
+#define  IO_DPD_REQ_CODE_MASK	(3 << 30)
+
+#define IO_DPD_STATUS		0x1bc
+#define IO_DPD2_REQ		0x1c0
+#define IO_DPD2_STATUS		0x1c4
+#define SEL_DPD_TIM		0x1c8
+
+#define GPU_RG_CNTRL		0x2d4
 
 static int tegra_num_powerdomains;
 static int tegra_num_cpu_domains;
@@ -52,6 +70,13 @@ static const u8 tegra30_cpu_domains[] = {
 };
 
 static const u8 tegra114_cpu_domains[] = {
+	TEGRA_POWERGATE_CPU0,
+	TEGRA_POWERGATE_CPU1,
+	TEGRA_POWERGATE_CPU2,
+	TEGRA_POWERGATE_CPU3,
+};
+
+static const u8 tegra124_cpu_domains[] = {
 	TEGRA_POWERGATE_CPU0,
 	TEGRA_POWERGATE_CPU1,
 	TEGRA_POWERGATE_CPU2,
@@ -108,6 +133,7 @@ int tegra_powergate_power_off(int id)
 
 	return tegra_powergate_set(id, false);
 }
+EXPORT_SYMBOL(tegra_powergate_power_off);
 
 int tegra_powergate_is_powered(int id)
 {
@@ -128,12 +154,23 @@ int tegra_powergate_remove_clamping(int id)
 		return -EINVAL;
 
 	/*
+	 * The Tegra124 GPU has a separate register (with different semantics)
+	 * to remove clamps.
+	 */
+	if (tegra_chip_id == TEGRA124) {
+		if (id == TEGRA_POWERGATE_3D) {
+			pmc_write(0, GPU_RG_CNTRL);
+			return 0;
+		}
+	}
+
+	/*
 	 * Tegra 2 has a bug where PCIE and VDE clamping masks are
 	 * swapped relatively to the partition ids
 	 */
-	if (id ==  TEGRA_POWERGATE_VDEC)
+	if (id == TEGRA_POWERGATE_VDEC)
 		mask = (1 << TEGRA_POWERGATE_PCIE);
-	else if	(id == TEGRA_POWERGATE_PCIE)
+	else if (id == TEGRA_POWERGATE_PCIE)
 		mask = (1 << TEGRA_POWERGATE_VDEC);
 	else
 		mask = (1 << id);
@@ -142,13 +179,15 @@ int tegra_powergate_remove_clamping(int id)
 
 	return 0;
 }
+EXPORT_SYMBOL(tegra_powergate_remove_clamping);
 
 /* Must be called with clk disabled, and returns with clk enabled */
-int tegra_powergate_sequence_power_up(int id, struct clk *clk)
+int tegra_powergate_sequence_power_up(int id, struct clk *clk,
+					struct reset_control *rst)
 {
 	int ret;
 
-	tegra_periph_reset_assert(clk);
+	reset_control_assert(rst);
 
 	ret = tegra_powergate_power_on(id);
 	if (ret)
@@ -165,7 +204,7 @@ int tegra_powergate_sequence_power_up(int id, struct clk *clk)
 		goto err_clamp;
 
 	udelay(10);
-	tegra_periph_reset_deassert(clk);
+	reset_control_deassert(rst);
 
 	return 0;
 
@@ -201,6 +240,11 @@ int __init tegra_powergate_init(void)
 		tegra_num_powerdomains = 23;
 		tegra_num_cpu_domains = 4;
 		tegra_cpu_domains = tegra114_cpu_domains;
+		break;
+	case TEGRA124:
+		tegra_num_powerdomains = 25;
+		tegra_num_cpu_domains = 4;
+		tegra_cpu_domains = tegra124_cpu_domains;
 		break;
 	default:
 		/* Unknown Tegra variant. Disable powergating */
@@ -243,7 +287,7 @@ static const char * const powergate_name_t30[] = {
 };
 
 static const char * const powergate_name_t114[] = {
-	[TEGRA_POWERGATE_CPU]	= "cpu0",
+	[TEGRA_POWERGATE_CPU]	= "crail",
 	[TEGRA_POWERGATE_3D]	= "3d",
 	[TEGRA_POWERGATE_VENC]	= "venc",
 	[TEGRA_POWERGATE_VDEC]	= "vdec",
@@ -261,6 +305,33 @@ static const char * const powergate_name_t114[] = {
 	[TEGRA_POWERGATE_XUSBA]	= "xusba",
 	[TEGRA_POWERGATE_XUSBB]	= "xusbb",
 	[TEGRA_POWERGATE_XUSBC]	= "xusbc",
+};
+
+static const char * const powergate_name_t124[] = {
+	[TEGRA_POWERGATE_CPU]	= "crail",
+	[TEGRA_POWERGATE_3D]	= "3d",
+	[TEGRA_POWERGATE_VENC]	= "venc",
+	[TEGRA_POWERGATE_PCIE]	= "pcie",
+	[TEGRA_POWERGATE_VDEC]	= "vdec",
+	[TEGRA_POWERGATE_L2]	= "l2",
+	[TEGRA_POWERGATE_MPE]	= "mpe",
+	[TEGRA_POWERGATE_HEG]	= "heg",
+	[TEGRA_POWERGATE_SATA]	= "sata",
+	[TEGRA_POWERGATE_CPU1]	= "cpu1",
+	[TEGRA_POWERGATE_CPU2]	= "cpu2",
+	[TEGRA_POWERGATE_CPU3]	= "cpu3",
+	[TEGRA_POWERGATE_CELP]	= "celp",
+	[TEGRA_POWERGATE_CPU0]	= "cpu0",
+	[TEGRA_POWERGATE_C0NC]	= "c0nc",
+	[TEGRA_POWERGATE_C1NC]	= "c1nc",
+	[TEGRA_POWERGATE_SOR]	= "sor",
+	[TEGRA_POWERGATE_DIS]	= "dis",
+	[TEGRA_POWERGATE_DISB]	= "disb",
+	[TEGRA_POWERGATE_XUSBA]	= "xusba",
+	[TEGRA_POWERGATE_XUSBB]	= "xusbb",
+	[TEGRA_POWERGATE_XUSBC]	= "xusbc",
+	[TEGRA_POWERGATE_VIC]	= "vic",
+	[TEGRA_POWERGATE_IRAM]	= "iram",
 };
 
 static int powergate_show(struct seq_file *s, void *data)
@@ -307,6 +378,9 @@ int __init tegra_powergate_debugfs_init(void)
 	case TEGRA114:
 		powergate_name = powergate_name_t114;
 		break;
+	case TEGRA124:
+		powergate_name = powergate_name_t124;
+		break;
 	}
 
 	if (powergate_name) {
@@ -320,3 +394,120 @@ int __init tegra_powergate_debugfs_init(void)
 }
 
 #endif
+
+static int tegra_io_rail_prepare(int id, unsigned long *request,
+				 unsigned long *status, unsigned int *bit)
+{
+	unsigned long rate, value;
+	struct clk *clk;
+
+	*bit = id % 32;
+
+	/*
+	 * There are two sets of 30 bits to select IO rails, but bits 30 and
+	 * 31 are control bits rather than IO rail selection bits.
+	 */
+	if (id > 63 || *bit == 30 || *bit == 31)
+		return -EINVAL;
+
+	if (id < 32) {
+		*status = IO_DPD_STATUS;
+		*request = IO_DPD_REQ;
+	} else {
+		*status = IO_DPD2_STATUS;
+		*request = IO_DPD2_REQ;
+	}
+
+	clk = clk_get_sys(NULL, "pclk");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	rate = clk_get_rate(clk);
+	clk_put(clk);
+
+	pmc_write(DPD_SAMPLE_ENABLE, DPD_SAMPLE);
+
+	/* must be at least 200 ns, in APB (PCLK) clock cycles */
+	value = DIV_ROUND_UP(1000000000, rate);
+	value = DIV_ROUND_UP(200, value);
+	pmc_write(value, SEL_DPD_TIM);
+
+	return 0;
+}
+
+static int tegra_io_rail_poll(unsigned long offset, unsigned long mask,
+			      unsigned long val, unsigned long timeout)
+{
+	unsigned long value;
+
+	timeout = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_after(timeout, jiffies)) {
+		value = pmc_read(offset);
+		if ((value & mask) == val)
+			return 0;
+
+		usleep_range(250, 1000);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static void tegra_io_rail_unprepare(void)
+{
+	pmc_write(DPD_SAMPLE_DISABLE, DPD_SAMPLE);
+}
+
+int tegra_io_rail_power_on(int id)
+{
+	unsigned long request, status, value;
+	unsigned int bit, mask;
+	int err;
+
+	err = tegra_io_rail_prepare(id, &request, &status, &bit);
+	if (err < 0)
+		return err;
+
+	mask = 1 << bit;
+
+	value = pmc_read(request);
+	value |= mask;
+	value &= ~IO_DPD_REQ_CODE_MASK;
+	value |= IO_DPD_REQ_CODE_OFF;
+	pmc_write(value, request);
+
+	err = tegra_io_rail_poll(status, mask, 0, 250);
+	if (err < 0)
+		return err;
+
+	tegra_io_rail_unprepare();
+
+	return 0;
+}
+
+int tegra_io_rail_power_off(int id)
+{
+	unsigned long request, status, value;
+	unsigned int bit, mask;
+	int err;
+
+	err = tegra_io_rail_prepare(id, &request, &status, &bit);
+	if (err < 0)
+		return err;
+
+	mask = 1 << bit;
+
+	value = pmc_read(request);
+	value |= mask;
+	value &= ~IO_DPD_REQ_CODE_MASK;
+	value |= IO_DPD_REQ_CODE_ON;
+	pmc_write(value, request);
+
+	err = tegra_io_rail_poll(status, mask, mask, 250);
+	if (err < 0)
+		return err;
+
+	tegra_io_rail_unprepare();
+
+	return 0;
+}

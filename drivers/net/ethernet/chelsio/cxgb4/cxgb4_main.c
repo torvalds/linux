@@ -4288,7 +4288,15 @@ static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
 	struct port_info *p = netdev_priv(dev);
 	struct adapter *adapter = p->adapter;
 
+	/* Block retrieving statistics during EEH error
+	 * recovery. Otherwise, the recovery might fail
+	 * and the PCI device will be removed permanently
+	 */
 	spin_lock(&adapter->stats_lock);
+	if (!netif_device_present(dev)) {
+		spin_unlock(&adapter->stats_lock);
+		return ns;
+	}
 	t4_get_port_stats(adapter, p->tx_chan, &stats);
 	spin_unlock(&adapter->stats_lock);
 
@@ -5496,16 +5504,21 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 	rtnl_lock();
 	adap->flags &= ~FW_OK;
 	notify_ulds(adap, CXGB4_STATE_START_RECOVERY);
+	spin_lock(&adap->stats_lock);
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
 
 		netif_device_detach(dev);
 		netif_carrier_off(dev);
 	}
+	spin_unlock(&adap->stats_lock);
 	if (adap->flags & FULL_INIT_DONE)
 		cxgb_down(adap);
 	rtnl_unlock();
-	pci_disable_device(pdev);
+	if ((adap->flags & DEV_ENABLED)) {
+		pci_disable_device(pdev);
+		adap->flags &= ~DEV_ENABLED;
+	}
 out:	return state == pci_channel_io_perm_failure ?
 		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
 }
@@ -5522,9 +5535,13 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_RECOVERED;
 	}
 
-	if (pci_enable_device(pdev)) {
-		dev_err(&pdev->dev, "cannot reenable PCI device after reset\n");
-		return PCI_ERS_RESULT_DISCONNECT;
+	if (!(adap->flags & DEV_ENABLED)) {
+		if (pci_enable_device(pdev)) {
+			dev_err(&pdev->dev, "Cannot reenable PCI "
+					    "device after reset\n");
+			return PCI_ERS_RESULT_DISCONNECT;
+		}
+		adap->flags |= DEV_ENABLED;
 	}
 
 	pci_set_master(pdev);
@@ -5910,6 +5927,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_device;
 	}
 
+	/* PCI device has been enabled */
+	adapter->flags |= DEV_ENABLED;
+
 	adapter->regs = pci_ioremap_bar(pdev, 0);
 	if (!adapter->regs) {
 		dev_err(&pdev->dev, "cannot map device registers\n");
@@ -6143,10 +6163,13 @@ static void remove_one(struct pci_dev *pdev)
 		iounmap(adapter->regs);
 		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
-		kfree(adapter);
 		pci_disable_pcie_error_reporting(pdev);
-		pci_disable_device(pdev);
+		if ((adapter->flags & DEV_ENABLED)) {
+			pci_disable_device(pdev);
+			adapter->flags &= ~DEV_ENABLED;
+		}
 		pci_release_regions(pdev);
+		kfree(adapter);
 	} else
 		pci_release_regions(pdev);
 }

@@ -99,13 +99,19 @@ void drm_ut_debug_printk(unsigned int request_level,
 			 const char *function_name,
 			 const char *format, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (drm_debug & request_level) {
-		if (function_name)
-			printk(KERN_DEBUG "[%s:%s], ", prefix, function_name);
 		va_start(args, format);
-		vprintk(format, args);
+		vaf.fmt = format;
+		vaf.va = &args;
+
+		if (function_name)
+			printk(KERN_DEBUG "[%s:%s], %pV", prefix,
+			       function_name, &vaf);
+		else
+			printk(KERN_DEBUG "%pV", &vaf);
 		va_end(args);
 	}
 }
@@ -521,16 +527,10 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	mutex_lock(&drm_global_mutex);
 
-	if (dev->driver->bus->agp_init) {
-		ret = dev->driver->bus->agp_init(dev);
-		if (ret)
-			goto out_unlock;
-	}
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
 		if (ret)
-			goto err_agp;
+			goto out_unlock;
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
@@ -557,8 +557,6 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 			goto err_unload;
 	}
 
-	list_add_tail(&dev->driver_item, &dev->driver->device_list);
-
 	ret = 0;
 	goto out_unlock;
 
@@ -571,9 +569,6 @@ err_render_node:
 	drm_unplug_minor(dev->render);
 err_control_node:
 	drm_unplug_minor(dev->control);
-err_agp:
-	if (dev->driver->bus->agp_destroy)
-		dev->driver->bus->agp_destroy(dev);
 out_unlock:
 	mutex_unlock(&drm_global_mutex);
 	return ret;
@@ -597,8 +592,8 @@ void drm_dev_unregister(struct drm_device *dev)
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 
-	if (dev->driver->bus->agp_destroy)
-		dev->driver->bus->agp_destroy(dev);
+	if (dev->agp)
+		drm_pci_agp_destroy(dev);
 
 	drm_vblank_cleanup(dev);
 
@@ -608,7 +603,5 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_unplug_minor(dev->control);
 	drm_unplug_minor(dev->render);
 	drm_unplug_minor(dev->primary);
-
-	list_del(&dev->driver_item);
 }
 EXPORT_SYMBOL(drm_dev_unregister);

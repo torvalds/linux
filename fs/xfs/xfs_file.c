@@ -261,7 +261,8 @@ xfs_file_aio_read(
 		xfs_buftarg_t	*target =
 			XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
-		if ((pos & target->bt_smask) || (size & target->bt_smask)) {
+		/* DIO must be aligned to device logical sector size */
+		if ((pos | size) & target->bt_logical_sectormask) {
 			if (pos == i_size_read(inode))
 				return 0;
 			return -XFS_ERROR(EINVAL);
@@ -641,9 +642,11 @@ xfs_file_dio_aio_write(
 	struct xfs_buftarg	*target = XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp;
 
-	if ((pos & target->bt_smask) || (count & target->bt_smask))
+	/* DIO must be aligned to device logical sector size */
+	if ((pos | count) & target->bt_logical_sectormask)
 		return -XFS_ERROR(EINVAL);
 
+	/* "unaligned" here means not aligned to a filesystem block */
 	if ((pos & mp->m_blockmask) || ((pos + count) & mp->m_blockmask))
 		unaligned_io = 1;
 
@@ -912,7 +915,7 @@ xfs_dir_open(
 	 * If there are any blocks, read-ahead block 0 as we're almost
 	 * certain to have the next operation be a read there.
 	 */
-	mode = xfs_ilock_map_shared(ip);
+	mode = xfs_ilock_data_map_shared(ip);
 	if (ip->i_d.di_nextents > 0)
 		xfs_dir3_data_readahead(NULL, ip, 0, -1);
 	xfs_iunlock(ip, mode);
@@ -1215,7 +1218,7 @@ xfs_seek_data(
 	uint			lock;
 	int			error;
 
-	lock = xfs_ilock_map_shared(ip);
+	lock = xfs_ilock_data_map_shared(ip);
 
 	isize = i_size_read(inode);
 	if (start >= isize) {
@@ -1294,7 +1297,7 @@ out:
 	offset = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 
 out_unlock:
-	xfs_iunlock_map_shared(ip, lock);
+	xfs_iunlock(ip, lock);
 
 	if (error)
 		return -error;
@@ -1319,7 +1322,7 @@ xfs_seek_hole(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -XFS_ERROR(EIO);
 
-	lock = xfs_ilock_map_shared(ip);
+	lock = xfs_ilock_data_map_shared(ip);
 
 	isize = i_size_read(inode);
 	if (start >= isize) {
@@ -1402,7 +1405,7 @@ out:
 	offset = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 
 out_unlock:
-	xfs_iunlock_map_shared(ip, lock);
+	xfs_iunlock(ip, lock);
 
 	if (error)
 		return -error;

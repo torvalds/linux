@@ -21,7 +21,7 @@ Required properties:
 
   The valid regulator-compatible values are:
   tps65910: vrtc, vio, vdd1, vdd2, vdd3, vdig1, vdig2, vpll, vdac, vaux1,
-            vaux2, vaux33, vmmc
+            vaux2, vaux33, vmmc, vbb
   tps65911: vrtc, vio, vdd1, vdd3, vddctrl, ldo1, ldo2, ldo3, ldo4, ldo5,
             ldo6, ldo7, ldo8
 
@@ -38,7 +38,7 @@ Required properties:
 	vcc4-supply: VAUX1 and VAUX2 input.
 	vcc5-supply: VPLL and VDAC input.
 	vcc6-supply: VDIG1 and VDIG2 input.
-	vcc7-supply: VRTC input.
+	vcc7-supply: VRTC and VBB input.
 	vccio-supply: VIO input.
   tps65911:
 	vcc1-supply: VDD1 input.

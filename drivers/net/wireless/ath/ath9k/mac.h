@@ -133,12 +133,8 @@ struct ath_rx_status {
 	u8 rs_rate;
 	u8 rs_antenna;
 	u8 rs_more;
-	int8_t rs_rssi_ctl0;
-	int8_t rs_rssi_ctl1;
-	int8_t rs_rssi_ctl2;
-	int8_t rs_rssi_ext0;
-	int8_t rs_rssi_ext1;
-	int8_t rs_rssi_ext2;
+	int8_t rs_rssi_ctl[3];
+	int8_t rs_rssi_ext[3];
 	u8 rs_isaggr;
 	u8 rs_firstaggr;
 	u8 rs_moreaggr;

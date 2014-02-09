@@ -157,13 +157,6 @@ static struct page *balloon_retrieve(bool prefer_highmem)
 	return page;
 }
 
-static struct page *balloon_first_page(void)
-{
-	if (list_empty(&ballooned_pages))
-		return NULL;
-	return list_entry(ballooned_pages.next, struct page, lru);
-}
-
 static struct page *balloon_next_page(struct page *page)
 {
 	struct list_head *next = page->lru.next;
@@ -328,7 +321,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 	if (nr_pages > ARRAY_SIZE(frame_list))
 		nr_pages = ARRAY_SIZE(frame_list);
 
-	page = balloon_first_page();
+	page = list_first_entry_or_null(&ballooned_pages, struct page, lru);
 	for (i = 0; i < nr_pages; i++) {
 		if (!page) {
 			nr_pages = i;

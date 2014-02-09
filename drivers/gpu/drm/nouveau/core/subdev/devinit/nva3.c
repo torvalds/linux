@@ -22,12 +22,12 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
+#include "nv50.h"
 
-static int
+int
 nva3_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 {
-	struct nva3_devinit_priv *priv = (void *)devinit;
+	struct nv50_devinit_priv *priv = (void *)devinit;
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_pll info;
 	int N, fN, M, P;
@@ -58,30 +58,38 @@ nva3_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 	return ret;
 }
 
-static int
-nva3_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+static u64
+nva3_devinit_disable(struct nouveau_devinit *devinit)
 {
-	struct nv50_devinit_priv *priv;
-	int ret;
+	struct nv50_devinit_priv *priv = (void *)devinit;
+	u32 r001540 = nv_rd32(priv, 0x001540);
+	u32 r00154c = nv_rd32(priv, 0x00154c);
+	u64 disable = 0ULL;
 
-	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
+	if (!(r001540 & 0x40000000)) {
+		disable |= (1ULL << NVDEV_ENGINE_VP);
+		disable |= (1ULL << NVDEV_ENGINE_PPP);
+	}
 
-	priv->base.pll_set = nva3_devinit_pll_set;
-	return 0;
+	if (!(r00154c & 0x00000004))
+		disable |= (1ULL << NVDEV_ENGINE_DISP);
+	if (!(r00154c & 0x00000020))
+		disable |= (1ULL << NVDEV_ENGINE_BSP);
+	if (!(r00154c & 0x00000200))
+		disable |= (1ULL << NVDEV_ENGINE_COPY0);
+
+	return disable;
 }
 
-struct nouveau_oclass
-nva3_devinit_oclass = {
-	.handle = NV_SUBDEV(DEVINIT, 0xa3),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_devinit_ctor,
+struct nouveau_oclass *
+nva3_devinit_oclass = &(struct nouveau_devinit_impl) {
+	.base.handle = NV_SUBDEV(DEVINIT, 0xa3),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_devinit_ctor,
 		.dtor = _nouveau_devinit_dtor,
 		.init = nv50_devinit_init,
 		.fini = _nouveau_devinit_fini,
 	},
-};
+	.pll_set = nva3_devinit_pll_set,
+	.disable = nva3_devinit_disable,
+}.base;

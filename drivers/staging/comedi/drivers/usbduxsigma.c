@@ -43,7 +43,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
@@ -1656,11 +1655,13 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	}
 
 	offset = usbduxsigma_getstatusinfo(dev, 0);
-	if (offset < 0)
+	if (offset < 0) {
 		dev_err(dev->class_dev,
-			"Communication to USBDUXSIGMA failed! Check firmware and cabling\n");
+			"Communication to USBDUXSIGMA failed! Check firmware and cabling.\n");
+		return offset;
+	}
 
-	dev_info(dev->class_dev, "attached, ADC_zero = %x\n", offset);
+	dev_info(dev->class_dev, "ADC_zero = %x\n", offset);
 
 	return 0;
 }

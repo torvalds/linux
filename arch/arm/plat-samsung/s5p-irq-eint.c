@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/irqchip/arm-vic.h>
+#include <linux/of.h>
 
 #include <plat/regs-irqtype.h>
 
@@ -201,6 +202,9 @@ static struct irq_chip s5p_irq_vic_eint = {
 static int __init s5p_init_irq_eint(void)
 {
 	int irq;
+
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	for (irq = IRQ_EINT(0); irq <= IRQ_EINT(15); irq++)
 		irq_set_chip(irq, &s5p_irq_vic_eint);

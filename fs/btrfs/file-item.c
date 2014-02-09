@@ -182,7 +182,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	if (!path)
 		return -ENOMEM;
 
-	nblocks = bio->bi_size >> inode->i_sb->s_blocksize_bits;
+	nblocks = bio->bi_iter.bi_size >> inode->i_sb->s_blocksize_bits;
 	if (!dst) {
 		if (nblocks * csum_size > BTRFS_BIO_INLINE_CSUM_SIZE) {
 			btrfs_bio->csum_allocated = kmalloc(nblocks * csum_size,
@@ -201,7 +201,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 		csum = (u8 *)dst;
 	}
 
-	if (bio->bi_size > PAGE_CACHE_SIZE * 8)
+	if (bio->bi_iter.bi_size > PAGE_CACHE_SIZE * 8)
 		path->reada = 2;
 
 	WARN_ON(bio->bi_vcnt <= 0);
@@ -217,7 +217,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 		path->skip_locking = 1;
 	}
 
-	disk_bytenr = (u64)bio->bi_sector << 9;
+	disk_bytenr = (u64)bio->bi_iter.bi_sector << 9;
 	if (dio)
 		offset = logical_offset;
 	while (bio_index < bio->bi_vcnt) {
@@ -246,8 +246,8 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 						offset + bvec->bv_len - 1,
 						EXTENT_NODATASUM, GFP_NOFS);
 				} else {
-					printk(KERN_INFO "btrfs no csum found "
-					       "for inode %llu start %llu\n",
+					btrfs_info(BTRFS_I(inode)->root->fs_info,
+						   "no csum found for inode %llu start %llu",
 					       btrfs_ino(inode), offset);
 				}
 				item = NULL;
@@ -302,7 +302,7 @@ int btrfs_lookup_bio_sums_dio(struct btrfs_root *root, struct inode *inode,
 			      struct btrfs_dio_private *dip, struct bio *bio,
 			      u64 offset)
 {
-	int len = (bio->bi_sector << 9) - dip->disk_bytenr;
+	int len = (bio->bi_iter.bi_sector << 9) - dip->disk_bytenr;
 	u16 csum_size = btrfs_super_csum_size(root->fs_info->super_copy);
 	int ret;
 
@@ -447,11 +447,12 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 	u64 offset;
 
 	WARN_ON(bio->bi_vcnt <= 0);
-	sums = kzalloc(btrfs_ordered_sum_size(root, bio->bi_size), GFP_NOFS);
+	sums = kzalloc(btrfs_ordered_sum_size(root, bio->bi_iter.bi_size),
+		       GFP_NOFS);
 	if (!sums)
 		return -ENOMEM;
 
-	sums->len = bio->bi_size;
+	sums->len = bio->bi_iter.bi_size;
 	INIT_LIST_HEAD(&sums->list);
 
 	if (contig)
@@ -461,7 +462,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 
 	ordered = btrfs_lookup_ordered_extent(inode, offset);
 	BUG_ON(!ordered); /* Logic error */
-	sums->bytenr = (u64)bio->bi_sector << 9;
+	sums->bytenr = (u64)bio->bi_iter.bi_sector << 9;
 	index = 0;
 
 	while (bio_index < bio->bi_vcnt) {
@@ -476,7 +477,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 			btrfs_add_ordered_sum(inode, ordered, sums);
 			btrfs_put_ordered_extent(ordered);
 
-			bytes_left = bio->bi_size - total_bytes;
+			bytes_left = bio->bi_iter.bi_size - total_bytes;
 
 			sums = kzalloc(btrfs_ordered_sum_size(root, bytes_left),
 				       GFP_NOFS);
@@ -484,7 +485,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 			sums->len = bytes_left;
 			ordered = btrfs_lookup_ordered_extent(inode, offset);
 			BUG_ON(!ordered); /* Logic error */
-			sums->bytenr = ((u64)bio->bi_sector << 9) +
+			sums->bytenr = ((u64)bio->bi_iter.bi_sector << 9) +
 				       total_bytes;
 			index = 0;
 		}

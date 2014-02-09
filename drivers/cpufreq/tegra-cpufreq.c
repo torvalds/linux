@@ -47,20 +47,8 @@ static struct clk *pll_x_clk;
 static struct clk *pll_p_clk;
 static struct clk *emc_clk;
 
-static unsigned long target_cpu_speed[NUM_CPUS];
 static DEFINE_MUTEX(tegra_cpu_lock);
 static bool is_suspended;
-
-static unsigned int tegra_getspeed(unsigned int cpu)
-{
-	unsigned long rate;
-
-	if (cpu >= NUM_CPUS)
-		return 0;
-
-	rate = clk_get_rate(cpu_clk) / 1000;
-	return rate;
-}
 
 static int tegra_cpu_clk_set_rate(unsigned long rate)
 {
@@ -103,9 +91,6 @@ static int tegra_update_cpu_speed(struct cpufreq_policy *policy,
 {
 	int ret = 0;
 
-	if (tegra_getspeed(0) == rate)
-		return ret;
-
 	/*
 	 * Vote on memory bus frequency based on cpu frequency
 	 * This sets the minimum frequency, display or avp may request higher
@@ -125,33 +110,16 @@ static int tegra_update_cpu_speed(struct cpufreq_policy *policy,
 	return ret;
 }
 
-static unsigned long tegra_cpu_highest_speed(void)
-{
-	unsigned long rate = 0;
-	int i;
-
-	for_each_online_cpu(i)
-		rate = max(rate, target_cpu_speed[i]);
-	return rate;
-}
-
 static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	unsigned int freq;
-	int ret = 0;
+	int ret = -EBUSY;
 
 	mutex_lock(&tegra_cpu_lock);
 
-	if (is_suspended)
-		goto out;
+	if (!is_suspended)
+		ret = tegra_update_cpu_speed(policy,
+				freq_table[index].frequency);
 
-	freq = freq_table[index].frequency;
-
-	target_cpu_speed[policy->cpu] = freq;
-
-	ret = tegra_update_cpu_speed(policy, tegra_cpu_highest_speed());
-
-out:
 	mutex_unlock(&tegra_cpu_lock);
 	return ret;
 }
@@ -165,7 +133,8 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 		is_suspended = true;
 		pr_info("Tegra cpufreq suspend: setting frequency to %d kHz\n",
 			freq_table[0].frequency);
-		tegra_update_cpu_speed(policy, freq_table[0].frequency);
+		if (clk_get_rate(cpu_clk) / 1000 != freq_table[0].frequency)
+			tegra_update_cpu_speed(policy, freq_table[0].frequency);
 		cpufreq_cpu_put(policy);
 	} else if (event == PM_POST_SUSPEND) {
 		is_suspended = false;
@@ -189,8 +158,6 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	clk_prepare_enable(emc_clk);
 	clk_prepare_enable(cpu_clk);
 
-	target_cpu_speed[policy->cpu] = tegra_getspeed(policy->cpu);
-
 	/* FIXME: what's the actual transition time? */
 	ret = cpufreq_generic_init(policy, freq_table, 300 * 1000);
 	if (ret) {
@@ -202,6 +169,7 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	if (policy->cpu == 0)
 		register_pm_notifier(&tegra_cpu_pm_notifier);
 
+	policy->clk = cpu_clk;
 	return 0;
 }
 
@@ -214,9 +182,10 @@ static int tegra_cpu_exit(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver tegra_cpufreq_driver = {
+	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= tegra_target,
-	.get		= tegra_getspeed,
+	.get		= cpufreq_generic_get,
 	.init		= tegra_cpu_init,
 	.exit		= tegra_cpu_exit,
 	.name		= "tegra",

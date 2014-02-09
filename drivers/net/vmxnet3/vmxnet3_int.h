@@ -37,7 +37,6 @@
 #include <linux/spinlock.h>
 #include <linux/ioport.h>
 #include <linux/highmem.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/skbuff.h>
 #include <linux/interrupt.h>

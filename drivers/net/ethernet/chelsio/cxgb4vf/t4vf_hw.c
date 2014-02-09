@@ -363,8 +363,8 @@ int t4vf_fw_reset(struct adapter *adapter)
  *	Reads the values of firmware or device parameters.  Up to 7 parameters
  *	can be queried at once.
  */
-int t4vf_query_params(struct adapter *adapter, unsigned int nparams,
-		      const u32 *params, u32 *vals)
+static int t4vf_query_params(struct adapter *adapter, unsigned int nparams,
+			     const u32 *params, u32 *vals)
 {
 	int i, ret;
 	struct fw_params_cmd cmd, rpl;

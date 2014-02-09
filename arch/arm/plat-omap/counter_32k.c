@@ -38,7 +38,7 @@
  */
 static void __iomem *sync32k_cnt_reg;
 
-static u32 notrace omap_32k_read_sched_clock(void)
+static u64 notrace omap_32k_read_sched_clock(void)
 {
 	return sync32k_cnt_reg ? __raw_readl(sync32k_cnt_reg) : 0;
 }
@@ -115,7 +115,7 @@ int __init omap_init_clocksource_32k(void __iomem *vbase)
 		return ret;
 	}
 
-	setup_sched_clock(omap_32k_read_sched_clock, 32, 32768);
+	sched_clock_register(omap_32k_read_sched_clock, 32, 32768);
 	register_persistent_clock(NULL, omap_read_persistent_clock);
 	pr_info("OMAP clocksource: 32k_counter at 32768 Hz\n");
 

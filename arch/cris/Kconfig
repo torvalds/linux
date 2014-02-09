@@ -122,12 +122,6 @@ config ETRAX100LX_V2
 	help
 	  Support version 2 of the ETRAX 100LX.
 
-config SVINTO_SIM
-	bool "ETRAX-100LX-for-xsim-simulator"
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  Support the xsim ETRAX Simulator.
-
 config ETRAXFS
 	bool "ETRAX-FS-V32"
 	help

@@ -181,43 +181,40 @@ static inline unsigned int DAC_DATA_REG(unsigned int channel)
 
 /* analog input ranges for most boards */
 static const struct comedi_lrange cb_pcidas_ranges = {
-	8,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(1.25)
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 /* pci-das1001 input ranges */
 static const struct comedi_lrange cb_pcidas_alt_ranges = {
-	8,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(1),
-	 BIP_RANGE(0.1),
-	 BIP_RANGE(0.01),
-	 UNI_RANGE(10),
-	 UNI_RANGE(1),
-	 UNI_RANGE(0.1),
-	 UNI_RANGE(0.01)
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.01),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01)
+	}
 };
 
 /* analog output ranges */
 static const struct comedi_lrange cb_pcidas_ao_ranges = {
-	4,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(10),
-	 }
+	4, {
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 enum trimpot_model {
@@ -1614,7 +1611,7 @@ static int cb_pcidas_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
+static const struct pci_device_id cb_pcidas_pci_table[] = {
 	{ PCI_VDEVICE(CB, 0x0001), BOARD_PCIDAS1602_16 },
 	{ PCI_VDEVICE(CB, 0x000f), BOARD_PCIDAS1200 },
 	{ PCI_VDEVICE(CB, 0x0010), BOARD_PCIDAS1602_12 },

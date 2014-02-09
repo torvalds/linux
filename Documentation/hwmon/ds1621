@@ -31,7 +31,7 @@ Authors:
         Christian W. Zuckschwerdt <zany@triq.net>
         valuable contributions by Jan M. Sendler <sendler@sendler.de>
         ported to 2.6 by Aurelien Jarno <aurelien@aurel32.net>
-        with the help of Jean Delvare <khali@linux-fr.org>
+        with the help of Jean Delvare <jdelvare@suse.de>
 
 Module Parameters
 ------------------

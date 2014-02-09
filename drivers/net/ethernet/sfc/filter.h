@@ -59,12 +59,16 @@ enum efx_filter_match_flags {
 /**
  * enum efx_filter_priority - priority of a hardware filter specification
  * @EFX_FILTER_PRI_HINT: Performance hint
+ * @EFX_FILTER_PRI_AUTO: Automatic filter based on device address list
+ *	or hardware requirements.  This may only be used by the filter
+ *	implementation for each NIC type.
  * @EFX_FILTER_PRI_MANUAL: Manually configured filter
  * @EFX_FILTER_PRI_REQUIRED: Required for correct behaviour (user-level
  *	networking and SR-IOV)
  */
 enum efx_filter_priority {
 	EFX_FILTER_PRI_HINT = 0,
+	EFX_FILTER_PRI_AUTO,
 	EFX_FILTER_PRI_MANUAL,
 	EFX_FILTER_PRI_REQUIRED,
 };
@@ -78,19 +82,18 @@ enum efx_filter_priority {
  *	according to the indirection table.
  * @EFX_FILTER_FLAG_RX_SCATTER: Enable DMA scatter on the receiving
  *	queue.
- * @EFX_FILTER_FLAG_RX_STACK: Indicates a filter inserted for the
- *	network stack.  The filter must have a priority of
- *	%EFX_FILTER_PRI_REQUIRED.  It can be steered by a replacement
- *	request with priority %EFX_FILTER_PRI_MANUAL, and a removal
- *	request with priority %EFX_FILTER_PRI_MANUAL will reset the
- *	steering (but not remove the filter).
+ * @EFX_FILTER_FLAG_RX_OVER_AUTO: Indicates a filter that is
+ *	overriding an automatic filter (priority
+ *	%EFX_FILTER_PRI_AUTO).  This may only be set by the filter
+ *	implementation for each type.  A removal request will restore
+ *	the automatic filter in its place.
  * @EFX_FILTER_FLAG_RX: Filter is for RX
  * @EFX_FILTER_FLAG_TX: Filter is for TX
  */
 enum efx_filter_flags {
 	EFX_FILTER_FLAG_RX_RSS = 0x01,
 	EFX_FILTER_FLAG_RX_SCATTER = 0x02,
-	EFX_FILTER_FLAG_RX_STACK = 0x04,
+	EFX_FILTER_FLAG_RX_OVER_AUTO = 0x04,
 	EFX_FILTER_FLAG_RX = 0x08,
 	EFX_FILTER_FLAG_TX = 0x10,
 };

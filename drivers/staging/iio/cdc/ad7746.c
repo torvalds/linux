@@ -105,6 +105,11 @@ struct ad7746_chip_info {
 	u8	vt_setup;
 	u8	capdac[2][2];
 	s8	capdac_set;
+
+	union {
+		__be32 d32;
+		u8 d8[4];
+	} data ____cacheline_aligned;
 };
 
 enum ad7746_chan {
@@ -566,11 +571,6 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 	int ret, delay;
 	u8 regval, reg;
 
-	union {
-		u32 d32;
-		u8 d8[4];
-	} data;
-
 	mutex_lock(&indio_dev->mlock);
 
 	switch (mask) {
@@ -591,12 +591,12 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		/* Now read the actual register */
 
 		ret = i2c_smbus_read_i2c_block_data(chip->client,
-			chan->address >> 8, 3, &data.d8[1]);
+			chan->address >> 8, 3, &chip->data.d8[1]);
 
 		if (ret < 0)
 			goto out;
 
-		*val = (be32_to_cpu(data.d32) & 0xFFFFFF) - 0x800000;
+		*val = (be32_to_cpu(chip->data.d32) & 0xFFFFFF) - 0x800000;
 
 		switch (chan->type) {
 		case IIO_TEMP:

@@ -675,7 +675,7 @@ static struct spi_driver cs4271_spi_driver = {
 };
 #endif /* defined(CONFIG_SPI_MASTER) */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static const struct i2c_device_id cs4271_i2c_id[] = {
 	{"cs4271", 0},
 	{}
@@ -728,7 +728,7 @@ static struct i2c_driver cs4271_i2c_driver = {
 	.probe		= cs4271_i2c_probe,
 	.remove		= cs4271_i2c_remove,
 };
-#endif /* defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE) */
+#endif /* IS_ENABLED(CONFIG_I2C) */
 
 /*
  * We only register our serial bus driver here without
@@ -741,7 +741,7 @@ static int __init cs4271_modinit(void)
 {
 	int ret;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&cs4271_i2c_driver);
 	if (ret) {
 		pr_err("Failed to register CS4271 I2C driver: %d\n", ret);
@@ -767,7 +767,7 @@ static void __exit cs4271_modexit(void)
 	spi_unregister_driver(&cs4271_spi_driver);
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&cs4271_i2c_driver);
 #endif
 }

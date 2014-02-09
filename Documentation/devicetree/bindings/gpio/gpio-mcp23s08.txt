@@ -38,12 +38,38 @@ Required device specific properties (only for SPI chips):
     removed.
 - spi-max-frequency = The maximum frequency this chip is able to handle
 
-Example I2C:
+Optional properties:
+- #interrupt-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify flags.
+- interrupt-controller: Marks the device node as a interrupt controller.
+NOTE: The interrupt functionality is only supported for i2c versions of the
+chips. The spi chips can also do the interrupts, but this is not supported by
+the linux driver yet.
+
+Optional device specific properties:
+- microchip,irq-mirror: Sets the mirror flag in the IOCON register. Devices
+        with two interrupt outputs (these are the devices ending with 17 and
+        those that have 16 IOs) have two IO banks: IO 0-7 form bank 1 and
+        IO 8-15 are bank 2. These chips have two different interrupt outputs:
+        One for bank 1 and another for bank 2. If irq-mirror is set, both
+        interrupts are generated regardless of the bank that an input change
+        occured on. If it is not set, the interrupt are only generated for the
+        bank they belong to.
+        On devices with only one interrupt output this property is useless.
+
+Example I2C (with interrupt):
 gpiom1: gpio@20 {
         compatible = "microchip,mcp23017";
         gpio-controller;
         #gpio-cells = <2>;
         reg = <0x20>;
+
+        interrupt-parent = <&gpio1>;
+        interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-controller;
+        #interrupt-cells=<2>;
+        microchip,irq-mirror;
 };
 
 Example SPI:

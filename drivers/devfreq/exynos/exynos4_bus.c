@@ -30,9 +30,9 @@
 extern unsigned int exynos_result_of_asv;
 #endif
 
-#include <mach/regs-clock.h>
+#include <mach/map.h>
 
-#include <plat/map-s5p.h>
+#include "exynos4_bus.h"
 
 #define MAX_SAFEVOLT	1200000 /* 1.2V */
 
@@ -116,7 +116,7 @@ static struct bus_opp_table exynos4210_busclk_table[] = {
 };
 
 /*
- * MIF is the main control knob clock for exynox4x12 MIF/INT
+ * MIF is the main control knob clock for Exynos4x12 MIF/INT
  * clock and voltage of both mif/int are controlled.
  */
 static struct bus_opp_table exynos4x12_mifclk_table[] = {

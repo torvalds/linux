@@ -1335,29 +1335,14 @@ static void remove_ino(struct ubifs_info *c, ino_t inum)
  */
 void ubifs_destroy_size_tree(struct ubifs_info *c)
 {
-	struct rb_node *this = c->size_tree.rb_node;
-	struct size_entry *e;
+	struct size_entry *e, *n;
 
-	while (this) {
-		if (this->rb_left) {
-			this = this->rb_left;
-			continue;
-		} else if (this->rb_right) {
-			this = this->rb_right;
-			continue;
-		}
-		e = rb_entry(this, struct size_entry, rb);
+	rbtree_postorder_for_each_entry_safe(e, n, &c->size_tree, rb) {
 		if (e->inode)
 			iput(e->inode);
-		this = rb_parent(this);
-		if (this) {
-			if (this->rb_left == &e->rb)
-				this->rb_left = NULL;
-			else
-				this->rb_right = NULL;
-		}
 		kfree(e);
 	}
+
 	c->size_tree = RB_ROOT;
 }
 

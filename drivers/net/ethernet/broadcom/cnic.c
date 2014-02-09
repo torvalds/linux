@@ -5220,6 +5220,7 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		cnic_ring_ctl(dev, cid, cli, 1);
 		*cid_ptr = cid >> 4;
 		*(cid_ptr + 1) = cid * bp->db_size;
+		*(cid_ptr + 2) = UIO_USE_TX_DOORBELL;
 	}
 }
 

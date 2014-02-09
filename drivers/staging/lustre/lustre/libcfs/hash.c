@@ -51,11 +51,11 @@
  * - move all stuff to libcfs
  * - don't allow cur_bits != max_bits without setting of CFS_HASH_REHASH
  * - ignore hs_rwlock if without CFS_HASH_REHASH setting
- * - buckets are allocated one by one(intead of contiguous memory),
+ * - buckets are allocated one by one(instead of contiguous memory),
  *   to avoid unnecessary cacheline conflict
  *
  * 2010-03-01: Liang Zhen <zhen.liang@sun.com>
- * - "bucket" is a group of hlist_head now, user can speicify bucket size
+ * - "bucket" is a group of hlist_head now, user can specify bucket size
  *   by bkt_bits of cfs_hash_create(), all hlist_heads in a bucket share
  *   one lock for reducing memory overhead.
  *
@@ -112,8 +112,8 @@
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
 static unsigned int warn_on_depth = 8;
-CFS_MODULE_PARM(warn_on_depth, "i", uint, 0644,
-		"warning when hash depth is high.");
+module_param(warn_on_depth, uint, 0644);
+MODULE_PARM_DESC(warn_on_depth, "warning when hash depth is high.");
 #endif
 
 struct cfs_wi_sched *cfs_sched_rehash;
@@ -1386,7 +1386,7 @@ cfs_hash_for_each_enter(struct cfs_hash *hs)
 	/*
 	 * NB: it's race on cfs_has_t::hs_iterating, but doesn't matter
 	 * because it's just an unreliable signal to rehash-thread,
-	 * rehash-thread will try to finsih rehash ASAP when seeing this.
+	 * rehash-thread will try to finish rehash ASAP when seeing this.
 	 */
 	hs->hs_iterating = 1;
 
@@ -1394,7 +1394,7 @@ cfs_hash_for_each_enter(struct cfs_hash *hs)
 	hs->hs_iterators++;
 
 	/* NB: iteration is mostly called by service thread,
-	 * we tend to cancel pending rehash-requst, instead of
+	 * we tend to cancel pending rehash-request, instead of
 	 * blocking service thread, we will relaunch rehash request
 	 * after iteration */
 	if (cfs_hash_is_rehashing(hs))

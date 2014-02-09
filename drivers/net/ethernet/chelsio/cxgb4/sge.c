@@ -1630,7 +1630,8 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
 	if (rxq->rspq.netdev->features & NETIF_F_RXHASH)
-		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
+		skb_set_hash(skb, (__force u32)pkt->rsshdr.hash_val,
+			     PKT_HASH_TYPE_L3);
 
 	if (unlikely(pkt->vlan_ex)) {
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(pkt->vlan));
@@ -1686,7 +1687,8 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	skb->protocol = eth_type_trans(skb, q->netdev);
 	skb_record_rx_queue(skb, q->idx);
 	if (skb->dev->features & NETIF_F_RXHASH)
-		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
+		skb_set_hash(skb, (__force u32)pkt->rsshdr.hash_val,
+			     PKT_HASH_TYPE_L3);
 
 	rxq->stats.pkts++;
 

@@ -1078,17 +1078,17 @@ static int adau1373_hw_params(struct snd_pcm_substream *substream,
 		ADAU1373_BCLKDIV_SR_MASK | ADAU1373_BCLKDIV_BCLK_MASK,
 		(div << 2) | ADAU1373_BCLKDIV_64);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		ctrl = ADAU1373_DAI_WLEN_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		ctrl = ADAU1373_DAI_WLEN_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		ctrl = ADAU1373_DAI_WLEN_24;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		ctrl = ADAU1373_DAI_WLEN_32;
 		break;
 	default:

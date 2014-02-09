@@ -1891,122 +1891,20 @@ struct page *ksm_might_need_to_copy(struct page *page,
 	return new_page;
 }
 
-int page_referenced_ksm(struct page *page, struct mem_cgroup *memcg,
-			unsigned long *vm_flags)
-{
-	struct stable_node *stable_node;
-	struct rmap_item *rmap_item;
-	unsigned int mapcount = page_mapcount(page);
-	int referenced = 0;
-	int search_new_forks = 0;
-
-	VM_BUG_ON(!PageKsm(page));
-	VM_BUG_ON(!PageLocked(page));
-
-	stable_node = page_stable_node(page);
-	if (!stable_node)
-		return 0;
-again:
-	hlist_for_each_entry(rmap_item, &stable_node->hlist, hlist) {
-		struct anon_vma *anon_vma = rmap_item->anon_vma;
-		struct anon_vma_chain *vmac;
-		struct vm_area_struct *vma;
-
-		anon_vma_lock_read(anon_vma);
-		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
-					       0, ULONG_MAX) {
-			vma = vmac->vma;
-			if (rmap_item->address < vma->vm_start ||
-			    rmap_item->address >= vma->vm_end)
-				continue;
-			/*
-			 * Initially we examine only the vma which covers this
-			 * rmap_item; but later, if there is still work to do,
-			 * we examine covering vmas in other mms: in case they
-			 * were forked from the original since ksmd passed.
-			 */
-			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
-				continue;
-
-			if (memcg && !mm_match_cgroup(vma->vm_mm, memcg))
-				continue;
-
-			referenced += page_referenced_one(page, vma,
-				rmap_item->address, &mapcount, vm_flags);
-			if (!search_new_forks || !mapcount)
-				break;
-		}
-		anon_vma_unlock_read(anon_vma);
-		if (!mapcount)
-			goto out;
-	}
-	if (!search_new_forks++)
-		goto again;
-out:
-	return referenced;
-}
-
-int try_to_unmap_ksm(struct page *page, enum ttu_flags flags)
+int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
 {
 	struct stable_node *stable_node;
 	struct rmap_item *rmap_item;
 	int ret = SWAP_AGAIN;
 	int search_new_forks = 0;
 
-	VM_BUG_ON(!PageKsm(page));
-	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON_PAGE(!PageKsm(page), page);
 
-	stable_node = page_stable_node(page);
-	if (!stable_node)
-		return SWAP_FAIL;
-again:
-	hlist_for_each_entry(rmap_item, &stable_node->hlist, hlist) {
-		struct anon_vma *anon_vma = rmap_item->anon_vma;
-		struct anon_vma_chain *vmac;
-		struct vm_area_struct *vma;
-
-		anon_vma_lock_read(anon_vma);
-		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
-					       0, ULONG_MAX) {
-			vma = vmac->vma;
-			if (rmap_item->address < vma->vm_start ||
-			    rmap_item->address >= vma->vm_end)
-				continue;
-			/*
-			 * Initially we examine only the vma which covers this
-			 * rmap_item; but later, if there is still work to do,
-			 * we examine covering vmas in other mms: in case they
-			 * were forked from the original since ksmd passed.
-			 */
-			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
-				continue;
-
-			ret = try_to_unmap_one(page, vma,
-					rmap_item->address, flags);
-			if (ret != SWAP_AGAIN || !page_mapped(page)) {
-				anon_vma_unlock_read(anon_vma);
-				goto out;
-			}
-		}
-		anon_vma_unlock_read(anon_vma);
-	}
-	if (!search_new_forks++)
-		goto again;
-out:
-	return ret;
-}
-
-#ifdef CONFIG_MIGRATION
-int rmap_walk_ksm(struct page *page, int (*rmap_one)(struct page *,
-		  struct vm_area_struct *, unsigned long, void *), void *arg)
-{
-	struct stable_node *stable_node;
-	struct rmap_item *rmap_item;
-	int ret = SWAP_AGAIN;
-	int search_new_forks = 0;
-
-	VM_BUG_ON(!PageKsm(page));
-	VM_BUG_ON(!PageLocked(page));
+	/*
+	 * Rely on the page lock to protect against concurrent modifications
+	 * to that page's node of the stable tree.
+	 */
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
 
 	stable_node = page_stable_node(page);
 	if (!stable_node)
@@ -2033,8 +1931,16 @@ again:
 			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
 				continue;
 
-			ret = rmap_one(page, vma, rmap_item->address, arg);
+			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
+				continue;
+
+			ret = rwc->rmap_one(page, vma,
+					rmap_item->address, rwc->arg);
 			if (ret != SWAP_AGAIN) {
+				anon_vma_unlock_read(anon_vma);
+				goto out;
+			}
+			if (rwc->done && rwc->done(page)) {
 				anon_vma_unlock_read(anon_vma);
 				goto out;
 			}
@@ -2047,17 +1953,18 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_MIGRATION
 void ksm_migrate_page(struct page *newpage, struct page *oldpage)
 {
 	struct stable_node *stable_node;
 
-	VM_BUG_ON(!PageLocked(oldpage));
-	VM_BUG_ON(!PageLocked(newpage));
-	VM_BUG_ON(newpage->mapping != oldpage->mapping);
+	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
+	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
+	VM_BUG_ON_PAGE(newpage->mapping != oldpage->mapping, newpage);
 
 	stable_node = page_stable_node(newpage);
 	if (stable_node) {
-		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
+		VM_BUG_ON_PAGE(stable_node->kpfn != page_to_pfn(oldpage), oldpage);
 		stable_node->kpfn = page_to_pfn(newpage);
 		/*
 		 * newpage->mapping was set in advance; now we need smp_wmb()
@@ -2438,4 +2345,4 @@ out_free:
 out:
 	return err;
 }
-module_init(ksm_init)
+subsys_initcall(ksm_init);

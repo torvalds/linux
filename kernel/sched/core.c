@@ -1108,6 +1108,7 @@ int migrate_swap(struct task_struct *cur, struct task_struct *p)
 	if (!cpumask_test_cpu(arg.src_cpu, tsk_cpus_allowed(arg.dst_task)))
 		goto out;
 
+	trace_sched_swap_numa(cur, arg.src_cpu, p, arg.dst_cpu);
 	ret = stop_two_cpus(arg.dst_cpu, arg.src_cpu, migrate_swap_stop, &arg);
 
 out:
@@ -1769,7 +1770,29 @@ void set_numabalancing_state(bool enabled)
 	numabalancing_enabled = enabled;
 }
 #endif /* CONFIG_SCHED_DEBUG */
-#endif /* CONFIG_NUMA_BALANCING */
+
+#ifdef CONFIG_PROC_SYSCTL
+int sysctl_numa_balancing(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table t;
+	int err;
+	int state = numabalancing_enabled;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	t = *table;
+	t.data = &state;
+	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+	if (err < 0)
+		return err;
+	if (write)
+		set_numabalancing_state(state);
+	return err;
+}
+#endif
+#endif
 
 /*
  * fork()/clone()-time setup:
@@ -2453,7 +2476,7 @@ u64 scheduler_tick_max_deferment(void)
 	if (time_before_eq(next, now))
 		return 0;
 
-	return jiffies_to_usecs(next - now) * NSEC_PER_USEC;
+	return jiffies_to_nsecs(next - now);
 }
 #endif
 
@@ -4324,7 +4347,9 @@ SYSCALL_DEFINE2(sched_rr_get_interval, pid_t, pid,
 		goto out_unlock;
 
 	rq = task_rq_lock(p, &flags);
-	time_slice = p->sched_class->get_rr_interval(rq, p);
+	time_slice = 0;
+	if (p->sched_class->get_rr_interval)
+		time_slice = p->sched_class->get_rr_interval(rq, p);
 	task_rq_unlock(rq, p, &flags);
 
 	rcu_read_unlock();
@@ -4603,6 +4628,7 @@ int migrate_task_to(struct task_struct *p, int target_cpu)
 
 	/* TODO: This is not properly updating schedstats */
 
+	trace_sched_move_numa(p, curr_cpu, target_cpu);
 	return stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
 }
 
@@ -7852,15 +7878,14 @@ static int __cfs_schedulable(struct task_group *tg, u64 period, u64 quota)
 	return ret;
 }
 
-static int cpu_stats_show(struct cgroup_subsys_state *css, struct cftype *cft,
-		struct cgroup_map_cb *cb)
+static int cpu_stats_show(struct seq_file *sf, void *v)
 {
-	struct task_group *tg = css_tg(css);
+	struct task_group *tg = css_tg(seq_css(sf));
 	struct cfs_bandwidth *cfs_b = &tg->cfs_bandwidth;
 
-	cb->fill(cb, "nr_periods", cfs_b->nr_periods);
-	cb->fill(cb, "nr_throttled", cfs_b->nr_throttled);
-	cb->fill(cb, "throttled_time", cfs_b->throttled_time);
+	seq_printf(sf, "nr_periods %d\n", cfs_b->nr_periods);
+	seq_printf(sf, "nr_throttled %d\n", cfs_b->nr_throttled);
+	seq_printf(sf, "throttled_time %llu\n", cfs_b->throttled_time);
 
 	return 0;
 }
@@ -7914,7 +7939,7 @@ static struct cftype cpu_files[] = {
 	},
 	{
 		.name = "stat",
-		.read_map = cpu_stats_show,
+		.seq_show = cpu_stats_show,
 	},
 #endif
 #ifdef CONFIG_RT_GROUP_SCHED

@@ -17,8 +17,6 @@
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
 
-#include <mach/regs-clock.h>
-
 #include "exynos-cpufreq.h"
 
 static struct clk *cpu_clk;

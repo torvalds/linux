@@ -37,7 +37,6 @@
 #include <linux/fcntl.h>
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/string.h>

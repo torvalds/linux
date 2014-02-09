@@ -285,14 +285,16 @@ static int gen7_ring_fbc_flush(struct intel_ring_buffer *ring, u32 value)
 	if (!ring->fbc_dirty)
 		return 0;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(ring, 6);
 	if (ret)
 		return ret;
-	intel_ring_emit(ring, MI_NOOP);
 	/* WaFbcNukeOn3DBlt:ivb/hsw */
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, MSG_FBC_REND_STATE);
 	intel_ring_emit(ring, value);
+	intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1) | MI_SRM_LRM_GLOBAL_GTT);
+	intel_ring_emit(ring, MSG_FBC_REND_STATE);
+	intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
 	intel_ring_advance(ring);
 
 	ring->fbc_dirty = false;
@@ -354,7 +356,7 @@ gen7_render_ring_flush(struct intel_ring_buffer *ring,
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
 
-	if (flush_domains)
+	if (!invalidate_domains && flush_domains)
 		return gen7_ring_fbc_flush(ring, FBC_REND_NUKE);
 
 	return 0;
@@ -436,7 +438,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	int ret = 0;
 	u32 head;
 
-	gen6_gt_force_wake_get(dev_priv);
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
 	if (I915_NEED_GFX_HWS(dev))
 		intel_ring_setup_status_page(ring);
@@ -509,7 +511,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));
 
 out:
-	gen6_gt_force_wake_put(dev_priv);
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -661,19 +663,22 @@ gen6_add_request(struct intel_ring_buffer *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *useless;
-	int i, ret;
+	int i, ret, num_dwords = 4;
 
-	ret = intel_ring_begin(ring, ((I915_NUM_RINGS-1) *
-				      MBOX_UPDATE_DWORDS) +
-				      4);
-	if (ret)
-		return ret;
+	if (i915_semaphore_is_enabled(dev))
+		num_dwords += ((I915_NUM_RINGS-1) * MBOX_UPDATE_DWORDS);
 #undef MBOX_UPDATE_DWORDS
 
-	for_each_ring(useless, dev_priv, i) {
-		u32 mbox_reg = ring->signal_mbox[i];
-		if (mbox_reg != GEN6_NOSYNC)
-			update_mboxes(ring, mbox_reg);
+	ret = intel_ring_begin(ring, num_dwords);
+	if (ret)
+		return ret;
+
+	if (i915_semaphore_is_enabled(dev)) {
+		for_each_ring(useless, dev_priv, i) {
+			u32 mbox_reg = ring->signal_mbox[i];
+			if (mbox_reg != GEN6_NOSYNC)
+				update_mboxes(ring, mbox_reg);
+		}
 	}
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
@@ -1030,11 +1035,6 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring)
 	if (!dev->irq_enabled)
 	       return false;
 
-	/* It looks like we need to prevent the gt from suspending while waiting
-	 * for an notifiy irq, otherwise irqs seem to get lost on at least the
-	 * blt/bsd rings on ivb. */
-	gen6_gt_force_wake_get(dev_priv);
-
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
 		if (HAS_L3_DPF(dev) && ring->id == RCS)
@@ -1066,8 +1066,6 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 		ilk_disable_gt_irq(dev_priv, ring->irq_enable_mask);
 	}
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-
-	gen6_gt_force_wake_put(dev_priv);
 }
 
 static bool
@@ -1611,8 +1609,8 @@ intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
 	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
 }
 
-static int __intel_ring_begin(struct intel_ring_buffer *ring,
-			      int bytes)
+static int __intel_ring_prepare(struct intel_ring_buffer *ring,
+				int bytes)
 {
 	int ret;
 
@@ -1628,7 +1626,6 @@ static int __intel_ring_begin(struct intel_ring_buffer *ring,
 			return ret;
 	}
 
-	ring->space -= bytes;
 	return 0;
 }
 
@@ -1643,12 +1640,17 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
+	ret = __intel_ring_prepare(ring, num_dwords * sizeof(uint32_t));
+	if (ret)
+		return ret;
+
 	/* Preallocate the olr before touching the ring */
 	ret = intel_ring_alloc_seqno(ring);
 	if (ret)
 		return ret;
 
-	return __intel_ring_begin(ring, num_dwords * sizeof(uint32_t));
+	ring->space -= num_dwords * sizeof(uint32_t);
+	return 0;
 }
 
 void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
@@ -1838,7 +1840,7 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 	}
 	intel_ring_advance(ring);
 
-	if (IS_GEN7(dev) && flush)
+	if (IS_GEN7(dev) && !invalidate && flush)
 		return gen7_ring_fbc_flush(ring, FBC_REND_CACHE_CLEAN);
 
 	return 0;

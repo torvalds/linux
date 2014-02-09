@@ -75,7 +75,7 @@ struct ad5421_state {
 	 * transfer buffers to live in their own cache lines.
 	 */
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data[2] ____cacheline_aligned;
 };
@@ -114,7 +114,11 @@ static const struct iio_chan_spec ad5421_channels[] = {
 			BIT(IIO_CHAN_INFO_CALIBBIAS),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_OFFSET),
-		.scan_type = IIO_ST('u', 16, 16, 0),
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+		},
 		.event_spec = ad5421_current_event,
 		.num_event_specs = ARRAY_SIZE(ad5421_current_event),
 	},
@@ -458,9 +462,9 @@ static int ad5421_read_event_value(struct iio_dev *indio_dev,
 static const struct iio_info ad5421_info = {
 	.read_raw =		ad5421_read_raw,
 	.write_raw =		ad5421_write_raw,
-	.read_event_config_new = ad5421_read_event_config,
-	.write_event_config_new = ad5421_write_event_config,
-	.read_event_value_new =	ad5421_read_event_value,
+	.read_event_config =	ad5421_read_event_config,
+	.write_event_config =	ad5421_write_event_config,
+	.read_event_value =	ad5421_read_event_value,
 	.driver_module =	THIS_MODULE,
 };
 
@@ -514,16 +518,7 @@ static int ad5421_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	return iio_device_register(indio_dev);
-}
-
-static int ad5421_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static struct spi_driver ad5421_driver = {
@@ -532,7 +527,6 @@ static struct spi_driver ad5421_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5421_probe,
-	.remove = ad5421_remove,
 };
 module_spi_driver(ad5421_driver);
 

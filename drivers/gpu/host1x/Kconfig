@@ -1,6 +1,6 @@
 config TEGRA_HOST1X
 	tristate "NVIDIA Tegra host1x driver"
-	depends on ARCH_TEGRA || ARCH_MULTIPLATFORM
+	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
 	help
 	  Driver for the NVIDIA Tegra host1x hardware.
 

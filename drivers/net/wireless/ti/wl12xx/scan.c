@@ -47,7 +47,7 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 		     * In active scans, we only scan channels not
 		     * marked as passive.
 		     */
-		    (passive || !(flags & IEEE80211_CHAN_PASSIVE_SCAN))) {
+		    (passive || !(flags & IEEE80211_CHAN_NO_IR))) {
 			wl1271_debug(DEBUG_SCAN, "band %d, center_freq %d ",
 				     req->channels[i]->band,
 				     req->channels[i]->center_freq);

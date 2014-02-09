@@ -1737,9 +1737,12 @@ static void udc_init_data(struct pxa_udc *dev)
 	}
 
 	/* USB endpoints init */
-	for (i = 1; i < NR_USB_ENDPOINTS; i++)
+	for (i = 1; i < NR_USB_ENDPOINTS; i++) {
 		list_add_tail(&dev->udc_usb_ep[i].usb_ep.ep_list,
 				&dev->gadget.ep_list);
+		usb_ep_set_maxpacket_limit(&dev->udc_usb_ep[i].usb_ep,
+					   dev->udc_usb_ep[i].usb_ep.maxpacket);
+	}
 }
 
 /**

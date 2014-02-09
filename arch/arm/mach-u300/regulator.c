@@ -69,9 +69,9 @@ static int __init __u300_init_boardpower(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	regmap = syscon_node_to_regmap(syscon_np);
-	if (!regmap) {
+	if (IS_ERR(regmap)) {
 		pr_crit("U300: could not locate syscon regmap\n");
-		return -ENODEV;
+		return PTR_ERR(regmap);
 	}
 
 	main_power_15 = regulator_get(&pdev->dev, "vana15");

@@ -31,8 +31,7 @@
 #include <linux/seq_file.h>
 #include <linux/input.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <acpi/button.h>
 
 #define PREFIX "ACPI: "
@@ -101,7 +100,6 @@ struct acpi_button {
 	struct input_dev *input;
 	char phys[32];			/* for input device */
 	unsigned long pushed;
-	bool wakeup_enabled;
 };
 
 static BLOCKING_NOTIFIER_HEAD(acpi_lid_notifier);
@@ -407,16 +405,6 @@ static int acpi_button_add(struct acpi_device *device)
 		lid_device = device;
 	}
 
-	if (device->wakeup.flags.valid) {
-		/* Button's GPE is run-wake GPE */
-		acpi_enable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number);
-		if (!device_may_wakeup(&device->dev)) {
-			device_set_wakeup_enable(&device->dev, true);
-			button->wakeup_enabled = true;
-		}
-	}
-
 	printk(KERN_INFO PREFIX "%s [%s]\n", name, acpi_device_bid(device));
 	return 0;
 
@@ -432,13 +420,6 @@ static int acpi_button_add(struct acpi_device *device)
 static int acpi_button_remove(struct acpi_device *device)
 {
 	struct acpi_button *button = acpi_driver_data(device);
-
-	if (device->wakeup.flags.valid) {
-		acpi_disable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number);
-		if (button->wakeup_enabled)
-			device_set_wakeup_enable(&device->dev, false);
-	}
 
 	acpi_button_remove_fs(device);
 	input_unregister_device(button->input);

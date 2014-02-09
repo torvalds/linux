@@ -242,7 +242,7 @@ static void ioh_gpio_setup(struct ioh_gpio *chip, int num_port)
 	gpio->dbg_show = NULL;
 	gpio->base = -1;
 	gpio->ngpio = num_port;
-	gpio->can_sleep = 0;
+	gpio->can_sleep = false;
 	gpio->to_irq = ioh_gpio_to_irq;
 }
 
@@ -596,7 +596,7 @@ static int ioh_gpio_resume(struct pci_dev *pdev)
 #define ioh_gpio_resume NULL
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(ioh_gpio_pcidev_id) = {
+static const struct pci_device_id ioh_gpio_pcidev_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x802E) },
 	{ 0, }
 };

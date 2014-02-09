@@ -16,6 +16,7 @@ generic-y += fb.h
 generic-y += fcntl.h
 generic-y += ftrace.h
 generic-y += hardirq.h
+generic-y += hash.h
 generic-y += hw_irq.h
 generic-y += ioctl.h
 generic-y += ioctls.h

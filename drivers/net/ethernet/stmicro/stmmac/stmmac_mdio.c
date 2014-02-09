@@ -128,7 +128,7 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
  * @bus: points to the mii_bus structure
  * Description: reset the MII bus
  */
-static int stmmac_mdio_reset(struct mii_bus *bus)
+int stmmac_mdio_reset(struct mii_bus *bus)
 {
 #if defined(CONFIG_STMMAC_PLATFORM)
 	struct net_device *ndev = bus->priv;
@@ -166,7 +166,6 @@ static int stmmac_mdio_reset(struct mii_bus *bus)
 			udelay(data->delays[1]);
 			gpio_set_value(reset_gpio, active_low ? 1 : 0);
 			udelay(data->delays[2]);
-			gpio_free(reset_gpio);
 		}
 	}
 #endif

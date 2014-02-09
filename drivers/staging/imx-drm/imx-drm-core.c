@@ -448,6 +448,7 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		goto err_vblank;
 	}
 
+	platform_set_drvdata(drm->platformdev, drm);
 	mutex_unlock(&imxdrm->mutex);
 	return 0;
 
@@ -848,7 +849,7 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 
 static int imx_drm_platform_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&imx_drm_driver, pdev);
+	drm_put_dev(platform_get_drvdata(pdev));
 
 	return 0;
 }

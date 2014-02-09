@@ -36,7 +36,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/time.h>
 #include <linux/timer.h>
 
@@ -44,7 +43,38 @@
 
 #include "musb_core.h"
 
-static void musb_port_suspend(struct musb *musb, bool do_suspend)
+void musb_host_finish_resume(struct work_struct *work)
+{
+	struct musb *musb;
+	unsigned long flags;
+	u8 power;
+
+	musb = container_of(work, struct musb, finish_resume_work.work);
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	power = musb_readb(musb->mregs, MUSB_POWER);
+	power &= ~MUSB_POWER_RESUME;
+	dev_dbg(musb->controller, "root port resume stopped, power %02x\n",
+		power);
+	musb_writeb(musb->mregs, MUSB_POWER, power);
+
+	/*
+	 * ISSUE:  DaVinci (RTL 1.300) disconnects after
+	 * resume of high speed peripherals (but not full
+	 * speed ones).
+	 */
+	musb->is_active = 1;
+	musb->port1_status &= ~(USB_PORT_STAT_SUSPEND | MUSB_PORT_STAT_RESUME);
+	musb->port1_status |= USB_PORT_STAT_C_SUSPEND << 16;
+	usb_hcd_poll_rh_status(musb->hcd);
+	/* NOTE: it might really be A_WAIT_BCON ... */
+	musb->xceiv->state = OTG_STATE_A_HOST;
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+}
+
+void musb_port_suspend(struct musb *musb, bool do_suspend)
 {
 	struct usb_otg	*otg = musb->xceiv->otg;
 	u8		power;
@@ -105,11 +135,11 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 
 		/* later, GetPortStatus will stop RESUME signaling */
 		musb->port1_status |= MUSB_PORT_STAT_RESUME;
-		musb->rh_timer = jiffies + msecs_to_jiffies(20);
+		schedule_delayed_work(&musb->finish_resume_work, 20);
 	}
 }
 
-static void musb_port_reset(struct musb *musb, bool do_reset)
+void musb_port_reset(struct musb *musb, bool do_reset)
 {
 	u8		power;
 	void __iomem	*mbase = musb->mregs;
@@ -150,7 +180,7 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 
 		musb->port1_status |= USB_PORT_STAT_RESET;
 		musb->port1_status &= ~USB_PORT_STAT_ENABLE;
-		musb->rh_timer = jiffies + msecs_to_jiffies(50);
+		schedule_delayed_work(&musb->deassert_reset_work, 50);
 	} else {
 		dev_dbg(musb->controller, "root port reset stopped\n");
 		musb_writeb(mbase, MUSB_POWER,
@@ -324,36 +354,6 @@ int musb_hub_control(
 	case GetPortStatus:
 		if (wIndex != 1)
 			goto error;
-
-		/* finish RESET signaling? */
-		if ((musb->port1_status & USB_PORT_STAT_RESET)
-				&& time_after_eq(jiffies, musb->rh_timer))
-			musb_port_reset(musb, false);
-
-		/* finish RESUME signaling? */
-		if ((musb->port1_status & MUSB_PORT_STAT_RESUME)
-				&& time_after_eq(jiffies, musb->rh_timer)) {
-			u8		power;
-
-			power = musb_readb(musb->mregs, MUSB_POWER);
-			power &= ~MUSB_POWER_RESUME;
-			dev_dbg(musb->controller, "root port resume stopped, power %02x\n",
-					power);
-			musb_writeb(musb->mregs, MUSB_POWER, power);
-
-			/* ISSUE:  DaVinci (RTL 1.300) disconnects after
-			 * resume of high speed peripherals (but not full
-			 * speed ones).
-			 */
-
-			musb->is_active = 1;
-			musb->port1_status &= ~(USB_PORT_STAT_SUSPEND
-					| MUSB_PORT_STAT_RESUME);
-			musb->port1_status |= USB_PORT_STAT_C_SUSPEND << 16;
-			usb_hcd_poll_rh_status(musb->hcd);
-			/* NOTE: it might really be A_WAIT_BCON ... */
-			musb->xceiv->state = OTG_STATE_A_HOST;
-		}
 
 		put_unaligned(cpu_to_le32(musb->port1_status
 					& ~MUSB_PORT_STAT_RESUME),

@@ -1174,7 +1174,7 @@ static int lov_getattr_interpret(struct ptlrpc_request_set *rqset,
 	struct lov_request_set *lovset = (struct lov_request_set *)data;
 	int err;
 
-	/* don't do attribute merge if this aysnc op failed */
+	/* don't do attribute merge if this async op failed */
 	if (rc)
 		atomic_set(&lovset->set_completes, 0);
 	err = lov_fini_getattr_set(lovset);

@@ -181,7 +181,7 @@ static struct resource jz4740_battery_resources[] = {
 	},
 };
 
-static struct mfd_cell jz4740_adc_cells[] = {
+static const struct mfd_cell jz4740_adc_cells[] = {
 	{
 		.id = 0,
 		.name = "jz4740-hwmon",

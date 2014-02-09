@@ -82,25 +82,6 @@ static inline int is_vlan_dev(struct net_device *dev)
 #define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
 #define vlan_tx_tag_get_id(__skb)	((__skb)->vlan_tci & VLAN_VID_MASK)
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-
-extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
-					       __be16 vlan_proto, u16 vlan_id);
-extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
-extern u16 vlan_dev_vlan_id(const struct net_device *dev);
-
-/**
- *	struct vlan_priority_tci_mapping - vlan egress priority mappings
- *	@priority: skb priority
- *	@vlan_qos: vlan priority: (skb->priority << 13) & 0xE000
- *	@next: pointer to next struct
- */
-struct vlan_priority_tci_mapping {
-	u32					priority;
-	u16					vlan_qos;
-	struct vlan_priority_tci_mapping	*next;
-};
-
 /**
  *	struct vlan_pcpu_stats - VLAN percpu rx/tx stats
  *	@rx_packets: number of received packets
@@ -121,6 +102,25 @@ struct vlan_pcpu_stats {
 	struct u64_stats_sync	syncp;
 	u32			rx_errors;
 	u32			tx_dropped;
+};
+
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+
+extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
+					       __be16 vlan_proto, u16 vlan_id);
+extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
+extern u16 vlan_dev_vlan_id(const struct net_device *dev);
+
+/**
+ *	struct vlan_priority_tci_mapping - vlan egress priority mappings
+ *	@priority: skb priority
+ *	@vlan_qos: vlan priority: (skb->priority << 13) & 0xE000
+ *	@next: pointer to next struct
+ */
+struct vlan_priority_tci_mapping {
+	u32					priority;
+	u16					vlan_qos;
+	struct vlan_priority_tci_mapping	*next;
 };
 
 struct proc_dir_entry;

@@ -50,6 +50,7 @@ static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 
 	exynos->usb2_phy = pdev;
 	pdata.type = USB_PHY_TYPE_USB2;
+	pdata.gpio_reset = -1;
 
 	ret = platform_device_add_data(exynos->usb2_phy, &pdata, sizeof(pdata));
 	if (ret)

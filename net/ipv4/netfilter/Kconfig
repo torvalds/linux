@@ -39,23 +39,33 @@ config NF_CONNTRACK_PROC_COMPAT
 config NF_TABLES_IPV4
 	depends on NF_TABLES
 	tristate "IPv4 nf_tables support"
-
-config NFT_REJECT_IPV4
-	depends on NF_TABLES_IPV4
-	tristate "nf_tables IPv4 reject support"
+	help
+	  This option enables the IPv4 support for nf_tables.
 
 config NFT_CHAIN_ROUTE_IPV4
 	depends on NF_TABLES_IPV4
 	tristate "IPv4 nf_tables route chain support"
+	help
+	  This option enables the "route" chain for IPv4 in nf_tables. This
+	  chain type is used to force packet re-routing after mangling header
+	  fields such as the source, destination, type of service and
+	  the packet mark.
 
 config NFT_CHAIN_NAT_IPV4
 	depends on NF_TABLES_IPV4
 	depends on NF_NAT_IPV4 && NFT_NAT
 	tristate "IPv4 nf_tables nat chain support"
+	help
+	  This option enables the "nat" chain for IPv4 in nf_tables. This
+	  chain type is used to perform Network Address Translation (NAT)
+	  packet transformations such as the source, destination address and
+	  source and destination ports.
 
 config NF_TABLES_ARP
 	depends on NF_TABLES
 	tristate "ARP nf_tables support"
+	help
+	  This option enables the ARP support for nf_tables.
 
 config IP_NF_IPTABLES
 	tristate "IP tables support (required for filtering/masq/NAT)"

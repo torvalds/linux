@@ -117,7 +117,7 @@ struct dpi_clk_calc_ctx {
 	/* outputs */
 
 	struct dsi_clock_info dsi_cinfo;
-	struct dss_clock_info dss_cinfo;
+	unsigned long long fck;
 	struct dispc_clock_info dispc_cinfo;
 };
 
@@ -184,12 +184,11 @@ static bool dpi_calc_pll_cb(int regn, int regm, unsigned long fint,
 			dpi_calc_hsdiv_cb, ctx);
 }
 
-static bool dpi_calc_dss_cb(int fckd, unsigned long fck, void *data)
+static bool dpi_calc_dss_cb(unsigned long fck, void *data)
 {
 	struct dpi_clk_calc_ctx *ctx = data;
 
-	ctx->dss_cinfo.fck = fck;
-	ctx->dss_cinfo.fck_div = fckd;
+	ctx->fck = fck;
 
 	return dispc_div_calc(fck, ctx->pck_min, ctx->pck_max,
 			dpi_calc_dispc_cb, ctx);
@@ -237,7 +236,7 @@ static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
 			ctx->pck_min = 0;
 		ctx->pck_max = pck + 1000 * i * i * i;
 
-		ok = dss_div_calc(ctx->pck_min, dpi_calc_dss_cb, ctx);
+		ok = dss_div_calc(pck, ctx->pck_min, dpi_calc_dss_cb, ctx);
 		if (ok)
 			return ok;
 	}
@@ -286,13 +285,13 @@ static int dpi_set_dispc_clk(unsigned long pck_req, unsigned long *fck,
 	if (!ok)
 		return -EINVAL;
 
-	r = dss_set_clock_div(&ctx.dss_cinfo);
+	r = dss_set_fck_rate(ctx.fck);
 	if (r)
 		return r;
 
 	dpi.mgr_config.clock_info = ctx.dispc_cinfo;
 
-	*fck = ctx.dss_cinfo.fck;
+	*fck = ctx.fck;
 	*lck_div = ctx.dispc_cinfo.lck_div;
 	*pck_div = ctx.dispc_cinfo.pck_div;
 
@@ -495,7 +494,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 		if (!ok)
 			return -EINVAL;
 
-		fck = ctx.dss_cinfo.fck;
+		fck = ctx.fck;
 	}
 
 	lck_div = ctx.dispc_cinfo.lck_div;
@@ -551,7 +550,8 @@ static int dpi_init_regulator(void)
 
 	vdds_dsi = devm_regulator_get(&dpi.pdev->dev, "vdds_dsi");
 	if (IS_ERR(vdds_dsi)) {
-		DSSERR("can't get VDDS_DSI regulator\n");
+		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
+			DSSERR("can't get VDDS_DSI regulator\n");
 		return PTR_ERR(vdds_dsi);
 	}
 

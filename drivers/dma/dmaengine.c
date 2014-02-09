@@ -535,11 +535,41 @@ struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
 }
 EXPORT_SYMBOL_GPL(dma_get_slave_channel);
 
+struct dma_chan *dma_get_any_slave_channel(struct dma_device *device)
+{
+	dma_cap_mask_t mask;
+	struct dma_chan *chan;
+	int err;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	/* lock against __dma_request_channel */
+	mutex_lock(&dma_list_mutex);
+
+	chan = private_candidate(&mask, device, NULL, NULL);
+	if (chan) {
+		err = dma_chan_get(chan);
+		if (err) {
+			pr_debug("%s: failed to get %s: (%d)\n",
+				__func__, dma_chan_name(chan), err);
+			chan = NULL;
+		}
+	}
+
+	mutex_unlock(&dma_list_mutex);
+
+	return chan;
+}
+EXPORT_SYMBOL_GPL(dma_get_any_slave_channel);
+
 /**
  * __dma_request_channel - try to allocate an exclusive channel
  * @mask: capabilities that the channel must satisfy
  * @fn: optional callback to disposition available channels
  * @fn_param: opaque parameter to pass to dma_filter_fn
+ *
+ * Returns pointer to appropriate DMA channel on success or NULL.
  */
 struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 				       dma_filter_fn fn, void *fn_param)
@@ -591,18 +621,43 @@ EXPORT_SYMBOL_GPL(__dma_request_channel);
  * dma_request_slave_channel - try to allocate an exclusive slave channel
  * @dev:	pointer to client device structure
  * @name:	slave channel name
+ *
+ * Returns pointer to appropriate DMA channel on success or an error pointer.
  */
-struct dma_chan *dma_request_slave_channel(struct device *dev, const char *name)
+struct dma_chan *dma_request_slave_channel_reason(struct device *dev,
+						  const char *name)
 {
+	struct dma_chan *chan;
+
 	/* If device-tree is present get slave info from here */
 	if (dev->of_node)
 		return of_dma_request_slave_channel(dev->of_node, name);
 
 	/* If device was enumerated by ACPI get slave info from here */
-	if (ACPI_HANDLE(dev))
-		return acpi_dma_request_slave_chan_by_name(dev, name);
+	if (ACPI_HANDLE(dev)) {
+		chan = acpi_dma_request_slave_chan_by_name(dev, name);
+		if (chan)
+			return chan;
+	}
 
-	return NULL;
+	return ERR_PTR(-ENODEV);
+}
+EXPORT_SYMBOL_GPL(dma_request_slave_channel_reason);
+
+/**
+ * dma_request_slave_channel - try to allocate an exclusive slave channel
+ * @dev:	pointer to client device structure
+ * @name:	slave channel name
+ *
+ * Returns pointer to appropriate DMA channel on success or NULL.
+ */
+struct dma_chan *dma_request_slave_channel(struct device *dev,
+					   const char *name)
+{
+	struct dma_chan *ch = dma_request_slave_channel_reason(dev, name);
+	if (IS_ERR(ch))
+		return NULL;
+	return ch;
 }
 EXPORT_SYMBOL_GPL(dma_request_slave_channel);
 

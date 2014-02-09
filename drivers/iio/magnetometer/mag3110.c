@@ -266,7 +266,11 @@ static const struct iio_chan_spec mag3110_channels[] = {
 		.type = IIO_TEMP,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.scan_index = 3,
-		.scan_type = IIO_ST('s', 8, 8, 0),
+		.scan_type = {
+			.sign = 's',
+			.realbits = 8,
+			.storagebits = 8,
+			},
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };

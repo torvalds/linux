@@ -76,6 +76,16 @@ config SOC_AM43XX
 	select ARM_GIC
 	select MACH_OMAP_GENERIC
 
+config SOC_DRA7XX
+	bool "TI DRA7XX"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARM_CPU_SUSPEND if PM
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_SMP
+	select HAVE_ARM_ARCH_TIMER
+
 config ARCH_OMAP2PLUS
 	bool
 	select ARCH_HAS_BANDGAP
@@ -127,14 +137,6 @@ config SOC_HAS_REALTIME_COUNTER
 	bool "Real time free running counter"
 	depends on SOC_OMAP5 || SOC_DRA7XX
 	default y
-
-config SOC_DRA7XX
-	bool "TI DRA7XX"
-	select ARM_ARCH_TIMER
-	select CPU_V7
-	select ARM_GIC
-	select HAVE_SMP
-	select COMMON_CLK
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -191,19 +193,6 @@ config MACH_OMAP2_TUSB6010
 	bool
 	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
-
-config MACH_OMAP_H4
-	bool "OMAP 2420 H4 board"
-	depends on SOC_OMAP2420
-	default y
-	select OMAP_DEBUG_DEVICES
-	select OMAP_PACKAGE_ZAF
-
-config MACH_OMAP_2430SDP
-	bool "OMAP 2430 SDP board"
-	depends on SOC_OMAP2430
-	default y
-	select OMAP_PACKAGE_ZAC
 
 config MACH_OMAP3_BEAGLE
 	bool "OMAP3 BEAGLE board"

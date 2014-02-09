@@ -23,6 +23,7 @@ config X86
 	def_bool y
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_AOUT if X86_32
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select ARCH_SUPPORTS_NUMA_BALANCING
@@ -279,13 +280,13 @@ config SMP
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have
-	  a system with only one CPU, like most personal computers, say N. If
-	  you have a system with more than one CPU, say Y.
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.
 
-	  If you say N here, the kernel will run on single and multiprocessor
+	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
 	  you say Y here, the kernel will run on many, but not all,
-	  singleprocessor machines. On a singleprocessor machine, the kernel
+	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
 	  Note that if you say Y here and choose architecture "586" or
@@ -443,6 +444,7 @@ config X86_INTEL_MID
 	bool "Intel MID platform support"
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
+	depends on X86_PLATFORM_DEVICES
 	depends on PCI
 	depends on PCI_GOANY
 	depends on X86_IO_APIC
@@ -731,6 +733,7 @@ config APB_TIMER
 # The code disables itself when not needed.
 config DMI
 	default y
+	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
 	bool "Enable DMI scanning" if EXPERT
 	---help---
 	  Enabled scanning of DMI to identify machine quirks. Say Y
@@ -938,7 +941,7 @@ config X86_ANCIENT_MCE
 	depends on X86_32 && X86_MCE
 	---help---
 	  Include support for machine check handling on old Pentium 5 or WinChip
-	  systems. These typically need to be enabled explicitely on the command
+	  systems. These typically need to be enabled explicitly on the command
 	  line.
 
 config X86_MCE_THRESHOLD
@@ -1049,9 +1052,9 @@ config MICROCODE_INTEL
 	  This options enables microcode patch loading support for Intel
 	  processors.
 
-	  For latest news and information on obtaining all the required
-	  Intel ingredients for this driver, check:
-	  <http://www.urbanmyth.org/microcode/>.
+	  For the current Intel microcode data package go to
+	  <https://downloadcenter.intel.com> and search for
+	  'Linux Processor Microcode Data File'.
 
 config MICROCODE_AMD
 	bool "AMD microcode loading support"

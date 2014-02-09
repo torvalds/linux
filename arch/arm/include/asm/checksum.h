@@ -87,19 +87,33 @@ static inline __wsum
 csum_tcpudp_nofold(__be32 saddr, __be32 daddr, unsigned short len,
 		   unsigned short proto, __wsum sum)
 {
-	__asm__(
-	"adds	%0, %1, %2		@ csum_tcpudp_nofold	\n\
-	adcs	%0, %0, %3					\n"
+	u32 lenprot = len | proto << 16;
+	if (__builtin_constant_p(sum) && sum == 0) {
+		__asm__(
+		"adds	%0, %1, %2	@ csum_tcpudp_nofold0	\n\t"
 #ifdef __ARMEB__
-	"adcs	%0, %0, %4					\n"
+		"adcs	%0, %0, %3				\n\t"
 #else
-	"adcs	%0, %0, %4, lsl #8				\n"
+		"adcs	%0, %0, %3, ror #8			\n\t"
 #endif
-	"adcs	%0, %0, %5					\n\
-	adc	%0, %0, #0"
-	: "=&r"(sum)
-	: "r" (sum), "r" (daddr), "r" (saddr), "r" (len), "Ir" (htons(proto))
-	: "cc");
+		"adc	%0, %0, #0"
+		: "=&r" (sum)
+		: "r" (daddr), "r" (saddr), "r" (lenprot)
+		: "cc");
+	} else {
+		__asm__(
+		"adds	%0, %1, %2	@ csum_tcpudp_nofold	\n\t"
+		"adcs	%0, %0, %3				\n\t"
+#ifdef __ARMEB__
+		"adcs	%0, %0, %4				\n\t"
+#else
+		"adcs	%0, %0, %4, ror #8			\n\t"
+#endif
+		"adc	%0, %0, #0"
+		: "=&r"(sum)
+		: "r" (sum), "r" (daddr), "r" (saddr), "r" (lenprot)
+		: "cc");
+	}
 	return sum;
 }	
 /*

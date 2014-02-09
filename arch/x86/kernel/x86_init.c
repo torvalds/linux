@@ -136,9 +136,9 @@ void arch_teardown_msi_irq(unsigned int irq)
 	x86_msi.teardown_msi_irq(irq);
 }
 
-void arch_restore_msi_irqs(struct pci_dev *dev, int irq)
+void arch_restore_msi_irqs(struct pci_dev *dev)
 {
-	x86_msi.restore_msi_irqs(dev, irq);
+	x86_msi.restore_msi_irqs(dev);
 }
 u32 arch_msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 {

@@ -1671,6 +1671,19 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
 	mark_dirty(svm->vmcb, VMCB_ASID);
 }
 
+static u64 svm_get_dr6(struct kvm_vcpu *vcpu)
+{
+	return to_svm(vcpu)->vmcb->save.dr6;
+}
+
+static void svm_set_dr6(struct kvm_vcpu *vcpu, unsigned long value)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	svm->vmcb->save.dr6 = value;
+	mark_dirty(svm->vmcb, VMCB_DR);
+}
+
 static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -4286,6 +4299,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_idt = svm_set_idt,
 	.get_gdt = svm_get_gdt,
 	.set_gdt = svm_set_gdt,
+	.get_dr6 = svm_get_dr6,
+	.set_dr6 = svm_set_dr6,
 	.set_dr7 = svm_set_dr7,
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,

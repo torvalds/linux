@@ -31,14 +31,11 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
-
+#include <linux/acpi.h>
+#include <acpi/processor.h>
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
 #endif
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/processor.h>
 
 #define PREFIX "ACPI: "
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_ORIGINATOR_H_
@@ -36,8 +34,26 @@ batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
 		      struct batadv_orig_node *orig_node);
 void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node);
 struct batadv_neigh_node *
-batadv_orig_node_get_router(struct batadv_orig_node *orig_node);
+batadv_orig_router_get(struct batadv_orig_node *orig_node,
+		       const struct batadv_hard_iface *if_outgoing);
+struct batadv_neigh_ifinfo *
+batadv_neigh_ifinfo_new(struct batadv_neigh_node *neigh,
+			struct batadv_hard_iface *if_outgoing);
+struct batadv_neigh_ifinfo *
+batadv_neigh_ifinfo_get(struct batadv_neigh_node *neigh,
+			struct batadv_hard_iface *if_outgoing);
+void batadv_neigh_ifinfo_free_ref(struct batadv_neigh_ifinfo *neigh_ifinfo);
+
+struct batadv_orig_ifinfo *
+batadv_orig_ifinfo_get(struct batadv_orig_node *orig_node,
+		       struct batadv_hard_iface *if_outgoing);
+struct batadv_orig_ifinfo *
+batadv_orig_ifinfo_new(struct batadv_orig_node *orig_node,
+		       struct batadv_hard_iface *if_outgoing);
+void batadv_orig_ifinfo_free_ref(struct batadv_orig_ifinfo *orig_ifinfo);
+
 int batadv_orig_seq_print_text(struct seq_file *seq, void *offset);
+int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
 			    int max_if_num);
 int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,

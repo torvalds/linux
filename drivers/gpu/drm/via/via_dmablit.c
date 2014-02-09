@@ -217,7 +217,7 @@ via_fire_dmablit(struct drm_device *dev, drm_via_sg_info_t *vsg, int engine)
 	VIA_WRITE(VIA_PCI_DMA_MR0  + engine*0x04, VIA_DMA_MR_CM | VIA_DMA_MR_TDIE);
 	VIA_WRITE(VIA_PCI_DMA_BCR0 + engine*0x10, 0);
 	VIA_WRITE(VIA_PCI_DMA_DPR0 + engine*0x10, vsg->chain_start);
-	DRM_WRITEMEMORYBARRIER();
+	wmb();
 	VIA_WRITE(VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_DE | VIA_DMA_CSR_TS);
 	VIA_READ(VIA_PCI_DMA_CSR0 + engine*0x04);
 }
@@ -338,7 +338,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 
 		blitq->blits[cur]->aborted = blitq->aborting;
 		blitq->done_blit_handle++;
-		DRM_WAKEUP(blitq->blit_queue + cur);
+		wake_up(blitq->blit_queue + cur);
 
 		cur++;
 		if (cur >= VIA_NUM_BLIT_SLOTS)
@@ -363,7 +363,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 
 		via_abort_dmablit(dev, engine);
 		blitq->aborting = 1;
-		blitq->end = jiffies + DRM_HZ;
+		blitq->end = jiffies + HZ;
 	}
 
 	if (!blitq->is_active) {
@@ -372,7 +372,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 			blitq->is_active = 1;
 			blitq->cur = cur;
 			blitq->num_outstanding--;
-			blitq->end = jiffies + DRM_HZ;
+			blitq->end = jiffies + HZ;
 			if (!timer_pending(&blitq->poll_timer))
 				mod_timer(&blitq->poll_timer, jiffies + 1);
 		} else {
@@ -436,7 +436,7 @@ via_dmablit_sync(struct drm_device *dev, uint32_t handle, int engine)
 	int ret = 0;
 
 	if (via_dmablit_active(blitq, engine, handle, &queue)) {
-		DRM_WAIT_ON(ret, *queue, 3 * DRM_HZ,
+		DRM_WAIT_ON(ret, *queue, 3 * HZ,
 			    !via_dmablit_active(blitq, engine, handle, NULL));
 	}
 	DRM_DEBUG("DMA blit sync handle 0x%x engine %d returned %d\n",
@@ -521,7 +521,7 @@ via_dmablit_workqueue(struct work_struct *work)
 
 		spin_unlock_irqrestore(&blitq->blit_lock, irqsave);
 
-		DRM_WAKEUP(&blitq->busy_queue);
+		wake_up(&blitq->busy_queue);
 
 		via_free_sg_info(dev->pdev, cur_sg);
 		kfree(cur_sg);
@@ -561,8 +561,8 @@ via_init_dmablit(struct drm_device *dev)
 		blitq->aborting = 0;
 		spin_lock_init(&blitq->blit_lock);
 		for (j = 0; j < VIA_NUM_BLIT_SLOTS; ++j)
-			DRM_INIT_WAITQUEUE(blitq->blit_queue + j);
-		DRM_INIT_WAITQUEUE(&blitq->busy_queue);
+			init_waitqueue_head(blitq->blit_queue + j);
+		init_waitqueue_head(&blitq->busy_queue);
 		INIT_WORK(&blitq->wq, via_dmablit_workqueue);
 		setup_timer(&blitq->poll_timer, via_dmablit_timer,
 				(unsigned long)blitq);
@@ -688,7 +688,7 @@ via_dmablit_grab_slot(drm_via_blitq_t *blitq, int engine)
 	while (blitq->num_free == 0) {
 		spin_unlock_irqrestore(&blitq->blit_lock, irqsave);
 
-		DRM_WAIT_ON(ret, blitq->busy_queue, DRM_HZ, blitq->num_free > 0);
+		DRM_WAIT_ON(ret, blitq->busy_queue, HZ, blitq->num_free > 0);
 		if (ret)
 			return (-EINTR == ret) ? -EAGAIN : ret;
 
@@ -713,7 +713,7 @@ via_dmablit_release_slot(drm_via_blitq_t *blitq)
 	spin_lock_irqsave(&blitq->blit_lock, irqsave);
 	blitq->num_free++;
 	spin_unlock_irqrestore(&blitq->blit_lock, irqsave);
-	DRM_WAKEUP(&blitq->busy_queue);
+	wake_up(&blitq->busy_queue);
 }
 
 /*

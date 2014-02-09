@@ -15,7 +15,6 @@
 #define __ATH79_COMMON_H
 
 #include <linux/types.h>
-#include <linux/init.h>
 
 #define ATH79_MEM_SIZE_MIN	(2 * 1024 * 1024)
 #define ATH79_MEM_SIZE_MAX	(128 * 1024 * 1024)

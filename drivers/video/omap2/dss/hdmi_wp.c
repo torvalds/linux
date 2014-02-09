@@ -8,6 +8,8 @@
  * the Free Software Foundation.
  */
 
+#define DSS_SUBSYS_NAME "HDMIWP"
+
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -34,7 +36,7 @@ void hdmi_wp_dump(struct hdmi_wp_data *wp, struct seq_file *s)
 	DUMPREG(HDMI_WP_VIDEO_SIZE);
 	DUMPREG(HDMI_WP_VIDEO_TIMING_H);
 	DUMPREG(HDMI_WP_VIDEO_TIMING_V);
-	DUMPREG(HDMI_WP_WP_CLK);
+	DUMPREG(HDMI_WP_CLK);
 	DUMPREG(HDMI_WP_AUDIO_CFG);
 	DUMPREG(HDMI_WP_AUDIO_CFG2);
 	DUMPREG(HDMI_WP_AUDIO_CTRL);
@@ -76,7 +78,7 @@ int hdmi_wp_set_phy_pwr(struct hdmi_wp_data *wp, enum hdmi_phy_pwr val)
 	/* Status of the power control of HDMI PHY */
 	if (hdmi_wait_for_bit_change(wp->base, HDMI_WP_PWR_CTRL, 5, 4, val)
 			!= val) {
-		pr_err("Failed to set PHY power mode to %d\n", val);
+		DSSERR("Failed to set PHY power mode to %d\n", val);
 		return -ETIMEDOUT;
 	}
 
@@ -92,7 +94,7 @@ int hdmi_wp_set_pll_pwr(struct hdmi_wp_data *wp, enum hdmi_pll_pwr val)
 	/* wait till PHY_PWR_STATUS is set */
 	if (hdmi_wait_for_bit_change(wp->base, HDMI_WP_PWR_CTRL, 1, 0, val)
 			!= val) {
-		pr_err("Failed to set PLL_PWR_STATUS\n");
+		DSSERR("Failed to set PLL_PWR_STATUS\n");
 		return -ETIMEDOUT;
 	}
 
@@ -129,7 +131,7 @@ void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
 {
 	u32 r;
 	bool vsync_pol, hsync_pol;
-	pr_debug("Enter hdmi_wp_video_config_interface\n");
+	DSSDBG("Enter hdmi_wp_video_config_interface\n");
 
 	vsync_pol = timings->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
 	hsync_pol = timings->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
@@ -148,7 +150,7 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 	u32 timing_h = 0;
 	u32 timing_v = 0;
 
-	pr_debug("Enter hdmi_wp_video_config_timing\n");
+	DSSDBG("Enter hdmi_wp_video_config_timing\n");
 
 	timing_h |= FLD_VAL(timings->hbp, 31, 20);
 	timing_h |= FLD_VAL(timings->hfp, 19, 8);
@@ -164,7 +166,7 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 		struct omap_video_timings *timings, struct hdmi_config *param)
 {
-	pr_debug("Enter hdmi_wp_video_init_format\n");
+	DSSDBG("Enter hdmi_wp_video_init_format\n");
 
 	video_fmt->packing_mode = HDMI_PACK_10b_RGB_YUV444;
 	video_fmt->y_res = param->timings.y_res;
@@ -241,7 +243,7 @@ int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
 	struct resource *res;
 	struct resource temp_res;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi_wp");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "wp");
 	if (!res) {
 		DSSDBG("can't get WP mem resource by name\n");
 		/*

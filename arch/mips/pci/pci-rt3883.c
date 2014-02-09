@@ -436,9 +436,6 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	rpc->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(rpc->base))
 		return PTR_ERR(rpc->base);

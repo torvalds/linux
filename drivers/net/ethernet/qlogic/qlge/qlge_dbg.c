@@ -1242,8 +1242,8 @@ static void ql_get_core_dump(struct ql_adapter *qdev)
 	ql_queue_fw_error(qdev);
 }
 
-void ql_gen_reg_dump(struct ql_adapter *qdev,
-			struct ql_reg_dump *mpi_coredump)
+static void ql_gen_reg_dump(struct ql_adapter *qdev,
+			    struct ql_reg_dump *mpi_coredump)
 {
 	int i, status;
 

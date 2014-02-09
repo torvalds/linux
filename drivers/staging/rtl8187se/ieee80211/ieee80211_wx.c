@@ -633,8 +633,8 @@ done:
 	return ret;
 }
 int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra)
 {
 	struct iw_mlme *mlme = (struct iw_mlme *) extra;
 //	printk("\ndkgadfslkdjgalskdf===============>%s(), cmd:%x\n", __func__, mlme->cmd);
@@ -653,8 +653,8 @@ int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 }
 
 int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
-			       struct iw_request_info *info,
-			       struct iw_param *data, char *extra)
+			  struct iw_request_info *info,
+			  struct iw_param *data, char *extra)
 {
 /*
 	 struct ieee80211_security sec = {

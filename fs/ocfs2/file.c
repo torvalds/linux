@@ -1236,7 +1236,7 @@ bail:
 		dqput(transfer_to[qtype]);
 
 	if (!status && attr->ia_valid & ATTR_MODE) {
-		status = ocfs2_acl_chmod(inode);
+		status = posix_acl_chmod(inode, inode->i_mode);
 		if (status < 0)
 			mlog_errno(status);
 	}
@@ -1869,7 +1869,8 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 	}
 	size = sr->l_start + sr->l_len;
 
-	if (cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64) {
+	if (cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64 ||
+	    cmd == OCFS2_IOC_UNRESVSP || cmd == OCFS2_IOC_UNRESVSP64) {
 		if (sr->l_len <= 0) {
 			ret = -EINVAL;
 			goto out_inode_unlock;
@@ -2661,6 +2662,7 @@ const struct inode_operations ocfs2_file_iops = {
 	.removexattr	= generic_removexattr,
 	.fiemap		= ocfs2_fiemap,
 	.get_acl	= ocfs2_iop_get_acl,
+	.set_acl	= ocfs2_iop_set_acl,
 };
 
 const struct inode_operations ocfs2_special_file_iops = {
@@ -2668,6 +2670,7 @@ const struct inode_operations ocfs2_special_file_iops = {
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
 	.get_acl	= ocfs2_iop_get_acl,
+	.set_acl	= ocfs2_iop_set_acl,
 };
 
 /*

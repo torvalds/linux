@@ -215,8 +215,6 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie);
 void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
-void mesh_mgmt_ies_add(struct ieee80211_sub_if_data *sdata,
-		       struct sk_buff *skb);
 int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 			 struct sk_buff *skb);
 int mesh_add_meshid_ie(struct ieee80211_sub_if_data *sdata,
@@ -303,8 +301,8 @@ void mesh_mpath_table_grow(void);
 void mesh_mpp_table_grow(void);
 /* Mesh paths */
 int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
-		       u8 ttl, const u8 *target, __le32 target_sn,
-		       __le16 target_rcode, const u8 *ra);
+		       u8 ttl, const u8 *target, u32 target_sn,
+		       u16 target_rcode, const u8 *ra);
 void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta);
 void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);

@@ -806,6 +806,9 @@ static unsigned int imx_get_mctrl(struct uart_port *port)
 	if (readl(sport->port.membase + UCR2) & UCR2_CTS)
 		tmp |= TIOCM_RTS;
 
+	if (readl(sport->port.membase + uts_reg(sport)) & UTS_LOOP)
+		tmp |= TIOCM_LOOP;
+
 	return tmp;
 }
 
@@ -821,6 +824,11 @@ static void imx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 			temp |= UCR2_CTS;
 
 	writel(temp, sport->port.membase + UCR2);
+
+	temp = readl(sport->port.membase + uts_reg(sport)) & ~UTS_LOOP;
+	if (mctrl & TIOCM_LOOP)
+		temp |= UTS_LOOP;
+	writel(temp, sport->port.membase + uts_reg(sport));
 }
 
 /*

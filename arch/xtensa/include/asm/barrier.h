@@ -13,10 +13,6 @@
 #define rmb() barrier()
 #define wmb() mb()
 
-#ifdef CONFIG_SMP
-#error smp_* not defined
-#endif
-
 #include <asm-generic/barrier.h>
 
 #endif /* _XTENSA_SYSTEM_H */

@@ -155,7 +155,12 @@ done:
 		BIT(IIO_CHAN_INFO_INT_TIME), \
 	.channel2 = (IIO_MOD_LIGHT_##_color), \
 	.scan_index = (_scan_idx), \
-	.scan_type = IIO_ST('u', 10, 16, 0), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = 10, \
+		.storagebits = 16, \
+		.endianness = IIO_CPU, \
+	}, \
 }
 
 static const struct iio_chan_spec adjd_s311_channels[] = {

@@ -297,6 +297,7 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, gfp_t gfp_mask)
 
 		cmd->device = dev;
 		INIT_LIST_HEAD(&cmd->list);
+		INIT_DELAYED_WORK(&cmd->abort_work, scmd_eh_abort_handler);
 		spin_lock_irqsave(&dev->list_lock, flags);
 		list_add_tail(&cmd->list, &dev->cmd_list);
 		spin_unlock_irqrestore(&dev->list_lock, flags);
@@ -352,6 +353,8 @@ void scsi_put_command(struct scsi_cmnd *cmd)
 	BUG_ON(list_empty(&cmd->list));
 	list_del_init(&cmd->list);
 	spin_unlock_irqrestore(&cmd->device->list_lock, flags);
+
+	cancel_delayed_work(&cmd->abort_work);
 
 	__scsi_put_command(cmd->device->host, cmd, &sdev->sdev_gendev);
 }
@@ -742,15 +745,13 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 }
 
 /**
- * scsi_done - Enqueue the finished SCSI command into the done queue.
+ * scsi_done - Invoke completion on finished SCSI command.
  * @cmd: The SCSI Command for which a low-level device driver (LLDD) gives
  * ownership back to SCSI Core -- i.e. the LLDD has finished with it.
  *
  * Description: This function is the mid-level's (SCSI Core) interrupt routine,
  * which regains ownership of the SCSI command (de facto) from a LLDD, and
- * enqueues the command to the done queue for further processing.
- *
- * This is the producer of the done queue who enqueues at the tail.
+ * calls blk_complete_request() for further processing.
  *
  * This function is interrupt context safe.
  */

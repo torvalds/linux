@@ -40,6 +40,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/export.h>
+#include <linux/etherdevice.h>
 
 int sysctl_aarp_expiry_time = AARP_EXPIRY_TIME;
 int sysctl_aarp_tick_time = AARP_TICK_TIME;
@@ -67,7 +68,7 @@ struct aarp_entry {
 	unsigned long		expires_at;
 	struct atalk_addr	target_addr;
 	struct net_device	*dev;
-	char			hwaddr[6];
+	char			hwaddr[ETH_ALEN];
 	unsigned short		xmit_count;
 	struct aarp_entry	*next;
 };
@@ -134,7 +135,7 @@ static void __aarp_send_query(struct aarp_entry *a)
 	eah->pa_len	 = AARP_PA_ALEN;
 	eah->function	 = htons(AARP_REQUEST);
 
-	memcpy(eah->hw_src, dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(eah->hw_src, dev->dev_addr);
 
 	eah->pa_src_zero = 0;
 	eah->pa_src_net	 = sat->s_net;
@@ -181,7 +182,7 @@ static void aarp_send_reply(struct net_device *dev, struct atalk_addr *us,
 	eah->pa_len	 = AARP_PA_ALEN;
 	eah->function	 = htons(AARP_REPLY);
 
-	memcpy(eah->hw_src, dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(eah->hw_src, dev->dev_addr);
 
 	eah->pa_src_zero = 0;
 	eah->pa_src_net	 = us->s_net;
@@ -190,7 +191,7 @@ static void aarp_send_reply(struct net_device *dev, struct atalk_addr *us,
 	if (!sha)
 		memset(eah->hw_dst, '\0', ETH_ALEN);
 	else
-		memcpy(eah->hw_dst, sha, ETH_ALEN);
+		ether_addr_copy(eah->hw_dst, sha);
 
 	eah->pa_dst_zero = 0;
 	eah->pa_dst_net	 = them->s_net;
@@ -232,7 +233,7 @@ static void aarp_send_probe(struct net_device *dev, struct atalk_addr *us)
 	eah->pa_len	 = AARP_PA_ALEN;
 	eah->function	 = htons(AARP_PROBE);
 
-	memcpy(eah->hw_src, dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(eah->hw_src, dev->dev_addr);
 
 	eah->pa_src_zero = 0;
 	eah->pa_src_net	 = us->s_net;
@@ -790,7 +791,7 @@ static int aarp_rcv(struct sk_buff *skb, struct net_device *dev,
 			break;
 
 		/* We can fill one in - this is good. */
-		memcpy(a->hwaddr, ea->hw_src, ETH_ALEN);
+		ether_addr_copy(a->hwaddr, ea->hw_src);
 		__aarp_resolved(&unresolved[hash], a, hash);
 		if (!unresolved_count)
 			mod_timer(&aarp_timer,

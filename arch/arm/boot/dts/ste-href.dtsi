@@ -11,37 +11,57 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include "ste-dbx5x0.dtsi"
+#include "ste-href-family-pinctrl.dtsi"
 
 / {
 	memory {
 		reg = <0x00000000 0x20000000>;
 	};
 
-	gpio_keys {
-		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		button@1 {
-			linux,code = <11>;
-			label = "SFH7741 Proximity Sensor";
-		};
-	};
-
 	soc {
+		usb_per5@a03e0000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&musb_default_mode>;
+			pinctrl-1 = <&musb_sleep_mode>;
+		};
+
 		uart@80120000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart0_default_mode>;
+			pinctrl-1 = <&uart0_sleep_mode>;
 			status = "okay";
 		};
 
 		uart@80121000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart1_default_mode>;
+			pinctrl-1 = <&uart1_sleep_mode>;
 			status = "okay";
 		};
 
 		uart@80007000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart2_default_mode>;
+			pinctrl-1 = <&uart2_sleep_mode>;
 			status = "okay";
 		};
 
+		i2c@80004000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c0_default_mode>;
+			pinctrl-1 = <&i2c0_sleep_mode>;
+		};
+
+		i2c@80122000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c1_default_mode>;
+			pinctrl-1 = <&i2c1_sleep_mode>;
+		};
+
 		i2c@80128000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c2_default_mode>;
+			pinctrl-1 = <&i2c2_sleep_mode>;
 			lp5521@33 {
 				compatible = "national,lp5521";
 				reg = <0x33>;
@@ -85,6 +105,12 @@
 			};
 		};
 
+		i2c@80110000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c3_default_mode>;
+			pinctrl-1 = <&i2c3_sleep_mode>;
+		};
+
 		// External Micro SD slot
 		sdi0_per1@80126000 {
 			arm,primecell-periphid = <0x10480180>;
@@ -94,8 +120,9 @@
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
-
-			cd-gpios  = <&tc3589x_gpio 3 0x4>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi0_default_mode>;
+			pinctrl-1 = <&sdi0_sleep_mode>;
 
 			status = "okay";
 		};
@@ -105,6 +132,9 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi1_default_mode>;
+			pinctrl-1 = <&sdi1_sleep_mode>;
 
 			status = "okay";
 		};
@@ -115,6 +145,9 @@
 			max-frequency = <100000000>;
 			bus-width = <8>;
 			mmc-cap-mmc-highspeed;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi2_default_mode>;
+			pinctrl-1 = <&sdi2_sleep_mode>;
 
 			status = "okay";
 		};
@@ -126,6 +159,9 @@
 			bus-width = <8>;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi4_default_mode>;
+			pinctrl-1 = <&sdi4_sleep_mode>;
 
 			status = "okay";
 		};
@@ -137,7 +173,21 @@
 			stericsson,audio-codec = <&codec>;
 		};
 
+		msp0: msp@80123000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp0_default_mode>;
+			status = "okay";
+		};
+
 		msp1: msp@80124000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp1_default_mode>;
+			status = "okay";
+		};
+
+		msp2: msp@80117000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp2_default_mode>;
 			status = "okay";
 		};
 
@@ -197,6 +247,12 @@
 					};
 				};
 			};
+		};
+
+		mcde@a0350000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&lcd_default_mode>;
+			pinctrl-1 = <&lcd_sleep_mode>;
 		};
 	};
 };

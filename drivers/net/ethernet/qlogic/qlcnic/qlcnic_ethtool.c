@@ -229,7 +229,7 @@ static const u32 ext_diag_registers[] = {
 	-1
 };
 
-#define QLCNIC_MGMT_API_VERSION	2
+#define QLCNIC_MGMT_API_VERSION	3
 #define QLCNIC_ETHTOOL_REGS_VER	4
 
 static inline int qlcnic_get_ring_regs_len(struct qlcnic_adapter *adapter)
@@ -278,21 +278,8 @@ qlcnic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 		sizeof(drvinfo->version));
 }
 
-static int
-qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-
-	if (qlcnic_82xx_check(adapter))
-		return qlcnic_82xx_get_settings(adapter, ecmd);
-	else if (qlcnic_83xx_check(adapter))
-		return qlcnic_83xx_get_settings(adapter, ecmd);
-
-	return -EIO;
-}
-
-int qlcnic_82xx_get_settings(struct qlcnic_adapter *adapter,
-			     struct ethtool_cmd *ecmd)
+static int qlcnic_82xx_get_settings(struct qlcnic_adapter *adapter,
+				    struct ethtool_cmd *ecmd)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 speed, reg;
@@ -433,6 +420,20 @@ skip:
 	return 0;
 }
 
+static int qlcnic_get_settings(struct net_device *dev,
+			       struct ethtool_cmd *ecmd)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+
+	if (qlcnic_82xx_check(adapter))
+		return qlcnic_82xx_get_settings(adapter, ecmd);
+	else if (qlcnic_83xx_check(adapter))
+		return qlcnic_83xx_get_settings(adapter, ecmd);
+
+	return -EIO;
+}
+
+
 static int qlcnic_set_port_config(struct qlcnic_adapter *adapter,
 				  struct ethtool_cmd *ecmd)
 {
@@ -526,6 +527,9 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 
 	regs_buff[0] = (0xcafe0000 | (QLCNIC_DEV_INFO_SIZE & 0xffff));
 	regs_buff[1] = QLCNIC_MGMT_API_VERSION;
+
+	if (adapter->ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY)
+		regs_buff[2] = adapter->ahw->max_vnic_func;
 
 	if (qlcnic_82xx_check(adapter))
 		i = qlcnic_82xx_get_registers(adapter, regs_buff);
@@ -732,6 +736,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 				   channel->rx_count);
 			return err;
 		}
+		adapter->drv_rss_rings = channel->rx_count;
 	}
 
 	if (channel->tx_count) {
@@ -742,10 +747,12 @@ static int qlcnic_set_channels(struct net_device *dev,
 				   channel->tx_count);
 			return err;
 		}
+		adapter->drv_tss_rings = channel->tx_count;
 	}
 
-	err = qlcnic_setup_rings(adapter, channel->rx_count,
-				 channel->tx_count);
+	adapter->flags |= QLCNIC_TSS_RSS;
+
+	err = qlcnic_setup_rings(adapter);
 	netdev_info(dev, "Allocated %d SDS rings and %d Tx rings\n",
 		    adapter->drv_sds_rings, adapter->drv_tx_rings);
 
@@ -1052,7 +1059,7 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 	return 0;
 }
 
-int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
+static int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int drv_tx_rings = adapter->drv_tx_rings;
@@ -1491,9 +1498,7 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 			struct ethtool_coalesce *ethcoal)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_nic_intr_coalesce *coal;
-	u32 rx_coalesce_usecs, rx_max_frames;
-	u32 tx_coalesce_usecs, tx_max_frames;
+	int err;
 
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		return -EINVAL;
@@ -1503,82 +1508,31 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 	* unsupported parameters are set.
 	*/
 	if (ethcoal->rx_coalesce_usecs > 0xffff ||
-		ethcoal->rx_max_coalesced_frames > 0xffff ||
-		ethcoal->tx_coalesce_usecs > 0xffff ||
-		ethcoal->tx_max_coalesced_frames > 0xffff ||
-		ethcoal->rx_coalesce_usecs_irq ||
-		ethcoal->rx_max_coalesced_frames_irq ||
-		ethcoal->tx_coalesce_usecs_irq ||
-		ethcoal->tx_max_coalesced_frames_irq ||
-		ethcoal->stats_block_coalesce_usecs ||
-		ethcoal->use_adaptive_rx_coalesce ||
-		ethcoal->use_adaptive_tx_coalesce ||
-		ethcoal->pkt_rate_low ||
-		ethcoal->rx_coalesce_usecs_low ||
-		ethcoal->rx_max_coalesced_frames_low ||
-		ethcoal->tx_coalesce_usecs_low ||
-		ethcoal->tx_max_coalesced_frames_low ||
-		ethcoal->pkt_rate_high ||
-		ethcoal->rx_coalesce_usecs_high ||
-		ethcoal->rx_max_coalesced_frames_high ||
-		ethcoal->tx_coalesce_usecs_high ||
-		ethcoal->tx_max_coalesced_frames_high)
+	    ethcoal->rx_max_coalesced_frames > 0xffff ||
+	    ethcoal->tx_coalesce_usecs > 0xffff ||
+	    ethcoal->tx_max_coalesced_frames > 0xffff ||
+	    ethcoal->rx_coalesce_usecs_irq ||
+	    ethcoal->rx_max_coalesced_frames_irq ||
+	    ethcoal->tx_coalesce_usecs_irq ||
+	    ethcoal->tx_max_coalesced_frames_irq ||
+	    ethcoal->stats_block_coalesce_usecs ||
+	    ethcoal->use_adaptive_rx_coalesce ||
+	    ethcoal->use_adaptive_tx_coalesce ||
+	    ethcoal->pkt_rate_low ||
+	    ethcoal->rx_coalesce_usecs_low ||
+	    ethcoal->rx_max_coalesced_frames_low ||
+	    ethcoal->tx_coalesce_usecs_low ||
+	    ethcoal->tx_max_coalesced_frames_low ||
+	    ethcoal->pkt_rate_high ||
+	    ethcoal->rx_coalesce_usecs_high ||
+	    ethcoal->rx_max_coalesced_frames_high ||
+	    ethcoal->tx_coalesce_usecs_high ||
+	    ethcoal->tx_max_coalesced_frames_high)
 		return -EINVAL;
 
-	coal = &adapter->ahw->coal;
+	err = qlcnic_config_intr_coalesce(adapter, ethcoal);
 
-	if (qlcnic_83xx_check(adapter)) {
-		if (!ethcoal->tx_coalesce_usecs ||
-		    !ethcoal->tx_max_coalesced_frames ||
-		    !ethcoal->rx_coalesce_usecs ||
-		    !ethcoal->rx_max_coalesced_frames) {
-			coal->flag = QLCNIC_INTR_DEFAULT;
-			coal->type = QLCNIC_INTR_COAL_TYPE_RX;
-			coal->rx_time_us = QLCNIC_DEF_INTR_COALESCE_RX_TIME_US;
-			coal->rx_packets = QLCNIC_DEF_INTR_COALESCE_RX_PACKETS;
-			coal->tx_time_us = QLCNIC_DEF_INTR_COALESCE_TX_TIME_US;
-			coal->tx_packets = QLCNIC_DEF_INTR_COALESCE_TX_PACKETS;
-		} else {
-			tx_coalesce_usecs = ethcoal->tx_coalesce_usecs;
-			tx_max_frames = ethcoal->tx_max_coalesced_frames;
-			rx_coalesce_usecs = ethcoal->rx_coalesce_usecs;
-			rx_max_frames = ethcoal->rx_max_coalesced_frames;
-			coal->flag = 0;
-
-			if ((coal->rx_time_us == rx_coalesce_usecs) &&
-			    (coal->rx_packets == rx_max_frames)) {
-				coal->type = QLCNIC_INTR_COAL_TYPE_TX;
-				coal->tx_time_us = tx_coalesce_usecs;
-				coal->tx_packets = tx_max_frames;
-			} else if ((coal->tx_time_us == tx_coalesce_usecs) &&
-				   (coal->tx_packets == tx_max_frames)) {
-				coal->type = QLCNIC_INTR_COAL_TYPE_RX;
-				coal->rx_time_us = rx_coalesce_usecs;
-				coal->rx_packets = rx_max_frames;
-			} else {
-				coal->type = QLCNIC_INTR_COAL_TYPE_RX;
-				coal->rx_time_us = rx_coalesce_usecs;
-				coal->rx_packets = rx_max_frames;
-				coal->tx_time_us = tx_coalesce_usecs;
-				coal->tx_packets = tx_max_frames;
-			}
-		}
-	} else {
-		if (!ethcoal->rx_coalesce_usecs ||
-		    !ethcoal->rx_max_coalesced_frames) {
-			coal->flag = QLCNIC_INTR_DEFAULT;
-			coal->rx_time_us = QLCNIC_DEF_INTR_COALESCE_RX_TIME_US;
-			coal->rx_packets = QLCNIC_DEF_INTR_COALESCE_RX_PACKETS;
-		} else {
-			coal->flag = 0;
-			coal->rx_time_us = ethcoal->rx_coalesce_usecs;
-			coal->rx_packets = ethcoal->rx_max_coalesced_frames;
-		}
-	}
-
-	qlcnic_config_intr_coalesce(adapter);
-
-	return 0;
+	return err;
 }
 
 static int qlcnic_get_intr_coalesce(struct net_device *netdev,

@@ -166,6 +166,7 @@ skip_phy:
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
 		goto fail_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	platform_set_drvdata(pdev, hcd);
 

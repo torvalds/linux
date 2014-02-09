@@ -224,7 +224,7 @@
 
 			virtio_block@0130000 {
 				compatible = "virtio,mmio";
-				reg = <0x130000 0x1000>;
+				reg = <0x130000 0x200>;
 				interrupts = <42>;
 			};
 		};

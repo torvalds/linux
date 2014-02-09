@@ -125,8 +125,7 @@ TODO:
 				 PLX9052_INTCSR_LI2STAT)
 
 static const struct comedi_lrange pci9111_ai_range = {
-	5,
-	{
+	5, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
 		BIP_RANGE(2.5),
@@ -470,11 +469,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	struct pci9111_private_data *dev_private = dev->private;
 	struct comedi_cmd *async_cmd = &s->async->cmd;
 
-	if (!dev->irq) {
-		comedi_error(dev,
-			     "no irq assigned for PCI9111, cannot do hardware conversion");
-		return -1;
-	}
 	/*  Set channel scan limit */
 	/*  PCI9111 allows only scanning from channel 0 to channel n */
 	/*  TODO: handle the case of an external multiplexer */
@@ -858,12 +852,11 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 
 	pci9111_reset(dev);
 
-	if (pcidev->irq > 0) {
-		ret = request_irq(dev->irq, pci9111_interrupt,
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, pci9111_interrupt,
 				  IRQF_SHARED, dev->board_name, dev);
-		if (ret)
-			return ret;
-		dev->irq = pcidev->irq;
+		if (ret == 0)
+			dev->irq = pcidev->irq;
 	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
@@ -871,18 +864,21 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON;
 	s->n_chan	= 16;
 	s->maxdata	= 0xffff;
-	s->len_chanlist	= 16;
 	s->range_table	= &pci9111_ai_range;
-	s->cancel	= pci9111_ai_cancel;
 	s->insn_read	= pci9111_ai_insn_read;
-	s->do_cmdtest	= pci9111_ai_do_cmd_test;
-	s->do_cmd	= pci9111_ai_do_cmd;
-	s->munge	= pci9111_ai_munge;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= s->n_chan;
+		s->do_cmdtest	= pci9111_ai_do_cmd_test;
+		s->do_cmd	= pci9111_ai_do_cmd;
+		s->cancel	= pci9111_ai_cancel;
+		s->munge	= pci9111_ai_munge;
+	}
 
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
@@ -938,7 +934,7 @@ static int pci9111_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pci9111_pci_table) = {
+static const struct pci_device_id pci9111_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HR_DEVICE_ID) },
 	/* { PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HG_DEVICE_ID) }, */
 	{ 0 }

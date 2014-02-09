@@ -99,6 +99,7 @@ extern int radeon_fastfb;
 extern int radeon_dpm;
 extern int radeon_aspm;
 extern int radeon_runtime_pm;
+extern int radeon_hard_reset;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -138,6 +139,9 @@ extern int radeon_runtime_pm;
 #define RADEON_VA_IB_OFFSET			(1 << 20)
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
 #define RADEON_IB_VM_MAX_SIZE			(64 << 10)
+
+/* hard reset data */
+#define RADEON_ASIC_RESET_DATA                  0x39d5e86b
 
 /* reset flags */
 #define RADEON_RESET_GFX			(1 << 0)
@@ -252,6 +256,7 @@ struct radeon_clock {
  * Power management
  */
 int radeon_pm_init(struct radeon_device *rdev);
+int radeon_pm_late_init(struct radeon_device *rdev);
 void radeon_pm_fini(struct radeon_device *rdev);
 void radeon_pm_compute_clocks(struct radeon_device *rdev);
 void radeon_pm_suspend(struct radeon_device *rdev);
@@ -413,6 +418,11 @@ struct radeon_mman {
 	struct ttm_bo_device		bdev;
 	bool				mem_global_referenced;
 	bool				initialized;
+
+#if defined(CONFIG_DEBUG_FS)
+	struct dentry			*vram;
+	struct dentry			*gtt;
+#endif
 };
 
 /* bo virtual address in a specific vm */
@@ -779,13 +789,11 @@ struct radeon_ring {
 	volatile uint32_t	*ring;
 	unsigned		rptr;
 	unsigned		rptr_offs;
-	unsigned		rptr_reg;
 	unsigned		rptr_save_reg;
 	u64			next_rptr_gpu_addr;
 	volatile u32		*next_rptr_cpu_addr;
 	unsigned		wptr;
 	unsigned		wptr_old;
-	unsigned		wptr_reg;
 	unsigned		ring_size;
 	unsigned		ring_free_dw;
 	int			count_dw;
@@ -859,6 +867,8 @@ struct radeon_vm {
 	struct radeon_fence		*fence;
 	/* last flush or NULL if we still need to flush */
 	struct radeon_fence		*last_flush;
+	/* last use of vmid */
+	struct radeon_fence		*last_id_use;
 };
 
 struct radeon_vm_manager {
@@ -949,7 +959,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
 			unsigned size, uint32_t *data);
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ring_size,
-		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg, u32 nop);
+		     unsigned rptr_offs, u32 nop);
 void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *cp);
 
 
@@ -1775,6 +1785,7 @@ struct radeon_asic {
 		int (*init)(struct radeon_device *rdev);
 		void (*setup_asic)(struct radeon_device *rdev);
 		int (*enable)(struct radeon_device *rdev);
+		int (*late_enable)(struct radeon_device *rdev);
 		void (*disable)(struct radeon_device *rdev);
 		int (*pre_set_power_state)(struct radeon_device *rdev);
 		int (*set_power_state)(struct radeon_device *rdev);
@@ -2650,6 +2661,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_dpm_init(rdev) rdev->asic->dpm.init((rdev))
 #define radeon_dpm_setup_asic(rdev) rdev->asic->dpm.setup_asic((rdev))
 #define radeon_dpm_enable(rdev) rdev->asic->dpm.enable((rdev))
+#define radeon_dpm_late_enable(rdev) rdev->asic->dpm.late_enable((rdev))
 #define radeon_dpm_disable(rdev) rdev->asic->dpm.disable((rdev))
 #define radeon_dpm_pre_set_power_state(rdev) rdev->asic->dpm.pre_set_power_state((rdev))
 #define radeon_dpm_set_power_state(rdev) rdev->asic->dpm.set_power_state((rdev))
@@ -2668,6 +2680,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 /* Common functions */
 /* AGP */
 extern int radeon_gpu_reset(struct radeon_device *rdev);
+extern void radeon_pci_config_reset(struct radeon_device *rdev);
 extern void r600_set_bios_scratch_engine_hung(struct radeon_device *rdev, bool hung);
 extern void radeon_agp_disable(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);

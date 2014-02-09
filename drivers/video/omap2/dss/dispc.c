@@ -90,6 +90,8 @@ struct dispc_features {
 
 	/* revert to the OMAP4 mechanism of DISPC Smart Standby operation */
 	bool mstandby_workaround:1;
+
+	bool set_max_preload:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -1200,7 +1202,17 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 	dispc_write_reg(DISPC_OVL_FIFO_THRESHOLD(plane),
 			FLD_VAL(high, hi_start, hi_end) |
 			FLD_VAL(low, lo_start, lo_end));
+
+	/*
+	 * configure the preload to the pipeline's high threhold, if HT it's too
+	 * large for the preload field, set the threshold to the maximum value
+	 * that can be held by the preload register
+	 */
+	if (dss_has_feature(FEAT_PRELOAD) && dispc.feat->set_max_preload &&
+			plane != OMAP_DSS_WB)
+		dispc_write_reg(DISPC_OVL_PRELOAD(plane), min(high, 0xfffu));
 }
+EXPORT_SYMBOL(dispc_ovl_set_fifo_threshold);
 
 void dispc_enable_fifomerge(bool enable)
 {
@@ -1259,6 +1271,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 		*fifo_high = total_fifo_size - buf_unit;
 	}
 }
+EXPORT_SYMBOL(dispc_ovl_compute_fifo_thresholds);
 
 static void dispc_ovl_set_fir(enum omap_plane plane,
 				int hinc, int vinc,
@@ -1988,7 +2001,8 @@ static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
  */
 static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 		const struct omap_video_timings *t, u16 pos_x,
-		u16 width, u16 height, u16 out_width, u16 out_height)
+		u16 width, u16 height, u16 out_width, u16 out_height,
+		bool five_taps)
 {
 	const int ds = DIV_ROUND_UP(height, out_height);
 	unsigned long nonactive;
@@ -2007,6 +2021,10 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 	DSSDBG("blanking period + ppl = %llu (limit = %u)\n", blank, limits[i]);
 	if (blank <= limits[i])
 		return -EINVAL;
+
+	/* FIXME add checks for 3-tap filter once the limitations are known */
+	if (!five_taps)
+		return 0;
 
 	/*
 	 * Pixel data should be prepared before visible display point starts.
@@ -2183,21 +2201,29 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 	do {
 		in_height = DIV_ROUND_UP(height, *decim_y);
 		in_width = DIV_ROUND_UP(width, *decim_x);
-		*core_clk = calc_core_clk_five_taps(pclk, mgr_timings,
-			in_width, in_height, out_width, out_height, color_mode);
-
-		error = check_horiz_timing_omap3(pclk, lclk, mgr_timings,
-				pos_x, in_width, in_height, out_width,
-				out_height);
+		*five_taps = in_height > out_height;
 
 		if (in_width > maxsinglelinewidth)
 			if (in_height > out_height &&
 						in_height < out_height * 2)
 				*five_taps = false;
-		if (!*five_taps)
+again:
+		if (*five_taps)
+			*core_clk = calc_core_clk_five_taps(pclk, mgr_timings,
+						in_width, in_height, out_width,
+						out_height, color_mode);
+		else
 			*core_clk = dispc.feat->calc_core_clk(pclk, in_width,
 					in_height, out_width, out_height,
 					mem_to_mem);
+
+		error = check_horiz_timing_omap3(pclk, lclk, mgr_timings,
+				pos_x, in_width, in_height, out_width,
+				out_height, *five_taps);
+		if (error && *five_taps) {
+			*five_taps = false;
+			goto again;
+		}
 
 		error = (error || in_width > maxsinglelinewidth * 2 ||
 			(in_width > maxsinglelinewidth && *five_taps) ||
@@ -2215,7 +2241,7 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 	} while (*decim_x <= *x_predecim && *decim_y <= *y_predecim && error);
 
 	if (check_horiz_timing_omap3(pclk, lclk, mgr_timings, pos_x, width,
-				height, out_width, out_height)){
+				height, out_width, out_height, *five_taps)) {
 			DSSERR("horizontal timing too tight\n");
 			return -EINVAL;
 	}
@@ -3211,6 +3237,8 @@ static void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(DISPC_CONTROL3);
 		DUMPREG(DISPC_CONFIG3);
 	}
+	if (dss_has_feature(FEAT_MFLAG))
+		DUMPREG(DISPC_GLOBAL_MFLAG_ATTRIBUTE);
 
 #undef DUMPREG
 
@@ -3285,6 +3313,8 @@ static void dispc_dump_regs(struct seq_file *s)
 			DUMPREG(i, DISPC_OVL_ATTRIBUTES2);
 		if (dss_has_feature(FEAT_PRELOAD))
 			DUMPREG(i, DISPC_OVL_PRELOAD);
+		if (dss_has_feature(FEAT_MFLAG))
+			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 	}
 
 #undef DISPC_REG
@@ -3520,6 +3550,7 @@ static const struct dispc_features omap24xx_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
@@ -3539,6 +3570,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
@@ -3558,6 +3590,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
 	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
 };
 
 static const struct dispc_features omap44xx_dispc_feats __initconst = {
@@ -3577,6 +3610,7 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
 	.gfx_fifo_workaround	=	true,
+	.set_max_preload	=	true,
 };
 
 static const struct dispc_features omap54xx_dispc_feats __initconst = {
@@ -3597,6 +3631,7 @@ static const struct dispc_features omap54xx_dispc_feats __initconst = {
 	.num_fifos		=	5,
 	.gfx_fifo_workaround	=	true,
 	.mstandby_workaround	=	true,
+	.set_max_preload	=	true,
 };
 
 static int __init dispc_init_features(struct platform_device *pdev)
@@ -3691,7 +3726,6 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_irq_safe(&pdev->dev);
 
 	r = dispc_runtime_get();
 	if (r)
@@ -3734,6 +3768,8 @@ static int dispc_runtime_suspend(struct device *dev)
 
 static int dispc_runtime_resume(struct device *dev)
 {
+	_omap_dispc_initial_config();
+
 	dispc_restore_context();
 
 	return 0;

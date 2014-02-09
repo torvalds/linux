@@ -337,8 +337,9 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
 static inline int
-ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *skb,
-			     int keyidx, struct ieee80211_crypt_data *crypt)
+ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee,
+				struct sk_buff *skb, int keyidx,
+				struct ieee80211_crypt_data *crypt)
 {
 	struct ieee80211_hdr_4addr *hdr;
 	int res, hdrlen;
@@ -366,7 +367,7 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *s
 /* this function is stolen from ipw2200 driver*/
 #define IEEE_PACKET_RETRY_TIME (5*HZ)
 static int is_duplicate_packet(struct ieee80211_device *ieee,
-				      struct ieee80211_hdr_4addr *header)
+			       struct ieee80211_hdr_4addr *header)
 {
 	u16 fc = le16_to_cpu(header->frame_ctl);
 	u16 sc = le16_to_cpu(header->seq_ctl);
@@ -467,7 +468,7 @@ drop:
  * IEEE 802.11 format, i.e., in the format it was sent over air.
  * This function is called only as a tasklet (software IRQ). */
 int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
-		 struct ieee80211_rx_stats *rx_stats)
+		     struct ieee80211_rx_stats *rx_stats)
 {
 	struct net_device *dev = ieee->dev;
 	//struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
@@ -794,9 +795,7 @@ static inline int ieee80211_is_ofdm_rate(u8 rate)
 	return 0;
 }
 
-static inline int ieee80211_SignalStrengthTranslate(
-	int  CurrSS
-	)
+static inline int ieee80211_SignalStrengthTranslate(int CurrSS)
 {
 	int RetSS;
 
@@ -831,12 +830,10 @@ static inline int ieee80211_SignalStrengthTranslate(
 	return RetSS;
 }
 
-static inline void ieee80211_extract_country_ie(
-	struct ieee80211_device *ieee,
-	struct ieee80211_info_element *info_element,
-	struct ieee80211_network *network,
-	u8 *addr2
-)
+static inline void
+ieee80211_extract_country_ie(struct ieee80211_device *ieee,
+			     struct ieee80211_info_element *info_element,
+			     struct ieee80211_network *network, u8 *addr2)
 {
 	if (IS_DOT11D_ENABLE(ieee)) {
 		if (info_element->len != 0) {
@@ -858,10 +855,8 @@ static inline void ieee80211_extract_country_ie(
 
 }
 
-static int
-ieee80211_TranslateToDbm(
-	unsigned char SignalStrengthIndex	// 0-100 index.
-	)
+/* SignalStrengthIndex is 0-100 */
+static int ieee80211_TranslateToDbm(unsigned char SignalStrengthIndex)
 {
 	unsigned char SignalPower; // in dBm.
 
@@ -1197,7 +1192,7 @@ static inline int is_same_network(struct ieee80211_network *src,
 }
 
 inline void update_network(struct ieee80211_network *dst,
-				  struct ieee80211_network *src)
+			   struct ieee80211_network *src)
 {
 	unsigned char quality = src->stats.signalstrength;
 	unsigned char signal = 0;
@@ -1281,10 +1276,10 @@ inline void update_network(struct ieee80211_network *dst,
 }
 
 
-inline void ieee80211_process_probe_response(
-	struct ieee80211_device *ieee,
-	struct ieee80211_probe_response *beacon,
-	struct ieee80211_rx_stats *stats)
+inline void
+ieee80211_process_probe_response(struct ieee80211_device *ieee,
+				 struct ieee80211_probe_response *beacon,
+				 struct ieee80211_rx_stats *stats)
 {
 	struct ieee80211_network network;
 	struct ieee80211_network *target;

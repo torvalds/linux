@@ -64,6 +64,10 @@ real_start:
 #endif
 
 	mts	rmsr, r0
+/* Disable stack protection from bootloader */
+	mts	rslr, r0
+	addi	r8, r0, 0xFFFFFFF
+	mts	rshr, r8
 /*
  * According to Xilinx, msrclr instruction behaves like 'mfs rX,rpc'
  * if the msrclr instruction is not enabled. We use this to detect

@@ -786,7 +786,7 @@ int fast_timer_init(void)
     proc_create("fasttimer", 0, NULL, &proc_fasttimer_fops);
 #endif /* PROC_FS */
 		if (request_irq(TIMER0_INTR_VECT, timer_trig_interrupt,
-				IRQF_SHARED | IRQF_DISABLED,
+				IRQF_SHARED,
 				"fast timer int", &fast_timer_list))
 			printk(KERN_ERR "err: fasttimer irq\n");
     fast_timer_is_init = 1;

@@ -520,8 +520,8 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 		skb->protocol = eth->h_proto = htons(ETH_P_IP);
 	}
 
-	memcpy(eth->h_source, np->dev->dev_addr, ETH_ALEN);
-	memcpy(eth->h_dest, np->remote_mac, ETH_ALEN);
+	ether_addr_copy(eth->h_source, np->dev->dev_addr);
+	ether_addr_copy(eth->h_dest, np->remote_mac);
 
 	skb->dev = np->dev;
 

@@ -238,12 +238,19 @@ config XPS
 	depends on SMP
 	default y
 
-config NETPRIO_CGROUP
+config CGROUP_NET_PRIO
 	tristate "Network priority cgroup"
 	depends on CGROUPS
 	---help---
 	  Cgroup subsystem for use in assigning processes to network priorities on
-	  a per-interface basis
+	  a per-interface basis.
+
+config CGROUP_NET_CLASSID
+	boolean "Network classid cgroup"
+	depends on CGROUPS
+	---help---
+	  Cgroup subsystem for use as general purpose socket classid marker that is
+	  being used in cls_cgroup and for netfilter matching.
 
 config NET_RX_BUSY_POLL
 	boolean

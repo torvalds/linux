@@ -29,7 +29,6 @@
 #include <linux/if.h>
 #include <linux/in.h>
 #include <linux/ip.h>
-#include <linux/if_tunnel.h>
 #include <linux/net.h>
 #include <linux/in6.h>
 #include <linux/netdevice.h>
@@ -70,9 +69,6 @@ MODULE_ALIAS_NETDEV("ip6tnl0");
 #define IP6_TNL_TRACE(x...) do {;} while(0)
 #endif
 
-#define IPV6_TCLASS_MASK (IPV6_FLOWINFO_MASK & ~IPV6_FLOWLABEL_MASK)
-#define IPV6_TCLASS_SHIFT 20
-
 #define HASH_SIZE_SHIFT  5
 #define HASH_SIZE (1 << HASH_SIZE_SHIFT)
 
@@ -103,12 +99,13 @@ struct ip6_tnl_net {
 
 static struct net_device_stats *ip6_get_stats(struct net_device *dev)
 {
-	struct pcpu_tstats tmp, sum = { 0 };
+	struct pcpu_sw_netstats tmp, sum = { 0 };
 	int i;
 
 	for_each_possible_cpu(i) {
 		unsigned int start;
-		const struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, i);
+		const struct pcpu_sw_netstats *tstats =
+						   per_cpu_ptr(dev->tstats, i);
 
 		do {
 			start = u64_stats_fetch_begin_bh(&tstats->syncp);
@@ -794,7 +791,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 
 	if ((t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr,
 					&ipv6h->daddr)) != NULL) {
-		struct pcpu_tstats *tstats;
+		struct pcpu_sw_netstats *tstats;
 
 		if (t->parms.proto != ipproto && t->parms.proto != 0) {
 			rcu_read_unlock();
@@ -1142,7 +1139,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
 		fl6.flowlabel |= (*(__be32 *) ipv6h & IPV6_TCLASS_MASK);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL)
-		fl6.flowlabel |= (*(__be32 *) ipv6h & IPV6_FLOWLABEL_MASK);
+		fl6.flowlabel |= ip6_flowlabel(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 		fl6.flowi6_mark = skb->mark;
 
@@ -1509,12 +1506,12 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 
 	t->dev = dev;
 	t->net = dev_net(dev);
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *ip6_tnl_stats;
+		struct pcpu_sw_netstats *ip6_tnl_stats;
 		ip6_tnl_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ip6_tnl_stats->syncp);
 	}

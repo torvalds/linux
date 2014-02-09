@@ -210,6 +210,7 @@ static void lp55xx_firmware_loaded(const struct firmware *fw, void *context)
 {
 	struct lp55xx_chip *chip = context;
 	struct device *dev = &chip->cl->dev;
+	enum lp55xx_engine_index idx = chip->engine_idx;
 
 	if (!fw) {
 		dev_err(dev, "firmware request failed\n");
@@ -219,6 +220,7 @@ static void lp55xx_firmware_loaded(const struct firmware *fw, void *context)
 	/* handling firmware data is chip dependent */
 	mutex_lock(&chip->lock);
 
+	chip->engines[idx - 1].mode = LP55XX_ENGINE_LOAD;
 	chip->fw = fw;
 	if (chip->cfg->firmware_cb)
 		chip->cfg->firmware_cb(chip);

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -452,8 +452,15 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 			rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 						  lockdep_is_held(&mvm->mutex));
 
-		/* This station is in use */
-		if (!IS_ERR(sta))
+		/*
+		 * This station is in use or RCU-removed; the latter happens in
+		 * managed mode, where mac80211 removes the station before we
+		 * can remove it from firmware (we can only do that after the
+		 * MAC is marked unassociated), and possibly while the deauth
+		 * frame to disconnect from the AP is still queued. Then, the
+		 * station pointer is -ENOENT when the last skb is reclaimed.
+		 */
+		if (!IS_ERR(sta) || PTR_ERR(sta) == -ENOENT)
 			continue;
 
 		if (PTR_ERR(sta) == -EINVAL) {
@@ -840,7 +847,7 @@ static const u8 tid_to_ac[] = {
 int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data;
 	int txq_id;
 
@@ -895,7 +902,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid, u8 buf_size)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	int queue, fifo, ret;
 	u16 ssn;
@@ -932,26 +939,13 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		     sta->addr, tid);
 
-	if (mvm->cfg->ht_params->use_rts_for_aggregation) {
-		/*
-		 * switch to RTS/CTS if it is the prefer protection
-		 * method for HT traffic
-		 * this function also sends the LQ command
-		 */
-		return iwl_mvm_tx_protection(mvm, mvmsta, true);
-		/*
-		 * TODO: remove the TLC_RTS flag when we tear down the last
-		 * AGG session (agg_tids_count in DVM)
-		 */
-	}
-
-	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, CMD_ASYNC, false);
+	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, false);
 }
 
 int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	u16 txq_id;
 	int err;
@@ -1023,7 +1017,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	u16 txq_id;
 	enum iwl_mvm_agg_state old_state;
@@ -1123,8 +1117,8 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 		break;
 	default:
-		WARN_ON(1);
-		return -EINVAL;
+		key_flags |= cpu_to_le16(STA_KEY_FLG_EXT);
+		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 	}
 
 	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
@@ -1288,8 +1282,8 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 					   0, NULL, CMD_SYNC);
 		break;
 	default:
-		IWL_ERR(mvm, "Unknown cipher %x\n", keyconf->cipher);
-		ret = -EINVAL;
+		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
+					   sta_id, 0, NULL, CMD_SYNC);
 	}
 
 	if (ret)
@@ -1416,7 +1410,7 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
 				struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd_v6 cmd = {
 		.add_modify = STA_MODE_MODIFY,
 		.sta_id = mvmsta->sta_id,
@@ -1438,7 +1432,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 	u16 sleep_state_flags =
 		(reason == IEEE80211_FRAME_RELEASE_UAPSD) ?
 			STA_SLEEP_STATE_UAPSD : STA_SLEEP_STATE_PS_POLL;
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd_v6 cmd = {
 		.add_modify = STA_MODE_MODIFY,
 		.sta_id = mvmsta->sta_id,

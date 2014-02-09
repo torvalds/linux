@@ -36,21 +36,30 @@ allowing one to squeeze more programs onto an average installation or
 rescue floppy disk.
 
 
-2) Kernel Command Line Parameters
+2) Parameters
 ---------------------------------
+
+2a) Kernel Command Line Parameters
 
 	ramdisk_size=N
 	==============
 
 This parameter tells the RAM disk driver to set up RAM disks of N k size.  The
-default is 4096 (4 MB) (8192 (8 MB) on S390).
+default is 4096 (4 MB).
 
-	ramdisk_blocksize=N
-	===================
+2b) Module parameters
 
-This parameter tells the RAM disk driver how many bytes to use per block.  The
-default is 1024 (BLOCK_SIZE).
+	rd_nr
+	=====
+	/dev/ramX devices created.
 
+	max_part
+	========
+	Maximum partition number.
+
+	rd_size
+	=======
+	See ramdisk_size.
 
 3) Using "rdev -r"
 ------------------

@@ -1610,6 +1610,22 @@ qlafx00_timer_routine(scsi_qla_host_t *vha)
 			ha->mr.fw_critemp_timer_tick--;
 		}
 	}
+	if (ha->mr.host_info_resend) {
+		/*
+		 * Incomplete host info might be sent to firmware
+		 * durinng system boot - info should be resend
+		 */
+		if (ha->mr.hinfo_resend_timer_tick == 0) {
+			ha->mr.host_info_resend = false;
+			set_bit(FX00_HOST_INFO_RESEND, &vha->dpc_flags);
+			ha->mr.hinfo_resend_timer_tick =
+			    QLAFX00_HINFO_RESEND_INTERVAL;
+			qla2xxx_wake_dpc(vha);
+		} else {
+			ha->mr.hinfo_resend_timer_tick--;
+		}
+	}
+
 }
 
 /*
@@ -1867,6 +1883,7 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 			goto done_free_sp;
 		}
 		break;
+	case FXDISC_ABORT_IOCTL:
 	default:
 		break;
 	}
@@ -1888,6 +1905,8 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 			    p_sysid->sysname, SYSNAME_LENGTH);
 			strncpy(phost_info->nodename,
 			    p_sysid->nodename, NODENAME_LENGTH);
+			if (!strcmp(phost_info->nodename, "(none)"))
+				ha->mr.host_info_resend = true;
 			strncpy(phost_info->release,
 			    p_sysid->release, RELEASE_LENGTH);
 			strncpy(phost_info->version,
@@ -1948,8 +1967,8 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 	if (fx_type == FXDISC_GET_CONFIG_INFO) {
 		struct config_info_data *pinfo =
 		    (struct config_info_data *) fdisc->u.fxiocb.rsp_addr;
-		memcpy(&vha->hw->mr.product_name, pinfo->product_name,
-		    sizeof(vha->hw->mr.product_name));
+		strcpy(vha->hw->model_number, pinfo->model_num);
+		strcpy(vha->hw->model_desc, pinfo->model_description);
 		memcpy(&vha->hw->mr.symbolic_name, pinfo->symbolic_name,
 		    sizeof(vha->hw->mr.symbolic_name));
 		memcpy(&vha->hw->mr.serial_num, pinfo->serial_num,
@@ -1993,7 +2012,11 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0146,
 		    (uint8_t *)pinfo, 16);
 		memcpy(vha->hw->gid_list, pinfo, QLAFX00_TGT_NODE_LIST_SIZE);
-	}
+	} else if (fx_type == FXDISC_ABORT_IOCTL)
+		fdisc->u.fxiocb.result =
+		    (fdisc->u.fxiocb.result == cpu_to_le32(0x68)) ?
+		    cpu_to_le32(QLA_SUCCESS) : cpu_to_le32(QLA_FUNCTION_FAILED);
+
 	rval = le32_to_cpu(fdisc->u.fxiocb.result);
 
 done_unmap_dma:
@@ -2092,6 +2115,10 @@ qlafx00_abort_command(srb_t *sp)
 		/* Command not found. */
 		return QLA_FUNCTION_FAILED;
 	}
+	if (sp->type == SRB_FXIOCB_DCMD)
+		return qlafx00_fx_disc(vha, &vha->hw->mr.fcport,
+		    FXDISC_ABORT_IOCTL);
+
 	return qlafx00_async_abt_cmd(sp);
 }
 
@@ -2419,7 +2446,6 @@ qlafx00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
-		qla2x00_do_host_ramp_up(vha);
 		qla2x00_process_completed_request(vha, req, handle);
 		return;
 	}
@@ -2629,9 +2655,6 @@ check_scsi_status:
 		    lscsi_status, cp->cmnd, scsi_bufflen(cp),
 		    rsp_info_len, resid_len, fw_resid_len, sense_len,
 		    par_sense_len, rsp_info_len);
-
-	if (!res)
-		qla2x00_do_host_ramp_up(vha);
 
 	if (rsp->status_srb == NULL)
 		sp->done(ha, sp, res);
@@ -3021,6 +3044,8 @@ qlafx00_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; clr_intr = 0) {
 		stat = QLAFX00_RD_INTR_REG(ha);
+		if (qla2x00_check_reg_for_disconnect(vha, stat))
+			break;
 		if ((stat & QLAFX00_HST_INT_STS_BITS) == 0)
 			break;
 

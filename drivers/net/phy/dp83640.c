@@ -851,8 +851,8 @@ static int match(struct sk_buff *skb, unsigned int type, struct rxts *rxts)
 
 	seqid = (u16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
 
-	return (rxts->msgtype == (*msgtype & 0xf) &&
-		rxts->seqid   == ntohs(*seqid));
+	return rxts->msgtype == (*msgtype & 0xf) &&
+		rxts->seqid   == ntohs(*seqid);
 }
 
 static void dp83640_free_clocks(void)
