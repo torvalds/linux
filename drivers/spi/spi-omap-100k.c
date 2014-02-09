@@ -83,15 +83,11 @@
 #define SPI_SHUTDOWN	1
 
 struct omap1_spi100k {
-	struct spi_master       *master;
 	struct clk              *ick;
 	struct clk              *fck;
 
 	/* Virtual base address of the controller */
 	void __iomem            *base;
-
-	/* State of the SPI */
-	unsigned int		state;
 };
 
 struct omap1_spi100k_cs {
@@ -425,7 +421,6 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	spi100k = spi_master_get_devdata(master);
-	spi100k->master = master;
 
 	/*
 	 * The memory region base address is taken as the platform_data.
@@ -451,8 +446,6 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	status = devm_spi_register_master(&pdev->dev, master);
 	if (status < 0)
 		goto err;
-
-	spi100k->state = SPI_RUNNING;
 
 	return status;
 
