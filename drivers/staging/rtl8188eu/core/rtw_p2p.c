@@ -57,13 +57,13 @@ static u32 go_add_group_info_attr(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	spin_lock_bh(&pstapriv->asoc_list_lock);
 	phead = &pstapriv->asoc_list;
-	plist = get_next(phead);
+	plist = phead->next;
 
 	/* look up sta asoc_queue */
 	while ((rtw_end_of_queue_search(phead, plist)) == false) {
 		psta = container_of(plist, struct sta_info, asoc_list);
 
-		plist = get_next(plist);
+		plist = plist->next;
 
 
 		if (psta->is_p2p_device) {
@@ -980,13 +980,13 @@ u32 process_p2p_devdisc_req(struct wifidirect_info *pwdinfo, u8 *pframe, uint le
 
 					spin_lock_bh(&pstapriv->asoc_list_lock);
 					phead = &pstapriv->asoc_list;
-					plist = get_next(phead);
+					plist = phead->next;
 
 					/* look up sta asoc_queue */
 					while ((rtw_end_of_queue_search(phead, plist)) == false) {
 						psta = container_of(plist, struct sta_info, asoc_list);
 
-						plist = get_next(plist);
+						plist = plist->next;
 
 						if (psta->is_p2p_device && (psta->dev_cap&P2P_DEVCAP_CLIENT_DISCOVERABILITY) &&
 						    !memcmp(psta->dev_addr, dev_addr, ETH_ALEN)) {
