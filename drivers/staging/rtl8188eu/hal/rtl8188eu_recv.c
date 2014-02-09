@@ -23,7 +23,6 @@
 #include <recv_osdep.h>
 #include <mlme_osdep.h>
 #include <ip.h>
-#include <if_ether.h>
 #include <ethernet.h>
 
 #include <usb_ops.h>
