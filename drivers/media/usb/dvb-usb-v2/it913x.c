@@ -781,6 +781,8 @@ static const struct usb_device_id it913x_id_table[] = {
 	{}		/* Terminating entry */
 };
 
+#if 0
+
 MODULE_DEVICE_TABLE(usb, it913x_id_table);
 
 static struct usb_driver it913x_driver = {
@@ -792,7 +794,10 @@ static struct usb_driver it913x_driver = {
 	.id_table	= it913x_id_table,
 };
 
+
 module_usb_driver(it913x_driver);
+
+#endif
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
