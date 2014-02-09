@@ -23,7 +23,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-#include <ip.h>
 #include <wifi.h>
 #include <mlme_osdep.h>
 #include <xmit_osdep.h>
