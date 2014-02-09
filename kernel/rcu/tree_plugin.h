@@ -2893,7 +2893,7 @@ static void rcu_sysidle_init_percpu_data(struct rcu_dynticks *rdtp)
  * CPU unless the grace period has extended for too long.
  *
  * This code relies on the fact that all NO_HZ_FULL CPUs are also
- * CONFIG_RCU_NOCB_CPUs.
+ * CONFIG_RCU_NOCB_CPU CPUs.
  */
 static bool rcu_nohz_full_cpu(struct rcu_state *rsp)
 {
