@@ -443,13 +443,10 @@ static int caam_probe(struct platform_device *pdev)
 	 * for all, then go probe each one.
 	 */
 	rspec = 0;
-	for_each_compatible_node(np, NULL, "fsl,sec-v4.0-job-ring")
-		rspec++;
-	if (!rspec) {
-		/* for backward compatible with device trees */
-		for_each_compatible_node(np, NULL, "fsl,sec4.0-job-ring")
+	for_each_available_child_of_node(nprop, np)
+		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
+		    of_device_is_compatible(np, "fsl,sec4.0-job-ring"))
 			rspec++;
-	}
 
 	ctrlpriv->jrpdev = kzalloc(sizeof(struct platform_device *) * rspec,
 								GFP_KERNEL);
@@ -460,18 +457,9 @@ static int caam_probe(struct platform_device *pdev)
 
 	ring = 0;
 	ctrlpriv->total_jobrs = 0;
-	for_each_compatible_node(np, NULL, "fsl,sec-v4.0-job-ring") {
-		ctrlpriv->jrpdev[ring] =
-				of_platform_device_create(np, NULL, dev);
-		if (!ctrlpriv->jrpdev[ring]) {
-			pr_warn("JR%d Platform device creation error\n", ring);
-			continue;
-		}
-		ctrlpriv->total_jobrs++;
-		ring++;
-	}
-	if (!ring) {
-		for_each_compatible_node(np, NULL, "fsl,sec4.0-job-ring") {
+	for_each_available_child_of_node(nprop, np)
+		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
+		    of_device_is_compatible(np, "fsl,sec4.0-job-ring")) {
 			ctrlpriv->jrpdev[ring] =
 				of_platform_device_create(np, NULL, dev);
 			if (!ctrlpriv->jrpdev[ring]) {
@@ -482,7 +470,6 @@ static int caam_probe(struct platform_device *pdev)
 			ctrlpriv->total_jobrs++;
 			ring++;
 		}
-	}
 
 	/* Check to see if QI present. If so, enable */
 	ctrlpriv->qi_present = !!(rd_reg64(&topregs->ctrl.perfmon.comp_parms) &
