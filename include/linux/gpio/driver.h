@@ -10,6 +10,8 @@ struct of_phandle_args;
 struct device_node;
 struct seq_file;
 
+#ifdef CONFIG_GPIOLIB
+
 /**
  * struct gpio_chip - abstract a GPIO controller
  * @label: for diagnostics
@@ -129,6 +131,11 @@ extern struct gpio_chip *gpiochip_find(void *data,
 int gpiod_lock_as_irq(struct gpio_desc *desc);
 void gpiod_unlock_as_irq(struct gpio_desc *desc);
 
+struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
+
+struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
+				    u16 hwnum);
+
 enum gpio_lookup_flags {
 	GPIO_ACTIVE_HIGH = (0 << 0),
 	GPIO_ACTIVE_LOW = (1 << 0),
@@ -182,5 +189,16 @@ struct gpiod_lookup_table {
 }
 
 void gpiod_add_lookup_table(struct gpiod_lookup_table *table);
+
+#else /* CONFIG_GPIOLIB */
+
+static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(1);
+	return ERR_PTR(-ENODEV);
+}
+
+#endif /* CONFIG_GPIOLIB */
 
 #endif
