@@ -308,7 +308,7 @@ config DMA_OMAP
 
 config DMA_BCM2835
 	tristate "BCM2835 DMA engine support"
-	depends on (ARCH_BCM2835 || MACH_BCM2708)
+	depends on ARCH_BCM2835
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
