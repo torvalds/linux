@@ -52,6 +52,7 @@
 #include <net/p8022.h>
 #include <net/psnap.h>
 #include <net/sock.h>
+#include <net/datalink.h>
 #include <net/tcp_states.h>
 
 #include <asm/uaccess.h>
@@ -1976,9 +1977,6 @@ static struct packet_type ipx_dix_packet_type __read_mostly = {
 static struct notifier_block ipx_dev_notifier = {
 	.notifier_call	= ipxitf_device_event,
 };
-
-extern struct datalink_proto *make_EII_client(void);
-extern void destroy_EII_client(struct datalink_proto *);
 
 static const unsigned char ipx_8022_type = 0xE0;
 static const unsigned char ipx_snap_id[5] = { 0x0, 0x0, 0x0, 0x81, 0x37 };
