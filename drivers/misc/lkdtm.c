@@ -329,7 +329,12 @@ static void execute_location(void *dst)
 {
 	void (*func)(void) = dst;
 
+	pr_info("attempting ok execution at %p\n", do_nothing);
+	do_nothing();
+
 	memcpy(dst, do_nothing, EXEC_SIZE);
+	flush_icache_range((unsigned long)dst, (unsigned long)dst + EXEC_SIZE);
+	pr_info("attempting bad execution at %p\n", func);
 	func();
 }
 
@@ -338,8 +343,13 @@ static void execute_user_location(void *dst)
 	/* Intentionally crossing kernel/user memory boundary. */
 	void (*func)(void) = dst;
 
+	pr_info("attempting ok execution at %p\n", do_nothing);
+	do_nothing();
+
 	if (copy_to_user((void __user *)dst, do_nothing, EXEC_SIZE))
 		return;
+	flush_icache_range((unsigned long)dst, (unsigned long)dst + EXEC_SIZE);
+	pr_info("attempting bad execution at %p\n", func);
 	func();
 }
 
@@ -464,8 +474,12 @@ static void lkdtm_do_action(enum ctype which)
 		}
 
 		ptr = (unsigned long *)user_addr;
+
+		pr_info("attempting bad read at %p\n", ptr);
 		tmp = *ptr;
 		tmp += 0xc0dec0de;
+
+		pr_info("attempting bad write at %p\n", ptr);
 		*ptr = tmp;
 
 		vm_munmap(user_addr, PAGE_SIZE);
@@ -476,6 +490,8 @@ static void lkdtm_do_action(enum ctype which)
 		unsigned long *ptr;
 
 		ptr = (unsigned long *)&rodata;
+
+		pr_info("attempting bad write at %p\n", ptr);
 		*ptr ^= 0xabcd1234;
 
 		break;
