@@ -40,6 +40,7 @@
 #include <linux/capability.h>
 
 #include <xen/xen.h>
+#include <xen/acpi.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <xen/interface/platform.h>
