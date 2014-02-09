@@ -54,16 +54,9 @@
 #include <net/sock.h>
 #include <net/datalink.h>
 #include <net/tcp_states.h>
+#include <net/net_namespace.h>
 
 #include <asm/uaccess.h>
-
-#ifdef CONFIG_SYSCTL
-extern void ipx_register_sysctl(void);
-extern void ipx_unregister_sysctl(void);
-#else
-#define ipx_register_sysctl()
-#define ipx_unregister_sysctl()
-#endif
 
 /* Configuration Variables */
 static unsigned char ipxcfg_max_hops = 16;
