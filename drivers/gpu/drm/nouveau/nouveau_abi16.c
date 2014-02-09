@@ -270,8 +270,8 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		return nouveau_abi16_put(abi16, -EINVAL);
 
 	/* allocate "abi16 channel" data and make up a handle for it */
-	init->channel = ffsll(~abi16->handles);
-	if (!init->channel--)
+	init->channel = __ffs64(~abi16->handles);
+	if (~abi16->handles == 0)
 		return nouveau_abi16_put(abi16, -ENOSPC);
 
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
