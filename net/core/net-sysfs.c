@@ -789,7 +789,7 @@ exit:
 	kobject_put(kobj);
 	return error;
 }
-#endif /* CONFIG_SYFS */
+#endif /* CONFIG_SYSFS */
 
 int
 net_rx_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
