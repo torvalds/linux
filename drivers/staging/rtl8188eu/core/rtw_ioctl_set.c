@@ -42,7 +42,6 @@ u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid)
 	u8	 i;
 	u8	ret = true;
 
-_func_enter_;
 
 	if (ssid->SsidLength > 32) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("ssid length >32\n"));
@@ -61,8 +60,6 @@ _func_enter_;
 
 exit:
 
-_func_exit_;
-
 	return ret;
 }
 
@@ -74,7 +71,6 @@ u8 rtw_do_join(struct adapter *padapter)
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
 	u8 ret = _SUCCESS;
 
-_func_enter_;
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 	phead = get_list_head(queue);
@@ -170,7 +166,6 @@ _func_enter_;
 
 exit:
 
-_func_exit_;
 
 	return ret;
 }
@@ -181,7 +176,6 @@ u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid)
 	u32 cur_time = 0;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-_func_enter_;
 
 	DBG_88E_LEVEL(_drv_info_, "set bssid:%pM\n", bssid);
 
@@ -257,7 +251,6 @@ exit:
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
 		 ("rtw_set_802_11_bssid: status=%d\n", status));
 
-_func_exit_;
 
 	return status;
 }
@@ -270,7 +263,6 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
 
-_func_enter_;
 
 	DBG_88E_LEVEL(_drv_info_, "set ssid [%s] fw_state=0x%08x\n",
 		      ssid->Ssid, get_fwstate(pmlmepriv));
@@ -369,7 +361,6 @@ release_mlme_lock:
 exit:
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
 		 ("-rtw_set_802_11_ssid: status =%d\n", status));
-_func_exit_;
 	return status;
 }
 
@@ -380,7 +371,6 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 	struct	wlan_network	*cur_network = &pmlmepriv->cur_network;
 	enum ndis_802_11_network_infra *pold_state = &(cur_network->network.InfrastructureMode);
 
-_func_enter_;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
 		 ("+rtw_set_802_11_infrastructure_mode: old =%d new =%d fw_state = 0x%08x\n",
@@ -438,7 +428,6 @@ _func_enter_;
 		spin_unlock_bh(&pmlmepriv->lock);
 	}
 
-_func_exit_;
 
 	return true;
 }
@@ -448,7 +437,6 @@ u8 rtw_set_802_11_disassociate(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-_func_enter_;
 
 	spin_lock_bh(&pmlmepriv->lock);
 
@@ -464,7 +452,6 @@ _func_enter_;
 
 	spin_unlock_bh(&pmlmepriv->lock);
 
-_func_exit_;
 
 	return true;
 }
@@ -474,7 +461,6 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 	struct	mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	u8	res = true;
 
-_func_enter_;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("+rtw_set_802_11_bssid_list_scan(), fw_state =%x\n", get_fwstate(pmlmepriv)));
 
@@ -514,7 +500,6 @@ _func_enter_;
 	}
 exit:
 
-_func_exit_;
 
 	return res;
 }
@@ -525,7 +510,6 @@ u8 rtw_set_802_11_authentication_mode(struct adapter *padapter, enum ndis_802_11
 	int res;
 	u8 ret;
 
-_func_enter_;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("set_802_11_auth.mode(): mode =%x\n", authmode));
 
@@ -545,7 +529,6 @@ _func_enter_;
 	else
 		ret = false;
 
-_func_exit_;
 
 	return ret;
 }
@@ -556,7 +539,6 @@ u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 	struct security_priv *psecuritypriv = &(padapter->securitypriv);
 	u8		ret = _SUCCESS;
 
-_func_enter_;
 
 	keyid = wep->KeyIndex & 0x3fffffff;
 
@@ -611,7 +593,6 @@ _func_enter_;
 	if (res == _FAIL)
 		ret = false;
 exit:
-_func_exit_;
 	return ret;
 }
 
@@ -619,7 +600,6 @@ u8 rtw_set_802_11_remove_wep(struct adapter *padapter, u32 keyindex)
 {
 	u8 ret = _SUCCESS;
 
-_func_enter_;
 	if (keyindex >= 0x80000000 || padapter == NULL) {
 		ret = false;
 		goto exit;
@@ -638,7 +618,6 @@ _func_enter_;
 	}
 exit:
 
-_func_exit_;
 	return ret;
 }
 
@@ -651,7 +630,6 @@ u8 rtw_set_802_11_add_key(struct adapter *padapter, struct ndis_802_11_key *key)
 	u8	bgrouptkey = false;/* can be removed later */
 	u8	ret = _SUCCESS;
 
-_func_enter_;
 
 	if (((key->KeyIndex & 0x80000000) == 0) && ((key->KeyIndex & 0x40000000) > 0)) {
 		/*  It is invalid to clear bit 31 and set bit 30. If the miniport driver encounters this combination, */
@@ -992,7 +970,6 @@ _func_enter_;
 	}
 exit:
 
-_func_exit_;
 	return ret;
 }
 
@@ -1004,7 +981,6 @@ u8 rtw_set_802_11_remove_key(struct adapter *padapter, struct ndis_802_11_remove
 	u8	keyIndex = (u8)key->KeyIndex & 0x03;
 	u8	ret = _SUCCESS;
 
-_func_enter_;
 
 	if ((key->KeyIndex & 0xbffffffc) > 0) {
 		ret = _FAIL;
@@ -1032,7 +1008,6 @@ _func_enter_;
 	}
 exit:
 
-_func_exit_;
 	return ret;
 }
 

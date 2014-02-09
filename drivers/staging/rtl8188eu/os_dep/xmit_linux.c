@@ -37,7 +37,6 @@ uint rtw_remainder_len(struct pkt_file *pfile)
 
 void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
 {
-_func_enter_;
 
 	pfile->pkt = pktptr;
 	pfile->cur_addr = pktptr->data;
@@ -47,14 +46,12 @@ _func_enter_;
 
 	pfile->cur_buffer = pfile->buf_start;
 
-_func_exit_;
 }
 
 uint _rtw_pktfile_read (struct pkt_file *pfile, u8 *rmem, uint rlen)
 {
 	uint	len = 0;
 
-_func_enter_;
 
 	len =  rtw_remainder_len(pfile);
 	len = (rlen > len) ? len : rlen;
@@ -65,21 +62,17 @@ _func_enter_;
 	pfile->cur_addr += len;
 	pfile->pkt_len -= len;
 
-_func_exit_;
 
 	return len;
 }
 
 int rtw_endofpktfile(struct pkt_file *pfile)
 {
-_func_enter_;
 
 	if (pfile->pkt_len == 0) {
-	_func_exit_;
 		return true;
 	}
 
-_func_exit_;
 
 	return false;
 }
@@ -244,7 +237,6 @@ int rtw_xmit_entry(struct sk_buff *pkt, struct  net_device *pnetdev)
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	s32 res = 0;
 
-_func_enter_;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("+xmit_enry\n"));
 
@@ -280,7 +272,6 @@ drop_packet:
 
 exit:
 
-_func_exit_;
 
 	return 0;
 }

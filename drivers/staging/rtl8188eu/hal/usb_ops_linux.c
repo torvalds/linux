@@ -125,7 +125,6 @@ static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 	u16 len;
 	u8 data = 0;
 
-	_func_enter_;
 
 	request = 0x05;
 	requesttype = 0x01;/* read_in */
@@ -136,7 +135,6 @@ static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
 
-	_func_exit_;
 
 	return data;
 
@@ -151,14 +149,12 @@ static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
 	u16 len;
 	__le32 data;
 
-_func_enter_;
 	request = 0x05;
 	requesttype = 0x01;/* read_in */
 	index = 0;/* n/a */
 	wvalue = (u16)(addr&0x0000ffff);
 	len = 2;
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
-_func_exit_;
 
 	return (u16)(le32_to_cpu(data)&0xffff);
 }
@@ -172,7 +168,6 @@ static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 	u16 len;
 	__le32 data;
 
-_func_enter_;
 
 	request = 0x05;
 	requesttype = 0x01;/* read_in */
@@ -183,7 +178,6 @@ _func_enter_;
 
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
 
-_func_exit_;
 
 	return le32_to_cpu(data);
 }
@@ -198,7 +192,6 @@ static int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 	u8 data;
 	int ret;
 
-	_func_enter_;
 	request = 0x05;
 	requesttype = 0x00;/* write_out */
 	index = 0;/* n/a */
@@ -206,7 +199,6 @@ static int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 	len = 1;
 	data = val;
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
-	_func_exit_;
 	return ret;
 }
 
@@ -220,7 +212,6 @@ static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 	__le32 data;
 	int ret;
 
-	_func_enter_;
 
 	request = 0x05;
 	requesttype = 0x00;/* write_out */
@@ -233,7 +224,6 @@ static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
 
-	_func_exit_;
 
 	return ret;
 }
@@ -248,7 +238,6 @@ static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 	__le32 data;
 	int ret;
 
-	_func_enter_;
 
 	request = 0x05;
 	requesttype = 0x00;/* write_out */
@@ -260,7 +249,6 @@ static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
 
-	_func_exit_;
 
 	return ret;
 }
@@ -275,7 +263,6 @@ static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata
 	u8 buf[VENDOR_CMD_MAX_DATA_LEN] = {0};
 	int ret;
 
-	_func_enter_;
 
 	request = 0x05;
 	requesttype = 0x00;/* write_out */
@@ -287,7 +274,6 @@ static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata
 
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, buf, len, requesttype);
 
-	_func_exit_;
 
 	return ret;
 }
@@ -519,7 +505,7 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 		DBG_88E("%s() RX Warning! bDriverStopped(%d) OR bSurpriseRemoved(%d) bReadPortCancel(%d)\n",
 			__func__, adapt->bDriverStopped,
 			adapt->bSurpriseRemoved, adapt->bReadPortCancel);
-		goto exit;
+		return;
 	}
 
 	if (purb->status == 0) { /* SUCCESS */
@@ -579,9 +565,6 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 			break;
 		}
 	}
-
-exit:
-_func_exit_;
 }
 
 static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
@@ -598,7 +581,6 @@ static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	size_t alignment = 0;
 	u32 ret = _SUCCESS;
 
-_func_enter_;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
 	    adapter->pwrctrlpriv.pnp_bstop_trx) {
@@ -672,7 +654,6 @@ _func_enter_;
 		ret = _FAIL;
 	}
 
-_func_exit_;
 	return ret;
 }
 
@@ -702,7 +683,6 @@ void rtl8188eu_xmit_tasklet(void *priv)
 
 void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
 {
-	_func_enter_;
 	_rtw_memset((u8 *)pops, 0, sizeof(struct _io_ops));
 	pops->_read8 = &usb_read8;
 	pops->_read16 = &usb_read16;
@@ -717,7 +697,6 @@ void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
 	pops->_write_port = &usb_write_port;
 	pops->_read_port_cancel = &usb_read_port_cancel;
 	pops->_write_port_cancel = &usb_write_port_cancel;
-	_func_exit_;
 }
 
 void rtl8188eu_set_hw_type(struct adapter *adapt)

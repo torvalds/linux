@@ -147,7 +147,6 @@ u8 *rtw_set_ie
 	uint *frlen /* frame length */
 )
 {
-_func_enter_;
 	*pbuf = (u8)index;
 
 	*(pbuf + 1) = (u8)len;
@@ -157,7 +156,6 @@ _func_enter_;
 
 	*frlen = *frlen + (len + 2);
 
-_func_exit_;
 	return pbuf + len + 2;
 }
 
@@ -221,9 +219,7 @@ u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit)
 {
 	int tmp, i;
 	u8 *p;
-_func_enter_;
 	if (limit < 1) {
-		_func_exit_;
 		return NULL;
 	}
 
@@ -242,7 +238,6 @@ _func_enter_;
 		if (i >= limit)
 			break;
 	}
-_func_exit_;
 	return NULL;
 }
 
@@ -339,7 +334,6 @@ exit:
 
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 {
-_func_enter_;
 
 	_rtw_memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
@@ -361,13 +355,11 @@ _func_enter_;
 		memcpy(SupportedRates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 	}
-_func_exit_;
 }
 
 uint	rtw_get_rateset_len(u8	*rateset)
 {
 	uint i = 0;
-_func_enter_;
 	while (1) {
 		if ((rateset[i]) == 0)
 			break;
@@ -375,7 +367,6 @@ _func_enter_;
 			break;
 		i++;
 	}
-_func_exit_;
 	return i;
 }
 
@@ -386,7 +377,6 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->IEs;
 
-_func_enter_;
 
 	/* timestamp will be inserted by hardware */
 	sz += 8;
@@ -444,7 +434,6 @@ _func_enter_;
 
 	if (rateLen > 8)
 		ie = rtw_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8), (pdev_network->SupportedRates + 8), &sz);
-_func_exit_;
 
 	return sz;
 }
@@ -672,7 +661,6 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
 	uint	cnt;
 
-_func_enter_;
 
 	/* Search required WPA or WPA2 IE and copy to sec_ie[] */
 
@@ -726,7 +714,6 @@ _func_enter_;
 		}
 	}
 
-_func_exit_;
 
 	return *rsn_len + *wpa_len;
 }
