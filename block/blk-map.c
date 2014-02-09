@@ -188,7 +188,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  *    unmapping.
  */
 int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
-			struct rq_map_data *map_data, struct sg_iovec *iov,
+			struct rq_map_data *map_data, const struct sg_iovec *iov,
 			int iov_count, unsigned int len, gfp_t gfp_mask)
 {
 	struct bio *bio;
