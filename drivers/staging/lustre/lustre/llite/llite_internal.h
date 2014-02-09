@@ -296,13 +296,6 @@ int ll_xattr_cache_get(struct inode *inode,
 			size_t size,
 			__u64 valid);
 
-int ll_xattr_cache_update(struct inode *inode,
-			const char *name,
-			const char *newval,
-			size_t size,
-			__u64 valid,
-			int flags);
-
 /*
  * Locking to guarantee consistency of non-atomic updates to long long i_size,
  * consistency between file size and KMS.

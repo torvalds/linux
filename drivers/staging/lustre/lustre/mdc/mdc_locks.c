@@ -378,13 +378,6 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 
 	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 
-	if (it->it_op == IT_SETXATTR)
-		/* If we want to upgrade to LCK_PW, let's cancel LCK_PR
-		 * locks now. This avoids unnecessary ASTs. */
-		count = mdc_resource_get_unused(exp, &op_data->op_fid1,
-						&cancels, LCK_PW,
-						MDS_INODELOCK_XATTR);
-
 	rc = ldlm_prep_enqueue_req(exp, req, &cancels, count);
 	if (rc) {
 		ptlrpc_request_free(req);
@@ -842,7 +835,7 @@ resend:
 			return -EOPNOTSUPP;
 		req = mdc_intent_layout_pack(exp, it, op_data);
 		lvb_type = LVB_T_LAYOUT;
-	} else if (it->it_op & (IT_GETXATTR | IT_SETXATTR)) {
+	} else if (it->it_op & IT_GETXATTR) {
 		req = mdc_intent_getxattr_pack(exp, it, op_data);
 	} else {
 		LBUG();

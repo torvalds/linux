@@ -295,7 +295,8 @@ static const struct req_msg_field *mds_reint_setxattr_client[] = {
 	&RMF_REC_REINT,
 	&RMF_CAPA1,
 	&RMF_NAME,
-	&RMF_EADATA
+	&RMF_EADATA,
+	&RMF_DLM_REQ
 };
 
 static const struct req_msg_field *mdt_swap_layouts[] = {
