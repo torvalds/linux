@@ -61,7 +61,7 @@ static u32 go_add_group_info_attr(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/* look up sta asoc_queue */
 	while ((rtw_end_of_queue_search(phead, plist)) == false) {
-		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+		psta = container_of(plist, struct sta_info, asoc_list);
 
 		plist = get_next(plist);
 
@@ -984,7 +984,7 @@ u32 process_p2p_devdisc_req(struct wifidirect_info *pwdinfo, u8 *pframe, uint le
 
 					/* look up sta asoc_queue */
 					while ((rtw_end_of_queue_search(phead, plist)) == false) {
-						psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+						psta = container_of(plist, struct sta_info, asoc_list);
 
 						plist = get_next(plist);
 

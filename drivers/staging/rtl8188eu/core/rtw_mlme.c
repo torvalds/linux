@@ -167,7 +167,7 @@ _func_enter_;
 	if (_rtw_queue_empty(queue)) {
 		pnetwork = NULL;
 	} else {
-		pnetwork = LIST_CONTAINOR(get_next(&queue->queue), struct wlan_network, list);
+		pnetwork = container_of(get_next(&queue->queue), struct wlan_network, list);
 
 		rtw_list_delete(&(pnetwork->list));
 	}
@@ -195,7 +195,7 @@ _func_enter_;
 	}
 	plist = get_next(&(free_queue->queue));
 
-	pnetwork = LIST_CONTAINOR(plist , struct wlan_network, list);
+	pnetwork = container_of(plist , struct wlan_network, list);
 
 	rtw_list_delete(&pnetwork->list);
 
@@ -285,7 +285,7 @@ _func_enter_;
 	plist = get_next(phead);
 
 	while (plist != phead) {
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network , list);
+		pnetwork = container_of(plist, struct wlan_network , list);
 		if (!memcmp(addr, pnetwork->network.MacAddress, ETH_ALEN) == true)
 			break;
 		plist = get_next(plist);
@@ -314,7 +314,7 @@ _func_enter_;
 	plist = get_next(phead);
 
 	while (rtw_end_of_queue_search(phead, plist) == false) {
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 
 		plist = get_next(plist);
 
@@ -500,7 +500,7 @@ _func_enter_;
 		if (rtw_end_of_queue_search(phead, plist) == true)
 			break;
 
-		pwlan = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pwlan = container_of(plist, struct wlan_network, list);
 
 		if (!pwlan->fixed) {
 			if (oldest == NULL || time_after(oldest->last_scanned, pwlan->last_scanned))
@@ -593,7 +593,7 @@ _func_enter_;
 		if (rtw_end_of_queue_search(phead, plist) == true)
 			break;
 
-		pnetwork	= LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork	= container_of(plist, struct wlan_network, list);
 
 		if (is_same_network(&(pnetwork->network), target))
 			break;
@@ -1749,7 +1749,7 @@ _func_enter_;
 	adapter = (struct adapter *)pmlmepriv->nic_hdl;
 	pmlmepriv->pscanned = get_next(phead);
 	while (!rtw_end_of_queue_search(phead, pmlmepriv->pscanned)) {
-		pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned, struct wlan_network, list);
+		pnetwork = container_of(pmlmepriv->pscanned, struct wlan_network, list);
 		if (pnetwork == NULL) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("%s return _FAIL:(pnetwork==NULL)\n", __func__));
 			ret = _FAIL;

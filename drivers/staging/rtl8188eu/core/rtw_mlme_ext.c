@@ -6236,7 +6236,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 			if (rtw_end_of_queue_search(phead, plist))
 				break;
 
-			pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+			pnetwork = container_of(plist, struct wlan_network, list);
 
 			plist = get_next(plist);
 
@@ -8375,7 +8375,7 @@ u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf)
 			xmitframe_plist = get_next(xmitframe_phead);
 
 			while (!rtw_end_of_queue_search(xmitframe_phead, xmitframe_plist)) {
-				pxmitframe = LIST_CONTAINOR(xmitframe_plist, struct xmit_frame, list);
+				pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 
 				xmitframe_plist = get_next(xmitframe_plist);
 
