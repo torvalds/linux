@@ -140,6 +140,9 @@ static __inline__ void ipxitf_hold(struct ipx_interface *intrfc)
 }
 
 void ipxitf_down(struct ipx_interface *intrfc);
+struct ipx_interface *ipxitf_find_using_net(__be32 net);
+int ipxitf_send(struct ipx_interface *intrfc, struct sk_buff *skb, char *node);
+__be16 ipx_cksum(struct ipxhdr *packet, int length);
 
 static __inline__ void ipxitf_put(struct ipx_interface *intrfc)
 {
