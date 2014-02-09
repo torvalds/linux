@@ -1666,8 +1666,8 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 
 		op.dst.type = CCP_MEMTYPE_SYSTEM;
 		op.dst.u.dma.address = sg_dma_address(dst.sg_wa.sg);
-		op.src.u.dma.offset = dst.sg_wa.sg_used;
-		op.src.u.dma.length = op.src.u.dma.length;
+		op.dst.u.dma.offset = dst.sg_wa.sg_used;
+		op.dst.u.dma.length = op.src.u.dma.length;
 
 		ret = ccp_perform_passthru(&op);
 		if (ret) {
