@@ -720,7 +720,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	if (drop_cache)
 		btrfs_drop_extent_cache(inode, start, end - 1, 0);
 
-	if (start >= BTRFS_I(inode)->disk_i_size)
+	if (start >= BTRFS_I(inode)->disk_i_size && !replace_extent)
 		modify_tree = 0;
 
 	while (1) {
@@ -938,34 +938,42 @@ next_slot:
 		 * Set path->slots[0] to first slot, so that after the delete
 		 * if items are move off from our leaf to its immediate left or
 		 * right neighbor leafs, we end up with a correct and adjusted
-		 * path->slots[0] for our insertion.
+		 * path->slots[0] for our insertion (if replace_extent != 0).
 		 */
 		path->slots[0] = del_slot;
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		if (ret)
 			btrfs_abort_transaction(trans, root, ret);
+	}
 
-		leaf = path->nodes[0];
-		/*
-		 * leaf eb has flag EXTENT_BUFFER_STALE if it was deleted (that
-		 * is, its contents got pushed to its neighbors), in which case
-		 * it means path->locks[0] == 0
-		 */
-		if (!ret && replace_extent && leafs_visited == 1 &&
-		    path->locks[0] &&
-		    btrfs_leaf_free_space(root, leaf) >=
-		    sizeof(struct btrfs_item) + extent_item_size) {
+	leaf = path->nodes[0];
+	/*
+	 * If btrfs_del_items() was called, it might have deleted a leaf, in
+	 * which case it unlocked our path, so check path->locks[0] matches a
+	 * write lock.
+	 */
+	if (!ret && replace_extent && leafs_visited == 1 &&
+	    (path->locks[0] == BTRFS_WRITE_LOCK_BLOCKING ||
+	     path->locks[0] == BTRFS_WRITE_LOCK) &&
+	    btrfs_leaf_free_space(root, leaf) >=
+	    sizeof(struct btrfs_item) + extent_item_size) {
 
-			key.objectid = ino;
-			key.type = BTRFS_EXTENT_DATA_KEY;
-			key.offset = start;
-			setup_items_for_insert(root, path, &key,
-					       &extent_item_size,
-					       extent_item_size,
-					       sizeof(struct btrfs_item) +
-					       extent_item_size, 1);
-			*key_inserted = 1;
+		key.objectid = ino;
+		key.type = BTRFS_EXTENT_DATA_KEY;
+		key.offset = start;
+		if (!del_nr && path->slots[0] < btrfs_header_nritems(leaf)) {
+			struct btrfs_key slot_key;
+
+			btrfs_item_key_to_cpu(leaf, &slot_key, path->slots[0]);
+			if (btrfs_comp_cpu_keys(&key, &slot_key) > 0)
+				path->slots[0]++;
 		}
+		setup_items_for_insert(root, path, &key,
+				       &extent_item_size,
+				       extent_item_size,
+				       sizeof(struct btrfs_item) +
+				       extent_item_size, 1);
+		*key_inserted = 1;
 	}
 
 	if (!replace_extent || !(*key_inserted))
