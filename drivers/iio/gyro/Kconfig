@@ -56,7 +56,7 @@ config BMG160
 	select IIO_TRIGGERED_BUFFER if IIO_BUFFER
 	help
 	  Say yes here to build support for Bosch BMG160 Tri-axis Gyro Sensor
-	  driver.
+	  driver. This driver also supports BMI055 gyroscope.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called bmg160.

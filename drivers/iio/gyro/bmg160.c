@@ -949,10 +949,10 @@ static irqreturn_t bmg160_data_rdy_trig_poll(int irq, void *private)
 
 }
 
-static int bmg160_acpi_gpio_probe(struct i2c_client *client,
-				  struct bmg160_data *data)
+static int bmg160_gpio_probe(struct i2c_client *client,
+			     struct bmg160_data *data)
+
 {
-	const struct acpi_device_id *id;
 	struct device *dev;
 	struct gpio_desc *gpio;
 	int ret;
@@ -961,12 +961,6 @@ static int bmg160_acpi_gpio_probe(struct i2c_client *client,
 		return -EINVAL;
 
 	dev = &client->dev;
-	if (!ACPI_HANDLE(dev))
-		return -ENODEV;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
 
 	/* data ready gpio interrupt pin */
 	gpio = devm_gpiod_get_index(dev, BMG160_GPIO_NAME, 0);
@@ -986,12 +980,24 @@ static int bmg160_acpi_gpio_probe(struct i2c_client *client,
 	return ret;
 }
 
+static const char *bmg160_match_acpi_device(struct device *dev)
+{
+	const struct acpi_device_id *id;
+
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return NULL;
+
+	return dev_name(dev);
+}
+
 static int bmg160_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct bmg160_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
+	const char *name = NULL;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -1007,15 +1013,21 @@ static int bmg160_probe(struct i2c_client *client,
 
 	mutex_init(&data->mutex);
 
+	if (id)
+		name = id->name;
+
+	if (ACPI_HANDLE(&client->dev))
+		name = bmg160_match_acpi_device(&client->dev);
+
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = bmg160_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bmg160_channels);
-	indio_dev->name = BMG160_DRV_NAME;
+	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmg160_info;
 
 	if (client->irq <= 0)
-		client->irq = bmg160_acpi_gpio_probe(client, data);
+		client->irq = bmg160_gpio_probe(client, data);
 
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev,
@@ -1185,12 +1197,15 @@ static const struct dev_pm_ops bmg160_pm_ops = {
 
 static const struct acpi_device_id bmg160_acpi_match[] = {
 	{"BMG0160", 0},
-	{ },
+	{"BMI055B", 0},
+	{},
 };
+
 MODULE_DEVICE_TABLE(acpi, bmg160_acpi_match);
 
 static const struct i2c_device_id bmg160_id[] = {
 	{"bmg160", 0},
+	{"bmi055_gyro", 0},
 	{}
 };
 
