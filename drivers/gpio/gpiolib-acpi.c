@@ -60,7 +60,7 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 	if (pin < 0 || pin > chip->ngpio)
 		return ERR_PTR(-EINVAL);
 
-	return gpio_to_desc(chip->base + pin);
+	return gpiochip_get_desc(chip, pin);
 }
 
 static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
