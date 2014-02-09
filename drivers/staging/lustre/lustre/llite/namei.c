@@ -462,9 +462,12 @@ int ll_lookup_it_finish(struct ptlrpc_request *request,
 	 * Atoimc_open may passin hashed dentries for open.
 	 */
 	if (d_unhashed(*de)) {
-		*de = ll_splice_alias(inode, *de);
-		if (IS_ERR(*de))
-			return PTR_ERR(*de);
+		struct dentry *alias;
+
+		alias = ll_splice_alias(inode, *de);
+		if (IS_ERR(alias))
+			return PTR_ERR(alias);
+		*de = alias;
 	}
 
 	if (!it_disposition(it, DISP_LOOKUP_NEG)) {
