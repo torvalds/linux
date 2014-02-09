@@ -139,7 +139,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
-		abi16->handles &= ~(1 << (chan->chan->handle & 0xffff));
+		abi16->handles &= ~(1ULL << (chan->chan->handle & 0xffff));
 		nouveau_channel_del(&chan->chan);
 	}
 
@@ -280,7 +280,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 
 	INIT_LIST_HEAD(&chan->notifiers);
 	list_add(&chan->head, &abi16->channels);
-	abi16->handles |= (1 << init->channel);
+	abi16->handles |= (1ULL << init->channel);
 
 	/* create channel object and initialise dma and fence management */
 	ret = nouveau_channel_new(drm, cli, NVDRM_DEVICE, NVDRM_CHAN |
