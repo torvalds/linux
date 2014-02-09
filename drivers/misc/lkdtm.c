@@ -102,6 +102,7 @@ enum ctype {
 	CT_EXEC_USERSPACE,
 	CT_ACCESS_USERSPACE,
 	CT_WRITE_RO,
+	CT_WRITE_KERN,
 };
 
 static char* cp_name[] = {
@@ -138,6 +139,7 @@ static char* cp_type[] = {
 	"EXEC_USERSPACE",
 	"ACCESS_USERSPACE",
 	"WRITE_RO",
+	"WRITE_KERN",
 };
 
 static struct jprobe lkdtm;
@@ -314,6 +316,13 @@ static int recursive_loop(int remaining)
 
 static void do_nothing(void)
 {
+	return;
+}
+
+/* Must immediately follow do_nothing for size calculuations to work out. */
+static void do_overwritten(void)
+{
+	pr_info("do_overwritten wasn't overwritten!\n");
 	return;
 }
 
@@ -494,6 +503,22 @@ static void lkdtm_do_action(enum ctype which)
 		pr_info("attempting bad write at %p\n", ptr);
 		*ptr ^= 0xabcd1234;
 
+		break;
+	}
+	case CT_WRITE_KERN: {
+		size_t size;
+		unsigned char *ptr;
+
+		size = (unsigned long)do_overwritten -
+		       (unsigned long)do_nothing;
+		ptr = (unsigned char *)do_overwritten;
+
+		pr_info("attempting bad %zu byte write at %p\n", size, ptr);
+		memcpy(ptr, (unsigned char *)do_nothing, size);
+		flush_icache_range((unsigned long)ptr,
+				   (unsigned long)(ptr + size));
+
+		do_overwritten();
 		break;
 	}
 	case CT_NONE:
