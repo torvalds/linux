@@ -20,6 +20,7 @@
 #define _HAL_INIT_C_
 
 #include <linux/firmware.h>
+#include <linux/vmalloc.h>
 #include <drv_types.h>
 #include <rtw_efuse.h>
 

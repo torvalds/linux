@@ -199,7 +199,7 @@ _func_enter_;
 
 				for (i = 0; i < 16; i++) {
 					preorder_ctrl = &psta->recvreorder_ctrl[i];
-					_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
+					del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
 				}
 			}
 		}
@@ -354,7 +354,7 @@ _func_enter_;
 	_rtw_init_sta_xmit_priv(&psta->sta_xmitpriv);
 	_rtw_init_sta_recv_priv(&psta->sta_recvpriv);
 
-	_cancel_timer_ex(&psta->addba_retry_timer);
+	del_timer_sync(&psta->addba_retry_timer);
 
 	/* for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer */
 	for (i = 0; i < 16; i++) {
@@ -365,7 +365,7 @@ _func_enter_;
 
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
 
-		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
+		del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
 
 		ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 
@@ -500,7 +500,7 @@ _func_enter_;
 	while ((!rtw_end_of_queue_search(phead, plist))) {
 		psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
 
-		if ((_rtw_memcmp(psta->hwaddr, addr, ETH_ALEN)) == true) {
+		if ((!memcmp(psta->hwaddr, addr, ETH_ALEN)) == true) {
 			/*  if found the matched address */
 			break;
 		}
@@ -567,7 +567,7 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 		paclnode = LIST_CONTAINOR(plist, struct rtw_wlan_acl_node, list);
 		plist = get_next(plist);
 
-		if (_rtw_memcmp(paclnode->addr, mac_addr, ETH_ALEN)) {
+		if (!memcmp(paclnode->addr, mac_addr, ETH_ALEN)) {
 			if (paclnode->valid) {
 				match = true;
 				break;

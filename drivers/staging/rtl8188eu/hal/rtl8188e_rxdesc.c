@@ -158,11 +158,11 @@ void update_recvframe_phyinfo_88e(union recv_frame *precvframe, struct phy_stat 
 
 	pkt_info.bPacketMatchBSSID = ((!IsFrameTypeCtrl(wlanhdr)) &&
 		!pattrib->icv_err && !pattrib->crc_err &&
-		_rtw_memcmp(get_hdr_bssid(wlanhdr),
+		!memcmp(get_hdr_bssid(wlanhdr),
 		 get_bssid(&padapter->mlmepriv), ETH_ALEN));
 
 	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID &&
-				 (_rtw_memcmp(get_da(wlanhdr),
+				 (!memcmp(get_da(wlanhdr),
 				  myid(&padapter->eeprompriv), ETH_ALEN));
 
 	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID &&

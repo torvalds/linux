@@ -184,12 +184,12 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *pAdapter, bool beven)
 		TempCCk = read_bbreg(pAdapter, rCCK0_TxFilter2, bMaskDWord) & bMaskCCK;
 		for (i = 0; i < CCK_TABLE_SIZE; i++) {
 			if (pDM_Odm->RFCalibrateInfo.bCCKinCH14) {
-				if (_rtw_memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch14[i][2], 4)) {
+				if (!memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch14[i][2], 4)) {
 					CCK_index_old = (u8)i;
 					break;
 				}
 			} else {
-				if (_rtw_memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch1_Ch13[i][2], 4)) {
+				if (!memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch1_Ch13[i][2], 4)) {
 					CCK_index_old = (u8)i;
 					break;
 				}

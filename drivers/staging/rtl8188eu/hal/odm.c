@@ -1302,8 +1302,8 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 		psta = pDM_Odm->pODM_StaInfo[i];
 		if (IS_STA_VALID(psta) &&
 		    (psta->state & WIFI_ASOC_STATE) &&
-		    !_rtw_memcmp(psta->hwaddr, bcast_addr, ETH_ALEN) &&
-		    !_rtw_memcmp(psta->hwaddr, myid(&Adapter->eeprompriv), ETH_ALEN)) {
+		    memcmp(psta->hwaddr, bcast_addr, ETH_ALEN) &&
+		    memcmp(psta->hwaddr, myid(&Adapter->eeprompriv), ETH_ALEN)) {
 			if (psta->rssi_stat.UndecoratedSmoothedPWDB < tmpEntryMinPWDB)
 				tmpEntryMinPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
 

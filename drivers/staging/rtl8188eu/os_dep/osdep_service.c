@@ -93,16 +93,6 @@ void rtw_mfree2d(void *pbuf, int h, int w, int size)
 	kfree(pbuf);
 }
 
-int _rtw_memcmp(void *dst, void *src, u32 sz)
-{
-/* under Linux/GNU/GLibc, the return value of memcmp for two same
- * mem. chunk is 0 */
-	if (!(memcmp(dst, src, sz)))
-		return true;
-	else
-		return false;
-}
-
 void _rtw_memset(void *pbuf, int c, u32 sz)
 {
 	memset(pbuf, c, sz);
