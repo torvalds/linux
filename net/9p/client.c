@@ -204,7 +204,7 @@ free_and_return:
 	return ret;
 }
 
-struct p9_fcall *p9_fcall_alloc(int alloc_msize)
+static struct p9_fcall *p9_fcall_alloc(int alloc_msize)
 {
 	struct p9_fcall *fc;
 	fc = kmalloc(sizeof(struct p9_fcall) + alloc_msize, GFP_NOFS);
