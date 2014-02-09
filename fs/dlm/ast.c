@@ -14,6 +14,7 @@
 #include "dlm_internal.h"
 #include "lock.h"
 #include "user.h"
+#include "ast.h"
 
 static uint64_t dlm_cb_seq;
 static DEFINE_SPINLOCK(dlm_cb_seq_spin);
