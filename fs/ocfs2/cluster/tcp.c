@@ -916,24 +916,9 @@ static struct o2net_msg_handler *o2net_handler_get(u32 msg_type, u32 key)
 
 static int o2net_recv_tcp_msg(struct socket *sock, void *data, size_t len)
 {
-	int ret;
-	mm_segment_t oldfs;
-	struct kvec vec = {
-		.iov_len = len,
-		.iov_base = data,
-	};
-	struct msghdr msg = {
-		.msg_iovlen = 1,
-		.msg_iov = (struct iovec *)&vec,
-       		.msg_flags = MSG_DONTWAIT,
-	};
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = sock_recvmsg(sock, &msg, len, msg.msg_flags);
-	set_fs(oldfs);
-
-	return ret;
+	struct kvec vec = { .iov_len = len, .iov_base = data, };
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
+	return kernel_recvmsg(sock, &msg, &vec, 1, len, msg.msg_flags);
 }
 
 static int o2net_send_tcp_msg(struct socket *sock, struct kvec *vec,
