@@ -234,7 +234,8 @@ unsigned int bio_integrity_tag_size(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_integrity_tag_size);
 
-int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len, int set)
+static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
+			     int set)
 {
 	struct bio_integrity_payload *bip = bio->bi_integrity;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
