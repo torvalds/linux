@@ -134,7 +134,6 @@ config HAVE_SMP
 config SMP
 	bool "Enable Symmetric multi-processing support"
 	depends on HAVE_SMP
-	select USE_GENERIC_SMP_HELPERS
 	select GENERIC_SMP_IDLE_THREAD
 	help
 	  Enabled SMP Software; allows more than one CPU/CORE
