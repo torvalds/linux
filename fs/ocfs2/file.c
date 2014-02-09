@@ -2383,7 +2383,7 @@ relock:
 	} else {
 		current->backing_dev_info = file->f_mapping->backing_dev_info;
 		written = generic_file_buffered_write(iocb, iov, nr_segs, *ppos,
-						      ppos, count, 0);
+						      count, 0);
 		current->backing_dev_info = NULL;
 	}
 

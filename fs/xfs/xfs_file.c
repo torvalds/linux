@@ -738,7 +738,7 @@ xfs_file_buffered_aio_write(
 write_retry:
 	trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, 0);
 	ret = generic_file_buffered_write(iocb, iovp, nr_segs,
-			pos, &iocb->ki_pos, count, 0);
+			pos, count, 0);
 
 	/*
 	 * If we just got an ENOSPC, try to write back all dirty inodes to
