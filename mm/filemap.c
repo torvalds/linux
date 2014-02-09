@@ -2222,14 +2222,14 @@ EXPORT_SYMBOL(generic_file_buffered_write);
  * avoid syncing under i_mutex.
  */
 ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-				 unsigned long nr_segs, loff_t *ppos)
+				 unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
 	size_t ocount;		/* original count */
 	size_t count;		/* after file limit checks */
 	struct inode 	*inode = mapping->host;
-	loff_t		pos;
+	loff_t		pos = iocb->ki_pos;
 	ssize_t		written;
 	ssize_t		err;
 
@@ -2239,7 +2239,6 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		return err;
 
 	count = ocount;
-	pos = *ppos;
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
@@ -2266,7 +2265,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		ssize_t written_buffered;
 
 		written = generic_file_direct_write(iocb, iov, &nr_segs, pos,
-							ppos, count, ocount);
+							&iocb->ki_pos, count, ocount);
 		if (written < 0 || written == count)
 			goto out;
 		/*
@@ -2276,7 +2275,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		pos += written;
 		count -= written;
 		written_buffered = generic_file_buffered_write(iocb, iov,
-						nr_segs, pos, ppos, count,
+						nr_segs, pos, &iocb->ki_pos, count,
 						written);
 		/*
 		 * If generic_file_buffered_write() retuned a synchronous error
@@ -2310,7 +2309,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		}
 	} else {
 		written = generic_file_buffered_write(iocb, iov, nr_segs,
-				pos, ppos, count, written);
+				pos, &iocb->ki_pos, count, written);
 	}
 out:
 	current->backing_dev_info = NULL;
@@ -2339,7 +2338,7 @@ ssize_t generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	BUG_ON(iocb->ki_pos != pos);
 
 	mutex_lock(&inode->i_mutex);
-	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
+	ret = __generic_file_aio_write(iocb, iov, nr_segs);
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {
