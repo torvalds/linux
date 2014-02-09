@@ -19,7 +19,6 @@ config ARCH_BCM_MOBILE
 	select CPU_V7
 	select CLKSRC_OF
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 	select GPIO_BCM_KONA
 	select SPARSE_IRQ
 	select TICK_ONESHOT
