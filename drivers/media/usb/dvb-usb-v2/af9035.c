@@ -576,6 +576,10 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 			goto err;
 
 		if (state->chip_type == 0x9135) {
+			if (!tmp)
+				/* default 0x9135 slave I2C address */
+				tmp = 0x3a;
+
 			ret = af9035_wr_reg(d, 0x004bfb, tmp);
 			if (ret < 0)
 				goto err;
@@ -683,6 +687,10 @@ static int af9035_read_config(struct dvb_usb_device *d)
 				&tmp);
 		if (ret < 0)
 			goto err;
+
+		if (!tmp && state->chip_type == 0x9135)
+			/* default 0x9135 slave I2C address */
+			tmp = 0x3a;
 
 		state->af9033_config[1].i2c_addr = tmp;
 		dev_dbg(&d->udev->dev, "%s: 2nd demod I2C addr=%02x\n",
