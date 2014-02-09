@@ -215,15 +215,8 @@ ksocknal_lib_recv_iov (ksock_conn_t *conn)
 #endif
 	struct iovec *iov = conn->ksnc_rx_iov;
 	struct msghdr msg = {
-		.msg_name       = NULL,
-		.msg_namelen    = 0,
-		.msg_iov	= scratchiov,
-		.msg_iovlen     = niov,
-		.msg_control    = NULL,
-		.msg_controllen = 0,
 		.msg_flags      = 0
 	};
-	mm_segment_t oldmm = get_fs();
 	int	  nob;
 	int	  i;
 	int	  rc;
@@ -241,10 +234,8 @@ ksocknal_lib_recv_iov (ksock_conn_t *conn)
 	}
 	LASSERT (nob <= conn->ksnc_rx_nob_wanted);
 
-	set_fs (KERNEL_DS);
-	rc = sock_recvmsg (conn->ksnc_sock, &msg, nob, MSG_DONTWAIT);
-	/* NB this is just a boolean..........................^ */
-	set_fs (oldmm);
+	rc = kernel_recvmsg(conn->ksnc_sock, &msg,
+		(struct kvec *)scratchiov, niov, nob, MSG_DONTWAIT);
 
 	saved_csum = 0;
 	if (conn->ksnc_proto == &ksocknal_protocol_v2x) {
@@ -333,14 +324,8 @@ ksocknal_lib_recv_kiov (ksock_conn_t *conn)
 #endif
 	lnet_kiov_t   *kiov = conn->ksnc_rx_kiov;
 	struct msghdr msg = {
-		.msg_name       = NULL,
-		.msg_namelen    = 0,
-		.msg_iov	= scratchiov,
-		.msg_control    = NULL,
-		.msg_controllen = 0,
 		.msg_flags      = 0
 	};
-	mm_segment_t oldmm = get_fs();
 	int	  nob;
 	int	  i;
 	int	  rc;
@@ -348,12 +333,13 @@ ksocknal_lib_recv_kiov (ksock_conn_t *conn)
 	void	*addr;
 	int	  sum;
 	int	  fragnob;
+	int n;
 
 	/* NB we can't trust socket ops to either consume our iovs
 	 * or leave them alone. */
 	if ((addr = ksocknal_lib_kiov_vmap(kiov, niov, scratchiov, pages)) != NULL) {
 		nob = scratchiov[0].iov_len;
-		msg.msg_iovlen = 1;
+		n = 1;
 
 	} else {
 		for (nob = i = 0; i < niov; i++) {
@@ -361,15 +347,13 @@ ksocknal_lib_recv_kiov (ksock_conn_t *conn)
 			scratchiov[i].iov_base = kmap(kiov[i].kiov_page) +
 						 kiov[i].kiov_offset;
 		}
-		msg.msg_iovlen = niov;
+		n = niov;
 	}
 
 	LASSERT (nob <= conn->ksnc_rx_nob_wanted);
 
-	set_fs (KERNEL_DS);
-	rc = sock_recvmsg (conn->ksnc_sock, &msg, nob, MSG_DONTWAIT);
-	/* NB this is just a boolean.......................^ */
-	set_fs (oldmm);
+	rc = kernel_recvmsg(conn->ksnc_sock, &msg,
+			(struct kvec *)scratchiov, n, nob, MSG_DONTWAIT);
 
 	if (conn->ksnc_msg.ksm_csum != 0) {
 		for (i = 0, sum = rc; sum > 0; i++, sum -= fragnob) {
