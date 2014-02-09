@@ -2351,9 +2351,6 @@ static const struct proto_ops dn_proto_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
-void dn_register_sysctl(void);
-void dn_unregister_sysctl(void);
-
 MODULE_DESCRIPTION("The Linux DECnet Network Protocol");
 MODULE_AUTHOR("Linux DECnet Project Team");
 MODULE_LICENSE("GPL");
