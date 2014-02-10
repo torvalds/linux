@@ -4193,7 +4193,7 @@ int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
 int ath10k_wmi_connect_htc_service(struct ath10k *ar);
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 				const struct wmi_channel_arg *);
-int ath10k_wmi_pdev_suspend_target(struct ath10k *ar);
+int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);
 int ath10k_wmi_pdev_resume_target(struct ath10k *ar);
 int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
 				  u16 rd5g, u16 ctl2g, u16 ctl5g);

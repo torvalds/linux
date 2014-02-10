@@ -2443,7 +2443,7 @@ int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 				   ar->wmi.cmd->pdev_set_channel_cmdid);
 }
 
-int ath10k_wmi_pdev_suspend_target(struct ath10k *ar)
+int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt)
 {
 	struct wmi_pdev_suspend_cmd *cmd;
 	struct sk_buff *skb;
@@ -2453,7 +2453,7 @@ int ath10k_wmi_pdev_suspend_target(struct ath10k *ar)
 		return -ENOMEM;
 
 	cmd = (struct wmi_pdev_suspend_cmd *)skb->data;
-	cmd->suspend_opt = WMI_PDEV_SUSPEND;
+	cmd->suspend_opt = __cpu_to_le32(suspend_opt);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->pdev_suspend_cmdid);
 }

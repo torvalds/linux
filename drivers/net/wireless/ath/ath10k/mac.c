@@ -3442,20 +3442,12 @@ static int ath10k_suspend(struct ieee80211_hw *hw,
 
 	mutex_lock(&ar->conf_mutex);
 
-	reinit_completion(&ar->target_suspend);
-
-	ret = ath10k_wmi_pdev_suspend_target(ar);
+	ret = ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND);
 	if (ret) {
-		ath10k_warn("could not suspend target (%d)\n", ret);
+		if (ret == -ETIMEDOUT)
+			goto resume;
 		ret = 1;
 		goto exit;
-	}
-
-	ret = wait_for_completion_timeout(&ar->target_suspend, 1 * HZ);
-
-	if (ret == 0) {
-		ath10k_warn("suspend timed out - target pause event never came\n");
-		goto resume;
 	}
 
 	ret = ath10k_hif_suspend(ar);

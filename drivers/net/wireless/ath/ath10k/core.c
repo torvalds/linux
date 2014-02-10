@@ -858,10 +858,34 @@ err:
 }
 EXPORT_SYMBOL(ath10k_core_start);
 
+int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt)
+{
+	int ret;
+
+	reinit_completion(&ar->target_suspend);
+
+	ret = ath10k_wmi_pdev_suspend_target(ar, suspend_opt);
+	if (ret) {
+		ath10k_warn("could not suspend target (%d)\n", ret);
+		return ret;
+	}
+
+	ret = wait_for_completion_timeout(&ar->target_suspend, 1 * HZ);
+
+	if (ret == 0) {
+		ath10k_warn("suspend timed out - target pause event never came\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 void ath10k_core_stop(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
+	/* try to suspend target */
+	ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
 	ath10k_debug_stop(ar);
 	ath10k_htc_stop(&ar->htc);
 	ath10k_htt_detach(&ar->htt);
