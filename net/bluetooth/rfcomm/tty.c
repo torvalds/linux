@@ -140,7 +140,7 @@ static const struct tty_port_operations rfcomm_port_ops = {
 	.carrier_raised = rfcomm_dev_carrier_raised,
 };
 
-static struct rfcomm_dev *__rfcomm_dev_get(int id)
+static struct rfcomm_dev *__rfcomm_dev_lookup(int id)
 {
 	struct rfcomm_dev *dev;
 
@@ -157,7 +157,7 @@ static struct rfcomm_dev *rfcomm_dev_get(int id)
 
 	spin_lock(&rfcomm_dev_lock);
 
-	dev = __rfcomm_dev_get(id);
+	dev = __rfcomm_dev_lookup(id);
 
 	if (dev && !tty_port_get(&dev->port))
 		dev = NULL;
