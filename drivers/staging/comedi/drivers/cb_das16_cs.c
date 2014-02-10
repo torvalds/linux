@@ -152,10 +152,8 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 		outw(0, dev->iobase + DAS16CS_ADC_DATA);
 
 		ret = comedi_timeout(dev, s, insn, das16cs_ai_eoc, 0);
-		if (ret) {
-			dev_dbg(dev->class_dev, "cb_das16_cs: ai timeout\n");
+		if (ret)
 			return ret;
-		}
 
 		data[i] = inw(dev->iobase + DAS16CS_ADC_DATA);
 	}

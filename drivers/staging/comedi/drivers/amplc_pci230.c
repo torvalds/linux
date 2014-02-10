@@ -895,10 +895,8 @@ static int pci230_ai_rinsn(struct comedi_device *dev,
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, pci230_ai_eoc, 0);
-		if (ret) {
-			dev_err(dev->class_dev, "timeout\n");
+		if (ret)
 			return ret;
-		}
 
 		/* read data */
 		data[n] = pci230_ai_read(dev);

@@ -1792,10 +1792,8 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		/*  wait for data */
 		ret = comedi_timeout(dev, s, insn, cb_pcidas64_ai_eoc, 0);
-		if (ret) {
-			comedi_error(dev, " analog input read insn timed out");
+		if (ret)
 			return ret;
-		}
 
 		if (thisboard->layout == LAYOUT_4020)
 			data[n] = readl(devpriv->dio_counter_iobase +

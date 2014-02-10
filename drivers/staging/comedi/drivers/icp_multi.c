@@ -216,7 +216,6 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 		/*  Wait for conversion to complete, or get fed up waiting */
 		ret = comedi_timeout(dev, s, insn, icp_multi_ai_eoc, 0);
 		if (ret) {
-			comedi_error(dev, "A/D insn timeout");
 			/*  Clear data received */
 			data[n] = 0;
 			break;
@@ -287,8 +286,6 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 		 *  ready for new data, or get fed up waiting */
 		ret = comedi_timeout(dev, s, insn, icp_multi_ao_eoc, 0);
 		if (ret) {
-			comedi_error(dev, "D/A insn timeout");
-
 			/*  Disable interrupt */
 			devpriv->IntEnable &= ~DAC_READY;
 			writew(devpriv->IntEnable,

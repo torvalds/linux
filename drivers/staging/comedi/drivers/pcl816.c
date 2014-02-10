@@ -196,7 +196,6 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 
 		ret = comedi_timeout(dev, s, insn, pcl816_ai_eoc, 0);
 		if (ret) {
-			comedi_error(dev, "A/D insn timeout\n");
 			data[0] = 0;
 			/* clear INT (conversion end) flag */
 			outb(0, dev->iobase + PCL816_CLRINT);

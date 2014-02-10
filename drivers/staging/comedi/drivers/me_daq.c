@@ -305,10 +305,8 @@ static int me_ai_insn_read(struct comedi_device *dev,
 
 	/* wait for ADC fifo not empty flag */
 	ret = comedi_timeout(dev, s, insn, me_ai_eoc, 0);
-	if (ret) {
-		dev_err(dev->class_dev, "Cannot get single value\n");
+	if (ret)
 		return ret;
-	}
 
 	/* get value from ADC fifo */
 	val = readw(dev_private->me_regbase + ME_READ_AD_FIFO);

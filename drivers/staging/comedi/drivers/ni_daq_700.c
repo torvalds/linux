@@ -150,22 +150,8 @@ static int daq700_ai_rinsn(struct comedi_device *dev,
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, daq700_ai_eoc, 0);
-		if (ret) {
-			switch (ret) {
-			case -EOVERFLOW:
-				dev_info(dev->class_dev,
-					 "Overflow/run Error\n");
-				break;
-			case -ENODATA:
-				dev_info(dev->class_dev, "Data Error\n");
-				break;
-			default:
-				dev_info(dev->class_dev,
-					 "timeout during ADC conversion\n");
-				break;
-			}
+		if (ret)
 			return ret;
-		}
 
 		/* read data */
 		d = inw(dev->iobase + ADFIFO_R);

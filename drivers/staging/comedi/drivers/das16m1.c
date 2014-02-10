@@ -370,10 +370,8 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 		outb(0, dev->iobase);
 
 		ret = comedi_timeout(dev, s, insn, das16m1_ai_eoc, 0);
-		if (ret) {
-			comedi_error(dev, "timeout");
+		if (ret)
 			return ret;
-		}
 
 		data[n] = munge_sample(inw(dev->iobase));
 	}

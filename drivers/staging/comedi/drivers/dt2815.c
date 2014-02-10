@@ -108,22 +108,14 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 		hi = (data[i] & 0xff0) >> 4;
 
 		ret = comedi_timeout(dev, s, insn, dt2815_ao_status, 0x00);
-		if (ret) {
-			dev_dbg(dev->class_dev,
-				"failed to write low byte on %d\n",
-				chan);
+		if (ret)
 			return ret;
-		}
 
 		outb(lo, dev->iobase + DT2815_DATA);
 
 		ret = comedi_timeout(dev, s, insn, dt2815_ao_status, 0x10);
-		if (ret) {
-			dev_dbg(dev->class_dev,
-				"failed to write high byte on %d\n",
-				chan);
+		if (ret)
 			return ret;
-		}
 
 		devpriv->ao_readback[chan] = data[i];
 	}

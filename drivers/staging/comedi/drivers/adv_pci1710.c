@@ -467,7 +467,6 @@ static int pci171x_insn_read_ai(struct comedi_device *dev,
 
 		ret = comedi_timeout(dev, s, insn, pci171x_ai_eoc, 0);
 		if (ret) {
-			comedi_error(dev, "A/D insn timeout");
 			outb(0, dev->iobase + PCI171x_CLRFIFO);
 			outb(0, dev->iobase + PCI171x_CLRINT);
 			data[n] = 0;

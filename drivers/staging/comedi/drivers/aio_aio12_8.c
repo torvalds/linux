@@ -140,10 +140,8 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 
 		/*  Wait for conversion to complete */
 		ret = comedi_timeout(dev, s, insn, aio_aio12_8_ai_eoc, 0);
-		if (ret) {
-			dev_err(dev->class_dev, "ADC timeout\n");
+		if (ret)
 			return ret;
-		}
 
 		data[n] = inw(dev->iobase + AIO12_8_ADC_REG) & s->maxdata;
 	}

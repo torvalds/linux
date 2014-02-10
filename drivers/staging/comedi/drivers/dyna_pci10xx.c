@@ -95,8 +95,6 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 		ret = comedi_timeout(dev, s, insn, dyna_pci10xx_ai_eoc, 0);
 		if (ret) {
 			data[n] = 0;
-			dev_dbg(dev->class_dev,
-				"timeout reading analog input\n");
 			break;
 		}
 

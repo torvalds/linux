@@ -538,10 +538,8 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	 */
 	for (n = 0; n < 36; n++) {
 		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
-		if (ret) {
-			comedi_error(dev, "timeout");
+		if (ret)
 			return ret;
-		}
 
 		inw(dev->iobase + FIFO_DATA_REG);
 	}
@@ -549,10 +547,8 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	/*  read data */
 	for (n = 0; n < insn->n; n++) {
 		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
-		if (ret) {
-			comedi_error(dev, "timeout");
+		if (ret)
 			return ret;
-		}
 
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
 		data[n] ^= 0x8000;

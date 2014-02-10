@@ -190,10 +190,8 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, skel_ai_eoc, 0);
-		if (ret) {
-			dev_warn(dev->class_dev, "ai timeout\n");
+		if (ret)
 			return ret;
-		}
 
 		/* read data */
 		/* d = inw(dev->iobase + SKEL_AI_DATA); */

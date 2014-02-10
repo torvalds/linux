@@ -748,7 +748,6 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 
 		ret = comedi_timeout(dev, s, insn, pci9111_ai_eoc, 0);
 		if (ret) {
-			comedi_error(dev, "A/D read timeout");
 			data[i] = 0;
 			pci9111_fifo_reset(dev);
 			return ret;

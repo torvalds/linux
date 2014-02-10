@@ -257,10 +257,8 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		outb_p(0, dev->iobase + DAS08_TRIG_12BIT);
 
 		ret = comedi_timeout(dev, s, insn, das08_ai_eoc, 0);
-		if (ret) {
-			dev_err(dev->class_dev, "timeout\n");
+		if (ret)
 			return ret;
-		}
 
 		msb = inb(dev->iobase + DAS08_MSB);
 		lsb = inb(dev->iobase + DAS08_LSB);

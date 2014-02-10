@@ -554,10 +554,8 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 
 	outw(devpriv->supcsr | DT2821_PRLD, dev->iobase + DT2821_SUPCSR);
 	ret = comedi_timeout(dev, s, insn, dt282x_ai_timeout, DT2821_MUXBUSY);
-	if (ret) {
-		comedi_error(dev, "timeout\n");
+	if (ret)
 		return ret;
-	}
 
 	for (i = 0; i < insn->n; i++) {
 		outw(devpriv->supcsr | DT2821_STRIG,
@@ -565,10 +563,8 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 
 		ret = comedi_timeout(dev, s, insn, dt282x_ai_timeout,
 				     DT2821_ADDONE);
-		if (ret) {
-			comedi_error(dev, "timeout\n");
+		if (ret)
 			return ret;
-		}
 
 		data[i] =
 		    inw(dev->iobase +
@@ -704,10 +700,8 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	outw(devpriv->supcsr | DT2821_PRLD, dev->iobase + DT2821_SUPCSR);
 	ret = comedi_timeout(dev, s, NULL, dt282x_ai_timeout, DT2821_MUXBUSY);
-	if (ret) {
-		comedi_error(dev, "timeout\n");
+	if (ret)
 		return ret;
-	}
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		outw(devpriv->supcsr | DT2821_STRIG,

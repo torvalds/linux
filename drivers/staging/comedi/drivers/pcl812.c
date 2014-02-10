@@ -434,10 +434,8 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 		udelay(5);
 
 		ret = comedi_timeout(dev, s, insn, pcl812_ai_eoc, 0);
-		if (ret) {
-			dev_dbg(dev->class_dev, "A/D insn read timeout\n");
+		if (ret)
 			break;
-		}
 
 		hi = inb(dev->iobase + PCL812_AD_HI);
 		data[n] = ((hi & 0xf) << 8) | inb(dev->iobase + PCL812_AD_LO);
@@ -464,10 +462,8 @@ static int acl8216_ai_insn_read(struct comedi_device *dev,
 		udelay(5);
 
 		ret = comedi_timeout(dev, s, insn, pcl812_ai_eoc, 0);
-		if (ret) {
-			dev_dbg(dev->class_dev, "A/D insn read timeout\n");
+		if (ret)
 			break;
-		}
 
 		data[n] =
 		    (inb(dev->iobase +
