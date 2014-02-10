@@ -316,6 +316,7 @@ out:
 		goto free;
 	}
 
+	rfcomm_reparent_device(dev);
 	dev_set_drvdata(dev->tty_dev, dev);
 
 	if (device_create_file(dev->tty_dev, &dev_attr_address) < 0)
