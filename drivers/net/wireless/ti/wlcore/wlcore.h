@@ -438,6 +438,8 @@ struct wl1271 {
 	u32 num_rx_desc;
 	/* number of links the HW supports */
 	u8 num_links;
+	/* max stations a single AP can support */
+	u8 max_ap_stations;
 
 	/* translate HW Tx rates to standard rate-indices */
 	const u8 **band_rate_to_idx;

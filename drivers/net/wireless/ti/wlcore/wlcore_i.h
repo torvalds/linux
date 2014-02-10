@@ -123,8 +123,6 @@ struct wl1271_chip {
 
 #define NUM_TX_QUEUES              4
 
-#define AP_MAX_STATIONS            8
-
 struct wl_fw_status {
 	u32 intr;
 	u8  fw_rx_counter;

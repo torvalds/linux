@@ -42,6 +42,7 @@
 
 #define WL18XX_RX_BA_MAX_SESSIONS 5
 
+#define WL18XX_MAX_AP_STATIONS 8
 #define WL18XX_MAX_LINKS 12
 
 struct wl18xx_priv {
