@@ -407,6 +407,9 @@ struct wl1271 {
 	/* AP-mode - number of currently connected stations */
 	int active_sta_count;
 
+	/* Flag determining whether AP should broadcast OFDM-only rates */
+	bool ofdm_only_ap;
+
 	/* last wlvif we transmitted from */
 	struct wl12xx_vif *last_wlvif;
 

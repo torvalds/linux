@@ -1789,6 +1789,7 @@ static int wl12xx_setup(struct wl1271 *wl)
 	wl->fw_status_len = sizeof(struct wl12xx_fw_status);
 	wl->fw_status_priv_len = 0;
 	wl->stats.fw_stats_len = sizeof(struct wl12xx_acx_statistics);
+	wl->ofdm_only_ap = true;
 	wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ, &wl12xx_ht_cap);
 	wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ, &wl12xx_ht_cap);
 	wl12xx_conf_init(wl);
