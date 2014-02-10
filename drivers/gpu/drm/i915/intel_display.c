@@ -7690,10 +7690,15 @@ static struct drm_display_mode load_detect_mode = {
 		 704, 832, 0, 480, 489, 491, 520, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 };
 
-static struct drm_framebuffer *
-intel_framebuffer_create(struct drm_device *dev,
-			 struct drm_mode_fb_cmd2 *mode_cmd,
-			 struct drm_i915_gem_object *obj)
+static int intel_framebuffer_init(struct drm_device *dev,
+				  struct intel_framebuffer *ifb,
+				  struct drm_mode_fb_cmd2 *mode_cmd,
+				  struct drm_i915_gem_object *obj);
+
+struct drm_framebuffer *
+__intel_framebuffer_create(struct drm_device *dev,
+			   struct drm_mode_fb_cmd2 *mode_cmd,
+			   struct drm_i915_gem_object *obj)
 {
 	struct intel_framebuffer *intel_fb;
 	int ret;
@@ -7704,12 +7709,7 @@ intel_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		goto err;
-
 	ret = intel_framebuffer_init(dev, intel_fb, mode_cmd, obj);
-	mutex_unlock(&dev->struct_mutex);
 	if (ret)
 		goto err;
 
@@ -7719,6 +7719,23 @@ err:
 	kfree(intel_fb);
 
 	return ERR_PTR(ret);
+}
+
+struct drm_framebuffer *
+intel_framebuffer_create(struct drm_device *dev,
+			 struct drm_mode_fb_cmd2 *mode_cmd,
+			 struct drm_i915_gem_object *obj)
+{
+	struct drm_framebuffer *fb;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ERR_PTR(ret);
+	fb = __intel_framebuffer_create(dev, mode_cmd, obj);
+	mutex_unlock(&dev->struct_mutex);
+
+	return fb;
 }
 
 static u32

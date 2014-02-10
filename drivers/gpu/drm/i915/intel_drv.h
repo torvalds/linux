@@ -681,8 +681,8 @@ int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			       struct drm_i915_gem_object *obj,
 			       struct intel_ring_buffer *pipelined);
 void intel_unpin_fb_obj(struct drm_i915_gem_object *obj);
-int intel_framebuffer_init(struct drm_device *dev,
-			   struct intel_framebuffer *ifb,
+struct drm_framebuffer *
+__intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj);
 void intel_prepare_page_flip(struct drm_device *dev, int plane);

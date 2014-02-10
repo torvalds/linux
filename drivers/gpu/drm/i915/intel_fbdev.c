@@ -62,19 +62,11 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 {
 	struct intel_fbdev *ifbdev =
 		container_of(helper, struct intel_fbdev, helper);
-	struct intel_framebuffer *fb;
+	struct drm_framebuffer *fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
 	int size, ret;
-
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
-	if (!fb) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ifbdev->fb = fb;
 
 	/* we don't do packed 24bpp */
 	if (sizes->surface_bpp == 24)
@@ -102,13 +94,17 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	/* Flush everything out, we'll be doing GTT only from now on */
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret) {
-		DRM_ERROR("failed to pin fb: %d\n", ret);
+		DRM_ERROR("failed to pin obj: %d\n", ret);
 		goto out_unref;
 	}
 
-	ret = intel_framebuffer_init(dev, ifbdev->fb, &mode_cmd, obj);
-	if (ret)
+	fb = __intel_framebuffer_create(dev, &mode_cmd, obj);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
 		goto out_unpin;
+	}
+
+	ifbdev->fb = to_intel_framebuffer(fb);
 
 	return 0;
 
