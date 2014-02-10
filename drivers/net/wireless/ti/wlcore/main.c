@@ -2582,10 +2582,8 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		ieee80211_scan_completed(wl->hw, true);
 	}
 
-	if (wl->sched_vif == wlvif) {
-		ieee80211_sched_scan_stopped(wl->hw);
+	if (wl->sched_vif == wlvif)
 		wl->sched_vif = NULL;
-	}
 
 	if (wl->roc_vif == vif) {
 		wl->roc_vif = NULL;
