@@ -99,6 +99,14 @@ static struct ffs_function *ffs_func_from_usb(struct usb_function *f)
 }
 
 
+static inline enum ffs_setup_state
+ffs_setup_state_clear_cancelled(struct ffs_data *ffs)
+{
+	return (enum ffs_setup_state)
+		cmpxchg(&ffs->setup_state, FFS_SETUP_CANCELLED, FFS_NO_SETUP);
+}
+
+
 static void ffs_func_eps_disable(struct ffs_function *func);
 static int __must_check ffs_func_eps_enable(struct ffs_function *func);
 
@@ -246,7 +254,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 	ENTER();
 
 	/* Fast check if setup was canceled */
-	if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELLED)
+	if (ffs_setup_state_clear_cancelled(ffs) == FFS_SETUP_CANCELLED)
 		return -EIDRM;
 
 	/* Acquire mutex */
@@ -312,7 +320,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		 * rather then _irqsave
 		 */
 		spin_lock_irq(&ffs->ev.waitq.lock);
-		switch (FFS_SETUP_STATE(ffs)) {
+		switch (ffs_setup_state_clear_cancelled(ffs)) {
 		case FFS_SETUP_CANCELLED:
 			ret = -EIDRM;
 			goto done_spin;
@@ -357,7 +365,8 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		 * transition can be performed and it's protected by
 		 * mutex.
 		 */
-		if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELLED) {
+		if (ffs_setup_state_clear_cancelled(ffs) ==
+		    FFS_SETUP_CANCELLED) {
 			ret = -EIDRM;
 done_spin:
 			spin_unlock_irq(&ffs->ev.waitq.lock);
@@ -423,7 +432,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 	ENTER();
 
 	/* Fast check if setup was canceled */
-	if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELLED)
+	if (ffs_setup_state_clear_cancelled(ffs) == FFS_SETUP_CANCELLED)
 		return -EIDRM;
 
 	/* Acquire mutex */
@@ -443,7 +452,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 	 */
 	spin_lock_irq(&ffs->ev.waitq.lock);
 
-	switch (FFS_SETUP_STATE(ffs)) {
+	switch (ffs_setup_state_clear_cancelled(ffs)) {
 	case FFS_SETUP_CANCELLED:
 		ret = -EIDRM;
 		break;
@@ -491,7 +500,8 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 		spin_lock_irq(&ffs->ev.waitq.lock);
 
 		/* See ffs_ep0_write() */
-		if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELLED) {
+		if (ffs_setup_state_clear_cancelled(ffs) ==
+		    FFS_SETUP_CANCELLED) {
 			ret = -EIDRM;
 			break;
 		}
