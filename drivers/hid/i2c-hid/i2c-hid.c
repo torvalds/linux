@@ -623,36 +623,6 @@ static int i2c_hid_raw_request(struct hid_device *hid, unsigned char reportnum,
 	}
 }
 
-static void i2c_hid_request(struct hid_device *hid, struct hid_report *rep,
-		int reqtype)
-{
-	struct i2c_client *client = hid->driver_data;
-	char *buf;
-	int ret;
-	int len = i2c_hid_get_report_length(rep) - 2;
-
-	buf = kzalloc(len, GFP_KERNEL);
-	if (!buf)
-		return;
-
-	switch (reqtype) {
-	case HID_REQ_GET_REPORT:
-		ret = i2c_hid_get_raw_report(hid, rep->id, buf, len, rep->type);
-		if (ret < 0)
-			dev_err(&client->dev, "%s: unable to get report: %d\n",
-				__func__, ret);
-		else
-			hid_input_report(hid, rep->type, buf, ret, 0);
-		break;
-	case HID_REQ_SET_REPORT:
-		hid_output_report(rep, buf);
-		i2c_hid_output_raw_report(hid, buf, len, rep->type, true);
-		break;
-	}
-
-	kfree(buf);
-}
-
 static int i2c_hid_parse(struct hid_device *hid)
 {
 	struct i2c_client *client = hid->driver_data;
@@ -809,7 +779,6 @@ static struct hid_ll_driver i2c_hid_ll_driver = {
 	.open = i2c_hid_open,
 	.close = i2c_hid_close,
 	.power = i2c_hid_power,
-	.request = i2c_hid_request,
 	.output_report = i2c_hid_output_report,
 	.raw_request = i2c_hid_raw_request,
 };
