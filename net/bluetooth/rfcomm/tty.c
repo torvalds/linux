@@ -208,17 +208,16 @@ static ssize_t show_channel(struct device *tty_dev, struct device_attribute *att
 static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
 static DEVICE_ATTR(channel, S_IRUGO, show_channel, NULL);
 
-static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
+static struct rfcomm_dev *__rfcomm_dev_add(struct rfcomm_dev_req *req,
+					   struct rfcomm_dlc *dlc)
 {
 	struct rfcomm_dev *dev, *entry;
 	struct list_head *head = &rfcomm_dev_list;
 	int err = 0;
 
-	BT_DBG("id %d channel %d", req->dev_id, req->channel);
-
 	dev = kzalloc(sizeof(struct rfcomm_dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock(&rfcomm_dev_lock);
 
@@ -301,22 +300,37 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 	   holds reference to this module. */
 	__module_get(THIS_MODULE);
 
+	spin_unlock(&rfcomm_dev_lock);
+	return dev;
+
 out:
 	spin_unlock(&rfcomm_dev_lock);
+	kfree(dev);
+	return ERR_PTR(err);
+}
 
-	if (err < 0)
-		goto free;
+static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
+{
+	struct rfcomm_dev *dev;
+	struct device *tty;
 
-	dev->tty_dev = tty_port_register_device(&dev->port, rfcomm_tty_driver,
+	BT_DBG("id %d channel %d", req->dev_id, req->channel);
+
+	dev = __rfcomm_dev_add(req, dlc);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+
+	tty = tty_port_register_device(&dev->port, rfcomm_tty_driver,
 			dev->id, NULL);
-	if (IS_ERR(dev->tty_dev)) {
-		err = PTR_ERR(dev->tty_dev);
+	if (IS_ERR(tty)) {
 		spin_lock(&rfcomm_dev_lock);
 		list_del(&dev->list);
 		spin_unlock(&rfcomm_dev_lock);
-		goto free;
+		kfree(dev);
+		return PTR_ERR(tty);
 	}
 
+	dev->tty_dev = tty;
 	rfcomm_reparent_device(dev);
 	dev_set_drvdata(dev->tty_dev, dev);
 
@@ -327,10 +341,6 @@ out:
 		BT_ERR("Failed to create channel attribute");
 
 	return dev->id;
-
-free:
-	kfree(dev);
-	return err;
 }
 
 /* ---- Send buffer ---- */
