@@ -376,6 +376,20 @@ static inline unsigned int cal_enable_bits(struct comedi_device *dev)
 	return CAL_EN_BIT | CAL_SRC_BITS(devpriv->calibration_source);
 }
 
+static int cb_pcidas_ai_eoc(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn,
+			    unsigned long context)
+{
+	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = inw(devpriv->control_status + ADCMUX_CONT);
+	if (status & EOC)
+		return 0;
+	return -EBUSY;
+}
+
 static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
@@ -385,7 +399,8 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
 	unsigned int bits;
-	int n, i;
+	int ret;
+	int n;
 
 	/* enable calibration input if appropriate */
 	if (insn->chanspec & CR_ALT_SOURCE) {
@@ -415,13 +430,9 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 		outw(0, devpriv->adc_fifo + ADCDATA);
 
 		/* wait for conversion to end */
-		/* return -ETIMEDOUT if there is a timeout */
-		for (i = 0; i < 10000; i++) {
-			if (inw(devpriv->control_status + ADCMUX_CONT) & EOC)
-				break;
-		}
-		if (i == 10000)
-			return -ETIMEDOUT;
+		ret = comedi_timeout(dev, s, insn, cb_pcidas_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* read data */
 		data[n] = inw(devpriv->adc_fifo + ADCDATA);
