@@ -63,7 +63,6 @@ Notes:
 
 #include "comedi_fc.h"
 
-#define DT2821_TIMEOUT		100	/* 500 us */
 #define DT2821_SIZE 0x10
 
 /*
@@ -248,27 +247,6 @@ struct dt282x_private {
  *    Some useless abstractions
  */
 #define chan_to_DAC(a)	((a)&1)
-#define mux_busy() (inw(dev->iobase+DT2821_ADCSR)&DT2821_MUXBUSY)
-#define ad_done() (inw(dev->iobase+DT2821_ADCSR)&DT2821_ADDONE)
-
-/*
- *    danger! macro abuse... a is the expression to wait on, and b is
- *      the statement(s) to execute if it doesn't happen.
- */
-#define wait_for(a, b)						\
-	do {							\
-		int _i;						\
-		for (_i = 0; _i < DT2821_TIMEOUT; _i++) {	\
-			if (a) {				\
-				_i = 0;				\
-				break;				\
-			}					\
-			udelay(5);				\
-		}						\
-		if (_i) {					\
-			b					\
-		}						\
-	} while (0)
 
 static int prep_ai_dma(struct comedi_device *dev, int chan, int size);
 static int prep_ao_dma(struct comedi_device *dev, int chan, int size);
@@ -530,6 +508,29 @@ static void dt282x_load_changain(struct comedi_device *dev, int n,
 	outw(n - 1, dev->iobase + DT2821_CHANCSR);
 }
 
+static int dt282x_ai_timeout(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + DT2821_ADCSR);
+	switch (context) {
+	case DT2821_MUXBUSY:
+		if ((status & DT2821_MUXBUSY) == 0)
+			return 0;
+		break;
+	case DT2821_ADDONE:
+		if (status & DT2821_ADDONE)
+			return 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return -EBUSY;
+}
+
 /*
  *    Performs a single A/D conversion.
  *      - Put channel/gain into channel-gain list
@@ -542,6 +543,7 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 {
 	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv = dev->private;
+	int ret;
 	int i;
 
 	/* XXX should we really be enabling the ad clock here? */
@@ -551,13 +553,22 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 	dt282x_load_changain(dev, 1, &insn->chanspec);
 
 	outw(devpriv->supcsr | DT2821_PRLD, dev->iobase + DT2821_SUPCSR);
-	wait_for(!mux_busy(), comedi_error(dev, "timeout\n"); return -ETIME;);
+	ret = comedi_timeout(dev, s, insn, dt282x_ai_timeout, DT2821_MUXBUSY);
+	if (ret) {
+		comedi_error(dev, "timeout\n");
+		return ret;
+	}
 
 	for (i = 0; i < insn->n; i++) {
 		outw(devpriv->supcsr | DT2821_STRIG,
 			dev->iobase + DT2821_SUPCSR);
-		wait_for(ad_done(), comedi_error(dev, "timeout\n");
-			 return -ETIME;);
+
+		ret = comedi_timeout(dev, s, insn, dt282x_ai_timeout,
+				     DT2821_ADDONE);
+		if (ret) {
+			comedi_error(dev, "timeout\n");
+			return ret;
+		}
 
 		data[i] =
 		    inw(dev->iobase +
@@ -646,6 +657,7 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct dt282x_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int timer;
+	int ret;
 
 	if (devpriv->usedma == 0) {
 		comedi_error(dev,
@@ -691,7 +703,11 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outw(devpriv->adcsr, dev->iobase + DT2821_ADCSR);
 
 	outw(devpriv->supcsr | DT2821_PRLD, dev->iobase + DT2821_SUPCSR);
-	wait_for(!mux_busy(), comedi_error(dev, "timeout\n"); return -ETIME;);
+	ret = comedi_timeout(dev, s, NULL, dt282x_ai_timeout, DT2821_MUXBUSY);
+	if (ret) {
+		comedi_error(dev, "timeout\n");
+		return ret;
+	}
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		outw(devpriv->supcsr | DT2821_STRIG,
