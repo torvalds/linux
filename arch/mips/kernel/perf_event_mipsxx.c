@@ -814,7 +814,7 @@ static const struct mips_perf_event mipsxxcore_event_map
 	[PERF_COUNT_HW_BRANCH_MISSES] = { 0x02, CNTR_ODD, T },
 };
 
-/* 74K core has different branch event code. */
+/* 74K/proAptiv core has different branch event code. */
 static const struct mips_perf_event mipsxxcore_event_map2
 				[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = { 0x00, CNTR_EVEN | CNTR_ODD, P },
@@ -930,7 +930,7 @@ static const struct mips_perf_event mipsxxcore_cache_map
 },
 };
 
-/* 74K core has completely different cache event map. */
+/* 74K/proAptiv core has completely different cache event map. */
 static const struct mips_perf_event mipsxxcore_cache_map2
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
@@ -978,6 +978,11 @@ static const struct mips_perf_event mipsxxcore_cache_map2
 		[C(RESULT_MISS)]	= { 0x1d, CNTR_EVEN, P },
 	},
 },
+/*
+ * 74K core does not have specific DTLB events. proAptiv core has
+ * "speculative" DTLB events which are numbered 0x63 (even/odd) and
+ * not included here. One can use raw events if really needed.
+ */
 [C(ITLB)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)]	= { 0x04, CNTR_EVEN, T },
@@ -1378,6 +1383,10 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 #define IS_BOTH_COUNTERS_74K_EVENT(b)					\
 	((b) == 0 || (b) == 1)
 
+/* proAptiv */
+#define IS_BOTH_COUNTERS_PROAPTIV_EVENT(b)				\
+	((b) == 0 || (b) == 1)
+
 /* 1004K */
 #define IS_BOTH_COUNTERS_1004K_EVENT(b)					\
 	((b) == 0 || (b) == 1 || (b) == 11)
@@ -1444,6 +1453,16 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 	case CPU_74K:
 	case CPU_1074K:
 		if (IS_BOTH_COUNTERS_74K_EVENT(base_id))
+			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
+		else
+			raw_event.cntr_mask =
+				raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
+#ifdef CONFIG_MIPS_MT_SMP
+		raw_event.range = P;
+#endif
+		break;
+	case CPU_PROAPTIV:
+		if (IS_BOTH_COUNTERS_PROAPTIV_EVENT(base_id))
 			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
 		else
 			raw_event.cntr_mask =
@@ -1577,6 +1596,11 @@ init_hw_perf_events(void)
 		break;
 	case CPU_74K:
 		mipspmu.name = "mips/74K";
+		mipspmu.general_event_map = &mipsxxcore_event_map2;
+		mipspmu.cache_event_map = &mipsxxcore_cache_map2;
+		break;
+	case CPU_PROAPTIV:
+		mipspmu.name = "mips/proAptiv";
 		mipspmu.general_event_map = &mipsxxcore_event_map2;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map2;
 		break;
