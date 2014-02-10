@@ -73,7 +73,6 @@
 #include "ni_labpc_isadma.h"
 
 #define LABPC_SIZE		0x20	/* size of ISA io region */
-#define LABPC_ADC_TIMEOUT	1000
 
 enum scan_mode {
 	MODE_SINGLE_CHAN,
@@ -308,19 +307,17 @@ static void labpc_clear_adc_fifo(struct comedi_device *dev)
 	labpc_read_adc_fifo(dev);
 }
 
-static int labpc_ai_wait_for_data(struct comedi_device *dev,
-				  int timeout)
+static int labpc_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
 {
 	struct labpc_private *devpriv = dev->private;
-	int i;
 
-	for (i = 0; i < timeout; i++) {
-		devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
-		if (devpriv->stat1 & STAT1_DAVAIL)
-			return 0;
-		udelay(1);
-	}
-	return -ETIME;
+	devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
+	if (devpriv->stat1 & STAT1_DAVAIL)
+		return 0;
+	return -EBUSY;
 }
 
 static int labpc_ai_insn_read(struct comedi_device *dev,
@@ -363,7 +360,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 		/* trigger conversion */
 		devpriv->write_byte(0x1, dev->iobase + ADC_START_CONVERT_REG);
 
-		ret = labpc_ai_wait_for_data(dev, LABPC_ADC_TIMEOUT);
+		ret = comedi_timeout(dev, s, insn, labpc_ai_eoc, 0);
 		if (ret)
 			return ret;
 
