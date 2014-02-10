@@ -353,6 +353,14 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 
 /* drivers.c - general comedi driver functions */
 
+#define COMEDI_TIMEOUT_MS	1000
+
+int comedi_timeout(struct comedi_device *, struct comedi_subdevice *,
+		   struct comedi_insn *,
+		   int (*cb)(struct comedi_device *, struct comedi_subdevice *,
+			     struct comedi_insn *, unsigned long context),
+		   unsigned long context);
+
 int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
 			   struct comedi_insn *, unsigned int *data,
 			   unsigned int mask);
