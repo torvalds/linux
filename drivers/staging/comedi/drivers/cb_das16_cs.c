@@ -101,6 +101,19 @@ static irqreturn_t das16cs_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+static int das16cs_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + DAS16CS_MISC1);
+	if (status & 0x0080)
+		return 0;
+	return -EBUSY;
+}
+
 static int das16cs_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -109,8 +122,8 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	int range = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
+	int ret;
 	int i;
-	int to;
 
 	outw(chan, dev->iobase + DAS16CS_DIO_MUX);
 
@@ -138,15 +151,12 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		outw(0, dev->iobase + DAS16CS_ADC_DATA);
 
-#define TIMEOUT 1000
-		for (to = 0; to < TIMEOUT; to++) {
-			if (inw(dev->iobase + DAS16CS_MISC1) & 0x0080)
-				break;
-		}
-		if (to == TIMEOUT) {
+		ret = comedi_timeout(dev, s, insn, das16cs_ai_eoc, 0);
+		if (ret) {
 			dev_dbg(dev->class_dev, "cb_das16_cs: ai timeout\n");
-			return -ETIME;
+			return ret;
 		}
+
 		data[i] = inw(dev->iobase + DAS16CS_ADC_DATA);
 	}
 
