@@ -569,6 +569,20 @@ int rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb)
 	return len;
 }
 
+void rfcomm_dlc_send_noerror(struct rfcomm_dlc *d, struct sk_buff *skb)
+{
+	int len = skb->len;
+
+	BT_DBG("dlc %p mtu %d len %d", d, d->mtu, len);
+
+	rfcomm_make_uih(skb, d->addr);
+	skb_queue_tail(&d->tx_queue, skb);
+
+	if (d->state == BT_CONNECTED &&
+	    !test_bit(RFCOMM_TX_THROTTLED, &d->flags))
+		rfcomm_schedule();
+}
+
 void __rfcomm_dlc_throttle(struct rfcomm_dlc *d)
 {
 	BT_DBG("dlc %p state %ld", d, d->state);

@@ -374,14 +374,10 @@ static void rfcomm_set_owner_w(struct sk_buff *skb, struct rfcomm_dev *dev)
 
 static struct sk_buff *rfcomm_wmalloc(struct rfcomm_dev *dev, unsigned long size, gfp_t priority)
 {
-	if (atomic_read(&dev->wmem_alloc) < rfcomm_room(dev->dlc)) {
-		struct sk_buff *skb = alloc_skb(size, priority);
-		if (skb) {
-			rfcomm_set_owner_w(skb, dev);
-			return skb;
-		}
-	}
-	return NULL;
+	struct sk_buff *skb = alloc_skb(size, priority);
+	if (skb)
+		rfcomm_set_owner_w(skb, dev);
+	return skb;
 }
 
 /* ---- Device IOCTLs ---- */
@@ -786,7 +782,7 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 	struct rfcomm_dlc *dlc = dev->dlc;
 	struct sk_buff *skb;
-	int err = 0, sent = 0, size;
+	int sent = 0, size;
 
 	BT_DBG("tty %p count %d", tty, count);
 
@@ -794,7 +790,6 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 		size = min_t(uint, count, dlc->mtu);
 
 		skb = rfcomm_wmalloc(dev, size + RFCOMM_SKB_RESERVE, GFP_ATOMIC);
-
 		if (!skb)
 			break;
 
@@ -802,17 +797,13 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 
 		memcpy(skb_put(skb, size), buf + sent, size);
 
-		err = rfcomm_dlc_send(dlc, skb);
-		if (err < 0) {
-			kfree_skb(skb);
-			break;
-		}
+		rfcomm_dlc_send_noerror(dlc, skb);
 
 		sent  += size;
 		count -= size;
 	}
 
-	return sent ? sent : err;
+	return sent;
 }
 
 static int rfcomm_tty_write_room(struct tty_struct *tty)
