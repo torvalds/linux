@@ -167,20 +167,29 @@ static struct rfcomm_dev *rfcomm_dev_get(int id)
 	return dev;
 }
 
-static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
+static void rfcomm_reparent_device(struct rfcomm_dev *dev)
 {
 	struct hci_dev *hdev;
 	struct hci_conn *conn;
 
 	hdev = hci_get_route(&dev->dst, &dev->src);
 	if (!hdev)
-		return NULL;
+		return;
 
+	/* The lookup results are unsafe to access without the
+	 * hci device lock (FIXME: why is this not documented?)
+	 */
+	hci_dev_lock(hdev);
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
 
-	hci_dev_put(hdev);
+	/* Just because the acl link is in the hash table is no
+	 * guarantee the sysfs device has been added ...
+	 */
+	if (conn && device_is_registered(&conn->dev))
+		device_move(dev->tty_dev, &conn->dev, DPM_ORDER_DEV_AFTER_PARENT);
 
-	return conn ? &conn->dev : NULL;
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
 }
 
 static ssize_t show_address(struct device *tty_dev, struct device_attribute *attr, char *buf)
@@ -589,8 +598,7 @@ static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 
 	dev->err = err;
 	if (dlc->state == BT_CONNECTED) {
-		device_move(dev->tty_dev, rfcomm_get_device(dev),
-			    DPM_ORDER_DEV_AFTER_PARENT);
+		rfcomm_reparent_device(dev);
 
 		wake_up_interruptible(&dev->port.open_wait);
 	} else if (dlc->state == BT_CLOSED)
