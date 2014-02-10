@@ -123,7 +123,7 @@ enum ffs_setup_state {
 	 * setup.  If this state is set read/write on ep0 return
 	 * -EIDRM.  This state is only set when adding event.
 	 */
-	FFS_SETUP_CANCELED
+	FFS_SETUP_CANCELLED
 };
 
 struct ffs_data {
@@ -166,18 +166,18 @@ struct ffs_data {
 
 	/*
 	 * Possible transitions:
-	 * + FFS_NO_SETUP       -> FFS_SETUP_PENDING  -- P: ev.waitq.lock
+	 * + FFS_NO_SETUP        -> FFS_SETUP_PENDING  -- P: ev.waitq.lock
 	 *               happens only in ep0 read which is P: mutex
-	 * + FFS_SETUP_PENDING  -> FFS_NO_SETUP       -- P: ev.waitq.lock
+	 * + FFS_SETUP_PENDING   -> FFS_NO_SETUP       -- P: ev.waitq.lock
 	 *               happens only in ep0 i/o  which is P: mutex
-	 * + FFS_SETUP_PENDING  -> FFS_SETUP_CANCELED -- P: ev.waitq.lock
-	 * + FFS_SETUP_CANCELED -> FFS_NO_SETUP       -- cmpxchg
+	 * + FFS_SETUP_PENDING   -> FFS_SETUP_CANCELLED -- P: ev.waitq.lock
+	 * + FFS_SETUP_CANCELLED -> FFS_NO_SETUP        -- cmpxchg
 	 */
 	enum ffs_setup_state		setup_state;
 
 #define FFS_SETUP_STATE(ffs)					\
 	((enum ffs_setup_state)cmpxchg(&(ffs)->setup_state,	\
-				       FFS_SETUP_CANCELED, FFS_NO_SETUP))
+				       FFS_SETUP_CANCELLED, FFS_NO_SETUP))
 
 	/* Events & such. */
 	struct {
