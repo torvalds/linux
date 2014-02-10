@@ -514,27 +514,25 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	 */
 	devpriv->ignore = PACKETS_TO_IGNORE;
 
-	if (cmd->chanlist_len > 0) {
-		gain = CR_RANGE(cmd->chanlist[0]);
-		for (i = 0; i < cmd->chanlist_len; ++i) {
-			chan = CR_CHAN(cmd->chanlist[i]);
-			if (chan != i) {
-				dev_err(dev->class_dev,
-					"channels are not consecutive\n");
-				up(&devpriv->sem);
-				return -EINVAL;
-			}
-			if ((gain != CR_RANGE(cmd->chanlist[i]))
-			    && (cmd->chanlist_len > 3)) {
-				dev_err(dev->class_dev,
-					"gain must be the same for all channels\n");
-				up(&devpriv->sem);
-				return -EINVAL;
-			}
-			if (i >= NUMCHANNELS) {
-				dev_err(dev->class_dev, "chanlist too long\n");
-				break;
-			}
+	gain = CR_RANGE(cmd->chanlist[0]);
+	for (i = 0; i < cmd->chanlist_len; ++i) {
+		chan = CR_CHAN(cmd->chanlist[i]);
+		if (chan != i) {
+			dev_err(dev->class_dev,
+				"channels are not consecutive\n");
+			up(&devpriv->sem);
+			return -EINVAL;
+		}
+		if ((gain != CR_RANGE(cmd->chanlist[i]))
+			&& (cmd->chanlist_len > 3)) {
+			dev_err(dev->class_dev,
+				"gain must be the same for all channels\n");
+			up(&devpriv->sem);
+			return -EINVAL;
+		}
+		if (i >= NUMCHANNELS) {
+			dev_err(dev->class_dev, "chanlist too long\n");
+			break;
 		}
 	}
 	steps = 0;
