@@ -74,8 +74,10 @@ struct hdmi_resources {
 	struct clk			*sclk_pixel;
 	struct clk			*sclk_hdmiphy;
 	struct clk			*mout_hdmi;
+#if 0
 	struct regulator_bulk_data	*regul_bulk;
 	int				regul_count;
+#endif
 };
 
 struct hdmi_tg_regs {
@@ -1425,8 +1427,10 @@ static void hdmi_poweron(struct hdmi_context *hdata)
 
 	mutex_unlock(&hdata->hdmi_mutex);
 
+#if 0
 	if (regulator_bulk_enable(res->regul_count, res->regul_bulk))
 		DRM_DEBUG_KMS("failed to enable regulator bulk\n");
+#endif
 
 	clk_prepare_enable(res->hdmi);
 	clk_prepare_enable(res->sclk_hdmi);
@@ -1452,7 +1456,9 @@ static void hdmi_poweroff(struct hdmi_context *hdata)
 
 	clk_disable_unprepare(res->sclk_hdmi);
 	clk_disable_unprepare(res->hdmi);
+#if 0
 	regulator_bulk_disable(res->regul_count, res->regul_bulk);
+#endif
 
 	mutex_lock(&hdata->hdmi_mutex);
 
@@ -1517,12 +1523,14 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 {
 	struct device *dev = hdata->dev;
 	struct hdmi_resources *res = &hdata->res;
+#if 0
 	static char *supply[] = {
 		"hdmi-en",
 		"vdd",
 		"vdd_osc",
 		"vdd_pll",
 	};
+#endif
 	int i, ret;
 
 	DRM_DEBUG_KMS("HDMI resource init\n");
@@ -1558,6 +1566,7 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	clk_set_parent(res->mout_hdmi, res->sclk_pixel);
 
+#if 0
 	res->regul_bulk = devm_kzalloc(dev, ARRAY_SIZE(supply) *
 		sizeof(res->regul_bulk[0]), GFP_KERNEL);
 	if (!res->regul_bulk)
@@ -1572,6 +1581,7 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 		goto fail;
 	}
 	res->regul_count = ARRAY_SIZE(supply);
+#endif
 
 	return 0;
 fail:
