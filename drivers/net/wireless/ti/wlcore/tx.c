@@ -134,12 +134,12 @@ static void wl1271_tx_regulate_link(struct wl1271 *wl,
 	 * into high-level PS and clean out its TX queues.
 	 * Make an exception if this is the only connected link. In this
 	 * case FW-memory congestion is less of a problem.
-	 * Note that a single connected STA means 3 active links, since we must
-	 * account for the global and broadcast AP links. The "fw_ps" check
-	 * assures us the third link is a STA connected to the AP. Otherwise
-	 * the FW would not set the PSM bit.
+	 * Note that a single connected STA means 2*ap_count + 1 active links,
+	 * since we must account for the global and broadcast AP links
+	 * for each AP. The "fw_ps" check assures us the other link is a STA
+	 * connected to the AP. Otherwise the FW would not set the PSM bit.
 	 */
-	if (wl->active_link_count > 3 && fw_ps &&
+	if (wl->active_link_count > (wl->ap_count*2 + 1) && fw_ps &&
 	    tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
 		wl12xx_ps_link_start(wl, wlvif, hlid, true);
 }
