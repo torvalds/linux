@@ -53,7 +53,7 @@ struct sync_timeline_ops {
 	const char *driver_name;
 
 	/* required */
-	struct sync_pt *(*dup)(struct sync_pt *pt);
+	struct sync_pt * (*dup)(struct sync_pt *pt);
 
 	/* required */
 	int (*has_signaled)(struct sync_pt *pt);
