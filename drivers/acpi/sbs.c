@@ -450,7 +450,7 @@ static ssize_t acpi_battery_alarm_store(struct device *dev,
 {
 	unsigned long x;
 	struct acpi_battery *battery = to_acpi_battery(dev_get_drvdata(dev));
-	if (sscanf(buf, "%ld\n", &x) == 1)
+	if (sscanf(buf, "%lu\n", &x) == 1)
 		battery->alarm_capacity = x /
 			(1000 * acpi_battery_scale(battery));
 	if (battery->present)
