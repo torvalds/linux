@@ -844,11 +844,7 @@ static inline void alc_shutup(struct hda_codec *codec)
 		snd_hda_shutup_pins(codec);
 }
 
-static void alc_free(struct hda_codec *codec)
-{
-	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_FREE);
-	snd_hda_gen_free(codec);
-}
+#define alc_free	snd_hda_gen_free
 
 #ifdef CONFIG_PM
 static void alc_power_eapd(struct hda_codec *codec)

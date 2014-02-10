@@ -2798,11 +2798,7 @@ static int cx_auto_init(struct hda_codec *codec)
 	return 0;
 }
 
-static void cx_auto_free(struct hda_codec *codec)
-{
-	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_FREE);
-	snd_hda_gen_free(codec);
-}
+#define cx_auto_free	snd_hda_gen_free
 
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
