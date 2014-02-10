@@ -1941,6 +1941,13 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 		struct i2c_client *client;
 
 		/* Detection succeeded, instantiate the device */
+		if (adapter->class & I2C_CLASS_DEPRECATED)
+			dev_warn(&adapter->dev,
+				"This adapter will soon drop class based instantiation of devices. "
+				"Please make sure client 0x%02x gets instantiated by other means. "
+				"Check 'Documentation/i2c/instantiating-devices' for details.\n",
+				info.addr);
+
 		dev_dbg(&adapter->dev, "Creating %s at 0x%02x\n",
 			info.type, info.addr);
 		client = i2c_new_device(adapter, &info);
