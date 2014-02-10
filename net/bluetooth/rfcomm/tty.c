@@ -58,7 +58,6 @@ struct rfcomm_dev {
 	uint			modem_status;
 
 	struct rfcomm_dlc	*dlc;
-	wait_queue_head_t       conn_wait;
 
 	struct device		*tty_dev;
 
@@ -124,40 +123,8 @@ static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
 static int rfcomm_dev_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	struct rfcomm_dev *dev = container_of(port, struct rfcomm_dev, port);
-	DEFINE_WAIT(wait);
-	int err;
 
-	err = rfcomm_dlc_open(dev->dlc, &dev->src, &dev->dst, dev->channel);
-	if (err)
-		return err;
-
-	while (1) {
-		prepare_to_wait(&dev->conn_wait, &wait, TASK_INTERRUPTIBLE);
-
-		if (dev->dlc->state == BT_CLOSED) {
-			err = -dev->err;
-			break;
-		}
-
-		if (dev->dlc->state == BT_CONNECTED)
-			break;
-
-		if (signal_pending(current)) {
-			err = -ERESTARTSYS;
-			break;
-		}
-
-		tty_unlock(tty);
-		schedule();
-		tty_lock(tty);
-	}
-	finish_wait(&dev->conn_wait, &wait);
-
-	if (!err)
-		device_move(dev->tty_dev, rfcomm_get_device(dev),
-			    DPM_ORDER_DEV_AFTER_PARENT);
-
-	return err;
+	return rfcomm_dlc_open(dev->dlc, &dev->src, &dev->dst, dev->channel);
 }
 
 /* we block the open until the dlc->state becomes BT_CONNECTED */
@@ -184,6 +151,7 @@ static const struct tty_port_operations rfcomm_port_ops = {
 	.destruct = rfcomm_dev_destruct,
 	.activate = rfcomm_dev_activate,
 	.shutdown = rfcomm_dev_shutdown,
+	.carrier_raised = rfcomm_dev_carrier_raised,
 };
 
 static struct rfcomm_dev *__rfcomm_dev_get(int id)
@@ -290,7 +258,6 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 
 	tty_port_init(&dev->port);
 	dev->port.ops = &rfcomm_port_ops;
-	init_waitqueue_head(&dev->conn_wait);
 
 	skb_queue_head_init(&dev->pending);
 
@@ -609,9 +576,12 @@ static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 	BT_DBG("dlc %p dev %p err %d", dlc, dev, err);
 
 	dev->err = err;
-	wake_up_interruptible(&dev->conn_wait);
+	if (dlc->state == BT_CONNECTED) {
+		device_move(dev->tty_dev, rfcomm_get_device(dev),
+			    DPM_ORDER_DEV_AFTER_PARENT);
 
-	if (dlc->state == BT_CLOSED)
+		wake_up_interruptible(&dev->port.open_wait);
+	} else if (dlc->state == BT_CLOSED)
 		tty_port_tty_hangup(&dev->port, false);
 }
 
@@ -1133,7 +1103,7 @@ int __init rfcomm_init_ttys(void)
 	rfcomm_tty_driver->subtype	= SERIAL_TYPE_NORMAL;
 	rfcomm_tty_driver->flags	= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	rfcomm_tty_driver->init_termios	= tty_std_termios;
-	rfcomm_tty_driver->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	rfcomm_tty_driver->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL;
 	rfcomm_tty_driver->init_termios.c_lflag &= ~ICANON;
 	tty_set_operations(rfcomm_tty_driver, &rfcomm_ops);
 
