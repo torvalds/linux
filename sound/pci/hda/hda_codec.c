@@ -1339,23 +1339,15 @@ get_hda_cvt_setup(struct hda_codec *codec, hda_nid_t nid)
 /*
  * Dynamic symbol binding for the codec parsers
  */
-#ifdef MODULE
-#define load_parser_sym(sym)		((int (*)(struct hda_codec *))symbol_request(sym))
-#define unload_parser_addr(addr)	symbol_put_addr(addr)
-#else
-#define load_parser_sym(sym)		(sym)
-#define unload_parser_addr(addr)	do {} while (0)
-#endif
 
 #define load_parser(codec, sym) \
-	((codec)->parser = load_parser_sym(sym))
+	((codec)->parser = (int (*)(struct hda_codec *))symbol_request(sym))
 
 static void unload_parser(struct hda_codec *codec)
 {
-	if (codec->parser) {
-		unload_parser_addr(codec->parser);
-		codec->parser = NULL;
-	}
+	if (codec->parser)
+		symbol_put_addr(codec->parser);
+	codec->parser = NULL;
 }
 
 /*
@@ -1620,12 +1612,20 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 		patch = codec->preset->patch;
 	if (!patch) {
 		unload_parser(codec); /* to be sure */
-		if (is_likely_hdmi_codec(codec))
+		if (is_likely_hdmi_codec(codec)) {
+#if IS_MODULE(CONFIG_SND_HDA_CODEC_HDMI)
 			patch = load_parser(codec, snd_hda_parse_hdmi_codec);
-#if IS_ENABLED(CONFIG_SND_HDA_GENERIC)
-		if (!patch)
-			patch = load_parser(codec, snd_hda_parse_generic_codec);
+#elif IS_BUILTIN(CONFIG_SND_HDA_CODEC_HDMI)
+			patch = snd_hda_parse_hdmi_codec;
 #endif
+		}
+		if (!patch) {
+#if IS_MODULE(CONFIG_SND_HDA_GENERIC)
+			patch = load_parser(codec, snd_hda_parse_generic_codec);
+#elif IS_BUILTIN(CONFIG_SND_HDA_GENERIC)
+			patch = snd_hda_parse_generic_codec;
+#endif
+		}
 		if (!patch) {
 			printk(KERN_ERR "hda-codec: No codec parser is available\n");
 			return -ENODEV;
