@@ -111,8 +111,12 @@ static void rfcomm_dev_destruct(struct tty_port *port)
 static int rfcomm_dev_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	struct rfcomm_dev *dev = container_of(port, struct rfcomm_dev, port);
+	int err;
 
-	return rfcomm_dlc_open(dev->dlc, &dev->src, &dev->dst, dev->channel);
+	err = rfcomm_dlc_open(dev->dlc, &dev->src, &dev->dst, dev->channel);
+	if (err)
+		set_bit(TTY_IO_ERROR, &tty->flags);
+	return err;
 }
 
 /* we block the open until the dlc->state becomes BT_CONNECTED */
