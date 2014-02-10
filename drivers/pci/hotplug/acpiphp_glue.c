@@ -1007,9 +1007,15 @@ int acpiphp_disable_slot(struct acpiphp_slot *slot)
 {
 	int ret;
 
+	/*
+	 * Acquire acpi_scan_lock to ensure that the execution of _EJ0 in
+	 * acpiphp_disable_and_eject_slot() will be synchronized properly.
+	 */
+	acpi_scan_lock_acquire();
 	pci_lock_rescan_remove();
 	ret = acpiphp_disable_and_eject_slot(slot);
 	pci_unlock_rescan_remove();
+	acpi_scan_lock_release();
 	return ret;
 }
 
