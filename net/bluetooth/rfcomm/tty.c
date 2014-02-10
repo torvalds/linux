@@ -40,6 +40,7 @@
 #define RFCOMM_TTY_MAJOR 216		/* device node major id of the usb/bluetooth.c driver */
 #define RFCOMM_TTY_MINOR 0
 
+static DEFINE_MUTEX(rfcomm_ioctl_mutex);
 static struct tty_driver *rfcomm_tty_driver;
 
 struct rfcomm_dev {
@@ -373,7 +374,7 @@ static struct sk_buff *rfcomm_wmalloc(struct rfcomm_dev *dev, unsigned long size
 
 #define NOCAP_FLAGS ((1 << RFCOMM_REUSE_DLC) | (1 << RFCOMM_RELEASE_ONHUP))
 
-static int rfcomm_create_dev(struct sock *sk, void __user *arg)
+static int __rfcomm_create_dev(struct sock *sk, void __user *arg)
 {
 	struct rfcomm_dev_req req;
 	struct rfcomm_dlc *dlc;
@@ -423,7 +424,7 @@ static int rfcomm_create_dev(struct sock *sk, void __user *arg)
 	return id;
 }
 
-static int rfcomm_release_dev(void __user *arg)
+static int __rfcomm_release_dev(void __user *arg)
 {
 	struct rfcomm_dev_req req;
 	struct rfcomm_dev *dev;
@@ -464,6 +465,28 @@ static int rfcomm_release_dev(void __user *arg)
 
 	tty_port_put(&dev->port);
 	return 0;
+}
+
+static int rfcomm_create_dev(struct sock *sk, void __user *arg)
+{
+	int ret;
+
+	mutex_lock(&rfcomm_ioctl_mutex);
+	ret = __rfcomm_create_dev(sk, arg);
+	mutex_unlock(&rfcomm_ioctl_mutex);
+
+	return ret;
+}
+
+static int rfcomm_release_dev(void __user *arg)
+{
+	int ret;
+
+	mutex_lock(&rfcomm_ioctl_mutex);
+	ret = __rfcomm_release_dev(arg);
+	mutex_unlock(&rfcomm_ioctl_mutex);
+
+	return ret;
 }
 
 static int rfcomm_get_dev_list(void __user *arg)
