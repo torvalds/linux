@@ -19,6 +19,7 @@
 
 #include <asm/proc-fns.h>
 
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
@@ -44,6 +45,34 @@ static struct map_desc hi3620_io_desc[] __initdata = {
 		.type		= MT_DEVICE,
 	},
 };
+
+static struct of_device_id hi3xxx_l2cache_match[] __initdata = {
+	{ .compatible = "arm,pl310-cache", },
+	{}
+};
+
+static int hi3xxx_l2_init(void)
+{
+	struct device_node *node = NULL;
+	u32 data[2];
+	int ret;
+
+	node = of_find_matching_node(NULL, hi3xxx_l2cache_match);
+	WARN_ON(!node);
+	if (!node) {
+		pr_err("Failed to find PL310 L2 cache\n");
+		return -ENOENT;
+	}
+	ret = of_property_read_u32_array(node, "hisilicon,l2cache-aux",
+					 &data[0], 2);
+	if (ret < 0) {
+		data[0] = 0;
+		data[1] = ~0UL;
+	}
+	l2x0_of_init(data[0], data[1]);
+	return 0;
+}
+early_initcall(hi3xxx_l2_init);
 
 static void __init hi3620_map_io(void)
 {
