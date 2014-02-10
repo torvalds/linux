@@ -402,10 +402,13 @@ int iwl_mvm_rx_scan_complete(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scan_complete_notif *notif = (void *)pkt->data;
 
+	lockdep_assert_held(&mvm->mutex);
+
 	IWL_DEBUG_SCAN(mvm, "Scan complete: status=0x%x scanned channels=%d\n",
 		       notif->status, notif->scanned_channels);
 
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
+	if (mvm->scan_status == IWL_MVM_SCAN_OS)
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
 	ieee80211_scan_completed(mvm->hw, notif->status != SCAN_COMP_STATUS_OK);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
@@ -466,7 +469,7 @@ static bool iwl_mvm_scan_abort_notif(struct iwl_notif_wait_data *notif_wait,
 	};
 }
 
-void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
+int iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_scan_abort;
 	static const u8 scan_abort_notif[] = { SCAN_ABORT_CMD,
@@ -474,13 +477,13 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 	int ret;
 
 	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
-		return;
+		return 0;
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
 		ieee80211_scan_completed(mvm->hw, true);
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
-		return;
+		return 0;
 	}
 
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_abort,
@@ -495,14 +498,11 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 		goto out_remove_notif;
 	}
 
-	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_abort, 1 * HZ);
-	if (ret)
-		IWL_ERR(mvm, "%s - failed on timeout\n", __func__);
-
-	return;
+	return iwl_wait_notification(&mvm->notif_wait, &wait_scan_abort, HZ);
 
 out_remove_notif:
 	iwl_remove_notification(&mvm->notif_wait, &wait_scan_abort);
+	return ret;
 }
 
 int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,

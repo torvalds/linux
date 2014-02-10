@@ -804,7 +804,7 @@ int iwl_mvm_rx_scan_response(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *cmd);
 int iwl_mvm_rx_scan_complete(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *cmd);
-void iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
+int iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
 
 /* Scheduled scan */
 int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,

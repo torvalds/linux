@@ -1708,9 +1708,26 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
-		IWL_DEBUG_SCAN(mvm,
-			       "SCHED SCAN request during internal scan - abort\n");
+	switch (mvm->scan_status) {
+	case IWL_MVM_SCAN_OS:
+		IWL_DEBUG_SCAN(mvm, "Stopping previous scan for sched_scan\n");
+		ret = iwl_mvm_cancel_scan(mvm);
+		if (ret) {
+			ret = -EBUSY;
+			goto out;
+		}
+
+		/*
+		 * iwl_mvm_rx_scan_complete() will be called soon but will
+		 * not reset the scan status as it won't be IWL_MVM_SCAN_OS
+		 * any more since we queue the next scan immediately (below).
+		 * We make sure it is called before the next scan starts by
+		 * flushing the async-handlers work.
+		 */
+		break;
+	case IWL_MVM_SCAN_NONE:
+		break;
+	default:
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1732,6 +1749,8 @@ err:
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 out:
 	mutex_unlock(&mvm->mutex);
+	/* make sure to flush the Rx handler before the next scan arrives */
+	iwl_mvm_wait_for_async_handlers(mvm);
 	return ret;
 }
 
