@@ -922,7 +922,7 @@ static int usbhid_output_report(struct hid_device *hid, __u8 *buf, size_t count)
 	int actual_length, skipped_report_id = 0, ret;
 
 	if (!usbhid->urbout)
-		return -EIO;
+		return -ENOSYS;
 
 	if (buf[0] == 0x0) {
 		/* Don't send the Report ID */
