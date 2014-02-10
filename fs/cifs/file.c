@@ -244,7 +244,7 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 					      xid);
 	else
 		rc = cifs_get_inode_info(&inode, full_path, buf, inode->i_sb,
-					 xid, &fid->netfid);
+					 xid, fid);
 
 out:
 	kfree(buf);
