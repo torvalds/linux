@@ -571,12 +571,26 @@ static int setup_channel_list(struct comedi_device *dev,
 	return 1;		/* we can serve this with scan logic */
 }
 
+static int pci9118_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned int status;
+
+	status = inl(dev->iobase + PCI9118_ADSTAT);
+	if (status & AdStatus_ADrdy)
+		return 0;
+	return -EBUSY;
+}
+
 static int pci9118_insn_read_ai(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci9118_private *devpriv = dev->private;
-	int n, timeout;
+	int ret;
+	int n;
 
 	devpriv->AdControlReg = AdControl_Int & 0xff;
 	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
@@ -597,19 +611,15 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		outw(0, dev->iobase + PCI9118_SOFTTRG);	/* start conversion */
 		udelay(2);
-		timeout = 100;
-		while (timeout--) {
-			if (inl(dev->iobase + PCI9118_ADSTAT) & AdStatus_ADrdy)
-				goto conv_finish;
-			udelay(1);
+
+		ret = comedi_timeout(dev, s, insn, pci9118_ai_eoc, 0);
+		if (ret) {
+			comedi_error(dev, "A/D insn timeout");
+			data[n] = 0;
+			outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
+			return ret;
 		}
 
-		comedi_error(dev, "A/D insn timeout");
-		data[n] = 0;
-		outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
-		return -ETIME;
-
-conv_finish:
 		if (devpriv->ai16bits) {
 			data[n] =
 			    (inl(dev->iobase +
