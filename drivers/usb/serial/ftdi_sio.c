@@ -2132,10 +2132,20 @@ static void ftdi_set_termios(struct tty_struct *tty,
 	}
 
 	/*
-	 * All FTDI UART chips are limited to CS7/8. We won't pretend to
+	 * All FTDI UART chips are limited to CS7/8. We shouldn't pretend to
 	 * support CS5/6 and revert the CSIZE setting instead.
+	 *
+	 * CS5 however is used to control some smartcard readers which abuse
+	 * this limitation to switch modes. Original FTDI chips fall back to
+	 * eight data bits.
+	 *
+	 * TODO: Implement a quirk to only allow this with mentioned
+	 *       readers. One I know of (Argolis Smartreader V1)
+	 *       returns "USB smartcard server" as iInterface string.
+	 *       The vendor didn't bother with a custom VID/PID of
+	 *       course.
 	 */
-	if ((C_CSIZE(tty) != CS8) && (C_CSIZE(tty) != CS7)) {
+	if (C_CSIZE(tty) == CS6) {
 		dev_warn(ddev, "requested CSIZE setting not supported\n");
 
 		termios->c_cflag &= ~CSIZE;
@@ -2182,6 +2192,9 @@ no_skip:
 		urb_value |= FTDI_SIO_SET_DATA_PARITY_NONE;
 	}
 	switch (cflag & CSIZE) {
+	case CS5:
+		dev_dbg(ddev, "Setting CS5 quirk\n");
+		break;
 	case CS7:
 		urb_value |= 7;
 		dev_dbg(ddev, "Setting CS7\n");

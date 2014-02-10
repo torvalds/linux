@@ -31,6 +31,8 @@
 #include <asm/sparsemem.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
+#include <asm/cputhreads.h>
+#include <asm/topology.h>
 #include <asm/firmware.h>
 #include <asm/paca.h>
 #include <asm/hvcall.h>
@@ -152,9 +154,22 @@ static void __init get_node_active_region(unsigned long pfn,
 	}
 }
 
-static void map_cpu_to_node(int cpu, int node)
+static void reset_numa_cpu_lookup_table(void)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu)
+		numa_cpu_lookup_table[cpu] = -1;
+}
+
+static void update_numa_cpu_lookup_table(unsigned int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
+}
+
+static void map_cpu_to_node(int cpu, int node)
+{
+	update_numa_cpu_lookup_table(cpu, node);
 
 	dbg("adding cpu %d to node %d\n", cpu, node);
 
@@ -519,11 +534,24 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
  */
 static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 {
-	int nid = 0;
-	struct device_node *cpu = of_get_cpu_node(lcpu, NULL);
+	int nid;
+	struct device_node *cpu;
+
+	/*
+	 * If a valid cpu-to-node mapping is already available, use it
+	 * directly instead of querying the firmware, since it represents
+	 * the most recent mapping notified to us by the platform (eg: VPHN).
+	 */
+	if ((nid = numa_cpu_lookup_table[lcpu]) >= 0) {
+		map_cpu_to_node(lcpu, nid);
+		return nid;
+	}
+
+	cpu = of_get_cpu_node(lcpu, NULL);
 
 	if (!cpu) {
 		WARN_ON(1);
+		nid = 0;
 		goto out;
 	}
 
@@ -1066,6 +1094,7 @@ void __init do_init_bootmem(void)
 	 */
 	setup_node_to_cpumask_map();
 
+	reset_numa_cpu_lookup_table();
 	register_cpu_notifier(&ppc64_numa_nb);
 	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
 			  (void *)(unsigned long)boot_cpuid);
@@ -1443,6 +1472,33 @@ static int update_cpu_topology(void *data)
 	return 0;
 }
 
+static int update_lookup_table(void *data)
+{
+	struct topology_update_data *update;
+
+	if (!data)
+		return -EINVAL;
+
+	/*
+	 * Upon topology update, the numa-cpu lookup table needs to be updated
+	 * for all threads in the core, including offline CPUs, to ensure that
+	 * future hotplug operations respect the cpu-to-node associativity
+	 * properly.
+	 */
+	for (update = data; update; update = update->next) {
+		int nid, base, j;
+
+		nid = update->new_nid;
+		base = cpu_first_thread_sibling(update->cpu);
+
+		for (j = 0; j < threads_per_core; j++) {
+			update_numa_cpu_lookup_table(base + j, nid);
+		}
+	}
+
+	return 0;
+}
+
 /*
  * Update the node maps and sysfs entries for each cpu whose home node
  * has changed. Returns 1 when the topology has changed, and 0 otherwise.
@@ -1510,6 +1566,14 @@ int arch_update_cpu_topology(void)
 	}
 
 	stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
+
+	/*
+	 * Update the numa-cpu lookup table with the new mappings, even for
+	 * offline CPUs. It is best to perform this update from the stop-
+	 * machine context.
+	 */
+	stop_machine(update_lookup_table, &updates[0],
+					cpumask_of(raw_smp_processor_id()));
 
 	for (ud = &updates[0]; ud; ud = ud->next) {
 		unregister_cpu_under_node(ud->cpu, ud->old_nid);
