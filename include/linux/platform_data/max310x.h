@@ -20,9 +20,7 @@
  * Example board initialization data:
  *
  * static struct max310x_pdata max3107_pdata = {
- *	.driver_flags	= MAX310X_EXT_CLK,
  *	.uart_flags[0]	= MAX310X_ECHO_SUPRESS | MAX310X_AUTO_DIR_CTRL,
- *	.frequency	= 3686400,
  *	.gpio_base	= -1,
  * };
  *
@@ -41,17 +39,12 @@
 
 /* MAX310X platform data structure */
 struct max310x_pdata {
-	/* Flags global to driver */
-	const u8		driver_flags;
-#define MAX310X_EXT_CLK		(0x00000001)	/* External clock enable */
 	/* Flags global to UART port */
 	const u8		uart_flags[MAX310X_MAX_UARTS];
 #define MAX310X_ECHO_SUPRESS	(0x00000002)	/* Enable echo supress */
 #define MAX310X_AUTO_DIR_CTRL	(0x00000004)	/* Enable Auto direction
 						 * control (RS-485)
 						 */
-	/* Frequency (extrenal clock or crystal) */
-	const int		frequency;
 	/* GPIO base number (can be negative) */
 	const int		gpio_base;
 };
