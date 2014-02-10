@@ -26,6 +26,12 @@
 #include <linux/of.h>
 #include <mach/bridge-regs.h>
 
+/* RSTOUT mask register physical address for Orion5x, Kirkwood and Dove */
+#define ORION_RSTOUT_MASK_OFFSET	0x20108
+
+/* Internal registers can be configured at any 1 MiB aligned address */
+#define INTERNAL_REGS_MASK		~(SZ_1M - 1)
+
 /*
  * Watchdog timer block registers.
  */
@@ -44,6 +50,7 @@ static unsigned int wdt_max_duration;	/* (seconds) */
 static struct clk *clk;
 static unsigned int wdt_tclk;
 static void __iomem *wdt_reg;
+static void __iomem *wdt_rstout;
 
 static int orion_wdt_ping(struct watchdog_device *wdt_dev)
 {
@@ -64,14 +71,14 @@ static int orion_wdt_start(struct watchdog_device *wdt_dev)
 	atomic_io_modify(wdt_reg + TIMER_CTRL, WDT_EN, WDT_EN);
 
 	/* Enable reset on watchdog */
-	atomic_io_modify(RSTOUTn_MASK, WDT_RESET_OUT_EN, WDT_RESET_OUT_EN);
+	atomic_io_modify(wdt_rstout, WDT_RESET_OUT_EN, WDT_RESET_OUT_EN);
 	return 0;
 }
 
 static int orion_wdt_stop(struct watchdog_device *wdt_dev)
 {
 	/* Disable reset on watchdog */
-	atomic_io_modify(RSTOUTn_MASK, WDT_RESET_OUT_EN, 0);
+	atomic_io_modify(wdt_rstout, WDT_RESET_OUT_EN, 0);
 
 	/* Disable watchdog timer */
 	atomic_io_modify(wdt_reg + TIMER_CTRL, WDT_EN, 0);
@@ -82,7 +89,7 @@ static int orion_wdt_enabled(void)
 {
 	bool enabled, running;
 
-	enabled = readl(RSTOUTn_MASK) & WDT_RESET_OUT_EN;
+	enabled = readl(wdt_rstout) & WDT_RESET_OUT_EN;
 	running = readl(wdt_reg + TIMER_CTRL) & WDT_EN;
 
 	return enabled && running;
@@ -126,6 +133,33 @@ static irqreturn_t orion_wdt_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+/*
+ * The original devicetree binding for this driver specified only
+ * one memory resource, so in order to keep DT backwards compatibility
+ * we try to fallback to a hardcoded register address, if the resource
+ * is missing from the devicetree.
+ */
+static void __iomem *orion_wdt_ioremap_rstout(struct platform_device *pdev,
+					      phys_addr_t internal_regs)
+{
+	struct resource *res;
+	phys_addr_t rstout;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res)
+		return devm_ioremap(&pdev->dev, res->start,
+				    resource_size(res));
+
+	/* This workaround works only for "orion-wdt", DT-enabled */
+	if (!of_device_is_compatible(pdev->dev.of_node, "marvell,orion-wdt"))
+		return NULL;
+
+	rstout = internal_regs + ORION_RSTOUT_MASK_OFFSET;
+
+	WARN(1, FW_BUG "falling back to harcoded RSTOUT reg 0x%x\n", rstout);
+	return devm_ioremap(&pdev->dev, rstout, 0x4);
+}
+
 static int orion_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -150,6 +184,13 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	wdt_reg = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!wdt_reg) {
 		ret = -ENOMEM;
+		goto disable_clk;
+	}
+
+	wdt_rstout = orion_wdt_ioremap_rstout(pdev, res->start &
+						    INTERNAL_REGS_MASK);
+	if (!wdt_rstout) {
+		ret = -ENODEV;
 		goto disable_clk;
 	}
 
