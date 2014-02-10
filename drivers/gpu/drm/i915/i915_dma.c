@@ -1483,9 +1483,12 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev))
 		info->num_sprites = 2;
 
-	if (info->num_pipes > 0 &&
-	    (INTEL_INFO(dev)->gen == 7 || INTEL_INFO(dev)->gen == 8) &&
-	    !IS_VALLEYVIEW(dev)) {
+	if (i915.disable_display) {
+		DRM_INFO("Display disabled (module parameter)\n");
+		info->num_pipes = 0;
+	} else if (info->num_pipes > 0 &&
+		   (INTEL_INFO(dev)->gen == 7 || INTEL_INFO(dev)->gen == 8) &&
+		   !IS_VALLEYVIEW(dev)) {
 		u32 fuse_strap = I915_READ(FUSE_STRAP);
 		u32 sfuse_strap = I915_READ(SFUSE_STRAP);
 
