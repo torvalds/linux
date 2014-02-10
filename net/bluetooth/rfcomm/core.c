@@ -431,6 +431,20 @@ int rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst, u8 chann
 	return r;
 }
 
+static void __rfcomm_dlc_disconn(struct rfcomm_dlc *d)
+{
+	struct rfcomm_session *s = d->session;
+
+	d->state = BT_DISCONN;
+	if (skb_queue_empty(&d->tx_queue)) {
+		rfcomm_send_disc(s, d->dlci);
+		rfcomm_dlc_set_timer(d, RFCOMM_DISC_TIMEOUT);
+	} else {
+		rfcomm_queue_disc(d);
+		rfcomm_dlc_set_timer(d, RFCOMM_DISC_TIMEOUT * 2);
+	}
+}
+
 static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 {
 	struct rfcomm_session *s = d->session;
@@ -458,14 +472,7 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 		/* Fall through */
 
 	case BT_CONNECTED:
-		d->state = BT_DISCONN;
-		if (skb_queue_empty(&d->tx_queue)) {
-			rfcomm_send_disc(s, d->dlci);
-			rfcomm_dlc_set_timer(d, RFCOMM_DISC_TIMEOUT);
-		} else {
-			rfcomm_queue_disc(d);
-			rfcomm_dlc_set_timer(d, RFCOMM_DISC_TIMEOUT * 2);
-		}
+		__rfcomm_dlc_disconn(d);
 		break;
 
 	default:
