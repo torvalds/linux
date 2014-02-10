@@ -1441,7 +1441,7 @@ static void update_wall_time(void)
 	write_seqcount_end(&timekeeper_seq);
 out:
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
-	if (clock_was_set) {
+	if (clock_set) {
 		/*
 		 * XXX -  I'd rather we just call clock_was_set(), but
 		 * since we're currently holding the jiffies lock, calling
