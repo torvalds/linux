@@ -1134,8 +1134,6 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	s->devtype = devtype;
 	dev_set_drvdata(dev, s);
 
-	mutex_init(&s->mutex);
-
 	/* Check device to ensure we are talking to what we expect */
 	ret = devtype->detect(dev);
 	if (ret)
@@ -1193,6 +1191,8 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		goto out_uart;
 #endif
 
+	mutex_init(&s->mutex);
+
 	for (i = 0; i < devtype->nr; i++) {
 		/* Initialize port data */
 		s->p[i].port.line	= i;
@@ -1233,6 +1233,8 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 	dev_err(dev, "Unable to reguest IRQ %i\n", irq);
 
+	mutex_destroy(&s->mutex);
+
 #ifdef CONFIG_GPIOLIB
 	WARN_ON(gpiochip_remove(&s->gpio));
 #endif
@@ -1264,6 +1266,7 @@ static int max310x_remove(struct device *dev)
 		s->devtype->power(&s->p[i].port, 0);
 	}
 
+	mutex_destroy(&s->mutex);
 	uart_unregister_driver(&s->uart);
 	clk_disable_unprepare(s->clk);
 
