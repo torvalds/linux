@@ -48,6 +48,8 @@
 #define L2_AUX_VAL 0x7C470001
 #define L2_AUX_MASK 0xC200ffff
 
+#include "smc.h"
+
 static const char name_exynos4210[] = "EXYNOS4210";
 static const char name_exynos4212[] = "EXYNOS4212";
 static const char name_exynos4412[] = "EXYNOS4412";
@@ -390,6 +392,16 @@ static int __init exynos_core_init(void)
 	return subsys_system_register(&exynos_subsys, NULL);
 }
 core_initcall(exynos_core_init);
+
+void exynos_secure_l2x0_setup(void)
+{
+	exynos_smc(SMC_CMD_L2X0SETUP1, l2x0_saved_regs.tag_latency,
+		l2x0_saved_regs.data_latency,
+		l2x0_saved_regs.prefetch_ctrl);
+
+	exynos_smc(SMC_CMD_L2X0SETUP2, l2x0_saved_regs.pwr_ctrl,
+		L2_AUX_VAL, L2_AUX_MASK);
+}
 
 static int __init exynos4_l2x0_cache_init(void)
 {
