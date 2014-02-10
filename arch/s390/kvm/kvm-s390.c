@@ -386,6 +386,7 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.guest_fpregs.fpc = 0;
 	asm volatile("lfpc %0" : : "Q" (vcpu->arch.guest_fpregs.fpc));
 	vcpu->arch.sie_block->gbea = 1;
+	vcpu->arch.sie_block->pp = 0;
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
@@ -571,6 +572,10 @@ static int kvm_arch_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
 		r = put_user(vcpu->arch.pfault_select,
 			     (u64 __user *)reg->addr);
 		break;
+	case KVM_REG_S390_PP:
+		r = put_user(vcpu->arch.sie_block->pp,
+			     (u64 __user *)reg->addr);
+		break;
 	default:
 		break;
 	}
@@ -610,6 +615,10 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_S390_PFSELECT:
 		r = get_user(vcpu->arch.pfault_select,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_PP:
+		r = get_user(vcpu->arch.sie_block->pp,
 			     (u64 __user *)reg->addr);
 		break;
 	default:
