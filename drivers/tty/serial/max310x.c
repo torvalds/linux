@@ -13,17 +13,17 @@
  *  (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/device.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/gpio.h>
+#include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <linux/regmap.h>
-#include <linux/gpio.h>
 #include <linux/spi/spi.h>
 
 #define MAX310X_NAME			"max310x"
@@ -160,10 +160,6 @@
 /* IRDA register bits */
 #define MAX310X_IRDA_IRDAEN_BIT		(1 << 0) /* IRDA mode enable */
 #define MAX310X_IRDA_SIR_BIT		(1 << 1) /* SIR mode enable */
-#define MAX310X_IRDA_SHORTIR_BIT	(1 << 2) /* Short SIR mode enable */
-#define MAX310X_IRDA_MIR_BIT		(1 << 3) /* MIR mode enable */
-#define MAX310X_IRDA_RXINV_BIT		(1 << 4) /* RX logic inversion enable */
-#define MAX310X_IRDA_TXINV_BIT		(1 << 5) /* TX logic inversion enable */
 
 /* Flow control trigger level register masks */
 #define MAX310X_FLOWLVL_HALT_MASK	(0x000f) /* Flow control halt level */
@@ -218,26 +214,6 @@
 						  *       XON1, XON2, XOFF1 and
 						  *       XOFF2
 						  */
-
-/* GPIO configuration register bits */
-#define MAX310X_GPIOCFG_GP0OUT_BIT	(1 << 0) /* GPIO 0 output enable */
-#define MAX310X_GPIOCFG_GP1OUT_BIT	(1 << 1) /* GPIO 1 output enable */
-#define MAX310X_GPIOCFG_GP2OUT_BIT	(1 << 2) /* GPIO 2 output enable */
-#define MAX310X_GPIOCFG_GP3OUT_BIT	(1 << 3) /* GPIO 3 output enable */
-#define MAX310X_GPIOCFG_GP0OD_BIT	(1 << 4) /* GPIO 0 open-drain enable */
-#define MAX310X_GPIOCFG_GP1OD_BIT	(1 << 5) /* GPIO 1 open-drain enable */
-#define MAX310X_GPIOCFG_GP2OD_BIT	(1 << 6) /* GPIO 2 open-drain enable */
-#define MAX310X_GPIOCFG_GP3OD_BIT	(1 << 7) /* GPIO 3 open-drain enable */
-
-/* GPIO DATA register bits */
-#define MAX310X_GPIODATA_GP0OUT_BIT	(1 << 0) /* GPIO 0 output value */
-#define MAX310X_GPIODATA_GP1OUT_BIT	(1 << 1) /* GPIO 1 output value */
-#define MAX310X_GPIODATA_GP2OUT_BIT	(1 << 2) /* GPIO 2 output value */
-#define MAX310X_GPIODATA_GP3OUT_BIT	(1 << 3) /* GPIO 3 output value */
-#define MAX310X_GPIODATA_GP0IN_BIT	(1 << 4) /* GPIO 0 input value */
-#define MAX310X_GPIODATA_GP1IN_BIT	(1 << 5) /* GPIO 1 input value */
-#define MAX310X_GPIODATA_GP2IN_BIT	(1 << 6) /* GPIO 2 input value */
-#define MAX310X_GPIODATA_GP3IN_BIT	(1 << 7) /* GPIO 3 input value */
 
 /* PLL configuration register masks */
 #define MAX310X_PLLCFG_PREDIV_MASK	(0x3f) /* PLL predivision value */
