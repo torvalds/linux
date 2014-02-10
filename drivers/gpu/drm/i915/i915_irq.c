@@ -419,6 +419,16 @@ done:
 	return ret;
 }
 
+static bool __cpu_fifo_underrun_reporting_enabled(struct drm_device *dev,
+						  enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	return !intel_crtc->cpu_fifo_underrun_disabled;
+}
+
 /**
  * intel_set_pch_fifo_underrun_reporting - enable/disable FIFO underrun messages
  * @dev: drm device
@@ -488,6 +498,8 @@ __i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 	if ((pipestat & enable_mask) == enable_mask)
 		return;
 
+	dev_priv->pipestat_irq_mask[pipe] |= status_mask;
+
 	/* Enable the interrupt, clear any pending status */
 	pipestat |= enable_mask | status_mask;
 	I915_WRITE(reg, pipestat);
@@ -509,6 +521,8 @@ __i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	if ((pipestat & enable_mask) == 0)
 		return;
+
+	dev_priv->pipestat_irq_mask[pipe] &= ~status_mask;
 
 	pipestat &= ~enable_mask;
 	I915_WRITE(reg, pipestat);
@@ -1540,18 +1554,33 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pipe_stats[I915_MAX_PIPES];
+	u32 pipe_stats[I915_MAX_PIPES] = { };
 	int pipe;
 
 	spin_lock(&dev_priv->irq_lock);
 	for_each_pipe(pipe) {
-		int reg = PIPESTAT(pipe);
+		int reg;
+		u32 mask;
+
+		if (!dev_priv->pipestat_irq_mask[pipe] &&
+		    !__cpu_fifo_underrun_reporting_enabled(dev, pipe))
+			continue;
+
+		reg = PIPESTAT(pipe);
 		pipe_stats[pipe] = I915_READ(reg);
 
 		/*
 		 * Clear the PIPE*STAT regs before the IIR
 		 */
-		if (pipe_stats[pipe] & 0x8000ffff)
+		mask = PIPESTAT_INT_ENABLE_MASK;
+		if (__cpu_fifo_underrun_reporting_enabled(dev, pipe))
+			mask |= PIPE_FIFO_UNDERRUN_STATUS;
+		if (iir & I915_DISPLAY_PIPE_EVENT_INTERRUPT(pipe))
+			mask |= dev_priv->pipestat_irq_mask[pipe];
+		pipe_stats[pipe] &= mask;
+
+		if (pipe_stats[pipe] & (PIPE_FIFO_UNDERRUN_STATUS |
+					PIPESTAT_INT_STATUS_MASK))
 			I915_WRITE(reg, pipe_stats[pipe]);
 	}
 	spin_unlock(&dev_priv->irq_lock);
