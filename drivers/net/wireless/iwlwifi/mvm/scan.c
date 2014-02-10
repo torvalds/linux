@@ -519,10 +519,11 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 		       scan_notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 		       "completed" : "aborted");
 
-	/* might already be something else again, don't reset if so */
-	if (mvm->scan_status == IWL_MVM_SCAN_SCHED)
+	/* only call mac80211 completion if the stop was initiated by FW */
+	if (mvm->scan_status == IWL_MVM_SCAN_SCHED) {
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
-	ieee80211_sched_scan_stopped(mvm->hw);
+		ieee80211_sched_scan_stopped(mvm->hw);
+	}
 
 	return 0;
 }
@@ -894,26 +895,49 @@ static int iwl_mvm_send_sched_scan_abort(struct iwl_mvm *mvm)
 		 * microcode has notified us that a scan is completed.
 		 */
 		IWL_DEBUG_SCAN(mvm, "SCAN OFFLOAD ABORT ret %d.\n", status);
-		ret = -EIO;
+		ret = -ENOENT;
 	}
 
 	return ret;
 }
 
-void iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm)
+int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm)
 {
 	int ret;
+	struct iwl_notification_wait wait_scan_done;
+	static const u8 scan_done_notif[] = { SCAN_OFFLOAD_COMPLETE, };
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (mvm->scan_status != IWL_MVM_SCAN_SCHED) {
 		IWL_DEBUG_SCAN(mvm, "No offloaded scan to stop\n");
-		return;
+		return 0;
 	}
 
+	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_done,
+				   scan_done_notif,
+				   ARRAY_SIZE(scan_done_notif),
+				   NULL, NULL);
+
 	ret = iwl_mvm_send_sched_scan_abort(mvm);
-	if (ret)
+	if (ret) {
 		IWL_DEBUG_SCAN(mvm, "Send stop offload scan failed %d\n", ret);
-	else
-		IWL_DEBUG_SCAN(mvm, "Successfully sent stop offload scan\n");
+		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
+		return ret;
+	}
+
+	IWL_DEBUG_SCAN(mvm, "Successfully sent stop offload scan\n");
+
+	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_done, 1 * HZ);
+	if (ret)
+		return ret;
+
+	/*
+	 * Clear the scan status so the next scan requests will succeed. This
+	 * also ensures the Rx handler doesn't do anything, as the scan was
+	 * stopped from above.
+	 */
+	mvm->scan_status = IWL_MVM_SCAN_NONE;
+
+	return 0;
 }

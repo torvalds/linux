@@ -712,6 +712,11 @@ static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
 int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, bool sync);
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);
 
+static inline void iwl_mvm_wait_for_async_handlers(struct iwl_mvm *mvm)
+{
+	flush_work(&mvm->async_handlers_wk);
+}
+
 /* Statistics */
 int iwl_mvm_rx_reply_statistics(struct iwl_mvm *mvm,
 				struct iwl_rx_cmd_buffer *rxb,
@@ -813,7 +818,7 @@ int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 				       struct cfg80211_sched_scan_request *req);
 int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 			     struct cfg80211_sched_scan_request *req);
-void iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm);
+int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm);
 int iwl_mvm_rx_sched_scan_results(struct iwl_mvm *mvm,
 				  struct iwl_rx_cmd_buffer *rxb,
 				  struct iwl_device_cmd *cmd);
