@@ -262,7 +262,7 @@ adb_reset_bus(void)
 /*
  * notify clients before sleep
  */
-static int adb_suspend(struct platform_device *dev, pm_message_t state)
+static int __adb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	adb_got_sleep = 1;
 	/* We need to get a lock on the probe thread */
@@ -275,16 +275,36 @@ static int adb_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
+static int adb_suspend(struct device *dev)
+{
+	return __adb_suspend(to_platform_device(dev), PMSG_SUSPEND);
+}
+
+static int adb_freeze(struct device *dev)
+{
+	return __adb_suspend(to_platform_device(dev), PMSG_FREEZE);
+}
+
+static int adb_poweroff(struct device *dev)
+{
+	return __adb_suspend(to_platform_device(dev), PMSG_HIBERNATE);
+}
+
 /*
  * reset bus after sleep
  */
-static int adb_resume(struct platform_device *dev)
+static int __adb_resume(struct platform_device *dev)
 {
 	adb_got_sleep = 0;
 	up(&adb_probe_mutex);
 	adb_reset_bus();
 
 	return 0;
+}
+
+static int adb_resume(struct device *dev)
+{
+	return __adb_resume(to_platform_device(dev));
 }
 #endif /* CONFIG_PM */
 
@@ -829,14 +849,25 @@ static const struct file_operations adb_fops = {
 	.release	= adb_release,
 };
 
+#ifdef CONFIG_PM
+static const struct dev_pm_ops adb_dev_pm_ops = {
+	.suspend = adb_suspend,
+	.resume = adb_resume,
+	/* Hibernate hooks */
+	.freeze = adb_freeze,
+	.thaw = adb_resume,
+	.poweroff = adb_poweroff,
+	.restore = adb_resume,
+};
+#endif
+
 static struct platform_driver adb_pfdrv = {
 	.driver = {
 		.name = "adb",
-	},
 #ifdef CONFIG_PM
-	.suspend = adb_suspend,
-	.resume = adb_resume,
+		.pm = &adb_dev_pm_ops,
 #endif
+	},
 };
 
 static struct platform_device adb_pfdev = {
