@@ -372,7 +372,7 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_src(&cmd->start_src,
 					TRIG_NOW | TRIG_EXT | TRIG_INT);
 	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
-					TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
+					TRIG_FOLLOW | TRIG_EXT);
 	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
@@ -423,9 +423,6 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 		tmp = steps / 30;
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, tmp);
 	}
-
-	if (cmd->scan_begin_src == TRIG_TIMER)
-		err |= -EINVAL;
 
 	/* stop source */
 	switch (cmd->stop_src) {
@@ -536,12 +533,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		}
 	}
 	steps = 0;
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		dev_err(dev->class_dev,
-			"scan_begin_src==TRIG_TIMER not valid\n");
-		up(&devpriv->sem);
-		return -EINVAL;
-	}
 	if (cmd->convert_src == TRIG_TIMER)
 		steps = (cmd->convert_arg * 30) / 1000;
 
