@@ -103,22 +103,6 @@ static void rfcomm_dev_destruct(struct tty_port *port)
 	module_put(THIS_MODULE);
 }
 
-static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
-{
-	struct hci_dev *hdev;
-	struct hci_conn *conn;
-
-	hdev = hci_get_route(&dev->dst, &dev->src);
-	if (!hdev)
-		return NULL;
-
-	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
-
-	hci_dev_put(hdev);
-
-	return conn ? &conn->dev : NULL;
-}
-
 /* device-specific initialization: open the dlc */
 static int rfcomm_dev_activate(struct tty_port *port, struct tty_struct *tty)
 {
@@ -183,6 +167,22 @@ static struct rfcomm_dev *rfcomm_dev_get(int id)
 	spin_unlock(&rfcomm_dev_lock);
 
 	return dev;
+}
+
+static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
+{
+	struct hci_dev *hdev;
+	struct hci_conn *conn;
+
+	hdev = hci_get_route(&dev->dst, &dev->src);
+	if (!hdev)
+		return NULL;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
+
+	hci_dev_put(hdev);
+
+	return conn ? &conn->dev : NULL;
 }
 
 static ssize_t show_address(struct device *tty_dev, struct device_attribute *attr, char *buf)
