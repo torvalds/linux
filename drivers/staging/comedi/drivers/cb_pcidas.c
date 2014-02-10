@@ -1017,9 +1017,9 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 
 	/*  set start trigger and burst mode */
 	bits = 0;
-	if (cmd->start_src == TRIG_NOW)
+	if (cmd->start_src == TRIG_NOW) {
 		bits |= SW_TRIGGER;
-	else if (cmd->start_src == TRIG_EXT) {
+	} else {	/* TRIG_EXT */
 		bits |= EXT_TRIGGER | TGEN | XTRCL;
 		if (thisboard->is_1602) {
 			if (cmd->start_arg & CR_INVERT)
@@ -1027,9 +1027,6 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 			if (cmd->start_arg & CR_EDGE)
 				bits |= TGSEL;
 		}
-	} else {
-		comedi_error(dev, "bug!");
-		return -1;
 	}
 	if (cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
 		bits |= BURSTE;
