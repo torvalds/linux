@@ -352,20 +352,16 @@ static inline unsigned int rfcomm_room(struct rfcomm_dev *dev)
 {
 	struct rfcomm_dlc *dlc = dev->dlc;
 
-	/* The limit is bogus; the number of packets which can
-	 * currently be sent by the krfcommd thread has no relevance
-	 * to the number of packets which can be queued on the dlc's
-	 * tx queue.
-	 */
-	int limit = dlc->mtu * (dlc->tx_credits?:1);
+	/* Limit the outstanding number of packets not yet sent to 40 */
+	int pending = 40 - atomic_read(&dev->wmem_alloc);
 
-	return max(0, limit - atomic_read(&dev->wmem_alloc));
+	return max(0, pending) * dlc->mtu;
 }
 
 static void rfcomm_wfree(struct sk_buff *skb)
 {
 	struct rfcomm_dev *dev = (void *) skb->sk;
-	atomic_sub(skb->truesize, &dev->wmem_alloc);
+	atomic_dec(&dev->wmem_alloc);
 	if (test_bit(RFCOMM_TTY_ATTACHED, &dev->flags))
 		tty_port_tty_wakeup(&dev->port);
 	tty_port_put(&dev->port);
@@ -374,7 +370,7 @@ static void rfcomm_wfree(struct sk_buff *skb)
 static void rfcomm_set_owner_w(struct sk_buff *skb, struct rfcomm_dev *dev)
 {
 	tty_port_get(&dev->port);
-	atomic_add(skb->truesize, &dev->wmem_alloc);
+	atomic_inc(&dev->wmem_alloc);
 	skb->sk = (void *) dev;
 	skb->destructor = rfcomm_wfree;
 }
