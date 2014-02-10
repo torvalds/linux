@@ -1846,6 +1846,20 @@ static int s626_ai_rinsn(struct comedi_device *dev,
 }
 #endif
 
+static int s626_ai_eoc(struct comedi_device *dev,
+		       struct comedi_subdevice *s,
+		       struct comedi_insn *insn,
+		       unsigned long context)
+{
+	struct s626_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readl(devpriv->mmio + S626_P_PSR);
+	if (status & S626_PSR_GPIO2)
+		return 0;
+	return -EBUSY;
+}
+
 static int s626_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
@@ -1856,6 +1870,7 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	uint16_t adc_spec = 0;
 	uint32_t gpio_image;
 	uint32_t tmp;
+	int ret;
 	int n;
 
 	/*
@@ -1897,8 +1912,9 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 		 */
 
 		/* Wait for ADC done */
-		while (!(readl(devpriv->mmio + S626_P_PSR) & S626_PSR_GPIO2))
-			;
+		ret = comedi_timeout(dev, s, insn, s626_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* Fetch ADC data */
 		if (n != 0) {
