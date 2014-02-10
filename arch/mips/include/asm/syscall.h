@@ -13,6 +13,7 @@
 #ifndef __ASM_MIPS_SYSCALL_H
 #define __ASM_MIPS_SYSCALL_H
 
+#include <linux/compiler.h>
 #include <linux/audit.h>
 #include <linux/elf-em.h>
 #include <linux/kernel.h>
@@ -57,6 +58,8 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 	default:
 		BUG();
 	}
+
+	unreachable();
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
