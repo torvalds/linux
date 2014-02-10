@@ -324,11 +324,15 @@ int  rfcomm_connect_ind(struct rfcomm_session *s, u8 channel,
 #define RFCOMMGETDEVINFO	_IOR('R', 211, int)
 #define RFCOMMSTEALDLC		_IOW('R', 220, int)
 
+/* rfcomm_dev.flags bit definitions */
 #define RFCOMM_REUSE_DLC      0
 #define RFCOMM_RELEASE_ONHUP  1
 #define RFCOMM_HANGUP_NOW     2
 #define RFCOMM_TTY_ATTACHED   3
-#define RFCOMM_TTY_RELEASED   4
+#define RFCOMM_DEFUNCT_BIT4   4	  /* don't reuse this bit - userspace visible */
+
+/* rfcomm_dev.status bit definitions */
+#define RFCOMM_DEV_RELEASED   0
 
 struct rfcomm_dev_req {
 	s16      dev_id;

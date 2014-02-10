@@ -51,6 +51,8 @@ struct rfcomm_dev {
 	unsigned long		flags;
 	int			err;
 
+	unsigned long		status;		/* don't export to userspace */
+
 	bdaddr_t		src;
 	bdaddr_t		dst;
 	u8			channel;
@@ -423,6 +425,12 @@ static int rfcomm_release_dev(void __user *arg)
 		return -EPERM;
 	}
 
+	/* only release once */
+	if (test_and_set_bit(RFCOMM_DEV_RELEASED, &dev->status)) {
+		tty_port_put(&dev->port);
+		return -EALREADY;
+	}
+
 	if (req.flags & (1 << RFCOMM_HANGUP_NOW))
 		rfcomm_dlc_close(dev->dlc, 0);
 
@@ -433,8 +441,7 @@ static int rfcomm_release_dev(void __user *arg)
 		tty_kref_put(tty);
 	}
 
-	if (!test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags) &&
-	    !test_and_set_bit(RFCOMM_TTY_RELEASED, &dev->flags))
+	if (!test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags))
 		tty_port_put(&dev->port);
 
 	tty_port_put(&dev->port);
