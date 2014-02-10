@@ -37,7 +37,7 @@ config INTEL_MEI_ME
 config INTEL_MEI_TXE
 	tristate "Intel Trusted Execution Environment with ME Interface"
 	select INTEL_MEI
-	depends on X86 && PCI
+	depends on X86 && PCI && WATCHDOG_CORE
 	help
 	  MEI Support for Trusted Execution Environment device on Intel SoCs
 
