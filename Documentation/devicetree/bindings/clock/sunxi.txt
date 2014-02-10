@@ -38,6 +38,7 @@ Required properties:
 	"allwinner,sun6i-a31-apb2-gates-clk" - for the APB2 gates on A31
 	"allwinner,sun4i-mod0-clk" - for the module 0 family of clocks
 	"allwinner,sun7i-a20-out-clk" - for the external output clocks
+	"allwinner,sun7i-a20-gmac-clk" - for the GMAC clock module on A20/A31
 	"allwinner,sun4i-a10-usb-clk" - for usb gates + resets on A10 / A20
 	"allwinner,sun5i-a13-usb-clk" - for usb gates + resets on A13
 
@@ -55,6 +56,9 @@ Required properties for all clocks:
 
 And "allwinner,*-usb-clk" clocks also require:
 - reset-cells : shall be set to 1
+
+For "allwinner,sun7i-a20-gmac-clk", the parent clocks shall be fixed rate
+dummy clocks at 25 MHz and 125 MHz, respectively. See example.
 
 Clock consumers should specify the desired clocks they use with a
 "clocks" phandle cell. Consumers that are using a gated clock should
@@ -101,4 +105,30 @@ mmc0_clk: clk@01c20088 {
 	reg = <0x01c20088 0x4>;
 	clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
 	clock-output-names = "mmc0";
+};
+
+mii_phy_tx_clk: clk@2 {
+	#clock-cells = <0>;
+	compatible = "fixed-clock";
+	clock-frequency = <25000000>;
+	clock-output-names = "mii_phy_tx";
+};
+
+gmac_int_tx_clk: clk@3 {
+	#clock-cells = <0>;
+	compatible = "fixed-clock";
+	clock-frequency = <125000000>;
+	clock-output-names = "gmac_int_tx";
+};
+
+gmac_clk: clk@01c20164 {
+	#clock-cells = <0>;
+	compatible = "allwinner,sun7i-a20-gmac-clk";
+	reg = <0x01c20164 0x4>;
+	/*
+	 * The first clock must be fixed at 25MHz;
+	 * the second clock must be fixed at 125MHz
+	 */
+	clocks = <&mii_phy_tx_clk>, <&gmac_int_tx_clk>;
+	clock-output-names = "gmac";
 };
