@@ -576,6 +576,10 @@ static int kvm_arch_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
 		r = put_user(vcpu->arch.sie_block->pp,
 			     (u64 __user *)reg->addr);
 		break;
+	case KVM_REG_S390_GBEA:
+		r = put_user(vcpu->arch.sie_block->gbea,
+			     (u64 __user *)reg->addr);
+		break;
 	default:
 		break;
 	}
@@ -619,6 +623,10 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_S390_PP:
 		r = get_user(vcpu->arch.sie_block->pp,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_GBEA:
+		r = get_user(vcpu->arch.sie_block->gbea,
 			     (u64 __user *)reg->addr);
 		break;
 	default:
