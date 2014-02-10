@@ -187,7 +187,7 @@ Description:
 		Not all drivers support this attribute.  If it isn't supported,
 		attempts to read or write it will yield I/O errors.
 
-What:		/sys/devices/.../power/pm_qos_latency_us
+What:		/sys/devices/.../power/pm_qos_resume_latency_us
 Date:		March 2012
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
@@ -204,6 +204,31 @@ Description:
 
 		This attribute has no effect on system-wide suspend/resume and
 		hibernation.
+
+What:		/sys/devices/.../power/pm_qos_latency_tolerance_us
+Date:		January 2014
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/devices/.../power/pm_qos_latency_tolerance_us attribute
+		contains the PM QoS active state latency tolerance limit for the
+		given device in microseconds.  That is the maximum memory access
+		latency the device can suffer without any visible adverse
+		effects on user space functionality.  If that value is the
+		string "any", the latency does not matter to user space at all,
+		but hardware should not be allowed to set the latency tolerance
+		for the device automatically.
+
+		Reading "auto" from this file means that the maximum memory
+		access latency for the device may be determined automatically
+		by the hardware as needed.  Writing "auto" to it allows the
+		hardware to be switched to this mode if there are no other
+		latency tolerance requirements from the kernel side.
+
+		This attribute is only present if the feature controlled by it
+		is supported by the hardware.
+
+		This attribute has no effect on runtime suspend and resume of
+		devices and on system-wide suspend/resume and hibernation.
 
 What:		/sys/devices/.../power/pm_qos_no_power_off
 Date:		September 2012

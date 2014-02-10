@@ -582,6 +582,7 @@ struct dev_pm_info {
 	unsigned long		accounting_timestamp;
 #endif
 	struct pm_subsys_data	*subsys_data;  /* Owned by the subsystem. */
+	void (*set_latency_tolerance)(struct device *, s32);
 	struct dev_pm_qos	*qos;
 };
 

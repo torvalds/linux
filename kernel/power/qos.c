@@ -173,6 +173,7 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 {
 	unsigned long flags;
 	int prev_value, curr_value, new_value;
+	int ret;
 
 	spin_lock_irqsave(&pm_qos_lock, flags);
 	prev_value = pm_qos_get_value(c);
@@ -208,13 +209,15 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 
 	trace_pm_qos_update_target(action, prev_value, curr_value);
 	if (prev_value != curr_value) {
-		blocking_notifier_call_chain(c->notifiers,
-					     (unsigned long)curr_value,
-					     NULL);
-		return 1;
+		ret = 1;
+		if (c->notifiers)
+			blocking_notifier_call_chain(c->notifiers,
+						     (unsigned long)curr_value,
+						     NULL);
 	} else {
-		return 0;
+		ret = 0;
 	}
+	return ret;
 }
 
 /**

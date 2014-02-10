@@ -88,17 +88,19 @@ node.
 
 2. PM QoS per-device latency and flags framework
 
-For each device, there are two lists of PM QoS requests. One is maintained
-along with the aggregated target of resume latency value and the other is for
-PM QoS flags. Values are updated in response to changes of the request list.
+For each device, there are three lists of PM QoS requests. Two of them are
+maintained along with the aggregated targets of resume latency and active
+state latency tolerance (in microseconds) and the third one is for PM QoS flags.
+Values are updated in response to changes of the request list.
 
-Target resume latency value is simply the minimum of the request values held in
-the parameter list elements.  The PM QoS flags aggregate value is a gather
-(bitwise OR) of all list elements' values.  Two device PM QoS flags are defined
-currently: PM_QOS_FLAG_NO_POWER_OFF and PM_QOS_FLAG_REMOTE_WAKEUP.
+The target values of resume latency and active state latency tolerance are
+simply the minimum of the request values held in the parameter list elements.
+The PM QoS flags aggregate value is a gather (bitwise OR) of all list elements'
+values.  Two device PM QoS flags are defined currently: PM_QOS_FLAG_NO_POWER_OFF
+and PM_QOS_FLAG_REMOTE_WAKEUP.
 
-Note: the aggregated target value is implemented in such a way that reading the
-aggregated value does not require any locking mechanism.
+Note: The aggregated target values are implemented in such a way that reading
+the aggregated value does not require any locking mechanism.
 
 
 From kernel mode the use of this interface is the following:
@@ -177,3 +179,42 @@ The callback is called when the aggregated value for any device is changed
 int dev_pm_qos_remove_global_notifier(notifier):
 Removes the notification callback function from the global notification tree
 of the framework.
+
+
+Active state latency tolerance
+
+This device PM QoS type is used to support systems in which hardware may switch
+to energy-saving operation modes on the fly.  In those systems, if the operation
+mode chosen by the hardware attempts to save energy in an overly aggressive way,
+it may cause excess latencies to be visible to software, causing it to miss
+certain protocol requirements or target frame or sample rates etc.
+
+If there is a latency tolerance control mechanism for a given device available
+to software, the .set_latency_tolerance callback in that device's dev_pm_info
+structure should be populated.  The routine pointed to by it is should implement
+whatever is necessary to transfer the effective requirement value to the
+hardware.
+
+Whenever the effective latency tolerance changes for the device, its
+.set_latency_tolerance() callback will be executed and the effective value will
+be passed to it.  If that value is negative, which means that the list of
+latency tolerance requirements for the device is empty, the callback is expected
+to switch the underlying hardware latency tolerance control mechanism to an
+autonomous mode if available.  If that value is PM_QOS_LATENCY_ANY, in turn, and
+the hardware supports a special "no requirement" setting, the callback is
+expected to use it.  That allows software to prevent the hardware from
+automatically updating the device's latency tolerance in response to its power
+state changes (e.g. during transitions from D3cold to D0), which generally may
+be done in the autonomous latency tolerance control mode.
+
+If .set_latency_tolerance() is present for the device, sysfs attribute
+pm_qos_latency_tolerance_us will be present in the devivce's power directory.
+Then, user space can use that attribute to specify its latency tolerance
+requirement for the device, if any.  Writing "any" to it means "no requirement,
+but do not let the hardware control latency tolerance" and writing "auto" to it
+allows the hardware to be switched to the autonomous mode if there are no other
+requirements from the kernel side in the device's list.
+
+Kernel code can use the functions described above along with the
+DEV_PM_QOS_LATENCY_TOLERANCE device PM QoS type to add, remove and update
+latency tolerance requirements for devices.
