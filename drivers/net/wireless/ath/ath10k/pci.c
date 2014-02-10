@@ -64,7 +64,8 @@ static int ath10k_pci_post_rx_pipe(struct ath10k_pci_pipe *pipe_info,
 					     int num);
 static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info);
 static void ath10k_pci_stop_ce(struct ath10k *ar);
-static int ath10k_pci_device_reset(struct ath10k *ar);
+static int ath10k_pci_cold_reset(struct ath10k *ar);
+static int ath10k_pci_warm_reset(struct ath10k *ar);
 static int ath10k_pci_wait_for_target_init(struct ath10k *ar);
 static int ath10k_pci_init_irq(struct ath10k *ar);
 static int ath10k_pci_deinit_irq(struct ath10k *ar);
@@ -1500,7 +1501,7 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	 * configuration during init. If ringbuffers are freed and the device
 	 * were to access them this could lead to memory corruption on the
 	 * host. */
-	ath10k_pci_device_reset(ar);
+	ath10k_pci_warm_reset(ar);
 
 	ar_pci->started = 0;
 }
@@ -1991,7 +1992,94 @@ static void ath10k_pci_fw_interrupt_handler(struct ath10k *ar)
 	ath10k_pci_sleep(ar);
 }
 
-static int ath10k_pci_hif_power_up(struct ath10k *ar)
+static int ath10k_pci_warm_reset(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int ret = 0;
+	u32 val;
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot performing warm chip reset\n");
+
+	ret = ath10k_do_pci_wake(ar);
+	if (ret) {
+		ath10k_err("failed to wake up target: %d\n", ret);
+		return ret;
+	}
+
+	/* debug */
+	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				PCIE_INTR_CAUSE_ADDRESS);
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot host cpu intr cause: 0x%08x\n", val);
+
+	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				CPU_INTR_ADDRESS);
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot target cpu intr cause: 0x%08x\n",
+		   val);
+
+	/* disable pending irqs */
+	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS +
+			   PCIE_INTR_ENABLE_ADDRESS, 0);
+
+	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS +
+			   PCIE_INTR_CLR_ADDRESS, ~0);
+
+	msleep(100);
+
+	/* clear fw indicator */
+	ath10k_pci_write32(ar, ar_pci->fw_indicator_address, 0);
+
+	/* clear target LF timer interrupts */
+	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
+				SOC_LF_TIMER_CONTROL0_ADDRESS);
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS +
+			   SOC_LF_TIMER_CONTROL0_ADDRESS,
+			   val & ~SOC_LF_TIMER_CONTROL0_ENABLE_MASK);
+
+	/* reset CE */
+	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
+				SOC_RESET_CONTROL_ADDRESS);
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
+			   val | SOC_RESET_CONTROL_CE_RST_MASK);
+	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
+				SOC_RESET_CONTROL_ADDRESS);
+	msleep(10);
+
+	/* unreset CE */
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
+			   val & ~SOC_RESET_CONTROL_CE_RST_MASK);
+	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
+				SOC_RESET_CONTROL_ADDRESS);
+	msleep(10);
+
+	/* debug */
+	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				PCIE_INTR_CAUSE_ADDRESS);
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot host cpu intr cause: 0x%08x\n", val);
+
+	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				CPU_INTR_ADDRESS);
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot target cpu intr cause: 0x%08x\n",
+		   val);
+
+	/* CPU warm reset */
+	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
+				SOC_RESET_CONTROL_ADDRESS);
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
+			   val | SOC_RESET_CONTROL_CPU_WARM_RST_MASK);
+
+	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
+				SOC_RESET_CONTROL_ADDRESS);
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot target reset state: 0x%08x\n", val);
+
+	msleep(100);
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot warm reset complete\n");
+
+	ath10k_do_pci_sleep(ar);
+	return ret;
+}
+
+static int __ath10k_pci_hif_power_up(struct ath10k *ar, bool cold_reset)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	const char *irq_mode;
@@ -2007,7 +2095,11 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	 * is in an unexpected state. We try to catch that here in order to
 	 * reset the Target and retry the probe.
 	 */
-	ret = ath10k_pci_device_reset(ar);
+	if (cold_reset)
+		ret = ath10k_pci_cold_reset(ar);
+	else
+		ret = ath10k_pci_warm_reset(ar);
+
 	if (ret) {
 		ath10k_err("failed to reset target: %d\n", ret);
 		goto err;
@@ -2077,12 +2169,40 @@ err_deinit_irq:
 	ath10k_pci_deinit_irq(ar);
 err_ce:
 	ath10k_pci_ce_deinit(ar);
-	ath10k_pci_device_reset(ar);
+	ath10k_pci_warm_reset(ar);
 err_ps:
 	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		ath10k_do_pci_sleep(ar);
 err:
 	return ret;
+}
+
+static int ath10k_pci_hif_power_up(struct ath10k *ar)
+{
+	int ret;
+
+	/*
+	 * Hardware CUS232 version 2 has some issues with cold reset and the
+	 * preferred (and safer) way to perform a device reset is through a
+	 * warm reset.
+	 *
+	 * Warm reset doesn't always work though (notably after a firmware
+	 * crash) so fall back to cold reset if necessary.
+	 */
+	ret = __ath10k_pci_hif_power_up(ar, false);
+	if (ret) {
+		ath10k_warn("failed to power up target using warm reset (%d), trying cold reset\n",
+			    ret);
+
+		ret = __ath10k_pci_hif_power_up(ar, true);
+		if (ret) {
+			ath10k_err("failed to power up target using cold reset too (%d)\n",
+				   ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static void ath10k_pci_hif_power_down(struct ath10k *ar)
@@ -2092,7 +2212,7 @@ static void ath10k_pci_hif_power_down(struct ath10k *ar)
 	ath10k_pci_free_early_irq(ar);
 	ath10k_pci_kill_tasklet(ar);
 	ath10k_pci_deinit_irq(ar);
-	ath10k_pci_device_reset(ar);
+	ath10k_pci_warm_reset(ar);
 
 	ath10k_pci_ce_deinit(ar);
 	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
@@ -2521,7 +2641,7 @@ out:
 	return ret;
 }
 
-static int ath10k_pci_device_reset(struct ath10k *ar)
+static int ath10k_pci_cold_reset(struct ath10k *ar)
 {
 	int i, ret;
 	u32 val;
