@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
 
 #include "skeleton.dtsi"
 
@@ -220,6 +221,50 @@
 			reg = <0x022f0000 0x80>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clktimer15>;
+		};
+
+		gpio0: gpio@260bf00 {
+			compatible = "ti,keystone-gpio";
+			reg = <0x0260bf00 0x100>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			/* HW Interrupts mapped to GPIO pins */
+			interrupts = <GIC_SPI 120 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 121 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 122 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 123 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 124 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 125 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 126 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 127 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 128 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 129 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 130 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 131 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 132 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 133 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 134 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 135 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 136 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 137 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 138 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 139 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 140 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 141 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 142 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 143 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 144 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 145 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 146 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 147 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 148 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 150 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkgpio>;
+			clock-names = "gpio";
+			ti,ngpio = <32>;
+			ti,davinci-gpio-unbanked = <32>;
 		};
 	};
 };
