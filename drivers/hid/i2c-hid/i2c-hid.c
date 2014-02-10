@@ -276,7 +276,7 @@ static int i2c_hid_set_or_send_report(struct i2c_client *client, u8 reportType,
 	u16 outputRegister = le16_to_cpu(ihid->hdesc.wOutputRegister);
 	u16 maxOutputLength = le16_to_cpu(ihid->hdesc.wMaxOutputLength);
 
-	/* hidraw already checked that data_len < HID_MAX_BUFFER_SIZE */
+	/* hid_hw_* already checked that data_len < HID_MAX_BUFFER_SIZE */
 	u16 size =	2			/* size */ +
 			(reportID ? 1 : 0)	/* reportID */ +
 			data_len		/* buf */;
