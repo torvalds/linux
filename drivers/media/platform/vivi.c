@@ -191,7 +191,6 @@ struct vivi_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct vb2_buffer	vb;
 	struct list_head	list;
-	const struct vivi_fmt  *fmt;
 };
 
 struct vivi_dmaqueue {
@@ -874,8 +873,6 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	}
 
 	vb2_set_plane_payload(&buf->vb, 0, size);
-
-	buf->fmt = dev->fmt;
 
 	precalculate_bars(dev);
 	precalculate_line(dev);
