@@ -157,12 +157,8 @@ static struct rfcomm_dev *rfcomm_dev_get(int id)
 
 	dev = __rfcomm_dev_get(id);
 
-	if (dev) {
-		if (test_bit(RFCOMM_TTY_RELEASED, &dev->flags))
-			dev = NULL;
-		else
-			tty_port_get(&dev->port);
-	}
+	if (dev && !tty_port_get(&dev->port))
+		dev = NULL;
 
 	spin_unlock(&rfcomm_dev_lock);
 
