@@ -2970,7 +2970,7 @@ static void slic_card_cleanup(struct sliccard *card)
 {
 	if (card->loadtimerset) {
 		card->loadtimerset = 0;
-		del_timer(&card->loadtimer);
+		del_timer_sync(&card->loadtimer);
 	}
 
 	slic_debug_card_destroy(card);
