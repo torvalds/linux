@@ -2015,13 +2015,14 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 
 		handler = acpi_scan_match_handler(hwid->id, &devid);
 		if (handler) {
+			device->handler = handler;
 			ret = handler->attach(device, devid);
-			if (ret > 0) {
-				device->handler = handler;
+			if (ret > 0)
 				break;
-			} else if (ret < 0) {
+
+			device->handler = NULL;
+			if (ret < 0)
 				break;
-			}
 		}
 	}
 	return ret;
