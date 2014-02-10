@@ -1767,6 +1767,12 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 	flush_work(&wl->tx_work);
 	flush_delayed_work(&wl->elp_work);
 
+	/*
+	 * Cancel the watchdog even if above tx_flush failed. We will detect
+	 * it on resume anyway.
+	 */
+	cancel_delayed_work(&wl->tx_watchdog_work);
+
 	return 0;
 }
 
@@ -1824,6 +1830,13 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 
 out:
 	wl->wow_enabled = false;
+
+	/*
+	 * Set a flag to re-init the watchdog on the first Tx after resume.
+	 * That way we avoid possible conditions where Tx-complete interrupts
+	 * fail to arrive and we perform a spurious recovery.
+	 */
+	set_bit(WL1271_FLAG_REINIT_TX_WDOG, &wl->flags);
 	mutex_unlock(&wl->mutex);
 
 	return 0;

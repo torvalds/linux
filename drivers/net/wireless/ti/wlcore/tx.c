@@ -234,8 +234,13 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		wl->tx_blocks_available -= total_blocks;
 		wl->tx_allocated_blocks += total_blocks;
 
-		/* If the FW was empty before, arm the Tx watchdog */
-		if (wl->tx_allocated_blocks == total_blocks)
+		/*
+		 * If the FW was empty before, arm the Tx watchdog. Also do
+		 * this on the first Tx after resume, as we always cancel the
+		 * watchdog on suspend.
+		 */
+		if (wl->tx_allocated_blocks == total_blocks ||
+		    test_and_clear_bit(WL1271_FLAG_REINIT_TX_WDOG, &wl->flags))
 			wl12xx_rearm_tx_watchdog_locked(wl);
 
 		ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
