@@ -77,6 +77,16 @@ static int orion_wdt_stop(struct watchdog_device *wdt_dev)
 	return 0;
 }
 
+static int orion_wdt_enabled(void)
+{
+	bool enabled, running;
+
+	enabled = readl(RSTOUTn_MASK) & WDT_RESET_OUT_EN;
+	running = readl(wdt_reg + TIMER_CTRL) & WDT_EN;
+
+	return enabled && running;
+}
+
 static unsigned int orion_wdt_get_timeleft(struct watchdog_device *wdt_dev)
 {
 	return readl(wdt_reg + WDT_VAL) / wdt_tclk;
@@ -141,6 +151,15 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	orion_wdt.timeout = wdt_max_duration;
 	orion_wdt.max_timeout = wdt_max_duration;
 	watchdog_init_timeout(&orion_wdt, heartbeat, &pdev->dev);
+
+	/*
+	 * Let's make sure the watchdog is fully stopped, unless it's
+	 * explicitly enabled. This may be the case if the module was
+	 * removed and re-insterted, or if the bootloader explicitly
+	 * set a running watchdog before booting the kernel.
+	 */
+	if (!orion_wdt_enabled())
+		orion_wdt_stop(&orion_wdt);
 
 	watchdog_set_nowayout(&orion_wdt, nowayout);
 	ret = watchdog_register_device(&orion_wdt);
