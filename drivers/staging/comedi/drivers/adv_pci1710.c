@@ -469,7 +469,6 @@ static int pci171x_insn_read_ai(struct comedi_device *dev,
 		if (ret) {
 			outb(0, dev->iobase + PCI171x_CLRFIFO);
 			outb(0, dev->iobase + PCI171x_CLRINT);
-			data[n] = 0;
 			return ret;
 		}
 

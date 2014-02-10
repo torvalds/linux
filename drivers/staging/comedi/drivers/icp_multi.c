@@ -215,11 +215,8 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 
 		/*  Wait for conversion to complete, or get fed up waiting */
 		ret = comedi_timeout(dev, s, insn, icp_multi_ai_eoc, 0);
-		if (ret) {
-			/*  Clear data received */
-			data[n] = 0;
+		if (ret)
 			break;
-		}
 
 		data[n] =
 		    (readw(devpriv->io_addr + ICP_MULTI_AI) >> 4) & 0x0fff;

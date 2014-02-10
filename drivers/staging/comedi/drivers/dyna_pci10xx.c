@@ -93,10 +93,8 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 		udelay(10);
 
 		ret = comedi_timeout(dev, s, insn, dyna_pci10xx_ai_eoc, 0);
-		if (ret) {
-			data[n] = 0;
+		if (ret)
 			break;
-		}
 
 		/* read data */
 		d = inw_p(dev->iobase);
