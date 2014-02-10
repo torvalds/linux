@@ -333,6 +333,7 @@ int  rfcomm_connect_ind(struct rfcomm_session *s, u8 channel,
 
 /* rfcomm_dev.status bit definitions */
 #define RFCOMM_DEV_RELEASED   0
+#define RFCOMM_TTY_OWNED      1
 
 struct rfcomm_dev_req {
 	s16      dev_id;
