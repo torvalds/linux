@@ -377,9 +377,9 @@ static const struct iio_info ad7991_info = {
 static const struct iio_info ad7993_4_7_8_info = {
 	.read_raw = &ad799x_read_raw,
 	.event_attrs = &ad799x_event_attrs_group,
-	.read_event_config_new = &ad799x_read_event_config,
-	.read_event_value_new = &ad799x_read_event_value,
-	.write_event_value_new = &ad799x_write_event_value,
+	.read_event_config = &ad799x_read_event_config,
+	.read_event_value = &ad799x_read_event_value,
+	.write_event_value = &ad799x_write_event_value,
 	.driver_module = THIS_MODULE,
 	.update_scan_mode = ad7997_8_update_scan_mode,
 };

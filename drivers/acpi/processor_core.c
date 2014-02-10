@@ -10,8 +10,7 @@
 #include <linux/export.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
-
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <acpi/processor.h>
 
 #include "internal.h"
@@ -45,13 +44,13 @@ static int map_lapic_id(struct acpi_subtable_header *entry,
 		(struct acpi_madt_local_apic *)entry;
 
 	if (!(lapic->lapic_flags & ACPI_MADT_ENABLED))
-		return 0;
+		return -ENODEV;
 
 	if (lapic->processor_id != acpi_id)
-		return 0;
+		return -EINVAL;
 
 	*apic_id = lapic->id;
-	return 1;
+	return 0;
 }
 
 static int map_x2apic_id(struct acpi_subtable_header *entry,
@@ -61,14 +60,14 @@ static int map_x2apic_id(struct acpi_subtable_header *entry,
 		(struct acpi_madt_local_x2apic *)entry;
 
 	if (!(apic->lapic_flags & ACPI_MADT_ENABLED))
-		return 0;
+		return -ENODEV;
 
 	if (device_declaration && (apic->uid == acpi_id)) {
 		*apic_id = apic->local_apic_id;
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	return -EINVAL;
 }
 
 static int map_lsapic_id(struct acpi_subtable_header *entry,
@@ -78,16 +77,16 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
 		(struct acpi_madt_local_sapic *)entry;
 
 	if (!(lsapic->lapic_flags & ACPI_MADT_ENABLED))
-		return 0;
+		return -ENODEV;
 
 	if (device_declaration) {
 		if ((entry->length < 16) || (lsapic->uid != acpi_id))
-			return 0;
+			return -EINVAL;
 	} else if (lsapic->processor_id != acpi_id)
-		return 0;
+		return -EINVAL;
 
 	*apic_id = (lsapic->id << 8) | lsapic->eid;
-	return 1;
+	return 0;
 }
 
 static int map_madt_entry(int type, u32 acpi_id)
@@ -117,13 +116,13 @@ static int map_madt_entry(int type, u32 acpi_id)
 		struct acpi_subtable_header *header =
 			(struct acpi_subtable_header *)entry;
 		if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
-			if (map_lapic_id(header, acpi_id, &apic_id))
+			if (!map_lapic_id(header, acpi_id, &apic_id))
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC) {
-			if (map_x2apic_id(header, type, acpi_id, &apic_id))
+			if (!map_x2apic_id(header, type, acpi_id, &apic_id))
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
-			if (map_lsapic_id(header, type, acpi_id, &apic_id))
+			if (!map_lsapic_id(header, type, acpi_id, &apic_id))
 				break;
 		}
 		entry += header->length;

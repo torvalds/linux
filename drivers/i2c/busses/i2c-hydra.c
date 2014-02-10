@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <asm/hydra.h>
 

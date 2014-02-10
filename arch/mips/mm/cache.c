@@ -8,7 +8,6 @@
  */
 #include <linux/fs.h>
 #include <linux/fcntl.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
 #include <linux/module.h>

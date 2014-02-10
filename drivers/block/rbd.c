@@ -41,6 +41,7 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <linux/idr.h>
 
 #include "rbd_types.h"
 
@@ -89,9 +90,9 @@ static int atomic_dec_return_safe(atomic_t *v)
 }
 
 #define RBD_DRV_NAME "rbd"
-#define RBD_DRV_NAME_LONG "rbd (rados block device)"
 
-#define RBD_MINORS_PER_MAJOR	256		/* max minors per blkdev */
+#define RBD_MINORS_PER_MAJOR		256
+#define RBD_SINGLE_MAJOR_PART_SHIFT	4
 
 #define RBD_SNAP_DEV_NAME_PREFIX	"snap_"
 #define RBD_MAX_SNAP_NAME_LEN	\
@@ -323,6 +324,7 @@ struct rbd_device {
 	int			dev_id;		/* blkdev unique id */
 
 	int			major;		/* blkdev assigned major */
+	int			minor;
 	struct gendisk		*disk;		/* blkdev's gendisk and rq */
 
 	u32			image_format;	/* Either 1 or 2 */
@@ -386,6 +388,17 @@ static struct kmem_cache	*rbd_img_request_cache;
 static struct kmem_cache	*rbd_obj_request_cache;
 static struct kmem_cache	*rbd_segment_name_cache;
 
+static int rbd_major;
+static DEFINE_IDA(rbd_dev_id_ida);
+
+/*
+ * Default to false for now, as single-major requires >= 0.75 version of
+ * userspace rbd utility.
+ */
+static bool single_major = false;
+module_param(single_major, bool, S_IRUGO);
+MODULE_PARM_DESC(single_major, "Use a single major number for all rbd devices (default: false)");
+
 static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
 static void rbd_dev_device_release(struct device *dev);
@@ -394,18 +407,52 @@ static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
 static ssize_t rbd_remove(struct bus_type *bus, const char *buf,
 			  size_t count);
+static ssize_t rbd_add_single_major(struct bus_type *bus, const char *buf,
+				    size_t count);
+static ssize_t rbd_remove_single_major(struct bus_type *bus, const char *buf,
+				       size_t count);
 static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping);
 static void rbd_spec_put(struct rbd_spec *spec);
 
+static int rbd_dev_id_to_minor(int dev_id)
+{
+	return dev_id << RBD_SINGLE_MAJOR_PART_SHIFT;
+}
+
+static int minor_to_rbd_dev_id(int minor)
+{
+	return minor >> RBD_SINGLE_MAJOR_PART_SHIFT;
+}
+
 static BUS_ATTR(add, S_IWUSR, NULL, rbd_add);
 static BUS_ATTR(remove, S_IWUSR, NULL, rbd_remove);
+static BUS_ATTR(add_single_major, S_IWUSR, NULL, rbd_add_single_major);
+static BUS_ATTR(remove_single_major, S_IWUSR, NULL, rbd_remove_single_major);
 
 static struct attribute *rbd_bus_attrs[] = {
 	&bus_attr_add.attr,
 	&bus_attr_remove.attr,
+	&bus_attr_add_single_major.attr,
+	&bus_attr_remove_single_major.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(rbd_bus);
+
+static umode_t rbd_bus_is_visible(struct kobject *kobj,
+				  struct attribute *attr, int index)
+{
+	if (!single_major &&
+	    (attr == &bus_attr_add_single_major.attr ||
+	     attr == &bus_attr_remove_single_major.attr))
+		return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group rbd_bus_group = {
+	.attrs = rbd_bus_attrs,
+	.is_visible = rbd_bus_is_visible,
+};
+__ATTRIBUTE_GROUPS(rbd_bus);
 
 static struct bus_type rbd_bus_type = {
 	.name		= "rbd",
@@ -1041,9 +1088,9 @@ static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 	name_format = "%s.%012llx";
 	if (rbd_dev->image_format == 2)
 		name_format = "%s.%016llx";
-	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, name_format,
+	ret = snprintf(name, CEPH_MAX_OID_NAME_LEN + 1, name_format,
 			rbd_dev->header.object_prefix, segment);
-	if (ret < 0 || ret > MAX_OBJ_NAME_SIZE) {
+	if (ret < 0 || ret > CEPH_MAX_OID_NAME_LEN) {
 		pr_err("error formatting segment name for #%llu (%d)\n",
 			segment, ret);
 		kfree(name);
@@ -1109,23 +1156,23 @@ static void bio_chain_put(struct bio *chain)
  */
 static void zero_bio_chain(struct bio *chain, int start_ofs)
 {
-	struct bio_vec *bv;
+	struct bio_vec bv;
+	struct bvec_iter iter;
 	unsigned long flags;
 	void *buf;
-	int i;
 	int pos = 0;
 
 	while (chain) {
-		bio_for_each_segment(bv, chain, i) {
-			if (pos + bv->bv_len > start_ofs) {
+		bio_for_each_segment(bv, chain, iter) {
+			if (pos + bv.bv_len > start_ofs) {
 				int remainder = max(start_ofs - pos, 0);
-				buf = bvec_kmap_irq(bv, &flags);
+				buf = bvec_kmap_irq(&bv, &flags);
 				memset(buf + remainder, 0,
-				       bv->bv_len - remainder);
-				flush_dcache_page(bv->bv_page);
+				       bv.bv_len - remainder);
+				flush_dcache_page(bv.bv_page);
 				bvec_kunmap_irq(buf, &flags);
 			}
-			pos += bv->bv_len;
+			pos += bv.bv_len;
 		}
 
 		chain = chain->bi_next;
@@ -1173,74 +1220,14 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 					unsigned int len,
 					gfp_t gfpmask)
 {
-	struct bio_vec *bv;
-	unsigned int resid;
-	unsigned short idx;
-	unsigned int voff;
-	unsigned short end_idx;
-	unsigned short vcnt;
 	struct bio *bio;
 
-	/* Handle the easy case for the caller */
-
-	if (!offset && len == bio_src->bi_size)
-		return bio_clone(bio_src, gfpmask);
-
-	if (WARN_ON_ONCE(!len))
-		return NULL;
-	if (WARN_ON_ONCE(len > bio_src->bi_size))
-		return NULL;
-	if (WARN_ON_ONCE(offset > bio_src->bi_size - len))
-		return NULL;
-
-	/* Find first affected segment... */
-
-	resid = offset;
-	bio_for_each_segment(bv, bio_src, idx) {
-		if (resid < bv->bv_len)
-			break;
-		resid -= bv->bv_len;
-	}
-	voff = resid;
-
-	/* ...and the last affected segment */
-
-	resid += len;
-	__bio_for_each_segment(bv, bio_src, end_idx, idx) {
-		if (resid <= bv->bv_len)
-			break;
-		resid -= bv->bv_len;
-	}
-	vcnt = end_idx - idx + 1;
-
-	/* Build the clone */
-
-	bio = bio_alloc(gfpmask, (unsigned int) vcnt);
+	bio = bio_clone(bio_src, gfpmask);
 	if (!bio)
 		return NULL;	/* ENOMEM */
 
-	bio->bi_bdev = bio_src->bi_bdev;
-	bio->bi_sector = bio_src->bi_sector + (offset >> SECTOR_SHIFT);
-	bio->bi_rw = bio_src->bi_rw;
-	bio->bi_flags |= 1 << BIO_CLONED;
-
-	/*
-	 * Copy over our part of the bio_vec, then update the first
-	 * and last (or only) entries.
-	 */
-	memcpy(&bio->bi_io_vec[0], &bio_src->bi_io_vec[idx],
-			vcnt * sizeof (struct bio_vec));
-	bio->bi_io_vec[0].bv_offset += voff;
-	if (vcnt > 1) {
-		bio->bi_io_vec[0].bv_len -= voff;
-		bio->bi_io_vec[vcnt - 1].bv_len = resid;
-	} else {
-		bio->bi_io_vec[0].bv_len = len;
-	}
-
-	bio->bi_vcnt = vcnt;
-	bio->bi_size = len;
-	bio->bi_idx = 0;
+	bio_advance(bio, offset);
+	bio->bi_iter.bi_size = len;
 
 	return bio;
 }
@@ -1271,7 +1258,7 @@ static struct bio *bio_chain_clone_range(struct bio **bio_src,
 
 	/* Build up a chain of clone bios up to the limit */
 
-	if (!bi || off >= bi->bi_size || !len)
+	if (!bi || off >= bi->bi_iter.bi_size || !len)
 		return NULL;		/* Nothing to clone */
 
 	end = &chain;
@@ -1283,7 +1270,7 @@ static struct bio *bio_chain_clone_range(struct bio **bio_src,
 			rbd_warn(NULL, "bio_chain exhausted with %u left", len);
 			goto out_err;	/* EINVAL; ran out of bio's */
 		}
-		bi_size = min_t(unsigned int, bi->bi_size - off, len);
+		bi_size = min_t(unsigned int, bi->bi_iter.bi_size - off, len);
 		bio = bio_clone_range(bi, off, bi_size, gfpmask);
 		if (!bio)
 			goto out_err;	/* ENOMEM */
@@ -1292,7 +1279,7 @@ static struct bio *bio_chain_clone_range(struct bio **bio_src,
 		end = &bio->bi_next;
 
 		off += bi_size;
-		if (off == bi->bi_size) {
+		if (off == bi->bi_iter.bi_size) {
 			bi = bi->bi_next;
 			off = 0;
 		}
@@ -1761,11 +1748,8 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	osd_req->r_callback = rbd_osd_req_callback;
 	osd_req->r_priv = obj_request;
 
-	osd_req->r_oid_len = strlen(obj_request->object_name);
-	rbd_assert(osd_req->r_oid_len < sizeof (osd_req->r_oid));
-	memcpy(osd_req->r_oid, obj_request->object_name, osd_req->r_oid_len);
-
-	osd_req->r_file_layout = rbd_dev->layout;	/* struct */
+	osd_req->r_base_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
+	ceph_oid_set_name(&osd_req->r_base_oid, obj_request->object_name);
 
 	return osd_req;
 }
@@ -1802,11 +1786,8 @@ rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 	osd_req->r_callback = rbd_osd_req_callback;
 	osd_req->r_priv = obj_request;
 
-	osd_req->r_oid_len = strlen(obj_request->object_name);
-	rbd_assert(osd_req->r_oid_len < sizeof (osd_req->r_oid));
-	memcpy(osd_req->r_oid, obj_request->object_name, osd_req->r_oid_len);
-
-	osd_req->r_file_layout = rbd_dev->layout;	/* struct */
+	osd_req->r_base_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
+	ceph_oid_set_name(&osd_req->r_base_oid, obj_request->object_name);
 
 	return osd_req;
 }
@@ -2186,7 +2167,8 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 
 	if (type == OBJ_REQUEST_BIO) {
 		bio_list = data_desc;
-		rbd_assert(img_offset == bio_list->bi_sector << SECTOR_SHIFT);
+		rbd_assert(img_offset ==
+			   bio_list->bi_iter.bi_sector << SECTOR_SHIFT);
 	} else {
 		rbd_assert(type == OBJ_REQUEST_PAGES);
 		pages = data_desc;
@@ -2866,7 +2848,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
  * Request sync osd watch/unwatch.  The value of "start" determines
  * whether a watch request is being initiated or torn down.
  */
-static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, bool start)
+static int __rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, bool start)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
@@ -2939,6 +2921,22 @@ out_cancel:
 		rbd_obj_request_put(obj_request);
 
 	return ret;
+}
+
+static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev)
+{
+	return __rbd_dev_header_watch_sync(rbd_dev, true);
+}
+
+static void rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
+{
+	int ret;
+
+	ret = __rbd_dev_header_watch_sync(rbd_dev, false);
+	if (ret) {
+		rbd_warn(rbd_dev, "unable to tear down watch request: %d\n",
+			 ret);
+	}
 }
 
 /*
@@ -3388,14 +3386,18 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	u64 segment_size;
 
 	/* create gendisk info */
-	disk = alloc_disk(RBD_MINORS_PER_MAJOR);
+	disk = alloc_disk(single_major ?
+			  (1 << RBD_SINGLE_MAJOR_PART_SHIFT) :
+			  RBD_MINORS_PER_MAJOR);
 	if (!disk)
 		return -ENOMEM;
 
 	snprintf(disk->disk_name, sizeof(disk->disk_name), RBD_DRV_NAME "%d",
 		 rbd_dev->dev_id);
 	disk->major = rbd_dev->major;
-	disk->first_minor = 0;
+	disk->first_minor = rbd_dev->minor;
+	if (single_major)
+		disk->flags |= GENHD_FL_EXT_DEVT;
 	disk->fops = &rbd_bd_ops;
 	disk->private_data = rbd_dev;
 
@@ -3467,7 +3469,14 @@ static ssize_t rbd_major_show(struct device *dev,
 		return sprintf(buf, "%d\n", rbd_dev->major);
 
 	return sprintf(buf, "(none)\n");
+}
 
+static ssize_t rbd_minor_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
+
+	return sprintf(buf, "%d\n", rbd_dev->minor);
 }
 
 static ssize_t rbd_client_id_show(struct device *dev,
@@ -3589,6 +3598,7 @@ static ssize_t rbd_image_refresh(struct device *dev,
 static DEVICE_ATTR(size, S_IRUGO, rbd_size_show, NULL);
 static DEVICE_ATTR(features, S_IRUGO, rbd_features_show, NULL);
 static DEVICE_ATTR(major, S_IRUGO, rbd_major_show, NULL);
+static DEVICE_ATTR(minor, S_IRUGO, rbd_minor_show, NULL);
 static DEVICE_ATTR(client_id, S_IRUGO, rbd_client_id_show, NULL);
 static DEVICE_ATTR(pool, S_IRUGO, rbd_pool_show, NULL);
 static DEVICE_ATTR(pool_id, S_IRUGO, rbd_pool_id_show, NULL);
@@ -3602,6 +3612,7 @@ static struct attribute *rbd_attrs[] = {
 	&dev_attr_size.attr,
 	&dev_attr_features.attr,
 	&dev_attr_major.attr,
+	&dev_attr_minor.attr,
 	&dev_attr_client_id.attr,
 	&dev_attr_pool.attr,
 	&dev_attr_pool_id.attr,
@@ -4372,21 +4383,29 @@ static void rbd_bus_del_dev(struct rbd_device *rbd_dev)
 	device_unregister(&rbd_dev->dev);
 }
 
-static atomic64_t rbd_dev_id_max = ATOMIC64_INIT(0);
-
 /*
  * Get a unique rbd identifier for the given new rbd_dev, and add
- * the rbd_dev to the global list.  The minimum rbd id is 1.
+ * the rbd_dev to the global list.
  */
-static void rbd_dev_id_get(struct rbd_device *rbd_dev)
+static int rbd_dev_id_get(struct rbd_device *rbd_dev)
 {
-	rbd_dev->dev_id = atomic64_inc_return(&rbd_dev_id_max);
+	int new_dev_id;
+
+	new_dev_id = ida_simple_get(&rbd_dev_id_ida,
+				    0, minor_to_rbd_dev_id(1 << MINORBITS),
+				    GFP_KERNEL);
+	if (new_dev_id < 0)
+		return new_dev_id;
+
+	rbd_dev->dev_id = new_dev_id;
 
 	spin_lock(&rbd_dev_list_lock);
 	list_add_tail(&rbd_dev->node, &rbd_dev_list);
 	spin_unlock(&rbd_dev_list_lock);
-	dout("rbd_dev %p given dev id %llu\n", rbd_dev,
-		(unsigned long long) rbd_dev->dev_id);
+
+	dout("rbd_dev %p given dev id %d\n", rbd_dev, rbd_dev->dev_id);
+
+	return 0;
 }
 
 /*
@@ -4395,49 +4414,13 @@ static void rbd_dev_id_get(struct rbd_device *rbd_dev)
  */
 static void rbd_dev_id_put(struct rbd_device *rbd_dev)
 {
-	struct list_head *tmp;
-	int rbd_id = rbd_dev->dev_id;
-	int max_id;
-
-	rbd_assert(rbd_id > 0);
-
-	dout("rbd_dev %p released dev id %llu\n", rbd_dev,
-		(unsigned long long) rbd_dev->dev_id);
 	spin_lock(&rbd_dev_list_lock);
 	list_del_init(&rbd_dev->node);
-
-	/*
-	 * If the id being "put" is not the current maximum, there
-	 * is nothing special we need to do.
-	 */
-	if (rbd_id != atomic64_read(&rbd_dev_id_max)) {
-		spin_unlock(&rbd_dev_list_lock);
-		return;
-	}
-
-	/*
-	 * We need to update the current maximum id.  Search the
-	 * list to find out what it is.  We're more likely to find
-	 * the maximum at the end, so search the list backward.
-	 */
-	max_id = 0;
-	list_for_each_prev(tmp, &rbd_dev_list) {
-		struct rbd_device *rbd_dev;
-
-		rbd_dev = list_entry(tmp, struct rbd_device, node);
-		if (rbd_dev->dev_id > max_id)
-			max_id = rbd_dev->dev_id;
-	}
 	spin_unlock(&rbd_dev_list_lock);
 
-	/*
-	 * The max id could have been updated by rbd_dev_id_get(), in
-	 * which case it now accurately reflects the new maximum.
-	 * Be careful not to overwrite the maximum value in that
-	 * case.
-	 */
-	atomic64_cmpxchg(&rbd_dev_id_max, rbd_id, max_id);
-	dout("  max dev id has been reset\n");
+	ida_simple_remove(&rbd_dev_id_ida, rbd_dev->dev_id);
+
+	dout("rbd_dev %p released dev id %d\n", rbd_dev, rbd_dev->dev_id);
 }
 
 /*
@@ -4860,20 +4843,29 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 {
 	int ret;
 
-	/* generate unique id: find highest unique id, add one */
-	rbd_dev_id_get(rbd_dev);
+	/* Get an id and fill in device name. */
 
-	/* Fill in the device name, now that we have its id. */
+	ret = rbd_dev_id_get(rbd_dev);
+	if (ret)
+		return ret;
+
 	BUILD_BUG_ON(DEV_NAME_LEN
 			< sizeof (RBD_DRV_NAME) + MAX_INT_FORMAT_WIDTH);
 	sprintf(rbd_dev->name, "%s%d", RBD_DRV_NAME, rbd_dev->dev_id);
 
-	/* Get our block major device number. */
+	/* Record our major and minor device numbers. */
 
-	ret = register_blkdev(0, rbd_dev->name);
-	if (ret < 0)
-		goto err_out_id;
-	rbd_dev->major = ret;
+	if (!single_major) {
+		ret = register_blkdev(0, rbd_dev->name);
+		if (ret < 0)
+			goto err_out_id;
+
+		rbd_dev->major = ret;
+		rbd_dev->minor = 0;
+	} else {
+		rbd_dev->major = rbd_major;
+		rbd_dev->minor = rbd_dev_id_to_minor(rbd_dev->dev_id);
+	}
 
 	/* Set up the blkdev mapping. */
 
@@ -4905,7 +4897,8 @@ err_out_mapping:
 err_out_disk:
 	rbd_free_disk(rbd_dev);
 err_out_blkdev:
-	unregister_blkdev(rbd_dev->major, rbd_dev->name);
+	if (!single_major)
+		unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
 	rbd_dev_mapping_clear(rbd_dev);
@@ -4961,7 +4954,6 @@ static void rbd_dev_image_release(struct rbd_device *rbd_dev)
 static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 {
 	int ret;
-	int tmp;
 
 	/*
 	 * Get the id from the image id object.  Unless there's an
@@ -4980,7 +4972,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 		goto err_out_format;
 
 	if (mapping) {
-		ret = rbd_dev_header_watch_sync(rbd_dev, true);
+		ret = rbd_dev_header_watch_sync(rbd_dev);
 		if (ret)
 			goto out_header_name;
 	}
@@ -5007,12 +4999,8 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 err_out_probe:
 	rbd_dev_unprobe(rbd_dev);
 err_out_watch:
-	if (mapping) {
-		tmp = rbd_dev_header_watch_sync(rbd_dev, false);
-		if (tmp)
-			rbd_warn(rbd_dev, "unable to tear down "
-					"watch request (%d)\n", tmp);
-	}
+	if (mapping)
+		rbd_dev_header_unwatch_sync(rbd_dev);
 out_header_name:
 	kfree(rbd_dev->header_name);
 	rbd_dev->header_name = NULL;
@@ -5026,9 +5014,9 @@ err_out_format:
 	return ret;
 }
 
-static ssize_t rbd_add(struct bus_type *bus,
-		       const char *buf,
-		       size_t count)
+static ssize_t do_rbd_add(struct bus_type *bus,
+			  const char *buf,
+			  size_t count)
 {
 	struct rbd_device *rbd_dev = NULL;
 	struct ceph_options *ceph_opts = NULL;
@@ -5090,6 +5078,12 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	rc = rbd_dev_device_setup(rbd_dev);
 	if (rc) {
+		/*
+		 * rbd_dev_header_unwatch_sync() can't be moved into
+		 * rbd_dev_image_release() without refactoring, see
+		 * commit 1f3ef78861ac.
+		 */
+		rbd_dev_header_unwatch_sync(rbd_dev);
 		rbd_dev_image_release(rbd_dev);
 		goto err_out_module;
 	}
@@ -5110,6 +5104,23 @@ err_out_module:
 	return (ssize_t)rc;
 }
 
+static ssize_t rbd_add(struct bus_type *bus,
+		       const char *buf,
+		       size_t count)
+{
+	if (single_major)
+		return -EINVAL;
+
+	return do_rbd_add(bus, buf, count);
+}
+
+static ssize_t rbd_add_single_major(struct bus_type *bus,
+				    const char *buf,
+				    size_t count)
+{
+	return do_rbd_add(bus, buf, count);
+}
+
 static void rbd_dev_device_release(struct device *dev)
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
@@ -5117,8 +5128,8 @@ static void rbd_dev_device_release(struct device *dev)
 	rbd_free_disk(rbd_dev);
 	clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 	rbd_dev_mapping_clear(rbd_dev);
-	unregister_blkdev(rbd_dev->major, rbd_dev->name);
-	rbd_dev->major = 0;
+	if (!single_major)
+		unregister_blkdev(rbd_dev->major, rbd_dev->name);
 	rbd_dev_id_put(rbd_dev);
 	rbd_dev_mapping_clear(rbd_dev);
 }
@@ -5149,9 +5160,9 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 	}
 }
 
-static ssize_t rbd_remove(struct bus_type *bus,
-			  const char *buf,
-			  size_t count)
+static ssize_t do_rbd_remove(struct bus_type *bus,
+			     const char *buf,
+			     size_t count)
 {
 	struct rbd_device *rbd_dev = NULL;
 	struct list_head *tmp;
@@ -5191,16 +5202,14 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	if (ret < 0 || already)
 		return ret;
 
-	ret = rbd_dev_header_watch_sync(rbd_dev, false);
-	if (ret)
-		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
-
+	rbd_dev_header_unwatch_sync(rbd_dev);
 	/*
 	 * flush remaining watch callbacks - these must be complete
 	 * before the osd_client is shutdown
 	 */
 	dout("%s: flushing notifies", __func__);
 	ceph_osdc_flush_notifies(&rbd_dev->rbd_client->client->osdc);
+
 	/*
 	 * Don't free anything from rbd_dev->disk until after all
 	 * notifies are completely processed. Otherwise
@@ -5212,6 +5221,23 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	module_put(THIS_MODULE);
 
 	return count;
+}
+
+static ssize_t rbd_remove(struct bus_type *bus,
+			  const char *buf,
+			  size_t count)
+{
+	if (single_major)
+		return -EINVAL;
+
+	return do_rbd_remove(bus, buf, count);
+}
+
+static ssize_t rbd_remove_single_major(struct bus_type *bus,
+				       const char *buf,
+				       size_t count)
+{
+	return do_rbd_remove(bus, buf, count);
 }
 
 /*
@@ -5259,7 +5285,7 @@ static int rbd_slab_init(void)
 
 	rbd_assert(!rbd_segment_name_cache);
 	rbd_segment_name_cache = kmem_cache_create("rbd_segment_name",
-					MAX_OBJ_NAME_SIZE + 1, 1, 0, NULL);
+					CEPH_MAX_OID_NAME_LEN + 1, 1, 0, NULL);
 	if (rbd_segment_name_cache)
 		return 0;
 out_err:
@@ -5295,24 +5321,45 @@ static int __init rbd_init(void)
 
 	if (!libceph_compatible(NULL)) {
 		rbd_warn(NULL, "libceph incompatibility (quitting)");
-
 		return -EINVAL;
 	}
+
 	rc = rbd_slab_init();
 	if (rc)
 		return rc;
+
+	if (single_major) {
+		rbd_major = register_blkdev(0, RBD_DRV_NAME);
+		if (rbd_major < 0) {
+			rc = rbd_major;
+			goto err_out_slab;
+		}
+	}
+
 	rc = rbd_sysfs_init();
 	if (rc)
-		rbd_slab_exit();
-	else
-		pr_info("loaded " RBD_DRV_NAME_LONG "\n");
+		goto err_out_blkdev;
 
+	if (single_major)
+		pr_info("loaded (major %d)\n", rbd_major);
+	else
+		pr_info("loaded\n");
+
+	return 0;
+
+err_out_blkdev:
+	if (single_major)
+		unregister_blkdev(rbd_major, RBD_DRV_NAME);
+err_out_slab:
+	rbd_slab_exit();
 	return rc;
 }
 
 static void __exit rbd_exit(void)
 {
 	rbd_sysfs_cleanup();
+	if (single_major)
+		unregister_blkdev(rbd_major, RBD_DRV_NAME);
 	rbd_slab_exit();
 }
 
@@ -5322,9 +5369,8 @@ module_exit(rbd_exit);
 MODULE_AUTHOR("Alex Elder <elder@inktank.com>");
 MODULE_AUTHOR("Sage Weil <sage@newdream.net>");
 MODULE_AUTHOR("Yehuda Sadeh <yehuda@hq.newdream.net>");
-MODULE_DESCRIPTION("rados block device");
-
 /* following authorship retained from original osdblk.c */
 MODULE_AUTHOR("Jeff Garzik <jeff@garzik.org>");
 
+MODULE_DESCRIPTION("RADOS Block Device (RBD) driver");
 MODULE_LICENSE("GPL");

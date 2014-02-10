@@ -70,7 +70,6 @@
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -795,8 +794,7 @@ err_grp_init:
 	return err;
 }
 
-static int gfar_hwtstamp_ioctl(struct net_device *netdev,
-			       struct ifreq *ifr, int cmd)
+static int gfar_hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
 	struct gfar_private *priv = netdev_priv(netdev);
@@ -845,7 +843,20 @@ static int gfar_hwtstamp_ioctl(struct net_device *netdev,
 		-EFAULT : 0;
 }
 
-/* Ioctl MII Interface */
+static int gfar_hwtstamp_get(struct net_device *netdev, struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	struct gfar_private *priv = netdev_priv(netdev);
+
+	config.flags = 0;
+	config.tx_type = priv->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	config.rx_filter = (priv->hwts_rx_en ?
+			    HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE);
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+		-EFAULT : 0;
+}
+
 static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
@@ -854,7 +865,9 @@ static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -EINVAL;
 
 	if (cmd == SIOCSHWTSTAMP)
-		return gfar_hwtstamp_ioctl(dev, rq, cmd);
+		return gfar_hwtstamp_set(dev, rq);
+	if (cmd == SIOCGHWTSTAMP)
+		return gfar_hwtstamp_get(dev, rq);
 
 	if (!priv->phydev)
 		return -ENODEV;

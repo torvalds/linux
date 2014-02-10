@@ -391,7 +391,7 @@ static int do_test_code_reading(bool try_kcore)
 	struct machines machines;
 	struct machine *machine;
 	struct thread *thread;
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
@@ -540,14 +540,11 @@ static int do_test_code_reading(bool try_kcore)
 		err = TEST_CODE_READING_OK;
 out_err:
 	if (evlist) {
-		perf_evlist__munmap(evlist);
-		perf_evlist__close(evlist);
 		perf_evlist__delete(evlist);
-	}
-	if (cpus)
+	} else {
 		cpu_map__delete(cpus);
-	if (threads)
 		thread_map__delete(threads);
+	}
 	machines__destroy_kernel_maps(&machines);
 	machine__delete_threads(machine);
 	machines__exit(&machines);

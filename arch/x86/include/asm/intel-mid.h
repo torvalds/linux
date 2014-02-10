@@ -51,9 +51,40 @@ struct devs_id {
 enum intel_mid_cpu_type {
 	/* 1 was Moorestown */
 	INTEL_MID_CPU_CHIP_PENWELL = 2,
+	INTEL_MID_CPU_CHIP_CLOVERVIEW,
+	INTEL_MID_CPU_CHIP_TANGIER,
 };
 
 extern enum intel_mid_cpu_type __intel_mid_cpu_chip;
+
+/**
+ * struct intel_mid_ops - Interface between intel-mid & sub archs
+ * @arch_setup: arch_setup function to re-initialize platform
+ *             structures (x86_init, x86_platform_init)
+ *
+ * This structure can be extended if any new interface is required
+ * between intel-mid & its sub arch files.
+ */
+struct intel_mid_ops {
+	void (*arch_setup)(void);
+};
+
+/* Helper API's for INTEL_MID_OPS_INIT */
+#define DECLARE_INTEL_MID_OPS_INIT(cpuname, cpuid)	\
+				[cpuid] = get_##cpuname##_ops
+
+/* Maximum number of CPU ops */
+#define MAX_CPU_OPS(a) (sizeof(a)/sizeof(void *))
+
+/*
+ * For every new cpu addition, a weak get_<cpuname>_ops() function needs be
+ * declared in arch/x86/platform/intel_mid/intel_mid_weak_decls.h.
+ */
+#define INTEL_MID_OPS_INIT {\
+	DECLARE_INTEL_MID_OPS_INIT(penwell, INTEL_MID_CPU_CHIP_PENWELL), \
+	DECLARE_INTEL_MID_OPS_INIT(cloverview, INTEL_MID_CPU_CHIP_CLOVERVIEW), \
+	DECLARE_INTEL_MID_OPS_INIT(tangier, INTEL_MID_CPU_CHIP_TANGIER) \
+};
 
 #ifdef CONFIG_X86_INTEL_MID
 
@@ -86,8 +117,21 @@ extern enum intel_mid_timer_options intel_mid_timer_options;
  * Penwell uses spread spectrum clock, so the freq number is not exactly
  * the same as reported by MSR based on SDM.
  */
-#define PENWELL_FSB_FREQ_83SKU         83200
-#define PENWELL_FSB_FREQ_100SKU        99840
+#define FSB_FREQ_83SKU	83200
+#define FSB_FREQ_100SKU	99840
+#define FSB_FREQ_133SKU	133000
+
+#define FSB_FREQ_167SKU	167000
+#define FSB_FREQ_200SKU	200000
+#define FSB_FREQ_267SKU	267000
+#define FSB_FREQ_333SKU	333000
+#define FSB_FREQ_400SKU	400000
+
+/* Bus Select SoC Fuse value */
+#define BSEL_SOC_FUSE_MASK	0x7
+#define BSEL_SOC_FUSE_001	0x1 /* FSB 133MHz */
+#define BSEL_SOC_FUSE_101	0x5 /* FSB 100MHz */
+#define BSEL_SOC_FUSE_111	0x7 /* FSB 83MHz */
 
 #define SFI_MTMR_MAX_NUM 8
 #define SFI_MRTC_MAX	8

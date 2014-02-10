@@ -101,8 +101,8 @@ struct pm_uart_save {
 /* helper functions to save/restore lists of registers. */
 
 extern void s3c_pm_do_save(struct sleep_save *ptr, int count);
-extern void s3c_pm_do_restore(struct sleep_save *ptr, int count);
-extern void s3c_pm_do_restore_core(struct sleep_save *ptr, int count);
+extern void s3c_pm_do_restore(const struct sleep_save *ptr, int count);
+extern void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count);
 
 #ifdef CONFIG_SAMSUNG_PM
 extern int s3c_irq_wake(struct irq_data *data, unsigned int state);

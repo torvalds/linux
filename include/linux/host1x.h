@@ -281,4 +281,10 @@ int host1x_device_exit(struct host1x_device *device);
 int host1x_client_register(struct host1x_client *client);
 int host1x_client_unregister(struct host1x_client *client);
 
+struct tegra_mipi_device;
+
+struct tegra_mipi_device *tegra_mipi_request(struct device *device);
+void tegra_mipi_free(struct tegra_mipi_device *device);
+int tegra_mipi_calibrate(struct tegra_mipi_device *device);
+
 #endif

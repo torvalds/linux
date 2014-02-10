@@ -2515,7 +2515,7 @@ int r600_cp_dispatch_texture(struct drm_device *dev,
 		buf = radeon_freelist_get(dev);
 		if (!buf) {
 			DRM_DEBUG("EAGAIN\n");
-			if (DRM_COPY_TO_USER(tex->image, image, sizeof(*image)))
+			if (copy_to_user(tex->image, image, sizeof(*image)))
 				return -EFAULT;
 			return -EAGAIN;
 		}
@@ -2528,7 +2528,7 @@ int r600_cp_dispatch_texture(struct drm_device *dev,
 		buffer =
 		    (u32 *) ((char *)dev->agp_buffer_map->handle + buf->offset);
 
-		if (DRM_COPY_FROM_USER(buffer, data, pass_size)) {
+		if (copy_from_user(buffer, data, pass_size)) {
 			DRM_ERROR("EFAULT on pad, %d bytes\n", pass_size);
 			return -EFAULT;
 		}

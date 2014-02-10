@@ -26,6 +26,7 @@
 #include <linux/of_fdt.h>
 #include <linux/interrupt.h>
 #include <linux/bug.h>
+#include <linux/cpuidle.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
@@ -145,8 +146,10 @@ static void pnv_shutdown(void)
 	/* Let the PCI code clear up IODA tables */
 	pnv_pci_shutdown();
 
-	/* And unregister all OPAL interrupts so they don't fire
-	 * up while we kexec
+	/*
+	 * Stop OPAL activity: Unregister all OPAL interrupts so they
+	 * don't fire up while we kexec and make sure all potentially
+	 * DMA'ing ops are complete (such as dump retrieval).
 	 */
 	opal_shutdown();
 }
@@ -214,6 +217,16 @@ static int __init pnv_probe(void)
 	return 1;
 }
 
+void powernv_idle(void)
+{
+	/* Hook to cpuidle framework if available, else
+	 * call on default platform idle code
+	 */
+	if (cpuidle_idle_call()) {
+		power7_idle();
+	}
+}
+
 define_machine(powernv) {
 	.name			= "PowerNV",
 	.probe			= pnv_probe,
@@ -223,7 +236,7 @@ define_machine(powernv) {
 	.show_cpuinfo		= pnv_show_cpuinfo,
 	.progress		= pnv_progress,
 	.machine_shutdown	= pnv_shutdown,
-	.power_save             = power7_idle,
+	.power_save             = powernv_idle,
 	.calibrate_decr		= generic_calibrate_decr,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= pnv_kexec_cpu_down,

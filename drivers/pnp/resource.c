@@ -31,7 +31,7 @@ static int pnp_reserve_mem[16] = {[0 ... 15] = -1 };	/* reserve (don't use) some
  * option registration
  */
 
-struct pnp_option *pnp_build_option(struct pnp_dev *dev, unsigned long type,
+static struct pnp_option *pnp_build_option(struct pnp_dev *dev, unsigned long type,
 				    unsigned int option_flags)
 {
 	struct pnp_option *option;

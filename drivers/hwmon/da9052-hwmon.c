@@ -45,7 +45,7 @@ static const char * const input_names[] = {
 /* Conversion function for VDDOUT and VBAT */
 static inline int volt_reg_to_mv(int value)
 {
-	return DIV_ROUND_CLOSEST(value * 1000, 512) + 2500;
+	return DIV_ROUND_CLOSEST(value * 2000, 1023) + 2500;
 }
 
 /* Conversion function for ADC channels 4, 5 and 6 */
@@ -57,7 +57,7 @@ static inline int input_reg_to_mv(int value)
 /* Conversion function for VBBAT */
 static inline int vbbat_reg_to_mv(int value)
 {
-	return DIV_ROUND_CLOSEST(value * 2500, 512);
+	return DIV_ROUND_CLOSEST(value * 5000, 1023);
 }
 
 static inline int da9052_enable_vddout_channel(struct da9052 *da9052)

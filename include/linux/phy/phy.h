@@ -38,6 +38,14 @@ struct phy_ops {
 };
 
 /**
+ * struct phy_attrs - represents phy attributes
+ * @bus_width: Data path width implemented by PHY
+ */
+struct phy_attrs {
+	u32			bus_width;
+};
+
+/**
  * struct phy - represents the phy device
  * @dev: phy device
  * @id: id of the phy device
@@ -46,6 +54,7 @@ struct phy_ops {
  * @mutex: mutex to protect phy_ops
  * @init_count: used to protect when the PHY is used by multiple consumers
  * @power_count: used to protect when the PHY is used by multiple consumers
+ * @phy_attrs: used to specify PHY specific attributes
  */
 struct phy {
 	struct device		dev;
@@ -55,6 +64,7 @@ struct phy {
 	struct mutex		mutex;
 	int			init_count;
 	int			power_count;
+	struct phy_attrs	attrs;
 };
 
 /**
@@ -127,6 +137,14 @@ int phy_init(struct phy *phy);
 int phy_exit(struct phy *phy);
 int phy_power_on(struct phy *phy);
 int phy_power_off(struct phy *phy);
+static inline int phy_get_bus_width(struct phy *phy)
+{
+	return phy->attrs.bus_width;
+}
+static inline void phy_set_bus_width(struct phy *phy, int bus_width)
+{
+	phy->attrs.bus_width = bus_width;
+}
 struct phy *phy_get(struct device *dev, const char *string);
 struct phy *devm_phy_get(struct device *dev, const char *string);
 void phy_put(struct phy *phy);
@@ -197,6 +215,16 @@ static inline int phy_power_on(struct phy *phy)
 static inline int phy_power_off(struct phy *phy)
 {
 	return -ENOSYS;
+}
+
+static inline int phy_get_bus_width(struct phy *phy)
+{
+	return -ENOSYS;
+}
+
+static inline void phy_set_bus_width(struct phy *phy, int bus_width)
+{
+	return;
 }
 
 static inline struct phy *phy_get(struct device *dev, const char *string)

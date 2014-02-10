@@ -44,6 +44,7 @@
 #include "jfs_imap.h"
 #include "jfs_acl.h"
 #include "jfs_debug.h"
+#include "jfs_xattr.h"
 
 MODULE_DESCRIPTION("The Journaled Filesystem (JFS)");
 MODULE_AUTHOR("Steve Best/Dave Kleikamp/Barry Arndt, IBM");
@@ -522,6 +523,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	sb->s_op = &jfs_super_operations;
 	sb->s_export_op = &jfs_export_operations;
+	sb->s_xattr = jfs_xattr_handlers;
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &dquot_operations;
 	sb->s_qcop = &dquot_quotactl_ops;

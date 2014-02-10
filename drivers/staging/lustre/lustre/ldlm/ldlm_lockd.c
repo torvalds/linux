@@ -49,12 +49,12 @@
 #include "ldlm_internal.h"
 
 static int ldlm_num_threads;
-CFS_MODULE_PARM(ldlm_num_threads, "i", int, 0444,
-		"number of DLM service threads to start");
+module_param(ldlm_num_threads, int, 0444);
+MODULE_PARM_DESC(ldlm_num_threads, "number of DLM service threads to start");
 
 static char *ldlm_cpts;
-CFS_MODULE_PARM(ldlm_cpts, "s", charp, 0444,
-		"CPU partitions ldlm threads should run on");
+module_param(ldlm_cpts, charp, 0444);
+MODULE_PARM_DESC(ldlm_cpts, "CPU partitions ldlm threads should run on");
 
 extern struct kmem_cache *ldlm_resource_slab;
 extern struct kmem_cache *ldlm_lock_slab;
@@ -597,45 +597,6 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		rc = ldlm_handle_setinfo(req);
 		ldlm_callback_reply(req, rc);
 		return 0;
-	case OBD_LOG_CANCEL: /* remove this eventually - for 1.4.0 compat */
-		CERROR("shouldn't be handling OBD_LOG_CANCEL on DLM thread\n");
-		req_capsule_set(&req->rq_pill, &RQF_LOG_CANCEL);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOG_CANCEL_NET))
-			return 0;
-		rc = llog_origin_handle_cancel(req);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOG_CANCEL_REP))
-			return 0;
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case LLOG_ORIGIN_HANDLE_CREATE:
-		req_capsule_set(&req->rq_pill, &RQF_LLOG_ORIGIN_HANDLE_CREATE);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			return 0;
-		rc = llog_origin_handle_open(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case LLOG_ORIGIN_HANDLE_NEXT_BLOCK:
-		req_capsule_set(&req->rq_pill,
-				&RQF_LLOG_ORIGIN_HANDLE_NEXT_BLOCK);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			return 0;
-		rc = llog_origin_handle_next_block(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case LLOG_ORIGIN_HANDLE_READ_HEADER:
-		req_capsule_set(&req->rq_pill,
-				&RQF_LLOG_ORIGIN_HANDLE_READ_HEADER);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			return 0;
-		rc = llog_origin_handle_read_header(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case LLOG_ORIGIN_HANDLE_CLOSE:
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			return 0;
-		rc = llog_origin_handle_close(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
 	case OBD_QC_CALLBACK:
 		req_capsule_set(&req->rq_pill, &RQF_QC_CALLBACK);
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_QC_CALLBACK_NET))
@@ -1003,6 +964,7 @@ static cfs_hash_ops_t ldlm_export_lock_ops = {
 
 int ldlm_init_export(struct obd_export *exp)
 {
+	int rc;
 	exp->exp_lock_hash =
 		cfs_hash_create(obd_uuid2str(&exp->exp_client_uuid),
 				HASH_EXP_LOCK_CUR_BITS,
@@ -1016,7 +978,14 @@ int ldlm_init_export(struct obd_export *exp)
 	if (!exp->exp_lock_hash)
 		return -ENOMEM;
 
+	rc = ldlm_init_flock_export(exp);
+	if (rc)
+		GOTO(err, rc);
+
 	return 0;
+err:
+	ldlm_destroy_export(exp);
+	return rc;
 }
 EXPORT_SYMBOL(ldlm_init_export);
 
@@ -1043,11 +1012,9 @@ static int ldlm_setup(void)
 	if (ldlm_state == NULL)
 		return -ENOMEM;
 
-#ifdef LPROCFS
 	rc = ldlm_proc_setup();
 	if (rc != 0)
 		GOTO(out, rc);
-#endif
 
 	memset(&conf, 0, sizeof(conf));
 	conf = (typeof(conf)) {

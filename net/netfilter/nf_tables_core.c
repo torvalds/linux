@@ -109,14 +109,14 @@ static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
 {
 	struct net *net = dev_net(pkt->in ? pkt->in : pkt->out);
 
-	nf_log_packet(net, pkt->xt.family, pkt->hooknum, pkt->skb, pkt->in,
+	nf_log_packet(net, pkt->xt.family, pkt->ops->hooknum, pkt->skb, pkt->in,
 		      pkt->out, &trace_loginfo, "TRACE: %s:%s:%s:%u ",
 		      chain->table->name, chain->name, comments[type],
 		      rulenum);
 }
 
 unsigned int
-nft_do_chain_pktinfo(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
+nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 {
 	const struct nft_chain *chain = ops->priv;
 	const struct nft_rule *rule;
@@ -164,7 +164,7 @@ next_rule:
 		break;
 	}
 
-	switch (data[NFT_REG_VERDICT].verdict) {
+	switch (data[NFT_REG_VERDICT].verdict & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
 	case NF_DROP:
 	case NF_QUEUE:
@@ -172,6 +172,9 @@ next_rule:
 			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
 
 		return data[NFT_REG_VERDICT].verdict;
+	}
+
+	switch (data[NFT_REG_VERDICT].verdict) {
 	case NFT_JUMP:
 		if (unlikely(pkt->skb->nf_trace))
 			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
@@ -213,7 +216,7 @@ next_rule:
 
 	return nft_base_chain(chain)->policy;
 }
-EXPORT_SYMBOL_GPL(nft_do_chain_pktinfo);
+EXPORT_SYMBOL_GPL(nft_do_chain);
 
 int __init nf_tables_core_module_init(void)
 {

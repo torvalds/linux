@@ -46,11 +46,12 @@ extern void at91sam926x_pit_init(void);
 extern void at91x40_timer_init(void);
 
  /* Clocks */
-#ifdef CONFIG_AT91_PMC_UNIT
+#ifdef CONFIG_OLD_CLK_AT91
 extern int __init at91_clock_init(unsigned long main_clock);
 extern int __init at91_dt_clock_init(void);
 #else
 static int inline at91_clock_init(unsigned long main_clock) { return 0; }
+static int inline at91_dt_clock_init(void) { return 0; }
 #endif
 struct device;
 

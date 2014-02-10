@@ -67,7 +67,7 @@ only 1(SINGLE), 2(DUAL) and 4(QUAD).
 Dual/Quad mode is not allowed when 3-wire mode is used.
 
 If a gpio chipselect is used for the SPI slave the gpio number will be passed
-via the cs_gpio
+via the SPI master node cs-gpios property.
 
 SPI example for an MPC5200 SPI bus:
 	spi@f00 {

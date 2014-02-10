@@ -465,7 +465,7 @@ int qla4_83xx_drv_lock(struct scsi_qla_host *ha)
 				}
 				/* Recovery Failed, some other function
 				 * has the lock, wait for 2secs and retry */
-				ql4_printk(KERN_INFO, ha, "%s: IDC lock Recovery by %d failed, Retrying timout\n",
+				ql4_printk(KERN_INFO, ha, "%s: IDC lock Recovery by %d failed, Retrying timeout\n",
 					   __func__, ha->func_num);
 				timeout = 0;
 			}

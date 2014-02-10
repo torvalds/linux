@@ -38,6 +38,7 @@
 #include <linux/clk.h>
 
 #include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
@@ -111,16 +112,59 @@ static const char * const mx28_lradc_irq_names[] = {
 struct mxs_lradc_of_config {
 	const int		irq_count;
 	const char * const	*irq_name;
+	const uint32_t		*vref_mv;
+};
+
+#define VREF_MV_BASE 1850
+
+static const uint32_t mx23_vref_mv[LRADC_MAX_TOTAL_CHANS] = {
+	VREF_MV_BASE,		/* CH0 */
+	VREF_MV_BASE,		/* CH1 */
+	VREF_MV_BASE,		/* CH2 */
+	VREF_MV_BASE,		/* CH3 */
+	VREF_MV_BASE,		/* CH4 */
+	VREF_MV_BASE,		/* CH5 */
+	VREF_MV_BASE * 2,	/* CH6 VDDIO */
+	VREF_MV_BASE * 4,	/* CH7 VBATT */
+	VREF_MV_BASE,		/* CH8 Temp sense 0 */
+	VREF_MV_BASE,		/* CH9 Temp sense 1 */
+	VREF_MV_BASE,		/* CH10 */
+	VREF_MV_BASE,		/* CH11 */
+	VREF_MV_BASE,		/* CH12 USB_DP */
+	VREF_MV_BASE,		/* CH13 USB_DN */
+	VREF_MV_BASE,		/* CH14 VBG */
+	VREF_MV_BASE * 4,	/* CH15 VDD5V */
+};
+
+static const uint32_t mx28_vref_mv[LRADC_MAX_TOTAL_CHANS] = {
+	VREF_MV_BASE,		/* CH0 */
+	VREF_MV_BASE,		/* CH1 */
+	VREF_MV_BASE,		/* CH2 */
+	VREF_MV_BASE,		/* CH3 */
+	VREF_MV_BASE,		/* CH4 */
+	VREF_MV_BASE,		/* CH5 */
+	VREF_MV_BASE,		/* CH6 */
+	VREF_MV_BASE * 4,	/* CH7 VBATT */
+	VREF_MV_BASE,		/* CH8 Temp sense 0 */
+	VREF_MV_BASE,		/* CH9 Temp sense 1 */
+	VREF_MV_BASE * 2,	/* CH10 VDDIO */
+	VREF_MV_BASE,		/* CH11 VTH */
+	VREF_MV_BASE * 2,	/* CH12 VDDA */
+	VREF_MV_BASE,		/* CH13 VDDD */
+	VREF_MV_BASE,		/* CH14 VBG */
+	VREF_MV_BASE * 4,	/* CH15 VDD5V */
 };
 
 static const struct mxs_lradc_of_config mxs_lradc_of_config[] = {
 	[IMX23_LRADC] = {
 		.irq_count	= ARRAY_SIZE(mx23_lradc_irq_names),
 		.irq_name	= mx23_lradc_irq_names,
+		.vref_mv	= mx23_vref_mv,
 	},
 	[IMX28_LRADC] = {
 		.irq_count	= ARRAY_SIZE(mx28_lradc_irq_names),
 		.irq_name	= mx28_lradc_irq_names,
+		.vref_mv	= mx28_vref_mv,
 	},
 };
 
@@ -141,6 +185,16 @@ enum lradc_ts_plate {
 	LRADC_SAMPLE_VALID,
 };
 
+enum mxs_lradc_divbytwo {
+	MXS_LRADC_DIV_DISABLED = 0,
+	MXS_LRADC_DIV_ENABLED,
+};
+
+struct mxs_lradc_scale {
+	unsigned int		integer;
+	unsigned int		nano;
+};
+
 struct mxs_lradc {
 	struct device		*dev;
 	void __iomem		*base;
@@ -154,6 +208,10 @@ struct mxs_lradc {
 	struct mutex		lock;
 
 	struct completion	completion;
+
+	const uint32_t		*vref_mv;
+	struct mxs_lradc_scale	scale_avail[LRADC_MAX_TOTAL_CHANS][2];
+	unsigned long		is_divided;
 
 	/*
 	 * Touchscreen LRADC channels receives a private slot in the CTRL4
@@ -243,6 +301,7 @@ struct mxs_lradc {
 #define	LRADC_CTRL1_LRADC_IRQ_OFFSET		0
 
 #define	LRADC_CTRL2				0x20
+#define	LRADC_CTRL2_DIVIDE_BY_TWO_OFFSET	24
 #define	LRADC_CTRL2_TEMPSENSE_PWD		(1 << 15)
 
 #define	LRADC_STATUS				0x40
@@ -759,19 +818,10 @@ static void mxs_lradc_handle_touch(struct mxs_lradc *lradc)
 /*
  * Raw I/O operations
  */
-static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
-			const struct iio_chan_spec *chan,
-			int *val, int *val2, long m)
+static int mxs_lradc_read_single(struct iio_dev *iio_dev, int chan, int *val)
 {
 	struct mxs_lradc *lradc = iio_priv(iio_dev);
 	int ret;
-
-	if (m != IIO_CHAN_INFO_RAW)
-		return -EINVAL;
-
-	/* Check for invalid channel */
-	if (chan->channel > LRADC_MAX_TOTAL_CHANS)
-		return -EINVAL;
 
 	/*
 	 * See if there is no buffered operation in progess. If there is, simply
@@ -797,7 +847,7 @@ static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
 
 	/* Clean the slot's previous content, then set new one. */
 	mxs_lradc_reg_clear(lradc, LRADC_CTRL4_LRADCSELECT_MASK(0), LRADC_CTRL4);
-	mxs_lradc_reg_set(lradc, chan->channel, LRADC_CTRL4);
+	mxs_lradc_reg_set(lradc, chan, LRADC_CTRL4);
 
 	mxs_lradc_reg_wrt(lradc, 0, LRADC_CH(0));
 
@@ -824,9 +874,206 @@ err:
 	return ret;
 }
 
+static int mxs_lradc_read_temp(struct iio_dev *iio_dev, int *val)
+{
+	int ret, min, max;
+
+	ret = mxs_lradc_read_single(iio_dev, 8, &min);
+	if (ret != IIO_VAL_INT)
+		return ret;
+
+	ret = mxs_lradc_read_single(iio_dev, 9, &max);
+	if (ret != IIO_VAL_INT)
+		return ret;
+
+	*val = max - min;
+
+	return IIO_VAL_INT;
+}
+
+static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
+			const struct iio_chan_spec *chan,
+			int *val, int *val2, long m)
+{
+	struct mxs_lradc *lradc = iio_priv(iio_dev);
+
+	/* Check for invalid channel */
+	if (chan->channel > LRADC_MAX_TOTAL_CHANS)
+		return -EINVAL;
+
+	switch (m) {
+	case IIO_CHAN_INFO_RAW:
+		if (chan->type == IIO_TEMP)
+			return mxs_lradc_read_temp(iio_dev, val);
+
+		return mxs_lradc_read_single(iio_dev, chan->channel, val);
+
+	case IIO_CHAN_INFO_SCALE:
+		if (chan->type == IIO_TEMP) {
+			/* From the datasheet, we have to multiply by 1.012 and
+			 * divide by 4
+			 */
+			*val = 0;
+			*val2 = 253000;
+			return IIO_VAL_INT_PLUS_MICRO;
+		}
+
+		*val = lradc->vref_mv[chan->channel];
+		*val2 = chan->scan_type.realbits -
+			test_bit(chan->channel, &lradc->is_divided);
+		return IIO_VAL_FRACTIONAL_LOG2;
+
+	case IIO_CHAN_INFO_OFFSET:
+		if (chan->type == IIO_TEMP) {
+			/* The calculated value from the ADC is in Kelvin, we
+			 * want Celsius for hwmon so the offset is
+			 * -272.15 * scale
+			 */
+			*val = -1075;
+			*val2 = 691699;
+
+			return IIO_VAL_INT_PLUS_MICRO;
+		}
+
+		return -EINVAL;
+
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int mxs_lradc_write_raw(struct iio_dev *iio_dev,
+			       const struct iio_chan_spec *chan,
+			       int val, int val2, long m)
+{
+	struct mxs_lradc *lradc = iio_priv(iio_dev);
+	struct mxs_lradc_scale *scale_avail =
+			lradc->scale_avail[chan->channel];
+	int ret;
+
+	ret = mutex_trylock(&lradc->lock);
+	if (!ret)
+		return -EBUSY;
+
+	switch (m) {
+	case IIO_CHAN_INFO_SCALE:
+		ret = -EINVAL;
+		if (val == scale_avail[MXS_LRADC_DIV_DISABLED].integer &&
+		    val2 == scale_avail[MXS_LRADC_DIV_DISABLED].nano) {
+			/* divider by two disabled */
+			writel(1 << LRADC_CTRL2_DIVIDE_BY_TWO_OFFSET,
+			       lradc->base + LRADC_CTRL2 + STMP_OFFSET_REG_CLR);
+			clear_bit(chan->channel, &lradc->is_divided);
+			ret = 0;
+		} else if (val == scale_avail[MXS_LRADC_DIV_ENABLED].integer &&
+			   val2 == scale_avail[MXS_LRADC_DIV_ENABLED].nano) {
+			/* divider by two enabled */
+			writel(1 << LRADC_CTRL2_DIVIDE_BY_TWO_OFFSET,
+			       lradc->base + LRADC_CTRL2 + STMP_OFFSET_REG_SET);
+			set_bit(chan->channel, &lradc->is_divided);
+			ret = 0;
+		}
+
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&lradc->lock);
+
+	return ret;
+}
+
+static int mxs_lradc_write_raw_get_fmt(struct iio_dev *iio_dev,
+				       const struct iio_chan_spec *chan,
+				       long m)
+{
+	return IIO_VAL_INT_PLUS_NANO;
+}
+
+static ssize_t mxs_lradc_show_scale_available_ch(struct device *dev,
+		struct device_attribute *attr,
+		char *buf,
+		int ch)
+{
+	struct iio_dev *iio = dev_to_iio_dev(dev);
+	struct mxs_lradc *lradc = iio_priv(iio);
+	int i, len = 0;
+
+	for (i = 0; i < ARRAY_SIZE(lradc->scale_avail[ch]); i++)
+		len += sprintf(buf + len, "%d.%09u ",
+			       lradc->scale_avail[ch][i].integer,
+			       lradc->scale_avail[ch][i].nano);
+
+	len += sprintf(buf + len, "\n");
+
+	return len;
+}
+
+static ssize_t mxs_lradc_show_scale_available(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct iio_dev_attr *iio_attr = to_iio_dev_attr(attr);
+
+	return mxs_lradc_show_scale_available_ch(dev, attr, buf,
+						 iio_attr->address);
+}
+
+#define SHOW_SCALE_AVAILABLE_ATTR(ch)					\
+static IIO_DEVICE_ATTR(in_voltage##ch##_scale_available, S_IRUGO,	\
+		       mxs_lradc_show_scale_available, NULL, ch)
+
+SHOW_SCALE_AVAILABLE_ATTR(0);
+SHOW_SCALE_AVAILABLE_ATTR(1);
+SHOW_SCALE_AVAILABLE_ATTR(2);
+SHOW_SCALE_AVAILABLE_ATTR(3);
+SHOW_SCALE_AVAILABLE_ATTR(4);
+SHOW_SCALE_AVAILABLE_ATTR(5);
+SHOW_SCALE_AVAILABLE_ATTR(6);
+SHOW_SCALE_AVAILABLE_ATTR(7);
+SHOW_SCALE_AVAILABLE_ATTR(8);
+SHOW_SCALE_AVAILABLE_ATTR(9);
+SHOW_SCALE_AVAILABLE_ATTR(10);
+SHOW_SCALE_AVAILABLE_ATTR(11);
+SHOW_SCALE_AVAILABLE_ATTR(12);
+SHOW_SCALE_AVAILABLE_ATTR(13);
+SHOW_SCALE_AVAILABLE_ATTR(14);
+SHOW_SCALE_AVAILABLE_ATTR(15);
+
+static struct attribute *mxs_lradc_attributes[] = {
+	&iio_dev_attr_in_voltage0_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage1_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage2_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage3_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage4_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage5_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage6_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage7_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage8_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage9_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage10_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage11_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage12_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage13_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage14_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage15_scale_available.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group mxs_lradc_attribute_group = {
+	.attrs = mxs_lradc_attributes,
+};
+
 static const struct iio_info mxs_lradc_iio_info = {
 	.driver_module		= THIS_MODULE,
 	.read_raw		= mxs_lradc_read_raw,
+	.write_raw		= mxs_lradc_write_raw,
+	.write_raw_get_fmt	= mxs_lradc_write_raw_get_fmt,
+	.attrs			= &mxs_lradc_attribute_group,
 };
 
 static int mxs_lradc_ts_open(struct input_dev *dev)
@@ -1133,8 +1380,10 @@ static const struct iio_buffer_setup_ops mxs_lradc_buffer_ops = {
 	.type = (chan_type),					\
 	.indexed = 1,						\
 	.scan_index = (idx),					\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+			      BIT(IIO_CHAN_INFO_SCALE),		\
 	.channel = (idx),					\
+	.address = (idx),					\
 	.scan_type = {						\
 		.sign = 'u',					\
 		.realbits = LRADC_RESOLUTION,			\
@@ -1151,8 +1400,17 @@ static const struct iio_chan_spec mxs_lradc_chan_spec[] = {
 	MXS_ADC_CHAN(5, IIO_VOLTAGE),
 	MXS_ADC_CHAN(6, IIO_VOLTAGE),
 	MXS_ADC_CHAN(7, IIO_VOLTAGE),	/* VBATT */
-	MXS_ADC_CHAN(8, IIO_TEMP),	/* Temp sense 0 */
-	MXS_ADC_CHAN(9, IIO_TEMP),	/* Temp sense 1 */
+	/* Combined Temperature sensors */
+	{
+		.type = IIO_TEMP,
+		.indexed = 1,
+		.scan_index = 8,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				      BIT(IIO_CHAN_INFO_OFFSET) |
+				      BIT(IIO_CHAN_INFO_SCALE),
+		.channel = 8,
+		.scan_type = {.sign = 'u', .realbits = 18, .storagebits = 32,},
+	},
 	MXS_ADC_CHAN(10, IIO_VOLTAGE),	/* VDDIO */
 	MXS_ADC_CHAN(11, IIO_VOLTAGE),	/* VTH */
 	MXS_ADC_CHAN(12, IIO_VOLTAGE),	/* VDDA */
@@ -1271,7 +1529,8 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	struct iio_dev *iio;
 	struct resource *iores;
 	int ret = 0, touch_ret;
-	int i;
+	int i, s;
+	unsigned int scale_uv;
 
 	/* Allocate the IIO device. */
 	iio = devm_iio_device_alloc(dev, sizeof(*lradc));
@@ -1316,6 +1575,8 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+	lradc->vref_mv = of_cfg->vref_mv;
+
 	platform_set_drvdata(pdev, iio);
 
 	init_completion(&lradc->completion);
@@ -1338,6 +1599,26 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	ret = mxs_lradc_trigger_init(iio);
 	if (ret)
 		goto err_trig;
+
+	/* Populate available ADC input ranges */
+	for (i = 0; i < LRADC_MAX_TOTAL_CHANS; i++) {
+		for (s = 0; s < ARRAY_SIZE(lradc->scale_avail[i]); s++) {
+			/*
+			 * [s=0] = optional divider by two disabled (default)
+			 * [s=1] = optional divider by two enabled
+			 *
+			 * The scale is calculated by doing:
+			 *   Vref >> (realbits - s)
+			 * which multiplies by two on the second component
+			 * of the array.
+			 */
+			scale_uv = ((u64)lradc->vref_mv[i] * 100000000) >>
+				   (iio->channels[i].scan_type.realbits - s);
+			lradc->scale_avail[i][s].nano =
+					do_div(scale_uv, 100000000) * 10;
+			lradc->scale_avail[i][s].integer = scale_uv;
+		}
+	}
 
 	/* Configure the hardware. */
 	ret = mxs_lradc_hw_init(lradc);

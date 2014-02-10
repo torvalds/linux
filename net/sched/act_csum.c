@@ -37,15 +37,7 @@
 #include <net/tc_act/tc_csum.h>
 
 #define CSUM_TAB_MASK 15
-static struct tcf_common *tcf_csum_ht[CSUM_TAB_MASK + 1];
-static u32 csum_idx_gen;
-static DEFINE_RWLOCK(csum_lock);
-
-static struct tcf_hashinfo csum_hash_info = {
-	.htab	= tcf_csum_ht,
-	.hmask	= CSUM_TAB_MASK,
-	.lock	= &csum_lock,
-};
+static struct tcf_hashinfo csum_hash_info;
 
 static const struct nla_policy csum_policy[TCA_CSUM_MAX + 1] = {
 	[TCA_CSUM_PARMS] = { .len = sizeof(struct tc_csum), },
@@ -71,17 +63,16 @@ static int tcf_csum_init(struct net *n, struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 	parm = nla_data(tb[TCA_CSUM_PARMS]);
 
-	pc = tcf_hash_check(parm->index, a, bind, &csum_hash_info);
+	pc = tcf_hash_check(parm->index, a, bind);
 	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind,
-				     &csum_idx_gen, &csum_hash_info);
+		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_hash_release(pc, bind, &csum_hash_info);
+		tcf_hash_release(pc, bind, a->ops->hinfo);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -93,7 +84,7 @@ static int tcf_csum_init(struct net *n, struct nlattr *nla, struct nlattr *est,
 	spin_unlock_bh(&p->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &csum_hash_info);
+		tcf_hash_insert(pc, a->ops->hinfo);
 
 	return ret;
 }
@@ -580,7 +571,6 @@ static struct tc_action_ops act_csum_ops = {
 	.kind		= "csum",
 	.hinfo		= &csum_hash_info,
 	.type		= TCA_ACT_CSUM,
-	.capab		= TCA_CAP_NONE,
 	.owner		= THIS_MODULE,
 	.act		= tcf_csum,
 	.dump		= tcf_csum_dump,
@@ -593,6 +583,10 @@ MODULE_LICENSE("GPL");
 
 static int __init csum_init_module(void)
 {
+	int err = tcf_hashinfo_init(&csum_hash_info, CSUM_TAB_MASK);
+	if (err)
+		return err;
+
 	return tcf_register_action(&act_csum_ops);
 }
 

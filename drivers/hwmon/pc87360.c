@@ -1,7 +1,7 @@
 /*
  *  pc87360.c - Part of lm_sensors, Linux kernel modules
  *              for hardware monitoring
- *  Copyright (C) 2004, 2007 Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2004, 2007 Jean Delvare <jdelvare@suse.de>
  *
  *  Copied from smsc47m1.c:
  *  Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
@@ -1808,7 +1808,7 @@ static void __exit pc87360_exit(void)
 }
 
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("PC8736x hardware monitor");
 MODULE_LICENSE("GPL");
 

@@ -772,7 +772,7 @@ static int daqboard2000_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
+static const struct pci_device_id daqboard2000_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IOTECH, 0x0409) },
 	{ 0 }
 };

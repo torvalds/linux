@@ -122,9 +122,9 @@ typedef void (*regmap_unlock)(void *);
  *		  volatile_table (see below) is not, the check is performed on
  *                such table (a register is volatile if it belongs to one of
  *                the ranges specified by volatile_table).
- * @precious_reg: Optional callback returning true if the rgister
+ * @precious_reg: Optional callback returning true if the register
  *		  should not be read outside of a call from the driver
- *		  (eg, a clear on read interrupt status register). If this
+ *		  (e.g., a clear on read interrupt status register). If this
  *                field is NULL but precious_table (see below) is not, the
  *                check is performed on such table (a register is precious if
  *                it belongs to one of the ranges specified by precious_table).
@@ -136,9 +136,9 @@ typedef void (*regmap_unlock)(void *);
  *		  are not overridden).
  * @reg_read:	  Optional callback that if filled will be used to perform
  *           	  all the reads from the registers. Should only be provided for
- *		  devices whos read operation cannot be represented as a simple read
- *		  operation on a bus such as SPI, I2C, etc. Most of the devices do
- * 		  not need this.
+ *		  devices whose read operation cannot be represented as a simple
+ *		  read operation on a bus such as SPI, I2C, etc. Most of the
+ *		  devices do not need this.
  * @reg_write:	  Same as above for writing.
  * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
  *	     	  to perform locking. This field is ignored if custom lock/unlock
@@ -497,11 +497,13 @@ struct regmap_irq {
  *
  * @status_base: Base status register address.
  * @mask_base:   Base mask register address.
- * @ack_base:    Base ack address.  If zero then the chip is clear on read.
+ * @ack_base:    Base ack address. If zero then the chip is clear on read.
+ *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
  * @mask_invert: Inverted mask register: cleared bits are masked out.
+ * @use_ack:     Use @ack register even if it is zero.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
@@ -520,6 +522,7 @@ struct regmap_irq_chip {
 	unsigned int irq_reg_stride;
 	bool init_ack_masked:1;
 	bool mask_invert:1;
+	bool use_ack:1;
 	bool wake_invert:1;
 	bool runtime_pm:1;
 

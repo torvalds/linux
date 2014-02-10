@@ -2232,6 +2232,177 @@ done:
 	return rtn;
 }
 
+/*
+ * Common Packet Handling code
+ */
+
+static void handle_data_in_packet(struct nd_struct *nd, struct ch_struct *ch,
+				  long dlen, long plen, int n1, u8 *dbuf)
+{
+	char *error;
+	long n;
+	long remain;
+	u8 *buf;
+	u8 *b;
+
+	remain = nd->nd_remain;
+	nd->nd_tx_work = 1;
+
+	/*
+	 *  Otherwise data should appear only when we are
+	 *  in the CS_READY state.
+	 */
+
+	if (ch->ch_state < CS_READY) {
+		error = "Data received before RWIN established";
+		nd->nd_remain = 0;
+		nd->nd_state = NS_SEND_ERROR;
+		nd->nd_error = error;
+	}
+
+	/*
+	 *  Assure that the data received is within the
+	 *  allowable window.
+	 */
+
+	n = (ch->ch_s_rwin - ch->ch_s_rin) & 0xffff;
+
+	if (dlen > n) {
+		error = "Receive data overrun";
+		nd->nd_remain = 0;
+		nd->nd_state = NS_SEND_ERROR;
+		nd->nd_error = error;
+	}
+
+	/*
+	 *  If we received 3 or less characters,
+	 *  assume it is a human typing, and set RTIME
+	 *  to 10 milliseconds.
+	 *
+	 *  If we receive 10 or more characters,
+	 *  assume its not a human typing, and set RTIME
+	 *  to 100 milliseconds.
+	 */
+
+	if (ch->ch_edelay != DGRP_RTIME) {
+		if (ch->ch_rtime != ch->ch_edelay) {
+			ch->ch_rtime = ch->ch_edelay;
+			ch->ch_flag |= CH_PARAM;
+		}
+	} else if (dlen <= 3) {
+		if (ch->ch_rtime != 10) {
+			ch->ch_rtime = 10;
+			ch->ch_flag |= CH_PARAM;
+		}
+	} else {
+		if (ch->ch_rtime != DGRP_RTIME) {
+			ch->ch_rtime = DGRP_RTIME;
+			ch->ch_flag |= CH_PARAM;
+		}
+	}
+
+	/*
+	 *  If a portion of the packet is outside the
+	 *  buffer, shorten the effective length of the
+	 *  data packet to be the amount of data received.
+	 */
+
+	if (remain < plen)
+		dlen -= plen - remain;
+
+	/*
+	 *  Detect if receive flush is now complete.
+	 */
+
+	if ((ch->ch_flag & CH_RX_FLUSH) != 0 &&
+			((ch->ch_flush_seq - nd->nd_seq_out) & SEQ_MASK) >=
+			((nd->nd_seq_in    - nd->nd_seq_out) & SEQ_MASK)) {
+		ch->ch_flag &= ~CH_RX_FLUSH;
+	}
+
+	/*
+	 *  If we are ready to receive, move the data into
+	 *  the receive buffer.
+	 */
+
+	ch->ch_s_rin = (ch->ch_s_rin + dlen) & 0xffff;
+
+	if (ch->ch_state == CS_READY &&
+			(ch->ch_tun.un_open_count != 0) &&
+			(ch->ch_tun.un_flag & UN_CLOSING) == 0 &&
+			(ch->ch_cflag & CF_CREAD) != 0 &&
+			(ch->ch_flag & (CH_BAUD0 | CH_RX_FLUSH)) == 0 &&
+			(ch->ch_send & RR_RX_FLUSH) == 0) {
+
+		if (ch->ch_rin + dlen >= RBUF_MAX) {
+			n = RBUF_MAX - ch->ch_rin;
+
+			memcpy(ch->ch_rbuf + ch->ch_rin, dbuf, n);
+
+			ch->ch_rin = 0;
+			dbuf += n;
+			dlen -= n;
+		}
+
+		memcpy(ch->ch_rbuf + ch->ch_rin, dbuf, dlen);
+
+		ch->ch_rin += dlen;
+
+
+		/*
+		 *  If we are not in fastcook mode, or
+		 *  if there is a fastcook thread
+		 *  waiting for data, send the data to
+		 *  the line discipline.
+		 */
+
+		if ((ch->ch_flag & CH_FAST_READ) == 0 ||
+				ch->ch_inwait != 0) {
+			dgrp_input(ch);
+		}
+
+		/*
+		 *  If there is a read thread waiting
+		 *  in select, and we are in fastcook
+		 *  mode, wake him up.
+		 */
+
+		if (waitqueue_active(&ch->ch_tun.un_tty->read_wait) &&
+				(ch->ch_flag & CH_FAST_READ) != 0)
+			wake_up_interruptible(&ch->ch_tun.un_tty->read_wait);
+
+		/*
+		 * Wake any thread waiting in the
+		 * fastcook loop.
+		 */
+
+		if ((ch->ch_flag & CH_INPUT) != 0) {
+			ch->ch_flag &= ~CH_INPUT;
+			wake_up_interruptible(&ch->ch_flag_wait);
+		}
+	}
+
+	/*
+	 *  Fabricate and insert a data packet header to
+	 *  preced the remaining data when it comes in.
+	 */
+
+	if (remain < plen) {
+		dlen = plen - remain;
+		b = buf;
+
+		b[0] = 0x90 + n1;
+		put_unaligned_be16(dlen, b + 1);
+
+		remain = 3;
+		if (remain > 0 && b != buf)
+			memcpy(buf, b, remain);
+
+		nd->nd_remain = remain;
+		return;
+	}
+}
+
 /**
  * dgrp_receive() -- decode data packets received from the remote PortServer.
  * @nd: pointer to a node structure
@@ -2306,7 +2477,8 @@ static void dgrp_receive(struct nd_struct *nd)
 			plen = dlen + 1;
 
 			dbuf = b + 1;
-			goto data;
+			handle_data_in_packet(nd, ch, dlen, plen, n1, dbuf);
+			break;
 
 		/*
 		 *  Process 2-byte header data packet.
@@ -2320,7 +2492,8 @@ static void dgrp_receive(struct nd_struct *nd)
 			plen = dlen + 2;
 
 			dbuf = b + 2;
-			goto data;
+			handle_data_in_packet(nd, ch, dlen, plen, n1, dbuf);
+			break;
 
 		/*
 		 *  Process 3-byte header data packet.
@@ -2335,159 +2508,6 @@ static void dgrp_receive(struct nd_struct *nd)
 
 			dbuf = b + 3;
 
-		/*
-		 *  Common packet handling code.
-		 */
-
-data:
-			nd->nd_tx_work = 1;
-
-			/*
-			 *  Otherwise data should appear only when we are
-			 *  in the CS_READY state.
-			 */
-
-			if (ch->ch_state < CS_READY) {
-				error = "Data received before RWIN established";
-				goto prot_error;
-			}
-
-			/*
-			 *  Assure that the data received is within the
-			 *  allowable window.
-			 */
-
-			n = (ch->ch_s_rwin - ch->ch_s_rin) & 0xffff;
-
-			if (dlen > n) {
-				error = "Receive data overrun";
-				goto prot_error;
-			}
-
-			/*
-			 *  If we received 3 or less characters,
-			 *  assume it is a human typing, and set RTIME
-			 *  to 10 milliseconds.
-			 *
-			 *  If we receive 10 or more characters,
-			 *  assume its not a human typing, and set RTIME
-			 *  to 100 milliseconds.
-			 */
-
-			if (ch->ch_edelay != DGRP_RTIME) {
-				if (ch->ch_rtime != ch->ch_edelay) {
-					ch->ch_rtime = ch->ch_edelay;
-					ch->ch_flag |= CH_PARAM;
-				}
-			} else if (dlen <= 3) {
-				if (ch->ch_rtime != 10) {
-					ch->ch_rtime = 10;
-					ch->ch_flag |= CH_PARAM;
-				}
-			} else {
-				if (ch->ch_rtime != DGRP_RTIME) {
-					ch->ch_rtime = DGRP_RTIME;
-					ch->ch_flag |= CH_PARAM;
-				}
-			}
-
-			/*
-			 *  If a portion of the packet is outside the
-			 *  buffer, shorten the effective length of the
-			 *  data packet to be the amount of data received.
-			 */
-
-			if (remain < plen)
-				dlen -= plen - remain;
-
-			/*
-			 *  Detect if receive flush is now complete.
-			 */
-
-			if ((ch->ch_flag & CH_RX_FLUSH) != 0 &&
-			    ((ch->ch_flush_seq - nd->nd_seq_out) & SEQ_MASK) >=
-			    ((nd->nd_seq_in    - nd->nd_seq_out) & SEQ_MASK)) {
-				ch->ch_flag &= ~CH_RX_FLUSH;
-			}
-
-			/*
-			 *  If we are ready to receive, move the data into
-			 *  the receive buffer.
-			 */
-
-			ch->ch_s_rin = (ch->ch_s_rin + dlen) & 0xffff;
-
-			if (ch->ch_state == CS_READY &&
-			    (ch->ch_tun.un_open_count != 0) &&
-			    (ch->ch_tun.un_flag & UN_CLOSING) == 0 &&
-			    (ch->ch_cflag & CF_CREAD) != 0 &&
-			    (ch->ch_flag & (CH_BAUD0 | CH_RX_FLUSH)) == 0 &&
-			    (ch->ch_send & RR_RX_FLUSH) == 0) {
-
-				if (ch->ch_rin + dlen >= RBUF_MAX) {
-					n = RBUF_MAX - ch->ch_rin;
-
-					memcpy(ch->ch_rbuf + ch->ch_rin, dbuf, n);
-
-					ch->ch_rin = 0;
-					dbuf += n;
-					dlen -= n;
-				}
-
-				memcpy(ch->ch_rbuf + ch->ch_rin, dbuf, dlen);
-
-				ch->ch_rin += dlen;
-
-
-				/*
-				 *  If we are not in fastcook mode, or
-				 *  if there is a fastcook thread
-				 *  waiting for data, send the data to
-				 *  the line discipline.
-				 */
-
-				if ((ch->ch_flag & CH_FAST_READ) == 0 ||
-				    ch->ch_inwait != 0) {
-					dgrp_input(ch);
-				}
-
-				/*
-				 *  If there is a read thread waiting
-				 *  in select, and we are in fastcook
-				 *  mode, wake him up.
-				 */
-
-				if (waitqueue_active(&ch->ch_tun.un_tty->read_wait) &&
-				    (ch->ch_flag & CH_FAST_READ) != 0)
-					wake_up_interruptible(&ch->ch_tun.un_tty->read_wait);
-
-				/*
-				 * Wake any thread waiting in the
-				 * fastcook loop.
-				 */
-
-				if ((ch->ch_flag & CH_INPUT) != 0) {
-					ch->ch_flag &= ~CH_INPUT;
-
-					wake_up_interruptible(&ch->ch_flag_wait);
-				}
-			}
-
-			/*
-			 *  Fabricate and insert a data packet header to
-			 *  preced the remaining data when it comes in.
-			 */
-
-			if (remain < plen) {
-				dlen = plen - remain;
-				b = buf;
-
-				b[0] = 0x90 + n1;
-				put_unaligned_be16(dlen, b + 1);
-
-				remain = 3;
-				goto done;
-			}
 			break;
 
 		/*

@@ -230,6 +230,7 @@ static int ocfs2_mknod(struct inode *dir,
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
 	sigset_t oldset;
 	int did_block_signals = 0;
+	struct posix_acl *default_acl = NULL, *acl = NULL;
 
 	trace_ocfs2_mknod(dir, dentry, dentry->d_name.len, dentry->d_name.name,
 			  (unsigned long long)OCFS2_I(dir)->ip_blkno,
@@ -331,6 +332,12 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
+	status = posix_acl_create(dir, &mode, &default_acl, &acl);
+	if (status) {
+		mlog_errno(status);
+		goto leave;
+	}
+
 	handle = ocfs2_start_trans(osb, ocfs2_mknod_credits(osb->sb,
 							    S_ISDIR(mode),
 							    xattr_credits));
@@ -379,8 +386,17 @@ static int ocfs2_mknod(struct inode *dir,
 		inc_nlink(dir);
 	}
 
-	status = ocfs2_init_acl(handle, inode, dir, new_fe_bh, parent_fe_bh,
-				meta_ac, data_ac);
+	if (default_acl) {
+		status = ocfs2_set_acl(handle, inode, new_fe_bh,
+				       ACL_TYPE_DEFAULT, default_acl,
+				       meta_ac, data_ac);
+	}
+	if (!status && acl) {
+		status = ocfs2_set_acl(handle, inode, new_fe_bh,
+				       ACL_TYPE_ACCESS, acl,
+				       meta_ac, data_ac);
+	}
+
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
@@ -419,6 +435,10 @@ static int ocfs2_mknod(struct inode *dir,
 	d_instantiate(dentry, inode);
 	status = 0;
 leave:
+	if (default_acl)
+		posix_acl_release(default_acl);
+	if (acl)
+		posix_acl_release(acl);
 	if (status < 0 && did_quota_inode)
 		dquot_free_inode(inode);
 	if (handle)
@@ -948,7 +968,7 @@ leave:
 	ocfs2_free_dir_lookup_result(&orphan_insert);
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	if (status && (status != -ENOTEMPTY))
+	if (status && (status != -ENOTEMPTY) && (status != -ENOENT))
 		mlog_errno(status);
 
 	return status;
@@ -2504,4 +2524,5 @@ const struct inode_operations ocfs2_dir_iops = {
 	.removexattr	= generic_removexattr,
 	.fiemap         = ocfs2_fiemap,
 	.get_acl	= ocfs2_iop_get_acl,
+	.set_acl	= ocfs2_iop_set_acl,
 };

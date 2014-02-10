@@ -347,7 +347,7 @@ static void fimd_wait_for_vblank(struct device *dev)
 	 */
 	if (!wait_event_timeout(ctx->wait_vsync_queue,
 				!atomic_read(&ctx->wait_vsync_event),
-				DRM_HZ/20))
+				HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
@@ -706,7 +706,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	/* set wait vsync event to zero and wake up queue. */
 	if (atomic_read(&ctx->wait_vsync_event)) {
 		atomic_set(&ctx->wait_vsync_event, 0);
-		DRM_WAKEUP(&ctx->wait_vsync_queue);
+		wake_up(&ctx->wait_vsync_queue);
 	}
 out:
 	return IRQ_HANDLED;
@@ -954,7 +954,7 @@ static int fimd_probe(struct platform_device *pdev)
 	}
 
 	ctx->driver_data = drm_fimd_get_driver_data(pdev);
-	DRM_INIT_WAITQUEUE(&ctx->wait_vsync_queue);
+	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
 
 	subdrv = &ctx->subdrv;

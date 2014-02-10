@@ -30,7 +30,7 @@ struct rfc_1042_hdr {
 	u8 llc_ssap;
 	u8 llc_ctrl;
 	u8 snap_oui[3];
-	u16 snap_type;
+	__be16 snap_type;
 };
 
 struct rx_packet_hdr {
@@ -226,7 +226,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 /* HW_SPEC fw_cap_info */
 
-#define ISSUPP_11ACENABLED(fw_cap_info) (fw_cap_info & (BIT(13)|BIT(14)))
+#define ISSUPP_11ACENABLED(fw_cap_info) (fw_cap_info & (BIT(12)|BIT(13)))
 
 #define GET_VHTCAP_CHWDSET(vht_cap_info)    ((vht_cap_info >> 2) & 0x3)
 #define GET_VHTNSSMCS(mcs_mapset, nss) ((mcs_mapset >> (2 * (nss - 1))) & 0x3)
@@ -468,8 +468,6 @@ enum P2P_MODES {
 #define MWIFIEX_CRITERIA_UNICAST	BIT(1)
 #define MWIFIEX_CRITERIA_MULTICAST	BIT(3)
 
-#define CFG_DATA_TYPE_CAL		2
-
 struct mwifiex_ie_types_header {
 	__le16 type;
 	__le16 len;
@@ -610,12 +608,12 @@ struct mwifiex_ie_types_tsf_timestamp {
 struct mwifiex_cf_param_set {
 	u8 cfp_cnt;
 	u8 cfp_period;
-	u16 cfp_max_duration;
-	u16 cfp_duration_remaining;
+	__le16 cfp_max_duration;
+	__le16 cfp_duration_remaining;
 } __packed;
 
 struct mwifiex_ibss_param_set {
-	u16 atim_window;
+	__le16 atim_window;
 } __packed;
 
 struct mwifiex_ie_types_ss_param_set {
@@ -627,7 +625,7 @@ struct mwifiex_ie_types_ss_param_set {
 } __packed;
 
 struct mwifiex_fh_param_set {
-	u16 dwell_time;
+	__le16 dwell_time;
 	u8 hop_set;
 	u8 hop_pattern;
 	u8 hop_index;
@@ -684,10 +682,10 @@ struct host_cmd_ds_802_11_key_material {
 } __packed;
 
 struct host_cmd_ds_gen {
-	u16 command;
-	u16 size;
-	u16 seq_num;
-	u16 result;
+	__le16 command;
+	__le16 size;
+	__le16 seq_num;
+	__le16 result;
 };
 
 #define S_DS_GEN        sizeof(struct host_cmd_ds_gen)
@@ -820,8 +818,8 @@ struct ieee_types_cf_param_set {
 	u8 len;
 	u8 cfp_cnt;
 	u8 cfp_period;
-	u16 cfp_max_duration;
-	u16 cfp_duration_remaining;
+	__le16 cfp_max_duration;
+	__le16 cfp_duration_remaining;
 } __packed;
 
 struct ieee_types_ibss_param_set {
@@ -957,7 +955,7 @@ struct mwifiex_hs_config_param {
 } __packed;
 
 struct hs_activate_param {
-	u16 resp_ctrl;
+	__le16 resp_ctrl;
 } __packed;
 
 struct host_cmd_ds_802_11_hs_cfg_enh {
@@ -1131,7 +1129,7 @@ struct host_cmd_ds_802_11_bg_scan_query {
 } __packed;
 
 struct host_cmd_ds_802_11_bg_scan_query_rsp {
-	u32 report_condition;
+	__le32 report_condition;
 	struct host_cmd_ds_802_11_scan_rsp scan_resp;
 } __packed;
 
@@ -1230,7 +1228,7 @@ struct mwifiex_ie_types_wmm_queue_status {
 	struct mwifiex_ie_types_header header;
 	u8 queue_index;
 	u8 disabled;
-	u16 medium_time;
+	__le16 medium_time;
 	u8 flow_required;
 	u8 flow_created;
 	u32 reserved;
@@ -1310,7 +1308,7 @@ struct mwifiex_ie_types_vht_oper {
 	u8 chan_center_freq_1;
 	u8 chan_center_freq_2;
 	/* Basic MCS set map, each 2 bits stands for a NSS */
-	u16 basic_mcs_map;
+	__le16 basic_mcs_map;
 } __packed;
 
 struct mwifiex_ie_types_wmmcap {
@@ -1592,12 +1590,6 @@ struct mwifiex_ie_list {
 	struct mwifiex_ie ie_list[MAX_MGMT_IE_INDEX];
 } __packed;
 
-struct host_cmd_ds_802_11_cfg_data {
-	__le16 action;
-	__le16 type;
-	__le16 data_len;
-} __packed;
-
 struct coalesce_filt_field_param {
 	u8 operation;
 	u8 operand_len;
@@ -1678,7 +1670,6 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_sys_config uap_sys_config;
 		struct host_cmd_ds_sta_deauth sta_deauth;
 		struct host_cmd_11ac_vht_cfg vht_cfg;
-		struct host_cmd_ds_802_11_cfg_data cfg_data;
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
 	} params;
 } __packed;

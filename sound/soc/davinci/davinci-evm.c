@@ -28,14 +28,11 @@
 
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
-#include "davinci-mcasp.h"
 
 struct snd_soc_card_drvdata_davinci {
 	unsigned sysclk;
 };
 
-#define AUDIO_FORMAT (SND_SOC_DAIFMT_DSP_B | \
-		SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF)
 static int evm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params)
 {
@@ -47,16 +44,6 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 	unsigned sysclk = ((struct snd_soc_card_drvdata_davinci *)
 			   snd_soc_card_get_drvdata(soc_card))->sysclk;
-
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, AUDIO_FORMAT);
-	if (ret < 0)
-		return ret;
-
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, AUDIO_FORMAT);
-	if (ret < 0)
-		return ret;
 
 	/* set the codec system clock */
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, sysclk, SND_SOC_CLOCK_OUT);
@@ -71,22 +58,8 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int evm_spdif_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-	/* set cpu DAI configuration */
-	return snd_soc_dai_set_fmt(cpu_dai, AUDIO_FORMAT);
-}
-
 static struct snd_soc_ops evm_ops = {
 	.hw_params = evm_hw_params,
-};
-
-static struct snd_soc_ops evm_spdif_ops = {
-	.hw_params = evm_spdif_hw_params,
 };
 
 /* davinci-evm machine dapm widgets */
@@ -165,6 +138,8 @@ static struct snd_soc_dai_link dm6446_evm_dai = {
 	.platform_name = "davinci-mcbsp",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
+	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+		   SND_SOC_DAIFMT_IB_NF,
 };
 
 static struct snd_soc_dai_link dm355_evm_dai = {
@@ -176,6 +151,8 @@ static struct snd_soc_dai_link dm355_evm_dai = {
 	.platform_name = "davinci-mcbsp.1",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
+	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+		   SND_SOC_DAIFMT_IB_NF,
 };
 
 static struct snd_soc_dai_link dm365_evm_dai = {
@@ -184,10 +161,12 @@ static struct snd_soc_dai_link dm365_evm_dai = {
 	.stream_name = "AIC3X",
 	.cpu_dai_name = "davinci-mcbsp",
 	.codec_dai_name = "tlv320aic3x-hifi",
-	.init = evm_aic3x_init,
 	.codec_name = "tlv320aic3x-codec.1-0018",
-	.ops = &evm_ops,
 	.platform_name = "davinci-mcbsp",
+	.init = evm_aic3x_init,
+	.ops = &evm_ops,
+	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+		   SND_SOC_DAIFMT_IB_NF,
 #elif defined(CONFIG_SND_DM365_VOICE_CODEC)
 	.name = "Voice Codec - CQ93VC",
 	.stream_name = "CQ93",
@@ -208,6 +187,8 @@ static struct snd_soc_dai_link dm6467_evm_dai[] = {
 		.codec_name = "tlv320aic3x-codec.0-001a",
 		.init = evm_aic3x_init,
 		.ops = &evm_ops,
+		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+			   SND_SOC_DAIFMT_IB_NF,
 	},
 	{
 		.name = "McASP",
@@ -216,7 +197,8 @@ static struct snd_soc_dai_link dm6467_evm_dai[] = {
 		.codec_dai_name = "dit-hifi",
 		.codec_name = "spdif_dit",
 		.platform_name = "davinci-mcasp.1",
-		.ops = &evm_spdif_ops,
+		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+			   SND_SOC_DAIFMT_IB_NF,
 	},
 };
 
@@ -229,6 +211,8 @@ static struct snd_soc_dai_link da830_evm_dai = {
 	.platform_name = "davinci-mcasp.1",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
+	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+		   SND_SOC_DAIFMT_IB_NF,
 };
 
 static struct snd_soc_dai_link da850_evm_dai = {
@@ -240,6 +224,8 @@ static struct snd_soc_dai_link da850_evm_dai = {
 	.platform_name = "davinci-mcasp.0",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
+	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+		   SND_SOC_DAIFMT_IB_NF,
 };
 
 /* davinci dm6446 evm audio machine driver */
@@ -336,6 +322,8 @@ static struct snd_soc_dai_link evm_dai_tlv320aic3x = {
 	.codec_dai_name	= "tlv320aic3x-hifi",
 	.ops            = &evm_ops,
 	.init           = evm_aic3x_init,
+	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+		   SND_SOC_DAIFMT_IB_NF,
 };
 
 static const struct of_device_id davinci_evm_dt_ids[] = {

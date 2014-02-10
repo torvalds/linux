@@ -41,7 +41,7 @@ nvf0_disp_sclass[] = {
 
 static struct nouveau_oclass
 nvf0_disp_base_oclass[] = {
-	{ NVF0_DISP_CLASS, &nvd0_disp_base_ofuncs, nva3_disp_base_omthds },
+	{ NVF0_DISP_CLASS, &nvd0_disp_base_ofuncs, nvd0_disp_base_omthds },
 	{}
 };
 
@@ -53,9 +53,6 @@ nvf0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv50_disp_priv *priv;
 	int heads = nv_rd32(parent, 0x022448);
 	int ret;
-
-	if (nv_rd32(parent, 0x022500) & 0x00000001)
-		return -ENODEV;
 
 	ret = nouveau_disp_create(parent, engine, oclass, heads,
 				  "PDISP", "display", &priv);

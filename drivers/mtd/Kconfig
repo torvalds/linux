@@ -157,10 +157,11 @@ config MTD_BCM47XX_PARTS
 
 comment "User Modules And Translation Layers"
 
+#
+# MTD block device support is select'ed if needed
+#
 config MTD_BLKDEVS
-	tristate "Common interface to block layer for MTD 'translation layers'"
-	depends on BLOCK
-	default n
+	tristate
 
 config MTD_BLOCK
 	tristate "Caching block device access to MTD devices"

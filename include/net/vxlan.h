@@ -21,6 +21,7 @@ struct vxlan_sock {
 	struct rcu_head	  rcu;
 	struct hlist_head vni_list[VNI_HASH_SIZE];
 	atomic_t	  refcnt;
+	struct udp_offload udp_offloads;
 };
 
 struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,

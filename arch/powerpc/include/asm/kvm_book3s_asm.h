@@ -88,6 +88,7 @@ struct kvmppc_host_state {
 	u8 hwthread_req;
 	u8 hwthread_state;
 	u8 host_ipi;
+	u8 ptid;
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
 	unsigned long xics_phys;

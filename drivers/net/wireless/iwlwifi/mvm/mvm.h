@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +81,7 @@
 #define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
 #define IWL_RSSI_OFFSET 50
+#define IWL_MVM_MISSED_BEACONS_THRESHOLD 8
 
 enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_BK = 0,
@@ -163,6 +164,8 @@ struct iwl_mvm_power_ops {
 				 struct ieee80211_vif *vif);
 	int (*power_update_device_mode)(struct iwl_mvm *mvm);
 	int (*power_disable)(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+	void (*power_update_binding)(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif, bool assign);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	int (*power_dbgfs_read)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				char *buf, int bufsz);
@@ -181,6 +184,7 @@ enum iwl_dbgfs_pm_mask {
 	MVM_DEBUGFS_PM_LPRX_ENA = BIT(6),
 	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
 	MVM_DEBUGFS_PM_SNOOZE_ENABLE = BIT(8),
+	MVM_DEBUGFS_PM_UAPSD_MISBEHAVING = BIT(9),
 };
 
 struct iwl_dbgfs_pm {
@@ -193,6 +197,7 @@ struct iwl_dbgfs_pm {
 	bool lprx_ena;
 	u32 lprx_rssi_threshold;
 	bool snooze_ena;
+	bool uapsd_misbehaving;
 	int mask;
 };
 
@@ -269,8 +274,8 @@ struct iwl_mvm_vif_bf_data {
  * @bcast_sta: station used for broadcast packets. Used by the following
  *  vifs: P2P_DEVICE, GO and AP.
  * @beacon_skb: the skb used to hold the AP/GO beacon template
- * @smps_requests: the requests of of differents parts of the driver, regard
-	the desired smps mode.
+ * @smps_requests: the SMPS requests of differents parts of the driver,
+ *	combined on update to yield the overall request to mac80211.
  */
 struct iwl_mvm_vif {
 	u16 id;
@@ -323,14 +328,19 @@ struct iwl_mvm_vif {
 #endif
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	struct iwl_mvm *mvm;
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_slink;
-	void *dbgfs_data;
 	struct iwl_dbgfs_pm dbgfs_pm;
 	struct iwl_dbgfs_bf dbgfs_bf;
 #endif
 
 	enum ieee80211_smps_mode smps_requests[NUM_IWL_MVM_SMPS_REQ];
+
+	/* FW identified misbehaving AP */
+	u8 uapsd_misbehaving_bssid[ETH_ALEN];
+
+	bool pm_prevented;
 };
 
 static inline struct iwl_mvm_vif *
@@ -479,6 +489,7 @@ struct iwl_mvm {
 	/* Scan status, cmd (pre-allocated) and auxiliary station */
 	enum iwl_scan_status scan_status;
 	struct iwl_scan_cmd *scan_cmd;
+	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
@@ -489,11 +500,19 @@ struct iwl_mvm {
 	u8 scan_last_antenna_idx; /* to toggle TX between antennas */
 	u8 mgmt_last_antenna_idx;
 
+	/* last smart fifo state that was successfully sent to firmware */
+	enum iwl_sf_state sf_state;
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	bool disable_power_off;
 	bool disable_power_off_d3;
+
+	struct debugfs_blob_wrapper nvm_hw_blob;
+	struct debugfs_blob_wrapper nvm_sw_blob;
+	struct debugfs_blob_wrapper nvm_calib_blob;
+	struct debugfs_blob_wrapper nvm_prod_blob;
 #endif
 
 	struct iwl_mvm_phy_ctxt phy_ctxts[NUM_PHY_CTX];
@@ -507,12 +526,6 @@ struct iwl_mvm {
 	 */
 	unsigned long fw_key_table[BITS_TO_LONGS(STA_KEY_MAX_NUM)];
 
-	/*
-	 * This counter of created interfaces is referenced only in conjunction
-	 * with FW limitation related to power management. Currently PM is
-	 * supported only on a single interface.
-	 * IMPORTANT: this variable counts all interfaces except P2P device.
-	 */
 	u8 vif_count;
 
 	/* -1 for always, 0 for never, >0 for that many times */
@@ -531,6 +544,7 @@ struct iwl_mvm {
 	bool store_d3_resume_sram;
 	void *d3_resume_sram;
 	u32 d3_test_pme_ptr;
+	struct ieee80211_vif *keep_vif;
 #endif
 #endif
 
@@ -554,6 +568,11 @@ struct iwl_mvm {
 	u8 aux_queue;
 	u8 first_agg_queue;
 	u8 last_agg_queue;
+
+	u8 bound_vif_cnt;
+
+	/* Indicate if device power save is allowed */
+	bool ps_prevented;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -693,6 +712,8 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 				    struct iwl_rx_cmd_buffer *rxb,
 				    struct iwl_device_cmd *cmd);
+void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif);
 
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -750,8 +771,7 @@ iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
 /* rate scaling */
-int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
-			u8 flags, bool init);
+int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init);
 
 /* power managment */
 static inline int iwl_mvm_power_update_mode(struct iwl_mvm *mvm,
@@ -772,6 +792,19 @@ static inline int iwl_mvm_power_update_device_mode(struct iwl_mvm *mvm)
 		return mvm->pm_ops->power_update_device_mode(mvm);
 	return 0;
 }
+
+static inline void iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
+						struct ieee80211_vif *vif,
+						bool assign)
+{
+	if (mvm->pm_ops->power_update_binding)
+		mvm->pm_ops->power_update_binding(mvm, vif, assign);
+}
+
+void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline int iwl_mvm_power_dbgfs_read(struct iwl_mvm *mvm,
@@ -863,5 +896,9 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
 void iwl_mvm_tt_initialize(struct iwl_mvm *mvm);
 void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
+
+/* smart fifo */
+int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		      bool added_vif);
 
 #endif /* __IWL_MVM_H__ */

@@ -37,12 +37,11 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
 #include <linux/dmi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 #include <linux/suspend.h>
+#include <linux/acpi.h>
 #include <acpi/video.h>
+#include <asm/uaccess.h>
 
 #include "internal.h"
 

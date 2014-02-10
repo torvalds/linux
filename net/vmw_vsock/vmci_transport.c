@@ -1779,10 +1779,8 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 		goto out;
 
 	if (msg->msg_name) {
-		struct sockaddr_vm *vm_addr;
-
 		/* Provide the address of the sender. */
-		vm_addr = (struct sockaddr_vm *)msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_vm *, vm_addr, msg->msg_name);
 		vsock_addr_init(vm_addr, dg->src.context, dg->src.resource);
 		msg->msg_namelen = sizeof(*vm_addr);
 	}

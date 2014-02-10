@@ -12,8 +12,7 @@
  * for more details.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -470,7 +469,7 @@ static void rlb_teach_disabled_mac_on_primary(struct bonding *bond, u8 addr[])
 
 /* slave being removed should not be active at this point
  *
- * Caller must hold bond lock for read
+ * Caller must hold rtnl.
  */
 static void rlb_clear_slave(struct bonding *bond, struct slave *slave)
 {
@@ -816,7 +815,7 @@ static void rlb_rebalance(struct bonding *bond)
 	for (; hash_index != RLB_NULL_INDEX;
 	     hash_index = client_info->used_next) {
 		client_info = &(bond_info->rx_hashtbl[hash_index]);
-		assigned_slave = rlb_next_rx_slave(bond);
+		assigned_slave = __rlb_next_rx_slave(bond);
 		if (assigned_slave && (client_info->slave != assigned_slave)) {
 			client_info->slave = assigned_slave;
 			client_info->ntt = 1;
@@ -1372,7 +1371,6 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	int do_tx_balance = 1;
 	u32 hash_index = 0;
 	const u8 *hash_start = NULL;
-	int res = 1;
 	struct ipv6hdr *ip6hdr;
 
 	skb_reset_mac_header(skb);
@@ -1470,7 +1468,8 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			       ETH_ALEN);
 		}
 
-		res = bond_dev_queue_xmit(bond, skb, tx_slave->dev);
+		bond_dev_queue_xmit(bond, skb, tx_slave->dev);
+		goto out;
 	} else {
 		if (tx_slave) {
 			_lock_tx_hashtbl(bond);
@@ -1479,11 +1478,9 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		}
 	}
 
-	if (res) {
-		/* no suitable interface, frame not sent */
-		kfree_skb(skb);
-	}
-
+	/* no suitable interface, frame not sent */
+	kfree_skb(skb);
+out:
 	return NETDEV_TX_OK;
 }
 
@@ -1495,13 +1492,13 @@ void bond_alb_monitor(struct work_struct *work)
 	struct list_head *iter;
 	struct slave *slave;
 
-	read_lock(&bond->lock);
-
 	if (!bond_has_slaves(bond)) {
 		bond_info->tx_rebalance_counter = 0;
 		bond_info->lp_counter = 0;
 		goto re_arm;
 	}
+
+	rcu_read_lock();
 
 	bond_info->tx_rebalance_counter++;
 	bond_info->lp_counter++;
@@ -1515,7 +1512,7 @@ void bond_alb_monitor(struct work_struct *work)
 		 */
 		read_lock(&bond->curr_slave_lock);
 
-		bond_for_each_slave(bond, slave, iter)
+		bond_for_each_slave_rcu(bond, slave, iter)
 			alb_send_learning_packets(slave, slave->dev->dev_addr);
 
 		read_unlock(&bond->curr_slave_lock);
@@ -1528,7 +1525,7 @@ void bond_alb_monitor(struct work_struct *work)
 
 		read_lock(&bond->curr_slave_lock);
 
-		bond_for_each_slave(bond, slave, iter) {
+		bond_for_each_slave_rcu(bond, slave, iter) {
 			tlb_clear_slave(bond, slave, 1);
 			if (slave == bond->curr_active_slave) {
 				SLAVE_TLB_INFO(slave).load =
@@ -1552,11 +1549,9 @@ void bond_alb_monitor(struct work_struct *work)
 			 * dev_set_promiscuity requires rtnl and
 			 * nothing else.  Avoid race with bond_close.
 			 */
-			read_unlock(&bond->lock);
-			if (!rtnl_trylock()) {
-				read_lock(&bond->lock);
+			rcu_read_unlock();
+			if (!rtnl_trylock())
 				goto re_arm;
-			}
 
 			bond_info->rlb_promisc_timeout_counter = 0;
 
@@ -1568,7 +1563,7 @@ void bond_alb_monitor(struct work_struct *work)
 			bond_info->primary_is_promisc = 0;
 
 			rtnl_unlock();
-			read_lock(&bond->lock);
+			rcu_read_lock();
 		}
 
 		if (bond_info->rlb_rebalance) {
@@ -1590,11 +1585,9 @@ void bond_alb_monitor(struct work_struct *work)
 			}
 		}
 	}
-
+	rcu_read_unlock();
 re_arm:
 	queue_delayed_work(bond->wq, &bond->alb_work, alb_delta_in_ticks);
-
-	read_unlock(&bond->lock);
 }
 
 /* assumption: called before the slave is attached to the bond
@@ -1680,14 +1673,11 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
  * If new_slave is NULL, caller must hold curr_slave_lock or
  * bond->lock for write.
  *
- * If new_slave is not NULL, caller must hold RTNL, bond->lock for
- * read and curr_slave_lock for write.  Processing here may sleep, so
- * no other locks may be held.
+ * If new_slave is not NULL, caller must hold RTNL, curr_slave_lock
+ * for write.  Processing here may sleep, so no other locks may be held.
  */
 void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave)
 	__releases(&bond->curr_slave_lock)
-	__releases(&bond->lock)
-	__acquires(&bond->lock)
 	__acquires(&bond->curr_slave_lock)
 {
 	struct slave *swap_slave;
@@ -1723,7 +1713,6 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	tlb_clear_slave(bond, new_slave, 1);
 
 	write_unlock_bh(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
 
 	ASSERT_RTNL();
 
@@ -1749,11 +1738,9 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		/* swap mac address */
 		alb_swap_mac_addr(swap_slave, new_slave);
 		alb_fasten_mac_swap(bond, swap_slave, new_slave);
-		read_lock(&bond->lock);
 	} else {
 		/* set the new_slave to the bond mac address */
 		alb_set_slave_mac_addr(new_slave, bond->dev->dev_addr);
-		read_lock(&bond->lock);
 		alb_send_learning_packets(new_slave, bond->dev->dev_addr);
 	}
 

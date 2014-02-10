@@ -29,6 +29,10 @@ struct vsp1_rwpf {
 
 	unsigned int max_width;
 	unsigned int max_height;
+
+	struct v4l2_rect crop;
+
+	unsigned int offsets[2];
 };
 
 static inline struct vsp1_rwpf *to_rwpf(struct v4l2_subdev *subdev)
@@ -49,5 +53,11 @@ int vsp1_rwpf_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 			 struct v4l2_subdev_format *fmt);
 int vsp1_rwpf_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 			 struct v4l2_subdev_format *fmt);
+int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
+			    struct v4l2_subdev_fh *fh,
+			    struct v4l2_subdev_selection *sel);
+int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
+			    struct v4l2_subdev_fh *fh,
+			    struct v4l2_subdev_selection *sel);
 
 #endif /* __VSP1_RWPF_H__ */

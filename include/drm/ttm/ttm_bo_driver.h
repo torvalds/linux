@@ -681,6 +681,15 @@ extern int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement);
 extern int ttm_tt_swapout(struct ttm_tt *ttm,
 			  struct file *persistent_swap_storage);
 
+/**
+ * ttm_tt_unpopulate - free pages from a ttm
+ *
+ * @ttm: Pointer to the ttm_tt structure
+ *
+ * Calls the driver method to free all pages from a ttm
+ */
+extern void ttm_tt_unpopulate(struct ttm_tt *ttm);
+
 /*
  * ttm_bo.c
  */

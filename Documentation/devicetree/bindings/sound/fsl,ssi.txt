@@ -4,7 +4,12 @@ The SSI is a serial device that communicates with audio codecs.  It can
 be programmed in AC97, I2S, left-justified, or right-justified modes.
 
 Required properties:
-- compatible:       Compatible list, contains "fsl,ssi".
+- compatible:       Compatible list, should contain one of the following
+                    compatibles:
+                      fsl,mpc8610-ssi
+                      fsl,imx51-ssi
+                      fsl,imx35-ssi
+                      fsl,imx21-ssi
 - cell-index:       The SSI, <0> = SSI1, <1> = SSI2, and so on.
 - reg:              Offset and length of the register set for the device.
 - interrupts:       <a b> where a is the interrupt number and b is a

@@ -46,7 +46,7 @@ static int via_driver_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-void via_driver_postclose(struct drm_device *dev, struct drm_file *file)
+static void via_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct via_file_private *file_priv = file->driver_priv;
 

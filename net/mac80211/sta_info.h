@@ -220,6 +220,25 @@ struct sta_ampdu_mlme {
 	u8 dialog_token_allocator;
 };
 
+/*
+ * struct ieee80211_tx_latency_stat - Tx latency statistics
+ *
+ * Measures TX latency and jitter for a station per TID.
+ *
+ * @max: worst case latency
+ * @sum: sum of all latencies
+ * @counter: amount of Tx frames sent from interface
+ * @bins: each bin counts how many frames transmitted within a certain
+ * latency range. when disabled it is NULL.
+ * @bin_count: amount of bins.
+ */
+struct ieee80211_tx_latency_stat {
+	u32 max;
+	u32 sum;
+	u32 counter;
+	u32 *bins;
+	u32 bin_count;
+};
 
 /**
  * struct sta_info - STA information
@@ -228,11 +247,14 @@ struct sta_ampdu_mlme {
  * mac80211 is communicating with.
  *
  * @list: global linked list entry
+ * @free_list: list entry for keeping track of stations to free
  * @hnext: hash table linked list pointer
  * @local: pointer to the global information
  * @sdata: virtual interface this station belongs to
- * @ptk: peer key negotiated with this station, if any
+ * @ptk: peer keys negotiated with this station, if any
+ * @ptk_idx: last installed peer key index
  * @gtk: group keys negotiated with this station, if any
+ * @gtk_idx: last installed group key index
  * @rate_ctrl: rate control algorithm reference
  * @rate_ctrl_priv: rate control private per-STA pointer
  * @last_tx_rate: rate used for last transmit, to report to userspace as
@@ -274,6 +296,7 @@ struct sta_ampdu_mlme {
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @ampdu_mlme: A-MPDU state machine state
  * @timer_to_tid: identity mapping to ID timers
+ * @tx_lat: Tx latency statistics
  * @llid: Local link ID
  * @plid: Peer link ID
  * @reason: Cancel reason on PLINK_HOLDING state
@@ -303,16 +326,19 @@ struct sta_ampdu_mlme {
  * @chain_signal_avg: signal average (per chain)
  * @known_smps_mode: the smps_mode the client thinks we are in. Relevant for
  *	AP only.
+ * @cipher_scheme: optional cipher scheme for this station
  */
 struct sta_info {
 	/* General information, mostly static */
-	struct list_head list;
+	struct list_head list, free_list;
 	struct rcu_head rcu_head;
 	struct sta_info __rcu *hnext;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
-	struct ieee80211_key __rcu *ptk;
+	struct ieee80211_key __rcu *ptk[NUM_DEFAULT_KEYS];
+	u8 gtk_idx;
+	u8 ptk_idx;
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
 	spinlock_t lock;
@@ -380,14 +406,16 @@ struct sta_info {
 	struct sta_ampdu_mlme ampdu_mlme;
 	u8 timer_to_tid[IEEE80211_NUM_TIDS];
 
+	struct ieee80211_tx_latency_stat *tx_lat;
+
 #ifdef CONFIG_MAC80211_MESH
 	/*
 	 * Mesh peer link attributes
 	 * TODO: move to a sub-structure that is referenced with pointer?
 	 */
-	__le16 llid;
-	__le16 plid;
-	__le16 reason;
+	u16 llid;
+	u16 plid;
+	u16 reason;
 	u8 plink_retries;
 	bool ignore_plink_timer;
 	enum nl80211_plink_state plink_state;
@@ -414,6 +442,7 @@ struct sta_info {
 	unsigned int beacon_loss_count;
 
 	enum ieee80211_smps_mode known_smps_mode;
+	const struct ieee80211_cipher_scheme *cipher_scheme;
 
 	/* keep last! */
 	struct ieee80211_sta sta;
@@ -577,21 +606,6 @@ void sta_info_recalc_tim(struct sta_info *sta);
 
 void sta_info_init(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
-int sta_info_flush_defer(struct ieee80211_sub_if_data *sdata);
-
-/**
- * sta_info_flush_cleanup - flush the sta_info cleanup queue
- * @sdata: the interface
- *
- * Flushes the sta_info cleanup queue for a given interface;
- * this is necessary before the interface is removed or, for
- * AP/mesh interfaces, before it is deconfigured.
- *
- * Note an rcu_barrier() must precede the function, after all
- * stations have been flushed/removed to ensure the call_rcu()
- * calls that add stations to the cleanup queue have completed.
- */
-void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata);
 
 /**
  * sta_info_flush - flush matching STA entries from the STA table
@@ -599,15 +613,13 @@ void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata);
  * Returns the number of removed STA entries.
  *
  * @sdata: sdata to remove all stations from
+ * @vlans: if the given interface is an AP interface, also flush VLANs
  */
+int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans);
+
 static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata)
 {
-	int ret = sta_info_flush_defer(sdata);
-
-	rcu_barrier();
-	sta_info_flush_cleanup(sdata);
-
-	return ret;
+	return __sta_info_flush(sdata, false);
 }
 
 void sta_set_rate_info_tx(struct sta_info *sta,
@@ -622,7 +634,5 @@ u8 sta_info_tx_streams(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
-
-void ieee80211_cleanup_sdata_stas(struct ieee80211_sub_if_data *sdata);
 
 #endif /* STA_INFO_H */

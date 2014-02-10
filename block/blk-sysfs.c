@@ -11,6 +11,7 @@
 
 #include "blk.h"
 #include "blk-cgroup.h"
+#include "blk-mq.h"
 
 struct queue_sysfs_entry {
 	struct attribute attr;

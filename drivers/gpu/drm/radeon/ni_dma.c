@@ -43,6 +43,75 @@ u32 cayman_gpu_check_soft_reset(struct radeon_device *rdev);
  */
 
 /**
+ * cayman_dma_get_rptr - get the current read pointer
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon ring pointer
+ *
+ * Get the current rptr from the hardware (cayman+).
+ */
+uint32_t cayman_dma_get_rptr(struct radeon_device *rdev,
+			     struct radeon_ring *ring)
+{
+	u32 rptr, reg;
+
+	if (rdev->wb.enabled) {
+		rptr = rdev->wb.wb[ring->rptr_offs/4];
+	} else {
+		if (ring->idx == R600_RING_TYPE_DMA_INDEX)
+			reg = DMA_RB_RPTR + DMA0_REGISTER_OFFSET;
+		else
+			reg = DMA_RB_RPTR + DMA1_REGISTER_OFFSET;
+
+		rptr = RREG32(reg);
+	}
+
+	return (rptr & 0x3fffc) >> 2;
+}
+
+/**
+ * cayman_dma_get_wptr - get the current write pointer
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon ring pointer
+ *
+ * Get the current wptr from the hardware (cayman+).
+ */
+uint32_t cayman_dma_get_wptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring)
+{
+	u32 reg;
+
+	if (ring->idx == R600_RING_TYPE_DMA_INDEX)
+		reg = DMA_RB_WPTR + DMA0_REGISTER_OFFSET;
+	else
+		reg = DMA_RB_WPTR + DMA1_REGISTER_OFFSET;
+
+	return (RREG32(reg) & 0x3fffc) >> 2;
+}
+
+/**
+ * cayman_dma_set_wptr - commit the write pointer
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon ring pointer
+ *
+ * Write the wptr back to the hardware (cayman+).
+ */
+void cayman_dma_set_wptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring)
+{
+	u32 reg;
+
+	if (ring->idx == R600_RING_TYPE_DMA_INDEX)
+		reg = DMA_RB_WPTR + DMA0_REGISTER_OFFSET;
+	else
+		reg = DMA_RB_WPTR + DMA1_REGISTER_OFFSET;
+
+	WREG32(reg, (ring->wptr << 2) & 0x3fffc);
+}
+
+/**
  * cayman_dma_ring_ib_execute - Schedule an IB on the DMA engine
  *
  * @rdev: radeon_device pointer
@@ -88,7 +157,9 @@ void cayman_dma_stop(struct radeon_device *rdev)
 {
 	u32 rb_cntl;
 
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+	if ((rdev->asic->copy.copy_ring_index == R600_RING_TYPE_DMA_INDEX) ||
+	    (rdev->asic->copy.copy_ring_index == CAYMAN_RING_TYPE_DMA1_INDEX))
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 
 	/* dma0 */
 	rb_cntl = RREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET);
@@ -190,7 +261,9 @@ int cayman_dma_resume(struct radeon_device *rdev)
 		}
 	}
 
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
+	if ((rdev->asic->copy.copy_ring_index == R600_RING_TYPE_DMA_INDEX) ||
+	    (rdev->asic->copy.copy_ring_index == CAYMAN_RING_TYPE_DMA1_INDEX))
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 
 	return 0;
 }

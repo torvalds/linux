@@ -29,6 +29,7 @@ static int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		wdev->beacon_interval = 0;
 		wdev->channel = NULL;
 		wdev->ssid_len = 0;
+		rdev_set_qos_map(rdev, dev, NULL);
 	}
 
 	return err;

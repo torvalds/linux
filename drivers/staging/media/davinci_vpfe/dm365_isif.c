@@ -19,6 +19,7 @@
  *      Prabhakar Lad <prabhakar.lad@ti.com>
  */
 
+#include <linux/delay.h>
 #include "dm365_isif.h"
 #include "vpfe_mc_capture.h"
 
@@ -918,7 +919,7 @@ isif_config_dfc(struct vpfe_isif_device *isif, struct vpfe_isif_dfc *vdfc)
 		   (0 << ISIF_VDFC_EN_SHIFT), DFCCTL);
 
 	isif_write(isif->isif_cfg.base_addr, 0x6, DFCMEMCTL);
-	for (i = 0 ; i < vdfc->num_vdefects; i++) {
+	for (i = 0; i < vdfc->num_vdefects; i++) {
 		count = DFC_WRITE_WAIT_COUNT;
 		while (count &&
 			(isif_read(isif->isif_cfg.base_addr, DFCMEMCTL) & 0x2))

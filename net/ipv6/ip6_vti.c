@@ -24,7 +24,6 @@
 #include <linux/if.h>
 #include <linux/in.h>
 #include <linux/ip.h>
-#include <linux/if_tunnel.h>
 #include <linux/net.h>
 #include <linux/in6.h>
 #include <linux/netdevice.h>
@@ -292,7 +291,7 @@ static int vti6_rcv(struct sk_buff *skb)
 
 	if ((t = vti6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr,
 				 &ipv6h->daddr)) != NULL) {
-		struct pcpu_tstats *tstats;
+		struct pcpu_sw_netstats *tstats;
 
 		if (t->parms.proto != IPPROTO_IPV6 && t->parms.proto != 0) {
 			rcu_read_unlock();
@@ -736,11 +735,11 @@ static inline int vti6_dev_init_gen(struct net_device *dev)
 
 	t->dev = dev;
 	t->net = dev_net(dev);
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 	for_each_possible_cpu(i) {
-		struct pcpu_tstats *stats;
+		struct pcpu_sw_netstats *stats;
 		stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&stats->syncp);
 	}

@@ -34,14 +34,11 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-
+#include <linux/acpi.h>
+#include <linux/hpet.h>
 #include <asm/current.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
-
-#include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <linux/hpet.h>
 
 /*
  * The High Precision Event Timer driver.

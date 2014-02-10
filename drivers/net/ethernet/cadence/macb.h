@@ -572,6 +572,7 @@ struct macb {
 	struct platform_device	*pdev;
 	struct clk		*pclk;
 	struct clk		*hclk;
+	struct clk		*tx_clk;
 	struct net_device	*dev;
 	struct napi_struct	napi;
 	struct work_struct	tx_error_task;

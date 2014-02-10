@@ -36,26 +36,32 @@ static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_model_name[] __initconst = {
 	{{BCM47XX_BOARD_DLINK_DIR130, "D-Link DIR-130"}, "DIR-130"},
 	{{BCM47XX_BOARD_DLINK_DIR330, "D-Link DIR-330"}, "DIR-330"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* model_no */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_model_no[] __initconst = {
 	{{BCM47XX_BOARD_ASUS_WL700GE, "Asus WL700"}, "WL700"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* machine_name */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_machine_name[] __initconst = {
 	{{BCM47XX_BOARD_LINKSYS_WRTSL54GS, "Linksys WRTSL54GS"}, "WRTSL54GS"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* hardware_version */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initconst = {
+	{{BCM47XX_BOARD_ASUS_RTN10U, "Asus RT-N10U"}, "RTN10U"},
+	{{BCM47XX_BOARD_ASUS_RTN12, "Asus RT-N12"}, "RT-N12"},
+	{{BCM47XX_BOARD_ASUS_RTN12B1, "Asus RT-N12B1"}, "RTN12B1"},
+	{{BCM47XX_BOARD_ASUS_RTN12C1, "Asus RT-N12C1"}, "RTN12C1"},
+	{{BCM47XX_BOARD_ASUS_RTN12D1, "Asus RT-N12D1"}, "RTN12D1"},
+	{{BCM47XX_BOARD_ASUS_RTN12HP, "Asus RT-N12HP"}, "RTN12HP"},
 	{{BCM47XX_BOARD_ASUS_RTN16, "Asus RT-N16"}, "RT-N16-"},
 	{{BCM47XX_BOARD_ASUS_WL320GE, "Asus WL320GE"}, "WL320G-"},
 	{{BCM47XX_BOARD_ASUS_WL330GE, "Asus WL330GE"}, "WL330GE-"},
@@ -66,7 +72,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initcons
 	{{BCM47XX_BOARD_ASUS_WL520GC, "Asus WL520GC"}, "WL520GC-"},
 	{{BCM47XX_BOARD_ASUS_WL520GU, "Asus WL520GU"}, "WL520GU-"},
 	{{BCM47XX_BOARD_BELKIN_F7D4301, "Belkin F7D4301"}, "F7D4301"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* productid */
@@ -75,19 +81,13 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_productid[] __initconst = {
 	{{BCM47XX_BOARD_ASUS_RTAC66U, "Asus RT-AC66U"}, "RT-AC66U"},
 	{{BCM47XX_BOARD_ASUS_RTN10, "Asus RT-N10"}, "RT-N10"},
 	{{BCM47XX_BOARD_ASUS_RTN10D, "Asus RT-N10D"}, "RT-N10D"},
-	{{BCM47XX_BOARD_ASUS_RTN10U, "Asus RT-N10U"}, "RT-N10U"},
-	{{BCM47XX_BOARD_ASUS_RTN12, "Asus RT-N12"}, "RT-N12"},
-	{{BCM47XX_BOARD_ASUS_RTN12B1, "Asus RT-N12B1"}, "RT-N12B1"},
-	{{BCM47XX_BOARD_ASUS_RTN12C1, "Asus RT-N12C1"}, "RT-N12C1"},
-	{{BCM47XX_BOARD_ASUS_RTN12D1, "Asus RT-N12D1"}, "RT-N12D1"},
-	{{BCM47XX_BOARD_ASUS_RTN12HP, "Asus RT-N12HP"}, "RT-N12HP"},
 	{{BCM47XX_BOARD_ASUS_RTN15U, "Asus RT-N15U"}, "RT-N15U"},
 	{{BCM47XX_BOARD_ASUS_RTN16, "Asus RT-N16"}, "RT-N16"},
 	{{BCM47XX_BOARD_ASUS_RTN53, "Asus RT-N53"}, "RT-N53"},
 	{{BCM47XX_BOARD_ASUS_RTN66U, "Asus RT-N66U"}, "RT-N66U"},
 	{{BCM47XX_BOARD_ASUS_WL300G, "Asus WL300G"}, "WL300g"},
 	{{BCM47XX_BOARD_ASUS_WLHDD, "Asus WLHDD"}, "WLHDD"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* ModelId */
@@ -97,7 +97,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_ModelId[] __initconst = {
 	{{BCM47XX_BOARD_MOTOROLA_WE800G, "Motorola WE800G"}, "WE800G"},
 	{{BCM47XX_BOARD_MOTOROLA_WR850GP, "Motorola WR850GP"}, "WR850GP"},
 	{{BCM47XX_BOARD_MOTOROLA_WR850GV2V3, "Motorola WR850G"}, "WR850G"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* melco_id or buf1falo_id */
@@ -112,7 +112,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_melco_id[] __initconst = {
 	{{BCM47XX_BOARD_BUFFALO_WZR_G300N, "Buffalo WZR-G300N"}, "31120"},
 	{{BCM47XX_BOARD_BUFFALO_WZR_RS_G54, "Buffalo WZR-RS-G54"}, "30083"},
 	{{BCM47XX_BOARD_BUFFALO_WZR_RS_G54HP, "Buffalo WZR-RS-G54HP"}, "30103"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* boot_hw_model, boot_hw_ver */
@@ -143,7 +143,7 @@ struct bcm47xx_board_type_list2 bcm47xx_board_list_boot_hw[] __initconst = {
 	{{BCM47XX_BOARD_LINKSYS_WRT54G3GV2, "Linksys WRT54G3GV2-VF"}, "WRT54G3GV2-VF", "1.0"},
 	{{BCM47XX_BOARD_LINKSYS_WRT610NV1, "Linksys WRT610N V1"}, "WRT610N", "1.0"},
 	{{BCM47XX_BOARD_LINKSYS_WRT610NV2, "Linksys WRT610N V2"}, "WRT610N", "2.0"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* board_id */
@@ -165,7 +165,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_board_id[] __initconst = {
 	{{BCM47XX_BOARD_NETGEAR_WNR3500V2, "Netgear WNR3500 V2"}, "U12H127T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNR3500V2VC, "Netgear WNR3500 V2vc"}, "U12H127T70_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNR834BV2, "Netgear WNR834B V2"}, "U12H081T00_NETGEAR"},
-	{ {0}, 0},
+	{ {0}, NULL},
 };
 
 /* boardtype, boardnum, boardrev */
@@ -174,7 +174,9 @@ struct bcm47xx_board_type_list3 bcm47xx_board_list_board[] __initconst = {
 	{{BCM47XX_BOARD_HUAWEI_E970, "Huawei E970"}, "0x048e", "0x5347", "0x11"},
 	{{BCM47XX_BOARD_PHICOMM_M1, "Phicomm M1"}, "0x0590", "80", "0x1104"},
 	{{BCM47XX_BOARD_ZTE_H218N, "ZTE H218N"}, "0x053d", "1234", "0x1305"},
-	{ {0}, 0},
+	{{BCM47XX_BOARD_NETGEAR_WNR3500L, "Netgear WNR3500L"}, "0x04CF", "3500", "02"},
+	{{BCM47XX_BOARD_LINKSYS_WRT54GSV1, "Linksys WRT54GS V1"}, "0x0101", "42", "0x10"},
+	{ {0}, NULL},
 };
 
 static const

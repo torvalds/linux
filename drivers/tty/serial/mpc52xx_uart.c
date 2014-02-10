@@ -421,6 +421,7 @@ struct psc_fifoc {
 
 static struct psc_fifoc __iomem *psc_fifoc;
 static unsigned int psc_fifoc_irq;
+static struct clk *psc_fifoc_clk;
 
 static void mpc512x_psc_fifo_init(struct uart_port *port)
 {
@@ -568,36 +569,73 @@ static unsigned int mpc512x_psc_set_baudrate(struct uart_port *port,
 /* Init PSC FIFO Controller */
 static int __init mpc512x_psc_fifoc_init(void)
 {
+	int err;
 	struct device_node *np;
+	struct clk *clk;
+
+	/* default error code, potentially overwritten by clock calls */
+	err = -ENODEV;
 
 	np = of_find_compatible_node(NULL, NULL,
 				     "fsl,mpc5121-psc-fifo");
 	if (!np) {
 		pr_err("%s: Can't find FIFOC node\n", __func__);
-		return -ENODEV;
+		goto out_err;
 	}
+
+	clk = of_clk_get(np, 0);
+	if (IS_ERR(clk)) {
+		/* backwards compat with device trees that lack clock specs */
+		clk = clk_get_sys(np->name, "ipg");
+	}
+	if (IS_ERR(clk)) {
+		pr_err("%s: Can't lookup FIFO clock\n", __func__);
+		err = PTR_ERR(clk);
+		goto out_ofnode_put;
+	}
+	if (clk_prepare_enable(clk)) {
+		pr_err("%s: Can't enable FIFO clock\n", __func__);
+		clk_put(clk);
+		goto out_ofnode_put;
+	}
+	psc_fifoc_clk = clk;
 
 	psc_fifoc = of_iomap(np, 0);
 	if (!psc_fifoc) {
 		pr_err("%s: Can't map FIFOC\n", __func__);
-		of_node_put(np);
-		return -ENODEV;
+		goto out_clk_disable;
 	}
 
 	psc_fifoc_irq = irq_of_parse_and_map(np, 0);
-	of_node_put(np);
 	if (psc_fifoc_irq == 0) {
 		pr_err("%s: Can't get FIFOC irq\n", __func__);
-		iounmap(psc_fifoc);
-		return -ENODEV;
+		goto out_unmap;
 	}
 
+	of_node_put(np);
 	return 0;
+
+out_unmap:
+	iounmap(psc_fifoc);
+out_clk_disable:
+	clk_disable_unprepare(psc_fifoc_clk);
+	clk_put(psc_fifoc_clk);
+out_ofnode_put:
+	of_node_put(np);
+out_err:
+	return err;
 }
 
 static void __exit mpc512x_psc_fifoc_uninit(void)
 {
 	iounmap(psc_fifoc);
+
+	/* disable the clock, errors are not fatal */
+	if (psc_fifoc_clk) {
+		clk_disable_unprepare(psc_fifoc_clk);
+		clk_put(psc_fifoc_clk);
+		psc_fifoc_clk = NULL;
+	}
 }
 
 /* 512x specific interrupt handler. The caller holds the port lock */
@@ -619,29 +657,55 @@ static irqreturn_t mpc512x_psc_handle_irq(struct uart_port *port)
 }
 
 static struct clk *psc_mclk_clk[MPC52xx_PSC_MAXNUM];
+static struct clk *psc_ipg_clk[MPC52xx_PSC_MAXNUM];
 
 /* called from within the .request_port() callback (allocation) */
 static int mpc512x_psc_alloc_clock(struct uart_port *port)
 {
 	int psc_num;
-	char clk_name[16];
 	struct clk *clk;
 	int err;
 
 	psc_num = (port->mapbase & 0xf00) >> 8;
-	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
-	clk = devm_clk_get(port->dev, clk_name);
+
+	clk = devm_clk_get(port->dev, "mclk");
 	if (IS_ERR(clk)) {
 		dev_err(port->dev, "Failed to get MCLK!\n");
-		return PTR_ERR(clk);
+		err = PTR_ERR(clk);
+		goto out_err;
 	}
 	err = clk_prepare_enable(clk);
 	if (err) {
 		dev_err(port->dev, "Failed to enable MCLK!\n");
-		return err;
+		goto out_err;
 	}
 	psc_mclk_clk[psc_num] = clk;
+
+	clk = devm_clk_get(port->dev, "ipg");
+	if (IS_ERR(clk)) {
+		dev_err(port->dev, "Failed to get IPG clock!\n");
+		err = PTR_ERR(clk);
+		goto out_err;
+	}
+	err = clk_prepare_enable(clk);
+	if (err) {
+		dev_err(port->dev, "Failed to enable IPG clock!\n");
+		goto out_err;
+	}
+	psc_ipg_clk[psc_num] = clk;
+
 	return 0;
+
+out_err:
+	if (psc_mclk_clk[psc_num]) {
+		clk_disable_unprepare(psc_mclk_clk[psc_num]);
+		psc_mclk_clk[psc_num] = NULL;
+	}
+	if (psc_ipg_clk[psc_num]) {
+		clk_disable_unprepare(psc_ipg_clk[psc_num]);
+		psc_ipg_clk[psc_num] = NULL;
+	}
+	return err;
 }
 
 /* called from within the .release_port() callback (release) */
@@ -655,6 +719,10 @@ static void mpc512x_psc_relse_clock(struct uart_port *port)
 	if (clk) {
 		clk_disable_unprepare(clk);
 		psc_mclk_clk[psc_num] = NULL;
+	}
+	if (psc_ipg_clk[psc_num]) {
+		clk_disable_unprepare(psc_ipg_clk[psc_num]);
+		psc_ipg_clk[psc_num] = NULL;
 	}
 }
 

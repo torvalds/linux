@@ -239,6 +239,9 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 				  unsigned ring)
 {
 	BUG_ON(ring >= I915_NUM_RINGS); /* shut up confused gcc */
+	if (!error->ring[ring].valid)
+		return;
+
 	err_printf(m, "%s command stream:\n", ring_str(ring));
 	err_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
 	err_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
@@ -247,12 +250,11 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
 	err_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
 	err_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
-	if (ring == RCS && INTEL_INFO(dev)->gen >= 4)
-		err_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr);
-	if (INTEL_INFO(dev)->gen >= 4)
+	if (INTEL_INFO(dev)->gen >= 4) {
+		err_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr[ring]);
 		err_printf(m, "  BB_STATE: 0x%08x\n", error->bbstate[ring]);
-	if (INTEL_INFO(dev)->gen >= 4)
 		err_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
+	}
 	err_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
 	err_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 	if (INTEL_INFO(dev)->gen >= 6) {
@@ -294,7 +296,6 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	struct drm_device *dev = error_priv->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error = error_priv->error;
-	struct intel_ring_buffer *ring;
 	int i, j, page, offset, elt;
 
 	if (!error) {
@@ -329,7 +330,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	if (INTEL_INFO(dev)->gen == 7)
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
-	for_each_ring(ring, dev_priv, i)
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++)
 		i915_ring_error_state(m, dev, error, i);
 
 	if (error->active_bo)
@@ -386,8 +387,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
-		obj = error->ring[i].ctx;
-		if (obj) {
+		if ((obj = error->ring[i].ctx)) {
 			err_printf(m, "%s --- HW Context = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
@@ -668,7 +668,8 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			return NULL;
 
 		obj = ring->scratch.obj;
-		if (acthd >= i915_gem_obj_ggtt_offset(obj) &&
+		if (obj != NULL &&
+		    acthd >= i915_gem_obj_ggtt_offset(obj) &&
 		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
 			return i915_error_object_create(dev_priv, obj);
 	}
@@ -725,8 +726,9 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
 		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
 		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
-		if (ring->id == RCS)
-			error->bbaddr = I915_READ64(BB_ADDR);
+		error->bbaddr[ring->id] = I915_READ(RING_BBADDR(ring->mmio_base));
+		if (INTEL_INFO(dev)->gen >= 8)
+			error->bbaddr[ring->id] |= (u64) I915_READ(RING_BBADDR_UDW(ring->mmio_base)) << 32;
 		error->bbstate[ring->id] = I915_READ(RING_BBSTATE(ring->mmio_base));
 	} else {
 		error->faddr[ring->id] = I915_READ(DMA_FADD_I8XX);
@@ -775,11 +777,17 @@ static void i915_gem_record_rings(struct drm_device *dev,
 				  struct drm_i915_error_state *error)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_request *request;
 	int i, count;
 
-	for_each_ring(ring, dev_priv, i) {
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+
+		if (ring->dev == NULL)
+			continue;
+
+		error->ring[i].valid = true;
+
 		i915_record_ring_state(dev, error, ring);
 
 		error->ring[i].batchbuffer =

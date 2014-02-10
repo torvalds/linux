@@ -168,7 +168,7 @@ static int apci16xx_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci16xx_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci16xx_pci_table) = {
+static const struct pci_device_id apci16xx_pci_table[] = {
 	{ PCI_VDEVICE(ADDIDATA, 0x1009), BOARD_APCI1648 },
 	{ PCI_VDEVICE(ADDIDATA, 0x100a), BOARD_APCI1696 },
 	{ 0 }

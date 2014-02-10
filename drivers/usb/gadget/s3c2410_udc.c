@@ -1629,6 +1629,7 @@ static void s3c2410_udc_reinit(struct s3c2410_udc *dev)
 		ep->ep.desc = NULL;
 		ep->halted = 0;
 		INIT_LIST_HEAD(&ep->queue);
+		usb_ep_set_maxpacket_limit(&ep->ep, &ep->ep.maxpacket);
 	}
 }
 

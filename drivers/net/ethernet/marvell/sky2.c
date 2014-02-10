@@ -2495,7 +2495,7 @@ static struct sk_buff *receive_copy(struct sky2_port *sky2,
 		skb_copy_from_linear_data(re->skb, skb->data, length);
 		skb->ip_summed = re->skb->ip_summed;
 		skb->csum = re->skb->csum;
-		skb->rxhash = re->skb->rxhash;
+		skb_copy_hash(skb, re->skb);
 		skb->vlan_proto = re->skb->vlan_proto;
 		skb->vlan_tci = re->skb->vlan_tci;
 
@@ -2503,7 +2503,7 @@ static struct sk_buff *receive_copy(struct sky2_port *sky2,
 					       length, PCI_DMA_FROMDEVICE);
 		re->skb->vlan_proto = 0;
 		re->skb->vlan_tci = 0;
-		re->skb->rxhash = 0;
+		skb_clear_hash(re->skb);
 		re->skb->ip_summed = CHECKSUM_NONE;
 		skb_put(skb, length);
 	}
@@ -2723,7 +2723,7 @@ static void sky2_rx_hash(struct sky2_port *sky2, u32 status)
 	struct sk_buff *skb;
 
 	skb = sky2->rx_ring[sky2->rx_next].skb;
-	skb->rxhash = le32_to_cpu(status);
+	skb_set_hash(skb, le32_to_cpu(status), PKT_HASH_TYPE_L3);
 }
 
 /* Process status response ring */
@@ -5020,6 +5020,8 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
  	}
 
+	netif_napi_add(dev, &hw->napi, sky2_poll, NAPI_WEIGHT);
+
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(&pdev->dev, "cannot register net device\n");
@@ -5027,8 +5029,6 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	netif_carrier_off(dev);
-
-	netif_napi_add(dev, &hw->napi, sky2_poll, NAPI_WEIGHT);
 
 	sky2_show_addr(dev);
 

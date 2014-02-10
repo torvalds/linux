@@ -2,6 +2,7 @@ config ARCH_TEGRA
 	bool "NVIDIA Tegra" if ARCH_MULTI_V7
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_SUPPORTS_TRUSTED_FOUNDATIONS
 	select ARM_GIC
 	select CLKSRC_MMIO
 	select CLKSRC_OF
@@ -14,6 +15,8 @@ config ARCH_TEGRA
 	select MIGHT_HAVE_CACHE_L2X0
 	select MIGHT_HAVE_PCI
 	select PINCTRL
+	select ARCH_HAS_RESET_CONTROLLER
+	select RESET_CONTROLLER
 	select SOC_BUS
 	select SPARSE_IRQ
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
@@ -63,6 +66,7 @@ config ARCH_TEGRA_124_SOC
 	bool "Enable support for Tegra124 family"
 	select ARM_L1_CACHE_SHIFT_6
 	select HAVE_ARM_ARCH_TIMER
+	select PINCTRL_TEGRA124
 	help
 	  Support for NVIDIA Tegra T124 processor family, based on the
 	  ARM CortexA15MP CPU

@@ -6,7 +6,6 @@
  *                      Ron Mercer <ron.mercer@qlogic.com>
  */
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/module.h>

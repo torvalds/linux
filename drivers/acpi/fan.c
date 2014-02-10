@@ -29,8 +29,7 @@
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <linux/thermal.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 #define PREFIX "ACPI: "
 

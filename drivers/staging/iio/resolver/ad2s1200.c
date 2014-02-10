@@ -131,20 +131,13 @@ static int ad2s1200_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(ad2s1200_channels);
 	indio_dev->name = spi_get_device_id(spi)->name;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
 		return ret;
 
 	spi->max_speed_hz = AD2S1200_HZ;
 	spi->mode = SPI_MODE_3;
 	spi_setup(spi);
-
-	return 0;
-}
-
-static int ad2s1200_remove(struct spi_device *spi)
-{
-	iio_device_unregister(spi_get_drvdata(spi));
 
 	return 0;
 }
@@ -162,7 +155,6 @@ static struct spi_driver ad2s1200_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad2s1200_probe,
-	.remove = ad2s1200_remove,
 	.id_table = ad2s1200_id,
 };
 module_spi_driver(ad2s1200_driver);

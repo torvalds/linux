@@ -274,10 +274,9 @@ static void set_majmin(char *str, unsigned m)
 		sprintf(str, "%u", m);
 }
 
-static int devcgroup_seq_read(struct cgroup_subsys_state *css,
-			      struct cftype *cft, struct seq_file *m)
+static int devcgroup_seq_show(struct seq_file *m, void *v)
 {
-	struct dev_cgroup *devcgroup = css_to_devcgroup(css);
+	struct dev_cgroup *devcgroup = css_to_devcgroup(seq_css(m));
 	struct dev_exception_item *ex;
 	char maj[MAJMINLEN], min[MAJMINLEN], acc[ACCLEN];
 
@@ -679,7 +678,7 @@ static struct cftype dev_cgroup_files[] = {
 	},
 	{
 		.name = "list",
-		.read_seq_string = devcgroup_seq_read,
+		.seq_show = devcgroup_seq_show,
 		.private = DEVCG_LIST,
 	},
 	{ }	/* terminate */

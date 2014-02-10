@@ -137,7 +137,7 @@ static inline void audit_syscall_exit(void *pt_regs)
 {
 	if (unlikely(current->audit_context)) {
 		int success = is_syscall_success(pt_regs);
-		int return_code = regs_return_value(pt_regs);
+		long return_code = regs_return_value(pt_regs);
 
 		__audit_syscall_exit(success, return_code);
 	}
@@ -202,7 +202,7 @@ static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
 	return tsk->loginuid;
 }
 
-static inline int audit_get_sessionid(struct task_struct *tsk)
+static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 {
 	return tsk->sessionid;
 }
@@ -220,7 +220,7 @@ extern void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
 extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 				  const struct cred *new,
 				  const struct cred *old);
-extern void __audit_log_capset(pid_t pid, const struct cred *new, const struct cred *old);
+extern void __audit_log_capset(const struct cred *new, const struct cred *old);
 extern void __audit_mmap_fd(int fd, int flags);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
@@ -285,11 +285,11 @@ static inline int audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	return 0;
 }
 
-static inline void audit_log_capset(pid_t pid, const struct cred *new,
+static inline void audit_log_capset(const struct cred *new,
 				   const struct cred *old)
 {
 	if (unlikely(!audit_dummy_context()))
-		__audit_log_capset(pid, new, old);
+		__audit_log_capset(new, old);
 }
 
 static inline void audit_mmap_fd(int fd, int flags)
@@ -359,7 +359,7 @@ static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
 {
 	return INVALID_UID;
 }
-static inline int audit_get_sessionid(struct task_struct *tsk)
+static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 {
 	return -1;
 }
@@ -397,8 +397,8 @@ static inline int audit_log_bprm_fcaps(struct linux_binprm *bprm,
 {
 	return 0;
 }
-static inline void audit_log_capset(pid_t pid, const struct cred *new,
-				   const struct cred *old)
+static inline void audit_log_capset(const struct cred *new,
+				    const struct cred *old)
 { }
 static inline void audit_mmap_fd(int fd, int flags)
 { }
@@ -461,9 +461,11 @@ extern int		    audit_update_lsm_rules(void);
 				/* Private API (for audit.c only) */
 extern int audit_filter_user(int type);
 extern int audit_filter_type(int type);
-extern int  audit_receive_filter(int type, int pid, int seq,
+extern int audit_rule_change(int type, __u32 portid, int seq,
 				void *data, size_t datasz);
-extern int audit_enabled;
+extern int audit_list_rules_send(__u32 portid, int seq);
+
+extern u32 audit_enabled;
 #else /* CONFIG_AUDIT */
 static inline __printf(4, 5)
 void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type,

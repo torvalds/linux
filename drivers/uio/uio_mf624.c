@@ -228,7 +228,7 @@ static void mf624_pci_remove(struct pci_dev *dev)
 	kfree(info);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(mf624_pci_id) = {
+static const struct pci_device_id mf624_pci_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUMUSOFT, PCI_DEVICE_ID_MF624) },
 	{ 0, }
 };

@@ -58,6 +58,7 @@ struct rfcomm_dev {
 	uint			modem_status;
 
 	struct rfcomm_dlc	*dlc;
+	wait_queue_head_t       conn_wait;
 
 	struct device		*tty_dev;
 
@@ -103,20 +104,60 @@ static void rfcomm_dev_destruct(struct tty_port *port)
 	module_put(THIS_MODULE);
 }
 
+static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
+{
+	struct hci_dev *hdev;
+	struct hci_conn *conn;
+
+	hdev = hci_get_route(&dev->dst, &dev->src);
+	if (!hdev)
+		return NULL;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
+
+	hci_dev_put(hdev);
+
+	return conn ? &conn->dev : NULL;
+}
+
 /* device-specific initialization: open the dlc */
 static int rfcomm_dev_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	struct rfcomm_dev *dev = container_of(port, struct rfcomm_dev, port);
+	DEFINE_WAIT(wait);
+	int err;
 
-	return rfcomm_dlc_open(dev->dlc, &dev->src, &dev->dst, dev->channel);
-}
+	err = rfcomm_dlc_open(dev->dlc, &dev->src, &dev->dst, dev->channel);
+	if (err)
+		return err;
 
-/* we block the open until the dlc->state becomes BT_CONNECTED */
-static int rfcomm_dev_carrier_raised(struct tty_port *port)
-{
-	struct rfcomm_dev *dev = container_of(port, struct rfcomm_dev, port);
+	while (1) {
+		prepare_to_wait(&dev->conn_wait, &wait, TASK_INTERRUPTIBLE);
 
-	return (dev->dlc->state == BT_CONNECTED);
+		if (dev->dlc->state == BT_CLOSED) {
+			err = -dev->err;
+			break;
+		}
+
+		if (dev->dlc->state == BT_CONNECTED)
+			break;
+
+		if (signal_pending(current)) {
+			err = -ERESTARTSYS;
+			break;
+		}
+
+		tty_unlock(tty);
+		schedule();
+		tty_lock(tty);
+	}
+	finish_wait(&dev->conn_wait, &wait);
+
+	if (!err)
+		device_move(dev->tty_dev, rfcomm_get_device(dev),
+			    DPM_ORDER_DEV_AFTER_PARENT);
+
+	return err;
 }
 
 /* device-specific cleanup: close the dlc */
@@ -135,7 +176,6 @@ static const struct tty_port_operations rfcomm_port_ops = {
 	.destruct = rfcomm_dev_destruct,
 	.activate = rfcomm_dev_activate,
 	.shutdown = rfcomm_dev_shutdown,
-	.carrier_raised = rfcomm_dev_carrier_raised,
 };
 
 static struct rfcomm_dev *__rfcomm_dev_get(int id)
@@ -167,22 +207,6 @@ static struct rfcomm_dev *rfcomm_dev_get(int id)
 	spin_unlock(&rfcomm_dev_lock);
 
 	return dev;
-}
-
-static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
-{
-	struct hci_dev *hdev;
-	struct hci_conn *conn;
-
-	hdev = hci_get_route(&dev->dst, &dev->src);
-	if (!hdev)
-		return NULL;
-
-	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
-
-	hci_dev_put(hdev);
-
-	return conn ? &conn->dev : NULL;
 }
 
 static ssize_t show_address(struct device *tty_dev, struct device_attribute *attr, char *buf)
@@ -258,6 +282,7 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 
 	tty_port_init(&dev->port);
 	dev->port.ops = &rfcomm_port_ops;
+	init_waitqueue_head(&dev->conn_wait);
 
 	skb_queue_head_init(&dev->pending);
 
@@ -437,7 +462,8 @@ static int rfcomm_release_dev(void __user *arg)
 		tty_kref_put(tty);
 	}
 
-	if (!test_and_set_bit(RFCOMM_TTY_RELEASED, &dev->flags))
+	if (!test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags) &&
+	    !test_and_set_bit(RFCOMM_TTY_RELEASED, &dev->flags))
 		tty_port_put(&dev->port);
 
 	tty_port_put(&dev->port);
@@ -575,12 +601,9 @@ static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 	BT_DBG("dlc %p dev %p err %d", dlc, dev, err);
 
 	dev->err = err;
-	if (dlc->state == BT_CONNECTED) {
-		device_move(dev->tty_dev, rfcomm_get_device(dev),
-			    DPM_ORDER_DEV_AFTER_PARENT);
+	wake_up_interruptible(&dev->conn_wait);
 
-		wake_up_interruptible(&dev->port.open_wait);
-	} else if (dlc->state == BT_CLOSED)
+	if (dlc->state == BT_CLOSED)
 		tty_port_tty_hangup(&dev->port, false);
 }
 
@@ -670,10 +693,20 @@ static int rfcomm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	/* install the tty_port */
 	err = tty_port_install(&dev->port, driver, tty);
-	if (err)
+	if (err) {
 		rfcomm_tty_cleanup(tty);
+		return err;
+	}
 
-	return err;
+	/* take over the tty_port reference if the port was created with the
+	 * flag RFCOMM_RELEASE_ONHUP. This will force the release of the port
+	 * when the last process closes the tty. The behaviour is expected by
+	 * userspace.
+	 */
+	if (test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags))
+		tty_port_put(&dev->port);
+
+	return 0;
 }
 
 static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
@@ -1010,10 +1043,6 @@ static void rfcomm_tty_hangup(struct tty_struct *tty)
 	BT_DBG("tty %p dev %p", tty, dev);
 
 	tty_port_hangup(&dev->port);
-
-	if (test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags) &&
-	    !test_and_set_bit(RFCOMM_TTY_RELEASED, &dev->flags))
-		tty_port_put(&dev->port);
 }
 
 static int rfcomm_tty_tiocmget(struct tty_struct *tty)
@@ -1096,7 +1125,7 @@ int __init rfcomm_init_ttys(void)
 	rfcomm_tty_driver->subtype	= SERIAL_TYPE_NORMAL;
 	rfcomm_tty_driver->flags	= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	rfcomm_tty_driver->init_termios	= tty_std_termios;
-	rfcomm_tty_driver->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL;
+	rfcomm_tty_driver->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	rfcomm_tty_driver->init_termios.c_lflag &= ~ICANON;
 	tty_set_operations(rfcomm_tty_driver, &rfcomm_ops);
 

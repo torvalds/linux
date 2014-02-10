@@ -24,9 +24,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -5462,14 +5460,13 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_bbp_write(rt2x00dev, 68, 0x0b);
 
-	rt2800_bbp_write(rt2x00dev, 69, 0x12);
+	rt2800_bbp_write(rt2x00dev, 69, 0x0d);
+	rt2800_bbp_write(rt2x00dev, 70, 0x06);
 	rt2800_bbp_write(rt2x00dev, 73, 0x13);
 	rt2800_bbp_write(rt2x00dev, 75, 0x46);
 	rt2800_bbp_write(rt2x00dev, 76, 0x28);
 
 	rt2800_bbp_write(rt2x00dev, 77, 0x59);
-
-	rt2800_bbp_write(rt2x00dev, 70, 0x0a);
 
 	rt2800_bbp_write(rt2x00dev, 79, 0x13);
 	rt2800_bbp_write(rt2x00dev, 80, 0x05);
@@ -5513,6 +5510,7 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rt(rt2x00dev, RT5392)) {
 		rt2800_bbp_write(rt2x00dev, 134, 0xd0);
 		rt2800_bbp_write(rt2x00dev, 135, 0xf6);
+		rt2800_bbp_write(rt2x00dev, 148, 0x84);
 	}
 
 	rt2800_disable_unused_dac_adc(rt2x00dev);
@@ -6453,7 +6451,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 7, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 10, 0x53);
 	rt2800_rfcsr_write(rt2x00dev, 11, 0x4a);
-	rt2800_rfcsr_write(rt2x00dev, 12, 0xc6);
+	rt2800_rfcsr_write(rt2x00dev, 12, 0x46);
 	rt2800_rfcsr_write(rt2x00dev, 13, 0x9f);
 	rt2800_rfcsr_write(rt2x00dev, 14, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 15, 0x00);
@@ -6466,7 +6464,8 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 22, 0x20);
 	rt2800_rfcsr_write(rt2x00dev, 23, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 24, 0x00);
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
+	if (rt2x00_is_usb(rt2x00dev) &&
+	    rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
 		rt2800_rfcsr_write(rt2x00dev, 25, 0x80);
 	else
 		rt2800_rfcsr_write(rt2x00dev, 25, 0xc0);
@@ -6486,10 +6485,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 38, 0x85);
 	rt2800_rfcsr_write(rt2x00dev, 39, 0x1b);
 
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
-		rt2800_rfcsr_write(rt2x00dev, 40, 0x0b);
-	else
-		rt2800_rfcsr_write(rt2x00dev, 40, 0x4b);
+	rt2800_rfcsr_write(rt2x00dev, 40, 0x0b);
 	rt2800_rfcsr_write(rt2x00dev, 41, 0xbb);
 	rt2800_rfcsr_write(rt2x00dev, 42, 0xd2);
 	rt2800_rfcsr_write(rt2x00dev, 43, 0x9a);
@@ -6510,16 +6506,26 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 53, 0x84);
 	rt2800_rfcsr_write(rt2x00dev, 54, 0x78);
 	rt2800_rfcsr_write(rt2x00dev, 55, 0x44);
-	rt2800_rfcsr_write(rt2x00dev, 56, 0x22);
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
+		rt2800_rfcsr_write(rt2x00dev, 56, 0x42);
+	else
+		rt2800_rfcsr_write(rt2x00dev, 56, 0x22);
 	rt2800_rfcsr_write(rt2x00dev, 57, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 58, 0x7f);
 	rt2800_rfcsr_write(rt2x00dev, 59, 0x8f);
 
 	rt2800_rfcsr_write(rt2x00dev, 60, 0x45);
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
-		rt2800_rfcsr_write(rt2x00dev, 61, 0xd1);
-	else
-		rt2800_rfcsr_write(rt2x00dev, 61, 0xdd);
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
+		if (rt2x00_is_usb(rt2x00dev))
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xd1);
+		else
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xd5);
+	} else {
+		if (rt2x00_is_usb(rt2x00dev))
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xdd);
+		else
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xb5);
+	}
 	rt2800_rfcsr_write(rt2x00dev, 62, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 63, 0x00);
 
@@ -6601,7 +6607,6 @@ static void rt2800_init_rfcsr_5592(struct rt2x00_dev *rt2x00dev)
 	rt2800_rf_init_calibration(rt2x00dev, 30);
 
 	rt2800_rfcsr_write(rt2x00dev, 1, 0x3F);
-	rt2800_rfcsr_write(rt2x00dev, 3, 0x08);
 	rt2800_rfcsr_write(rt2x00dev, 3, 0x08);
 	rt2800_rfcsr_write(rt2x00dev, 5, 0x10);
 	rt2800_rfcsr_write(rt2x00dev, 6, 0xE4);

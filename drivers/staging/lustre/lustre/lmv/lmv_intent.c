@@ -37,7 +37,6 @@
 #define DEBUG_SUBSYSTEM S_LMV
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/pagemap.h>
 #include <asm/div64.h>
 #include <linux/seq_file.h>

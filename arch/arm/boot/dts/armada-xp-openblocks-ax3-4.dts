@@ -103,8 +103,7 @@
 				green_led {
 					label = "green_led";
 					gpios = <&gpio1 21 1>;
-					default-state = "off";
-					linux,default-trigger = "heartbeat";
+					default-state = "keep";
 				};
 			};
 

@@ -61,7 +61,7 @@ static int port_cost(struct net_device *dev)
 }
 
 
-/* Check for port carrier transistions. */
+/* Check for port carrier transitions. */
 void br_port_carrier_check(struct net_bridge_port *p)
 {
 	struct net_device *dev = p->dev;
@@ -454,19 +454,4 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	netdev_update_features(br->dev);
 
 	return 0;
-}
-
-void __net_exit br_net_exit(struct net *net)
-{
-	struct net_device *dev;
-	LIST_HEAD(list);
-
-	rtnl_lock();
-	for_each_netdev(net, dev)
-		if (dev->priv_flags & IFF_EBRIDGE)
-			br_dev_delete(dev, &list);
-
-	unregister_netdevice_many(&list);
-	rtnl_unlock();
-
 }

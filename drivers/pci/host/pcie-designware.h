@@ -66,8 +66,8 @@ struct pcie_host_ops {
 	void (*host_init)(struct pcie_port *pp);
 };
 
-int cfg_read(void __iomem *addr, int where, int size, u32 *val);
-int cfg_write(void __iomem *addr, int where, int size, u32 val);
+int dw_pcie_cfg_read(void __iomem *addr, int where, int size, u32 *val);
+int dw_pcie_cfg_write(void __iomem *addr, int where, int size, u32 val);
 void dw_handle_msi_irq(struct pcie_port *pp);
 void dw_pcie_msi_init(struct pcie_port *pp);
 int dw_pcie_link_up(struct pcie_port *pp);

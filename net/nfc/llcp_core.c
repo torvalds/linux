@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "llcp: %s: " fmt, __func__
@@ -945,7 +943,6 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 	new_sock->local = nfc_llcp_local_get(local);
 	new_sock->rw = sock->rw;
 	new_sock->miux = sock->miux;
-	new_sock->remote_miu = local->remote_miu;
 	new_sock->nfc_protocol = sock->nfc_protocol;
 	new_sock->dsap = ssap;
 	new_sock->target_idx = local->target_idx;

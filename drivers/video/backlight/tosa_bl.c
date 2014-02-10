@@ -105,8 +105,9 @@ static int tosa_bl_probe(struct i2c_client *client,
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 512 - 1;
-	data->bl = backlight_device_register("tosa-bl", &client->dev, data,
-					     &bl_ops, &props);
+	data->bl = devm_backlight_device_register(&client->dev, "tosa-bl",
+						&client->dev, data, &bl_ops,
+						&props);
 	if (IS_ERR(data->bl)) {
 		ret = PTR_ERR(data->bl);
 		goto err_reg;
@@ -128,9 +129,7 @@ static int tosa_bl_remove(struct i2c_client *client)
 {
 	struct tosa_bl_data *data = i2c_get_clientdata(client);
 
-	backlight_device_unregister(data->bl);
 	data->bl = NULL;
-
 	return 0;
 }
 
