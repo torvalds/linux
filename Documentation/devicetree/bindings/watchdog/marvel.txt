@@ -3,6 +3,9 @@
 Required Properties:
 
 - Compatibility : "marvell,orion-wdt"
+		  "marvell,armada-370-wdt"
+		  "marvell,armada-xp-wdt"
+
 - reg		: Should contain two entries: first one with the
 		  timer control address, second one with the
 		  rstout enable address.

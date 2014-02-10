@@ -36,8 +36,16 @@
  * Watchdog timer block registers.
  */
 #define TIMER_CTRL		0x0000
+#define TIMER_A370_STATUS	0x04
 
 #define WDT_MAX_CYCLE_COUNT	0xffffffff
+
+#define WDT_A370_RATIO_MASK(v)	((v) << 16)
+#define WDT_A370_RATIO_SHIFT	5
+#define WDT_A370_RATIO		(1 << WDT_A370_RATIO_SHIFT)
+
+#define WDT_AXP_FIXED_ENABLE_BIT BIT(10)
+#define WDT_A370_EXPIRED	BIT(31)
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
@@ -67,12 +75,60 @@ static int orion_wdt_clock_init(struct platform_device *pdev,
 {
 	int ret;
 
-	dev->clk = devm_clk_get(&pdev->dev, NULL);
+	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk))
 		return PTR_ERR(dev->clk);
 	ret = clk_prepare_enable(dev->clk);
-	if (ret)
+	if (ret) {
+		clk_put(dev->clk);
 		return ret;
+	}
+
+	dev->clk_rate = clk_get_rate(dev->clk);
+	return 0;
+}
+
+static int armada370_wdt_clock_init(struct platform_device *pdev,
+				    struct orion_watchdog *dev)
+{
+	int ret;
+
+	dev->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(dev->clk))
+		return PTR_ERR(dev->clk);
+	ret = clk_prepare_enable(dev->clk);
+	if (ret) {
+		clk_put(dev->clk);
+		return ret;
+	}
+
+	/* Setup watchdog input clock */
+	atomic_io_modify(dev->reg + TIMER_CTRL,
+			WDT_A370_RATIO_MASK(WDT_A370_RATIO_SHIFT),
+			WDT_A370_RATIO_MASK(WDT_A370_RATIO_SHIFT));
+
+	dev->clk_rate = clk_get_rate(dev->clk) / WDT_A370_RATIO;
+	return 0;
+}
+
+static int armadaxp_wdt_clock_init(struct platform_device *pdev,
+				   struct orion_watchdog *dev)
+{
+	int ret;
+
+	dev->clk = of_clk_get_by_name(pdev->dev.of_node, "fixed");
+	if (IS_ERR(dev->clk))
+		return PTR_ERR(dev->clk);
+	ret = clk_prepare_enable(dev->clk);
+	if (ret) {
+		clk_put(dev->clk);
+		return ret;
+	}
+
+	/* Enable the fixed watchdog clock input */
+	atomic_io_modify(dev->reg + TIMER_CTRL,
+			 WDT_AXP_FIXED_ENABLE_BIT,
+			 WDT_AXP_FIXED_ENABLE_BIT);
 
 	dev->clk_rate = clk_get_rate(dev->clk);
 	return 0;
@@ -84,6 +140,26 @@ static int orion_wdt_ping(struct watchdog_device *wdt_dev)
 	/* Reload watchdog duration */
 	writel(dev->clk_rate * wdt_dev->timeout,
 	       dev->reg + dev->data->wdt_counter_offset);
+	return 0;
+}
+
+static int armada370_start(struct watchdog_device *wdt_dev)
+{
+	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
+
+	/* Set watchdog duration */
+	writel(dev->clk_rate * wdt_dev->timeout,
+	       dev->reg + dev->data->wdt_counter_offset);
+
+	/* Clear the watchdog expiration bit */
+	atomic_io_modify(dev->reg + TIMER_A370_STATUS, WDT_A370_EXPIRED, 0);
+
+	/* Enable watchdog timer */
+	atomic_io_modify(dev->reg + TIMER_CTRL, dev->data->wdt_enable_bit,
+						dev->data->wdt_enable_bit);
+
+	atomic_io_modify(dev->rstout, dev->data->rstout_enable_bit,
+				      dev->data->rstout_enable_bit);
 	return 0;
 }
 
@@ -205,10 +281,34 @@ static const struct orion_watchdog_data orion_data = {
 	.start = orion_start,
 };
 
+static const struct orion_watchdog_data armada370_data = {
+	.rstout_enable_bit = BIT(8),
+	.wdt_enable_bit = BIT(8),
+	.wdt_counter_offset = 0x34,
+	.clock_init = armada370_wdt_clock_init,
+	.start = armada370_start,
+};
+
+static const struct orion_watchdog_data armadaxp_data = {
+	.rstout_enable_bit = BIT(8),
+	.wdt_enable_bit = BIT(8),
+	.wdt_counter_offset = 0x34,
+	.clock_init = armadaxp_wdt_clock_init,
+	.start = armada370_start,
+};
+
 static const struct of_device_id orion_wdt_of_match_table[] = {
 	{
 		.compatible = "marvell,orion-wdt",
 		.data = &orion_data,
+	},
+	{
+		.compatible = "marvell,armada-370-wdt",
+		.data = &armada370_data,
+	},
+	{
+		.compatible = "marvell,armada-xp-wdt",
+		.data = &armadaxp_data,
 	},
 	{},
 };
@@ -301,6 +401,7 @@ static int orion_wdt_probe(struct platform_device *pdev)
 
 disable_clk:
 	clk_disable_unprepare(dev->clk);
+	clk_put(dev->clk);
 	return ret;
 }
 
@@ -311,6 +412,7 @@ static int orion_wdt_remove(struct platform_device *pdev)
 
 	watchdog_unregister_device(wdt_dev);
 	clk_disable_unprepare(dev->clk);
+	clk_put(dev->clk);
 	return 0;
 }
 
