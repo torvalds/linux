@@ -61,7 +61,7 @@ static int edac_set_poll_msec(const char *val, struct kernel_param *kp)
 	ret = kstrtol(val, 0, &l);
 	if (ret)
 		return ret;
-	if ((int)l != l)
+	if (!l || ((int)l != l))
 		return -EINVAL;
 	*((int *)kp->arg) = l;
 
