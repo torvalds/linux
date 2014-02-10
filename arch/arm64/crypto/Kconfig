@@ -29,4 +29,11 @@ config CRYPTO_AES_ARM64_CE
 	select CRYPTO_ALGAPI
 	select CRYPTO_AES
 
+config CRYPTO_AES_ARM64_CE_CCM
+	tristate "AES in CCM mode using ARMv8 Crypto Extensions"
+	depends on ARM64 && KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES
+	select CRYPTO_AEAD
+
 endif
