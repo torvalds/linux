@@ -1389,6 +1389,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"C             Collapse all callchains\n"			\
 	"d             Zoom into current DSO\n"				\
 	"E             Expand all callchains\n"				\
+	"F             Toggle percentage of filtered entries\n"		\
 
 	/* help messages are sorted by lexical order of the hotkey */
 	const char report_help[] = HIST_BROWSER_HELP_COMMON
@@ -1493,6 +1494,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			/* env->arch is NULL for live-mode (i.e. perf top) */
 			if (env->arch)
 				tui__header_window(env);
+			continue;
+		case 'F':
+			symbol_conf.filter_relative ^= 1;
 			continue;
 		case K_F1:
 		case 'h':
