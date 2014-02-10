@@ -358,7 +358,8 @@ int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	struct acx_beacon_filter_option *beacon_filter = NULL;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_ACX, "acx beacon filter opt");
+	wl1271_debug(DEBUG_ACX, "acx beacon filter opt enable=%d",
+		     enable_filter);
 
 	if (enable_filter &&
 	    wl->conf.conn.bcn_filt_mode == CONF_BCN_FILT_MODE_DISABLED)

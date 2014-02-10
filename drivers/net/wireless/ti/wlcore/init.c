@@ -287,8 +287,8 @@ static int wl1271_init_sta_beacon_filter(struct wl1271 *wl,
 	if (ret < 0)
 		return ret;
 
-	/* enable beacon filtering */
-	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, true);
+	/* disable beacon filtering until we get the first beacon */
+	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, false);
 	if (ret < 0)
 		return ret;
 
