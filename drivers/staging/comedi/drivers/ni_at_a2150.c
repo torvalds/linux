@@ -488,13 +488,25 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int a2150_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + STATUS_REG);
+	if (status & FNE_BIT)
+		return 0;
+	return -EBUSY;
+}
+
 static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	struct a2150_private *devpriv = dev->private;
-	unsigned int i, n;
-	static const int timeout = 100000;
-	static const int filter_delay = 36;
+	unsigned int n;
+	int ret;
 
 	/*  clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
@@ -524,30 +536,24 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	 * there is a 35.6 sample delay for data to get through the
 	 * antialias filter
 	 */
-	for (n = 0; n < filter_delay; n++) {
-		for (i = 0; i < timeout; i++) {
-			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
+	for (n = 0; n < 36; n++) {
+		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
+		if (ret) {
 			comedi_error(dev, "timeout");
-			return -ETIME;
+			return ret;
 		}
+
 		inw(dev->iobase + FIFO_DATA_REG);
 	}
 
 	/*  read data */
 	for (n = 0; n < insn->n; n++) {
-		for (i = 0; i < timeout; i++) {
-			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
+		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
+		if (ret) {
 			comedi_error(dev, "timeout");
-			return -ETIME;
+			return ret;
 		}
+
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
 		data[n] ^= 0x8000;
 	}
