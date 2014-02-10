@@ -38,6 +38,18 @@
 		};
 	};
 
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_hdmi_en: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "hdmi-en";
+		};
+	};
+
 	mmc@12200000 {
 		status = "okay";
 		broken-cd;
