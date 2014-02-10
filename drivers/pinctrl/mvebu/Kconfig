@@ -17,6 +17,10 @@ config PINCTRL_ARMADA_370
 	bool
 	select PINCTRL_MVEBU
 
+config PINCTRL_ARMADA_375
+	bool
+	select PINCTRL_MVEBU
+
 config PINCTRL_ARMADA_XP
 	bool
 	select PINCTRL_MVEBU
