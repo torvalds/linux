@@ -360,6 +360,11 @@ static struct rfcomm_dlc *rfcomm_dlc_get(struct rfcomm_session *s, u8 dlci)
 	return NULL;
 }
 
+static int rfcomm_check_channel(u8 channel)
+{
+	return channel < 1 || channel > 30;
+}
+
 static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst, u8 channel)
 {
 	struct rfcomm_session *s;
@@ -369,7 +374,7 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 	BT_DBG("dlc %p state %ld %pMR -> %pMR channel %d",
 	       d, d->state, src, dst, channel);
 
-	if (channel < 1 || channel > 30)
+	if (rfcomm_check_channel(channel))
 		return -EINVAL;
 
 	if (d->state != BT_OPEN && d->state != BT_CLOSED)
@@ -512,6 +517,25 @@ int rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 no_session:
 	rfcomm_unlock();
 	return r;
+}
+
+struct rfcomm_dlc *rfcomm_dlc_exists(bdaddr_t *src, bdaddr_t *dst, u8 channel)
+{
+	struct rfcomm_session *s;
+	struct rfcomm_dlc *dlc = NULL;
+	u8 dlci;
+
+	if (rfcomm_check_channel(channel))
+		return ERR_PTR(-EINVAL);
+
+	rfcomm_lock();
+	s = rfcomm_session_get(src, dst);
+	if (s) {
+		dlci = __dlci(!s->initiator, channel);
+		dlc = rfcomm_dlc_get(s, dlci);
+	}
+	rfcomm_unlock();
+	return dlc;
 }
 
 int rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb)
