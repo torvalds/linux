@@ -348,11 +348,18 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 }
 
 /* ---- Send buffer ---- */
-static inline unsigned int rfcomm_room(struct rfcomm_dlc *dlc)
+static inline unsigned int rfcomm_room(struct rfcomm_dev *dev)
 {
-	/* We can't let it be zero, because we don't get a callback
-	   when tx_credits becomes nonzero, hence we'd never wake up */
-	return dlc->mtu * (dlc->tx_credits?:1);
+	struct rfcomm_dlc *dlc = dev->dlc;
+
+	/* The limit is bogus; the number of packets which can
+	 * currently be sent by the krfcommd thread has no relevance
+	 * to the number of packets which can be queued on the dlc's
+	 * tx queue.
+	 */
+	int limit = dlc->mtu * (dlc->tx_credits?:1);
+
+	return max(0, limit - atomic_read(&dev->wmem_alloc));
 }
 
 static void rfcomm_wfree(struct sk_buff *skb)
@@ -809,16 +816,12 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 static int rfcomm_tty_write_room(struct tty_struct *tty)
 {
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
-	int room;
+	int room = 0;
 
-	BT_DBG("tty %p", tty);
+	if (dev && dev->dlc)
+		room = rfcomm_room(dev);
 
-	if (!dev || !dev->dlc)
-		return 0;
-
-	room = rfcomm_room(dev->dlc) - atomic_read(&dev->wmem_alloc);
-	if (room < 0)
-		room = 0;
+	BT_DBG("tty %p room %d", tty, room);
 
 	return room;
 }
