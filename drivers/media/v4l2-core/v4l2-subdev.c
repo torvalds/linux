@@ -368,6 +368,17 @@ static long subdev_ioctl(struct file *file, unsigned int cmd,
 	return video_usercopy(file, cmd, arg, subdev_do_ioctl);
 }
 
+#ifdef CONFIG_COMPAT
+static long subdev_compat_ioctl32(struct file *file, unsigned int cmd,
+	unsigned long arg)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
+
+	return v4l2_subdev_call(sd, core, compat_ioctl32, cmd, arg);
+}
+#endif
+
 static unsigned int subdev_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -389,6 +400,9 @@ const struct v4l2_file_operations v4l2_subdev_fops = {
 	.owner = THIS_MODULE,
 	.open = subdev_open,
 	.unlocked_ioctl = subdev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = subdev_compat_ioctl32,
+#endif
 	.release = subdev_close,
 	.poll = subdev_poll,
 };
