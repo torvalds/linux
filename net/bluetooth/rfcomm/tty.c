@@ -84,10 +84,6 @@ static void rfcomm_dev_destruct(struct tty_port *port)
 
 	BT_DBG("dev %p dlc %p", dev, dlc);
 
-	spin_lock(&rfcomm_dev_lock);
-	list_del(&dev->list);
-	spin_unlock(&rfcomm_dev_lock);
-
 	rfcomm_dlc_lock(dlc);
 	/* Detach DLC if it's owned by this dev */
 	if (dlc->owner == dev)
@@ -97,6 +93,10 @@ static void rfcomm_dev_destruct(struct tty_port *port)
 	rfcomm_dlc_put(dlc);
 
 	tty_unregister_device(rfcomm_tty_driver, dev->id);
+
+	spin_lock(&rfcomm_dev_lock);
+	list_del(&dev->list);
+	spin_unlock(&rfcomm_dev_lock);
 
 	kfree(dev);
 
