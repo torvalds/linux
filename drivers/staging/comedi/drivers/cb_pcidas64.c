@@ -1664,15 +1664,36 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	i2c_stop(dev);
 }
 
+static int cb_pcidas64_ai_eoc(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned long context)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readw(devpriv->main_iobase + HW_STATUS_REG);
+	if (thisboard->layout == LAYOUT_4020) {
+		status = readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG);
+		if (status)
+			return 0;
+	} else {
+		if (pipe_full_bits(status))
+			return 0;
+	}
+	return -EBUSY;
+}
+
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	struct pcidas64_private *devpriv = dev->private;
-	unsigned int bits = 0, n, i;
+	unsigned int bits = 0, n;
 	unsigned int channel, range, aref;
 	unsigned long flags;
-	static const int timeout = 100;
+	int ret;
 
 	channel = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
@@ -1770,23 +1791,12 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		       devpriv->main_iobase + ADC_CONVERT_REG);
 
 		/*  wait for data */
-		for (i = 0; i < timeout; i++) {
-			bits = readw(devpriv->main_iobase + HW_STATUS_REG);
-			if (thisboard->layout == LAYOUT_4020) {
-				if (readw(devpriv->main_iobase +
-					  ADC_WRITE_PNTR_REG))
-					break;
-			} else {
-				if (pipe_full_bits(bits))
-					break;
-			}
-			udelay(1);
-		}
-		if (i == timeout) {
+		ret = comedi_timeout(dev, s, insn, cb_pcidas64_ai_eoc, 0);
+		if (ret) {
 			comedi_error(dev, " analog input read insn timed out");
-			dev_info(dev->class_dev, "status 0x%x\n", bits);
-			return -ETIME;
+			return ret;
 		}
+
 		if (thisboard->layout == LAYOUT_4020)
 			data[n] = readl(devpriv->dio_counter_iobase +
 					ADC_FIFO_REG) & 0xffff;
