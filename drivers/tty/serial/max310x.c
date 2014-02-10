@@ -26,8 +26,6 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 
-#include <linux/platform_data/max310x.h>
-
 #define MAX310X_NAME			"max310x"
 #define MAX310X_MAJOR			204
 #define MAX310X_MINOR			209
@@ -293,7 +291,6 @@ struct max310x_port {
 	struct regmap		*regmap;
 	struct mutex		mutex;
 	struct clk		*clk;
-	struct max310x_pdata	*pdata;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip	gpio;
 #endif
@@ -898,26 +895,70 @@ static void max310x_set_termios(struct uart_port *port,
 	uart_update_timeout(port, termios->c_cflag, baud);
 }
 
+static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
+			 unsigned long arg)
+{
+	struct serial_rs485 rs485;
+	unsigned int val;
+
+	switch (cmd) {
+	case TIOCSRS485:
+		if (copy_from_user(&rs485, (struct serial_rs485 *)arg,
+				   sizeof(rs485)))
+			return -EFAULT;
+		if (rs485.delay_rts_before_send > 0x0f ||
+		    rs485.delay_rts_after_send > 0x0f)
+			return -ERANGE;
+		val = (rs485.delay_rts_before_send << 4) |
+		      rs485.delay_rts_after_send;
+		max310x_port_write(port, MAX310X_HDPIXDELAY_REG, val);
+		if (rs485.flags & SER_RS485_ENABLED) {
+			max310x_port_update(port, MAX310X_MODE1_REG,
+					    MAX310X_MODE1_TRNSCVCTRL_BIT,
+					    MAX310X_MODE1_TRNSCVCTRL_BIT);
+			max310x_port_update(port, MAX310X_MODE2_REG,
+					    MAX310X_MODE2_ECHOSUPR_BIT,
+					    MAX310X_MODE2_ECHOSUPR_BIT);
+		} else {
+			max310x_port_update(port, MAX310X_MODE1_REG,
+					    MAX310X_MODE1_TRNSCVCTRL_BIT, 0);
+			max310x_port_update(port, MAX310X_MODE2_REG,
+					    MAX310X_MODE2_ECHOSUPR_BIT, 0);
+		}
+		break;
+	case TIOCGRS485:
+		memset(&rs485, 0, sizeof(rs485));
+		val = max310x_port_read(port, MAX310X_MODE1_REG);
+		rs485.flags = (val & MAX310X_MODE1_TRNSCVCTRL_BIT) ?
+			      SER_RS485_ENABLED : 0;
+		rs485.flags |= SER_RS485_RTS_ON_SEND;
+		val = max310x_port_read(port, MAX310X_HDPIXDELAY_REG);
+		rs485.delay_rts_before_send = val >> 4;
+		rs485.delay_rts_after_send = val & 0x0f;
+		if (copy_to_user((struct serial_rs485 *)arg, &rs485,
+				 sizeof(rs485)))
+			return -EFAULT;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
+}
+
 static int max310x_startup(struct uart_port *port)
 {
-	unsigned int val, line = port->line;
 	struct max310x_port *s = dev_get_drvdata(port->dev);
+	unsigned int val;
 
 	s->devtype->power(port, 1);
 
 	/* Configure MODE1 register */
 	max310x_port_update(port, MAX310X_MODE1_REG,
-			    MAX310X_MODE1_TRNSCVCTRL_BIT,
-			    (s->pdata->uart_flags[line] & MAX310X_AUTO_DIR_CTRL)
-			    ? MAX310X_MODE1_TRNSCVCTRL_BIT : 0);
+			    MAX310X_MODE1_TRNSCVCTRL_BIT, 0);
 
-	/* Configure MODE2 register */
-	val = MAX310X_MODE2_RXEMPTINV_BIT;
-	if (s->pdata->uart_flags[line] & MAX310X_ECHO_SUPRESS)
-		val |= MAX310X_MODE2_ECHOSUPR_BIT;
-
-	/* Reset FIFOs */
-	val |= MAX310X_MODE2_FIFORST_BIT;
+	/* Configure MODE2 register & Reset FIFOs*/
+	val = MAX310X_MODE2_RXEMPTINV_BIT | MAX310X_MODE2_FIFORST_BIT;
 	max310x_port_write(port, MAX310X_MODE2_REG, val);
 	max310x_port_update(port, MAX310X_MODE2_REG,
 			    MAX310X_MODE2_FIFORST_BIT, 0);
@@ -998,6 +1039,7 @@ static const struct uart_ops max310x_ops = {
 	.release_port	= max310x_null_void,
 	.config_port	= max310x_config_port,
 	.verify_port	= max310x_verify_port,
+	.ioctl		= max310x_ioctl,
 };
 
 static int __maybe_unused max310x_suspend(struct device *dev)
@@ -1077,7 +1119,6 @@ static int max310x_gpio_direction_output(struct gpio_chip *chip,
 static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 			 struct regmap *regmap, int irq)
 {
-	struct max310x_pdata *pdata = dev_get_platdata(dev);
 	int i, ret, fmin, fmax, freq, uartclk;
 	struct clk *clk_osc, *clk_xtal;
 	struct max310x_port *s;
@@ -1085,11 +1126,6 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-
-	if (!pdata) {
-		dev_err(dev, "No platform data supplied\n");
-		return -EINVAL;
-	}
 
 	/* Alloc port structure */
 	s = devm_kzalloc(dev, sizeof(*s) +
@@ -1129,7 +1165,6 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		goto out_clk;
 	}
 
-	s->pdata = pdata;
 	s->regmap = regmap;
 	s->devtype = devtype;
 	dev_set_drvdata(dev, s);
