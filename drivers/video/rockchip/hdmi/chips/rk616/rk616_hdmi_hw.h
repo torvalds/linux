@@ -285,6 +285,7 @@ enum {
 #define PHY_PRE_DIV_RATIO 		0xed
 	#define v_PRE_DIV_RATIO(n) 	(n&1f)
 
+extern struct hdmi *hdmi;
 #ifndef CONFIG_ARCH_RK3026
 static inline int hdmi_readl(u16 offset, u32 *val)
 {
@@ -347,8 +348,8 @@ static inline void rk3028_hdmi_reset_pclk(void)
 }
 #endif
 
-extern int rk616_hdmi_initial(void);
-extern void rk616_hdmi_work(void);
+extern int rk616_hdmi_initial(struct hdmi *hdmi);
+extern void rk616_hdmi_work(struct hdmi *hdmi);
 
 
 #endif

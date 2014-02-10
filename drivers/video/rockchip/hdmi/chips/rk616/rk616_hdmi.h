@@ -20,7 +20,7 @@ enum{
 #define HDMI_CODEC_SOURCE_SELECT INPUT_IIS
 #endif
 
-extern void rk616_hdmi_control_output(int enable);
+extern void rk616_hdmi_control_output(struct hdmi *hdmi, int enable);
 extern int rk616_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 					 void (*hdcp_irq_cb)(int status),
 					 int  (*hdcp_power_on_cb)(void),

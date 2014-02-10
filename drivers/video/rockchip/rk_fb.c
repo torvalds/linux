@@ -764,6 +764,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int win_id;
+	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fix->id);
 	if (win_id < 0)

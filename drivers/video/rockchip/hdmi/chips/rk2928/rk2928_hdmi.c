@@ -23,7 +23,7 @@ struct hdmi *hdmi = NULL;
 
 extern irqreturn_t hdmi_irq(int irq, void *priv);
 extern void hdmi_work(struct work_struct *work);
-extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
+extern struct rk_lcdc_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
 extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
 

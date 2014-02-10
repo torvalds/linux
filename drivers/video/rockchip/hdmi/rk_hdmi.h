@@ -259,7 +259,7 @@ struct hdmi {
 	int				irq;
 	int				regbase_phy;
 	int				regsize_phy;
-	struct rk_lcdc_device_driver *lcdc;
+	struct rk_lcdc_driver *lcdc;
 	
 	#ifdef CONFIG_SWITCH
 	struct switch_dev	switch_hdmi;
@@ -294,15 +294,15 @@ struct hdmi {
 	int yscale;					// y directoon scale value
 	int tmdsclk;				// TDMS Clock frequency
 	
-	int (*insert)(void);
-	int (*remove)(void);
-	void (*control_output)(int enable);
-	int (*config_video)(struct hdmi_video_para *vpara);
-	int (*config_audio)(struct hdmi_audio *audio);
-	int (*detect_hotplug)(void);
+	int (*insert)(struct hdmi  *hdmi);
+	int (*remove)(struct hdmi  *hdmi);
+	void (*control_output)(struct hdmi  *hdmi, int enable);
+	int (*config_video)(struct hdmi  *hdmi, struct hdmi_video_para *vpara);
+	int (*config_audio)(struct hdmi  *hdmi, struct hdmi_audio *audio);
+	int (*detect_hotplug)(struct hdmi  *hdmi);
 	// call back for edid
-	int (*read_edid)(int block, unsigned char *buff);
-	int (*set_vif)(rk_screen * screen,bool connect);
+	int (*read_edid)(struct hdmi  *hdmi, int block, unsigned char *buff);
+	int (*set_vif)(struct hdmi *hdmi, struct rk_screen *screen, bool connect);
 
 	// call back for hdcp operatoion
 	void (*hdcp_cb)(void);
@@ -321,11 +321,11 @@ struct hdmi {
 #define hdmi_dbg(dev, format, arg...)	
 #endif
 
-extern struct hdmi *hdmi;
+//extern struct hdmi *hdmi;
 extern int hdmi_get_hotplug(void);
-extern int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic);
-extern void hdmi_init_lcdc(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info);
-extern int hdmi_sys_init(void);
+extern int hdmi_set_info(struct rk_screen *screen, unsigned int vic);
+extern void hdmi_init_lcdc(struct rk_screen *screen, struct rk29lcd_info *lcd_info);
+extern int hdmi_sys_init(struct hdmi *hdmi);
 extern int hdmi_sys_parse_edid(struct hdmi* hdmi);
 extern const char *hdmi_get_video_mode_name(unsigned char vic);
 extern int hdmi_videomode_to_vic(struct fb_videomode *vmode);

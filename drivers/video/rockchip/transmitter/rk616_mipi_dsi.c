@@ -90,7 +90,7 @@
 
 #ifdef CONFIG_MFD_RK616
 static struct mfd_rk616 *dsi_rk616;
-static struct rk29fb_screen *g_rk29fd_screen = NULL;
+static struct rk_screen *g_rk29fd_screen = NULL;
 #endif
 static struct dsi gDsi;
 static struct mipi_dsi_ops rk_mipi_dsi_ops;

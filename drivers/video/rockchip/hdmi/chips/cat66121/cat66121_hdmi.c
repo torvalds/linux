@@ -20,7 +20,7 @@
 struct cat66121_hdmi_pdata *cat66121_hdmi = NULL;
 struct hdmi *hdmi=NULL;
 
-extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
+extern struct rk_lcdc_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
 extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
 static void cat66121_irq_work_func(struct work_struct *work);

@@ -72,7 +72,7 @@ static void rk610_scaler_disable(struct i2c_client *client)
     rk610_scaler_write_p0_reg(client, SCL_CON0, &c);
 }
 
-static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *screen,int mode)
+static int rk610_output_config(struct i2c_client *client,struct rk_screen *screen,int mode)
 {
     char c=0;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
@@ -121,7 +121,7 @@ static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *s
 	return 0;
 }
 #if defined(CONFIG_HDMI_DUAL_DISP) || defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
-static int rk610_scaler_pll_set(struct i2c_client *client,struct rk29fb_screen *screen,u32 clkin )
+static int rk610_scaler_pll_set(struct i2c_client *client,struct rk_screen *screen,u32 clkin )
 {
     char c=0;
     char M=0,N=0,OD=0;
@@ -188,7 +188,7 @@ static int  scale_hv_factor(struct i2c_client *client ,u32 Hin_act, u32 Hout_act
   	return 0;
    }
 
-static int rk610_scaler_fator_config(struct i2c_client *client ,struct rk29fb_screen *screen)
+static int rk610_scaler_fator_config(struct i2c_client *client ,struct rk_screen *screen)
 {
     switch(screen->hdmi_resolution){
         case HDMI_1920x1080p_60Hz:
@@ -222,7 +222,7 @@ static int rk610_scaler_fator_config(struct i2c_client *client ,struct rk29fb_sc
     }
     return 0;
 }
-static int rk610_scaler_output_timing_config(struct i2c_client *client,struct rk29fb_screen *screen)
+static int rk610_scaler_output_timing_config(struct i2c_client *client,struct rk_screen *screen)
 {
     char c;
     int h_st = screen->s_hsync_st;
@@ -304,7 +304,7 @@ static int rk610_scaler_output_timing_config(struct i2c_client *client,struct rk
 	
 	return 0;
 }
-static int rk610_scaler_chg(struct i2c_client *client ,struct rk29fb_screen *screen)
+static int rk610_scaler_chg(struct i2c_client *client ,struct rk_screen *screen)
 {
 
     RK610_DBG(&client->dev,"%s screen->hdmi_resolution=%d\n",__FUNCTION__,screen->hdmi_resolution);
@@ -365,7 +365,7 @@ static void rk610_lcd_early_resume(struct early_suspend *h)
     }
 }
 #endif
-int rk610_lcd_scaler_set_param(struct rk29fb_screen *screen,bool enable )//enable:0 bypass 1: scale
+int rk610_lcd_scaler_set_param(struct rk_screen *screen,bool enable )//enable:0 bypass 1: scale
 {
     int ret=0;
     struct i2c_client *client = g_lcd_inf->client;

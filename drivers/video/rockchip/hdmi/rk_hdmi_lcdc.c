@@ -61,12 +61,12 @@ static const struct fb_videomode hdmi_mode [] = {
 
 };
 
-void hdmi_init_lcdc(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info)
+void hdmi_init_lcdc(struct rk_screen *screen, struct rk29lcd_info *lcd_info)
 {
 	hdmi_set_info(screen, HDMI_VIDEO_DEFAULT_MODE);
 }
 
-int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic)
+int hdmi_set_info(struct rk_screen *screen, unsigned int vic)
 {
     int i;
     
@@ -84,26 +84,26 @@ int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic)
     if(i == ARRAY_SIZE(hdmi_mode))
     	return -1;
     
-    memset(screen, 0, sizeof(struct rk29fb_screen));
+    memset(screen, 0, sizeof(struct rk_screen));
     
     /* screen type & face */
     screen->type = OUT_TYPE;
     screen->face = OUT_FACE;
 
     /* Screen size */
-    screen->x_res = hdmi_mode[i].xres;
-    screen->y_res = hdmi_mode[i].yres;
+    screen->mode.xres = hdmi_mode[i].xres;
+    screen->mode.yres = hdmi_mode[i].yres;
     
     /* Timing */
-    screen->pixclock = hdmi_mode[i].pixclock;
-    screen->fps = hdmi_mode[i].refresh;
-	screen->lcdc_aclk = LCD_ACLK;
-	screen->left_margin = hdmi_mode[i].left_margin;
-	screen->right_margin = hdmi_mode[i].right_margin;
-	screen->hsync_len = hdmi_mode[i].hsync_len;
-	screen->upper_margin = hdmi_mode[i].upper_margin;
-	screen->lower_margin = hdmi_mode[i].lower_margin;
-	screen->vsync_len = hdmi_mode[i].vsync_len;
+    screen->mode.pixclock = hdmi_mode[i].pixclock;
+    screen->mode.refresh = hdmi_mode[i].refresh;
+	//screen->lcdc_aclk = LCD_ACLK;
+	screen->mode.left_margin = hdmi_mode[i].left_margin;
+	screen->mode.right_margin = hdmi_mode[i].right_margin;
+	screen->mode.hsync_len = hdmi_mode[i].hsync_len;
+	screen->mode.upper_margin = hdmi_mode[i].upper_margin;
+	screen->mode.lower_margin = hdmi_mode[i].lower_margin;
+	screen->mode.vsync_len = hdmi_mode[i].vsync_len;
 	screen->hdmi_resolution = hdmi_mode[i].flag;
 
 	/* Pin polarity */
@@ -503,10 +503,10 @@ const char *hdmi_get_video_mode_name(unsigned char vic)
 int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 {
 	int rc = 0;
-	rk_screen *screen;
+	struct rk_screen *screen;
 	
 	
-	screen =  kzalloc(sizeof(struct rk29fb_screen), GFP_KERNEL);
+	screen =  kzalloc(sizeof(struct rk_screen), GFP_KERNEL);
 	if(screen == NULL)
 		return -1;
 	
@@ -518,11 +518,11 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 
 	if(rc == 0) {
                 if(hdmi->set_vif)
-                        hdmi->set_vif(screen,0); //turn off vif for jettab
+                        hdmi->set_vif(hdmi,screen,0); //turn off vif for jettab
 		rk_fb_switch_screen(screen, 1, hdmi->lcdc->id);
 		rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, hdmi->lcdc->id);
 		if(hdmi->set_vif)
-			hdmi->set_vif(screen,1);
+			hdmi->set_vif(hdmi,screen,1);
 
 	}
 	
@@ -537,6 +537,7 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
  * NOTES:
  * 
  */
+extern struct hdmi *hdmi;
 int hdmi_get_hotplug(void)
 {
 	if(hdmi)

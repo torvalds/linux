@@ -217,7 +217,7 @@ struct scl_info{
 struct rk610_lcd_info{
     int disp_mode;
     
-    struct rk29fb_screen *screen;
+    struct rk_screen *screen;
     struct scl_info scl_inf;
     struct i2c_client *client;
 
@@ -226,5 +226,5 @@ struct rk610_lcd_info{
 #endif
 };
 extern int rk610_lcd_init(struct rk610_core_info *rk610_core_info);
-extern int rk610_lcd_scaler_set_param(struct rk29fb_screen *screen,bool enable );
+extern int rk610_lcd_scaler_set_param(struct rk_screen *screen,bool enable );
 #endif

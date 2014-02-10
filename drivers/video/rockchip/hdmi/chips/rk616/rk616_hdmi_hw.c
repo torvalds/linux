@@ -1,9 +1,10 @@
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <mach/io.h>
+//#include <mach/io.h>
+#include <linux/of_irq.h>
 #include "rk616_hdmi.h"
 #include "rk616_hdmi_hw.h"
-#include <mach/gpio.h>
+//#include <mach/gpio.h>
 
 // static char edid_result = 0;
 
@@ -42,7 +43,7 @@ static int rk616_set_polarity(struct mfd_rk616 * rk616, int vic)
         return ret;
 }
 
-static int rk616_hdmi_set_vif(rk_screen * screen,bool connect)
+static int rk616_hdmi_set_vif(struct hdmi *hdmi, struct rk_screen *screen, bool connect)
 {
         struct rk616_hdmi *rk616_hdmi;
         rk616_hdmi = container_of(hdmi, struct rk616_hdmi, g_hdmi);
@@ -91,7 +92,7 @@ static void rk616_hdmi_sys_power_down(void)
 }
 
 
-static void rk616_hdmi_set_pwr_mode(int mode)
+static void rk616_hdmi_set_pwr_mode(struct hdmi *hdmi, int mode)
 {
 	if(hdmi->pwr_mode == mode)
 		return; 
@@ -134,7 +135,7 @@ static void rk616_hdmi_set_pwr_mode(int mode)
 }
 
 
-int rk616_hdmi_detect_hotplug(void)
+int rk616_hdmi_detect_hotplug(struct hdmi *hdmi)
 {
 	int value = 0;
 #if 0
@@ -156,7 +157,7 @@ int rk616_hdmi_detect_hotplug(void)
 }
 
 
-int rk616_hdmi_read_edid(int block, u8 * buf)
+int rk616_hdmi_read_edid(struct hdmi *hdmi, int block, u8 * buf)
 {
         u32 c = 0;
 	u8 Segment = 0;
@@ -274,7 +275,7 @@ static void rk616_hdmi_config_avi(unsigned char vic, unsigned char output_color)
 }
 
 
-static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
+static int rk616_hdmi_config_video(struct hdmi *hdmi, struct hdmi_video_para *vpara)
 {
 	int value;
 	struct fb_videomode *mode;
@@ -289,7 +290,7 @@ static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 	}
 
         if(hdmi->pwr_mode == LOWER_PWR) {
-                rk616_hdmi_set_pwr_mode(NORMAL);
+                rk616_hdmi_set_pwr_mode(hdmi, NORMAL);
         }
 
 
@@ -301,7 +302,7 @@ static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 	
 	// Input video mode is SDR RGB24bit, Data enable signal from external
 	hdmi_writel(VIDEO_CONTRL1, v_VIDEO_INPUT_FORMAT(VIDEO_INPUT_SDR_RGB444) | v_DE_EXTERNAL);
-	hdmi_writel(VIDEO_CONTRL2, v_VIDEO_INPUT_BITS(VIDEO_INPUT_8BITS) | (vpara->output_color & 0xFF));
+	hdmi_writel(VIDEO_CONTRL2, v_VIDEO_INPUT_BITS(VIDEO_INPUT_8BITS) | v_VIDEO_OUTPUT_FORMAT(vpara->output_color & 0xFF));
 
 	// Set HDMI Mode
 	hdmi_writel(HDCP_CTRL, v_HDMI_DVI(vpara->output_mode));
@@ -408,7 +409,7 @@ static void rk616_hdmi_config_aai(void)
 		hdmi_writel(CONTROL_PACKET_ADDR + i, info[i]);
 }
 
-static int rk616_hdmi_config_audio(struct hdmi_audio *audio)
+static int rk616_hdmi_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 {
 	int rate, N, channel, mclk_fs;
 	
@@ -484,13 +485,13 @@ static int rk616_hdmi_config_audio(struct hdmi_audio *audio)
         return 0;
 }
 
-void rk616_hdmi_control_output(int enable)
+void rk616_hdmi_control_output(struct hdmi *hdmi, int enable)
 {
 	int mutestatus = 0;
 	
 	if(enable) {
 		if(hdmi->pwr_mode == LOWER_PWR)
-			rk616_hdmi_set_pwr_mode(NORMAL);
+			rk616_hdmi_set_pwr_mode(hdmi, NORMAL);
 		hdmi_readl(AV_MUTE,&mutestatus);
 		if(mutestatus && (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
 			hdmi_writel(AV_MUTE, v_AUDIO_MUTE(0) | v_VIDEO_MUTE(0));
@@ -507,17 +508,17 @@ void rk616_hdmi_control_output(int enable)
 	}
 }
 
-int rk616_hdmi_removed(void)
+int rk616_hdmi_removed(struct hdmi *hdmi)
 {
 
 	dev_printk(KERN_INFO , hdmi->dev , "Removed.\n");
-	rk616_hdmi_set_pwr_mode(LOWER_PWR);
+	rk616_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
 
 	return HDMI_ERROR_SUCESS;
 }
 
 
-void rk616_hdmi_work(void)
+void rk616_hdmi_work(struct hdmi *hdmi)
 {		
 	u32 interrupt = 0;
         // int value = 0;
@@ -541,7 +542,7 @@ void rk616_hdmi_work(void)
 #if 0	
 	if(hdmi->state == HDMI_SLEEP) {
 //		hdmi_dbg(hdmi->dev, "hdmi return to sleep mode\n");
-		rk616_hdmi_set_pwr_mode(LOWER_PWR);
+		rk616_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
 	}
 #endif
 #if 0
@@ -550,7 +551,7 @@ void rk616_hdmi_work(void)
 #endif
 }
 
-static void rk616_hdmi_reset(void)
+static void rk616_hdmi_reset(struct hdmi *hdmi)
 {
 	u32 val = 0;
 	u32 msk = 0;
@@ -563,10 +564,10 @@ static void rk616_hdmi_reset(void)
 	val = v_REG_CLK_INV | v_REG_CLK_SOURCE_SYS | v_PWR_ON |v_INT_POL_HIGH;
 	hdmi_msk_reg(SYS_CTRL,msk,val);
 	hdmi_writel(INTERRUPT_MASK1,m_INT_HOTPLUG);
-	rk616_hdmi_set_pwr_mode(LOWER_PWR);
+	rk616_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
 }
 
-int rk616_hdmi_initial(void)
+int rk616_hdmi_initial(struct hdmi *hdmi)
 {
 	int rc = HDMI_ERROR_SUCESS;
         struct rk616_hdmi *rk616_hdmi;
@@ -582,10 +583,10 @@ int rk616_hdmi_initial(void)
 
 #ifdef CONFIG_ARCH_RK3026
         rk3028_hdmi_reset_pclk();
-        rk616_hdmi_reset();
+        rk616_hdmi_reset(hdmi);
 #else
         hdmi->set_vif = rk616_hdmi_set_vif;
-        rk616_hdmi_reset();
+        rk616_hdmi_reset(hdmi);
 	rk616_hdmi_init_pol_set(rk616_hdmi->rk616_drv, 0);
 #endif
         

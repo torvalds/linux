@@ -42,15 +42,15 @@ int rk610_tv_wirte_reg(u8 reg, u8 data)
 
 int rk610_switch_fb(const struct fb_videomode *modedb, int tv_mode)
 {	
-	struct rk29fb_screen *screen;
+	struct rk_screen *screen;
 	
 	if(modedb == NULL)
 		return -1;
-	screen =  kzalloc(sizeof(struct rk29fb_screen), GFP_KERNEL);
+	screen =  kzalloc(sizeof(struct rk_screen), GFP_KERNEL);
 	if(screen == NULL)
 		return -1;
 	
-	memset(screen, 0, sizeof(struct rk29fb_screen));	
+	memset(screen, 0, sizeof(struct rk_screen));	
 	/* screen type & face */
     screen->type = SCREEN_HDMI;
 	screen->mode = modedb->vmode;

@@ -374,7 +374,7 @@ int hdmi_sys_parse_edid(struct hdmi* hdmi)
 	}
 	// Read base block edid.
 	memset(buff, 0 , HDMI_EDID_BLOCK_SIZE);
-	rc = hdmi->read_edid(0, buff);
+	rc = hdmi->read_edid(hdmi, 0, buff);
 	if(rc)
 	{
 		dev_err(hdmi->dev, "[HDMI] read edid base block error\n");
@@ -389,7 +389,7 @@ int hdmi_sys_parse_edid(struct hdmi* hdmi)
 	for(i = 1; i < extendblock + 1; i++)
 	{
 		memset(buff, 0 , HDMI_EDID_BLOCK_SIZE);
-		rc = hdmi->read_edid(i, buff);
+		rc = hdmi->read_edid(hdmi, i, buff);
 		if(rc)
 		{
 			printk("[HDMI] read edid block %d error\n", i);	

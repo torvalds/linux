@@ -108,7 +108,7 @@ enum {
 extern volatile int rk610_tv_output_status;
 extern struct rk_display_ops rk610_display_ops;
 
-extern int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable );
+extern int FB_Switch_Screen( struct rk_screen *screen, u32 enable );
 
 extern int rk610_tv_wirte_reg(u8 reg, u8 data);
 extern int rk610_tv_standby(int type);

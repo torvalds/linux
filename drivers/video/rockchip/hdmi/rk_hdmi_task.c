@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include "rk_hdmi.h"
 
 #ifdef CONFIG_RK_HDMI_CTL_CODEC
@@ -23,9 +24,9 @@
 
 static char *envp[] = {"INTERFACE=HDMI", NULL};
 
-static void hdmi_sys_show_state(int state)
+static void hdmi_sys_show_state(struct hdmi *hdmi)
 {
-	switch(state)
+	switch(hdmi->state)
 	{
 		case HDMI_SLEEP:
 			hdmi_dbg(hdmi->dev, "HDMI_SLEEP\n");
@@ -60,7 +61,7 @@ static void hdmi_sys_show_state(int state)
 	}
 }
 
-int hdmi_sys_init(void)
+int hdmi_sys_init(struct hdmi *hdmi)
 {
 	hdmi->hotplug			= HDMI_HPD_REMOVED;
 	hdmi->state				= HDMI_SLEEP;
@@ -78,7 +79,7 @@ int hdmi_sys_init(void)
 	return 0;
 }
 
-void hdmi_sys_remove(void)
+void hdmi_sys_remove(struct hdmi *hdmi)
 {
 	int audio_need;
 
@@ -97,7 +98,7 @@ void hdmi_sys_remove(void)
 	INIT_LIST_HEAD(&hdmi->edid.modelist);
 	hdmi->display	= HDMI_DISABLE;
 	if(hdmi->set_vif)
-		hdmi->set_vif(hdmi->lcdc->screen1,0);
+		hdmi->set_vif(hdmi,hdmi->lcdc->screen1,0);
 	rk_fb_switch_screen(hdmi->lcdc->screen1, 0, hdmi->lcdc->id);
 	kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
 
@@ -122,19 +123,19 @@ void hdmi_sys_remove(void)
 	#endif
 }
 
-static void hdmi_sys_sleep(void)
+static void hdmi_sys_sleep(struct hdmi *hdmi)
 {
 	mutex_lock(&hdmi->enable_mutex);
 	if(hdmi->enable && hdmi->irq)
 		disable_irq(hdmi->irq);				
 	hdmi->state = HDMI_SLEEP;
-	hdmi->remove();
+	hdmi->remove(hdmi);
 	if(hdmi->enable && hdmi->irq)
 		enable_irq(hdmi->irq);
 	mutex_unlock(&hdmi->enable_mutex);
 }
 
-static int hdmi_process_command(void)
+static int hdmi_process_command(struct hdmi *hdmi)
 {
 	int change, state = hdmi->state;
 	
@@ -150,10 +151,10 @@ static int hdmi_process_command(void)
 				if(!hdmi->enable || hdmi->suspend)
 				{
 					if(hdmi->hotplug == HDMI_HPD_ACTIVED)
-						hdmi_sys_remove();
+						hdmi_sys_remove(hdmi);
 					hdmi->state = HDMI_SLEEP;
 					hdmi->hotplug = HDMI_HPD_REMOVED;
-					hdmi->remove();
+					hdmi->remove(hdmi);
 					state = HDMI_SLEEP;
 				}
 				mutex_unlock(&hdmi->enable_mutex);
@@ -200,33 +201,35 @@ void hdmi_work(struct work_struct *work)
 	int hotplug, state_last;
 	int rc = HDMI_ERROR_SUCESS, trytimes = 0;
 	struct hdmi_video_para video;
+	struct delayed_work *delay_work = container_of(work, struct delayed_work, work);
+	struct hdmi *hdmi = container_of(delay_work, struct hdmi, delay_work);
 
 	mutex_lock(&work_mutex);
 	/* Process hdmi command */
-	hdmi->state = hdmi_process_command();
+	hdmi->state = hdmi_process_command(hdmi);
 	
 	if(!hdmi->enable || hdmi->suspend) {
 		mutex_unlock(&work_mutex);
 		return;
 	}
-	hotplug = hdmi->detect_hotplug();
+	hotplug = hdmi->detect_hotplug(hdmi);
 	hdmi_dbg(hdmi->dev, "[%s] hotplug %02x curvalue %d\n", __FUNCTION__, hotplug, hdmi->hotplug);
 	
 	if(hotplug != hdmi->hotplug)
 	{
 		if(hotplug  == HDMI_HPD_ACTIVED){
 			if(hdmi->insert)
-				hdmi->insert();
+				hdmi->insert(hdmi);
 			hdmi->state = READ_PARSE_EDID;
 		}
 		else if(hdmi->hotplug == HDMI_HPD_ACTIVED) {
-			hdmi_sys_remove();
+			hdmi_sys_remove(hdmi);
 			hdmi->hotplug = hotplug;
 			if(hotplug == HDMI_HPD_REMOVED)
-				hdmi_sys_sleep();
+				hdmi_sys_sleep(hdmi);
 			else {
 				hdmi->state = WAIT_HOTPLUG;
-				hdmi->remove();
+				hdmi->remove(hdmi);
 			}
 			if(hdmi->wait == 1) {
 				complete(&hdmi->complete);
@@ -237,15 +240,15 @@ void hdmi_work(struct work_struct *work)
 		}
 		else if(hotplug == HDMI_HPD_REMOVED) {
 			hdmi->state = HDMI_SLEEP;
-			hdmi->remove();
+			hdmi->remove(hdmi);
 		}
 		hdmi->hotplug  = hotplug;
 	}
 	else if(hotplug == HDMI_HPD_REMOVED)
-		hdmi_sys_sleep();
+		hdmi_sys_sleep(hdmi);
 	
 	do {
-		hdmi_sys_show_state(hdmi->state);
+		hdmi_sys_show_state(hdmi);
 		state_last = hdmi->state;
 		switch(hdmi->state)
 		{
@@ -279,7 +282,7 @@ void hdmi_work(struct work_struct *work)
 				break;
 			case SYSTEM_CONFIG:
                                 #ifdef CONFIG_HDMI_RK616
-                                hdmi->remove();
+                                hdmi->remove(hdmi);
                                 #endif
 				if(hdmi->autoconfig)	
 					hdmi->vic = hdmi_find_best_mode(hdmi, 0);
@@ -306,7 +309,7 @@ void hdmi_work(struct work_struct *work)
 				if(hdmi->edid.sink_hdmi == 0)
 					video.output_color = VIDEO_OUTPUT_RGB444;
 				
-				rc = hdmi->config_video(&video);
+				rc = hdmi->config_video(hdmi, &video);
 				if(rc == HDMI_ERROR_SUCESS)
 				{
 					if(hdmi->edid.sink_hdmi)
@@ -316,14 +319,14 @@ void hdmi_work(struct work_struct *work)
 				}
 				break;
 			case CONFIG_AUDIO:
-				rc = hdmi->config_audio(&(hdmi->audio));
+				rc = hdmi->config_audio(hdmi, &(hdmi->audio));
 							
 				if(rc == HDMI_ERROR_SUCESS)
 					hdmi->state = PLAY_BACK;
 				break;
 			case PLAY_BACK:
 				if(hdmi->display != HDMI_ENABLE) {
-					hdmi->control_output(HDMI_ENABLE);
+					hdmi->control_output(hdmi, HDMI_ENABLE);
 					hdmi->display = HDMI_ENABLE;
 					if(hdmi->hdcp_cb) {
 						hdmi->hdcp_cb();

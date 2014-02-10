@@ -1,9 +1,6 @@
 
 #include <linux/rk_fb.h>
 #include "lcd.h"
-#if defined(CONFIG_RK_HDMI)
-#include "../hdmi/rk_hdmi.h"
-#endif
 #if defined(CONFIG_MACH_RK_FAC)
 #include <plat/config.h>
 extern uint lcd_param[LCD_PARAM_MAX];
@@ -14,7 +11,7 @@ extern uint lcd_param[LCD_PARAM_MAX];
 
 // if we use one lcdc with jetta for dual display,we need these configration
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF) && defined(CONFIG_RK_HDMI)
-static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
+static int set_scaler_info(struct rk_screen *screen, u8 hdmi_resolution)
 {
 	#if defined(CONFIG_RK610_LVDS)
 	screen->s_clk_inv = S_DCLK_POL;
@@ -190,7 +187,7 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 #define set_scaler_info  NULL
 #endif
 
-void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
+void set_lcd_info(struct rk_screen *screen, struct rk29lcd_info *lcd_info )
 {
 
 #if defined(RK_USE_SCREEN_ID)

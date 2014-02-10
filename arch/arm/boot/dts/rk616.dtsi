@@ -4,30 +4,30 @@
 	compatible = "rockchip,rk616";
 		
 	#address-cells = <1>;
-	#size-cells = <1>;	
+	#size-cells = <1>;
 
 	rk616,scl_rate = <100000>;
 	rk616,lcd0_func = <INPUT>;
 	rk616,lcd1_func = <UNUSED>;
 	rk616,lvds_ch_nr = <1>;
-	
+
 	hdmi: hdmi{
-		compatible = "rk616,rk616-hdmi";
+		compatible = "rockchip,rk616-hdmi";
 		reg = <0x0400,0x0400>;
 	};
-	
+
 	codec: codec{
-		compatible = "rk616,rk616-code";
+		compatible = "rockchip,rk616-code";
 		reg = <0x0800,0x0400>;
 	};
-	
+
 	mipi: mipi-pyh{
-		compatible = "rk616,mipi-phy";
+		compatible = "rockchip,rk616-mipi-phy";
 		reg = <0x0c00,0x0400>;
 	};
-	
+
 	mipi: mipi-ctrl{
-		compatible = "rk616,mipi-ctrl";
+		compatible = "rockchip,rk616-mipi-ctrl";
 		reg = <0x1000,0x0400>;
 	};
 };

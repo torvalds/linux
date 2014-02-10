@@ -290,8 +290,8 @@ struct mfd_rk616 {
 	int (*write_bulk)(struct mfd_rk616 *rk616,u16 reg,int count,u32 *pval);
 };
 
-extern int rk616_set_vif(struct mfd_rk616 * rk616,rk_screen * screen,bool connect);
-extern int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable);
+extern int rk616_set_vif(struct mfd_rk616 * rk616,struct rk_screen * screen,bool connect);
+extern int rk616_display_router_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen,bool enable);
 extern void rk616_mclk_set_rate(struct clk *mclk,unsigned long rate);
 
 
