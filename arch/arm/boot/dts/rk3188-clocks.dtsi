@@ -1089,6 +1089,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>;
 						clock-output-names = "clk_gpu";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* reg[15:8]: reserved */

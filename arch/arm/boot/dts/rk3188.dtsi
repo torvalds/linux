@@ -343,7 +343,8 @@
 			<&clk_cpll 594000000>,	<&aclk_cpu 192000000>,
 			<&hclk_cpu 96000000>,	<&pclk_cpu 48000000>,
 			<&pclk_ahb2apb 48000000>,	<&aclk_peri 192000000>,
-			<&hclk_peri 96000000>,	<&pclk_peri 48000000>;
+			<&hclk_peri 96000000>,	<&pclk_peri 48000000>,
+			<&clk_gpu 200000000>;
 	};
 
 	fb: fb{
