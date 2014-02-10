@@ -3808,9 +3808,11 @@ static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
 		list_move_tail(&root->ordered_root,
 			       &fs_info->ordered_roots);
 
+		spin_unlock(&fs_info->ordered_root_lock);
 		btrfs_destroy_ordered_extents(root);
 
-		cond_resched_lock(&fs_info->ordered_root_lock);
+		cond_resched();
+		spin_lock(&fs_info->ordered_root_lock);
 	}
 	spin_unlock(&fs_info->ordered_root_lock);
 }
