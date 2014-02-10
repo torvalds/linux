@@ -2004,10 +2004,12 @@ extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
 
 void
-i915_enable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe, u32 mask);
+i915_enable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe,
+		     u32 status_mask);
 
 void
-i915_disable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe, u32 mask);
+i915_disable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe,
+		      u32 status_mask);
 
 /* i915_gem.c */
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,

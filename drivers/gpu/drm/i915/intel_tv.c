@@ -1189,8 +1189,8 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		i915_disable_pipestat(dev_priv, 0,
-				      PIPE_HOTPLUG_INTERRUPT_ENABLE |
-				      PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
+				      PIPE_HOTPLUG_INTERRUPT_STATUS |
+				      PIPE_HOTPLUG_TV_INTERRUPT_STATUS);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
 
@@ -1266,8 +1266,8 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		i915_enable_pipestat(dev_priv, 0,
-				     PIPE_HOTPLUG_INTERRUPT_ENABLE |
-				     PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
+				     PIPE_HOTPLUG_INTERRUPT_STATUS |
+				     PIPE_HOTPLUG_TV_INTERRUPT_STATUS);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
 
