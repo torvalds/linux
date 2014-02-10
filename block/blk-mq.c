@@ -326,7 +326,7 @@ static void blk_mq_bio_endio(struct request *rq, struct bio *bio, int error)
 		bio_endio(bio, error);
 }
 
-void blk_mq_complete_request(struct request *rq, int error)
+void blk_mq_end_io(struct request *rq, int error)
 {
 	struct bio *bio = rq->bio;
 	unsigned int bytes = 0;
@@ -351,46 +351,53 @@ void blk_mq_complete_request(struct request *rq, int error)
 	else
 		blk_mq_free_request(rq);
 }
+EXPORT_SYMBOL(blk_mq_end_io);
 
-void __blk_mq_end_io(struct request *rq, int error)
-{
-	if (!blk_mark_rq_complete(rq))
-		blk_mq_complete_request(rq, error);
-}
-
-static void blk_mq_end_io_remote(void *data)
+static void __blk_mq_complete_request_remote(void *data)
 {
 	struct request *rq = data;
 
-	__blk_mq_end_io(rq, rq->errors);
+	rq->q->softirq_done_fn(rq);
 }
 
-/*
- * End IO on this request on a multiqueue enabled driver. We'll either do
- * it directly inline, or punt to a local IPI handler on the matching
- * remote CPU.
- */
-void blk_mq_end_io(struct request *rq, int error)
+void __blk_mq_complete_request(struct request *rq)
 {
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	int cpu;
 
-	if (!ctx->ipi_redirect)
-		return __blk_mq_end_io(rq, error);
+	if (!ctx->ipi_redirect) {
+		rq->q->softirq_done_fn(rq);
+		return;
+	}
 
 	cpu = get_cpu();
 	if (cpu != ctx->cpu && cpu_online(ctx->cpu)) {
-		rq->errors = error;
-		rq->csd.func = blk_mq_end_io_remote;
+		rq->csd.func = __blk_mq_complete_request_remote;
 		rq->csd.info = rq;
 		rq->csd.flags = 0;
 		__smp_call_function_single(ctx->cpu, &rq->csd, 0);
 	} else {
-		__blk_mq_end_io(rq, error);
+		rq->q->softirq_done_fn(rq);
 	}
 	put_cpu();
 }
-EXPORT_SYMBOL(blk_mq_end_io);
+
+/**
+ * blk_mq_complete_request - end I/O on a request
+ * @rq:		the request being processed
+ *
+ * Description:
+ *	Ends all I/O on a request. It does not handle partial completions.
+ *	The actual completion happens out-of-order, through a IPI handler.
+ **/
+void blk_mq_complete_request(struct request *rq)
+{
+	if (unlikely(blk_should_fake_timeout(rq->q)))
+		return;
+	if (!blk_mark_rq_complete(rq))
+		__blk_mq_complete_request(rq);
+}
+EXPORT_SYMBOL(blk_mq_complete_request);
 
 static void blk_mq_start_request(struct request *rq)
 {
@@ -1398,6 +1405,9 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_reg *reg,
 	blk_queue_rq_timed_out(q, reg->ops->timeout);
 	if (reg->timeout)
 		blk_queue_rq_timeout(q, reg->timeout);
+
+	if (reg->ops->complete)
+		blk_queue_softirq_done(q, reg->ops->complete);
 
 	blk_mq_init_flush(q);
 	blk_mq_init_cpu_queues(q, reg->nr_hw_queues);
