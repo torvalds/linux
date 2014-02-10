@@ -55,8 +55,7 @@ static void ath10k_send_suspend_complete(struct ath10k *ar)
 {
 	ath10k_dbg(ATH10K_DBG_BOOT, "boot suspend complete\n");
 
-	ar->is_target_paused = true;
-	wake_up(&ar->event_queue);
+	complete(&ar->target_suspend);
 }
 
 static int ath10k_init_connect_htc(struct ath10k *ar)
@@ -703,6 +702,7 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	init_completion(&ar->scan.started);
 	init_completion(&ar->scan.completed);
 	init_completion(&ar->scan.on_channel);
+	init_completion(&ar->target_suspend);
 
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);
@@ -725,8 +725,6 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 
 	INIT_WORK(&ar->wmi_mgmt_tx_work, ath10k_mgmt_over_wmi_tx_work);
 	skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
-
-	init_waitqueue_head(&ar->event_queue);
 
 	INIT_WORK(&ar->restart_work, ath10k_core_restart);
 

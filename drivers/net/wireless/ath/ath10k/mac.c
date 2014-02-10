@@ -3440,21 +3440,20 @@ static int ath10k_suspend(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	int ret;
 
-	ar->is_target_paused = false;
+	mutex_lock(&ar->conf_mutex);
+
+	reinit_completion(&ar->target_suspend);
 
 	ret = ath10k_wmi_pdev_suspend_target(ar);
 	if (ret) {
 		ath10k_warn("could not suspend target (%d)\n", ret);
-		return 1;
+		ret = 1;
+		goto exit;
 	}
 
-	ret = wait_event_interruptible_timeout(ar->event_queue,
-					       ar->is_target_paused == true,
-					       1 * HZ);
-	if (ret < 0) {
-		ath10k_warn("suspend interrupted (%d)\n", ret);
-		goto resume;
-	} else if (ret == 0) {
+	ret = wait_for_completion_timeout(&ar->target_suspend, 1 * HZ);
+
+	if (ret == 0) {
 		ath10k_warn("suspend timed out - target pause event never came\n");
 		goto resume;
 	}
@@ -3465,12 +3464,17 @@ static int ath10k_suspend(struct ieee80211_hw *hw,
 		goto resume;
 	}
 
-	return 0;
+	ret = 0;
+	goto exit;
 resume:
 	ret = ath10k_wmi_pdev_resume_target(ar);
 	if (ret)
 		ath10k_warn("could not resume target (%d)\n", ret);
-	return 1;
+
+	ret = 1;
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
 }
 
 static int ath10k_resume(struct ieee80211_hw *hw)
@@ -3478,19 +3482,26 @@ static int ath10k_resume(struct ieee80211_hw *hw)
 	struct ath10k *ar = hw->priv;
 	int ret;
 
+	mutex_lock(&ar->conf_mutex);
+
 	ret = ath10k_hif_resume(ar);
 	if (ret) {
 		ath10k_warn("could not resume hif (%d)\n", ret);
-		return 1;
+		ret = 1;
+		goto exit;
 	}
 
 	ret = ath10k_wmi_pdev_resume_target(ar);
 	if (ret) {
 		ath10k_warn("could not resume target (%d)\n", ret);
-		return 1;
+		ret = 1;
+		goto exit;
 	}
 
-	return 0;
+	ret = 0;
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
 }
 #endif
 
