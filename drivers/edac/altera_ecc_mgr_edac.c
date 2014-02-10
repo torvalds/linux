@@ -110,7 +110,7 @@ ssize_t altr_ecc_mgr_trig(struct edac_device_ctl_info *edac_dci,
 	rmb();
 
 	if (priv->free_mem)
-		priv->free_mem(ptemp, generic_ptr);
+		priv->free_mem(ptemp, priv->trig_alloc_sz, generic_ptr);
 
 	if (result)
 		dev_alert(edac_dci->dev, "%s: Trigger Match Error (%d)\n",
@@ -120,14 +120,15 @@ ssize_t altr_ecc_mgr_trig(struct edac_device_ctl_info *edac_dci,
 }
 
 static void altr_set_sysfs_attr(struct edac_device_ctl_info *edac_dci,
-				struct edac_dev_sysfs_attribute *ecc_attr)
+				const struct ecc_mgr_prv_data *priv)
 {
+	struct edac_dev_sysfs_attribute *ecc_attr = priv->eccmgr_sysfs_attr;
 	if (ecc_attr)
 		edac_dci->sysfs_attributes =  ecc_attr;
 }
 #else
 static void altr_set_sysfs_attr(struct edac_device_ctl_info *edac_dci,
-				struct edac_dev_sysfs_attribute *ecc_attr)
+				const struct ecc_mgr_prv_data *priv)
 {}
 #endif	/* #ifdef CONFIG_EDAC_DEBUG */
 
@@ -222,7 +223,7 @@ static int altr_ecc_mgr_probe(struct platform_device *pdev)
 	dci->mod_name = "ECC_MGR";
 	dci->dev_name = drvdata->edac_dev_name;
 
-	altr_set_sysfs_attr(dci, priv->eccmgr_sysfs_attr);
+	altr_set_sysfs_attr(dci, priv);
 
 	if (edac_device_add_device(dci))
 		goto err;

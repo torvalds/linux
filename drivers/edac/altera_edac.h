@@ -30,7 +30,7 @@ struct ecc_mgr_prv_data {
 #ifdef CONFIG_EDAC_DEBUG
 	struct edac_dev_sysfs_attribute *eccmgr_sysfs_attr;
 	void * (*init_mem)(size_t size, void **other);
-	void (*free_mem)(void *p, void *other);
+	void (*free_mem)(void *p, size_t size, void *other);
 	int ecc_enable_mask;
 	int ce_set_mask;
 	int ue_set_mask;

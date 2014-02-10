@@ -54,7 +54,7 @@ static void *l2_init_mem(size_t size, void **other)
 	return ptemp;
 }
 
-static void l2_free_mem(void *p, void *other)
+static void l2_free_mem(void *p, size_t size, void *other)
 {
 	struct device *dev = other;
 	if (dev && p)
