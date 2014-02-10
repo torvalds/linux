@@ -489,29 +489,18 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 		dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 	/* Set counter */
-
-	switch (async_cmd->stop_src) {
-	case TRIG_COUNT:
+	if (async_cmd->stop_src == TRIG_COUNT) {
 		dev_private->stop_counter =
 		    async_cmd->stop_arg * async_cmd->chanlist_len;
 		dev_private->stop_is_none = 0;
-		break;
-
-	case TRIG_NONE:
+	} else {	/* TRIG_NONE */
 		dev_private->stop_counter = 0;
 		dev_private->stop_is_none = 1;
-		break;
-
-	default:
-		comedi_error(dev, "Invalid stop trigger");
-		return -1;
 	}
 
 	/*  Set timer pacer */
-
 	dev_private->scan_delay = 0;
-	switch (async_cmd->convert_src) {
-	case TRIG_TIMER:
+	if (async_cmd->convert_src == TRIG_TIMER) {
 		pci9111_trigger_source_set(dev, software);
 		pci9111_timer_set(dev);
 		pci9111_fifo_reset(dev);
@@ -527,11 +516,7 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 				 (async_cmd->convert_arg *
 				  async_cmd->chanlist_len)) - 1;
 		}
-
-		break;
-
-	case TRIG_EXT:
-
+	} else {	/* TRIG_EXT */
 		pci9111_trigger_source_set(dev, external);
 		pci9111_fifo_reset(dev);
 		pci9111_interrupt_source_set(dev, irq_on_fifo_half_full,
@@ -539,11 +524,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 		plx9050_interrupt_control(dev_private->lcr_io_base, true, true,
 					  false, true, true);
 
-		break;
-
-	default:
-		comedi_error(dev, "Invalid convert trigger");
-		return -1;
 	}
 
 	dev_private->stop_counter *= (1 + dev_private->scan_delay);
