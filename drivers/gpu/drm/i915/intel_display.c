@@ -10526,18 +10526,13 @@ static void intel_setup_outputs(struct drm_device *dev)
 	drm_helper_move_panel_connectors_to_head(dev);
 }
 
-void intel_framebuffer_fini(struct intel_framebuffer *fb)
-{
-	drm_framebuffer_cleanup(&fb->base);
-	WARN_ON(!fb->obj->framebuffer_references--);
-	drm_gem_object_unreference_unlocked(&fb->obj->base);
-}
-
 static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 
-	intel_framebuffer_fini(intel_fb);
+	drm_framebuffer_cleanup(fb);
+	WARN_ON(!intel_fb->obj->framebuffer_references--);
+	drm_gem_object_unreference_unlocked(&intel_fb->obj->base);
 	kfree(intel_fb);
 }
 
