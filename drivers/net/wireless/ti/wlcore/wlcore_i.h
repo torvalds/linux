@@ -65,7 +65,7 @@
  * max number of links allowed by all HWs.
  * this is NOT the actual max links supported by the current hw.
  */
-#define WLCORE_MAX_LINKS 12
+#define WLCORE_MAX_LINKS 16
 
 /* the driver supports the 2.4Ghz and 5Ghz bands */
 #define WLCORE_NUM_BANDS           2

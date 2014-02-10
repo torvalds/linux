@@ -101,7 +101,7 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 	 * authentication response. this way it won't get de-authed by FW
 	 * when transmitting too soon.
 	 */
-	wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
+	wl1271_acx_set_inconnection_sta(wl, wlvif, hdr->addr1);
 
 	/*
 	 * ROC for 1 second on the AP channel for completing the connection.

@@ -1591,7 +1591,8 @@ out:
 	return ret;
 }
 
-int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr)
+int wl1271_acx_set_inconnection_sta(struct wl1271 *wl,
+				    struct wl12xx_vif *wlvif, u8 *addr)
 {
 	struct wl1271_acx_inconnection_sta *acx = NULL;
 	int ret;
@@ -1603,6 +1604,7 @@ int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr)
 		return -ENOMEM;
 
 	memcpy(acx->addr, addr, ETH_ALEN);
+	acx->role_id = wlvif->role_id;
 
 	ret = wl1271_cmd_configure(wl, ACX_UPDATE_INCONNECTION_STA_LIST,
 				   acx, sizeof(*acx));
