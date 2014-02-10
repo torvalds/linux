@@ -331,14 +331,27 @@ static int das16m1_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int das16m1_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DAS16M1_CS);
+	if (status & IRQDATA)
+		return 0;
+	return -EBUSY;
+}
+
 static int das16m1_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
-	int i, n;
+	int ret;
+	int n;
 	int byte;
-	const int timeout = 1000;
 
 	/* disable interrupts and internal pacer */
 	devpriv->control_state &= ~INTE & ~PACER_MASK;
@@ -356,14 +369,12 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 		/* trigger conversion */
 		outb(0, dev->iobase);
 
-		for (i = 0; i < timeout; i++) {
-			if (inb(dev->iobase + DAS16M1_CS) & IRQDATA)
-				break;
-		}
-		if (i == timeout) {
+		ret = comedi_timeout(dev, s, insn, das16m1_ai_eoc, 0);
+		if (ret) {
 			comedi_error(dev, "timeout");
-			return -ETIME;
+			return ret;
 		}
+
 		data[n] = munge_sample(inw(dev->iobase));
 	}
 
