@@ -62,7 +62,7 @@ struct _lowcore {
 	__u8	exc_access_id;			/* 0x00a0 */
 	__u8	per_access_id;			/* 0x00a1 */
 	__u8	op_access_id;			/* 0x00a2 */
-	__u8	ar_access_id;			/* 0x00a3 */
+	__u8	ar_mode_id;			/* 0x00a3 */
 	__u8	pad_0x00a4[0x00b8-0x00a4];	/* 0x00a4 */
 	__u16	subchannel_id;			/* 0x00b8 */
 	__u16	subchannel_nr;			/* 0x00ba */
@@ -201,7 +201,7 @@ struct _lowcore {
 	__u8	exc_access_id;			/* 0x00a0 */
 	__u8	per_access_id;			/* 0x00a1 */
 	__u8	op_access_id;			/* 0x00a2 */
-	__u8	ar_access_id;			/* 0x00a3 */
+	__u8	ar_mode_id;			/* 0x00a3 */
 	__u8	pad_0x00a4[0x00a8-0x00a4];	/* 0x00a4 */
 	__u64	trans_exc_code;			/* 0x00a8 */
 	__u64	monitor_code;			/* 0x00b0 */

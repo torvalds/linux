@@ -92,7 +92,7 @@ int main(void)
 	DEFINE(__LC_PER_CAUSE, offsetof(struct _lowcore, per_perc_atmid));
 	DEFINE(__LC_PER_ADDRESS, offsetof(struct _lowcore, per_address));
 	DEFINE(__LC_PER_PAID, offsetof(struct _lowcore, per_access_id));
-	DEFINE(__LC_AR_MODE_ID, offsetof(struct _lowcore, ar_access_id));
+	DEFINE(__LC_AR_MODE_ID, offsetof(struct _lowcore, ar_mode_id));
 	DEFINE(__LC_SUBCHANNEL_ID, offsetof(struct _lowcore, subchannel_id));
 	DEFINE(__LC_SUBCHANNEL_NR, offsetof(struct _lowcore, subchannel_nr));
 	DEFINE(__LC_IO_INT_PARM, offsetof(struct _lowcore, io_int_parm));
