@@ -497,4 +497,12 @@
 			};
 		};
 	};
+	ion: ion{
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		rockchip,ion-heap@1 { /* VIDEO HEAP */
+			reg = <1>;
+		};
+	};
 };

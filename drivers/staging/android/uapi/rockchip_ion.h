@@ -1,0 +1,87 @@
+/*
+ *
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
+
+#ifndef _LINUX_ROCKCHIP_ION_H
+#define _LINUX_ROCKCHIP_ION_H
+
+enum ion_heap_ids {
+	INVALID_HEAP_ID = -1,
+	ION_VIDEO_HEAP_ID = 1,
+	ION_CAMERA_HEAP_ID,
+	ION_IOMMU_HEAP_ID,
+	ION_AUDIO_HEAP_ID,
+	ION_SYSTEM_HEAP_ID,
+
+	ION_HEAP_ID_RESERVED = 31
+};
+
+#define ION_HEAP(bit) (1 << (bit))
+
+#define ION_VIDEO_HEAP_NAME	"video"
+#define ION_AUDIO_HEAP_NAME	"audio"
+#define ION_CAMERA_HEAP_NAME	"camera_preview"
+#define ION_IOMMU_HEAP_NAME	"iommu"
+#define ION_VMALLOC_HEAP_NAME	"vmalloc"
+
+#define ION_SET_CACHED(__cache)		(__cache | ION_FLAG_CACHED)
+#define ION_SET_UNCACHED(__cache)	(__cache & ~ION_FLAG_CACHED)
+
+#define ION_IS_CACHED(__flags)	((__flags) & ION_FLAG_CACHED)
+
+/* struct ion_flush_data - data passed to ion for flushing caches
+ *
+ * @handle:	handle with data to flush
+ * @fd:		fd to flush
+ * @vaddr:	userspace virtual address mapped with mmap
+ * @offset:	offset into the handle to flush
+ * @length:	length of handle to flush
+ *
+ * Performs cache operations on the handle. If p is the start address
+ * of the handle, p + offset through p + offset + length will have
+ * the cache operations performed
+ */
+struct ion_flush_data {
+	struct ion_handle *handle;
+	int fd;
+	void *vaddr;
+	unsigned int offset;
+	unsigned int length;
+};
+
+#define ION_IOC_ROCKCHIP_MAGIC 'R'
+
+/**
+ * DOC: ION_IOC_CLEAN_CACHES - clean the caches
+ *
+ * Clean the caches of the handle specified.
+ */
+#define ION_IOC_CLEAN_CACHES	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 0, \
+						struct ion_flush_data)
+/**
+ * DOC: ION_IOC_INV_CACHES - invalidate the caches
+ *
+ * Invalidate the caches of the handle specified.
+ */
+#define ION_IOC_INV_CACHES	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 1, \
+						struct ion_flush_data)
+/**
+ * DOC: ION_IOC_CLEAN_INV_CACHES - clean and invalidate the caches
+ *
+ * Clean and invalidate the caches of the handle specified.
+ */
+#define ION_IOC_CLEAN_INV_CACHES	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 2, \
+						struct ion_flush_data)
+
+#endif

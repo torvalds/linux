@@ -7,4 +7,4 @@ endif
 
 obj-$(CONFIG_ION_DUMMY) += ion_dummy_driver.o
 obj-$(CONFIG_ION_TEGRA) += tegra/
-
+obj-$(CONFIG_ION_ROCKCHIP) += rockchip/
