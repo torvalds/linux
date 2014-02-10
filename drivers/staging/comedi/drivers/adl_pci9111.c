@@ -84,7 +84,6 @@ TODO:
 
 #define PCI9111_RANGE_SETTING_DELAY		10
 #define PCI9111_AI_INSTANT_READ_UDELAY_US	2
-#define PCI9111_AI_INSTANT_READ_TIMEOUT		100
 
 /*
  * IO address map and bit defines
@@ -707,6 +706,19 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	return IRQ_HANDLED;
 }
 
+static int pci9111_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
+	if (status & PCI9111_AI_STAT_FF_EF)
+		return 0;
+	return -EBUSY;
+}
+
 static int pci9111_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -717,7 +729,7 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
 	unsigned int status;
-	int timeout;
+	int ret;
 	int i;
 
 	outb(chan, dev->iobase + PCI9111_AI_CHANNEL_REG);
@@ -734,21 +746,13 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 		/* Generate a software trigger */
 		outb(0, dev->iobase + PCI9111_SOFT_TRIG_REG);
 
-		timeout = PCI9111_AI_INSTANT_READ_TIMEOUT;
-
-		while (timeout--) {
-			status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
-			/* '1' means FIFO is not empty */
-			if (status & PCI9111_AI_STAT_FF_EF)
-				goto conversion_done;
+		ret = comedi_timeout(dev, s, insn, pci9111_ai_eoc, 0);
+		if (ret) {
+			comedi_error(dev, "A/D read timeout");
+			data[i] = 0;
+			pci9111_fifo_reset(dev);
+			return ret;
 		}
-
-		comedi_error(dev, "A/D read timeout");
-		data[i] = 0;
-		pci9111_fifo_reset(dev);
-		return -ETIME;
-
-conversion_done:
 
 		data[i] = inw(dev->iobase + PCI9111_AI_FIFO_REG);
 		data[i] = ((data[i] >> shift) & maxdata) ^ invert;
