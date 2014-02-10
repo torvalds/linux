@@ -429,15 +429,26 @@ static void setup_channel_list(struct comedi_device *dev,
 	outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);
 }
 
-/*
-==============================================================================
-*/
+static int pci171x_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + PCI171x_STATUS);
+	if ((status & Status_FE) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int pci171x_insn_read_ai(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci1710_private *devpriv = dev->private;
-	int n, timeout;
+	int ret;
+	int n;
 #ifdef PCI171x_PARANOIDCHECK
 	const struct boardtype *this_board = comedi_board(dev);
 	unsigned int idata;
@@ -453,19 +464,16 @@ static int pci171x_insn_read_ai(struct comedi_device *dev,
 
 	for (n = 0; n < insn->n; n++) {
 		outw(0, dev->iobase + PCI171x_SOFTTRG);	/* start conversion */
-		/* udelay(1); */
-		timeout = 100;
-		while (timeout--) {
-			if (!(inw(dev->iobase + PCI171x_STATUS) & Status_FE))
-				goto conv_finish;
-		}
-		comedi_error(dev, "A/D insn timeout");
-		outb(0, dev->iobase + PCI171x_CLRFIFO);
-		outb(0, dev->iobase + PCI171x_CLRINT);
-		data[n] = 0;
-		return -ETIME;
 
-conv_finish:
+		ret = comedi_timeout(dev, s, insn, pci171x_ai_eoc, 0);
+		if (ret) {
+			comedi_error(dev, "A/D insn timeout");
+			outb(0, dev->iobase + PCI171x_CLRFIFO);
+			outb(0, dev->iobase + PCI171x_CLRINT);
+			data[n] = 0;
+			return ret;
+		}
+
 #ifdef PCI171x_PARANOIDCHECK
 		idata = inw(dev->iobase + PCI171x_AD_DATA);
 		if (this_board->cardtype != TYPE_PCI1713)
