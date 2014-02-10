@@ -27,6 +27,7 @@
 #include <linux/of.h>
 #include <linux/of_dma.h>
 #include <linux/err.h>
+#include <asm/unaligned.h>
 
 #include "dmaengine.h"
 #define PL330_MAX_CHAN		8
@@ -655,10 +656,17 @@ static inline u32 get_id(struct pl330_info *pi, u32 off)
 	void __iomem *regs = pi->base;
 	u32 id = 0;
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	id |= ((readl(regs + off + 0x0) & 0xff) << 0);
+	id |= ((readl(regs + off + 0x4) & 0xff) << 8);
+	id |= ((readl(regs + off + 0x8) & 0xff) << 16);
+	id |= ((readl(regs + off + 0xc) & 0xff) << 24);
+#else
 	id |= (readb(regs + off + 0x0) << 0);
 	id |= (readb(regs + off + 0x4) << 8);
 	id |= (readb(regs + off + 0x8) << 16);
 	id |= (readb(regs + off + 0xc) << 24);
+#endif
 
 	return id;
 }
@@ -676,7 +684,7 @@ static inline u32 _emit_ADDH(unsigned dry_run, u8 buf[],
 
 	buf[0] = CMD_DMAADDH;
 	buf[0] |= (da << 1);
-	*((u16 *)&buf[1]) = val;
+	put_unaligned(val, (u16 *)&buf[1]);	//*((u16 *)&buf[1]) = val;
 
 	PL330_DBGCMD_DUMP(SZ_DMAADDH, "\tDMAADDH %s %u\n",
 		da == 1 ? "DA" : "SA", val);
@@ -830,7 +838,7 @@ static inline u32 _emit_MOV(unsigned dry_run, u8 buf[],
 
 	buf[0] = CMD_DMAMOV;
 	buf[1] = dst;
-	*((u32 *)&buf[2]) = val;
+	put_unaligned(val, (u32 *)&buf[2]);	//*((u32 *)&buf[2]) = val;
 
 	PL330_DBGCMD_DUMP(SZ_DMAMOV, "\tDMAMOV %s 0x%x\n",
 		dst == SAR ? "SAR" : (dst == DAR ? "DAR" : "CCR"), val);
@@ -1008,7 +1016,7 @@ static inline u32 _emit_GO(unsigned dry_run, u8 buf[],
 
 	buf[1] = chan & 0x7;
 
-	*((u32 *)&buf[2]) = addr;
+	put_unaligned(addr, (u32 *)&buf[2]);	//*((u32 *)&buf[2]) = addr;
 
 	return SZ_DMAGO;
 }
@@ -1283,7 +1291,7 @@ static inline int _ldst_devtomem(unsigned dry_run, u8 buf[],
 		off += _emit_WFP(dry_run, &buf[off], SINGLE, pxs->r->peri);
 		off += _emit_LDP(dry_run, &buf[off], SINGLE, pxs->r->peri);
 		off += _emit_ST(dry_run, &buf[off], ALWAYS);
-		off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);    //for sdmmc sdio
 	}
 
 	return off;
@@ -1298,7 +1306,7 @@ static inline int _ldst_memtodev(unsigned dry_run, u8 buf[],
 		off += _emit_WFP(dry_run, &buf[off], SINGLE, pxs->r->peri);
 		off += _emit_LD(dry_run, &buf[off], ALWAYS);
 		off += _emit_STP(dry_run, &buf[off], SINGLE, pxs->r->peri);
-		off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
 	}
 
 	return off;
@@ -3038,7 +3046,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	dev_info(&adev->dev,
-		"Loaded driver for PL330 DMAC-%d\n", adev->periphid);
+		"Loaded driver for PL330 DMAC-%x\n", adev->periphid);
 	dev_info(&adev->dev,
 		"\tDBUFF-%ux%ubytes Num_Chans-%u Num_Peri-%u Num_Events-%u\n",
 		pi->pcfg.data_buf_dep,

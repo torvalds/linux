@@ -16,6 +16,11 @@ config ARCH_ROCKCHIP
 	select CLKSRC_OF if OF
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
+	select ARM_AMBA
+    select ROCKCHIP_DEV_DMA
+	help
+	  Support for Rockchip's Cortex-A9 Single-to-Quad-Core-SoCs
+	  containing the RK2928, RK30xx and RK31xx series.
 
 if ARCH_ROCKCHIP
 
@@ -33,4 +38,8 @@ config DVFS
 	default y
 	select PM_OPP
 	select CPU_FREQ
+
+config RK_PL330_DMA_TEST
+	bool "pl330 DMA memcpy test"
+	depends on PL330_DMA
 endif

@@ -361,9 +361,9 @@ static int amba_probe(struct device *dev)
 	int ret;
 
 	do {
-		ret = amba_get_enable_pclk(pcdev);
-		if (ret)
-			break;
+		//ret = amba_get_enable_pclk(pcdev);
+		//if (ret)
+		//	break;
 
 		pm_runtime_get_noresume(dev);
 		pm_runtime_set_active(dev);
@@ -377,7 +377,7 @@ static int amba_probe(struct device *dev)
 		pm_runtime_set_suspended(dev);
 		pm_runtime_put_noidle(dev);
 
-		amba_put_disable_pclk(pcdev);
+		//amba_put_disable_pclk(pcdev);
 	} while (0);
 
 	return ret;
@@ -420,6 +420,7 @@ static void amba_shutdown(struct device *dev)
 int amba_driver_register(struct amba_driver *drv)
 {
 	drv->drv.bus = &amba_bustype;
+
 
 #define SETFN(fn)	if (drv->fn) drv->drv.fn = amba_##fn
 	SETFN(probe);
@@ -489,7 +490,8 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 		goto err_release;
 	}
 
-	ret = amba_get_enable_pclk(dev);
+//	ret = amba_get_enable_pclk(dev);
+	ret = 0;
 	if (ret == 0) {
 		u32 pid, cid;
 
@@ -504,7 +506,7 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 			cid |= (readl(tmp + size - 0x10 + 4 * i) & 255) <<
 				(i * 8);
 
-		amba_put_disable_pclk(dev);
+//		amba_put_disable_pclk(dev);
 
 		if (cid == AMBA_CID)
 			dev->periphid = pid;

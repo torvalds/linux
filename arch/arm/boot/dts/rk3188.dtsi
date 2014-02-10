@@ -200,6 +200,34 @@
 		rockchip,clocksource = <1>;
 	};
 
+    amba {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "arm,amba-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+
+        pdma0: pdma@20018000 {
+            compatible = "arm,pl330", "arm,primecell";
+            reg = <0x20018000 0x4000>;
+            interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+            #dma-cells = <1>;
+			#dma-channels = <9>;
+			#dma-requests = <10>;
+        };
+
+        pdma1: pdma@20078000 {
+            compatible = "arm,pl330", "arm,primecell";
+            reg = <0x20078000 0x4000>;
+            interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+            #dma-cells = <1>;
+			#dma-channels = <7>;
+			#dma-requests = <14>;
+        };
+    };
+
 	uart0: serial@10124000 {
 		compatible = "rockchip,serial";
 		reg = <0x10124000 0x100>;
