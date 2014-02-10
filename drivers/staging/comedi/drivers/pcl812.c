@@ -631,24 +631,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int divisor1 = 0, divisor2 = 0, i, dma_flags, bytes;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (cmd->start_src != TRIG_NOW)
-		return -EINVAL;
-	if (cmd->scan_begin_src != TRIG_FOLLOW)
-		return -EINVAL;
-	if (devpriv->use_ext_trg) {
-		if (cmd->convert_src != TRIG_EXT)
-			return -EINVAL;
-	} else {
-		if (cmd->convert_src != TRIG_TIMER)
-			return -EINVAL;
-	}
-	if (cmd->scan_end_src != TRIG_COUNT)
-		return -EINVAL;
-	if (cmd->scan_end_arg != cmd->chanlist_len)
-		return -EINVAL;
-	if (cmd->chanlist_len > MAX_CHANLIST_LEN)
-		return -EINVAL;
-
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (cmd->convert_arg < board->ai_ns_min)
 			cmd->convert_arg = board->ai_ns_min;
