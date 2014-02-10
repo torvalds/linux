@@ -215,6 +215,11 @@
 				clocks = <&coreclk 2>;
 			};
 
+			watchdog@20300 {
+				compatible = "marvell,armada-370-wdt";
+				clocks = <&coreclk 2>;
+			};
+
 			audio_controller: audio-controller@30000 {
 				compatible = "marvell,armada370-audio";
 				reg = <0x30000 0x4000>;
