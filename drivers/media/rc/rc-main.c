@@ -1090,7 +1090,7 @@ static ssize_t store_filter(struct device *device,
 
 unlock:
 	mutex_unlock(&dev->lock);
-	return count;
+	return (ret < 0) ? ret : count;
 }
 
 static void rc_dev_release(struct device *device)
