@@ -24,6 +24,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 
 /* RSTOUT mask register physical address for Orion5x, Kirkwood and Dove */
 #define ORION_RSTOUT_MASK_OFFSET	0x20108
@@ -35,15 +36,17 @@
  * Watchdog timer block registers.
  */
 #define TIMER_CTRL		0x0000
-#define WDT_EN			0x0010
-#define WDT_VAL			0x0024
 
 #define WDT_MAX_CYCLE_COUNT	0xffffffff
 
-#define WDT_RESET_OUT_EN	BIT(1)
-
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
+
+struct orion_watchdog_data {
+	int wdt_counter_offset;
+	int wdt_enable_bit;
+	int rstout_enable_bit;
+};
 
 struct orion_watchdog {
 	struct watchdog_device wdt;
@@ -51,13 +54,15 @@ struct orion_watchdog {
 	void __iomem *rstout;
 	unsigned long clk_rate;
 	struct clk *clk;
+	const struct orion_watchdog_data *data;
 };
 
 static int orion_wdt_ping(struct watchdog_device *wdt_dev)
 {
 	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
 	/* Reload watchdog duration */
-	writel(dev->clk_rate * wdt_dev->timeout, dev->reg + WDT_VAL);
+	writel(dev->clk_rate * wdt_dev->timeout,
+	       dev->reg + dev->data->wdt_counter_offset);
 	return 0;
 }
 
@@ -66,13 +71,16 @@ static int orion_wdt_start(struct watchdog_device *wdt_dev)
 	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
 
 	/* Set watchdog duration */
-	writel(dev->clk_rate * wdt_dev->timeout, dev->reg + WDT_VAL);
+	writel(dev->clk_rate * wdt_dev->timeout,
+	       dev->reg + dev->data->wdt_counter_offset);
 
 	/* Enable watchdog timer */
-	atomic_io_modify(dev->reg + TIMER_CTRL, WDT_EN, WDT_EN);
+	atomic_io_modify(dev->reg + TIMER_CTRL, dev->data->wdt_enable_bit,
+						dev->data->wdt_enable_bit);
 
 	/* Enable reset on watchdog */
-	atomic_io_modify(dev->rstout, WDT_RESET_OUT_EN, WDT_RESET_OUT_EN);
+	atomic_io_modify(dev->rstout, dev->data->rstout_enable_bit,
+				      dev->data->rstout_enable_bit);
 
 	return 0;
 }
@@ -82,10 +90,10 @@ static int orion_wdt_stop(struct watchdog_device *wdt_dev)
 	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
 
 	/* Disable reset on watchdog */
-	atomic_io_modify(dev->rstout, WDT_RESET_OUT_EN, 0);
+	atomic_io_modify(dev->rstout, dev->data->rstout_enable_bit, 0);
 
 	/* Disable watchdog timer */
-	atomic_io_modify(dev->reg + TIMER_CTRL, WDT_EN, 0);
+	atomic_io_modify(dev->reg + TIMER_CTRL, dev->data->wdt_enable_bit, 0);
 
 	return 0;
 }
@@ -94,8 +102,8 @@ static int orion_wdt_enabled(struct orion_watchdog *dev)
 {
 	bool enabled, running;
 
-	enabled = readl(dev->rstout) & WDT_RESET_OUT_EN;
-	running = readl(dev->reg + TIMER_CTRL) & WDT_EN;
+	enabled = readl(dev->rstout) & dev->data->rstout_enable_bit;
+	running = readl(dev->reg + TIMER_CTRL) & dev->data->wdt_enable_bit;
 
 	return enabled && running;
 }
@@ -103,7 +111,7 @@ static int orion_wdt_enabled(struct orion_watchdog *dev)
 static unsigned int orion_wdt_get_timeleft(struct watchdog_device *wdt_dev)
 {
 	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
-	return readl(dev->reg + WDT_VAL) / dev->clk_rate;
+	return readl(dev->reg + dev->data->wdt_counter_offset) / dev->clk_rate;
 }
 
 static int orion_wdt_set_timeout(struct watchdog_device *wdt_dev,
@@ -160,9 +168,25 @@ static void __iomem *orion_wdt_ioremap_rstout(struct platform_device *pdev,
 	return devm_ioremap(&pdev->dev, rstout, 0x4);
 }
 
+static const struct orion_watchdog_data orion_data = {
+	.rstout_enable_bit = BIT(1),
+	.wdt_enable_bit = BIT(4),
+	.wdt_counter_offset = 0x24,
+};
+
+static const struct of_device_id orion_wdt_of_match_table[] = {
+	{
+		.compatible = "marvell,orion-wdt",
+		.data = &orion_data,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, orion_wdt_of_match_table);
+
 static int orion_wdt_probe(struct platform_device *pdev)
 {
 	struct orion_watchdog *dev;
+	const struct of_device_id *match;
 	unsigned int wdt_max_duration;	/* (seconds) */
 	struct resource *res;
 	int ret, irq;
@@ -172,9 +196,15 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	match = of_match_device(orion_wdt_of_match_table, &pdev->dev);
+	if (!match)
+		/* Default legacy match */
+		match = &orion_wdt_of_match_table[0];
+
 	dev->wdt.info = &orion_wdt_info;
 	dev->wdt.ops = &orion_wdt_ops;
 	dev->wdt.min_timeout = 1;
+	dev->data = match->data;
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
@@ -268,12 +298,6 @@ static void orion_wdt_shutdown(struct platform_device *pdev)
 	struct watchdog_device *wdt_dev = platform_get_drvdata(pdev);
 	orion_wdt_stop(wdt_dev);
 }
-
-static const struct of_device_id orion_wdt_of_match_table[] = {
-	{ .compatible = "marvell,orion-wdt", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, orion_wdt_of_match_table);
 
 static struct platform_driver orion_wdt_driver = {
 	.probe		= orion_wdt_probe,
