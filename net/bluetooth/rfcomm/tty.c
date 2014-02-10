@@ -93,7 +93,8 @@ static void rfcomm_dev_destruct(struct tty_port *port)
 
 	rfcomm_dlc_put(dlc);
 
-	tty_unregister_device(rfcomm_tty_driver, dev->id);
+	if (dev->tty_dev)
+		tty_unregister_device(rfcomm_tty_driver, dev->id);
 
 	spin_lock(&rfcomm_dev_lock);
 	list_del(&dev->list);
@@ -317,16 +318,15 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 	BT_DBG("id %d channel %d", req->dev_id, req->channel);
 
 	dev = __rfcomm_dev_add(req, dlc);
-	if (IS_ERR(dev))
+	if (IS_ERR(dev)) {
+		rfcomm_dlc_put(dlc);
 		return PTR_ERR(dev);
+	}
 
 	tty = tty_port_register_device(&dev->port, rfcomm_tty_driver,
 			dev->id, NULL);
 	if (IS_ERR(tty)) {
-		spin_lock(&rfcomm_dev_lock);
-		list_del(&dev->list);
-		spin_unlock(&rfcomm_dev_lock);
-		kfree(dev);
+		tty_port_put(&dev->port);
 		return PTR_ERR(tty);
 	}
 
@@ -420,10 +420,8 @@ static int __rfcomm_create_dev(struct sock *sk, void __user *arg)
 	}
 
 	id = rfcomm_dev_add(&req, dlc);
-	if (id < 0) {
-		rfcomm_dlc_put(dlc);
+	if (id < 0)
 		return id;
-	}
 
 	if (req.flags & (1 << RFCOMM_REUSE_DLC)) {
 		/* DLC is now used by device.
