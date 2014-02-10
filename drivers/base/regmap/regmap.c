@@ -380,6 +380,28 @@ static void regmap_range_exit(struct regmap *map)
 	kfree(map->selector_work_buf);
 }
 
+int regmap_attach_dev(struct device *dev, struct regmap *map,
+		      const struct regmap_config *config)
+{
+	struct regmap **m;
+
+	map->dev = dev;
+
+	regmap_debugfs_init(map, config->name);
+
+	/* Add a devres resource for dev_get_regmap() */
+	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
+	if (!m) {
+		regmap_debugfs_exit(map);
+		return -ENOMEM;
+	}
+	*m = map;
+	devres_add(dev, m);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(regmap_attach_dev);
+
 /**
  * regmap_init(): Initialise register map
  *
@@ -397,7 +419,7 @@ struct regmap *regmap_init(struct device *dev,
 			   void *bus_context,
 			   const struct regmap_config *config)
 {
-	struct regmap *map, **m;
+	struct regmap *map;
 	int ret = -EINVAL;
 	enum regmap_endian reg_endian, val_endian;
 	int i, j;
@@ -734,25 +756,18 @@ skip_format_initialization:
 		}
 	}
 
-	regmap_debugfs_init(map, config->name);
-
 	ret = regcache_init(map, config);
 	if (ret != 0)
 		goto err_range;
 
-	/* Add a devres resource for dev_get_regmap() */
-	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
-	if (!m) {
-		ret = -ENOMEM;
-		goto err_debugfs;
-	}
-	*m = map;
-	devres_add(dev, m);
+	if (dev)
+		ret = regmap_attach_dev(dev, map, config);
+		if (ret != 0)
+			goto err_regcache;
 
 	return map;
 
-err_debugfs:
-	regmap_debugfs_exit(map);
+err_regcache:
 	regcache_exit(map);
 err_range:
 	regmap_range_exit(map);

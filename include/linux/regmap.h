@@ -317,6 +317,8 @@ struct regmap *regmap_init(struct device *dev,
 			   const struct regmap_bus *bus,
 			   void *bus_context,
 			   const struct regmap_config *config);
+int regmap_attach_dev(struct device *dev, struct regmap *map,
+				 const struct regmap_config *config);
 struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 			       const struct regmap_config *config);
 struct regmap *regmap_init_spi(struct spi_device *dev,
