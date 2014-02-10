@@ -1510,7 +1510,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	slave_dev->npinfo = bond->dev->npinfo;
 	if (slave_dev->npinfo) {
 		if (slave_enable_netpoll(new_slave)) {
-			read_unlock(&bond->lock);
 			pr_info("Error, %s: master_dev is using netpoll, "
 				 "but new slave device does not support netpoll.\n",
 				 bond_dev->name);
