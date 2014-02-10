@@ -65,6 +65,8 @@
 
 #define WL12XX_RX_BA_MAX_SESSIONS 3
 
+#define WL12XX_MAX_LINKS 12
+
 struct wl127x_rx_mem_pool_addr {
 	u32 addr;
 	u32 addr_extra;

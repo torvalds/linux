@@ -205,7 +205,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 
 int wlcore_rx(struct wl1271 *wl, struct wl_fw_status *status)
 {
-	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
+	unsigned long active_hlids[BITS_TO_LONGS(WLCORE_MAX_LINKS)] = {0};
 	u32 buf_size;
 	u32 fw_rx_counter = status->fw_rx_counter % wl->num_rx_desc;
 	u32 drv_rx_counter = wl->rx_counter % wl->num_rx_desc;
@@ -263,12 +263,12 @@ int wlcore_rx(struct wl1271 *wl, struct wl_fw_status *status)
 						  wl->aggr_buf + pkt_offset,
 						  pkt_len, rx_align,
 						  &hlid) == 1) {
-				if (hlid < WL12XX_MAX_LINKS)
+				if (hlid < wl->num_links)
 					__set_bit(hlid, active_hlids);
 				else
 					WARN(1,
-					     "hlid exceeded WL12XX_MAX_LINKS "
-					     "(%d)\n", hlid);
+					     "hlid (%d) exceeded MAX_LINKS\n",
+					     hlid);
 			}
 
 			wl->rx_counter++;

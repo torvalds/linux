@@ -42,6 +42,8 @@
 
 #define WL18XX_RX_BA_MAX_SESSIONS 5
 
+#define WL18XX_MAX_LINKS 12
+
 struct wl18xx_priv {
 	/* buffer for sending commands to FW */
 	u8 cmd_buf[WL18XX_CMD_MAX_SIZE];
@@ -114,7 +116,7 @@ struct wl18xx_fw_packet_counters {
 	u8 tx_released_pkts[NUM_TX_QUEUES];
 
 	/* Cumulative counter of freed packets per HLID */
-	u8 tx_lnk_free_pkts[WL12XX_MAX_LINKS];
+	u8 tx_lnk_free_pkts[WL18XX_MAX_LINKS];
 
 	/* Cumulative counter of released Voice memory blocks */
 	u8 tx_voice_released_blks;

@@ -565,11 +565,11 @@ static struct sk_buff *wlcore_vif_dequeue_high_prio(struct wl1271 *wl,
 	int i, h, start_hlid;
 
 	/* start from the link after the last one */
-	start_hlid = (wlvif->last_tx_hlid + 1) % WL12XX_MAX_LINKS;
+	start_hlid = (wlvif->last_tx_hlid + 1) % wl->num_links;
 
 	/* dequeue according to AC, round robin on each link */
-	for (i = 0; i < WL12XX_MAX_LINKS; i++) {
-		h = (start_hlid + i) % WL12XX_MAX_LINKS;
+	for (i = 0; i < wl->num_links; i++) {
+		h = (start_hlid + i) % wl->num_links;
 
 		/* only consider connected stations */
 		if (!test_bit(h, wlvif->links_map))
@@ -693,8 +693,8 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		skb_queue_head(&wl->links[hlid].tx_queue[q], skb);
 
 		/* make sure we dequeue the same packet next time */
-		wlvif->last_tx_hlid = (hlid + WL12XX_MAX_LINKS - 1) %
-				      WL12XX_MAX_LINKS;
+		wlvif->last_tx_hlid = (hlid + wl->num_links - 1) %
+				      wl->num_links;
 	}
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
@@ -727,7 +727,7 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
 	timeout = wl->conf.rx_streaming.duration;
 	wl12xx_for_each_wlvif_sta(wl, wlvif) {
 		bool found = false;
-		for_each_set_bit(hlid, active_hlids, WL12XX_MAX_LINKS) {
+		for_each_set_bit(hlid, active_hlids, wl->num_links) {
 			if (test_bit(hlid, wlvif->links_map)) {
 				found  = true;
 				break;
@@ -764,7 +764,7 @@ int wlcore_tx_work_locked(struct wl1271 *wl)
 	struct wl1271_tx_hw_descr *desc;
 	u32 buf_offset = 0, last_len = 0;
 	bool sent_packets = false;
-	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
+	unsigned long active_hlids[BITS_TO_LONGS(WLCORE_MAX_LINKS)] = {0};
 	int ret = 0;
 	int bus_ret = 0;
 	u8 hlid;
@@ -1066,7 +1066,7 @@ void wl12xx_tx_reset_wlvif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	int i;
 
 	/* TX failure */
-	for_each_set_bit(i, wlvif->links_map, WL12XX_MAX_LINKS) {
+	for_each_set_bit(i, wlvif->links_map, wl->num_links) {
 		if (wlvif->bss_type == BSS_TYPE_AP_BSS &&
 		    i != wlvif->ap.bcast_hlid && i != wlvif->ap.global_hlid) {
 			/* this calls wl12xx_free_link */
@@ -1090,7 +1090,7 @@ void wl12xx_tx_reset(struct wl1271 *wl)
 
 	/* only reset the queues if something bad happened */
 	if (wl1271_tx_total_queue_count(wl) != 0) {
-		for (i = 0; i < WL12XX_MAX_LINKS; i++)
+		for (i = 0; i < wl->num_links; i++)
 			wl1271_tx_reset_link_queues(wl, i);
 
 		for (i = 0; i < NUM_TX_QUEUES; i++)
@@ -1183,7 +1183,7 @@ void wl1271_tx_flush(struct wl1271 *wl)
 		       WL1271_TX_FLUSH_TIMEOUT / 1000);
 
 	/* forcibly flush all Tx buffers on our queues */
-	for (i = 0; i < WL12XX_MAX_LINKS; i++)
+	for (i = 0; i < wl->num_links; i++)
 		wl1271_tx_reset_link_queues(wl, i);
 
 out_wake:

@@ -58,9 +58,14 @@
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
 #define WL12XX_MAX_ROLES           4
-#define WL12XX_MAX_LINKS           12
 #define WL12XX_INVALID_ROLE_ID     0xff
 #define WL12XX_INVALID_LINK_ID     0xff
+
+/*
+ * max number of links allowed by all HWs.
+ * this is NOT the actual max links supported by the current hw.
+ */
+#define WLCORE_MAX_LINKS 12
 
 /* the driver supports the 2.4Ghz and 5Ghz bands */
 #define WLCORE_NUM_BANDS           2
@@ -156,7 +161,7 @@ struct wl_fw_status {
 
 		/*
 		 * Cumulative counter of freed packets per HLID
-		 * (length of the array is WL12XX_MAX_LINKS)
+		 * (length of the array is wl->num_links)
 		 */
 		u8 *tx_lnk_free_pkts;
 
@@ -357,7 +362,7 @@ struct wl12xx_vif {
 
 			/* HLIDs bitmap of associated stations */
 			unsigned long sta_hlid_map[BITS_TO_LONGS(
-							WL12XX_MAX_LINKS)];
+							WLCORE_MAX_LINKS)];
 
 			/* recoreded keys - set here before AP startup */
 			struct wl1271_ap_key *recorded_keys[MAX_NUM_KEYS];
@@ -374,7 +379,7 @@ struct wl12xx_vif {
 	/* counters of packets per AC, across all links in the vif */
 	int tx_queue_count[NUM_TX_QUEUES];
 
-	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
+	unsigned long links_map[BITS_TO_LONGS(WLCORE_MAX_LINKS)];
 
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;

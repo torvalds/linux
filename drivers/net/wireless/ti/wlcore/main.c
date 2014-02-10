@@ -372,7 +372,7 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 		wl->ap_fw_ps_map = cur_fw_ps_map;
 	}
 
-	for_each_set_bit(hlid, wlvif->ap.sta_hlid_map, WL12XX_MAX_LINKS)
+	for_each_set_bit(hlid, wlvif->ap.sta_hlid_map, wl->num_links)
 		wl12xx_irq_ps_regulate_link(wl, wlvif, hlid,
 					    wl->links[hlid].allocated_pkts);
 }
@@ -412,7 +412,7 @@ static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 	}
 
 
-	for_each_set_bit(i, wl->links_map, WL12XX_MAX_LINKS) {
+	for_each_set_bit(i, wl->links_map, wl->num_links) {
 		u8 diff;
 		lnk = &wl->links[i];
 
@@ -5855,7 +5855,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 	int i, j, ret;
 	unsigned int order;
 
-	BUILD_BUG_ON(AP_MAX_STATIONS > WL12XX_MAX_LINKS);
+	BUILD_BUG_ON(AP_MAX_STATIONS > WLCORE_MAX_LINKS);
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
 	if (!hw) {
@@ -5878,8 +5878,12 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 
 	wl->hw = hw;
 
+	/*
+	 * wl->num_links is not configured yet, so just use WLCORE_MAX_LINKS.
+	 * we don't allocate any additional resource here, so that's fine.
+	 */
 	for (i = 0; i < NUM_TX_QUEUES; i++)
-		for (j = 0; j < WL12XX_MAX_LINKS; j++)
+		for (j = 0; j < WLCORE_MAX_LINKS; j++)
 			skb_queue_head_init(&wl->links[j].tx_queue[i]);
 
 	skb_queue_head_init(&wl->deferred_rx_queue);

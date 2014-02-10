@@ -222,7 +222,7 @@ struct wl1271 {
 	int channel;
 	u8 system_hlid;
 
-	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
+	unsigned long links_map[BITS_TO_LONGS(WLCORE_MAX_LINKS)];
 	unsigned long roles_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 	unsigned long roc_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 	unsigned long rate_policies_map[
@@ -230,7 +230,7 @@ struct wl1271 {
 	unsigned long klv_templates_map[
 			BITS_TO_LONGS(WLCORE_MAX_KLV_TEMPLATES)];
 
-	u8 session_ids[WL12XX_MAX_LINKS];
+	u8 session_ids[WLCORE_MAX_LINKS];
 
 	struct list_head wlvif_list;
 
@@ -378,7 +378,7 @@ struct wl1271 {
 	 * AP-mode - links indexed by HLID. The global and broadcast links
 	 * are always active.
 	 */
-	struct wl1271_link links[WL12XX_MAX_LINKS];
+	struct wl1271_link links[WLCORE_MAX_LINKS];
 
 	/* number of currently active links */
 	int active_link_count;
@@ -436,6 +436,8 @@ struct wl1271 {
 	u32 num_tx_desc;
 	/* number of RX descriptors the HW supports. */
 	u32 num_rx_desc;
+	/* number of links the HW supports */
+	u8 num_links;
 
 	/* translate HW Tx rates to standard rate-indices */
 	const u8 **band_rate_to_idx;

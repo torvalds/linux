@@ -312,8 +312,8 @@ static int wlcore_get_new_session_id(struct wl1271 *wl, u8 hlid)
 int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
 	unsigned long flags;
-	u8 link = find_first_zero_bit(wl->links_map, WL12XX_MAX_LINKS);
-	if (link >= WL12XX_MAX_LINKS)
+	u8 link = find_first_zero_bit(wl->links_map, wl->num_links);
+	if (link >= wl->num_links)
 		return -EBUSY;
 
 	wl->session_ids[link] = wlcore_get_new_session_id(wl, link);
