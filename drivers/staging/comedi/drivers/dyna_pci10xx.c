@@ -57,18 +57,27 @@ struct dyna_pci10xx_private {
 	unsigned long BADR3;
 };
 
-/******************************************************************************/
-/************************** READ WRITE FUNCTIONS ******************************/
-/******************************************************************************/
+static int dyna_pci10xx_ai_eoc(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned long context)
+{
+	unsigned int status;
 
-/* analog input callback */
+	status = inw_p(dev->iobase);
+	if (status & (1 << 15))
+		return 0;
+	return -EBUSY;
+}
+
 static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 			struct comedi_subdevice *s,
 			struct comedi_insn *insn, unsigned int *data)
 {
 	struct dyna_pci10xx_private *devpriv = dev->private;
-	int n, counter;
+	int n;
 	u16 d = 0;
+	int ret = 0;
 	unsigned int chan, range;
 
 	/* get the channel number and range */
@@ -82,18 +91,17 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 		smp_mb();
 		outw_p(0x0000 + range + chan, dev->iobase + 2);
 		udelay(10);
-		/* read data */
-		for (counter = 0; counter < READ_TIMEOUT; counter++) {
-			d = inw_p(dev->iobase);
 
-			/* check if read is successful if the EOC bit is set */
-			if (d & (1 << 15))
-				goto conv_finish;
+		ret = comedi_timeout(dev, s, insn, dyna_pci10xx_ai_eoc, 0);
+		if (ret) {
+			data[n] = 0;
+			dev_dbg(dev->class_dev,
+				"timeout reading analog input\n");
+			break;
 		}
-		data[n] = 0;
-		dev_dbg(dev->class_dev, "timeout reading analog input\n");
-		continue;
-conv_finish:
+
+		/* read data */
+		d = inw_p(dev->iobase);
 		/* mask the first 4 bits - EOC bits */
 		d &= 0x0FFF;
 		data[n] = d;
@@ -101,7 +109,7 @@ conv_finish:
 	mutex_unlock(&devpriv->mutex);
 
 	/* return the number of samples read/written */
-	return n;
+	return ret ? ret : n;
 }
 
 /* analog output callback */
