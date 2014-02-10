@@ -101,7 +101,7 @@ struct request {
 	};
 	union {
 		struct call_single_data csd;
-		struct work_struct mq_flush_data;
+		struct work_struct mq_flush_work;
 	};
 
 	struct request_queue *q;
@@ -451,13 +451,8 @@ struct request_queue {
 	unsigned long		flush_pending_since;
 	struct list_head	flush_queue[2];
 	struct list_head	flush_data_in_flight;
-	union {
-		struct request	flush_rq;
-		struct {
-			spinlock_t mq_flush_lock;
-			struct work_struct mq_flush_work;
-		};
-	};
+	struct request		*flush_rq;
+	spinlock_t		mq_flush_lock;
 
 	struct mutex		sysfs_lock;
 

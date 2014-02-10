@@ -28,6 +28,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
 void blk_mq_init_flush(struct request_queue *q);
 void blk_mq_drain_queue(struct request_queue *q);
 void blk_mq_free_queue(struct request_queue *q);
+void blk_mq_rq_init(struct blk_mq_hw_ctx *hctx, struct request *rq);
 
 /*
  * CPU hotplug helpers
