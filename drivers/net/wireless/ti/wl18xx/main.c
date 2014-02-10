@@ -1747,6 +1747,42 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 		},
 };
 
+static const struct ieee80211_iface_limit wl18xx_iface_limits[] = {
+	{
+		.max = 3,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP) |
+			 BIT(NL80211_IFTYPE_P2P_GO) |
+			 BIT(NL80211_IFTYPE_P2P_CLIENT),
+	},
+};
+
+static const struct ieee80211_iface_limit wl18xx_iface_ap_limits[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_AP),
+	},
+};
+
+static const struct ieee80211_iface_combination
+wl18xx_iface_combinations[] = {
+	{
+		.max_interfaces = 3,
+		.limits = wl18xx_iface_limits,
+		.n_limits = ARRAY_SIZE(wl18xx_iface_limits),
+		.num_different_channels = 2,
+	},
+	{
+		.max_interfaces = 2,
+		.limits = wl18xx_iface_ap_limits,
+		.n_limits = ARRAY_SIZE(wl18xx_iface_ap_limits),
+		.num_different_channels = 1,
+	}
+};
+
 static int wl18xx_setup(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
@@ -1760,7 +1796,8 @@ static int wl18xx_setup(struct wl1271 *wl)
 	wl->num_rx_desc = WL18XX_NUM_RX_DESCRIPTORS;
 	wl->num_links = WL18XX_MAX_LINKS;
 	wl->max_ap_stations = WL18XX_MAX_AP_STATIONS;
-	wl->num_channels = 2;
+	wl->iface_combinations = wl18xx_iface_combinations;
+	wl->n_iface_combinations = ARRAY_SIZE(wl18xx_iface_combinations);
 	wl->num_mac_addr = WL18XX_NUM_MAC_ADDRESSES;
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;

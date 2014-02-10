@@ -483,8 +483,9 @@ struct wl1271 {
 
 	struct completion nvs_loading_complete;
 
-	/* number of concurrent channels the HW supports */
-	u32 num_channels;
+	/* interface combinations supported by the hw */
+	const struct ieee80211_iface_combination *iface_combinations;
+	u8 n_iface_combinations;
 };
 
 int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
