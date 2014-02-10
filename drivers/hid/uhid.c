@@ -250,6 +250,21 @@ static int uhid_hid_output_report(struct hid_device *hid, __u8 *buf,
 	return uhid_hid_output_raw(hid, buf, count, HID_OUTPUT_REPORT);
 }
 
+static int uhid_raw_request(struct hid_device *hid, unsigned char reportnum,
+			    __u8 *buf, size_t len, unsigned char rtype,
+			    int reqtype)
+{
+	switch (reqtype) {
+	case HID_REQ_GET_REPORT:
+		return uhid_hid_get_raw(hid, reportnum, buf, len, rtype);
+	case HID_REQ_SET_REPORT:
+		/* TODO: implement proper SET_REPORT functionality */
+		return -ENOSYS;
+	default:
+		return -EIO;
+	}
+}
+
 static struct hid_ll_driver uhid_hid_driver = {
 	.start = uhid_hid_start,
 	.stop = uhid_hid_stop,
@@ -257,6 +272,7 @@ static struct hid_ll_driver uhid_hid_driver = {
 	.close = uhid_hid_close,
 	.parse = uhid_hid_parse,
 	.output_report = uhid_hid_output_report,
+	.raw_request = uhid_raw_request,
 };
 
 #ifdef CONFIG_COMPAT
