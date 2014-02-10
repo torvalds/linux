@@ -79,7 +79,7 @@ static void free_kctls(struct hda_gen_spec *spec)
 	snd_array_free(&spec->kctls);
 }
 
-void snd_hda_gen_spec_free(struct hda_gen_spec *spec)
+static void snd_hda_gen_spec_free(struct hda_gen_spec *spec)
 {
 	if (!spec)
 		return;
@@ -87,7 +87,6 @@ void snd_hda_gen_spec_free(struct hda_gen_spec *spec)
 	snd_array_free(&spec->paths);
 	snd_array_free(&spec->loopback_list);
 }
-EXPORT_SYMBOL_GPL(snd_hda_gen_spec_free);
 
 /*
  * store user hints
