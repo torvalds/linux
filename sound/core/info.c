@@ -540,7 +540,7 @@ int __init snd_info_init(void)
 		snd_oss_root = entry;
 	}
 #endif
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	{
 		struct snd_info_entry *entry;
 		if ((entry = snd_info_create_module_entry(THIS_MODULE, "seq", NULL)) == NULL)
@@ -567,7 +567,7 @@ int __exit snd_info_done(void)
 	snd_minor_info_done();
 	snd_info_version_done();
 	if (snd_proc_root) {
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 		snd_info_free_entry(snd_seq_root);
 #endif
 #ifdef CONFIG_SND_OSSEMUL

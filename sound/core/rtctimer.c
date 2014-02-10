@@ -27,7 +27,7 @@
 #include <sound/core.h>
 #include <sound/timer.h>
 
-#if defined(CONFIG_RTC) || defined(CONFIG_RTC_MODULE)
+#if IS_ENABLED(CONFIG_RTC)
 
 #include <linux/mc146818rtc.h>
 
@@ -185,4 +185,4 @@ MODULE_LICENSE("GPL");
 
 MODULE_ALIAS("snd-timer-" __stringify(SNDRV_TIMER_GLOBAL_RTC));
 
-#endif /* CONFIG_RTC || CONFIG_RTC_MODULE */
+#endif /* IS_ENABLED(CONFIG_RTC) */

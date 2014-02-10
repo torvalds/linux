@@ -35,9 +35,9 @@
 #include <sound/initval.h>
 #include <linux/kmod.h>
 
-#if defined(CONFIG_SND_HRTIMER) || defined(CONFIG_SND_HRTIMER_MODULE)
+#if IS_ENABLED(CONFIG_SND_HRTIMER)
 #define DEFAULT_TIMER_LIMIT 4
-#elif defined(CONFIG_SND_RTCTIMER) || defined(CONFIG_SND_RTCTIMER_MODULE)
+#elif IS_ENABLED(CONFIG_SND_RTCTIMER)
 #define DEFAULT_TIMER_LIMIT 2
 #else
 #define DEFAULT_TIMER_LIMIT 1

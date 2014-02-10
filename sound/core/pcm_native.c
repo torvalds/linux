@@ -399,7 +399,7 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EBADFD;
 	}
 	snd_pcm_stream_unlock_irq(substream);
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	if (!substream->oss.oss)
 #endif
 		if (atomic_read(&substream->mmap_count))

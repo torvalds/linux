@@ -295,7 +295,7 @@ static const char *snd_pcm_state_name(snd_pcm_state_t state)
 	return snd_pcm_state_names[(__force int)state];
 }
 
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_PCM_OSS)
 #include <linux/soundcard.h>
 
 static const char *snd_pcm_oss_format_name(int format)
@@ -398,7 +398,7 @@ static void snd_pcm_substream_proc_hw_params_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "rate: %u (%u/%u)\n", runtime->rate, runtime->rate_num, runtime->rate_den);	
 	snd_iprintf(buffer, "period_size: %lu\n", runtime->period_size);	
 	snd_iprintf(buffer, "buffer_size: %lu\n", runtime->buffer_size);	
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	if (substream->oss.oss) {
 		snd_iprintf(buffer, "OSS format: %s\n", snd_pcm_oss_format_name(runtime->oss.format));
 		snd_iprintf(buffer, "OSS channels: %u\n", runtime->oss.channels);	
@@ -651,7 +651,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	struct snd_pcm_str *pstr = &pcm->streams[stream];
 	struct snd_pcm_substream *substream, *prev;
 
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	mutex_init(&pstr->oss.setup_mutex);
 #endif
 	pstr->stream = stream;
@@ -807,7 +807,7 @@ EXPORT_SYMBOL(snd_pcm_new_internal);
 static void snd_pcm_free_stream(struct snd_pcm_str * pstr)
 {
 	struct snd_pcm_substream *substream, *substream_next;
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	struct snd_pcm_oss_setup *setup, *setupn;
 #endif
 	substream = pstr->substream;
@@ -819,7 +819,7 @@ static void snd_pcm_free_stream(struct snd_pcm_str * pstr)
 		substream = substream_next;
 	}
 	snd_pcm_stream_proc_done(pstr);
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	for (setup = pstr->oss.setup_list; setup; setup = setupn) {
 		setupn = setup->next;
 		kfree(setup->task_name);

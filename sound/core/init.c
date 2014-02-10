@@ -94,7 +94,7 @@ static int module_slot_match(struct module *module, int idx)
 	return match;
 }
 
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 int (*snd_mixer_oss_notify_callback)(struct snd_card *card, int free_flag);
 EXPORT_SYMBOL(snd_mixer_oss_notify_callback);
 #endif
@@ -394,7 +394,7 @@ int snd_card_disconnect(struct snd_card *card)
 	/* phase 3: notify all connected devices about disconnection */
 	/* at this point, they cannot respond to any calls except release() */
 
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_DISCONNECT);
 #endif
@@ -430,7 +430,7 @@ EXPORT_SYMBOL(snd_card_disconnect);
  */
 static int snd_card_do_free(struct snd_card *card)
 {
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_FREE);
 #endif
@@ -723,7 +723,7 @@ int snd_card_register(struct snd_card *card)
 	snd_cards[card->number] = card;
 	mutex_unlock(&snd_card_mutex);
 	init_info_for_card(card);
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_REGISTER);
 #endif
