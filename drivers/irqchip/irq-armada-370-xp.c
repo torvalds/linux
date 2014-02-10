@@ -352,6 +352,34 @@ static struct irq_domain_ops armada_370_xp_mpic_irq_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
+#ifdef CONFIG_PCI_MSI
+static void armada_370_xp_handle_msi_irq(struct pt_regs *regs)
+{
+	u32 msimask, msinr;
+
+	msimask = readl_relaxed(per_cpu_int_base +
+				ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS)
+		& PCI_MSI_DOORBELL_MASK;
+
+	writel(~msimask, per_cpu_int_base +
+	       ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
+
+	for (msinr = PCI_MSI_DOORBELL_START;
+	     msinr < PCI_MSI_DOORBELL_END; msinr++) {
+		int irq;
+
+		if (!(msimask & BIT(msinr)))
+			continue;
+
+		irq = irq_find_mapping(armada_370_xp_msi_domain,
+				       msinr - 16);
+		handle_IRQ(irq, regs);
+	}
+}
+#else
+static void armada_370_xp_handle_msi_irq(struct pt_regs *r) {}
+#endif
+
 static asmlinkage void __exception_irq_entry
 armada_370_xp_handle_irq(struct pt_regs *regs)
 {
@@ -372,31 +400,9 @@ armada_370_xp_handle_irq(struct pt_regs *regs)
 			continue;
 		}
 
-#ifdef CONFIG_PCI_MSI
 		/* MSI handling */
-		if (irqnr == 1) {
-			u32 msimask, msinr;
-
-			msimask = readl_relaxed(per_cpu_int_base +
-						ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS)
-				& PCI_MSI_DOORBELL_MASK;
-
-			writel(~msimask, per_cpu_int_base +
-			       ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
-
-			for (msinr = PCI_MSI_DOORBELL_START;
-			     msinr < PCI_MSI_DOORBELL_END; msinr++) {
-				int irq;
-
-				if (!(msimask & BIT(msinr)))
-					continue;
-
-				irq = irq_find_mapping(armada_370_xp_msi_domain,
-						       msinr - 16);
-				handle_IRQ(irq, regs);
-			}
-		}
-#endif
+		if (irqnr == 1)
+			armada_370_xp_handle_msi_irq(regs);
 
 #ifdef CONFIG_SMP
 		/* IPI Handling */
