@@ -939,8 +939,15 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	 * with the timer by holding the timer base lock. This also
 	 * makes sure that a CPU on the way to stop its tick can not
 	 * evaluate the timer wheel.
+	 *
+	 * Spare the IPI for deferrable timers on idle targets though.
+	 * The next busy ticks will take care of it. Except full dynticks
+	 * require special care against races with idle_cpu(), lets deal
+	 * with that later.
 	 */
-	wake_up_nohz_cpu(cpu);
+	if (!tbase_get_deferrable(timer->base) || tick_nohz_full_cpu(cpu))
+		wake_up_nohz_cpu(cpu);
+
 	spin_unlock_irqrestore(&base->lock, flags);
 }
 EXPORT_SYMBOL_GPL(add_timer_on);
