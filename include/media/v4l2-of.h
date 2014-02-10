@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/of_graph.h>
 
 #include <media/v4l2-mediabus.h>
 
@@ -72,36 +73,12 @@ struct v4l2_of_endpoint {
 #ifdef CONFIG_OF
 int v4l2_of_parse_endpoint(const struct device_node *node,
 			   struct v4l2_of_endpoint *endpoint);
-struct device_node *v4l2_of_get_next_endpoint(const struct device_node *parent,
-					struct device_node *previous);
-struct device_node *v4l2_of_get_remote_port_parent(
-					const struct device_node *node);
-struct device_node *v4l2_of_get_remote_port(const struct device_node *node);
 #else /* CONFIG_OF */
 
 static inline int v4l2_of_parse_endpoint(const struct device_node *node,
 					struct v4l2_of_endpoint *link)
 {
 	return -ENOSYS;
-}
-
-static inline struct device_node *v4l2_of_get_next_endpoint(
-					const struct device_node *parent,
-					struct device_node *previous)
-{
-	return NULL;
-}
-
-static inline struct device_node *v4l2_of_get_remote_port_parent(
-					const struct device_node *node)
-{
-	return NULL;
-}
-
-static inline struct device_node *v4l2_of_get_remote_port(
-					const struct device_node *node)
-{
-	return NULL;
 }
 
 #endif /* CONFIG_OF */
