@@ -1248,6 +1248,11 @@ void hid_output_report(struct hid_report *report, __u8 *data)
 }
 EXPORT_SYMBOL_GPL(hid_output_report);
 
+static int hid_report_len(struct hid_report *report)
+{
+	return ((report->size - 1) >> 3) + 1 + (report->id > 0) + 7;
+}
+
 /*
  * Allocator for buffer that is going to be passed to hid_output_report()
  */
@@ -1258,7 +1263,7 @@ u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags)
 	 * of implement() working on 8 byte chunks
 	 */
 
-	int len = ((report->size - 1) >> 3) + 1 + (report->id > 0) + 7;
+	int len = hid_report_len(report);
 
 	return kmalloc(len, flags);
 }
@@ -1313,6 +1318,44 @@ static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
 
 	return report;
 }
+
+/*
+ * Implement a generic .request() callback, using .raw_request()
+ * DO NOT USE in hid drivers directly, but through hid_hw_request instead.
+ */
+void __hid_request(struct hid_device *hid, struct hid_report *report,
+		int reqtype)
+{
+	char *buf;
+	int ret;
+	int len;
+
+	if (!hid->ll_driver->raw_request)
+		return;
+
+	buf = hid_alloc_report_buf(report, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	len = hid_report_len(report);
+
+	if (reqtype == HID_REQ_SET_REPORT)
+		hid_output_report(report, buf);
+
+	ret = hid->ll_driver->raw_request(hid, report->id, buf, len,
+					  report->type, reqtype);
+	if (ret < 0) {
+		dbg_hid("unable to complete request: %d\n", ret);
+		goto out;
+	}
+
+	if (reqtype == HID_REQ_GET_REPORT)
+		hid_input_report(hid, report->type, buf, ret, 0);
+
+out:
+	kfree(buf);
+}
+EXPORT_SYMBOL_GPL(__hid_request);
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		int interrupt)
