@@ -468,12 +468,18 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 
 	switch (d->state) {
 	case BT_CONNECT:
-	case BT_CONFIG:
-		/* Fall through */
-
 	case BT_CONNECTED:
 		__rfcomm_dlc_disconn(d);
 		break;
+
+	case BT_CONFIG:
+		if (s->state != BT_BOUND) {
+			__rfcomm_dlc_disconn(d);
+			break;
+		}
+		/* if closing a dlc in a session that hasn't been started,
+		 * just close and unlink the dlc
+		 */
 
 	default:
 		rfcomm_dlc_clear_timer(d);
