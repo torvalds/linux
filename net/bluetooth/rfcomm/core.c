@@ -443,11 +443,18 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 	switch (d->state) {
 	case BT_CONNECT:
 	case BT_CONFIG:
+	case BT_OPEN:
+	case BT_CONNECT2:
 		if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
 			set_bit(RFCOMM_AUTH_REJECT, &d->flags);
 			rfcomm_schedule();
-			break;
+			return 0;
 		}
+	}
+
+	switch (d->state) {
+	case BT_CONNECT:
+	case BT_CONFIG:
 		/* Fall through */
 
 	case BT_CONNECTED:
@@ -460,15 +467,6 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 			rfcomm_dlc_set_timer(d, RFCOMM_DISC_TIMEOUT * 2);
 		}
 		break;
-
-	case BT_OPEN:
-	case BT_CONNECT2:
-		if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
-			set_bit(RFCOMM_AUTH_REJECT, &d->flags);
-			rfcomm_schedule();
-			break;
-		}
-		/* Fall through */
 
 	default:
 		rfcomm_dlc_clear_timer(d);
