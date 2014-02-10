@@ -1378,7 +1378,7 @@ static u32 wl12xx_get_rx_packet_len(struct wl1271 *wl, void *rx_data,
 
 static int wl12xx_tx_delayed_compl(struct wl1271 *wl)
 {
-	if (wl->fw_status_1->tx_results_counter ==
+	if (wl->fw_status->tx_results_counter ==
 	    (wl->tx_results_count & 0xff))
 		return 0;
 
@@ -1436,6 +1436,37 @@ static int wl12xx_hw_init(struct wl1271 *wl)
 	}
 out:
 	return ret;
+}
+
+static void wl12xx_convert_fw_status(struct wl1271 *wl, void *raw_fw_status,
+				     struct wl_fw_status *fw_status)
+{
+	struct wl12xx_fw_status *int_fw_status = raw_fw_status;
+
+	fw_status->intr = le32_to_cpu(int_fw_status->intr);
+	fw_status->fw_rx_counter = int_fw_status->fw_rx_counter;
+	fw_status->drv_rx_counter = int_fw_status->drv_rx_counter;
+	fw_status->tx_results_counter = int_fw_status->tx_results_counter;
+	fw_status->rx_pkt_descs = int_fw_status->rx_pkt_descs;
+
+	fw_status->fw_localtime = le32_to_cpu(int_fw_status->fw_localtime);
+	fw_status->link_ps_bitmap = le32_to_cpu(int_fw_status->link_ps_bitmap);
+	fw_status->link_fast_bitmap =
+			le32_to_cpu(int_fw_status->link_fast_bitmap);
+	fw_status->total_released_blks =
+			le32_to_cpu(int_fw_status->total_released_blks);
+	fw_status->tx_total = le32_to_cpu(int_fw_status->tx_total);
+
+	fw_status->counters.tx_released_pkts =
+			int_fw_status->counters.tx_released_pkts;
+	fw_status->counters.tx_lnk_free_pkts =
+			int_fw_status->counters.tx_lnk_free_pkts;
+	fw_status->counters.tx_voice_released_blks =
+			int_fw_status->counters.tx_voice_released_blks;
+	fw_status->counters.tx_last_rate =
+			int_fw_status->counters.tx_last_rate;
+
+	fw_status->log_start_addr = le32_to_cpu(int_fw_status->log_start_addr);
 }
 
 static u32 wl12xx_sta_get_ap_rate_mask(struct wl1271 *wl,
@@ -1677,6 +1708,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.tx_delayed_compl	= wl12xx_tx_delayed_compl,
 	.hw_init		= wl12xx_hw_init,
 	.init_vif		= NULL,
+	.convert_fw_status	= wl12xx_convert_fw_status,
 	.sta_get_ap_rate_mask	= wl12xx_sta_get_ap_rate_mask,
 	.get_pg_ver		= wl12xx_get_pg_ver,
 	.get_mac		= wl12xx_get_mac,
@@ -1725,6 +1757,7 @@ static int wl12xx_setup(struct wl1271 *wl)
 	wl->band_rate_to_idx = wl12xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL12XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL12XX_CONF_HW_RXTX_RATE_MCS0;
+	wl->fw_status_len = sizeof(struct wl12xx_fw_status);
 	wl->fw_status_priv_len = 0;
 	wl->stats.fw_stats_len = sizeof(struct wl12xx_acx_statistics);
 	wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ, &wl12xx_ht_cap);

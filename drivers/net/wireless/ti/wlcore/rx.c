@@ -203,7 +203,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	return is_data;
 }
 
-int wlcore_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
+int wlcore_rx(struct wl1271 *wl, struct wl_fw_status *status)
 {
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	u32 buf_size;

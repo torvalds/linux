@@ -357,12 +357,12 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl,
 
 static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 					   struct wl12xx_vif *wlvif,
-					   struct wl_fw_status_2 *status)
+					   struct wl_fw_status *status)
 {
 	u32 cur_fw_ps_map;
 	u8 hlid;
 
-	cur_fw_ps_map = le32_to_cpu(status->link_ps_bitmap);
+	cur_fw_ps_map = status->link_ps_bitmap;
 	if (wl->ap_fw_ps_map != cur_fw_ps_map) {
 		wl1271_debug(DEBUG_PSM,
 			     "link ps prev 0x%x cur 0x%x changed 0x%x",
@@ -377,41 +377,38 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 					    wl->links[hlid].allocated_pkts);
 }
 
-static int wlcore_fw_status(struct wl1271 *wl,
-			    struct wl_fw_status_1 *status_1,
-			    struct wl_fw_status_2 *status_2)
+static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 {
 	struct wl12xx_vif *wlvif;
 	struct timespec ts;
 	u32 old_tx_blk_count = wl->tx_blocks_available;
 	int avail, freed_blocks;
 	int i;
-	size_t status_len;
 	int ret;
 	struct wl1271_link *lnk;
 
-	status_len = WLCORE_FW_STATUS_1_LEN(wl->num_rx_desc) +
-		sizeof(*status_2) + wl->fw_status_priv_len;
-
-	ret = wlcore_raw_read_data(wl, REG_RAW_FW_STATUS_ADDR, status_1,
-				   status_len, false);
+	ret = wlcore_raw_read_data(wl, REG_RAW_FW_STATUS_ADDR,
+				   wl->raw_fw_status,
+				   wl->fw_status_len, false);
 	if (ret < 0)
 		return ret;
 
+	wlcore_hw_convert_fw_status(wl, wl->raw_fw_status, wl->fw_status);
+
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
 		     "drv_rx_counter = %d, tx_results_counter = %d)",
-		     status_1->intr,
-		     status_1->fw_rx_counter,
-		     status_1->drv_rx_counter,
-		     status_1->tx_results_counter);
+		     status->intr,
+		     status->fw_rx_counter,
+		     status->drv_rx_counter,
+		     status->tx_results_counter);
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		/* prevent wrap-around in freed-packets counter */
 		wl->tx_allocated_pkts[i] -=
-				(status_2->counters.tx_released_pkts[i] -
+				(status->counters.tx_released_pkts[i] -
 				wl->tx_pkts_freed[i]) & 0xff;
 
-		wl->tx_pkts_freed[i] = status_2->counters.tx_released_pkts[i];
+		wl->tx_pkts_freed[i] = status->counters.tx_released_pkts[i];
 	}
 
 
@@ -420,29 +417,28 @@ static int wlcore_fw_status(struct wl1271 *wl,
 		lnk = &wl->links[i];
 
 		/* prevent wrap-around in freed-packets counter */
-		diff = (status_2->counters.tx_lnk_free_pkts[i] -
+		diff = (status->counters.tx_lnk_free_pkts[i] -
 		       lnk->prev_freed_pkts) & 0xff;
 
 		if (diff == 0)
 			continue;
 
 		lnk->allocated_pkts -= diff;
-		lnk->prev_freed_pkts = status_2->counters.tx_lnk_free_pkts[i];
+		lnk->prev_freed_pkts = status->counters.tx_lnk_free_pkts[i];
 
 		/* accumulate the prev_freed_pkts counter */
 		lnk->total_freed_pkts += diff;
 	}
 
 	/* prevent wrap-around in total blocks counter */
-	if (likely(wl->tx_blocks_freed <=
-		   le32_to_cpu(status_2->total_released_blks)))
-		freed_blocks = le32_to_cpu(status_2->total_released_blks) -
+	if (likely(wl->tx_blocks_freed <= status->total_released_blks))
+		freed_blocks = status->total_released_blks -
 			       wl->tx_blocks_freed;
 	else
 		freed_blocks = 0x100000000LL - wl->tx_blocks_freed +
-			       le32_to_cpu(status_2->total_released_blks);
+			       status->total_released_blks;
 
-	wl->tx_blocks_freed = le32_to_cpu(status_2->total_released_blks);
+	wl->tx_blocks_freed = status->total_released_blks;
 
 	wl->tx_allocated_blocks -= freed_blocks;
 
@@ -458,7 +454,7 @@ static int wlcore_fw_status(struct wl1271 *wl,
 			cancel_delayed_work(&wl->tx_watchdog_work);
 	}
 
-	avail = le32_to_cpu(status_2->tx_total) - wl->tx_allocated_blocks;
+	avail = status->tx_total - wl->tx_allocated_blocks;
 
 	/*
 	 * The FW might change the total number of TX memblocks before
@@ -477,15 +473,15 @@ static int wlcore_fw_status(struct wl1271 *wl,
 
 	/* for AP update num of allocated TX blocks per link and ps status */
 	wl12xx_for_each_wlvif_ap(wl, wlvif) {
-		wl12xx_irq_update_links_status(wl, wlvif, status_2);
+		wl12xx_irq_update_links_status(wl, wlvif, status);
 	}
 
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
 	wl->time_offset = (timespec_to_ns(&ts) >> 10) -
-		(s64)le32_to_cpu(status_2->fw_localtime);
+		(s64)(status->fw_localtime);
 
-	wl->fw_fast_lnk_map = le32_to_cpu(status_2->link_fast_bitmap);
+	wl->fw_fast_lnk_map = status->link_fast_bitmap;
 
 	return 0;
 }
@@ -549,13 +545,13 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 		clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
 		smp_mb__after_clear_bit();
 
-		ret = wlcore_fw_status(wl, wl->fw_status_1, wl->fw_status_2);
+		ret = wlcore_fw_status(wl, wl->fw_status);
 		if (ret < 0)
 			goto out;
 
 		wlcore_hw_tx_immediate_compl(wl);
 
-		intr = le32_to_cpu(wl->fw_status_1->intr);
+		intr = wl->fw_status->intr;
 		intr &= WLCORE_ALL_INTR_MASK;
 		if (!intr) {
 			done = true;
@@ -584,7 +580,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 		if (likely(intr & WL1271_ACX_INTR_DATA)) {
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
 
-			ret = wlcore_rx(wl, wl->fw_status_1);
+			ret = wlcore_rx(wl, wl->fw_status);
 			if (ret < 0)
 				goto out;
 
@@ -843,11 +839,11 @@ static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 		wl12xx_cmd_stop_fwlog(wl);
 
 	/* Read the first memory block address */
-	ret = wlcore_fw_status(wl, wl->fw_status_1, wl->fw_status_2);
+	ret = wlcore_fw_status(wl, wl->fw_status);
 	if (ret < 0)
 		goto out;
 
-	addr = le32_to_cpu(wl->fw_status_2->log_start_addr);
+	addr = wl->fw_status->log_start_addr;
 	if (!addr)
 		goto out;
 
@@ -990,23 +986,23 @@ static int wlcore_fw_wakeup(struct wl1271 *wl)
 
 static int wl1271_setup(struct wl1271 *wl)
 {
-	wl->fw_status_1 = kzalloc(WLCORE_FW_STATUS_1_LEN(wl->num_rx_desc) +
-				  sizeof(*wl->fw_status_2) +
-				  wl->fw_status_priv_len, GFP_KERNEL);
-	if (!wl->fw_status_1)
-		return -ENOMEM;
+	wl->raw_fw_status = kzalloc(wl->fw_status_len, GFP_KERNEL);
+	if (!wl->raw_fw_status)
+		goto err;
 
-	wl->fw_status_2 = (struct wl_fw_status_2 *)
-				(((u8 *) wl->fw_status_1) +
-				WLCORE_FW_STATUS_1_LEN(wl->num_rx_desc));
+	wl->fw_status = kzalloc(sizeof(*wl->fw_status), GFP_KERNEL);
+	if (!wl->fw_status)
+		goto err;
 
 	wl->tx_res_if = kzalloc(sizeof(*wl->tx_res_if), GFP_KERNEL);
-	if (!wl->tx_res_if) {
-		kfree(wl->fw_status_1);
-		return -ENOMEM;
-	}
+	if (!wl->tx_res_if)
+		goto err;
 
 	return 0;
+err:
+	kfree(wl->fw_status);
+	kfree(wl->raw_fw_status);
+	return -ENOMEM;
 }
 
 static int wl12xx_set_power_on(struct wl1271 *wl)
@@ -1952,9 +1948,10 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 
 	wl1271_debugfs_reset(wl);
 
-	kfree(wl->fw_status_1);
-	wl->fw_status_1 = NULL;
-	wl->fw_status_2 = NULL;
+	kfree(wl->raw_fw_status);
+	wl->raw_fw_status = NULL;
+	kfree(wl->fw_status);
+	wl->fw_status = NULL;
 	kfree(wl->tx_res_if);
 	wl->tx_res_if = NULL;
 	kfree(wl->target_mem_map);
@@ -6025,7 +6022,8 @@ int wlcore_free_hw(struct wl1271 *wl)
 	kfree(wl->nvs);
 	wl->nvs = NULL;
 
-	kfree(wl->fw_status_1);
+	kfree(wl->raw_fw_status);
+	kfree(wl->fw_status);
 	kfree(wl->tx_res_if);
 	destroy_workqueue(wl->freezable_wq);
 

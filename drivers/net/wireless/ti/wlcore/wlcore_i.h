@@ -120,70 +120,58 @@ struct wl1271_chip {
 
 #define AP_MAX_STATIONS            8
 
-struct wl_fw_packet_counters {
-	/* Cumulative counter of released packets per AC */
-	u8 tx_released_pkts[NUM_TX_QUEUES];
-
-	/* Cumulative counter of freed packets per HLID */
-	u8 tx_lnk_free_pkts[WL12XX_MAX_LINKS];
-
-	/* Cumulative counter of released Voice memory blocks */
-	u8 tx_voice_released_blks;
-
-	/* Tx rate of the last transmitted packet */
-	u8 tx_last_rate;
-
-	u8 padding[2];
-} __packed;
-
-/* FW status registers */
-struct wl_fw_status_1 {
-	__le32 intr;
+struct wl_fw_status {
+	u32 intr;
 	u8  fw_rx_counter;
 	u8  drv_rx_counter;
-	u8  reserved;
 	u8  tx_results_counter;
-	__le32 rx_pkt_descs[0];
-} __packed;
+	__le32 *rx_pkt_descs;
 
-/*
- * Each HW arch has a different number of Rx descriptors.
- * The length of the status depends on it, since it holds an array
- * of descriptors.
- */
-#define WLCORE_FW_STATUS_1_LEN(num_rx_desc) \
-		(sizeof(struct wl_fw_status_1) + \
-		(sizeof(((struct wl_fw_status_1 *)0)->rx_pkt_descs[0])) * \
-		num_rx_desc)
-
-struct wl_fw_status_2 {
-	__le32 fw_localtime;
+	u32 fw_localtime;
 
 	/*
 	 * A bitmap (where each bit represents a single HLID)
 	 * to indicate if the station is in PS mode.
 	 */
-	__le32 link_ps_bitmap;
+	u32 link_ps_bitmap;
 
 	/*
 	 * A bitmap (where each bit represents a single HLID) to indicate
 	 * if the station is in Fast mode
 	 */
-	__le32 link_fast_bitmap;
+	u32 link_fast_bitmap;
 
 	/* Cumulative counter of total released mem blocks since FW-reset */
-	__le32 total_released_blks;
+	u32 total_released_blks;
 
 	/* Size (in Memory Blocks) of TX pool */
-	__le32 tx_total;
+	u32 tx_total;
 
-	struct wl_fw_packet_counters counters;
+	struct {
+		/*
+		 * Cumulative counter of released packets per AC
+		 * (length of the array is NUM_TX_QUEUES)
+		 */
+		u8 *tx_released_pkts;
 
-	__le32 log_start_addr;
+		/*
+		 * Cumulative counter of freed packets per HLID
+		 * (length of the array is WL12XX_MAX_LINKS)
+		 */
+		u8 *tx_lnk_free_pkts;
+
+		/* Cumulative counter of released Voice memory blocks */
+		u8 tx_voice_released_blks;
+
+		/* Tx rate of the last transmitted packet */
+		u8 tx_last_rate;
+	} counters;
+
+	u32 log_start_addr;
 
 	/* Private status to be used by the lower drivers */
-	u8 priv[0];
-} __packed;
+	void *priv;
+};
 
 #define WL1271_MAX_CHANNELS 64
 struct wl1271_scan {

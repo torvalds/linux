@@ -106,6 +106,15 @@ wlcore_hw_init_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return 0;
 }
 
+static inline void
+wlcore_hw_convert_fw_status(struct wl1271 *wl, void *raw_fw_status,
+			    struct wl_fw_status *fw_status)
+{
+	BUG_ON(!wl->ops->convert_fw_status);
+
+	wl->ops->convert_fw_status(wl, raw_fw_status, fw_status);
+}
+
 static inline u32
 wlcore_hw_sta_get_ap_rate_mask(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
