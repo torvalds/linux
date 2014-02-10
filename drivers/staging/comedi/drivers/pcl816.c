@@ -160,16 +160,25 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_cmd *cmd);
 static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 
-/*
-==============================================================================
-   ANALOG INPUT MODE0, 816 cards, slow version
-*/
+static int pcl816_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + PCL816_STATUS);
+	if ((status & PCL816_STATUS_DRDY_MASK) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int pcl816_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	int ret;
 	int n;
-	int timeout;
 
 	/*  software trigger, DMA and INT off */
 	outb(0, dev->iobase + PCL816_CONTROL);
@@ -185,30 +194,20 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 
 		outb(0, dev->iobase + PCL816_AD_LO);	/* start conversion */
 
-		timeout = 100;
-		while (timeout--) {
-			if (!(inb(dev->iobase + PCL816_STATUS) &
-			      PCL816_STATUS_DRDY_MASK)) {
-				/*  return read value */
-				data[n] =
-				    ((inb(dev->iobase +
-					  PCL816_AD_HI) << 8) |
-				     (inb(dev->iobase + PCL816_AD_LO)));
-				/* clear INT (conversion end) flag */
-				outb(0, dev->iobase + PCL816_CLRINT);
-				break;
-			}
-			udelay(1);
-		}
-		/*  Return timeout error */
-		if (!timeout) {
+		ret = comedi_timeout(dev, s, insn, pcl816_ai_eoc, 0);
+		if (ret) {
 			comedi_error(dev, "A/D insn timeout\n");
 			data[0] = 0;
 			/* clear INT (conversion end) flag */
 			outb(0, dev->iobase + PCL816_CLRINT);
-			return -EIO;
+			return ret;
 		}
 
+		/*  return read value */
+		data[n] = ((inb(dev->iobase + PCL816_AD_HI) << 8) |
+			  (inb(dev->iobase + PCL816_AD_LO)));
+		/* clear INT (conversion end) flag */
+		outb(0, dev->iobase + PCL816_CLRINT);
 	}
 	return n;
 }
