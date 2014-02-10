@@ -42,10 +42,14 @@
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
 
+struct orion_watchdog;
+
 struct orion_watchdog_data {
 	int wdt_counter_offset;
 	int wdt_enable_bit;
 	int rstout_enable_bit;
+	int (*clock_init)(struct platform_device *,
+			  struct orion_watchdog *);
 };
 
 struct orion_watchdog {
@@ -56,6 +60,22 @@ struct orion_watchdog {
 	struct clk *clk;
 	const struct orion_watchdog_data *data;
 };
+
+static int orion_wdt_clock_init(struct platform_device *pdev,
+				struct orion_watchdog *dev)
+{
+	int ret;
+
+	dev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(dev->clk))
+		return PTR_ERR(dev->clk);
+	ret = clk_prepare_enable(dev->clk);
+	if (ret)
+		return ret;
+
+	dev->clk_rate = clk_get_rate(dev->clk);
+	return 0;
+}
 
 static int orion_wdt_ping(struct watchdog_device *wdt_dev)
 {
@@ -172,6 +192,7 @@ static const struct orion_watchdog_data orion_data = {
 	.rstout_enable_bit = BIT(1),
 	.wdt_enable_bit = BIT(4),
 	.wdt_counter_offset = 0x24,
+	.clock_init = orion_wdt_clock_init,
 };
 
 static const struct of_device_id orion_wdt_of_match_table[] = {
@@ -206,34 +227,24 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	dev->wdt.min_timeout = 1;
 	dev->data = match->data;
 
-	dev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dev->clk)) {
-		dev_err(&pdev->dev, "Orion Watchdog missing clock\n");
-		return PTR_ERR(dev->clk);
-	}
-	ret = clk_prepare_enable(dev->clk);
-	if (ret)
-		return ret;
-	dev->clk_rate = clk_get_rate(dev->clk);
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENODEV;
-		goto disable_clk;
-	}
+	if (!res)
+		return -ENODEV;
 
 	dev->reg = devm_ioremap(&pdev->dev, res->start,
 			       resource_size(res));
-	if (!dev->reg) {
-		ret = -ENOMEM;
-		goto disable_clk;
-	}
+	if (!dev->reg)
+		return -ENOMEM;
 
 	dev->rstout = orion_wdt_ioremap_rstout(pdev, res->start &
 						     INTERNAL_REGS_MASK);
-	if (!dev->rstout) {
-		ret = -ENODEV;
-		goto disable_clk;
+	if (!dev->rstout)
+		return -ENODEV;
+
+	ret = dev->data->clock_init(pdev, dev);
+	if (ret) {
+		dev_err(&pdev->dev, "cannot initialize clock\n");
+		return ret;
 	}
 
 	wdt_max_duration = WDT_MAX_CYCLE_COUNT / dev->clk_rate;
