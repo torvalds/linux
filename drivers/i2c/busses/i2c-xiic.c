@@ -684,7 +684,7 @@ static const struct i2c_algorithm xiic_algorithm = {
 static struct i2c_adapter xiic_adapter = {
 	.owner		= THIS_MODULE,
 	.name		= DRIVER_NAME,
-	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
+	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD | I2C_CLASS_DEPRECATED,
 	.algo		= &xiic_algorithm,
 };
 
