@@ -1466,16 +1466,46 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
  *   - it's judged too laborious to fill n static structures with the limit
  *     when a simple if statement does the job,
  *   - run-time checks (eg read fuse/strap registers) are needed.
+ *
+ * This function needs to be called:
+ *   - after the MMIO has been setup as we are reading registers,
+ *   - after the PCH has been detected,
+ *   - before the first usage of the fields it can tweak.
  */
 static void intel_device_info_runtime_init(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_device_info *info;
 
-	info = (struct intel_device_info *)&to_i915(dev)->info;
+	info = (struct intel_device_info *)&dev_priv->info;
 
 	info->num_sprites = 1;
 	if (IS_VALLEYVIEW(dev))
 		info->num_sprites = 2;
+
+	if (info->num_pipes > 0 &&
+	    (INTEL_INFO(dev)->gen == 7 || INTEL_INFO(dev)->gen == 8) &&
+	    !IS_VALLEYVIEW(dev)) {
+		u32 fuse_strap = I915_READ(FUSE_STRAP);
+		u32 sfuse_strap = I915_READ(SFUSE_STRAP);
+
+		/*
+		 * SFUSE_STRAP is supposed to have a bit signalling the display
+		 * is fused off. Unfortunately it seems that, at least in
+		 * certain cases, fused off display means that PCH display
+		 * reads don't land anywhere. In that case, we read 0s.
+		 *
+		 * On CPT/PPT, we can detect this case as SFUSE_STRAP_FUSE_LOCK
+		 * should be set when taking over after the firmware.
+		 */
+		if (fuse_strap & ILK_INTERNAL_DISPLAY_DISABLE ||
+		    sfuse_strap & SFUSE_STRAP_DISPLAY_DISABLED ||
+		    (dev_priv->pch_type == PCH_CPT &&
+		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
+			DRM_INFO("Display fused off, disabling\n");
+			info->num_pipes = 0;
+		}
+	}
 }
 
 /**
