@@ -70,10 +70,6 @@ static unsigned debug;
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
-static unsigned int vid_limit = 16;
-module_param(vid_limit, uint, 0644);
-MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
-
 /* Global font descriptor */
 static const u8 *font8x16;
 
@@ -816,19 +812,15 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 	struct vivi_dev *dev = vb2_get_drv_priv(vq);
 	unsigned long size;
 
-	if (fmt)
+	size = dev->width * dev->height * dev->pixelsize;
+	if (fmt) {
+		if (fmt->fmt.pix.sizeimage < size)
+			return -EINVAL;
 		size = fmt->fmt.pix.sizeimage;
-	else
-		size = dev->width * dev->height * dev->pixelsize;
-
-	if (size == 0)
-		return -EINVAL;
-
-	if (0 == *nbuffers)
-		*nbuffers = 32;
-
-	while (size * *nbuffers > vid_limit * 1024 * 1024)
-		(*nbuffers)--;
+		/* check against insane over 8K resolution buffers */
+		if (size > 7680 * 4320 * dev->pixelsize)
+			return -EINVAL;
+	}
 
 	*nplanes = 1;
 
