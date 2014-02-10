@@ -856,18 +856,17 @@ static void das16_ai_munge(struct comedi_device *dev,
 	}
 }
 
-static int das16_ai_wait_for_conv(struct comedi_device *dev,
-				  unsigned int timeout)
+static int das16_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
 {
 	unsigned int status;
-	int i;
 
-	for (i = 0; i < timeout; i++) {
-		status = inb(dev->iobase + DAS16_STATUS_REG);
-		if (!(status & DAS16_STATUS_BUSY))
-			return 0;
-	}
-	return -ETIME;
+	status = inb(dev->iobase + DAS16_STATUS_REG);
+	if ((status & DAS16_STATUS_BUSY) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int das16_ai_insn_read(struct comedi_device *dev,
@@ -897,7 +896,7 @@ static int das16_ai_insn_read(struct comedi_device *dev,
 		/* trigger conversion */
 		outb_p(0, dev->iobase + DAS16_TRIG_REG);
 
-		ret = das16_ai_wait_for_conv(dev, 1000);
+		ret = comedi_timeout(dev, s, insn, das16_ai_eoc, 0);
 		if (ret)
 			return ret;
 
