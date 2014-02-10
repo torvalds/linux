@@ -294,7 +294,6 @@ struct max310x_port {
 	struct mutex		mutex;
 	struct clk		*clk;
 	struct max310x_pdata	*pdata;
-	int			gpio_used;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip	gpio;
 #endif
@@ -1177,6 +1176,23 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		goto out_clk;
 	}
 
+#ifdef CONFIG_GPIOLIB
+	/* Setup GPIO cotroller */
+	s->gpio.owner		= THIS_MODULE;
+	s->gpio.dev		= dev;
+	s->gpio.label		= dev_name(dev);
+	s->gpio.direction_input	= max310x_gpio_direction_input;
+	s->gpio.get		= max310x_gpio_get;
+	s->gpio.direction_output= max310x_gpio_direction_output;
+	s->gpio.set		= max310x_gpio_set;
+	s->gpio.base		= -1;
+	s->gpio.ngpio		= devtype->nr * 4;
+	s->gpio.can_sleep	= 1;
+	ret = gpiochip_add(&s->gpio);
+	if (ret)
+		goto out_uart;
+#endif
+
 	for (i = 0; i < devtype->nr; i++) {
 		/* Initialize port data */
 		s->p[i].port.line	= i;
@@ -1208,25 +1224,6 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		devtype->power(&s->p[i].port, 0);
 	}
 
-#ifdef CONFIG_GPIOLIB
-	/* Setup GPIO cotroller */
-	if (s->pdata->gpio_base) {
-		s->gpio.owner		= THIS_MODULE;
-		s->gpio.dev		= dev;
-		s->gpio.label		= dev_name(dev);
-		s->gpio.direction_input	= max310x_gpio_direction_input;
-		s->gpio.get		= max310x_gpio_get;
-		s->gpio.direction_output= max310x_gpio_direction_output;
-		s->gpio.set		= max310x_gpio_set;
-		s->gpio.base		= s->pdata->gpio_base;
-		s->gpio.ngpio		= devtype->nr * 4;
-		s->gpio.can_sleep	= 1;
-		if (!gpiochip_add(&s->gpio))
-			s->gpio_used = 1;
-	} else
-		dev_info(dev, "GPIO support not enabled\n");
-#endif
-
 	/* Setup interrupt */
 	ret = devm_request_threaded_irq(dev, irq, NULL, max310x_ist,
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
@@ -1235,10 +1232,13 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		return 0;
 
 	dev_err(dev, "Unable to reguest IRQ %i\n", irq);
+
 #ifdef CONFIG_GPIOLIB
-	if (s->gpio_used)
-		WARN_ON(gpiochip_remove(&s->gpio));
+	WARN_ON(gpiochip_remove(&s->gpio));
 #endif
+
+out_uart:
+	uart_unregister_driver(&s->uart);
 
 out_clk:
 	clk_disable_unprepare(s->clk);
@@ -1251,6 +1251,12 @@ static int max310x_remove(struct device *dev)
 	struct max310x_port *s = dev_get_drvdata(dev);
 	int i, ret = 0;
 
+#ifdef CONFIG_GPIOLIB
+	ret = gpiochip_remove(&s->gpio);
+	if (ret)
+		return ret;
+#endif
+
 	for (i = 0; i < s->uart.nr; i++) {
 		cancel_work_sync(&s->p[i].tx_work);
 		cancel_work_sync(&s->p[i].md_work);
@@ -1260,11 +1266,6 @@ static int max310x_remove(struct device *dev)
 
 	uart_unregister_driver(&s->uart);
 	clk_disable_unprepare(s->clk);
-
-#ifdef CONFIG_GPIOLIB
-	if (s->gpio_used)
-		ret = gpiochip_remove(&s->gpio);
-#endif
 
 	return ret;
 }

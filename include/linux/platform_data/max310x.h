@@ -21,7 +21,6 @@
  *
  * static struct max310x_pdata max3107_pdata = {
  *	.uart_flags[0]	= MAX310X_ECHO_SUPRESS | MAX310X_AUTO_DIR_CTRL,
- *	.gpio_base	= -1,
  * };
  *
  * static struct spi_board_info spi_device_max3107[] = {
@@ -45,8 +44,6 @@ struct max310x_pdata {
 #define MAX310X_AUTO_DIR_CTRL	(0x00000004)	/* Enable Auto direction
 						 * control (RS-485)
 						 */
-	/* GPIO base number (can be negative) */
-	const int		gpio_base;
 };
 
 #endif
