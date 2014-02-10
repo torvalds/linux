@@ -193,9 +193,6 @@ static const u8 hid_reportid_size_map[NUMBER_OF_HID_REPORTS] = {
 
 static struct hid_ll_driver logi_dj_ll_driver;
 
-static int logi_dj_output_hidraw_report(struct hid_device *hid, u8 * buf,
-					size_t count,
-					unsigned char report_type);
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev);
 
 static void logi_dj_recv_destroy_djhid_device(struct dj_receiver_dev *djrcv_dev,
@@ -262,7 +259,6 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	}
 
 	dj_hiddev->ll_driver = &logi_dj_ll_driver;
-	dj_hiddev->hid_output_raw_report = logi_dj_output_hidraw_report;
 
 	dj_hiddev->dev.parent = &djrcv_hdev->dev;
 	dj_hiddev->bus = BUS_USB;
@@ -544,9 +540,10 @@ static void logi_dj_ll_close(struct hid_device *hid)
 	dbg_hid("%s:%s\n", __func__, hid->phys);
 }
 
-static int logi_dj_output_hidraw_report(struct hid_device *hid, u8 * buf,
-					size_t count,
-					unsigned char report_type)
+static int logi_dj_ll_raw_request(struct hid_device *hid,
+				  unsigned char reportnum, __u8 *buf,
+				  size_t count, unsigned char report_type,
+				  int reqtype)
 {
 	struct dj_device *djdev = hid->driver_data;
 	struct dj_receiver_dev *djrcv_dev = djdev->dj_receiver_dev;
@@ -567,15 +564,8 @@ static int logi_dj_output_hidraw_report(struct hid_device *hid, u8 * buf,
 	out_buf[1] = djdev->device_index;
 	memcpy(out_buf + 2, buf, count);
 
-	/*
-	 * hid-generic calls us with hid_output_raw_report(), but the LEDs
-	 * are set through a SET_REPORT command. It works for USB-HID devices
-	 * because usbhid either calls a SET_REPORT or directly send the output
-	 * report depending if the device presents an urbout.
-	 * Let be simple, send a SET_REPORT request.
-	 */
 	ret = hid_hw_raw_request(djrcv_dev->hdev, out_buf[0], out_buf,
-		DJREPORT_SHORT_LENGTH, report_type, HID_REQ_SET_REPORT);
+		DJREPORT_SHORT_LENGTH, report_type, reqtype);
 
 	kfree(out_buf);
 	return ret;
@@ -662,6 +652,7 @@ static struct hid_ll_driver logi_dj_ll_driver = {
 	.stop = logi_dj_ll_stop,
 	.open = logi_dj_ll_open,
 	.close = logi_dj_ll_close,
+	.raw_request = logi_dj_ll_raw_request,
 };
 
 
