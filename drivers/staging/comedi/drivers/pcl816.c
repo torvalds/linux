@@ -480,15 +480,6 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int seglen;
 
-	if (cmd->start_src != TRIG_NOW)
-		return -EINVAL;
-	if (cmd->scan_begin_src != TRIG_FOLLOW)
-		return -EINVAL;
-	if (cmd->scan_end_src != TRIG_COUNT)
-		return -EINVAL;
-	if (cmd->scan_end_arg != cmd->chanlist_len)
-		return -EINVAL;
-/* if(cmd->chanlist_len>MAX_CHANLIST_LEN) return -EINVAL; */
 	if (devpriv->irq_blocked)
 		return -EBUSY;
 
