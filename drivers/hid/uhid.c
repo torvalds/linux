@@ -164,27 +164,7 @@ static int uhid_hid_output_raw(struct hid_device *hid, __u8 *buf, size_t count,
 static int uhid_hid_output_report(struct hid_device *hid, __u8 *buf,
 				  size_t count)
 {
-	struct uhid_device *uhid = hid->driver_data;
-	unsigned long flags;
-	struct uhid_event *ev;
-
-	if (count < 1 || count > UHID_DATA_MAX)
-		return -EINVAL;
-
-	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-	if (!ev)
-		return -ENOMEM;
-
-	ev->type = UHID_OUTPUT;
-	ev->u.output.size = count;
-	ev->u.output.rtype = UHID_OUTPUT_REPORT;
-	memcpy(ev->u.output.data, buf, count);
-
-	spin_lock_irqsave(&uhid->qlock, flags);
-	uhid_queue(uhid, ev);
-	spin_unlock_irqrestore(&uhid->qlock, flags);
-
-	return count;
+	return uhid_hid_output_raw(hid, buf, count, HID_OUTPUT_REPORT);
 }
 
 static struct hid_ll_driver uhid_hid_driver = {
