@@ -815,7 +815,7 @@ static const struct mips_perf_event mipsxxcore_event_map
 };
 
 /* 74K core has different branch event code. */
-static const struct mips_perf_event mipsxx74Kcore_event_map
+static const struct mips_perf_event mipsxxcore_event_map2
 				[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = { 0x00, CNTR_EVEN | CNTR_ODD, P },
 	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x01, CNTR_EVEN | CNTR_ODD, T },
@@ -931,7 +931,7 @@ static const struct mips_perf_event mipsxxcore_cache_map
 };
 
 /* 74K core has completely different cache event map. */
-static const struct mips_perf_event mipsxx74Kcore_cache_map
+static const struct mips_perf_event mipsxxcore_cache_map2
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
@@ -1577,8 +1577,8 @@ init_hw_perf_events(void)
 		break;
 	case CPU_74K:
 		mipspmu.name = "mips/74K";
-		mipspmu.general_event_map = &mipsxx74Kcore_event_map;
-		mipspmu.cache_event_map = &mipsxx74Kcore_cache_map;
+		mipspmu.general_event_map = &mipsxxcore_event_map2;
+		mipspmu.cache_event_map = &mipsxxcore_cache_map2;
 		break;
 	case CPU_1004K:
 		mipspmu.name = "mips/1004K";
