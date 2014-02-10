@@ -218,15 +218,16 @@ static ssize_t autosuspend_delay_ms_store(struct device *dev,
 static DEVICE_ATTR(autosuspend_delay_ms, 0644, autosuspend_delay_ms_show,
 		autosuspend_delay_ms_store);
 
-static ssize_t pm_qos_latency_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t pm_qos_resume_latency_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
 {
-	return sprintf(buf, "%d\n", dev_pm_qos_requested_latency(dev));
+	return sprintf(buf, "%d\n", dev_pm_qos_requested_resume_latency(dev));
 }
 
-static ssize_t pm_qos_latency_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t n)
+static ssize_t pm_qos_resume_latency_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t n)
 {
 	s32 value;
 	int ret;
@@ -237,12 +238,13 @@ static ssize_t pm_qos_latency_store(struct device *dev,
 	if (value < 0)
 		return -EINVAL;
 
-	ret = dev_pm_qos_update_request(dev->power.qos->latency_req, value);
+	ret = dev_pm_qos_update_request(dev->power.qos->resume_latency_req,
+					value);
 	return ret < 0 ? ret : n;
 }
 
 static DEVICE_ATTR(pm_qos_resume_latency_us, 0644,
-		   pm_qos_latency_show, pm_qos_latency_store);
+		   pm_qos_resume_latency_show, pm_qos_resume_latency_store);
 
 static ssize_t pm_qos_no_power_off_show(struct device *dev,
 					struct device_attribute *attr,
@@ -618,15 +620,15 @@ static struct attribute_group pm_runtime_attr_group = {
 	.attrs	= runtime_attrs,
 };
 
-static struct attribute *pm_qos_latency_attrs[] = {
+static struct attribute *pm_qos_resume_latency_attrs[] = {
 #ifdef CONFIG_PM_RUNTIME
 	&dev_attr_pm_qos_resume_latency_us.attr,
 #endif /* CONFIG_PM_RUNTIME */
 	NULL,
 };
-static struct attribute_group pm_qos_latency_attr_group = {
+static struct attribute_group pm_qos_resume_latency_attr_group = {
 	.name	= power_group_name,
-	.attrs	= pm_qos_latency_attrs,
+	.attrs	= pm_qos_resume_latency_attrs,
 };
 
 static struct attribute *pm_qos_flags_attrs[] = {
@@ -681,14 +683,14 @@ void wakeup_sysfs_remove(struct device *dev)
 	sysfs_unmerge_group(&dev->kobj, &pm_wakeup_attr_group);
 }
 
-int pm_qos_sysfs_add_latency(struct device *dev)
+int pm_qos_sysfs_add_resume_latency(struct device *dev)
 {
-	return sysfs_merge_group(&dev->kobj, &pm_qos_latency_attr_group);
+	return sysfs_merge_group(&dev->kobj, &pm_qos_resume_latency_attr_group);
 }
 
-void pm_qos_sysfs_remove_latency(struct device *dev)
+void pm_qos_sysfs_remove_resume_latency(struct device *dev)
 {
-	sysfs_unmerge_group(&dev->kobj, &pm_qos_latency_attr_group);
+	sysfs_unmerge_group(&dev->kobj, &pm_qos_resume_latency_attr_group);
 }
 
 int pm_qos_sysfs_add_flags(struct device *dev)

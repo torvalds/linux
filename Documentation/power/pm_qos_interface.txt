@@ -89,16 +89,16 @@ node.
 2. PM QoS per-device latency and flags framework
 
 For each device, there are two lists of PM QoS requests. One is maintained
-along with the aggregated target of latency value and the other is for PM QoS
-flags. Values are updated in response to changes of the request list.
+along with the aggregated target of resume latency value and the other is for
+PM QoS flags. Values are updated in response to changes of the request list.
 
-Target latency value is simply the minimum of the request values held in the
-parameter list elements.  The PM QoS flags aggregate value is a gather (bitwise
-OR) of all list elements' values. Two device PM QoS flags are defined currently:
-PM_QOS_FLAG_NO_POWER_OFF and PM_QOS_FLAG_REMOTE_WAKEUP.
+Target resume latency value is simply the minimum of the request values held in
+the parameter list elements.  The PM QoS flags aggregate value is a gather
+(bitwise OR) of all list elements' values.  Two device PM QoS flags are defined
+currently: PM_QOS_FLAG_NO_POWER_OFF and PM_QOS_FLAG_REMOTE_WAKEUP.
 
-Note: the aggregated target value is implemented as an atomic variable so that
-reading the aggregated value does not require any locking mechanism.
+Note: the aggregated target value is implemented in such a way that reading the
+aggregated value does not require any locking mechanism.
 
 
 From kernel mode the use of this interface is the following:
@@ -137,14 +137,14 @@ Add a PM QoS request for the first direct ancestor of the given device whose
 power.ignore_children flag is unset.
 
 int dev_pm_qos_expose_latency_limit(device, value)
-Add a request to the device's PM QoS list of latency constraints and create
-a sysfs attribute pm_qos_resume_latency_us under the device's power directory
-allowing user space to manipulate that request.
+Add a request to the device's PM QoS list of resume latency constraints and
+create a sysfs attribute pm_qos_resume_latency_us under the device's power
+directory allowing user space to manipulate that request.
 
 void dev_pm_qos_hide_latency_limit(device)
 Drop the request added by dev_pm_qos_expose_latency_limit() from the device's
-PM QoS list of latency constraints and remove sysfs attribute pm_qos_resume_latency_us
-from the device's power directory.
+PM QoS list of resume latency constraints and remove sysfs attribute
+pm_qos_resume_latency_us from the device's power directory.
 
 int dev_pm_qos_expose_flags(device, value)
 Add a request to the device's PM QoS list of flags and create sysfs attributes
@@ -163,7 +163,7 @@ a per-device notification tree and a global notification tree.
 int dev_pm_qos_add_notifier(device, notifier):
 Adds a notification callback function for the device.
 The callback is called when the aggregated value of the device constraints list
-is changed.
+is changed (for resume latency device PM QoS only).
 
 int dev_pm_qos_remove_notifier(device, notifier):
 Removes the notification callback function for the device.
@@ -171,14 +171,9 @@ Removes the notification callback function for the device.
 int dev_pm_qos_add_global_notifier(notifier):
 Adds a notification callback function in the global notification tree of the
 framework.
-The callback is called when the aggregated value for any device is changed.
+The callback is called when the aggregated value for any device is changed
+(for resume latency device PM QoS only).
 
 int dev_pm_qos_remove_global_notifier(notifier):
 Removes the notification callback function from the global notification tree
 of the framework.
-
-
-From user mode:
-No API for user space access to the per-device latency constraints is provided
-yet - still under discussion.
-
