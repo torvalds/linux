@@ -782,10 +782,11 @@ out:
 
 void wl12xx_queue_recovery_work(struct wl1271 *wl)
 {
-	WARN_ON(!test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags));
-
 	/* Avoid a recursive recovery */
 	if (wl->state == WLCORE_STATE_ON) {
+		WARN_ON(!test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY,
+				  &wl->flags));
+
 		wl->state = WLCORE_STATE_RESTARTING;
 		set_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
 		wl1271_ps_elp_wakeup(wl);
