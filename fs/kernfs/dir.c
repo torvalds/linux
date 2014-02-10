@@ -1295,7 +1295,7 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 
 	spin_unlock_irq(&kernfs_rename_lock);
 
-	kn->hash = kernfs_name_hash(new_name, new_ns);
+	kn->hash = kernfs_name_hash(kn->name, kn->ns);
 	kernfs_link_sibling(kn);
 
 	kernfs_put(old_parent);
