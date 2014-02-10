@@ -85,7 +85,7 @@ static void mali_gpu_stop(int unit, int core)
 	int count;
 	int last_tgid = 0;
 	int last_pid = 0;
-	int last_job_id = 0;
+	//int last_job_id = 0;
 
 	spin_lock(&mali_gpu_jobs_lock);
 	if (mali_gpu_jobs[unit][core].count == 0) {
@@ -97,7 +97,7 @@ static void mali_gpu_stop(int unit, int core)
 	if (count) {
 		last_tgid = mali_gpu_jobs[unit][core].last_tgid;
 		last_pid = mali_gpu_jobs[unit][core].last_pid;
-		last_job_id = mali_gpu_jobs[unit][core].last_job_id;
+		//last_job_id = mali_gpu_jobs[unit][core].last_job_id;
 	}
 	spin_unlock(&mali_gpu_jobs_lock);
 
@@ -242,7 +242,7 @@ int gator_trace_gpu_start(void)
 	 * Absence of gpu trace points is not an error
 	 */
 
-	memset(&mali_gpu_jobs, sizeof(mali_gpu_jobs), 0);
+	memset(&mali_gpu_jobs, 0, sizeof(mali_gpu_jobs));
 	gpu_trace_registered = mali_timeline_trace_registered = mali_job_slots_trace_registered = 0;
 
 #if defined(MALI_SUPPORT) && (MALI_SUPPORT != MALI_T6xx)

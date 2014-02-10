@@ -63,6 +63,10 @@ private:
 	double previous_value;
 
 	sensors_subfeature_type input;
+
+	// Intentionally unimplemented
+	HwmonCounter(const HwmonCounter &);
+	HwmonCounter &operator=(const HwmonCounter &);
 };
 
 HwmonCounter::HwmonCounter(HwmonCounter *next, int key, const sensors_chip_name *chip, const sensors_feature *feature) : next(next), key(key), polled(false), readable(false), enabled(false), duplicate(false), chip(chip), feature(feature) {

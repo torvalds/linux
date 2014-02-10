@@ -33,6 +33,10 @@ private:
 	FILE* mDataFile;
 	char* mDataFileName;
 	pthread_mutex_t mSendMutex;
+
+	// Intentionally unimplemented
+	Sender(const Sender &);
+	Sender &operator=(const Sender &);
 };
 
 #endif 	//__SENDER_H__

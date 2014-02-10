@@ -36,3 +36,13 @@
     <event counter="ARM_Mali-T6xx_MMU_PAGE_FAULT_2" title="Mali MMU Page Fault Add. Space" name="Mali MMU Page Fault Add. Space 2" description="Reports the number of newly allocated pages after a MMU page fault in address space 2."/>
     <event counter="ARM_Mali-T6xx_MMU_PAGE_FAULT_3" title="Mali MMU Page Fault Add. Space" name="Mali MMU Page Fault Add. Space 3" description="Reports the number of newly allocated pages after a MMU page fault in address space 3."/>
   </category>
+
+  <counter_set name="ARM_Mali-T6xx_Filmstrip_cnt" count="1"/>
+  <category name="ARM Mali-T6xx Filmstrip" counter_set="ARM_Mali-T6xx_Filmstrip_cnt" per_cpu="no">
+    <option_set name="fs">
+      <option event_delta="0x3c" name="1:60" description="captures every 60th frame"/>
+      <option event_delta="0x1e" name="1:30" description="captures every 30th frame"/>
+      <option event_delta="0xa" name="1:10" description="captures every 10th frame"/>
+    </option_set>
+    <event event="0x0400" option_set="fs" title="ARM Mali-T6xx" name="Filmstrip" description="Scaled framebuffer"/>
+  </category>

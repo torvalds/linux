@@ -38,6 +38,10 @@ private:
 	void sendDefaults();
 	void sendCounters();
 	void writeConfiguration(char* xml);
+
+	// Intentionally unimplemented
+	StreamlineSetup(const StreamlineSetup &);
+	StreamlineSetup &operator=(const StreamlineSetup &);
 };
 
 #endif 	//__STREAMLINE_SETUP_H__

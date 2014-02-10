@@ -415,24 +415,11 @@ static void mali_counter_initialize(void)
 	int i;
 	int core_id;
 
-	mali_osk_fb_control_set_type *mali_set_fb_event;
 	mali_profiling_control_type *mali_control;
 
 	init_counters(COUNTER_L2_0_C0, COUNTER_L2_0_C0 + (2 * n_l2_cores) - 1);
 	init_counters(COUNTER_VP_0_C0, COUNTER_VP_0_C0 + (2 * n_vp_cores) - 1);
 	init_counters(COUNTER_FP_0_C0, COUNTER_FP_0_C0 + (2 * n_fp_cores) - 1);
-
-	mali_set_fb_event = symbol_get(_mali_osk_fb_control_set);
-
-	if (mali_set_fb_event) {
-		pr_debug("gator: mali online _mali_osk_fb_control_set symbol @ %p\n", mali_set_fb_event);
-
-		mali_set_fb_event(0, (counter_enabled[COUNTER_FILMSTRIP] ? 1 : 0));
-
-		symbol_put(_mali_osk_fb_control_set);
-	} else {
-		printk("gator: mali online _mali_osk_fb_control_set symbol not found\n");
-	}
 
 	/* Generic control interface for Mali DDK. */
 	mali_control = symbol_get(_mali_profiling_control);
@@ -491,7 +478,6 @@ static void mali_counter_initialize(void)
 static void mali_counter_deinitialize(void)
 {
 	mali_profiling_set_event_type *mali_set_hw_event;
-	mali_osk_fb_control_set_type *mali_set_fb_event;
 	mali_profiling_control_type *mali_control;
 
 	mali_set_hw_event = symbol_get(_mali_profiling_set_event);
@@ -509,23 +495,11 @@ static void mali_counter_deinitialize(void)
 		printk("gator: mali offline _mali_profiling_set_event symbol not found\n");
 	}
 
-	mali_set_fb_event = symbol_get(_mali_osk_fb_control_set);
-
-	if (mali_set_fb_event) {
-		pr_debug("gator: mali offline _mali_osk_fb_control_set symbol @ %p\n", mali_set_fb_event);
-
-		mali_set_fb_event(0, 0);
-
-		symbol_put(_mali_osk_fb_control_set);
-	} else {
-		printk("gator: mali offline _mali_osk_fb_control_set symbol not found\n");
-	}
-
 	/* Generic control interface for Mali DDK. */
 	mali_control = symbol_get(_mali_profiling_control);
 
 	if (mali_control) {
-		pr_debug("gator: mali offline _mali_profiling_control symbol @ %p\n", mali_set_fb_event);
+		pr_debug("gator: mali offline _mali_profiling_control symbol @ %p\n", mali_control);
 
 		/* Reset the DDK state - disable counter collection */
 		mali_control(SW_COUNTER_ENABLE, 0);
@@ -747,5 +721,3 @@ int gator_events_mali_init(void)
 
 	return gator_events_install(&gator_events_mali_interface);
 }
-
-gator_events_init(gator_events_mali_init);

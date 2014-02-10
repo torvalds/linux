@@ -16,7 +16,7 @@
 
 #define MAX_PERFORMANCE_COUNTERS	50
 
-#define PROTOCOL_VERSION	16
+#define PROTOCOL_VERSION	17
 #define PROTOCOL_DEV		1000	// Differentiates development versions (timestamp) from release versions
 
 struct ImageLinkList {
@@ -62,6 +62,10 @@ public:
 
 private:
 	void readCpuInfo();
+
+	// Intentionally unimplemented
+	SessionData(const SessionData &);
+	SessionData &operator=(const SessionData &);
 };
 
 extern SessionData* gSessionData;

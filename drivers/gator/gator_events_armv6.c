@@ -234,11 +234,4 @@ int gator_events_armv6_init(void)
 	return gator_events_install(&gator_events_armv6_interface);
 }
 
-gator_events_init(gator_events_armv6_init);
-
-#else
-int gator_events_armv6_init(void)
-{
-	return -1;
-}
 #endif

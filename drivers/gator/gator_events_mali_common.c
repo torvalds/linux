@@ -28,7 +28,7 @@ extern const char *gator_mali_get_mali_name(void)
 	}
 }
 
-extern int gator_mali_create_file_system(const char *mali_name, const char *event_name, struct super_block *sb, struct dentry *root, mali_counter *counter)
+extern int gator_mali_create_file_system(const char *mali_name, const char *event_name, struct super_block *sb, struct dentry *root, mali_counter *counter, unsigned long *event)
 {
 	int err;
 	char buf[255];
@@ -55,6 +55,13 @@ extern int gator_mali_create_file_system(const char *mali_name, const char *even
 		if (err != 0) {
 			pr_debug("gator: Mali-T6xx: error calling gatorfs_create_ro_ulong for: %s (%s)", event_name, buf);
 			return -1;
+		}
+		if (event != NULL) {
+			err = gatorfs_create_ulong(sb, dir, "event", event);
+			if (err != 0) {
+				pr_debug("gator: Mali-T6xx: error calling gatorfs_create_ro_ulong for: %s (%s)", event_name, buf);
+				return -1;
+			}
 		}
 	}
 

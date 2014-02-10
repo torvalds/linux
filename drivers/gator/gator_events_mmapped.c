@@ -11,12 +11,18 @@
  * To add them to the events.xml, create an events-mmap.xml with the 
  * following contents and rebuild gatord:
  *
- * <counter_set name="mmaped_cnt" count="3"/>
- * <category name="mmaped" counter_set="mmaped_cnt" per_cpu="no">
+ * <counter_set name="mmapped_cnt" count="3"/>
+ * <category name="mmapped" counter_set="mmapped_cnt" per_cpu="no">
  *   <event event="0x0" title="Simulated1" name="Sine" display="maximum" average_selection="yes" description="Sort-of-sine"/>
  *   <event event="0x1" title="Simulated2" name="Triangle" display="maximum" average_selection="yes" description="Triangular wave"/>
  *   <event event="0x2" title="Simulated3" name="PWM" display="maximum" average_selection="yes" description="PWM Signal"/>
  * </category>
+ *
+ * When adding custom events, be sure do the following
+ * - add any needed .c files to the gator driver Makefile
+ * - call gator_events_install in the events init function
+ * - add the init function to GATOR_EVENTS_LIST in gator_main.c
+ * - add a new events-*.xml file to the gator daemon and rebuild
  */
 
 #include <linux/init.h>
@@ -25,79 +31,71 @@
 
 #include "gator.h"
 
-#define MMAPED_COUNTERS_NUM 3
+#define MMAPPED_COUNTERS_NUM 3
+
+static int mmapped_global_enabled;
 
 static struct {
 	unsigned long enabled;
 	unsigned long event;
 	unsigned long key;
-} mmaped_counters[MMAPED_COUNTERS_NUM];
+} mmapped_counters[MMAPPED_COUNTERS_NUM];
 
-static int mmaped_buffer[MMAPED_COUNTERS_NUM * 2];
+static int mmapped_buffer[MMAPPED_COUNTERS_NUM * 2];
 
-#ifdef TODO
-static void __iomem *mmaped_base;
-#endif
-
-#ifndef TODO
 static s64 prev_time;
-#endif
 
-/* Adds mmaped_cntX directories and enabled, event, and key files to /dev/gator/events */
-static int gator_events_mmaped_create_files(struct super_block *sb,
+/* Adds mmapped_cntX directories and enabled, event, and key files to /dev/gator/events */
+static int gator_events_mmapped_create_files(struct super_block *sb,
 					    struct dentry *root)
 {
 	int i;
 
-	for (i = 0; i < MMAPED_COUNTERS_NUM; i++) {
+	for (i = 0; i < MMAPPED_COUNTERS_NUM; i++) {
 		char buf[16];
 		struct dentry *dir;
 
-		snprintf(buf, sizeof(buf), "mmaped_cnt%d", i);
+		snprintf(buf, sizeof(buf), "mmapped_cnt%d", i);
 		dir = gatorfs_mkdir(sb, root, buf);
 		if (WARN_ON(!dir))
 			return -1;
 		gatorfs_create_ulong(sb, dir, "enabled",
-				     &mmaped_counters[i].enabled);
+				     &mmapped_counters[i].enabled);
 		gatorfs_create_ulong(sb, dir, "event",
-				     &mmaped_counters[i].event);
+				     &mmapped_counters[i].event);
 		gatorfs_create_ro_ulong(sb, dir, "key",
-					&mmaped_counters[i].key);
+					&mmapped_counters[i].key);
 	}
 
 	return 0;
 }
 
-static int gator_events_mmaped_start(void)
+static int gator_events_mmapped_start(void)
 {
-#ifdef TODO
-	for (i = 0; i < MMAPED_COUNTERS_NUM; i++)
-		writel(mmaped_counters[i].event,
-		       mmaped_base + COUNTERS_CONFIG_OFFSET[i]);
-
-	writel(ENABLED, COUNTERS_CONTROL_OFFSET);
-#endif
-
-#ifndef TODO
+	int i;
 	struct timespec ts;
+
 	getnstimeofday(&ts);
 	prev_time = timespec_to_ns(&ts);
-#endif
+
+	mmapped_global_enabled = 0;
+	for (i = 0; i < MMAPPED_COUNTERS_NUM; i++) {
+		if (mmapped_counters[i].enabled) {
+			mmapped_global_enabled = 1;
+			break;
+		}
+	}
 
 	return 0;
 }
 
-static void gator_events_mmaped_stop(void)
+static void gator_events_mmapped_stop(void)
 {
-#ifdef TODO
-	writel(DISABLED, COUNTERS_CONTROL_OFFSET);
-#endif
 }
 
-#ifndef TODO
 /* This function "simulates" counters, generating values of fancy
  * functions like sine or triangle... */
-static int mmaped_simulate(int counter, int delta_in_us)
+static int mmapped_simulate(int counter, int delta_in_us)
 {
 	int result = 0;
 
@@ -157,73 +155,55 @@ static int mmaped_simulate(int counter, int delta_in_us)
 
 	return result;
 }
-#endif
 
-static int gator_events_mmaped_read(int **buffer)
+static int gator_events_mmapped_read(int **buffer)
 {
 	int i;
 	int len = 0;
-#ifndef TODO
 	int delta_in_us;
 	struct timespec ts;
 	s64 time;
-#endif
 
 	/* System wide counters - read from one core only */
-	if (!on_primary_core())
+	if (!on_primary_core() || !mmapped_global_enabled)
 		return 0;
 
-#ifndef TODO
 	getnstimeofday(&ts);
 	time = timespec_to_ns(&ts);
 	delta_in_us = (int)(time - prev_time) / 1000;
 	prev_time = time;
-#endif
 
-	for (i = 0; i < MMAPED_COUNTERS_NUM; i++) {
-		if (mmaped_counters[i].enabled) {
-			mmaped_buffer[len++] = mmaped_counters[i].key;
-#ifdef TODO
-			mmaped_buffer[len++] =
-			    readl(mmaped_base + COUNTERS_VALUE_OFFSET[i]);
-#else
-			mmaped_buffer[len++] =
-			    mmaped_simulate(mmaped_counters[i].event,
+	for (i = 0; i < MMAPPED_COUNTERS_NUM; i++) {
+		if (mmapped_counters[i].enabled) {
+			mmapped_buffer[len++] = mmapped_counters[i].key;
+			mmapped_buffer[len++] =
+			    mmapped_simulate(mmapped_counters[i].event,
 					    delta_in_us);
-#endif
 		}
 	}
 
 	if (buffer)
-		*buffer = mmaped_buffer;
+		*buffer = mmapped_buffer;
 
 	return len;
 }
 
-static struct gator_interface gator_events_mmaped_interface = {
-	.create_files = gator_events_mmaped_create_files,
-	.start = gator_events_mmaped_start,
-	.stop = gator_events_mmaped_stop,
-	.read = gator_events_mmaped_read,
+static struct gator_interface gator_events_mmapped_interface = {
+	.create_files = gator_events_mmapped_create_files,
+	.start = gator_events_mmapped_start,
+	.stop = gator_events_mmapped_stop,
+	.read = gator_events_mmapped_read,
 };
 
 /* Must not be static! */
-int __init gator_events_mmaped_init(void)
+int __init gator_events_mmapped_init(void)
 {
 	int i;
 
-#ifdef TODO
-	mmaped_base = ioremap(COUNTERS_PHYS_ADDR, SZ_4K);
-	if (!mmaped_base)
-		return -ENOMEM;
-#endif
-
-	for (i = 0; i < MMAPED_COUNTERS_NUM; i++) {
-		mmaped_counters[i].enabled = 0;
-		mmaped_counters[i].key = gator_events_get_key();
+	for (i = 0; i < MMAPPED_COUNTERS_NUM; i++) {
+		mmapped_counters[i].enabled = 0;
+		mmapped_counters[i].key = gator_events_get_key();
 	}
 
-	return gator_events_install(&gator_events_mmaped_interface);
+	return gator_events_install(&gator_events_mmapped_interface);
 }
-
-gator_events_init(gator_events_mmaped_init);

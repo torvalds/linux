@@ -63,6 +63,8 @@ static kbase_instr_hwcnt_disable_type *kbase_instr_hwcnt_disable_symbol;
 static kbase_va_free_type *kbase_va_free_symbol;
 static kbase_destroy_context_type *kbase_destroy_context_symbol;
 
+static long shader_present_low = 0;
+
 /** The interval between reads, in ns.
  *
  * Earlier we introduced
@@ -496,6 +498,7 @@ static int start(void)
 	mali_error err;
 	int cnt;
 	u16 bitmask[] = { 0, 0, 0, 0 };
+	unsigned long long shadersPresent = 0;
 
 	/* Setup HW counters */
 	num_hardware_counters_enabled = 0;
@@ -538,6 +541,11 @@ static int start(void)
 			pr_debug("gator: Mali-T6xx: error creating kbase context\n");
 			goto out;
 		}
+
+
+		/* See if we can get the number of shader cores */
+		shadersPresent = kbdevice->shader_present_bitmap;
+		shader_present_low = (unsigned long)shadersPresent;
 
 		/*
 		 * The amount of memory needed to store the dump (bytes)
@@ -679,21 +687,41 @@ static int read(int **buffer)
 			kbase_device_busy = false;
 
 			if (success == MALI_TRUE) {
+				/* Cycle through hardware counters and accumulate totals */
 				for (cnt = 0; cnt < NUMBER_OF_HARDWARE_COUNTERS; cnt++) {
 					const mali_counter *counter = &counters[cnt];
 					if (counter->enabled) {
 						const int block = GET_HW_BLOCK(cnt);
 						const int counter_offset = GET_COUNTER_OFFSET(cnt);
-						const u32 *counter_block = (u32 *) ((uintptr_t)kernel_dump_buffer + vithar_blocks[block]);
-						const u32 *counter_address = counter_block + counter_offset;
 
-						value = *counter_address;
+						const char* block_base_address = (char*)kernel_dump_buffer + vithar_blocks[block];
 
+						/* If counter belongs to shader block need to take into account all cores */
 						if (block == SHADER_BLOCK) {
-							/* (counter_address + 0x000) has already been accounted-for above. */
-							value += *(counter_address + 0x100);
-							value += *(counter_address + 0x200);
-							value += *(counter_address + 0x300);
+							int i = 0;
+							int shader_core_count = 0;
+							value = 0;
+
+							for (i = 0; i < 4; i++) {
+								if ((shader_present_low >> i) & 1) {
+									value += *((u32*) (block_base_address + (0x100 * i)) + counter_offset);
+									shader_core_count++;
+								}
+							}
+
+							for (i = 0; i < 4; i++) {
+								if((shader_present_low >> (i+4)) & 1) {
+									value += *((u32*)(block_base_address + (0x100 * i) + 0x800) + counter_offset);
+									shader_core_count++;
+								}
+							}
+
+							/* Need to total by number of cores to produce an average */
+							if (shader_core_count != 0) {
+								value /= shader_core_count;
+							}
+						} else {
+							value = *((u32*)block_base_address + counter_offset);
 						}
 
 						counter_dump[len++] = counter->key;
@@ -727,7 +755,7 @@ static int create_files(struct super_block *sb, struct dentry *root)
 	const char *mali_name = gator_mali_get_mali_name();
 
 	for (event = 0; event < NUMBER_OF_HARDWARE_COUNTERS; event++) {
-		if (gator_mali_create_file_system(mali_name, hardware_counter_names[counter_index], sb, root, &counters[event]) != 0)
+		if (gator_mali_create_file_system(mali_name, hardware_counter_names[counter_index], sb, root, &counters[event], NULL) != 0)
 			return -1;
 		counter_index++;
 	}
@@ -754,5 +782,3 @@ int gator_events_mali_t6xx_hw_init(void)
 
 	return gator_events_install(&gator_events_mali_t6xx_interface);
 }
-
-gator_events_init(gator_events_mali_t6xx_hw_init);

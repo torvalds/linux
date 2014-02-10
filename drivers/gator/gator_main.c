@@ -8,7 +8,8 @@
  */
 
 // This version must match the gator daemon version
-static unsigned long gator_protocol_version = 16;
+#define PROTOCOL_VERSION 17
+static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 
 #include <linux/slab.h>
 #include <linux/cpu.h>
@@ -22,14 +23,18 @@ static unsigned long gator_protocol_version = 16;
 #include <linux/module.h>
 #include <linux/perf_event.h>
 #include <linux/utsname.h>
+#include <linux/kthread.h>
 #include <asm/stacktrace.h>
 #include <asm/uaccess.h>
 
 #include "gator.h"
-#include "gator_events.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
 #error kernels prior to 2.6.32 are not supported
+#endif
+
+#if defined(MODULE) && !defined(CONFIG_MODULES)
+#error Cannot build a module against a kernel that does not support modules. To resolve, either rebuild the kernel to support modules or build gator as part of the kernel.
 #endif
 
 #if !defined(CONFIG_GENERIC_TRACER) && !defined(CONFIG_TRACING)
@@ -44,7 +49,7 @@ static unsigned long gator_protocol_version = 16;
 #error gator requires the kernel to have CONFIG_HIGH_RES_TIMERS defined to support PC sampling
 #endif
 
-#if defined(__arm__) && defined(CONFIG_SMP) && !defined(CONFIG_LOCAL_TIMERS)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) && defined(__arm__) && defined(CONFIG_SMP) && !defined(CONFIG_LOCAL_TIMERS)
 #error gator requires the kernel to have CONFIG_LOCAL_TIMERS defined on SMP systems
 #endif
 
@@ -87,6 +92,7 @@ static unsigned long gator_protocol_version = 16;
 #define MESSAGE_COOKIE      1
 #define MESSAGE_THREAD_NAME 2
 #define HRTIMER_CORE_NAME   3
+#define MESSAGE_LINK        4
 
 #define MESSAGE_GPU_START 1
 #define MESSAGE_GPU_STOP  2
@@ -136,6 +142,7 @@ static u64 gator_live_rate;
 
 static unsigned long gator_started;
 static u64 gator_monotonic_started;
+static u64 gator_hibernate_time;
 static unsigned long gator_buffer_opened;
 static unsigned long gator_timer_count;
 static unsigned long gator_response_type;
@@ -147,6 +154,8 @@ bool event_based_sampling;
 static DECLARE_WAIT_QUEUE_HEAD(gator_buffer_wait);
 static DECLARE_WAIT_QUEUE_HEAD(gator_annotate_wait);
 static struct timer_list gator_buffer_wake_up_timer;
+static bool gator_buffer_wake_stop;
+static struct task_struct *gator_buffer_wake_thread;
 static LIST_HEAD(gator_events);
 
 static DEFINE_PER_CPU(u64, last_timestamp);
@@ -188,6 +197,34 @@ static DEFINE_PER_CPU(int[NUM_GATOR_BUFS], buffer_space_available);
 static DEFINE_PER_CPU(char *[NUM_GATOR_BUFS], gator_buffer);
 // The time after which the buffer should be committed for live display
 static DEFINE_PER_CPU(u64, gator_buffer_commit_time);
+
+// List of all gator events - new events must be added to this list
+#define GATOR_EVENTS_LIST \
+	GATOR_EVENT(gator_events_armv6_init) \
+	GATOR_EVENT(gator_events_armv7_init) \
+	GATOR_EVENT(gator_events_block_init) \
+	GATOR_EVENT(gator_events_ccn504_init) \
+	GATOR_EVENT(gator_events_irq_init) \
+	GATOR_EVENT(gator_events_l2c310_init) \
+	GATOR_EVENT(gator_events_mali_init) \
+	GATOR_EVENT(gator_events_mali_t6xx_hw_init) \
+	GATOR_EVENT(gator_events_mali_t6xx_init) \
+	GATOR_EVENT(gator_events_meminfo_init) \
+	GATOR_EVENT(gator_events_mmapped_init) \
+	GATOR_EVENT(gator_events_net_init) \
+	GATOR_EVENT(gator_events_perf_pmu_init) \
+	GATOR_EVENT(gator_events_sched_init) \
+	GATOR_EVENT(gator_events_scorpion_init) \
+
+#define GATOR_EVENT(EVENT_INIT) __weak int EVENT_INIT(void);
+GATOR_EVENTS_LIST
+#undef GATOR_EVENT
+
+static int (*gator_events_list[])(void) = {
+#define GATOR_EVENT(EVENT_INIT) EVENT_INIT,
+GATOR_EVENTS_LIST
+#undef GATOR_EVENT
+};
 
 /******************************************************************************
  * Application Includes
@@ -392,6 +429,21 @@ static void gator_buffer_wake_up(unsigned long data)
 	wake_up(&gator_buffer_wait);
 }
 
+static int gator_buffer_wake_func(void *data)
+{
+	while (!gator_buffer_wake_stop) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		if (gator_buffer_wake_stop) {
+			break;
+		}
+
+		gator_buffer_wake_up(0);
+	}
+
+	return 0;
+}
+
 /******************************************************************************
  * Commit interface
  ******************************************************************************/
@@ -517,7 +569,14 @@ static void gator_commit_buffer(int cpu, int buftype, u64 time)
 	marshal_frame(cpu, buftype);
 
 	// had to delay scheduling work as attempting to schedule work during the context switch is illegal in kernel versions 3.5 and greater
-	mod_timer(&gator_buffer_wake_up_timer, jiffies + 1);
+	if (per_cpu(in_scheduler_context, cpu)) {
+#ifndef CONFIG_PREEMPT_RT_FULL
+		// mod_timer can not be used in interrupt context in RT-Preempt full
+		mod_timer(&gator_buffer_wake_up_timer, jiffies + 1);
+#endif
+	} else {
+		wake_up_process(gator_buffer_wake_thread);
+	}
 }
 
 static void buffer_check(int cpu, int buftype, u64 time)
@@ -590,8 +649,13 @@ void gator_backtrace_handler(struct pt_regs *const regs)
 
 	// Collect counters
 	if (!per_cpu(collecting, cpu)) {
-		collect_counters(time);
+		collect_counters(time, NULL);
 	}
+
+	// No buffer flushing occurs during sched switch for RT-Preempt full. The block counter frame will be flushed by collect_counters, but the sched buffer needs to be explicitly flushed
+#ifdef CONFIG_PREEMPT_RT_FULL
+	buffer_check(cpu, SCHED_TRACE_BUF, time);
+#endif
 }
 
 static int gator_running;
@@ -815,6 +879,7 @@ static struct notifier_block __refdata gator_hotcpu_notifier = {
 static int gator_pm_notify(struct notifier_block *nb, unsigned long event, void *dummy)
 {
 	int cpu;
+	struct timespec ts;
 
 	switch (event) {
 	case PM_HIBERNATION_PREPARE:
@@ -825,9 +890,20 @@ static int gator_pm_notify(struct notifier_block *nb, unsigned long event, void 
 		for_each_online_cpu(cpu) {
 			gator_timer_offline_dispatch(lcpu_to_pcpu(cpu), false);
 		}
+
+		// Record the wallclock hibernate time
+		getnstimeofday(&ts);
+		gator_hibernate_time = timespec_to_ns(&ts) - gator_get_time();
 		break;
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
+		// Adjust gator_monotonic_started for the time spent sleeping, as gator_get_time does not account for it
+		if (gator_hibernate_time > 0) {
+			getnstimeofday(&ts);
+			gator_monotonic_started += gator_hibernate_time + gator_get_time() - timespec_to_ns(&ts);
+			gator_hibernate_time = 0;
+		}
+
 		for_each_online_cpu(cpu) {
 			gator_timer_online_dispatch(lcpu_to_pcpu(cpu), false);
 		}
@@ -902,8 +978,10 @@ int gator_events_install(struct gator_interface *interface)
 
 int gator_events_get_key(void)
 {
-	// key of zero is reserved as a timestamp
-	static int key = 1;
+	// key 0 is reserved as a timestamp
+	// key 1 is reserved as the marker for thread specific counters
+	// Odd keys are assigned by the driver, even keys by the daemon
+	static int key = 3;
 
 	const int ret = key;
 	key += 2;
@@ -916,7 +994,7 @@ static int gator_init(void)
 
 	calc_first_cluster_size();
 
-	// events sources (gator_events.h, generated by gator_events.sh)
+	// events sources
 	for (i = 0; i < ARRAY_SIZE(gator_events_list); i++)
 		if (gator_events_list[i])
 			gator_events_list[i]();
@@ -940,6 +1018,11 @@ static int gator_start(void)
 {
 	unsigned long cpu, i;
 	struct gator_interface *gi;
+
+	gator_buffer_wake_stop = false;
+	if (IS_ERR(gator_buffer_wake_thread = kthread_run(gator_buffer_wake_func, NULL, "gator_bwake"))) {
+		goto bwake_failure;
+	}
 
 	if (gator_migrate_start())
 		goto migrate_failure;
@@ -1011,6 +1094,9 @@ cookies_failure:
 events_failure:
 	gator_migrate_stop();
 migrate_failure:
+	gator_buffer_wake_stop = true;
+	wake_up_process(gator_buffer_wake_thread);
+bwake_failure:
 
 	return -1;
 }
@@ -1034,6 +1120,9 @@ static void gator_stop(void)
 			gi->stop();
 
 	gator_migrate_stop();
+
+	gator_buffer_wake_stop = true;
+	wake_up_process(gator_buffer_wake_thread);
 }
 
 /******************************************************************************
@@ -1438,3 +1527,6 @@ module_exit(gator_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ARM Ltd");
 MODULE_DESCRIPTION("Gator system profiler");
+#define STRIFY2(ARG) #ARG
+#define STRIFY(ARG) STRIFY2(ARG)
+MODULE_VERSION(STRIFY(PROTOCOL_VERSION));

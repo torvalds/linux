@@ -206,5 +206,3 @@ int gator_events_l2c310_init(void)
 
 	return gator_events_install(&gator_events_l2c310_interface);
 }
-
-gator_events_init(gator_events_l2c310_init);

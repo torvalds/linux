@@ -6,12 +6,17 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/slab.h>
-#include <linux/perf_event.h>
 #include "gator.h"
 
 // gator_events_armvX.c is used for Linux 2.6.x
 #if GATOR_PERF_PMU_SUPPORT
+
+#include <linux/io.h>
+#ifdef CONFIG_OF
+#include <linux/of_address.h>
+#endif
+#include <linux/perf_event.h>
+#include <linux/slab.h>
 
 extern bool event_based_sampling;
 
@@ -21,6 +26,9 @@ extern bool event_based_sampling;
 // Maximum number of uncore counters
 // + 1 for the cci-400 cycles counter
 #define UCCNT (CCI_400 + 1)
+
+// Default to 0 if unable to probe the revision which was the previous behavior
+#define DEFAULT_CCI_REVISION 0
 
 // A gator_attr is needed for every counter
 struct gator_attr {
@@ -404,17 +412,81 @@ static void __attr_init(struct gator_attr *const attr)
 	attr->key = gator_events_get_key();
 }
 
+#ifdef CONFIG_OF
+
+static const struct of_device_id arm_cci_matches[] = {
+	{.compatible = "arm,cci-400" },
+	{},
+};
+
+static int probe_cci_revision(void)
+{
+	struct device_node *np;
+	struct resource res;
+	void __iomem *cci_ctrl_base;
+	int rev;
+	int ret = DEFAULT_CCI_REVISION;
+
+	np = of_find_matching_node(NULL, arm_cci_matches);
+	if (!np) {
+		return ret;
+	}
+
+	if (of_address_to_resource(np, 0, &res)) {
+		goto node_put;
+	}
+
+	cci_ctrl_base = ioremap(res.start, resource_size(&res));
+
+	rev = (readl_relaxed(cci_ctrl_base + 0xfe8) >> 4) & 0xf;
+
+	if (rev <= 4) {
+		ret = 0;
+	} else if (rev <= 6) {
+		ret = 1;
+	}
+
+	iounmap(cci_ctrl_base);
+
+ node_put:
+	of_node_put(np);
+
+	return ret;
+}
+
+#else
+
+static int probe_cci_revision(void)
+{
+	return DEFAULT_CCI_REVISION;
+}
+
+#endif
+
 static void gator_events_perf_pmu_cci_init(const int type)
 {
 	int cnt;
+	const char *cci_name;
 
-	strncpy(uc_attrs[uc_attr_count].name, "cci-400_ccnt", sizeof(uc_attrs[uc_attr_count].name));
+	switch (probe_cci_revision()) {
+	case 0:
+		cci_name = "cci-400";
+		break;
+	case 1:
+		cci_name = "cci-400-r1";
+		break;
+	default:
+		pr_debug("gator: unrecognized cci-400 revision\n");
+		return;
+	}
+
+	snprintf(uc_attrs[uc_attr_count].name, sizeof(uc_attrs[uc_attr_count].name), "%s_ccnt", cci_name);
 	uc_attrs[uc_attr_count].type = type;
 	++uc_attr_count;
 
 	for (cnt = 0; cnt < CCI_400; ++cnt, ++uc_attr_count) {
 		struct gator_attr *const attr = &uc_attrs[uc_attr_count];
-		snprintf(attr->name, sizeof(attr->name), "cci-400_cnt%d", cnt);
+		snprintf(attr->name, sizeof(attr->name), "%s_cnt%d", cci_name, cnt);
 		attr->type = type;
 	}
 }
@@ -477,7 +549,7 @@ int gator_events_perf_pmu_init(void)
 		}
 
 		if (pe->pmu != NULL && type == pe->pmu->type) {
-			if (strcmp("CCI", pe->pmu->name) == 0) {
+			if (strcmp("CCI", pe->pmu->name) == 0 || strcmp("CCI_400", pe->pmu->name) == 0) {
 				gator_events_perf_pmu_cci_init(type);
 			} else if ((gator_cpu = gator_find_cpu_by_pmu_name(pe->pmu->name)) != NULL) {
 				found_cpu = true;
@@ -512,5 +584,4 @@ int gator_events_perf_pmu_init(void)
 	return gator_events_install(&gator_events_perf_pmu_interface);
 }
 
-gator_events_init(gator_events_perf_pmu_init);
 #endif

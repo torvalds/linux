@@ -6,23 +6,16 @@
  * published by the Free Software Foundation.
  */
 
-/*******************************************************************************
- * WARNING: This code is an experimental implementation of the CCN-504 hardware
- * counters which has not been tested on the hardware. Commented debug
- * statements are present and can be uncommented for diagnostic purposes.
- ******************************************************************************/
-
 #include <linux/io.h>
 #include <linux/module.h>
 
 #include "gator.h"
 
-#define PERIPHBASE 0x2E000000
-
 #define NUM_REGIONS 256
 #define REGION_SIZE (64*1024)
 #define REGION_DEBUG 1
 #define REGION_XP 64
+#define NUM_XPS 11
 
 // DT (Debug) region
 #define PMEVCNTSR0    0x0150
@@ -34,27 +27,86 @@
 
 // XP region
 #define DT_CONFIG     0x0300
+#define DT_CONTROL    0x0370
 
 // Multiple
 #define PMU_EVENT_SEL 0x0600
 #define OLY_ID        0xFF00
 
 #define CCNT 4
-#define CNTMAX (4 + 1)
+#define CNTMAX (CCNT + 1)
 
 #define get_pmu_event_id(event) (((event) >> 0) & 0xFF)
 #define get_node_type(event) (((event) >> 8) & 0xFF)
 #define get_region(event) (((event) >> 16) & 0xFF)
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+
+// From kernel/params.c
+#define STANDARD_PARAM_DEF(name, type, format, tmptype, strtolfn)      	\
+	int param_set_##name(const char *val, struct kernel_param *kp)	\
+	{								\
+		tmptype l;						\
+		int ret;						\
+									\
+		if (!val) return -EINVAL;				\
+		ret = strtolfn(val, 0, &l);				\
+		if (ret == -EINVAL || ((type)l != l))			\
+			return -EINVAL;					\
+		*((type *)kp->arg) = l;					\
+		return 0;						\
+	}								\
+	int param_get_##name(char *buffer, struct kernel_param *kp)	\
+	{								\
+		return sprintf(buffer, format, *((type *)kp->arg));	\
+	}
+
+#else
+
+// From kernel/params.c
+#define STANDARD_PARAM_DEF(name, type, format, tmptype, strtolfn)      	\
+	int param_set_##name(const char *val, const struct kernel_param *kp) \
+	{								\
+		tmptype l;						\
+		int ret;						\
+									\
+		ret = strtolfn(val, 0, &l);				\
+		if (ret < 0 || ((type)l != l))				\
+			return ret < 0 ? ret : -EINVAL;			\
+		*((type *)kp->arg) = l;					\
+		return 0;						\
+	}								\
+	int param_get_##name(char *buffer, const struct kernel_param *kp) \
+	{								\
+		return scnprintf(buffer, PAGE_SIZE, format,		\
+				*((type *)kp->arg));			\
+	}								\
+	struct kernel_param_ops param_ops_##name = {			\
+		.set = param_set_##name,				\
+		.get = param_get_##name,				\
+	};								\
+	EXPORT_SYMBOL(param_set_##name);				\
+	EXPORT_SYMBOL(param_get_##name);				\
+	EXPORT_SYMBOL(param_ops_##name)
+
+#endif
+
+STANDARD_PARAM_DEF(u64, u64, "%llu", u64, strict_strtoull);
+
+// From include/linux/moduleparam.h
+#define param_check_u64(name, p) __param_check(name, p, u64)
+
 MODULE_PARM_DESC(ccn504_addr, "CCN-504 physical base address");
-static unsigned long ccn504_addr = 0;
-module_param(ccn504_addr, ulong, 0444);
+static u64 ccn504_addr = 0;
+module_param(ccn504_addr, u64, 0444);
 
 static void __iomem *gator_events_ccn504_base;
+static bool gator_events_ccn504_global_enabled;
 static unsigned long gator_events_ccn504_enabled[CNTMAX];
 static unsigned long gator_events_ccn504_event[CNTMAX];
 static unsigned long gator_events_ccn504_key[CNTMAX];
 static int gator_events_ccn504_buffer[2*CNTMAX];
+static int gator_events_ccn504_prev[CNTMAX];
 
 static void gator_events_ccn504_create_shutdown(void)
 {
@@ -96,13 +148,26 @@ static void gator_events_ccn504_set_dt_config(int xp_node_id, int event_num, int
 
 	dt_config = readl(gator_events_ccn504_base + (REGION_XP + xp_node_id)*REGION_SIZE + DT_CONFIG);
 	dt_config |= (value + event_num) << (4*event_num);
-	//printk(KERN_ERR "%s(%s:%i) writel %x %x\n", __FUNCTION__, __FILE__, __LINE__, dt_config, (REGION_XP + xp_node_id)*REGION_SIZE + DT_CONFIG);
 	writel(dt_config, gator_events_ccn504_base + (REGION_XP + xp_node_id)*REGION_SIZE + DT_CONFIG);
 }
 
 static int gator_events_ccn504_start(void)
 {
 	int i;
+
+	gator_events_ccn504_global_enabled = 0;
+	for (i = 0; i < CNTMAX; ++i) {
+		if (gator_events_ccn504_enabled[i]) {
+			gator_events_ccn504_global_enabled = 1;
+			break;
+		}
+	}
+
+	if (!gator_events_ccn504_global_enabled) {
+		return 0;
+	}
+
+	memset(&gator_events_ccn504_prev, 0x80, sizeof(gator_events_ccn504_prev));
 
 	// Disable INTREQ on overflow
 	// [6] ovfl_intr_en = 0
@@ -112,8 +177,21 @@ static int gator_events_ccn504_start(void)
 	// [4:1] cntcfg = 0
 	// Enable PMU features
 	// [0] pmu_en = 1
-	//printk(KERN_ERR "%s(%s:%i) writel %x %x\n", __FUNCTION__, __FILE__, __LINE__, 0x1, REGION_DEBUG*REGION_SIZE + PMCR);
 	writel(0x1, gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + PMCR);
+
+	// Configure the XPs
+	for (i = 0; i < NUM_XPS; ++i) {
+		int dt_control;
+
+		// Pass on all events
+		writel(0, gator_events_ccn504_base + (REGION_XP + i)*REGION_SIZE + DT_CONFIG);
+
+		// Enable PMU capability
+		// [0] dt_enable = 1
+		dt_control = readl(gator_events_ccn504_base + (REGION_XP + i)*REGION_SIZE + DT_CONTROL);
+		dt_control |= 0x1;
+		writel(dt_control, gator_events_ccn504_base + (REGION_XP + i)*REGION_SIZE + DT_CONTROL);
+	}
 
 	// Assume no other pmu_event_sel registers are set
 
@@ -134,15 +212,14 @@ static int gator_events_ccn504_start(void)
 		pmu_event_id = get_pmu_event_id(gator_events_ccn504_event[i]);
 		node_type = get_node_type(gator_events_ccn504_event[i]);
 		region = get_region(gator_events_ccn504_event[i]);
-		//printk(KERN_ERR "%s(%s:%i) pmu_event_id: %x node_type: %x region: %x\n", __FUNCTION__, __FILE__, __LINE__, pmu_event_id, node_type, region);
 
 		// Verify the node_type
 		oly_id_whole = readl(gator_events_ccn504_base + region*REGION_SIZE + OLY_ID);
 		oly_id = oly_id_whole & 0x1F;
 		node_id = (oly_id_whole >> 8) & 0x7F;
 		if ((oly_id != node_type) ||
-				((node_type == 0x16) && ((oly_id == 0x14) || (oly_id == 0x15) || (oly_id == 0x16) || (oly_id == 0x18) || (oly_id == 0x19) || (oly_id == 0x1A)))) {
-			printk(KERN_ERR "%s(%s:%i) oly_id is %x expected %x\n", __FUNCTION__, __FILE__, __LINE__, oly_id, node_type);
+				((node_type == 0x16) && ((oly_id != 0x14) && (oly_id != 0x15) && (oly_id != 0x16) && (oly_id != 0x18) && (oly_id != 0x19) && (oly_id != 0x1A)))) {
+			printk(KERN_ERR "gator: oly_id is 0x%x expected 0x%x\n", oly_id, node_type);
 			return -1;
 		}
 
@@ -160,7 +237,6 @@ static int gator_events_ccn504_start(void)
 			gator_events_ccn504_set_dt_config(node_id/2, i, (node_id & 1) == 0 ? 0x8 : 0xC);
 			break;
 		}
-		//printk(KERN_ERR "%s(%s:%i) writel %x %x\n", __FUNCTION__, __FILE__, __LINE__, pmu_event_sel, region*REGION_SIZE + PMU_EVENT_SEL);
 		writel(pmu_event_sel, gator_events_ccn504_base + region*REGION_SIZE + PMU_EVENT_SEL);
 	}
 
@@ -171,21 +247,25 @@ static void gator_events_ccn504_stop(void)
 {
 	int i;
 
+	if (!gator_events_ccn504_global_enabled) {
+		return;
+	}
+
 	// cycle counter does not need to be disabled
 	for (i = 0; i < CCNT; ++i) {
-		int node_type;
 		int region;
 
-		node_type = get_node_type(gator_events_ccn504_event[i]);
+		if (!gator_events_ccn504_enabled[i]) {
+			continue;
+		}
+
 		region = get_region(gator_events_ccn504_event[i]);
 
-		//printk(KERN_ERR "%s(%s:%i) writel %x %x\n", __FUNCTION__, __FILE__, __LINE__, 0, region*REGION_SIZE + PMU_EVENT_SEL);
 		writel(0, gator_events_ccn504_base + region*REGION_SIZE + PMU_EVENT_SEL);
 	}
 
 	// Clear dt_config
-	for (i = 0; i < 11; ++i) {
-		//printk(KERN_ERR "%s(%s:%i) writel %x %x\n", __FUNCTION__, __FILE__, __LINE__, 0, (REGION_XP + i)*REGION_SIZE + DT_CONFIG);
+	for (i = 0; i < NUM_XPS; ++i) {
 		writel(0, gator_events_ccn504_base + (REGION_XP + i)*REGION_SIZE + DT_CONFIG);
 	}
 }
@@ -194,27 +274,20 @@ static int gator_events_ccn504_read(int **buffer)
 {
 	int i;
 	int len = 0;
+	int value;
 
-	if (!on_primary_core()) {
+	if (!on_primary_core() || !gator_events_ccn504_global_enabled) {
 		return 0;
 	}
 
 	// Verify the pmsr register is zero
-	//i = 0;
-	while (readl(gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + PMSR) != 0) {
-		//++i;
-	}
-	//printk(KERN_ERR "%s(%s:%i) %i\n", __FUNCTION__, __FILE__, __LINE__, i);
+	while (readl(gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + PMSR) != 0);
 
 	// Request a PMU snapshot
 	writel(1, gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + PMSR_REQ);
 
 	// Wait for the snapshot
-	//i = 0;
-	while (readl(gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + PMSR) == 0) {
-		//++i;
-	}
-	//printk(KERN_ERR "%s(%s:%i) %i\n", __FUNCTION__, __FILE__, __LINE__, i);
+	while (readl(gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + PMSR) == 0);
 
 	// Read the shadow registers
 	for (i = 0; i < CNTMAX; ++i) {
@@ -222,8 +295,12 @@ static int gator_events_ccn504_read(int **buffer)
 			continue;
 		}
 
-		gator_events_ccn504_buffer[len++] = gator_events_ccn504_key[i];
-		gator_events_ccn504_buffer[len++] = readl(gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + (i == CCNT ? PMCCNTRSR : PMEVCNTSR0 + 8*i));
+		value = readl(gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + (i == CCNT ? PMCCNTRSR : PMEVCNTSR0 + 8*i));
+		if (gator_events_ccn504_prev[i] != 0x80808080) {
+			gator_events_ccn504_buffer[len++] = gator_events_ccn504_key[i];
+			gator_events_ccn504_buffer[len++] = value - gator_events_ccn504_prev[i];
+		}
+		gator_events_ccn504_prev[i] = value;
 
 		// Are the counters registers cleared when read? Is that what the cntr_rst bit on the pmcr register does?
 	}
@@ -231,18 +308,10 @@ static int gator_events_ccn504_read(int **buffer)
 	// Clear the PMU snapshot status
 	writel(1, gator_events_ccn504_base + REGION_DEBUG*REGION_SIZE + PMSR_CLR);
 
+	if (buffer)
+		*buffer = gator_events_ccn504_buffer;
+
 	return len;
-}
-
-static void __maybe_unused gator_events_ccn504_enumerate(int pos, int size)
-{
-	int i;
-	u32 oly_id;
-
-	for (i = pos; i < pos + size; ++i) {
-		oly_id = readl(gator_events_ccn504_base + i*REGION_SIZE + OLY_ID);
-		printk(KERN_ERR "%s(%s:%i) %i %08x\n", __FUNCTION__, __FILE__, __LINE__, i, oly_id);
-	}
 }
 
 static struct gator_interface gator_events_ccn504_interface = {
@@ -263,35 +332,8 @@ int gator_events_ccn504_init(void)
 
 	gator_events_ccn504_base = ioremap(ccn504_addr, NUM_REGIONS*REGION_SIZE);
 	if (gator_events_ccn504_base == NULL) {
-		printk(KERN_ERR "%s(%s:%i) ioremap returned NULL\n", __FUNCTION__, __FILE__, __LINE__);
+		printk(KERN_ERR "gator: ioremap returned NULL\n");
 		return -1;
-	}
-	//printk(KERN_ERR "%s(%s:%i)\n", __FUNCTION__, __FILE__, __LINE__);
-
-	// Test - can memory be read
-	{
-		//gator_events_ccn504_enumerate(0, NUM_REGIONS);
-
-#if 0
-		// DT
-		gator_events_ccn504_enumerate(1, 1);
-		// HN-F
-		gator_events_ccn504_enumerate(32, 8);
-		// XP
-		gator_events_ccn504_enumerate(64, 11);
-		// RN-I
-		gator_events_ccn504_enumerate(128, 1);
-		gator_events_ccn504_enumerate(130, 1);
-		gator_events_ccn504_enumerate(134, 1);
-		gator_events_ccn504_enumerate(140, 1);
-		gator_events_ccn504_enumerate(144, 1);
-		gator_events_ccn504_enumerate(148, 1);
-		// SBAS
-		gator_events_ccn504_enumerate(129, 1);
-		gator_events_ccn504_enumerate(137, 1);
-		gator_events_ccn504_enumerate(139, 1);
-		gator_events_ccn504_enumerate(147, 1);
-#endif
 	}
 
 	for (i = 0; i < CNTMAX; ++i) {
@@ -302,5 +344,3 @@ int gator_events_ccn504_init(void)
 
 	return gator_events_install(&gator_events_ccn504_interface);
 }
-
-gator_events_init(gator_events_ccn504_init);

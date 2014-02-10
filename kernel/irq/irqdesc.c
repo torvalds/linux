@@ -36,11 +36,19 @@ static int __init irq_affinity_setup(char *str)
 }
 __setup("irqaffinity=", irq_affinity_setup);
 
+extern struct cpumask hmp_slow_cpu_mask;
+
 static void __init init_irq_default_affinity(void)
 {
 #ifdef CONFIG_CPUMASK_OFFSTACK
 	if (!irq_default_affinity)
 		zalloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
+#endif
+#ifdef CONFIG_SCHED_HMP
+	if (!cpumask_empty(&hmp_slow_cpu_mask)) {
+		cpumask_copy(irq_default_affinity, &hmp_slow_cpu_mask);
+		return;
+	}
 #endif
 	if (cpumask_empty(irq_default_affinity))
 		cpumask_setall(irq_default_affinity);

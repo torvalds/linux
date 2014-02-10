@@ -6,6 +6,8 @@
 
 /dts-v1/;
 
+/memreserve/ 0x80000000 0x00010000;
+
 / {
 	model = "Foundation-v8A";
 	compatible = "arm,foundation-aarch64", "arm,vexpress";

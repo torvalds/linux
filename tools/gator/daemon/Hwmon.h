@@ -34,6 +34,10 @@ private:
 	HwmonCounter *findCounter(const Counter &counter) const;
 
 	HwmonCounter *counters;
+
+	// Intentionally unimplemented
+	Hwmon(const Hwmon &);
+	Hwmon &operator=(const Hwmon &);
 };
 
 #endif // HWMON_H
