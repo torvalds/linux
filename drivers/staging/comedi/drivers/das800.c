@@ -420,17 +420,12 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	gain &= 0xf;
 	outb(gain, dev->iobase + DAS800_GAIN);
 
-	switch (async->cmd.stop_src) {
-	case TRIG_COUNT:
+	if (async->cmd.stop_src == TRIG_COUNT) {
 		devpriv->count = async->cmd.stop_arg * async->cmd.chanlist_len;
 		devpriv->forever = false;
-		break;
-	case TRIG_NONE:
+	} else {	/* TRIG_NONE */
 		devpriv->forever = true;
 		devpriv->count = 0;
-		break;
-	default:
-		break;
 	}
 
 	/* enable auto channel scan, send interrupts on end of conversion
@@ -440,19 +435,13 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	conv_bits |= EACS | IEOC;
 	if (async->cmd.start_src == TRIG_EXT)
 		conv_bits |= DTEN;
-	switch (async->cmd.convert_src) {
-	case TRIG_TIMER:
+	if (async->cmd.convert_src == TRIG_TIMER) {
 		conv_bits |= CASC | ITE;
 		/* set conversion frequency */
 		if (das800_set_frequency(dev) < 0) {
 			comedi_error(dev, "Error setting up counters");
 			return -1;
 		}
-		break;
-	case TRIG_EXT:
-		break;
-	default:
-		break;
 	}
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
