@@ -556,15 +556,17 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int das800_wait_for_conv(struct comedi_device *dev, int timeout)
+static int das800_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
-	int i;
+	unsigned int status;
 
-	for (i = 0; i < timeout; i++) {
-		if (!(inb(dev->iobase + DAS800_STATUS) & BUSY))
-			return 0;
-	}
-	return -ETIME;
+	status = inb(dev->iobase + DAS800_STATUS);
+	if ((status & BUSY) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int das800_ai_insn_read(struct comedi_device *dev,
@@ -599,7 +601,7 @@ static int das800_ai_insn_read(struct comedi_device *dev,
 		/* trigger conversion */
 		outb_p(0, dev->iobase + DAS800_MSB);
 
-		ret = das800_wait_for_conv(dev, 1000);
+		ret = comedi_timeout(dev, s, insn, das800_ai_eoc, 0);
 		if (ret)
 			return ret;
 
