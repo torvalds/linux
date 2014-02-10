@@ -134,9 +134,11 @@ The meaning of the return values is as follows:
 	PM_QOS_FLAGS_UNDEFINED: The device's PM QoS structure has not been
 			initialized or the list of requests is empty.
 
-int dev_pm_qos_add_ancestor_request(dev, handle, value)
+int dev_pm_qos_add_ancestor_request(dev, handle, type, value)
 Add a PM QoS request for the first direct ancestor of the given device whose
-power.ignore_children flag is unset.
+power.ignore_children flag is unset (for DEV_PM_QOS_RESUME_LATENCY requests)
+or whose power.set_latency_tolerance callback pointer is not NULL (for
+DEV_PM_QOS_LATENCY_TOLERANCE requests).
 
 int dev_pm_qos_expose_latency_limit(device, value)
 Add a request to the device's PM QoS list of resume latency constraints and

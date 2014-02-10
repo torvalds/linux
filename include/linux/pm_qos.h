@@ -149,7 +149,8 @@ int dev_pm_qos_remove_global_notifier(struct notifier_block *notifier);
 void dev_pm_qos_constraints_init(struct device *dev);
 void dev_pm_qos_constraints_destroy(struct device *dev);
 int dev_pm_qos_add_ancestor_request(struct device *dev,
-				    struct dev_pm_qos_request *req, s32 value);
+				    struct dev_pm_qos_request *req,
+				    enum dev_pm_qos_req_type type, s32 value);
 #else
 static inline enum pm_qos_flags_status __dev_pm_qos_flags(struct device *dev,
 							  s32 mask)
@@ -192,7 +193,9 @@ static inline void dev_pm_qos_constraints_destroy(struct device *dev)
 	dev->power.power_state = PMSG_INVALID;
 }
 static inline int dev_pm_qos_add_ancestor_request(struct device *dev,
-				    struct dev_pm_qos_request *req, s32 value)
+						  struct dev_pm_qos_request *req,
+						  enum dev_pm_qos_req_type type,
+						  s32 value)
 			{ return 0; }
 #endif
 
