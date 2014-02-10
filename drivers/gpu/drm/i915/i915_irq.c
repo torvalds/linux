@@ -515,13 +515,39 @@ __i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 	POSTING_READ(reg);
 }
 
+static u32 vlv_get_pipestat_enable_mask(struct drm_device *dev, u32 status_mask)
+{
+	u32 enable_mask = status_mask << 16;
+
+	/*
+	 * On pipe A we don't support the PSR interrupt yet, on pipe B the
+	 * same bit MBZ.
+	 */
+	if (WARN_ON_ONCE(status_mask & PIPE_A_PSR_STATUS_VLV))
+		return 0;
+
+	enable_mask &= ~(PIPE_FIFO_UNDERRUN_STATUS |
+			 SPRITE0_FLIP_DONE_INT_EN_VLV |
+			 SPRITE1_FLIP_DONE_INT_EN_VLV);
+	if (status_mask & SPRITE0_FLIP_DONE_INT_STATUS_VLV)
+		enable_mask |= SPRITE0_FLIP_DONE_INT_EN_VLV;
+	if (status_mask & SPRITE1_FLIP_DONE_INT_STATUS_VLV)
+		enable_mask |= SPRITE1_FLIP_DONE_INT_EN_VLV;
+
+	return enable_mask;
+}
+
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 		     u32 status_mask)
 {
 	u32 enable_mask;
 
-	enable_mask = status_mask << 16;
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
+							   status_mask);
+	else
+		enable_mask = status_mask << 16;
 	__i915_enable_pipestat(dev_priv, pipe, enable_mask, status_mask);
 }
 
@@ -531,7 +557,11 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 {
 	u32 enable_mask;
 
-	enable_mask = status_mask << 16;
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
+							   status_mask);
+	else
+		enable_mask = status_mask << 16;
 	__i915_disable_pipestat(dev_priv, pipe, enable_mask, status_mask);
 }
 
