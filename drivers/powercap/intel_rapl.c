@@ -1147,6 +1147,11 @@ static int rapl_check_domain(int cpu, int domain)
 	if (rdmsrl_safe_on_cpu(cpu, msr, &val1))
 		return -ENODEV;
 
+	/* PP1/uncore/graphics domain may not be active at the time of
+	 * driver loading. So skip further checks.
+	 */
+	if (domain == RAPL_DOMAIN_PP1)
+		return 0;
 	/* energy counters roll slowly on some domains */
 	while (++retry < 10) {
 		usleep_range(10000, 15000);
