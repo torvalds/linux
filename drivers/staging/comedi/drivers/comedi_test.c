@@ -318,12 +318,8 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_NOW)
 		devpriv->convert_period = 0;
-	else if (cmd->convert_src == TRIG_TIMER)
+	else	/* TRIG_TIMER */
 		devpriv->convert_period = cmd->convert_arg / nano_per_micro;
-	else {
-		comedi_error(dev, "bug setting conversion period");
-		return -1;
-	}
 
 	do_gettimeofday(&devpriv->last);
 	devpriv->usec_current = devpriv->last.tv_usec % devpriv->usec_period;
