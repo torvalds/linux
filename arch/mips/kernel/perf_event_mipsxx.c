@@ -805,7 +805,7 @@ static void reset_counters(void *arg)
 	}
 }
 
-/* 24K/34K/1004K cores can share the same event map. */
+/* 24K/34K/1004K/interAptiv/loongson1 cores share the same event map. */
 static const struct mips_perf_event mipsxxcore_event_map
 				[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = { 0x00, CNTR_EVEN | CNTR_ODD, P },
@@ -849,7 +849,7 @@ static const struct mips_perf_event xlp_event_map[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_BRANCH_MISSES] = { 0x1c, CNTR_ALL }, /* PAPI_BR_MSP */
 };
 
-/* 24K/34K/1004K cores can share the same cache event map. */
+/* 24K/34K/1004K/interAptiv/loongson1 cores share the same cache event map. */
 static const struct mips_perf_event mipsxxcore_cache_map
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
@@ -1400,6 +1400,20 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 #define IS_RANGE_V_1004K_EVENT(r)	((r) == 47)
 #endif
 
+/* interAptiv */
+#define IS_BOTH_COUNTERS_INTERAPTIV_EVENT(b)				\
+	((b) == 0 || (b) == 1 || (b) == 11)
+#ifdef CONFIG_MIPS_MT_SMP
+/* The P/V/T info is not provided for "(b) == 38" in SUM, assume P. */
+#define IS_RANGE_P_INTERAPTIV_EVENT(r, b)				\
+	((b) == 0 || (r) == 18 || (b) == 21 || (b) == 22 ||		\
+	 (b) == 25 || (b) == 36 || (b) == 38 || (b) == 39 ||		\
+	 (r) == 44 || (r) == 174 || (r) == 176 || ((b) >= 50 &&		\
+	 (b) <= 59) || (r) == 188 || (b) == 61 || (b) == 62 ||		\
+	 ((b) >= 64 && (b) <= 67))
+#define IS_RANGE_V_INTERAPTIV_EVENT(r)	((r) == 47 || (r) == 175)
+#endif
+
 /* BMIPS5000 */
 #define IS_BOTH_COUNTERS_BMIPS5000_EVENT(b)				\
 	((b) == 0 || (b) == 1)
@@ -1481,6 +1495,21 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 		if (IS_RANGE_P_1004K_EVENT(raw_id, base_id))
 			raw_event.range = P;
 		else if (unlikely(IS_RANGE_V_1004K_EVENT(raw_id)))
+			raw_event.range = V;
+		else
+			raw_event.range = T;
+#endif
+		break;
+	case CPU_INTERAPTIV:
+		if (IS_BOTH_COUNTERS_INTERAPTIV_EVENT(base_id))
+			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
+		else
+			raw_event.cntr_mask =
+				raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
+#ifdef CONFIG_MIPS_MT_SMP
+		if (IS_RANGE_P_INTERAPTIV_EVENT(raw_id, base_id))
+			raw_event.range = P;
+		else if (unlikely(IS_RANGE_V_INTERAPTIV_EVENT(raw_id)))
 			raw_event.range = V;
 		else
 			raw_event.range = T;
@@ -1611,6 +1640,11 @@ init_hw_perf_events(void)
 		break;
 	case CPU_1074K:
 		mipspmu.name = "mips/1074K";
+		mipspmu.general_event_map = &mipsxxcore_event_map;
+		mipspmu.cache_event_map = &mipsxxcore_cache_map;
+		break;
+	case CPU_INTERAPTIV:
+		mipspmu.name = "mips/interAptiv";
 		mipspmu.general_event_map = &mipsxxcore_event_map;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map;
 		break;
