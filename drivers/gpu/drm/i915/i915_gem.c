@@ -1619,7 +1619,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	}
 
 	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_ERROR("Attempting to mmap a purgeable buffer\n");
+		DRM_DEBUG("Attempting to mmap a purgeable buffer\n");
 		ret = -EFAULT;
 		goto out;
 	}
@@ -1973,7 +1973,7 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 		return 0;
 
 	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_ERROR("Attempting to obtain a purgeable object\n");
+		DRM_DEBUG("Attempting to obtain a purgeable object\n");
 		return -EFAULT;
 	}
 
@@ -3234,7 +3234,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 		alignment = map_and_fenceable ? fence_alignment :
 						unfenced_alignment;
 	if (map_and_fenceable && alignment & (fence_alignment - 1)) {
-		DRM_ERROR("Invalid object alignment requested %u\n", alignment);
+		DRM_DEBUG("Invalid object alignment requested %u\n", alignment);
 		return -EINVAL;
 	}
 
@@ -3244,7 +3244,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	 * before evicting everything in a vain attempt to find space.
 	 */
 	if (obj->base.size > gtt_max) {
-		DRM_ERROR("Attempting to bind an object larger than the aperture: object=%zd > %s aperture=%zu\n",
+		DRM_DEBUG("Attempting to bind an object larger than the aperture: object=%zd > %s aperture=%zu\n",
 			  obj->base.size,
 			  map_and_fenceable ? "mappable" : "total",
 			  gtt_max);
@@ -3917,13 +3917,13 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_ERROR("Attempting to pin a purgeable buffer\n");
+		DRM_DEBUG("Attempting to pin a purgeable buffer\n");
 		ret = -EFAULT;
 		goto out;
 	}
 
 	if (obj->pin_filp != NULL && obj->pin_filp != file) {
-		DRM_ERROR("Already pinned in i915_gem_pin_ioctl(): %d\n",
+		DRM_DEBUG("Already pinned in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
 		ret = -EINVAL;
 		goto out;
@@ -3970,7 +3970,7 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (obj->pin_filp != file) {
-		DRM_ERROR("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
+		DRM_DEBUG("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
 		ret = -EINVAL;
 		goto out;
