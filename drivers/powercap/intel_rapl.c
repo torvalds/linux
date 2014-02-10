@@ -834,7 +834,7 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 }
 
 static const struct x86_cpu_id energy_unit_quirk_ids[] = {
-	{ X86_VENDOR_INTEL, 6, 0x37},/* VLV */
+	{ X86_VENDOR_INTEL, 6, 0x37},/* Valleyview */
 	{}
 };
 
@@ -947,11 +947,11 @@ static void package_power_limit_irq_restore(int package_id)
 }
 
 static const struct x86_cpu_id rapl_ids[] = {
-	{ X86_VENDOR_INTEL, 6, 0x2a},/* SNB */
-	{ X86_VENDOR_INTEL, 6, 0x2d},/* SNB EP */
-	{ X86_VENDOR_INTEL, 6, 0x37},/* VLV */
-	{ X86_VENDOR_INTEL, 6, 0x3a},/* IVB */
-	{ X86_VENDOR_INTEL, 6, 0x45},/* HSW */
+	{ X86_VENDOR_INTEL, 6, 0x2a},/* Sandy Bridge */
+	{ X86_VENDOR_INTEL, 6, 0x2d},/* Sandy Bridge EP */
+	{ X86_VENDOR_INTEL, 6, 0x37},/* Valleyview */
+	{ X86_VENDOR_INTEL, 6, 0x3a},/* Ivy Bridge */
+	{ X86_VENDOR_INTEL, 6, 0x45},/* Haswell */
 	/* TODO: Add more CPU IDs after testing */
 	{}
 };
