@@ -219,7 +219,7 @@ static const struct i2c_algorithm bcm2835_i2c_algo = {
 static int bcm2835_i2c_probe(struct platform_device *pdev)
 {
 	struct bcm2835_i2c_dev *i2c_dev;
-	struct resource *mem, *requested, *irq;
+	struct resource *mem, *irq;
 	u32 bus_clk_rate, divider;
 	int ret;
 	struct i2c_adapter *adap;
@@ -234,25 +234,9 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	init_completion(&i2c_dev->completion);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "No mem resource\n");
-		return -ENODEV;
-	}
-
-	requested = devm_request_mem_region(&pdev->dev, mem->start,
-					    resource_size(mem),
-					    dev_name(&pdev->dev));
-	if (!requested) {
-		dev_err(&pdev->dev, "Could not claim register region\n");
-		return -EBUSY;
-	}
-
-	i2c_dev->regs = devm_ioremap(&pdev->dev, mem->start,
-				     resource_size(mem));
-	if (!i2c_dev->regs) {
-		dev_err(&pdev->dev, "Could not map registers\n");
-		return -ENOMEM;
-	}
+	i2c_dev->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(i2c_dev->regs))
+		return PTR_ERR(i2c_dev->regs);
 
 	i2c_dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2c_dev->clk)) {
