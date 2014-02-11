@@ -16,6 +16,8 @@ Optional properties:
 - initial-mode: Should specify initial mode.
                 (1 for HUB mode, 2 for STANDBY mode)
 - usb3503-secondary-refclk: Use the secondary REFCLK frequencies (boolean).
+- usb3503-gpio-waittime: Some board need longer delay on 'reset' and 'connect' GPIO.
+	Use this to set extra wait time (in milliseconds).
 
 Examples:
 	usb3503@08 {
