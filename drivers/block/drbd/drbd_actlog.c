@@ -150,7 +150,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 
 	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &device->flags))
 		rw |= REQ_FUA | REQ_FLUSH;
-	rw |= REQ_SYNC;
+	rw |= REQ_SYNC | REQ_NOIDLE;
 
 	bio = bio_alloc_drbd(GFP_NOIO);
 	bio->bi_bdev = bdev->md_bdev;
