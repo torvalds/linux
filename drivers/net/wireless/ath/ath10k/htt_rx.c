@@ -430,12 +430,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 			msdu_chaining = 1;
 		}
 
-		if (msdu_len > 0) {
-			/* This may suggest FW bug? */
-			ath10k_warn("htt rx msdu len not consumed (%d)\n",
-				    msdu_len);
-		}
-
 		last_msdu = __le32_to_cpu(rx_desc->msdu_end.info0) &
 				RX_MSDU_END_INFO0_LAST_MSDU;
 
