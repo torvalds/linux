@@ -1438,7 +1438,7 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
 	struct drbd_device *device = req->device;
 
 	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
-		drbd_al_begin_io(device, &req->i, false);
+		drbd_al_begin_io(device, &req->i);
 
 	drbd_req_make_private_bio(req, req->master_bio);
 	req->private_bio->bi_bdev = device->ldev->backing_bdev;
@@ -1991,7 +1991,7 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
 		/* dequeue single item only,
 		 * we still use drbd_queue_work_front() in some places */
 		if (!list_empty(&connection->sender_work.q))
-			list_move(connection->sender_work.q.next, work_list);
+			list_splice_tail_init(&connection->sender_work.q, work_list);
 		spin_unlock(&connection->sender_work.q_lock);	/* FIXME get rid of this one? */
 		if (!list_empty(work_list) || signal_pending(current)) {
 			spin_unlock_irq(&connection->resource->req_lock);
@@ -2054,8 +2054,6 @@ int drbd_worker(struct drbd_thread *thi)
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);
 
-		/* as long as we use drbd_queue_work_front(),
-		 * we may only dequeue single work items here, not batches. */
 		if (list_empty(&work_list))
 			wait_for_work(connection, &work_list);
 

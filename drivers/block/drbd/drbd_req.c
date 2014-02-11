@@ -1286,7 +1286,7 @@ skip_fast_path:
 			if (!made_progress)
 				break;
 		}
-		drbd_al_begin_io_commit(device, false);
+		drbd_al_begin_io_commit(device);
 
 		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
 			list_del_init(&req->tl_requests);
