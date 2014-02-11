@@ -215,7 +215,7 @@
 			regulator-boot-on;
 		};
 
-		spkvdd:jack@2 {
+		spkvdd: jack@2 {
 			compatible = "regulator-fixed";
 			regulator-name = "spkvdd-supply";
 			regulator-min-microvolt = <5000000>;
@@ -402,7 +402,7 @@
 
 				ldo6_reg: LDO6 {
 					regulator-compatible = "LDO6";
-					regulator-name = "vdd10_mpll_1.0V";
+					regulator-name = "vdd_mpll_1.0V";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
 					regulator-always-on;
@@ -411,7 +411,7 @@
 
 				ldo7_reg: LDO7 {
 					regulator-compatible = "LDO7";
-					regulator-name = "vdd10_epll_1.0V";
+					regulator-name = "vdd_epll_1.0V";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
 					regulator-always-on;
@@ -420,7 +420,7 @@
 
 				ldo8_reg: LDO8 {
 					regulator-compatible = "LDO8";
-					regulator-name = "vdd10_mipi_1.0V";
+					regulator-name = "vdd_mipi_1.0V";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
 					regulator-always-on;
@@ -447,7 +447,7 @@
 
 				ldo11_reg: LDO11 {
 					regulator-compatible = "LDO11";
-					regulator-name = "vdd18_abb1_1.8V";
+					regulator-name = "vdd_abb1_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
@@ -456,7 +456,7 @@
 
 				ldo12_reg: LDO12 {
 					regulator-compatible = "LDO12";
-					regulator-name = "vdd33_usbotg_3.3V";
+					regulator-name = "vdd_usbotg_3.3V";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
@@ -466,7 +466,7 @@
 
 				ldo13_reg: LDO13 {
 					regulator-compatible = "LDO13";
-					regulator-name = "vdd18_mipihsi_1.8V";
+					regulator-name = "vdd_mipihsi_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
@@ -475,7 +475,7 @@
 
 				ldo14_reg: LDO14 {
 					regulator-compatible = "LDO14";
-					regulator-name = "vdd18_adc_1.8V";
+					regulator-name = "vdd_adc_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
@@ -484,7 +484,7 @@
 
 				ldo15_reg: LDO15 {
 					regulator-compatible = "LDO15";
-					regulator-name = "vdd10_otg_hsic_1.0V";
+					regulator-name = "vdd_otg_hsic_1.0V";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
 					regulator-always-on;
