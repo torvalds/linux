@@ -507,6 +507,15 @@ static inline const char *cgroup_name(const struct cgroup *cgrp)
 	return rcu_dereference(cgrp->name)->name;
 }
 
+/* returns ino associated with a cgroup, 0 indicates unmounted root */
+static inline ino_t cgroup_ino(struct cgroup *cgrp)
+{
+	if (cgrp->dentry)
+		return cgrp->dentry->d_inode->i_ino;
+	else
+		return 0;
+}
+
 static inline struct cgroup_subsys_state *seq_css(struct seq_file *seq)
 {
 	struct cgroup_open_file *of = seq->private;
