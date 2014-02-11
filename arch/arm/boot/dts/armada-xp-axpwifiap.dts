@@ -17,6 +17,7 @@
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include "armada-xp-mv78230.dtsi"
 
 / {
@@ -158,7 +159,7 @@
 
 		button@1 {
 			label = "Factory Reset Button";
-			linux,code = <141>; /* KEY_SETUP */
+			linux,code = <KEY_SETUP>;
 			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 		};
 	};
