@@ -726,6 +726,8 @@ void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
 void intel_display_set_init_power(struct drm_device *dev, bool enable);
 int valleyview_get_vco(struct drm_i915_private *dev_priv);
+void intel_mode_from_pipe_config(struct drm_display_mode *mode,
+				 struct intel_crtc_config *pipe_config);
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);

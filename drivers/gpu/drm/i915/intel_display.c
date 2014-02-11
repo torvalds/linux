@@ -5263,25 +5263,23 @@ static void intel_get_pipe_timings(struct intel_crtc *crtc,
 	pipe_config->requested_mode.hdisplay = pipe_config->pipe_src_w;
 }
 
-static void intel_crtc_mode_from_pipe_config(struct intel_crtc *intel_crtc,
-					     struct intel_crtc_config *pipe_config)
+void intel_mode_from_pipe_config(struct drm_display_mode *mode,
+				 struct intel_crtc_config *pipe_config)
 {
-	struct drm_crtc *crtc = &intel_crtc->base;
+	mode->hdisplay = pipe_config->adjusted_mode.crtc_hdisplay;
+	mode->htotal = pipe_config->adjusted_mode.crtc_htotal;
+	mode->hsync_start = pipe_config->adjusted_mode.crtc_hsync_start;
+	mode->hsync_end = pipe_config->adjusted_mode.crtc_hsync_end;
 
-	crtc->mode.hdisplay = pipe_config->adjusted_mode.crtc_hdisplay;
-	crtc->mode.htotal = pipe_config->adjusted_mode.crtc_htotal;
-	crtc->mode.hsync_start = pipe_config->adjusted_mode.crtc_hsync_start;
-	crtc->mode.hsync_end = pipe_config->adjusted_mode.crtc_hsync_end;
+	mode->vdisplay = pipe_config->adjusted_mode.crtc_vdisplay;
+	mode->vtotal = pipe_config->adjusted_mode.crtc_vtotal;
+	mode->vsync_start = pipe_config->adjusted_mode.crtc_vsync_start;
+	mode->vsync_end = pipe_config->adjusted_mode.crtc_vsync_end;
 
-	crtc->mode.vdisplay = pipe_config->adjusted_mode.crtc_vdisplay;
-	crtc->mode.vtotal = pipe_config->adjusted_mode.crtc_vtotal;
-	crtc->mode.vsync_start = pipe_config->adjusted_mode.crtc_vsync_start;
-	crtc->mode.vsync_end = pipe_config->adjusted_mode.crtc_vsync_end;
+	mode->flags = pipe_config->adjusted_mode.flags;
 
-	crtc->mode.flags = pipe_config->adjusted_mode.flags;
-
-	crtc->mode.clock = pipe_config->adjusted_mode.crtc_clock;
-	crtc->mode.flags |= pipe_config->adjusted_mode.flags;
+	mode->clock = pipe_config->adjusted_mode.crtc_clock;
+	mode->flags |= pipe_config->adjusted_mode.flags;
 }
 
 static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
@@ -11380,8 +11378,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 			    base.head) {
 		if (crtc->active && i915.fastboot) {
-			intel_crtc_mode_from_pipe_config(crtc, &crtc->config);
-
+			intel_mode_from_pipe_config(&crtc->base.mode, &crtc->config);
 			DRM_DEBUG_KMS("[CRTC:%d] found active mode: ",
 				      crtc->base.base.id);
 			drm_mode_debug_printmodeline(&crtc->base.mode);
