@@ -760,8 +760,6 @@ static int tegra_slink_setup(struct spi_device *spi)
 		spi->mode & SPI_CPHA ? "" : "~",
 		spi->max_speed_hz);
 
-	BUG_ON(spi->chip_select >= MAX_CHIP_SELECT);
-
 	ret = pm_runtime_get_sync(tspi->dev);
 	if (ret < 0) {
 		dev_err(tspi->dev, "pm runtime failed, e = %d\n", ret);

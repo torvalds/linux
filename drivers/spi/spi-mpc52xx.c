@@ -365,9 +365,6 @@ static int mpc52xx_spi_setup(struct spi_device *spi)
 	if (spi->mode & ~(SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST))
 		return -EINVAL;
 
-	if (spi->chip_select >= spi->master->num_chipselect)
-		return -EINVAL;
-
 	return 0;
 }
 

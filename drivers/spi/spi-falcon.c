@@ -312,9 +312,6 @@ static int falcon_sflash_setup(struct spi_device *spi)
 	unsigned int i;
 	unsigned long flags;
 
-	if (spi->chip_select > 0)
-		return -ENODEV;
-
 	spin_lock_irqsave(&ebu_lock, flags);
 
 	if (spi->max_speed_hz >= CLOCK_100M) {

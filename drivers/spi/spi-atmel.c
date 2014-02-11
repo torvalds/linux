@@ -993,13 +993,6 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	as = spi_master_get_devdata(spi->master);
 
-	if (spi->chip_select > spi->master->num_chipselect) {
-		dev_dbg(&spi->dev,
-				"setup: invalid chipselect %u (%u defined)\n",
-				spi->chip_select, spi->master->num_chipselect);
-		return -EINVAL;
-	}
-
 	/* see notes above re chipselect */
 	if (!atmel_spi_is_v2(as)
 			&& spi->chip_select == 0

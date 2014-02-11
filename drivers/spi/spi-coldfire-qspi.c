@@ -356,12 +356,6 @@ static int mcfqspi_transfer_one_message(struct spi_master *master,
 
 static int mcfqspi_setup(struct spi_device *spi)
 {
-	if (spi->chip_select >= spi->master->num_chipselect) {
-		dev_dbg(&spi->dev, "%d chip select is out of range\n",
-			spi->chip_select);
-		return -EINVAL;
-	}
-
 	mcfqspi_cs_deselect(spi_master_get_devdata(spi->master),
 			    spi->chip_select, spi->mode & SPI_CS_HIGH);
 
