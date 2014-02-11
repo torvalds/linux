@@ -23,6 +23,8 @@ Optional properties:
 	pins (optional, if not provided, driver will not set rate of the
 	REFCLK signal and assume that a value from the primary reference
 	clock frequencies table is used)
+- usb3503-gpio-waittime: Some boards need a longer delay on 'reset' and 'connect' GPIO.
+	Use this to set extra wait time (in milliseconds).
 
 Examples:
 	usb3503@08 {

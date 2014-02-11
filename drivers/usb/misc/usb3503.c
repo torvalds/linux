@@ -59,10 +59,11 @@ struct usb3503 {
 	struct regmap		*regmap;
 	struct device		*dev;
 	struct clk		*clk;
-	u8	port_off_mask;
 	int	gpio_intn;
 	int	gpio_reset;
 	int	gpio_connect;
+	unsigned gpio_waittime;
+	u8	port_off_mask;
 	bool	secondary_ref_clk;
 };
 
@@ -75,8 +76,12 @@ static int usb3503_reset(struct usb3503 *hub, int state)
 		gpio_set_value_cansleep(hub->gpio_reset, state);
 
 	/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
-	if (state)
+	if (state) {
 		usleep_range(4000, 10000);
+
+		if (hub->gpio_waittime)
+			msleep(hub->gpio_waittime);
+	}
 
 	return 0;
 }
@@ -131,6 +136,9 @@ static int usb3503_connect(struct usb3503 *hub)
 	if (gpio_is_valid(hub->gpio_connect))
 		gpio_set_value_cansleep(hub->gpio_connect, 1);
 
+	if (hub->gpio_waittime)
+		msleep(hub->gpio_waittime);
+
 	hub->mode = USB3503_MODE_HUB;
 	dev_info(dev, "switched to HUB mode\n");
 
@@ -175,6 +183,7 @@ static int usb3503_probe(struct usb3503 *hub)
 	struct device_node *np = dev->of_node;
 	int err;
 	u32 mode = USB3503_MODE_HUB;
+	u32 waittime = 0;
 	const u32 *property;
 	int len;
 
@@ -257,8 +266,12 @@ static int usb3503_probe(struct usb3503 *hub)
 		hub->gpio_reset = of_get_named_gpio(np, "reset-gpios", 0);
 		if (hub->gpio_reset == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
+
 		of_property_read_u32(np, "initial-mode", &mode);
 		hub->mode = mode;
+
+		of_property_read_u32(np, "usb3503-gpio-waittime", &waittime);
+		hub->gpio_waittime = waittime;
 	}
 
 	if (hub->port_off_mask && !hub->regmap)
