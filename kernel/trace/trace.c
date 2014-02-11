@@ -181,6 +181,17 @@ static int __init set_trace_boot_options(char *str)
 }
 __setup("trace_options=", set_trace_boot_options);
 
+static char trace_boot_clock_buf[MAX_TRACER_SIZE] __initdata;
+static char *trace_boot_clock __initdata;
+
+static int __init set_trace_boot_clock(char *str)
+{
+	strlcpy(trace_boot_clock_buf, str, MAX_TRACER_SIZE);
+	trace_boot_clock = trace_boot_clock_buf;
+	return 0;
+}
+__setup("trace_clock=", set_trace_boot_clock);
+
 
 unsigned long long ns2usecs(cycle_t nsec)
 {
@@ -4746,24 +4757,9 @@ static int tracing_clock_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
-				   size_t cnt, loff_t *fpos)
+static int tracing_set_clock(struct trace_array *tr, const char *clockstr)
 {
-	struct seq_file *m = filp->private_data;
-	struct trace_array *tr = m->private;
-	char buf[64];
-	const char *clockstr;
 	int i;
-
-	if (cnt >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-
-	buf[cnt] = 0;
-
-	clockstr = strstrip(buf);
 
 	for (i = 0; i < ARRAY_SIZE(trace_clocks); i++) {
 		if (strcmp(trace_clocks[i].name, clockstr) == 0)
@@ -4791,6 +4787,32 @@ static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
 #endif
 
 	mutex_unlock(&trace_types_lock);
+
+	return 0;
+}
+
+static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
+				   size_t cnt, loff_t *fpos)
+{
+	struct seq_file *m = filp->private_data;
+	struct trace_array *tr = m->private;
+	char buf[64];
+	const char *clockstr;
+	int ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	clockstr = strstrip(buf);
+
+	ret = tracing_set_clock(tr, clockstr);
+	if (ret)
+		return ret;
 
 	*fpos += cnt;
 
@@ -6573,6 +6595,13 @@ __init static int tracer_alloc_buffers(void)
 		tracing_off();
 
 	trace_init_cmdlines();
+
+	if (trace_boot_clock) {
+		ret = tracing_set_clock(&global_trace, trace_boot_clock);
+		if (ret < 0)
+			pr_warning("Trace clock %s not defined, going back to default\n",
+				   trace_boot_clock);
+	}
 
 	/*
 	 * register_tracer() might reference current_trace, so it
