@@ -2582,7 +2582,7 @@ static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
 	/* FIRSTQ_INDX = 0, FIRSTQ_TYPE = 0 (rx) */
 	wr32(hw, I40E_PFINT_LNKLST0, 0);
 
-	/* Associate the queue pair to the vector and enable the q int */
+	/* Associate the queue pair to the vector and enable the queue int */
 	val = I40E_QINT_RQCTL_CAUSE_ENA_MASK		      |
 	      (I40E_RX_ITR << I40E_QINT_RQCTL_ITR_INDX_SHIFT) |
 	      (I40E_QUEUE_TYPE_TX << I40E_QINT_TQCTL_NEXTQ_TYPE_SHIFT);
@@ -5442,7 +5442,7 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		u8 queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK)
 				>> I40E_GL_MDET_TX_QUEUE_SHIFT;
 		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection TX event 0x%02x on q %d of function 0x%02x\n",
+			 "Malicious Driver Detection event 0x%02x on TX queue %d of function 0x%02x\n",
 			 event, queue, func);
 		wr32(hw, I40E_GL_MDET_TX, 0xffffffff);
 		mdd_detected = true;
@@ -5456,7 +5456,7 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		u8 queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK)
 				>> I40E_GL_MDET_RX_QUEUE_SHIFT;
 		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection RX event 0x%02x on q %d of function 0x%02x\n",
+			 "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
 			 event, queue, func);
 		wr32(hw, I40E_GL_MDET_RX, 0xffffffff);
 		mdd_detected = true;
@@ -6882,8 +6882,7 @@ static int i40e_vsi_setup_vectors(struct i40e_vsi *vsi)
 	}
 
 	if (vsi->base_vector) {
-		dev_info(&pf->pdev->dev,
-			 "VSI %d has non-zero base vector %d\n",
+		dev_info(&pf->pdev->dev, "VSI %d has non-zero base vector %d\n",
 			 vsi->seid, vsi->base_vector);
 		return -EEXIST;
 	}
@@ -6902,7 +6901,7 @@ static int i40e_vsi_setup_vectors(struct i40e_vsi *vsi)
 						 vsi->num_q_vectors, vsi->idx);
 	if (vsi->base_vector < 0) {
 		dev_info(&pf->pdev->dev,
-			 "failed to get q tracking for VSI %d, err=%d\n",
+			 "failed to get queue tracking for VSI %d, err=%d\n",
 			 vsi->seid, vsi->base_vector);
 		i40e_vsi_free_q_vectors(vsi);
 		ret = -ENOENT;
