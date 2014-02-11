@@ -1414,6 +1414,13 @@ restart_watchdog:
 	schedule_work(&adapter->adminq_task);
 }
 
+static int next_queue(struct i40evf_adapter *adapter, int j)
+{
+	j += 1;
+
+	return j >= adapter->vsi_res->num_queue_pairs ? 0 : j;
+}
+
 /**
  * i40evf_configure_rss - Prepare for RSS if used
  * @adapter: board private structure
@@ -1444,15 +1451,13 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
-	for (i = 0, j = 0; i < I40E_VFQF_HLUT_MAX_INDEX; i++, j++) {
-		if (j == adapter->vsi_res->num_queue_pairs)
-			j = 0;
-		/* lut = 4-byte sliding window of 4 lut entries */
-		lut = (lut << 8) | (j &
-			 ((0x1 << 8) - 1));
-		/* On i = 3, we have 4 entries in lut; write to the register */
-		if ((i & 3) == 3)
-			wr32(hw, I40E_VFQF_HLUT(i >> 2), lut);
+	j = adapter->vsi_res->num_queue_pairs;
+	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
+		lut = next_queue(adapter, j);
+		lut |= next_queue(adapter, j) << 8;
+		lut |= next_queue(adapter, j) << 16;
+		lut |= next_queue(adapter, j) << 24;
+		wr32(hw, I40E_VFQF_HLUT(i), lut);
 	}
 	i40e_flush(hw);
 }
