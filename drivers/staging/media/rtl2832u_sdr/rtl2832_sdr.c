@@ -1387,10 +1387,9 @@ struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 	/* Register controls */
 	switch (s->cfg->tuner) {
 	case RTL2832_TUNER_E4000:
-		v4l2_ctrl_handler_init(&s->hdl, 2);
-		s->bandwidth_auto = v4l2_ctrl_new_std(&s->hdl, ops, V4L2_CID_RF_TUNER_BANDWIDTH_AUTO, 0, 1, 1, 1);
-		s->bandwidth = v4l2_ctrl_new_std(&s->hdl, ops, V4L2_CID_RF_TUNER_BANDWIDTH, 4300000, 11000000, 100000, 4300000);
-		v4l2_ctrl_auto_cluster(2, &s->bandwidth_auto, 0, false);
+		v4l2_ctrl_handler_init(&s->hdl, 9);
+		if (sd)
+			v4l2_ctrl_add_handler(&s->hdl, sd->ctrl_handler, NULL);
 		break;
 	case RTL2832_TUNER_R820T:
 		v4l2_ctrl_handler_init(&s->hdl, 2);
