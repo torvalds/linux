@@ -367,7 +367,7 @@
 			<&aclk_peri_mux &clk_gpll>,	<&clk_i2s_pll_mux &clk_cpll>,
 			<&clk_uart_pll_mux &clk_gpll>;
 		rockchip,clocks-init-rate =
-			<&clk_core 594000000>,	<&clk_gpll 768000000>,
+			<&clk_core 792000000>,	<&clk_gpll 768000000>,
 			<&clk_cpll 594000000>,	<&aclk_cpu 192000000>,
 			<&hclk_cpu 96000000>,	<&pclk_cpu 48000000>,
 			<&pclk_ahb2apb 48000000>,	<&aclk_peri 192000000>,

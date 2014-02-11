@@ -110,7 +110,6 @@ struct rkclk {
 
 static DEFINE_SPINLOCK(clk_lock);
 LIST_HEAD(rk_clks);
-void __iomem *reg_start = 0;
 
 #define RKCLK_PLL_TYPE	(1 << 0)
 #define RKCLK_MUX_TYPE	(1 << 1)
@@ -721,7 +720,7 @@ void rk_dump_cru(void)
 		if (i % 4 == 0)
 			printk("\n%s: \t[0x%08x]: ",
 					__func__, 0x20000000 + i * 4);
-		printk("%08x ", readl(reg_start + i * 4));
+		printk("%08x ", readl(RK_CRU_VIRT + i * 4));
 	}
 	printk("\n\n");
 }
@@ -838,13 +837,8 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	struct device_node *node_init;
 	struct rkclk *rkclk;
 
-	reg_start = of_iomap(np, 0);
-	if (reg_start == NULL) {
-		clk_err("%s: can not get cru base!\n", __func__);
-		return;
-	} else {
-		printk("%s: get cru base = 0x%x\n", __func__, (u32)reg_start);
-	}
+
+	printk("%s start! cru base = 0x%08x\n", __func__, (u32)RK_CRU_VIRT);
 
 	node_init=of_find_node_by_name(NULL,"clocks-init");
 	if (!node_init) {
@@ -1048,7 +1042,7 @@ void rkclk_init_clks(struct device_node *np)
 
 	cnt_parent = of_count_phandle_with_args(np, "rockchip,clocks-init-parent", "#clock-init-cells");
 
-	clk_debug("%s:cnt_parent =%d\n",__FUNCTION__,cnt_parent);
+	printk("%s: cnt_parent = %d\n",__FUNCTION__,cnt_parent);
 
 	for (i = 0; i < cnt_parent; i++) {
 		clk_parent_name=NULL;
@@ -1065,13 +1059,13 @@ void rkclk_init_clks(struct device_node *np)
 
 		clk_set_parent(clk_c, clk_p);
 
-		clk_debug("%s: set %s parent = %s\n", __FUNCTION__, clk_name,
+		printk("%s: set %s parent = %s\n", __FUNCTION__, clk_name,
 				clk_parent_name);
 	}
 
 	cnt_rate = of_count_phandle_with_args(np, "rockchip,clocks-init-rate", "#clock-init-cells");
 
-	clk_debug("%s:rate cnt=%d\n",__FUNCTION__,cnt_rate);
+	printk("%s: cnt_rate = %d\n",__FUNCTION__,cnt_rate);
 
 	for (i = 0; i < cnt_rate; i++) {
 		clk_name=of_clk_init_rate_get_info(np, i, &clk_rate);
@@ -1089,7 +1083,7 @@ void rkclk_init_clks(struct device_node *np)
 
 		clk_set_rate(clk_c, clk_rate);
 
-		clk_debug("%s: set %s rate = %u\n", __FUNCTION__, clk_name,
+		printk("%s: set %s rate = %u\n", __FUNCTION__, clk_name,
 				clk_rate);
 	}
 

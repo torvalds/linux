@@ -5,19 +5,8 @@
 #include "clk-pll.h"
 
 
+
 //static unsigned long lpj_gpll;
-
-//fixme
-extern void __iomem *reg_start;
-#define RK30_CRU_BASE	(reg_start)
-
-#define cru_readl(offset)	readl(RK30_CRU_BASE + offset)
-#define cru_writel(v, offset)	do {writel(v, RK30_CRU_BASE + offset); dsb();} \
-	while (0)
-
-//fixme
-//#define grf_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
-
 
 #define PLLS_IN_NORM(pll_id) (((cru_readl(CRU_MODE_CON)&PLL_MODE_MSK(pll_id))\
 			==(PLL_MODE_NORM(pll_id)&PLL_MODE_MSK(pll_id)))\
@@ -103,21 +92,17 @@ static const struct pll_clk_set pll_com_table[] = {
 	_PLL_SET_CLKS(0,	0,	0,	0),
 };
 
-
 static void pll_wait_lock(int pll_idx)
 {
-#if 1
-	//fixme
-	udelay(10);
-#else
 	u32 pll_state[4] = {1, 0, 2, 3};
 	u32 bit = 0x20u << pll_state[pll_idx];
 	int delay = 24000000;
 	while (delay > 0) {
-		if (regfile_readl(GRF_SOC_STATUS0) & bit)
+		if (grf_readl(RK3188_GRF_SOC_STATUS0) & bit)
 			break;
 		delay--;
 	}
+	
 	if (delay == 0) {
 		clk_err("PLL_ID=%d\npll_con0=%08x\npll_con1=%08x\n"
 				"pll_con2=%08x\npll_con3=%08x\n",
@@ -130,7 +115,6 @@ static void pll_wait_lock(int pll_idx)
 		clk_err("wait pll bit 0x%x time out!\n", bit);
 		while(1);
 	}
-#endif
 }
 
 
