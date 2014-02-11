@@ -347,6 +347,7 @@
 			intn-gpios = <&gpx3 0 1>;
 			reset-gpios = <&gpx3 5 1>;
 			initial-mode = <1>;
+			usb3503-gpio-waittime = <100>;
 		};
 
 		max77686: pmic@09 {
