@@ -55,8 +55,6 @@ struct au1550_spi {
 
 	volatile psc_spi_t __iomem *regs;
 	int irq;
-	unsigned freq_max;
-	unsigned freq_min;
 
 	unsigned len;
 	unsigned tx_count;
@@ -248,11 +246,8 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 			hz = t->speed_hz;
 	}
 
-	if (hz > spi->max_speed_hz || hz > hw->freq_max || hz < hw->freq_min) {
-		dev_err(&spi->dev, "setupxfer: clock rate=%d out of range\n",
-			hz);
+	if (!hz)
 		return -EINVAL;
-	}
 
 	au1550_spi_bits_handlers_set(hw, spi->bits_per_word);
 
@@ -284,23 +279,6 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 
 	au1550_spi_reset_fifos(hw);
 	au1550_spi_mask_ack_all(hw);
-	return 0;
-}
-
-static int au1550_spi_setup(struct spi_device *spi)
-{
-	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
-
-	if (spi->max_speed_hz == 0)
-		spi->max_speed_hz = hw->freq_max;
-	if (spi->max_speed_hz > hw->freq_max
-			|| spi->max_speed_hz < hw->freq_min)
-		return -EINVAL;
-	/*
-	 * NOTE: cannot change speed and other hw settings immediately,
-	 *       otherwise sharing of spi bus is not possible,
-	 *       so do not call setupxfer(spi, NULL) here
-	 */
 	return 0;
 }
 
@@ -838,7 +816,6 @@ static int au1550_spi_probe(struct platform_device *pdev)
 	hw->bitbang.master = hw->master;
 	hw->bitbang.setup_transfer = au1550_spi_setupxfer;
 	hw->bitbang.chipselect = au1550_spi_chipsel;
-	hw->bitbang.master->setup = au1550_spi_setup;
 	hw->bitbang.txrx_bufs = au1550_spi_txrx_bufs;
 
 	if (hw->usedma) {
@@ -909,8 +886,9 @@ static int au1550_spi_probe(struct platform_device *pdev)
 	{
 		int min_div = (2 << 0) * (2 * (4 + 1));
 		int max_div = (2 << 3) * (2 * (63 + 1));
-		hw->freq_max = hw->pdata->mainclk_hz / min_div;
-		hw->freq_min = hw->pdata->mainclk_hz / (max_div + 1) + 1;
+		master->max_speed_hz = hw->pdata->mainclk_hz / min_div;
+		master->min_speed_hz =
+				hw->pdata->mainclk_hz / (max_div + 1) + 1;
 	}
 
 	au1550_spi_setup_psc_as_spi(hw);
