@@ -130,7 +130,6 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	} else {
 		palive2 = (void *)pkt->data;
 
-		mvm->support_umac_log = true;
 		mvm->error_event_table =
 			le32_to_cpu(palive2->error_event_table_ptr);
 		mvm->log_event_table =
@@ -141,6 +140,9 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 
 		alive_data->valid = le16_to_cpu(palive2->status) ==
 				    IWL_ALIVE_STATUS_OK;
+		if (mvm->umac_error_event_table)
+			mvm->support_umac_log = true;
+
 		IWL_DEBUG_FW(mvm,
 			     "Alive VER2 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
 			     le16_to_cpu(palive2->status), palive2->ver_type,
