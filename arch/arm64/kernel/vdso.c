@@ -106,49 +106,31 @@ int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
 
 static int __init vdso_init(void)
 {
-	struct page *pg;
-	char *vbase;
-	int i, ret = 0;
+	int i;
+
+	if (memcmp(&vdso_start, "\177ELF", 4)) {
+		pr_err("vDSO is not a valid ELF object!\n");
+		return -EINVAL;
+	}
 
 	vdso_pages = (&vdso_end - &vdso_start) >> PAGE_SHIFT;
 	pr_info("vdso: %ld pages (%ld code, %ld data) at base %p\n",
 		vdso_pages + 1, vdso_pages, 1L, &vdso_start);
 
 	/* Allocate the vDSO pagelist, plus a page for the data. */
-	vdso_pagelist = kzalloc(sizeof(struct page *) * (vdso_pages + 1),
+	vdso_pagelist = kcalloc(vdso_pages + 1, sizeof(struct page *),
 				GFP_KERNEL);
-	if (vdso_pagelist == NULL) {
-		pr_err("Failed to allocate vDSO pagelist!\n");
+	if (vdso_pagelist == NULL)
 		return -ENOMEM;
-	}
 
 	/* Grab the vDSO code pages. */
-	for (i = 0; i < vdso_pages; i++) {
-		pg = virt_to_page(&vdso_start + i*PAGE_SIZE);
-		ClearPageReserved(pg);
-		get_page(pg);
-		vdso_pagelist[i] = pg;
-	}
-
-	/* Sanity check the shared object header. */
-	vbase = vmap(vdso_pagelist, 1, 0, PAGE_KERNEL);
-	if (vbase == NULL) {
-		pr_err("Failed to map vDSO pagelist!\n");
-		return -ENOMEM;
-	} else if (memcmp(vbase, "\177ELF", 4)) {
-		pr_err("vDSO is not a valid ELF object!\n");
-		ret = -EINVAL;
-		goto unmap;
-	}
+	for (i = 0; i < vdso_pages; i++)
+		vdso_pagelist[i] = virt_to_page(&vdso_start + i * PAGE_SIZE);
 
 	/* Grab the vDSO data page. */
-	pg = virt_to_page(vdso_data);
-	get_page(pg);
-	vdso_pagelist[i] = pg;
+	vdso_pagelist[i] = virt_to_page(vdso_data);
 
-unmap:
-	vunmap(vbase);
-	return ret;
+	return 0;
 }
 arch_initcall(vdso_init);
 
