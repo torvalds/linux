@@ -3755,8 +3755,8 @@ static int i40e_vsi_configure_bw_alloc(struct i40e_vsi *vsi, u8 enabled_tc,
 					  NULL);
 	if (aq_ret) {
 		dev_info(&vsi->back->pdev->dev,
-			 "%s: AQ command Config VSI BW allocation per TC failed = %d\n",
-			 __func__, vsi->back->hw.aq.asq_last_status);
+			 "AQ command Config VSI BW allocation per TC failed = %d\n",
+			 vsi->back->hw.aq.asq_last_status);
 		return -EINVAL;
 	}
 
@@ -4364,7 +4364,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		 * for the warning interrupt will deal with the shutdown
 		 * and recovery of the switch setup.
 		 */
-		dev_info(&pf->pdev->dev, "GlobalR requested\n");
+		dev_dbg(&pf->pdev->dev, "GlobalR requested\n");
 		val = rd32(&pf->hw, I40E_GLGEN_RTRIG);
 		val |= I40E_GLGEN_RTRIG_GLOBR_MASK;
 		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
@@ -4375,7 +4375,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		 *
 		 * Same as Global Reset, except does *not* include the MAC/PHY
 		 */
-		dev_info(&pf->pdev->dev, "CoreR requested\n");
+		dev_dbg(&pf->pdev->dev, "CoreR requested\n");
 		val = rd32(&pf->hw, I40E_GLGEN_RTRIG);
 		val |= I40E_GLGEN_RTRIG_CORER_MASK;
 		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
@@ -4409,7 +4409,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		 * the switch, since we need to do all the recovery as
 		 * for the Core Reset.
 		 */
-		dev_info(&pf->pdev->dev, "PFR requested\n");
+		dev_dbg(&pf->pdev->dev, "PFR requested\n");
 		i40e_handle_reset_warning(pf);
 
 	} else if (reset_flags & (1 << __I40E_REINIT_REQUESTED)) {
@@ -4458,18 +4458,18 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 			   &old_cfg->etscfg.prioritytable,
 			   sizeof(new_cfg->etscfg.prioritytable))) {
 			need_reconfig = true;
-			dev_info(&pf->pdev->dev, "ETS UP2TC changed.\n");
+			dev_dbg(&pf->pdev->dev, "ETS UP2TC changed.\n");
 		}
 
 		if (memcmp(&new_cfg->etscfg.tcbwtable,
 			   &old_cfg->etscfg.tcbwtable,
 			   sizeof(new_cfg->etscfg.tcbwtable)))
-			dev_info(&pf->pdev->dev, "ETS TC BW Table changed.\n");
+			dev_dbg(&pf->pdev->dev, "ETS TC BW Table changed.\n");
 
 		if (memcmp(&new_cfg->etscfg.tsatable,
 			   &old_cfg->etscfg.tsatable,
 			   sizeof(new_cfg->etscfg.tsatable)))
-			dev_info(&pf->pdev->dev, "ETS TSA Table changed.\n");
+			dev_dbg(&pf->pdev->dev, "ETS TSA Table changed.\n");
 	}
 
 	/* Check if PFC configuration has changed */
@@ -4477,7 +4477,7 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 		   &old_cfg->pfc,
 		   sizeof(new_cfg->pfc))) {
 		need_reconfig = true;
-		dev_info(&pf->pdev->dev, "PFC config change detected.\n");
+		dev_dbg(&pf->pdev->dev, "PFC config change detected.\n");
 	}
 
 	/* Check if APP Table has changed */
@@ -4485,7 +4485,7 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 		   &old_cfg->app,
 		   sizeof(new_cfg->app))) {
 		need_reconfig = true;
-		dev_info(&pf->pdev->dev, "APP Table change detected.\n");
+		dev_dbg(&pf->pdev->dev, "APP Table change detected.\n");
 	}
 
 	return need_reconfig;
@@ -4535,7 +4535,7 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 
 	/* No change detected in DCBX configs */
 	if (!memcmp(&tmp_dcbx_cfg, dcbx_cfg, sizeof(tmp_dcbx_cfg))) {
-		dev_info(&pf->pdev->dev, "No change detected in DCBX configuration.\n");
+		dev_dbg(&pf->pdev->dev, "No change detected in DCBX configuration.\n");
 		goto exit;
 	}
 
@@ -4593,8 +4593,8 @@ static void i40e_handle_lan_overflow_event(struct i40e_pf *pf,
 	struct i40e_vf *vf;
 	u16 vf_id;
 
-	dev_info(&pf->pdev->dev, "%s: Rx Queue Number = %d QTX_CTL=0x%08x\n",
-		 __func__, queue, qtx_ctl);
+	dev_dbg(&pf->pdev->dev, "overflow Rx Queue Number = %d QTX_CTL=0x%08x\n",
+		queue, qtx_ctl);
 
 	/* Queue belongs to VF, find the VF and issue VF reset */
 	if (((qtx_ctl & I40E_QTX_CTL_PFVF_Q_MASK)
@@ -4946,7 +4946,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 					event.msg_size);
 			break;
 		case i40e_aqc_opc_lldp_update_mib:
-			dev_info(&pf->pdev->dev, "ARQ: Update LLDP MIB event received\n");
+			dev_dbg(&pf->pdev->dev, "ARQ: Update LLDP MIB event received\n");
 #ifdef CONFIG_I40E_DCB
 			rtnl_lock();
 			ret = i40e_handle_lldp_event(pf, &event);
@@ -4954,7 +4954,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 #endif /* CONFIG_I40E_DCB */
 			break;
 		case i40e_aqc_opc_event_lan_overflow:
-			dev_info(&pf->pdev->dev, "ARQ LAN queue overflow event received\n");
+			dev_dbg(&pf->pdev->dev, "ARQ LAN queue overflow event received\n");
 			i40e_handle_lan_overflow_event(pf, &event);
 			break;
 		case i40e_aqc_opc_send_msg_to_peer:
@@ -5231,7 +5231,7 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 	if (test_and_set_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state))
 		return 0;
 
-	dev_info(&pf->pdev->dev, "Tearing down internal switch for reset\n");
+	dev_dbg(&pf->pdev->dev, "Tearing down internal switch for reset\n");
 
 	if (i40e_check_asq_alive(hw))
 		i40e_vc_notify_reset(pf);
@@ -5278,7 +5278,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 
 	if (test_bit(__I40E_DOWN, &pf->state))
 		goto end_core_reset;
-	dev_info(&pf->pdev->dev, "Rebuilding internal switch\n");
+	dev_dbg(&pf->pdev->dev, "Rebuilding internal switch\n");
 
 	/* rebuild the basics for the AdminQ, HMC, and initial HW switch */
 	ret = i40e_init_adminq(&pf->hw);
@@ -5328,7 +5328,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	 * try to recover minimal use by getting the basic PF VSI working.
 	 */
 	if (pf->vsi[pf->lan_vsi]->uplink_seid != pf->mac_seid) {
-		dev_info(&pf->pdev->dev, "attempting to rebuild switch\n");
+		dev_dbg(&pf->pdev->dev, "attempting to rebuild switch\n");
 		/* find the one VEB connected to the MAC, and find orphans */
 		for (v = 0; v < I40E_MAX_VEB; v++) {
 			if (!pf->veb[v])
@@ -5393,7 +5393,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	dv.subbuild_version = 0;
 	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
 
-	dev_info(&pf->pdev->dev, "PF reset done\n");
+	dev_info(&pf->pdev->dev, "reset complete\n");
 
 end_core_reset:
 	clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
@@ -6293,12 +6293,8 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	    (pf->hw.func_caps.fd_filters_best_effort > 0)) {
 		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 		pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
-		dev_info(&pf->pdev->dev,
-			"Flow Director ATR mode Enabled\n");
 		if (!(pf->flags & I40E_FLAG_MFP_ENABLED)) {
 			pf->flags |= I40E_FLAG_FD_SB_ENABLED;
-			dev_info(&pf->pdev->dev,
-				 "Flow Director Side Band mode Enabled\n");
 		} else {
 			dev_info(&pf->pdev->dev,
 				 "Flow Director Side Band mode Disabled in MFP mode\n");
@@ -6322,9 +6318,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		pf->num_req_vfs = min_t(int,
 					pf->hw.func_caps.num_vfs,
 					I40E_MAX_VF_COUNT);
-		dev_info(&pf->pdev->dev,
-			 "Number of VFs being requested for PF[%d] = %d\n",
-			 pf->hw.pf_id, pf->num_req_vfs);
 	}
 #endif /* CONFIG_PCI_IOV */
 	pf->eeprom_version = 0xDEAD;
@@ -8131,7 +8124,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i40e_set_pci_config_data(hw, link_status);
 
-	dev_info(&pdev->dev, "PCI Express: %s %s\n",
+	dev_info(&pdev->dev, "PCI-Express: %s %s\n",
 		(hw->bus.speed == i40e_bus_speed_8000 ? "Speed 8.0GT/s" :
 		 hw->bus.speed == i40e_bus_speed_5000 ? "Speed 5.0GT/s" :
 		 hw->bus.speed == i40e_bus_speed_2500 ? "Speed 2.5GT/s" :

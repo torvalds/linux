@@ -1467,19 +1467,19 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				 pf->msg_enable);
 		}
 	} else if (strncmp(cmd_buf, "pfr", 3) == 0) {
-		dev_info(&pf->pdev->dev, "forcing PFR\n");
+		dev_info(&pf->pdev->dev, "debugfs: forcing PFR\n");
 		i40e_do_reset_safe(pf, (1 << __I40E_PF_RESET_REQUESTED));
 
 	} else if (strncmp(cmd_buf, "corer", 5) == 0) {
-		dev_info(&pf->pdev->dev, "forcing CoreR\n");
+		dev_info(&pf->pdev->dev, "debugfs: forcing CoreR\n");
 		i40e_do_reset_safe(pf, (1 << __I40E_CORE_RESET_REQUESTED));
 
 	} else if (strncmp(cmd_buf, "globr", 5) == 0) {
-		dev_info(&pf->pdev->dev, "forcing GlobR\n");
+		dev_info(&pf->pdev->dev, "debugfs: forcing GlobR\n");
 		i40e_do_reset_safe(pf, (1 << __I40E_GLOBAL_RESET_REQUESTED));
 
 	} else if (strncmp(cmd_buf, "empr", 4) == 0) {
-		dev_info(&pf->pdev->dev, "forcing EMPR\n");
+		dev_info(&pf->pdev->dev, "debugfs: forcing EMPR\n");
 		i40e_do_reset_safe(pf, (1 << __I40E_EMP_RESET_REQUESTED));
 
 	} else if (strncmp(cmd_buf, "read", 4) == 0) {
