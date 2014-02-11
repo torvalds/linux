@@ -61,7 +61,7 @@ struct ts72xx_wdt {
 	struct platform_device *pdev;
 };
 
-struct platform_device *ts72xx_wdt_pdev;
+static struct platform_device *ts72xx_wdt_pdev;
 
 /*
  * TS-72xx Watchdog supports following timeouts (value written
