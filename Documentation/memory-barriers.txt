@@ -724,7 +724,8 @@ In summary:
       later loads, smp_mb().
 
   (*) Control dependencies require at least one run-time conditional
-      between the prior load and the subsequent store.  If the compiler
+      between the prior load and the subsequent store, and this
+      conditional must involve the prior load.  If the compiler
       is able to optimize the conditional away, it will have also
       optimized away the ordering.  Careful use of ACCESS_ONCE() can
       help to preserve the needed conditional.
