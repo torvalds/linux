@@ -1141,7 +1141,7 @@ static int i40evf_set_interrupt_capability(struct i40evf_adapter *adapter)
 	 * (roughly) twice the number of vectors as there are CPU's.
 	 */
 	v_budget = min(pairs, (int)(num_online_cpus() * 2)) + NONQ_VECS;
-	v_budget = min(v_budget, (int)adapter->vf_res->max_vectors + 1);
+	v_budget = min(v_budget, (int)adapter->vf_res->max_vectors);
 
 	/* A failure in MSI-X entry allocation isn't fatal, but it does
 	 * mean we disable MSI-X capabilities of the adapter.
