@@ -63,7 +63,6 @@ static void drbd_release(struct gendisk *gd, fmode_t mode);
 static int w_md_sync(struct drbd_work *w, int unused);
 static void md_sync_timer_fn(unsigned long data);
 static int w_bitmap_io(struct drbd_work *w, int unused);
-static int w_go_diskless(struct drbd_work *w, int unused);
 
 MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
 	      "Lars Ellenberg <lars@linbit.com>");
@@ -1929,14 +1928,12 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	INIT_LIST_HEAD(&device->resync_reads);
 	INIT_LIST_HEAD(&device->resync_work.list);
 	INIT_LIST_HEAD(&device->unplug_work.list);
-	INIT_LIST_HEAD(&device->go_diskless.list);
 	INIT_LIST_HEAD(&device->md_sync_work.list);
 	INIT_LIST_HEAD(&device->start_resync_work.list);
 	INIT_LIST_HEAD(&device->bm_io_work.w.list);
 
 	device->resync_work.cb  = w_resync_timer;
 	device->unplug_work.cb  = w_send_write_hint;
-	device->go_diskless.cb  = w_go_diskless;
 	device->md_sync_work.cb = w_md_sync;
 	device->bm_io_work.w.cb = w_bitmap_io;
 	device->start_resync_work.cb = w_start_resync;
@@ -2011,7 +2008,6 @@ void drbd_device_cleanup(struct drbd_device *device)
 	D_ASSERT(device, list_empty(&first_peer_device(device)->connection->sender_work.q));
 	D_ASSERT(device, list_empty(&device->resync_work.list));
 	D_ASSERT(device, list_empty(&device->unplug_work.list));
-	D_ASSERT(device, list_empty(&device->go_diskless.list));
 
 	drbd_set_defaults(device);
 }
@@ -3528,61 +3524,6 @@ static int w_bitmap_io(struct drbd_work *w, int unused)
 	work->why = NULL;
 	work->flags = 0;
 
-	return 0;
-}
-
-void drbd_ldev_destroy(struct drbd_device *device)
-{
-	lc_destroy(device->resync);
-	device->resync = NULL;
-	lc_destroy(device->act_log);
-	device->act_log = NULL;
-	__no_warn(local,
-		drbd_free_ldev(device->ldev);
-		device->ldev = NULL;);
-
-	clear_bit(GO_DISKLESS, &device->flags);
-}
-
-static int w_go_diskless(struct drbd_work *w, int unused)
-{
-	struct drbd_device *device =
-		container_of(w, struct drbd_device, go_diskless);
-
-	D_ASSERT(device, device->state.disk == D_FAILED);
-	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
-	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
-	 * the protected members anymore, though, so once put_ldev reaches zero
-	 * again, it will be safe to free them. */
-
-	/* Try to write changed bitmap pages, read errors may have just
-	 * set some bits outside the area covered by the activity log.
-	 *
-	 * If we have an IO error during the bitmap writeout,
-	 * we will want a full sync next time, just in case.
-	 * (Do we want a specific meta data flag for this?)
-	 *
-	 * If that does not make it to stable storage either,
-	 * we cannot do anything about that anymore.
-	 *
-	 * We still need to check if both bitmap and ldev are present, we may
-	 * end up here after a failed attach, before ldev was even assigned.
-	 */
-	if (device->bitmap && device->ldev) {
-		/* An interrupted resync or similar is allowed to recounts bits
-		 * while we detach.
-		 * Any modifications would not be expected anymore, though.
-		 */
-		if (drbd_bitmap_io_from_worker(device, drbd_bm_write,
-					"detach", BM_LOCKED_TEST_ALLOWED)) {
-			if (test_bit(WAS_READ_ERROR, &device->flags)) {
-				drbd_md_set_flag(device, MDF_FULL_SYNC);
-				drbd_md_sync(device);
-			}
-		}
-	}
-
-	drbd_force_state(device, NS(disk, D_DISKLESS));
 	return 0;
 }
 
