@@ -108,7 +108,7 @@ struct au0828_board au0828_boards[] = {
 		.name	= "DViCO FusionHDTV USB",
 		.tuner_type = UNSET,
 		.tuner_addr = ADDR_UNSET,
-		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
+		.i2c_clk_divider = AU0828_I2C_CLK_20KHZ,
 	},
 	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
 		.name = "Hauppauge Woodbury",
