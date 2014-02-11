@@ -187,6 +187,14 @@ struct intel_connector {
 	 * and active (i.e. dpms ON state). */
 	bool (*get_hw_state)(struct intel_connector *);
 
+	/*
+	 * Removes all interfaces through which the connector is accessible
+	 * - like sysfs, debugfs entries -, so that no new operations can be
+	 * started on the connector. Also makes sure all currently pending
+	 * operations finish before returing.
+	 */
+	void (*unregister)(struct intel_connector *);
+
 	/* Panel info for eDP and LVDS */
 	struct intel_panel panel;
 

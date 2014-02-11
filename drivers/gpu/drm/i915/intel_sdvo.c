@@ -2397,6 +2397,7 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	connector->base.base.doublescan_allowed = 0;
 	connector->base.base.display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->base.get_hw_state = intel_sdvo_connector_get_hw_state;
+	connector->base.unregister = intel_connector_unregister;
 
 	intel_connector_attach_encoder(&connector->base, &encoder->base);
 	drm_sysfs_connector_add(&connector->base.base);

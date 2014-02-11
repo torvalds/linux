@@ -1634,6 +1634,7 @@ intel_tv_init(struct drm_device *dev)
 	intel_encoder->disable = intel_disable_tv;
 	intel_encoder->get_hw_state = intel_tv_get_hw_state;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;

@@ -958,6 +958,7 @@ void intel_lvds_init(struct drm_device *dev)
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_LVDS;

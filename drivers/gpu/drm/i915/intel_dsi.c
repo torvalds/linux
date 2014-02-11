@@ -586,6 +586,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	intel_encoder->get_config = intel_dsi_get_config;
 
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	for (i = 0; i < ARRAY_SIZE(intel_dsi_devices); i++) {
 		dsi = &intel_dsi_devices[i];

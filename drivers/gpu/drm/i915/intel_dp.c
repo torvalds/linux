@@ -3799,6 +3799,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 	if (HAS_DDI(dev)) {

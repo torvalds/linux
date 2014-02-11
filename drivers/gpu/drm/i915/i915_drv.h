@@ -2546,6 +2546,7 @@ extern void intel_modeset_suspend_hw(struct drm_device *dev);
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_gem_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
+extern void intel_connector_unregister(struct intel_connector *);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 extern void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 bool force_restore);

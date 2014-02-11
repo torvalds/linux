@@ -1236,6 +1236,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	intel_hdmi_add_properties(intel_hdmi, connector);
 
