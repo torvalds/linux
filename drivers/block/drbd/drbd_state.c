@@ -958,7 +958,6 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 	enum drbd_state_rv rv = SS_SUCCESS;
 	enum sanitize_state_warnings ssw;
 	struct after_state_chg_work *ascw;
-	bool did_remote, should_do_remote;
 
 	os = drbd_read_state(device);
 
@@ -1010,18 +1009,22 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 	    (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))
 		atomic_inc(&device->local_cnt);
 
-	did_remote = drbd_should_do_remote(device->state);
 	if (!is_sync_state(os.conn) && is_sync_state(ns.conn))
 		clear_bit(RS_DONE, &device->flags);
 
+	/* changes to local_cnt and device flags should be visible before
+	 * changes to state, which again should be visible before anything else
+	 * depending on that change happens. */
+	smp_wmb();
 	device->state.i = ns.i;
-	should_do_remote = drbd_should_do_remote(device->state);
 	device->resource->susp = ns.susp;
 	device->resource->susp_nod = ns.susp_nod;
 	device->resource->susp_fen = ns.susp_fen;
+	smp_wmb();
 
 	/* put replicated vs not-replicated requests in seperate epochs */
-	if (did_remote != should_do_remote)
+	if (drbd_should_do_remote((union drbd_dev_state)os.i) !=
+	    drbd_should_do_remote((union drbd_dev_state)ns.i))
 		start_new_tl_epoch(connection);
 
 	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)

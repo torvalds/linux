@@ -1946,6 +1946,11 @@ static inline bool is_sync_state(enum drbd_conns connection_state)
 
 static inline void put_ldev(struct drbd_device *device)
 {
+	enum drbd_disk_state ds = device->state.disk;
+	/* We must check the state *before* the atomic_dec becomes visible,
+	 * or we have a theoretical race where someone hitting zero,
+	 * while state still D_FAILED, will then see D_DISKLESS in the
+	 * condition below and calling into destroy, where he must not, yet. */
 	int i = atomic_dec_return(&device->local_cnt);
 
 	/* This may be called from some endio handler,
@@ -1954,10 +1959,10 @@ static inline void put_ldev(struct drbd_device *device)
 	__release(local);
 	D_ASSERT(device, i >= 0);
 	if (i == 0) {
-		if (device->state.disk == D_DISKLESS)
+		if (ds == D_DISKLESS)
 			/* even internal references gone, safe to destroy */
 			drbd_ldev_destroy(device);
-		if (device->state.disk == D_FAILED) {
+		if (ds == D_FAILED) {
 			/* all application IO references gone. */
 			if (!test_and_set_bit(GO_DISKLESS, &device->flags))
 				drbd_queue_work(&first_peer_device(device)->connection->sender_work,
