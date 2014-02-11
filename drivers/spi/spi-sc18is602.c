@@ -205,12 +205,6 @@ static int sc18is602_transfer_one(struct spi_master *master,
 	struct spi_transfer *t;
 	int status = 0;
 
-	/* SC18IS602 does not support CS2 */
-	if (hw->id == sc18is602 && spi->chip_select == 2) {
-		status = -ENXIO;
-		goto error;
-	}
-
 	hw->tlen = 0;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		u32 hz = t->speed_hz ? : spi->max_speed_hz;
@@ -238,11 +232,21 @@ static int sc18is602_transfer_one(struct spi_master *master,
 		if (t->delay_usecs)
 			udelay(t->delay_usecs);
 	}
-error:
 	m->status = status;
 	spi_finalize_current_message(master);
 
 	return status;
+}
+
+static int sc18is602_setup(struct spi_device *spi)
+{
+	struct sc18is602 *hw = spi_master_get_devdata(spi->master);
+
+	/* SC18IS602 does not support CS2 */
+	if (hw->id == sc18is602 && spi->chip_select == 2)
+		return -ENXIO;
+
+	return 0;
 }
 
 static int sc18is602_probe(struct i2c_client *client,
@@ -298,6 +302,7 @@ static int sc18is602_probe(struct i2c_client *client,
 	master->bus_num = client->adapter->nr;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	master->setup = sc18is602_setup;
 	master->transfer_one_message = sc18is602_transfer_one;
 	master->dev.of_node = np;
 
