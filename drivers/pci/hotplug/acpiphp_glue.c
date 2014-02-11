@@ -706,6 +706,17 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
 	return (unsigned int)sta;
 }
 
+static inline bool device_status_valid(unsigned int sta)
+{
+	/*
+	 * ACPI spec says that _STA may return bit 0 clear with bit 3 set
+	 * if the device is valid but does not require a device driver to be
+	 * loaded (Section 6.3.7 of ACPI 5.0A).
+	 */
+	unsigned int mask = ACPI_STA_DEVICE_ENABLED | ACPI_STA_DEVICE_FUNCTIONING;
+	return (sta & mask) == mask;
+}
+
 /**
  * trim_stale_devices - remove PCI devices that are not responding.
  * @dev: PCI device to start walking the hierarchy from.
@@ -721,7 +732,7 @@ static void trim_stale_devices(struct pci_dev *dev)
 		unsigned long long sta;
 
 		status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
-		alive = (ACPI_SUCCESS(status) && sta == ACPI_STA_ALL)
+		alive = (ACPI_SUCCESS(status) && device_status_valid(sta))
 			|| acpiphp_no_hotplug(handle);
 	}
 	if (!alive) {
@@ -764,7 +775,7 @@ static void acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 		mutex_lock(&slot->crit_sect);
 		if (slot_no_hotplug(slot)) {
 			; /* do nothing */
-		} else if (get_slot_status(slot) == ACPI_STA_ALL) {
+		} else if (device_status_valid(get_slot_status(slot))) {
 			/* remove stale devices if any */
 			list_for_each_entry_safe(dev, tmp, &bus->devices,
 						 bus_list)
