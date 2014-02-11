@@ -222,6 +222,9 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto put_usb3_hcd;
 	/* Roothub already marked as USB 3.0 speed */
 
+	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
+		xhci->shared_hcd->can_do_streams = 1;
+
 	return 0;
 
 put_usb3_hcd:

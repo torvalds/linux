@@ -72,12 +72,16 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 {
 	struct usb_host_endpoint *eps[4] = { };
 	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
 	unsigned long flags = id->driver_info;
 	int r, alt;
 
 	usb_stor_adjust_quirks(udev, &flags);
 
 	if (flags & US_FL_IGNORE_UAS)
+		return 0;
+
+	if (udev->speed >= USB_SPEED_SUPER && !hcd->can_do_streams)
 		return 0;
 
 	alt = uas_find_uas_alt_setting(intf);
