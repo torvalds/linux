@@ -2381,16 +2381,22 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, struct intel_sdvo *sdvo)
 		return 0x72;
 }
 
-static void
+static int
 intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 			  struct intel_sdvo *encoder)
 {
-	drm_connector_init(encoder->base.base.dev,
-			   &connector->base.base,
+	struct drm_connector *drm_connector;
+	int ret;
+
+	drm_connector = &connector->base.base;
+	ret = drm_connector_init(encoder->base.base.dev,
+			   drm_connector,
 			   &intel_sdvo_connector_funcs,
 			   connector->base.base.connector_type);
+	if (ret < 0)
+		return ret;
 
-	drm_connector_helper_add(&connector->base.base,
+	drm_connector_helper_add(drm_connector,
 				 &intel_sdvo_connector_helper_funcs);
 
 	connector->base.base.interlace_allowed = 1;
@@ -2400,7 +2406,16 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	connector->base.unregister = intel_connector_unregister;
 
 	intel_connector_attach_encoder(&connector->base, &encoder->base);
-	drm_sysfs_connector_add(&connector->base.base);
+	ret = drm_sysfs_connector_add(drm_connector);
+	if (ret < 0)
+		goto err1;
+
+	return 0;
+
+err1:
+	drm_connector_cleanup(drm_connector);
+
+	return ret;
 }
 
 static void
@@ -2460,7 +2475,11 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 		intel_sdvo->is_hdmi = true;
 	}
 
-	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
+	if (intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo) < 0) {
+		kfree(intel_sdvo_connector);
+		return false;
+	}
+
 	if (intel_sdvo->is_hdmi)
 		intel_sdvo_add_hdmi_properties(intel_sdvo, intel_sdvo_connector);
 
@@ -2491,7 +2510,10 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 
 	intel_sdvo->is_tv = true;
 
-	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
+	if (intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo) < 0) {
+		kfree(intel_sdvo_connector);
+		return false;
+	}
 
 	if (!intel_sdvo_tv_create_property(intel_sdvo, intel_sdvo_connector, type))
 		goto err;
@@ -2535,8 +2557,11 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
 		intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB1;
 	}
 
-	intel_sdvo_connector_init(intel_sdvo_connector,
-				  intel_sdvo);
+	if (intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo) < 0) {
+		kfree(intel_sdvo_connector);
+		return false;
+	}
+
 	return true;
 }
 
@@ -2567,7 +2592,11 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 		intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS1;
 	}
 
-	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
+	if (intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo) < 0) {
+		kfree(intel_sdvo_connector);
+		return false;
+	}
+
 	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
 		goto err;
 
