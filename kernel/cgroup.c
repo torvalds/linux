@@ -976,7 +976,9 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 	 * Nothing can fail from this point on.  Remove files for the
 	 * removed subsystems and rebind each subsystem.
 	 */
+	mutex_unlock(&cgroup_mutex);
 	cgroup_clear_dir(cgrp, removed_mask);
+	mutex_lock(&cgroup_mutex);
 
 	for_each_subsys(ss, i) {
 		unsigned long bit = 1UL << i;
@@ -2696,10 +2698,11 @@ static int cgroup_cfts_commit(struct cftype *cfts, bool is_add)
 	u64 update_before;
 	int ret = 0;
 
+	mutex_unlock(&cgroup_mutex);
+
 	/* %NULL @cfts indicates abort and don't bother if @ss isn't attached */
 	if (!cfts || ss->root == &cgroup_dummy_root ||
 	    !atomic_inc_not_zero(&sb->s_active)) {
-		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&cgroup_tree_mutex);
 		return 0;
 	}
@@ -2723,18 +2726,15 @@ static int cgroup_cfts_commit(struct cftype *cfts, bool is_add)
 		dput(prev);
 		prev = cgrp->dentry;
 
-		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&cgroup_tree_mutex);
 		mutex_lock(&inode->i_mutex);
 		mutex_lock(&cgroup_tree_mutex);
-		mutex_lock(&cgroup_mutex);
 		if (cgrp->serial_nr < update_before && !cgroup_is_dead(cgrp))
 			ret = cgroup_addrm_files(cgrp, cfts, is_add);
 		mutex_unlock(&inode->i_mutex);
 		if (ret)
 			break;
 	}
-	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgroup_tree_mutex);
 	dput(prev);
 	deactivate_super(sb);
@@ -4387,10 +4387,13 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	/*
 	 * Initiate massacre of all css's.  cgroup_destroy_css_killed()
 	 * will be invoked to perform the rest of destruction once the
-	 * percpu refs of all css's are confirmed to be killed.
+	 * percpu refs of all css's are confirmed to be killed.  This
+	 * involves removing the subsystem's files, drop cgroup_mutex.
 	 */
+	mutex_unlock(&cgroup_mutex);
 	for_each_css(css, ssid, cgrp)
 		kill_css(css);
+	mutex_lock(&cgroup_mutex);
 
 	/*
 	 * Mark @cgrp dead.  This prevents further task migration and child
@@ -4421,9 +4424,11 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * puts the base ref but we aren't quite done with @cgrp yet, so
 	 * hold onto it.
 	 */
+	mutex_unlock(&cgroup_mutex);
 	cgroup_addrm_files(cgrp, cgroup_base_files, false);
 	dget(d);
 	cgroup_d_remove_dir(d);
+	mutex_lock(&cgroup_mutex);
 
 	return 0;
 };
