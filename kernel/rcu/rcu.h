@@ -116,8 +116,6 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 	}
 }
 
-extern int rcu_expedited;
-
 #ifdef CONFIG_RCU_STALL_COMMON
 
 extern int rcu_cpu_stall_suppress;
