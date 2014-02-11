@@ -492,6 +492,7 @@ struct intel_uncore_box {
 	u64 hrtimer_duration; /* hrtimer timeout for this box */
 	struct hrtimer hrtimer;
 	struct list_head list;
+	void *io_addr;
 	struct intel_uncore_extra_reg shared_regs[0];
 };
 
