@@ -463,7 +463,7 @@ static int __remove_xattr(struct ceph_inode_info *ci,
 			  struct ceph_inode_xattr *xattr)
 {
 	if (!xattr)
-		return -EOPNOTSUPP;
+		return -ENODATA;
 
 	rb_erase(&xattr->node, &ci->i_xattrs.index);
 
