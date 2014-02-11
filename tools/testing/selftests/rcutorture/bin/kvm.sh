@@ -297,7 +297,8 @@ awk < $T/cfgcpu.pack \
 # Dump out the scripting required to run one test batch.
 function dump(first, pastlast)
 {
-	print "echo ----Start batch: `date`"
+	print "echo ----Start batch: `date`";
+	print "echo ----Start batch: `date` >> " rd "/log";
 	jn=1
 	for (j = first; j < pastlast; j++) {
 		builddir=KVM "/b" jn
@@ -314,30 +315,37 @@ function dump(first, pastlast)
 		else
 			ovf = "";
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date`";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` >> " rd "/log";
 		print "rm -f " builddir ".*";
 		print "touch " builddir ".wait";
 		print "mkdir " builddir " > /dev/null 2>&1 || :";
 		print "mkdir " rd cfr[jn] " || :";
 		print "kvm-test-1-run.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" RCU_QEMU_ARG "\" \"" RCU_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date`"
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date`";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` >> " rd "/log";
 		print "while test -f " builddir ".wait"
 		print "do"
 		print "\tsleep 1"
 		print "done"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date`"
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date`";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date` >> " rd "/log";
 		jn++;
 	}
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
 		print "rm -f " builddir ".ready"
-		print "echo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date`"
+		print "echo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date`";
+		print "echo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date` >> " rd "/log";
 	}
 	print "wait"
-	print "echo ---- All kernel runs complete. `date`"
+	print "echo ---- All kernel runs complete. `date`";
+	print "echo ---- All kernel runs complete. `date` >> " rd "/log";
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
-		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results:"
-		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out"
+		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results:";
+		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results: >> " rd "/log";
+		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out";
+		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out >> " rd "/log";
 	}
 }
 
