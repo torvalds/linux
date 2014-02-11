@@ -678,7 +678,7 @@ static bool fsl_esai_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_config fsl_esai_regmap_config = {
+static struct regmap_config fsl_esai_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -703,6 +703,9 @@ static int fsl_esai_probe(struct platform_device *pdev)
 
 	esai_priv->pdev = pdev;
 	strcpy(esai_priv->name, np->name);
+
+	if (of_property_read_bool(np, "big-endian"))
+		fsl_esai_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
