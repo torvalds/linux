@@ -716,7 +716,7 @@ static struct act8846_board *act8846_parse_dt(struct act8846 *act8846)
 	struct act8846_board *pdata;
 	struct device_node *regs;
 	struct device_node *act8846_pmic_np;
-	int i, count,sleep_voltage_nr =1;
+	int i, count;
 	int gpio;
 	printk("%s,line=%d\n", __func__,__LINE__);	
 	
@@ -748,59 +748,15 @@ static struct act8846_board *act8846_parse_dt(struct act8846 *act8846)
 	pdata->irq = act8846->chip_irq;
 	pdata->irq_base = -1;
 
-	if (of_get_property(act8846_pmic_np, "act,pmic-dcdc-sleep-voltage", NULL))
-		pdata->pmic_sleep = true;
-
-	if (of_get_property(act8846_pmic_np, "act,pmic-ldo-sleep-voltage", NULL))
-		pdata->pmic_sleep = true;
-
 	gpio = of_get_named_gpio(act8846_pmic_np,"gpios", 0);
 		if (!gpio_is_valid(gpio)) 
 			printk("invalid gpio: %d\n",gpio);
-	pdata->pmic_sleep_gpio = gpio;
-	
-	if (of_property_read_u32_array(act8846_pmic_np,
-				"act,pmic-dcdc-sleep-voltage",
-				pdata->dcdc_slp_voltage, sleep_voltage_nr)) {
-		printk("dcdc sleep voltages not specified\n");
-	}	
+	pdata->pmic_sleep_gpio = gpio;	
+	pdata->pmic_sleep = true;
 
 	return pdata;
 }
-static int act8846_dcdc_sleep_voltage_get_val(int min_uV,int buck)
-{
-	int min_vol = min_uV / 1000, max_vol = min_uV / 1000;
-	const int *vol_map = buck_voltage_map;
-	u16 val;
 
-	if (min_vol < vol_map[VOL_MIN_IDX] ||
-	    min_vol > vol_map[VOL_MAX_IDX])
-		return -EINVAL;
-
-	for (val = VOL_MIN_IDX; val <= VOL_MAX_IDX; val++){
-		if (vol_map[val] >= min_vol)
-			break;
-        }
-
-	if (vol_map[val] > max_vol)
-		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
-	return val;
-}
-static int act8846_dts_dcdc_set_mode(unsigned int mode,int buck)
-{
-	struct act8846 *act8846 = g_act8846;
-	u16 mask = 0x80;
-	switch(mode)
-	{
-	case REGULATOR_MODE_STANDBY:
-		return act8846_set_bits(act8846, act8846_BUCK_CONTR_REG(buck), mask, 0);
-	case REGULATOR_MODE_NORMAL:
-		return act8846_set_bits(act8846, act8846_BUCK_CONTR_REG(buck), mask, mask);
-	default:
-		printk("error:pmu_act8846 only powersave and pwm mode\n");
-		return -EINVAL;
-	}
-}
 #else
 static struct act8846_board *act8846_parse_dt(struct i2c_client *i2c)
 {
@@ -940,23 +896,10 @@ static int act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 				dev_err(act8846->dev,"Failed to request gpio %d with ret:""%d\n",	act8846->pmic_sleep_gpio, ret);
 				return IRQ_NONE;
 			}
-			gpio_direction_input(act8846->pmic_sleep_gpio);
+			gpio_direction_output(act8846->pmic_sleep_gpio,0);
 			ret = gpio_get_value(act8846->pmic_sleep_gpio);
 			gpio_free(act8846->pmic_sleep_gpio);
 			printk("%s: act8846_pmic_sleep=%x\n", __func__, ret);
-	}
-	for (i = 0;i <4 ; i ++){
-	act8846->dcdc_slp_voltage[i] = pdev->dcdc_slp_voltage[i];
-		if (act8846->dcdc_slp_voltage[i]){
-			if (i ==0)
-				continue;
-
-			#ifdef CONFIG_ACT8846_SUPPORT_RESET
-			ret = act8846_set_bits(act8846, act8846_BUCK_SET_VOL_REG(i) ,BUCK_VOL_MASK, act8846_dcdc_sleep_voltage_get_val(act8846->dcdc_slp_voltage[i],i));
-			#else
-			ret = act8846_set_bits(act8846, (act8846_BUCK_SET_VOL_REG(i) +0x01),BUCK_VOL_MASK, act8846_dcdc_sleep_voltage_get_val(act8846->dcdc_slp_voltage[i],i));
-			#endif
-		}
 	}
 	#endif
 	

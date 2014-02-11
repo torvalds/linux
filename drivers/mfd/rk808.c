@@ -993,84 +993,15 @@ static struct rk808_board *rk808_parse_dt(struct rk808 *rk808)
 			return NULL;
 		}
 
-	if (of_get_property(rk808_pmic_np, "rockchip,pmic-dcdc-sleep-voltage", NULL))
-		pdata->pmic_sleep = true;
-
-	if (of_get_property(rk808_pmic_np, "rockchip,pmic-ldo-sleep-voltage", NULL))
-		pdata->pmic_sleep = true;
-	if (pdata->pmic_sleep){
-		pdata->pmic_sleep_gpio = of_get_named_gpio(rk808_pmic_np,"gpios",1);
+	pdata->pmic_sleep_gpio = of_get_named_gpio(rk808_pmic_np,"gpios",1);
 			if (!gpio_is_valid(pdata->pmic_sleep_gpio)) {
 				printk("invalid gpio: %d\n",  pdata->pmic_sleep_gpio);
-			}
-	}
-	if (of_property_read_u32_array(rk808_pmic_np,
-				"rockchip,pmic-dcdc-sleep-voltage",
-				pdata->dcdc_slp_voltage, 4)) {
-		printk("dcdc sleep voltages not specified\n");
-	}
-
-	if (of_property_read_u32_array(rk808_pmic_np,
-				"rockchip,pmic-ldo-sleep-voltage",
-				pdata->ldo_slp_voltage, 8)) {
-		printk("ldo sleep voltages not specified\n");
-	}
-	
+		}
+	pdata->pmic_sleep = true;
+		
 	return pdata;
 }
-static int rk808_dcdc_sleep_voltage_get_val(int min_uV,int buck)
-{
-	u16 vsel =0;
-	
-	if (buck == 0 || buck ==  1){
-		if (min_uV < 700000)
-		vsel = 0;
-		else if (min_uV <= 1500000)
-		vsel = ((min_uV - 700000) / 12500) ;
-		else
-		return -EINVAL;
-	}
-	else if (buck ==3){
-		if (min_uV < 1800000)
-		vsel = 0;
-		else if (min_uV <= 3300000)
-		vsel = ((min_uV - 1800000) / 100000) ;
-		else
-		return -EINVAL;
-	}
-	return vsel;
-}
-static int rk808_ldo_sleep_voltage_get_val(int min_uV,int ldo)
-{
-	const int *vol_map;
-	int min_vol = min_uV / 1000;
-	int num =0;
-	u16 val;
-	
-	if (ldo ==2){
-	vol_map = ldo3_voltage_map;	
-	num = 15;
-	}
-	else if (ldo == 5 || ldo ==6){
-	vol_map = ldo6_voltage_map;		
-	num = 17;
-	}
-	else {
-	vol_map = ldo_voltage_map;
-	num = 16;
-	}
-	
-	if (min_vol < vol_map[0] ||
-	    min_vol > vol_map[num])
-		return -EINVAL;
 
-	for (val = 0; val <= num; val++){
-		if (vol_map[val] >= min_vol)
-			break;	
-        }
-
-	return val;
-}
 #else
 static struct rk808_board *rk808_parse_dt(struct i2c_client *i2c)
 {
@@ -1192,6 +1123,7 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 	}
 	rk808_set_bits(rk808,0x21,(1<<4),(1 <<4));
 	rk808_set_bits(rk808,0x21,(7<<0),(7 <<0));
+	rk808_set_bits(rk808,0x23,(7<<4),(7 <<4)); //enable boost &swith0\1
 
 	if (ret < 0)
 		goto err;
@@ -1208,24 +1140,10 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 				dev_err(rk808->dev,"Failed to request gpio %d with ret:""%d\n",	rk808->pmic_sleep_gpio, ret);
 				return IRQ_NONE;
 			}
-			gpio_direction_input(rk808->pmic_sleep_gpio);
+			gpio_direction_output(rk808->pmic_sleep_gpio,0);
 			ret = gpio_get_value(rk808->pmic_sleep_gpio);
 			gpio_free(rk808->pmic_sleep_gpio);
 			pr_info("%s: rk808_pmic_sleep=%x\n", __func__, ret);
-	}
-	for (i = 0;i <4 ; i ++){
-	rk808->dcdc_slp_voltage[i] = pdev->dcdc_slp_voltage[i];
-	if (rk808->dcdc_slp_voltage[i]){
-		if (i ==2)
-			continue;	
-		ret = rk808_set_bits(rk808, (rk808_BUCK_SET_VOL_REG(i) + 0x01), BUCK_VOL_MASK, rk808_dcdc_sleep_voltage_get_val(rk808->dcdc_slp_voltage[i],i));
-		}
-	}
-	for (i = 0;i <8 ; i ++){
-	rk808->ldo_slp_voltage[i] = pdev->ldo_slp_voltage[i];
-	if (rk808->ldo_slp_voltage[i] ==0)
-		ret = rk808_set_bits(rk808, RK808_LDO_EN_REG, 1 << i, 0);
-	ret = rk808_set_bits(rk808, (rk808_LDO_SET_VOL_REG(i) + 0x01), LDO_VOL_MASK, rk808_ldo_sleep_voltage_get_val(rk808->ldo_slp_voltage[i],i));
 	}	
 	#endif
 	/**********************************************************/

@@ -16,11 +16,21 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 
+static void set_regulator_state_constraints(struct device_node *np,
+		struct regulator_state *state)
+{
+	of_property_read_u32(np, "regulator-state-uv", &state->uV);
+	of_property_read_u32(np, "regulator-state-mode", &state->mode);
+	state->enabled = of_property_read_bool(np, "regulator-state-enabled");
+	state->disabled = of_property_read_bool(np, "regulator-state-disabled");
+}
+
 static void of_get_regulation_constraints(struct device_node *np,
 					struct regulator_init_data **init_data)
 {
 	const __be32 *min_uV, *max_uV, *uV_offset;
 	const __be32 *min_uA, *max_uA, *ramp_delay;
+	struct device_node *state;
 	struct regulation_constraints *constraints = &(*init_data)->constraints;
 
 	constraints->name = of_get_property(np, "regulator-name", NULL);
@@ -64,6 +74,33 @@ static void of_get_regulation_constraints(struct device_node *np,
 	ramp_delay = of_get_property(np, "regulator-ramp-delay", NULL);
 	if (ramp_delay)
 		constraints->ramp_delay = be32_to_cpu(*ramp_delay);
+	
+	of_property_read_u32(np, "regulator-valid-modes-mask",
+					&constraints->valid_modes_mask);
+	of_property_read_u32(np, "regulator-input-uv",
+					&constraints->input_uV);
+	of_property_read_u32(np, "regulator-initial-mode",
+					&constraints->initial_mode);
+	of_property_read_u32(np, "regulator-initial-state",
+					&constraints->initial_state);
+
+	/* regulator state during low power system states */
+	state = of_find_node_by_name(np, "regulator-state-mem");
+	if (state)
+		set_regulator_state_constraints(state,
+				&constraints->state_mem);
+
+	state = of_find_node_by_name(np, "regulator-state-disk");
+	if (state)
+		set_regulator_state_constraints(state,
+				&constraints->state_disk);
+
+	state = of_find_node_by_name(np, "regulator-state-standby");
+	if (state)
+		set_regulator_state_constraints(state,
+				&constraints->state_standby);
+
+	
 }
 
 /**

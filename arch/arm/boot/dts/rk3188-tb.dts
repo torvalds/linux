@@ -135,8 +135,6 @@
 /include/ "act8846.dtsi"
 &act8846 {
 	gpios =<&gpio3 GPIO_D3 GPIO_ACTIVE_LOW>; 
-	act,pmic-dcdc-sleep-voltage = <1200000>,<1200000>,<1200000>,<3000000>;
-	act,pmic-ldo-sleep-voltage = <1000000>,<1200000>,<1800000>,<3300000>,<3300000>,<3300000>,<1800000>,<2800000>;	
 
 regulators {
 		
@@ -236,8 +234,6 @@ regulators {
 /include/ "rk808.dtsi"
 &rk808{
 	gpios =<&gpio0 GPIO_B3 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_A1 GPIO_ACTIVE_LOW>; 
-	rockchip,pmic-dcdc-sleep-voltage = <900000>,<900000>,<1200000>,<3000000>;
-	rockchip,pmic-ldo-sleep-voltage = <3300000>,<3300000>,<1000000>,<1800000>,<2800000>,<1200000>,<1800000>,<1800000>;
 
 regulators {
 		
@@ -245,14 +241,12 @@ regulators {
 			regulator-name= "vdd_arm";	
 			regulator-always-on;
 			regulator-boot-on;
-	/*		regulator-initial-mode = <2>;*/
 		};
 
 		rk808_dcdc2_reg: regulator@1 {
 			regulator-name= "vdd_logic";
 			regulator-always-on;
 			regulator-boot-on;		
-	/*		regulator-initial-mode = <2>;*/
 		};
 
 		rk808_dcdc3_reg: regulator@2 {
