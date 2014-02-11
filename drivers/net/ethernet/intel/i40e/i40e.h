@@ -263,6 +263,9 @@ struct i40e_pf {
 #define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
 #endif
 
+	/* tracks features that get auto disabled by errors */
+	u64 auto_disable_flags;
+
 	bool stat_offsets_loaded;
 	struct i40e_hw_port_stats stats;
 	struct i40e_hw_port_stats stats_offsets;
