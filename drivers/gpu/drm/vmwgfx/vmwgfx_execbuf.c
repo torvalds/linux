@@ -2469,7 +2469,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (dev_priv->has_mob) {
 		ret = vmw_rebind_contexts(sw_context);
 		if (unlikely(ret != 0))
-			goto out_err;
+			goto out_unlock_binding;
 	}
 
 	cmd = vmw_fifo_reserve(dev_priv, command_size);
