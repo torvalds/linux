@@ -843,6 +843,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	q->limits.max_segment_size	= UINT_MAX;
 	q->limits.max_segments		= BIO_MAX_PAGES;
 	q->limits.max_discard_sectors	= UINT_MAX;
+	q->limits.discard_granularity	= 512;
 	q->limits.io_min		= block_size;
 	q->limits.logical_block_size	= block_size;
 	q->limits.physical_block_size	= block_size;
