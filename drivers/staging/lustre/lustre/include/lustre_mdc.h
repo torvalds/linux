@@ -166,6 +166,17 @@ void it_clear_disposition(struct lookup_intent *it, int flag);
 void it_set_disposition(struct lookup_intent *it, int flag);
 int it_open_error(int phase, struct lookup_intent *it);
 
+static inline bool cl_is_lov_delay_create(unsigned int flags)
+{
+	return (flags & O_LOV_DELAY_CREATE) == O_LOV_DELAY_CREATE;
+}
+
+static inline void cl_lov_delay_create_clear(unsigned int *flags)
+{
+	if ((*flags & O_LOV_DELAY_CREATE) == O_LOV_DELAY_CREATE)
+		*flags &= ~O_LOV_DELAY_CREATE;
+}
+
 /** @} mdc */
 
 #endif
