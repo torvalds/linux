@@ -1606,26 +1606,20 @@ void drbd_rs_controller_reset(struct drbd_device *device)
 void start_resync_timer_fn(unsigned long data)
 {
 	struct drbd_device *device = (struct drbd_device *) data;
-
-	drbd_queue_work(&first_peer_device(device)->connection->sender_work,
-			&device->start_resync_work);
+	drbd_device_post_work(device, RS_START);
 }
 
-int w_start_resync(struct drbd_work *w, int cancel)
+static void do_start_resync(struct drbd_device *device)
 {
-	struct drbd_device *device =
-		container_of(w, struct drbd_device, start_resync_work);
-
 	if (atomic_read(&device->unacked_cnt) || atomic_read(&device->rs_pending_cnt)) {
-		drbd_warn(device, "w_start_resync later...\n");
+		drbd_warn(device, "postponing start_resync ...\n");
 		device->start_resync_timer.expires = jiffies + HZ/10;
 		add_timer(&device->start_resync_timer);
-		return 0;
+		return;
 	}
 
 	drbd_start_resync(device, C_SYNC_SOURCE);
 	clear_bit(AHEAD_TO_SYNC_SOURCE, &device->flags);
-	return 0;
 }
 
 /**
@@ -1882,9 +1876,18 @@ static void go_diskless(struct drbd_device *device)
 	drbd_force_state(device, NS(disk, D_DISKLESS));
 }
 
+static int do_md_sync(struct drbd_device *device)
+{
+	drbd_warn(device, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
+	drbd_md_sync(device);
+	return 0;
+}
+
 #define WORK_PENDING(work_bit, todo)	(todo & (1UL << work_bit))
 static void do_device_work(struct drbd_device *device, const unsigned long todo)
 {
+	if (WORK_PENDING(MD_SYNC, todo))
+		do_md_sync(device);
 	if (WORK_PENDING(RS_DONE, todo) ||
 	    WORK_PENDING(RS_PROGRESS, todo))
 		update_on_disk_bitmap(device, WORK_PENDING(RS_DONE, todo));
@@ -1892,11 +1895,15 @@ static void do_device_work(struct drbd_device *device, const unsigned long todo)
 		go_diskless(device);
 	if (WORK_PENDING(DESTROY_DISK, todo))
 		drbd_ldev_destroy(device);
+	if (WORK_PENDING(RS_START, todo))
+		do_start_resync(device);
 }
 
 #define DRBD_DEVICE_WORK_MASK	\
 	((1UL << GO_DISKLESS)	\
 	|(1UL << DESTROY_DISK)	\
+	|(1UL << MD_SYNC)	\
+	|(1UL << RS_START)	\
 	|(1UL << RS_PROGRESS)	\
 	|(1UL << RS_DONE)	\
 	)
