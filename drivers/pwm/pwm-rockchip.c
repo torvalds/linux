@@ -227,9 +227,8 @@ static inline void rk_pwm_writel(struct rk_pwm_chip *chip,
 }
 
 
-
 #if 1
-static int __rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
+static int  rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			    int duty_ns, int period_ns)
 {
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
@@ -238,6 +237,10 @@ static int __rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 	u32 off, on;
 	int conf=0;
+       unsigned long flags;
+       spinlock_t *lock;
+
+       lock = &pwm_lock[pwm->hwpwm];
 
         off =  PWM_RESET;
         on =  PWM_ENABLE | PWM_TIMER_EN;
@@ -293,6 +296,7 @@ static int __rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret)
 		return ret;
 #endif
+        spin_lock_irqsave(lock, flags);
 
         barrier();
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
@@ -304,6 +308,7 @@ static int __rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
         dsb();
 	 rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
         dsb();
+        spin_unlock_irqrestore(lock, flags);	
 
 #if PWM_CLK
 	clk_disable(pc->clk);
@@ -312,18 +317,6 @@ static int __rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 #endif
-static int rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			    int duty_ns, int period_ns)
-{
-        unsigned long flags;
-        spinlock_t *lock;
-
-        lock = &pwm_lock[pwm->hwpwm];
-        spin_lock_irqsave(lock, flags);
-        __rk_pwm_config(chip, pwm, duty_ns,  period_ns);
-        spin_unlock_irqrestore(lock, flags);	
-	return 0;
-}
 
 static int rk_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
