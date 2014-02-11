@@ -38,16 +38,37 @@
 
 #define USB3503_CFG1		0x06
 #define USB3503_SELF_BUS_PWR	(1 << 7)
+#define USB3503_MTT_ENABLE	(1 << 4)
+#define USB3503_OCS_INDIVIDUAL	(1 << 1)
+#define USB3503_OCS_DISABLE	(3 << 1)
+#define USB3503_PPRTPWR_INDIVIDUAL	(1 << 0)
 
 #define USB3503_CFG2		0x07
 #define USB3503_CFG3		0x08
 #define USB3503_NRD		0x09
 
 #define USB3503_PDS		0x0a
+#define USB3503_OCS		0xe6
 
 #define USB3503_SP_ILOCK	0xe7
+#define USB3503_OCS_PINSEL	(1 << 5)
+#define USB3503_PRTPWR_PINSEL	(1 << 4)
 #define USB3503_SPILOCK_CONNECT	(1 << 1)
 #define USB3503_SPILOCK_CONFIG	(1 << 0)
+
+/* Varisense/squelch setting for downstream ports: */
+#define USB3503_VSNSUP3		0xf4
+#define DN3_SQUELCH_120	(6 << 0)
+#define USB3503_VSNSUP21		0xf5
+#define DN2_SQUELCH_120	(6 << 4)
+#define DN1_SQUELCH_120	(6 << 0)
+
+/* Signaling drive strength boost (downstream ports): */
+#define USB3503_BSTUP3		0xf6
+#define BOOST_IOOUT3_30	(6 << 0)
+#define USB3503_BSTUP21		0xf8
+#define BOOST_IOOUT2_30	(6 << 4)
+#define BOOST_IOOUT1_30	(6 << 0)
 
 #define USB3503_CFGP		0xee
 #define USB3503_CLKSUSP		(1 << 7)
