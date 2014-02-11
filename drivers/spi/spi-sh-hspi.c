@@ -298,7 +298,6 @@ static int hspi_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	master->num_chipselect	= 1;
 	master->bus_num		= pdev->id;
 	master->setup		= hspi_setup;
 	master->cleanup		= hspi_cleanup;

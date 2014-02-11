@@ -471,7 +471,6 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	master->transfer_one_message = tegra_sflash_transfer_one_message;
 	master->auto_runtime_pm = true;
 	master->num_chipselect = MAX_CHIP_SELECT;
-	master->bus_num = -1;
 
 	platform_set_drvdata(pdev, master);
 	tsd = spi_master_get_devdata(master);

@@ -308,10 +308,6 @@ static int efm32_spi_probe_dt(struct platform_device *pdev,
 	}
 
 	ddata->pdata.location = location;
-
-	/* spi core takes care about the bus number using an alias */
-	master->bus_num = -1;
-
 	return 0;
 }
 

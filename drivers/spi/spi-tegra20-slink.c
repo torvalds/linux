@@ -1053,7 +1053,6 @@ static int tegra_slink_probe(struct platform_device *pdev)
 	master->unprepare_message = tegra_slink_unprepare_message;
 	master->auto_runtime_pm = true;
 	master->num_chipselect = MAX_CHIP_SELECT;
-	master->bus_num = -1;
 
 	platform_set_drvdata(pdev, master);
 	tspi = spi_master_get_devdata(master);
