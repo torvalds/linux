@@ -825,8 +825,8 @@ int css_scan_tasks(struct cgroup_subsys_state *css,
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 
-struct cgroup_subsys_state *css_from_dir(struct dentry *dentry,
-					 struct cgroup_subsys *ss);
+struct cgroup_subsys_state *css_tryget_from_dir(struct dentry *dentry,
+						struct cgroup_subsys *ss);
 
 #else /* !CONFIG_CGROUPS */
 

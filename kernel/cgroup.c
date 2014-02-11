@@ -4978,28 +4978,35 @@ static int __init cgroup_disable(char *str)
 __setup("cgroup_disable=", cgroup_disable);
 
 /**
- * css_from_dir - get corresponding css from the dentry of a cgroup dir
+ * css_tryget_from_dir - get corresponding css from the dentry of a cgroup dir
  * @dentry: directory dentry of interest
  * @ss: subsystem of interest
  *
- * Must be called under cgroup_mutex or RCU read lock.  The caller is
- * responsible for pinning the returned css if it needs to be accessed
- * outside the critical section.
+ * If @dentry is a directory for a cgroup which has @ss enabled on it, try
+ * to get the corresponding css and return it.  If such css doesn't exist
+ * or can't be pinned, an ERR_PTR value is returned.
  */
-struct cgroup_subsys_state *css_from_dir(struct dentry *dentry,
-					 struct cgroup_subsys *ss)
+struct cgroup_subsys_state *css_tryget_from_dir(struct dentry *dentry,
+						struct cgroup_subsys *ss)
 {
 	struct cgroup *cgrp;
-
-	cgroup_assert_mutex_or_rcu_locked();
+	struct cgroup_subsys_state *css;
 
 	/* is @dentry a cgroup dir? */
 	if (!dentry->d_inode ||
 	    dentry->d_inode->i_op != &cgroup_dir_inode_operations)
 		return ERR_PTR(-EBADF);
 
+	rcu_read_lock();
+
 	cgrp = __d_cgrp(dentry);
-	return cgroup_css(cgrp, ss) ?: ERR_PTR(-ENOENT);
+	css = cgroup_css(cgrp, ss);
+
+	if (!css || !css_tryget(css))
+		css = ERR_PTR(-ENOENT);
+
+	rcu_read_unlock();
+	return css;
 }
 
 /**

@@ -370,11 +370,6 @@ perf_cgroup_match(struct perf_event *event)
 				    event->cgrp->css.cgroup);
 }
 
-static inline bool perf_tryget_cgroup(struct perf_event *event)
-{
-	return css_tryget(&event->cgrp->css);
-}
-
 static inline void perf_put_cgroup(struct perf_event *event)
 {
 	css_put(&event->cgrp->css);
@@ -593,9 +588,7 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 	if (!f.file)
 		return -EBADF;
 
-	rcu_read_lock();
-
-	css = css_from_dir(f.file->f_dentry, &perf_event_cgrp_subsys);
+	css = css_tryget_from_dir(f.file->f_dentry, &perf_event_cgrp_subsys);
 	if (IS_ERR(css)) {
 		ret = PTR_ERR(css);
 		goto out;
@@ -603,13 +596,6 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 
 	cgrp = container_of(css, struct perf_cgroup, css);
 	event->cgrp = cgrp;
-
-	/* must be done before we fput() the file */
-	if (!perf_tryget_cgroup(event)) {
-		event->cgrp = NULL;
-		ret = -ENOENT;
-		goto out;
-	}
 
 	/*
 	 * all events in a group must monitor
@@ -621,7 +607,6 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 		ret = -EINVAL;
 	}
 out:
-	rcu_read_unlock();
 	fdput(f);
 	return ret;
 }

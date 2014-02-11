@@ -6183,17 +6183,15 @@ static int memcg_write_event_control(struct cgroup_subsys_state *css,
 	 * automatically removed on cgroup destruction but the removal is
 	 * asynchronous, so take an extra ref on @css.
 	 */
-	rcu_read_lock();
-
+	cfile_css = css_tryget_from_dir(cfile.file->f_dentry->d_parent,
+					&memory_cgrp_subsys);
 	ret = -EINVAL;
-	cfile_css = css_from_dir(cfile.file->f_dentry->d_parent,
-				 &memory_cgrp_subsys);
-	if (cfile_css == css && css_tryget(css))
-		ret = 0;
-
-	rcu_read_unlock();
-	if (ret)
+	if (IS_ERR(cfile_css))
 		goto out_put_cfile;
+	if (cfile_css != css) {
+		css_put(cfile_css);
+		goto out_put_cfile;
+	}
 
 	ret = event->register_event(memcg, event->eventfd, buffer);
 	if (ret)
