@@ -1459,21 +1459,22 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 			 int flags, const char *unused_dev_name,
 			 void *data)
 {
+	LIST_HEAD(tmp_links);
+	struct super_block *sb = NULL;
+	struct inode *inode = NULL;
+	struct cgroupfs_root *root = NULL;
 	struct cgroup_sb_opts opts;
-	struct cgroupfs_root *root;
-	int ret = 0;
-	struct super_block *sb;
 	struct cgroupfs_root *new_root;
-	struct list_head tmp_links;
-	struct inode *inode;
 	const struct cred *cred;
+	int ret;
+
+	mutex_lock(&cgroup_tree_mutex);
+	mutex_lock(&cgroup_mutex);
 
 	/* First find the desired set of subsystems */
-	mutex_lock(&cgroup_mutex);
 	ret = parse_cgroupfs_options(data, &opts);
-	mutex_unlock(&cgroup_mutex);
 	if (ret)
-		goto out_err;
+		goto out_unlock;
 
 	/*
 	 * Allocate a new cgroup root. We may not need it if we're
@@ -1482,16 +1483,20 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	new_root = cgroup_root_from_opts(&opts);
 	if (IS_ERR(new_root)) {
 		ret = PTR_ERR(new_root);
-		goto out_err;
+		goto out_unlock;
 	}
 	opts.new_root = new_root;
 
 	/* Locate an existing or new sb for this hierarchy */
+	mutex_unlock(&cgroup_mutex);
+	mutex_unlock(&cgroup_tree_mutex);
 	sb = sget(fs_type, cgroup_test_super, cgroup_set_super, 0, &opts);
+	mutex_lock(&cgroup_tree_mutex);
+	mutex_lock(&cgroup_mutex);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
 		cgroup_free_root(opts.new_root);
-		goto out_err;
+		goto out_unlock;
 	}
 
 	root = sb->s_fs_info;
@@ -1505,9 +1510,12 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 
 		BUG_ON(sb->s_root != NULL);
 
+		mutex_unlock(&cgroup_mutex);
+		mutex_unlock(&cgroup_tree_mutex);
+
 		ret = cgroup_get_rootdir(sb);
 		if (ret)
-			goto drop_new_super;
+			goto out_unlock;
 		inode = sb->s_root->d_inode;
 
 		mutex_lock(&inode->i_mutex);
@@ -1516,7 +1524,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 
 		ret = idr_alloc(&root->cgroup_idr, root_cgrp, 0, 1, GFP_KERNEL);
 		if (ret < 0)
-			goto unlock_drop;
+			goto out_unlock;
 		root_cgrp->id = ret;
 
 		/* Check for name clashes with existing mounts */
@@ -1524,7 +1532,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		if (strlen(root->name))
 			for_each_active_root(existing_root)
 				if (!strcmp(existing_root->name, root->name))
-					goto unlock_drop;
+					goto out_unlock;
 
 		/*
 		 * We're accessing css_set_count without locking
@@ -1535,12 +1543,12 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		 */
 		ret = allocate_cgrp_cset_links(css_set_count, &tmp_links);
 		if (ret)
-			goto unlock_drop;
+			goto out_unlock;
 
 		/* ID 0 is reserved for dummy root, 1 for unified hierarchy */
 		ret = cgroup_init_root_id(root, 2, 0);
 		if (ret)
-			goto unlock_drop;
+			goto out_unlock;
 
 		sb->s_root->d_fsdata = root_cgrp;
 		root_cgrp->dentry = sb->s_root;
@@ -1580,14 +1588,8 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 			link_css_set(&tmp_links, cset, root_cgrp);
 		write_unlock(&css_set_lock);
 
-		free_cgrp_cset_links(&tmp_links);
-
 		BUG_ON(!list_empty(&root_cgrp->children));
 		BUG_ON(root->number_of_cgroups != 1);
-
-		mutex_unlock(&cgroup_mutex);
-		mutex_unlock(&cgroup_tree_mutex);
-		mutex_unlock(&inode->i_mutex);
 	} else {
 		/*
 		 * We re-used an existing hierarchy - the new root (if
@@ -1599,32 +1601,37 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 			if ((root->flags | opts.flags) & CGRP_ROOT_SANE_BEHAVIOR) {
 				pr_err("cgroup: sane_behavior: new mount options should match the existing superblock\n");
 				ret = -EINVAL;
-				goto drop_new_super;
+				goto out_unlock;
 			} else {
 				pr_warning("cgroup: new mount options do not match the existing superblock, will be ignored\n");
 			}
 		}
 	}
 
-	kfree(opts.release_agent);
-	kfree(opts.name);
-	return dget(sb->s_root);
+	ret = 0;
+	goto out_unlock;
 
- rm_base_files:
-	free_cgrp_cset_links(&tmp_links);
+rm_base_files:
 	cgroup_addrm_files(&root->top_cgroup, cgroup_base_files, false);
 	revert_creds(cred);
- unlock_drop:
 	cgroup_exit_root_id(root);
+out_unlock:
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgroup_tree_mutex);
-	mutex_unlock(&inode->i_mutex);
- drop_new_super:
-	deactivate_locked_super(sb);
- out_err:
+	if (inode)
+		mutex_unlock(&inode->i_mutex);
+
+	if (ret && !IS_ERR_OR_NULL(sb))
+		deactivate_locked_super(sb);
+
+	free_cgrp_cset_links(&tmp_links);
 	kfree(opts.release_agent);
 	kfree(opts.name);
-	return ERR_PTR(ret);
+
+	if (!ret)
+		return dget(sb->s_root);
+	else
+		return ERR_PTR(ret);
 }
 
 static void cgroup_kill_sb(struct super_block *sb)
