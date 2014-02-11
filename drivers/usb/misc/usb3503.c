@@ -124,19 +124,15 @@ static int usb3503_connect(struct usb3503 *hub)
 
 		/* PDS : Disable For Self Powered Operation */
 		if (hub->port_off_mask) {
-			err = regmap_update_bits(hub->regmap, USB3503_PDS,
-					hub->port_off_mask,
-					hub->port_off_mask);
+			err = regmap_write(hub->regmap, USB3503_PDS, hub->port_off_mask);
 			if (err < 0) {
 				dev_err(dev, "PDS failed (%d)\n", err);
 				return err;
 			}
 		}
 
-		/* CFG1 : SELF_BUS_PWR -> Self-Powerd operation */
-		err = regmap_update_bits(hub->regmap, USB3503_CFG1,
-					 USB3503_SELF_BUS_PWR,
-					 USB3503_SELF_BUS_PWR);
+		/* CFG1 : SELF_BUS_PWR -> Self-Powered operation */
+		err = regmap_write(hub->regmap, USB3503_CFG1, USB3503_SELF_BUS_PWR);
 		if (err < 0) {
 			dev_err(dev, "CFG1 failed (%d)\n", err);
 			return err;
