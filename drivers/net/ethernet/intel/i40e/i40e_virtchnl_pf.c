@@ -1920,15 +1920,28 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 void i40e_vc_notify_link_state(struct i40e_pf *pf)
 {
 	struct i40e_virtchnl_pf_event pfe;
+	struct i40e_hw *hw = &pf->hw;
+	struct i40e_vf *vf = pf->vf;
+	struct i40e_link_status *ls = &pf->hw.phy.link_info;
+	int i;
 
 	pfe.event = I40E_VIRTCHNL_EVENT_LINK_CHANGE;
 	pfe.severity = I40E_PF_EVENT_SEVERITY_INFO;
-	pfe.event_data.link_event.link_status =
-	    pf->hw.phy.link_info.link_info & I40E_AQ_LINK_UP;
-	pfe.event_data.link_event.link_speed = pf->hw.phy.link_info.link_speed;
-
-	i40e_vc_vf_broadcast(pf, I40E_VIRTCHNL_OP_EVENT, I40E_SUCCESS,
-			     (u8 *)&pfe, sizeof(struct i40e_virtchnl_pf_event));
+	for (i = 0; i < pf->num_alloc_vfs; i++) {
+		if (vf->link_forced) {
+			pfe.event_data.link_event.link_status = vf->link_up;
+			pfe.event_data.link_event.link_speed =
+				(vf->link_up ? I40E_LINK_SPEED_40GB : 0);
+		} else {
+			pfe.event_data.link_event.link_status =
+				ls->link_info & I40E_AQ_LINK_UP;
+			pfe.event_data.link_event.link_speed = ls->link_speed;
+		}
+		i40e_aq_send_msg_to_vf(hw, vf->vf_id, I40E_VIRTCHNL_OP_EVENT,
+				       0, (u8 *)&pfe, sizeof(pfe),
+				       NULL);
+		vf++;
+	}
 }
 
 /**
@@ -2191,5 +2204,66 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 	ret = 0;
 
 error_param:
+	return ret;
+}
+
+/**
+ * i40e_ndo_set_vf_link_state
+ * @netdev: network interface device structure
+ * @vf_id: vf identifier
+ * @link: required link state
+ *
+ * Set the link state of a specified VF, regardless of physical link state
+ **/
+int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_virtchnl_pf_event pfe;
+	struct i40e_hw *hw = &pf->hw;
+	struct i40e_vf *vf;
+	int ret = 0;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		dev_err(&pf->pdev->dev, "Invalid VF Identifier %d\n", vf_id);
+		ret = -EINVAL;
+		goto error_out;
+	}
+
+	vf = &pf->vf[vf_id];
+
+	pfe.event = I40E_VIRTCHNL_EVENT_LINK_CHANGE;
+	pfe.severity = I40E_PF_EVENT_SEVERITY_INFO;
+
+	switch (link) {
+	case IFLA_VF_LINK_STATE_AUTO:
+		vf->link_forced = false;
+		pfe.event_data.link_event.link_status =
+			pf->hw.phy.link_info.link_info & I40E_AQ_LINK_UP;
+		pfe.event_data.link_event.link_speed =
+			pf->hw.phy.link_info.link_speed;
+		break;
+	case IFLA_VF_LINK_STATE_ENABLE:
+		vf->link_forced = true;
+		vf->link_up = true;
+		pfe.event_data.link_event.link_status = true;
+		pfe.event_data.link_event.link_speed = I40E_LINK_SPEED_40GB;
+		break;
+	case IFLA_VF_LINK_STATE_DISABLE:
+		vf->link_forced = true;
+		vf->link_up = false;
+		pfe.event_data.link_event.link_status = false;
+		pfe.event_data.link_event.link_speed = 0;
+		break;
+	default:
+		ret = -EINVAL;
+		goto error_out;
+	}
+	/* Notify the VF of its new link state */
+	i40e_aq_send_msg_to_vf(hw, vf->vf_id, I40E_VIRTCHNL_OP_EVENT,
+			       0, (u8 *)&pfe, sizeof(pfe), NULL);
+
+error_out:
 	return ret;
 }

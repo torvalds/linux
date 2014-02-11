@@ -6547,6 +6547,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_vlan	= i40e_ndo_set_vf_port_vlan,
 	.ndo_set_vf_tx_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
+	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
 #ifdef CONFIG_I40E_VXLAN
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
