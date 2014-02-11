@@ -18,10 +18,10 @@
 #include <linux/rwsem.h>
 #include <linux/idr.h>
 #include <linux/workqueue.h>
-#include <linux/xattr.h>
 #include <linux/fs.h>
 #include <linux/percpu-refcount.h>
 #include <linux/seq_file.h>
+#include <linux/kernfs.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -159,16 +159,17 @@ struct cgroup {
 	/* the number of attached css's */
 	int nr_css;
 
+	atomic_t refcnt;
+
 	/*
 	 * We link our 'sibling' struct into our parent's 'children'.
 	 * Our children link their 'sibling' into our 'children'.
 	 */
 	struct list_head sibling;	/* my parent's children */
 	struct list_head children;	/* my children */
-	struct list_head files;		/* my files */
 
 	struct cgroup *parent;		/* my parent */
-	struct dentry *dentry;		/* cgroup fs entry, RCU protected */
+	struct kernfs_node *kn;		/* cgroup kernfs entry */
 
 	/*
 	 * Monotonically increasing unique serial number which defines a
@@ -222,9 +223,6 @@ struct cgroup {
 	/* For css percpu_ref killing and RCU-protected deletion */
 	struct rcu_head rcu_head;
 	struct work_struct destroy_work;
-
-	/* directory xattrs */
-	struct simple_xattrs xattrs;
 };
 
 #define MAX_CGROUP_ROOT_NAMELEN 64
@@ -291,14 +289,16 @@ enum {
 
 /*
  * A cgroupfs_root represents the root of a cgroup hierarchy, and may be
- * associated with a superblock to form an active hierarchy.  This is
+ * associated with a kernfs_root to form an active hierarchy.  This is
  * internal to cgroup core.  Don't access directly from controllers.
  */
 struct cgroupfs_root {
-	struct super_block *sb;
+	struct kernfs_root *kf_root;
 
 	/* The bitmask of subsystems attached to this hierarchy */
 	unsigned long subsys_mask;
+
+	atomic_t refcnt;
 
 	/* Unique id for this hierarchy. */
 	int hierarchy_id;
@@ -415,6 +415,9 @@ struct cftype {
 	 */
 	struct cgroup_subsys *ss;
 
+	/* kernfs_ops to use, initialized automatically during registration */
+	struct kernfs_ops *kf_ops;
+
 	/*
 	 * read_u64() is a shortcut for the common case of returning a
 	 * single integer. Use it in place of read()
@@ -460,6 +463,10 @@ struct cftype {
 	 * kick type for multiplexing.
 	 */
 	int (*trigger)(struct cgroup_subsys_state *css, unsigned int event);
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lock_class_key	lockdep_key;
+#endif
 };
 
 /*
@@ -470,26 +477,6 @@ struct cftype {
 struct cftype_set {
 	struct list_head		node;	/* chained at subsys->cftsets */
 	struct cftype			*cfts;
-};
-
-/*
- * cgroupfs file entry, pointed to from leaf dentry->d_fsdata.  Don't
- * access directly.
- */
-struct cfent {
-	struct list_head		node;
-	struct dentry			*dentry;
-	struct cftype			*type;
-	struct cgroup_subsys_state	*css;
-
-	/* file xattrs */
-	struct simple_xattrs		xattrs;
-};
-
-/* seq_file->private points to the following, only ->priv is public */
-struct cgroup_open_file {
-	struct cfent			*cfe;
-	void				*priv;
 };
 
 /*
@@ -510,16 +497,17 @@ static inline const char *cgroup_name(const struct cgroup *cgrp)
 /* returns ino associated with a cgroup, 0 indicates unmounted root */
 static inline ino_t cgroup_ino(struct cgroup *cgrp)
 {
-	if (cgrp->dentry)
-		return cgrp->dentry->d_inode->i_ino;
+	if (cgrp->kn)
+		return cgrp->kn->ino;
 	else
 		return 0;
 }
 
 static inline struct cftype *seq_cft(struct seq_file *seq)
 {
-	struct cgroup_open_file *of = seq->private;
-	return of->cfe->type;
+	struct kernfs_open_file *of = seq->private;
+
+	return of->kn->priv;
 }
 
 struct cgroup_subsys_state *seq_css(struct seq_file *seq);
