@@ -6806,8 +6806,6 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 			if (vsi->netdev) {
 				/* results in a call to i40e_close() */
 				unregister_netdev(vsi->netdev);
-				free_netdev(vsi->netdev);
-				vsi->netdev = NULL;
 			}
 		} else {
 			if (!test_and_set_bit(__I40E_DOWN, &vsi->state))
@@ -6826,6 +6824,10 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 
 	i40e_vsi_delete(vsi);
 	i40e_vsi_free_q_vectors(vsi);
+	if (vsi->netdev) {
+		free_netdev(vsi->netdev);
+		vsi->netdev = NULL;
+	}
 	i40e_vsi_clear_rings(vsi);
 	i40e_vsi_clear(vsi);
 
