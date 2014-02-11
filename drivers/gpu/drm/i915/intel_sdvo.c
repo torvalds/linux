@@ -2381,6 +2381,20 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, struct intel_sdvo *sdvo)
 		return 0x72;
 }
 
+static void
+intel_sdvo_connector_unregister(struct intel_connector *intel_connector)
+{
+	struct drm_connector *drm_connector;
+	struct intel_sdvo *sdvo_encoder;
+
+	drm_connector = &intel_connector->base;
+	sdvo_encoder = intel_attached_sdvo(&intel_connector->base);
+
+	sysfs_remove_link(&drm_connector->kdev->kobj,
+			  sdvo_encoder->ddc.dev.kobj.name);
+	intel_connector_unregister(intel_connector);
+}
+
 static int
 intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 			  struct intel_sdvo *encoder)
@@ -2403,15 +2417,23 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	connector->base.base.doublescan_allowed = 0;
 	connector->base.base.display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->base.get_hw_state = intel_sdvo_connector_get_hw_state;
-	connector->base.unregister = intel_connector_unregister;
+	connector->base.unregister = intel_sdvo_connector_unregister;
 
 	intel_connector_attach_encoder(&connector->base, &encoder->base);
 	ret = drm_sysfs_connector_add(drm_connector);
 	if (ret < 0)
 		goto err1;
 
+	ret = sysfs_create_link(&encoder->ddc.dev.kobj,
+				&drm_connector->kdev->kobj,
+				encoder->ddc.dev.kobj.name);
+	if (ret < 0)
+		goto err2;
+
 	return 0;
 
+err2:
+	drm_sysfs_connector_remove(drm_connector);
 err1:
 	drm_connector_cleanup(drm_connector);
 
