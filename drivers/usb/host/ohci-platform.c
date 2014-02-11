@@ -47,10 +47,6 @@ static int ohci_platform_reset(struct usb_hcd *hcd)
 	struct usb_ohci_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 
-	if (pdata->big_endian_desc)
-		ohci->flags |= OHCI_QUIRK_BE_DESC;
-	if (pdata->big_endian_mmio)
-		ohci->flags |= OHCI_QUIRK_BE_MMIO;
 	if (pdata->no_big_frame_no)
 		ohci->flags |= OHCI_QUIRK_FRAME_NO;
 	if (pdata->num_ports)
@@ -177,22 +173,6 @@ static int ohci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node, "big-endian"))
 			ohci->flags |= OHCI_QUIRK_BE_MMIO | OHCI_QUIRK_BE_DESC;
 
-#ifndef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
-		if (ohci->flags & OHCI_QUIRK_BE_MMIO) {
-			dev_err(&dev->dev,
-				"Error big-endian-regs not compiled in\n");
-			err = -EINVAL;
-			goto err_put_hcd;
-		}
-#endif
-#ifndef CONFIG_USB_OHCI_BIG_ENDIAN_DESC
-		if (ohci->flags & OHCI_QUIRK_BE_DESC) {
-			dev_err(&dev->dev,
-				"Error big-endian-desc not compiled in\n");
-			err = -EINVAL;
-			goto err_put_hcd;
-		}
-#endif
 		priv->phy = devm_phy_get(&dev->dev, "usb");
 		if (IS_ERR(priv->phy)) {
 			err = PTR_ERR(priv->phy);
@@ -212,6 +192,28 @@ static int ohci_platform_probe(struct platform_device *dev)
 			}
 		}
 	}
+
+	if (pdata->big_endian_desc)
+		ohci->flags |= OHCI_QUIRK_BE_DESC;
+	if (pdata->big_endian_mmio)
+		ohci->flags |= OHCI_QUIRK_BE_MMIO;
+
+#ifndef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
+	if (ohci->flags & OHCI_QUIRK_BE_MMIO) {
+		dev_err(&dev->dev,
+			"Error: CONFIG_USB_OHCI_BIG_ENDIAN_MMIO not set\n");
+		err = -EINVAL;
+		goto err_put_clks;
+	}
+#endif
+#ifndef CONFIG_USB_OHCI_BIG_ENDIAN_DESC
+	if (ohci->flags & OHCI_QUIRK_BE_DESC) {
+		dev_err(&dev->dev,
+			"Error: CONFIG_USB_OHCI_BIG_ENDIAN_DESC not set\n");
+		err = -EINVAL;
+		goto err_put_clks;
+	}
+#endif
 
 	if (pdata->power_on) {
 		err = pdata->power_on(dev);
