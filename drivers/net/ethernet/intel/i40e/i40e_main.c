@@ -1985,7 +1985,7 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
  * @netdev: network interface to be adjusted
  * @vid: vlan id to be removed
  *
- * net_device_ops implementation for adding vlan ids
+ * net_device_ops implementation for removing vlan ids
  **/
 static int i40e_vlan_rx_kill_vid(struct net_device *netdev,
 				 __always_unused __be16 proto, u16 vid)
