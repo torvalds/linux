@@ -1,7 +1,6 @@
 config USBIP_CORE
 	tristate "USB/IP support"
 	depends on USB && NET
-	default N
 	---help---
 	  This enables pushing USB packets over IP to allow remote
 	  machines direct access to USB devices. It provides the
@@ -18,7 +17,6 @@ config USBIP_CORE
 config USBIP_VHCI_HCD
 	tristate "VHCI hcd"
 	depends on USBIP_CORE
-	default N
 	---help---
 	  This enables the USB/IP virtual host controller driver,
 	  which is run on the remote machine.
@@ -29,7 +27,6 @@ config USBIP_VHCI_HCD
 config USBIP_HOST
 	tristate "Host driver"
 	depends on USBIP_CORE
-	default N
 	---help---
 	  This enables the USB/IP host driver, which is run on the
 	  machine that is sharing the USB devices.
@@ -40,6 +37,5 @@ config USBIP_HOST
 config USBIP_DEBUG
 	bool "Debug messages for USB/IP"
 	depends on USBIP_CORE
-	default N
 	---help---
 	  This enables the debug messages from the USB/IP drivers.

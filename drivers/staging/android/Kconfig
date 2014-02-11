@@ -2,7 +2,6 @@ menu "Android"
 
 config ANDROID
 	bool "Android Drivers"
-	default N
 	---help---
 	  Enable support for various drivers needed on the Android platform
 
@@ -60,7 +59,6 @@ config ANDROID_TIMED_GPIO
 
 config ANDROID_LOW_MEMORY_KILLER
 	bool "Android Low Memory Killer"
-	default N
 	---help---
 	  Registers processes to be killed when memory is low
 
