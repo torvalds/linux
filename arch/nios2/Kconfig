@@ -62,8 +62,6 @@ source "kernel/Kconfig.freezer"
 
 source "kernel/Kconfig.hz"
 
-source "kernel/time/Kconfig"
-
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
