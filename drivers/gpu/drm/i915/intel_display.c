@@ -11072,6 +11072,8 @@ void intel_modeset_init(struct drm_device *dev)
 
 	/* Just in case the BIOS is doing something questionable. */
 	intel_disable_fbc(dev);
+
+	intel_modeset_setup_hw_state(dev, false);
 }
 
 static void
@@ -11439,10 +11441,6 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	intel_modeset_init_hw(dev);
 
 	intel_setup_overlay(dev);
-
-	mutex_lock(&dev->mode_config.mutex);
-	intel_modeset_setup_hw_state(dev, false);
-	mutex_unlock(&dev->mode_config.mutex);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
