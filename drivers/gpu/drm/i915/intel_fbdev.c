@@ -265,7 +265,7 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_fini(&ifbdev->helper);
 
 	drm_framebuffer_unregister_private(&ifbdev->fb->base);
-	drm_framebuffer_unreference(&ifbdev->fb->base);
+	drm_framebuffer_remove(&ifbdev->fb->base);
 }
 
 int intel_fbdev_init(struct drm_device *dev)
