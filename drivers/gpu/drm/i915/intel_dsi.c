@@ -624,7 +624,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	}
 
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-	intel_panel_init(&intel_connector->panel, fixed_mode);
+	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 
 	return true;
 

@@ -823,7 +823,8 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 
 /* intel_panel.c */
 int intel_panel_init(struct intel_panel *panel,
-		     struct drm_display_mode *fixed_mode);
+		     struct drm_display_mode *fixed_mode,
+		     struct drm_display_mode *downclock_mode);
 void intel_panel_fini(struct intel_panel *panel);
 void intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 			    struct drm_display_mode *adjusted_mode);
