@@ -126,9 +126,7 @@ static int usb3503_connect(struct usb3503 *hub)
 
 		/* PDS : Set the ports which are disabled in self-powered mode. */
 		if (hub->port_off_mask) {
-			err = regmap_update_bits(hub->regmap, USB3503_PDS,
-					hub->port_off_mask,
-					hub->port_off_mask);
+			err = regmap_write(hub->regmap, USB3503_PDS, hub->port_off_mask);
 			if (err < 0) {
 				dev_err(dev, "PDS failed (%d)\n", err);
 				return err;
@@ -136,9 +134,7 @@ static int usb3503_connect(struct usb3503 *hub)
 		}
 
 		/* CFG1 : Set SELF_BUS_PWR, this enables self-powered operation. */
-		err = regmap_update_bits(hub->regmap, USB3503_CFG1,
-					 USB3503_SELF_BUS_PWR,
-					 USB3503_SELF_BUS_PWR);
+		err = regmap_write(hub->regmap, USB3503_CFG1, USB3503_SELF_BUS_PWR);
 		if (err < 0) {
 			dev_err(dev, "CFG1 failed (%d)\n", err);
 			return err;
