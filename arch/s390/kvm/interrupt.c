@@ -660,6 +660,31 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 	return 0;
 }
 
+int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
+			     struct kvm_s390_pgm_info *pgm_info)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	struct kvm_s390_interrupt_info *inti;
+
+	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
+	if (!inti)
+		return -ENOMEM;
+
+	VCPU_EVENT(vcpu, 3, "inject: prog irq %d (from kernel)",
+		   pgm_info->code);
+	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_PROGRAM_INT,
+				   pgm_info->code, 0, 1);
+
+	inti->type = KVM_S390_PROGRAM_INT;
+	memcpy(&inti->pgm, pgm_info, sizeof(inti->pgm));
+	spin_lock_bh(&li->lock);
+	list_add(&inti->list, &li->list);
+	atomic_set(&li->active, 1);
+	BUG_ON(waitqueue_active(li->wq));
+	spin_unlock_bh(&li->lock);
+	return 0;
+}
+
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 						    u64 cr6, u64 schid)
 {

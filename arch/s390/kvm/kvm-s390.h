@@ -165,6 +165,9 @@ bool kvm_s390_cmma_enabled(struct kvm *kvm);
 
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
+/* implemented in interrupt.c */
+int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
+			     struct kvm_s390_pgm_info *pgm_info);
 
 /* implemented in interrupt.c */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
