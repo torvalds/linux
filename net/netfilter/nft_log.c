@@ -23,7 +23,6 @@ static const char *nft_log_null_prefix = "";
 struct nft_log {
 	struct nf_loginfo	loginfo;
 	char			*prefix;
-	int			family;
 };
 
 static void nft_log_eval(const struct nft_expr *expr,
@@ -33,7 +32,7 @@ static void nft_log_eval(const struct nft_expr *expr,
 	const struct nft_log *priv = nft_expr_priv(expr);
 	struct net *net = dev_net(pkt->in ? pkt->in : pkt->out);
 
-	nf_log_packet(net, priv->family, pkt->ops->hooknum, pkt->skb, pkt->in,
+	nf_log_packet(net, pkt->ops->pf, pkt->ops->hooknum, pkt->skb, pkt->in,
 		      pkt->out, &priv->loginfo, "%s", priv->prefix);
 }
 
@@ -51,8 +50,6 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	struct nft_log *priv = nft_expr_priv(expr);
 	struct nf_loginfo *li = &priv->loginfo;
 	const struct nlattr *nla;
-
-	priv->family = ctx->afi->family;
 
 	nla = tb[NFTA_LOG_PREFIX];
 	if (nla != NULL) {

@@ -652,7 +652,7 @@ int iwl_mvm_send_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-	static const u8 *baddr = _baddr;
+	const u8 *baddr = _baddr;
 
 	lockdep_assert_held(&mvm->mutex);
 
