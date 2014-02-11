@@ -7851,6 +7851,44 @@ static int i40e_setup_pf_filter_control(struct i40e_pf *pf)
 	return 0;
 }
 
+#define INFO_STRING_LEN 255
+static void i40e_print_features(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	char *buf, *string;
+
+	string = kzalloc(INFO_STRING_LEN, GFP_KERNEL);
+	if (!string) {
+		dev_err(&pf->pdev->dev, "Features string allocation failed\n");
+		return;
+	}
+
+	buf = string;
+
+	buf += sprintf(string, "Features: PF-id[%d] ", hw->pf_id);
+#ifdef CONFIG_PCI_IOV
+	buf += sprintf(buf, "VFs: %d ", pf->num_req_vfs);
+#endif
+	buf += sprintf(buf, "VSIs: %d QP: %d ", pf->hw.func_caps.num_vsis,
+		       pf->vsi[pf->lan_vsi]->num_queue_pairs);
+
+	if (pf->flags & I40E_FLAG_RSS_ENABLED)
+		buf += sprintf(buf, "RSS ");
+	buf += sprintf(buf, "FDir ");
+	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED)
+		buf += sprintf(buf, "ATR ");
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
+		buf += sprintf(buf, "NTUPLE ");
+	if (pf->flags & I40E_FLAG_DCB_ENABLED)
+		buf += sprintf(buf, "DCB ");
+	if (pf->flags & I40E_FLAG_PTP)
+		buf += sprintf(buf, "PTP ");
+
+	BUG_ON(buf > (string + INFO_STRING_LEN));
+	dev_info(&pf->pdev->dev, "%s\n", string);
+	kfree(string);
+}
+
 /**
  * i40e_probe - Device initialization routine
  * @pdev: PCI device information struct
@@ -8140,6 +8178,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_warn(&pdev->dev, "PCI-Express bandwidth available for this device may be insufficient for optimal performance.\n");
 		dev_warn(&pdev->dev, "Please move the device to a different PCI-e link with more lanes and/or higher transfer rate.\n");
 	}
+
+	/* print a string summarizing features */
+	i40e_print_features(pf);
 
 	return 0;
 
