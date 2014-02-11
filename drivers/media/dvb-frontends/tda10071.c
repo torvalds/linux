@@ -491,10 +491,9 @@ static int tda10071_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	if (ret)
 		goto error;
 
-	if (tmp & 0x01) /* tuner PLL */
-		*status |= FE_HAS_SIGNAL;
+	/* 0x39[0] tuner PLL */
 	if (tmp & 0x02) /* demod PLL */
-		*status |= FE_HAS_CARRIER;
+		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
 	if (tmp & 0x04) /* viterbi or LDPC*/
 		*status |= FE_HAS_VITERBI;
 	if (tmp & 0x08) /* RS or BCH */
