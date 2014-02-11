@@ -516,17 +516,13 @@ static inline ino_t cgroup_ino(struct cgroup *cgrp)
 		return 0;
 }
 
-static inline struct cgroup_subsys_state *seq_css(struct seq_file *seq)
-{
-	struct cgroup_open_file *of = seq->private;
-	return of->cfe->css;
-}
-
 static inline struct cftype *seq_cft(struct seq_file *seq)
 {
 	struct cgroup_open_file *of = seq->private;
 	return of->cfe->type;
 }
+
+struct cgroup_subsys_state *seq_css(struct seq_file *seq);
 
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cftype *cfts);
