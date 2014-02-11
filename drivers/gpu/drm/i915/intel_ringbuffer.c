@@ -1655,6 +1655,27 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	return 0;
 }
 
+/* Align the ring tail to a cacheline boundary */
+int intel_ring_cacheline_align(struct intel_ring_buffer *ring)
+{
+	int num_dwords = (64 - (ring->tail & 63)) / sizeof(uint32_t);
+	int ret;
+
+	if (num_dwords == 0)
+		return 0;
+
+	ret = intel_ring_begin(ring, num_dwords);
+	if (ret)
+		return ret;
+
+	while (num_dwords--)
+		intel_ring_emit(ring, MI_NOOP);
+
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
 void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
