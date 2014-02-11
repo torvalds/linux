@@ -302,6 +302,8 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 	struct arm_pmu *armpmu;
 	struct platform_device *plat_device;
 	struct arm_pmu_platdata *plat;
+	int ret;
+	u64 start_clock, finish_clock;
 
 	if (irq_is_percpu(irq))
 		dev = *(void **)dev;
@@ -309,10 +311,15 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 	plat_device = armpmu->plat_device;
 	plat = dev_get_platdata(&plat_device->dev);
 
+	start_clock = sched_clock();
 	if (plat && plat->handle_irq)
-		return plat->handle_irq(irq, dev, armpmu->handle_irq);
+		ret = plat->handle_irq(irq, dev, armpmu->handle_irq);
 	else
-		return armpmu->handle_irq(irq, dev);
+		ret = armpmu->handle_irq(irq, dev);
+	finish_clock = sched_clock();
+
+	perf_sample_event_took(finish_clock - start_clock);
+	return ret;
 }
 
 static void
