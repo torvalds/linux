@@ -8,17 +8,11 @@
   * based on linux/drivers/acron/char/pcf8583.c
   * Copyright (C) 2000 Russell King
   *
+  * Driver for max1363 and similar chips.
+  *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License version 2 as
   * published by the Free Software Foundation.
-  *
-  * max1363.c
-  *
-  * Partial support for max1363 and similar chips.
-  *
-  * Not currently implemented.
-  *
-  * - Control of internal reference.
   */
 
 #include <linux/interrupt.h>
