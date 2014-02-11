@@ -243,7 +243,7 @@ static void perf_duration_warn(struct irq_work *w)
 	printk_ratelimited(KERN_WARNING
 			"perf interrupt took too long (%lld > %lld), lowering "
 			"kernel.perf_event_max_sample_rate to %d\n",
-			avg_local_sample_len, allowed_ns,
+			avg_local_sample_len, allowed_ns >> 1,
 			sysctl_perf_event_sample_rate);
 }
 
@@ -283,7 +283,12 @@ void perf_sample_event_took(u64 sample_len_ns)
 
 	update_perf_cpu_limits();
 
-	irq_work_queue(&perf_duration_work);
+	if (!irq_work_queue(&perf_duration_work)) {
+		early_printk("perf interrupt took too long (%lld > %lld), lowering "
+			     "kernel.perf_event_max_sample_rate to %d\n",
+			     avg_local_sample_len, allowed_ns >> 1,
+			     sysctl_perf_event_sample_rate);
+	}
 }
 
 static atomic64_t perf_event_id;
