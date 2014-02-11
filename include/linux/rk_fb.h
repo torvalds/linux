@@ -69,7 +69,7 @@
 #define RK_LF_MAX_TIMEOUT 			 (1600000UL << 6)	//>0.64s
 
 #if defined(CONFIG_ION_ROCKCHIP)
-extern struct ion_device *ion_rockchip;
+extern struct ion_client *rockchip_ion_client_create(const char * name);
 #endif
 
 extern int rk_fb_poll_prmry_screen_vblank(void);

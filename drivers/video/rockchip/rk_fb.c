@@ -1578,7 +1578,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		fb_mem_size = 3 * (fbi->var.xres * fbi->var.yres) << 2;
 		fb_mem_size = ALIGN(fb_mem_size, SZ_1M);
 #if defined(CONFIG_ION_ROCKCHIP)
-		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, 2, 0);
+		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, ION_HEAP(ION_VIDEO_HEAP_ID), 0);
 		if (IS_ERR(handle)) {
 			dev_err(fbi->device, "failed to ion_alloc:%ld\n",PTR_ERR(handle));
 			return -ENOMEM;
@@ -1969,7 +1969,7 @@ static int rk_fb_probe(struct platform_device *pdev)
 	}
 	dev_set_name(&pdev->dev, "rockchip-fb");
 #if defined(CONFIG_ION_ROCKCHIP)
-	rk_fb->ion_client = ion_client_create(ion_rockchip,"rk_fb");
+	rk_fb->ion_client = rockchip_ion_client_create("rk_fb");
 	if (IS_ERR(rk_fb->ion_client)) {
 		dev_err(&pdev->dev, "failed to create ion client for rk fb");
 		return PTR_ERR(rk_fb->ion_client);
