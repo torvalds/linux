@@ -44,7 +44,7 @@
 #endif
 
 #if defined(CONFIG_ION_ROCKCHIP)
-#include "../../staging/android/ion/ion.h"
+#include <linux/rockchip_ion.h>
 #endif
 
 

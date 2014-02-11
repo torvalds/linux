@@ -16,6 +16,8 @@
 #ifndef _LINUX_ROCKCHIP_ION_H
 #define _LINUX_ROCKCHIP_ION_H
 
+#include "../../drivers/staging/android/ion/ion.h"
+
 enum ion_heap_ids {
 	INVALID_HEAP_ID = -1,
 	ION_VIDEO_HEAP_ID = 1,

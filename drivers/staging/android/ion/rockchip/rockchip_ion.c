@@ -17,7 +17,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include "../ion.h"
+#include <linux/rockchip_ion.h>
 #include "../ion_priv.h"
 
 #ifdef CONFIG_OF
@@ -29,15 +29,7 @@
 static struct ion_device *idev;
 static int num_heaps;
 static struct ion_heap **heaps;
-/*
-static struct ion_platform_heap s_heap_data = {
-        .type = ION_HEAP_TYPE_DMA,
-        .id = 1,
-        .name = "norheap",
-        .size = 256*SZ_1M,
-        .align = SZ_1M,
-};
-*/
+
 struct ion_heap_desc {
 	unsigned int id;
 	enum ion_heap_type type;
@@ -144,12 +136,12 @@ static struct ion_platform_data *rockchip_ion_parse_dt(
 		if (ret)
 			goto free_heaps;
 
-//		msm_ion_get_heap_align(node, &pdata->heaps[idx]);
+//		rockchip_ion_get_heap_align(node, &pdata->heaps[idx]);
 		ret = rockchip_ion_get_heap_size(node, &pdata->heaps[idx]);
 		if (ret)
 			goto free_heaps;
 
-//		msm_ion_get_heap_adjacent(node, &pdata->heaps[idx]);
+//		rockchip_ion_get_heap_adjacent(node, &pdata->heaps[idx]);
                 pdata->heaps[idx].priv = dev;
                 pr_info("%d:  %d  %d  %s  0x%08X\n", idx, pdata->heaps[idx].type, pdata->heaps[idx].id, pdata->heaps[idx].name, pdata->heaps[idx].size);
 
