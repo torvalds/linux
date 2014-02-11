@@ -8311,6 +8311,12 @@ M:	Teddy Wang <teddy.wang@siliconmotion.com.cn>
 S:	Odd Fixes
 F:	drivers/staging/sm7xxfb/
 
+STAGING - SLICOSS
+M:	Lior Dotan <liodot@gmail.com>
+M:	Christopher Harrer <charrer@alacritech.com>
+S:	Odd Fixes
+F:	drivers/staging/slicoss/
+
 STAGING - SOFTLOGIC 6x10 MPEG CODEC
 M:	Ismael Luceno <ismael.luceno@corp.bluecherry.net>
 S:	Supported
