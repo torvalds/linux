@@ -250,6 +250,17 @@ static inline unsigned bio_segments(struct bio *bio)
 	struct bio_vec bv;
 	struct bvec_iter iter;
 
+	/*
+	 * We special case discard/write same, because they interpret bi_size
+	 * differently:
+	 */
+
+	if (bio->bi_rw & REQ_DISCARD)
+		return 1;
+
+	if (bio->bi_rw & REQ_WRITE_SAME)
+		return 1;
+
 	bio_for_each_segment(bv, bio, iter)
 		segs++;
 
