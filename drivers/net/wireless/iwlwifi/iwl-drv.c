@@ -1351,8 +1351,7 @@ MODULE_PARM_DESC(antenna_coupling,
 
 module_param_named(wd_disable, iwlwifi_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
-		"Disable stuck queue watchdog timer 0=system default, "
-		"1=disable, 2=enable (default: 0)");
+		"Disable stuck queue watchdog timer 0=system default, 1=disable (default: 1)");
 
 module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, S_IRUGO);
 MODULE_PARM_DESC(nvm_file, "NVM file name");
