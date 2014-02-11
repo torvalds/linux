@@ -52,6 +52,8 @@
 
 #ifdef __KERNEL__
 
+#define ACPI_USE_SYSTEM_INTTYPES
+
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
