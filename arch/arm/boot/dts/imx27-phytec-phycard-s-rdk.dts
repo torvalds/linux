@@ -9,7 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "imx27-phytec-phycard-s-som.dts"
+#include "imx27-phytec-phycard-s-som.dtsi"
 
 / {
 	model = "Phytec pca100 rapid development kit";
