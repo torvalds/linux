@@ -1272,6 +1272,8 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 				if (r->dev.parent &&
 					node == r->dev.of_node)
 					return r;
+			*ret = -EPROBE_DEFER;
+			return NULL;
 		} else {
 			/*
 			 * If we couldn't even get the node then it's
@@ -1312,7 +1314,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	struct regulator_dev *rdev;
 	struct regulator *regulator = ERR_PTR(-EPROBE_DEFER);
 	const char *devname = NULL;
-	int ret = -EPROBE_DEFER;
+	int ret;
 
 	if (id == NULL) {
 		pr_err("get() with no identifier\n");
@@ -1321,6 +1323,11 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 
 	if (dev)
 		devname = dev_name(dev);
+
+	if (have_full_constraints())
+		ret = -ENODEV;
+	else
+		ret = -EPROBE_DEFER;
 
 	mutex_lock(&regulator_list_mutex);
 

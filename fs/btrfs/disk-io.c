@@ -26,7 +26,6 @@
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-#include <linux/crc32c.h>
 #include <linux/slab.h>
 #include <linux/migrate.h>
 #include <linux/ratelimit.h>
@@ -35,6 +34,7 @@
 #include <asm/unaligned.h>
 #include "ctree.h"
 #include "disk-io.h"
+#include "hash.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
 #include "volumes.h"
@@ -244,7 +244,7 @@ out:
 
 u32 btrfs_csum_data(char *data, u32 seed, size_t len)
 {
-	return crc32c(seed, data, len);
+	return btrfs_crc32c(seed, data, len);
 }
 
 void btrfs_csum_final(u32 crc, char *result)
