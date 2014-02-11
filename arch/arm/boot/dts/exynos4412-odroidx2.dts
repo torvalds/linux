@@ -337,6 +337,9 @@
 		pinctrl-names = "default";
 		status = "okay";
 
+		/* Port 1 (first port): LAN9514.
+		 * Port 2: upper external USB port (UART side of board).
+		 * Port 3: lower external USB port. */
 		usb3503@08 {
 			compatible = "smsc,usb3503";
 			reg = <0x08>;
