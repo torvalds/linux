@@ -605,8 +605,8 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 			break;
 		default:
 			pr_err("blk-mq: bad return on queue: %d\n", ret);
-			rq->errors = -EIO;
 		case BLK_MQ_RQ_QUEUE_ERROR:
+			rq->errors = -EIO;
 			blk_mq_end_io(rq, rq->errors);
 			break;
 		}
