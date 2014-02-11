@@ -12,6 +12,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "armada-370.dtsi"
 
 / {
@@ -101,7 +102,7 @@
 				button@1 {
 					label = "Software Button";
 					linux,code = <116>;
-					gpios = <&gpio0 6 1>;
+					gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 				};
 			};
 
