@@ -157,6 +157,7 @@
 	ehci@12580000 {
 		status = "okay";
 
+		/* HSIC0 is connected to the USB3503, HSIC1 is not used. */
 		port@0 {
 			status = "okay";
 		};
@@ -164,7 +165,7 @@
 			status = "okay";
 		};
 		port@2 {
-			status = "okay";
+			status = "disabled";
 		};
 	};
 
