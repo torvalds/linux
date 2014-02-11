@@ -112,6 +112,37 @@ static struct lock_torture_ops *cur_ops;
  * Definitions for lock torture testing.
  */
 
+static int torture_lock_busted_write_lock(void)
+{
+	return 0;  /* BUGGY, do not use in real life!!! */
+}
+
+static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
+{
+	const unsigned long longdelay_us = 100;
+
+	/* We want a long delay occasionally to force massive contention.  */
+	if (!(torture_random(trsp) %
+	      (nrealwriters_stress * 2000 * longdelay_us)))
+		mdelay(longdelay_us);
+#ifdef CONFIG_PREEMPT
+	if (!(torture_random(trsp) % (nrealwriters_stress * 20000)))
+		preempt_schedule();  /* Allow test to be preempted. */
+#endif
+}
+
+static void torture_lock_busted_write_unlock(void)
+{
+	  /* BUGGY, do not use in real life!!! */
+}
+
+static struct lock_torture_ops lock_busted_ops = {
+	.writelock	= torture_lock_busted_write_lock,
+	.write_delay	= torture_lock_busted_write_delay,
+	.writeunlock	= torture_lock_busted_write_unlock,
+	.name		= "lock_busted"
+};
+
 static DEFINE_SPINLOCK(torture_spinlock);
 
 static int torture_spin_lock_write_lock(void) __acquires(torture_spinlock)
@@ -320,7 +351,7 @@ static int __init lock_torture_init(void)
 	int i;
 	int firsterr = 0;
 	static struct lock_torture_ops *torture_ops[] = {
-		&spin_lock_ops, &spin_lock_irq_ops,
+		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops,
 	};
 
 	torture_init_begin(torture_type, verbose, &locktorture_runnable);
