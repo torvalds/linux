@@ -73,23 +73,6 @@ orion_spi_clrbits(struct orion_spi *orion_spi, u32 reg, u32 mask)
 	writel(val, reg_addr);
 }
 
-static int orion_spi_set_transfer_size(struct orion_spi *orion_spi, int size)
-{
-	if (size == 16) {
-		orion_spi_setbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
-				  ORION_SPI_IF_8_16_BIT_MODE);
-	} else if (size == 8) {
-		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
-				  ORION_SPI_IF_8_16_BIT_MODE);
-	} else {
-		pr_debug("Bad bits per word value %d (only 8 or 16 are allowed).\n",
-			size);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 {
 	u32 tclk_hz;
@@ -168,7 +151,14 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if (rc)
 		return rc;
 
-	return orion_spi_set_transfer_size(orion_spi, bits_per_word);
+	if (bits_per_word == 16)
+		orion_spi_setbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
+				  ORION_SPI_IF_8_16_BIT_MODE);
+	else
+		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
+				  ORION_SPI_IF_8_16_BIT_MODE);
+
+	return 0;
 }
 
 static void orion_spi_set_cs(struct orion_spi *orion_spi, int enable)
@@ -391,6 +381,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 	master->transfer_one_message = orion_spi_transfer_one_message;
 	master->num_chipselect = ORION_NUM_CHIPSELECTS;
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 
 	platform_set_drvdata(pdev, master);
 
