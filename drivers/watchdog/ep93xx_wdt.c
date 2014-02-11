@@ -118,16 +118,9 @@ static int ep93xx_wdt_probe(struct platform_device *pdev)
 	int err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
-
-	mmio_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!mmio_base)
-		return -ENXIO;
+	mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mmio_base))
+		return PTR_ERR(mmio_base);
 
 	if (timeout < 1 || timeout > 3600) {
 		timeout = WDT_TIMEOUT;
