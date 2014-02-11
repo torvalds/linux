@@ -49,7 +49,8 @@
 #define RK_FBIOGET_IDLEFBUff_16OR32    	0X4622
 #define RK_FBIOSET_COMPOSE_LAYER_COUNTS    0X4623
 
-#define RK_FBIOSET_ROTATE            	0x5003
+#define RK_FBIOGET_DMABUF_FD            0x5003
+#define RK_FBIOSET_DMABUF_FD		0x5004
 #define RK_FB_IOCTL_SET_I2P_ODD_ADDR       0x5005
 #define RK_FB_IOCTL_SET_I2P_EVEN_ADDR      0x5006
 #define RK_FBIOSET_OVERLAY_STATE     	0x5018
@@ -66,6 +67,10 @@
 #define RK_LF_STATUS_FR                  0xee
 #define RK_LF_STATUS_NC                  0xfe
 #define RK_LF_MAX_TIMEOUT 			 (1600000UL << 6)	//>0.64s
+
+#if defined(CONFIG_ION_ROCKCHIP)
+extern struct ion_device *ion_rockchip;
+#endif
 
 extern int rk_fb_poll_prmry_screen_vblank(void);
 extern int rk_fb_get_prmry_screen_ft(void);
@@ -236,8 +241,10 @@ struct rk_lcdc_win {
 	unsigned long smem_start;
 	unsigned long cbr_start;	/*Cbr memory start address*/
 	enum data_format format;
-	struct ion_client *ion_client;
-		
+#if defined(CONFIG_ION_ROCKCHIP)
+	struct ion_handle *ion_handle;
+	int dma_buf_fd;
+#endif
 	bool support_3d;
 	u32 scale_yrgb_x;
 	u32 scale_yrgb_y;
@@ -335,6 +342,11 @@ struct rk_fb {
 
 	struct rk_lcdc_driver *lcdc_dev_drv[RK30_MAX_LCDC_SUPPORT];
 	int num_lcdc;
+
+#if defined(CONFIG_ION_ROCKCHIP)
+       struct ion_client * ion_client;
+#endif
+
 
 };
 extern int rk_fb_register(struct rk_lcdc_driver *dev_drv,

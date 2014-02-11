@@ -1575,6 +1575,8 @@ static int rk3188_lcdc_probe(struct platform_device *pdev)
 		dev_err(dev, "register fb for lcdc%d failed!\n", lcdc_dev->id);
 		return ret;
 	}
+	lcdc_dev->screen = dev_drv->screen0;
+	
 	dev_info(dev, "lcdc%d probe ok\n", lcdc_dev->id);
 
 	return 0;

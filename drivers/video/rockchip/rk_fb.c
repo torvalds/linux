@@ -43,6 +43,9 @@
 #include <dt-bindings/rkfb/rk_fb.h>
 #endif
 
+#if defined(CONFIG_ION_ROCKCHIP)
+#include "../../staging/android/ion/ion.h"
+#endif
 
 
 static int hdmi_switch_complete;
@@ -598,6 +601,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 	struct rk_lcdc_driver *dev_drv  = (struct rk_lcdc_driver *)info->par;
+	struct fb_fix_screeninfo *fix = &info->fix;
 	struct fb_info *extend_info = NULL;
 	struct rk_lcdc_driver *extend_dev_drv = NULL;
 	int win_id = 0, extend_win_id = 0;
@@ -655,7 +659,8 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 			__func__, data_format);
 		return -EINVAL;
 	}
-
+	win->smem_start = fix->smem_start;
+	win->cbr_start = fix->mmio_start;
 	dev_drv->ops->pan_display(dev_drv, win_id);
 	if (rk_fb->disp_mode == DUAL) {
 		if (extend_win->state && (hdmi_switch_complete)) {
@@ -677,22 +682,23 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
-	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct fb_fix_screeninfo *fix = &info->fix;
 	int fb_id = 0, extend_win_id = 0;
 	struct fb_info *extend_info = NULL;
 	struct rk_lcdc_driver *extend_dev_drv = NULL;
 	struct rk_lcdc_win *extend_win = NULL;
-
-
-	u32 yuv_phy[2];
-	int  win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
+	struct rk_lcdc_win *win;
 	int enable; /* enable fb:1 enable;0 disable*/
 	int ovl;   /*overlay:0 win1 on the top of win0;1,win0 on the top of win1*/
 	int num_buf; /*buffer_number*/
 	int ret;
+
+	int  win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
+	
 	void __user *argp = (void __user *)arg;
 
+	win = dev_drv->win[win_id];
 	if (rk_fb->disp_mode == DUAL) {
 		fb_id = get_extend_fb_id(info);
 		extend_info = rk_fb->fb[(rk_fb->num_fb>>1) + fb_id];
@@ -704,11 +710,14 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 
 	switch (cmd) {
 	case RK_FBIOSET_YUV_ADDR:
+	{
+		u32 yuv_phy[2];
 		if (copy_from_user(yuv_phy, argp, 8))
 			return -EFAULT;
 		fix->smem_start = yuv_phy[0];
 		fix->mmio_start = yuv_phy[1];
 		break;
+	}
 	case RK_FBIOSET_ENABLE:
 		if (copy_from_user(&enable, argp, sizeof(enable)))
 			return -EFAULT;
@@ -739,18 +748,40 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 		dev_drv->vsync_info.active = enable;
 		break;
+#if defined(CONFIG_ION_ROCKCHIP)
+	case RK_FBIOSET_DMABUF_FD:
+	{
+		int usr_fd;
+		struct ion_handle *hdl;
+		ion_phys_addr_t phy_addr;
+		size_t len;
+		if (copy_from_user(&usr_fd, argp, sizeof(usr_fd)))
+			return -EFAULT;
+		hdl = ion_import_dma_buf(rk_fb->ion_client, usr_fd);
+		ion_phys(rk_fb->ion_client, hdl, &phy_addr, &len);
+		fix->smem_start = phy_addr;
+		break;
+	}
+	case RK_FBIOGET_DMABUF_FD:
+	{
+		int fd = win->dma_buf_fd;
+		if (copy_to_user(argp, &fd, sizeof(fd)));
+			return -EFAULT;
+		break;
+	}
+#endif
 	case RK_FBIOSET_CONFIG_DONE:
 		ret = copy_from_user(&(dev_drv->wait_fs), argp, sizeof(dev_drv->wait_fs));
 		if (dev_drv->ops->lcdc_reg_update)
 			dev_drv->ops->lcdc_reg_update(dev_drv);
-	if (rk_fb->disp_mode == DUAL) {
-		if (extend_win->state && (hdmi_switch_complete)) {
-			if (rk_fb->num_fb >= 2) {
-				if (extend_dev_drv->ops->lcdc_reg_update)
-					extend_dev_drv->ops->lcdc_reg_update(extend_dev_drv);
+		if (rk_fb->disp_mode == DUAL) {
+			if (extend_win->state && (hdmi_switch_complete)) {
+				if (rk_fb->num_fb >= 2) {
+					if (extend_dev_drv->ops->lcdc_reg_update)
+						extend_dev_drv->ops->lcdc_reg_update(extend_dev_drv);
+				}
 			}
 		}
-	}
 		break;
 	default:
 		dev_drv->ops->ioctl(dev_drv, cmd, arg, win_id);
@@ -1522,15 +1553,21 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 
 static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 {
-	struct rk_fb *fb_inf = platform_get_drvdata(fb_pdev);
+	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
 	struct rk_lcdc_win *win = NULL;
 	int win_id;
 	int ret = 0;
+	unsigned long fb_mem_size;
+#if defined(CONFIG_ION_ROCKCHIP)
+	struct ion_handle *handle;
+	int dma_buf_fd;
+	ion_phys_addr_t phy_addr;
+	size_t len;
+#else
 	dma_addr_t fb_mem_phys;
 	void *fb_mem_virt;
-	unsigned long fb_mem_size;
-
+#endif
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	if (win_id < 0)
 		return  -ENODEV;
@@ -1540,26 +1577,25 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 	if (!strcmp(fbi->fix.id, "fb0")) {
 		fb_mem_size = 3 * (fbi->var.xres * fbi->var.yres) << 2;
 		fb_mem_size = ALIGN(fb_mem_size, SZ_1M);
-#if 0 //defined(CONFIG_ION)
-		struct ion_handle *handle;
-		struct dma_buf *buf;
-		handle = ion_alloc(win->ion_client, (size_t)fb_mem_size, 0,0, 0);
+#if defined(CONFIG_ION_ROCKCHIP)
+		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, 2, 0);
 		if (IS_ERR(handle)) {
-			dev_err(fbi->device, "failed to ion_alloc\n");
+			dev_err(fbi->device, "failed to ion_alloc:%ld\n",PTR_ERR(handle));
 			return -ENOMEM;
 		}
 
-		buf = ion_share_dma_buf(win->ion_client, handle);
-		if (IS_ERR_OR_NULL(buf)) {
-			dev_err(fbi->dev, "ion_share_dma_buf() failed\n");
-			return PTR_ERR(buf);
+		ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
+		fbi->fix.smem_start = phy_addr;
+		fbi->fix.smem_len = len;
+		fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
+		dma_buf_fd = ion_share_dma_buf_fd(rk_fb->ion_client, handle);
+		if (dma_buf_fd < 0) {
+			dev_err(fbi->dev, "ion_share_dma_buf_fd failed\n");
+			return dma_buf_fd;
 
 		}
-
-		ret = map_ion_handle(sfb, &win->dma_buf_data, handle, buf);
-		if (!ret)
-			goto err_map;
-		map_dma = win->dma_buf_data.dma_addr;
+		win->ion_handle = handle;
+		win->dma_buf_fd = dma_buf_fd;
 #else
 
 		fb_mem_virt = dma_alloc_writecombine(fbi->dev, fb_mem_size, &fb_mem_phys,
@@ -1571,10 +1607,10 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		fbi->fix.smem_len = fb_mem_size;
 		fbi->fix.smem_start = fb_mem_phys;
 		fbi->screen_base = fb_mem_virt;
+#endif
 		memset(fbi->screen_base, 0, fbi->fix.smem_len);
 		printk(KERN_INFO "fb%d:phy:%lx>>vir:%p>>len:0x%x\n", fb_id,
 		fbi->fix.smem_start, fbi->screen_base, fbi->fix.smem_len);
-#endif
 	} else {
 #if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 		res = platform_get_resource_byname(fb_pdev,
@@ -1590,9 +1626,9 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
 		memset(fbi->screen_base, 0, fbi->fix.smem_len);
 #else    /*three buffer no need to copy*/
-		fbi->fix.smem_start = fb_inf->fb[0]->fix.smem_start;
-		fbi->fix.smem_len   = fb_inf->fb[0]->fix.smem_len;
-		fbi->screen_base    = fb_inf->fb[0]->screen_base;
+		fbi->fix.smem_start = rk_fb->fb[0]->fix.smem_start;
+		fbi->fix.smem_len   = rk_fb->fb[0]->fix.smem_len;
+		fbi->screen_base    = rk_fb->fb[0]->screen_base;
 #endif
 		printk(KERN_INFO "fb%d:phy:%lx>>vir:%p>>len:0x%x\n", fb_id,
 			fbi->fix.smem_start, fbi->screen_base, fbi->fix.smem_len);
@@ -1932,6 +1968,16 @@ static int rk_fb_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	dev_set_name(&pdev->dev, "rockchip-fb");
+#if defined(CONFIG_ION_ROCKCHIP)
+	rk_fb->ion_client = ion_client_create(ion_rockchip,"rk_fb");
+	if (IS_ERR(rk_fb->ion_client)) {
+		dev_err(&pdev->dev, "failed to create ion client for rk fb");
+		return PTR_ERR(rk_fb->ion_client);
+	} else {
+		dev_info(&pdev->dev, "rk fb ion client create success!\n");
+	}
+#endif
+
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 	suspend_info.inf = rk_fb;
 	register_early_suspend(&suspend_info.early_suspend);
