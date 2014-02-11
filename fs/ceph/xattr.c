@@ -12,6 +12,9 @@
 #define XATTR_CEPH_PREFIX "ceph."
 #define XATTR_CEPH_PREFIX_LEN (sizeof (XATTR_CEPH_PREFIX) - 1)
 
+static int __remove_xattr(struct ceph_inode_info *ci,
+			  struct ceph_inode_xattr *xattr);
+
 /*
  * List of handlers for synthetic system.* attributes. Other
  * attributes are handled directly.
@@ -358,6 +361,12 @@ static int __set_xattr(struct ceph_inode_info *ci,
 			kfree(name);
 			kfree(val);
 			return err;
+		}
+		if (update_xattr < 0) {
+			if (xattr)
+				__remove_xattr(ci, xattr);
+			kfree(name);
+			return 0;
 		}
 	}
 
@@ -862,6 +871,9 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 
 	dout("setxattr value=%.*s\n", (int)size, value);
 
+	if (!value)
+		flags |= CEPH_XATTR_REMOVE;
+
 	/* do request */
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SETXATTR,
 				       USE_AUTH_MDS);
@@ -965,8 +977,8 @@ retry:
 		goto retry;
 	}
 
-	err = __set_xattr(ci, newname, name_len, newval,
-			  val_len, flags, 1, &xattr);
+	err = __set_xattr(ci, newname, name_len, newval, val_len,
+			  flags, value ? 1 : -1, &xattr);
 
 	if (!err) {
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
