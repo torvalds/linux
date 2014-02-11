@@ -226,6 +226,7 @@ static const struct dev_pm_ops xhci_plat_pm_ops = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id usb_xhci_of_match[] = {
+	{ .compatible = "generic-xhci" },
 	{ .compatible = "xhci-platform" },
 	{ },
 };
