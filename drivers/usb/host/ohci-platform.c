@@ -319,7 +319,7 @@ static int ohci_platform_resume(struct device *dev)
 #endif /* CONFIG_PM */
 
 static const struct of_device_id ohci_platform_ids[] = {
-	{ .compatible = "usb-ohci", },
+	{ .compatible = "generic-ohci", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ohci_platform_ids);
