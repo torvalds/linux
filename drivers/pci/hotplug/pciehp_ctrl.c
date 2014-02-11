@@ -399,11 +399,10 @@ static void handle_button_press_event(struct slot *p_slot)
 		 */
 		ctrl_info(ctrl, "Button cancel on Slot(%s)\n", slot_name(p_slot));
 		cancel_delayed_work(&p_slot->work);
-		if (p_slot->state == BLINKINGOFF_STATE) {
+		if (p_slot->state == BLINKINGOFF_STATE)
 			pciehp_green_led_on(p_slot);
-		} else {
+		else
 			pciehp_green_led_off(p_slot);
-		}
 		pciehp_set_attention_status(p_slot, 0);
 		ctrl_info(ctrl, "PCI slot #%s - action canceled "
 			  "due to button press\n", slot_name(p_slot));
@@ -595,9 +594,9 @@ int pciehp_enable_slot(struct slot *p_slot)
 	pciehp_get_latch_status(p_slot, &getstatus);
 
 	rc = board_added(p_slot);
-	if (rc) {
+	if (rc)
 		pciehp_get_latch_status(p_slot, &getstatus);
-	}
+
 	return rc;
 }
 
