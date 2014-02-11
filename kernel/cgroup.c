@@ -67,6 +67,9 @@
  */
 #define CGROUP_PIDLIST_DESTROY_DELAY	HZ
 
+#define CGROUP_FILE_NAME_MAX		(MAX_CGROUP_TYPE_NAMELEN +	\
+					 MAX_CFTYPE_NAME + 2)
+
 /*
  * cgroup_tree_mutex nests above cgroup_mutex and protects cftypes, file
  * creation/removal and hierarchy changing operations including cgroup
@@ -799,15 +802,27 @@ static struct inode *cgroup_new_inode(umode_t mode, struct super_block *sb)
 	return inode;
 }
 
-static struct cgroup_name *cgroup_alloc_name(struct dentry *dentry)
+static struct cgroup_name *cgroup_alloc_name(const char *name_str)
 {
 	struct cgroup_name *name;
 
-	name = kmalloc(sizeof(*name) + dentry->d_name.len + 1, GFP_KERNEL);
+	name = kmalloc(sizeof(*name) + strlen(name_str) + 1, GFP_KERNEL);
 	if (!name)
 		return NULL;
-	strcpy(name->name, dentry->d_name.name);
+	strcpy(name->name, name_str);
 	return name;
+}
+
+static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
+			      char *buf)
+{
+	if (cft->ss && !(cft->flags & CFTYPE_NO_PREFIX) &&
+	    !(cgrp->root->flags & CGRP_ROOT_NOPREFIX))
+		snprintf(buf, CGROUP_FILE_NAME_MAX, "%s.%s",
+			 cft->ss->name, cft->name);
+	else
+		strncpy(buf, cft->name, CGROUP_FILE_NAME_MAX);
+	return buf;
 }
 
 static void cgroup_free_fn(struct work_struct *work)
@@ -2437,7 +2452,7 @@ static int cgroup_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (cgroup_sane_behavior(cgrp))
 		return -EPERM;
 
-	name = cgroup_alloc_name(new_dentry);
+	name = cgroup_alloc_name(new_dentry->d_name.name);
 	if (!name)
 		return -ENOMEM;
 
@@ -2613,14 +2628,7 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 	struct cfent *cfe;
 	int error;
 	umode_t mode;
-	char name[MAX_CGROUP_TYPE_NAMELEN + MAX_CFTYPE_NAME + 2] = { 0 };
-
-	if (cft->ss && !(cft->flags & CFTYPE_NO_PREFIX) &&
-	    !(cgrp->root->flags & CGRP_ROOT_NOPREFIX)) {
-		strcpy(name, cft->ss->name);
-		strcat(name, ".");
-	}
-	strcat(name, cft->name);
+	char name[CGROUP_FILE_NAME_MAX];
 
 	BUG_ON(!mutex_is_locked(&dir->d_inode->i_mutex));
 
@@ -2628,6 +2636,7 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 	if (!cfe)
 		return -ENOMEM;
 
+	cgroup_file_name(cgrp, cft, name);
 	dentry = lookup_one_len(name, dir, strlen(name));
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
@@ -4135,7 +4144,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (!cgrp)
 		return -ENOMEM;
 
-	name = cgroup_alloc_name(dentry);
+	name = cgroup_alloc_name(dentry->d_name.name);
 	if (!name) {
 		err = -ENOMEM;
 		goto err_free_cgrp;
