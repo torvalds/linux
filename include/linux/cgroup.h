@@ -400,8 +400,9 @@ struct cftype {
 	umode_t mode;
 
 	/*
-	 * If non-zero, defines the maximum length of string that can
-	 * be passed to write_string; defaults to 64
+	 * The maximum length of string, excluding trailing nul, that can
+	 * be passed to write_string.  If < PAGE_SIZE-1, PAGE_SIZE-1 is
+	 * assumed.
 	 */
 	size_t max_write_len;
 

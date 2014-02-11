@@ -1425,28 +1425,24 @@ static struct cftype throtl_files[] = {
 		.private = offsetof(struct throtl_grp, bps[READ]),
 		.seq_show = tg_print_conf_u64,
 		.write_string = tg_set_conf_u64,
-		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.write_bps_device",
 		.private = offsetof(struct throtl_grp, bps[WRITE]),
 		.seq_show = tg_print_conf_u64,
 		.write_string = tg_set_conf_u64,
-		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.read_iops_device",
 		.private = offsetof(struct throtl_grp, iops[READ]),
 		.seq_show = tg_print_conf_uint,
 		.write_string = tg_set_conf_uint,
-		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.write_iops_device",
 		.private = offsetof(struct throtl_grp, iops[WRITE]),
 		.seq_show = tg_print_conf_uint,
 		.write_string = tg_set_conf_uint,
-		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.io_service_bytes",

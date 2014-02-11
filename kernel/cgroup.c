@@ -2213,13 +2213,14 @@ static int cgroup_procs_write(struct cgroup_subsys_state *css,
 static int cgroup_release_agent_write(struct cgroup_subsys_state *css,
 				      struct cftype *cft, const char *buffer)
 {
-	BUILD_BUG_ON(sizeof(css->cgroup->root->release_agent_path) < PATH_MAX);
-	if (strlen(buffer) >= PATH_MAX)
-		return -EINVAL;
+	struct cgroupfs_root *root = css->cgroup->root;
+
+	BUILD_BUG_ON(sizeof(root->release_agent_path) < PATH_MAX);
 	if (!cgroup_lock_live_group(css->cgroup))
 		return -ENODEV;
 	spin_lock(&release_agent_path_lock);
-	strcpy(css->cgroup->root->release_agent_path, buffer);
+	strlcpy(root->release_agent_path, buffer,
+		sizeof(root->release_agent_path));
 	spin_unlock(&release_agent_path_lock);
 	mutex_unlock(&cgroup_mutex);
 	return 0;
@@ -2245,20 +2246,17 @@ static int cgroup_sane_behavior_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-/* A buffer size big enough for numbers or short strings */
-#define CGROUP_LOCAL_BUFFER_SIZE 64
-
 static ssize_t cgroup_file_write(struct file *file, const char __user *userbuf,
 				 size_t nbytes, loff_t *ppos)
 {
 	struct cfent *cfe = __d_cfe(file->f_dentry);
 	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup_subsys_state *css = cfe->css;
-	size_t max_bytes = cft->max_write_len ?: CGROUP_LOCAL_BUFFER_SIZE - 1;
+	size_t max_bytes = max(cft->max_write_len, PAGE_SIZE);
 	char *buf;
 	int ret;
 
-	if (nbytes >= max_bytes)
+	if (nbytes > max_bytes)
 		return -E2BIG;
 
 	buf = kmalloc(nbytes + 1, GFP_KERNEL);
@@ -3919,7 +3917,7 @@ static struct cftype cgroup_base_files[] = {
 		.flags = CFTYPE_INSANE | CFTYPE_ONLY_ON_ROOT,
 		.seq_show = cgroup_release_agent_show,
 		.write_string = cgroup_release_agent_write,
-		.max_write_len = PATH_MAX,
+		.max_write_len = PATH_MAX - 1,
 	},
 	{ }	/* terminate */
 };
