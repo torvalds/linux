@@ -57,10 +57,11 @@ struct usb3503 {
 	enum usb3503_mode	mode;
 	struct regmap		*regmap;
 	struct device		*dev;
-	u8	port_off_mask;
 	int	gpio_intn;
 	int	gpio_reset;
 	int	gpio_connect;
+	u8	port_off_mask;
+	bool	use_secondary_refclk;
 };
 
 static int usb3503_reset(struct usb3503 *hub, int state)
@@ -207,14 +208,16 @@ static int usb3503_probe(struct usb3503 *hub)
 			return -EPROBE_DEFER;
 		of_property_read_u32(np, "initial-mode", &mode);
 		hub->mode = mode;
+		hub->use_secondary_refclk = of_property_read_bool(np, "usb3503-secondary-refclk");
 	}
 
 	if (hub->port_off_mask && !hub->regmap)
 		dev_err(dev, "Ports disabled with no control interface\n");
 
 	if (gpio_is_valid(hub->gpio_intn)) {
+		unsigned intn_sample = hub->use_secondary_refclk ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
 		err = devm_gpio_request_one(dev, hub->gpio_intn,
-				GPIOF_OUT_INIT_HIGH, "usb3503 intn");
+				intn_sample, "usb3503 intn");
 		if (err) {
 			dev_err(dev,
 				"unable to request GPIO %d as interrupt pin (%d)\n",

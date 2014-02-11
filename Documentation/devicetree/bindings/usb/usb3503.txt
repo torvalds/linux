@@ -15,6 +15,7 @@ Optional properties:
 - reset-gpios: Should specify GPIO for reset.
 - initial-mode: Should specify initial mode.
                 (1 for HUB mode, 2 for STANDBY mode)
+- usb3503-secondary-refclk: Use the secondary REFCLK frequencies (boolean).
 
 Examples:
 	usb3503@08 {
