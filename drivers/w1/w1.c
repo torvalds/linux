@@ -320,10 +320,10 @@ static ssize_t w1_master_attribute_show_timeout(struct device *dev, struct devic
 static ssize_t w1_master_attribute_store_max_slave_count(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	long tmp;
+	int tmp;
 	struct w1_master *md = dev_to_w1_master(dev);
 
-	if (kstrtol(buf, 0, &tmp) == -EINVAL || tmp < 1)
+	if (kstrtoint(buf, 0, &tmp) == -EINVAL || tmp < 1)
 		return -EINVAL;
 
 	mutex_lock(&md->mutex);
