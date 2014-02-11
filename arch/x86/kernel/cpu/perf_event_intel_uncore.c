@@ -1679,12 +1679,12 @@ enum {
 
 static struct uncore_event_desc snb_uncore_imc_events[] = {
 	INTEL_UNCORE_EVENT_DESC(data_reads,  "event=0x01"),
-	INTEL_UNCORE_EVENT_DESC(data_reads.scale, "64"),
-	INTEL_UNCORE_EVENT_DESC(data_reads.unit, "bytes"),
+	INTEL_UNCORE_EVENT_DESC(data_reads.scale, "6.103515625e-5"),
+	INTEL_UNCORE_EVENT_DESC(data_reads.unit, "MiB"),
 
 	INTEL_UNCORE_EVENT_DESC(data_writes, "event=0x02"),
-	INTEL_UNCORE_EVENT_DESC(data_writes.scale, "64"),
-	INTEL_UNCORE_EVENT_DESC(data_writes.unit, "bytes"),
+	INTEL_UNCORE_EVENT_DESC(data_writes.scale, "6.103515625e-5"),
+	INTEL_UNCORE_EVENT_DESC(data_writes.unit, "MiB"),
 
 	{ /* end: all zeroes */ },
 };
