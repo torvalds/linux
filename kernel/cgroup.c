@@ -4503,25 +4503,6 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	return ret;
 }
 
-static void __init cgroup_init_cftsets(struct cgroup_subsys *ss)
-{
-	INIT_LIST_HEAD(&ss->cftsets);
-
-	/*
-	 * base_cftset is embedded in subsys itself, no need to worry about
-	 * deregistration.
-	 */
-	if (ss->base_cftypes) {
-		struct cftype *cft;
-
-		for (cft = ss->base_cftypes; cft->name[0] != '\0'; cft++)
-			cft->ss = ss;
-
-		ss->base_cftset.cfts = ss->base_cftypes;
-		list_add_tail(&ss->base_cftset.node, &ss->cftsets);
-	}
-}
-
 static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 {
 	struct cgroup_subsys_state *css;
@@ -4531,8 +4512,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
 
-	/* init base cftset */
-	cgroup_init_cftsets(ss);
+	INIT_LIST_HEAD(&ss->cftsets);
 
 	/* Create the top cgroup state for this subsystem */
 	ss->root = &cgroup_dummy_root;
@@ -4621,6 +4601,13 @@ int __init cgroup_init(void)
 	for_each_subsys(ss, i) {
 		if (!ss->early_init)
 			cgroup_init_subsys(ss);
+
+		/*
+		 * cftype registration needs kmalloc and can't be done
+		 * during early_init.  Register base cftypes separately.
+		 */
+		if (ss->base_cftypes)
+			WARN_ON(cgroup_add_cftypes(ss, ss->base_cftypes));
 	}
 
 	/* allocate id for the dummy hierarchy */

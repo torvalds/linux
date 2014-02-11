@@ -604,9 +604,8 @@ struct cgroup_subsys {
 	/* list of cftype_sets */
 	struct list_head cftsets;
 
-	/* base cftypes, automatically [de]registered with subsys itself */
+	/* base cftypes, automatically registered with subsys itself */
 	struct cftype *base_cftypes;
-	struct cftype_set base_cftset;
 };
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _cgrp_subsys;
