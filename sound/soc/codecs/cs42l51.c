@@ -574,10 +574,8 @@ static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
 
 	cs42l51 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l51_private),
 			       GFP_KERNEL);
-	if (!cs42l51) {
-		dev_err(&i2c_client->dev, "could not allocate codec\n");
+	if (!cs42l51)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c_client, cs42l51);
 	cs42l51->control_type = SND_SOC_I2C;
