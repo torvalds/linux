@@ -394,10 +394,8 @@ static int ts72xx_wdt_probe(struct platform_device *pdev)
 	int error = 0;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(struct ts72xx_wdt), GFP_KERNEL);
-	if (!wdt) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!wdt)
 		return -ENOMEM;
-	}
 
 	r1 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->control_reg = devm_ioremap_resource(&pdev->dev, r1);

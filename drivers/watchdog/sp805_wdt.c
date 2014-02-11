@@ -217,7 +217,6 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 
 	wdt = devm_kzalloc(&adev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt) {
-		dev_warn(&adev->dev, "Kzalloc failed\n");
 		ret = -ENOMEM;
 		goto err;
 	}
