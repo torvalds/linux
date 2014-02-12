@@ -461,7 +461,7 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		goto fail;
 
 	if (efx->state != STATE_READY) {
-		rc = -EIO;
+		rc = -EBUSY;
 		goto out;
 	}
 
