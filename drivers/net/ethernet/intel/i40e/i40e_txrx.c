@@ -430,23 +430,61 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 /**
  * i40e_fd_handle_status - check the Programming Status for FD
  * @rx_ring: the Rx ring for this descriptor
- * @qw: the descriptor data
+ * @rx_desc: the Rx descriptor for programming Status, not a packet descriptor.
  * @prog_id: the id originally used for programming
  *
  * This is used to verify if the FD programming or invalidation
  * requested by SW to the HW is successful or not and take actions accordingly.
  **/
-static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u32 qw, u8 prog_id)
+static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
+				  union i40e_rx_desc *rx_desc, u8 prog_id)
 {
-	struct pci_dev *pdev = rx_ring->vsi->back->pdev;
+	struct i40e_pf *pf = rx_ring->vsi->back;
+	struct pci_dev *pdev = pf->pdev;
+	u32 fcnt_prog, fcnt_avail;
 	u32 error;
+	u64 qw;
 
+	qw = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
 	error = (qw & I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK) >>
 		I40E_RX_PROG_STATUS_DESC_QW1_ERROR_SHIFT;
 
-	/* for now just print the Status */
-	dev_info(&pdev->dev, "FD programming id %02x, Status %08x\n",
-		 prog_id, error);
+	if (error == (0x1 << I40E_RX_PROG_STATUS_DESC_FD_TBL_FULL_SHIFT)) {
+		dev_warn(&pdev->dev, "ntuple filter loc = %d, could not be added\n",
+			 rx_desc->wb.qword0.hi_dword.fd_id);
+
+		/* filter programming failed most likely due to table full */
+		fcnt_prog = i40e_get_current_fd_count(pf);
+		fcnt_avail = pf->hw.fdir_shared_filter_count +
+						       pf->fdir_pf_filter_count;
+
+		/* If ATR is running fcnt_prog can quickly change,
+		 * if we are very close to full, it makes sense to disable
+		 * FD ATR/SB and then re-enable it when there is room.
+		 */
+		if (fcnt_prog >= (fcnt_avail - I40E_FDIR_BUFFER_FULL_MARGIN)) {
+			/* Turn off ATR first */
+			if (pf->flags | I40E_FLAG_FD_ATR_ENABLED) {
+				pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+				dev_warn(&pdev->dev, "FD filter space full, ATR for further flows will be turned off\n");
+				pf->auto_disable_flags |=
+						       I40E_FLAG_FD_ATR_ENABLED;
+				pf->flags |= I40E_FLAG_FDIR_REQUIRES_REINIT;
+			} else if (pf->flags | I40E_FLAG_FD_SB_ENABLED) {
+				pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+				dev_warn(&pdev->dev, "FD filter space full, new ntuple rules will not be added\n");
+				pf->auto_disable_flags |=
+							I40E_FLAG_FD_SB_ENABLED;
+				pf->flags |= I40E_FLAG_FDIR_REQUIRES_REINIT;
+			}
+		} else {
+			dev_info(&pdev->dev, "FD filter programming error");
+		}
+	} else if (error ==
+			  (0x1 << I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
+		netdev_info(rx_ring->vsi->netdev, "ntuple filter loc = %d, could not be removed\n",
+			    rx_desc->wb.qword0.hi_dword.fd_id);
+	}
 }
 
 /**
@@ -843,7 +881,7 @@ static void i40e_clean_programming_status(struct i40e_ring *rx_ring,
 		  I40E_RX_PROG_STATUS_DESC_QW1_PROGID_SHIFT;
 
 	if (id == I40E_RX_PROG_STATUS_DESC_FD_FILTER_STATUS)
-		i40e_fd_handle_status(rx_ring, qw, id);
+		i40e_fd_handle_status(rx_ring, rx_desc, id);
 }
 
 /**
@@ -1536,8 +1574,6 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	if (!tx_ring->atr_sample_rate)
 		return;
 
-	tx_ring->atr_count++;
-
 	/* snag network header to get L4 type and address */
 	hdr.network = skb_network_header(skb);
 
@@ -1558,6 +1594,12 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	}
 
 	th = (struct tcphdr *)(hdr.network + hlen);
+
+	/* Due to lack of space, no more new filters can be programmed */
+	if (th->syn && (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
+		return;
+
+	tx_ring->atr_count++;
 
 	/* sample on all syn/fin packets or once every atr sample rate */
 	if (!th->fin && !th->syn && (tx_ring->atr_count < tx_ring->atr_sample_rate))

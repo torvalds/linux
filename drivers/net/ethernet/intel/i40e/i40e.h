@@ -152,7 +152,10 @@ struct i40e_lump_tracking {
 };
 
 #define I40E_DEFAULT_ATR_SAMPLE_RATE	20
-#define I40E_FDIR_MAX_RAW_PACKET_SIZE   512
+#define I40E_FDIR_MAX_RAW_PACKET_SIZE	512
+#define I40E_FDIR_BUFFER_FULL_MARGIN	10
+#define I40E_FDIR_BUFFER_HEAD_ROOM	200
+
 struct i40e_fdir_filter {
 	struct hlist_node fdir_node;
 	/* filter ipnut set */
@@ -553,6 +556,8 @@ int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
 			     struct i40e_pf *pf, bool add);
 int i40e_add_del_fdir(struct i40e_vsi *vsi,
 		      struct i40e_fdir_filter *input, bool add);
+void i40e_fdir_check_and_reenable(struct i40e_pf *pf);
+int i40e_get_current_fd_count(struct i40e_pf *pf);
 void i40e_set_ethtool_ops(struct net_device *netdev);
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 					u8 *macaddr, s16 vlan,

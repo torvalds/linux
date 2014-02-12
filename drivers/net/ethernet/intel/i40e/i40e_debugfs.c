@@ -1011,10 +1011,12 @@ static void i40e_dbg_dump_veb_all(struct i40e_pf *pf)
  **/
 static void i40e_dbg_cmd_fd_ctrl(struct i40e_pf *pf, u64 flag, bool enable)
 {
-	if (enable)
+	if (enable) {
 		pf->flags |= flag;
-	else
+	} else {
 		pf->flags &= ~flag;
+		pf->auto_disable_flags |= flag;
+	}
 	dev_info(&pf->pdev->dev, "requesting a pf reset\n");
 	i40e_do_reset_safe(pf, (1 << __I40E_PF_RESET_REQUESTED));
 }
@@ -1670,6 +1672,15 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		bool add = false;
 		int ret;
 
+		if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
+			goto command_write_done;
+
+		if (strncmp(cmd_buf, "add", 3) == 0)
+			add = true;
+
+		if (add && (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED))
+			goto command_write_done;
+
 		asc_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE,
 				     GFP_KERNEL);
 		if (!asc_packet)
@@ -1684,8 +1695,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
-		if (strncmp(cmd_buf, "add", 3) == 0)
-			add = true;
 		cnt = sscanf(&cmd_buf[13],
 			     "%hx %2hhx %2hhx %hx %2hhx %2hhx %hx %x %hd %511s",
 			     &fd_data.q_index,

@@ -2436,6 +2436,9 @@ static void i40e_fdir_filter_restore(struct i40e_vsi *vsi)
 	struct i40e_pf *pf = vsi->back;
 	struct hlist_node *node;
 
+	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
+		return;
+
 	hlist_for_each_entry_safe(filter, node,
 				  &pf->fdir_filter_list, fdir_node) {
 		i40e_add_del_fdir(vsi, filter, true);
@@ -4624,6 +4627,54 @@ static void i40e_service_event_complete(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_get_current_fd_count - Get the count of FD filters programmed in the HW
+ * @pf: board private structure
+ **/
+int i40e_get_current_fd_count(struct i40e_pf *pf)
+{
+	int val, fcnt_prog;
+	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
+	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK) +
+		    ((val & I40E_PFQF_FDSTAT_BEST_CNT_MASK) >>
+		      I40E_PFQF_FDSTAT_BEST_CNT_SHIFT);
+	return fcnt_prog;
+}
+
+/**
+ * i40e_fdir_check_and_reenable - Function to reenabe FD ATR or SB if disabled
+ * @pf: board private structure
+ **/
+void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
+{
+	u32 fcnt_prog, fcnt_avail;
+
+	/* Check if, FD SB or ATR was auto disabled and if there is enough room
+	 * to re-enable
+	 */
+	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
+		return;
+	fcnt_prog = i40e_get_current_fd_count(pf);
+	fcnt_avail = pf->hw.fdir_shared_filter_count +
+					       pf->fdir_pf_filter_count;
+	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) {
+		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
+		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+			dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
+		}
+	}
+	/* Wait for some more space to be available to turn on ATR */
+	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM * 2)) {
+		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED)) {
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table now\n");
+		}
+	}
+}
+
+/**
  * i40e_fdir_reinit_subtask - Worker thread to reinit FDIR filter table
  * @pf: board private structure
  **/
@@ -4632,11 +4683,14 @@ static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
 	if (!(pf->flags & I40E_FLAG_FDIR_REQUIRES_REINIT))
 		return;
 
-	pf->flags &= ~I40E_FLAG_FDIR_REQUIRES_REINIT;
-
 	/* if interface is down do nothing */
 	if (test_bit(__I40E_DOWN, &pf->state))
 		return;
+	i40e_fdir_check_and_reenable(pf);
+
+	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
+		pf->flags &= ~I40E_FLAG_FDIR_REQUIRES_REINIT;
 }
 
 /**

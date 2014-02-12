@@ -1460,6 +1460,7 @@ static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
 
 	ret = i40e_update_ethtool_fdir_entry(vsi, NULL, fsp->location, cmd);
 
+	i40e_fdir_check_and_reenable(pf);
 	return ret;
 }
 
@@ -1483,8 +1484,15 @@ static int i40e_add_del_fdir_ethtool(struct i40e_vsi *vsi,
 	if (!vsi)
 		return -EINVAL;
 
-	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
 	pf = vsi->back;
+
+	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
+		return -EOPNOTSUPP;
+
+	if (add && (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED))
+		return -ENOSPC;
+
+	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
 
 	if (fsp->location >= (pf->hw.func_caps.fd_filters_best_effort +
 			      pf->hw.func_caps.fd_filters_guaranteed)) {
