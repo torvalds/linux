@@ -258,13 +258,6 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 	algo->data = bus;
 }
 
-/*
- * gmbus on gen4 seems to be able to generate legacy interrupts even when in MSI
- * mode. This results in spurious interrupt warnings if the legacy irq no. is
- * shared with another device. The kernel then disables that interrupt source
- * and so prevents the other device from working properly.
- */
-#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 5)
 static int
 gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 		     u32 gmbus2_status,
