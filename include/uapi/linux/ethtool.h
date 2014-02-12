@@ -351,17 +351,18 @@ struct ethtool_modinfo {
  * @rate_sample_interval: How often to do adaptive coalescing packet rate
  *	sampling, measured in seconds.  Must not be zero.
  *
- * Each pair of (usecs, max_frames) fields specifies this exit
- * condition for interrupt coalescing:
+ * Each pair of (usecs, max_frames) fields specifies that interrupts
+ * should be coalesced until
  *	(usecs > 0 && time_since_first_completion >= usecs) ||
  *	(max_frames > 0 && completed_frames >= max_frames)
+ *
  * It is illegal to set both usecs and max_frames to zero as this
  * would cause interrupts to never be generated.  To disable
  * coalescing, set usecs = 0 and max_frames = 1.
  *
  * Some implementations ignore the value of max_frames and use the
- * condition:
- *	time_since_first_completion >= usecs
+ * condition time_since_first_completion >= usecs
+ *
  * This is deprecated.  Drivers for hardware that does not support
  * counting completions should validate that max_frames == !rx_usecs.
  *
@@ -809,7 +810,7 @@ struct ethtool_rx_flow_spec {
  * %ETHTOOL_SRXCLSRLINS may add the rule at any suitable unused
  * location, and may remove a rule at a later location (lower
  * priority) that matches exactly the same set of flows.  The special
- * values are: %RX_CLS_LOC_ANY, selecting any location;
+ * values are %RX_CLS_LOC_ANY, selecting any location;
  * %RX_CLS_LOC_FIRST, selecting the first suitable location (maximum
  * priority); and %RX_CLS_LOC_LAST, selecting the last suitable
  * location (minimum priority).  Additional special values may be
@@ -949,8 +950,9 @@ struct ethtool_get_features_block {
 /**
  * struct ethtool_gfeatures - command to get state of device's features
  * @cmd: command number = %ETHTOOL_GFEATURES
- * @size: in: number of elements in the features[] array;
- *       out: number of elements in features[] needed to hold all features
+ * @size: On entry, the number of elements in the features[] array;
+ *	on return, the number of elements in features[] needed to hold
+ *	all features
  * @features: state of features
  */
 struct ethtool_gfeatures {
