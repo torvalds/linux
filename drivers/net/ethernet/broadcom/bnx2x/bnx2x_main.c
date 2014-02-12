@@ -1814,6 +1814,11 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		drv_cmd = BNX2X_Q_CMD_EMPTY;
 		break;
 
+	case (RAMROD_CMD_ID_ETH_TPA_UPDATE):
+		DP(BNX2X_MSG_SP, "got tpa update ramrod CID=%d\n", cid);
+		drv_cmd = BNX2X_Q_CMD_UPDATE_TPA;
+		break;
+
 	default:
 		BNX2X_ERR("unexpected MC reply (%d) on fp[%d]\n",
 			  command, fp->index);
@@ -3644,10 +3649,18 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 			cpu_to_le32((command << SPE_HDR_CMD_ID_SHIFT) |
 				    HW_CID(bp, cid));
 
-	type = (cmd_type << SPE_HDR_CONN_TYPE_SHIFT) & SPE_HDR_CONN_TYPE;
-
-	type |= ((BP_FUNC(bp) << SPE_HDR_FUNCTION_ID_SHIFT) &
-		 SPE_HDR_FUNCTION_ID);
+	/* In some cases, type may already contain the func-id
+	 * mainly in SRIOV related use cases, so we add it here only
+	 * if it's not already set.
+	 */
+	if (!(cmd_type & SPE_HDR_FUNCTION_ID)) {
+		type = (cmd_type << SPE_HDR_CONN_TYPE_SHIFT) &
+			SPE_HDR_CONN_TYPE;
+		type |= ((BP_FUNC(bp) << SPE_HDR_FUNCTION_ID_SHIFT) &
+			 SPE_HDR_FUNCTION_ID);
+	} else {
+		type = cmd_type;
+	}
 
 	spe->hdr.type = cpu_to_le16(type);
 

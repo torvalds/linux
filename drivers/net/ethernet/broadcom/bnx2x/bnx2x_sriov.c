@@ -176,6 +176,11 @@ enum bnx2x_vfop_rss_state {
 	   BNX2X_VFOP_RSS_DONE
 };
 
+enum bnx2x_vfop_tpa_state {
+	   BNX2X_VFOP_TPA_CONFIG,
+	   BNX2X_VFOP_TPA_DONE
+};
+
 #define bnx2x_vfop_reset_wq(vf)	atomic_set(&vf->op_in_progress, 0)
 
 void bnx2x_vfop_qctor_dump_tx(struct bnx2x *bp, struct bnx2x_virtf *vf,
@@ -3042,6 +3047,83 @@ int bnx2x_vfop_rss_cmd(struct bnx2x *bp,
 		bnx2x_vfop_opset(BNX2X_VFOP_RSS_CONFIG, bnx2x_vfop_rss,
 				 cmd->done);
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_rss,
+					     cmd->block);
+	}
+	return -ENOMEM;
+}
+
+/* VFOP tpa update, send update on all queues */
+static void bnx2x_vfop_tpa(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	struct bnx2x_vfop_args_tpa *tpa_args = &vfop->args.tpa;
+	enum bnx2x_vfop_tpa_state state = vfop->state;
+
+	bnx2x_vfop_reset_wq(vf);
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "vf[%d:%d] STATE: %d\n",
+	   vf->abs_vfid, tpa_args->qid,
+	   state);
+
+	switch (state) {
+	case BNX2X_VFOP_TPA_CONFIG:
+
+		if (tpa_args->qid < vf_rxq_count(vf)) {
+			struct bnx2x_queue_state_params *qstate =
+				&vf->op_params.qstate;
+
+			qstate->q_obj = &bnx2x_vfq(vf, tpa_args->qid, sp_obj);
+
+			/* The only thing that changes for the ramrod params
+			 * between calls is the sge_map
+			 */
+			qstate->params.update_tpa.sge_map =
+				tpa_args->sge_map[tpa_args->qid];
+
+			DP(BNX2X_MSG_IOV, "sge_addr[%d] %08x:%08x\n",
+			   tpa_args->qid,
+			   U64_HI(qstate->params.update_tpa.sge_map),
+			   U64_LO(qstate->params.update_tpa.sge_map));
+			qstate->cmd = BNX2X_Q_CMD_UPDATE_TPA;
+			vfop->rc = bnx2x_queue_state_change(bp, qstate);
+
+			tpa_args->qid++;
+			bnx2x_vfop_finalize(vf, vfop->rc, VFOP_CONT);
+		}
+		vfop->state = BNX2X_VFOP_TPA_DONE;
+		vfop->rc = 0;
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
+op_err:
+		BNX2X_ERR("TPA update error: rc %d\n", vfop->rc);
+op_done:
+	case BNX2X_VFOP_TPA_DONE:
+		bnx2x_vfop_end(bp, vf, vfop);
+		return;
+	default:
+		bnx2x_vfop_default(state);
+	}
+op_pending:
+	return;
+}
+
+int bnx2x_vfop_tpa_cmd(struct bnx2x *bp,
+			struct bnx2x_virtf *vf,
+			struct bnx2x_vfop_cmd *cmd,
+			struct vfpf_tpa_tlv *tpa_tlv)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		vfop->args.qx.qid = 0; /* loop */
+		memcpy(&vfop->args.tpa.sge_map,
+		       tpa_tlv->tpa_client_info.sge_addr,
+		       sizeof(vfop->args.tpa.sge_map));
+		bnx2x_vfop_opset(BNX2X_VFOP_TPA_CONFIG,
+				 bnx2x_vfop_tpa, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_tpa,
 					     cmd->block);
 	}
 	return -ENOMEM;

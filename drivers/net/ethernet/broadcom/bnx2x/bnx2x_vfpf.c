@@ -1159,7 +1159,8 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	resp->pfdev_info.db_size = bp->db_size;
 	resp->pfdev_info.indices_per_sb = HC_SB_MAX_INDICES_E2;
 	resp->pfdev_info.pf_cap = (PFVF_CAP_RSS |
-				   /* PFVF_CAP_DHC |*/ PFVF_CAP_TPA);
+				   PFVF_CAP_TPA |
+				   PFVF_CAP_TPA_UPDATE);
 	bnx2x_fill_fw_str(bp, resp->pfdev_info.fw_ver,
 			  sizeof(resp->pfdev_info.fw_ver));
 
@@ -1910,6 +1911,75 @@ mbx_resp:
 		bnx2x_vf_mbx_resp(bp, vf);
 }
 
+static int bnx2x_validate_tpa_params(struct bnx2x *bp,
+				       struct vfpf_tpa_tlv *tpa_tlv)
+{
+	int rc = 0;
+
+	if (tpa_tlv->tpa_client_info.max_sges_for_packet >
+	    U_ETH_MAX_SGES_FOR_PACKET) {
+		rc = -EINVAL;
+		BNX2X_ERR("TPA update: max_sges received %d, max is %d\n",
+			  tpa_tlv->tpa_client_info.max_sges_for_packet,
+			  U_ETH_MAX_SGES_FOR_PACKET);
+	}
+
+	if (tpa_tlv->tpa_client_info.max_tpa_queues > MAX_AGG_QS(bp)) {
+		rc = -EINVAL;
+		BNX2X_ERR("TPA update: max_tpa_queues received %d, max is %d\n",
+			  tpa_tlv->tpa_client_info.max_tpa_queues,
+			  MAX_AGG_QS(bp));
+	}
+
+	return rc;
+}
+
+static void bnx2x_vf_mbx_update_tpa(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				    struct bnx2x_vf_mbx *mbx)
+{
+	struct bnx2x_vfop_cmd cmd = {
+		.done = bnx2x_vf_mbx_resp,
+		.block = false,
+	};
+	struct bnx2x_queue_update_tpa_params *vf_op_params =
+		&vf->op_params.qstate.params.update_tpa;
+	struct vfpf_tpa_tlv *tpa_tlv = &mbx->msg->req.update_tpa;
+
+	memset(vf_op_params, 0, sizeof(*vf_op_params));
+
+	if (bnx2x_validate_tpa_params(bp, tpa_tlv))
+		goto mbx_resp;
+
+	vf_op_params->complete_on_both_clients =
+		tpa_tlv->tpa_client_info.complete_on_both_clients;
+	vf_op_params->dont_verify_thr =
+		tpa_tlv->tpa_client_info.dont_verify_thr;
+	vf_op_params->max_agg_sz =
+		tpa_tlv->tpa_client_info.max_agg_size;
+	vf_op_params->max_sges_pkt =
+		tpa_tlv->tpa_client_info.max_sges_for_packet;
+	vf_op_params->max_tpa_queues =
+		tpa_tlv->tpa_client_info.max_tpa_queues;
+	vf_op_params->sge_buff_sz =
+		tpa_tlv->tpa_client_info.sge_buff_size;
+	vf_op_params->sge_pause_thr_high =
+		tpa_tlv->tpa_client_info.sge_pause_thr_high;
+	vf_op_params->sge_pause_thr_low =
+		tpa_tlv->tpa_client_info.sge_pause_thr_low;
+	vf_op_params->tpa_mode =
+		tpa_tlv->tpa_client_info.tpa_mode;
+	vf_op_params->update_ipv4 =
+		tpa_tlv->tpa_client_info.update_ipv4;
+	vf_op_params->update_ipv6 =
+		tpa_tlv->tpa_client_info.update_ipv6;
+
+	vf->op_rc = bnx2x_vfop_tpa_cmd(bp, vf, &cmd, tpa_tlv);
+
+mbx_resp:
+	if (vf->op_rc)
+		bnx2x_vf_mbx_resp(bp, vf);
+}
+
 /* dispatch request */
 static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  struct bnx2x_vf_mbx *mbx)
@@ -1948,6 +2018,9 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			return;
 		case CHANNEL_TLV_UPDATE_RSS:
 			bnx2x_vf_mbx_update_rss(bp, vf, mbx);
+			return;
+		case CHANNEL_TLV_UPDATE_TPA:
+			bnx2x_vf_mbx_update_tpa(bp, vf, mbx);
 			return;
 		}
 

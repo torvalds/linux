@@ -1270,6 +1270,7 @@ struct bnx2x_slowpath {
 	union {
 		struct client_init_ramrod_data  init_data;
 		struct client_update_ramrod_data update_data;
+		struct tpa_update_ramrod_data tpa_data;
 	} q_rdata;
 
 	union {

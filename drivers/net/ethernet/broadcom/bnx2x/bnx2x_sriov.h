@@ -100,6 +100,7 @@ union bnx2x_vfop_params {
 	struct bnx2x_mcast_ramrod_params	mcast;
 	struct bnx2x_config_rss_params		rss;
 	struct bnx2x_vfop_qctor_params		qctor;
+	struct bnx2x_queue_state_params		qstate;
 };
 
 /* forward */
@@ -166,6 +167,11 @@ struct bnx2x_vfop_args_filters {
 	atomic_t *credit;	/* non NULL means 'don't consume credit' */
 };
 
+struct bnx2x_vfop_args_tpa {
+	int	   qid;
+	dma_addr_t sge_map[PFVF_MAX_QUEUES_PER_VF];
+};
+
 union bnx2x_vfop_args {
 	struct bnx2x_vfop_args_mcast	mc_list;
 	struct bnx2x_vfop_args_qctor	qctor;
@@ -173,6 +179,7 @@ union bnx2x_vfop_args {
 	struct bnx2x_vfop_args_defvlan	defvlan;
 	struct bnx2x_vfop_args_qx	qx;
 	struct bnx2x_vfop_args_filters	filters;
+	struct bnx2x_vfop_args_tpa	tpa;
 };
 
 struct bnx2x_vfop {
@@ -703,6 +710,11 @@ int bnx2x_vfop_release_cmd(struct bnx2x *bp,
 int bnx2x_vfop_rss_cmd(struct bnx2x *bp,
 		       struct bnx2x_virtf *vf,
 		       struct bnx2x_vfop_cmd *cmd);
+
+int bnx2x_vfop_tpa_cmd(struct bnx2x *bp,
+		       struct bnx2x_virtf *vf,
+		       struct bnx2x_vfop_cmd *cmd,
+		       struct vfpf_tpa_tlv *tpa_tlv);
 
 /* VF release ~ VF close + VF release-resources
  *

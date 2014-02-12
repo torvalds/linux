@@ -893,6 +893,24 @@ struct bnx2x_queue_update_params {
 	u8		cid_index;
 };
 
+struct bnx2x_queue_update_tpa_params {
+	dma_addr_t sge_map;
+	u8 update_ipv4;
+	u8 update_ipv6;
+	u8 max_tpa_queues;
+	u8 max_sges_pkt;
+	u8 complete_on_both_clients;
+	u8 dont_verify_thr;
+	u8 tpa_mode;
+	u8 _pad;
+
+	u16 sge_buff_sz;
+	u16 max_agg_sz;
+
+	u16 sge_pause_thr_low;
+	u16 sge_pause_thr_high;
+};
+
 struct rxq_pause_params {
 	u16		bd_th_lo;
 	u16		bd_th_hi;
@@ -987,6 +1005,7 @@ struct bnx2x_queue_state_params {
 	/* Params according to the current command */
 	union {
 		struct bnx2x_queue_update_params	update;
+		struct bnx2x_queue_update_tpa_params    update_tpa;
 		struct bnx2x_queue_setup_params		setup;
 		struct bnx2x_queue_init_params		init;
 		struct bnx2x_queue_setup_tx_only_params	tx_only;
