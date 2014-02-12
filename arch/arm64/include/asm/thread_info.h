@@ -69,6 +69,15 @@ struct thread_info {
 #define init_stack		(init_thread_union.stack)
 
 /*
+ * how to get the current stack pointer from C
+ */
+#define current_stack_pointer ({                \
+	unsigned long current_sp;               \
+	asm ("mov %0, sp" : "=r" (current_sp)); \
+	current_sp;                             \
+})
+
+/*
  * how to get the thread information struct from C
  */
 static inline struct thread_info *current_thread_info(void) __attribute_const__;
