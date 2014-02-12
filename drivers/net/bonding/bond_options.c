@@ -1199,8 +1199,7 @@ int bond_option_queue_id_set(struct bonding *bond,
 		goto err_no_cmd;
 
 	/* Check buffer length, valid ifname and queue id */
-	if (strlen(newval->string) > IFNAMSIZ ||
-	    !dev_valid_name(newval->string) ||
+	if (!dev_valid_name(newval->string) ||
 	    qid > bond->dev->real_num_tx_queues)
 		goto err_no_cmd;
 
