@@ -302,18 +302,9 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		irq_base = 0;
 	}
 
-	if (!devm_request_mem_region(dev, adev->res.start,
-				     resource_size(&adev->res), "pl061")) {
-		dev_err(&adev->dev, "no memory region\n");
-		return -EBUSY;
-	}
-
-	chip->base = devm_ioremap(dev, adev->res.start,
-				  resource_size(&adev->res));
-	if (!chip->base) {
-		dev_err(&adev->dev, "could not remap memory\n");
-		return -ENOMEM;
-	}
+	chip->base = devm_ioremap_resource(dev, &adev->res);
+	if (IS_ERR(chip->base))
+		return PTR_ERR(chip->base);
 
 	spin_lock_init(&chip->lock);
 
