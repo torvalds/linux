@@ -401,22 +401,37 @@ struct ethtool_coalesce {
 	__u32	rate_sample_interval;
 };
 
-/* for configuring RX/TX ring parameters */
+/**
+ * struct ethtool_ringparam - RX/TX ring parameters
+ * @cmd: Command number = %ETHTOOL_GRINGPARAM or %ETHTOOL_SRINGPARAM
+ * @rx_max_pending: Maximum supported number of pending entries per
+ *	RX ring.  Read-only.
+ * @rx_mini_max_pending: Maximum supported number of pending entries
+ *	per RX mini ring.  Read-only.
+ * @rx_jumbo_max_pending: Maximum supported number of pending entries
+ *	per RX jumbo ring.  Read-only.
+ * @tx_max_pending: Maximum supported number of pending entries per
+ *	TX ring.  Read-only.
+ * @rx_pending: Current maximum number of pending entries per RX ring
+ * @rx_mini_pending: Current maximum number of pending entries per RX
+ *	mini ring
+ * @rx_jumbo_pending: Current maximum number of pending entries per RX
+ *	jumbo ring
+ * @tx_pending: Current maximum supported number of pending entries
+ *	per TX ring
+ *
+ * If the interface does not have separate RX mini and/or jumbo rings,
+ * @rx_mini_max_pending and/or @rx_jumbo_max_pending will be 0.
+ *
+ * There may also be driver-dependent minimum values for the number
+ * of entries per ring.
+ */
 struct ethtool_ringparam {
-	__u32	cmd;	/* ETHTOOL_{G,S}RINGPARAM */
-
-	/* Read only attributes.  These indicate the maximum number
-	 * of pending RX/TX ring entries the driver will allow the
-	 * user to set.
-	 */
+	__u32	cmd;
 	__u32	rx_max_pending;
 	__u32	rx_mini_max_pending;
 	__u32	rx_jumbo_max_pending;
 	__u32	tx_max_pending;
-
-	/* Values changeable by the user.  The valid values are
-	 * in the range 1 to the "*_max_pending" counterpart above.
-	 */
 	__u32	rx_pending;
 	__u32	rx_mini_pending;
 	__u32	rx_jumbo_pending;
