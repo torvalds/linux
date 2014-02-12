@@ -507,32 +507,24 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 			     struct regulator_init_data *rinit_data)
 {
 	struct ti_abb_info *info;
-	const struct property *prop;
-	const __be32 *abb_info;
 	const u32 num_values = 6;
 	char *pname = "ti,abb_info";
-	u32 num_entries, i;
+	u32 i;
 	unsigned int *volt_table;
-	int min_uV = INT_MAX, max_uV = 0;
+	int num_entries, min_uV = INT_MAX, max_uV = 0;
 	struct regulation_constraints *c = &rinit_data->constraints;
-
-	prop = of_find_property(dev->of_node, pname, NULL);
-	if (!prop) {
-		dev_err(dev, "No '%s' property?\n", pname);
-		return -ENODEV;
-	}
-
-	if (!prop->value) {
-		dev_err(dev, "Empty '%s' property?\n", pname);
-		return -ENODATA;
-	}
 
 	/*
 	 * Each abb_info is a set of n-tuple, where n is num_values, consisting
 	 * of voltage and a set of detection logic for ABB information for that
 	 * voltage to apply.
 	 */
-	num_entries = prop->length / sizeof(u32);
+	num_entries = of_property_count_u32_elems(dev->of_node, pname);
+	if (num_entries < 0) {
+		dev_err(dev, "No '%s' property?\n", pname);
+		return -ENODEV;
+	}
+
 	if (!num_entries || (num_entries % num_values)) {
 		dev_err(dev, "All '%s' list entries need %d vals\n", pname,
 			num_values);
@@ -561,18 +553,23 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 	/* We do not know where the OPP voltage is at the moment */
 	abb->current_info_idx = -EINVAL;
 
-	abb_info = prop->value;
 	for (i = 0; i < num_entries; i++, info++, volt_table++) {
 		u32 efuse_offset, rbb_mask, fbb_mask, vset_mask;
 		u32 efuse_val;
 
 		/* NOTE: num_values should equal to entries picked up here */
-		*volt_table = be32_to_cpup(abb_info++);
-		info->opp_sel = be32_to_cpup(abb_info++);
-		efuse_offset = be32_to_cpup(abb_info++);
-		rbb_mask = be32_to_cpup(abb_info++);
-		fbb_mask = be32_to_cpup(abb_info++);
-		vset_mask = be32_to_cpup(abb_info++);
+		of_property_read_u32_index(dev->of_node, pname, i * num_values,
+					   volt_table);
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * num_values + 1, &info->opp_sel);
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * num_values + 2, &efuse_offset);
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * num_values + 3, &rbb_mask);
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * num_values + 4, &fbb_mask);
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * num_values + 5, &vset_mask);
 
 		dev_dbg(dev,
 			"[%d]v=%d ABB=%d ef=0x%x rbb=0x%x fbb=0x%x vset=0x%x\n",
