@@ -195,9 +195,11 @@ static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 static int wcn36xx_smd_send_and_wait(struct wcn36xx *wcn, size_t len)
 {
 	int ret = 0;
+	unsigned long start;
 	wcn36xx_dbg_dump(WCN36XX_DBG_SMD_DUMP, "HAL >>> ", wcn->hal_buf, len);
 
 	init_completion(&wcn->hal_rsp_compl);
+	start = jiffies;
 	ret = wcn->ctrl_ops->tx(wcn->hal_buf, len);
 	if (ret) {
 		wcn36xx_err("HAL TX failed\n");
@@ -205,10 +207,13 @@ static int wcn36xx_smd_send_and_wait(struct wcn36xx *wcn, size_t len)
 	}
 	if (wait_for_completion_timeout(&wcn->hal_rsp_compl,
 		msecs_to_jiffies(HAL_MSG_TIMEOUT)) <= 0) {
-		wcn36xx_err("Timeout while waiting SMD response\n");
+		wcn36xx_err("Timeout! No SMD response in %dms\n",
+			    HAL_MSG_TIMEOUT);
 		ret = -ETIME;
 		goto out;
 	}
+	wcn36xx_dbg(WCN36XX_DBG_SMD, "SMD command completed in %dms",
+		    jiffies_to_msecs(jiffies - start));
 out:
 	return ret;
 }
