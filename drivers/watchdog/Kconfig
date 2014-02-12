@@ -1026,6 +1026,7 @@ config M54xx_WATCHDOG
 config XILINX_WATCHDOG
 	tristate "Xilinx Watchdog timer"
 	depends on MICROBLAZE
+	select WATCHDOG_CORE
 	---help---
 	  Watchdog driver for the xps_timebase_wdt ip core.
 
