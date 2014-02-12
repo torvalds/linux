@@ -582,6 +582,8 @@ static int rds_init(void)
 {
 	int ret;
 
+	rds_bind_lock_init();
+
 	ret = rds_conn_init();
 	if (ret)
 		goto out;

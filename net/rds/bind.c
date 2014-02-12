@@ -38,22 +38,27 @@
 #include <linux/ratelimit.h>
 #include "rds.h"
 
-#define BIND_HASH_SIZE 1024
-static struct hlist_head bind_hash_table[BIND_HASH_SIZE];
-static DEFINE_RWLOCK(rds_bind_lock);
+struct bind_bucket {
+	rwlock_t                lock;
+	struct hlist_head	head;
+};
 
-static struct hlist_head *hash_to_bucket(__be32 addr, __be16 port)
+#define BIND_HASH_SIZE 1024
+static struct bind_bucket bind_hash_table[BIND_HASH_SIZE];
+
+static struct bind_bucket *hash_to_bucket(__be32 addr, __be16 port)
 {
 	return bind_hash_table + (jhash_2words((u32)addr, (u32)port, 0) &
 				  (BIND_HASH_SIZE - 1));
 }
 
 /* must hold either read or write lock (write lock for insert != NULL) */
-static struct rds_sock *rds_bind_lookup(__be32 addr, __be16 port,
+static struct rds_sock *rds_bind_lookup(struct bind_bucket *bucket,
+					__be32 addr, __be16 port,
 					struct rds_sock *insert)
 {
 	struct rds_sock *rs;
-	struct hlist_head *head = hash_to_bucket(addr, port);
+	struct hlist_head *head = &bucket->head;
 	u64 cmp;
 	u64 needle = ((u64)be32_to_cpu(addr) << 32) | be16_to_cpu(port);
 
@@ -91,10 +96,11 @@ struct rds_sock *rds_find_bound(__be32 addr, __be16 port)
 {
 	struct rds_sock *rs;
 	unsigned long flags;
+	struct bind_bucket *bucket = hash_to_bucket(addr, port);
 
-	read_lock_irqsave(&rds_bind_lock, flags);
-	rs = rds_bind_lookup(addr, port, NULL);
-	read_unlock_irqrestore(&rds_bind_lock, flags);
+	read_lock_irqsave(&bucket->lock, flags);
+	rs = rds_bind_lookup(bucket, addr, port, NULL);
+	read_unlock_irqrestore(&bucket->lock, flags);
 
 	if (rs && sock_flag(rds_rs_to_sk(rs), SOCK_DEAD)) {
 		rds_sock_put(rs);
@@ -113,6 +119,7 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 	unsigned long flags;
 	int ret = -EADDRINUSE;
 	u16 rover, last;
+	struct bind_bucket *bucket;
 
 	if (*port != 0) {
 		rover = be16_to_cpu(*port);
@@ -122,13 +129,15 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 		last = rover - 1;
 	}
 
-	write_lock_irqsave(&rds_bind_lock, flags);
-
 	do {
 		struct rds_sock *rrs;
 		if (rover == 0)
 			rover++;
-		rrs = rds_bind_lookup(addr, cpu_to_be16(rover), rs);
+
+		bucket = hash_to_bucket(addr, cpu_to_be16(rover));
+		write_lock_irqsave(&bucket->lock, flags);
+		rrs = rds_bind_lookup(bucket, addr, cpu_to_be16(rover), rs);
+		write_unlock_irqrestore(&bucket->lock, flags);
 		if (!rrs) {
 			*port = rs->rs_bound_port;
 			ret = 0;
@@ -140,16 +149,16 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 		}
 	} while (rover++ != last);
 
-	write_unlock_irqrestore(&rds_bind_lock, flags);
-
 	return ret;
 }
 
 void rds_remove_bound(struct rds_sock *rs)
 {
 	unsigned long flags;
+	struct bind_bucket *bucket =
+		hash_to_bucket(rs->rs_bound_addr, rs->rs_bound_port);
 
-	write_lock_irqsave(&rds_bind_lock, flags);
+	write_lock_irqsave(&bucket->lock, flags);
 
 	if (rs->rs_bound_addr) {
 		rdsdebug("rs %p unbinding from %pI4:%d\n",
@@ -161,7 +170,7 @@ void rds_remove_bound(struct rds_sock *rs)
 		rs->rs_bound_addr = 0;
 	}
 
-	write_unlock_irqrestore(&rds_bind_lock, flags);
+	write_unlock_irqrestore(&bucket->lock, flags);
 }
 
 int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
@@ -206,4 +215,12 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 out:
 	release_sock(sk);
 	return ret;
+}
+
+void rds_bind_lock_init(void)
+{
+	int i;
+
+	for (i = 0; i < BIND_HASH_SIZE; i++)
+		rwlock_init(&bind_hash_table[i].lock);
 }
