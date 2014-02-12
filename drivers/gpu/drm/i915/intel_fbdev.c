@@ -286,7 +286,17 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 				    struct drm_display_mode **modes,
 				    bool *enabled, int width, int height)
 {
+	struct drm_device *dev = fb_helper->dev;
 	int i, j;
+	bool *save_enabled;
+	bool any_enabled = false;
+
+	save_enabled = kcalloc(dev->mode_config.num_connector, sizeof(bool),
+			       GFP_KERNEL);
+	if (!save_enabled)
+		return false;
+
+	memcpy(save_enabled, enabled, dev->mode_config.num_connector);
 
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		struct drm_fb_helper_connector *fb_conn;
@@ -318,8 +328,10 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 		 * match the BIOS.
 		 */
 		for (j = 0; j < fb_helper->connector_count; j++) {
-			if (crtcs[j] == new_crtc)
-				return false;
+			if (crtcs[j] == new_crtc) {
+				any_enabled = false;
+				goto out;
+			}
 		}
 
 		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
@@ -359,8 +371,18 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 			      drm_get_connector_name(connector),
 			      encoder->crtc->base.id,
 			      modes[i]->name);
+
+		any_enabled = true;
 	}
 
+out:
+	if (!any_enabled) {
+		memcpy(enabled, save_enabled, dev->mode_config.num_connector);
+		kfree(save_enabled);
+		return false;
+	}
+
+	kfree(save_enabled);
 	return true;
 }
 
