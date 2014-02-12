@@ -1400,7 +1400,7 @@ lmv_out_free:
 		if (tmp == NULL)
 			GOTO(free_lmv, rc = -ENOMEM);
 
-		memcpy(tmp, &lum, sizeof(lum));
+		*tmp = lum;
 		tmp->lum_type = LMV_STRIPE_TYPE;
 		tmp->lum_stripe_count = 1;
 		mdtindex = ll_get_mdt_idx(inode);
