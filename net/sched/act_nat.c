@@ -31,8 +31,6 @@
 
 #define NAT_TAB_MASK	15
 
-static struct tcf_hashinfo nat_hash_info;
-
 static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 	[TCA_NAT_PARMS]	= { .len = sizeof(struct tc_nat) },
 };
@@ -284,7 +282,6 @@ nla_put_failure:
 
 static struct tc_action_ops act_nat_ops = {
 	.kind		=	"nat",
-	.hinfo		=	&nat_hash_info,
 	.type		=	TCA_ACT_NAT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_nat,
@@ -297,16 +294,12 @@ MODULE_LICENSE("GPL");
 
 static int __init nat_init_module(void)
 {
-	int err = tcf_hashinfo_init(&nat_hash_info, NAT_TAB_MASK);
-	if (err)
-		return err;
-	return tcf_register_action(&act_nat_ops);
+	return tcf_register_action(&act_nat_ops, NAT_TAB_MASK);
 }
 
 static void __exit nat_cleanup_module(void)
 {
 	tcf_unregister_action(&act_nat_ops);
-	tcf_hashinfo_destroy(&nat_hash_info);
 }
 
 module_init(nat_init_module);

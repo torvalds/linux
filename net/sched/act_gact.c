@@ -24,7 +24,6 @@
 #include <net/tc_act/tc_gact.h>
 
 #define GACT_TAB_MASK	15
-static struct tcf_hashinfo gact_hash_info;
 
 #ifdef CONFIG_GACT_PROB
 static int gact_net_rand(struct tcf_gact *gact)
@@ -180,7 +179,6 @@ nla_put_failure:
 
 static struct tc_action_ops act_gact_ops = {
 	.kind		=	"gact",
-	.hinfo		=	&gact_hash_info,
 	.type		=	TCA_ACT_GACT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_gact,
@@ -194,21 +192,17 @@ MODULE_LICENSE("GPL");
 
 static int __init gact_init_module(void)
 {
-	int err = tcf_hashinfo_init(&gact_hash_info, GACT_TAB_MASK);
-	if (err)
-		return err;
 #ifdef CONFIG_GACT_PROB
 	pr_info("GACT probability on\n");
 #else
 	pr_info("GACT probability NOT on\n");
 #endif
-	return tcf_register_action(&act_gact_ops);
+	return tcf_register_action(&act_gact_ops, GACT_TAB_MASK);
 }
 
 static void __exit gact_cleanup_module(void)
 {
 	tcf_unregister_action(&act_gact_ops);
-	tcf_hashinfo_destroy(&gact_hash_info);
 }
 
 module_init(gact_init_module);

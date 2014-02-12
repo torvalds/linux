@@ -37,7 +37,6 @@
 #include <net/tc_act/tc_csum.h>
 
 #define CSUM_TAB_MASK 15
-static struct tcf_hashinfo csum_hash_info;
 
 static const struct nla_policy csum_policy[TCA_CSUM_MAX + 1] = {
 	[TCA_CSUM_PARMS] = { .len = sizeof(struct tc_csum), },
@@ -561,7 +560,6 @@ nla_put_failure:
 
 static struct tc_action_ops act_csum_ops = {
 	.kind		= "csum",
-	.hinfo		= &csum_hash_info,
 	.type		= TCA_ACT_CSUM,
 	.owner		= THIS_MODULE,
 	.act		= tcf_csum,
@@ -574,11 +572,7 @@ MODULE_LICENSE("GPL");
 
 static int __init csum_init_module(void)
 {
-	int err = tcf_hashinfo_init(&csum_hash_info, CSUM_TAB_MASK);
-	if (err)
-		return err;
-
-	return tcf_register_action(&act_csum_ops);
+	return tcf_register_action(&act_csum_ops, CSUM_TAB_MASK);
 }
 
 static void __exit csum_cleanup_module(void)

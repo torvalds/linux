@@ -25,7 +25,6 @@
 #include <net/tc_act/tc_defact.h>
 
 #define SIMP_TAB_MASK     7
-static struct tcf_hashinfo simp_hash_info;
 
 #define SIMP_MAX_DATA	32
 static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
@@ -163,7 +162,6 @@ nla_put_failure:
 
 static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
-	.hinfo		=	&simp_hash_info,
 	.type		=	TCA_ACT_SIMP,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_simp,
@@ -178,23 +176,15 @@ MODULE_LICENSE("GPL");
 
 static int __init simp_init_module(void)
 {
-	int err, ret;
-	err = tcf_hashinfo_init(&simp_hash_info, SIMP_TAB_MASK);
-	if (err)
-		return err;
-
-	ret = tcf_register_action(&act_simp_ops);
+	int ret;
+	ret = tcf_register_action(&act_simp_ops, SIMP_TAB_MASK);
 	if (!ret)
 		pr_info("Simple TC action Loaded\n");
-	else
-		tcf_hashinfo_destroy(&simp_hash_info);
-
 	return ret;
 }
 
 static void __exit simp_cleanup_module(void)
 {
-	tcf_hashinfo_destroy(&simp_hash_info);
 	tcf_unregister_action(&act_simp_ops);
 }
 

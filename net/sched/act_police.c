@@ -41,7 +41,6 @@ struct tcf_police {
 	container_of(pc, struct tcf_police, common)
 
 #define POL_TAB_MASK     15
-static struct tcf_hashinfo police_hash_info;
 
 /* old policer structure from before tc actions */
 struct tc_police_compat {
@@ -234,7 +233,7 @@ override:
 
 	police->tcfp_t_c = ktime_to_ns(ktime_get());
 	police->tcf_index = parm->index ? parm->index :
-		tcf_hash_new_index(a->ops->hinfo);
+		tcf_hash_new_index(hinfo);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
 	spin_lock_bh(&hinfo->lock);
 	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
@@ -349,7 +348,6 @@ MODULE_LICENSE("GPL");
 
 static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
-	.hinfo		=	&police_hash_info,
 	.type		=	TCA_ID_POLICE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_act_police,
@@ -361,19 +359,12 @@ static struct tc_action_ops act_police_ops = {
 static int __init
 police_init_module(void)
 {
-	int err = tcf_hashinfo_init(&police_hash_info, POL_TAB_MASK);
-	if (err)
-		return err;
-	err = tcf_register_action(&act_police_ops);
-	if (err)
-		tcf_hashinfo_destroy(&police_hash_info);
-	return err;
+	return tcf_register_action(&act_police_ops, POL_TAB_MASK);
 }
 
 static void __exit
 police_cleanup_module(void)
 {
-	tcf_hashinfo_destroy(&police_hash_info);
 	tcf_unregister_action(&act_police_ops);
 }
 

@@ -275,9 +275,10 @@ EXPORT_SYMBOL(tcf_hash_insert);
 static LIST_HEAD(act_base);
 static DEFINE_RWLOCK(act_mod_lock);
 
-int tcf_register_action(struct tc_action_ops *act)
+int tcf_register_action(struct tc_action_ops *act, unsigned int mask)
 {
 	struct tc_action_ops *a;
+	int err;
 
 	/* Must supply act, dump and init */
 	if (!act->act || !act->dump || !act->init)
@@ -289,10 +290,21 @@ int tcf_register_action(struct tc_action_ops *act)
 	if (!act->walk)
 		act->walk = tcf_generic_walker;
 
+	act->hinfo = kmalloc(sizeof(struct tcf_hashinfo), GFP_KERNEL);
+	if (!act->hinfo)
+		return -ENOMEM;
+	err = tcf_hashinfo_init(act->hinfo, mask);
+	if (err) {
+		kfree(act->hinfo);
+		return err;
+	}
+
 	write_lock(&act_mod_lock);
 	list_for_each_entry(a, &act_base, head) {
 		if (act->type == a->type || (strcmp(act->kind, a->kind) == 0)) {
 			write_unlock(&act_mod_lock);
+			tcf_hashinfo_destroy(act->hinfo);
+			kfree(act->hinfo);
 			return -EEXIST;
 		}
 	}
@@ -311,6 +323,8 @@ int tcf_unregister_action(struct tc_action_ops *act)
 	list_for_each_entry(a, &act_base, head) {
 		if (a == act) {
 			list_del(&act->head);
+			tcf_hashinfo_destroy(act->hinfo);
+			kfree(act->hinfo);
 			err = 0;
 			break;
 		}

@@ -28,7 +28,6 @@
 #include <net/tc_act/tc_skbedit.h>
 
 #define SKBEDIT_TAB_MASK     15
-static struct tcf_hashinfo skbedit_hash_info;
 
 static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 		       struct tcf_result *res)
@@ -175,7 +174,6 @@ nla_put_failure:
 
 static struct tc_action_ops act_skbedit_ops = {
 	.kind		=	"skbedit",
-	.hinfo		=	&skbedit_hash_info,
 	.type		=	TCA_ACT_SKBEDIT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_skbedit,
@@ -189,15 +187,11 @@ MODULE_LICENSE("GPL");
 
 static int __init skbedit_init_module(void)
 {
-	int err = tcf_hashinfo_init(&skbedit_hash_info, SKBEDIT_TAB_MASK);
-	if (err)
-		return err;
-	return tcf_register_action(&act_skbedit_ops);
+	return tcf_register_action(&act_skbedit_ops, SKBEDIT_TAB_MASK);
 }
 
 static void __exit skbedit_cleanup_module(void)
 {
-	tcf_hashinfo_destroy(&skbedit_hash_info);
 	tcf_unregister_action(&act_skbedit_ops);
 }
 

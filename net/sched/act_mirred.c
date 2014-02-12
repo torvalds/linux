@@ -31,7 +31,6 @@
 
 #define MIRRED_TAB_MASK     7
 static LIST_HEAD(mirred_list);
-static struct tcf_hashinfo mirred_hash_info;
 
 static void tcf_mirred_release(struct tc_action *a, int bind)
 {
@@ -234,7 +233,6 @@ static struct notifier_block mirred_device_notifier = {
 
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
-	.hinfo		=	&mirred_hash_info,
 	.type		=	TCA_ACT_MIRRED,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mirred,
@@ -253,19 +251,13 @@ static int __init mirred_init_module(void)
 	if (err)
 		return err;
 
-	err = tcf_hashinfo_init(&mirred_hash_info, MIRRED_TAB_MASK);
-	if (err) {
-		unregister_netdevice_notifier(&mirred_device_notifier);
-		return err;
-	}
 	pr_info("Mirror/redirect action on\n");
-	return tcf_register_action(&act_mirred_ops);
+	return tcf_register_action(&act_mirred_ops, MIRRED_TAB_MASK);
 }
 
 static void __exit mirred_cleanup_module(void)
 {
 	tcf_unregister_action(&act_mirred_ops);
-	tcf_hashinfo_destroy(&mirred_hash_info);
 	unregister_netdevice_notifier(&mirred_device_notifier);
 }
 

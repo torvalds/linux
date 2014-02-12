@@ -29,7 +29,6 @@
 
 
 #define IPT_TAB_MASK     15
-static struct tcf_hashinfo ipt_hash_info;
 
 static int ipt_init_target(struct xt_entry_target *t, char *table, unsigned int hook)
 {
@@ -262,7 +261,6 @@ nla_put_failure:
 
 static struct tc_action_ops act_ipt_ops = {
 	.kind		=	"ipt",
-	.hinfo		=	&ipt_hash_info,
 	.type		=	TCA_ACT_IPT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_ipt,
@@ -273,7 +271,6 @@ static struct tc_action_ops act_ipt_ops = {
 
 static struct tc_action_ops act_xt_ops = {
 	.kind		=	"xt",
-	.hinfo		=	&ipt_hash_info,
 	.type		=	TCA_ACT_XT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_ipt,
@@ -289,20 +286,16 @@ MODULE_ALIAS("act_xt");
 
 static int __init ipt_init_module(void)
 {
-	int ret1, ret2, err;
-	err = tcf_hashinfo_init(&ipt_hash_info, IPT_TAB_MASK);
-	if (err)
-		return err;
+	int ret1, ret2;
 
-	ret1 = tcf_register_action(&act_xt_ops);
+	ret1 = tcf_register_action(&act_xt_ops, IPT_TAB_MASK);
 	if (ret1 < 0)
 		printk("Failed to load xt action\n");
-	ret2 = tcf_register_action(&act_ipt_ops);
+	ret2 = tcf_register_action(&act_ipt_ops, IPT_TAB_MASK);
 	if (ret2 < 0)
 		printk("Failed to load ipt action\n");
 
 	if (ret1 < 0 && ret2 < 0) {
-		tcf_hashinfo_destroy(&ipt_hash_info);
 		return ret1;
 	} else
 		return 0;
@@ -312,7 +305,6 @@ static void __exit ipt_cleanup_module(void)
 {
 	tcf_unregister_action(&act_xt_ops);
 	tcf_unregister_action(&act_ipt_ops);
-	tcf_hashinfo_destroy(&ipt_hash_info);
 }
 
 module_init(ipt_init_module);

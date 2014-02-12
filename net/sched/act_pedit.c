@@ -25,8 +25,6 @@
 
 #define PEDIT_TAB_MASK	15
 
-static struct tcf_hashinfo pedit_hash_info;
-
 static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
 	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tc_pedit) },
 };
@@ -218,7 +216,6 @@ nla_put_failure:
 
 static struct tc_action_ops act_pedit_ops = {
 	.kind		=	"pedit",
-	.hinfo		=	&pedit_hash_info,
 	.type		=	TCA_ACT_PEDIT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_pedit,
@@ -233,15 +230,11 @@ MODULE_LICENSE("GPL");
 
 static int __init pedit_init_module(void)
 {
-	int err = tcf_hashinfo_init(&pedit_hash_info, PEDIT_TAB_MASK);
-	if (err)
-		return err;
-	return tcf_register_action(&act_pedit_ops);
+	return tcf_register_action(&act_pedit_ops, PEDIT_TAB_MASK);
 }
 
 static void __exit pedit_cleanup_module(void)
 {
-	tcf_hashinfo_destroy(&pedit_hash_info);
 	tcf_unregister_action(&act_pedit_ops);
 }
 
