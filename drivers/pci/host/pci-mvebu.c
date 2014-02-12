@@ -101,7 +101,9 @@ struct mvebu_pcie {
 	struct mvebu_pcie_port *ports;
 	struct msi_chip *msi;
 	struct resource io;
+	char io_name[30];
 	struct resource realio;
+	char mem_name[30];
 	struct resource mem;
 	struct resource busn;
 	int nports;
@@ -672,10 +674,30 @@ static int mvebu_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct mvebu_pcie *pcie = sys_to_pcie(sys);
 	int i;
+	int domain = 0;
 
-	if (resource_size(&pcie->realio) != 0)
+#ifdef CONFIG_PCI_DOMAINS
+	domain = sys->domain;
+#endif
+
+	snprintf(pcie->mem_name, sizeof(pcie->mem_name), "PCI MEM %04x",
+		 domain);
+	pcie->mem.name = pcie->mem_name;
+
+	snprintf(pcie->io_name, sizeof(pcie->io_name), "PCI I/O %04x", domain);
+	pcie->realio.name = pcie->io_name;
+
+	if (request_resource(&iomem_resource, &pcie->mem))
+		return 0;
+
+	if (resource_size(&pcie->realio) != 0) {
+		if (request_resource(&ioport_resource, &pcie->realio)) {
+			release_resource(&pcie->mem);
+			return 0;
+		}
 		pci_add_resource_offset(&sys->resources, &pcie->realio,
 					sys->io_offset);
+	}
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
 
