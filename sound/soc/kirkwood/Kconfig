@@ -10,6 +10,7 @@ config SND_KIRKWOOD_SOC_ARMADA370_DB
 	tristate "SoC Audio support for Armada 370 DB"
 	depends on SND_KIRKWOOD_SOC && (ARCH_MVEBU || COMPILE_TEST) && I2C
 	select SND_SOC_CS42L51
+	select SND_SOC_SPDIF
 	help
 	  Say Y if you want to add support for SoC audio on
 	  the Armada 370 Development Board.
