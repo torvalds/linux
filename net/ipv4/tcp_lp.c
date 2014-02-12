@@ -319,7 +319,6 @@ static struct tcp_congestion_ops tcp_lp __read_mostly = {
 	.init = tcp_lp_init,
 	.ssthresh = tcp_reno_ssthresh,
 	.cong_avoid = tcp_lp_cong_avoid,
-	.min_cwnd = tcp_reno_min_cwnd,
 	.pkts_acked = tcp_lp_pkts_acked,
 
 	.owner = THIS_MODULE,
