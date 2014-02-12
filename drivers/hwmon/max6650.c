@@ -105,32 +105,6 @@ module_param(clock, int, S_IRUGO);
 
 #define DIV_FROM_REG(reg) (1 << (reg & 7))
 
-static int max6650_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id);
-static int max6650_init_client(struct i2c_client *client);
-static int max6650_remove(struct i2c_client *client);
-static struct max6650_data *max6650_update_device(struct device *dev);
-
-/*
- * Driver data (common to all clients)
- */
-
-static const struct i2c_device_id max6650_id[] = {
-	{ "max6650", 1 },
-	{ "max6651", 4 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, max6650_id);
-
-static struct i2c_driver max6650_driver = {
-	.driver = {
-		.name	= "max6650",
-	},
-	.probe		= max6650_probe,
-	.remove		= max6650_remove,
-	.id_table	= max6650_id,
-};
-
 /*
  * Client data (each client gets its own)
  */
@@ -150,6 +124,51 @@ struct max6650_data {
 	u8 dac;
 	u8 alarm;
 };
+
+static const u8 tach_reg[] = {
+	MAX6650_REG_TACH0,
+	MAX6650_REG_TACH1,
+	MAX6650_REG_TACH2,
+	MAX6650_REG_TACH3,
+};
+
+static struct max6650_data *max6650_update_device(struct device *dev)
+{
+	int i;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct max6650_data *data = i2c_get_clientdata(client);
+
+	mutex_lock(&data->update_lock);
+
+	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
+		data->speed = i2c_smbus_read_byte_data(client,
+						       MAX6650_REG_SPEED);
+		data->config = i2c_smbus_read_byte_data(client,
+							MAX6650_REG_CONFIG);
+		for (i = 0; i < data->nr_fans; i++) {
+			data->tach[i] = i2c_smbus_read_byte_data(client,
+								 tach_reg[i]);
+		}
+		data->count = i2c_smbus_read_byte_data(client,
+							MAX6650_REG_COUNT);
+		data->dac = i2c_smbus_read_byte_data(client, MAX6650_REG_DAC);
+
+		/*
+		 * Alarms are cleared on read in case the condition that
+		 * caused the alarm is removed. Keep the value latched here
+		 * for providing the register through different alarm files.
+		 */
+		data->alarm |= i2c_smbus_read_byte_data(client,
+							MAX6650_REG_ALARM);
+
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
 
 static ssize_t get_fan(struct device *dev, struct device_attribute *devattr,
 		       char *buf)
@@ -539,64 +558,6 @@ static const struct attribute_group max6651_attr_grp = {
  * Real code
  */
 
-static int max6650_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
-{
-	struct max6650_data *data;
-	int err;
-
-	data = devm_kzalloc(&client->dev, sizeof(struct max6650_data),
-			    GFP_KERNEL);
-	if (!data) {
-		dev_err(&client->dev, "out of memory.\n");
-		return -ENOMEM;
-	}
-
-	i2c_set_clientdata(client, data);
-	mutex_init(&data->update_lock);
-	data->nr_fans = id->driver_data;
-
-	/*
-	 * Initialize the max6650 chip
-	 */
-	err = max6650_init_client(client);
-	if (err)
-		return err;
-
-	err = sysfs_create_group(&client->dev.kobj, &max6650_attr_grp);
-	if (err)
-		return err;
-	/* 3 additional fan inputs for the MAX6651 */
-	if (data->nr_fans == 4) {
-		err = sysfs_create_group(&client->dev.kobj, &max6651_attr_grp);
-		if (err)
-			goto err_remove;
-	}
-
-	data->hwmon_dev = hwmon_device_register(&client->dev);
-	if (!IS_ERR(data->hwmon_dev))
-		return 0;
-
-	err = PTR_ERR(data->hwmon_dev);
-	dev_err(&client->dev, "error registering hwmon device.\n");
-	if (data->nr_fans == 4)
-		sysfs_remove_group(&client->dev.kobj, &max6651_attr_grp);
-err_remove:
-	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
-	return err;
-}
-
-static int max6650_remove(struct i2c_client *client)
-{
-	struct max6650_data *data = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	if (data->nr_fans == 4)
-		sysfs_remove_group(&client->dev.kobj, &max6651_attr_grp);
-	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
-	return 0;
-}
-
 static int max6650_init_client(struct i2c_client *client)
 {
 	struct max6650_data *data = i2c_get_clientdata(client);
@@ -684,50 +645,79 @@ static int max6650_init_client(struct i2c_client *client)
 	return 0;
 }
 
-static const u8 tach_reg[] = {
-	MAX6650_REG_TACH0,
-	MAX6650_REG_TACH1,
-	MAX6650_REG_TACH2,
-	MAX6650_REG_TACH3,
-};
-
-static struct max6650_data *max6650_update_device(struct device *dev)
+static int max6650_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
-	int i;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct max6650_data *data = i2c_get_clientdata(client);
+	struct max6650_data *data;
+	int err;
 
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		data->speed = i2c_smbus_read_byte_data(client,
-						       MAX6650_REG_SPEED);
-		data->config = i2c_smbus_read_byte_data(client,
-							MAX6650_REG_CONFIG);
-		for (i = 0; i < data->nr_fans; i++) {
-			data->tach[i] = i2c_smbus_read_byte_data(client,
-								 tach_reg[i]);
-		}
-		data->count = i2c_smbus_read_byte_data(client,
-							MAX6650_REG_COUNT);
-		data->dac = i2c_smbus_read_byte_data(client, MAX6650_REG_DAC);
-
-		/*
-		 * Alarms are cleared on read in case the condition that
-		 * caused the alarm is removed. Keep the value latched here
-		 * for providing the register through different alarm files.
-		 */
-		data->alarm |= i2c_smbus_read_byte_data(client,
-							MAX6650_REG_ALARM);
-
-		data->last_updated = jiffies;
-		data->valid = 1;
+	data = devm_kzalloc(&client->dev, sizeof(struct max6650_data),
+			    GFP_KERNEL);
+	if (!data) {
+		dev_err(&client->dev, "out of memory.\n");
+		return -ENOMEM;
 	}
 
-	mutex_unlock(&data->update_lock);
+	i2c_set_clientdata(client, data);
+	mutex_init(&data->update_lock);
+	data->nr_fans = id->driver_data;
 
-	return data;
+	/*
+	 * Initialize the max6650 chip
+	 */
+	err = max6650_init_client(client);
+	if (err)
+		return err;
+
+	err = sysfs_create_group(&client->dev.kobj, &max6650_attr_grp);
+	if (err)
+		return err;
+	/* 3 additional fan inputs for the MAX6651 */
+	if (data->nr_fans == 4) {
+		err = sysfs_create_group(&client->dev.kobj, &max6651_attr_grp);
+		if (err)
+			goto err_remove;
+	}
+
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (!IS_ERR(data->hwmon_dev))
+		return 0;
+
+	err = PTR_ERR(data->hwmon_dev);
+	dev_err(&client->dev, "error registering hwmon device.\n");
+	if (data->nr_fans == 4)
+		sysfs_remove_group(&client->dev.kobj, &max6651_attr_grp);
+err_remove:
+	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
+	return err;
 }
+
+static int max6650_remove(struct i2c_client *client)
+{
+	struct max6650_data *data = i2c_get_clientdata(client);
+
+	hwmon_device_unregister(data->hwmon_dev);
+	if (data->nr_fans == 4)
+		sysfs_remove_group(&client->dev.kobj, &max6651_attr_grp);
+	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
+	return 0;
+}
+
+static const struct i2c_device_id max6650_id[] = {
+	{ "max6650", 1 },
+	{ "max6651", 4 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, max6650_id);
+
+static struct i2c_driver max6650_driver = {
+	.driver = {
+		.name	= "max6650",
+	},
+	.probe		= max6650_probe,
+	.remove		= max6650_remove,
+	.id_table	= max6650_id,
+};
 
 module_i2c_driver(max6650_driver);
 
