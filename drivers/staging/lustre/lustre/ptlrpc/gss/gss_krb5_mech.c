@@ -54,7 +54,6 @@
 #include <linux/slab.h>
 #include <linux/crypto.h>
 #include <linux/mutex.h>
-#include <linux/crypto.h>
 
 #include <obd.h>
 #include <obd_class.h>
