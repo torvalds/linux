@@ -1091,10 +1091,6 @@ restart:
 				down_read(&lli->lli_trunc_sem);
 			}
 			break;
-		case IO_SENDFILE:
-			vio->u.sendfile.cui_actor = args->u.sendfile.via_actor;
-			vio->u.sendfile.cui_target = args->u.sendfile.via_target;
-			break;
 		case IO_SPLICE:
 			vio->u.splice.cui_pipe = args->u.splice.via_pipe;
 			vio->u.splice.cui_flags = args->u.splice.via_flags;

@@ -118,7 +118,7 @@ struct ccc_io {
 };
 
 /**
- * True, if \a io is a normal io, False for other (sendfile, splice*).
+ * True, if \a io is a normal io, False for splice_{read,write}.
  * must be impementated in arch specific code.
  */
 int cl_is_normalio(const struct lu_env *env, const struct cl_io *io);

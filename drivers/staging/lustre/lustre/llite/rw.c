@@ -135,7 +135,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		}
 
 		/*
-		 * Loop-back driver calls ->prepare_write() and ->sendfile()
+		 * Loop-back driver calls ->prepare_write().
 		 * methods directly, bypassing file system ->write() operation,
 		 * so cl_io has to be created here.
 		 */

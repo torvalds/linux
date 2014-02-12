@@ -51,7 +51,7 @@ static struct vvp_io *cl2vvp_io(const struct lu_env *env,
 				const struct cl_io_slice *slice);
 
 /**
- * True, if \a io is a normal io, False for sendfile() / splice_{read|write}
+ * True, if \a io is a normal io, False for splice_{read,write}
  */
 int cl_is_normalio(const struct lu_env *env, const struct cl_io *io)
 {
@@ -474,20 +474,6 @@ static void vvp_io_setattr_fini(const struct lu_env *env,
 	vvp_io_fini(env, ios);
 }
 
-static ssize_t lustre_generic_file_read(struct file *file,
-					struct ccc_io *vio, loff_t *ppos)
-{
-	return generic_file_aio_read(vio->cui_iocb, vio->cui_iov,
-				     vio->cui_nrsegs, *ppos);
-}
-
-static ssize_t lustre_generic_file_write(struct file *file,
-					struct ccc_io *vio, loff_t *ppos)
-{
-	return generic_file_aio_write(vio->cui_iocb, vio->cui_iov,
-				      vio->cui_nrsegs, *ppos);
-}
-
 static int vvp_io_read_start(const struct lu_env *env,
 			     const struct cl_io_slice *ios)
 {
@@ -540,8 +526,11 @@ static int vvp_io_read_start(const struct lu_env *env,
 	file_accessed(file);
 	switch (vio->cui_io_subtype) {
 	case IO_NORMAL:
-		 result = lustre_generic_file_read(file, cio, &pos);
-		 break;
+		LASSERT(cio->cui_iocb->ki_pos == pos);
+		result = generic_file_aio_read(cio->cui_iocb,
+					       cio->cui_iov, cio->cui_nrsegs,
+					       cio->cui_iocb->ki_pos);
+		break;
 	case IO_SPLICE:
 		result = generic_file_splice_read(file, &pos,
 				vio->u.splice.cui_pipe, cnt,
@@ -586,7 +575,6 @@ static int vvp_io_write_start(const struct lu_env *env,
 	struct cl_io       *io    = ios->cis_io;
 	struct cl_object   *obj   = io->ci_obj;
 	struct inode       *inode = ccc_object_inode(obj);
-	struct file	*file  = cio->cui_fd->fd_file;
 	ssize_t result = 0;
 	loff_t pos = io->u.ci_wr.wr.crw_pos;
 	size_t cnt = io->u.ci_wr.wr.crw_count;
@@ -601,6 +589,8 @@ static int vvp_io_write_start(const struct lu_env *env,
 		 */
 		pos = io->u.ci_wr.wr.crw_pos = i_size_read(inode);
 		cio->cui_iocb->ki_pos = pos;
+	} else {
+		LASSERT(cio->cui_iocb->ki_pos == pos);
 	}
 
 	CDEBUG(D_VFSTRACE, "write: [%lli, %lli)\n", pos, pos + (long long)cnt);
@@ -608,8 +598,9 @@ static int vvp_io_write_start(const struct lu_env *env,
 	if (cio->cui_iov == NULL) /* from a temp io in ll_cl_init(). */
 		result = 0;
 	else
-		result = lustre_generic_file_write(file, cio, &pos);
-
+		result = generic_file_aio_write(cio->cui_iocb,
+						cio->cui_iov, cio->cui_nrsegs,
+						cio->cui_iocb->ki_pos);
 	if (result > 0) {
 		if (result < cnt)
 			io->ci_continue = 0;
