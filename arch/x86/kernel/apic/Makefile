@@ -19,7 +19,6 @@ endif
 
 # APIC probe will depend on the listing order here
 obj-$(CONFIG_X86_NUMAQ)		+= numaq_32.o
-obj-$(CONFIG_X86_SUMMIT)	+= summit_32.o
 obj-$(CONFIG_X86_BIGSMP)	+= bigsmp_32.o
 
 # For 32bit, probe_32 need to be listed last
