@@ -1002,7 +1002,7 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 static int tso_start(struct tso_state *st, struct efx_nic *efx,
 		     const struct sk_buff *skb)
 {
-	bool use_options = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
+	bool use_opt_desc = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
 	struct device *dma_dev = &efx->pci_dev->dev;
 	unsigned int header_len, in_len;
 	dma_addr_t dma_addr;
@@ -1028,7 +1028,7 @@ static int tso_start(struct tso_state *st, struct efx_nic *efx,
 
 	st->out_len = skb->len - header_len;
 
-	if (!use_options) {
+	if (!use_opt_desc) {
 		st->header_unmap_len = 0;
 
 		if (likely(in_len == 0)) {
