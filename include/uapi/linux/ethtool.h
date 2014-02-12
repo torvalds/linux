@@ -575,12 +575,25 @@ enum ethtool_test_flags {
 	ETH_TEST_FL_EXTERNAL_LB_DONE	= (1 << 3),
 };
 
-/* for requesting NIC test and getting results*/
+/**
+ * struct ethtool_test - device self-test invocation
+ * @cmd: Command number = %ETHTOOL_TEST
+ * @flags: A bitmask of flags from &enum ethtool_test_flags.  Some
+ *	flags may be set by the user on entry; others may be set by
+ *	the driver on return.
+ * @len: On return, the number of test results
+ * @data: Array of test results
+ *
+ * Users must use %ETHTOOL_GSSET_INFO or %ETHTOOL_GDRVINFO to find the
+ * number of test results that will be returned.  They must allocate a
+ * buffer of the appropriate size (8 * number of results) immediately
+ * following this structure.
+ */
 struct ethtool_test {
-	__u32	cmd;		/* ETHTOOL_TEST */
-	__u32	flags;		/* ETH_TEST_FL_xxx */
+	__u32	cmd;
+	__u32	flags;
 	__u32	reserved;
-	__u32	len;		/* result length, in number of u64 elements */
+	__u32	len;
 	__u64	data[0];
 };
 
