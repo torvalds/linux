@@ -53,6 +53,7 @@
 #include <linux/vmalloc.h> /* TODO: replace with more sophisticated array */
 #include <linux/flex_array.h> /* used in cgroup_attach_task */
 #include <linux/kthread.h>
+#include <linux/delay.h>
 
 #include <linux/atomic.h>
 
@@ -728,37 +729,16 @@ static void cgroup_free_root(struct cgroupfs_root *root)
 	}
 }
 
-static void cgroup_get_root(struct cgroupfs_root *root)
-{
-	/*
-	 * The caller must ensure that @root is alive, which can be
-	 * achieved by holding a ref on one of the member cgroups or
-	 * following a registered reference to @root while holding
-	 * cgroup_tree_mutex.
-	 */
-	WARN_ON_ONCE(atomic_read(&root->refcnt) <= 0);
-	atomic_inc(&root->refcnt);
-}
-
-static void cgroup_put_root(struct cgroupfs_root *root)
+static void cgroup_destroy_root(struct cgroupfs_root *root)
 {
 	struct cgroup *cgrp = &root->top_cgroup;
 	struct cgrp_cset_link *link, *tmp_link;
 	int ret;
 
-	/*
-	 * @root's refcnt reaching zero and its deregistration should be
-	 * atomic w.r.t. cgroup_tree_mutex.  This ensures that
-	 * cgroup_get_root() is safe to invoke if @root is registered.
-	 */
 	mutex_lock(&cgroup_tree_mutex);
-	if (!atomic_dec_and_test(&root->refcnt)) {
-		mutex_unlock(&cgroup_tree_mutex);
-		return;
-	}
 	mutex_lock(&cgroup_mutex);
 
-	BUG_ON(atomic_read(&root->nr_cgrps) != 1);
+	BUG_ON(atomic_read(&root->nr_cgrps));
 	BUG_ON(!list_empty(&cgrp->children));
 
 	/* Rebind all subsystems back to the default hierarchy */
@@ -929,21 +909,24 @@ static void cgroup_free_fn(struct work_struct *work)
 	struct cgroup *cgrp = container_of(work, struct cgroup, destroy_work);
 
 	atomic_dec(&cgrp->root->nr_cgrps);
-
-	/*
-	 * We get a ref to the parent, and put the ref when this cgroup is
-	 * being freed, so it's guaranteed that the parent won't be
-	 * destroyed before its children.
-	 */
-	cgroup_put(cgrp->parent);
-
-	/* put the root reference that we took when we created the cgroup */
-	cgroup_put_root(cgrp->root);
-
 	cgroup_pidlist_destroy_all(cgrp);
 
-	kernfs_put(cgrp->kn);
-	kfree(cgrp);
+	if (cgrp->parent) {
+		/*
+		 * We get a ref to the parent, and put the ref when this
+		 * cgroup is being freed, so it's guaranteed that the
+		 * parent won't be destroyed before its children.
+		 */
+		cgroup_put(cgrp->parent);
+		kernfs_put(cgrp->kn);
+		kfree(cgrp);
+	} else {
+		/*
+		 * This is top cgroup's refcnt reaching zero, which
+		 * indicates that the root should be released.
+		 */
+		cgroup_destroy_root(cgrp->root);
+	}
 }
 
 static void cgroup_free_rcu(struct rcu_head *head)
@@ -965,7 +948,7 @@ static void cgroup_put(struct cgroup *cgrp)
 {
 	if (!atomic_dec_and_test(&cgrp->refcnt))
 		return;
-	if (WARN_ON_ONCE(!cgroup_is_dead(cgrp)))
+	if (WARN_ON_ONCE(cgrp->parent && !cgroup_is_dead(cgrp)))
 		return;
 
 	/*
@@ -1356,7 +1339,6 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 {
 	struct cgroup *cgrp = &root->top_cgroup;
 
-	atomic_set(&root->refcnt, 1);
 	INIT_LIST_HEAD(&root->root_list);
 	atomic_set(&root->nr_cgrps, 1);
 	cgrp->root = root;
@@ -1485,7 +1467,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	struct cgroup_sb_opts opts;
 	struct dentry *dentry;
 	int ret;
-
+retry:
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
 
@@ -1531,7 +1513,21 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 			}
 		}
 
-		cgroup_get_root(root);
+		/*
+		 * A root's lifetime is governed by its top cgroup.  Zero
+		 * ref indicate that the root is being destroyed.  Wait for
+		 * destruction to complete so that the subsystems are free.
+		 * We can use wait_queue for the wait but this path is
+		 * super cold.  Let's just sleep for a bit and retry.
+		 */
+		if (!atomic_inc_not_zero(&root->top_cgroup.refcnt)) {
+			mutex_unlock(&cgroup_mutex);
+			mutex_unlock(&cgroup_tree_mutex);
+			msleep(10);
+			goto retry;
+		}
+
+		ret = 0;
 		goto out_unlock;
 	}
 
@@ -1558,7 +1554,7 @@ out_unlock:
 
 	dentry = kernfs_mount(fs_type, flags, root->kf_root);
 	if (IS_ERR(dentry))
-		cgroup_put_root(root);
+		cgroup_put(&root->top_cgroup);
 	return dentry;
 }
 
@@ -1567,7 +1563,7 @@ static void cgroup_kill_sb(struct super_block *sb)
 	struct kernfs_root *kf_root = kernfs_root_from_sb(sb);
 	struct cgroupfs_root *root = cgroup_root_from_kf(kf_root);
 
-	cgroup_put_root(root);
+	cgroup_put(&root->top_cgroup);
 	kernfs_kill_sb(sb);
 }
 
@@ -3708,12 +3704,6 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 	/* allocation complete, commit to creation */
 	list_add_tail_rcu(&cgrp->sibling, &cgrp->parent->children);
 	atomic_inc(&root->nr_cgrps);
-
-	/*
-	 * Grab a reference on the root and parent so that they don't get
-	 * deleted while there are child cgroups.
-	 */
-	cgroup_get_root(root);
 	cgroup_get(parent);
 
 	/*

@@ -282,12 +282,10 @@ struct cgroupfs_root {
 	/* The bitmask of subsystems attached to this hierarchy */
 	unsigned long subsys_mask;
 
-	atomic_t refcnt;
-
 	/* Unique id for this hierarchy. */
 	int hierarchy_id;
 
-	/* The root cgroup for this hierarchy */
+	/* The root cgroup.  Root is destroyed on its release. */
 	struct cgroup top_cgroup;
 
 	/* Number of cgroups in the hierarchy, used only for /proc/cgroups */
