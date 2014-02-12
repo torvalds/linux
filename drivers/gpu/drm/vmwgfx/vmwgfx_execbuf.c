@@ -2032,6 +2032,9 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 		goto out_invalid;
 
 	entry = &vmw_cmd_entries[cmd_id];
+	if (unlikely(!entry->func))
+		goto out_invalid;
+
 	if (unlikely(!entry->user_allow && !sw_context->kernel))
 		goto out_privileged;
 
