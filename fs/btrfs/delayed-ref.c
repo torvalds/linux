@@ -205,7 +205,6 @@ find_ref_head(struct rb_root *root, u64 bytenr,
 	struct btrfs_delayed_ref_head *entry;
 	int cmp = 0;
 
-again:
 	n = root->rb_node;
 	entry = NULL;
 	while (n) {
@@ -234,9 +233,9 @@ again:
 				n = rb_first(root);
 			entry = rb_entry(n, struct btrfs_delayed_ref_head,
 					 href_node);
-			bytenr = entry->node.bytenr;
-			return_bigger = 0;
-			goto again;
+			if (last)
+				*last = entry;
+			return entry;
 		}
 		return entry;
 	}
