@@ -1607,8 +1607,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 			MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
 		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
 			(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
-			io_request->IoFlags |=
-				MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
+			io_request->IoFlags |= cpu_to_le16(
+				MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
@@ -2425,7 +2425,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 					instance->
 					cmd_list[cmd_fusion->sync_cmd_idx];
 					if (cmd_mfi->frame->dcmd.opcode ==
-					    MR_DCMD_LD_MAP_GET_INFO) {
+					    cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO)) {
 						megasas_return_cmd(instance,
 								   cmd_mfi);
 						megasas_return_cmd_fusion(
