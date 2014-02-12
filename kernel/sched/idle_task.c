@@ -29,9 +29,7 @@ pick_next_task_idle(struct rq *rq, struct task_struct *prev)
 	put_prev_task(rq, prev);
 
 	schedstat_inc(rq, sched_goidle);
-#ifdef CONFIG_SMP
 	idle_enter_fair(rq);
-#endif
 	return rq->idle;
 }
 
@@ -50,10 +48,8 @@ dequeue_task_idle(struct rq *rq, struct task_struct *p, int flags)
 
 static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
 {
-#ifdef CONFIG_SMP
 	idle_exit_fair(rq);
 	rq_last_tick_reset(rq);
-#endif
 }
 
 static void task_tick_idle(struct rq *rq, struct task_struct *curr, int queued)
