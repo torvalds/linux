@@ -3318,8 +3318,8 @@ static void rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sba
 			      struct ieee80211_sta *sta, void *priv_sta)
 {
 }
-static struct rate_control_ops rs_ops = {
-	.module = NULL,
+
+static const struct rate_control_ops rs_ops = {
 	.name = RS_NAME,
 	.tx_status = rs_tx_status,
 	.get_rate = rs_get_rate,

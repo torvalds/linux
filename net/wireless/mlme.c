@@ -772,7 +772,7 @@ void cfg80211_cac_event(struct net_device *netdev,
 	if (WARN_ON(!wdev->cac_started))
 		return;
 
-	if (WARN_ON(!wdev->channel))
+	if (WARN_ON(!wdev->chandef.chan))
 		return;
 
 	switch (event) {

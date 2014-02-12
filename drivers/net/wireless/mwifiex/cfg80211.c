@@ -1583,8 +1583,9 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
  * the function notifies the CFG802.11 subsystem of the new BSS connection.
  */
 static int
-mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
-		       u8 *bssid, int mode, struct ieee80211_channel *channel,
+mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len,
+		       const u8 *ssid, const u8 *bssid, int mode,
+		       struct ieee80211_channel *channel,
 		       struct cfg80211_connect_params *sme, bool privacy)
 {
 	struct cfg80211_ssid req_ssid;
@@ -1881,7 +1882,8 @@ mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 				     params->privacy);
 done:
 	if (!ret) {
-		cfg80211_ibss_joined(priv->netdev, priv->cfg_bssid, GFP_KERNEL);
+		cfg80211_ibss_joined(priv->netdev, priv->cfg_bssid,
+				     params->chandef.chan, GFP_KERNEL);
 		dev_dbg(priv->adapter->dev,
 			"info: joined/created adhoc network with bssid"
 			" %pM successfully\n", priv->cfg_bssid);

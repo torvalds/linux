@@ -603,6 +603,9 @@ static void iwl_scan_offload_build_ssid(struct cfg80211_sched_scan_request *req,
 	 * config match list.
 	 */
 	for (i = 0; i < req->n_match_sets && i < PROBE_OPTION_MAX; i++) {
+		/* skip empty SSID matchsets */
+		if (!req->match_sets[i].ssid.ssid_len)
+			continue;
 		scan->direct_scan[i].id = WLAN_EID_SSID;
 		scan->direct_scan[i].len = req->match_sets[i].ssid.ssid_len;
 		memcpy(scan->direct_scan[i].ssid, req->match_sets[i].ssid.ssid,
