@@ -41,6 +41,7 @@ static DEFINE_MUTEX(acpi_scan_lock);
 static LIST_HEAD(acpi_scan_handlers_list);
 DEFINE_MUTEX(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
+static DEFINE_MUTEX(acpi_hp_context_lock);
 
 struct acpi_device_bus_id{
 	char bus_id[15];
@@ -59,6 +60,16 @@ void acpi_scan_lock_release(void)
 	mutex_unlock(&acpi_scan_lock);
 }
 EXPORT_SYMBOL_GPL(acpi_scan_lock_release);
+
+void acpi_lock_hp_context(void)
+{
+	mutex_lock(&acpi_hp_context_lock);
+}
+
+void acpi_unlock_hp_context(void)
+{
+	mutex_unlock(&acpi_hp_context_lock);
+}
 
 int acpi_scan_add_handler(struct acpi_scan_handler *handler)
 {
@@ -439,90 +450,74 @@ static int acpi_scan_bus_check(struct acpi_device *adev)
 	return 0;
 }
 
-static void acpi_device_hotplug(void *data, u32 src)
+static int acpi_generic_hotplug_event(struct acpi_device *adev, u32 type)
+{
+	switch (type) {
+	case ACPI_NOTIFY_BUS_CHECK:
+		return acpi_scan_bus_check(adev);
+	case ACPI_NOTIFY_DEVICE_CHECK:
+		return acpi_scan_device_check(adev);
+	case ACPI_NOTIFY_EJECT_REQUEST:
+	case ACPI_OST_EC_OSPM_EJECT:
+		if (adev->handler && !adev->handler->hotplug.enabled) {
+			dev_info(&adev->dev, "Eject disabled\n");
+			return -EPERM;
+		}
+		acpi_evaluate_hotplug_ost(adev->handle, ACPI_NOTIFY_EJECT_REQUEST,
+					  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
+		return acpi_scan_hot_remove(adev);
+	}
+	return -EINVAL;
+}
+
+void acpi_device_hotplug(void *data, u32 src)
 {
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	struct acpi_device *adev = data;
-	int error;
+	int error = -ENODEV;
 
 	lock_device_hotplug();
 	mutex_lock(&acpi_scan_lock);
 
 	/*
 	 * The device object's ACPI handle cannot become invalid as long as we
-	 * are holding acpi_scan_lock, but it may have become invalid before
+	 * are holding acpi_scan_lock, but it might have become invalid before
 	 * that lock was acquired.
 	 */
 	if (adev->handle == INVALID_ACPI_HANDLE)
-		goto out;
+		goto err_out;
 
-	switch (src) {
-	case ACPI_NOTIFY_BUS_CHECK:
-		error = acpi_scan_bus_check(adev);
-		break;
-	case ACPI_NOTIFY_DEVICE_CHECK:
-		error = acpi_scan_device_check(adev);
-		break;
-	case ACPI_NOTIFY_EJECT_REQUEST:
-	case ACPI_OST_EC_OSPM_EJECT:
-		error = acpi_scan_hot_remove(adev);
-		break;
-	default:
-		error = -EINVAL;
-		break;
+	if (adev->flags.hotplug_notify) {
+		error = acpi_generic_hotplug_event(adev, src);
+		if (error == -EPERM) {
+			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
+			goto err_out;
+		}
+	} else {
+		int (*event)(struct acpi_device *, u32);
+
+		acpi_lock_hp_context();
+		event = adev->hp ? adev->hp->event : NULL;
+		acpi_unlock_hp_context();
+		/*
+		 * There may be additional notify handlers for device objects
+		 * without the .event() callback, so ignore them here.
+		 */
+		if (event)
+			error = event(adev, src);
+		else
+			goto out;
 	}
 	if (!error)
 		ost_code = ACPI_OST_SC_SUCCESS;
 
- out:
+ err_out:
 	acpi_evaluate_hotplug_ost(adev->handle, src, ost_code, NULL);
-	put_device(&adev->dev);
+
+ out:
+	acpi_bus_put_acpi_device(adev);
 	mutex_unlock(&acpi_scan_lock);
 	unlock_device_hotplug();
-}
-
-static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
-{
-	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
-	struct acpi_device *adev;
-	acpi_status status;
-
-	if (acpi_bus_get_device(handle, &adev))
-		goto err_out;
-
-	switch (type) {
-	case ACPI_NOTIFY_BUS_CHECK:
-		acpi_handle_debug(handle, "ACPI_NOTIFY_BUS_CHECK event\n");
-		break;
-	case ACPI_NOTIFY_DEVICE_CHECK:
-		acpi_handle_debug(handle, "ACPI_NOTIFY_DEVICE_CHECK event\n");
-		break;
-	case ACPI_NOTIFY_EJECT_REQUEST:
-		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
-		if (!adev->handler)
-			goto err_out;
-
-		if (!adev->handler->hotplug.enabled) {
-			acpi_handle_err(handle, "Eject disabled\n");
-			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
-			goto err_out;
-		}
-		acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
-					  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
-		break;
-	default:
-		/* non-hotplug event; possibly handled by other handler */
-		return;
-	}
-	get_device(&adev->dev);
-	status = acpi_hotplug_execute(acpi_device_hotplug, adev, type);
-	if (ACPI_SUCCESS(status))
-		return;
-
-	put_device(&adev->dev);
-
- err_out:
-	acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
 }
 
 static ssize_t real_power_state_show(struct device *dev,
@@ -570,8 +565,6 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	if (ACPI_FAILURE(status) || !acpi_device->flags.ejectable)
 		return -ENODEV;
 
-	acpi_evaluate_hotplug_ost(acpi_device->handle, ACPI_OST_EC_OSPM_EJECT,
-				  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 	get_device(&acpi_device->dev);
 	status = acpi_hotplug_execute(acpi_device_hotplug, acpi_device,
 				      ACPI_OST_EC_OSPM_EJECT);
@@ -1114,14 +1107,16 @@ static void acpi_scan_drop_device(acpi_handle handle, void *context)
 	mutex_unlock(&acpi_device_del_lock);
 }
 
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
+static int acpi_get_device_data(acpi_handle handle, struct acpi_device **device,
+				void (*callback)(void *))
 {
 	acpi_status status;
 
 	if (!device)
 		return -EINVAL;
 
-	status = acpi_get_data(handle, acpi_scan_drop_device, (void **)device);
+	status = acpi_get_data_full(handle, acpi_scan_drop_device,
+				    (void **)device, callback);
 	if (ACPI_FAILURE(status) || !*device) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
 				  handle));
@@ -1129,7 +1124,31 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 	}
 	return 0;
 }
+
+int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
+{
+	return acpi_get_device_data(handle, device, NULL);
+}
 EXPORT_SYMBOL(acpi_bus_get_device);
+
+static void get_acpi_device(void *dev)
+{
+	if (dev)
+		get_device(&((struct acpi_device *)dev)->dev);
+}
+
+struct acpi_device *acpi_bus_get_acpi_device(acpi_handle handle)
+{
+	struct acpi_device *adev = NULL;
+
+	acpi_get_device_data(handle, &adev, get_acpi_device);
+	return adev;
+}
+
+void acpi_bus_put_acpi_device(struct acpi_device *adev)
+{
+	put_device(&adev->dev);
+}
 
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *))
@@ -1941,33 +1960,19 @@ void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val)
 	mutex_unlock(&acpi_scan_lock);
 }
 
-static void acpi_scan_init_hotplug(acpi_handle handle, int type)
+static void acpi_scan_init_hotplug(struct acpi_device *adev)
 {
-	struct acpi_device_pnp pnp = {};
 	struct acpi_hardware_id *hwid;
-	struct acpi_scan_handler *handler;
 
-	INIT_LIST_HEAD(&pnp.ids);
-	acpi_set_pnp_ids(handle, &pnp, type);
+	list_for_each_entry(hwid, &adev->pnp.ids, list) {
+		struct acpi_scan_handler *handler;
 
-	if (!pnp.type.hardware_id)
-		goto out;
-
-	/*
-	 * This relies on the fact that acpi_install_notify_handler() will not
-	 * install the same notify handler routine twice for the same handle.
-	 */
-	list_for_each_entry(hwid, &pnp.ids, list) {
 		handler = acpi_scan_match_handler(hwid->id, NULL);
 		if (handler) {
-			acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					acpi_hotplug_notify_cb, handler);
+			adev->flags.hotplug_notify = true;
 			break;
 		}
 	}
-
-out:
-	acpi_free_pnp_ids(&pnp);
 }
 
 static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
@@ -1991,11 +1996,11 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_OK;
 	}
 
-	acpi_scan_init_hotplug(handle, type);
-
 	acpi_add_single_object(&device, handle, type, sta);
 	if (!device)
 		return AE_CTRL_DEPTH;
+
+	acpi_scan_init_hotplug(device);
 
  out:
 	if (!*return_value)
