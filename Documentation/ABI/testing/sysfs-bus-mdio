@@ -7,3 +7,13 @@ Description:
 		by the device during bus enumeration, encoded in hexadecimal.
 		This ID is used to match the device with the appropriate
 		driver.
+
+What:		/sys/bus/mdio_bus/devices/.../phy_interface
+Date:		February 2014
+KernelVersion:	3.15
+Contact:	netdev@vger.kernel.org
+Description:
+		This attribute contains the PHY interface as configured by the
+		Ethernet driver during bus enumeration, encoded in string.
+		This interface mode is used to configure the Ethernet MAC with the
+		appropriate mode for its data lines to the PHY hardware.
