@@ -496,31 +496,66 @@ struct ethtool_pauseparam {
 };
 
 #define ETH_GSTRING_LEN		32
+
+/**
+ * enum ethtool_stringset - string set ID
+ * @ETH_SS_TEST: Self-test result names, for use with %ETHTOOL_TEST
+ * @ETH_SS_STATS: Statistic names, for use with %ETHTOOL_GSTATS
+ * @ETH_SS_PRIV_FLAGS: Driver private flag names, for use with
+ *	%ETHTOOL_GPFLAGS and %ETHTOOL_SPFLAGS
+ * @ETH_SS_NTUPLE_FILTERS: Previously used with %ETHTOOL_GRXNTUPLE;
+ *	now deprecated
+ * @ETH_SS_FEATURES: Device feature names
+ */
 enum ethtool_stringset {
 	ETH_SS_TEST		= 0,
 	ETH_SS_STATS,
 	ETH_SS_PRIV_FLAGS,
-	ETH_SS_NTUPLE_FILTERS,	/* Do not use, GRXNTUPLE is now deprecated */
+	ETH_SS_NTUPLE_FILTERS,
 	ETH_SS_FEATURES,
 };
 
-/* for passing string sets for data tagging */
+/**
+ * struct ethtool_gstrings - string set for data tagging
+ * @cmd: Command number = %ETHTOOL_GSTRINGS
+ * @string_set: String set ID; one of &enum ethtool_stringset
+ * @len: On return, the number of strings in the string set
+ * @data: Buffer for strings.  Each string is null-padded to a size of
+ *	%ETH_GSTRING_LEN.
+ *
+ * Users must use %ETHTOOL_GSSET_INFO to find the number of strings in
+ * the string set.  They must allocate a buffer of the appropriate
+ * size immediately following this structure.
+ */
 struct ethtool_gstrings {
-	__u32	cmd;		/* ETHTOOL_GSTRINGS */
-	__u32	string_set;	/* string set id e.c. ETH_SS_TEST, etc*/
-	__u32	len;		/* number of strings in the string set */
+	__u32	cmd;
+	__u32	string_set;
+	__u32	len;
 	__u8	data[0];
 };
 
+/**
+ * struct ethtool_sset_info - string set information
+ * @cmd: Command number = %ETHTOOL_GSSET_INFO
+ * @sset_mask: On entry, a bitmask of string sets to query, with bits
+ *	numbered according to &enum ethtool_stringset.  On return, a
+ *	bitmask of those string sets queried that are supported.
+ * @data: Buffer for string set sizes.  On return, this contains the
+ *	size of each string set that was queried and supported, in
+ *	order of ID.
+ *
+ * Example: The user passes in @sset_mask = 0x7 (sets 0, 1, 2) and on
+ * return @sset_mask == 0x6 (sets 1, 2).  Then @data[0] contains the
+ * size of set 1 and @data[1] contains the size of set 2.
+ *
+ * Users must allocate a buffer of the appropriate size (4 * number of
+ * sets queried) immediately following this structure.
+ */
 struct ethtool_sset_info {
-	__u32	cmd;		/* ETHTOOL_GSSET_INFO */
+	__u32	cmd;
 	__u32	reserved;
-	__u64	sset_mask;	/* input: each bit selects an sset to query */
-				/* output: each bit a returned sset */
-	__u32	data[0];	/* ETH_SS_xxx count, in order, based on bits
-				   in sset_mask.  One bit implies one
-				   __u32, two bits implies two
-				   __u32's, etc. */
+	__u64	sset_mask;
+	__u32	data[0];
 };
 
 /**
