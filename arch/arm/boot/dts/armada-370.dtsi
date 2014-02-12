@@ -133,6 +133,11 @@
 					marvell,function = "sd0";
 				};
 
+				i2c0_pins: i2c0-pins {
+					marvell,pins = "mpp2", "mpp3";
+					marvell,function = "i2c0";
+				};
+
 				i2s_pins1: i2s-pins1 {
 					marvell,pins = "mpp5", "mpp6", "mpp7",
 						       "mpp8", "mpp9", "mpp10",
