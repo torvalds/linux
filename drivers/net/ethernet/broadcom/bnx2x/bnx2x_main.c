@@ -6005,18 +6005,6 @@ static void bnx2x_init_internal_common(struct bnx2x *bp)
 {
 	int i;
 
-	if (IS_MF_SI(bp))
-		/*
-		 * In switch independent mode, the TSTORM needs to accept
-		 * packets that failed classification, since approximate match
-		 * mac addresses aren't written to NIG LLH
-		 */
-		REG_WR8(bp, BAR_TSTRORM_INTMEM +
-			    TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET, 2);
-	else if (!CHIP_IS_E1(bp)) /* 57710 doesn't support MF */
-		REG_WR8(bp, BAR_TSTRORM_INTMEM +
-			    TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET, 0);
-
 	/* Zero this manually as its initialization is
 	   currently missing in the initTool */
 	for (i = 0; i < (USTORM_AGG_DATA_SIZE >> 2); i++)
