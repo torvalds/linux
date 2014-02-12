@@ -794,19 +794,18 @@ static int s6e8ax0_probe(struct mipi_dsim_lcd_device *dsim_dev)
 		return ret;
 	}
 
-	lcd->ld = lcd_device_register("s6e8ax0", lcd->dev, lcd,
+	lcd->ld = devm_lcd_device_register(lcd->dev, "s6e8ax0", lcd->dev, lcd,
 			&s6e8ax0_lcd_ops);
 	if (IS_ERR(lcd->ld)) {
 		dev_err(lcd->dev, "failed to register lcd ops.\n");
 		return PTR_ERR(lcd->ld);
 	}
 
-	lcd->bd = backlight_device_register("s6e8ax0-bl", lcd->dev, lcd,
-			&s6e8ax0_backlight_ops, NULL);
+	lcd->bd = devm_backlight_device_register(lcd->dev, "s6e8ax0-bl",
+				lcd->dev, lcd, &s6e8ax0_backlight_ops, NULL);
 	if (IS_ERR(lcd->bd)) {
 		dev_err(lcd->dev, "failed to register backlight ops.\n");
-		ret = PTR_ERR(lcd->bd);
-		goto err_backlight_register;
+		return PTR_ERR(lcd->bd);
 	}
 
 	lcd->bd->props.max_brightness = MAX_BRIGHTNESS;
@@ -834,10 +833,6 @@ static int s6e8ax0_probe(struct mipi_dsim_lcd_device *dsim_dev)
 	dev_dbg(lcd->dev, "probed s6e8ax0 panel driver.\n");
 
 	return 0;
-
-err_backlight_register:
-	lcd_device_unregister(lcd->ld);
-	return ret;
 }
 
 #ifdef CONFIG_PM
