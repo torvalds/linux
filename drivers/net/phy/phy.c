@@ -114,12 +114,15 @@ static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
  * phy_aneg_done - return auto-negotiation status
  * @phydev: target phy_device struct
  *
- * Description: Reads the status register and returns 0 either if
- *   auto-negotiation is incomplete, or if there was an error.
- *   Returns BMSR_ANEGCOMPLETE if auto-negotiation is done.
+ * Description: Return the auto-negotiation status from this @phydev
+ * Returns > 0 on success or < 0 on error. 0 means that auto-negotiation
+ * is still pending.
  */
 static inline int phy_aneg_done(struct phy_device *phydev)
 {
+	if (phydev->drv->aneg_done)
+		return phydev->drv->aneg_done(phydev);
+
 	return genphy_aneg_done(phydev);
 }
 
