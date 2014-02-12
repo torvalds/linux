@@ -151,6 +151,7 @@ static struct ctl_table sctp_net_table[] = {
 	},
 	{
 		.procname	= "cookie_hmac_alg",
+		.data		= &init_net.sctp.sctp_hmac_alg,
 		.maxlen		= 8,
 		.mode		= 0644,
 		.proc_handler	= proc_sctp_do_hmac_alg,
