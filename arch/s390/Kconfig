@@ -415,6 +415,10 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	def_bool y
+	depends on 64BIT
+
 config FORCE_MAX_ZONEORDER
 	int
 	default "9"
