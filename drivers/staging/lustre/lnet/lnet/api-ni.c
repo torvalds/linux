@@ -770,7 +770,7 @@ lnet_nid_cpt_hash(lnet_nid_t nid, unsigned int number)
 	if (number == 1)
 		return 0;
 
-	val = cfs_hash_long(key, LNET_CPT_BITS);
+	val = hash_long(key, LNET_CPT_BITS);
 	/* NB: LNET_CP_NUMBER doesn't have to be PO2 */
 	if (val < number)
 		return val;

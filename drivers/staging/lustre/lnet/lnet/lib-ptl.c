@@ -366,7 +366,7 @@ lnet_mt_match_head(struct lnet_match_table *mtable,
 		unsigned long hash = mbits + id.nid + id.pid;
 
 		LASSERT(lnet_ptl_is_unique(ptl));
-		hash = cfs_hash_long(hash, LNET_MT_HASH_BITS);
+		hash = hash_long(hash, LNET_MT_HASH_BITS);
 		return &mtable->mt_mhash[hash];
 	}
 }

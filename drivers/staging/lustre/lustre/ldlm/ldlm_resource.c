@@ -421,9 +421,9 @@ static unsigned ldlm_res_hop_fid_hash(struct cfs_hash *hs,
 	} else {
 		val = fid_oid(&fid);
 	}
-	hash = cfs_hash_long(hash, hs->hs_bkt_bits);
+	hash = hash_long(hash, hs->hs_bkt_bits);
 	/* give me another random factor */
-	hash -= cfs_hash_long((unsigned long)hs, val % 11 + 3);
+	hash -= hash_long((unsigned long)hs, val % 11 + 3);
 
 	hash <<= hs->hs_cur_bits - hs->hs_bkt_bits;
 	hash |= ldlm_res_hop_hash(hs, key, CFS_HASH_NBKT(hs) - 1);

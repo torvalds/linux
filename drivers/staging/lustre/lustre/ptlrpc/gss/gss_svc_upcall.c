@@ -102,7 +102,7 @@ static inline unsigned long hash_mem(char *buf, int length, int bits)
 		len++;
 
 		if ((len & (BITS_PER_LONG/8-1)) == 0)
-			hash = cfs_hash_long(hash^l, BITS_PER_LONG);
+			hash = hash_long(hash^l, BITS_PER_LONG);
 	} while (len);
 
 	return hash >> (BITS_PER_LONG - bits);

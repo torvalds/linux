@@ -890,10 +890,10 @@ static unsigned lu_obj_hop_hash(struct cfs_hash *hs,
 
 	hash = fid_flatten32(fid);
 	hash += (hash >> 4) + (hash << 12); /* mixing oid and seq */
-	hash = cfs_hash_long(hash, hs->hs_bkt_bits);
+	hash = hash_long(hash, hs->hs_bkt_bits);
 
 	/* give me another random factor */
-	hash -= cfs_hash_long((unsigned long)hs, fid_oid(fid) % 11 + 3);
+	hash -= hash_long((unsigned long)hs, fid_oid(fid) % 11 + 3);
 
 	hash <<= hs->hs_cur_bits - hs->hs_bkt_bits;
 	hash |= (fid_seq(fid) + fid_oid(fid)) & (CFS_HASH_NBKT(hs) - 1);
