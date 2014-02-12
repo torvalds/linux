@@ -52,9 +52,6 @@ config GENERIC_BUG
 config ZONE_DMA
 	def_bool y
 
-config GENERIC_GPIO
-	def_bool y
-
 config FORCE_MAX_ZONEORDER
 	int
 	default "14"
