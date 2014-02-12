@@ -274,8 +274,8 @@ possible, likely up to the limit returned by pci_msix_vec_count() function:
 
 static int foo_driver_enable_msix(struct foo_adapter *adapter, int nvec)
 {
-	return pci_enable_msi_range(adapter->pdev, adapter->msix_entries,
-				    1, nvec);
+	return pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
+				     1, nvec);
 }
 
 Note the value of 'minvec' parameter is 1.  As 'minvec' is inclusive,
@@ -286,8 +286,8 @@ In this case the function could look like this:
 
 static int foo_driver_enable_msix(struct foo_adapter *adapter, int nvec)
 {
-	return pci_enable_msi_range(adapter->pdev, adapter->msix_entries,
-				    FOO_DRIVER_MINIMUM_NVEC, nvec);
+	return pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
+				     FOO_DRIVER_MINIMUM_NVEC, nvec);
 }
 
 4.3.1.2 Exact number of MSI-X interrupts
@@ -299,8 +299,8 @@ parameters:
 
 static int foo_driver_enable_msix(struct foo_adapter *adapter, int nvec)
 {
-	return pci_enable_msi_range(adapter->pdev, adapter->msix_entries,
-				    nvec, nvec);
+	return pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
+				     nvec, nvec);
 }
 
 4.3.1.3 Specific requirements to the number of MSI-X interrupts
