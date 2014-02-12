@@ -1631,7 +1631,7 @@ again:
 static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 				    const struct iovec *iov,
 				    unsigned long nr_segs, loff_t pos,
-				    loff_t *ppos, size_t count, size_t ocount)
+				    size_t count, size_t ocount)
 {
 	struct file *file = iocb->ki_filp;
 	struct iov_iter i;
@@ -1640,7 +1640,7 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 	loff_t endbyte;
 	int err;
 
-	written = generic_file_direct_write(iocb, iov, &nr_segs, pos, ppos,
+	written = generic_file_direct_write(iocb, iov, &nr_segs, pos, &iocb->ki_pos,
 					    count, ocount);
 
 	if (written < 0 || written == count)
@@ -1659,7 +1659,7 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 	if (err)
 		goto out;
 	written += written_buffered;
-	*ppos = pos + written_buffered;
+	iocb->ki_pos = pos + written_buffered;
 	invalidate_mapping_pages(file->f_mapping, pos >> PAGE_CACHE_SHIFT,
 				 endbyte >> PAGE_CACHE_SHIFT);
 out:
@@ -1691,7 +1691,6 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	loff_t *ppos = &iocb->ki_pos;
 	u64 start_pos;
 	ssize_t num_written = 0;
 	ssize_t err = 0;
@@ -1759,7 +1758,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 
 	if (unlikely(file->f_flags & O_DIRECT)) {
 		num_written = __btrfs_direct_write(iocb, iov, nr_segs,
-						   pos, ppos, count, ocount);
+						   pos, count, ocount);
 	} else {
 		struct iov_iter i;
 
@@ -1767,7 +1766,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 
 		num_written = __btrfs_buffered_write(file, &i, pos);
 		if (num_written > 0)
-			*ppos = pos + num_written;
+			iocb->ki_pos = pos + num_written;
 	}
 
 	mutex_unlock(&inode->i_mutex);
