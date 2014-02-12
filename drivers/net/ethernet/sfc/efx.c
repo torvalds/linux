@@ -503,8 +503,6 @@ static int efx_probe_channel(struct efx_channel *channel)
 			goto fail;
 	}
 
-	channel->n_rx_frm_trunc = 0;
-
 	return 0;
 
 fail:
