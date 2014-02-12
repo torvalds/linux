@@ -1344,8 +1344,7 @@ pick_next_task_rt(struct rq *rq, struct task_struct *prev)
 	if (rt_rq_throttled(rt_rq))
 		return NULL;
 
-	if (prev)
-		prev->sched_class->put_prev_task(rq, prev);
+	put_prev_task(rq, prev);
 
 	p = _pick_next_task_rt(rq);
 

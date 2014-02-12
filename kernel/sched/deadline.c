@@ -1008,8 +1008,7 @@ struct task_struct *pick_next_task_dl(struct rq *rq, struct task_struct *prev)
 	if (unlikely(!dl_rq->dl_nr_running))
 		return NULL;
 
-	if (prev)
-		prev->sched_class->put_prev_task(rq, prev);
+	put_prev_task(rq, prev);
 
 	dl_se = pick_next_dl_entity(rq, dl_rq);
 	BUG_ON(!dl_se);

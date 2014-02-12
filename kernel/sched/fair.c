@@ -4690,7 +4690,7 @@ again:
 	if (!cfs_rq->nr_running)
 		goto idle;
 
-	if (!prev || prev->sched_class != &fair_sched_class)
+	if (prev->sched_class != &fair_sched_class)
 		goto simple;
 
 	/*
@@ -4766,8 +4766,7 @@ simple:
 	if (!cfs_rq->nr_running)
 		goto idle;
 
-	if (prev)
-		prev->sched_class->put_prev_task(rq, prev);
+	put_prev_task(rq, prev);
 
 	do {
 		se = pick_next_entity(cfs_rq, NULL);

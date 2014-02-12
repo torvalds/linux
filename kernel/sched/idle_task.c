@@ -26,8 +26,7 @@ static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int fl
 static struct task_struct *
 pick_next_task_idle(struct rq *rq, struct task_struct *prev)
 {
-	if (prev)
-		prev->sched_class->put_prev_task(rq, prev);
+	put_prev_task(rq, prev);
 
 	schedstat_inc(rq, sched_goidle);
 #ifdef CONFIG_SMP
