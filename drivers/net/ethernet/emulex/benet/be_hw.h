@@ -368,7 +368,7 @@ struct amap_eth_rx_compl_v0 {
 	u8 numfrags[3];		/* dword 1 */
 	u8 rss_flush;		/* dword 2 */
 	u8 cast_enc[2];		/* dword 2 */
-	u8 vtm;			/* dword 2 */
+	u8 qnq;			/* dword 2 */
 	u8 rss_bank;		/* dword 2 */
 	u8 rsvd1[23];		/* dword 2 */
 	u8 lro_pkt;		/* dword 2 */
@@ -401,7 +401,7 @@ struct amap_eth_rx_compl_v1 {
 	u8 numfrags[3];		/* dword 1 */
 	u8 rss_flush;		/* dword 2 */
 	u8 cast_enc[2];		/* dword 2 */
-	u8 vtm;			/* dword 2 */
+	u8 qnq;			/* dword 2 */
 	u8 rss_bank;		/* dword 2 */
 	u8 port[2];		/* dword 2 */
 	u8 vntagp;		/* dword 2 */

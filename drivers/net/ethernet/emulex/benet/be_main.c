@@ -945,9 +945,9 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	}
 
 	/* If vlan tag is already inlined in the packet, skip HW VLAN
-	 * tagging in UMC mode
+	 * tagging in pvid-tagging mode
 	 */
-	if ((adapter->function_mode & UMC_ENABLED) &&
+	if (be_pvid_tagging_enabled(adapter) &&
 	    veh->h_vlan_proto == htons(ETH_P_8021Q))
 			*skip_hw_vlan = true;
 
@@ -1660,7 +1660,7 @@ static void be_parse_rx_compl_v1(struct be_eth_rx_compl *compl,
 	rxcp->rss_hash =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, rsshash, compl);
 	if (rxcp->vlanf) {
-		rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtm,
+		rxcp->qnq = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, qnq,
 					  compl);
 		rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vlan_tag,
 					       compl);
@@ -1690,7 +1690,7 @@ static void be_parse_rx_compl_v0(struct be_eth_rx_compl *compl,
 	rxcp->rss_hash =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, rsshash, compl);
 	if (rxcp->vlanf) {
-		rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtm,
+		rxcp->qnq = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, qnq,
 					  compl);
 		rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vlan_tag,
 					       compl);
@@ -1723,9 +1723,11 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 		rxcp->l4_csum = 0;
 
 	if (rxcp->vlanf) {
-		/* vlanf could be wrongly set in some cards.
-		 * ignore if vtm is not set */
-		if ((adapter->function_mode & FLEX10_MODE) && !rxcp->vtm)
+		/* In QNQ modes, if qnq bit is not set, then the packet was
+		 * tagged only with the transparent outer vlan-tag and must
+		 * not be treated as a vlan packet by host
+		 */
+		if (be_is_qnq_mode(adapter) && !rxcp->qnq)
 			rxcp->vlanf = 0;
 
 		if (!lancer_chip(adapter))
@@ -3109,6 +3111,22 @@ err:
 	return status;
 }
 
+/* Converting function_mode bits on BE3 to SH mc_type enums */
+
+static u8 be_convert_mc_type(u32 function_mode)
+{
+	if (function_mode & VNIC_MODE && function_mode & FLEX10_MODE)
+		return vNIC1;
+	else if (function_mode & FLEX10_MODE)
+		return FLEX10;
+	else if (function_mode & VNIC_MODE)
+		return vNIC2;
+	else if (function_mode & UMC_ENABLED)
+		return UMC;
+	else
+		return MC_NONE;
+}
+
 /* On BE2/BE3 FW does not suggest the supported limits */
 static void BEx_get_resources(struct be_adapter *adapter,
 			      struct be_resources *res)
@@ -3129,12 +3147,23 @@ static void BEx_get_resources(struct be_adapter *adapter,
 	else
 		res->max_uc_mac = BE_VF_UC_PMAC_COUNT;
 
-	if (adapter->function_mode & FLEX10_MODE)
-		res->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
-	else if (adapter->function_mode & UMC_ENABLED)
-		res->max_vlans = BE_UMC_NUM_VLANS_SUPPORTED;
-	else
+	adapter->mc_type = be_convert_mc_type(adapter->function_mode);
+
+	if (be_is_mc(adapter)) {
+		/* Assuming that there are 4 channels per port,
+		 * when multi-channel is enabled
+		 */
+		if (be_is_qnq_mode(adapter))
+			res->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
+		else
+			/* In a non-qnq multichannel mode, the pvid
+			 * takes up one vlan entry
+			 */
+			res->max_vlans = (BE_NUM_VLANS_SUPPORTED / 4) - 1;
+	} else {
 		res->max_vlans = BE_NUM_VLANS_SUPPORTED;
+	}
+
 	res->max_mcast_mac = BE_MAX_MC;
 
 	/* For BE3 1Gb ports, F/W does not properly support multiple TXQs */
@@ -4417,14 +4446,32 @@ static bool be_reset_required(struct be_adapter *adapter)
 
 static char *mc_name(struct be_adapter *adapter)
 {
-	if (adapter->function_mode & FLEX10_MODE)
-		return "FLEX10";
-	else if (adapter->function_mode & VNIC_MODE)
-		return "vNIC";
-	else if (adapter->function_mode & UMC_ENABLED)
-		return "UMC";
-	else
-		return "";
+	char *str = "";	/* default */
+
+	switch (adapter->mc_type) {
+	case UMC:
+		str = "UMC";
+		break;
+	case FLEX10:
+		str = "FLEX10";
+		break;
+	case vNIC1:
+		str = "vNIC-1";
+		break;
+	case nPAR:
+		str = "nPAR";
+		break;
+	case UFP:
+		str = "UFP";
+		break;
+	case vNIC2:
+		str = "vNIC-2";
+		break;
+	default:
+		str = "";
+	}
+
+	return str;
 }
 
 static inline char *func_name(struct be_adapter *adapter)

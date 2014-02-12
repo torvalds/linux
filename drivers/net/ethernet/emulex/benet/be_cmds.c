@@ -3296,6 +3296,21 @@ static struct be_pcie_res_desc *be_get_pcie_desc(u8 devfn, u8 *buf,
 	return NULL;
 }
 
+static struct be_port_res_desc *be_get_port_desc(u8 *buf, u32 desc_count)
+{
+	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
+	int i;
+
+	for (i = 0; i < desc_count; i++) {
+		if (hdr->desc_type == PORT_RESOURCE_DESC_TYPE_V1)
+			return (struct be_port_res_desc *)hdr;
+
+		hdr->desc_len = hdr->desc_len ? : RESOURCE_DESC_SIZE_V0;
+		hdr = (void *)hdr + hdr->desc_len;
+	}
+	return NULL;
+}
+
 static void be_copy_nic_desc(struct be_resources *res,
 			     struct be_nic_res_desc *desc)
 {
@@ -3439,6 +3454,7 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 {
 	struct be_cmd_resp_get_profile_config *resp;
 	struct be_pcie_res_desc *pcie;
+	struct be_port_res_desc *port;
 	struct be_nic_res_desc *nic;
 	struct be_queue_info *mccq = &adapter->mcc_obj.q;
 	struct be_dma_mem cmd;
@@ -3465,6 +3481,10 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 				 desc_count);
 	if (pcie)
 		res->max_vfs = le16_to_cpu(pcie->num_vfs);
+
+	port = be_get_port_desc(resp->func_param, desc_count);
+	if (port)
+		adapter->mc_type = port->mc_type;
 
 	nic = be_get_nic_desc(resp->func_param, desc_count);
 	if (nic)

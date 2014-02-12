@@ -1098,14 +1098,6 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 function_caps;
 };
 
-/* Is BE in a multi-channel mode */
-static inline bool be_is_mc(struct be_adapter *adapter)
-{
-	return adapter->function_mode & FLEX10_MODE ||
-		adapter->function_mode & VNIC_MODE ||
-		adapter->function_mode & UMC_ENABLED;
-}
-
 /******************** RSS Config ****************************************/
 /* RSS type		Input parameters used to compute RX hash
  * RSS_ENABLE_IPV4	SRC IPv4, DST IPv4
@@ -1828,6 +1820,7 @@ struct be_cmd_req_set_ext_fat_caps {
 #define NIC_RESOURCE_DESC_TYPE_V0		0x41
 #define PCIE_RESOURCE_DESC_TYPE_V1		0x50
 #define NIC_RESOURCE_DESC_TYPE_V1		0x51
+#define PORT_RESOURCE_DESC_TYPE_V1		0x55
 #define MAX_RESOURCE_DESC			264
 
 /* QOS unit number */
@@ -1890,6 +1883,33 @@ struct be_nic_res_desc {
 	u16 rsvd7;
 	u32 rsvd8[7];
 } __packed;
+
+/************ Multi-Channel type ***********/
+enum mc_type {
+	MC_NONE = 0x01,
+	UMC = 0x02,
+	FLEX10 = 0x03,
+	vNIC1 = 0x04,
+	nPAR = 0x05,
+	UFP = 0x06,
+	vNIC2 = 0x07
+};
+
+struct be_port_res_desc {
+	struct be_res_desc_hdr hdr;
+	u8 rsvd0;
+	u8 flags;
+	u8 rsvd1;
+	u8 mc_type;
+	u16 rsvd2;
+	u32 rsvd3[20];
+} __packed;
+
+/* Is BE in a multi-channel mode */
+static inline bool be_is_mc(struct be_adapter *adapter)
+{
+	return adapter->mc_type > MC_NONE;
+}
 
 struct be_cmd_req_get_func_config {
 	struct be_cmd_req_hdr hdr;

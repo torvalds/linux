@@ -88,7 +88,6 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE_MIN_MTU		256
 
 #define BE_NUM_VLANS_SUPPORTED	64
-#define BE_UMC_NUM_VLANS_SUPPORTED	15
 #define BE_MAX_EQD		128u
 #define	BE_MAX_TX_FRAG_COUNT	30
 
@@ -293,7 +292,7 @@ struct be_rx_compl_info {
 	u8 ip_csum;
 	u8 l4_csum;
 	u8 ipv6;
-	u8 vtm;
+	u8 qnq;
 	u8 pkt_type;
 	u8 ip_frag;
 };
@@ -465,6 +464,7 @@ struct be_adapter {
 
 	u32 port_num;
 	bool promiscuous;
+	u8 mc_type;
 	u32 function_mode;
 	u32 function_caps;
 	u32 rx_fc;		/* Rx flow control */
@@ -533,6 +533,14 @@ static inline u16 be_max_qs(struct be_adapter *adapter)
 	num = min(num, be_max_eqs(adapter));
 	return min_t(u16, num, num_online_cpus());
 }
+
+/* Is BE in pvid_tagging mode */
+#define be_pvid_tagging_enabled(adapter)	(adapter->pvid)
+
+/* Is BE in QNQ multi-channel mode */
+#define be_is_qnq_mode(adapter)		(adapter->mc_type == FLEX10 ||  \
+					 adapter->mc_type == vNIC1 ||	\
+					 adapter->mc_type == UFP)
 
 #define lancer_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID3 || \
 				 adapter->pdev->device == OC_DEVICE_ID4)
