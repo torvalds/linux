@@ -51,13 +51,14 @@ struct xwdt_device {
 static struct xwdt_device xdev;
 
 static  u32 timeout;
-static  u32 control_status_reg;
 static  u8  no_timeout;
 
 static  DEFINE_SPINLOCK(spinlock);
 
 static int xilinx_wdt_start(struct watchdog_device *wdd)
 {
+	u32 control_status_reg;
+
 	spin_lock(&spinlock);
 
 	/* Clean previous status and enable the watchdog timer */
@@ -76,6 +77,8 @@ static int xilinx_wdt_start(struct watchdog_device *wdd)
 
 static int xilinx_wdt_stop(struct watchdog_device *wdd)
 {
+	u32 control_status_reg;
+
 	spin_lock(&spinlock);
 
 	control_status_reg = ioread32(xdev.base + XWT_TWCSR0_OFFSET);
@@ -93,6 +96,8 @@ static int xilinx_wdt_stop(struct watchdog_device *wdd)
 
 static int xilinx_wdt_keepalive(struct watchdog_device *wdd)
 {
+	u32 control_status_reg;
+
 	spin_lock(&spinlock);
 
 	control_status_reg = ioread32(xdev.base + XWT_TWCSR0_OFFSET);
