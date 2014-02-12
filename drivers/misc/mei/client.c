@@ -664,7 +664,6 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 		goto err;
 
 	cb->fop_type = MEI_FOP_READ;
-	cl->read_cb = cb;
 	if (dev->hbuf_is_ready) {
 		dev->hbuf_is_ready = false;
 		if (mei_hbm_cl_flow_control_req(dev, cl)) {
@@ -675,6 +674,9 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 	} else {
 		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
+
+	cl->read_cb = cb;
+
 	return rets;
 err:
 	mei_io_cb_free(cb);
