@@ -163,7 +163,15 @@
 	sound {
 	      compatible = "marvell,a370db-audio";
 	      marvell,audio-controller = <&audio_controller>;
-	      marvell,audio-codec = <&audio_codec>;
+	      marvell,audio-codec = <&audio_codec &spdif_out &spdif_in>;
 	      status = "okay";
+	};
+
+	spdif_out: spdif-out {
+	      compatible = "linux,spdif-dit";
+	};
+
+	spdif_in: spdif-in {
+	      compatible = "linux,spdif-dir";
 	};
 };
