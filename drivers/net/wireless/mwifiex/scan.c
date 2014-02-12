@@ -595,7 +595,7 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 	struct mwifiex_chan_scan_param_set *tmp_chan_list;
 	struct mwifiex_chan_scan_param_set *start_chan;
 
-	u32 tlv_idx, rates_size;
+	u32 tlv_idx, rates_size, cmd_no;
 	u32 total_scan_time;
 	u32 done_early;
 	u8 radio_type;
@@ -733,9 +733,13 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 
 		/* Send the scan command to the firmware with the specified
 		   cfg */
-		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SCAN,
-					     HostCmd_ACT_GEN_SET, 0,
-					     scan_cfg_out);
+		if (priv->adapter->ext_scan)
+			cmd_no = HostCmd_CMD_802_11_SCAN_EXT;
+		else
+			cmd_no = HostCmd_CMD_802_11_SCAN;
+
+		ret = mwifiex_send_cmd_async(priv, cmd_no, HostCmd_ACT_GEN_SET,
+					     0, scan_cfg_out);
 
 		/* rate IE is updated per scan command but same starting
 		 * pointer is used each time so that rate IE from earlier
@@ -786,6 +790,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ie_types_num_probes *num_probes_tlv;
 	struct mwifiex_ie_types_wildcard_ssid_params *wildcard_ssid_tlv;
+	struct mwifiex_ie_types_bssid_list *bssid_tlv;
 	u8 *tlv_pos;
 	u32 num_probes;
 	u32 ssid_len;
@@ -847,6 +852,17 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 		memcpy(scan_cfg_out->specific_bssid,
 		       user_scan_in->specific_bssid,
 		       sizeof(scan_cfg_out->specific_bssid));
+
+		if (adapter->ext_scan &&
+		    !is_zero_ether_addr(scan_cfg_out->specific_bssid)) {
+			bssid_tlv =
+				(struct mwifiex_ie_types_bssid_list *)tlv_pos;
+			bssid_tlv->header.type = cpu_to_le16(TLV_TYPE_BSSID);
+			bssid_tlv->header.len = cpu_to_le16(ETH_ALEN);
+			memcpy(bssid_tlv->bssid, user_scan_in->specific_bssid,
+			       ETH_ALEN);
+			tlv_pos += sizeof(struct mwifiex_ie_types_bssid_list);
+		}
 
 		for (i = 0; i < user_scan_in->num_ssids; i++) {
 			ssid_len = user_scan_in->ssid_list[i].ssid_len;
@@ -1579,7 +1595,7 @@ done:
 static int
 mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 				  u32 *bytes_left, u64 fw_tsf, u8 *radio_type,
-				  bool ext_scan)
+				  bool ext_scan, s32 rssi_val)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_chan_freq_power *cfp;
@@ -1642,6 +1658,8 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 		current_ptr += sizeof(u8);
 		curr_bcn_bytes -= sizeof(u8);
 		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%d\n", rssi);
+	} else {
+		rssi = rssi_val;
 	}
 
 	bcn_param = (struct mwifiex_fixed_bcn_param *)current_ptr;
@@ -1914,13 +1932,174 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		ret = mwifiex_parse_single_response_buf(priv, &bss_info,
 							&bytes_left,
 							le64_to_cpu(fw_tsf),
-							radio_type, false);
+							radio_type, false, 0);
 		if (ret)
 			goto check_next_scan;
 	}
 
 check_next_scan:
 	mwifiex_check_next_scan_command(priv);
+	return ret;
+}
+
+/*
+ * This function prepares an extended scan command to be sent to the firmware
+ *
+ * This uses the scan command configuration sent to the command processing
+ * module in command preparation stage to configure a extended scan command
+ * structure to send to firmware.
+ */
+int mwifiex_cmd_802_11_scan_ext(struct mwifiex_private *priv,
+				struct host_cmd_ds_command *cmd,
+				void *data_buf)
+{
+	struct host_cmd_ds_802_11_scan_ext *ext_scan = &cmd->params.ext_scan;
+	struct mwifiex_scan_cmd_config *scan_cfg = data_buf;
+
+	memcpy(ext_scan->tlv_buffer, scan_cfg->tlv_buf, scan_cfg->tlv_buf_len);
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_SCAN_EXT);
+
+	/* Size is equal to the sizeof(fixed portions) + the TLV len + header */
+	cmd->size = cpu_to_le16((u16)(sizeof(ext_scan->reserved)
+				      + scan_cfg->tlv_buf_len + S_DS_GEN));
+
+	return 0;
+}
+
+/* This function handles the command response of extended scan */
+int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv)
+{
+	dev_dbg(priv->adapter->dev, "info: EXT scan returns successfully\n");
+	return 0;
+}
+
+/* This function This function handles the event extended scan report. It
+ * parses extended scan results and informs to cfg80211 stack.
+ */
+int mwifiex_handle_event_ext_scan_report(struct mwifiex_private *priv,
+					 void *buf)
+{
+	int ret = 0;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	u8 *bss_info;
+	u32 bytes_left, bytes_left_for_tlv, idx;
+	u16 type, len;
+	struct mwifiex_ie_types_data *tlv;
+	struct mwifiex_ie_types_bss_scan_rsp *scan_rsp_tlv;
+	struct mwifiex_ie_types_bss_scan_info *scan_info_tlv;
+	u8 *radio_type;
+	u64 fw_tsf = 0;
+	s32 rssi = 0;
+	struct mwifiex_event_scan_result *event_scan = buf;
+	u8 num_of_set = event_scan->num_of_set;
+	u8 *scan_resp = buf + sizeof(struct mwifiex_event_scan_result);
+	u16 scan_resp_size = le16_to_cpu(event_scan->buf_size);
+
+	if (num_of_set > MWIFIEX_MAX_AP) {
+		dev_err(adapter->dev,
+			"EXT_SCAN: Invalid number of AP returned (%d)!!\n",
+			num_of_set);
+		ret = -1;
+		goto check_next_scan;
+	}
+
+	bytes_left = scan_resp_size;
+	dev_dbg(adapter->dev,
+		"EXT_SCAN: size %d, returned %d APs...",
+		scan_resp_size, num_of_set);
+
+	tlv = (struct mwifiex_ie_types_data *)scan_resp;
+
+	for (idx = 0; idx < num_of_set && bytes_left; idx++) {
+		type = le16_to_cpu(tlv->header.type);
+		len = le16_to_cpu(tlv->header.len);
+		if (bytes_left < sizeof(struct mwifiex_ie_types_header) + len) {
+			dev_err(adapter->dev, "EXT_SCAN: Error bytes left < TLV length\n");
+			break;
+		}
+		scan_rsp_tlv = NULL;
+		scan_info_tlv = NULL;
+		bytes_left_for_tlv = bytes_left;
+
+		/* BSS response TLV with beacon or probe response buffer
+		 * at the initial position of each descriptor
+		 */
+		if (type != TLV_TYPE_BSS_SCAN_RSP)
+			break;
+
+		bss_info = (u8 *)tlv;
+		scan_rsp_tlv = (struct mwifiex_ie_types_bss_scan_rsp *)tlv;
+		tlv = (struct mwifiex_ie_types_data *)(tlv->data + len);
+		bytes_left_for_tlv -=
+				(len + sizeof(struct mwifiex_ie_types_header));
+
+		while (bytes_left_for_tlv >=
+		       sizeof(struct mwifiex_ie_types_header) &&
+		       le16_to_cpu(tlv->header.type) != TLV_TYPE_BSS_SCAN_RSP) {
+			type = le16_to_cpu(tlv->header.type);
+			len = le16_to_cpu(tlv->header.len);
+			if (bytes_left_for_tlv <
+			    sizeof(struct mwifiex_ie_types_header) + len) {
+				dev_err(adapter->dev,
+					"EXT_SCAN: Error in processing TLV, bytes left < TLV length\n");
+				scan_rsp_tlv = NULL;
+				bytes_left_for_tlv = 0;
+				continue;
+			}
+			switch (type) {
+			case TLV_TYPE_BSS_SCAN_INFO:
+				scan_info_tlv =
+				  (struct mwifiex_ie_types_bss_scan_info *)tlv;
+				if (len !=
+				 sizeof(struct mwifiex_ie_types_bss_scan_info) -
+				 sizeof(struct mwifiex_ie_types_header)) {
+					bytes_left_for_tlv = 0;
+					continue;
+				}
+				break;
+			default:
+				break;
+			}
+			tlv = (struct mwifiex_ie_types_data *)(tlv->data + len);
+			bytes_left -=
+				(len + sizeof(struct mwifiex_ie_types_header));
+			bytes_left_for_tlv -=
+				(len + sizeof(struct mwifiex_ie_types_header));
+		}
+
+		if (!scan_rsp_tlv)
+			break;
+
+		/* Advance pointer to the beacon buffer length and
+		 * update the bytes count so that the function
+		 * wlan_interpret_bss_desc_with_ie() can handle the
+		 * scan buffer withut any change
+		 */
+		bss_info += sizeof(u16);
+		bytes_left -= sizeof(u16);
+
+		if (scan_info_tlv) {
+			rssi = (s32)(s16)(le16_to_cpu(scan_info_tlv->rssi));
+			rssi *= 100;           /* Convert dBm to mBm */
+			dev_dbg(adapter->dev,
+				"info: InterpretIE: RSSI=%d\n", rssi);
+			fw_tsf = le64_to_cpu(scan_info_tlv->tsf);
+			radio_type = &scan_info_tlv->radio_type;
+		} else {
+			radio_type = NULL;
+		}
+		ret = mwifiex_parse_single_response_buf(priv, &bss_info,
+							&bytes_left, fw_tsf,
+							radio_type, true, rssi);
+		if (ret)
+			goto check_next_scan;
+	}
+
+check_next_scan:
+	if (!event_scan->more_event)
+		mwifiex_check_next_scan_command(priv);
+
 	return ret;
 }
 

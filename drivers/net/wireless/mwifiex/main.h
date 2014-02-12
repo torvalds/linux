@@ -59,7 +59,7 @@ enum {
 
 #define MWIFIEX_UPLD_SIZE               (2312)
 
-#define MAX_EVENT_SIZE                  1024
+#define MAX_EVENT_SIZE                  2048
 
 #define ARP_FILTER_MAX_BUF_SIZE         68
 
@@ -753,6 +753,7 @@ struct mwifiex_adapter {
 	atomic_t is_tx_received;
 	atomic_t pending_bridged_pkts;
 	struct semaphore *card_sem;
+	bool ext_scan;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -938,6 +939,12 @@ mwifiex_set_wmm_params(struct mwifiex_private *priv,
 		       struct cfg80211_ap_settings *params);
 void mwifiex_set_ba_params(struct mwifiex_private *priv);
 void mwifiex_set_11ac_ba_params(struct mwifiex_private *priv);
+int mwifiex_cmd_802_11_scan_ext(struct mwifiex_private *priv,
+				struct host_cmd_ds_command *cmd,
+				void *data_buf);
+int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv);
+int mwifiex_handle_event_ext_scan_report(struct mwifiex_private *priv,
+					 void *buf);
 
 /*
  * This function checks if the queuing is RA based or not.

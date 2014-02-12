@@ -331,6 +331,14 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "event: PORT RELEASE\n");
 		break;
 
+	case EVENT_EXT_SCAN_REPORT:
+		dev_dbg(adapter->dev, "event: EXT_SCAN Report\n");
+		if (adapter->ext_scan)
+			ret = mwifiex_handle_event_ext_scan_report(priv,
+						adapter->event_skb->data);
+
+		break;
+
 	case EVENT_WMM_STATUS_CHANGE:
 		dev_dbg(adapter->dev, "event: WMM status changed\n");
 		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_WMM_GET_STATUS,

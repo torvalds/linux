@@ -1472,6 +1472,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_ibss_coalescing_status(cmd_ptr, cmd_action,
 							 data_buf);
 		break;
+	case HostCmd_CMD_802_11_SCAN_EXT:
+		ret = mwifiex_cmd_802_11_scan_ext(priv, cmd_ptr, data_buf);
+		break;
 	case HostCmd_CMD_MAC_REG_ACCESS:
 	case HostCmd_CMD_BBP_REG_ACCESS:
 	case HostCmd_CMD_RF_REG_ACCESS:

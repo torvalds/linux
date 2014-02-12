@@ -132,6 +132,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_RSSI_HIGH          (PROPRIETARY_TLV_BASE_ID + 22)
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
 #define TLV_TYPE_STA_MAC_ADDR       (PROPRIETARY_TLV_BASE_ID + 32)
+#define TLV_TYPE_BSSID              (PROPRIETARY_TLV_BASE_ID + 35)
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
 #define TLV_TYPE_UAP_BEACON_PERIOD  (PROPRIETARY_TLV_BASE_ID + 44)
 #define TLV_TYPE_UAP_DTIM_PERIOD    (PROPRIETARY_TLV_BASE_ID + 45)
@@ -146,6 +147,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_RATE_DROP_CONTROL  (PROPRIETARY_TLV_BASE_ID + 82)
 #define TLV_TYPE_RATE_SCOPE         (PROPRIETARY_TLV_BASE_ID + 83)
 #define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
+#define TLV_TYPE_BSS_SCAN_RSP       (PROPRIETARY_TLV_BASE_ID + 86)
+#define TLV_TYPE_BSS_SCAN_INFO      (PROPRIETARY_TLV_BASE_ID + 87)
 #define TLV_TYPE_UAP_RETRY_LIMIT    (PROPRIETARY_TLV_BASE_ID + 93)
 #define TLV_TYPE_WAPI_IE            (PROPRIETARY_TLV_BASE_ID + 94)
 #define TLV_TYPE_UAP_MGMT_FRAME     (PROPRIETARY_TLV_BASE_ID + 104)
@@ -295,6 +298,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_CAU_REG_ACCESS                    0x00ed
 #define HostCmd_CMD_SET_BSS_MODE                      0x00f7
 #define HostCmd_CMD_PCIE_DESC_DETAILS                 0x00fa
+#define HostCmd_CMD_802_11_SCAN_EXT                   0x0107
 #define HostCmd_CMD_COALESCE_CFG                      0x010a
 #define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
@@ -440,6 +444,7 @@ enum P2P_MODES {
 #define EVENT_UAP_MIC_COUNTERMEASURES   0x0000004c
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
 #define EVENT_CHANNEL_SWITCH_ANN        0x00000050
+#define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 
 #define EVENT_ID_MASK                   0xffff
@@ -1053,6 +1058,16 @@ struct mwifiex_fixed_bcn_param {
 	__le16 cap_info_bitmap;
 } __packed;
 
+struct mwifiex_event_scan_result {
+	__le16 event_id;
+	u8 bss_index;
+	u8 bss_type;
+	u8 more_event;
+	u8 reserved[3];
+	__le16 buf_size;
+	u8 num_of_set;
+} __packed;
+
 #define MWIFIEX_USER_SCAN_CHAN_MAX             50
 
 #define MWIFIEX_MAX_SSID_LIST_LENGTH         10
@@ -1120,6 +1135,28 @@ struct host_cmd_ds_802_11_scan_rsp {
 	__le16 bss_descript_size;
 	u8 number_of_sets;
 	u8 bss_desc_and_tlv_buffer[1];
+} __packed;
+
+struct host_cmd_ds_802_11_scan_ext {
+	u32   reserved;
+	u8    tlv_buffer[1];
+} __packed;
+
+struct mwifiex_ie_types_bss_scan_rsp {
+	struct mwifiex_ie_types_header header;
+	u8 bssid[ETH_ALEN];
+	u8 frame_body[1];
+} __packed;
+
+struct mwifiex_ie_types_bss_scan_info {
+	struct mwifiex_ie_types_header header;
+	__le16 rssi;
+	__le16 anpi;
+	u8 cca_busy_fraction;
+	u8 radio_type;
+	u8 channel;
+	u8 reserved;
+	__le64 tsf;
 } __packed;
 
 struct host_cmd_ds_802_11_bg_scan_query {
@@ -1439,6 +1476,11 @@ struct host_cmd_tlv_rates {
 	u8 rates[0];
 } __packed;
 
+struct mwifiex_ie_types_bssid_list {
+	struct mwifiex_ie_types_header header;
+	u8 bssid[ETH_ALEN];
+} __packed;
+
 struct host_cmd_tlv_bcast_ssid {
 	struct mwifiex_ie_types_header header;
 	u8 bcast_ctl;
@@ -1632,6 +1674,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_ps_mode_enh psmode_enh;
 		struct host_cmd_ds_802_11_hs_cfg_enh opt_hs_cfg;
 		struct host_cmd_ds_802_11_scan scan;
+		struct host_cmd_ds_802_11_scan_ext ext_scan;
 		struct host_cmd_ds_802_11_scan_rsp scan_resp;
 		struct host_cmd_ds_802_11_bg_scan_query bg_scan_query;
 		struct host_cmd_ds_802_11_bg_scan_query_rsp bg_scan_query_resp;

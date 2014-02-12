@@ -281,6 +281,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->arp_filter_size = 0;
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
 	adapter->empty_tx_q_cnt = 0;
+	adapter->ext_scan = true;
 }
 
 /*

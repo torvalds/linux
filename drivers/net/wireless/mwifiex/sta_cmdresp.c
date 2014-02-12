@@ -69,6 +69,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 
 		break;
 	case HostCmd_CMD_802_11_SCAN:
+	case HostCmd_CMD_802_11_SCAN_EXT:
 		/* Cancel all pending scan command */
 		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
 		list_for_each_entry_safe(cmd_node, tmp_node,
@@ -869,6 +870,10 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
+		adapter->curr_cmd->wait_q_enabled = false;
+		break;
+	case HostCmd_CMD_802_11_SCAN_EXT:
+		ret = mwifiex_ret_802_11_scan_ext(priv);
 		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
