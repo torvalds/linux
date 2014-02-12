@@ -47,25 +47,19 @@ static int          msglevel                =MSG_LEVEL_INFO;
  *
  * Parameters:
  *  In:
- *      uByteidx    - Index of Mask
- *      byData      - Mask Value to write
+ *	mc_filter (mac filter)
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void MACvWriteMultiAddr(struct vnt_private *pDevice, u32 uByteIdx, u8 byData)
+void MACvWriteMultiAddr(struct vnt_private *pDevice, u64 mc_filter)
 {
-	u8 byData1;
+	__le64 le_mc = cpu_to_le64(mc_filter);
 
-    byData1 = byData;
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE,
-                        (u16) (MAC_REG_MAR0 + uByteIdx),
-                        MESSAGE_REQUEST_MACREG,
-                        1,
-                        &byData1);
+	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_WRITE, MAC_REG_MAR0,
+		MESSAGE_REQUEST_MACREG, sizeof(le_mc), (u8 *)&le_mc);
 }
 
 /*

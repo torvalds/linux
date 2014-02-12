@@ -1353,8 +1353,7 @@ static void device_set_multi(struct net_device *dev)
 	struct vnt_private *pDevice = netdev_priv(dev);
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct netdev_hw_addr *ha;
-	u32 mc_filter[2];
-	int ii;
+	u64 mc_filter = 0;
 	u8 pbyData[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 byTmpMode = 0;
 	int rc;
@@ -1388,15 +1387,14 @@ static void device_set_multi(struct net_device *dev)
         pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
     }
     else {
-        memset(mc_filter, 0, sizeof(mc_filter));
 	netdev_for_each_mc_addr(ha, dev) {
-            int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
-            mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
-        }
-        for (ii = 0; ii < 4; ii++) {
-             MACvWriteMultiAddr(pDevice, ii, *((u8 *)&mc_filter[0] + ii));
-             MACvWriteMultiAddr(pDevice, ii+ 4, *((u8 *)&mc_filter[1] + ii));
-        }
+		int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+
+		mc_filter |= 1ULL << (bit_nr & 0x3f);
+	}
+
+	MACvWriteMultiAddr(pDevice, mc_filter);
+
         pDevice->byRxMode &= ~(RCR_UNICAST);
         pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
     }
