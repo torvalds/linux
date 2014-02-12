@@ -51,7 +51,6 @@ struct xwdt_device {
 static struct xwdt_device xdev;
 
 static  u32 timeout;
-static  u8  no_timeout;
 
 static  DEFINE_SPINLOCK(spinlock);
 
@@ -159,8 +158,7 @@ static int xwdt_probe(struct platform_device *pdev)
 	u32 *tmptr;
 	u32 *pfreq;
 	struct resource *res;
-
-	no_timeout = 0;
+	bool no_timeout = false;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	xdev.base = devm_ioremap_resource(&pdev->dev, res);
@@ -172,14 +170,14 @@ static int xwdt_probe(struct platform_device *pdev)
 
 	if (pfreq == NULL) {
 		pr_warn("The watchdog clock frequency cannot be obtained!\n");
-		no_timeout = 1;
+		no_timeout = true;
 	}
 
 	tmptr = (u32 *)of_get_property(pdev->dev.of_node,
 					"xlnx,wdt-interval", NULL);
 	if (tmptr == NULL) {
 		pr_warn("Parameter \"xlnx,wdt-interval\" not found in device tree!\n");
-		no_timeout = 1;
+		no_timeout = true;
 	} else {
 		xdev.wdt_interval = *tmptr;
 	}
