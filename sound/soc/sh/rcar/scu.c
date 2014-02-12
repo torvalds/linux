@@ -122,6 +122,14 @@ static int rsnd_scu_ssi_mode_init(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
 	int id = rsnd_mod_id(mod);
+	u32 convert_rate = rsnd_scu_convert_rate(scu);
+
+	if (convert_rate && !rsnd_dai_is_clk_master(rdai)) {
+		struct device *dev = rsnd_priv_to_dev(priv);
+
+		dev_err(dev, "rsnd should be clk master when you rate convert\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * SSI_MODE0
