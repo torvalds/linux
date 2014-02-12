@@ -316,12 +316,11 @@ static void rockchip_get_div(int div, int *divh, int *divl)
 */
 static void rockchip_i2c_set_clk(struct rockchip_i2c *i2c, unsigned long scl_rate)
 {
-	unsigned long i2c_rate = clk_get_rate(i2c->clk);
+	unsigned long i2c_rate = i2c->i2c_rate;
 	int div, divl, divh;
 
-	if ((scl_rate == i2c->scl_rate) && (i2c_rate == i2c->i2c_rate))
+	if (scl_rate == i2c->scl_rate)
 		return;
-	i2c->i2c_rate = i2c_rate;
 	i2c->scl_rate = scl_rate;
 	div = rockchip_ceil(i2c_rate, (scl_rate * 8)) - 2;
 	if (unlikely(div < 0)) {
@@ -337,9 +336,9 @@ static void rockchip_i2c_set_clk(struct rockchip_i2c *i2c, unsigned long scl_rat
 static void rockchip_i2c_init_hw(struct rockchip_i2c *i2c, unsigned long scl_rate)
 {
 	i2c->scl_rate = 0;
-	clk_prepare_enable(i2c->clk);
+//	clk_prepare_enable(i2c->clk);
 	rockchip_i2c_set_clk(i2c, scl_rate);
-	clk_disable_unprepare(i2c->clk);
+//	clk_disable_unprepare(i2c->clk);
 }
 
 /* returns TRUE if we this is the last byte in the current message */
@@ -723,7 +722,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	struct rockchip_i2c *i2c = i2c_get_adapdata(adap);
 	unsigned long scl_rate = i2c->scl_rate;
 
-	clk_prepare_enable(i2c->clk);
+//	clk_prepare_enable(i2c->clk);
 	if (i2c->check_idle) {
 		int state, retry = 10;
 		while (retry--) {
@@ -761,7 +760,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	ret = rockchip_i2c_doxfer(i2c, msgs, num);
 	i2c_dbg(i2c->dev, "i2c transfer stop: addr: 0x%04x, state: %d, ret: %d\n", msgs[0].addr, ret, i2c->state);
 
-	clk_disable_unprepare(i2c->clk);
+//	clk_disable_unprepare(i2c->clk);
 	return (ret < 0) ? ret : num;
 }
 
@@ -852,6 +851,7 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "no gpio pinctrl state\n");
 			return PTR_ERR(i2c->gpio_state);
 		}
+		pinctrl_select_state(i2c->dev->pins->p, i2c->gpio_state);
 		gpio_direction_input(i2c->sda_gpio);
 		gpio_direction_input(i2c->scl_gpio);
 		pinctrl_select_state(i2c->dev->pins->p, i2c->dev->pins->default_state);
@@ -892,6 +892,8 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 	}
 
 	clk_prepare_enable(i2c->clk); // FIXME: enable i2c clock temporarily
+	i2c->i2c_rate = clk_get_rate(i2c->clk);
+
 	rockchip_i2c_init_hw(i2c, 100 * 1000);
 	dev_info(&pdev->dev, "%s: Rockchip I2C adapter\n", dev_name(&i2c->adap.dev));
 
