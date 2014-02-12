@@ -104,22 +104,9 @@ static int picoxcell_trng_probe(struct platform_device *pdev)
 	int ret;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	if (!mem) {
-		dev_warn(&pdev->dev, "no memory resource\n");
-		return -ENOMEM;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, mem->start, resource_size(mem),
-				     "picoxcell_trng")) {
-		dev_warn(&pdev->dev, "unable to request io mem\n");
-		return -EBUSY;
-	}
-
-	rng_base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!rng_base) {
-		dev_warn(&pdev->dev, "unable to remap io mem\n");
-		return -ENOMEM;
-	}
+	rng_base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(rng_base))
+		return PTR_ERR(rng_base);
 
 	rng_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rng_clk)) {
