@@ -920,9 +920,6 @@ struct ethtool_flash {
  * 	 for %ETHTOOL_GET_DUMP_FLAG command
  * @data: data collected for get dump data operation
  */
-
-#define ETH_FW_DUMP_DISABLE 0
-
 struct ethtool_dump {
 	__u32	cmd;
 	__u32	version;
@@ -930,6 +927,8 @@ struct ethtool_dump {
 	__u32	len;
 	__u8	data[0];
 };
+
+#define ETH_FW_DUMP_DISABLE 0
 
 /* for returning and changing feature sets */
 
