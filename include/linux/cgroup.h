@@ -290,8 +290,8 @@ struct cgroupfs_root {
 	/* The root cgroup for this hierarchy */
 	struct cgroup top_cgroup;
 
-	/* Tracks how many cgroups are currently defined in hierarchy.*/
-	int number_of_cgroups;
+	/* Number of cgroups in the hierarchy, used only for /proc/cgroups */
+	atomic_t nr_cgrps;
 
 	/* A list running through the active hierarchies */
 	struct list_head root_list;

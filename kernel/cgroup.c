@@ -758,7 +758,7 @@ static void cgroup_put_root(struct cgroupfs_root *root)
 	}
 	mutex_lock(&cgroup_mutex);
 
-	BUG_ON(root->number_of_cgroups != 1);
+	BUG_ON(atomic_read(&root->nr_cgrps) != 1);
 	BUG_ON(!list_empty(&cgrp->children));
 
 	/* Rebind all subsystems back to the default hierarchy */
@@ -928,9 +928,7 @@ static void cgroup_free_fn(struct work_struct *work)
 {
 	struct cgroup *cgrp = container_of(work, struct cgroup, destroy_work);
 
-	mutex_lock(&cgroup_mutex);
-	cgrp->root->number_of_cgroups--;
-	mutex_unlock(&cgroup_mutex);
+	atomic_dec(&cgrp->root->nr_cgrps);
 
 	/*
 	 * We get a ref to the parent, and put the ref when this cgroup is
@@ -1320,7 +1318,7 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 	}
 
 	/* remounting is not allowed for populated hierarchies */
-	if (root->number_of_cgroups > 1) {
+	if (!list_empty(&root->top_cgroup.children)) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -1360,7 +1358,7 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 
 	atomic_set(&root->refcnt, 1);
 	INIT_LIST_HEAD(&root->root_list);
-	root->number_of_cgroups = 1;
+	atomic_set(&root->nr_cgrps, 1);
 	cgrp->root = root;
 	init_cgroup_housekeeping(cgrp);
 	idr_init(&root->cgroup_idr);
@@ -1463,7 +1461,7 @@ static int cgroup_setup_root(struct cgroupfs_root *root)
 	write_unlock(&css_set_lock);
 
 	BUG_ON(!list_empty(&root_cgrp->children));
-	BUG_ON(root->number_of_cgroups != 1);
+	BUG_ON(atomic_read(&root->nr_cgrps) != 1);
 
 	kernfs_activate(root_cgrp->kn);
 	ret = 0;
@@ -3709,7 +3707,7 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 
 	/* allocation complete, commit to creation */
 	list_add_tail_rcu(&cgrp->sibling, &cgrp->parent->children);
-	root->number_of_cgroups++;
+	atomic_inc(&root->nr_cgrps);
 
 	/*
 	 * Grab a reference on the root and parent so that they don't get
@@ -4281,7 +4279,7 @@ static int proc_cgroupstats_show(struct seq_file *m, void *v)
 	for_each_subsys(ss, i)
 		seq_printf(m, "%s\t%d\t%d\t%d\n",
 			   ss->name, ss->root->hierarchy_id,
-			   ss->root->number_of_cgroups, !ss->disabled);
+			   atomic_read(&ss->root->nr_cgrps), !ss->disabled);
 
 	mutex_unlock(&cgroup_mutex);
 	return 0;
