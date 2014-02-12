@@ -6,6 +6,14 @@ config SND_KIRKWOOD_SOC
 	  the Kirkwood I2S interface. You will also need to select the
 	  audio interfaces to support below.
 
+config SND_KIRKWOOD_SOC_ARMADA370_DB
+	tristate "SoC Audio support for Armada 370 DB"
+	depends on SND_KIRKWOOD_SOC && (ARCH_MVEBU || COMPILE_TEST) && I2C
+	select SND_SOC_CS42L51
+	help
+	  Say Y if you want to add support for SoC audio on
+	  the Armada 370 Development Board.
+
 config SND_KIRKWOOD_SOC_OPENRD
 	tristate "SoC Audio support for Kirkwood Openrd Client"
 	depends on SND_KIRKWOOD_SOC && (MACH_OPENRD_CLIENT || MACH_OPENRD_ULTIMATE || COMPILE_TEST)
