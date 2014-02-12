@@ -255,7 +255,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 	}
 
 	ret = pm_runtime_get_sync(connector->dev->dev);
-	if (ret < 0)
+	if (ret < 0 && ret != -EACCES)
 		return conn_status;
 
 	i2c = nouveau_connector_ddc_detect(connector, &nv_encoder);
