@@ -139,6 +139,7 @@ static int phy_scan_fixups(struct phy_device *phydev)
 				mutex_unlock(&phy_fixup_lock);
 				return err;
 			}
+			phydev->has_fixups = true;
 		}
 	}
 	mutex_unlock(&phy_fixup_lock);

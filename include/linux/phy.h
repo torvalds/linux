@@ -350,6 +350,7 @@ struct phy_device {
 	struct phy_c45_device_ids c45_ids;
 	bool is_c45;
 	bool is_internal;
+	bool has_fixups;
 
 	enum phy_state state;
 
