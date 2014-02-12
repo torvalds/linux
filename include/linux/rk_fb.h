@@ -242,7 +242,7 @@ struct rk_lcdc_win {
 	unsigned long cbr_start;	/*Cbr memory start address*/
 	enum data_format format;
 #if defined(CONFIG_ION_ROCKCHIP)
-	struct ion_handle *ion_handle;
+	struct ion_handle *ion_hdl;
 	int dma_buf_fd;
 #endif
 	bool support_3d;

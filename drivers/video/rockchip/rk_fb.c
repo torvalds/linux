@@ -764,8 +764,13 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 	}
 	case RK_FBIOGET_DMABUF_FD:
 	{
-		int fd = win->dma_buf_fd;
-		if (copy_to_user(argp, &fd, sizeof(fd)));
+		int fd = ion_share_dma_buf_fd(rk_fb->ion_client, win->ion_hdl);
+		if (fd < 0) {
+			dev_err(info->dev, "ion_share_dma_buf_fd failed\n");
+			return fd;
+
+		}
+		if (copy_to_user(argp, &fd, sizeof(fd)))
 			return -EFAULT;
 		break;
 	}
@@ -787,6 +792,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 		dev_drv->ops->ioctl(dev_drv, cmd, arg, win_id);
 		break;
 	}
+	
 	return 0;
 }
 
@@ -795,12 +801,12 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int win_id;
-	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fix->id);
 	if (win_id < 0)
 		return  -ENODEV;
 #if defined(CONFIG_RK_HDMI)
+	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 	if ((rk_fb->disp_mode == ONE_DUAL) && (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)) {
 		printk(KERN_INFO "hdmi is connect , not blank lcdc\n");
 	} else
@@ -1561,7 +1567,6 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 	unsigned long fb_mem_size;
 #if defined(CONFIG_ION_ROCKCHIP)
 	struct ion_handle *handle;
-	int dma_buf_fd;
 	ion_phys_addr_t phy_addr;
 	size_t len;
 #else
@@ -1583,19 +1588,11 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 			dev_err(fbi->device, "failed to ion_alloc:%ld\n",PTR_ERR(handle));
 			return -ENOMEM;
 		}
-
+		win->ion_hdl = handle;
+		fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
 		ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
 		fbi->fix.smem_start = phy_addr;
-		fbi->fix.smem_len = len;
-		fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
-		dma_buf_fd = ion_share_dma_buf_fd(rk_fb->ion_client, handle);
-		if (dma_buf_fd < 0) {
-			dev_err(fbi->dev, "ion_share_dma_buf_fd failed\n");
-			return dma_buf_fd;
-
-		}
-		win->ion_handle = handle;
-		win->dma_buf_fd = dma_buf_fd;
+		fbi->fix.smem_len = len;	
 #else
 
 		fb_mem_virt = dma_alloc_writecombine(fbi->dev, fb_mem_size, &fb_mem_phys,
@@ -1790,8 +1787,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fbi->var = def_var;
 		fbi->fix = def_fix;
 		sprintf(fbi->fix.id, "fb%d", rk_fb->num_fb);
-		fbi->var.xres = dev_drv->cur_screen->mode.xres;
-		fbi->var.yres = dev_drv->cur_screen->mode.yres;
+		fb_videomode_to_var(&fbi->var, &dev_drv->cur_screen->mode);
 		fbi->var.grayscale |= (fbi->var.xres<<8) + (fbi->var.yres<<20);
 #if defined(CONFIG_LOGO_LINUX_BMP)
 		fbi->var.bits_per_pixel = 32;
@@ -1799,17 +1795,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fbi->var.bits_per_pixel = 16;
 #endif
 		fbi->fix.line_length  = (fbi->var.xres)*(fbi->var.bits_per_pixel>>3);
-		fbi->var.xres_virtual = fbi->var.xres;
-		fbi->var.yres_virtual = fbi->var.yres;
 		fbi->var.width = dev_drv->cur_screen->width;
 		fbi->var.height = dev_drv->cur_screen->height;
 		fbi->var.pixclock = dev_drv->pixclock;
-		fbi->var.left_margin = dev_drv->cur_screen->mode.left_margin;
-		fbi->var.right_margin = dev_drv->cur_screen->mode.right_margin;
-		fbi->var.upper_margin = dev_drv->cur_screen->mode.upper_margin;
-		fbi->var.lower_margin = dev_drv->cur_screen->mode.lower_margin;
-		fbi->var.vsync_len = dev_drv->cur_screen->mode.vsync_len;
-		fbi->var.hsync_len = dev_drv->cur_screen->mode.hsync_len;
 		fbi->fbops = &fb_ops;
 		fbi->flags = FBINFO_FLAG_DEFAULT;
 		fbi->pseudo_palette = dev_drv->win[i]->pseudo_pal;
