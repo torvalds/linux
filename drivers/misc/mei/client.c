@@ -505,7 +505,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 		goto out;
 	}
 
-	cb->fop_type = MEI_FOP_IOCTL;
+	cb->fop_type = MEI_FOP_CONNECT;
 
 	if (dev->hbuf_is_ready && !mei_cl_is_other_connecting(cl)) {
 		dev->hbuf_is_ready = false;

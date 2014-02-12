@@ -507,7 +507,7 @@ static void mei_hbm_cl_connect_res(struct mei_device *dev,
 			list_del(&pos->list);
 			return;
 		}
-		if (pos->fop_type == MEI_FOP_IOCTL) {
+		if (pos->fop_type == MEI_FOP_CONNECT) {
 			if (is_treat_specially_client(cl, rs)) {
 				list_del(&pos->list);
 				cl->status = 0;

@@ -244,8 +244,7 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 
 /**
- * mei_cl_irq_ioctl - processes client ioctl related operation from the
- *	interrupt thread context -   send connection request
+ * mei_cl_irq_connect - send connect request in irq_thread context
  *
  * @cl: client
  * @cb: callback block.
@@ -254,7 +253,7 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
  *
  * returns 0, OK; otherwise, error.
  */
-static int mei_cl_irq_ioctl(struct mei_cl *cl, struct mei_cl_cb *cb,
+static int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 			   s32 *slots, struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
@@ -262,6 +261,9 @@ static int mei_cl_irq_ioctl(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	u32 msg_slots =
 		mei_data2slots(sizeof(struct hbm_client_connect_request));
+
+	if (mei_cl_is_other_connecting(cl))
+		return 0;
 
 	if (*slots < msg_slots) {
 		/* return the cancel routine */
@@ -496,11 +498,9 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 				return ret;
 
 			break;
-		case MEI_FOP_IOCTL:
+		case MEI_FOP_CONNECT:
 			/* connect message */
-			if (mei_cl_is_other_connecting(cl))
-				continue;
-			ret = mei_cl_irq_ioctl(cl, cb, &slots, cmpl_list);
+			ret = mei_cl_irq_connect(cl, cb, &slots, cmpl_list);
 			if (ret)
 				return ret;
 

@@ -364,7 +364,7 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
 	if (ret)
 		return ret;
 
-	cb->fop_type = MEI_FOP_IOCTL;
+	cb->fop_type = MEI_FOP_WRITE;
 
 	if (!list_empty(&dev->amthif_cmd_list.list) ||
 	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {

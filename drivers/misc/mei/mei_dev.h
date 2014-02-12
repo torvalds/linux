@@ -130,16 +130,16 @@ enum mei_wd_states {
 
 /**
  * enum mei_cb_file_ops  - file operation associated with the callback
- * @MEI_FOP_READ   - read
- * @MEI_FOP_WRITE  - write
- * @MEI_FOP_IOCTL  - ioctl
- * @MEI_FOP_OPEN   - open
- * @MEI_FOP_CLOSE  - close
+ * @MEI_FOP_READ      - read
+ * @MEI_FOP_WRITE     - write
+ * @MEI_FOP_CONNECT   - connect
+ * @MEI_FOP_OPEN      - open
+ * @MEI_FOP_CLOSE     - close
  */
 enum mei_cb_file_ops {
 	MEI_FOP_READ = 0,
 	MEI_FOP_WRITE,
-	MEI_FOP_IOCTL,
+	MEI_FOP_CONNECT,
 	MEI_FOP_OPEN,
 	MEI_FOP_CLOSE
 };
