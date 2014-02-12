@@ -209,11 +209,25 @@ struct ethtool_value {
 	__u32	data;
 };
 
-/* for passing big chunks of data */
+/**
+ * struct ethtool_regs - hardware register dump
+ * @cmd: Command number = %ETHTOOL_GREGS
+ * @version: Dump format version.  This is driver-specific and may
+ *	distinguish different chips/revisions.  Drivers must use new
+ *	version numbers whenever the dump format changes in an
+ *	incompatible way.
+ * @len: On entry, the real length of @data.  On return, the number of
+ *	bytes used.
+ * @data: Buffer for the register dump
+ *
+ * Users should use %ETHTOOL_GDRVINFO to find the maximum length of
+ * a register dump for the interface.  They must allocate the buffer
+ * immediately following this structure.
+ */
 struct ethtool_regs {
 	__u32	cmd;
-	__u32	version; /* driver-specific, indicates different chips/revs */
-	__u32	len; /* bytes */
+	__u32	version;
+	__u32	len;
 	__u8	data[0];
 };
 
