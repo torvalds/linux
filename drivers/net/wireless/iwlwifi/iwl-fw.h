@@ -296,14 +296,4 @@ struct iwl_fw {
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 };
 
-static inline u8 iwl_fw_valid_tx_ant(const struct iwl_fw *fw)
-{
-	return fw->valid_tx_ant;
-}
-
-static inline u8 iwl_fw_valid_rx_ant(const struct iwl_fw *fw)
-{
-	return fw->valid_rx_ant;
-}
-
 #endif  /* __iwl_fw_h__ */

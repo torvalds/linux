@@ -166,7 +166,7 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
 		return false;
 
-	if (num_of_ant(iwl_fw_valid_tx_ant(mvm->fw)) < 2)
+	if (num_of_ant(mvm->fw->valid_tx_ant) < 2)
 		return false;
 
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
@@ -917,7 +917,7 @@ static void rs_get_lower_rate_down_column(struct iwl_lq_sta *lq_sta,
 
 
 	if (num_of_ant(rate->ant) > 1)
-		rate->ant = first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
+		rate->ant = first_antenna(mvm->fw->valid_tx_ant);
 
 	/* Relevant in both switching to SISO or Legacy */
 	rate->sgi = false;
@@ -1477,7 +1477,7 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 	const struct rs_tx_column *curr_col = &rs_tx_columns[tbl->column];
 	const struct rs_tx_column *next_col;
 	allow_column_func_t allow_func;
-	u8 valid_ants = iwl_fw_valid_tx_ant(mvm->fw);
+	u8 valid_ants = mvm->fw->valid_tx_ant;
 	const u16 *expected_tpt_tbl;
 	s32 tpt, max_expected_tpt;
 
@@ -2089,7 +2089,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 
 	i = lq_sta->last_txrate_idx;
 
-	valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
+	valid_tx_ant = mvm->fw->valid_tx_ant;
 
 	if (!lq_sta->search_better_tbl)
 		active_tbl = lq_sta->active_tbl;
@@ -2319,7 +2319,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	/* These values will be overridden later */
 	lq_sta->lq.single_stream_ant_msk =
-		first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
+		first_antenna(mvm->fw->valid_tx_ant);
 	lq_sta->lq.dual_stream_ant_msk = ANT_AB;
 
 	/* as default allow aggregation for all tids */
@@ -2445,7 +2445,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 
 	memcpy(&rate, initial_rate, sizeof(rate));
 
-	valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
+	valid_tx_ant = mvm->fw->valid_tx_ant;
 
 	if (is_siso(&rate)) {
 		num_rates = RS_INITIAL_SISO_NUM_RATES;
@@ -2676,9 +2676,9 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	desc += sprintf(buff+desc, "fixed rate 0x%X\n",
 			lq_sta->dbg_fixed_rate);
 	desc += sprintf(buff+desc, "valid_tx_ant %s%s%s\n",
-	    (iwl_fw_valid_tx_ant(mvm->fw) & ANT_A) ? "ANT_A," : "",
-	    (iwl_fw_valid_tx_ant(mvm->fw) & ANT_B) ? "ANT_B," : "",
-	    (iwl_fw_valid_tx_ant(mvm->fw) & ANT_C) ? "ANT_C" : "");
+	    (mvm->fw->valid_tx_ant & ANT_A) ? "ANT_A," : "",
+	    (mvm->fw->valid_tx_ant & ANT_B) ? "ANT_B," : "",
+	    (mvm->fw->valid_tx_ant & ANT_C) ? "ANT_C" : "");
 	desc += sprintf(buff+desc, "lq type %s\n",
 			(is_legacy(rate)) ? "legacy" :
 			is_vht(rate) ? "VHT" : "HT");

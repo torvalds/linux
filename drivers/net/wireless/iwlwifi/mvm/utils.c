@@ -587,7 +587,7 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	lockdep_assert_held(&mvm->mutex);
 
 	/* SMPS is irrelevant for NICs that don't have at least 2 RX antenna */
-	if (num_of_ant(iwl_fw_valid_rx_ant(mvm->fw)) == 1)
+	if (num_of_ant(mvm->fw->valid_rx_ant) == 1)
 		return;
 
 	if (vif->type == NL80211_IFTYPE_AP)
