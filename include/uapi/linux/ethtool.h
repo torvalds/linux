@@ -186,12 +186,21 @@ struct ethtool_drvinfo {
 };
 
 #define SOPASS_MAX	6
-/* wake-on-lan settings */
+
+/**
+ * struct ethtool_wolinfo - Wake-On-Lan configuration
+ * @cmd: Command number = %ETHTOOL_GWOL or %ETHTOOL_SWOL
+ * @supported: Bitmask of %WAKE_* flags for supported Wake-On-Lan modes.
+ *	Read-only.
+ * @wolopts: Bitmask of %WAKE_* flags for enabled Wake-On-Lan modes.
+ * @sopass: SecureOn(tm) password; meaningful only if %WAKE_MAGICSECURE
+ *	is set in @wolopts.
+ */
 struct ethtool_wolinfo {
 	__u32	cmd;
 	__u32	supported;
 	__u32	wolopts;
-	__u8	sopass[SOPASS_MAX]; /* SecureOn(tm) password */
+	__u8	sopass[SOPASS_MAX];
 };
 
 /* for passing single values */
