@@ -214,6 +214,16 @@ static void freezer_attach(struct cgroup_subsys_state *new_css,
 	}
 }
 
+/**
+ * freezer_fork - cgroup post fork callback
+ * @task: a task which has just been forked
+ *
+ * @task has just been created and should conform to the current state of
+ * the cgroup_freezer it belongs to.  This function may race against
+ * freezer_attach().  Losing to freezer_attach() means that we don't have
+ * to do anything as freezer_attach() will put @task into the appropriate
+ * state.
+ */
 static void freezer_fork(struct task_struct *task)
 {
 	struct freezer *freezer;
@@ -222,14 +232,26 @@ static void freezer_fork(struct task_struct *task)
 	freezer = task_freezer(task);
 
 	/*
-	 * The root cgroup is non-freezable, so we can skip the
-	 * following check.
+	 * The root cgroup is non-freezable, so we can skip locking the
+	 * freezer.  This is safe regardless of race with task migration.
+	 * If we didn't race or won, skipping is obviously the right thing
+	 * to do.  If we lost and root is the new cgroup, noop is still the
+	 * right thing to do.
 	 */
 	if (!parent_freezer(freezer))
 		goto out;
 
+	/*
+	 * Grab @freezer->lock and freeze @task after verifying @task still
+	 * belongs to @freezer and it's freezing.  The former is for the
+	 * case where we have raced against task migration and lost and
+	 * @task is already in a different cgroup which may not be frozen.
+	 * This isn't strictly necessary as freeze_task() is allowed to be
+	 * called spuriously but let's do it anyway for, if nothing else,
+	 * documentation.
+	 */
 	spin_lock_irq(&freezer->lock);
-	if (freezer->state & CGROUP_FREEZING)
+	if (freezer == task_freezer(task) && (freezer->state & CGROUP_FREEZING))
 		freeze_task(task);
 	spin_unlock_irq(&freezer->lock);
 out:
