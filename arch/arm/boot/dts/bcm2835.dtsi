@@ -15,7 +15,7 @@
 		#size-cells = <1>;
 		ranges = <0x7e000000 0x20000000 0x02000000>;
 
-		timer {
+		timer@7e003000 {
 			compatible = "brcm,bcm2835-system-timer";
 			reg = <0x7e003000 0x1000>;
 			interrupts = <1 0>, <1 1>, <1 2>, <1 3>;
@@ -43,24 +43,24 @@
 			brcm,dma-channel-mask = <0x7f35>;
 		};
 
-		intc: interrupt-controller {
+		intc: interrupt-controller@7e00b200 {
 			compatible = "brcm,bcm2835-armctrl-ic";
 			reg = <0x7e00b200 0x200>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
 
-		watchdog {
+		watchdog@7e100000 {
 			compatible = "brcm,bcm2835-pm-wdt";
 			reg = <0x7e100000 0x28>;
 		};
 
-		rng {
+		rng@7e104000 {
 			compatible = "brcm,bcm2835-rng";
 			reg = <0x7e104000 0x10>;
 		};
 
-		gpio: gpio {
+		gpio: gpio@7e200000 {
 			compatible = "brcm,bcm2835-gpio";
 			reg = <0x7e200000 0xb4>;
 			/*
@@ -83,7 +83,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		uart@20201000 {
+		uart@7e201000 {
 			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
 			reg = <0x7e201000 0x1000>;
 			interrupts = <2 25>;
@@ -101,7 +101,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		spi: spi@20204000 {
+		spi: spi@7e204000 {
 			compatible = "brcm,bcm2835-spi";
 			reg = <0x7e204000 0x1000>;
 			interrupts = <2 22>;
@@ -121,7 +121,7 @@
 			status = "disabled";
 		};
 
-		sdhci: sdhci {
+		sdhci: sdhci@7e300000 {
 			compatible = "brcm,bcm2835-sdhci";
 			reg = <0x7e300000 0x100>;
 			interrupts = <2 30>;
@@ -129,7 +129,7 @@
 			status = "disabled";
 		};
 
-		i2c1: i2c@20804000 {
+		i2c1: i2c@7e804000 {
 			compatible = "brcm,bcm2835-i2c";
 			reg = <0x7e804000 0x1000>;
 			interrupts = <2 21>;
@@ -139,7 +139,7 @@
 			status = "disabled";
 		};
 
-		usb {
+		usb@7e980000 {
 			compatible = "brcm,bcm2835-usb";
 			reg = <0x7e980000 0x10000>;
 			interrupts = <1 9>;
