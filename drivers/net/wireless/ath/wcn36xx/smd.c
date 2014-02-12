@@ -902,11 +902,12 @@ static int wcn36xx_smd_config_sta_rsp(struct wcn36xx *wcn,
 
 	sta_priv->sta_index = params->sta_index;
 	sta_priv->dpu_desc_index = params->dpu_index;
+	sta_priv->ucast_dpu_sign = params->uc_ucast_sig;
 
 	wcn36xx_dbg(WCN36XX_DBG_HAL,
-		    "hal config sta rsp status %d sta_index %d bssid_index %d p2p %d\n",
+		    "hal config sta rsp status %d sta_index %d bssid_index %d uc_ucast_sig %d p2p %d\n",
 		    params->status, params->sta_index, params->bssid_index,
-		    params->p2p);
+		    params->uc_ucast_sig, params->p2p);
 
 	return 0;
 }

@@ -159,6 +159,7 @@ struct wcn36xx_sta {
 	u16 tid;
 	u8 sta_index;
 	u8 dpu_desc_index;
+	u8 ucast_dpu_sign;
 	u8 bss_sta_index;
 	u8 bss_dpu_desc_index;
 	bool is_data_encrypted;
