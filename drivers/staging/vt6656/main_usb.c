@@ -1354,7 +1354,6 @@ static void device_set_multi(struct net_device *dev)
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct netdev_hw_addr *ha;
 	u64 mc_filter = 0;
-	u8 pbyData[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 byTmpMode = 0;
 	int rc;
 
@@ -1377,13 +1376,9 @@ static void device_set_multi(struct net_device *dev)
     }
     else if ((netdev_mc_count(dev) > pDevice->multicast_limit) ||
 	     (dev->flags & IFF_ALLMULTI)) {
-        CONTROLnsRequestOut(pDevice,
-                            MESSAGE_TYPE_WRITE,
-                            MAC_REG_MAR0,
-                            MESSAGE_REQUEST_MACREG,
-                            8,
-                            pbyData
-                            );
+	mc_filter = ~0x0;
+	MACvWriteMultiAddr(pDevice, mc_filter);
+
         pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
     }
     else {
