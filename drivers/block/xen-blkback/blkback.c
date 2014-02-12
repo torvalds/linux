@@ -299,7 +299,7 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 	BUG_ON(num != 0);
 }
 
-static void unmap_purged_grants(struct work_struct *work)
+void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -420,7 +420,6 @@ finished:
 	blkif->vbd.overflow_max_grants = 0;
 
 	/* We can defer this work */
-	INIT_WORK(&blkif->persistent_purge_work, unmap_purged_grants);
 	schedule_work(&blkif->persistent_purge_work);
 	pr_debug(DRV_PFX "Purged %u/%u\n", (total - num_clean), total);
 	return;
