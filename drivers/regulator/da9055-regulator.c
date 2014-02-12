@@ -579,7 +579,7 @@ static int da9055_regulator_dt_init(struct platform_device *pdev,
 	return 0;
 }
 #else
-static inline da9055_regulator_dt_init(struct platform_device *pdev,
+static inline int da9055_regulator_dt_init(struct platform_device *pdev,
 				       struct da9055_regulator *regulator,
 				       struct regulator_config *config,
 				       int regid)
