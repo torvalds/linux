@@ -2633,13 +2633,13 @@ static int rtw_wps_start(struct net_device *dev,
 	struct iw_point *pdata = &wrqu->data;
 	u32   u32wps_start = 0;
 
-	ret = copy_from_user((void *)&u32wps_start, pdata->pointer, 4);
-	if (ret) {
+	if ((padapter->bDriverStopped) || (pdata == NULL)) {
 		ret = -EINVAL;
 		goto exit;
 	}
 
-	if ((padapter->bDriverStopped) || (pdata == NULL)) {
+	ret = copy_from_user((void *)&u32wps_start, pdata->pointer, 4);
+	if (ret) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -4450,11 +4450,9 @@ static int rtw_dbg_port(struct net_device *dev,
 			struct registry_priv	*pregpriv = &padapter->registrypriv;
 			/*  0: disable, bit(0):enable 2.4g, bit(1):enable 5g, 0x3: enable both 2.4g and 5g */
 			/* default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ */
-			if (pregpriv &&
-			    (extra_arg == 0 ||
-			     extra_arg == 1 ||
-			     extra_arg == 2 ||
-			     extra_arg == 3)) {
+			if (!pregpriv)
+				break;
+			if (extra_arg >= 0 && extra_arg <= 3) {
 				pregpriv->rx_stbc = extra_arg;
 				DBG_88E("set rx_stbc =%d\n", pregpriv->rx_stbc);
 			} else {
@@ -4466,7 +4464,9 @@ static int rtw_dbg_port(struct net_device *dev,
 		{
 			struct registry_priv	*pregpriv = &padapter->registrypriv;
 			/*  0: disable, 0x1:enable (but wifi_spec should be 0), 0x2: force enable (don't care wifi_spec) */
-			if (pregpriv && extra_arg >= 0 && extra_arg < 3) {
+			if (!pregpriv)
+				break;
+			if (extra_arg >= 0 && extra_arg < 3) {
 				pregpriv->ampdu_enable = extra_arg;
 				DBG_88E("set ampdu_enable =%d\n", pregpriv->ampdu_enable);
 			} else {

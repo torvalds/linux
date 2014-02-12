@@ -361,16 +361,15 @@ static int recvframe_chkmic(struct adapter *adapter,  union recv_frame *precvfra
 		/* calculate mic code */
 		if (stainfo != NULL) {
 			if (IS_MCAST(prxattrib->ra)) {
-				mickey = &psecuritypriv->dot118021XGrprxmickey[prxattrib->key_index].skey[0];
-
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n recvframe_chkmic: bcmc key\n"));
-
 				if (!psecuritypriv) {
 					res = _FAIL;
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("\n recvframe_chkmic:didn't install group key!!!!!!!!!!\n"));
 					DBG_88E("\n recvframe_chkmic:didn't install group key!!!!!!!!!!\n");
 					goto exit;
 				}
+				mickey = &psecuritypriv->dot118021XGrprxmickey[prxattrib->key_index].skey[0];
+
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n recvframe_chkmic: bcmc key\n"));
 			} else {
 				mickey = &stainfo->dot11tkiprxmickey.skey[0];
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("\n recvframe_chkmic: unicast key\n"));
