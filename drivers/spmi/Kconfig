@@ -1,0 +1,9 @@
+#
+# SPMI driver configuration
+#
+menuconfig SPMI
+	tristate "SPMI support"
+	help
+	  SPMI (System Power Management Interface) is a two-wire
+	  serial interface between baseband and application processors
+	  and Power Management Integrated Circuits (PMIC).
