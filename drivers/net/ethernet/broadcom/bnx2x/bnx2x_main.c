@@ -5221,9 +5221,9 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			continue;
 
 		case EVENT_RING_OPCODE_STAT_QUERY:
-			DP(BNX2X_MSG_SP | BNX2X_MSG_STATS,
-			   "got statistics comp event %d\n",
-			   bp->stats_comp++);
+			DP_AND((BNX2X_MSG_SP | BNX2X_MSG_STATS),
+			       "got statistics comp event %d\n",
+			       bp->stats_comp++);
 			/* nothing to do with stats comp */
 			goto next_spqe;
 

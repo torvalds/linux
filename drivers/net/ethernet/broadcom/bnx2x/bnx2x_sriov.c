@@ -2527,10 +2527,10 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 	first_queue_query_index = BNX2X_FIRST_QUEUE_QUERY_IDX -
 		(is_fcoe ? 0 : 1);
 
-	DP(BNX2X_MSG_IOV,
-	   "BNX2X_NUM_ETH_QUEUES %d, is_fcoe %d, first_queue_query_index %d => determined the last non virtual statistics query index is %d. Will add queries on top of that\n",
-	   BNX2X_NUM_ETH_QUEUES(bp), is_fcoe, first_queue_query_index,
-	   first_queue_query_index + num_queues_req);
+	DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+	       "BNX2X_NUM_ETH_QUEUES %d, is_fcoe %d, first_queue_query_index %d => determined the last non virtual statistics query index is %d. Will add queries on top of that\n",
+	       BNX2X_NUM_ETH_QUEUES(bp), is_fcoe, first_queue_query_index,
+	       first_queue_query_index + num_queues_req);
 
 	cur_data_offset = bp->fw_stats_data_mapping +
 		offsetof(struct bnx2x_fw_stats_data, queue_stats) +
@@ -2544,9 +2544,9 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 		struct bnx2x_virtf *vf = BP_VF(bp, i);
 
 		if (vf->state != VF_ENABLED) {
-			DP(BNX2X_MSG_IOV,
-			   "vf %d not enabled so no stats for it\n",
-			   vf->abs_vfid);
+			DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+			       "vf %d not enabled so no stats for it\n",
+			       vf->abs_vfid);
 			continue;
 		}
 
@@ -2597,7 +2597,8 @@ void bnx2x_iov_sp_task(struct bnx2x *bp)
 	/* Iterate over all VFs and invoke state transition for VFs with
 	 * 'in-progress' slow-path operations
 	 */
-	DP(BNX2X_MSG_IOV, "searching for pending vf operations\n");
+	DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_SP),
+	       "searching for pending vf operations\n");
 	for_each_vf(bp, i) {
 		struct bnx2x_virtf *vf = BP_VF(bp, i);
 
