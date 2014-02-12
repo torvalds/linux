@@ -13,6 +13,7 @@ if SPMI
 config SPMI_MSM_PMIC_ARB
 	tristate "Qualcomm MSM SPMI Controller (PMIC Arbiter)"
 	depends on ARM
+	depends on IRQ_DOMAIN
 	depends on ARCH_MSM || COMPILE_TEST
 	default ARCH_MSM
 	help
