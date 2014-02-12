@@ -47,21 +47,10 @@ static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
 	return d->tcf_action;
 }
 
-static int tcf_simp_release(struct tc_action *a, int bind)
+static void tcf_simp_release(struct tc_action *a, int bind)
 {
 	struct tcf_defact *d = to_defact(a);
-	int ret = 0;
-	if (d) {
-		if (bind)
-			d->tcf_bindcnt--;
-		d->tcf_refcnt--;
-		if (d->tcf_bindcnt <= 0 && d->tcf_refcnt <= 0) {
-			kfree(d->tcfd_defdata);
-			tcf_hash_destroy(a);
-			ret = 1;
-		}
-	}
-	return ret;
+	kfree(d->tcfd_defdata);
 }
 
 static int alloc_defdata(struct tcf_defact *d, char *defdata)
@@ -132,7 +121,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 
 		if (bind)
 			return 0;
-		tcf_simp_release(a, bind);
+		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
 

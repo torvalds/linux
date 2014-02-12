@@ -56,6 +56,8 @@ int tcf_hash_release(struct tc_action *a, int bind)
 
 		p->tcfc_refcnt--;
 		if (p->tcfc_bindcnt <= 0 && p->tcfc_refcnt <= 0) {
+			if (a->ops->cleanup)
+				a->ops->cleanup(a, bind);
 			tcf_hash_destroy(a);
 			ret = 1;
 		}
@@ -277,8 +279,8 @@ int tcf_register_action(struct tc_action_ops *act)
 {
 	struct tc_action_ops *a;
 
-	/* Must supply act, dump, cleanup and init */
-	if (!act->act || !act->dump || !act->cleanup || !act->init)
+	/* Must supply act, dump and init */
+	if (!act->act || !act->dump || !act->init)
 		return -EINVAL;
 
 	/* Supply defaults */
@@ -390,7 +392,7 @@ void tcf_action_destroy(struct list_head *actions, int bind)
 	struct tc_action *a, *tmp;
 
 	list_for_each_entry_safe(a, tmp, actions, list) {
-		if (a->ops->cleanup(a, bind) == ACT_P_DELETED)
+		if (tcf_hash_release(a, bind) == ACT_P_DELETED)
 			module_put(a->ops->owner);
 		list_del(&a->list);
 		kfree(a);

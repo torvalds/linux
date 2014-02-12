@@ -69,23 +69,12 @@ static void ipt_destroy_target(struct xt_entry_target *t)
 	module_put(par.target->me);
 }
 
-static int tcf_ipt_release(struct tc_action *a, int bind)
+static void tcf_ipt_release(struct tc_action *a, int bind)
 {
 	struct tcf_ipt *ipt = to_ipt(a);
-	int ret = 0;
-	if (ipt) {
-		if (bind)
-			ipt->tcf_bindcnt--;
-		ipt->tcf_refcnt--;
-		if (ipt->tcf_bindcnt <= 0 && ipt->tcf_refcnt <= 0) {
-			ipt_destroy_target(ipt->tcfi_t);
-			kfree(ipt->tcfi_tname);
-			kfree(ipt->tcfi_t);
-			tcf_hash_destroy(a);
-			ret = ACT_P_DELETED;
-		}
-	}
-	return ret;
+	ipt_destroy_target(ipt->tcfi_t);
+	kfree(ipt->tcfi_tname);
+	kfree(ipt->tcfi_t);
 }
 
 static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
@@ -133,7 +122,7 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_ipt_release(a, bind);
+		tcf_hash_release(a, bind);
 
 		if (!ovr)
 			return -EEXIST;

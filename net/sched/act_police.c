@@ -354,7 +354,6 @@ static struct tc_action_ops act_police_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,
-	.cleanup	=	tcf_hash_release,
 	.init		=	tcf_act_police_locate,
 	.walk		=	tcf_act_police_walker
 };

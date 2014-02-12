@@ -289,7 +289,6 @@ static struct tc_action_ops act_nat_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_nat,
 	.dump		=	tcf_nat_dump,
-	.cleanup	=	tcf_hash_release,
 	.init		=	tcf_nat_init,
 };
 

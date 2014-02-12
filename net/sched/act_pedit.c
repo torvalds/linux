@@ -99,18 +99,11 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	return ret;
 }
 
-static int tcf_pedit_cleanup(struct tc_action *a, int bind)
+static void tcf_pedit_cleanup(struct tc_action *a, int bind)
 {
 	struct tcf_pedit *p = a->priv;
-
-	if (p) {
-		struct tc_pedit_key *keys = p->tcfp_keys;
-		if (tcf_hash_release(a, bind)) {
-			kfree(keys);
-			return 1;
-		}
-	}
-	return 0;
+	struct tc_pedit_key *keys = p->tcfp_keys;
+	kfree(keys);
 }
 
 static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,

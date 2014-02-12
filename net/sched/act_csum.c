@@ -566,7 +566,6 @@ static struct tc_action_ops act_csum_ops = {
 	.owner		= THIS_MODULE,
 	.act		= tcf_csum,
 	.dump		= tcf_csum_dump,
-	.cleanup	= tcf_hash_release,
 	.init		= tcf_csum_init,
 };
 

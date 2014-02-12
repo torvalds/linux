@@ -185,7 +185,6 @@ static struct tc_action_ops act_gact_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_gact,
 	.dump		=	tcf_gact_dump,
-	.cleanup	=	tcf_hash_release,
 	.init		=	tcf_gact_init,
 };
 

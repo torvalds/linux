@@ -180,7 +180,6 @@ static struct tc_action_ops act_skbedit_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_skbedit,
 	.dump		=	tcf_skbedit_dump,
-	.cleanup	=	tcf_hash_release,
 	.init		=	tcf_skbedit_init,
 };
 
