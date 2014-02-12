@@ -172,8 +172,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	struct efx_ef10_nic_data *nic_data;
 	int i, rc;
 
-	/* We can have one VI for each 8K region.  However we need
-	 * multiple TX queues per channel.
+	/* We can have one VI for each 8K region.  However, until we
+	 * use TX option descriptors we need two TX queues per channel.
 	 */
 	efx->max_channels =
 		min_t(unsigned int,
