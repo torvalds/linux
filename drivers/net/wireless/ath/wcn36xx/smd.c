@@ -1637,12 +1637,12 @@ int wcn36xx_smd_keep_alive_req(struct wcn36xx *wcn,
 
 	ret = wcn36xx_smd_send_and_wait(wcn, msg_body.header.len);
 	if (ret) {
-		wcn36xx_err("Sending hal_exit_bmps failed\n");
+		wcn36xx_err("Sending hal_keep_alive failed\n");
 		goto out;
 	}
 	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
 	if (ret) {
-		wcn36xx_err("hal_exit_bmps response failed err=%d\n", ret);
+		wcn36xx_err("hal_keep_alive response failed err=%d\n", ret);
 		goto out;
 	}
 out:
