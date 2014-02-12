@@ -4438,9 +4438,6 @@ static void alc269_fill_coef(struct hda_codec *codec)
 
 	if (spec->codec_variant != ALC269_TYPE_ALC269VB)
 		return;
-	/* ALC271X doesn't seem to support these COEFs (bko#52181) */
-	if (!strcmp(codec->chip_name, "ALC271X"))
-		return;
 
 	if ((alc_get_coef0(codec) & 0x00ff) < 0x015) {
 		alc_write_coef_idx(codec, 0xf, 0x960b);
