@@ -146,7 +146,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 		bd->dpu_desc_idx = __vif_priv->self_dpu_desc_index;
 	}
 
-	bd->dpu_sign = __vif_priv->ucast_dpu_signature;
+	bd->dpu_sign = __vif_priv->self_ucast_dpu_sign;
 
 	if (ieee80211_is_nullfunc(hdr->frame_control) ||
 	   (sta_priv && !sta_priv->is_data_encrypted))

@@ -1121,7 +1121,7 @@ static int wcn36xx_smd_config_bss_rsp(struct wcn36xx *wcn,
 		priv_vif->sta->bss_dpu_desc_index = params->dpu_desc_index;
 	}
 
-	priv_vif->ucast_dpu_signature = params->ucast_dpu_signature;
+	priv_vif->self_ucast_dpu_sign = params->ucast_dpu_signature;
 
 	return 0;
 }
