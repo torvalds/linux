@@ -402,15 +402,18 @@ static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write,
 
 int sctp_sysctl_net_register(struct net *net)
 {
-	struct ctl_table *table;
-	int i;
+	struct ctl_table *table = sctp_net_table;
 
-	table = kmemdup(sctp_net_table, sizeof(sctp_net_table), GFP_KERNEL);
-	if (!table)
-		return -ENOMEM;
+	if (!net_eq(net, &init_net)) {
+		int i;
 
-	for (i = 0; table[i].data; i++)
-		table[i].data += (char *)(&net->sctp) - (char *)&init_net.sctp;
+		table = kmemdup(sctp_net_table, sizeof(sctp_net_table), GFP_KERNEL);
+		if (!table)
+			return -ENOMEM;
+
+		for (i = 0; table[i].data; i++)
+			table[i].data += (char *)(&net->sctp) - (char *)&init_net.sctp;
+	}
 
 	net->sctp.sysctl_header = register_net_sysctl(net, "net/sctp", table);
 	return 0;
