@@ -699,7 +699,7 @@ xfs_file_dio_aio_write(
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos, 0);
 	ret = generic_file_direct_write(iocb, iovp,
-			&nr_segs, pos, &iocb->ki_pos, count, ocount);
+			&nr_segs, pos, count, ocount);
 
 out:
 	xfs_rw_iunlock(ip, iolock);

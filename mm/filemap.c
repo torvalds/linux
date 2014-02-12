@@ -1985,7 +1985,7 @@ EXPORT_SYMBOL(pagecache_write_end);
 
 ssize_t
 generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long *nr_segs, loff_t pos, loff_t *ppos,
+		unsigned long *nr_segs, loff_t pos,
 		size_t count, size_t ocount)
 {
 	struct file	*file = iocb->ki_filp;
@@ -2046,7 +2046,7 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 			i_size_write(inode, pos);
 			mark_inode_dirty(inode);
 		}
-		*ppos = pos;
+		iocb->ki_pos = pos;
 	}
 out:
 	return written;
@@ -2265,7 +2265,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		ssize_t written_buffered;
 
 		written = generic_file_direct_write(iocb, iov, &nr_segs, pos,
-							&iocb->ki_pos, count, ocount);
+							count, ocount);
 		if (written < 0 || written == count)
 			goto out;
 		/*

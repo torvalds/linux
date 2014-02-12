@@ -1640,7 +1640,7 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 	loff_t endbyte;
 	int err;
 
-	written = generic_file_direct_write(iocb, iov, &nr_segs, pos, &iocb->ki_pos,
+	written = generic_file_direct_write(iocb, iov, &nr_segs, pos,
 					    count, ocount);
 
 	if (written < 0 || written == count)

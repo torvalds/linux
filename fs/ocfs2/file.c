@@ -2375,7 +2375,7 @@ relock:
 
 	if (direct_io) {
 		written = generic_file_direct_write(iocb, iov, &nr_segs, *ppos,
-						    ppos, count, ocount);
+						    count, ocount);
 		if (written < 0) {
 			ret = written;
 			goto out_dio;
