@@ -37,7 +37,7 @@
 #include "trx.h"
 #include "led.h"
 #include "dm.h"
-#include "phy.h"
+
 u8 _rtl8821ae_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
 {
 	u16 fc = rtl_get_fc(skb);
