@@ -160,6 +160,7 @@ static const struct net_device_ops loopback_ops = {
 	.ndo_init      = loopback_dev_init,
 	.ndo_start_xmit= loopback_xmit,
 	.ndo_get_stats64 = loopback_get_stats64,
+	.ndo_set_mac_address = eth_mac_addr,
 };
 
 /*
@@ -174,6 +175,7 @@ static void loopback_setup(struct net_device *dev)
 	dev->tx_queue_len	= 0;
 	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
 	dev->flags		= IFF_LOOPBACK;
+	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE;
 	dev->priv_flags	       &= ~IFF_XMIT_DST_RELEASE;
 	dev->hw_features	= NETIF_F_ALL_TSO | NETIF_F_UFO;
 	dev->features 		= NETIF_F_SG | NETIF_F_FRAGLIST
