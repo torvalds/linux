@@ -412,12 +412,11 @@ struct cftype {
 	unsigned int flags;
 
 	/*
-	 * The subsys this file belongs to.  Initialized automatically
-	 * during registration.  NULL for cgroup core files.
+	 * Fields used for internal bookkeeping.  Initialized automatically
+	 * during registration.
 	 */
-	struct cgroup_subsys *ss;
-
-	/* kernfs_ops to use, initialized automatically during registration */
+	struct cgroup_subsys *ss;	/* NULL for cgroup core files */
+	struct list_head node;		/* anchored at ss->cfts */
 	struct kernfs_ops *kf_ops;
 
 	/*
@@ -469,16 +468,6 @@ struct cftype {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	lockdep_key;
 #endif
-};
-
-/*
- * cftype_sets describe cftypes belonging to a subsystem and are chained at
- * cgroup_subsys->cftsets.  Each cftset points to an array of cftypes
- * terminated by zero length name.
- */
-struct cftype_set {
-	struct list_head		node;	/* chained at subsys->cftsets */
-	struct cftype			*cfts;
 };
 
 /*
@@ -597,8 +586,11 @@ struct cgroup_subsys {
 	/* link to parent, protected by cgroup_lock() */
 	struct cgroupfs_root *root;
 
-	/* list of cftype_sets */
-	struct list_head cftsets;
+	/*
+	 * List of cftypes.  Each entry is the first entry of an array
+	 * terminated by zero length name.
+	 */
+	struct list_head cfts;
 
 	/* base cftypes, automatically registered with subsys itself */
 	struct cftype *base_cftypes;

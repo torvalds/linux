@@ -1016,12 +1016,12 @@ static void cgroup_clear_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 	int i;
 
 	for_each_subsys(ss, i) {
-		struct cftype_set *set;
+		struct cftype *cfts;
 
 		if (!test_bit(i, &subsys_mask))
 			continue;
-		list_for_each_entry(set, &ss->cftsets, node)
-			cgroup_addrm_files(cgrp, set->cfts, false);
+		list_for_each_entry(cfts, &ss->cfts, node)
+			cgroup_addrm_files(cgrp, cfts, false);
 	}
 }
 
@@ -2392,6 +2392,8 @@ static int cgroup_init_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 	for (cft = cfts; cft->name[0] != '\0'; cft++) {
 		struct kernfs_ops *kf_ops;
 
+		WARN_ON(cft->ss || cft->kf_ops);
+
 		if (cft->seq_start)
 			kf_ops = &cgroup_kf_ops;
 		else
@@ -2430,26 +2432,15 @@ static int cgroup_init_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
  */
 int cgroup_rm_cftypes(struct cftype *cfts)
 {
-	struct cftype *found = NULL;
-	struct cftype_set *set;
-
 	if (!cfts || !cfts[0].ss)
 		return -ENOENT;
 
 	cgroup_cfts_prepare();
+	list_del(&cfts->node);
+	cgroup_cfts_commit(cfts, false);
 
-	list_for_each_entry(set, &cfts[0].ss->cftsets, node) {
-		if (set->cfts == cfts) {
-			list_del(&set->node);
-			kfree(set);
-			found = cfts;
-			break;
-		}
-	}
-
-	cgroup_cfts_commit(found, false);
 	cgroup_exit_cftypes(cfts);
-	return found ? 0 : -ENOENT;
+	return 0;
 }
 
 /**
@@ -2468,20 +2459,14 @@ int cgroup_rm_cftypes(struct cftype *cfts)
  */
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 {
-	struct cftype_set *set;
 	int ret;
-
-	set = kzalloc(sizeof(*set), GFP_KERNEL);
-	if (!set)
-		return -ENOMEM;
 
 	ret = cgroup_init_cftypes(ss, cfts);
 	if (ret)
 		return ret;
 
 	cgroup_cfts_prepare();
-	set->cfts = cfts;
-	list_add_tail(&set->node, &ss->cftsets);
+	list_add_tail(&cfts->node, &ss->cfts);
 	ret = cgroup_cfts_commit(cfts, true);
 	if (ret)
 		cgroup_rm_cftypes(cfts);
@@ -3574,13 +3559,13 @@ static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 
 	/* process cftsets of each subsystem */
 	for_each_subsys(ss, i) {
-		struct cftype_set *set;
+		struct cftype *cfts;
 
 		if (!test_bit(i, &subsys_mask))
 			continue;
 
-		list_for_each_entry(set, &ss->cftsets, node) {
-			ret = cgroup_addrm_files(cgrp, set->cfts, true);
+		list_for_each_entry(cfts, &ss->cfts, node) {
+			ret = cgroup_addrm_files(cgrp, cfts, true);
 			if (ret < 0)
 				goto err;
 		}
@@ -4169,7 +4154,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
 
-	INIT_LIST_HEAD(&ss->cftsets);
+	INIT_LIST_HEAD(&ss->cfts);
 
 	/* Create the top cgroup state for this subsystem */
 	ss->root = &cgroup_dummy_root;
