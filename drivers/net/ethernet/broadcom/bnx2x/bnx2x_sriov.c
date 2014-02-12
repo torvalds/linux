@@ -3075,16 +3075,6 @@ static inline void bnx2x_vf_get_sbdf(struct bnx2x *bp,
 	*sbdf = vf->devfn | (vf->bus << 8);
 }
 
-static inline void bnx2x_vf_get_bars(struct bnx2x *bp, struct bnx2x_virtf *vf,
-		       struct bnx2x_vf_bar_info *bar_info)
-{
-	int n;
-
-	bar_info->nr_bars = bp->vfdb->sriov.nres;
-	for (n = 0; n < bar_info->nr_bars; n++)
-		bar_info->bars[n] = vf->bars[n];
-}
-
 void bnx2x_lock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			      enum channel_tlvs tlv)
 {
