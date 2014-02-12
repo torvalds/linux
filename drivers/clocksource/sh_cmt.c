@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -122,6 +123,7 @@ struct sh_cmt_device {
 
 	struct sh_cmt_channel *channels;
 	unsigned int num_channels;
+	unsigned int hw_channels;
 
 	bool has_clockevent;
 	bool has_clocksource;
@@ -924,10 +926,35 @@ static int sh_cmt_map_memory(struct sh_cmt_device *cmt)
 	return 0;
 }
 
+static const struct platform_device_id sh_cmt_id_table[] = {
+	{ "sh-cmt-16", (kernel_ulong_t)&sh_cmt_info[SH_CMT_16BIT] },
+	{ "sh-cmt-32", (kernel_ulong_t)&sh_cmt_info[SH_CMT_32BIT] },
+	{ "sh-cmt-32-fast", (kernel_ulong_t)&sh_cmt_info[SH_CMT_32BIT_FAST] },
+	{ "sh-cmt-48", (kernel_ulong_t)&sh_cmt_info[SH_CMT_48BIT] },
+	{ "sh-cmt-48-gen2", (kernel_ulong_t)&sh_cmt_info[SH_CMT_48BIT_GEN2] },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, sh_cmt_id_table);
+
+static const struct of_device_id sh_cmt_of_table[] __maybe_unused = {
+	{ .compatible = "renesas,cmt-32", .data = &sh_cmt_info[SH_CMT_32BIT] },
+	{ .compatible = "renesas,cmt-32-fast", .data = &sh_cmt_info[SH_CMT_32BIT_FAST] },
+	{ .compatible = "renesas,cmt-48", .data = &sh_cmt_info[SH_CMT_48BIT] },
+	{ .compatible = "renesas,cmt-48-gen2", .data = &sh_cmt_info[SH_CMT_48BIT_GEN2] },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sh_cmt_of_table);
+
+static int sh_cmt_parse_dt(struct sh_cmt_device *cmt)
+{
+	struct device_node *np = cmt->pdev->dev.of_node;
+
+	return of_property_read_u32(np, "renesas,channels-mask",
+				    &cmt->hw_channels);
+}
+
 static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 {
-	struct sh_timer_config *cfg = pdev->dev.platform_data;
-	const struct platform_device_id *id = pdev->id_entry;
 	unsigned int mask;
 	unsigned int i;
 	int ret;
@@ -936,12 +963,25 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	cmt->pdev = pdev;
 	raw_spin_lock_init(&cmt->lock);
 
-	if (!cfg) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		const struct of_device_id *id;
+
+		id = of_match_node(sh_cmt_of_table, pdev->dev.of_node);
+		cmt->info = id->data;
+
+		ret = sh_cmt_parse_dt(cmt);
+		if (ret < 0)
+			return ret;
+	} else if (pdev->dev.platform_data) {
+		struct sh_timer_config *cfg = pdev->dev.platform_data;
+		const struct platform_device_id *id = pdev->id_entry;
+
+		cmt->info = (const struct sh_cmt_info *)id->driver_data;
+		cmt->hw_channels = cfg->channels_mask;
+	} else {
 		dev_err(&cmt->pdev->dev, "missing platform data\n");
 		return -ENXIO;
 	}
-
-	cmt->info = (const struct sh_cmt_info *)id->driver_data;
 
 	/* Get hold of clock. */
 	cmt->clk = clk_get(&cmt->pdev->dev, "fck");
@@ -960,8 +1000,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 		goto err_clk_unprepare;
 
 	/* Allocate and setup the channels. */
-	cmt->num_channels = hweight8(cfg->channels_mask);
-
+	cmt->num_channels = hweight8(cmt->hw_channels);
 	cmt->channels = kzalloc(cmt->num_channels * sizeof(*cmt->channels),
 				GFP_KERNEL);
 	if (cmt->channels == NULL) {
@@ -973,7 +1012,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	 * Use the first channel as a clock event device and the second channel
 	 * as a clock source. If only one channel is available use it for both.
 	 */
-	for (i = 0, mask = cfg->channels_mask; i < cmt->num_channels; ++i) {
+	for (i = 0, mask = cmt->hw_channels; i < cmt->num_channels; ++i) {
 		unsigned int hwidx = ffs(mask) - 1;
 		bool clocksource = i == 1 || cmt->num_channels == 1;
 		bool clockevent = i == 0;
@@ -1042,21 +1081,12 @@ static int sh_cmt_remove(struct platform_device *pdev)
 	return -EBUSY; /* cannot unregister clockevent and clocksource */
 }
 
-static const struct platform_device_id sh_cmt_id_table[] = {
-	{ "sh-cmt-16", (kernel_ulong_t)&sh_cmt_info[SH_CMT_16BIT] },
-	{ "sh-cmt-32", (kernel_ulong_t)&sh_cmt_info[SH_CMT_32BIT] },
-	{ "sh-cmt-32-fast", (kernel_ulong_t)&sh_cmt_info[SH_CMT_32BIT_FAST] },
-	{ "sh-cmt-48", (kernel_ulong_t)&sh_cmt_info[SH_CMT_48BIT] },
-	{ "sh-cmt-48-gen2", (kernel_ulong_t)&sh_cmt_info[SH_CMT_48BIT_GEN2] },
-	{ }
-};
-MODULE_DEVICE_TABLE(platform, sh_cmt_id_table);
-
 static struct platform_driver sh_cmt_device_driver = {
 	.probe		= sh_cmt_probe,
 	.remove		= sh_cmt_remove,
 	.driver		= {
 		.name	= "sh_cmt",
+		.of_match_table = of_match_ptr(sh_cmt_of_table),
 	},
 	.id_table	= sh_cmt_id_table,
 };
