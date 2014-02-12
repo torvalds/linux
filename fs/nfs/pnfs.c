@@ -662,7 +662,7 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
  */
 static bool pnfs_seqid_is_newer(u32 s1, u32 s2)
 {
-	return (s32)s1 - (s32)s2 > 0;
+	return (s32)(s1 - s2) > 0;
 }
 
 /* update lo->plh_stateid with new if is more recent */
