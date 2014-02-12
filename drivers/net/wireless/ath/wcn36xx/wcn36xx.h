@@ -171,6 +171,8 @@ struct wcn36xx {
 	struct device		*dev;
 	struct list_head	vif_list;
 
+	const struct firmware	*nv;
+
 	u8			fw_revision;
 	u8			fw_version;
 	u8			fw_minor;

@@ -17,6 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/firmware.h>
 #include <linux/platform_device.h>
 #include "wcn36xx.h"
 
@@ -992,6 +993,7 @@ static int wcn36xx_remove(struct platform_device *pdev)
 	struct wcn36xx *wcn = hw->priv;
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform remove\n");
 
+	release_firmware(wcn->nv);
 	mutex_destroy(&wcn->hal_mutex);
 
 	ieee80211_unregister_hw(hw);
