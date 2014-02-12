@@ -45,9 +45,11 @@
 void phy_print_status(struct phy_device *phydev)
 {
 	if (phydev->link) {
-		netdev_info(phydev->attached_dev, "Link is Up - %d/%s\n",
+		netdev_info(phydev->attached_dev,
+			"Link is Up - %d/%s - flow control %s\n",
 			phydev->speed,
-			DUPLEX_FULL == phydev->duplex ? "Full" : "Half");
+			DUPLEX_FULL == phydev->duplex ? "Full" : "Half",
+			phydev->pause ? "rx/tx" : "off");
 	} else	{
 		netdev_info(phydev->attached_dev, "Link is Down\n");
 	}
