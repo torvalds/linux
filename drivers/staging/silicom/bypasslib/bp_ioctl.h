@@ -51,7 +51,7 @@
 #define WDT_STEP_TIME              0x10	/* BIT_4 */
 
 #define WD_MIN_TIME_GET(desc)   (desc & 0xf)
-#define WD_STEP_COUNT_GET(desc) (desc>>5) & 0xf
+#define WD_STEP_COUNT_GET(desc) ((desc>>5) & 0xf)
 
 typedef enum {
 	IS_BYPASS = 1,
@@ -156,7 +156,7 @@ typedef enum {
 
 } CMND_TYPE_SD;
 
-#define SIOCGIFBYPASS SIOCDEVPRIVATE+10
+#define SIOCGIFBYPASS (SIOCDEVPRIVATE+10)
 
 struct bp_info {
 	char prod_name[14];
