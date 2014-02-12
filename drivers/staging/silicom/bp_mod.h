@@ -698,5 +698,3 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	readl((void *)((a)->mem_map) + BP10GB_##reg))
 
 #endif
-
-int bp_proc_create(void);

@@ -117,12 +117,12 @@ static int wdt_timer(struct bpctl_dev *pbpctl_dev, int *time_left);
 static struct bpctl_dev *get_status_port_fn(struct bpctl_dev *pbpctl_dev);
 static void if_scan_init(void);
 
-int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block);
-int bypass_proc_remove_dev_sd(struct bpctl_dev *pbp_device_block);
-int bp_proc_create(void);
+static int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block);
+static int bypass_proc_remove_dev_sd(struct bpctl_dev *pbp_device_block);
+static int bp_proc_create(void);
 
-int is_bypass_fn(struct bpctl_dev *pbpctl_dev);
-int get_dev_idx_bsf(int bus, int slot, int func);
+static int is_bypass_fn(struct bpctl_dev *pbpctl_dev);
+static int get_dev_idx_bsf(int bus, int slot, int func);
 
 static int bp_get_dev_idx_bsf(struct net_device *dev, int *index)
 {
@@ -262,7 +262,7 @@ static struct notifier_block bp_notifier_block = {
 	.notifier_call = bp_device_event,
 };
 
-int is_bypass_fn(struct bpctl_dev *pbpctl_dev);
+static int is_bypass_fn(struct bpctl_dev *pbpctl_dev);
 int wdt_time_left(struct bpctl_dev *pbpctl_dev);
 
 static void write_pulse(struct bpctl_dev *pbpctl_dev,
@@ -4906,7 +4906,7 @@ static int get_bypass_info_fn(struct bpctl_dev *pbpctl_dev, char *dev_name,
 	return 0;
 }
 
-int get_dev_idx_bsf(int bus, int slot, int func)
+static int get_dev_idx_bsf(int bus, int slot, int func)
 {
 	int idx_dev = 0;
 	for (idx_dev = 0;
@@ -6786,7 +6786,7 @@ EXPORT_SYMBOL(bp_if_scan_sd);
 
 static struct proc_dir_entry *bp_procfs_dir;
 
-int bp_proc_create(void)
+static int bp_proc_create(void)
 {
 	bp_procfs_dir = proc_mkdir(BP_PROC_DIR, init_net.proc_net);
 	if (bp_procfs_dir == (struct proc_dir_entry *)0) {
@@ -7414,7 +7414,7 @@ static int show_wd_autoreset(struct seq_file *m, void *v)
 }
 RW_FOPS(wd_autoreset)
 
-int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block)
+static int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block)
 {
 	struct bypass_pfs_sd *current_pfs = &(pbp_device_block->bypass_pfs_set);
 	static struct proc_dir_entry *procfs_dir;
@@ -7484,7 +7484,7 @@ int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block)
 	return ret;
 }
 
-int bypass_proc_remove_dev_sd(struct bpctl_dev *pbp_device_block)
+static int bypass_proc_remove_dev_sd(struct bpctl_dev *pbp_device_block)
 {
 
 	struct bypass_pfs_sd *current_pfs = &pbp_device_block->bypass_pfs_set;
