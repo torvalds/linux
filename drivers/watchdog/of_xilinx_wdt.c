@@ -12,6 +12,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -43,7 +44,6 @@
 #define PFX WATCHDOG_NAME ": "
 
 struct xwdt_device {
-	struct resource  res;
 	void __iomem *base;
 	u32 wdt_interval;
 };
@@ -158,8 +158,14 @@ static int xwdt_probe(struct platform_device *pdev)
 	int rc;
 	u32 *tmptr;
 	u32 *pfreq;
+	struct resource *res;
 
 	no_timeout = 0;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	xdev.base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(xdev.base))
+		return PTR_ERR(xdev.base);
 
 	pfreq = (u32 *)of_get_property(pdev->dev.of_node,
 					"clock-frequency", NULL);
@@ -167,12 +173,6 @@ static int xwdt_probe(struct platform_device *pdev)
 	if (pfreq == NULL) {
 		pr_warn("The watchdog clock frequency cannot be obtained!\n");
 		no_timeout = 1;
-	}
-
-	rc = of_address_to_resource(pdev->dev.of_node, 0, &xdev.res);
-	if (rc) {
-		pr_warn("invalid address!\n");
-		return rc;
 	}
 
 	tmptr = (u32 *)of_get_property(pdev->dev.of_node,
@@ -198,50 +198,27 @@ static int xwdt_probe(struct platform_device *pdev)
 	if (!no_timeout)
 		timeout = 2 * ((1<<xdev.wdt_interval) / *pfreq);
 
-	if (!request_mem_region(xdev.res.start,
-			xdev.res.end - xdev.res.start + 1, WATCHDOG_NAME)) {
-		rc = -ENXIO;
-		pr_err("memory request failure!\n");
-		goto err_out;
-	}
-
-	xdev.base = ioremap(xdev.res.start, xdev.res.end - xdev.res.start + 1);
-	if (xdev.base == NULL) {
-		rc = -ENOMEM;
-		pr_err("ioremap failure!\n");
-		goto release_mem;
-	}
-
 	rc = xwdt_selftest();
 	if (rc == XWT_TIMER_FAILED) {
 		pr_err("SelfTest routine error!\n");
-		goto unmap_io;
+		return rc;
 	}
 
 	rc = watchdog_register_device(&xilinx_wdt_wdd);
 	if (rc) {
 		pr_err("cannot register watchdog (err=%d)\n", rc);
-		goto unmap_io;
+		return rc;
 	}
 
 	dev_info(&pdev->dev, "Xilinx Watchdog Timer at %p with timeout %ds\n",
 		 xdev.base, timeout);
 
 	return 0;
-
-unmap_io:
-	iounmap(xdev.base);
-release_mem:
-	release_mem_region(xdev.res.start, resource_size(&xdev.res));
-err_out:
-	return rc;
 }
 
 static int xwdt_remove(struct platform_device *dev)
 {
 	watchdog_unregister_device(&xilinx_wdt_wdd);
-	iounmap(xdev.base);
-	release_mem_region(xdev.res.start, resource_size(&xdev.res));
 
 	return 0;
 }
