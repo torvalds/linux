@@ -1324,4 +1324,7 @@ void bnx2x_fill_fw_str(struct bnx2x *bp, char *buf, size_t buf_len);
 int bnx2x_drain_tx_queues(struct bnx2x *bp);
 void bnx2x_squeeze_objects(struct bnx2x *bp);
 
+void bnx2x_schedule_sp_rtnl(struct bnx2x*, enum sp_rtnl_flag,
+			    u32 verbose);
+
 #endif /* BNX2X_CMN_H */

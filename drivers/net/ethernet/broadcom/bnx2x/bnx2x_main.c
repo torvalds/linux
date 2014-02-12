@@ -3908,10 +3908,7 @@ static void bnx2x_fan_failure(struct bnx2x *bp)
 	 * This is due to some boards consuming sufficient power when driver is
 	 * up to overheat if fan fails.
 	 */
-	smp_mb__before_clear_bit();
-	set_bit(BNX2X_SP_RTNL_FAN_FAILURE, &bp->sp_rtnl_state);
-	smp_mb__after_clear_bit();
-	schedule_delayed_work(&bp->sp_rtnl_task, 0);
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_FAN_FAILURE, 0);
 }
 
 static void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
@@ -5303,6 +5300,8 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 					break;
 
 			} else {
+				int cmd = BNX2X_SP_RTNL_AFEX_F_UPDATE;
+
 				DP(BNX2X_MSG_SP | BNX2X_MSG_MCP,
 				   "AFEX: ramrod completed FUNCTION_UPDATE\n");
 				f_obj->complete_cmd(bp, f_obj,
@@ -5312,12 +5311,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 				 * sp_rtnl task as all Queue SP operations
 				 * should run under rtnl_lock.
 				 */
-				smp_mb__before_clear_bit();
-				set_bit(BNX2X_SP_RTNL_AFEX_F_UPDATE,
-					&bp->sp_rtnl_state);
-				smp_mb__after_clear_bit();
-
-				schedule_delayed_work(&bp->sp_rtnl_task, 0);
+				bnx2x_schedule_sp_rtnl(bp, cmd, 0);
 			}
 
 			goto next_spqe;
@@ -12082,11 +12076,8 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 		return;
 	} else {
 		/* Schedule an SP task to handle rest of change */
-		DP(NETIF_MSG_IFUP, "Scheduling an Rx mode change\n");
-		smp_mb__before_clear_bit();
-		set_bit(BNX2X_SP_RTNL_RX_MODE, &bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_RX_MODE,
+				       NETIF_MSG_IFUP);
 	}
 }
 
@@ -12119,11 +12110,8 @@ void bnx2x_set_rx_mode_inner(struct bnx2x *bp)
 			/* configuring mcast to a vf involves sleeping (when we
 			 * wait for the pf's response).
 			 */
-			smp_mb__before_clear_bit();
-			set_bit(BNX2X_SP_RTNL_VFPF_MCAST,
-				&bp->sp_rtnl_state);
-			smp_mb__after_clear_bit();
-			schedule_delayed_work(&bp->sp_rtnl_task, 0);
+			bnx2x_schedule_sp_rtnl(bp,
+					       BNX2X_SP_RTNL_VFPF_MCAST, 0);
 		}
 	}
 

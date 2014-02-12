@@ -1402,7 +1402,7 @@ struct bnx2x_fw_stats_data {
 };
 
 /* Public slow path states */
-enum {
+enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_SETUP_TC,
 	BNX2X_SP_RTNL_TX_TIMEOUT,
 	BNX2X_SP_RTNL_FAN_FAILURE,

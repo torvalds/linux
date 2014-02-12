@@ -983,11 +983,8 @@ op_err:
 op_done:
 	case BNX2X_VFOP_QSETUP_DONE:
 		vf->cfg_flags |= VF_CFG_VLAN;
-		smp_mb__before_clear_bit();
-		set_bit(BNX2X_SP_RTNL_HYPERVISOR_VLAN,
-			&bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_HYPERVISOR_VLAN,
+				       BNX2X_MSG_IOV);
 		bnx2x_vfop_end(bp, vf, vfop);
 		return;
 	default:
@@ -3812,13 +3809,9 @@ void bnx2x_timer_sriov(struct bnx2x *bp)
 	bnx2x_sample_bulletin(bp);
 
 	/* if channel is down we need to self destruct */
-	if (bp->old_bulletin.valid_bitmap & 1 << CHANNEL_DOWN) {
-		smp_mb__before_clear_bit();
-		set_bit(BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
-			&bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
-	}
+	if (bp->old_bulletin.valid_bitmap & 1 << CHANNEL_DOWN)
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
+				       BNX2X_MSG_IOV);
 }
 
 void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
