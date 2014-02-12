@@ -230,21 +230,6 @@ static int hspi_transfer_one_message(struct spi_master *master,
 	return ret;
 }
 
-static int hspi_setup(struct spi_device *spi)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
-	struct device *dev = hspi->dev;
-
-	if (8 != spi->bits_per_word) {
-		dev_err(dev, "bits_per_word should be 8\n");
-		return -EIO;
-	}
-
-	dev_dbg(dev, "%s setup\n", spi->modalias);
-
-	return 0;
-}
-
 static void hspi_cleanup(struct spi_device *spi)
 {
 	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
@@ -300,12 +285,13 @@ static int hspi_probe(struct platform_device *pdev)
 
 	master->num_chipselect	= 1;
 	master->bus_num		= pdev->id;
-	master->setup		= hspi_setup;
 	master->cleanup		= hspi_cleanup;
 	master->mode_bits	= SPI_CPOL | SPI_CPHA;
 	master->dev.of_node	= pdev->dev.of_node;
 	master->auto_runtime_pm = true;
 	master->transfer_one_message		= hspi_transfer_one_message;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
+
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
