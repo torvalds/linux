@@ -38,6 +38,26 @@
 
 #include <asm/irq.h>
 
+static const char *phy_speed_to_str(int speed)
+{
+	switch (speed) {
+	case SPEED_10:
+		return "10Mbps";
+	case SPEED_100:
+		return "100Mbps";
+	case SPEED_1000:
+		return "1Gbps";
+	case SPEED_2500:
+		return "2.5Gbps";
+	case SPEED_10000:
+		return "10Gbps";
+	case SPEED_UNKNOWN:
+		return "Unknown";
+	default:
+		return "Unsupported (update phy.c)";
+	}
+}
+
 /**
  * phy_print_status - Convenience function to print out the current phy status
  * @phydev: the phy_device struct
@@ -46,8 +66,8 @@ void phy_print_status(struct phy_device *phydev)
 {
 	if (phydev->link) {
 		netdev_info(phydev->attached_dev,
-			"Link is Up - %d/%s - flow control %s\n",
-			phydev->speed,
+			"Link is Up - %s/%s - flow control %s\n",
+			phy_speed_to_str(phydev->speed),
 			DUPLEX_FULL == phydev->duplex ? "Full" : "Half",
 			phydev->pause ? "rx/tx" : "off");
 	} else	{
