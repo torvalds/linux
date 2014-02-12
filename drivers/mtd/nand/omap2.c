@@ -154,7 +154,6 @@ struct omap_nand_info {
 
 	int				gpmc_cs;
 	unsigned long			phys_base;
-	unsigned long			mem_size;
 	enum omap_ecc			ecc_opt;
 	struct completion		comp;
 	struct dma_chan			*dma;
@@ -1607,27 +1606,11 @@ static int omap_nand_probe(struct platform_device *pdev)
 	nand_chip->options	|= NAND_SKIP_BBTSCAN;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		err = -EINVAL;
-		dev_err(&pdev->dev, "error getting memory resource\n");
-		goto return_error;
-	}
+	nand_chip->IO_ADDR_R = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(nand_chip->IO_ADDR_R))
+		return PTR_ERR(nand_chip->IO_ADDR_R);
 
 	info->phys_base = res->start;
-	info->mem_size = resource_size(res);
-
-	if (!devm_request_mem_region(&pdev->dev, info->phys_base,
-				info->mem_size,	pdev->dev.driver->name)) {
-		err = -EBUSY;
-		goto return_error;
-	}
-
-	nand_chip->IO_ADDR_R = devm_ioremap(&pdev->dev, info->phys_base,
-						info->mem_size);
-	if (!nand_chip->IO_ADDR_R) {
-		err = -ENOMEM;
-		goto return_error;
-	}
 
 	nand_chip->controller = &info->controller;
 
