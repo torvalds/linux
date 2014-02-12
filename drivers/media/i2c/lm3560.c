@@ -416,8 +416,7 @@ static int lm3560_probe(struct i2c_client *client,
 
 	/* if there is no platform data, use chip default value */
 	if (pdata == NULL) {
-		pdata =
-		    kzalloc(sizeof(struct lm3560_platform_data), GFP_KERNEL);
+		pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 		if (pdata == NULL)
 			return -ENODEV;
 		pdata->peak = LM3560_PEAK_3600mA;
