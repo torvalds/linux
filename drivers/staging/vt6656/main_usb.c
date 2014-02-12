@@ -1350,62 +1350,63 @@ static int Read_config_file(struct vnt_private *pDevice)
 
 static void device_set_multi(struct net_device *dev)
 {
-	struct vnt_private *pDevice = netdev_priv(dev);
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_private *priv = netdev_priv(dev);
+	struct vnt_manager *mgmt = &priv->vnt_mgmt;
 	struct netdev_hw_addr *ha;
 	u64 mc_filter = 0;
-	u8 byTmpMode = 0;
+	u8 tmp = 0;
 	int rc;
 
-	spin_lock_irq(&pDevice->lock);
-    rc = CONTROLnsRequestIn(pDevice,
-                            MESSAGE_TYPE_READ,
-                            MAC_REG_RCR,
-                            MESSAGE_REQUEST_MACREG,
-                            1,
-                            &byTmpMode
-                            );
-    if (rc == 0) pDevice->byRxMode = byTmpMode;
+	spin_lock_irq(&priv->lock);
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->byRxMode in= %x\n", pDevice->byRxMode);
+	rc = CONTROLnsRequestIn(priv, MESSAGE_TYPE_READ,
+		MAC_REG_RCR, MESSAGE_REQUEST_MACREG, 1, &tmp);
+	if (rc == 0)
+		priv->byRxMode = tmp;
 
-    if (dev->flags & IFF_PROMISC) { /* set promiscuous mode */
-        DBG_PRT(MSG_LEVEL_ERR,KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
-	/* unconditionally log net taps */
-        pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST|RCR_UNICAST);
-    }
-    else if ((netdev_mc_count(dev) > pDevice->multicast_limit) ||
-	     (dev->flags & IFF_ALLMULTI)) {
-	mc_filter = ~0x0;
-	MACvWriteMultiAddr(pDevice, mc_filter);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "priv->byRxMode in= %x\n",
+							priv->byRxMode);
 
-        pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
-    }
-    else {
-	netdev_for_each_mc_addr(ha, dev) {
-		int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+	if (dev->flags & IFF_PROMISC) { /* set promiscuous mode */
+		DBG_PRT(MSG_LEVEL_ERR, KERN_NOTICE
+			"%s: Promiscuous mode enabled.\n", dev->name);
+		/* unconditionally log net taps */
+		priv->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST|RCR_UNICAST);
+	} else if ((netdev_mc_count(dev) > priv->multicast_limit) ||
+			(dev->flags & IFF_ALLMULTI)) {
+		mc_filter = ~0x0;
+		MACvWriteMultiAddr(priv, mc_filter);
 
-		mc_filter |= 1ULL << (bit_nr & 0x3f);
+		priv->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
+	} else {
+		netdev_for_each_mc_addr(ha, dev) {
+			int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+
+			mc_filter |= 1ULL << (bit_nr & 0x3f);
+		}
+
+		MACvWriteMultiAddr(priv, mc_filter);
+
+		priv->byRxMode &= ~(RCR_UNICAST);
+		priv->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
 	}
 
-	MACvWriteMultiAddr(pDevice, mc_filter);
+	if (mgmt->eConfigMode == WMAC_CONFIG_AP) {
+		/*
+		 * If AP mode, don't enable RCR_UNICAST since HW only compares
+		 * addr1 with local MAC
+		 */
+		priv->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
+		priv->byRxMode &= ~(RCR_UNICAST);
+	}
 
-        pDevice->byRxMode &= ~(RCR_UNICAST);
-        pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
-    }
+	ControlvWriteByte(priv, MESSAGE_REQUEST_MACREG,
+					MAC_REG_RCR, priv->byRxMode);
 
-    if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
-	/*
-	 * If AP mode, don't enable RCR_UNICAST since HW only compares
-	 * addr1 with local MAC
-	 */
-        pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
-        pDevice->byRxMode &= ~(RCR_UNICAST);
-    }
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_RCR, pDevice->byRxMode);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->byRxMode out= %x\n", pDevice->byRxMode);
-	spin_unlock_irq(&pDevice->lock);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				"priv->byRxMode out= %x\n", priv->byRxMode);
 
+	spin_unlock_irq(&priv->lock);
 }
 
 static struct net_device_stats *device_get_stats(struct net_device *dev)
