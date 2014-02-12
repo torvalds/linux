@@ -7,3 +7,20 @@ menuconfig SPMI
 	  SPMI (System Power Management Interface) is a two-wire
 	  serial interface between baseband and application processors
 	  and Power Management Integrated Circuits (PMIC).
+
+if SPMI
+
+config SPMI_MSM_PMIC_ARB
+	tristate "Qualcomm MSM SPMI Controller (PMIC Arbiter)"
+	depends on ARM
+	depends on ARCH_MSM || COMPILE_TEST
+	default ARCH_MSM
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in SPMI PMIC Arbiter interface on Qualcomm MSM family
+	  processors.
+
+	  This is required for communicating with Qualcomm PMICs and
+	  other devices that have the SPMI interface.
+
+endif
