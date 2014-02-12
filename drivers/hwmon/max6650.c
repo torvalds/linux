@@ -656,10 +656,8 @@ static int max6650_probe(struct i2c_client *client,
 
 	data = devm_kzalloc(&client->dev, sizeof(struct max6650_data),
 			    GFP_KERNEL);
-	if (!data) {
-		dev_err(&client->dev, "out of memory.\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->client = client;
 	mutex_init(&data->update_lock);
