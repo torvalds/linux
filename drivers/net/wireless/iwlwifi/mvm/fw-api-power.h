@@ -301,54 +301,65 @@ struct iwl_beacon_filter_cmd {
 
 /* Beacon filtering and beacon abort */
 #define IWL_BF_ENERGY_DELTA_DEFAULT 5
+#define IWL_BF_ENERGY_DELTA_D0I3 20
 #define IWL_BF_ENERGY_DELTA_MAX 255
 #define IWL_BF_ENERGY_DELTA_MIN 0
 
 #define IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT 1
+#define IWL_BF_ROAMING_ENERGY_DELTA_D0I3 20
 #define IWL_BF_ROAMING_ENERGY_DELTA_MAX 255
 #define IWL_BF_ROAMING_ENERGY_DELTA_MIN 0
 
 #define IWL_BF_ROAMING_STATE_DEFAULT 72
+#define IWL_BF_ROAMING_STATE_D0I3 72
 #define IWL_BF_ROAMING_STATE_MAX 255
 #define IWL_BF_ROAMING_STATE_MIN 0
 
 #define IWL_BF_TEMP_THRESHOLD_DEFAULT 112
+#define IWL_BF_TEMP_THRESHOLD_D0I3 112
 #define IWL_BF_TEMP_THRESHOLD_MAX 255
 #define IWL_BF_TEMP_THRESHOLD_MIN 0
 
 #define IWL_BF_TEMP_FAST_FILTER_DEFAULT 1
+#define IWL_BF_TEMP_FAST_FILTER_D0I3 1
 #define IWL_BF_TEMP_FAST_FILTER_MAX 255
 #define IWL_BF_TEMP_FAST_FILTER_MIN 0
 
 #define IWL_BF_TEMP_SLOW_FILTER_DEFAULT 5
+#define IWL_BF_TEMP_SLOW_FILTER_D0I3 5
 #define IWL_BF_TEMP_SLOW_FILTER_MAX 255
 #define IWL_BF_TEMP_SLOW_FILTER_MIN 0
 
 #define IWL_BF_ENABLE_BEACON_FILTER_DEFAULT 1
 
 #define IWL_BF_DEBUG_FLAG_DEFAULT 0
+#define IWL_BF_DEBUG_FLAG_D0I3 0
 
 #define IWL_BF_ESCAPE_TIMER_DEFAULT 50
+#define IWL_BF_ESCAPE_TIMER_D0I3 1024
 #define IWL_BF_ESCAPE_TIMER_MAX 1024
 #define IWL_BF_ESCAPE_TIMER_MIN 0
 
 #define IWL_BA_ESCAPE_TIMER_DEFAULT 6
+#define IWL_BA_ESCAPE_TIMER_D0I3 6
 #define IWL_BA_ESCAPE_TIMER_D3 9
 #define IWL_BA_ESCAPE_TIMER_MAX 1024
 #define IWL_BA_ESCAPE_TIMER_MIN 0
 
 #define IWL_BA_ENABLE_BEACON_ABORT_DEFAULT 1
 
-#define IWL_BF_CMD_CONFIG_DEFAULTS					     \
-	.bf_energy_delta = cpu_to_le32(IWL_BF_ENERGY_DELTA_DEFAULT),	     \
-	.bf_roaming_energy_delta =					     \
-		cpu_to_le32(IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT),	     \
-	.bf_roaming_state = cpu_to_le32(IWL_BF_ROAMING_STATE_DEFAULT),	     \
-	.bf_temp_threshold = cpu_to_le32(IWL_BF_TEMP_THRESHOLD_DEFAULT),     \
-	.bf_temp_fast_filter = cpu_to_le32(IWL_BF_TEMP_FAST_FILTER_DEFAULT), \
-	.bf_temp_slow_filter = cpu_to_le32(IWL_BF_TEMP_SLOW_FILTER_DEFAULT), \
-	.bf_debug_flag = cpu_to_le32(IWL_BF_DEBUG_FLAG_DEFAULT),	     \
-	.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER_DEFAULT),	     \
-	.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_DEFAULT)
+#define IWL_BF_CMD_CONFIG(mode)					     \
+	.bf_energy_delta = cpu_to_le32(IWL_BF_ENERGY_DELTA ## mode),	      \
+	.bf_roaming_energy_delta =					      \
+		cpu_to_le32(IWL_BF_ROAMING_ENERGY_DELTA ## mode),	      \
+	.bf_roaming_state = cpu_to_le32(IWL_BF_ROAMING_STATE ## mode),	      \
+	.bf_temp_threshold = cpu_to_le32(IWL_BF_TEMP_THRESHOLD ## mode),      \
+	.bf_temp_fast_filter = cpu_to_le32(IWL_BF_TEMP_FAST_FILTER ## mode),  \
+	.bf_temp_slow_filter = cpu_to_le32(IWL_BF_TEMP_SLOW_FILTER ## mode),  \
+	.bf_debug_flag = cpu_to_le32(IWL_BF_DEBUG_FLAG ## mode),	      \
+	.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER ## mode),	      \
+	.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER ## mode)
 
+#define IWL_BF_CMD_CONFIG_DEFAULTS IWL_BF_CMD_CONFIG(_DEFAULT)
+#define IWL_BF_CMD_CONFIG_D0I3 IWL_BF_CMD_CONFIG(_D0I3)
 #endif

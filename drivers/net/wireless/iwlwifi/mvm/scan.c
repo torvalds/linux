@@ -407,6 +407,8 @@ int iwl_mvm_rx_scan_complete(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 	ieee80211_scan_completed(mvm->hw, notif->status != SCAN_COMP_STATUS_OK);
 
+	iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+
 	return 0;
 }
 
@@ -475,6 +477,7 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
 		ieee80211_scan_completed(mvm->hw, true);
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
 		return;
 	}
@@ -487,7 +490,7 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_CMD, CMD_SYNC, 0, NULL);
 	if (ret) {
 		IWL_ERR(mvm, "Couldn't send SCAN_ABORT_CMD: %d\n", ret);
-		/* mac80211's state will be cleaned in the fw_restart flow */
+		/* mac80211's state will be cleaned in the nic_restart flow */
 		goto out_remove_notif;
 	}
 
@@ -508,11 +511,16 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scan_offload_complete *scan_notif = (void *)pkt->data;
 
+	/* scan status must be locked for proper checking */
+	lockdep_assert_held(&mvm->mutex);
+
 	IWL_DEBUG_SCAN(mvm, "Scheduled scan completed, status %s\n",
 		       scan_notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 		       "completed" : "aborted");
 
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
+	/* might already be something else again, don't reset if so */
+	if (mvm->scan_status == IWL_MVM_SCAN_SCHED)
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
 	ieee80211_sched_scan_stopped(mvm->hw);
 
 	return 0;

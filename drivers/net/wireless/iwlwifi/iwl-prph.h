@@ -105,6 +105,13 @@
 /* Device NMI register */
 #define DEVICE_SET_NMI_REG 0x00a01c30
 
+/*
+ * Device reset for family 8000
+ * write to bit 24 in order to reset the CPU
+*/
+#define RELEASE_CPU_RESET		(0x300C)
+#define RELEASE_CPU_RESET_BIT		BIT(24)
+
 /*****************************************************************************
  *                        7000/3000 series SHR DTS addresses                 *
  *****************************************************************************/
@@ -280,5 +287,44 @@ static inline unsigned int SCD_QUEUE_STATUS_BITS(unsigned int chnl)
 /* Oscillator clock */
 #define OSC_CLK				(0xa04068)
 #define OSC_CLK_FORCE_CONTROL		(0x8)
+
+/* SECURE boot registers */
+#define LMPM_SECURE_BOOT_CONFIG_ADDR	(0x100)
+enum secure_boot_config_reg {
+	LMPM_SECURE_BOOT_CONFIG_INSPECTOR_BURNED_IN_OTP	= 0x00000001,
+	LMPM_SECURE_BOOT_CONFIG_INSPECTOR_NOT_REQ	= 0x00000002,
+};
+
+#define LMPM_SECURE_BOOT_CPU1_STATUS_ADDR	(0x1E30)
+#define LMPM_SECURE_BOOT_CPU2_STATUS_ADDR	(0x1E34)
+enum secure_boot_status_reg {
+	LMPM_SECURE_BOOT_CPU_STATUS_VERF_STATUS		= 0x00000001,
+	LMPM_SECURE_BOOT_CPU_STATUS_VERF_COMPLETED	= 0x00000002,
+	LMPM_SECURE_BOOT_CPU_STATUS_VERF_SUCCESS	= 0x00000004,
+	LMPM_SECURE_BOOT_CPU_STATUS_VERF_FAIL		= 0x00000008,
+	LMPM_SECURE_BOOT_CPU_STATUS_SIGN_VERF_FAIL	= 0x00000010,
+	LMPM_SECURE_BOOT_STATUS_SUCCESS			= 0x00000003,
+};
+
+#define CSR_UCODE_LOAD_STATUS_ADDR	(0x1E70)
+enum secure_load_status_reg {
+	LMPM_CPU_UCODE_LOADING_STARTED			= 0x00000001,
+	LMPM_CPU_HDRS_LOADING_COMPLETED			= 0x00000003,
+	LMPM_CPU_UCODE_LOADING_COMPLETED		= 0x00000007,
+	LMPM_CPU_STATUS_NUM_OF_LAST_COMPLETED		= 0x000000F8,
+	LMPM_CPU_STATUS_NUM_OF_LAST_LOADED_BLOCK	= 0x0000FF00,
+};
+
+#define LMPM_SECURE_INSPECTOR_CODE_ADDR	(0x1E38)
+#define LMPM_SECURE_INSPECTOR_DATA_ADDR	(0x1E3C)
+#define LMPM_SECURE_UCODE_LOAD_CPU1_HDR_ADDR	(0x1E78)
+#define LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR	(0x1E7C)
+
+#define LMPM_SECURE_INSPECTOR_CODE_MEM_SPACE	(0x400000)
+#define LMPM_SECURE_INSPECTOR_DATA_MEM_SPACE	(0x402000)
+#define LMPM_SECURE_CPU1_HDR_MEM_SPACE		(0x420000)
+#define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x420400)
+
+#define LMPM_SECURE_TIME_OUT	(100)
 
 #endif				/* __iwl_prph_h__ */

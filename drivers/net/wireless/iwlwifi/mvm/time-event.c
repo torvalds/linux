@@ -126,6 +126,7 @@ static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
 	 * in iwl_mvm_te_handle_notif).
 	 */
 	clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
+	iwl_mvm_unref(mvm, IWL_MVM_REF_ROC);
 
 	/*
 	 * Of course, our status bit is just as racy as mac80211, so in
@@ -210,6 +211,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 
 		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
+			iwl_mvm_ref(mvm, IWL_MVM_REF_ROC);
 			ieee80211_ready_on_channel(mvm->hw);
 		}
 	} else {
