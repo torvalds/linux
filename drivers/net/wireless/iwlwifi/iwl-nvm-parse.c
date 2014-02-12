@@ -425,8 +425,6 @@ static void iwl_set_radio_cfg(const struct iwl_cfg *cfg,
 		data->radio_cfg_step = NVM_RF_CFG_STEP_MSK(radio_cfg);
 		data->radio_cfg_dash = NVM_RF_CFG_DASH_MSK(radio_cfg);
 		data->radio_cfg_pnum = NVM_RF_CFG_PNUM_MSK(radio_cfg);
-		data->valid_tx_ant = NVM_RF_CFG_TX_ANT_MSK(radio_cfg);
-		data->valid_rx_ant = NVM_RF_CFG_RX_ANT_MSK(radio_cfg);
 		return;
 	}
 
@@ -435,8 +433,6 @@ static void iwl_set_radio_cfg(const struct iwl_cfg *cfg,
 	data->radio_cfg_step = NVM_RF_CFG_STEP_MSK_FAMILY_8000(radio_cfg);
 	data->radio_cfg_dash = NVM_RF_CFG_DASH_MSK_FAMILY_8000(radio_cfg);
 	data->radio_cfg_pnum = NVM_RF_CFG_FLAVOR_MSK_FAMILY_8000(radio_cfg);
-	data->valid_tx_ant = NVM_RF_CFG_TX_ANT_MSK_FAMILY_8000(radio_cfg);
-	data->valid_rx_ant = NVM_RF_CFG_RX_ANT_MSK_FAMILY_8000(radio_cfg);
 }
 
 static void iwl_set_hw_address(const struct iwl_cfg *cfg,
@@ -495,19 +491,6 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	data->sku_cap_11ac_enable = sku & NVM_SKU_CAP_11AC_ENABLE;
 	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		data->sku_cap_11n_enable = false;
-
-	/* check overrides (some devices have wrong NVM) */
-	if (cfg->valid_tx_ant)
-		data->valid_tx_ant = cfg->valid_tx_ant;
-	if (cfg->valid_rx_ant)
-		data->valid_rx_ant = cfg->valid_rx_ant;
-
-	if (!data->valid_tx_ant || !data->valid_rx_ant) {
-		IWL_ERR_DEV(dev, "invalid antennas (0x%x, 0x%x)\n",
-			    data->valid_tx_ant, data->valid_rx_ant);
-		kfree(data);
-		return NULL;
-	}
 
 	data->n_hw_addrs = iwl_get_n_hw_addrs(cfg, nvm_sw);
 

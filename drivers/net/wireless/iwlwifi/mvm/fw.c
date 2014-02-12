@@ -358,8 +358,6 @@ out:
 					GFP_KERNEL);
 		if (!mvm->nvm_data)
 			return -ENOMEM;
-		mvm->nvm_data->valid_rx_ant = 1;
-		mvm->nvm_data->valid_tx_ant = 1;
 		mvm->nvm_data->bands[0].channels = mvm->nvm_data->channels;
 		mvm->nvm_data->bands[0].n_channels = 1;
 		mvm->nvm_data->bands[0].n_bitrates = 1;
