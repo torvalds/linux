@@ -49,8 +49,8 @@
 #define VPE_MODULE_NAME "vpe"
 
 /* minimum and maximum frame sizes */
-#define MIN_W		128
-#define MIN_H		128
+#define MIN_W		32
+#define MIN_H		32
 #define MAX_W		1920
 #define MAX_H		1080
 
