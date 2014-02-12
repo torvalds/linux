@@ -614,8 +614,19 @@ struct ethtool_stats {
 	__u64	data[0];
 };
 
+/**
+ * struct ethtool_perm_addr - permanent hardware address
+ * @cmd: Command number = %ETHTOOL_GPERMADDR
+ * @size: On entry, the size of the buffer.  On return, the size of the
+ *	address.  The command fails if the buffer is too small.
+ * @data: Buffer for the address
+ *
+ * Users must allocate the buffer immediately following this structure.
+ * A buffer size of %MAX_ADDR_LEN should be sufficient for any address
+ * type.
+ */
 struct ethtool_perm_addr {
-	__u32	cmd;		/* ETHTOOL_GPERMADDR */
+	__u32	cmd;
 	__u32	size;
 	__u8	data[0];
 };
