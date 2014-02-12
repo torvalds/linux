@@ -76,7 +76,7 @@
  *  ->mmap_sem
  *    ->lock_page		(access_process_vm)
  *
- *  ->i_mutex			(generic_file_buffered_write)
+ *  ->i_mutex			(generic_perform_write)
  *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
  *
  *  bdi->wb.list_lock
@@ -2181,27 +2181,6 @@ again:
 	return written ? written : status;
 }
 EXPORT_SYMBOL(generic_perform_write);
-
-ssize_t
-generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t pos,
-		size_t count, ssize_t written)
-{
-	struct file *file = iocb->ki_filp;
-	ssize_t status;
-	struct iov_iter i;
-
-	iov_iter_init(&i, iov, nr_segs, count, written);
-	status = generic_perform_write(file, &i, pos);
-
-	if (likely(status >= 0)) {
-		written += status;
-		iocb->ki_pos = pos + status;
-  	}
-	
-	return written ? written : status;
-}
-EXPORT_SYMBOL(generic_file_buffered_write);
 
 /**
  * __generic_file_aio_write - write data to a file
