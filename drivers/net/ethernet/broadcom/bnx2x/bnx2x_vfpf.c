@@ -548,6 +548,7 @@ static void bnx2x_leading_vfq_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	vf->leading_rss = cl_id;
 	q->is_leading = true;
+	q->sp_initialized = true;
 }
 
 /* ask the pf to open a queue for the vf */

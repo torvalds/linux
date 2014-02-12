@@ -83,6 +83,7 @@ struct bnx2x_vf_queue {
 	u16 index;
 	u16 sb_idx;
 	bool is_leading;
+	bool sp_initialized;
 };
 
 /* struct bnx2x_vfop_qctor_params - prepare queue construction parameters:

@@ -4158,16 +4158,6 @@ void bnx2x_init_rss_config_obj(struct bnx2x *bp,
 	rss_obj->config_rss = bnx2x_setup_rss;
 }
 
-int validate_vlan_mac(struct bnx2x *bp,
-		      struct bnx2x_vlan_mac_obj *vlan_mac)
-{
-	if (!vlan_mac->get_n_elements) {
-		BNX2X_ERR("vlan mac object was not intialized\n");
-		return -EINVAL;
-	}
-	return 0;
-}
-
 /********************** Queue state object ***********************************/
 
 /**
