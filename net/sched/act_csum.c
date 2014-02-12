@@ -48,7 +48,6 @@ static int tcf_csum_init(struct net *n, struct nlattr *nla, struct nlattr *est,
 {
 	struct nlattr *tb[TCA_CSUM_MAX + 1];
 	struct tc_csum *parm;
-	struct tcf_common *pc;
 	struct tcf_csum *p;
 	int ret = 0, err;
 
@@ -63,36 +62,29 @@ static int tcf_csum_init(struct net *n, struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 	parm = nla_data(tb[TCA_CSUM_PARMS]);
 
-	pc = tcf_hash_check(parm->index, a, bind);
-	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
-		if (IS_ERR(pc))
-			return PTR_ERR(pc);
+	if (!tcf_hash_check(parm->index, a, bind)) {
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
+		if (ret)
+			return ret;
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_hash_release(pc, bind, a->ops->hinfo);
+		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
 
-	p = to_tcf_csum(pc);
+	p = to_tcf_csum(a);
 	spin_lock_bh(&p->tcf_lock);
 	p->tcf_action = parm->action;
 	p->update_flags = parm->update_flags;
 	spin_unlock_bh(&p->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, a->ops->hinfo);
+		tcf_hash_insert(a);
 
 	return ret;
-}
-
-static int tcf_csum_cleanup(struct tc_action *a, int bind)
-{
-	struct tcf_csum *p = a->priv;
-	return tcf_hash_release(&p->common, bind, &csum_hash_info);
 }
 
 /**
@@ -574,7 +566,7 @@ static struct tc_action_ops act_csum_ops = {
 	.owner		= THIS_MODULE,
 	.act		= tcf_csum,
 	.dump		= tcf_csum_dump,
-	.cleanup	= tcf_csum_cleanup,
+	.cleanup	= tcf_hash_release,
 	.init		= tcf_csum_init,
 };
 

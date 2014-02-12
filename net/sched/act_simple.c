@@ -47,8 +47,9 @@ static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
 	return d->tcf_action;
 }
 
-static int tcf_simp_release(struct tcf_defact *d, int bind)
+static int tcf_simp_release(struct tc_action *a, int bind)
 {
+	struct tcf_defact *d = to_defact(a);
 	int ret = 0;
 	if (d) {
 		if (bind)
@@ -56,7 +57,7 @@ static int tcf_simp_release(struct tcf_defact *d, int bind)
 		d->tcf_refcnt--;
 		if (d->tcf_bindcnt <= 0 && d->tcf_refcnt <= 0) {
 			kfree(d->tcfd_defdata);
-			tcf_hash_destroy(&d->common, &simp_hash_info);
+			tcf_hash_destroy(a);
 			ret = 1;
 		}
 	}
@@ -94,7 +95,6 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_DEF_MAX + 1];
 	struct tc_defact *parm;
 	struct tcf_defact *d;
-	struct tcf_common *pc;
 	char *defdata;
 	int ret = 0, err;
 
@@ -114,29 +114,25 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_DEF_PARMS]);
 	defdata = nla_data(tb[TCA_DEF_DATA]);
 
-	pc = tcf_hash_check(parm->index, a, bind);
-	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind);
-		if (IS_ERR(pc))
-			return PTR_ERR(pc);
+	if (!tcf_hash_check(parm->index, a, bind)) {
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*d), bind);
+		if (ret)
+			return ret;
 
-		d = to_defact(pc);
+		d = to_defact(a);
 		ret = alloc_defdata(d, defdata);
 		if (ret < 0) {
-			if (est)
-				gen_kill_estimator(&pc->tcfc_bstats,
-						   &pc->tcfc_rate_est);
-			kfree_rcu(pc, tcfc_rcu);
+			tcf_hash_cleanup(a, est);
 			return ret;
 		}
 		d->tcf_action = parm->action;
 		ret = ACT_P_CREATED;
 	} else {
-		d = to_defact(pc);
+		d = to_defact(a);
 
 		if (bind)
 			return 0;
-		tcf_simp_release(d, bind);
+		tcf_simp_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
 
@@ -144,17 +140,8 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, a->ops->hinfo);
+		tcf_hash_insert(a);
 	return ret;
-}
-
-static int tcf_simp_cleanup(struct tc_action *a, int bind)
-{
-	struct tcf_defact *d = a->priv;
-
-	if (d)
-		return tcf_simp_release(d, bind);
-	return 0;
 }
 
 static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
@@ -192,7 +179,7 @@ static struct tc_action_ops act_simp_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_simp,
 	.dump		=	tcf_simp_dump,
-	.cleanup	=	tcf_simp_cleanup,
+	.cleanup	=	tcf_simp_release,
 	.init		=	tcf_simp_init,
 };
 

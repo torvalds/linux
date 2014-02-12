@@ -27,8 +27,11 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 
-void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
+void tcf_hash_destroy(struct tc_action *a)
 {
+	struct tcf_common *p = a->priv;
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
+
 	spin_lock_bh(&hinfo->lock);
 	hlist_del(&p->tcfc_head);
 	spin_unlock_bh(&hinfo->lock);
@@ -42,9 +45,9 @@ void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 }
 EXPORT_SYMBOL(tcf_hash_destroy);
 
-int tcf_hash_release(struct tcf_common *p, int bind,
-		     struct tcf_hashinfo *hinfo)
+int tcf_hash_release(struct tc_action *a, int bind)
 {
+	struct tcf_common *p = a->priv;
 	int ret = 0;
 
 	if (p) {
@@ -53,7 +56,7 @@ int tcf_hash_release(struct tcf_common *p, int bind,
 
 		p->tcfc_refcnt--;
 		if (p->tcfc_bindcnt <= 0 && p->tcfc_refcnt <= 0) {
-			tcf_hash_destroy(p, hinfo);
+			tcf_hash_destroy(a);
 			ret = 1;
 		}
 	}
@@ -127,7 +130,8 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a)
 	for (i = 0; i < (hinfo->hmask + 1); i++) {
 		head = &hinfo->htab[tcf_hash(i, hinfo->hmask)];
 		hlist_for_each_entry_safe(p, n, head, tcfc_head) {
-			if (ACT_P_DELETED == tcf_hash_release(p, 0, hinfo)) {
+			a->priv = p;
+			if (ACT_P_DELETED == tcf_hash_release(a, 0)) {
 				module_put(a->ops->owner);
 				n_i++;
 			}
@@ -198,7 +202,7 @@ int tcf_hash_search(struct tc_action *a, u32 index)
 }
 EXPORT_SYMBOL(tcf_hash_search);
 
-struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a, int bind)
+int tcf_hash_check(u32 index, struct tc_action *a, int bind)
 {
 	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	struct tcf_common *p = NULL;
@@ -207,19 +211,30 @@ struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a, int bind)
 			p->tcfc_bindcnt++;
 		p->tcfc_refcnt++;
 		a->priv = p;
+		return 1;
 	}
-	return p;
+	return 0;
 }
 EXPORT_SYMBOL(tcf_hash_check);
 
-struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est,
-				   struct tc_action *a, int size, int bind)
+void tcf_hash_cleanup(struct tc_action *a, struct nlattr *est)
+{
+	struct tcf_common *pc = a->priv;
+	if (est)
+		gen_kill_estimator(&pc->tcfc_bstats,
+				   &pc->tcfc_rate_est);
+	kfree_rcu(pc, tcfc_rcu);
+}
+EXPORT_SYMBOL(tcf_hash_cleanup);
+
+int tcf_hash_create(u32 index, struct nlattr *est, struct tc_action *a,
+		    int size, int bind)
 {
 	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	struct tcf_common *p = kzalloc(size, GFP_KERNEL);
 
 	if (unlikely(!p))
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	p->tcfc_refcnt = 1;
 	if (bind)
 		p->tcfc_bindcnt = 1;
@@ -234,17 +249,19 @@ struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est,
 					    &p->tcfc_lock, est);
 		if (err) {
 			kfree(p);
-			return ERR_PTR(err);
+			return err;
 		}
 	}
 
 	a->priv = (void *) p;
-	return p;
+	return 0;
 }
 EXPORT_SYMBOL(tcf_hash_create);
 
-void tcf_hash_insert(struct tcf_common *p, struct tcf_hashinfo *hinfo)
+void tcf_hash_insert(struct tc_action *a)
 {
+	struct tcf_common *p = a->priv;
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	unsigned int h = tcf_hash(p->tcfc_index, hinfo->hmask);
 
 	spin_lock_bh(&hinfo->lock);

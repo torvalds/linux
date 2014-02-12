@@ -44,7 +44,6 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	struct tc_nat *parm;
 	int ret = 0, err;
 	struct tcf_nat *p;
-	struct tcf_common *pc;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -57,20 +56,19 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 	parm = nla_data(tb[TCA_NAT_PARMS]);
 
-	pc = tcf_hash_check(parm->index, a, bind);
-	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
-		if (IS_ERR(pc))
-			return PTR_ERR(pc);
+	if (!tcf_hash_check(parm->index, a, bind)) {
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
+		if (ret)
+			return ret;
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)
 			return 0;
-		tcf_hash_release(pc, bind, a->ops->hinfo);
+		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
-	p = to_tcf_nat(pc);
+	p = to_tcf_nat(a);
 
 	spin_lock_bh(&p->tcf_lock);
 	p->old_addr = parm->old_addr;
@@ -82,16 +80,9 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	spin_unlock_bh(&p->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, a->ops->hinfo);
+		tcf_hash_insert(a);
 
 	return ret;
-}
-
-static int tcf_nat_cleanup(struct tc_action *a, int bind)
-{
-	struct tcf_nat *p = a->priv;
-
-	return tcf_hash_release(&p->common, bind, &nat_hash_info);
 }
 
 static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
@@ -298,7 +289,7 @@ static struct tc_action_ops act_nat_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_nat,
 	.dump		=	tcf_nat_dump,
-	.cleanup	=	tcf_nat_cleanup,
+	.cleanup	=	tcf_hash_release,
 	.init		=	tcf_nat_init,
 };
 

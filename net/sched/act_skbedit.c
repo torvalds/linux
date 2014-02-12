@@ -65,7 +65,6 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_SKBEDIT_MAX + 1];
 	struct tc_skbedit *parm;
 	struct tcf_skbedit *d;
-	struct tcf_common *pc;
 	u32 flags = 0, *priority = NULL, *mark = NULL;
 	u16 *queue_mapping = NULL;
 	int ret = 0, err;
@@ -100,19 +99,18 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_SKBEDIT_PARMS]);
 
-	pc = tcf_hash_check(parm->index, a, bind);
-	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind);
-		if (IS_ERR(pc))
-			return PTR_ERR(pc);
+	if (!tcf_hash_check(parm->index, a, bind)) {
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*d), bind);
+		if (ret)
+			return ret;
 
-		d = to_skbedit(pc);
+		d = to_skbedit(a);
 		ret = ACT_P_CREATED;
 	} else {
-		d = to_skbedit(pc);
+		d = to_skbedit(a);
 		if (bind)
 			return 0;
-		tcf_hash_release(pc, bind, a->ops->hinfo);
+		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -132,17 +130,8 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&d->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, a->ops->hinfo);
+		tcf_hash_insert(a);
 	return ret;
-}
-
-static int tcf_skbedit_cleanup(struct tc_action *a, int bind)
-{
-	struct tcf_skbedit *d = a->priv;
-
-	if (d)
-		return tcf_hash_release(&d->common, bind, &skbedit_hash_info);
-	return 0;
 }
 
 static int tcf_skbedit_dump(struct sk_buff *skb, struct tc_action *a,
@@ -191,7 +180,7 @@ static struct tc_action_ops act_skbedit_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_skbedit,
 	.dump		=	tcf_skbedit_dump,
-	.cleanup	=	tcf_skbedit_cleanup,
+	.cleanup	=	tcf_hash_release,
 	.init		=	tcf_skbedit_init,
 };
 

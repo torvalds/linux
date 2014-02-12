@@ -33,8 +33,9 @@
 static LIST_HEAD(mirred_list);
 static struct tcf_hashinfo mirred_hash_info;
 
-static int tcf_mirred_release(struct tcf_mirred *m, int bind)
+static int tcf_mirred_release(struct tc_action *a, int bind)
 {
+	struct tcf_mirred *m = to_mirred(a);
 	if (m) {
 		if (bind)
 			m->tcf_bindcnt--;
@@ -43,7 +44,7 @@ static int tcf_mirred_release(struct tcf_mirred *m, int bind)
 			list_del(&m->tcfm_list);
 			if (m->tcfm_dev)
 				dev_put(m->tcfm_dev);
-			tcf_hash_destroy(&m->common, &mirred_hash_info);
+			tcf_hash_destroy(a);
 			return 1;
 		}
 	}
@@ -61,7 +62,6 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
-	struct tcf_common *pc;
 	struct net_device *dev;
 	int ret, ok_push = 0;
 
@@ -101,21 +101,20 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		dev = NULL;
 	}
 
-	pc = tcf_hash_check(parm->index, a, bind);
-	if (!pc) {
+	if (!tcf_hash_check(parm->index, a, bind)) {
 		if (dev == NULL)
 			return -EINVAL;
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*m), bind);
-		if (IS_ERR(pc))
-			return PTR_ERR(pc);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*m), bind);
+		if (ret)
+			return ret;
 		ret = ACT_P_CREATED;
 	} else {
 		if (!ovr) {
-			tcf_mirred_release(to_mirred(pc), bind);
+			tcf_mirred_release(a, bind);
 			return -EEXIST;
 		}
 	}
-	m = to_mirred(pc);
+	m = to_mirred(a);
 
 	spin_lock_bh(&m->tcf_lock);
 	m->tcf_action = parm->action;
@@ -131,19 +130,10 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&m->tcf_lock);
 	if (ret == ACT_P_CREATED) {
 		list_add(&m->tcfm_list, &mirred_list);
-		tcf_hash_insert(pc, a->ops->hinfo);
+		tcf_hash_insert(a);
 	}
 
 	return ret;
-}
-
-static int tcf_mirred_cleanup(struct tc_action *a, int bind)
-{
-	struct tcf_mirred *m = a->priv;
-
-	if (m)
-		return tcf_mirred_release(m, bind);
-	return 0;
 }
 
 static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
@@ -259,7 +249,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mirred,
 	.dump		=	tcf_mirred_dump,
-	.cleanup	=	tcf_mirred_cleanup,
+	.cleanup	=	tcf_mirred_release,
 	.init		=	tcf_mirred_init,
 };
 

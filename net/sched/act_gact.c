@@ -57,7 +57,6 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_GACT_MAX + 1];
 	struct tc_gact *parm;
 	struct tcf_gact *gact;
-	struct tcf_common *pc;
 	int ret = 0;
 	int err;
 #ifdef CONFIG_GACT_PROB
@@ -86,21 +85,20 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	}
 #endif
 
-	pc = tcf_hash_check(parm->index, a, bind);
-	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*gact), bind);
-		if (IS_ERR(pc))
-			return PTR_ERR(pc);
+	if (!tcf_hash_check(parm->index, a, bind)) {
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*gact), bind);
+		if (ret)
+			return ret;
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_hash_release(pc, bind, a->ops->hinfo);
+		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
 
-	gact = to_gact(pc);
+	gact = to_gact(a);
 
 	spin_lock_bh(&gact->tcf_lock);
 	gact->tcf_action = parm->action;
@@ -113,17 +111,8 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 #endif
 	spin_unlock_bh(&gact->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, a->ops->hinfo);
+		tcf_hash_insert(a);
 	return ret;
-}
-
-static int tcf_gact_cleanup(struct tc_action *a, int bind)
-{
-	struct tcf_gact *gact = a->priv;
-
-	if (gact)
-		return tcf_hash_release(&gact->common, bind, a->ops->hinfo);
-	return 0;
 }
 
 static int tcf_gact(struct sk_buff *skb, const struct tc_action *a,
@@ -196,7 +185,7 @@ static struct tc_action_ops act_gact_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_gact,
 	.dump		=	tcf_gact_dump,
-	.cleanup	=	tcf_gact_cleanup,
+	.cleanup	=	tcf_hash_release,
 	.init		=	tcf_gact_init,
 };
 
