@@ -597,10 +597,20 @@ struct ethtool_test {
 	__u64	data[0];
 };
 
-/* for dumping NIC-specific statistics */
+/**
+ * struct ethtool_stats - device-specific statistics
+ * @cmd: Command number = %ETHTOOL_GSTATS
+ * @n_stats: On return, the number of statistics
+ * @data: Array of statistics
+ *
+ * Users must use %ETHTOOL_GSSET_INFO or %ETHTOOL_GDRVINFO to find the
+ * number of statistics that will be returned.  They must allocate a
+ * buffer of the appropriate size (8 * number of statistics)
+ * immediately following this structure.
+ */
 struct ethtool_stats {
-	__u32	cmd;		/* ETHTOOL_GSTATS */
-	__u32	n_stats;	/* number of u64's being returned */
+	__u32	cmd;
+	__u32	n_stats;
 	__u64	data[0];
 };
 
