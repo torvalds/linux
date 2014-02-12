@@ -1909,6 +1909,13 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bnx2i/
 
+BROADCOM KONA GPIO DRIVER
+M:	Markus Mayer <markus.mayer@linaro.org>
+L:	bcm-kernel-feedback-list@broadcom.com
+S:	Supported
+F:	drivers/gpio/gpio-bcm-kona.c
+F:	Documentation/devicetree/bindings/gpio/gpio-bcm-kona.txt
+
 BROADCOM SPECIFIC AMBA DRIVER (BCMA)
 M:	Rafał Miłecki <zajec5@gmail.com>
 L:	linux-wireless@vger.kernel.org
