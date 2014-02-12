@@ -186,6 +186,12 @@ static int stw481x_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, stw481x);
 	stw481x->client = client;
 	stw481x->map = devm_regmap_init_i2c(client, &stw481x_regmap_config);
+	if (IS_ERR(stw481x->map)) {
+		ret = PTR_ERR(stw481x->map);
+		dev_err(&client->dev, "Failed to allocate register map: %d\n",
+			ret);
+		return ret;
+	}
 
 	ret = stw481x_startup(stw481x);
 	if (ret) {
