@@ -363,9 +363,7 @@ static void lm95241_init_client(struct i2c_client *client,
 				struct lm95241_data *data)
 {
 	data->interval = HZ;	/* 1 sec default */
-	data->valid = 0;
 	data->config = CFG_CR0076;
-	data->model = 0;
 	data->trutherm = (TT_OFF << TT1_SHIFT) | (TT_OFF << TT2_SHIFT);
 
 	i2c_smbus_write_byte_data(client, LM95241_REG_RW_CONFIG, data->config);
