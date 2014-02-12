@@ -970,6 +970,7 @@ retry_snap:
 			goto retry_snap;
 		}
 	} else {
+		struct iov_iter from;
 		/*
 		 * No need to acquire the i_truncate_mutex. Because
 		 * the MDS revokes Fwb caps before sending truncate
@@ -977,8 +978,10 @@ retry_snap:
 		 * are pending vmtruncate. So write and vmtruncate
 		 * can not run at the same time
 		 */
-		written = generic_file_buffered_write(iocb, iov, nr_segs,
-						      pos, count, 0);
+		iov_iter_init(&from, iov, nr_segs, count, 0);
+		written = generic_perform_write(file, &from, pos);
+		if (likely(written >= 0))
+			iocb->ki_pos = pos + written;
 		mutex_unlock(&inode->i_mutex);
 	}
 
