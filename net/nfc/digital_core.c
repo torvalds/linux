@@ -671,19 +671,27 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	data_exch->cb = cb;
 	data_exch->cb_context = cb_context;
 
-	if (ddev->curr_protocol == NFC_PROTO_NFC_DEP)
-		return digital_in_send_dep_req(ddev, target, skb, data_exch);
+	if (ddev->curr_protocol == NFC_PROTO_NFC_DEP) {
+		rc = digital_in_send_dep_req(ddev, target, skb, data_exch);
+		goto exit;
+	}
 
 	if (ddev->curr_protocol == NFC_PROTO_ISO14443) {
 		rc = digital_in_iso_dep_push_sod(ddev, skb);
 		if (rc)
-			return rc;
+			goto exit;
 	}
 
 	ddev->skb_add_crc(skb);
 
-	return digital_in_send_cmd(ddev, skb, 500, digital_in_send_complete,
-				   data_exch);
+	rc = digital_in_send_cmd(ddev, skb, 500, digital_in_send_complete,
+				 data_exch);
+
+exit:
+	if (rc)
+		kfree(data_exch);
+
+	return rc;
 }
 
 static struct nfc_ops digital_nfc_ops = {
