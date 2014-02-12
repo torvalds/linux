@@ -644,7 +644,7 @@ static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
 	struct device *tx_dev, *rx_dev;
 	struct spi_transfer *xfer;
 	void *tmp;
-	size_t max_tx, max_rx;
+	unsigned int max_tx, max_rx;
 	int ret;
 
 	if (master->flags & (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX)) {
