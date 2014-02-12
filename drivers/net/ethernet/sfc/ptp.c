@@ -766,37 +766,36 @@ efx_ptp_process_times(struct efx_nic *efx, MCDI_DECLARE_STRUCT_PTR(synch_buf),
 		return -EAGAIN;
 	}
 
-	/* Convert the NIC time into kernel time. No correction is required-
-	 * this time is the output of a firmware process.
+	/* Calculate delay from last good sync (host time) to last_time.
+	 * It is possible that the seconds rolled over between taking
+	 * the start reading and the last value written by the host.  The
+	 * timescales are such that a gap of more than one second is never
+	 * expected.  delta is *not* normalised.
+	 */
+	start_sec = ptp->timeset[last_good].host_start >> MC_NANOSECOND_BITS;
+	last_sec = last_time->ts_real.tv_sec & MC_SECOND_MASK;
+	if (start_sec != last_sec &&
+	    ((start_sec + 1) & MC_SECOND_MASK) != last_sec) {
+		netif_warn(efx, hw, efx->net_dev,
+			   "PTP bad synchronisation seconds\n");
+		return -EAGAIN;
+	}
+	delta.tv_sec = (last_sec - start_sec) & 1;
+	delta.tv_nsec =
+		last_time->ts_real.tv_nsec -
+		(ptp->timeset[last_good].host_start & MC_NANOSECOND_MASK);
+
+	/* Convert the NIC time at last good sync into kernel time.
+	 * No correction is required - this time is the output of a
+	 * firmware process.
 	 */
 	mc_time = ptp->nic_to_kernel_time(ptp->timeset[last_good].major,
 					  ptp->timeset[last_good].minor, 0);
 
-	/* Calculate delay from actual PPS to last_time */
-	delta = ktime_to_timespec(mc_time);
-	delta.tv_nsec +=
-		last_time->ts_real.tv_nsec -
-		(ptp->timeset[last_good].host_start & MC_NANOSECOND_MASK);
+	/* Calculate delay from NIC top of second to last_time */
+	delta.tv_nsec += ktime_to_timespec(mc_time).tv_nsec;
 
-	/* It is possible that the seconds rolled over between taking
-	 * the start reading and the last value written by the host.  The
-	 * timescales are such that a gap of more than one second is never
-	 * expected.
-	 */
-	start_sec = ptp->timeset[last_good].host_start >> MC_NANOSECOND_BITS;
-	last_sec = last_time->ts_real.tv_sec & MC_SECOND_MASK;
-	if (start_sec != last_sec) {
-		if (((start_sec + 1) & MC_SECOND_MASK) != last_sec) {
-			netif_warn(efx, hw, efx->net_dev,
-				   "PTP bad synchronisation seconds\n");
-			return -EAGAIN;
-		} else {
-			delta.tv_sec = 1;
-		}
-	} else {
-		delta.tv_sec = 0;
-	}
-
+	/* Set PPS timestamp to match NIC top of second */
 	ptp->host_time_pps = *last_time;
 	pps_sub_ts(&ptp->host_time_pps, delta);
 
