@@ -221,6 +221,17 @@ static void wcn36xx_feat_caps_info(struct wcn36xx *wcn)
 	}
 }
 
+static void wcn36xx_detect_chip_version(struct wcn36xx *wcn)
+{
+	if (get_feat_caps(wcn->fw_feat_caps, DOT11AC)) {
+		wcn36xx_info("Chip is 3680\n");
+		wcn->chip_version = WCN36XX_CHIP_3680;
+	} else {
+		wcn36xx_info("Chip is 3660\n");
+		wcn->chip_version = WCN36XX_CHIP_3660;
+	}
+}
+
 static int wcn36xx_start(struct ieee80211_hw *hw)
 {
 	struct wcn36xx *wcn = hw->priv;
@@ -267,6 +278,16 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		goto out_free_smd_buf;
 	}
 
+	if (!wcn36xx_is_fw_version(wcn, 1, 2, 2, 24)) {
+		ret = wcn36xx_smd_feature_caps_exchange(wcn);
+		if (ret)
+			wcn36xx_warn("Exchange feature caps failed\n");
+		else
+			wcn36xx_feat_caps_info(wcn);
+	}
+
+	wcn36xx_detect_chip_version(wcn);
+
 	/* DMA channel initialization */
 	ret = wcn36xx_dxe_init(wcn);
 	if (ret) {
@@ -276,13 +297,6 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 
 	wcn36xx_debugfs_init(wcn);
 
-	if (!wcn36xx_is_fw_version(wcn, 1, 2, 2, 24)) {
-		ret = wcn36xx_smd_feature_caps_exchange(wcn);
-		if (ret)
-			wcn36xx_warn("Exchange feature caps failed\n");
-		else
-			wcn36xx_feat_caps_info(wcn);
-	}
 	INIT_LIST_HEAD(&wcn->vif_list);
 	return 0;
 
