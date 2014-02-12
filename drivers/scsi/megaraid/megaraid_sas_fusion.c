@@ -2472,6 +2472,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 		printk(KERN_WARNING "megaraid_sas: Reset failed, killing "
 		       "adapter.\n");
 		megaraid_sas_kill_hba(instance);
+		instance->adprecovery = MEGASAS_HW_CRITICAL_ERROR;
 		retval = FAILED;
 	} else {
 		clear_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
