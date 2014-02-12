@@ -138,11 +138,6 @@ enum {
 	CGRP_SANE_BEHAVIOR,
 };
 
-struct cgroup_name {
-	struct rcu_head rcu_head;
-	char name[];
-};
-
 struct cgroup {
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
@@ -178,19 +173,6 @@ struct cgroup {
 	 * It's used to allow interrupting and resuming iterations.
 	 */
 	u64 serial_nr;
-
-	/*
-	 * This is a copy of dentry->d_name, and it's needed because
-	 * we can't use dentry->d_name in cgroup_path().
-	 *
-	 * You must acquire rcu_read_lock() to access cgrp->name, and
-	 * the only place that can change it is rename(), which is
-	 * protected by parent dir's i_mutex.
-	 *
-	 * Normally you should use cgroup_name() wrapper rather than
-	 * access it directly.
-	 */
-	struct cgroup_name __rcu *name;
 
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state __rcu *subsys[CGROUP_SUBSYS_COUNT];
@@ -479,12 +461,6 @@ static inline bool cgroup_sane_behavior(const struct cgroup *cgrp)
 	return cgrp->root->flags & CGRP_ROOT_SANE_BEHAVIOR;
 }
 
-/* Caller should hold rcu_read_lock() */
-static inline const char *cgroup_name(const struct cgroup *cgrp)
-{
-	return rcu_dereference(cgrp->name)->name;
-}
-
 /* returns ino associated with a cgroup, 0 indicates unmounted root */
 static inline ino_t cgroup_ino(struct cgroup *cgrp)
 {
@@ -503,13 +479,46 @@ static inline struct cftype *seq_cft(struct seq_file *seq)
 
 struct cgroup_subsys_state *seq_css(struct seq_file *seq);
 
+/*
+ * Name / path handling functions.  All are thin wrappers around the kernfs
+ * counterparts and can be called under any context.
+ */
+
+static inline int cgroup_name(struct cgroup *cgrp, char *buf, size_t buflen)
+{
+	return kernfs_name(cgrp->kn, buf, buflen);
+}
+
+static inline char * __must_check cgroup_path(struct cgroup *cgrp, char *buf,
+					      size_t buflen)
+{
+	return kernfs_path(cgrp->kn, buf, buflen);
+}
+
+static inline void pr_cont_cgroup_name(struct cgroup *cgrp)
+{
+	/* dummy_top doesn't have a kn associated */
+	if (cgrp->kn)
+		pr_cont_kernfs_name(cgrp->kn);
+	else
+		pr_cont("/");
+}
+
+static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
+{
+	/* dummy_top doesn't have a kn associated */
+	if (cgrp->kn)
+		pr_cont_kernfs_path(cgrp->kn);
+	else
+		pr_cont("/");
+}
+
+char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
+
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cftype *cfts);
 
 bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor);
-
-int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
-int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
 
 int cgroup_task_count(const struct cgroup *cgrp);
 

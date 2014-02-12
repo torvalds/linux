@@ -145,8 +145,6 @@ static int cgroup_root_count;
 /* hierarchy ID allocation and mapping, protected by cgroup_mutex */
 static DEFINE_IDR(cgroup_hierarchy_idr);
 
-static struct cgroup_name root_cgroup_name = { .name = "/" };
-
 /*
  * Assign a monotonically increasing serial number to cgroups.  It
  * guarantees cgroups with bigger numbers are newer than those with smaller
@@ -888,17 +886,6 @@ static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask);
 static struct kernfs_syscall_ops cgroup_kf_syscall_ops;
 static const struct file_operations proc_cgroupstats_operations;
 
-static struct cgroup_name *cgroup_alloc_name(const char *name_str)
-{
-	struct cgroup_name *name;
-
-	name = kmalloc(sizeof(*name) + strlen(name_str) + 1, GFP_KERNEL);
-	if (!name)
-		return NULL;
-	strcpy(name->name, name_str);
-	return name;
-}
-
 static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
 			      char *buf)
 {
@@ -958,8 +945,6 @@ static void cgroup_free_fn(struct work_struct *work)
 	cgroup_pidlist_destroy_all(cgrp);
 
 	kernfs_put(cgrp->kn);
-
-	kfree(rcu_dereference_raw(cgrp->name));
 	kfree(cgrp);
 }
 
@@ -1377,7 +1362,6 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 	INIT_LIST_HEAD(&root->root_list);
 	root->number_of_cgroups = 1;
 	cgrp->root = root;
-	RCU_INIT_POINTER(cgrp->name, &root_cgroup_name);
 	init_cgroup_housekeeping(cgrp);
 	idr_init(&root->cgroup_idr);
 }
@@ -1598,57 +1582,6 @@ static struct file_system_type cgroup_fs_type = {
 static struct kobject *cgroup_kobj;
 
 /**
- * cgroup_path - generate the path of a cgroup
- * @cgrp: the cgroup in question
- * @buf: the buffer to write the path into
- * @buflen: the length of the buffer
- *
- * Writes path of cgroup into buf.  Returns 0 on success, -errno on error.
- *
- * We can't generate cgroup path using dentry->d_name, as accessing
- * dentry->name must be protected by irq-unsafe dentry->d_lock or parent
- * inode's i_mutex, while on the other hand cgroup_path() can be called
- * with some irq-safe spinlocks held.
- */
-int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
-{
-	int ret = -ENAMETOOLONG;
-	char *start;
-
-	if (!cgrp->parent) {
-		if (strlcpy(buf, "/", buflen) >= buflen)
-			return -ENAMETOOLONG;
-		return 0;
-	}
-
-	start = buf + buflen - 1;
-	*start = '\0';
-
-	rcu_read_lock();
-	do {
-		const char *name = cgroup_name(cgrp);
-		int len;
-
-		len = strlen(name);
-		if ((start -= len) < buf)
-			goto out;
-		memcpy(start, name, len);
-
-		if (--start < buf)
-			goto out;
-		*start = '/';
-
-		cgrp = cgrp->parent;
-	} while (cgrp->parent);
-	ret = 0;
-	memmove(buf, start, buf + buflen - start);
-out:
-	rcu_read_unlock();
-	return ret;
-}
-EXPORT_SYMBOL_GPL(cgroup_path);
-
-/**
  * task_cgroup_path - cgroup path of a task in the first cgroup hierarchy
  * @task: target task
  * @buf: the buffer to write the path into
@@ -1659,16 +1592,14 @@ EXPORT_SYMBOL_GPL(cgroup_path);
  * function grabs cgroup_mutex and shouldn't be used inside locks used by
  * cgroup controller callbacks.
  *
- * Returns 0 on success, fails with -%ENAMETOOLONG if @buflen is too short.
+ * Return value is the same as kernfs_path().
  */
-int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
+char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
 {
 	struct cgroupfs_root *root;
 	struct cgroup *cgrp;
-	int hierarchy_id = 1, ret = 0;
-
-	if (buflen < 2)
-		return -ENAMETOOLONG;
+	int hierarchy_id = 1;
+	char *path = NULL;
 
 	mutex_lock(&cgroup_mutex);
 
@@ -1676,14 +1607,15 @@ int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
 
 	if (root) {
 		cgrp = task_cgroup_from_root(task, root);
-		ret = cgroup_path(cgrp, buf, buflen);
+		path = cgroup_path(cgrp, buf, buflen);
 	} else {
 		/* if no hierarchy exists, everyone is in "/" */
-		memcpy(buf, "/", 2);
+		if (strlcpy(buf, "/", buflen) < buflen)
+			path = buf;
 	}
 
 	mutex_unlock(&cgroup_mutex);
-	return ret;
+	return path;
 }
 EXPORT_SYMBOL_GPL(task_cgroup_path);
 
@@ -2211,7 +2143,6 @@ static int cgroup_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
 			 const char *new_name_str)
 {
 	struct cgroup *cgrp = kn->priv;
-	struct cgroup_name *name, *old_name;
 	int ret;
 
 	if (kernfs_type(kn) != KERNFS_DIR)
@@ -2226,25 +2157,13 @@ static int cgroup_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	if (cgroup_sane_behavior(cgrp))
 		return -EPERM;
 
-	name = cgroup_alloc_name(new_name_str);
-	if (!name)
-		return -ENOMEM;
-
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
 
 	ret = kernfs_rename(kn, new_parent, new_name_str);
-	if (!ret) {
-		old_name = rcu_dereference_protected(cgrp->name, true);
-		rcu_assign_pointer(cgrp->name, name);
-	} else {
-		old_name = name;
-	}
 
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgroup_tree_mutex);
-
-	kfree_rcu(old_name, rcu_head);
 	return ret;
 }
 
@@ -3719,14 +3638,13 @@ err_free:
 /**
  * cgroup_create - create a cgroup
  * @parent: cgroup that will be parent of the new cgroup
- * @name_str: name of the new cgroup
+ * @name: name of the new cgroup
  * @mode: mode to set on new cgroup
  */
-static long cgroup_create(struct cgroup *parent, const char *name_str,
+static long cgroup_create(struct cgroup *parent, const char *name,
 			  umode_t mode)
 {
 	struct cgroup *cgrp;
-	struct cgroup_name *name;
 	struct cgroupfs_root *root = parent->root;
 	int ssid, err;
 	struct cgroup_subsys *ss;
@@ -3736,13 +3654,6 @@ static long cgroup_create(struct cgroup *parent, const char *name_str,
 	cgrp = kzalloc(sizeof(*cgrp), GFP_KERNEL);
 	if (!cgrp)
 		return -ENOMEM;
-
-	name = cgroup_alloc_name(name_str);
-	if (!name) {
-		err = -ENOMEM;
-		goto err_free_cgrp;
-	}
-	rcu_assign_pointer(cgrp->name, name);
 
 	mutex_lock(&cgroup_tree_mutex);
 
@@ -3781,7 +3692,7 @@ static long cgroup_create(struct cgroup *parent, const char *name_str,
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
 
 	/* create the directory */
-	kn = kernfs_create_dir(parent->kn, name->name, mode, cgrp);
+	kn = kernfs_create_dir(parent->kn, name, mode, cgrp);
 	if (IS_ERR(kn)) {
 		err = PTR_ERR(kn);
 		goto err_free_id;
@@ -3839,8 +3750,6 @@ err_unlock:
 	mutex_unlock(&cgroup_mutex);
 err_unlock_tree:
 	mutex_unlock(&cgroup_tree_mutex);
-	kfree(rcu_dereference_raw(cgrp->name));
-err_free_cgrp:
 	kfree(cgrp);
 	return err;
 
@@ -4304,12 +4213,12 @@ int proc_cgroup_show(struct seq_file *m, void *v)
 {
 	struct pid *pid;
 	struct task_struct *tsk;
-	char *buf;
+	char *buf, *path;
 	int retval;
 	struct cgroupfs_root *root;
 
 	retval = -ENOMEM;
-	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	buf = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!buf)
 		goto out;
 
@@ -4337,10 +4246,12 @@ int proc_cgroup_show(struct seq_file *m, void *v)
 				   root->name);
 		seq_putc(m, ':');
 		cgrp = task_cgroup_from_root(tsk, root);
-		retval = cgroup_path(cgrp, buf, PAGE_SIZE);
-		if (retval < 0)
+		path = cgroup_path(cgrp, buf, PATH_MAX);
+		if (!path) {
+			retval = -ENAMETOOLONG;
 			goto out_unlock;
-		seq_puts(m, buf);
+		}
+		seq_puts(m, path);
 		seq_putc(m, '\n');
 	}
 
@@ -4588,16 +4499,17 @@ static void cgroup_release_agent(struct work_struct *work)
 	while (!list_empty(&release_list)) {
 		char *argv[3], *envp[3];
 		int i;
-		char *pathbuf = NULL, *agentbuf = NULL;
+		char *pathbuf = NULL, *agentbuf = NULL, *path;
 		struct cgroup *cgrp = list_entry(release_list.next,
 						    struct cgroup,
 						    release_list);
 		list_del_init(&cgrp->release_list);
 		raw_spin_unlock(&release_list_lock);
-		pathbuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
 		if (!pathbuf)
 			goto continue_free;
-		if (cgroup_path(cgrp, pathbuf, PAGE_SIZE) < 0)
+		path = cgroup_path(cgrp, pathbuf, PATH_MAX);
+		if (!path)
 			goto continue_free;
 		agentbuf = kstrdup(cgrp->root->release_agent_path, GFP_KERNEL);
 		if (!agentbuf)
@@ -4605,7 +4517,7 @@ static void cgroup_release_agent(struct work_struct *work)
 
 		i = 0;
 		argv[i++] = agentbuf;
-		argv[i++] = pathbuf;
+		argv[i++] = path;
 		argv[i] = NULL;
 
 		i = 0;
@@ -4755,6 +4667,11 @@ static int current_css_set_cg_links_read(struct seq_file *seq, void *v)
 {
 	struct cgrp_cset_link *link;
 	struct css_set *cset;
+	char *name_buf;
+
+	name_buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
+	if (!name_buf)
+		return -ENOMEM;
 
 	read_lock(&css_set_lock);
 	rcu_read_lock();
@@ -4763,14 +4680,17 @@ static int current_css_set_cg_links_read(struct seq_file *seq, void *v)
 		struct cgroup *c = link->cgrp;
 		const char *name = "?";
 
-		if (c != cgroup_dummy_top)
-			name = cgroup_name(c);
+		if (c != cgroup_dummy_top) {
+			cgroup_name(c, name_buf, NAME_MAX + 1);
+			name = name_buf;
+		}
 
 		seq_printf(seq, "Root %d group %s\n",
 			   c->root->hierarchy_id, name);
 	}
 	rcu_read_unlock();
 	read_unlock(&css_set_lock);
+	kfree(name_buf);
 	return 0;
 }
 

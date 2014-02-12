@@ -1683,15 +1683,8 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
  */
 void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 {
-	/*
-	 * protects memcg_name and makes sure that parallel ooms do not
-	 * interleave
-	 */
+	/* oom_info_lock ensures that parallel ooms do not interleave */
 	static DEFINE_SPINLOCK(oom_info_lock);
-	struct cgroup *task_cgrp;
-	struct cgroup *mem_cgrp;
-	static char memcg_name[PATH_MAX];
-	int ret;
 	struct mem_cgroup *iter;
 	unsigned int i;
 
@@ -1701,35 +1694,13 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 	spin_lock(&oom_info_lock);
 	rcu_read_lock();
 
-	mem_cgrp = memcg->css.cgroup;
-	task_cgrp = task_cgroup(p, memory_cgrp_id);
+	pr_info("Task in ");
+	pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+	pr_info(" killed as a result of limit of ");
+	pr_cont_cgroup_path(memcg->css.cgroup);
+	pr_info("\n");
 
-	ret = cgroup_path(task_cgrp, memcg_name, PATH_MAX);
-	if (ret < 0) {
-		/*
-		 * Unfortunately, we are unable to convert to a useful name
-		 * But we'll still print out the usage information
-		 */
-		rcu_read_unlock();
-		goto done;
-	}
 	rcu_read_unlock();
-
-	pr_info("Task in %s killed", memcg_name);
-
-	rcu_read_lock();
-	ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
-	if (ret < 0) {
-		rcu_read_unlock();
-		goto done;
-	}
-	rcu_read_unlock();
-
-	/*
-	 * Continues from above, so we don't need an KERN_ level
-	 */
-	pr_cont(" as a result of limit of %s\n", memcg_name);
-done:
 
 	pr_info("memory: usage %llukB, limit %llukB, failcnt %llu\n",
 		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
@@ -1745,13 +1716,8 @@ done:
 		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
 
 	for_each_mem_cgroup_tree(iter, memcg) {
-		pr_info("Memory cgroup stats");
-
-		rcu_read_lock();
-		ret = cgroup_path(iter->css.cgroup, memcg_name, PATH_MAX);
-		if (!ret)
-			pr_cont(" for %s", memcg_name);
-		rcu_read_unlock();
+		pr_info("Memory cgroup stats for ");
+		pr_cont_cgroup_path(iter->css.cgroup);
 		pr_cont(":");
 
 		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
@@ -3401,7 +3367,7 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 						  struct kmem_cache *s)
 {
 	struct kmem_cache *new = NULL;
-	static char *tmp_name = NULL;
+	static char *tmp_path = NULL, *tmp_name = NULL;
 	static DEFINE_MUTEX(mutex);	/* protects tmp_name */
 
 	BUG_ON(!memcg_can_account_kmem(memcg));
@@ -3413,18 +3379,20 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 	 * This static temporary buffer is used to prevent from
 	 * pointless shortliving allocation.
 	 */
-	if (!tmp_name) {
-		tmp_name = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!tmp_path || !tmp_name) {
+		if (!tmp_path)
+			tmp_path = kmalloc(PATH_MAX, GFP_KERNEL);
 		if (!tmp_name)
+			tmp_name = kmalloc(NAME_MAX + 1, GFP_KERNEL);
+		if (!tmp_path || !tmp_name)
 			goto out;
 	}
 
-	rcu_read_lock();
-	snprintf(tmp_name, PATH_MAX, "%s(%d:%s)", s->name,
-			 memcg_cache_id(memcg), cgroup_name(memcg->css.cgroup));
-	rcu_read_unlock();
+	cgroup_name(memcg->css.cgroup, tmp_name, NAME_MAX + 1);
+	snprintf(tmp_path, PATH_MAX, "%s(%d:%s)", s->name,
+		 memcg_cache_id(memcg), tmp_name);
 
-	new = kmem_cache_create_memcg(memcg, tmp_name, s->object_size, s->align,
+	new = kmem_cache_create_memcg(memcg, tmp_path, s->object_size, s->align,
 				      (s->flags & ~SLAB_PANIC), s->ctor, s);
 	if (new)
 		new->allocflags |= __GFP_KMEMCG;

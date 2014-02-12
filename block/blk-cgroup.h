@@ -241,12 +241,16 @@ static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd)
  */
 static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen)
 {
-	int ret;
+	char *p;
 
-	ret = cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
-	if (ret)
+	p = cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
+	if (!p) {
 		strncpy(buf, "<unavailable>", buflen);
-	return ret;
+		return -ENAMETOOLONG;
+	}
+
+	memmove(buf, p, buf + buflen - p);
+	return 0;
 }
 
 /**
