@@ -146,10 +146,9 @@ static u32 xwdt_selftest(struct xwdt_device *xdev)
 static int xwdt_probe(struct platform_device *pdev)
 {
 	int rc;
-	u32 pfreq, enable_once = 0;
+	u32 pfreq = 0, enable_once = 0;
 	struct resource *res;
 	struct xwdt_device *xdev;
-	bool no_timeout = false;
 	struct watchdog_device *xilinx_wdt_wdd;
 
 	xdev = devm_kzalloc(&pdev->dev, sizeof(*xdev), GFP_KERNEL);
@@ -167,19 +166,15 @@ static int xwdt_probe(struct platform_device *pdev)
 		return PTR_ERR(xdev->base);
 
 	rc = of_property_read_u32(pdev->dev.of_node, "clock-frequency", &pfreq);
-	if (rc) {
+	if (rc)
 		dev_warn(&pdev->dev,
 			 "The watchdog clock frequency cannot be obtained\n");
-		no_timeout = true;
-	}
 
 	rc = of_property_read_u32(pdev->dev.of_node, "xlnx,wdt-interval",
 				  &xdev->wdt_interval);
-	if (rc) {
+	if (rc)
 		dev_warn(&pdev->dev,
 			 "Parameter \"xlnx,wdt-interval\" not found\n");
-		no_timeout = true;
-	}
 
 	rc = of_property_read_u32(pdev->dev.of_node, "xlnx,wdt-enable-once",
 				  &enable_once);
@@ -193,7 +188,7 @@ static int xwdt_probe(struct platform_device *pdev)
 	 * Twice of the 2^wdt_interval / freq  because the first wdt overflow is
 	 * ignored (interrupt), reset is only generated at second wdt overflow
 	 */
-	if (!no_timeout)
+	if (pfreq && xdev->wdt_interval)
 		xilinx_wdt_wdd->timeout = 2 * ((1 << xdev->wdt_interval) /
 					  pfreq);
 
