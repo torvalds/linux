@@ -22,7 +22,6 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
-#include <linux/sirfsoc_dma.h>
 
 #define DRIVER_NAME "sirfsoc_spi"
 
@@ -539,8 +538,6 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct resource *mem_res;
 	int num_cs, cs_gpio, irq;
-	u32 rx_dma_ch, tx_dma_ch;
-	dma_cap_mask_t dma_cap_mask;
 	int i;
 	int ret;
 
@@ -548,20 +545,6 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 			"sirf,spi-num-chipselects", &num_cs);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unable to get chip select number\n");
-		goto err_cs;
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node,
-			"sirf,spi-dma-rx-channel", &rx_dma_ch);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Unable to get rx dma channel\n");
-		goto err_cs;
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node,
-			"sirf,spi-dma-tx-channel", &tx_dma_ch);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Unable to get tx dma channel\n");
 		goto err_cs;
 	}
 
@@ -628,18 +611,13 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	sspi->bitbang.master->dev.of_node = pdev->dev.of_node;
 
 	/* request DMA channels */
-	dma_cap_zero(dma_cap_mask);
-	dma_cap_set(DMA_INTERLEAVE, dma_cap_mask);
-
-	sspi->rx_chan = dma_request_channel(dma_cap_mask, (dma_filter_fn)sirfsoc_dma_filter_id,
-		(void *)rx_dma_ch);
+	sspi->rx_chan = dma_request_slave_channel(&pdev->dev, "rx");
 	if (!sspi->rx_chan) {
 		dev_err(&pdev->dev, "can not allocate rx dma channel\n");
 		ret = -ENODEV;
 		goto free_master;
 	}
-	sspi->tx_chan = dma_request_channel(dma_cap_mask, (dma_filter_fn)sirfsoc_dma_filter_id,
-		(void *)tx_dma_ch);
+	sspi->tx_chan = dma_request_slave_channel(&pdev->dev, "tx");
 	if (!sspi->tx_chan) {
 		dev_err(&pdev->dev, "can not allocate tx dma channel\n");
 		ret = -ENODEV;
