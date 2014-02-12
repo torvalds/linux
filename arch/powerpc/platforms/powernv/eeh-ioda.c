@@ -490,8 +490,7 @@ static int ioda_eeh_bridge_reset(struct pci_controller *hose,
 static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 {
 	struct pci_controller *hose = pe->phb;
-	struct eeh_dev *edev;
-	struct pci_dev *dev;
+	struct pci_bus *bus;
 	int ret;
 
 	/*
@@ -520,31 +519,11 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 	if (pe->type & EEH_PE_PHB) {
 		ret = ioda_eeh_phb_reset(hose, option);
 	} else {
-		if (pe->type & EEH_PE_DEVICE) {
-			/*
-			 * If it's device PE, we didn't refer to the parent
-			 * PCI bus yet. So we have to figure it out indirectly.
-			 */
-			edev = list_first_entry(&pe->edevs,
-					struct eeh_dev, list);
-			dev = eeh_dev_to_pci_dev(edev);
-			dev = dev->bus->self;
-		} else {
-			/*
-			 * If it's bus PE, the parent PCI bus is already there
-			 * and just pick it up.
-			 */
-			dev = pe->bus->self;
-		}
-
-		/*
-		 * Do reset based on the fact that the direct upstream bridge
-		 * is root bridge (port) or not.
-		 */
-		if (dev->bus->number == 0)
+		bus = eeh_pe_bus_get(pe);
+		if (pci_is_root_bus(bus))
 			ret = ioda_eeh_root_reset(hose, option);
 		else
-			ret = ioda_eeh_bridge_reset(hose, dev, option);
+			ret = ioda_eeh_bridge_reset(hose, bus->self, option);
 	}
 
 	return ret;
