@@ -136,7 +136,6 @@ static struct gpio_regulator_config *
 of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 {
 	struct gpio_regulator_config *config;
-	struct property *prop;
 	const char *regtype;
 	int proplen, gpio, i;
 	int ret;
@@ -191,13 +190,11 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	}
 
 	/* Fetch states. */
-	prop = of_find_property(np, "states", NULL);
-	if (!prop) {
+	proplen = of_property_count_u32_elems(np, "states");
+	if (proplen < 0) {
 		dev_err(dev, "No 'states' property found\n");
 		return ERR_PTR(-EINVAL);
 	}
-
-	proplen = prop->length / sizeof(int);
 
 	config->states = devm_kzalloc(dev,
 				sizeof(struct gpio_regulator_state)
@@ -207,10 +204,10 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < proplen / 2; i++) {
-		config->states[i].value =
-			be32_to_cpup((int *)prop->value + (i * 2));
-		config->states[i].gpios =
-			be32_to_cpup((int *)prop->value + (i * 2 + 1));
+		of_property_read_u32_index(np, "states", i * 2,
+					   &config->states[i].value);
+		of_property_read_u32_index(np, "states", i * 2 + 1,
+					   &config->states[i].gpios);
 	}
 	config->nr_states = i;
 
