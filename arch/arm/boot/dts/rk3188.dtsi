@@ -315,7 +315,7 @@
 		status = "disabled";
 	};
 
-	i2c2: i2c@20055000 {
+	i2c2: i2c@20056000 {
 		compatible = "rockchip,rk30-i2c";
 		reg = <0x20056000 0x1000>;
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
@@ -330,7 +330,7 @@
 		status = "disabled";
 	};
 
-	i2c3: i2c@20059000 {
+	i2c3: i2c@2005a000 {
 		compatible = "rockchip,rk30-i2c";
 		reg = <0x2005a000 0x1000>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
@@ -345,9 +345,9 @@
 		status = "disabled";
 	};
 
-	i2c4: i2c@2005d000 {
+	i2c4: i2c@2005e000 {
 		compatible = "rockchip,rk30-i2c";
-		reg = <0x2005c000 0x1000>;
+		reg = <0x2005e000 0x1000>;
 		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
