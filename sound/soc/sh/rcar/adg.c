@@ -25,9 +25,10 @@ struct rsnd_adg {
 };
 
 #define for_each_rsnd_clk(pos, adg, i)		\
-	for (i = 0, (pos) = adg->clk[i];	\
-	     i < CLKMAX;			\
-	     i++, (pos) = adg->clk[i])
+	for (i = 0;				\
+	     (i < CLKMAX) &&			\
+	     ((pos) = adg->clk[i]);		\
+	     i++)
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
 

@@ -216,9 +216,10 @@ struct rsnd_dai {
 
 #define rsnd_dai_nr(priv) ((priv)->dai_nr)
 #define for_each_rsnd_dai(rdai, priv, i)		\
-	for (i = 0, (rdai) = rsnd_dai_get(priv, i);	\
-	     i < rsnd_dai_nr(priv);			\
-	     i++, (rdai) = rsnd_dai_get(priv, i))
+	for (i = 0;					\
+	     (i < rsnd_dai_nr(priv)) &&			\
+	     ((rdai) = rsnd_dai_get(priv, i));		\
+	     i++)
 
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id);
 int rsnd_dai_disconnect(struct rsnd_mod *mod);
