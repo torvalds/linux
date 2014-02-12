@@ -152,8 +152,18 @@ struct i40e_lump_tracking {
 };
 
 #define I40E_DEFAULT_ATR_SAMPLE_RATE	20
-#define I40E_FDIR_MAX_RAW_PACKET_LOOKUP 512
-struct i40e_fdir_data {
+#define I40E_FDIR_MAX_RAW_PACKET_SIZE   512
+struct i40e_fdir_filter {
+	struct hlist_node fdir_node;
+	/* filter ipnut set */
+	u8 flow_type;
+	u8 ip4_proto;
+	__be32 dst_ip[4];
+	__be32 src_ip[4];
+	__be16 src_port;
+	__be16 dst_port;
+	__be32 sctp_v_tag;
+	/* filter control */
 	u16 q_index;
 	u8  flex_off;
 	u8  pctype;
@@ -162,7 +172,6 @@ struct i40e_fdir_data {
 	u8  fd_status;
 	u16 cnt_index;
 	u32 fd_id;
-	u8  *raw_packet;
 };
 
 #define I40E_ETH_P_LLDP			0x88cc
@@ -209,6 +218,9 @@ struct i40e_pf {
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
 	u8 atr_sample_rate;
 	bool wol_en;
+
+	struct hlist_head fdir_filter_list;
+	u16 fdir_pf_active_filters;
 
 #ifdef CONFIG_I40E_VXLAN
 	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
@@ -534,9 +546,10 @@ struct rtnl_link_stats64 *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi);
 int i40e_fetch_switch_configuration(struct i40e_pf *pf,
 				    bool printconfig);
 
-int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
+int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
 			     struct i40e_pf *pf, bool add);
-
+int i40e_add_del_fdir(struct i40e_vsi *vsi,
+		      struct i40e_fdir_filter *input, bool add);
 void i40e_set_ethtool_ops(struct net_device *netdev);
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 					u8 *macaddr, s16 vlan,
