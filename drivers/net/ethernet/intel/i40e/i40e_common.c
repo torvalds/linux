@@ -655,6 +655,31 @@ i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 }
 
 /**
+ * i40e_get_port_mac_addr - get Port MAC address
+ * @hw: pointer to the HW structure
+ * @mac_addr: pointer to Port MAC address
+ *
+ * Reads the adapter's Port MAC address
+ **/
+i40e_status i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
+{
+	struct i40e_aqc_mac_address_read_data addrs;
+	i40e_status status;
+	u16 flags = 0;
+
+	status = i40e_aq_mac_address_read(hw, &flags, &addrs, NULL);
+	if (status)
+		return status;
+
+	if (flags & I40E_AQC_PORT_ADDR_VALID)
+		memcpy(mac_addr, &addrs.port_mac, sizeof(addrs.port_mac));
+	else
+		status = I40E_ERR_INVALID_MAC_ADDR;
+
+	return status;
+}
+
+/**
  * i40e_pre_tx_queue_cfg - pre tx queue configure
  * @hw: pointer to the HW structure
  * @queue: target pf queue index

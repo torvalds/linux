@@ -246,6 +246,7 @@ struct i40e_mac_info {
 	u8 addr[ETH_ALEN];
 	u8 perm_addr[ETH_ALEN];
 	u8 san_addr[ETH_ALEN];
+	u8 port_addr[ETH_ALEN];
 	u16 max_fcoeq;
 };
 

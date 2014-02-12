@@ -279,6 +279,7 @@ struct i40e_pf {
 #ifdef CONFIG_I40E_VXLAN
 #define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
 #endif
+#define I40E_FLAG_PORT_ID_VALID                (u64)(1 << 28)
 #define I40E_FLAG_DCB_CAPABLE                  (u64)(1 << 29)
 
 	/* tracks features that get auto disabled by errors */
