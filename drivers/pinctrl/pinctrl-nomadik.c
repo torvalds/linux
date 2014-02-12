@@ -2035,6 +2035,7 @@ static const struct of_device_id nmk_pinctrl_match[] = {
 	{},
 };
 
+#ifdef CONFIG_PM_SLEEP
 static int nmk_pinctrl_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct nmk_pinctrl *npct;
@@ -2056,6 +2057,7 @@ static int nmk_pinctrl_resume(struct platform_device *pdev)
 
 	return pinctrl_force_default(npct->pctl);
 }
+#endif
 
 static int nmk_pinctrl_probe(struct platform_device *pdev)
 {
@@ -2151,7 +2153,7 @@ static struct platform_driver nmk_pinctrl_driver = {
 		.of_match_table = nmk_pinctrl_match,
 	},
 	.probe = nmk_pinctrl_probe,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend = nmk_pinctrl_suspend,
 	.resume = nmk_pinctrl_resume,
 #endif
