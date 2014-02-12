@@ -18,6 +18,7 @@
  * This driver is based on max8997.c
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
