@@ -231,12 +231,29 @@ struct ethtool_regs {
 	__u8	data[0];
 };
 
-/* for passing EEPROM chunks */
+/**
+ * struct ethtool_eeprom - EEPROM dump
+ * @cmd: Command number = %ETHTOOL_GEEPROM, %ETHTOOL_GMODULEEEPROM or
+ *	%ETHTOOL_SEEPROM
+ * @magic: A 'magic cookie' value to guard against accidental changes.
+ *	The value passed in to %ETHTOOL_SEEPROM must match the value
+ *	returned by %ETHTOOL_GEEPROM for the same device.  This is
+ *	unused when @cmd is %ETHTOOL_GMODULEEEPROM.
+ * @offset: Offset within the EEPROM to begin reading/writing, in bytes
+ * @len: On entry, number of bytes to read/write.  On successful
+ *	return, number of bytes actually read/written.  In case of
+ *	error, this may indicate at what point the error occurred.
+ * @data: Buffer to read/write from
+ *
+ * Users may use %ETHTOOL_GDRVINFO or %ETHTOOL_GMODULEINFO to find
+ * the length of an on-board or module EEPROM, respectively.  They
+ * must allocate the buffer immediately following this structure.
+ */
 struct ethtool_eeprom {
 	__u32	cmd;
 	__u32	magic;
-	__u32	offset; /* in bytes */
-	__u32	len; /* in bytes */
+	__u32	offset;
+	__u32	len;
 	__u8	data[0];
 };
 
