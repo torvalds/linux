@@ -175,6 +175,7 @@ struct wcn36xx {
 	u8			fw_version;
 	u8			fw_minor;
 	u8			fw_major;
+	u32			fw_feat_caps[WCN36XX_HAL_CAPS_SIZE];
 
 	/* extra byte for the NULL termination */
 	u8			crm_version[WCN36XX_HAL_VERSION_LENGTH + 1];
