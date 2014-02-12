@@ -276,8 +276,7 @@ static void giveback(struct dw_spi *dws)
 	queue_work(dws->workqueue, &dws->pump_messages);
 	spin_unlock_irqrestore(&dws->lock, flags);
 
-	last_transfer = list_entry(msg->transfers.prev,
-					struct spi_transfer,
+	last_transfer = list_last_entry(&msg->transfers, struct spi_transfer,
 					transfer_list);
 
 	if (!last_transfer->cs_change && dws->cs_control)

@@ -459,9 +459,8 @@ static void giveback(struct pl022 *pl022)
 	struct spi_transfer *last_transfer;
 	pl022->next_msg_cs_active = false;
 
-	last_transfer = list_entry(pl022->cur_msg->transfers.prev,
-					struct spi_transfer,
-					transfer_list);
+	last_transfer = list_last_entry(&pl022->cur_msg->transfers,
+					struct spi_transfer, transfer_list);
 
 	/* Delay if requested before any change in chip select */
 	if (last_transfer->delay_usecs)
