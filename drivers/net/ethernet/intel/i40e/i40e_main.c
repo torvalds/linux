@@ -2892,8 +2892,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 			 icr0_remaining);
 		if ((icr0_remaining & I40E_PFINT_ICR0_PE_CRITERR_MASK) ||
 		    (icr0_remaining & I40E_PFINT_ICR0_PCI_EXCEPTION_MASK) ||
-		    (icr0_remaining & I40E_PFINT_ICR0_ECC_ERR_MASK) ||
-		    (icr0_remaining & I40E_PFINT_ICR0_MAL_DETECT_MASK)) {
+		    (icr0_remaining & I40E_PFINT_ICR0_ECC_ERR_MASK)) {
 			dev_info(&pf->pdev->dev, "device will be reset\n");
 			set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
 			i40e_service_event_schedule(pf);
