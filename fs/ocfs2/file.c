@@ -2381,9 +2381,12 @@ relock:
 			goto out_dio;
 		}
 	} else {
+		struct iov_iter from;
+		iov_iter_init(&from, iov, nr_segs, count, 0);
 		current->backing_dev_info = file->f_mapping->backing_dev_info;
-		written = generic_file_buffered_write(iocb, iov, nr_segs, *ppos,
-						      count, 0);
+		written = generic_perform_write(file, &from, *ppos);
+		if (likely(written >= 0))
+			iocb->ki_pos = *ppos + written;
 		current->backing_dev_info = NULL;
 	}
 
