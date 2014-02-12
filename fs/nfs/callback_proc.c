@@ -127,13 +127,13 @@ static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp,
 				continue;
 			ino = igrab(lo->plh_inode);
 			if (!ino)
-				continue;
+				break;
 			spin_lock(&ino->i_lock);
 			/* Is this layout in the process of being freed? */
 			if (NFS_I(ino)->layout != lo) {
 				spin_unlock(&ino->i_lock);
 				iput(ino);
-				continue;
+				break;
 			}
 			pnfs_get_layout_hdr(lo);
 			spin_unlock(&ino->i_lock);
