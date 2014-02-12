@@ -1214,24 +1214,10 @@ static int omap_gpio_probe(struct platform_device *pdev)
 
 	/* Static mapping, never released */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(!res)) {
-		dev_err(dev, "Invalid mem resource\n");
+	bank->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(bank->base)) {
 		irq_domain_remove(bank->domain);
-		return -ENODEV;
-	}
-
-	if (!devm_request_mem_region(dev, res->start, resource_size(res),
-				     pdev->name)) {
-		dev_err(dev, "Region already claimed\n");
-		irq_domain_remove(bank->domain);
-		return -EBUSY;
-	}
-
-	bank->base = devm_ioremap(dev, res->start, resource_size(res));
-	if (!bank->base) {
-		dev_err(dev, "Could not ioremap\n");
-		irq_domain_remove(bank->domain);
-		return -ENOMEM;
+		return PTR_ERR(bank->base);
 	}
 
 	platform_set_drvdata(pdev, bank);
