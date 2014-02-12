@@ -16,37 +16,97 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
-/* This should work for both 32 and 64 bit userland. */
+/* All structures exposed to userland should be defined such that they
+ * have the same layout for 32-bit and 64-bit userland.
+ */
+
+/**
+ * struct ethtool_cmd - link control and status
+ * @cmd: Command number = %ETHTOOL_GSET or %ETHTOOL_SSET
+ * @supported: Bitmask of %SUPPORTED_* flags for the link modes,
+ *	physical connectors and other link features for which the
+ *	interface supports autonegotiation or auto-detection.
+ *	Read-only.
+ * @advertising: Bitmask of %ADVERTISED_* flags for the link modes,
+ *	physical connectors and other link features that are
+ *	advertised through autonegotiation or enabled for
+ *	auto-detection.
+ * @speed: Low bits of the speed
+ * @duplex: Duplex mode; one of %DUPLEX_*
+ * @port: Physical connector type; one of %PORT_*
+ * @phy_address: MDIO address of PHY (transceiver); 0 or 255 if not
+ *	applicable.  For clause 45 PHYs this is the PRTAD.
+ * @transceiver: Historically used to distinguish different possible
+ *	PHY types, but not in a consistent way.  Deprecated.
+ * @autoneg: Enable/disable autonegotiation and auto-detection;
+ *	either %AUTONEG_DISABLE or %AUTONEG_ENABLE
+ * @mdio_support: Bitmask of %ETH_MDIO_SUPPORTS_* flags for the MDIO
+ *	protocols supported by the interface; 0 if unknown.
+ *	Read-only.
+ * @maxtxpkt: Historically used to report TX IRQ coalescing; now
+ *	obsoleted by &struct ethtool_coalesce.  Read-only; deprecated.
+ * @maxrxpkt: Historically used to report RX IRQ coalescing; now
+ *	obsoleted by &struct ethtool_coalesce.  Read-only; deprecated.
+ * @speed_hi: High bits of the speed
+ * @eth_tp_mdix: Ethernet twisted-pair MDI(-X) status; one of
+ *	%ETH_TP_MDI_*.  If the status is unknown or not applicable, the
+ *	value will be %ETH_TP_MDI_INVALID.  Read-only.
+ * @eth_tp_mdix_ctrl: Ethernet twisted pair MDI(-X) control; one of
+ *	%ETH_TP_MDI_*.  If MDI(-X) control is not implemented, reads
+ *	yield %ETH_TP_MDI_INVALID and writes may be ignored or rejected.
+ *	When written successfully, the link should be renegotiated if
+ *	necessary.
+ * @lp_advertising: Bitmask of %ADVERTISED_* flags for the link modes
+ *	and other link features that the link partner advertised
+ *	through autonegotiation; 0 if unknown or not applicable.
+ *	Read-only.
+ *
+ * The link speed in Mbps is split between @speed and @speed_hi.  Use
+ * the ethtool_cmd_speed() and ethtool_cmd_speed_set() functions to
+ * access it.
+ *
+ * If autonegotiation is disabled, the speed and @duplex represent the
+ * fixed link mode and are writable if the driver supports multiple
+ * link modes.  If it is enabled then they are read-only; if the link
+ * is up they represent the negotiated link mode; if the link is down,
+ * the speed is 0, %SPEED_UNKNOWN or the highest enabled speed and
+ * @duplex is %DUPLEX_UNKNOWN or the best enabled duplex mode.
+ *
+ * Some hardware interfaces may have multiple PHYs and/or physical
+ * connectors fitted or do not allow the driver to detect which are
+ * fitted.  For these interfaces @port and/or @phy_address may be
+ * writable, possibly dependent on @autoneg being %AUTONEG_DISABLE.
+ * Otherwise, attempts to write different values may be ignored or
+ * rejected.
+ *
+ * Users should assume that all fields not marked read-only are
+ * writable and subject to validation by the driver.  They should use
+ * %ETHTOOL_GSET to get the current values before making specific
+ * changes and then applying them with %ETHTOOL_SSET.
+ *
+ * Drivers that implement set_settings() should validate all fields
+ * other than @cmd that are not described as read-only or deprecated,
+ * and must ignore all fields described as read-only.
+ *
+ * Deprecated fields should be ignored by both users and drivers.
+ */
 struct ethtool_cmd {
 	__u32	cmd;
-	__u32	supported;	/* Features this interface supports */
-	__u32	advertising;	/* Features this interface advertises */
-	__u16	speed;	        /* The forced speed (lower bits) in
-				 * Mbps. Please use
-				 * ethtool_cmd_speed()/_set() to
-				 * access it */
-	__u8	duplex;		/* Duplex, half or full */
-	__u8	port;		/* Which connector port */
-	__u8	phy_address;	/* MDIO PHY address (PRTAD for clause 45).
-				 * May be read-only or read-write
-				 * depending on the driver.
-				 */
-	__u8	transceiver;	/* Which transceiver to use */
-	__u8	autoneg;	/* Enable or disable autonegotiation */
-	__u8	mdio_support;	/* MDIO protocols supported.  Read-only.
-				 * Not set by all drivers.
-				 */
-	__u32	maxtxpkt;	/* Tx pkts before generating tx int */
-	__u32	maxrxpkt;	/* Rx pkts before generating rx int */
-	__u16	speed_hi;       /* The forced speed (upper
-				 * bits) in Mbps. Please use
-				 * ethtool_cmd_speed()/_set() to
-				 * access it */
-	__u8	eth_tp_mdix;	/* twisted pair MDI-X status */
-	__u8    eth_tp_mdix_ctrl; /* twisted pair MDI-X control, when set,
-				   * link should be renegotiated if necessary
-				   */
-	__u32	lp_advertising;	/* Features the link partner advertises */
+	__u32	supported;
+	__u32	advertising;
+	__u16	speed;
+	__u8	duplex;
+	__u8	port;
+	__u8	phy_address;
+	__u8	transceiver;
+	__u8	autoneg;
+	__u8	mdio_support;
+	__u32	maxtxpkt;
+	__u32	maxrxpkt;
+	__u16	speed_hi;
+	__u8	eth_tp_mdix;
+	__u8	eth_tp_mdix_ctrl;
+	__u32	lp_advertising;
 	__u32	reserved[2];
 };
 
@@ -905,7 +965,6 @@ enum ethtool_sfeatures_retval_bits {
 #define SPARC_ETH_GSET		ETHTOOL_GSET
 #define SPARC_ETH_SSET		ETHTOOL_SSET
 
-/* Indicates what features are supported by the interface. */
 #define SUPPORTED_10baseT_Half		(1 << 0)
 #define SUPPORTED_10baseT_Full		(1 << 1)
 #define SUPPORTED_100baseT_Half		(1 << 2)
@@ -934,7 +993,6 @@ enum ethtool_sfeatures_retval_bits {
 #define SUPPORTED_40000baseSR4_Full	(1 << 25)
 #define SUPPORTED_40000baseLR4_Full	(1 << 26)
 
-/* Indicates what features are advertised by the interface. */
 #define ADVERTISED_10baseT_Half		(1 << 0)
 #define ADVERTISED_10baseT_Full		(1 << 1)
 #define ADVERTISED_100baseT_Half	(1 << 2)
@@ -999,9 +1057,7 @@ enum ethtool_sfeatures_retval_bits {
 #define XCVR_DUMMY2		0x03
 #define XCVR_DUMMY3		0x04
 
-/* Enable or disable autonegotiation.  If this is set to enable,
- * the forced link modes above are completely ignored.
- */
+/* Enable or disable autonegotiation. */
 #define AUTONEG_DISABLE		0x00
 #define AUTONEG_ENABLE		0x01
 
