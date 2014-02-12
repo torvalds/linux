@@ -178,6 +178,49 @@ static inline u8 get_sta_index(struct ieee80211_vif *vif,
 	       sta_priv->sta_index;
 }
 
+static const char * const wcn36xx_caps_names[] = {
+	"MCC",				/* 0 */
+	"P2P",				/* 1 */
+	"DOT11AC",			/* 2 */
+	"SLM_SESSIONIZATION",		/* 3 */
+	"DOT11AC_OPMODE",		/* 4 */
+	"SAP32STA",			/* 5 */
+	"TDLS",				/* 6 */
+	"P2P_GO_NOA_DECOUPLE_INIT_SCAN",/* 7 */
+	"WLANACTIVE_OFFLOAD",		/* 8 */
+	"BEACON_OFFLOAD",		/* 9 */
+	"SCAN_OFFLOAD",			/* 10 */
+	"ROAM_OFFLOAD",			/* 11 */
+	"BCN_MISS_OFFLOAD",		/* 12 */
+	"STA_POWERSAVE",		/* 13 */
+	"STA_ADVANCED_PWRSAVE",		/* 14 */
+	"AP_UAPSD",			/* 15 */
+	"AP_DFS",			/* 16 */
+	"BLOCKACK",			/* 17 */
+	"PHY_ERR",			/* 18 */
+	"BCN_FILTER",			/* 19 */
+	"RTT",				/* 20 */
+	"RATECTRL",			/* 21 */
+	"WOW"				/* 22 */
+};
+
+static const char *wcn36xx_get_cap_name(enum place_holder_in_cap_bitmap x)
+{
+	if (x >= ARRAY_SIZE(wcn36xx_caps_names))
+		return "UNKNOWN";
+	return wcn36xx_caps_names[x];
+}
+
+static void wcn36xx_feat_caps_info(struct wcn36xx *wcn)
+{
+	int i;
+
+	for (i = 0; i < MAX_FEATURE_SUPPORTED; i++) {
+		if (get_feat_caps(wcn->fw_feat_caps, i))
+			wcn36xx_info("FW Cap %s\n", wcn36xx_get_cap_name(i));
+	}
+}
+
 static int wcn36xx_start(struct ieee80211_hw *hw)
 {
 	struct wcn36xx *wcn = hw->priv;
@@ -237,6 +280,8 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		ret = wcn36xx_smd_feature_caps_exchange(wcn);
 		if (ret)
 			wcn36xx_warn("Exchange feature caps failed\n");
+		else
+			wcn36xx_feat_caps_info(wcn);
 	}
 	INIT_LIST_HEAD(&wcn->vif_list);
 	return 0;

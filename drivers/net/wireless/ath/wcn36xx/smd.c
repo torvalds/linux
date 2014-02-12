@@ -1685,8 +1685,7 @@ out:
 	return ret;
 }
 
-static inline void set_feat_caps(u32 *bitmap,
-				 enum place_holder_in_cap_bitmap cap)
+void set_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 {
 	int arr_idx, bit_idx;
 
@@ -1700,8 +1699,7 @@ static inline void set_feat_caps(u32 *bitmap,
 	bitmap[arr_idx] |= (1 << bit_idx);
 }
 
-static inline int get_feat_caps(u32 *bitmap,
-				enum place_holder_in_cap_bitmap cap)
+int get_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 {
 	int arr_idx, bit_idx;
 	int ret = 0;
@@ -1717,8 +1715,7 @@ static inline int get_feat_caps(u32 *bitmap,
 	return ret;
 }
 
-static inline void clear_feat_caps(u32 *bitmap,
-				enum place_holder_in_cap_bitmap cap)
+void clear_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 {
 	int arr_idx, bit_idx;
 
