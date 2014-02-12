@@ -693,7 +693,7 @@ static int  spi_sirfsoc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int spi_sirfsoc_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -716,12 +716,11 @@ static int spi_sirfsoc_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops spi_sirfsoc_pm_ops = {
-	.suspend = spi_sirfsoc_suspend,
-	.resume = spi_sirfsoc_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(spi_sirfsoc_suspend, spi_sirfsoc_resume)
 };
-#endif
 
 static const struct of_device_id spi_sirfsoc_of_match[] = {
 	{ .compatible = "sirf,prima2-spi", },
@@ -734,9 +733,7 @@ static struct platform_driver spi_sirfsoc_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm     = &spi_sirfsoc_pm_ops,
-#endif
 		.of_match_table = spi_sirfsoc_of_match,
 	},
 	.probe = spi_sirfsoc_probe,
