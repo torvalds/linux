@@ -120,6 +120,50 @@
 		};
 	};
 
+    pinctrl@14000000 {
+		usb3_overcur0_u2: usb3-overcur0-u2 {
+			samsung,pins = "gpk3-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
+		usb3_overcur0_u3: usb3-overcur0-u3 {
+			samsung,pins = "gpk3-1";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
+		usb3_overcur1_u2: usb3-overcur1-u2 {
+			samsung,pins = "gpk2-4";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
+		usb3_overcur1_u3: usb3-overcur1-u3 {
+			samsung,pins = "gpk2-5";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
+		usb3_vbus0_en: usb3-vbus0-en {
+			samsung,pins = "gpk3-3";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
+		usb3_vbus1_en: usb3-vbus1-en {
+			samsung,pins = "gpk2-7";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+	};
+
 	/* ic21 */
 	i2c@12C70000 {
 		status = "okay";
@@ -435,6 +479,21 @@
 			};
 
 		};
+	};
+
+	/* dw usb3_0 */
+	usb@12000000 {
+		status = "okay";
+		samsung,vbus-gpio = <&gpk3 3 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb3_vbus0_en>, <&usb3_overcur0_u3>, <&usb3_overcur0_u2>;
+	};
+
+	/* dw usb3_1 */
+	usb@12400000 {
+		samsung,vbus-gpio = <&gpk2 7 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb3_vbus1_en>, <&usb3_overcur1_u3>, <&usb3_overcur1_u2>;
 	};
 
 };
