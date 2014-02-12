@@ -1513,7 +1513,8 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 			return 0;
 		}
 
-		if (dev->primary->master) {
+		if (!drm_core_check_feature(dev, DRIVER_MODESET) &&
+		    dev->primary->master) {
 			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 			if (master_priv->sarea_priv)
 				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
