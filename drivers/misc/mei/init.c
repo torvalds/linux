@@ -116,7 +116,6 @@ int mei_reset(struct mei_device *dev)
 		mei_cl_unlink(&dev->wd_cl);
 		mei_cl_unlink(&dev->iamthif_cl);
 		mei_amthif_reset_params(dev);
-		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));
 	}
 
 

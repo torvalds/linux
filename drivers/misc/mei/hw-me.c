@@ -505,9 +505,6 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	/* check slots available for reading */
 	slots = mei_count_full_read_slots(dev);
 	while (slots > 0) {
-		/* we have urgent data to send so break the read */
-		if (dev->wr_ext_msg.hdr.length)
-			break;
 		dev_dbg(&dev->pdev->dev, "slots to read = %08x\n", slots);
 		rets = mei_irq_read_handler(dev, &complete_list, &slots);
 		if (rets && dev->dev_state != MEI_DEV_RESETTING) {

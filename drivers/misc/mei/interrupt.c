@@ -161,6 +161,41 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 }
 
 /**
+ * mei_cl_irq_disconnect_rsp - send disconnection response message
+ *
+ * @cl: client
+ * @cb: callback block.
+ * @slots: free slots.
+ * @cmpl_list: complete list.
+ *
+ * returns 0, OK; otherwise, error.
+ */
+static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
+			s32 *slots, struct mei_cl_cb *cmpl_list)
+{
+	struct mei_device *dev = cl->dev;
+	int ret;
+
+	u32 msg_slots =
+		mei_data2slots(sizeof(struct hbm_client_connect_response));
+
+	if (*slots < msg_slots)
+		return -EMSGSIZE;
+
+	*slots -= msg_slots;
+
+	ret = mei_hbm_cl_disconnect_rsp(dev, cl);
+
+	cl->state = MEI_FILE_DISCONNECTED;
+	cl->status = 0;
+	mei_io_cb_free(cb);
+
+	return ret;
+}
+
+
+
+/**
  * mei_cl_irq_close - processes close related operation from
  *	interrupt thread context - send disconnect request
  *
@@ -452,12 +487,6 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		wake_up_interruptible(&dev->wait_stop_wd);
 	}
 
-	if (dev->wr_ext_msg.hdr.length) {
-		mei_write_message(dev, &dev->wr_ext_msg.hdr,
-				dev->wr_ext_msg.data);
-		slots -= mei_data2slots(dev->wr_ext_msg.hdr.length);
-		dev->wr_ext_msg.hdr.length = 0;
-	}
 	if (dev->dev_state == MEI_DEV_ENABLED) {
 		if (dev->wd_pending &&
 		    mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
@@ -505,7 +534,11 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 				return ret;
 
 			break;
-
+		case MEI_FOP_DISCONNECT_RSP:
+			/* send disconnect resp */
+			ret = mei_cl_irq_disconnect_rsp(cl, cb, &slots, cmpl_list);
+			if (ret)
+				return ret;
 		default:
 			BUG();
 		}

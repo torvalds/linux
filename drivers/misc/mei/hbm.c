@@ -283,17 +283,18 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 }
 
 /**
- * mei_hbm_stop_req_prepare - prepare stop request message
+ * mei_hbm_stop_req - send stop request message
  *
  * @dev - mei device
- * @mei_hdr - mei message header
- * @data - hbm message body buffer
+ * @cl: client info
+ *
+ * This function returns -EIO on write failure
  */
-static void mei_hbm_stop_req_prepare(struct mei_device *dev,
-		struct mei_msg_hdr *mei_hdr, unsigned char *data)
+static int mei_hbm_stop_req(struct mei_device *dev)
 {
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	struct hbm_host_stop_request *req =
-			(struct hbm_host_stop_request *)data;
+			(struct hbm_host_stop_request *)dev->wr_msg.data;
 	const size_t len = sizeof(struct hbm_host_stop_request);
 
 	mei_hbm_hdr(mei_hdr, len);
@@ -301,6 +302,8 @@ static void mei_hbm_stop_req_prepare(struct mei_device *dev,
 	memset(req, 0, len);
 	req->hbm_cmd = HOST_STOP_REQ_CMD;
 	req->reason = DRIVER_STOP_REQUEST;
+
+	return mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 }
 
 /**
@@ -400,6 +403,25 @@ int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl)
 
 	mei_hbm_hdr(mei_hdr, len);
 	mei_hbm_cl_hdr(cl, CLIENT_DISCONNECT_REQ_CMD, dev->wr_msg.data, len);
+
+	return mei_write_message(dev, mei_hdr, dev->wr_msg.data);
+}
+
+/**
+ * mei_hbm_cl_disconnect_rsp - sends disconnect respose to the FW
+ *
+ * @dev: the device structure
+ * @cl: a client to disconnect from
+ *
+ * This function returns -EIO on write failure
+ */
+int mei_hbm_cl_disconnect_rsp(struct mei_device *dev, struct mei_cl *cl)
+{
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
+	const size_t len = sizeof(struct hbm_client_connect_response);
+
+	mei_hbm_hdr(mei_hdr, len);
+	mei_hbm_cl_hdr(cl, CLIENT_DISCONNECT_RES_CMD, dev->wr_msg.data, len);
 
 	return mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 }
@@ -525,12 +547,14 @@ static void mei_hbm_cl_connect_res(struct mei_device *dev,
  *
  * @dev: the device structure.
  * @disconnect_req: disconnect request bus message from the me
+ *
+ * returns -ENOMEM on allocation failure
  */
-static void mei_hbm_fw_disconnect_req(struct mei_device *dev,
+static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 		struct hbm_client_connect_request *disconnect_req)
 {
 	struct mei_cl *cl, *next;
-	const size_t len = sizeof(struct hbm_client_connect_response);
+	struct mei_cl_cb *cb;
 
 	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
 		if (mei_hbm_cl_addr_equal(cl, disconnect_req)) {
@@ -544,13 +568,17 @@ static void mei_hbm_fw_disconnect_req(struct mei_device *dev,
 			else if (cl == &dev->iamthif_cl)
 				dev->iamthif_timer = 0;
 
-			/* prepare disconnect response */
-			mei_hbm_hdr(&dev->wr_ext_msg.hdr, len);
-			mei_hbm_cl_hdr(cl, CLIENT_DISCONNECT_RES_CMD,
-					 dev->wr_ext_msg.data, len);
+			cb = mei_io_cb_init(cl, NULL);
+			if (!cb)
+				return -ENOMEM;
+			cb->fop_type = MEI_FOP_DISCONNECT_RSP;
+			cl_dbg(dev, cl, "add disconnect response as first\n");
+			list_add(&cb->list, &dev->ctrl_wr_list.list);
+
 			break;
 		}
 	}
+	return 0;
 }
 
 
@@ -629,10 +657,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			dev_warn(&dev->pdev->dev, "hbm: start: version mismatch - stopping the driver.\n");
 
 			dev->hbm_state = MEI_HBM_STOPPED;
-			mei_hbm_stop_req_prepare(dev, &dev->wr_msg.hdr,
-						dev->wr_msg.data);
-			if (mei_write_message(dev, &dev->wr_msg.hdr,
-					dev->wr_msg.data)) {
+			if (mei_hbm_stop_req(dev)) {
 				dev_err(&dev->pdev->dev, "hbm: start: failed to send stop request\n");
 				return -EIO;
 			}
@@ -778,10 +803,11 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 	case ME_STOP_REQ_CMD:
 		dev_dbg(&dev->pdev->dev, "hbm: stop request: message received\n");
-
 		dev->hbm_state = MEI_HBM_STOPPED;
-		mei_hbm_stop_req_prepare(dev, &dev->wr_ext_msg.hdr,
-					dev->wr_ext_msg.data);
+		if (mei_hbm_stop_req(dev)) {
+			dev_err(&dev->pdev->dev, "hbm: start: failed to send stop request\n");
+			return -EIO;
+		}
 		break;
 	default:
 		BUG();
