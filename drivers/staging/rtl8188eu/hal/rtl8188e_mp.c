@@ -201,6 +201,8 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *pAdapter, bool beven)
 		else
 			CCK_index = CCK_index_old + 1;
 
+		if (CCK_index > 32)
+			CCK_index = 32;
 		/* Adjust CCK according to gain index */
 		if (!pDM_Odm->RFCalibrateInfo.bCCKinCH14) {
 			rtw_write8(pAdapter, 0xa22, CCKSwingTable_Ch1_Ch13[CCK_index][0]);
