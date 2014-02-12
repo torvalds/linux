@@ -83,7 +83,7 @@ EXPORT_SYMBOL(phy_print_status);
  * If the @phydev driver has an ack_interrupt function, call it to
  * ack and clear the phy device's interrupt.
  *
- * Returns 0 on success on < 0 on error.
+ * Returns 0 on success or < 0 on error.
  */
 static int phy_clear_interrupt(struct phy_device *phydev)
 {
@@ -98,7 +98,7 @@ static int phy_clear_interrupt(struct phy_device *phydev)
  * @phydev: the phy_device struct
  * @interrupts: interrupt flags to configure for this @phydev
  *
- * Returns 0 on success on < 0 on error.
+ * Returns 0 on success or < 0 on error.
  */
 static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
 {
