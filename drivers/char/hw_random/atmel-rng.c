@@ -54,21 +54,14 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
 		return -ENOMEM;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
-
-	trng->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!trng->base)
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	trng->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(trng->base))
+		return PTR_ERR(trng->base);
 
 	trng->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(trng->clk))
