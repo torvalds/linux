@@ -93,7 +93,7 @@ static inline void set_fs(mm_segment_t fs)
 	__chk_user_ptr(addr);						\
 	asm("adds %1, %1, %3; ccmp %1, %4, #2, cc; cset %0, cc"		\
 		: "=&r" (flag), "=&r" (roksum)				\
-		: "1" (addr), "Ir" (size),				\
+		: "1" (addr), "r" ((u64)size),				\
 		  "r" (current_thread_info()->addr_limit)		\
 		: "cc");						\
 	flag;								\
