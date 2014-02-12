@@ -23,10 +23,12 @@
 #include <drv_types.h>
 #include <recv_osdep.h>
 #include <mlme_osdep.h>
-#include <ethernet.h>
 #include <usb_ops.h>
 #include <wifi.h>
 #include <linux/vmalloc.h>
+
+#define ETHERNET_HEADER_SIZE	14	/*  Ethernet Header Length */
+#define LLC_HEADER_SIZE			6	/*  LLC Header Length */
 
 static u8 SNAP_ETH_TYPE_IPX[2] = {0x81, 0x37};
 static u8 SNAP_ETH_TYPE_APPLETALK_AARP[2] = {0x80, 0xf3};
