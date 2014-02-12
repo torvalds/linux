@@ -342,3 +342,19 @@
 &cpu0 {
 	cpu0-supply = <&vdd_dvfs>;
 };
+
+&i2c0	{
+	status = "ok";
+};
+
+&i2c1	{
+	status = "ok";
+};
+
+&i2c2	{
+	status = "ok";
+};
+
+&i2c3	{
+	status = "ok";
+};
