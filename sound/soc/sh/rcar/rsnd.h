@@ -67,6 +67,7 @@ enum rsnd_reg {
 	RSND_REG_AUDIO_CLK_SEL3,	/* for Gen1 */
 	RSND_REG_AUDIO_CLK_SEL4,	/* for Gen1 */
 	RSND_REG_AUDIO_CLK_SEL5,	/* for Gen1 */
+	RSND_REG_DIV_EN,		/* for Gen2 */
 	RSND_REG_SRCIN_TIMSEL0,		/* for Gen2 */
 	RSND_REG_SRCIN_TIMSEL1,		/* for Gen2 */
 	RSND_REG_SRCIN_TIMSEL2,		/* for Gen2 */

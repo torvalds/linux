@@ -111,8 +111,8 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int idx, sel, div, step;
-	u32 val;
+	int idx, sel, div, step, ret;
+	u32 val, en;
 	unsigned int min, diff;
 	unsigned int sel_rate [] = {
 		clk_get_rate(adg->clk[CLKA]),	/* 0000: CLKA */
@@ -124,6 +124,7 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 
 	min = ~0;
 	val = 0;
+	en = 0;
 	for (sel = 0; sel < ARRAY_SIZE(sel_rate); sel++) {
 		idx = 0;
 		step = 2;
@@ -136,6 +137,7 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 			if (min > diff) {
 				val = (sel << 8) | idx;
 				min = diff;
+				en = 1 << (sel + 1); /* fixme */
 			}
 
 			/*
@@ -157,7 +159,15 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 		return -EIO;
 	}
 
-	return rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+	ret = rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+	if (ret < 0) {
+		dev_err(dev, "timsel error\n");
+		return ret;
+	}
+
+	rsnd_mod_bset(mod, DIV_EN, en, en);
+
+	return 0;
 }
 
 int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,

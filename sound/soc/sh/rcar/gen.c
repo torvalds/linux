@@ -253,6 +253,7 @@ static int rsnd_gen2_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 		RSND_GEN2_S_REG(gen, ADG,	AUDIO_CLK_SEL0,	0x0c),
 		RSND_GEN2_S_REG(gen, ADG,	AUDIO_CLK_SEL1,	0x10),
 		RSND_GEN2_S_REG(gen, ADG,	AUDIO_CLK_SEL2,	0x14),
+		RSND_GEN2_S_REG(gen, ADG,	DIV_EN,		0x30),
 		RSND_GEN2_S_REG(gen, ADG,	SRCIN_TIMSEL0,	0x34),
 		RSND_GEN2_S_REG(gen, ADG,	SRCIN_TIMSEL1,	0x38),
 		RSND_GEN2_S_REG(gen, ADG,	SRCIN_TIMSEL2,	0x3c),
