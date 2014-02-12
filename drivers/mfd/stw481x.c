@@ -167,7 +167,7 @@ static struct mfd_cell stw481x_cells[] = {
 	},
 };
 
-const struct regmap_config stw481x_regmap_config = {
+static const struct regmap_config stw481x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
