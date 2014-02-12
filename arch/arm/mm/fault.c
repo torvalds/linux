@@ -563,6 +563,21 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	printk(KERN_ALERT "Unhandled fault: %s (0x%03x) at 0x%08lx\n",
 		inf->name, fsr, addr);
 
+	/*
+	 * While booting Exynos5420 based Arndale-Octa board, we are getting
+	 * a data abort as soon as we get the command prompt. This behaviour
+	 * has become extremely reproducible (avg. 9 out of 10 iterations)
+	 * since v3.14-rc1. Currently ignoring this fault so that the board
+	 * becomes usable again.
+	 *
+	 * This is a work-around till the actual issue has been fixed.
+	 */
+	if (config_enabled(CONFIG_ARCH_EXYNOS5)) {
+		printk(KERN_ALERT "%s()-%d: Ignoring unhandled fault\n",
+				__func__, __LINE__);
+		return;
+	}
+
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
