@@ -242,7 +242,130 @@ static void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = intel_crtc->lut_b[regno] << 8;
 }
 
+static struct drm_fb_helper_crtc *
+intel_fb_helper_crtc(struct drm_fb_helper *fb_helper, struct drm_crtc *crtc)
+{
+	int i;
+
+	for (i = 0; i < fb_helper->crtc_count; i++)
+		if (fb_helper->crtc_info[i].mode_set.crtc == crtc)
+			return &fb_helper->crtc_info[i];
+
+	return NULL;
+}
+
+/*
+ * Try to read the BIOS display configuration and use it for the initial
+ * fb configuration.
+ *
+ * The BIOS or boot loader will generally create an initial display
+ * configuration for us that includes some set of active pipes and displays.
+ * This routine tries to figure out which pipes and connectors are active
+ * and stuffs them into the crtcs and modes array given to us by the
+ * drm_fb_helper code.
+ *
+ * The overall sequence is:
+ *   intel_fbdev_init - from driver load
+ *     intel_fbdev_init_bios - initialize the intel_fbdev using BIOS data
+ *     drm_fb_helper_init - build fb helper structs
+ *     drm_fb_helper_single_add_all_connectors - more fb helper structs
+ *   intel_fbdev_initial_config - apply the config
+ *     drm_fb_helper_initial_config - call ->probe then register_framebuffer()
+ *         drm_setup_crtcs - build crtc config for fbdev
+ *           intel_fb_initial_config - find active connectors etc
+ *         drm_fb_helper_single_fb_probe - set up fbdev
+ *           intelfb_create - re-use or alloc fb, build out fbdev structs
+ *
+ * Note that we don't make special consideration whether we could actually
+ * switch to the selected modes without a full modeset. E.g. when the display
+ * is in VGA mode we need to recalculate watermarks and set a new high-res
+ * framebuffer anyway.
+ */
+static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
+				    struct drm_fb_helper_crtc **crtcs,
+				    struct drm_display_mode **modes,
+				    bool *enabled, int width, int height)
+{
+	int i, j;
+
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		struct drm_fb_helper_connector *fb_conn;
+		struct drm_connector *connector;
+		struct drm_encoder *encoder;
+		struct drm_fb_helper_crtc *new_crtc;
+
+		fb_conn = fb_helper->connector_info[i];
+		connector = fb_conn->connector;
+		if (!enabled[i]) {
+			DRM_DEBUG_KMS("connector %d not enabled, skipping\n",
+				      connector->base.id);
+			continue;
+		}
+
+		encoder = connector->encoder;
+		if (!encoder || WARN_ON(!encoder->crtc)) {
+			DRM_DEBUG_KMS("connector %d has no encoder or crtc, skipping\n",
+				      connector->base.id);
+			enabled[i] = false;
+			continue;
+		}
+
+		new_crtc = intel_fb_helper_crtc(fb_helper, encoder->crtc);
+
+		/*
+		 * Make sure we're not trying to drive multiple connectors
+		 * with a single CRTC, since our cloning support may not
+		 * match the BIOS.
+		 */
+		for (j = 0; j < fb_helper->connector_count; j++) {
+			if (crtcs[j] == new_crtc)
+				return false;
+		}
+
+		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
+			      fb_conn->connector->base.id);
+
+		/* go for command line mode first */
+		modes[i] = drm_pick_cmdline_mode(fb_conn, width, height);
+
+		/* try for preferred next */
+		if (!modes[i]) {
+			DRM_DEBUG_KMS("looking for preferred mode on connector %d\n",
+				      fb_conn->connector->base.id);
+			modes[i] = drm_has_preferred_mode(fb_conn, width,
+							  height);
+		}
+
+		/* last resort: use current mode */
+		if (!modes[i]) {
+			/*
+			 * IMPORTANT: We want to use the adjusted mode (i.e.
+			 * after the panel fitter upscaling) as the initial
+			 * config, not the input mode, which is what crtc->mode
+			 * usually contains. But since our current fastboot
+			 * code puts a mode derived from the post-pfit timings
+			 * into crtc->mode this works out correctly. We don't
+			 * use hwmode anywhere right now, so use it for this
+			 * since the fb helper layer wants a pointer to
+			 * something we own.
+			 */
+			intel_mode_from_pipe_config(&encoder->crtc->hwmode,
+						    &to_intel_crtc(encoder->crtc)->config);
+			modes[i] = &encoder->crtc->hwmode;
+		}
+		crtcs[i] = new_crtc;
+
+		DRM_DEBUG_KMS("connector %s on crtc %d: %s\n",
+			      drm_get_connector_name(connector),
+			      encoder->crtc->base.id,
+			      modes[i]->name);
+	}
+
+	return true;
+}
+
 static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
+	.initial_config = intel_fb_initial_config,
 	.gamma_set = intel_crtc_fb_gamma_set,
 	.gamma_get = intel_crtc_fb_gamma_get,
 	.fb_probe = intelfb_create,

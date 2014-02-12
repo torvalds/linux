@@ -51,7 +51,10 @@ static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 
 static int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			  int x, int y, struct drm_framebuffer *old_fb);
-
+static int intel_framebuffer_init(struct drm_device *dev,
+				  struct intel_framebuffer *ifb,
+				  struct drm_mode_fb_cmd2 *mode_cmd,
+				  struct drm_i915_gem_object *obj);
 
 typedef struct {
 	int	min, max;
@@ -7691,11 +7694,6 @@ static struct drm_display_mode load_detect_mode = {
 	DRM_MODE("640x480", DRM_MODE_TYPE_DEFAULT, 31500, 640, 664,
 		 704, 832, 0, 480, 489, 491, 520, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 };
-
-static int intel_framebuffer_init(struct drm_device *dev,
-				  struct intel_framebuffer *ifb,
-				  struct drm_mode_fb_cmd2 *mode_cmd,
-				  struct drm_i915_gem_object *obj);
 
 struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
