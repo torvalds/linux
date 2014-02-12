@@ -593,7 +593,7 @@ void sock_release(struct socket *sock)
 	}
 
 	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
-		printk(KERN_ERR "sock_release: fasync list not empty!\n");
+		pr_err("%s: fasync list not empty!\n", __func__);
 
 	if (test_bit(SOCK_EXTERNALLY_ALLOCATED, &sock->flags))
 		return;
@@ -1265,8 +1265,8 @@ int __sock_create(struct net *net, int family, int type, int protocol,
 		static int warned;
 		if (!warned) {
 			warned = 1;
-			printk(KERN_INFO "%s uses obsolete (PF_INET,SOCK_PACKET)\n",
-			       current->comm);
+			pr_info("%s uses obsolete (PF_INET,SOCK_PACKET)\n",
+				current->comm);
 		}
 		family = PF_PACKET;
 	}
@@ -2595,8 +2595,7 @@ int sock_register(const struct net_proto_family *ops)
 	int err;
 
 	if (ops->family >= NPROTO) {
-		printk(KERN_CRIT "protocol %d >= NPROTO(%d)\n", ops->family,
-		       NPROTO);
+		pr_crit("protocol %d >= NPROTO(%d)\n", ops->family, NPROTO);
 		return -ENOBUFS;
 	}
 
@@ -2610,7 +2609,7 @@ int sock_register(const struct net_proto_family *ops)
 	}
 	spin_unlock(&net_family_lock);
 
-	printk(KERN_INFO "NET: Registered protocol family %d\n", ops->family);
+	pr_info("NET: Registered protocol family %d\n", ops->family);
 	return err;
 }
 EXPORT_SYMBOL(sock_register);
@@ -2638,7 +2637,7 @@ void sock_unregister(int family)
 
 	synchronize_rcu();
 
-	printk(KERN_INFO "NET: Unregistered protocol family %d\n", family);
+	pr_info("NET: Unregistered protocol family %d\n", family);
 }
 EXPORT_SYMBOL(sock_unregister);
 
