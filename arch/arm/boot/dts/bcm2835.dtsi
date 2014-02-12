@@ -60,14 +60,6 @@
 			reg = <0x7e104000 0x10>;
 		};
 
-		uart@20201000 {
-			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
-			reg = <0x7e201000 0x1000>;
-			interrupts = <2 25>;
-			clock-frequency = <3000000>;
-			arm,primecell-periphid = <0x00241011>;
-		};
-
 		gpio: gpio {
 			compatible = "brcm,bcm2835-gpio";
 			reg = <0x7e200000 0xb4>;
@@ -89,6 +81,14 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
+		};
+
+		uart@20201000 {
+			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
+			reg = <0x7e201000 0x1000>;
+			interrupts = <2 25>;
+			clock-frequency = <3000000>;
+			arm,primecell-periphid = <0x00241011>;
 		};
 
 		i2s: i2s@7e203000 {
@@ -121,6 +121,14 @@
 			status = "disabled";
 		};
 
+		sdhci: sdhci {
+			compatible = "brcm,bcm2835-sdhci";
+			reg = <0x7e300000 0x100>;
+			interrupts = <2 30>;
+			clocks = <&clk_mmc>;
+			status = "disabled";
+		};
+
 		i2c1: i2c@20804000 {
 			compatible = "brcm,bcm2835-i2c";
 			reg = <0x7e804000 0x1000>;
@@ -128,14 +136,6 @@
 			clocks = <&clk_i2c>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
-		};
-
-		sdhci: sdhci {
-			compatible = "brcm,bcm2835-sdhci";
-			reg = <0x7e300000 0x100>;
-			interrupts = <2 30>;
-			clocks = <&clk_mmc>;
 			status = "disabled";
 		};
 
