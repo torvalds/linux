@@ -1560,25 +1560,40 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 	spin_lock(&dev_priv->irq_lock);
 	for_each_pipe(pipe) {
 		int reg;
-		u32 mask;
+		u32 mask, iir_bit = 0;
 
-		if (!dev_priv->pipestat_irq_mask[pipe] &&
-		    !__cpu_fifo_underrun_reporting_enabled(dev, pipe))
+		/*
+		 * PIPESTAT bits get signalled even when the interrupt is
+		 * disabled with the mask bits, and some of the status bits do
+		 * not generate interrupts at all (like the underrun bit). Hence
+		 * we need to be careful that we only handle what we want to
+		 * handle.
+		 */
+		mask = 0;
+		if (__cpu_fifo_underrun_reporting_enabled(dev, pipe))
+			mask |= PIPE_FIFO_UNDERRUN_STATUS;
+
+		switch (pipe) {
+		case PIPE_A:
+			iir_bit = I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
+			break;
+		case PIPE_B:
+			iir_bit = I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
+			break;
+		}
+		if (iir & iir_bit)
+			mask |= dev_priv->pipestat_irq_mask[pipe];
+
+		if (!mask)
 			continue;
 
 		reg = PIPESTAT(pipe);
-		pipe_stats[pipe] = I915_READ(reg);
+		mask |= PIPESTAT_INT_ENABLE_MASK;
+		pipe_stats[pipe] = I915_READ(reg) & mask;
 
 		/*
 		 * Clear the PIPE*STAT regs before the IIR
 		 */
-		mask = PIPESTAT_INT_ENABLE_MASK;
-		if (__cpu_fifo_underrun_reporting_enabled(dev, pipe))
-			mask |= PIPE_FIFO_UNDERRUN_STATUS;
-		if (iir & I915_DISPLAY_PIPE_EVENT_INTERRUPT(pipe))
-			mask |= dev_priv->pipestat_irq_mask[pipe];
-		pipe_stats[pipe] &= mask;
-
 		if (pipe_stats[pipe] & (PIPE_FIFO_UNDERRUN_STATUS |
 					PIPESTAT_INT_STATUS_MASK))
 			I915_WRITE(reg, pipe_stats[pipe]);
