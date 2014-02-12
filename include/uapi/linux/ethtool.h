@@ -139,28 +139,50 @@ static inline __u32 ethtool_cmd_speed(const struct ethtool_cmd *ep)
 
 #define ETHTOOL_FWVERS_LEN	32
 #define ETHTOOL_BUSINFO_LEN	32
-/* these strings are set to whatever the driver author decides... */
+
+/**
+ * struct ethtool_drvinfo - general driver and device information
+ * @cmd: Command number = %ETHTOOL_GDRVINFO
+ * @driver: Driver short name.  This should normally match the name
+ *	in its bus driver structure (e.g. pci_driver::name).  Must
+ *	not be an empty string.
+ * @version: Driver version string; may be an empty string
+ * @fw_version: Firmware version string; may be an empty string
+ * @bus_info: Device bus address.  This should match the dev_name()
+ *	string for the underlying bus device, if there is one.  May be
+ *	an empty string.
+ * @n_priv_flags: Number of flags valid for %ETHTOOL_GPFLAGS and
+ *	%ETHTOOL_SPFLAGS commands; also the number of strings in the
+ *	%ETH_SS_PRIV_FLAGS set
+ * @n_stats: Number of u64 statistics returned by the %ETHTOOL_GSTATS
+ *	command; also the number of strings in the %ETH_SS_STATS set
+ * @testinfo_len: Number of results returned by the %ETHTOOL_TEST
+ *	command; also the number of strings in the %ETH_SS_TEST set
+ * @eedump_len: Size of EEPROM accessible through the %ETHTOOL_GEEPROM
+ *	and %ETHTOOL_SEEPROM commands, in bytes
+ * @regdump_len: Size of register dump returned by the %ETHTOOL_GREGS
+ *	command, in bytes
+ *
+ * Users can use the %ETHTOOL_GSSET_INFO command to get the number of
+ * strings in any string set (from Linux 2.6.34).
+ *
+ * Drivers should set at most @driver, @version, @fw_version and
+ * @bus_info in their get_drvinfo() implementation.  The ethtool
+ * core fills in the other fields using other driver operations.
+ */
 struct ethtool_drvinfo {
 	__u32	cmd;
-	char	driver[32];	/* driver short name, "tulip", "eepro100" */
-	char	version[32];	/* driver version string */
-	char	fw_version[ETHTOOL_FWVERS_LEN];	/* firmware version string */
-	char	bus_info[ETHTOOL_BUSINFO_LEN];	/* Bus info for this IF. */
-				/* For PCI devices, use pci_name(pci_dev). */
+	char	driver[32];
+	char	version[32];
+	char	fw_version[ETHTOOL_FWVERS_LEN];
+	char	bus_info[ETHTOOL_BUSINFO_LEN];
 	char	reserved1[32];
 	char	reserved2[12];
-				/*
-				 * Some struct members below are filled in
-				 * using ops->get_sset_count().  Obtaining
-				 * this info from ethtool_drvinfo is now
-				 * deprecated; Use ETHTOOL_GSSET_INFO
-				 * instead.
-				 */
-	__u32	n_priv_flags;	/* number of flags valid in ETHTOOL_GPFLAGS */
-	__u32	n_stats;	/* number of u64's from ETHTOOL_GSTATS */
+	__u32	n_priv_flags;
+	__u32	n_stats;
 	__u32	testinfo_len;
-	__u32	eedump_len;	/* Size of data from ETHTOOL_GEEPROM (bytes) */
-	__u32	regdump_len;	/* Size of data from ETHTOOL_GREGS (bytes) */
+	__u32	eedump_len;
+	__u32	regdump_len;
 };
 
 #define SOPASS_MAX	6
