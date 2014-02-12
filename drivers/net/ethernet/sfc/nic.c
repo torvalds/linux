@@ -530,4 +530,3 @@ void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *rx_nodesc_drops)
 	efx->rx_nodesc_drops_prev_state = !!(efx->net_dev->flags & IFF_UP);
 	*rx_nodesc_drops -= efx->rx_nodesc_drops_while_down;
 }
-

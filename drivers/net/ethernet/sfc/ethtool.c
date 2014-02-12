@@ -251,6 +251,9 @@ static void efx_fill_test(unsigned int test_index, u8 *strings, u64 *data,
  * @test_index:		Starting index of the test
  * @strings:		Ethtool strings, or %NULL
  * @data:		Ethtool test results, or %NULL
+ *
+ * Fill in a block of loopback self-test entries.  Return new test
+ * index.
  */
 static int efx_fill_loopback_test(struct efx_nic *efx,
 				  struct efx_loopback_self_tests *lb_tests,
@@ -290,6 +293,12 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
  * @tests:		Efx self-test results structure, or %NULL
  * @strings:		Ethtool strings, or %NULL
  * @data:		Ethtool test results, or %NULL
+ *
+ * Get self-test number of strings, strings, and/or test results.
+ * Return number of strings (== number of test results).
+ *
+ * The reason for merging these three functions is to make sure that
+ * they can never be inconsistent.
  */
 static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 				       struct efx_self_tests *tests,
@@ -444,7 +453,7 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_self_tests *efx_tests;
-	int already_up;
+	bool already_up;
 	int rc = -ENOMEM;
 
 	efx_tests = kzalloc(sizeof(*efx_tests), GFP_KERNEL);
@@ -452,8 +461,8 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		goto fail;
 
 	if (efx->state != STATE_READY) {
-		rc = -EIO;
-		goto fail1;
+		rc = -EBUSY;
+		goto out;
 	}
 
 	netif_info(efx, drv, efx->net_dev, "starting %sline testing\n",
@@ -466,7 +475,7 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		if (rc) {
 			netif_err(efx, drv, efx->net_dev,
 				  "failed opening device.\n");
-			goto fail1;
+			goto out;
 		}
 	}
 
@@ -479,8 +488,7 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		   rc == 0 ? "passed" : "failed",
 		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
 
-fail1:
-	/* Fill ethtool results structures */
+out:
 	efx_ethtool_fill_self_tests(efx, efx_tests, NULL, data);
 	kfree(efx_tests);
 fail:
@@ -690,7 +698,6 @@ static void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 	pause->tx_pause = !!(efx->wanted_fc & EFX_FC_TX);
 	pause->autoneg = !!(efx->wanted_fc & EFX_FC_AUTO);
 }
-
 
 static void efx_ethtool_get_wol(struct net_device *net_dev,
 				struct ethtool_wolinfo *wol)

@@ -503,8 +503,6 @@ static int efx_probe_channel(struct efx_channel *channel)
 			goto fail;
 	}
 
-	channel->n_rx_frm_trunc = 0;
-
 	return 0;
 
 fail:
@@ -2115,7 +2113,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct sockaddr *addr = data;
-	char *new_addr = addr->sa_data;
+	u8 *new_addr = addr->sa_data;
 
 	if (!is_valid_ether_addr(new_addr)) {
 		netif_err(efx, drv, efx->net_dev,
@@ -3273,6 +3271,6 @@ module_exit(efx_exit_module);
 
 MODULE_AUTHOR("Solarflare Communications and "
 	      "Michael Brown <mbrown@fensystems.co.uk>");
-MODULE_DESCRIPTION("Solarflare Communications network driver");
+MODULE_DESCRIPTION("Solarflare network driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, efx_pci_table);
