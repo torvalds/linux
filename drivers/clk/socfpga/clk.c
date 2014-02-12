@@ -145,10 +145,11 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 	struct clk *clk;
 	struct socfpga_clk *socfpga_clk;
 	const char *clk_name = node->name;
-	const char *parent_name;
+	const char *parent_name[SOCFGPA_MAX_PARENTS];
 	struct clk_init_data init;
 	int rc;
 	u32 fixed_div;
+	int i = 0;
 
 	of_property_read_u32(node, "reg", &reg);
 
@@ -170,10 +171,12 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
-	parent_name = of_clk_get_parent_name(node, 0);
-	init.parent_names = &parent_name;
-	init.num_parents = 1;
 
+	while (i < SOCFGPA_MAX_PARENTS && (parent_name[i] =
+			of_clk_get_parent_name(node, i)) != NULL)
+		i++;
+	init.num_parents = i;
+	init.parent_names = parent_name;
 	socfpga_clk->hw.hw.init = &init;
 
 	if (streq(clk_name, "main_pll") ||
