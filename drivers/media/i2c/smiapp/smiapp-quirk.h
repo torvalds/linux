@@ -42,11 +42,10 @@ struct smiapp_quirk {
 	int (*pre_streamon)(struct smiapp_sensor *sensor);
 	int (*post_streamoff)(struct smiapp_sensor *sensor);
 	unsigned long flags;
+	unsigned long pll_flags;
 };
 
-/* op pix clock is for all lanes in total normally */
-#define SMIAPP_QUIRK_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
-#define SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY			(1 << 1)
+#define SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY			(1 << 0)
 
 struct smiapp_reg_8 {
 	u16 reg;

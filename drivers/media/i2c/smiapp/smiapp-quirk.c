@@ -225,7 +225,7 @@ const struct smiapp_quirk smiapp_jt8ev1_quirk = {
 	.post_poweron = jt8ev1_post_poweron,
 	.pre_streamon = jt8ev1_pre_streamon,
 	.post_streamoff = jt8ev1_post_streamoff,
-	.flags = SMIAPP_QUIRK_FLAG_OP_PIX_CLOCK_PER_LANE,
+	.pll_flags = SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE,
 };
 
 static int tcm8500md_limits(struct smiapp_sensor *sensor)
