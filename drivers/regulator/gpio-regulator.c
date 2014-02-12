@@ -176,7 +176,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	if (prop) {
 		proplen = prop->length / sizeof(int);
 		if (proplen != config->nr_gpios) {
-			/* gpios <-> gpios-states mismatch */
+			dev_warn(dev, "gpios <-> gpios-states mismatch\n");
 			prop = NULL;
 		}
 	}
