@@ -3461,15 +3461,7 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 	 */
 
 	bond_for_each_slave(bond, slave, iter) {
-		const struct net_device_ops *slave_ops = slave->dev->netdev_ops;
 		pr_debug("slave %p %s\n", slave, slave->dev->name);
-
-		if (slave_ops->ndo_set_mac_address == NULL) {
-			res = -EOPNOTSUPP;
-			pr_debug("EOPNOTSUPP %s\n", slave->dev->name);
-			goto unwind;
-		}
-
 		res = dev_set_mac_address(slave->dev, addr);
 		if (res) {
 			/* TODO: consider downing the slave
