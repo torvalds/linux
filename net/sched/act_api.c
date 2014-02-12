@@ -53,6 +53,8 @@ int tcf_hash_release(struct tc_action *a, int bind)
 	if (p) {
 		if (bind)
 			p->tcfc_bindcnt--;
+		else if (p->tcfc_bindcnt > 0)
+			return -EPERM;
 
 		p->tcfc_refcnt--;
 		if (p->tcfc_bindcnt <= 0 && p->tcfc_refcnt <= 0) {
@@ -123,6 +125,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a)
 	struct tcf_common *p;
 	struct nlattr *nest;
 	int i = 0, n_i = 0;
+	int ret = -EINVAL;
 
 	nest = nla_nest_start(skb, a->order);
 	if (nest == NULL)
@@ -133,10 +136,12 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a)
 		head = &hinfo->htab[tcf_hash(i, hinfo->hmask)];
 		hlist_for_each_entry_safe(p, n, head, tcfc_head) {
 			a->priv = p;
-			if (ACT_P_DELETED == tcf_hash_release(a, 0)) {
+			ret = tcf_hash_release(a, 0);
+			if (ret == ACT_P_DELETED) {
 				module_put(a->ops->owner);
 				n_i++;
-			}
+			} else if (ret < 0)
+				goto nla_put_failure;
 		}
 	}
 	if (nla_put_u32(skb, TCA_FCNT, n_i))
@@ -146,7 +151,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a)
 	return n_i;
 nla_put_failure:
 	nla_nest_cancel(skb, nest);
-	return -EINVAL;
+	return ret;
 }
 
 static int tcf_generic_walker(struct sk_buff *skb, struct netlink_callback *cb,
@@ -401,16 +406,21 @@ exec_done:
 }
 EXPORT_SYMBOL(tcf_action_exec);
 
-void tcf_action_destroy(struct list_head *actions, int bind)
+int tcf_action_destroy(struct list_head *actions, int bind)
 {
 	struct tc_action *a, *tmp;
+	int ret = 0;
 
 	list_for_each_entry_safe(a, tmp, actions, list) {
-		if (tcf_hash_release(a, bind) == ACT_P_DELETED)
+		ret = tcf_hash_release(a, bind);
+		if (ret == ACT_P_DELETED)
 			module_put(a->ops->owner);
+		else if (ret < 0)
+			return ret;
 		list_del(&a->list);
 		kfree(a);
 	}
+	return ret;
 }
 
 int
@@ -838,7 +848,11 @@ tcf_del_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 	}
 
 	/* now do the delete */
-	tcf_action_destroy(actions, 0);
+	ret = tcf_action_destroy(actions, 0);
+	if (ret < 0) {
+		kfree_skb(skb);
+		return ret;
+	}
 
 	ret = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
 			     n->nlmsg_flags & NLM_F_ECHO);

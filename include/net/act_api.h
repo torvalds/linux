@@ -109,7 +109,7 @@ void tcf_hash_insert(struct tc_action *a);
 
 int tcf_register_action(struct tc_action_ops *a, unsigned int mask);
 int tcf_unregister_action(struct tc_action_ops *a);
-void tcf_action_destroy(struct list_head *actions, int bind);
+int tcf_action_destroy(struct list_head *actions, int bind);
 int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
 		    struct tcf_result *res);
 int tcf_action_init(struct net *net, struct nlattr *nla,
