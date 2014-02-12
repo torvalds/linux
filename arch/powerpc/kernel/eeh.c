@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/rbtree.h>
+#include <linux/reboot.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
@@ -747,6 +748,17 @@ int __exit eeh_ops_unregister(const char *name)
 	return -EEXIST;
 }
 
+static int eeh_reboot_notifier(struct notifier_block *nb,
+			       unsigned long action, void *unused)
+{
+	eeh_set_enable(false);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block eeh_reboot_nb = {
+	.notifier_call = eeh_reboot_notifier,
+};
+
 /**
  * eeh_init - EEH initialization
  *
@@ -777,6 +789,14 @@ int eeh_init(void)
 	 */
 	if (machine_is(powernv) && cnt++ <= 0)
 		return ret;
+
+	/* Register reboot notifier */
+	ret = register_reboot_notifier(&eeh_reboot_nb);
+	if (ret) {
+		pr_warn("%s: Failed to register notifier (%d)\n",
+			__func__, ret);
+		return ret;
+	}
 
 	/* call platform initialization function */
 	if (!eeh_ops) {

@@ -44,7 +44,8 @@ static int ioda_eeh_event(struct notifier_block *nb,
 
 	/* We simply send special EEH event */
 	if ((changed_evts & OPAL_EVENT_PCI_ERROR) &&
-	    (events & OPAL_EVENT_PCI_ERROR))
+	    (events & OPAL_EVENT_PCI_ERROR) &&
+	    eeh_enabled())
 		eeh_send_failure_event(NULL);
 
 	return 0;
