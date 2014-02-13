@@ -1940,13 +1940,12 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_set_active_section(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_IDENTIFY_ACTIVE_SECTION: {
+	case IOCTL_BCM_IDENTIFY_ACTIVE_SECTION:
 		/* Right Now we are taking care of only DSD */
 		Adapter->bAllDSDWriteAllow = false;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_IDENTIFY_ACTIVE_SECTION called");
 		Status = STATUS_SUCCESS;
-	}
-	break;
+		break;
 
 	case IOCTL_BCM_COPY_SECTION: {
 		struct bcm_flash2x_copy_section sCopySectStrut = {0};
