@@ -1306,7 +1306,8 @@ static struct dentry *lookup_dcache(struct qstr *name, struct dentry *dir,
 				if (error < 0) {
 					dput(dentry);
 					return ERR_PTR(error);
-				} else if (!d_invalidate(dentry)) {
+				} else {
+					d_invalidate(dentry);
 					dput(dentry);
 					dentry = NULL;
 				}
@@ -1435,10 +1436,9 @@ unlazy:
 			dput(dentry);
 			return status;
 		}
-		if (!d_invalidate(dentry)) {
-			dput(dentry);
-			goto need_lookup;
-		}
+		d_invalidate(dentry);
+		dput(dentry);
+		goto need_lookup;
 	}
 
 	path->mnt = mnt;

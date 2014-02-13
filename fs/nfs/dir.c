@@ -486,8 +486,7 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 				nfs_setsecurity(dentry->d_inode, entry->fattr, entry->label);
 			goto out;
 		} else {
-			if (d_invalidate(dentry) != 0)
-				goto out;
+			d_invalidate(dentry);
 			dput(dentry);
 		}
 	}
