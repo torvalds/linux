@@ -554,7 +554,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 		 * common for both the interface as the interface shares
 		 * the same hardware resource.
 		 */
-		for (i = 0; i <= priv->data.slaves; i++)
+		for (i = 0; i < priv->data.slaves; i++)
 			if (priv->slaves[i].ndev->flags & IFF_PROMISC)
 				flag = true;
 
@@ -578,7 +578,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 			unsigned long timeout = jiffies + HZ;
 
 			/* Disable Learn for all ports */
-			for (i = 0; i <= priv->data.slaves; i++) {
+			for (i = 0; i < priv->data.slaves; i++) {
 				cpsw_ale_control_set(ale, i,
 						     ALE_PORT_NOLEARN, 1);
 				cpsw_ale_control_set(ale, i,
@@ -606,7 +606,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 			cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 0);
 
 			/* Enable Learn for all ports */
-			for (i = 0; i <= priv->data.slaves; i++) {
+			for (i = 0; i < priv->data.slaves; i++) {
 				cpsw_ale_control_set(ale, i,
 						     ALE_PORT_NOLEARN, 0);
 				cpsw_ale_control_set(ale, i,
