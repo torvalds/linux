@@ -300,22 +300,21 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 #define PCI_CLASS_MULTIMEDIA_HD_AUDIO 0x0403
 
 static void
-nouveau_get_hdmi_dev(struct drm_device *dev)
+nouveau_get_hdmi_dev(struct nouveau_drm *drm)
 {
-	struct nouveau_drm *drm = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = drm->dev->pdev;
 
 	/* subfunction one is a hdmi audio device? */
 	drm->hdmi_device = pci_get_bus_and_slot((unsigned int)pdev->bus->number,
 						PCI_DEVFN(PCI_SLOT(pdev->devfn), 1));
 
 	if (!drm->hdmi_device) {
-		DRM_INFO("hdmi device  not found %d %d %d\n", pdev->bus->number, PCI_SLOT(pdev->devfn), 1);
+		NV_DEBUG(drm, "hdmi device not found %d %d %d\n", pdev->bus->number, PCI_SLOT(pdev->devfn), 1);
 		return;
 	}
 
 	if ((drm->hdmi_device->class >> 8) != PCI_CLASS_MULTIMEDIA_HD_AUDIO) {
-		DRM_INFO("possible hdmi device  not audio %d\n", drm->hdmi_device->class);
+		NV_DEBUG(drm, "possible hdmi device not audio %d\n", drm->hdmi_device->class);
 		pci_dev_put(drm->hdmi_device);
 		drm->hdmi_device = NULL;
 		return;
@@ -340,7 +339,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
 
-	nouveau_get_hdmi_dev(dev);
+	nouveau_get_hdmi_dev(drm);
 
 	/* make sure AGP controller is in a consistent state before we
 	 * (possibly) execute vbios init tables (see nouveau_agp.h)
