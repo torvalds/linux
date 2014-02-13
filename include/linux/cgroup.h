@@ -535,15 +535,11 @@ int cgroup_taskset_size(struct cgroup_taskset *tset);
 /**
  * cgroup_taskset_for_each - iterate cgroup_taskset
  * @task: the loop cursor
- * @skip_css: skip if task's css matches this, %NULL to iterate through all
  * @tset: taskset to iterate
  */
-#define cgroup_taskset_for_each(task, skip_css, tset)			\
+#define cgroup_taskset_for_each(task, tset)				\
 	for ((task) = cgroup_taskset_first((tset)); (task);		\
-	     (task) = cgroup_taskset_next((tset)))			\
-		if (!(skip_css) ||					\
-		    cgroup_taskset_cur_css((tset),			\
-			(skip_css)->ss->id) != (skip_css))
+	     (task) = cgroup_taskset_next((tset)))
 
 /*
  * Control Group subsystem type.

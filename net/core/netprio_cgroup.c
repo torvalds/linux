@@ -224,7 +224,7 @@ static void net_prio_attach(struct cgroup_subsys_state *css,
 	struct task_struct *p;
 	void *v = (void *)(unsigned long)css->cgroup->id;
 
-	cgroup_taskset_for_each(p, css, tset) {
+	cgroup_taskset_for_each(p, tset) {
 		task_lock(p);
 		iterate_fd(p->files, 0, update_netprio, v);
 		task_unlock(p);
