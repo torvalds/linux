@@ -2785,7 +2785,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 				if (ret) {
 					ath10k_warn("failed to start vdev: %d\n",
 						    ret);
-					return;
+					goto exit;
 				}
 
 				arvif->is_started = true;
@@ -2866,6 +2866,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 			ath10k_bss_assoc(hw, vif, info);
 	}
 
+exit:
 	mutex_unlock(&ar->conf_mutex);
 }
 
