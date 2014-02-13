@@ -876,6 +876,7 @@ static void max310x_set_termios(struct uart_port *port,
 static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
 			 unsigned long arg)
 {
+#if defined(TIOCSRS485) && defined(TIOCGRS485)
 	struct serial_rs485 rs485;
 	unsigned int val;
 
@@ -903,7 +904,7 @@ static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
 			max310x_port_update(port, MAX310X_MODE2_REG,
 					    MAX310X_MODE2_ECHOSUPR_BIT, 0);
 		}
-		break;
+		return 0;
 	case TIOCGRS485:
 		memset(&rs485, 0, sizeof(rs485));
 		val = max310x_port_read(port, MAX310X_MODE1_REG);
@@ -916,12 +917,13 @@ static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
 		if (copy_to_user((struct serial_rs485 *)arg, &rs485,
 				 sizeof(rs485)))
 			return -EFAULT;
-		break;
+		return 0;
 	default:
-		return -ENOIOCTLCMD;
+		break;
 	}
+#endif
 
-	return 0;
+	return -ENOIOCTLCMD;
 }
 
 static int max310x_startup(struct uart_port *port)
