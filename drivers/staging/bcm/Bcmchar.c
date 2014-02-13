@@ -529,6 +529,46 @@ static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp, struct 
 	return STATUS_SUCCESS;
 }
 
+static int bcm_char_ioctl_gpio_status_request(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_gpio_info gpio_info = {0};
+	struct bcm_ioctl_buffer IoBuffer;
+	ULONG uiBit = 0;
+	UCHAR ucRead[4];
+	INT Status;
+	int bytes;
+
+	if ((Adapter->IdleMode == TRUE) ||
+		(Adapter->bShutStatus == TRUE) ||
+		(Adapter->bPreparingForLowPowerMode == TRUE))
+		return -EACCES;
+
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.InputLength > sizeof(gpio_info))
+		return -EINVAL;
+
+	if (copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
+		return -EFAULT;
+
+	uiBit = gpio_info.uiGpioNumber;
+
+	/* Set the gpio output register */
+	bytes = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER,
+				(PUINT)ucRead, sizeof(UINT));
+
+	if (bytes < 0) {
+		Status = bytes;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"RDM Failed\n");
+		return Status;
+	} else {
+		Status = STATUS_SUCCESS;
+	}
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -607,41 +647,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_led_thread_state_change_req(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_GPIO_STATUS_REQUEST: {
-		ULONG uiBit = 0;
-		UCHAR ucRead[4];
-		struct bcm_gpio_info gpio_info = {0};
-
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE))
-			return -EACCES;
-
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.InputLength > sizeof(gpio_info))
-			return -EINVAL;
-
-		if (copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
-			return -EFAULT;
-
-		uiBit = gpio_info.uiGpioNumber;
-
-		/* Set the gpio output register */
-		bytes = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER,
-					(PUINT)ucRead, sizeof(UINT));
-
-		if (bytes < 0) {
-			Status = bytes;
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"RDM Failed\n");
-			return Status;
-		} else {
-			Status = STATUS_SUCCESS;
-		}
-	}
-	break;
+	case IOCTL_BCM_GPIO_STATUS_REQUEST:
+		Status = bcm_char_ioctl_gpio_status_request(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_GPIO_MULTI_REQUEST: {
 		UCHAR ucResetValue[4];
