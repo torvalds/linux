@@ -171,13 +171,14 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	if (!config->gpios)
 		return ERR_PTR(-ENOMEM);
 
-	prop = of_find_property(np, "gpios-states", NULL);
-	if (prop) {
-		proplen = prop->length / sizeof(int);
-		if (proplen != config->nr_gpios) {
-			dev_warn(dev, "gpios <-> gpios-states mismatch\n");
-			prop = NULL;
-		}
+	proplen = of_property_count_u32_elems(np, "gpios-states");
+	/* optional property */
+	if (proplen < 0)
+		proplen = 0;
+
+	if (proplen > 0 && proplen != config->nr_gpios) {
+		dev_warn(dev, "gpios <-> gpios-states mismatch\n");
+		proplen = 0;
 	}
 
 	for (i = 0; i < config->nr_gpios; i++) {
@@ -185,8 +186,11 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 		if (gpio < 0)
 			break;
 		config->gpios[i].gpio = gpio;
-		if (prop && be32_to_cpup((int *)prop->value + i))
-			config->gpios[i].flags = GPIOF_OUT_INIT_HIGH;
+		if (proplen > 0) {
+			of_property_read_u32_index(np, "gpios-states", i, &ret);
+			if (ret)
+				config->gpios[i].flags = GPIOF_OUT_INIT_HIGH;
+		}
 	}
 
 	/* Fetch states. */
