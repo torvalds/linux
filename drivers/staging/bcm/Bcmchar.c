@@ -310,6 +310,70 @@ static int bcm_char_ioctl_eeprom_reg_read(void __user *argp, struct bcm_mini_ada
 	return Status;
 }
 
+static int bcm_char_ioctl_eeprom_reg_write(void __user *argp, struct bcm_mini_adapter *Adapter, UINT cmd)
+{
+	struct bcm_wrm_buffer sWrmBuffer = {0};
+	struct bcm_ioctl_buffer IoBuffer;
+	UINT uiTempVar = 0;
+	INT Status;
+
+	if ((Adapter->IdleMode == TRUE) ||
+		(Adapter->bShutStatus == TRUE) ||
+		(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"Device in Idle Mode, Blocking Wrms\n");
+		return -EACCES;
+	}
+
+	/* Copy Ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.InputLength > sizeof(sWrmBuffer))
+		return -EINVAL;
+
+	/* Get WrmBuffer structure */
+	if (copy_from_user(&sWrmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
+		return -EFAULT;
+
+	if ((((ULONG)sWrmBuffer.Register & 0x0F000000) != 0x0F000000) ||
+		((ULONG)sWrmBuffer.Register & 0x3)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"WRM Done On invalid Address : %x Access Denied.\n",
+				(int)sWrmBuffer.Register);
+		return -EINVAL;
+	}
+
+	uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
+	if (!((Adapter->pstargetparams->m_u32Customize) & VSG_MODE) &&
+			((uiTempVar == EEPROM_REJECT_REG_1) ||
+			(uiTempVar == EEPROM_REJECT_REG_2) ||
+			(uiTempVar == EEPROM_REJECT_REG_3) ||
+			(uiTempVar == EEPROM_REJECT_REG_4)) &&
+			(cmd == IOCTL_BCM_REGISTER_WRITE)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"EEPROM Access Denied, not in VSG Mode\n");
+			return -EFAULT;
+	}
+
+	Status = wrmaltWithLock(Adapter, (UINT)sWrmBuffer.Register,
+				(PUINT)sWrmBuffer.Data,
+				sWrmBuffer.Length);
+
+	if (Status == STATUS_SUCCESS) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, OSAL_DBG,
+				DBG_LVL_ALL, "WRM Done\n");
+	} else {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+				DBG_LVL_ALL, "WRM Failed\n");
+		Status = -EFAULT;
+	}
+	return Status;
+}
+
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -375,66 +439,10 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		return Status;
 
 	case IOCTL_BCM_REGISTER_WRITE:
-	case IOCTL_BCM_EEPROM_REGISTER_WRITE: {
-		struct bcm_wrm_buffer sWrmBuffer = {0};
-		UINT uiTempVar = 0;
+	case IOCTL_BCM_EEPROM_REGISTER_WRITE:
+		Status = bcm_char_ioctl_eeprom_reg_write(argp, Adapter, cmd);
+		return Status;
 
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE)) {
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"Device in Idle Mode, Blocking Wrms\n");
-			return -EACCES;
-		}
-
-		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.InputLength > sizeof(sWrmBuffer))
-			return -EINVAL;
-
-		/* Get WrmBuffer structure */
-		if (copy_from_user(&sWrmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-			return -EFAULT;
-
-		if ((((ULONG)sWrmBuffer.Register & 0x0F000000) != 0x0F000000) ||
-			((ULONG)sWrmBuffer.Register & 0x3)) {
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"WRM Done On invalid Address : %x Access Denied.\n",
-					(int)sWrmBuffer.Register);
-			return -EINVAL;
-		}
-
-		uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
-		if (!((Adapter->pstargetparams->m_u32Customize) & VSG_MODE) &&
-				((uiTempVar == EEPROM_REJECT_REG_1) ||
-				(uiTempVar == EEPROM_REJECT_REG_2) ||
-				(uiTempVar == EEPROM_REJECT_REG_3) ||
-				(uiTempVar == EEPROM_REJECT_REG_4)) &&
-				(cmd == IOCTL_BCM_REGISTER_WRITE)) {
-
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-						"EEPROM Access Denied, not in VSG Mode\n");
-				return -EFAULT;
-		}
-
-		Status = wrmaltWithLock(Adapter, (UINT)sWrmBuffer.Register,
-					(PUINT)sWrmBuffer.Data,
-					sWrmBuffer.Length);
-
-		if (Status == STATUS_SUCCESS) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, OSAL_DBG,
-					DBG_LVL_ALL, "WRM Done\n");
-		} else {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
-					DBG_LVL_ALL, "WRM Failed\n");
-			Status = -EFAULT;
-		}
-		break;
-	}
 	case IOCTL_BCM_GPIO_SET_REQUEST: {
 		UCHAR ucResetValue[4];
 		UINT value = 0;
