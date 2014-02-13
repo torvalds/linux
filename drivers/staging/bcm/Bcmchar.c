@@ -1804,6 +1804,40 @@ static int bcm_char_ioctl_copy_section(void __user *argp, struct bcm_mini_adapte
 	return Status;
 }
 
+static int bcm_char_ioctl_get_flash_cs_info(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	INT Status = STATUS_SUCCESS;
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " IOCTL_BCM_GET_FLASH_CS_INFO Called");
+
+	Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
+	if (Status) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
+		return -EFAULT;
+	}
+
+	if (Adapter->eNVMType != NVM_FLASH) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Connected device does not have flash");
+		return -EINVAL;
+	}
+
+	if (IsFlash2x(Adapter) == TRUE) {
+		if (IoBuffer.OutputLength < sizeof(struct bcm_flash2x_cs_info))
+			return -EINVAL;
+
+		if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlash2xCSInfo, sizeof(struct bcm_flash2x_cs_info)))
+			return -EFAULT;
+	} else {
+		if (IoBuffer.OutputLength < sizeof(struct bcm_flash_cs_info))
+			return -EINVAL;
+
+		if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlashCSInfo, sizeof(struct bcm_flash_cs_info)))
+			return -EFAULT;
+	}
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -2028,37 +2062,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_copy_section(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_GET_FLASH_CS_INFO: {
-		Status = STATUS_SUCCESS;
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " IOCTL_BCM_GET_FLASH_CS_INFO Called");
-
-		Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
-		if (Status) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
-			return -EFAULT;
-		}
-
-		if (Adapter->eNVMType != NVM_FLASH) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Connected device does not have flash");
-			Status = -EINVAL;
-			break;
-		}
-
-		if (IsFlash2x(Adapter) == TRUE) {
-			if (IoBuffer.OutputLength < sizeof(struct bcm_flash2x_cs_info))
-				return -EINVAL;
-
-			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlash2xCSInfo, sizeof(struct bcm_flash2x_cs_info)))
-				return -EFAULT;
-		} else {
-			if (IoBuffer.OutputLength < sizeof(struct bcm_flash_cs_info))
-				return -EINVAL;
-
-			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlashCSInfo, sizeof(struct bcm_flash_cs_info)))
-				return -EFAULT;
-		}
-	}
-	break;
+	case IOCTL_BCM_GET_FLASH_CS_INFO:
+		Status = bcm_char_ioctl_get_flash_cs_info(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_SELECT_DSD: {
 		UINT SectOfset = 0;
