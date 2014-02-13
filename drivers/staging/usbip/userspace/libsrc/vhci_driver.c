@@ -339,26 +339,66 @@ err:
 	return -1;
 }
 
-static int read_record(int rhport, char *host, char *port, char *busid)
+/*
+ * Read the given port's record.
+ *
+ * To avoid buffer overflow we will read the entire line and
+ * validate each part's size. The initial buffer is padded by 4 to
+ * accommodate the 2 spaces, 1 newline and an additional character
+ * which is needed to properly validate the 3rd part without it being
+ * truncated to an acceptable length.
+ */
+static int read_record(int rhport, char *host, unsigned long host_len,
+		char *port, unsigned long port_len, char *busid)
+
 {
+	int part;
 	FILE *file;
 	char path[PATH_MAX+1];
+	char *buffer, *start, *end;
+	char delim[] = {' ', ' ', '\n'};
+	int max_len[] = {(int)host_len, (int)port_len, SYSFS_BUS_ID_SIZE};
+	size_t buffer_len = host_len + port_len + SYSFS_BUS_ID_SIZE + 4;
+
+	buffer = malloc(buffer_len);
+	if (!buffer)
+		return -1;
 
 	snprintf(path, PATH_MAX, VHCI_STATE_PATH"/port%d", rhport);
 
 	file = fopen(path, "r");
 	if (!file) {
 		err("fopen");
+		free(buffer);
 		return -1;
 	}
 
-	if (fscanf(file, "%s %s %s\n", host, port, busid) != 3) {
-		err("fscanf");
+	if (fgets(buffer, buffer_len, file) == NULL) {
+		err("fgets");
+		free(buffer);
 		fclose(file);
 		return -1;
 	}
-
 	fclose(file);
+
+	/* validate the length of each of the 3 parts */
+	start = buffer;
+	for (part = 0; part < 3; part++) {
+		end = strchr(start, delim[part]);
+		if (end == NULL || (end - start) > max_len[part]) {
+			free(buffer);
+			return -1;
+		}
+		start = end + 1;
+	}
+
+	if (sscanf(buffer, "%s %s %s\n", host, port, busid) != 3) {
+		err("sscanf");
+		free(buffer);
+		return -1;
+	}
+
+	free(buffer);
 
 	return 0;
 }
@@ -573,7 +613,8 @@ int usbip_vhci_imported_device_dump(struct usbip_imported_device *idev)
 	if (idev->status == VDEV_ST_NULL || idev->status == VDEV_ST_NOTASSIGNED)
 		return 0;
 
-	ret = read_record(idev->port, host, serv, remote_busid);
+	ret = read_record(idev->port, host, sizeof(host), serv, sizeof(serv),
+			  remote_busid);
 	if (ret) {
 		err("read_record");
 		read_record_error = 1;
