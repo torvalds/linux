@@ -918,7 +918,7 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 	u16 start = 0, end = 0;
 	u8 cos;
 #endif
-	if (disable_int)
+	if (IS_PF(bp) && disable_int)
 		bnx2x_int_disable(bp);
 
 	bp->stats_state = STATS_STATE_DISABLED;
@@ -929,33 +929,41 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 
 	/* Indices */
 	/* Common */
-	BNX2X_ERR("def_idx(0x%x)  def_att_idx(0x%x)  attn_state(0x%x)  spq_prod_idx(0x%x) next_stats_cnt(0x%x)\n",
-		  bp->def_idx, bp->def_att_idx, bp->attn_state,
-		  bp->spq_prod_idx, bp->stats_counter);
-	BNX2X_ERR("DSB: attn bits(0x%x)  ack(0x%x)  id(0x%x)  idx(0x%x)\n",
-		  bp->def_status_blk->atten_status_block.attn_bits,
-		  bp->def_status_blk->atten_status_block.attn_bits_ack,
-		  bp->def_status_blk->atten_status_block.status_block_id,
-		  bp->def_status_blk->atten_status_block.attn_bits_index);
-	BNX2X_ERR("     def (");
-	for (i = 0; i < HC_SP_SB_MAX_INDICES; i++)
-		pr_cont("0x%x%s",
-			bp->def_status_blk->sp_sb.index_values[i],
-			(i == HC_SP_SB_MAX_INDICES - 1) ? ")  " : " ");
+	if (IS_PF(bp)) {
+		struct host_sp_status_block *def_sb = bp->def_status_blk;
+		int data_size, cstorm_offset;
 
-	for (i = 0; i < sizeof(struct hc_sp_status_block_data)/sizeof(u32); i++)
-		*((u32 *)&sp_sb_data + i) = REG_RD(bp, BAR_CSTRORM_INTMEM +
-			CSTORM_SP_STATUS_BLOCK_DATA_OFFSET(func) +
-			i*sizeof(u32));
+		BNX2X_ERR("def_idx(0x%x)  def_att_idx(0x%x)  attn_state(0x%x)  spq_prod_idx(0x%x) next_stats_cnt(0x%x)\n",
+			  bp->def_idx, bp->def_att_idx, bp->attn_state,
+			  bp->spq_prod_idx, bp->stats_counter);
+		BNX2X_ERR("DSB: attn bits(0x%x)  ack(0x%x)  id(0x%x)  idx(0x%x)\n",
+			  def_sb->atten_status_block.attn_bits,
+			  def_sb->atten_status_block.attn_bits_ack,
+			  def_sb->atten_status_block.status_block_id,
+			  def_sb->atten_status_block.attn_bits_index);
+		BNX2X_ERR("     def (");
+		for (i = 0; i < HC_SP_SB_MAX_INDICES; i++)
+			pr_cont("0x%x%s",
+				def_sb->sp_sb.index_values[i],
+				(i == HC_SP_SB_MAX_INDICES - 1) ? ")  " : " ");
 
-	pr_cont("igu_sb_id(0x%x)  igu_seg_id(0x%x) pf_id(0x%x)  vnic_id(0x%x)  vf_id(0x%x)  vf_valid (0x%x) state(0x%x)\n",
-	       sp_sb_data.igu_sb_id,
-	       sp_sb_data.igu_seg_id,
-	       sp_sb_data.p_func.pf_id,
-	       sp_sb_data.p_func.vnic_id,
-	       sp_sb_data.p_func.vf_id,
-	       sp_sb_data.p_func.vf_valid,
-	       sp_sb_data.state);
+		data_size = sizeof(struct hc_sp_status_block_data) /
+			    sizeof(u32);
+		cstorm_offset = CSTORM_SP_STATUS_BLOCK_DATA_OFFSET(func);
+		for (i = 0; i < data_size; i++)
+			*((u32 *)&sp_sb_data + i) =
+				REG_RD(bp, BAR_CSTRORM_INTMEM + cstorm_offset +
+					   i * sizeof(u32));
+
+		pr_cont("igu_sb_id(0x%x)  igu_seg_id(0x%x) pf_id(0x%x)  vnic_id(0x%x)  vf_id(0x%x)  vf_valid (0x%x) state(0x%x)\n",
+			sp_sb_data.igu_sb_id,
+			sp_sb_data.igu_seg_id,
+			sp_sb_data.p_func.pf_id,
+			sp_sb_data.p_func.vnic_id,
+			sp_sb_data.p_func.vf_id,
+			sp_sb_data.p_func.vf_valid,
+			sp_sb_data.state);
+	}
 
 	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
@@ -1013,6 +1021,11 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 			pr_cont("0x%x%s",
 			       fp->sb_index_values[j],
 			       (j == loop - 1) ? ")" : " ");
+
+		/* VF cannot access FW refelection for status block */
+		if (IS_VF(bp))
+			continue;
+
 		/* fw sb data */
 		data_size = CHIP_IS_E1x(bp) ?
 			sizeof(struct hc_status_block_data_e1x) :
@@ -1064,16 +1077,18 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 	}
 
 #ifdef BNX2X_STOP_ON_ERROR
+	if (IS_PF(bp)) {
+		/* event queue */
+		BNX2X_ERR("eq cons %x prod %x\n", bp->eq_cons, bp->eq_prod);
+		for (i = 0; i < NUM_EQ_DESC; i++) {
+			u32 *data = (u32 *)&bp->eq_ring[i].message.data;
 
-	/* event queue */
-	BNX2X_ERR("eq cons %x prod %x\n", bp->eq_cons, bp->eq_prod);
-	for (i = 0; i < NUM_EQ_DESC; i++) {
-		u32 *data = (u32 *)&bp->eq_ring[i].message.data;
-
-		BNX2X_ERR("event queue [%d]: header: opcode %d, error %d\n",
-			  i, bp->eq_ring[i].message.opcode,
-			  bp->eq_ring[i].message.error);
-		BNX2X_ERR("data: %x %x %x\n", data[0], data[1], data[2]);
+			BNX2X_ERR("event queue [%d]: header: opcode %d, error %d\n",
+				  i, bp->eq_ring[i].message.opcode,
+				  bp->eq_ring[i].message.error);
+			BNX2X_ERR("data: %x %x %x\n",
+				  data[0], data[1], data[2]);
+		}
 	}
 
 	/* Rings */
@@ -1140,8 +1155,10 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 		}
 	}
 #endif
-	bnx2x_fw_dump(bp);
-	bnx2x_mc_assert(bp);
+	if (IS_PF(bp)) {
+		bnx2x_fw_dump(bp);
+		bnx2x_mc_assert(bp);
+	}
 	BNX2X_ERR("end crash dump -----------------\n");
 }
 
@@ -1812,6 +1829,11 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 	case (RAMROD_CMD_ID_ETH_EMPTY):
 		DP(BNX2X_MSG_SP, "got MULTI[%d] empty ramrod\n", cid);
 		drv_cmd = BNX2X_Q_CMD_EMPTY;
+		break;
+
+	case (RAMROD_CMD_ID_ETH_TPA_UPDATE):
+		DP(BNX2X_MSG_SP, "got tpa update ramrod CID=%d\n", cid);
+		drv_cmd = BNX2X_Q_CMD_UPDATE_TPA;
 		break;
 
 	default:
@@ -3644,10 +3666,18 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 			cpu_to_le32((command << SPE_HDR_CMD_ID_SHIFT) |
 				    HW_CID(bp, cid));
 
-	type = (cmd_type << SPE_HDR_CONN_TYPE_SHIFT) & SPE_HDR_CONN_TYPE;
-
-	type |= ((BP_FUNC(bp) << SPE_HDR_FUNCTION_ID_SHIFT) &
-		 SPE_HDR_FUNCTION_ID);
+	/* In some cases, type may already contain the func-id
+	 * mainly in SRIOV related use cases, so we add it here only
+	 * if it's not already set.
+	 */
+	if (!(cmd_type & SPE_HDR_FUNCTION_ID)) {
+		type = (cmd_type << SPE_HDR_CONN_TYPE_SHIFT) &
+			SPE_HDR_CONN_TYPE;
+		type |= ((BP_FUNC(bp) << SPE_HDR_FUNCTION_ID_SHIFT) &
+			 SPE_HDR_FUNCTION_ID);
+	} else {
+		type = cmd_type;
+	}
 
 	spe->hdr.type = cpu_to_le16(type);
 
@@ -3878,10 +3908,7 @@ static void bnx2x_fan_failure(struct bnx2x *bp)
 	 * This is due to some boards consuming sufficient power when driver is
 	 * up to overheat if fan fails.
 	 */
-	smp_mb__before_clear_bit();
-	set_bit(BNX2X_SP_RTNL_FAN_FAILURE, &bp->sp_rtnl_state);
-	smp_mb__after_clear_bit();
-	schedule_delayed_work(&bp->sp_rtnl_task, 0);
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_FAN_FAILURE, 0);
 }
 
 static void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
@@ -5221,9 +5248,9 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			continue;
 
 		case EVENT_RING_OPCODE_STAT_QUERY:
-			DP(BNX2X_MSG_SP | BNX2X_MSG_STATS,
-			   "got statistics comp event %d\n",
-			   bp->stats_comp++);
+			DP_AND((BNX2X_MSG_SP | BNX2X_MSG_STATS),
+			       "got statistics comp event %d\n",
+			       bp->stats_comp++);
 			/* nothing to do with stats comp */
 			goto next_spqe;
 
@@ -5273,6 +5300,8 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 					break;
 
 			} else {
+				int cmd = BNX2X_SP_RTNL_AFEX_F_UPDATE;
+
 				DP(BNX2X_MSG_SP | BNX2X_MSG_MCP,
 				   "AFEX: ramrod completed FUNCTION_UPDATE\n");
 				f_obj->complete_cmd(bp, f_obj,
@@ -5282,12 +5311,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 				 * sp_rtnl task as all Queue SP operations
 				 * should run under rtnl_lock.
 				 */
-				smp_mb__before_clear_bit();
-				set_bit(BNX2X_SP_RTNL_AFEX_F_UPDATE,
-					&bp->sp_rtnl_state);
-				smp_mb__after_clear_bit();
-
-				schedule_delayed_work(&bp->sp_rtnl_task, 0);
+				bnx2x_schedule_sp_rtnl(bp, cmd, 0);
 			}
 
 			goto next_spqe;
@@ -6004,18 +6028,6 @@ static int bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 static void bnx2x_init_internal_common(struct bnx2x *bp)
 {
 	int i;
-
-	if (IS_MF_SI(bp))
-		/*
-		 * In switch independent mode, the TSTORM needs to accept
-		 * packets that failed classification, since approximate match
-		 * mac addresses aren't written to NIG LLH
-		 */
-		REG_WR8(bp, BAR_TSTRORM_INTMEM +
-			    TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET, 2);
-	else if (!CHIP_IS_E1(bp)) /* 57710 doesn't support MF */
-		REG_WR8(bp, BAR_TSTRORM_INTMEM +
-			    TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET, 0);
 
 	/* Zero this manually as its initialization is
 	   currently missing in the initTool */
@@ -12064,11 +12076,8 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 		return;
 	} else {
 		/* Schedule an SP task to handle rest of change */
-		DP(NETIF_MSG_IFUP, "Scheduling an Rx mode change\n");
-		smp_mb__before_clear_bit();
-		set_bit(BNX2X_SP_RTNL_RX_MODE, &bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_RX_MODE,
+				       NETIF_MSG_IFUP);
 	}
 }
 
@@ -12101,11 +12110,8 @@ void bnx2x_set_rx_mode_inner(struct bnx2x *bp)
 			/* configuring mcast to a vf involves sleeping (when we
 			 * wait for the pf's response).
 			 */
-			smp_mb__before_clear_bit();
-			set_bit(BNX2X_SP_RTNL_VFPF_MCAST,
-				&bp->sp_rtnl_state);
-			smp_mb__after_clear_bit();
-			schedule_delayed_work(&bp->sp_rtnl_task, 0);
+			bnx2x_schedule_sp_rtnl(bp,
+					       BNX2X_SP_RTNL_VFPF_MCAST, 0);
 		}
 	}
 

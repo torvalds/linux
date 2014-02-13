@@ -710,8 +710,7 @@ static inline void bnx2x_dcbx_update_tc_mapping(struct bnx2x *bp)
 	 * as we are handling an attention on a work queue which must be
 	 * flushed at some rtnl-locked contexts (e.g. if down)
 	 */
-	if (!test_and_set_bit(BNX2X_SP_RTNL_SETUP_TC, &bp->sp_rtnl_state))
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_SETUP_TC, 0);
 }
 
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
@@ -764,10 +763,7 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 			if (IS_MF(bp))
 				bnx2x_link_sync_notify(bp);
 
-			set_bit(BNX2X_SP_RTNL_TX_STOP, &bp->sp_rtnl_state);
-
-			schedule_delayed_work(&bp->sp_rtnl_task, 0);
-
+			bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_TX_STOP, 0);
 			return;
 		}
 	case BNX2X_DCBX_STATE_TX_PAUSED:

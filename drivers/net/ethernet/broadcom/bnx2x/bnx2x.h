@@ -26,8 +26,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.78.17-0"
-#define DRV_MODULE_RELDATE      "2013/04/11"
+#define DRV_MODULE_VERSION      "1.78.19-0"
+#define DRV_MODULE_RELDATE      "2014/02/10"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_DCB)
@@ -75,13 +75,22 @@ enum bnx2x_int_mode {
 #define BNX2X_MSG_DCB			0x8000000
 
 /* regular debug print */
+#define DP_INNER(fmt, ...)					\
+	pr_notice("[%s:%d(%s)]" fmt,				\
+		  __func__, __LINE__,				\
+		  bp->dev ? (bp->dev->name) : "?",		\
+		  ##__VA_ARGS__);
+
 #define DP(__mask, fmt, ...)					\
 do {								\
 	if (unlikely(bp->msg_enable & (__mask)))		\
-		pr_notice("[%s:%d(%s)]" fmt,			\
-			  __func__, __LINE__,			\
-			  bp->dev ? (bp->dev->name) : "?",	\
-			  ##__VA_ARGS__);			\
+		DP_INNER(fmt, ##__VA_ARGS__);			\
+} while (0)
+
+#define DP_AND(__mask, fmt, ...)				\
+do {								\
+	if (unlikely((bp->msg_enable & (__mask)) == __mask))	\
+		DP_INNER(fmt, ##__VA_ARGS__);			\
 } while (0)
 
 #define DP_CONT(__mask, fmt, ...)				\
@@ -1261,6 +1270,7 @@ struct bnx2x_slowpath {
 	union {
 		struct client_init_ramrod_data  init_data;
 		struct client_update_ramrod_data update_data;
+		struct tpa_update_ramrod_data tpa_data;
 	} q_rdata;
 
 	union {
@@ -1392,7 +1402,7 @@ struct bnx2x_fw_stats_data {
 };
 
 /* Public slow path states */
-enum {
+enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_SETUP_TC,
 	BNX2X_SP_RTNL_TX_TIMEOUT,
 	BNX2X_SP_RTNL_FAN_FAILURE,
