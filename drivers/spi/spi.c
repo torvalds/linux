@@ -255,13 +255,12 @@ EXPORT_SYMBOL_GPL(spi_bus_type);
 static int spi_drv_probe(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
-	struct spi_device		*spi = to_spi_device(dev);
 	int ret;
 
-	acpi_dev_pm_attach(&spi->dev, true);
-	ret = sdrv->probe(spi);
+	acpi_dev_pm_attach(dev, true);
+	ret = sdrv->probe(to_spi_device(dev));
 	if (ret)
-		acpi_dev_pm_detach(&spi->dev, true);
+		acpi_dev_pm_detach(dev, true);
 
 	return ret;
 }
@@ -269,11 +268,10 @@ static int spi_drv_probe(struct device *dev)
 static int spi_drv_remove(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
-	struct spi_device		*spi = to_spi_device(dev);
 	int ret;
 
-	ret = sdrv->remove(spi);
-	acpi_dev_pm_detach(&spi->dev, true);
+	ret = sdrv->remove(to_spi_device(dev));
+	acpi_dev_pm_detach(dev, true);
 
 	return ret;
 }
