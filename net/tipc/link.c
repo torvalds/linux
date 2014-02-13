@@ -2180,8 +2180,9 @@ static int tipc_link_tunnel_rcv(struct tipc_node *n_ptr,
 	struct sk_buff *tunnel_buf = *buf;
 	struct tipc_link *dest_link;
 	struct tipc_msg *tunnel_msg = buf_msg(tunnel_buf);
-	u32 msg_typ = msg_type(tunnel_msg);
 	u32 bearer_id = msg_bearer_id(tunnel_msg);
+
+	*buf = NULL;
 
 	if (bearer_id >= MAX_BEARERS)
 		goto exit;
@@ -2190,24 +2191,16 @@ static int tipc_link_tunnel_rcv(struct tipc_node *n_ptr,
 	if (!dest_link)
 		goto exit;
 
-	if (msg_typ == DUPLICATE_MSG) {
+	if (msg_type(tunnel_msg) == DUPLICATE_MSG)
 		tipc_link_dup_rcv(dest_link, tunnel_buf);
-		goto exit;
-	}
-
-	if (msg_type(tunnel_msg) == ORIGINAL_MSG) {
+	else if (msg_type(tunnel_msg) == ORIGINAL_MSG)
 		*buf = tipc_link_failover_rcv(dest_link, tunnel_buf);
+	else
+		pr_warn("%sunknown tunnel pkt received\n", link_co_err);
 
-		/* Do we have a buffer/buffer chain to return? */
-		if (*buf != NULL) {
-			kfree_skb(tunnel_buf);
-			return 1;
-		}
-	}
 exit:
-	*buf = NULL;
 	kfree_skb(tunnel_buf);
-	return 0;
+	return *buf != NULL;
 }
 
 /*
