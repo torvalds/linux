@@ -608,26 +608,30 @@ as follows:
 	b = p;  /* BUG: Compiler can reorder!!! */
 	do_something();
 
-The solution is again ACCESS_ONCE(), which preserves the ordering between
-the load from variable 'a' and the store to variable 'b':
+The solution is again ACCESS_ONCE() and barrier(), which preserves the
+ordering between the load from variable 'a' and the store to variable 'b':
 
 	q = ACCESS_ONCE(a);
 	if (q) {
+		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something();
 	} else {
+		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something_else();
 	}
 
-You could also use barrier() to prevent the compiler from moving
-the stores to variable 'b', but barrier() would not prevent the
-compiler from proving to itself that a==1 always, so ACCESS_ONCE()
-is also needed.
+The initial ACCESS_ONCE() is required to prevent the compiler from
+proving the value of 'a', and the pair of barrier() invocations are
+required to prevent the compiler from pulling the two identical stores
+to 'b' out from the legs of the "if" statement.
 
 It is important to note that control dependencies absolutely require a
 a conditional.  For example, the following "optimized" version of
-the above example breaks ordering:
+the above example breaks ordering, which is why the barrier() invocations
+are absolutely required if you have identical stores in both legs of
+the "if" statement:
 
 	q = ACCESS_ONCE(a);
 	ACCESS_ONCE(b) = p;  /* BUG: No ordering vs. load from a!!! */
@@ -643,9 +647,11 @@ It is of course legal for the prior load to be part of the conditional,
 for example, as follows:
 
 	if (ACCESS_ONCE(a) > 0) {
+		barrier();
 		ACCESS_ONCE(b) = q / 2;
 		do_something();
 	} else {
+		barrier();
 		ACCESS_ONCE(b) = q / 3;
 		do_something_else();
 	}
@@ -659,9 +665,11 @@ the needed conditional.  For example:
 
 	q = ACCESS_ONCE(a);
 	if (q % MAX) {
+		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something();
 	} else {
+		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something_else();
 	}
@@ -722,6 +730,10 @@ In summary:
       later anything.  If you need these other forms of ordering,
       use smb_rmb(), smp_wmb(), or, in the case of prior stores and
       later loads, smp_mb().
+
+  (*) If both legs of the "if" statement begin with identical stores
+      to the same variable, a barrier() statement is required at the
+      beginning of each leg of the "if" statement.
 
   (*) Control dependencies require at least one run-time conditional
       between the prior load and the subsequent store, and this
