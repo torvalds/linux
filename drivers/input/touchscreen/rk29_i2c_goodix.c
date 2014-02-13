@@ -18,7 +18,9 @@
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 #include <linux/hrtimer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -27,7 +29,10 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
+#include <linux/version.h>
+#include <linux/slab.h>
+#include <linux/of_gpio.h>
 
 #include <linux/irq.h>
 #include <linux/syscalls.h>
@@ -41,13 +46,10 @@
 #include <linux/string.h>
 #include <linux/completion.h>
 #include <asm/uaccess.h>
-#include <mach/board.h>
 
 #define PEN_DOWN 1
 #define PEN_RELEASE 0
 #define PEN_DOWN_UP 2 //fjp
-
-static struct rk_touch_info *info_buf;
 
 static int dbg_thresd = 0;
 #define DBG(x...) do { if(unlikely(dbg_thresd)) printk(KERN_INFO x); } while (0)
@@ -78,14 +80,12 @@ static int goodix_i2c_read_bytes(struct i2c_client *client, uint8_t *buf, int le
 	msgs[0].addr=client->addr;
 	msgs[0].len=1;
 	msgs[0].buf=&buf[0];
-	msgs[0].udelay = client->udelay;
 	msgs[0].scl_rate=200 * 1000;
 
 	msgs[1].flags = client->flags | I2C_M_RD;
 	msgs[1].addr=client->addr;
 	msgs[1].len=len-1;
 	msgs[1].buf=&buf[1];
-	msgs[1].udelay = client->udelay;
 	msgs[1].scl_rate=200 * 1000;
 
 	//disable_irq(client->irq);
@@ -122,7 +122,6 @@ static int goodix_i2c_write_bytes(struct i2c_client *client,uint8_t *data,int le
 	msg.addr=client->addr;
 	msg.len=len;
 	msg.buf=data;		
-	msg.udelay = client->udelay;
 	msg.scl_rate=200 * 1000;
 	
 	//disable_irq(client->irq);
@@ -151,7 +150,7 @@ static int goodix_config_ok(struct rk_ts_data *ts)
 #ifdef CONFIG_ARCH_RK29
         if((ret < 0) || (w != TS_MAX_X) || (h != TS_MAX_Y) || (n != 10))
 #else
-        if((ret < 0) || (w != TS_MAX_X) || (h != TS_MAX_Y) || (n != 170))
+        if((ret < 0) || (w != ts->abs_x_max) || (h != ts->abs_y_max) || (n != 170))
 #endif
                 return -1;
 
@@ -177,9 +176,11 @@ static int goodix_init_panel(struct rk_ts_data *ts)
 {
 	int ret=-1, retry = 10;
 	uint8_t rd_cfg_buf[7] = {0x66,};
+	uint8_t *config_info;
+	int config_len;
 
-#if (TS_MAX_X == 1024)&&(TS_MAX_Y == 768)			//for malata 10.1
-	uint8_t config_info[] = {
+	//for malata 10.1
+	uint8_t config_info_1024_768[] = {
 		0x65,0x02,0x04,0x00,0x03,0x00,0x0A,0x22,0x1E,0xE7,0x32,0x05,0x08,0x10,0x4C,
 		0x41,0x41,0x20,0x09,0x00,0xA0,0xA0,0x3C,0x64,0x0E,0x0D,0x0C,0x0B,0x0A,0x09,
 		0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,0x00,0x1D,0x1C,0x1B,0x1A,0x19,0x18,
@@ -188,9 +189,8 @@ static int goodix_init_panel(struct rk_ts_data *ts)
 		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 	};
              
-#elif (TS_MAX_X == 1280)&&(TS_MAX_Y == 800)	
 #ifdef CONFIG_ARCH_RK29
-	uint8_t config_info[] = {
+	uint8_t config_info_1280_800[] = {
 		0x65,0x02,0x05,0x00,0x03,0x20,0x0A,0x22,0x1E,0xE7,0x32,0x05,0x08,0x10,0x4C,
 		0x41,0x41,0x20,0x07,0x00,0xA0,0xA0,0x46,0x64,0x0E,0x0D,0x0C,0x0B,0x0A,0x09,
 		0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,0x00,0x1D,0x1C,0x1B,0x1A,0x19,0x18,
@@ -199,7 +199,7 @@ static int goodix_init_panel(struct rk_ts_data *ts)
 		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 	};
 #else
-	uint8_t config_info[] = {
+	uint8_t config_info_1280_800[] = {
                 0x65,0xA2,0x05,0x00,0x03,0x20,0xAA,0x22,0x1E,0xE7,0x32,0x05,0x08,0x10,0x4C,
                 0x42,0x42,0x20,0x00,0x09,0x80,0x80,0x32,0x46,0x0E,0x0D,0x0C,0x0B,0x0A,0x09,
                 0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,0x00,0x1D,0x1C,0x1B,0x1A,0x19,0x18,
@@ -208,8 +208,7 @@ static int goodix_init_panel(struct rk_ts_data *ts)
                 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
         };
 #endif
-#else
-	uint8_t config_info[] = {
+	uint8_t config_info_default[] = {
 		0x65,0x02,0x05,0x00,0x03,0x20,0x0A,0x22,0x1E,0xE7,0x32,0x05,0x08,0x10,0x4C,
 		0x42,0x42,0x20,0x00,0x00,0x89,0x89,0x3C,0x64,0x0E,0x0D,0x0C,0x0B,
 		0x0A,0x09,0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,0x00,0x1D,0x1C,
@@ -218,10 +217,19 @@ static int goodix_init_panel(struct rk_ts_data *ts)
 		0x2B,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 		0x00,0x00,0x00,0x00
 	};
-#endif
 
+	if (ts->abs_x_max == 1280 && ts->abs_y_max == 800) {
+		config_info = config_info_1280_800;
+		config_len = ARRAY_SIZE(config_info_1280_800);
+	} else if (ts->abs_x_max == 1024 && ts->abs_y_max == 786) {
+		config_info = config_info_1024_768;
+		config_len = ARRAY_SIZE(config_info_1024_768);
+	} else {
+		config_info = config_info_default;
+		config_len = ARRAY_SIZE(config_info_default);
+	}
         while(--retry && (goodix_config_ok(ts) < 0)){
-	        ret=goodix_i2c_write_bytes(ts->client,config_info, (sizeof(config_info)/sizeof(config_info[0])));
+	        ret = goodix_i2c_write_bytes(ts->client, config_info, config_len);
 	        if (ret < 0) {
 		        printk("goodix write cfg info err, retry %d\n", retry);
 			msleep(100);
@@ -397,132 +405,6 @@ static void goodix_get_touch_info(struct rk_ts_data *ts,char *point_num,struct r
 	
 }
 
-
-/*******************************************************
-Description:
-	Goodix touchscreen work function.
-
-Parameter:
-	ts:	i2c client private struct.
-	
-return:
-	Executive outcomes.0---succeed.
-*******************************************************/
-static void  rk_ts_work_func(struct work_struct *pwork)
-{	
-	int i =0;
-	char point_num;
-	struct rk_ts_data *ts = container_of(to_delayed_work(pwork), struct rk_ts_data, ts_work);
-
-	if(!ts)
-	{
-		printk("container of rk_ts_data fail\n");
-		return;
-	}
-	if(!info_buf)
-	{
-		printk("info_buf fail\n");
-		return;
-	}
-
-	if(ts->get_touch_info)
-	{
-		 ts->get_touch_info(ts,&point_num,info_buf);
-	}
-	for(i=0; i< point_num; i++)
-	{
-	   DBG("info_buf[i].status =====%d\n",info_buf[i].status);
-	      if(info_buf[i].status==PEN_DOWN_UP)
-		{
-		       info_buf[i].status=PEN_RELEASE;
-			   DBG("the key %d is up------\n",i);
-			input_mt_slot(ts->input_dev, i);
-			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
-			continue;
-		}
-		if(info_buf[i].status==PEN_DOWN)
-		{
-			input_mt_slot(ts->input_dev, i);
-			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
-			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, info_buf[i].press);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, info_buf[i].x);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, info_buf[i].y);
-                        DBG("touch point %d %d >>x:%d>>y:%d\n",i,info_buf[i].status,info_buf[i].x,info_buf[i].y);//add by fjp 2010-9-28	
-		}
-		
-       
-          
-		
-		
-	}
-	input_sync(ts->input_dev);
-	
-    if(gpio_get_value(ts->irq_pin) == GPIO_LOW)
-    {
-       
-        DBG("touch down .............\n");//add by fjp 2010-9-28
-       	queue_delayed_work(ts->ts_wq, &ts->ts_work,msecs_to_jiffies(20));
-	//	goto exit;
-		
-    }
-    else
-    {
-		
-        DBG("touch up>>x:%d>>y:%d\n",info_buf[0].x,info_buf[0].y);//add by fjp 2010-9-28
-		/*input_mt_slot(ts->input_dev, 0);
-		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
-		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-		
-		input_mt_slot(ts->input_dev, 0);
-		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);*/
-
-		DBG("point_num+++++++++++ = %d\n", point_num);//add by fjp 2010-9-28
-		for(i=0; i< point_num; i++)
-		{
-	//	  printk("info_buf[i].status +++++++%d\n",info_buf[i].status);
-			 if(info_buf[i].status)
-		      	{
-	              input_mt_slot(ts->input_dev, i);//按序号上报
-			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);		
-			//input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-			info_buf[i].status= PEN_RELEASE;
-			
-
-			DBG("release+++++++++++ = %d\n", i);//add by fjp 2010-9-28
-
-		      	}
-		}
-		input_sync(ts->input_dev);
-		ts->pendown =PEN_RELEASE;
-		last_touch_num = 0;
-		
-	enable_irq(ts->irq);		
-      }
-         
-      
-//exit:
-	  //kfree(info_buf);
-	  
-  }
-	
-	
-/*******************************************************
-Description:
-	Timer interrupt service routine.
-
-Parameter:
-	timer:	timer struct pointer.
-	
-return:
-	Timer work mode. HRTIMER_NORESTART---not restart mode
-*******************************************************/
-static enum hrtimer_restart goodix_ts_timer_func(struct hrtimer *timer)
-{
-	struct rk_ts_data *ts = container_of(timer, struct rk_ts_data, timer);
-	queue_delayed_work(goodix_wq,&ts->ts_work,0);
-	hrtimer_start(&ts->timer, ktime_set(0, (POLL_TIME+6)*1000000), HRTIMER_MODE_REL);
-	return HRTIMER_NORESTART;
-}
 /*******************************************************
 Description:
 	External interrupt service routine.
@@ -536,11 +418,72 @@ return:
 *******************************************************/
 static irqreturn_t rk_ts_irq_handler(int irq, void *dev_id)
 {
-
 	struct rk_ts_data *ts = (struct rk_ts_data*)dev_id;
-	disable_irq_nosync(ts->irq);
-	queue_delayed_work(ts->ts_wq, &ts->ts_work,0);
-	
+	int i =0;
+	char point_num;
+	bool touch_down;
+
+	do {
+		if(ts->get_touch_info)
+		{
+			ts->get_touch_info(ts,&point_num,ts->info_buf);
+		}
+		for(i=0; i< point_num; i++)
+		{
+			DBG("info_buf[i].status =====%d\n",ts->info_buf[i].status);
+			if (ts->info_buf[i].status==PEN_DOWN_UP)
+			{
+				ts->info_buf[i].status=PEN_RELEASE;
+				DBG("the key %d is up------\n",i);
+				input_mt_slot(ts->input_dev, i);
+				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
+				continue;
+			}
+			if (ts->info_buf[i].status==PEN_DOWN)
+			{
+				input_mt_slot(ts->input_dev, i);
+				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, ts->info_buf[i].press);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, ts->info_buf[i].x);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, ts->info_buf[i].y);
+				DBG("touch point %d %d >>x:%d>>y:%d\n",i,ts->info_buf[i].status,ts->info_buf[i].x,ts->info_buf[i].y);//add by fjp 2010-9-28
+			}
+		}
+		input_sync(ts->input_dev);
+		touch_down = gpio_get_value(ts->irq_pin) == 0;
+		if (touch_down)
+		{
+			DBG("touch down .............\n");//add by fjp 2010-9-28
+			usleep_range(10000, 10000);
+		}
+	} while (touch_down);
+
+	DBG("touch up>>x:%d>>y:%d\n",ts->info_buf[0].x,ts->info_buf[0].y);//add by fjp 2010-9-28
+	/*input_mt_slot(ts->input_dev, 0);
+	  input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+	  input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+
+	  input_mt_slot(ts->input_dev, 0);
+	  input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);*/
+
+	DBG("point_num+++++++++++ = %d\n", point_num);//add by fjp 2010-9-28
+	for(i=0; i< point_num; i++)
+	{
+		//	  printk("info_buf[i].status +++++++%d\n",ts->info_buf[i].status);
+		if(ts->info_buf[i].status)
+		{
+			input_mt_slot(ts->input_dev, i);//按序号上报
+			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);		
+			//input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+			ts->info_buf[i].status= PEN_RELEASE;
+
+			DBG("release+++++++++++ = %d\n", i);//add by fjp 2010-9-28
+		}
+	}
+	input_sync(ts->input_dev);
+	ts->pendown =PEN_RELEASE;
+	last_touch_num = 0;
+
 	return IRQ_HANDLED;
 }
 
@@ -640,9 +583,9 @@ static int goodix_ts_power(struct rk_ts_data * ts, int on)
 	else if(on == 1)		//resume
 	{
 		printk(KERN_DEBUG "touch goodix int resume\n");
-		gpio_set_value(ts->rst_pin,GPIO_LOW);	
+		gpio_set_value(ts->rst_pin, ts->rst_val);
 		msleep(20);
-	    gpio_set_value(ts->rst_pin,GPIO_HIGH);
+		gpio_set_value(ts->rst_pin, !ts->rst_val);
 		ret = 0;
 	}	 
 	return ret;
@@ -652,7 +595,7 @@ static int goodix_ts_power(struct rk_ts_data * ts, int on)
 static int goodix_input_params_init(struct rk_ts_data *ts)
 {
 	int ret ;
-	ts->input_dev = input_allocate_device();
+	ts->input_dev = devm_input_allocate_device(&ts->client->dev);
 	if (ts->input_dev == NULL) {
 		ret = -ENOMEM;
 		printk(KERN_ALERT "Failed to allocate input device\n");
@@ -663,7 +606,7 @@ static int goodix_input_params_init(struct rk_ts_data *ts)
 	__set_bit(INPUT_PROP_DIRECT, ts->input_dev->propbit);
 	__set_bit(EV_ABS, ts->input_dev->evbit);
 
-	input_mt_init_slots(ts->input_dev, ts->max_touch_num);
+	input_mt_init_slots(ts->input_dev, ts->max_touch_num, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);
@@ -684,7 +627,14 @@ static int goodix_input_params_init(struct rk_ts_data *ts)
 	return 0 ;
 	
 }
-	
+
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_IAP
+static const struct file_operations goodix_proc_fops = {
+	.read	= goodix_update_read,
+	.write	= goodix_update_write,
+};
+#endif
+
 static int goodix_ts_init(struct rk_ts_data *ts)
 {
 	char ret ;
@@ -721,7 +671,7 @@ static int goodix_ts_init(struct rk_ts_data *ts)
 	}
 	vfree(version_info);
 	#ifdef CONFIG_TOUCHSCREEN_GOODIX_IAP
-	goodix_proc_entry = create_proc_entry("goodix-update", 0666, NULL);
+	goodix_proc_entry = proc_create("goodix-update", 0666, NULL, &goodix_proc_fops);
 	if(goodix_proc_entry == NULL)
 	{
 		printk("Couldn't create proc entry!\n");
@@ -754,34 +704,41 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 {
 	int ret = 0;
 	struct rk_ts_data *ts;
-	#ifdef CONFIG_MACH_RK_FAC
-		struct tp_platform_data *pdata;  
-	#else 
-		struct goodix_platform_data *pdata ;
-	#endif
+	struct device_node *np = client->dev.of_node;
+	enum of_gpio_flags rst_flags, pwr_flags;
+	unsigned long irq_flags;
+	u32 val;
 	
 	printk(KERN_INFO "Install touch driver.\n");
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
 	{
 		dev_err(&client->dev, "Must have I2C_FUNC_I2C.\n");
-		ret = -ENODEV;
-		goto exit;
+		return -ENODEV;
 	}
 
-	ts = kzalloc(sizeof(struct rk_ts_data), GFP_KERNEL);
+	ts = devm_kzalloc(&client->dev, sizeof(struct rk_ts_data), GFP_KERNEL);
 	if (ts == NULL) {
-		printk(KERN_ALERT "alloc for struct rk_ts_data fail\n");
-		ret = -ENOMEM;
-		goto exit;
+		dev_err(&client->dev, "alloc for struct rk_ts_data fail\n");
+		return -ENOMEM;
 	}
 
-	pdata = client->dev.platform_data;
-	ts->irq_pin = pdata->irq_pin;
-#ifdef CONFIG_MACH_RK_FAC
-	ts->rst_pin = pdata->reset_pin;
-#else
-	ts->rst_pin = pdata->rest_pin;
-#endif
+	if (!np) {
+		dev_err(&client->dev, "no device tree\n");
+		return -EINVAL;
+	}
+	ts->irq_pin = of_get_named_gpio_flags(np, "touch-gpio", 0, (enum of_gpio_flags *)&irq_flags);
+	ts->rst_pin = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
+	ts->pwr_pin = of_get_named_gpio_flags(np, "power-gpio", 0, &pwr_flags);
+	if (of_property_read_u32(np, "max-x", &val)) {
+		dev_err(&client->dev, "no max-x defined\n");
+		return -EINVAL;
+	}
+	ts->abs_x_max = val;
+	if (of_property_read_u32(np, "max-y", &val)) {
+		dev_err(&client->dev, "no max-y defined\n");
+		return -EINVAL;
+	}
+	ts->abs_y_max = val;
 	ts->pendown =PEN_RELEASE;
 	ts->client = client;
 	ts->ts_init = goodix_ts_init;	
@@ -789,10 +746,27 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 	ts->get_touch_info = goodix_get_touch_info;
 	ts->input_parms_init = goodix_input_params_init;
 	
+	if (gpio_is_valid(ts->pwr_pin)) {
+		ret = devm_gpio_request_one(&client->dev, ts->pwr_pin, (pwr_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH, "goodix power pin");
+		if (ret != 0) {
+			dev_err(&client->dev, "goodix power error\n");
+			return -EIO;
+		}
+		msleep(100);
+	} else {
+		dev_info(&client->dev, "power pin invalid\n");
+	}
 
-	if (pdata->init_platform_hw)
-	{
-		pdata->init_platform_hw();
+	if (gpio_is_valid(ts->rst_pin)) {
+		ts->rst_val = (rst_flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+		ret = devm_gpio_request_one(&client->dev, ts->rst_pin, (rst_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW, "goodix reset pin");
+		if (ret != 0) {
+			dev_err(&client->dev, "goodix gpio_request error\n");
+			return -EIO;
+		}
+                msleep(100);
+	} else {
+		dev_info(&client->dev, "reset pin invalid\n");
 	}
 
 	if(ts->ts_init)
@@ -801,8 +775,15 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 		if(ret < 0)
 		{
 			printk(KERN_ALERT "rk ts init fail\n");
-			goto exit;
+			return ret;
 		}
+	}
+
+	ts->info_buf= devm_kzalloc(&client->dev, ts->max_touch_num*sizeof(struct rk_touch_info), GFP_KERNEL);
+	if(!ts->info_buf)
+	{
+		dev_err(&client->dev, "alloc for rk_touch_info fail\n");
+		return -ENOMEM;
 	}
 
 	if(ts->input_parms_init)
@@ -811,17 +792,7 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 	}
 
 	i2c_connect_client = client;
-	#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,32)
-		ts->ts_wq= create_rt_workqueue("rk_ts_wq");		//create a work queue and worker thread
-	#else
-		ts->ts_wq= create_workqueue("rk_ts_wq"); 
-	#endif
-	if (!ts->ts_wq){
-		printk(KERN_ALERT "creat touch screen workqueue failed\n");
-	    return -ENOMEM;
-	}
-	
-	INIT_DELAYED_WORK(&ts->ts_work, rk_ts_work_func);
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	ts->early_suspend.suspend = rk_ts_early_suspend;
@@ -830,46 +801,24 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 #endif
 	i2c_set_clientdata(client, ts);
 
-	info_buf= kzalloc(ts->max_touch_num*sizeof(struct rk_touch_info), GFP_KERNEL);
-	if(!info_buf)
-	{
-		printk(KERN_ALERT "alloc for rk_touch_info fail\n");
-		goto err_input_register_device_failed;
-	}
-
-	ts->irq=gpio_to_irq(ts->irq_pin)	;		//If not defined in client
+	ts->irq=gpio_to_irq(ts->irq_pin);		//If not defined in client
 	if (ts->irq)
 	{
-		ret = gpio_request(pdata->irq_pin, "TS_IRQ_PIN");	//Request IO
-		if (ret < 0) 
-		{
-			printk(KERN_ALERT "Failed to request for touch irq\n");
-			goto err_input_register_device_failed;
-		}
-		else
-		{
-			gpio_direction_input(pdata->irq_pin);
-		}
-
-		ret  = request_irq(ts->irq, rk_ts_irq_handler ,IRQ_TYPE_LEVEL_LOW,client->name, ts);
+		ret = devm_request_threaded_irq(&client->dev, ts->irq, NULL, rk_ts_irq_handler, irq_flags | IRQF_ONESHOT, client->name, ts);
 		if (ret != 0) {
 			printk(KERN_ALERT "Cannot allocate ts INT!ERRNO:%d\n", ret);
-			gpio_free(ts->irq_pin);
-			goto err_input_register_device_failed;
+			goto err;
 		}
 	}
 	printk("goodix_ts_init: probe successfully!\n");
 	return 0;
 
 	
-err_input_register_device_failed:
+err:
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&ts->early_suspend);
 #endif
-	input_free_device(ts->input_dev);
 	i2c_set_clientdata(client, NULL);	
-	kfree(ts);
-exit:
 	return ret;
 }
 
@@ -886,22 +835,16 @@ return:
 *******************************************************/
 static int rk_ts_remove(struct i2c_client *client)
 {
-	struct rk_ts_data *ts = i2c_get_clientdata(client);
 #ifdef CONFIG_HAS_EARLYSUSPEND
+	struct rk_ts_data *ts = i2c_get_clientdata(client);
 	unregister_early_suspend(&ts->early_suspend);
 #endif
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_IAP
 	remove_proc_entry("goodix-update", NULL);
 #endif
 	
-	gpio_free(ts->irq_pin);
-	free_irq(ts->irq, ts);
 	dev_notice(&client->dev,"The driver is removing...\n");
 	i2c_set_clientdata(client, NULL);
-	input_unregister_device(ts->input_dev);
-	if(info_buf)
-		kfree(info_buf);
-	kfree(ts);
 	return 0;
 }
 
@@ -1648,6 +1591,11 @@ static const struct i2c_device_id goodix_ts_id[] = {
 	{ }
 };
 
+static struct of_device_id goodix_ts_dt_ids[] = {
+	{ .compatible = "goodix,gt8xx" },
+	{ }
+};
+
 static struct i2c_driver rk_ts_driver = {
 	.probe		= rk_ts_probe,
 	.remove		= rk_ts_remove,
@@ -1660,6 +1608,7 @@ static struct i2c_driver rk_ts_driver = {
 	.driver = {
 		.name	= "Goodix-TS",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(goodix_ts_dt_ids),
 	},
 };
 

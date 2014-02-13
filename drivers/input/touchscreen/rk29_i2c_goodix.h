@@ -18,7 +18,9 @@
 #ifndef 	_LINUX_GOODIX_TOUCH_H
 #define		_LINUX_GOODIX_TOUCH_H
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 #include <linux/hrtimer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -71,12 +73,12 @@ struct rk_ts_data{
 	int irq_pin;
 	int pwr_pin;
 	int rst_pin;
+	int rst_val;
 	int read_mode;					//read moudle mode,20110221 by andrew
-	struct hrtimer timer;
-	struct workqueue_struct *ts_wq;
-	struct delayed_work  ts_work;
 	char phys[32];
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
+#endif
 	int (*power)(struct rk_ts_data * ts, int on);
 	int (*ts_init)(struct rk_ts_data*ts);
 	int (*input_parms_init)(struct rk_ts_data *ts);
@@ -85,6 +87,7 @@ struct rk_ts_data{
 	uint16_t abs_y_max;
 	uint8_t max_touch_num;
 	bool		pendown;
+	struct rk_touch_info *info_buf;
 };
 
 
@@ -101,7 +104,9 @@ struct goodix_ts_data {
 	struct delayed_work  work;
 	char phys[32];
 	int retry;
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
+#endif
 	int (*power)(struct goodix_ts_data * ts, int on);
 	uint16_t abs_x_max;
 	uint16_t abs_y_max;
@@ -111,7 +116,6 @@ struct goodix_ts_data {
 };
 
 static const char *rk_ts_name = "Goodix Capacitive TouchScreen";
-static struct workqueue_struct *goodix_wq;
 struct i2c_client * i2c_connect_client = NULL; 
 static struct proc_dir_entry *goodix_proc_entry;
 //static struct kobject *goodix_debug_kobj;
@@ -137,7 +141,7 @@ static struct proc_dir_entry *goodix_proc_entry;
 //*****************************End of Part II*********************************
 #if 1
 //*************************Firmware Update part*******************************
-#define CONFIG_TOUCHSCREEN_GOODIX_IAP
+//#define CONFIG_TOUCHSCREEN_GOODIX_IAP
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_IAP
 #define UPDATE_NEW_PROTOCOL
 

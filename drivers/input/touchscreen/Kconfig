@@ -11,6 +11,14 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_GT8XX
+	tristate "Goodix touch screen gt801X2 support for rockchip based platform"
+	help
+	  Say Y here if you have a touchscreen interface using the
+	  two goodix gt801  , and your board-specific initialization
+	  code includes that in its table of IIC devices.
+	  If unsure, say N.
+
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X
