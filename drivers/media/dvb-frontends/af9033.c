@@ -989,6 +989,59 @@ err:
 	return ret;
 }
 
+int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+{
+	struct af9033_state *state = fe->demodulator_priv;
+	int ret;
+
+	dev_dbg(&state->i2c->dev, "%s: onoff=%d\n", __func__, onoff);
+
+	ret = af9033_wr_reg_mask(state, 0x80f993, onoff, 0x01);
+	if (ret < 0)
+		goto err;
+
+	return 0;
+
+err:
+	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(af9033_pid_filter_ctrl);
+
+int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid, int onoff)
+{
+	struct af9033_state *state = fe->demodulator_priv;
+	int ret;
+	u8 wbuf[2] = {(pid >> 0) & 0xff, (pid >> 8) & 0xff};
+
+	dev_dbg(&state->i2c->dev, "%s: index=%d pid=%04x onoff=%d\n",
+			__func__, index, pid, onoff);
+
+	if (pid > 0x1fff)
+		return 0;
+
+	ret = af9033_wr_regs(state, 0x80f996, wbuf, 2);
+	if (ret < 0)
+		goto err;
+
+	ret = af9033_wr_reg(state, 0x80f994, onoff);
+	if (ret < 0)
+		goto err;
+
+	ret = af9033_wr_reg(state, 0x80f995, index);
+	if (ret < 0)
+		goto err;
+
+	return 0;
+
+err:
+	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(af9033_pid_filter);
+
 static struct dvb_frontend_ops af9033_ops;
 
 struct dvb_frontend *af9033_attach(const struct af9033_config *config,
