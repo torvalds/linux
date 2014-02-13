@@ -1868,7 +1868,8 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 			/* clear the bit in GLGEN_VFLRSTAT */
 			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), (1 << bit_idx));
 
-			i40e_reset_vf(vf, true);
+			if (!test_bit(__I40E_DOWN, &pf->state))
+				i40e_reset_vf(vf, true);
 		}
 	}
 
