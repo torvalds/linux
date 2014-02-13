@@ -173,6 +173,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp);
 static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
 			      bool is_add);
 static void cgroup_pidlist_destroy_all(struct cgroup *cgrp);
+static void cgroup_enable_task_cg_lists(void);
 
 /**
  * cgroup_css - obtain a cgroup's css for the specified subsystem
@@ -375,7 +376,7 @@ static unsigned long css_set_hash(struct cgroup_subsys_state *css[])
  * fork()/exit() overhead for people who have cgroups compiled into their
  * kernel but not actually in use.
  */
-static int use_task_css_set_links __read_mostly;
+static bool use_task_css_set_links __read_mostly;
 
 static void __put_css_set(struct css_set *cset, int taskexit)
 {
@@ -1441,6 +1442,13 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	struct cgroup_sb_opts opts;
 	struct dentry *dentry;
 	int ret;
+
+	/*
+	 * The first time anyone tries to mount a cgroup, enable the list
+	 * linking each css_set to its tasks and fix up all existing tasks.
+	 */
+	if (!use_task_css_set_links)
+		cgroup_enable_task_cg_lists();
 retry:
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
@@ -1692,10 +1700,8 @@ static void cgroup_task_migrate(struct cgroup *old_cgrp,
 	rcu_assign_pointer(tsk->cgroups, new_cset);
 	task_unlock(tsk);
 
-	/* Update the css_set linked lists if we're using them */
 	write_lock(&css_set_lock);
-	if (!list_empty(&tsk->cg_list))
-		list_move(&tsk->cg_list, &new_cset->tasks);
+	list_move(&tsk->cg_list, &new_cset->tasks);
 	write_unlock(&css_set_lock);
 
 	/*
@@ -2362,13 +2368,19 @@ int cgroup_task_count(const struct cgroup *cgrp)
  * To reduce the fork() overhead for systems that are not actually using
  * their cgroups capability, we don't maintain the lists running through
  * each css_set to its tasks until we see the list actually used - in other
- * words after the first call to css_task_iter_start().
+ * words after the first mount.
  */
 static void cgroup_enable_task_cg_lists(void)
 {
 	struct task_struct *p, *g;
+
 	write_lock(&css_set_lock);
-	use_task_css_set_links = 1;
+
+	if (use_task_css_set_links)
+		goto out_unlock;
+
+	use_task_css_set_links = true;
+
 	/*
 	 * We need tasklist_lock because RCU is not safe against
 	 * while_each_thread(). Besides, a forking task that has passed
@@ -2379,16 +2391,22 @@ static void cgroup_enable_task_cg_lists(void)
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		task_lock(p);
+
+		WARN_ON_ONCE(!list_empty(&p->cg_list) ||
+			     task_css_set(p) != &init_css_set);
+
 		/*
 		 * We should check if the process is exiting, otherwise
 		 * it will race with cgroup_exit() in that the list
 		 * entry won't be deleted though the process has exited.
 		 */
-		if (!(p->flags & PF_EXITING) && list_empty(&p->cg_list))
+		if (!(p->flags & PF_EXITING))
 			list_add(&p->cg_list, &task_css_set(p)->tasks);
+
 		task_unlock(p);
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
+out_unlock:
 	write_unlock(&css_set_lock);
 }
 
@@ -2621,13 +2639,8 @@ void css_task_iter_start(struct cgroup_subsys_state *css,
 			 struct css_task_iter *it)
 	__acquires(css_set_lock)
 {
-	/*
-	 * The first time anyone tries to iterate across a css, we need to
-	 * enable the list linking each css_set to its tasks, and fix up
-	 * all existing tasks.
-	 */
-	if (!use_task_css_set_links)
-		cgroup_enable_task_cg_lists();
+	/* no one should try to iterate before mounting cgroups */
+	WARN_ON_ONCE(!use_task_css_set_links);
 
 	read_lock(&css_set_lock);
 
