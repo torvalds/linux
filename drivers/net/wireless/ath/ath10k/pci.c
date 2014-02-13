@@ -2532,8 +2532,6 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 		ret = pci_enable_msi_block(ar_pci->pdev, ar_pci->num_msi_intrs);
 		if (ret == 0)
 			return 0;
-		if (ret > 0)
-			pci_disable_msi(ar_pci->pdev);
 
 		/* fall-through */
 	}
