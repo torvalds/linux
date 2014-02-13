@@ -9,16 +9,14 @@
 
 #include "persistent-data/dm-block-manager.h"
 #include "persistent-data/dm-space-map.h"
+#include "persistent-data/dm-space-map-metadata.h"
 
-#define THIN_METADATA_BLOCK_SIZE 4096
+#define THIN_METADATA_BLOCK_SIZE DM_SM_METADATA_BLOCK_SIZE
 
 /*
  * The metadata device is currently limited in size.
- *
- * We have one block of index, which can hold 255 index entries.  Each
- * index entry contains allocation info about 16k metadata blocks.
  */
-#define THIN_METADATA_MAX_SECTORS (255 * (1 << 14) * (THIN_METADATA_BLOCK_SIZE / (1 << SECTOR_SHIFT)))
+#define THIN_METADATA_MAX_SECTORS DM_SM_METADATA_MAX_SECTORS
 
 /*
  * A metadata device larger than 16GB triggers a warning.
