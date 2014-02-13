@@ -56,13 +56,6 @@ void __init setup_cpuinfo(void)
 	if (!cpu)
 		panic("%s: No CPU found in devicetree!\n", __func__);
 
-	cpuinfo.mmu = fcpu_has(cpu, "ALTR,has-mmu");
-	if (!cpuinfo.mmu) {
-		panic("ERROR: Can't get 'ALTR,has-mmu' from device tree. Only support"
-			" Nios II with MMU enabled. Please enable MMU in Nios II "
-			"hardware.");
-	}
-
 	cpuinfo.cpu_clock_freq = fcpu(cpu, "clock-frequency");
 
 	str = of_get_property(cpu, "ALTR,implementation", &len);
@@ -88,13 +81,16 @@ void __init setup_cpuinfo(void)
 		err_cpu("MULX");
 #endif
 
+	cpuinfo.tlb_num_ways = fcpu(cpu, "ALTR,tlb-num-ways");
+	if (!cpuinfo.tlb_num_ways)
+		panic("ALTR,tlb-num-ways can't be 0. Please check your hardware "
+			"system\n");
 	cpuinfo.icache_line_size = fcpu(cpu, "icache-line-size");
 	cpuinfo.icache_size = fcpu(cpu, "icache-size");
 	cpuinfo.dcache_line_size = fcpu(cpu, "dcache-line-size");
 	cpuinfo.dcache_size = fcpu(cpu, "dcache-size");
 
 	cpuinfo.tlb_pid_num_bits = fcpu(cpu, "ALTR,pid-num-bits");
-	cpuinfo.tlb_num_ways = fcpu(cpu, "ALTR,tlb-num-ways");
 	cpuinfo.tlb_num_ways_log2 = ilog2(cpuinfo.tlb_num_ways);
 	cpuinfo.tlb_num_entries = fcpu(cpu, "ALTR,tlb-num-entries");
 	cpuinfo.tlb_num_lines = cpuinfo.tlb_num_entries / cpuinfo.tlb_num_ways;
