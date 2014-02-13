@@ -2124,6 +2124,50 @@ static void tipc_link_dup_rcv(struct tipc_link *l_ptr,
 	link_handle_out_of_seq_msg(l_ptr, buf);
 }
 
+/*  tipc_link_failover_rcv(): Receive a tunnelled ORIGINAL_MSG packet
+ *  Owner node is locked.
+ */
+static struct sk_buff *tipc_link_failover_rcv(struct tipc_link *l_ptr,
+					      struct sk_buff *t_buf)
+{
+	struct tipc_msg *t_msg = buf_msg(t_buf);
+	struct sk_buff *buf = NULL;
+	struct tipc_msg *msg;
+
+	if (tipc_link_is_up(l_ptr))
+		tipc_link_reset(l_ptr);
+
+	/* First failover packet? */
+	if (l_ptr->exp_msg_count == START_CHANGEOVER)
+		l_ptr->exp_msg_count = msg_msgcnt(t_msg);
+
+	/* Should there be an inner packet? */
+	if (l_ptr->exp_msg_count) {
+		l_ptr->exp_msg_count--;
+		buf = buf_extract(t_buf, INT_H_SIZE);
+		if (buf == NULL) {
+			pr_warn("%sno inner failover pkt\n", link_co_err);
+			goto exit;
+		}
+		msg = buf_msg(buf);
+
+		if (less(msg_seqno(msg), l_ptr->reset_checkpoint)) {
+			kfree_skb(buf);
+			buf = NULL;
+			goto exit;
+		}
+		if (msg_user(msg) == MSG_FRAGMENTER) {
+			l_ptr->stats.recv_fragments++;
+			tipc_link_frag_rcv(&l_ptr->reasm_head,
+					   &l_ptr->reasm_tail,
+					   &buf);
+		}
+	}
+
+exit:
+	return buf;
+}
+
 /*  tipc_link_tunnel_rcv(): Receive a tunnelled packet, sent
  *  via other link as result of a failover (ORIGINAL_MSG) or
  *  a new active link (DUPLICATE_MSG). Failover packets are
@@ -2135,10 +2179,8 @@ static int tipc_link_tunnel_rcv(struct tipc_link **l_ptr,
 {
 	struct sk_buff *tunnel_buf = *buf;
 	struct tipc_link *dest_link;
-	struct tipc_msg *msg;
 	struct tipc_msg *tunnel_msg = buf_msg(tunnel_buf);
 	u32 msg_typ = msg_type(tunnel_msg);
-	u32 msg_count = msg_msgcnt(tunnel_msg);
 	u32 bearer_id = msg_bearer_id(tunnel_msg);
 
 	if (bearer_id >= MAX_BEARERS)
@@ -2153,42 +2195,19 @@ static int tipc_link_tunnel_rcv(struct tipc_link **l_ptr,
 		goto exit;
 	}
 	*l_ptr = dest_link;
-	msg = msg_get_wrapped(tunnel_msg);
 
 	if (msg_typ == DUPLICATE_MSG) {
 		tipc_link_dup_rcv(dest_link, tunnel_buf);
 		goto exit;
 	}
 
-	/* First original message ?: */
-	if (tipc_link_is_up(dest_link)) {
-		pr_info("%s<%s>, changeover initiated by peer\n", link_rst_msg,
-			dest_link->name);
-		tipc_link_reset(dest_link);
-		dest_link->exp_msg_count = msg_count;
-		if (!msg_count)
-			goto exit;
-	} else if (dest_link->exp_msg_count == START_CHANGEOVER) {
-		dest_link->exp_msg_count = msg_count;
-		if (!msg_count)
-			goto exit;
-	}
+	if (msg_type(tunnel_msg) == ORIGINAL_MSG) {
+		*buf = tipc_link_failover_rcv(dest_link, tunnel_buf);
 
-	/* Receive original message */
-	if (dest_link->exp_msg_count == 0) {
-		pr_warn("%sgot too many tunnelled messages\n", link_co_err);
-		goto exit;
-	}
-	dest_link->exp_msg_count--;
-	if (less(msg_seqno(msg), dest_link->reset_checkpoint)) {
-		goto exit;
-	} else {
-		*buf = buf_extract(tunnel_buf, INT_H_SIZE);
+		/* Do we have a buffer/buffer chain to return? */
 		if (*buf != NULL) {
 			kfree_skb(tunnel_buf);
 			return 1;
-		} else {
-			pr_warn("%soriginal msg dropped\n", link_co_err);
 		}
 	}
 exit:
