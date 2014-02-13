@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/hrtimer.h>
+#include <linux/kmemleak.h>
 
 #ifdef DEBUG
 /* For development, we want to crash whenever the ring is screwed. */
