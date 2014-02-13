@@ -96,8 +96,33 @@ extern unsigned int vced_count, vcei_count;
 
 
 #define NUM_FPU_REGS	32
+#define FPU_REG_WIDTH	64
 
-typedef __u64 fpureg_t;
+union fpureg {
+	__u32	val32[FPU_REG_WIDTH / 32];
+	__u64	val64[FPU_REG_WIDTH / 64];
+};
+
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+# define FPR_IDX(width, idx)	(idx)
+#else
+# define FPR_IDX(width, idx)	((FPU_REG_WIDTH / (width)) - 1 - (idx))
+#endif
+
+#define BUILD_FPR_ACCESS(width) \
+static inline u##width get_fpr##width(union fpureg *fpr, unsigned idx)	\
+{									\
+	return fpr->val##width[FPR_IDX(width, idx)];			\
+}									\
+									\
+static inline void set_fpr##width(union fpureg *fpr, unsigned idx,	\
+				  u##width val)				\
+{									\
+	fpr->val##width[FPR_IDX(width, idx)] = val;			\
+}
+
+BUILD_FPR_ACCESS(32)
+BUILD_FPR_ACCESS(64)
 
 /*
  * It would be nice to add some more fields for emulator statistics, but there
@@ -107,7 +132,7 @@ typedef __u64 fpureg_t;
  */
 
 struct mips_fpu_struct {
-	fpureg_t	fpr[NUM_FPU_REGS];
+	union fpureg	fpr[NUM_FPU_REGS];
 	unsigned int	fcr31;
 };
 
@@ -284,7 +309,7 @@ struct thread_struct {
 	 * Saved FPU/FPU emulator stuff				\
 	 */							\
 	.fpu			= {				\
-		.fpr		= {0,},				\
+		.fpr		= {{{0,},},},			\
 		.fcr31		= 0,				\
 	},							\
 	/*							\

@@ -80,7 +80,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 	/* Read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
 		struct pt_regs *regs;
-		fpureg_t *fregs;
+		union fpureg *fregs;
 		unsigned int tmp;
 
 		regs = task_pt_regs(child);
@@ -103,13 +103,11 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 				 * order bits of the values stored in the even
 				 * registers - unless we're using r2k_switch.S.
 				 */
-				if (addr & 1)
-					tmp = fregs[(addr & ~1) - 32] >> 32;
-				else
-					tmp = fregs[addr - 32];
+				tmp = get_fpr32(&fregs[(addr & ~1) - FPR_BASE],
+						addr & 1);
 				break;
 			}
-			tmp = fregs[addr - FPR_BASE];
+			tmp = get_fpr32(&fregs[addr - FPR_BASE], 0);
 			break;
 		case PC:
 			tmp = regs->cp0_epc;
@@ -233,7 +231,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			regs->regs[addr] = data;
 			break;
 		case FPR_BASE ... FPR_BASE + 31: {
-			fpureg_t *fregs = get_fpu_regs(child);
+			union fpureg *fregs = get_fpu_regs(child);
 
 			if (!tsk_used_math(child)) {
 				/* FP not yet used  */
@@ -247,18 +245,11 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 				 * order bits of the values stored in the even
 				 * registers - unless we're using r2k_switch.S.
 				 */
-				if (addr & 1) {
-					fregs[(addr & ~1) - FPR_BASE] &=
-						0xffffffff;
-					fregs[(addr & ~1) - FPR_BASE] |=
-						((u64)data) << 32;
-				} else {
-					fregs[addr - FPR_BASE] &= ~0xffffffffLL;
-					fregs[addr - FPR_BASE] |= data;
-				}
+				set_fpr32(&fregs[(addr & ~1) - FPR_BASE],
+					  addr & 1, data);
 				break;
 			}
-			fregs[addr - FPR_BASE] = data;
+			set_fpr64(&fregs[addr - FPR_BASE], 0, data);
 			break;
 		}
 		case PC:
