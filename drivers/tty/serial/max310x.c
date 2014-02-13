@@ -24,10 +24,9 @@
 #include <linux/regmap.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
-#include <linux/spi/spi.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <uapi/asm-generic/ioctls.h>
+#include <linux/spi/spi.h>
 
 #define MAX310X_NAME			"max310x"
 #define MAX310X_MAJOR			204
