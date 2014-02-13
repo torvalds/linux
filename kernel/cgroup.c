@@ -369,22 +369,14 @@ static unsigned long css_set_hash(struct cgroup_subsys_state *css[])
 	return key;
 }
 
-static void __put_css_set(struct css_set *cset, int taskexit)
+static void put_css_set_locked(struct css_set *cset, bool taskexit)
 {
 	struct cgrp_cset_link *link, *tmp_link;
 
-	/*
-	 * Ensure that the refcount doesn't hit zero while any readers
-	 * can see it. Similar to atomic_dec_and_lock(), but for an
-	 * rwlock
-	 */
-	if (atomic_add_unless(&cset->refcount, -1, 1))
+	lockdep_assert_held(&css_set_rwsem);
+
+	if (!atomic_dec_and_test(&cset->refcount))
 		return;
-	down_write(&css_set_rwsem);
-	if (!atomic_dec_and_test(&cset->refcount)) {
-		up_write(&css_set_rwsem);
-		return;
-	}
 
 	/* This css_set is dead. unlink it and release cgroup refcounts */
 	hash_del(&cset->hlist);
@@ -406,8 +398,22 @@ static void __put_css_set(struct css_set *cset, int taskexit)
 		kfree(link);
 	}
 
-	up_write(&css_set_rwsem);
 	kfree_rcu(cset, rcu_head);
+}
+
+static void put_css_set(struct css_set *cset, bool taskexit)
+{
+	/*
+	 * Ensure that the refcount doesn't hit zero while any readers
+	 * can see it. Similar to atomic_dec_and_lock(), but for an
+	 * rwlock
+	 */
+	if (atomic_add_unless(&cset->refcount, -1, 1))
+		return;
+
+	down_write(&css_set_rwsem);
+	put_css_set_locked(cset, taskexit);
+	up_write(&css_set_rwsem);
 }
 
 /*
@@ -416,16 +422,6 @@ static void __put_css_set(struct css_set *cset, int taskexit)
 static inline void get_css_set(struct css_set *cset)
 {
 	atomic_inc(&cset->refcount);
-}
-
-static inline void put_css_set(struct css_set *cset)
-{
-	__put_css_set(cset, 0);
-}
-
-static inline void put_css_set_taskexit(struct css_set *cset)
-{
-	__put_css_set(cset, 1);
 }
 
 /**
@@ -1752,7 +1748,7 @@ static void cgroup_task_migrate(struct cgroup *old_cgrp,
 	 * we're safe to drop it here; it will be freed under RCU.
 	 */
 	set_bit(CGRP_RELEASABLE, &old_cgrp->flags);
-	put_css_set(old_cset);
+	put_css_set(old_cset, false);
 }
 
 /**
@@ -1898,7 +1894,7 @@ out_put_css_set_refs:
 			tc = flex_array_get(group, i);
 			if (!tc->cset)
 				break;
-			put_css_set(tc->cset);
+			put_css_set(tc->cset, false);
 		}
 	}
 out_cancel_attach:
@@ -3715,7 +3711,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 
 	/*
 	 * css_set_rwsem synchronizes access to ->cset_links and prevents
-	 * @cgrp from being removed while __put_css_set() is in progress.
+	 * @cgrp from being removed while put_css_set() is in progress.
 	 */
 	down_read(&css_set_rwsem);
 	empty = list_empty(&cgrp->cset_links);
@@ -4267,7 +4263,7 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 	}
 	task_unlock(tsk);
 
-	put_css_set_taskexit(cset);
+	put_css_set(cset, true);
 }
 
 static void check_for_release(struct cgroup *cgrp)
