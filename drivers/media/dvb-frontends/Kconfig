@@ -733,14 +733,6 @@ config DVB_IX2505V
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
-config DVB_IT913X_FE
-	tristate "it913x frontend and it9137 tuner"
-	depends on DVB_CORE && I2C
-	default m if !MEDIA_SUBDRV_AUTOSELECT
-	help
-	  A DVB-T tuner module.
-	  Say Y when you want to support this frontend.
-
 config DVB_M88RS2000
 	tristate "M88RS2000 DVB-S demodulator and tuner"
 	depends on DVB_CORE && I2C
