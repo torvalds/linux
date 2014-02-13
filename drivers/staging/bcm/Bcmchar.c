@@ -150,6 +150,55 @@ static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size,
 	return PktLen;
 }
 
+static int bcm_char_ioctl_reg_read_private(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_rdm_buffer sRdmBuffer = {0};
+	struct bcm_ioctl_buffer IoBuffer;
+	PCHAR temp_buff;
+	INT Status = STATUS_FAILURE;
+	UINT Bufflen;
+	u16 temp_value;
+	int bytes;
+
+	/* Copy Ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.InputLength > sizeof(sRdmBuffer))
+		return -EINVAL;
+
+	if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
+		return -EFAULT;
+
+	if (IoBuffer.OutputLength > USHRT_MAX ||
+		IoBuffer.OutputLength == 0) {
+		return -EINVAL;
+	}
+
+	Bufflen = IoBuffer.OutputLength;
+	temp_value = 4 - (Bufflen % 4);
+	Bufflen += temp_value % 4;
+
+	temp_buff = kmalloc(Bufflen, GFP_KERNEL);
+	if (!temp_buff)
+		return -ENOMEM;
+
+	bytes = rdmalt(Adapter, (UINT)sRdmBuffer.Register,
+			(PUINT)temp_buff, Bufflen);
+	if (bytes > 0) {
+		Status = STATUS_SUCCESS;
+		if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes)) {
+			kfree(temp_buff);
+			return -EFAULT;
+		}
+	} else {
+		Status = bytes;
+	}
+
+	kfree(temp_buff);
+	return Status;
+}
+
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -201,50 +250,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 	switch (cmd) {
 	/* Rdms for Swin Idle... */
-	case IOCTL_BCM_REGISTER_READ_PRIVATE: {
-		struct bcm_rdm_buffer sRdmBuffer = {0};
-		PCHAR temp_buff;
-		UINT Bufflen;
-		u16 temp_value;
-
-		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.InputLength > sizeof(sRdmBuffer))
-			return -EINVAL;
-
-		if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-			return -EFAULT;
-
-		if (IoBuffer.OutputLength > USHRT_MAX ||
-			IoBuffer.OutputLength == 0) {
-			return -EINVAL;
-		}
-
-		Bufflen = IoBuffer.OutputLength;
-		temp_value = 4 - (Bufflen % 4);
-		Bufflen += temp_value % 4;
-
-		temp_buff = kmalloc(Bufflen, GFP_KERNEL);
-		if (!temp_buff)
-			return -ENOMEM;
-
-		bytes = rdmalt(Adapter, (UINT)sRdmBuffer.Register,
-				(PUINT)temp_buff, Bufflen);
-		if (bytes > 0) {
-			Status = STATUS_SUCCESS;
-			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes)) {
-				kfree(temp_buff);
-				return -EFAULT;
-			}
-		} else {
-			Status = bytes;
-		}
-
-		kfree(temp_buff);
-		break;
-	}
+	case IOCTL_BCM_REGISTER_READ_PRIVATE:
+		Status = bcm_char_ioctl_reg_read_private(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_REGISTER_WRITE_PRIVATE: {
 		struct bcm_wrm_buffer sWrmBuffer = {0};
