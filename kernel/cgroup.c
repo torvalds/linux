@@ -1715,16 +1715,22 @@ int cgroup_taskset_size(struct cgroup_taskset *tset)
 EXPORT_SYMBOL_GPL(cgroup_taskset_size);
 
 
-/*
+/**
  * cgroup_task_migrate - move a task from one cgroup to another.
+ * @old_cgrp; the cgroup @tsk is being migrated from
+ * @tsk: the task being migrated
+ * @new_cset: the new css_set @tsk is being attached to
  *
- * Must be called with cgroup_mutex and threadgroup locked.
+ * Must be called with cgroup_mutex, threadgroup and css_set_rwsem locked.
  */
 static void cgroup_task_migrate(struct cgroup *old_cgrp,
 				struct task_struct *tsk,
 				struct css_set *new_cset)
 {
 	struct css_set *old_cset;
+
+	lockdep_assert_held(&cgroup_mutex);
+	lockdep_assert_held(&css_set_rwsem);
 
 	/*
 	 * We are synchronized through threadgroup_lock() against PF_EXITING
@@ -1738,9 +1744,7 @@ static void cgroup_task_migrate(struct cgroup *old_cgrp,
 	rcu_assign_pointer(tsk->cgroups, new_cset);
 	task_unlock(tsk);
 
-	down_write(&css_set_rwsem);
 	list_move(&tsk->cg_list, &new_cset->tasks);
-	up_write(&css_set_rwsem);
 
 	/*
 	 * We just gained a reference on old_cset by taking it from the
@@ -1748,7 +1752,7 @@ static void cgroup_task_migrate(struct cgroup *old_cgrp,
 	 * we're safe to drop it here; it will be freed under RCU.
 	 */
 	set_bit(CGRP_RELEASABLE, &old_cgrp->flags);
-	put_css_set(old_cset, false);
+	put_css_set_locked(old_cset, false);
 }
 
 /**
@@ -1871,10 +1875,12 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	 * proceed to move all tasks to the new cgroup.  There are no
 	 * failure cases after here, so this is the commit point.
 	 */
+	down_write(&css_set_rwsem);
 	for (i = 0; i < group_size; i++) {
 		tc = flex_array_get(group, i);
 		cgroup_task_migrate(tc->cgrp, tc->task, tc->cset);
 	}
+	up_write(&css_set_rwsem);
 	/* nothing is sensitive to fork() after this point. */
 
 	/*
