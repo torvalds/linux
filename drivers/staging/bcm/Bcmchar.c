@@ -1077,6 +1077,29 @@ static int bcm_char_ioctl_set_mac_tracing(void __user *argp, struct bcm_mini_ada
 	return STATUS_SUCCESS;
 }
 
+static int bcm_char_ioctl_get_dsx_indication(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	ULONG ulSFId = 0;
+
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.OutputLength < sizeof(struct bcm_add_indication_alt)) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"Mismatch req: %lx needed is =0x%zx!!!",
+				IoBuffer.OutputLength, sizeof(struct bcm_add_indication_alt));
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&ulSFId, IoBuffer.InputBuffer, sizeof(ulSFId)))
+		return -EFAULT;
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Get DSX Data SF ID is =%lx\n", ulSFId);
+	get_dsx_sf_data_to_application(Adapter, ulSFId, IoBuffer.OutputBuffer);
+	return STATUS_SUCCESS;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1235,26 +1258,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_set_mac_tracing(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_GET_DSX_INDICATION: {
-		ULONG ulSFId = 0;
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.OutputLength < sizeof(struct bcm_add_indication_alt)) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"Mismatch req: %lx needed is =0x%zx!!!",
-					IoBuffer.OutputLength, sizeof(struct bcm_add_indication_alt));
-			return -EINVAL;
-		}
-
-		if (copy_from_user(&ulSFId, IoBuffer.InputBuffer, sizeof(ulSFId)))
-			return -EFAULT;
-
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Get DSX Data SF ID is =%lx\n", ulSFId);
-		get_dsx_sf_data_to_application(Adapter, ulSFId, IoBuffer.OutputBuffer);
-		Status = STATUS_SUCCESS;
-	}
-	break;
+	case IOCTL_BCM_GET_DSX_INDICATION:
+		Status = bcm_char_ioctl_get_dsx_indication(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_GET_HOST_MIBS: {
 		PVOID temp_buff;
