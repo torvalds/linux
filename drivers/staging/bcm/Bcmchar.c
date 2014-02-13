@@ -1057,6 +1057,27 @@ static int bcm_char_ioctl_get_current_status(void __user *argp, struct bcm_mini_
 }
 
 
+static int bcm_char_ioctl_set_mac_tracing(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	UINT tracing_flag;
+
+	/* copy ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (copy_from_user(&tracing_flag, IoBuffer.InputBuffer, sizeof(UINT)))
+		return -EFAULT;
+
+	if (tracing_flag)
+		Adapter->pTarangs->MacTracingEnabled = TRUE;
+	else
+		Adapter->pTarangs->MacTracingEnabled = false;
+
+	return STATUS_SUCCESS;
+}
+
+
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -1210,22 +1231,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_get_current_status(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_SET_MAC_TRACING: {
-		UINT  tracing_flag;
-
-		/* copy ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (copy_from_user(&tracing_flag, IoBuffer.InputBuffer, sizeof(UINT)))
-			return -EFAULT;
-
-		if (tracing_flag)
-			Adapter->pTarangs->MacTracingEnabled = TRUE;
-		else
-			Adapter->pTarangs->MacTracingEnabled = false;
-		break;
-	}
+	case IOCTL_BCM_SET_MAC_TRACING:
+		Status = bcm_char_ioctl_set_mac_tracing(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_GET_DSX_INDICATION: {
 		ULONG ulSFId = 0;
