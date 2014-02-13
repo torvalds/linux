@@ -305,6 +305,7 @@ static void i40e_tx_timeout(struct net_device *netdev)
 		break;
 	default:
 		netdev_err(netdev, "tx_timeout recovery unsuccessful\n");
+		set_bit(__I40E_DOWN, &vsi->state);
 		i40e_down(vsi);
 		break;
 	}
