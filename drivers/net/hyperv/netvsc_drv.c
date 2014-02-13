@@ -89,7 +89,11 @@ static int netvsc_open(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct hv_device *device_obj = net_device_ctx->device_ctx;
+	struct netvsc_device *nvdev;
+	struct rndis_device *rdev;
 	int ret = 0;
+
+	netif_carrier_off(net);
 
 	/* Open up the device */
 	ret = rndis_filter_open(device_obj);
@@ -99,6 +103,11 @@ static int netvsc_open(struct net_device *net)
 	}
 
 	netif_start_queue(net);
+
+	nvdev = hv_get_drvdata(device_obj);
+	rdev = nvdev->extension;
+	if (!rdev->link_state)
+		netif_carrier_on(net);
 
 	return ret;
 }
@@ -230,23 +239,24 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	struct net_device *net;
 	struct net_device_context *ndev_ctx;
 	struct netvsc_device *net_device;
+	struct rndis_device *rdev;
 
 	net_device = hv_get_drvdata(device_obj);
+	rdev = net_device->extension;
+
+	rdev->link_state = status != 1;
+
 	net = net_device->ndev;
 
-	if (!net) {
-		netdev_err(net, "got link status but net device "
-				"not initialized yet\n");
+	if (!net || net->reg_state != NETREG_REGISTERED)
 		return;
-	}
 
+	ndev_ctx = netdev_priv(net);
 	if (status == 1) {
-		netif_carrier_on(net);
-		ndev_ctx = netdev_priv(net);
 		schedule_delayed_work(&ndev_ctx->dwork, 0);
 		schedule_delayed_work(&ndev_ctx->dwork, msecs_to_jiffies(20));
 	} else {
-		netif_carrier_off(net);
+		schedule_delayed_work(&ndev_ctx->dwork, 0);
 	}
 }
 
@@ -389,17 +399,35 @@ static const struct net_device_ops device_ops = {
  * current context when receiving RNDIS_STATUS_MEDIA_CONNECT event. So, add
  * another netif_notify_peers() into a delayed work, otherwise GARP packet
  * will not be sent after quick migration, and cause network disconnection.
+ * Also, we update the carrier status here.
  */
-static void netvsc_send_garp(struct work_struct *w)
+static void netvsc_link_change(struct work_struct *w)
 {
 	struct net_device_context *ndev_ctx;
 	struct net_device *net;
 	struct netvsc_device *net_device;
+	struct rndis_device *rdev;
+	bool notify;
+
+	rtnl_lock();
 
 	ndev_ctx = container_of(w, struct net_device_context, dwork.work);
 	net_device = hv_get_drvdata(ndev_ctx->device_ctx);
+	rdev = net_device->extension;
 	net = net_device->ndev;
-	netdev_notify_peers(net);
+
+	if (rdev->link_state) {
+		netif_carrier_off(net);
+		notify = false;
+	} else {
+		netif_carrier_on(net);
+		notify = true;
+	}
+
+	rtnl_unlock();
+
+	if (notify)
+		netdev_notify_peers(net);
 }
 
 
@@ -415,13 +443,10 @@ static int netvsc_probe(struct hv_device *dev,
 	if (!net)
 		return -ENOMEM;
 
-	/* Set initial state */
-	netif_carrier_off(net);
-
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = dev;
 	hv_set_drvdata(dev, net);
-	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_send_garp);
+	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_link_change);
 	INIT_WORK(&net_device_ctx->work, do_set_multicast);
 
 	net->netdev_ops = &device_ops;
@@ -443,8 +468,6 @@ static int netvsc_probe(struct hv_device *dev,
 		return ret;
 	}
 	memcpy(net->dev_addr, device_info.mac_adr, ETH_ALEN);
-
-	netif_carrier_on(net);
 
 	ret = register_netdev(net);
 	if (ret != 0) {
