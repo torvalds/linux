@@ -313,6 +313,15 @@ void tipc_link_delete(struct tipc_link *l_ptr)
 	kfree(l_ptr);
 }
 
+void tipc_link_delete_list(struct tipc_bearer *b_ptr)
+{
+	struct tipc_link *l_ptr;
+	struct tipc_link *temp_l_ptr;
+
+	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
+		tipc_link_delete(l_ptr);
+	}
+}
 
 /**
  * link_schedule_port - schedule port for deferred sending
