@@ -1250,9 +1250,9 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 #ifdef CONFIG_GPIOLIB
 	WARN_ON(gpiochip_remove(&s->gpio));
-#endif
 
 out_uart:
+#endif
 	uart_unregister_driver(&s->uart);
 
 out_clk:
