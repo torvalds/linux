@@ -236,8 +236,7 @@ struct i40evf_adapter {
 	struct pci_dev *pdev;
 	struct net_device_stats net_stats;
 
-	/* structs defined in i40e_vf.h */
-	struct i40e_hw hw;
+	struct i40e_hw hw; /* defined in i40e_type.h */
 
 	enum i40evf_state_t state;
 	volatile unsigned long crit_section;
