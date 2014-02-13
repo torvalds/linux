@@ -2529,8 +2529,9 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 	/* Try MSI-X */
 	if (ath10k_pci_irq_mode == ATH10K_PCI_IRQ_AUTO && msix_supported) {
 		ar_pci->num_msi_intrs = MSI_NUM_REQUEST;
-		ret = pci_enable_msi_block(ar_pci->pdev, ar_pci->num_msi_intrs);
-		if (ret == 0)
+		ret = pci_enable_msi_range(ar_pci->pdev, ar_pci->num_msi_intrs,
+							 ar_pci->num_msi_intrs);
+		if (ret > 0)
 			return 0;
 
 		/* fall-through */
