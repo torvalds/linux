@@ -1,7 +1,7 @@
 /*
  * net/tipc/core.c: TIPC module code
  *
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 2003-2006, 2013, Ericsson AB
  * Copyright (c) 2005-2006, 2010-2013, Wind River Systems
  * All rights reserved.
  *

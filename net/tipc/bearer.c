@@ -327,7 +327,6 @@ restart:
 	b_ptr->net_plane = bearer_id + 'A';
 	b_ptr->active = 1;
 	b_ptr->priority = priority;
-	INIT_LIST_HEAD(&b_ptr->links);
 	spin_lock_init(&b_ptr->lock);
 
 	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr, disc_domain);
@@ -353,7 +352,7 @@ static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 	read_lock_bh(&tipc_net_lock);
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
-	tipc_link_reset_list(b_ptr);
+	tipc_link_reset_list(b_ptr->identity);
 	spin_unlock_bh(&b_ptr->lock);
 	read_unlock_bh(&tipc_net_lock);
 	return 0;
@@ -371,7 +370,7 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
 	b_ptr->media->disable_media(b_ptr);
-	tipc_link_delete_list(b_ptr);
+	tipc_link_delete_list(b_ptr->identity);
 	temp_req = b_ptr->link_req;
 	b_ptr->link_req = NULL;
 	spin_unlock_bh(&b_ptr->lock);

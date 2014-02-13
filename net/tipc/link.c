@@ -147,11 +147,6 @@ int tipc_link_is_active(struct tipc_link *l_ptr)
 /**
  * link_timeout - handle expiration of link timer
  * @l_ptr: pointer to link
- *
- * This routine must not grab "tipc_net_lock" to avoid a potential deadlock conflict
- * with tipc_link_delete().  (There is no risk that the node will be deleted by
- * another thread because tipc_link_delete() always cancels the link timer before
- * tipc_node_delete() is called.)
  */
 static void link_timeout(struct tipc_link *l_ptr)
 {
@@ -213,8 +208,8 @@ static void link_set_timer(struct tipc_link *l_ptr, u32 time)
  * Returns pointer to link.
  */
 struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
-			      struct tipc_bearer *b_ptr,
-			      const struct tipc_media_addr *media_addr)
+				   struct tipc_bearer *b_ptr,
+				   const struct tipc_media_addr *media_addr)
 {
 	struct tipc_link *l_ptr;
 	struct tipc_msg *msg;
@@ -279,47 +274,32 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 
 	k_init_timer(&l_ptr->timer, (Handler)link_timeout,
 		     (unsigned long)l_ptr);
-	list_add_tail(&l_ptr->link_list, &b_ptr->links);
 
 	link_state_event(l_ptr, STARTING_EVT);
 
 	return l_ptr;
 }
 
-/**
- * tipc_link_delete - delete a link
- * @l_ptr: pointer to link
- *
- * Note: 'tipc_net_lock' is write_locked, bearer is locked.
- * This routine must not grab the node lock until after link timer cancellation
- * to avoid a potential deadlock situation.
- */
-void tipc_link_delete(struct tipc_link *l_ptr)
-{
-	if (!l_ptr) {
-		pr_err("Attempt to delete non-existent link\n");
-		return;
-	}
 
-	k_cancel_timer(&l_ptr->timer);
-
-	tipc_node_lock(l_ptr->owner);
-	tipc_link_reset(l_ptr);
-	tipc_node_detach_link(l_ptr->owner, l_ptr);
-	tipc_link_purge_queues(l_ptr);
-	list_del_init(&l_ptr->link_list);
-	tipc_node_unlock(l_ptr->owner);
-	k_term_timer(&l_ptr->timer);
-	kfree(l_ptr);
-}
-
-void tipc_link_delete_list(struct tipc_bearer *b_ptr)
+void tipc_link_delete_list(unsigned int bearer_id)
 {
 	struct tipc_link *l_ptr;
-	struct tipc_link *temp_l_ptr;
+	struct tipc_node *n_ptr;
 
-	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		tipc_link_delete(l_ptr);
+	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+		spin_lock_bh(&n_ptr->lock);
+		l_ptr = n_ptr->links[bearer_id];
+		if (l_ptr) {
+			tipc_link_reset(l_ptr);
+			tipc_node_detach_link(n_ptr, l_ptr);
+			spin_unlock_bh(&n_ptr->lock);
+
+			/* Nobody else can access this link now: */
+			del_timer_sync(&l_ptr->timer);
+			kfree(l_ptr);
+			continue;
+		}
+		spin_unlock_bh(&n_ptr->lock);
 	}
 }
 
@@ -470,15 +450,16 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	link_reset_statistics(l_ptr);
 }
 
-void tipc_link_reset_list(struct tipc_bearer *b_ptr)
+void tipc_link_reset_list(unsigned int bearer_id)
 {
 	struct tipc_link *l_ptr;
+	struct tipc_node *n_ptr;
 
-	list_for_each_entry(l_ptr, &b_ptr->links, link_list) {
-		struct tipc_node *n_ptr = l_ptr->owner;
-
+	list_for_each_entry(n_ptr, &tipc_node_list, list) {
 		spin_lock_bh(&n_ptr->lock);
-		tipc_link_reset(l_ptr);
+		l_ptr = n_ptr->links[bearer_id];
+		if (l_ptr)
+			tipc_link_reset(l_ptr);
 		spin_unlock_bh(&n_ptr->lock);
 	}
 }

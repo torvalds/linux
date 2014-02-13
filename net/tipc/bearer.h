@@ -120,7 +120,6 @@ struct tipc_media {
  * @tolerance: default link tolerance for bearer
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
- * @links: list of non-congested links associated with bearer
  * @active: non-zero if bearer structure is represents a bearer
  * @net_plane: network plane ('A' through 'H') currently associated with bearer
  * @nodes: indicates which nodes in cluster can be reached through bearer
@@ -142,7 +141,6 @@ struct tipc_bearer {
 	u32 tolerance;
 	u32 identity;
 	struct tipc_link_req *link_req;
-	struct list_head links;
 	int active;
 	char net_plane;
 	struct tipc_node_map nodes;

@@ -59,6 +59,7 @@
 /* Link endpoint execution states
  */
 #define LINK_STARTED    0x0001
+#define LINK_STOPPED    0x0002
 
 /* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
@@ -102,7 +103,6 @@ struct tipc_stats {
  * @media_addr: media address to use when sending messages over link
  * @timer: link timer
  * @owner: pointer to peer node
- * @link_list: adjacent links in bearer's list of links
  * @flags: execution state flags for link endpoint instance
  * @checkpoint: reference point for triggering link continuity checking
  * @peer_session: link session # being used by peer end of link
@@ -149,7 +149,6 @@ struct tipc_link {
 	struct tipc_media_addr media_addr;
 	struct timer_list timer;
 	struct tipc_node *owner;
-	struct list_head link_list;
 
 	/* Management and link supervision data */
 	unsigned int flags;
@@ -215,11 +214,10 @@ struct tipc_port;
 struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr);
-void tipc_link_delete(struct tipc_link *l_ptr);
+void tipc_link_delete_list(unsigned int bearer_id);
 void tipc_link_failover_send_queue(struct tipc_link *l_ptr);
 void tipc_link_dup_send_queue(struct tipc_link *l_ptr,
 			      struct tipc_link *dest);
-void tipc_link_delete_list(struct tipc_bearer *b_ptr);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
 int tipc_link_is_up(struct tipc_link *l_ptr);
 int tipc_link_is_active(struct tipc_link *l_ptr);
@@ -232,7 +230,7 @@ struct sk_buff *tipc_link_cmd_show_stats(const void *req_tlv_area,
 struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area,
 					  int req_tlv_space);
 void tipc_link_reset(struct tipc_link *l_ptr);
-void tipc_link_reset_list(struct tipc_bearer *b_ptr);
+void tipc_link_reset_list(unsigned int bearer_id);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 void tipc_link_send_names(struct list_head *message_list, u32 dest);
 int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf);
