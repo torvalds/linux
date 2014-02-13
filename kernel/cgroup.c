@@ -2391,7 +2391,7 @@ EXPORT_SYMBOL_GPL(cgroup_add_cftypes);
  *
  * Return the number of tasks in the cgroup.
  */
-int cgroup_task_count(const struct cgroup *cgrp)
+static int cgroup_task_count(const struct cgroup *cgrp)
 {
 	int count = 0;
 	struct cgrp_cset_link *link;

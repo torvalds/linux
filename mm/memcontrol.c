@@ -4958,7 +4958,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
 	struct cgroup *cgrp = memcg->css.cgroup;
 
 	/* returns EBUSY if there is a task or if we come here twice. */
-	if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
+	if (cgroup_has_tasks(cgrp) || !list_empty(&cgrp->children))
 		return -EBUSY;
 
 	/* we call try-to-free pages for make this cgroup empty */
@@ -5140,7 +5140,7 @@ static int __memcg_activate_kmem(struct mem_cgroup *memcg,
 	 * of course permitted.
 	 */
 	mutex_lock(&memcg_create_mutex);
-	if (cgroup_task_count(memcg->css.cgroup) || memcg_has_children(memcg))
+	if (cgroup_has_tasks(memcg->css.cgroup) || memcg_has_children(memcg))
 		err = -EBUSY;
 	mutex_unlock(&memcg_create_mutex);
 	if (err)
