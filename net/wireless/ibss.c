@@ -135,6 +135,10 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		radar_detect_width = BIT(params->chandef.width);
 	}
 
+	/* TODO: We need to check the combinations at this point, we
+	 * probably must move this call down to join_ibss() in
+	 * mac80211.
+	 */
 	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
 					   check_chan,
 					   (params->channel_fixed &&

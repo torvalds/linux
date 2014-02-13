@@ -519,6 +519,7 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx *ctx;
+	u8 radar_detect_width = 0;
 	int ret;
 
 	lockdep_assert_held(&local->mtx);
@@ -526,6 +527,22 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
 
 	mutex_lock(&local->chanctx_mtx);
+
+	ret = cfg80211_chandef_dfs_required(local->hw.wiphy,
+					    chandef,
+					    sdata->wdev.iftype);
+	if (ret < 0)
+		goto out;
+	if (ret > 0)
+		radar_detect_width = BIT(chandef->width);
+
+	sdata->radar_required = ret;
+
+	ret = ieee80211_check_combinations(sdata, chandef, mode,
+					   radar_detect_width);
+	if (ret < 0)
+		goto out;
+
 	__ieee80211_vif_release_channel(sdata);
 
 	ctx = ieee80211_find_chanctx(local, chandef, mode);

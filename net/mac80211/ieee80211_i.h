@@ -1805,6 +1805,10 @@ int ieee80211_cs_headroom(struct ieee80211_local *local,
 			  enum nl80211_iftype iftype);
 void ieee80211_recalc_dtim(struct ieee80211_local *local,
 			   struct ieee80211_sub_if_data *sdata);
+int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
+				 const struct cfg80211_chan_def *chandef,
+				 enum ieee80211_chanctx_mode chanmode,
+				 u8 radar_detect);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

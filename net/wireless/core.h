@@ -417,6 +417,9 @@ cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev,
 			      enum nl80211_iftype iftype)
 {
+	/* TODO: For this function, we'll probably need to keep some
+	 * kind of interface combination check in cfg80211...
+	 */
 	return cfg80211_can_use_iftype_chan(rdev, wdev, iftype, NULL,
 					    CHAN_MODE_UNDEFINED, 0);
 }
@@ -429,16 +432,6 @@ cfg80211_can_add_interface(struct cfg80211_registered_device *rdev,
 		return -ERFKILL;
 
 	return cfg80211_can_change_interface(rdev, NULL, iftype);
-}
-
-static inline int
-cfg80211_can_use_chan(struct cfg80211_registered_device *rdev,
-		      struct wireless_dev *wdev,
-		      struct ieee80211_channel *chan,
-		      enum cfg80211_chan_mode chanmode)
-{
-	return cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
-					    chan, chanmode, 0);
 }
 
 static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
