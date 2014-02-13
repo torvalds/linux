@@ -408,18 +408,10 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 				 "Could not allocate VF broadcast filter\n");
 	}
 
-	if (!f) {
-		dev_err(&pf->pdev->dev, "Unable to add ucast filter\n");
-		ret = -ENOMEM;
-		goto error_alloc_vsi_res;
-	}
-
 	/* program mac filter */
 	ret = i40e_sync_vsi_filters(vsi);
-	if (ret) {
+	if (ret)
 		dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
-		goto error_alloc_vsi_res;
-	}
 
 error_alloc_vsi_res:
 	return ret;
