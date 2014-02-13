@@ -1211,10 +1211,6 @@ out_zap_parent:
 		if (IS_ROOT(dentry))
 			goto out_valid;
 	}
-	/* If we have submounts, don't unhash ! */
-	if (check_submounts_and_drop(dentry) != 0)
-		goto out_valid;
-
 	dput(parent);
 	dfprintk(LOOKUPCACHE, "NFS: %s(%pd2) is invalid\n",
 			__func__, dentry);
