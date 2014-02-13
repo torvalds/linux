@@ -1,6 +1,3 @@
-#define IMPD1_OSC1	0x00
-#define IMPD1_OSC2	0x04
-#define IMPD1_LOCK	0x08
 #define IMPD1_LEDS	0x0c
 #define IMPD1_INT	0x10
 #define IMPD1_SW	0x14
@@ -15,4 +12,3 @@
 struct device;
 
 void impd1_tweak_control(struct device *dev, u32 mask, u32 val);
-
