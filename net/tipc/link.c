@@ -1437,7 +1437,6 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		u32 seq_no;
 		u32 ackd;
 		u32 released = 0;
-		int type;
 
 		head = head->next;
 		buf->next = NULL;
@@ -1525,7 +1524,6 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		}
 
 		/* Now (finally!) process the incoming message */
-protocol_check:
 		if (unlikely(!link_working_working(l_ptr))) {
 			if (msg_user(msg) == LINK_PROTOCOL) {
 				link_recv_proto_msg(l_ptr, buf);
@@ -1599,15 +1597,11 @@ deliver:
 			tipc_node_unlock(n_ptr);
 			continue;
 		case CHANGEOVER_PROTOCOL:
-			type = msg_type(msg);
-			if (tipc_link_tunnel_rcv(&l_ptr, &buf)) {
-				msg = buf_msg(buf);
-				seq_no = msg_seqno(msg);
-				if (type == ORIGINAL_MSG)
-					goto deliver;
-				goto protocol_check;
-			}
-			break;
+			if (!tipc_link_tunnel_rcv(&l_ptr, &buf))
+				break;
+			msg = buf_msg(buf);
+			seq_no = msg_seqno(msg);
+			goto deliver;
 		default:
 			kfree_skb(buf);
 			buf = NULL;
@@ -2107,7 +2101,30 @@ static struct sk_buff *buf_extract(struct sk_buff *skb, u32 from_pos)
 	return eb;
 }
 
-/*  tipc_link_tunnel_rcv(): Receive a tunneled packet, sent
+
+
+/* tipc_link_dup_rcv(): Receive a tunnelled DUPLICATE_MSG packet.
+ * Owner node is locked.
+ */
+static void tipc_link_dup_rcv(struct tipc_link *l_ptr,
+			      struct sk_buff *t_buf)
+{
+	struct sk_buff *buf;
+
+	if (!tipc_link_is_up(l_ptr))
+		return;
+
+	buf = buf_extract(t_buf, INT_H_SIZE);
+	if (buf == NULL) {
+		pr_warn("%sfailed to extract inner dup pkt\n", link_co_err);
+		return;
+	}
+
+	/* Add buffer to deferred queue, if applicable: */
+	link_handle_out_of_seq_msg(l_ptr, buf);
+}
+
+/*  tipc_link_tunnel_rcv(): Receive a tunnelled packet, sent
  *  via other link as result of a failover (ORIGINAL_MSG) or
  *  a new active link (DUPLICATE_MSG). Failover packets are
  *  returned to the active link for delivery upwards.
@@ -2126,6 +2143,7 @@ static int tipc_link_tunnel_rcv(struct tipc_link **l_ptr,
 
 	if (bearer_id >= MAX_BEARERS)
 		goto exit;
+
 	dest_link = (*l_ptr)->owner->links[bearer_id];
 	if (!dest_link)
 		goto exit;
@@ -2138,15 +2156,8 @@ static int tipc_link_tunnel_rcv(struct tipc_link **l_ptr,
 	msg = msg_get_wrapped(tunnel_msg);
 
 	if (msg_typ == DUPLICATE_MSG) {
-		if (less(msg_seqno(msg), mod(dest_link->next_in_no)))
-			goto exit;
-		*buf = buf_extract(tunnel_buf, INT_H_SIZE);
-		if (*buf == NULL) {
-			pr_warn("%sduplicate msg dropped\n", link_co_err);
-			goto exit;
-		}
-		kfree_skb(tunnel_buf);
-		return 1;
+		tipc_link_dup_rcv(dest_link, tunnel_buf);
+		goto exit;
 	}
 
 	/* First original message ?: */
