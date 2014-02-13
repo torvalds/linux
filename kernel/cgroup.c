@@ -2850,15 +2850,6 @@ int css_scan_tasks(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-static void cgroup_transfer_one_task(struct task_struct *task, void *data)
-{
-	struct cgroup *new_cgroup = data;
-
-	mutex_lock(&cgroup_mutex);
-	cgroup_attach_task(new_cgroup, task, false);
-	mutex_unlock(&cgroup_mutex);
-}
-
 /**
  * cgroup_trasnsfer_tasks - move tasks from one cgroup to another
  * @to: cgroup to which the tasks will be moved
@@ -2866,8 +2857,26 @@ static void cgroup_transfer_one_task(struct task_struct *task, void *data)
  */
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 {
-	return css_scan_tasks(&from->dummy_css, NULL, cgroup_transfer_one_task,
-			      to, NULL);
+	struct css_task_iter it;
+	struct task_struct *task;
+	int ret = 0;
+
+	do {
+		css_task_iter_start(&from->dummy_css, &it);
+		task = css_task_iter_next(&it);
+		if (task)
+			get_task_struct(task);
+		css_task_iter_end(&it);
+
+		if (task) {
+			mutex_lock(&cgroup_mutex);
+			ret = cgroup_attach_task(to, task, false);
+			mutex_unlock(&cgroup_mutex);
+			put_task_struct(task);
+		}
+	} while (task && !ret);
+
+	return ret;
 }
 
 /*
