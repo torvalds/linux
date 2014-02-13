@@ -24,7 +24,11 @@ MODULE_LICENSE("GPL");
 
 static void of_set_phy_supported(struct phy_device *phydev, u32 max_speed)
 {
-	phydev->supported |= PHY_DEFAULT_FEATURES;
+	/* The default values for phydev->supported are provided by the PHY
+	 * driver "features" member, we want to reset to sane defaults fist
+	 * before supporting higher speeds.
+	 */
+	phydev->supported &= PHY_DEFAULT_FEATURES;
 
 	switch (max_speed) {
 	default:
