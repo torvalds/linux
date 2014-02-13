@@ -1030,6 +1030,32 @@ static int bcm_char_ioctl_get_driver_version(void __user *argp)
 	return STATUS_SUCCESS;
 }
 
+static int bcm_char_ioctl_get_current_status(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_link_state link_state;
+	struct bcm_ioctl_buffer IoBuffer;
+
+	/* Copy Ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy_from_user failed..\n");
+		return -EFAULT;
+	}
+
+	if (IoBuffer.OutputLength != sizeof(link_state))
+		return -EINVAL;
+
+	memset(&link_state, 0, sizeof(link_state));
+	link_state.bIdleMode = Adapter->IdleMode;
+	link_state.bShutdownMode = Adapter->bShutStatus;
+	link_state.ucLinkStatus = Adapter->LinkStatus;
+
+	if (copy_to_user(IoBuffer.OutputBuffer, &link_state, min_t(size_t, sizeof(link_state), IoBuffer.OutputLength))) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy_to_user Failed..\n");
+		return -EFAULT;
+	}
+	return STATUS_SUCCESS;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1180,32 +1206,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_get_driver_version(argp);
 		return Status;
 
-	case IOCTL_BCM_GET_CURRENT_STATUS: {
-		struct bcm_link_state link_state;
-
-		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy_from_user failed..\n");
-			return -EFAULT;
-		}
-
-		if (IoBuffer.OutputLength != sizeof(link_state)) {
-			Status = -EINVAL;
-			break;
-		}
-
-		memset(&link_state, 0, sizeof(link_state));
-		link_state.bIdleMode = Adapter->IdleMode;
-		link_state.bShutdownMode = Adapter->bShutStatus;
-		link_state.ucLinkStatus = Adapter->LinkStatus;
-
-		if (copy_to_user(IoBuffer.OutputBuffer, &link_state, min_t(size_t, sizeof(link_state), IoBuffer.OutputLength))) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy_to_user Failed..\n");
-			return -EFAULT;
-		}
-		Status = STATUS_SUCCESS;
-		break;
-	}
+	case IOCTL_BCM_GET_CURRENT_STATUS:
+		Status = bcm_char_ioctl_get_current_status(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_SET_MAC_TRACING: {
 		UINT  tracing_flag;
