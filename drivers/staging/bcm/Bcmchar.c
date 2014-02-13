@@ -981,6 +981,19 @@ static int bcm_char_ioctl_chip_reset(struct bcm_mini_adapter *Adapter)
 	return Status;
 }
 
+static int bcm_char_ioctl_qos_threshold(ULONG arg, struct bcm_mini_adapter *Adapter)
+{
+	USHORT uiLoopIndex;
+
+	for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
+		if (get_user(Adapter->PackInfo[uiLoopIndex].uiThreshold,
+				(unsigned long __user *)arg)) {
+			return -EFAULT;
+		}
+	}
+	return 0;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1107,19 +1120,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_chip_reset(Adapter);
 		return Status;
 
-	case IOCTL_QOS_THRESHOLD: {
-		USHORT uiLoopIndex;
-
-		Status = 0;
-		for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
-			if (get_user(Adapter->PackInfo[uiLoopIndex].uiThreshold,
-					(unsigned long __user *)arg)) {
-				Status = -EFAULT;
-				break;
-			}
-		}
-		break;
-	}
+	case IOCTL_QOS_THRESHOLD:
+		Status = bcm_char_ioctl_qos_threshold(arg, Adapter);
+		return Status;
 
 	case IOCTL_DUMP_PACKET_INFO:
 		DumpPackInfo(Adapter);
