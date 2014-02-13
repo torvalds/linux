@@ -28,7 +28,6 @@
 #include <linux/of_platform.h>
 #include <linux/sys_soc.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,6 +38,7 @@
 #include <plat/clcd.h>
 #include <plat/sched_clock.h>
 
+#include "hardware.h"
 #include "cm.h"
 #include "common.h"
 
