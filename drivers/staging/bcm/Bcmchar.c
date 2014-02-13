@@ -961,6 +961,26 @@ static int bcm_char_ioctl_buffer_download_stop(void __user *argp, struct bcm_min
 	return Status;
 }
 
+static int bcm_char_ioctl_chip_reset(struct bcm_mini_adapter *Adapter)
+{
+	INT Status;
+	INT NVMAccess;
+
+	NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
+	if (NVMAccess) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, " IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
+		return -EACCES;
+	}
+
+	down(&Adapter->RxAppControlQueuelock);
+	Status = reset_card_proc(Adapter);
+	flushAllAppQ();
+	up(&Adapter->RxAppControlQueuelock);
+	up(&Adapter->NVMRdmWrmLock);
+	ResetCounters(Adapter);
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1083,21 +1103,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			Status = -EFAULT;
 		break;
 
-	case IOCTL_CHIP_RESET: {
-		INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
-		if (NVMAccess) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, " IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
-			return -EACCES;
-		}
-
-		down(&Adapter->RxAppControlQueuelock);
-		Status = reset_card_proc(Adapter);
-		flushAllAppQ();
-		up(&Adapter->RxAppControlQueuelock);
-		up(&Adapter->NVMRdmWrmLock);
-		ResetCounters(Adapter);
-		break;
-	}
+	case IOCTL_CHIP_RESET:
+		Status = bcm_char_ioctl_chip_reset(Adapter);
+		return Status;
 
 	case IOCTL_QOS_THRESHOLD: {
 		USHORT uiLoopIndex;
