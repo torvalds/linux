@@ -429,6 +429,7 @@
 		clocks = <&dpll4_m4_ck>;
 		ti,clock-mult = <2>;
 		ti,clock-div = <1>;
+		ti,set-rate-parent;
 	};
 
 	dpll4_m4x2_ck: dpll4_m4x2_ck {
@@ -438,6 +439,7 @@
 		ti,bit-shift = <0x1d>;
 		reg = <0x0d00>;
 		ti,set-bit-to-disable;
+		ti,set-rate-parent;
 	};
 
 	dpll4_m5_ck: dpll4_m5_ck {
