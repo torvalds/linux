@@ -78,7 +78,7 @@ static const char *link_unk_evt = "Unknown link event ";
 static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 				       struct sk_buff *buf);
 static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf);
-static int  tipc_link_tunnel_rcv(struct tipc_link **l_ptr,
+static int  tipc_link_tunnel_rcv(struct tipc_node *n_ptr,
 				 struct sk_buff **buf);
 static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tolerance);
 static int  link_send_sections_long(struct tipc_port *sender,
@@ -1597,7 +1597,7 @@ deliver:
 			tipc_node_unlock(n_ptr);
 			continue;
 		case CHANGEOVER_PROTOCOL:
-			if (!tipc_link_tunnel_rcv(&l_ptr, &buf))
+			if (!tipc_link_tunnel_rcv(n_ptr, &buf))
 				break;
 			msg = buf_msg(buf);
 			seq_no = msg_seqno(msg);
@@ -2174,7 +2174,7 @@ exit:
  *  returned to the active link for delivery upwards.
  *  Owner node is locked.
  */
-static int tipc_link_tunnel_rcv(struct tipc_link **l_ptr,
+static int tipc_link_tunnel_rcv(struct tipc_node *n_ptr,
 				struct sk_buff **buf)
 {
 	struct sk_buff *tunnel_buf = *buf;
@@ -2186,15 +2186,9 @@ static int tipc_link_tunnel_rcv(struct tipc_link **l_ptr,
 	if (bearer_id >= MAX_BEARERS)
 		goto exit;
 
-	dest_link = (*l_ptr)->owner->links[bearer_id];
+	dest_link = n_ptr->links[bearer_id];
 	if (!dest_link)
 		goto exit;
-	if (dest_link == *l_ptr) {
-		pr_err("Unexpected changeover message on link <%s>\n",
-		       (*l_ptr)->name);
-		goto exit;
-	}
-	*l_ptr = dest_link;
 
 	if (msg_typ == DUPLICATE_MSG) {
 		tipc_link_dup_rcv(dest_link, tunnel_buf);
