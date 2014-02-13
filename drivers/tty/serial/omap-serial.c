@@ -1601,8 +1601,11 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 					    flags & SER_RS485_RTS_AFTER_SEND);
 		if (ret < 0)
 			return ret;
-	} else
+	} else if (up->rts_gpio == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else {
 		up->rts_gpio = -EINVAL;
+	}
 
 	if (of_property_read_u32_array(np, "rs485-rts-delay",
 				    rs485_delay, 2) == 0) {
