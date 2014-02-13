@@ -892,7 +892,7 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	      rx_status & (1 << I40E_RX_DESC_STATUS_L3L4P_SHIFT)))
 		return;
 
-	/* likely incorrect csum if alternate IP extention headers found */
+	/* likely incorrect csum if alternate IP extension headers found */
 	if (rx_status & (1 << I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT))
 		return;
 
