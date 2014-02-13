@@ -29,6 +29,6 @@ dwc_otg-objs    := dwc_otg_driver.o dwc_otg_attr.o
 dwc_otg-objs    += dwc_otg_cil.o dwc_otg_cil_intr.o
 dwc_otg-objs    += dwc_otg_pcd.o dwc_otg_pcd_intr.o
 dwc_otg-objs    += dwc_otg_hcd.o dwc_otg_hcd_intr.o dwc_otg_hcd_queue.o
-dwc_otg-objs 	+= usbdev_rk30.o usbdev_rk2928.o usbdev_rk3026.o
+dwc_otg-objs 	+= usbdev_rk30.o
 
 obj-$(CONFIG_DWC_OTG) := dwc_otg.o

@@ -1639,6 +1639,7 @@ static void hub_disconnect(struct usb_interface *intf)
 	kref_put(&hub->kref, hub_release);
 }
 
+struct usb_hub *g_dwc_otg_root_hub20 = NULL;
 static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_host_interface *desc;
@@ -1728,6 +1729,9 @@ descriptor_error:
 		return -ENOMEM;
 	}
 
+	if(!g_dwc_otg_root_hub20){
+		g_dwc_otg_root_hub20 = hub;
+	}
 	kref_init(&hub->kref);
 	INIT_LIST_HEAD(&hub->event_list);
 	hub->intfdev = &intf->dev;
@@ -4053,11 +4057,16 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		udev->ttport = hdev->ttport;
 	} else if (udev->speed != USB_SPEED_HIGH
 			&& hdev->speed == USB_SPEED_HIGH) {
+		/* yk@rk 20110617
+		 * parent hub has no TT would not be error in rk29
+		 */
+		#if 0
 		if (!hub->tt.hub) {
 			dev_err(&udev->dev, "parent hub has no TT\n");
 			retval = -EINVAL;
 			goto fail;
 		}
+		#endif
 		udev->tt = &hub->tt;
 		udev->ttport = port1;
 	}
@@ -4873,6 +4882,16 @@ static void hub_events(void)
 
         } /* end while (1) */
 }
+
+/* yk@rk 20100730
+ * * disconnect all devices on dwc otg controller root hub
+ */
+void dwc_otg_hub_disconnect_device(struct usb_hub *hub)
+{
+	hub_port_connect_change(hub, 1, 0, 0x2);
+}
+
+EXPORT_SYMBOL_GPL(dwc_otg_hub_disconnect_device);
 
 static int hub_thread(void *__unused)
 {

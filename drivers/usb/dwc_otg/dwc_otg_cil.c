@@ -702,40 +702,41 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *_core_if)
 		_core_if->core_global_regs;
 	dwc_otg_dev_if_t *dev_if = _core_if->dev_if;
 	volatile dcfg_data_t dcfg = {.d32 = 0};
-    volatile dctl_data_t dctl = {.d32 = 0};
-    volatile grstctl_t grstctl = {.d32 = 0};
-    volatile depctl_data_t depctl = {.d32 = 0};
-    volatile daint_data_t daintmsk = {.d32 = 0};
-    volatile gahbcfg_data_t gahbcfg = {.d32 = 0};
+	volatile dctl_data_t dctl = {.d32 = 0};
+	volatile grstctl_t grstctl = {.d32 = 0};
+	volatile depctl_data_t depctl = {.d32 = 0};
+	volatile daint_data_t daintmsk = {.d32 = 0};
+	volatile gahbcfg_data_t gahbcfg = {.d32 = 0};
 	volatile dthrctl_data_t dthrctl;
 	dwc_otg_core_reset(_core_if);
 	/* Restart the Phy Clock */
 	dwc_write_reg32(_core_if->pcgcctl, 0);
 	/* soft disconnect */
-    dctl.d32 = dwc_read_reg32( &_core_if->dev_if->dev_global_regs->dctl );
-    dctl.b.sftdiscon = 1;
-    dwc_write_reg32( &_core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+	dctl.d32 = dwc_read_reg32( &_core_if->dev_if->dev_global_regs->dctl );
+	dctl.b.sftdiscon = 1;
+	dwc_write_reg32( &_core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
 #ifdef CONFIG_ARCH_RK29
 	/* Configure data FIFO sizes, RK29 otg has 0x3c0 dwords total */
-    dwc_write_reg32( &global_regs->grxfsiz, 0x00000210 );
-    dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100210 );				//ep0 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000220 );	//ep1 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00100320 );	//ep3 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x00800330 );	//ep5 tx fifo
+	dwc_write_reg32( &global_regs->grxfsiz, 0x00000210 );
+	dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100210 );				//ep0 tx fifo
+	dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000220 );	//ep1 tx fifo
+	dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00100320 );	//ep3 tx fifo
+	dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x00800330 );	//ep5 tx fifo
 #else
 
 #if !(defined(CONFIG_ARCH_RK30)  || defined(CONFIG_ARCH_RK3188) || \
-      defined(CONFIG_ARCH_RK2928)|| defined(CONFIG_ARCH_RK3026) )
-    DWC_ERROR("Warning!!! Please Check USB Controller FIFO Configuration\n");
+	defined(CONFIG_ARCH_RK2928)|| defined(CONFIG_ARCH_RK3026) ||\
+	defined(CONFIG_ARCH_ROCKCHIP))
+	DWC_ERROR("Warning!!! Please Check USB Controller FIFO Configuration\n");
 #endif    
 	/* Configure data FIFO sizes, RK30 otg has 0x3cc dwords total */
-    dwc_write_reg32( &global_regs->grxfsiz, 0x00000120 );
-    dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100120 );				//ep0 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000130 );	//ep1 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00800230 );	//ep3 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x008002b0 );	//ep5 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[3], 0x00800330 );	//ep7 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[4], 0x001003b0 );	//ep9 tx fifo
+	dwc_write_reg32( &global_regs->grxfsiz, 0x00000120 );
+	dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100120 );				//ep0 tx fifo
+	dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000130 );	//ep1 tx fifo
+	dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00800230 );	//ep3 tx fifo
+	dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x008002b0 );	//ep5 tx fifo
+	dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[3], 0x00800330 );	//ep7 tx fifo
+	dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[4], 0x001003b0 );	//ep9 tx fifo
 #endif
 
 	if(_core_if->en_multiple_tx_fifo && _core_if->dma_enable)
@@ -790,45 +791,45 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *_core_if)
 	depctl.d32 = 0;
 	depctl.b.epdis = 1;
 	depctl.b.snak = 1;
-    dwc_write_reg32( &dev_if->in_ep_regs[0]->diepctl, depctl.d32 );
-    dwc_write_reg32( &dev_if->in_ep_regs[0]->dieptsiz, 0 );
-    dwc_write_reg32( &dev_if->in_ep_regs[0]->diepdma, 0 );
-    dwc_write_reg32( &dev_if->in_ep_regs[0]->diepint, 0xff );
+	dwc_write_reg32( &dev_if->in_ep_regs[0]->diepctl, depctl.d32 );
+	dwc_write_reg32( &dev_if->in_ep_regs[0]->dieptsiz, 0 );
+	dwc_write_reg32( &dev_if->in_ep_regs[0]->diepdma, 0 );
+	dwc_write_reg32( &dev_if->in_ep_regs[0]->diepint, 0xff );
 
-    dwc_write_reg32( &dev_if->out_ep_regs[0]->doepctl, depctl.d32 );
-    dwc_write_reg32( &dev_if->out_ep_regs[0]->doeptsiz, 0 );
-    dwc_write_reg32( &dev_if->out_ep_regs[0]->doepdma, 0 );
-    dwc_write_reg32( &dev_if->out_ep_regs[0]->doepint, 0xff );
+	dwc_write_reg32( &dev_if->out_ep_regs[0]->doepctl, depctl.d32 );
+	dwc_write_reg32( &dev_if->out_ep_regs[0]->doeptsiz, 0 );
+	dwc_write_reg32( &dev_if->out_ep_regs[0]->doepdma, 0 );
+	dwc_write_reg32( &dev_if->out_ep_regs[0]->doepint, 0xff );
 
 	depctl.d32 = 0;
 	depctl.b.setd0pid = 1;
-    dwc_write_reg32( &dev_if->in_ep_regs[1]->diepctl, depctl.d32);
+	dwc_write_reg32( &dev_if->in_ep_regs[1]->diepctl, depctl.d32);
 	depctl.b.snak = 1;
 	depctl.b.txfnum = 2;
 	depctl.b.eptype = 2;
-    depctl.b.usbactep = 1;
-    depctl.b.mps = 0x200;
-    dwc_write_reg32( &dev_if->out_ep_regs[2]->doepctl, depctl.d32 );
-    dwc_write_reg32( &dev_if->out_ep_regs[2]->doepint, 0xff );
+	depctl.b.usbactep = 1;
+	depctl.b.mps = 0x200;
+	dwc_write_reg32( &dev_if->out_ep_regs[2]->doepctl, depctl.d32 );
+	dwc_write_reg32( &dev_if->out_ep_regs[2]->doepint, 0xff );
 
-    /* global register initial */
-    dwc_write_reg32( &dev_if->dev_global_regs->diepmsk, 0x2f );//device IN interrutp mask
-    dwc_write_reg32( &dev_if->dev_global_regs->doepmsk, 0x0f );//device OUT interrutp mask
-    dwc_write_reg32( &dev_if->dev_global_regs->daint, 0xffffffff ); //clear all pending intrrupt
-    daintmsk.b.inep0 = 1;
-    daintmsk.b.inep1 = 1;
-    daintmsk.b.outep0 = 1;
-    daintmsk.b.outep2 = 1;
-    dwc_write_reg32( &dev_if->dev_global_regs->daintmsk, daintmsk.d32 );
+	/* global register initial */
+	dwc_write_reg32( &dev_if->dev_global_regs->diepmsk, 0x2f );//device IN interrutp mask
+	dwc_write_reg32( &dev_if->dev_global_regs->doepmsk, 0x0f );//device OUT interrutp mask
+	dwc_write_reg32( &dev_if->dev_global_regs->daint, 0xffffffff ); //clear all pending intrrupt
+	daintmsk.b.inep0 = 1;
+	daintmsk.b.inep1 = 1;
+	daintmsk.b.outep0 = 1;
+	daintmsk.b.outep2 = 1;
+	dwc_write_reg32( &dev_if->dev_global_regs->daintmsk, daintmsk.d32 );
     
-    dwc_write_reg32( &global_regs->gintsts, 0xffffffff );
-    dwc_write_reg32( &global_regs->gotgint, 0xffffffff );
-    dwc_otg_enable_device_interrupts(_core_if);
-    gahbcfg.d32 = 0;
-    gahbcfg.b.glblintrmsk = 1;
-    gahbcfg.b.dmaenable = 1;
+	dwc_write_reg32( &global_regs->gintsts, 0xffffffff );
+	dwc_write_reg32( &global_regs->gotgint, 0xffffffff );
+	dwc_otg_enable_device_interrupts(_core_if);
+	gahbcfg.d32 = 0;
+	gahbcfg.b.glblintrmsk = 1;
+	gahbcfg.b.dmaenable = 1;
 	gahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR16; // yk@20101221
-    dwc_write_reg32( &global_regs->gahbcfg, gahbcfg.d32 );
+	dwc_write_reg32( &global_regs->gahbcfg, gahbcfg.d32 );
 }
 
 /** 

@@ -86,6 +86,7 @@
 #include "dwc_otg_regs.h"
 
 #include "usbdev_rk.h"
+
 /**
  * Static PCD pointer for use in usb_gadget_register_driver and
  * usb_gadget_unregister_driver.  Initialized in dwc_otg_pcd_init.
@@ -1058,12 +1059,43 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
     return 0;
 }
 
+static int dwc_otg_gadget_start(struct usb_gadget *g,
+				struct usb_gadget_driver *driver)
+{
+	DWC_DEBUGPL(DBG_PCD, "registering gadget driver '%s'\n", driver->driver.name);
+	if (s_pcd == 0)
+	{
+		DWC_ERROR("ENODEV\n");
+		return -ENODEV;
+	}
+	if (s_pcd->driver != 0)
+	{
+		DWC_ERROR("EBUSY (%p)\n", s_pcd->driver);
+		return -EBUSY;
+	}
+	/* hook up the driver */
+	s_pcd->driver = driver;
+	s_pcd->gadget.dev.driver = &driver->driver;
+
+	DWC_DEBUGPL(DBG_PCD, "bind to driver %s\n", driver->driver.name);
+
+	return 0;
+}
+
+static int dwc_otg_gadget_stop(struct usb_gadget *g,
+				struct usb_gadget_driver *driver)
+{
+	return 0;
+}
+
 static const struct usb_gadget_ops dwc_otg_pcd_ops = 
 {
 	.get_frame	 = dwc_otg_pcd_get_frame,
 	.wakeup		 = dwc_otg_pcd_wakeup,
 	.pullup      = dwc_otg_pcd_pullup,
 	// current versions must always be self-powered
+	.udc_start		= dwc_otg_gadget_start,
+	.udc_stop		= dwc_otg_gadget_stop,
 };
 
 /**
@@ -1899,7 +1931,7 @@ int dwc_otg_pcd_init(struct device *dev)
 	static char pcd_name[] = "dwc_otg_pcd";
 	dwc_otg_pcd_t *pcd;
 	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
-    dwc_otg_core_if_t *core_if = otg_dev->core_if; 
+	dwc_otg_core_if_t *core_if = otg_dev->core_if;
 	struct dwc_otg_platform_data *pldata = dev->platform_data;
 	int retval = 0;
 	int irq;
@@ -1927,12 +1959,13 @@ int dwc_otg_pcd_init(struct device *dev)
 	pcd->gadget.dev.init_name= "gadget";
 	pcd->gadget.ops = &dwc_otg_pcd_ops;
 	
-	pcd->gadget.is_dualspeed = 0;
+//	pcd->gadget.is_dualspeed = 0;
 	pcd->gadget.is_otg = 0;
+	pcd->gadget.max_speed = USB_SPEED_HIGH;
 	pcd->driver = 0;
-    pcd->conn_en = 0;
+	pcd->conn_en = 0;
 	/* Register the gadget device */
-	retval = device_register( &pcd->gadget.dev );
+	retval = usb_add_gadget_udc(dev, &pcd->gadget);
 	if(retval != 0)
 	{
 		DWC_ERROR("device_register failed\n");
@@ -2072,7 +2105,7 @@ void dwc_otg_pcd_remove( struct device *dev )
  *
  * @param _driver The driver being registered
  */
- 
+#if 0
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 int usb_gadget_probe_driver(struct usb_gadget_driver *_driver,
 		int (*bind)(struct usb_gadget *))
@@ -2135,7 +2168,6 @@ EXPORT_SYMBOL(usb_gadget_probe_driver);
 #else
 EXPORT_SYMBOL(usb_gadget_register_driver);
 #endif
-
 /**
  * This function unregisters a gadget driver
  *
@@ -2166,4 +2198,5 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *_driver)
 	return 0;
 }
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
+#endif
 #endif /* DWC_HOST_ONLY */

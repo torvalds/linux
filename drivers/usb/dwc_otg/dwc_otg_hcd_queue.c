@@ -247,7 +247,7 @@ static int periodic_channel_available(dwc_otg_hcd_t *_hcd)
 	 * non-periodic transactions.
 	 */
 	int status;
-#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
+#if CONFIG_ARCH_ROCKCHIP
 	int num_channels;
 
 	num_channels = _hcd->core_if->core_params->host_channels;

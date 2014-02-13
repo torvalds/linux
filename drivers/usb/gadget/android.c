@@ -48,8 +48,8 @@ MODULE_VERSION("1.0");
 static const char longname[] = "Gadget Android";
 
 /* Default vendor and product IDs, overridden by userspace */
-#define VENDOR_ID		0x18D1
-#define PRODUCT_ID		0x0001
+#define VENDOR_ID		0x2207
+#define PRODUCT_ID		0x2910
 
 struct android_usb_function {
 	char *name;

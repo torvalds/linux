@@ -148,6 +148,8 @@ source "drivers/usb/dwc3/Kconfig"
 
 source "drivers/usb/chipidea/Kconfig"
 
+source "drivers/usb/dwc_otg/Kconfig"
+
 comment "USB port drivers"
 
 if USB

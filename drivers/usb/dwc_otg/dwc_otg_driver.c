@@ -62,6 +62,8 @@
 
 #include "linux/dwc_otg_plat.h"
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include "dwc_otg_attr.h"
 #include "dwc_otg_driver.h"
 #include "dwc_otg_cil.h"
@@ -79,6 +81,8 @@ static const char dwc_driver_name[] = "usb20_otg";
 
 dwc_otg_device_t* g_otgdev = NULL;
 
+extern struct dwc_otg_platform_data usb20otg_pdata;
+extern struct dwc_otg_platform_data usb20host_pdata;
 /*-------------------------------------------------------------------------*/
 /* Encapsulate the module parameter settings */
 
@@ -332,11 +336,11 @@ static ssize_t dbg_level_store(struct device_driver *_drv, const char *_buf,
 static DRIVER_ATTR(debuglevel, S_IRUGO|S_IWUSR, dbg_level_show, dbg_level_store);
 #ifdef CONFIG_USB
 
-extern struct usb_hub *g_root_hub20;
+extern struct usb_hub *g_dwc_otg_root_hub20;
 #ifdef DWC_BOTH_HOST_SLAVE
 extern void hcd_start( dwc_otg_core_if_t *_core_if );
 
-extern void hub_disconnect_device(struct usb_hub *hub);
+extern void dwc_otg_hub_disconnect_device(struct usb_hub *hub);
 
 static ssize_t force_usb_mode_show(struct device_driver *_drv, char *_buf)
 {
@@ -388,7 +392,7 @@ void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
     	printk("dwc_otg_force_device,already in B_PERIPHERAL,everest\n");
     	return;
     }
-	hub_disconnect_device(g_root_hub20);
+    dwc_otg_hub_disconnect_device(g_dwc_otg_root_hub20);
     otg_dev->core_if->op_state = B_PERIPHERAL;
 	/* Reset the Controller */
 	dwc_otg_core_reset( core_if );
@@ -510,7 +514,7 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
 					dwc_otg_force_device(core_if);
 				}
 				//if(dwc_otg_connid(core_if))
-				//	hub_disconnect_device();
+				//	dwc_otg_hub_disconnect_device(g_dwc_otg_root_hub20);
 				//core_if->usb_mode = new_mode;
 				//	dwc_otg_force_device(core_if);
 			}
@@ -1112,6 +1116,7 @@ static irqreturn_t dwc_otg_common_irq(int _irq, void *_dev)
 	return IRQ_RETVAL(retval);
 }
 
+#ifdef CONFIG_USB20_OTG
 /**
  * This function is called when a lm_device is unregistered with the
  * dwc_otg_driver. This happens, for example, when the rmmod command is
@@ -1198,31 +1203,41 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
  *
  * @param[in] pdev  platform_device definition
  */
-static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
+static int dwc_otg_driver_probe(struct platform_device *pdev)
 {
-	int retval = 0;
-	struct resource *res_base;
-	struct device *dev = &pdev->dev;
-	dwc_otg_device_t *dwc_otg_device;
-	int32_t snpsid;
-	int irq;
-	struct dwc_otg_platform_data *pldata = dev->platform_data;
+	struct device_node      *node = pdev->dev.of_node;
+	int 			retval = 0;
+	struct resource 	*res_base;
+	struct device 		*dev = &pdev->dev;
+	dwc_otg_device_t 	*dwc_otg_device;
+	int32_t 		snpsid;
+	int 			irq;
+	struct 			dwc_otg_platform_data *pldata;
 
-    // clock and hw init
-    if(pldata->hw_init)
-        pldata->hw_init();
+	dev->platform_data = &usb20otg_pdata;
+	pldata =  dev->platform_data;
+	pldata->dev = dev;
+
+	if (!node) {
+		dev_err(dev, "device node not found\n");
+		return -EINVAL;
+	}
+
+	// clock and hw init
+	if(pldata->hw_init)
+		pldata->hw_init();
         
     
-    if(pldata->clock_init){
-        pldata->clock_init(pldata);
-        pldata->clock_enable(pldata, 1);
-        }
+	if(pldata->clock_init){
+		pldata->clock_init(pldata);
+		pldata->clock_enable(pldata, 1);
+	}
 
-    if(pldata->phy_suspend)
-        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+	if(pldata->phy_suspend)
+		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
         
-    if(pldata->soft_reset)
-        pldata->soft_reset();
+	if(pldata->soft_reset)
+		pldata->soft_reset();
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
@@ -1244,7 +1259,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	if (!res_base)
 		goto fail;
 
-	dwc_otg_device->base =  ioremap(res_base->start,res_base->end-res_base->start+1);
+	dwc_otg_device->base =  devm_ioremap_resource(dev, res_base);
 	if (dwc_otg_device->base == NULL)
 	{
 		dev_err(dev, "ioremap() failed\n");
@@ -1307,7 +1322,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 
 	/*
 	 * Create Device Attributes in sysfs
-	 */	 
+	 */
 	dwc_otg_attr_create(dev);
 #ifndef CONFIG_DWC_OTG_DEVICE_ONLY
 	retval |= device_create_file(dev, &dev_attr_enable);
@@ -1492,6 +1507,11 @@ static void dwc_otg_driver_shutdown(struct platform_device *_dev )
  * to this driver. The remove function is called when a device is
  * unregistered with the bus driver.
  */
+static const struct of_device_id usb20_otg_of_match[] = {
+	{ .compatible = "rockchip,usb20_otg", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, usb20_otg_of_match);
 static struct platform_driver dwc_otg_driver = {
 	.probe = dwc_otg_driver_probe,
 	.remove = dwc_otg_driver_remove,
@@ -1500,13 +1520,15 @@ static struct platform_driver dwc_otg_driver = {
 	.shutdown = dwc_otg_driver_shutdown,
 	.driver = {
 		   .name = dwc_driver_name,
-		   .owner = THIS_MODULE},
+		   .owner = THIS_MODULE,
+		   .of_match_table = of_match_ptr(usb20_otg_of_match),
+	},
 };
-
+#endif
 
 #ifdef CONFIG_USB20_HOST
 extern void dwc_otg_hcd_remove(struct device *dev);
-extern int __devinit host20_hcd_init(struct device *_dev);
+extern int host20_hcd_init(struct device *_dev);
 
 
 static int host20_driver_remove(struct platform_device *pdev)
@@ -1573,30 +1595,40 @@ static int host20_driver_remove(struct platform_device *pdev)
  *
  * @param[in] pdev  platform_device definition
  */
-static __devinit int host20_driver_probe(struct platform_device *pdev)
+static int host20_driver_probe(struct platform_device *pdev)
 {
-	struct resource *res_base;
-	int retval = 0;
-	struct device *dev = &pdev->dev;
-	dwc_otg_device_t *dwc_otg_device;
-	int32_t snpsid;
-	int irq;
-	struct dwc_otg_platform_data *pldata = dev->platform_data;
-    
-    // clock and hw init
-    if(pldata->hw_init)
-        pldata->hw_init();
-        
-    if(pldata->clock_init){
-        pldata->clock_init(pldata);
-        pldata->clock_enable(pldata, 1);
-        }
+	struct device_node      *node = pdev->dev.of_node;
+	struct resource 	*res_base;
+	int 			retval = 0;
+	struct device 		*dev = &pdev->dev;
+	dwc_otg_device_t 	*dwc_otg_device;
+	int32_t 		snpsid;
+	int 			irq;
+	struct dwc_otg_platform_data *pldata;
 
-    if(pldata->phy_suspend)
-        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+	dev->platform_data = &usb20host_pdata;
+	pldata = dev->platform_data;
+	pldata->dev = dev;
+
+	if (!node) {
+		dev_err(dev, "device node not found\n");
+		return -EINVAL;
+	}
+
+	// clock and hw init
+	if(pldata->hw_init)
+		pldata->hw_init();
         
-    if(pldata->soft_reset)
-        pldata->soft_reset();
+	if(pldata->clock_init){
+		pldata->clock_init(pldata);
+		pldata->clock_enable(pldata, 1);
+	}
+
+	if(pldata->phy_suspend)
+		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+        
+	if(pldata->soft_reset)
+		pldata->soft_reset();
             
 	/*
 	 *Enable usb phy
@@ -1622,9 +1654,8 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	if (!res_base)
 		goto fail;
 
-	dwc_otg_device->base =
-		ioremap(res_base->start,res_base->end-res_base->start+1);
-    DWC_PRINT("%s host2.0 reg addr: 0x%x remap:0x%x\n",__func__,
+	dwc_otg_device->base = devm_ioremap_resource(dev, res_base);
+	DWC_PRINT("%s host2.0 reg addr: 0x%x remap:0x%x\n",__func__,
     		(unsigned)res_base->start, (unsigned)dwc_otg_device->base);
 	if (dwc_otg_device->base == NULL)
 	{
@@ -1736,12 +1767,19 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	return retval;
 }
 
+static const struct of_device_id usb20_host_of_match[] = {
+	{ .compatible = "rockchip,usb20_host", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, usb20_host_of_match);
 static struct platform_driver host20_driver = {
 	.probe = host20_driver_probe,
 	.remove = host20_driver_remove,
 	.driver = {
 		   .name = "usb20_host",
-		   .owner = THIS_MODULE},
+		   .owner = THIS_MODULE,
+		   .of_match_table = of_match_ptr(usb20_host_of_match),
+	},
 };
 #endif
 
@@ -1761,6 +1799,7 @@ static int __init dwc_otg_driver_init(void)
     /*
      *  USB2.0 OTG controller
      */
+#ifdef CONFIG_USB20_OTG
 	retval = platform_driver_register(&dwc_otg_driver);
 	if (retval < 0) 
 	{
@@ -1777,18 +1816,22 @@ static int __init dwc_otg_driver_init(void)
 #endif
 
 #ifdef CONFIG_RK_USB_UART
-if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_force_uart))
-    pr_warning("DWC_OTG: Failed to create driver dwc_otg_force_uart file");
-#endif    
+	if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_force_uart))
+		pr_warning("DWC_OTG: Failed to create driver dwc_otg_force_uart file");
+#endif
+
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
 	if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_vbus_status))
 		pr_warning("DWC_OTG: Failed to create driver vbus status file");
 #endif
+	
 #ifdef DWC_BOTH_HOST_SLAVE
     if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_force_usb_mode))
 		pr_warning("DWC_OTG: Failed to create driver force usb mode file\n");
 #endif
-    
+
+#endif
+
     /*
      *  USB2.0 host controller
      */
@@ -1829,25 +1872,28 @@ static void __exit dwc_otg_driver_cleanup(void)
 {
 	DWC_PRINT("dwc_otg_driver_cleanup()\n");
 
+#ifdef CONFIG_USB20_OTG
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_version);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_debuglevel);
     
 #ifdef DWC_BOTH_HOST_SLAVE	
-        driver_remove_file(&dwc_otg_driver.driver, &driver_attr_force_usb_mode);
+	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_force_usb_mode);
 #endif
+
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
-    driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
+	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
 #endif
 
 #ifdef CONFIG_RK_USB_UART
-    driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_force_uart);
+	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_force_uart);
 #endif
 
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
-    driver_remove_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
+	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
 #endif
 
 	platform_driver_unregister(&dwc_otg_driver);
+#endif
 	
 #ifdef CONFIG_USB11_HOST
 	platform_driver_unregister(&host11_driver);

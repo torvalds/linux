@@ -1,15 +1,3 @@
-config USB11_HOST 
-	tristate "RockChip USB 1.1 host controller"
-	depends on USB
-	---help---
-	  This driver supports Rockchip USB 1.1 HOST
-	  controller.
-
-config USB11_HOST_EN
-	bool "---usb1.1 host controller enable"
-	depends on USB11_HOST
-	default y
-
 config USB20_HOST
 	tristate "Rockchip USB 2.0 host controller"
 	depends on USB

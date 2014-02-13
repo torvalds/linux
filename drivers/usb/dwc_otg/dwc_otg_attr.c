@@ -424,7 +424,7 @@ DEVICE_ATTR(regvalue,  S_IRUGO|S_IWUSR, regvalue_show, regvalue_store);
 /*
  * Attributes
  */
-DWC_OTG_DEVICE_ATTR_BITFIELD_RO(mode,&(otg_dev->core_if->core_global_regs->gotgctl),(1<<20),20,"Mode");
+DWC_OTG_DEVICE_ATTR_BITFIELD_RO(mode,&(otg_dev->core_if->core_global_regs->gintsts),(1<<0),0,"Mode");
 DWC_OTG_DEVICE_ATTR_BITFIELD_RW(hnpcapable,&(otg_dev->core_if->core_global_regs->gusbcfg),(1<<9),9,"Mode");
 DWC_OTG_DEVICE_ATTR_BITFIELD_RW(srpcapable,&(otg_dev->core_if->core_global_regs->gusbcfg),(1<<8),8,"Mode");
 
@@ -648,7 +648,7 @@ static ssize_t regdump_show( struct device *_dev,
    	return sprintf( buf, "Register Dump\n" );
 }
 
-DEVICE_ATTR(regdump, S_IRUGO|S_IWUSR, regdump_show, 0);
+DEVICE_ATTR(regdump, S_IRUGO, regdump_show, 0);
 
 /**
  * Dump the current hcd state.
@@ -663,7 +663,7 @@ static ssize_t hcddump_show( struct device *_dev,
    	return sprintf( buf, "HCD Dump\n" );
 }
 
-DEVICE_ATTR(hcddump, S_IRUGO|S_IWUSR, hcddump_show, 0);
+DEVICE_ATTR(hcddump, S_IRUGO, hcddump_show, 0);
 
 /**
  * Dump the average frame remaining at SOF. This can be used to
@@ -680,7 +680,7 @@ static ssize_t hcd_frrem_show( struct device *_dev,
    	return sprintf( buf, "HCD Dump Frame Remaining\n" );
 }
 
-DEVICE_ATTR(hcd_frrem, S_IRUGO|S_IWUSR, hcd_frrem_show, 0);
+DEVICE_ATTR(hcd_frrem, S_IRUGO, hcd_frrem_show, 0);
 
 /**
  * Displays the time required to read the GNPTXFSIZ register many times (the
@@ -707,7 +707,7 @@ static ssize_t rd_reg_test_show( struct device *_dev,
 			RW_REG_COUNT, time * MSEC_PER_JIFFIE, time );
 }
 
-DEVICE_ATTR(rd_reg_test, S_IRUGO|S_IWUSR, rd_reg_test_show, 0);
+DEVICE_ATTR(rd_reg_test, S_IRUGO, rd_reg_test_show, 0);
 
 /**
  * Displays the time required to write the GNPTXFSIZ register many times (the
@@ -734,7 +734,7 @@ static ssize_t wr_reg_test_show( struct device *_dev,
 			RW_REG_COUNT, time * MSEC_PER_JIFFIE, time);
 }
 
-DEVICE_ATTR(wr_reg_test, S_IRUGO|S_IWUSR, wr_reg_test_show, 0);
+DEVICE_ATTR(wr_reg_test, S_IRUGO, wr_reg_test_show, 0);
 extern int dwc_debug(dwc_otg_core_if_t *core_if, int flag);
 
 static ssize_t debug_show( struct device *_dev, 

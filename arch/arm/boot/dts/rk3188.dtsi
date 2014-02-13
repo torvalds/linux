@@ -532,4 +532,32 @@
 			reg = <1>;
 		};
 	};
+
+	dwc_control_usb: dwc-control-usb@0x200080ac {
+		compatible = "rockchip,dwc-control-usb";
+		reg = <0x200080ac 0x4>,
+		      <0x2000810c 0x10>,
+		      <0x2000811c 0x10>;
+		reg-names = "GRF_SOC_STATUS0",
+			    "GRF_UOC0_BASE",
+			    "GRF_UOC1_BASE";
+		gpios = <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>, <&gpio3 GPIO_D5 GPIO_ACTIVE_LOW>;
+	};
+
+	usb@10180000 {
+		compatible = "rockchip,usb20_otg";
+		reg = <0x10180000 0x40000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		/*clocks = <&clk_gates1 5>, <&clk_gates5 13>;*/
+		/*clock-names = "otgphy0", "hclk_otg0"*/
+	};
+
+	usb@101c0000 {
+		compatible = "rockchip,usb20_host";
+		reg = <0x101c0000 0x40000>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		/*clocks = <&clk_gates1 6>, <&clk_gates7 3>;*/
+		/*clock-names = "otgphy1", "hclk_otg1"*/
+	};
+
 };

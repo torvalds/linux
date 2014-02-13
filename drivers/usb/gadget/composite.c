@@ -636,6 +636,9 @@ static int set_config(struct usb_composite_dev *cdev,
 
 	cdev->config = c;
 
+	/* reset delay status to zero every time usb reconnect */
+	cdev->delayed_status = 0;
+
 	/* Initialize all interfaces by setting them to altsetting zero. */
 	for (tmp = 0; tmp < MAX_CONFIG_INTERFACES; tmp++) {
 		struct usb_function	*f = c->interface[tmp];
@@ -1839,6 +1842,8 @@ void usb_composite_setup_continue(struct usb_composite_dev *cdev)
 			req->status = 0;
 			composite_setup_complete(cdev->gadget->ep0, req);
 		}
+	}else{
+		WARN(cdev, "%s: Unexpected delayed status 0x%x\n", __func__, cdev->delayed_status);
 	}
 
 	spin_unlock_irqrestore(&cdev->lock, flags);

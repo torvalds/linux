@@ -1,3 +1,5 @@
+#ifndef __USBDEV_RK_H
+#define __USBDEV_RK_H
 
 #define USB_PHY_ENABLED 0
 #define USB_PHY_SUSPEND 1
@@ -12,6 +14,7 @@
 
 struct dwc_otg_platform_data {
     void *privdata;
+    struct device *dev;
     struct clk* phyclk;
     struct clk* ahbclk;
     struct clk* busclk;
@@ -36,3 +39,13 @@ struct rkehci_platform_data{
 	void (*soft_reset)(void);
 	int clk_status;
 };
+
+struct dwc_otg_control_usb {
+	void *grf_soc_status0;
+	void *grf_uoc0_base;
+	void *grf_uoc1_base;
+	struct gpio *host_gpios;
+	struct gpio *otg_gpios;
+};
+
+#endif

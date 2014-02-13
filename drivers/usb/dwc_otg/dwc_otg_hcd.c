@@ -73,7 +73,7 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
     if(!(dwc_otg_hcd->host_enabled&1))
         return 0;
     hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
-#ifdef CONFIG_USB_SUSPEND    
+#ifdef CONFIG_PM_RUNTIME
     if((!hprt0.b.prtena))
         return 0;
 #endif        
@@ -135,7 +135,7 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     	DWC_PRINT("%s, usb device mode\n", __func__);
     	return 0;
     }
-//#ifdef CONFIG_USB_SUSPEND    
+//#ifdef CONFIG_PM_RUNTIME
     if(!(dwc_otg_hcd->host_enabled&1))
         return 0;
 //#endif
@@ -158,7 +158,7 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
         
     hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
-#ifdef CONFIG_USB_SUSPEND    
+#ifdef CONFIG_PM_RUNTIME
     if(!hprt0.b.prtena)
         return 0;
 #endif
@@ -717,7 +717,7 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
  * a negative error on failure.
  */
 extern uint32_t g_dbg_lvl;
-int __devinit dwc_otg_hcd_init(struct device *dev)
+int  dwc_otg_hcd_init(struct device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
@@ -1044,7 +1044,7 @@ static struct tasklet_struct host20_reset_tasklet = {
 	.data = 0,
 };
 
-int __devinit host20_hcd_init(struct device *dev)
+int host20_hcd_init(struct device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
@@ -2328,7 +2328,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 			break;
 		case USB_PORT_FEAT_SUSPEND:
-		#ifdef CONFIG_USB_SUSPEND
+		#ifdef CONFIG_PM_RUNTIME
 			break;
 		#endif
 			DWC_DEBUGPL (DBG_HCD, "DWC OTG HCD HUB CONTROL - "
@@ -2514,7 +2514,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 
 		switch (_wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-		#ifdef CONFIG_USB_SUSPEND
+		#ifdef CONFIG_PM_RUNTIME
 			break;
 		#endif
 			DWC_DEBUGPL (DBG_HCD, "DWC OTG HCD HUB CONTROL - "
