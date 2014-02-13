@@ -440,6 +440,15 @@
 
 			};
 
+			i2s0_gpio: i2s0-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(I2S0_MCLK)>,
+						<FUNC_TO_GPIO(I2S0_SCLK)>,
+						<FUNC_TO_GPIO(I2S0_LRCKRX)>,
+						<FUNC_TO_GPIO(I2S0_LRCKTX)>,
+						<FUNC_TO_GPIO(I2S0_SDO)>,
+						<FUNC_TO_GPIO(I2S0_SDI)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
 		};
 	
 		gpio2_lcdc1 {

@@ -623,7 +623,6 @@ static int rt5616_adc_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	unsigned int val, mask;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:

@@ -161,14 +161,14 @@
 	#define I2S_RX_LRCK_NEGEDGE     (1<<25)
 
 	#define I2S_TX_LRCK_POSEDGE     (0<<24)
-	#define I2S_TX_LRCK_NEGEDGE     (1<<24)	
-	
+	#define I2S_TX_LRCK_NEGEDGE     (1<<24)
+
 	#define I2S_MCLK_DIV(x)         ((0xFF&x)<<16)
 	#define I2S_MCLK_DIV_MASK       ((0xFF)<<16)
-	
+
 	#define I2S_RX_SCLK_DIV(x)      ((x&0xFF)<<8)
 	#define I2S_RX_SCLK_DIV_MASK    ((0xFF)<<8)
-	
+
 	#define I2S_TX_SCLK_DIV(x)      (x&0xFF)
 	#define I2S_TX_SCLK_DIV_MASK    (0xFF)
 #endif
@@ -203,43 +203,42 @@
 #define I2S_RX_CLEAR	(1<<1)
 #define I2S_TX_CLEAR	1
 
-
 #ifdef CONFIG_ARCH_RK29
 #define I2S_TXR_BUFF            0x20
 #define I2S_RXR_BUFF            0x24
 //I2S Registers
 typedef volatile struct tagIIS_STRUCT
 {
-    unsigned int I2S_TXCR;
-    unsigned int I2S_RXCR;
-    unsigned int I2S_TXCKR;
-    unsigned int I2S_RXCKR;
-    unsigned int I2S_FIFOLR;
-    unsigned int I2S_DMACR;
-    unsigned int I2S_INTCR;
-    unsigned int I2S_INTSR;
-    unsigned int I2S_TXDR;
-    unsigned int I2S_RXDR;
-    unsigned int I2S_XFER;
-    unsigned int I2S_TXRST;
-    unsigned int I2S_RXRST;
+	unsigned int I2S_TXCR;
+	unsigned int I2S_RXCR;
+	unsigned int I2S_TXCKR;
+	unsigned int I2S_RXCKR;
+	unsigned int I2S_FIFOLR;
+	unsigned int I2S_DMACR;
+	unsigned int I2S_INTCR;
+	unsigned int I2S_INTSR;
+	unsigned int I2S_TXDR;
+	unsigned int I2S_RXDR;
+	unsigned int I2S_XFER;
+	unsigned int I2S_TXRST;
+	unsigned int I2S_RXRST;
 }I2S_REG,*pI2S_REG;
 #else
 #define I2S_TXR_BUFF            0x24
 #define I2S_RXR_BUFF            0x28
 typedef volatile struct tagIIS_STRUCT
 {
-    unsigned int I2S_TXCR;//0xF  0
-    unsigned int I2S_RXCR;//0xF 4
-    unsigned int I2S_CKR;//0x3F 8
-    unsigned int I2S_FIFOLR;//c 
-    unsigned int I2S_DMACR;//0x001F0110 10
-    unsigned int I2S_INTCR;//0x01F00000 14
-    unsigned int I2S_INTSR;//0x00 18
+	unsigned int I2S_TXCR;//0xF  0
+	unsigned int I2S_RXCR;//0xF 4
+	unsigned int I2S_CKR;//0x3F 8
+	unsigned int I2S_FIFOLR;//c
+	unsigned int I2S_DMACR;//0x001F0110 10
+	unsigned int I2S_INTCR;//0x01F00000 14
+	unsigned int I2S_INTSR;//0x00 18
 	unsigned int I2S_XFER;//0x00000003 1c
 	unsigned int I2S_CLR;//20
-    unsigned int I2S_TXDR;//24
-    unsigned int I2S_RXDR;
+	unsigned int I2S_TXDR;//24
+	unsigned int I2S_RXDR;
 }I2S_REG,*pI2S_REG;
 #endif
 
@@ -254,4 +253,3 @@ extern struct delayed_work rt5631_delay_cap; //bard 7-16
 #endif
 
 #endif /* _ROCKCHIP_IIS_H */
-

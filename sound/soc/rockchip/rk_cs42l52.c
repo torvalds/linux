@@ -23,7 +23,7 @@
 
 #include "../codecs/cs42l52.h"
 #include "rk_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_i2s.h"
 
 
 #define HW_PARAMS_FLAG_EQVOL_ON 0x21
@@ -56,33 +56,6 @@ static int rk29_cs42l52_hw_params(struct snd_pcm_substream *substream,
 		int div_bclk,div_mclk;
 		struct clk	*general_pll;
         int ret;
-          
-        if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
-        {
-        	ret = codec_dai->driver->ops->hw_params(substream, params, codec_dai); //by Vincent
-        }
-        else
-    	{       
-            /* set codec DAI configuration */
-            #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-            ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-            #endif	
-            #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-            ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-            #endif
-            if (ret < 0)
-              return ret; 
-
-            /* set cpu DAI configuration */
-            #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-            ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-            #endif	
-            #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-            ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-            #endif		
-            if (ret < 0)
-              return ret;
-        }
 
         switch(params_rate(params)) {
         case 8000:
@@ -157,7 +130,6 @@ static struct snd_soc_dai_link rk29_cs42l52_dai_link = {
 	.name = "CS42L52",
 	.stream_name = "CS42L52 PCM",
 	.codec_name = "cs42l52.0-004a", 
-	.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
 	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
@@ -168,6 +140,13 @@ static struct snd_soc_dai_link rk29_cs42l52_dai_link = {
 	.codec_dai_name = "cs42l52-hifi",
 	.init = rk29_cs42l52_dai_init,
 	.ops = &rk29_cs42l52_ops,
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM,
+#else
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 };
 
 static struct snd_soc_card rockchip_cs42l52_snd_card = {

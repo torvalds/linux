@@ -12,19 +12,7 @@
 #ifndef _ROCKCHIP_PCM_H
 #define _ROCKCHIP_PCM_H
 
-#include <mach/hardware.h>
-
-#define ST_RUNNING		(1<<0)
-#define ST_OPENED		(1<<1)
-
-struct rockchip_pcm_dma_params {
-	struct rk29_dma_client *client;	/* stream identifier */
-	int channel;				/* Channel ID */
-	dma_addr_t dma_addr;
-	int dma_size;				/* Size of the DMA transfer */
-	int flag;                               /*burst change flag*/
-};
-
-extern struct snd_soc_platform rk29_soc_platform;
+int rockchip_pcm_platform_register(struct device *dev);
+int rockchip_pcm_platform_unregister(struct device *dev);
 
 #endif /* _ROCKCHIP_PCM_H */

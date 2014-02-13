@@ -24,7 +24,7 @@
 #include <sound/soc.h>
 
 #include "rk_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_i2s.h"
 
 #ifdef DEBUG
 #define DBG(format, ...) \
@@ -43,20 +43,6 @@ static int rk2928_dai_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	  
     DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
-
-    /* set cpu DAI configuration */
-     #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-		DBG("Set cpu_dai master\n");    
-        ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-                        SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-    #endif	
-    #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)  
-	    ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-                        SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-		DBG("Set cpu_dai slave\n");   				
-    #endif		
-    if (ret < 0)
-        return ret;
         
 	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 	pll_out = 256 * params_rate(params);
@@ -86,10 +72,16 @@ static struct snd_soc_dai_link rk2928_dai[] = {
 		.name = "RK2928",
 		.stream_name = "RK2928",
 		.cpu_dai_name = "rockchip-i2s.0",
-		.platform_name = "rockchip-pcm",
 		.codec_name = "rk2928-codec",
 		.codec_dai_name = "rk2928-codec",
 		.ops = &rk2928_dai_ops,
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM,
+#else
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 	},
 };
 

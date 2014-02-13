@@ -1,7 +1,7 @@
 /*$_FOR_ROCKCHIP_RBOX_$*/
 /*$_rbox_$_modify_$_huangzhibao for spdif output*/
 
-/* sound/soc/rockchip/spdif.c
+/* sound/soc/rockchip/rk_spdif.c
  *
  * ALSA SoC Audio Layer - rockchip S/PDIF Controller driver
  *
@@ -20,6 +20,14 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/version.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/clk.h>
+#include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
+#include <linux/slab.h>
 
 #include <asm/dma.h>
 #include <sound/core.h>
@@ -27,25 +35,10 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 #include <asm/io.h>
 
-#include <mach/board.h>
-#include <mach/hardware.h>
-#include <mach/io.h>
-#include <mach/gpio.h>
-#include <mach/iomux.h>
-
-#if defined (CONFIG_ARCH_RK29)
-#include <mach/rk29-dma-pl330.h>
-#endif
-
-#if defined (CONFIG_ARCH_RK30)
-#include <mach/dma-pl330.h>
-#endif
-
-#if defined (CONFIG_ARCH_RK3188)
-#include <mach/dma-pl330.h>
-#endif
+#include <linux/spinlock.h>
 
 #include "rk_pcm.h"
 
@@ -100,24 +93,11 @@
  
 struct rockchip_spdif_info {
 	spinlock_t	lock;
-	struct device	*dev;
 	void __iomem	*regs;
 	unsigned long	clk_rate;
-	struct clk	*hclk;
 	struct clk	*clk;
-	u32		saved_clkcon;
-	u32		saved_con;
-	u32		saved_cstas;
-	struct rockchip_pcm_dma_params	*dma_playback;
+	struct snd_dmaengine_dai_dma_data	dma_playback;
 };
-
-static struct rk29_dma_client spdif_dma_client_out = {
-	.name		= "SPDIF Stereo out"
-};
-
-static struct rockchip_pcm_dma_params spdif_stereo_out;
-
-static struct rockchip_spdif_info spdif_info;
 
 static inline struct rockchip_spdif_info *to_info(struct snd_soc_dai *cpu_dai)
 {
@@ -152,7 +132,6 @@ static int spdif_set_syclk(struct snd_soc_dai *cpu_dai,
 				int clk_id, unsigned int freq, int dir)
 {
 	struct rockchip_spdif_info *spdif = to_info(cpu_dai);
-	u32 clkcon;
 
 	RK_SPDIF_DBG("Entered %s\n", __func__);
 
@@ -195,35 +174,32 @@ static int spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static int spdif_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
-				struct snd_soc_dai *socdai)
+				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct rockchip_spdif_info *spdif = to_info(rtd->cpu_dai);
+	struct rockchip_spdif_info *spdif = to_info(dai);
 	void __iomem *regs = spdif->regs;
-	struct rockchip_pcm_dma_params *dma_data;
 	unsigned long flags;
-	int i, cfgr, dmac;
+	int cfgr, dmac;
 
 	RK_SPDIF_DBG("Entered %s\n", __func__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = spdif->dma_playback;
+		dai->playback_dma_data = &spdif->dma_playback;
 	else {
 		printk("spdif:Capture is not supported\n");
 		return -EINVAL;
 	}
 
-	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
 	spin_lock_irqsave(&spdif->lock, flags);
 	
 	cfgr = readl(regs + CFGR) & CFGR_VALID_DATA_MASK;
 	
-    cfgr &= ~CFGR_VALID_DATA_MASK;
+	cfgr &= ~CFGR_VALID_DATA_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		cfgr |= CFGR_VALID_DATA_16bit;
 		break;
-	case SNDRV_PCM_FMTBIT_S20_3LE :
+	case SNDRV_PCM_FORMAT_S20_3LE :
 		cfgr |= CFGR_VALID_DATA_20bit;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
@@ -244,9 +220,9 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	
 	writel(cfgr, regs + CFGR);
   
-    dmac = readl(regs + DMACR) & DMACR_TRAN_DMA_MASK & (~DMACR_TRAN_DATA_LEVEL_MASK);
-    dmac |= 0x10;
-    writel(dmac, regs + DMACR);
+	dmac = readl(regs + DMACR) & DMACR_TRAN_DMA_MASK & (~DMACR_TRAN_DATA_LEVEL_MASK);
+	dmac |= 0x10;
+	writel(dmac, regs + DMACR);
   
 	spin_unlock_irqrestore(&spdif->lock, flags);
 
@@ -256,24 +232,9 @@ err:
 	return -EINVAL;
 }
 
-static void spdif_shutdown(struct snd_pcm_substream *substream,
-				struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct rockchip_spdif_info *spdif = to_info(rtd->cpu_dai);
-	void __iomem *regs = spdif->regs;
-	u32 con, clkcon;
-
-	RK_SPDIF_DBG( "spdif:Entered %s\n", __func__);
-
-}
-
 #ifdef CONFIG_PM
 static int spdif_suspend(struct snd_soc_dai *cpu_dai)
 {
-	struct rockchip_spdif_info *spdif = to_info(cpu_dai);
-	u32 con = spdif->saved_con;
-
 	RK_SPDIF_DBG( "spdif:Entered %s\n", __func__);
 
 	return 0;
@@ -281,8 +242,6 @@ static int spdif_suspend(struct snd_soc_dai *cpu_dai)
 
 static int spdif_resume(struct snd_soc_dai *cpu_dai)
 {
-	struct rockchip_spdif_info *spdif = to_info(cpu_dai);
-
 	RK_SPDIF_DBG( "spdif:Entered %s\n", __func__);
 
 	return 0;
@@ -296,11 +255,10 @@ static struct snd_soc_dai_ops spdif_dai_ops = {
 	.set_sysclk	= spdif_set_syclk,
 	.trigger	= spdif_trigger,
 	.hw_params	= spdif_hw_params,
-	.shutdown	= spdif_shutdown,
 };
 
 struct snd_soc_dai_driver rockchip_spdif_dai = {
-	.name = "rk-spdif",
+	.name = "rockchip-spdif",
 	.playback = {
 		.stream_name = "SPDIF Playback",
 		.channels_min = 2,
@@ -317,165 +275,117 @@ struct snd_soc_dai_driver rockchip_spdif_dai = {
 	.resume = spdif_resume,
 };
 
+static const struct snd_soc_component_driver rockchip_spdif_component = {
+        .name           = "rockchip-spdif",
+};
 
-static __devinit int spdif_probe(struct platform_device *pdev)
+static int spdif_probe(struct platform_device *pdev)
 {
-	struct s3c_audio_pdata *spdif_pdata;
-	struct resource *mem_res, *dma_res;
+	struct resource *mem_res;
 	struct rockchip_spdif_info *spdif;
 	int ret;
-  
-	spdif_pdata = pdev->dev.platform_data;
 
 	RK_SPDIF_DBG("Entered %s\n", __func__);
-	
-#if defined  (CONFIG_ARCH_RK29)
-    rk29_mux_api_set(GPIO4A7_SPDIFTX_NAME, GPIO4L_SPDIF_TX);
-#endif
 
-#if defined (CONFIG_ARCH_RK30)    
-    #if defined (CONFIG_ARCH_RK3066B)
-    iomux_set(SPDIF_TX);
-    #else
-    rk30_mux_api_set(GPIO1B2_SPDIFTX_NAME, GPIO1B_SPDIF_TX);
-    #endif
-#elif defined (CONFIG_ARCH_RK3188)
-    iomux_set(SPDIF_TX);
-#endif
-
-	dma_res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "spdif_dma");
-	if (!dma_res) {
-		printk("spdif:Unable to get dma resource.\n");
-		return -ENXIO;
+	spdif = devm_kzalloc(&pdev->dev, sizeof(struct rockchip_spdif_info), GFP_KERNEL);
+	if (!spdif) {
+		dev_err(&pdev->dev, "Can't allocate spdif info\n");
+		return -ENOMEM;
 	}
 
-	mem_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spdif_base");
+	spin_lock_init(&spdif->lock);
+
+	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem_res) {
 		printk("spdif:Unable to get register resource.\n");
 		return -ENXIO;
 	}
 
-	spdif = &spdif_info;
-	spdif->dev = &pdev->dev;
-
-	spin_lock_init(&spdif->lock);
-	
-	spdif->clk = clk_get(&pdev->dev, "spdif");
+	spdif->clk= clk_get(&pdev->dev, NULL);
 	if (IS_ERR(spdif->clk)) {
-		printk("spdif:failed to get internal source clock\n");
-		ret = -ENOENT;
-		goto err1;
+		dev_err(&pdev->dev, "Can't retrieve spdif clock\n");
+		return PTR_ERR(spdif->clk);
 	}
-	clk_enable(spdif->clk);
+	clk_prepare_enable(spdif->clk);
 	clk_set_rate(spdif->clk, 11289600);
-		
-	spdif->hclk = clk_get(&pdev->dev, "hclk_spdif");
-	if (IS_ERR(spdif->hclk)) {
-		printk("spdif:failed to get spdif hclk\n");
-		ret = -ENOENT;
-		goto err0;
-	}
-	clk_enable(spdif->hclk);
-	clk_set_rate(spdif->hclk, 11289600);
 
 	/* Request S/PDIF Register's memory region */
 	if (!request_mem_region(mem_res->start,
 				resource_size(mem_res), "rockchip-spdif")) {
 		printk("spdif:Unable to request register region\n");
 		ret = -EBUSY;
-		goto err2;
+		goto err_clk_put;
 	}
 
-	spdif->regs = ioremap(mem_res->start, mem_res->end - mem_res->start + 1);
-	if (spdif->regs == NULL) {
-		printk("spdif:Cannot ioremap registers\n");
-		ret = -ENXIO;
-		goto err3;
+	spdif->regs = devm_ioremap(&pdev->dev, mem_res->start, resource_size(mem_res));
+	if (!spdif->regs) {
+		dev_err(&pdev->dev, "ioremap failed\n");
+		ret = -ENOMEM;
+		goto err_clk_put;
+	}
+
+	spdif->dma_playback.addr = mem_res->start + DATA_OUTBUF;
+	spdif->dma_playback.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	spdif->dma_playback.maxburst = 4;
+
+	//set dev name to driver->name for sound card register
+	dev_set_name(&pdev->dev, "%s", pdev->dev.driver->name);
+
+	ret = snd_soc_register_component(&pdev->dev, &rockchip_spdif_component,
+		&rockchip_spdif_dai, 1);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
+		ret = -ENOMEM;
+		goto err_clk_put;
+	}
+
+	ret = rockchip_pcm_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		goto err_unregister_component;
 	}
 
 	dev_set_drvdata(&pdev->dev, spdif);
-	
-	ret = snd_soc_register_dai(&pdev->dev, &rockchip_spdif_dai);
-	if (ret != 0) {
-		printk("spdif:fail to register dai\n");
-		goto err4;
-	}
-
-	spdif_stereo_out.dma_size = 4;
-	spdif_stereo_out.client = &spdif_dma_client_out;
-	spdif_stereo_out.dma_addr = mem_res->start + DATA_OUTBUF;
-	spdif_stereo_out.channel = dma_res->start;
-
-	spdif->dma_playback = &spdif_stereo_out;
-#ifdef CONFIG_SND_I2S_DMA_EVENT_STATIC
-	WARN_ON(rk29_dma_request(spdif_stereo_out.channel, spdif_stereo_out.client, NULL));
-#endif
 
 	RK_SPDIF_DBG("spdif:spdif probe ok!\n");
-	
+
 	return 0;
 
-err4:
-	iounmap(spdif->regs);
-err3:
-	release_mem_region(mem_res->start, resource_size(mem_res));
-err2:
-	clk_disable(spdif->clk);
+err_unregister_component:
+	snd_soc_unregister_component(&pdev->dev);
+err_clk_put:
 	clk_put(spdif->clk);
-err1:
-	clk_disable(spdif->hclk);
-	clk_put(spdif->hclk);	
-err0:
 	return ret;
 }
 
-static __devexit int spdif_remove(struct platform_device *pdev)
+static int spdif_remove(struct platform_device *pdev)
 {
-	struct rockchip_spdif_info *spdif = &spdif_info;
-	struct resource *mem_res;
-	
 	RK_SPDIF_DBG("Entered %s\n", __func__);
 	
-	snd_soc_unregister_dai(&pdev->dev);
-
-	iounmap(spdif->regs);
-
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem_res)
-		release_mem_region(mem_res->start, resource_size(mem_res));
-
-	clk_disable(spdif->clk);
-	clk_put(spdif->clk);
-	clk_disable(spdif->hclk);
-	clk_put(spdif->hclk);
+	rockchip_pcm_platform_unregister(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id exynos_spdif_match[] = {
+        { .compatible = "rockchip-spdif"},
+        {},
+};
+MODULE_DEVICE_TABLE(of, exynos_spdif_match);
+#endif
 
 static struct platform_driver rockchip_spdif_driver = {
 	.probe	= spdif_probe,
 	.remove	= spdif_remove,
 	.driver	= {
-		.name	= "rk-spdif",
+		.name	= "rockchip-spdif",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(exynos_spdif_match),
 	},
 };
-
-
-static int __init spdif_init(void)
-{
-	RK_SPDIF_DBG("Entered %s\n", __func__);
-	return platform_driver_register(&rockchip_spdif_driver);
-}
-module_init(spdif_init);
-
-static void __exit spdif_exit(void)
-{
-	RK_SPDIF_DBG("Entered %s\n", __func__);
-	platform_driver_unregister(&rockchip_spdif_driver);
-}
-module_exit(spdif_exit);
+module_platform_driver(rockchip_spdif_driver);
 
 MODULE_AUTHOR("Seungwhan Youn, <sw.youn@rockchip.com>");
 MODULE_DESCRIPTION("rockchip S/PDIF Controller Driver");

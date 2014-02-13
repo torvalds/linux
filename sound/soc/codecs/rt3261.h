@@ -2166,6 +2166,6 @@ int rt3261_conn_mux_path(struct snd_soc_codec *codec,
 		char *widget_name, char *path_name);
 
 int rt3261_headset_mic_detect(int jack_insert);
-static void rt3261_codec_set_spk(bool on);
+void rt3261_codec_set_spk(bool on);
 
 #endif /* __RT3261_H__ */

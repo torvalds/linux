@@ -566,7 +566,7 @@ static void on_off_ext_amp(int i)
 }
 
 #if 0
-static void es8323_codec_set_spk(bool on)
+void es8323_codec_set_spk(bool on)
 {
 	on_off_ext_amp(on);
 }
@@ -1405,80 +1405,14 @@ void es8323_i2c_shutdown(struct i2c_client *client)
 
         mdelay(100);
 }
-/*
-#define  I2C_CLK_NAME  GPIO0B0_I2S8CHCLK_NAME
-#define  I2C_CLK_GPIO_MODE  GPIO0B_GPIO0B0
-#define  I2C_GPIO_OUTPUT  GPIO_LOW
-#define  I2C_CLK_CLK_MODE   GPIO0B_I2S_8CH_CLK
-#define  I2C_CLK_GPIO   RK30_PIN0_PB0
 
-#define  I2C_MCLK_NAME  GPIO0B1_I2S8CHSCLK_NAME
-#define  I2C_MCLK_GPIO_MODE  GPIO0B_GPIO0B1
-#define  I2C_MGPIO_OUTPUT  GPIO_LOW
-#define  I2C_MCLK_CLK_MODE   GPIO0B_I2S_8CH_SCLK
-#define  I2C_MCLK_GPIO   RK30_PIN0_PB1
-*/
 static int   es8323_i2c_suspend (struct i2c_client *client)
 {
-#if 0
-	rk30_mux_api_set(I2C_CLK_NAME,I2C_CLK_GPIO_MODE);
-	if (gpio_request(I2C_CLK_GPIO, NULL)) {
-		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
-		return -1;
-	}
-
-	gpio_direction_output(I2C_CLK_GPIO,I2C_GPIO_OUTPUT);
-
-	rk30_mux_api_set(I2C_MCLK_NAME,I2C_MCLK_GPIO_MODE);
-	if (gpio_request(I2C_MCLK_GPIO, NULL)) {
-		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
-		return -1;
-	}
-
-	gpio_direction_output(I2C_MCLK_GPIO,I2C_MGPIO_OUTPUT);
-#endif
-       /* iomux_set(GPIO1_C1);
-        if (gpio_request(RK30_PIN1_PC1, NULL)) {
-		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
-		return -1;
-	}
-        gpio_direction_input(RK30_PIN1_PC1);
-        gpio_pull_updown(RK30_PIN1_PC1, PullDisable);*/
-
-#if 0
-        iomux_set(GPIO1_C2);
-        gpio_direction_input(RK30_PIN1_PC2);
-        gpio_pull_updown(RK30_PIN1_PC2, PullDisable);
-
-        iomux_set(GPIO1_C3);
-        gpio_direction_input(RK30_PIN1_PC3);
-        gpio_pull_updown(RK30_PIN1_PC3, PullDisable);
-
-        iomux_set(GPIO1_C4);
-        gpio_direction_input(RK30_PIN1_PC4);
-        gpio_pull_updown(RK30_PIN1_PC4, PullDisable);
-
-        iomux_set(GPIO1_C5);
-        gpio_direction_input(RK30_PIN1_PC5);
-        gpio_pull_updown(RK30_PIN1_PC5, PullDisable);
-#endif
-
 	return 0;
 }
 
 static int   es8323_i2c_resume(struct i2c_client *client)
 {
-#if 0
-	gpio_free(I2C_MCLK_GPIO);
-	gpio_free(I2C_CLK_GPIO);
-
-	rk30_mux_api_set(I2C_MCLK_NAME,I2C_MCLK_CLK_MODE);
-	rk30_mux_api_set(I2C_CLK_NAME,I2C_CLK_CLK_MODE);
-#endif
-
-       /* gpio_free(RK30_PIN1_PC1);
-        iomux_set(I2S0_SCLK);*/
-
 	return 0;
 }
 
@@ -1504,9 +1438,6 @@ module_init(es8323_modinit);
 
 static void __exit es8323_exit(void)
 {
-
-//	if(0 == tcsi_get_value(TCSI_CODEC_ES8323))
-//		return;
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&es8323_i2c_driver);
 #endif

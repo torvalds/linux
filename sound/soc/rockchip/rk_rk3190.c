@@ -20,8 +20,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include "../codecs/rk3190_codec.h"
-#include "rk29_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_pcm.h"
+#include "rk_i2s.h"
 
 #if 0
 #define	DBG(x...)	printk(KERN_INFO x)
@@ -96,32 +96,6 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-	/* set codec DAI configuration */
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
-
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-	#endif
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)
-
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM );
-	#endif
-	if (ret < 0)
-		return ret;
-
-	/* set cpu DAI configuration */
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	#endif
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-	#endif
-	if (ret < 0)
-		return ret;
 
 	switch(params_rate(params)) {
 		case 8000:
@@ -220,25 +194,30 @@ static struct snd_soc_dai_link rk_dai[] = {
 		.name = "RK3190 I2S1",
 		.stream_name = "RK3190 PCM",
 		.codec_name = "rk3190-codec",
-		.platform_name = "rockchip-pcm",
-#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)
-		.cpu_dai_name = "rk29_i2s.0",
-#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		.cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
+		.cpu_dai_name = "rockchip-i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+		.cpu_dai_name = "rockchip-i2s.1",
 #endif
 		.codec_dai_name = "rk3190-hifi",
 		.init = rk3190_init,
 		.ops = &rk3190_hifi_ops,
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM,
+#else
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 	},
 	{
 		.name = "RK3190 I2S2",
 		.stream_name = "RK3190 PCM",
 		.codec_name = "rk3190-codec",
-		.platform_name = "rockchip-pcm",
-#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)
-		.cpu_dai_name = "rk29_i2s.0",
-#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		.cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
+		.cpu_dai_name = "rockchip-i2s.0",
+#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
+		.cpu_dai_name = "rockchip-i2s.1",
 #endif
 		.codec_dai_name = "rk3190-voice",
 		.ops = &rk3190_voice_ops,

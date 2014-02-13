@@ -21,7 +21,7 @@
 #include <sound/soc-dapm.h>
 #include "../codecs/rk610_codec.h"
 #include "rk_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_i2s.h"
 #ifdef CONFIG_MACH_RK_FAC
 #include <plat/config.h>
 extern int codec_type;
@@ -45,38 +45,6 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 //	struct clk	*general_pll;
 	
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
-	/*by Vincent Hsiung for EQ Vol Change*/
-	#define HW_PARAMS_FLAG_EQVOL_ON 0x21
-	#define HW_PARAMS_FLAG_EQVOL_OFF 0x22
-	if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
-	{
-		ret = codec_dai->driver->ops->hw_params(substream, params, codec_dai); //by Vincent
-	}
-	else
-	{
-		/* set codec DAI configuration */
-		DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS); 
-		#elif defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
-		#endif
-		if (ret < 0)
-			return ret; 
-		/* set cpu DAI configuration */
-		DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-		#elif defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-		#endif		
-		if (ret < 0)
-			return ret;
-	}
 
 	switch(params_rate(params)) {
         case 8000:
@@ -136,7 +104,6 @@ static struct snd_soc_dai_link rk29_dai = {
 #else
 	.codec_name = "RK610_CODEC.0-0060",
 #endif
-	.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
 	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
@@ -146,6 +113,13 @@ static struct snd_soc_dai_link rk29_dai = {
 #endif
 	.codec_dai_name = "rk610_codec",
 	.ops = &rk29_ops,
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM,
+#else
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 };
 static struct snd_soc_card rockchip_rk610_snd_card = {
 	.name = "RK_RK610",

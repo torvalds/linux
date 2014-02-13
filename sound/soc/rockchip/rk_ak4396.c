@@ -21,7 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "rk_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_i2s.h"
 
 #if 1
 #define	DBG(x...)	printk(KERN_INFO x)
@@ -38,18 +38,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
     unsigned int pll_out = 0; 
     int ret=-1;
 	
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
-
-    /* set codec DAI configuration */
-    #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-    ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_RIGHT_J |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS); 
-    if (ret < 0)        return ret; 
-    /* set cpu DAI configuration */
-    ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_RIGHT_J |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-    if (ret < 0)        return ret;		
-    #endif	
+    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
     switch(params_rate(params)) {
     case 8000:
@@ -119,7 +108,6 @@ static struct snd_soc_dai_link rk29_dai = {
 	.name = "AK4396",
 	.stream_name = "AK4396 PCM",
 	.codec_name = "spi1.0",
-	.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
 	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
@@ -130,6 +118,13 @@ static struct snd_soc_dai_link rk29_dai = {
 	.codec_dai_name = "AK4396 HiFi",
 	.init = rk29_ak4396_init,
 	.ops = &rk29_ops,
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM,
+#else
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 };
 
 static struct snd_soc_card rockchip_ak4396_snd_card = {
@@ -179,7 +174,6 @@ static struct platform_driver rockchip_ak4396_audio_driver = {
         .probe          = rockchip_ak4396_audio_probe,
         .remove         = rockchip_ak4396_audio_remove,
 };
-
 module_platform_driver(rockchip_ak4396_audio_driver);
 
 /* Module information */

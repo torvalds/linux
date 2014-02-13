@@ -23,7 +23,7 @@
 
 #include "../codecs/rt3261.h"
 #include "rk_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_i2s.h"
 
 #if 0
 #define	DBG(x...)	printk(KERN_INFO x)
@@ -41,41 +41,6 @@ static int rockchip_rt3261_hifi_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
-	/*by Vincent Hsiung for EQ Vol Change*/
-	#define HW_PARAMS_FLAG_EQVOL_ON 0x21
-	#define HW_PARAMS_FLAG_EQVOL_OFF 0x22
-	if (codec_dai->driver->ops->hw_params && ((params->flags == HW_PARAMS_FLAG_EQVOL_ON) || (params->flags == HW_PARAMS_FLAG_EQVOL_OFF)))
-	{
-		ret = codec_dai->driver->ops->hw_params(substream, params, codec_dai); //by Vincent
-		DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-	} else {
-                
-		/* set codec DAI configuration */
-		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-
-		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-		                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-		#endif	
-		#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-
-		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-		                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
-		#endif
-		if (ret < 0)
-			return ret; 
-
-		/* set cpu DAI configuration */
-		#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-		                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-		#endif	
-		#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-		                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-		#endif		
-		if (ret < 0)
-			return ret;
-	}
 
 	switch(params_rate(params)) {
 		case 8000:
@@ -257,7 +222,6 @@ static struct snd_soc_dai_link rockchip_rt3261_dai[] = {
 		.name = "RT3261 I2S1",
 		.stream_name = "RT3261 PCM",
 		.codec_name = "rt3261.0-001c",
-		.platform_name = "rockchip-pcm",
 		#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
 			.cpu_dai_name = "rockchip-i2s.0",
 		#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
@@ -266,12 +230,18 @@ static struct snd_soc_dai_link rockchip_rt3261_dai[] = {
 		.codec_dai_name = "rt3261-aif1",
 		.init = rockchip_rt3261_init,
 		.ops = &rockchip_rt3261_hifi_ops,
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM,
+#else
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 	},
 	{
 		.name = "RT3261 I2S2",
 		.stream_name = "RT3261 PCM",
 		.codec_name = "rt3261.0-001c",
-		.platform_name = "rockchip-pcm",
 		#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
 			.cpu_dai_name = "rockchip-i2s.0",
 		#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
@@ -279,14 +249,15 @@ static struct snd_soc_dai_link rockchip_rt3261_dai[] = {
 		#endif 
 		.codec_dai_name = "rt3261-aif2",
 		.ops = &rockchip_rt3261_voice_ops,
+		.no_pcm = 1;
 	},
 };
 
 static struct snd_soc_card rockchip_rt3261_snd_card = {
 	#if defined (CONFIG_SND_SOC_RT3224)
-	.name = "ROCKCHIP-RT3224",
+	.name = "RK_RT3224",
 	#else
-	.name = "ROCKCHIP-RT3261",
+	.name = "RK_RT3261",
 	#endif
 	.owner = THIS_MODULE,
 	.dai_link = rockchip_rt3261_dai,

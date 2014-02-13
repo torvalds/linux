@@ -37,7 +37,7 @@
 
 #include "../codecs/wm8994.h"
 #include "rk_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_i2s.h"
 #include <linux/clk.h>
 #include <linux/mfd/tlv320aic3262-registers.h>
 #include "../codecs/tlv320aic326x.h"
@@ -209,34 +209,6 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	printk("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-	/* set codec DAI configuration */
-#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-	DBG_AIC3262("Set codec_dai slave\n");
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-	 	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-#endif	
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 			   
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	DBG_AIC3262("Set codec_dai master\n");
-#endif
-	if (ret < 0)
-		return ret; 
-
-	/* set cpu DAI configuration */
-#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE) 
-	DBG_AIC3262("Set cpu_dai master\n");
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-#endif	
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)  
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-	DBG_AIC3262("Set cpu_dai slave\n"); 
-#endif		
-	if (ret < 0)
-		return ret;
 
 	switch(params_rate(params)) {
 		case 8000:
@@ -443,7 +415,6 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.name = "AIC3262 I2S1",
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
-		.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
         .cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
@@ -454,13 +425,19 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.codec_dai_name = "aic326x-asi1",
 		.ops = &rk29_aif1_ops,
 		.init = rk29_aic3262_init,
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM,
+#else
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 	},
 	
 	{
 		.name = "AIC3262 I2S2",
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
-		.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
         	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
@@ -477,7 +454,6 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.name = "AIC3262 I2S3",
 		.stream_name = "AIC3262 PCM",
 		.codec_name = "tlv320aic3262-codec",
-		.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
         	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)

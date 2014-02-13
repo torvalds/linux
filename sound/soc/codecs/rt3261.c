@@ -565,7 +565,7 @@ static int rt3261_readable_register(
 	}
 }
 
-static void rt3261_codec_set_spk(bool on)
+void rt3261_codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rt3261_codec;
 	DBG("%s: %d\n", __func__, on);

@@ -35,7 +35,7 @@
 #include <mach/cru.h>
 
 #include "rk_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_i2s.h"
 
 
 #if 0

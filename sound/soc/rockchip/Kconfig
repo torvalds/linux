@@ -1,6 +1,7 @@
 config SND_RK_SOC
 	tristate "SoC Audio for the Rockchip System-on-Chip"
 	depends on SND_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the ROCKCHIP IIS interface. You will also need

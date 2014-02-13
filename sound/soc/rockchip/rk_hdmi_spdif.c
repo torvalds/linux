@@ -66,7 +66,7 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 	unsigned long pll_out, rclk_rate;
 	int ret, ratio;
 
-  RK_SPDIF_DBG("spdif:Entered %s\n", __func__);
+	RK_SPDIF_DBG("spdif:Entered %s\n", __func__);
   
 	switch (params_rate(params)) {
 	case 44100:
@@ -110,7 +110,6 @@ static struct snd_soc_ops rk_spdif_ops = {
 static struct snd_soc_dai_link rk_dai = {
 	.name = "SPDIF",
 	.stream_name = "SPDIF PCM Playback",
-	.platform_name = "rockchip-pcm",
 	.cpu_dai_name = "rockchip-spdif",
 	.codec_dai_name = "rk-hdmi-spdif-hifi",
 	.codec_name = "hdmi-spdif",
@@ -118,7 +117,7 @@ static struct snd_soc_dai_link rk_dai = {
 };
 
 static struct snd_soc_card rockchip_hdmi_spdif_snd_card = {
-	.name = "ROCKCHIP-SPDIF",
+	.name = "RK-HDMI-SPDIF",
 	.dai_link = &rk_dai,
 	.num_links = 1,
 };

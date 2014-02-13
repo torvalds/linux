@@ -723,7 +723,7 @@ static struct rk616_reg_val_typ capture_power_down_list[] = {
 	{0x84c, 0x3c}, //MIXINL from MIXMUX volume 0dB(bit 3-5)
 	{0x848, 0x1f}, //MIXINL power down and mute, MININL No selecting, MICMUX from BST_L
 	{0x840, 0x99}, //BST_L power down, mute, and Single-Ended(bit 6), volume 0(bit 5)
-	{0x83c, 0x7c}, //power down
+	{0x83c, 0x3c}, //power down
 };
 #define RK616_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(capture_power_down_list)
 

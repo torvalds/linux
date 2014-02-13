@@ -15,7 +15,7 @@
 #include <sound/soc-dapm.h>
 
 #include "rk_pcm.h"
-#include "rk29_i2s.h"
+#include "rk_i2s.h"
 
 #if 0
 #define DBG(x...) printk(KERN_INFO "rk_hdmi_i2s:"x)
@@ -32,18 +32,6 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-	/* set cpu DAI configuration */
-	#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	#endif
-	#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-	#endif
-	if (ret < 0)
-		return ret;
 
 	switch(params_rate(params)) {
 		case 8000:
@@ -85,7 +73,6 @@ static struct snd_soc_dai_link hdmi_i2s_dai = {
 	.name = "HDMI I2S",
 	.stream_name = "HDMI PCM",
 	.codec_name = "hdmi-i2s",
-	.platform_name = "rockchip-pcm",
 #if defined(CONFIG_SND_RK_SOC_I2S_8CH)
 	.cpu_dai_name = "rockchip-i2s.0",
 #elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
@@ -93,6 +80,13 @@ static struct snd_soc_dai_link hdmi_i2s_dai = {
 #endif
 	.codec_dai_name = "rk-hdmi-i2s-hifi",
 	.ops = &hdmi_i2s_hifi_ops,
+#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM,
+#else
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 };
 
 static struct snd_soc_card rockchip_hdmi_i2s_snd_card = {
