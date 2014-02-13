@@ -840,7 +840,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
  *
  * allocate vf resources
  **/
-static int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
+int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 {
 	struct i40e_vf *vfs;
 	int i, ret = 0;
@@ -848,14 +848,16 @@ static int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 	/* Disable interrupt 0 so we don't try to handle the VFLR. */
 	i40e_irq_dynamic_disable_icr0(pf);
 
-	ret = pci_enable_sriov(pf->pdev, num_alloc_vfs);
-	if (ret) {
-		dev_err(&pf->pdev->dev,
-			"pci_enable_sriov failed with error %d!\n", ret);
-		pf->num_alloc_vfs = 0;
-		goto err_iov;
+	/* Check to see if we're just allocating resources for extant VFs */
+	if (pci_num_vf(pf->pdev) != num_alloc_vfs) {
+		ret = pci_enable_sriov(pf->pdev, num_alloc_vfs);
+		if (ret) {
+			dev_err(&pf->pdev->dev,
+				"Failed to enable SR-IOV, error %d.\n", ret);
+			pf->num_alloc_vfs = 0;
+			goto err_iov;
+		}
 	}
-
 	/* allocate memory */
 	vfs = kzalloc(num_alloc_vfs * sizeof(struct i40e_vf), GFP_KERNEL);
 	if (!vfs) {

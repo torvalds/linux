@@ -8076,6 +8076,16 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		val &= ~I40E_PFGEN_PORTMDIO_NUM_VFLINK_STAT_ENA_MASK;
 		wr32(hw, I40E_PFGEN_PORTMDIO_NUM, val);
 		i40e_flush(hw);
+
+		if (pci_num_vf(pdev)) {
+			dev_info(&pdev->dev,
+				 "Active VFs found, allocating resources.\n");
+			err = i40e_alloc_vfs(pf, pci_num_vf(pdev));
+			if (err)
+				dev_info(&pdev->dev,
+					 "Error %d allocating resources for existing VFs\n",
+					 err);
+		}
 	}
 
 	pfs_found++;
