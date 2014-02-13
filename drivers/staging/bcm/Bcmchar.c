@@ -1135,6 +1135,68 @@ static int bcm_char_ioctl_get_host_mibs(void __user *argp, struct bcm_mini_adapt
 	return Status;
 }
 
+static int bcm_char_ioctl_bulk_wrm(void __user *argp, struct bcm_mini_adapter *Adapter, UINT cmd)
+{
+	struct bcm_bulk_wrm_buffer *pBulkBuffer;
+	struct bcm_ioctl_buffer IoBuffer;
+	UINT uiTempVar = 0;
+	INT Status = STATUS_FAILURE;
+	PCHAR pvBuffer = NULL;
+
+	if ((Adapter->IdleMode == TRUE) ||
+		(Adapter->bShutStatus == TRUE) ||
+		(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "Device in Idle/Shutdown Mode, Blocking Wrms\n");
+		return -EACCES;
+	}
+
+	/* Copy Ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.InputLength < sizeof(ULONG) * 2)
+		return -EINVAL;
+
+	pvBuffer = memdup_user(IoBuffer.InputBuffer,
+			       IoBuffer.InputLength);
+	if (IS_ERR(pvBuffer))
+		return PTR_ERR(pvBuffer);
+
+	pBulkBuffer = (struct bcm_bulk_wrm_buffer *)pvBuffer;
+
+	if (((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
+		((ULONG)pBulkBuffer->Register & 0x3)) {
+		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM Done On invalid Address : %x Access Denied.\n", (int)pBulkBuffer->Register);
+		kfree(pvBuffer);
+		return -EINVAL;
+	}
+
+	uiTempVar = pBulkBuffer->Register & EEPROM_REJECT_MASK;
+	if (!((Adapter->pstargetparams->m_u32Customize)&VSG_MODE) &&
+		((uiTempVar == EEPROM_REJECT_REG_1) ||
+			(uiTempVar == EEPROM_REJECT_REG_2) ||
+			(uiTempVar == EEPROM_REJECT_REG_3) ||
+			(uiTempVar == EEPROM_REJECT_REG_4)) &&
+		(cmd == IOCTL_BCM_REGISTER_WRITE)) {
+
+		kfree(pvBuffer);
+		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "EEPROM Access Denied, not in VSG Mode\n");
+		return -EFAULT;
+	}
+
+	if (pBulkBuffer->SwapEndian == false)
+		Status = wrmWithLock(Adapter, (UINT)pBulkBuffer->Register, (PCHAR)pBulkBuffer->Values, IoBuffer.InputLength - 2*sizeof(ULONG));
+	else
+		Status = wrmaltWithLock(Adapter, (UINT)pBulkBuffer->Register, (PUINT)pBulkBuffer->Values, IoBuffer.InputLength - 2*sizeof(ULONG));
+
+	if (Status != STATUS_SUCCESS)
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM Failed\n");
+
+	kfree(pvBuffer);
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1311,67 +1373,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = STATUS_SUCCESS;
 		break;
 
-	case IOCTL_BCM_BULK_WRM: {
-		struct bcm_bulk_wrm_buffer *pBulkBuffer;
-		UINT uiTempVar = 0;
-		PCHAR pvBuffer = NULL;
-
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE)) {
-
-			BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "Device in Idle/Shutdown Mode, Blocking Wrms\n");
-			Status = -EACCES;
-			break;
-		}
-
-		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.InputLength < sizeof(ULONG) * 2)
-			return -EINVAL;
-
-		pvBuffer = memdup_user(IoBuffer.InputBuffer,
-				       IoBuffer.InputLength);
-		if (IS_ERR(pvBuffer))
-			return PTR_ERR(pvBuffer);
-
-		pBulkBuffer = (struct bcm_bulk_wrm_buffer *)pvBuffer;
-
-		if (((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
-			((ULONG)pBulkBuffer->Register & 0x3)) {
-			BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM Done On invalid Address : %x Access Denied.\n", (int)pBulkBuffer->Register);
-			kfree(pvBuffer);
-			Status = -EINVAL;
-			break;
-		}
-
-		uiTempVar = pBulkBuffer->Register & EEPROM_REJECT_MASK;
-		if (!((Adapter->pstargetparams->m_u32Customize)&VSG_MODE) &&
-			((uiTempVar == EEPROM_REJECT_REG_1) ||
-				(uiTempVar == EEPROM_REJECT_REG_2) ||
-				(uiTempVar == EEPROM_REJECT_REG_3) ||
-				(uiTempVar == EEPROM_REJECT_REG_4)) &&
-			(cmd == IOCTL_BCM_REGISTER_WRITE)) {
-
-			kfree(pvBuffer);
-			BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "EEPROM Access Denied, not in VSG Mode\n");
-			Status = -EFAULT;
-			break;
-		}
-
-		if (pBulkBuffer->SwapEndian == false)
-			Status = wrmWithLock(Adapter, (UINT)pBulkBuffer->Register, (PCHAR)pBulkBuffer->Values, IoBuffer.InputLength - 2*sizeof(ULONG));
-		else
-			Status = wrmaltWithLock(Adapter, (UINT)pBulkBuffer->Register, (PUINT)pBulkBuffer->Values, IoBuffer.InputLength - 2*sizeof(ULONG));
-
-		if (Status != STATUS_SUCCESS)
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM Failed\n");
-
-		kfree(pvBuffer);
-		break;
-	}
+	case IOCTL_BCM_BULK_WRM:
+		Status = bcm_char_ioctl_bulk_wrm(argp, Adapter, cmd);
+		return Status;
 
 	case IOCTL_BCM_GET_NVM_SIZE:
 		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
