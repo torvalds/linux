@@ -50,11 +50,7 @@ void __init emev2_init_delay(void)
 
 static void __init emev2_add_standard_devices_dt(void)
 {
-#ifdef CONFIG_COMMON_CLK
 	of_clk_init(NULL);
-#else
-	emev2_clock_init();
-#endif
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
