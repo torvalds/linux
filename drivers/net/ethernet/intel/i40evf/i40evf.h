@@ -205,7 +205,7 @@ struct i40evf_adapter {
 	int num_msix_vectors;
 	struct msix_entry *msix_entries;
 
-	volatile unsigned long flags;
+	u32 flags;
 #define I40EVF_FLAG_RX_CSUM_ENABLED              (u32)(1)
 #define I40EVF_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 1)
 #define I40EVF_FLAG_RX_PS_CAPABLE                (u32)(1 << 2)
