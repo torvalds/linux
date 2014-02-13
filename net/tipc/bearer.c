@@ -350,19 +350,10 @@ exit:
  */
 static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 {
-	struct tipc_link *l_ptr;
-	struct tipc_link *temp_l_ptr;
-
 	read_lock_bh(&tipc_net_lock);
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
-	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		struct tipc_node *n_ptr = l_ptr->owner;
-
-		spin_lock_bh(&n_ptr->lock);
-		tipc_link_reset(l_ptr);
-		spin_unlock_bh(&n_ptr->lock);
-	}
+	tipc_link_reset_list(b_ptr);
 	spin_unlock_bh(&b_ptr->lock);
 	read_unlock_bh(&tipc_net_lock);
 	return 0;

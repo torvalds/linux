@@ -461,6 +461,18 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	link_reset_statistics(l_ptr);
 }
 
+void tipc_link_reset_list(struct tipc_bearer *b_ptr)
+{
+	struct tipc_link *l_ptr;
+
+	list_for_each_entry(l_ptr, &b_ptr->links, link_list) {
+		struct tipc_node *n_ptr = l_ptr->owner;
+
+		spin_lock_bh(&n_ptr->lock);
+		tipc_link_reset(l_ptr);
+		spin_unlock_bh(&n_ptr->lock);
+	}
+}
 
 static void link_activate(struct tipc_link *l_ptr)
 {
