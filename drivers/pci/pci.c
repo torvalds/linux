@@ -108,12 +108,12 @@ static bool pcie_ari_disabled;
  */
 unsigned char pci_bus_max_busnr(struct pci_bus* bus)
 {
-	struct list_head *tmp;
+	struct pci_bus *tmp;
 	unsigned char max, n;
 
 	max = bus->busn_res.end;
-	list_for_each(tmp, &bus->children) {
-		n = pci_bus_max_busnr(pci_bus_b(tmp));
+	list_for_each_entry(tmp, &bus->children, node) {
+		n = pci_bus_max_busnr(tmp);
 		if(n > max)
 			max = n;
 	}
