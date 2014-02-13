@@ -32,9 +32,6 @@
 #include <mach/platform.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-
-#include <mach/lm.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>

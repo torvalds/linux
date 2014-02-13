@@ -25,9 +25,9 @@
 #include <linux/slab.h>
 #include <linux/irqchip/arm-vic.h>
 
-#include <mach/lm.h>
 #include <mach/impd1.h>
 #include <asm/sizes.h>
+#include "lm.h"
 
 static int module_id;
 
