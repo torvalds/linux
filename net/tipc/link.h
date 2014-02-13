@@ -214,7 +214,7 @@ struct tipc_port;
 struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr);
-void tipc_link_delete_list(unsigned int bearer_id);
+void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down);
 void tipc_link_failover_send_queue(struct tipc_link *l_ptr);
 void tipc_link_dup_send_queue(struct tipc_link *l_ptr,
 			      struct tipc_link *dest);

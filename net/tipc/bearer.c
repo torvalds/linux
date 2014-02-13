@@ -51,7 +51,7 @@ static struct tipc_media * const media_info_array[] = {
 
 struct tipc_bearer tipc_bearers[MAX_BEARERS];
 
-static void bearer_disable(struct tipc_bearer *b_ptr);
+static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down);
 
 /**
  * tipc_media_find - locates specified media object by name
@@ -331,7 +331,7 @@ restart:
 
 	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr, disc_domain);
 	if (res) {
-		bearer_disable(b_ptr);
+		bearer_disable(b_ptr, false);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
 			name);
 		goto exit;
@@ -363,14 +363,14 @@ static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
  *
  * Note: This routine assumes caller holds tipc_net_lock.
  */
-static void bearer_disable(struct tipc_bearer *b_ptr)
+static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down)
 {
 	struct tipc_link_req *temp_req;
 
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
 	b_ptr->media->disable_media(b_ptr);
-	tipc_link_delete_list(b_ptr->identity);
+	tipc_link_delete_list(b_ptr->identity, shutting_down);
 	temp_req = b_ptr->link_req;
 	b_ptr->link_req = NULL;
 	spin_unlock_bh(&b_ptr->lock);
@@ -392,7 +392,7 @@ int tipc_disable_bearer(const char *name)
 		pr_warn("Attempt to disable unknown bearer <%s>\n", name);
 		res = -EINVAL;
 	} else {
-		bearer_disable(b_ptr);
+		bearer_disable(b_ptr, false);
 		res = 0;
 	}
 	write_unlock_bh(&tipc_net_lock);
@@ -612,6 +612,6 @@ void tipc_bearer_stop(void)
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		if (tipc_bearers[i].active)
-			bearer_disable(&tipc_bearers[i]);
+			bearer_disable(&tipc_bearers[i], true);
 	}
 }

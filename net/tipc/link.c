@@ -281,7 +281,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 }
 
 
-void tipc_link_delete_list(unsigned int bearer_id)
+void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down)
 {
 	struct tipc_link *l_ptr;
 	struct tipc_node *n_ptr;
@@ -291,12 +291,20 @@ void tipc_link_delete_list(unsigned int bearer_id)
 		l_ptr = n_ptr->links[bearer_id];
 		if (l_ptr) {
 			tipc_link_reset(l_ptr);
-			tipc_node_detach_link(n_ptr, l_ptr);
-			spin_unlock_bh(&n_ptr->lock);
+			if (shutting_down || !tipc_node_is_up(n_ptr)) {
+				tipc_node_detach_link(l_ptr->owner, l_ptr);
+				tipc_link_reset_fragments(l_ptr);
+				spin_unlock_bh(&n_ptr->lock);
 
-			/* Nobody else can access this link now: */
-			del_timer_sync(&l_ptr->timer);
-			kfree(l_ptr);
+				/* Nobody else can access this link now: */
+				del_timer_sync(&l_ptr->timer);
+				kfree(l_ptr);
+			} else {
+				/* Detach/delete when failover is finished: */
+				l_ptr->flags |= LINK_STOPPED;
+				spin_unlock_bh(&n_ptr->lock);
+				del_timer_sync(&l_ptr->timer);
+			}
 			continue;
 		}
 		spin_unlock_bh(&n_ptr->lock);
@@ -480,6 +488,9 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 {
 	struct tipc_link *other;
 	u32 cont_intv = l_ptr->continuity_interval;
+
+	if (l_ptr->flags & LINK_STOPPED)
+		return;
 
 	if (!(l_ptr->flags & LINK_STARTED) && (event != STARTING_EVT))
 		return;		/* Not yet. */
@@ -2167,8 +2178,11 @@ static struct sk_buff *tipc_link_failover_rcv(struct tipc_link *l_ptr,
 					   &buf);
 		}
 	}
-
 exit:
+	if ((l_ptr->exp_msg_count == 0) && (l_ptr->flags & LINK_STOPPED)) {
+		tipc_node_detach_link(l_ptr->owner, l_ptr);
+		kfree(l_ptr);
+	}
 	return buf;
 }
 
@@ -2201,7 +2215,6 @@ static int tipc_link_tunnel_rcv(struct tipc_node *n_ptr,
 		*buf = tipc_link_failover_rcv(l_ptr, t_buf);
 	else
 		pr_warn("%sunknown tunnel pkt received\n", link_co_err);
-
 exit:
 	kfree_skb(t_buf);
 	return *buf != NULL;

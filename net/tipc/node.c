@@ -249,7 +249,13 @@ void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 
 void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
-	n_ptr->links[l_ptr->b_ptr->identity] = NULL;
+	int i;
+
+	for (i = 0; i < MAX_BEARERS; i++) {
+		if (l_ptr == n_ptr->links[i])
+			break;
+	}
+	n_ptr->links[i] = NULL;
 	atomic_dec(&tipc_num_links);
 	n_ptr->link_cnt--;
 }
