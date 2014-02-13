@@ -5332,6 +5332,11 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	/* restart the VSIs that were rebuilt and running before the reset */
 	i40e_pf_unquiesce_all_vsi(pf);
 
+	if (pf->num_alloc_vfs) {
+		for (v = 0; v < pf->num_alloc_vfs; v++)
+			i40e_reset_vf(&pf->vf[v], true);
+	}
+
 	/* tell the firmware that we're starting */
 	dv.major_version = DRV_VERSION_MAJOR;
 	dv.minor_version = DRV_VERSION_MINOR;
