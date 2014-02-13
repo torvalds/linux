@@ -2538,6 +2538,7 @@ static void nvme_remove(struct pci_dev *pdev)
 #define nvme_slot_reset NULL
 #define nvme_error_resume NULL
 
+#ifdef CONFIG_PM_SLEEP
 static int nvme_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -2558,6 +2559,7 @@ static int nvme_resume(struct device *dev)
 	}
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(nvme_dev_pm_ops, nvme_suspend, nvme_resume);
 
