@@ -1432,6 +1432,100 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp, struct bcm_mini_adapter *Ada
 	return STATUS_SUCCESS;
 }
 
+static int bcm_char_ioctl_flash2x_section_read(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_flash2x_readwrite sFlash2xRead = {0};
+	struct bcm_ioctl_buffer IoBuffer;
+	PUCHAR pReadBuff = NULL;
+	UINT NOB = 0;
+	UINT BuffSize = 0;
+	UINT ReadBytes = 0;
+	UINT ReadOffset = 0;
+	INT Status = STATUS_FAILURE;
+	void __user *OutPutBuff;
+
+	if (IsFlash2x(Adapter) != TRUE)	{
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
+		return -EINVAL;
+	}
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_FLASH2X_SECTION_READ Called");
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	/* Reading FLASH 2.x READ structure */
+	if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer, sizeof(struct bcm_flash2x_readwrite)))
+		return -EFAULT;
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.Section :%x", sFlash2xRead.Section);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.offset :%x", sFlash2xRead.offset);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.numOfBytes :%x", sFlash2xRead.numOfBytes);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.bVerify :%x\n", sFlash2xRead.bVerify);
+
+	/* This was internal to driver for raw read. now it has ben exposed to user space app. */
+	if (validateFlash2xReadWrite(Adapter, &sFlash2xRead) == false)
+		return STATUS_FAILURE;
+
+	NOB = sFlash2xRead.numOfBytes;
+	if (NOB > Adapter->uiSectorSize)
+		BuffSize = Adapter->uiSectorSize;
+	else
+		BuffSize = NOB;
+
+	ReadOffset = sFlash2xRead.offset;
+	OutPutBuff = IoBuffer.OutputBuffer;
+	pReadBuff = (PCHAR)kzalloc(BuffSize , GFP_KERNEL);
+
+	if (pReadBuff == NULL) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed for Flash 2.x Read Structure");
+		return -ENOMEM;
+	}
+	down(&Adapter->NVMRdmWrmLock);
+
+	if ((Adapter->IdleMode == TRUE) ||
+		(Adapter->bShutStatus == TRUE) ||
+		(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+		up(&Adapter->NVMRdmWrmLock);
+		kfree(pReadBuff);
+		return -EACCES;
+	}
+
+	while (NOB) {
+		if (NOB > Adapter->uiSectorSize)
+			ReadBytes = Adapter->uiSectorSize;
+		else
+			ReadBytes = NOB;
+
+		/* Reading the data from Flash 2.x */
+		Status = BcmFlash2xBulkRead(Adapter, (PUINT)pReadBuff, sFlash2xRead.Section, ReadOffset, ReadBytes);
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Flash 2x read err with Status :%d", Status);
+			break;
+		}
+
+		BCM_DEBUG_PRINT_BUFFER(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, pReadBuff, ReadBytes);
+
+		Status = copy_to_user(OutPutBuff, pReadBuff, ReadBytes);
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Copy to use failed with status :%d", Status);
+			up(&Adapter->NVMRdmWrmLock);
+			kfree(pReadBuff);
+			return -EFAULT;
+		}
+		NOB = NOB - ReadBytes;
+		if (NOB) {
+			ReadOffset = ReadOffset + ReadBytes;
+			OutPutBuff = OutPutBuff + ReadBytes;
+		}
+	}
+
+	up(&Adapter->NVMRdmWrmLock);
+	kfree(pReadBuff);
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1629,96 +1723,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_nvm_rw(argp, Adapter, cmd);
 		return Status;
 
-	case IOCTL_BCM_FLASH2X_SECTION_READ: {
-		struct bcm_flash2x_readwrite sFlash2xRead = {0};
-		PUCHAR pReadBuff = NULL;
-		UINT NOB = 0;
-		UINT BuffSize = 0;
-		UINT ReadBytes = 0;
-		UINT ReadOffset = 0;
-		void __user *OutPutBuff;
-
-		if (IsFlash2x(Adapter) != TRUE)	{
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
-			return -EINVAL;
-		}
-
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_FLASH2X_SECTION_READ Called");
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		/* Reading FLASH 2.x READ structure */
-		if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer, sizeof(struct bcm_flash2x_readwrite)))
-			return -EFAULT;
-
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.Section :%x", sFlash2xRead.Section);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.offset :%x", sFlash2xRead.offset);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.numOfBytes :%x", sFlash2xRead.numOfBytes);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.bVerify :%x\n", sFlash2xRead.bVerify);
-
-		/* This was internal to driver for raw read. now it has ben exposed to user space app. */
-		if (validateFlash2xReadWrite(Adapter, &sFlash2xRead) == false)
-			return STATUS_FAILURE;
-
-		NOB = sFlash2xRead.numOfBytes;
-		if (NOB > Adapter->uiSectorSize)
-			BuffSize = Adapter->uiSectorSize;
-		else
-			BuffSize = NOB;
-
-		ReadOffset = sFlash2xRead.offset;
-		OutPutBuff = IoBuffer.OutputBuffer;
-		pReadBuff = (PCHAR)kzalloc(BuffSize , GFP_KERNEL);
-
-		if (pReadBuff == NULL) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed for Flash 2.x Read Structure");
-			return -ENOMEM;
-		}
-		down(&Adapter->NVMRdmWrmLock);
-
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE)) {
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
-			up(&Adapter->NVMRdmWrmLock);
-			kfree(pReadBuff);
-			return -EACCES;
-		}
-
-		while (NOB) {
-			if (NOB > Adapter->uiSectorSize)
-				ReadBytes = Adapter->uiSectorSize;
-			else
-				ReadBytes = NOB;
-
-			/* Reading the data from Flash 2.x */
-			Status = BcmFlash2xBulkRead(Adapter, (PUINT)pReadBuff, sFlash2xRead.Section, ReadOffset, ReadBytes);
-			if (Status) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Flash 2x read err with Status :%d", Status);
-				break;
-			}
-
-			BCM_DEBUG_PRINT_BUFFER(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, pReadBuff, ReadBytes);
-
-			Status = copy_to_user(OutPutBuff, pReadBuff, ReadBytes);
-			if (Status) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Copy to use failed with status :%d", Status);
-				up(&Adapter->NVMRdmWrmLock);
-				kfree(pReadBuff);
-				return -EFAULT;
-			}
-			NOB = NOB - ReadBytes;
-			if (NOB) {
-				ReadOffset = ReadOffset + ReadBytes;
-				OutPutBuff = OutPutBuff + ReadBytes;
-			}
-		}
-
-		up(&Adapter->NVMRdmWrmLock);
-		kfree(pReadBuff);
-	}
-	break;
+	case IOCTL_BCM_FLASH2X_SECTION_READ:
+		Status = bcm_char_ioctl_flash2x_section_read(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_FLASH2X_SECTION_WRITE: {
 		struct bcm_flash2x_readwrite sFlash2xWrite = {0};
