@@ -465,7 +465,7 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 			panic("%s: failed to map registers\n", __func__);
 	}
 
-	samsung_clk_init(np, reg_base, NR_CLKS, NULL, 0, NULL, 0);
+	samsung_clk_init(np, reg_base, NR_CLKS);
 
 	/* Register external clocks. */
 	if (!np)
