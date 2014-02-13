@@ -374,6 +374,114 @@ static int bcm_char_ioctl_eeprom_reg_write(void __user *argp, struct bcm_mini_ad
 	return Status;
 }
 
+static int bcm_char_ioctl_gpio_set_request(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_gpio_info gpio_info = {0};
+	struct bcm_ioctl_buffer IoBuffer;
+	UCHAR ucResetValue[4];
+	UINT value = 0;
+	UINT uiBit = 0;
+	UINT uiOperation = 0;
+	INT Status;
+	int bytes;
+
+	if ((Adapter->IdleMode == TRUE) ||
+		(Adapter->bShutStatus == TRUE) ||
+		(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+				DBG_LVL_ALL,
+				"GPIO Can't be set/clear in Low power Mode");
+		return -EACCES;
+	}
+
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.InputLength > sizeof(gpio_info))
+		return -EINVAL;
+
+	if (copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
+		return -EFAULT;
+
+	uiBit  = gpio_info.uiGpioNumber;
+	uiOperation = gpio_info.uiGpioValue;
+	value = (1<<uiBit);
+
+	if (IsReqGpioIsLedInNVM(Adapter, value) == false) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+				DBG_LVL_ALL,
+				"Sorry, Requested GPIO<0x%X> is not correspond to LED !!!",
+				value);
+		return -EINVAL;
+	}
+
+	/* Set - setting 1 */
+	if (uiOperation) {
+		/* Set the gpio output register */
+		Status = wrmaltWithLock(Adapter,
+					BCM_GPIO_OUTPUT_SET_REG,
+					(PUINT)(&value), sizeof(UINT));
+
+		if (Status == STATUS_SUCCESS) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+					OSAL_DBG, DBG_LVL_ALL,
+					"Set the GPIO bit\n");
+		} else {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+					OSAL_DBG, DBG_LVL_ALL,
+					"Failed to set the %dth GPIO\n",
+					uiBit);
+			return Status;
+		}
+	} else {
+		/* Set the gpio output register */
+		Status = wrmaltWithLock(Adapter,
+					BCM_GPIO_OUTPUT_CLR_REG,
+					(PUINT)(&value), sizeof(UINT));
+
+		if (Status == STATUS_SUCCESS) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+					OSAL_DBG, DBG_LVL_ALL,
+					"Set the GPIO bit\n");
+		} else {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+					OSAL_DBG, DBG_LVL_ALL,
+					"Failed to clear the %dth GPIO\n",
+					uiBit);
+			return Status;
+		}
+	}
+
+	bytes = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER,
+			       (PUINT)ucResetValue, sizeof(UINT));
+	if (bytes < 0) {
+		Status = bytes;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+				"GPIO_MODE_REGISTER read failed");
+		return Status;
+	} else {
+		Status = STATUS_SUCCESS;
+	}
+
+	/* Set the gpio mode register to output */
+	*(UINT *)ucResetValue |= (1<<uiBit);
+	Status = wrmaltWithLock(Adapter, GPIO_MODE_REGISTER,
+				(PUINT)ucResetValue, sizeof(UINT));
+
+	if (Status == STATUS_SUCCESS) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+				DBG_LVL_ALL,
+				"Set the GPIO to output Mode\n");
+	} else {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+				DBG_LVL_ALL,
+				"Failed to put GPIO in Output Mode\n");
+	}
+
+	return Status;
+}
+
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -443,110 +551,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_eeprom_reg_write(argp, Adapter, cmd);
 		return Status;
 
-	case IOCTL_BCM_GPIO_SET_REQUEST: {
-		UCHAR ucResetValue[4];
-		UINT value = 0;
-		UINT uiBit = 0;
-		UINT uiOperation = 0;
-		struct bcm_gpio_info gpio_info = {0};
-
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE)) {
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
-					DBG_LVL_ALL,
-					"GPIO Can't be set/clear in Low power Mode");
-			return -EACCES;
-		}
-
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.InputLength > sizeof(gpio_info))
-			return -EINVAL;
-
-		if (copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
-			return -EFAULT;
-
-		uiBit  = gpio_info.uiGpioNumber;
-		uiOperation = gpio_info.uiGpioValue;
-		value = (1<<uiBit);
-
-		if (IsReqGpioIsLedInNVM(Adapter, value) == false) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
-					DBG_LVL_ALL,
-					"Sorry, Requested GPIO<0x%X> is not correspond to LED !!!",
-					value);
-			Status = -EINVAL;
-			break;
-		}
-
-		/* Set - setting 1 */
-		if (uiOperation) {
-			/* Set the gpio output register */
-			Status = wrmaltWithLock(Adapter,
-						BCM_GPIO_OUTPUT_SET_REG,
-						(PUINT)(&value), sizeof(UINT));
-
-			if (Status == STATUS_SUCCESS) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
-						OSAL_DBG, DBG_LVL_ALL,
-						"Set the GPIO bit\n");
-			} else {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
-						OSAL_DBG, DBG_LVL_ALL,
-						"Failed to set the %dth GPIO\n",
-						uiBit);
-				break;
-			}
-		} else {
-			/* Set the gpio output register */
-			Status = wrmaltWithLock(Adapter,
-						BCM_GPIO_OUTPUT_CLR_REG,
-						(PUINT)(&value), sizeof(UINT));
-
-			if (Status == STATUS_SUCCESS) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
-						OSAL_DBG, DBG_LVL_ALL,
-						"Set the GPIO bit\n");
-			} else {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
-						OSAL_DBG, DBG_LVL_ALL,
-						"Failed to clear the %dth GPIO\n",
-						uiBit);
-				break;
-			}
-		}
-
-		bytes = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER,
-				       (PUINT)ucResetValue, sizeof(UINT));
-		if (bytes < 0) {
-			Status = bytes;
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-					"GPIO_MODE_REGISTER read failed");
-			break;
-		} else {
-			Status = STATUS_SUCCESS;
-		}
-
-		/* Set the gpio mode register to output */
-		*(UINT *)ucResetValue |= (1<<uiBit);
-		Status = wrmaltWithLock(Adapter, GPIO_MODE_REGISTER,
-					(PUINT)ucResetValue, sizeof(UINT));
-
-		if (Status == STATUS_SUCCESS) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
-					DBG_LVL_ALL,
-					"Set the GPIO to output Mode\n");
-		} else {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
-					DBG_LVL_ALL,
-					"Failed to put GPIO in Output Mode\n");
-			break;
-		}
-	}
-	break;
+	case IOCTL_BCM_GPIO_SET_REQUEST:
+		Status = bcm_char_ioctl_gpio_set_request(argp, Adapter);
+		return Status;
 
 	case BCM_LED_THREAD_STATE_CHANGE_REQ: {
 		struct bcm_user_thread_req threadReq = {0};
