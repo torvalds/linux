@@ -739,6 +739,49 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp, struct bcm_mini_a
 	return Status;
 }
 
+static int bcm_char_ioctl_misc_request(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	PVOID pvBuffer = NULL;
+	INT Status;
+
+	/* Copy Ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.InputLength < sizeof(struct bcm_link_request))
+		return -EINVAL;
+
+	if (IoBuffer.InputLength > MAX_CNTL_PKT_SIZE)
+		return -EINVAL;
+
+	pvBuffer = memdup_user(IoBuffer.InputBuffer,
+			       IoBuffer.InputLength);
+	if (IS_ERR(pvBuffer))
+		return PTR_ERR(pvBuffer);
+
+	down(&Adapter->LowPowerModeSync);
+	Status = wait_event_interruptible_timeout(Adapter->lowpower_mode_wait_queue,
+						!Adapter->bPreparingForLowPowerMode,
+						(1 * HZ));
+	if (Status == -ERESTARTSYS)
+		goto cntrlEnd;
+
+	if (Adapter->bPreparingForLowPowerMode) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+				"Preparing Idle Mode is still True - Hence Rejecting control message\n");
+		Status = STATUS_FAILURE;
+		goto cntrlEnd;
+	}
+	Status = CopyBufferToControlPacket(Adapter, (PVOID)pvBuffer);
+
+cntrlEnd:
+	up(&Adapter->LowPowerModeSync);
+	kfree(pvBuffer);
+	return Status;
+}
+
+
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -832,44 +875,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	case IOCTL_CM_REQUEST:
 	case IOCTL_SS_INFO_REQ:
 	case IOCTL_SEND_CONTROL_MESSAGE:
-	case IOCTL_IDLE_REQ: {
-		PVOID pvBuffer = NULL;
-
-		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.InputLength < sizeof(struct bcm_link_request))
-			return -EINVAL;
-
-		if (IoBuffer.InputLength > MAX_CNTL_PKT_SIZE)
-			return -EINVAL;
-
-		pvBuffer = memdup_user(IoBuffer.InputBuffer,
-				       IoBuffer.InputLength);
-		if (IS_ERR(pvBuffer))
-			return PTR_ERR(pvBuffer);
-
-		down(&Adapter->LowPowerModeSync);
-		Status = wait_event_interruptible_timeout(Adapter->lowpower_mode_wait_queue,
-							!Adapter->bPreparingForLowPowerMode,
-							(1 * HZ));
-		if (Status == -ERESTARTSYS)
-			goto cntrlEnd;
-
-		if (Adapter->bPreparingForLowPowerMode) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-					"Preparing Idle Mode is still True - Hence Rejecting control message\n");
-			Status = STATUS_FAILURE;
-			goto cntrlEnd;
-		}
-		Status = CopyBufferToControlPacket(Adapter, (PVOID)pvBuffer);
-
-cntrlEnd:
-		up(&Adapter->LowPowerModeSync);
-		kfree(pvBuffer);
-		break;
-	}
+	case IOCTL_IDLE_REQ:
+		Status = bcm_char_ioctl_misc_request(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_BUFFER_DOWNLOAD_START: {
 		if (down_trylock(&Adapter->NVMRdmWrmLock)) {
