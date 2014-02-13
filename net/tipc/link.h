@@ -239,9 +239,9 @@ int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
 				 unsigned int len, u32 destnode);
 void tipc_link_recv_bundle(struct sk_buff *buf);
-int  tipc_link_recv_fragment(struct sk_buff **reasm_head,
-			     struct sk_buff **reasm_tail,
-			     struct sk_buff **fbuf);
+int  tipc_link_frag_rcv(struct sk_buff **reasm_head,
+			struct sk_buff **reasm_tail,
+			struct sk_buff **fbuf);
 void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ, int prob,
 			      u32 gap, u32 tolerance, u32 priority,
 			      u32 acked_mtu);

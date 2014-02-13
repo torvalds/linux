@@ -1584,9 +1584,9 @@ deliver:
 			continue;
 		case MSG_FRAGMENTER:
 			l_ptr->stats.recv_fragments++;
-			ret = tipc_link_recv_fragment(&l_ptr->reasm_head,
-						      &l_ptr->reasm_tail,
-						      &buf);
+			ret = tipc_link_frag_rcv(&l_ptr->reasm_head,
+						 &l_ptr->reasm_tail,
+						 &buf);
 			if (ret == LINK_REASM_COMPLETE) {
 				l_ptr->stats.recv_fragmented++;
 				msg = buf_msg(buf);
@@ -2277,12 +2277,11 @@ static int link_send_long_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 	return dsz;
 }
 
-/*
- * tipc_link_recv_fragment(): Called with node lock on. Returns
+/* tipc_link_frag_rcv(): Called with node lock on. Returns
  * the reassembled buffer if message is complete.
  */
-int tipc_link_recv_fragment(struct sk_buff **head, struct sk_buff **tail,
-			    struct sk_buff **fbuf)
+int tipc_link_frag_rcv(struct sk_buff **head, struct sk_buff **tail,
+		       struct sk_buff **fbuf)
 {
 	struct sk_buff *frag = *fbuf;
 	struct tipc_msg *msg = buf_msg(frag);
@@ -2296,6 +2295,7 @@ int tipc_link_recv_fragment(struct sk_buff **head, struct sk_buff **tail,
 			goto out_free;
 		*head = frag;
 		skb_frag_list_init(*head);
+		*fbuf = NULL;
 		return 0;
 	} else if (*head &&
 		   skb_try_coalesce(*head, frag, &headstolen, &delta)) {
@@ -2315,10 +2315,12 @@ int tipc_link_recv_fragment(struct sk_buff **head, struct sk_buff **tail,
 		*tail = *head = NULL;
 		return LINK_REASM_COMPLETE;
 	}
+	*fbuf = NULL;
 	return 0;
 out_free:
 	pr_warn_ratelimited("Link unable to reassemble fragmented message\n");
 	kfree_skb(*fbuf);
+	*fbuf = NULL;
 	return LINK_REASM_ERROR;
 }
 

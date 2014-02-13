@@ -481,9 +481,9 @@ receive:
 			tipc_link_recv_bundle(buf);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
 			int ret;
-			ret = tipc_link_recv_fragment(&node->bclink.reasm_head,
-						      &node->bclink.reasm_tail,
-						      &buf);
+			ret = tipc_link_frag_rcv(&node->bclink.reasm_head,
+						 &node->bclink.reasm_tail,
+						 &buf);
 			if (ret == LINK_REASM_ERROR)
 				goto unlock;
 			spin_lock_bh(&bc_lock);
