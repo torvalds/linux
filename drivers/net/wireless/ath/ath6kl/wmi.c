@@ -914,7 +914,7 @@ ath6kl_get_regpair(u16 regdmn)
 		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(regDomainPairs); i++) {
-		if (regDomainPairs[i].regDmnEnum == regdmn)
+		if (regDomainPairs[i].reg_domain == regdmn)
 			return &regDomainPairs[i];
 	}
 
@@ -954,7 +954,7 @@ static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 		country = ath6kl_regd_find_country_by_rd((u16) reg_code);
 		if (regpair)
 			ath6kl_dbg(ATH6KL_DBG_WMI, "Regpair used: 0x%0x\n",
-				   regpair->regDmnEnum);
+				   regpair->reg_domain);
 		else
 			ath6kl_warn("Regpair not found reg_code 0x%0x\n",
 				    reg_code);
