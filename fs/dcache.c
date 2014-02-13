@@ -650,9 +650,8 @@ EXPORT_SYMBOL(dput);
  * @dentry: dentry to invalidate
  *
  * Try to invalidate the dentry if it turns out to be
- * possible. If there are other dentries that can be
- * reached through this one we can't delete it and we
- * return -EBUSY. On success we return 0.
+ * possible. If there are reasons not to delete it
+ * return -EBUSY. On success return 0.
  *
  * no dcache lock.
  */
@@ -667,38 +666,9 @@ int d_invalidate(struct dentry * dentry)
 		spin_unlock(&dentry->d_lock);
 		return 0;
 	}
-	/*
-	 * Check whether to do a partial shrink_dcache
-	 * to get rid of unused child entries.
-	 */
-	if (!list_empty(&dentry->d_subdirs)) {
-		spin_unlock(&dentry->d_lock);
-		shrink_dcache_parent(dentry);
-		spin_lock(&dentry->d_lock);
-	}
-
-	/*
-	 * Somebody else still using it?
-	 *
-	 * If it's a directory, we can't drop it
-	 * for fear of somebody re-populating it
-	 * with children (even though dropping it
-	 * would make it unreachable from the root,
-	 * we might still populate it if it was a
-	 * working directory or similar).
-	 * We also need to leave mountpoints alone,
-	 * directory or not.
-	 */
-	if (dentry->d_lockref.count > 1 && dentry->d_inode) {
-		if (S_ISDIR(dentry->d_inode->i_mode) || d_mountpoint(dentry)) {
-			spin_unlock(&dentry->d_lock);
-			return -EBUSY;
-		}
-	}
-
-	__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
-	return 0;
+
+	return check_submounts_and_drop(dentry);
 }
 EXPORT_SYMBOL(d_invalidate);
 
