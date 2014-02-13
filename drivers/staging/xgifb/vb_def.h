@@ -1,6 +1,6 @@
 #ifndef _VB_DEF_
 #define _VB_DEF_
-#include "../../video/sis/initdef.h"
+#include "../../video/fbdev/sis/initdef.h"
 
 #define VB_XGI301C      0x0020 /* for 301C */
 
