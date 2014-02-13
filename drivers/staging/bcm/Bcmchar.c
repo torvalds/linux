@@ -1250,6 +1250,42 @@ static int bcm_char_ioctl_cal_init(void __user *argp, struct bcm_mini_adapter *A
 	return Status;
 }
 
+static int bcm_char_ioctl_set_debug(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+#ifdef DEBUG
+	struct bcm_ioctl_buffer IoBuffer;
+	struct bcm_user_debug_state sUserDebugState;
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "In SET_DEBUG ioctl\n");
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (copy_from_user(&sUserDebugState, IoBuffer.InputBuffer, sizeof(struct bcm_user_debug_state)))
+		return -EFAULT;
+
+	BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "IOCTL_BCM_SET_DEBUG: OnOff=%d Type = 0x%x ",
+			sUserDebugState.OnOff, sUserDebugState.Type);
+	/* sUserDebugState.Subtype <<= 1; */
+	sUserDebugState.Subtype = 1 << sUserDebugState.Subtype;
+	BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "actual Subtype=0x%x\n", sUserDebugState.Subtype);
+
+	/* Update new 'DebugState' in the Adapter */
+	Adapter->stDebugState.type |= sUserDebugState.Type;
+	/* Subtype: A bitmap of 32 bits for Subtype per Type.
+	 * Valid indexes in 'subtype' array: 1,2,4,8
+	 * corresponding to valid Type values. Hence we can use the 'Type' field
+	 * as the index value, ignoring the array entries 0,3,5,6,7 !
+	 */
+	if (sUserDebugState.OnOff)
+		Adapter->stDebugState.subtype[sUserDebugState.Type] |= sUserDebugState.Subtype;
+	else
+		Adapter->stDebugState.subtype[sUserDebugState.Type] &= ~sUserDebugState.Subtype;
+
+	BCM_SHOW_DEBUG_BITMAP(Adapter);
+#endif
+	return STATUS_SUCCESS;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1439,39 +1475,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		return Status;
 
 	case IOCTL_BCM_SET_DEBUG:
-#ifdef DEBUG
-	{
-		struct bcm_user_debug_state sUserDebugState;
-
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "In SET_DEBUG ioctl\n");
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (copy_from_user(&sUserDebugState, IoBuffer.InputBuffer, sizeof(struct bcm_user_debug_state)))
-			return -EFAULT;
-
-		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "IOCTL_BCM_SET_DEBUG: OnOff=%d Type = 0x%x ",
-				sUserDebugState.OnOff, sUserDebugState.Type);
-		/* sUserDebugState.Subtype <<= 1; */
-		sUserDebugState.Subtype = 1 << sUserDebugState.Subtype;
-		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "actual Subtype=0x%x\n", sUserDebugState.Subtype);
-
-		/* Update new 'DebugState' in the Adapter */
-		Adapter->stDebugState.type |= sUserDebugState.Type;
-		/* Subtype: A bitmap of 32 bits for Subtype per Type.
-		 * Valid indexes in 'subtype' array: 1,2,4,8
-		 * corresponding to valid Type values. Hence we can use the 'Type' field
-		 * as the index value, ignoring the array entries 0,3,5,6,7 !
-		 */
-		if (sUserDebugState.OnOff)
-			Adapter->stDebugState.subtype[sUserDebugState.Type] |= sUserDebugState.Subtype;
-		else
-			Adapter->stDebugState.subtype[sUserDebugState.Type] &= ~sUserDebugState.Subtype;
-
-		BCM_SHOW_DEBUG_BITMAP(Adapter);
-	}
-#endif
-	break;
+		Status = bcm_char_ioctl_set_debug(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_NVM_READ:
 	case IOCTL_BCM_NVM_WRITE: {
