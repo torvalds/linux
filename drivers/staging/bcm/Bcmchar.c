@@ -1838,6 +1838,53 @@ static int bcm_char_ioctl_get_flash_cs_info(void __user *argp, struct bcm_mini_a
 	return Status;
 }
 
+static int bcm_char_ioctl_select_dsd(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	INT Status = STATUS_FAILURE;
+	UINT SectOfset = 0;
+	enum bcm_flash2x_section_val eFlash2xSectionVal;
+
+	eFlash2xSectionVal = NO_SECTION_VAL;
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SELECT_DSD Called");
+
+	if (IsFlash2x(Adapter) != TRUE) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
+		return -EINVAL;
+	}
+
+	Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
+	if (Status) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
+		return -EFAULT;
+	}
+	Status = copy_from_user(&eFlash2xSectionVal, IoBuffer.InputBuffer, sizeof(INT));
+	if (Status) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of flash section val failed");
+		return -EFAULT;
+	}
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Read Section :%d", eFlash2xSectionVal);
+	if ((eFlash2xSectionVal != DSD0) &&
+		(eFlash2xSectionVal != DSD1) &&
+		(eFlash2xSectionVal != DSD2)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Passed section<%x> is not DSD section", eFlash2xSectionVal);
+		return STATUS_FAILURE;
+	}
+
+	SectOfset = BcmGetSectionValStartOffset(Adapter, eFlash2xSectionVal);
+	if (SectOfset == INVALID_OFFSET) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Provided Section val <%d> does not exist in Flash 2.x", eFlash2xSectionVal);
+		return -EINVAL;
+	}
+
+	Adapter->bAllDSDWriteAllow = TRUE;
+	Adapter->ulFlashCalStart = SectOfset;
+	Adapter->eActiveDSD = eFlash2xSectionVal;
+
+	return STATUS_SUCCESS;
+}
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -2066,49 +2113,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_get_flash_cs_info(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_SELECT_DSD: {
-		UINT SectOfset = 0;
-		enum bcm_flash2x_section_val eFlash2xSectionVal;
-		eFlash2xSectionVal = NO_SECTION_VAL;
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SELECT_DSD Called");
-
-		if (IsFlash2x(Adapter) != TRUE) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
-			return -EINVAL;
-		}
-
-		Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
-		if (Status) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
-			return -EFAULT;
-		}
-		Status = copy_from_user(&eFlash2xSectionVal, IoBuffer.InputBuffer, sizeof(INT));
-		if (Status) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of flash section val failed");
-			return -EFAULT;
-		}
-
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Read Section :%d", eFlash2xSectionVal);
-		if ((eFlash2xSectionVal != DSD0) &&
-			(eFlash2xSectionVal != DSD1) &&
-			(eFlash2xSectionVal != DSD2)) {
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Passed section<%x> is not DSD section", eFlash2xSectionVal);
-			return STATUS_FAILURE;
-		}
-
-		SectOfset = BcmGetSectionValStartOffset(Adapter, eFlash2xSectionVal);
-		if (SectOfset == INVALID_OFFSET) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Provided Section val <%d> does not exist in Flash 2.x", eFlash2xSectionVal);
-			return -EINVAL;
-		}
-
-		Adapter->bAllDSDWriteAllow = TRUE;
-		Adapter->ulFlashCalStart = SectOfset;
-		Adapter->eActiveDSD = eFlash2xSectionVal;
-	}
-	Status = STATUS_SUCCESS;
-	break;
+	case IOCTL_BCM_SELECT_DSD:
+		Status = bcm_char_ioctl_select_dsd(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_NVM_RAW_READ: {
 		struct bcm_nvm_readwrite stNVMRead;
