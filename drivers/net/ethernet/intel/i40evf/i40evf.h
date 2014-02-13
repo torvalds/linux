@@ -190,7 +190,7 @@ struct i40evf_adapter {
 	struct delayed_work init_task;
 	struct i40e_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 	struct list_head vlan_filter_list;
-	char name[MAX_MSIX_COUNT][IFNAMSIZ + 9];
+	char misc_vector_name[IFNAMSIZ + 9];
 
 	/* TX */
 	struct i40e_ring *tx_rings[I40E_MAX_VSI_QP];

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -511,9 +511,10 @@ static int i40evf_request_misc_irq(struct i40evf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	int err;
 
-	sprintf(adapter->name[0], "i40evf:mbx");
+	sprintf(adapter->misc_vector_name, "i40evf:mbx");
 	err = request_irq(adapter->msix_entries[0].vector,
-			  &i40evf_msix_aq, 0, adapter->name[0], netdev);
+			  &i40evf_msix_aq, 0,
+			  adapter->misc_vector_name, netdev);
 	if (err) {
 		dev_err(&adapter->pdev->dev,
 			"request_irq for msix_aq failed: %d\n", err);
