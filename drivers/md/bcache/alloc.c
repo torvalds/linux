@@ -162,10 +162,15 @@ static bool can_invalidate_bucket(struct cache *ca, struct bucket *b)
 
 static void invalidate_one_bucket(struct cache *ca, struct bucket *b)
 {
+	size_t bucket = b - ca->buckets;
+
+	if (GC_SECTORS_USED(b))
+		trace_bcache_invalidate(ca, bucket);
+
 	bch_inc_gen(ca, b);
 	b->prio = INITIAL_PRIO;
 	atomic_inc(&b->pin);
-	fifo_push(&ca->free_inc, b - ca->buckets);
+	fifo_push(&ca->free_inc, bucket);
 }
 
 /*
@@ -301,8 +306,6 @@ static void invalidate_buckets(struct cache *ca)
 		invalidate_buckets_random(ca);
 		break;
 	}
-
-	trace_bcache_alloc_invalidate(ca);
 }
 
 #define allocator_wait(ca, cond)					\
@@ -408,8 +411,10 @@ long bch_bucket_alloc(struct cache *ca, unsigned reserve, bool wait)
 	    fifo_pop(&ca->free[reserve], r))
 		goto out;
 
-	if (!wait)
+	if (!wait) {
+		trace_bcache_alloc_fail(ca, reserve);
 		return -1;
+	}
 
 	do {
 		prepare_to_wait(&ca->set->bucket_wait, &w,
@@ -424,6 +429,8 @@ long bch_bucket_alloc(struct cache *ca, unsigned reserve, bool wait)
 	finish_wait(&ca->set->bucket_wait, &w);
 out:
 	wake_up_process(ca->alloc_thread);
+
+	trace_bcache_alloc(ca, reserve);
 
 	if (expensive_debug_checks(ca->set)) {
 		size_t iter;
