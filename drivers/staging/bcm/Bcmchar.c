@@ -994,6 +994,25 @@ static int bcm_char_ioctl_qos_threshold(ULONG arg, struct bcm_mini_adapter *Adap
 	return 0;
 }
 
+static int bcm_char_ioctl_switch_transfer_mode(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	UINT uiData = 0;
+
+	if (copy_from_user(&uiData, argp, sizeof(UINT)))
+		return -EFAULT;
+
+	if (uiData) {
+		/* Allow All Packets */
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SWITCH_TRANSFER_MODE: ETH_PACKET_TUNNELING_MODE\n");
+			Adapter->TransferMode = ETH_PACKET_TUNNELING_MODE;
+	} else {
+		/* Allow IP only Packets */
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SWITCH_TRANSFER_MODE: IP_PACKET_ONLY_MODE\n");
+		Adapter->TransferMode = IP_PACKET_ONLY_MODE;
+	}
+	return STATUS_SUCCESS;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1136,23 +1155,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = STATUS_SUCCESS;
 		break;
 
-	case IOCTL_BCM_SWITCH_TRANSFER_MODE: {
-		UINT uiData = 0;
-		if (copy_from_user(&uiData, argp, sizeof(UINT)))
-			return -EFAULT;
-
-		if (uiData) {
-			/* Allow All Packets */
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SWITCH_TRANSFER_MODE: ETH_PACKET_TUNNELING_MODE\n");
-				Adapter->TransferMode = ETH_PACKET_TUNNELING_MODE;
-		} else {
-			/* Allow IP only Packets */
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SWITCH_TRANSFER_MODE: IP_PACKET_ONLY_MODE\n");
-			Adapter->TransferMode = IP_PACKET_ONLY_MODE;
-		}
-		Status = STATUS_SUCCESS;
-		break;
-	}
+	case IOCTL_BCM_SWITCH_TRANSFER_MODE:
+		Status = bcm_char_ioctl_switch_transfer_mode(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_GET_DRIVER_VERSION: {
 		ulong len;
