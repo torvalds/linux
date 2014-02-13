@@ -1013,6 +1013,23 @@ static int bcm_char_ioctl_switch_transfer_mode(void __user *argp, struct bcm_min
 	return STATUS_SUCCESS;
 }
 
+static int bcm_char_ioctl_get_driver_version(void __user *argp)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	ulong len;
+
+	/* Copy Ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	len = min_t(ulong, IoBuffer.OutputLength, strlen(DRV_VERSION) + 1);
+
+	if (copy_to_user(IoBuffer.OutputBuffer, DRV_VERSION, len))
+		return -EFAULT;
+
+	return STATUS_SUCCESS;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1159,20 +1176,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_switch_transfer_mode(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_GET_DRIVER_VERSION: {
-		ulong len;
-
-		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		len = min_t(ulong, IoBuffer.OutputLength, strlen(DRV_VERSION) + 1);
-
-		if (copy_to_user(IoBuffer.OutputBuffer, DRV_VERSION, len))
-			return -EFAULT;
-		Status = STATUS_SUCCESS;
-		break;
-	}
+	case IOCTL_BCM_GET_DRIVER_VERSION:
+		Status = bcm_char_ioctl_get_driver_version(argp);
+		return Status;
 
 	case IOCTL_BCM_GET_CURRENT_STATUS: {
 		struct bcm_link_state link_state;
