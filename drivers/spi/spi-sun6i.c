@@ -36,8 +36,8 @@
 #define SUN6I_TFR_CTL_CPHA			BIT(0)
 #define SUN6I_TFR_CTL_CPOL			BIT(1)
 #define SUN6I_TFR_CTL_SPOL			BIT(2)
-#define SUN6I_TFR_CTL_CS_MASK			0x3
-#define SUN6I_TFR_CTL_CS(cs)			(((cs) & SUN6I_TFR_CTL_CS_MASK) << 4)
+#define SUN6I_TFR_CTL_CS_MASK			0x30
+#define SUN6I_TFR_CTL_CS(cs)			(((cs) << 4) & SUN6I_TFR_CTL_CS_MASK)
 #define SUN6I_TFR_CTL_CS_MANUAL			BIT(6)
 #define SUN6I_TFR_CTL_CS_LEVEL			BIT(7)
 #define SUN6I_TFR_CTL_DHB			BIT(8)
