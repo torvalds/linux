@@ -44,10 +44,20 @@ struct airq_iv {
 
 struct airq_iv *airq_iv_create(unsigned long bits, unsigned long flags);
 void airq_iv_release(struct airq_iv *iv);
-unsigned long airq_iv_alloc_bit(struct airq_iv *iv);
-void airq_iv_free_bit(struct airq_iv *iv, unsigned long bit);
+unsigned long airq_iv_alloc(struct airq_iv *iv, unsigned long num);
+void airq_iv_free(struct airq_iv *iv, unsigned long bit, unsigned long num);
 unsigned long airq_iv_scan(struct airq_iv *iv, unsigned long start,
 			   unsigned long end);
+
+static inline unsigned long airq_iv_alloc_bit(struct airq_iv *iv)
+{
+	return airq_iv_alloc(iv, 1);
+}
+
+static inline void airq_iv_free_bit(struct airq_iv *iv, unsigned long bit)
+{
+	airq_iv_free(iv, bit, 1);
+}
 
 static inline unsigned long airq_iv_end(struct airq_iv *iv)
 {
