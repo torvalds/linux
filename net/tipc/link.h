@@ -1,7 +1,7 @@
 /*
  * net/tipc/link.h: Include file for TIPC link code
  *
- * Copyright (c) 1995-2006, Ericsson AB
+ * Copyright (c) 1995-2006, 2013, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -40,27 +40,27 @@
 #include "msg.h"
 #include "node.h"
 
-/*
- * Link reassembly status codes
+/* Link reassembly status codes
  */
 #define LINK_REASM_ERROR	-1
 #define LINK_REASM_COMPLETE	1
 
-/*
- * Out-of-range value for link sequence numbers
+/* Out-of-range value for link sequence numbers
  */
 #define INVALID_LINK_SEQ 0x10000
 
-/*
- * Link states
+/* Link working states
  */
 #define WORKING_WORKING 560810u
 #define WORKING_UNKNOWN 560811u
 #define RESET_UNKNOWN   560812u
 #define RESET_RESET     560813u
 
-/*
- * Starting value for maximum packet size negotiation on unicast links
+/* Link endpoint execution states
+ */
+#define LINK_STARTED    0x0001
+
+/* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
  */
 #define MAX_PKT_DEFAULT 1500
@@ -103,7 +103,7 @@ struct tipc_stats {
  * @timer: link timer
  * @owner: pointer to peer node
  * @link_list: adjacent links in bearer's list of links
- * @started: indicates if link has been started
+ * @flags: execution state flags for link endpoint instance
  * @checkpoint: reference point for triggering link continuity checking
  * @peer_session: link session # being used by peer end of link
  * @peer_bearer_id: bearer id used by link's peer endpoint
@@ -152,7 +152,7 @@ struct tipc_link {
 	struct list_head link_list;
 
 	/* Management and link supervision data */
-	int started;
+	unsigned int flags;
 	u32 checkpoint;
 	u32 peer_session;
 	u32 peer_bearer_id;

@@ -500,7 +500,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 	struct tipc_link *other;
 	u32 cont_intv = l_ptr->continuity_interval;
 
-	if (!l_ptr->started && (event != STARTING_EVT))
+	if (!(l_ptr->flags & LINK_STARTED) && (event != STARTING_EVT))
 		return;		/* Not yet. */
 
 	/* Check whether changeover is going on */
@@ -626,7 +626,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case STARTING_EVT:
-			l_ptr->started = 1;
+			l_ptr->flags |= LINK_STARTED;
 			/* fall through */
 		case TIMEOUT_EVT:
 			tipc_link_send_proto_msg(l_ptr, RESET_MSG, 0, 0, 0, 0, 0);
