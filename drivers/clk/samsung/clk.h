@@ -340,4 +340,14 @@ extern void __init samsung_clk_register_pll(struct samsung_pll_clock *pll_list,
 
 extern unsigned long _get_rate(const char *clk_name);
 
+extern void samsung_clk_save(void __iomem *base,
+			     struct samsung_clk_reg_dump *rd,
+			     unsigned int num_regs);
+extern void samsung_clk_restore(void __iomem *base,
+				const struct samsung_clk_reg_dump *rd,
+				unsigned int num_regs);
+extern struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
+							unsigned long *rdump,
+							unsigned long nr_rdump);
+
 #endif /* __SAMSUNG_CLK_H */

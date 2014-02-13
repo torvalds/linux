@@ -22,6 +22,38 @@ static struct clk_onecell_data clk_data;
 #endif
 
 #ifdef CONFIG_PM_SLEEP
+void samsung_clk_save(void __iomem *base,
+				    struct samsung_clk_reg_dump *rd,
+				    unsigned int num_regs)
+{
+	for (; num_regs > 0; --num_regs, ++rd)
+		rd->value = readl(base + rd->offset);
+}
+
+void samsung_clk_restore(void __iomem *base,
+				      const struct samsung_clk_reg_dump *rd,
+				      unsigned int num_regs)
+{
+	for (; num_regs > 0; --num_regs, ++rd)
+		writel(rd->value, base + rd->offset);
+}
+
+struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(unsigned long *rdump,
+							unsigned long nr_rdump)
+{
+	struct samsung_clk_reg_dump *rd;
+	unsigned int i;
+
+	rd = kcalloc(nr_rdump, sizeof(*rd), GFP_KERNEL);
+	if (!rd)
+		return NULL;
+
+	for (i = 0; i < nr_rdump; ++i)
+		rd[i].offset = rdump[i];
+
+	return rd;
+}
+
 static struct samsung_clk_reg_dump *reg_dump;
 static unsigned long nr_reg_dump;
 
