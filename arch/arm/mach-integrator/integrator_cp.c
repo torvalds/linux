@@ -27,6 +27,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/sys_soc.h>
+#include <linux/sched_clock.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -36,7 +37,6 @@
 #include <asm/mach/time.h>
 
 #include <plat/clcd.h>
-#include <plat/sched_clock.h>
 
 #include "hardware.h"
 #include "cm.h"
@@ -225,11 +225,14 @@ static struct clcd_board clcd_data = {
 
 #define REFCOUNTER (__io_address(INTEGRATOR_HDR_BASE) + 0x28)
 
+static u64 notrace intcp_read_sched_clock(void)
+{
+	return readl(REFCOUNTER);
+}
+
 static void __init intcp_init_early(void)
 {
-#ifdef CONFIG_PLAT_VERSATILE_SCHED_CLOCK
-	versatile_sched_clock_init(REFCOUNTER, 24000000);
-#endif
+	sched_clock_register(intcp_read_sched_clock, 32, 24000000);
 }
 
 static const struct of_device_id fpga_irq_of_match[] __initconst = {
