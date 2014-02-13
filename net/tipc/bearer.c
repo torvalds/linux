@@ -51,7 +51,7 @@ static struct tipc_media * const media_info_array[] = {
 
 struct tipc_bearer tipc_bearers[MAX_BEARERS];
 
-static void bearer_disable(struct tipc_bearer *b_ptr);
+static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down);
 
 /**
  * tipc_media_find - locates specified media object by name
@@ -327,12 +327,10 @@ restart:
 	b_ptr->net_plane = bearer_id + 'A';
 	b_ptr->active = 1;
 	b_ptr->priority = priority;
-	INIT_LIST_HEAD(&b_ptr->links);
-	spin_lock_init(&b_ptr->lock);
 
 	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr, disc_domain);
 	if (res) {
-		bearer_disable(b_ptr);
+		bearer_disable(b_ptr, false);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
 			name);
 		goto exit;
@@ -350,20 +348,9 @@ exit:
  */
 static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 {
-	struct tipc_link *l_ptr;
-	struct tipc_link *temp_l_ptr;
-
 	read_lock_bh(&tipc_net_lock);
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
-	spin_lock_bh(&b_ptr->lock);
-	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		struct tipc_node *n_ptr = l_ptr->owner;
-
-		spin_lock_bh(&n_ptr->lock);
-		tipc_link_reset(l_ptr);
-		spin_unlock_bh(&n_ptr->lock);
-	}
-	spin_unlock_bh(&b_ptr->lock);
+	tipc_link_reset_list(b_ptr->identity);
 	read_unlock_bh(&tipc_net_lock);
 	return 0;
 }
@@ -373,25 +360,14 @@ static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
  *
  * Note: This routine assumes caller holds tipc_net_lock.
  */
-static void bearer_disable(struct tipc_bearer *b_ptr)
+static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down)
 {
-	struct tipc_link *l_ptr;
-	struct tipc_link *temp_l_ptr;
-	struct tipc_link_req *temp_req;
-
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
-	spin_lock_bh(&b_ptr->lock);
 	b_ptr->media->disable_media(b_ptr);
-	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		tipc_link_delete(l_ptr);
-	}
-	temp_req = b_ptr->link_req;
-	b_ptr->link_req = NULL;
-	spin_unlock_bh(&b_ptr->lock);
 
-	if (temp_req)
-		tipc_disc_delete(temp_req);
-
+	tipc_link_delete_list(b_ptr->identity, shutting_down);
+	if (b_ptr->link_req)
+		tipc_disc_delete(b_ptr->link_req);
 	memset(b_ptr, 0, sizeof(struct tipc_bearer));
 }
 
@@ -406,7 +382,7 @@ int tipc_disable_bearer(const char *name)
 		pr_warn("Attempt to disable unknown bearer <%s>\n", name);
 		res = -EINVAL;
 	} else {
-		bearer_disable(b_ptr);
+		bearer_disable(b_ptr, false);
 		res = 0;
 	}
 	write_unlock_bh(&tipc_net_lock);
@@ -626,6 +602,6 @@ void tipc_bearer_stop(void)
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		if (tipc_bearers[i].active)
-			bearer_disable(&tipc_bearers[i]);
+			bearer_disable(&tipc_bearers[i], true);
 	}
 }

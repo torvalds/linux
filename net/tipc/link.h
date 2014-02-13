@@ -1,7 +1,7 @@
 /*
  * net/tipc/link.h: Include file for TIPC link code
  *
- * Copyright (c) 1995-2006, Ericsson AB
+ * Copyright (c) 1995-2006, 2013, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -40,27 +40,28 @@
 #include "msg.h"
 #include "node.h"
 
-/*
- * Link reassembly status codes
+/* Link reassembly status codes
  */
 #define LINK_REASM_ERROR	-1
 #define LINK_REASM_COMPLETE	1
 
-/*
- * Out-of-range value for link sequence numbers
+/* Out-of-range value for link sequence numbers
  */
 #define INVALID_LINK_SEQ 0x10000
 
-/*
- * Link states
+/* Link working states
  */
 #define WORKING_WORKING 560810u
 #define WORKING_UNKNOWN 560811u
 #define RESET_UNKNOWN   560812u
 #define RESET_RESET     560813u
 
-/*
- * Starting value for maximum packet size negotiation on unicast links
+/* Link endpoint execution states
+ */
+#define LINK_STARTED    0x0001
+#define LINK_STOPPED    0x0002
+
+/* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
  */
 #define MAX_PKT_DEFAULT 1500
@@ -102,8 +103,7 @@ struct tipc_stats {
  * @media_addr: media address to use when sending messages over link
  * @timer: link timer
  * @owner: pointer to peer node
- * @link_list: adjacent links in bearer's list of links
- * @started: indicates if link has been started
+ * @flags: execution state flags for link endpoint instance
  * @checkpoint: reference point for triggering link continuity checking
  * @peer_session: link session # being used by peer end of link
  * @peer_bearer_id: bearer id used by link's peer endpoint
@@ -149,10 +149,9 @@ struct tipc_link {
 	struct tipc_media_addr media_addr;
 	struct timer_list timer;
 	struct tipc_node *owner;
-	struct list_head link_list;
 
 	/* Management and link supervision data */
-	int started;
+	unsigned int flags;
 	u32 checkpoint;
 	u32 peer_session;
 	u32 peer_bearer_id;
@@ -215,7 +214,7 @@ struct tipc_port;
 struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr);
-void tipc_link_delete(struct tipc_link *l_ptr);
+void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down);
 void tipc_link_failover_send_queue(struct tipc_link *l_ptr);
 void tipc_link_dup_send_queue(struct tipc_link *l_ptr,
 			      struct tipc_link *dest);
@@ -231,6 +230,7 @@ struct sk_buff *tipc_link_cmd_show_stats(const void *req_tlv_area,
 struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area,
 					  int req_tlv_space);
 void tipc_link_reset(struct tipc_link *l_ptr);
+void tipc_link_reset_list(unsigned int bearer_id);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 void tipc_link_send_names(struct list_head *message_list, u32 dest);
 int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf);
@@ -239,9 +239,9 @@ int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
 				 unsigned int len, u32 destnode);
 void tipc_link_recv_bundle(struct sk_buff *buf);
-int  tipc_link_recv_fragment(struct sk_buff **reasm_head,
-			     struct sk_buff **reasm_tail,
-			     struct sk_buff **fbuf);
+int  tipc_link_frag_rcv(struct sk_buff **reasm_head,
+			struct sk_buff **reasm_tail,
+			struct sk_buff **fbuf);
 void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ, int prob,
 			      u32 gap, u32 tolerance, u32 priority,
 			      u32 acked_mtu);

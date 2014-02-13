@@ -481,9 +481,9 @@ receive:
 			tipc_link_recv_bundle(buf);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
 			int ret;
-			ret = tipc_link_recv_fragment(&node->bclink.reasm_head,
-						      &node->bclink.reasm_tail,
-						      &buf);
+			ret = tipc_link_frag_rcv(&node->bclink.reasm_head,
+						 &node->bclink.reasm_tail,
+						 &buf);
 			if (ret == LINK_REASM_ERROR)
 				goto unlock;
 			spin_lock_bh(&bc_lock);
@@ -785,7 +785,6 @@ void tipc_bclink_init(void)
 	bcl->owner = &bclink->node;
 	bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
-	spin_lock_init(&bcbearer->bearer.lock);
 	bcl->b_ptr = &bcbearer->bearer;
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
