@@ -781,6 +781,41 @@ cntrlEnd:
 	return Status;
 }
 
+static int bcm_char_ioctl_buffer_download_start(struct bcm_mini_adapter *Adapter)
+{
+	INT Status;
+
+	if (down_trylock(&Adapter->NVMRdmWrmLock)) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+				"IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
+		return -EACCES;
+	}
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+			"Starting the firmware download PID =0x%x!!!!\n", current->pid);
+
+	if (down_trylock(&Adapter->fw_download_sema))
+		return -EBUSY;
+
+	Adapter->bBinDownloaded = false;
+	Adapter->fw_download_process_pid = current->pid;
+	Adapter->bCfgDownloaded = false;
+	Adapter->fw_download_done = false;
+	netif_carrier_off(Adapter->dev);
+	netif_stop_queue(Adapter->dev);
+	Status = reset_card_proc(Adapter);
+	if (Status) {
+		pr_err(PFX "%s: reset_card_proc Failed!\n", Adapter->dev->name);
+		up(&Adapter->fw_download_sema);
+		up(&Adapter->NVMRdmWrmLock);
+		return Status;
+	}
+	mdelay(10);
+
+	up(&Adapter->NVMRdmWrmLock);
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -879,37 +914,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_misc_request(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_BUFFER_DOWNLOAD_START: {
-		if (down_trylock(&Adapter->NVMRdmWrmLock)) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-					"IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
-			return -EACCES;
-		}
-
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-				"Starting the firmware download PID =0x%x!!!!\n", current->pid);
-
-		if (down_trylock(&Adapter->fw_download_sema))
-			return -EBUSY;
-
-		Adapter->bBinDownloaded = false;
-		Adapter->fw_download_process_pid = current->pid;
-		Adapter->bCfgDownloaded = false;
-		Adapter->fw_download_done = false;
-		netif_carrier_off(Adapter->dev);
-		netif_stop_queue(Adapter->dev);
-		Status = reset_card_proc(Adapter);
-		if (Status) {
-			pr_err(PFX "%s: reset_card_proc Failed!\n", Adapter->dev->name);
-			up(&Adapter->fw_download_sema);
-			up(&Adapter->NVMRdmWrmLock);
-			return Status;
-		}
-		mdelay(10);
-
-		up(&Adapter->NVMRdmWrmLock);
+	case IOCTL_BCM_BUFFER_DOWNLOAD_START:
+		Status = bcm_char_ioctl_buffer_download_start(Adapter);
 		return Status;
-	}
 
 	case IOCTL_BCM_BUFFER_DOWNLOAD: {
 		struct bcm_firmware_info *psFwInfo = NULL;
