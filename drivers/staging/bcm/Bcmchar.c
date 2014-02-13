@@ -1197,6 +1197,20 @@ static int bcm_char_ioctl_bulk_wrm(void __user *argp, struct bcm_mini_adapter *A
 	return Status;
 }
 
+static int bcm_char_ioctl_get_nvm_size(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (Adapter->eNVMType == NVM_EEPROM || Adapter->eNVMType == NVM_FLASH) {
+		if (copy_to_user(IoBuffer.OutputBuffer, &Adapter->uiNVMDSDSize, sizeof(UINT)))
+			return -EFAULT;
+	}
+
+	return STATUS_SUCCESS;
+}
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1378,16 +1392,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		return Status;
 
 	case IOCTL_BCM_GET_NVM_SIZE:
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (Adapter->eNVMType == NVM_EEPROM || Adapter->eNVMType == NVM_FLASH) {
-			if (copy_to_user(IoBuffer.OutputBuffer, &Adapter->uiNVMDSDSize, sizeof(UINT)))
-				return -EFAULT;
-		}
-
-		Status = STATUS_SUCCESS;
-		break;
+		Status = bcm_char_ioctl_get_nvm_size(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_CAL_INIT: {
 		UINT uiSectorSize = 0;
