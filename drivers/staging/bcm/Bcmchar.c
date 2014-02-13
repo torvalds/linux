@@ -1886,6 +1886,97 @@ static int bcm_char_ioctl_select_dsd(void __user *argp, struct bcm_mini_adapter 
 	return STATUS_SUCCESS;
 }
 
+static int bcm_char_ioctl_nvm_raw_read(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_nvm_readwrite stNVMRead;
+	struct bcm_ioctl_buffer IoBuffer;
+	INT NOB;
+	INT BuffSize;
+	INT ReadOffset = 0;
+	UINT ReadBytes = 0;
+	PUCHAR pReadBuff;
+	void __user *OutPutBuff;
+	INT Status = STATUS_FAILURE;
+
+	if (Adapter->eNVMType != NVM_FLASH) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "NVM TYPE is not Flash");
+		return -EINVAL;
+	}
+
+	/* Copy Ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy_from_user 1 failed\n");
+		return -EFAULT;
+	}
+
+	if (copy_from_user(&stNVMRead, IoBuffer.OutputBuffer, sizeof(struct bcm_nvm_readwrite)))
+		return -EFAULT;
+
+	NOB = stNVMRead.uiNumBytes;
+	/* In Raw-Read max Buff size : 64MB */
+
+	if (NOB > DEFAULT_BUFF_SIZE)
+		BuffSize = DEFAULT_BUFF_SIZE;
+	else
+		BuffSize = NOB;
+
+	ReadOffset = stNVMRead.uiOffset;
+	OutPutBuff = stNVMRead.pBuffer;
+
+	pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
+	if (pReadBuff == NULL) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed for Flash 2.x Read Structure");
+		return -ENOMEM;
+	}
+	down(&Adapter->NVMRdmWrmLock);
+
+	if ((Adapter->IdleMode == TRUE) ||
+		(Adapter->bShutStatus == TRUE) ||
+		(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+		kfree(pReadBuff);
+		up(&Adapter->NVMRdmWrmLock);
+		return -EACCES;
+	}
+
+	Adapter->bFlashRawRead = TRUE;
+
+	while (NOB) {
+		if (NOB > DEFAULT_BUFF_SIZE)
+			ReadBytes = DEFAULT_BUFF_SIZE;
+		else
+			ReadBytes = NOB;
+
+		/* Reading the data from Flash 2.x */
+		Status = BeceemNVMRead(Adapter, (PUINT)pReadBuff, ReadOffset, ReadBytes);
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash 2x read err with Status :%d", Status);
+			break;
+		}
+
+		BCM_DEBUG_PRINT_BUFFER(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, pReadBuff, ReadBytes);
+
+		Status = copy_to_user(OutPutBuff, pReadBuff, ReadBytes);
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy to use failed with status :%d", Status);
+			up(&Adapter->NVMRdmWrmLock);
+			kfree(pReadBuff);
+			return -EFAULT;
+		}
+		NOB = NOB - ReadBytes;
+		if (NOB) {
+			ReadOffset = ReadOffset + ReadBytes;
+			OutPutBuff = OutPutBuff + ReadBytes;
+		}
+	}
+	Adapter->bFlashRawRead = false;
+	up(&Adapter->NVMRdmWrmLock);
+	kfree(pReadBuff);
+	return Status;
+}
+
+
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -2117,93 +2208,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_select_dsd(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_NVM_RAW_READ: {
-		struct bcm_nvm_readwrite stNVMRead;
-		INT NOB;
-		INT BuffSize;
-		INT ReadOffset = 0;
-		UINT ReadBytes = 0;
-		PUCHAR pReadBuff;
-		void __user *OutPutBuff;
-
-		if (Adapter->eNVMType != NVM_FLASH) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "NVM TYPE is not Flash");
-			return -EINVAL;
-		}
-
-		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy_from_user 1 failed\n");
-			return -EFAULT;
-		}
-
-		if (copy_from_user(&stNVMRead, IoBuffer.OutputBuffer, sizeof(struct bcm_nvm_readwrite)))
-			return -EFAULT;
-
-		NOB = stNVMRead.uiNumBytes;
-		/* In Raw-Read max Buff size : 64MB */
-
-		if (NOB > DEFAULT_BUFF_SIZE)
-			BuffSize = DEFAULT_BUFF_SIZE;
-		else
-			BuffSize = NOB;
-
-		ReadOffset = stNVMRead.uiOffset;
-		OutPutBuff = stNVMRead.pBuffer;
-
-		pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
-		if (pReadBuff == NULL) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed for Flash 2.x Read Structure");
-			Status = -ENOMEM;
-			break;
-		}
-		down(&Adapter->NVMRdmWrmLock);
-
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE)) {
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
-			kfree(pReadBuff);
-			up(&Adapter->NVMRdmWrmLock);
-			return -EACCES;
-		}
-
-		Adapter->bFlashRawRead = TRUE;
-
-		while (NOB) {
-			if (NOB > DEFAULT_BUFF_SIZE)
-				ReadBytes = DEFAULT_BUFF_SIZE;
-			else
-				ReadBytes = NOB;
-
-			/* Reading the data from Flash 2.x */
-			Status = BeceemNVMRead(Adapter, (PUINT)pReadBuff, ReadOffset, ReadBytes);
-			if (Status) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash 2x read err with Status :%d", Status);
-				break;
-			}
-
-			BCM_DEBUG_PRINT_BUFFER(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, pReadBuff, ReadBytes);
-
-			Status = copy_to_user(OutPutBuff, pReadBuff, ReadBytes);
-			if (Status) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy to use failed with status :%d", Status);
-				up(&Adapter->NVMRdmWrmLock);
-				kfree(pReadBuff);
-				return -EFAULT;
-			}
-			NOB = NOB - ReadBytes;
-			if (NOB) {
-				ReadOffset = ReadOffset + ReadBytes;
-				OutPutBuff = OutPutBuff + ReadBytes;
-			}
-		}
-		Adapter->bFlashRawRead = false;
-		up(&Adapter->NVMRdmWrmLock);
-		kfree(pReadBuff);
-		break;
-	}
+	case IOCTL_BCM_NVM_RAW_READ:
+		Status = bcm_char_ioctl_nvm_raw_read(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_CNTRLMSG_MASK: {
 		ULONG RxCntrlMsgBitMask = 0;
