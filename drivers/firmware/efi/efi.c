@@ -233,7 +233,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{SAL_SYSTEM_TABLE_GUID, "SALsystab", &efi.sal_systab},
 	{SMBIOS_TABLE_GUID, "SMBIOS", &efi.smbios},
 	{UGA_IO_PROTOCOL_GUID, "UGA", &efi.uga},
-	{NULL_GUID, NULL, 0},
+	{NULL_GUID, NULL, NULL},
 };
 
 static __init int match_config_table(efi_guid_t *guid,
