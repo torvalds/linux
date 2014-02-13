@@ -21,9 +21,13 @@ source "drivers/gpu/vga/Kconfig"
 
 source "drivers/gpu/host1x/Kconfig"
 
+menu "Direct Rendering Manager"
 source "drivers/gpu/drm/Kconfig"
+endmenu
 
+menu "Frame buffer Devices"
 source "drivers/video/fbdev/Kconfig"
+endmenu
 
 source "drivers/video/backlight/Kconfig"
 
