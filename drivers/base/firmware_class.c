@@ -649,7 +649,9 @@ static ssize_t firmware_loading_store(struct device *dev,
 			 * see the mapped 'buf->data' once the loading
 			 * is completed.
 			 * */
-			fw_map_pages_buf(fw_buf);
+			if (fw_map_pages_buf(fw_buf))
+				dev_err(dev, "%s: map pages failed\n",
+					__func__);
 			list_del_init(&fw_buf->pending_list);
 			complete_all(&fw_buf->completion);
 			break;
@@ -908,6 +910,8 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 	wait_for_completion(&buf->completion);
 
 	cancel_delayed_work_sync(&fw_priv->timeout_work);
+	if (!buf->data)
+		retval = -ENOMEM;
 
 	device_remove_file(f_dev, &dev_attr_loading);
 err_del_bin_attr:
