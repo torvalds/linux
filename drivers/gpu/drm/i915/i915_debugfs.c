@@ -1937,6 +1937,9 @@ static int i915_sink_crc(struct seq_file *m, void *data)
 		if (connector->base.dpms != DRM_MODE_DPMS_ON)
 			continue;
 
+		if (!connector->base.encoder)
+			continue;
+
 		encoder = to_intel_encoder(connector->base.encoder);
 		if (encoder->type != INTEL_OUTPUT_EDP)
 			continue;
