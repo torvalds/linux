@@ -1215,16 +1215,10 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto err_free_dp;
 
-	dp->stats_percpu = alloc_percpu(struct dp_stats_percpu);
+	dp->stats_percpu = netdev_alloc_pcpu_stats(struct dp_stats_percpu);
 	if (!dp->stats_percpu) {
 		err = -ENOMEM;
 		goto err_destroy_table;
-	}
-
-	for_each_possible_cpu(i) {
-		struct dp_stats_percpu *dpath_stats;
-		dpath_stats = per_cpu_ptr(dp->stats_percpu, i);
-		u64_stats_init(&dpath_stats->sync);
 	}
 
 	dp->ports = kmalloc(DP_VPORT_HASH_BUCKETS * sizeof(struct hlist_head),

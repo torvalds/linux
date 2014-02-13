@@ -136,16 +136,9 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 
 static int loopback_dev_init(struct net_device *dev)
 {
-	int i;
-	dev->lstats = alloc_percpu(struct pcpu_lstats);
+	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
 	if (!dev->lstats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct pcpu_lstats *lb_stats;
-		lb_stats = per_cpu_ptr(dev->lstats, i);
-		u64_stats_init(&lb_stats->syncp);
-	}
 	return 0;
 }
 

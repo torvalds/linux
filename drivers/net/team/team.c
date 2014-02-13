@@ -1540,15 +1540,9 @@ static int team_init(struct net_device *dev)
 	mutex_init(&team->lock);
 	team_set_no_mode(team);
 
-	team->pcpu_stats = alloc_percpu(struct team_pcpu_stats);
+	team->pcpu_stats = netdev_alloc_pcpu_stats(struct team_pcpu_stats);
 	if (!team->pcpu_stats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct team_pcpu_stats *team_stats;
-		team_stats = per_cpu_ptr(team->pcpu_stats, i);
-		u64_stats_init(&team_stats->syncp);
-	}
 
 	for (i = 0; i < TEAM_PORT_HASHENTRIES; i++)
 		INIT_HLIST_HEAD(&team->en_port_hlist[i]);

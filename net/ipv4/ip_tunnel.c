@@ -1041,18 +1041,12 @@ int ip_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
-	int i, err;
+	int err;
 
 	dev->destructor	= ip_tunnel_dev_free;
-	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct pcpu_sw_netstats *ipt_stats;
-		ipt_stats = per_cpu_ptr(dev->tstats, i);
-		u64_stats_init(&ipt_stats->syncp);
-	}
 
 	tunnel->dst_cache = alloc_percpu(struct ip_tunnel_dst);
 	if (!tunnel->dst_cache) {

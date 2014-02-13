@@ -731,18 +731,12 @@ static void vti6_dev_setup(struct net_device *dev)
 static inline int vti6_dev_init_gen(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	int i;
 
 	t->dev = dev;
 	t->net = dev_net(dev);
-	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
-	for_each_possible_cpu(i) {
-		struct pcpu_sw_netstats *stats;
-		stats = per_cpu_ptr(dev->tstats, i);
-		u64_stats_init(&stats->syncp);
-	}
 	return 0;
 }
 
