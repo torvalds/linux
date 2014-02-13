@@ -66,10 +66,6 @@
  *
  * Secondly, when the hardware handles fragmentation, the frame handed to
  * the driver from mac80211 is the MSDU, not the MPDU.
- *
- * Finally, for received frames, the driver is able to indicate that it has
- * filled a radiotap header and put that in front of the frame; if it does
- * not do so then mac80211 may add this under certain circumstances.
  */
 
 /**
