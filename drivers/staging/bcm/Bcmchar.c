@@ -244,6 +244,71 @@ static int bcm_char_ioctl_reg_write_private(void __user *argp, struct bcm_mini_a
 	return Status;
 }
 
+static int bcm_char_ioctl_eeprom_reg_read(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_rdm_buffer sRdmBuffer = {0};
+	struct bcm_ioctl_buffer IoBuffer;
+	PCHAR temp_buff = NULL;
+	UINT uiTempVar = 0;
+	INT Status;
+	int bytes;
+
+	if ((Adapter->IdleMode == TRUE) ||
+		(Adapter->bShutStatus == TRUE) ||
+		(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"Device in Idle Mode, Blocking Rdms\n");
+		return -EACCES;
+	}
+
+	/* Copy Ioctl Buffer structure */
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.InputLength > sizeof(sRdmBuffer))
+		return -EINVAL;
+
+	if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
+		return -EFAULT;
+
+	if (IoBuffer.OutputLength > USHRT_MAX ||
+		IoBuffer.OutputLength == 0) {
+		return -EINVAL;
+	}
+
+	temp_buff = kmalloc(IoBuffer.OutputLength, GFP_KERNEL);
+	if (!temp_buff)
+		return STATUS_FAILURE;
+
+	if ((((ULONG)sRdmBuffer.Register & 0x0F000000) != 0x0F000000) ||
+		((ULONG)sRdmBuffer.Register & 0x3)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"RDM Done On invalid Address : %x Access Denied.\n",
+				(int)sRdmBuffer.Register);
+
+		kfree(temp_buff);
+		return -EINVAL;
+	}
+
+	uiTempVar = sRdmBuffer.Register & EEPROM_REJECT_MASK;
+	bytes = rdmaltWithLock(Adapter, (UINT)sRdmBuffer.Register,
+			       (PUINT)temp_buff, IoBuffer.OutputLength);
+
+	if (bytes > 0) {
+		Status = STATUS_SUCCESS;
+		if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes)) {
+			kfree(temp_buff);
+			return -EFAULT;
+		}
+	} else {
+		Status = bytes;
+	}
+
+	kfree(temp_buff);
+	return Status;
+}
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -305,66 +370,10 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		return Status;
 
 	case IOCTL_BCM_REGISTER_READ:
-	case IOCTL_BCM_EEPROM_REGISTER_READ: {
-		struct bcm_rdm_buffer sRdmBuffer = {0};
-		PCHAR temp_buff = NULL;
-		UINT uiTempVar = 0;
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+	case IOCTL_BCM_EEPROM_REGISTER_READ:
+		Status = bcm_char_ioctl_eeprom_reg_read(argp, Adapter);
+		return Status;
 
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"Device in Idle Mode, Blocking Rdms\n");
-			return -EACCES;
-		}
-
-		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.InputLength > sizeof(sRdmBuffer))
-			return -EINVAL;
-
-		if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-			return -EFAULT;
-
-		if (IoBuffer.OutputLength > USHRT_MAX ||
-			IoBuffer.OutputLength == 0) {
-			return -EINVAL;
-		}
-
-		temp_buff = kmalloc(IoBuffer.OutputLength, GFP_KERNEL);
-		if (!temp_buff)
-			return STATUS_FAILURE;
-
-		if ((((ULONG)sRdmBuffer.Register & 0x0F000000) != 0x0F000000) ||
-			((ULONG)sRdmBuffer.Register & 0x3)) {
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"RDM Done On invalid Address : %x Access Denied.\n",
-					(int)sRdmBuffer.Register);
-
-			kfree(temp_buff);
-			return -EINVAL;
-		}
-
-		uiTempVar = sRdmBuffer.Register & EEPROM_REJECT_MASK;
-		bytes = rdmaltWithLock(Adapter, (UINT)sRdmBuffer.Register,
-				       (PUINT)temp_buff, IoBuffer.OutputLength);
-
-		if (bytes > 0) {
-			Status = STATUS_SUCCESS;
-			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, bytes)) {
-				kfree(temp_buff);
-				return -EFAULT;
-			}
-		} else {
-			Status = bytes;
-		}
-
-		kfree(temp_buff);
-		break;
-	}
 	case IOCTL_BCM_REGISTER_WRITE:
 	case IOCTL_BCM_EEPROM_REGISTER_WRITE: {
 		struct bcm_wrm_buffer sWrmBuffer = {0};
