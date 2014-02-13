@@ -2598,6 +2598,8 @@ static int ath10k_pci_deinit_irq(struct ath10k *ar)
 	case MSI_NUM_REQUEST:
 		pci_disable_msi(ar_pci->pdev);
 		return 0;
+	default:
+		pci_disable_msi(ar_pci->pdev);
 	}
 
 	ath10k_warn("unknown irq configuration upon deinit\n");
