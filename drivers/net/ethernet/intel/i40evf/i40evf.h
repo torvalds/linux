@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -164,15 +164,14 @@ struct i40evf_vlan_filter {
 /* Driver state. The order of these is important! */
 enum i40evf_state_t {
 	__I40EVF_STARTUP,		/* driver loaded, probe complete */
-	__I40EVF_FAILED,		/* PF communication failed. Fatal. */
 	__I40EVF_REMOVE,		/* driver is being unloaded */
 	__I40EVF_INIT_VERSION_CHECK,	/* aq msg sent, awaiting reply */
 	__I40EVF_INIT_GET_RESOURCES,	/* aq msg sent, awaiting reply */
 	__I40EVF_INIT_SW,		/* got resources, setting up structs */
+	__I40EVF_RESETTING,		/* in reset */
 	/* Below here, watchdog is running */
 	__I40EVF_DOWN,			/* ready, can be opened */
 	__I40EVF_TESTING,		/* in ethtool self-test */
-	__I40EVF_RESETTING,		/* in reset */
 	__I40EVF_RUNNING,		/* opened, working */
 };
 
@@ -185,47 +184,27 @@ enum i40evf_critical_section_t {
 /* board specific private data structure */
 struct i40evf_adapter {
 	struct timer_list watchdog_timer;
-	struct vlan_group *vlgrp;
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work init_task;
 	struct i40e_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 	struct list_head vlan_filter_list;
-	char name[MAX_MSIX_COUNT][IFNAMSIZ + 9];
-
-	/* Interrupt Throttle Rate */
-	u32 itr_setting;
-	u16 eitr_low;
-	u16 eitr_high;
+	char misc_vector_name[IFNAMSIZ + 9];
 
 	/* TX */
 	struct i40e_ring *tx_rings[I40E_MAX_VSI_QP];
-	u64 restart_queue;
-	u64 hw_csum_tx_good;
-	u64 lsc_int;
-	u64 hw_tso_ctxt;
-	u64 hw_tso6_ctxt;
 	u32 tx_timeout_count;
 	struct list_head mac_filter_list;
-#ifdef DEBUG
-	bool detect_tx_hung;
-#endif /* DEBUG */
 
 	/* RX */
 	struct i40e_ring *rx_rings[I40E_MAX_VSI_QP];
 	int txd_count;
 	int rxd_count;
 	u64 hw_csum_rx_error;
-	u64 hw_rx_no_dma_resources;
-	u64 hw_csum_rx_good;
-	u64 non_eop_descs;
 	int num_msix_vectors;
 	struct msix_entry *msix_entries;
 
-	u64 rx_hdr_split;
-
-	u32 init_state;
-	volatile unsigned long flags;
+	u32 flags;
 #define I40EVF_FLAG_RX_CSUM_ENABLED              (u32)(1)
 #define I40EVF_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 1)
 #define I40EVF_FLAG_RX_PS_CAPABLE                (u32)(1 << 2)
@@ -234,6 +213,8 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_IMIR_ENABLED                 (u32)(1 << 5)
 #define I40EVF_FLAG_MQ_CAPABLE                   (u32)(1 << 6)
 #define I40EVF_FLAG_NEED_LINK_UPDATE             (u32)(1 << 7)
+#define I40EVF_FLAG_PF_COMMS_FAILED              (u32)(1 << 8)
+#define I40EVF_FLAG_RESET_PENDING                (u32)(1 << 9)
 /* duplcates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
@@ -251,21 +232,19 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		(u32)(1 << 6)
 #define I40EVF_FLAG_AQ_MAP_VECTORS		(u32)(1 << 7)
 #define I40EVF_FLAG_AQ_HANDLE_RESET		(u32)(1 << 8)
+
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct net_device_stats net_stats;
 
-	/* structs defined in i40e_vf.h */
-	struct i40e_hw hw;
+	struct i40e_hw hw; /* defined in i40e_type.h */
 
 	enum i40evf_state_t state;
 	volatile unsigned long crit_section;
-	u64 tx_busy;
 
 	struct work_struct watchdog_task;
 	bool netdev_registered;
-	bool dev_closed;
 	bool link_up;
 	enum i40e_virtchnl_ops current_op;
 	struct i40e_virtchnl_vf_resource *vf_res; /* incl. all VSIs */
@@ -274,11 +253,6 @@ struct i40evf_adapter {
 	struct i40e_eth_stats current_stats;
 	struct i40e_vsi vsi;
 	u32 aq_wait_count;
-};
-
-struct i40evf_info {
-	enum i40e_mac_type	mac;
-	unsigned int		flags;
 };
 
 

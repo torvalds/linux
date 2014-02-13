@@ -38,7 +38,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 30
+#define DRV_VERSION_BUILD 31
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -305,6 +305,7 @@ static void i40e_tx_timeout(struct net_device *netdev)
 		break;
 	default:
 		netdev_err(netdev, "tx_timeout recovery unsuccessful\n");
+		set_bit(__I40E_DOWN, &vsi->state);
 		i40e_down(vsi);
 		break;
 	}
@@ -5331,6 +5332,11 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	/* restart the VSIs that were rebuilt and running before the reset */
 	i40e_pf_unquiesce_all_vsi(pf);
 
+	if (pf->num_alloc_vfs) {
+		for (v = 0; v < pf->num_alloc_vfs; v++)
+			i40e_reset_vf(&pf->vf[v], true);
+	}
+
 	/* tell the firmware that we're starting */
 	dv.major_version = DRV_VERSION_MAJOR;
 	dv.minor_version = DRV_VERSION_MINOR;
@@ -8070,6 +8076,16 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		val &= ~I40E_PFGEN_PORTMDIO_NUM_VFLINK_STAT_ENA_MASK;
 		wr32(hw, I40E_PFGEN_PORTMDIO_NUM, val);
 		i40e_flush(hw);
+
+		if (pci_num_vf(pdev)) {
+			dev_info(&pdev->dev,
+				 "Active VFs found, allocating resources.\n");
+			err = i40e_alloc_vfs(pf, pci_num_vf(pdev));
+			if (err)
+				dev_info(&pdev->dev,
+					 "Error %d allocating resources for existing VFs\n",
+					 err);
+		}
 	}
 
 	pfs_found++;
@@ -8165,15 +8181,15 @@ static void i40e_remove(struct pci_dev *pdev)
 
 	i40e_ptp_stop(pf);
 
-	if (pf->flags & I40E_FLAG_SRIOV_ENABLED) {
-		i40e_free_vfs(pf);
-		pf->flags &= ~I40E_FLAG_SRIOV_ENABLED;
-	}
-
 	/* no more scheduling of any task */
 	set_bit(__I40E_DOWN, &pf->state);
 	del_timer_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
+
+	if (pf->flags & I40E_FLAG_SRIOV_ENABLED) {
+		i40e_free_vfs(pf);
+		pf->flags &= ~I40E_FLAG_SRIOV_ENABLED;
+	}
 
 	i40e_fdir_teardown(pf);
 

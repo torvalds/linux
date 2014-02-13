@@ -408,18 +408,10 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 				 "Could not allocate VF broadcast filter\n");
 	}
 
-	if (!f) {
-		dev_err(&pf->pdev->dev, "Unable to add ucast filter\n");
-		ret = -ENOMEM;
-		goto error_alloc_vsi_res;
-	}
-
 	/* program mac filter */
 	ret = i40e_sync_vsi_filters(vsi);
-	if (ret) {
+	if (ret)
 		dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
-		goto error_alloc_vsi_res;
-	}
 
 error_alloc_vsi_res:
 	return ret;
@@ -682,6 +674,7 @@ complete_reset:
 	mdelay(10);
 	i40e_alloc_vf_res(vf);
 	i40e_enable_vf_mappings(vf);
+	set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
 
 	/* tell the VF the reset is done */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
@@ -847,7 +840,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
  *
  * allocate vf resources
  **/
-static int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
+int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 {
 	struct i40e_vf *vfs;
 	int i, ret = 0;
@@ -855,14 +848,16 @@ static int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 	/* Disable interrupt 0 so we don't try to handle the VFLR. */
 	i40e_irq_dynamic_disable_icr0(pf);
 
-	ret = pci_enable_sriov(pf->pdev, num_alloc_vfs);
-	if (ret) {
-		dev_err(&pf->pdev->dev,
-			"pci_enable_sriov failed with error %d!\n", ret);
-		pf->num_alloc_vfs = 0;
-		goto err_iov;
+	/* Check to see if we're just allocating resources for extant VFs */
+	if (pci_num_vf(pf->pdev) != num_alloc_vfs) {
+		ret = pci_enable_sriov(pf->pdev, num_alloc_vfs);
+		if (ret) {
+			dev_err(&pf->pdev->dev,
+				"Failed to enable SR-IOV, error %d.\n", ret);
+			pf->num_alloc_vfs = 0;
+			goto err_iov;
+		}
 	}
-
 	/* allocate memory */
 	vfs = kzalloc(num_alloc_vfs * sizeof(struct i40e_vf), GFP_KERNEL);
 	if (!vfs) {
@@ -1873,7 +1868,8 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 			/* clear the bit in GLGEN_VFLRSTAT */
 			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), (1 << bit_idx));
 
-			i40e_reset_vf(vf, true);
+			if (!test_bit(__I40E_DOWN, &pf->state))
+				i40e_reset_vf(vf, true);
 		}
 	}
 
