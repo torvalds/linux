@@ -35,7 +35,6 @@
 #include <video/vga.h>
 
 #include <mach/hardware.h>
-#include <mach/platform.h>
 
 #include <asm/mach/map.h>
 #include <asm/signal.h>

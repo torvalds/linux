@@ -12,7 +12,6 @@
 #include <linux/leds.h>
 
 #include <mach/hardware.h>
-#include <mach/platform.h>
 
 #include "cm.h"
 

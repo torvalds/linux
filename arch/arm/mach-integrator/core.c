@@ -26,7 +26,6 @@
 #include <linux/of_address.h>
 
 #include <mach/hardware.h>
-#include <mach/platform.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>

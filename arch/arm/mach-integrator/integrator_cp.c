@@ -29,7 +29,6 @@
 #include <linux/sys_soc.h>
 
 #include <mach/hardware.h>
-#include <mach/platform.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

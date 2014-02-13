@@ -45,7 +45,6 @@
 #include <linux/clk-provider.h>
 
 #include <mach/hardware.h>
-#include <mach/platform.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
