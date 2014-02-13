@@ -164,15 +164,14 @@ struct i40evf_vlan_filter {
 /* Driver state. The order of these is important! */
 enum i40evf_state_t {
 	__I40EVF_STARTUP,		/* driver loaded, probe complete */
-	__I40EVF_FAILED,		/* PF communication failed. Fatal. */
 	__I40EVF_REMOVE,		/* driver is being unloaded */
 	__I40EVF_INIT_VERSION_CHECK,	/* aq msg sent, awaiting reply */
 	__I40EVF_INIT_GET_RESOURCES,	/* aq msg sent, awaiting reply */
 	__I40EVF_INIT_SW,		/* got resources, setting up structs */
+	__I40EVF_RESETTING,		/* in reset */
 	/* Below here, watchdog is running */
 	__I40EVF_DOWN,			/* ready, can be opened */
 	__I40EVF_TESTING,		/* in ethtool self-test */
-	__I40EVF_RESETTING,		/* in reset */
 	__I40EVF_RUNNING,		/* opened, working */
 };
 
@@ -214,6 +213,8 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_IMIR_ENABLED                 (u32)(1 << 5)
 #define I40EVF_FLAG_MQ_CAPABLE                   (u32)(1 << 6)
 #define I40EVF_FLAG_NEED_LINK_UPDATE             (u32)(1 << 7)
+#define I40EVF_FLAG_PF_COMMS_FAILED              (u32)(1 << 8)
+#define I40EVF_FLAG_RESET_PENDING                (u32)(1 << 9)
 /* duplcates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
@@ -231,6 +232,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		(u32)(1 << 6)
 #define I40EVF_FLAG_AQ_MAP_VECTORS		(u32)(1 << 7)
 #define I40EVF_FLAG_AQ_HANDLE_RESET		(u32)(1 << 8)
+
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;

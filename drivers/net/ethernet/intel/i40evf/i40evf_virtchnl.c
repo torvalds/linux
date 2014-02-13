@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -42,6 +42,9 @@ static int i40evf_send_pf_msg(struct i40evf_adapter *adapter,
 {
 	struct i40e_hw *hw = &adapter->hw;
 	i40e_status err;
+
+	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED)
+		return 0; /* nothing to see here, move along */
 
 	err = i40e_aq_send_msg_to_pf(hw, op, 0, msg, len, NULL);
 	if (err)
@@ -689,10 +692,12 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			}
 			break;
 		case I40E_VIRTCHNL_EVENT_RESET_IMPENDING:
-			adapter->state = __I40EVF_RESETTING;
-			schedule_work(&adapter->reset_task);
-			dev_info(&adapter->pdev->dev,
-				 "%s: hardware reset pending\n", __func__);
+			dev_info(&adapter->pdev->dev, "PF reset warning received\n");
+			if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING)) {
+				adapter->flags |= I40EVF_FLAG_RESET_PENDING;
+				dev_info(&adapter->pdev->dev, "Scheduling reset task\n");
+				schedule_work(&adapter->reset_task);
+			}
 			break;
 		default:
 			dev_err(&adapter->pdev->dev,
