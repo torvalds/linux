@@ -733,7 +733,6 @@ static void cgroup_destroy_root(struct cgroupfs_root *root)
 {
 	struct cgroup *cgrp = &root->top_cgroup;
 	struct cgrp_cset_link *link, *tmp_link;
-	int ret;
 
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
@@ -742,11 +741,7 @@ static void cgroup_destroy_root(struct cgroupfs_root *root)
 	BUG_ON(!list_empty(&cgrp->children));
 
 	/* Rebind all subsystems back to the default hierarchy */
-	if (root->flags & CGRP_ROOT_SUBSYS_BOUND) {
-		ret = rebind_subsystems(root, 0, root->subsys_mask);
-		/* Shouldn't be able to fail ... */
-		BUG_ON(ret);
-	}
+	WARN_ON(rebind_subsystems(root, 0, root->subsys_mask));
 
 	/*
 	 * Release all the links from cset_links to this hierarchy's
@@ -1055,13 +1050,7 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 		}
 	}
 
-	/*
-	 * Mark @root has finished binding subsystems.  @root->subsys_mask
-	 * now matches the bound subsystems.
-	 */
-	root->flags |= CGRP_ROOT_SUBSYS_BOUND;
 	kernfs_activate(cgrp->kn);
-
 	return 0;
 }
 
@@ -1353,15 +1342,6 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 
 	init_cgroup_root(root);
 
-	/*
-	 * We need to set @root->subsys_mask now so that @root can be
-	 * matched by cgroup_test_super() before it finishes
-	 * initialization; otherwise, competing mounts with the same
-	 * options may try to bind the same subsystems instead of waiting
-	 * for the first one leading to unexpected mount errors.
-	 * SUBSYS_BOUND will be set once actual binding is complete.
-	 */
-	root->subsys_mask = opts->subsys_mask;
 	root->flags = opts->flags;
 	if (opts->release_agent)
 		strcpy(root->release_agent_path, opts->release_agent);
@@ -1372,7 +1352,7 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 	return root;
 }
 
-static int cgroup_setup_root(struct cgroupfs_root *root)
+static int cgroup_setup_root(struct cgroupfs_root *root, unsigned long ss_mask)
 {
 	LIST_HEAD(tmp_links);
 	struct cgroup *root_cgrp = &root->top_cgroup;
@@ -1415,7 +1395,7 @@ static int cgroup_setup_root(struct cgroupfs_root *root)
 	if (ret)
 		goto destroy_root;
 
-	ret = rebind_subsystems(root, root->subsys_mask, 0);
+	ret = rebind_subsystems(root, ss_mask, 0);
 	if (ret)
 		goto destroy_root;
 
@@ -1532,7 +1512,7 @@ retry:
 		goto out_unlock;
 	}
 
-	ret = cgroup_setup_root(root);
+	ret = cgroup_setup_root(root, opts.subsys_mask);
 	if (ret)
 		cgroup_free_root(root);
 
