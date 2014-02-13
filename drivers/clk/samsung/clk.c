@@ -38,8 +38,9 @@ void samsung_clk_restore(void __iomem *base,
 		writel(rd->value, base + rd->offset);
 }
 
-struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(unsigned long *rdump,
-							unsigned long nr_rdump)
+struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
+						const unsigned long *rdump,
+						unsigned long nr_rdump)
 {
 	struct samsung_clk_reg_dump *rd;
 	unsigned int i;
