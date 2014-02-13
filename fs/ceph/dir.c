@@ -1069,7 +1069,6 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 		ceph_dentry_lru_touch(dentry);
 	} else {
 		ceph_dir_clear_complete(dir);
-		d_drop(dentry);
 	}
 	iput(dir);
 	return valid;
