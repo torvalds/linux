@@ -1255,7 +1255,7 @@ struct f2fs_stat_info {
 	int util_free, util_valid, util_invalid;
 	int rsvd_segs, overp_segs;
 	int dirty_count, node_pages, meta_pages;
-	int prefree_count, call_count;
+	int prefree_count, call_count, cp_count;
 	int tot_segs, node_segs, data_segs, free_segs, free_secs;
 	int tot_blks, data_blks, node_blks;
 	int curseg[NR_CURSEG_TYPE];
@@ -1272,6 +1272,7 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 	return (struct f2fs_stat_info *)sbi->stat_info;
 }
 
+#define stat_inc_cp_count(si)		((si)->cp_count++)
 #define stat_inc_call_count(si)		((si)->call_count++)
 #define stat_inc_bggc_count(sbi)	((sbi)->bg_gc++)
 #define stat_inc_dirty_dir(sbi)		((sbi)->n_dirty_dirs++)
@@ -1326,6 +1327,7 @@ void f2fs_destroy_stats(struct f2fs_sb_info *);
 void __init f2fs_create_root_stats(void);
 void f2fs_destroy_root_stats(void);
 #else
+#define stat_inc_cp_count(si)
 #define stat_inc_call_count(si)
 #define stat_inc_bggc_count(si)
 #define stat_inc_dirty_dir(sbi)

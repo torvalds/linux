@@ -914,6 +914,7 @@ void write_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	unblock_operations(sbi);
 	mutex_unlock(&sbi->cp_mutex);
 
+	stat_inc_cp_count(sbi->stat_info);
 	trace_f2fs_write_checkpoint(sbi->sb, is_umount, "finish checkpoint");
 }
 
