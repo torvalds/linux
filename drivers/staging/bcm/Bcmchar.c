@@ -1100,6 +1100,41 @@ static int bcm_char_ioctl_get_dsx_indication(void __user *argp, struct bcm_mini_
 	return STATUS_SUCCESS;
 }
 
+static int bcm_char_ioctl_get_host_mibs(void __user *argp, struct bcm_mini_adapter *Adapter, struct bcm_tarang_data *pTarang)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	INT Status = STATUS_FAILURE;
+	PVOID temp_buff;
+
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.OutputLength != sizeof(struct bcm_host_stats_mibs)) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"Length Check failed %lu %zd\n",
+				IoBuffer.OutputLength, sizeof(struct bcm_host_stats_mibs));
+		return -EINVAL;
+	}
+
+	/* FIXME: HOST_STATS are too big for kmalloc (122048)! */
+	temp_buff = kzalloc(sizeof(struct bcm_host_stats_mibs), GFP_KERNEL);
+	if (!temp_buff)
+		return STATUS_FAILURE;
+
+	Status = ProcessGetHostMibs(Adapter, temp_buff);
+	GetDroppedAppCntrlPktMibs(temp_buff, pTarang);
+
+	if (Status != STATUS_FAILURE) {
+		if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, sizeof(struct bcm_host_stats_mibs))) {
+			kfree(temp_buff);
+			return -EFAULT;
+		}
+	}
+
+	kfree(temp_buff);
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -1262,36 +1297,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_get_dsx_indication(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_GET_HOST_MIBS: {
-		PVOID temp_buff;
-
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.OutputLength != sizeof(struct bcm_host_stats_mibs)) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"Length Check failed %lu %zd\n",
-					IoBuffer.OutputLength, sizeof(struct bcm_host_stats_mibs));
-			return -EINVAL;
-		}
-
-		/* FIXME: HOST_STATS are too big for kmalloc (122048)! */
-		temp_buff = kzalloc(sizeof(struct bcm_host_stats_mibs), GFP_KERNEL);
-		if (!temp_buff)
-			return STATUS_FAILURE;
-
-		Status = ProcessGetHostMibs(Adapter, temp_buff);
-		GetDroppedAppCntrlPktMibs(temp_buff, pTarang);
-
-		if (Status != STATUS_FAILURE)
-			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, sizeof(struct bcm_host_stats_mibs))) {
-				kfree(temp_buff);
-				return -EFAULT;
-			}
-
-		kfree(temp_buff);
-		break;
-	}
+	case IOCTL_BCM_GET_HOST_MIBS:
+		Status = bcm_char_ioctl_get_host_mibs(argp, Adapter, pTarang);
+		return Status;
 
 	case IOCTL_BCM_WAKE_UP_DEVICE_FROM_IDLE:
 		if ((false == Adapter->bTriedToWakeUpFromlowPowerMode) && (TRUE == Adapter->IdleMode)) {
