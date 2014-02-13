@@ -1647,7 +1647,6 @@ struct cgroup_taskset {
 	struct flex_array	*tc_array;
 	int			tc_array_len;
 	int			idx;
-	struct cgroup		*cur_cgrp;
 };
 
 /**
@@ -1662,7 +1661,6 @@ struct task_struct *cgroup_taskset_first(struct cgroup_taskset *tset)
 		tset->idx = 0;
 		return cgroup_taskset_next(tset);
 	} else {
-		tset->cur_cgrp = tset->single.cgrp;
 		return tset->single.task;
 	}
 }
@@ -1683,37 +1681,9 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset)
 		return NULL;
 
 	tc = flex_array_get(tset->tc_array, tset->idx++);
-	tset->cur_cgrp = tc->cgrp;
 	return tc->task;
 }
 EXPORT_SYMBOL_GPL(cgroup_taskset_next);
-
-/**
- * cgroup_taskset_cur_css - return the matching css for the current task
- * @tset: taskset of interest
- * @subsys_id: the ID of the target subsystem
- *
- * Return the css for the current (last returned) task of @tset for
- * subsystem specified by @subsys_id.  This function must be preceded by
- * either cgroup_taskset_first() or cgroup_taskset_next().
- */
-struct cgroup_subsys_state *cgroup_taskset_cur_css(struct cgroup_taskset *tset,
-						   int subsys_id)
-{
-	return cgroup_css(tset->cur_cgrp, cgroup_subsys[subsys_id]);
-}
-EXPORT_SYMBOL_GPL(cgroup_taskset_cur_css);
-
-/**
- * cgroup_taskset_size - return the number of tasks in taskset
- * @tset: taskset of interest
- */
-int cgroup_taskset_size(struct cgroup_taskset *tset)
-{
-	return tset->tc_array ? tset->tc_array_len : 1;
-}
-EXPORT_SYMBOL_GPL(cgroup_taskset_size);
-
 
 /**
  * cgroup_task_migrate - move a task from one cgroup to another.
