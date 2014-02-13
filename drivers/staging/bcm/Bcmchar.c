@@ -1212,6 +1212,45 @@ static int bcm_char_ioctl_get_nvm_size(void __user *argp, struct bcm_mini_adapte
 	return STATUS_SUCCESS;
 }
 
+static int bcm_char_ioctl_cal_init(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	UINT uiSectorSize = 0;
+	INT Status = STATUS_FAILURE;
+
+	if (Adapter->eNVMType == NVM_FLASH) {
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+			return -EFAULT;
+
+		if (copy_from_user(&uiSectorSize, IoBuffer.InputBuffer, sizeof(UINT)))
+			return -EFAULT;
+
+		if ((uiSectorSize < MIN_SECTOR_SIZE) || (uiSectorSize > MAX_SECTOR_SIZE)) {
+			if (copy_to_user(IoBuffer.OutputBuffer, &Adapter->uiSectorSize,
+						sizeof(UINT)))
+				return -EFAULT;
+		} else {
+			if (IsFlash2x(Adapter)) {
+				if (copy_to_user(IoBuffer.OutputBuffer,	&Adapter->uiSectorSize, sizeof(UINT)))
+					return -EFAULT;
+			} else {
+				if ((TRUE == Adapter->bShutStatus) || (TRUE == Adapter->IdleMode)) {
+					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Device is in Idle/Shutdown Mode\n");
+					return -EACCES;
+				}
+
+				Adapter->uiSectorSize = uiSectorSize;
+				BcmUpdateSectorSize(Adapter, Adapter->uiSectorSize);
+			}
+		}
+		Status = STATUS_SUCCESS;
+	} else {
+		Status = STATUS_FAILURE;
+	}
+	return Status;
+}
+
+
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -1395,39 +1434,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_get_nvm_size(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_CAL_INIT: {
-		UINT uiSectorSize = 0;
-		if (Adapter->eNVMType == NVM_FLASH) {
-			if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-				return -EFAULT;
-
-			if (copy_from_user(&uiSectorSize, IoBuffer.InputBuffer, sizeof(UINT)))
-				return -EFAULT;
-
-			if ((uiSectorSize < MIN_SECTOR_SIZE) || (uiSectorSize > MAX_SECTOR_SIZE)) {
-				if (copy_to_user(IoBuffer.OutputBuffer, &Adapter->uiSectorSize,
-							sizeof(UINT)))
-					return -EFAULT;
-			} else {
-				if (IsFlash2x(Adapter)) {
-					if (copy_to_user(IoBuffer.OutputBuffer,	&Adapter->uiSectorSize, sizeof(UINT)))
-						return -EFAULT;
-				} else {
-					if ((TRUE == Adapter->bShutStatus) || (TRUE == Adapter->IdleMode)) {
-						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Device is in Idle/Shutdown Mode\n");
-						return -EACCES;
-					}
-
-					Adapter->uiSectorSize = uiSectorSize;
-					BcmUpdateSectorSize(Adapter, Adapter->uiSectorSize);
-				}
-			}
-			Status = STATUS_SUCCESS;
-		} else {
-			Status = STATUS_FAILURE;
-		}
-	}
-	break;
+	case IOCTL_BCM_CAL_INIT:
+		Status = bcm_char_ioctl_cal_init(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_SET_DEBUG:
 #ifdef DEBUG
