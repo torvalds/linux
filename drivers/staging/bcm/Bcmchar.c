@@ -893,6 +893,74 @@ static int bcm_char_ioctl_buffer_download(void __user *argp, struct bcm_mini_ada
 	return Status;
 }
 
+static int bcm_char_ioctl_buffer_download_stop(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	INT Status;
+	int timeout = 0;
+
+	if (!down_trylock(&Adapter->fw_download_sema)) {
+		up(&Adapter->fw_download_sema);
+		return -EINVAL;
+	}
+
+	if (down_trylock(&Adapter->NVMRdmWrmLock)) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"FW download blocked as EEPROM Read/Write is in progress\n");
+		up(&Adapter->fw_download_sema);
+		return -EACCES;
+	}
+
+	Adapter->bBinDownloaded = TRUE;
+	Adapter->bCfgDownloaded = TRUE;
+	atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
+	Adapter->CurrNumRecvDescs = 0;
+	Adapter->downloadDDR = 0;
+
+	/* setting the Mips to Run */
+	Status = run_card_proc(Adapter);
+
+	if (Status) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Firm Download Failed\n");
+		up(&Adapter->fw_download_sema);
+		up(&Adapter->NVMRdmWrmLock);
+		return Status;
+	} else {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+				DBG_LVL_ALL, "Firm Download Over...\n");
+	}
+
+	mdelay(10);
+
+	/* Wait for MailBox Interrupt */
+	if (StartInterruptUrb((struct bcm_interface_adapter *)Adapter->pvInterfaceAdapter))
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Unable to send interrupt...\n");
+
+	timeout = 5*HZ;
+	Adapter->waiting_to_fw_download_done = false;
+	wait_event_timeout(Adapter->ioctl_fw_dnld_wait_queue,
+			Adapter->waiting_to_fw_download_done, timeout);
+	Adapter->fw_download_process_pid = INVALID_PID;
+	Adapter->fw_download_done = TRUE;
+	atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
+	Adapter->CurrNumRecvDescs = 0;
+	Adapter->PrevNumRecvDescs = 0;
+	atomic_set(&Adapter->cntrlpktCnt, 0);
+	Adapter->LinkUpStatus = 0;
+	Adapter->LinkStatus = 0;
+
+	if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
+		Adapter->DriverState = FW_DOWNLOAD_DONE;
+		wake_up(&Adapter->LEDInfo.notify_led_event);
+	}
+
+	if (!timeout)
+		Status = -ENODEV;
+
+	up(&Adapter->fw_download_sema);
+	up(&Adapter->NVMRdmWrmLock);
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -900,7 +968,6 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	void __user *argp = (void __user *)arg;
 	struct bcm_mini_adapter *Adapter = pTarang->Adapter;
 	INT Status = STATUS_FAILURE;
-	int timeout = 0;
 	struct bcm_ioctl_buffer IoBuffer;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
@@ -999,69 +1066,10 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_buffer_download(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_BUFFER_DOWNLOAD_STOP: {
-		if (!down_trylock(&Adapter->fw_download_sema)) {
-			up(&Adapter->fw_download_sema);
-			return -EINVAL;
-		}
-
-		if (down_trylock(&Adapter->NVMRdmWrmLock)) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"FW download blocked as EEPROM Read/Write is in progress\n");
-			up(&Adapter->fw_download_sema);
-			return -EACCES;
-		}
-
-		Adapter->bBinDownloaded = TRUE;
-		Adapter->bCfgDownloaded = TRUE;
-		atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
-		Adapter->CurrNumRecvDescs = 0;
-		Adapter->downloadDDR = 0;
-
-		/* setting the Mips to Run */
-		Status = run_card_proc(Adapter);
-
-		if (Status) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Firm Download Failed\n");
-			up(&Adapter->fw_download_sema);
-			up(&Adapter->NVMRdmWrmLock);
-			return Status;
-		} else {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
-					DBG_LVL_ALL, "Firm Download Over...\n");
-		}
-
-		mdelay(10);
-
-		/* Wait for MailBox Interrupt */
-		if (StartInterruptUrb((struct bcm_interface_adapter *)Adapter->pvInterfaceAdapter))
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Unable to send interrupt...\n");
-
-		timeout = 5*HZ;
-		Adapter->waiting_to_fw_download_done = false;
-		wait_event_timeout(Adapter->ioctl_fw_dnld_wait_queue,
-				Adapter->waiting_to_fw_download_done, timeout);
-		Adapter->fw_download_process_pid = INVALID_PID;
-		Adapter->fw_download_done = TRUE;
-		atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
-		Adapter->CurrNumRecvDescs = 0;
-		Adapter->PrevNumRecvDescs = 0;
-		atomic_set(&Adapter->cntrlpktCnt, 0);
-		Adapter->LinkUpStatus = 0;
-		Adapter->LinkStatus = 0;
-
-		if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
-			Adapter->DriverState = FW_DOWNLOAD_DONE;
-			wake_up(&Adapter->LEDInfo.notify_led_event);
-		}
-
-		if (!timeout)
-			Status = -ENODEV;
-
-		up(&Adapter->fw_download_sema);
-		up(&Adapter->NVMRdmWrmLock);
+	case IOCTL_BCM_BUFFER_DOWNLOAD_STOP:
+		Status = bcm_char_ioctl_buffer_download_stop(argp, Adapter);
 		return Status;
-	}
+
 
 	case IOCTL_BE_BUCKET_SIZE:
 		Status = 0;
