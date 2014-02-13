@@ -1976,6 +1976,33 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp, struct bcm_mini_adapte
 	return Status;
 }
 
+static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp, struct bcm_mini_adapter *Adapter, struct bcm_tarang_data *pTarang)
+{
+	struct bcm_ioctl_buffer IoBuffer;
+	INT Status = STATUS_FAILURE;
+	ULONG RxCntrlMsgBitMask = 0;
+
+	/* Copy Ioctl Buffer structure */
+	Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
+	if (Status) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "copy of Ioctl buffer is failed from user space");
+		return -EFAULT;
+	}
+
+	if (IoBuffer.InputLength != sizeof(unsigned long))
+		return -EINVAL;
+
+	Status = copy_from_user(&RxCntrlMsgBitMask, IoBuffer.InputBuffer, IoBuffer.InputLength);
+	if (Status) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "copy of control bit mask failed from user space");
+		return -EFAULT;
+	}
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\n Got user defined cntrl msg bit mask :%lx", RxCntrlMsgBitMask);
+	pTarang->RxCntrlMsgBitMask = RxCntrlMsgBitMask;
+
+	return Status;
+}
+
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
@@ -2212,30 +2239,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_nvm_raw_read(argp, Adapter);
 		return Status;
 
-	case IOCTL_BCM_CNTRLMSG_MASK: {
-		ULONG RxCntrlMsgBitMask = 0;
-
-		/* Copy Ioctl Buffer structure */
-		Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
-		if (Status) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "copy of Ioctl buffer is failed from user space");
-			return -EFAULT;
-		}
-
-		if (IoBuffer.InputLength != sizeof(unsigned long)) {
-			Status = -EINVAL;
-			break;
-		}
-
-		Status = copy_from_user(&RxCntrlMsgBitMask, IoBuffer.InputBuffer, IoBuffer.InputLength);
-		if (Status) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "copy of control bit mask failed from user space");
-			return -EFAULT;
-		}
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\n Got user defined cntrl msg bit mask :%lx", RxCntrlMsgBitMask);
-		pTarang->RxCntrlMsgBitMask = RxCntrlMsgBitMask;
-	}
-	break;
+	case IOCTL_BCM_CNTRLMSG_MASK:
+		Status = bcm_char_ioctl_cntrlmsg_mask(argp, Adapter, pTarang);
+		return Status;
 
 	case IOCTL_BCM_GET_DEVICE_DRIVER_INFO: {
 		struct bcm_driver_info DevInfo;
