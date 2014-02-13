@@ -82,7 +82,19 @@ Most of the hard work is done for the driver in the PCI layer.  It simply
 has to request that the PCI layer set up the MSI capability for this
 device.
 
-4.2.1 pci_enable_msi_range
+4.2.1 pci_enable_msi
+
+int pci_enable_msi(struct pci_dev *dev)
+
+A successful call allocates ONE interrupt to the device, regardless
+of how many MSIs the device supports.  The device is switched from
+pin-based interrupt mode to MSI mode.  The dev->irq number is changed
+to a new number which represents the message signaled interrupt;
+consequently, this function should be called before the driver calls
+request_irq(), because an MSI is delivered via a vector that is
+different from the vector of a pin-based interrupt.
+
+4.2.2 pci_enable_msi_range
 
 int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 
@@ -158,7 +170,12 @@ static int foo_driver_enable_single_msi(struct pci_dev *pdev)
 	return pci_enable_msi_range(pdev, 1, 1);
 }
 
-4.2.2 pci_disable_msi
+Note, unlike pci_enable_msi() function, which could be also used to
+enable the single MSI mode, pci_enable_msi_range() returns either a
+negative errno or 1 (not negative errno or 0 - as pci_enable_msi()
+does).
+
+4.2.3 pci_disable_msi
 
 void pci_disable_msi(struct pci_dev *dev)
 
@@ -172,7 +189,7 @@ on any interrupt for which it previously called request_irq().
 Failure to do so results in a BUG_ON(), leaving the device with
 MSI enabled and thus leaking its vector.
 
-4.2.3 pci_msi_vec_count
+4.2.4 pci_msi_vec_count
 
 int pci_msi_vec_count(struct pci_dev *dev)
 
