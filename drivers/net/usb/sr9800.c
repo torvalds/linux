@@ -63,6 +63,10 @@ static int sr_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	int offset = 0;
 
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len)
+		return 0;
+
 	while (offset + sizeof(u32) < skb->len) {
 		struct sk_buff *sr_skb;
 		u16 size;
