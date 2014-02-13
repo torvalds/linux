@@ -422,6 +422,17 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 	}
 }
 
+static void mv64xxx_i2c_send_start(struct mv64xxx_i2c_data *drv_data)
+{
+	/* Can we offload this msg ? */
+	if (mv64xxx_i2c_offload_msg(drv_data) < 0) {
+		/* No, switch to standard path */
+		mv64xxx_i2c_prepare_for_io(drv_data, drv_data->msgs);
+		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_START,
+			drv_data->reg_base + drv_data->reg_offsets.control);
+	}
+}
+
 static void
 mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 {
@@ -438,14 +449,8 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 
 		drv_data->msgs++;
 		drv_data->num_msgs--;
-		if (mv64xxx_i2c_offload_msg(drv_data) < 0) {
-			drv_data->cntl_bits |= MV64XXX_I2C_REG_CONTROL_START;
-			writel(drv_data->cntl_bits,
-			drv_data->reg_base + drv_data->reg_offsets.control);
+		mv64xxx_i2c_send_start(drv_data);
 
-			/* Setup for the next message */
-			mv64xxx_i2c_prepare_for_io(drv_data, drv_data->msgs);
-		}
 		if (drv_data->errata_delay)
 			udelay(5);
 
@@ -463,13 +468,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		break;
 
 	case MV64XXX_I2C_ACTION_SEND_START:
-		/* Can we offload this msg ? */
-		if (mv64xxx_i2c_offload_msg(drv_data) < 0) {
-			/* No, switch to standard path */
-			mv64xxx_i2c_prepare_for_io(drv_data, drv_data->msgs);
-			writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_START,
-				drv_data->reg_base + drv_data->reg_offsets.control);
-		}
+		mv64xxx_i2c_send_start(drv_data);
 		break;
 
 	case MV64XXX_I2C_ACTION_SEND_ADDR_1:
