@@ -873,8 +873,10 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	if (!trans)
+	if (!trans) {
 		path->search_commit_root = 1;
+		path->skip_locking = 1;
+	}
 
 	/*
 	 * grab both a lock on the path and a lock on the delayed ref head.
