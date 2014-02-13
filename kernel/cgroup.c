@@ -4844,16 +4844,12 @@ static int __init cgroup_wq_init(void)
 	/*
 	 * There isn't much point in executing destruction path in
 	 * parallel.  Good chunk is serialized with cgroup_mutex anyway.
-	 *
-	 * XXX: Must be ordered to make sure parent is offlined after
-	 * children.  The ordering requirement is for memcg where a
-	 * parent's offline may wait for a child's leading to deadlock.  In
-	 * the long term, this should be fixed from memcg side.
+	 * Use 1 for @max_active.
 	 *
 	 * We would prefer to do this in cgroup_init() above, but that
 	 * is called before init_workqueues(): so leave this until after.
 	 */
-	cgroup_destroy_wq = alloc_ordered_workqueue("cgroup_destroy", 0);
+	cgroup_destroy_wq = alloc_workqueue("cgroup_destroy", 0, 1);
 	BUG_ON(!cgroup_destroy_wq);
 
 	/*
