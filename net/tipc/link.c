@@ -2177,29 +2177,29 @@ exit:
 static int tipc_link_tunnel_rcv(struct tipc_node *n_ptr,
 				struct sk_buff **buf)
 {
-	struct sk_buff *tunnel_buf = *buf;
-	struct tipc_link *dest_link;
-	struct tipc_msg *tunnel_msg = buf_msg(tunnel_buf);
-	u32 bearer_id = msg_bearer_id(tunnel_msg);
+	struct sk_buff *t_buf = *buf;
+	struct tipc_link *l_ptr;
+	struct tipc_msg *t_msg = buf_msg(t_buf);
+	u32 bearer_id = msg_bearer_id(t_msg);
 
 	*buf = NULL;
 
 	if (bearer_id >= MAX_BEARERS)
 		goto exit;
 
-	dest_link = n_ptr->links[bearer_id];
-	if (!dest_link)
+	l_ptr = n_ptr->links[bearer_id];
+	if (!l_ptr)
 		goto exit;
 
-	if (msg_type(tunnel_msg) == DUPLICATE_MSG)
-		tipc_link_dup_rcv(dest_link, tunnel_buf);
-	else if (msg_type(tunnel_msg) == ORIGINAL_MSG)
-		*buf = tipc_link_failover_rcv(dest_link, tunnel_buf);
+	if (msg_type(t_msg) == DUPLICATE_MSG)
+		tipc_link_dup_rcv(l_ptr, t_buf);
+	else if (msg_type(t_msg) == ORIGINAL_MSG)
+		*buf = tipc_link_failover_rcv(l_ptr, t_buf);
 	else
 		pr_warn("%sunknown tunnel pkt received\n", link_co_err);
 
 exit:
-	kfree_skb(tunnel_buf);
+	kfree_skb(t_buf);
 	return *buf != NULL;
 }
 
