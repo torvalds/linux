@@ -461,7 +461,7 @@ config GPIO_MC9S08DZ60
 	  Select this to enable the MC9S08DZ60 GPIO driver
 
 config GPIO_PCA953X
-	tristate "PCA953x, PCA955x, PCA957x, TCA64xx, and MAX7310 I/O ports"
+	tristate "PCA95[357]x, PCA9698, TCA64xx, and MAX7310 I/O ports"
 	depends on I2C
 	help
 	  Say yes here to provide access to several register-oriented
@@ -478,7 +478,7 @@ config GPIO_PCA953X
 
 	  24 bits:	tca6424
 
-	  40 bits:	pca9505
+	  40 bits:	pca9505, pca9698
 
 config GPIO_PCA953X_IRQ
 	bool "Interrupt controller support for PCA953x"
