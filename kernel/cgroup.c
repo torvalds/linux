@@ -2171,9 +2171,7 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 	kn = __kernfs_create_file(cgrp->kn, cgroup_file_name(cgrp, cft, name),
 				  cgroup_file_mode(cft), 0, cft->kf_ops, cft,
 				  NULL, false, key);
-	if (IS_ERR(kn))
-		return PTR_ERR(kn);
-	return 0;
+	return PTR_ERR_OR_ZERO(kn);
 }
 
 /**
