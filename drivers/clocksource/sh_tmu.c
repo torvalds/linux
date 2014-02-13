@@ -568,7 +568,8 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	tmu->model = id->driver_data;
 
 	/* Get hold of clock. */
-	tmu->clk = clk_get(&tmu->pdev->dev, "tmu_fck");
+	tmu->clk = clk_get(&tmu->pdev->dev,
+			   tmu->model == SH_TMU_LEGACY ? "tmu_fck" : "fck");
 	if (IS_ERR(tmu->clk)) {
 		dev_err(&tmu->pdev->dev, "cannot get clock\n");
 		return PTR_ERR(tmu->clk);
