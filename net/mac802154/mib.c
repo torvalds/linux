@@ -62,8 +62,6 @@ static void hw_addr_notify(struct work_struct *work)
 		pr_debug("failed changed mask %lx\n", nw->changed);
 
 	kfree(nw);
-
-	return;
 }
 
 static void set_hw_addr_filt(struct net_device *dev, unsigned long changed)
@@ -79,8 +77,6 @@ static void set_hw_addr_filt(struct net_device *dev, unsigned long changed)
 	work->dev = dev;
 	work->changed = changed;
 	queue_work(priv->hw->dev_workqueue, &work->work);
-
-	return;
 }
 
 void mac802154_dev_set_short_addr(struct net_device *dev, u16 val)

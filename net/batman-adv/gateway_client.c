@@ -389,8 +389,6 @@ out:
 		batadv_neigh_ifinfo_free_ref(router_gw_tq);
 	if (router_orig_tq)
 		batadv_neigh_ifinfo_free_ref(router_orig_tq);
-
-	return;
 }
 
 /**

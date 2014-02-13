@@ -2071,7 +2071,6 @@ rearm_timer:
 	if (likely(!err))
 		NET_INC_STATS_BH(sock_net(sk),
 				 LINUX_MIB_TCPLOSSPROBES);
-	return;
 }
 
 /* Push out any pending frames which were held back due to
