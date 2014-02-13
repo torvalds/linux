@@ -2496,8 +2496,12 @@ EXPORT_SYMBOL_GPL(of_clk_get_parent_count);
 const char *of_clk_get_parent_name(struct device_node *np, int index)
 {
 	struct of_phandle_args clkspec;
+	struct property *prop;
 	const char *clk_name;
+	const __be32 *vp;
+	u32 pv;
 	int rc;
+	int count;
 
 	if (index < 0)
 		return NULL;
@@ -2507,8 +2511,22 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 	if (rc)
 		return NULL;
 
+	index = clkspec.args_count ? clkspec.args[0] : 0;
+	count = 0;
+
+	/* if there is an indices property, use it to transfer the index
+	 * specified into an array offset for the clock-output-names property.
+	 */
+	of_property_for_each_u32(clkspec.np, "clock-indices", prop, vp, pv) {
+		if (index == pv) {
+			index = count;
+			break;
+		}
+		count++;
+	}
+
 	if (of_property_read_string_index(clkspec.np, "clock-output-names",
-					  clkspec.args_count ? clkspec.args[0] : 0,
+					  index,
 					  &clk_name) < 0)
 		clk_name = clkspec.np->name;
 
