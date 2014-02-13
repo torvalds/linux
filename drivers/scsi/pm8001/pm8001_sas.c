@@ -865,13 +865,11 @@ ex_err:
 static void pm8001_dev_gone_notify(struct domain_device *dev)
 {
 	unsigned long flags = 0;
-	u32 tag;
 	struct pm8001_hba_info *pm8001_ha;
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
-	pm8001_tag_alloc(pm8001_ha, &tag);
 	if (pm8001_dev) {
 		u32 device_id = pm8001_dev->device_id;
 
