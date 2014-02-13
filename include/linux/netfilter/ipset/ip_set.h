@@ -219,6 +219,8 @@ struct ip_set {
 	u8 revision;
 	/* Extensions */
 	u8 extensions;
+	/* Create flags */
+	u8 flags;
 	/* Default timeout value, if enabled */
 	u32 timeout;
 	/* Element data size */

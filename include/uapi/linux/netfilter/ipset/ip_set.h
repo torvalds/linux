@@ -188,6 +188,12 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_CADT_MAX	= 15,
 };
 
+/* The flag bits which correspond to the non-extension create flags */
+enum ipset_create_flags {
+	IPSET_CREATE_FLAG_NONE = 0,
+	IPSET_CREATE_FLAG_MAX = 7,
+};
+
 /* Commands with settype-specific attributes */
 enum ipset_adt {
 	IPSET_ADD,
