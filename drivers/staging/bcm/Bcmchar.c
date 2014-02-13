@@ -482,6 +482,54 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp, struct bcm_mini_ad
 	return Status;
 }
 
+static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp, struct bcm_mini_adapter *Adapter)
+{
+	struct bcm_user_thread_req threadReq = {0};
+	struct bcm_ioctl_buffer IoBuffer;
+
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+			"User made LED thread InActive");
+
+	if ((Adapter->IdleMode == TRUE) ||
+		(Adapter->bShutStatus == TRUE) ||
+		(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+				DBG_LVL_ALL,
+				"GPIO Can't be set/clear in Low power Mode");
+		return -EACCES;
+	}
+
+	if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
+		return -EFAULT;
+
+	if (IoBuffer.InputLength > sizeof(threadReq))
+		return -EINVAL;
+
+	if (copy_from_user(&threadReq, IoBuffer.InputBuffer, IoBuffer.InputLength))
+		return -EFAULT;
+
+	/* if LED thread is running(Actively or Inactively) set it state to make inactive */
+	if (Adapter->LEDInfo.led_thread_running) {
+		if (threadReq.ThreadState == LED_THREAD_ACTIVATION_REQ) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+					OSAL_DBG, DBG_LVL_ALL,
+					"Activating thread req");
+			Adapter->DriverState = LED_THREAD_ACTIVE;
+		} else {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+					OSAL_DBG, DBG_LVL_ALL,
+					"DeActivating Thread req.....");
+			Adapter->DriverState = LED_THREAD_INACTIVE;
+		}
+
+		/* signal thread. */
+		wake_up(&Adapter->LEDInfo.notify_led_event);
+	}
+	return STATUS_SUCCESS;
+}
+
+
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
@@ -555,50 +603,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		Status = bcm_char_ioctl_gpio_set_request(argp, Adapter);
 		return Status;
 
-	case BCM_LED_THREAD_STATE_CHANGE_REQ: {
-		struct bcm_user_thread_req threadReq = {0};
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-				"User made LED thread InActive");
-
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE)) {
-
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
-					DBG_LVL_ALL,
-					"GPIO Can't be set/clear in Low power Mode");
-			Status = -EACCES;
-			break;
-		}
-
-		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
-			return -EFAULT;
-
-		if (IoBuffer.InputLength > sizeof(threadReq))
-			return -EINVAL;
-
-		if (copy_from_user(&threadReq, IoBuffer.InputBuffer, IoBuffer.InputLength))
-			return -EFAULT;
-
-		/* if LED thread is running(Actively or Inactively) set it state to make inactive */
-		if (Adapter->LEDInfo.led_thread_running) {
-			if (threadReq.ThreadState == LED_THREAD_ACTIVATION_REQ) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
-						OSAL_DBG, DBG_LVL_ALL,
-						"Activating thread req");
-				Adapter->DriverState = LED_THREAD_ACTIVE;
-			} else {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
-						OSAL_DBG, DBG_LVL_ALL,
-						"DeActivating Thread req.....");
-				Adapter->DriverState = LED_THREAD_INACTIVE;
-			}
-
-			/* signal thread. */
-			wake_up(&Adapter->LEDInfo.notify_led_event);
-		}
-	}
-	break;
+	case BCM_LED_THREAD_STATE_CHANGE_REQ:
+		Status = bcm_char_ioctl_led_thread_state_change_req(argp, Adapter);
+		return Status;
 
 	case IOCTL_BCM_GPIO_STATUS_REQUEST: {
 		ULONG uiBit = 0;
