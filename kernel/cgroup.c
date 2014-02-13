@@ -1728,20 +1728,20 @@ static void cgroup_task_migrate(struct cgroup *old_cgrp,
 /**
  * cgroup_attach_task - attach a task or a whole threadgroup to a cgroup
  * @cgrp: the cgroup to attach to
- * @tsk: the task or the leader of the threadgroup to be attached
+ * @leader: the task or the leader of the threadgroup to be attached
  * @threadgroup: attach the whole threadgroup?
  *
  * Call holding cgroup_mutex and the group_rwsem of the leader. Will take
  * task_lock of @tsk or each thread in the threadgroup individually in turn.
  */
-static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
+static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *leader,
 			      bool threadgroup)
 {
-	int retval, i, group_size;
+	int ret, i, group_size;
 	struct cgroupfs_root *root = cgrp->root;
 	struct cgroup_subsys_state *css, *failed_css = NULL;
 	/* threadgroup list cursor and array */
-	struct task_struct *leader = tsk;
+	struct task_struct *task;
 	struct task_and_cgroup *tc;
 	struct flex_array *group;
 	struct cgroup_taskset tset = { };
@@ -1754,7 +1754,7 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	 * threads exit, this will just be an over-estimate.
 	 */
 	if (threadgroup)
-		group_size = get_nr_threads(tsk);
+		group_size = get_nr_threads(leader);
 	else
 		group_size = 1;
 	/* flex_array supports very large thread-groups better than kmalloc. */
@@ -1762,8 +1762,8 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	if (!group)
 		return -ENOMEM;
 	/* pre-allocate to guarantee space while iterating in rcu read-side. */
-	retval = flex_array_prealloc(group, 0, group_size, GFP_KERNEL);
-	if (retval)
+	ret = flex_array_prealloc(group, 0, group_size, GFP_KERNEL);
+	if (ret)
 		goto out_free_group_list;
 
 	i = 0;
@@ -1774,17 +1774,18 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	 */
 	down_read(&css_set_rwsem);
 	rcu_read_lock();
+	task = leader;
 	do {
 		struct task_and_cgroup ent;
 
-		/* @tsk either already exited or can't exit until the end */
-		if (tsk->flags & PF_EXITING)
+		/* @task either already exited or can't exit until the end */
+		if (task->flags & PF_EXITING)
 			goto next;
 
 		/* as per above, nr_threads may decrease, but not increase. */
 		BUG_ON(i >= group_size);
-		ent.task = tsk;
-		ent.cgrp = task_cgroup_from_root(tsk, root);
+		ent.task = task;
+		ent.cgrp = task_cgroup_from_root(task, root);
 		/* nothing to do if this task is already in the cgroup */
 		if (ent.cgrp == cgrp)
 			goto next;
@@ -1792,13 +1793,13 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 		 * saying GFP_ATOMIC has no effect here because we did prealloc
 		 * earlier, but it's good form to communicate our expectations.
 		 */
-		retval = flex_array_put(group, i, &ent, GFP_ATOMIC);
-		BUG_ON(retval != 0);
+		ret = flex_array_put(group, i, &ent, GFP_ATOMIC);
+		BUG_ON(ret != 0);
 		i++;
 	next:
 		if (!threadgroup)
 			break;
-	} while_each_thread(leader, tsk);
+	} while_each_thread(leader, task);
 	rcu_read_unlock();
 	up_read(&css_set_rwsem);
 	/* remember the number of threads in the array for later. */
@@ -1807,7 +1808,7 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	tset.tc_array_len = group_size;
 
 	/* methods shouldn't be called if no task is actually migrating */
-	retval = 0;
+	ret = 0;
 	if (!group_size)
 		goto out_free_group_list;
 
@@ -1816,8 +1817,8 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	 */
 	for_each_css(css, i, cgrp) {
 		if (css->ss->can_attach) {
-			retval = css->ss->can_attach(css, &tset);
-			if (retval) {
+			ret = css->ss->can_attach(css, &tset);
+			if (ret) {
 				failed_css = css;
 				goto out_cancel_attach;
 			}
@@ -1835,7 +1836,7 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 		old_cset = task_css_set(tc->task);
 		tc->cset = find_css_set(old_cset, cgrp);
 		if (!tc->cset) {
-			retval = -ENOMEM;
+			ret = -ENOMEM;
 			goto out_put_css_set_refs;
 		}
 	}
@@ -1863,9 +1864,9 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	/*
 	 * step 5: success! and cleanup
 	 */
-	retval = 0;
+	ret = 0;
 out_put_css_set_refs:
-	if (retval) {
+	if (ret) {
 		for (i = 0; i < group_size; i++) {
 			tc = flex_array_get(group, i);
 			if (!tc->cset)
@@ -1874,7 +1875,7 @@ out_put_css_set_refs:
 		}
 	}
 out_cancel_attach:
-	if (retval) {
+	if (ret) {
 		for_each_css(css, i, cgrp) {
 			if (css == failed_css)
 				break;
@@ -1884,7 +1885,7 @@ out_cancel_attach:
 	}
 out_free_group_list:
 	flex_array_free(group);
-	return retval;
+	return ret;
 }
 
 /*
