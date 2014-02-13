@@ -28,10 +28,9 @@
  * between two or more different settings, e.g. assign mpp pin 13 to
  * uart1 or sata.
  *
- * If optional mpp_get/_set functions are set these are used to get/set
- * a specific mode. Otherwise it is assumed that the mpp control is based
- * on 4-bit groups in subsequent registers. The optional mpp_gpio_req/_dir
- * functions can be used to allow pin settings with varying gpio pins.
+ * The mpp_get/_set functions are mandatory and are used to get/set a
+ * specific mode. The optional mpp_gpio_req/_dir functions can be used
+ * to allow pin settings with varying gpio pins.
  */
 struct mvebu_mpp_ctrl {
 	const char *name;
@@ -113,18 +112,6 @@ struct mvebu_pinctrl_soc_info {
 	struct pinctrl_gpio_range *gpioranges;
 	int ngpioranges;
 };
-
-#define MPP_REG_CTRL(_idl, _idh)				\
-	{							\
-		.name = NULL,					\
-		.pid = _idl,					\
-		.npins = _idh - _idl + 1,			\
-		.pins = (unsigned[_idh - _idl + 1]) { },	\
-		.mpp_get = NULL,				\
-		.mpp_set = NULL,				\
-		.mpp_gpio_req = NULL,				\
-		.mpp_gpio_dir = NULL,				\
-	}
 
 #define MPP_FUNC_CTRL(_idl, _idh, _name, _func)			\
 	{							\
