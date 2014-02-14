@@ -1134,7 +1134,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 		*plane_wm = display->max_wm;
 
 	/* Use the large buffer method to calculate cursor watermark */
-	line_time_us = ((htotal * 1000) / clock);
+	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
 	entries = line_count * 64 * pixel_size;
 	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
@@ -1210,7 +1210,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
-	line_time_us = (htotal * 1000) / clock;
+	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
 	line_size = hdisplay * pixel_size;
 
@@ -1443,7 +1443,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		unsigned long line_time_us;
 		int entries;
 
-		line_time_us = ((htotal * 1000) / clock);
+		line_time_us = max(htotal * 1000 / clock, 1);
 
 		/* Use ns/us then divide to preserve precision */
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
@@ -1569,7 +1569,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		unsigned long line_time_us;
 		int entries;
 
-		line_time_us = (htotal * 1000) / clock;
+		line_time_us = max(htotal * 1000 / clock, 1);
 
 		/* Use ns/us then divide to preserve precision */
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
