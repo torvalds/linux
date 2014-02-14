@@ -401,7 +401,7 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 		if (!nproot)
 			return -ENODEV;
 
-		nproot = of_find_node_by_name(nproot, "regulators");
+		nproot = of_get_child_by_name(nproot, "regulators");
 		if (!nproot)
 			return -ENODEV;
 
