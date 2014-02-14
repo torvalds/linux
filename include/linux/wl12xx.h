@@ -49,7 +49,7 @@ enum {
 };
 
 struct wl1251_platform_data {
-	void (*set_power)(bool enable);
+	int power_gpio;
 	/* SDIO only: IRQ number if WLAN_IRQ line is used, 0 for SDIO IRQs */
 	int irq;
 	bool use_eeprom;
