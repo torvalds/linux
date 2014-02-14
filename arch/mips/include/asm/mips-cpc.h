@@ -152,4 +152,31 @@ BUILD_CPC_Cx_RW(other,		0x10)
 #define CPC_Cx_OTHER_CORENUM_SHF		16
 #define CPC_Cx_OTHER_CORENUM_MSK		(_ULCAST_(0xff) << 16)
 
+#ifdef CONFIG_MIPS_CPC
+
+/**
+ * mips_cpc_lock_other - lock access to another core
+ * core: the other core to be accessed
+ *
+ * Call before operating upon a core via the 'other' register region in
+ * order to prevent the region being moved during access. Must be followed
+ * by a call to mips_cpc_unlock_other.
+ */
+extern void mips_cpc_lock_other(unsigned int core);
+
+/**
+ * mips_cpc_unlock_other - unlock access to another core
+ *
+ * Call after operating upon another core via the 'other' register region.
+ * Must be called after mips_cpc_lock_other.
+ */
+extern void mips_cpc_unlock_other(void);
+
+#else /* !CONFIG_MIPS_CPC */
+
+static inline void mips_cpc_lock_other(unsigned int core) { }
+static inline void mips_cpc_unlock_other(void) { }
+
+#endif /* !CONFIG_MIPS_CPC */
+
 #endif /* __MIPS_ASM_MIPS_CPC_H__ */
