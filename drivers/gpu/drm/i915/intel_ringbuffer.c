@@ -1920,7 +1920,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			return -ENOMEM;
 		}
 
-		ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE);
+		ret = i915_gem_obj_ggtt_pin(obj, 0, 0);
 		if (ret != 0) {
 			drm_gem_object_unreference(&obj->base);
 			DRM_ERROR("Failed to ping batch bo\n");
