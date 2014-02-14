@@ -305,7 +305,10 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	ethtool_cmd_speed_set(cmd, phydev->speed);
 	cmd->duplex = phydev->duplex;
-	cmd->port = PORT_MII;
+	if (phydev->interface == PHY_INTERFACE_MODE_MOCA)
+		cmd->port = PORT_BNC;
+	else
+		cmd->port = PORT_MII;
 	cmd->phy_address = phydev->addr;
 	cmd->transceiver = phy_is_internal(phydev) ?
 		XCVR_INTERNAL : XCVR_EXTERNAL;
