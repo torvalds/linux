@@ -1374,10 +1374,7 @@ static struct nfc_digital_ops port100_digital_ops = {
 };
 
 static const struct usb_device_id port100_table[] = {
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= SONY_VENDOR_ID,
-	  .idProduct		= RCS380_PRODUCT_ID,
-	},
+	{ USB_DEVICE(SONY_VENDOR_ID, RCS380_PRODUCT_ID), },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, port100_table);
