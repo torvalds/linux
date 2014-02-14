@@ -13,10 +13,17 @@
 #define PHY_ID_BCM5461			0x002060c0
 #define PHY_ID_BCM57780			0x03625d90
 
+#define PHY_ID_BCM7366			0x600d8490
+#define PHY_ID_BCM7439			0x600d8480
+#define PHY_ID_BCM7445			0x600d8510
+#define PHY_ID_BCM7XXX_28		0x600d8400
+
 #define PHY_BCM_OUI_MASK		0xfffffc00
 #define PHY_BCM_OUI_1			0x00206000
 #define PHY_BCM_OUI_2			0x0143bc00
 #define PHY_BCM_OUI_3			0x03625c00
+#define PHY_BCM_OUI_4			0x600d0000
+#define PHY_BCM_OUI_5			0x03625e00
 
 
 #define PHY_BCM_FLAGS_MODE_COPPER	0x00000001
@@ -31,6 +38,8 @@
 #define PHY_BRCM_EXT_IBND_TX_ENABLE	0x00002000
 #define PHY_BRCM_CLEAR_RGMII_MODE	0x00004000
 #define PHY_BRCM_DIS_TXCRXC_NOENRGY	0x00008000
+/* Broadcom BCM7xxx specific workarounds */
+#define PHY_BRCM_100MBPS_WAR		0x00010000
 #define PHY_BCM_FLAGS_VALID		0x80000000
 
 /* Broadcom BCM54XX register definitions, common to most Broadcom PHYs */
