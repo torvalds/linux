@@ -1354,6 +1354,8 @@ static void hdmi_conf_init(struct hdmi_context *hdata)
 	/* choose HDMI mode */
 	hdmi_reg_writemask(hdata, HDMI_MODE_SEL,
 		HDMI_MODE_HDMI_EN, HDMI_MODE_MASK);
+	/* Apply Video preable and Guard band in HDMI mode only */
+	hdmi_reg_writeb(hdata, HDMI_CON_2, 0);
 	/* disable bluescreen */
 	hdmi_reg_writemask(hdata, HDMI_CON_0, 0, HDMI_BLUE_SCR_EN);
 
