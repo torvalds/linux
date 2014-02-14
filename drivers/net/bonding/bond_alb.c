@@ -329,7 +329,7 @@ static void rlb_update_entry_from_arp(struct bonding *bond, struct arp_pkt *arp)
 
 	_lock_rx_hashtbl_bh(bond);
 
-	hash_index = _simple_hash((u8*)&(arp->ip_src), sizeof(arp->ip_src));
+	hash_index = _simple_hash((u8 *)&(arp->ip_src), sizeof(arp->ip_src));
 	client_info = &(bond_info->rx_hashtbl[hash_index]);
 
 	if ((client_info->assigned) &&
@@ -923,7 +923,7 @@ static void rlb_src_link(struct bonding *bond, u32 ip_src_hash, u32 ip_dst_hash)
 static void rlb_purge_src_ip(struct bonding *bond, struct arp_pkt *arp)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
-	u32 ip_src_hash = _simple_hash((u8*)&(arp->ip_src), sizeof(arp->ip_src));
+	u32 ip_src_hash = _simple_hash((u8 *)&(arp->ip_src), sizeof(arp->ip_src));
 	u32 index;
 
 	_lock_rx_hashtbl_bh(bond);
@@ -1436,7 +1436,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			break;
 		}
 
-		hash_start = (char*)eth_data->h_dest;
+		hash_start = (char *)eth_data->h_dest;
 		hash_size = ETH_ALEN;
 		break;
 	case ETH_P_ARP:
