@@ -470,7 +470,7 @@ static unsigned long pa_memcpy(void *dstp, const void *srcp, unsigned long len)
 		return 0;
 
 	/* if a load or store fault occured we can get the faulty addr */
-	d = &__get_cpu_var(exception_data);
+	d = this_cpu_ptr(&exception_data);
 	fault_addr = d->fault_addr;
 
 	/* error in load or store? */
