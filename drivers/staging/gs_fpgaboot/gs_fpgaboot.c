@@ -302,10 +302,7 @@ static int init_driver(void)
 {
 	firmware_pdev = platform_device_register_simple("fpgaboot", -1,
 							 NULL, 0);
-	if (IS_ERR(firmware_pdev))
-		return PTR_ERR(firmware_pdev);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(firmware_pdev);
 }
 
 static void finish_driver(void)
