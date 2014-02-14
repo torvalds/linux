@@ -475,37 +475,11 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+	u32 rx_conf;
 
 	*new_flags &= RTL_SUPPORTED_FILTERS;
 	if (!changed_flags)
 		return;
-
-	/*TODO: we disable broadcase now, so enable here */
-	if (changed_flags & FIF_ALLMULTI) {
-		if (*new_flags & FIF_ALLMULTI) {
-			mac->rx_conf |= rtlpriv->cfg->maps[MAC_RCR_AM] |
-			    rtlpriv->cfg->maps[MAC_RCR_AB];
-			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
-				 "Enable receive multicast frame\n");
-		} else {
-			mac->rx_conf &= ~(rtlpriv->cfg->maps[MAC_RCR_AM] |
-					  rtlpriv->cfg->maps[MAC_RCR_AB]);
-			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
-				 "Disable receive multicast frame\n");
-		}
-	}
-
-	if (changed_flags & FIF_FCSFAIL) {
-		if (*new_flags & FIF_FCSFAIL) {
-			mac->rx_conf |= rtlpriv->cfg->maps[MAC_RCR_ACRC32];
-			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
-				 "Enable receive FCS error frame\n");
-		} else {
-			mac->rx_conf &= ~rtlpriv->cfg->maps[MAC_RCR_ACRC32];
-			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
-				 "Disable receive FCS error frame\n");
-		}
-	}
 
 	/* if ssid not set to hw don't check bssid
 	 * here just used for linked scanning, & linked
@@ -522,14 +496,46 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 		}
 	}
 
+	/* must be called after set_chk_bssid since that function modifies the
+	 * RCR register too. */
+	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *)(&rx_conf));
+
+	/*TODO: we disable broadcase now, so enable here */
+	if (changed_flags & FIF_ALLMULTI) {
+		if (*new_flags & FIF_ALLMULTI) {
+			rx_conf |= rtlpriv->cfg->maps[MAC_RCR_AM] |
+			    rtlpriv->cfg->maps[MAC_RCR_AB];
+			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
+				 "Enable receive multicast frame\n");
+		} else {
+			rx_conf &= ~(rtlpriv->cfg->maps[MAC_RCR_AM] |
+					  rtlpriv->cfg->maps[MAC_RCR_AB]);
+			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
+				 "Disable receive multicast frame\n");
+		}
+	}
+
+	if (changed_flags & FIF_FCSFAIL) {
+		if (*new_flags & FIF_FCSFAIL) {
+			rx_conf |= rtlpriv->cfg->maps[MAC_RCR_ACRC32];
+			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
+				 "Enable receive FCS error frame\n");
+		} else {
+			rx_conf &= ~rtlpriv->cfg->maps[MAC_RCR_ACRC32];
+			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
+				 "Disable receive FCS error frame\n");
+		}
+	}
+
+
 	if (changed_flags & FIF_CONTROL) {
 		if (*new_flags & FIF_CONTROL) {
-			mac->rx_conf |= rtlpriv->cfg->maps[MAC_RCR_ACF];
+			rx_conf |= rtlpriv->cfg->maps[MAC_RCR_ACF];
 
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Enable receive control frame\n");
 		} else {
-			mac->rx_conf &= ~rtlpriv->cfg->maps[MAC_RCR_ACF];
+			rx_conf &= ~rtlpriv->cfg->maps[MAC_RCR_ACF];
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive control frame\n");
 		}
@@ -537,15 +543,17 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 
 	if (changed_flags & FIF_OTHER_BSS) {
 		if (*new_flags & FIF_OTHER_BSS) {
-			mac->rx_conf |= rtlpriv->cfg->maps[MAC_RCR_AAP];
+			rx_conf |= rtlpriv->cfg->maps[MAC_RCR_AAP];
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Enable receive other BSS's frame\n");
 		} else {
-			mac->rx_conf &= ~rtlpriv->cfg->maps[MAC_RCR_AAP];
+			rx_conf &= ~rtlpriv->cfg->maps[MAC_RCR_AAP];
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive other BSS's frame\n");
 		}
 	}
+
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&rx_conf));
 }
 static int rtl_op_sta_add(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif,
