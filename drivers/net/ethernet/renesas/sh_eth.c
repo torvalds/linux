@@ -2098,8 +2098,8 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 				 skb->len + 2);
 	txdesc->addr = dma_map_single(&ndev->dev, skb->data, skb->len,
 				      DMA_TO_DEVICE);
-	if (skb->len < ETHERSMALL)
-		txdesc->buffer_length = ETHERSMALL;
+	if (skb->len < ETH_ZLEN)
+		txdesc->buffer_length = ETH_ZLEN;
 	else
 		txdesc->buffer_length = skb->len;
 
