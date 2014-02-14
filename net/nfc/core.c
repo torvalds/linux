@@ -546,9 +546,9 @@ error:
 
 struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx)
 {
-	struct nfc_se *se, *n;
+	struct nfc_se *se;
 
-	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
+	list_for_each_entry(se, &dev->secure_elements, list)
 		if (se->idx == se_idx)
 			return se;
 
