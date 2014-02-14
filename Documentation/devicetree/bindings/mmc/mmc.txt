@@ -26,6 +26,11 @@ Optional properties:
   this system, even if the controller claims it is.
 - cap-sd-highspeed: SD high-speed timing is supported
 - cap-mmc-highspeed: MMC high-speed timing is supported
+- sd-uhs-sdr12: SD UHS SDR12 speed is supported
+- sd-uhs-sdr25: SD UHS SDR25 speed is supported
+- sd-uhs-sdr50: SD UHS SDR50 speed is supported
+- sd-uhs-sdr104: SD UHS SDR104 speed is supported
+- sd-uhs-ddr50: SD UHS DDR50 speed is supported
 - cap-power-off-card: powering off the card is safe
 - cap-sdio-irq: enable SDIO IRQ signalling on this interface
 - full-pwr-cycle: full power cycle of the card is supported
