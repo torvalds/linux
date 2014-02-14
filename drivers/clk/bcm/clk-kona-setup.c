@@ -579,7 +579,7 @@ static int peri_clk_setup(struct ccu_data *ccu, struct peri_clk_data *data,
 			struct clk_init_data *init_data)
 {
 	init_data->ops = &kona_peri_clk_ops;
-	init_data->flags = 0;
+	init_data->flags = CLK_IGNORE_UNUSED;
 
 	return clk_sel_setup(data->clocks, &data->sel, init_data);
 }
