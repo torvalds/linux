@@ -117,6 +117,11 @@ struct netem_sched_data {
 		LOST_IN_BURST_PERIOD,
 	} _4_state_model;
 
+	enum {
+		GOOD_STATE = 1,
+		BAD_STATE,
+	} GE_state_model;
+
 	/* Correlated Loss Generation models */
 	struct clgstate {
 		/* state of the Markov chain */
@@ -272,15 +277,15 @@ static bool loss_gilb_ell(struct netem_sched_data *q)
 	struct clgstate *clg = &q->clg;
 
 	switch (clg->state) {
-	case 1:
+	case GOOD_STATE:
 		if (prandom_u32() < clg->a1)
-			clg->state = 2;
+			clg->state = BAD_STATE;
 		if (prandom_u32() < clg->a4)
 			return true;
 		break;
-	case 2:
+	case BAD_STATE:
 		if (prandom_u32() < clg->a2)
-			clg->state = 1;
+			clg->state = GOOD_STATE;
 		if (prandom_u32() > clg->a3)
 			return true;
 	}
