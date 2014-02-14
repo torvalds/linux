@@ -170,7 +170,7 @@ static int max77693_pmic_dt_parse_rdata(struct device *dev,
 	struct max77693_regulator_data *tmp;
 	int i, matched = 0;
 
-	np = of_find_node_by_name(dev->parent->of_node, "regulators");
+	np = of_get_child_by_name(dev->parent->of_node, "regulators");
 	if (!np)
 		return -EINVAL;
 
