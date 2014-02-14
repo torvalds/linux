@@ -1174,7 +1174,7 @@ static void ovs_dp_reset_user_features(struct sk_buff *skb, struct genl_info *in
 	struct datapath *dp;
 
 	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
-	if (!dp)
+	if (IS_ERR(dp))
 		return;
 
 	WARN(dp->user_features, "Dropping previously announced user features\n");
