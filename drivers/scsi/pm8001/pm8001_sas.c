@@ -434,6 +434,7 @@ static int pm8001_task_exec(struct sas_task *task, const int num,
 		ccb->n_elem = n_elem;
 		ccb->ccb_tag = tag;
 		ccb->task = t;
+		ccb->device = pm8001_dev;
 		switch (t->task_proto) {
 		case SAS_PROTOCOL_SMP:
 			rc = pm8001_task_prep_smp(pm8001_ha, ccb);
