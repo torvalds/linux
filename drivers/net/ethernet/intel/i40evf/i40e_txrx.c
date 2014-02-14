@@ -170,6 +170,20 @@ static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
 }
 
 /**
+ * i40e_get_head - Retrieve head from head writeback
+ * @tx_ring:  tx ring to fetch head of
+ *
+ * Returns value of Tx ring head based on value stored
+ * in head write-back location
+ **/
+static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
+{
+	void *head = (struct i40e_tx_desc *)tx_ring->desc + tx_ring->count;
+
+	return le32_to_cpu(*(volatile __le32 *)head);
+}
+
+/**
  * i40e_clean_tx_irq - Reclaim resources after transmit completes
  * @tx_ring:  tx ring to clean
  * @budget:   how many cleans we're allowed
@@ -180,6 +194,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 {
 	u16 i = tx_ring->next_to_clean;
 	struct i40e_tx_buffer *tx_buf;
+	struct i40e_tx_desc *tx_head;
 	struct i40e_tx_desc *tx_desc;
 	unsigned int total_packets = 0;
 	unsigned int total_bytes = 0;
@@ -187,6 +202,8 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 	tx_buf = &tx_ring->tx_bi[i];
 	tx_desc = I40E_TX_DESC(tx_ring, i);
 	i -= tx_ring->count;
+
+	tx_head = I40E_TX_DESC(tx_ring, i40e_get_head(tx_ring));
 
 	do {
 		struct i40e_tx_desc *eop_desc = tx_buf->next_to_watch;
@@ -198,9 +215,8 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		/* prevent any other reads prior to eop_desc */
 		read_barrier_depends();
 
-		/* if the descriptor isn't done, no work yet to do */
-		if (!(eop_desc->cmd_type_offset_bsz &
-		      cpu_to_le64(I40E_TX_DESC_DTYPE_DESC_DONE)))
+		/* we have caught up to head, no work left to do */
+		if (tx_head == tx_desc)
 			break;
 
 		/* clear next_to_watch to prevent false hangs */
@@ -432,6 +448,10 @@ int i40evf_setup_tx_descriptors(struct i40e_ring *tx_ring)
 
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(struct i40e_tx_desc);
+	/* add u32 for head writeback, align after this takes care of
+	 * guaranteeing this is at least one cache line in size
+	 */
+	tx_ring->size += sizeof(u32);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 	tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
 					   &tx_ring->dma, GFP_KERNEL);
@@ -1377,9 +1397,23 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		tx_bi = &tx_ring->tx_bi[i];
 	}
 
-	tx_desc->cmd_type_offset_bsz =
-		build_ctob(td_cmd, td_offset, size, td_tag) |
-		cpu_to_le64((u64)I40E_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT);
+	/* Place RS bit on last descriptor of any packet that spans across the
+	 * 4th descriptor (WB_STRIDE aka 0x3) in a 64B cacheline.
+	 */
+#define WB_STRIDE 0x3
+	if (((i & WB_STRIDE) != WB_STRIDE) &&
+	    (first <= &tx_ring->tx_bi[i]) &&
+	    (first >= &tx_ring->tx_bi[i & ~WB_STRIDE])) {
+		tx_desc->cmd_type_offset_bsz =
+			build_ctob(td_cmd, td_offset, size, td_tag) |
+			cpu_to_le64((u64)I40E_TX_DESC_CMD_EOP <<
+					 I40E_TXD_QW1_CMD_SHIFT);
+	} else {
+		tx_desc->cmd_type_offset_bsz =
+			build_ctob(td_cmd, td_offset, size, td_tag) |
+			cpu_to_le64((u64)I40E_TXD_CMD <<
+					 I40E_TXD_QW1_CMD_SHIFT);
+	}
 
 	netdev_tx_sent_queue(netdev_get_tx_queue(tx_ring->netdev,
 						 tx_ring->queue_index),

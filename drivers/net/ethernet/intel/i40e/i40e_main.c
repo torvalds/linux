@@ -2181,6 +2181,11 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	tx_ctx.fd_ena = !!(vsi->back->flags & (I40E_FLAG_FD_SB_ENABLED |
 					       I40E_FLAG_FD_ATR_ENABLED));
 	tx_ctx.timesync_ena = !!(vsi->back->flags & I40E_FLAG_PTP);
+	/* FDIR VSI tx ring can still use RS bit and writebacks */
+	if (vsi->type != I40E_VSI_FDIR)
+		tx_ctx.head_wb_ena = 1;
+	tx_ctx.head_wb_addr = ring->dma +
+			      (ring->count * sizeof(struct i40e_tx_desc));
 
 	/* As part of VSI creation/update, FW allocates certain
 	 * Tx arbitration queue sets for each TC enabled for

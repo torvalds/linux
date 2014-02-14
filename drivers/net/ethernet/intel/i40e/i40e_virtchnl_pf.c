@@ -230,6 +230,9 @@ static int i40e_config_vsi_tx_queue(struct i40e_vf *vf, u16 vsi_idx,
 	tx_ctx.qlen = info->ring_len;
 	tx_ctx.rdylist = le16_to_cpu(pf->vsi[vsi_idx]->info.qs_handle[0]);
 	tx_ctx.rdylist_act = 0;
+	tx_ctx.head_wb_ena = 1;
+	tx_ctx.head_wb_addr = info->dma_ring_addr +
+			      (info->ring_len * sizeof(struct i40e_tx_desc));
 
 	/* clear the context in the HMC */
 	ret = i40e_clear_lan_tx_queue_context(hw, pf_queue_id);
