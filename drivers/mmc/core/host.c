@@ -439,6 +439,10 @@ int mmc_of_parse(struct mmc_host *host)
 		host->pm_caps |= MMC_PM_KEEP_POWER;
 	if (of_find_property(np, "enable-sdio-wakeup", &len))
 		host->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+	if (of_find_property(np, "mmc-ddr-1_8v", &len))
+		host->caps |= MMC_CAP_1_8V_DDR;
+	if (of_find_property(np, "mmc-ddr-1_2v", &len))
+		host->caps |= MMC_CAP_1_2V_DDR;
 
 	return 0;
 
