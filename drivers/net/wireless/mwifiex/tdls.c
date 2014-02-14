@@ -180,7 +180,7 @@ static int mwifiex_tdls_add_vht_capab(struct mwifiex_private *priv,
 	memset(&vht_cap, 0, sizeof(struct ieee80211_vht_cap));
 
 	mwifiex_fill_vht_cap_tlv(priv, &vht_cap, priv->curr_bss_params.band);
-	memcpy(pos, &vht_cap, sizeof(struct ieee80211_ht_cap));
+	memcpy(pos, &vht_cap, sizeof(vht_cap));
 
 	return 0;
 }
