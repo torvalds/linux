@@ -62,6 +62,10 @@ struct ichx_desc {
 	/* Max GPIO pins the chipset can have */
 	uint ngpio;
 
+	/* chipset registers */
+	const u8 (*regs)[3];
+	const u8 *reglen;
+
 	/* GPO_BLINK is available on this chipset */
 	bool have_blink;
 
@@ -102,13 +106,16 @@ static int ichx_write_bit(int reg, unsigned nr, int val, int verify)
 
 	spin_lock_irqsave(&ichx_priv.lock, flags);
 
-	data = ICHX_READ(ichx_regs[reg][reg_nr], ichx_priv.gpio_base);
+	data = ICHX_READ(ichx_priv.desc->regs[reg][reg_nr],
+			 ichx_priv.gpio_base);
 	if (val)
 		data |= 1 << bit;
 	else
 		data &= ~(1 << bit);
-	ICHX_WRITE(data, ichx_regs[reg][reg_nr], ichx_priv.gpio_base);
-	tmp = ICHX_READ(ichx_regs[reg][reg_nr], ichx_priv.gpio_base);
+	ICHX_WRITE(data, ichx_priv.desc->regs[reg][reg_nr],
+			 ichx_priv.gpio_base);
+	tmp = ICHX_READ(ichx_priv.desc->regs[reg][reg_nr],
+			ichx_priv.gpio_base);
 	if (verify && data != tmp)
 		ret = -EPERM;
 
@@ -126,7 +133,8 @@ static int ichx_read_bit(int reg, unsigned nr)
 
 	spin_lock_irqsave(&ichx_priv.lock, flags);
 
-	data = ICHX_READ(ichx_regs[reg][reg_nr], ichx_priv.gpio_base);
+	data = ICHX_READ(ichx_priv.desc->regs[reg][reg_nr],
+			 ichx_priv.gpio_base);
 
 	spin_unlock_irqrestore(&ichx_priv.lock, flags);
 
@@ -295,27 +303,37 @@ static struct ichx_desc i3100_desc = {
 static struct ichx_desc ich7_desc = {
 	.ngpio = 50,
 	.have_blink = true,
+	.regs = ichx_regs,
+	.reglen = ichx_reglen,
 };
 
 /* ICH9-based */
 static struct ichx_desc ich9_desc = {
 	.ngpio = 61,
 	.have_blink = true,
+	.regs = ichx_regs,
+	.reglen = ichx_reglen,
 };
 
 /* ICH10-based - Consumer/corporate versions have different amount of GPIO */
 static struct ichx_desc ich10_cons_desc = {
 	.ngpio = 61,
 	.have_blink = true,
+	.regs = ichx_regs,
+	.reglen = ichx_reglen,
 };
 static struct ichx_desc ich10_corp_desc = {
 	.ngpio = 72,
 	.have_blink = true,
+	.regs = ichx_regs,
+	.reglen = ichx_reglen,
 };
 
 /* Intel 5 series, 6 series, 3400 series, and C200 series */
 static struct ichx_desc intel5_desc = {
 	.ngpio = 76,
+	.regs = ichx_regs,
+	.reglen = ichx_reglen,
 };
 
 static int ichx_gpio_request_regions(struct resource *res_base,
@@ -326,11 +344,12 @@ static int ichx_gpio_request_regions(struct resource *res_base,
 	if (!res_base || !res_base->start || !res_base->end)
 		return -ENODEV;
 
-	for (i = 0; i < ARRAY_SIZE(ichx_regs[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(ichx_priv.desc->regs[0]); i++) {
 		if (!(use_gpio & (1 << i)))
 			continue;
-		if (!request_region(res_base->start + ichx_regs[0][i],
-				    ichx_reglen[i], name))
+		if (!request_region(
+				res_base->start + ichx_priv.desc->regs[0][i],
+				ichx_priv.desc->reglen[i], name))
 			goto request_err;
 	}
 	return 0;
@@ -340,8 +359,8 @@ request_err:
 	for (i--; i >= 0; i--) {
 		if (!(use_gpio & (1 << i)))
 			continue;
-		release_region(res_base->start + ichx_regs[0][i],
-			       ichx_reglen[i]);
+		release_region(res_base->start + ichx_priv.desc->regs[0][i],
+			       ichx_priv.desc->reglen[i]);
 	}
 	return -EBUSY;
 }
@@ -350,11 +369,11 @@ static void ichx_gpio_release_regions(struct resource *res_base, u8 use_gpio)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ichx_regs[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(ichx_priv.desc->regs[0]); i++) {
 		if (!(use_gpio & (1 << i)))
 			continue;
-		release_region(res_base->start + ichx_regs[0][i],
-			       ichx_reglen[i]);
+		release_region(res_base->start + ichx_priv.desc->regs[0][i],
+			       ichx_priv.desc->reglen[i]);
 	}
 }
 
