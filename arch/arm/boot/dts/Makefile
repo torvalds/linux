@@ -216,6 +216,7 @@ dtb-$(CONFIG_ARCH_OMAP2PLUS) += omap2420-h4.dtb \
 	omap3-gta04.dtb \
 	omap3-igep0020.dtb \
 	omap3-igep0030.dtb \
+	omap3-lilly-dbb056.dtb \
 	omap3-zoom3.dtb \
 	omap4-panda.dtb \
 	omap4-panda-a4.dtb \
