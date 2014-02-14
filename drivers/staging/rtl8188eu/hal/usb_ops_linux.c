@@ -306,7 +306,7 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 	struct recv_stat	*prxstat;
 	struct phy_stat	*pphy_status = NULL;
 	struct sk_buff *pkt_copy = NULL;
-	union recv_frame	*precvframe = NULL;
+	struct recv_frame	*precvframe = NULL;
 	struct rx_pkt_attrib	*pattrib = NULL;
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
 	struct recv_priv	*precvpriv = &adapt->recvpriv;
@@ -332,13 +332,13 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 			goto _exit_recvbuf2recvframe;
 		}
 
-		_rtw_init_listhead(&precvframe->u.hdr.list);
-		precvframe->u.hdr.precvbuf = NULL;	/* can't access the precvbuf for new arch. */
-		precvframe->u.hdr.len = 0;
+		_rtw_init_listhead(&precvframe->list);
+		precvframe->precvbuf = NULL;	/* can't access the precvbuf for new arch. */
+		precvframe->len = 0;
 
 		update_recvframe_attrib_88e(precvframe, prxstat);
 
-		pattrib = &precvframe->u.hdr.attrib;
+		pattrib = &precvframe->attrib;
 
 		if ((pattrib->crc_err) || (pattrib->icv_err)) {
 			DBG_88E("%s: RX Warning! crc_err=%d icv_err=%d, skip!\n", __func__, pattrib->crc_err, pattrib->icv_err);
@@ -385,26 +385,26 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		pkt_copy = netdev_alloc_skb(adapt->pnetdev, alloc_sz);
 		if (pkt_copy) {
 			pkt_copy->dev = adapt->pnetdev;
-			precvframe->u.hdr.pkt = pkt_copy;
-			precvframe->u.hdr.rx_head = pkt_copy->data;
-			precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
+			precvframe->pkt = pkt_copy;
+			precvframe->rx_head = pkt_copy->data;
+			precvframe->rx_end = pkt_copy->data + alloc_sz;
 			skb_reserve(pkt_copy, 8 - ((size_t)(pkt_copy->data) & 7));/* force pkt_copy->data at 8-byte alignment address */
 			skb_reserve(pkt_copy, shift_sz);/* force ip_hdr at 8-byte alignment address according to shift_sz. */
 			memcpy(pkt_copy->data, (pbuf + pattrib->drvinfo_sz + RXDESC_SIZE), skb_len);
-			precvframe->u.hdr.rx_tail = pkt_copy->data;
-			precvframe->u.hdr.rx_data = pkt_copy->data;
+			precvframe->rx_tail = pkt_copy->data;
+			precvframe->rx_data = pkt_copy->data;
 		} else {
 			if ((pattrib->mfrag == 1) && (pattrib->frag_num == 0)) {
 				DBG_88E("recvbuf2recvframe: alloc_skb fail , drop frag frame\n");
 				rtw_free_recvframe(precvframe, pfree_recv_queue);
 				goto _exit_recvbuf2recvframe;
 			}
-			precvframe->u.hdr.pkt = skb_clone(pskb, GFP_ATOMIC);
-			if (precvframe->u.hdr.pkt) {
-				precvframe->u.hdr.rx_tail = pbuf + pattrib->drvinfo_sz + RXDESC_SIZE;
-				precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_tail;
-				precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail;
-				precvframe->u.hdr.rx_end =  pbuf + pattrib->drvinfo_sz + RXDESC_SIZE + alloc_sz;
+			precvframe->pkt = skb_clone(pskb, GFP_ATOMIC);
+			if (precvframe->pkt) {
+				precvframe->rx_tail = pbuf + pattrib->drvinfo_sz + RXDESC_SIZE;
+				precvframe->rx_head = precvframe->rx_tail;
+				precvframe->rx_data = precvframe->rx_tail;
+				precvframe->rx_end =  pbuf + pattrib->drvinfo_sz + RXDESC_SIZE + alloc_sz;
 			} else {
 				DBG_88E("recvbuf2recvframe: skb_clone fail\n");
 				rtw_free_recvframe(precvframe, pfree_recv_queue);
@@ -437,17 +437,17 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 			/* enqueue recvframe to txrtp queue */
 			if (pattrib->pkt_rpt_type == TX_REPORT1) {
 				/* CCX-TXRPT ack for xmit mgmt frames. */
-				handle_txrpt_ccx_88e(adapt, precvframe->u.hdr.rx_data);
+				handle_txrpt_ccx_88e(adapt, precvframe->rx_data);
 			} else if (pattrib->pkt_rpt_type == TX_REPORT2) {
 				ODM_RA_TxRPT2Handle_8188E(
 							&haldata->odmpriv,
-							precvframe->u.hdr.rx_data,
+							precvframe->rx_data,
 							pattrib->pkt_len,
 							pattrib->MacIDValidEntry[0],
 							pattrib->MacIDValidEntry[1]
 							);
 			} else if (pattrib->pkt_rpt_type == HIS_REPORT) {
-				interrupt_handler_8188eu(adapt, pattrib->pkt_len, precvframe->u.hdr.rx_data);
+				interrupt_handler_8188eu(adapt, pattrib->pkt_len, precvframe->rx_data);
 			}
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		}

@@ -346,8 +346,8 @@ u32	rtw_free_stainfo(struct adapter *padapter , struct sta_info *psta)
 	/* for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer */
 	for (i = 0; i < 16; i++) {
 		struct list_head *phead, *plist;
-		struct recv_frame_hdr *prhdr;
-		union recv_frame *prframe;
+		struct recv_frame *prhdr;
+		struct recv_frame *prframe;
 		struct __queue *ppending_recvframe_queue;
 		struct __queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
 
@@ -363,12 +363,12 @@ u32	rtw_free_stainfo(struct adapter *padapter , struct sta_info *psta)
 		plist = phead->next;
 
 		while (!rtw_is_list_empty(phead)) {
-			prhdr = container_of(plist, struct recv_frame_hdr, list);
-			prframe = (union recv_frame *)prhdr;
+			prhdr = container_of(plist, struct recv_frame, list);
+			prframe = (struct recv_frame *)prhdr;
 
 			plist = plist->next;
 
-			rtw_list_delete(&(prframe->u.hdr.list));
+			rtw_list_delete(&(prframe->list));
 
 			rtw_free_recvframe(prframe, pfree_recv_queue);
 		}
