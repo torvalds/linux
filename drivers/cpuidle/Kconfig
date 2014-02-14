@@ -31,6 +31,15 @@ config CPU_IDLE_GOV_MENU
 config ARCH_NEEDS_CPU_IDLE_COUPLED
 	def_bool n
 
+config OF_IDLE_STATES
+        bool "Idle states DT support"
+	depends on ARM || ARM64
+	default n
+	help
+	 Allows the CPU idle framework to initialize CPU idle drivers
+	 state data by using DT provided nodes compliant with idle states
+	 device tree bindings.
+
 if CPU_IDLE
 
 config CPU_IDLE_CALXEDA
