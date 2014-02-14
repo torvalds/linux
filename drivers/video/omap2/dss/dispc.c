@@ -100,8 +100,6 @@ static struct {
 	struct platform_device *pdev;
 	void __iomem    *base;
 
-	int		ctx_loss_cnt;
-
 	int irq;
 
 	unsigned long core_clk_rate;
@@ -357,28 +355,19 @@ static void dispc_save_context(void)
 	if (dss_has_feature(FEAT_CORE_CLK_DIV))
 		SR(DIVISOR);
 
-	dispc.ctx_loss_cnt = dss_get_ctx_loss_count();
 	dispc.ctx_valid = true;
 
-	DSSDBG("context saved, ctx_loss_count %d\n", dispc.ctx_loss_cnt);
+	DSSDBG("context saved\n");
 }
 
 static void dispc_restore_context(void)
 {
-	int i, j, ctx;
+	int i, j;
 
 	DSSDBG("dispc_restore_context\n");
 
 	if (!dispc.ctx_valid)
 		return;
-
-	ctx = dss_get_ctx_loss_count();
-
-	if (ctx >= 0 && ctx == dispc.ctx_loss_cnt)
-		return;
-
-	DSSDBG("ctx_loss_count: saved %d, current %d\n",
-			dispc.ctx_loss_cnt, ctx);
 
 	/*RR(IRQENABLE);*/
 	/*RR(CONTROL);*/
@@ -3768,6 +3757,15 @@ static int dispc_runtime_suspend(struct device *dev)
 
 static int dispc_runtime_resume(struct device *dev)
 {
+	/*
+	 * The reset value for load mode is 0 (OMAP_DSS_LOAD_CLUT_AND_FRAME)
+	 * but we always initialize it to 2 (OMAP_DSS_LOAD_FRAME_ONLY) in
+	 * _omap_dispc_initial_config(). We can thus use it to detect if
+	 * we have lost register context.
+	 */
+	if (REG_GET(DISPC_CONFIG, 2, 1) == OMAP_DSS_LOAD_FRAME_ONLY)
+		return 0;
+
 	_omap_dispc_initial_config();
 
 	dispc_restore_context();
