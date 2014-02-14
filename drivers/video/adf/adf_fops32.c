@@ -81,7 +81,7 @@ long adf_compat_get_device_data(struct file *file,
 					&data->custom_data))
 		return -EFAULT;
 
-	ret = adf_file_ioctl(file, ADF_GET_DEVICE_DATA32, (unsigned long)data);
+	ret = adf_file_ioctl(file, ADF_GET_DEVICE_DATA, (unsigned long)data);
 	if (ret < 0)
 		return ret;
 
@@ -122,7 +122,7 @@ long adf_compat_get_interface_data(struct file *file,
 					&data->custom_data))
 		return -EFAULT;
 
-	ret = adf_file_ioctl(file, ADF_GET_DEVICE_DATA32, (unsigned long)data);
+	ret = adf_file_ioctl(file, ADF_GET_INTERFACE_DATA, (unsigned long)data);
 	if (ret < 0)
 		return ret;
 
