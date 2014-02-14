@@ -148,6 +148,50 @@ PNAME(group2_p)		= { "fin_pll", "fin_pll", "sclk_hdmi27m", "sclk_dptxphy",
 			"sclk_uhostphy", "sclk_hdmiphy", "sclk_mpll_bpll",
 			 "sclk_dpll", "sclk_vpll", "sclk_cpll" };
 
+static const struct samsung_pll_rate_table apll_tbl[] = {
+	/* sorted in descending order */
+	/* PLL_35XX_RATE(rate, m, p, s) */
+	PLL_35XX_RATE(2100000000, 175, 2, 0),
+	PLL_35XX_RATE(2000000000, 250, 3, 0),
+	PLL_35XX_RATE(1900000000, 475, 6, 0),
+	PLL_35XX_RATE(1800000000, 225, 3, 0),
+	PLL_35XX_RATE(1700000000, 425, 6, 0),
+	PLL_35XX_RATE(1600000000, 200, 3, 0),
+	PLL_35XX_RATE(1500000000, 250, 4, 0),
+	PLL_35XX_RATE(1400000000, 175, 3, 0),
+	PLL_35XX_RATE(1300000000, 325, 6, 0),
+	PLL_35XX_RATE(1200000000, 100, 2, 0),
+	PLL_35XX_RATE(1100000000, 275, 3, 1),
+	PLL_35XX_RATE(1000000000, 250, 3, 1),
+	PLL_35XX_RATE(900000000, 150, 2, 1),
+	PLL_35XX_RATE(800000000, 200, 3, 1),
+	PLL_35XX_RATE(700000000, 175, 3, 1),
+	PLL_35XX_RATE(600000000, 100, 2, 1),
+	PLL_35XX_RATE(500000000, 250, 3, 2),
+	PLL_35XX_RATE(400000000, 200, 3, 2),
+	PLL_35XX_RATE(300000000, 100, 2, 2),
+	PLL_35XX_RATE(200000000, 200, 3, 3),
+};
+
+static const struct samsung_pll_rate_table kpll_tbl[] = {
+	/* sorted in descending order */
+	/* PLL_35XX_RATE(rate, m, p, s) */
+	PLL_35XX_RATE(1500000000, 250, 4, 0),
+	PLL_35XX_RATE(1400000000, 175, 3, 0),
+	PLL_35XX_RATE(1300000000, 325, 6, 0),
+	PLL_35XX_RATE(1200000000, 100, 2, 0),
+	PLL_35XX_RATE(1100000000, 275, 3, 1),
+	PLL_35XX_RATE(1000000000, 250, 3, 1),
+	PLL_35XX_RATE(900000000, 150, 2, 1),
+	PLL_35XX_RATE(800000000, 200, 3, 1),
+	PLL_35XX_RATE(700000000, 175, 3, 1),
+	PLL_35XX_RATE(600000000, 100, 2, 1),
+	PLL_35XX_RATE(500000000, 250, 3, 2),
+	PLL_35XX_RATE(400000000, 200, 3, 2),
+	PLL_35XX_RATE(300000000, 100, 2, 2),
+	PLL_35XX_RATE(200000000, 200, 3, 3),
+};
+
 /* fixed rate clocks generated inside the soc */
 static struct samsung_fixed_rate_clock exynos5410_fixed_rate_clks[] __initdata = {
 	FRATE(CLK_SCLK_HDMIPHY, "sclk_hdmiphy", NULL, CLK_IS_ROOT, 24000000),
@@ -323,7 +367,7 @@ static struct samsung_gate_clock exynos5410_gate_clks[] __initdata = {
 
 static struct samsung_pll_clock exynos5410_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_35xx, CLK_FOUT_APLL, "fout_apll", "fin_pll", APLL_LOCK,
-		APLL_CON0, NULL),
+		APLL_CON0, apll_tbl),
 	[cpll] = PLL(pll_35xx, CLK_FOUT_CPLL, "fout_cpll", "fin_pll", CPLL_LOCK,
 		CPLL_CON0, NULL),
 	[mpll] = PLL(pll_35xx, CLK_FOUT_MPLL, "fout_mpll", "fin_pll", MPLL_LOCK,
@@ -331,7 +375,7 @@ static struct samsung_pll_clock exynos5410_plls[nr_plls] __initdata = {
 	[bpll] = PLL(pll_35xx, CLK_FOUT_BPLL, "fout_bpll", "fin_pll", BPLL_LOCK,
 		BPLL_CON0, NULL),
 	[kpll] = PLL(pll_35xx, CLK_FOUT_KPLL, "fout_kpll", "fin_pll", KPLL_LOCK,
-		KPLL_CON0, NULL),
+		KPLL_CON0, kpll_tbl),
 	[vpll] = PLL(pll_35xx, CLK_FOUT_VPLL, "fout_vpll", "mout_vpllsrc",
 		VPLL_LOCK, VPLL_CON0,  NULL),
 	[dpll] = PLL(pll_35xx, CLK_FOUT_DPLL, "fout_dpll", "fin_pll", DPLL_LOCK,
