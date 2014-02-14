@@ -208,8 +208,8 @@ static struct samsung_mux_clock exynos5410_mux_clks[] __initdata = {
 	MUX_A(0, "mout_apll", apll_p, SRC_CPU, 0, 1, "mout_apll"),
 	MUX_A(0, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1, "mout_cpu"),
 
-	MUX(0, "mout_kpll", kpll_p, SRC_KFC, 0, 1),
-	MUX(0, "mout_kfc", mout_kfc_p, SRC_KFC, 16, 1),
+	MUX_A(0, "mout_kpll", kpll_p, SRC_KFC, 0, 1, "mout_kpll"),
+	MUX_A(0, "mout_kfc", mout_kfc_p, SRC_KFC, 16, 1, "mout_kfc"),
 
 	MUX_A(0, "sclk_mpll", mpll_p, SRC_CPERI1, 8, 1, "mout_mpll"),
 	MUX(0, "sclk_mpll_muxed", mpll_user_p, SRC_TOP2, 20, 1),
@@ -265,6 +265,7 @@ static struct samsung_div_clock exynos5410_div_clks[] __initdata = {
 	DIV(0, "div_kfc", "mout_kfc", DIV_KFC0, 0, 3),
 	DIV(0, "div_aclk", "div_kfc", DIV_KFC0, 4, 3),
 	DIV(0, "div_pclk", "div_kfc", DIV_KFC0, 20, 3),
+	DIV(0, "sclk_kpll", "mout_kpll", DIV_KFC0, 24, 3),
 
 	DIV(0, "aclk66_pre", "sclk_mpll_muxed", DIV_TOP1, 24, 3),
 	DIV(0, "aclk66", "aclk66_pre", DIV_TOP0, 0, 3),
