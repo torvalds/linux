@@ -540,7 +540,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 			   enum iio_shared_by shared_by)
 {
 	int ret = 0;
-	char *name_format = NULL;
+	char *name = NULL;
 	char *full_postfix;
 	sysfs_attr_init(&dev_attr->attr);
 
@@ -572,16 +572,15 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	if (chan->differential) { /* Differential can not have modifier */
 		switch (shared_by) {
 		case IIO_SHARED_BY_ALL:
-			name_format = kasprintf(GFP_KERNEL, "%s", full_postfix);
+			name = kasprintf(GFP_KERNEL, "%s", full_postfix);
 			break;
 		case IIO_SHARED_BY_DIR:
-			name_format = kasprintf(GFP_KERNEL, "%s_%s",
+			name = kasprintf(GFP_KERNEL, "%s_%s",
 						iio_direction[chan->output],
 						full_postfix);
 			break;
 		case IIO_SHARED_BY_TYPE:
-			name_format
-				= kasprintf(GFP_KERNEL, "%s_%s-%s_%s",
+			name = kasprintf(GFP_KERNEL, "%s_%s-%s_%s",
 					    iio_direction[chan->output],
 					    iio_chan_type_name_spec[chan->type],
 					    iio_chan_type_name_spec[chan->type],
@@ -593,8 +592,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 				ret = -EINVAL;
 				goto error_free_full_postfix;
 			}
-			name_format
-				= kasprintf(GFP_KERNEL,
+			name = kasprintf(GFP_KERNEL,
 					    "%s_%s%d-%s%d_%s",
 					    iio_direction[chan->output],
 					    iio_chan_type_name_spec[chan->type],
@@ -607,16 +605,15 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	} else { /* Single ended */
 		switch (shared_by) {
 		case IIO_SHARED_BY_ALL:
-			name_format = kasprintf(GFP_KERNEL, "%s", full_postfix);
+			name = kasprintf(GFP_KERNEL, "%s", full_postfix);
 			break;
 		case IIO_SHARED_BY_DIR:
-			name_format = kasprintf(GFP_KERNEL, "%s_%s",
+			name = kasprintf(GFP_KERNEL, "%s_%s",
 						iio_direction[chan->output],
 						full_postfix);
 			break;
 		case IIO_SHARED_BY_TYPE:
-			name_format
-				= kasprintf(GFP_KERNEL, "%s_%s_%s",
+			name = kasprintf(GFP_KERNEL, "%s_%s_%s",
 					    iio_direction[chan->output],
 					    iio_chan_type_name_spec[chan->type],
 					    full_postfix);
@@ -624,33 +621,24 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 
 		case IIO_SEPARATE:
 			if (chan->indexed)
-				name_format
-					= kasprintf(GFP_KERNEL, "%s_%s%d_%s",
+				name = kasprintf(GFP_KERNEL, "%s_%s%d_%s",
 						    iio_direction[chan->output],
 						    iio_chan_type_name_spec[chan->type],
 						    chan->channel,
 						    full_postfix);
 			else
-				name_format
-					= kasprintf(GFP_KERNEL, "%s_%s_%s",
+				name = kasprintf(GFP_KERNEL, "%s_%s_%s",
 						    iio_direction[chan->output],
 						    iio_chan_type_name_spec[chan->type],
 						    full_postfix);
 			break;
 		}
 	}
-	if (name_format == NULL) {
+	if (name == NULL) {
 		ret = -ENOMEM;
 		goto error_free_full_postfix;
 	}
-	dev_attr->attr.name = kasprintf(GFP_KERNEL,
-					name_format,
-					chan->channel,
-					chan->channel2);
-	if (dev_attr->attr.name == NULL) {
-		ret = -ENOMEM;
-		goto error_free_name_format;
-	}
+	dev_attr->attr.name = name;
 
 	if (readfunc) {
 		dev_attr->attr.mode |= S_IRUGO;
@@ -661,8 +649,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 		dev_attr->attr.mode |= S_IWUSR;
 		dev_attr->store = writefunc;
 	}
-error_free_name_format:
-	kfree(name_format);
+
 error_free_full_postfix:
 	kfree(full_postfix);
 
