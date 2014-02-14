@@ -22,12 +22,24 @@
 #define CORE_CLK_DIV_ENABLE_OFFSET	24
 #define CORE_CLK_DIV_RATIO_OFFSET	0x8
 
+/*
+ * This structure describes the hardware details (bit offset and mask)
+ * to configure one particular core divider clock. Those hardware
+ * details may differ from one SoC to another. This structure is
+ * therefore typically instantiated statically to describe the
+ * hardware details.
+ */
 struct clk_corediv_desc {
 	unsigned int mask;
 	unsigned int offset;
 	unsigned int fieldbit;
 };
 
+/*
+ * This structure represents one core divider clock for the clock
+ * framework, and is dynamically allocated for each core divider clock
+ * existing in the current SoC.
+ */
 struct clk_corediv {
 	struct clk_hw hw;
 	void __iomem *reg;
@@ -37,6 +49,11 @@ struct clk_corediv {
 
 static struct clk_onecell_data clk_data;
 
+/*
+ * Description of the core divider clocks available. For now, we
+ * support only NAND, and it is available at the same register
+ * locations regardless of the SoC.
+ */
 static const struct clk_corediv_desc mvebu_corediv_desc[] = {
 	{ .mask = 0x3f, .offset = 8, .fieldbit = 1 }, /* NAND clock */
 };
