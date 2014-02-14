@@ -1343,9 +1343,8 @@ void bond_alb_deinitialize(struct bonding *bond)
 
 	tlb_deinitialize(bond);
 
-	if (bond_info->rlb_enabled) {
+	if (bond_info->rlb_enabled)
 		rlb_deinitialize(bond);
-	}
 }
 
 int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
@@ -1429,9 +1428,8 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		break;
 	case ETH_P_ARP:
 		do_tx_balance = 0;
-		if (bond_info->rlb_enabled) {
+		if (bond_info->rlb_enabled)
 			tx_slave = rlb_arp_xmit(skb, bond);
-		}
 		break;
 	default:
 		do_tx_balance = 0;
@@ -1565,11 +1563,10 @@ void bond_alb_monitor(struct work_struct *work)
 				--bond_info->rlb_update_delay_counter;
 			} else {
 				rlb_update_rx_clients(bond);
-				if (bond_info->rlb_update_retry_counter) {
+				if (bond_info->rlb_update_retry_counter)
 					--bond_info->rlb_update_retry_counter;
-				} else {
+				else
 					bond_info->rx_ntt = 0;
-				}
 			}
 		}
 	}
@@ -1586,23 +1583,20 @@ int bond_alb_init_slave(struct bonding *bond, struct slave *slave)
 	int res;
 
 	res = alb_set_slave_mac_addr(slave, slave->perm_hwaddr);
-	if (res) {
+	if (res)
 		return res;
-	}
 
 	res = alb_handle_addr_collision_on_attach(bond, slave);
-	if (res) {
+	if (res)
 		return res;
-	}
 
 	tlb_init_slave(slave);
 
 	/* order a rebalance ASAP */
 	bond->alb_info.tx_rebalance_counter = BOND_TLB_REBALANCE_TICKS;
 
-	if (bond->alb_info.rlb_enabled) {
+	if (bond->alb_info.rlb_enabled)
 		bond->alb_info.rlb_rebalance = 1;
-	}
 
 	return 0;
 }
