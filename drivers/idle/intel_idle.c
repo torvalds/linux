@@ -584,7 +584,7 @@ static int __init intel_idle_cpuidle_driver_init(void)
 	drv->state_count = 1;
 
 	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
-		int num_substates, mwait_hint, mwait_cstate, mwait_substate;
+		int num_substates, mwait_hint, mwait_cstate;
 
 		if (cpuidle_state_table[cstate].enter == NULL)
 			break;
@@ -597,14 +597,13 @@ static int __init intel_idle_cpuidle_driver_init(void)
 
 		mwait_hint = flg2MWAIT(cpuidle_state_table[cstate].flags);
 		mwait_cstate = MWAIT_HINT2CSTATE(mwait_hint);
-		mwait_substate = MWAIT_HINT2SUBSTATE(mwait_hint);
 
-		/* does the state exist in CPUID.MWAIT? */
+		/* number of sub-states for this state in CPUID.MWAIT */
 		num_substates = (mwait_substates >> ((mwait_cstate + 1) * 4))
 					& MWAIT_SUBSTATE_MASK;
 
-		/* if sub-state in table is not enumerated by CPUID */
-		if ((mwait_substate + 1) > num_substates)
+		/* if NO sub-states for this state in CPUID, skip it */
+		if (num_substates == 0)
 			continue;
 
 		if (((mwait_cstate + 1) > 2) &&
