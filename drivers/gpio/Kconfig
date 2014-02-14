@@ -277,6 +277,7 @@ config GPIO_STA2X11
 
 config GPIO_TS5500
 	tristate "TS-5500 DIO blocks and compatibles"
+	depends on TS5500 || COMPILE_TEST
 	help
 	  This driver supports Digital I/O exposed by pin blocks found on some
 	  Technologic Systems platforms. It includes, but is not limited to, 3
