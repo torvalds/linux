@@ -618,8 +618,8 @@ static struct pinctrl_ops adi_pctrl_ops = {
 	.get_group_pins = adi_get_group_pins,
 };
 
-static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
-	unsigned group)
+static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned func_id,
+	unsigned group_id)
 {
 	struct adi_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct gpio_port *port;
@@ -627,7 +627,7 @@ static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	unsigned long flags;
 	unsigned short *mux, pin;
 
-	mux = (unsigned short *)pinctrl->soc->functions[selector].mux;
+	mux = (unsigned short *)pinctrl->soc->groups[group_id].mux;
 
 	while (*mux) {
 		pin = P_IDENT(*mux);
@@ -651,8 +651,8 @@ static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static void adi_pinmux_disable(struct pinctrl_dev *pctldev, unsigned selector,
-	unsigned group)
+static void adi_pinmux_disable(struct pinctrl_dev *pctldev, unsigned func_id,
+	unsigned group_id)
 {
 	struct adi_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct gpio_port *port;
@@ -660,7 +660,7 @@ static void adi_pinmux_disable(struct pinctrl_dev *pctldev, unsigned selector,
 	unsigned long flags;
 	unsigned short *mux, pin;
 
-	mux = (unsigned short *)pinctrl->soc->functions[selector].mux;
+	mux = (unsigned short *)pinctrl->soc->groups[group_id].mux;
 
 	while (*mux) {
 		pin = P_IDENT(*mux);
