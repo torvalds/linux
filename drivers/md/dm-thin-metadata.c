@@ -76,7 +76,7 @@
 
 #define THIN_SUPERBLOCK_MAGIC 27022010
 #define THIN_SUPERBLOCK_LOCATION 0
-#define THIN_VERSION 1
+#define THIN_VERSION 2
 #define THIN_METADATA_CACHE_SIZE 64
 #define SECTOR_TO_BLOCK_SHIFT 3
 
@@ -1754,4 +1754,39 @@ int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
 	up_write(&pmd->root_lock);
 
 	return r;
+}
+
+int dm_pool_metadata_set_needs_check(struct dm_pool_metadata *pmd)
+{
+	int r;
+	struct dm_block *sblock;
+	struct thin_disk_superblock *disk_super;
+
+	down_write(&pmd->root_lock);
+	pmd->flags |= THIN_METADATA_NEEDS_CHECK_FLAG;
+
+	r = superblock_lock(pmd, &sblock);
+	if (r) {
+		DMERR("couldn't read superblock");
+		goto out;
+	}
+
+	disk_super = dm_block_data(sblock);
+	disk_super->flags = cpu_to_le32(pmd->flags);
+
+	dm_bm_unlock(sblock);
+out:
+	up_write(&pmd->root_lock);
+	return r;
+}
+
+bool dm_pool_metadata_needs_check(struct dm_pool_metadata *pmd)
+{
+	bool needs_check;
+
+	down_read(&pmd->root_lock);
+	needs_check = pmd->flags & THIN_METADATA_NEEDS_CHECK_FLAG;
+	up_read(&pmd->root_lock);
+
+	return needs_check;
 }

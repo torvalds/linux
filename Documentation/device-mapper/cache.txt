@@ -124,12 +124,11 @@ the default being 204800 sectors (or 100MB).
 Updating on-disk metadata
 -------------------------
 
-On-disk metadata is committed every time a REQ_SYNC or REQ_FUA bio is
-written.  If no such requests are made then commits will occur every
-second.  This means the cache behaves like a physical disk that has a
-write cache (the same is true of the thin-provisioning target).  If
-power is lost you may lose some recent writes.  The metadata should
-always be consistent in spite of any crash.
+On-disk metadata is committed every time a FLUSH or FUA bio is written.
+If no such requests are made then commits will occur every second.  This
+means the cache behaves like a physical disk that has a volatile write
+cache.  If power is lost you may lose some recent writes.  The metadata
+should always be consistent in spite of any crash.
 
 The 'dirty' state for a cache block changes far too frequently for us
 to keep updating it on the fly.  So we treat it as a hint.  In normal

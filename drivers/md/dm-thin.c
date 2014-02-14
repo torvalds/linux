@@ -1403,7 +1403,28 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 {
 	int r;
 	struct pool_c *pt = pool->ti->private;
-	enum pool_mode old_mode = pool->pf.mode;
+	bool needs_check = dm_pool_metadata_needs_check(pool->pmd);
+	enum pool_mode old_mode = get_pool_mode(pool);
+
+	/*
+	 * Never allow the pool to transition to PM_WRITE mode if user
+	 * intervention is required to verify metadata and data consistency.
+	 */
+	if (new_mode == PM_WRITE && needs_check) {
+		DMERR("%s: unable to switch pool to write mode until repaired.",
+		      dm_device_name(pool->pool_md));
+		if (old_mode != new_mode)
+			new_mode = old_mode;
+		else
+			new_mode = PM_READ_ONLY;
+	}
+	/*
+	 * If we were in PM_FAIL mode, rollback of metadata failed.  We're
+	 * not going to recover without a thin_repair.	So we never let the
+	 * pool move out of the old mode.
+	 */
+	if (old_mode == PM_FAIL)
+		new_mode = old_mode;
 
 	switch (new_mode) {
 	case PM_FAIL:
@@ -1467,19 +1488,28 @@ static void out_of_data_space(struct pool *pool)
 	set_pool_mode(pool, PM_READ_ONLY);
 }
 
+static void abort_transaction(struct pool *pool)
+{
+	const char *dev_name = dm_device_name(pool->pool_md);
+
+	DMERR_LIMIT("%s: aborting current metadata transaction", dev_name);
+	if (dm_pool_abort_metadata(pool->pmd)) {
+		DMERR("%s: failed to abort metadata transaction", dev_name);
+		set_pool_mode(pool, PM_FAIL);
+	}
+
+	if (dm_pool_metadata_set_needs_check(pool->pmd)) {
+		DMERR("%s: failed to set 'needs_check' flag in metadata", dev_name);
+		set_pool_mode(pool, PM_FAIL);
+	}
+}
+
 static void metadata_operation_failed(struct pool *pool, const char *op, int r)
 {
-	dm_block_t free_blocks;
-
 	DMERR_LIMIT("%s: metadata operation '%s' failed: error = %d",
 		    dm_device_name(pool->pool_md), op, r);
 
-	if (r == -ENOSPC &&
-	    !dm_pool_get_free_metadata_block_count(pool->pmd, &free_blocks) &&
-	    !free_blocks)
-		DMERR_LIMIT("%s: no free metadata space available.",
-			    dm_device_name(pool->pool_md));
-
+	abort_transaction(pool);
 	set_pool_mode(pool, PM_READ_ONLY);
 }
 
@@ -1693,7 +1723,7 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	/*
 	 * We want to make sure that a pool in PM_FAIL mode is never upgraded.
 	 */
-	enum pool_mode old_mode = pool->pf.mode;
+	enum pool_mode old_mode = get_pool_mode(pool);
 	enum pool_mode new_mode = pt->adjusted_pf.mode;
 
 	/*
@@ -1706,16 +1736,6 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	pool->ti = ti;
 	pool->pf = pt->adjusted_pf;
 	pool->low_water_blocks = pt->low_water_blocks;
-
-	/*
-	 * If we were in PM_FAIL mode, rollback of metadata failed.  We're
-	 * not going to recover without a thin_repair.  So we never let the
-	 * pool move out of the old mode.  On the other hand a PM_READ_ONLY
-	 * may have been due to a lack of metadata or data space, and may
-	 * now work (ie. if the underlying devices have been resized).
-	 */
-	if (old_mode == PM_FAIL)
-		new_mode = old_mode;
 
 	set_pool_mode(pool, new_mode);
 
@@ -2259,6 +2279,12 @@ static int maybe_resize_data_dev(struct dm_target *ti, bool *need_commit)
 		return -EINVAL;
 
 	} else if (data_size > sb_data_size) {
+		if (dm_pool_metadata_needs_check(pool->pmd)) {
+			DMERR("%s: unable to grow the data device until repaired.",
+			      dm_device_name(pool->pool_md));
+			return 0;
+		}
+
 		if (sb_data_size)
 			DMINFO("%s: growing the data device from %llu to %llu blocks",
 			       dm_device_name(pool->pool_md),
@@ -2300,6 +2326,12 @@ static int maybe_resize_metadata_dev(struct dm_target *ti, bool *need_commit)
 		return -EINVAL;
 
 	} else if (metadata_dev_size > sb_metadata_dev_size) {
+		if (dm_pool_metadata_needs_check(pool->pmd)) {
+			DMERR("%s: unable to grow the metadata device until repaired.",
+			      dm_device_name(pool->pool_md));
+			return 0;
+		}
+
 		warn_if_metadata_device_too_big(pool->md_dev);
 		DMINFO("%s: growing the metadata device from %llu to %llu blocks",
 		       dm_device_name(pool->pool_md),
@@ -2801,7 +2833,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 10, 0},
+	.version = {1, 11, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -3091,7 +3123,7 @@ static int thin_iterate_devices(struct dm_target *ti,
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 10, 0},
+	.version = {1, 11, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,
