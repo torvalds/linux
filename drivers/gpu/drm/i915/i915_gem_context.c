@@ -258,8 +258,7 @@ i915_gem_create_context(struct drm_device *dev,
 		 * context.
 		 */
 		ret = i915_gem_obj_ggtt_pin(ctx->obj,
-					    get_context_alignment(dev),
-					    false, false);
+					    get_context_alignment(dev), 0);
 		if (ret) {
 			DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
 			goto err_destroy;
@@ -335,8 +334,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 
 		if (i == RCS) {
 			WARN_ON(i915_gem_obj_ggtt_pin(dctx->obj,
-						      get_context_alignment(dev),
-						      false, false));
+						      get_context_alignment(dev), 0));
 			/* Fake a finish/inactive */
 			dctx->obj->base.write_domain = 0;
 			dctx->obj->active = 0;
@@ -612,8 +610,7 @@ static int do_switch(struct intel_ring_buffer *ring,
 	/* Trying to pin first makes error handling easier. */
 	if (ring == &dev_priv->ring[RCS]) {
 		ret = i915_gem_obj_ggtt_pin(to->obj,
-					    get_context_alignment(ring->dev),
-					    false, false);
+					    get_context_alignment(ring->dev), 0);
 		if (ret)
 			return ret;
 	}

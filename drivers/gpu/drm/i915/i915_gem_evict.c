@@ -68,7 +68,7 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
 int
 i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 			 int min_size, unsigned alignment, unsigned cache_level,
-			 bool mappable, bool nonblocking)
+			 unsigned flags)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
@@ -76,7 +76,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	int ret = 0;
 	int pass = 0;
 
-	trace_i915_gem_evict(dev, min_size, alignment, mappable);
+	trace_i915_gem_evict(dev, min_size, alignment, flags);
 
 	/*
 	 * The goal is to evict objects and amalgamate space in LRU order.
@@ -102,7 +102,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	 */
 
 	INIT_LIST_HEAD(&unwind_list);
-	if (mappable) {
+	if (flags & PIN_MAPPABLE) {
 		BUG_ON(!i915_is_ggtt(vm));
 		drm_mm_init_scan_with_range(&vm->mm, min_size,
 					    alignment, cache_level, 0,
@@ -117,7 +117,7 @@ search_again:
 			goto found;
 	}
 
-	if (nonblocking)
+	if (flags & PIN_NONBLOCK)
 		goto none;
 
 	/* Now merge in the soon-to-be-expired objects... */
@@ -141,7 +141,7 @@ none:
 	/* Can we unpin some objects such as idle hw contents,
 	 * or pending flips?
 	 */
-	if (nonblocking)
+	if (flags & PIN_NONBLOCK)
 		return -ENOSPC;
 
 	/* Only idle the GPU and repeat the search once */

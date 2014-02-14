@@ -2076,11 +2076,12 @@ void i915_init_vm(struct drm_i915_private *dev_priv,
 void i915_gem_free_object(struct drm_gem_object *obj);
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
+#define PIN_MAPPABLE 0x1
+#define PIN_NONBLOCK 0x2
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     struct i915_address_space *vm,
 				     uint32_t alignment,
-				     bool map_and_fenceable,
-				     bool nonblocking);
+				     unsigned flags);
 void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 int __must_check i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj);
@@ -2283,11 +2284,9 @@ i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj)
 static inline int __must_check
 i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 		      uint32_t alignment,
-		      bool map_and_fenceable,
-		      bool nonblocking)
+		      unsigned flags)
 {
-	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment,
-				   map_and_fenceable, nonblocking);
+	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment, flags);
 }
 
 /* i915_gem_context.c */
@@ -2331,8 +2330,7 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  int min_size,
 					  unsigned alignment,
 					  unsigned cache_level,
-					  bool mappable,
-					  bool nonblock);
+					  unsigned flags);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 int i915_gem_evict_everything(struct drm_device *dev);
 
