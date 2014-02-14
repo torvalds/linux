@@ -14,8 +14,11 @@ Required properties:
 - size-cells: should be 1
 
 Optional properties:
-- clocks: When provided, must be two cells, first one is the main GENET clock
-  and the second cell is the Genet Wake-on-LAN clock.
+- clocks: When provided, must be two phandles to the functional clocks nodes
+  of the GENET block. The first phandle is the main GENET clock used during
+  normal operation, while the second phandle is the Wake-on-LAN clock.
+- clock-names: When provided, names of the functional clock phandles, first
+  name should be "enet" and second should be "enet-wol".
 
 - phy-handle: A phandle to a phy node defining the PHY address (as the reg
   property, a single integer), used to describe configurations where a PHY
