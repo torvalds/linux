@@ -2083,9 +2083,7 @@ int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     struct i915_address_space *vm,
 				     uint32_t alignment,
 				     unsigned flags);
-void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
-int __must_check i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
@@ -2289,6 +2287,14 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 {
 	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment, flags | PIN_GLOBAL);
 }
+
+static inline int
+i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj)
+{
+	return i915_vma_unbind(i915_gem_obj_to_ggtt(obj));
+}
+
+void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
 
 /* i915_gem_context.c */
 #define ctx_to_ppgtt(ctx) container_of((ctx)->vm, struct i915_hw_ppgtt, base)
