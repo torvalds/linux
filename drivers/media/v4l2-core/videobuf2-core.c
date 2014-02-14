@@ -2310,6 +2310,22 @@ struct vb2_fileio_buf {
 /**
  * struct vb2_fileio_data - queue context used by file io emulator
  *
+ * @cur_index:	the index of the buffer currently being read from or
+ *		written to. If equal to q->num_buffers then a new buffer
+ *		must be dequeued.
+ * @initial_index: in the read() case all buffers are queued up immediately
+ *		in __vb2_init_fileio() and __vb2_perform_fileio() just cycles
+ *		buffers. However, in the write() case no buffers are initially
+ *		queued, instead whenever a buffer is full it is queued up by
+ *		__vb2_perform_fileio(). Only once all available buffers have
+ *		been queued up will __vb2_perform_fileio() start to dequeue
+ *		buffers. This means that initially __vb2_perform_fileio()
+ *		needs to know what buffer index to use when it is queuing up
+ *		the buffers for the first time. That initial index is stored
+ *		in this field. Once it is equal to q->num_buffers all
+ *		available buffers have been queued and __vb2_perform_fileio()
+ *		should start the normal dequeue/queue cycle.
+ *
  * vb2 provides a compatibility layer and emulator of file io (read and
  * write) calls on top of streaming API. For proper operation it required
  * this structure to save the driver state between each call of the read
@@ -2319,7 +2335,8 @@ struct vb2_fileio_data {
 	struct v4l2_requestbuffers req;
 	struct v4l2_buffer b;
 	struct vb2_fileio_buf bufs[VIDEO_MAX_FRAME];
-	unsigned int index;
+	unsigned int cur_index;
+	unsigned int initial_index;
 	unsigned int q_count;
 	unsigned int dq_count;
 	unsigned int flags;
@@ -2419,7 +2436,12 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 				goto err_reqbufs;
 			fileio->bufs[i].queued = 1;
 		}
-		fileio->index = q->num_buffers;
+		/*
+		 * All buffers have been queued, so mark that by setting
+		 * initial_index to q->num_buffers
+		 */
+		fileio->initial_index = q->num_buffers;
+		fileio->cur_index = q->num_buffers;
 	}
 
 	/*
@@ -2498,7 +2520,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	/*
 	 * Check if we need to dequeue the buffer.
 	 */
-	index = fileio->index;
+	index = fileio->cur_index;
 	if (index >= q->num_buffers) {
 		/*
 		 * Call vb2_dqbuf to get buffer back.
@@ -2512,7 +2534,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 			return ret;
 		fileio->dq_count += 1;
 
-		index = fileio->b.index;
+		fileio->cur_index = index = fileio->b.index;
 		buf = &fileio->bufs[index];
 
 		/*
@@ -2588,8 +2610,20 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		buf->queued = 1;
 		buf->size = vb2_plane_size(q->bufs[index], 0);
 		fileio->q_count += 1;
-		if (fileio->index < q->num_buffers)
-			fileio->index++;
+		/*
+		 * If we are queuing up buffers for the first time, then
+		 * increase initial_index by one.
+		 */
+		if (fileio->initial_index < q->num_buffers)
+			fileio->initial_index++;
+		/*
+		 * The next buffer to use is either a buffer that's going to be
+		 * queued for the first time (initial_index < q->num_buffers)
+		 * or it is equal to q->num_buffers, meaning that the next
+		 * time we need to dequeue a buffer since we've now queued up
+		 * all the 'first time' buffers.
+		 */
+		fileio->cur_index = fileio->initial_index;
 	}
 
 	/*
