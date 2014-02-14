@@ -1781,25 +1781,7 @@ struct dentry *d_find_any_alias(struct inode *inode)
 }
 EXPORT_SYMBOL(d_find_any_alias);
 
-/**
- * d_obtain_alias - find or allocate a dentry for a given inode
- * @inode: inode to allocate the dentry for
- *
- * Obtain a dentry for an inode resulting from NFS filehandle conversion or
- * similar open by handle operations.  The returned dentry may be anonymous,
- * or may have a full name (if the inode was already in the cache).
- *
- * When called on a directory inode, we must ensure that the inode only ever
- * has one dentry.  If a dentry is found, that is returned instead of
- * allocating a new one.
- *
- * On successful return, the reference to the inode has been transferred
- * to the dentry.  In case of an error the reference on the inode is released.
- * To make it easier to use in export operations a %NULL or IS_ERR inode may
- * be passed in and will be the error will be propagate to the return value,
- * with a %NULL @inode replaced by ERR_PTR(-ESTALE).
- */
-struct dentry *d_obtain_alias(struct inode *inode)
+struct dentry *__d_obtain_alias(struct inode *inode, int disconnected)
 {
 	static const struct qstr anonstring = QSTR_INIT("/", 1);
 	struct dentry *tmp;
@@ -1830,7 +1812,10 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	}
 
 	/* attach a disconnected dentry */
-	add_flags = d_flags_for_inode(inode) | DCACHE_DISCONNECTED;
+	add_flags = d_flags_for_inode(inode);
+
+	if (disconnected)
+		add_flags |= DCACHE_DISCONNECTED;
 
 	spin_lock(&tmp->d_lock);
 	tmp->d_inode = inode;
@@ -1851,7 +1836,51 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	iput(inode);
 	return res;
 }
+
+/**
+ * d_obtain_alias - find or allocate a DISCONNECTED dentry for a given inode
+ * @inode: inode to allocate the dentry for
+ *
+ * Obtain a dentry for an inode resulting from NFS filehandle conversion or
+ * similar open by handle operations.  The returned dentry may be anonymous,
+ * or may have a full name (if the inode was already in the cache).
+ *
+ * When called on a directory inode, we must ensure that the inode only ever
+ * has one dentry.  If a dentry is found, that is returned instead of
+ * allocating a new one.
+ *
+ * On successful return, the reference to the inode has been transferred
+ * to the dentry.  In case of an error the reference on the inode is released.
+ * To make it easier to use in export operations a %NULL or IS_ERR inode may
+ * be passed in and the error will be propagated to the return value,
+ * with a %NULL @inode replaced by ERR_PTR(-ESTALE).
+ */
+struct dentry *d_obtain_alias(struct inode *inode)
+{
+	return __d_obtain_alias(inode, 1);
+}
 EXPORT_SYMBOL(d_obtain_alias);
+
+/**
+ * d_obtain_root - find or allocate a dentry for a given inode
+ * @inode: inode to allocate the dentry for
+ *
+ * Obtain an IS_ROOT dentry for the root of a filesystem.
+ *
+ * We must ensure that directory inodes only ever have one dentry.  If a
+ * dentry is found, that is returned instead of allocating a new one.
+ *
+ * On successful return, the reference to the inode has been transferred
+ * to the dentry.  In case of an error the reference on the inode is
+ * released.  A %NULL or IS_ERR inode may be passed in and will be the
+ * error will be propagate to the return value, with a %NULL @inode
+ * replaced by ERR_PTR(-ESTALE).
+ */
+struct dentry *d_obtain_root(struct inode *inode)
+{
+	return __d_obtain_alias(inode, 0);
+}
+EXPORT_SYMBOL(d_obtain_root);
 
 /**
  * d_add_ci - lookup or allocate new dentry with case-exact name
