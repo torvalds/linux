@@ -531,7 +531,9 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		goto err;
 	}
 
-	i915_gem_object_set_cache_level(ring->scratch.obj, I915_CACHE_LLC);
+	ret = i915_gem_object_set_cache_level(ring->scratch.obj, I915_CACHE_LLC);
+	if (ret)
+		goto err_unref;
 
 	ret = i915_gem_obj_ggtt_pin(ring->scratch.obj, 4096, 0);
 	if (ret)
