@@ -330,6 +330,15 @@ static const struct nouveau_bitfield nv50_mpc_traps[] = {
 	{}
 };
 
+static const struct nouveau_bitfield nv50_tex_traps[] = {
+	{ 0x00000001, "" }, /* any bit set? */
+	{ 0x00000002, "FAULT" },
+	{ 0x00000004, "STORAGE_TYPE_MISMATCH" },
+	{ 0x00000008, "LINEAR_MISMATCH" },
+	{ 0x00000020, "WRONG_MEMTYPE" },
+	{}
+};
+
 static const struct nouveau_bitfield nv50_graph_trap_m2mf[] = {
 	{ 0x00000001, "NOTIFY" },
 	{ 0x00000002, "IN" },
@@ -532,6 +541,13 @@ nv50_priv_tp_trap(struct nv50_graph_priv *priv, int type, u32 ustatus_old,
 				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
 					nv_error(priv, "\t0x%08x: 0x%08x\n", r,
 						nv_rd32(priv, r));
+				if (ustatus) {
+					nv_error(priv, "%s - TP%d:", name, i);
+					nouveau_bitfield_print(nv50_tex_traps,
+							       ustatus);
+					pr_cont("\n");
+					ustatus = 0;
+				}
 			}
 			break;
 		case 7: /* MP error */
