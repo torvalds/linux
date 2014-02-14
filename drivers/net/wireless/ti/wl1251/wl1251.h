@@ -280,6 +280,8 @@ struct wl1251 {
 	int irq;
 	bool use_eeprom;
 
+	struct regulator *vio;
+
 	spinlock_t wl_lock;
 
 	enum wl1251_state state;

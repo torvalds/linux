@@ -27,6 +27,7 @@
 #include <linux/spi/spi.h>
 #include <linux/wl12xx.h>
 #include <linux/gpio.h>
+#include <linux/regulator/consumer.h>
 
 #include "wl1251.h"
 #include "reg.h"
@@ -306,13 +307,26 @@ static int wl1251_spi_probe(struct spi_device *spi)
 
 	irq_set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
 
-	ret = wl1251_init_ieee80211(wl);
+	wl->vio = devm_regulator_get(&spi->dev, "vio");
+	if (IS_ERR(wl->vio)) {
+		ret = PTR_ERR(wl->vio);
+		wl1251_error("vio regulator missing: %d", ret);
+		goto out_free;
+	}
+
+	ret = regulator_enable(wl->vio);
 	if (ret)
 		goto out_free;
 
+	ret = wl1251_init_ieee80211(wl);
+	if (ret)
+		goto disable_regulator;
+
 	return 0;
 
- out_free:
+disable_regulator:
+	regulator_disable(wl->vio);
+out_free:
 	ieee80211_free_hw(hw);
 
 	return ret;
@@ -324,6 +338,7 @@ static int wl1251_spi_remove(struct spi_device *spi)
 
 	free_irq(wl->irq, wl);
 	wl1251_free_hw(wl);
+	regulator_disable(wl->vio);
 
 	return 0;
 }
