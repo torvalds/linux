@@ -33,6 +33,7 @@
 #include <core/client.h>
 #include <core/gpuobj.h>
 #include <core/class.h>
+#include <core/option.h>
 
 #include <engine/device.h>
 #include <engine/disp.h>
@@ -335,6 +336,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = drm;
 	drm->dev = dev;
+	nouveau_client(drm)->debug = nouveau_dbgopt(nouveau_debug, "DRM");
 
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
