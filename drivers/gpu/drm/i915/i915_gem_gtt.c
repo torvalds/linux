@@ -885,7 +885,7 @@ alloc:
 	if (ret == -ENOSPC && !retried) {
 		ret = i915_gem_evict_something(dev, &dev_priv->gtt.base,
 					       GEN6_PD_SIZE, GEN6_PD_ALIGN,
-					       I915_CACHE_NONE, PIN_NONBLOCK);
+					       I915_CACHE_NONE, 0);
 		if (ret)
 			return ret;
 
