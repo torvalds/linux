@@ -127,17 +127,9 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
 int v4l2_of_parse_endpoint(const struct device_node *node,
 			   struct v4l2_of_endpoint *endpoint)
 {
-	struct device_node *port_node = of_get_parent(node);
-
-	memset(endpoint, 0, offsetof(struct v4l2_of_endpoint, head));
-
-	endpoint->local_node = node;
-	/*
-	 * It doesn't matter whether the two calls below succeed.
-	 * If they don't then the default value 0 is used.
-	 */
-	of_property_read_u32(port_node, "reg", &endpoint->port);
-	of_property_read_u32(node, "reg", &endpoint->id);
+	of_graph_parse_endpoint(node, &endpoint->base);
+	endpoint->bus_type = 0;
+	memset(&endpoint->bus, 0, sizeof(endpoint->bus));
 
 	v4l2_of_parse_csi_bus(node, endpoint);
 	/*
@@ -146,8 +138,6 @@ int v4l2_of_parse_endpoint(const struct device_node *node,
 	 */
 	if (endpoint->bus.mipi_csi2.flags == 0)
 		v4l2_of_parse_parallel_bus(node, endpoint);
-
-	of_node_put(port_node);
 
 	return 0;
 }

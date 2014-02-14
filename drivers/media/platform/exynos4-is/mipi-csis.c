@@ -772,7 +772,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 	/* Get port node and validate MIPI-CSI channel id. */
 	v4l2_of_parse_endpoint(node, &endpoint);
 
-	state->index = endpoint.port - FIMC_INPUT_MIPI_CSI2_0;
+	state->index = endpoint.base.port - FIMC_INPUT_MIPI_CSI2_0;
 	if (state->index < 0 || state->index >= CSIS_MAX_ENTITIES)
 		return -ENXIO;
 
