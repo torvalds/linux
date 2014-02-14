@@ -908,9 +908,14 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dcp_vmi_irq = platform_get_irq(pdev, 0);
+	if (dcp_vmi_irq < 0) {
+		ret = dcp_vmi_irq;
+		goto err_mutex;
+	}
+
 	dcp_irq = platform_get_irq(pdev, 1);
-	if (dcp_vmi_irq < 0 || dcp_irq < 0) {
-		ret = -EINVAL;
+	if (dcp_irq < 0) {
+		ret = dcp_irq;
 		goto err_mutex;
 	}
 
