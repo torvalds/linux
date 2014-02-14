@@ -213,7 +213,7 @@ static int act8865_pdata_from_dt(struct device *dev,
 	struct device_node *np;
 	struct act8865_regulator_data *regulator;
 
-	np = of_find_node_by_name(dev->of_node, "regulators");
+	np = of_get_child_by_name(dev->of_node, "regulators");
 	if (!np) {
 		dev_err(dev, "missing 'regulators' subnode in DT\n");
 		return -EINVAL;
