@@ -192,6 +192,11 @@ struct omap_hsmmc_host {
 	struct	omap_mmc_platform_data	*pdata;
 };
 
+struct omap_mmc_of_data {
+	u32 reg_offset;
+	u8 controller_flags;
+};
+
 static int omap_hsmmc_card_detect(struct device *dev, int slot)
 {
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
@@ -1677,18 +1682,29 @@ static void omap_hsmmc_debugfs(struct mmc_host *mmc)
 #endif
 
 #ifdef CONFIG_OF
-static u16 omap4_reg_offset = 0x100;
+static const struct omap_mmc_of_data omap3_pre_es3_mmc_of_data = {
+	/* See 35xx errata 2.1.1.128 in SPRZ278F */
+	.controller_flags = OMAP_HSMMC_BROKEN_MULTIBLOCK_READ,
+};
+
+static const struct omap_mmc_of_data omap4_mmc_of_data = {
+	.reg_offset = 0x100,
+};
 
 static const struct of_device_id omap_mmc_of_match[] = {
 	{
 		.compatible = "ti,omap2-hsmmc",
 	},
 	{
+		.compatible = "ti,omap3-pre-es3-hsmmc",
+		.data = &omap3_pre_es3_mmc_of_data,
+	},
+	{
 		.compatible = "ti,omap3-hsmmc",
 	},
 	{
 		.compatible = "ti,omap4-hsmmc",
-		.data = &omap4_reg_offset,
+		.data = &omap4_mmc_of_data,
 	},
 	{},
 };
@@ -1758,6 +1774,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	dma_cap_mask_t mask;
 	unsigned tx_req, rx_req;
 	struct pinctrl *pinctrl;
+	const struct omap_mmc_of_data *data;
 
 	match = of_match_device(of_match_ptr(omap_mmc_of_match), &pdev->dev);
 	if (match) {
@@ -1767,8 +1784,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 			return PTR_ERR(pdata);
 
 		if (match->data) {
-			const u16 *offsetp = match->data;
-			pdata->reg_offset = *offsetp;
+			data = match->data;
+			pdata->reg_offset = data->reg_offset;
+			pdata->controller_flags |= data->controller_flags;
 		}
 	}
 
