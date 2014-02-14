@@ -7754,12 +7754,14 @@ mode_fits_in_fbdev(struct drm_device *dev,
 	struct drm_i915_gem_object *obj;
 	struct drm_framebuffer *fb;
 
-	if (dev_priv->fbdev == NULL)
+	if (!dev_priv->fbdev)
+		return NULL;
+
+	if (!dev_priv->fbdev->fb)
 		return NULL;
 
 	obj = dev_priv->fbdev->fb->obj;
-	if (obj == NULL)
-		return NULL;
+	BUG_ON(!obj);
 
 	fb = &dev_priv->fbdev->fb->base;
 	if (fb->pitches[0] < intel_framebuffer_pitch_for_width(mode->hdisplay,
