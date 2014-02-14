@@ -9,11 +9,14 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <sound/simple_card.h>
+#include <sound/soc-dai.h>
+#include <sound/soc.h>
 
 struct simple_card_data {
 	struct snd_soc_card snd_card;
@@ -40,6 +43,16 @@ static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 		ret = snd_soc_dai_set_sysclk(dai, 0, set->sysclk, 0);
 		if (ret && ret != -ENOTSUPP) {
 			dev_err(dai->dev, "simple-card: set_sysclk error\n");
+			goto err;
+		}
+	}
+
+	if (set->slots) {
+		ret = snd_soc_dai_set_tdm_slot(dai, 0, 0,
+						set->slots,
+						set->slot_width);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(dai->dev, "simple-card: set_tdm_slot error\n");
 			goto err;
 		}
 	}
@@ -92,6 +105,11 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	/* get dai->name */
 	ret = snd_soc_of_get_dai_name(np, name);
 	if (ret < 0)
+		goto parse_error;
+
+	/* parse TDM slot */
+	ret = snd_soc_of_parse_tdm_slot(np, &dai->slots, &dai->slot_width);
+	if (ret)
 		goto parse_error;
 
 	/*

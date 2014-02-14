@@ -18,6 +18,8 @@ Optional properties:
 					  Each entry is a pair of strings, the first being the
 					  connection's sink, the second being the connection's
 					  source.
+- dai-tdm-slot-num			: Please refer to tdm-slot.txt.
+- dai-tdm-slot-width			: Please refer to tdm-slot.txt.
 
 Required subnodes:
 
@@ -55,6 +57,9 @@ sound {
 		"MIC_IN", "Microphone Jack",
 		"Headphone Jack", "HP_OUT",
 		"External Speaker", "LINE_OUT";
+
+	dai-tdm-slot-num = <2>;
+	dai-tdm-slot-width = <8>;
 
 	simple-audio-card,cpu {
 		sound-dai = <&sh_fsi2 0>;
