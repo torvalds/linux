@@ -34,7 +34,7 @@ void BlinkTimerCallback(void *data)
 	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped))
 		return;
 
-	_set_workitem(&(pLed->BlinkWorkItem));
+	schedule_work(&(pLed->BlinkWorkItem));
 }
 
 /*  */
