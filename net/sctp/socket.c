@@ -2092,12 +2092,6 @@ static int sctp_recvmsg(struct kiocb *iocb, struct sock *sk,
 		sctp_skb_pull(skb, copied);
 		skb_queue_head(&sk->sk_receive_queue, skb);
 
-		/* When only partial message is copied to the user, increase
-		 * rwnd by that amount. If all the data in the skb is read,
-		 * rwnd is updated when the event is freed.
-		 */
-		if (!sctp_ulpevent_is_notification(event))
-			sctp_assoc_rwnd_increase(event->asoc, copied);
 		goto out;
 	} else if ((event->msg_flags & MSG_NOTIFICATION) ||
 		   (event->msg_flags & MSG_EOR))
