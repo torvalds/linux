@@ -638,6 +638,48 @@ static struct resource sdhi2_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_spi(167)),
 };
 
+/* Internal PCI1 */
+static const struct resource pci1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee0b0000, 0x10000),	/* CFG */
+	DEFINE_RES_MEM(0xee0a0000, 0x10000),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(112)),
+};
+
+static const struct platform_device_info pci1_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "pci-rcar-gen2",
+	.id		= 1,
+	.res		= pci1_resources,
+	.num_res	= ARRAY_SIZE(pci1_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static void __init lager_add_usb1_device(void)
+{
+	platform_device_register_full(&pci1_info);
+}
+
+/* Internal PCI2 */
+static const struct resource pci2_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee0d0000, 0x10000),	/* CFG */
+	DEFINE_RES_MEM(0xee0c0000, 0x10000),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(113)),
+};
+
+static const struct platform_device_info pci2_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "pci-rcar-gen2",
+	.id		= 2,
+	.res		= pci2_resources,
+	.num_res	= ARRAY_SIZE(pci2_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static void __init lager_add_usb2_device(void)
+{
+	platform_device_register_full(&pci2_info);
+}
+
 static const struct pinctrl_map lager_pinctrl_map[] = {
 	/* DU (CN10: ARGB0, CN13: LVDS) */
 	PIN_MAP_MUX_GROUP_DEFAULT("rcar-du-r8a7790", "pfc-r8a7790",
@@ -716,6 +758,12 @@ static const struct pinctrl_map lager_pinctrl_map[] = {
 	/* USB0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs", "pfc-r8a7790",
 				  "usb0_ovc_vbus", "usb0"),
+	/* USB1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("pci-rcar-gen2.1", "pfc-r8a7790",
+				  "usb1", "usb1"),
+	/* USB2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("pci-rcar-gen2.2", "pfc-r8a7790",
+				  "usb2", "usb2"),
 };
 
 static void __init lager_add_standard_devices(void)
@@ -776,6 +824,8 @@ static void __init lager_add_standard_devices(void)
 					  &usbhs_phy_pdata,
 					  sizeof(usbhs_phy_pdata));
 	lager_register_usbhs();
+	lager_add_usb1_device();
+	lager_add_usb2_device();
 
 	lager_add_rsnd_device();
 
