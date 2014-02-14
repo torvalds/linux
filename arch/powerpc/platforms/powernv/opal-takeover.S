@@ -21,11 +21,13 @@
 _GLOBAL(opal_query_takeover)
 	mfcr	r0
 	stw	r0,8(r1)
+	stdu	r1,-STACKFRAMESIZE(r1)
 	std	r3,STK_PARAM(R3)(r1)
 	std	r4,STK_PARAM(R4)(r1)
 	li	r3,H_HAL_TAKEOVER
 	li	r4,H_HAL_TAKEOVER_QUERY_MAGIC
 	HVSC
+	addi	r1,r1,STACKFRAMESIZE
 	ld	r10,STK_PARAM(R3)(r1)
 	std	r4,0(r10)
 	ld	r10,STK_PARAM(R4)(r1)

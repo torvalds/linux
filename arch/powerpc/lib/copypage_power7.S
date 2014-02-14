@@ -56,15 +56,15 @@ _GLOBAL(copypage_power7)
 
 #ifdef CONFIG_ALTIVEC
 	mflr	r0
-	std	r3,STK_PARAM(R3)(r1)
-	std	r4,STK_PARAM(R4)(r1)
+	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
+	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
 	bl	enter_vmx_copy
 	cmpwi	r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
-	ld	r3,STACKFRAMESIZE+STK_PARAM(R3)(r1)
-	ld	r4,STACKFRAMESIZE+STK_PARAM(R4)(r1)
+	ld	r3,STK_REG(R31)(r1)
+	ld	r4,STK_REG(R30)(r1)
 	mtlr	r0
 
 	li	r0,(PAGE_SIZE/128)
