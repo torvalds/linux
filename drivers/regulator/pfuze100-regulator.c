@@ -254,7 +254,7 @@ static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 	if (!np)
 		return 0;
 
-	parent = of_find_node_by_name(np, "regulators");
+	parent = of_get_child_by_name(np, "regulators");
 	if (!parent) {
 		dev_err(dev, "regulators node not found\n");
 		return -EINVAL;
