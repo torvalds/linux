@@ -1627,9 +1627,8 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
 
 	if (link == BOND_LINK_DOWN) {
 		tlb_clear_slave(bond, slave, 0);
-		if (bond->alb_info.rlb_enabled) {
+		if (bond->alb_info.rlb_enabled)
 			rlb_clear_slave(bond, slave);
-		}
 	} else if (link == BOND_LINK_UP) {
 		/* order a rebalance ASAP */
 		bond_info->tx_rebalance_counter = BOND_TLB_REBALANCE_TICKS;
@@ -1741,14 +1740,12 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 	struct slave *swap_slave;
 	int res;
 
-	if (!is_valid_ether_addr(sa->sa_data)) {
+	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
-	}
 
 	res = alb_set_mac_address(bond, addr);
-	if (res) {
+	if (res)
 		return res;
-	}
 
 	memcpy(bond_dev->dev_addr, sa->sa_data, bond_dev->addr_len);
 
@@ -1756,9 +1753,8 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 	 * Otherwise we'll need to pass the new address to it and handle
 	 * duplications.
 	 */
-	if (!bond->curr_active_slave) {
+	if (!bond->curr_active_slave)
 		return 0;
-	}
 
 	swap_slave = bond_slave_has_mac(bond, bond_dev->dev_addr);
 
@@ -1782,8 +1778,7 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 
 void bond_alb_clear_vlan(struct bonding *bond, unsigned short vlan_id)
 {
-	if (bond->alb_info.rlb_enabled) {
+	if (bond->alb_info.rlb_enabled)
 		rlb_clear_vlan(bond, vlan_id);
-	}
 }
 
