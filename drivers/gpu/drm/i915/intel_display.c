@@ -7549,7 +7549,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		return -ENOENT;
 
 	if (obj->base.size < width * height * 4) {
-		DRM_ERROR("buffer is to small\n");
+		DRM_DEBUG_KMS("buffer is to small\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -7560,7 +7560,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		unsigned alignment;
 
 		if (obj->tiling_mode) {
-			DRM_ERROR("cursor cannot be tiled\n");
+			DRM_DEBUG_KMS("cursor cannot be tiled\n");
 			ret = -EINVAL;
 			goto fail_locked;
 		}
@@ -7576,13 +7576,13 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 		ret = i915_gem_object_pin_to_display_plane(obj, alignment, NULL);
 		if (ret) {
-			DRM_ERROR("failed to move cursor bo into the GTT\n");
+			DRM_DEBUG_KMS("failed to move cursor bo into the GTT\n");
 			goto fail_locked;
 		}
 
 		ret = i915_gem_object_put_fence(obj);
 		if (ret) {
-			DRM_ERROR("failed to release fence for cursor");
+			DRM_DEBUG_KMS("failed to release fence for cursor");
 			goto fail_unpin;
 		}
 
@@ -7593,7 +7593,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 						  (intel_crtc->pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1,
 						  align);
 		if (ret) {
-			DRM_ERROR("failed to attach phys object\n");
+			DRM_DEBUG_KMS("failed to attach phys object\n");
 			goto fail_locked;
 		}
 		addr = obj->phys_obj->handle->busaddr;
