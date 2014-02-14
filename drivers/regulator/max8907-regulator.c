@@ -231,7 +231,7 @@ static int max8907_regulator_parse_dt(struct platform_device *pdev)
 	if (!np)
 		return 0;
 
-	regulators = of_find_node_by_name(np, "regulators");
+	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
 		dev_err(&pdev->dev, "regulators node not found\n");
 		return -EINVAL;
