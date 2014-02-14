@@ -292,7 +292,6 @@ struct recv_frame_hdr {
 union recv_frame {
 	union {
 		struct recv_frame_hdr hdr;
-		uint mem[RECVFRAME_HDR_ALIGN>>2];
 	} u;
 };
 
