@@ -6409,6 +6409,39 @@ sw_init_done:
 }
 
 /**
+ * i40e_set_ntuple - set the ntuple feature flag and take action
+ * @pf: board private structure to initialize
+ * @features: the feature set that the stack is suggesting
+ *
+ * returns a bool to indicate if reset needs to happen
+ **/
+bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
+{
+	bool need_reset = false;
+
+	/* Check if Flow Director n-tuple support was enabled or disabled.  If
+	 * the state changed, we need to reset.
+	 */
+	if (features & NETIF_F_NTUPLE) {
+		/* Enable filters and mark for reset */
+		if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
+			need_reset = true;
+		pf->flags |= I40E_FLAG_FD_SB_ENABLED;
+	} else {
+		/* turn off filters, mark for reset and clear SW filter list */
+		if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
+			need_reset = true;
+			i40e_fdir_filter_exit(pf);
+		}
+		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		/* if ATR was disabled it can be re-enabled. */
+		if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
+			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+	}
+	return need_reset;
+}
+
+/**
  * i40e_set_features - set the netdev feature flags
  * @netdev: ptr to the netdev being adjusted
  * @features: the feature set that the stack is suggesting
@@ -6418,11 +6451,18 @@ static int i40e_set_features(struct net_device *netdev,
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	bool need_reset;
 
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
 		i40e_vlan_stripping_enable(vsi);
 	else
 		i40e_vlan_stripping_disable(vsi);
+
+	need_reset = i40e_set_ntuple(pf, features);
+
+	if (need_reset)
+		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
 
 	return 0;
 }
@@ -6595,6 +6635,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 			   NETIF_F_TSO		       |
 			   NETIF_F_TSO6		       |
 			   NETIF_F_RXCSUM	       |
+			   NETIF_F_NTUPLE	       |
 			   NETIF_F_RXHASH	       |
 			   0;
 
