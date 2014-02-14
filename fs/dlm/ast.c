@@ -309,6 +309,6 @@ void dlm_callback_resume(struct dlm_ls *ls)
 	mutex_unlock(&ls->ls_cb_mutex);
 
 	if (count)
-		log_debug(ls, "dlm_callback_resume %d", count);
+		log_rinfo(ls, "dlm_callback_resume %d", count);
 }
 
