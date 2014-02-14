@@ -630,7 +630,9 @@ static const struct i2c_device_id hmc5843_id[] = {
 MODULE_DEVICE_TABLE(i2c, hmc5843_id);
 
 static const struct of_device_id hmc5843_of_match[] = {
-	{ .compatible = "honeywell,hmc5843" },
+	{ .compatible = "honeywell,hmc5843", .data = (void *)HMC5843_ID },
+	{ .compatible = "honeywell,hmc5883", .data = (void *)HMC5883_ID },
+	{ .compatible = "honeywell,hmc5883l", .data = (void *)HMC5883L_ID },
 	{}
 };
 MODULE_DEVICE_TABLE(of, hmc5843_of_match);
