@@ -155,24 +155,27 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		clk_mmc: mmc {
+		clk_mmc: clock@0 {
 			compatible = "fixed-clock";
 			reg = <0>;
 			#clock-cells = <0>;
+			clock-output-names = "mmc";
 			clock-frequency = <100000000>;
 		};
 
-		clk_i2c: i2c {
+		clk_i2c: clock@1 {
 			compatible = "fixed-clock";
 			reg = <1>;
 			#clock-cells = <0>;
+			clock-output-names = "i2c";
 			clock-frequency = <250000000>;
 		};
 
-		clk_spi: spi {
+		clk_spi: clock@2 {
 			compatible = "fixed-clock";
 			reg = <2>;
 			#clock-cells = <0>;
+			clock-output-names = "spi";
 			clock-frequency = <250000000>;
 		};
 	};
