@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <clocksource/samsung_pwm.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -44,7 +45,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/regs-gpio.h>
-#include <plat/regs-serial.h>
 #include <mach/dma.h>
 
 #include <plat/cpu.h>

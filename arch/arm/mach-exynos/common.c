@@ -20,6 +20,7 @@
 #include <clocksource/samsung_pwm.h>
 #include <linux/sched.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
@@ -40,7 +41,6 @@
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/regs-serial.h>
 
 #include "common.h"
 #include "regs-pmu.h"

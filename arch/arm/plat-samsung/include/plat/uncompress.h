@@ -29,7 +29,7 @@ static void arch_detect_cpu(void);
 
 /* defines for UART registers */
 
-#include <plat/regs-serial.h>
+#include <linux/serial_s3c.h>
 
 /* working in physical space... */
 #define S3C_WDOGREG(x)	((S3C_PA_WDT + (x)))
