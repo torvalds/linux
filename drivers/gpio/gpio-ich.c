@@ -62,6 +62,9 @@ struct ichx_desc {
 	/* Max GPIO pins the chipset can have */
 	uint ngpio;
 
+	/* GPO_BLINK is available on this chipset */
+	bool have_blink;
+
 	/* Whether the chipset has GPIO in GPE0_STS in the PM IO region */
 	bool uses_gpe0;
 
@@ -151,7 +154,7 @@ static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 					int val)
 {
 	/* Disable blink hardware which is available for GPIOs from 0 to 31. */
-	if (nr < 32)
+	if (nr < 32 && ichx_priv.desc->have_blink)
 		ichx_write_bit(GPO_BLINK, nr, 0, 0);
 
 	/* Set GPIO output value. */
@@ -266,6 +269,7 @@ static struct ichx_desc ich6_desc = {
 	.uses_gpe0 = true,
 
 	.ngpio = 50,
+	.have_blink = true,
 };
 
 /* Intel 3100 */
@@ -290,19 +294,23 @@ static struct ichx_desc i3100_desc = {
 /* ICH7 and ICH8-based */
 static struct ichx_desc ich7_desc = {
 	.ngpio = 50,
+	.have_blink = true,
 };
 
 /* ICH9-based */
 static struct ichx_desc ich9_desc = {
 	.ngpio = 61,
+	.have_blink = true,
 };
 
 /* ICH10-based - Consumer/corporate versions have different amount of GPIO */
 static struct ichx_desc ich10_cons_desc = {
 	.ngpio = 61,
+	.have_blink = true,
 };
 static struct ichx_desc ich10_corp_desc = {
 	.ngpio = 72,
+	.have_blink = true,
 };
 
 /* Intel 5 series, 6 series, 3400 series, and C200 series */
