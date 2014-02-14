@@ -65,6 +65,7 @@ struct kernfs_super_info {
 };
 #define kernfs_info(SB) ((struct kernfs_super_info *)(SB->s_fs_info))
 
+extern const struct super_operations kernfs_sops;
 extern struct kmem_cache *kernfs_node_cache;
 
 /*

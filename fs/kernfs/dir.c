@@ -500,7 +500,7 @@ const struct dentry_operations kernfs_dops = {
  */
 struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
 {
-	if (dentry->d_op == &kernfs_dops)
+	if (dentry->d_sb->s_op == &kernfs_sops)
 		return dentry->d_fsdata;
 	return NULL;
 }
