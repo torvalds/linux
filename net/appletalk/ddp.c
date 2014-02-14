@@ -293,7 +293,7 @@ static int atif_probe_device(struct atalk_iface *atif)
 
 /* Perform AARP probing for a proxy address */
 static int atif_proxy_probe_device(struct atalk_iface *atif,
-				   struct atalk_addr* proxy_addr)
+				   struct atalk_addr *proxy_addr)
 {
 	int netrange = ntohs(atif->nets.nr_lastnet) -
 			ntohs(atif->nets.nr_firstnet) + 1;
@@ -581,7 +581,7 @@ out:
 }
 
 /* Delete a route. Find it and discard it */
-static int atrtr_delete(struct atalk_addr * addr)
+static int atrtr_delete(struct atalk_addr *addr)
 {
 	struct atalk_route **r = &atalk_routes;
 	int retval = 0;
