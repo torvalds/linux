@@ -36,8 +36,6 @@
 
 #include "smp.h"
 
-bool enable_lecoc;
-
 static struct bt_sock_list l2cap_sk_list = {
 	.lock = __RW_LOCK_UNLOCKED(l2cap_sk_list.lock)
 };
@@ -111,8 +109,6 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	}
 
 	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
-		if (!enable_lecoc && la.l2_psm)
-			return -EINVAL;
 		/* We only allow ATT user space socket */
 		if (la.l2_cid &&
 		    la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
@@ -229,8 +225,6 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 		return -EINVAL;
 
 	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
-		if (!enable_lecoc && la.l2_psm)
-			return -EINVAL;
 		/* We only allow ATT user space socket */
 		if (la.l2_cid &&
 		    la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
@@ -578,11 +572,6 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_SNDMTU:
-		if (!enable_lecoc) {
-			err = -EPROTONOSUPPORT;
-			break;
-		}
-
 		if (!bdaddr_type_is_le(chan->src_type)) {
 			err = -EINVAL;
 			break;
@@ -598,11 +587,6 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_RCVMTU:
-		if (!enable_lecoc) {
-			err = -EPROTONOSUPPORT;
-			break;
-		}
-
 		if (!bdaddr_type_is_le(chan->src_type)) {
 			err = -EINVAL;
 			break;
@@ -919,11 +903,6 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_SNDMTU:
-		if (!enable_lecoc) {
-			err = -EPROTONOSUPPORT;
-			break;
-		}
-
 		if (!bdaddr_type_is_le(chan->src_type)) {
 			err = -EINVAL;
 			break;
@@ -936,11 +915,6 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_RCVMTU:
-		if (!enable_lecoc) {
-			err = -EPROTONOSUPPORT;
-			break;
-		}
-
 		if (!bdaddr_type_is_le(chan->src_type)) {
 			err = -EINVAL;
 			break;
@@ -1643,6 +1617,3 @@ void l2cap_cleanup_sockets(void)
 	bt_sock_unregister(BTPROTO_L2CAP);
 	proto_unregister(&l2cap_proto);
 }
-
-module_param(enable_lecoc, bool, 0644);
-MODULE_PARM_DESC(enable_lecoc, "Enable support for LE CoC");
