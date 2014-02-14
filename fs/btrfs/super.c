@@ -855,6 +855,7 @@ static struct dentry *get_default_root(struct super_block *sb,
 	struct btrfs_path *path;
 	struct btrfs_key location;
 	struct inode *inode;
+	struct dentry *dentry;
 	u64 dir_id;
 	int new = 0;
 
@@ -925,7 +926,13 @@ setup_root:
 		return dget(sb->s_root);
 	}
 
-	return d_obtain_alias(inode);
+	dentry = d_obtain_alias(inode);
+	if (!IS_ERR(dentry)) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags &= ~DCACHE_DISCONNECTED;
+		spin_unlock(&dentry->d_lock);
+	}
+	return dentry;
 }
 
 static int btrfs_fill_super(struct super_block *sb,
