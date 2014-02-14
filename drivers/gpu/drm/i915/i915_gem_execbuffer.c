@@ -589,11 +589,6 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 		obj->base.pending_write_domain = I915_GEM_DOMAIN_RENDER;
 	}
 
-	/* Temporary hack while we rework the binding logic. */
-	flags = (entry->flags & EXEC_OBJECT_NEEDS_GTT) &&
-		!vma->obj->has_global_gtt_mapping ? GLOBAL_BIND : 0;
-	vma->bind_vma(vma, obj->cache_level, flags);
-
 	return 0;
 }
 

@@ -3285,6 +3285,9 @@ search_free:
 	WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
 
 	trace_i915_vma_bind(vma, flags);
+	vma->bind_vma(vma, obj->cache_level,
+		      flags & (PIN_MAPPABLE | PIN_GLOBAL) ? GLOBAL_BIND : 0);
+
 	i915_gem_verify_gtt(dev);
 	return vma;
 
@@ -3487,7 +3490,9 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		}
 
 		list_for_each_entry(vma, &obj->vma_list, vma_link)
-			vma->bind_vma(vma, cache_level, 0);
+			if (drm_mm_node_allocated(&vma->node))
+				vma->bind_vma(vma, cache_level,
+					      obj->has_global_gtt_mapping ? GLOBAL_BIND : 0);
 	}
 
 	list_for_each_entry(vma, &obj->vma_list, vma_link)
@@ -3838,22 +3843,21 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 			ret = i915_vma_unbind(vma);
 			if (ret)
 				return ret;
+
+			vma = NULL;
 		}
 	}
 
-	if (!i915_gem_obj_bound(obj, vm)) {
-
+	if (vma == NULL || !drm_mm_node_allocated(&vma->node)) {
 		vma = i915_gem_object_bind_to_vm(obj, vm, alignment, flags);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 	}
 
-	vma = i915_gem_obj_to_vma(obj, vm);
+	if (flags & PIN_GLOBAL && !obj->has_global_gtt_mapping)
+		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
 
-	vma->bind_vma(vma, obj->cache_level,
-		      flags & PIN_GLOBAL ? GLOBAL_BIND : 0);
-
-	i915_gem_obj_to_vma(obj, vm)->pin_count++;
+	vma->pin_count++;
 	if (flags & PIN_MAPPABLE)
 		obj->pin_mappable |= true;
 
