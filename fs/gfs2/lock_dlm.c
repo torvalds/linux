@@ -1102,7 +1102,7 @@ static void gdlm_recover_slot(void *arg, struct dlm_slot *slot)
 	}
 
 	if (ls->ls_recover_submit[jid]) {
-		fs_info(sdp, "recover_slot jid %d gen %u prev %u",
+		fs_info(sdp, "recover_slot jid %d gen %u prev %u\n",
 			jid, ls->ls_recover_block, ls->ls_recover_submit[jid]);
 	}
 	ls->ls_recover_submit[jid] = ls->ls_recover_block;
