@@ -326,7 +326,6 @@ struct e1000_adapter {
 	struct work_struct update_phy_task;
 	struct work_struct print_hang_task;
 
-	bool idle_check;
 	int phy_hang_count;
 
 	u16 tx_ring_count;
