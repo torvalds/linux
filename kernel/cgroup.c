@@ -2995,6 +2995,8 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	    kernfs_type(kn) != KERNFS_DIR)
 		return -EINVAL;
 
+	mutex_lock(&cgroup_mutex);
+
 	/*
 	 * We aren't being called from kernfs and there's no guarantee on
 	 * @kn->priv's validity.  For this and css_tryget_from_dir(),
@@ -3002,10 +3004,12 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	 */
 	rcu_read_lock();
 	cgrp = rcu_dereference(kn->priv);
-	if (!cgrp) {
+	if (!cgrp || cgroup_is_dead(cgrp)) {
 		rcu_read_unlock();
+		mutex_unlock(&cgroup_mutex);
 		return -ENOENT;
 	}
+	rcu_read_unlock();
 
 	css_task_iter_start(&cgrp->dummy_css, &it);
 	while ((tsk = css_task_iter_next(&it))) {
@@ -3030,7 +3034,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	}
 	css_task_iter_end(&it);
 
-	rcu_read_unlock();
+	mutex_unlock(&cgroup_mutex);
 	return 0;
 }
 
