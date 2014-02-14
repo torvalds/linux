@@ -191,7 +191,7 @@ static int as3711_regulator_parse_dt(struct device *dev,
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(dev);
 	struct device_node *regulators =
-		of_find_node_by_name(dev->parent->of_node, "regulators");
+		of_get_child_by_name(dev->parent->of_node, "regulators");
 	struct of_regulator_match *match;
 	int ret, i;
 
