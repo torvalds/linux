@@ -406,11 +406,6 @@ static inline u8 *recvframe_pull_tail(struct recv_frame *precvframe, int sz)
 	return precvframe->rx_tail;
 }
 
-static inline int get_recvframe_len(struct recv_frame *precvframe)
-{
-	return precvframe->len;
-}
-
 static inline s32 translate_percentage_to_dbm(u32 sig_stren_index)
 {
 	s32	power; /*  in dBm. */
