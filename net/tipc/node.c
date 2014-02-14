@@ -252,12 +252,12 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	int i;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (l_ptr == n_ptr->links[i])
-			break;
+		if (l_ptr != n_ptr->links[i])
+			continue;
+		n_ptr->links[i] = NULL;
+		atomic_dec(&tipc_num_links);
+		n_ptr->link_cnt--;
 	}
-	n_ptr->links[i] = NULL;
-	atomic_dec(&tipc_num_links);
-	n_ptr->link_cnt--;
 }
 
 static void node_established_contact(struct tipc_node *n_ptr)
