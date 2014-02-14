@@ -562,7 +562,7 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 
 	auth_alg = adapter->securitypriv.dot11AuthAlgrthm;
 
-	ptr = get_recvframe_data(precv_frame);
+	ptr = precv_frame->rx_data;
 	pfhdr = precv_frame;
 	pattrib = &pfhdr->attrib;
 	psta_addr = pattrib->ta;
@@ -1440,10 +1440,8 @@ static int wlanhdr_to_ethhdr(struct recv_frame *precvframe)
 	int ret = _SUCCESS;
 	struct adapter		*adapter = precvframe->adapter;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
-
-	u8	*ptr = get_recvframe_data(precvframe); /*  point to frame_ctrl field */
+	u8 *ptr = precvframe->rx_data;
 	struct rx_pkt_attrib *pattrib = &precvframe->attrib;
-
 
 	if (pattrib->encrypt)
 		recvframe_pull_tail(precvframe, pattrib->icv_len);
