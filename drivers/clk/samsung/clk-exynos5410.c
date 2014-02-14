@@ -161,13 +161,13 @@ static struct samsung_mux_clock exynos5410_pll_pmux_clks[] __initdata = {
 };
 
 static struct samsung_mux_clock exynos5410_mux_clks[] __initdata = {
-	MUX(0, "mout_apll", apll_p, SRC_CPU, 0, 1),
-	MUX(0, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1),
+	MUX_A(0, "mout_apll", apll_p, SRC_CPU, 0, 1, "mout_apll"),
+	MUX_A(0, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1, "mout_cpu"),
 
 	MUX(0, "mout_kpll", kpll_p, SRC_KFC, 0, 1),
 	MUX(0, "mout_kfc", mout_kfc_p, SRC_KFC, 16, 1),
 
-	MUX(0, "sclk_mpll", mpll_p, SRC_CPERI1, 8, 1),
+	MUX_A(0, "sclk_mpll", mpll_p, SRC_CPERI1, 8, 1, "mout_mpll"),
 	MUX(0, "sclk_mpll_muxed", mpll_user_p, SRC_TOP2, 20, 1),
 
 	MUX(0, "sclk_bpll", bpll_p, SRC_CDREX, 0, 1),
