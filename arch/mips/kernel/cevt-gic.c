@@ -73,7 +73,8 @@ int gic_clockevent_init(void)
 	cd = &per_cpu(gic_clockevent_device, cpu);
 
 	cd->name		= "MIPS GIC";
-	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_C3STOP;
 
 	clockevent_set_clock(cd, gic_frequency);
 
