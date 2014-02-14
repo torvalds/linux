@@ -46,6 +46,7 @@
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
 #include <linux/mman.h>
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
