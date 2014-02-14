@@ -127,7 +127,7 @@ static int sirfsoc_pwrc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	error = devm_request_irq(&pdev->dev, irq,
-				 sirfsoc_pwrc_isr, IRQF_SHARED,
+				 sirfsoc_pwrc_isr, 0,
 				 "sirfsoc_pwrc_int", pwrcdrv);
 	if (error) {
 		dev_err(&pdev->dev, "unable to claim irq %d, error: %d\n",
