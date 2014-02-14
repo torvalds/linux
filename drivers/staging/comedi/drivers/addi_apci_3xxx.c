@@ -680,7 +680,7 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask;
+	unsigned int mask = 0;
 	int ret;
 
 	/*
@@ -688,12 +688,13 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 	 * Port 1 (channels 8-15) are always outputs
 	 * Port 2 (channels 16-23) are programmable i/o
 	 */
-	if (chan < 16) {
-		if (data[0] != INSN_CONFIG_DIO_QUERY)
+	if (data[0] != INSN_CONFIG_DIO_QUERY) {
+		/* ignore all other instructions for ports 0 and 1 */
+		if (chan < 16)
 			return -EINVAL;
-	} else {
-		/* changing any channel in port 2 changes the entire port */
-		mask = 0xff0000;
+		else
+			/* changing any channel in port 2 changes the entire port */
+			mask = 0xff0000;
 	}
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
