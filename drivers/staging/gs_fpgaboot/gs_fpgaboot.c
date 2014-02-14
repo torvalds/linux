@@ -188,7 +188,7 @@ static int gs_read_image(struct fpgaimage *fimage)
 	default:
 		pr_err("unsupported fpga image format\n");
 		return -1;
-	};
+	}
 
 	gs_print_header(fimage);
 
