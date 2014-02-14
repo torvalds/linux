@@ -187,7 +187,7 @@ static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
 	struct device_node *regs;
 	int i, count;
 
-	regs = of_find_node_by_name(node, "regulators");
+	regs = of_get_child_by_name(node, "regulators");
 	if (!regs)
 		return NULL;
 
