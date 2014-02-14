@@ -3188,7 +3188,7 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 /**
  * Finds free space in the GTT aperture and binds the object there.
  */
-static int
+static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 			   struct i915_address_space *vm,
 			   unsigned alignment,
@@ -3218,7 +3218,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 						unfenced_alignment;
 	if (flags & PIN_MAPPABLE && alignment & (fence_alignment - 1)) {
 		DRM_DEBUG("Invalid object alignment requested %u\n", alignment);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	size = flags & PIN_MAPPABLE ? fence_size : obj->base.size;
@@ -3231,20 +3231,18 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 			  obj->base.size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  gtt_max);
-		return -E2BIG;
+		return ERR_PTR(-E2BIG);
 	}
 
 	ret = i915_gem_object_get_pages(obj);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	i915_gem_object_pin_pages(obj);
 
 	vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
+	if (IS_ERR(vma))
 		goto err_unpin;
-	}
 
 search_free:
 	ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
@@ -3288,15 +3286,16 @@ search_free:
 
 	trace_i915_vma_bind(vma, flags);
 	i915_gem_verify_gtt(dev);
-	return 0;
+	return vma;
 
 err_remove_node:
 	drm_mm_remove_node(&vma->node);
 err_free_vma:
 	i915_gem_vma_destroy(vma);
+	vma = ERR_PTR(ret);
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
-	return ret;
+	return vma;
 }
 
 bool
@@ -3843,10 +3842,10 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 	}
 
 	if (!i915_gem_obj_bound(obj, vm)) {
-		ret = i915_gem_object_bind_to_vm(obj, vm, alignment, flags);
-		if (ret)
-			return ret;
 
+		vma = i915_gem_object_bind_to_vm(obj, vm, alignment, flags);
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
 	}
 
 	vma = i915_gem_obj_to_vma(obj, vm);
