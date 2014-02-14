@@ -689,9 +689,8 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	return 0;
 }
 
-static void get_correlation(struct Qdisc *sch, const struct nlattr *attr)
+static void get_correlation(struct netem_sched_data *q, const struct nlattr *attr)
 {
-	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_corr *c = nla_data(attr);
 
 	init_crandom(&q->delay_cor, c->delay_corr);
@@ -699,27 +698,24 @@ static void get_correlation(struct Qdisc *sch, const struct nlattr *attr)
 	init_crandom(&q->dup_cor, c->dup_corr);
 }
 
-static void get_reorder(struct Qdisc *sch, const struct nlattr *attr)
+static void get_reorder(struct netem_sched_data *q, const struct nlattr *attr)
 {
-	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_reorder *r = nla_data(attr);
 
 	q->reorder = r->probability;
 	init_crandom(&q->reorder_cor, r->correlation);
 }
 
-static void get_corrupt(struct Qdisc *sch, const struct nlattr *attr)
+static void get_corrupt(struct netem_sched_data *q, const struct nlattr *attr)
 {
-	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_corrupt *r = nla_data(attr);
 
 	q->corrupt = r->probability;
 	init_crandom(&q->corrupt_cor, r->correlation);
 }
 
-static void get_rate(struct Qdisc *sch, const struct nlattr *attr)
+static void get_rate(struct netem_sched_data *q, const struct nlattr *attr)
 {
-	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_rate *r = nla_data(attr);
 
 	q->rate = r->rate;
@@ -732,9 +728,8 @@ static void get_rate(struct Qdisc *sch, const struct nlattr *attr)
 		q->cell_size_reciprocal = (struct reciprocal_value) { 0 };
 }
 
-static int get_loss_clg(struct Qdisc *sch, const struct nlattr *attr)
+static int get_loss_clg(struct netem_sched_data *q, const struct nlattr *attr)
 {
-	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct nlattr *la;
 	int rem;
 
@@ -838,7 +833,7 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	old_loss_model = q->loss_model;
 
 	if (tb[TCA_NETEM_LOSS]) {
-		ret = get_loss_clg(sch, tb[TCA_NETEM_LOSS]);
+		ret = get_loss_clg(q, tb[TCA_NETEM_LOSS]);
 		if (ret) {
 			q->loss_model = old_loss_model;
 			return ret;
@@ -877,16 +872,16 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 		q->reorder = ~0;
 
 	if (tb[TCA_NETEM_CORR])
-		get_correlation(sch, tb[TCA_NETEM_CORR]);
+		get_correlation(q, tb[TCA_NETEM_CORR]);
 
 	if (tb[TCA_NETEM_REORDER])
-		get_reorder(sch, tb[TCA_NETEM_REORDER]);
+		get_reorder(q, tb[TCA_NETEM_REORDER]);
 
 	if (tb[TCA_NETEM_CORRUPT])
-		get_corrupt(sch, tb[TCA_NETEM_CORRUPT]);
+		get_corrupt(q, tb[TCA_NETEM_CORRUPT]);
 
 	if (tb[TCA_NETEM_RATE])
-		get_rate(sch, tb[TCA_NETEM_RATE]);
+		get_rate(q, tb[TCA_NETEM_RATE]);
 
 	if (tb[TCA_NETEM_RATE64])
 		q->rate = max_t(u64, q->rate,
