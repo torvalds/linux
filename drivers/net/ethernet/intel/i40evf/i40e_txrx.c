@@ -1286,7 +1286,8 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 	struct i40e_tx_context_desc *context_desc;
 	int i = tx_ring->next_to_use;
 
-	if (!cd_type_cmd_tso_mss && !cd_tunneling && !cd_l2tag2)
+	if ((cd_type_cmd_tso_mss == I40E_TX_DESC_DTYPE_CONTEXT) &&
+	    !cd_tunneling && !cd_l2tag2)
 		return;
 
 	/* grab the next descriptor */
