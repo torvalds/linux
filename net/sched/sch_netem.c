@@ -821,6 +821,8 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_NETEM_MAX + 1];
 	struct tc_netem_qopt *qopt;
+	struct clgstate old_clg;
+	int old_loss_model = CLG_RANDOM;
 	int ret;
 
 	if (opt == NULL)
@@ -830,6 +832,33 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	ret = parse_attr(tb, TCA_NETEM_MAX, opt, netem_policy, sizeof(*qopt));
 	if (ret < 0)
 		return ret;
+
+	/* backup q->clg and q->loss_model */
+	old_clg = q->clg;
+	old_loss_model = q->loss_model;
+
+	if (tb[TCA_NETEM_LOSS]) {
+		ret = get_loss_clg(sch, tb[TCA_NETEM_LOSS]);
+		if (ret) {
+			q->loss_model = old_loss_model;
+			return ret;
+		}
+	} else {
+		q->loss_model = CLG_RANDOM;
+	}
+
+	if (tb[TCA_NETEM_DELAY_DIST]) {
+		ret = get_dist_table(sch, tb[TCA_NETEM_DELAY_DIST]);
+		if (ret) {
+			/* recover clg and loss_model, in case of
+			 * q->clg and q->loss_model were modified
+			 * in get_loss_clg()
+			 */
+			q->clg = old_clg;
+			q->loss_model = old_loss_model;
+			return ret;
+		}
+	}
 
 	sch->limit = qopt->limit;
 
@@ -850,12 +879,6 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	if (tb[TCA_NETEM_CORR])
 		get_correlation(sch, tb[TCA_NETEM_CORR]);
 
-	if (tb[TCA_NETEM_DELAY_DIST]) {
-		ret = get_dist_table(sch, tb[TCA_NETEM_DELAY_DIST]);
-		if (ret)
-			return ret;
-	}
-
 	if (tb[TCA_NETEM_REORDER])
 		get_reorder(sch, tb[TCA_NETEM_REORDER]);
 
@@ -871,10 +894,6 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 
 	if (tb[TCA_NETEM_ECN])
 		q->ecn = nla_get_u32(tb[TCA_NETEM_ECN]);
-
-	q->loss_model = CLG_RANDOM;
-	if (tb[TCA_NETEM_LOSS])
-		ret = get_loss_clg(sch, tb[TCA_NETEM_LOSS]);
 
 	return ret;
 }
