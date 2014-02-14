@@ -325,7 +325,7 @@ static int e1000_set_settings(struct net_device *netdev,
 
 	/* reset the link */
 	if (netif_running(adapter->netdev)) {
-		e1000e_down(adapter);
+		e1000e_down(adapter, true);
 		e1000e_up(adapter);
 	} else {
 		e1000e_reset(adapter);
@@ -373,7 +373,7 @@ static int e1000_set_pauseparam(struct net_device *netdev,
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
 		hw->fc.requested_mode = e1000_fc_default;
 		if (netif_running(adapter->netdev)) {
-			e1000e_down(adapter);
+			e1000e_down(adapter, true);
 			e1000e_up(adapter);
 		} else {
 			e1000e_reset(adapter);
@@ -719,7 +719,7 @@ static int e1000_set_ringparam(struct net_device *netdev,
 
 	pm_runtime_get_sync(netdev->dev.parent);
 
-	e1000e_down(adapter);
+	e1000e_down(adapter, true);
 
 	/* We can't just free everything and then setup again, because the
 	 * ISRs in MSI-X mode get passed pointers to the Tx and Rx ring
