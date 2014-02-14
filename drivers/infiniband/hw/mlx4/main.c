@@ -1357,6 +1357,21 @@ static struct device_attribute *mlx4_class_attributes[] = {
 	&dev_attr_board_id
 };
 
+static void mlx4_addrconf_ifid_eui48(u8 *eui, u16 vlan_id,
+				     struct net_device *dev)
+{
+	memcpy(eui, dev->dev_addr, 3);
+	memcpy(eui + 5, dev->dev_addr + 3, 3);
+	if (vlan_id < 0x1000) {
+		eui[3] = vlan_id >> 8;
+		eui[4] = vlan_id & 0xff;
+	} else {
+		eui[3] = 0xff;
+		eui[4] = 0xfe;
+	}
+	eui[0] ^= 2;
+}
+
 static void update_gids_task(struct work_struct *work)
 {
 	struct update_gid_work *gw = container_of(work, struct update_gid_work, work);
@@ -1393,7 +1408,6 @@ static void reset_gids_task(struct work_struct *work)
 	struct mlx4_cmd_mailbox *mailbox;
 	union ib_gid *gids;
 	int err;
-	int i;
 	struct mlx4_dev	*dev = gw->dev->dev;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -1405,18 +1419,16 @@ static void reset_gids_task(struct work_struct *work)
 	gids = mailbox->buf;
 	memcpy(gids, gw->gids, sizeof(gw->gids));
 
-	for (i = 1; i < gw->dev->num_ports + 1; i++) {
-		if (mlx4_ib_port_link_layer(&gw->dev->ib_dev, i) ==
-					    IB_LINK_LAYER_ETHERNET) {
-			err = mlx4_cmd(dev, mailbox->dma,
-				       MLX4_SET_PORT_GID_TABLE << 8 | i,
-				       1, MLX4_CMD_SET_PORT,
-				       MLX4_CMD_TIME_CLASS_B,
-				       MLX4_CMD_WRAPPED);
-			if (err)
-				pr_warn(KERN_WARNING
-					"set port %d command failed\n", i);
-		}
+	if (mlx4_ib_port_link_layer(&gw->dev->ib_dev, gw->port) ==
+				    IB_LINK_LAYER_ETHERNET) {
+		err = mlx4_cmd(dev, mailbox->dma,
+			       MLX4_SET_PORT_GID_TABLE << 8 | gw->port,
+			       1, MLX4_CMD_SET_PORT,
+			       MLX4_CMD_TIME_CLASS_B,
+			       MLX4_CMD_WRAPPED);
+		if (err)
+			pr_warn(KERN_WARNING
+				"set port %d command failed\n", gw->port);
 	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
@@ -1425,7 +1437,8 @@ free:
 }
 
 static int update_gid_table(struct mlx4_ib_dev *dev, int port,
-			    union ib_gid *gid, int clear)
+			    union ib_gid *gid, int clear,
+			    int default_gid)
 {
 	struct update_gid_work *work;
 	int i;
@@ -1434,26 +1447,31 @@ static int update_gid_table(struct mlx4_ib_dev *dev, int port,
 	int found = -1;
 	int max_gids;
 
-	max_gids = dev->dev->caps.gid_table_len[port];
-	for (i = 0; i < max_gids; ++i) {
-		if (!memcmp(&dev->iboe.gid_table[port - 1][i], gid,
-			    sizeof(*gid)))
-			found = i;
-
-		if (clear) {
-			if (found >= 0) {
-				need_update = 1;
-				dev->iboe.gid_table[port - 1][found] = zgid;
-				break;
-			}
-		} else {
-			if (found >= 0)
-				break;
-
-			if (free < 0 &&
-			    !memcmp(&dev->iboe.gid_table[port - 1][i], &zgid,
+	if (default_gid) {
+		free = 0;
+	} else {
+		max_gids = dev->dev->caps.gid_table_len[port];
+		for (i = 1; i < max_gids; ++i) {
+			if (!memcmp(&dev->iboe.gid_table[port - 1][i], gid,
 				    sizeof(*gid)))
-				free = i;
+				found = i;
+
+			if (clear) {
+				if (found >= 0) {
+					need_update = 1;
+					dev->iboe.gid_table[port - 1][found] =
+						zgid;
+					break;
+				}
+			} else {
+				if (found >= 0)
+					break;
+
+				if (free < 0 &&
+				    !memcmp(&dev->iboe.gid_table[port - 1][i],
+					    &zgid, sizeof(*gid)))
+					free = i;
+			}
 		}
 	}
 
@@ -1478,18 +1496,26 @@ static int update_gid_table(struct mlx4_ib_dev *dev, int port,
 	return 0;
 }
 
-static int reset_gid_table(struct mlx4_ib_dev *dev)
+static void mlx4_make_default_gid(struct  net_device *dev, union ib_gid *gid)
+{
+	gid->global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
+	mlx4_addrconf_ifid_eui48(&gid->raw[8], 0xffff, dev);
+}
+
+
+static int reset_gid_table(struct mlx4_ib_dev *dev, u8 port)
 {
 	struct update_gid_work *work;
-
 
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
 		return -ENOMEM;
-	memset(dev->iboe.gid_table, 0, sizeof(dev->iboe.gid_table));
+
+	memset(dev->iboe.gid_table[port - 1], 0, sizeof(work->gids));
 	memset(work->gids, 0, sizeof(work->gids));
 	INIT_WORK(&work->work, reset_gids_task);
 	work->dev = dev;
+	work->port = port;
 	queue_work(wq, &work->work);
 	return 0;
 }
@@ -1502,6 +1528,12 @@ static int mlx4_ib_addr_event(int event, struct net_device *event_netdev,
 	struct net_device *real_dev = rdma_vlan_dev_real_dev(event_netdev) ?
 				rdma_vlan_dev_real_dev(event_netdev) :
 				event_netdev;
+	union ib_gid default_gid;
+
+	mlx4_make_default_gid(real_dev, &default_gid);
+
+	if (!memcmp(gid, &default_gid, sizeof(*gid)))
+		return 0;
 
 	if (event != NETDEV_DOWN && event != NETDEV_UP)
 		return 0;
@@ -1520,7 +1552,7 @@ static int mlx4_ib_addr_event(int event, struct net_device *event_netdev,
 		     (!netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->netdevs[port - 1])))
 			update_gid_table(ibdev, port, gid,
-					 event == NETDEV_DOWN);
+					 event == NETDEV_DOWN, 0);
 
 	spin_unlock(&iboe->lock);
 	return 0;
@@ -1536,7 +1568,6 @@ static u8 mlx4_ib_get_dev_port(struct net_device *dev,
 				rdma_vlan_dev_real_dev(dev) : dev;
 
 	iboe = &ibdev->iboe;
-	spin_lock(&iboe->lock);
 
 	for (port = 1; port <= MLX4_MAX_PORTS; ++port)
 		if ((netif_is_bond_master(real_dev) &&
@@ -1544,8 +1575,6 @@ static u8 mlx4_ib_get_dev_port(struct net_device *dev,
 		     (!netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->netdevs[port - 1])))
 			break;
-
-	spin_unlock(&iboe->lock);
 
 	if ((port == 0) || (port > MLX4_MAX_PORTS))
 		return 0;
@@ -1607,7 +1636,7 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 			/*ifa->ifa_address;*/
 			ipv6_addr_set_v4mapped(ifa->ifa_address,
 					       (struct in6_addr *)&gid);
-			update_gid_table(ibdev, port, &gid, 0);
+			update_gid_table(ibdev, port, &gid, 0, 0);
 		}
 		endfor_ifa(in_dev);
 		in_dev_put(in_dev);
@@ -1619,7 +1648,7 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 		read_lock_bh(&in6_dev->lock);
 		list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
 			pgid = (union ib_gid *)&ifp->addr;
-			update_gid_table(ibdev, port, pgid, 0);
+			update_gid_table(ibdev, port, pgid, 0, 0);
 		}
 		read_unlock_bh(&in6_dev->lock);
 		in6_dev_put(in6_dev);
@@ -1627,14 +1656,26 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 #endif
 }
 
+static void mlx4_ib_set_default_gid(struct mlx4_ib_dev *ibdev,
+				 struct  net_device *dev, u8 port)
+{
+	union ib_gid gid;
+	mlx4_make_default_gid(dev, &gid);
+	update_gid_table(ibdev, port, &gid, 0, 1);
+}
+
 static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 {
 	struct	net_device *dev;
+	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
+	int i;
 
-	if (reset_gid_table(ibdev))
-		return -1;
+	for (i = 1; i <= ibdev->num_ports; ++i)
+		if (reset_gid_table(ibdev, i))
+			return -1;
 
 	read_lock(&dev_base_lock);
+	spin_lock(&iboe->lock);
 
 	for_each_netdev(&init_net, dev) {
 		u8 port = mlx4_ib_get_dev_port(dev, ibdev);
@@ -1642,6 +1683,7 @@ static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 			mlx4_ib_get_dev_addr(dev, ibdev, port);
 	}
 
+	spin_unlock(&iboe->lock);
 	read_unlock(&dev_base_lock);
 
 	return 0;
@@ -1656,25 +1698,57 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev)
 
 	spin_lock(&iboe->lock);
 	mlx4_foreach_ib_transport_port(port, ibdev->dev) {
+		enum ib_port_state	port_state = IB_PORT_NOP;
 		struct net_device *old_master = iboe->masters[port - 1];
+		struct net_device *curr_netdev;
 		struct net_device *curr_master;
+
 		iboe->netdevs[port - 1] =
 			mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port);
+		if (iboe->netdevs[port - 1])
+			mlx4_ib_set_default_gid(ibdev,
+						iboe->netdevs[port - 1], port);
+		curr_netdev = iboe->netdevs[port - 1];
 
 		if (iboe->netdevs[port - 1] &&
 		    netif_is_bond_slave(iboe->netdevs[port - 1])) {
-			rtnl_lock();
 			iboe->masters[port - 1] = netdev_master_upper_dev_get(
 				iboe->netdevs[port - 1]);
-			rtnl_unlock();
+		} else {
+			iboe->masters[port - 1] = NULL;
 		}
 		curr_master = iboe->masters[port - 1];
 
+		if (curr_netdev) {
+			port_state = (netif_running(curr_netdev) && netif_carrier_ok(curr_netdev)) ?
+						IB_PORT_ACTIVE : IB_PORT_DOWN;
+			mlx4_ib_set_default_gid(ibdev, curr_netdev, port);
+		} else {
+			reset_gid_table(ibdev, port);
+		}
+		/* if using bonding/team and a slave port is down, we don't the bond IP
+		 * based gids in the table since flows that select port by gid may get
+		 * the down port.
+		 */
+		if (curr_master && (port_state == IB_PORT_DOWN)) {
+			reset_gid_table(ibdev, port);
+			mlx4_ib_set_default_gid(ibdev, curr_netdev, port);
+		}
 		/* if bonding is used it is possible that we add it to masters
-		    only after IP address is assigned to the net bonding
-		    interface */
-		if (curr_master && (old_master != curr_master))
+		 * only after IP address is assigned to the net bonding
+		 * interface.
+		*/
+		if (curr_master && (old_master != curr_master)) {
+			reset_gid_table(ibdev, port);
+			mlx4_ib_set_default_gid(ibdev, curr_netdev, port);
 			mlx4_ib_get_dev_addr(curr_master, ibdev, port);
+		}
+
+		if (!curr_master && (old_master != curr_master)) {
+			reset_gid_table(ibdev, port);
+			mlx4_ib_set_default_gid(ibdev, curr_netdev, port);
+			mlx4_ib_get_dev_addr(curr_netdev, ibdev, port);
+		}
 	}
 
 	spin_unlock(&iboe->lock);
@@ -1810,6 +1884,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	int i, j;
 	int err;
 	struct mlx4_ib_iboe *iboe;
+	int ib_num_ports = 0;
 
 	pr_info_once("%s", mlx4_ib_version);
 
@@ -1985,10 +2060,14 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 				ibdev->counters[i] = -1;
 	}
 
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+		ib_num_ports++;
+
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
 
-	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED) {
+	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED &&
+	    ib_num_ports) {
 		ibdev->steer_qpn_count = MLX4_IB_UC_MAX_NUM_QPS;
 		err = mlx4_qp_reserve_range(dev, ibdev->steer_qpn_count,
 					    MLX4_IB_UC_STEER_QPN_ALIGN,
@@ -2051,7 +2130,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			}
 		}
 #endif
+		for (i = 1 ; i <= ibdev->num_ports ; ++i)
+			reset_gid_table(ibdev, i);
+		rtnl_lock();
 		mlx4_ib_scan_netdevs(ibdev);
+		rtnl_unlock();
 		mlx4_ib_init_gid_table(ibdev);
 	}
 

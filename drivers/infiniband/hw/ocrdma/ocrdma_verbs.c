@@ -1416,7 +1416,7 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 					  OCRDMA_QP_PARAMS_HOP_LMT_MASK) >>
 						OCRDMA_QP_PARAMS_HOP_LMT_SHIFT;
 	qp_attr->ah_attr.grh.traffic_class = (params.tclass_sq_psn &
-					      OCRDMA_QP_PARAMS_SQ_PSN_MASK) >>
+					      OCRDMA_QP_PARAMS_TCLASS_MASK) >>
 						OCRDMA_QP_PARAMS_TCLASS_SHIFT;
 
 	qp_attr->ah_attr.ah_flags = IB_AH_GRH;
