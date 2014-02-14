@@ -558,7 +558,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 								    ->channel2],
 						 postfix);
 	} else {
-		if (chan->extend_name == NULL)
+		if (chan->extend_name == NULL || shared_by != IIO_SEPARATE)
 			full_postfix = kstrdup(postfix, GFP_KERNEL);
 		else
 			full_postfix = kasprintf(GFP_KERNEL,
