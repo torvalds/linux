@@ -143,7 +143,7 @@ static int sirfsoc_pwrc_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	platform_set_drvdata(pdev, pwrcdrv);
+	dev_set_drvdata(&pdev->dev, pwrcdrv);
 	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
@@ -159,8 +159,7 @@ static int sirfsoc_pwrc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int sirfsoc_pwrc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sirfsoc_pwrc_drvdata *pwrcdrv = platform_get_drvdata(pdev);
+	struct sirfsoc_pwrc_drvdata *pwrcdrv = dev_get_drvdata(dev);
 	struct input_dev *input = pwrcdrv->input;
 
 	/*
