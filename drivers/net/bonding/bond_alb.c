@@ -610,10 +610,10 @@ static void rlb_req_update_slave_clients(struct bonding *bond, struct slave *sla
 		}
 	}
 
-	// update the team's flag only after the whole iteration
+	/* update the team's flag only after the whole iteration */
 	if (ntt) {
 		bond_info->rx_ntt = 1;
-		//fasten the change
+		/* fasten the change */
 		bond_info->rlb_update_retry_counter = RLB_UPDATE_RETRY;
 	}
 
@@ -771,7 +771,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 		*/
 		tx_slave = rlb_choose_channel(skb, bond);
 		if (tx_slave) {
-			memcpy(arp->mac_src,tx_slave->dev->dev_addr, ETH_ALEN);
+			memcpy(arp->mac_src, tx_slave->dev->dev_addr, ETH_ALEN);
 		}
 		pr_debug("Server sent ARP Reply packet\n");
 	} else if (arp->op_code == htons(ARPOP_REQUEST)) {
