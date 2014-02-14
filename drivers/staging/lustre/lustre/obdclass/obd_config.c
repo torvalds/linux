@@ -592,7 +592,7 @@ int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
 }
 EXPORT_SYMBOL(class_detach);
 
-/** Start shutting down the obd.  There may be in-progess ops when
+/** Start shutting down the obd.  There may be in-progress ops when
  * this is called.  We tell them to start shutting down with a call
  * to class_disconnect_exports().
  */
@@ -655,7 +655,7 @@ int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	/* The three references that should be remaining are the
 	 * obd_self_export and the attach and setup references. */
 	if (atomic_read(&obd->obd_refcount) > 3) {
-		/* refcounf - 3 might be the number of real exports
+		/* refcount - 3 might be the number of real exports
 		   (excluding self export). But class_incref is called
 		   by other things as well, so don't count on it. */
 		CDEBUG(D_IOCTL, "%s: forcing exports to disconnect: %d\n",

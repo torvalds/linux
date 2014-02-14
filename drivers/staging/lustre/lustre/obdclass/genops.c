@@ -1625,7 +1625,7 @@ static int obd_zombie_impexp_check(void *arg)
 }
 
 /**
- * Add export to the obd_zombe thread and notify it.
+ * Add export to the obd_zombie thread and notify it.
  */
 static void obd_zombie_export_add(struct obd_export *exp) {
 	spin_lock(&exp->exp_obd->obd_dev_lock);
@@ -1641,7 +1641,7 @@ static void obd_zombie_export_add(struct obd_export *exp) {
 }
 
 /**
- * Add import to the obd_zombe thread and notify it.
+ * Add import to the obd_zombie thread and notify it.
  */
 static void obd_zombie_import_add(struct obd_import *imp) {
 	LASSERT(imp->imp_sec == NULL);
@@ -1661,7 +1661,7 @@ static void obd_zombie_import_add(struct obd_import *imp) {
 static void obd_zombie_impexp_notify(void)
 {
 	/*
-	 * Make sure obd_zomebie_impexp_thread get this notification.
+	 * Make sure obd_zombie_impexp_thread get this notification.
 	 * It is possible this signal only get by obd_zombie_barrier, and
 	 * barrier gulps this notification and sleeps away and hangs ensues
 	 */

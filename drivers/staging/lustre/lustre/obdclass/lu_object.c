@@ -2100,7 +2100,7 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 EXPORT_SYMBOL(lu_object_assign_fid);
 
 /**
- * allocates object with 0 (non-assiged) fid
+ * allocates object with 0 (non-assigned) fid
  * XXX: temporary solution to be able to assign fid in ->do_create()
  *      till we have fully-functional OST fids
  */

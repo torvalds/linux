@@ -376,7 +376,7 @@ static void llog_skip_over(__u64 *off, int curr, int goal)
 
 /* sets:
  *  - cur_offset to the furthest point read in the log file
- *  - cur_idx to the log index preceeding cur_offset
+ *  - cur_idx to the log index preceding cur_offset
  * returns -EIO/-EINVAL on error
  */
 static int llog_lvfs_next_block(const struct lu_env *env,

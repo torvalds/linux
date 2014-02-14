@@ -191,7 +191,7 @@ int obdo_cmp_md(struct obdo *dst, struct obdo *src, obd_flag compare)
 	}
 	if ( compare & OBD_MD_FLGENER )
 		res = (res || (dst->o_parent_oid != src->o_parent_oid));
-	/* XXX Don't know if thses should be included here - wasn't previously
+	/* XXX Don't know if these should be included here - wasn't previously
 	if ( compare & OBD_MD_FLINLINE )
 		res = (res || memcmp(dst->o_inline, src->o_inline));
 	*/
