@@ -157,7 +157,7 @@ static int sirfsoc_pwrc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int pwrc_resume(struct device *dev)
+static int sirfsoc_pwrc_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sirfsoc_pwrc_drvdata *pwrcdrv = platform_get_drvdata(pdev);
@@ -176,7 +176,7 @@ static int pwrc_resume(struct device *dev)
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(sirfsoc_pwrc_pm_ops, NULL, pwrc_resume);
+static SIMPLE_DEV_PM_OPS(sirfsoc_pwrc_pm_ops, NULL, sirfsoc_pwrc_resume);
 
 static struct platform_driver sirfsoc_pwrc_driver = {
 	.probe		= sirfsoc_pwrc_probe,
