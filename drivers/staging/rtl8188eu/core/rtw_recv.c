@@ -87,9 +87,10 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	precvframe = (union recv_frame *)precvpriv->precv_frame_buf;
 
 	for (i = 0; i < NR_RECVFRAME; i++) {
-		_rtw_init_listhead(&(precvframe->u.list));
+		_rtw_init_listhead(&(precvframe->u.hdr.list));
 
-		rtw_list_insert_tail(&(precvframe->u.list), &(precvpriv->free_recv_queue.queue));
+		rtw_list_insert_tail(&(precvframe->u.hdr.list),
+				     &(precvpriv->free_recv_queue.queue));
 
 		res = rtw_os_recv_resource_alloc(padapter, precvframe);
 
@@ -1485,7 +1486,7 @@ static union recv_frame *recvframe_defrag(struct adapter *adapter, struct __queu
 	plist = phead->next;
 	pfhdr = container_of(plist, struct recv_frame_hdr, list);
 	prframe = (union recv_frame *)pfhdr;
-	rtw_list_delete(&(prframe->u.list));
+	rtw_list_delete(&(prframe->u.hdr.list));
 
 	if (curfragnum != pfhdr->attrib.frag_num) {
 		/* the first fragment number must be 0 */
