@@ -3792,8 +3792,8 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev)
 		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET, 0);
 	}
 
-	/* only one DAC on DCE6 */
-	if (!ASIC_IS_DCE6(rdev))
+	/* only one DAC on DCE5 */
+	if (!ASIC_IS_DCE5(rdev))
 		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
 	WREG32(DACB_AUTODETECT_INT_CONTROL, 0);
 
