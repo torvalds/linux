@@ -558,7 +558,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 		flags |= PIN_MAPPABLE;
 
 	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
-		flags |= PIN_MAPPABLE;
+		flags |= PIN_GLOBAL;
 
 	ret = i915_gem_object_pin(obj, vma->vm, entry->alignment, flags);
 	if (ret)
