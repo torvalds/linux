@@ -322,7 +322,7 @@ static int pm8607_regulator_dt_init(struct platform_device *pdev,
 	nproot = of_node_get(pdev->dev.parent->of_node);
 	if (!nproot)
 		return -ENODEV;
-	nproot = of_find_node_by_name(nproot, "regulators");
+	nproot = of_get_child_by_name(nproot, "regulators");
 	if (!nproot) {
 		dev_err(&pdev->dev, "failed to find regulators node\n");
 		return -ENODEV;
