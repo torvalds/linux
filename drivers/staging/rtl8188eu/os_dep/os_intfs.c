@@ -1111,7 +1111,7 @@ int netdev_open(struct net_device *pnetdev)
 
 	_enter_critical_mutex(padapter->hw_init_mutex, NULL);
 	ret = _netdev_open(pnetdev);
-	_exit_critical_mutex(padapter->hw_init_mutex, NULL);
+	mutex_unlock(padapter->hw_init_mutex);
 	return ret;
 }
 
