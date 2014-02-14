@@ -385,7 +385,7 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 		return NULL;
 	}
 
-	regulators = of_find_node_by_name(np, "regulators");
+	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
 		dev_err(&pdev->dev, "regulator node not found\n");
 		return NULL;
