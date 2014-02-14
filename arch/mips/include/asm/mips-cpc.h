@@ -72,7 +72,12 @@ static inline bool mips_cpc_present(void)
 #define MIPS_CPC_COCB_OFS	0x4000
 
 /* Macros to ease the creation of register access functions */
-#define BUILD_CPC_R_(name, off) \
+#define BUILD_CPC_R_(name, off)					\
+static inline u32 *addr_cpc_##name(void)			\
+{								\
+	return (u32 *)(mips_cpc_base + (off));			\
+}								\
+								\
 static inline u32 read_cpc_##name(void)				\
 {								\
 	return __raw_readl(mips_cpc_base + (off));		\
