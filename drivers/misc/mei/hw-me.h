@@ -20,6 +20,7 @@
 #define _MEI_INTERFACE_H_
 
 #include <linux/mei.h>
+#include <linux/irqreturn.h>
 #include "mei_dev.h"
 #include "client.h"
 
