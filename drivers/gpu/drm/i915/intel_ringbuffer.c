@@ -1275,7 +1275,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 
 	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
 
-	ret = i915_gem_obj_ggtt_pin(obj, 4096, PIN_MAPPABLE);
+	ret = i915_gem_obj_ggtt_pin(obj, 4096, 0);
 	if (ret)
 		goto err_unref;
 
