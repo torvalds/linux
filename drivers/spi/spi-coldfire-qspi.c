@@ -77,8 +77,6 @@ struct mcfqspi {
 	struct mcfqspi_cs_control *cs_control;
 
 	wait_queue_head_t waitq;
-
-	struct device *dev;
 };
 
 static void mcfqspi_wr_qmr(struct mcfqspi *mcfqspi, u16 val)
@@ -436,7 +434,6 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	}
 
 	init_waitqueue_head(&mcfqspi->waitq);
-	mcfqspi->dev = &pdev->dev;
 
 	master->mode_bits = SPI_CS_HIGH | SPI_CPOL | SPI_CPHA;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
@@ -451,7 +448,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "spi_register_master failed\n");
 		goto fail2;
 	}
-	pm_runtime_enable(mcfqspi->dev);
+	pm_runtime_enable(&pdev->dev);
 
 	dev_info(&pdev->dev, "Coldfire QSPI bus driver\n");
 
@@ -473,9 +470,8 @@ static int mcfqspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	pm_runtime_disable(mcfqspi->dev);
+	pm_runtime_disable(&pdev->dev);
 	/* disable the hardware (set the baud rate to 0) */
 	mcfqspi_wr_qmr(mcfqspi, MCFQSPI_QMR_MSTR);
 
