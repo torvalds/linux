@@ -87,16 +87,11 @@ source "arch/nios2/platform/Kconfig.platform"
 menu "Processor type and features"
 
 config MMU
-	bool "MMU support"
-	default y
-	help
-	  This option enables support for the Nios II MMU. Only enable this
-	  option if your design contains a Nios II/f core with MMU enabled.
+	def_bool y
 
 config ALIGNMENT_TRAP
 	bool "Catch alignment trap"
 	default y
-	depends on MMU
 	help
 	  Nios II CPUs cannot fetch/store data which is not bus aligned,
 	  i.e., a 2 or 4 byte fetch must start at an address divisible by
@@ -173,8 +168,7 @@ config KERNEL_MMU_REGION_BASE_BOOL
 
 config KERNEL_MMU_REGION_BASE
 	hex "Virtual base address of the kernel MMU region " if KERNEL_MMU_REGION_BASE_BOOL
-	default "0x80000000" if MMU
-	default "0x00000000" if !MMU
+	default "0x80000000"
 	help
 	  This option allows you to set the virtual base address of the kernel MMU region.
 
@@ -188,8 +182,7 @@ config KERNEL_REGION_BASE_BOOL
 
 config KERNEL_REGION_BASE
 	hex "Virtual base address of the kernel region " if KERNEL_REGION_BASE_BOOL
-	default "0xc0000000" if MMU
-	default "0x00000000" if !MMU
+	default "0xc0000000"
 
 config IO_REGION_BASE_BOOL
 	bool "Set custom I/O region base address"
@@ -201,8 +194,7 @@ config IO_REGION_BASE_BOOL
 
 config IO_REGION_BASE
 	hex "Virtual base address of the I/O region " if IO_REGION_BASE_BOOL
-	default "0xe0000000" if MMU
-	default "0x80000000" if !MMU
+	default "0xe0000000"
 
 endmenu
 

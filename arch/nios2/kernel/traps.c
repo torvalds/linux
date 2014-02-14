@@ -121,7 +121,7 @@ asmlinkage void breakpoint_c(struct pt_regs *fp)
 	_exception(SIGTRAP, fp, TRAP_BRKPT, fp->ea);
 }
 
-#if defined(CONFIG_MMU) && !defined(CONFIG_ALIGNMENT_TRAP)
+#ifndef CONFIG_ALIGNMENT_TRAP
 /* Alignment exception handler */
 asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 {
@@ -145,7 +145,7 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 
 	_exception(SIGBUS, fp, BUS_ADRALN, addr);
 }
-#endif /* CONFIG_MMU && !CONFIG_ALIGNMENT_TRAP */
+#endif /* CONFIG_ALIGNMENT_TRAP */
 
 /* Illegal instruction handler */
 asmlinkage void handle_illegal_c(struct pt_regs *fp)

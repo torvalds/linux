@@ -68,12 +68,7 @@ struct stat64 {
 
 	long long	st_size;
 	unsigned long	st_blksize;
-#ifdef CONFIG_MMU
 	unsigned long long st_blocks;	/* Number 512-byte blocks allocated. */
-#else
-	unsigned long	__pad4;	/* future possible st_blocks high bits */
-	unsigned long	st_blocks;	/* Number 512-byte blocks allocated. */
-#endif
 
 	unsigned long	st_atime;
 	unsigned long	st_atime_nsec;

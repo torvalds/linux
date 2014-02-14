@@ -33,16 +33,12 @@ int main(void)
 	/* struct thread_struct */
 	OFFSET(THREAD_KSP, thread_struct, ksp);
 	OFFSET(THREAD_KPSR, thread_struct, kpsr);
-#ifndef CONFIG_MMU
-	OFFSET(THREAD_KESR, thread_struct, kesr);
-#endif
 	BLANK();
 
 	/* struct pt_regs */
 	OFFSET(PT_ORIG_R2, pt_regs, orig_r2);
-#ifdef CONFIG_MMU
 	OFFSET(PT_ORIG_R7, pt_regs, orig_r7);
-#endif
+
 	OFFSET(PT_R1, pt_regs, r1);
 	OFFSET(PT_R2, pt_regs, r2);
 	OFFSET(PT_R3, pt_regs, r3);
@@ -64,9 +60,6 @@ int main(void)
 	OFFSET(PT_SP, pt_regs, sp);
 	OFFSET(PT_GP, pt_regs, gp);
 	OFFSET(PT_ESTATUS, pt_regs, estatus);
-#ifndef CONFIG_MMU
-	OFFSET(PT_STATUS_EXTENSION, pt_regs, status_extension);
-#endif
 	DEFINE(PT_REGS_SIZE, sizeof(struct pt_regs));
 	BLANK();
 

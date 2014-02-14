@@ -51,6 +51,7 @@
 			ALTR,fast-tlb-miss-addr = < 0xc7fff400 >;
 			ALTR,exception-addr = < 0xd0000020 >;
 			ALTR,has-initda = < 1 >;
+			ALTR,has-mmu = < 1 >;
 		}; //end cpu@0x0 (cpu)
 	}; //end cpus
 

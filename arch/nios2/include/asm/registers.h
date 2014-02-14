@@ -51,12 +51,8 @@
 #define ESTATUS_EU	(1 << 1)	/* user mode */
 #define ESTATUS_EH	(1 << 2)	/* Exception mode */
 
-#ifdef CONFIG_MMU
-
 /* tlbmisc register bits */
 #define TLBMISC_WE	(1 << 18)	/* TLB write enable */
 #define TLBMISC_RD	(1 << 19)	/* TLB read */
-
-#endif /* CONFIG_MMU */
 
 #endif /* _ASM_NIOS2_REGISTERS_H */

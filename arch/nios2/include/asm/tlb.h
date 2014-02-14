@@ -13,8 +13,6 @@
 
 #define tlb_flush(tlb)	flush_tlb_mm((tlb)->mm)
 
-#ifdef CONFIG_MMU
-
 extern void set_mmu_pid(unsigned long pid);
 
 /*
@@ -26,12 +24,6 @@ extern void set_mmu_pid(unsigned long pid);
 		if (!tlb->fullmm)				\
 			flush_cache_range(vma, vma->vm_start, vma->vm_end); \
 	}  while (0)
-
-#else
-
-#define tlb_start_vma(tlb, vma)	do { } while (0)
-
-#endif /* CONFIG_MMU */
 
 #define tlb_end_vma(tlb, vma)	do { } while (0)
 #define __tlb_remove_tlb_entry(tlb, ptep, address)	do { } while (0)

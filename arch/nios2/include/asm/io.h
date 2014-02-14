@@ -163,27 +163,9 @@ static inline void io_insl(unsigned int addr, void *buf, int len)
 #define outw(x, addr)		((void) writew(x, addr))
 #define outl(x, addr)		((void) writel(x, addr))
 
-#ifdef CONFIG_MMU
-
 extern void __iomem *__ioremap(unsigned long physaddr, unsigned long size,
 			unsigned long cacheflag);
 extern void __iounmap(void __iomem *addr);
-
-#else
-
-static inline void __iomem *__ioremap(unsigned long physaddr,
-					unsigned long size,
-					unsigned long cacheflag)
-{
-	if (cacheflag & _PAGE_CACHED)
-		return (void __iomem *)(physaddr & ~CONFIG_IO_REGION_BASE);
-	else
-		return (void __iomem *)(physaddr | CONFIG_IO_REGION_BASE);
-}
-
-#define __iounmap(addr)		do {} while (0)
-
-#endif /* CONFIG_MMU */
 
 static inline void __iomem *ioremap(unsigned long physaddr, unsigned long size)
 {
@@ -214,24 +196,14 @@ static inline void iounmap(void __iomem *addr)
 }
 
 /* Pages to physical address... */
-#ifdef CONFIG_MMU
 # define page_to_phys(page)	virt_to_phys(page_to_virt(page))
 # define page_to_bus(page)	page_to_virt(page)
-#else
-# define page_to_phys(page)	((page - mem_map) << PAGE_SHIFT)
-# define page_to_bus(page)	((page - mem_map) << PAGE_SHIFT)
-#endif /* CONFIG_MMU */
 
 /* Macros used for converting between virtual and physical mappings. */
-#ifdef CONFIG_MMU
 # define phys_to_virt(vaddr)	\
 	((void *)((unsigned long)vaddr + PAGE_OFFSET - PHYS_OFFSET))
 # define virt_to_phys(vaddr)	\
 	((unsigned long)((unsigned long)vaddr - PAGE_OFFSET + PHYS_OFFSET))
-#else
-# define phys_to_virt(vaddr)	((void *)(vaddr))
-# define virt_to_phys(vaddr)	((unsigned long)(vaddr))
-#endif /* CONFIG_MMU */
 
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt

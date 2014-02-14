@@ -133,12 +133,8 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall	/* old sys_iopl */
 	.long sys_vhangup
 	.long sys_ni_syscall	/* old sys_idle */
-#ifdef CONFIG_MMU
 	.long sys_nios2cmpxchg	/* nios2-specific compare and exchange syscall
 					for atomic operations */
-#else
-	.long sys_ni_syscall
-#endif
 	.long sys_wait4
 	.long sys_swapoff	/* 115 */
 	.long sys_sysinfo

@@ -25,14 +25,12 @@
 #define NIOS2_OP_NOP		0x1883a
 #define NIOS2_OP_BREAK		0x3da03a
 
-#ifdef CONFIG_MMU
 #ifdef __KERNEL__
 
 #define STACK_TOP	TASK_SIZE
 #define STACK_TOP_MAX	STACK_TOP
 
 #endif /* __KERNEL__ */
-#endif /* CONFIG_MMU */
 
 #ifndef __ASSEMBLY__
 
@@ -42,22 +40,8 @@
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l; })
 
-#ifdef CONFIG_MMU
 # define TASK_SIZE		0x7FFF0000UL
 # define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
-#else
-/*
- * User space process size: 1st byte beyond user address space.
- * Fairly meaningless on nommu.  Parts of user programs can be scattered
- * in a lot of places, so just disable this by setting it to 0xFFFFFFFF.
- */
-# define TASK_SIZE		0xFFFFFFFFUL
-/*
- * This decides where the kernel will search for a free chunk of vm
- * space during mmap's. We won't be using it.
- */
-# define TASK_UNMAPPED_BASE	0
-#endif /* CONFIG_MMU */
 
 /* The Nios processor specific thread struct. */
 struct thread_struct {
@@ -66,27 +50,16 @@ struct thread_struct {
 	/* Context switch saved kernel state. */
 	unsigned long ksp;
 	unsigned long kpsr;
-#ifndef CONFIG_MMU
-	unsigned long kesr;
-#endif
 };
 
 #define INIT_MMAP \
 	{ &init_mm, (0), (0), __pgprot(0x0), VM_READ | VM_WRITE | VM_EXEC }
 
-#ifdef CONFIG_MMU
 # define INIT_THREAD {			\
 	.kregs	= NULL,			\
 	.ksp	= 0,			\
 	.kpsr	= 0,			\
 }
-#else
-# define INIT_THREAD {			\
-	.kregs	= NULL,			\
-	.ksp	= sizeof(init_stack) + (unsigned long) init_stack, \
-	.kpsr	= 0,			\
-}
-#endif /* CONFIG_MMU */
 
 extern void start_thread(struct pt_regs *regs, unsigned long pc,
 			unsigned long sp);

@@ -15,10 +15,6 @@
 
 #include <uapi/asm/ptrace.h>
 
-#if defined __KERNEL__ && !defined CONFIG_MMU
-# define PS_S		0x00000001
-#endif
-
 #ifndef __ASSEMBLY__
 
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */
@@ -29,11 +25,8 @@
  * Supervisor mode
  */
 
-#ifdef CONFIG_MMU
 # define user_mode(regs)	(((regs)->estatus & ESTATUS_EU))
-#else
-# define user_mode(regs)	(!((regs)->status_extension & PS_S))
-#endif /* CONFIG_MMU */
+
 
 #define instruction_pointer(regs)	((regs)->ra)
 #define profile_pc(regs)		instruction_pointer(regs)

@@ -14,14 +14,7 @@
 # Nios2 port by Wind River Systems Inc trough:
 #   fredrik.markstrom@gmail.com and ivarholmqvist@gmail.com
 
-ifeq ($(CONFIG_MMU),y)
 UTS_SYSNAME = Linux
-else
-UTS_SYSNAME = uClinux
-MMU := -nommu
-KBUILD_CFLAGS += -D__uClinux__
-KBUILD_AFLAGS += -D__uClinux__
-endif
 
 export MMU
 

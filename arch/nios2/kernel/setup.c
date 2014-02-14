@@ -72,7 +72,6 @@ static inline void copy_exception_handler(unsigned int addr)
 	);
 }
 
-#ifdef CONFIG_MMU
 /* Copy the fast TLB miss handler */
 static inline void copy_fast_tlb_miss_handler(unsigned int addr)
 {
@@ -96,7 +95,6 @@ static inline void copy_fast_tlb_miss_handler(unsigned int addr)
 		: "memory"
 	);
 }
-#endif /* CONFIG_MMU */
 
 /*
  * save args passed from u-boot, called from head.S
@@ -208,7 +206,6 @@ void __init setup_arch(char **cmdline_p)
 
 	copy_exception_handler(cpuinfo.exception_addr);
 
-#ifdef CONFIG_MMU
 	mmu_init();
 
 	copy_fast_tlb_miss_handler(cpuinfo.fast_tlb_miss_exc_addr);
@@ -218,7 +215,6 @@ void __init setup_arch(char **cmdline_p)
 	 * needed for this.
 	 */
 	mmu_context_init();
-#endif
 
 	/*
 	 * get kmalloc into gear

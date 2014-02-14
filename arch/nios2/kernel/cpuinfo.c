@@ -56,12 +56,12 @@ void __init setup_cpuinfo(void)
 	if (!cpu)
 		panic("%s: No CPU found in devicetree!\n", __func__);
 
-	/* for now */
-#ifdef CONFIG_MMU
-	cpuinfo.mmu = 1;
-#else
-	cpuinfo.mmu = 0;
-#endif
+	cpuinfo.mmu = fcpu_has(cpu, "ALTR,has-mmu");
+	if (!cpuinfo.mmu) {
+		panic("ERROR: Can't get 'ALTR,has-mmu' from device tree. Only support"
+			" Nios II with MMU enabled. Please enable MMU in Nios II "
+			"hardware.");
+	}
 
 	cpuinfo.cpu_clock_freq = fcpu(cpu, "clock-frequency");
 
@@ -148,12 +148,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			cpuinfo.dcache_size >> 10,
 			cpuinfo.dcache_line_size);
 
-	if (cpuinfo.mmu)
-		count += seq_printf(m,
-				"TLB:\t\t%u ways, %u entries, %u PID bits\n",
-				cpuinfo.tlb_num_ways,
-				cpuinfo.tlb_num_entries,
-				cpuinfo.tlb_pid_num_bits);
+	count += seq_printf(m,
+			"TLB:\t\t%u ways, %u entries, %u PID bits\n",
+			cpuinfo.tlb_num_ways,
+			cpuinfo.tlb_num_entries,
+			cpuinfo.tlb_pid_num_bits);
 
 	return 0;
 }

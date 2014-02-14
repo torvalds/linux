@@ -22,26 +22,6 @@
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 
-#ifndef CONFIG_MMU
-void *module_alloc(unsigned long size)
-{
-	if (size == 0)
-		return NULL;
-	return vmalloc(size);
-}
-
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
-{
-	vfree(module_region);
-	/*
-	 * FIXME: If module_region == mod->init_region, trim exception
-	 * table entries.
-	 */
-}
-
-#else /* CONFIG_MMU */
-
 /*
  * FIXME:  modules should NOT be allocated with kmalloc for (obvious) reasons.
  * But we do it for now to avoid relocation issues. CALL26/PCREL26 cannot reach
@@ -67,8 +47,6 @@ void module_free(struct module *mod, void *module_region)
 	 * table entries.
 	 */
 }
-
-#endif /* CONFIG_MMU */
 
 int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			unsigned int symindex, unsigned int relsec,

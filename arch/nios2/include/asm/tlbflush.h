@@ -19,10 +19,6 @@
 #ifndef _ASM_NIOS2_TLBFLUSH_H
 #define _ASM_NIOS2_TLBFLUSH_H
 
-#ifndef CONFIG_MMU
-# include <asm-generic/tlbflush.h>
-#else
-
 struct mm_struct;
 
 /*
@@ -46,7 +42,5 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 {
 	flush_tlb_one(addr);
 }
-
-#endif /* CONFIG_MMU */
 
 #endif /* _ASM_NIOS2_TLBFLUSH_H */

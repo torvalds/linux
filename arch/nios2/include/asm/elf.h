@@ -41,7 +41,6 @@
 /* regs is struct pt_regs, pr_reg is elf_gregset_t (which is
    now struct_user_regs, they are different) */
 
-#ifdef CONFIG_MMU
 #define ELF_CORE_COPY_REGS(pr_reg, regs)				\
 { do {									\
 	/* Bleech. */							\
@@ -83,43 +82,6 @@
 		pr_reg[33] = sw->ra;					\
 	}								\
 } while (0); }
-#else
-#define ELF_CORE_COPY_REGS(pr_reg, regs)				\
-{ do {									\
-	/* Bleech. */							\
-	pr_reg[0] = regs->r1;						\
-	pr_reg[1] = regs->r2;						\
-	pr_reg[2] = regs->r3;						\
-	pr_reg[3] = regs->r4;						\
-	pr_reg[4] = regs->r5;						\
-	pr_reg[5] = regs->r6;						\
-	pr_reg[6] = regs->r7;						\
-	pr_reg[7] = regs->r8;						\
-	pr_reg[8] = regs->r9;						\
-	pr_reg[9] = regs->r10;						\
-	pr_reg[10] = regs->r11;						\
-	pr_reg[11] = regs->r12;						\
-	pr_reg[12] = regs->r13;						\
-	pr_reg[13] = regs->r14;						\
-	pr_reg[14] = regs->r15;						\
-	pr_reg[23] = regs->sp;						\
-	pr_reg[26] = regs->estatus;					\
-	{								\
-		struct switch_stack *sw = ((struct switch_stack *)regs) - 1; \
-		pr_reg[15] = sw->r16;					\
-		pr_reg[16] = sw->r17;					\
-		pr_reg[17] = sw->r18;					\
-		pr_reg[18] = sw->r19;					\
-		pr_reg[19] = sw->r20;					\
-		pr_reg[20] = sw->r21;					\
-		pr_reg[21] = sw->r22;					\
-		pr_reg[22] = sw->r23;					\
-		pr_reg[24] = sw->fp;					\
-		pr_reg[25] = sw->gp;					\
-	}								\
-} while (0); }
-
-#endif /* CONFIG_MMU */
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  */

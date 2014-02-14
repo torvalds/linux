@@ -48,9 +48,7 @@ struct thread_info {
 						  0-0xFFFFFFFF for kernel-thread
 						*/
 	struct restart_block	restart_block;
-#ifdef CONFIG_MMU
 	struct pt_regs		*regs;
-#endif
 };
 
 /*

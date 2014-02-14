@@ -19,10 +19,6 @@ static inline void __dma_sync(unsigned long addr, size_t size,
 {
 	switch (direction) {
 	case DMA_FROM_DEVICE:
-#ifndef CONFIG_MMU
-		nios2_clear_dcache_range(addr, (unsigned long)(addr + size));
-		break;
-#endif
 	case DMA_TO_DEVICE:
 	case DMA_BIDIRECTIONAL:
 		flush_dcache_range(addr, (unsigned long)(addr + size));

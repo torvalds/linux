@@ -12,12 +12,7 @@
 #ifndef _ASM_NIOS2_MMU_H
 #define _ASM_NIOS2_MMU_H
 
-#ifndef CONFIG_MMU
-# include <asm-generic/mmu.h>
-#else
-
 /* Default "unsigned long" context */
 typedef unsigned long mm_context_t;
 
-#endif /* CONFIG_MMU */
 #endif /* _ASM_NIOS2_MMU_H */

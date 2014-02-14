@@ -4,9 +4,9 @@
 
 obj-y := init.o
 
-obj-y += cacheflush$(MMU).o
+obj-y += cacheflush.o
 
-obj-$(CONFIG_MMU) += pgtable.o tlb.o uaccess.o fault.o
-obj-$(CONFIG_MMU) += ioremap.o extable.o mmu_context.o
+obj-y += pgtable.o tlb.o uaccess.o fault.o
+obj-y += ioremap.o extable.o mmu_context.o
 
-obj-y += dma-mapping$(MMU).o
+obj-y += dma-mapping.o

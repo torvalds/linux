@@ -33,13 +33,9 @@ asmlinkage int nios2_clone(struct pt_regs *regs)
 	newsp = regs->r5;
 	if (newsp == 0)
 		newsp = regs->sp;
-#ifdef CONFIG_MMU
+
 	parent_tidptr = (int __user *) regs->r6;
 	child_tidptr = (int __user *) regs->r8;
-#else
-	parent_tidptr = NULL;
-	child_tidptr = NULL;
-#endif
 
 	return do_fork(flags, newsp, 0, parent_tidptr, child_tidptr);
 }
@@ -58,9 +54,6 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 asmlinkage int sys_cacheflush(unsigned long addr, int scope, int cache,
 				unsigned long len)
 {
-#ifndef CONFIG_MMU
-	flush_cache_all();
-#else
 	struct vm_area_struct *vma;
 
 	if (len == 0)
@@ -80,7 +73,6 @@ asmlinkage int sys_cacheflush(unsigned long addr, int scope, int cache,
 
 	/* Ignore the scope and cache arguments. */
 	flush_cache_range(vma, addr, addr + len);
-#endif /* CONFIG_MMU */
 
 	return 0;
 }
@@ -90,7 +82,6 @@ asmlinkage int sys_getpagesize(void)
 	return PAGE_SIZE;
 }
 
-#ifdef CONFIG_MMU
 #if defined(CONFIG_FB) || defined(CONFIG_FB_MODULE)
 #include <linux/fb.h>
 unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr,
@@ -102,4 +93,3 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr,
 }
 EXPORT_SYMBOL(get_fb_unmapped_area);
 #endif /* CONFIG_FB */
-#endif /* CONFIG_MMU */

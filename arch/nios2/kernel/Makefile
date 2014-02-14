@@ -4,7 +4,7 @@
 
 extra-y := head.o vmlinux.lds
 
-obj-y += entry$(MMU).o
+obj-y += entry.o
 
 obj-y += cpuinfo.o insnemu.o irq.o nios2_ksyms.o process.o prom.o ptrace.o \
 	 setup.o signal.o sys_nios2.o syscalltable.o time.o traps.o

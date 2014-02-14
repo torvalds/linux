@@ -121,15 +121,8 @@ static inline int rt_restore_ucontext(struct pt_regs *regs,
 							settable bits */
 	err |= __get_user(regs->ea, &gregs[27]);
 
-#ifdef CONFIG_MMU
 	err |= __get_user(regs->ra, &gregs[23]);
 	err |= __get_user(regs->sp, &gregs[28]);
-#else
-
-	err |= __get_user(regs->ra, &gregs[23]);
-	err |= __get_user(regs->status_extension,
-			  &uc->uc_mcontext.status_extension);
-#endif
 
 	regs->estatus = (regs->estatus & 0xffffffff);
 	regs->orig_r2 = -1;		/* disable syscall checks */
@@ -245,20 +238,11 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 	err |= __put_user(sw->r21, &gregs[20]);
 	err |= __put_user(sw->r22, &gregs[21]);
 	err |= __put_user(sw->r23, &gregs[22]);
-#ifdef CONFIG_MMU
 	err |= __put_user(regs->ra, &gregs[23]);
-#else
-	err |= __put_user(regs->sp, &gregs[23]);
-#endif
 	err |= __put_user(sw->fp, &gregs[24]);
 	err |= __put_user(sw->gp, &gregs[25]);
 	err |= __put_user(regs->ea, &gregs[27]);
-#ifdef CONFIG_MMU
 	err |= __put_user(regs->sp, &gregs[28]);
-#else
-	err |= __put_user(regs->status_extension,
-		&uc->uc_mcontext.status_extension);
-#endif
 	return err;
 }
 
@@ -277,11 +261,7 @@ static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	usp = regs->sp;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
-#ifdef CONFIG_MMU
 	if ((ka->sa.sa_flags & SA_ONSTACK) && (current->sas_ss_sp != 0)) {
-#else
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-#endif
 		if (!on_sig_stack(usp))
 			usp = current->sas_ss_sp + current->sas_ss_size;
 	}
@@ -307,21 +287,11 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 	/* Set up to return from userspace.  */
 	regs->ra = (unsigned long) &frame->retcode[0];
 
-#ifdef CONFIG_MMU
 	/* movi r2,__NR_sigreturn */
 	err |= __put_user(0x00800004 + (__NR_sigreturn << 6),
 		(long *)(frame->retcode));
 	/* trap */
 	err |= __put_user(0x003b683a, (long *)(frame->retcode + 4));
-#else
-	/* movi r3,__NR_sigreturn */
-	err |= __put_user(0x00c00004 + (__NR_sigreturn << 6),
-		(long *)(frame->retcode));
-	/* mov r2,r0 */
-	err |= __put_user(0x0005883a, (long *)(frame->retcode + 4));
-	/* trap */
-	err |= __put_user(0x003b683a, (long *)(frame->retcode + 8));
-#endif /* CONFIG_MMU */
 
 	if (err)
 		goto give_sigsegv;
@@ -362,21 +332,11 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up to return from userspace.  */
 	regs->ra = (unsigned long) &frame->retcode[0];
 
-#ifdef CONFIG_MMU
 	/* movi r2,__NR_rt_sigreturn */
 	err |= __put_user(0x00800004 + (__NR_rt_sigreturn << 6),
 		(long *)(frame->retcode));
 	/* trap */
 	err |= __put_user(0x003b683a, (long *)(frame->retcode + 4));
-#else
-	/* movi r3,__NR_rt_sigreturn */
-	err |= __put_user(0x00c00004 + (__NR_rt_sigreturn << 6),
-		(long *)(frame->retcode));
-	/* mov r2,r0 */
-	err |= __put_user(0x0005883a, (long *)(frame->retcode + 4));
-	/* trap */
-	err |= __put_user(0x003b683a, (long *)(frame->retcode + 8));
-#endif /* CONFIG_MMU */
 
 	if (err)
 		goto give_sigsegv;
@@ -402,7 +362,6 @@ give_sigsegv:
 static inline void handle_restart(struct pt_regs *regs, struct k_sigaction *ka,
 				  int has_handler)
 {
-#ifdef CONFIG_MMU
 	switch (regs->r2) {
 	case ERESTART_RESTARTBLOCK:
 	case ERESTARTNOHAND:
@@ -422,26 +381,6 @@ static inline void handle_restart(struct pt_regs *regs, struct k_sigaction *ka,
 		regs->ea -= 4;
 		break;
 	}
-#else /* CONFIG_MMU */
-	switch (regs->r2) {
-	case -ERESTARTNOHAND:
-		if (!has_handler)
-			goto do_restart;
-		regs->r2 = -EINTR;
-		break;
-	case -ERESTARTSYS:
-		if (has_handler && !(ka->sa.sa_flags & SA_RESTART)) {
-			regs->r2 = -EINTR;
-			break;
-		}
-	/* fallthrough */
-	case -ERESTARTNOINTR:
-do_restart:
-		regs->r2 = regs->orig_r2;
-		regs->ea -= 4;
-		break;
-	}
-#endif /* CONFIG_MMU */
 }
 
 /*
@@ -477,17 +416,6 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 	siginfo_t info;
 	int signr;
 
-#ifndef CONFIG_MMU
-	/*
-	 * On NOMMU we always get in_syscall as 1 and instead need to look at
-	 * orig_r2 whether we are in a syscall.
-	 */
-	if (regs->orig_r2 >= 0)
-		in_syscall = 1;
-	else
-		in_syscall = 0;
-#endif
-
 	/* FIXME - Do we still need to do this ? */
 	current->thread.kregs = regs;
 
@@ -507,7 +435,6 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 		return 1;
 	}
 
-#ifdef CONFIG_MMU
 	/*
 	 * No signal to deliver to the process - restart the syscall.
 	 */
@@ -526,21 +453,6 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 			}
 		}
 	}
-#else
-	/* Did we come from a system call? */
-	if (in_syscall) {
-		/* Restart the system call - no handlers present */
-		if (regs->r2 == -ERESTARTNOHAND ||
-			regs->r2 == -ERESTARTSYS ||
-			regs->r2 == -ERESTARTNOINTR) {
-			regs->r2 = regs->orig_r2;
-			regs->ea -= 4;
-		} else if (regs->r2 == -ERESTART_RESTARTBLOCK) {
-			regs->r2 = __NR_restart_syscall;
-			regs->ea -= 4;
-		}
-	}
-#endif /* CONFIG_MMU */
 
 	return 0;
 }
