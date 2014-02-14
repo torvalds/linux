@@ -487,13 +487,21 @@ struct cgroup_subsys_state *seq_css(struct seq_file *seq);
 
 static inline int cgroup_name(struct cgroup *cgrp, char *buf, size_t buflen)
 {
-	return kernfs_name(cgrp->kn, buf, buflen);
+	/* dummy_top doesn't have a kn associated */
+	if (cgrp->kn)
+		return kernfs_name(cgrp->kn, buf, buflen);
+	else
+		return strlcpy(buf, "/", buflen);
 }
 
 static inline char * __must_check cgroup_path(struct cgroup *cgrp, char *buf,
 					      size_t buflen)
 {
-	return kernfs_path(cgrp->kn, buf, buflen);
+	/* dummy_top doesn't have a kn associated */
+	if (cgrp->kn)
+		return kernfs_path(cgrp->kn, buf, buflen);
+	strlcpy(buf, "/", buflen);
+	return (buflen <= 2) ? NULL : buf;
 }
 
 static inline void pr_cont_cgroup_name(struct cgroup *cgrp)
