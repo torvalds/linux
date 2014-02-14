@@ -38,8 +38,10 @@
 #include <linux/pci.h>
 #include <linux/spinlock_types.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/radix-tree.h>
+
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
 
