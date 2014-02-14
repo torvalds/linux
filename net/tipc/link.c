@@ -2410,7 +2410,7 @@ static struct tipc_node *tipc_link_find_owner(const char *link_name,
 
 	*bearer_id = 0;
 	list_for_each_entry_safe(n_ptr, tmp_n_ptr, &tipc_node_list, list) {
-		spin_lock(&n_ptr->lock);
+		tipc_node_lock(n_ptr);
 		for (i = 0; i < MAX_BEARERS; i++) {
 			l_ptr = n_ptr->links[i];
 			if (l_ptr && !strcmp(l_ptr->name, link_name)) {
@@ -2419,7 +2419,7 @@ static struct tipc_node *tipc_link_find_owner(const char *link_name,
 				break;
 			}
 		}
-		spin_unlock(&n_ptr->lock);
+		tipc_node_unlock(n_ptr);
 		if (found_node)
 			break;
 	}
@@ -2603,7 +2603,7 @@ struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area, int req_tlv_
 		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_error_string("link not found");
 	}
-	spin_lock(&node->lock);
+	tipc_node_lock(node);
 	l_ptr = node->links[bearer_id];
 	if (!l_ptr) {
 		tipc_node_unlock(node);
