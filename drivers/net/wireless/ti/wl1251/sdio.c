@@ -227,7 +227,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	struct wl1251 *wl;
 	struct ieee80211_hw *hw;
 	struct wl1251_sdio *wl_sdio;
-	const struct wl12xx_platform_data *wl12xx_board_data;
+	const struct wl1251_platform_data *wl1251_board_data;
 
 	hw = wl1251_alloc_hw();
 	if (IS_ERR(hw))
@@ -254,11 +254,11 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	wl->if_priv = wl_sdio;
 	wl->if_ops = &wl1251_sdio_ops;
 
-	wl12xx_board_data = wl12xx_get_platform_data();
-	if (!IS_ERR(wl12xx_board_data)) {
-		wl->set_power = wl12xx_board_data->set_power;
-		wl->irq = wl12xx_board_data->irq;
-		wl->use_eeprom = wl12xx_board_data->use_eeprom;
+	wl1251_board_data = wl1251_get_platform_data();
+	if (!IS_ERR(wl1251_board_data)) {
+		wl->set_power = wl1251_board_data->set_power;
+		wl->irq = wl1251_board_data->irq;
+		wl->use_eeprom = wl1251_board_data->use_eeprom;
 	}
 
 	if (wl->irq) {

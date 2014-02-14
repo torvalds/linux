@@ -84,7 +84,7 @@ enum {
 	RX51_SPI_MIPID,		/* LCD panel */
 };
 
-static struct wl12xx_platform_data wl1251_pdata;
+static struct wl1251_platform_data wl1251_pdata;
 static struct tsc2005_platform_data tsc2005_pdata;
 
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)

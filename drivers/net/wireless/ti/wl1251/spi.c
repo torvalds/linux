@@ -238,7 +238,7 @@ static const struct wl1251_if_operations wl1251_spi_ops = {
 
 static int wl1251_spi_probe(struct spi_device *spi)
 {
-	struct wl12xx_platform_data *pdata;
+	struct wl1251_platform_data *pdata;
 	struct ieee80211_hw *hw;
 	struct wl1251 *wl;
 	int ret;
