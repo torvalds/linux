@@ -882,8 +882,7 @@ static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
 
 	switch (cmd) {
 	case TIOCSRS485:
-		if (copy_from_user(&rs485, (struct serial_rs485 *)arg,
-				   sizeof(rs485)))
+		if (copy_from_user(&rs485, (void __user *)arg, sizeof(rs485)))
 			return -EFAULT;
 		if (rs485.delay_rts_before_send > 0x0f ||
 		    rs485.delay_rts_after_send > 0x0f)
@@ -914,8 +913,7 @@ static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
 		val = max310x_port_read(port, MAX310X_HDPIXDELAY_REG);
 		rs485.delay_rts_before_send = val >> 4;
 		rs485.delay_rts_after_send = val & 0x0f;
-		if (copy_to_user((struct serial_rs485 *)arg, &rs485,
-				 sizeof(rs485)))
+		if (copy_to_user((void __user *)arg, &rs485, sizeof(rs485)))
 			return -EFAULT;
 		return 0;
 	default:
