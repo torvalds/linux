@@ -13,16 +13,41 @@
 #include <linux/input.h>
 #include <linux/rtc/sirfsoc_rtciobrg.h>
 #include <linux/of.h>
+#include <linux/workqueue.h>
 
 struct sirfsoc_pwrc_drvdata {
 	u32			pwrc_base;
 	struct input_dev	*input;
+	struct delayed_work	work;
 };
 
 #define PWRC_ON_KEY_BIT			(1 << 0)
 
 #define PWRC_INT_STATUS			0xc
 #define PWRC_INT_MASK			0x10
+#define PWRC_PIN_STATUS			0x14
+#define PWRC_KEY_DETECT_UP_TIME		20	/* ms*/
+
+static int sirfsoc_pwrc_is_on_key_down(struct sirfsoc_pwrc_drvdata *pwrcdrv)
+{
+	u32 state = sirfsoc_rtc_iobrg_readl(pwrcdrv->pwrc_base +
+							PWRC_PIN_STATUS);
+	return !(state & PWRC_ON_KEY_BIT); /* ON_KEY is active low */
+}
+
+static void sirfsoc_pwrc_report_event(struct work_struct *work)
+{
+	struct sirfsoc_pwrc_drvdata *pwrcdrv =
+		container_of(work, struct sirfsoc_pwrc_drvdata, work.work);
+
+	if (sirfsoc_pwrc_is_on_key_down(pwrcdrv)) {
+		schedule_delayed_work(&pwrcdrv->work,
+			msecs_to_jiffies(PWRC_KEY_DETECT_UP_TIME));
+	} else {
+		input_event(pwrcdrv->input, EV_KEY, KEY_POWER, 0);
+		input_sync(pwrcdrv->input);
+	}
+}
 
 static irqreturn_t sirfsoc_pwrc_isr(int irq, void *dev_id)
 {
@@ -34,17 +59,10 @@ static irqreturn_t sirfsoc_pwrc_isr(int irq, void *dev_id)
 	sirfsoc_rtc_iobrg_writel(int_status & ~PWRC_ON_KEY_BIT,
 				 pwrcdrv->pwrc_base + PWRC_INT_STATUS);
 
-	/*
-	 * For a typical Linux system, we report KEY_SUSPEND to trigger apm-power.c
-	 * to queue a SUSPEND APM event
-	 */
-	input_event(pwrcdrv->input, EV_PWR, KEY_SUSPEND, 1);
+	input_event(pwrcdrv->input, EV_KEY, KEY_POWER, 1);
 	input_sync(pwrcdrv->input);
-
-	/*
-	 * Todo: report KEY_POWER event for Android platforms, Android PowerManager
-	 * will handle the suspend and powerdown/hibernation
-	 */
+	schedule_delayed_work(&pwrcdrv->work,
+			      msecs_to_jiffies(PWRC_KEY_DETECT_UP_TIME));
 
 	return IRQ_HANDLED;
 }
@@ -76,6 +94,7 @@ static void sirfsoc_pwrc_close(struct input_dev *input)
 	struct sirfsoc_pwrc_drvdata *pwrcdrv = input_get_drvdata(input);
 
 	sirfsoc_pwrc_toggle_interrupts(pwrcdrv, false);
+	cancel_delayed_work_sync(&pwrcdrv->work);
 }
 
 static const struct of_device_id sirfsoc_pwrc_of_match[] = {
@@ -115,7 +134,9 @@ static int sirfsoc_pwrc_probe(struct platform_device *pdev)
 
 	pwrcdrv->input->name = "sirfsoc pwrckey";
 	pwrcdrv->input->phys = "pwrc/input0";
-	pwrcdrv->input->evbit[0] = BIT_MASK(EV_PWR);
+	pwrcdrv->input->evbit[0] = BIT_MASK(EV_KEY);
+
+	INIT_DELAYED_WORK(&pwrcdrv->work, sirfsoc_pwrc_report_event);
 
 	pwrcdrv->input->open = sirfsoc_pwrc_open;
 	pwrcdrv->input->close = sirfsoc_pwrc_close;
