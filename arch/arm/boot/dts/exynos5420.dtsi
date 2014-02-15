@@ -613,6 +613,11 @@
 		samsung,power-domain = <&gsc_pd>;
 	};
 
+	pmu_system_controller: system-controller@10040000 {
+		compatible = "samsung,exynos5420-pmu", "syscon";
+		reg = <0x10040000 0x5000>;
+	};
+
 	tmu_cpu0: tmu@10060000 {
 		compatible = "samsung,exynos5420-tmu";
 		reg = <0x10060000 0x100>;
