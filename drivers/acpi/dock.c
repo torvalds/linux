@@ -793,7 +793,7 @@ void acpi_dock_add(struct acpi_device *adev)
 		dock_station->flags |= DOCK_IS_DOCK;
 	if (acpi_ata_match(handle))
 		dock_station->flags |= DOCK_IS_ATA;
-	if (acpi_device_is_battery(handle))
+	if (acpi_device_is_battery(adev))
 		dock_station->flags |= DOCK_IS_BAT;
 
 	ret = sysfs_create_group(&dd->dev.kobj, &dock_attribute_group);

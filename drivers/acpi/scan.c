@@ -1662,24 +1662,22 @@ bool acpi_bay_match(acpi_handle handle)
 	return acpi_ata_match(phandle);
 }
 
-bool acpi_device_is_battery(acpi_handle handle)
+bool acpi_device_is_battery(struct acpi_device *adev)
 {
-	struct acpi_device_info *info;
-	bool ret = false;
+	struct acpi_hardware_id *hwid;
 
-	if (!ACPI_SUCCESS(acpi_get_object_info(handle, &info)))
-		return false;
+	list_for_each_entry(hwid, &adev->pnp.ids, list)
+		if (!strcmp("PNP0C0A", hwid->id))
+			return true;
 
-	if (info->valid & ACPI_VALID_HID)
-		ret = !strcmp("PNP0C0A", info->hardware_id.string);
-
-	kfree(info);
-	return ret;
+	return false;
 }
 
-static bool is_ejectable_bay(acpi_handle handle)
+static bool is_ejectable_bay(struct acpi_device *adev)
 {
-	if (acpi_has_method(handle, "_EJ0") && acpi_device_is_battery(handle))
+	acpi_handle handle = adev->handle;
+
+	if (acpi_has_method(handle, "_EJ0") && acpi_device_is_battery(adev))
 		return true;
 
 	return acpi_bay_match(handle);
@@ -1989,7 +1987,7 @@ static void acpi_scan_init_hotplug(struct acpi_device *adev)
 {
 	struct acpi_hardware_id *hwid;
 
-	if (acpi_dock_match(adev->handle) || is_ejectable_bay(adev->handle)) {
+	if (acpi_dock_match(adev->handle) || is_ejectable_bay(adev)) {
 		acpi_dock_add(adev);
 		return;
 	}
