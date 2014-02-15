@@ -17,3 +17,4 @@ header-y += tegra_drm.h
 header-y += via_drm.h
 header-y += vmwgfx_drm.h
 header-y += msm_drm.h
+header-y += mali_drm.h
