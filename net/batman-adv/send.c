@@ -248,11 +248,11 @@ out:
  *
  * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
-static int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
-				   struct sk_buff *skb, int packet_type,
-				   int packet_subtype,
-				   struct batadv_orig_node *orig_node,
-				   unsigned short vid)
+int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
+			    struct sk_buff *skb, int packet_type,
+			    int packet_subtype,
+			    struct batadv_orig_node *orig_node,
+			    unsigned short vid)
 {
 	struct ethhdr *ethhdr;
 	struct batadv_unicast_packet *unicast_packet;

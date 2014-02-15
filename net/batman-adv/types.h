@@ -696,6 +696,8 @@ struct batadv_softif_vlan {
  *  enabled
  * @distributed_arp_table: bool indicating whether distributed ARP table is
  *  enabled
+ * @multicast_mode: Enable or disable multicast optimizations on this node's
+ *  sender/originating side
  * @gw_mode: gateway operation: off, client or server (see batadv_gw_modes)
  * @gw_sel_class: gateway selection class (applies if gw_mode client)
  * @orig_interval: OGM broadcast interval in milliseconds
@@ -745,6 +747,9 @@ struct batadv_priv {
 #endif
 #ifdef CONFIG_BATMAN_ADV_DAT
 	atomic_t distributed_arp_table;
+#endif
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	atomic_t multicast_mode;
 #endif
 	atomic_t gw_mode;
 	atomic_t gw_sel_class;
@@ -909,12 +914,14 @@ struct batadv_tt_local_entry {
  * struct batadv_tt_global_entry - translation table global entry data
  * @common: general translation table data
  * @orig_list: list of orig nodes announcing this non-mesh client
+ * @orig_list_count: number of items in the orig_list
  * @list_lock: lock protecting orig_list
  * @roam_at: time at which TT_GLOBAL_ROAM was set
  */
 struct batadv_tt_global_entry {
 	struct batadv_tt_common_entry common;
 	struct hlist_head orig_list;
+	atomic_t orig_list_count;
 	spinlock_t list_lock;	/* protects orig_list */
 	unsigned long roam_at;
 };

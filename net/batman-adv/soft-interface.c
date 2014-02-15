@@ -32,6 +32,7 @@
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include "multicast.h"
 #include "bridge_loop_avoidance.h"
 #include "network-coding.h"
 
@@ -170,6 +171,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	unsigned short vid;
 	uint32_t seqno;
 	int gw_mode;
+	enum batadv_forw_mode forw_mode;
+	struct batadv_orig_node *mcast_single_orig = NULL;
 
 	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto dropped;
@@ -247,9 +250,19 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			 * directed to a DHCP server
 			 */
 			goto dropped;
-	}
 
 send:
+		if (do_bcast && !is_broadcast_ether_addr(ethhdr->h_dest)) {
+			forw_mode = batadv_mcast_forw_mode(bat_priv, skb,
+							   &mcast_single_orig);
+			if (forw_mode == BATADV_FORW_NONE)
+				goto dropped;
+
+			if (forw_mode == BATADV_FORW_SINGLE)
+				do_bcast = false;
+		}
+	}
+
 	batadv_skb_set_priority(skb, 0);
 
 	/* ethernet packet should be broadcasted */
@@ -301,6 +314,10 @@ send:
 			if (ret)
 				goto dropped;
 			ret = batadv_send_skb_via_gw(bat_priv, skb, vid);
+		} else if (mcast_single_orig) {
+			ret = batadv_send_skb_unicast(bat_priv, skb,
+						      BATADV_UNICAST, 0,
+						      mcast_single_orig, vid);
 		} else {
 			if (batadv_dat_snoop_outgoing_arp_request(bat_priv,
 								  skb))
@@ -691,6 +708,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 #endif
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	bat_priv->mcast.flags = BATADV_NO_FLAGS;
+	atomic_set(&bat_priv->multicast_mode, 1);
 	atomic_set(&bat_priv->mcast.num_disabled, 0);
 #endif
 	atomic_set(&bat_priv->gw_mode, BATADV_GW_MODE_OFF);

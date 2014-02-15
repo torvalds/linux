@@ -193,6 +193,31 @@ batadv_tt_global_entry_free_ref(struct batadv_tt_global_entry *tt_global_entry)
 	}
 }
 
+/**
+ * batadv_tt_global_hash_count - count the number of orig entries
+ * @hash: hash table containing the tt entries
+ * @addr: the mac address of the client to count entries for
+ * @vid: VLAN identifier
+ *
+ * Return the number of originators advertising the given address/data
+ * (excluding ourself).
+ */
+int batadv_tt_global_hash_count(struct batadv_priv *bat_priv,
+				const uint8_t *addr, unsigned short vid)
+{
+	struct batadv_tt_global_entry *tt_global_entry;
+	int count;
+
+	tt_global_entry = batadv_tt_global_hash_find(bat_priv, addr, vid);
+	if (!tt_global_entry)
+		return 0;
+
+	count = atomic_read(&tt_global_entry->orig_list_count);
+	batadv_tt_global_entry_free_ref(tt_global_entry);
+
+	return count;
+}
+
 static void batadv_tt_orig_list_entry_free_rcu(struct rcu_head *rcu)
 {
 	struct batadv_tt_orig_list_entry *orig_entry;
@@ -1225,6 +1250,8 @@ batadv_tt_global_orig_entry_add(struct batadv_tt_global_entry *tt_global,
 	hlist_add_head_rcu(&orig_entry->list,
 			   &tt_global->orig_list);
 	spin_unlock_bh(&tt_global->list_lock);
+	atomic_inc(&tt_global->orig_list_count);
+
 out:
 	if (orig_entry)
 		batadv_tt_orig_list_entry_free_ref(orig_entry);
@@ -1298,6 +1325,7 @@ static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 		common->added_at = jiffies;
 
 		INIT_HLIST_HEAD(&tt_global_entry->orig_list);
+		atomic_set(&tt_global_entry->orig_list_count, 0);
 		spin_lock_init(&tt_global_entry->list_lock);
 
 		hash_added = batadv_hash_add(bat_priv->tt.global_hash,
@@ -1563,6 +1591,25 @@ out:
 	return 0;
 }
 
+/**
+ * batadv_tt_global_del_orig_entry - remove and free an orig_entry
+ * @tt_global_entry: the global entry to remove the orig_entry from
+ * @orig_entry: the orig entry to remove and free
+ *
+ * Remove an orig_entry from its list in the given tt_global_entry and
+ * free this orig_entry afterwards.
+ */
+static void
+batadv_tt_global_del_orig_entry(struct batadv_tt_global_entry *tt_global_entry,
+				struct batadv_tt_orig_list_entry *orig_entry)
+{
+	batadv_tt_global_size_dec(orig_entry->orig_node,
+				  tt_global_entry->common.vid);
+	atomic_dec(&tt_global_entry->orig_list_count);
+	hlist_del_rcu(&orig_entry->list);
+	batadv_tt_orig_list_entry_free_ref(orig_entry);
+}
+
 /* deletes the orig list of a tt_global_entry */
 static void
 batadv_tt_global_del_orig_list(struct batadv_tt_global_entry *tt_global_entry)
@@ -1573,20 +1620,26 @@ batadv_tt_global_del_orig_list(struct batadv_tt_global_entry *tt_global_entry)
 
 	spin_lock_bh(&tt_global_entry->list_lock);
 	head = &tt_global_entry->orig_list;
-	hlist_for_each_entry_safe(orig_entry, safe, head, list) {
-		hlist_del_rcu(&orig_entry->list);
-		batadv_tt_global_size_dec(orig_entry->orig_node,
-					  tt_global_entry->common.vid);
-		batadv_tt_orig_list_entry_free_ref(orig_entry);
-	}
+	hlist_for_each_entry_safe(orig_entry, safe, head, list)
+		batadv_tt_global_del_orig_entry(tt_global_entry, orig_entry);
 	spin_unlock_bh(&tt_global_entry->list_lock);
 }
 
+/**
+ * batadv_tt_global_del_orig_node - remove orig_node from a global tt entry
+ * @bat_priv: the bat priv with all the soft interface information
+ * @tt_global_entry: the global entry to remove the orig_node from
+ * @orig_node: the originator announcing the client
+ * @message: message to append to the log on deletion
+ *
+ * Remove the given orig_node and its according orig_entry from the given
+ * global tt entry.
+ */
 static void
-batadv_tt_global_del_orig_entry(struct batadv_priv *bat_priv,
-				struct batadv_tt_global_entry *tt_global_entry,
-				struct batadv_orig_node *orig_node,
-				const char *message)
+batadv_tt_global_del_orig_node(struct batadv_priv *bat_priv,
+			       struct batadv_tt_global_entry *tt_global_entry,
+			       struct batadv_orig_node *orig_node,
+			       const char *message)
 {
 	struct hlist_head *head;
 	struct hlist_node *safe;
@@ -1603,10 +1656,8 @@ batadv_tt_global_del_orig_entry(struct batadv_priv *bat_priv,
 				   orig_node->orig,
 				   tt_global_entry->common.addr,
 				   BATADV_PRINT_VID(vid), message);
-			hlist_del_rcu(&orig_entry->list);
-			batadv_tt_global_size_dec(orig_node,
-						  tt_global_entry->common.vid);
-			batadv_tt_orig_list_entry_free_ref(orig_entry);
+			batadv_tt_global_del_orig_entry(tt_global_entry,
+							orig_entry);
 		}
 	}
 	spin_unlock_bh(&tt_global_entry->list_lock);
@@ -1648,8 +1699,8 @@ batadv_tt_global_del_roaming(struct batadv_priv *bat_priv,
 		/* there is another entry, we can simply delete this
 		 * one and can still use the other one.
 		 */
-		batadv_tt_global_del_orig_entry(bat_priv, tt_global_entry,
-						orig_node, message);
+		batadv_tt_global_del_orig_node(bat_priv, tt_global_entry,
+					       orig_node, message);
 }
 
 /**
@@ -1675,8 +1726,8 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 		goto out;
 
 	if (!roaming) {
-		batadv_tt_global_del_orig_entry(bat_priv, tt_global_entry,
-						orig_node, message);
+		batadv_tt_global_del_orig_node(bat_priv, tt_global_entry,
+					       orig_node, message);
 
 		if (hlist_empty(&tt_global_entry->orig_list))
 			batadv_tt_global_free(bat_priv, tt_global_entry,
@@ -1759,8 +1810,8 @@ void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,
 						 struct batadv_tt_global_entry,
 						 common);
 
-			batadv_tt_global_del_orig_entry(bat_priv, tt_global,
-							orig_node, message);
+			batadv_tt_global_del_orig_node(bat_priv, tt_global,
+						       orig_node, message);
 
 			if (hlist_empty(&tt_global->orig_list)) {
 				vid = tt_global->common.vid;

@@ -20,6 +20,7 @@
 #include "originator.h"
 #include "hard-interface.h"
 #include "translation-table.h"
+#include "multicast.h"
 
 /**
  * batadv_mcast_mla_softif_get - get softif multicast listeners
@@ -244,6 +245,131 @@ update:
 
 out:
 	batadv_mcast_mla_list_free(&mcast_list);
+}
+
+/**
+ * batadv_mcast_forw_mode_check_ipv6 - check for optimized forwarding potential
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the IPv6 packet to check
+ *
+ * Checks whether the given IPv6 packet has the potential to be forwarded with a
+ * mode more optimal than classic flooding.
+ *
+ * If so then returns 0. Otherwise -EINVAL is returned or -ENOMEM if we are out
+ * of memory.
+ */
+static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
+					     struct sk_buff *skb)
+{
+	struct ipv6hdr *ip6hdr;
+
+	/* We might fail due to out-of-memory -> drop it */
+	if (!pskb_may_pull(skb, sizeof(struct ethhdr) + sizeof(*ip6hdr)))
+		return -ENOMEM;
+
+	ip6hdr = ipv6_hdr(skb);
+
+	/* TODO: Implement Multicast Router Discovery (RFC4286),
+	 * then allow scope > link local, too
+	 */
+	if (IPV6_ADDR_MC_SCOPE(&ip6hdr->daddr) != IPV6_ADDR_SCOPE_LINKLOCAL)
+		return -EINVAL;
+
+	/* link-local-all-nodes multicast listeners behind a bridge are
+	 * not snoopable (see RFC4541, section 3, paragraph 3)
+	 */
+	if (ipv6_addr_is_ll_all_nodes(&ip6hdr->daddr))
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * batadv_mcast_forw_mode_check - check for optimized forwarding potential
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the multicast frame to check
+ *
+ * Checks whether the given multicast ethernet frame has the potential to be
+ * forwarded with a mode more optimal than classic flooding.
+ *
+ * If so then returns 0. Otherwise -EINVAL is returned or -ENOMEM if we are out
+ * of memory.
+ */
+static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
+					struct sk_buff *skb)
+{
+	struct ethhdr *ethhdr = eth_hdr(skb);
+
+	if (!atomic_read(&bat_priv->multicast_mode))
+		return -EINVAL;
+
+	if (atomic_read(&bat_priv->mcast.num_disabled))
+		return -EINVAL;
+
+	switch (ntohs(ethhdr->h_proto)) {
+	case ETH_P_IPV6:
+		return batadv_mcast_forw_mode_check_ipv6(bat_priv, skb);
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * batadv_mcast_forw_tt_node_get - get a multicast tt node
+ * @bat_priv: the bat priv with all the soft interface information
+ * @ethhdr: the ether header containing the multicast destination
+ *
+ * Returns an orig_node matching the multicast address provided by ethhdr
+ * via a translation table lookup. This increases the returned nodes refcount.
+ */
+static struct batadv_orig_node *
+batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
+			      struct ethhdr *ethhdr)
+{
+	return batadv_transtable_search(bat_priv, ethhdr->h_source,
+					ethhdr->h_dest, BATADV_NO_FLAGS);
+}
+
+/**
+ * batadv_mcast_forw_mode - check on how to forward a multicast packet
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: The multicast packet to check
+ * @orig: an originator to be set to forward the skb to
+ *
+ * Returns the forwarding mode as enum batadv_forw_mode and in case of
+ * BATADV_FORW_SINGLE set the orig to the single originator the skb
+ * should be forwarded to.
+ */
+enum batadv_forw_mode
+batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
+		       struct batadv_orig_node **orig)
+{
+	struct ethhdr *ethhdr;
+	int ret, tt_count;
+
+	ret = batadv_mcast_forw_mode_check(bat_priv, skb);
+	if (ret == -ENOMEM)
+		return BATADV_FORW_NONE;
+	else if (ret < 0)
+		return BATADV_FORW_ALL;
+
+	ethhdr = eth_hdr(skb);
+
+	tt_count = batadv_tt_global_hash_count(bat_priv, ethhdr->h_dest,
+					       BATADV_NO_FLAGS);
+
+	switch (tt_count) {
+	case 1:
+		*orig = batadv_mcast_forw_tt_node_get(bat_priv, ethhdr);
+		if (*orig)
+			return BATADV_FORW_SINGLE;
+
+		/* fall through */
+	case 0:
+		return BATADV_FORW_NONE;
+	default:
+		return BATADV_FORW_ALL;
+	}
 }
 
 /**

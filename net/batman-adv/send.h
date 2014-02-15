@@ -36,6 +36,11 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb,
 					   struct batadv_orig_node *orig_node,
 					   int packet_subtype);
+int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
+			    struct sk_buff *skb, int packet_type,
+			    int packet_subtype,
+			    struct batadv_orig_node *orig_node,
+			    unsigned short vid);
 int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, int packet_type,
 				   int packet_subtype, uint8_t *dst_hint,

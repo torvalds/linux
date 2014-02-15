@@ -18,9 +18,27 @@
 #ifndef _NET_BATMAN_ADV_MULTICAST_H_
 #define _NET_BATMAN_ADV_MULTICAST_H_
 
+/**
+ * batadv_forw_mode - the way a packet should be forwarded as
+ * @BATADV_FORW_ALL: forward the packet to all nodes (currently via classic
+ *  flooding)
+ * @BATADV_FORW_SINGLE: forward the packet to a single node (currently via the
+ *  BATMAN unicast routing protocol)
+ * @BATADV_FORW_NONE: don't forward, drop it
+ */
+enum batadv_forw_mode {
+	BATADV_FORW_ALL,
+	BATADV_FORW_SINGLE,
+	BATADV_FORW_NONE,
+};
+
 #ifdef CONFIG_BATMAN_ADV_MCAST
 
 void batadv_mcast_mla_update(struct batadv_priv *bat_priv);
+
+enum batadv_forw_mode
+batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
+		       struct batadv_orig_node **mcast_single_orig);
 
 void batadv_mcast_init(struct batadv_priv *bat_priv);
 
@@ -33,6 +51,13 @@ void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node);
 static inline void batadv_mcast_mla_update(struct batadv_priv *bat_priv)
 {
 	return;
+}
+
+static inline enum batadv_forw_mode
+batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
+		       struct batadv_orig_node **mcast_single_orig)
+{
+	return BATADV_FORW_ALL;
 }
 
 static inline int batadv_mcast_init(struct batadv_priv *bat_priv)
