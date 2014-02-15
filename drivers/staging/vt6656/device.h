@@ -213,14 +213,6 @@ typedef struct {
     bool            bInUse;
 } INT_BUFFER, *PINT_BUFFER;
 
-/* 0:11A 1:11B 2:11G */
-typedef enum _VIA_BB_TYPE
-{
-    BB_TYPE_11A = 0,
-    BB_TYPE_11B,
-    BB_TYPE_11G
-} VIA_BB_TYPE, *PVIA_BB_TYPE;
-
 /*++ NDIS related */
 
 typedef enum __DEVICE_NDIS_STATUS {
@@ -540,7 +532,7 @@ struct vnt_private {
 	u8  byCWMaxMin;
 
 	/* Rate */
-	VIA_BB_TYPE byBBType; /* 0: 11A, 1:11B, 2:11G */
+	u8 byBBType; /* 0: 11A, 1:11B, 2:11G */
 	u8 byPacketType; /* 0:11a 1:11b 2:11gb 3:11ga */
 	u16 wBasicRate;
 	u8 byACKRate;
