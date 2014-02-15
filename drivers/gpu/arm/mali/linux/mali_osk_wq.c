@@ -49,13 +49,9 @@ _mali_osk_errcode_t _mali_osk_wq_init(void)
 	MALI_DEBUG_ASSERT(NULL == mali_wq_normal);
 	MALI_DEBUG_ASSERT(NULL == mali_wq_high);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	mali_wq_normal = alloc_workqueue("mali", WQ_UNBOUND, 0);
 	mali_wq_high = alloc_workqueue("mali_high_pri", WQ_HIGHPRI, 0);
-#else
-	mali_wq_normal = create_workqueue("mali");
-	mali_wq_high = create_workqueue("mali_high_pri");
-#endif
+
 	if (NULL == mali_wq_normal || NULL == mali_wq_high) {
 		MALI_PRINT_ERROR(("Unable to create Mali workqueues\n"));
 

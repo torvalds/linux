@@ -15,7 +15,7 @@
 #ifndef __UMP_KERNEL_MEMORY_BACKEND_H__
 #define __UMP_KERNEL_MEMORY_BACKEND_H__
 
-#include "ump_kernel_interface.h"
+#include <ump/ump_kernel_interface.h>
 #include "ump_kernel_types.h"
 
 

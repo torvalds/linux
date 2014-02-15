@@ -146,7 +146,6 @@ ifeq ($(MALI_UPPER_HALF_SCHEDULING),1)
 	ccflags-y += -DMALI_UPPER_HALF_SCHEDULING
 endif
 
-ccflags-$(CONFIG_MALI400_UMP) += -I$(src)/../../ump/include/ump
 ccflags-$(CONFIG_MALI400_DEBUG) += -DDEBUG
 
 # Use our defines when compiling

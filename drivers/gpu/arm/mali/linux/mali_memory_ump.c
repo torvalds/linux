@@ -16,7 +16,7 @@
 
 #include "mali_memory.h"
 
-#include "ump_kernel_interface.h"
+#include <ump/ump_kernel_interface.h>
 
 static int mali_ump_map(struct mali_session_data *session, mali_mem_allocation *descriptor)
 {

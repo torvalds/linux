@@ -139,10 +139,8 @@ int mali_platform_device_register(void)
 	err = platform_device_register(&mali_gpu_device);
 	if (0 == err) {
 #ifdef CONFIG_PM_RUNTIME
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 		pm_runtime_set_autosuspend_delay(&(mali_gpu_device.dev), 1000);
 		pm_runtime_use_autosuspend(&(mali_gpu_device.dev));
-#endif
 		pm_runtime_enable(&(mali_gpu_device.dev));
 #endif
 		MALI_DEBUG_ASSERT(0 < num_pp_cores);

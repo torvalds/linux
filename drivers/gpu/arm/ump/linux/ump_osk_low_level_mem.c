@@ -37,44 +37,27 @@ typedef struct ump_vma_usage_tracker {
 
 static void ump_vma_open(struct vm_area_struct * vma);
 static void ump_vma_close(struct vm_area_struct * vma);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 static int ump_cpu_page_fault_handler(struct vm_area_struct *vma, struct vm_fault *vmf);
-#else
-static unsigned long ump_cpu_page_fault_handler(struct vm_area_struct * vma, unsigned long address);
-#endif
 
 static struct vm_operations_struct ump_vm_ops = {
 	.open = ump_vma_open,
 	.close = ump_vma_close,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 	.fault = ump_cpu_page_fault_handler
-#else
-	.nopfn = ump_cpu_page_fault_handler
-#endif
 };
 
 /*
  * Page fault for VMA region
  * This should never happen since we always map in the entire virtual memory range.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 static int ump_cpu_page_fault_handler(struct vm_area_struct *vma, struct vm_fault *vmf)
-#else
-static unsigned long ump_cpu_page_fault_handler(struct vm_area_struct * vma, unsigned long address)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 	void __user * address;
 	address = vmf->virtual_address;
-#endif
+
 	MSG_ERR(("Page-fault in UMP memory region caused by the CPU\n"));
 	MSG_ERR(("VMA: 0x%08lx, virtual address: 0x%08lx\n", (unsigned long)vma, address));
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 	return VM_FAULT_SIGBUS;
-#else
-	return NOPFN_SIGBUS;
-#endif
 }
 
 static void ump_vma_open(struct vm_area_struct * vma)
@@ -143,14 +126,9 @@ _mali_osk_errcode_t _ump_osk_mem_mapregion_init( ump_memory_allocation * descrip
 
 	vma->vm_private_data = vma_usage_tracker;
 	vma->vm_flags |= VM_IO;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
-	vma->vm_flags |= VM_RESERVED;
-#else
 	vma->vm_flags |= VM_DONTDUMP;
 	vma->vm_flags |= VM_DONTEXPAND;
 	vma->vm_flags |= VM_PFNMAP;
-#endif
-
 
 	if (0==descriptor->is_cached) {
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);

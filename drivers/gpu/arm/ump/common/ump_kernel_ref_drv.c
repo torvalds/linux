@@ -13,7 +13,7 @@
 #include "ump_osk.h"
 #include "ump_uk_types.h"
 
-#include "ump_kernel_interface_ref_drv.h"
+#include <ump/ump_kernel_interface_ref_drv.h>
 #include "ump_kernel_common.h"
 #include "ump_kernel_descriptor_mapping.h"
 

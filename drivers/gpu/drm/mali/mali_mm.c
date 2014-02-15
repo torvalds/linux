@@ -8,8 +8,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include "drmP.h"
-#include "mali_drm.h"
+#include <drm/drmP.h>
+#include <drm/mali_drm.h>
 #include "mali_drv.h"
 
 #define VIDEO_TYPE 0
@@ -249,7 +249,7 @@ void mali_reclaim_buffers_locked(struct drm_device *dev, struct drm_file *file_p
 	return;
 }
 
-struct drm_ioctl_desc mali_ioctls[] =
+const struct drm_ioctl_desc mali_ioctls[] =
 {
 	DRM_IOCTL_DEF(DRM_MALI_FB_ALLOC, mali_fb_alloc, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_MALI_FB_FREE, mali_drm_free, DRM_AUTH),

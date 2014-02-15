@@ -21,8 +21,8 @@
 #include "arch/config.h"             /* Configuration for current platform. The symlinc for arch is set by Makefile */
 #include "ump_ioctl.h"
 #include "ump_kernel_common.h"
-#include "ump_kernel_interface.h"
-#include "ump_kernel_interface_ref_drv.h"
+#include <ump/ump_kernel_interface.h>
+#include <ump/ump_kernel_interface_ref_drv.h>
 #include "ump_kernel_descriptor_mapping.h"
 #include "ump_kernel_memory_backend.h"
 #include "ump_kernel_memory_backend_os.h"
@@ -356,29 +356,6 @@ static int ump_file_ioctl(struct inode *inode, struct file *filp, unsigned int c
 	return err;
 }
 
-int map_errcode( _mali_osk_errcode_t err )
-{
-	switch(err) {
-	case _MALI_OSK_ERR_OK :
-		return 0;
-	case _MALI_OSK_ERR_FAULT:
-		return -EFAULT;
-	case _MALI_OSK_ERR_INVALID_FUNC:
-		return -ENOTTY;
-	case _MALI_OSK_ERR_INVALID_ARGS:
-		return -EINVAL;
-	case _MALI_OSK_ERR_NOMEM:
-		return -ENOMEM;
-	case _MALI_OSK_ERR_TIMEOUT:
-		return -ETIMEDOUT;
-	case _MALI_OSK_ERR_RESTARTSYSCALL:
-		return -ERESTARTSYS;
-	case _MALI_OSK_ERR_ITEM_NOT_FOUND:
-		return -ENOENT;
-	default:
-		return -EFAULT;
-	}
-}
 
 /*
  * Handle from OS to map specified virtual memory to specified UMP memory.

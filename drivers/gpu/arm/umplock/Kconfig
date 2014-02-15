@@ -1,0 +1,5 @@
+config UMPLOCK
+	tristate "UMP locking support"
+	depends on UMP
+	help
+	  UMP locking driver support.
