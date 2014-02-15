@@ -607,6 +607,16 @@ struct batadv_priv_dat {
 };
 #endif
 
+#ifdef CONFIG_BATMAN_ADV_MCAST
+/**
+ * struct batadv_priv_mcast - per mesh interface mcast data
+ * @mla_list: list of multicast addresses we are currently announcing via TT
+ */
+struct batadv_priv_mcast {
+	struct hlist_head mla_list;
+};
+#endif
+
 /**
  * struct batadv_priv_nc - per mesh interface network coding private data
  * @work: work queue callback item for cleanup
@@ -702,6 +712,7 @@ struct batadv_softif_vlan {
  * @tt: translation table data
  * @tvlv: type-version-length-value data
  * @dat: distributed arp table data
+ * @mcast: multicast data
  * @network_coding: bool indicating whether network coding is enabled
  * @batadv_priv_nc: network coding data
  */
@@ -758,6 +769,9 @@ struct batadv_priv {
 	struct batadv_priv_tvlv tvlv;
 #ifdef CONFIG_BATMAN_ADV_DAT
 	struct batadv_priv_dat dat;
+#endif
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	struct batadv_priv_mcast mcast;
 #endif
 #ifdef CONFIG_BATMAN_ADV_NC
 	atomic_t network_coding;
@@ -1113,6 +1127,16 @@ struct batadv_dat_entry {
 	struct hlist_node hash_entry;
 	atomic_t refcount;
 	struct rcu_head rcu;
+};
+
+/**
+ * struct batadv_hw_addr - a list entry for a MAC address
+ * @list: list node for the linking of entries
+ * @addr: the MAC address of this list entry
+ */
+struct batadv_hw_addr {
+	struct hlist_node list;
+	unsigned char addr[ETH_ALEN];
 };
 
 /**
