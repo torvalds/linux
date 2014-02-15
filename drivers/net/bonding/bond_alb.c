@@ -1243,9 +1243,9 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 	if (free_mac_slave) {
 		alb_set_slave_mac_addr(slave, free_mac_slave->perm_hwaddr);
 
-		pr_warning("%s: Warning: the hw address of slave %s is in use by the bond; giving it the hw address of %s\n",
-			   bond->dev->name, slave->dev->name,
-			   free_mac_slave->dev->name);
+		pr_warn("%s: Warning: the hw address of slave %s is in use by the bond; giving it the hw address of %s\n",
+			bond->dev->name, slave->dev->name,
+			free_mac_slave->dev->name);
 
 	} else if (has_bond_addr) {
 		pr_err("%s: Error: the hw address of slave %s is in use by the bond; couldn't find a slave with a free hw address to give it (this should not have happened)\n",
