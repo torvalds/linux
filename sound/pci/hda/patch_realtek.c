@@ -395,6 +395,8 @@ static int alc_auto_parse_customize_define(struct hda_codec *codec)
 		goto do_sku;
 	}
 
+	if (!codec->bus->pci)
+		return -1;
 	ass = codec->subsystem_id & 0xffff;
 	if (ass != codec->bus->pci->subsystem_device && (ass & 1))
 		goto do_sku;
@@ -483,7 +485,8 @@ static int alc_subsystem_id(struct hda_codec *codec, const hda_nid_t *ports)
 	}
 
 	ass = codec->subsystem_id & 0xffff;
-	if ((ass != codec->bus->pci->subsystem_device) && (ass & 1))
+	if (codec->bus->pci &&
+	    ass != codec->bus->pci->subsystem_device && (ass & 1))
 		goto do_sku;
 
 	/* invalid SSID, check the special NID pin defcfg instead */
@@ -966,6 +969,8 @@ static int alc_codec_rename_from_preset(struct hda_codec *codec)
 			return alc_codec_rename(codec, p->name);
 	}
 
+	if (!codec->bus->pci)
+		return 0;
 	for (q = rename_pci_tbl; q->codec_vendor_id; q++) {
 		if (q->codec_vendor_id != codec->vendor_id)
 			continue;
@@ -4502,13 +4507,15 @@ static int patch_alc269(struct hda_codec *codec)
 		spec->codec_variant = ALC269_TYPE_ALC269VA;
 		switch (alc_get_coef0(codec) & 0x00f0) {
 		case 0x0010:
-			if (codec->bus->pci->subsystem_vendor == 0x1025 &&
+			if (codec->bus->pci &&
+			    codec->bus->pci->subsystem_vendor == 0x1025 &&
 			    spec->cdefine.platform_type == 1)
 				err = alc_codec_rename(codec, "ALC271X");
 			spec->codec_variant = ALC269_TYPE_ALC269VB;
 			break;
 		case 0x0020:
-			if (codec->bus->pci->subsystem_vendor == 0x17aa &&
+			if (codec->bus->pci &&
+			    codec->bus->pci->subsystem_vendor == 0x17aa &&
 			    codec->bus->pci->subsystem_device == 0x21f3)
 				err = alc_codec_rename(codec, "ALC3202");
 			spec->codec_variant = ALC269_TYPE_ALC269VC;
@@ -5309,7 +5316,7 @@ static int patch_alc662(struct hda_codec *codec)
 		spec->gen.beep_nid = 0x01;
 
 	if ((alc_get_coef0(codec) & (1 << 14)) &&
-	    codec->bus->pci->subsystem_vendor == 0x1025 &&
+	    codec->bus->pci && codec->bus->pci->subsystem_vendor == 0x1025 &&
 	    spec->cdefine.platform_type == 1) {
 		err = alc_codec_rename(codec, "ALC272X");
 		if (err < 0)
