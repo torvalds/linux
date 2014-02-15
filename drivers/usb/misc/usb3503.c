@@ -39,6 +39,7 @@
 #define USB3503_CFG1		0x06
 #define USB3503_SELF_BUS_PWR	(1 << 7)
 #define USB3503_MTT_ENABLE	(1 << 4)
+#define USB3503_CFG1_RESDEF	(1 << 3)
 #define USB3503_OCS_INDIVIDUAL	(1 << 1)
 #define USB3503_OCS_DISABLE	(3 << 1)
 #define USB3503_PPRTPWR_INDIVIDUAL	(1 << 0)
@@ -133,8 +134,12 @@ static int usb3503_connect(struct usb3503 *hub)
 			}
 		}
 
-		/* CFG1 : Set SELF_BUS_PWR, this enables self-powered operation. */
-		err = regmap_write(hub->regmap, USB3503_CFG1, USB3503_SELF_BUS_PWR);
+		/* CFG1 : Set SELF_BUS_PWR, this enables self-powered operation.
+		 *	Set MTT_ENABLE, this uses a dedicated TT for each port.
+		 *	Set CFG1_RESDEF, this is reserved according to the datasheet, but
+		 *	it is set by default, so we set it here as well. */
+		err = regmap_write(hub->regmap, USB3503_CFG1,
+			USB3503_SELF_BUS_PWR | USB3503_MTT_ENABLE | USB3503_CFG1_RESDEF);
 		if (err < 0) {
 			dev_err(dev, "CFG1 failed (%d)\n", err);
 			return err;
