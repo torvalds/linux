@@ -664,7 +664,6 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	/* extra reference for return */
 	atomic_set(&orig_node->refcount, 2);
 
-	orig_node->tt_initialised = false;
 	orig_node->bat_priv = bat_priv;
 	ether_addr_copy(orig_node->orig, addr);
 	batadv_dat_init_orig_node_addr(orig_node);
