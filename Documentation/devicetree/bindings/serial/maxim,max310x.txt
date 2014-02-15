@@ -13,8 +13,8 @@ Required properties:
   controller. The format of the interrupt specifier depends on the
   parent interrupt controller.
 - clocks: phandle to the IC source clock.
-- clock-names: Should be "osc" if clock is an external crystal or
-  "xtal" if an external clock source is used.
+- clock-names: Should be "xtal" if clock is an external crystal or
+  "osc" if an external clock source is used.
 
 Optional properties:
 - gpio-controller: Marks the device node as a GPIO controller.
