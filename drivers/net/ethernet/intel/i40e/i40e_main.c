@@ -4235,7 +4235,6 @@ static int i40e_open(struct net_device *netdev)
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	char int_name[IFNAMSIZ];
 	int err;
 
 	/* disallow open during test */
@@ -4243,6 +4242,31 @@ static int i40e_open(struct net_device *netdev)
 		return -EBUSY;
 
 	netif_carrier_off(netdev);
+
+	err = i40e_vsi_open(vsi);
+	if (err)
+		return err;
+
+#ifdef CONFIG_I40E_VXLAN
+	vxlan_get_rx_port(netdev);
+#endif
+
+	return 0;
+}
+
+/**
+ * i40e_vsi_open -
+ * @vsi: the VSI to open
+ *
+ * Finish initialization of the VSI.
+ *
+ * Returns 0 on success, negative value on failure
+ **/
+int i40e_vsi_open(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+	char int_name[IFNAMSIZ];
+	int err;
 
 	/* allocate descriptors */
 	err = i40e_vsi_setup_tx_resources(vsi);
@@ -4256,28 +4280,28 @@ static int i40e_open(struct net_device *netdev)
 	if (err)
 		goto err_setup_rx;
 
+	if (!vsi->netdev) {
+		err = EINVAL;
+		goto err_setup_rx;
+	}
 	snprintf(int_name, sizeof(int_name) - 1, "%s-%s",
-		 dev_driver_string(&pf->pdev->dev), netdev->name);
+		 dev_driver_string(&pf->pdev->dev), vsi->netdev->name);
 	err = i40e_vsi_request_irq(vsi, int_name);
 	if (err)
 		goto err_setup_rx;
 
 	/* Notify the stack of the actual queue counts. */
-	err = netif_set_real_num_tx_queues(netdev, vsi->num_queue_pairs);
+	err = netif_set_real_num_tx_queues(vsi->netdev, vsi->num_queue_pairs);
 	if (err)
 		goto err_set_queues;
 
-	err = netif_set_real_num_rx_queues(netdev, vsi->num_queue_pairs);
+	err = netif_set_real_num_rx_queues(vsi->netdev, vsi->num_queue_pairs);
 	if (err)
 		goto err_set_queues;
 
 	err = i40e_up_complete(vsi);
 	if (err)
 		goto err_up_complete;
-
-#ifdef CONFIG_I40E_VXLAN
-	vxlan_get_rx_port(netdev);
-#endif
 
 	return 0;
 

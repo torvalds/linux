@@ -208,7 +208,7 @@ struct i40e_pf {
 	bool fc_autoneg_status;
 
 	u16 eeprom_version;
-	u16 num_vmdq_vsis;         /* num vmdq pools this pf has set up */
+	u16 num_vmdq_vsis;         /* num vmdq vsis this pf has set up */
 	u16 num_vmdq_qps;          /* num queue pairs per vmdq pool */
 	u16 num_vmdq_msix;         /* num queue vectors per vmdq pool */
 	u16 num_req_vfs;           /* num vfs requested for this vf */
@@ -597,6 +597,7 @@ void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector);
 void i40e_irq_dynamic_disable_icr0(struct i40e_pf *pf);
 void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf);
 int i40e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
+int i40e_vsi_open(struct i40e_vsi *vsi);
 void i40e_vlan_stripping_disable(struct i40e_vsi *vsi);
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid);
 int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid);
