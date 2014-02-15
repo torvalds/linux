@@ -325,17 +325,21 @@
 	};
 
 	i2c_2: i2c@13880000 {
-		samsung,i2c-sda-delay = <100>;
-		samsung,i2c-max-bus-freq = <66000>;
 		status = "okay";
 		pinctrl-0 = <&i2c2_bus>;
 		pinctrl-names = "default";
+
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
 	};
 
 	i2c_0: i2c@13860000 {
 		pinctrl-0 = <&i2c0_bus>;
 		pinctrl-names = "default";
 		status = "okay";
+
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <400000>;
 
 		/* Port 1 (first port): LAN9514.
 		 * Port 2: upper external USB port (UART side of board).
