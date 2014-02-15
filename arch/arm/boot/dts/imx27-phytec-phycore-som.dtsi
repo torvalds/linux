@@ -69,6 +69,12 @@
 		fsl,mc13xxx-uses-adc;
 		fsl,mc13xxx-uses-rtc;
 
+		pmicleds: leds {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			led-control = <0x001 0x000 0x000 0x000 0x000 0x000>;
+		};
+
 		regulators {
 			/* SW1A and SW1B joined operation */
 			sw1_reg: sw1a {

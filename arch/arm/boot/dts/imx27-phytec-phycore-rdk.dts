@@ -96,6 +96,56 @@
 	status = "okay";
 };
 
+&pmicleds {
+	ledr1: led@3 {
+		reg = <3>;
+		label = "system:red1:user";
+	};
+
+	ledg1: led@4 {
+		reg = <4>;
+		label = "system:green1:user";
+	};
+
+	ledb1: led@5 {
+		reg = <5>;
+		label = "system:blue1:user";
+	};
+
+	ledr2: led@6 {
+		reg = <6>;
+		label = "system:red2:user";
+	};
+
+	ledg2: led@7 {
+		reg = <7>;
+		label = "system:green2:user";
+	};
+
+	ledb2: led@8 {
+		reg = <8>;
+		label = "system:blue2:user";
+	};
+
+	ledr3: led@9 {
+		reg = <9>;
+		label = "system:red3:nand";
+		linux,default-trigger = "nand-disk";
+	};
+
+	ledg3: led@10 {
+		reg = <10>;
+		label = "system:green3:live";
+		linux,default-trigger = "heartbeat";
+	};
+
+	ledb3: led@11 {
+		reg = <11>;
+		label = "system:blue3:cpu";
+		linux,default-trigger = "cpu0";
+	};
+};
+
 &sdhci2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhc2>;
