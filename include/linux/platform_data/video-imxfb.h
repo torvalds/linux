@@ -79,5 +79,4 @@ struct imx_fb_platform_data {
 	void (*backlight_power)(int);
 };
 
-void set_imx_fb_info(struct imx_fb_platform_data *);
 #endif /* ifndef __MACH_IMXFB_H__ */
