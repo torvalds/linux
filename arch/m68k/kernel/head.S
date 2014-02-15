@@ -275,7 +275,6 @@
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE
 #define CONSOLE
-#define CONSOLE_PENGUIN
 #endif
 
 #ifdef CONFIG_EARLY_PRINTK
@@ -907,15 +906,15 @@ L(nothp):
  */
 #ifdef CONFIG_MAC
 	is_not_mac(L(nocon))
-#ifdef CONSOLE
+#  ifdef CONSOLE
 	console_init
-#ifdef CONSOLE_PENGUIN
+#    ifdef CONFIG_LOGO
 	console_put_penguin
-#endif	/* CONSOLE_PENGUIN */
+#    endif /* CONFIG_LOGO */
 	console_put_stats
-#endif	/* CONSOLE */
+#  endif /* CONSOLE */
 L(nocon):
-#endif	/* CONFIG_MAC */
+#endif /* CONFIG_MAC */
 
 
 	putc	'\n'
@@ -3456,7 +3455,7 @@ func_start	console_put_stats,%a0/%d7
 
 func_return	console_put_stats
 
-#ifdef CONSOLE_PENGUIN
+#ifdef CONFIG_LOGO
 func_start	console_put_penguin,%a0-%a1/%d0-%d7
 	/*
 	 *	Get 'that_penguin' onto the screen in the upper right corner
