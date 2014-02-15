@@ -361,6 +361,29 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_mcast_want_all_ip_count - count nodes with unspecific mcast interest
+ * @bat_priv: the bat priv with all the soft interface information
+ * @ethhdr: ethernet header of a packet
+ *
+ * Returns the number of nodes which want all IPv4 multicast traffic if the
+ * given ethhdr is from an IPv4 packet or the number of nodes which want all
+ * IPv6 traffic if it matches an IPv6 packet.
+ */
+static int batadv_mcast_forw_want_all_ip_count(struct batadv_priv *bat_priv,
+					       struct ethhdr *ethhdr)
+{
+	switch (ntohs(ethhdr->h_proto)) {
+	case ETH_P_IP:
+		return atomic_read(&bat_priv->mcast.num_want_all_ipv4);
+	case ETH_P_IPV6:
+		return atomic_read(&bat_priv->mcast.num_want_all_ipv6);
+	default:
+		/* we shouldn't be here... */
+		return 0;
+	}
+}
+
+/**
  * batadv_mcast_forw_tt_node_get - get a multicast tt node
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: the ether header containing the multicast destination
@@ -374,6 +397,84 @@ batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
 {
 	return batadv_transtable_search(bat_priv, ethhdr->h_source,
 					ethhdr->h_dest, BATADV_NO_FLAGS);
+}
+
+/**
+ * batadv_mcast_want_forw_ipv4_node_get - get a node with an ipv4 flag
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Returns an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 flag set and
+ * increases its refcount.
+ */
+static struct batadv_orig_node *
+batadv_mcast_forw_ipv4_node_get(struct batadv_priv *bat_priv)
+{
+	struct batadv_orig_node *tmp_orig_node, *orig_node = NULL;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tmp_orig_node,
+				 &bat_priv->mcast.want_all_ipv4_list,
+				 mcast_want_all_ipv4_node) {
+		if (!atomic_inc_not_zero(&orig_node->refcount))
+			continue;
+
+		orig_node = tmp_orig_node;
+		break;
+	}
+	rcu_read_unlock();
+
+	return orig_node;
+}
+
+/**
+ * batadv_mcast_want_forw_ipv6_node_get - get a node with an ipv6 flag
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Returns an orig_node which has the BATADV_MCAST_WANT_ALL_IPV6 flag set
+ * and increases its refcount.
+ */
+static struct batadv_orig_node *
+batadv_mcast_forw_ipv6_node_get(struct batadv_priv *bat_priv)
+{
+	struct batadv_orig_node *tmp_orig_node, *orig_node = NULL;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tmp_orig_node,
+				 &bat_priv->mcast.want_all_ipv6_list,
+				 mcast_want_all_ipv6_node) {
+		if (!atomic_inc_not_zero(&orig_node->refcount))
+			continue;
+
+		orig_node = tmp_orig_node;
+		break;
+	}
+	rcu_read_unlock();
+
+	return orig_node;
+}
+
+/**
+ * batadv_mcast_want_forw_ip_node_get - get a node with an ipv4/ipv6 flag
+ * @bat_priv: the bat priv with all the soft interface information
+ * @ethhdr: an ethernet header to determine the protocol family from
+ *
+ * Returns an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 or
+ * BATADV_MCAST_WANT_ALL_IPV6 flag, depending on the provided ethhdr, set and
+ * increases its refcount.
+ */
+static struct batadv_orig_node *
+batadv_mcast_forw_ip_node_get(struct batadv_priv *bat_priv,
+			      struct ethhdr *ethhdr)
+{
+	switch (ntohs(ethhdr->h_proto)) {
+	case ETH_P_IP:
+		return batadv_mcast_forw_ipv4_node_get(bat_priv);
+	case ETH_P_IPV6:
+		return batadv_mcast_forw_ipv6_node_get(bat_priv);
+	default:
+		/* we shouldn't be here... */
+		return NULL;
+	}
 }
 
 /**
@@ -417,7 +518,7 @@ enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		       struct batadv_orig_node **orig)
 {
-	int ret, tt_count, unsnoop_count, total_count;
+	int ret, tt_count, ip_count, unsnoop_count, total_count;
 	bool is_unsnoopable = false;
 	struct ethhdr *ethhdr;
 
@@ -431,15 +532,18 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	tt_count = batadv_tt_global_hash_count(bat_priv, ethhdr->h_dest,
 					       BATADV_NO_FLAGS);
+	ip_count = batadv_mcast_forw_want_all_ip_count(bat_priv, ethhdr);
 	unsnoop_count = !is_unsnoopable ? 0 :
 			atomic_read(&bat_priv->mcast.num_want_all_unsnoopables);
 
-	total_count = tt_count + unsnoop_count;
+	total_count = tt_count + ip_count + unsnoop_count;
 
 	switch (total_count) {
 	case 1:
 		if (tt_count)
 			*orig = batadv_mcast_forw_tt_node_get(bat_priv, ethhdr);
+		else if (ip_count)
+			*orig = batadv_mcast_forw_ip_node_get(bat_priv, ethhdr);
 		else if (unsnoop_count)
 			*orig = batadv_mcast_forw_unsnoop_node_get(bat_priv);
 
@@ -483,6 +587,72 @@ static void batadv_mcast_want_unsnoop_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		hlist_del_rcu(&orig->mcast_want_all_unsnoopables_node);
+		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
+	}
+}
+
+/**
+ * batadv_mcast_want_ipv4_update - update want-all-ipv4 counter and list
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig: the orig_node which multicast state might have changed of
+ * @mcast_flags: flags indicating the new multicast state
+ *
+ * If the BATADV_MCAST_WANT_ALL_IPV4 flag of this originator, orig, has
+ * toggled then this method updates counter and list accordingly.
+ */
+static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
+					  struct batadv_orig_node *orig,
+					  uint8_t mcast_flags)
+{
+	/* switched from flag unset to set */
+	if (mcast_flags & BATADV_MCAST_WANT_ALL_IPV4 &&
+	    !(orig->mcast_flags & BATADV_MCAST_WANT_ALL_IPV4)) {
+		atomic_inc(&bat_priv->mcast.num_want_all_ipv4);
+
+		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
+		hlist_add_head_rcu(&orig->mcast_want_all_ipv4_node,
+				   &bat_priv->mcast.want_all_ipv4_list);
+		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
+	/* switched from flag set to unset */
+	} else if (!(mcast_flags & BATADV_MCAST_WANT_ALL_IPV4) &&
+		   orig->mcast_flags & BATADV_MCAST_WANT_ALL_IPV4) {
+		atomic_dec(&bat_priv->mcast.num_want_all_ipv4);
+
+		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
+		hlist_del_rcu(&orig->mcast_want_all_ipv4_node);
+		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
+	}
+}
+
+/**
+ * batadv_mcast_want_ipv6_update - update want-all-ipv6 counter and list
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig: the orig_node which multicast state might have changed of
+ * @mcast_flags: flags indicating the new multicast state
+ *
+ * If the BATADV_MCAST_WANT_ALL_IPV6 flag of this originator, orig, has
+ * toggled then this method updates counter and list accordingly.
+ */
+static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
+					  struct batadv_orig_node *orig,
+					  uint8_t mcast_flags)
+{
+	/* switched from flag unset to set */
+	if (mcast_flags & BATADV_MCAST_WANT_ALL_IPV6 &&
+	    !(orig->mcast_flags & BATADV_MCAST_WANT_ALL_IPV6)) {
+		atomic_inc(&bat_priv->mcast.num_want_all_ipv6);
+
+		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
+		hlist_add_head_rcu(&orig->mcast_want_all_ipv6_node,
+				   &bat_priv->mcast.want_all_ipv6_list);
+		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
+	/* switched from flag set to unset */
+	} else if (!(mcast_flags & BATADV_MCAST_WANT_ALL_IPV6) &&
+		   orig->mcast_flags & BATADV_MCAST_WANT_ALL_IPV6) {
+		atomic_dec(&bat_priv->mcast.num_want_all_ipv6);
+
+		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
+		hlist_del_rcu(&orig->mcast_want_all_ipv6_node);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	}
 }
@@ -532,6 +702,8 @@ static void batadv_mcast_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 		mcast_flags = *(uint8_t *)tvlv_value;
 
 	batadv_mcast_want_unsnoop_update(bat_priv, orig, mcast_flags);
+	batadv_mcast_want_ipv4_update(bat_priv, orig, mcast_flags);
+	batadv_mcast_want_ipv6_update(bat_priv, orig, mcast_flags);
 
 	orig->mcast_flags = mcast_flags;
 }
@@ -571,4 +743,6 @@ void batadv_mcast_purge_orig(struct batadv_orig_node *orig)
 		atomic_dec(&bat_priv->mcast.num_disabled);
 
 	batadv_mcast_want_unsnoop_update(bat_priv, orig, BATADV_NO_FLAGS);
+	batadv_mcast_want_ipv4_update(bat_priv, orig, BATADV_NO_FLAGS);
+	batadv_mcast_want_ipv6_update(bat_priv, orig, BATADV_NO_FLAGS);
 }

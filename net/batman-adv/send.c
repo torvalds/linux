@@ -27,6 +27,7 @@
 #include "originator.h"
 #include "network-coding.h"
 #include "fragmentation.h"
+#include "multicast.h"
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
