@@ -874,6 +874,26 @@ static struct lcd_ops imxfb_lcd_ops = {
 	.set_power	= imxfb_lcd_set_power,
 };
 
+static int imxfb_setup(void)
+{
+	char *opt, *options = NULL;
+
+	if (fb_get_options("imxfb", &options))
+		return -ENODEV;
+
+	if (!options || !*options)
+		return 0;
+
+	while ((opt = strsep(&options, ",")) != NULL) {
+		if (!*opt)
+			continue;
+		else
+			fb_mode = opt;
+	}
+
+	return 0;
+}
+
 static int imxfb_probe(struct platform_device *pdev)
 {
 	struct imxfb_info *fbi;
@@ -887,6 +907,10 @@ static int imxfb_probe(struct platform_device *pdev)
 	int bytes_per_pixel;
 
 	dev_info(&pdev->dev, "i.MX Framebuffer driver\n");
+
+	ret = imxfb_setup();
+	if (ret < 0)
+		return ret;
 
 	of_id = of_match_device(imxfb_of_dev_id, &pdev->dev);
 	if (of_id)
@@ -1113,6 +1137,7 @@ static void imxfb_shutdown(struct platform_device *dev)
 static struct platform_driver imxfb_driver = {
 	.suspend	= imxfb_suspend,
 	.resume		= imxfb_resume,
+	.probe		= imxfb_probe,
 	.remove		= imxfb_remove,
 	.shutdown	= imxfb_shutdown,
 	.driver		= {
@@ -1121,45 +1146,7 @@ static struct platform_driver imxfb_driver = {
 	},
 	.id_table	= imxfb_devtype,
 };
-
-static int imxfb_setup(void)
-{
-#ifndef MODULE
-	char *opt, *options = NULL;
-
-	if (fb_get_options("imxfb", &options))
-		return -ENODEV;
-
-	if (!options || !*options)
-		return 0;
-
-	while ((opt = strsep(&options, ",")) != NULL) {
-		if (!*opt)
-			continue;
-		else
-			fb_mode = opt;
-	}
-#endif
-	return 0;
-}
-
-static int __init imxfb_init(void)
-{
-	int ret = imxfb_setup();
-
-	if (ret < 0)
-		return ret;
-
-	return platform_driver_probe(&imxfb_driver, imxfb_probe);
-}
-
-static void __exit imxfb_cleanup(void)
-{
-	platform_driver_unregister(&imxfb_driver);
-}
-
-module_init(imxfb_init);
-module_exit(imxfb_cleanup);
+module_platform_driver(imxfb_driver);
 
 MODULE_DESCRIPTION("Freescale i.MX framebuffer driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
