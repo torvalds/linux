@@ -255,9 +255,15 @@ static void acpiphp_dock_release(void *data)
 	put_bridge(context->func.parent);
 }
 
-/* callback routine to register each ACPI PCI slot object */
-static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
-				 void **rv)
+/**
+ * acpiphp_add_context - Add ACPIPHP context to an ACPI device object.
+ * @handle: ACPI handle of the object to add a context to.
+ * @lvl: Not used.
+ * @data: The object's parent ACPIPHP bridge.
+ * @rv: Not used.
+ */
+static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
+				       void **rv)
 {
 	struct acpiphp_bridge *bridge = data;
 	struct acpiphp_context *context;
@@ -930,14 +936,14 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		acpi_unlock_hp_context();
 	}
 
-	/* must be added to the list prior to calling register_slot */
+	/* Must be added to the list prior to calling acpiphp_add_context(). */
 	mutex_lock(&bridge_mutex);
 	list_add(&bridge->list, &bridge_list);
 	mutex_unlock(&bridge_mutex);
 
 	/* register all slot objects under this bridge */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
-				     register_slot, NULL, bridge, NULL);
+				     acpiphp_add_context, NULL, bridge, NULL);
 	if (ACPI_FAILURE(status)) {
 		acpi_handle_err(handle, "failed to register slots\n");
 		cleanup_bridge(bridge);
