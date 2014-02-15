@@ -768,12 +768,18 @@ static struct attribute_group dock_attribute_group = {
 void acpi_dock_add(struct acpi_device *adev)
 {
 	struct dock_station *dock_station, ds = { NULL, };
+	struct platform_device_info pdevinfo;
 	acpi_handle handle = adev->handle;
 	struct platform_device *dd;
 	int ret;
 
-	dd = platform_device_register_data(NULL, "dock", dock_station_count,
-					   &ds, sizeof(ds));
+	memset(&pdevinfo, 0, sizeof(pdevinfo));
+	pdevinfo.name = "dock";
+	pdevinfo.id = dock_station_count;
+	pdevinfo.acpi_node.companion = adev;
+	pdevinfo.data = &ds;
+	pdevinfo.size_data = sizeof(ds);
+	dd = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(dd))
 		return;
 
