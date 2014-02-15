@@ -277,9 +277,6 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 	struct pci_dev *pdev = bridge->pci_dev;
 	u32 val;
 
-	if (pdev && device_is_managed_by_native_pciehp(pdev))
-		return AE_OK;
-
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
@@ -338,8 +335,14 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 
 	list_add_tail(&slot->node, &bridge->slots);
 
-	/* Register slots for ejectable functions only. */
-	if (acpi_pci_check_ejectable(pbus, handle)  || is_dock_device(handle)) {
+	/*
+	 * Expose slots to user space for functions that have _EJ0 or _RMV or
+	 * are located in dock stations.  Do not expose them for devices handled
+	 * by the native PCIe hotplug (PCIeHP), becuase that code is supposed to
+	 * expose slots to user space in those cases.
+	 */
+	if ((acpi_pci_check_ejectable(pbus, handle) || is_dock_device(handle))
+	    && !(pdev && device_is_managed_by_native_pciehp(pdev))) {
 		unsigned long long sun;
 		int retval;
 
