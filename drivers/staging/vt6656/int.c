@@ -131,7 +131,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 	}
 	if (pINTData->byISR0 != 0) {
 		if (pINTData->byISR0 & ISR_BNTX) {
-			if (pDevice->eOPMode == OP_MODE_AP) {
+			if (pDevice->op_mode == NL80211_IFTYPE_AP) {
 				if (pMgmt->byDTIMCount > 0) {
 					pMgmt->byDTIMCount--;
 					pMgmt->sNodeDBTable[0].bRxPSPoll =
@@ -149,7 +149,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 				bScheduleCommand((void *) pDevice,
 						WLAN_CMD_BECON_SEND,
 						NULL);
-			} /* if (pDevice->eOPMode == OP_MODE_AP) */
+			}
 		pDevice->bBeaconSent = true;
 		} else {
 			pDevice->bBeaconSent = false;

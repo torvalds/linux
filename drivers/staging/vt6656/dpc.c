@@ -627,7 +627,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
 
     // Now it only supports 802.11g Infrastructure Mode, and support rate must up to 54 Mbps
     if (pDevice->bDiversityEnable && (FrameSize>50) &&
-       (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
+	pDevice->op_mode == NL80211_IFTYPE_STATION &&
        (pDevice->bLinkPass == true)) {
         BBvAntennaDiversity(pDevice, s_byGetRateIdx(*pbyRxRate), 0);
     }

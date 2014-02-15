@@ -588,7 +588,9 @@ struct vnt_private {
 	u16 wFragmentationThreshold;
 	u8 byShortRetryLimit;
 	u8 byLongRetryLimit;
-	CARD_OP_MODE eOPMode;
+
+	enum nl80211_iftype op_mode;
+
 	int bBSSIDFilter;
 	u16 wMaxTransmitMSDULifetime;
 	u8 abyBSSID[ETH_ALEN];

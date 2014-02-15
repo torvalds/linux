@@ -67,7 +67,7 @@ void PSvEnablePowerSaving(struct vnt_private *pDevice, u16 wListenInterval)
 	/* set period of power up before TBTT */
 	MACvWriteWord(pDevice, MAC_REG_PWBT, C_PWBT);
 
-	if (pDevice->eOPMode != OP_MODE_ADHOC) {
+	if (pDevice->op_mode != NL80211_IFTYPE_ADHOC) {
 		/* set AID */
 		MACvWriteWord(pDevice, MAC_REG_AIDATIM, wAID);
 	} else {
@@ -106,7 +106,7 @@ void PSvEnablePowerSaving(struct vnt_private *pDevice, u16 wListenInterval)
 	pDevice->bEnablePSMode = true;
 
 	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
-	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
+	if (pDevice->op_mode == NL80211_IFTYPE_STATION)
 		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = true;
@@ -137,7 +137,7 @@ void PSvDisablePowerSaving(struct vnt_private *pDevice)
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 	pDevice->bEnablePSMode = false;
 
-	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
+	if (pDevice->op_mode == NL80211_IFTYPE_STATION)
 		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = false;

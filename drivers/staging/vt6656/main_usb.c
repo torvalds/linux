@@ -256,7 +256,7 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->byShortPreamble = PREAMBLE_TYPE_DEF;
     pDevice->ePSMode = PS_MODE_DEF;
     pDevice->b11hEnable = X80211h_MODE_DEF;
-    pDevice->eOPMode = OP_MODE_DEF;
+    pDevice->op_mode = NL80211_IFTYPE_UNSPECIFIED;
     pDevice->uConnectionRate = DATA_RATE_DEF;
     if (pDevice->uConnectionRate < RATE_AUTO) pDevice->bFixRate = true;
     pDevice->byBBType = BBP_TYPE_DEF;

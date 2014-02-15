@@ -553,12 +553,13 @@ static int vnt_fill_ieee80211_rts(struct vnt_private *priv,
 	rts->duration = duration;
 	rts->frame_control = TYPE_CTL_RTS;
 
-	if (priv->eOPMode == OP_MODE_ADHOC || priv->eOPMode == OP_MODE_AP)
+	if (priv->op_mode == NL80211_IFTYPE_ADHOC ||
+				priv->op_mode == NL80211_IFTYPE_AP)
 		memcpy(rts->ra, eth_hdr->h_dest, ETH_ALEN);
 	else
 		memcpy(rts->ra, priv->abyBSSID, ETH_ALEN);
 
-	if (priv->eOPMode == OP_MODE_AP)
+	if (priv->op_mode == NL80211_IFTYPE_AP)
 		memcpy(rts->ta, priv->abyBSSID, ETH_ALEN);
 	else
 		memcpy(rts->ta, eth_hdr->h_source, ETH_ALEN);
@@ -991,8 +992,8 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     //Set packet type
     pTxBufHead->wFIFOCtl |= (u16)(byPktType<<8);
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-			(pDevice->eOPMode == OP_MODE_AP)) {
+	if (pDevice->op_mode == NL80211_IFTYPE_ADHOC ||
+			pDevice->op_mode == NL80211_IFTYPE_AP) {
 		if (is_multicast_ether_addr(psEthHeader->h_dest)) {
 			bNeedACK = false;
 			pTxBufHead->wFIFOCtl =
@@ -1292,7 +1293,7 @@ static void s_vGenerateMACHeader(struct vnt_private *pDevice,
 
 	pMACHeader->frame_control = TYPE_802_11_DATA;
 
-    if (pDevice->eOPMode == OP_MODE_AP) {
+    if (pDevice->op_mode == NL80211_IFTYPE_AP) {
 	memcpy(&(pMACHeader->addr1[0]),
 	       &(psEthHeader->h_dest[0]),
 	       ETH_ALEN);
@@ -1302,7 +1303,7 @@ static void s_vGenerateMACHeader(struct vnt_private *pDevice,
 	       ETH_ALEN);
         pMACHeader->frame_control |= FC_FROMDS;
     } else {
-	if (pDevice->eOPMode == OP_MODE_ADHOC) {
+	if (pDevice->op_mode == NL80211_IFTYPE_ADHOC) {
 		memcpy(&(pMACHeader->addr1[0]),
 		       &(psEthHeader->h_dest[0]),
 		       ETH_ALEN);
@@ -1541,8 +1542,8 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         pbyIVHead = (u8 *)(pbyTxBufferAddr + cbHeaderSize + cbMacHdLen + uPadding);
         pbyPayloadHead = (u8 *)(pbyTxBufferAddr + cbHeaderSize + cbMacHdLen + uPadding + cbIVlen);
         do {
-            if ((pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
-                (pDevice->bLinkPass == true)) {
+	    if (pDevice->op_mode == NL80211_IFTYPE_STATION &&
+					pDevice->bLinkPass == true) {
                 pbyBSSID = pDevice->abyBSSID;
                 // get pairwise key
                 if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, PAIRWISE_KEY, &pTransmitKey) == false) {
@@ -1560,7 +1561,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
             pbyBSSID = pDevice->abyBroadcastAddr;
             if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
                 pTransmitKey = NULL;
-                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KEY is NULL. OP Mode[%d]\n", pDevice->eOPMode);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KEY is NULL. OP Mode[%d]\n", pDevice->op_mode);
             } else {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Get GTK.\n");
             }
@@ -2305,7 +2306,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         }
     }
     else {
-        if (pDevice->eOPMode == OP_MODE_ADHOC) {
+	if (pDevice->op_mode == NL80211_IFTYPE_ADHOC) {
             // Adhoc Tx rate decided from node DB
 	    if (is_multicast_ether_addr(pDevice->sTxEthHeader.h_dest)) {
                 // Multicast use highest data rate
@@ -2336,7 +2337,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
                 }
             }
         }
-        if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
+	if (pDevice->op_mode == NL80211_IFTYPE_STATION) {
             // Infra STA rate decided from AP Node, index = 0
             pDevice->wCurrentRate = pMgmt->sNodeDBTable[0].wTxDataRate;
         }
