@@ -178,11 +178,52 @@ static bool batadv_mcast_has_bridge(struct batadv_priv *bat_priv)
 }
 
 /**
+ * batadv_mcast_mla_tvlv_update - update multicast tvlv
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Updates the own multicast tvlv with our current multicast related settings,
+ * capabilities and inabilities.
+ *
+ * Returns true if the tvlv container is registered afterwards. Otherwise
+ * returns false.
+ */
+static bool batadv_mcast_mla_tvlv_update(struct batadv_priv *bat_priv)
+{
+	struct batadv_tvlv_mcast_data mcast_data;
+
+	mcast_data.flags = BATADV_NO_FLAGS;
+	memset(mcast_data.reserved, 0, sizeof(mcast_data.reserved));
+
+	/* Avoid attaching MLAs, if there is a bridge on top of our soft
+	 * interface, we don't support that yet (TODO)
+	 */
+	if (batadv_mcast_has_bridge(bat_priv)) {
+		if (bat_priv->mcast.enabled) {
+			batadv_tvlv_container_unregister(bat_priv,
+							 BATADV_TVLV_MCAST, 1);
+			bat_priv->mcast.enabled = false;
+		}
+
+		return false;
+	}
+
+	if (!bat_priv->mcast.enabled ||
+	    mcast_data.flags != bat_priv->mcast.flags) {
+		batadv_tvlv_container_register(bat_priv, BATADV_TVLV_MCAST, 1,
+					       &mcast_data, sizeof(mcast_data));
+		bat_priv->mcast.flags = mcast_data.flags;
+		bat_priv->mcast.enabled = true;
+	}
+
+	return true;
+}
+
+/**
  * batadv_mcast_mla_update - update the own MLAs
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Update the own multicast listener announcements in the translation
- * table.
+ * Updates the own multicast listener announcements in the translation
+ * table as well as the own, announced multicast tvlv container.
  */
 void batadv_mcast_mla_update(struct batadv_priv *bat_priv)
 {
@@ -190,10 +231,7 @@ void batadv_mcast_mla_update(struct batadv_priv *bat_priv)
 	struct hlist_head mcast_list = HLIST_HEAD_INIT;
 	int ret;
 
-	/* Avoid attaching MLAs, if there is a bridge on top of our soft
-	 * interface, we don't support that yet (TODO)
-	 */
-	if (batadv_mcast_has_bridge(bat_priv))
+	if (!batadv_mcast_mla_tvlv_update(bat_priv))
 		goto update;
 
 	ret = batadv_mcast_mla_softif_get(soft_iface, &mcast_list);
@@ -209,10 +247,83 @@ out:
 }
 
 /**
+ * batadv_mcast_tvlv_ogm_handler_v1 - process incoming multicast tvlv container
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig: the orig_node of the ogm
+ * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
+ * @tvlv_value: tvlv buffer containing the multicast data
+ * @tvlv_value_len: tvlv buffer length
+ */
+static void batadv_mcast_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
+					     struct batadv_orig_node *orig,
+					     uint8_t flags,
+					     void *tvlv_value,
+					     uint16_t tvlv_value_len)
+{
+	bool orig_mcast_enabled = !(flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
+	uint8_t mcast_flags = BATADV_NO_FLAGS;
+	bool orig_initialized;
+
+	orig_initialized = orig->capa_initialized & BATADV_ORIG_CAPA_HAS_MCAST;
+
+	/* If mcast support is turned on decrease the disabled mcast node
+	 * counter only if we had increased it for this node before. If this
+	 * is a completely new orig_node no need to decrease the counter.
+	 */
+	if (orig_mcast_enabled &&
+	    !(orig->capabilities & BATADV_ORIG_CAPA_HAS_MCAST)) {
+		if (orig_initialized)
+			atomic_dec(&bat_priv->mcast.num_disabled);
+		orig->capabilities |= BATADV_ORIG_CAPA_HAS_MCAST;
+	/* If mcast support is being switched off increase the disabled
+	 * mcast node counter.
+	 */
+	} else if (!orig_mcast_enabled &&
+		   orig->capabilities & BATADV_ORIG_CAPA_HAS_MCAST) {
+		atomic_inc(&bat_priv->mcast.num_disabled);
+		orig->capabilities &= ~BATADV_ORIG_CAPA_HAS_MCAST;
+	}
+
+	orig->capa_initialized |= BATADV_ORIG_CAPA_HAS_MCAST;
+
+	if (orig_mcast_enabled && tvlv_value &&
+	    (tvlv_value_len >= sizeof(mcast_flags)))
+		mcast_flags = *(uint8_t *)tvlv_value;
+
+	orig->mcast_flags = mcast_flags;
+}
+
+/**
+ * batadv_mcast_init - initialize the multicast optimizations structures
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+void batadv_mcast_init(struct batadv_priv *bat_priv)
+{
+	batadv_tvlv_handler_register(bat_priv, batadv_mcast_tvlv_ogm_handler_v1,
+				     NULL, BATADV_TVLV_MCAST, 1,
+				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
+}
+
+/**
  * batadv_mcast_free - free the multicast optimizations structures
  * @bat_priv: the bat priv with all the soft interface information
  */
 void batadv_mcast_free(struct batadv_priv *bat_priv)
 {
+	batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_MCAST, 1);
+	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_MCAST, 1);
+
 	batadv_mcast_mla_tt_retract(bat_priv, NULL);
+}
+
+/**
+ * batadv_mcast_purge_orig - reset originator global mcast state modifications
+ * @orig: the originator which is going to get purged
+ */
+void batadv_mcast_purge_orig(struct batadv_orig_node *orig)
+{
+	struct batadv_priv *bat_priv = orig->bat_priv;
+
+	if (!(orig->capabilities & BATADV_ORIG_CAPA_HAS_MCAST))
+		atomic_dec(&bat_priv->mcast.num_disabled);
 }

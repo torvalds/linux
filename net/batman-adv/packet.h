@@ -145,6 +145,7 @@ enum batadv_bla_claimframe {
  * @BATADV_TVLV_NC: network coding tvlv
  * @BATADV_TVLV_TT: translation table tvlv
  * @BATADV_TVLV_ROAM: roaming advertisement tvlv
+ * @BATADV_TVLV_MCAST: multicast capability tvlv
  */
 enum batadv_tvlv_type {
 	BATADV_TVLV_GW		= 0x01,
@@ -152,6 +153,7 @@ enum batadv_tvlv_type {
 	BATADV_TVLV_NC		= 0x03,
 	BATADV_TVLV_TT		= 0x04,
 	BATADV_TVLV_ROAM	= 0x05,
+	BATADV_TVLV_MCAST	= 0x06,
 };
 
 #pragma pack(2)
@@ -502,6 +504,16 @@ struct batadv_tvlv_tt_change {
 struct batadv_tvlv_roam_adv {
 	uint8_t  client[ETH_ALEN];
 	__be16 vid;
+};
+
+/**
+ * struct batadv_tvlv_mcast_data - payload of a multicast tvlv
+ * @flags: multicast flags announced by the orig node
+ * @reserved: reserved field
+ */
+struct batadv_tvlv_mcast_data {
+	uint8_t	flags;
+	uint8_t reserved[3];
 };
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

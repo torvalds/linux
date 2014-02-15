@@ -204,6 +204,7 @@ struct batadv_orig_bat_iv {
  * @batadv_dat_addr_t:  address of the orig node in the distributed hash
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
+ * @mcast_flags: multicast flags announced by the orig node
  * @capabilities: announced capabilities of this originator
  * @capa_initialized: bitfield to remember whether a capability was initialized
  * @last_ttvn: last seen translation table version number
@@ -246,6 +247,9 @@ struct batadv_orig_node {
 #endif
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	uint8_t mcast_flags;
+#endif
 	uint8_t capabilities;
 	uint8_t capa_initialized;
 	atomic_t last_ttvn;
@@ -282,11 +286,14 @@ struct batadv_orig_node {
  * @BATADV_ORIG_CAPA_HAS_DAT: orig node has distributed arp table enabled
  * @BATADV_ORIG_CAPA_HAS_NC: orig node has network coding enabled
  * @BATADV_ORIG_CAPA_HAS_TT: orig node has tt capability
+ * @BATADV_ORIG_CAPA_HAS_MCAST: orig node has some multicast capability
+ *  (= orig node announces a tvlv of type BATADV_TVLV_MCAST)
  */
 enum batadv_orig_capabilities {
 	BATADV_ORIG_CAPA_HAS_DAT = BIT(0),
 	BATADV_ORIG_CAPA_HAS_NC = BIT(1),
 	BATADV_ORIG_CAPA_HAS_TT = BIT(2),
+	BATADV_ORIG_CAPA_HAS_MCAST = BIT(3),
 };
 
 /**
@@ -612,9 +619,15 @@ struct batadv_priv_dat {
 /**
  * struct batadv_priv_mcast - per mesh interface mcast data
  * @mla_list: list of multicast addresses we are currently announcing via TT
+ * @flags: the flags we have last sent in our mcast tvlv
+ * @enabled: whether the multicast tvlv is currently enabled
+ * @num_disabled: number of nodes that have no mcast tvlv
  */
 struct batadv_priv_mcast {
 	struct hlist_head mla_list;
+	uint8_t flags;
+	bool enabled;
+	atomic_t num_disabled;
 };
 #endif
 
