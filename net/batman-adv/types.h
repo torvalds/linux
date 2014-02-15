@@ -205,6 +205,8 @@ struct batadv_orig_bat_iv {
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
  * @mcast_flags: multicast flags announced by the orig node
+ * @mcast_want_all_unsnoop_node: a list node for the
+ *  mcast.want_all_unsnoopables list
  * @capabilities: announced capabilities of this originator
  * @capa_initialized: bitfield to remember whether a capability was initialized
  * @last_ttvn: last seen translation table version number
@@ -249,6 +251,7 @@ struct batadv_orig_node {
 	unsigned long bcast_seqno_reset;
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	uint8_t mcast_flags;
+	struct hlist_node mcast_want_all_unsnoopables_node;
 #endif
 	uint8_t capabilities;
 	uint8_t capa_initialized;
@@ -619,15 +622,24 @@ struct batadv_priv_dat {
 /**
  * struct batadv_priv_mcast - per mesh interface mcast data
  * @mla_list: list of multicast addresses we are currently announcing via TT
+ * @want_all_unsnoopables_list: a list of orig_nodes wanting all unsnoopable
+ *  multicast traffic
  * @flags: the flags we have last sent in our mcast tvlv
  * @enabled: whether the multicast tvlv is currently enabled
  * @num_disabled: number of nodes that have no mcast tvlv
+ * @num_want_all_unsnoopables: number of nodes wanting unsnoopable IP traffic
+ * @want_lists_lock: lock for protecting modifications to mcast want lists
+ *  (traversals are rcu-locked)
  */
 struct batadv_priv_mcast {
 	struct hlist_head mla_list;
+	struct hlist_head want_all_unsnoopables_list;
 	uint8_t flags;
 	bool enabled;
 	atomic_t num_disabled;
+	atomic_t num_want_all_unsnoopables;
+	/* protects want_all_unsnoopables_list */
+	spinlock_t want_lists_lock;
 };
 #endif
 

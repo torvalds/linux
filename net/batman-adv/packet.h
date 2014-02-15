@@ -89,6 +89,15 @@ enum batadv_icmp_packettype {
 	BATADV_PARAMETER_PROBLEM       = 12,
 };
 
+/**
+ * enum batadv_mcast_flags - flags for multicast capabilities and settings
+ * @BATADV_MCAST_WANT_ALL_UNSNOOPABLES: we want all packets destined for
+ *  224.0.0.0/24 or ff02::1
+ */
+enum batadv_mcast_flags {
+	BATADV_MCAST_WANT_ALL_UNSNOOPABLES	= BIT(0),
+};
+
 /* tt data subtypes */
 #define BATADV_TT_DATA_TYPE_MASK 0x0F
 

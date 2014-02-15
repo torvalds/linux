@@ -248,9 +248,48 @@ out:
 }
 
 /**
+ * batadv_mcast_forw_mode_check_ipv4 - check for optimized forwarding potential
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the IPv4 packet to check
+ * @is_unsnoopable: stores whether the destination is snoopable
+ *
+ * Checks whether the given IPv4 packet has the potential to be forwarded with a
+ * mode more optimal than classic flooding.
+ *
+ * If so then returns 0. Otherwise -EINVAL is returned or -ENOMEM in case of
+ * memory allocation failure.
+ */
+static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
+					     struct sk_buff *skb,
+					     bool *is_unsnoopable)
+{
+	struct iphdr *iphdr;
+
+	/* We might fail due to out-of-memory -> drop it */
+	if (!pskb_may_pull(skb, sizeof(struct ethhdr) + sizeof(*iphdr)))
+		return -ENOMEM;
+
+	iphdr = ip_hdr(skb);
+
+	/* TODO: Implement Multicast Router Discovery (RFC4286),
+	 * then allow scope > link local, too
+	 */
+	if (!ipv4_is_local_multicast(iphdr->daddr))
+		return -EINVAL;
+
+	/* link-local multicast listeners behind a bridge are
+	 * not snoopable (see RFC4541, section 2.1.2.2)
+	 */
+	*is_unsnoopable = true;
+
+	return 0;
+}
+
+/**
  * batadv_mcast_forw_mode_check_ipv6 - check for optimized forwarding potential
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the IPv6 packet to check
+ * @is_unsnoopable: stores whether the destination is snoopable
  *
  * Checks whether the given IPv6 packet has the potential to be forwarded with a
  * mode more optimal than classic flooding.
@@ -259,7 +298,8 @@ out:
  * of memory.
  */
 static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
-					     struct sk_buff *skb)
+					     struct sk_buff *skb,
+					     bool *is_unsnoopable)
 {
 	struct ipv6hdr *ip6hdr;
 
@@ -279,7 +319,7 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
 	 * not snoopable (see RFC4541, section 3, paragraph 3)
 	 */
 	if (ipv6_addr_is_ll_all_nodes(&ip6hdr->daddr))
-		return -EINVAL;
+		*is_unsnoopable = true;
 
 	return 0;
 }
@@ -288,6 +328,7 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
  * batadv_mcast_forw_mode_check - check for optimized forwarding potential
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the multicast frame to check
+ * @is_unsnoopable: stores whether the destination is snoopable
  *
  * Checks whether the given multicast ethernet frame has the potential to be
  * forwarded with a mode more optimal than classic flooding.
@@ -296,7 +337,8 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
  * of memory.
  */
 static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
-					struct sk_buff *skb)
+					struct sk_buff *skb,
+					bool *is_unsnoopable)
 {
 	struct ethhdr *ethhdr = eth_hdr(skb);
 
@@ -307,8 +349,12 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 		return -EINVAL;
 
 	switch (ntohs(ethhdr->h_proto)) {
+	case ETH_P_IP:
+		return batadv_mcast_forw_mode_check_ipv4(bat_priv, skb,
+							 is_unsnoopable);
 	case ETH_P_IPV6:
-		return batadv_mcast_forw_mode_check_ipv6(bat_priv, skb);
+		return batadv_mcast_forw_mode_check_ipv6(bat_priv, skb,
+							 is_unsnoopable);
 	default:
 		return -EINVAL;
 	}
@@ -331,6 +377,33 @@ batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_mcast_want_forw_unsnoop_node_get - get a node with an unsnoopable flag
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Returns an orig_node which has the BATADV_MCAST_WANT_ALL_UNSNOOPABLES flag
+ * set and increases its refcount.
+ */
+static struct batadv_orig_node *
+batadv_mcast_forw_unsnoop_node_get(struct batadv_priv *bat_priv)
+{
+	struct batadv_orig_node *tmp_orig_node, *orig_node = NULL;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tmp_orig_node,
+				 &bat_priv->mcast.want_all_unsnoopables_list,
+				 mcast_want_all_unsnoopables_node) {
+		if (!atomic_inc_not_zero(&orig_node->refcount))
+			continue;
+
+		orig_node = tmp_orig_node;
+		break;
+	}
+	rcu_read_unlock();
+
+	return orig_node;
+}
+
+/**
  * batadv_mcast_forw_mode - check on how to forward a multicast packet
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: The multicast packet to check
@@ -344,10 +417,11 @@ enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		       struct batadv_orig_node **orig)
 {
+	int ret, tt_count, unsnoop_count, total_count;
+	bool is_unsnoopable = false;
 	struct ethhdr *ethhdr;
-	int ret, tt_count;
 
-	ret = batadv_mcast_forw_mode_check(bat_priv, skb);
+	ret = batadv_mcast_forw_mode_check(bat_priv, skb, &is_unsnoopable);
 	if (ret == -ENOMEM)
 		return BATADV_FORW_NONE;
 	else if (ret < 0)
@@ -357,10 +431,18 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	tt_count = batadv_tt_global_hash_count(bat_priv, ethhdr->h_dest,
 					       BATADV_NO_FLAGS);
+	unsnoop_count = !is_unsnoopable ? 0 :
+			atomic_read(&bat_priv->mcast.num_want_all_unsnoopables);
 
-	switch (tt_count) {
+	total_count = tt_count + unsnoop_count;
+
+	switch (total_count) {
 	case 1:
-		*orig = batadv_mcast_forw_tt_node_get(bat_priv, ethhdr);
+		if (tt_count)
+			*orig = batadv_mcast_forw_tt_node_get(bat_priv, ethhdr);
+		else if (unsnoop_count)
+			*orig = batadv_mcast_forw_unsnoop_node_get(bat_priv);
+
 		if (*orig)
 			return BATADV_FORW_SINGLE;
 
@@ -369,6 +451,39 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		return BATADV_FORW_NONE;
 	default:
 		return BATADV_FORW_ALL;
+	}
+}
+
+/**
+ * batadv_mcast_want_unsnoop_update - update unsnoop counter and list
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig: the orig_node which multicast state might have changed of
+ * @mcast_flags: flags indicating the new multicast state
+ *
+ * If the BATADV_MCAST_WANT_ALL_UNSNOOPABLES flag of this originator,
+ * orig, has toggled then this method updates counter and list accordingly.
+ */
+static void batadv_mcast_want_unsnoop_update(struct batadv_priv *bat_priv,
+					     struct batadv_orig_node *orig,
+					     uint8_t mcast_flags)
+{
+	/* switched from flag unset to set */
+	if (mcast_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES &&
+	    !(orig->mcast_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES)) {
+		atomic_inc(&bat_priv->mcast.num_want_all_unsnoopables);
+
+		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
+		hlist_add_head_rcu(&orig->mcast_want_all_unsnoopables_node,
+				   &bat_priv->mcast.want_all_unsnoopables_list);
+		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
+	/* switched from flag set to unset */
+	} else if (!(mcast_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES) &&
+		   orig->mcast_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES) {
+		atomic_dec(&bat_priv->mcast.num_want_all_unsnoopables);
+
+		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
+		hlist_del_rcu(&orig->mcast_want_all_unsnoopables_node);
+		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	}
 }
 
@@ -416,6 +531,8 @@ static void batadv_mcast_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 	    (tvlv_value_len >= sizeof(mcast_flags)))
 		mcast_flags = *(uint8_t *)tvlv_value;
 
+	batadv_mcast_want_unsnoop_update(bat_priv, orig, mcast_flags);
+
 	orig->mcast_flags = mcast_flags;
 }
 
@@ -452,4 +569,6 @@ void batadv_mcast_purge_orig(struct batadv_orig_node *orig)
 
 	if (!(orig->capabilities & BATADV_ORIG_CAPA_HAS_MCAST))
 		atomic_dec(&bat_priv->mcast.num_disabled);
+
+	batadv_mcast_want_unsnoop_update(bat_priv, orig, BATADV_NO_FLAGS);
 }
