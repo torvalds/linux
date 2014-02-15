@@ -26,15 +26,8 @@
 #define MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_PAGES (MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB * 256)
 #define MALI_OS_MEMORY_POOL_TRIM_JIFFIES (10 * CONFIG_HZ) /* Default to 10s */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
-static int mali_mem_os_shrink(int nr_to_scan, gfp_t gfp_mask);
-#else
-static int mali_mem_os_shrink(struct shrinker *shrinker, int nr_to_scan, gfp_t gfp_mask);
-#endif
-#else
-static int mali_mem_os_shrink(struct shrinker *shrinker, struct shrink_control *sc);
-#endif
+static unsigned long mali_mem_os_shrink_count(struct shrinker *shrinker, struct shrink_control *sc);
+static unsigned long mali_mem_os_shrink_scan(struct shrinker *shrinker, struct shrink_control *sc);
 static void mali_mem_os_trim_pool(struct work_struct *work);
 
 static struct mali_mem_os_allocator {
@@ -56,15 +49,10 @@ static struct mali_mem_os_allocator {
 	.allocated_pages = ATOMIC_INIT(0),
 	.allocation_limit = 0,
 
-	.shrinker.shrink = mali_mem_os_shrink,
+	.shrinker.count_objects = mali_mem_os_shrink_count,
+	.shrinker.scan_objects = mali_mem_os_shrink_scan,
 	.shrinker.seeks = DEFAULT_SEEKS,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 	.timed_shrinker = __DELAYED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool, TIMER_DEFERRABLE),
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38)
-	.timed_shrinker = __DEFERRED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool),
-#else
-	.timed_shrinker = __DELAYED_WORK_INITIALIZER(mali_mem_os_allocator.timed_shrinker, mali_mem_os_trim_pool),
-#endif
 };
 
 static void mali_mem_os_free(mali_mem_allocation *descriptor)
@@ -402,32 +390,22 @@ static void mali_mem_os_trim_page_table_page_pool(void)
 	mali_mem_os_page_table_pool_free(nr_to_free);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
-static int mali_mem_os_shrink(int nr_to_scan, gfp_t gfp_mask)
-#else
-static int mali_mem_os_shrink(struct shrinker *shrinker, int nr_to_scan, gfp_t gfp_mask)
-#endif
-#else
-static int mali_mem_os_shrink(struct shrinker *shrinker, struct shrink_control *sc)
-#endif
+static unsigned long mali_mem_os_shrink_count(struct shrinker *shrinker, struct shrink_control *sc)
+{
+	return mali_mem_os_allocator.pool_count + mali_mem_page_table_page_pool.count;
+}
+
+static unsigned long mali_mem_os_shrink_scan(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct page *page, *tmp;
 	unsigned long flags;
 	struct list_head *le, pages;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-	int nr = nr_to_scan;
-#else
 	int nr = sc->nr_to_scan;
-#endif
-
-	if (0 == nr) {
-		return mali_mem_os_allocator.pool_count + mali_mem_page_table_page_pool.count;
-	}
+	unsigned long freed = 0;
 
 	if (0 == mali_mem_os_allocator.pool_count) {
 		/* No pages availble */
-		return 0;
+		return SHRINK_STOP;
 	}
 
 	if (0 == spin_trylock_irqsave(&mali_mem_os_allocator.pool_lock, flags)) {
@@ -440,6 +418,7 @@ static int mali_mem_os_shrink(struct shrinker *shrinker, struct shrink_control *
 	mali_mem_os_allocator.pool_count -= nr;
 	list_for_each(le, &mali_mem_os_allocator.pool_pages) {
 		--nr;
+		freed++;
 		if (0 == nr) break;
 	}
 	list_cut_position(&pages, &mali_mem_os_allocator.pool_pages, le);
@@ -458,7 +437,7 @@ static int mali_mem_os_shrink(struct shrinker *shrinker, struct shrink_control *
 		cancel_delayed_work(&mali_mem_os_allocator.timed_shrinker);
 	}
 
-	return mali_mem_os_allocator.pool_count + mali_mem_page_table_page_pool.count;
+	return freed;
 }
 
 static void mali_mem_os_trim_pool(struct work_struct *data)

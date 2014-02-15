@@ -159,12 +159,8 @@ int mali_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO;
 	vma->vm_flags |= VM_DONTCOPY;
 	vma->vm_flags |= VM_PFNMAP;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
-	vma->vm_flags |= VM_RESERVED;
-#else
 	vma->vm_flags |= VM_DONTDUMP;
 	vma->vm_flags |= VM_DONTEXPAND;
-#endif
 
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	vma->vm_ops = &mali_kernel_vm_ops; /* Operations used on any memory system */

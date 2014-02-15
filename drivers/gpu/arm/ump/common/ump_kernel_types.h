@@ -11,7 +11,7 @@
 #ifndef __UMP_KERNEL_TYPES_H__
 #define __UMP_KERNEL_TYPES_H__
 
-#include "ump_kernel_interface.h"
+#include <ump/ump_kernel_interface.h>
 #include "mali_osk.h"
 
 

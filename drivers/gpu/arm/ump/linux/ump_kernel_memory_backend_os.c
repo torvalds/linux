@@ -11,11 +11,7 @@
 /* needed to detect kernel version specific code */
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 #include <linux/semaphore.h>
-#else /* pre 2.6.26 the file was in the arch specific location */
-#include <asm/semaphore.h>
-#endif
 
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>

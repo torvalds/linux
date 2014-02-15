@@ -10,8 +10,8 @@
 
 #include <linux/vermagic.h>
 #include <linux/version.h>
-#include "drmP.h"
-#include "mali_drm.h"
+#include <drm/drmP.h>
+#include <drm/mali_drm.h>
 #include "mali_drv.h"
 
 static struct platform_device *pdev;
@@ -111,6 +111,16 @@ static int mali_driver_unload(struct drm_device *dev)
 	return 0;
 }
 
+static const struct file_operations mali_driver_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.mmap = drm_mmap,
+	.poll = drm_poll,
+	.unlocked_ioctl = drm_ioctl,
+	.release = drm_release,
+	.fasync = drm_fasync,
+};
+
 static struct drm_driver driver =
 {
 	.driver_features = DRIVER_USE_PLATFORM_DEVICE,
@@ -124,19 +134,7 @@ static struct drm_driver driver =
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = mali_ioctls,
-	.fops = {
-		.owner = THIS_MODULE,
-		.open = drm_open,
-		.release = drm_release,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
-		.ioctl = drm_ioctl,
-#else
-		.unlocked_ioctl = drm_ioctl,
-#endif
-		.mmap = drm_mmap,
-		.poll = drm_poll,
-		.fasync = drm_fasync,
-	},
+	.fops = mali_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,

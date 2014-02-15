@@ -11,7 +11,19 @@
 #ifndef __ARCH_CONFIG_H__
 #define __ARCH_CONFIG_H__
 
-#define ARCH_UMP_BACKEND_DEFAULT          0
+/*
+ARCH_UMP_BACKEND_DEFAULT
+    0 specifies the dedicated memory allocator.
+    1 specifies the OS memory allocator.
+ARCH_UMP_MEMORY_ADDRESS_DEFAULT
+    This is only required for the dedicated memory allocator, and specifies
+    the physical start address of the memory block reserved for UMP.
+ARCH_UMP_MEMORY_SIZE_DEFAULT
+    This specified the size of the memory block reserved for UMP, or the
+    maximum limit for allocations from the OS.
+*/
+
+#define ARCH_UMP_BACKEND_DEFAULT          1
 #define ARCH_UMP_MEMORY_ADDRESS_DEFAULT   0xE1000000
 #define ARCH_UMP_MEMORY_SIZE_DEFAULT 16UL * 1024UL * 1024UL
 
