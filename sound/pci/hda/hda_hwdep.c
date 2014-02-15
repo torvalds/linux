@@ -20,7 +20,6 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/compat.h>
 #include <linux/mutex.h>
 #include <linux/ctype.h>
