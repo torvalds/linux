@@ -99,7 +99,6 @@ struct uwire_spi {
 };
 
 struct uwire_state {
-	unsigned	bits_per_word;
 	unsigned	div1_idx;
 };
 
@@ -210,9 +209,8 @@ static void uwire_chipselect(struct spi_device *spi, int value)
 
 static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 {
-	struct uwire_state *ust = spi->controller_state;
 	unsigned	len = t->len;
-	unsigned	bits = ust->bits_per_word;
+	unsigned	bits = t->bits_per_word ? : spi->bits_per_word;
 	unsigned	bytes;
 	u16		val, w;
 	int		status = 0;
@@ -322,7 +320,6 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	struct uwire_state	*ust = spi->controller_state;
 	struct uwire_spi	*uwire;
 	unsigned		flags = 0;
-	unsigned		bits;
 	unsigned		hz;
 	unsigned long		rate;
 	int			div1_idx;
@@ -331,17 +328,6 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	int			status;
 
 	uwire = spi_master_get_devdata(spi->master);
-
-	bits = spi->bits_per_word;
-	if (t != NULL && t->bits_per_word)
-		bits = t->bits_per_word;
-
-	if (bits > 16) {
-		pr_debug("%s: wordsize %d?\n", dev_name(&spi->dev), bits);
-		status = -ENODEV;
-		goto done;
-	}
-	ust->bits_per_word = bits;
 
 	/* mode 0..3, clock inverted separately;
 	 * standard nCS signaling;
@@ -509,7 +495,7 @@ static int uwire_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
 	master->flags = SPI_MASTER_HALF_DUPLEX;
 
 	master->bus_num = 2;	/* "official" */
