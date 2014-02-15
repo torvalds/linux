@@ -888,6 +888,10 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 	unsigned int i;
 	int ret = 0;
 
+	/* Memory-to-memory pipelines have no external subdev. */
+	if (pipe->input != NULL)
+		return 0;
+
 	for (i = 0; i < ARRAY_SIZE(ents); i++) {
 		/* Is the entity part of the pipeline? */
 		if (!(pipe->entities & (1 << ents[i]->id)))
