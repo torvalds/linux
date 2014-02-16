@@ -342,7 +342,6 @@ extern struct snd_ac97_bus_ops *soc_ac97_ops;
 
 enum snd_soc_control_type {
 	SND_SOC_I2C = 1,
-	SND_SOC_SPI,
 	SND_SOC_REGMAP,
 };
 

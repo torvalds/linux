@@ -106,13 +106,6 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 		break;
 #endif
 
-#if IS_ENABLED(CONFIG_REGMAP_SPI)
-	case SND_SOC_SPI:
-		codec->control_data = regmap_init_spi(to_spi_device(codec->dev),
-						      &config);
-		break;
-#endif
-
 	case SND_SOC_REGMAP:
 		/* Device has made its own regmap arrangements */
 		codec->using_regmap = true;
