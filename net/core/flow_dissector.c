@@ -323,17 +323,6 @@ u32 __skb_get_poff(const struct sk_buff *skb)
 	return poff;
 }
 
-static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
-{
-	if (unlikely(queue_index >= dev->real_num_tx_queues)) {
-		net_warn_ratelimited("%s selects TX queue %d, but real number of TX queues is %d\n",
-				     dev->name, queue_index,
-				     dev->real_num_tx_queues);
-		return 0;
-	}
-	return queue_index;
-}
-
 static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 {
 #ifdef CONFIG_XPS
@@ -408,7 +397,7 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 			queue_index = __netdev_pick_tx(dev, skb);
 
 		if (!accel_priv)
-			queue_index = dev_cap_txqueue(dev, queue_index);
+			queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
 
 	skb_set_queue_mapping(skb, queue_index);
