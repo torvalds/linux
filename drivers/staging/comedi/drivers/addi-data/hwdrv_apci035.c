@@ -177,11 +177,11 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 	devpriv->tsk_Current = current;
 	devpriv->b_TimerSelectMode = data[0];
 	i_WatchdogNbr = data[1];
-	if (data[0] == 0) {
+	if (data[0] == 0)
 		ui_Mode = 2;
-	} else {
+	else
 		ui_Mode = 0;
-	}
+
 /* ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12); */
 	ui_Command = 0;
 /* ui_Command = ui_Command & 0xFFFFF9FEUL; */
@@ -366,8 +366,7 @@ static int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 	}
 
-	if (data[0] == 0)	/* Stop The Watchdog */
-	{
+	if (data[0] == 0) {
 		/* Stop The Watchdog */
 		ui_Command = 0;
 /*
@@ -377,15 +376,15 @@ static int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 		outl(ui_Command,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 	}			/*   if (data[1]==0) */
-	if (data[0] == 3)	/* stop all Watchdogs */
-	{
+	if (data[0] == 3) {
+		/* stop all Watchdogs */
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
-			if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
+			if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG)
 				ui_Command = 0x2UL;
-			} else {
+			else
 				ui_Command = 0x10UL;
-			}
+
 			i_WatchdogNbr = i_Count;
 			outl(ui_Command,
 				devpriv->iobase + ((i_WatchdogNbr - 1) * 32) +
@@ -393,30 +392,29 @@ static int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 		}
 
 	}
-	if (data[0] == 4)	/* start all Watchdogs */
-	{
+	if (data[0] == 4) {
+		/* start all Watchdogs */
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
-			if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
+			if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG)
 				ui_Command = 0x1UL;
-			} else {
+			else
 				ui_Command = 0x8UL;
-			}
+
 			i_WatchdogNbr = i_Count;
 			outl(ui_Command,
 				devpriv->iobase + ((i_WatchdogNbr - 1) * 32) +
 				0);
 		}
 	}
-	if (data[0] == 5)	/* trigger all Watchdogs */
-	{
+	if (data[0] == 5) {
+		/* trigger all Watchdogs */
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
-			if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
+			if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG)
 				ui_Command = 0x4UL;
-			} else {
+			else
 				ui_Command = 0x20UL;
-			}
 
 			i_WatchdogNbr = i_Count;
 			outl(ui_Command,
@@ -488,10 +486,8 @@ static int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev,
 	/* Get the overflow status */
 	/***************************/
 	data[3] = ((ui_Status >> 0) & 1);
-	if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
+	if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER)
 		data[4] = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);
-
-	}			/*   if  (devpriv->b_TimerSelectMode==ADDIDATA_TIMER) */
 
 	return insn->n;
 }
@@ -655,8 +651,8 @@ static void v_APCI035_Interrupt(int irq, void *d)
 	ui_StatusRegister2 =
 		inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 20);
 
-	if ((((ui_StatusRegister1) & 0x8) == 0x8))	/* Test if warning relay interrupt */
-	{
+	/* Test if warning relay interrupt */
+	if ((((ui_StatusRegister1) & 0x8) == 0x8)) {
 	/**********************************/
 		/* Disable the temperature warning */
 	/**********************************/
@@ -675,9 +671,8 @@ static void v_APCI035_Interrupt(int irq, void *d)
 	}			/* if (((ui_StatusRegister1 & 0x8) == 0x8)) */
 
 	else {
-		if ((ui_StatusRegister2 & 0x1) == 0x1) {
+		if ((ui_StatusRegister2 & 0x1) == 0x1)
 			send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
-		}
 	}			/* else if (((ui_StatusRegister1 & 0x8) == 0x8)) */
 
 	return;
