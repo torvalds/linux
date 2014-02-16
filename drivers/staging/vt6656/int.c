@@ -167,7 +167,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 							NULL);
 			}
 		}
-		pDevice->qwCurrTSF = cpu_to_le64(pINTData->qwTSF);
+		pDevice->qwCurrTSF = le64_to_cpu(pINTData->tsf);
 		/*DBG_PRN_GRP01(("ISR0 = %02x ,
 		  LoTsf =  %08x,
 		  HiTsf =  %08x\n",

@@ -45,7 +45,7 @@ typedef struct tagSINTData {
 	u8 byTSR3;
 	u8 byPkt3;
 	u16 wTime3;
-	u64 qwTSF;
+	__le64 tsf;
 	u8 byISR0;
 	u8 byISR1;
 	u8 byRTSSuccess;
