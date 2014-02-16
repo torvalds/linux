@@ -316,6 +316,7 @@ config SND_SOC_PCM3008
 
 config SND_SOC_PCM512x
        tristate "Texas Instruments PCM512x CODECs"
+       select REGMAP
 
 config SND_SOC_RT5631
 	tristate
