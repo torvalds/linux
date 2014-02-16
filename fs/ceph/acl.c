@@ -54,11 +54,6 @@ static inline struct posix_acl *ceph_get_cached_acl(struct inode *inode,
 	return acl;
 }
 
-void ceph_forget_all_cached_acls(struct inode *inode)
-{
-	forget_all_cached_acls(inode);
-}
-
 struct posix_acl *ceph_get_acl(struct inode *inode, int type)
 {
 	int size;
