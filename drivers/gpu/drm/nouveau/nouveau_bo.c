@@ -1249,7 +1249,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			mem->bus.is_iomem = !dev->agp->cant_use_aperture;
 		}
 #endif
-		if (!node->memtype)
+		if (nv_device(drm->device)->card_type < NV_50 || !node->memtype)
 			/* untiled */
 			break;
 		/* fallthrough, tiled memory */
