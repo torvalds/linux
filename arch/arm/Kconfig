@@ -534,7 +534,6 @@ config ARCH_DOVE
 	select PINCTRL
 	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
-	select USB_ARCH_HAS_EHCI
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
@@ -633,7 +632,6 @@ config ARCH_LPC32XX
 	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
 	select HAVE_PWM
-	select USB_ARCH_HAS_OHCI
 	select USE_OF
 	help
 	  Support for the NXP LPC32XX family of processors
@@ -770,7 +768,6 @@ config ARCH_S3C64XX
 	select SAMSUNG_ATAGS
 	select SAMSUNG_WAKEMASK
 	select SAMSUNG_WDT_RESET
-	select USB_ARCH_HAS_OHCI
 	help
 	  Samsung S3C64XX series based systems
 

@@ -19,7 +19,6 @@ config ARCH_TEGRA
 	select RESET_CONTROLLER
 	select SOC_BUS
 	select SPARSE_IRQ
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select USB_ULPI if USB_PHY
 	select USB_ULPI_VIEWPORT if USB_PHY
 	select USE_OF

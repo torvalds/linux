@@ -74,34 +74,26 @@ config ATH79_MACH_UBNT_XM
 endmenu
 
 config SOC_AR71XX
-	select USB_ARCH_HAS_EHCI
-	select USB_ARCH_HAS_OHCI
 	select HW_HAS_PCI
 	def_bool n
 
 config SOC_AR724X
-	select USB_ARCH_HAS_EHCI
-	select USB_ARCH_HAS_OHCI
 	select HW_HAS_PCI
 	select PCI_AR724X if PCI
 	def_bool n
 
 config SOC_AR913X
-	select USB_ARCH_HAS_EHCI
 	def_bool n
 
 config SOC_AR933X
-	select USB_ARCH_HAS_EHCI
 	def_bool n
 
 config SOC_AR934X
-	select USB_ARCH_HAS_EHCI
 	select HW_HAS_PCI
 	select PCI_AR724X if PCI
 	def_bool n
 
 config SOC_QCA955X
-	select USB_ARCH_HAS_EHCI
 	select HW_HAS_PCI
 	select PCI_AR724X if PCI
 	def_bool n
