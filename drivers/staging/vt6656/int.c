@@ -77,60 +77,58 @@ void INTvWorkItem(struct vnt_private *pDevice)
 
 void INTnsProcessData(struct vnt_private *pDevice)
 {
-	PSINTData pINTData;
+	struct vnt_interrupt_data *pINTData;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct net_device_stats *pStats = &pDevice->stats;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
 
-	pINTData = (PSINTData) pDevice->intBuf.pDataBuf;
-	if (pINTData->byTSR0 & TSR_VALID) {
-		if (pINTData->byTSR0 & (TSR_TMO | TSR_RETRYTMO))
+	pINTData = (struct vnt_interrupt_data *)pDevice->intBuf.pDataBuf;
+	if (pINTData->tsr0 & TSR_VALID) {
+		if (pINTData->tsr0 & (TSR_TMO | TSR_RETRYTMO))
 			pDevice->wstats.discard.retries++;
 		else
 			pStats->tx_packets++;
 
 		BSSvUpdateNodeTxCounter(pDevice,
-					pINTData->byTSR0,
-					pINTData->byPkt0);
-		/*DBG_PRN_GRP01(("TSR0 %02x\n", pINTData->byTSR0));*/
+					pINTData->tsr0,
+					pINTData->pkt0);
 	}
-	if (pINTData->byTSR1 & TSR_VALID) {
-		if (pINTData->byTSR1 & (TSR_TMO | TSR_RETRYTMO))
+	if (pINTData->tsr1 & TSR_VALID) {
+		if (pINTData->tsr1 & (TSR_TMO | TSR_RETRYTMO))
 			pDevice->wstats.discard.retries++;
 		else
 			pStats->tx_packets++;
 
 
 		BSSvUpdateNodeTxCounter(pDevice,
-					pINTData->byTSR1,
-					pINTData->byPkt1);
-		/*DBG_PRN_GRP01(("TSR1 %02x\n", pINTData->byTSR1));*/
+					pINTData->tsr1,
+					pINTData->pkt1);
 	}
-	if (pINTData->byTSR2 & TSR_VALID) {
-		if (pINTData->byTSR2 & (TSR_TMO | TSR_RETRYTMO))
+	if (pINTData->tsr2 & TSR_VALID) {
+		if (pINTData->tsr2 & (TSR_TMO | TSR_RETRYTMO))
 			pDevice->wstats.discard.retries++;
 		else
 			pStats->tx_packets++;
 
 		BSSvUpdateNodeTxCounter(pDevice,
-					pINTData->byTSR2,
-					pINTData->byPkt2);
+					pINTData->tsr2,
+					pINTData->pkt2);
 		/*DBG_PRN_GRP01(("TSR2 %02x\n", pINTData->byTSR2));*/
 	}
-	if (pINTData->byTSR3 & TSR_VALID) {
-		if (pINTData->byTSR3 & (TSR_TMO | TSR_RETRYTMO))
+	if (pINTData->tsr3 & TSR_VALID) {
+		if (pINTData->tsr3 & (TSR_TMO | TSR_RETRYTMO))
 			pDevice->wstats.discard.retries++;
 		else
 			pStats->tx_packets++;
 
 		BSSvUpdateNodeTxCounter(pDevice,
-					pINTData->byTSR3,
-					pINTData->byPkt3);
+					pINTData->tsr3,
+					pINTData->pkt3);
 		/*DBG_PRN_GRP01(("TSR3 %02x\n", pINTData->byTSR3));*/
 	}
-	if (pINTData->byISR0 != 0) {
-		if (pINTData->byISR0 & ISR_BNTX) {
+	if (pINTData->isr0 != 0) {
+		if (pINTData->isr0 & ISR_BNTX) {
 			if (pDevice->op_mode == NL80211_IFTYPE_AP) {
 				if (pMgmt->byDTIMCount > 0) {
 					pMgmt->byDTIMCount--;
@@ -154,7 +152,7 @@ void INTnsProcessData(struct vnt_private *pDevice)
 		} else {
 			pDevice->bBeaconSent = false;
 		}
-		if (pINTData->byISR0 & ISR_TBTT) {
+		if (pINTData->isr0 & ISR_TBTT) {
 			if (pDevice->bEnablePSMode)
 				bScheduleCommand((void *) pDevice,
 						WLAN_CMD_TBTT_WAKEUP,
@@ -175,8 +173,8 @@ void INTnsProcessData(struct vnt_private *pDevice)
 		  pINTData->dwLoTSF,
 		  pINTData->dwHiTSF)); */
 	}
-	if (pINTData->byISR1 != 0)
-		if (pINTData->byISR1 & ISR_GPIO3)
+	if (pINTData->isr1 != 0)
+		if (pINTData->isr1 & ISR_GPIO3)
 			bScheduleCommand((void *) pDevice,
 					WLAN_CMD_RADIO,
 					NULL);
