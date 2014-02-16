@@ -25,6 +25,8 @@
 #ifndef _UAPI_HYPERV_H
 #define _UAPI_HYPERV_H
 
+#include <linux/uuid.h>
+
 /*
  * Framework version for util services.
  */
@@ -92,6 +94,50 @@ struct hv_vss_msg {
 		struct hv_vss_check_dm_info dm_info;
 	};
 } __attribute__((packed));
+
+/*
+ * Implementation of a host to guest copy facility.
+ */
+
+#define FCOPY_VERSION_0 0
+#define FCOPY_CURRENT_VERSION FCOPY_VERSION_0
+#define W_MAX_PATH 260
+
+enum hv_fcopy_op {
+	START_FILE_COPY = 0,
+	WRITE_TO_FILE,
+	COMPLETE_FCOPY,
+	CANCEL_FCOPY,
+};
+
+struct hv_fcopy_hdr {
+	__u32 operation;
+	uuid_le service_id0; /* currently unused */
+	uuid_le service_id1; /* currently unused */
+} __attribute__((packed));
+
+#define OVER_WRITE	0x1
+#define CREATE_PATH	0x2
+
+struct hv_start_fcopy {
+	struct hv_fcopy_hdr hdr;
+	__u16 file_name[W_MAX_PATH];
+	__u16 path_name[W_MAX_PATH];
+	__u32 copy_flags;
+	__u64 file_size;
+} __attribute__((packed));
+
+/*
+ * The file is chunked into fragments.
+ */
+#define DATA_FRAGMENT	(6 * 1024)
+
+struct hv_do_fcopy {
+	struct hv_fcopy_hdr hdr;
+	__u64	offset;
+	__u32	size;
+	__u8	data[DATA_FRAGMENT];
+};
 
 /*
  * An implementation of HyperV key value pair (KVP) functionality for Linux.

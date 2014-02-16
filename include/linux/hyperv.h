@@ -30,7 +30,6 @@
 #include <linux/types.h>
 #include <linux/scatterlist.h>
 #include <linux/list.h>
-#include <linux/uuid.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
@@ -1047,6 +1046,17 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 	.guid = { \
 			0x4A, 0xCC, 0x9B, 0x2F, 0x69, 0x00, 0xF3, 0x4A, \
 			0xB7, 0x6B, 0x6F, 0xD0, 0xBE, 0x52, 0x8C, 0xDA \
+		}
+
+/*
+ * Guest File Copy Service
+ * {34D14BE3-DEE4-41c8-9AE7-6B174977C192}
+ */
+
+#define HV_FCOPY_GUID \
+	.guid = { \
+			0xE3, 0x4B, 0xD1, 0x34, 0xE4, 0xDE, 0xC8, 0x41, \
+			0x9A, 0xE7, 0x6B, 0x17, 0x49, 0x77, 0xC1, 0x92 \
 		}
 
 /*
