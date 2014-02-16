@@ -20683,6 +20683,46 @@ static int drx39xxj_init(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int drx39xxj_set_lna(struct dvb_frontend *fe)
+{
+	int result;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	struct drx_demod_instance *demod = state->demod;
+	struct drxj_data *ext_attr = demod->my_ext_attr;
+	struct drxuio_cfg uio_cfg;
+	struct drxuio_data uio_data;
+
+	if (c->lna) {
+		if (!ext_attr->has_lna) {
+			pr_err("LNA is not supported on this device!\n");
+			return -EINVAL;
+
+		}
+	}
+
+	/* Turn off the LNA */
+	uio_cfg.uio = DRX_UIO1;
+	uio_cfg.mode = DRX_UIO_MODE_READWRITE;
+	/* Configure user-I/O #3: enable read/write */
+	result = ctrl_set_uio_cfg(demod, &uio_cfg);
+	if (result) {
+		pr_err("Failed to setup LNA GPIO!\n");
+		return result;
+	}
+
+	uio_data.uio = DRX_UIO1;
+	uio_data.value = c->lna;
+	result = ctrl_uio_write(demod, &uio_data);
+	if (result != 0) {
+		pr_err("Failed to %sable LNA!\n",
+		       c->lna ? "en" : "dis");
+		return result;
+	}
+
+	return 0;
+}
+
 static int drx39xxj_get_tune_settings(struct dvb_frontend *fe,
 				      struct dvb_frontend_tune_settings *tune)
 {
@@ -20824,6 +20864,7 @@ static struct dvb_frontend_ops drx39xxj_ops = {
 	.read_snr = drx39xxj_read_snr,
 	.read_ucblocks = drx39xxj_read_ucblocks,
 	.release = drx39xxj_release,
+	.set_lna = drx39xxj_set_lna,
 };
 
 MODULE_DESCRIPTION("Micronas DRX39xxj Frontend");
