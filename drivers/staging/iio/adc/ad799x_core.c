@@ -1,6 +1,6 @@
 /*
  * iio/adc/ad799x.c
- * Copyright (C) 2010-1011 Michael Hennerich, Analog Devices Inc.
+ * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
  *
  * based on iio/adc/max1363
  * Copyright (C) 2008-2010 Jonathan Cameron
