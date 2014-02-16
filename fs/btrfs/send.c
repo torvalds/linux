@@ -2857,18 +2857,47 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 {
 	struct fs_path *from_path = NULL;
 	struct fs_path *to_path = NULL;
+	struct fs_path *name = NULL;
 	u64 orig_progress = sctx->send_progress;
 	struct recorded_ref *cur;
+	u64 parent_ino, parent_gen;
 	int ret;
 
+	name = fs_path_alloc();
 	from_path = fs_path_alloc();
-	if (!from_path)
-		return -ENOMEM;
+	if (!name || !from_path) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
-	sctx->send_progress = pm->ino;
-	ret = get_cur_path(sctx, pm->ino, pm->gen, from_path);
+	ret = del_waiting_dir_move(sctx, pm->ino);
+	ASSERT(ret == 0);
+
+	ret = get_first_ref(sctx->parent_root, pm->ino,
+			    &parent_ino, &parent_gen, name);
 	if (ret < 0)
 		goto out;
+
+	if (parent_ino == sctx->cur_ino) {
+		/* child only renamed, not moved */
+		ASSERT(parent_gen == sctx->cur_inode_gen);
+		ret = get_cur_path(sctx, sctx->cur_ino, sctx->cur_inode_gen,
+				   from_path);
+		if (ret < 0)
+			goto out;
+		ret = fs_path_add_path(from_path, name);
+		if (ret < 0)
+			goto out;
+	} else {
+		/* child moved and maybe renamed too */
+		sctx->send_progress = pm->ino;
+		ret = get_cur_path(sctx, pm->ino, pm->gen, from_path);
+		if (ret < 0)
+			goto out;
+	}
+
+	fs_path_free(name);
+	name = NULL;
 
 	to_path = fs_path_alloc();
 	if (!to_path) {
@@ -2877,9 +2906,6 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	}
 
 	sctx->send_progress = sctx->cur_ino + 1;
-	ret = del_waiting_dir_move(sctx, pm->ino);
-	ASSERT(ret == 0);
-
 	ret = get_cur_path(sctx, pm->ino, pm->gen, to_path);
 	if (ret < 0)
 		goto out;
@@ -2903,6 +2929,7 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	}
 
 out:
+	fs_path_free(name);
 	fs_path_free(from_path);
 	fs_path_free(to_path);
 	sctx->send_progress = orig_progress;
