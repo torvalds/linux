@@ -582,22 +582,23 @@ static void coretemp_remove_core(struct platform_data *pdata,
 
 static int coretemp_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct platform_data *pdata;
 	int err;
 
 	/* Initialize the per-package data structures */
-	pdata = kzalloc(sizeof(struct platform_data), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(struct platform_data), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	err = create_name_attr(pdata, &pdev->dev);
+	err = create_name_attr(pdata, dev);
 	if (err)
-		goto exit_free;
+		return err;
 
 	pdata->phys_proc_id = pdev->id;
 	platform_set_drvdata(pdev, pdata);
 
-	pdata->hwmon_dev = hwmon_device_register(&pdev->dev);
+	pdata->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(pdata->hwmon_dev)) {
 		err = PTR_ERR(pdata->hwmon_dev);
 		dev_err(&pdev->dev, "Class registration failed (%d)\n", err);
@@ -607,8 +608,6 @@ static int coretemp_probe(struct platform_device *pdev)
 
 exit_name:
 	device_remove_file(&pdev->dev, &pdata->name_attr);
-exit_free:
-	kfree(pdata);
 	return err;
 }
 
@@ -623,7 +622,6 @@ static int coretemp_remove(struct platform_device *pdev)
 
 	device_remove_file(&pdev->dev, &pdata->name_attr);
 	hwmon_device_unregister(pdata->hwmon_dev);
-	kfree(pdata);
 	return 0;
 }
 
