@@ -3308,7 +3308,7 @@ func_start	console_init,%a0-%a4/%d0-%d7
 	 *	Some of the register usage that follows
 	 *		a0 = pointer to boot_info
 	 *		a1 = pointer to screen
-	 *		a2 = pointer to Lconsole_globals
+	 *		a2 = pointer to console_globals
 	 *		d3 = pixel width of screen
 	 *		d4 = pixel height of screen
 	 *		(d3,d4) ~= (x,y) of a point just below
