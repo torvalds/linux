@@ -4162,9 +4162,19 @@ static bool ltk_is_valid(struct mgmt_ltk_info *key)
 {
 	if (key->master != 0x00 && key->master != 0x01)
 		return false;
-	if (!bdaddr_type_is_le(key->addr.type))
-		return false;
-	return true;
+
+	switch (key->addr.type) {
+	case BDADDR_LE_PUBLIC:
+		return true;
+
+	case BDADDR_LE_RANDOM:
+		/* Two most significant bits shall be set */
+		if ((key->addr.bdaddr.b[5] & 0xc0) != 0xc0)
+			return false;
+		return true;
+	}
+
+	return false;
 }
 
 static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
