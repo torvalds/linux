@@ -216,10 +216,11 @@ static ssize_t set_temp_max(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	data->temp_max[index] = clamp_val(temp/1000, -128, 127);
-	if (i2c_smbus_write_byte_data(client,
+	ret = i2c_smbus_write_byte_data(client,
 					MAX1668_REG_LIMH_WR(index),
-					data->temp_max[index]))
-		count = -EIO;
+					data->temp_max[index]);
+	if (ret < 0)
+		count = ret;
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -241,10 +242,11 @@ static ssize_t set_temp_min(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	data->temp_min[index] = clamp_val(temp/1000, -128, 127);
-	if (i2c_smbus_write_byte_data(client,
+	ret = i2c_smbus_write_byte_data(client,
 					MAX1668_REG_LIML_WR(index),
-					data->temp_min[index]))
-		count = -EIO;
+					data->temp_min[index]);
+	if (ret < 0)
+		count = ret;
 	mutex_unlock(&data->update_lock);
 
 	return count;
