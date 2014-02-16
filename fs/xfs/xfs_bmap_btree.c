@@ -17,27 +17,26 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
-#include "xfs_itable.h"
+#include "xfs_bmap_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
 #include "xfs_cksum.h"
+#include "xfs_dinode.h"
 
 /*
  * Determine the extent state.
@@ -722,7 +721,7 @@ xfs_bmbt_key_diff(
 				      cur->bc_rec.b.br_startoff;
 }
 
-static int
+static bool
 xfs_bmbt_verify(
 	struct xfs_buf		*bp)
 {
@@ -775,7 +774,6 @@ xfs_bmbt_verify(
 		return false;
 
 	return true;
-
 }
 
 static void
@@ -789,7 +787,6 @@ xfs_bmbt_read_verify(
 				     bp->b_target->bt_mount, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
-
 }
 
 static void
@@ -926,4 +923,48 @@ xfs_bmdr_maxrecs(
 	if (leaf)
 		return blocklen / sizeof(xfs_bmdr_rec_t);
 	return blocklen / (sizeof(xfs_bmdr_key_t) + sizeof(xfs_bmdr_ptr_t));
+}
+
+/*
+ * Change the owner of a btree format fork fo the inode passed in. Change it to
+ * the owner of that is passed in so that we can change owners before or after
+ * we switch forks between inodes. The operation that the caller is doing will
+ * determine whether is needs to change owner before or after the switch.
+ *
+ * For demand paged transactional modification, the fork switch should be done
+ * after reading in all the blocks, modifying them and pinning them in the
+ * transaction. For modification when the buffers are already pinned in memory,
+ * the fork switch can be done before changing the owner as we won't need to
+ * validate the owner until the btree buffers are unpinned and writes can occur
+ * again.
+ *
+ * For recovery based ownership change, there is no transactional context and
+ * so a buffer list must be supplied so that we can record the buffers that we
+ * modified for the caller to issue IO on.
+ */
+int
+xfs_bmbt_change_owner(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	int			whichfork,
+	xfs_ino_t		new_owner,
+	struct list_head	*buffer_list)
+{
+	struct xfs_btree_cur	*cur;
+	int			error;
+
+	ASSERT(tp || buffer_list);
+	ASSERT(!(tp && buffer_list));
+	if (whichfork == XFS_DATA_FORK)
+		ASSERT(ip->i_d.di_format == XFS_DINODE_FMT_BTREE);
+	else
+		ASSERT(ip->i_d.di_aformat == XFS_DINODE_FMT_BTREE);
+
+	cur = xfs_bmbt_init_cursor(ip->i_mount, tp, ip, whichfork);
+	if (!cur)
+		return ENOMEM;
+
+	error = xfs_btree_change_owner(cur, new_owner, buffer_list);
+	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	return error;
 }

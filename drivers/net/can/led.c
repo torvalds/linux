@@ -88,9 +88,9 @@ EXPORT_SYMBOL_GPL(devm_can_led_init);
 
 /* NETDEV rename notifier to rename the associated led triggers too */
 static int can_led_notifier(struct notifier_block *nb, unsigned long msg,
-			void *data)
+			    void *ptr)
 {
-	struct net_device *netdev = data;
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct can_priv *priv = safe_candev_priv(netdev);
 	char name[CAN_LED_NAME_SZ];
 

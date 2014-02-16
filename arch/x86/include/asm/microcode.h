@@ -1,6 +1,21 @@
 #ifndef _ASM_X86_MICROCODE_H
 #define _ASM_X86_MICROCODE_H
 
+#define native_rdmsr(msr, val1, val2)			\
+do {							\
+	u64 __val = native_read_msr((msr));		\
+	(void)((val1) = (u32)__val);			\
+	(void)((val2) = (u32)(__val >> 32));		\
+} while (0)
+
+#define native_wrmsr(msr, low, high)			\
+	native_write_msr(msr, low, high)
+
+#define native_wrmsrl(msr, val)				\
+	native_write_msr((msr),				\
+			 (u32)((u64)(val)),		\
+			 (u32)((u64)(val) >> 32))
+
 struct cpu_signature {
 	unsigned int sig;
 	unsigned int pf;
@@ -60,11 +75,11 @@ static inline void __exit exit_amd_microcode(void) {}
 #ifdef CONFIG_MICROCODE_EARLY
 #define MAX_UCODE_COUNT 128
 extern void __init load_ucode_bsp(void);
-extern void __cpuinit load_ucode_ap(void);
+extern void load_ucode_ap(void);
 extern int __init save_microcode_in_initrd(void);
 #else
 static inline void __init load_ucode_bsp(void) {}
-static inline void __cpuinit load_ucode_ap(void) {}
+static inline void load_ucode_ap(void) {}
 static inline int __init save_microcode_in_initrd(void)
 {
 	return 0;

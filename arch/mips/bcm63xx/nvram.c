@@ -35,6 +35,8 @@ struct bcm963xx_nvram {
 	u32	checksum_high;
 };
 
+#define BCM63XX_DEFAULT_PSI_SIZE	64
+
 static struct bcm963xx_nvram nvram;
 static int mac_addr_used;
 
@@ -42,6 +44,7 @@ void __init bcm63xx_nvram_init(void *addr)
 {
 	unsigned int check_len;
 	u32 crc, expected_crc;
+	u8 hcs_mac_addr[ETH_ALEN] = { 0x00, 0x10, 0x18, 0xff, 0xff, 0xff };
 
 	/* extract nvram data */
 	memcpy(&nvram, addr, sizeof(nvram));
@@ -62,6 +65,15 @@ void __init bcm63xx_nvram_init(void *addr)
 	if (crc != expected_crc)
 		pr_warn("nvram checksum failed, contents may be invalid (expected %08x, got %08x)\n",
 			expected_crc, crc);
+
+	/* Cable modems have a different NVRAM which is embedded in the eCos
+	 * firmware and not easily extractible, give at least a MAC address
+	 * pool.
+	 */
+	if (BCMCPU_IS_3368()) {
+		memcpy(nvram.mac_addr_base, hcs_mac_addr, ETH_ALEN);
+		nvram.mac_addr_count = 2;
+	}
 }
 
 u8 *bcm63xx_nvram_get_name(void)
@@ -104,3 +116,12 @@ int bcm63xx_nvram_get_mac_address(u8 *mac)
 	return 0;
 }
 EXPORT_SYMBOL(bcm63xx_nvram_get_mac_address);
+
+int bcm63xx_nvram_get_psi_size(void)
+{
+	if (nvram.psi_size > 0)
+		return nvram.psi_size;
+
+	return BCM63XX_DEFAULT_PSI_SIZE;
+}
+EXPORT_SYMBOL(bcm63xx_nvram_get_psi_size);

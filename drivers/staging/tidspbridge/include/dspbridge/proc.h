@@ -284,7 +284,7 @@ extern int proc_get_trace(void *hprocessor, u8 * pbuf, u32 max_size);
  *      user_envp:       An Array of Environment settings(Unicode Strings)
  *  Returns:
  *      0:       Success.
- *      -ENOENT:       The DSP Execuetable was not found.
+ *      -ENOENT:       The DSP Executable was not found.
  *      -EFAULT:       Invalid processor handle.
  *      -EPERM   :       Unable to Load the Processor
  *  Requires:

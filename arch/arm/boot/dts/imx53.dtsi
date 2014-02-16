@@ -15,11 +15,6 @@
 
 / {
 	aliases {
-		serial0 = &uart1;
-		serial1 = &uart2;
-		serial2 = &uart3;
-		serial3 = &uart4;
-		serial4 = &uart5;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -30,6 +25,24 @@
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
 		i2c2 = &i2c3;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+		spi0 = &ecspi1;
+		spi1 = &ecspi2;
+		spi2 = &cspi;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a8";
+			reg = <0x0>;
+		};
 	};
 
 	tzic: tz-interrupt-controller@0fffc000 {
@@ -140,6 +153,9 @@
 					reg = <0x50014000 0x4000>;
 					interrupts = <30>;
 					clocks = <&clks 49>;
+					dmas = <&sdma 24 1 0>,
+					       <&sdma 25 1 0>;
+					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
 					fsl,ssi-dma-events = <25 24 23 22>; /* TX0 RX0 TX1 RX1 */
 					status = "disabled";
@@ -725,15 +741,15 @@
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
-							MX53_PAD_CSI0_DAT10__UART1_TXD_MUX 0x1c5
-							MX53_PAD_CSI0_DAT11__UART1_RXD_MUX 0x1c5
+							MX53_PAD_CSI0_DAT10__UART1_TXD_MUX 0x1e4
+							MX53_PAD_CSI0_DAT11__UART1_RXD_MUX 0x1e4
 						>;
 					};
 
 					pinctrl_uart1_2: uart1grp-2 {
 						fsl,pins = <
-							MX53_PAD_PATA_DIOW__UART1_TXD_MUX  0x1c5
-							MX53_PAD_PATA_DMACK__UART1_RXD_MUX 0x1c5
+							MX53_PAD_PATA_DIOW__UART1_TXD_MUX  0x1e4
+							MX53_PAD_PATA_DMACK__UART1_RXD_MUX 0x1e4
 						>;
 					};
 
@@ -748,8 +764,8 @@
 				uart2 {
 					pinctrl_uart2_1: uart2grp-1 {
 						fsl,pins = <
-							MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX 0x1c5
-							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX     0x1c5
+							MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX 0x1e4
+							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX     0x1e4
 						>;
 					};
 
@@ -766,17 +782,17 @@
 				uart3 {
 					pinctrl_uart3_1: uart3grp-1 {
 						fsl,pins = <
-							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1c5
-							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1c5
-							MX53_PAD_PATA_DA_1__UART3_CTS	  0x1c5
-							MX53_PAD_PATA_DA_2__UART3_RTS	  0x1c5
+							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1e4
+							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1e4
+							MX53_PAD_PATA_DA_1__UART3_CTS	  0x1e4
+							MX53_PAD_PATA_DA_2__UART3_RTS	  0x1e4
 						>;
 					};
 
 					pinctrl_uart3_2: uart3grp-2 {
 						fsl,pins = <
-							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1c5
-							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1c5
+							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1e4
+							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1e4
 						>;
 					};
 
@@ -785,8 +801,8 @@
 				uart4 {
 					pinctrl_uart4_1: uart4grp-1 {
 						fsl,pins = <
-							MX53_PAD_KEY_COL0__UART4_TXD_MUX 0x1c5
-							MX53_PAD_KEY_ROW0__UART4_RXD_MUX 0x1c5
+							MX53_PAD_KEY_COL0__UART4_TXD_MUX 0x1e4
+							MX53_PAD_KEY_ROW0__UART4_RXD_MUX 0x1e4
 						>;
 					};
 				};
@@ -794,8 +810,8 @@
 				uart5 {
 					pinctrl_uart5_1: uart5grp-1 {
 						fsl,pins = <
-							MX53_PAD_KEY_COL1__UART5_TXD_MUX 0x1c5
-							MX53_PAD_KEY_ROW1__UART5_RXD_MUX 0x1c5
+							MX53_PAD_KEY_COL1__UART5_TXD_MUX 0x1e4
+							MX53_PAD_KEY_ROW1__UART5_RXD_MUX 0x1e4
 						>;
 					};
 				};
@@ -957,6 +973,13 @@
 			reg = <0x60000000 0x10000000>;
 			ranges;
 
+			iim: iim@63f98000 {
+				compatible = "fsl,imx53-iim", "fsl,imx27-iim";
+				reg = <0x63f98000 0x4000>;
+				interrupts = <69>;
+				clocks = <&clks 107>;
+			};
+
 			uart5: serial@63f90000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x63f90000 0x4000>;
@@ -990,6 +1013,7 @@
 				interrupts = <6>;
 				clocks = <&clks 56>, <&clks 56>;
 				clock-names = "ipg", "ahb";
+				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
 			};
 
@@ -1029,6 +1053,9 @@
 				reg = <0x63fcc000 0x4000>;
 				interrupts = <29>;
 				clocks = <&clks 48>;
+				dmas = <&sdma 28 0 0>,
+				       <&sdma 29 0 0>;
+				dma-names = "rx", "tx";
 				fsl,fifo-depth = <15>;
 				fsl,ssi-dma-events = <29 28 27 26>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
@@ -1053,6 +1080,9 @@
 				reg = <0x63fe8000 0x4000>;
 				interrupts = <96>;
 				clocks = <&clks 50>;
+				dmas = <&sdma 46 0 0>,
+				       <&sdma 47 0 0>;
+				dma-names = "rx", "tx";
 				fsl,fifo-depth = <15>;
 				fsl,ssi-dma-events = <47 46 45 44>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
@@ -1076,6 +1106,22 @@
 				crtcs = <&ipu 1>;
 				status = "disabled";
 			};
+
+			vpu: vpu@63ff4000 {
+				compatible = "fsl,imx53-vpu";
+				reg = <0x63ff4000 0x1000>;
+				interrupts = <9>;
+				clocks = <&clks 63>, <&clks 63>;
+				clock-names = "per", "ahb";
+				iram = <&ocram>;
+				status = "disabled";
+			};
+		};
+
+		ocram: sram@f8000000 {
+			compatible = "mmio-sram";
+			reg = <0xf8000000 0x20000>;
+			clocks = <&clks 186>;
 		};
 	};
 };

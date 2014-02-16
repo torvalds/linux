@@ -974,7 +974,7 @@ static int i5100_setup_debugfs(struct mem_ctl_info *mci)
 	if (!i5100_debugfs)
 		return -ENODEV;
 
-	priv->debugfs = debugfs_create_dir(mci->bus.name, i5100_debugfs);
+	priv->debugfs = debugfs_create_dir(mci->bus->name, i5100_debugfs);
 
 	if (!priv->debugfs)
 		return -ENOMEM;
@@ -1213,7 +1213,7 @@ static void i5100_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(i5100_pci_tbl) = {
+static const struct pci_device_id i5100_pci_tbl[] = {
 	/* Device 16, Function 0, Channel 0 Memory Map, Error Flag/Mask, ... */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5100_16) },
 	{ 0, }

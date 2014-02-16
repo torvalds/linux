@@ -23,13 +23,13 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
+#include <linux/pm_domain.h>
 #include <linux/export.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
-#include <linux/clocksource.h>
-#include <linux/clk-provider.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/platform_device.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>
@@ -38,14 +38,13 @@
 #include <asm/mach/irq.h>
 #include <asm/cacheflush.h>
 
-#include <mach/regs-irq.h>
-#include <mach/regs-pmu.h>
-
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
+#include "regs-pmu.h"
+
 #define L2_AUX_VAL 0x7C470001
 #define L2_AUX_MASK 0xC200ffff
 
@@ -58,7 +57,6 @@ static const char name_exynos5440[] = "EXYNOS5440";
 
 static void exynos4_map_io(void);
 static void exynos5_map_io(void);
-static void exynos5440_map_io(void);
 static int exynos_init(void);
 
 static struct cpu_table cpu_ids[] __initdata = {
@@ -95,7 +93,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 	}, {
 		.idcode		= EXYNOS5440_SOC_ID,
 		.idmask		= EXYNOS5_SOC_MASK,
-		.map_io		= exynos5440_map_io,
 		.init		= exynos_init,
 		.name		= name_exynos5440,
 	},
@@ -148,11 +145,6 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 		.virtual	= (unsigned long)S5P_VA_GIC_DIST,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_GIC_DIST),
 		.length		= SZ_64K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S3C_VA_UART,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_UART),
-		.length		= SZ_512K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_CMU,
@@ -268,29 +260,15 @@ static struct map_desc exynos5_iodesc[] __initdata = {
 		.pfn		= __phys_to_pfn(EXYNOS5_PA_PMU),
 		.length		= SZ_64K,
 		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S3C_VA_UART,
-		.pfn		= __phys_to_pfn(EXYNOS5_PA_UART),
-		.length		= SZ_512K,
-		.type		= MT_DEVICE,
 	},
 };
 
-static struct map_desc exynos5440_iodesc0[] __initdata = {
-	{
-		.virtual	= (unsigned long)S3C_VA_UART,
-		.pfn		= __phys_to_pfn(EXYNOS5440_PA_UART0),
-		.length		= SZ_512K,
-		.type		= MT_DEVICE,
-	},
-};
-
-void exynos4_restart(char mode, const char *cmd)
+void exynos4_restart(enum reboot_mode mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
 }
 
-void exynos5_restart(char mode, const char *cmd)
+void exynos5_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device_node *np;
 	u32 val;
@@ -315,13 +293,28 @@ void exynos5_restart(char mode, const char *cmd)
 	__raw_writel(val, addr);
 }
 
+static struct platform_device exynos_cpuidle = {
+	.name		= "exynos_cpuidle",
+	.id		= -1,
+};
+
+void __init exynos_cpuidle_init(void)
+{
+	platform_device_register(&exynos_cpuidle);
+}
+
+void __init exynos_cpufreq_init(void)
+{
+	platform_device_register_simple("exynos-cpufreq", -1, NULL, 0);
+}
+
 void __init exynos_init_late(void)
 {
 	if (of_machine_is_compatible("samsung,exynos5440"))
 		/* to be supported later */
 		return;
 
-	exynos_pm_late_initcall();
+	pm_genpd_poweroff_unused();
 }
 
 static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
@@ -386,17 +379,6 @@ static void __init exynos5_map_io(void)
 
 	if (soc_is_exynos5250())
 		iotable_init(exynos5250_iodesc, ARRAY_SIZE(exynos5250_iodesc));
-}
-
-static void __init exynos5440_map_io(void)
-{
-	iotable_init(exynos5440_iodesc0, ARRAY_SIZE(exynos5440_iodesc0));
-}
-
-void __init exynos_init_time(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
 }
 
 struct bus_type exynos_subsys = {

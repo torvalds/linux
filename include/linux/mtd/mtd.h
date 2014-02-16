@@ -29,9 +29,6 @@
 
 #include <asm/div64.h>
 
-#define MTD_CHAR_MAJOR 90
-#define MTD_BLOCK_MAJOR 31
-
 #define MTD_ERASE_PENDING	0x01
 #define MTD_ERASING		0x02
 #define MTD_ERASE_SUSPEND	0x04
@@ -172,6 +169,9 @@ struct mtd_info {
 
 	/* ECC layout structure pointer - read only! */
 	struct nand_ecclayout *ecclayout;
+
+	/* the ecc step size. */
+	unsigned int ecc_step_size;
 
 	/* max number of correctible bit errors per ecc step */
 	unsigned int ecc_strength;
@@ -349,6 +349,11 @@ static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 static inline int mtd_has_oob(const struct mtd_info *mtd)
 {
 	return mtd->_read_oob && mtd->_write_oob;
+}
+
+static inline int mtd_type_is_nand(const struct mtd_info *mtd)
+{
+	return mtd->type == MTD_NANDFLASH || mtd->type == MTD_MLCNANDFLASH;
 }
 
 static inline int mtd_can_have_bb(const struct mtd_info *mtd)

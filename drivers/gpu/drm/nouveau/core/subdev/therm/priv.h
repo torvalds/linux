@@ -76,6 +76,7 @@ struct nouveau_therm_priv {
 	spinlock_t lock;
 	struct nouveau_therm_trip_point *last_trip;
 	int mode;
+	int cstate;
 	int suspend;
 
 	/* bios */
@@ -113,6 +114,8 @@ void nouveau_therm_ic_ctor(struct nouveau_therm *therm);
 int nouveau_therm_sensor_ctor(struct nouveau_therm *therm);
 
 int nouveau_therm_fan_ctor(struct nouveau_therm *therm);
+int nouveau_therm_fan_init(struct nouveau_therm *therm);
+int nouveau_therm_fan_fini(struct nouveau_therm *therm, bool suspend);
 int nouveau_therm_fan_get(struct nouveau_therm *therm);
 int nouveau_therm_fan_set(struct nouveau_therm *therm, bool now, int percent);
 int nouveau_therm_fan_user_get(struct nouveau_therm *therm);
@@ -122,6 +125,8 @@ int nouveau_therm_fan_sense(struct nouveau_therm *therm);
 
 int nouveau_therm_preinit(struct nouveau_therm *);
 
+int nouveau_therm_sensor_init(struct nouveau_therm *therm);
+int nouveau_therm_sensor_fini(struct nouveau_therm *therm, bool suspend);
 void nouveau_therm_sensor_preinit(struct nouveau_therm *);
 void nouveau_therm_sensor_set_threshold_state(struct nouveau_therm *therm,
 					     enum nouveau_therm_thrs thrs,
@@ -140,6 +145,7 @@ int nv50_fan_pwm_get(struct nouveau_therm *, int, u32 *, u32 *);
 int nv50_fan_pwm_set(struct nouveau_therm *, int, u32, u32);
 int nv50_fan_pwm_clock(struct nouveau_therm *);
 int nv84_temp_get(struct nouveau_therm *therm);
+int nv84_therm_fini(struct nouveau_object *object, bool suspend);
 
 int nva3_therm_fan_sense(struct nouveau_therm *);
 

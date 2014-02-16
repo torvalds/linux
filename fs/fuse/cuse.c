@@ -473,7 +473,7 @@ err:
 static void cuse_fc_release(struct fuse_conn *fc)
 {
 	struct cuse_conn *cc = fc_to_cc(fc);
-	kfree(cc);
+	kfree_rcu(cc, fc.rcu);
 }
 
 /**
@@ -568,6 +568,7 @@ static ssize_t cuse_class_waiting_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", atomic_read(&cc->fc.num_waiting));
 }
+static DEVICE_ATTR(waiting, S_IFREG | 0400, cuse_class_waiting_show, NULL);
 
 static ssize_t cuse_class_abort_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -578,18 +579,23 @@ static ssize_t cuse_class_abort_store(struct device *dev,
 	fuse_abort_conn(&cc->fc);
 	return count;
 }
+static DEVICE_ATTR(abort, S_IFREG | 0200, NULL, cuse_class_abort_store);
 
-static struct device_attribute cuse_class_dev_attrs[] = {
-	__ATTR(waiting, S_IFREG | 0400, cuse_class_waiting_show, NULL),
-	__ATTR(abort, S_IFREG | 0200, NULL, cuse_class_abort_store),
-	{ }
+static struct attribute *cuse_class_dev_attrs[] = {
+	&dev_attr_waiting.attr,
+	&dev_attr_abort.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(cuse_class_dev);
 
 static struct miscdevice cuse_miscdev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.minor		= CUSE_MINOR,
 	.name		= "cuse",
 	.fops		= &cuse_channel_fops,
 };
+
+MODULE_ALIAS_MISCDEV(CUSE_MINOR);
+MODULE_ALIAS("devname:cuse");
 
 static int __init cuse_init(void)
 {
@@ -609,7 +615,7 @@ static int __init cuse_init(void)
 	if (IS_ERR(cuse_class))
 		return PTR_ERR(cuse_class);
 
-	cuse_class->dev_attrs = cuse_class_dev_attrs;
+	cuse_class->dev_groups = cuse_class_dev_groups;
 
 	rc = misc_register(&cuse_miscdev);
 	if (rc) {

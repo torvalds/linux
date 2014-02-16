@@ -116,11 +116,11 @@ using mutexes at the moment, please let me know if you find any. ]
 Implementation of mutexes
 -------------------------
 
-'struct mutex' is the new mutex type, defined in include/linux/mutex.h
-and implemented in kernel/mutex.c. It is a counter-based mutex with a
-spinlock and a wait-list. The counter has 3 states: 1 for "unlocked",
-0 for "locked" and negative numbers (usually -1) for "locked, potential
-waiters queued".
+'struct mutex' is the new mutex type, defined in include/linux/mutex.h and
+implemented in kernel/locking/mutex.c. It is a counter-based mutex with a
+spinlock and a wait-list. The counter has 3 states: 1 for "unlocked", 0 for
+"locked" and negative numbers (usually -1) for "locked, potential waiters
+queued".
 
 the APIs of 'struct mutex' have been streamlined:
 

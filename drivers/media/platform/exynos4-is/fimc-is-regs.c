@@ -33,47 +33,23 @@ void fimc_is_hw_set_intgr0_gd0(struct fimc_is *is)
 	mcuctl_write(INTGR0_INTGD(0), is, MCUCTL_REG_INTGR0);
 }
 
-int fimc_is_hw_wait_intsr0_intsd0(struct fimc_is *is)
-{
-	unsigned int timeout = 2000;
-	u32 cfg, status;
-
-	cfg = mcuctl_read(is, MCUCTL_REG_INTSR0);
-	status = INTSR0_GET_INTSD(0, cfg);
-
-	while (status) {
-		cfg = mcuctl_read(is, MCUCTL_REG_INTSR0);
-		status = INTSR0_GET_INTSD(0, cfg);
-		if (timeout == 0) {
-			dev_warn(&is->pdev->dev, "%s timeout\n",
-				 __func__);
-			return -ETIME;
-		}
-		timeout--;
-		udelay(1);
-	}
-	return 0;
-}
-
 int fimc_is_hw_wait_intmsr0_intmsd0(struct fimc_is *is)
 {
 	unsigned int timeout = 2000;
 	u32 cfg, status;
 
-	cfg = mcuctl_read(is, MCUCTL_REG_INTMSR0);
-	status = INTMSR0_GET_INTMSD(0, cfg);
-
-	while (status) {
+	do {
 		cfg = mcuctl_read(is, MCUCTL_REG_INTMSR0);
 		status = INTMSR0_GET_INTMSD(0, cfg);
-		if (timeout == 0) {
+
+		if (--timeout == 0) {
 			dev_warn(&is->pdev->dev, "%s timeout\n",
 				 __func__);
-			return -ETIME;
+			return -ETIMEDOUT;
 		}
-		timeout--;
 		udelay(1);
-	}
+	} while (status != 0);
+
 	return 0;
 }
 
@@ -89,14 +65,14 @@ int fimc_is_hw_set_param(struct fimc_is *is)
 	mcuctl_write(is->config_index, is, MCUCTL_REG_ISSR(2));
 
 	mcuctl_write(param_count, is, MCUCTL_REG_ISSR(3));
-	mcuctl_write(config->p_region_index1, is, MCUCTL_REG_ISSR(4));
-	mcuctl_write(config->p_region_index2, is, MCUCTL_REG_ISSR(5));
+	mcuctl_write(config->p_region_index[0], is, MCUCTL_REG_ISSR(4));
+	mcuctl_write(config->p_region_index[1], is, MCUCTL_REG_ISSR(5));
 
 	fimc_is_hw_set_intgr0_gd0(is);
 	return 0;
 }
 
-int fimc_is_hw_set_tune(struct fimc_is *is)
+static int __maybe_unused fimc_is_hw_set_tune(struct fimc_is *is)
 {
 	fimc_is_hw_wait_intmsr0_intmsd0(is);
 
@@ -236,7 +212,7 @@ int fimc_is_itf_mode_change(struct fimc_is *is)
 	fimc_is_hw_change_mode(is);
 	ret = fimc_is_wait_event(is, IS_ST_CHANGE_MODE, 1,
 				FIMC_IS_CONFIG_TIMEOUT);
-	if (!ret < 0)
+	if (ret < 0)
 		dev_err(&is->pdev->dev, "%s(): mode change (%d) timeout\n",
 			__func__, is->config_index);
 	return ret;

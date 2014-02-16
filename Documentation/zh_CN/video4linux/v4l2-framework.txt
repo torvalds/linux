@@ -247,7 +247,6 @@ i2c_client 结构体，i2c_set_clientdata() 函数可用于保存一个 v4l2_sub
 这些结构体定义如下：
 
 struct v4l2_subdev_core_ops {
-	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
 	...
@@ -337,24 +336,24 @@ subdev->dev 域就指向了 v4l2_device。
 
 注册之设备后，可通过以下方式直接调用其操作函数：
 
-	err = sd->ops->core->g_chip_ident(sd, &chip);
+	err = sd->ops->core->g_std(sd, &norm);
 
 但使用如下宏会比较容易且合适：
 
-	err = v4l2_subdev_call(sd, core, g_chip_ident, &chip);
+	err = v4l2_subdev_call(sd, core, g_std, &norm);
 
 这个宏将会做 NULL 指针检查，如果 subdev 为 NULL，则返回-ENODEV；如果
-subdev->core 或 subdev->core->g_chip_ident 为 NULL，则返回 -ENOIOCTLCMD；
-否则将返回 subdev->ops->core->g_chip_ident ops 调用的实际结果。
+subdev->core 或 subdev->core->g_std 为 NULL，则返回 -ENOIOCTLCMD；
+否则将返回 subdev->ops->core->g_std ops 调用的实际结果。
 
 有时也可能同时调用所有或一系列子设备的某个操作函数：
 
-	v4l2_device_call_all(v4l2_dev, 0, core, g_chip_ident, &chip);
+	v4l2_device_call_all(v4l2_dev, 0, core, g_std, &norm);
 
 任何不支持此操作的子设备都会被跳过，并忽略错误返回值。但如果你需要
 检查出错码，则可使用如下函数：
 
-	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_chip_ident, &chip);
+	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_std, &norm);
 
 除 -ENOIOCTLCMD 外的任何错误都会跳出循环并返回错误值。如果（除 -ENOIOCTLCMD
 外）没有错误发生，则返回 0。

@@ -9,23 +9,17 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/* Used to set SoC specific callbacks */
-struct usbmisc_ops {
-	/* It's called once when probe a usb device */
-	int (*init)(struct device *dev);
-	/* It's called once after adding a usb device */
-	int (*post)(struct device *dev);
-};
+#ifndef __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H
+#define __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H
 
-struct usbmisc_usb_device {
-	struct device *dev; /* usb controller device */
+struct imx_usbmisc_data {
 	int index;
 
 	unsigned int disable_oc:1; /* over current detect disabled */
 	unsigned int evdo:1; /* set external vbus divider option */
 };
 
-int usbmisc_set_ops(const struct usbmisc_ops *ops);
-void usbmisc_unset_ops(const struct usbmisc_ops *ops);
-int
-usbmisc_get_init_data(struct device *dev, struct usbmisc_usb_device *usbdev);
+int imx_usbmisc_init(struct imx_usbmisc_data *);
+int imx_usbmisc_init_post(struct imx_usbmisc_data *);
+
+#endif /* __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H */

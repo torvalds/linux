@@ -274,7 +274,7 @@ static int reserve_pmc_hardware(void)
 	int flags = PMC_INIT;
 
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
-	measurement_alert_subclass_register();
+	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 
 	return 0;
 }
@@ -285,7 +285,7 @@ static void release_pmc_hardware(void)
 	int flags = PMC_RELEASE;
 
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
-	measurement_alert_subclass_unregister();
+	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 }
 
 /* Release the PMU if event is the last perf event */
@@ -639,8 +639,8 @@ static struct pmu cpumf_pmu = {
 	.cancel_txn   = cpumf_pmu_cancel_txn,
 };
 
-static int __cpuinit cpumf_pmu_notifier(struct notifier_block *self,
-					unsigned long action, void *hcpu)
+static int cpumf_pmu_notifier(struct notifier_block *self, unsigned long action,
+			      void *hcpu)
 {
 	unsigned int cpu = (long) hcpu;
 	int flags;
@@ -680,6 +680,7 @@ static int __init cpumf_pmu_init(void)
 		goto out;
 	}
 
+	cpumf_pmu.attr_groups = cpumf_cf_event_group();
 	rc = perf_pmu_register(&cpumf_pmu, "cpum_cf", PERF_TYPE_RAW);
 	if (rc) {
 		pr_err("Registering the cpum_cf PMU failed with rc=%i\n", rc);

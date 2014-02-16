@@ -2,10 +2,10 @@
  * Linux device driver for RTL8187
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on the r8187 driver, which is:
- * Copyright 2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  *
  * The driver was extended to the RTL8187B in 2008 by:
  *	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
@@ -20,7 +20,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -37,7 +36,7 @@
 #include "rfkill.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
-MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
+MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
 MODULE_AUTHOR("Herton Ronaldo Krzesinski <herton@mandriva.com.br>");
 MODULE_AUTHOR("Hin-Tak Leung <htl10@users.sourceforge.net>");
 MODULE_AUTHOR("Larry Finger <Larry.Finger@lwfinger.net>");
@@ -416,7 +415,7 @@ static int rtl8187_init_urbs(struct ieee80211_hw *dev)
 	struct rtl8187_rx_info *info;
 	int ret = 0;
 
-	while (skb_queue_len(&priv->rx_queue) < 16) {
+	while (skb_queue_len(&priv->rx_queue) < 32) {
 		skb = __dev_alloc_skb(RTL8187_MAX_RX, GFP_KERNEL);
 		if (!skb) {
 			ret = -ENOMEM;
@@ -438,17 +437,16 @@ static int rtl8187_init_urbs(struct ieee80211_hw *dev)
 		skb_queue_tail(&priv->rx_queue, skb);
 		usb_anchor_urb(entry, &priv->anchored);
 		ret = usb_submit_urb(entry, GFP_KERNEL);
+		usb_put_urb(entry);
 		if (ret) {
 			skb_unlink(skb, &priv->rx_queue);
 			usb_unanchor_urb(entry);
 			goto err;
 		}
-		usb_free_urb(entry);
 	}
 	return ret;
 
 err:
-	usb_free_urb(entry);
 	kfree_skb(skb);
 	usb_kill_anchored_urbs(&priv->anchored);
 	return ret;
@@ -956,8 +954,12 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 				  (RETRY_COUNT << 8  /* short retry limit */) |
 				  (RETRY_COUNT << 0  /* long retry limit */) |
 				  (7 << 21 /* MAX TX DMA */));
-		rtl8187_init_urbs(dev);
-		rtl8187b_init_status_urb(dev);
+		ret = rtl8187_init_urbs(dev);
+		if (ret)
+			goto rtl8187_start_exit;
+		ret = rtl8187b_init_status_urb(dev);
+		if (ret)
+			usb_kill_anchored_urbs(&priv->anchored);
 		goto rtl8187_start_exit;
 	}
 
@@ -966,7 +968,9 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, &priv->map->MAR[0], ~0);
 	rtl818x_iowrite32(priv, &priv->map->MAR[1], ~0);
 
-	rtl8187_init_urbs(dev);
+	ret = rtl8187_init_urbs(dev);
+	if (ret)
+		goto rtl8187_start_exit;
 
 	reg = RTL818X_RX_CONF_ONLYERLPKT |
 	      RTL818X_RX_CONF_RX_AUTORESETPHY |

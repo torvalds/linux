@@ -17,8 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+this program; if not, see <http://www.gnu.org/licenses/>.
 
 F01 Oct/02/02: Modify code for V0.11(move out back to back transfer)
 F02 Oct/28/02: Add SB device ID for 3147 and 3177.
@@ -210,8 +209,7 @@ static int via_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 			pci_write_config_byte(pcidev,0x42,(bTmp | 0xf0));
 			pci_write_config_byte(pcidev,0x5a,0xc0);
 			WriteLPCReg(0x28, 0x70 );
-			if (via_ircc_open(pcidev, &info, 0x3076) == 0)
-				rc=0;
+			rc = via_ircc_open(pcidev, &info, 0x3076);
 		} else
 			rc = -ENODEV; //IR not turn on	 
 	} else { //Not VT1211
@@ -249,8 +247,7 @@ static int via_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 			info.irq=FirIRQ;
 			info.dma=FirDRQ1;
 			info.dma2=FirDRQ0;
-			if (via_ircc_open(pcidev, &info, 0x3096) == 0)
-				rc=0;
+			rc = via_ircc_open(pcidev, &info, 0x3096);
 		} else
 			rc = -ENODEV; //IR not turn on !!!!!
 	}//Not VT1211
@@ -363,16 +360,16 @@ static int via_ircc_open(struct pci_dev *pdev, chipio_t *info, unsigned int id)
 
 	/* Allocate memory if needed */
 	self->rx_buff.head =
-		dma_alloc_coherent(&pdev->dev, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+		dma_zalloc_coherent(&pdev->dev, self->rx_buff.truesize,
+				    &self->rx_buff_dma, GFP_KERNEL);
 	if (self->rx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out2;
 	}
 
 	self->tx_buff.head =
-		dma_alloc_coherent(&pdev->dev, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+		dma_zalloc_coherent(&pdev->dev, self->tx_buff.truesize,
+				    &self->tx_buff_dma, GFP_KERNEL);
 	if (self->tx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out3;
@@ -410,7 +407,6 @@ static int via_ircc_open(struct pci_dev *pdev, chipio_t *info, unsigned int id)
  err_out2:
 	release_region(self->io.fir_base, self->io.fir_ext);
  err_out1:
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 	return err;
 }
@@ -444,7 +440,6 @@ static void via_remove_one(struct pci_dev *pdev)
 	if (self->rx_buff.head)
 		dma_free_coherent(&pdev->dev, self->rx_buff.truesize,
 				  self->rx_buff.head, self->rx_buff_dma);
-	pci_set_drvdata(pdev, NULL);
 
 	free_netdev(self->netdev);
 

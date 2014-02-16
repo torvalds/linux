@@ -163,12 +163,12 @@ void platform_heartbeat(void)
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 
-void platform_calibrate_ccount(void)
+void __init platform_calibrate_ccount(void)
 {
 	long clk_freq = 0;
 #ifdef CONFIG_OF
 	struct device_node *cpu =
-		of_find_compatible_node(NULL, NULL, "xtensa,cpu");
+		of_find_compatible_node(NULL, NULL, "cdns,xtensa-cpu");
 	if (cpu) {
 		u32 freq;
 		update_clock_frequency(cpu);
@@ -179,8 +179,7 @@ void platform_calibrate_ccount(void)
 	if (!clk_freq)
 		clk_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
 
-	ccount_per_jiffy = clk_freq / HZ;
-	nsec_per_ccount = 1000000000UL / clk_freq;
+	ccount_freq = clk_freq;
 }
 
 #endif
@@ -195,7 +194,7 @@ void platform_calibrate_ccount(void)
  *  Ethernet -- OpenCores Ethernet MAC (ethoc driver)
  */
 
-static struct resource ethoc_res[] __initdata = {
+static struct resource ethoc_res[] = {
 	[0] = { /* register space */
 		.start = OETH_REGS_PADDR,
 		.end   = OETH_REGS_PADDR + OETH_REGS_SIZE - 1,
@@ -213,7 +212,7 @@ static struct resource ethoc_res[] __initdata = {
 	},
 };
 
-static struct ethoc_platform_data ethoc_pdata __initdata = {
+static struct ethoc_platform_data ethoc_pdata = {
 	/*
 	 * The MAC address for these boards is 00:50:c2:13:6f:xx.
 	 * The last byte (here as zero) is read from the DIP switches on the
@@ -223,7 +222,7 @@ static struct ethoc_platform_data ethoc_pdata __initdata = {
 	.phy_id = -1,
 };
 
-static struct platform_device ethoc_device __initdata = {
+static struct platform_device ethoc_device = {
 	.name = "ethoc",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(ethoc_res),
@@ -237,13 +236,13 @@ static struct platform_device ethoc_device __initdata = {
  *  UART
  */
 
-static struct resource serial_resource __initdata = {
+static struct resource serial_resource = {
 	.start	= DUART16552_PADDR,
 	.end	= DUART16552_PADDR + 0x1f,
 	.flags	= IORESOURCE_MEM,
 };
 
-static struct plat_serial8250_port serial_platform_data[] __initdata = {
+static struct plat_serial8250_port serial_platform_data[] = {
 	[0] = {
 		.mapbase	= DUART16552_PADDR,
 		.irq		= DUART16552_INTNUM,
@@ -256,7 +255,7 @@ static struct plat_serial8250_port serial_platform_data[] __initdata = {
 	{ },
 };
 
-static struct platform_device xtavnet_uart __initdata = {
+static struct platform_device xtavnet_uart = {
 	.name		= "serial8250",
 	.id		= PLAT8250_DEV_PLATFORM,
 	.dev		= {

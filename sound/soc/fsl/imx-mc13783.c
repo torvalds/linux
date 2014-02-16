@@ -90,6 +90,7 @@ static const struct snd_soc_dapm_route imx_mc13783_routes[] = {
 
 static struct snd_soc_card imx_mc13783 = {
 	.name		= "imx_mc13783",
+	.owner		= THIS_MODULE,
 	.dai_link	= imx_mc13783_dai_mc13783,
 	.num_links	= ARRAY_SIZE(imx_mc13783_dai_mc13783),
 	.dapm_widgets	= imx_mc13783_widget,
@@ -111,7 +112,7 @@ static int imx_mc13783_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (machine_is_mx31_3ds()) {
+	if (machine_is_mx31_3ds() || machine_is_mx31moboard()) {
 		imx_audmux_v2_configure_port(MX31_AUDMUX_PORT4_SSI_PINS_4,
 			IMX_AUDMUX_V2_PTCR_SYN,
 			IMX_AUDMUX_V2_PDCR_RXDSEL(MX31_AUDMUX_PORT1_SSI0) |
@@ -159,6 +160,7 @@ static struct platform_driver imx_mc13783_audio_driver = {
 	.driver = {
 		.name = "imx_mc13783",
 		.owner = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
 	},
 	.probe = imx_mc13783_probe,
 	.remove = imx_mc13783_remove

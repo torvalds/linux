@@ -50,6 +50,7 @@
  * @dest: destination address for request messages
  * @domain: network domain to which links can be established
  * @num_nodes: number of nodes currently discovered (i.e. with an active link)
+ * @lock: spinlock for controlling access to requests
  * @buf: request message to be (repeatedly) sent
  * @timer: timer governing period between requests
  * @timer_intv: current interval between requests (in ms)
@@ -59,6 +60,7 @@ struct tipc_link_req {
 	struct tipc_media_addr dest;
 	u32 domain;
 	int num_nodes;
+	spinlock_t lock;
 	struct sk_buff *buf;
 	struct timer_list timer;
 	unsigned int timer_intv;
@@ -70,8 +72,7 @@ struct tipc_link_req {
  * @dest_domain: network domain of node(s) which should respond to message
  * @b_ptr: ptr to bearer issuing message
  */
-static struct sk_buff *tipc_disc_init_msg(u32 type,
-					  u32 dest_domain,
+static struct sk_buff *tipc_disc_init_msg(u32 type, u32 dest_domain,
 					  struct tipc_bearer *b_ptr)
 {
 	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE);
@@ -240,7 +241,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	/* Accept discovery message & send response, if necessary */
 	link_fully_up = link_working_working(link);
 
-	if ((type == DSC_REQ_MSG) && !link_fully_up && !b_ptr->blocked) {
+	if ((type == DSC_REQ_MSG) && !link_fully_up) {
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, orig, b_ptr);
 		if (rbuf) {
 			tipc_bearer_send(b_ptr, rbuf, &media_addr);
@@ -275,7 +276,9 @@ static void disc_update(struct tipc_link_req *req)
  */
 void tipc_disc_add_dest(struct tipc_link_req *req)
 {
+	spin_lock_bh(&req->lock);
 	req->num_nodes++;
+	spin_unlock_bh(&req->lock);
 }
 
 /**
@@ -284,18 +287,10 @@ void tipc_disc_add_dest(struct tipc_link_req *req)
  */
 void tipc_disc_remove_dest(struct tipc_link_req *req)
 {
+	spin_lock_bh(&req->lock);
 	req->num_nodes--;
 	disc_update(req);
-}
-
-/**
- * disc_send_msg - send link setup request message
- * @req: ptr to link request structure
- */
-static void disc_send_msg(struct tipc_link_req *req)
-{
-	if (!req->bearer->blocked)
-		tipc_bearer_send(req->bearer, req->buf, &req->dest);
+	spin_unlock_bh(&req->lock);
 }
 
 /**
@@ -308,7 +303,7 @@ static void disc_timeout(struct tipc_link_req *req)
 {
 	int max_delay;
 
-	spin_lock_bh(&req->bearer->lock);
+	spin_lock_bh(&req->lock);
 
 	/* Stop searching if only desired node has been found */
 	if (tipc_node(req->domain) && req->num_nodes) {
@@ -323,7 +318,8 @@ static void disc_timeout(struct tipc_link_req *req)
 	 * hold at fast polling rate if don't have any associated nodes,
 	 * otherwise hold at slow polling rate
 	 */
-	disc_send_msg(req);
+	tipc_bearer_send(req->bearer, req->buf, &req->dest);
+
 
 	req->timer_intv *= 2;
 	if (req->num_nodes)
@@ -335,7 +331,7 @@ static void disc_timeout(struct tipc_link_req *req)
 
 	k_start_timer(&req->timer, req->timer_intv);
 exit:
-	spin_unlock_bh(&req->bearer->lock);
+	spin_unlock_bh(&req->lock);
 }
 
 /**
@@ -346,8 +342,8 @@ exit:
  *
  * Returns 0 if successful, otherwise -errno.
  */
-int tipc_disc_create(struct tipc_bearer *b_ptr,
-		     struct tipc_media_addr *dest, u32 dest_domain)
+int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest,
+		     u32 dest_domain)
 {
 	struct tipc_link_req *req;
 
@@ -366,10 +362,11 @@ int tipc_disc_create(struct tipc_bearer *b_ptr,
 	req->domain = dest_domain;
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
+	spin_lock_init(&req->lock);
 	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
 	k_start_timer(&req->timer, req->timer_intv);
 	b_ptr->link_req = req;
-	disc_send_msg(req);
+	tipc_bearer_send(req->bearer, req->buf, &req->dest);
 	return 0;
 }
 

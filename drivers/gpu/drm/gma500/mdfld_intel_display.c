@@ -23,7 +23,7 @@
 
 #include <drm/drmP.h>
 #include "psb_intel_reg.h"
-#include "psb_intel_display.h"
+#include "gma_display.h"
 #include "framebuffer.h"
 #include "mdfld_output.h"
 #include "mdfld_dsi_output.h"
@@ -65,7 +65,7 @@ void mdfldWaitForPipeDisable(struct drm_device *dev, int pipe)
 	}
 
 	/* FIXME JLIU7_PO */
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 	return;
 
 	/* Wait for for the pipe disable to take effect. */
@@ -93,7 +93,7 @@ void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe)
 	}
 
 	/* FIXME JLIU7_PO */
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 	return;
 
 	/* Wait for for the pipe enable to take effect. */
@@ -102,25 +102,6 @@ void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe)
 		if ((temp & PIPEACONF_PIPE_STATE) == 1)
 			break;
 	}
-}
-
-static void psb_intel_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
-static void psb_intel_crtc_commit(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
-static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
 }
 
 /**
@@ -184,9 +165,9 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
 	u32 dspcntr;
@@ -324,8 +305,8 @@ static void mdfld_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 pipeconf = dev_priv->pipeconf[pipe];
 	u32 temp;
@@ -436,7 +417,7 @@ static void mdfld_crtc_dpms(struct drm_crtc *crtc, int mode)
 			}
 		}
 
-		psb_intel_crtc_load_lut(crtc);
+		gma_crtc_load_lut(crtc);
 
 		/* Give the overlay scaler a chance to enable
 		   if it's on this pipe */
@@ -611,8 +592,8 @@ static const struct mrst_limit_t *mdfld_limit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)
-	    || psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_MIPI2)) {
+	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)
+	    || gma_pipe_has_type(crtc, INTEL_OUTPUT_MIPI2)) {
 		if ((ksel == KSEL_CRYSTAL_19) || (ksel == KSEL_BYPASS_19))
 			limit = &mdfld_limits[MDFLD_LIMT_DSIPLL_19];
 		else if (ksel == KSEL_BYPASS_25)
@@ -624,7 +605,7 @@ static const struct mrst_limit_t *mdfld_limit(struct drm_crtc *crtc)
 			 (dev_priv->core_freq == 100 ||
 				dev_priv->core_freq == 200))
 			limit = &mdfld_limits[MDFLD_LIMT_DSIPLL_100];
-	} else if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI)) {
+	} else if (gma_pipe_has_type(crtc, INTEL_OUTPUT_HDMI)) {
 		if ((ksel == KSEL_CRYSTAL_19) || (ksel == KSEL_BYPASS_19))
 			limit = &mdfld_limits[MDFLD_LIMT_DPLL_19];
 		else if (ksel == KSEL_BYPASS_25)
@@ -688,9 +669,9 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk = 0;
 	int clk_n = 0, clk_p2 = 0, clk_byte = 1, clk = 0, m_conv = 0,
@@ -700,7 +681,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll = 0, fp = 0;
 	bool is_mipi = false, is_mipi2 = false, is_hdmi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct psb_intel_encoder *psb_intel_encoder = NULL;
+	struct gma_encoder *gma_encoder = NULL;
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
@@ -749,9 +730,9 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	memcpy(&psb_intel_crtc->saved_mode, mode,
+	memcpy(&gma_crtc->saved_mode, mode,
 					sizeof(struct drm_display_mode));
-	memcpy(&psb_intel_crtc->saved_adjusted_mode, adjusted_mode,
+	memcpy(&gma_crtc->saved_adjusted_mode, adjusted_mode,
 					sizeof(struct drm_display_mode));
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
@@ -766,9 +747,9 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 
-		psb_intel_encoder = psb_intel_attached_encoder(connector);
+		gma_encoder = gma_attached_encoder(connector);
 
-		switch (psb_intel_encoder->type) {
+		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_MIPI:
 			is_mipi = true;
 			break;
@@ -819,7 +800,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 
 	REG_WRITE(map->pos, 0);
 
-	if (psb_intel_encoder)
+	if (gma_encoder)
 		drm_object_property_get_value(&connector->base,
 			dev->mode_config.scaling_mode_property, &scalingType);
 
@@ -1034,7 +1015,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Wait for for the pipe enable to take effect. */
 	REG_WRITE(map->cntr, dev_priv->dspcntr[pipe]);
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 mrst_crtc_mode_set_exit:
 
@@ -1045,10 +1026,10 @@ mrst_crtc_mode_set_exit:
 
 const struct drm_crtc_helper_funcs mdfld_helper_funcs = {
 	.dpms = mdfld_crtc_dpms,
-	.mode_fixup = psb_intel_crtc_mode_fixup,
+	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = mdfld_crtc_mode_set,
 	.mode_set_base = mdfld__intel_pipe_set_base,
-	.prepare = psb_intel_crtc_prepare,
-	.commit = psb_intel_crtc_commit,
+	.prepare = gma_crtc_prepare,
+	.commit = gma_crtc_commit,
 };
 

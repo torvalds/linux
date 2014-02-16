@@ -1,0 +1,4 @@
+#ifndef __ASM_XTENSA_PERF_EVENT_H
+#define __ASM_XTENSA_PERF_EVENT_H
+
+#endif /* __ASM_XTENSA_PERF_EVENT_H */

@@ -845,7 +845,7 @@ static int camif_pipeline_validate(struct camif_dev *camif)
 	int ret;
 
 	/* Retrieve format at the sensor subdev source pad */
-	pad = media_entity_remote_source(&camif->pads[0]);
+	pad = media_entity_remote_pad(&camif->pads[0]);
 	if (!pad || media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 		return -EPIPE;
 

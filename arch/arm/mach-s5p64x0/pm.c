@@ -18,7 +18,6 @@
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/regs-timer.h>
 #include <plat/wakeup-mask.h>
 
 #include <mach/regs-clock.h>
@@ -48,8 +47,6 @@ static struct sleep_save s5p64x0_misc_save[] = {
 	SAVE_ITEM(S5P64X0_MEM0CONSLP1),
 	SAVE_ITEM(S5P64X0_MEM0DRVCON),
 	SAVE_ITEM(S5P64X0_MEM1DRVCON),
-
-	SAVE_ITEM(S3C64XX_TINT_CSTAT),
 };
 
 /* DPLL is present only in S5P6450 */

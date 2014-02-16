@@ -45,10 +45,19 @@
 #define AK4104_TX_TXE			(1 << 0)
 #define AK4104_TX_V			(1 << 1)
 
-#define DRV_NAME "ak4104-codec"
-
 struct ak4104_private {
 	struct regmap *regmap;
+};
+
+static const struct snd_soc_dapm_widget ak4104_dapm_widgets[] = {
+SND_SOC_DAPM_PGA("TXE", AK4104_REG_TX, AK4104_TX_TXE, 0, NULL, 0),
+
+SND_SOC_DAPM_OUTPUT("TX"),
+};
+
+static const struct snd_soc_dapm_route ak4104_dapm_routes[] = {
+	{ "TXE", NULL, "Playback" },
+	{ "TX", NULL, "TXE" },
 };
 
 static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
@@ -138,29 +147,11 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* enable transmitter */
-	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_TX,
-				 AK4104_TX_TXE, AK4104_TX_TXE);
-	if (ret < 0)
-		return ret;
-
 	return 0;
-}
-
-static int ak4104_hw_free(struct snd_pcm_substream *substream,
-			  struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
-
-	/* disable transmitter */
-	return regmap_update_bits(ak4104->regmap, AK4104_REG_TX,
-				  AK4104_TX_TXE, 0);
 }
 
 static const struct snd_soc_dai_ops ak4101_dai_ops = {
 	.hw_params = ak4104_hw_params,
-	.hw_free = ak4104_hw_free,
 	.set_fmt = ak4104_set_dai_fmt,
 };
 
@@ -214,6 +205,11 @@ static int ak4104_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
 	.probe =	ak4104_probe,
 	.remove =	ak4104_remove,
+
+	.dapm_widgets = ak4104_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(ak4104_dapm_widgets),
+	.dapm_routes = ak4104_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(ak4104_dapm_routes),
 };
 
 static const struct regmap_config ak4104_regmap = {
@@ -293,12 +289,19 @@ static const struct of_device_id ak4104_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ak4104_of_match);
 
+static const struct spi_device_id ak4104_id_table[] = {
+	{ "ak4104", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, ak4104_id_table);
+
 static struct spi_driver ak4104_spi_driver = {
 	.driver  = {
-		.name   = DRV_NAME,
+		.name   = "ak4104",
 		.owner  = THIS_MODULE,
 		.of_match_table = ak4104_of_match,
 	},
+	.id_table = ak4104_id_table,
 	.probe  = ak4104_spi_probe,
 	.remove = ak4104_spi_remove,
 };

@@ -67,7 +67,7 @@ static void tty_audit_log(const char *description, int major, int minor,
 	struct task_struct *tsk = current;
 	uid_t uid = from_kuid(&init_user_ns, task_uid(tsk));
 	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(tsk));
-	u32 sessionid = audit_get_sessionid(tsk);
+	unsigned int sessionid = audit_get_sessionid(tsk);
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_TTY);
 	if (ab) {

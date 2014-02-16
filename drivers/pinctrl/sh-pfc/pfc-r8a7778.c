@@ -23,26 +23,6 @@
 #include <linux/kernel.h>
 #include "sh_pfc.h"
 
-#define PORT_GP_1(bank, pin, fn, sfx) fn(bank, pin, GP_##bank##_##pin, sfx)
-
-#define PORT_GP_32(bank, fn, sfx)					\
-	PORT_GP_1(bank, 0,  fn, sfx), PORT_GP_1(bank, 1,  fn, sfx),	\
-	PORT_GP_1(bank, 2,  fn, sfx), PORT_GP_1(bank, 3,  fn, sfx),	\
-	PORT_GP_1(bank, 4,  fn, sfx), PORT_GP_1(bank, 5,  fn, sfx),	\
-	PORT_GP_1(bank, 6,  fn, sfx), PORT_GP_1(bank, 7,  fn, sfx),	\
-	PORT_GP_1(bank, 8,  fn, sfx), PORT_GP_1(bank, 9,  fn, sfx),	\
-	PORT_GP_1(bank, 10, fn, sfx), PORT_GP_1(bank, 11, fn, sfx),	\
-	PORT_GP_1(bank, 12, fn, sfx), PORT_GP_1(bank, 13, fn, sfx),	\
-	PORT_GP_1(bank, 14, fn, sfx), PORT_GP_1(bank, 15, fn, sfx),	\
-	PORT_GP_1(bank, 16, fn, sfx), PORT_GP_1(bank, 17, fn, sfx),	\
-	PORT_GP_1(bank, 18, fn, sfx), PORT_GP_1(bank, 19, fn, sfx),	\
-	PORT_GP_1(bank, 20, fn, sfx), PORT_GP_1(bank, 21, fn, sfx),	\
-	PORT_GP_1(bank, 22, fn, sfx), PORT_GP_1(bank, 23, fn, sfx),	\
-	PORT_GP_1(bank, 24, fn, sfx), PORT_GP_1(bank, 25, fn, sfx),	\
-	PORT_GP_1(bank, 26, fn, sfx), PORT_GP_1(bank, 27, fn, sfx),	\
-	PORT_GP_1(bank, 28, fn, sfx), PORT_GP_1(bank, 29, fn, sfx),	\
-	PORT_GP_1(bank, 30, fn, sfx), PORT_GP_1(bank, 31, fn, sfx)
-
 #define PORT_GP_27(bank, fn, sfx)					\
 	PORT_GP_1(bank, 0,  fn, sfx), PORT_GP_1(bank, 1,  fn, sfx),	\
 	PORT_GP_1(bank, 2,  fn, sfx), PORT_GP_1(bank, 3,  fn, sfx),	\
@@ -65,26 +45,6 @@
 	PORT_GP_32(2, fn, sfx),		\
 	PORT_GP_32(3, fn, sfx),		\
 	PORT_GP_27(4, fn, sfx)
-
-#define _GP_PORT_ALL(bank, pin, name, sfx)	name##_##sfx
-
-#define _GP_GPIO(bank, pin, _name, sfx)		\
-	[RCAR_GP_PIN(bank, pin)] = {		\
-		.name = __stringify(_name),	\
-		.enum_id = _name##_DATA,	\
-	}
-
-#define _GP_DATA(bank, pin, name, sfx)		\
-	PINMUX_DATA(name##_DATA, name##_FN)
-
-#define GP_ALL(str)		CPU_ALL_PORT(_GP_PORT_ALL, str)
-#define PINMUX_GPIO_GP_ALL()	CPU_ALL_PORT(_GP_GPIO, unused)
-#define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_GP_DATA, unused)
-
-#define PINMUX_IPSR_NOGP(ispr, fn)	PINMUX_DATA(fn##_MARK, FN_##fn)
-#define PINMUX_IPSR_DATA(ipsr, fn)	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr)
-#define PINMUX_IPSR_MSEL(ipsr, fn, ms)	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr, FN_##ms)
-#define PINMUX_IPSR_NOGM(ispr, fn, ms)	PINMUX_DATA(fn##_MARK, FN_##fn,            FN_##ms)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -579,7 +539,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static const pinmux_enum_t pinmux_data[] = {
+static const u16 pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(), /* PINMUX_DATA(GP_M_N_DATA, GP_M_N_FN...), */
 
 	PINMUX_DATA(PENC0_MARK,		FN_PENC0),
@@ -1294,15 +1254,20 @@ static const pinmux_enum_t pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP10_24_22,	CAN_CLK_C,	SEL_CANCLK_C),
 };
 
-static struct sh_pfc_pin pinmux_pins[] = {
-	PINMUX_GPIO_GP_ALL(),
-};
-
 /* Pin numbers for pins without a corresponding GPIO port number are computed
  * from the row and column numbers with a 1000 offset to avoid collisions with
  * GPIO port numbers.
  */
 #define PIN_NUMBER(row, col)		(1000+((row)-1)*25+(col)-1)
+
+static const struct sh_pfc_pin pinmux_pins[] = {
+	PINMUX_GPIO_GP_ALL(),
+
+	/* Pins not associated with a GPIO port */
+	SH_PFC_PIN_NAMED(3, 20, C20),
+	SH_PFC_PIN_NAMED(20, 1, T1),
+	SH_PFC_PIN_NAMED(25, 2, Y2),
+};
 
 /* - macro */
 #define SH_PFC_PINS(name, args...) \
@@ -1322,6 +1287,49 @@ static struct sh_pfc_pin pinmux_pins[] = {
 						     arg3##_MARK, arg4##_MARK, \
 						     arg5##_MARK, arg6##_MARK, \
 						     arg7##_MARK, arg8##_MARK, }
+
+/* - AUDIO macro -------------------------------------------------------------*/
+#define AUDIO_PFC_PIN(name, pin)	SH_PFC_PINS(name, pin)
+#define AUDIO_PFC_DAT(name, pin)	SH_PFC_MUX1(name, pin)
+
+/* - AUDIO clock -------------------------------------------------------------*/
+AUDIO_PFC_PIN(audio_clk_a,	RCAR_GP_PIN(2, 22));
+AUDIO_PFC_DAT(audio_clk_a,	AUDIO_CLKA);
+AUDIO_PFC_PIN(audio_clk_b,	RCAR_GP_PIN(2, 23));
+AUDIO_PFC_DAT(audio_clk_b,	AUDIO_CLKB);
+AUDIO_PFC_PIN(audio_clk_c,	RCAR_GP_PIN(2, 7));
+AUDIO_PFC_DAT(audio_clk_c,	AUDIO_CLKC);
+AUDIO_PFC_PIN(audio_clkout_a,	RCAR_GP_PIN(2, 16));
+AUDIO_PFC_DAT(audio_clkout_a,	AUDIO_CLKOUT_A);
+AUDIO_PFC_PIN(audio_clkout_b,	RCAR_GP_PIN(1, 16));
+AUDIO_PFC_DAT(audio_clkout_b,	AUDIO_CLKOUT_B);
+
+/* - CAN macro --------_----------------------------------------------------- */
+#define CAN_PFC_PINS(name, args...)		SH_PFC_PINS(name, args)
+#define CAN_PFC_DATA(name, tx, rx)		SH_PFC_MUX2(name, tx, rx)
+#define CAN_PFC_CLK(name, clk)			SH_PFC_MUX1(name, clk)
+
+/* - CAN0 ------------------------------------------------------------------- */
+CAN_PFC_PINS(can0_data_a,	RCAR_GP_PIN(1, 30),	RCAR_GP_PIN(1, 31));
+CAN_PFC_DATA(can0_data_a,	CAN0_TX_A,		CAN0_RX_A);
+CAN_PFC_PINS(can0_data_b,	RCAR_GP_PIN(2, 26),	RCAR_GP_PIN(2, 27));
+CAN_PFC_DATA(can0_data_b,	CAN0_TX_B,		CAN0_RX_B);
+
+/* - CAN1 ------------------------------------------------------------------- */
+CAN_PFC_PINS(can1_data_a,	RCAR_GP_PIN(4, 20),	RCAR_GP_PIN(4, 19));
+CAN_PFC_DATA(can1_data_a,	CAN1_TX_A,		CAN1_RX_A);
+CAN_PFC_PINS(can1_data_b,	RCAR_GP_PIN(2, 28),	RCAR_GP_PIN(2, 29));
+CAN_PFC_DATA(can1_data_b,	CAN1_TX_B,		CAN1_RX_B);
+
+/* - CAN_CLK  --------------------------------------------------------------- */
+CAN_PFC_PINS(can_clk_a,		RCAR_GP_PIN(3, 24));
+CAN_PFC_CLK(can_clk_a,		CAN_CLK_A);
+CAN_PFC_PINS(can_clk_b,		RCAR_GP_PIN(1, 16));
+CAN_PFC_CLK(can_clk_b,		CAN_CLK_B);
+CAN_PFC_PINS(can_clk_c,		RCAR_GP_PIN(4, 24));
+CAN_PFC_CLK(can_clk_c,		CAN_CLK_C);
+CAN_PFC_PINS(can_clk_d,		RCAR_GP_PIN(2, 25));
+CAN_PFC_CLK(can_clk_d,		CAN_CLK_D);
 
 /* - Ether ------------------------------------------------------------------ */
 SH_PFC_PINS(ether_rmii,		RCAR_GP_PIN(4, 10),	RCAR_GP_PIN(4, 11),
@@ -1612,6 +1620,59 @@ SDHI_PFC_WPPN(sdhi2_wp_a,	SD2_WP_A);
 SDHI_PFC_PINS(sdhi2_wp_b,	RCAR_GP_PIN(3, 28));
 SDHI_PFC_WPPN(sdhi2_wp_b,	SD2_WP_B);
 
+/* - SSI macro -------------------------------------------------------------- */
+#define SSI_PFC_PINS(name, args...)		SH_PFC_PINS(name, args)
+#define SSI_PFC_CTRL(name, sck, ws)		SH_PFC_MUX2(name, sck, ws)
+#define SSI_PFC_DATA(name, d)			SH_PFC_MUX1(name, d)
+
+/* - SSI 0/1/2 -------------------------------------------------------------- */
+SSI_PFC_PINS(ssi012_ctrl,	RCAR_GP_PIN(3, 6),	RCAR_GP_PIN(3, 7));
+SSI_PFC_CTRL(ssi012_ctrl,	SSI_SCK012,		SSI_WS012);
+SSI_PFC_PINS(ssi0_data,		RCAR_GP_PIN(3, 10));
+SSI_PFC_DATA(ssi0_data,		SSI_SDATA0);
+SSI_PFC_PINS(ssi1_a_ctrl,	RCAR_GP_PIN(2, 20),	RCAR_GP_PIN(2, 21));
+SSI_PFC_CTRL(ssi1_a_ctrl,	SSI_SCK1_A,		SSI_WS1_A);
+SSI_PFC_PINS(ssi1_b_ctrl,	PIN_NUMBER(3, 20),	RCAR_GP_PIN(1, 3));
+SSI_PFC_CTRL(ssi1_b_ctrl,	SSI_SCK1_B,		SSI_WS1_B);
+SSI_PFC_PINS(ssi1_data,		RCAR_GP_PIN(3, 9));
+SSI_PFC_DATA(ssi1_data,		SSI_SDATA1);
+SSI_PFC_PINS(ssi2_a_ctrl,	RCAR_GP_PIN(2, 26),	RCAR_GP_PIN(3, 4));
+SSI_PFC_CTRL(ssi2_a_ctrl,	SSI_SCK2_A,		SSI_WS2_A);
+SSI_PFC_PINS(ssi2_b_ctrl,	RCAR_GP_PIN(2, 6),	RCAR_GP_PIN(2, 17));
+SSI_PFC_CTRL(ssi2_b_ctrl,	SSI_SCK2_B,		SSI_WS2_B);
+SSI_PFC_PINS(ssi2_data,		RCAR_GP_PIN(3, 8));
+SSI_PFC_DATA(ssi2_data,		SSI_SDATA2);
+
+/* - SSI 3/4 ---------------------------------------------------------------- */
+SSI_PFC_PINS(ssi34_ctrl,	RCAR_GP_PIN(3, 2),	RCAR_GP_PIN(3, 3));
+SSI_PFC_CTRL(ssi34_ctrl,	SSI_SCK34,		SSI_WS34);
+SSI_PFC_PINS(ssi3_data,		RCAR_GP_PIN(3, 5));
+SSI_PFC_DATA(ssi3_data,		SSI_SDATA3);
+SSI_PFC_PINS(ssi4_ctrl,		RCAR_GP_PIN(1, 22),     RCAR_GP_PIN(1, 23));
+SSI_PFC_CTRL(ssi4_ctrl,		SSI_SCK4,               SSI_WS4);
+SSI_PFC_PINS(ssi4_data,		RCAR_GP_PIN(3, 4));
+SSI_PFC_DATA(ssi4_data,		SSI_SDATA4);
+
+/* - SSI 5 ------------------------------------------------------------------ */
+SSI_PFC_PINS(ssi5_ctrl,		RCAR_GP_PIN(2, 31),	RCAR_GP_PIN(3, 0));
+SSI_PFC_CTRL(ssi5_ctrl,		SSI_SCK5,		SSI_WS5);
+SSI_PFC_PINS(ssi5_data,		RCAR_GP_PIN(3, 1));
+SSI_PFC_DATA(ssi5_data,		SSI_SDATA5);
+
+/* - SSI 6 ------------------------------------------------------------------ */
+SSI_PFC_PINS(ssi6_ctrl,		RCAR_GP_PIN(2, 28),	RCAR_GP_PIN(2, 29));
+SSI_PFC_CTRL(ssi6_ctrl,		SSI_SCK6,		SSI_WS6);
+SSI_PFC_PINS(ssi6_data,		RCAR_GP_PIN(2, 30));
+SSI_PFC_DATA(ssi6_data,		SSI_SDATA6);
+
+/* - SSI 7/8  --------------------------------------------------------------- */
+SSI_PFC_PINS(ssi78_ctrl,	RCAR_GP_PIN(2, 24),	RCAR_GP_PIN(2, 25));
+SSI_PFC_CTRL(ssi78_ctrl,	SSI_SCK78,		SSI_WS78);
+SSI_PFC_PINS(ssi7_data,		RCAR_GP_PIN(2, 27));
+SSI_PFC_DATA(ssi7_data,		SSI_SDATA7);
+SSI_PFC_PINS(ssi8_data,		RCAR_GP_PIN(2, 26));
+SSI_PFC_DATA(ssi8_data,		SSI_SDATA8);
+
 /* - USB0 ------------------------------------------------------------------- */
 SH_PFC_PINS(usb0,		RCAR_GP_PIN(0, 1));
 SH_PFC_MUX1(usb0,		PENC0);
@@ -1659,6 +1720,19 @@ VIN_PFC_PINS(vin1_sync,		RCAR_GP_PIN(3, 21),	RCAR_GP_PIN(3, 22));
 VIN_PFC_SYNC(vin1_sync,		VI1_HSYNC,		VI1_VSYNC);
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
+	SH_PFC_PIN_GROUP(audio_clk_a),
+	SH_PFC_PIN_GROUP(audio_clk_b),
+	SH_PFC_PIN_GROUP(audio_clk_c),
+	SH_PFC_PIN_GROUP(audio_clkout_a),
+	SH_PFC_PIN_GROUP(audio_clkout_b),
+	SH_PFC_PIN_GROUP(can0_data_a),
+	SH_PFC_PIN_GROUP(can0_data_b),
+	SH_PFC_PIN_GROUP(can1_data_a),
+	SH_PFC_PIN_GROUP(can1_data_b),
+	SH_PFC_PIN_GROUP(can_clk_a),
+	SH_PFC_PIN_GROUP(can_clk_b),
+	SH_PFC_PIN_GROUP(can_clk_c),
+	SH_PFC_PIN_GROUP(can_clk_d),
 	SH_PFC_PIN_GROUP(ether_rmii),
 	SH_PFC_PIN_GROUP(ether_link),
 	SH_PFC_PIN_GROUP(ether_magic),
@@ -1748,6 +1822,25 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sdhi2_data4_b),
 	SH_PFC_PIN_GROUP(sdhi2_wp_a),
 	SH_PFC_PIN_GROUP(sdhi2_wp_b),
+	SH_PFC_PIN_GROUP(ssi012_ctrl),
+	SH_PFC_PIN_GROUP(ssi0_data),
+	SH_PFC_PIN_GROUP(ssi1_a_ctrl),
+	SH_PFC_PIN_GROUP(ssi1_b_ctrl),
+	SH_PFC_PIN_GROUP(ssi1_data),
+	SH_PFC_PIN_GROUP(ssi2_a_ctrl),
+	SH_PFC_PIN_GROUP(ssi2_b_ctrl),
+	SH_PFC_PIN_GROUP(ssi2_data),
+	SH_PFC_PIN_GROUP(ssi34_ctrl),
+	SH_PFC_PIN_GROUP(ssi3_data),
+	SH_PFC_PIN_GROUP(ssi4_ctrl),
+	SH_PFC_PIN_GROUP(ssi4_data),
+	SH_PFC_PIN_GROUP(ssi5_ctrl),
+	SH_PFC_PIN_GROUP(ssi5_data),
+	SH_PFC_PIN_GROUP(ssi6_ctrl),
+	SH_PFC_PIN_GROUP(ssi6_data),
+	SH_PFC_PIN_GROUP(ssi78_ctrl),
+	SH_PFC_PIN_GROUP(ssi7_data),
+	SH_PFC_PIN_GROUP(ssi8_data),
 	SH_PFC_PIN_GROUP(usb0),
 	SH_PFC_PIN_GROUP(usb0_ovc),
 	SH_PFC_PIN_GROUP(usb1),
@@ -1758,6 +1851,32 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(vin1_data8),
 	SH_PFC_PIN_GROUP(vin1_clk),
 	SH_PFC_PIN_GROUP(vin1_sync),
+};
+
+static const char * const audio_clk_groups[] = {
+	"audio_clk_a",
+	"audio_clk_b",
+	"audio_clk_c",
+	"audio_clkout_a",
+	"audio_clkout_b",
+};
+
+static const char * const can0_groups[] = {
+	"can0_data_a",
+	"can0_data_b",
+	"can_clk_a",
+	"can_clk_b",
+	"can_clk_c",
+	"can_clk_d",
+};
+
+static const char * const can1_groups[] = {
+	"can1_data_a",
+	"can1_data_b",
+	"can_clk_a",
+	"can_clk_b",
+	"can_clk_c",
+	"can_clk_d",
 };
 
 static const char * const ether_groups[] = {
@@ -1910,6 +2029,28 @@ static const char * const sdhi2_groups[] = {
 	"sdhi2_wp_b",
 };
 
+static const char * const ssi_groups[] = {
+	"ssi012_ctrl",
+	"ssi0_data",
+	"ssi1_a_ctrl",
+	"ssi1_b_ctrl",
+	"ssi1_data",
+	"ssi2_a_ctrl",
+	"ssi2_b_ctrl",
+	"ssi2_data",
+	"ssi34_ctrl",
+	"ssi3_data",
+	"ssi4_ctrl",
+	"ssi4_data",
+	"ssi5_ctrl",
+	"ssi5_data",
+	"ssi6_ctrl",
+	"ssi6_data",
+	"ssi78_ctrl",
+	"ssi7_data",
+	"ssi8_data",
+};
+
 static const char * const usb0_groups[] = {
 	"usb0",
 	"usb0_ovc",
@@ -1933,6 +2074,9 @@ static const char * const vin1_groups[] = {
 };
 
 static const struct sh_pfc_function pinmux_functions[] = {
+	SH_PFC_FUNCTION(audio_clk),
+	SH_PFC_FUNCTION(can0),
+	SH_PFC_FUNCTION(can1),
 	SH_PFC_FUNCTION(ether),
 	SH_PFC_FUNCTION(hscif0),
 	SH_PFC_FUNCTION(hscif1),
@@ -1953,13 +2097,14 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
 	SH_PFC_FUNCTION(sdhi2),
+	SH_PFC_FUNCTION(ssi),
 	SH_PFC_FUNCTION(usb0),
 	SH_PFC_FUNCTION(usb1),
 	SH_PFC_FUNCTION(vin0),
 	SH_PFC_FUNCTION(vin1),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("GPSR0", 0xfffc0004, 32, 1) {
 		GP_0_31_FN,	FN_IP1_14_11,
 		GP_0_30_FN,	FN_IP1_10_8,

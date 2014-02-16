@@ -24,23 +24,16 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
  *    Karl Knutson <karl@athena.chicago.il.us>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -219,10 +212,10 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 		chunk->end_of_packet = 1;
 	}
 
-	SCTP_DEBUG_PRINTK("+++sctp_inq_pop+++ chunk %p[%s],"
-			  " length %d, skb->len %d\n",chunk,
-			  sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)),
-			  ntohs(chunk->chunk_hdr->length), chunk->skb->len);
+	pr_debug("+++sctp_inq_pop+++ chunk:%p[%s], length:%d, skb->len:%d\n",
+		 chunk, sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)),
+		 ntohs(chunk->chunk_hdr->length), chunk->skb->len);
+
 	return chunk;
 }
 
@@ -238,4 +231,3 @@ void sctp_inq_set_th_handler(struct sctp_inq *q, work_func_t callback)
 {
 	INIT_WORK(&q->immediate, callback);
 }
-

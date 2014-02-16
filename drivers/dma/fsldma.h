@@ -41,7 +41,7 @@
  * channel is allowed to transfer before the DMA engine pauses
  * the current channel and switches to the next channel
  */
-#define FSL_DMA_MR_BWC         0x08000000
+#define FSL_DMA_MR_BWC         0x0A000000
 
 /* Special MR definition for MPC8349 */
 #define FSL_DMA_MR_EOTIE	0x00000080
@@ -112,7 +112,7 @@ struct fsldma_chan_regs {
 };
 
 struct fsldma_chan;
-#define FSL_DMA_MAX_CHANS_PER_DEVICE 4
+#define FSL_DMA_MAX_CHANS_PER_DEVICE 8
 
 struct fsldma_device {
 	void __iomem *regs;	/* DGSR register base */

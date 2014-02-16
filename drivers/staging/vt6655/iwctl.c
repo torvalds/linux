@@ -663,7 +663,8 @@ int iwctl_siwap(struct net_device *dev,
 			unsigned int ii, uSameBssidNum = 0;
 			for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 				if (pMgmt->sBSSList[ii].bActive &&
-				    !compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID, pMgmt->abyDesireBSSID)) {
+				    ether_addr_equal(pMgmt->sBSSList[ii].abyBSSID,
+						     pMgmt->abyDesireBSSID)) {
 					uSameBssidNum++;
 				}
 			}
@@ -840,7 +841,8 @@ int iwctl_siwessid(struct net_device *dev,
 					//         by means of judging if there are two same BSSID exist in list ?
 					for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 						if (pMgmt->sBSSList[ii].bActive &&
-						    !compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID, pCurr->abyBSSID)) {
+						    ether_addr_equal(pMgmt->sBSSList[ii].abyBSSID,
+								     pCurr->abyBSSID)) {
 							uSameBssidNum++;
 						}
 					}
@@ -1630,7 +1632,7 @@ int iwctl_giwsens(struct net_device *dev,
 		wrq->value = ldBm;
 	} else {
 		wrq->value = 0;
-	};
+	}
 	wrq->disabled = (wrq->value == 0);
 	wrq->fixed = 1;
 
@@ -1825,7 +1827,7 @@ int iwctl_siwencodeext(struct net_device *dev,
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	struct viawget_wpa_param *param = NULL;
 //original member
-	wpa_alg alg_name;
+	enum wpa_alg alg_name;
 	u8  addr[6];
 	int key_idx, set_tx = 0;
 	u8  seq[IW_ENCODE_SEQ_MAX_SIZE];

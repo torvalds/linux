@@ -1339,15 +1339,14 @@ static int coh901318_debugfs_read(struct file *file, char __user *buf,
 {
 	u64 started_channels = debugfs_dma_base->pm.started_channels;
 	int pool_count = debugfs_dma_base->pool.debugfs_pool_counter;
-	int i;
-	int ret = 0;
 	char *dev_buf;
 	char *tmp;
-	int dev_size;
+	int ret;
+	int i;
 
 	dev_buf = kmalloc(4*1024, GFP_KERNEL);
 	if (dev_buf == NULL)
-		goto err_kmalloc;
+		return -ENOMEM;
 	tmp = dev_buf;
 
 	tmp += sprintf(tmp, "DMA -- enabled dma channels\n");
@@ -1357,26 +1356,11 @@ static int coh901318_debugfs_read(struct file *file, char __user *buf,
 			tmp += sprintf(tmp, "channel %d\n", i);
 
 	tmp += sprintf(tmp, "Pool alloc nbr %d\n", pool_count);
-	dev_size = tmp  - dev_buf;
 
-	/* No more to read if offset != 0 */
-	if (*f_pos > dev_size)
-		goto out;
-
-	if (count > dev_size - *f_pos)
-		count = dev_size - *f_pos;
-
-	if (copy_to_user(buf, dev_buf + *f_pos, count))
-		ret = -EINVAL;
-	ret = count;
-	*f_pos += count;
-
- out:
+	ret = simple_read_from_buffer(buf, count, f_pos, dev_buf, 
+					tmp - dev_buf);
 	kfree(dev_buf);
 	return ret;
-
- err_kmalloc:
-	return 0;
 }
 
 static const struct file_operations coh901318_debugfs_status_operations = {
@@ -2385,7 +2369,7 @@ coh901318_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	dma_set_residue(txstate, coh901318_get_bytes_left(chan));
@@ -2710,7 +2694,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	err = devm_request_irq(&pdev->dev, irq, dma_irq_handler, IRQF_DISABLED,
+	err = devm_request_irq(&pdev->dev, irq, dma_irq_handler, 0,
 			       "coh901318", base);
 	if (err)
 		return err;

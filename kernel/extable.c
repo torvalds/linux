@@ -41,7 +41,7 @@ u32 __initdata main_extable_sort_needed = 1;
 /* Sort the kernel's built-in exception table */
 void __init sort_main_extable(void)
 {
-	if (main_extable_sort_needed) {
+	if (main_extable_sort_needed && __stop___ex_table > __start___ex_table) {
 		pr_notice("Sorting __ex_table...\n");
 		sort_extable(__start___ex_table, __stop___ex_table);
 	}
@@ -61,7 +61,7 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
 static inline int init_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_sinittext &&
-	    addr <= (unsigned long)_einittext)
+	    addr < (unsigned long)_einittext)
 		return 1;
 	return 0;
 }
@@ -69,7 +69,7 @@ static inline int init_kernel_text(unsigned long addr)
 int core_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext &&
-	    addr <= (unsigned long)_etext)
+	    addr < (unsigned long)_etext)
 		return 1;
 
 	if (system_state == SYSTEM_BOOTING &&

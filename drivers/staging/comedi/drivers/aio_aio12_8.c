@@ -35,8 +35,8 @@ Notes:
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
 #include "8255.h"
 
 /*
@@ -181,13 +181,12 @@ static int aio_aio12_8_ao_write(struct comedi_device *dev,
 }
 
 static const struct comedi_lrange range_aio_aio12_8 = {
-	4,
-	{
-	 UNI_RANGE(5),
-	 BIP_RANGE(5),
-	 UNI_RANGE(10),
-	 BIP_RANGE(10),
-	 }
+	4, {
+		UNI_RANGE(5),
+		BIP_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(10)
+	}
 };
 
 static int aio_aio12_8_attach(struct comedi_device *dev,
@@ -202,10 +201,9 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

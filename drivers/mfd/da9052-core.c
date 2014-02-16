@@ -427,7 +427,7 @@ int da9052_adc_read_temp(struct da9052 *da9052)
 }
 EXPORT_SYMBOL_GPL(da9052_adc_read_temp);
 
-static struct mfd_cell da9052_subdev_info[] = {
+static const struct mfd_cell da9052_subdev_info[] = {
 	{
 		.name = "da9052-regulator",
 		.id = 1,
@@ -534,7 +534,7 @@ EXPORT_SYMBOL_GPL(da9052_regmap_config);
 
 int da9052_device_init(struct da9052 *da9052, u8 chip_id)
 {
-	struct da9052_pdata *pdata = da9052->dev->platform_data;
+	struct da9052_pdata *pdata = dev_get_platdata(da9052->dev);
 	int ret;
 
 	mutex_init(&da9052->auxadc_lock);

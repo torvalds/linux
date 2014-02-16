@@ -24,10 +24,9 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
 
 #define MULTIQ3_SIZE 16
 
@@ -164,11 +163,11 @@ static int multiq3_di_insn_bits(struct comedi_device *dev,
 
 static int multiq3_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	s->state &= ~data[0];
-	s->state |= (data[0] & data[1]);
-	outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);
+	if (comedi_dio_update_state(s, data))
+		outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);
 
 	data[1] = s->state;
 
@@ -232,10 +231,9 @@ static int multiq3_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */

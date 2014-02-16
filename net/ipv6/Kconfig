@@ -21,24 +21,6 @@ menuconfig IPV6
 
 if IPV6
 
-config IPV6_PRIVACY
-	bool "IPv6: Privacy Extensions (RFC 3041) support"
-	---help---
-	  Privacy Extensions for Stateless Address Autoconfiguration in IPv6
-	  support.  With this option, additional periodically-altered
-	  pseudo-random global-scope unicast address(es) will be assigned to
-	  your interface(s).
-	
-	  We use our standard pseudo-random algorithm to generate the
-          randomized interface identifier, instead of one described in RFC 3041.
-
-	  By default the kernel does not generate temporary addresses.
-	  To use temporary addresses, do
-	
-	        echo 2 >/proc/sys/net/ipv6/conf/all/use_tempaddr 
-
-	  See <file:Documentation/networking/ip-sysctl.txt> for details.
-
 config IPV6_ROUTER_PREF
 	bool "IPv6: Router Preference (RFC 4191) support"
 	---help---
@@ -152,6 +134,17 @@ config INET6_XFRM_MODE_ROUTEOPTIMIZATION
 	select XFRM
 	---help---
 	  Support for MIPv6 route optimization mode.
+
+config IPV6_VTI
+tristate "Virtual (secure) IPv6: tunneling"
+	select IPV6_TUNNEL
+	depends on INET6_XFRM_MODE_TUNNEL
+	---help---
+	Tunneling means encapsulating data of one protocol type within
+	another protocol and sending it over a channel that understands the
+	encapsulating protocol. This can be used with xfrm mode tunnel to give
+	the notion of a secure tunnel for IPSEC and then use routing protocol
+	on top.
 
 config IPV6_SIT
 	tristate "IPv6: IPv6-in-IPv4 tunnel (SIT driver)"

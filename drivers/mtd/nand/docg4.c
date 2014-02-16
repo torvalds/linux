@@ -44,6 +44,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/bch.h>
 #include <linux/bitrev.h>
+#include <linux/jiffies.h>
 
 /*
  * In "reliable mode" consecutive 2k pages are used in parallel (in some
@@ -269,7 +270,7 @@ static int poll_status(struct docg4_priv *doc)
 	 */
 
 	uint16_t flash_status;
-	unsigned int timeo;
+	unsigned long timeo;
 	void __iomem *docptr = doc->virtadr;
 
 	dev_dbg(doc->dev, "%s...\n", __func__);
@@ -277,21 +278,17 @@ static int poll_status(struct docg4_priv *doc)
 	/* hardware quirk requires reading twice initially */
 	flash_status = readw(docptr + DOC_FLASHCONTROL);
 
-	timeo = 1000;
+	timeo = jiffies + msecs_to_jiffies(200); /* generous timeout */
 	do {
 		cpu_relax();
 		flash_status = readb(docptr + DOC_FLASHCONTROL);
-	} while (!(flash_status & DOC_CTRL_FLASHREADY) && --timeo);
+	} while (!(flash_status & DOC_CTRL_FLASHREADY) &&
+		 time_before(jiffies, timeo));
 
-
-	if (!timeo) {
+	if (unlikely(!(flash_status & DOC_CTRL_FLASHREADY))) {
 		dev_err(doc->dev, "%s: timed out!\n", __func__);
 		return NAND_STATUS_FAIL;
 	}
-
-	if (unlikely(timeo < 50))
-		dev_warn(doc->dev, "%s: nearly timed out; %d remaining\n",
-			 __func__, timeo);
 
 	return 0;
 }
@@ -494,7 +491,7 @@ static uint8_t docg4_read_byte(struct mtd_info *mtd)
 		return status;
 	}
 
-	dev_warn(doc->dev, "unexpectd call to read_byte()\n");
+	dev_warn(doc->dev, "unexpected call to read_byte()\n");
 
 	return 0;
 }
@@ -1093,7 +1090,6 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct nand_chip *nand = mtd->priv;
 	struct docg4_priv *doc = nand->priv;
 	struct nand_bbt_descr *bbtd = nand->badblock_pattern;
-	int block = (int)(ofs >> nand->bbt_erase_shift);
 	int page = (int)(ofs >> nand->page_shift);
 	uint32_t g4_addr = mtd_to_docg4_address(page, 0);
 
@@ -1108,9 +1104,6 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	if (buf == NULL)
 		return -ENOMEM;
 
-	/* update bbt in memory */
-	nand->bbt[block / 4] |= 0x01 << ((block & 0x03) * 2);
-
 	/* write bit-wise negation of pattern to oob buffer */
 	memset(nand->oob_poi, 0xff, mtd->oobsize);
 	for (i = 0; i < bbtd->len; i++)
@@ -1120,8 +1113,6 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	write_page_prologue(mtd, g4_addr);
 	docg4_write_page(mtd, nand, buf, 1);
 	ret = pageprog(mtd);
-	if (!ret)
-		mtd->ecc_stats.badblocks++;
 
 	kfree(buf);
 
@@ -1245,7 +1236,6 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 	nand->block_markbad = docg4_block_markbad;
 	nand->read_buf = docg4_read_buf;
 	nand->write_buf = docg4_write_buf16;
-	nand->scan_bbt = nand_default_bbt;
 	nand->erase_cmd = docg4_erase_block;
 	nand->ecc.read_page = docg4_read_page;
 	nand->ecc.write_page = docg4_write_page;
@@ -1368,7 +1358,6 @@ static int __init probe_docg4(struct platform_device *pdev)
 		struct nand_chip *nand = mtd->priv;
 		struct docg4_priv *doc = nand->priv;
 		nand_release(mtd); /* deletes partitions and mtd devices */
-		platform_set_drvdata(pdev, NULL);
 		free_bch(doc->bch);
 		kfree(mtd);
 	}
@@ -1380,7 +1369,6 @@ static int __exit cleanup_docg4(struct platform_device *pdev)
 {
 	struct docg4_priv *doc = platform_get_drvdata(pdev);
 	nand_release(doc->mtd);
-	platform_set_drvdata(pdev, NULL);
 	free_bch(doc->bch);
 	kfree(doc->mtd);
 	iounmap(doc->virtadr);

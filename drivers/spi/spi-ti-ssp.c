@@ -283,7 +283,7 @@ static int ti_ssp_spi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int error = 0;
 
-	pdata = dev->platform_data;
+	pdata = dev_get_platdata(dev);
 	if (!pdata) {
 		dev_err(dev, "platform data not found\n");
 		return -EINVAL;

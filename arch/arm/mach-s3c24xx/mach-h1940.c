@@ -54,6 +54,7 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
@@ -504,6 +505,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 	.dft_brightness = 50,
 	/* tcnt = 0x31 */
 	.pwm_period_ns  = 36296,
+	.enable_gpio    = -1,
 	.init           = h1940_backlight_init,
 	.notify		= h1940_backlight_notify,
 	.exit           = h1940_backlight_exit,
@@ -512,7 +514,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 static struct platform_device h1940_backlight = {
 	.name = "pwm-backlight",
 	.dev  = {
-		.parent = &s3c_device_timer[0].dev,
+		.parent = &samsung_device_pwm.dev,
 		.platform_data = &backlight_data,
 	},
 	.id   = -1,
@@ -632,7 +634,7 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&h1940_device_bluetooth,
 	&s3c_device_sdi,
 	&s3c_device_rtc,
-	&s3c_device_timer[0],
+	&samsung_device_pwm,
 	&h1940_backlight,
 	&h1940_lcd_powerdev,
 	&s3c_device_adc,

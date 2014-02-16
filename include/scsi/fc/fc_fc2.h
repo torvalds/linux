@@ -104,7 +104,7 @@ struct fc_esb {
  * esb_e_stat - flags from FC-FS-2 T11/1619-D Rev 0.90.
  */
 #define ESB_ST_RESP         (1 << 31)   /* responder to exchange */
-#define ESB_ST_SEQ_INIT     (1 << 30)   /* port holds sequence initiaive */
+#define ESB_ST_SEQ_INIT     (1 << 30)   /* port holds sequence initiative */
 #define ESB_ST_COMPLETE     (1 << 29)   /* exchange is complete */
 #define ESB_ST_ABNORMAL     (1 << 28)   /* abnormal ending condition */
 #define ESB_ST_REC_QUAL     (1 << 26)   /* recovery qualifier active */

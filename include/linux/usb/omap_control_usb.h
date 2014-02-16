@@ -19,20 +19,24 @@
 #ifndef __OMAP_CONTROL_USB_H__
 #define __OMAP_CONTROL_USB_H__
 
+enum omap_control_usb_type {
+	OMAP_CTRL_TYPE_OTGHS = 1,	/* Mailbox OTGHS_CONTROL */
+	OMAP_CTRL_TYPE_USB2,	/* USB2_PHY, power down in CONTROL_DEV_CONF */
+	OMAP_CTRL_TYPE_PIPE3,	/* PIPE3 PHY, DPLL & seperate Rx/Tx power */
+	OMAP_CTRL_TYPE_DRA7USB2, /* USB2 PHY, power and power_aux e.g. DRA7 */
+	OMAP_CTRL_TYPE_AM437USB2, /* USB2 PHY, power e.g. AM437x */
+};
+
 struct omap_control_usb {
 	struct device *dev;
 
-	u32 __iomem *dev_conf;
 	u32 __iomem *otghs_control;
-	u32 __iomem *phy_power;
+	u32 __iomem *power;
+	u32 __iomem *power_aux;
 
 	struct clk *sys_clk;
 
-	u32 type;
-};
-
-struct omap_control_usb_platform_data {
-	u8 type;
+	enum omap_control_usb_type type;
 };
 
 enum omap_control_usb_mode {
@@ -41,10 +45,6 @@ enum omap_control_usb_mode {
 	USB_MODE_DEVICE,
 	USB_MODE_DISCONNECT,
 };
-
-/* To differentiate ctrl module IP having either mailbox or USB3 PHY power */
-#define	OMAP_CTRL_DEV_TYPE1		0x1
-#define	OMAP_CTRL_DEV_TYPE2		0x2
 
 #define	OMAP_CTRL_DEV_PHY_PD		BIT(0)
 
@@ -63,23 +63,20 @@ enum omap_control_usb_mode {
 #define	OMAP_CTRL_USB3_PHY_TX_RX_POWERON	0x3
 #define	OMAP_CTRL_USB3_PHY_TX_RX_POWEROFF	0x0
 
+#define OMAP_CTRL_USB2_PHY_PD		BIT(28)
+
+#define AM437X_CTRL_USB2_PHY_PD		BIT(0)
+#define AM437X_CTRL_USB2_OTG_PD		BIT(1)
+#define AM437X_CTRL_USB2_OTGVDET_EN	BIT(19)
+#define AM437X_CTRL_USB2_OTGSESSEND_EN	BIT(20)
+
 #if IS_ENABLED(CONFIG_OMAP_CONTROL_USB)
-extern struct device *omap_get_control_dev(void);
 extern void omap_control_usb_phy_power(struct device *dev, int on);
-extern void omap_control_usb3_phy_power(struct device *dev, bool on);
 extern void omap_control_usb_set_mode(struct device *dev,
 	enum omap_control_usb_mode mode);
 #else
-static inline struct device *omap_get_control_dev(void)
-{
-	return ERR_PTR(-ENODEV);
-}
 
 static inline void omap_control_usb_phy_power(struct device *dev, int on)
-{
-}
-
-static inline void omap_control_usb3_phy_power(struct device *dev, int on)
 {
 }
 

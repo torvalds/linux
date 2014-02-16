@@ -45,6 +45,17 @@ config QLCNIC_SRIOV
 	  This allows for virtual function acceleration in virtualized
 	  environments.
 
+config QLCNIC_DCB
+	bool "QLOGIC QLCNIC 82XX and 83XX family DCB Support"
+	depends on QLCNIC && DCB
+	default y
+	---help---
+	  This configuration parameter enables DCB support in QLE83XX
+	  and QLE82XX Converged Ethernet devices. This allows for DCB
+	  get operations support through rtNetlink interface. Only CEE
+	  mode of DCB is supported. PG and PFC values are related only
+	  to Tx.
+
 config QLGE
 	tristate "QLogic QLGE 10Gb Ethernet Driver Support"
 	depends on PCI

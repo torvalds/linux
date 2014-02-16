@@ -21,8 +21,7 @@ struct user_namespace;
 struct ipc_ids {
 	int in_use;
 	unsigned short seq;
-	unsigned short seq_max;
-	struct rw_semaphore rw_mutex;
+	struct rw_semaphore rwsem;
 	struct idr ipcs_idr;
 	int next_id;
 };
@@ -34,9 +33,9 @@ struct ipc_namespace {
 	int		sem_ctls[4];
 	int		used_sems;
 
-	int		msg_ctlmax;
-	int		msg_ctlmnb;
-	int		msg_ctlmni;
+	unsigned int	msg_ctlmax;
+	unsigned int	msg_ctlmnb;
+	unsigned int	msg_ctlmni;
 	atomic_t	msg_bytes;
 	atomic_t	msg_hdrs;
 	int		auto_msgmni;

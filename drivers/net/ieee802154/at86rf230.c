@@ -561,7 +561,7 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 
 	spin_lock_irqsave(&lp->lock, flags);
 	lp->is_tx = 1;
-	INIT_COMPLETION(lp->tx_complete);
+	reinit_completion(&lp->tx_complete);
 	spin_unlock_irqrestore(&lp->lock, flags);
 
 	rc = at86rf230_write_fbuf(lp, skb->data, skb->len);
@@ -987,7 +987,6 @@ err_gpio_dir:
 err_slp_tr:
 	gpio_free(lp->rstn);
 err_rstn:
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_device(lp->dev);
 	return rc;
@@ -1006,7 +1005,6 @@ static int at86rf230_remove(struct spi_device *spi)
 		gpio_free(lp->slp_tr);
 	gpio_free(lp->rstn);
 
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_device(lp->dev);
 

@@ -10,6 +10,7 @@
 
 #include <linux/clkdev.h>
 #include <linux/of.h>
+#include <linux/reboot.h>
 
  /* Map io */
 extern void __init at91_map_io(void);
@@ -33,6 +34,8 @@ extern int  __init at91_aic_of_init(struct device_node *node,
 				    struct device_node *parent);
 extern int  __init at91_aic5_of_init(struct device_node *node,
 				    struct device_node *parent);
+extern void __init at91_sysirq_mask_rtc(u32 rtc_base);
+extern void __init at91_sysirq_mask_rtt(u32 rtt_base);
 
 
  /* Timer */
@@ -43,11 +46,12 @@ extern void at91sam926x_pit_init(void);
 extern void at91x40_timer_init(void);
 
  /* Clocks */
-#ifdef CONFIG_AT91_PMC_UNIT
+#ifdef CONFIG_OLD_CLK_AT91
 extern int __init at91_clock_init(unsigned long main_clock);
 extern int __init at91_dt_clock_init(void);
 #else
 static int inline at91_clock_init(unsigned long main_clock) { return 0; }
+static int inline at91_dt_clock_init(void) { return 0; }
 #endif
 struct device;
 
@@ -60,8 +64,8 @@ extern void at91sam9_idle(void);
 
 /* reset */
 extern void at91_ioremap_rstc(u32 base_addr);
-extern void at91sam9_alt_restart(char, const char *);
-extern void at91sam9g45_restart(char, const char *);
+extern void at91sam9_alt_restart(enum reboot_mode, const char *);
+extern void at91sam9g45_restart(enum reboot_mode, const char *);
 
 /* shutdown */
 extern void at91_ioremap_shdwc(u32 base_addr);

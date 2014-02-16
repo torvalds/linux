@@ -895,31 +895,22 @@ static int r128_cce_dispatch_write_span(struct drm_device *dev,
 	if (count > 4096 || count <= 0)
 		return -EMSGSIZE;
 
-	if (DRM_COPY_FROM_USER(&x, depth->x, sizeof(x)))
+	if (copy_from_user(&x, depth->x, sizeof(x)))
 		return -EFAULT;
-	if (DRM_COPY_FROM_USER(&y, depth->y, sizeof(y)))
+	if (copy_from_user(&y, depth->y, sizeof(y)))
 		return -EFAULT;
 
 	buffer_size = depth->n * sizeof(u32);
-	buffer = kmalloc(buffer_size, GFP_KERNEL);
-	if (buffer == NULL)
-		return -ENOMEM;
-	if (DRM_COPY_FROM_USER(buffer, depth->buffer, buffer_size)) {
-		kfree(buffer);
-		return -EFAULT;
-	}
+	buffer = memdup_user(depth->buffer, buffer_size);
+	if (IS_ERR(buffer))
+		return PTR_ERR(buffer);
 
 	mask_size = depth->n * sizeof(u8);
 	if (depth->mask) {
-		mask = kmalloc(mask_size, GFP_KERNEL);
-		if (mask == NULL) {
+		mask = memdup_user(depth->mask, mask_size);
+		if (IS_ERR(mask)) {
 			kfree(buffer);
-			return -ENOMEM;
-		}
-		if (DRM_COPY_FROM_USER(mask, depth->mask, mask_size)) {
-			kfree(buffer);
-			kfree(mask);
-			return -EFAULT;
+			return PTR_ERR(mask);
 		}
 
 		for (i = 0; i < count; i++, x++) {
@@ -999,46 +990,33 @@ static int r128_cce_dispatch_write_pixels(struct drm_device *dev,
 		kfree(x);
 		return -ENOMEM;
 	}
-	if (DRM_COPY_FROM_USER(x, depth->x, xbuf_size)) {
+	if (copy_from_user(x, depth->x, xbuf_size)) {
 		kfree(x);
 		kfree(y);
 		return -EFAULT;
 	}
-	if (DRM_COPY_FROM_USER(y, depth->y, xbuf_size)) {
+	if (copy_from_user(y, depth->y, xbuf_size)) {
 		kfree(x);
 		kfree(y);
 		return -EFAULT;
 	}
 
 	buffer_size = depth->n * sizeof(u32);
-	buffer = kmalloc(buffer_size, GFP_KERNEL);
-	if (buffer == NULL) {
+	buffer = memdup_user(depth->buffer, buffer_size);
+	if (IS_ERR(buffer)) {
 		kfree(x);
 		kfree(y);
-		return -ENOMEM;
-	}
-	if (DRM_COPY_FROM_USER(buffer, depth->buffer, buffer_size)) {
-		kfree(x);
-		kfree(y);
-		kfree(buffer);
-		return -EFAULT;
+		return PTR_ERR(buffer);
 	}
 
 	if (depth->mask) {
 		mask_size = depth->n * sizeof(u8);
-		mask = kmalloc(mask_size, GFP_KERNEL);
-		if (mask == NULL) {
+		mask = memdup_user(depth->mask, mask_size);
+		if (IS_ERR(mask)) {
 			kfree(x);
 			kfree(y);
 			kfree(buffer);
-			return -ENOMEM;
-		}
-		if (DRM_COPY_FROM_USER(mask, depth->mask, mask_size)) {
-			kfree(x);
-			kfree(y);
-			kfree(buffer);
-			kfree(mask);
-			return -EFAULT;
+			return PTR_ERR(mask);
 		}
 
 		for (i = 0; i < count; i++) {
@@ -1107,9 +1085,9 @@ static int r128_cce_dispatch_read_span(struct drm_device *dev,
 	if (count > 4096 || count <= 0)
 		return -EMSGSIZE;
 
-	if (DRM_COPY_FROM_USER(&x, depth->x, sizeof(x)))
+	if (copy_from_user(&x, depth->x, sizeof(x)))
 		return -EFAULT;
-	if (DRM_COPY_FROM_USER(&y, depth->y, sizeof(y)))
+	if (copy_from_user(&y, depth->y, sizeof(y)))
 		return -EFAULT;
 
 	BEGIN_RING(7);
@@ -1162,12 +1140,12 @@ static int r128_cce_dispatch_read_pixels(struct drm_device *dev,
 		kfree(x);
 		return -ENOMEM;
 	}
-	if (DRM_COPY_FROM_USER(x, depth->x, xbuf_size)) {
+	if (copy_from_user(x, depth->x, xbuf_size)) {
 		kfree(x);
 		kfree(y);
 		return -EFAULT;
 	}
-	if (DRM_COPY_FROM_USER(y, depth->y, ybuf_size)) {
+	if (copy_from_user(y, depth->y, ybuf_size)) {
 		kfree(x);
 		kfree(y);
 		return -EFAULT;
@@ -1524,7 +1502,7 @@ static int r128_cce_stipple(struct drm_device *dev, void *data, struct drm_file 
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	if (DRM_COPY_FROM_USER(&mask, stipple->mask, 32 * sizeof(u32)))
+	if (copy_from_user(&mask, stipple->mask, 32 * sizeof(u32)))
 		return -EFAULT;
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
@@ -1622,7 +1600,7 @@ static int r128_getparam(struct drm_device *dev, void *data, struct drm_file *fi
 		return -EINVAL;
 	}
 
-	if (DRM_COPY_TO_USER(param->value, &value, sizeof(int))) {
+	if (copy_to_user(param->value, &value, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}
@@ -1643,7 +1621,7 @@ void r128_driver_lastclose(struct drm_device *dev)
 	r128_do_cleanup_cce(dev);
 }
 
-struct drm_ioctl_desc r128_ioctls[] = {
+const struct drm_ioctl_desc r128_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(R128_INIT, r128_cce_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(R128_CCE_START, r128_cce_start, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(R128_CCE_STOP, r128_cce_stop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),

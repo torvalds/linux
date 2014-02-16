@@ -390,7 +390,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		ret = of_irq_to_resource_table(eiu_node,
 						ltq_eiu_irq, exin_avail);
 		if (ret != exin_avail)
-			panic("failed to load external irq resources\n");
+			panic("failed to load external irq resources");
 
 		if (request_mem_region(res.start, resource_size(&res),
 							res.name) < 0)
@@ -461,7 +461,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	return 0;
 }
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	return MIPS_CPU_TIMER_IRQ;
 }

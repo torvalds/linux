@@ -96,7 +96,7 @@ static const struct hc_driver mv_ehci_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq = ehci_irq,
-	.flags = HCD_MEMORY | HCD_USB2,
+	.flags = HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -131,7 +131,7 @@ static const struct hc_driver mv_ehci_hc_driver = {
 
 static int mv_ehci_probe(struct platform_device *pdev)
 {
-	struct mv_usb_platform_data *pdata = pdev->dev.platform_data;
+	struct mv_usb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
 	struct ehci_hcd_mv *ehci_mv;
@@ -178,7 +178,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 
 	ehci_mv->phy_regs = devm_ioremap(&pdev->dev, r->start,
 					 resource_size(r));
-	if (ehci_mv->phy_regs == 0) {
+	if (!ehci_mv->phy_regs) {
 		dev_err(&pdev->dev, "failed to map phy I/O memory\n");
 		retval = -EFAULT;
 		goto err_put_hcd;
@@ -257,6 +257,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 				"failed to add hcd with err %d\n", retval);
 			goto err_set_vbus;
 		}
+		device_wakeup_enable(hcd->self.controller);
 	}
 
 	if (pdata->private_init)

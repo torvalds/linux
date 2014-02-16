@@ -25,10 +25,16 @@ extern char _sinitdata[], _einitdata[];
 /* Write-once data is writable only till the end of initialization. */
 extern char __w1data_begin[], __w1data_end[];
 
+extern char vdso_start[], vdso_end[];
+#ifdef CONFIG_COMPAT
+extern char vdso32_start[], vdso32_end[];
+#endif
 
 /* Not exactly sections, but PC comparison points in the code. */
 extern char __rt_sigreturn[], __rt_sigreturn_end[];
-#ifndef __tilegx__
+#ifdef __tilegx__
+extern char __start_unalign_asm_code[], __end_unalign_asm_code[];
+#else
 extern char sys_cmpxchg[], __sys_cmpxchg_end[];
 extern char __sys_cmpxchg_grab_lock[];
 extern char __start_atomic_asm_code[], __end_atomic_asm_code[];

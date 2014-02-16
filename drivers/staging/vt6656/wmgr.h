@@ -310,9 +310,6 @@ struct vnt_manager {
 	u8 byMgmtPacketPool[sizeof(struct vnt_tx_mgmt)
 		+ WLAN_A3FR_MAXLEN];
 
-	/* One second callback timer */
-	struct timer_list sTimerSecondCallback;
-
 	/* Temporarily Rx Mgmt Packet Descriptor */
 	struct vnt_rx_mgmt sRxPacket;
 

@@ -573,7 +573,7 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 	if (csi2->contexts[0].enabled || csi2->ctrl.if_enable)
 		return -EBUSY;
 
-	pad = media_entity_remote_source(&csi2->pads[CSI2_PAD_SINK]);
+	pad = media_entity_remote_pad(&csi2->pads[CSI2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	pdata = sensor->host_priv;
 
@@ -1245,7 +1245,8 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	pads[CSI2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
-	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 
 	me->ops = &csi2_media_ops;
 	ret = media_entity_init(me, CSI2_PADS_NUM, pads, 0);

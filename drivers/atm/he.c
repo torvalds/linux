@@ -419,7 +419,6 @@ static void he_remove_one(struct pci_dev *pci_dev)
 	atm_dev_deregister(atm_dev);
 	kfree(he_dev);
 
-	pci_set_drvdata(pci_dev, NULL);
 	pci_disable_device(pci_dev);
 }
 
@@ -1088,15 +1087,8 @@ static int he_start(struct atm_dev *dev)
 	for (i = 0; i < 6; ++i)
 		dev->esi[i] = read_prom_byte(he_dev, MAC_ADDR + i);
 
-	hprintk("%s%s, %x:%x:%x:%x:%x:%x\n",
-				he_dev->prod_id,
-					he_dev->media & 0x40 ? "SM" : "MM",
-						dev->esi[0],
-						dev->esi[1],
-						dev->esi[2],
-						dev->esi[3],
-						dev->esi[4],
-						dev->esi[5]);
+	hprintk("%s%s, %pM\n", he_dev->prod_id,
+		he_dev->media & 0x40 ? "SM" : "MM", dev->esi);
 	he_dev->atm_dev->link_rate = he_is622(he_dev) ?
 						ATM_OC12_PCR : ATM_OC3_PCR;
 
@@ -2872,15 +2864,4 @@ static struct pci_driver he_driver = {
 	.id_table =	he_pci_tbl,
 };
 
-static int __init he_init(void)
-{
-	return pci_register_driver(&he_driver);
-}
-
-static void __exit he_cleanup(void)
-{
-	pci_unregister_driver(&he_driver);
-}
-
-module_init(he_init);
-module_exit(he_cleanup);
+module_pci_driver(he_driver);

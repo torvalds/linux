@@ -1,7 +1,7 @@
 /*
  * f71805f.c - driver for the Fintek F71805F/FG and F71872F/FG Super-I/O
  *             chips integrated hardware monitoring features
- * Copyright (C) 2005-2006  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2005-2006  Jean Delvare <jdelvare@suse.de>
  *
  * The F71805F/FG is a LPC Super-I/O chip made by Fintek. It integrates
  * complete hardware monitoring features: voltage, fan and temperature
@@ -1375,7 +1375,7 @@ static void f71805f_init_device(struct f71805f_data *data)
 
 static int f71805f_probe(struct platform_device *pdev)
 {
-	struct f71805f_sio_data *sio_data = pdev->dev.platform_data;
+	struct f71805f_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	struct f71805f_data *data;
 	struct resource *res;
 	int i, err;

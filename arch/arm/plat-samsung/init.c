@@ -11,12 +11,18 @@
  * published by the Free Software Foundation.
 */
 
+/*
+ * NOTE: Code in this file is not used on S3C64xx when booting with
+ * Device Tree support.
+ */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <mach/hardware.h>
 
@@ -55,12 +61,13 @@ void __init s3c_init_cpu(unsigned long idcode,
 
 	printk("CPU %s (id 0x%08lx)\n", cpu->name, idcode);
 
-	if (cpu->map_io == NULL || cpu->init == NULL) {
+	if (cpu->init == NULL) {
 		printk(KERN_ERR "CPU %s support not enabled\n", cpu->name);
 		panic("Unsupported Samsung CPU");
 	}
 
-	cpu->map_io();
+	if (cpu->map_io)
+		cpu->map_io();
 }
 
 /* s3c24xx_init_clocks
@@ -147,8 +154,12 @@ static int __init s3c_arch_init(void)
 
 	// do the correct init for cpu
 
-	if (cpu == NULL)
+	if (cpu == NULL) {
+		/* Not needed when booting with device tree. */
+		if (of_have_populated_dt())
+			return 0;
 		panic("s3c_arch_init: NULL cpu\n");
+	}
 
 	ret = (cpu->init)();
 	if (ret != 0)

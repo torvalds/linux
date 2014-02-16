@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -2122,6 +2122,8 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	}
 	npr->estabImagePair = 1;
 	npr->readXferRdyDis = 1;
+	 if (vport->cfg_first_burst_size)
+		npr->writeXferRdyDis = 1;
 
 	/* For FCP support */
 	npr->prliType = PRLI_FCP_TYPE;

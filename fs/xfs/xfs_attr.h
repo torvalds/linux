@@ -141,5 +141,14 @@ typedef struct xfs_attr_list_context {
  */
 int xfs_attr_inactive(struct xfs_inode *dp);
 int xfs_attr_list_int(struct xfs_attr_list_context *);
+int xfs_inode_hasattr(struct xfs_inode *ip);
+int xfs_attr_get(struct xfs_inode *ip, const unsigned char *name,
+		 unsigned char *value, int *valuelenp, int flags);
+int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,
+		 unsigned char *value, int valuelen, int flags);
+int xfs_attr_remove(struct xfs_inode *dp, const unsigned char *name, int flags);
+int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
+		  int flags, struct attrlist_cursor_kern *cursor);
+
 
 #endif	/* __XFS_ATTR_H__ */

@@ -919,7 +919,7 @@ static int eata_pio_detect(struct scsi_host_template *tpnt)
 	find_pio_EISA(&gc);
 	find_pio_ISA(&gc);
 
-	for (i = 0; i <= MAXIRQ; i++)
+	for (i = 0; i < MAXIRQ; i++)
 		if (reg_IRQ[i])
 			request_irq(i, do_eata_pio_int_handler, IRQF_DISABLED, "EATA-PIO", NULL);
 

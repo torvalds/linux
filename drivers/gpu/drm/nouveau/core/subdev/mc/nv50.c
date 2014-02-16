@@ -22,60 +22,49 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/mc.h>
+#include "nv04.h"
 
-struct nv50_mc_priv {
-	struct nouveau_mc base;
-};
-
-static const struct nouveau_mc_intr
+const struct nouveau_mc_intr
 nv50_mc_intr[] = {
 	{ 0x00000001, NVDEV_ENGINE_MPEG },
 	{ 0x00000100, NVDEV_ENGINE_FIFO },
 	{ 0x00001000, NVDEV_ENGINE_GR },
 	{ 0x00004000, NVDEV_ENGINE_CRYPT },	/* NV84- */
 	{ 0x00008000, NVDEV_ENGINE_BSP },	/* NV84- */
+	{ 0x00020000, NVDEV_ENGINE_VP },	/* NV84- */
 	{ 0x00100000, NVDEV_SUBDEV_TIMER },
 	{ 0x00200000, NVDEV_SUBDEV_GPIO },
 	{ 0x04000000, NVDEV_ENGINE_DISP },
 	{ 0x10000000, NVDEV_SUBDEV_BUS },
 	{ 0x80000000, NVDEV_ENGINE_SW },
-	{ 0x0000d101, NVDEV_SUBDEV_FB },
+	{ 0x0002d101, NVDEV_SUBDEV_FB },
 	{},
 };
 
-static int
-nv50_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+static void
+nv50_mc_msi_rearm(struct nouveau_mc *pmc)
 {
-	struct nv50_mc_priv *priv;
-	int ret;
-
-	ret = nouveau_mc_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.intr_map = nv50_mc_intr;
-	return 0;
+	struct nouveau_device *device = nv_device(pmc);
+	pci_write_config_byte(device->pdev, 0x68, 0xff);
 }
 
 int
 nv50_mc_init(struct nouveau_object *object)
 {
-	struct nv50_mc_priv *priv = (void *)object;
+	struct nv04_mc_priv *priv = (void *)object;
 	nv_wr32(priv, 0x000200, 0xffffffff); /* everything on */
 	return nouveau_mc_init(&priv->base);
 }
 
-struct nouveau_oclass
-nv50_mc_oclass = {
-	.handle = NV_SUBDEV(MC, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_mc_ctor,
+struct nouveau_oclass *
+nv50_mc_oclass = &(struct nouveau_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0x50),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_mc_ctor,
 		.dtor = _nouveau_mc_dtor,
 		.init = nv50_mc_init,
 		.fini = _nouveau_mc_fini,
 	},
-};
+	.intr = nv50_mc_intr,
+	.msi_rearm = nv50_mc_msi_rearm,
+}.base;

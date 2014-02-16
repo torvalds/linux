@@ -35,8 +35,7 @@ static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
 	struct of_dma *ofdma;
 
 	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
-		if ((ofdma->of_node == dma_spec->np) &&
-		    (ofdma->of_dma_nbcells == dma_spec->args_count))
+		if (ofdma->of_node == dma_spec->np)
 			return ofdma;
 
 	pr_debug("%s: can't find DMA controller %s\n", __func__,
@@ -64,8 +63,6 @@ int of_dma_controller_register(struct device_node *np,
 				void *data)
 {
 	struct of_dma	*ofdma;
-	int		nbcells;
-	const __be32	*prop;
 
 	if (!np || !of_dma_xlate) {
 		pr_err("%s: not enough information provided\n", __func__);
@@ -76,19 +73,7 @@ int of_dma_controller_register(struct device_node *np,
 	if (!ofdma)
 		return -ENOMEM;
 
-	prop = of_get_property(np, "#dma-cells", NULL);
-	if (prop)
-		nbcells = be32_to_cpup(prop);
-
-	if (!prop || !nbcells) {
-		pr_err("%s: #dma-cells property is missing or invalid\n",
-		       __func__);
-		kfree(ofdma);
-		return -EINVAL;
-	}
-
 	ofdma->of_node = np;
-	ofdma->of_dma_nbcells = nbcells;
 	ofdma->of_dma_xlate = of_dma_xlate;
 	ofdma->of_dma_data = data;
 
@@ -158,7 +143,7 @@ static int of_dma_match_channel(struct device_node *np, const char *name,
  * @np:		device node to get DMA request from
  * @name:	name of desired channel
  *
- * Returns pointer to appropriate dma channel on success or NULL on error.
+ * Returns pointer to appropriate DMA channel on success or an error pointer.
  */
 struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 					      const char *name)
@@ -167,16 +152,18 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 	struct of_dma		*ofdma;
 	struct dma_chan		*chan;
 	int			count, i;
+	int			ret_no_channel = -ENODEV;
 
 	if (!np || !name) {
 		pr_err("%s: not enough information provided\n", __func__);
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	count = of_property_count_strings(np, "dma-names");
 	if (count < 0) {
-		pr_err("%s: dma-names property missing or empty\n", __func__);
-		return NULL;
+		pr_err("%s: dma-names property of node '%s' missing or empty\n",
+			__func__, np->full_name);
+		return ERR_PTR(-ENODEV);
 	}
 
 	for (i = 0; i < count; i++) {
@@ -186,10 +173,12 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 		mutex_lock(&of_dma_lock);
 		ofdma = of_dma_find_controller(&dma_spec);
 
-		if (ofdma)
+		if (ofdma) {
 			chan = ofdma->of_dma_xlate(&dma_spec, ofdma);
-		else
+		} else {
+			ret_no_channel = -EPROBE_DEFER;
 			chan = NULL;
+		}
 
 		mutex_unlock(&of_dma_lock);
 
@@ -199,7 +188,7 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 			return chan;
 	}
 
-	return NULL;
+	return ERR_PTR(ret_no_channel);
 }
 
 /**

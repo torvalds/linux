@@ -24,10 +24,10 @@
 #include <linux/compiler.h>
 
 #ifndef CONFIG_ARM64_64K_PAGES
-#define THREAD_SIZE_ORDER	1
+#define THREAD_SIZE_ORDER	2
 #endif
 
-#define THREAD_SIZE		8192
+#define THREAD_SIZE		16384
 #define THREAD_START_SP		(THREAD_SIZE - 16)
 
 #ifndef __ASSEMBLY__
@@ -87,12 +87,6 @@ static inline struct thread_info *current_thread_info(void)
 	((unsigned long)(tsk->thread.cpu_context.fp))
 
 #endif
-
-/*
- * We use bit 30 of the preempt_count to indicate that kernel
- * preemption is occurring.  See <asm/hardirq.h>.
- */
-#define PREEMPT_ACTIVE	0x40000000
 
 /*
  * thread information flags:

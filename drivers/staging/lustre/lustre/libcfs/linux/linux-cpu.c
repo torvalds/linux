@@ -47,7 +47,8 @@
  * >1 : specify number of partitions
  */
 static int	cpu_npartitions;
-CFS_MODULE_PARM(cpu_npartitions, "i", int, 0444, "# of CPU partitions");
+module_param(cpu_npartitions, int, 0444);
+MODULE_PARM_DESC(cpu_npartitions, "# of CPU partitions");
 
 /**
  * modparam for setting CPU partitions patterns:
@@ -61,7 +62,8 @@ CFS_MODULE_PARM(cpu_npartitions, "i", int, 0444, "# of CPU partitions");
  * NB: If user specified cpu_pattern, cpu_npartitions will be ignored
  */
 static char	*cpu_pattern = "";
-CFS_MODULE_PARM(cpu_pattern, "s", charp, 0444, "CPU partitions pattern");
+module_param(cpu_pattern, charp, 0444);
+MODULE_PARM_DESC(cpu_pattern, "CPU partitions pattern");
 
 struct cfs_cpt_data {
 	/* serialize hotplug etc */
@@ -76,62 +78,22 @@ struct cfs_cpt_data {
 
 static struct cfs_cpt_data	cpt_data;
 
-void
-cfs_cpu_core_siblings(int cpu, cpumask_t *mask)
+static void cfs_cpu_core_siblings(int cpu, cpumask_t *mask)
 {
 	/* return cpumask of cores in the same socket */
 	cpumask_copy(mask, topology_core_cpumask(cpu));
 }
-EXPORT_SYMBOL(cfs_cpu_core_siblings);
-
-/* return number of cores in the same socket of \a cpu */
-int
-cfs_cpu_core_nsiblings(int cpu)
-{
-	int	num;
-
-	down(&cpt_data.cpt_mutex);
-
-	cfs_cpu_core_siblings(cpu, cpt_data.cpt_cpumask);
-	num = cpus_weight(*cpt_data.cpt_cpumask);
-
-	up(&cpt_data.cpt_mutex);
-
-	return num;
-}
-EXPORT_SYMBOL(cfs_cpu_core_nsiblings);
 
 /* return cpumask of HTs in the same core */
-void
-cfs_cpu_ht_siblings(int cpu, cpumask_t *mask)
+static void cfs_cpu_ht_siblings(int cpu, cpumask_t *mask)
 {
 	cpumask_copy(mask, topology_thread_cpumask(cpu));
 }
-EXPORT_SYMBOL(cfs_cpu_ht_siblings);
 
-/* return number of HTs in the same core of \a cpu */
-int
-cfs_cpu_ht_nsiblings(int cpu)
-{
-	int	num;
-
-	down(&cpt_data.cpt_mutex);
-
-	cfs_cpu_ht_siblings(cpu, cpt_data.cpt_cpumask);
-	num = cpus_weight(*cpt_data.cpt_cpumask);
-
-	up(&cpt_data.cpt_mutex);
-
-	return num;
-}
-EXPORT_SYMBOL(cfs_cpu_ht_nsiblings);
-
-void
-cfs_node_to_cpumask(int node, cpumask_t *mask)
+static void cfs_node_to_cpumask(int node, cpumask_t *mask)
 {
 	cpumask_copy(mask, cpumask_of_node(node));
 }
-EXPORT_SYMBOL(cfs_node_to_cpumask);
 
 void
 cfs_cpt_table_free(struct cfs_cpt_table *cptab)

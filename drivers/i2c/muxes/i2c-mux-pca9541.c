@@ -17,7 +17,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -324,7 +323,7 @@ static int pca9541_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adap = client->adapter;
-	struct pca954x_platform_data *pdata = client->dev.platform_data;
+	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct pca9541 *data;
 	int force;
 	int ret = -ENODEV;

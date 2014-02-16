@@ -60,7 +60,7 @@
 /* disable credit flow control on a specific service */
 #define HTC_CONN_FLGS_DISABLE_CRED_FLOW_CTRL          (1 << 3)
 #define HTC_CONN_FLGS_SET_RECV_ALLOC_SHIFT    8
-#define HTC_CONN_FLGS_SET_RECV_ALLOC_MASK     0xFF00
+#define HTC_CONN_FLGS_SET_RECV_ALLOC_MASK     0xFF00U
 
 /* connect response status codes */
 #define HTC_SERVICE_SUCCESS      0

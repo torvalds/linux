@@ -2506,7 +2506,7 @@ static struct quattro *quattro_sbus_find(struct platform_device *child)
 	struct quattro *qp;
 
 	op = to_platform_device(parent);
-	qp = dev_get_drvdata(&op->dev);
+	qp = platform_get_drvdata(op);
 	if (qp)
 		return qp;
 
@@ -2521,7 +2521,7 @@ static struct quattro *quattro_sbus_find(struct platform_device *child)
 		qp->next = qfe_sbus_list;
 		qfe_sbus_list = qp;
 
-		dev_set_drvdata(&op->dev, qp);
+		platform_set_drvdata(op, qp);
 	}
 	return qp;
 }
@@ -2675,10 +2675,10 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 
 		addr = of_get_property(dp, "local-mac-address", &len);
 
-		if (qfe_slot != -1 && addr && len == 6)
-			memcpy(dev->dev_addr, addr, 6);
+		if (qfe_slot != -1 && addr && len == ETH_ALEN)
+			memcpy(dev->dev_addr, addr, ETH_ALEN);
 		else
-			memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+			memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
 	}
 
 	hp = netdev_priv(dev);
@@ -2798,7 +2798,7 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 		goto err_out_free_coherent;
 	}
 
-	dev_set_drvdata(&op->dev, hp);
+	platform_set_drvdata(op, hp);
 
 	if (qfe_slot != -1)
 		printk(KERN_INFO "%s: Quattro HME slot %d (SBUS) 10/100baseT Ethernet ",
@@ -3024,9 +3024,9 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 		    (addr = of_get_property(dp, "local-mac-address", &len))
 			!= NULL &&
 		    len == 6) {
-			memcpy(dev->dev_addr, addr, 6);
+			memcpy(dev->dev_addr, addr, ETH_ALEN);
 		} else {
-			memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+			memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
 		}
 #else
 		get_hme_mac_nonsparc(pdev, &dev->dev_addr[0]);
@@ -3111,7 +3111,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	dev_set_drvdata(&pdev->dev, hp);
+	pci_set_drvdata(pdev, hp);
 
 	if (!qfe_slot) {
 		struct pci_dev *qpdev = qp->quattro_dev;
@@ -3159,7 +3159,7 @@ err_out:
 
 static void happy_meal_pci_remove(struct pci_dev *pdev)
 {
-	struct happy_meal *hp = dev_get_drvdata(&pdev->dev);
+	struct happy_meal *hp = pci_get_drvdata(pdev);
 	struct net_device *net_dev = hp->dev;
 
 	unregister_netdev(net_dev);
@@ -3170,8 +3170,6 @@ static void happy_meal_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(hp->happy_dev);
 
 	free_netdev(net_dev);
-
-	dev_set_drvdata(&pdev->dev, NULL);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(happymeal_pci_ids) = {
@@ -3231,7 +3229,7 @@ static int hme_sbus_probe(struct platform_device *op)
 
 static int hme_sbus_remove(struct platform_device *op)
 {
-	struct happy_meal *hp = dev_get_drvdata(&op->dev);
+	struct happy_meal *hp = platform_get_drvdata(op);
 	struct net_device *net_dev = hp->dev;
 
 	unregister_netdev(net_dev);
@@ -3249,8 +3247,6 @@ static int hme_sbus_remove(struct platform_device *op)
 			  hp->hblock_dvma);
 
 	free_netdev(net_dev);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

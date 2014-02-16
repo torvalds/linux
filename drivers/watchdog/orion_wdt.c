@@ -16,7 +16,6 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 #include <linux/init.h>
@@ -37,6 +36,9 @@
 #define WDT_MAX_CYCLE_COUNT	0xffffffff
 #define WDT_IN_USE		0
 #define WDT_OK_TO_CLOSE		1
+
+#define WDT_RESET_OUT_EN	BIT(1)
+#define WDT_INT_REQ		BIT(3)
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
@@ -67,9 +69,7 @@ static int orion_wdt_start(struct watchdog_device *wdt_dev)
 	writel(wdt_tclk * wdt_dev->timeout, wdt_reg + WDT_VAL);
 
 	/* Clear watchdog timer interrupt */
-	reg = readl(BRIDGE_CAUSE);
-	reg &= ~WDT_INT_REQ;
-	writel(reg, BRIDGE_CAUSE);
+	writel(~WDT_INT_REQ, BRIDGE_CAUSE);
 
 	/* Enable watchdog timer */
 	reg = readl(wdt_reg + TIMER_CTRL);
@@ -206,7 +206,7 @@ static struct platform_driver orion_wdt_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "orion_wdt",
-		.of_match_table = of_match_ptr(orion_wdt_of_match_table),
+		.of_match_table = orion_wdt_of_match_table,
 	},
 };
 
@@ -224,4 +224,3 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:orion_wdt");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

@@ -434,10 +434,10 @@ static void dlfb_compress_hline(
 
 	while ((pixel_end > pixel) &&
 	       (cmd_buffer_end - MIN_RLX_CMD_BYTES > cmd)) {
-		uint8_t *raw_pixels_count_byte = 0;
-		uint8_t *cmd_pixels_count_byte = 0;
-		const uint16_t *raw_pixel_start = 0;
-		const uint16_t *cmd_pixel_start, *cmd_pixel_end = 0;
+		uint8_t *raw_pixels_count_byte = NULL;
+		uint8_t *cmd_pixels_count_byte = NULL;
+		const uint16_t *raw_pixel_start = NULL;
+		const uint16_t *cmd_pixel_start, *cmd_pixel_end = NULL;
 
 		prefetchw((void *) cmd); /* pull in one cache line at least */
 
@@ -573,7 +573,7 @@ static int dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
 	return 0;
 }
 
-int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
+static int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 	       int width, int height, char *data)
 {
 	int i, ret;
@@ -1166,7 +1166,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dev, struct fb_info *info)
 	int new_len;
 	unsigned char *old_fb = info->screen_base;
 	unsigned char *new_fb;
-	unsigned char *new_back = 0;
+	unsigned char *new_back = NULL;
 
 	pr_warn("Reallocating framebuffer. Addresses will change!\n");
 
@@ -1588,7 +1588,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
 	struct usb_device *usbdev;
-	struct dlfb_data *dev = 0;
+	struct dlfb_data *dev = NULL;
 	int retval = -ENOMEM;
 
 	/* usb initialization */
@@ -1624,7 +1624,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	}
 
 	if (pixel_limit) {
-		pr_warn("DL chip limit of %d overriden"
+		pr_warn("DL chip limit of %d overridden"
 			" by module param to %d\n",
 			dev->sku_pixel_limit, pixel_limit);
 		dev->sku_pixel_limit = pixel_limit;

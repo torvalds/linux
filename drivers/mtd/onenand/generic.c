@@ -38,7 +38,7 @@ struct onenand_info {
 static int generic_onenand_probe(struct platform_device *pdev)
 {
 	struct onenand_info *info;
-	struct onenand_platform_data *pdata = pdev->dev.platform_data;
+	struct onenand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res = pdev->resource;
 	unsigned long size = resource_size(res);
 	int err;
@@ -58,7 +58,7 @@ static int generic_onenand_probe(struct platform_device *pdev)
 		goto out_release_mem_region;
 	}
 
-	info->onenand.mmcontrol = pdata ? pdata->mmcontrol : 0;
+	info->onenand.mmcontrol = pdata ? pdata->mmcontrol : NULL;
 	info->onenand.irq = platform_get_irq(pdev, 0);
 
 	info->mtd.name = dev_name(&pdev->dev);
@@ -93,8 +93,6 @@ static int generic_onenand_remove(struct platform_device *pdev)
 	struct onenand_info *info = platform_get_drvdata(pdev);
 	struct resource *res = pdev->resource;
 	unsigned long size = resource_size(res);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (info) {
 		onenand_release(&info->mtd);

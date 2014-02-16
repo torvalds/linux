@@ -159,7 +159,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 
 	bio = bio_alloc_drbd(GFP_NOIO);
 	bio->bi_bdev = bdev->md_bdev;
-	bio->bi_sector = sector;
+	bio->bi_iter.bi_sector = sector;
 	err = -EIO;
 	if (bio_add_page(bio, page, size, 0) != size)
 		goto out;
@@ -657,6 +657,27 @@ void drbd_al_shrink(struct drbd_conf *mdev)
 	}
 
 	wake_up(&mdev->al_wait);
+}
+
+int drbd_initialize_al(struct drbd_conf *mdev, void *buffer)
+{
+	struct al_transaction_on_disk *al = buffer;
+	struct drbd_md *md = &mdev->ldev->md;
+	sector_t al_base = md->md_offset + md->al_offset;
+	int al_size_4k = md->al_stripes * md->al_stripe_size_4k;
+	int i;
+
+	memset(al, 0, 4096);
+	al->magic = cpu_to_be32(DRBD_AL_MAGIC);
+	al->transaction_type = cpu_to_be16(AL_TR_INITIALIZED);
+	al->crc32c = cpu_to_be32(crc32c(0, al, 4096));
+
+	for (i = 0; i < al_size_4k; i++) {
+		int err = drbd_md_sync_page_io(mdev, mdev->ldev, al_base + i * 8, WRITE);
+		if (err)
+			return err;
+	}
+	return 0;
 }
 
 static int w_update_odbm(struct drbd_work *w, int unused)

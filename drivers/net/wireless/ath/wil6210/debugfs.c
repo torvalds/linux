@@ -51,7 +51,7 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 			if ((i % 64) == 0 && (i != 0))
 				seq_printf(s, "\n");
 			seq_printf(s, "%s", (d->dma.status & BIT(0)) ?
-					"S" : (vring->ctx[i] ? "H" : "h"));
+					"S" : (vring->ctx[i].skb ? "H" : "h"));
 		}
 		seq_printf(s, "\n");
 	}
@@ -145,7 +145,7 @@ static void wil_print_ring(struct seq_file *s, const char *prefix,
 				   le16_to_cpu(hdr.type), hdr.flags);
 			if (len <= MAX_MBOXITEM_SIZE) {
 				int n = 0;
-				unsigned char printbuf[16 * 3 + 2];
+				char printbuf[16 * 3 + 2];
 				unsigned char databuf[MAX_MBOXITEM_SIZE];
 				void __iomem *src = wmi_buffer(wil, d.addr) +
 					sizeof(struct wil6210_mbox_hdr);
@@ -406,7 +406,7 @@ static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 		volatile struct vring_tx_desc *d =
 				&(vring->va[dbg_txdesc_index].tx);
 		volatile u32 *u = (volatile u32 *)d;
-		struct sk_buff *skb = vring->ctx[dbg_txdesc_index];
+		struct sk_buff *skb = vring->ctx[dbg_txdesc_index].skb;
 
 		seq_printf(s, "Tx[%3d] = {\n", dbg_txdesc_index);
 		seq_printf(s, "  MAC = 0x%08x 0x%08x 0x%08x 0x%08x\n",
@@ -416,10 +416,16 @@ static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 		seq_printf(s, "  SKB = %p\n", skb);
 
 		if (skb) {
-			unsigned char printbuf[16 * 3 + 2];
+			char printbuf[16 * 3 + 2];
 			int i = 0;
-			int len = skb_headlen(skb);
+			int len = le16_to_cpu(d->dma.length);
 			void *p = skb->data;
+
+			if (len != skb_headlen(skb)) {
+				seq_printf(s, "!!! len: desc = %d skb = %d\n",
+					   len, skb_headlen(skb));
+				len = min_t(int, len, skb_headlen(skb));
+			}
 
 			seq_printf(s, "    len = %d\n", len);
 

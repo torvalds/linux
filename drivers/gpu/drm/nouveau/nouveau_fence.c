@@ -35,15 +35,34 @@
 
 #include <engine/fifo.h>
 
+struct fence_work {
+	struct work_struct base;
+	struct list_head head;
+	void (*func)(void *);
+	void *data;
+};
+
+static void
+nouveau_fence_signal(struct nouveau_fence *fence)
+{
+	struct fence_work *work, *temp;
+
+	list_for_each_entry_safe(work, temp, &fence->work, head) {
+		schedule_work(&work->base);
+		list_del(&work->head);
+	}
+
+	fence->channel = NULL;
+	list_del(&fence->head);
+}
+
 void
 nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 {
 	struct nouveau_fence *fence, *fnext;
 	spin_lock(&fctx->lock);
 	list_for_each_entry_safe(fence, fnext, &fctx->pending, head) {
-		fence->channel = NULL;
-		list_del(&fence->head);
-		nouveau_fence_unref(&fence);
+		nouveau_fence_signal(fence);
 	}
 	spin_unlock(&fctx->lock);
 }
@@ -57,6 +76,50 @@ nouveau_fence_context_new(struct nouveau_fence_chan *fctx)
 }
 
 static void
+nouveau_fence_work_handler(struct work_struct *kwork)
+{
+	struct fence_work *work = container_of(kwork, typeof(*work), base);
+	work->func(work->data);
+	kfree(work);
+}
+
+void
+nouveau_fence_work(struct nouveau_fence *fence,
+		   void (*func)(void *), void *data)
+{
+	struct nouveau_channel *chan = fence->channel;
+	struct nouveau_fence_chan *fctx;
+	struct fence_work *work = NULL;
+
+	if (nouveau_fence_done(fence)) {
+		func(data);
+		return;
+	}
+
+	fctx = chan->fence;
+	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	if (!work) {
+		WARN_ON(nouveau_fence_wait(fence, false, false));
+		func(data);
+		return;
+	}
+
+	spin_lock(&fctx->lock);
+	if (!fence->channel) {
+		spin_unlock(&fctx->lock);
+		kfree(work);
+		func(data);
+		return;
+	}
+
+	INIT_WORK(&work->base, nouveau_fence_work_handler);
+	work->func = func;
+	work->data = data;
+	list_add(&work->head, &fence->work);
+	spin_unlock(&fctx->lock);
+}
+
+static void
 nouveau_fence_update(struct nouveau_channel *chan)
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
@@ -67,8 +130,7 @@ nouveau_fence_update(struct nouveau_channel *chan)
 		if (fctx->read(chan) < fence->sequence)
 			break;
 
-		fence->channel = NULL;
-		list_del(&fence->head);
+		nouveau_fence_signal(fence);
 		nouveau_fence_unref(&fence);
 	}
 	spin_unlock(&fctx->lock);
@@ -81,7 +143,7 @@ nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 	int ret;
 
 	fence->channel  = chan;
-	fence->timeout  = jiffies + (3 * DRM_HZ);
+	fence->timeout  = jiffies + (15 * HZ);
 	fence->sequence = ++fctx->sequence;
 
 	ret = fctx->emit(fence);
@@ -103,17 +165,11 @@ nouveau_fence_done(struct nouveau_fence *fence)
 	return !fence->channel;
 }
 
-struct nouveau_fence_uevent {
-	struct nouveau_eventh handler;
-	struct nouveau_fence_priv *priv;
-};
-
 static int
-nouveau_fence_wait_uevent_handler(struct nouveau_eventh *event, int index)
+nouveau_fence_wait_uevent_handler(void *data, int index)
 {
-	struct nouveau_fence_uevent *uevent =
-		container_of(event, struct nouveau_fence_uevent, handler);
-	wake_up_all(&uevent->priv->waiting);
+	struct nouveau_fence_priv *priv = data;
+	wake_up_all(&priv->waiting);
 	return NVKM_EVENT_KEEP;
 }
 
@@ -124,13 +180,16 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 	struct nouveau_channel *chan = fence->channel;
 	struct nouveau_fifo *pfifo = nouveau_fifo(chan->drm->device);
 	struct nouveau_fence_priv *priv = chan->drm->fence;
-	struct nouveau_fence_uevent uevent = {
-		.handler.func = nouveau_fence_wait_uevent_handler,
-		.priv = priv,
-	};
+	struct nouveau_eventh *handler;
 	int ret = 0;
 
-	nouveau_event_get(pfifo->uevent, 0, &uevent.handler);
+	ret = nouveau_event_new(pfifo->uevent, 0,
+				nouveau_fence_wait_uevent_handler,
+				priv, &handler);
+	if (ret)
+		return ret;
+
+	nouveau_event_get(handler);
 
 	if (fence->timeout) {
 		unsigned long timeout = fence->timeout - jiffies;
@@ -162,7 +221,7 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 		}
 	}
 
-	nouveau_event_put(pfifo->uevent, 0, &uevent.handler);
+	nouveau_event_ref(NULL, &handler);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -247,7 +306,8 @@ nouveau_fence_unref(struct nouveau_fence **pfence)
 struct nouveau_fence *
 nouveau_fence_ref(struct nouveau_fence *fence)
 {
-	kref_get(&fence->kref);
+	if (fence)
+		kref_get(&fence->kref);
 	return fence;
 }
 
@@ -265,6 +325,7 @@ nouveau_fence_new(struct nouveau_channel *chan, bool sysmem,
 	if (!fence)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&fence->work);
 	fence->sysmem = sysmem;
 	kref_init(&fence->kref);
 

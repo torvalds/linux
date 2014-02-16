@@ -357,18 +357,13 @@ extern int CIFSSMBUnixQuerySymLink(const unsigned int xid,
 			struct cifs_tcon *tcon,
 			const unsigned char *searchName, char **syminfo,
 			const struct nls_table *nls_codepage);
-#ifdef CONFIG_CIFS_SYMLINK_EXPERIMENTAL
-extern int CIFSSMBQueryReparseLinkInfo(const unsigned int xid,
-			struct cifs_tcon *tcon,
-			const unsigned char *searchName,
-			char *symlinkinfo, const int buflen, __u16 fid,
-			const struct nls_table *nls_codepage);
-#endif /* temporarily unused until cifs_symlink fixed */
-extern int CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
-			const char *fileName, const int disposition,
-			const int access_flags, const int omode,
-			__u16 *netfid, int *pOplock, FILE_ALL_INFO *,
-			const struct nls_table *nls_codepage, int remap);
+extern int CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
+			       __u16 fid, char **symlinkinfo,
+			       const struct nls_table *nls_codepage);
+extern int CIFSSMB_set_compression(const unsigned int xid,
+				   struct cifs_tcon *tcon, __u16 fid);
+extern int CIFS_open(const unsigned int xid, struct cifs_open_parms *oparms,
+		     int *oplock, FILE_ALL_INFO *buf);
 extern int SMBLegacyOpen(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,
@@ -433,10 +428,9 @@ extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *,
 			const struct nls_table *);
 extern int setup_ntlm_response(struct cifs_ses *, const struct nls_table *);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
-extern int cifs_crypto_shash_allocate(struct TCP_Server_Info *);
 extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
 extern int calc_seckey(struct cifs_ses *);
-extern void generate_smb3signingkey(struct TCP_Server_Info *);
+extern int generate_smb3signingkey(struct cifs_ses *);
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern int calc_lanman_hash(const char *password, const char *cryptkey,
@@ -479,10 +473,11 @@ extern int CIFSSMBSetPosixACL(const unsigned int xid, struct cifs_tcon *tcon,
 extern int CIFSGetExtAttr(const unsigned int xid, struct cifs_tcon *tcon,
 			const int netfid, __u64 *pExtAttrBits, __u64 *pMask);
 extern void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
-extern bool CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr);
-extern int CIFSCheckMFSymlink(struct cifs_fattr *fattr,
-		const unsigned char *path,
-		struct cifs_sb_info *cifs_sb, unsigned int xid);
+extern bool couldbe_mf_symlink(const struct cifs_fattr *fattr);
+extern int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			      struct cifs_sb_info *cifs_sb,
+			      struct cifs_fattr *fattr,
+			      const unsigned char *path);
 extern int mdfour(unsigned char *, unsigned char *, int);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 			const struct nls_table *codepage);
@@ -493,10 +488,18 @@ void cifs_readdata_release(struct kref *refcount);
 int cifs_async_readv(struct cifs_readdata *rdata);
 int cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid);
 
-int cifs_async_writev(struct cifs_writedata *wdata);
+int cifs_async_writev(struct cifs_writedata *wdata,
+		      void (*release)(struct kref *kref));
 void cifs_writev_complete(struct work_struct *work);
 struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages,
 						work_func_t complete);
 void cifs_writedata_release(struct kref *refcount);
-
+int cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb,
+			  const unsigned char *path, char *pbuf,
+			  unsigned int *pbytes_read);
+int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+			   struct cifs_sb_info *cifs_sb,
+			   const unsigned char *path, char *pbuf,
+			   unsigned int *pbytes_written);
 #endif			/* _CIFSPROTO_H */

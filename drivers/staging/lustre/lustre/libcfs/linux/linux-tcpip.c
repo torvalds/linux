@@ -36,7 +36,6 @@
 #define DEBUG_SUBSYSTEM S_LNET
 
 #include <linux/libcfs/libcfs.h>
-#include <linux/libcfs/libcfs.h>
 
 #include <linux/if.h>
 #include <linux/in.h>
@@ -641,8 +640,8 @@ libcfs_sock_connect (struct socket **sockp, int *fatal,
 	*fatal = !(rc == -EADDRNOTAVAIL);
 
 	CDEBUG_LIMIT(*fatal ? D_NETERROR : D_NET,
-	       "Error %d connecting %u.%u.%u.%u/%d -> %u.%u.%u.%u/%d\n", rc,
-	       HIPQUAD(local_ip), local_port, HIPQUAD(peer_ip), peer_port);
+	       "Error %d connecting %pI4h/%d -> %pI4h/%d\n", rc,
+	       &local_ip, local_port, &peer_ip, peer_port);
 
 	sock_release(*sockp);
 	return rc;

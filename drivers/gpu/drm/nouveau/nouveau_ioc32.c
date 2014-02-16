@@ -63,7 +63,7 @@ long nouveau_compat_ioctl(struct file *filp, unsigned int cmd,
 	if (fn != NULL)
 		ret = (*fn)(filp, cmd, arg);
 	else
-		ret = drm_ioctl(filp, cmd, arg);
+		ret = nouveau_drm_ioctl(filp, cmd, arg);
 
 	return ret;
 }

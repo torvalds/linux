@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/pm_runtime.h>
 #include <linux/fs.h>
@@ -241,7 +240,7 @@ static int sh_wdt_probe(struct platform_device *pdev)
 
 	wdt->dev = &pdev->dev;
 
-	wdt->clk = clk_get(&pdev->dev, NULL);
+	wdt->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt->clk)) {
 		/*
 		 * Clock framework support is optional, continue on
@@ -251,10 +250,8 @@ static int sh_wdt_probe(struct platform_device *pdev)
 	}
 
 	wdt->base = devm_ioremap_resource(wdt->dev, res);
-	if (IS_ERR(wdt->base)) {
-		rc = PTR_ERR(wdt->base);
-		goto err;
-	}
+	if (IS_ERR(wdt->base))
+		return PTR_ERR(wdt->base);
 
 	watchdog_set_nowayout(&sh_wdt_dev, nowayout);
 	watchdog_set_drvdata(&sh_wdt_dev, wdt);
@@ -277,7 +274,7 @@ static int sh_wdt_probe(struct platform_device *pdev)
 	rc = watchdog_register_device(&sh_wdt_dev);
 	if (unlikely(rc)) {
 		dev_err(&pdev->dev, "Can't register watchdog (err=%d)\n", rc);
-		goto err;
+		return rc;
 	}
 
 	init_timer(&wdt->timer);
@@ -292,23 +289,15 @@ static int sh_wdt_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
-
-err:
-	clk_put(wdt->clk);
-
-	return rc;
 }
 
 static int sh_wdt_remove(struct platform_device *pdev)
 {
 	struct sh_wdt *wdt = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	watchdog_unregister_device(&sh_wdt_dev);
 
 	pm_runtime_disable(&pdev->dev);
-	clk_put(wdt->clk);
 
 	return 0;
 }
@@ -353,7 +342,6 @@ MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>");
 MODULE_DESCRIPTION("SuperH watchdog driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(clock_division_ratio, int, 0);
 MODULE_PARM_DESC(clock_division_ratio,

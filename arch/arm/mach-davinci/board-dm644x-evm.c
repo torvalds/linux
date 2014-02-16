@@ -15,7 +15,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -153,6 +153,7 @@ static struct davinci_nand_pdata davinci_evm_nandflash_data = {
 	.parts		= davinci_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
+	.ecc_bits	= 1,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 	.timing		= &davinci_evm_nandflash_timing,
 };
@@ -726,10 +727,6 @@ static struct platform_device *davinci_evm_devices[] __initdata = {
 	&rtc_dev,
 };
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 static void __init
 davinci_evm_map_io(void)
 {
@@ -757,8 +754,13 @@ static int davinci_phy_fixup(struct phy_device *phydev)
 
 static __init void davinci_evm_init(void)
 {
+	int ret;
 	struct clk *aemif_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	ret = dm644x_gpio_register();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
 
 	aemif_clk = clk_get(NULL, "aemif");
 	clk_prepare_enable(aemif_clk);
@@ -791,7 +793,7 @@ static __init void davinci_evm_init(void)
 	davinci_setup_mmc(0, &dm6446evm_mmc_config);
 	dm644x_init_video(&dm644xevm_capture_cfg, &dm644xevm_display_cfg);
 
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm644x_serial_device);
 	dm644x_init_asp(&dm644x_evm_snd_data);
 
 	/* irlml6401 switches over 1A, in under 8 msec */

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2009-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -117,6 +117,7 @@ union sli4_qe {
 	struct lpfc_rcqe_complete *rcqe_complete;
 	struct lpfc_mqe *mqe;
 	union  lpfc_wqe *wqe;
+	union  lpfc_wqe128 *wqe128;
 	struct lpfc_rqe *rqe;
 };
 
@@ -325,12 +326,14 @@ struct lpfc_bmbx {
 #define LPFC_EQE_SIZE_16B	16
 #define LPFC_CQE_SIZE		16
 #define LPFC_WQE_SIZE		64
+#define LPFC_WQE128_SIZE	128
 #define LPFC_MQE_SIZE		256
 #define LPFC_RQE_SIZE		8
 
 #define LPFC_EQE_DEF_COUNT	1024
 #define LPFC_CQE_DEF_COUNT      1024
 #define LPFC_WQE_DEF_COUNT      256
+#define LPFC_WQE128_DEF_COUNT   128
 #define LPFC_MQE_DEF_COUNT      16
 #define LPFC_RQE_DEF_COUNT	512
 
@@ -416,6 +419,9 @@ struct lpfc_pc_sli4_params {
 	uint8_t mqv;
 	uint8_t wqv;
 	uint8_t rqv;
+	uint8_t wqsize;
+#define LPFC_WQ_SZ64_SUPPORT	1
+#define LPFC_WQ_SZ128_SUPPORT	2
 };
 
 struct lpfc_iov {
@@ -444,7 +450,6 @@ struct lpfc_vector_map_info {
 	struct cpumask	maskbits;
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
-#define LPFC_MAX_CPU		256
 
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
@@ -518,7 +523,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue *hdr_rq; /* Slow-path Header Receive queue */
 	struct lpfc_queue *dat_rq; /* Slow-path Data Receive queue */
 
-	uint8_t fw_func_mode;	/* FW function protocol mode */
+	uint32_t fw_func_mode;	/* FW function protocol mode */
 	uint32_t ulp0_mode;	/* ULP0 protocol mode */
 	uint32_t ulp1_mode;	/* ULP1 protocol mode */
 
@@ -668,6 +673,7 @@ void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
+void lpfc_sli4_free_xri(struct lpfc_hba *, int);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
 int lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *, struct list_head *, int);
 struct lpfc_cq_event *__lpfc_sli4_cq_event_alloc(struct lpfc_hba *);

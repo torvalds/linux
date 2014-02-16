@@ -1195,7 +1195,7 @@ static u32 mt2063_set_dnc_output_enable(struct mt2063_state *state,
  *   DNC Output is selected, the other is always off)
  *
  * @state:	ptr to mt2063_state structure
- * @Mode:	desired reciever delivery system
+ * @Mode:	desired receiver delivery system
  *
  * Note: Register cache must be valid for it to work
  */
@@ -2119,7 +2119,7 @@ static int mt2063_set_analog_params(struct dvb_frontend *fe,
 
 /*
  * As defined on EN 300 429, the DVB-C roll-off factor is 0.15.
- * So, the amount of the needed bandwith is given by:
+ * So, the amount of the needed bandwidth is given by:
  *	Bw = Symbol_rate * (1 + 0.15)
  * As such, the maximum symbol rate supported by 6 MHz is given by:
  *	max_symbol_rate = 6 MHz / 1.15 = 5217391 Bauds

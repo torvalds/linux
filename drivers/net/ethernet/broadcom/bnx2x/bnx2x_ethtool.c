@@ -320,7 +320,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	speed = ethtool_cmd_speed(cmd);
 
-	/* If recieved a request for an unknown duplex, assume full*/
+	/* If received a request for an unknown duplex, assume full*/
 	if (cmd->duplex == DUPLEX_UNKNOWN)
 		cmd->duplex = DUPLEX_FULL;
 
@@ -358,49 +358,47 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	cfg_idx = bnx2x_get_link_cfg_idx(bp);
 	old_multi_phy_config = bp->link_params.multi_phy_config;
-	switch (cmd->port) {
-	case PORT_TP:
-		if (bp->port.supported[cfg_idx] & SUPPORTED_TP)
-			break; /* no port change */
-
-		if (!(bp->port.supported[0] & SUPPORTED_TP ||
-		      bp->port.supported[1] & SUPPORTED_TP)) {
+	if (cmd->port != bnx2x_get_port_type(bp)) {
+		switch (cmd->port) {
+		case PORT_TP:
+			if (!(bp->port.supported[0] & SUPPORTED_TP ||
+			      bp->port.supported[1] & SUPPORTED_TP)) {
+				DP(BNX2X_MSG_ETHTOOL,
+				   "Unsupported port type\n");
+				return -EINVAL;
+			}
+			bp->link_params.multi_phy_config &=
+				~PORT_HW_CFG_PHY_SELECTION_MASK;
+			if (bp->link_params.multi_phy_config &
+			    PORT_HW_CFG_PHY_SWAPPED_ENABLED)
+				bp->link_params.multi_phy_config |=
+				PORT_HW_CFG_PHY_SELECTION_SECOND_PHY;
+			else
+				bp->link_params.multi_phy_config |=
+				PORT_HW_CFG_PHY_SELECTION_FIRST_PHY;
+			break;
+		case PORT_FIBRE:
+		case PORT_DA:
+			if (!(bp->port.supported[0] & SUPPORTED_FIBRE ||
+			      bp->port.supported[1] & SUPPORTED_FIBRE)) {
+				DP(BNX2X_MSG_ETHTOOL,
+				   "Unsupported port type\n");
+				return -EINVAL;
+			}
+			bp->link_params.multi_phy_config &=
+				~PORT_HW_CFG_PHY_SELECTION_MASK;
+			if (bp->link_params.multi_phy_config &
+			    PORT_HW_CFG_PHY_SWAPPED_ENABLED)
+				bp->link_params.multi_phy_config |=
+				PORT_HW_CFG_PHY_SELECTION_FIRST_PHY;
+			else
+				bp->link_params.multi_phy_config |=
+				PORT_HW_CFG_PHY_SELECTION_SECOND_PHY;
+			break;
+		default:
 			DP(BNX2X_MSG_ETHTOOL, "Unsupported port type\n");
 			return -EINVAL;
 		}
-		bp->link_params.multi_phy_config &=
-			~PORT_HW_CFG_PHY_SELECTION_MASK;
-		if (bp->link_params.multi_phy_config &
-		    PORT_HW_CFG_PHY_SWAPPED_ENABLED)
-			bp->link_params.multi_phy_config |=
-			PORT_HW_CFG_PHY_SELECTION_SECOND_PHY;
-		else
-			bp->link_params.multi_phy_config |=
-			PORT_HW_CFG_PHY_SELECTION_FIRST_PHY;
-		break;
-	case PORT_FIBRE:
-	case PORT_DA:
-		if (bp->port.supported[cfg_idx] & SUPPORTED_FIBRE)
-			break; /* no port change */
-
-		if (!(bp->port.supported[0] & SUPPORTED_FIBRE ||
-		      bp->port.supported[1] & SUPPORTED_FIBRE)) {
-			DP(BNX2X_MSG_ETHTOOL, "Unsupported port type\n");
-			return -EINVAL;
-		}
-		bp->link_params.multi_phy_config &=
-			~PORT_HW_CFG_PHY_SELECTION_MASK;
-		if (bp->link_params.multi_phy_config &
-		    PORT_HW_CFG_PHY_SWAPPED_ENABLED)
-			bp->link_params.multi_phy_config |=
-			PORT_HW_CFG_PHY_SELECTION_FIRST_PHY;
-		else
-			bp->link_params.multi_phy_config |=
-			PORT_HW_CFG_PHY_SELECTION_SECOND_PHY;
-		break;
-	default:
-		DP(BNX2X_MSG_ETHTOOL, "Unsupported port type\n");
-		return -EINVAL;
 	}
 	/* Save new config in case command complete successfully */
 	new_multi_phy_config = bp->link_params.multi_phy_config;
@@ -639,6 +637,9 @@ static int bnx2x_get_regs_len(struct net_device *dev)
 	struct bnx2x *bp = netdev_priv(dev);
 	int regdump_len = 0;
 
+	if (IS_VF(bp))
+		return 0;
+
 	regdump_len = __bnx2x_get_regs_len(bp);
 	regdump_len *= 4;
 	regdump_len += sizeof(struct dump_header);
@@ -732,7 +733,6 @@ static bool bnx2x_is_reg_in_chip(struct bnx2x *bp,
 	else
 		return false;
 }
-
 
 static bool bnx2x_is_wreg_in_chip(struct bnx2x *bp,
 	const struct wreg_addr *wreg_info)
@@ -850,7 +850,7 @@ static int __bnx2x_get_preset_regs(struct bnx2x *bp, u32 *p, u32 preset)
 
 	/* Paged registers are supported in E2 & E3 only */
 	if (CHIP_IS_E2(bp) || CHIP_IS_E3(bp)) {
-		/* Read "paged" registes */
+		/* Read "paged" registers */
 		bnx2x_read_pages_regs(bp, p, preset);
 	}
 
@@ -892,16 +892,7 @@ static void bnx2x_get_regs(struct net_device *dev,
 	 * will re-enable parity attentions right after the dump.
 	 */
 
-	/* Disable parity on path 0 */
-	bnx2x_pretend_func(bp, 0);
 	bnx2x_disable_blocks_parity(bp);
-
-	/* Disable parity on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_disable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	dump_hdr.header_size = (sizeof(struct dump_header) / 4) - 1;
 	dump_hdr.preset = DUMP_ALL_PRESETS;
@@ -929,18 +920,9 @@ static void bnx2x_get_regs(struct net_device *dev,
 	/* Actually read the registers */
 	__bnx2x_get_regs(bp, p);
 
-	/* Re-enable parity attentions on path 0 */
-	bnx2x_pretend_func(bp, 0);
+	/* Re-enable parity attentions */
 	bnx2x_clear_blocks_parity(bp);
 	bnx2x_enable_blocks_parity(bp);
-
-	/* Re-enable parity attentions on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_clear_blocks_parity(bp);
-	bnx2x_enable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 }
 
 static int bnx2x_get_preset_regs_len(struct net_device *dev, u32 preset)
@@ -960,6 +942,9 @@ static int bnx2x_set_dump(struct net_device *dev, struct ethtool_dump *val)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	/* Use the ethtool_dump "flag" field as the dump preset index */
+	if (val->flag < 1 || val->flag > DUMP_MAX_PRESETS)
+		return -EINVAL;
+
 	bp->dump_preset_idx = val->flag;
 	return 0;
 }
@@ -969,12 +954,12 @@ static int bnx2x_get_dump_flag(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
+	dump->version = BNX2X_DUMP_VERSION;
+	dump->flag = bp->dump_preset_idx;
 	/* Calculate the requested preset idx length */
 	dump->len = bnx2x_get_preset_regs_len(dev, bp->dump_preset_idx);
 	DP(BNX2X_MSG_ETHTOOL, "Get dump preset %d length=%d\n",
 	   bp->dump_preset_idx, dump->len);
-
-	dump->flag = ETHTOOL_GET_DUMP_DATA;
 	return 0;
 }
 
@@ -986,23 +971,12 @@ static int bnx2x_get_dump_data(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 	struct dump_header dump_hdr = {0};
 
-	memset(p, 0, dump->len);
-
 	/* Disable parity attentions as long as following dump may
 	 * cause false alarms by reading never written registers. We
 	 * will re-enable parity attentions right after the dump.
 	 */
 
-	/* Disable parity on path 0 */
-	bnx2x_pretend_func(bp, 0);
 	bnx2x_disable_blocks_parity(bp);
-
-	/* Disable parity on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_disable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	dump_hdr.header_size = (sizeof(struct dump_header) / 4) - 1;
 	dump_hdr.preset = bp->dump_preset_idx;
@@ -1032,18 +1006,9 @@ static int bnx2x_get_dump_data(struct net_device *dev,
 	/* Actually read the registers */
 	__bnx2x_get_preset_regs(bp, p, dump_hdr.preset);
 
-	/* Re-enable parity attentions on path 0 */
-	bnx2x_pretend_func(bp, 0);
+	/* Re-enable parity attentions */
 	bnx2x_clear_blocks_parity(bp);
 	bnx2x_enable_blocks_parity(bp);
-
-	/* Re-enable parity attentions on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_clear_blocks_parity(bp);
-	bnx2x_enable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	return 0;
 }
@@ -1155,8 +1120,8 @@ static int bnx2x_get_eeprom_len(struct net_device *dev)
 	return bp->common.flash_size;
 }
 
-/* Per pf misc lock must be aquired before the per port mcp lock. Otherwise, had
- * we done things the other way around, if two pfs from the same port would
+/* Per pf misc lock must be acquired before the per port mcp lock. Otherwise,
+ * had we done things the other way around, if two pfs from the same port would
  * attempt to access nvram at the same time, we could run into a scenario such
  * as:
  * pf A takes the port lock.
@@ -1381,12 +1346,29 @@ static int bnx2x_nvram_read32(struct bnx2x *bp, u32 offset, u32 *buf,
 	return rc;
 }
 
+static bool bnx2x_is_nvm_accessible(struct bnx2x *bp)
+{
+	int rc = 1;
+	u16 pm = 0;
+	struct net_device *dev = pci_get_drvdata(bp->pdev);
+
+	if (bp->pdev->pm_cap)
+		rc = pci_read_config_word(bp->pdev,
+					  bp->pdev->pm_cap + PCI_PM_CTRL, &pm);
+
+	if ((rc && !netif_running(dev)) ||
+	    (!rc && ((pm & PCI_PM_CTRL_STATE_MASK) != (__force u16)PCI_D0)))
+		return false;
+
+	return true;
+}
+
 static int bnx2x_get_eeprom(struct net_device *dev,
 			    struct ethtool_eeprom *eeprom, u8 *eebuf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	if (!netif_running(dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL  | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
@@ -1411,7 +1393,7 @@ static int bnx2x_get_module_eeprom(struct net_device *dev,
 	u8 *user_data = data;
 	unsigned int start_addr = ee->offset, xfer_size = 0;
 
-	if (!netif_running(dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
@@ -1474,7 +1456,7 @@ static int bnx2x_get_module_info(struct net_device *dev,
 	int phy_idx, rc;
 	u8 sff8472_comp, diag_type;
 
-	if (!netif_running(dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
@@ -1594,8 +1576,10 @@ static int bnx2x_nvram_write1(struct bnx2x *bp, u32 offset, u8 *data_buf,
 		 */
 		val = be32_to_cpu(val_be);
 
-		val &= ~le32_to_cpu(0xff << BYTE_OFFSET(offset));
-		val |= le32_to_cpu(*data_buf << BYTE_OFFSET(offset));
+		val &= ~le32_to_cpu((__force __le32)
+				    (0xff << BYTE_OFFSET(offset)));
+		val |= le32_to_cpu((__force __le32)
+				   (*data_buf << BYTE_OFFSET(offset)));
 
 		rc = bnx2x_nvram_write_dword(bp, align_offset, val,
 					     cmd_flags);
@@ -1653,6 +1637,12 @@ static int bnx2x_nvram_write(struct bnx2x *bp, u32 offset, u8 *data_buf,
 
 		memcpy(&val, data_buf, 4);
 
+		/* Notice unlike bnx2x_nvram_read_dword() this will not
+		 * change val using be32_to_cpu(), which causes data to flip
+		 * if the eeprom is read and then written back. This is due
+		 * to tools utilizing this functionality that would break
+		 * if this would be resolved.
+		 */
 		rc = bnx2x_nvram_write_dword(bp, offset, val, cmd_flags);
 
 		/* advance to the next dword */
@@ -1676,7 +1666,8 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 	int port = BP_PORT(bp);
 	int rc = 0;
 	u32 ext_phy_config;
-	if (!netif_running(dev)) {
+
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
@@ -1921,6 +1912,19 @@ static const char bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF][ETH_GSTRING_LEN] = {
 	"link_test (online)         "
 };
 
+enum {
+	BNX2X_PRI_FLAG_ISCSI,
+	BNX2X_PRI_FLAG_FCOE,
+	BNX2X_PRI_FLAG_STORAGE,
+	BNX2X_PRI_FLAG_LEN,
+};
+
+static const char bnx2x_private_arr[BNX2X_PRI_FLAG_LEN][ETH_GSTRING_LEN] = {
+	"iSCSI offload support",
+	"FCoE offload support",
+	"Storage only interface"
+};
+
 static u32 bnx2x_eee_to_adv(u32 eee_adv)
 {
 	u32 modes = 0;
@@ -2041,7 +2045,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 				    EEE_MODE_OVERRIDE_NVRAM |
 				    EEE_MODE_OUTPUT_TIME;
 
-	/* Restart link to propogate changes */
+	/* Restart link to propagate changes */
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 		bnx2x_force_link_reset(bp);
@@ -2160,7 +2164,7 @@ static int bnx2x_test_registers(struct bnx2x *bp)
 		{ BNX2X_CHIP_MASK_ALL, 0xffffffff, 0, 0x00000000 }
 	};
 
-	if (!netif_running(bp->dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return rc;
@@ -2264,7 +2268,7 @@ static int bnx2x_test_memory(struct bnx2x *bp)
 		{ NULL, 0xffffffff, {0, 0, 0, 0} }
 	};
 
-	if (!netif_running(bp->dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return rc;
@@ -2867,9 +2871,16 @@ static void bnx2x_self_test(struct net_device *dev,
 
 	memset(buf, 0, sizeof(u64) * BNX2X_NUM_TESTS(bp));
 
+	if (bnx2x_test_nvram(bp) != 0) {
+		if (!IS_MF(bp))
+			buf[4] = 1;
+		else
+			buf[0] = 1;
+		etest->flags |= ETH_TEST_FL_FAILED;
+	}
+
 	if (!netif_running(dev)) {
-		DP(BNX2X_MSG_ETHTOOL,
-		   "Can't perform self-test when interface is down\n");
+		DP(BNX2X_MSG_ETHTOOL, "Interface is down\n");
 		return;
 	}
 
@@ -2931,13 +2942,7 @@ static void bnx2x_self_test(struct net_device *dev,
 		/* wait until link state is restored */
 		bnx2x_wait_for_link(bp, link_up, is_serdes);
 	}
-	if (bnx2x_test_nvram(bp) != 0) {
-		if (!IS_MF(bp))
-			buf[4] = 1;
-		else
-			buf[0] = 1;
-		etest->flags |= ETH_TEST_FL_FAILED;
-	}
+
 	if (bnx2x_test_intr(bp) != 0) {
 		if (!IS_MF(bp))
 			buf[5] = 1;
@@ -2978,30 +2983,45 @@ static int bnx2x_num_stat_queues(struct bnx2x *bp)
 static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i, num_stats;
+	int i, num_strings = 0;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		if (is_multi(bp)) {
-			num_stats = bnx2x_num_stat_queues(bp) *
-						BNX2X_NUM_Q_STATS;
+			num_strings = bnx2x_num_stat_queues(bp) *
+				      BNX2X_NUM_Q_STATS;
 		} else
-			num_stats = 0;
+			num_strings = 0;
 		if (IS_MF_MODE_STAT(bp)) {
 			for (i = 0; i < BNX2X_NUM_STATS; i++)
 				if (IS_FUNC_STAT(i))
-					num_stats++;
+					num_strings++;
 		} else
-			num_stats += BNX2X_NUM_STATS;
+			num_strings += BNX2X_NUM_STATS;
 
-		return num_stats;
+		return num_strings;
 
 	case ETH_SS_TEST:
 		return BNX2X_NUM_TESTS(bp);
 
+	case ETH_SS_PRIV_FLAGS:
+		return BNX2X_PRI_FLAG_LEN;
+
 	default:
 		return -EINVAL;
 	}
+}
+
+static u32 bnx2x_get_private_flags(struct net_device *dev)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	u32 flags = 0;
+
+	flags |= (!(bp->flags & NO_ISCSI_FLAG) ? 1 : 0) << BNX2X_PRI_FLAG_ISCSI;
+	flags |= (!(bp->flags & NO_FCOE_FLAG)  ? 1 : 0) << BNX2X_PRI_FLAG_FCOE;
+	flags |= (!!IS_MF_STORAGE_ONLY(bp)) << BNX2X_PRI_FLAG_STORAGE;
+
+	return flags;
 }
 
 static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -3026,7 +3046,6 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			}
 		}
 
-
 		for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
 			if (IS_MF_MODE_STAT(bp) && IS_PORT_STAT(i))
 				continue;
@@ -3045,6 +3064,12 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			start = 4;
 		memcpy(buf, bnx2x_tests_str_arr + start,
 		       ETH_GSTRING_LEN * BNX2X_NUM_TESTS(bp));
+		break;
+
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(buf, bnx2x_private_arr,
+		       ETH_GSTRING_LEN * BNX2X_PRI_FLAG_LEN);
+		break;
 	}
 }
 
@@ -3106,15 +3131,10 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	if (!netif_running(dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
-	}
-
-	if (!bp->port.pmf) {
-		DP(BNX2X_MSG_ETHTOOL, "Interface is not pmf\n");
-		return -EOPNOTSUPP;
 	}
 
 	switch (state) {
@@ -3148,7 +3168,6 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 
 static int bnx2x_get_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 {
-
 	switch (info->flow_type) {
 	case TCP_V4_FLOW:
 	case TCP_V6_FLOW:
@@ -3234,14 +3253,14 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 			DP(BNX2X_MSG_ETHTOOL,
 			   "rss re-configured, UDP 4-tupple %s\n",
 			   udp_rss_requested ? "enabled" : "disabled");
-			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
+			return bnx2x_rss(bp, &bp->rss_conf_obj, false, true);
 		} else if ((info->flow_type == UDP_V6_FLOW) &&
 			   (bp->rss_conf_obj.udp_rss_v6 != udp_rss_requested)) {
 			bp->rss_conf_obj.udp_rss_v6 = udp_rss_requested;
 			DP(BNX2X_MSG_ETHTOOL,
 			   "rss re-configured, UDP 4-tupple %s\n",
 			   udp_rss_requested ? "enabled" : "disabled");
-			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
+			return bnx2x_rss(bp, &bp->rss_conf_obj, false, true);
 		}
 		return 0;
 
@@ -3384,7 +3403,6 @@ static int bnx2x_set_channels(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-
 	DP(BNX2X_MSG_ETHTOOL,
 	   "set-channels command parameters: rx = %d, tx = %d, other = %d, combined = %d\n",
 	   channels->rx_count, channels->tx_count, channels->other_count,
@@ -3445,6 +3463,7 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.set_pauseparam		= bnx2x_set_pauseparam,
 	.self_test		= bnx2x_self_test,
 	.get_sset_count		= bnx2x_get_sset_count,
+	.get_priv_flags		= bnx2x_get_private_flags,
 	.get_strings		= bnx2x_get_strings,
 	.set_phys_id		= bnx2x_set_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,

@@ -220,6 +220,7 @@ struct hda_gen_spec {
 	unsigned int hp_mic:1; /* Allow HP as a mic-in */
 	unsigned int suppress_hp_mic_detect:1; /* Don't detect HP/mic */
 	unsigned int no_primary_hp:1; /* Don't prefer HP pins to speaker pins */
+	unsigned int no_multi_io:1; /* Don't try multi I/O config */
 	unsigned int multi_cap_vol:1; /* allow multiple capture xxx volumes */
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
@@ -241,9 +242,15 @@ struct hda_gen_spec {
 	/* additional mute flags (only effective with auto_mute_via_amp=1) */
 	u64 mute_bits;
 
+	/* bitmask for skipping volume controls */
+	u64 out_vol_mask;
+
 	/* badness tables for output path evaluations */
 	const struct badness_table *main_out_badness;
 	const struct badness_table *extra_out_badness;
+
+	/* preferred pin/DAC pairs; an array of paired NIDs */
+	const hda_nid_t *preferred_dacs;
 
 	/* loopback mixing mode */
 	bool aamix_mode;
@@ -267,6 +274,7 @@ struct hda_gen_spec {
 	void (*init_hook)(struct hda_codec *codec);
 	void (*automute_hook)(struct hda_codec *codec);
 	void (*cap_sync_hook)(struct hda_codec *codec,
+			      struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol);
 
 	/* PCM hooks */
@@ -328,5 +336,8 @@ void snd_hda_gen_update_outputs(struct hda_codec *codec);
 #ifdef CONFIG_PM
 int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid);
 #endif
+unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
+					   hda_nid_t nid,
+					   unsigned int power_state);
 
 #endif /* __SOUND_HDA_GENERIC_H */

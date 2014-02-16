@@ -37,6 +37,7 @@
  * Only simple analog output writing is supported.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -348,10 +349,9 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -407,7 +407,7 @@ static int cb_pcidda_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
+static const struct pci_device_id cb_pcidda_pci_table[] = {
 	{ PCI_VDEVICE(CB, 0x0020), BOARD_DDA02_12 },
 	{ PCI_VDEVICE(CB, 0x0021), BOARD_DDA04_12 },
 	{ PCI_VDEVICE(CB, 0x0022), BOARD_DDA08_12 },

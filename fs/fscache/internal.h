@@ -130,6 +130,12 @@ extern void fscache_operation_gc(struct work_struct *);
 /*
  * page.c
  */
+extern int fscache_wait_for_deferred_lookup(struct fscache_cookie *);
+extern int fscache_wait_for_operation_activation(struct fscache_object *,
+						 struct fscache_operation *,
+						 atomic_t *,
+						 atomic_t *,
+						 void (*)(struct fscache_operation *));
 extern void fscache_invalidate_writes(struct fscache_cookie *);
 
 /*

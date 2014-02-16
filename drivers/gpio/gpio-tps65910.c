@@ -143,7 +143,7 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	default:
 		return -EINVAL;
 	}
-	tps65910_gpio->gpio_chip.can_sleep = 1;
+	tps65910_gpio->gpio_chip.can_sleep = true;
 	tps65910_gpio->gpio_chip.direction_input = tps65910_gpio_input;
 	tps65910_gpio->gpio_chip.direction_output = tps65910_gpio_output;
 	tps65910_gpio->gpio_chip.set	= tps65910_gpio_set;

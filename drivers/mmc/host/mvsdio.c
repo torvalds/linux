@@ -35,7 +35,7 @@
 
 #define DRIVER_NAME	"mvsdio"
 
-static int maxfreq = MVSD_CLOCKRATE_MAX;
+static int maxfreq;
 static int nodma;
 
 struct mvsd_host {
@@ -655,7 +655,7 @@ static const struct mmc_host_ops mvsd_ops = {
 	.enable_sdio_irq	= mvsd_enable_sdio_irq,
 };
 
-static void __init
+static void
 mv_conf_mbus_windows(struct mvsd_host *host,
 		     const struct mbus_dram_target_info *dram)
 {
@@ -677,7 +677,7 @@ mv_conf_mbus_windows(struct mvsd_host *host,
 	}
 }
 
-static int __init mvsd_probe(struct platform_device *pdev)
+static int mvsd_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mmc_host *mmc = NULL;
@@ -685,7 +685,6 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	const struct mbus_dram_target_info *dram;
 	struct resource *r;
 	int ret, irq;
-	int gpio_card_detect, gpio_write_protect;
 	struct pinctrl *pinctrl;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -718,36 +717,12 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	if (!IS_ERR(host->clk))
 		clk_prepare_enable(host->clk);
 
-	if (np) {
-		if (IS_ERR(host->clk)) {
-			dev_err(&pdev->dev, "DT platforms must have a clock associated\n");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		host->base_clock = clk_get_rate(host->clk) / 2;
-		gpio_card_detect = of_get_named_gpio(np, "cd-gpios", 0);
-		gpio_write_protect = of_get_named_gpio(np, "wp-gpios", 0);
-	} else {
-		const struct mvsdio_platform_data *mvsd_data;
-		mvsd_data = pdev->dev.platform_data;
-		if (!mvsd_data) {
-			ret = -ENXIO;
-			goto out;
-		}
-		host->base_clock = mvsd_data->clock / 2;
-		gpio_card_detect = mvsd_data->gpio_card_detect ? : -EINVAL;
-		gpio_write_protect = mvsd_data->gpio_write_protect ? : -EINVAL;
-	}
-
 	mmc->ops = &mvsd_ops;
 
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |
-		    MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
 
 	mmc->f_min = DIV_ROUND_UP(host->base_clock, MVSD_BASE_DIV_MAX);
-	mmc->f_max = maxfreq;
+	mmc->f_max = MVSD_CLOCKRATE_MAX;
 
 	mmc->max_blk_size = 2048;
 	mmc->max_blk_count = 65535;
@@ -756,11 +731,53 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	mmc->max_seg_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 
+	if (np) {
+		if (IS_ERR(host->clk)) {
+			dev_err(&pdev->dev, "DT platforms must have a clock associated\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		host->base_clock = clk_get_rate(host->clk) / 2;
+		ret = mmc_of_parse(mmc);
+		if (ret < 0)
+			goto out;
+	} else {
+		const struct mvsdio_platform_data *mvsd_data;
+
+		mvsd_data = pdev->dev.platform_data;
+		if (!mvsd_data) {
+			ret = -ENXIO;
+			goto out;
+		}
+		mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |
+			    MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
+		host->base_clock = mvsd_data->clock / 2;
+		/* GPIO 0 regarded as invalid for backward compatibility */
+		if (mvsd_data->gpio_card_detect &&
+		    gpio_is_valid(mvsd_data->gpio_card_detect)) {
+			ret = mmc_gpio_request_cd(mmc,
+						  mvsd_data->gpio_card_detect,
+						  0);
+			if (ret)
+				goto out;
+		} else {
+			mmc->caps |= MMC_CAP_NEEDS_POLL;
+		}
+
+		if (mvsd_data->gpio_write_protect &&
+		    gpio_is_valid(mvsd_data->gpio_write_protect))
+			mmc_gpio_request_ro(mmc, mvsd_data->gpio_write_protect);
+	}
+
+	if (maxfreq)
+		mmc->f_max = maxfreq;
+
 	spin_lock_init(&host->lock);
 
-	host->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!host->base) {
-		ret = -ENOMEM;
+	host->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(host->base)) {
+		ret = PTR_ERR(host->base);
 		goto out;
 	}
 
@@ -777,15 +794,6 @@ static int __init mvsd_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (gpio_is_valid(gpio_card_detect)) {
-		ret = mmc_gpio_request_cd(mmc, gpio_card_detect);
-		if (ret)
-			goto out;
-	} else
-		mmc->caps |= MMC_CAP_NEEDS_POLL;
-
-	mmc_gpio_request_ro(mmc, gpio_write_protect);
-
 	setup_timer(&host->timer, mvsd_timeout_timer, (unsigned long)host);
 	platform_set_drvdata(pdev, mmc);
 	ret = mmc_add_host(mmc);
@@ -793,10 +801,10 @@ static int __init mvsd_probe(struct platform_device *pdev)
 		goto out;
 
 	if (!(mmc->caps & MMC_CAP_NEEDS_POLL))
-		dev_notice(&pdev->dev, "using GPIO %d for card detection\n",
-			   gpio_card_detect);
+		dev_notice(&pdev->dev, "using GPIO for card detection\n");
 	else
-		dev_notice(&pdev->dev, "lacking card detect (fall back to polling)\n");
+		dev_notice(&pdev->dev,
+			   "lacking card detect (fall back to polling)\n");
 	return 0;
 
 out:
@@ -811,7 +819,7 @@ out:
 	return ret;
 }
 
-static int __exit mvsd_remove(struct platform_device *pdev)
+static int mvsd_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
@@ -827,36 +835,8 @@ static int __exit mvsd_remove(struct platform_device *pdev)
 		clk_disable_unprepare(host->clk);
 	mmc_free_host(mmc);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
-
-#ifdef CONFIG_PM
-static int mvsd_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_suspend_host(mmc);
-
-	return ret;
-}
-
-static int mvsd_resume(struct platform_device *dev)
-{
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_resume_host(mmc);
-
-	return ret;
-}
-#else
-#define mvsd_suspend	NULL
-#define mvsd_resume	NULL
-#endif
 
 static const struct of_device_id mvsdio_dt_ids[] = {
 	{ .compatible = "marvell,orion-sdio" },
@@ -865,16 +845,15 @@ static const struct of_device_id mvsdio_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, mvsdio_dt_ids);
 
 static struct platform_driver mvsd_driver = {
-	.remove		= __exit_p(mvsd_remove),
-	.suspend	= mvsd_suspend,
-	.resume		= mvsd_resume,
+	.probe		= mvsd_probe,
+	.remove		= mvsd_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = mvsdio_dt_ids,
 	},
 };
 
-module_platform_driver_probe(mvsd_driver, mvsd_probe);
+module_platform_driver(mvsd_driver);
 
 /* maximum card clock frequency (default 50MHz) */
 module_param(maxfreq, int, 0);

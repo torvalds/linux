@@ -30,20 +30,6 @@ struct regulator_init_data gpio_en_3v3_regulator = {
        .consumer_supplies = gpio_en_3v3_consumers,
 };
 
-static struct regulator_consumer_supply sdi0_reg_consumers[] = {
-        REGULATOR_SUPPLY("vqmmc", "sdi0"),
-};
-
-struct regulator_init_data sdi0_reg_init_data = {
-        .constraints = {
-                .min_uV         = 1800000,
-                .max_uV         = 2900000,
-                .valid_ops_mask = REGULATOR_CHANGE_VOLTAGE|REGULATOR_CHANGE_STATUS,
-        },
-        .num_consumer_supplies  = ARRAY_SIZE(sdi0_reg_consumers),
-        .consumer_supplies      = sdi0_reg_consumers,
-};
-
 /*
  * TPS61052 regulator
  */

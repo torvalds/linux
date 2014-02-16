@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/notifier.h>

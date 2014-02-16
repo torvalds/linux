@@ -206,13 +206,15 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 		return;
 	}
 	qbo = container_of(bo, struct qxl_bo, tbo);
-	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU);
+	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU, false);
 	*placement = qbo->placement;
 }
 
 static int qxl_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct qxl_bo *qbo = to_qxl_bo(bo);
+
+	return drm_vma_node_verify_access(&qbo->gem_base.vma_node, filp);
 }
 
 static int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -514,6 +516,8 @@ int qxl_ttm_init(struct qxl_device *qdev)
 		 (unsigned)qdev->vram_size / (1024 * 1024));
 	DRM_INFO("qxl: %luM of IO pages memory ready (VRAM domain)\n",
 		 ((unsigned)num_io_pages * PAGE_SIZE) / (1024 * 1024));
+	DRM_INFO("qxl: %uM of Surface memory size\n",
+		 (unsigned)qdev->surfaceram_size / (1024 * 1024));
 	if (unlikely(qdev->mman.bdev.dev_mapping == NULL))
 		qdev->mman.bdev.dev_mapping = qdev->ddev->dev_mapping;
 	r = qxl_ttm_debugfs_init(qdev);

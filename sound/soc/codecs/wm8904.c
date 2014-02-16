@@ -658,7 +658,8 @@ SOC_SINGLE_TLV("EQ5 Volume", WM8904_EQ6, 0, 24, 0, eq_tlv),
 static int cp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	BUG_ON(event != SND_SOC_DAPM_POST_PMU);
+	if (WARN_ON(event != SND_SOC_DAPM_POST_PMU))
+		return -EINVAL;
 
 	/* Maximum startup time */
 	udelay(500);
@@ -740,7 +741,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		dcs_r = 3;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid reg %d\n", reg);
 		return -EINVAL;
 	}
 
@@ -1012,7 +1013,7 @@ static const struct soc_enum liner_enum =
 	SOC_ENUM_SINGLE(WM8904_ANALOGUE_OUT12_ZC, 0, 2, out_mux_text);
 
 static const struct snd_kcontrol_new liner_mux =
-	SOC_DAPM_ENUM("LINEL Mux", liner_enum);
+	SOC_DAPM_ENUM("LINER Mux", liner_enum);
 
 static const char *sidetone_text[] = {
 	"None", "Left", "Right"
@@ -1202,7 +1203,6 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 		break;
 	}
 
-	snd_soc_dapm_new_widgets(dapm);
 	return 0;
 }
 
@@ -1444,7 +1444,7 @@ static int wm8904_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
-		aif1 |= WM8904_AIF_LRCLK_INV;
+		aif1 |= 0x3 | WM8904_AIF_LRCLK_INV;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif1 |= 0x3;
 		break;

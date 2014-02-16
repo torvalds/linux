@@ -19,15 +19,16 @@
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
+#include <linux/platform_data/i2c-davinci.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <linux/platform_data/i2c-davinci.h>
+#include <mach/common.h>
 #include <mach/serial.h>
-#include <linux/platform_data/mtd-davinci.h>
-#include <linux/platform_data/mmc-davinci.h>
-#include <linux/platform_data/usb-davinci.h>
 
 #include "davinci.h"
 
@@ -75,6 +76,7 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.parts			= davinci_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
 	.ecc_mode		= NAND_ECC_HW_SYNDROME,
+	.ecc_bits		= 4,
 	.bbt_options		= NAND_BBT_USE_FLASH,
 };
 
@@ -172,10 +174,6 @@ static struct platform_device *davinci_leopard_devices[] __initdata = {
 	&davinci_nand_device,
 };
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 static void __init dm355_leopard_map_io(void)
 {
 	dm355_init();
@@ -237,6 +235,11 @@ static struct spi_board_info dm355_leopard_spi_info[] __initconst = {
 static __init void dm355_leopard_init(void)
 {
 	struct clk *aemif;
+	int ret;
+
+	ret = dm355_gpio_register();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
 
 	gpio_request(9, "dm9000");
 	gpio_direction_input(9);
@@ -251,7 +254,7 @@ static __init void dm355_leopard_init(void)
 	platform_add_devices(davinci_leopard_devices,
 			     ARRAY_SIZE(davinci_leopard_devices));
 	leopard_init_i2c();
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm355_serial_device);
 
 	/* NOTE:  NAND flash timings set by the UBL are slower than
 	 * needed by MT29F16G08FAA chips ... EMIF.A1CR is 0x40400204

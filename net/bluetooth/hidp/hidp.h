@@ -128,6 +128,7 @@ int hidp_get_conninfo(struct hidp_conninfo *ci);
 
 enum hidp_session_state {
 	HIDP_SESSION_IDLING,
+	HIDP_SESSION_PREPARING,
 	HIDP_SESSION_RUNNING,
 };
 
@@ -156,6 +157,7 @@ struct hidp_session {
 	unsigned long idle_to;
 
 	/* device management */
+	struct work_struct dev_init;
 	struct input_dev *input;
 	struct hid_device *hid;
 	struct timer_list timer;
@@ -180,7 +182,7 @@ struct hidp_session {
 };
 
 /* HIDP init defines */
-extern int __init hidp_init_sockets(void);
-extern void __exit hidp_cleanup_sockets(void);
+int __init hidp_init_sockets(void);
+void __exit hidp_cleanup_sockets(void);
 
 #endif /* __HIDP_H */

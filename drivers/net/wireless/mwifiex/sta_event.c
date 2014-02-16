@@ -118,7 +118,8 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	dev_dbg(adapter->dev,
 		"info: successfully disconnected from %pM: reason code %d\n",
 		priv->cfg_bssid, reason_code);
-	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
+	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
 		cfg80211_disconnected(priv->netdev, reason_code, NULL, 0,
 				      GFP_KERNEL);
 	}
@@ -201,6 +202,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_DEAUTHENTICATED:
 		dev_dbg(adapter->dev, "event: Deauthenticated\n");
+		if (priv->wps.session_enable) {
+			dev_dbg(adapter->dev,
+				"info: receive deauth event in wps session\n");
+			break;
+		}
 		adapter->dbg.num_event_deauth++;
 		if (priv->media_connected) {
 			reason_code =
@@ -211,6 +217,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_DISASSOCIATED:
 		dev_dbg(adapter->dev, "event: Disassociated\n");
+		if (priv->wps.session_enable) {
+			dev_dbg(adapter->dev,
+				"info: receive disassoc event in wps session\n");
+			break;
+		}
 		adapter->dbg.num_event_disassoc++;
 		if (priv->media_connected) {
 			reason_code =
@@ -425,6 +436,17 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 		memset(&priv->roc_cfg, 0x00, sizeof(struct mwifiex_roc_cfg));
 
+		break;
+
+	case EVENT_CHANNEL_SWITCH_ANN:
+		dev_dbg(adapter->dev, "event: Channel Switch Announcement\n");
+		priv->csa_expire_time =
+				jiffies + msecs_to_jiffies(DFS_CHAN_MOVE_TIME);
+		priv->csa_chan = priv->curr_bss_params.bss_descriptor.channel;
+		ret = mwifiex_send_cmd_async(priv,
+			HostCmd_CMD_802_11_DEAUTHENTICATE,
+			HostCmd_ACT_GEN_SET, 0,
+			priv->curr_bss_params.bss_descriptor.mac_address);
 		break;
 
 	default:

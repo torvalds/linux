@@ -52,8 +52,6 @@ source "drivers/i2c/Kconfig"
 
 source "drivers/spi/Kconfig"
 
-source "drivers/ssbi/Kconfig"
-
 source "drivers/hsi/Kconfig"
 
 source "drivers/pps/Kconfig"
@@ -167,5 +165,9 @@ source "drivers/ipack/Kconfig"
 source "drivers/reset/Kconfig"
 
 source "drivers/fmc/Kconfig"
+
+source "drivers/phy/Kconfig"
+
+source "drivers/powercap/Kconfig"
 
 endmenu

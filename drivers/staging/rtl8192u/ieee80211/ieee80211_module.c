@@ -241,7 +241,7 @@ static int debug = \
 			    //IEEE80211_DL_DATA	|
 			    IEEE80211_DL_ERR	  //awayls open this flags to show error out
 			    ;
-struct proc_dir_entry *ieee80211_proc;
+static struct proc_dir_entry *ieee80211_proc;
 
 static int show_debug_level(struct seq_file *m, void *v)
 {
@@ -268,7 +268,8 @@ static const struct file_operations fops = {
 	.open = open_debug_level,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.write = write_debug_level
+	.write = write_debug_level,
+	.release = single_release,
 };
 
 int __init ieee80211_debug_init(void)

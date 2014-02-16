@@ -35,13 +35,21 @@ endif
 
 export LD_BFD
 
-cflags-$(CONFIG_MARCH_G5)   += $(call cc-option,-march=g5)
-cflags-$(CONFIG_MARCH_Z900) += $(call cc-option,-march=z900)
-cflags-$(CONFIG_MARCH_Z990) += $(call cc-option,-march=z990)
-cflags-$(CONFIG_MARCH_Z9_109) += $(call cc-option,-march=z9-109)
-cflags-$(CONFIG_MARCH_Z10) += $(call cc-option,-march=z10)
-cflags-$(CONFIG_MARCH_Z196) += $(call cc-option,-march=z196)
-cflags-$(CONFIG_MARCH_ZEC12) += $(call cc-option,-march=zEC12)
+cflags-$(CONFIG_MARCH_G5)     += -march=g5
+cflags-$(CONFIG_MARCH_Z900)   += -march=z900
+cflags-$(CONFIG_MARCH_Z990)   += -march=z990
+cflags-$(CONFIG_MARCH_Z9_109) += -march=z9-109
+cflags-$(CONFIG_MARCH_Z10)    += -march=z10
+cflags-$(CONFIG_MARCH_Z196)   += -march=z196
+cflags-$(CONFIG_MARCH_ZEC12)  += -march=zEC12
+
+cflags-$(CONFIG_MARCH_G5_TUNE)		+= -mtune=g5
+cflags-$(CONFIG_MARCH_Z900_TUNE)	+= -mtune=z900
+cflags-$(CONFIG_MARCH_Z990_TUNE)	+= -mtune=z990
+cflags-$(CONFIG_MARCH_Z9_109_TUNE)	+= -mtune=z9-109
+cflags-$(CONFIG_MARCH_Z10_TUNE)		+= -mtune=z10
+cflags-$(CONFIG_MARCH_Z196_TUNE)	+= -mtune=z196
+cflags-$(CONFIG_MARCH_ZEC12_TUNE)	+= -mtune=zEC12
 
 #KBUILD_IMAGE is necessary for make rpm
 KBUILD_IMAGE	:=arch/s390/boot/image

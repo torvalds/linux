@@ -282,8 +282,8 @@ static bool alx_read_macaddr(struct alx_hw *hw, u8 *addr)
 	mac1 = alx_read_mem32(hw, ALX_STAD1);
 
 	/* addr should be big-endian */
-	*(__be32 *)(addr + 2) = cpu_to_be32(mac0);
-	*(__be16 *)addr = cpu_to_be16(mac1);
+	put_unaligned(cpu_to_be32(mac0), (__be32 *)(addr + 2));
+	put_unaligned(cpu_to_be16(mac1), (__be16 *)addr);
 
 	return is_valid_ether_addr(addr);
 }
@@ -326,20 +326,10 @@ void alx_set_macaddr(struct alx_hw *hw, const u8 *addr)
 	u32 val;
 
 	/* for example: 00-0B-6A-F6-00-DC * STAD0=6AF600DC, STAD1=000B */
-	val = be32_to_cpu(*(__be32 *)(addr + 2));
+	val = be32_to_cpu(get_unaligned((__be32 *)(addr + 2)));
 	alx_write_mem32(hw, ALX_STAD0, val);
-	val = be16_to_cpu(*(__be16 *)addr);
+	val = be16_to_cpu(get_unaligned((__be16 *)addr));
 	alx_write_mem32(hw, ALX_STAD1, val);
-}
-
-static void alx_enable_osc(struct alx_hw *hw)
-{
-	u32 val;
-
-	/* rising edge */
-	val = alx_read_mem32(hw, ALX_MISC);
-	alx_write_mem32(hw, ALX_MISC, val & ~ALX_MISC_INTNLOSC_OPEN);
-	alx_write_mem32(hw, ALX_MISC, val | ALX_MISC_INTNLOSC_OPEN);
 }
 
 static void alx_reset_osc(struct alx_hw *hw, u8 rev)
@@ -624,12 +614,12 @@ void alx_start_mac(struct alx_hw *hw)
 	alx_write_mem32(hw, ALX_TXQ0, txq | ALX_TXQ0_EN);
 
 	mac = hw->rx_ctrl;
-	if (hw->link_speed % 10 == DUPLEX_FULL)
+	if (hw->duplex == DUPLEX_FULL)
 		mac |= ALX_MAC_CTRL_FULLD;
 	else
 		mac &= ~ALX_MAC_CTRL_FULLD;
 	ALX_SET_FIELD(mac, ALX_MAC_CTRL_SPEED,
-		      hw->link_speed >= SPEED_1000 ? ALX_MAC_CTRL_SPEED_1000 :
+		      hw->link_speed == SPEED_1000 ? ALX_MAC_CTRL_SPEED_1000 :
 						     ALX_MAC_CTRL_SPEED_10_100);
 	mac |= ALX_MAC_CTRL_TX_EN | ALX_MAC_CTRL_RX_EN;
 	hw->rx_ctrl = mac;
@@ -790,28 +780,22 @@ void alx_post_phy_link(struct alx_hw *hw)
 	u16 phy_val, len, agc;
 	u8 revid = alx_hw_revision(hw);
 	bool adj_th = revid == ALX_REV_B0;
-	int speed;
-
-	if (hw->link_speed == SPEED_UNKNOWN)
-		speed = SPEED_UNKNOWN;
-	else
-		speed = hw->link_speed - hw->link_speed % 10;
 
 	if (revid != ALX_REV_B0 && !alx_is_rev_a(revid))
 		return;
 
 	/* 1000BT/AZ, wrong cable length */
-	if (speed != SPEED_UNKNOWN) {
+	if (hw->link_speed != SPEED_UNKNOWN) {
 		alx_read_phy_ext(hw, ALX_MIIEXT_PCS, ALX_MIIEXT_CLDCTRL6,
 				 &phy_val);
 		len = ALX_GET_FIELD(phy_val, ALX_CLDCTRL6_CAB_LEN);
 		alx_read_phy_dbg(hw, ALX_MIIDBG_AGC, &phy_val);
 		agc = ALX_GET_FIELD(phy_val, ALX_AGC_2_VGA);
 
-		if ((speed == SPEED_1000 &&
+		if ((hw->link_speed == SPEED_1000 &&
 		     (len > ALX_CLDCTRL6_CAB_LEN_SHORT1G ||
 		      (len == 0 && agc > ALX_AGC_LONG1G_LIMT))) ||
-		    (speed == SPEED_100 &&
+		    (hw->link_speed == SPEED_100 &&
 		     (len > ALX_CLDCTRL6_CAB_LEN_SHORT100M ||
 		      (len == 0 && agc > ALX_AGC_LONG100M_LIMT)))) {
 			alx_write_phy_dbg(hw, ALX_MIIDBG_AZ_ANADECT,
@@ -831,10 +815,10 @@ void alx_post_phy_link(struct alx_hw *hw)
 
 		/* threshold adjust */
 		if (adj_th && hw->lnk_patch) {
-			if (speed == SPEED_100) {
+			if (hw->link_speed == SPEED_100) {
 				alx_write_phy_dbg(hw, ALX_MIIDBG_MSE16DB,
 						  ALX_MSE16DB_UP);
-			} else if (speed == SPEED_1000) {
+			} else if (hw->link_speed == SPEED_1000) {
 				/*
 				 * Giga link threshold, raise the tolerance of
 				 * noise 50%
@@ -864,66 +848,6 @@ void alx_post_phy_link(struct alx_hw *hw)
 	}
 }
 
-
-/* NOTE:
- *    1. phy link must be established before calling this function
- *    2. wol option (pattern,magic,link,etc.) is configed before call it.
- */
-int alx_pre_suspend(struct alx_hw *hw, int speed)
-{
-	u32 master, mac, phy, val;
-	int err = 0;
-
-	master = alx_read_mem32(hw, ALX_MASTER);
-	master &= ~ALX_MASTER_PCLKSEL_SRDS;
-	mac = hw->rx_ctrl;
-	/* 10/100 half */
-	ALX_SET_FIELD(mac, ALX_MAC_CTRL_SPEED,  ALX_MAC_CTRL_SPEED_10_100);
-	mac &= ~(ALX_MAC_CTRL_FULLD | ALX_MAC_CTRL_RX_EN | ALX_MAC_CTRL_TX_EN);
-
-	phy = alx_read_mem32(hw, ALX_PHY_CTRL);
-	phy &= ~(ALX_PHY_CTRL_DSPRST_OUT | ALX_PHY_CTRL_CLS);
-	phy |= ALX_PHY_CTRL_RST_ANALOG | ALX_PHY_CTRL_HIB_PULSE |
-	       ALX_PHY_CTRL_HIB_EN;
-
-	/* without any activity  */
-	if (!(hw->sleep_ctrl & ALX_SLEEP_ACTIVE)) {
-		err = alx_write_phy_reg(hw, ALX_MII_IER, 0);
-		if (err)
-			return err;
-		phy |= ALX_PHY_CTRL_IDDQ | ALX_PHY_CTRL_POWER_DOWN;
-	} else {
-		if (hw->sleep_ctrl & (ALX_SLEEP_WOL_MAGIC | ALX_SLEEP_CIFS))
-			mac |= ALX_MAC_CTRL_RX_EN | ALX_MAC_CTRL_BRD_EN;
-		if (hw->sleep_ctrl & ALX_SLEEP_CIFS)
-			mac |= ALX_MAC_CTRL_TX_EN;
-		if (speed % 10 == DUPLEX_FULL)
-			mac |= ALX_MAC_CTRL_FULLD;
-		if (speed >= SPEED_1000)
-			ALX_SET_FIELD(mac, ALX_MAC_CTRL_SPEED,
-				      ALX_MAC_CTRL_SPEED_1000);
-		phy |= ALX_PHY_CTRL_DSPRST_OUT;
-		err = alx_write_phy_ext(hw, ALX_MIIEXT_ANEG,
-					ALX_MIIEXT_S3DIG10,
-					ALX_MIIEXT_S3DIG10_SL);
-		if (err)
-			return err;
-	}
-
-	alx_enable_osc(hw);
-	hw->rx_ctrl = mac;
-	alx_write_mem32(hw, ALX_MASTER, master);
-	alx_write_mem32(hw, ALX_MAC_CTRL, mac);
-	alx_write_mem32(hw, ALX_PHY_CTRL, phy);
-
-	/* set val of PDLL D3PLLOFF */
-	val = alx_read_mem32(hw, ALX_PDLL_TRNS1);
-	val |= ALX_PDLL_TRNS1_D3PLLOFF_EN;
-	alx_write_mem32(hw, ALX_PDLL_TRNS1, val);
-
-	return 0;
-}
-
 bool alx_phy_configured(struct alx_hw *hw)
 {
 	u32 cfg, hw_cfg;
@@ -938,7 +862,7 @@ bool alx_phy_configured(struct alx_hw *hw)
 	return cfg == hw_cfg;
 }
 
-int alx_get_phy_link(struct alx_hw *hw, int *speed)
+int alx_read_phy_link(struct alx_hw *hw)
 {
 	struct pci_dev *pdev = hw->pdev;
 	u16 bmsr, giga;
@@ -953,7 +877,8 @@ int alx_get_phy_link(struct alx_hw *hw, int *speed)
 		return err;
 
 	if (!(bmsr & BMSR_LSTATUS)) {
-		*speed = SPEED_UNKNOWN;
+		hw->link_speed = SPEED_UNKNOWN;
+		hw->duplex = DUPLEX_UNKNOWN;
 		return 0;
 	}
 
@@ -967,20 +892,20 @@ int alx_get_phy_link(struct alx_hw *hw, int *speed)
 
 	switch (giga & ALX_GIGA_PSSR_SPEED) {
 	case ALX_GIGA_PSSR_1000MBS:
-		*speed = SPEED_1000;
+		hw->link_speed = SPEED_1000;
 		break;
 	case ALX_GIGA_PSSR_100MBS:
-		*speed = SPEED_100;
+		hw->link_speed = SPEED_100;
 		break;
 	case ALX_GIGA_PSSR_10MBS:
-		*speed = SPEED_10;
+		hw->link_speed = SPEED_10;
 		break;
 	default:
 		goto wrong_speed;
 	}
 
-	*speed += (giga & ALX_GIGA_PSSR_DPLX) ? DUPLEX_FULL : DUPLEX_HALF;
-	return 1;
+	hw->duplex = (giga & ALX_GIGA_PSSR_DPLX) ? DUPLEX_FULL : DUPLEX_HALF;
+	return 0;
 
 wrong_speed:
 	dev_err(&pdev->dev, "invalid PHY speed/duplex: 0x%x\n", giga);
@@ -993,26 +918,6 @@ int alx_clear_phy_intr(struct alx_hw *hw)
 
 	/* clear interrupt status by reading it */
 	return alx_read_phy_reg(hw, ALX_MII_ISR, &isr);
-}
-
-int alx_config_wol(struct alx_hw *hw)
-{
-	u32 wol = 0;
-	int err = 0;
-
-	/* turn on magic packet event */
-	if (hw->sleep_ctrl & ALX_SLEEP_WOL_MAGIC)
-		wol |= ALX_WOL0_MAGIC_EN | ALX_WOL0_PME_MAGIC_EN;
-
-	/* turn on link up event */
-	if (hw->sleep_ctrl & ALX_SLEEP_WOL_PHY) {
-		wol |=  ALX_WOL0_LINK_EN | ALX_WOL0_PME_LINK;
-		/* only link up can wake up */
-		err = alx_write_phy_reg(hw, ALX_MII_IER, ALX_IER_LINK_UP);
-	}
-	alx_write_mem32(hw, ALX_WOL0, wol);
-
-	return err;
 }
 
 void alx_disable_rss(struct alx_hw *hw)
@@ -1126,85 +1031,6 @@ void alx_configure_basic(struct alx_hw *hw)
 	alx_write_mem32(hw, ALX_WRR, val);
 }
 
-static inline u32 alx_speed_to_ethadv(int speed)
-{
-	switch (speed) {
-	case SPEED_1000 + DUPLEX_FULL:
-		return ADVERTISED_1000baseT_Full;
-	case SPEED_100 + DUPLEX_FULL:
-		return ADVERTISED_100baseT_Full;
-	case SPEED_100 + DUPLEX_HALF:
-		return ADVERTISED_10baseT_Half;
-	case SPEED_10 + DUPLEX_FULL:
-		return ADVERTISED_10baseT_Full;
-	case SPEED_10 + DUPLEX_HALF:
-		return ADVERTISED_10baseT_Half;
-	default:
-		return 0;
-	}
-}
-
-int alx_select_powersaving_speed(struct alx_hw *hw, int *speed)
-{
-	int i, err, spd;
-	u16 lpa;
-
-	err = alx_get_phy_link(hw, &spd);
-	if (err < 0)
-		return err;
-
-	if (spd == SPEED_UNKNOWN)
-		return 0;
-
-	err = alx_read_phy_reg(hw, MII_LPA, &lpa);
-	if (err)
-		return err;
-
-	if (!(lpa & LPA_LPACK)) {
-		*speed = spd;
-		return 0;
-	}
-
-	if (lpa & LPA_10FULL)
-		*speed = SPEED_10 + DUPLEX_FULL;
-	else if (lpa & LPA_10HALF)
-		*speed = SPEED_10 + DUPLEX_HALF;
-	else if (lpa & LPA_100FULL)
-		*speed = SPEED_100 + DUPLEX_FULL;
-	else
-		*speed = SPEED_100 + DUPLEX_HALF;
-
-	if (*speed != spd) {
-		err = alx_write_phy_reg(hw, ALX_MII_IER, 0);
-		if (err)
-			return err;
-		err = alx_setup_speed_duplex(hw,
-					     alx_speed_to_ethadv(*speed) |
-					     ADVERTISED_Autoneg,
-					     ALX_FC_ANEG | ALX_FC_RX |
-					     ALX_FC_TX);
-		if (err)
-			return err;
-
-		/* wait for linkup */
-		for (i = 0; i < ALX_MAX_SETUP_LNK_CYCLE; i++) {
-			int speed2;
-
-			msleep(100);
-
-			err = alx_get_phy_link(hw, &speed2);
-			if (err < 0)
-				return err;
-			if (speed2 != SPEED_UNKNOWN)
-				break;
-		}
-		if (i == ALX_MAX_SETUP_LNK_CYCLE)
-			return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
 bool alx_get_phy_info(struct alx_hw *hw)
 {
 	u16  devs1, devs2;
@@ -1223,4 +1049,62 @@ bool alx_get_phy_info(struct alx_hw *hw)
 	hw->mdio.mmds = devs1 | devs2 << 16;
 
 	return true;
+}
+
+void alx_update_hw_stats(struct alx_hw *hw)
+{
+	/* RX stats */
+	hw->stats.rx_ok          += alx_read_mem32(hw, ALX_MIB_RX_OK);
+	hw->stats.rx_bcast       += alx_read_mem32(hw, ALX_MIB_RX_BCAST);
+	hw->stats.rx_mcast       += alx_read_mem32(hw, ALX_MIB_RX_MCAST);
+	hw->stats.rx_pause       += alx_read_mem32(hw, ALX_MIB_RX_PAUSE);
+	hw->stats.rx_ctrl        += alx_read_mem32(hw, ALX_MIB_RX_CTRL);
+	hw->stats.rx_fcs_err     += alx_read_mem32(hw, ALX_MIB_RX_FCS_ERR);
+	hw->stats.rx_len_err     += alx_read_mem32(hw, ALX_MIB_RX_LEN_ERR);
+	hw->stats.rx_byte_cnt    += alx_read_mem32(hw, ALX_MIB_RX_BYTE_CNT);
+	hw->stats.rx_runt        += alx_read_mem32(hw, ALX_MIB_RX_RUNT);
+	hw->stats.rx_frag        += alx_read_mem32(hw, ALX_MIB_RX_FRAG);
+	hw->stats.rx_sz_64B      += alx_read_mem32(hw, ALX_MIB_RX_SZ_64B);
+	hw->stats.rx_sz_127B     += alx_read_mem32(hw, ALX_MIB_RX_SZ_127B);
+	hw->stats.rx_sz_255B     += alx_read_mem32(hw, ALX_MIB_RX_SZ_255B);
+	hw->stats.rx_sz_511B     += alx_read_mem32(hw, ALX_MIB_RX_SZ_511B);
+	hw->stats.rx_sz_1023B    += alx_read_mem32(hw, ALX_MIB_RX_SZ_1023B);
+	hw->stats.rx_sz_1518B    += alx_read_mem32(hw, ALX_MIB_RX_SZ_1518B);
+	hw->stats.rx_sz_max      += alx_read_mem32(hw, ALX_MIB_RX_SZ_MAX);
+	hw->stats.rx_ov_sz       += alx_read_mem32(hw, ALX_MIB_RX_OV_SZ);
+	hw->stats.rx_ov_rxf      += alx_read_mem32(hw, ALX_MIB_RX_OV_RXF);
+	hw->stats.rx_ov_rrd      += alx_read_mem32(hw, ALX_MIB_RX_OV_RRD);
+	hw->stats.rx_align_err   += alx_read_mem32(hw, ALX_MIB_RX_ALIGN_ERR);
+	hw->stats.rx_bc_byte_cnt += alx_read_mem32(hw, ALX_MIB_RX_BCCNT);
+	hw->stats.rx_mc_byte_cnt += alx_read_mem32(hw, ALX_MIB_RX_MCCNT);
+	hw->stats.rx_err_addr    += alx_read_mem32(hw, ALX_MIB_RX_ERRADDR);
+
+	/* TX stats */
+	hw->stats.tx_ok          += alx_read_mem32(hw, ALX_MIB_TX_OK);
+	hw->stats.tx_bcast       += alx_read_mem32(hw, ALX_MIB_TX_BCAST);
+	hw->stats.tx_mcast       += alx_read_mem32(hw, ALX_MIB_TX_MCAST);
+	hw->stats.tx_pause       += alx_read_mem32(hw, ALX_MIB_TX_PAUSE);
+	hw->stats.tx_exc_defer   += alx_read_mem32(hw, ALX_MIB_TX_EXC_DEFER);
+	hw->stats.tx_ctrl        += alx_read_mem32(hw, ALX_MIB_TX_CTRL);
+	hw->stats.tx_defer       += alx_read_mem32(hw, ALX_MIB_TX_DEFER);
+	hw->stats.tx_byte_cnt    += alx_read_mem32(hw, ALX_MIB_TX_BYTE_CNT);
+	hw->stats.tx_sz_64B      += alx_read_mem32(hw, ALX_MIB_TX_SZ_64B);
+	hw->stats.tx_sz_127B     += alx_read_mem32(hw, ALX_MIB_TX_SZ_127B);
+	hw->stats.tx_sz_255B     += alx_read_mem32(hw, ALX_MIB_TX_SZ_255B);
+	hw->stats.tx_sz_511B     += alx_read_mem32(hw, ALX_MIB_TX_SZ_511B);
+	hw->stats.tx_sz_1023B    += alx_read_mem32(hw, ALX_MIB_TX_SZ_1023B);
+	hw->stats.tx_sz_1518B    += alx_read_mem32(hw, ALX_MIB_TX_SZ_1518B);
+	hw->stats.tx_sz_max      += alx_read_mem32(hw, ALX_MIB_TX_SZ_MAX);
+	hw->stats.tx_single_col  += alx_read_mem32(hw, ALX_MIB_TX_SINGLE_COL);
+	hw->stats.tx_multi_col   += alx_read_mem32(hw, ALX_MIB_TX_MULTI_COL);
+	hw->stats.tx_late_col    += alx_read_mem32(hw, ALX_MIB_TX_LATE_COL);
+	hw->stats.tx_abort_col   += alx_read_mem32(hw, ALX_MIB_TX_ABORT_COL);
+	hw->stats.tx_underrun    += alx_read_mem32(hw, ALX_MIB_TX_UNDERRUN);
+	hw->stats.tx_trd_eop     += alx_read_mem32(hw, ALX_MIB_TX_TRD_EOP);
+	hw->stats.tx_len_err     += alx_read_mem32(hw, ALX_MIB_TX_LEN_ERR);
+	hw->stats.tx_trunc       += alx_read_mem32(hw, ALX_MIB_TX_TRUNC);
+	hw->stats.tx_bc_byte_cnt += alx_read_mem32(hw, ALX_MIB_TX_BCCNT);
+	hw->stats.tx_mc_byte_cnt += alx_read_mem32(hw, ALX_MIB_TX_MCCNT);
+
+	hw->stats.update         += alx_read_mem32(hw, ALX_MIB_UPDATE);
 }

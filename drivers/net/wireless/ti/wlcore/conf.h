@@ -1274,6 +1274,9 @@ struct conf_rx_streaming_settings {
 	u8 always;
 } __packed;
 
+#define CONF_FWLOG_MIN_MEM_BLOCKS	2
+#define CONF_FWLOG_MAX_MEM_BLOCKS	16
+
 struct conf_fwlog {
 	/* Continuous or on-demand */
 	u8 mode;
@@ -1281,7 +1284,7 @@ struct conf_fwlog {
 	/*
 	 * Number of memory blocks dedicated for the FW logger
 	 *
-	 * Range: 1-3, or 0 to disable the FW logger
+	 * Range: 2-16, or 0 to disable the FW logger
 	 */
 	u8 mem_blocks;
 

@@ -49,7 +49,7 @@ static struct clk *clk_hclk;
 static struct clk *clk_pclk;
 static struct clk *clk_arm;
 
-#ifdef CONFIG_CPU_FREQ_S3C24XX_DEBUGFS
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ_DEBUGFS
 struct s3c_cpufreq_config *s3c_cpufreq_getconfig(void)
 {
 	return &cpu_cur;
@@ -59,7 +59,7 @@ struct s3c_iotimings *s3c_cpufreq_getiotimings(void)
 {
 	return &s3c24xx_iotiming;
 }
-#endif /* CONFIG_CPU_FREQ_S3C24XX_DEBUGFS */
+#endif /* CONFIG_ARM_S3C24XX_CPUFREQ_DEBUGFS */
 
 static void s3c_cpufreq_getcur(struct s3c_cpufreq_config *cfg)
 {
@@ -355,11 +355,6 @@ static int s3c_cpufreq_target(struct cpufreq_policy *policy,
 	return -EINVAL;
 }
 
-static unsigned int s3c_cpufreq_get(unsigned int cpu)
-{
-	return clk_get_rate(clk_arm) / 1000;
-}
-
 struct clk *s3c_cpufreq_clk_get(struct device *dev, const char *name)
 {
 	struct clk *clk;
@@ -373,26 +368,11 @@ struct clk *s3c_cpufreq_clk_get(struct device *dev, const char *name)
 
 static int s3c_cpufreq_init(struct cpufreq_policy *policy)
 {
-	printk(KERN_INFO "%s: initialising policy %p\n", __func__, policy);
-
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	policy->cur = s3c_cpufreq_get(0);
-	policy->min = policy->cpuinfo.min_freq = 0;
-	policy->max = policy->cpuinfo.max_freq = cpu_cur.info->max.fclk / 1000;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-
-	/* feed the latency information from the cpu driver */
-	policy->cpuinfo.transition_latency = cpu_cur.info->latency;
-
-	if (ftab)
-		cpufreq_frequency_table_cpuinfo(policy, ftab);
-
-	return 0;
+	policy->clk = clk_arm;
+	return cpufreq_generic_init(policy, ftab, cpu_cur.info->latency);
 }
 
-static __init int s3c_cpufreq_initclks(void)
+static int __init s3c_cpufreq_initclks(void)
 {
 	_clk_mpll = s3c_cpufreq_clk_get(NULL, "mpll");
 	_clk_xtal = s3c_cpufreq_clk_get(NULL, "xtal");
@@ -416,14 +396,6 @@ static __init int s3c_cpufreq_initclks(void)
 	return 0;
 }
 
-static int s3c_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static struct cpufreq_frequency_table suspend_pll;
 static unsigned int suspend_freq;
@@ -432,7 +404,7 @@ static int s3c_cpufreq_suspend(struct cpufreq_policy *policy)
 {
 	suspend_pll.frequency = clk_get_rate(_clk_mpll);
 	suspend_pll.driver_data = __raw_readl(S3C2410_MPLLCON);
-	suspend_freq = s3c_cpufreq_get(0) * 1000;
+	suspend_freq = clk_get_rate(clk_arm);
 
 	return 0;
 }
@@ -472,10 +444,9 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 #endif
 
 static struct cpufreq_driver s3c24xx_driver = {
-	.flags		= CPUFREQ_STICKY,
-	.verify		= s3c_cpufreq_verify,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.target		= s3c_cpufreq_target,
-	.get		= s3c_cpufreq_get,
+	.get		= cpufreq_generic_get,
 	.init		= s3c_cpufreq_init,
 	.suspend	= s3c_cpufreq_suspend,
 	.resume		= s3c_cpufreq_resume,
@@ -522,7 +493,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	/* Copy the board information so that each board can make this
 	 * initdata. */
 
-	ours = kzalloc(sizeof(struct s3c_cpufreq_board), GFP_KERNEL);
+	ours = kzalloc(sizeof(*ours), GFP_KERNEL);
 	if (ours == NULL) {
 		printk(KERN_ERR "%s: no memory\n", __func__);
 		return -ENOMEM;
@@ -534,7 +505,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	return 0;
 }
 
-int __init s3c_cpufreq_auto_io(void)
+static int __init s3c_cpufreq_auto_io(void)
 {
 	int ret;
 
@@ -615,7 +586,7 @@ static int s3c_cpufreq_build_freq(void)
 	size = cpu_cur.info->calc_freqtable(&cpu_cur, NULL, 0);
 	size++;
 
-	ftab = kmalloc(sizeof(struct cpufreq_frequency_table) * size, GFP_KERNEL);
+	ftab = kmalloc(sizeof(*ftab) * size, GFP_KERNEL);
 	if (!ftab) {
 		printk(KERN_ERR "%s: no memory for tables\n", __func__);
 		return -ENOMEM;
@@ -691,7 +662,7 @@ int __init s3c_plltab_register(struct cpufreq_frequency_table *plls,
 	struct cpufreq_frequency_table *vals;
 	unsigned int size;
 
-	size = sizeof(struct cpufreq_frequency_table) * (plls_no + 1);
+	size = sizeof(*vals) * (plls_no + 1);
 
 	vals = kmalloc(size, GFP_KERNEL);
 	if (vals) {

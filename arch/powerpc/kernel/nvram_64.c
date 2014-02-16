@@ -84,22 +84,30 @@ static ssize_t dev_nvram_read(struct file *file, char __user *buf,
 	char *tmp = NULL;
 	ssize_t size;
 
-	ret = -ENODEV;
-	if (!ppc_md.nvram_size)
+	if (!ppc_md.nvram_size) {
+		ret = -ENODEV;
 		goto out;
+	}
 
-	ret = 0;
 	size = ppc_md.nvram_size();
-	if (*ppos >= size || size < 0)
+	if (size < 0) {
+		ret = size;
 		goto out;
+	}
+
+	if (*ppos >= size) {
+		ret = 0;
+		goto out;
+	}
 
 	count = min_t(size_t, count, size - *ppos);
 	count = min(count, PAGE_SIZE);
 
-	ret = -ENOMEM;
 	tmp = kmalloc(count, GFP_KERNEL);
-	if (!tmp)
+	if (!tmp) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	ret = ppc_md.nvram_read(tmp, count, ppos);
 	if (ret <= 0)
@@ -202,7 +210,7 @@ static void __init nvram_print_partitions(char * label)
 	printk(KERN_WARNING "--------%s---------\n", label);
 	printk(KERN_WARNING "indx\t\tsig\tchks\tlen\tname\n");
 	list_for_each_entry(tmp_part, &nvram_partitions, partition) {
-		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%12s\n",
+		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%12.12s\n",
 		       tmp_part->index, tmp_part->header.signature,
 		       tmp_part->header.checksum, tmp_part->header.length,
 		       tmp_part->header.name);
@@ -215,9 +223,13 @@ static int __init nvram_write_header(struct nvram_partition * part)
 {
 	loff_t tmp_index;
 	int rc;
-	
+	struct nvram_header phead;
+
+	memcpy(&phead, &part->header, NVRAM_HEADER_LEN);
+	phead.length = cpu_to_be16(phead.length);
+
 	tmp_index = part->index;
-	rc = ppc_md.nvram_write((char *)&part->header, NVRAM_HEADER_LEN, &tmp_index); 
+	rc = ppc_md.nvram_write((char *)&phead, NVRAM_HEADER_LEN, &tmp_index);
 
 	return rc;
 }
@@ -496,6 +508,8 @@ int __init nvram_scan_partitions(void)
 		cur_index -= NVRAM_HEADER_LEN; /* nvram_read will advance us */
 
 		memcpy(&phead, header, NVRAM_HEADER_LEN);
+
+		phead.length = be16_to_cpu(phead.length);
 
 		err = 0;
 		c_sum = nvram_checksum(&phead);

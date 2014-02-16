@@ -49,11 +49,9 @@ struct fwspk {
 	struct snd_card *card;
 	struct fw_unit *unit;
 	const struct device_info *device_info;
-	struct snd_pcm_substream *pcm;
 	struct mutex mutex;
 	struct cmp_connection connection;
 	struct amdtp_out_stream stream;
-	bool stream_running;
 	bool mute;
 	s16 volume[6];
 	s16 volume_min;
@@ -189,10 +187,9 @@ static int fwspk_close(struct snd_pcm_substream *substream)
 
 static void fwspk_stop_stream(struct fwspk *fwspk)
 {
-	if (fwspk->stream_running) {
+	if (amdtp_out_stream_running(&fwspk->stream)) {
 		amdtp_out_stream_stop(&fwspk->stream);
 		cmp_connection_break(&fwspk->connection);
-		fwspk->stream_running = false;
 	}
 }
 
@@ -247,8 +244,10 @@ static int fwspk_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		goto error;
 
-	amdtp_out_stream_set_rate(&fwspk->stream, params_rate(hw_params));
-	amdtp_out_stream_set_pcm(&fwspk->stream, params_channels(hw_params));
+	amdtp_out_stream_set_parameters(&fwspk->stream,
+					params_rate(hw_params),
+					params_channels(hw_params),
+					0);
 
 	amdtp_out_stream_set_pcm_format(&fwspk->stream,
 					params_format(hw_params));
@@ -286,7 +285,7 @@ static int fwspk_prepare(struct snd_pcm_substream *substream)
 	if (amdtp_out_streaming_error(&fwspk->stream))
 		fwspk_stop_stream(fwspk);
 
-	if (!fwspk->stream_running) {
+	if (!amdtp_out_stream_running(&fwspk->stream)) {
 		err = cmp_connection_establish(&fwspk->connection,
 			amdtp_out_stream_get_max_payload(&fwspk->stream));
 		if (err < 0)
@@ -297,8 +296,6 @@ static int fwspk_prepare(struct snd_pcm_substream *substream)
 					fwspk->connection.speed);
 		if (err < 0)
 			goto err_connection;
-
-		fwspk->stream_running = true;
 	}
 
 	mutex_unlock(&fwspk->mutex);
@@ -363,8 +360,7 @@ static int fwspk_create_pcm(struct fwspk *fwspk)
 		return err;
 	pcm->private_data = fwspk;
 	strcpy(pcm->name, fwspk->device_info->short_name);
-	fwspk->pcm = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-	fwspk->pcm->ops = &ops;
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &ops);
 	return 0;
 }
 
@@ -649,7 +645,7 @@ static u32 fwspk_read_firmware_version(struct fw_unit *unit)
 	int err;
 
 	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
-				 OXFORD_FIRMWARE_ID_ADDRESS, &data, 4);
+				 OXFORD_FIRMWARE_ID_ADDRESS, &data, 4, 0);
 	return err >= 0 ? be32_to_cpu(data) : 0;
 }
 
@@ -663,45 +659,9 @@ static void fwspk_card_free(struct snd_card *card)
 	mutex_destroy(&fwspk->mutex);
 }
 
-static const struct device_info *fwspk_detect(struct fw_device *dev)
+static int fwspk_probe(struct fw_unit *unit,
+		       const struct ieee1394_device_id *id)
 {
-	static const struct device_info griffin_firewave = {
-		.driver_name = "FireWave",
-		.short_name  = "FireWave",
-		.long_name   = "Griffin FireWave Surround",
-		.pcm_constraints = firewave_constraints,
-		.mixer_channels = 6,
-		.mute_fb_id   = 0x01,
-		.volume_fb_id = 0x02,
-	};
-	static const struct device_info lacie_speakers = {
-		.driver_name = "FWSpeakers",
-		.short_name  = "FireWire Speakers",
-		.long_name   = "LaCie FireWire Speakers",
-		.pcm_constraints = lacie_speakers_constraints,
-		.mixer_channels = 1,
-		.mute_fb_id   = 0x01,
-		.volume_fb_id = 0x01,
-	};
-	struct fw_csr_iterator i;
-	int key, value;
-
-	fw_csr_iterator_init(&i, dev->config_rom);
-	while (fw_csr_iterator_next(&i, &key, &value))
-		if (key == CSR_VENDOR)
-			switch (value) {
-			case VENDOR_GRIFFIN:
-				return &griffin_firewave;
-			case VENDOR_LACIE:
-				return &lacie_speakers;
-			}
-
-	return NULL;
-}
-
-static int fwspk_probe(struct device *unit_dev)
-{
-	struct fw_unit *unit = fw_unit(unit_dev);
 	struct fw_device *fw_dev = fw_parent_device(unit);
 	struct snd_card *card;
 	struct fwspk *fwspk;
@@ -711,17 +671,13 @@ static int fwspk_probe(struct device *unit_dev)
 	err = snd_card_create(-1, NULL, THIS_MODULE, sizeof(*fwspk), &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, unit_dev);
+	snd_card_set_dev(card, &unit->device);
 
 	fwspk = card->private_data;
 	fwspk->card = card;
 	mutex_init(&fwspk->mutex);
 	fwspk->unit = fw_unit_get(unit);
-	fwspk->device_info = fwspk_detect(fw_dev);
-	if (!fwspk->device_info) {
-		err = -ENODEV;
-		goto err_unit;
-	}
+	fwspk->device_info = (const struct device_info *)id->driver_data;
 
 	err = cmp_connection_init(&fwspk->connection, unit, 0);
 	if (err < 0)
@@ -756,7 +712,7 @@ static int fwspk_probe(struct device *unit_dev)
 	if (err < 0)
 		goto error;
 
-	dev_set_drvdata(unit_dev, fwspk);
+	dev_set_drvdata(&unit->device, fwspk);
 
 	return 0;
 
@@ -768,22 +724,6 @@ err_unit:
 error:
 	snd_card_free(card);
 	return err;
-}
-
-static int fwspk_remove(struct device *dev)
-{
-	struct fwspk *fwspk = dev_get_drvdata(dev);
-
-	amdtp_out_stream_pcm_abort(&fwspk->stream);
-	snd_card_disconnect(fwspk->card);
-
-	mutex_lock(&fwspk->mutex);
-	fwspk_stop_stream(fwspk);
-	mutex_unlock(&fwspk->mutex);
-
-	snd_card_free_when_closed(fwspk->card);
-
-	return 0;
 }
 
 static void fwspk_bus_reset(struct fw_unit *unit)
@@ -803,6 +743,40 @@ static void fwspk_bus_reset(struct fw_unit *unit)
 	amdtp_out_stream_update(&fwspk->stream);
 }
 
+static void fwspk_remove(struct fw_unit *unit)
+{
+	struct fwspk *fwspk = dev_get_drvdata(&unit->device);
+
+	amdtp_out_stream_pcm_abort(&fwspk->stream);
+	snd_card_disconnect(fwspk->card);
+
+	mutex_lock(&fwspk->mutex);
+	fwspk_stop_stream(fwspk);
+	mutex_unlock(&fwspk->mutex);
+
+	snd_card_free_when_closed(fwspk->card);
+}
+
+static const struct device_info griffin_firewave = {
+	.driver_name = "FireWave",
+	.short_name  = "FireWave",
+	.long_name   = "Griffin FireWave Surround",
+	.pcm_constraints = firewave_constraints,
+	.mixer_channels = 6,
+	.mute_fb_id   = 0x01,
+	.volume_fb_id = 0x02,
+};
+
+static const struct device_info lacie_speakers = {
+	.driver_name = "FWSpeakers",
+	.short_name  = "FireWire Speakers",
+	.long_name   = "LaCie FireWire Speakers",
+	.pcm_constraints = lacie_speakers_constraints,
+	.mixer_channels = 1,
+	.mute_fb_id   = 0x01,
+	.volume_fb_id = 0x01,
+};
+
 static const struct ieee1394_device_id fwspk_id_table[] = {
 	{
 		.match_flags  = IEEE1394_MATCH_VENDOR_ID |
@@ -813,6 +787,7 @@ static const struct ieee1394_device_id fwspk_id_table[] = {
 		.model_id     = 0x00f970,
 		.specifier_id = SPECIFIER_1394TA,
 		.version      = VERSION_AVC,
+		.driver_data  = (kernel_ulong_t)&griffin_firewave,
 	},
 	{
 		.match_flags  = IEEE1394_MATCH_VENDOR_ID |
@@ -823,6 +798,7 @@ static const struct ieee1394_device_id fwspk_id_table[] = {
 		.model_id     = 0x00f970,
 		.specifier_id = SPECIFIER_1394TA,
 		.version      = VERSION_AVC,
+		.driver_data  = (kernel_ulong_t)&lacie_speakers,
 	},
 	{ }
 };
@@ -833,10 +809,10 @@ static struct fw_driver fwspk_driver = {
 		.owner	= THIS_MODULE,
 		.name	= KBUILD_MODNAME,
 		.bus	= &fw_bus_type,
-		.probe	= fwspk_probe,
-		.remove	= fwspk_remove,
 	},
+	.probe    = fwspk_probe,
 	.update   = fwspk_bus_reset,
+	.remove   = fwspk_remove,
 	.id_table = fwspk_id_table,
 };
 

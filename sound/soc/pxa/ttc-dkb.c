@@ -122,6 +122,7 @@ static struct snd_soc_dai_link ttc_pm860x_hifi_dai[] = {
 /* ttc/td audio machine driver */
 static struct snd_soc_card ttc_dkb_card = {
 	.name = "ttc-dkb-hifi",
+	.owner = THIS_MODULE,
 	.dai_link = ttc_pm860x_hifi_dai,
 	.num_links = ARRAY_SIZE(ttc_pm860x_hifi_dai),
 
@@ -159,6 +160,7 @@ static struct platform_driver ttc_dkb_driver = {
 	.driver		= {
 		.name	= "ttc-dkb-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= ttc_dkb_probe,
 	.remove		= ttc_dkb_remove,

@@ -143,31 +143,9 @@ TRACE_EVENT(9p_protocol_dump,
 		    __entry->tag    =  pdu->tag;
 		    memcpy(__entry->line, pdu->sdata, P9_PROTO_DUMP_SZ);
 		    ),
-	    TP_printk("clnt %lu %s(tag = %d)\n%.3x: "
-		      "%02x %02x %02x %02x %02x %02x %02x %02x "
-		      "%02x %02x %02x %02x %02x %02x %02x %02x\n"
-		      "%.3x: "
-		      "%02x %02x %02x %02x %02x %02x %02x %02x "
-		      "%02x %02x %02x %02x %02x %02x %02x %02x\n",
-		      (long)__entry->clnt, show_9p_op(__entry->type),
-		      __entry->tag, 0,
-		      __entry->line[0],  __entry->line[1],
-		      __entry->line[2],  __entry->line[3],
-		      __entry->line[4],  __entry->line[5],
-		      __entry->line[6],  __entry->line[7],
-		      __entry->line[8],  __entry->line[9],
-		      __entry->line[10], __entry->line[11],
-		      __entry->line[12], __entry->line[13],
-		      __entry->line[14], __entry->line[15],
-		      16,
-		      __entry->line[16], __entry->line[17],
-		      __entry->line[18], __entry->line[19],
-		      __entry->line[20], __entry->line[21],
-		      __entry->line[22], __entry->line[23],
-		      __entry->line[24], __entry->line[25],
-		      __entry->line[26], __entry->line[27],
-		      __entry->line[28], __entry->line[29],
-		      __entry->line[30], __entry->line[31])
+	    TP_printk("clnt %lu %s(tag = %d)\n%.3x: %16ph\n%.3x: %16ph\n",
+		      (unsigned long)__entry->clnt, show_9p_op(__entry->type),
+		      __entry->tag, 0, __entry->line, 16, __entry->line + 16)
  );
 
 #endif /* _TRACE_9P_H */

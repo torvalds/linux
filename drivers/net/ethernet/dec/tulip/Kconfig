@@ -126,7 +126,6 @@ config WINBOND_840
 	tristate "Winbond W89c840 Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver is for the Winbond W89c840 chip.  It also works with 

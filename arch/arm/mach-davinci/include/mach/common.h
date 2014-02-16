@@ -14,6 +14,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/reboot.h>
 
 extern void davinci_timer_init(void);
 
@@ -71,7 +72,6 @@ struct davinci_soc_info {
 	unsigned			gpio_unbanked;
 	struct davinci_gpio_controller	*gpio_ctlrs;
 	int				gpio_ctlrs_num;
-	struct platform_device		*serial_dev;
 	struct emac_platform_data	*emac_pdata;
 	dma_addr_t			sram_dma;
 	unsigned			sram_len;
@@ -81,7 +81,7 @@ extern struct davinci_soc_info davinci_soc_info;
 
 extern void davinci_common_init(struct davinci_soc_info *soc_info);
 extern void davinci_init_ide(void);
-void davinci_restart(char mode, const char *cmd);
+void davinci_restart(enum reboot_mode mode, const char *cmd);
 void davinci_init_late(void);
 
 #ifdef CONFIG_DAVINCI_RESET_CLOCKS

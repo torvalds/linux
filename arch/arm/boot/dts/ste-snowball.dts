@@ -1,0 +1,493 @@
+/*
+ * Copyright 2011 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "ste-dbx5x0.dtsi"
+#include "ste-href-family-pinctrl.dtsi"
+
+/ {
+	model = "Calao Systems Snowball platform with device tree";
+	compatible = "calaosystems,snowball-a9500", "st-ericsson,u9500";
+
+	memory {
+		reg = <0x00000000 0x20000000>;
+	};
+
+	en_3v3_reg: en_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "en-3v3-fixed-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		/* AB8500 GPIOs start from 1 - offset 25 is GPIO26. */
+		gpio = <&ab8500_gpio 25 0x4>;
+		startup-delay-us = <5000>;
+		enable-active-high;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <2>;
+			label = "userpb";
+			gpios = <&gpio1 0 0x4>;
+		};
+		button@2 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <3>;
+			label = "extkb1";
+			gpios = <&gpio4 23 0x4>;
+		};
+		button@3 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <4>;
+			label = "extkb2";
+			gpios = <&gpio4 24 0x4>;
+		};
+		button@4 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <5>;
+			label = "extkb3";
+			gpios = <&gpio5 1 0x4>;
+		};
+		button@5 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <6>;
+			label = "extkb4";
+			gpios = <&gpio5 2 0x4>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpioled_snowball_mode>;
+		used-led {
+			label = "user_led";
+			gpios = <&gpio4 14 0x4>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	soc {
+		usb_per5@a03e0000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&musb_default_mode>;
+			pinctrl-1 = <&musb_sleep_mode>;
+		};
+
+		sound {
+			compatible = "stericsson,snd-soc-mop500";
+
+			stericsson,cpu-dai = <&msp1 &msp3>;
+			stericsson,audio-codec = <&codec>;
+		};
+
+		msp0: msp@80123000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp0_default_mode>;
+			status = "okay";
+		};
+
+		msp1: msp@80124000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp1_default_mode>;
+			status = "okay";
+		};
+
+		msp2: msp@80117000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp2_default_mode>;
+			status = "okay";
+		};
+
+		msp3: msp@80125000 {
+			status = "okay";
+		};
+
+		external-bus@50000000 {
+			status = "okay";
+
+			ethernet@0 {
+				compatible = "smsc,lan9115";
+				reg = <0 0x10000>;
+				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
+				interrupt-parent = <&gpio4>;
+				vdd33a-supply = <&en_3v3_reg>;
+				vddvario-supply = <&db8500_vape_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&eth_snowball_mode>;
+
+				reg-shift = <1>;
+				reg-io-width = <2>;
+				smsc,force-internal-phy;
+				smsc,irq-active-high;
+				smsc,irq-push-pull;
+
+				clocks = <&prcc_pclk 3 0>;
+			};
+		};
+
+		vmmci: regulator-gpio {
+			gpios = <&gpio7 4 0x4>;
+			enable-gpio = <&gpio6 25 0x4>;
+		};
+
+		// External Micro SD slot
+		sdi0_per1@80126000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+			mmc-cap-mmc-highspeed;
+			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			vqmmc-supply = <&vmmci>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi0_default_mode>;
+			pinctrl-1 = <&sdi0_sleep_mode>;
+
+			cd-gpios  = <&gpio6 26 0x4>; // 218
+			cd-inverted;
+
+			status = "okay";
+		};
+
+		// WLAN SDIO channel
+		sdi1_per2@80118000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi1_default_mode>;
+			pinctrl-1 = <&sdi1_sleep_mode>;
+
+			status = "okay";
+		};
+
+		// Unused PoP eMMC - register and put it to sleep by default */
+		sdi2_per3@80005000 {
+			arm,primecell-periphid = <0x10480180>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdi2_sleep_mode>;
+
+			status = "okay";
+		};
+
+		// On-board eMMC
+		sdi4_per2@80114000 {
+			arm,primecell-periphid = <0x10480180>;
+		        max-frequency = <100000000>;
+			bus-width = <8>;
+			mmc-cap-mmc-highspeed;
+			vmmc-supply = <&ab8500_ldo_aux2_reg>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi4_default_mode>;
+			pinctrl-1 = <&sdi4_sleep_mode>;
+
+			status = "okay";
+		};
+
+		uart@80120000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart0_default_mode>;
+			pinctrl-1 = <&uart0_sleep_mode>;
+			status = "okay";
+		};
+
+		uart@80121000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart1_default_mode>;
+			pinctrl-1 = <&uart1_sleep_mode>;
+			status = "okay";
+		};
+
+		uart@80007000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart2_default_mode>;
+			pinctrl-1 = <&uart2_sleep_mode>;
+			status = "okay";
+		};
+
+		i2c@80004000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c0_default_mode>;
+			pinctrl-1 = <&i2c0_sleep_mode>;
+		};
+
+		i2c@80122000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c1_default_mode>;
+			pinctrl-1 = <&i2c1_sleep_mode>;
+		};
+
+		i2c@80128000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c2_default_mode>;
+			pinctrl-1 = <&i2c2_sleep_mode>;
+		};
+
+		i2c@80110000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c3_default_mode>;
+			pinctrl-1 = <&i2c3_sleep_mode>;
+		};
+
+		ssp@80002000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&ssp0_snowball_mode>;
+		};
+
+		cpufreq-cooling {
+			status = "okay";
+		};
+
+		prcmu@80157000 {
+			cpufreq {
+				status = "okay";
+			};
+
+			thermal@801573c0 {
+				num-trips = <4>;
+
+				trip0-temp = <70000>;
+				trip0-type = "active";
+				trip0-cdev-num = <1>;
+				trip0-cdev-name0 = "thermal-cpufreq-0";
+
+				trip1-temp = <75000>;
+				trip1-type = "active";
+				trip1-cdev-num = <1>;
+				trip1-cdev-name0 = "thermal-cpufreq-0";
+
+				trip2-temp = <80000>;
+				trip2-type = "active";
+				trip2-cdev-num = <1>;
+				trip2-cdev-name0 = "thermal-cpufreq-0";
+
+				trip3-temp = <85000>;
+				trip3-type = "critical";
+				trip3-cdev-num = <0>;
+
+				status = "okay";
+			};
+
+			ab8500 {
+				ab8500-gpio {
+					compatible = "stericsson,ab8500-gpio";
+				};
+
+				ext_regulators: ab8500-ext-regulators {
+					ab8500_ext1_reg: ab8500_ext1 {
+						regulator-name = "ab8500-ext-supply1";
+					};
+
+					ab8500_ext2_reg_reg: ab8500_ext2 {
+						regulator-name = "ab8500-ext-supply2";
+					};
+
+					ab8500_ext3_reg_reg: ab8500_ext3 {
+						regulator-name = "ab8500-ext-supply3";
+					};
+				};
+
+				ab8500-regulators {
+					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
+						regulator-name = "V-DISPLAY";
+					};
+
+					ab8500_ldo_aux2_reg: ab8500_ldo_aux2 {
+						regulator-name = "V-eMMC1";
+					};
+
+					ab8500_ldo_aux3_reg: ab8500_ldo_aux3 {
+						regulator-name = "V-MMC-SD";
+					};
+
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
+						regulator-name = "V-INTCORE";
+					};
+
+					ab8500_ldo_tvout_reg: ab8500_ldo_tvout {
+						regulator-name = "V-TVOUT";
+					};
+
+					ab8500_ldo_usb_reg: ab8500_ldo_usb {
+						regulator-name = "dummy";
+					};
+
+					ab8500_ldo_audio_reg: ab8500_ldo_audio {
+						regulator-name = "V-AUD";
+					};
+
+					ab8500_ldo_anamic1_reg: ab8500_ldo_anamic1 {
+						regulator-name = "V-AMIC1";
+					};
+
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
+						regulator-name = "V-AMIC2";
+					};
+
+					ab8500_ldo_dmic_reg: ab8500_ldo_dmic {
+						regulator-name = "V-DMIC";
+					};
+
+					ab8500_ldo_ana_reg: ab8500_ldo_ana {
+						regulator-name = "V-CSI/DSI";
+					};
+				};
+			};
+		};
+
+		pinctrl {
+			/*
+			 * Set this up using hogs, as time goes by and as seems fit, these
+			 * can be moved over to being controlled by respective device.
+			 */
+			pinctrl-names = "default";
+			pinctrl-0 = <&accel_snowball_mode>,
+				  <&magneto_snowball_mode>,
+				  <&gbf_snowball_mode>,
+				  <&wlan_snowball_mode>;
+
+			ethernet {
+				/*
+				 * Mux in "SM" which is used for the
+				 * SMSC911x Ethernet adapter
+				 */
+				eth_snowball_mode: eth_snowball {
+					snowball_mux {
+						ste,function = "sm";
+						ste,pins = "sm_b_1";
+					};
+					/* LAN IRQ pin */
+					snowball_cfg1 {
+						ste,pins = "GPIO140_B11";
+						ste,config = <&in_nopull>;
+					};
+					/* LAN reset pin */
+					snowball_cfg2 {
+						ste,pins = "GPIO141_C12";
+						ste,config = <&gpio_out_hi>;
+					};
+
+				};
+			};
+			sdi0 {
+				sdi0_default_mode: sdi0_default {
+					snowball_mux {
+						ste,function = "mc0";
+						ste,pins = "mc0dat31dir_a_1";
+					};
+					snowball_cfg1 {
+						ste,pins = "GPIO21_AB3"; /* DAT31DIR */
+						ste,config = <&out_hi>;
+					};
+
+				};
+			};
+			ssp0 {
+				ssp0_snowball_mode: ssp0_snowball_default {
+					snowball_mux {
+						ste,function = "ssp0";
+						ste,pins = "ssp0_a_1";
+					};
+					snowball_cfg1 {
+						ste,pins = "GPIO144_B13"; /* FRM */
+						ste,config = <&gpio_out_hi>;
+					};
+					snowball_cfg2 {
+						ste,pins = "GPIO145_C13"; /* RXD */
+						ste,config = <&in_pd>;
+					};
+					snowball_cfg3 {
+						ste,pins =
+						"GPIO146_D13", /* TXD */
+						"GPIO143_D12"; /* CLK */
+						ste,config = <&out_lo>;
+					};
+
+				};
+			};
+			gpio_led {
+				gpioled_snowball_mode: gpioled_default {
+					snowball_cfg1 {
+						ste,pins = "GPIO142_C11";
+						ste,config = <&gpio_out_hi>;
+					};
+
+				};
+			};
+			accelerometer {
+				accel_snowball_mode: accel_snowball {
+					/* Accelerometer lines */
+					snowball_cfg1 {
+						ste,pins =
+						"GPIO163_C20", /* ACCEL_IRQ1 */
+						"GPIO164_B21"; /* ACCEL_IRQ2 */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			magnetometer {
+				magneto_snowball_mode: magneto_snowball {
+					snowball_cfg1 {
+						ste,pins = "GPIO165_C21"; /* MAG_DRDY */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			gbf {
+				gbf_snowball_mode: gbf_snowball {
+					/*
+					 * GBF (GPS, Bluetooth, FM-radio) interface,
+					 * pull low to reset state
+					 */
+					snowball_cfg1 {
+						ste,pins = "GPIO171_D23"; /* GBF_ENA_RESET */
+						ste,config = <&gpio_out_lo>;
+					};
+				 };
+			};
+			wlan {
+				wlan_snowball_mode: wlan_snowball {
+					/*
+					 * Activate this mode with the WLAN chip.
+					 * These are plain GPIO pins used by WLAN
+					 */
+					snowball_cfg1 {
+						ste,pins =
+						"GPIO161_D21", /* WLAN_PMU_EN */
+						"GPIO215_AH13"; /* WLAN_ENA */
+						ste,config = <&gpio_out_lo>;
+					};
+					snowball_cfg2 {
+						ste,pins = "GPIO216_AG12"; /* WLAN_IRQ */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+		};
+
+		mcde@a0350000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&lcd_default_mode>;
+			pinctrl-1 = <&lcd_sleep_mode>;
+		};
+	};
+};

@@ -27,9 +27,11 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <clocksource/samsung_pwm.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/platform_data/dma-s3c24xx.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
@@ -43,12 +45,14 @@
 
 #include <mach/regs-gpio.h>
 #include <plat/regs-serial.h>
+#include <mach/dma.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
 #include <plat/cpu-freq.h>
 #include <plat/pll.h>
+#include <plat/pwm-core.h>
 
 #include "common.h"
 
@@ -216,6 +220,13 @@ static void s3c24xx_default_idle(void)
 		     S3C2410_CLKCON);
 }
 
+static struct samsung_pwm_variant s3c24xx_pwm_variant = {
+	.bits		= 16,
+	.div_base	= 1,
+	.has_tint_cstat	= false,
+	.tclk_mask	= (1 << 4),
+};
+
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
 	arm_pm_idle = s3c24xx_default_idle;
@@ -232,6 +243,24 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 	s3c24xx_init_cpu();
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+
+	samsung_pwm_set_platdata(&s3c24xx_pwm_variant);
+}
+
+void __init samsung_set_timer_source(unsigned int event, unsigned int source)
+{
+	s3c24xx_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+	s3c24xx_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
+}
+
+void __init samsung_timer_init(void)
+{
+	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
+		IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2, IRQ_TIMER3, IRQ_TIMER4,
+	};
+
+	samsung_pwm_clocksource_init(S3C_VA_TIMER,
+					timer_irqs, &s3c24xx_pwm_variant);
 }
 
 /* Serial port registrations */
@@ -302,3 +331,207 @@ void __init_or_cpufreq s3c24xx_setup_clocks(unsigned long fclk,
 	clk_p.rate = pclk;
 	clk_f.rate = fclk;
 }
+
+#if defined(CONFIG_CPU_S3C2410) || defined(CONFIG_CPU_S3C2412) || \
+	defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2442)
+static struct resource s3c2410_dma_resource[] = {
+	[0] = DEFINE_RES_MEM(S3C24XX_PA_DMA, S3C24XX_SZ_DMA),
+	[1] = DEFINE_RES_IRQ(IRQ_DMA0),
+	[2] = DEFINE_RES_IRQ(IRQ_DMA1),
+	[3] = DEFINE_RES_IRQ(IRQ_DMA2),
+	[4] = DEFINE_RES_IRQ(IRQ_DMA3),
+};
+#endif
+
+#if defined(CONFIG_CPU_S3C2410) || defined(CONFIG_CPU_S3C2442)
+static struct s3c24xx_dma_channel s3c2410_dma_channels[DMACH_MAX] = {
+	[DMACH_XD0] = { S3C24XX_DMA_AHB, true, S3C24XX_DMA_CHANREQ(0, 0), },
+	[DMACH_XD1] = { S3C24XX_DMA_AHB, true, S3C24XX_DMA_CHANREQ(0, 1), },
+	[DMACH_SDI] = { S3C24XX_DMA_APB, false, S3C24XX_DMA_CHANREQ(2, 0) |
+						S3C24XX_DMA_CHANREQ(2, 2) |
+						S3C24XX_DMA_CHANREQ(1, 3),
+	},
+	[DMACH_SPI0] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(3, 1), },
+	[DMACH_SPI1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(2, 3), },
+	[DMACH_UART0] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(1, 0), },
+	[DMACH_UART1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(1, 1), },
+	[DMACH_UART2] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(0, 3), },
+	[DMACH_TIMER] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(3, 0) |
+						 S3C24XX_DMA_CHANREQ(3, 2) |
+						 S3C24XX_DMA_CHANREQ(3, 3),
+	},
+	[DMACH_I2S_IN] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(2, 1) |
+						  S3C24XX_DMA_CHANREQ(1, 2),
+	},
+	[DMACH_I2S_OUT] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(0, 2), },
+	[DMACH_USB_EP1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 0), },
+	[DMACH_USB_EP2] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 1), },
+	[DMACH_USB_EP3] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 2), },
+	[DMACH_USB_EP4] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 3), },
+};
+
+static struct s3c24xx_dma_platdata s3c2410_dma_platdata = {
+	.num_phy_channels = 4,
+	.channels = s3c2410_dma_channels,
+	.num_channels = DMACH_MAX,
+};
+
+struct platform_device s3c2410_device_dma = {
+	.name		= "s3c2410-dma",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c2410_dma_resource),
+	.resource	= s3c2410_dma_resource,
+	.dev	= {
+		.platform_data	= &s3c2410_dma_platdata,
+	},
+};
+#endif
+
+#ifdef CONFIG_CPU_S3C2412
+static struct s3c24xx_dma_channel s3c2412_dma_channels[DMACH_MAX] = {
+	[DMACH_XD0] = { S3C24XX_DMA_AHB, true, 17 },
+	[DMACH_XD1] = { S3C24XX_DMA_AHB, true, 18 },
+	[DMACH_SDI] = { S3C24XX_DMA_APB, false, 10 },
+	[DMACH_SPI0_RX] = { S3C24XX_DMA_APB, true, 1 },
+	[DMACH_SPI0_TX] = { S3C24XX_DMA_APB, true, 0 },
+	[DMACH_SPI1_RX] = { S3C24XX_DMA_APB, true, 3 },
+	[DMACH_SPI1_TX] = { S3C24XX_DMA_APB, true, 2 },
+	[DMACH_UART0] = { S3C24XX_DMA_APB, true, 19 },
+	[DMACH_UART1] = { S3C24XX_DMA_APB, true, 21 },
+	[DMACH_UART2] = { S3C24XX_DMA_APB, true, 23 },
+	[DMACH_UART0_SRC2] = { S3C24XX_DMA_APB, true, 20 },
+	[DMACH_UART1_SRC2] = { S3C24XX_DMA_APB, true, 22 },
+	[DMACH_UART2_SRC2] = { S3C24XX_DMA_APB, true, 24 },
+	[DMACH_TIMER] = { S3C24XX_DMA_APB, true, 9 },
+	[DMACH_I2S_IN] = { S3C24XX_DMA_APB, true, 5 },
+	[DMACH_I2S_OUT] = { S3C24XX_DMA_APB, true, 4 },
+	[DMACH_USB_EP1] = { S3C24XX_DMA_APB, true, 13 },
+	[DMACH_USB_EP2] = { S3C24XX_DMA_APB, true, 14 },
+	[DMACH_USB_EP3] = { S3C24XX_DMA_APB, true, 15 },
+	[DMACH_USB_EP4] = { S3C24XX_DMA_APB, true, 16 },
+};
+
+static struct s3c24xx_dma_platdata s3c2412_dma_platdata = {
+	.num_phy_channels = 4,
+	.channels = s3c2412_dma_channels,
+	.num_channels = DMACH_MAX,
+};
+
+struct platform_device s3c2412_device_dma = {
+	.name		= "s3c2412-dma",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c2410_dma_resource),
+	.resource	= s3c2410_dma_resource,
+	.dev	= {
+		.platform_data	= &s3c2412_dma_platdata,
+	},
+};
+#endif
+
+#if defined(CONFIG_CPU_S3C2440)
+static struct s3c24xx_dma_channel s3c2440_dma_channels[DMACH_MAX] = {
+	[DMACH_XD0] = { S3C24XX_DMA_AHB, true, S3C24XX_DMA_CHANREQ(0, 0), },
+	[DMACH_XD1] = { S3C24XX_DMA_AHB, true, S3C24XX_DMA_CHANREQ(0, 1), },
+	[DMACH_SDI] = { S3C24XX_DMA_APB, false, S3C24XX_DMA_CHANREQ(2, 0) |
+						S3C24XX_DMA_CHANREQ(6, 1) |
+						S3C24XX_DMA_CHANREQ(2, 2) |
+						S3C24XX_DMA_CHANREQ(1, 3),
+	},
+	[DMACH_SPI0] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(3, 1), },
+	[DMACH_SPI1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(2, 3), },
+	[DMACH_UART0] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(1, 0), },
+	[DMACH_UART1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(1, 1), },
+	[DMACH_UART2] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(0, 3), },
+	[DMACH_TIMER] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(3, 0) |
+						 S3C24XX_DMA_CHANREQ(3, 2) |
+						 S3C24XX_DMA_CHANREQ(3, 3),
+	},
+	[DMACH_I2S_IN] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(2, 1) |
+						  S3C24XX_DMA_CHANREQ(1, 2),
+	},
+	[DMACH_I2S_OUT] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(5, 0) |
+						   S3C24XX_DMA_CHANREQ(0, 2),
+	},
+	[DMACH_PCM_IN] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(6, 0) |
+						  S3C24XX_DMA_CHANREQ(5, 2),
+	},
+	[DMACH_PCM_OUT] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(5, 1) |
+						  S3C24XX_DMA_CHANREQ(6, 3),
+	},
+	[DMACH_MIC_IN] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(6, 2) |
+						  S3C24XX_DMA_CHANREQ(5, 3),
+	},
+	[DMACH_USB_EP1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 0), },
+	[DMACH_USB_EP2] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 1), },
+	[DMACH_USB_EP3] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 2), },
+	[DMACH_USB_EP4] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 3), },
+};
+
+static struct s3c24xx_dma_platdata s3c2440_dma_platdata = {
+	.num_phy_channels = 4,
+	.channels = s3c2440_dma_channels,
+	.num_channels = DMACH_MAX,
+};
+
+struct platform_device s3c2440_device_dma = {
+	.name		= "s3c2410-dma",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c2410_dma_resource),
+	.resource	= s3c2410_dma_resource,
+	.dev	= {
+		.platform_data	= &s3c2440_dma_platdata,
+	},
+};
+#endif
+
+#if defined(CONFIG_CPUS_3C2443) || defined(CONFIG_CPU_S3C2416)
+static struct resource s3c2443_dma_resource[] = {
+	[0] = DEFINE_RES_MEM(S3C24XX_PA_DMA, S3C24XX_SZ_DMA),
+	[1] = DEFINE_RES_IRQ(IRQ_S3C2443_DMA0),
+	[2] = DEFINE_RES_IRQ(IRQ_S3C2443_DMA1),
+	[3] = DEFINE_RES_IRQ(IRQ_S3C2443_DMA2),
+	[4] = DEFINE_RES_IRQ(IRQ_S3C2443_DMA3),
+	[5] = DEFINE_RES_IRQ(IRQ_S3C2443_DMA4),
+	[6] = DEFINE_RES_IRQ(IRQ_S3C2443_DMA5),
+};
+
+static struct s3c24xx_dma_channel s3c2443_dma_channels[DMACH_MAX] = {
+	[DMACH_XD0] = { S3C24XX_DMA_AHB, true, 17 },
+	[DMACH_XD1] = { S3C24XX_DMA_AHB, true, 18 },
+	[DMACH_SDI] = { S3C24XX_DMA_APB, false, 10 },
+	[DMACH_SPI0_RX] = { S3C24XX_DMA_APB, true, 1 },
+	[DMACH_SPI0_TX] = { S3C24XX_DMA_APB, true, 0 },
+	[DMACH_SPI1_RX] = { S3C24XX_DMA_APB, true, 3 },
+	[DMACH_SPI1_TX] = { S3C24XX_DMA_APB, true, 2 },
+	[DMACH_UART0] = { S3C24XX_DMA_APB, true, 19 },
+	[DMACH_UART1] = { S3C24XX_DMA_APB, true, 21 },
+	[DMACH_UART2] = { S3C24XX_DMA_APB, true, 23 },
+	[DMACH_UART3] = { S3C24XX_DMA_APB, true, 25 },
+	[DMACH_UART0_SRC2] = { S3C24XX_DMA_APB, true, 20 },
+	[DMACH_UART1_SRC2] = { S3C24XX_DMA_APB, true, 22 },
+	[DMACH_UART2_SRC2] = { S3C24XX_DMA_APB, true, 24 },
+	[DMACH_UART3_SRC2] = { S3C24XX_DMA_APB, true, 26 },
+	[DMACH_TIMER] = { S3C24XX_DMA_APB, true, 9 },
+	[DMACH_I2S_IN] = { S3C24XX_DMA_APB, true, 5 },
+	[DMACH_I2S_OUT] = { S3C24XX_DMA_APB, true, 4 },
+	[DMACH_PCM_IN] = { S3C24XX_DMA_APB, true, 28 },
+	[DMACH_PCM_OUT] = { S3C24XX_DMA_APB, true, 27 },
+	[DMACH_MIC_IN] = { S3C24XX_DMA_APB, true, 29 },
+};
+
+static struct s3c24xx_dma_platdata s3c2443_dma_platdata = {
+	.num_phy_channels = 6,
+	.channels = s3c2443_dma_channels,
+	.num_channels = DMACH_MAX,
+};
+
+struct platform_device s3c2443_device_dma = {
+	.name		= "s3c2443-dma",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c2443_dma_resource),
+	.resource	= s3c2443_dma_resource,
+	.dev	= {
+		.platform_data	= &s3c2443_dma_platdata,
+	},
+};
+#endif

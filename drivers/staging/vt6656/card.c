@@ -66,7 +66,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 //const u16 cwRXBCNTSFOff[MAX_RATE] =
 //{17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3};
 
-const u16 cwRXBCNTSFOff[MAX_RATE] =
+static const u16 cwRXBCNTSFOff[MAX_RATE] =
 {192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3};
 
 /*
@@ -75,52 +75,48 @@ const u16 cwRXBCNTSFOff[MAX_RATE] =
  * Parameters:
  *  In:
  *      pDevice             - The adapter to be set
- *      uConnectionChannel  - Channel to be set
+ *      connection_channel  - Channel to be set
  *  Out:
  *      none
  */
-void CARDbSetMediaChannel(struct vnt_private *pDevice, u32 uConnectionChannel)
+void CARDbSetMediaChannel(struct vnt_private *priv, u32 connection_channel)
 {
 
-    if (pDevice->byBBType == BB_TYPE_11A) { // 15 ~ 38
-        if ((uConnectionChannel < (CB_MAX_CHANNEL_24G+1)) || (uConnectionChannel > CB_MAX_CHANNEL))
-            uConnectionChannel = (CB_MAX_CHANNEL_24G+1);
-    } else {
-        if ((uConnectionChannel > CB_MAX_CHANNEL_24G) || (uConnectionChannel == 0)) // 1 ~ 14
-            uConnectionChannel = 1;
-    }
+	if (priv->byBBType == BB_TYPE_11A) {
+		if ((connection_channel < (CB_MAX_CHANNEL_24G + 1)) ||
+					(connection_channel > CB_MAX_CHANNEL))
+			connection_channel = (CB_MAX_CHANNEL_24G + 1);
+	} else {
+		if ((connection_channel > CB_MAX_CHANNEL_24G) ||
+						(connection_channel == 0))
+			connection_channel = 1;
+	}
 
-    // clear NAV
-    MACvRegBitsOn(pDevice, MAC_REG_MACCR, MACCR_CLRNAV);
+	/* clear NAV */
+	MACvRegBitsOn(priv, MAC_REG_MACCR, MACCR_CLRNAV);
 
-    // Set Channel[7] = 0 to tell H/W channel is changing now.
-    MACvRegBitsOff(pDevice, MAC_REG_CHANNEL, 0x80);
+	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
+	MACvRegBitsOff(priv, MAC_REG_CHANNEL, 0xb0);
 
-    //if (pMgmt->uCurrChannel == uConnectionChannel)
-    //    return bResult;
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SELECT_CHANNLE,
+					connection_channel, 0, 0, NULL);
 
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_SELECT_CHANNLE,
-                        (u16) uConnectionChannel,
-                        0,
-                        0,
-                        NULL
-                        );
+	if (priv->byBBType == BB_TYPE_11A) {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyOFDMAPwrTbl[connection_channel-15], RATE_54M);
+	} else if (priv->byBBType == BB_TYPE_11G) {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyOFDMPwrTbl[connection_channel-1], RATE_54M);
+	} else {
+		priv->byCurPwr = 0xff;
+		RFbRawSetPower(priv,
+			priv->abyCCKPwrTbl[connection_channel-1], RATE_1M);
+	}
 
-    //{{ RobertYu: 20041202
-    //// TX_PE will reserve 3 us for MAX2829 A mode only, it is for better TX throughput
-
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyOFDMAPwrTbl[uConnectionChannel-15], RATE_54M);
-    } else if (pDevice->byBBType == BB_TYPE_11G) {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyOFDMPwrTbl[uConnectionChannel-1], RATE_54M);
-    } else {
-        pDevice->byCurPwr = 0xFF;
-        RFbRawSetPower(pDevice, pDevice->abyCCKPwrTbl[uConnectionChannel-1], RATE_1M);
-    }
-    ControlvWriteByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_CHANNEL,(u8)(uConnectionChannel|0x80));
+	ControlvWriteByte(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
+		(u8)(connection_channel|0x80));
 }
 
 /*
@@ -172,8 +168,8 @@ static u16 swGetOFDMControlRate(struct vnt_private *pDevice, u16 wRateIdx)
 	if (!CARDbIsOFDMinBasicRate(pDevice)) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"swGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
-	if (wRateIdx > RATE_24M)
-		wRateIdx = RATE_24M;
+		if (wRateIdx > RATE_24M)
+			wRateIdx = RATE_24M;
 		return wRateIdx;
 	}
 
@@ -205,7 +201,7 @@ static u16 swGetOFDMControlRate(struct vnt_private *pDevice, u16 wRateIdx)
  * Return Value: none
  *
  */
-void
+static void
 CARDvCalculateOFDMRParameter (
       u16 wRate,
       u8 byBBType,
@@ -319,53 +315,27 @@ CARDvCalculateOFDMRParameter (
  */
 void CARDvSetRSPINF(struct vnt_private *pDevice, u8 byBBType)
 {
-	u8 abyServ[4] = {0, 0, 0, 0}; /* For CCK */
-	u8 abySignal[4] = {0, 0, 0, 0};
-	u16 awLen[4] = {0, 0, 0, 0};
+	struct vnt_phy_field phy[4];
 	u8 abyTxRate[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0}; /* For OFDM */
 	u8 abyRsvTime[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 	u8 abyData[34];
 	int i;
 
     //RSPINF_b_1
-    BBvCalculateParameter(pDevice,
-                         14,
-                         swGetCCKControlRate(pDevice, RATE_1M),
-                         PK_TYPE_11B,
-                         &awLen[0],
-                         &abyServ[0],
-                         &abySignal[0]
-    );
+	BBvCalculateParameter(pDevice, 14,
+		swGetCCKControlRate(pDevice, RATE_1M), PK_TYPE_11B, &phy[0]);
 
     ///RSPINF_b_2
-    BBvCalculateParameter(pDevice,
-                         14,
-                         swGetCCKControlRate(pDevice, RATE_2M),
-                         PK_TYPE_11B,
-                         &awLen[1],
-                         &abyServ[1],
-                         &abySignal[1]
-    );
+	BBvCalculateParameter(pDevice, 14,
+		swGetCCKControlRate(pDevice, RATE_2M), PK_TYPE_11B, &phy[1]);
 
     //RSPINF_b_5
-    BBvCalculateParameter(pDevice,
-                         14,
-                         swGetCCKControlRate(pDevice, RATE_5M),
-                         PK_TYPE_11B,
-                         &awLen[2],
-                         &abyServ[2],
-                         &abySignal[2]
-    );
+	BBvCalculateParameter(pDevice, 14,
+		swGetCCKControlRate(pDevice, RATE_5M), PK_TYPE_11B, &phy[2]);
 
     //RSPINF_b_11
-    BBvCalculateParameter(pDevice,
-                         14,
-                         swGetCCKControlRate(pDevice, RATE_11M),
-                         PK_TYPE_11B,
-                         &awLen[3],
-                         &abyServ[3],
-                         &abySignal[3]
-    );
+	BBvCalculateParameter(pDevice, 14,
+		swGetCCKControlRate(pDevice, RATE_11M), PK_TYPE_11B, &phy[3]);
 
     //RSPINF_a_6
     CARDvCalculateOFDMRParameter (RATE_6M,
@@ -421,25 +391,21 @@ void CARDvSetRSPINF(struct vnt_private *pDevice, u8 byBBType)
                                  &abyTxRate[8],
                                  &abyRsvTime[8]);
 
-    abyData[0] = (u8)(awLen[0]&0xFF);
-    abyData[1] = (u8)(awLen[0]>>8);
-    abyData[2] = abySignal[0];
-    abyData[3] = abyServ[0];
+	put_unaligned(phy[0].len, (u16 *)&abyData[0]);
+	abyData[2] = phy[0].signal;
+	abyData[3] = phy[0].service;
 
-    abyData[4] = (u8)(awLen[1]&0xFF);
-    abyData[5] = (u8)(awLen[1]>>8);
-    abyData[6] = abySignal[1];
-    abyData[7] = abyServ[1];
+	put_unaligned(phy[1].len, (u16 *)&abyData[4]);
+	abyData[6] = phy[1].signal;
+	abyData[7] = phy[1].service;
 
-    abyData[8] = (u8)(awLen[2]&0xFF);
-    abyData[9] = (u8)(awLen[2]>>8);
-    abyData[10] = abySignal[2];
-    abyData[11] = abyServ[2];
+	put_unaligned(phy[2].len, (u16 *)&abyData[8]);
+	abyData[10] = phy[2].signal;
+	abyData[11] = phy[2].service;
 
-    abyData[12] = (u8)(awLen[3]&0xFF);
-    abyData[13] = (u8)(awLen[3]>>8);
-    abyData[14] = abySignal[3];
-    abyData[15] = abyServ[3];
+	put_unaligned(phy[3].len, (u16 *)&abyData[12]);
+	abyData[14] = phy[3].signal;
+	abyData[15] = phy[3].service;
 
     for (i = 0; i < 9; i++) {
 	abyData[16+i*2] = abyTxRate[i];
@@ -754,28 +720,20 @@ bool CARDbClearCurrentTSF(struct vnt_private *pDevice)
  */
 u64 CARDqGetNextTBTT(u64 qwTSF, u16 wBeaconInterval)
 {
+	u32 uBeaconInterval;
 
-    unsigned int    uLowNextTBTT;
-    unsigned int    uHighRemain, uLowRemain;
-    unsigned int    uBeaconInterval;
+	uBeaconInterval = wBeaconInterval * 1024;
 
-    uBeaconInterval = wBeaconInterval * 1024;
-    // Next TBTT = ((local_current_TSF / beacon_interval) + 1 ) * beacon_interval
-	uLowNextTBTT = ((qwTSF & 0xffffffffU) >> 10) << 10;
-	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
-	uHighRemain = ((0x80000000 % uBeaconInterval) * 2 * (u32)(qwTSF >> 32))
-		% uBeaconInterval;
-	uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
-	uLowRemain = uBeaconInterval - uLowRemain;
+	/* Next TBTT =
+	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	*/
+	if (uBeaconInterval) {
+		do_div(qwTSF, uBeaconInterval);
+		qwTSF += 1;
+		qwTSF *= uBeaconInterval;
+	}
 
-    // check if carry when add one beacon interval
-	if ((~uLowNextTBTT) < uLowRemain)
-		qwTSF = ((qwTSF >> 32) + 1) << 32;
-
-	qwTSF = (qwTSF & 0xffffffff00000000ULL) |
-		(u64)(uLowNextTBTT + uLowRemain);
-
-    return (qwTSF);
+	return qwTSF;
 }
 
 /*

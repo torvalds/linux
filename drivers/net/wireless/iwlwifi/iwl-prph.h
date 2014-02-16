@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,8 +97,25 @@
 
 #define APMG_PCIDEV_STT_VAL_L1_ACT_DIS		(0x00000800)
 
+#define APMG_RTC_INT_STT_RFKILL		(0x10000000)
+
 /* Device system time */
 #define DEVICE_SYSTEM_TIME_REG 0xA0206C
+
+/* Device NMI register */
+#define DEVICE_SET_NMI_REG 0x00a01c30
+
+/*****************************************************************************
+ *                        7000/3000 series SHR DTS addresses                 *
+ *****************************************************************************/
+
+#define SHR_MISC_WFM_DTS_EN	(0x00a10024)
+#define DTSC_CFG_MODE		(0x00a10604)
+#define DTSC_VREF_AVG		(0x00a10648)
+#define DTSC_VREF5_AVG		(0x00a1064c)
+#define DTSC_CFG_MODE_PERIODIC	(0x2)
+#define DTSC_PTAT_AVG		(0x00a10650)
+
 
 /**
  * Tx Scheduler
@@ -259,5 +276,9 @@ static inline unsigned int SCD_QUEUE_STATUS_BITS(unsigned int chnl)
 }
 
 /*********************** END TX SCHEDULER *************************************/
+
+/* Oscillator clock */
+#define OSC_CLK				(0xa04068)
+#define OSC_CLK_FORCE_CONTROL		(0x8)
 
 #endif				/* __iwl_prph_h__ */

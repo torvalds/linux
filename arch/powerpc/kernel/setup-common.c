@@ -62,8 +62,6 @@
 #include <mm/mmu_decl.h>
 #include <asm/fadump.h>
 
-#include "setup.h"
-
 #ifdef DEBUG
 #include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
@@ -436,7 +434,8 @@ void __init smp_setup_cpu_maps(void)
 	DBG("smp_setup_cpu_maps()\n");
 
 	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < nr_cpu_ids) {
-		const int *intserv;
+		const __be32 *intserv;
+		__be32 cpu_be;
 		int j, len;
 
 		DBG("  * %s...\n", dn->full_name);
@@ -450,15 +449,17 @@ void __init smp_setup_cpu_maps(void)
 		} else {
 			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
 			intserv = of_get_property(dn, "reg", NULL);
-			if (!intserv)
-				intserv = &cpu;	/* assume logical == phys */
+			if (!intserv) {
+				cpu_be = cpu_to_be32(cpu);
+				intserv = &cpu_be;	/* assume logical == phys */
+			}
 		}
 
 		for (j = 0; j < nthreads && cpu < nr_cpu_ids; j++) {
 			DBG("    thread %d -> cpu %d (hard id %d)\n",
-			    j, cpu, intserv[j]);
+			    j, cpu, be32_to_cpu(intserv[j]));
 			set_cpu_present(cpu, true);
-			set_hard_smp_processor_id(cpu, intserv[j]);
+			set_hard_smp_processor_id(cpu, be32_to_cpu(intserv[j]));
 			set_cpu_possible(cpu, true);
 			cpu++;
 		}
@@ -478,7 +479,7 @@ void __init smp_setup_cpu_maps(void)
 	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR) &&
 	    (dn = of_find_node_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
-		const unsigned int *ireg;
+		const __be32 *ireg;
 
 		num_addr_cell = of_n_addr_cells(dn);
 		num_size_cell = of_n_size_cells(dn);
@@ -488,7 +489,7 @@ void __init smp_setup_cpu_maps(void)
 		if (!ireg)
 			goto out;
 
-		maxcpus = ireg[num_addr_cell + num_size_cell];
+		maxcpus = be32_to_cpup(ireg + num_addr_cell + num_size_cell);
 
 		/* Double maxcpus for processors which have SMT capability */
 		if (cpu_has_feature(CPU_FTR_SMT))

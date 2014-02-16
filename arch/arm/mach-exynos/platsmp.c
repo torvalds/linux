@@ -27,12 +27,11 @@
 #include <asm/firmware.h>
 
 #include <mach/hardware.h>
-#include <mach/regs-clock.h>
-#include <mach/regs-pmu.h>
 
 #include <plat/cpu.h>
 
 #include "common.h"
+#include "regs-pmu.h"
 
 extern void exynos4_secondary_startup(void);
 
@@ -64,8 +63,7 @@ static void write_pen_release(int val)
 {
 	pen_release = val;
 	smp_wmb();
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+	sync_cache_w(&pen_release);
 }
 
 static void __iomem *scu_base_addr(void)
@@ -75,7 +73,7 @@ static void __iomem *scu_base_addr(void)
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static void __cpuinit exynos_secondary_init(unsigned int cpu)
+static void exynos_secondary_init(unsigned int cpu)
 {
 	/*
 	 * let the primary processor know we're out of the
@@ -90,7 +88,7 @@ static void __cpuinit exynos_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static int __cpuinit exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	unsigned long phys_cpu = cpu_logical_map(cpu);

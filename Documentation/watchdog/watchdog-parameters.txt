@@ -194,14 +194,6 @@ reset: Watchdog Interrupt/Reset Mode. 0 = interrupt, 1 = reset
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
-mpcore_wdt:
-mpcore_margin: MPcore timer margin in seconds.
-	(0 < mpcore_margin < 65536, default=60)
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
-mpcore_noboot: MPcore watchdog action, set to 1 to ignore reboots,
-	0 to reboot (default=0
--------------------------------------------------
 mv64x60_wdt:
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)

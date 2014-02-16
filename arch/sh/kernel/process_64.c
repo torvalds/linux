@@ -374,7 +374,7 @@ asmlinkage void ret_from_kernel_thread(void);
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long arg, struct task_struct *p)
 {
-	struct pt_regs *childregs, *regs = current_pt_regs();
+	struct pt_regs *childregs;
 
 #ifdef CONFIG_SH_FPU
 	/* can't happen for a kernel thread */
@@ -393,7 +393,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->regs[2] = (unsigned long)arg;
-		childregs->regs[3] = (unsigned long)fn;
+		childregs->regs[3] = (unsigned long)usp;
 		childregs->sr = (1 << 30); /* not user_mode */
 		childregs->sr |= SR_FD; /* Invalidate FPU flag */
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;

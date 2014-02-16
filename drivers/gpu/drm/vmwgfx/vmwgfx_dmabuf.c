@@ -290,8 +290,7 @@ void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *bo,
 /**
  * vmw_bo_pin - Pin or unpin a buffer object without moving it.
  *
- * @bo: The buffer object. Must be reserved, and present either in VRAM
- * or GMR memory.
+ * @bo: The buffer object. Must be reserved.
  * @pin: Whether to pin or unpin.
  *
  */
@@ -302,11 +301,10 @@ void vmw_bo_pin(struct ttm_buffer_object *bo, bool pin)
 	uint32_t old_mem_type = bo->mem.mem_type;
 	int ret;
 
-	BUG_ON(!ttm_bo_is_reserved(bo));
-	BUG_ON(old_mem_type != TTM_PL_VRAM &&
-	       old_mem_type != VMW_PL_GMR);
+	lockdep_assert_held(&bo->resv->lock.base);
 
-	pl_flags = TTM_PL_FLAG_VRAM | VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED;
+	pl_flags = TTM_PL_FLAG_VRAM | VMW_PL_FLAG_GMR | VMW_PL_FLAG_MOB
+		| TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED;
 	if (pin)
 		pl_flags |= TTM_PL_FLAG_NO_EVICT;
 

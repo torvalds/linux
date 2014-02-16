@@ -57,6 +57,8 @@ void mei_amthif_reset_params(struct mei_device *dev)
 	dev->iamthif_ioctl = false;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->iamthif_timer = 0;
+	dev->iamthif_stall_timer = 0;
+	dev->iamthif_open_count = 0;
 }
 
 /**
@@ -77,8 +79,10 @@ int mei_amthif_host_init(struct mei_device *dev)
 
 	i = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
 	if (i < 0) {
-		dev_info(&dev->pdev->dev, "amthif: failed to find the client\n");
-		return -ENOENT;
+		ret = i;
+		dev_info(&dev->pdev->dev,
+			"amthif: failed to find the client %d\n", ret);
+		return ret;
 	}
 
 	cl->me_client_id = dev->me_clients[i].client_id;
@@ -105,8 +109,9 @@ int mei_amthif_host_init(struct mei_device *dev)
 	ret = mei_cl_link(cl, MEI_IAMTHIF_HOST_CLIENT_ID);
 
 	if (ret < 0) {
-		dev_err(&dev->pdev->dev, "amthif: failed link client\n");
-		return -ENOENT;
+		dev_err(&dev->pdev->dev,
+			"amthif: failed link client %d\n", ret);
+		return ret;
 	}
 
 	cl->state = MEI_FILE_CONNECTING;
@@ -172,7 +177,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	unsigned long timeout;
 	int i;
 
-	/* Only Posible if we are in timeout */
+	/* Only possible if we are in timeout */
 	if (!cl || cl != &dev->iamthif_cl) {
 		dev_dbg(&dev->pdev->dev, "bad file ext.\n");
 		return -ETIMEDOUT;
@@ -244,7 +249,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	    cb->response_buffer.size);
 	dev_dbg(&dev->pdev->dev, "amthif cb->buf_idx - %lu\n", cb->buf_idx);
 
-	/* length is being turncated to PAGE_SIZE, however,
+	/* length is being truncated to PAGE_SIZE, however,
 	 * the buf_idx may point beyond */
 	length = min_t(size_t, length, (cb->buf_idx - *offset));
 
@@ -311,14 +316,15 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 		mei_hdr.host_addr = dev->iamthif_cl.host_client_id;
 		mei_hdr.me_addr = dev->iamthif_cl.me_client_id;
 		mei_hdr.reserved = 0;
+		mei_hdr.internal = 0;
 		dev->iamthif_msg_buf_index += mei_hdr.length;
-		if (mei_write_message(dev, &mei_hdr,
-					(unsigned char *)dev->iamthif_msg_buf))
-			return -ENODEV;
+		ret = mei_write_message(dev, &mei_hdr, dev->iamthif_msg_buf);
+		if (ret)
+			return ret;
 
 		if (mei_hdr.msg_complete) {
 			if (mei_cl_flow_ctrl_reduce(&dev->iamthif_cl))
-				return -ENODEV;
+				return -EIO;
 			dev->iamthif_flow_control_pending = true;
 			dev->iamthif_state = MEI_IAMTHIF_FLOW_CONTROL;
 			dev_dbg(&dev->pdev->dev, "add amthif cb to write waiting list\n");
@@ -418,15 +424,23 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 		struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
-	mutex_unlock(&dev->device_lock);
+
 	poll_wait(file, &dev->iamthif_cl.wait, wait);
+
 	mutex_lock(&dev->device_lock);
-	if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
-		dev->iamthif_file_object == file) {
+	if (!mei_cl_is_connected(&dev->iamthif_cl)) {
+
+		mask = POLLERR;
+
+	} else if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
+		   dev->iamthif_file_object == file) {
+
 		mask |= (POLLIN | POLLRDNORM);
 		dev_dbg(&dev->pdev->dev, "run next amthif cb\n");
 		mei_amthif_run_next_cmd(dev);
 	}
+	mutex_unlock(&dev->device_lock);
+
 	return mask;
 }
 
@@ -450,10 +464,21 @@ int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	struct mei_msg_hdr mei_hdr;
 	size_t len = dev->iamthif_msg_buf_size - dev->iamthif_msg_buf_index;
 	u32 msg_slots = mei_data2slots(len);
+	int rets;
+
+	rets = mei_cl_flow_ctrl_creds(cl);
+	if (rets < 0)
+		return rets;
+
+	if (rets == 0) {
+		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
+		return 0;
+	}
 
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
 	mei_hdr.reserved = 0;
+	mei_hdr.internal = 0;
 
 	if (*slots >= msg_slots) {
 		mei_hdr.length = len;
@@ -472,16 +497,17 @@ int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(&mei_hdr));
 
 	*slots -=  msg_slots;
-	if (mei_write_message(dev, &mei_hdr,
-		dev->iamthif_msg_buf + dev->iamthif_msg_buf_index)) {
-			dev->iamthif_state = MEI_IAMTHIF_IDLE;
-			cl->status = -ENODEV;
-			list_del(&cb->list);
-			return -ENODEV;
+	rets = mei_write_message(dev, &mei_hdr,
+			dev->iamthif_msg_buf + dev->iamthif_msg_buf_index);
+	if (rets) {
+		dev->iamthif_state = MEI_IAMTHIF_IDLE;
+		cl->status = rets;
+		list_del(&cb->list);
+		return rets;
 	}
 
 	if (mei_cl_flow_ctrl_reduce(cl))
-		return -ENODEV;
+		return -EIO;
 
 	dev->iamthif_msg_buf_index += mei_hdr.length;
 	cl->status = 0;
@@ -711,8 +737,8 @@ static bool mei_clear_lists(struct mei_device *dev, struct file *file)
 */
 int mei_amthif_release(struct mei_device *dev, struct file *file)
 {
-	if (dev->open_handle_count > 0)
-		dev->open_handle_count--;
+	if (dev->iamthif_open_count > 0)
+		dev->iamthif_open_count--;
 
 	if (dev->iamthif_file_object == file &&
 	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {

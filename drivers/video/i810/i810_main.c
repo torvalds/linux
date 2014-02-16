@@ -2011,9 +2011,7 @@ static int i810fb_init_pci(struct pci_dev *dev,
 	struct fb_info    *info;
 	struct i810fb_par *par = NULL;
 	struct fb_videomode mode;
-	int i, err = -1, vfreq, hfreq, pixclock;
-
-	i = 0;
+	int err = -1, vfreq, hfreq, pixclock;
 
 	info = framebuffer_alloc(sizeof(struct i810fb_par), &dev->dev);
 	if (!info)
@@ -2129,7 +2127,6 @@ static void __exit i810fb_remove_pci(struct pci_dev *dev)
 
 	unregister_framebuffer(info);  
 	i810fb_release_resource(info, par);
-	pci_set_drvdata(dev, NULL);
 	printk("cleanup_module:  unloaded i810 framebuffer device\n");
 }                                                	
 

@@ -228,7 +228,7 @@ int pcibios_add_platform_entries(struct pci_dev *pdev)
  */
 static int pci_read_irq_line(struct pci_dev *pci_dev)
 {
-	struct of_irq oirq;
+	struct of_phandle_args oirq;
 	unsigned int virq;
 
 	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
@@ -237,7 +237,7 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 	memset(&oirq, 0xff, sizeof(oirq));
 #endif
 	/* Try to get a mapping from the device-tree */
-	if (of_irq_map_pci(pci_dev, &oirq)) {
+	if (of_irq_parse_pci(pci_dev, &oirq)) {
 		u8 line, pin;
 
 		/* If that fails, lets fallback to what is in the config
@@ -263,11 +263,10 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
-			 oirq.size, oirq.specifier[0], oirq.specifier[1],
-			 of_node_full_name(oirq.controller));
+			 oirq.args_count, oirq.args[0], oirq.args[1],
+			 of_node_full_name(oirq.np));
 
-		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
-					     oirq.size);
+		virq = irq_create_of_mapping(&oirq);
 	}
 	if(virq == NO_IRQ) {
 		pr_debug(" Failed to map !\n");
@@ -306,7 +305,7 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 	unsigned long io_offset = 0;
 	int i, res_bit;
 
-	if (hose == 0)
+	if (hose == NULL)
 		return NULL;		/* should never happen */
 
 	/* If memory, add on the PCI bridge address offset */
@@ -667,7 +666,7 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
 void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 				  struct device_node *dev, int primary)
 {
-	const u32 *ranges;
+	const __be32 *ranges;
 	int rlen;
 	int pna = of_n_addr_cells(dev);
 	int np = pna + 5;
@@ -687,7 +686,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	/* Parse it */
 	while ((rlen -= np * 4) >= 0) {
 		/* Read next ranges element */
-		pci_space = ranges[0];
+		pci_space = of_read_number(ranges, 1);
 		pci_addr = of_read_number(ranges + 1, 2);
 		cpu_addr = of_translate_address(dev, ranges + 3);
 		size = of_read_number(ranges + pna + 3, 2);
@@ -704,7 +703,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 		/* Now consume following elements while they are contiguous */
 		for (; rlen >= np * sizeof(u32);
 		     ranges += np, rlen -= np * 4) {
-			if (ranges[0] != pci_space)
+			if (of_read_number(ranges, 1) != pci_space)
 				break;
 			pci_next = of_read_number(ranges + 1, 2);
 			cpu_next = of_translate_address(dev, ranges + 3);
@@ -836,7 +835,7 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 		 * at 0 as unset as well, except if PCI_PROBE_ONLY is also set
 		 * since in that case, we don't want to re-assign anything
 		 */
-		pcibios_resource_to_bus(dev, &reg, res);
+		pcibios_resource_to_bus(dev->bus, &reg, res);
 		if (pci_has_flag(PCI_REASSIGN_ALL_RSRC) ||
 		    (reg.start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
 			/* Only print message if not re-assigning */
@@ -887,7 +886,7 @@ static int pcibios_uninitialized_bridge_resource(struct pci_bus *bus,
 
 	/* Job is a bit different between memory and IO */
 	if (res->flags & IORESOURCE_MEM) {
-		pcibios_resource_to_bus(dev, &region, res);
+		pcibios_resource_to_bus(dev->bus, &region, res);
 
 		/* If the BAR is non-0 then it's probably been initialized */
 		if (region.start != 0)
@@ -1055,8 +1054,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	 * bases. This is -not- called when generating the PCI tree from
 	 * the OF device-tree.
 	 */
-	if (bus->self != NULL)
-		pci_read_bridge_bases(bus);
+	pci_read_bridge_bases(bus);
 
 	/* Now fixup the bus bus */
 	pcibios_setup_bus_self(bus);
@@ -1462,6 +1460,8 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 	/* Allocate bus and devices resources */
 	pcibios_allocate_bus_resources(bus);
 	pcibios_claim_one_bus(bus);
+	if (!pci_has_flag(PCI_PROBE_ONLY))
+		pci_assign_unassigned_bus_resources(bus);
 
 	/* Fixup EEH */
 	eeh_add_device_tree_late(bus);
@@ -1576,7 +1576,7 @@ fake_pci_bus(struct pci_controller *hose, int busnr)
 {
 	static struct pci_bus bus;
 
-	if (hose == 0) {
+	if (hose == NULL) {
 		printk(KERN_ERR "Can't find hose for PCI bus %d!\n", busnr);
 	}
 	bus.number = busnr;
@@ -1672,12 +1672,8 @@ void pcibios_scan_phb(struct pci_controller *hose)
 	/* Configure PCI Express settings */
 	if (bus && !pci_has_flag(PCI_PROBE_ONLY)) {
 		struct pci_bus *child;
-		list_for_each_entry(child, &bus->children, node) {
-			struct pci_dev *self = child->self;
-			if (!self)
-				continue;
-			pcie_bus_configure_settings(child, self->pcie_mpss);
-		}
+		list_for_each_entry(child, &bus->children, node)
+			pcie_bus_configure_settings(child);
 	}
 }
 

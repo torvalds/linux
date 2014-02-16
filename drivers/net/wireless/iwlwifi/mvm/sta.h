@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -250,7 +250,6 @@ enum iwl_mvm_agg_state {
  *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
  *	we are ready to finish the Tx AGG stop / start flow.
- * @wait_for_ba: Expect block-ack before next Tx reply
  */
 struct iwl_mvm_tid_data {
 	u16 seq_number;
@@ -260,7 +259,6 @@ struct iwl_mvm_tid_data {
 	enum iwl_mvm_agg_state state;
 	u16 txq_id;
 	u16 ssn;
-	bool wait_for_ba;
 };
 
 /**
@@ -275,6 +273,8 @@ struct iwl_mvm_tid_data {
  * @lock: lock to protect the whole struct. Since %tid_data is access from Tx
  * and from Tx response flow, it needs a spinlock.
  * @tid_data: per tid data. Look at %iwl_mvm_tid_data.
+ * @tx_protection: reference counter for controlling the Tx protection.
+ * @tt_tx_protection: is thermal throttling enable Tx protection?
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -293,10 +293,16 @@ struct iwl_mvm_sta {
 	struct iwl_lq_sta lq_sta;
 	struct ieee80211_vif *vif;
 
-#ifdef CONFIG_PM_SLEEP
-	u16 last_seq_ctl;
-#endif
+	/* Temporary, until the new TLC will control the Tx protection */
+	s8 tx_protection;
+	bool tt_tx_protection;
 };
+
+static inline struct iwl_mvm_sta *
+iwl_mvm_sta_from_mac80211(struct ieee80211_sta *sta)
+{
+	return (void *)sta->drv_priv;
+}
 
 /**
  * struct iwl_mvm_int_sta - representation of an internal station (auxiliary or

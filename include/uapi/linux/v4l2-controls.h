@@ -53,13 +53,13 @@
 #define V4L2_CTRL_CLASS_USER		0x00980000	/* Old-style 'user' controls */
 #define V4L2_CTRL_CLASS_MPEG		0x00990000	/* MPEG-compression controls */
 #define V4L2_CTRL_CLASS_CAMERA		0x009a0000	/* Camera class controls */
-#define V4L2_CTRL_CLASS_FM_TX		0x009b0000	/* FM Modulator control class */
+#define V4L2_CTRL_CLASS_FM_TX		0x009b0000	/* FM Modulator controls */
 #define V4L2_CTRL_CLASS_FLASH		0x009c0000	/* Camera flash controls */
 #define V4L2_CTRL_CLASS_JPEG		0x009d0000	/* JPEG-compression controls */
 #define V4L2_CTRL_CLASS_IMAGE_SOURCE	0x009e0000	/* Image source controls */
 #define V4L2_CTRL_CLASS_IMAGE_PROC	0x009f0000	/* Image processing controls */
 #define V4L2_CTRL_CLASS_DV		0x00a00000	/* Digital Video controls */
-#define V4L2_CTRL_CLASS_FM_RX		0x00a10000	/* Digital Video controls */
+#define V4L2_CTRL_CLASS_FM_RX		0x00a10000	/* FM Receiver controls */
 
 /* User-class control IDs */
 
@@ -160,7 +160,17 @@ enum v4l2_colorfx {
  * of controls. Total of 16 controls is reserved for this driver */
 #define V4L2_CID_USER_SI476X_BASE		(V4L2_CID_USER_BASE + 0x1040)
 
+/* The base for the TI VPE driver controls. Total of 16 controls is reserved for
+ * this driver */
+#define V4L2_CID_USER_TI_VPE_BASE		(V4L2_CID_USER_BASE + 0x1050)
+
+/* The base for the saa7134 driver controls.
+ * We reserve 16 controls for this driver. */
+#define V4L2_CID_USER_SAA7134_BASE		(V4L2_CID_USER_BASE + 0x1060)
+
 /* MPEG-class control IDs */
+/* The MPEG controls are applicable to all codec controls
+ * and the 'MPEG' part of the define is historical */
 
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)
 #define V4L2_CID_MPEG_CLASS 			(V4L2_CTRL_CLASS_MPEG | 1)
@@ -521,6 +531,38 @@ enum v4l2_mpeg_video_mpeg4_profile {
 	V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_CODING_EFFICIENCY	= 4,
 };
 #define V4L2_CID_MPEG_VIDEO_MPEG4_QPEL		(V4L2_CID_MPEG_BASE+407)
+
+/*  Control IDs for VP8 streams
+ *  Although VP8 is not part of MPEG we add these controls to the MPEG class
+ *  as that class is already handling other video compression standards
+ */
+#define V4L2_CID_MPEG_VIDEO_VPX_NUM_PARTITIONS		(V4L2_CID_MPEG_BASE+500)
+enum v4l2_vp8_num_partitions {
+	V4L2_CID_MPEG_VIDEO_VPX_1_PARTITION	= 0,
+	V4L2_CID_MPEG_VIDEO_VPX_2_PARTITIONS	= 1,
+	V4L2_CID_MPEG_VIDEO_VPX_4_PARTITIONS	= 2,
+	V4L2_CID_MPEG_VIDEO_VPX_8_PARTITIONS	= 3,
+};
+#define V4L2_CID_MPEG_VIDEO_VPX_IMD_DISABLE_4X4		(V4L2_CID_MPEG_BASE+501)
+#define V4L2_CID_MPEG_VIDEO_VPX_NUM_REF_FRAMES		(V4L2_CID_MPEG_BASE+502)
+enum v4l2_vp8_num_ref_frames {
+	V4L2_CID_MPEG_VIDEO_VPX_1_REF_FRAME	= 0,
+	V4L2_CID_MPEG_VIDEO_VPX_2_REF_FRAME	= 1,
+	V4L2_CID_MPEG_VIDEO_VPX_3_REF_FRAME	= 2,
+};
+#define V4L2_CID_MPEG_VIDEO_VPX_FILTER_LEVEL		(V4L2_CID_MPEG_BASE+503)
+#define V4L2_CID_MPEG_VIDEO_VPX_FILTER_SHARPNESS	(V4L2_CID_MPEG_BASE+504)
+#define V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD	(V4L2_CID_MPEG_BASE+505)
+#define V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL	(V4L2_CID_MPEG_BASE+506)
+enum v4l2_vp8_golden_frame_sel {
+	V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV		= 0,
+	V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_REF_PERIOD	= 1,
+};
+#define V4L2_CID_MPEG_VIDEO_VPX_MIN_QP			(V4L2_CID_MPEG_BASE+507)
+#define V4L2_CID_MPEG_VIDEO_VPX_MAX_QP			(V4L2_CID_MPEG_BASE+508)
+#define V4L2_CID_MPEG_VIDEO_VPX_I_FRAME_QP		(V4L2_CID_MPEG_BASE+509)
+#define V4L2_CID_MPEG_VIDEO_VPX_P_FRAME_QP		(V4L2_CID_MPEG_BASE+510)
+#define V4L2_CID_MPEG_VIDEO_VPX_PROFILE			(V4L2_CID_MPEG_BASE+511)
 
 /*  MPEG-class control IDs specific to the CX2341x driver as defined by V4L2 */
 #define V4L2_CID_MPEG_CX2341X_BASE 				(V4L2_CTRL_CLASS_MPEG | 0x1000)

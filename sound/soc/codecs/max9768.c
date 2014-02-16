@@ -118,6 +118,18 @@ static const struct snd_kcontrol_new max9768_mute[] = {
 	SOC_SINGLE_BOOL_EXT("Playback Switch", 0, max9768_get_gpio, max9768_set_gpio),
 };
 
+static const struct snd_soc_dapm_widget max9768_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("IN"),
+
+SND_SOC_DAPM_OUTPUT("OUT+"),
+SND_SOC_DAPM_OUTPUT("OUT-"),
+};
+
+static const struct snd_soc_dapm_route max9768_dapm_routes[] = {
+	{ "OUT+", NULL, "IN" },
+	{ "OUT-", NULL, "IN" },
+};
+
 static int max9768_probe(struct snd_soc_codec *codec)
 {
 	struct max9768 *max9768 = snd_soc_codec_get_drvdata(codec);
@@ -148,6 +160,10 @@ static struct snd_soc_codec_driver max9768_codec_driver = {
 	.probe = max9768_probe,
 	.controls = max9768_volume,
 	.num_controls = ARRAY_SIZE(max9768_volume),
+	.dapm_widgets = max9768_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(max9768_dapm_widgets),
+	.dapm_routes = max9768_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(max9768_dapm_routes),
 };
 
 static const struct regmap_config max9768_i2c_regmap_config = {

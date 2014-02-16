@@ -53,7 +53,7 @@ static void print_prot(struct seq_file *m, unsigned int pr, int level)
 		seq_printf(m, "I\n");
 		return;
 	}
-	seq_printf(m, "%s", pr & _PAGE_RO ? "RO " : "RW ");
+	seq_printf(m, "%s", pr & _PAGE_PROTECT ? "RO " : "RW ");
 	seq_printf(m, "%s", pr & _PAGE_CO ? "CO " : "   ");
 	seq_putc(m, '\n');
 }
@@ -105,12 +105,12 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 }
 
 /*
- * The actual page table walker functions. In order to keep the implementation
- * of print_prot() short, we only check and pass _PAGE_INVALID and _PAGE_RO
- * flags to note_page() if a region, segment or page table entry is invalid or
- * read-only.
- * After all it's just a hint that the current level being walked contains an
- * invalid or read-only entry.
+ * The actual page table walker functions. In order to keep the
+ * implementation of print_prot() short, we only check and pass
+ * _PAGE_INVALID and _PAGE_PROTECT flags to note_page() if a region,
+ * segment or page table entry is invalid or read-only.
+ * After all it's just a hint that the current level being walked
+ * contains an invalid or read-only entry.
  */
 static void walk_pte_level(struct seq_file *m, struct pg_state *st,
 			   pmd_t *pmd, unsigned long addr)
@@ -122,14 +122,14 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st,
 	for (i = 0; i < PTRS_PER_PTE && addr < max_addr; i++) {
 		st->current_address = addr;
 		pte = pte_offset_kernel(pmd, addr);
-		prot = pte_val(*pte) & (_PAGE_RO | _PAGE_INVALID);
+		prot = pte_val(*pte) & (_PAGE_PROTECT | _PAGE_INVALID);
 		note_page(m, st, prot, 4);
 		addr += PAGE_SIZE;
 	}
 }
 
 #ifdef CONFIG_64BIT
-#define _PMD_PROT_MASK (_SEGMENT_ENTRY_RO | _SEGMENT_ENTRY_CO)
+#define _PMD_PROT_MASK (_SEGMENT_ENTRY_PROTECT | _SEGMENT_ENTRY_CO)
 #else
 #define _PMD_PROT_MASK 0
 #endif

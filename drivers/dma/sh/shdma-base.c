@@ -171,11 +171,23 @@ static struct shdma_desc *shdma_get_desc(struct shdma_chan *schan)
 	return NULL;
 }
 
-static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
+static int shdma_setup_slave(struct shdma_chan *schan, int slave_id,
+			     dma_addr_t slave_addr)
 {
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
-	int ret;
+	int ret, match;
+
+	if (schan->dev->of_node) {
+		match = schan->hw_req;
+		ret = ops->set_slave(schan, match, slave_addr, true);
+		if (ret < 0)
+			return ret;
+
+		slave_id = schan->slave_id;
+	} else {
+		match = slave_id;
+	}
 
 	if (slave_id < 0 || slave_id >= slave_num)
 		return -EINVAL;
@@ -183,7 +195,7 @@ static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
 	if (test_and_set_bit(slave_id, shdma_slave_used))
 		return -EBUSY;
 
-	ret = ops->set_slave(schan, slave_id, false);
+	ret = ops->set_slave(schan, match, slave_addr, false);
 	if (ret < 0) {
 		clear_bit(slave_id, shdma_slave_used);
 		return ret;
@@ -206,23 +218,26 @@ static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
  * services would have to provide their own filters, which first would check
  * the device driver, similar to how other DMAC drivers, e.g., sa11x0-dma.c, do
  * this, and only then, in case of a match, call this common filter.
+ * NOTE 2: This filter function is also used in the DT case by shdma_of_xlate().
+ * In that case the MID-RID value is used for slave channel filtering and is
+ * passed to this function in the "arg" parameter.
  */
 bool shdma_chan_filter(struct dma_chan *chan, void *arg)
 {
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
-	int slave_id = (int)arg;
+	int match = (int)arg;
 	int ret;
 
-	if (slave_id < 0)
+	if (match < 0)
 		/* No slave requested - arbitrary channel */
 		return true;
 
-	if (slave_id >= slave_num)
+	if (!schan->dev->of_node && match >= slave_num)
 		return false;
 
-	ret = ops->set_slave(schan, slave_id, true);
+	ret = ops->set_slave(schan, match, 0, true);
 	if (ret < 0)
 		return false;
 
@@ -245,7 +260,7 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 	 */
 	if (slave) {
 		/* Legacy mode: .private is set in filter */
-		ret = shdma_setup_slave(schan, slave->slave_id);
+		ret = shdma_setup_slave(schan, slave->slave_id, 0);
 		if (ret < 0)
 			goto esetslave;
 	} else {
@@ -666,7 +681,9 @@ static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		 * channel, while using it...
 		 */
 		config = (struct dma_slave_config *)arg;
-		ret = shdma_setup_slave(schan, config->slave_id);
+		ret = shdma_setup_slave(schan, config->slave_id,
+					config->direction == DMA_DEV_TO_MEM ?
+					config->src_addr : config->dst_addr);
 		if (ret < 0)
 			return ret;
 		break;
@@ -707,7 +724,7 @@ static enum dma_status shdma_tx_status(struct dma_chan *chan,
 	 * If we don't find cookie on the queue, it has been aborted and we have
 	 * to report error
 	 */
-	if (status != DMA_SUCCESS) {
+	if (status != DMA_COMPLETE) {
 		struct shdma_desc *sdesc;
 		status = DMA_ERROR;
 		list_for_each_entry(sdesc, &schan->ld_queue, node)
@@ -817,21 +834,14 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 int shdma_request_irq(struct shdma_chan *schan, int irq,
 			   unsigned long flags, const char *name)
 {
-	int ret = request_threaded_irq(irq, chan_irq, chan_irqt,
-				       flags, name, schan);
+	int ret = devm_request_threaded_irq(schan->dev, irq, chan_irq,
+					    chan_irqt, flags, name, schan);
 
 	schan->irq = ret < 0 ? ret : irq;
 
 	return ret;
 }
 EXPORT_SYMBOL(shdma_request_irq);
-
-void shdma_free_irq(struct shdma_chan *schan)
-{
-	if (schan->irq >= 0)
-		free_irq(schan->irq, schan);
-}
-EXPORT_SYMBOL(shdma_free_irq);
 
 void shdma_chan_probe(struct shdma_dev *sdev,
 			   struct shdma_chan *schan, int id)

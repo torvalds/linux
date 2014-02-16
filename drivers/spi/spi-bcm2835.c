@@ -217,7 +217,7 @@ static int bcm2835_spi_start_transfer(struct spi_device *spi,
 		cs |= spi->chip_select;
 	}
 
-	INIT_COMPLETION(bs->done);
+	reinit_completion(&bs->done);
 	bs->tx_buf = tfr->tx_buf;
 	bs->rx_buf = tfr->rx_buf;
 	bs->len = tfr->len;
@@ -314,7 +314,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	master->mode_bits = BCM2835_SPI_MODE_BITS;
-	master->bits_per_word_mask = BIT(8 - 1);
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->bus_num = -1;
 	master->num_chipselect = 3;
 	master->transfer_one_message = bcm2835_spi_transfer_one;
@@ -325,12 +325,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	init_completion(&bs->done);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "could not get memory resource\n");
-		err = -ENODEV;
-		goto out_master_put;
-	}
-
 	bs->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(bs->regs)) {
 		err = PTR_ERR(bs->regs);
@@ -353,8 +347,8 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(bs->clk);
 
-	err = request_irq(bs->irq, bcm2835_spi_interrupt, 0,
-			dev_name(&pdev->dev), master);
+	err = devm_request_irq(&pdev->dev, bs->irq, bcm2835_spi_interrupt, 0,
+				dev_name(&pdev->dev), master);
 	if (err) {
 		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
 		goto out_clk_disable;
@@ -364,16 +358,14 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	bcm2835_wr(bs, BCM2835_SPI_CS,
 		   BCM2835_SPI_CS_CLEAR_RX | BCM2835_SPI_CS_CLEAR_TX);
 
-	err = spi_register_master(master);
+	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {
 		dev_err(&pdev->dev, "could not register SPI master: %d\n", err);
-		goto out_free_irq;
+		goto out_clk_disable;
 	}
 
 	return 0;
 
-out_free_irq:
-	free_irq(bs->irq, master);
 out_clk_disable:
 	clk_disable_unprepare(bs->clk);
 out_master_put:
@@ -386,15 +378,11 @@ static int bcm2835_spi_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 
-	free_irq(bs->irq, master);
-	spi_unregister_master(master);
-
 	/* Clear FIFOs, and disable the HW block */
 	bcm2835_wr(bs, BCM2835_SPI_CS,
 		   BCM2835_SPI_CS_CLEAR_RX | BCM2835_SPI_CS_CLEAR_TX);
 
 	clk_disable_unprepare(bs->clk);
-	spi_master_put(master);
 
 	return 0;
 }

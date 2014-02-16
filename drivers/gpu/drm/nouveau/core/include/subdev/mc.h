@@ -11,7 +11,7 @@ struct nouveau_mc_intr {
 
 struct nouveau_mc {
 	struct nouveau_subdev base;
-	const struct nouveau_mc_intr *intr_map;
+	bool use_msi;
 };
 
 static inline struct nouveau_mc *
@@ -38,14 +38,19 @@ void _nouveau_mc_dtor(struct nouveau_object *);
 int  _nouveau_mc_init(struct nouveau_object *);
 int  _nouveau_mc_fini(struct nouveau_object *, bool);
 
-extern struct nouveau_oclass nv04_mc_oclass;
-extern struct nouveau_oclass nv44_mc_oclass;
-extern struct nouveau_oclass nv50_mc_oclass;
-extern struct nouveau_oclass nv98_mc_oclass;
-extern struct nouveau_oclass nvc0_mc_oclass;
+struct nouveau_mc_oclass {
+	struct nouveau_oclass base;
+	const struct nouveau_mc_intr *intr;
+	void (*msi_rearm)(struct nouveau_mc *);
+};
 
-extern const struct nouveau_mc_intr nv04_mc_intr[];
-int nv04_mc_init(struct nouveau_object *);
-int nv50_mc_init(struct nouveau_object *);
+extern struct nouveau_oclass *nv04_mc_oclass;
+extern struct nouveau_oclass *nv40_mc_oclass;
+extern struct nouveau_oclass *nv44_mc_oclass;
+extern struct nouveau_oclass *nv50_mc_oclass;
+extern struct nouveau_oclass *nv94_mc_oclass;
+extern struct nouveau_oclass *nv98_mc_oclass;
+extern struct nouveau_oclass *nvc0_mc_oclass;
+extern struct nouveau_oclass *nvc3_mc_oclass;
 
 #endif

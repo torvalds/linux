@@ -27,8 +27,10 @@
 
 #define FIMC_LITE_DRV_NAME	"exynos-fimc-lite"
 #define FLITE_CLK_NAME		"flite"
-#define FIMC_LITE_MAX_DEVS	2
+#define FIMC_LITE_MAX_DEVS	3
 #define FLITE_REQ_BUFS_MIN	2
+#define FLITE_DEFAULT_WIDTH	640
+#define FLITE_DEFAULT_HEIGHT	480
 
 /* Bit index definitions for struct fimc_lite::state */
 enum {
@@ -48,16 +50,27 @@ enum {
 #define FLITE_SD_PAD_SOURCE_ISP	2
 #define FLITE_SD_PADS_NUM	3
 
+/**
+ * struct flite_drvdata - FIMC-LITE IP variant data structure
+ * @max_width: maximum camera interface input width in pixels
+ * @max_height: maximum camera interface input height in pixels
+ * @out_width_align: minimum output width alignment in pixels
+ * @win_hor_offs_align: minimum camera interface crop window horizontal
+ * 			offset alignment in pixels
+ * @out_hor_offs_align: minimum output DMA compose rectangle horizontal
+ * 			offset alignment in pixels
+ * @max_dma_bufs: number of output DMA buffer start address registers
+ * @num_instances: total number of FIMC-LITE IP instances available
+ */
 struct flite_drvdata {
 	unsigned short max_width;
 	unsigned short max_height;
 	unsigned short out_width_align;
 	unsigned short win_hor_offs_align;
 	unsigned short out_hor_offs_align;
+	unsigned short max_dma_bufs;
+	unsigned short num_instances;
 };
-
-#define fimc_lite_get_drvdata(_pdev) \
-	((struct flite_drvdata *) platform_get_device_id(_pdev)->driver_data)
 
 struct fimc_lite_events {
 	unsigned int data_overflow;
@@ -83,20 +96,22 @@ struct flite_frame {
  * struct flite_buffer - video buffer structure
  * @vb:    vb2 buffer
  * @list:  list head for the buffers queue
- * @paddr: precalculated physical address
+ * @paddr: DMA buffer start address
+ * @index: DMA start address register's index
  */
 struct flite_buffer {
 	struct vb2_buffer vb;
 	struct list_head list;
 	dma_addr_t paddr;
+	unsigned short index;
 };
 
 /**
  * struct fimc_lite - fimc lite structure
  * @pdev: pointer to FIMC-LITE platform device
  * @dd: SoC specific driver data structure
+ * @ve: exynos video device entity structure
  * @v4l2_dev: pointer to top the level v4l2_device
- * @vfd: video device node
  * @fh: v4l2 file handle
  * @alloc_ctx: videobuf2 memory allocator context
  * @subdev: FIMC-LITE subdev
@@ -122,16 +137,16 @@ struct flite_buffer {
  * @pending_buf_q: pending buffers queue head
  * @active_buf_q: the queue head of buffers scheduled in hardware
  * @vb_queue: vb2 buffers queue
+ * @buf_index: helps to keep track of the DMA start address register index
  * @active_buf_count: number of video buffers scheduled in hardware
  * @frame_count: the captured frames counter
  * @reqbufs_count: the number of buffers requested with REQBUFS ioctl
- * @ref_count: driver's private reference counter
  */
 struct fimc_lite {
 	struct platform_device	*pdev;
 	struct flite_drvdata	*dd;
+	struct exynos_video_entity ve;
 	struct v4l2_device	*v4l2_dev;
-	struct video_device	vfd;
 	struct v4l2_fh		fh;
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct v4l2_subdev	subdev;
@@ -141,8 +156,6 @@ struct fimc_lite {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl	*test_pattern;
 	int			index;
-	struct fimc_pipeline	pipeline;
-	const struct fimc_pipeline_ops *pipeline_ops;
 
 	struct mutex		lock;
 	spinlock_t		slock;
@@ -161,9 +174,9 @@ struct fimc_lite {
 	struct list_head	pending_buf_q;
 	struct list_head	active_buf_q;
 	struct vb2_queue	vb_queue;
+	unsigned short		buf_index;
 	unsigned int		frame_count;
 	unsigned int		reqbufs_count;
-	int			ref_count;
 
 	struct fimc_lite_events	events;
 	bool			streaming;

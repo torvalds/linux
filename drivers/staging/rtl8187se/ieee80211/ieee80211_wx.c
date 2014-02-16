@@ -145,7 +145,8 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	/* Add quality statistics */
 	/* TODO: Fix these values... */
 	if (network->stats.signal == 0 || network->stats.rssi == 0)
-	printk("========>signal:%d, rssi:%d\n", network->stats.signal, network->stats.rssi);
+		printk("========>signal:%d, rssi:%d\n", network->stats.signal,
+		       network->stats.rssi);
 	iwe.cmd = IWEVQUAL;
 //	printk("SIGNAL: %d,RSSI: %d,NOISE: %d\n",network->stats.signal,network->stats.rssi,network->stats.noise);
 	iwe.u.qual.qual = network->stats.signalstrength;
@@ -622,7 +623,7 @@ done:
 	if (ieee->set_security)
 		ieee->set_security(ieee->dev, &sec);
 
-	 if (ieee->reset_on_keychange &&
+	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
 		IEEE80211_DEBUG_WX("%s: reset_port failed\n", dev->name);
@@ -632,8 +633,8 @@ done:
 	return ret;
 }
 int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra)
 {
 	struct iw_mlme *mlme = (struct iw_mlme *) extra;
 //	printk("\ndkgadfslkdjgalskdf===============>%s(), cmd:%x\n", __func__, mlme->cmd);
@@ -652,8 +653,8 @@ int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 }
 
 int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
-			       struct iw_request_info *info,
-			       struct iw_param *data, char *extra)
+			  struct iw_request_info *info,
+			  struct iw_param *data, char *extra)
 {
 /*
 	 struct ieee80211_security sec = {

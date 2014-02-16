@@ -102,17 +102,8 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 
-	if (local->scan_channel) {
-		chandef.chan = local->scan_channel;
-		/* If scanning on oper channel, use whatever channel-type
-		 * is currently in use.
-		 */
-		if (chandef.chan == local->_oper_chandef.chan) {
-			chandef = local->_oper_chandef;
-		} else {
-			chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
-			chandef.center_freq1 = chandef.chan->center_freq;
-		}
+	if (local->scan_chandef.chan) {
+		chandef = local->scan_chandef;
 	} else if (local->tmp_channel) {
 		chandef.chan = local->tmp_channel;
 		chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
@@ -151,7 +142,7 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 		changed |= IEEE80211_CONF_CHANGE_SMPS;
 	}
 
-	power = chandef.chan->max_power;
+	power = ieee80211_chandef_max_power(&chandef);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
@@ -259,12 +250,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 	/* wait for scan work complete */
 	flush_workqueue(local->workqueue);
 
-	mutex_lock(&local->mtx);
-	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning) ||
-	     rcu_dereference_protected(local->sched_scan_sdata,
-				       lockdep_is_held(&local->mtx)),
-		"%s called with hardware scan in progress\n", __func__);
-	mutex_unlock(&local->mtx);
+	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
+	     "%s called with hardware scan in progress\n", __func__);
 
 	rtnl_lock();
 	ieee80211_scan_cancel(local);
@@ -331,7 +318,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	ifmgd = &sdata->u.mgd;
-	mutex_lock(&ifmgd->mtx);
+	sdata_lock(sdata);
 
 	/* Copy the addresses to the bss_conf list */
 	ifa = idev->ifa_list;
@@ -349,7 +336,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_ARP_FILTER);
 
-	mutex_unlock(&ifmgd->mtx);
+	sdata_unlock(sdata);
 
 	return NOTIFY_DONE;
 }
@@ -660,15 +647,14 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 }
 EXPORT_SYMBOL(ieee80211_alloc_hw);
 
-int ieee80211_register_hw(struct ieee80211_hw *hw)
+static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 {
-	struct ieee80211_local *local = hw_to_local(hw);
-	int result, i;
-	enum ieee80211_band band;
-	int channels, max_bitrates;
-	bool supp_ht, supp_vht;
-	netdev_features_t feature_whitelist;
-	struct cfg80211_chan_def dflt_chandef = {};
+	bool have_wep = !(IS_ERR(local->wep_tx_tfm) ||
+			  IS_ERR(local->wep_rx_tfm));
+	bool have_mfp = local->hw.flags & IEEE80211_HW_MFP_CAPABLE;
+	const struct ieee80211_cipher_scheme *cs = local->hw.cipher_schemes;
+	int n_suites = 0, r = 0, w = 0;
+	u32 *suites;
 	static const u32 cipher_suites[] = {
 		/* keep WEP first, it may be removed below */
 		WLAN_CIPHER_SUITE_WEP40,
@@ -680,14 +666,100 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		WLAN_CIPHER_SUITE_AES_CMAC
 	};
 
+	/* Driver specifies the ciphers, we have nothing to do... */
+	if (local->hw.wiphy->cipher_suites && have_wep)
+		return 0;
+
+	/* Set up cipher suites if driver relies on mac80211 cipher defs */
+	if (!local->hw.wiphy->cipher_suites && !cs) {
+		local->hw.wiphy->cipher_suites = cipher_suites;
+		local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+
+		if (!have_mfp)
+			local->hw.wiphy->n_cipher_suites--;
+
+		if (!have_wep) {
+			local->hw.wiphy->cipher_suites += 2;
+			local->hw.wiphy->n_cipher_suites -= 2;
+		}
+
+		return 0;
+	}
+
+	if (!local->hw.wiphy->cipher_suites) {
+		/*
+		 * Driver specifies cipher schemes only
+		 * We start counting ciphers defined by schemes, TKIP and CCMP
+		 */
+		n_suites = local->hw.n_cipher_schemes + 2;
+
+		/* check if we have WEP40 and WEP104 */
+		if (have_wep)
+			n_suites += 2;
+
+		/* check if we have AES_CMAC */
+		if (have_mfp)
+			n_suites++;
+
+		suites = kmalloc(sizeof(u32) * n_suites, GFP_KERNEL);
+		if (!suites)
+			return -ENOMEM;
+
+		suites[w++] = WLAN_CIPHER_SUITE_CCMP;
+		suites[w++] = WLAN_CIPHER_SUITE_TKIP;
+
+		if (have_wep) {
+			suites[w++] = WLAN_CIPHER_SUITE_WEP40;
+			suites[w++] = WLAN_CIPHER_SUITE_WEP104;
+		}
+
+		if (have_mfp)
+			suites[w++] = WLAN_CIPHER_SUITE_AES_CMAC;
+
+		for (r = 0; r < local->hw.n_cipher_schemes; r++)
+			suites[w++] = cs[r].cipher;
+	} else {
+		/* Driver provides cipher suites, but we need to exclude WEP */
+		suites = kmemdup(local->hw.wiphy->cipher_suites,
+				 sizeof(u32) * local->hw.wiphy->n_cipher_suites,
+				 GFP_KERNEL);
+		if (!suites)
+			return -ENOMEM;
+
+		for (r = 0; r < local->hw.wiphy->n_cipher_suites; r++) {
+			u32 suite = local->hw.wiphy->cipher_suites[r];
+
+			if (suite == WLAN_CIPHER_SUITE_WEP40 ||
+			    suite == WLAN_CIPHER_SUITE_WEP104)
+				continue;
+			suites[w++] = suite;
+		}
+	}
+
+	local->hw.wiphy->cipher_suites = suites;
+	local->hw.wiphy->n_cipher_suites = w;
+	local->wiphy_ciphers_allocated = true;
+
+	return 0;
+}
+
+int ieee80211_register_hw(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	int result, i;
+	enum ieee80211_band band;
+	int channels, max_bitrates;
+	bool supp_ht, supp_vht;
+	netdev_features_t feature_whitelist;
+	struct cfg80211_chan_def dflt_chandef = {};
+
 	if (hw->flags & IEEE80211_HW_QUEUE_CONTROL &&
 	    (local->hw.offchannel_tx_hw_queue == IEEE80211_INVAL_HW_QUEUE ||
 	     local->hw.offchannel_tx_hw_queue >= local->hw.queues))
 		return -EINVAL;
 
 #ifdef CONFIG_PM
-	if ((hw->wiphy->wowlan.flags || hw->wiphy->wowlan.n_patterns) &&
-	    (!local->ops->suspend || !local->ops->resume))
+	if (hw->wiphy->wowlan && (!local->ops->suspend || !local->ops->resume))
 		return -EINVAL;
 #endif
 
@@ -774,17 +846,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		/* TODO: consider VHT for RX chains, hopefully it's the same */
 	}
 
-	local->int_scan_req = kzalloc(sizeof(*local->int_scan_req) +
-				      sizeof(void *) * channels, GFP_KERNEL);
-	if (!local->int_scan_req)
-		return -ENOMEM;
-
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-		if (!local->hw.wiphy->bands[band])
-			continue;
-		local->int_scan_req->rates[band] = (u32) -1;
-	}
-
 	/* if low-level driver supports AP, we also support VLAN */
 	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP_VLAN);
@@ -806,6 +867,17 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			if ((c->limits[j].types & BIT(NL80211_IFTYPE_ADHOC)) &&
 			    c->limits[j].max > 1)
 				return -EINVAL;
+	}
+
+	local->int_scan_req = kzalloc(sizeof(*local->int_scan_req) +
+				      sizeof(void *) * channels, GFP_KERNEL);
+	if (!local->int_scan_req)
+		return -ENOMEM;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		if (!local->hw.wiphy->bands[band])
+			continue;
+		local->int_scan_req->rates[band] = (u32) -1;
 	}
 
 #ifndef CONFIG_MAC80211_MESH
@@ -861,49 +933,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (local->hw.wiphy->max_scan_ie_len)
 		local->hw.wiphy->max_scan_ie_len -= local->scan_ies_len;
 
-	/* Set up cipher suites unless driver already did */
-	if (!local->hw.wiphy->cipher_suites) {
-		local->hw.wiphy->cipher_suites = cipher_suites;
-		local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
-		if (!(local->hw.flags & IEEE80211_HW_MFP_CAPABLE))
-			local->hw.wiphy->n_cipher_suites--;
-	}
-	if (IS_ERR(local->wep_tx_tfm) || IS_ERR(local->wep_rx_tfm)) {
-		if (local->hw.wiphy->cipher_suites == cipher_suites) {
-			local->hw.wiphy->cipher_suites += 2;
-			local->hw.wiphy->n_cipher_suites -= 2;
-		} else {
-			u32 *suites;
-			int r, w = 0;
+	WARN_ON(!ieee80211_cs_list_valid(local->hw.cipher_schemes,
+					 local->hw.n_cipher_schemes));
 
-			/* Filter out WEP */
-
-			suites = kmemdup(
-				local->hw.wiphy->cipher_suites,
-				sizeof(u32) * local->hw.wiphy->n_cipher_suites,
-				GFP_KERNEL);
-			if (!suites) {
-				result = -ENOMEM;
-				goto fail_wiphy_register;
-			}
-			for (r = 0; r < local->hw.wiphy->n_cipher_suites; r++) {
-				u32 suite = local->hw.wiphy->cipher_suites[r];
-				if (suite == WLAN_CIPHER_SUITE_WEP40 ||
-				    suite == WLAN_CIPHER_SUITE_WEP104)
-					continue;
-				suites[w++] = suite;
-			}
-			local->hw.wiphy->cipher_suites = suites;
-			local->hw.wiphy->n_cipher_suites = w;
-			local->wiphy_ciphers_allocated = true;
-		}
-	}
+	result = ieee80211_init_cipher_suites(local);
+	if (result < 0)
+		goto fail_wiphy_register;
 
 	if (!local->ops->remain_on_channel)
 		local->hw.wiphy->max_remain_on_channel_duration = 5000;
-
-	if (local->ops->sched_scan_start)
-		local->hw.wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
 
 	/* mac80211 based drivers don't support internal TDLS setup */
 	if (local->hw.wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS)
@@ -952,6 +990,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (result < 0)
 		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",
 			    result);
+
+	local->hw.conf.flags = IEEE80211_CONF_IDLE;
 
 	ieee80211_led_init(local);
 
@@ -1060,6 +1100,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	cancel_work_sync(&local->restart_work);
 	cancel_work_sync(&local->reconfig_filter);
+	flush_work(&local->sched_scan_stopped_work);
 
 	ieee80211_clear_tx_pending(local);
 	rate_control_deinitialize(local);
@@ -1099,6 +1140,8 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	idr_for_each(&local->ack_status_frames,
 		     ieee80211_free_ack_frame, NULL);
 	idr_destroy(&local->ack_status_frames);
+
+	kfree(rcu_access_pointer(local->tx_latency));
 
 	wiphy_free(local->hw.wiphy);
 }

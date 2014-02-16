@@ -20,6 +20,9 @@
 
 #include "tda10071_priv.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 static struct dvb_frontend_ops tda10071_ops;
 
 /* write multiple registers */
@@ -27,15 +30,22 @@ static int tda10071_wr_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 	int len)
 {
 	int ret;
-	u8 buf[len+1];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg.demod_i2c_addr,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = 1 + len,
 			.buf = buf,
 		}
 	};
+
+	if (1 + len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
@@ -56,7 +66,7 @@ static int tda10071_rd_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 	int len)
 {
 	int ret;
-	u8 buf[len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[2] = {
 		{
 			.addr = priv->cfg.demod_i2c_addr,
@@ -66,10 +76,17 @@ static int tda10071_rd_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 		}, {
 			.addr = priv->cfg.demod_i2c_addr,
 			.flags = I2C_M_RD,
-			.len = sizeof(buf),
+			.len = len,
 			.buf = buf,
 		}
 	};
+
+	if (len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	ret = i2c_transfer(priv->i2c, msg, 2);
 	if (ret == 2) {
@@ -912,14 +929,8 @@ static int tda10071_init(struct dvb_frontend *fe)
 		{ 0xd5, 0x03, 0x03 },
 	};
 
-	/* firmware status */
-	ret = tda10071_rd_reg(priv, 0x51, &tmp);
-	if (ret)
-		goto error;
-
-	if (!tmp) {
+	if (priv->warm) {
 		/* warm state - wake up device from sleep */
-		priv->warm = 1;
 
 		for (i = 0; i < ARRAY_SIZE(tab); i++) {
 			ret = tda10071_wr_reg_mask(priv, tab[i].reg,
@@ -937,7 +948,6 @@ static int tda10071_init(struct dvb_frontend *fe)
 			goto error;
 	} else {
 		/* cold state - try to download firmware */
-		priv->warm = 0;
 
 		/* request the firmware, this will block and timeout */
 		ret = request_firmware(&fw, fw_file, priv->i2c->dev.parent);

@@ -67,10 +67,10 @@ struct edmacc_param {
 #define ITCCHEN		BIT(23)
 
 /*ch_status paramater of callback function possible values*/
-#define DMA_COMPLETE 1
-#define DMA_CC_ERROR 2
-#define DMA_TC1_ERROR 3
-#define DMA_TC2_ERROR 4
+#define EDMA_DMA_COMPLETE 1
+#define EDMA_DMA_CC_ERROR 2
+#define EDMA_DMA_TC1_ERROR 3
+#define EDMA_DMA_TC2_ERROR 4
 
 enum address_mode {
 	INCR = 0,
@@ -179,5 +179,7 @@ struct edma_soc_info {
 	s8	(*queue_priority_mapping)[2];
 	const s16	(*xbar_chans)[2];
 };
+
+int edma_trigger_channel(unsigned);
 
 #endif

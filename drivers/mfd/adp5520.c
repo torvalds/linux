@@ -207,7 +207,7 @@ static int adp5520_remove_subdevs(struct adp5520_chip *chip)
 static int adp5520_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	struct adp5520_platform_data *pdata = client->dev.platform_data;
+	struct adp5520_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct platform_device *pdev;
 	struct adp5520_chip *chip;
 	int ret;
@@ -223,7 +223,7 @@ static int adp5520_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -244,7 +244,7 @@ static int adp5520_probe(struct i2c_client *client,
 		if (ret) {
 			dev_err(&client->dev, "failed to request irq %d\n",
 					chip->irq);
-			goto out_free_chip;
+			return ret;
 		}
 	}
 
@@ -302,9 +302,6 @@ out_free_irq:
 	if (chip->irq)
 		free_irq(chip->irq, chip);
 
-out_free_chip:
-	kfree(chip);
-
 	return ret;
 }
 
@@ -317,7 +314,6 @@ static int adp5520_remove(struct i2c_client *client)
 
 	adp5520_remove_subdevs(chip);
 	adp5520_write(chip->dev, ADP5520_MODE_STATUS, 0);
-	kfree(chip);
 	return 0;
 }
 

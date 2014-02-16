@@ -66,6 +66,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	struct cfg80211_bss *cbss;
 	struct ieee80211_bss *bss;
 	int clen, srlen;
+	enum nl80211_bss_scan_width scan_width;
 	s32 signal = 0;
 
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
@@ -73,8 +74,15 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
 		signal = (rx_status->signal * 100) / local->hw.max_signal;
 
-	cbss = cfg80211_inform_bss_frame(local->hw.wiphy, channel,
-					 mgmt, len, signal, GFP_ATOMIC);
+	scan_width = NL80211_BSS_CHAN_WIDTH_20;
+	if (rx_status->flag & RX_FLAG_5MHZ)
+		scan_width = NL80211_BSS_CHAN_WIDTH_5;
+	if (rx_status->flag & RX_FLAG_10MHZ)
+		scan_width = NL80211_BSS_CHAN_WIDTH_10;
+
+	cbss = cfg80211_inform_bss_width_frame(local->hw.wiphy, channel,
+					       scan_width, mgmt, len, signal,
+					       GFP_ATOMIC);
 	if (!cbss)
 		return NULL;
 
@@ -140,6 +148,15 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			bss->valid_data |= IEEE80211_BSS_VALID_WMM;
 	}
 
+	if (beacon) {
+		struct ieee80211_supported_band *sband =
+			local->hw.wiphy->bands[rx_status->band];
+		if (!(rx_status->flag & RX_FLAG_HT) &&
+		    !(rx_status->flag & RX_FLAG_VHT))
+			bss->beacon_rate =
+				&sband->bitrates[rx_status->rate_idx];
+	}
+
 	return bss;
 }
 
@@ -195,12 +212,34 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		ieee80211_rx_bss_put(local, bss);
 }
 
+static void
+ieee80211_prepare_scan_chandef(struct cfg80211_chan_def *chandef,
+			       enum nl80211_bss_scan_width scan_width)
+{
+	memset(chandef, 0, sizeof(*chandef));
+	switch (scan_width) {
+	case NL80211_BSS_CHAN_WIDTH_5:
+		chandef->width = NL80211_CHAN_WIDTH_5;
+		break;
+	case NL80211_BSS_CHAN_WIDTH_10:
+		chandef->width = NL80211_CHAN_WIDTH_10;
+		break;
+	default:
+		chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
+		break;
+	}
+}
+
 /* return false if no more work */
 static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 {
 	struct cfg80211_scan_request *req = local->scan_req;
+	struct cfg80211_chan_def chandef;
 	enum ieee80211_band band;
 	int i, ielen, n_chans;
+
+	if (test_bit(SCAN_HW_CANCELLED, &local->scanning))
+		return false;
 
 	do {
 		if (local->hw_scan_band == IEEE80211_NUM_BANDS)
@@ -220,21 +259,23 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 	} while (!n_chans);
 
 	local->hw_scan_req->n_channels = n_chans;
+	ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
 
 	ielen = ieee80211_build_preq_ies(local, (u8 *)local->hw_scan_req->ie,
 					 local->hw_scan_ies_bufsize,
 					 req->ie, req->ie_len, band,
-					 req->rates[band], 0);
+					 req->rates[band], &chandef);
 	local->hw_scan_req->ie_len = ielen;
 	local->hw_scan_req->no_cck = req->no_cck;
 
 	return true;
 }
 
-static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
-				       bool was_hw_scan)
+static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	bool hw_scan = local->ops->hw_scan;
+	bool was_scanning = local->scanning;
 
 	lockdep_assert_held(&local->mtx);
 
@@ -250,7 +291,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 	if (WARN_ON(!local->scan_req))
 		return;
 
-	if (was_hw_scan && !aborted && ieee80211_prep_hw_scan(local)) {
+	if (hw_scan && !aborted && ieee80211_prep_hw_scan(local)) {
 		int rc;
 
 		rc = drv_hw_scan(local,
@@ -271,12 +312,12 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 	rcu_assign_pointer(local->scan_sdata, NULL);
 
 	local->scanning = 0;
-	local->scan_channel = NULL;
+	local->scan_chandef.chan = NULL;
 
 	/* Set power back to normal operating levels. */
 	ieee80211_hw_config(local, 0);
 
-	if (!was_hw_scan) {
+	if (!hw_scan) {
 		ieee80211_configure_filter(local);
 		drv_sw_scan_complete(local);
 		ieee80211_offchannel_return(local);
@@ -287,7 +328,8 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 	ieee80211_mlme_notify_scan_completed(local);
 	ieee80211_ibss_notify_scan_completed(local);
 	ieee80211_mesh_notify_scan_completed(local);
-	ieee80211_start_next_roc(local);
+	if (was_scanning)
+		ieee80211_start_next_roc(local);
 }
 
 void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
@@ -354,8 +396,7 @@ static bool ieee80211_can_scan(struct ieee80211_local *local,
 		return false;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    sdata->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
-				  IEEE80211_STA_CONNECTION_POLL))
+	    sdata->u.mgd.flags & IEEE80211_STA_CONNECTION_POLL)
 		return false;
 
 	return true;
@@ -487,7 +528,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		ieee80211_hw_config(local, 0);
 
 		if ((req->channels[0]->flags &
-		     IEEE80211_CHAN_PASSIVE_SCAN) ||
+		     IEEE80211_CHAN_NO_IR) ||
 		    !local->scan_req->n_ssids) {
 			next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
 		} else {
@@ -533,7 +574,7 @@ ieee80211_scan_get_channel_time(struct ieee80211_channel *chan)
 	 * TODO: channel switching also consumes quite some time,
 	 * add that delay as well to get a better estimation
 	 */
-	if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+	if (chan->flags & IEEE80211_CHAN_NO_IR)
 		return IEEE80211_PASSIVE_CHANNEL_TIME;
 	return IEEE80211_PROBE_DELAY + IEEE80211_CHANNEL_TIME;
 }
@@ -606,11 +647,34 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 {
 	int skip;
 	struct ieee80211_channel *chan;
+	enum nl80211_bss_scan_width oper_scan_width;
 
 	skip = 0;
 	chan = local->scan_req->channels[local->scan_channel_idx];
 
-	local->scan_channel = chan;
+	local->scan_chandef.chan = chan;
+	local->scan_chandef.center_freq1 = chan->center_freq;
+	local->scan_chandef.center_freq2 = 0;
+	switch (local->scan_req->scan_width) {
+	case NL80211_BSS_CHAN_WIDTH_5:
+		local->scan_chandef.width = NL80211_CHAN_WIDTH_5;
+		break;
+	case NL80211_BSS_CHAN_WIDTH_10:
+		local->scan_chandef.width = NL80211_CHAN_WIDTH_10;
+		break;
+	case NL80211_BSS_CHAN_WIDTH_20:
+		/* If scanning on oper channel, use whatever channel-type
+		 * is currently in use.
+		 */
+		oper_scan_width = cfg80211_chandef_to_scan_width(
+					&local->_oper_chandef);
+		if (chan == local->_oper_chandef.chan &&
+		    oper_scan_width == local->scan_req->scan_width)
+			local->scan_chandef = local->_oper_chandef;
+		else
+			local->scan_chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+		break;
+	}
 
 	if (ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL))
 		skip = 1;
@@ -634,7 +698,7 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	 *
 	 * In any case, it is not necessary for a passive scan.
 	 */
-	if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN ||
+	if (chan->flags & IEEE80211_CHAN_NO_IR ||
 	    !local->scan_req->n_ssids) {
 		*next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
 		local->next_scan_state = SCAN_DECISION;
@@ -650,7 +714,7 @@ static void ieee80211_scan_state_suspend(struct ieee80211_local *local,
 					 unsigned long *next_delay)
 {
 	/* switch back to the operating channel */
-	local->scan_channel = NULL;
+	local->scan_chandef.chan = NULL;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
 	/* disable PS */
@@ -685,7 +749,7 @@ void ieee80211_scan_work(struct work_struct *work)
 		container_of(work, struct ieee80211_local, scan_work.work);
 	struct ieee80211_sub_if_data *sdata;
 	unsigned long next_delay = 0;
-	bool aborted, hw_scan;
+	bool aborted;
 
 	mutex_lock(&local->mtx);
 
@@ -721,14 +785,6 @@ void ieee80211_scan_work(struct work_struct *work)
 			goto out_complete;
 		} else
 			goto out;
-	}
-
-	/*
-	 * Avoid re-scheduling when the sdata is going away.
-	 */
-	if (!ieee80211_sdata_running(sdata)) {
-		aborted = true;
-		goto out_complete;
 	}
 
 	/*
@@ -772,8 +828,7 @@ void ieee80211_scan_work(struct work_struct *work)
 	goto out;
 
 out_complete:
-	hw_scan = test_bit(SCAN_HW_SCANNING, &local->scanning);
-	__ieee80211_scan_completed(&local->hw, aborted, hw_scan);
+	__ieee80211_scan_completed(&local->hw, aborted);
 out:
 	mutex_unlock(&local->mtx);
 }
@@ -792,7 +847,8 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 
 int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 				const u8 *ssid, u8 ssid_len,
-				struct ieee80211_channel *chan)
+				struct ieee80211_channel *chan,
+				enum nl80211_bss_scan_width scan_width)
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = -EBUSY;
@@ -818,7 +874,7 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 				struct ieee80211_channel *tmp_ch =
 				    &local->hw.wiphy->bands[band]->channels[i];
 
-				if (tmp_ch->flags & (IEEE80211_CHAN_NO_IBSS |
+				if (tmp_ch->flags & (IEEE80211_CHAN_NO_IR |
 						     IEEE80211_CHAN_DISABLED))
 					continue;
 
@@ -832,7 +888,7 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 
 		local->int_scan_req->n_channels = n_ch;
 	} else {
-		if (WARN_ON_ONCE(chan->flags & (IEEE80211_CHAN_NO_IBSS |
+		if (WARN_ON_ONCE(chan->flags & (IEEE80211_CHAN_NO_IR |
 						IEEE80211_CHAN_DISABLED)))
 			goto unlock;
 
@@ -842,6 +898,7 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 
 	local->int_scan_req->ssids = &local->scan_ssid;
 	local->int_scan_req->n_ssids = 1;
+	local->int_scan_req->scan_width = scan_width;
 	memcpy(local->int_scan_req->ssids[0].ssid, ssid, IEEE80211_MAX_SSID_LEN);
 	local->int_scan_req->ssids[0].ssid_len = ssid_len;
 
@@ -878,7 +935,23 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 	if (!local->scan_req)
 		goto out;
 
+	/*
+	 * We have a scan running and the driver already reported completion,
+	 * but the worker hasn't run yet or is stuck on the mutex - mark it as
+	 * cancelled.
+	 */
+	if (test_bit(SCAN_HW_SCANNING, &local->scanning) &&
+	    test_bit(SCAN_COMPLETED, &local->scanning)) {
+		set_bit(SCAN_HW_CANCELLED, &local->scanning);
+		goto out;
+	}
+
 	if (test_bit(SCAN_HW_SCANNING, &local->scanning)) {
+		/*
+		 * Make sure that __ieee80211_scan_completed doesn't trigger a
+		 * scan on another band.
+		 */
+		set_bit(SCAN_HW_CANCELLED, &local->scanning);
 		if (local->ops->cancel_hw_scan)
 			drv_cancel_hw_scan(local,
 				rcu_dereference_protected(local->scan_sdata,
@@ -893,32 +966,26 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 	 */
 	cancel_delayed_work(&local->scan_work);
 	/* and clean up */
-	__ieee80211_scan_completed(&local->hw, true, false);
+	__ieee80211_scan_completed(&local->hw, true);
 out:
 	mutex_unlock(&local->mtx);
 }
 
-int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
-				       struct cfg80211_sched_scan_request *req)
+int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
+					struct cfg80211_sched_scan_request *req)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sched_scan_ies sched_scan_ies = {};
+	struct cfg80211_chan_def chandef;
 	int ret, i, iebufsz;
 
 	iebufsz = 2 + IEEE80211_MAX_SSID_LEN +
 		  local->scan_ies_len + req->ie_len;
 
-	mutex_lock(&local->mtx);
+	lockdep_assert_held(&local->mtx);
 
-	if (rcu_access_pointer(local->sched_scan_sdata)) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (!local->ops->sched_scan_start) {
-		ret = -ENOTSUPP;
-		goto out;
-	}
+	if (!local->ops->sched_scan_start)
+		return -ENOTSUPP;
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		if (!local->hw.wiphy->bands[i])
@@ -930,20 +997,48 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 			goto out_free;
 		}
 
+		ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
+
 		sched_scan_ies.len[i] =
 			ieee80211_build_preq_ies(local, sched_scan_ies.ie[i],
 						 iebufsz, req->ie, req->ie_len,
-						 i, (u32) -1, 0);
+						 i, (u32) -1, &chandef);
 	}
 
 	ret = drv_sched_scan_start(local, sdata, req, &sched_scan_ies);
-	if (ret == 0)
+	if (ret == 0) {
 		rcu_assign_pointer(local->sched_scan_sdata, sdata);
+		local->sched_scan_req = req;
+	}
 
 out_free:
 	while (i > 0)
 		kfree(sched_scan_ies.ie[--i]);
-out:
+
+	if (ret) {
+		/* Clean in case of failure after HW restart or upon resume. */
+		rcu_assign_pointer(local->sched_scan_sdata, NULL);
+		local->sched_scan_req = NULL;
+	}
+
+	return ret;
+}
+
+int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
+				       struct cfg80211_sched_scan_request *req)
+{
+	struct ieee80211_local *local = sdata->local;
+	int ret;
+
+	mutex_lock(&local->mtx);
+
+	if (rcu_access_pointer(local->sched_scan_sdata)) {
+		mutex_unlock(&local->mtx);
+		return -EBUSY;
+	}
+
+	ret = __ieee80211_request_sched_scan_start(sdata, req);
+
 	mutex_unlock(&local->mtx);
 	return ret;
 }
@@ -959,6 +1054,9 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 		ret = -ENOTSUPP;
 		goto out;
 	}
+
+	/* We don't want to restart sched scan anymore. */
+	local->sched_scan_req = NULL;
 
 	if (rcu_access_pointer(local->sched_scan_sdata))
 		drv_sched_scan_stop(local, sdata);
@@ -994,6 +1092,9 @@ void ieee80211_sched_scan_stopped_work(struct work_struct *work)
 
 	rcu_assign_pointer(local->sched_scan_sdata, NULL);
 
+	/* If sched scan was aborted by the driver. */
+	local->sched_scan_req = NULL;
+
 	mutex_unlock(&local->mtx);
 
 	cfg80211_sched_scan_stopped(local->hw.wiphy);
@@ -1005,6 +1106,6 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw)
 
 	trace_api_sched_scan_stopped(local);
 
-	ieee80211_queue_work(&local->hw, &local->sched_scan_stopped_work);
+	schedule_work(&local->sched_scan_stopped_work);
 }
 EXPORT_SYMBOL(ieee80211_sched_scan_stopped);

@@ -132,6 +132,12 @@ out:
 	return ERR_PTR(err);
 }
 
+static void delayed_free_pidns(struct rcu_head *p)
+{
+	kmem_cache_free(pid_ns_cachep,
+			container_of(p, struct pid_namespace, rcu));
+}
+
 static void destroy_pid_namespace(struct pid_namespace *ns)
 {
 	int i;
@@ -140,7 +146,7 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 	for (i = 0; i < PIDMAP_ENTRIES; i++)
 		kfree(ns->pidmap[i].page);
 	put_user_ns(ns->user_ns);
-	kmem_cache_free(pid_ns_cachep, ns);
+	call_rcu(&ns->rcu, delayed_free_pidns);
 }
 
 struct pid_namespace *copy_pid_ns(unsigned long flags,
@@ -329,7 +335,7 @@ static int pidns_install(struct nsproxy *nsproxy, void *ns)
 	struct pid_namespace *ancestor, *new = ns;
 
 	if (!ns_capable(new->user_ns, CAP_SYS_ADMIN) ||
-	    !nsown_capable(CAP_SYS_ADMIN))
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/*
@@ -349,8 +355,8 @@ static int pidns_install(struct nsproxy *nsproxy, void *ns)
 	if (ancestor != active)
 		return -EINVAL;
 
-	put_pid_ns(nsproxy->pid_ns);
-	nsproxy->pid_ns = get_pid_ns(new);
+	put_pid_ns(nsproxy->pid_ns_for_children);
+	nsproxy->pid_ns_for_children = get_pid_ns(new);
 	return 0;
 }
 

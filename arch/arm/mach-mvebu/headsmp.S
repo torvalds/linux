@@ -21,7 +21,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-	__CPUINIT
+#include <asm/assembler.h>
 
 /*
  * Armada XP specific entry point for secondary CPUs.
@@ -29,6 +29,8 @@
  * startup
  */
 ENTRY(armada_xp_secondary_startup)
+ ARM_BE8(setend	be )			@ go BE8 if entered LE
+
 	/* Get coherency fabric base physical address */
 	adr	r0, 1f
 	ldr	r1, [r0]

@@ -268,8 +268,7 @@ extern void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr
  * Harvard caches are synchronised for the user space address range.
  * This is used for the ARM private sys_cacheflush system call.
  */
-#define flush_cache_user_range(start,end) \
-	__cpuc_coherent_user_range((start) & PAGE_MASK, PAGE_ALIGN(end))
+#define flush_cache_user_range(s,e)	__cpuc_coherent_user_range(s,e)
 
 /*
  * Perform necessary cache operations to ensure that data previously
@@ -352,7 +351,7 @@ static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 		 * set_pte_at() called from vmap_pte_range() does not
 		 * have a DSB after cleaning the cache line.
 		 */
-		dsb();
+		dsb(ishst);
 }
 
 static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
@@ -435,5 +434,56 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
 
 #define sync_cache_w(ptr) __sync_cache_range_w(ptr, sizeof *(ptr))
 #define sync_cache_r(ptr) __sync_cache_range_r(ptr, sizeof *(ptr))
+
+/*
+ * Disabling cache access for one CPU in an ARMv7 SMP system is tricky.
+ * To do so we must:
+ *
+ * - Clear the SCTLR.C bit to prevent further cache allocations
+ * - Flush the desired level of cache
+ * - Clear the ACTLR "SMP" bit to disable local coherency
+ *
+ * ... and so without any intervening memory access in between those steps,
+ * not even to the stack.
+ *
+ * WARNING -- After this has been called:
+ *
+ * - No ldrex/strex (and similar) instructions must be used.
+ * - The CPU is obviously no longer coherent with the other CPUs.
+ * - This is unlikely to work as expected if Linux is running non-secure.
+ *
+ * Note:
+ *
+ * - This is known to apply to several ARMv7 processor implementations,
+ *   however some exceptions may exist.  Caveat emptor.
+ *
+ * - The clobber list is dictated by the call to v7_flush_dcache_*.
+ *   fp is preserved to the stack explicitly prior disabling the cache
+ *   since adding it to the clobber list is incompatible with having
+ *   CONFIG_FRAME_POINTER=y.  ip is saved as well if ever r12-clobbering
+ *   trampoline are inserted by the linker and to keep sp 64-bit aligned.
+ */
+#define v7_exit_coherency_flush(level) \
+	asm volatile( \
+	"stmfd	sp!, {fp, ip} \n\t" \
+	"mrc	p15, 0, r0, c1, c0, 0	@ get SCTLR \n\t" \
+	"bic	r0, r0, #"__stringify(CR_C)" \n\t" \
+	"mcr	p15, 0, r0, c1, c0, 0	@ set SCTLR \n\t" \
+	"isb	\n\t" \
+	"bl	v7_flush_dcache_"__stringify(level)" \n\t" \
+	"clrex	\n\t" \
+	"mrc	p15, 0, r0, c1, c0, 1	@ get ACTLR \n\t" \
+	"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t" \
+	"mcr	p15, 0, r0, c1, c0, 1	@ set ACTLR \n\t" \
+	"isb	\n\t" \
+	"dsb	\n\t" \
+	"ldmfd	sp!, {fp, ip}" \
+	: : : "r0","r1","r2","r3","r4","r5","r6","r7", \
+	      "r9","r10","lr","memory" )
+
+int set_memory_ro(unsigned long addr, int numpages);
+int set_memory_rw(unsigned long addr, int numpages);
+int set_memory_x(unsigned long addr, int numpages);
+int set_memory_nx(unsigned long addr, int numpages);
 
 #endif

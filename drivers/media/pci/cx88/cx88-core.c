@@ -1034,7 +1034,14 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template_;
+	/*
+	 * The dev pointer of v4l2_device is NULL, instead we set the
+	 * video_device dev_parent pointer to the correct PCI bus device.
+	 * This driver is a rare example where there is one v4l2_device,
+	 * but the video nodes have different parent (PCI) devices.
+	 */
 	vfd->v4l2_dev = &core->v4l2_dev;
+	vfd->dev_parent = &pci->dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 core->name, type, core->board.name);

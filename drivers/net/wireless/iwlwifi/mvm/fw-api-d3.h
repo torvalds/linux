@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,13 +75,15 @@ enum iwl_d3_wakeup_flags {
  * struct iwl_d3_manager_config - D3 manager configuration command
  * @min_sleep_time: minimum sleep time (in usec)
  * @wakeup_flags: wakeup flags, see &enum iwl_d3_wakeup_flags
+ * @wakeup_host_timer: force wakeup after this many seconds
  *
  * The structure is used for the D3_CONFIG_CMD command.
  */
 struct iwl_d3_manager_config {
 	__le32 min_sleep_time;
 	__le32 wakeup_flags;
-} __packed; /* D3_MANAGER_CONFIG_CMD_S_VER_3 */
+	__le32 wakeup_host_timer;
+} __packed; /* D3_MANAGER_CONFIG_CMD_S_VER_4 */
 
 
 /* TODO: OFFLOADS_QUERY_API_S_VER_1 */
@@ -96,34 +98,105 @@ enum iwl_proto_offloads {
 	IWL_D3_PROTO_OFFLOAD_NS = BIT(1),
 };
 
-#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS	2
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1	2
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2	6
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L	12
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3S	4
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX	12
+
+#define IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L	4
+#define IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3S	2
 
 /**
- * struct iwl_proto_offload_cmd - ARP/NS offload configuration
+ * struct iwl_proto_offload_cmd_common - ARP/NS offload common part
  * @enabled: enable flags
  * @remote_ipv4_addr: remote address to answer to (or zero if all)
  * @host_ipv4_addr: our IPv4 address to respond to queries for
  * @arp_mac_addr: our MAC address for ARP responses
+ * @reserved: unused
+ */
+struct iwl_proto_offload_cmd_common {
+	__le32 enabled;
+	__be32 remote_ipv4_addr;
+	__be32 host_ipv4_addr;
+	u8 arp_mac_addr[ETH_ALEN];
+	__le16 reserved;
+} __packed;
+
+/**
+ * struct iwl_proto_offload_cmd_v1 - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
  * @remote_ipv6_addr: remote address to answer to (or zero if all)
  * @solicited_node_ipv6_addr: broken -- solicited node address exists
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor soliciation response MAC address
  */
-struct iwl_proto_offload_cmd {
-	__le32 enabled;
-	__be32 remote_ipv4_addr;
-	__be32 host_ipv4_addr;
-	u8 arp_mac_addr[ETH_ALEN];
-	__le16 reserved1;
-
+struct iwl_proto_offload_cmd_v1 {
+	struct iwl_proto_offload_cmd_common common;
 	u8 remote_ipv6_addr[16];
 	u8 solicited_node_ipv6_addr[16];
-	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS][16];
+	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1][16];
 	u8 ndp_mac_addr[ETH_ALEN];
 	__le16 reserved2;
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_1 */
 
+/**
+ * struct iwl_proto_offload_cmd_v2 - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
+ * @remote_ipv6_addr: remote address to answer to (or zero if all)
+ * @solicited_node_ipv6_addr: broken -- solicited node address exists
+ *	for each target address
+ * @target_ipv6_addr: our target addresses
+ * @ndp_mac_addr: neighbor soliciation response MAC address
+ */
+struct iwl_proto_offload_cmd_v2 {
+	struct iwl_proto_offload_cmd_common common;
+	u8 remote_ipv6_addr[16];
+	u8 solicited_node_ipv6_addr[16];
+	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2][16];
+	u8 ndp_mac_addr[ETH_ALEN];
+	u8 numValidIPv6Addresses;
+	u8 reserved2[3];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_2 */
+
+struct iwl_ns_config {
+	struct in6_addr source_ipv6_addr;
+	struct in6_addr dest_ipv6_addr;
+	u8 target_mac_addr[ETH_ALEN];
+	__le16 reserved;
+} __packed; /* NS_OFFLOAD_CONFIG */
+
+struct iwl_targ_addr {
+	struct in6_addr addr;
+	__le32 config_num;
+} __packed; /* TARGET_IPV6_ADDRESS */
+
+/**
+ * struct iwl_proto_offload_cmd_v3_small - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
+ * @target_ipv6_addr: target IPv6 addresses
+ * @ns_config: NS offload configurations
+ */
+struct iwl_proto_offload_cmd_v3_small {
+	struct iwl_proto_offload_cmd_common common;
+	__le32 num_valid_ipv6_addrs;
+	struct iwl_targ_addr targ_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3S];
+	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3S];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_3 */
+
+/**
+ * struct iwl_proto_offload_cmd_v3_large - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
+ * @target_ipv6_addr: target IPv6 addresses
+ * @ns_config: NS offload configurations
+ */
+struct iwl_proto_offload_cmd_v3_large {
+	struct iwl_proto_offload_cmd_common common;
+	__le32 num_valid_ipv6_addrs;
+	struct iwl_targ_addr targ_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L];
+	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_3 */
 
 /*
  * WOWLAN_PATTERNS
@@ -262,7 +335,7 @@ enum iwl_wowlan_wakeup_reason {
 	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_WAKEUP_PACKET		= BIT(12),
 }; /* WOWLAN_WAKE_UP_REASON_API_E_VER_2 */
 
-struct iwl_wowlan_status {
+struct iwl_wowlan_status_v4 {
 	__le64 replay_ctr;
 	__le16 pattern_number;
 	__le16 non_qos_seq_ctr;
@@ -276,6 +349,29 @@ struct iwl_wowlan_status {
 	__le32 wake_packet_bufsize;
 	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
 } __packed; /* WOWLAN_STATUSES_API_S_VER_4 */
+
+struct iwl_wowlan_gtk_status {
+	u8 key_index;
+	u8 reserved[3];
+	u8 decrypt_key[16];
+	u8 tkip_mic_key[8];
+	struct iwl_wowlan_rsc_tsc_params_cmd rsc;
+} __packed;
+
+struct iwl_wowlan_status_v6 {
+	struct iwl_wowlan_gtk_status gtk;
+	__le64 replay_ctr;
+	__le16 pattern_number;
+	__le16 non_qos_seq_ctr;
+	__le16 qos_seq_ctr[8];
+	__le32 wakeup_reasons;
+	__le32 num_of_gtk_rekeys;
+	__le32 transmitted_ndps;
+	__le32 received_beacons;
+	__le32 wake_packet_length;
+	__le32 wake_packet_bufsize;
+	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
+} __packed; /* WOWLAN_STATUSES_API_S_VER_6 */
 
 #define IWL_WOWLAN_TCP_MAX_PACKET_LEN		64
 #define IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN	128

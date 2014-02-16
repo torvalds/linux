@@ -1,0 +1,12 @@
+/*
+ * Copyright (C) 2014 Russell King
+ */
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-cubox-i.dtsi"
+
+/ {
+	model = "SolidRun Cubox-i Solo/DualLite";
+	compatible = "solidrun,cubox-i/dl", "fsl,imx6dl";
+};

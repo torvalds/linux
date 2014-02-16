@@ -1,5 +1,6 @@
 config MICROBLAZE
 	def_bool y
+	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_FUNCTION_TRACER
@@ -18,7 +19,6 @@ config MICROBLAZE
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select HAVE_DEBUG_KMEMLEAK
 	select IRQ_DOMAIN
-	select HAVE_GENERIC_HARDIRQS
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -26,9 +26,13 @@ config MICROBLAZE
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
+	select COMMON_CLK
+	select GENERIC_SCHED_CLOCK
 	select GENERIC_IDLE_POLL_SETUP
 	select MODULES_USE_ELF_RELA
-	select CLONE_BACKWARDS
+	select CLONE_BACKWARDS3
+	select CLKSRC_OF
+	select BUILDTIME_EXTABLE_SORT
 
 config SWAP
 	def_bool n
@@ -81,11 +85,6 @@ source "kernel/Kconfig.hz"
 config MMU
 	bool "MMU support"
 	default n
-
-config NO_MMU
-	bool
-	depends on !MMU
-	default y
 
 comment "Boot options"
 
@@ -249,10 +248,6 @@ config MICROBLAZE_64K_PAGES
 	bool "64k page size"
 
 endchoice
-
-config KERNEL_PAD
-	hex "Kernel PAD for unpacking" if ADVANCED_OPTIONS
-	default "0x80000" if MMU
 
 endmenu
 

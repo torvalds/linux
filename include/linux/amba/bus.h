@@ -21,7 +21,7 @@
 #include <linux/resource.h>
 #include <linux/regulator/consumer.h>
 
-#define AMBA_NR_IRQS	2
+#define AMBA_NR_IRQS	9
 #define AMBA_CID	0xb105f00d
 
 struct clk;
@@ -30,7 +30,6 @@ struct amba_device {
 	struct device		dev;
 	struct resource		res;
 	struct clk		*pclk;
-	u64			dma_mask;
 	unsigned int		periphid;
 	unsigned int		irq[AMBA_NR_IRQS];
 };
@@ -131,7 +130,6 @@ struct amba_device name##_device = {				\
 struct amba_device name##_device = {				\
 	.dev = __AMBA_DEV(busid, data, ~0ULL),			\
 	.res = DEFINE_RES_MEM(base, SZ_4K),			\
-	.dma_mask = ~0ULL,					\
 	.irq = irqs,						\
 	.periphid = id,						\
 }

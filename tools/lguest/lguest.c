@@ -42,14 +42,10 @@
 #include <pwd.h>
 #include <grp.h>
 
-#include <linux/virtio_config.h>
-#include <linux/virtio_net.h>
-#include <linux/virtio_blk.h>
-#include <linux/virtio_console.h>
-#include <linux/virtio_rng.h>
-#include <linux/virtio_ring.h>
-#include <asm/bootparam.h>
-#include "../../include/linux/lguest_launcher.h"
+#ifndef VIRTIO_F_ANY_LAYOUT
+#define VIRTIO_F_ANY_LAYOUT		27
+#endif
+
 /*L:110
  * We can ignore the 43 include files we need for this program, but I do want
  * to draw attention to the use of kernel-style types.
@@ -64,6 +60,15 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
 /*:*/
+
+#include <linux/virtio_config.h>
+#include <linux/virtio_net.h>
+#include <linux/virtio_blk.h>
+#include <linux/virtio_console.h>
+#include <linux/virtio_rng.h>
+#include <linux/virtio_ring.h>
+#include <asm/bootparam.h>
+#include "../../include/linux/lguest_launcher.h"
 
 #define BRIDGE_PFX "bridge:"
 #ifndef SIOCBRADDIF
@@ -177,7 +182,8 @@ static struct termios orig_term;
  * in precise order.
  */
 #define wmb() __asm__ __volatile__("" : : : "memory")
-#define mb() __asm__ __volatile__("" : : : "memory")
+#define rmb() __asm__ __volatile__("lock; addl $0,0(%%esp)" : : : "memory")
+#define mb() __asm__ __volatile__("lock; addl $0,0(%%esp)" : : : "memory")
 
 /* Wrapper for the last available index.  Makes it easier to change. */
 #define lg_last_avail(vq)	((vq)->last_avail_idx)
@@ -676,6 +682,12 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 		errx(1, "Guest moved used index from %u to %u",
 		     last_avail, vq->vring.avail->idx);
 
+	/* 
+	 * Make sure we read the descriptor number *after* we read the ring
+	 * update; don't let the cpu or compiler change the order.
+	 */
+	rmb();
+
 	/*
 	 * Grab the next descriptor number they're advertising, and increment
 	 * the index we've seen.
@@ -693,6 +705,12 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 	max = vq->vring.num;
 	desc = vq->vring.desc;
 	i = head;
+
+	/*
+	 * We have to read the descriptor after we read the descriptor number,
+	 * but there's a data dependency there so the CPU shouldn't reorder
+	 * that: no rmb() required.
+	 */
 
 	/*
 	 * If this is an indirect entry, then this buffer contains a descriptor
@@ -1530,6 +1548,8 @@ static void setup_tun_net(char *arg)
 	add_feature(dev, VIRTIO_NET_F_HOST_ECN);
 	/* We handle indirect ring entries */
 	add_feature(dev, VIRTIO_RING_F_INDIRECT_DESC);
+	/* We're compliant with the damn spec. */
+	add_feature(dev, VIRTIO_F_ANY_LAYOUT);
 	set_config(dev, sizeof(conf), &conf);
 
 	/* We don't need the socket any more; setup is done. */

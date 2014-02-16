@@ -33,7 +33,7 @@ static void msp_smtc_send_ipi_mask(const struct cpumask *mask,
 /*
  * Post-config but pre-boot cleanup entry point
  */
-static void __cpuinit msp_smtc_init_secondary(void)
+static void msp_smtc_init_secondary(void)
 {
 	int myvpe;
 
@@ -48,8 +48,7 @@ static void __cpuinit msp_smtc_init_secondary(void)
 /*
  * Platform "CPU" startup hook
  */
-static void __cpuinit msp_smtc_boot_secondary(int cpu,
-					struct task_struct *idle)
+static void msp_smtc_boot_secondary(int cpu, struct task_struct *idle)
 {
 	smtc_boot_secondary(cpu, idle);
 }
@@ -57,7 +56,7 @@ static void __cpuinit msp_smtc_boot_secondary(int cpu,
 /*
  * SMP initialization finalization entry point
  */
-static void __cpuinit msp_smtc_smp_finish(void)
+static void msp_smtc_smp_finish(void)
 {
 	smtc_smp_finish();
 }

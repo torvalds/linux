@@ -39,8 +39,7 @@ Options (for pcm-das08):
 Command support does not exist, but could be added for this board.
 */
 
-#include <linux/delay.h>
-#include <linux/slab.h>
+#include <linux/module.h>
 
 #include "../comedidev.h"
 
@@ -78,10 +77,9 @@ static int das08_cs_auto_attach(struct comedi_device *dev,
 		return ret;
 	iobase = link->resource[0]->start;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	return das08_common_attach(dev, iobase);
 }

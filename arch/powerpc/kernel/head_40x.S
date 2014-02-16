@@ -822,14 +822,6 @@ finish_tlb_load:
 	rfi			/* Should sync shadow TLBs */
 	b	.		/* prevent prefetch past rfi */
 
-/* extern void giveup_fpu(struct task_struct *prev)
- *
- * The PowerPC 4xx family of processors do not have an FPU, so this just
- * returns.
- */
-_ENTRY(giveup_fpu)
-	blr
-
 /* This is where the main kernel code starts.
  */
 start_here:

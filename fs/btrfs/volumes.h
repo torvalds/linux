@@ -43,9 +43,8 @@ struct btrfs_device {
 	/* WRITE_SYNC bios */
 	struct btrfs_pending_bios pending_sync_bios;
 
-	int running_pending;
 	u64 generation;
-
+	int running_pending;
 	int writeable;
 	int in_fs_metadata;
 	int missing;
@@ -53,11 +52,11 @@ struct btrfs_device {
 	int is_tgtdev_for_dev_replace;
 
 	spinlock_t io_lock;
+	/* the mode sent to blkdev_get */
+	fmode_t mode;
 
 	struct block_device *bdev;
 
-	/* the mode sent to blkdev_get */
-	fmode_t mode;
 
 	struct rcu_string *name;
 
@@ -78,15 +77,20 @@ struct btrfs_device {
 
 	/* optimal io width for this device */
 	u32 io_width;
+	/* type and info about this device */
+	u64 type;
 
 	/* minimal io size for this device */
 	u32 sector_size;
 
-	/* type and info about this device */
-	u64 type;
 
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
+
+	/* for sending down flush barriers */
+	int nobarriers;
+	struct bio *flush_bio;
+	struct completion flush_wait;
 
 	/* per-device scrub information */
 	struct scrub_ctx *scrub_device;
@@ -103,10 +107,6 @@ struct btrfs_device {
 	struct radix_tree_root reada_zones;
 	struct radix_tree_root reada_extents;
 
-	/* for sending down flush barriers */
-	struct bio *flush_bio;
-	struct completion flush_wait;
-	int nobarriers;
 
 	/* disk I/O failure stats. For detailed description refer to
 	 * enum btrfs_dev_stat_values in ioctl.h */
@@ -132,7 +132,9 @@ struct btrfs_fs_devices {
 
 	/* all of the devices in the FS, protected by a mutex
 	 * so we can safely walk it to write out the supers without
-	 * worrying about add/remove by the multi-device code
+	 * worrying about add/remove by the multi-device code.
+	 * Scrubbing super can kick off supers writing by holding
+	 * this mutex lock.
 	 */
 	struct mutex device_list_mutex;
 	struct list_head devices;
@@ -152,6 +154,8 @@ struct btrfs_fs_devices {
 	int rotating;
 };
 
+#define BTRFS_BIO_INLINE_CSUM_SIZE	64
+
 /*
  * we need the mirror number and stripe index to be passed around
  * the call chain while we are processing end_io (especially errors).
@@ -161,9 +165,14 @@ struct btrfs_fs_devices {
  * we allocate are actually btrfs_io_bios.  We'll cram as much of
  * struct btrfs_bio as we can into this over time.
  */
+typedef void (btrfs_io_bio_end_io_t) (struct btrfs_io_bio *bio, int err);
 struct btrfs_io_bio {
 	unsigned long mirror_num;
 	unsigned long stripe_index;
+	u8 *csum;
+	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
+	u8 *csum_allocated;
+	btrfs_io_bio_end_io_t *end_io;
 	struct bio bio;
 };
 
@@ -298,6 +307,9 @@ void btrfs_close_extra_devices(struct btrfs_fs_info *fs_info,
 int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
 					 char *device_path,
 					 struct btrfs_device **device);
+struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
+					const u64 *devid,
+					const u8 *uuid);
 int btrfs_rm_device(struct btrfs_root *root, char *device_path);
 void btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len);
@@ -315,12 +327,16 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info);
 int btrfs_recover_balance(struct btrfs_fs_info *fs_info);
 int btrfs_pause_balance(struct btrfs_fs_info *fs_info);
 int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
+int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
+int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
-int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
+int find_free_dev_extent(struct btrfs_trans_handle *trans,
+			 struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
 int btrfs_get_dev_stats(struct btrfs_root *root,
 			struct btrfs_ioctl_get_dev_stats *stats);
+void btrfs_init_devices_late(struct btrfs_fs_info *fs_info);
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
@@ -336,6 +352,9 @@ int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
 unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
 				    struct btrfs_mapping_tree *map_tree,
 				    u64 logical);
+int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
+				struct btrfs_root *extent_root,
+				u64 chunk_offset, u64 chunk_size);
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
 				      int index)
 {

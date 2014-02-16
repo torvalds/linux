@@ -487,7 +487,7 @@ static void ep93xxfb_dealloc_videomem(struct fb_info *info)
 
 static int ep93xxfb_probe(struct platform_device *pdev)
 {
-	struct ep93xxfb_mach_info *mach_info = pdev->dev.platform_data;
+	struct ep93xxfb_mach_info *mach_info = dev_get_platdata(&pdev->dev);
 	struct fb_info *info;
 	struct ep93xx_fbi *fbi;
 	struct resource *res;
@@ -595,7 +595,6 @@ failed_videomem:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return err;
 }
@@ -614,7 +613,6 @@ static int ep93xxfb_remove(struct platform_device *pdev)
 		fbi->mach_info->teardown(pdev);
 
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -140,7 +140,7 @@ struct dvb_usb_rc {
 	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
 	int (*query) (struct dvb_usb_device *d);
 	unsigned int interval;
-	const enum rc_driver_type driver_type;
+	enum rc_driver_type driver_type;
 	bool bulk_mode;
 };
 
@@ -352,9 +352,7 @@ struct dvb_usb_adapter {
  * @rc_map: name of rc codes table
  * @rc_polling_active: set when RC polling is active
  * @udev: pointer to the device's struct usb_device
- * @intf: pointer to the device's usb interface
  * @rc: remote controller configuration
- * @probe_work: work to defer .probe()
  * @powered: indicated whether the device is power or not
  * @usb_mutex: mutex for usb control messages
  * @i2c_mutex: mutex for i2c-transfers
@@ -370,10 +368,7 @@ struct dvb_usb_device {
 	const char *rc_map;
 	bool rc_polling_active;
 	struct usb_device *udev;
-	struct usb_interface *intf;
 	struct dvb_usb_rc rc;
-	struct work_struct probe_work;
-	pid_t work_pid;
 	int powered;
 
 	/* locking */

@@ -86,11 +86,12 @@ struct btmrvl_private {
 
 #define MRVL_VENDOR_PKT			0xFE
 
-/* Bluetooth commands  */
-#define BT_CMD_AUTO_SLEEP_MODE		0x23
-#define BT_CMD_HOST_SLEEP_CONFIG	0x59
-#define BT_CMD_HOST_SLEEP_ENABLE	0x5A
-#define BT_CMD_MODULE_CFG_REQ		0x5B
+/* Vendor specific Bluetooth commands */
+#define BT_CMD_AUTO_SLEEP_MODE		0xFC23
+#define BT_CMD_HOST_SLEEP_CONFIG	0xFC59
+#define BT_CMD_HOST_SLEEP_ENABLE	0xFC5A
+#define BT_CMD_MODULE_CFG_REQ		0xFC5B
+#define BT_CMD_LOAD_CONFIG_DATA		0xFC61
 
 /* Sub-commands: Module Bringup/Shutdown Request/Response */
 #define MODULE_BRINGUP_REQ		0xF1
@@ -99,14 +100,17 @@ struct btmrvl_private {
 
 #define MODULE_SHUTDOWN_REQ		0xF2
 
+/* Vendor specific Bluetooth events */
+#define BT_EVENT_AUTO_SLEEP_MODE	0x23
+#define BT_EVENT_HOST_SLEEP_CONFIG	0x59
+#define BT_EVENT_HOST_SLEEP_ENABLE	0x5A
+#define BT_EVENT_MODULE_CFG_REQ		0x5B
 #define BT_EVENT_POWER_STATE		0x20
 
 /* Bluetooth Power States */
 #define BT_PS_ENABLE			0x02
 #define BT_PS_DISABLE			0x03
 #define BT_PS_SLEEP			0x01
-
-#define OGF				0x3F
 
 /* Host Sleep states */
 #define HS_ACTIVATED			0x01
@@ -116,11 +120,8 @@ struct btmrvl_private {
 #define PS_SLEEP			0x01
 #define PS_AWAKE			0x00
 
-struct btmrvl_cmd {
-	__le16 ocf_ogf;
-	u8 length;
-	u8 data[4];
-} __packed;
+#define BT_CAL_HDR_LEN			4
+#define BT_CAL_DATA_SIZE		28
 
 struct btmrvl_event {
 	u8 ec;		/* event counter */

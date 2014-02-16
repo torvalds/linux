@@ -64,8 +64,8 @@ config KGDB_LOW_LEVEL_TRAP
        default n
        help
          This will add an extra call back to kgdb for the breakpoint
-         exception handler on which will will allow kgdb to step
-         through a notify handler.
+         exception handler which will allow kgdb to step through a
+         notify handler.
 
 config KGDB_KDB
 	bool "KGDB_KDB: include kdb frontend for kgdb"

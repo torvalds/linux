@@ -132,6 +132,7 @@ struct ceph_mds_session {
 	struct list_head  s_caps;     /* all caps issued by this session */
 	int               s_nr_caps, s_trim_caps;
 	int               s_num_cap_releases;
+	int		  s_cap_reconnect;
 	struct list_head  s_cap_releases; /* waiting cap_release messages */
 	struct list_head  s_cap_releases_done; /* ready to send */
 	struct ceph_cap  *s_cap_iterator;
@@ -382,6 +383,8 @@ extern void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 extern void ceph_mdsc_handle_map(struct ceph_mds_client *mdsc,
 				 struct ceph_msg *msg);
 
+extern struct ceph_mds_session *
+ceph_mdsc_open_export_target_session(struct ceph_mds_client *mdsc, int target);
 extern void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
 					  struct ceph_mds_session *session);
 

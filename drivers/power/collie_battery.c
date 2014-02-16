@@ -287,7 +287,7 @@ static struct gpio collie_batt_gpios[] = {
 };
 
 #ifdef CONFIG_PM
-static int collie_bat_suspend(struct ucb1x00_dev *dev, pm_message_t state)
+static int collie_bat_suspend(struct ucb1x00_dev *dev)
 {
 	/* flush all pending status updates */
 	flush_work(&bat_work);

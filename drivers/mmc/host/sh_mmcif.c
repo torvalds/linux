@@ -61,6 +61,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
+#include <linux/sh_dma.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 
@@ -133,6 +134,8 @@
 				 INT_BUFWEN | INT_CMD12DRE | INT_BUFRE | \
 				 INT_DTRANE | INT_CMD12RBE | INT_CMD12CRE)
 
+#define INT_CCS			(INT_CCSTO | INT_CCSRCV | INT_CCSDE)
+
 /* CE_INT_MASK */
 #define MASK_ALL		0x00000000
 #define MASK_MCCSDE		(1 << 29)
@@ -161,7 +164,7 @@
 
 #define MASK_START_CMD		(MASK_MCMDVIO | MASK_MBUFVIO | MASK_MWDATERR | \
 				 MASK_MRDATERR | MASK_MRIDXERR | MASK_MRSPERR | \
-				 MASK_MCCSTO | MASK_MCRCSTO | MASK_MWDATTO | \
+				 MASK_MCRCSTO | MASK_MWDATTO | \
 				 MASK_MRDATTO | MASK_MRBSYTO | MASK_MRSPTO)
 
 #define MASK_CLEAN		(INT_ERR_STS | MASK_MRBSYE | MASK_MCRSPE |	\
@@ -243,6 +246,8 @@ struct sh_mmcif_host {
 	int sg_blkidx;
 	bool power;
 	bool card_present;
+	bool ccs_enable;		/* Command Completion Signal support */
+	bool clk_ctrl2_enable;
 	struct mutex thread_lock;
 
 	/* DMA support */
@@ -376,67 +381,75 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 		desc, cookie);
 }
 
-static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
-				 struct sh_mmcif_plat_data *pdata)
+static struct dma_chan *
+sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
+			 struct sh_mmcif_plat_data *pdata,
+			 enum dma_transfer_direction direction)
 {
-	struct resource *res = platform_get_resource(host->pd, IORESOURCE_MEM, 0);
 	struct dma_slave_config cfg;
+	struct dma_chan *chan;
+	unsigned int slave_id;
+	struct resource *res;
 	dma_cap_mask_t mask;
 	int ret;
 
-	host->dma_active = false;
-
-	if (!pdata)
-		return;
-
-	if (pdata->slave_id_tx <= 0 || pdata->slave_id_rx <= 0)
-		return;
-
-	/* We can only either use DMA for both Tx and Rx or not use it at all */
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	host->chan_tx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_tx);
-	dev_dbg(&host->pd->dev, "%s: TX: got channel %p\n", __func__,
-		host->chan_tx);
+	if (pdata)
+		slave_id = direction == DMA_MEM_TO_DEV
+			 ? pdata->slave_id_tx : pdata->slave_id_rx;
+	else
+		slave_id = 0;
 
+	chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+				(void *)(unsigned long)slave_id, &host->pd->dev,
+				direction == DMA_MEM_TO_DEV ? "tx" : "rx");
+
+	dev_dbg(&host->pd->dev, "%s: %s: got channel %p\n", __func__,
+		direction == DMA_MEM_TO_DEV ? "TX" : "RX", chan);
+
+	if (!chan)
+		return NULL;
+
+	res = platform_get_resource(host->pd, IORESOURCE_MEM, 0);
+
+	/* In the OF case the driver will get the slave ID from the DT */
+	cfg.slave_id = slave_id;
+	cfg.direction = direction;
+	cfg.dst_addr = res->start + MMCIF_CE_DATA;
+	cfg.src_addr = 0;
+	ret = dmaengine_slave_config(chan, &cfg);
+	if (ret < 0) {
+		dma_release_channel(chan);
+		return NULL;
+	}
+
+	return chan;
+}
+
+static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
+				 struct sh_mmcif_plat_data *pdata)
+{
+	host->dma_active = false;
+
+	if (pdata) {
+		if (pdata->slave_id_tx <= 0 || pdata->slave_id_rx <= 0)
+			return;
+	} else if (!host->pd->dev.of_node) {
+		return;
+	}
+
+	/* We can only either use DMA for both Tx and Rx or not use it at all */
+	host->chan_tx = sh_mmcif_request_dma_one(host, pdata, DMA_MEM_TO_DEV);
 	if (!host->chan_tx)
 		return;
 
-	cfg.slave_id = pdata->slave_id_tx;
-	cfg.direction = DMA_MEM_TO_DEV;
-	cfg.dst_addr = res->start + MMCIF_CE_DATA;
-	cfg.src_addr = 0;
-	ret = dmaengine_slave_config(host->chan_tx, &cfg);
-	if (ret < 0)
-		goto ecfgtx;
-
-	host->chan_rx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_rx);
-	dev_dbg(&host->pd->dev, "%s: RX: got channel %p\n", __func__,
-		host->chan_rx);
-
-	if (!host->chan_rx)
-		goto erqrx;
-
-	cfg.slave_id = pdata->slave_id_rx;
-	cfg.direction = DMA_DEV_TO_MEM;
-	cfg.dst_addr = 0;
-	cfg.src_addr = res->start + MMCIF_CE_DATA;
-	ret = dmaengine_slave_config(host->chan_rx, &cfg);
-	if (ret < 0)
-		goto ecfgrx;
-
-	return;
-
-ecfgrx:
-	dma_release_channel(host->chan_rx);
-	host->chan_rx = NULL;
-erqrx:
-ecfgtx:
-	dma_release_channel(host->chan_tx);
-	host->chan_tx = NULL;
+	host->chan_rx = sh_mmcif_request_dma_one(host, pdata, DMA_DEV_TO_MEM);
+	if (!host->chan_rx) {
+		dma_release_channel(host->chan_tx);
+		host->chan_tx = NULL;
+	}
 }
 
 static void sh_mmcif_release_dma(struct sh_mmcif_host *host)
@@ -485,8 +498,12 @@ static void sh_mmcif_sync_reset(struct sh_mmcif_host *host)
 
 	sh_mmcif_writel(host->addr, MMCIF_CE_VERSION, SOFT_RST_ON);
 	sh_mmcif_writel(host->addr, MMCIF_CE_VERSION, SOFT_RST_OFF);
+	if (host->ccs_enable)
+		tmp |= SCCSTO_29;
+	if (host->clk_ctrl2_enable)
+		sh_mmcif_writel(host->addr, MMCIF_CE_CLK_CTRL2, 0x0F0F0000);
 	sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, tmp |
-		SRSPTO_256 | SRBSYTO_29 | SRWDTO_29 | SCCSTO_29);
+		SRSPTO_256 | SRBSYTO_29 | SRWDTO_29);
 	/* byte swap on */
 	sh_mmcif_bitset(host, MMCIF_CE_BUF_ACC, BUF_ACC_ATYP);
 }
@@ -866,6 +883,9 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 		break;
 	}
 
+	if (host->ccs_enable)
+		mask |= MASK_MCCSTO;
+
 	if (mrq->data) {
 		sh_mmcif_writel(host->addr, MMCIF_CE_BLOCK_SET, 0);
 		sh_mmcif_writel(host->addr, MMCIF_CE_BLOCK_SET,
@@ -873,7 +893,10 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	}
 	opc = sh_mmcif_set_cmd(host, mrq);
 
-	sh_mmcif_writel(host->addr, MMCIF_CE_INT, 0xD80430C0);
+	if (host->ccs_enable)
+		sh_mmcif_writel(host->addr, MMCIF_CE_INT, 0xD80430C0);
+	else
+		sh_mmcif_writel(host->addr, MMCIF_CE_INT, 0xD80430C0 | INT_CCS);
 	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, mask);
 	/* set arg */
 	sh_mmcif_writel(host->addr, MMCIF_CE_ARG, cmd->arg);
@@ -943,7 +966,7 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 static int sh_mmcif_clk_update(struct sh_mmcif_host *host)
 {
-	int ret = clk_enable(host->hclk);
+	int ret = clk_prepare_enable(host->hclk);
 
 	if (!ret) {
 		host->clk = clk_get_rate(host->hclk);
@@ -956,11 +979,8 @@ static int sh_mmcif_clk_update(struct sh_mmcif_host *host)
 
 static void sh_mmcif_set_power(struct sh_mmcif_host *host, struct mmc_ios *ios)
 {
-	struct sh_mmcif_plat_data *pd = host->pd->dev.platform_data;
 	struct mmc_host *mmc = host->mmc;
 
-	if (pd && pd->set_pwr)
-		pd->set_pwr(host->pd, ios->power_mode != MMC_POWER_OFF);
 	if (!IS_ERR(mmc->supply.vmmc))
 		/* Errors ignored... */
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc,
@@ -1000,7 +1020,7 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 		if (host->power) {
 			pm_runtime_put_sync(&host->pd->dev);
-			clk_disable(host->hclk);
+			clk_disable_unprepare(host->hclk);
 			host->power = false;
 			if (ios->power_mode == MMC_POWER_OFF)
 				sh_mmcif_set_power(host, ios);
@@ -1241,10 +1261,14 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 {
 	struct sh_mmcif_host *host = dev_id;
-	u32 state;
+	u32 state, mask;
 
 	state = sh_mmcif_readl(host->addr, MMCIF_CE_INT);
-	sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~state);
+	mask = sh_mmcif_readl(host->addr, MMCIF_CE_INT_MASK);
+	if (host->ccs_enable)
+		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~(state & mask));
+	else
+		sh_mmcif_writel(host->addr, MMCIF_CE_INT, INT_CCS | ~(state & mask));
 	sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, state & MASK_CLEAN);
 
 	if (state & ~MASK_CLEAN)
@@ -1369,11 +1393,17 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto ealloch;
 	}
-	mmc_of_parse(mmc);
+
+	ret = mmc_of_parse(mmc);
+	if (ret < 0)
+		goto eofparse;
+
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
 	host->addr	= reg;
 	host->timeout	= msecs_to_jiffies(1000);
+	host->ccs_enable = !pd || !pd->ccs_unsupported;
+	host->clk_ctrl2_enable = pd && pd->clk_ctrl2_present;
 
 	host->pd = pdev;
 
@@ -1431,14 +1461,14 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	}
 
 	if (pd && pd->use_cd_gpio) {
-		ret = mmc_gpio_request_cd(mmc, pd->cd_gpio);
+		ret = mmc_gpio_request_cd(mmc, pd->cd_gpio, 0);
 		if (ret < 0)
 			goto erqcd;
 	}
 
 	mutex_init(&host->thread_lock);
 
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 	ret = mmc_add_host(mmc);
 	if (ret < 0)
 		goto emmcaddh;
@@ -1459,11 +1489,12 @@ ereqirq1:
 ereqirq0:
 	pm_runtime_suspend(&pdev->dev);
 eresume:
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 eclkupdate:
 	clk_put(host->hclk);
 eclkget:
 	pm_runtime_disable(&pdev->dev);
+eofparse:
 	mmc_free_host(mmc);
 ealloch:
 	iounmap(reg);
@@ -1476,7 +1507,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	int irq[2];
 
 	host->dying = true;
-	clk_enable(host->hclk);
+	clk_prepare_enable(host->hclk);
 	pm_runtime_get_sync(&pdev->dev);
 
 	dev_pm_qos_hide_latency_limit(&pdev->dev);
@@ -1501,9 +1532,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	if (irq[1] >= 0)
 		free_irq(irq[1], host);
 
-	platform_set_drvdata(pdev, NULL);
-
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 	mmc_free_host(host->mmc);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1511,28 +1540,21 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sh_mmcif_suspend(struct device *dev)
 {
 	struct sh_mmcif_host *host = dev_get_drvdata(dev);
-	int ret = mmc_suspend_host(host->mmc);
 
-	if (!ret)
-		sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
+	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
 
-	return ret;
+	return 0;
 }
 
 static int sh_mmcif_resume(struct device *dev)
 {
-	struct sh_mmcif_host *host = dev_get_drvdata(dev);
-
-	return mmc_resume_host(host->mmc);
+	return 0;
 }
-#else
-#define sh_mmcif_suspend	NULL
-#define sh_mmcif_resume		NULL
-#endif	/* CONFIG_PM */
+#endif
 
 static const struct of_device_id mmcif_of_match[] = {
 	{ .compatible = "renesas,sh-mmcif" },
@@ -1541,8 +1563,7 @@ static const struct of_device_id mmcif_of_match[] = {
 MODULE_DEVICE_TABLE(of, mmcif_of_match);
 
 static const struct dev_pm_ops sh_mmcif_dev_pm_ops = {
-	.suspend = sh_mmcif_suspend,
-	.resume = sh_mmcif_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(sh_mmcif_suspend, sh_mmcif_resume)
 };
 
 static struct platform_driver sh_mmcif_driver = {

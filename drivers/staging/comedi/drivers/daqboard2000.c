@@ -102,6 +102,7 @@ Configuration options: not applicable, uses PCI auto config
 
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -683,10 +684,9 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	result = comedi_pci_enable(dev);
 	if (result)
@@ -772,7 +772,7 @@ static int daqboard2000_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
+static const struct pci_device_id daqboard2000_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IOTECH, 0x0409) },
 	{ 0 }
 };

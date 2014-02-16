@@ -373,7 +373,7 @@ static int lp8725_buck_set_current_limit(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	for (i = ARRAY_SIZE(lp8725_buck_uA) - 1 ; i >= 0; i--) {
+	for (i = ARRAY_SIZE(lp8725_buck_uA) - 1; i >= 0; i--) {
 		if (lp8725_buck_uA[i] >= min_uA &&
 			lp8725_buck_uA[i] <= max_uA)
 			return lp872x_update_bits(lp, addr,
@@ -785,9 +785,9 @@ static int lp872x_regulator_register(struct lp872x *lp)
 	struct regulator_desc *desc;
 	struct regulator_config cfg = { };
 	struct regulator_dev *rdev;
-	int i, ret;
+	int i;
 
-	for (i = 0 ; i < lp->num_regulators ; i++) {
+	for (i = 0; i < lp->num_regulators; i++) {
 		desc = (lp->chipid == LP8720) ? &lp8720_regulator_desc[i] :
 						&lp8725_regulator_desc[i];
 
@@ -796,34 +796,16 @@ static int lp872x_regulator_register(struct lp872x *lp)
 		cfg.driver_data = lp;
 		cfg.regmap = lp->regmap;
 
-		rdev = regulator_register(desc, &cfg);
+		rdev = devm_regulator_register(lp->dev, desc, &cfg);
 		if (IS_ERR(rdev)) {
 			dev_err(lp->dev, "regulator register err");
-			ret =  PTR_ERR(rdev);
-			goto err;
+			return PTR_ERR(rdev);
 		}
 
 		*(lp->regulators + i) = rdev;
 	}
 
 	return 0;
-err:
-	while (--i >= 0) {
-		rdev = *(lp->regulators + i);
-		regulator_unregister(rdev);
-	}
-	return ret;
-}
-
-static void lp872x_regulator_unregister(struct lp872x *lp)
-{
-	struct regulator_dev *rdev;
-	int i;
-
-	for (i = 0 ; i < lp->num_regulators ; i++) {
-		rdev = *(lp->regulators + i);
-		regulator_unregister(rdev);
-	}
 }
 
 static const struct regmap_config lp872x_regmap_config = {
@@ -907,7 +889,8 @@ static struct lp872x_platform_data
 		goto out;
 
 	for (i = 0; i < num_matches; i++) {
-		pdata->regulator_data[i].id = (int)match[i].driver_data;
+		pdata->regulator_data[i].id =
+				(enum lp872x_regulator_id)match[i].driver_data;
 		pdata->regulator_data[i].init_data = match[i].init_data;
 
 		/* Operation mode configuration for buck/buck1/buck2 */
@@ -961,7 +944,7 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	}
 
 	lp->dev = &cl->dev;
-	lp->pdata = cl->dev.platform_data;
+	lp->pdata = dev_get_platdata(&cl->dev);
 	lp->chipid = id->driver_data;
 	lp->num_regulators = num_regulators;
 	i2c_set_clientdata(cl, lp);
@@ -976,14 +959,6 @@ err_mem:
 	return -ENOMEM;
 err_dev:
 	return ret;
-}
-
-static int lp872x_remove(struct i2c_client *cl)
-{
-	struct lp872x *lp = i2c_get_clientdata(cl);
-
-	lp872x_regulator_unregister(lp);
-	return 0;
 }
 
 static const struct of_device_id lp872x_dt_ids[] = {
@@ -1007,7 +982,6 @@ static struct i2c_driver lp872x_driver = {
 		.of_match_table = of_match_ptr(lp872x_dt_ids),
 	},
 	.probe = lp872x_probe,
-	.remove = lp872x_remove,
 	.id_table = lp872x_ids,
 };
 

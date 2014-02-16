@@ -20,6 +20,16 @@
 #include <mach/bridge-regs.h>
 #include "common.h"
 
+/* These can go away once Kirkwood uses the mvebu-mbus DT binding */
+#define KIRKWOOD_MBUS_PCIE0_MEM_TARGET    0x4
+#define KIRKWOOD_MBUS_PCIE0_MEM_ATTR      0xe8
+#define KIRKWOOD_MBUS_PCIE0_IO_TARGET     0x4
+#define KIRKWOOD_MBUS_PCIE0_IO_ATTR       0xe0
+#define KIRKWOOD_MBUS_PCIE1_MEM_TARGET    0x4
+#define KIRKWOOD_MBUS_PCIE1_MEM_ATTR      0xd8
+#define KIRKWOOD_MBUS_PCIE1_IO_TARGET     0x4
+#define KIRKWOOD_MBUS_PCIE1_IO_ATTR       0xd0
+
 static void kirkwood_enable_pcie_clk(const char *port)
 {
 	struct clk *clk;
@@ -254,26 +264,24 @@ static void __init add_pcie_port(int index, void __iomem *base)
 
 void __init kirkwood_pcie_init(unsigned int portmask)
 {
-	mvebu_mbus_add_window_remap_flags("pcie0.0",
+	mvebu_mbus_add_window_remap_by_id(KIRKWOOD_MBUS_PCIE0_IO_TARGET,
+					  KIRKWOOD_MBUS_PCIE0_IO_ATTR,
 					  KIRKWOOD_PCIE_IO_PHYS_BASE,
 					  KIRKWOOD_PCIE_IO_SIZE,
-					  KIRKWOOD_PCIE_IO_BUS_BASE,
-					  MVEBU_MBUS_PCI_IO);
-	mvebu_mbus_add_window_remap_flags("pcie0.0",
-					  KIRKWOOD_PCIE_MEM_PHYS_BASE,
-					  KIRKWOOD_PCIE_MEM_SIZE,
-					  MVEBU_MBUS_NO_REMAP,
-					  MVEBU_MBUS_PCI_MEM);
-	mvebu_mbus_add_window_remap_flags("pcie1.0",
+					  KIRKWOOD_PCIE_IO_BUS_BASE);
+	mvebu_mbus_add_window_by_id(KIRKWOOD_MBUS_PCIE0_MEM_TARGET,
+				    KIRKWOOD_MBUS_PCIE0_MEM_ATTR,
+				    KIRKWOOD_PCIE_MEM_PHYS_BASE,
+				    KIRKWOOD_PCIE_MEM_SIZE);
+	mvebu_mbus_add_window_remap_by_id(KIRKWOOD_MBUS_PCIE1_IO_TARGET,
+					  KIRKWOOD_MBUS_PCIE1_IO_ATTR,
 					  KIRKWOOD_PCIE1_IO_PHYS_BASE,
 					  KIRKWOOD_PCIE1_IO_SIZE,
-					  KIRKWOOD_PCIE1_IO_BUS_BASE,
-					  MVEBU_MBUS_PCI_IO);
-	mvebu_mbus_add_window_remap_flags("pcie1.0",
-					  KIRKWOOD_PCIE1_MEM_PHYS_BASE,
-					  KIRKWOOD_PCIE1_MEM_SIZE,
-					  MVEBU_MBUS_NO_REMAP,
-					  MVEBU_MBUS_PCI_MEM);
+					  KIRKWOOD_PCIE1_IO_BUS_BASE);
+	mvebu_mbus_add_window_by_id(KIRKWOOD_MBUS_PCIE1_MEM_TARGET,
+				    KIRKWOOD_MBUS_PCIE1_MEM_ATTR,
+				    KIRKWOOD_PCIE1_MEM_PHYS_BASE,
+				    KIRKWOOD_PCIE1_MEM_SIZE);
 
 	vga_base = KIRKWOOD_PCIE_MEM_PHYS_BASE;
 

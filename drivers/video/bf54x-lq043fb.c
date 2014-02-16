@@ -681,7 +681,6 @@ out3:
 out2:
 	free_dma(CH_EPPI0);
 out1:
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -762,19 +761,7 @@ static struct platform_driver bfin_bf54x_driver = {
 		   .owner = THIS_MODULE,
 		   },
 };
-
-static int __init bfin_bf54x_driver_init(void)
-{
-	return platform_driver_register(&bfin_bf54x_driver);
-}
-
-static void __exit bfin_bf54x_driver_cleanup(void)
-{
-	platform_driver_unregister(&bfin_bf54x_driver);
-}
+module_platform_driver(bfin_bf54x_driver);
 
 MODULE_DESCRIPTION("Blackfin BF54x TFT LCD Driver");
 MODULE_LICENSE("GPL");
-
-module_init(bfin_bf54x_driver_init);
-module_exit(bfin_bf54x_driver_cleanup);

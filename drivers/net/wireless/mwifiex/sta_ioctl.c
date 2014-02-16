@@ -104,16 +104,14 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 		} else {
 			priv->curr_pkt_filter &=
 				~HostCmd_ACT_MAC_ALL_MULTICAST_ENABLE;
-			if (mcast_list->num_multicast_addr) {
-				dev_dbg(priv->adapter->dev,
-					"info: Set multicast list=%d\n",
-				       mcast_list->num_multicast_addr);
-				/* Send multicast addresses to firmware */
-				ret = mwifiex_send_cmd_async(priv,
-					HostCmd_CMD_MAC_MULTICAST_ADR,
-					HostCmd_ACT_GEN_SET, 0,
-					mcast_list);
-			}
+			dev_dbg(priv->adapter->dev,
+				"info: Set multicast list=%d\n",
+				mcast_list->num_multicast_addr);
+			/* Send multicast addresses to firmware */
+			ret = mwifiex_send_cmd_async(priv,
+				HostCmd_CMD_MAC_MULTICAST_ADR,
+				HostCmd_ACT_GEN_SET, 0,
+				mcast_list);
 		}
 	}
 	dev_dbg(priv->adapter->dev,
@@ -180,7 +178,20 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	 */
 	bss_desc->disable_11ac = true;
 
+	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_SPECTRUM_MGMT)
+		bss_desc->sensed_11h = true;
+
 	return mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
+}
+
+void mwifiex_dnld_txpwr_table(struct mwifiex_private *priv)
+{
+	if (priv->adapter->dt_node) {
+		char txpwr[] = {"marvell,00_txpwrlimit"};
+
+		memcpy(&txpwr[8], priv->adapter->country_code, 2);
+		mwifiex_dnld_dt_cfgdata(priv, priv->adapter->dt_node, txpwr);
+	}
 }
 
 static int mwifiex_process_country_ie(struct mwifiex_private *priv,
@@ -204,6 +215,14 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 		return 0;
 	}
 
+	if (!strncmp(priv->adapter->country_code, &country_ie[2], 2)) {
+		rcu_read_unlock();
+		wiphy_dbg(priv->wdev->wiphy,
+			  "11D: skip setting domain info in FW\n");
+		return 0;
+	}
+	memcpy(priv->adapter->country_code, &country_ie[2], 2);
+
 	domain_info->country_code[0] = country_ie[2];
 	domain_info->country_code[1] = country_ie[3];
 	domain_info->country_code[2] = ' ';
@@ -224,6 +243,8 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 			  "11D: setting domain info in FW\n");
 		return -1;
 	}
+
+	mwifiex_dnld_txpwr_table(priv);
 
 	return 0;
 }
@@ -256,30 +277,37 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			goto done;
 	}
 
-	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
-		/* Infra mode */
+	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
+	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
+		u8 config_bands;
+
 		ret = mwifiex_deauthenticate(priv, NULL);
 		if (ret)
 			goto done;
 
-		if (bss_desc) {
-			u8 config_bands = 0;
+		if (!bss_desc)
+			return -1;
 
-			if (mwifiex_band_to_radio_type((u8) bss_desc->bss_band)
-			    == HostCmd_SCAN_RADIO_TYPE_BG)
-				config_bands = BAND_B | BAND_G | BAND_GN |
-					       BAND_GAC;
-			else
-				config_bands = BAND_A | BAND_AN | BAND_AAC;
+		if (mwifiex_band_to_radio_type(bss_desc->bss_band) ==
+						HostCmd_SCAN_RADIO_TYPE_BG)
+			config_bands = BAND_B | BAND_G | BAND_GN | BAND_GAC;
+		else
+			config_bands = BAND_A | BAND_AN | BAND_AAC;
 
-			if (!((config_bands | adapter->fw_bands) &
-			      ~adapter->fw_bands))
-				adapter->config_bands = config_bands;
-		}
+		if (!((config_bands | adapter->fw_bands) & ~adapter->fw_bands))
+			adapter->config_bands = config_bands;
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 		if (ret)
 			goto done;
+
+		if (mwifiex_11h_get_csa_closed_channel(priv) ==
+							(u8)bss_desc->channel) {
+			dev_err(adapter->dev,
+				"Attempt to reconnect on csa closed chan(%d)\n",
+				bss_desc->channel);
+			goto done;
+		}
 
 		dev_dbg(adapter->dev, "info: SSID found in scan list ... "
 				      "associating...\n");
@@ -311,8 +339,8 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		if (bss_desc && bss_desc->ssid.ssid_len &&
 		    (!mwifiex_ssid_cmp(&priv->curr_bss_params.bss_descriptor.
 				       ssid, &bss_desc->ssid))) {
-			kfree(bss_desc);
-			return 0;
+			ret = 0;
+			goto done;
 		}
 
 		/* Exit Adhoc mode first */
@@ -630,8 +658,9 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 		txp_cfg->mode = cpu_to_le32(1);
 		pg_tlv = (struct mwifiex_types_power_group *)
 			 (buf + sizeof(struct host_cmd_ds_txpwr_cfg));
-		pg_tlv->type = TLV_TYPE_POWER_GROUP;
-		pg_tlv->length = 4 * sizeof(struct mwifiex_power_group);
+		pg_tlv->type = cpu_to_le16(TLV_TYPE_POWER_GROUP);
+		pg_tlv->length =
+			cpu_to_le16(4 * sizeof(struct mwifiex_power_group));
 		pg = (struct mwifiex_power_group *)
 		     (buf + sizeof(struct host_cmd_ds_txpwr_cfg)
 		      + sizeof(struct mwifiex_types_power_group));
@@ -789,15 +818,16 @@ static int mwifiex_set_wps_ie(struct mwifiex_private *priv,
 			       u8 *ie_data_ptr, u16 ie_len)
 {
 	if (ie_len) {
+		if (ie_len > MWIFIEX_MAX_VSIE_LEN) {
+			dev_dbg(priv->adapter->dev,
+				"info: failed to copy WPS IE, too big\n");
+			return -1;
+		}
+
 		priv->wps_ie = kzalloc(MWIFIEX_MAX_VSIE_LEN, GFP_KERNEL);
 		if (!priv->wps_ie)
 			return -ENOMEM;
-		if (ie_len > sizeof(priv->wps_ie)) {
-			dev_dbg(priv->adapter->dev,
-				"info: failed to copy WPS IE, too big\n");
-			kfree(priv->wps_ie);
-			return -1;
-		}
+
 		memcpy(priv->wps_ie, ie_data_ptr, ie_len);
 		priv->wps_ie_len = ie_len;
 		dev_dbg(priv->adapter->dev, "cmd: Set wps_ie_len=%d IE=%#x\n",

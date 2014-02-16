@@ -14,7 +14,6 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -548,8 +547,6 @@ static int matrix_keypad_remove(struct platform_device *pdev)
 	matrix_keypad_free_gpio(keypad);
 	input_unregister_device(keypad->input_dev);
 	kfree(keypad);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

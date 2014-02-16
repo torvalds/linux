@@ -16,22 +16,15 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Sridhar Samudrala <sri@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -134,9 +127,15 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 	struct sctp_af *af;
 
 	if (epb->type == SCTP_EP_TYPE_ASSOCIATION) {
-	    asoc = sctp_assoc(epb);
-	    peer = asoc->peer.primary_path;
-	    primary = &peer->saddr;
+		asoc = sctp_assoc(epb);
+
+		peer = asoc->peer.primary_path;
+		if (unlikely(peer == NULL)) {
+			WARN(1, "Association %p with NULL primary path!\n", asoc);
+			return;
+		}
+
+		primary = &peer->saddr;
 	}
 
 	rcu_read_lock();
@@ -178,7 +177,7 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	rcu_read_unlock();
 }
 
-static void * sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
+static void *sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	if (*pos >= sctp_ep_hashsize)
 		return NULL;
@@ -197,7 +196,7 @@ static void sctp_eps_seq_stop(struct seq_file *seq, void *v)
 }
 
 
-static void * sctp_eps_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+static void *sctp_eps_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	if (++*pos >= sctp_ep_hashsize)
 		return NULL;
@@ -219,14 +218,14 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 		return -ENOMEM;
 
 	head = &sctp_ep_hashtable[hash];
-	sctp_local_bh_disable();
+	local_bh_disable();
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, &head->chain) {
 		ep = sctp_ep(epb);
 		sk = epb->sk;
 		if (!net_eq(sock_net(sk), seq_file_net(seq)))
 			continue;
-		seq_printf(seq, "%8pK %8pK %-3d %-3d %-4d %-5d %5d %5lu ", ep, sk,
+		seq_printf(seq, "%8pK %8pK %-3d %-3d %-4d %-5d %5u %5lu ", ep, sk,
 			   sctp_sk(sk)->type, sk->sk_state, hash,
 			   epb->bind_addr.port,
 			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
@@ -236,7 +235,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "\n");
 	}
 	read_unlock(&head->lock);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return 0;
 }
@@ -283,7 +282,7 @@ void sctp_eps_proc_exit(struct net *net)
 }
 
 
-static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
+static void *sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	if (*pos >= sctp_assoc_hashsize)
 		return NULL;
@@ -306,7 +305,7 @@ static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
 }
 
 
-static void * sctp_assocs_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+static void *sctp_assocs_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	if (++*pos >= sctp_assoc_hashsize)
 		return NULL;
@@ -327,7 +326,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		return -ENOMEM;
 
 	head = &sctp_assoc_hashtable[hash];
-	sctp_local_bh_disable();
+	local_bh_disable();
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, &head->chain) {
 		assoc = sctp_assoc(epb);
@@ -336,7 +335,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 			continue;
 		seq_printf(seq,
 			   "%8pK %8pK %-3d %-3d %-2d %-4d "
-			   "%4d %8d %8d %7d %5lu %-5d %5d ",
+			   "%4d %8d %8d %7u %5lu %-5d %5d ",
 			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
 			   assoc->state, hash,
 			   assoc->assoc_id,
@@ -363,7 +362,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "\n");
 	}
 	read_unlock(&head->lock);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return 0;
 }
@@ -447,7 +446,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 		return -ENOMEM;
 
 	head = &sctp_assoc_hashtable[hash];
-	sctp_local_bh_disable();
+	local_bh_disable();
 	read_lock(&head->lock);
 	rcu_read_lock();
 	sctp_for_each_hentry(epb, &head->chain) {
@@ -506,7 +505,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 
 	rcu_read_unlock();
 	read_unlock(&head->lock);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return 0;
 

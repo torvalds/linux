@@ -438,9 +438,9 @@ static int arizona_runtime_suspend(struct device *dev)
 		}
 	}
 
-	regulator_disable(arizona->dcvdd);
 	regcache_cache_only(arizona->regmap, true);
 	regcache_mark_dirty(arizona->regmap);
+	regulator_disable(arizona->dcvdd);
 
 	return 0;
 }
@@ -540,7 +540,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
 			if (arizona->pdata.gpio_defaults[i] > 0xffff)
 				arizona->pdata.gpio_defaults[i] = 0;
-			if (arizona->pdata.gpio_defaults[i] == 0)
+			else if (arizona->pdata.gpio_defaults[i] == 0)
 				arizona->pdata.gpio_defaults[i] = 0x10000;
 		}
 	} else {
@@ -554,6 +554,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm5102", .data = (void *)WM5102 },
 	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
+	{ .compatible = "wlf,wm8997", .data = (void *)WM8997 },
 	{},
 };
 EXPORT_SYMBOL_GPL(arizona_of_match);
@@ -564,26 +565,61 @@ static inline int arizona_of_get_core_pdata(struct arizona *arizona)
 }
 #endif
 
-static struct mfd_cell early_devs[] = {
+static const struct mfd_cell early_devs[] = {
 	{ .name = "arizona-ldo1" },
 };
 
-static struct mfd_cell wm5102_devs[] = {
-	{ .name = "arizona-micsupp" },
-	{ .name = "arizona-extcon" },
-	{ .name = "arizona-gpio" },
-	{ .name = "arizona-haptics" },
-	{ .name = "arizona-pwm" },
-	{ .name = "wm5102-codec" },
+static const char *wm5102_supplies[] = {
+	"DBVDD2",
+	"DBVDD3",
+	"CPVDD",
+	"SPKVDDL",
+	"SPKVDDR",
 };
 
-static struct mfd_cell wm5110_devs[] = {
+static const struct mfd_cell wm5102_devs[] = {
 	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
-	{ .name = "wm5110-codec" },
+	{
+		.name = "wm5102-codec",
+		.parent_supplies = wm5102_supplies,
+		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
+	},
+};
+
+static const struct mfd_cell wm5110_devs[] = {
+	{ .name = "arizona-micsupp" },
+	{ .name = "arizona-extcon" },
+	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
+	{ .name = "arizona-pwm" },
+	{
+		.name = "wm5110-codec",
+		.parent_supplies = wm5102_supplies,
+		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
+	},
+};
+
+static const char *wm8997_supplies[] = {
+	"DBVDD2",
+	"CPVDD",
+	"SPKVDD",
+};
+
+static const struct mfd_cell wm8997_devs[] = {
+	{ .name = "arizona-micsupp" },
+	{ .name = "arizona-extcon" },
+	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
+	{ .name = "arizona-pwm" },
+	{
+		.name = "wm8997-codec",
+		.parent_supplies = wm8997_supplies,
+		.num_parent_supplies = ARRAY_SIZE(wm8997_supplies),
+	},
 };
 
 int arizona_dev_init(struct arizona *arizona)
@@ -597,17 +633,18 @@ int arizona_dev_init(struct arizona *arizona)
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);
 
-	arizona_of_get_core_pdata(arizona);
-
 	if (dev_get_platdata(arizona->dev))
 		memcpy(&arizona->pdata, dev_get_platdata(arizona->dev),
 		       sizeof(arizona->pdata));
+	else
+		arizona_of_get_core_pdata(arizona);
 
 	regcache_cache_only(arizona->regmap, true);
 
 	switch (arizona->type) {
 	case WM5102:
 	case WM5110:
+	case WM8997:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
 			arizona->core_supplies[i].supply
 				= wm5102_core_supplies[i];
@@ -683,6 +720,7 @@ int arizona_dev_init(struct arizona *arizona)
 	switch (reg) {
 	case 0x5102:
 	case 0x5110:
+	case 0x8997:
 		break;
 	default:
 		dev_err(arizona->dev, "Unknown device ID: %x\n", reg);
@@ -766,6 +804,17 @@ int arizona_dev_init(struct arizona *arizona)
 			arizona->type = WM5110;
 		}
 		apply_patch = wm5110_patch;
+		break;
+#endif
+#ifdef CONFIG_MFD_WM8997
+	case 0x8997:
+		type_name = "WM8997";
+		if (arizona->type != WM8997) {
+			dev_err(arizona->dev, "WM8997 registered as %d\n",
+				arizona->type);
+			arizona->type = WM8997;
+		}
+		apply_patch = wm8997_patch;
 		break;
 #endif
 	default:
@@ -933,6 +982,10 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM5110:
 		ret = mfd_add_devices(arizona->dev, -1, wm5110_devs,
 				      ARRAY_SIZE(wm5110_devs), NULL, 0, NULL);
+		break;
+	case WM8997:
+		ret = mfd_add_devices(arizona->dev, -1, wm8997_devs,
+				      ARRAY_SIZE(wm8997_devs), NULL, 0, NULL);
 		break;
 	}
 

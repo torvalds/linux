@@ -35,6 +35,13 @@ config DVB_STV6110x
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
 
+config DVB_M88DS3103
+	tristate "Montage M88DS3103"
+	depends on DVB_CORE && I2C && I2C_MUX
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
 comment "Multistandard (cable + terrestrial) frontends"
 	depends on DVB_CORE
 
@@ -199,6 +206,13 @@ config DVB_CX24116
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S/S2 tuner module. Say Y when you want to support this frontend.
+
+config DVB_CX24117
+	tristate "Conexant CX24117 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A Dual DVB-S/S2 tuner module. Say Y when you want to support this frontend.
 
 config DVB_SI21XX
 	tristate "Silicon Labs SI21XX based"

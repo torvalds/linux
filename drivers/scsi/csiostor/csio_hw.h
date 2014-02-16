@@ -153,17 +153,6 @@ enum {
 	CSIO_SGE_INT_CNT_VAL_1		= 4,
 	CSIO_SGE_INT_CNT_VAL_2		= 8,
 	CSIO_SGE_INT_CNT_VAL_3		= 16,
-
-	/* Storage specific - used by FW_PFVF_CMD */
-	CSIO_WX_CAPS			= FW_CMD_CAP_PF, /* w/x all */
-	CSIO_R_CAPS			= FW_CMD_CAP_PF, /* r all */
-	CSIO_NVI			= 4,
-	CSIO_NIQ_FLINT			= 34,
-	CSIO_NETH_CTRL			= 32,
-	CSIO_NEQ			= 66,
-	CSIO_NEXACTF			= 32,
-	CSIO_CMASK			= FW_PFVF_CMD_CMASK_MASK,
-	CSIO_PMASK			= FW_PFVF_CMD_PMASK_MASK,
 };
 
 /* Slowpath events */

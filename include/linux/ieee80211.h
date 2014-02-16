@@ -16,6 +16,7 @@
 #define LINUX_IEEE80211_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
 #include <asm/byteorder.h>
 
 /*
@@ -146,6 +147,7 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 #define IEEE80211_MAX_RTS_THRESHOLD	2353
 #define IEEE80211_MAX_AID		2007
 #define IEEE80211_MAX_TIM_LEN		251
+#define IEEE80211_MAX_MESH_PEERINGS	63
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
    6.2.1.1.2.
 
@@ -208,28 +210,28 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 struct ieee80211_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
 	__le16 seq_ctrl;
-	u8 addr4[6];
+	u8 addr4[ETH_ALEN];
 } __packed __aligned(2);
 
 struct ieee80211_hdr_3addr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
 	__le16 seq_ctrl;
 } __packed __aligned(2);
 
 struct ieee80211_qos_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
 	__le16 seq_ctrl;
 	__le16 qos_ctrl;
 } __packed __aligned(2);
@@ -607,8 +609,8 @@ struct ieee80211s_hdr {
 	u8 flags;
 	u8 ttl;
 	__le32 seqnum;
-	u8 eaddr1[6];
-	u8 eaddr2[6];
+	u8 eaddr1[ETH_ALEN];
+	u8 eaddr2[ETH_ALEN];
 } __packed __aligned(2);
 
 /* Mesh flags */
@@ -695,6 +697,18 @@ struct ieee80211_sec_chan_offs_ie {
 } __packed;
 
 /**
+ * struct ieee80211_mesh_chansw_params_ie - mesh channel switch parameters IE
+ *
+ * This structure represents the "Mesh Channel Switch Paramters element"
+ */
+struct ieee80211_mesh_chansw_params_ie {
+	u8 mesh_ttl;
+	u8 mesh_flags;
+	__le16 mesh_reason;
+	__le16 mesh_pre_value;
+} __packed;
+
+/**
  * struct ieee80211_wide_bw_chansw_ie - wide bandwidth channel switch IE
  */
 struct ieee80211_wide_bw_chansw_ie {
@@ -749,6 +763,14 @@ enum mesh_config_capab_flags {
 };
 
 /**
+ * mesh channel switch parameters element's flag indicator
+ *
+ */
+#define WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT BIT(0)
+#define WLAN_EID_CHAN_SWITCH_PARAM_INITIATOR BIT(1)
+#define WLAN_EID_CHAN_SWITCH_PARAM_REASON BIT(2)
+
+/**
  * struct ieee80211_rann_ie
  *
  * This structure refers to "Root Announcement information element"
@@ -757,7 +779,7 @@ struct ieee80211_rann_ie {
 	u8 rann_flags;
 	u8 rann_hopcount;
 	u8 rann_ttl;
-	u8 rann_addr[6];
+	u8 rann_addr[ETH_ALEN];
 	__le32 rann_seq;
 	__le32 rann_interval;
 	__le32 rann_metric;
@@ -801,9 +823,9 @@ enum ieee80211_vht_opmode_bits {
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
-	u8 da[6];
-	u8 sa[6];
-	u8 bssid[6];
+	u8 da[ETH_ALEN];
+	u8 sa[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 	__le16 seq_ctrl;
 	union {
 		struct {
@@ -832,7 +854,7 @@ struct ieee80211_mgmt {
 		struct {
 			__le16 capab_info;
 			__le16 listen_interval;
-			u8 current_ap[6];
+			u8 current_ap[ETH_ALEN];
 			/* followed by SSID and Supported rates */
 			u8 variable[0];
 		} __packed reassoc_req;
@@ -965,21 +987,21 @@ struct ieee80211_vendor_ie {
 struct ieee80211_rts {
 	__le16 frame_control;
 	__le16 duration;
-	u8 ra[6];
-	u8 ta[6];
+	u8 ra[ETH_ALEN];
+	u8 ta[ETH_ALEN];
 } __packed __aligned(2);
 
 struct ieee80211_cts {
 	__le16 frame_control;
 	__le16 duration;
-	u8 ra[6];
+	u8 ra[ETH_ALEN];
 } __packed __aligned(2);
 
 struct ieee80211_pspoll {
 	__le16 frame_control;
 	__le16 aid;
-	u8 bssid[6];
-	u8 ta[6];
+	u8 bssid[ETH_ALEN];
+	u8 ta[ETH_ALEN];
 } __packed __aligned(2);
 
 /* TDLS */
@@ -988,14 +1010,14 @@ struct ieee80211_pspoll {
 struct ieee80211_tdls_lnkie {
 	u8 ie_type; /* Link Identifier IE */
 	u8 ie_len;
-	u8 bssid[6];
-	u8 init_sta[6];
-	u8 resp_sta[6];
+	u8 bssid[ETH_ALEN];
+	u8 init_sta[ETH_ALEN];
+	u8 resp_sta[ETH_ALEN];
 } __packed;
 
 struct ieee80211_tdls_data {
-	u8 da[6];
-	u8 sa[6];
+	u8 da[ETH_ALEN];
+	u8 sa[ETH_ALEN];
 	__be16 ether_type;
 	u8 payload_type;
 	u8 category;
@@ -1089,8 +1111,8 @@ struct ieee80211_p2p_noa_attr {
 struct ieee80211_bar {
 	__le16 frame_control;
 	__le16 duration;
-	__u8 ra[6];
-	__u8 ta[6];
+	__u8 ra[ETH_ALEN];
+	__u8 ta[ETH_ALEN];
 	__le16 control;
 	__le16 start_seq_num;
 } __packed;
@@ -1389,8 +1411,12 @@ struct ieee80211_vht_operation {
 #define IEEE80211_VHT_CAP_RXSTBC_MASK				0x00000700
 #define IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE			0x00000800
 #define IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE			0x00001000
-#define IEEE80211_VHT_CAP_BEAMFORMER_ANTENNAS_MAX		0x00006000
-#define IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MAX		0x00030000
+#define IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT                  13
+#define IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK			\
+		(7 << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT)
+#define IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT		16
+#define IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK		\
+		(7 << IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT)
 #define IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE			0x00080000
 #define IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE			0x00100000
 #define IEEE80211_VHT_CAP_VHT_TXOP_PS				0x00200000
@@ -1708,6 +1734,10 @@ enum ieee80211_eid {
 	WLAN_EID_OPMODE_NOTIF = 199,
 	WLAN_EID_WIDE_BW_CHANNEL_SWITCH = 194,
 	WLAN_EID_CHANNEL_SWITCH_WRAPPER = 196,
+	WLAN_EID_EXTENDED_BSS_LOAD = 193,
+	WLAN_EID_VHT_TX_POWER_ENVELOPE = 195,
+	WLAN_EID_AID = 197,
+	WLAN_EID_QUIET_CHANNEL = 198,
 
 	/* 802.11ad */
 	WLAN_EID_NON_TX_BSSID_CAP =  83,
@@ -1827,7 +1857,17 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_CCMP = 16,
 	WLAN_KEY_LEN_TKIP = 32,
 	WLAN_KEY_LEN_AES_CMAC = 16,
+	WLAN_KEY_LEN_SMS4 = 32,
 };
+
+#define IEEE80211_WEP_IV_LEN		4
+#define IEEE80211_WEP_ICV_LEN		4
+#define IEEE80211_CCMP_HDR_LEN		8
+#define IEEE80211_CCMP_MIC_LEN		8
+#define IEEE80211_CCMP_PN_LEN		6
+#define IEEE80211_TKIP_IV_LEN		8
+#define IEEE80211_TKIP_ICV_LEN		4
+#define IEEE80211_CMAC_PN_LEN		6
 
 /* Public action codes */
 enum ieee80211_pub_actioncode {
@@ -1850,6 +1890,11 @@ enum ieee80211_tdls_actioncode {
 	WLAN_TDLS_DISCOVERY_REQUEST = 10,
 };
 
+/* Interworking capabilities are set in 7th bit of 4th byte of the
+ * @WLAN_EID_EXT_CAPABILITY information element
+ */
+#define WLAN_EXT_CAPA4_INTERWORKING_ENABLED	BIT(7)
+
 /*
  * TDLS capabililites to be enabled in the 5th byte of the
  * @WLAN_EID_EXT_CAPABILITY information element
@@ -1858,6 +1903,7 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_EXT_CAPA5_TDLS_PROHIBITED	BIT(6)
 
 #define WLAN_EXT_CAPA8_OPMODE_NOTIF	BIT(6)
+#define WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED	BIT(7)
 
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
@@ -2268,5 +2314,9 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 
 	return !!(tim->virtual_map[index] & mask);
 }
+
+/* convert time units */
+#define TU_TO_JIFFIES(x)	(usecs_to_jiffies((x) * 1024))
+#define TU_TO_EXP_TIME(x)	(jiffies + TU_TO_JIFFIES(x))
 
 #endif /* LINUX_IEEE80211_H */

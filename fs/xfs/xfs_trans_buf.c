@@ -17,17 +17,15 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
@@ -316,7 +314,18 @@ xfs_trans_read_buf_map(
 			ASSERT(bp->b_iodone == NULL);
 			XFS_BUF_READ(bp);
 			bp->b_ops = ops;
-			xfsbdstrat(tp->t_mountp, bp);
+
+			/*
+			 * XXX(hch): clean up the error handling here to be less
+			 * of a mess..
+			 */
+			if (XFS_FORCED_SHUTDOWN(mp)) {
+				trace_xfs_bdstrat_shut(bp, _RET_IP_);
+				xfs_bioerror_relse(bp);
+			} else {
+				xfs_buf_iorequest(bp);
+			}
+
 			error = xfs_buf_iowait(bp);
 			if (error) {
 				xfs_buf_ioerror_alert(bp, __func__);
@@ -396,7 +405,6 @@ shutdown_abort:
 	*bpp = NULL;
 	return XFS_ERROR(EIO);
 }
-
 
 /*
  * Release the buffer bp which was previously acquired with one of the
@@ -506,7 +514,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 
 /*
  * Mark the buffer as not needing to be unlocked when the buf item's
- * IOP_UNLOCK() routine is called.  The buffer must already be locked
+ * iop_unlock() routine is called.  The buffer must already be locked
  * and associated with the given transaction.
  */
 /* ARGSUSED */
@@ -603,8 +611,14 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	bip->bli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
-	bip->bli_flags |= XFS_BLI_LOGGED;
-	xfs_buf_item_log(bip, first, last);
+
+	/*
+	 * If we have an ordered buffer we are not logging any dirty range but
+	 * it still needs to be marked dirty and that it has been logged.
+	 */
+	bip->bli_flags |= XFS_BLI_DIRTY | XFS_BLI_LOGGED;
+	if (!(bip->bli_flags & XFS_BLI_ORDERED))
+		xfs_buf_item_log(bip, first, last);
 }
 
 
@@ -754,6 +768,29 @@ xfs_trans_inode_alloc_buf(
 
 	bip->bli_flags |= XFS_BLI_INODE_ALLOC_BUF;
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
+}
+
+/*
+ * Mark the buffer as ordered for this transaction. This means
+ * that the contents of the buffer are not recorded in the transaction
+ * but it is tracked in the AIL as though it was. This allows us
+ * to record logical changes in transactions rather than the physical
+ * changes we make to the buffer without changing writeback ordering
+ * constraints of metadata buffers.
+ */
+void
+xfs_trans_ordered_buf(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp)
+{
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+
+	ASSERT(bp->b_transp == tp);
+	ASSERT(bip != NULL);
+	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+
+	bip->bli_flags |= XFS_BLI_ORDERED;
+	trace_xfs_buf_item_ordered(bip);
 }
 
 /*

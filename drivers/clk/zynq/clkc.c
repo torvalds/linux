@@ -71,6 +71,7 @@ static DEFINE_SPINLOCK(armpll_lock);
 static DEFINE_SPINLOCK(ddrpll_lock);
 static DEFINE_SPINLOCK(iopll_lock);
 static DEFINE_SPINLOCK(armclk_lock);
+static DEFINE_SPINLOCK(swdtclk_lock);
 static DEFINE_SPINLOCK(ddrclk_lock);
 static DEFINE_SPINLOCK(dciclk_lock);
 static DEFINE_SPINLOCK(gem0clk_lock);
@@ -101,9 +102,10 @@ static const char *swdt_ext_clk_input_names[] __initdata = {"swdt_ext_clk"};
 
 static void __init zynq_clk_register_fclk(enum zynq_clk fclk,
 		const char *clk_name, void __iomem *fclk_ctrl_reg,
-		const char **parents)
+		const char **parents, int enable)
 {
 	struct clk *clk;
+	u32 enable_reg;
 	char *mux_name;
 	char *div0_name;
 	char *div1_name;
@@ -116,16 +118,23 @@ static void __init zynq_clk_register_fclk(enum zynq_clk fclk,
 		goto err;
 	fclk_gate_lock = kmalloc(sizeof(*fclk_gate_lock), GFP_KERNEL);
 	if (!fclk_gate_lock)
-		goto err;
+		goto err_fclk_gate_lock;
 	spin_lock_init(fclk_lock);
 	spin_lock_init(fclk_gate_lock);
 
 	mux_name = kasprintf(GFP_KERNEL, "%s_mux", clk_name);
+	if (!mux_name)
+		goto err_mux_name;
 	div0_name = kasprintf(GFP_KERNEL, "%s_div0", clk_name);
+	if (!div0_name)
+		goto err_div0_name;
 	div1_name = kasprintf(GFP_KERNEL, "%s_div1", clk_name);
+	if (!div1_name)
+		goto err_div1_name;
 
-	clk = clk_register_mux(NULL, mux_name, parents, 4, 0,
-			fclk_ctrl_reg, 4, 2, 0, fclk_lock);
+	clk = clk_register_mux(NULL, mux_name, parents, 4,
+			CLK_SET_RATE_NO_REPARENT, fclk_ctrl_reg, 4, 2, 0,
+			fclk_lock);
 
 	clk = clk_register_divider(NULL, div0_name, mux_name,
 			0, fclk_ctrl_reg, 8, 6, CLK_DIVIDER_ONE_BASED |
@@ -139,12 +148,26 @@ static void __init zynq_clk_register_fclk(enum zynq_clk fclk,
 	clks[fclk] = clk_register_gate(NULL, clk_name,
 			div1_name, CLK_SET_RATE_PARENT, fclk_gate_reg,
 			0, CLK_GATE_SET_TO_DISABLE, fclk_gate_lock);
+	enable_reg = readl(fclk_gate_reg) & 1;
+	if (enable && !enable_reg) {
+		if (clk_prepare_enable(clks[fclk]))
+			pr_warn("%s: FCLK%u enable failed\n", __func__,
+					fclk - fclk0);
+	}
 	kfree(mux_name);
 	kfree(div0_name);
 	kfree(div1_name);
 
 	return;
 
+err_div1_name:
+	kfree(div0_name);
+err_div0_name:
+	kfree(mux_name);
+err_mux_name:
+	kfree(fclk_gate_lock);
+err_fclk_gate_lock:
+	kfree(fclk_lock);
 err:
 	clks[fclk] = ERR_PTR(-ENOMEM);
 }
@@ -167,8 +190,8 @@ static void __init zynq_clk_register_periph_clk(enum zynq_clk clk0,
 	mux_name = kasprintf(GFP_KERNEL, "%s_mux", clk_name0);
 	div_name = kasprintf(GFP_KERNEL, "%s_div", clk_name0);
 
-	clk = clk_register_mux(NULL, mux_name, parents, 4, 0,
-			clk_ctrl, 4, 2, 0, lock);
+	clk = clk_register_mux(NULL, mux_name, parents, 4,
+			CLK_SET_RATE_NO_REPARENT, clk_ctrl, 4, 2, 0, lock);
 
 	clk = clk_register_divider(NULL, div_name, mux_name, 0, clk_ctrl, 8, 6,
 			CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO, lock);
@@ -197,6 +220,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 	int ret;
 	struct clk *clk;
 	char *clk_name;
+	unsigned int fclk_enable = 0;
 	const char *clk_output_name[clk_max];
 	const char *cpu_parents[4];
 	const char *periph_parents[4];
@@ -222,6 +246,8 @@ static void __init zynq_clk_setup(struct device_node *np)
 	periph_parents[2] = clk_output_name[armpll];
 	periph_parents[3] = clk_output_name[ddrpll];
 
+	of_property_read_u32(np, "fclk-enable", &fclk_enable);
+
 	/* ps_clk */
 	ret = of_property_read_u32(np, "ps-clk-frequency", &tmp);
 	if (ret) {
@@ -235,25 +261,26 @@ static void __init zynq_clk_setup(struct device_node *np)
 	clk = clk_register_zynq_pll("armpll_int", "ps_clk", SLCR_ARMPLL_CTRL,
 			SLCR_PLL_STATUS, 0, &armpll_lock);
 	clks[armpll] = clk_register_mux(NULL, clk_output_name[armpll],
-			armpll_parents, 2, 0, SLCR_ARMPLL_CTRL, 4, 1, 0,
-			&armpll_lock);
+			armpll_parents, 2, CLK_SET_RATE_NO_REPARENT,
+			SLCR_ARMPLL_CTRL, 4, 1, 0, &armpll_lock);
 
 	clk = clk_register_zynq_pll("ddrpll_int", "ps_clk", SLCR_DDRPLL_CTRL,
 			SLCR_PLL_STATUS, 1, &ddrpll_lock);
 	clks[ddrpll] = clk_register_mux(NULL, clk_output_name[ddrpll],
-			ddrpll_parents, 2, 0, SLCR_DDRPLL_CTRL, 4, 1, 0,
-			&ddrpll_lock);
+			ddrpll_parents, 2, CLK_SET_RATE_NO_REPARENT,
+			SLCR_DDRPLL_CTRL, 4, 1, 0, &ddrpll_lock);
 
 	clk = clk_register_zynq_pll("iopll_int", "ps_clk", SLCR_IOPLL_CTRL,
 			SLCR_PLL_STATUS, 2, &iopll_lock);
 	clks[iopll] = clk_register_mux(NULL, clk_output_name[iopll],
-			iopll_parents, 2, 0, SLCR_IOPLL_CTRL, 4, 1, 0,
-			&iopll_lock);
+			iopll_parents, 2, CLK_SET_RATE_NO_REPARENT,
+			SLCR_IOPLL_CTRL, 4, 1, 0, &iopll_lock);
 
 	/* CPU clocks */
 	tmp = readl(SLCR_621_TRUE) & 1;
-	clk = clk_register_mux(NULL, "cpu_mux", cpu_parents, 4, 0,
-			SLCR_ARM_CLK_CTRL, 4, 2, 0, &armclk_lock);
+	clk = clk_register_mux(NULL, "cpu_mux", cpu_parents, 4,
+			CLK_SET_RATE_NO_REPARENT, SLCR_ARM_CLK_CTRL, 4, 2, 0,
+			&armclk_lock);
 	clk = clk_register_divider(NULL, "cpu_div", "cpu_mux", 0,
 			SLCR_ARM_CLK_CTRL, 8, 6, CLK_DIVIDER_ONE_BASED |
 			CLK_DIVIDER_ALLOW_ZERO, &armclk_lock);
@@ -292,8 +319,9 @@ static void __init zynq_clk_setup(struct device_node *np)
 			swdt_ext_clk_mux_parents[i + 1] = dummy_nm;
 	}
 	clks[swdt] = clk_register_mux(NULL, clk_output_name[swdt],
-			swdt_ext_clk_mux_parents, 2, CLK_SET_RATE_PARENT,
-			SLCR_SWDT_CLK_SEL, 0, 1, 0, &gem0clk_lock);
+			swdt_ext_clk_mux_parents, 2, CLK_SET_RATE_PARENT |
+			CLK_SET_RATE_NO_REPARENT, SLCR_SWDT_CLK_SEL, 0, 1, 0,
+			&swdtclk_lock);
 
 	/* DDR clocks */
 	clk = clk_register_divider(NULL, "ddr2x_div", "ddrpll", 0,
@@ -322,10 +350,12 @@ static void __init zynq_clk_setup(struct device_node *np)
 	clk_prepare_enable(clks[dci]);
 
 	/* Peripheral clocks */
-	for (i = fclk0; i <= fclk3; i++)
+	for (i = fclk0; i <= fclk3; i++) {
+		int enable = !!(fclk_enable & BIT(i - fclk0));
 		zynq_clk_register_fclk(i, clk_output_name[i],
 				SLCR_FPGA0_CLK_CTRL + 0x10 * (i - fclk0),
-				periph_parents);
+				periph_parents, enable);
+	}
 
 	zynq_clk_register_periph_clk(lqspi, 0, clk_output_name[lqspi], NULL,
 			SLCR_LQSPI_CLK_CTRL, periph_parents, 0);
@@ -355,8 +385,9 @@ static void __init zynq_clk_setup(struct device_node *np)
 			gem0_mux_parents[i + 1] = of_clk_get_parent_name(np,
 					idx);
 	}
-	clk = clk_register_mux(NULL, "gem0_mux", periph_parents, 4, 0,
-			SLCR_GEM0_CLK_CTRL, 4, 2, 0, &gem0clk_lock);
+	clk = clk_register_mux(NULL, "gem0_mux", periph_parents, 4,
+			CLK_SET_RATE_NO_REPARENT, SLCR_GEM0_CLK_CTRL, 4, 2, 0,
+			&gem0clk_lock);
 	clk = clk_register_divider(NULL, "gem0_div0", "gem0_mux", 0,
 			SLCR_GEM0_CLK_CTRL, 8, 6, CLK_DIVIDER_ONE_BASED |
 			CLK_DIVIDER_ALLOW_ZERO, &gem0clk_lock);
@@ -364,8 +395,10 @@ static void __init zynq_clk_setup(struct device_node *np)
 			CLK_SET_RATE_PARENT, SLCR_GEM0_CLK_CTRL, 20, 6,
 			CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
 			&gem0clk_lock);
-	clk = clk_register_mux(NULL, "gem0_emio_mux", gem0_mux_parents, 2, 0,
-			SLCR_GEM0_CLK_CTRL, 6, 1, 0, &gem0clk_lock);
+	clk = clk_register_mux(NULL, "gem0_emio_mux", gem0_mux_parents, 2,
+			CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			SLCR_GEM0_CLK_CTRL, 6, 1, 0,
+			&gem0clk_lock);
 	clks[gem0] = clk_register_gate(NULL, clk_output_name[gem0],
 			"gem0_emio_mux", CLK_SET_RATE_PARENT,
 			SLCR_GEM0_CLK_CTRL, 0, 0, &gem0clk_lock);
@@ -377,8 +410,9 @@ static void __init zynq_clk_setup(struct device_node *np)
 			gem1_mux_parents[i + 1] = of_clk_get_parent_name(np,
 					idx);
 	}
-	clk = clk_register_mux(NULL, "gem1_mux", periph_parents, 4, 0,
-			SLCR_GEM1_CLK_CTRL, 4, 2, 0, &gem1clk_lock);
+	clk = clk_register_mux(NULL, "gem1_mux", periph_parents, 4,
+			CLK_SET_RATE_NO_REPARENT, SLCR_GEM1_CLK_CTRL, 4, 2, 0,
+			&gem1clk_lock);
 	clk = clk_register_divider(NULL, "gem1_div0", "gem1_mux", 0,
 			SLCR_GEM1_CLK_CTRL, 8, 6, CLK_DIVIDER_ONE_BASED |
 			CLK_DIVIDER_ALLOW_ZERO, &gem1clk_lock);
@@ -386,8 +420,10 @@ static void __init zynq_clk_setup(struct device_node *np)
 			CLK_SET_RATE_PARENT, SLCR_GEM1_CLK_CTRL, 20, 6,
 			CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
 			&gem1clk_lock);
-	clk = clk_register_mux(NULL, "gem1_emio_mux", gem1_mux_parents, 2, 0,
-			SLCR_GEM1_CLK_CTRL, 6, 1, 0, &gem1clk_lock);
+	clk = clk_register_mux(NULL, "gem1_emio_mux", gem1_mux_parents, 2,
+			CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			SLCR_GEM1_CLK_CTRL, 6, 1, 0,
+			&gem1clk_lock);
 	clks[gem1] = clk_register_gate(NULL, clk_output_name[gem1],
 			"gem1_emio_mux", CLK_SET_RATE_PARENT,
 			SLCR_GEM1_CLK_CTRL, 0, 0, &gem1clk_lock);
@@ -406,8 +442,9 @@ static void __init zynq_clk_setup(struct device_node *np)
 			can_mio_mux_parents[i] = dummy_nm;
 	}
 	kfree(clk_name);
-	clk = clk_register_mux(NULL, "can_mux", periph_parents, 4, 0,
-			SLCR_CAN_CLK_CTRL, 4, 2, 0, &canclk_lock);
+	clk = clk_register_mux(NULL, "can_mux", periph_parents, 4,
+			CLK_SET_RATE_NO_REPARENT, SLCR_CAN_CLK_CTRL, 4, 2, 0,
+			&canclk_lock);
 	clk = clk_register_divider(NULL, "can_div0", "can_mux", 0,
 			SLCR_CAN_CLK_CTRL, 8, 6, CLK_DIVIDER_ONE_BASED |
 			CLK_DIVIDER_ALLOW_ZERO, &canclk_lock);
@@ -422,17 +459,21 @@ static void __init zynq_clk_setup(struct device_node *np)
 			CLK_SET_RATE_PARENT, SLCR_CAN_CLK_CTRL, 1, 0,
 			&canclk_lock);
 	clk = clk_register_mux(NULL, "can0_mio_mux",
-			can_mio_mux_parents, 54, CLK_SET_RATE_PARENT,
-			SLCR_CAN_MIOCLK_CTRL, 0, 6, 0, &canmioclk_lock);
+			can_mio_mux_parents, 54, CLK_SET_RATE_PARENT |
+			CLK_SET_RATE_NO_REPARENT, SLCR_CAN_MIOCLK_CTRL, 0, 6, 0,
+			&canmioclk_lock);
 	clk = clk_register_mux(NULL, "can1_mio_mux",
-			can_mio_mux_parents, 54, CLK_SET_RATE_PARENT,
-			SLCR_CAN_MIOCLK_CTRL, 16, 6, 0, &canmioclk_lock);
+			can_mio_mux_parents, 54, CLK_SET_RATE_PARENT |
+			CLK_SET_RATE_NO_REPARENT, SLCR_CAN_MIOCLK_CTRL, 16, 6,
+			0, &canmioclk_lock);
 	clks[can0] = clk_register_mux(NULL, clk_output_name[can0],
-			can0_mio_mux2_parents, 2, CLK_SET_RATE_PARENT,
-			SLCR_CAN_MIOCLK_CTRL, 6, 1, 0, &canmioclk_lock);
+			can0_mio_mux2_parents, 2, CLK_SET_RATE_PARENT |
+			CLK_SET_RATE_NO_REPARENT, SLCR_CAN_MIOCLK_CTRL, 6, 1, 0,
+			&canmioclk_lock);
 	clks[can1] = clk_register_mux(NULL, clk_output_name[can1],
-			can1_mio_mux2_parents, 2, CLK_SET_RATE_PARENT,
-			SLCR_CAN_MIOCLK_CTRL, 22, 1, 0, &canmioclk_lock);
+			can1_mio_mux2_parents, 2, CLK_SET_RATE_PARENT |
+			CLK_SET_RATE_NO_REPARENT, SLCR_CAN_MIOCLK_CTRL, 22, 1,
+			0, &canmioclk_lock);
 
 	for (i = 0; i < ARRAY_SIZE(dbgtrc_emio_input_names); i++) {
 		int idx = of_property_match_string(np, "clock-names",
@@ -441,13 +482,15 @@ static void __init zynq_clk_setup(struct device_node *np)
 			dbg_emio_mux_parents[i + 1] = of_clk_get_parent_name(np,
 					idx);
 	}
-	clk = clk_register_mux(NULL, "dbg_mux", periph_parents, 4, 0,
-			SLCR_DBG_CLK_CTRL, 4, 2, 0, &dbgclk_lock);
+	clk = clk_register_mux(NULL, "dbg_mux", periph_parents, 4,
+			CLK_SET_RATE_NO_REPARENT, SLCR_DBG_CLK_CTRL, 4, 2, 0,
+			&dbgclk_lock);
 	clk = clk_register_divider(NULL, "dbg_div", "dbg_mux", 0,
 			SLCR_DBG_CLK_CTRL, 8, 6, CLK_DIVIDER_ONE_BASED |
 			CLK_DIVIDER_ALLOW_ZERO, &dbgclk_lock);
-	clk = clk_register_mux(NULL, "dbg_emio_mux", dbg_emio_mux_parents, 2, 0,
-			SLCR_DBG_CLK_CTRL, 6, 1, 0, &dbgclk_lock);
+	clk = clk_register_mux(NULL, "dbg_emio_mux", dbg_emio_mux_parents, 2,
+			CLK_SET_RATE_NO_REPARENT, SLCR_DBG_CLK_CTRL, 6, 1, 0,
+			&dbgclk_lock);
 	clks[dbg_trc] = clk_register_gate(NULL, clk_output_name[dbg_trc],
 			"dbg_emio_mux", CLK_SET_RATE_PARENT, SLCR_DBG_CLK_CTRL,
 			0, 0, &dbgclk_lock);

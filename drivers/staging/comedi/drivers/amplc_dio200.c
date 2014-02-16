@@ -192,8 +192,7 @@
  * order they appear in the channel list.
  */
 
-#include <linux/slab.h>
-
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include "amplc_dio200.h"
@@ -272,10 +271,9 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	irq = it->options[1];
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_request_region(dev, it->options[0], thisboard->mainsize);
 	if (ret)

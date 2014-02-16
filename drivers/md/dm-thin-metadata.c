@@ -1349,6 +1349,12 @@ dm_thin_id dm_thin_dev_id(struct dm_thin_device *td)
 	return td->id;
 }
 
+/*
+ * Check whether @time (of block creation) is older than @td's last snapshot.
+ * If so then the associated block is shared with the last snapshot device.
+ * Any block on a device created *after* the device last got snapshotted is
+ * necessarily not shared.
+ */
 static bool __snapshotted_since(struct dm_thin_device *td, uint32_t time)
 {
 	return td->snapshotted_time > time;
@@ -1454,6 +1460,20 @@ int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block)
 	if (!td->pmd->fail_io)
 		r = __remove(td, block);
 	up_write(&td->pmd->root_lock);
+
+	return r;
+}
+
+int dm_pool_block_is_used(struct dm_pool_metadata *pmd, dm_block_t b, bool *result)
+{
+	int r;
+	uint32_t ref_count;
+
+	down_read(&pmd->root_lock);
+	r = dm_sm_get_count(pmd->data_sm, b, &ref_count);
+	if (!r)
+		*result = (ref_count != 0);
+	up_read(&pmd->root_lock);
 
 	return r;
 }
@@ -1694,6 +1714,14 @@ void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd)
 	down_write(&pmd->root_lock);
 	pmd->read_only = true;
 	dm_bm_set_read_only(pmd->bm);
+	up_write(&pmd->root_lock);
+}
+
+void dm_pool_metadata_read_write(struct dm_pool_metadata *pmd)
+{
+	down_write(&pmd->root_lock);
+	pmd->read_only = false;
+	dm_bm_set_read_write(pmd->bm);
 	up_write(&pmd->root_lock);
 }
 

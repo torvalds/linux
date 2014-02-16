@@ -81,6 +81,53 @@
 #define	__REGA0_R30	30
 #define	__REGA0_R31	31
 
+/* opcode and xopcode for instructions */
+#define OP_TRAP 3
+#define OP_TRAP_64 2
+
+#define OP_31_XOP_TRAP      4
+#define OP_31_XOP_LWZX      23
+#define OP_31_XOP_DCBST     54
+#define OP_31_XOP_LWZUX     55
+#define OP_31_XOP_TRAP_64   68
+#define OP_31_XOP_DCBF      86
+#define OP_31_XOP_LBZX      87
+#define OP_31_XOP_STWX      151
+#define OP_31_XOP_STBX      215
+#define OP_31_XOP_LBZUX     119
+#define OP_31_XOP_STBUX     247
+#define OP_31_XOP_LHZX      279
+#define OP_31_XOP_LHZUX     311
+#define OP_31_XOP_MFSPR     339
+#define OP_31_XOP_LHAX      343
+#define OP_31_XOP_LHAUX     375
+#define OP_31_XOP_STHX      407
+#define OP_31_XOP_STHUX     439
+#define OP_31_XOP_MTSPR     467
+#define OP_31_XOP_DCBI      470
+#define OP_31_XOP_LWBRX     534
+#define OP_31_XOP_TLBSYNC   566
+#define OP_31_XOP_STWBRX    662
+#define OP_31_XOP_LHBRX     790
+#define OP_31_XOP_STHBRX    918
+
+#define OP_LWZ  32
+#define OP_LD   58
+#define OP_LWZU 33
+#define OP_LBZ  34
+#define OP_LBZU 35
+#define OP_STW  36
+#define OP_STWU 37
+#define OP_STD  62
+#define OP_STB  38
+#define OP_STBU 39
+#define OP_LHZ  40
+#define OP_LHZU 41
+#define OP_LHA  42
+#define OP_LHAU 43
+#define OP_STH  44
+#define OP_STHU 45
+
 /* sorted alphabetically */
 #define PPC_INST_BHRBE			0x7c00025c
 #define PPC_INST_CLRBHRB		0x7c00035c
@@ -96,6 +143,8 @@
 #define PPC_INST_LSWX			0x7c00042a
 #define PPC_INST_LWARX			0x7c000028
 #define PPC_INST_LWSYNC			0x7c2004ac
+#define PPC_INST_SYNC			0x7c0004ac
+#define PPC_INST_SYNC_MASK		0xfc0007fe
 #define PPC_INST_LXVD2X			0x7c000698
 #define PPC_INST_MCRXR			0x7c000400
 #define PPC_INST_MCRXR_MASK		0xfc0007fe
@@ -134,6 +183,7 @@
 #define PPC_INST_TLBIVAX		0x7c000624
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
 #define PPC_INST_XXLOR			0xf0000510
+#define PPC_INST_XXSWAPD		0xf0000250
 #define PPC_INST_XVCPSGNDP		0xf0000780
 #define PPC_INST_TRECHKPT		0x7c0007dd
 #define PPC_INST_TRECLAIM		0x7c00075d
@@ -153,6 +203,7 @@
 /* Misc instructions for BPF compiler */
 #define PPC_INST_LD			0xe8000000
 #define PPC_INST_LHZ			0xa0000000
+#define PPC_INST_LHBRX			0x7c00062c
 #define PPC_INST_LWZ			0x80000000
 #define PPC_INST_STD			0xf8000000
 #define PPC_INST_STDU			0xf8000001
@@ -171,7 +222,7 @@
 #define PPC_INST_MULLW			0x7c0001d6
 #define PPC_INST_MULHWU			0x7c000016
 #define PPC_INST_MULLI			0x1c000000
-#define PPC_INST_DIVWU			0x7c0003d6
+#define PPC_INST_DIVWU			0x7c000396
 #define PPC_INST_RLWINM			0x54000000
 #define PPC_INST_RLDICR			0x78000004
 #define PPC_INST_SLW			0x7c000030
@@ -297,6 +348,8 @@
 					       VSX_XX1((s), a, b))
 #define XXLOR(t, a, b)		stringify_in_c(.long PPC_INST_XXLOR | \
 					       VSX_XX3((t), a, b))
+#define XXSWAPD(t, a)		stringify_in_c(.long PPC_INST_XXSWAPD | \
+					       VSX_XX3((t), a, a))
 #define XVCPSGNDP(t, a, b)	stringify_in_c(.long (PPC_INST_XVCPSGNDP | \
 					       VSX_XX3((t), (a), (b))))
 

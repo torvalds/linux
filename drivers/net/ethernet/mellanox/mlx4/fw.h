@@ -140,6 +140,8 @@ struct mlx4_func_cap {
 	u32	qp1_proxy_qpn;
 	u8	physical_port;
 	u8	port_flags;
+	u8	flags1;
+	u64	phys_port_id;
 };
 
 struct mlx4_adapter {
@@ -220,5 +222,6 @@ int mlx4_MAP_ICM_AUX(struct mlx4_dev *dev, struct mlx4_icm *icm);
 int mlx4_UNMAP_ICM_AUX(struct mlx4_dev *dev);
 int mlx4_NOP(struct mlx4_dev *dev);
 int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg);
+void mlx4_opreq_action(struct work_struct *work);
 
 #endif /* MLX4_FW_H */

@@ -1,0 +1,21 @@
+Broadcom BCM281xx SDHCI
+
+This file documents differences between the core properties in mmc.txt
+and the properties present in the bcm281xx SDHCI
+
+Required properties:
+- compatible : Should be "brcm,kona-sdhci"
+- DEPRECATED: compatible : Should be "bcm,kona-sdhci"
+- clocks: phandle + clock specifier pair of the external clock
+
+Refer to clocks/clock-bindings.txt for generic clock consumer properties.
+
+Example:
+
+sdio2: sdio@0x3f1a0000 {
+	compatible = "brcm,kona-sdhci";
+	reg = <0x3f1a0000 0x10000>;
+	clocks = <&sdio3_clk>;
+	interrupts = <0x0 74 0x4>;
+};
+

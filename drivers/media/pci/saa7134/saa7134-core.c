@@ -751,6 +751,7 @@ static int saa7134_hwfini(struct saa7134_dev *dev)
 	saa7134_input_fini(dev);
 	saa7134_vbi_fini(dev);
 	saa7134_tvaudio_fini(dev);
+	saa7134_video_fini(dev);
 	return 0;
 }
 
@@ -802,7 +803,6 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 	*vfd = *template;
 	vfd->v4l2_dev  = &dev->v4l2_dev;
 	vfd->release = video_device_release;
-	vfd->debug   = video_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, saa7134_boards[dev->board].name);
 	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
@@ -992,7 +992,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* get irq */
 	err = request_irq(pci_dev->irq, saa7134_irq,
-			  IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+			  IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       dev->name,pci_dev->irq);
@@ -1008,13 +1008,13 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* load i2c helpers */
 	if (card_is_empress(dev)) {
-		struct v4l2_subdev *sd =
+		dev->empress_sd =
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"saa6752hs",
 				saa7134_boards[dev->board].empress_addr, NULL);
 
-		if (sd)
-			sd->grp_id = GRP_EMPRESS;
+		if (dev->empress_sd)
+			dev->empress_sd->grp_id = GRP_EMPRESS;
 	}
 
 	if (saa7134_boards[dev->board].rds_addr) {
@@ -1046,6 +1046,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		printk(KERN_INFO "%s: Overlay support disabled.\n", dev->name);
 
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
+	dev->video_dev->ctrl_handler = &dev->ctrl_handler;
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
 	if (err < 0) {
@@ -1057,6 +1058,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	       dev->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
+	dev->vbi_dev->ctrl_handler = &dev->ctrl_handler;
 
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
@@ -1067,6 +1069,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
+		dev->radio_dev->ctrl_handler = &dev->radio_ctrl_handler;
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[dev->nr]);
 		if (err < 0)

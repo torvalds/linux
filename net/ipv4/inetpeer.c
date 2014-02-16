@@ -32,8 +32,8 @@
  *  At the moment of writing this notes identifier of IP packets is generated
  *  to be unpredictable using this code only for packets subjected
  *  (actually or potentially) to defragmentation.  I.e. DF packets less than
- *  PMTU in size uses a constant ID and do not use this code (see
- *  ip_select_ident() in include/net/ip.h).
+ *  PMTU in size when local fragmentation is disabled use a constant ID and do
+ *  not use this code (see ip_select_ident() in include/net/ip.h).
  *
  *  Route cache entries hold references to our nodes.
  *  New cache entries get references via lookup by destination IP address in
@@ -107,13 +107,6 @@ static inline void flush_check(struct inet_peer_base *base, int family)
 		inetpeer_invalidate_tree(base);
 		base->flush_seq = atomic_read(fp);
 	}
-}
-
-void inetpeer_invalidate_family(int family)
-{
-	atomic_t *fp = inetpeer_seq_ptr(family);
-
-	atomic_inc(fp);
 }
 
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
@@ -227,7 +220,7 @@ static int addr_compare(const struct inetpeer_addr *a,
 	stackptr = _stack;					\
 	*stackptr++ = &_base->root;				\
 	for (u = rcu_deref_locked(_base->root, _base);		\
-	     u != peer_avl_empty; ) {				\
+	     u != peer_avl_empty;) {				\
 		int cmp = addr_compare(_daddr, &u->daddr);	\
 		if (cmp == 0)					\
 			break;					\
@@ -282,7 +275,7 @@ static struct inet_peer *lookup_rcu(const struct inetpeer_addr *daddr,
 	*stackptr++ = &start->avl_left;				\
 	v = &start->avl_left;					\
 	for (u = rcu_deref_locked(*v, base);			\
-	     u->avl_right != peer_avl_empty_rcu; ) {		\
+	     u->avl_right != peer_avl_empty_rcu;) {		\
 		v = &u->avl_right;				\
 		*stackptr++ = v;				\
 		u = rcu_deref_locked(*v, base);			\

@@ -1,0 +1,48 @@
+* Freescale Direct Memory Access (DMA) Controller for i.MX
+
+This document will only describe differences to the generic DMA Controller and
+DMA request bindings as described in dma/dma.txt .
+
+* DMA controller
+
+Required properties:
+- compatible : Should be "fsl,<chip>-dma". chip can be imx1, imx21 or imx27
+- reg : Should contain DMA registers location and length
+- interrupts : First item should be DMA interrupt, second one is optional and
+    should contain DMA Error interrupt
+- #dma-cells : Has to be 1. imx-dma does not support anything else.
+
+Optional properties:
+- #dma-channels : Number of DMA channels supported. Should be 16.
+- #dma-requests : Number of DMA requests supported.
+
+Example:
+
+	dma: dma@10001000 {
+		compatible = "fsl,imx27-dma";
+		reg = <0x10001000 0x1000>;
+		interrupts = <32 33>;
+		#dma-cells = <1>;
+		#dma-channels = <16>;
+	};
+
+
+* DMA client
+
+Clients have to specify the DMA requests with phandles in a list.
+
+Required properties:
+- dmas: List of one or more DMA request specifiers. One DMA request specifier
+    consists of a phandle to the DMA controller followed by the integer
+    specifying the request line.
+- dma-names: List of string identifiers for the DMA requests. For the correct
+    names, have a look at the specific client driver.
+
+Example:
+
+	sdhci1: sdhci@10013000 {
+		...
+		dmas = <&dma 7>;
+		dma-names = "rx-tx";
+		...
+	};

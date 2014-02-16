@@ -168,7 +168,7 @@ static unsigned long centro685_pin_config[] __initdata = {
  * GPIO keyboard
  ******************************************************************************/
 #if IS_ENABLED(CONFIG_KEYBOARD_PXA27x)
-static unsigned int treo680_matrix_keys[] = {
+static const unsigned int treo680_matrix_keys[] = {
 	KEY(0, 0, KEY_F8),		/* Red/Off/Power */
 	KEY(0, 1, KEY_LEFT),
 	KEY(0, 2, KEY_LEFTCTRL),	/* Alternate */
@@ -227,7 +227,7 @@ static unsigned int treo680_matrix_keys[] = {
 	KEY(7, 5, KEY_I),
 };
 
-static unsigned int centro_matrix_keys[] = {
+static const unsigned int centro_matrix_keys[] = {
 	KEY(0, 0, KEY_F9),		/* Home */
 	KEY(0, 1, KEY_LEFT),
 	KEY(0, 2, KEY_LEFTCTRL),	/* Alternate */
@@ -286,11 +286,20 @@ static unsigned int centro_matrix_keys[] = {
 	KEY(7, 5, KEY_I),
 };
 
+static struct matrix_keymap_data treo680_matrix_keymap_data = {
+	.keymap			= treo680_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(treo680_matrix_keys),
+};
+
+static struct matrix_keymap_data centro_matrix_keymap_data = {
+	.keymap			= centro_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(centro_matrix_keys),
+};
+
 static struct pxa27x_keypad_platform_data treo680_keypad_pdata = {
 	.matrix_key_rows	= 8,
 	.matrix_key_cols	= 7,
-	.matrix_key_map		= treo680_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(treo680_matrix_keys),
+	.matrix_keymap_data	= &treo680_matrix_keymap_data,
 	.direct_key_map		= { KEY_CONNECT },
 	.direct_key_num		= 1,
 
@@ -301,10 +310,8 @@ static void __init palmtreo_kpc_init(void)
 {
 	static struct pxa27x_keypad_platform_data *data = &treo680_keypad_pdata;
 
-	if (machine_is_centro()) {
-		data->matrix_key_map = centro_matrix_keys;
-		data->matrix_key_map_size = ARRAY_SIZE(centro_matrix_keys);
-	}
+	if (machine_is_centro())
+		data->matrix_keymap_data = &centro_matrix_keymap_data;
 
 	pxa_set_keypad_info(&treo680_keypad_pdata);
 }

@@ -259,7 +259,7 @@ cuda_probe(void)
     } while (0)
 
 static int
-cuda_init_via(void)
+__init cuda_init_via(void)
 {
     out_8(&via[DIRB], (in_8(&via[DIRB]) | TACK | TIP) & ~TREQ);	/* TACK & TIP out */
     out_8(&via[B], in_8(&via[B]) | TACK | TIP);			/* negate them */

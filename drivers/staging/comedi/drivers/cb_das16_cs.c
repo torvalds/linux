@@ -34,8 +34,8 @@ Status: experimental
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "../comedidev.h"
@@ -234,9 +234,9 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 		unsigned int div1 = 0, div2 = 0;
 
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &div1, &div2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -244,9 +244,9 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 		unsigned int div1 = 0, div2 = 0;
 
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &div1, &div2,
+					  &cmd->scan_begin_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -325,14 +325,11 @@ static int das16cs_ao_rinsn(struct comedi_device *dev,
 
 static int das16cs_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + DAS16CS_DIO);
-	}
 
 	data[1] = inw(dev->iobase + DAS16CS_DIO);
 
@@ -341,33 +338,22 @@ static int das16cs_dio_insn_bits(struct comedi_device *dev,
 
 static int das16cs_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct das16cs_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int bits;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
 	if (chan < 4)
-		bits = 0x0f;
+		mask = 0x0f;
 	else
-		bits = 0xf0;
+		mask = 0xf0;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	devpriv->status2 &= ~0x00c0;
 	devpriv->status2 |= (s->io_bits & 0xf0) ? 0x0080 : 0;
@@ -420,10 +406,9 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 		return ret;
 	dev->irq = link->irq;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)

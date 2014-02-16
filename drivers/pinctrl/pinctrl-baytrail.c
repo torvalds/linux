@@ -29,7 +29,6 @@
 #include <linux/gpio.h>
 #include <linux/irqdomain.h>
 #include <linux/acpi.h>
-#include <linux/acpi_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 #include <linux/io.h>
@@ -130,25 +129,25 @@ struct byt_gpio {
 	struct pinctrl_gpio_range	*range;
 };
 
+#define to_byt_gpio(c)	container_of(c, struct byt_gpio, chip)
+
 static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 				 int reg)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	u32 reg_offset;
-	void __iomem *ptr;
 
 	if (reg == BYT_INT_STAT_REG)
 		reg_offset = (offset / 32) * 4;
 	else
 		reg_offset = vg->range->pins[offset] * 16;
 
-	ptr = (void __iomem *) (vg->reg_base + reg_offset + reg);
-	return ptr;
+	return vg->reg_base + reg_offset + reg;
 }
 
 static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 
 	pm_runtime_get(&vg->pdev->dev);
 
@@ -157,7 +156,7 @@ static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void byt_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(&vg->chip, offset, BYT_CONF0_REG);
 	u32 value;
 
@@ -218,7 +217,7 @@ static int byt_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void byt_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(chip, offset, BYT_VAL_REG);
 	unsigned long flags;
 	u32 old_val;
@@ -237,7 +236,7 @@ static void byt_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int byt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(chip, offset, BYT_VAL_REG);
 	unsigned long flags;
 	u32 value;
@@ -245,7 +244,7 @@ static int byt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	spin_lock_irqsave(&vg->lock, flags);
 
 	value = readl(reg) | BYT_DIR_MASK;
-	value = value & (~BYT_INPUT_EN); /* active low */
+	value &= ~BYT_INPUT_EN;		/* active low */
 	writel(value, reg);
 
 	spin_unlock_irqrestore(&vg->lock, flags);
@@ -256,16 +255,20 @@ static int byt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int byt_gpio_direction_output(struct gpio_chip *chip,
 				     unsigned gpio, int value)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(chip, gpio, BYT_VAL_REG);
 	unsigned long flags;
 	u32 reg_val;
 
 	spin_lock_irqsave(&vg->lock, flags);
 
-	reg_val = readl(reg) | (BYT_DIR_MASK | !!value);
-	reg_val &= ~(BYT_OUTPUT_EN | !value);
-	writel(reg_val, reg);
+	reg_val = readl(reg) | BYT_DIR_MASK;
+	reg_val &= ~BYT_OUTPUT_EN;
+
+	if (value)
+		writel(reg_val | BYT_LEVEL, reg);
+	else
+		writel(reg_val & ~BYT_LEVEL, reg);
 
 	spin_unlock_irqrestore(&vg->lock, flags);
 
@@ -274,7 +277,7 @@ static int byt_gpio_direction_output(struct gpio_chip *chip,
 
 static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	int i;
 	unsigned long flags;
 	u32 conf0, val, offs;
@@ -282,28 +285,34 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	spin_lock_irqsave(&vg->lock, flags);
 
 	for (i = 0; i < vg->chip.ngpio; i++) {
+		const char *label;
 		offs = vg->range->pins[i] * 16;
 		conf0 = readl(vg->reg_base + offs + BYT_CONF0_REG);
 		val = readl(vg->reg_base + offs + BYT_VAL_REG);
 
+		label = gpiochip_is_requested(chip, i);
+		if (!label)
+			label = "Unrequested";
+
 		seq_printf(s,
-			   " gpio-%-3d %s %s %s pad-%-3d offset:0x%03x mux:%d %s%s%s\n",
+			   " gpio-%-3d (%-20.20s) %s %s %s pad-%-3d offset:0x%03x mux:%d %s%s%s\n",
 			   i,
+			   label,
 			   val & BYT_INPUT_EN ? "  " : "in",
 			   val & BYT_OUTPUT_EN ? "   " : "out",
 			   val & BYT_LEVEL ? "hi" : "lo",
 			   vg->range->pins[i], offs,
 			   conf0 & 0x7,
-			   conf0 & BYT_TRIG_NEG ? "fall " : "",
-			   conf0 & BYT_TRIG_POS ? "rise " : "",
-			   conf0 & BYT_TRIG_LVL ? "lvl " : "");
+			   conf0 & BYT_TRIG_NEG ? " fall" : "",
+			   conf0 & BYT_TRIG_POS ? " rise" : "",
+			   conf0 & BYT_TRIG_LVL ? " level" : "");
 	}
 	spin_unlock_irqrestore(&vg->lock, flags);
 }
 
 static int byt_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	return irq_create_mapping(vg->domain, offset);
 }
 
@@ -362,11 +371,33 @@ static void byt_irq_mask(struct irq_data *d)
 {
 }
 
+static unsigned int byt_irq_startup(struct irq_data *d)
+{
+	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
+
+	if (gpio_lock_as_irq(&vg->chip, irqd_to_hwirq(d)))
+		dev_err(vg->chip.dev,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			irqd_to_hwirq(d));
+	byt_irq_unmask(d);
+	return 0;
+}
+
+static void byt_irq_shutdown(struct irq_data *d)
+{
+	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
+
+	byt_irq_mask(d);
+	gpio_unlock_as_irq(&vg->chip, irqd_to_hwirq(d));
+}
+
 static struct irq_chip byt_irqchip = {
 	.name = "BYT-GPIO",
 	.irq_mask = byt_irq_mask,
 	.irq_unmask = byt_irq_unmask,
 	.irq_set_type = byt_irq_type,
+	.irq_startup = byt_irq_startup,
+	.irq_shutdown = byt_irq_shutdown,
 };
 
 static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
@@ -457,7 +488,7 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	gc->set = byt_gpio_set;
 	gc->dbg_show = byt_gpio_dbg_show;
 	gc->base = -1;
-	gc->can_sleep = 0;
+	gc->can_sleep = false;
 	gc->dev = dev;
 
 	ret = gpiochip_add(gc);
@@ -481,9 +512,6 @@ static int byt_gpio_probe(struct platform_device *pdev)
 
 		irq_set_handler_data(hwirq, vg);
 		irq_set_chained_handler(hwirq, byt_gpio_irq_handler);
-
-		/* Register interrupt handlers for gpio signaled acpi events */
-		acpi_gpiochip_request_interrupts(gc);
 	}
 
 	pm_runtime_enable(dev);
@@ -516,6 +544,7 @@ static int byt_gpio_remove(struct platform_device *pdev)
 {
 	struct byt_gpio *vg = platform_get_drvdata(pdev);
 	int err;
+
 	pm_runtime_disable(&pdev->dev);
 	err = gpiochip_remove(&vg->chip);
 	if (err)

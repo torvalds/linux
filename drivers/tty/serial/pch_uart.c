@@ -232,7 +232,7 @@ struct eg20t_port {
 	unsigned int iobase;
 	struct pci_dev *pdev;
 	int fifo_size;
-	int uartclk;
+	unsigned int uartclk;
 	int start_tx;
 	int start_rx;
 	int tx_empty;
@@ -373,35 +373,62 @@ static const struct file_operations port_regs_ops = {
 };
 #endif	/* CONFIG_DEBUG_FS */
 
+static struct dmi_system_id pch_uart_dmi_table[] = {
+	{
+		.ident = "CM-iTC",
+		{
+			DMI_MATCH(DMI_BOARD_NAME, "CM-iTC"),
+		},
+		(void *)CMITC_UARTCLK,
+	},
+	{
+		.ident = "FRI2",
+		{
+			DMI_MATCH(DMI_BIOS_VERSION, "FRI2"),
+		},
+		(void *)FRI2_64_UARTCLK,
+	},
+	{
+		.ident = "Fish River Island II",
+		{
+			DMI_MATCH(DMI_PRODUCT_NAME, "Fish River Island II"),
+		},
+		(void *)FRI2_48_UARTCLK,
+	},
+	{
+		.ident = "COMe-mTT",
+		{
+			DMI_MATCH(DMI_BOARD_NAME, "COMe-mTT"),
+		},
+		(void *)NTC1_UARTCLK,
+	},
+	{
+		.ident = "nanoETXexpress-TT",
+		{
+			DMI_MATCH(DMI_BOARD_NAME, "nanoETXexpress-TT"),
+		},
+		(void *)NTC1_UARTCLK,
+	},
+	{
+		.ident = "MinnowBoard",
+		{
+			DMI_MATCH(DMI_BOARD_NAME, "MinnowBoard"),
+		},
+		(void *)MINNOW_UARTCLK,
+	},
+};
+
 /* Return UART clock, checking for board specific clocks. */
-static int pch_uart_get_uartclk(void)
+static unsigned int pch_uart_get_uartclk(void)
 {
-	const char *cmp;
+	const struct dmi_system_id *d;
 
 	if (user_uartclk)
 		return user_uartclk;
 
-	cmp = dmi_get_system_info(DMI_BOARD_NAME);
-	if (cmp && strstr(cmp, "CM-iTC"))
-		return CMITC_UARTCLK;
-
-	cmp = dmi_get_system_info(DMI_BIOS_VERSION);
-	if (cmp && strnstr(cmp, "FRI2", 4))
-		return FRI2_64_UARTCLK;
-
-	cmp = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (cmp && strstr(cmp, "Fish River Island II"))
-		return FRI2_48_UARTCLK;
-
-	/* Kontron COMe-mTT10 (nanoETXexpress-TT) */
-	cmp = dmi_get_system_info(DMI_BOARD_NAME);
-	if (cmp && (strstr(cmp, "COMe-mTT") ||
-		    strstr(cmp, "nanoETXexpress-TT")))
-		return NTC1_UARTCLK;
-
-	cmp = dmi_get_system_info(DMI_BOARD_NAME);
-	if (cmp && strstr(cmp, "MinnowBoard"))
-		return MINNOW_UARTCLK;
+	d = dmi_first_match(pch_uart_dmi_table);
+	if (d)
+		return (unsigned long)d->driver_data;
 
 	return DEFAULT_UARTCLK;
 }
@@ -422,7 +449,7 @@ static void pch_uart_hal_disable_interrupt(struct eg20t_port *priv,
 	iowrite8(ier, priv->membase + UART_IER);
 }
 
-static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
+static int pch_uart_hal_set_line(struct eg20t_port *priv, unsigned int baud,
 				 unsigned int parity, unsigned int bits,
 				 unsigned int stb)
 {
@@ -457,7 +484,7 @@ static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
 	lcr |= bits;
 	lcr |= stb;
 
-	dev_dbg(priv->port.dev, "%s:baud = %d, div = %04x, lcr = %02x (%lu)\n",
+	dev_dbg(priv->port.dev, "%s:baud = %u, div = %04x, lcr = %02x (%lu)\n",
 		 __func__, baud, div, lcr, jiffies);
 	iowrite8(PCH_UART_LCR_DLAB, priv->membase + UART_LCR);
 	iowrite8(dll, priv->membase + PCH_UART_DLL);
@@ -640,17 +667,9 @@ static int pop_tx_x(struct eg20t_port *priv, unsigned char *buf)
 
 static int dma_push_rx(struct eg20t_port *priv, int size)
 {
-	struct tty_struct *tty;
 	int room;
 	struct uart_port *port = &priv->port;
 	struct tty_port *tport = &port->state->port;
-
-	port = &priv->port;
-	tty = tty_port_tty_get(tport);
-	if (!tty) {
-		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
-		return 0;
-	}
 
 	room = tty_buffer_request_room(tport, size);
 
@@ -658,12 +677,11 @@ static int dma_push_rx(struct eg20t_port *priv, int size)
 		dev_warn(port->dev, "Rx overrun: dropping %u bytes\n",
 			 size - room);
 	if (!room)
-		return room;
+		return 0;
 
 	tty_insert_flip_string(tport, sg_virt(&priv->sg_rx), size);
 
 	port->icount.rx += room;
-	tty_kref_put(tty);
 
 	return room;
 }
@@ -1071,6 +1089,8 @@ static void pch_uart_err_ir(struct eg20t_port *priv, unsigned int lsr)
 	if (tty == NULL) {
 		for (i = 0; error_msg[i] != NULL; i++)
 			dev_err(&priv->pdev->dev, error_msg[i]);
+	} else {
+		tty_kref_put(tty);
 	}
 }
 
@@ -1363,9 +1383,8 @@ static void pch_uart_shutdown(struct uart_port *port)
 static void pch_uart_set_termios(struct uart_port *port,
 				 struct ktermios *termios, struct ktermios *old)
 {
-	int baud;
 	int rtn;
-	unsigned int parity, bits, stb;
+	unsigned int baud, parity, bits, stb;
 	struct eg20t_port *priv;
 	unsigned long flags;
 
@@ -1489,15 +1508,20 @@ static int pch_uart_verify_port(struct uart_port *port,
 			__func__);
 		return -EOPNOTSUPP;
 #endif
-		dev_info(priv->port.dev, "PCH UART : Use DMA Mode\n");
-		if (!priv->use_dma)
+		if (!priv->use_dma) {
 			pch_request_dma(port);
-		priv->use_dma = 1;
+			if (priv->chan_rx)
+				priv->use_dma = 1;
+		}
+		dev_info(priv->port.dev, "PCH UART: %s\n",
+				priv->use_dma ?
+				"Use DMA Mode" : "No DMA");
 	}
 
 	return 0;
 }
 
+#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_PCH_UART_CONSOLE)
 /*
  *	Wait for transmitter & holding register to empty
  */
@@ -1528,6 +1552,7 @@ static void wait_for_xmitr(struct eg20t_port *up, int bits)
 		}
 	}
 }
+#endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_PCH_UART_CONSOLE */
 
 #ifdef CONFIG_CONSOLE_POLL
 /*
@@ -1593,7 +1618,6 @@ static struct uart_ops pch_uart_ops = {
 	.shutdown = pch_uart_shutdown,
 	.set_termios = pch_uart_set_termios,
 /*	.pm		= pch_uart_pm,		Not supported yet */
-/*	.set_wake	= pch_uart_set_wake,	Not supported yet */
 	.type = pch_uart_type,
 	.release_port = pch_uart_release_port,
 	.request_port = pch_uart_request_port,
@@ -1833,7 +1857,6 @@ static void pch_uart_exit_port(struct eg20t_port *priv)
 		debugfs_remove(priv->debugfs);
 #endif
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
-	pci_set_drvdata(priv->pdev, NULL);
 	free_page((unsigned long)priv->rxbuf.buf);
 }
 
@@ -1887,7 +1910,7 @@ static int pch_uart_pci_resume(struct pci_dev *pdev)
 #define pch_uart_pci_resume NULL
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
+static const struct pci_device_id pch_uart_pci_id[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8811),
 	 .driver_data = pch_et20t_uart0},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8812),
@@ -1975,6 +1998,8 @@ module_exit(pch_uart_module_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel EG20T PCH UART PCI Driver");
+MODULE_DEVICE_TABLE(pci, pch_uart_pci_id);
+
 module_param(default_baud, uint, S_IRUGO);
 MODULE_PARM_DESC(default_baud,
                  "Default BAUD for initial driver state and console (default 9600)");

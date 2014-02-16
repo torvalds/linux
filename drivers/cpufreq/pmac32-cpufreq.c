@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/hardirq.h>
+#include <linux/of_device.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -83,11 +84,6 @@ static struct cpufreq_frequency_table pmac_cpu_freqs[] = {
 	{CPUFREQ_HIGH, 		0},
 	{CPUFREQ_LOW,		0},
 	{0,			CPUFREQ_TABLE_END},
-};
-
-static struct freq_attr* pmac_cpu_freqs_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
 };
 
 static inline void local_delay(unsigned long ms)
@@ -335,21 +331,11 @@ static int pmu_set_cpu_speed(int low_speed)
 	return 0;
 }
 
-static int do_set_cpu_speed(struct cpufreq_policy *policy, int speed_mode,
-		int notify)
+static int do_set_cpu_speed(struct cpufreq_policy *policy, int speed_mode)
 {
-	struct cpufreq_freqs freqs;
 	unsigned long l3cr;
 	static unsigned long prev_l3cr;
 
-	freqs.old = cur_freq;
-	freqs.new = (speed_mode == CPUFREQ_HIGH) ? hi_freq : low_freq;
-
-	if (freqs.old == freqs.new)
-		return 0;
-
-	if (notify)
-		cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	if (speed_mode == CPUFREQ_LOW &&
 	    cpu_has_feature(CPU_FTR_L3CR)) {
 		l3cr = _get_L3CR();
@@ -365,8 +351,6 @@ static int do_set_cpu_speed(struct cpufreq_policy *policy, int speed_mode,
 		if ((prev_l3cr & L3CR_L3E) && l3cr != prev_l3cr)
 			_set_L3CR(prev_l3cr);
 	}
-	if (notify)
-		cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	cur_freq = (speed_mode == CPUFREQ_HIGH) ? hi_freq : low_freq;
 
 	return 0;
@@ -377,23 +361,12 @@ static unsigned int pmac_cpufreq_get_speed(unsigned int cpu)
 	return cur_freq;
 }
 
-static int pmac_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, pmac_cpu_freqs);
-}
-
 static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
-					unsigned int target_freq,
-					unsigned int relation)
+					unsigned int index)
 {
-	unsigned int    newstate = 0;
 	int		rc;
 
-	if (cpufreq_frequency_table_target(policy, pmac_cpu_freqs,
-			target_freq, relation, &newstate))
-		return -EINVAL;
-
-	rc = do_set_cpu_speed(policy, newstate, 1);
+	rc = do_set_cpu_speed(policy, index);
 
 	ppc_proc_freq = cur_freq * 1000ul;
 	return rc;
@@ -401,14 +374,7 @@ static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
 
 static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	if (policy->cpu != 0)
-		return -ENODEV;
-
-	policy->cpuinfo.transition_latency	= transition_latency;
-	policy->cur = cur_freq;
-
-	cpufreq_frequency_table_get_attr(pmac_cpu_freqs, policy->cpu);
-	return cpufreq_frequency_table_cpuinfo(policy, pmac_cpu_freqs);
+	return cpufreq_generic_init(policy, pmac_cpu_freqs, transition_latency);
 }
 
 static u32 read_gpio(struct device_node *np)
@@ -442,7 +408,7 @@ static int pmac_cpufreq_suspend(struct cpufreq_policy *policy)
 	no_schedule = 1;
 	sleep_freq = cur_freq;
 	if (cur_freq == low_freq && !is_pmu_based)
-		do_set_cpu_speed(policy, CPUFREQ_HIGH, 0);
+		do_set_cpu_speed(policy, CPUFREQ_HIGH);
 	return 0;
 }
 
@@ -459,7 +425,7 @@ static int pmac_cpufreq_resume(struct cpufreq_policy *policy)
 	 * probably high speed due to our suspend() routine
 	 */
 	do_set_cpu_speed(policy, sleep_freq == low_freq ?
-			 CPUFREQ_LOW : CPUFREQ_HIGH, 0);
+			 CPUFREQ_LOW : CPUFREQ_HIGH);
 
 	ppc_proc_freq = cur_freq * 1000ul;
 
@@ -468,16 +434,15 @@ static int pmac_cpufreq_resume(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver pmac_cpufreq_driver = {
-	.verify 	= pmac_cpufreq_verify,
-	.target 	= pmac_cpufreq_target,
+	.verify 	= cpufreq_generic_frequency_table_verify,
+	.target_index	= pmac_cpufreq_target,
 	.get		= pmac_cpufreq_get_speed,
 	.init		= pmac_cpufreq_cpu_init,
 	.suspend	= pmac_cpufreq_suspend,
 	.resume		= pmac_cpufreq_resume,
 	.flags		= CPUFREQ_PM_NO_WARN,
-	.attr		= pmac_cpu_freqs_attr,
+	.attr		= cpufreq_generic_attr,
 	.name		= "powermac",
-	.owner		= THIS_MODULE,
 };
 
 
@@ -649,8 +614,8 @@ static int __init pmac_cpufreq_setup(void)
 	if (strstr(cmd_line, "nocpufreq"))
 		return 0;
 
-	/* Assume only one CPU */
-	cpunode = of_find_node_by_type(NULL, "cpu");
+	/* Get first CPU node */
+	cpunode = of_cpu_device_node_get(0);
 	if (!cpunode)
 		goto out;
 

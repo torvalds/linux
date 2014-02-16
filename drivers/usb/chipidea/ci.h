@@ -26,6 +26,35 @@
 #define ENDPT_MAX          32
 
 /******************************************************************************
+ * REGISTERS
+ *****************************************************************************/
+/* register indices */
+enum ci_hw_regs {
+	CAP_CAPLENGTH,
+	CAP_HCCPARAMS,
+	CAP_DCCPARAMS,
+	CAP_TESTMODE,
+	CAP_LAST = CAP_TESTMODE,
+	OP_USBCMD,
+	OP_USBSTS,
+	OP_USBINTR,
+	OP_DEVICEADDR,
+	OP_ENDPTLISTADDR,
+	OP_PORTSC,
+	OP_DEVLC,
+	OP_OTGSC,
+	OP_USBMODE,
+	OP_ENDPTSETUPSTAT,
+	OP_ENDPTPRIME,
+	OP_ENDPTFLUSH,
+	OP_ENDPTSTAT,
+	OP_ENDPTCOMPLETE,
+	OP_ENDPTCTRL,
+	/* endptctrl1..15 follow */
+	OP_LAST = OP_ENDPTCTRL + ENDPT_MAX / 2,
+};
+
+/******************************************************************************
  * STRUCTURES
  *****************************************************************************/
 /**
@@ -98,7 +127,7 @@ struct hw_bank {
 	void __iomem	*cap;
 	void __iomem	*op;
 	size_t		size;
-	void __iomem	**regmap;
+	void __iomem	*regmap[OP_LAST + 1];
 };
 
 /**
@@ -132,6 +161,10 @@ struct hw_bank {
  * @transceiver: pointer to USB PHY, if any
  * @hcd: pointer to usb_hcd for ehci host driver
  * @debugfs: root dentry for this controller in debugfs
+ * @id_event: indicates there is an id event, and handled at ci_otg_work
+ * @b_sess_valid_event: indicates there is a vbus event, and handled
+ * at ci_otg_work
+ * @imx28_write_fix: Freescale imx28 needs swp instruction for writing
  */
 struct ci_hdrc {
 	struct device			*dev;
@@ -168,6 +201,9 @@ struct ci_hdrc {
 	struct usb_phy			*transceiver;
 	struct usb_hcd			*hcd;
 	struct dentry			*debugfs;
+	bool				id_event;
+	bool				b_sess_valid_event;
+	bool				imx28_write_fix;
 };
 
 static inline struct ci_role_driver *ci_role(struct ci_hdrc *ci)
@@ -204,38 +240,6 @@ static inline void ci_role_stop(struct ci_hdrc *ci)
 	ci->roles[role]->stop(ci);
 }
 
-/******************************************************************************
- * REGISTERS
- *****************************************************************************/
-/* register size */
-#define REG_BITS   (32)
-
-/* register indices */
-enum ci_hw_regs {
-	CAP_CAPLENGTH,
-	CAP_HCCPARAMS,
-	CAP_DCCPARAMS,
-	CAP_TESTMODE,
-	CAP_LAST = CAP_TESTMODE,
-	OP_USBCMD,
-	OP_USBSTS,
-	OP_USBINTR,
-	OP_DEVICEADDR,
-	OP_ENDPTLISTADDR,
-	OP_PORTSC,
-	OP_DEVLC,
-	OP_OTGSC,
-	OP_USBMODE,
-	OP_ENDPTSETUPSTAT,
-	OP_ENDPTPRIME,
-	OP_ENDPTFLUSH,
-	OP_ENDPTSTAT,
-	OP_ENDPTCOMPLETE,
-	OP_ENDPTCTRL,
-	/* endptctrl1..15 follow */
-	OP_LAST = OP_ENDPTCTRL + ENDPT_MAX / 2,
-};
-
 /**
  * hw_read: reads from a hw register
  * @reg:  register index
@@ -246,6 +250,26 @@ enum ci_hw_regs {
 static inline u32 hw_read(struct ci_hdrc *ci, enum ci_hw_regs reg, u32 mask)
 {
 	return ioread32(ci->hw_bank.regmap[reg]) & mask;
+}
+
+#ifdef CONFIG_SOC_IMX28
+static inline void imx28_ci_writel(u32 val, volatile void __iomem *addr)
+{
+	__asm__ ("swp %0, %0, [%1]" : : "r"(val), "r"(addr));
+}
+#else
+static inline void imx28_ci_writel(u32 val, volatile void __iomem *addr)
+{
+}
+#endif
+
+static inline void __hw_write(struct ci_hdrc *ci, u32 val,
+		void __iomem *addr)
+{
+	if (ci->imx28_write_fix)
+		imx28_ci_writel(val, addr);
+	else
+		iowrite32(val, addr);
 }
 
 /**
@@ -261,7 +285,7 @@ static inline void hw_write(struct ci_hdrc *ci, enum ci_hw_regs reg,
 		data = (ioread32(ci->hw_bank.regmap[reg]) & ~mask)
 			| (data & mask);
 
-	iowrite32(data, ci->hw_bank.regmap[reg]);
+	__hw_write(ci, data, ci->hw_bank.regmap[reg]);
 }
 
 /**
@@ -276,7 +300,7 @@ static inline u32 hw_test_and_clear(struct ci_hdrc *ci, enum ci_hw_regs reg,
 {
 	u32 val = ioread32(ci->hw_bank.regmap[reg]) & mask;
 
-	iowrite32(val, ci->hw_bank.regmap[reg]);
+	__hw_write(ci, val, ci->hw_bank.regmap[reg]);
 	return val;
 }
 
@@ -302,5 +326,8 @@ int hw_device_reset(struct ci_hdrc *ci, u32 mode);
 int hw_port_test_set(struct ci_hdrc *ci, u8 mode);
 
 u8 hw_port_test_get(struct ci_hdrc *ci);
+
+int hw_wait_reg(struct ci_hdrc *ci, enum ci_hw_regs reg, u32 mask,
+				u32 value, unsigned int timeout_ms);
 
 #endif	/* __DRIVERS_USB_CHIPIDEA_CI_H */

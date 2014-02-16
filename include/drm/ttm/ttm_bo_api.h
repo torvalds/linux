@@ -32,13 +32,14 @@
 #define _TTM_BO_API_H_
 
 #include <drm/drm_hashtab.h>
+#include <drm/drm_vma_manager.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
-#include <linux/rbtree.h>
 #include <linux/bitmap.h>
+#include <linux/reservation.h>
 
 struct ttm_bo_device;
 
@@ -144,7 +145,6 @@ struct ttm_tt;
  * @type: The bo type.
  * @destroy: Destruction function. If NULL, kfree is used.
  * @num_pages: Actual number of pages.
- * @addr_space_offset: Address space offset.
  * @acc_size: Accounted size for this object.
  * @kref: Reference count of this buffer object. When this refcount reaches
  * zero, the object is put on the delayed delete list.
@@ -153,7 +153,6 @@ struct ttm_tt;
  * Lru lists may keep one refcount, the delayed delete list, and kref != 0
  * keeps one refcount. When this refcount reaches zero,
  * the object is destroyed.
- * @event_queue: Queue for processes waiting on buffer object status change.
  * @mem: structure describing current placement.
  * @persistent_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
@@ -164,19 +163,13 @@ struct ttm_tt;
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
- * @val_seq: Sequence of the validation holding the @reserved lock.
- * Used to avoid starvation when many processes compete to validate the
- * buffer. This member is protected by the bo_device::lru_lock.
- * @seq_valid: The value of @val_seq is valid. This value is protected by
- * the bo_device::lru_lock.
- * @reserved: Deadlock-free lock used for synchronization state transitions.
  * @sync_obj: Pointer to a synchronization object.
  * @priv_flags: Flags describing buffer object internal state.
- * @vm_rb: Rb node for the vm rb tree.
- * @vm_node: Address space manager node.
+ * @vma_node: Address space manager node.
  * @offset: The current GPU offset, which can have different meanings
  * depending on the memory type. For SYSTEM type memory, it should be 0.
  * @cur_placement: Hint of current placement.
+ * @wu_mutex: Wait unreserved mutex.
  *
  * Base class for TTM buffer object, that deals with data placement and CPU
  * mappings. GPU mappings are really up to the driver, but for simpler GPUs
@@ -200,7 +193,6 @@ struct ttm_buffer_object {
 	enum ttm_bo_type type;
 	void (*destroy) (struct ttm_buffer_object *);
 	unsigned long num_pages;
-	uint64_t addr_space_offset;
 	size_t acc_size;
 
 	/**
@@ -209,10 +201,9 @@ struct ttm_buffer_object {
 
 	struct kref kref;
 	struct kref list_kref;
-	wait_queue_head_t event_queue;
 
 	/**
-	 * Members protected by the bo::reserved lock.
+	 * Members protected by the bo::resv::reserved lock.
 	 */
 
 	struct ttm_mem_reg mem;
@@ -234,15 +225,6 @@ struct ttm_buffer_object {
 	struct list_head ddestroy;
 	struct list_head swap;
 	struct list_head io_reserve_lru;
-	uint32_t val_seq;
-	bool seq_valid;
-
-	/**
-	 * Members protected by the bdev::lru_lock
-	 * only when written to.
-	 */
-
-	atomic_t reserved;
 
 	/**
 	 * Members protected by struct buffer_object_device::fence_lock
@@ -254,13 +236,7 @@ struct ttm_buffer_object {
 	void *sync_obj;
 	unsigned long priv_flags;
 
-	/**
-	 * Members protected by the bdev::vm_lock
-	 */
-
-	struct rb_node vm_rb;
-	struct drm_mm_node *vm_node;
-
+	struct drm_vma_offset_node vma_node;
 
 	/**
 	 * Special members that are protected by the reserve lock
@@ -272,6 +248,10 @@ struct ttm_buffer_object {
 	uint32_t cur_placement;
 
 	struct sg_table *sg;
+
+	struct reservation_object *resv;
+	struct reservation_object ttm_resv;
+	struct mutex wu_mutex;
 };
 
 /**
@@ -724,19 +704,5 @@ extern ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 			 size_t count, loff_t *f_pos, bool write);
 
 extern void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
-
-/**
- * ttm_bo_is_reserved - return an indication if a ttm buffer object is reserved
- *
- * @bo:     The buffer object to check.
- *
- * This function returns an indication if a bo is reserved or not, and should
- * only be used to print an error when it is not from incorrect api usage, since
- * there's no guarantee that it is the caller that is holding the reservation.
- */
-static inline bool ttm_bo_is_reserved(struct ttm_buffer_object *bo)
-{
-	return atomic_read(&bo->reserved);
-}
-
+extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo);
 #endif

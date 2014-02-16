@@ -184,7 +184,8 @@ nvbios_therm_fan_parse(struct nouveau_bios *bios,
 			cur_trip->fan_duty = value;
 			break;
 		case 0x26:
-			fan->pwm_freq = value;
+			if (!fan->pwm_freq)
+				fan->pwm_freq = value;
 			break;
 		case 0x3b:
 			fan->bump_period = value;

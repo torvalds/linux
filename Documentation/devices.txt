@@ -409,11 +409,13 @@ Your cooperation is appreciated.
 		193 = /dev/d7s		SPARC 7-segment display
 		194 = /dev/zkshim	Zero-Knowledge network shim control
 		195 = /dev/elographics/e2201	Elographics touchscreen E271-2201
+		196 = /dev/vfio/vfio	VFIO userspace driver interface
 		198 = /dev/sexec	Signed executable interface
 		199 = /dev/scanners/cuecat :CueCat barcode scanner
 		200 = /dev/net/tun	TAP/TUN network device
 		201 = /dev/button/gulpb	Transmeta GULP-B buttons
 		202 = /dev/emd/ctl	Enhanced Metadisk RAID (EMD) control
+		203 = /dev/cuse		Cuse (character device in user-space)
 		204 = /dev/video/em8300		EM8300 DVD decoder control
 		205 = /dev/video/em8300_mv	EM8300 DVD decoder video
 		206 = /dev/video/em8300_ma	EM8300 DVD decoder audio

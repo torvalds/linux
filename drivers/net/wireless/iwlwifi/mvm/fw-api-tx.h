@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,7 +91,6 @@
  * @TX_CMD_FLG_RESP_TO_DRV: zero this if the response should go only to FW
  * @TX_CMD_FLG_CCMP_AGG: this frame uses CCMP for aggregation acceleration
  * @TX_CMD_FLG_TKIP_MIC_DONE: FW already performed TKIP MIC calculation
- * @TX_CMD_FLG_CTS_ONLY: send CTS only, no data after that
  * @TX_CMD_FLG_DUR: disable duration overwriting used in PS-Poll Assoc-id
  * @TX_CMD_FLG_FW_DROP: FW should mark frame to be dropped
  * @TX_CMD_FLG_EXEC_PAPD: execute PAPD
@@ -120,7 +119,6 @@ enum iwl_tx_flags {
 	TX_CMD_FLG_RESP_TO_DRV		= BIT(21),
 	TX_CMD_FLG_CCMP_AGG		= BIT(22),
 	TX_CMD_FLG_TKIP_MIC_DONE	= BIT(23),
-	TX_CMD_FLG_CTS_ONLY		= BIT(24),
 	TX_CMD_FLG_DUR			= BIT(25),
 	TX_CMD_FLG_FW_DROP		= BIT(26),
 	TX_CMD_FLG_EXEC_PAPD		= BIT(27),
@@ -134,6 +132,8 @@ enum iwl_tx_flags {
 #define TX_CMD_SEC_WEP			0x01
 #define TX_CMD_SEC_CCM			0x02
 #define TX_CMD_SEC_TKIP			0x03
+#define TX_CMD_SEC_EXT			0x04
+#define TX_CMD_SEC_MSK			0x07
 #define TX_CMD_SEC_WEP_KEY_IDX_POS	6
 #define TX_CMD_SEC_WEP_KEY_IDX_MSK	0xc0
 #define TX_CMD_SEC_KEY128		0x08
@@ -227,10 +227,11 @@ struct iwl_tx_cmd {
 	__le16 len;
 	__le16 next_frame_len;
 	__le32 tx_flags;
-	/* DRAM_SCRATCH_API_U_VER_1 */
-	u8 try_cnt;
-	u8 btkill_cnt;
-	__le16 reserved;
+	struct {
+		u8 try_cnt;
+		u8 btkill_cnt;
+		__le16 reserved;
+	} scratch; /* DRAM_SCRATCH_API_U_VER_1 */
 	__le32 rate_n_flags;
 	u8 sta_id;
 	u8 sec_ctl;

@@ -66,7 +66,7 @@ Furthermore, these tracepoints can be used to sample the workload as
 well. For example the page allocations done by a 'git gc' can be
 captured the following way:
 
- titan:~/git> perf record -f -e kmem:mm_page_alloc -c 1 ./git gc
+ titan:~/git> perf record -e kmem:mm_page_alloc -c 1 ./git gc
  Counting objects: 1148, done.
  Delta compression using up to 2 threads.
  Compressing objects: 100% (450/450), done.
@@ -120,7 +120,7 @@ Furthermore, call-graph sampling can be done too, of page
 allocations - to see precisely what kind of page allocations there
 are:
 
- titan:~/git> perf record -f -g -e kmem:mm_page_alloc -c 1 ./git gc
+ titan:~/git> perf record -g -e kmem:mm_page_alloc -c 1 ./git gc
  Counting objects: 1148, done.
  Delta compression using up to 2 threads.
  Compressing objects: 100% (450/450), done.

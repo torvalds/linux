@@ -71,11 +71,8 @@ static int dlci_header(struct sk_buff *skb, struct net_device *dev,
 		       const void *saddr, unsigned len)
 {
 	struct frhdr		hdr;
-	struct dlci_local	*dlp;
 	unsigned int		hlen;
 	char			*dest;
-
-	dlp = netdev_priv(dev);
 
 	hdr.control = FRAD_I_UI;
 	switch (type)
@@ -107,11 +104,9 @@ static int dlci_header(struct sk_buff *skb, struct net_device *dev,
 
 static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dlci_local *dlp;
 	struct frhdr		*hdr;
 	int					process, header;
 
-	dlp = netdev_priv(dev);
 	if (!pskb_may_pull(skb, sizeof(*hdr))) {
 		netdev_notice(dev, "invalid data no header\n");
 		dev->stats.rx_errors++;
@@ -493,7 +488,7 @@ static void dlci_setup(struct net_device *dev)
 static int dlci_dev_event(struct notifier_block *unused,
 			  unsigned long event, void *ptr)
 {
-	struct net_device *dev = (struct net_device *) ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;

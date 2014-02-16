@@ -25,6 +25,7 @@
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/nf_conntrack_helper.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_nat.h>
@@ -314,7 +315,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * manips not an issue.
 	 */
 	if (maniptype == NF_NAT_MANIP_SRC &&
-	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM)) {
+	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
 		if (in_range(l3proto, l4proto, orig_tuple, range)) {
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
@@ -338,7 +339,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 */
 
 	/* Only bother mapping if it's not already in range and unique */
-	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM)) {
+	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (l4proto->in_range(tuple, maniptype,
 					      &range->min_proto,
@@ -402,6 +403,9 @@ nf_nat_setup_info(struct nf_conn *ct,
 			ct->status |= IPS_SRC_NAT;
 		else
 			ct->status |= IPS_DST_NAT;
+
+		if (nfct_help(ct))
+			nfct_seqadj_ext_add(ct);
 	}
 
 	if (maniptype == NF_NAT_MANIP_SRC) {
@@ -427,6 +431,26 @@ nf_nat_setup_info(struct nf_conn *ct,
 	return NF_ACCEPT;
 }
 EXPORT_SYMBOL(nf_nat_setup_info);
+
+unsigned int
+nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
+{
+	/* Force range to this IP; let proto decide mapping for
+	 * per-proto parts (hence not IP_NAT_RANGE_PROTO_SPECIFIED).
+	 * Use reply in case it's already been mangled (eg local packet).
+	 */
+	union nf_inet_addr ip =
+		(HOOK2MANIP(hooknum) == NF_NAT_MANIP_SRC ?
+		ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3 :
+		ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3);
+	struct nf_nat_range range = {
+		.flags		= NF_NAT_RANGE_MAP_IPS,
+		.min_addr	= ip,
+		.max_addr	= ip,
+	};
+	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
+}
+EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
@@ -497,7 +521,7 @@ static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
 
 	rtnl_lock();
 	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean);
+		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
 	rtnl_unlock();
 }
 
@@ -511,7 +535,7 @@ static void nf_nat_l3proto_clean(u8 l3proto)
 	rtnl_lock();
 
 	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean);
+		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
 	rtnl_unlock();
 }
 
@@ -749,7 +773,7 @@ static void __net_exit nf_nat_net_exit(struct net *net)
 {
 	struct nf_nat_proto_clean clean = {};
 
-	nf_ct_iterate_cleanup(net, &nf_nat_proto_remove, &clean);
+	nf_ct_iterate_cleanup(net, &nf_nat_proto_remove, &clean, 0, 0);
 	synchronize_rcu();
 	nf_ct_free_hashtable(net->ct.nat_bysource, net->ct.nat_htable_size);
 }
@@ -762,10 +786,6 @@ static struct pernet_operations nf_nat_net_ops = {
 static struct nf_ct_helper_expectfn follow_master_nat = {
 	.name		= "nat-follow-master",
 	.expectfn	= nf_nat_follow_master,
-};
-
-static struct nfq_ct_nat_hook nfq_ct_nat = {
-	.seq_adjust	= nf_nat_tcp_seq_adjust,
 };
 
 static int __init nf_nat_init(void)
@@ -787,14 +807,9 @@ static int __init nf_nat_init(void)
 	/* Initialize fake conntrack so that NAT will skip it */
 	nf_ct_untracked_status_or(IPS_NAT_DONE_MASK);
 
-	BUG_ON(nf_nat_seq_adjust_hook != NULL);
-	RCU_INIT_POINTER(nf_nat_seq_adjust_hook, nf_nat_seq_adjust);
 	BUG_ON(nfnetlink_parse_nat_setup_hook != NULL);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook,
 			   nfnetlink_parse_nat_setup);
-	BUG_ON(nf_ct_nat_offset != NULL);
-	RCU_INIT_POINTER(nf_ct_nat_offset, nf_nat_get_offset);
-	RCU_INIT_POINTER(nfq_ct_nat_hook, &nfq_ct_nat);
 #ifdef CONFIG_XFRM
 	BUG_ON(nf_nat_decode_session_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_decode_session_hook, __nf_nat_decode_session);
@@ -813,10 +828,7 @@ static void __exit nf_nat_cleanup(void)
 	unregister_pernet_subsys(&nf_nat_net_ops);
 	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
-	RCU_INIT_POINTER(nf_nat_seq_adjust_hook, NULL);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook, NULL);
-	RCU_INIT_POINTER(nf_ct_nat_offset, NULL);
-	RCU_INIT_POINTER(nfq_ct_nat_hook, NULL);
 #ifdef CONFIG_XFRM
 	RCU_INIT_POINTER(nf_nat_decode_session_hook, NULL);
 #endif

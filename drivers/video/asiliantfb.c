@@ -527,8 +527,8 @@ static int init_asiliant(struct fb_info *p, unsigned long addr)
 		return err;
 	}
 
-	printk(KERN_INFO "fb%d: Asiliant 69000 frame buffer (%dK RAM detected)\n",
-		p->node, p->fix.smem_len / 1024);
+	fb_info(p, "Asiliant 69000 frame buffer (%dK RAM detected)\n",
+		p->fix.smem_len / 1024);
 
 	writeb(0xff, mmio_base + 0x78c);
 	chips_hw_init(p);
@@ -589,7 +589,6 @@ static void asiliantfb_remove(struct pci_dev *dp)
 	fb_dealloc_cmap(&p->cmap);
 	iounmap(p->screen_base);
 	release_mem_region(pci_resource_start(dp, 0), pci_resource_len(dp, 0));
-	pci_set_drvdata(dp, NULL);
 	framebuffer_release(p);
 }
 

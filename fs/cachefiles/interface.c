@@ -270,7 +270,7 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 #endif
 
 	/* delete retired objects */
-	if (test_bit(FSCACHE_COOKIE_RETIRED, &object->fscache.cookie->flags) &&
+	if (test_bit(FSCACHE_OBJECT_RETIRED, &object->fscache.flags) &&
 	    _object != cache->cache.fsdef
 	    ) {
 		_debug("- retire object OBJ%x", object->fscache.debug_id);
@@ -378,6 +378,31 @@ static void cachefiles_sync_cache(struct fscache_cache *_cache)
 }
 
 /*
+ * check if the backing cache is updated to FS-Cache
+ * - called by FS-Cache when evaluates if need to invalidate the cache
+ */
+static bool cachefiles_check_consistency(struct fscache_operation *op)
+{
+	struct cachefiles_object *object;
+	struct cachefiles_cache *cache;
+	const struct cred *saved_cred;
+	int ret;
+
+	_enter("{OBJ%x}", op->object->debug_id);
+
+	object = container_of(op->object, struct cachefiles_object, fscache);
+	cache = container_of(object->fscache.cache,
+			     struct cachefiles_cache, cache);
+
+	cachefiles_begin_secure(cache, &saved_cred);
+	ret = cachefiles_check_auxdata(object);
+	cachefiles_end_secure(cache, saved_cred);
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * notification the attributes on an object have changed
  * - called with reads/writes excluded by FS-Cache
  */
@@ -424,14 +449,14 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 		_debug("discard tail %llx", oi_size);
 		newattrs.ia_valid = ATTR_SIZE;
 		newattrs.ia_size = oi_size & PAGE_MASK;
-		ret = notify_change(object->backer, &newattrs);
+		ret = notify_change(object->backer, &newattrs, NULL);
 		if (ret < 0)
 			goto truncate_failed;
 	}
 
 	newattrs.ia_valid = ATTR_SIZE;
 	newattrs.ia_size = ni_size;
-	ret = notify_change(object->backer, &newattrs);
+	ret = notify_change(object->backer, &newattrs, NULL);
 
 truncate_failed:
 	mutex_unlock(&object->backer->d_inode->i_mutex);
@@ -522,4 +547,5 @@ const struct fscache_cache_ops cachefiles_cache_ops = {
 	.write_page		= cachefiles_write_page,
 	.uncache_page		= cachefiles_uncache_page,
 	.dissociate_pages	= cachefiles_dissociate_pages,
+	.check_consistency	= cachefiles_check_consistency,
 };

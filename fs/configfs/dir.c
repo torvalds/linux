@@ -56,29 +56,28 @@ static void configfs_d_iput(struct dentry * dentry,
 	struct configfs_dirent *sd = dentry->d_fsdata;
 
 	if (sd) {
-		BUG_ON(sd->s_dentry != dentry);
 		/* Coordinate with configfs_readdir */
 		spin_lock(&configfs_dirent_lock);
-		sd->s_dentry = NULL;
+		/* Coordinate with configfs_attach_attr where will increase
+		 * sd->s_count and update sd->s_dentry to new allocated one.
+		 * Only set sd->dentry to null when this dentry is the only
+		 * sd owner.
+		 * If not do so, configfs_d_iput may run just after
+		 * configfs_attach_attr and set sd->s_dentry to null
+		 * even it's still in use.
+		 */
+		if (atomic_read(&sd->s_count) <= 2)
+			sd->s_dentry = NULL;
+
 		spin_unlock(&configfs_dirent_lock);
 		configfs_put(sd);
 	}
 	iput(inode);
 }
 
-/*
- * We _must_ delete our dentries on last dput, as the chain-to-parent
- * behavior is required to clear the parents of default_groups.
- */
-static int configfs_d_delete(const struct dentry *dentry)
-{
-	return 1;
-}
-
 const struct dentry_operations configfs_dentry_ops = {
 	.d_iput		= configfs_d_iput,
-	/* simple_delete_dentry() isn't exported */
-	.d_delete	= configfs_d_delete,
+	.d_delete	= always_delete_dentry,
 };
 
 #ifdef CONFIG_LOCKDEP
@@ -387,7 +386,7 @@ static void remove_dir(struct dentry * d)
 	if (d->d_inode)
 		simple_rmdir(parent->d_inode,d);
 
-	pr_debug(" o %s removing done (%d)\n",d->d_name.name, d->d_count);
+	pr_debug(" o %s removing done (%d)\n",d->d_name.name, d_count(d));
 
 	dput(parent);
 }
@@ -426,8 +425,11 @@ static int configfs_attach_attr(struct configfs_dirent * sd, struct dentry * den
 	struct configfs_attribute * attr = sd->s_element;
 	int error;
 
+	spin_lock(&configfs_dirent_lock);
 	dentry->d_fsdata = configfs_get(sd);
 	sd->s_dentry = dentry;
+	spin_unlock(&configfs_dirent_lock);
+
 	error = configfs_create(dentry, (attr->ca_mode & S_IALLUGO) | S_IFREG,
 				configfs_init_file);
 	if (error) {
@@ -660,19 +662,15 @@ static int create_default_group(struct config_group *parent_group,
 				struct config_group *group)
 {
 	int ret;
-	struct qstr name;
 	struct configfs_dirent *sd;
 	/* We trust the caller holds a reference to parent */
 	struct dentry *child, *parent = parent_group->cg_item.ci_dentry;
 
 	if (!group->cg_item.ci_name)
 		group->cg_item.ci_name = group->cg_item.ci_namebuf;
-	name.name = group->cg_item.ci_name;
-	name.len = strlen(name.name);
-	name.hash = full_name_hash(name.name, name.len);
 
 	ret = -ENOMEM;
-	child = d_alloc(parent, &name);
+	child = d_alloc_name(parent, group->cg_item.ci_name);
 	if (child) {
 		d_add(child, NULL);
 
@@ -1650,7 +1648,6 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 {
 	int err;
 	struct config_group *group = &subsys->su_group;
-	struct qstr name;
 	struct dentry *dentry;
 	struct dentry *root;
 	struct configfs_dirent *sd;
@@ -1667,12 +1664,8 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 
 	mutex_lock_nested(&root->d_inode->i_mutex, I_MUTEX_PARENT);
 
-	name.name = group->cg_item.ci_name;
-	name.len = strlen(name.name);
-	name.hash = full_name_hash(name.name, name.len);
-
 	err = -ENOMEM;
-	dentry = d_alloc(root, &name);
+	dentry = d_alloc_name(root, group->cg_item.ci_name);
 	if (dentry) {
 		d_add(dentry, NULL);
 

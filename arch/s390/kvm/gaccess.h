@@ -18,20 +18,27 @@
 #include <asm/uaccess.h>
 #include "kvm-s390.h"
 
+/* Convert real to absolute address by applying the prefix of the CPU */
+static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
+						 unsigned long gaddr)
+{
+	unsigned long prefix  = vcpu->arch.sie_block->prefix;
+	if (gaddr < 2 * PAGE_SIZE)
+		gaddr += prefix;
+	else if (gaddr >= prefix && gaddr < prefix + 2 * PAGE_SIZE)
+		gaddr -= prefix;
+	return gaddr;
+}
+
 static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,
 					  void __user *gptr,
 					  int prefixing)
 {
-	unsigned long prefix  = vcpu->arch.sie_block->prefix;
 	unsigned long gaddr = (unsigned long) gptr;
 	unsigned long uaddr;
 
-	if (prefixing) {
-		if (gaddr < 2 * PAGE_SIZE)
-			gaddr += prefix;
-		else if ((gaddr >= prefix) && (gaddr < prefix + 2 * PAGE_SIZE))
-			gaddr -= prefix;
-	}
+	if (prefixing)
+		gaddr = kvm_s390_real_to_abs(vcpu, gaddr);
 	uaddr = gmap_fault(gaddr, vcpu->arch.gmap);
 	if (IS_ERR_VALUE(uaddr))
 		uaddr = -EFAULT;
@@ -42,9 +49,11 @@ static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,
 ({								\
 	__typeof__(gptr) __uptr = __gptr_to_uptr(vcpu, gptr, 1);\
 	int __mask = sizeof(__typeof__(*(gptr))) - 1;		\
-	int __ret = PTR_RET((void __force *)__uptr);		\
+	int __ret;						\
 								\
-	if (!__ret) {						\
+	if (IS_ERR((void __force *)__uptr)) {			\
+		__ret = PTR_ERR((void __force *)__uptr);	\
+	} else {						\
 		BUG_ON((unsigned long)__uptr & __mask);		\
 		__ret = get_user(x, __uptr);			\
 	}							\
@@ -55,9 +64,11 @@ static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,
 ({								\
 	__typeof__(gptr) __uptr = __gptr_to_uptr(vcpu, gptr, 1);\
 	int __mask = sizeof(__typeof__(*(gptr))) - 1;		\
-	int __ret = PTR_RET((void __force *)__uptr);		\
+	int __ret;						\
 								\
-	if (!__ret) {						\
+	if (IS_ERR((void __force *)__uptr)) {			\
+		__ret = PTR_ERR((void __force *)__uptr);	\
+	} else {						\
 		BUG_ON((unsigned long)__uptr & __mask);		\
 		__ret = put_user(x, __uptr);			\
 	}							\

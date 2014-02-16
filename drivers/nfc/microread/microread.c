@@ -13,10 +13,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -546,7 +546,7 @@ exit:
 	kfree_skb(skb);
 
 	if (r)
-		pr_err("Failed to handle discovered target err=%d", r);
+		pr_err("Failed to handle discovered target err=%d\n", r);
 }
 
 static int microread_event_received(struct nfc_hci_dev *hdev, u8 gate,
@@ -650,13 +650,12 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 {
 	struct microread_info *info;
 	unsigned long quirks = 0;
-	u32 protocols, se;
+	u32 protocols;
 	struct nfc_hci_init_data init_data;
 	int r;
 
 	info = kzalloc(sizeof(struct microread_info), GFP_KERNEL);
 	if (!info) {
-		pr_err("Cannot allocate memory for microread_info.\n");
 		r = -ENOMEM;
 		goto err_info_alloc;
 	}
@@ -678,17 +677,15 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    NFC_PROTO_ISO14443_B_MASK |
 		    NFC_PROTO_NFC_DEP_MASK;
 
-	se = NFC_SE_UICC | NFC_SE_EMBEDDED;
-
 	info->hdev = nfc_hci_allocate_device(&microread_hci_ops, &init_data,
-					     quirks, protocols, se, llc_name,
+					     quirks, protocols, llc_name,
 					     phy_headroom +
 					     MICROREAD_CMDS_HEADROOM,
 					     phy_tailroom +
 					     MICROREAD_CMD_TAILROOM,
 					     phy_payload);
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev.\n");
+		pr_err("Cannot allocate nfc hdev\n");
 		r = -ENOMEM;
 		goto err_alloc_hdev;
 	}

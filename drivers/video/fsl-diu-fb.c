@@ -31,6 +31,8 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/spinlock.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <sysdev/fsl_soc.h>
 #include <linux/fsl-diu-fb.h>
@@ -469,7 +471,7 @@ static enum fsl_diu_monitor_port fsl_diu_name_to_port(const char *s)
 	unsigned long val;
 
 	if (s) {
-		if (!strict_strtoul(s, 10, &val) && (val <= 2))
+		if (!kstrtoul(s, 10, &val) && (val <= 2))
 			port = (enum fsl_diu_monitor_port) val;
 		else if (strncmp(s, "lvds", 4) == 0)
 			port = FSL_DIU_PORT_LVDS;
@@ -1102,7 +1104,7 @@ static int fsl_diu_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 		fsl_diu_load_cursor_image(info, image, bg, fg,
 			cursor->image.width, cursor->image.height);
-	};
+	}
 
 	/*
 	 * Show or hide the cursor.  The cursor data is always stored in the
@@ -1853,7 +1855,7 @@ static int __init fsl_diu_setup(char *options)
 		if (!strncmp(opt, "monitor=", 8)) {
 			monitor_port = fsl_diu_name_to_port(opt + 8);
 		} else if (!strncmp(opt, "bpp=", 4)) {
-			if (!strict_strtoul(opt + 4, 10, &val))
+			if (!kstrtoul(opt + 4, 10, &val))
 				default_bpp = val;
 		} else
 			fb_mode = opt;

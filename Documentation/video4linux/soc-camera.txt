@@ -116,7 +116,7 @@ VIDIOC_S_FMT: sets user window. Should preserve previously set sensor window as
 much as possible by modifying scaling factors. If the sensor window cannot be
 preserved precisely, it may be changed too.
 
-In soc-camera there are two locations, where scaling and cropping can taks
+In soc-camera there are two locations, where scaling and cropping can take
 place: in the camera driver and in the host driver. User ioctls are first passed
 to the host driver, which then generally passes them down to the camera driver.
 It is more efficient to perform scaling and cropping in the camera driver to

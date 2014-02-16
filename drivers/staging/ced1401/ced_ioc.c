@@ -19,7 +19,6 @@
 */
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -630,7 +629,7 @@ int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
 			}
 			spin_unlock_irq(&pdx->stagedLock);
 
-			if (pPages) { 	/*  if we decided to release the memory */
+			if (pPages) {	/*  if we decided to release the memory */
 				/*  Now we must undo the pinning down of the pages. We will assume the worst and mark */
 				/*  all the pages as dirty. Don't be tempted to move this up above as you must not be */
 				/*  holding a spin lock to do this stuff as it is not atomic. */
@@ -692,10 +691,7 @@ static int SetArea(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 		__func__, puBuf, dwLength, bCircular);
 
 	/*  To pin down user pages we must first acquire the mapping semaphore. */
-	down_read(&current->mm->mmap_sem);	/*  get memory map semaphore */
-	nPages = get_user_pages(current, current->mm, ulStart, len, 1, 0,
-				pPages, NULL);
-	up_read(&current->mm->mmap_sem);	/*  release the semaphore */
+	nPages = get_user_pages_fast(ulStart, len, 1, pPages);
 	dev_dbg(&pdx->interface->dev, "%s nPages = %d", __func__, nPages);
 
 	if (nPages > 0) {		/*  if we succeeded */

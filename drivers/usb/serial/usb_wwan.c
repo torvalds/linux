@@ -291,18 +291,18 @@ static void usb_wwan_indat_callback(struct urb *urb)
 			tty_flip_buffer_push(&port->port);
 		} else
 			dev_dbg(dev, "%s: empty read urb received\n", __func__);
-
-		/* Resubmit urb so we continue receiving */
-		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err) {
-			if (err != -EPERM) {
-				dev_err(dev, "%s: resubmit read urb failed. (%d)\n", __func__, err);
-				/* busy also in error unless we are killed */
-				usb_mark_last_busy(port->serial->dev);
-			}
-		} else {
+	}
+	/* Resubmit urb so we continue receiving */
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (err) {
+		if (err != -EPERM) {
+			dev_err(dev, "%s: resubmit read urb failed. (%d)\n",
+				__func__, err);
+			/* busy also in error unless we are killed */
 			usb_mark_last_busy(port->serial->dev);
 		}
+	} else {
+		usb_mark_last_busy(port->serial->dev);
 	}
 }
 
@@ -447,12 +447,8 @@ static struct urb *usb_wwan_setup_urb(struct usb_serial_port *port,
 	struct urb *urb;
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);	/* No ISO */
-	if (urb == NULL) {
-		dev_dbg(&serial->interface->dev,
-			"%s: alloc for endpoint %d failed.\n", __func__,
-			endpoint);
+	if (!urb)
 		return NULL;
-	}
 
 	/* Fill URB using supplied data. */
 	usb_fill_bulk_urb(urb, serial->dev,

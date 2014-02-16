@@ -58,10 +58,11 @@
 
 unsigned int num_processors;
 
-unsigned disabled_cpus __cpuinitdata;
+unsigned disabled_cpus;
 
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
+EXPORT_SYMBOL_GPL(boot_cpu_physical_apicid);
 
 /*
  * The highest APIC ID seen during enumeration.
@@ -72,6 +73,13 @@ unsigned int max_physical_apicid;
  * Bitmask of physically existing CPUs:
  */
 physid_mask_t phys_cpu_present_map;
+
+/*
+ * Processor to be disabled specified by kernel parameter
+ * disable_cpu_apicid=<int>, mostly used for the kdump 2nd kernel to
+ * avoid undefined behaviour caused by sending INIT from AP to BSP.
+ */
+static unsigned int disabled_cpu_apicid __read_mostly = BAD_APICID;
 
 /*
  * Map cpu index to physical APIC ID
@@ -544,7 +552,7 @@ static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
  * Setup the local APIC timer for this CPU. Copy the initialized values
  * of the boot CPU and register the clock event in the framework.
  */
-static void __cpuinit setup_APIC_timer(void)
+static void setup_APIC_timer(void)
 {
 	struct clock_event_device *levt = &__get_cpu_var(lapic_events);
 
@@ -866,7 +874,7 @@ void __init setup_boot_APIC_clock(void)
 	setup_APIC_timer();
 }
 
-void __cpuinit setup_secondary_APIC_clock(void)
+void setup_secondary_APIC_clock(void)
 {
 	setup_APIC_timer();
 }
@@ -913,7 +921,7 @@ static void local_apic_timer_interrupt(void)
  * [ if a single-CPU system runs an SMP kernel then we call the local
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
-void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -932,7 +940,7 @@ void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-void __irq_entry smp_trace_apic_timer_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -1229,7 +1237,7 @@ void __init init_bsp_APIC(void)
 	apic_write(APIC_LVT1, value);
 }
 
-static void __cpuinit lapic_setup_esr(void)
+static void lapic_setup_esr(void)
 {
 	unsigned int oldvalue, value, maxlvt;
 
@@ -1276,7 +1284,7 @@ static void __cpuinit lapic_setup_esr(void)
  * Used to setup local APIC while initializing BSP or bringin up APs.
  * Always called with preemption disabled.
  */
-void __cpuinit setup_local_APIC(void)
+void setup_local_APIC(void)
 {
 	int cpu = smp_processor_id();
 	unsigned int value, queued;
@@ -1471,7 +1479,7 @@ void __cpuinit setup_local_APIC(void)
 #endif
 }
 
-void __cpuinit end_local_APIC_setup(void)
+void end_local_APIC_setup(void)
 {
 	lapic_setup_esr();
 
@@ -1946,14 +1954,14 @@ static inline void __smp_spurious_interrupt(void)
 		"should never happen.\n", smp_processor_id());
 }
 
-void smp_spurious_interrupt(struct pt_regs *regs)
+__visible void smp_spurious_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_spurious_interrupt();
 	exiting_irq();
 }
 
-void smp_trace_spurious_interrupt(struct pt_regs *regs)
+__visible void smp_trace_spurious_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	trace_spurious_apic_entry(SPURIOUS_APIC_VECTOR);
@@ -1967,7 +1975,7 @@ void smp_trace_spurious_interrupt(struct pt_regs *regs)
  */
 static inline void __smp_error_interrupt(struct pt_regs *regs)
 {
-	u32 v0, v1;
+	u32 v;
 	u32 i = 0;
 	static const char * const error_interrupt_reason[] = {
 		"Send CS error",		/* APIC Error Bit 0 */
@@ -1981,35 +1989,34 @@ static inline void __smp_error_interrupt(struct pt_regs *regs)
 	};
 
 	/* First tickle the hardware, only then report what went on. -- REW */
-	v0 = apic_read(APIC_ESR);
 	apic_write(APIC_ESR, 0);
-	v1 = apic_read(APIC_ESR);
+	v = apic_read(APIC_ESR);
 	ack_APIC_irq();
 	atomic_inc(&irq_err_count);
 
-	apic_printk(APIC_DEBUG, KERN_DEBUG "APIC error on CPU%d: %02x(%02x)",
-		    smp_processor_id(), v0 , v1);
+	apic_printk(APIC_DEBUG, KERN_DEBUG "APIC error on CPU%d: %02x",
+		    smp_processor_id(), v);
 
-	v1 = v1 & 0xff;
-	while (v1) {
-		if (v1 & 0x1)
+	v &= 0xff;
+	while (v) {
+		if (v & 0x1)
 			apic_printk(APIC_DEBUG, KERN_CONT " : %s", error_interrupt_reason[i]);
 		i++;
-		v1 >>= 1;
+		v >>= 1;
 	}
 
 	apic_printk(APIC_DEBUG, KERN_CONT "\n");
 
 }
 
-void smp_error_interrupt(struct pt_regs *regs)
+__visible void smp_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_error_interrupt(regs);
 	exiting_irq();
 }
 
-void smp_trace_error_interrupt(struct pt_regs *regs)
+__visible void smp_trace_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	trace_error_apic_entry(ERROR_APIC_VECTOR);
@@ -2107,11 +2114,44 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 	apic_write(APIC_LVT1, value);
 }
 
-void __cpuinit generic_processor_info(int apicid, int version)
+int generic_processor_info(int apicid, int version)
 {
 	int cpu, max = nr_cpu_ids;
 	bool boot_cpu_detected = physid_isset(boot_cpu_physical_apicid,
 				phys_cpu_present_map);
+
+	/*
+	 * boot_cpu_physical_apicid is designed to have the apicid
+	 * returned by read_apic_id(), i.e, the apicid of the
+	 * currently booting-up processor. However, on some platforms,
+	 * it is temporarily modified by the apicid reported as BSP
+	 * through MP table. Concretely:
+	 *
+	 * - arch/x86/kernel/mpparse.c: MP_processor_info()
+	 * - arch/x86/mm/amdtopology.c: amd_numa_init()
+	 * - arch/x86/platform/visws/visws_quirks.c: MP_processor_info()
+	 *
+	 * This function is executed with the modified
+	 * boot_cpu_physical_apicid. So, disabled_cpu_apicid kernel
+	 * parameter doesn't work to disable APs on kdump 2nd kernel.
+	 *
+	 * Since fixing handling of boot_cpu_physical_apicid requires
+	 * another discussion and tests on each platform, we leave it
+	 * for now and here we use read_apic_id() directly in this
+	 * function, generic_processor_info().
+	 */
+	if (disabled_cpu_apicid != BAD_APICID &&
+	    disabled_cpu_apicid != read_apic_id() &&
+	    disabled_cpu_apicid == apicid) {
+		int thiscpu = num_processors + disabled_cpus;
+
+		pr_warning("APIC: Disabling requested cpu."
+			   " Processor %d/0x%x ignored.\n",
+			   thiscpu, apicid);
+
+		disabled_cpus++;
+		return -ENODEV;
+	}
 
 	/*
 	 * If boot cpu has not been detected yet, then only allow upto
@@ -2127,7 +2167,7 @@ void __cpuinit generic_processor_info(int apicid, int version)
 			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
 
 		disabled_cpus++;
-		return;
+		return -ENODEV;
 	}
 
 	if (num_processors >= nr_cpu_ids) {
@@ -2138,7 +2178,7 @@ void __cpuinit generic_processor_info(int apicid, int version)
 			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
 
 		disabled_cpus++;
-		return;
+		return -EINVAL;
 	}
 
 	num_processors++;
@@ -2183,6 +2223,8 @@ void __cpuinit generic_processor_info(int apicid, int version)
 #endif
 	set_cpu_possible(cpu, true);
 	set_cpu_present(cpu, true);
+
+	return cpu;
 }
 
 int hard_smp_processor_id(void)
@@ -2377,7 +2419,7 @@ static struct syscore_ops lapic_syscore_ops = {
 	.suspend	= lapic_suspend,
 };
 
-static void __cpuinit apic_pm_activate(void)
+static void apic_pm_activate(void)
 {
 	apic_pm_state.active = 1;
 }
@@ -2402,7 +2444,7 @@ static void apic_pm_activate(void) { }
 
 #ifdef CONFIG_X86_64
 
-static int __cpuinit apic_cluster_num(void)
+static int apic_cluster_num(void)
 {
 	int i, clusters, zeros;
 	unsigned id;
@@ -2447,10 +2489,10 @@ static int __cpuinit apic_cluster_num(void)
 	return clusters;
 }
 
-static int __cpuinitdata multi_checked;
-static int __cpuinitdata multi;
+static int multi_checked;
+static int multi;
 
-static int __cpuinit set_multi(const struct dmi_system_id *d)
+static int set_multi(const struct dmi_system_id *d)
 {
 	if (multi)
 		return 0;
@@ -2459,7 +2501,7 @@ static int __cpuinit set_multi(const struct dmi_system_id *d)
 	return 0;
 }
 
-static const __cpuinitconst struct dmi_system_id multi_dmi_table[] = {
+static const struct dmi_system_id multi_dmi_table[] = {
 	{
 		.callback = set_multi,
 		.ident = "IBM System Summit2",
@@ -2471,7 +2513,7 @@ static const __cpuinitconst struct dmi_system_id multi_dmi_table[] = {
 	{}
 };
 
-static void __cpuinit dmi_check_multi(void)
+static void dmi_check_multi(void)
 {
 	if (multi_checked)
 		return;
@@ -2488,7 +2530,7 @@ static void __cpuinit dmi_check_multi(void)
  * multi-chassis.
  * Use DMI to check them
  */
-__cpuinit int apic_is_clustered_box(void)
+int apic_is_clustered_box(void)
 {
 	dmi_check_multi();
 	if (multi)
@@ -2589,3 +2631,12 @@ static int __init lapic_insert_resource(void)
  * that is using request_resource
  */
 late_initcall(lapic_insert_resource);
+
+static int __init apic_set_disabled_cpu_apicid(char *arg)
+{
+	if (!arg || !get_option(&arg, &disabled_cpu_apicid))
+		return -EINVAL;
+
+	return 0;
+}
+early_param("disable_cpu_apicid", apic_set_disabled_cpu_apicid);

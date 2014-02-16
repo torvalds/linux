@@ -32,8 +32,8 @@ numbers - see motherboard's TRM for more details.
 The node describing a config device must refer to the sysreg node via
 "arm,vexpress,config-bridge" phandle (can be also defined in the node's
 parent) and relies on the board topology properties - see main vexpress
-node documentation for more details. It must must also define the
-following property:
+node documentation for more details. It must also define the following
+property:
 - arm,vexpress-sysreg,func : must contain two cells:
   - first cell defines function number (eg. 1 for clock generator,
     2 for voltage regulators etc.)

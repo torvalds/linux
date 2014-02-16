@@ -371,7 +371,7 @@ static void drp_param(struct ch_struct *ch)
 			ch->ch_flag |= CH_BAUD0;
 		}
 	} else if (ch->ch_custom_speed) {
-		ch->ch_brate = PORTSERVER_DIVIDEND / ch->ch_custom_speed ;
+		ch->ch_brate = PORTSERVER_DIVIDEND / ch->ch_custom_speed;
 
 		if (ch->ch_flag & CH_BAUD0) {
 			ch->ch_mout |= DM_DTR | DM_RTS;
@@ -752,7 +752,7 @@ static int dgrp_tty_open(struct tty_struct *tty, struct file *file)
 
 			if (ch->ch_open_error != 0 && otype == ch->ch_otype) {
 				retval = (ch->ch_open_error <= 2) ?
-					  delay_error : -ENXIO ;
+					  delay_error : -ENXIO;
 				goto unlock;
 			}
 
@@ -1120,7 +1120,9 @@ static void dgrp_tty_close(struct tty_struct *tty, struct file *file)
 				if (!sent_printer_offstr)
 					dgrp_tty_flush_buffer(tty);
 
+				spin_unlock_irqrestore(&nd->nd_lock, lock_flags);
 				tty_ldisc_flush(tty);
+				spin_lock_irqsave(&nd->nd_lock, lock_flags);
 				break;
 		}
 

@@ -570,15 +570,6 @@ static int msp_s_i2s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	return 0;
 }
 
-static int msp_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct msp_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, state->ident,
-			(state->rev1 << 16) | state->rev2);
-}
-
 static int msp_log_status(struct v4l2_subdev *sd)
 {
 	struct msp_state *state = to_state(sd);
@@ -651,7 +642,6 @@ static const struct v4l2_ctrl_ops msp_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops msp_core_ops = {
 	.log_status = msp_log_status,
-	.g_chip_ident = msp_g_chip_ident,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
 	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
@@ -707,7 +697,7 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENODEV;
 	}
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
@@ -732,7 +722,6 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (state->rev1 == -1 || (state->rev1 == 0 && state->rev2 == 0)) {
 		v4l_dbg(1, msp_debug, client,
 				"not an msp3400 (cannot read chip version)\n");
-		kfree(state);
 		return -ENODEV;
 	}
 
@@ -827,7 +816,6 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(state);
 		return err;
 	}
 
@@ -889,7 +877,6 @@ static int msp_remove(struct i2c_client *client)
 	msp_reset(client);
 
 	v4l2_ctrl_handler_free(&state->hdl);
-	kfree(state);
 	return 0;
 }
 

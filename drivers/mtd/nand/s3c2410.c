@@ -46,8 +46,42 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
-#include <plat/regs-nand.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
+
+#define S3C2410_NFREG(x) (x)
+
+#define S3C2410_NFCONF		S3C2410_NFREG(0x00)
+#define S3C2410_NFCMD		S3C2410_NFREG(0x04)
+#define S3C2410_NFADDR		S3C2410_NFREG(0x08)
+#define S3C2410_NFDATA		S3C2410_NFREG(0x0C)
+#define S3C2410_NFSTAT		S3C2410_NFREG(0x10)
+#define S3C2410_NFECC		S3C2410_NFREG(0x14)
+#define S3C2440_NFCONT		S3C2410_NFREG(0x04)
+#define S3C2440_NFCMD		S3C2410_NFREG(0x08)
+#define S3C2440_NFADDR		S3C2410_NFREG(0x0C)
+#define S3C2440_NFDATA		S3C2410_NFREG(0x10)
+#define S3C2440_NFSTAT		S3C2410_NFREG(0x20)
+#define S3C2440_NFMECC0		S3C2410_NFREG(0x2C)
+#define S3C2412_NFSTAT		S3C2410_NFREG(0x28)
+#define S3C2412_NFMECC0		S3C2410_NFREG(0x34)
+#define S3C2410_NFCONF_EN		(1<<15)
+#define S3C2410_NFCONF_INITECC		(1<<12)
+#define S3C2410_NFCONF_nFCE		(1<<11)
+#define S3C2410_NFCONF_TACLS(x)		((x)<<8)
+#define S3C2410_NFCONF_TWRPH0(x)	((x)<<4)
+#define S3C2410_NFCONF_TWRPH1(x)	((x)<<0)
+#define S3C2410_NFSTAT_BUSY		(1<<0)
+#define S3C2440_NFCONF_TACLS(x)		((x)<<12)
+#define S3C2440_NFCONF_TWRPH0(x)	((x)<<8)
+#define S3C2440_NFCONF_TWRPH1(x)	((x)<<4)
+#define S3C2440_NFCONT_INITECC		(1<<4)
+#define S3C2440_NFCONT_nFCE		(1<<1)
+#define S3C2440_NFCONT_ENABLE		(1<<0)
+#define S3C2440_NFSTAT_READY		(1<<0)
+#define S3C2412_NFCONF_NANDBOOT		(1<<31)
+#define S3C2412_NFCONT_INIT_MAIN_ECC	(1<<5)
+#define S3C2412_NFCONT_nFCE0		(1<<1)
+#define S3C2412_NFSTAT_READY		(1<<0)
 
 /* new oob placement block for use with hardware ecc generation
  */
@@ -150,7 +184,7 @@ static struct s3c2410_nand_info *to_nand_info(struct platform_device *dev)
 
 static struct s3c2410_platform_nand *to_nand_plat(struct platform_device *dev)
 {
-	return dev->dev.platform_data;
+	return dev_get_platdata(&dev->dev);
 }
 
 static inline int allow_clk_suspend(struct s3c2410_nand_info *info)
@@ -697,8 +731,6 @@ static int s3c24xx_nand_remove(struct platform_device *pdev)
 {
 	struct s3c2410_nand_info *info = to_nand_info(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (info == NULL)
 		return 0;
 
@@ -921,7 +953,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
@@ -976,7 +1007,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	size = nr_sets * sizeof(*info->mtds);
 	info->mtds = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (info->mtds == NULL) {
-		dev_err(&pdev->dev, "failed to allocate mtd storage\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}

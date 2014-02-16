@@ -17,6 +17,7 @@
 #include <linux/davinci_emac.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_data/davinci_asp.h>
+#include <linux/reboot.h>
 #include <linux/videodev2.h>
 
 #include <mach/serial.h>
@@ -96,6 +97,7 @@ int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
 int da850_register_mmcsd1(struct davinci_mmc_config *config);
 void da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
 int da8xx_register_rtc(void);
+int da8xx_register_gpio(void *pdata);
 int da850_register_cpufreq(char *async_clk);
 int da8xx_register_cpuidle(void);
 void __iomem *da8xx_get_mem_ctlr(void);
@@ -106,11 +108,13 @@ int da850_register_vpif_display
 			(struct vpif_display_config *display_config);
 int da850_register_vpif_capture
 			(struct vpif_capture_config *capture_config);
-void da8xx_restart(char mode, const char *cmd);
+void da8xx_restart(enum reboot_mode mode, const char *cmd);
 void da8xx_rproc_reserve_cma(void);
 int da8xx_register_rproc(void);
+int da850_register_gpio(void);
+int da830_register_gpio(void);
 
-extern struct platform_device da8xx_serial_device;
+extern struct platform_device da8xx_serial_device[];
 extern struct emac_platform_data da8xx_emac_pdata;
 extern struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata;
 extern struct da8xx_lcdc_platform_data sharp_lk043t1dg01_pdata;

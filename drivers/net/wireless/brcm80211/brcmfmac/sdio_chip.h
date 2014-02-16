@@ -54,7 +54,7 @@
 
 #define BRCMF_MAX_CORENUM	6
 
-struct chip_core_info {
+struct brcmf_core {
 	u16 id;
 	u16 rev;
 	u32 base;
@@ -63,27 +63,28 @@ struct chip_core_info {
 	u32 cib;
 };
 
-struct chip_info {
+struct brcmf_chip {
 	u32 chip;
 	u32 chiprev;
-	u32 socitype;
 	/* core info */
 	/* always put chipcommon core at 0, bus core at 1 */
-	struct chip_core_info c_inf[BRCMF_MAX_CORENUM];
+	struct brcmf_core c_inf[BRCMF_MAX_CORENUM];
 	u32 pmurev;
 	u32 pmucaps;
 	u32 ramsize;
 	u32 rambase;
 	u32 rst_vec;	/* reset vertor for ARM CR4 core */
 
-	bool (*iscoreup)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
+	bool (*iscoreup)(struct brcmf_sdio_dev *sdiodev, struct brcmf_chip *ci,
 			 u16 coreid);
-	u32 (*corerev)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
+	u32 (*corerev)(struct brcmf_sdio_dev *sdiodev, struct brcmf_chip *ci,
 			 u16 coreid);
 	void (*coredisable)(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid, u32 core_bits);
+			struct brcmf_chip *ci, u16 coreid, u32 pre_resetbits,
+			u32 in_resetbits);
 	void (*resetcore)(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid, u32 core_bits);
+			struct brcmf_chip *ci, u16 coreid, u32 pre_resetbits,
+			u32 in_resetbits, u32 post_resetbits);
 };
 
 struct sbconfig {
@@ -215,17 +216,16 @@ struct sdpcmd_regs {
 	u16 PAD[0x80];
 };
 
-extern int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
-				  struct chip_info **ci_ptr, u32 regs);
-extern void brcmf_sdio_chip_detach(struct chip_info **ci_ptr);
-extern void brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
-					      struct chip_info *ci,
-					      u32 drivestrength);
-extern u8 brcmf_sdio_chip_getinfidx(struct chip_info *ci, u16 coreid);
-extern void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
-					   struct chip_info *ci);
-extern bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
-					  struct chip_info *ci, char *nvram_dat,
-					  uint nvram_sz);
+int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
+			   struct brcmf_chip **ci_ptr);
+void brcmf_sdio_chip_detach(struct brcmf_chip **ci_ptr);
+void brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
+				       struct brcmf_chip *ci,
+				       u32 drivestrength);
+u8 brcmf_sdio_chip_getinfidx(struct brcmf_chip *ci, u16 coreid);
+void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
+				    struct brcmf_chip *ci);
+bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
+				   struct brcmf_chip *ci, u32 rstvec);
 
 #endif		/* _BRCMFMAC_SDIO_CHIP_H_ */

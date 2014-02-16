@@ -263,6 +263,21 @@ bool die_is_signed_type(Dwarf_Die *tp_die)
 }
 
 /**
+ * die_is_func_def - Ensure that this DIE is a subprogram and definition
+ * @dw_die: a DIE
+ *
+ * Ensure that this DIE is a subprogram and NOT a declaration. This
+ * returns true if @dw_die is a function definition.
+ **/
+bool die_is_func_def(Dwarf_Die *dw_die)
+{
+	Dwarf_Attribute attr;
+
+	return (dwarf_tag(dw_die) == DW_TAG_subprogram &&
+		dwarf_attr(dw_die, DW_AT_declaration, &attr) == NULL);
+}
+
+/**
  * die_get_data_member_location - Get the data-member offset
  * @mb_die: a DIE of a member of a data structure
  * @offs: The offset of the member in the data structure
@@ -392,6 +407,10 @@ static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
 {
 	struct __addr_die_search_param *ad = data;
 
+	/*
+	 * Since a declaration entry doesn't has given pc, this always returns
+	 * function definition entry.
+	 */
 	if (dwarf_tag(fn_die) == DW_TAG_subprogram &&
 	    dwarf_haspc(fn_die, ad->addr)) {
 		memcpy(ad->die_mem, fn_die, sizeof(Dwarf_Die));
@@ -407,7 +426,7 @@ static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
  * @die_mem: a buffer for result DIE
  *
  * Search a non-inlined function DIE which includes @addr. Stores the
- * DIE to @die_mem and returns it if found. Returns NULl if failed.
+ * DIE to @die_mem and returns it if found. Returns NULL if failed.
  */
 Dwarf_Die *die_find_realfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
 				    Dwarf_Die *die_mem)
@@ -435,15 +454,32 @@ static int __die_find_inline_cb(Dwarf_Die *die_mem, void *data)
 }
 
 /**
- * die_find_inlinefunc - Search an inlined function at given address
- * @cu_die: a CU DIE which including @addr
+ * die_find_top_inlinefunc - Search the top inlined function at given address
+ * @sp_die: a subprogram DIE which including @addr
  * @addr: target address
  * @die_mem: a buffer for result DIE
  *
  * Search an inlined function DIE which includes @addr. Stores the
- * DIE to @die_mem and returns it if found. Returns NULl if failed.
+ * DIE to @die_mem and returns it if found. Returns NULL if failed.
+ * Even if several inlined functions are expanded recursively, this
+ * doesn't trace it down, and returns the topmost one.
+ */
+Dwarf_Die *die_find_top_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
+				   Dwarf_Die *die_mem)
+{
+	return die_find_child(sp_die, __die_find_inline_cb, &addr, die_mem);
+}
+
+/**
+ * die_find_inlinefunc - Search an inlined function at given address
+ * @sp_die: a subprogram DIE which including @addr
+ * @addr: target address
+ * @die_mem: a buffer for result DIE
+ *
+ * Search an inlined function DIE which includes @addr. Stores the
+ * DIE to @die_mem and returns it if found. Returns NULL if failed.
  * If several inlined functions are expanded recursively, this trace
- * it and returns deepest one.
+ * it down and returns deepest one.
  */
 Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 			       Dwarf_Die *die_mem)

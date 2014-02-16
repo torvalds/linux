@@ -14,6 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/pm.h>
 #include <linux/gcd.h>
 #include <linux/gpio.h>
@@ -1972,7 +1973,8 @@ static void wm5100_set_detect_mode(struct wm5100_priv *wm5100, int the_mode)
 {
 	struct wm5100_jack_mode *mode = &wm5100->pdata.jack_modes[the_mode];
 
-	BUG_ON(the_mode >= ARRAY_SIZE(wm5100->pdata.jack_modes));
+	if (WARN_ON(the_mode >= ARRAY_SIZE(wm5100->pdata.jack_modes)))
+		return;
 
 	gpio_set_value_cansleep(wm5100->pdata.hp_pol, mode->hp_pol);
 	regmap_update_bits(wm5100->regmap, WM5100_ACCESSORY_DETECT_MODE_1,
@@ -2140,6 +2142,7 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wm5100_detect);
 
 static irqreturn_t wm5100_irq(int irq, void *data)
 {

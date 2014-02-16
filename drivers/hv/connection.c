@@ -67,7 +67,6 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	int ret = 0;
 	struct vmbus_channel_initiate_contact *msg;
 	unsigned long flags;
-	int t;
 
 	init_completion(&msginfo->waitevent);
 
@@ -76,10 +75,10 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	msg->header.msgtype = CHANNELMSG_INITIATE_CONTACT;
 	msg->vmbus_version_requested = version;
 	msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
-	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages);
-	msg->monitor_page2 = virt_to_phys(
-			(void *)((unsigned long)vmbus_connection.monitor_pages +
-				 PAGE_SIZE));
+	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages[0]);
+	msg->monitor_page2 = virt_to_phys(vmbus_connection.monitor_pages[1]);
+	if (version == VERSION_WIN8)
+		msg->target_vcpu = hv_context.vp_index[smp_processor_id()];
 
 	/*
 	 * Add to list before we send the request since we may
@@ -102,15 +101,7 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	}
 
 	/* Wait for the connection response */
-	t =  wait_for_completion_timeout(&msginfo->waitevent, 5*HZ);
-	if (t == 0) {
-		spin_lock_irqsave(&vmbus_connection.channelmsg_lock,
-				flags);
-		list_del(&msginfo->msglistentry);
-		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock,
-					flags);
-		return -ETIMEDOUT;
-	}
+	wait_for_completion(&msginfo->waitevent);
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&msginfo->msglistentry);
@@ -169,9 +160,10 @@ int vmbus_connect(void)
 	 * Setup the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	vmbus_connection.monitor_pages =
-	(void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 1);
-	if (vmbus_connection.monitor_pages == NULL) {
+	vmbus_connection.monitor_pages[0] = (void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 0);
+	vmbus_connection.monitor_pages[1] = (void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 0);
+	if ((vmbus_connection.monitor_pages[0] == NULL) ||
+	    (vmbus_connection.monitor_pages[1] == NULL)) {
 		ret = -ENOMEM;
 		goto cleanup;
 	}
@@ -195,7 +187,10 @@ int vmbus_connect(void)
 
 	do {
 		ret = vmbus_negotiate_version(msginfo, version);
-		if (ret == 0)
+		if (ret == -ETIMEDOUT)
+			goto cleanup;
+
+		if (vmbus_connection.conn_state == CONNECTED)
 			break;
 
 		version = vmbus_get_next_version(version);
@@ -226,10 +221,10 @@ cleanup:
 		vmbus_connection.int_page = NULL;
 	}
 
-	if (vmbus_connection.monitor_pages) {
-		free_pages((unsigned long)vmbus_connection.monitor_pages, 1);
-		vmbus_connection.monitor_pages = NULL;
-	}
+	free_pages((unsigned long)vmbus_connection.monitor_pages[0], 1);
+	free_pages((unsigned long)vmbus_connection.monitor_pages[1], 1);
+	vmbus_connection.monitor_pages[0] = NULL;
+	vmbus_connection.monitor_pages[1] = NULL;
 
 	kfree(msginfo);
 

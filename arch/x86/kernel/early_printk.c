@@ -14,9 +14,11 @@
 #include <xen/hvc-console.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 #include <asm/pgtable.h>
 #include <linux/usb/ehci_def.h>
+#include <linux/efi.h>
+#include <asm/efi.h>
 
 /* Simple VGA output */
 #define VGABASE		(__ISA_IO_base + 0xb8000)
@@ -234,6 +236,11 @@ static int __init setup_early_printk(char *buf)
 			early_console_register(&early_hsu_console, keep);
 		}
 #endif
+#ifdef CONFIG_EARLY_PRINTK_EFI
+		if (!strncmp(buf, "efi", 3))
+			early_console_register(&early_efi_console, keep);
+#endif
+
 		buf++;
 	}
 	return 0;

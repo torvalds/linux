@@ -595,11 +595,6 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	if (var->xoffset < 0)
-		var->xoffset = 0;
-	if (var->yoffset < 0)
-		var->yoffset = 0;
-
 	/* truncate xoffset and yoffset to maximum if too high */
 	if (var->xoffset > var->xres_virtual - var->xres)
 		var->xoffset = var->xres_virtual - var->xres - 1;
@@ -2159,7 +2154,6 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 	if (!ret)
 		return 0;
 
-	pci_set_drvdata(pdev, NULL);
 	iounmap(info->screen_base);
 err_release_legacy:
 	if (release_io_ports)
@@ -2262,7 +2256,7 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 
 	info->fix.mmio_start = regbase;
 	cinfo->regbase = regbase > 16 * MB_ ? ioremap(regbase, 64 * 1024)
-					    : (caddr_t)ZTWO_VADDR(regbase);
+					    : ZTWO_VADDR(regbase);
 	if (!cinfo->regbase) {
 		dev_err(info->device, "Cannot map registers\n");
 		error = -EIO;
@@ -2272,7 +2266,7 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	info->fix.smem_start = rambase;
 	info->screen_size = ramsize;
 	info->screen_base = rambase > 16 * MB_ ? ioremap(rambase, ramsize)
-					       : (caddr_t)ZTWO_VADDR(rambase);
+					       : ZTWO_VADDR(rambase);
 	if (!info->screen_base) {
 		dev_err(info->device, "Cannot map video RAM\n");
 		error = -EIO;

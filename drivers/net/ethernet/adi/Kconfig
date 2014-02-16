@@ -23,7 +23,6 @@ config BFIN_MAC
 	tristate "Blackfin on-chip MAC support"
 	depends on (BF516 || BF518 || BF526 || BF527 || BF536 || BF537)
 	select CRC32
-	select NET_CORE
 	select MII
 	select PHYLIB
 	select BFIN_MAC_USE_L1 if DMA_UNCACHED_NONE

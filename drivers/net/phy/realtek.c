@@ -23,7 +23,7 @@
 #define RTL821x_INER_INIT	0x6400
 #define RTL821x_INSR		0x13
 
-#define	RTL8211E_INER_LINK_STAT	0x10
+#define	RTL8211E_INER_LINK_STATUS	0x400
 
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
@@ -57,12 +57,24 @@ static int rtl8211e_config_intr(struct phy_device *phydev)
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
 		err = phy_write(phydev, RTL821x_INER,
-				RTL8211E_INER_LINK_STAT);
+				RTL8211E_INER_LINK_STATUS);
 	else
 		err = phy_write(phydev, RTL821x_INER, 0);
 
 	return err;
 }
+
+/* RTL8201CP */
+static struct phy_driver rtl8201cp_driver = {
+	.phy_id         = 0x00008201,
+	.name           = "RTL8201CP Ethernet",
+	.phy_id_mask    = 0x0000ffff,
+	.features       = PHY_BASIC_FEATURES,
+	.flags          = PHY_HAS_INTERRUPT,
+	.config_aneg    = &genphy_config_aneg,
+	.read_status    = &genphy_read_status,
+	.driver         = { .owner = THIS_MODULE,},
+};
 
 /* RTL8211B */
 static struct phy_driver rtl8211b_driver = {
@@ -98,6 +110,9 @@ static int __init realtek_init(void)
 {
 	int ret;
 
+	ret = phy_driver_register(&rtl8201cp_driver);
+	if (ret < 0)
+		return -ENODEV;
 	ret = phy_driver_register(&rtl8211b_driver);
 	if (ret < 0)
 		return -ENODEV;

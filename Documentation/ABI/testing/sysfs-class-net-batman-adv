@@ -1,13 +1,13 @@
 
 What:           /sys/class/net/<iface>/batman-adv/iface_status
 Date:           May 2010
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Indicates the status of <iface> as it is seen by batman.
 
 What:           /sys/class/net/<iface>/batman-adv/mesh_iface
 Date:           May 2010
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 The /sys/class/net/<iface>/batman-adv/mesh_iface file
                 displays the batman mesh interface this <iface>

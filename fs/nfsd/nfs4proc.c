@@ -41,6 +41,37 @@
 #include "vfs.h"
 #include "current_stateid.h"
 #include "netns.h"
+#include "acl.h"
+
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+#include <linux/security.h>
+
+static inline void
+nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
+{
+	struct inode *inode = resfh->fh_dentry->d_inode;
+	int status;
+
+	mutex_lock(&inode->i_mutex);
+	status = security_inode_setsecctx(resfh->fh_dentry,
+		label->data, label->len);
+	mutex_unlock(&inode->i_mutex);
+
+	if (status)
+		/*
+		 * XXX: We should really fail the whole open, but we may
+		 * already have created a new file, so it may be too
+		 * late.  For now this seems the least of evils:
+		 */
+		bmval[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
+
+	return;
+}
+#else
+static inline void
+nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
+{ }
+#endif
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
@@ -200,17 +231,16 @@ static void nfsd4_set_open_owner_reply_cache(struct nfsd4_compound_state *cstate
 }
 
 static __be32
-do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_open *open)
+do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_open *open, struct svc_fh **resfh)
 {
 	struct svc_fh *current_fh = &cstate->current_fh;
-	struct svc_fh *resfh;
 	int accmode;
 	__be32 status;
 
-	resfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
-	if (!resfh)
+	*resfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
+	if (!*resfh)
 		return nfserr_jukebox;
-	fh_init(resfh, NFS4_FHSIZE);
+	fh_init(*resfh, NFS4_FHSIZE);
 	open->op_truncate = 0;
 
 	if (open->op_create) {
@@ -235,9 +265,12 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 		 */
 		status = do_nfsd_create(rqstp, current_fh, open->op_fname.data,
 					open->op_fname.len, &open->op_iattr,
-					resfh, open->op_createmode,
+					*resfh, open->op_createmode,
 					(u32 *)open->op_verf.data,
 					&open->op_truncate, &open->op_created);
+
+		if (!status && open->op_label.len)
+			nfsd4_security_inode_setsecctx(*resfh, &open->op_label, open->op_bmval);
 
 		/*
 		 * Following rfc 3530 14.2.16, use the returned bitmask
@@ -247,30 +280,32 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 		if (open->op_createmode == NFS4_CREATE_EXCLUSIVE && status == 0)
 			open->op_bmval[1] = (FATTR4_WORD1_TIME_ACCESS |
 							FATTR4_WORD1_TIME_MODIFY);
-	} else {
+	} else
+		/*
+		 * Note this may exit with the parent still locked.
+		 * We will hold the lock until nfsd4_open's final
+		 * lookup, to prevent renames or unlinks until we've had
+		 * a chance to an acquire a delegation if appropriate.
+		 */
 		status = nfsd_lookup(rqstp, current_fh,
-				     open->op_fname.data, open->op_fname.len, resfh);
-		fh_unlock(current_fh);
-	}
+				     open->op_fname.data, open->op_fname.len, *resfh);
 	if (status)
 		goto out;
-	status = nfsd_check_obj_isreg(resfh);
+	status = nfsd_check_obj_isreg(*resfh);
 	if (status)
 		goto out;
 
 	if (is_create_with_attrs(open) && open->op_acl != NULL)
-		do_set_nfs4_acl(rqstp, resfh, open->op_acl, open->op_bmval);
+		do_set_nfs4_acl(rqstp, *resfh, open->op_acl, open->op_bmval);
 
-	nfsd4_set_open_owner_reply_cache(cstate, open, resfh);
+	nfsd4_set_open_owner_reply_cache(cstate, open, *resfh);
 	accmode = NFSD_MAY_NOP;
-	if (open->op_created)
+	if (open->op_created ||
+			open->op_claim_type == NFS4_OPEN_CLAIM_DELEGATE_CUR)
 		accmode |= NFSD_MAY_OWNER_OVERRIDE;
-	status = do_open_permission(rqstp, resfh, open, accmode);
+	status = do_open_permission(rqstp, *resfh, open, accmode);
 	set_change_info(&open->op_cinfo, current_fh);
-	fh_dup2(current_fh, resfh);
 out:
-	fh_put(resfh);
-	kfree(resfh);
 	return status;
 }
 
@@ -323,6 +358,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	   struct nfsd4_open *open)
 {
 	__be32 status;
+	struct svc_fh *resfh = NULL;
 	struct nfsd4_compoundres *resp;
 	struct net *net = SVC_NET(rqstp);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
@@ -389,7 +425,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	switch (open->op_claim_type) {
 		case NFS4_OPEN_CLAIM_DELEGATE_CUR:
 		case NFS4_OPEN_CLAIM_NULL:
-			status = do_open_lookup(rqstp, cstate, open);
+			status = do_open_lookup(rqstp, cstate, open, &resfh);
 			if (status)
 				goto out;
 			break;
@@ -405,6 +441,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			status = do_open_fhandle(rqstp, cstate, open);
 			if (status)
 				goto out;
+			resfh = &cstate->current_fh;
 			break;
 		case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
@@ -424,9 +461,14 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * successful, it (1) truncates the file if open->op_truncate was
 	 * set, (2) sets open->op_stateid, (3) sets open->op_delegation.
 	 */
-	status = nfsd4_process_open2(rqstp, &cstate->current_fh, open);
+	status = nfsd4_process_open2(rqstp, resfh, open);
 	WARN_ON(status && open->op_created);
 out:
+	if (resfh && resfh != &cstate->current_fh) {
+		fh_dup2(&cstate->current_fh, resfh);
+		fh_put(resfh);
+		kfree(resfh);
+	}
 	nfsd4_cleanup_open_state(open, status);
 	if (open->op_openowner && !nfsd4_has_session(cstate))
 		cstate->replay_owner = &open->op_openowner->oo_owner;
@@ -636,6 +678,9 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	if (status)
 		goto out;
+
+	if (create->cr_label.len)
+		nfsd4_security_inode_setsecctx(&resfh, &create->cr_label, create->cr_bmval);
 
 	if (create->cr_acl != NULL)
 		do_set_nfs4_acl(rqstp, &resfh, create->cr_acl,
@@ -916,6 +961,11 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 					    setattr->sa_acl);
 	if (status)
 		goto out;
+	if (setattr->sa_label.len)
+		status = nfsd4_set_nfs4_label(rqstp, &cstate->current_fh,
+				&setattr->sa_label);
+	if (status)
+		goto out;
 	status = nfsd_setattr(rqstp, &cstate->current_fh, &setattr->sa_iattr,
 				0, (time_t)0);
 out:
@@ -1027,8 +1077,10 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				    cstate->current_fh.fh_dentry, &p,
 				    count, verify->ve_bmval,
 				    rqstp, 0);
-
-	/* this means that nfsd4_encode_fattr() ran out of space */
+	/*
+	 * If nfsd4_encode_fattr() ran out of space, assume that's because
+	 * the attributes are longer (hence different) than those given:
+	 */
 	if (status == nfserr_resource)
 		status = nfserr_not_same;
 	if (status)
@@ -1251,7 +1303,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	 * According to RFC3010, this takes precedence over all other errors.
 	 */
 	status = nfserr_minor_vers_mismatch;
-	if (args->minorversion > nfsd_supported_minorversion)
+	if (nfsd_minorversion(args->minorversion, NFSD_TEST) <= 0)
 		goto out;
 
 	status = nfs41_check_op_ordering(args);
@@ -1482,7 +1534,8 @@ static inline u32 nfsd4_write_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 static inline u32 nfsd4_exchange_id_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
 	return (op_encode_hdr_size + 2 + 1 + /* eir_clientid, eir_sequenceid */\
-		1 + 1 + 0 + /* eir_flags, spr_how, SP4_NONE (for now) */\
+		1 + 1 + /* eir_flags, spr_how */\
+		4 + /* spo_must_enforce & _allow with bitmap */\
 		2 + /*eir_server_owner.so_minor_id */\
 		/* eir_server_owner.so_major_id<> */\
 		XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 +\
@@ -1839,6 +1892,7 @@ struct svc_version	nfsd_version4 = {
 		.vs_proc	= nfsd_procedures4,
 		.vs_dispatch	= nfsd_dispatch,
 		.vs_xdrsize	= NFS4_SVC_XDRSIZE,
+		.vs_rpcb_optnl	= 1,
 };
 
 /*

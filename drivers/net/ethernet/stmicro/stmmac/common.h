@@ -29,7 +29,6 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define STMMAC_VLAN_TAG_USED
 #include <linux/if_vlan.h>
@@ -37,16 +36,6 @@
 
 #include "descs.h"
 #include "mmc.h"
-
-#undef CHIP_DEBUG_PRINT
-/* Turn-on extra printk debug for MAC core, dma and descriptors */
-/* #define CHIP_DEBUG_PRINT */
-
-#ifdef CHIP_DEBUG_PRINT
-#define CHIP_DBG(fmt, args...)  printk(fmt, ## args)
-#else
-#define CHIP_DBG(fmt, args...)  do { } while (0)
-#endif
 
 /* Synopsys Core versions */
 #define	DWMAC_CORE_3_40	0x34
@@ -303,6 +292,8 @@ struct dma_features {
 #define STMMAC_CHAIN_MODE	0x1
 #define STMMAC_RING_MODE	0x2
 
+#define JUMBO_LEN		9000
+
 struct stmmac_desc_ops {
 	/* DMA RX descriptor ring initialization */
 	void (*init_rx_desc) (struct dma_desc *p, int disable_rx_ic, int mode,
@@ -379,7 +370,7 @@ struct stmmac_dma_ops {
 
 struct stmmac_ops {
 	/* MAC core initialization */
-	void (*core_init) (void __iomem *ioaddr);
+	void (*core_init) (void __iomem *ioaddr, int mtu);
 	/* Enable and verify that the IPC module is supported */
 	int (*rx_ipc) (void __iomem *ioaddr);
 	/* Dump MAC registers */
@@ -461,14 +452,14 @@ struct mac_device_info {
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr);
 struct mac_device_info *dwmac100_setup(void __iomem *ioaddr);
 
-extern void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
-				unsigned int high, unsigned int low);
-extern void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
-				unsigned int high, unsigned int low);
+void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
+			 unsigned int high, unsigned int low);
+void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
+			 unsigned int high, unsigned int low);
 
-extern void stmmac_set_mac(void __iomem *ioaddr, bool enable);
+void stmmac_set_mac(void __iomem *ioaddr, bool enable);
 
-extern void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
+void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
 extern const struct stmmac_ring_mode_ops ring_mode_ops;
 extern const struct stmmac_chain_mode_ops chain_mode_ops;
 

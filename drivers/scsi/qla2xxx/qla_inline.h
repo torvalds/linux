@@ -59,7 +59,7 @@ qla2x00_poll(struct rsp_que *rsp)
 	unsigned long flags;
 	struct qla_hw_data *ha = rsp->hw;
 	local_irq_save(flags);
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		qla82xx_poll(0, rsp);
 	else
 		ha->isp_ops->intr_handler(0, rsp);
@@ -83,7 +83,7 @@ static inline void
 host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 {
 	uint32_t *isrc = (uint32_t *) src;
-	uint32_t *odest = (uint32_t *) dst;
+	__le32 *odest = (__le32 *) dst;
 	uint32_t iter = bsize >> 2;
 
 	for (; iter ; iter--)
@@ -258,25 +258,6 @@ qla2x00_gid_list_size(struct qla_hw_data *ha)
 		return sizeof(uint32_t) * 32;
 	else
 		return sizeof(struct gid_list_info) * ha->max_fibre_devices;
-}
-
-static inline void
-qla2x00_do_host_ramp_up(scsi_qla_host_t *vha)
-{
-	if (vha->hw->cfg_lun_q_depth >= ql2xmaxqdepth)
-		return;
-
-	/* Wait at least HOST_QUEUE_RAMPDOWN_INTERVAL before ramping up */
-	if (time_before(jiffies, (vha->hw->host_last_rampdown_time +
-	    HOST_QUEUE_RAMPDOWN_INTERVAL)))
-		return;
-
-	/* Wait at least HOST_QUEUE_RAMPUP_INTERVAL between each ramp up */
-	if (time_before(jiffies, (vha->hw->host_last_rampup_time +
-	    HOST_QUEUE_RAMPUP_INTERVAL)))
-		return;
-
-	set_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags);
 }
 
 static inline void

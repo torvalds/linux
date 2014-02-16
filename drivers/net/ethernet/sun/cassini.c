@@ -14,9 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * This driver uses the sungem driver (c) David Miller
  * (davem@redhat.com) as its basis.
@@ -808,43 +806,42 @@ static int cas_reset_mii_phy(struct cas *cp)
 	return limit <= 0;
 }
 
-static int cas_saturn_firmware_init(struct cas *cp)
+static void cas_saturn_firmware_init(struct cas *cp)
 {
 	const struct firmware *fw;
 	const char fw_name[] = "sun/cassini.bin";
 	int err;
 
 	if (PHY_NS_DP83065 != cp->phy_id)
-		return 0;
+		return;
 
 	err = request_firmware(&fw, fw_name, &cp->pdev->dev);
 	if (err) {
 		pr_err("Failed to load firmware \"%s\"\n",
 		       fw_name);
-		return err;
+		return;
 	}
 	if (fw->size < 2) {
 		pr_err("bogus length %zu in \"%s\"\n",
 		       fw->size, fw_name);
-		err = -EINVAL;
 		goto out;
 	}
 	cp->fw_load_addr= fw->data[1] << 8 | fw->data[0];
 	cp->fw_size = fw->size - 2;
 	cp->fw_data = vmalloc(cp->fw_size);
-	if (!cp->fw_data) {
-		err = -ENOMEM;
+	if (!cp->fw_data)
 		goto out;
-	}
 	memcpy(cp->fw_data, &fw->data[2], cp->fw_size);
 out:
 	release_firmware(fw);
-	return err;
 }
 
 static void cas_saturn_firmware_load(struct cas *cp)
 {
 	int i;
+
+	if (!cp->fw_data)
+		return;
 
 	cas_phy_powerdown(cp);
 
@@ -3355,7 +3352,7 @@ use_random_mac_addr:
 #if defined(CONFIG_SPARC)
 	addr = of_get_property(cp->of_node, "local-mac-address", NULL);
 	if (addr != NULL) {
-		memcpy(dev_addr, addr, 6);
+		memcpy(dev_addr, addr, ETH_ALEN);
 		goto done;
 	}
 #endif
@@ -5083,8 +5080,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (cas_check_invariants(cp))
 		goto err_out_iounmap;
 	if (cp->cas_flags & CAS_FLAG_SATURN)
-		if (cas_saturn_firmware_init(cp))
-			goto err_out_iounmap;
+		cas_saturn_firmware_init(cp);
 
 	cp->init_block = (struct cas_init_block *)
 		pci_alloc_consistent(pdev, sizeof(struct cas_init_block),
@@ -5170,7 +5166,6 @@ err_out_free_netdev:
 
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return -ENODEV;
 }
 
@@ -5208,7 +5203,6 @@ static void cas_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM

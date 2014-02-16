@@ -57,35 +57,29 @@ static void lovsub_lock_fini(const struct lu_env *env,
 {
 	struct lovsub_lock   *lsl;
 
-	ENTRY;
 	lsl = cl2lovsub_lock(slice);
 	LASSERT(list_empty(&lsl->lss_parents));
 	OBD_SLAB_FREE_PTR(lsl, lovsub_lock_kmem);
-	EXIT;
 }
 
 static void lovsub_parent_lock(const struct lu_env *env, struct lov_lock *lov)
 {
 	struct cl_lock *parent;
 
-	ENTRY;
 	parent = lov->lls_cl.cls_lock;
 	cl_lock_get(parent);
 	lu_ref_add(&parent->cll_reference, "lovsub-parent", current);
 	cl_lock_mutex_get(env, parent);
-	EXIT;
 }
 
 static void lovsub_parent_unlock(const struct lu_env *env, struct lov_lock *lov)
 {
 	struct cl_lock *parent;
 
-	ENTRY;
 	parent = lov->lls_cl.cls_lock;
 	cl_lock_mutex_put(env, lov->lls_cl.cls_lock);
 	lu_ref_del(&parent->cll_reference, "lovsub-parent", current);
 	cl_lock_put(env, parent);
-	EXIT;
 }
 
 /**
@@ -101,7 +95,6 @@ static void lovsub_lock_state(const struct lu_env *env,
 	struct lov_lock_link *scan;
 
 	LASSERT(cl_lock_is_mutexed(slice->cls_lock));
-	ENTRY;
 
 	list_for_each_entry(scan, &sub->lss_parents, lll_list) {
 		struct lov_lock *lov    = scan->lll_super;
@@ -113,7 +106,6 @@ static void lovsub_lock_state(const struct lu_env *env,
 			lovsub_parent_unlock(env, lov);
 		}
 	}
-	EXIT;
 }
 
 /**
@@ -126,8 +118,6 @@ static unsigned long lovsub_lock_weigh(const struct lu_env *env,
 	struct lovsub_lock *lock = cl2lovsub_lock(slice);
 	struct lov_lock    *lov;
 	unsigned long       dumbbell;
-
-	ENTRY;
 
 	LASSERT(cl_lock_is_mutexed(slice->cls_lock));
 
@@ -146,7 +136,7 @@ static unsigned long lovsub_lock_weigh(const struct lu_env *env,
 	} else
 		dumbbell = 0;
 
-	RETURN(dumbbell);
+	return dumbbell;
 }
 
 /**
@@ -162,7 +152,6 @@ static void lovsub_lock_descr_map(const struct cl_lock_descr *in,
 	pgoff_t start;
 	pgoff_t end;
 
-	ENTRY;
 	start = in->cld_start;
 	end   = in->cld_end;
 
@@ -184,7 +173,6 @@ static void lovsub_lock_descr_map(const struct cl_lock_descr *in,
 	}
 	out->cld_start = start;
 	out->cld_end   = end;
-	EXIT;
 }
 
 /**
@@ -241,8 +229,6 @@ static int lovsub_lock_modify(const struct lu_env *env,
 	struct lov_lock      *lov;
 	int result		   = 0;
 
-	ENTRY;
-
 	LASSERT(cl_lock_mode_match(d->cld_mode,
 				   s->cls_lock->cll_descr.cld_mode));
 	list_for_each_entry(scan, &lock->lss_parents, lll_list) {
@@ -254,7 +240,7 @@ static int lovsub_lock_modify(const struct lu_env *env,
 		lovsub_parent_unlock(env, lov);
 		result = result ?: rc;
 	}
-	RETURN(result);
+	return result;
 }
 
 static int lovsub_lock_closure(const struct lu_env *env,
@@ -267,7 +253,6 @@ static int lovsub_lock_closure(const struct lu_env *env,
 	int		   result;
 
 	LASSERT(cl_lock_is_mutexed(slice->cls_lock));
-	ENTRY;
 
 	sub    = cl2lovsub_lock(slice);
 	result = 0;
@@ -278,7 +263,7 @@ static int lovsub_lock_closure(const struct lu_env *env,
 		if (result != 0)
 			break;
 	}
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -290,11 +275,10 @@ static int lovsub_lock_delete_one(const struct lu_env *env,
 {
 	struct cl_lock *parent;
 	int	     result;
-	ENTRY;
 
 	parent = lov->lls_cl.cls_lock;
 	if (parent->cll_error)
-		RETURN(0);
+		return 0;
 
 	result = 0;
 	switch (parent->cll_state) {
@@ -386,7 +370,7 @@ static int lovsub_lock_delete_one(const struct lu_env *env,
 		break;
 	}
 
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -403,7 +387,6 @@ static void lovsub_lock_delete(const struct lu_env *env,
 
 	LASSERT(cl_lock_is_mutexed(child));
 
-	ENTRY;
 	/*
 	 * Destruction of a sub-lock might take multiple iterations, because
 	 * when the last sub-lock of a given top-lock is deleted, top-lock is
@@ -434,7 +417,6 @@ static void lovsub_lock_delete(const struct lu_env *env,
 			}
 	       }
 	} while (restart);
-	EXIT;
 }
 
 static int lovsub_lock_print(const struct lu_env *env, void *cookie,
@@ -471,7 +453,6 @@ int lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
 	struct lovsub_lock *lsk;
 	int result;
 
-	ENTRY;
 	OBD_SLAB_ALLOC_PTR_GFP(lsk, lovsub_lock_kmem, __GFP_IO);
 	if (lsk != NULL) {
 		INIT_LIST_HEAD(&lsk->lss_parents);
@@ -479,7 +460,7 @@ int lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
 		result = 0;
 	} else
 		result = -ENOMEM;
-	RETURN(result);
+	return result;
 }
 
 /** @} lov */

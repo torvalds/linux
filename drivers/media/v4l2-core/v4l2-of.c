@@ -100,6 +100,10 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
 	if (!of_property_read_u32(node, "data-shift", &v))
 		bus->data_shift = v;
 
+	if (!of_property_read_u32(node, "sync-on-green-active", &v))
+		flags |= v ? V4L2_MBUS_VIDEO_SOG_ACTIVE_HIGH :
+			V4L2_MBUS_VIDEO_SOG_ACTIVE_LOW;
+
 	bus->flags = flags;
 
 }
@@ -117,9 +121,11 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
  * the bus as serial CSI-2 and clock-noncontinuous isn't set, we set the
  * V4L2_MBUS_CSI2_CONTINUOUS_CLOCK flag.
  * The caller should hold a reference to @node.
+ *
+ * Return: 0.
  */
-void v4l2_of_parse_endpoint(const struct device_node *node,
-			    struct v4l2_of_endpoint *endpoint)
+int v4l2_of_parse_endpoint(const struct device_node *node,
+			   struct v4l2_of_endpoint *endpoint)
 {
 	struct device_node *port_node = of_get_parent(node);
 
@@ -142,6 +148,8 @@ void v4l2_of_parse_endpoint(const struct device_node *node,
 		v4l2_of_parse_parallel_bus(node, endpoint);
 
 	of_node_put(port_node);
+
+	return 0;
 }
 EXPORT_SYMBOL(v4l2_of_parse_endpoint);
 
@@ -173,12 +181,8 @@ struct device_node *v4l2_of_get_next_endpoint(const struct device_node *parent,
 		if (node)
 			parent = node;
 
-		for_each_child_of_node(parent, node) {
-			if (!of_node_cmp(node->name, "port")) {
-				port = node;
-				break;
-			}
-		}
+		port = of_get_child_by_name(parent, "port");
+
 		if (port) {
 			/* Found a port, get an endpoint. */
 			endpoint = of_get_next_child(port, NULL);
@@ -190,6 +194,7 @@ struct device_node *v4l2_of_get_next_endpoint(const struct device_node *parent,
 		if (!endpoint)
 			pr_err("%s(): no endpoint nodes specified for %s\n",
 			       __func__, parent->full_name);
+		of_node_put(node);
 	} else {
 		port = of_get_parent(prev);
 		if (!port)
@@ -261,6 +266,6 @@ struct device_node *v4l2_of_get_remote_port(const struct device_node *node)
 	np = of_parse_phandle(node, "remote-endpoint", 0);
 	if (!np)
 		return NULL;
-	return of_get_parent(np);
+	return of_get_next_parent(np);
 }
 EXPORT_SYMBOL(v4l2_of_get_remote_port);

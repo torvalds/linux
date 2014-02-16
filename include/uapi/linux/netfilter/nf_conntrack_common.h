@@ -25,6 +25,10 @@ enum ip_conntrack_info {
 	IP_CT_NUMBER = IP_CT_IS_REPLY * 2 - 1
 };
 
+#define NF_CT_STATE_INVALID_BIT			(1 << 0)
+#define NF_CT_STATE_BIT(ctinfo)			(1 << ((ctinfo) % IP_CT_IS_REPLY + 1))
+#define NF_CT_STATE_UNTRACKED_BIT		(1 << (IP_CT_NUMBER + 1))
+
 /* Bitset representing status of connection. */
 enum ip_conntrack_status {
 	/* It's an expected connection: bit 0 set.  This bit never changed */
@@ -99,7 +103,8 @@ enum ip_conntrack_events {
 	IPCT_PROTOINFO,		/* protocol information has changed */
 	IPCT_HELPER,		/* new helper has been set */
 	IPCT_MARK,		/* new mark has been set */
-	IPCT_NATSEQADJ,		/* NAT is doing sequence adjustment */
+	IPCT_SEQADJ,		/* sequence adjustment has changed */
+	IPCT_NATSEQADJ = IPCT_SEQADJ,
 	IPCT_SECMARK,		/* new security mark has been set */
 	IPCT_LABEL,		/* new connlabel has been set */
 };

@@ -408,6 +408,7 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 	}
 
 	ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+	ctlr->cdev = ctlr_dev;
 	fcoe = fcoe_ctlr_priv(ctlr);
 
 	dev_hold(netdev);
@@ -774,7 +775,6 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 	struct fcoe_port *port;
 	struct net_device *realdev;
 	int rc;
-	struct netdev_fcoe_hbainfo fdmi;
 
 	port = lport_priv(lport);
 	fcoe = port->priv;
@@ -788,9 +788,13 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 		return;
 
 	if (realdev->netdev_ops->ndo_fcoe_get_hbainfo) {
-		memset(&fdmi, 0, sizeof(fdmi));
+		struct netdev_fcoe_hbainfo *fdmi;
+		fdmi = kzalloc(sizeof(*fdmi), GFP_KERNEL);
+		if (!fdmi)
+			return;
+
 		rc = realdev->netdev_ops->ndo_fcoe_get_hbainfo(realdev,
-							       &fdmi);
+							       fdmi);
 		if (rc) {
 			printk(KERN_INFO "fcoe: Failed to retrieve FDMI "
 					"information from netdev.\n");
@@ -800,38 +804,39 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 		snprintf(fc_host_serial_number(lport->host),
 			 FC_SERIAL_NUMBER_SIZE,
 			 "%s",
-			 fdmi.serial_number);
+			 fdmi->serial_number);
 		snprintf(fc_host_manufacturer(lport->host),
 			 FC_SERIAL_NUMBER_SIZE,
 			 "%s",
-			 fdmi.manufacturer);
+			 fdmi->manufacturer);
 		snprintf(fc_host_model(lport->host),
 			 FC_SYMBOLIC_NAME_SIZE,
 			 "%s",
-			 fdmi.model);
+			 fdmi->model);
 		snprintf(fc_host_model_description(lport->host),
 			 FC_SYMBOLIC_NAME_SIZE,
 			 "%s",
-			 fdmi.model_description);
+			 fdmi->model_description);
 		snprintf(fc_host_hardware_version(lport->host),
 			 FC_VERSION_STRING_SIZE,
 			 "%s",
-			 fdmi.hardware_version);
+			 fdmi->hardware_version);
 		snprintf(fc_host_driver_version(lport->host),
 			 FC_VERSION_STRING_SIZE,
 			 "%s",
-			 fdmi.driver_version);
+			 fdmi->driver_version);
 		snprintf(fc_host_optionrom_version(lport->host),
 			 FC_VERSION_STRING_SIZE,
 			 "%s",
-			 fdmi.optionrom_version);
+			 fdmi->optionrom_version);
 		snprintf(fc_host_firmware_version(lport->host),
 			 FC_VERSION_STRING_SIZE,
 			 "%s",
-			 fdmi.firmware_version);
+			 fdmi->firmware_version);
 
 		/* Enable FDMI lport states */
 		lport->fdmi_enabled = 1;
+		kfree(fdmi);
 	} else {
 		lport->fdmi_enabled = 0;
 		printk(KERN_INFO "fcoe: No FDMI support.\n");
@@ -1436,22 +1441,28 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	ctlr = fcoe_to_ctlr(fcoe);
 	lport = ctlr->lp;
 	if (unlikely(!lport)) {
-		FCOE_NETDEV_DBG(netdev, "Cannot find hba structure");
+		FCOE_NETDEV_DBG(netdev, "Cannot find hba structure\n");
 		goto err2;
 	}
 	if (!lport->link_up)
 		goto err2;
 
-	FCOE_NETDEV_DBG(netdev, "skb_info: len:%d data_len:%d head:%p "
-			"data:%p tail:%p end:%p sum:%d dev:%s",
+	FCOE_NETDEV_DBG(netdev,
+			"skb_info: len:%d data_len:%d head:%p data:%p tail:%p end:%p sum:%d dev:%s\n",
 			skb->len, skb->data_len, skb->head, skb->data,
 			skb_tail_pointer(skb), skb_end_pointer(skb),
 			skb->csum, skb->dev ? skb->dev->name : "<NULL>");
 
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+
+	if (skb == NULL)
+		return NET_RX_DROP;
+
 	eh = eth_hdr(skb);
 
 	if (is_fip_mode(ctlr) &&
-	    compare_ether_addr(eh->h_source, ctlr->dest_addr)) {
+	    !ether_addr_equal(eh->h_source, ctlr->dest_addr)) {
 		FCOE_NETDEV_DBG(netdev, "wrong source mac address:%pM\n",
 				eh->h_source);
 		goto err;
@@ -1536,13 +1547,13 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 		wake_up_process(fps->thread);
 	spin_unlock(&fps->fcoe_rx_list.lock);
 
-	return 0;
+	return NET_RX_SUCCESS;
 err:
 	per_cpu_ptr(lport->stats, get_cpu())->ErrorFrames++;
 	put_cpu();
 err2:
 	kfree_skb(skb);
-	return -1;
+	return NET_RX_DROP;
 }
 
 /**
@@ -1784,13 +1795,13 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	lport = fr->fr_dev;
 	if (unlikely(!lport)) {
 		if (skb->destructor != fcoe_percpu_flush_done)
-			FCOE_NETDEV_DBG(skb->dev, "NULL lport in skb");
+			FCOE_NETDEV_DBG(skb->dev, "NULL lport in skb\n");
 		kfree_skb(skb);
 		return;
 	}
 
-	FCOE_NETDEV_DBG(skb->dev, "skb_info: len:%d data_len:%d "
-			"head:%p data:%p tail:%p end:%p sum:%d dev:%s",
+	FCOE_NETDEV_DBG(skb->dev,
+			"skb_info: len:%d data_len:%d head:%p data:%p tail:%p end:%p sum:%d dev:%s\n",
 			skb->len, skb->data_len,
 			skb->head, skb->data, skb_tail_pointer(skb),
 			skb_end_pointer(skb), skb->csum,
@@ -1978,7 +1989,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 {
 	struct fcoe_ctlr_device *cdev;
 	struct fc_lport *lport = NULL;
-	struct net_device *netdev = ptr;
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;

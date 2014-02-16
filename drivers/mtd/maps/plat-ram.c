@@ -55,7 +55,7 @@ struct platram_info {
 
 static inline struct platram_info *to_platram_info(struct platform_device *dev)
 {
-	return (struct platram_info *)platform_get_drvdata(dev);
+	return platform_get_drvdata(dev);
 }
 
 /* platram_setrw
@@ -83,8 +83,6 @@ static inline void platram_setrw(struct platram_info *info, int to)
 static int platram_remove(struct platform_device *pdev)
 {
 	struct platram_info *info = to_platram_info(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	dev_dbg(&pdev->dev, "removing device\n");
 
@@ -130,13 +128,13 @@ static int platram_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "probe entered\n");
 
-	if (pdev->dev.platform_data == NULL) {
+	if (dev_get_platdata(&pdev->dev) == NULL) {
 		dev_err(&pdev->dev, "no platform data supplied\n");
 		err = -ENOENT;
 		goto exit_error;
 	}
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
@@ -259,21 +257,7 @@ static struct platform_driver platram_driver = {
 	},
 };
 
-/* module init/exit */
-
-static int __init platram_init(void)
-{
-	printk("Generic platform RAM MTD, (c) 2004 Simtec Electronics\n");
-	return platform_driver_register(&platram_driver);
-}
-
-static void __exit platram_exit(void)
-{
-	platform_driver_unregister(&platram_driver);
-}
-
-module_init(platram_init);
-module_exit(platram_exit);
+module_platform_driver(platram_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");

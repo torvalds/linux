@@ -311,9 +311,9 @@ sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 					      &ihost->phys[phy_index]);
 
 			assigned_phy_mask |= (1 << phy_index);
+			phy_index++;
 		}
 
-		phy_index++;
 	}
 
 	return sci_port_configuration_agent_validate_ports(ihost, port_agent);

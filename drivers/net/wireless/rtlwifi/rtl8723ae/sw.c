@@ -33,6 +33,7 @@
 
 #include "../core.h"
 #include "../pci.h"
+#include "../base.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -220,7 +221,7 @@ static struct rtl_hal_ops rtl8723ae_hal_ops = {
 	.set_bw_mode = rtl8723ae_phy_set_bw_mode,
 	.switch_channel = rtl8723ae_phy_sw_chnl,
 	.dm_watchdog = rtl8723ae_dm_watchdog,
-	.scan_operation_backup = rtl8723ae_phy_scan_operation_backup,
+	.scan_operation_backup = rtl_phy_scan_operation_backup,
 	.set_rf_power_state = rtl8723ae_phy_set_rf_power_state,
 	.led_control = rtl8723ae_led_control,
 	.set_desc = rtl8723ae_set_desc,
@@ -251,7 +252,7 @@ static struct rtl_hal_cfg rtl8723ae_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8723ae_pci",
-	.fw_name = "rtlwifi/rtl8723aefw.bin",
+	.fw_name = "rtlwifi/rtl8723fw.bin",
 	.ops = &rtl8723ae_hal_ops,
 	.mod_params = &rtl8723ae_mod_params,
 	.maps[SYS_ISO_CTRL] = REG_SYS_ISO_CTRL,
@@ -353,8 +354,8 @@ MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
 MODULE_AUTHOR("Larry Finger	<Larry.Finger@lwfinger.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 8723E 802.11n PCI wireless");
-MODULE_FIRMWARE("rtlwifi/rtl8723aefw.bin");
-MODULE_FIRMWARE("rtlwifi/rtl8723aefw_B.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8723fw.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8723fw_B.bin");
 
 module_param_named(swenc, rtl8723ae_mod_params.sw_crypto, bool, 0444);
 module_param_named(debug, rtl8723ae_mod_params.debug, int, 0444);

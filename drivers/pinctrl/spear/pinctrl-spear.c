@@ -367,21 +367,16 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 	if (!machdata)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx) {
 		dev_err(&pdev->dev, "Can't alloc spear_pmx\n");
 		return -ENOMEM;
 	}
 
-	pmx->vbase = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!pmx->vbase) {
-		dev_err(&pdev->dev, "Couldn't ioremap at index 0\n");
-		return -ENODEV;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pmx->vbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pmx->vbase))
+		return PTR_ERR(pmx->vbase);
 
 	pmx->dev = &pdev->dev;
 	pmx->machdata = machdata;

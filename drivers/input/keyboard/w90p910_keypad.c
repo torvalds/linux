@@ -11,7 +11,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/device.h>
@@ -121,7 +120,7 @@ static void w90p910_keypad_close(struct input_dev *dev)
 static int w90p910_keypad_probe(struct platform_device *pdev)
 {
 	const struct w90p910_keypad_platform_data *pdata =
-						pdev->dev.platform_data;
+						dev_get_platdata(&pdev->dev);
 	const struct matrix_keymap_data *keymap_data;
 	struct w90p910_keypad *keypad;
 	struct input_dev *input_dev;
@@ -221,7 +220,7 @@ static int w90p910_keypad_probe(struct platform_device *pdev)
 	return 0;
 
 failed_free_irq:
-	free_irq(irq, pdev);
+	free_irq(irq, keypad);
 failed_put_clk:
 	clk_put(keypad->clk);
 failed_free_io:
@@ -239,7 +238,7 @@ static int w90p910_keypad_remove(struct platform_device *pdev)
 	struct w90p910_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	free_irq(keypad->irq, pdev);
+	free_irq(keypad->irq, keypad);
 
 	clk_put(keypad->clk);
 
@@ -249,7 +248,6 @@ static int w90p910_keypad_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(keypad);
 
 	return 0;

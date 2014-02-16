@@ -256,7 +256,7 @@ static inline void __smp_reschedule_interrupt(void)
 	scheduler_ipi();
 }
 
-void smp_reschedule_interrupt(struct pt_regs *regs)
+__visible void smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
 	__smp_reschedule_interrupt();
@@ -265,21 +265,28 @@ void smp_reschedule_interrupt(struct pt_regs *regs)
 	 */
 }
 
-void smp_trace_reschedule_interrupt(struct pt_regs *regs)
-{
-	ack_APIC_irq();
-	trace_reschedule_entry(RESCHEDULE_VECTOR);
-	__smp_reschedule_interrupt();
-	trace_reschedule_exit(RESCHEDULE_VECTOR);
-	/*
-	 * KVM uses this interrupt to force a cpu out of guest mode
-	 */
-}
-
-static inline void call_function_entering_irq(void)
+static inline void smp_entering_irq(void)
 {
 	ack_APIC_irq();
 	irq_enter();
+}
+
+__visible void smp_trace_reschedule_interrupt(struct pt_regs *regs)
+{
+	/*
+	 * Need to call irq_enter() before calling the trace point.
+	 * __smp_reschedule_interrupt() calls irq_enter/exit() too (in
+	 * scheduler_ipi(). This is OK, since those functions are allowed
+	 * to nest.
+	 */
+	smp_entering_irq();
+	trace_reschedule_entry(RESCHEDULE_VECTOR);
+	__smp_reschedule_interrupt();
+	trace_reschedule_exit(RESCHEDULE_VECTOR);
+	exiting_irq();
+	/*
+	 * KVM uses this interrupt to force a cpu out of guest mode
+	 */
 }
 
 static inline void __smp_call_function_interrupt(void)
@@ -288,16 +295,16 @@ static inline void __smp_call_function_interrupt(void)
 	inc_irq_stat(irq_call_count);
 }
 
-void smp_call_function_interrupt(struct pt_regs *regs)
+__visible void smp_call_function_interrupt(struct pt_regs *regs)
 {
-	call_function_entering_irq();
+	smp_entering_irq();
 	__smp_call_function_interrupt();
 	exiting_irq();
 }
 
-void smp_trace_call_function_interrupt(struct pt_regs *regs)
+__visible void smp_trace_call_function_interrupt(struct pt_regs *regs)
 {
-	call_function_entering_irq();
+	smp_entering_irq();
 	trace_call_function_entry(CALL_FUNCTION_VECTOR);
 	__smp_call_function_interrupt();
 	trace_call_function_exit(CALL_FUNCTION_VECTOR);
@@ -310,16 +317,16 @@ static inline void __smp_call_function_single_interrupt(void)
 	inc_irq_stat(irq_call_count);
 }
 
-void smp_call_function_single_interrupt(struct pt_regs *regs)
+__visible void smp_call_function_single_interrupt(struct pt_regs *regs)
 {
-	call_function_entering_irq();
+	smp_entering_irq();
 	__smp_call_function_single_interrupt();
 	exiting_irq();
 }
 
-void smp_trace_call_function_single_interrupt(struct pt_regs *regs)
+__visible void smp_trace_call_function_single_interrupt(struct pt_regs *regs)
 {
-	call_function_entering_irq();
+	smp_entering_irq();
 	trace_call_function_single_entry(CALL_FUNCTION_SINGLE_VECTOR);
 	__smp_call_function_single_interrupt();
 	trace_call_function_single_exit(CALL_FUNCTION_SINGLE_VECTOR);

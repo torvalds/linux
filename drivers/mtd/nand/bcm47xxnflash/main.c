@@ -29,11 +29,9 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 	struct bcm47xxnflash *b47n;
 	int err = 0;
 
-	b47n = kzalloc(sizeof(*b47n), GFP_KERNEL);
-	if (!b47n) {
-		err = -ENOMEM;
-		goto out;
-	}
+	b47n = devm_kzalloc(&pdev->dev, sizeof(*b47n), GFP_KERNEL);
+	if (!b47n)
+		return -ENOMEM;
 
 	b47n->nand_chip.priv = b47n;
 	b47n->mtd.owner = THIS_MODULE;
@@ -48,22 +46,16 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 	}
 	if (err) {
 		pr_err("Initialization failed: %d\n", err);
-		goto err_init;
+		return err;
 	}
 
 	err = mtd_device_parse_register(&b47n->mtd, probes, NULL, NULL, 0);
 	if (err) {
 		pr_err("Failed to register MTD device: %d\n", err);
-		goto err_dev_reg;
+		return err;
 	}
 
 	return 0;
-
-err_dev_reg:
-err_init:
-	kfree(b47n);
-out:
-	return err;
 }
 
 static int bcm47xxnflash_remove(struct platform_device *pdev)
@@ -85,22 +77,4 @@ static struct platform_driver bcm47xxnflash_driver = {
 	},
 };
 
-static int __init bcm47xxnflash_init(void)
-{
-	int err;
-
-	err = platform_driver_register(&bcm47xxnflash_driver);
-	if (err)
-		pr_err("Failed to register bcm47xx nand flash driver: %d\n",
-		       err);
-
-	return err;
-}
-
-static void __exit bcm47xxnflash_exit(void)
-{
-	platform_driver_unregister(&bcm47xxnflash_driver);
-}
-
-module_init(bcm47xxnflash_init);
-module_exit(bcm47xxnflash_exit);
+module_platform_driver(bcm47xxnflash_driver);

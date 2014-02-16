@@ -196,8 +196,8 @@ nv17_fifo_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nv17_fifo_oclass = {
+struct nouveau_oclass *
+nv17_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0x17),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv17_fifo_ctor,

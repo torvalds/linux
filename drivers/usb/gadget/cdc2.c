@@ -113,12 +113,6 @@ static int __init cdc_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	fi_ecm = usb_get_function_instance("ecm");
-	if (IS_ERR(fi_ecm)) {
-		status = PTR_ERR(fi_ecm);
-		goto err_func_ecm;
-	}
-
 	f_ecm = usb_get_function(fi_ecm);
 	if (IS_ERR(f_ecm)) {
 		status = PTR_ERR(f_ecm);
@@ -129,35 +123,24 @@ static int __init cdc_do_config(struct usb_configuration *c)
 	if (status)
 		goto err_add_ecm;
 
-	fi_serial = usb_get_function_instance("acm");
-	if (IS_ERR(fi_serial)) {
-		status = PTR_ERR(fi_serial);
-		goto err_get_acm;
-	}
-
 	f_acm = usb_get_function(fi_serial);
 	if (IS_ERR(f_acm)) {
 		status = PTR_ERR(f_acm);
-		goto err_func_acm;
+		goto err_get_acm;
 	}
 
 	status = usb_add_function(c, f_acm);
 	if (status)
 		goto err_add_acm;
-
 	return 0;
 
 err_add_acm:
 	usb_put_function(f_acm);
-err_func_acm:
-	usb_put_function_instance(fi_serial);
 err_get_acm:
 	usb_remove_function(c, f_ecm);
 err_add_ecm:
 	usb_put_function(f_ecm);
 err_get_ecm:
-	usb_put_function_instance(fi_ecm);
-err_func_ecm:
 	return status;
 }
 

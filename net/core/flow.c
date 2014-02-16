@@ -403,7 +403,7 @@ void flow_cache_flush_deferred(void)
 	schedule_work(&flow_cache_flush_work);
 }
 
-static int __cpuinit flow_cache_cpu_prepare(struct flow_cache *fc, int cpu)
+static int flow_cache_cpu_prepare(struct flow_cache *fc, int cpu)
 {
 	struct flow_cache_percpu *fcp = per_cpu_ptr(fc->percpu, cpu);
 	size_t sz = sizeof(struct hlist_head) * flow_cache_hash_size(fc);
@@ -421,7 +421,7 @@ static int __cpuinit flow_cache_cpu_prepare(struct flow_cache *fc, int cpu)
 	return 0;
 }
 
-static int __cpuinit flow_cache_cpu(struct notifier_block *nfb,
+static int flow_cache_cpu(struct notifier_block *nfb,
 			  unsigned long action,
 			  void *hcpu)
 {

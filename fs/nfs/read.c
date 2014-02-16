@@ -163,9 +163,9 @@ static void nfs_readpage_release(struct nfs_page *req)
 
 	unlock_page(req->wb_page);
 
-	dprintk("NFS: read done (%s/%Ld %d@%Ld)\n",
+	dprintk("NFS: read done (%s/%Lu %d@%Ld)\n",
 			req->wb_context->dentry->d_inode->i_sb->s_id,
-			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
+			(unsigned long long)NFS_FILEID(req->wb_context->dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
 	nfs_release_request(req);
@@ -228,11 +228,11 @@ int nfs_initiate_read(struct rpc_clnt *clnt,
 	/* Set up the initial task struct. */
 	NFS_PROTO(inode)->read_setup(data, &msg);
 
-	dprintk("NFS: %5u initiated read call (req %s/%lld, %u bytes @ "
+	dprintk("NFS: %5u initiated read call (req %s/%llu, %u bytes @ "
 			"offset %llu)\n",
 			data->task.tk_pid,
 			inode->i_sb->s_id,
-			(long long)NFS_FILEID(inode),
+			(unsigned long long)NFS_FILEID(inode),
 			data->args.count,
 			(unsigned long long)data->args.offset);
 
@@ -513,9 +513,10 @@ static void nfs_readpage_release_common(void *calldata)
 void nfs_read_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
-	NFS_PROTO(data->header->inode)->read_rpc_prepare(task, data);
-	if (unlikely(test_bit(NFS_CONTEXT_BAD, &data->args.context->flags)))
-		rpc_exit(task, -EIO);
+	int err;
+	err = NFS_PROTO(data->header->inode)->read_rpc_prepare(task, data);
+	if (err)
+		rpc_exit(task, err);
 }
 
 static const struct rpc_call_ops nfs_read_common_ops = {
@@ -629,9 +630,9 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	unsigned long npages;
 	int ret = -ESTALE;
 
-	dprintk("NFS: nfs_readpages (%s/%Ld %d)\n",
+	dprintk("NFS: nfs_readpages (%s/%Lu %d)\n",
 			inode->i_sb->s_id,
-			(long long)NFS_FILEID(inode),
+			(unsigned long long)NFS_FILEID(inode),
 			nr_pages);
 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGES);
 

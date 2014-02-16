@@ -4,7 +4,7 @@
 #ifndef __ARCH_ARM_MACH_MSM_BOARD_TROUT_H
 #define __ARCH_ARM_MACH_MSM_BOARD_TROUT_H
 
-#include <mach/board.h>
+#include "common.h"
 
 #define MSM_SMI_BASE		0x00000000
 #define MSM_SMI_SIZE		0x00800000

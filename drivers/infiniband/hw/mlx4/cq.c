@@ -324,7 +324,7 @@ static int mlx4_ib_get_outstanding_cqes(struct mlx4_ib_cq *cq)
 	u32 i;
 
 	i = cq->mcq.cons_index;
-	while (get_sw_cqe(cq, i & cq->ibcq.cqe))
+	while (get_sw_cqe(cq, i))
 		++i;
 
 	return i - cq->mcq.cons_index;
@@ -365,7 +365,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	mutex_lock(&cq->resize_mutex);
 
-	if (entries < 1 || entries > dev->dev->caps.max_cqes) {
+	if (entries < 1) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -373,6 +373,11 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	entries = roundup_pow_of_two(entries + 1);
 	if (entries == ibcq->cqe + 1) {
 		err = 0;
+		goto out;
+	}
+
+	if (entries > dev->dev->caps.max_cqes) {
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -793,6 +798,15 @@ repoll:
 			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 13;
 		else
 			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 12;
+		if (be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_VLAN_PRESENT_MASK) {
+			wc->vlan_id = be16_to_cpu(cqe->sl_vid) &
+				MLX4_CQE_VID_MASK;
+		} else {
+			wc->vlan_id = 0xffff;
+		}
+		wc->wc_flags |= IB_WC_WITH_VLAN;
+		memcpy(wc->smac, cqe->smac, ETH_ALEN);
+		wc->wc_flags |= IB_WC_WITH_SMAC;
 	}
 
 	return 0;

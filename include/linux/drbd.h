@@ -177,7 +177,11 @@ enum drbd_ret_code {
 	ERR_NEED_APV_100	= 163,
 	ERR_NEED_ALLOW_TWO_PRI  = 164,
 	ERR_MD_UNCLEAN          = 165,
-
+	ERR_MD_LAYOUT_CONNECTED = 166,
+	ERR_MD_LAYOUT_TOO_BIG   = 167,
+	ERR_MD_LAYOUT_TOO_SMALL = 168,
+	ERR_MD_LAYOUT_NO_FIT    = 169,
+	ERR_IMPLICIT_SHRINK     = 170,
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE
 };

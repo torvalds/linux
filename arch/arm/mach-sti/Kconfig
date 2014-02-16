@@ -11,8 +11,9 @@ menuconfig ARCH_STI
 	select HAVE_SMP
 	select HAVE_ARM_SCU if SMP
 	select ARCH_REQUIRE_GPIOLIB
-	select ARM_ERRATA_720789
 	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_775420
 	select PL310_ERRATA_753970 if CACHE_PL310
 	select PL310_ERRATA_769419 if CACHE_PL310
 	help
@@ -29,7 +30,7 @@ config SOC_STIH415
 	default y
 	help
 	  This enables support for STMicroelectronics Digital Consumer
-	  Electronics family StiH415 parts, primarily targetted at set-top-box
+	  Electronics family StiH415 parts, primarily targeted at set-top-box
 	  and other digital audio/video applications using Flattned Device
 	  Trees.
 
@@ -38,7 +39,7 @@ config SOC_STIH416
 	default y
 	help
 	  This enables support for STMicroelectronics Digital Consumer
-	  Electronics family StiH416 parts, primarily targetted at set-top-box
+	  Electronics family StiH416 parts, primarily targeted at set-top-box
 	  and other digital audio/video applications using Flattened Device
 	  Trees.
 

@@ -135,7 +135,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 	u32 usecs;
 	int i;
 
-	for (i=0; i < MAX_THR_RATES; i++)
+	for (i = 0; i < MAX_THR_RATES; i++)
 	    tmp_tp_rate[i] = 0;
 
 	for (i = 0; i < mi->n_rates; i++) {
@@ -190,7 +190,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		 * choose the maximum throughput rate as max_prob_rate
 		 * (2) if all success probabilities < 95%, the rate with
 		 * highest success probability is choosen as max_prob_rate */
-		if (mr->probability >= MINSTREL_FRAC(95,100)) {
+		if (mr->probability >= MINSTREL_FRAC(95, 100)) {
 			if (mr->cur_tp >= mi->r[tmp_prob_rate].cur_tp)
 				tmp_prob_rate = i;
 		} else {
@@ -203,6 +203,15 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 	memcpy(mi->max_tp_rate, tmp_tp_rate, sizeof(mi->max_tp_rate));
 	mi->max_prob_rate = tmp_prob_rate;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* use fixed index if set */
+	if (mp->fixed_rate_idx != -1) {
+		mi->max_tp_rate[0] = mp->fixed_rate_idx;
+		mi->max_tp_rate[1] = mp->fixed_rate_idx;
+		mi->max_prob_rate = mp->fixed_rate_idx;
+	}
+#endif
+
 	/* Reset update timer */
 	mi->stats_update = jiffies;
 
@@ -211,7 +220,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 
 static void
 minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
-                   struct ieee80211_sta *sta, void *priv_sta,
+		   struct ieee80211_sta *sta, void *priv_sta,
 		   struct sk_buff *skb)
 {
 	struct minstrel_priv *mp = priv;
@@ -251,7 +260,7 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 static inline unsigned int
 minstrel_get_retry_count(struct minstrel_rate *mr,
-                         struct ieee80211_tx_info *info)
+			 struct ieee80211_tx_info *info)
 {
 	unsigned int retry = mr->adjusted_retry_count;
 
@@ -290,7 +299,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 	struct minstrel_rate *msr, *mr;
 	unsigned int ndx;
 	bool mrr_capable;
-	bool prev_sample = mi->prev_sample;
+	bool prev_sample;
 	int delta;
 	int sampling_ratio;
 
@@ -310,10 +319,16 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 	/* increase sum packet counter */
 	mi->packet_count++;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (mp->fixed_rate_idx != -1)
+		return;
+#endif
+
 	delta = (mi->packet_count * sampling_ratio / 100) -
 			(mi->sample_count + mi->sample_deferred / 2);
 
 	/* delta < 0: no sampling required */
+	prev_sample = mi->prev_sample;
 	mi->prev_sample = false;
 	if (delta < 0 || (!mrr_capable && prev_sample))
 		return;
@@ -382,14 +397,18 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 static void
 calc_rate_durations(enum ieee80211_band band,
 		    struct minstrel_rate *d,
-		    struct ieee80211_rate *rate)
+		    struct ieee80211_rate *rate,
+		    struct cfg80211_chan_def *chandef)
 {
 	int erp = !!(rate->flags & IEEE80211_RATE_ERP_G);
+	int shift = ieee80211_chandef_get_shift(chandef);
 
 	d->perfect_tx_time = ieee80211_frame_duration(band, 1200,
-			rate->bitrate, erp, 1);
+			DIV_ROUND_UP(rate->bitrate, 1 << shift), erp, 1,
+			shift);
 	d->ack_time = ieee80211_frame_duration(band, 10,
-			rate->bitrate, erp, 1);
+			DIV_ROUND_UP(rate->bitrate, 1 << shift), erp, 1,
+			shift);
 }
 
 static void
@@ -403,10 +422,9 @@ init_sample_table(struct minstrel_sta_info *mi)
 	memset(mi->sample_table, 0xff, SAMPLE_COLUMNS * mi->n_rates);
 
 	for (col = 0; col < SAMPLE_COLUMNS; col++) {
+		prandom_bytes(rnd, sizeof(rnd));
 		for (i = 0; i < mi->n_rates; i++) {
-			get_random_bytes(rnd, sizeof(rnd));
 			new_idx = (i + rnd[i & 7]) % mi->n_rates;
-
 			while (SAMPLE_TBL(mi, new_idx, col) != 0xff)
 				new_idx = (new_idx + 1) % mi->n_rates;
 
@@ -417,21 +435,25 @@ init_sample_table(struct minstrel_sta_info *mi)
 
 static void
 minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
-               struct ieee80211_sta *sta, void *priv_sta)
+		   struct cfg80211_chan_def *chandef,
+		   struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct minstrel_sta_info *mi = priv_sta;
 	struct minstrel_priv *mp = priv;
 	struct ieee80211_rate *ctl_rate;
 	unsigned int i, n = 0;
 	unsigned int t_slot = 9; /* FIXME: get real slot time */
+	u32 rate_flags;
 
 	mi->sta = sta;
 	mi->lowest_rix = rate_lowest_index(sband, sta);
 	ctl_rate = &sband->bitrates[mi->lowest_rix];
 	mi->sp_ack_dur = ieee80211_frame_duration(sband->band, 10,
 				ctl_rate->bitrate,
-				!!(ctl_rate->flags & IEEE80211_RATE_ERP_G), 1);
+				!!(ctl_rate->flags & IEEE80211_RATE_ERP_G), 1,
+				ieee80211_chandef_get_shift(chandef));
 
+	rate_flags = ieee80211_chandef_rate_flags(&mp->hw->conf.chandef);
 	memset(mi->max_tp_rate, 0, sizeof(mi->max_tp_rate));
 	mi->max_prob_rate = 0;
 
@@ -440,15 +462,22 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 		unsigned int tx_time = 0, tx_time_cts = 0, tx_time_rtscts = 0;
 		unsigned int tx_time_single;
 		unsigned int cw = mp->cw_min;
+		int shift;
 
 		if (!rate_supported(sta, sband->band, i))
 			continue;
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+
 		n++;
 		memset(mr, 0, sizeof(*mr));
 
 		mr->rix = i;
-		mr->bitrate = sband->bitrates[i].bitrate / 5;
-		calc_rate_durations(sband->band, mr, &sband->bitrates[i]);
+		shift = ieee80211_chandef_get_shift(chandef);
+		mr->bitrate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
+					   (1 << shift) * 5);
+		calc_rate_durations(sband->band, mr, &sband->bitrates[i],
+				    chandef);
 
 		/* calculate maximum number of retransmissions before
 		 * fallback (based on maximum segment size) */
@@ -546,6 +575,7 @@ minstrel_init_cck_rates(struct minstrel_priv *mp)
 {
 	static const int bitrates[4] = { 10, 20, 55, 110 };
 	struct ieee80211_supported_band *sband;
+	u32 rate_flags = ieee80211_chandef_rate_flags(&mp->hw->conf.chandef);
 	int i, j;
 
 	sband = mp->hw->wiphy->bands[IEEE80211_BAND_2GHZ];
@@ -556,6 +586,9 @@ minstrel_init_cck_rates(struct minstrel_priv *mp)
 		struct ieee80211_rate *rate = &sband->bitrates[i];
 
 		if (rate->flags & IEEE80211_RATE_ERP_G)
+			continue;
+
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
 			continue;
 
 		for (j = 0; j < ARRAY_SIZE(bitrates); j++) {

@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
 #include "iwl-io.h"
@@ -83,11 +82,11 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 	else if (ieee80211_is_back_req(fc))
 		tx_flags |= TX_CMD_FLG_ACK_MSK | TX_CMD_FLG_IMM_BA_RSP_MASK;
 	else if (info->band == IEEE80211_BAND_2GHZ &&
-		 priv->cfg->bt_params &&
-		 priv->cfg->bt_params->advanced_bt_coexist &&
+		 priv->lib->bt_params &&
+		 priv->lib->bt_params->advanced_bt_coexist &&
 		 (ieee80211_is_auth(fc) || ieee80211_is_assoc_req(fc) ||
 		 ieee80211_is_reassoc_req(fc) ||
-		 skb->protocol == cpu_to_be16(ETH_P_PAE)))
+		 info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		tx_flags |= TX_CMD_FLG_IGNORE_BT;
 
 
@@ -162,18 +161,6 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	if (ieee80211_is_data(fc)) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-		if (priv->tm_fixed_rate) {
-			/*
-			 * rate overwrite by testmode
-			 * we not only send lq command to change rate
-			 * we also re-enforce per data pkt base.
-			 */
-			tx_cmd->tx_flags &= ~TX_CMD_FLG_STA_RATE_MSK;
-			memcpy(&tx_cmd->rate_n_flags, &priv->tm_fixed_rate,
-			       sizeof(tx_cmd->rate_n_flags));
-		}
-#endif
 		return;
 	} else if (ieee80211_is_back_req(fc))
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
@@ -202,8 +189,8 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 		rate_flags |= RATE_MCS_CCK_MSK;
 
 	/* Set up antennas */
-	 if (priv->cfg->bt_params &&
-	     priv->cfg->bt_params->advanced_bt_coexist &&
+	 if (priv->lib->bt_params &&
+	     priv->lib->bt_params->advanced_bt_coexist &&
 	     priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
@@ -380,6 +367,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		goto drop_unlock_priv;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
+	dev_cmd->hdr.cmd = REPLY_TX;
 	tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 
 	/* Total # bytes to be transmitted */
@@ -445,27 +433,19 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
 
+	txq_id = info->hw_queue;
+
 	if (is_agg)
 		txq_id = priv->tid_data[sta_id][tid].agg.txq_id;
 	else if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
-		/*
-		 * Send this frame after DTIM -- there's a special queue
-		 * reserved for this for contexts that support AP mode.
-		 */
-		txq_id = ctx->mcast_queue;
-
 		/*
 		 * The microcode will clear the more data
 		 * bit in the last frame it transmits.
 		 */
 		hdr->frame_control |=
 			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	} else if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
-		txq_id = IWL_AUX_QUEUE;
-	else
-		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
+	}
 
-	WARN_ON_ONCE(!is_agg && txq_id != info->hw_queue);
 	WARN_ON_ONCE(is_agg &&
 		     priv->queue_to_mac80211[txq_id] != info->hw_queue);
 
@@ -489,9 +469,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	 */
 	if (sta_priv && sta_priv->client && !is_agg)
 		atomic_inc(&sta_priv->pending_frames);
-
-	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
-		iwl_scan_offchannel_skb(priv);
 
 	return 0;
 
@@ -986,8 +963,8 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 	 * notification again.
 	 */
 	if (tx_resp->bt_kill_count && tx_resp->frame_count == 1 &&
-	    priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	    priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist) {
 		IWL_DEBUG_COEX(priv, "receive reply tx w/ bt_kill\n");
 	}
 
@@ -1170,7 +1147,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 	struct sk_buff *skb;
 	struct iwl_rxon_context *ctx;
 	bool is_agg = (txq_id >= IWLAGN_FIRST_AMPDU_QUEUE);
-	bool is_offchannel_skb;
 
 	tid = (tx_resp->ra_tid & IWLAGN_TX_RES_TID_MSK) >>
 		IWLAGN_TX_RES_TID_POS;
@@ -1189,8 +1165,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 	}
 
 	__skb_queue_head_init(&skbs);
-
-	is_offchannel_skb = false;
 
 	if (tx_resp->frame_count == 1) {
 		u16 next_reclaimed = le16_to_cpu(tx_resp->seq_ctl);
@@ -1268,8 +1242,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			if (!is_agg)
 				iwlagn_non_agg_tx_status(priv, ctx, hdr->addr1);
 
-			is_offchannel_skb =
-				(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN);
 			freed++;
 		}
 
@@ -1282,14 +1254,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 
 		if (!is_agg && freed != 1)
 			IWL_ERR(priv, "Q: %d, freed %d\n", txq_id, freed);
-
-		/*
-		 * An offchannel frame can be send only on the AUX queue, where
-		 * there is no aggregation (and reordering) so it only is single
-		 * skb is expected to be processed.
-		 */
-		if (is_offchannel_skb && freed != 1)
-			IWL_ERR(priv, "OFFCHANNEL SKB freed %d\n", freed);
 
 		IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x)\n", txq_id,
 				   iwl_get_tx_fail_reason(status), status);
@@ -1309,9 +1273,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 		skb = __skb_dequeue(&skbs);
 		ieee80211_tx_status_ni(priv->hw, skb);
 	}
-
-	if (is_offchannel_skb)
-		iwl_scan_offchannel_skb_status(priv);
 
 	return 0;
 }

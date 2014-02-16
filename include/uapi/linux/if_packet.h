@@ -26,8 +26,10 @@ struct sockaddr_ll {
 #define PACKET_MULTICAST	2		/* To group		*/
 #define PACKET_OTHERHOST	3		/* To someone else 	*/
 #define PACKET_OUTGOING		4		/* Outgoing of any type */
-/* These ones are invisible by user level */
 #define PACKET_LOOPBACK		5		/* MC/BRD frame looped back */
+#define PACKET_USER		6		/* To user space	*/
+#define PACKET_KERNEL		7		/* To kernel space	*/
+/* Unused, PACKET_FASTROUTE and PACKET_LOOPBACK are invisible to user space */
 #define PACKET_FASTROUTE	6		/* Fastrouted frame	*/
 
 /* Packet socket options */
@@ -51,11 +53,14 @@ struct sockaddr_ll {
 #define PACKET_TIMESTAMP		17
 #define PACKET_FANOUT			18
 #define PACKET_TX_HAS_OFF		19
+#define PACKET_QDISC_BYPASS		20
 
 #define PACKET_FANOUT_HASH		0
 #define PACKET_FANOUT_LB		1
 #define PACKET_FANOUT_CPU		2
 #define PACKET_FANOUT_ROLLOVER		3
+#define PACKET_FANOUT_RND		4
+#define PACKET_FANOUT_QM		5
 #define PACKET_FANOUT_FLAG_ROLLOVER	0x1000
 #define PACKET_FANOUT_FLAG_DEFRAG	0x8000
 
@@ -82,17 +87,18 @@ struct tpacket_auxdata {
 	__u16		tp_mac;
 	__u16		tp_net;
 	__u16		tp_vlan_tci;
-	__u16		tp_padding;
+	__u16		tp_vlan_tpid;
 };
 
 /* Rx ring - header status */
-#define TP_STATUS_KERNEL	      0
-#define TP_STATUS_USER		(1 << 0)
-#define TP_STATUS_COPY		(1 << 1)
-#define TP_STATUS_LOSING	(1 << 2)
-#define TP_STATUS_CSUMNOTREADY	(1 << 3)
-#define TP_STATUS_VLAN_VALID	(1 << 4) /* auxdata has valid tp_vlan_tci */
-#define TP_STATUS_BLK_TMO	(1 << 5)
+#define TP_STATUS_KERNEL		      0
+#define TP_STATUS_USER			(1 << 0)
+#define TP_STATUS_COPY			(1 << 1)
+#define TP_STATUS_LOSING		(1 << 2)
+#define TP_STATUS_CSUMNOTREADY		(1 << 3)
+#define TP_STATUS_VLAN_VALID		(1 << 4) /* auxdata has valid tp_vlan_tci */
+#define TP_STATUS_BLK_TMO		(1 << 5)
+#define TP_STATUS_VLAN_TPID_VALID	(1 << 6) /* auxdata has valid tp_vlan_tpid */
 
 /* Tx ring - header status */
 #define TP_STATUS_AVAILABLE	      0
@@ -131,12 +137,15 @@ struct tpacket2_hdr {
 	__u32		tp_sec;
 	__u32		tp_nsec;
 	__u16		tp_vlan_tci;
-	__u16		tp_padding;
+	__u16		tp_vlan_tpid;
+	__u8		tp_padding[4];
 };
 
 struct tpacket_hdr_variant1 {
 	__u32	tp_rxhash;
 	__u32	tp_vlan_tci;
+	__u16	tp_vlan_tpid;
+	__u16	tp_padding;
 };
 
 struct tpacket3_hdr {
@@ -152,6 +161,7 @@ struct tpacket3_hdr {
 	union {
 		struct tpacket_hdr_variant1 hv1;
 	};
+	__u8		tp_padding[8];
 };
 
 struct tpacket_bd_ts {

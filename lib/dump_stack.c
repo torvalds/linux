@@ -23,7 +23,7 @@ static void __dump_stack(void)
 #ifdef CONFIG_SMP
 static atomic_t dump_lock = ATOMIC_INIT(-1);
 
-void dump_stack(void)
+asmlinkage void dump_stack(void)
 {
 	int was_locked;
 	int old;
@@ -55,7 +55,7 @@ retry:
 	preempt_enable();
 }
 #else
-void dump_stack(void)
+asmlinkage void dump_stack(void)
 {
 	__dump_stack();
 }

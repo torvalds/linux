@@ -67,6 +67,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include "xhci.h"
+#include "xhci-trace.h"
 
 static int handle_cmd_in_cmd_wait_list(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
@@ -122,6 +123,16 @@ static int enqueue_is_link_trb(struct xhci_ring *ring)
 	return TRB_TYPE_LINK_LE32(link->control);
 }
 
+union xhci_trb *xhci_find_next_enqueue(struct xhci_ring *ring)
+{
+	/* Enqueue pointer can be left pointing to the link TRB,
+	 * we must handle that
+	 */
+	if (TRB_TYPE_LINK_LE32(ring->enqueue->link.control))
+		return ring->enq_seg->next->trbs;
+	return ring->enqueue;
+}
+
 /* Updates trb to point to the next TRB in the ring, and updates seg if the next
  * TRB is in a new segment.  This does not skip over link TRBs, and it does not
  * effect the ring dequeue or enqueue pointers.
@@ -145,8 +156,6 @@ static void next_trb(struct xhci_hcd *xhci,
  */
 static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
-	unsigned long long addr;
-
 	ring->deq_updates++;
 
 	/*
@@ -167,7 +176,7 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 			if (ring->type == TYPE_EVENT &&
 					last_trb_on_last_seg(xhci, ring,
 						ring->deq_seg, ring->dequeue)) {
-				ring->cycle_state = (ring->cycle_state ? 0 : 1);
+				ring->cycle_state ^= 1;
 			}
 			ring->deq_seg = ring->deq_seg->next;
 			ring->dequeue = ring->deq_seg->trbs;
@@ -175,8 +184,6 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 			ring->dequeue++;
 		}
 	} while (last_trb(xhci, ring, ring->deq_seg, ring->dequeue));
-
-	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->deq_seg, ring->dequeue);
 }
 
 /*
@@ -201,7 +208,6 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 {
 	u32 chain;
 	union xhci_trb *next;
-	unsigned long long addr;
 
 	chain = le32_to_cpu(ring->enqueue->generic.field[3]) & TRB_CHAIN;
 	/* If this is not event ring, there is one less usable TRB */
@@ -253,7 +259,6 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		ring->enqueue = ring->enq_seg->trbs;
 		next = ring->enqueue;
 	}
-	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->enq_seg, ring->enqueue);
 }
 
 /*
@@ -284,9 +289,9 @@ void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 		return;
 
 	xhci_dbg(xhci, "// Ding dong!\n");
-	xhci_writel(xhci, DB_VALUE_HOST, &xhci->dba->doorbell[0]);
+	writel(DB_VALUE_HOST, &xhci->dba->doorbell[0]);
 	/* Flush PCI posted writes */
-	xhci_readl(xhci, &xhci->dba->doorbell[0]);
+	readl(&xhci->dba->doorbell[0]);
 }
 
 static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
@@ -416,7 +421,7 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 	if ((ep_state & EP_HALT_PENDING) || (ep_state & SET_DEQ_PENDING) ||
 	    (ep_state & EP_HALTED))
 		return;
-	xhci_writel(xhci, DB_VALUE(ep_index, stream_id), db_addr);
+	writel(DB_VALUE(ep_index, stream_id), db_addr);
 	/* The CPU has better things to do at this point than wait for a
 	 * write-posting flush.  It'll get there soon enough.
 	 */
@@ -434,7 +439,7 @@ static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
 
 	/* A ring has pending URBs if its TD list is not empty */
 	if (!(ep->ep_state & EP_HAS_STREAMS)) {
-		if (!(list_empty(&ep->ring->td_list)))
+		if (ep->ring && !(list_empty(&ep->ring->td_list)))
 			xhci_ring_ep_doorbell(xhci, slot_id, ep_index, 0);
 		return;
 	}
@@ -555,7 +560,8 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		return;
 	}
 	state->new_cycle_state = 0;
-	xhci_dbg(xhci, "Finding segment containing stopped TRB.\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Finding segment containing stopped TRB.");
 	state->new_deq_seg = find_trb_seg(cur_td->start_seg,
 			dev->eps[ep_index].stopped_trb,
 			&state->new_cycle_state);
@@ -565,12 +571,14 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 	}
 
 	/* Dig out the cycle state saved by the xHC during the stop ep cmd */
-	xhci_dbg(xhci, "Finding endpoint context\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Finding endpoint context");
 	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
 	state->new_cycle_state = 0x1 & le64_to_cpu(ep_ctx->deq);
 
 	state->new_deq_ptr = cur_td->last_trb;
-	xhci_dbg(xhci, "Finding segment containing last TRB in TD.\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Finding segment containing last TRB in TD.");
 	state->new_deq_seg = find_trb_seg(state->new_deq_seg,
 			state->new_deq_ptr,
 			&state->new_cycle_state);
@@ -597,13 +605,16 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 	if (ep_ring->first_seg == ep_ring->first_seg->next &&
 			state->new_deq_ptr < dev->eps[ep_index].stopped_trb)
 		state->new_cycle_state ^= 0x1;
-	xhci_dbg(xhci, "Cycle state = 0x%x\n", state->new_cycle_state);
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Cycle state = 0x%x", state->new_cycle_state);
 
 	/* Don't update the ring cycle state for the producer (us). */
-	xhci_dbg(xhci, "New dequeue segment = %p (virtual)\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"New dequeue segment = %p (virtual)",
 			state->new_deq_seg);
 	addr = xhci_trb_virt_to_dma(state->new_deq_seg, state->new_deq_ptr);
-	xhci_dbg(xhci, "New dequeue pointer = 0x%llx (DMA)\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"New dequeue pointer = 0x%llx (DMA)",
 			(unsigned long long) addr);
 }
 
@@ -631,9 +642,11 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			if (flip_cycle)
 				cur_trb->generic.field[3] ^=
 					cpu_to_le32(TRB_CYCLE);
-			xhci_dbg(xhci, "Cancel (unchain) link TRB\n");
-			xhci_dbg(xhci, "Address = %p (0x%llx dma); "
-					"in seg %p (0x%llx dma)\n",
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Cancel (unchain) link TRB");
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Address = %p (0x%llx dma); "
+					"in seg %p (0x%llx dma)",
 					cur_trb,
 					(unsigned long long)xhci_trb_virt_to_dma(cur_seg, cur_trb),
 					cur_seg,
@@ -651,7 +664,8 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 					cpu_to_le32(TRB_CYCLE);
 			cur_trb->generic.field[3] |= cpu_to_le32(
 				TRB_TYPE(TRB_TR_NOOP));
-			xhci_dbg(xhci, "TRB to noop at offset 0x%llx\n",
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"TRB to noop at offset 0x%llx",
 					(unsigned long long)
 					xhci_trb_virt_to_dma(cur_seg, cur_trb));
 		}
@@ -672,8 +686,9 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 {
 	struct xhci_virt_ep *ep = &xhci->devs[slot_id]->eps[ep_index];
 
-	xhci_dbg(xhci, "Set TR Deq Ptr cmd, new deq seg = %p (0x%llx dma), "
-			"new deq ptr = %p (0x%llx dma), new cycle = %u\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Set TR Deq Ptr cmd, new deq seg = %p (0x%llx dma), "
+			"new deq ptr = %p (0x%llx dma), new cycle = %u",
 			deq_state->new_deq_seg,
 			(unsigned long long)deq_state->new_deq_seg->dma,
 			deq_state->new_deq_ptr,
@@ -705,7 +720,7 @@ static void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
 
 /* Must be called with xhci->lock held in interrupt context */
 static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
-		struct xhci_td *cur_td, int status, char *adjective)
+		struct xhci_td *cur_td, int status)
 {
 	struct usb_hcd *hcd;
 	struct urb	*urb;
@@ -744,10 +759,9 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
  *  2. Otherwise, we turn all the TRBs in the TD into No-op TRBs (with the chain
  *     bit cleared) so that the HW will skip over them.
  */
-static void handle_stopped_endpoint(struct xhci_hcd *xhci,
+static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 		union xhci_trb *trb, struct xhci_event_cmd *event)
 {
-	unsigned int slot_id;
 	unsigned int ep_index;
 	struct xhci_virt_device *virt_dev;
 	struct xhci_ring *ep_ring;
@@ -758,10 +772,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 
 	struct xhci_dequeue_state deq_state;
 
-	if (unlikely(TRB_TO_SUSPEND_PORT(
-			     le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])))) {
-		slot_id = TRB_TO_SLOT_ID(
-			le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3]));
+	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
 		virt_dev = xhci->devs[slot_id];
 		if (virt_dev)
 			handle_cmd_in_cmd_wait_list(xhci, virt_dev,
@@ -774,7 +785,6 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	}
 
 	memset(&deq_state, 0, sizeof(deq_state));
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(trb->generic.field[3]));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	ep = &xhci->devs[slot_id]->eps[ep_index];
 
@@ -793,7 +803,8 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	 */
 	list_for_each(entry, &ep->cancelled_td_list) {
 		cur_td = list_entry(entry, struct xhci_td, cancelled_td_list);
-		xhci_dbg(xhci, "Removing canceled TD starting at 0x%llx (dma).\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Removing canceled TD starting at 0x%llx (dma).",
 				(unsigned long long)xhci_trb_virt_to_dma(
 					cur_td->start_seg, cur_td->first_trb));
 		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
@@ -847,8 +858,12 @@ remove_finished_td:
 		/* Otherwise ring the doorbell(s) to restart queued transfers */
 		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 	}
-	ep->stopped_td = NULL;
-	ep->stopped_trb = NULL;
+
+	/* Clear stopped_td and stopped_trb if endpoint is not halted */
+	if (!(ep->ep_state & EP_HALTED)) {
+		ep->stopped_td = NULL;
+		ep->stopped_trb = NULL;
+	}
 
 	/*
 	 * Drop the lock and complete the URBs in the cancelled TD list.
@@ -865,7 +880,7 @@ remove_finished_td:
 		/* Doesn't matter what we pass for status, since the core will
 		 * just overwrite it (because the URB has been unlinked).
 		 */
-		xhci_giveback_urb_in_irq(xhci, cur_td, 0, "cancelled");
+		xhci_giveback_urb_in_irq(xhci, cur_td, 0);
 
 		/* Stop processing the cancelled list if the watchdog timer is
 		 * running.
@@ -913,14 +928,16 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 
 	ep->stop_cmds_pending--;
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
-		xhci_dbg(xhci, "Stop EP timer ran, but another timer marked "
-				"xHCI as DYING, exiting.\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Stop EP timer ran, but another timer marked "
+				"xHCI as DYING, exiting.");
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
 	if (!(ep->stop_cmds_pending == 0 && (ep->ep_state & EP_HALT_PENDING))) {
-		xhci_dbg(xhci, "Stop EP timer ran, but no command pending, "
-				"exiting.\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Stop EP timer ran, but no command pending, "
+				"exiting.");
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
@@ -962,8 +979,9 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 			ring = temp_ep->ring;
 			if (!ring)
 				continue;
-			xhci_dbg(xhci, "Killing URBs for slot ID %u, "
-					"ep index %u\n", i, j);
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Killing URBs for slot ID %u, "
+					"ep index %u", i, j);
 			while (!list_empty(&ring->td_list)) {
 				cur_td = list_first_entry(&ring->td_list,
 						struct xhci_td,
@@ -972,7 +990,7 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 				if (!list_empty(&cur_td->cancelled_td_list))
 					list_del_init(&cur_td->cancelled_td_list);
 				xhci_giveback_urb_in_irq(xhci, cur_td,
-						-ESHUTDOWN, "killed");
+						-ESHUTDOWN);
 			}
 			while (!list_empty(&temp_ep->cancelled_td_list)) {
 				cur_td = list_first_entry(
@@ -981,14 +999,16 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 						cancelled_td_list);
 				list_del_init(&cur_td->cancelled_td_list);
 				xhci_giveback_urb_in_irq(xhci, cur_td,
-						-ESHUTDOWN, "killed");
+						-ESHUTDOWN);
 			}
 		}
 	}
 	spin_unlock_irqrestore(&xhci->lock, flags);
-	xhci_dbg(xhci, "Calling usb_hc_died()\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Calling usb_hc_died()");
 	usb_hc_died(xhci_to_hcd(xhci)->primary_hcd);
-	xhci_dbg(xhci, "xHCI host controller is dead.\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"xHCI host controller is dead.");
 }
 
 
@@ -1046,11 +1066,9 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
  * endpoint doorbell to restart the ring, but only if there aren't more
  * cancellations pending.
  */
-static void handle_set_deq_completion(struct xhci_hcd *xhci,
-		struct xhci_event_cmd *event,
-		union xhci_trb *trb)
+static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
+		union xhci_trb *trb, u32 cmd_comp_code)
 {
-	unsigned int slot_id;
 	unsigned int ep_index;
 	unsigned int stream_id;
 	struct xhci_ring *ep_ring;
@@ -1058,7 +1076,6 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_slot_ctx *slot_ctx;
 
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(trb->generic.field[3]));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	stream_id = TRB_TO_STREAM_ID(le32_to_cpu(trb->generic.field[2]));
 	dev = xhci->devs[slot_id];
@@ -1076,11 +1093,11 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
 	slot_ctx = xhci_get_slot_ctx(xhci, dev->out_ctx);
 
-	if (GET_COMP_CODE(le32_to_cpu(event->status)) != COMP_SUCCESS) {
+	if (cmd_comp_code != COMP_SUCCESS) {
 		unsigned int ep_state;
 		unsigned int slot_state;
 
-		switch (GET_COMP_CODE(le32_to_cpu(event->status))) {
+		switch (cmd_comp_code) {
 		case COMP_TRB_ERR:
 			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd invalid because "
 					"of stream ID configuration\n");
@@ -1092,7 +1109,8 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 			ep_state &= EP_STATE_MASK;
 			slot_state = le32_to_cpu(slot_ctx->dev_state);
 			slot_state = GET_SLOT_STATE(slot_state);
-			xhci_dbg(xhci, "Slot state = %u, EP state = %u\n",
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Slot state = %u, EP state = %u",
 					slot_state, ep_state);
 			break;
 		case COMP_EBADSLT:
@@ -1102,7 +1120,7 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 		default:
 			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd with unknown "
 					"completion code of %u.\n",
-				  GET_COMP_CODE(le32_to_cpu(event->status)));
+				  cmd_comp_code);
 			break;
 		}
 		/* OK what do we do now?  The endpoint state is hosed, and we
@@ -1112,7 +1130,8 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 		 * cancelling URBs, which might not be an error...
 		 */
 	} else {
-		xhci_dbg(xhci, "Successful Set TR Deq Ptr cmd, deq = @%08llx\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Successful Set TR Deq Ptr cmd, deq = @%08llx",
 			 le64_to_cpu(ep_ctx->deq));
 		if (xhci_trb_virt_to_dma(dev->eps[ep_index].queued_deq_seg,
 					 dev->eps[ep_index].queued_deq_ptr) ==
@@ -1138,27 +1157,25 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 	ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
-static void handle_reset_ep_completion(struct xhci_hcd *xhci,
-		struct xhci_event_cmd *event,
-		union xhci_trb *trb)
+static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
+		union xhci_trb *trb, u32 cmd_comp_code)
 {
-	int slot_id;
 	unsigned int ep_index;
 
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(trb->generic.field[3]));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	/* This command will only fail if the endpoint wasn't halted,
 	 * but we don't care.
 	 */
-	xhci_dbg(xhci, "Ignoring reset ep completion code of %u\n",
-		 GET_COMP_CODE(le32_to_cpu(event->status)));
+	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
+		"Ignoring reset ep completion code of %u", cmd_comp_code);
 
 	/* HW with the reset endpoint quirk needs to have a configure endpoint
 	 * command complete before the endpoint can be used.  Queue that here
 	 * because the HW can't handle two commands being queued in a row.
 	 */
 	if (xhci->quirks & XHCI_RESET_EP_QUIRK) {
-		xhci_dbg(xhci, "Queueing configure endpoint command\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Queueing configure endpoint command");
 		xhci_queue_configure_endpoint(xhci,
 				xhci->devs[slot_id]->in_ctx->dma, slot_id,
 				false);
@@ -1351,21 +1368,149 @@ static int handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 	return cur_trb_is_good;
 }
 
+static void xhci_handle_cmd_enable_slot(struct xhci_hcd *xhci, int slot_id,
+		u32 cmd_comp_code)
+{
+	if (cmd_comp_code == COMP_SUCCESS)
+		xhci->slot_id = slot_id;
+	else
+		xhci->slot_id = 0;
+	complete(&xhci->addr_dev);
+}
+
+static void xhci_handle_cmd_disable_slot(struct xhci_hcd *xhci, int slot_id)
+{
+	struct xhci_virt_device *virt_dev;
+
+	virt_dev = xhci->devs[slot_id];
+	if (!virt_dev)
+		return;
+	if (xhci->quirks & XHCI_EP_LIMIT_QUIRK)
+		/* Delete default control endpoint resources */
+		xhci_free_device_endpoint_resources(xhci, virt_dev, true);
+	xhci_free_virt_device(xhci, slot_id);
+}
+
+static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
+		struct xhci_event_cmd *event, u32 cmd_comp_code)
+{
+	struct xhci_virt_device *virt_dev;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	unsigned int ep_index;
+	unsigned int ep_state;
+	u32 add_flags, drop_flags;
+
+	virt_dev = xhci->devs[slot_id];
+	if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
+		return;
+	/*
+	 * Configure endpoint commands can come from the USB core
+	 * configuration or alt setting changes, or because the HW
+	 * needed an extra configure endpoint command after a reset
+	 * endpoint command or streams were being configured.
+	 * If the command was for a halted endpoint, the xHCI driver
+	 * is not waiting on the configure endpoint command.
+	 */
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
+	if (!ctrl_ctx) {
+		xhci_warn(xhci, "Could not get input context, bad type.\n");
+		return;
+	}
+
+	add_flags = le32_to_cpu(ctrl_ctx->add_flags);
+	drop_flags = le32_to_cpu(ctrl_ctx->drop_flags);
+	/* Input ctx add_flags are the endpoint index plus one */
+	ep_index = xhci_last_valid_endpoint(add_flags) - 1;
+
+	/* A usb_set_interface() call directly after clearing a halted
+	 * condition may race on this quirky hardware.  Not worth
+	 * worrying about, since this is prototype hardware.  Not sure
+	 * if this will work for streams, but streams support was
+	 * untested on this prototype.
+	 */
+	if (xhci->quirks & XHCI_RESET_EP_QUIRK &&
+			ep_index != (unsigned int) -1 &&
+			add_flags - SLOT_FLAG == drop_flags) {
+		ep_state = virt_dev->eps[ep_index].ep_state;
+		if (!(ep_state & EP_HALTED))
+			goto bandwidth_change;
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Completed config ep cmd - "
+				"last ep index = %d, state = %d",
+				ep_index, ep_state);
+		/* Clear internal halted state and restart ring(s) */
+		virt_dev->eps[ep_index].ep_state &= ~EP_HALTED;
+		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
+		return;
+	}
+bandwidth_change:
+	xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
+			"Completed config ep cmd");
+	virt_dev->cmd_status = cmd_comp_code;
+	complete(&virt_dev->cmd_completion);
+	return;
+}
+
+static void xhci_handle_cmd_eval_ctx(struct xhci_hcd *xhci, int slot_id,
+		struct xhci_event_cmd *event, u32 cmd_comp_code)
+{
+	struct xhci_virt_device *virt_dev;
+
+	virt_dev = xhci->devs[slot_id];
+	if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
+		return;
+	virt_dev->cmd_status = cmd_comp_code;
+	complete(&virt_dev->cmd_completion);
+}
+
+static void xhci_handle_cmd_addr_dev(struct xhci_hcd *xhci, int slot_id,
+		u32 cmd_comp_code)
+{
+	xhci->devs[slot_id]->cmd_status = cmd_comp_code;
+	complete(&xhci->addr_dev);
+}
+
+static void xhci_handle_cmd_reset_dev(struct xhci_hcd *xhci, int slot_id,
+		struct xhci_event_cmd *event)
+{
+	struct xhci_virt_device *virt_dev;
+
+	xhci_dbg(xhci, "Completed reset device command.\n");
+	virt_dev = xhci->devs[slot_id];
+	if (virt_dev)
+		handle_cmd_in_cmd_wait_list(xhci, virt_dev, event);
+	else
+		xhci_warn(xhci, "Reset device command completion "
+				"for disabled slot %u\n", slot_id);
+}
+
+static void xhci_handle_cmd_nec_get_fw(struct xhci_hcd *xhci,
+		struct xhci_event_cmd *event)
+{
+	if (!(xhci->quirks & XHCI_NEC_HOST)) {
+		xhci->error_bitmask |= 1 << 6;
+		return;
+	}
+	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+			"NEC firmware version %2x.%02x",
+			NEC_FW_MAJOR(le32_to_cpu(event->status)),
+			NEC_FW_MINOR(le32_to_cpu(event->status)));
+}
+
 static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
 	int slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
-	struct xhci_input_control_ctx *ctrl_ctx;
-	struct xhci_virt_device *virt_dev;
-	unsigned int ep_index;
-	struct xhci_ring *ep_ring;
-	unsigned int ep_state;
+	u32 cmd_comp_code;
+	union xhci_trb *cmd_trb;
+	u32 cmd_type;
 
 	cmd_dma = le64_to_cpu(event->cmd_trb);
+	cmd_trb = xhci->cmd_ring->dequeue;
 	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
-			xhci->cmd_ring->dequeue);
+			cmd_trb);
 	/* Is the command ring deq ptr out of sync with the deq seg ptr? */
 	if (cmd_dequeue_dma == 0) {
 		xhci->error_bitmask |= 1 << 4;
@@ -1377,129 +1522,69 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		return;
 	}
 
-	if ((GET_COMP_CODE(le32_to_cpu(event->status)) == COMP_CMD_ABORT) ||
-		(GET_COMP_CODE(le32_to_cpu(event->status)) == COMP_CMD_STOP)) {
+	trace_xhci_cmd_completion(cmd_trb, (struct xhci_generic_trb *) event);
+
+	cmd_comp_code = GET_COMP_CODE(le32_to_cpu(event->status));
+	if (cmd_comp_code == COMP_CMD_ABORT || cmd_comp_code == COMP_CMD_STOP) {
 		/* If the return value is 0, we think the trb pointed by
 		 * command ring dequeue pointer is a good trb. The good
 		 * trb means we don't want to cancel the trb, but it have
 		 * been stopped by host. So we should handle it normally.
 		 * Otherwise, driver should invoke inc_deq() and return.
 		 */
-		if (handle_stopped_cmd_ring(xhci,
-				GET_COMP_CODE(le32_to_cpu(event->status)))) {
+		if (handle_stopped_cmd_ring(xhci, cmd_comp_code)) {
 			inc_deq(xhci, xhci->cmd_ring);
 			return;
 		}
+		/* There is no command to handle if we get a stop event when the
+		 * command ring is empty, event->cmd_trb points to the next
+		 * unset command
+		 */
+		if (xhci->cmd_ring->dequeue == xhci->cmd_ring->enqueue)
+			return;
 	}
 
-	switch (le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])
-		& TRB_TYPE_BITMASK) {
-	case TRB_TYPE(TRB_ENABLE_SLOT):
-		if (GET_COMP_CODE(le32_to_cpu(event->status)) == COMP_SUCCESS)
-			xhci->slot_id = slot_id;
-		else
-			xhci->slot_id = 0;
-		complete(&xhci->addr_dev);
+	cmd_type = TRB_FIELD_TO_TYPE(le32_to_cpu(cmd_trb->generic.field[3]));
+	switch (cmd_type) {
+	case TRB_ENABLE_SLOT:
+		xhci_handle_cmd_enable_slot(xhci, slot_id, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_DISABLE_SLOT):
-		if (xhci->devs[slot_id]) {
-			if (xhci->quirks & XHCI_EP_LIMIT_QUIRK)
-				/* Delete default control endpoint resources */
-				xhci_free_device_endpoint_resources(xhci,
-						xhci->devs[slot_id], true);
-			xhci_free_virt_device(xhci, slot_id);
-		}
+	case TRB_DISABLE_SLOT:
+		xhci_handle_cmd_disable_slot(xhci, slot_id);
 		break;
-	case TRB_TYPE(TRB_CONFIG_EP):
-		virt_dev = xhci->devs[slot_id];
-		if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
-			break;
-		/*
-		 * Configure endpoint commands can come from the USB core
-		 * configuration or alt setting changes, or because the HW
-		 * needed an extra configure endpoint command after a reset
-		 * endpoint command or streams were being configured.
-		 * If the command was for a halted endpoint, the xHCI driver
-		 * is not waiting on the configure endpoint command.
-		 */
-		ctrl_ctx = xhci_get_input_control_ctx(xhci,
-				virt_dev->in_ctx);
-		if (!ctrl_ctx) {
-			xhci_warn(xhci, "Could not get input context, bad type.\n");
-			break;
-		}
-		/* Input ctx add_flags are the endpoint index plus one */
-		ep_index = xhci_last_valid_endpoint(le32_to_cpu(ctrl_ctx->add_flags)) - 1;
-		/* A usb_set_interface() call directly after clearing a halted
-		 * condition may race on this quirky hardware.  Not worth
-		 * worrying about, since this is prototype hardware.  Not sure
-		 * if this will work for streams, but streams support was
-		 * untested on this prototype.
-		 */
-		if (xhci->quirks & XHCI_RESET_EP_QUIRK &&
-				ep_index != (unsigned int) -1 &&
-		    le32_to_cpu(ctrl_ctx->add_flags) - SLOT_FLAG ==
-		    le32_to_cpu(ctrl_ctx->drop_flags)) {
-			ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
-			ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
-			if (!(ep_state & EP_HALTED))
-				goto bandwidth_change;
-			xhci_dbg(xhci, "Completed config ep cmd - "
-					"last ep index = %d, state = %d\n",
-					ep_index, ep_state);
-			/* Clear internal halted state and restart ring(s) */
-			xhci->devs[slot_id]->eps[ep_index].ep_state &=
-				~EP_HALTED;
-			ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
-			break;
-		}
-bandwidth_change:
-		xhci_dbg(xhci, "Completed config ep cmd\n");
-		xhci->devs[slot_id]->cmd_status =
-			GET_COMP_CODE(le32_to_cpu(event->status));
-		complete(&xhci->devs[slot_id]->cmd_completion);
+	case TRB_CONFIG_EP:
+		xhci_handle_cmd_config_ep(xhci, slot_id, event, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_EVAL_CONTEXT):
-		virt_dev = xhci->devs[slot_id];
-		if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
-			break;
-		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(le32_to_cpu(event->status));
-		complete(&xhci->devs[slot_id]->cmd_completion);
+	case TRB_EVAL_CONTEXT:
+		xhci_handle_cmd_eval_ctx(xhci, slot_id, event, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_ADDR_DEV):
-		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(le32_to_cpu(event->status));
-		complete(&xhci->addr_dev);
+	case TRB_ADDR_DEV:
+		xhci_handle_cmd_addr_dev(xhci, slot_id, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_STOP_RING):
-		handle_stopped_endpoint(xhci, xhci->cmd_ring->dequeue, event);
+	case TRB_STOP_RING:
+		WARN_ON(slot_id != TRB_TO_SLOT_ID(
+				le32_to_cpu(cmd_trb->generic.field[3])));
+		xhci_handle_cmd_stop_ep(xhci, slot_id, cmd_trb, event);
 		break;
-	case TRB_TYPE(TRB_SET_DEQ):
-		handle_set_deq_completion(xhci, event, xhci->cmd_ring->dequeue);
+	case TRB_SET_DEQ:
+		WARN_ON(slot_id != TRB_TO_SLOT_ID(
+				le32_to_cpu(cmd_trb->generic.field[3])));
+		xhci_handle_cmd_set_deq(xhci, slot_id, cmd_trb, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_CMD_NOOP):
+	case TRB_CMD_NOOP:
 		break;
-	case TRB_TYPE(TRB_RESET_EP):
-		handle_reset_ep_completion(xhci, event, xhci->cmd_ring->dequeue);
+	case TRB_RESET_EP:
+		WARN_ON(slot_id != TRB_TO_SLOT_ID(
+				le32_to_cpu(cmd_trb->generic.field[3])));
+		xhci_handle_cmd_reset_ep(xhci, slot_id, cmd_trb, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_RESET_DEV):
-		xhci_dbg(xhci, "Completed reset device command.\n");
-		slot_id = TRB_TO_SLOT_ID(
-			le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3]));
-		virt_dev = xhci->devs[slot_id];
-		if (virt_dev)
-			handle_cmd_in_cmd_wait_list(xhci, virt_dev, event);
-		else
-			xhci_warn(xhci, "Reset device command completion "
-					"for disabled slot %u\n", slot_id);
+	case TRB_RESET_DEV:
+		WARN_ON(slot_id != TRB_TO_SLOT_ID(
+				le32_to_cpu(cmd_trb->generic.field[3])));
+		xhci_handle_cmd_reset_dev(xhci, slot_id, event);
 		break;
-	case TRB_TYPE(TRB_NEC_GET_FW):
-		if (!(xhci->quirks & XHCI_NEC_HOST)) {
-			xhci->error_bitmask |= 1 << 6;
-			break;
-		}
-		xhci_dbg(xhci, "NEC firmware version %2x.%02x\n",
-			 NEC_FW_MAJOR(le32_to_cpu(event->status)),
-			 NEC_FW_MINOR(le32_to_cpu(event->status)));
+	case TRB_NEC_GET_FW:
+		xhci_handle_cmd_nec_get_fw(xhci, event);
 		break;
 	default:
 		/* Skip over unknown commands on the event ring */
@@ -1564,7 +1649,7 @@ static void handle_device_notification(struct xhci_hcd *xhci,
 	u32 slot_id;
 	struct usb_device *udev;
 
-	slot_id = TRB_TO_SLOT_ID(event->generic.field[3]);
+	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->generic.field[3]));
 	if (!xhci->devs[slot_id]) {
 		xhci_warn(xhci, "Device Notification event for "
 				"unused slot %u\n", slot_id);
@@ -1648,7 +1733,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	faked_port_index = find_faked_portnum_from_hw_portnum(hcd, xhci,
 			port_id);
 
-	temp = xhci_readl(xhci, port_array[faked_port_index]);
+	temp = readl(port_array[faked_port_index]);
 	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
 		usb_hcd_resume_root_hub(hcd);
@@ -1657,7 +1742,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_RESUME) {
 		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
 
-		temp1 = xhci_readl(xhci, &xhci->op_regs->command);
+		temp1 = readl(&xhci->op_regs->command);
 		if (!(temp1 & CMD_RUN)) {
 			xhci_warn(xhci, "xHC is not running.\n");
 			goto cleanup;
@@ -1714,6 +1799,19 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			bogus_port_status = true;
 			goto cleanup;
 		}
+	}
+
+	/*
+	 * Check to see if xhci-hub.c is waiting on RExit to U0 transition (or
+	 * RExit to a disconnect state).  If so, let the the driver know it's
+	 * out of the RExit state.
+	 */
+	if (!DEV_SUPERSPEED(temp) &&
+			test_and_clear_bit(faked_port_index,
+				&bus_state->rexit_ports)) {
+		complete(&bus_state->rexit_done[faked_port_index]);
+		bogus_port_status = true;
+		goto cleanup;
 	}
 
 	if (hcd->speed != HCD_USB3)
@@ -2727,7 +2825,7 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 
 	spin_lock(&xhci->lock);
 	/* Check if the xHC generated the interrupt, or the irq is shared */
-	status = xhci_readl(xhci, &xhci->op_regs->status);
+	status = readl(&xhci->op_regs->status);
 	if (status == 0xffffffff)
 		goto hw_died;
 
@@ -2749,16 +2847,16 @@ hw_died:
 	 * Write 1 to clear the interrupt status.
 	 */
 	status |= STS_EINT;
-	xhci_writel(xhci, status, &xhci->op_regs->status);
+	writel(status, &xhci->op_regs->status);
 	/* FIXME when MSI-X is supported and there are multiple vectors */
 	/* Clear the MSI-X event interrupt status */
 
 	if (hcd->irq) {
 		u32 irq_pending;
 		/* Acknowledge the PCI interrupt */
-		irq_pending = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+		irq_pending = readl(&xhci->ir_set->irq_pending);
 		irq_pending |= IMAN_IP;
-		xhci_writel(xhci, irq_pending, &xhci->ir_set->irq_pending);
+		writel(irq_pending, &xhci->ir_set->irq_pending);
 	}
 
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
@@ -2877,8 +2975,8 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			return -ENOMEM;
 		}
 
-		xhci_dbg(xhci, "ERROR no room on ep ring, "
-					"try ring expansion\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_ring_expansion,
+				"ERROR no room on ep ring, try ring expansion");
 		num_trbs_needed = num_trbs - ep_ring->num_trbs_free;
 		if (xhci_ring_expansion(xhci, ep_ring, num_trbs_needed,
 					mem_flags)) {
@@ -3060,14 +3158,10 @@ int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * to set the polling interval (once the API is added).
 	 */
 	if (xhci_interval != ep_interval) {
-		if (printk_ratelimit())
-			dev_dbg(&urb->dev->dev, "Driver uses different interval"
-					" (%d microframe%s) than xHCI "
-					"(%d microframe%s)\n",
-					ep_interval,
-					ep_interval == 1 ? "" : "s",
-					xhci_interval,
-					xhci_interval == 1 ? "" : "s");
+		dev_dbg_ratelimited(&urb->dev->dev,
+				"Driver uses different interval (%d microframe%s) than xHCI (%d microframe%s)\n",
+				ep_interval, ep_interval == 1 ? "" : "s",
+				xhci_interval, xhci_interval == 1 ? "" : "s");
 		urb->interval = xhci_interval;
 		/* Convert back to frames for LS/FS devices */
 		if (urb->dev->speed == USB_SPEED_LOW ||
@@ -3831,7 +3925,7 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (ret)
 		return ret;
 
-	start_frame = xhci_readl(xhci, &xhci->run_regs->microframe_index);
+	start_frame = readl(&xhci->run_regs->microframe_index);
 	start_frame &= 0x3fff;
 
 	urb->start_frame = start_frame;
@@ -3849,14 +3943,10 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * to set the polling interval (once the API is added).
 	 */
 	if (xhci_interval != ep_interval) {
-		if (printk_ratelimit())
-			dev_dbg(&urb->dev->dev, "Driver uses different interval"
-					" (%d microframe%s) than xHCI "
-					"(%d microframe%s)\n",
-					ep_interval,
-					ep_interval == 1 ? "" : "s",
-					xhci_interval,
-					xhci_interval == 1 ? "" : "s");
+		dev_dbg_ratelimited(&urb->dev->dev,
+				"Driver uses different interval (%d microframe%s) than xHCI (%d microframe%s)\n",
+				ep_interval, ep_interval == 1 ? "" : "s",
+				xhci_interval, xhci_interval == 1 ? "" : "s");
 		urb->interval = xhci_interval;
 		/* Convert back to frames for LS/FS devices */
 		if (urb->dev->speed == USB_SPEED_LOW ||
@@ -3910,12 +4000,12 @@ int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
 
 /* Queue an address device command TRB */
 int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id)
+			      u32 slot_id, enum xhci_setup_dev setup)
 {
 	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
-			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id),
-			false);
+			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id)
+			| (setup == SETUP_CONTEXT_ONLY ? TRB_BSR : 0), false);
 }
 
 int xhci_queue_vendor_command(struct xhci_hcd *xhci,

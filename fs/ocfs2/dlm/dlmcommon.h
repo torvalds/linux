@@ -1079,11 +1079,9 @@ static inline int dlm_lock_compatible(int existing, int request)
 static inline int dlm_lock_on_list(struct list_head *head,
 				   struct dlm_lock *lock)
 {
-	struct list_head *iter;
 	struct dlm_lock *tmplock;
 
-	list_for_each(iter, head) {
-		tmplock = list_entry(iter, struct dlm_lock, list);
+	list_for_each_entry(tmplock, head, list) {
 		if (tmplock == lock)
 			return 1;
 	}

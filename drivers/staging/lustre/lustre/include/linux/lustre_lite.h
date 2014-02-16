@@ -40,8 +40,6 @@
 #endif
 
 
-#include <linux/version.h>
-
 #include <asm/statfs.h>
 
 #include <linux/fs.h>
@@ -90,6 +88,7 @@ enum {
 	 LPROC_LL_ALLOC_INODE,
 	 LPROC_LL_SETXATTR,
 	 LPROC_LL_GETXATTR,
+	 LPROC_LL_GETXATTR_HITS,
 	 LPROC_LL_LISTXATTR,
 	 LPROC_LL_REMOVEXATTR,
 	 LPROC_LL_INODE_PERM,

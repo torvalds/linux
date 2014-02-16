@@ -637,14 +637,13 @@ S: 14509 NE 39th Street #1096
 S: Bellevue, Washington 98007
 S: USA
 
-N: Christopher L. Cheney
-E: ccheney@debian.org
-E: ccheney@cheney.cx
-W: http://www.cheney.cx
+N: Chris Cheney
+E: chris.cheney@gmail.com
+E: ccheney@redhat.com
 P: 1024D/8E384AF2 2D31 1927 87D7 1F24 9FF9  1BC5 D106 5AB3 8E38 4AF2
 D: Vista Imaging usb webcam driver
-S: 314 Prince of Wales
-S: Conroe, TX 77304
+S: 2308 Therrell Way
+S: McKinney, TX 75070
 S: USA
 
 N: Stuart Cheshire
@@ -655,6 +654,11 @@ S: William Gates Department
 S: Stanford University
 S: Stanford, California 94305
 S: USA
+
+N: Carlos Chinea
+E: carlos.chinea@nokia.com
+E: cch.devel@gmail.com
+D: Author of HSI Subsystem
 
 N: Randolph Chung
 E: tausq@debian.org
@@ -819,8 +823,8 @@ S: D-69231 Rauenberg
 S: Germany
 
 N: Jean Delvare
-E: khali@linux-fr.org
-W: http://khali.linux-fr.org/
+E: jdelvare@suse.de
+W: http://jdelvare.nerim.net/
 D: Several hardware monitoring drivers
 S: France
 
@@ -1120,6 +1124,7 @@ D: author of userfs filesystem
 D: Improved mmap and munmap handling
 D: General mm minor tidyups
 D: autofs v4 maintainer
+D: Xen subsystem
 S: 987 Alabama St
 S: San Francisco
 S: CA, 94110
@@ -2576,7 +2581,7 @@ S: Toronto, Ontario
 S: Canada
 
 N: Zwane Mwaikambo
-E: zwane@arm.linux.org.uk
+E: zwanem@gmail.com
 D: Various driver hacking
 D: Lowlevel x86 kernel hacking
 D: General debugging
@@ -2808,8 +2813,7 @@ S: Ottawa, Ontario
 S: Canada K2P 0X8
 
 N: Mikael Pettersson
-E: mikpe@it.uu.se
-W: http://user.it.uu.se/~mikpe/linux/
+E: mikpelinux@gmail.com
 D: Miscellaneous fixes
 
 N: Reed H. Petty
@@ -2894,6 +2898,11 @@ P: 1024/93898735 D3 9E F4 F7 6D 8D 2F 3A  38 BA 06 7C 2B 33 43 7D
 S: Madge Networks
 S: Framewood Road
 S: Wexham SL3 6PJ
+S: United Kingdom
+
+N: Richard Purdie
+E: rpurdie@rpsys.net
+D: Backlight subsystem maintainer
 S: United Kingdom
 
 N: Daniel Quinlan
@@ -3152,6 +3161,11 @@ S: France
 N: Dipankar Sarma
 E: dipankar@in.ibm.com
 D: RCU
+
+N: Yoshinori Sato
+E: ysato@users.sourceforge.jp
+D: uClinux for Renesas H8/300 (H8300)
+D: http://uclinux-h8.sourceforge.jp/
 
 N: Hannu Savolainen
 E: hannu@opensound.com

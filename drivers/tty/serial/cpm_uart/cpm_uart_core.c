@@ -41,6 +41,8 @@
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
 #include <linux/fs_uart_pd.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
@@ -1207,14 +1209,38 @@ static int cpm_uart_init_port(struct device_node *np,
 	pinfo->port.fifosize = pinfo->tx_nrfifos * pinfo->tx_fifosize;
 	spin_lock_init(&pinfo->port.lock);
 
-	pinfo->port.irq = of_irq_to_resource(np, 0, NULL);
+	pinfo->port.irq = irq_of_parse_and_map(np, 0);
 	if (pinfo->port.irq == NO_IRQ) {
 		ret = -EINVAL;
 		goto out_pram;
 	}
 
-	for (i = 0; i < NUM_GPIOS; i++)
-		pinfo->gpios[i] = of_get_gpio(np, i);
+	for (i = 0; i < NUM_GPIOS; i++) {
+		int gpio;
+
+		pinfo->gpios[i] = -1;
+
+		gpio = of_get_gpio(np, i);
+
+		if (gpio_is_valid(gpio)) {
+			ret = gpio_request(gpio, "cpm_uart");
+			if (ret) {
+				pr_err("can't request gpio #%d: %d\n", i, ret);
+				continue;
+			}
+			if (i == GPIO_RTS || i == GPIO_DTR)
+				ret = gpio_direction_output(gpio, 0);
+			else
+				ret = gpio_direction_input(gpio);
+			if (ret) {
+				pr_err("can't set direction for gpio #%d: %d\n",
+					i, ret);
+				gpio_free(gpio);
+				continue;
+			}
+			pinfo->gpios[i] = gpio;
+		}
+	}
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_CPM
 	udbg_putc = NULL;

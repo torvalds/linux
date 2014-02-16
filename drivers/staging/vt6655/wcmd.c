@@ -233,7 +233,7 @@ s_vProbeChannel(
  *
  *
  * Return Value:
- *    A ptr to Tx frame or NULL on allocation failue
+ *    A ptr to Tx frame or NULL on allocation failure
  *
  -*/
 
@@ -317,7 +317,7 @@ vCommandTimer(
 
 	if (pDevice->dwDiagRefCount != 0)
 		return;
-	if (pDevice->bCmdRunning != true)
+	if (!pDevice->bCmdRunning)
 		return;
 
 	spin_lock_irq(&pDevice->lock);
@@ -326,7 +326,7 @@ vCommandTimer(
 	case WLAN_CMD_SCAN_START:
 
 		pDevice->byReAssocCount = 0;
-		if (pDevice->bRadioOff == true) {
+		if (pDevice->bRadioOff) {
 			s_bCommandComplete(pDevice);
 			spin_unlock_irq(&pDevice->lock);
 			return;
@@ -393,7 +393,7 @@ vCommandTimer(
 
 			vAdHocBeaconStop(pDevice);
 
-			if (set_channel(pMgmt->pAdapter, pMgmt->uScanChannel) == true) {
+			if (set_channel(pMgmt->pAdapter, pMgmt->uScanChannel)) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "SCAN Channel: %d\n", pMgmt->uScanChannel);
 			} else {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "SET SCAN Channel Fail: %d\n", pMgmt->uScanChannel);
@@ -408,7 +408,7 @@ vCommandTimer(
 
 			}
 
-			if ((pMgmt->b11hEnable == false) ||
+			if (!pMgmt->b11hEnable ||
 			    (pMgmt->uScanChannel < CB_MAX_CHANNEL_24G)) {
 				s_vProbeChannel(pDevice);
 				spin_unlock_irq(&pDevice->lock);
@@ -498,7 +498,7 @@ vCommandTimer(
 
 	case WLAN_CMD_SSID_START:
 		pDevice->byReAssocCount = 0;
-		if (pDevice->bRadioOff == true) {
+		if (pDevice->bRadioOff) {
 			s_bCommandComplete(pDevice);
 			spin_unlock_irq(&pDevice->lock);
 			return;
@@ -659,7 +659,7 @@ vCommandTimer(
 				netif_wake_queue(pDevice->dev);
 			}
 #ifdef TxInSleep
-			if (pDevice->IsTxDataTrigger != false)   {    //TxDataTimer is not triggered at the first time
+			if (pDevice->IsTxDataTrigger) {    //TxDataTimer is not triggered at the first time
 				del_timer(&pDevice->sTimerTxData);
 				init_timer(&pDevice->sTimerTxData);
 				pDevice->sTimerTxData.data = (unsigned long) pDevice;
@@ -694,7 +694,7 @@ vCommandTimer(
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
 			pMgmt->eCurrMode = WMAC_MODE_STANDBY;
 			pDevice->bLinkPass = false;
-			if (pDevice->bEnableHostWEP == true)
+			if (pDevice->bEnableHostWEP)
 				BSSvClearNodeDBTable(pDevice, 1);
 			else
 				BSSvClearNodeDBTable(pDevice, 0);
@@ -776,7 +776,7 @@ vCommandTimer(
 
 	case WLAN_CMD_RADIO_START:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "eCommandState == WLAN_CMD_RADIO_START\n");
-		if (pDevice->bRadioCmd == true)
+		if (pDevice->bRadioCmd)
 			CARDbRadioPowerOn(pDevice);
 		else
 			CARDbRadioPowerOff(pDevice);
@@ -948,7 +948,7 @@ bool bScheduleCommand(
 	ADD_ONE_WITH_WRAP_AROUND(pDevice->uCmdEnqueueIdx, CMD_Q_SIZE);
 	pDevice->cbFreeCmdQueue--;
 
-	if (pDevice->bCmdRunning == false) {
+	if (!pDevice->bCmdRunning) {
 		s_bCommandComplete(pDevice);
 	} else {
 	}
@@ -1031,8 +1031,8 @@ BSSvSecondTxData(
 
 	spin_lock_irq(&pDevice->lock);
 #if 1
-	if (((pDevice->bLinkPass == true) && (pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
-	   (pDevice->fWPA_Authened == true)) {   //wpa linking
+	if ((pDevice->bLinkPass && (pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
+	    pDevice->fWPA_Authened) {   //wpa linking
 #else
 		if (pDevice->bLinkPass == true) {
 #endif

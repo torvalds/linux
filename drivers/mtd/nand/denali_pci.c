@@ -21,7 +21,7 @@
 #define DENALI_NAND_NAME    "denali-nand-pci"
 
 /* List of platforms this NAND controller has be integrated into */
-static DEFINE_PCI_DEVICE_TABLE(denali_pci_ids) = {
+static const struct pci_device_id denali_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x0701), INTEL_CE4100 },
 	{ PCI_VDEVICE(INTEL, 0x0809), INTEL_MRST },
 	{ /* end: all zeroes */ }
@@ -119,7 +119,6 @@ static void denali_pci_remove(struct pci_dev *dev)
 	iounmap(denali->flash_mem);
 	pci_release_regions(dev);
 	pci_disable_device(dev);
-	pci_set_drvdata(dev, NULL);
 	kfree(denali);
 }
 
@@ -132,7 +131,6 @@ static struct pci_driver denali_pci_driver = {
 
 static int denali_init_pci(void)
 {
-	pr_info("Spectra MTD driver built on %s @ %s\n", __DATE__, __TIME__);
 	return pci_register_driver(&denali_pci_driver);
 }
 module_init(denali_init_pci);

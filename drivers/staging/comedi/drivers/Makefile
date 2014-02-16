@@ -1,5 +1,6 @@
 # Makefile for individual comedi drivers
 #
+ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
 
 # Comedi "helper" modules
 
@@ -39,6 +40,7 @@ obj-$(CONFIG_COMEDI_DMM32AT)		+= dmm32at.o
 obj-$(CONFIG_COMEDI_FL512)		+= fl512.o
 obj-$(CONFIG_COMEDI_AIO_AIO12_8)	+= aio_aio12_8.o
 obj-$(CONFIG_COMEDI_AIO_IIRO_16)	+= aio_iiro_16.o
+obj-$(CONFIG_COMEDI_II_PCI20KC)		+= ii_pci20kc.o
 obj-$(CONFIG_COMEDI_C6XDIGIO)		+= c6xdigio.o
 obj-$(CONFIG_COMEDI_MPC624)		+= mpc624.o
 obj-$(CONFIG_COMEDI_ADQ12B)		+= adq12b.o
@@ -89,7 +91,6 @@ obj-$(CONFIG_COMEDI_DYNA_PCI10XX)	+= dyna_pci10xx.o
 obj-$(CONFIG_COMEDI_UNIOXX5)		+= unioxx5.o
 obj-$(CONFIG_COMEDI_GSC_HPDI)		+= gsc_hpdi.o
 obj-$(CONFIG_COMEDI_ICP_MULTI)		+= icp_multi.o
-obj-$(CONFIG_COMEDI_II_PCI20KC)		+= ii_pci20kc.o
 obj-$(CONFIG_COMEDI_DAQBOARD2000)	+= daqboard2000.o
 obj-$(CONFIG_COMEDI_JR3_PCI)		+= jr3_pci.o
 obj-$(CONFIG_COMEDI_KE_COUNTER)		+= ke_counter.o
@@ -110,6 +111,7 @@ obj-$(CONFIG_COMEDI_NI_PCIMIO)		+= ni_pcimio.o
 obj-$(CONFIG_COMEDI_RTD520)		+= rtd520.o
 obj-$(CONFIG_COMEDI_S626)		+= s626.o
 obj-$(CONFIG_COMEDI_SSV_DNP)		+= ssv_dnp.o
+obj-$(CONFIG_COMEDI_MF6X4)		+= mf6x4.o
 
 # Comedi PCMCIA drivers
 obj-$(CONFIG_COMEDI_CB_DAS16_CS)	+= cb_das16_cs.o
@@ -132,6 +134,7 @@ obj-$(CONFIG_COMEDI_MITE)		+= mite.o
 obj-$(CONFIG_COMEDI_NI_TIO)		+= ni_tio.o
 obj-$(CONFIG_COMEDI_NI_TIOCMD)		+= ni_tiocmd.o
 obj-$(CONFIG_COMEDI_NI_LABPC)		+= ni_labpc.o
+obj-$(CONFIG_COMEDI_NI_LABPC_ISADMA)	+= ni_labpc_isadma.o
 
 obj-$(CONFIG_COMEDI_8255)		+= 8255.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200)	+= amplc_dio200_common.o

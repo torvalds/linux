@@ -200,7 +200,7 @@ static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
 		mid_pipe_event_handler(dev, 1);
 }
 
-irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
+irqreturn_t psb_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -253,7 +253,7 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 
 	PSB_WVDC32(vdc_stat, PSB_INT_IDENTITY_R);
 	(void) PSB_RVDC32(PSB_INT_IDENTITY_R);
-	DRM_READMEMORYBARRIER();
+	rmb();
 
 	if (!handled)
 		return IRQ_NONE;
@@ -271,15 +271,15 @@ void psb_irq_preinstall(struct drm_device *dev)
 
 	if (gma_power_is_on(dev))
 		PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
-	if (dev->vblank_enabled[0])
+	if (dev->vblank[0].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEA_FLAG;
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEB_FLAG;
 
 	/* FIXME: Handle Medfield irq mask
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		dev_priv->vdc_irq_mask |= _MDFLD_PIPEB_EVENT_FLAG;
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		dev_priv->vdc_irq_mask |= _MDFLD_PIPEC_EVENT_FLAG;
 	*/
 
@@ -305,17 +305,17 @@ int psb_irq_postinstall(struct drm_device *dev)
 	PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
-	if (dev->vblank_enabled[0])
+	if (dev->vblank[0].enabled)
 		psb_enable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		psb_enable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		psb_enable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
@@ -339,13 +339,13 @@ void psb_irq_uninstall(struct drm_device *dev)
 
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
-	if (dev->vblank_enabled[0])
+	if (dev->vblank[0].enabled)
 		psb_disable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		psb_disable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		psb_disable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
 
 	dev_priv->vdc_irq_mask &= _PSB_IRQ_SGX_FLAG |
@@ -449,21 +449,6 @@ int psb_irq_disable_dpst(struct drm_device *dev)
 
 	return 0;
 }
-
-#ifdef PSB_FIXME
-static int psb_vblank_do_wait(struct drm_device *dev,
-			      unsigned int *sequence, atomic_t *counter)
-{
-	unsigned int cur_vblank;
-	int ret = 0;
-	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
-		    (((cur_vblank = atomic_read(counter))
-		      - *sequence) <= (1 << 23)));
-	*sequence = cur_vblank;
-
-	return ret;
-}
-#endif
 
 /*
  * It is used to enable VBLANK interrupt

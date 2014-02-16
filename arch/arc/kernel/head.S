@@ -34,6 +34,9 @@ stext:
 	;	IDENTITY Reg [ 3  2  1  0 ]
 	;	(cpu-id)             ^^^	=> Zero for UP ARC700
 	;					=> #Core-ID if SMP (Master 0)
+	; Note that non-boot CPUs might not land here if halt-on-reset and
+	; instead breath life from @first_lines_of_secondary, but we still
+	; need to make sure only boot cpu takes this path.
 	GET_CPU_ID  r5
 	cmp	r5, 0
 	jnz	arc_platform_smp_wait_to_boot
@@ -46,25 +49,13 @@ stext:
 	st.ab   0, [r5,4]
 	brlt    r5, r6, 1b
 
-#ifdef CONFIG_CMDLINE_UBOOT
-	; support for bootloader provided cmdline
-	;    If cmdline passed by u-boot, then
-	;    r0 = 1  (because ATAGS parsing, now retired, used to use 0)
-	;    r1 = magic number (board identity)
-	;    r2 = addr of cmdline string (somewhere in memory/flash)
-
-	brne	r0, 1, .Lother_bootup_chores	; u-boot didn't pass cmdline
-	breq	r2, 0, .Lother_bootup_chores	; or cmdline is NULL
-
-	mov	r5, @command_line
-1:
-	ldb.ab  r6, [r2, 1]
-	breq    r6, 0, .Lother_bootup_chores
-	b.d     1b
-	stb.ab  r6, [r5, 1]
-#endif
-
-.Lother_bootup_chores:
+	; Uboot - kernel ABI
+	;    r0 = [0] No uboot interaction, [1] cmdline in r2, [2] DTB in r2
+	;    r1 = magic number (board identity, unused as of now
+	;    r2 = pointer to uboot provided cmdline or external DTB in mem
+	; These are handled later in setup_arch()
+	st	r0, [@uboot_tag]
+	st	r2, [@uboot_arg]
 
 	; Identify if running on ISS vs Silicon
 	; 	IDENTITY Reg [ 3  2  1  0 ]
@@ -92,11 +83,13 @@ stext:
 ;----------------------------------------------------------------
 ;     First lines of code run by secondary before jumping to 'C'
 ;----------------------------------------------------------------
-	.section .init.text, "ax",@progbits
+	.section .text, "ax",@progbits
 	.type first_lines_of_secondary, @function
 	.globl first_lines_of_secondary
 
 first_lines_of_secondary:
+
+	sr	@_int_vec_base_lds, [AUX_INTR_VEC_BASE]
 
 	; setup per-cpu idle task as "current" on this CPU
 	ld	r0, [@secondary_idle_tsk]

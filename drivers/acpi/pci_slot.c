@@ -35,6 +35,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/pci-acpi.h>
 
 static bool debug;
 static int check_sta_before_sun;
@@ -159,12 +160,16 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-void acpi_pci_slot_enumerate(struct pci_bus *bus, acpi_handle handle)
+void acpi_pci_slot_enumerate(struct pci_bus *bus)
 {
-	mutex_lock(&slot_list_lock);
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
-			    register_slot, NULL, bus, NULL);
-	mutex_unlock(&slot_list_lock);
+	acpi_handle handle = ACPI_HANDLE(bus->bridge);
+
+	if (handle) {
+		mutex_lock(&slot_list_lock);
+		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+				    register_slot, NULL, bus, NULL);
+		mutex_unlock(&slot_list_lock);
+	}
 }
 
 void acpi_pci_slot_remove(struct pci_bus *bus)

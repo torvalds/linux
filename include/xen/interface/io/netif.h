@@ -38,6 +38,32 @@
  * that it cannot safely queue packets (as it may not be kicked to send them).
  */
 
+ /*
+ * "feature-split-event-channels" is introduced to separate guest TX
+ * and RX notificaion. Backend either doesn't support this feature or
+ * advertise it via xenstore as 0 (disabled) or 1 (enabled).
+ *
+ * To make use of this feature, frontend should allocate two event
+ * channels for TX and RX, advertise them to backend as
+ * "event-channel-tx" and "event-channel-rx" respectively. If frontend
+ * doesn't want to use this feature, it just writes "event-channel"
+ * node as before.
+ */
+
+/*
+ * "feature-no-csum-offload" should be used to turn IPv4 TCP/UDP checksum
+ * offload off or on. If it is missing then the feature is assumed to be on.
+ * "feature-ipv6-csum-offload" should be used to turn IPv6 TCP/UDP checksum
+ * offload on or off. If it is missing then the feature is assumed to be off.
+ */
+
+/*
+ * "feature-gso-tcpv4" and "feature-gso-tcpv6" advertise the capability to
+ * handle large TCP packets (in IPv4 or IPv6 form respectively). Neither
+ * frontends nor backends are assumed to be capable unless the flags are
+ * present.
+ */
+
 /*
  * This is the 'wire' format for packets:
  *  Request 1: xen_netif_tx_request  -- XEN_NETTXF_* (any flags)
@@ -83,8 +109,10 @@ struct xen_netif_tx_request {
 #define _XEN_NETIF_EXTRA_FLAG_MORE	(0)
 #define  XEN_NETIF_EXTRA_FLAG_MORE	(1U<<_XEN_NETIF_EXTRA_FLAG_MORE)
 
-/* GSO types - only TCPv4 currently supported. */
+/* GSO types */
+#define XEN_NETIF_GSO_TYPE_NONE		(0)
 #define XEN_NETIF_GSO_TYPE_TCPV4	(1)
+#define XEN_NETIF_GSO_TYPE_TCPV6	(2)
 
 /*
  * This structure needs to fit within both netif_tx_request and

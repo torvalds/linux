@@ -123,7 +123,7 @@ my $regex_writepage;
 
 # Static regex used. Specified like this for readability and for use with /o
 #                      (process_pid)     (cpus      )   ( time  )   (tpoint    ) (details)
-my $regex_traceevent = '\s*([a-zA-Z0-9-]*)\s*(\[[0-9]*\])\s*([0-9.]*):\s*([a-zA-Z_]*):\s*(.*)';
+my $regex_traceevent = '\s*([a-zA-Z0-9-]*)\s*(\[[0-9]*\])(\s*[dX.][Nnp.][Hhs.][0-9a-fA-F.]*|)\s*([0-9.]*):\s*([a-zA-Z_]*):\s*(.*)';
 my $regex_statname = '[-0-9]*\s\((.*)\).*';
 my $regex_statppid = '[-0-9]*\s\(.*\)\s[A-Za-z]\s([0-9]*).*';
 
@@ -270,8 +270,8 @@ EVENT_PROCESS:
 	while ($traceevent = <STDIN>) {
 		if ($traceevent =~ /$regex_traceevent/o) {
 			$process_pid = $1;
-			$timestamp = $3;
-			$tracepoint = $4;
+			$timestamp = $4;
+			$tracepoint = $5;
 
 			$process_pid =~ /(.*)-([0-9]*)$/;
 			my $process = $1;
@@ -299,7 +299,7 @@ EVENT_PROCESS:
 			$perprocesspid{$process_pid}->{MM_VMSCAN_DIRECT_RECLAIM_BEGIN}++;
 			$perprocesspid{$process_pid}->{STATE_DIRECT_BEGIN} = $timestamp;
 
-			$details = $5;
+			$details = $6;
 			if ($details !~ /$regex_direct_begin/o) {
 				print "WARNING: Failed to parse mm_vmscan_direct_reclaim_begin as expected\n";
 				print "         $details\n";
@@ -322,7 +322,7 @@ EVENT_PROCESS:
 				$perprocesspid{$process_pid}->{HIGH_DIRECT_RECLAIM_LATENCY}[$index] = "$order-$latency";
 			}
 		} elsif ($tracepoint eq "mm_vmscan_kswapd_wake") {
-			$details = $5;
+			$details = $6;
 			if ($details !~ /$regex_kswapd_wake/o) {
 				print "WARNING: Failed to parse mm_vmscan_kswapd_wake as expected\n";
 				print "         $details\n";
@@ -356,7 +356,7 @@ EVENT_PROCESS:
 		} elsif ($tracepoint eq "mm_vmscan_wakeup_kswapd") {
 			$perprocesspid{$process_pid}->{MM_VMSCAN_WAKEUP_KSWAPD}++;
 
-			$details = $5;
+			$details = $6;
 			if ($details !~ /$regex_wakeup_kswapd/o) {
 				print "WARNING: Failed to parse mm_vmscan_wakeup_kswapd as expected\n";
 				print "         $details\n";
@@ -366,7 +366,7 @@ EVENT_PROCESS:
 			my $order = $3;
 			$perprocesspid{$process_pid}->{MM_VMSCAN_WAKEUP_KSWAPD_PERORDER}[$order]++;
 		} elsif ($tracepoint eq "mm_vmscan_lru_isolate") {
-			$details = $5;
+			$details = $6;
 			if ($details !~ /$regex_lru_isolate/o) {
 				print "WARNING: Failed to parse mm_vmscan_lru_isolate as expected\n";
 				print "         $details\n";
@@ -387,7 +387,7 @@ EVENT_PROCESS:
 			}
 			$perprocesspid{$process_pid}->{HIGH_NR_CONTIG_DIRTY} += $nr_contig_dirty;
 		} elsif ($tracepoint eq "mm_vmscan_lru_shrink_inactive") {
-			$details = $5;
+			$details = $6;
 			if ($details !~ /$regex_lru_shrink_inactive/o) {
 				print "WARNING: Failed to parse mm_vmscan_lru_shrink_inactive as expected\n";
 				print "         $details\n";
@@ -397,7 +397,7 @@ EVENT_PROCESS:
 			my $nr_reclaimed = $4;
 			$perprocesspid{$process_pid}->{HIGH_NR_RECLAIMED} += $nr_reclaimed;
 		} elsif ($tracepoint eq "mm_vmscan_writepage") {
-			$details = $5;
+			$details = $6;
 			if ($details !~ /$regex_writepage/o) {
 				print "WARNING: Failed to parse mm_vmscan_writepage as expected\n";
 				print "         $details\n";

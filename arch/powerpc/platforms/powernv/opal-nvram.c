@@ -65,7 +65,7 @@ static ssize_t opal_nvram_write(char *buf, size_t count, loff_t *index)
 void __init opal_nvram_init(void)
 {
 	struct device_node *np;
-	const u32 *nbytes_p;
+	const __be32 *nbytes_p;
 
 	np = of_find_compatible_node(NULL, NULL, "ibm,opal-nvram");
 	if (np == NULL)
@@ -76,7 +76,7 @@ void __init opal_nvram_init(void)
 		of_node_put(np);
 		return;
 	}
-	nvram_size = *nbytes_p;
+	nvram_size = be32_to_cpup(nbytes_p);
 
 	printk(KERN_INFO "OPAL nvram setup, %u bytes\n", nvram_size);
 	of_node_put(np);

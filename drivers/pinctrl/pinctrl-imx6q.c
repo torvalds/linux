@@ -480,7 +480,7 @@ static struct platform_driver imx6q_pinctrl_driver = {
 	.driver = {
 		.name = "imx6q-pinctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(imx6q_pinctrl_of_match),
+		.of_match_table = imx6q_pinctrl_of_match,
 	},
 	.probe = imx6q_pinctrl_probe,
 	.remove = imx_pinctrl_remove,

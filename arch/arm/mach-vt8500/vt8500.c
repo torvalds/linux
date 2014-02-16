@@ -18,9 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/clocksource.h>
 #include <linux/io.h>
 #include <linux/pm.h>
+#include <linux/reboot.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -31,8 +31,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-
-#include "common.h"
 
 #define LEGACY_GPIO_BASE	0xD8110000
 #define LEGACY_PMC_BASE		0xD8130000
@@ -46,7 +44,7 @@
 
 static void __iomem *pmc_base;
 
-void vt8500_restart(char mode, const char *cmd)
+void vt8500_restart(enum reboot_mode mode, const char *cmd)
 {
 	if (pmc_base)
 		writel(1, pmc_base + VT8500_PMSR_REG);
@@ -161,8 +159,6 @@ void __init vt8500_init(void)
 	else
 		pr_err("%s: PMC Hibernation register could not be remapped, not enabling power off!\n", __func__);
 
-	vtwm_clk_init(pmc_base);
-
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -179,7 +175,6 @@ DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")
 	.dt_compat	= vt8500_dt_compat,
 	.map_io		= vt8500_map_io,
 	.init_machine	= vt8500_init,
-	.init_time	= clocksource_of_init,
 	.restart	= vt8500_restart,
 MACHINE_END
 

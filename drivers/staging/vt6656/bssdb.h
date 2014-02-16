@@ -34,7 +34,6 @@
 #include "80211hdr.h"
 #include "80211mgr.h"
 #include "card.h"
-#include "mib.h"
 
 #define MAX_NODE_NUM             64
 #define MAX_BSS_NUM              42
@@ -262,10 +261,9 @@ void BSSvCreateOneNode(struct vnt_private *, u32 *puNodeIndex);
 void BSSvUpdateAPNode(struct vnt_private *, u16 *pwCapInfo,
 	PWLAN_IE_SUPP_RATES pItemRates, PWLAN_IE_SUPP_RATES pExtSuppRates);
 
-void BSSvSecondCallBack(struct vnt_private *);
+void BSSvSecondCallBack(struct work_struct *work);
 
-void BSSvUpdateNodeTxCounter(struct vnt_private *, PSStatCounter pStatistic,
-	u8 byTSR, u8 byPktNO);
+void BSSvUpdateNodeTxCounter(struct vnt_private *, u8 byTSR, u8 byPktNO);
 
 void BSSvRemoveOneNode(struct vnt_private *, u32 uNodeIndex);
 

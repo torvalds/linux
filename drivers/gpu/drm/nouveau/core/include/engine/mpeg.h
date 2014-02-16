@@ -42,10 +42,13 @@ struct nouveau_mpeg {
 
 extern struct nouveau_oclass nv31_mpeg_oclass;
 extern struct nouveau_oclass nv40_mpeg_oclass;
+extern struct nouveau_oclass nv44_mpeg_oclass;
 extern struct nouveau_oclass nv50_mpeg_oclass;
 extern struct nouveau_oclass nv84_mpeg_oclass;
-
+extern struct nouveau_ofuncs nv31_mpeg_ofuncs;
+extern struct nouveau_oclass nv31_mpeg_cclass;
 extern struct nouveau_oclass nv31_mpeg_sclass[];
+extern struct nouveau_oclass nv40_mpeg_sclass[];
 void nv31_mpeg_intr(struct nouveau_subdev *);
 void nv31_mpeg_tile_prog(struct nouveau_engine *, int);
 int  nv31_mpeg_init(struct nouveau_object *);
@@ -54,7 +57,6 @@ extern struct nouveau_ofuncs nv50_mpeg_ofuncs;
 int  nv50_mpeg_context_ctor(struct nouveau_object *, struct nouveau_object *,
 			    struct nouveau_oclass *, void *, u32,
 			    struct nouveau_object **);
-int  nv50_mpeg_tlb_flush(struct nouveau_engine *);
 void nv50_mpeg_intr(struct nouveau_subdev *);
 int  nv50_mpeg_init(struct nouveau_object *);
 

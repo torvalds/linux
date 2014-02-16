@@ -191,7 +191,6 @@ int class_check_uuid(struct obd_uuid *uuid, __u64 nid)
 {
 	struct uuid_nid_data *entry;
 	int found = 0;
-	ENTRY;
 
 	CDEBUG(D_INFO, "check if uuid %s has %s.\n",
 	       obd_uuid2str(uuid), libcfs_nid2str(nid));
@@ -213,6 +212,6 @@ int class_check_uuid(struct obd_uuid *uuid, __u64 nid)
 		break;
 	}
 	spin_unlock(&g_uuid_lock);
-	RETURN(found);
+	return found;
 }
 EXPORT_SYMBOL(class_check_uuid);

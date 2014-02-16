@@ -67,7 +67,6 @@
 #include "datarate.h"
 #include "rf.h"
 #include "firmware.h"
-#include "rndis.h"
 #include "control.h"
 #include "channel.h"
 #include "int.h"
@@ -215,13 +214,12 @@ static void device_set_multi(struct net_device *dev);
 static int  device_close(struct net_device *dev);
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
-static int device_init_registers(struct vnt_private *pDevice,
-	DEVICE_INIT_TYPE InitType);
+static int device_init_registers(struct vnt_private *pDevice);
 static bool device_init_defrag_cb(struct vnt_private *pDevice);
 static void device_init_diversity_timer(struct vnt_private *pDevice);
 static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
 
-static int  ethtool_ioctl(struct net_device *dev, void *useraddr);
+static int  ethtool_ioctl(struct net_device *dev, struct ifreq *);
 static void device_free_tx_bufs(struct vnt_private *pDevice);
 static void device_free_rx_bufs(struct vnt_private *pDevice);
 static void device_free_int_bufs(struct vnt_private *pDevice);
@@ -267,7 +265,6 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->bUpdateBBVGA = true;
     pDevice->byFOETuning = 0;
     pDevice->byAutoPwrTunning = 0;
-    pDevice->wCTSDuration = 0;
     pDevice->byPreambleType = 0;
     pDevice->bExistSWNetAddr = false;
     /* pDevice->bDiversityRegCtlON = true; */
@@ -297,343 +294,352 @@ static void device_init_diversity_timer(struct vnt_private *pDevice)
 /*
  * initialization of MAC & BBP registers
  */
-
-static int device_init_registers(struct vnt_private *pDevice,
-	DEVICE_INIT_TYPE InitType)
+static int device_init_registers(struct vnt_private *pDevice)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_cmd_card_init *init_cmd = &pDevice->init_command;
+	struct vnt_rsp_card_init *init_rsp = &pDevice->init_response;
 	u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 abySNAP_RFC1042[ETH_ALEN] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 	u8 abySNAP_Bridgetunnel[ETH_ALEN]
 		= {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
 	u8 byAntenna;
 	int ii;
-	CMD_CARD_INIT sInitCmd;
 	int ntStatus = STATUS_SUCCESS;
-	RSP_CARD_INIT   sInitRsp;
 	u8 byTmp;
 	u8 byCalibTXIQ = 0, byCalibTXDC = 0, byCalibRXIQ = 0;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n", InitType, pDevice->byPacketType);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n",
+				DEVICE_INIT_COLD, pDevice->byPacketType);
+
 	spin_lock_irq(&pDevice->lock);
-	if (InitType == DEVICE_INIT_COLD) {
-		memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
-		memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
-		memcpy(pDevice->abySNAP_Bridgetunnel,
-		       abySNAP_Bridgetunnel,
-		       ETH_ALEN);
 
-        if ( !FIRMWAREbCheckVersion(pDevice) ) {
-            if (FIRMWAREbDownload(pDevice) == true) {
-                if (FIRMWAREbBrach2Sram(pDevice) == false) {
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" FIRMWAREbBrach2Sram fail \n");
-                  	spin_unlock_irq(&pDevice->lock);
-                    return false;
-                }
-            } else {
+	memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
+	memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
+	memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
 
-                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" FIRMWAREbDownload fail \n");
-                spin_unlock_irq(&pDevice->lock);
-                return false;
-            }
-        }
+	if (!FIRMWAREbCheckVersion(pDevice)) {
+		if (FIRMWAREbDownload(pDevice) == true) {
+			if (FIRMWAREbBrach2Sram(pDevice) == false) {
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+					" FIRMWAREbBrach2Sram fail\n");
+				spin_unlock_irq(&pDevice->lock);
+				return false;
+			}
+		} else {
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				" FIRMWAREbDownload fail\n");
+			spin_unlock_irq(&pDevice->lock);
+			return false;
+		}
+	}
 
-        if ( !BBbVT3184Init(pDevice) ) {
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" BBbVT3184Init fail \n");
-            spin_unlock_irq(&pDevice->lock);
-            return false;
-        }
-    }
+	if (!BBbVT3184Init(pDevice)) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" BBbVT3184Init fail\n");
+		spin_unlock_irq(&pDevice->lock);
+		return false;
+	}
 
-    sInitCmd.byInitClass = (u8)InitType;
-    sInitCmd.bExistSWNetAddr = (u8) pDevice->bExistSWNetAddr;
-    for (ii = 0; ii < 6; ii++)
-	sInitCmd.bySWNetAddr[ii] = pDevice->abyCurrentNetAddr[ii];
-    sInitCmd.byShortRetryLimit = pDevice->byShortRetryLimit;
-    sInitCmd.byLongRetryLimit = pDevice->byLongRetryLimit;
+	init_cmd->init_class = DEVICE_INIT_COLD;
+	init_cmd->exist_sw_net_addr = (u8) pDevice->bExistSWNetAddr;
+	for (ii = 0; ii < 6; ii++)
+		init_cmd->sw_net_addr[ii] = pDevice->abyCurrentNetAddr[ii];
+	init_cmd->short_retry_limit = pDevice->byShortRetryLimit;
+	init_cmd->long_retry_limit = pDevice->byLongRetryLimit;
 
-    /* issue card_init command to device */
-    ntStatus = CONTROLnsRequestOut(pDevice,
-                                    MESSAGE_TYPE_CARDINIT,
-                                    0,
-                                    0,
-                                    sizeof(CMD_CARD_INIT),
-                                    (u8 *) &(sInitCmd));
+	/* issue card_init command to device */
+	ntStatus = CONTROLnsRequestOut(pDevice,
+		MESSAGE_TYPE_CARDINIT, 0, 0,
+		sizeof(struct vnt_cmd_card_init), (u8 *)init_cmd);
+	if (ntStatus != STATUS_SUCCESS) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail\n");
+		spin_unlock_irq(&pDevice->lock);
+		return false;
+	}
 
-    if ( ntStatus != STATUS_SUCCESS ) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail \n");
-        spin_unlock_irq(&pDevice->lock);
-        return false;
-    }
-    if (InitType == DEVICE_INIT_COLD) {
-
-        ntStatus = CONTROLnsRequestIn(pDevice,MESSAGE_TYPE_INIT_RSP,0,0,sizeof(RSP_CARD_INIT), (u8 *) &(sInitRsp));
-
-        if (ntStatus != STATUS_SUCCESS) {
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Cardinit request in status fail!\n");
-            spin_unlock_irq(&pDevice->lock);
-            return false;
-        }
+	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_INIT_RSP, 0, 0,
+		sizeof(struct vnt_rsp_card_init), (u8 *)init_rsp);
+	if (ntStatus != STATUS_SUCCESS) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"Cardinit request in status fail!\n");
+		spin_unlock_irq(&pDevice->lock);
+		return false;
+	}
 
 	/* local ID for AES functions */
-        ntStatus = CONTROLnsRequestIn(pDevice,
-                                    MESSAGE_TYPE_READ,
-                                    MAC_REG_LOCALID,
-                                    MESSAGE_REQUEST_MACREG,
-                                    1,
-                                    &pDevice->byLocalID);
-
-        if ( ntStatus != STATUS_SUCCESS ) {
-            spin_unlock_irq(&pDevice->lock);
-            return false;
-        }
+	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
+		MAC_REG_LOCALID, MESSAGE_REQUEST_MACREG, 1,
+			&pDevice->byLocalID);
+	if (ntStatus != STATUS_SUCCESS) {
+		spin_unlock_irq(&pDevice->lock);
+		return false;
+	}
 
 	/* do MACbSoftwareReset in MACvInitialize */
 
 	/* force CCK */
-        pDevice->bCCK = true;
+	pDevice->bCCK = true;
 	pDevice->bProtectMode = false;
 	/* only used in 11g type, sync with ERP IE */
-        pDevice->bNonERPPresent = false;
-        pDevice->bBarkerPreambleMd = false;
-        if ( pDevice->bFixRate ) {
-            pDevice->wCurrentRate = (u16) pDevice->uConnectionRate;
-        } else {
-            if ( pDevice->byBBType == BB_TYPE_11B )
-                pDevice->wCurrentRate = RATE_11M;
-            else
-                pDevice->wCurrentRate = RATE_54M;
-        }
+	pDevice->bNonERPPresent = false;
+	pDevice->bBarkerPreambleMd = false;
+	if (pDevice->bFixRate) {
+		pDevice->wCurrentRate = (u16)pDevice->uConnectionRate;
+	} else {
+		if (pDevice->byBBType == BB_TYPE_11B)
+			pDevice->wCurrentRate = RATE_11M;
+		else
+			pDevice->wCurrentRate = RATE_54M;
+	}
 
-        CHvInitChannelTable(pDevice);
+	CHvInitChannelTable(pDevice);
 
-        pDevice->byTopOFDMBasicRate = RATE_24M;
-        pDevice->byTopCCKBasicRate = RATE_1M;
+	pDevice->byTopOFDMBasicRate = RATE_24M;
+	pDevice->byTopCCKBasicRate = RATE_1M;
 	pDevice->byRevId = 0;
 	/* target to IF pin while programming to RF chip */
-        pDevice->byCurPwr = 0xFF;
+	pDevice->byCurPwr = 0xFF;
 
-        pDevice->byCCKPwr = pDevice->abyEEPROM[EEP_OFS_PWR_CCK];
-        pDevice->byOFDMPwrG = pDevice->abyEEPROM[EEP_OFS_PWR_OFDMG];
+	pDevice->byCCKPwr = pDevice->abyEEPROM[EEP_OFS_PWR_CCK];
+	pDevice->byOFDMPwrG = pDevice->abyEEPROM[EEP_OFS_PWR_OFDMG];
 	/* load power table */
 	for (ii = 0; ii < 14; ii++) {
-            pDevice->abyCCKPwrTbl[ii] = pDevice->abyEEPROM[ii + EEP_OFS_CCK_PWR_TBL];
-            if (pDevice->abyCCKPwrTbl[ii] == 0)
-                pDevice->abyCCKPwrTbl[ii] = pDevice->byCCKPwr;
-            pDevice->abyOFDMPwrTbl[ii] = pDevice->abyEEPROM[ii + EEP_OFS_OFDM_PWR_TBL];
-            if (pDevice->abyOFDMPwrTbl[ii] == 0)
-                pDevice->abyOFDMPwrTbl[ii] = pDevice->byOFDMPwrG;
-        }
+		pDevice->abyCCKPwrTbl[ii] =
+			pDevice->abyEEPROM[ii + EEP_OFS_CCK_PWR_TBL];
+
+		if (pDevice->abyCCKPwrTbl[ii] == 0)
+			pDevice->abyCCKPwrTbl[ii] = pDevice->byCCKPwr;
+			pDevice->abyOFDMPwrTbl[ii] =
+				pDevice->abyEEPROM[ii + EEP_OFS_OFDM_PWR_TBL];
+		if (pDevice->abyOFDMPwrTbl[ii] == 0)
+			pDevice->abyOFDMPwrTbl[ii] = pDevice->byOFDMPwrG;
+	}
 
 	/*
 	 * original zonetype is USA, but custom zonetype is Europe,
 	 * then need to recover 12, 13, 14 channels with 11 channel
 	 */
-          if(((pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Japan) ||
-	        (pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Europe))&&
-	     (pDevice->byOriginalZonetype == ZoneType_USA)) {
+	if (((pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Japan) ||
+		(pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Europe)) &&
+		(pDevice->byOriginalZonetype == ZoneType_USA)) {
 		for (ii = 11; ii < 14; ii++) {
 			pDevice->abyCCKPwrTbl[ii] = pDevice->abyCCKPwrTbl[10];
 			pDevice->abyOFDMPwrTbl[ii] = pDevice->abyOFDMPwrTbl[10];
 		}
-	  }
+	}
 
-	  pDevice->byOFDMPwrA = 0x34; /* same as RFbMA2829SelectChannel */
+	pDevice->byOFDMPwrA = 0x34; /* same as RFbMA2829SelectChannel */
 
-	  /* load OFDM A power table */
-	  for (ii = 0; ii < CB_MAX_CHANNEL_5G; ii++) {
-            pDevice->abyOFDMAPwrTbl[ii] = pDevice->abyEEPROM[ii + EEP_OFS_OFDMA_PWR_TBL];
-            if (pDevice->abyOFDMAPwrTbl[ii] == 0)
-                pDevice->abyOFDMAPwrTbl[ii] = pDevice->byOFDMPwrA;
-        }
+	/* load OFDM A power table */
+	for (ii = 0; ii < CB_MAX_CHANNEL_5G; ii++) {
+		pDevice->abyOFDMAPwrTbl[ii] =
+			pDevice->abyEEPROM[ii + EEP_OFS_OFDMA_PWR_TBL];
 
-        byAntenna = pDevice->abyEEPROM[EEP_OFS_ANTENNA];
-        if (byAntenna & EEP_ANTINV)
-            pDevice->bTxRxAntInv = true;
-        else
-            pDevice->bTxRxAntInv = false;
+		if (pDevice->abyOFDMAPwrTbl[ii] == 0)
+			pDevice->abyOFDMAPwrTbl[ii] = pDevice->byOFDMPwrA;
+	}
 
-        byAntenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
+	byAntenna = pDevice->abyEEPROM[EEP_OFS_ANTENNA];
+
+	if (byAntenna & EEP_ANTINV)
+		pDevice->bTxRxAntInv = true;
+	else
+		pDevice->bTxRxAntInv = false;
+
+	byAntenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
 	if (byAntenna == 0) /* if not set default is both */
-            byAntenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
+		byAntenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
-        if (byAntenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
-            pDevice->byAntennaCount = 2;
-            pDevice->byTxAntennaMode = ANT_B;
-            pDevice->dwTxAntennaSel = 1;
-            pDevice->dwRxAntennaSel = 1;
-            if (pDevice->bTxRxAntInv == true)
-                pDevice->byRxAntennaMode = ANT_A;
-            else
-                pDevice->byRxAntennaMode = ANT_B;
+	if (byAntenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
+		pDevice->byAntennaCount = 2;
+		pDevice->byTxAntennaMode = ANT_B;
+		pDevice->dwTxAntennaSel = 1;
+		pDevice->dwRxAntennaSel = 1;
 
-            if (pDevice->bDiversityRegCtlON)
-                pDevice->bDiversityEnable = true;
-            else
-                pDevice->bDiversityEnable = false;
-        } else  {
-            pDevice->bDiversityEnable = false;
-            pDevice->byAntennaCount = 1;
-            pDevice->dwTxAntennaSel = 0;
-            pDevice->dwRxAntennaSel = 0;
-            if (byAntenna & EEP_ANTENNA_AUX) {
-                pDevice->byTxAntennaMode = ANT_A;
-                if (pDevice->bTxRxAntInv == true)
-                    pDevice->byRxAntennaMode = ANT_B;
-                else
-                    pDevice->byRxAntennaMode = ANT_A;
-            } else {
-                pDevice->byTxAntennaMode = ANT_B;
-                if (pDevice->bTxRxAntInv == true)
-                    pDevice->byRxAntennaMode = ANT_A;
-                else
-                    pDevice->byRxAntennaMode = ANT_B;
-            }
-        }
-        pDevice->ulDiversityNValue = 100*255;
-        pDevice->ulDiversityMValue = 100*16;
-        pDevice->byTMax = 1;
-        pDevice->byTMax2 = 4;
-        pDevice->ulSQ3TH = 0;
-        pDevice->byTMax3 = 64;
+		if (pDevice->bTxRxAntInv == true)
+			pDevice->byRxAntennaMode = ANT_A;
+		else
+			pDevice->byRxAntennaMode = ANT_B;
+
+		if (pDevice->bDiversityRegCtlON)
+			pDevice->bDiversityEnable = true;
+		else
+			pDevice->bDiversityEnable = false;
+	} else  {
+		pDevice->bDiversityEnable = false;
+		pDevice->byAntennaCount = 1;
+		pDevice->dwTxAntennaSel = 0;
+		pDevice->dwRxAntennaSel = 0;
+
+		if (byAntenna & EEP_ANTENNA_AUX) {
+			pDevice->byTxAntennaMode = ANT_A;
+
+			if (pDevice->bTxRxAntInv == true)
+				pDevice->byRxAntennaMode = ANT_B;
+			else
+				pDevice->byRxAntennaMode = ANT_A;
+		} else {
+			pDevice->byTxAntennaMode = ANT_B;
+
+		if (pDevice->bTxRxAntInv == true)
+			pDevice->byRxAntennaMode = ANT_A;
+		else
+			pDevice->byRxAntennaMode = ANT_B;
+		}
+	}
+
+	pDevice->ulDiversityNValue = 100 * 255;
+	pDevice->ulDiversityMValue = 100 * 16;
+	pDevice->byTMax = 1;
+	pDevice->byTMax2 = 4;
+	pDevice->ulSQ3TH = 0;
+	pDevice->byTMax3 = 64;
 
 	/* get Auto Fall Back type */
-        pDevice->byAutoFBCtrl = AUTO_FB_0;
+	pDevice->byAutoFBCtrl = AUTO_FB_0;
 
 	/* set SCAN Time */
-        pDevice->uScanTime = WLAN_SCAN_MINITIME;
+	pDevice->uScanTime = WLAN_SCAN_MINITIME;
 
 	/* default Auto Mode */
 	/* pDevice->NetworkType = Ndis802_11Automode; */
-        pDevice->eConfigPHYMode = PHY_TYPE_AUTO;
-        pDevice->byBBType = BB_TYPE_11G;
+	pDevice->eConfigPHYMode = PHY_TYPE_AUTO;
+	pDevice->byBBType = BB_TYPE_11G;
 
 	/* initialize BBP registers */
-        pDevice->ulTxPower = 25;
+	pDevice->ulTxPower = 25;
 
 	/* get channel range */
-        pDevice->byMinChannel = 1;
-        pDevice->byMaxChannel = CB_MAX_CHANNEL;
+	pDevice->byMinChannel = 1;
+	pDevice->byMaxChannel = CB_MAX_CHANNEL;
 
 	/* get RFType */
-        pDevice->byRFType = sInitRsp.byRFType;
+	pDevice->byRFType = init_rsp->rf_type;
 
-        if ((pDevice->byRFType & RF_EMU) != 0) {
+	if ((pDevice->byRFType & RF_EMU) != 0) {
 		/* force change RevID for VT3253 emu */
 		pDevice->byRevId = 0x80;
-        }
+	}
 
 	/* load vt3266 calibration parameters in EEPROM */
-        if (pDevice->byRFType == RF_VT3226D0) {
-            if((pDevice->abyEEPROM[EEP_OFS_MAJOR_VER] == 0x1) &&
-                (pDevice->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
-                byCalibTXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_IQ];
-                byCalibTXDC = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_DC];
-                byCalibRXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_RX_IQ];
-                if( (byCalibTXIQ || byCalibTXDC || byCalibRXIQ) ) {
+	if (pDevice->byRFType == RF_VT3226D0) {
+		if ((pDevice->abyEEPROM[EEP_OFS_MAJOR_VER] == 0x1) &&
+			(pDevice->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
+
+			byCalibTXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_IQ];
+			byCalibTXDC = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_DC];
+			byCalibRXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_RX_IQ];
+			if (byCalibTXIQ || byCalibTXDC || byCalibRXIQ) {
 			/* CR255, enable TX/RX IQ and DC compensation mode */
-			ControlvWriteByte(pDevice,
-					  MESSAGE_REQUEST_BBREG,
-					  0xFF,
-					  0x03);
+				ControlvWriteByte(pDevice,
+					MESSAGE_REQUEST_BBREG,
+					0xff,
+					0x03);
 			/* CR251, TX I/Q Imbalance Calibration */
-			ControlvWriteByte(pDevice,
-					  MESSAGE_REQUEST_BBREG,
-					  0xFB,
-					  byCalibTXIQ);
+				ControlvWriteByte(pDevice,
+					MESSAGE_REQUEST_BBREG,
+					0xfb,
+					byCalibTXIQ);
 			/* CR252, TX DC-Offset Calibration */
-			ControlvWriteByte(pDevice,
-					  MESSAGE_REQUEST_BBREG,
-					  0xFC,
-					  byCalibTXDC);
+				ControlvWriteByte(pDevice,
+					MESSAGE_REQUEST_BBREG,
+					0xfC,
+					byCalibTXDC);
 			/* CR253, RX I/Q Imbalance Calibration */
-			ControlvWriteByte(pDevice,
-					  MESSAGE_REQUEST_BBREG,
-					  0xFD,
-					  byCalibRXIQ);
-                } else {
+				ControlvWriteByte(pDevice,
+					MESSAGE_REQUEST_BBREG,
+					0xfd,
+					byCalibRXIQ);
+			} else {
 			/* CR255, turn off BB Calibration compensation */
-			ControlvWriteByte(pDevice,
-					  MESSAGE_REQUEST_BBREG,
-					  0xFF,
-					  0x0);
-                }
-            }
-        }
-        pMgmt->eScanType = WMAC_SCAN_PASSIVE;
-        pMgmt->uCurrChannel = pDevice->uChannel;
-        pMgmt->uIBSSChannel = pDevice->uChannel;
-        CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
+				ControlvWriteByte(pDevice,
+					MESSAGE_REQUEST_BBREG,
+					0xff,
+					0x0);
+			}
+		}
+	}
+
+	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
+	pMgmt->uCurrChannel = pDevice->uChannel;
+	pMgmt->uIBSSChannel = pDevice->uChannel;
+	CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
 
 	/* get permanent network address */
-        memcpy(pDevice->abyPermanentNetAddr,&(sInitRsp.byNetAddr[0]),6);
+	memcpy(pDevice->abyPermanentNetAddr, init_rsp->net_addr, 6);
 	memcpy(pDevice->abyCurrentNetAddr,
-	       pDevice->abyPermanentNetAddr,
-	       ETH_ALEN);
+				pDevice->abyPermanentNetAddr, ETH_ALEN);
 
 	/* if exist SW network address, use it */
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Network address = %pM\n",
 		pDevice->abyCurrentNetAddr);
-    }
 
-    /*
-     * set BB and packet type at the same time
-     * set Short Slot Time, xIFS, and RSPINF
-     */
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        CARDbAddBasicRate(pDevice, RATE_6M);
-        pDevice->bShortSlotTime = true;
-    } else {
-        CARDbAddBasicRate(pDevice, RATE_1M);
-        pDevice->bShortSlotTime = false;
-    }
-    BBvSetShortSlotTime(pDevice);
-    CARDvSetBSSMode(pDevice);
+	/*
+	* set BB and packet type at the same time
+	* set Short Slot Time, xIFS, and RSPINF
+	*/
+	if (pDevice->byBBType == BB_TYPE_11A) {
+		CARDbAddBasicRate(pDevice, RATE_6M);
+		pDevice->bShortSlotTime = true;
+	} else {
+		CARDbAddBasicRate(pDevice, RATE_1M);
+		pDevice->bShortSlotTime = false;
+	}
 
-    if (pDevice->bUpdateBBVGA) {
-        pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
-        pDevice->byBBVGANew = pDevice->byBBVGACurrent;
-        BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
-    }
+	BBvSetShortSlotTime(pDevice);
+	CARDvSetBSSMode(pDevice);
 
-    pDevice->byRadioCtl = pDevice->abyEEPROM[EEP_OFS_RADIOCTL];
-    pDevice->bHWRadioOff = false;
-    if ( (pDevice->byRadioCtl & EEP_RADIOCTL_ENABLE) != 0 ) {
-        ntStatus = CONTROLnsRequestIn(pDevice,
-                                    MESSAGE_TYPE_READ,
-                                    MAC_REG_GPIOCTL1,
-                                    MESSAGE_REQUEST_MACREG,
-                                    1,
-                                    &byTmp);
+	if (pDevice->bUpdateBBVGA) {
+		pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
+		pDevice->byBBVGANew = pDevice->byBBVGACurrent;
 
-        if ( ntStatus != STATUS_SUCCESS ) {
-            spin_unlock_irq(&pDevice->lock);
-            return false;
-        }
-        if ( (byTmp & GPIO3_DATA) == 0 ) {
-            pDevice->bHWRadioOff = true;
-            MACvRegBitsOn(pDevice,MAC_REG_GPIOCTL1,GPIO3_INTMD);
-        } else {
-            MACvRegBitsOff(pDevice,MAC_REG_GPIOCTL1,GPIO3_INTMD);
-            pDevice->bHWRadioOff = false;
-        }
+		BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
+	}
 
-    }
+	pDevice->byRadioCtl = pDevice->abyEEPROM[EEP_OFS_RADIOCTL];
+	pDevice->bHWRadioOff = false;
 
-    ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_TMLEN,0x38);
-    ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
-    MACvRegBitsOn(pDevice,MAC_REG_GPIOCTL0,0x01);
+	if ((pDevice->byRadioCtl & EEP_RADIOCTL_ENABLE) != 0) {
+		ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
+			MAC_REG_GPIOCTL1, MESSAGE_REQUEST_MACREG, 1, &byTmp);
 
-    if ((pDevice->bHWRadioOff == true) || (pDevice->bRadioControlOff == true)) {
-        CARDbRadioPowerOff(pDevice);
-    } else {
-        CARDbRadioPowerOn(pDevice);
-    }
+		if (ntStatus != STATUS_SUCCESS) {
+			spin_unlock_irq(&pDevice->lock);
+			return false;
+		}
 
-    spin_unlock_irq(&pDevice->lock);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----INIbInitAdapter Exit\n");
-    return true;
+		if ((byTmp & GPIO3_DATA) == 0) {
+			pDevice->bHWRadioOff = true;
+			MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+		} else {
+			MACvRegBitsOff(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+			pDevice->bHWRadioOff = false;
+		}
+
+	}
+
+	ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG,
+				MAC_REG_PAPEDELAY, LEDSTS_TMLEN, 0x38);
+
+	ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG,
+				MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_SLOW);
+
+	MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL0, 0x01);
+
+	if ((pDevice->bHWRadioOff == true) ||
+				(pDevice->bRadioControlOff == true)) {
+		CARDbRadioPowerOff(pDevice);
+	} else {
+		CARDbRadioPowerOn(pDevice);
+	}
+
+
+	spin_unlock_irq(&pDevice->lock);
+
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----INIbInitAdapter Exit\n");
+
+	return true;
 }
 
 #ifdef CONFIG_PM	/* Minimal support for suspend and resume */
@@ -703,6 +709,16 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	device_set_options(pDevice);
 	spin_lock_init(&pDevice->lock);
+	INIT_DELAYED_WORK(&pDevice->run_command_work, vRunCommand);
+	INIT_DELAYED_WORK(&pDevice->second_callback_work, BSSvSecondCallBack);
+	INIT_WORK(&pDevice->read_work_item, RXvWorkItem);
+	INIT_WORK(&pDevice->rx_mng_work_item, RXvMngWorkItem);
+
+	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!pDevice->pControlURB) {
+		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc control urb\n");
+		goto err_netdev;
+	}
 
 	pDevice->tx_80211 = device_dma0_tx_80211;
 	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
@@ -714,13 +730,14 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_set_intfdata(intf, pDevice);
 	SET_NETDEV_DEV(netdev, &intf->dev);
 	memcpy(pDevice->dev->dev_addr, fake_mac, ETH_ALEN);
+
+	usb_device_reset(pDevice);
+
 	rc = register_netdev(netdev);
 	if (rc) {
 		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
 		goto err_netdev;
 	}
-
-	usb_device_reset(pDevice);
 
 	return 0;
 
@@ -734,7 +751,7 @@ err_nomem:
 
 static void device_free_tx_bufs(struct vnt_private *pDevice)
 {
-    PUSB_SEND_CONTEXT pTxContext;
+	struct vnt_usb_send_context *pTxContext;
     int ii;
 
     for (ii = 0; ii < pDevice->cbTD; ii++) {
@@ -752,8 +769,8 @@ static void device_free_tx_bufs(struct vnt_private *pDevice)
 
 static void device_free_rx_bufs(struct vnt_private *pDevice)
 {
-    PRCB pRCB;
-    int ii;
+	struct vnt_rcb *pRCB;
+	int ii;
 
     for (ii = 0; ii < pDevice->cbRD; ii++) {
 
@@ -789,14 +806,13 @@ static void device_free_int_bufs(struct vnt_private *pDevice)
 
 static bool device_alloc_bufs(struct vnt_private *pDevice)
 {
-
-    PUSB_SEND_CONTEXT pTxContext;
-    PRCB pRCB;
-    int ii;
+	struct vnt_usb_send_context *pTxContext;
+	struct vnt_rcb *pRCB;
+	int ii;
 
     for (ii = 0; ii < pDevice->cbTD; ii++) {
 
-        pTxContext = kmalloc(sizeof(USB_SEND_CONTEXT), GFP_KERNEL);
+	pTxContext = kmalloc(sizeof(struct vnt_usb_send_context), GFP_KERNEL);
         if (pTxContext == NULL) {
             DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : allocate tx usb context failed\n", pDevice->dev->name);
             goto free_tx;
@@ -813,7 +829,8 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
     }
 
     /* allocate RCB mem */
-	pDevice->pRCBMem = kzalloc((sizeof(RCB) * pDevice->cbRD), GFP_KERNEL);
+	pDevice->pRCBMem = kzalloc((sizeof(struct vnt_rcb) * pDevice->cbRD),
+								GFP_KERNEL);
     if (pDevice->pRCBMem == NULL) {
         DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : alloc rx usb context failed\n", pDevice->dev->name);
         goto free_tx;
@@ -824,7 +841,8 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
     pDevice->FirstRecvMngList = NULL;
     pDevice->LastRecvMngList = NULL;
     pDevice->NumRecvFreeList = 0;
-    pRCB = (PRCB) pDevice->pRCBMem;
+
+	pRCB = (struct vnt_rcb *)pDevice->pRCBMem;
 
     for (ii = 0; ii < pDevice->cbRD; ii++) {
 
@@ -849,23 +867,15 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
         pRCB++;
     }
 
-	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
-	if (pDevice->pControlURB == NULL) {
-	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc control urb\n");
-	    goto free_rx_tx;
-	}
-
 	pDevice->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
 	if (pDevice->pInterruptURB == NULL) {
 	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int urb\n");
-	    usb_free_urb(pDevice->pControlURB);
 	    goto free_rx_tx;
 	}
 
     pDevice->intBuf.pDataBuf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
 	if (pDevice->intBuf.pDataBuf == NULL) {
 	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int buf\n");
-	    usb_free_urb(pDevice->pControlURB);
 	    usb_free_urb(pDevice->pInterruptURB);
 	    goto free_rx_tx;
 	}
@@ -925,7 +935,6 @@ int device_alloc_frag_buf(struct vnt_private *pDevice,
     pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
     if (pDeF->skb == NULL)
         return false;
-    ASSERT(pDeF->skb);
     pDeF->skb->dev = pDevice->dev;
 
     return true;
@@ -960,10 +969,10 @@ static int  device_open(struct net_device *dev)
     /* read config file */
     Read_config_file(pDevice);
 
-    if (device_init_registers(pDevice, DEVICE_INIT_COLD) == false) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " init register fail\n");
-        goto free_all;
-    }
+	if (device_init_registers(pDevice) == false) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " init register fail\n");
+		goto free_all;
+	}
 
     device_set_multi(pDevice->dev);
 
@@ -982,10 +991,11 @@ static int  device_open(struct net_device *dev)
     }
 
     vMgrObjectInit(pDevice);
-    tasklet_init(&pDevice->RxMngWorkItem, (void *)RXvMngWorkItem, (unsigned long)pDevice);
-    tasklet_init(&pDevice->ReadWorkItem, (void *)RXvWorkItem, (unsigned long)pDevice);
+
     tasklet_init(&pDevice->EventWorkItem, (void *)INTvWorkItem, (unsigned long)pDevice);
-	add_timer(&pDevice->vnt_mgmt.sTimerSecondCallback);
+
+	schedule_delayed_work(&pDevice->second_callback_work, HZ);
+
 	pDevice->int_interval = 100;  /* max 100 microframes */
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
@@ -1001,7 +1011,7 @@ static int  device_open(struct net_device *dev)
      pDevice->bWPASuppWextEnabled = false;
     pDevice->byReAssocCount = 0;
 
-    RXvWorkItem(pDevice);
+	schedule_work(&pDevice->read_work_item);
     INTvWorkItem(pDevice);
 
     /* if WEP key already set by iwconfig but device not yet open */
@@ -1036,9 +1046,7 @@ free_rx_tx:
     device_free_rx_bufs(pDevice);
     device_free_tx_bufs(pDevice);
     device_free_int_bufs(pDevice);
-	usb_kill_urb(pDevice->pControlURB);
 	usb_kill_urb(pDevice->pInterruptURB);
-    usb_free_urb(pDevice->pControlURB);
     usb_free_urb(pDevice->pInterruptURB);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open fail.. \n");
@@ -1077,18 +1085,19 @@ static int device_close(struct net_device *dev)
     MP_CLEAR_FLAG(pDevice, fMP_POST_WRITES);
     MP_CLEAR_FLAG(pDevice, fMP_POST_READS);
     pDevice->fKillEventPollingThread = true;
-    del_timer(&pDevice->sTimerCommand);
-    del_timer(&pMgmt->sTimerSecondCallback);
 
-    del_timer(&pDevice->sTimerTxData);
+	cancel_delayed_work_sync(&pDevice->run_command_work);
+	cancel_delayed_work_sync(&pDevice->second_callback_work);
 
     if (pDevice->bDiversityRegCtlON) {
         del_timer(&pDevice->TimerSQ3Tmax1);
         del_timer(&pDevice->TimerSQ3Tmax2);
         del_timer(&pDevice->TimerSQ3Tmax3);
     }
-    tasklet_kill(&pDevice->RxMngWorkItem);
-    tasklet_kill(&pDevice->ReadWorkItem);
+
+	cancel_work_sync(&pDevice->rx_mng_work_item);
+	cancel_work_sync(&pDevice->read_work_item);
+
     tasklet_kill(&pDevice->EventWorkItem);
 
    pDevice->bRoaming = false;
@@ -1099,18 +1108,17 @@ static int device_close(struct net_device *dev)
     memset(pMgmt->abyCurrBSSID, 0, 6);
     pMgmt->eCurrState = WMAC_STATE_IDLE;
 
+	pDevice->flags &= ~DEVICE_FLAGS_OPENED;
+
     device_free_tx_bufs(pDevice);
     device_free_rx_bufs(pDevice);
     device_free_int_bufs(pDevice);
     device_free_frag_bufs(pDevice);
 
-	usb_kill_urb(pDevice->pControlURB);
 	usb_kill_urb(pDevice->pInterruptURB);
-    usb_free_urb(pDevice->pControlURB);
     usb_free_urb(pDevice->pInterruptURB);
 
     BSSvClearNodeDBTable(pDevice, 0);
-    pDevice->flags &=(~DEVICE_FLAGS_OPENED);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close2 \n");
 
@@ -1131,9 +1139,12 @@ static void vt6656_disconnect(struct usb_interface *intf)
 
 	if (device->dev) {
 		unregister_netdev(device->dev);
+
+		usb_kill_urb(device->pControlURB);
+		usb_free_urb(device->pControlURB);
+
 		free_netdev(device->dev);
 	}
-
 }
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
@@ -1181,22 +1192,6 @@ out:
 	spin_unlock_irq(&pDevice->lock);
 
 	return NETDEV_TX_OK;
-}
-
-static unsigned const ethernet_polynomial = 0x04c11db7U;
-static inline u32 ether_crc(int length, unsigned char *data)
-{
-    int crc = -1;
-
-    while(--length >= 0) {
-        unsigned char current_octet = *data++;
-        int bit;
-        for (bit = 0; bit < 8; bit++, current_octet >>= 1) {
-            crc = (crc << 1) ^
-                ((crc < 0) ^ (current_octet & 1) ? ethernet_polynomial : 0);
-        }
-    }
-    return crc;
 }
 
 /* find out the start position of str2 from str1 */
@@ -1444,18 +1439,18 @@ static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 
 	case SIOCETHTOOL:
-		return ethtool_ioctl(dev, (void *) rq->ifr_data);
+		return ethtool_ioctl(dev, rq);
 
 	}
 
 	return rc;
 }
 
-static int ethtool_ioctl(struct net_device *dev, void *useraddr)
+static int ethtool_ioctl(struct net_device *dev, struct ifreq *rq)
 {
 	u32 ethcmd;
 
-	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
+	if (copy_from_user(&ethcmd, rq->ifr_data, sizeof(ethcmd)))
 		return -EFAULT;
 
         switch (ethcmd) {
@@ -1463,7 +1458,7 @@ static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 		struct ethtool_drvinfo info = {ETHTOOL_GDRVINFO};
 		strncpy(info.driver, DEVICE_NAME, sizeof(info.driver)-1);
 		strncpy(info.version, DEVICE_VERSION, sizeof(info.version)-1);
-		if (copy_to_user(useraddr, &info, sizeof(info)))
+		if (copy_to_user(rq->ifr_data, &info, sizeof(info)))
 			return -EFAULT;
 		return 0;
 	}

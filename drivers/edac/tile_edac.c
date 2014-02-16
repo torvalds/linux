@@ -257,7 +257,6 @@ static void __exit tile_edac_exit(void)
 		if (!pdev)
 			continue;
 
-		platform_set_drvdata(pdev, NULL);
 		platform_device_unregister(pdev);
 	}
 	platform_driver_unregister(&tile_edac_mc_driver);

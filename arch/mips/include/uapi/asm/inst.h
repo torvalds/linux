@@ -98,8 +98,9 @@ enum rt_op {
  */
 enum cop_op {
 	mfc_op	      = 0x00, dmfc_op	    = 0x01,
-	cfc_op	      = 0x02, mtc_op	    = 0x04,
-	dmtc_op	      = 0x05, ctc_op	    = 0x06,
+	cfc_op	      = 0x02, mfhc_op	    = 0x03,
+	mtc_op        = 0x04, dmtc_op	    = 0x05,
+	ctc_op	      = 0x06, mthc_op	    = 0x07,
 	bc_op	      = 0x08, cop_op	    = 0x10,
 	copm_op	      = 0x18
 };
@@ -397,8 +398,10 @@ enum mm_32f_73_minor_op {
 	mm_movt1_op = 0xa5,
 	mm_ftruncw_op = 0xac,
 	mm_fneg1_op = 0xad,
+	mm_mfhc1_op = 0xc0,
 	mm_froundl_op = 0xcc,
 	mm_fcvtd1_op = 0xcd,
+	mm_mthc1_op = 0xe0,
 	mm_froundw_op = 0xec,
 	mm_fcvts1_op = 0xed,
 };
@@ -409,10 +412,11 @@ enum mm_32f_73_minor_op {
 enum mm_16c_minor_op {
 	mm_lwm16_op = 0x04,
 	mm_swm16_op = 0x05,
-	mm_jr16_op = 0x18,
-	mm_jrc_op = 0x1a,
-	mm_jalr16_op = 0x1c,
-	mm_jalrs16_op = 0x1e,
+	mm_jr16_op = 0x0c,
+	mm_jrc_op = 0x0d,
+	mm_jalr16_op = 0x0e,
+	mm_jalrs16_op = 0x0f,
+	mm_jraddiusp_op = 0x18,
 };
 
 /*

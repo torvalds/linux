@@ -17,6 +17,8 @@
 # Mike Shaver, Helge Deller and Martin K. Petersen
 #
 
+KBUILD_IMAGE := vmlinuz
+
 KBUILD_DEFCONFIG := default_defconfig
 
 NM		= sh $(srctree)/arch/parisc/nm
@@ -92,7 +94,7 @@ PALOCONF := $(shell if [ -f $(src)/palo.conf ]; then echo $(src)/palo.conf; \
 	else echo $(obj)/palo.conf; \
 	fi)
 
-palo: vmlinux
+palo lifimage: vmlinuz
 	@if test ! -x "$(PALO)"; then \
 		echo 'ERROR: Please install palo first (apt-get install palo)';\
 		echo 'or build it from source and install it somewhere in your $$PATH';\
@@ -107,23 +109,36 @@ palo: vmlinux
 	fi
 	$(PALO) -f $(PALOCONF)
 
-# Shorthands for known targets not supported by parisc, use vmlinux as default
-Image zImage bzImage: vmlinux
+BOOT_TARGETS    = zImage Image palo lifimage
+INSTALL_TARGETS = zinstall install
 
-install: vmlinux
-	sh $(src)/arch/parisc/install.sh \
-			$(KERNELRELEASE) $< System.map "$(INSTALL_PATH)"
+PHONY += bzImage $(BOOT_TARGETS) $(INSTALL_TARGETS)
+
+bzImage zImage: vmlinuz
+Image: vmlinux
+
+vmlinuz: vmlinux
+	@gzip -cf -9 $< > $@
+
+install:
+	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \
+			$(KERNELRELEASE) vmlinux System.map "$(INSTALL_PATH)"
+zinstall:
+	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \
+			$(KERNELRELEASE) vmlinuz System.map "$(INSTALL_PATH)"
 
 CLEAN_FILES	+= lifimage
 MRPROPER_FILES	+= palo.conf
 
 define archhelp
 	@echo  '* vmlinux	- Uncompressed kernel image (./vmlinux)'
+	@echo  '  vmlinuz	- Compressed kernel image (./vmlinuz)'
 	@echo  '  palo		- Bootable image (./lifimage)'
-	@echo  '  install	- Install kernel using'
+	@echo  '  install	- Install uncompressed vmlinux kernel using'
 	@echo  '		  (your) ~/bin/$(INSTALLKERNEL) or'
 	@echo  '		  (distribution) /sbin/$(INSTALLKERNEL) or'
 	@echo  '		  copy to $$(INSTALL_PATH)'
+	@echo  '  zinstall	- Install compressed vmlinuz kernel'
 endef
 
 # we require gcc 3.3 or above to compile the kernel

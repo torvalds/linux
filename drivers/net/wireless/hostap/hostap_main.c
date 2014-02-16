@@ -66,7 +66,7 @@ struct net_device * hostap_add_interface(struct local_info *local,
 	list_add(&iface->list, &local->hostap_interfaces);
 
 	mdev = local->dev;
-	memcpy(dev->dev_addr, mdev->dev_addr, ETH_ALEN);
+	eth_hw_addr_inherit(dev, mdev);
 	dev->base_addr = mdev->base_addr;
 	dev->irq = mdev->irq;
 	dev->mem_start = mdev->mem_start;
@@ -155,8 +155,7 @@ int prism2_wds_add(local_info_t *local, u8 *remote_addr,
 
 		if (prism2_wds_special_addr(iface->u.wds.remote_addr))
 			empty = iface;
-		else if (memcmp(iface->u.wds.remote_addr, remote_addr,
-				ETH_ALEN) == 0) {
+		else if (ether_addr_equal(iface->u.wds.remote_addr, remote_addr)) {
 			match = iface;
 			break;
 		}
@@ -214,8 +213,7 @@ int prism2_wds_del(local_info_t *local, u8 *remote_addr,
 		if (iface->type != HOSTAP_INTERFACE_WDS)
 			continue;
 
-		if (memcmp(iface->u.wds.remote_addr, remote_addr,
-			   ETH_ALEN) == 0) {
+		if (ether_addr_equal(iface->u.wds.remote_addr, remote_addr)) {
 			selected = iface;
 			break;
 		}
@@ -667,7 +665,7 @@ static int prism2_open(struct net_device *dev)
 	if (local->no_pri) {
 		printk(KERN_DEBUG "%s: could not set interface UP - no PRI "
 		       "f/w\n", dev->name);
-		return 1;
+		return -ENODEV;
 	}
 
 	if ((local->func->card_present && !local->func->card_present(local)) ||
@@ -682,7 +680,7 @@ static int prism2_open(struct net_device *dev)
 		printk(KERN_WARNING "%s: could not enable MAC port\n",
 		       dev->name);
 		prism2_close(dev);
-		return 1;
+		return -ENODEV;
 	}
 	if (!local->dev_enabled)
 		prism2_callback(local, PRISM2_CALLBACK_ENABLE);
@@ -1085,7 +1083,7 @@ int prism2_sta_deauth(local_info_t *local, u16 reason)
 
 	if (local->iw_mode != IW_MODE_INFRA ||
 	    is_zero_ether_addr(local->bssid) ||
-	    memcmp(local->bssid, "\x44\x44\x44\x44\x44\x44", ETH_ALEN) == 0)
+	    ether_addr_equal(local->bssid, "\x44\x44\x44\x44\x44\x44"))
 		return 0;
 
 	ret = prism2_sta_send_mgmt(local, local->bssid, IEEE80211_STYPE_DEAUTH,

@@ -89,7 +89,7 @@ static int adp5520_gpio_direction_output(struct gpio_chip *chip,
 
 static int adp5520_gpio_probe(struct platform_device *pdev)
 {
-	struct adp5520_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct adp5520_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct adp5520_gpio *dev;
 	struct gpio_chip *gc;
 	int ret, i, gpios;
@@ -127,7 +127,7 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 	gc->direction_output = adp5520_gpio_direction_output;
 	gc->get = adp5520_gpio_get_value;
 	gc->set = adp5520_gpio_set_value;
-	gc->can_sleep = 1;
+	gc->can_sleep = true;
 
 	gc->base = pdata->gpio_start;
 	gc->ngpio = gpios;

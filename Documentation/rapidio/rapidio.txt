@@ -300,7 +300,7 @@ initialization.
 -------------------------------------------
 
 RapidIO subsystem code organization allows addition of new enumeration/discovery
-methods as new configuration options without significant impact to to the core
+methods as new configuration options without significant impact to the core
 RapidIO code.
 
 A new enumeration/discovery method has to be attached to one or more mport

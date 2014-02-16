@@ -129,7 +129,7 @@ static struct gpio_chip template_chip = {
 	.set			= stmpe_gpio_set,
 	.to_irq			= stmpe_gpio_to_irq,
 	.request		= stmpe_gpio_request,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int stmpe_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -254,9 +254,10 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		while (stat) {
 			int bit = __ffs(stat);
 			int line = bank * 8 + bit;
-			int virq = irq_find_mapping(stmpe_gpio->domain, line);
+			int child_irq = irq_find_mapping(stmpe_gpio->domain,
+							 line);
 
-			handle_nested_irq(virq);
+			handle_nested_irq(child_irq);
 			stat &= ~(1 << bit);
 		}
 
@@ -271,7 +272,7 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int stmpe_gpio_irq_map(struct irq_domain *d, unsigned int virq,
+static int stmpe_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 			      irq_hw_number_t hwirq)
 {
 	struct stmpe_gpio *stmpe_gpio = d->host_data;
@@ -279,26 +280,26 @@ static int stmpe_gpio_irq_map(struct irq_domain *d, unsigned int virq,
 	if (!stmpe_gpio)
 		return -EINVAL;
 
-	irq_set_chip_data(hwirq, stmpe_gpio);
-	irq_set_chip_and_handler(hwirq, &stmpe_gpio_irq_chip,
+	irq_set_chip_data(irq, stmpe_gpio);
+	irq_set_chip_and_handler(irq, &stmpe_gpio_irq_chip,
 				 handle_simple_irq);
-	irq_set_nested_thread(hwirq, 1);
+	irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
-	set_irq_flags(hwirq, IRQF_VALID);
+	set_irq_flags(irq, IRQF_VALID);
 #else
-	irq_set_noprobe(hwirq);
+	irq_set_noprobe(irq);
 #endif
 
 	return 0;
 }
 
-static void stmpe_gpio_irq_unmap(struct irq_domain *d, unsigned int virq)
+static void stmpe_gpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
 #ifdef CONFIG_ARM
-	set_irq_flags(virq, 0);
+	set_irq_flags(irq, 0);
 #endif
-	irq_set_chip_and_handler(virq, NULL, NULL);
-	irq_set_chip_data(virq, NULL);
+	irq_set_chip_and_handler(irq, NULL, NULL);
+	irq_set_chip_data(irq, NULL);
 }
 
 static const struct irq_domain_ops stmpe_gpio_irq_simple_ops = {

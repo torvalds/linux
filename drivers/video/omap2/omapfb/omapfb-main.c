@@ -1833,6 +1833,16 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	if (fbdev == NULL)
 		return;
 
+	for (i = 0; i < fbdev->num_fbs; i++) {
+		struct omapfb_info *ofbi = FB2OFB(fbdev->fbs[i]);
+		int j;
+
+		for (j = 0; j < ofbi->num_overlays; j++) {
+			struct omap_overlay *ovl = ofbi->overlays[j];
+			ovl->disable(ovl);
+		}
+	}
+
 	for (i = 0; i < fbdev->num_fbs; i++)
 		unregister_framebuffer(fbdev->fbs[i]);
 
@@ -1852,6 +1862,8 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 
 		if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)
 			dssdev->driver->disable(dssdev);
+
+		dssdev->driver->disconnect(dssdev);
 
 		omap_dss_put_device(dssdev);
 	}
@@ -2363,27 +2375,26 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 	int i, r;
 	struct omap_overlay_manager *mgr;
 
-	if (!def_dssdev->output) {
-		dev_err(fbdev->dev, "no output for the default display\n");
-		return -EINVAL;
+	r = def_dssdev->driver->connect(def_dssdev);
+	if (r) {
+		dev_err(fbdev->dev, "failed to connect default display\n");
+		return r;
 	}
 
 	for (i = 0; i < fbdev->num_displays; ++i) {
 		struct omap_dss_device *dssdev = fbdev->displays[i].dssdev;
-		struct omap_dss_output *out = dssdev->output;
 
-		mgr = omap_dss_get_overlay_manager(out->dispc_channel);
-
-		if (!mgr || !out)
+		if (dssdev == def_dssdev)
 			continue;
 
-		if (mgr->output)
-			mgr->unset_output(mgr);
-
-		mgr->set_output(mgr, out);
+		/*
+		 * We don't care if the connect succeeds or not. We just want to
+		 * connect as many displays as possible.
+		 */
+		dssdev->driver->connect(dssdev);
 	}
 
-	mgr = def_dssdev->output->manager;
+	mgr = omapdss_find_mgr_from_display(def_dssdev);
 
 	if (!mgr) {
 		dev_err(fbdev->dev, "no ovl manager for the default display\n");
@@ -2502,7 +2513,7 @@ static int omapfb_probe(struct platform_device *pdev)
 
 	if (def_display == NULL) {
 		dev_err(fbdev->dev, "failed to find default display\n");
-		r = -EINVAL;
+		r = -EPROBE_DEFER;
 		goto cleanup;
 	}
 
@@ -2554,6 +2565,15 @@ static int omapfb_probe(struct platform_device *pdev)
 	if (r) {
 		dev_err(fbdev->dev, "failed to create sysfs entries\n");
 		goto cleanup;
+	}
+
+	if (def_display) {
+		u16 w, h;
+
+		def_display->driver->get_resolution(def_display, &w, &h);
+
+		dev_info(fbdev->dev, "using display '%s' mode %dx%d\n",
+			def_display->name, w, h);
 	}
 
 	return 0;

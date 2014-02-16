@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/reboot.h>
 #include <linux/seq_file.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
 #include <asm/machdep.h>

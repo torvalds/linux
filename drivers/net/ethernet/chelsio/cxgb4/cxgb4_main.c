@@ -60,6 +60,7 @@
 #include <linux/workqueue.h>
 #include <net/neighbour.h>
 #include <net/netevent.h>
+#include <net/addrconf.h>
 #include <asm/uaccess.h>
 
 #include "cxgb4.h"
@@ -68,6 +69,11 @@
 #include "t4fw_api.h"
 #include "l2t.h"
 
+#include <../drivers/net/bonding/bonding.h>
+
+#ifdef DRV_VERSION
+#undef DRV_VERSION
+#endif
 #define DRV_VERSION "2.0.0-ko"
 #define DRV_DESC "Chelsio T4/T5 Network Driver"
 
@@ -270,9 +276,9 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 	{ 0, }
 };
 
-#define FW_FNAME "cxgb4/t4fw.bin"
+#define FW4_FNAME "cxgb4/t4fw.bin"
 #define FW5_FNAME "cxgb4/t5fw.bin"
-#define FW_CFNAME "cxgb4/t4-config.txt"
+#define FW4_CFNAME "cxgb4/t4-config.txt"
 #define FW5_CFNAME "cxgb4/t5-config.txt"
 
 MODULE_DESCRIPTION(DRV_DESC);
@@ -280,7 +286,7 @@ MODULE_AUTHOR("Chelsio Communications");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4_pci_tbl);
-MODULE_FIRMWARE(FW_FNAME);
+MODULE_FIRMWARE(FW4_FNAME);
 MODULE_FIRMWARE(FW5_FNAME);
 
 /*
@@ -400,6 +406,9 @@ static struct dentry *cxgb4_debugfs_root;
 
 static LIST_HEAD(adapter_list);
 static DEFINE_MUTEX(uld_mutex);
+/* Adapter list to be accessed from atomic context */
+static LIST_HEAD(adap_rcu_list);
+static DEFINE_SPINLOCK(adap_rcu_lock);
 static struct cxgb4_uld_info ulds[CXGB4_ULD_MAX];
 static const char *uld_str[] = { "RDMA", "iSCSI" };
 
@@ -1062,78 +1071,12 @@ freeout:	t4_free_sge_resources(adap);
 }
 
 /*
- * Returns 0 if new FW was successfully loaded, a positive errno if a load was
- * started but failed, and a negative errno if flash load couldn't start.
- */
-static int upgrade_fw(struct adapter *adap)
-{
-	int ret;
-	u32 vers, exp_major;
-	const struct fw_hdr *hdr;
-	const struct firmware *fw;
-	struct device *dev = adap->pdev_dev;
-	char *fw_file_name;
-
-	switch (CHELSIO_CHIP_VERSION(adap->chip)) {
-	case CHELSIO_T4:
-		fw_file_name = FW_FNAME;
-		exp_major = FW_VERSION_MAJOR;
-		break;
-	case CHELSIO_T5:
-		fw_file_name = FW5_FNAME;
-		exp_major = FW_VERSION_MAJOR_T5;
-		break;
-	default:
-		dev_err(dev, "Unsupported chip type, %x\n", adap->chip);
-		return -EINVAL;
-	}
-
-	ret = request_firmware(&fw, fw_file_name, dev);
-	if (ret < 0) {
-		dev_err(dev, "unable to load firmware image %s, error %d\n",
-			fw_file_name, ret);
-		return ret;
-	}
-
-	hdr = (const struct fw_hdr *)fw->data;
-	vers = ntohl(hdr->fw_ver);
-	if (FW_HDR_FW_VER_MAJOR_GET(vers) != exp_major) {
-		ret = -EINVAL;              /* wrong major version, won't do */
-		goto out;
-	}
-
-	/*
-	 * If the flash FW is unusable or we found something newer, load it.
-	 */
-	if (FW_HDR_FW_VER_MAJOR_GET(adap->params.fw_vers) != exp_major ||
-	    vers > adap->params.fw_vers) {
-		dev_info(dev, "upgrading firmware ...\n");
-		ret = t4_fw_upgrade(adap, adap->mbox, fw->data, fw->size,
-				    /*force=*/false);
-		if (!ret)
-			dev_info(dev,
-				 "firmware upgraded to version %pI4 from %s\n",
-				 &hdr->fw_ver, fw_file_name);
-		else
-			dev_err(dev, "firmware upgrade failed! err=%d\n", -ret);
-	} else {
-		/*
-		 * Tell our caller that we didn't upgrade the firmware.
-		 */
-		ret = -EINVAL;
-	}
-
-out:	release_firmware(fw);
-	return ret;
-}
-
-/*
  * Allocate a chunk of memory using kmalloc or, if that fails, vmalloc.
  * The allocated memory is cleared.
  */
 void *t4_alloc_mem(size_t size)
 {
-	void *p = kzalloc(size, GFP_KERNEL);
+	void *p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
 
 	if (!p)
 		p = vzalloc(size);
@@ -1406,7 +1349,7 @@ static int get_sset_count(struct net_device *dev, int sset)
 static int get_regs_len(struct net_device *dev)
 {
 	struct adapter *adap = netdev2adap(dev);
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		return T4_REGMAP_SIZE;
 	else
 		return T5_REGMAP_SIZE;
@@ -1490,7 +1433,7 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	data += sizeof(struct port_stats) / sizeof(u64);
 	collect_sge_port_stats(adapter, pi, (struct queue_port_stats *)data);
 	data += sizeof(struct queue_port_stats) / sizeof(u64);
-	if (!is_t4(adapter->chip)) {
+	if (!is_t4(adapter->params.chip)) {
 		t4_write_reg(adapter, SGE_STAT_CFG, STATSOURCE_T5(7));
 		val1 = t4_read_reg(adapter, SGE_STAT_TOTAL);
 		val2 = t4_read_reg(adapter, SGE_STAT_MATCH);
@@ -1512,8 +1455,8 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
  */
 static inline unsigned int mk_adap_vers(const struct adapter *ap)
 {
-	return CHELSIO_CHIP_VERSION(ap->chip) |
-		(CHELSIO_CHIP_RELEASE(ap->chip) << 10) | (1 << 16);
+	return CHELSIO_CHIP_VERSION(ap->params.chip) |
+		(CHELSIO_CHIP_RELEASE(ap->params.chip) << 10) | (1 << 16);
 }
 
 static void reg_block_dump(struct adapter *ap, void *buf, unsigned int start,
@@ -2180,7 +2123,7 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	static const unsigned int *reg_ranges;
 	int arr_size = 0, buf_size = 0;
 
-	if (is_t4(ap->chip)) {
+	if (is_t4(ap->params.chip)) {
 		reg_ranges = &t4_reg_ranges[0];
 		arr_size = ARRAY_SIZE(t4_reg_ranges);
 		buf_size = T4_REGMAP_SIZE;
@@ -2958,7 +2901,7 @@ static int setup_debugfs(struct adapter *adap)
 		size = t4_read_reg(adap, MA_EDRAM1_BAR);
 		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM_SIZE_GET(size));
 	}
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
 		if (i & EXT_MEM_ENABLE)
 			add_debugfs_mem(adap, "mc", MEM_MC,
@@ -3043,7 +2986,14 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data)
 	if (stid >= 0) {
 		t->stid_tab[stid].data = data;
 		stid += t->stid_base;
-		t->stids_in_use++;
+		/* IPv6 requires max of 520 bits or 16 cells in TCAM
+		 * This is equivalent to 4 TIDs. With CLIP enabled it
+		 * needs 2 TIDs.
+		 */
+		if (family == PF_INET)
+			t->stids_in_use++;
+		else
+			t->stids_in_use += 4;
 	}
 	spin_unlock_bh(&t->stid_lock);
 	return stid;
@@ -3069,7 +3019,8 @@ int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data)
 	}
 	if (stid >= 0) {
 		t->stid_tab[stid].data = data;
-		stid += t->stid_base;
+		stid -= t->nstids;
+		stid += t->sftid_base;
 		t->stids_in_use++;
 	}
 	spin_unlock_bh(&t->stid_lock);
@@ -3081,14 +3032,24 @@ EXPORT_SYMBOL(cxgb4_alloc_sftid);
  */
 void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family)
 {
-	stid -= t->stid_base;
+	/* Is it a server filter TID? */
+	if (t->nsftids && (stid >= t->sftid_base)) {
+		stid -= t->sftid_base;
+		stid += t->nstids;
+	} else {
+		stid -= t->stid_base;
+	}
+
 	spin_lock_bh(&t->stid_lock);
 	if (family == PF_INET)
 		__clear_bit(stid, t->stid_bmap);
 	else
 		bitmap_release_region(t->stid_bmap, stid, 2);
 	t->stid_tab[stid].data = NULL;
-	t->stids_in_use--;
+	if (family == PF_INET)
+		t->stids_in_use--;
+	else
+		t->stids_in_use -= 4;
 	spin_unlock_bh(&t->stid_lock);
 }
 EXPORT_SYMBOL(cxgb4_free_stid);
@@ -3191,6 +3152,7 @@ static int tid_init(struct tid_info *t)
 	size_t size;
 	unsigned int stid_bmap_size;
 	unsigned int natids = t->natids;
+	struct adapter *adap = container_of(t, struct adapter, tids);
 
 	stid_bmap_size = BITS_TO_LONGS(t->nstids + t->nsftids);
 	size = t->ntids * sizeof(*t->tid_tab) +
@@ -3224,7 +3186,44 @@ static int tid_init(struct tid_info *t)
 		t->afree = t->atid_tab;
 	}
 	bitmap_zero(t->stid_bmap, t->nstids + t->nsftids);
+	/* Reserve stid 0 for T4/T5 adapters */
+	if (!t->stid_base &&
+	    (is_t4(adap->params.chip) || is_t5(adap->params.chip)))
+		__set_bit(0, t->stid_bmap);
+
 	return 0;
+}
+
+static int cxgb4_clip_get(const struct net_device *dev,
+			  const struct in6_addr *lip)
+{
+	struct adapter *adap;
+	struct fw_clip_cmd c;
+
+	adap = netdev2adap(dev);
+	memset(&c, 0, sizeof(c));
+	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
+			FW_CMD_REQUEST | FW_CMD_WRITE);
+	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_ALLOC | FW_LEN16(c));
+	*(__be64 *)&c.ip_hi = *(__be64 *)(lip->s6_addr);
+	*(__be64 *)&c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
+	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
+}
+
+static int cxgb4_clip_release(const struct net_device *dev,
+			      const struct in6_addr *lip)
+{
+	struct adapter *adap;
+	struct fw_clip_cmd c;
+
+	adap = netdev2adap(dev);
+	memset(&c, 0, sizeof(c));
+	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
+			FW_CMD_REQUEST | FW_CMD_READ);
+	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_FREE | FW_LEN16(c));
+	*(__be64 *)&c.ip_hi = *(__be64 *)(lip->s6_addr);
+	*(__be64 *)&c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
+	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
 
 /**
@@ -3246,6 +3245,7 @@ int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 	struct sk_buff *skb;
 	struct adapter *adap;
 	struct cpl_pass_open_req *req;
+	int ret;
 
 	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
 	if (!skb)
@@ -3263,9 +3263,77 @@ int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 	req->opt0 = cpu_to_be64(TX_CHAN(chan));
 	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
 				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
-	return t4_mgmt_tx(adap, skb);
+	ret = t4_mgmt_tx(adap, skb);
+	return net_xmit_eval(ret);
 }
 EXPORT_SYMBOL(cxgb4_create_server);
+
+/*	cxgb4_create_server6 - create an IPv6 server
+ *	@dev: the device
+ *	@stid: the server TID
+ *	@sip: local IPv6 address to bind server to
+ *	@sport: the server's TCP port
+ *	@queue: queue to direct messages from this server to
+ *
+ *	Create an IPv6 server for the given port and address.
+ *	Returns <0 on error and one of the %NET_XMIT_* values on success.
+ */
+int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
+			 const struct in6_addr *sip, __be16 sport,
+			 unsigned int queue)
+{
+	unsigned int chan;
+	struct sk_buff *skb;
+	struct adapter *adap;
+	struct cpl_pass_open_req6 *req;
+	int ret;
+
+	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	adap = netdev2adap(dev);
+	req = (struct cpl_pass_open_req6 *)__skb_put(skb, sizeof(*req));
+	INIT_TP_WR(req, 0);
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ6, stid));
+	req->local_port = sport;
+	req->peer_port = htons(0);
+	req->local_ip_hi = *(__be64 *)(sip->s6_addr);
+	req->local_ip_lo = *(__be64 *)(sip->s6_addr + 8);
+	req->peer_ip_hi = cpu_to_be64(0);
+	req->peer_ip_lo = cpu_to_be64(0);
+	chan = rxq_to_chan(&adap->sge, queue);
+	req->opt0 = cpu_to_be64(TX_CHAN(chan));
+	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
+				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
+	ret = t4_mgmt_tx(adap, skb);
+	return net_xmit_eval(ret);
+}
+EXPORT_SYMBOL(cxgb4_create_server6);
+
+int cxgb4_remove_server(const struct net_device *dev, unsigned int stid,
+			unsigned int queue, bool ipv6)
+{
+	struct sk_buff *skb;
+	struct adapter *adap;
+	struct cpl_close_listsvr_req *req;
+	int ret;
+
+	adap = netdev2adap(dev);
+
+	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	req = (struct cpl_close_listsvr_req *)__skb_put(skb, sizeof(*req));
+	INIT_TP_WR(req, 0);
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_LISTSRV_REQ, stid));
+	req->reply_ctrl = htons(NO_REPLY(0) | (ipv6 ? LISTSVR_IPV6(1) :
+				LISTSVR_IPV6(0)) | QUEUENO(queue));
+	ret = t4_mgmt_tx(adap, skb);
+	return net_xmit_eval(ret);
+}
+EXPORT_SYMBOL(cxgb4_remove_server);
 
 /**
  *	cxgb4_best_mtu - find the entry in the MTU table closest to an MTU
@@ -3309,7 +3377,7 @@ unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo)
 
 	v1 = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
 	v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2);
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		lp_count = G_LP_COUNT(v1);
 		hp_count = G_HP_COUNT(v1);
 	} else {
@@ -3478,7 +3546,7 @@ static void drain_db_fifo(struct adapter *adap, int usecs)
 	do {
 		v1 = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
 		v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2);
-		if (is_t4(adap->chip)) {
+		if (is_t4(adap->params.chip)) {
 			lp_count = G_LP_COUNT(v1);
 			hp_count = G_HP_COUNT(v1);
 		} else {
@@ -3598,7 +3666,7 @@ static void process_db_drop(struct work_struct *work)
 
 	adap = container_of(work, struct adapter, db_drop_task);
 
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		disable_dbs(adap);
 		notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
 		drain_db_fifo(adap, 1);
@@ -3643,7 +3711,7 @@ static void process_db_drop(struct work_struct *work)
 
 void t4_db_full(struct adapter *adap)
 {
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		t4_set_reg_field(adap, SGE_INT_ENABLE3,
 				 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
 		queue_work(workq, &adap->db_full_task);
@@ -3652,7 +3720,7 @@ void t4_db_full(struct adapter *adap)
 
 void t4_db_dropped(struct adapter *adap)
 {
-	if (is_t4(adap->chip))
+	if (is_t4(adap->params.chip))
 		queue_work(workq, &adap->db_drop_task);
 }
 
@@ -3679,7 +3747,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.nchan = adap->params.nports;
 	lli.nports = adap->params.nports;
 	lli.wr_cred = adap->params.ofldq_wr_cred;
-	lli.adapter_type = adap->params.rev;
+	lli.adapter_type = adap->params.chip;
 	lli.iscsi_iolen = MAXRXDATA_GET(t4_read_reg(adap, TP_PARA_REG2));
 	lli.udb_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_EGRESS_QUEUES_PER_PAGE_PF) >>
@@ -3687,7 +3755,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.ucq_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF) >>
 			(adap->fn * 4));
-	lli.filt_mode = adap->filter_mode;
+	lli.filt_mode = adap->params.tp.vlan_pri_map;
 	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
 	for (i = 0; i < NCHAN; i++)
 		lli.tx_modq[i] = i;
@@ -3721,6 +3789,10 @@ static void attach_ulds(struct adapter *adap)
 {
 	unsigned int i;
 
+	spin_lock(&adap_rcu_lock);
+	list_add_tail_rcu(&adap->rcu_node, &adap_rcu_list);
+	spin_unlock(&adap_rcu_lock);
+
 	mutex_lock(&uld_mutex);
 	list_add_tail(&adap->list_node, &adapter_list);
 	for (i = 0; i < CXGB4_ULD_MAX; i++)
@@ -3746,6 +3818,10 @@ static void detach_ulds(struct adapter *adap)
 		netevent_registered = false;
 	}
 	mutex_unlock(&uld_mutex);
+
+	spin_lock(&adap_rcu_lock);
+	list_del_rcu(&adap->rcu_node);
+	spin_unlock(&adap_rcu_lock);
 }
 
 static void notify_ulds(struct adapter *adap, enum cxgb4_state new_state)
@@ -3809,6 +3885,169 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 }
 EXPORT_SYMBOL(cxgb4_unregister_uld);
 
+/* Check if netdev on which event is occured belongs to us or not. Return
+ * suceess (1) if it belongs otherwise failure (0).
+ */
+static int cxgb4_netdev(struct net_device *netdev)
+{
+	struct adapter *adap;
+	int i;
+
+	spin_lock(&adap_rcu_lock);
+	list_for_each_entry_rcu(adap, &adap_rcu_list, rcu_node)
+		for (i = 0; i < MAX_NPORTS; i++)
+			if (adap->port[i] == netdev) {
+				spin_unlock(&adap_rcu_lock);
+				return 1;
+			}
+	spin_unlock(&adap_rcu_lock);
+	return 0;
+}
+
+static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
+		    unsigned long event)
+{
+	int ret = NOTIFY_DONE;
+
+	rcu_read_lock();
+	if (cxgb4_netdev(event_dev)) {
+		switch (event) {
+		case NETDEV_UP:
+			ret = cxgb4_clip_get(event_dev,
+				(const struct in6_addr *)ifa->addr.s6_addr);
+			if (ret < 0) {
+				rcu_read_unlock();
+				return ret;
+			}
+			ret = NOTIFY_OK;
+			break;
+		case NETDEV_DOWN:
+			cxgb4_clip_release(event_dev,
+				(const struct in6_addr *)ifa->addr.s6_addr);
+			ret = NOTIFY_OK;
+			break;
+		default:
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return ret;
+}
+
+static int cxgb4_inet6addr_handler(struct notifier_block *this,
+		unsigned long event, void *data)
+{
+	struct inet6_ifaddr *ifa = data;
+	struct net_device *event_dev;
+	int ret = NOTIFY_DONE;
+	struct bonding *bond = netdev_priv(ifa->idev->dev);
+	struct list_head *iter;
+	struct slave *slave;
+	struct pci_dev *first_pdev = NULL;
+
+	if (ifa->idev->dev->priv_flags & IFF_802_1Q_VLAN) {
+		event_dev = vlan_dev_real_dev(ifa->idev->dev);
+		ret = clip_add(event_dev, ifa, event);
+	} else if (ifa->idev->dev->flags & IFF_MASTER) {
+		/* It is possible that two different adapters are bonded in one
+		 * bond. We need to find such different adapters and add clip
+		 * in all of them only once.
+		 */
+		read_lock(&bond->lock);
+		bond_for_each_slave(bond, slave, iter) {
+			if (!first_pdev) {
+				ret = clip_add(slave->dev, ifa, event);
+				/* If clip_add is success then only initialize
+				 * first_pdev since it means it is our device
+				 */
+				if (ret == NOTIFY_OK)
+					first_pdev = to_pci_dev(
+							slave->dev->dev.parent);
+			} else if (first_pdev !=
+				   to_pci_dev(slave->dev->dev.parent))
+					ret = clip_add(slave->dev, ifa, event);
+		}
+		read_unlock(&bond->lock);
+	} else
+		ret = clip_add(ifa->idev->dev, ifa, event);
+
+	return ret;
+}
+
+static struct notifier_block cxgb4_inet6addr_notifier = {
+	.notifier_call = cxgb4_inet6addr_handler
+};
+
+/* Retrieves IPv6 addresses from a root device (bond, vlan) associated with
+ * a physical device.
+ * The physical device reference is needed to send the actul CLIP command.
+ */
+static int update_dev_clip(struct net_device *root_dev, struct net_device *dev)
+{
+	struct inet6_dev *idev = NULL;
+	struct inet6_ifaddr *ifa;
+	int ret = 0;
+
+	idev = __in6_dev_get(root_dev);
+	if (!idev)
+		return ret;
+
+	read_lock_bh(&idev->lock);
+	list_for_each_entry(ifa, &idev->addr_list, if_list) {
+		ret = cxgb4_clip_get(dev,
+				(const struct in6_addr *)ifa->addr.s6_addr);
+		if (ret < 0)
+			break;
+	}
+	read_unlock_bh(&idev->lock);
+
+	return ret;
+}
+
+static int update_root_dev_clip(struct net_device *dev)
+{
+	struct net_device *root_dev = NULL;
+	int i, ret = 0;
+
+	/* First populate the real net device's IPv6 addresses */
+	ret = update_dev_clip(dev, dev);
+	if (ret)
+		return ret;
+
+	/* Parse all bond and vlan devices layered on top of the physical dev */
+	for (i = 0; i < VLAN_N_VID; i++) {
+		root_dev = __vlan_find_dev_deep(dev, htons(ETH_P_8021Q), i);
+		if (!root_dev)
+			continue;
+
+		ret = update_dev_clip(root_dev, dev);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
+static void update_clip(const struct adapter *adap)
+{
+	int i;
+	struct net_device *dev;
+	int ret;
+
+	rcu_read_lock();
+
+	for (i = 0; i < MAX_NPORTS; i++) {
+		dev = adap->port[i];
+		ret = 0;
+
+		if (dev)
+			ret = update_root_dev_clip(dev);
+
+		if (ret < 0)
+			break;
+	}
+	rcu_read_unlock();
+}
+
 /**
  *	cxgb_up - enable the adapter
  *	@adap: adapter being enabled
@@ -3854,6 +4093,7 @@ static int cxgb_up(struct adapter *adap)
 	t4_intr_enable(adap);
 	adap->flags |= FULL_INIT_DONE;
 	notify_ulds(adap, CXGB4_STATE_UP);
+	update_clip(adap);
  out:
 	return err;
  irq_err:
@@ -3963,7 +4203,7 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 	adap = netdev2adap(dev);
 
 	/* Adjust stid to correct filter index */
-	stid -= adap->tids.nstids;
+	stid -= adap->tids.sftid_base;
 	stid += adap->tids.nftids;
 
 	/* Check to make sure the filter requested is writable ...
@@ -3989,10 +4229,15 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			f->fs.val.lip[i] = val[i];
 			f->fs.mask.lip[i] = ~0;
 		}
-		if (adap->filter_mode & F_PORT) {
+		if (adap->params.tp.vlan_pri_map & F_PORT) {
 			f->fs.val.iport = port;
 			f->fs.mask.iport = mask;
 		}
+	}
+
+	if (adap->params.tp.vlan_pri_map & F_PROTOCOL) {
+		f->fs.val.proto = IPPROTO_TCP;
+		f->fs.mask.proto = ~0;
 	}
 
 	f->fs.dirsteer = 1;
@@ -4021,7 +4266,7 @@ int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 	adap = netdev2adap(dev);
 
 	/* Adjust stid to correct filter index */
-	stid -= adap->tids.nstids;
+	stid -= adap->tids.sftid_base;
 	stid += adap->tids.nftids;
 
 	f = &adap->tids.ftid_tab[stid];
@@ -4043,7 +4288,15 @@ static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
 	struct port_info *p = netdev_priv(dev);
 	struct adapter *adapter = p->adapter;
 
+	/* Block retrieving statistics during EEH error
+	 * recovery. Otherwise, the recovery might fail
+	 * and the PCI device will be removed permanently
+	 */
 	spin_lock(&adapter->stats_lock);
+	if (!netif_device_present(dev)) {
+		spin_unlock(&adapter->stats_lock);
+		return ns;
+	}
 	t4_get_port_stats(adapter, p->tx_chan, &stats);
 	spin_unlock(&adapter->stats_lock);
 
@@ -4201,7 +4454,7 @@ static void setup_memwin(struct adapter *adap)
 	u32 bar0, mem_win0_base, mem_win1_base, mem_win2_base;
 
 	bar0 = pci_resource_start(adap->pdev, 0);  /* truncation intentional */
-	if (is_t4(adap->chip)) {
+	if (is_t4(adap->params.chip)) {
 		mem_win0_base = bar0 + MEMWIN0_BASE;
 		mem_win1_base = bar0 + MEMWIN1_BASE;
 		mem_win2_base = bar0 + MEMWIN2_BASE;
@@ -4386,8 +4639,10 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	const struct firmware *cf;
 	unsigned long mtype = 0, maddr = 0;
 	u32 finiver, finicsum, cfcsum;
-	int ret, using_flash;
+	int ret;
+	int config_issued = 0;
 	char *fw_config_file, fw_config_file_path[256];
+	char *config_name = NULL;
 
 	/*
 	 * Reset device if necessary.
@@ -4404,9 +4659,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * then use that.  Otherwise, use the configuration file stored
 	 * in the adapter flash ...
 	 */
-	switch (CHELSIO_CHIP_VERSION(adapter->chip)) {
+	switch (CHELSIO_CHIP_VERSION(adapter->params.chip)) {
 	case CHELSIO_T4:
-		fw_config_file = FW_CFNAME;
+		fw_config_file = FW4_CFNAME;
 		break;
 	case CHELSIO_T5:
 		fw_config_file = FW5_CFNAME;
@@ -4420,13 +4675,16 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 
 	ret = request_firmware(&cf, fw_config_file, adapter->pdev_dev);
 	if (ret < 0) {
-		using_flash = 1;
+		config_name = "On FLASH";
 		mtype = FW_MEMTYPE_CF_FLASH;
 		maddr = t4_flash_cfg_addr(adapter);
 	} else {
 		u32 params[7], val[7];
 
-		using_flash = 0;
+		sprintf(fw_config_file_path,
+			"/lib/firmware/%s", fw_config_file);
+		config_name = fw_config_file_path;
+
 		if (cf->size >= FLASH_CFG_MAX_SIZE)
 			ret = -ENOMEM;
 		else {
@@ -4494,6 +4752,26 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		      FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
+
+	/* If the CAPS_CONFIG failed with an ENOENT (for a Firmware
+	 * Configuration File in FLASH), our last gasp effort is to use the
+	 * Firmware Configuration File which is embedded in the firmware.  A
+	 * very few early versions of the firmware didn't have one embedded
+	 * but we can ignore those.
+	 */
+	if (ret == -ENOENT) {
+		memset(&caps_cmd, 0, sizeof(caps_cmd));
+		caps_cmd.op_to_write =
+			htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+					FW_CMD_REQUEST |
+					FW_CMD_READ);
+		caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
+		ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd,
+				sizeof(caps_cmd), &caps_cmd);
+		config_name = "Firmware Default";
+	}
+
+	config_issued = 1;
 	if (ret < 0)
 		goto bye;
 
@@ -4534,7 +4812,6 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	if (ret < 0)
 		goto bye;
 
-	sprintf(fw_config_file_path, "/lib/firmware/%s", fw_config_file);
 	/*
 	 * Return successfully and note that we're operating with parameters
 	 * not supplied by the driver, rather than from hard-wired
@@ -4542,11 +4819,8 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 */
 	adapter->flags |= USING_SOFT_PARAMS;
 	dev_info(adapter->pdev_dev, "Successfully configured using Firmware "\
-		 "Configuration File %s, version %#x, computed checksum %#x\n",
-		 (using_flash
-		  ? "in device FLASH"
-		  : fw_config_file_path),
-		 finiver, cfcsum);
+		 "Configuration File \"%s\", version %#x, computed checksum %#x\n",
+		 config_name, finiver, cfcsum);
 	return 0;
 
 	/*
@@ -4555,9 +4829,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * want to issue a warning since this is fairly common.)
 	 */
 bye:
-	if (ret != -ENOENT)
-		dev_warn(adapter->pdev_dev, "Configuration file error %d\n",
-			 -ret);
+	if (config_issued && ret != -ENOENT)
+		dev_warn(adapter->pdev_dev, "\"%s\" configuration file error %d\n",
+			 config_name, -ret);
 	return ret;
 }
 
@@ -4804,6 +5078,47 @@ bye:
 	return ret;
 }
 
+static struct fw_info fw_info_array[] = {
+	{
+		.chip = CHELSIO_T4,
+		.fs_name = FW4_CFNAME,
+		.fw_mod_name = FW4_FNAME,
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T4,
+			.fw_ver = __cpu_to_be32(FW_VERSION(T4)),
+			.intfver_nic = FW_INTFVER(T4, NIC),
+			.intfver_vnic = FW_INTFVER(T4, VNIC),
+			.intfver_ri = FW_INTFVER(T4, RI),
+			.intfver_iscsi = FW_INTFVER(T4, ISCSI),
+			.intfver_fcoe = FW_INTFVER(T4, FCOE),
+		},
+	}, {
+		.chip = CHELSIO_T5,
+		.fs_name = FW5_CFNAME,
+		.fw_mod_name = FW5_FNAME,
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T5,
+			.fw_ver = __cpu_to_be32(FW_VERSION(T5)),
+			.intfver_nic = FW_INTFVER(T5, NIC),
+			.intfver_vnic = FW_INTFVER(T5, VNIC),
+			.intfver_ri = FW_INTFVER(T5, RI),
+			.intfver_iscsi = FW_INTFVER(T5, ISCSI),
+			.intfver_fcoe = FW_INTFVER(T5, FCOE),
+		},
+	}
+};
+
+static struct fw_info *find_fw_info(int chip)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fw_info_array); i++) {
+		if (fw_info_array[i].chip == chip)
+			return &fw_info_array[i];
+	}
+	return NULL;
+}
+
 /*
  * Phase 0 of initialization: contact FW, obtain config, perform basic init.
  */
@@ -4814,7 +5129,7 @@ static int adap_init0(struct adapter *adap)
 	enum dev_state state;
 	u32 params[7], val[7];
 	struct fw_caps_config_cmd caps_cmd;
-	int reset = 1, j;
+	int reset = 1;
 
 	/*
 	 * Contact FW, advertising Master capability (and potentially forcing
@@ -4841,21 +5156,54 @@ static int adap_init0(struct adapter *adap)
 	 * later reporting and B. to warn if the currently loaded firmware
 	 * is excessively mismatched relative to the driver.)
 	 */
-	ret = t4_check_fw_version(adap);
+	t4_get_fw_version(adap, &adap->params.fw_vers);
+	t4_get_tp_version(adap, &adap->params.tp_vers);
 	if ((adap->flags & MASTER_PF) && state != DEV_STATE_INIT) {
-		if (ret == -EINVAL || ret > 0) {
-			if (upgrade_fw(adap) >= 0) {
-				/*
-				 * Note that the chip was reset as part of the
-				 * firmware upgrade so we don't reset it again
-				 * below and grab the new firmware version.
-				 */
-				reset = 0;
-				ret = t4_check_fw_version(adap);
-			}
+		struct fw_info *fw_info;
+		struct fw_hdr *card_fw;
+		const struct firmware *fw;
+		const u8 *fw_data = NULL;
+		unsigned int fw_size = 0;
+
+		/* This is the firmware whose headers the driver was compiled
+		 * against
+		 */
+		fw_info = find_fw_info(CHELSIO_CHIP_VERSION(adap->params.chip));
+		if (fw_info == NULL) {
+			dev_err(adap->pdev_dev,
+				"unable to get firmware info for chip %d.\n",
+				CHELSIO_CHIP_VERSION(adap->params.chip));
+			return -EINVAL;
 		}
+
+		/* allocate memory to read the header of the firmware on the
+		 * card
+		 */
+		card_fw = t4_alloc_mem(sizeof(*card_fw));
+
+		/* Get FW from from /lib/firmware/ */
+		ret = request_firmware(&fw, fw_info->fw_mod_name,
+				       adap->pdev_dev);
+		if (ret < 0) {
+			dev_err(adap->pdev_dev,
+				"unable to load firmware image %s, error %d\n",
+				fw_info->fw_mod_name, ret);
+		} else {
+			fw_data = fw->data;
+			fw_size = fw->size;
+		}
+
+		/* upgrade FW logic */
+		ret = t4_prep_fw(adap, fw_info, fw_data, fw_size, card_fw,
+				 state, &reset);
+
+		/* Cleaning up */
+		if (fw != NULL)
+			release_firmware(fw);
+		t4_free_mem(card_fw);
+
 		if (ret < 0)
-			return ret;
+			goto bye;
 	}
 
 	/*
@@ -4940,7 +5288,7 @@ static int adap_init0(struct adapter *adap)
 				if (ret == -ENOENT) {
 					dev_info(adap->pdev_dev,
 					    "No Configuration File present "
-					    "on adapter.  Using hard-wired "
+					    "on adapter. Using hard-wired "
 					    "configuration parameters.\n");
 					ret = adap_init0_no_config(adap, reset);
 				}
@@ -5123,21 +5471,11 @@ static int adap_init0(struct adapter *adap)
 	/*
 	 * These are finalized by FW initialization, load their values now.
 	 */
-	v = t4_read_reg(adap, TP_TIMER_RESOLUTION);
-	adap->params.tp.tre = TIMERRESOLUTION_GET(v);
-	adap->params.tp.dack_re = DELAYEDACKRESOLUTION_GET(v);
 	t4_read_mtu_tbl(adap, adap->params.mtus, NULL);
 	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
 		     adap->params.b_wnd);
 
-	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
-	for (j = 0; j < NCHAN; j++)
-		adap->params.tp.tx_modq[j] = j;
-
-	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
-			 &adap->filter_mode, 1,
-			 TP_VLAN_PRI_MAP);
-
+	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
 	return 0;
 
@@ -5166,16 +5504,21 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 	rtnl_lock();
 	adap->flags &= ~FW_OK;
 	notify_ulds(adap, CXGB4_STATE_START_RECOVERY);
+	spin_lock(&adap->stats_lock);
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
 
 		netif_device_detach(dev);
 		netif_carrier_off(dev);
 	}
+	spin_unlock(&adap->stats_lock);
 	if (adap->flags & FULL_INIT_DONE)
 		cxgb_down(adap);
 	rtnl_unlock();
-	pci_disable_device(pdev);
+	if ((adap->flags & DEV_ENABLED)) {
+		pci_disable_device(pdev);
+		adap->flags &= ~DEV_ENABLED;
+	}
 out:	return state == pci_channel_io_perm_failure ?
 		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
 }
@@ -5192,9 +5535,13 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_RECOVERED;
 	}
 
-	if (pci_enable_device(pdev)) {
-		dev_err(&pdev->dev, "cannot reenable PCI device after reset\n");
-		return PCI_ERS_RESULT_DISCONNECT;
+	if (!(adap->flags & DEV_ENABLED)) {
+		if (pci_enable_device(pdev)) {
+			dev_err(&pdev->dev, "Cannot reenable PCI "
+					    "device after reset\n");
+			return PCI_ERS_RESULT_DISCONNECT;
+		}
+		adap->flags |= DEV_ENABLED;
 	}
 
 	pci_set_master(pdev);
@@ -5482,7 +5829,7 @@ static void print_port_info(const struct net_device *dev)
 
 	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
 		    adap->params.vpd.id,
-		    CHELSIO_CHIP_RELEASE(adap->params.rev), buf,
+		    CHELSIO_CHIP_RELEASE(adap->params.chip), buf,
 		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
 		    (adap->flags & USING_MSIX) ? " MSI-X" :
 		    (adap->flags & USING_MSI) ? " MSI" : "");
@@ -5580,6 +5927,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_device;
 	}
 
+	/* PCI device has been enabled */
+	adapter->flags |= DEV_ENABLED;
+
 	adapter->regs = pci_ioremap_bar(pdev, 0);
 	if (!adapter->regs) {
 		dev_err(&pdev->dev, "cannot map device registers\n");
@@ -5605,7 +5955,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out_unmap_bar0;
 
-	if (!is_t4(adapter->chip)) {
+	if (!is_t4(adapter->params.chip)) {
 		s_qpp = QUEUESPERPAGEPF1 * adapter->fn;
 		qpp = 1 << QUEUESPERPAGEPF0_GET(t4_read_reg(adapter,
 		      SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp);
@@ -5759,7 +6109,7 @@ sriov:
  out_free_dev:
 	free_some_resources(adapter);
  out_unmap_bar:
-	if (!is_t4(adapter->chip))
+	if (!is_t4(adapter->params.chip))
 		iounmap(adapter->bar2);
  out_unmap_bar0:
 	iounmap(adapter->regs);
@@ -5770,7 +6120,6 @@ sriov:
 	pci_disable_device(pdev);
  out_release_regions:
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return err;
 }
 
@@ -5812,13 +6161,15 @@ static void remove_one(struct pci_dev *pdev)
 
 		free_some_resources(adapter);
 		iounmap(adapter->regs);
-		if (!is_t4(adapter->chip))
+		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
-		kfree(adapter);
 		pci_disable_pcie_error_reporting(pdev);
-		pci_disable_device(pdev);
+		if ((adapter->flags & DEV_ENABLED)) {
+			pci_disable_device(pdev);
+			adapter->flags &= ~DEV_ENABLED;
+		}
 		pci_release_regions(pdev);
-		pci_set_drvdata(pdev, NULL);
+		kfree(adapter);
 	} else
 		pci_release_regions(pdev);
 }
@@ -5845,13 +6196,19 @@ static int __init cxgb4_init_module(void)
 		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4_driver);
-	if (ret < 0)
+	if (ret < 0) {
 		debugfs_remove(cxgb4_debugfs_root);
+		destroy_workqueue(workq);
+	}
+
+	register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+
 	return ret;
 }
 
 static void __exit cxgb4_cleanup_module(void)
 {
+	unregister_inet6addr_notifier(&cxgb4_inet6addr_notifier);
 	pci_unregister_driver(&cxgb4_driver);
 	debugfs_remove(cxgb4_debugfs_root);  /* NULL ok */
 	flush_workqueue(workq);

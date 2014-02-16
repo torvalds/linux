@@ -1,8 +1,8 @@
 ST Ericsson Nomadik pinmux controller
 
 Required properties:
-- compatible: "stericsson,nmk-pinctrl", "stericsson,nmk-pinctrl-db8540",
-              "stericsson,nmk-pinctrl-stn8815"
+- compatible: "stericsson,db8500-pinctrl", "stericsson,db8540-pinctrl",
+              "stericsson,stn8815-pinctrl"
 - reg: Should contain the register physical address and length of the PRCMU.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
@@ -68,7 +68,7 @@ Optional subnode-properties:
 Example board file extract:
 
 	pinctrl@80157000 {
-		compatible = "stericsson,nmk-pinctrl";
+		compatible = "stericsson,db8500-pinctrl";
 		reg = <0x80157000 0x2000>;
 
 		pinctrl-names = "default";

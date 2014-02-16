@@ -13,13 +13,12 @@
 #include <linux/clk.h>
 #include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
-#include <linux/clocksource.h>
-#include <linux/can/platform/flexcan.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/irqchip/mxs.h>
+#include <linux/reboot.h>
 #include <linux/micrel_phy.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -61,6 +60,8 @@
 static u32 chipid;
 static u32 socid;
 
+static void __iomem *reset_addr;
+
 static inline void __mxs_setl(u32 mask, void __iomem *reg)
 {
 	__raw_writel(mask, reg + MXS_SET_ADDR);
@@ -75,41 +76,6 @@ static inline void __mxs_togl(u32 mask, void __iomem *reg)
 {
 	__raw_writel(mask, reg + MXS_TOG_ADDR);
 }
-
-/*
- * MX28EVK_FLEXCAN_SWITCH is shared between both flexcan controllers
- */
-#define MX28EVK_FLEXCAN_SWITCH	MXS_GPIO_NR(2, 13)
-
-static int flexcan0_en, flexcan1_en;
-
-static void mx28evk_flexcan_switch(void)
-{
-	if (flexcan0_en || flexcan1_en)
-		gpio_set_value(MX28EVK_FLEXCAN_SWITCH, 1);
-	else
-		gpio_set_value(MX28EVK_FLEXCAN_SWITCH, 0);
-}
-
-static void mx28evk_flexcan0_switch(int enable)
-{
-	flexcan0_en = enable;
-	mx28evk_flexcan_switch();
-}
-
-static void mx28evk_flexcan1_switch(int enable)
-{
-	flexcan1_en = enable;
-	mx28evk_flexcan_switch();
-}
-
-static struct flexcan_platform_data flexcan_pdata[2];
-
-static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("fsl,imx28-flexcan", 0x80032000, NULL, &flexcan_pdata[0]),
-	OF_DEV_AUXDATA("fsl,imx28-flexcan", 0x80034000, NULL, &flexcan_pdata[1]),
-	{ /* sentinel */ }
-};
 
 #define OCOTP_WORD_OFFSET		0x20
 #define OCOTP_WORD_COUNT		0x20
@@ -270,15 +236,6 @@ static void __init imx28_evk_init(void)
 	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
 }
 
-static void __init imx28_evk_post_init(void)
-{
-	if (!gpio_request_one(MX28EVK_FLEXCAN_SWITCH, GPIOF_DIR_OUT,
-			      "flexcan-switch")) {
-		flexcan_pdata[0].transceiver_switch = mx28evk_flexcan0_switch;
-		flexcan_pdata[1].transceiver_switch = mx28evk_flexcan1_switch;
-	}
-}
-
 static int apx4devkit_phy_fixup(struct phy_device *phy)
 {
 	phy->dev_flags |= MICREL_PHY_50MHZ_CLK;
@@ -373,6 +330,11 @@ static void __init crystalfontz_init(void)
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
+static void __init m28cu3_init(void)
+{
+	update_fec_mac_prop(OUI_DENX);
+}
+
 static const char __init *mxs_get_soc_id(void)
 {
 	struct device_node *np;
@@ -437,10 +399,31 @@ static const char __init *mxs_get_revision(void)
 	u32 rev = mxs_get_cpu_rev();
 
 	if (rev != MXS_CHIP_REV_UNKNOWN)
-		return kasprintf(GFP_KERNEL, "TO%d.%d", (rev >> 4) & 0xf,
+		return kasprintf(GFP_KERNEL, "%d.%d", (rev >> 4) & 0xf,
 				rev & 0xf);
 	else
 		return kasprintf(GFP_KERNEL, "%s", "Unknown");
+}
+
+#define MX23_CLKCTRL_RESET_OFFSET	0x120
+#define MX28_CLKCTRL_RESET_OFFSET	0x1e0
+
+static int __init mxs_restart_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
+	reset_addr = of_iomap(np, 0);
+	if (!reset_addr)
+		return -ENODEV;
+
+	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
+		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
+	else
+		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+	of_node_put(np);
+
+	return 0;
 }
 
 static void __init mxs_machine_init(void)
@@ -477,64 +460,39 @@ static void __init mxs_machine_init(void)
 		imx28_evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
-	else if (of_machine_is_compatible("crystalfontz,cfa10037") ||
-		 of_machine_is_compatible("crystalfontz,cfa10049") ||
-		 of_machine_is_compatible("crystalfontz,cfa10055") ||
-		 of_machine_is_compatible("crystalfontz,cfa10057"))
+	else if (of_machine_is_compatible("crystalfontz,cfa10036"))
 		crystalfontz_init();
+	else if (of_machine_is_compatible("msr,m28cu3"))
+		m28cu3_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
-			     mxs_auxdata_lookup, parent);
+			     NULL, parent);
+
+	mxs_restart_init();
 
 	if (of_machine_is_compatible("karo,tx28"))
 		tx28_post_init();
-
-	if (of_machine_is_compatible("fsl,imx28-evk"))
-		imx28_evk_post_init();
 }
 
-#define MX23_CLKCTRL_RESET_OFFSET	0x120
-#define MX28_CLKCTRL_RESET_OFFSET	0x1e0
 #define MXS_CLKCTRL_RESET_CHIP		(1 << 1)
 
 /*
  * Reset the system. It is called by machine_restart().
  */
-static void mxs_restart(char mode, const char *cmd)
+static void mxs_restart(enum reboot_mode mode, const char *cmd)
 {
-	struct device_node *np;
-	void __iomem *reset_addr;
+	if (reset_addr) {
+		/* reset the chip */
+		__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
-	reset_addr = of_iomap(np, 0);
-	if (!reset_addr)
-		goto soft;
+		pr_err("Failed to assert the chip reset\n");
 
-	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
-		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
-	else
-		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+		/* Delay to allow the serial port to show the message */
+		mdelay(50);
+	}
 
-	/* reset the chip */
-	__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
-
-	pr_err("Failed to assert the chip reset\n");
-
-	/* Delay to allow the serial port to show the message */
-	mdelay(50);
-
-soft:
 	/* We'll take a jump through zero as a poor second */
 	soft_restart(0);
-}
-
-static void __init mxs_timer_init(void)
-{
-	if (of_machine_is_compatible("fsl,imx23"))
-		mx23_clocks_init();
-	else
-		mx28_clocks_init();
-	clocksource_of_init();
 }
 
 static const char *mxs_dt_compat[] __initdata = {
@@ -545,7 +503,6 @@ static const char *mxs_dt_compat[] __initdata = {
 
 DT_MACHINE_START(MXS, "Freescale MXS (Device Tree)")
 	.handle_irq	= icoll_handle_irq,
-	.init_time	= mxs_timer_init,
 	.init_machine	= mxs_machine_init,
 	.init_late      = mxs_pm_init,
 	.dt_compat	= mxs_dt_compat,

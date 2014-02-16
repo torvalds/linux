@@ -29,6 +29,7 @@ This driver is a simple driver to read the counter values from
 Kolter Electronic PCI Counter Card.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -138,7 +139,7 @@ static int ke_counter_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ke_counter_pci_table) = {
+static const struct pci_device_id ke_counter_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID) },
 	{ 0 }
 };

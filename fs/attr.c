@@ -167,7 +167,27 @@ void setattr_copy(struct inode *inode, const struct iattr *attr)
 }
 EXPORT_SYMBOL(setattr_copy);
 
-int notify_change(struct dentry * dentry, struct iattr * attr)
+/**
+ * notify_change - modify attributes of a filesytem object
+ * @dentry:	object affected
+ * @iattr:	new attributes
+ * @delegated_inode: returns inode, if the inode is delegated
+ *
+ * The caller must hold the i_mutex on the affected object.
+ *
+ * If notify_change discovers a delegation in need of breaking,
+ * it will return -EWOULDBLOCK and return a reference to the inode in
+ * delegated_inode.  The caller should then break the delegation and
+ * retry.  Because breaking a delegation may take a long time, the
+ * caller should drop the i_mutex before doing so.
+ *
+ * Alternatively, a caller may pass NULL for delegated_inode.  This may
+ * be appropriate for callers that expect the underlying filesystem not
+ * to be NFS exported.  Also, passing NULL is fine for callers holding
+ * the file open for write, as there can be no conflicting delegation in
+ * that case.
+ */
+int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **delegated_inode)
 {
 	struct inode *inode = dentry->d_inode;
 	umode_t mode = inode->i_mode;
@@ -180,11 +200,6 @@ int notify_change(struct dentry * dentry, struct iattr * attr)
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) {
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 			return -EPERM;
-	}
-
-	if ((ia_valid & ATTR_SIZE) && IS_I_VERSION(inode)) {
-		if (attr->ia_size != inode->i_size)
-			inode_inc_iversion(inode);
 	}
 
 	if ((ia_valid & ATTR_MODE)) {
@@ -241,6 +256,9 @@ int notify_change(struct dentry * dentry, struct iattr * attr)
 		return 0;
 
 	error = security_inode_setattr(dentry, attr);
+	if (error)
+		return error;
+	error = try_break_deleg(inode, delegated_inode);
 	if (error)
 		return error;
 

@@ -104,20 +104,19 @@ struct efuse_priv {
 	u8 tx_power_g[14];
 };
 
-extern void read_efuse_byte(struct ieee80211_hw *hw, u16 _offset, u8 *pbuf);
-extern void efuse_initialize(struct ieee80211_hw *hw);
-extern u8 efuse_read_1byte(struct ieee80211_hw *hw, u16 address);
-extern void efuse_write_1byte(struct ieee80211_hw *hw, u16 address, u8 value);
-extern void read_efuse(struct ieee80211_hw *hw, u16 _offset,
-		       u16 _size_byte, u8 *pbuf);
-extern void efuse_shadow_read(struct ieee80211_hw *hw, u8 type,
-			      u16 offset, u32 *value);
-extern void efuse_shadow_write(struct ieee80211_hw *hw, u8 type,
-			       u16 offset, u32 value);
-extern bool efuse_shadow_update(struct ieee80211_hw *hw);
-extern bool efuse_shadow_update_chk(struct ieee80211_hw *hw);
-extern void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw);
-extern void efuse_force_write_vendor_Id(struct ieee80211_hw *hw);
-extern void efuse_re_pg_section(struct ieee80211_hw *hw, u8 section_idx);
+void read_efuse_byte(struct ieee80211_hw *hw, u16 _offset, u8 *pbuf);
+void efuse_initialize(struct ieee80211_hw *hw);
+u8 efuse_read_1byte(struct ieee80211_hw *hw, u16 address);
+void efuse_write_1byte(struct ieee80211_hw *hw, u16 address, u8 value);
+void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf);
+void efuse_shadow_read(struct ieee80211_hw *hw, u8 type, u16 offset,
+		       u32 *value);
+void efuse_shadow_write(struct ieee80211_hw *hw, u8 type, u16 offset,
+			u32 value);
+bool efuse_shadow_update(struct ieee80211_hw *hw);
+bool efuse_shadow_update_chk(struct ieee80211_hw *hw);
+void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw);
+void efuse_force_write_vendor_Id(struct ieee80211_hw *hw);
+void efuse_re_pg_section(struct ieee80211_hw *hw, u8 section_idx);
 
 #endif

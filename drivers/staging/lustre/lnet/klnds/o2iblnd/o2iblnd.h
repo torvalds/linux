@@ -50,10 +50,8 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/stat.h>
 #include <linux/list.h>
 #include <linux/kmod.h>
 #include <linux/sysctl.h>
@@ -107,9 +105,6 @@ typedef struct
 	int	      *kib_fmr_pool_size;    /* # FMRs in pool */
 	int	      *kib_fmr_flush_trigger; /* When to trigger FMR flush */
 	int	      *kib_fmr_cache;	/* enable FMR pool cache? */
-#if defined(CONFIG_SYSCTL) && !CFS_SYSFS_MODULE_PARM
-	ctl_table_header_t *kib_sysctl;  /* sysctl interface */
-#endif
 	int	      *kib_require_priv_port;/* accept only privileged ports */
 	int	      *kib_use_priv_port;    /* use privileged port for active connect */
 	/* # threads on each CPT */

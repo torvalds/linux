@@ -82,13 +82,8 @@ irqreturn_t adis16400_trigger_handler(int irq, void *p)
 		spi_setup(st->adis.spi);
 	}
 
-	/* Guaranteed to be aligned with 8 byte boundary */
-	if (indio_dev->scan_timestamp) {
-		void *b = adis->buffer + indio_dev->scan_bytes - sizeof(s64);
-		*(s64 *)b = pf->timestamp;
-	}
-
-	iio_push_to_buffers(indio_dev, adis->buffer);
+	iio_push_to_buffers_with_timestamp(indio_dev, adis->buffer,
+		pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
 

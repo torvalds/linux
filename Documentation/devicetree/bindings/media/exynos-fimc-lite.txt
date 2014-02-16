@@ -2,8 +2,10 @@ Exynos4x12/Exynos5 SoC series camera host interface (FIMC-LITE)
 
 Required properties:
 
-- compatible	: should be "samsung,exynos4212-fimc-lite" for Exynos4212 and
-		  Exynos4412 SoCs;
+- compatible	: should be one of:
+		  "samsung,exynos4212-fimc-lite" for Exynos4212/4412 SoCs,
+		  "samsung,exynos5250-fimc-lite" for Exynos5250 compatible
+		   devices;
 - reg		: physical base address and size of the device memory mapped
 		  registers;
 - interrupts	: should contain FIMC-LITE interrupt;

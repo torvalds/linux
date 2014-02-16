@@ -1,0 +1,35 @@
+
+config DRM_MSM
+	tristate "MSM DRM"
+	depends on DRM
+	depends on MSM_IOMMU
+	depends on (ARCH_MSM && ARCH_MSM8960) || (ARM && COMPILE_TEST)
+	select DRM_KMS_HELPER
+	select SHMEM
+	select TMPFS
+	default y
+	help
+	  DRM/KMS driver for MSM/snapdragon.
+
+config DRM_MSM_FBDEV
+	bool "Enable legacy fbdev support for MSM modesetting driver"
+	depends on DRM_MSM
+	select DRM_KMS_FB_HELPER
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	default y
+	help
+	  Choose this option if you have a need for the legacy fbdev
+	  support. Note that this support also provide the linux console
+	  support on top of the MSM modesetting driver.
+
+config DRM_MSM_REGISTER_LOGGING
+	bool "MSM DRM register logging"
+	depends on DRM_MSM
+	default n
+	help
+	  Compile in support for logging register reads/writes in a format
+	  that can be parsed by envytools demsm tool.  If enabled, register
+	  logging can be switched on via msm.reglog=y module param.

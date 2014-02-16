@@ -117,12 +117,59 @@
 #define SYS_SCRTCH2				0x4b
 #define SYS_SCRTCH3				0x4c
 
+/* PLL registers XLP2XX */
+#define SYS_PLL_CTRL0				0x240
+#define SYS_PLL_CTRL1				0x241
+#define SYS_PLL_CTRL2				0x242
+#define SYS_PLL_CTRL3				0x243
+#define SYS_DMC_PLL_CTRL0			0x244
+#define SYS_DMC_PLL_CTRL1			0x245
+#define SYS_DMC_PLL_CTRL2			0x246
+#define SYS_DMC_PLL_CTRL3			0x247
+
+#define SYS_PLL_CTRL0_DEVX(x)			(0x248 + (x) * 4)
+#define SYS_PLL_CTRL1_DEVX(x)			(0x249 + (x) * 4)
+#define SYS_PLL_CTRL2_DEVX(x)			(0x24a + (x) * 4)
+#define SYS_PLL_CTRL3_DEVX(x)			(0x24b + (x) * 4)
+
+#define SYS_CPU_PLL_CHG_CTRL			0x288
+#define SYS_PLL_CHG_CTRL			0x289
+#define SYS_CLK_DEV_DIS				0x28a
+#define SYS_CLK_DEV_SEL				0x28b
+#define SYS_CLK_DEV_DIV				0x28c
+#define SYS_CLK_DEV_CHG				0x28d
+#define SYS_CLK_DEV_SEL_REG			0x28e
+#define SYS_CLK_DEV_DIV_REG			0x28f
+#define SYS_CPU_PLL_LOCK			0x29f
+#define SYS_SYS_PLL_LOCK			0x2a0
+#define SYS_PLL_MEM_CMD				0x2a1
+#define SYS_CPU_PLL_MEM_REQ			0x2a2
+#define SYS_SYS_PLL_MEM_REQ			0x2a3
+#define SYS_PLL_MEM_STAT			0x2a4
+
+/* Registers changed on 9XX */
+#define SYS_9XX_POWER_ON_RESET_CFG		0x00
+#define SYS_9XX_CHIP_RESET			0x01
+#define SYS_9XX_CPU_RESET			0x02
+#define SYS_9XX_CPU_NONCOHERENT_MODE		0x03
+
+/* XLP 9XX fuse block registers */
+#define FUSE_9XX_DEVCFG6			0xc6
+
 #ifndef __ASSEMBLY__
 
 #define nlm_read_sys_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_sys_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_sys_pcibase(node) nlm_pcicfg_base(XLP_IO_SYS_OFFSET(node))
+#define nlm_get_sys_pcibase(node)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+		XLP9XX_IO_SYS_OFFSET(node) : XLP_IO_SYS_OFFSET(node))
 #define nlm_get_sys_regbase(node) (nlm_get_sys_pcibase(node) + XLP_IO_PCI_HDRSZ)
 
+/* XLP9XX fuse block */
+#define nlm_get_fuse_pcibase(node)	\
+			nlm_pcicfg_base(XLP9XX_IO_FUSE_OFFSET(node))
+#define nlm_get_fuse_regbase(node)	\
+			(nlm_get_fuse_pcibase(node) + XLP_IO_PCI_HDRSZ)
+
+unsigned int nlm_get_pic_frequency(int node);
 #endif
 #endif

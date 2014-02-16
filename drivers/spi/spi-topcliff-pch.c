@@ -217,7 +217,7 @@ struct pch_pd_dev_save {
 	struct pch_spi_board_data *board_dat;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pch_spi_pcidev_id) = {
+static const struct pci_device_id pch_spi_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_GE_SPI),    1, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_SPI), 2, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_SPI), 1, },
@@ -466,12 +466,6 @@ static void pch_spi_reset(struct spi_master *master)
 
 static int pch_spi_setup(struct spi_device *pspi)
 {
-	/* check bits per word */
-	if (pspi->bits_per_word == 0) {
-		pspi->bits_per_word = 8;
-		dev_dbg(&pspi->dev, "%s 8 bits per word\n", __func__);
-	}
-
 	/* Check baud rate setting */
 	/* if baud rate of chip is greater than
 	   max we can support,return error */
@@ -506,8 +500,8 @@ static int pch_spi_transfer(struct spi_device *pspi, struct spi_message *pmsg)
 		goto err_out;
 	}
 
-	dev_dbg(&pspi->dev, "%s Transfer List not empty. "
-		"Transfer Speed is set.\n", __func__);
+	dev_dbg(&pspi->dev,
+		"%s Transfer List not empty. Transfer Speed is set.\n", __func__);
 
 	spin_lock_irqsave(&data->lock, flags);
 	/* validate Tx/Rx buffers and Transfer length */
@@ -526,8 +520,9 @@ static int pch_spi_transfer(struct spi_device *pspi, struct spi_message *pmsg)
 			goto err_return_spinlock;
 		}
 
-		dev_dbg(&pspi->dev, "%s Tx/Rx buffer valid. Transfer length"
-			" valid\n", __func__);
+		dev_dbg(&pspi->dev,
+			"%s Tx/Rx buffer valid. Transfer length valid\n",
+			__func__);
 
 		/* if baud rate has been specified validate the same */
 		if (transfer->speed_hz > PCH_MAX_BAUDRATE)
@@ -1181,8 +1176,8 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 	spin_lock(&data->lock);
 	/* check if suspend has been initiated;if yes flush queue */
 	if (data->board_dat->suspend_sts || (data->status == STATUS_EXITING)) {
-		dev_dbg(&data->master->dev, "%s suspend/remove initiated,"
-			"flushing queue\n", __func__);
+		dev_dbg(&data->master->dev,
+			"%s suspend/remove initiated, flushing queue\n", __func__);
 		list_for_each_entry_safe(pmsg, tmp, data->queue.next, queue) {
 			pmsg->status = -EIO;
 
@@ -1410,13 +1405,13 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 	/* baseaddress + address offset) */
 	data->io_base_addr = pci_resource_start(board_dat->pdev, 1) +
 					 PCH_ADDRESS_SIZE * plat_dev->id;
-	data->io_remap_addr = pci_iomap(board_dat->pdev, 1, 0) +
-					 PCH_ADDRESS_SIZE * plat_dev->id;
+	data->io_remap_addr = pci_iomap(board_dat->pdev, 1, 0);
 	if (!data->io_remap_addr) {
 		dev_err(&plat_dev->dev, "%s pci_iomap failed\n", __func__);
 		ret = -ENOMEM;
 		goto err_pci_iomap;
 	}
+	data->io_remap_addr += PCH_ADDRESS_SIZE * plat_dev->id;
 
 	dev_dbg(&plat_dev->dev, "[ch%d] remap_addr=%p\n",
 		plat_dev->id, data->io_remap_addr);
@@ -1797,3 +1792,5 @@ MODULE_PARM_DESC(use_dma,
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Intel EG20T PCH/LAPIS Semiconductor ML7xxx IOH SPI Driver");
+MODULE_DEVICE_TABLE(pci, pch_spi_pcidev_id);
+

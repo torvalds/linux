@@ -52,10 +52,8 @@
 drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align)
 {
 	drm_dma_handle_t *dmah;
-#if 1
 	unsigned long addr;
 	size_t sz;
-#endif
 
 	/* pci_alloc_consistent only guarantees alignment to the smallest
 	 * PAGE_SIZE order which is greater than or equal to the requested size.
@@ -82,7 +80,7 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t ali
 	/* Reserve */
 	for (addr = (unsigned long)dmah->vaddr, sz = size;
 	     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-		SetPageReserved(virt_to_page(addr));
+		SetPageReserved(virt_to_page((void *)addr));
 	}
 
 	return dmah;
@@ -97,17 +95,15 @@ EXPORT_SYMBOL(drm_pci_alloc);
  */
 void __drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 {
-#if 1
 	unsigned long addr;
 	size_t sz;
-#endif
 
 	if (dmah->vaddr) {
 		/* XXX - Is virt_to_page() legal for consistent mem? */
 		/* Unreserve */
 		for (addr = (unsigned long)dmah->vaddr, sz = dmah->size;
 		     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-			ClearPageReserved(virt_to_page(addr));
+			ClearPageReserved(virt_to_page((void *)addr));
 		}
 		dma_free_coherent(&dev->pdev->dev, dmah->size, dmah->vaddr,
 				  dmah->busaddr);
@@ -266,25 +262,28 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 	return 0;
 }
 
-static int drm_pci_agp_init(struct drm_device *dev)
+static void drm_pci_agp_init(struct drm_device *dev)
 {
-	if (drm_core_has_AGP(dev)) {
+	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
 		if (drm_pci_device_is_agp(dev))
 			dev->agp = drm_agp_init(dev);
-		if (drm_core_check_feature(dev, DRIVER_REQUIRE_AGP)
-		    && (dev->agp == NULL)) {
-			DRM_ERROR("Cannot initialize the agpgart module.\n");
-			return -EINVAL;
-		}
-		if (drm_core_has_MTRR(dev)) {
-			if (dev->agp)
-				dev->agp->agp_mtrr =
-					mtrr_add(dev->agp->agp_info.aper_base,
-						 dev->agp->agp_info.aper_size *
-						 1024 * 1024, MTRR_TYPE_WRCOMB, 1);
+		if (dev->agp) {
+			dev->agp->agp_mtrr = arch_phys_wc_add(
+				dev->agp->agp_info.aper_base,
+				dev->agp->agp_info.aper_size *
+				1024 * 1024);
 		}
 	}
-	return 0;
+}
+
+void drm_pci_agp_destroy(struct drm_device *dev)
+{
+	if (dev->agp) {
+		arch_phys_wc_del(dev->agp->agp_mtrr);
+		drm_agp_clear(dev);
+		kfree(dev->agp);
+		dev->agp = NULL;
+	}
 }
 
 static struct drm_bus drm_pci_bus = {
@@ -294,7 +293,6 @@ static struct drm_bus drm_pci_bus = {
 	.set_busid = drm_pci_set_busid,
 	.set_unique = drm_pci_set_unique,
 	.irq_by_busid = drm_pci_irq_by_busid,
-	.agp_init = drm_pci_agp_init,
 };
 
 /**
@@ -316,74 +314,44 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	DRM_DEBUG("\n");
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = drm_dev_alloc(driver, &pdev->dev);
 	if (!dev)
 		return -ENOMEM;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
-		goto err_g1;
+		goto err_free;
 
 	dev->pdev = pdev;
-	dev->dev = &pdev->dev;
-
-	dev->pci_device = pdev->device;
-	dev->pci_vendor = pdev->vendor;
-
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
 #endif
 
-	mutex_lock(&drm_global_mutex);
-
-	if ((ret = drm_fill_in_dev(dev, ent, driver))) {
-		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
-		goto err_g2;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		pci_set_drvdata(pdev, dev);
-		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
-		if (ret)
-			goto err_g2;
-	}
 
-	if ((ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY)))
-		goto err_g3;
+	drm_pci_agp_init(dev);
 
-	if (dev->driver->load) {
-		ret = dev->driver->load(dev, ent->driver_data);
-		if (ret)
-			goto err_g4;
-	}
-
-	/* setup the grouping for the legacy output */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_mode_group_init_legacy_group(dev,
-						&dev->primary->mode_group);
-		if (ret)
-			goto err_g4;
-	}
-
-	list_add_tail(&dev->driver_item, &driver->device_list);
+	ret = drm_dev_register(dev, ent->driver_data);
+	if (ret)
+		goto err_agp;
 
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
 		 driver->date, pci_name(pdev), dev->primary->index);
 
-	mutex_unlock(&drm_global_mutex);
+	/* No locking needed since shadow-attach is single-threaded since it may
+	 * only be called from the per-driver module init hook. */
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		list_add_tail(&dev->legacy_dev_list, &driver->legacy_dev_list);
+
 	return 0;
 
-err_g4:
-	drm_put_minor(&dev->primary);
-err_g3:
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_put_minor(&dev->control);
-err_g2:
+err_agp:
+	drm_pci_agp_destroy(dev);
 	pci_disable_device(pdev);
-err_g1:
-	kfree(dev);
-	mutex_unlock(&drm_global_mutex);
+err_free:
+	drm_dev_free(dev);
 	return ret;
 }
 EXPORT_SYMBOL(drm_get_pci_dev);
@@ -407,7 +375,6 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 
 	DRM_DEBUG("\n");
 
-	INIT_LIST_HEAD(&driver->device_list);
 	driver->kdriver.pci = pdriver;
 	driver->bus = &drm_pci_bus;
 
@@ -415,6 +382,7 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 		return pci_register_driver(pdriver);
 
 	/* If not using KMS, fall back to stealth mode manual scanning. */
+	INIT_LIST_HEAD(&driver->legacy_dev_list);
 	for (i = 0; pdriver->id_table[i].vendor != 0; i++) {
 		pid = &pdriver->id_table[i];
 
@@ -484,6 +452,7 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	return -1;
 }
 
+void drm_pci_agp_destroy(struct drm_device *dev) {}
 #endif
 
 EXPORT_SYMBOL(drm_pci_init);
@@ -497,8 +466,11 @@ void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 	if (driver->driver_features & DRIVER_MODESET) {
 		pci_unregister_driver(pdriver);
 	} else {
-		list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
+		list_for_each_entry_safe(dev, tmp, &driver->legacy_dev_list,
+					 legacy_dev_list) {
 			drm_put_dev(dev);
+			list_del(&dev->legacy_dev_list);
+		}
 	}
 	DRM_INFO("Module unloaded\n");
 }

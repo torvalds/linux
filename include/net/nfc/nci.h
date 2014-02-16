@@ -20,8 +20,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -165,6 +164,10 @@
 #define NCI_GID_RF_MGMT						0x1
 #define NCI_GID_NFCEE_MGMT					0x2
 #define NCI_GID_PROPRIETARY					0xf
+
+/* ----- NCI over SPI head/crc(tail) room needed for outgoing frames ----- */
+#define NCI_SPI_HDR_LEN						4
+#define NCI_SPI_CRC_LEN						2
 
 /* ---- NCI Packet structures ---- */
 #define NCI_CTRL_HDR_SIZE					3

@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include "dwmac100.h"
 
-static void dwmac100_core_init(void __iomem *ioaddr)
+static void dwmac100_core_init(void __iomem *ioaddr, int mtu)
 {
 	u32 value = readl(ioaddr + MAC_CONTROL);
 
@@ -135,10 +135,6 @@ static void dwmac100_set_filter(struct net_device *dev, int id)
 	}
 
 	writel(value, ioaddr + MAC_CONTROL);
-
-	CHIP_DBG(KERN_INFO "%s: Filter: 0x%08x Hash: HI 0x%08x, LO 0x%08x\n",
-		 __func__, readl(ioaddr + MAC_CONTROL),
-		 readl(ioaddr + MAC_HASH_HIGH), readl(ioaddr + MAC_HASH_LOW));
 }
 
 static void dwmac100_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,

@@ -693,7 +693,7 @@ DEFINE_WINDOW_IO(16)
 DEFINE_WINDOW_IO(32)
 
 #ifdef CONFIG_PCI
-#define DEVICE_PCI(dev) (((dev)->bus == &pci_bus_type) ? to_pci_dev((dev)) : NULL)
+#define DEVICE_PCI(dev) ((dev_is_pci(dev)) ? to_pci_dev((dev)) : NULL)
 #else
 #define DEVICE_PCI(dev) NULL
 #endif
@@ -1012,10 +1012,8 @@ static int vortex_init_one(struct pci_dev *pdev,
 		goto out;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc < 0) {
-		pci_disable_device(pdev);
-		goto out;
-	}
+	if (rc < 0)
+		goto out_disable;
 
 	unit = vortex_cards_found;
 
@@ -1032,23 +1030,24 @@ static int vortex_init_one(struct pci_dev *pdev,
 	if (!ioaddr) /* If mapping fails, fall-back to BAR 0... */
 		ioaddr = pci_iomap(pdev, 0, 0);
 	if (!ioaddr) {
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
 		rc = -ENOMEM;
-		goto out;
+		goto out_release;
 	}
 
 	rc = vortex_probe1(&pdev->dev, ioaddr, pdev->irq,
 			   ent->driver_data, unit);
-	if (rc < 0) {
-		pci_iounmap(pdev, ioaddr);
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
-		goto out;
-	}
+	if (rc < 0)
+		goto out_iounmap;
 
 	vortex_cards_found++;
+	goto out;
 
+out_iounmap:
+	pci_iounmap(pdev, ioaddr);
+out_release:
+	pci_release_regions(pdev);
+out_disable:
+	pci_disable_device(pdev);
 out:
 	return rc;
 }
@@ -1473,7 +1472,7 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 
 	if (pdev) {
 		vp->pm_state_valid = 1;
- 		pci_save_state(VORTEX_PCI(vp));
+		pci_save_state(pdev);
  		acpi_set_WOL(dev);
 	}
 	retval = register_netdev(dev);
@@ -2080,10 +2079,12 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		iowrite16(len, ioaddr + Wn7_MasterLen);
 		spin_unlock_irq(&vp->window_lock);
 		vp->tx_skb = skb;
+		skb_tx_timestamp(skb);
 		iowrite16(StartDMADown, ioaddr + EL3_CMD);
 		/* netif_wake_queue() will be called at the DMADone interrupt. */
 	} else {
 		/* ... and the packet rounded to a doubleword. */
+		skb_tx_timestamp(skb);
 		iowrite32_rep(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
 		dev_kfree_skb (skb);
 		if (ioread16(ioaddr + TxFree) > 1536) {
@@ -2213,6 +2214,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		prev_entry->status &= cpu_to_le32(~TxIntrUploaded);
 #endif
 	}
+	skb_tx_timestamp(skb);
 	iowrite16(DownUnstall, ioaddr + EL3_CMD);
 	spin_unlock_irqrestore(&vp->lock, flags);
 	return NETDEV_TX_OK;
@@ -2987,6 +2989,7 @@ static const struct ethtool_ops vortex_ethtool_ops = {
 	.nway_reset             = vortex_nway_reset,
 	.get_wol                = vortex_get_wol,
 	.set_wol                = vortex_set_wol,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 #ifdef CONFIG_PCI
@@ -3233,21 +3236,20 @@ static void vortex_remove_one(struct pci_dev *pdev)
 	vp = netdev_priv(dev);
 
 	if (vp->cb_fn_base)
-		pci_iounmap(VORTEX_PCI(vp), vp->cb_fn_base);
+		pci_iounmap(pdev, vp->cb_fn_base);
 
 	unregister_netdev(dev);
 
-	if (VORTEX_PCI(vp)) {
-		pci_set_power_state(VORTEX_PCI(vp), PCI_D0);	/* Go active */
-		if (vp->pm_state_valid)
-			pci_restore_state(VORTEX_PCI(vp));
-		pci_disable_device(VORTEX_PCI(vp));
-	}
+	pci_set_power_state(pdev, PCI_D0);	/* Go active */
+	if (vp->pm_state_valid)
+		pci_restore_state(pdev);
+	pci_disable_device(pdev);
+
 	/* Should really use issue_and_wait() here */
 	iowrite16(TotalReset | ((vp->drv_flags & EEPROM_RESET) ? 0x04 : 0x14),
 	     vp->ioaddr + EL3_CMD);
 
-	pci_iounmap(VORTEX_PCI(vp), vp->ioaddr);
+	pci_iounmap(pdev, vp->ioaddr);
 
 	pci_free_consistent(pdev,
 						sizeof(struct boom_rx_desc) * RX_RING_SIZE
@@ -3292,7 +3294,6 @@ static int __init vortex_init(void)
 
 static void __exit vortex_eisa_cleanup(void)
 {
-	struct vortex_private *vp;
 	void __iomem *ioaddr;
 
 #ifdef CONFIG_EISA
@@ -3301,7 +3302,6 @@ static void __exit vortex_eisa_cleanup(void)
 #endif
 
 	if (compaq_net_device) {
-		vp = netdev_priv(compaq_net_device);
 		ioaddr = ioport_map(compaq_net_device->base_addr,
 		                    VORTEX_TOTAL_SIZE);
 

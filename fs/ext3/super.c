@@ -27,6 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/log2.h>
 #include <linux/cleancache.h>
+#include <linux/namei.h>
 
 #include <asm/uaccess.h>
 
@@ -174,6 +175,11 @@ static void ext3_handle_error(struct super_block *sb)
 	if (test_opt (sb, ERRORS_RO)) {
 		ext3_msg(sb, KERN_CRIT,
 			"error: remounting filesystem read-only");
+		/*
+		 * Make sure updated value of ->s_mount_state will be visible
+		 * before ->s_flags update.
+		 */
+		smp_wmb();
 		sb->s_flags |= MS_RDONLY;
 	}
 	ext3_commit_super(sb, es, 1);
@@ -291,8 +297,14 @@ void ext3_abort(struct super_block *sb, const char *function,
 	ext3_msg(sb, KERN_CRIT,
 		"error: remounting filesystem read-only");
 	EXT3_SB(sb)->s_mount_state |= EXT3_ERROR_FS;
-	sb->s_flags |= MS_RDONLY;
 	set_opt(EXT3_SB(sb)->s_mount_opt, ABORT);
+	/*
+	 * Make sure updated value of ->s_mount_state will be visible
+	 * before ->s_flags update.
+	 */
+	smp_wmb();
+	sb->s_flags |= MS_RDONLY;
+
 	if (EXT3_SB(sb)->s_journal)
 		journal_abort(EXT3_SB(sb)->s_journal, -EIO);
 }
@@ -808,6 +820,7 @@ enum {
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh, Opt_bh,
 	Opt_commit, Opt_journal_update, Opt_journal_inum, Opt_journal_dev,
+	Opt_journal_path,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
 	Opt_data_err_abort, Opt_data_err_ignore,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
@@ -849,6 +862,7 @@ static const match_table_t tokens = {
 	{Opt_journal_update, "journal=update"},
 	{Opt_journal_inum, "journal=%u"},
 	{Opt_journal_dev, "journal_dev=%u"},
+	{Opt_journal_path, "journal_path=%s"},
 	{Opt_abort, "abort"},
 	{Opt_data_journal, "data=journal"},
 	{Opt_data_ordered, "data=ordered"},
@@ -964,6 +978,11 @@ static int parse_options (char *options, struct super_block *sb,
 	int option;
 	kuid_t uid;
 	kgid_t gid;
+	char *journal_path;
+	struct inode *journal_inode;
+	struct path path;
+	int error;
+
 #ifdef CONFIG_QUOTA
 	int qfmt;
 #endif
@@ -1117,6 +1136,41 @@ static int parse_options (char *options, struct super_block *sb,
 			if (match_int(&args[0], &option))
 				return 0;
 			*journal_devnum = option;
+			break;
+		case Opt_journal_path:
+			if (is_remount) {
+				ext3_msg(sb, KERN_ERR, "error: cannot specify "
+				       "journal on remount");
+				return 0;
+			}
+
+			journal_path = match_strdup(&args[0]);
+			if (!journal_path) {
+				ext3_msg(sb, KERN_ERR, "error: could not dup "
+					"journal device string");
+				return 0;
+			}
+
+			error = kern_path(journal_path, LOOKUP_FOLLOW, &path);
+			if (error) {
+				ext3_msg(sb, KERN_ERR, "error: could not find "
+					"journal device path: error %d", error);
+				kfree(journal_path);
+				return 0;
+			}
+
+			journal_inode = path.dentry->d_inode;
+			if (!S_ISBLK(journal_inode->i_mode)) {
+				ext3_msg(sb, KERN_ERR, "error: journal path %s "
+					"is not a block device", journal_path);
+				path_put(&path);
+				kfree(journal_path);
+				return 0;
+			}
+
+			*journal_devnum = new_encode_dev(journal_inode->i_rdev);
+			path_put(&path);
+			kfree(journal_path);
 			break;
 		case Opt_noload:
 			set_opt (sbi->s_mount_opt, NOLOAD);
@@ -2771,6 +2825,10 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 		 * bitmap, and an inode table.
 		 */
 		overhead += ngroups * (2 + sbi->s_itb_per_group);
+
+		/* Add the journal blocks as well */
+                overhead += sbi->s_journal->j_maxlen;
+
 		sbi->s_overhead_last = overhead;
 		smp_wmb();
 		sbi->s_blocks_last = le32_to_cpu(es->s_blocks_count);

@@ -20,8 +20,7 @@ struct flowi_common {
 	__u8	flowic_proto;
 	__u8	flowic_flags;
 #define FLOWI_FLAG_ANYSRC		0x01
-#define FLOWI_FLAG_CAN_SLEEP		0x02
-#define FLOWI_FLAG_KNOWN_NH		0x04
+#define FLOWI_FLAG_KNOWN_NH		0x02
 	__u32	flowic_secid;
 };
 
@@ -215,12 +214,13 @@ typedef struct flow_cache_object *(*flow_resolve_t)(
 		struct net *net, const struct flowi *key, u16 family,
 		u8 dir, struct flow_cache_object *oldobj, void *ctx);
 
-extern struct flow_cache_object *flow_cache_lookup(
-		struct net *net, const struct flowi *key, u16 family,
-		u8 dir, flow_resolve_t resolver, void *ctx);
+struct flow_cache_object *flow_cache_lookup(struct net *net,
+					    const struct flowi *key, u16 family,
+					    u8 dir, flow_resolve_t resolver,
+					    void *ctx);
 
-extern void flow_cache_flush(void);
-extern void flow_cache_flush_deferred(void);
+void flow_cache_flush(void);
+void flow_cache_flush_deferred(void);
 extern atomic_t flow_cache_genid;
 
 #endif

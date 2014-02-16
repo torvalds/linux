@@ -3,10 +3,16 @@
 #
 
 extra-y := vmlinux.lds head_$(BITS).o
-obj-y := backtrace.o entry.o irq.o messaging.o \
+obj-y := backtrace.o entry.o hvglue.o irq.o messaging.o \
 	pci-dma.o proc.o process.o ptrace.o reboot.o \
-	setup.o signal.o single_step.o stack.o sys.o sysfs.o time.o traps.o \
+	setup.o signal.o single_step.o stack.o sys.o \
+	sysfs.o time.o traps.o unaligned.o vdso.o \
 	intvec_$(BITS).o regs_$(BITS).o tile-desc_$(BITS).o
+
+ifdef CONFIG_FUNCTION_TRACER
+CFLAGS_REMOVE_ftrace.o = -pg
+CFLAGS_REMOVE_early_printk.o = -pg
+endif
 
 obj-$(CONFIG_HARDWALL)		+= hardwall.o
 obj-$(CONFIG_COMPAT)		+= compat.o compat_signal.o
@@ -20,3 +26,9 @@ else
 obj-$(CONFIG_PCI)		+= pci.o
 endif
 obj-$(CONFIG_TILE_USB)		+= usb.o
+obj-$(CONFIG_TILE_HVGLUE_TRACE)	+= hvglue_trace.o
+obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o mcount_64.o
+obj-$(CONFIG_KPROBES)		+= kprobes.o
+obj-$(CONFIG_KGDB)		+= kgdb.o
+
+obj-y				+= vdso/

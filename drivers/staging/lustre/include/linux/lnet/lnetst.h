@@ -59,7 +59,7 @@
 #define LSTIO_SESSION_INFO      0xC03	   /* query session */
 #define LSTIO_GROUP_ADD	 0xC10	   /* add group */
 #define LSTIO_GROUP_LIST	0xC11	   /* list all groups in session */
-#define LSTIO_GROUP_INFO	0xC12	   /* query defailt infomation of specified group */
+#define LSTIO_GROUP_INFO	0xC12	   /* query default information of specified group */
 #define LSTIO_GROUP_DEL	 0xC13	   /* delete group */
 #define LSTIO_NODES_ADD	 0xC14	   /* add nodes to specified group */
 #define LSTIO_GROUP_UPDATE      0xC15	   /* update group */

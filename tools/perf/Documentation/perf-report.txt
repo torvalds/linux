@@ -71,7 +71,11 @@ OPTIONS
 	entries are displayed as "[other]".
 	- cpu: cpu number the task ran at the time of sample
 	- srcline: filename and line number executed at the time of sample.  The
-	DWARF debuggin info must be provided.
+	DWARF debugging info must be provided.
+	- weight: Event specific weight, e.g. memory latency or transaction
+	abort cost. This is the global weight.
+	- local_weight: Local weight version of the weight above.
+	- transaction: Transaction abort flags.
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -85,6 +89,8 @@ OPTIONS
 	- symbol_from: name of function branched from
 	- symbol_to: name of function branched to
 	- mispredict: "N" for predicted branch, "Y" for mispredicted branch
+	- in_tx: branch in TSX transaction
+	- abort: TSX transaction abort.
 
 	And default sort keys are changed to comm, dso_from, symbol_from, dso_to
 	and symbol_to, see '--branch-stack'.
@@ -115,7 +121,7 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min[,limit],order]::
+-g [type,min[,limit],order[,key]]::
 --call-graph::
         Display call chains using type, min percent threshold, optional print
 	limit and order.
@@ -129,11 +135,28 @@ OPTIONS
 	- callee: callee based call graph.
 	- caller: inverted caller based call graph.
 
-	Default: fractal,0.5,callee.
+	key can be:
+	- function: compare on functions
+	- address: compare on individual code addresses
+
+	Default: fractal,0.5,callee,function.
+
+--max-stack::
+	Set the stack depth limit when parsing the callchain, anything
+	beyond the specified depth will be ignored. This is a trade-off
+	between information loss and faster processing especially for
+	workloads that can have a very long callchain stack.
+
+	Default: 127
 
 -G::
 --inverted::
         alias for inverted caller based call graph.
+
+--ignore-callees=<regex>::
+        Ignore callees of the function(s) matching the given regex.
+        This has the effect of collecting the callers of each such
+        function into one place in the call-graph tree.
 
 --pretty=<key>::
         Pretty printing style.  key: normal, raw
@@ -213,6 +236,15 @@ OPTIONS
 --percent-limit::
 	Do not show entries which have an overhead under that percent.
 	(Default: 0).
+
+--header::
+	Show header information in the perf.data file.  This includes
+	various information like hostname, OS and perf version, cpu/mem
+	info, perf command line, event list and so on.  Currently only
+	--stdio output supports this feature.
+
+--header-only::
+	Show only perf.data header (forces --stdio).
 
 SEE ALSO
 --------

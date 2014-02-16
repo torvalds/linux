@@ -19,9 +19,9 @@ source "drivers/char/agp/Kconfig"
 
 source "drivers/gpu/vga/Kconfig"
 
-source "drivers/gpu/drm/Kconfig"
-
 source "drivers/gpu/host1x/Kconfig"
+
+source "drivers/gpu/drm/Kconfig"
 
 config VGASTATE
        tristate
@@ -312,7 +312,8 @@ config FB_PM2_FIFO_DISCONNECT
 
 config FB_ARMCLCD
 	tristate "ARM PrimeCell PL110 support"
-	depends on FB && ARM && ARM_AMBA
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on FB && ARM_AMBA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -363,10 +364,12 @@ config FB_SA1100
 
 config FB_IMX
 	tristate "Freescale i.MX1/21/25/27 LCD support"
-	depends on FB && IMX_HAVE_PLATFORM_IMX_FB
+	depends on FB && ARCH_MXC
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 
 config FB_CYBER2000
 	tristate "CyberPro 2000/2010/5000 support"
@@ -977,6 +980,22 @@ config FB_PVR2
 	  (<file:drivers/video/pvr2fb.c>). Please see the file
 	  <file:Documentation/fb/pvr2fb.txt>.
 
+config FB_OPENCORES
+	tristate "OpenCores VGA/LCD core 2.0 framebuffer support"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This enables support for the OpenCores VGA/LCD core.
+
+	  The OpenCores VGA/LCD core is typically used together with
+	  softcore CPUs (e.g. OpenRISC or Microblaze) or hard processor
+	  systems (e.g. Altera socfpga or Xilinx Zynq) on FPGAs.
+
+	  The source code and specification for the core is available at
+	  <http://opencores.org/project,vga_lcd>
+
 config FB_S1D13XXX
 	tristate "Epson S1D13XXX framebuffer support"
 	depends on FB
@@ -994,6 +1013,8 @@ config FB_ATMEL
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
 	  This enables support for the AT91/AT32 LCD Controller.
 
@@ -2098,13 +2119,6 @@ config GPM1040A0_320X240
         bool "Giantplus Technology GPM1040A0 320x240 Color TFT LCD"
         depends on FB_NUC900
 
-config FB_NUC900_DEBUG
-        bool "NUC900 lcd debug messages"
-        depends on FB_NUC900
-        help
-          Turn on debugging messages. Note that you can set/unset at run time
-          through sysfs
-
 config FB_SM501
 	tristate "Silicon Motion SM501 framebuffer support"
 	depends on FB && MFD_SM501
@@ -2188,7 +2202,7 @@ config FB_PS3_DEFAULT_SIZE_M
 
 config FB_XILINX
 	tristate "Xilinx frame buffer support"
-	depends on FB && (XILINX_VIRTEX || MICROBLAZE)
+	depends on FB && (XILINX_VIRTEX || MICROBLAZE || ARCH_ZYNQ)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2226,15 +2240,17 @@ config FB_SH7760
 	  panels <= 320 pixel horizontal resolution.
 
 config FB_DA8XX
-	tristate "DA8xx/OMAP-L1xx Framebuffer support"
-	depends on FB && ARCH_DAVINCI_DA8XX
+	tristate "DA8xx/OMAP-L1xx/AM335x Framebuffer support"
+	depends on FB && (ARCH_DAVINCI_DA8XX || SOC_AM33XX)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_CFB_REV_PIXELS_IN_BYTE
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	---help---
 	  This is the frame buffer device driver for the TI LCD controller
-	  found on DA8xx/OMAP-L1xx SoCs.
+	  found on DA8xx/OMAP-L1xx/AM335x SoCs.
 	  If unsure, say N.
 
 config FB_VIRTUAL
@@ -2455,7 +2471,7 @@ config FB_HYPERV
 
 config FB_SIMPLE
 	bool "Simple framebuffer support"
-	depends on (FB = y) && OF
+	depends on (FB = y)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2467,8 +2483,7 @@ config FB_SIMPLE
 	  pre-allocated frame buffer surface.
 
 	  Configuration re: surface address, size, and format must be provided
-	  through device tree, or potentially plain old platform data in the
-	  future.
+	  through device tree, or plain old platform data.
 
 source "drivers/video/omap/Kconfig"
 source "drivers/video/omap2/Kconfig"

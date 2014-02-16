@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/compat.h>
 #include <asm/asm-offsets.h>
+#include <asm/facility.h>
 #include <asm/current.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
@@ -28,6 +29,38 @@
 #include "gaccess.h"
 #include "kvm-s390.h"
 #include "trace.h"
+
+/* Handle SCK (SET CLOCK) interception */
+static int handle_set_clock(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu *cpup;
+	s64 hostclk, val;
+	u64 op2;
+	int i;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	op2 = kvm_s390_get_base_disp_s(vcpu);
+	if (op2 & 7)	/* Operand must be on a doubleword boundary */
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+	if (get_guest(vcpu, val, (u64 __user *) op2))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+
+	if (store_tod_clock(&hostclk)) {
+		kvm_s390_set_psw_cc(vcpu, 3);
+		return 0;
+	}
+	val = (val - hostclk) & ~0x3fUL;
+
+	mutex_lock(&vcpu->kvm->lock);
+	kvm_for_each_vcpu(i, cpup, vcpu->kvm)
+		cpup->arch.sie_block->epoch = val;
+	mutex_unlock(&vcpu->kvm->lock);
+
+	kvm_s390_set_psw_cc(vcpu, 0);
+	return 0;
+}
 
 static int handle_set_prefix(struct kvm_vcpu *vcpu)
 {
@@ -127,6 +160,33 @@ static int handle_skey(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int handle_test_block(struct kvm_vcpu *vcpu)
+{
+	unsigned long hva;
+	gpa_t addr;
+	int reg2;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	kvm_s390_get_regs_rre(vcpu, NULL, &reg2);
+	addr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
+	addr = kvm_s390_real_to_abs(vcpu, addr);
+
+	hva = gfn_to_hva(vcpu->kvm, gpa_to_gfn(addr));
+	if (kvm_is_error_hva(hva))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	/*
+	 * We don't expect errors on modern systems, and do not care
+	 * about storage keys (yet), so let's just clear the page.
+	 */
+	if (clear_user((void __user *)hva, PAGE_SIZE) != 0)
+		return -EFAULT;
+	kvm_s390_set_psw_cc(vcpu, 0);
+	vcpu->run->s.regs.gprs[0] = 0;
+	return 0;
+}
+
 static int handle_tpi(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_interrupt_info *inti;
@@ -137,7 +197,7 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	if (addr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	cc = 0;
-	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->run->s.regs.crs[6], 0);
+	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->arch.sie_block->gcr[6], 0);
 	if (!inti)
 		goto no_interrupt;
 	cc = 1;
@@ -163,8 +223,7 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	kfree(inti);
 no_interrupt:
 	/* Set condition code and we're done. */
-	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-	vcpu->arch.sie_block->gpsw.mask |= (cc & 3ul) << 44;
+	kvm_s390_set_psw_cc(vcpu, cc);
 	return 0;
 }
 
@@ -216,18 +275,16 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 	} else {
 		/*
-		 * Set condition code 3 to stop the guest from issueing channel
+		 * Set condition code 3 to stop the guest from issuing channel
 		 * I/O instructions.
 		 */
-		vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-		vcpu->arch.sie_block->gpsw.mask |= (3 & 3ul) << 44;
+		kvm_s390_set_psw_cc(vcpu, 3);
 		return 0;
 	}
 }
 
 static int handle_stfl(struct kvm_vcpu *vcpu)
 {
-	unsigned int facility_list;
 	int rc;
 
 	vcpu->stat.instruction_stfl++;
@@ -235,15 +292,13 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	/* only pass the facility bits, which we can handle */
-	facility_list = S390_lowcore.stfl_fac_list & 0xff82fff3;
-
 	rc = copy_to_guest(vcpu, offsetof(struct _lowcore, stfl_fac_list),
-			   &facility_list, sizeof(facility_list));
+			   vfacilities, 4);
 	if (rc)
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-	VCPU_EVENT(vcpu, 5, "store facility list value %x", facility_list);
-	trace_kvm_s390_handle_stfl(vcpu, facility_list);
+	VCPU_EVENT(vcpu, 5, "store facility list value %x",
+		   *(unsigned int *) vfacilities);
+	trace_kvm_s390_handle_stfl(vcpu, *(unsigned int *) vfacilities);
 	return 0;
 }
 
@@ -386,7 +441,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	if (fc > 3) {
-		vcpu->arch.sie_block->gpsw.mask |= 3ul << 44;	  /* cc 3 */
+		kvm_s390_set_psw_cc(vcpu, 3);
 		return 0;
 	}
 
@@ -396,7 +451,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 
 	if (fc == 0) {
 		vcpu->run->s.regs.gprs[0] = 3 << 28;
-		vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);  /* cc 0 */
+		kvm_s390_set_psw_cc(vcpu, 0);
 		return 0;
 	}
 
@@ -430,12 +485,11 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	}
 	trace_kvm_s390_handle_stsi(vcpu, fc, sel1, sel2, operand2);
 	free_page(mem);
-	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
+	kvm_s390_set_psw_cc(vcpu, 0);
 	vcpu->run->s.regs.gprs[0] = 0;
 	return 0;
 out_no_data:
-	/* condition code 3 */
-	vcpu->arch.sie_block->gpsw.mask |= 3ul << 44;
+	kvm_s390_set_psw_cc(vcpu, 3);
 out_exception:
 	free_page(mem);
 	return rc;
@@ -443,12 +497,14 @@ out_exception:
 
 static const intercept_handler_t b2_handlers[256] = {
 	[0x02] = handle_stidp,
+	[0x04] = handle_set_clock,
 	[0x10] = handle_set_prefix,
 	[0x11] = handle_store_prefix,
 	[0x12] = handle_store_cpu_address,
 	[0x29] = handle_skey,
 	[0x2a] = handle_skey,
 	[0x2b] = handle_skey,
+	[0x2c] = handle_test_block,
 	[0x30] = handle_io_inst,
 	[0x31] = handle_io_inst,
 	[0x32] = handle_io_inst,
@@ -493,12 +549,12 @@ static int handle_epsw(struct kvm_vcpu *vcpu)
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
 	/* This basically extracts the mask half of the psw. */
-	vcpu->run->s.regs.gprs[reg1] &= 0xffffffff00000000;
+	vcpu->run->s.regs.gprs[reg1] &= 0xffffffff00000000UL;
 	vcpu->run->s.regs.gprs[reg1] |= vcpu->arch.sie_block->gpsw.mask >> 32;
 	if (reg2) {
-		vcpu->run->s.regs.gprs[reg2] &= 0xffffffff00000000;
+		vcpu->run->s.regs.gprs[reg2] &= 0xffffffff00000000UL;
 		vcpu->run->s.regs.gprs[reg2] |=
-			vcpu->arch.sie_block->gpsw.mask & 0x00000000ffffffff;
+			vcpu->arch.sie_block->gpsw.mask & 0x00000000ffffffffUL;
 	}
 	return 0;
 }
@@ -532,8 +588,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	/* Only provide non-quiescing support if the host supports it */
-	if (vcpu->run->s.regs.gprs[reg1] & PFMF_NQ &&
-	    S390_lowcore.stfl_fac_list & 0x00020000)
+	if (vcpu->run->s.regs.gprs[reg1] & PFMF_NQ && !test_facility(14))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	/* No support for conditional-SSKE */
@@ -583,7 +638,6 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t b9_handlers[256] = {
 	[0x8d] = handle_epsw,
-	[0x9c] = handle_io_inst,
 	[0xaf] = handle_pfmf,
 };
 
@@ -676,7 +730,6 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t eb_handlers[256] = {
 	[0x2f] = handle_lctlg,
-	[0x8a] = handle_io_inst,
 };
 
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)

@@ -72,3 +72,16 @@ kernel tree without going through the obsolete state first.
 
 It's up to the developer to place their interfaces in the category they
 wish for it to start out in.
+
+
+Notable bits of non-ABI, which should not under any circumstances be considered
+stable:
+
+- Kconfig.  Userspace should not rely on the presence or absence of any
+  particular Kconfig symbol, in /proc/config.gz, in the copy of .config
+  commonly installed to /boot, or in any invocation of the kernel build
+  process.
+
+- Kernel-internal symbols.  Do not rely on the presence, absence, location, or
+  type of any kernel symbol, either in System.map files or the kernel binary
+  itself.  See Documentation/stable_api_nonsense.txt.

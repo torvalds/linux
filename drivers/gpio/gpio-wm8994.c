@@ -242,13 +242,13 @@ static struct gpio_chip template_chip = {
 	.set			= wm8994_gpio_set,
 	.to_irq			= wm8994_gpio_to_irq,
 	.dbg_show		= wm8994_gpio_dbg_show,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int wm8994_gpio_probe(struct platform_device *pdev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(pdev->dev.parent);
-	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
+	struct wm8994_pdata *pdata = dev_get_platdata(wm8994->dev);
 	struct wm8994_gpio *wm8994_gpio;
 	int ret;
 

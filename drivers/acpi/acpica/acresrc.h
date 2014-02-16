@@ -184,7 +184,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 			     struct acpi_buffer *output_buffer);
 
 acpi_status
-acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
+acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 			     struct acpi_buffer *output_buffer);
 
 acpi_status
@@ -227,8 +227,8 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			u32 aml_buffer_length, acpi_size * size_needed);
 
 acpi_status
-acpi_rs_get_aml_length(struct acpi_resource *linked_list_buffer,
-		       acpi_size * size_needed);
+acpi_rs_get_aml_length(struct acpi_resource *resource_list,
+		       acpi_size resource_list_size, acpi_size * size_needed);
 
 acpi_status
 acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,

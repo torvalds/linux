@@ -9,6 +9,7 @@
 #include "delegation.h"
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "dns_resolve.h"
 #include "pnfs.h"
 #include "nfs.h"
 
@@ -76,17 +77,9 @@ static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int ret = nfs_write_inode(inode, wbc);
 
-	if (ret >= 0 && test_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags)) {
-		int status;
-		bool sync = true;
-
-		if (wbc->sync_mode == WB_SYNC_NONE)
-			sync = false;
-
-		status = pnfs_layoutcommit_inode(inode, sync);
-		if (status < 0)
-			return status;
-	}
+	if (ret == 0)
+		ret = pnfs_layoutcommit_inode(inode,
+				wbc->sync_mode == WB_SYNC_ALL);
 	return ret;
 }
 
@@ -252,8 +245,6 @@ struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
-	if (data->auth_flavors[0] == RPC_AUTH_MAXFLAVOR)
-		data->auth_flavors[0] = RPC_AUTH_UNIX;
 	export_path = data->nfs_server.export_path;
 	data->nfs_server.export_path = "/";
 	root_mnt = nfs_do_root_mount(&nfs4_remote_fs_type, flags, mount_info,
@@ -262,9 +253,9 @@ struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 
 	res = nfs_follow_remote_path(root_mnt, export_path);
 
-	dfprintk(MOUNT, "<-- nfs4_try_mount() = %ld%s\n",
-			IS_ERR(res) ? PTR_ERR(res) : 0,
-			IS_ERR(res) ? " [error]" : "");
+	dfprintk(MOUNT, "<-- nfs4_try_mount() = %d%s\n",
+		 PTR_ERR_OR_ZERO(res),
+		 IS_ERR(res) ? " [error]" : "");
 	return res;
 }
 
@@ -320,9 +311,9 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 	data->mnt_path = export_path;
 
 	res = nfs_follow_remote_path(root_mnt, export_path);
-	dprintk("<-- nfs4_referral_mount() = %ld%s\n",
-			IS_ERR(res) ? PTR_ERR(res) : 0,
-			IS_ERR(res) ? " [error]" : "");
+	dprintk("<-- nfs4_referral_mount() = %d%s\n",
+		PTR_ERR_OR_ZERO(res),
+		IS_ERR(res) ? " [error]" : "");
 	return res;
 }
 
@@ -331,18 +322,24 @@ static int __init init_nfs_v4(void)
 {
 	int err;
 
-	err = nfs_idmap_init();
+	err = nfs_dns_resolver_init();
 	if (err)
 		goto out;
 
-	err = nfs4_register_sysctl();
+	err = nfs_idmap_init();
 	if (err)
 		goto out1;
 
+	err = nfs4_register_sysctl();
+	if (err)
+		goto out2;
+
 	register_nfs_version(&nfs_v4);
 	return 0;
-out1:
+out2:
 	nfs_idmap_quit();
+out1:
+	nfs_dns_resolver_destroy();
 out:
 	return err;
 }
@@ -352,6 +349,7 @@ static void __exit exit_nfs_v4(void)
 	unregister_nfs_version(&nfs_v4);
 	nfs4_unregister_sysctl();
 	nfs_idmap_quit();
+	nfs_dns_resolver_destroy();
 }
 
 MODULE_LICENSE("GPL");

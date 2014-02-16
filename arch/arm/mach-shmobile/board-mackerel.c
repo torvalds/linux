@@ -41,6 +41,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/platform_data/gpio_backlight.h>
 #include <linux/pm_clock.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -49,7 +51,6 @@
 #include <linux/tca6416_keypad.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/dma-mapping.h>
-
 #include <video/sh_mobile_hdmi.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
@@ -346,7 +347,7 @@ static struct platform_device meram_device = {
 	},
 };
 
-/* LCDC */
+/* LCDC and backlight */
 static struct fb_videomode mackerel_lcdc_modes[] = {
 	{
 		.name		= "WVGA Panel",
@@ -361,13 +362,6 @@ static struct fb_videomode mackerel_lcdc_modes[] = {
 		.sync		= 0,
 	},
 };
-
-static int mackerel_set_brightness(int brightness)
-{
-	gpio_set_value(31, brightness);
-
-	return 0;
-}
 
 static const struct sh_mobile_meram_cfg lcd_meram_cfg = {
 	.icb[0] = {
@@ -393,11 +387,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.width		= 152,
 			.height		= 91,
 		},
-		.bl_info = {
-			.name = "sh_mobile_lcdc_bl",
-			.max_brightness = 1,
-			.set_brightness = mackerel_set_brightness,
-		},
 		.meram_cfg = &lcd_meram_cfg,
 	}
 };
@@ -421,7 +410,21 @@ static struct platform_device lcdc_device = {
 	.resource	= lcdc_resources,
 	.dev	= {
 		.platform_data	= &lcdc_info,
-		.coherent_dma_mask = ~0,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
+static struct gpio_backlight_platform_data gpio_backlight_data = {
+	.fbdev = &lcdc_device.dev,
+	.gpio = 31,
+	.def_value = 1,
+	.name = "backlight",
+};
+
+static struct platform_device gpio_backlight_device = {
+	.name = "gpio-backlight",
+	.dev = {
+		.platform_data = &gpio_backlight_data,
 	},
 };
 
@@ -497,7 +500,7 @@ static struct platform_device hdmi_lcdc_device = {
 	.id		= 1,
 	.dev	= {
 		.platform_data	= &hdmi_lcdc_info,
-		.coherent_dma_mask = ~0,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -546,9 +549,9 @@ static void __init hdmi_init_pm_clock(void)
 		 clk_get_rate(&sh7372_pllc2_clk));
 
 	rate = clk_round_rate(&sh7372_pllc2_clk, 594000000);
-	if (rate < 0) {
+	if (rate <= 0) {
 		pr_err("Cannot get suitable rate: %ld\n", rate);
-		ret = rate;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -1231,6 +1234,7 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&lcdc_device,
+	&gpio_backlight_device,
 	&usbhs0_device,
 	&usbhs1_device,
 	&leds_device,
@@ -1306,6 +1310,10 @@ static struct i2c_board_info i2c1_devices[] = {
 		I2C_BOARD_INFO("adxl34x", 0x53),
 		.irq = IRQ21,
 	},
+};
+
+static unsigned long pin_pulldown_conf[] = {
+	PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 0),
 };
 
 static const struct pinctrl_map mackerel_pinctrl_map[] = {
@@ -1393,17 +1401,19 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 	/* USBHS0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.0", "pfc-sh7372",
 				  "usb0_vbus", "usb0"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("renesas_usbhs.0", "pfc-sh7372",
+				      "usb0_vbus", pin_pulldown_conf),
 	/* USBHS1 */
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
 				  "usb1_vbus", "usb1"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
+				      "usb1_vbus", pin_pulldown_conf),
 	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
 				  "usb1_otg_id_0", "usb1"),
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
 #define GPIO_PORT10CR	IOMEM(0xE605100A)
-#define GPIO_PORT167CR	IOMEM(0xE60520A7)
-#define GPIO_PORT168CR	IOMEM(0xE60520A8)
 #define SRCR4		IOMEM(0xe61580bc)
 #define USCCR1		IOMEM(0xE6058144)
 static void __init mackerel_init(void)
@@ -1441,16 +1451,7 @@ static void __init mackerel_init(void)
 				  ARRAY_SIZE(mackerel_pinctrl_map));
 	sh7372_pinmux_init();
 
-	/* backlight, off by default */
-	gpio_request_one(31, GPIOF_OUT_INIT_LOW, NULL);
-
 	gpio_request_one(151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
-
-	/* USBHS0 */
-	gpio_request_pulldown(GPIO_PORT168CR); /* VBUS0_0 pull down */
-
-	/* USBHS1 */
-	gpio_request_pulldown(GPIO_PORT167CR); /* VBUS0_1 pull down */
 
 	/* FSI2 port A (ak4643) */
 	gpio_request_one(161, GPIOF_OUT_INIT_LOW, NULL); /* slave */

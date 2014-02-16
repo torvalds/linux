@@ -141,18 +141,26 @@ static int wusbhc_rh_port_reset(struct wusbhc *wusbhc, u8 port_idx)
 int wusbhc_rh_status_data(struct usb_hcd *usb_hcd, char *_buf)
 {
 	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
-	size_t cnt, size;
-	unsigned long *buf = (unsigned long *) _buf;
+	size_t cnt, size, bits_set = 0;
 
 	/* WE DON'T LOCK, see comment */
-	size = wusbhc->ports_max + 1 /* hub bit */;
-	size = (size + 8 - 1) / 8;	/* round to bytes */
-	for (cnt = 0; cnt < wusbhc->ports_max; cnt++)
-		if (wusb_port_by_idx(wusbhc, cnt)->change)
-			set_bit(cnt + 1, buf);
-		else
-			clear_bit(cnt + 1, buf);
-	return size;
+	/* round up to bytes.  Hub bit is bit 0 so add 1. */
+	size = DIV_ROUND_UP(wusbhc->ports_max + 1, 8);
+
+	/* clear the output buffer. */
+	memset(_buf, 0, size);
+	/* set the bit for each changed port. */
+	for (cnt = 0; cnt < wusbhc->ports_max; cnt++) {
+
+		if (wusb_port_by_idx(wusbhc, cnt)->change) {
+			const int bitpos = cnt+1;
+
+			_buf[bitpos/8] |= (1 << (bitpos % 8));
+			bits_set++;
+		}
+	}
+
+	return bits_set ? size : 0;
 }
 EXPORT_SYMBOL_GPL(wusbhc_rh_status_data);
 

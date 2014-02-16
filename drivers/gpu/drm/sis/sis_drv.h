@@ -70,7 +70,7 @@ extern void sis_reclaim_buffers_locked(struct drm_device *dev,
 				       struct drm_file *file_priv);
 extern void sis_lastclose(struct drm_device *dev);
 
-extern struct drm_ioctl_desc sis_ioctls[];
+extern const struct drm_ioctl_desc sis_ioctls[];
 extern int sis_max_ioctl;
 
 #endif

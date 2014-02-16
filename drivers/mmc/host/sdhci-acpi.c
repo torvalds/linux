@@ -31,10 +31,12 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/acpi.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/delay.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/pm.h>
@@ -83,12 +85,37 @@ static int sdhci_acpi_enable_dma(struct sdhci_host *host)
 	return 0;
 }
 
+static void sdhci_acpi_int_hw_reset(struct sdhci_host *host)
+{
+	u8 reg;
+
+	reg = sdhci_readb(host, SDHCI_POWER_CONTROL);
+	reg |= 0x10;
+	sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
+	/* For eMMC, minimum is 1us but give it 9us for good measure */
+	udelay(9);
+	reg &= ~0x10;
+	sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
+	/* For eMMC, minimum is 200us but give it 300us for good measure */
+	usleep_range(300, 1000);
+}
+
 static const struct sdhci_ops sdhci_acpi_ops_dflt = {
 	.enable_dma = sdhci_acpi_enable_dma,
 };
 
+static const struct sdhci_ops sdhci_acpi_ops_int = {
+	.enable_dma = sdhci_acpi_enable_dma,
+	.hw_reset   = sdhci_acpi_int_hw_reset,
+};
+
+static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
+	.ops = &sdhci_acpi_ops_int,
+};
+
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
-	.caps    = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+	.chip    = &sdhci_acpi_chip_int,
+	.caps    = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE | MMC_CAP_HW_RESET,
 	.caps2   = MMC_CAP2_HC_ERASE_SZ,
 	.flags   = SDHCI_ACPI_RUNTIME_PM,
 };
@@ -101,6 +128,8 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
+	.flags   = SDHCI_ACPI_SD_CD | SDHCI_ACPI_RUNTIME_PM,
+	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON,
 };
 
 struct sdhci_acpi_uid_slot {
@@ -114,6 +143,7 @@ static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
 	{ "80860F14" , "3" , &sdhci_acpi_slot_int_sd   },
 	{ "INT33BB"  , "2" , &sdhci_acpi_slot_int_sdio },
 	{ "INT33C6"  , NULL, &sdhci_acpi_slot_int_sdio },
+	{ "INT3436"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "PNP0D40"  },
 	{ },
 };
@@ -122,6 +152,7 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 	{ "80860F14" },
 	{ "INT33BB"  },
 	{ "INT33C6"  },
+	{ "INT3436"  },
 	{ "PNP0D40"  },
 	{ },
 };
@@ -160,6 +191,59 @@ static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(acpi_handle handle,
 	kfree(info);
 	return slot;
 }
+
+#ifdef CONFIG_PM_RUNTIME
+
+static irqreturn_t sdhci_acpi_sd_cd(int irq, void *dev_id)
+{
+	mmc_detect_change(dev_id, msecs_to_jiffies(200));
+	return IRQ_HANDLED;
+}
+
+static int sdhci_acpi_add_own_cd(struct device *dev, struct mmc_host *mmc)
+{
+	struct gpio_desc *desc;
+	unsigned long flags;
+	int err, irq;
+
+	desc = devm_gpiod_get_index(dev, "sd_cd", 0);
+	if (IS_ERR(desc)) {
+		err = PTR_ERR(desc);
+		goto out;
+	}
+
+	err = gpiod_direction_input(desc);
+	if (err)
+		goto out_free;
+
+	irq = gpiod_to_irq(desc);
+	if (irq < 0) {
+		err = irq;
+		goto out_free;
+	}
+
+	flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
+	err = devm_request_irq(dev, irq, sdhci_acpi_sd_cd, flags, "sd_cd", mmc);
+	if (err)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	devm_gpiod_put(dev, desc);
+out:
+	dev_warn(dev, "failed to setup card detect wake up\n");
+	return err;
+}
+
+#else
+
+static int sdhci_acpi_add_own_cd(struct device *dev, struct mmc_host *mmc)
+{
+	return 0;
+}
+
+#endif
 
 static int sdhci_acpi_probe(struct platform_device *pdev)
 {
@@ -225,8 +309,9 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 			dma_mask = DMA_BIT_MASK(32);
 		}
 
-		dev->dma_mask = &dev->coherent_dma_mask;
-		dev->coherent_dma_mask = dma_mask;
+		err = dma_coerce_mask_and_coherent(dev, dma_mask);
+		if (err)
+			goto err_free;
 	}
 
 	if (c->slot) {
@@ -251,6 +336,11 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	if (err)
 		goto err_free;
 
+	if (sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD)) {
+		if (sdhci_acpi_add_own_cd(dev, host->mmc))
+			c->use_runtime_pm = false;
+	}
+
 	if (c->use_runtime_pm) {
 		pm_runtime_set_active(dev);
 		pm_suspend_ignore_children(dev, 1);
@@ -262,7 +352,6 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	return 0;
 
 err_free:
-	platform_set_drvdata(pdev, NULL);
 	sdhci_free_host(c->host);
 	return err;
 }
@@ -281,7 +370,6 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 
 	dead = (sdhci_readl(c->host, SDHCI_INT_STATUS) == ~0);
 	sdhci_remove_host(c->host, dead);
-	platform_set_drvdata(pdev, NULL);
 	sdhci_free_host(c->host);
 
 	return 0;

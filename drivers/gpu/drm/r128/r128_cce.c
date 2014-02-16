@@ -540,7 +540,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	dev_priv->ring.end = ((u32 *) dev_priv->cce_ring->handle
 			      + init->ring_size / sizeof(u32));
 	dev_priv->ring.size = init->ring_size;
-	dev_priv->ring.size_l2qw = drm_order(init->ring_size / 8);
+	dev_priv->ring.size_l2qw = order_base_2(init->ring_size / 8);
 
 	dev_priv->ring.tail_mask = (dev_priv->ring.size / sizeof(u32)) - 1;
 
@@ -892,10 +892,10 @@ static int r128_cce_get_buffers(struct drm_device *dev,
 
 		buf->file_priv = file_priv;
 
-		if (DRM_COPY_TO_USER(&d->request_indices[i], &buf->idx,
+		if (copy_to_user(&d->request_indices[i], &buf->idx,
 				     sizeof(buf->idx)))
 			return -EFAULT;
-		if (DRM_COPY_TO_USER(&d->request_sizes[i], &buf->total,
+		if (copy_to_user(&d->request_sizes[i], &buf->total,
 				     sizeof(buf->total)))
 			return -EFAULT;
 

@@ -44,16 +44,6 @@ static inline int lov_stripe_md_size(__u16 stripes)
 	return sizeof(struct lov_stripe_md) + stripes*sizeof(struct lov_oinfo*);
 }
 
-static inline __u32 lov_mds_md_size(__u16 stripes, __u32 lmm_magic)
-{
-	if (lmm_magic == LOV_MAGIC_V3)
-		return sizeof(struct lov_mds_md_v3) +
-			stripes * sizeof(struct lov_ost_data_v1);
-	else
-		return sizeof(struct lov_mds_md_v1) +
-			stripes * sizeof(struct lov_ost_data_v1);
-}
-
 struct lov_version_size {
 	__u32   lvs_magic;
 	size_t  lvs_lmm_size;

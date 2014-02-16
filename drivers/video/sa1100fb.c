@@ -1116,7 +1116,7 @@ static struct fb_monspecs monspecs = {
 
 static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 {
-	struct sa1100fb_mach_info *inf = dev->platform_data;
+	struct sa1100fb_mach_info *inf = dev_get_platdata(dev);
 	struct sa1100fb_info *fbi;
 	unsigned i;
 
@@ -1201,7 +1201,7 @@ static int sa1100fb_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		dev_err(&pdev->dev, "no platform LCD data\n");
 		return -EINVAL;
 	}
@@ -1271,7 +1271,6 @@ static int sa1100fb_probe(struct platform_device *pdev)
  failed:
 	if (fbi)
 		iounmap(fbi->base);
-	platform_set_drvdata(pdev, NULL);
 	kfree(fbi);
 	release_mem_region(res->start, resource_size(res));
 	return ret;

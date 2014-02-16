@@ -586,8 +586,7 @@ static int hgafb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-        printk(KERN_INFO "fb%d: %s frame buffer device\n",
-               info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	platform_set_drvdata(pdev, info);
 	return 0;
 }

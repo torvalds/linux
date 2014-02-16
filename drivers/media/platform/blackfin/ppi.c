@@ -266,6 +266,18 @@ static int ppi_set_params(struct ppi_if *ppi, struct ppi_params *params)
 		bfin_write32(&reg->vcnt, params->height);
 		if (params->int_mask)
 			bfin_write32(&reg->imsk, params->int_mask & 0xFF);
+		if (ppi->ppi_control & PORT_DIR) {
+			u32 hsync_width, vsync_width, vsync_period;
+
+			hsync_width = params->hsync
+					* params->bpp / params->dlen;
+			vsync_width = params->vsync * samples_per_line;
+			vsync_period = samples_per_line * params->frame;
+			bfin_write32(&reg->fs1_wlhb, hsync_width);
+			bfin_write32(&reg->fs1_paspl, samples_per_line);
+			bfin_write32(&reg->fs2_wlvb, vsync_width);
+			bfin_write32(&reg->fs2_palpf, vsync_period);
+		}
 		break;
 	}
 	default:

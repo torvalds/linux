@@ -23,6 +23,28 @@
 #define ADS117X_RATES (SNDRV_PCM_RATE_8000_48000)
 #define ADS117X_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
 
+static const struct snd_soc_dapm_widget ads117x_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("Input1"),
+SND_SOC_DAPM_INPUT("Input2"),
+SND_SOC_DAPM_INPUT("Input3"),
+SND_SOC_DAPM_INPUT("Input4"),
+SND_SOC_DAPM_INPUT("Input5"),
+SND_SOC_DAPM_INPUT("Input6"),
+SND_SOC_DAPM_INPUT("Input7"),
+SND_SOC_DAPM_INPUT("Input8"),
+};
+
+static const struct snd_soc_dapm_route ads117x_dapm_routes[] = {
+	{ "Capture", NULL, "Input1" },
+	{ "Capture", NULL, "Input2" },
+	{ "Capture", NULL, "Input3" },
+	{ "Capture", NULL, "Input4" },
+	{ "Capture", NULL, "Input5" },
+	{ "Capture", NULL, "Input6" },
+	{ "Capture", NULL, "Input7" },
+	{ "Capture", NULL, "Input8" },
+};
+
 static struct snd_soc_dai_driver ads117x_dai = {
 /* ADC */
 	.name = "ads117x-hifi",
@@ -34,7 +56,12 @@ static struct snd_soc_dai_driver ads117x_dai = {
 		.formats = ADS117X_FORMATS,},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_ads117x;
+static struct snd_soc_codec_driver soc_codec_dev_ads117x = {
+	.dapm_widgets = ads117x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(ads117x_dapm_widgets),
+	.dapm_routes = ads117x_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(ads117x_dapm_routes),
+};
 
 static int ads117x_probe(struct platform_device *pdev)
 {

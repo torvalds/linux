@@ -453,7 +453,7 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 			     const struct i2c_device_id *id)
 {
 	struct i2c_client *client = chip->client;
-	struct max732x_platform_data *pdata = client->dev.platform_data;
+	struct max732x_platform_data *pdata = dev_get_platdata(&client->dev);
 	int has_irq = max732x_features[id->driver_data] >> 32;
 	int ret;
 
@@ -512,7 +512,7 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 			     const struct i2c_device_id *id)
 {
 	struct i2c_client *client = chip->client;
-	struct max732x_platform_data *pdata = client->dev.platform_data;
+	struct max732x_platform_data *pdata = dev_get_platdata(&client->dev);
 	int has_irq = max732x_features[id->driver_data] >> 32;
 
 	if (pdata->irq_base && has_irq != INT_NONE)
@@ -564,7 +564,7 @@ static int max732x_setup_gpio(struct max732x_chip *chip,
 		gc->set = max732x_gpio_set_value;
 	}
 	gc->get = max732x_gpio_get_value;
-	gc->can_sleep = 1;
+	gc->can_sleep = true;
 
 	gc->base = gpio_start;
 	gc->ngpio = port;
@@ -583,7 +583,7 @@ static int max732x_probe(struct i2c_client *client,
 	uint16_t addr_a, addr_b;
 	int ret, nr_port;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (pdata == NULL) {
 		dev_dbg(&client->dev, "no platform data\n");
 		return -EINVAL;
@@ -653,7 +653,7 @@ out_failed:
 
 static int max732x_remove(struct i2c_client *client)
 {
-	struct max732x_platform_data *pdata = client->dev.platform_data;
+	struct max732x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct max732x_chip *chip = i2c_get_clientdata(client);
 	int ret;
 

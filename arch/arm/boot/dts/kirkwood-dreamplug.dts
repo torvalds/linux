@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "Globalscale Technologies Dreamplug";
@@ -87,15 +87,41 @@
 
 		bluetooth {
 			label = "dreamplug:blue:bluetooth";
-			gpios = <&gpio1 15 1>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 		wifi {
 			label = "dreamplug:green:wifi";
-			gpios = <&gpio1 16 1>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
 		wifi-ap {
 			label = "dreamplug:green:wifi_ap";
-			gpios = <&gpio1 17 1>;
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
 	};
 };

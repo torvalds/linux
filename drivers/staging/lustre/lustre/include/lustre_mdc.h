@@ -48,12 +48,9 @@
  * @{
  */
 
-# include <linux/fs.h>
-# include <linux/dcache.h>
-# ifdef CONFIG_FS_POSIX_ACL
-#  include <linux/posix_acl_xattr.h>
-# endif /* CONFIG_FS_POSIX_ACL */
-# include <linux/lustre_intent.h>
+#include <linux/fs.h>
+#include <linux/dcache.h>
+#include <linux/lustre_intent.h>
 #include <lustre_handles.h>
 #include <linux/libcfs/libcfs.h>
 #include <obd_class.h>
@@ -84,9 +81,8 @@ static inline void mdc_init_rpc_lock(struct mdc_rpc_lock *lck)
 static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	ENTRY;
-
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP))
+	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+			   it->it_op == IT_LAYOUT))
 		return;
 
 	/* This would normally block until the existing request finishes.
@@ -123,8 +119,9 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP))
-		goto out;
+	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+			   it->it_op == IT_LAYOUT))
+		return;
 
 	if (lck->rpcl_it == MDC_FAKE_RPCL_IT) { /* OBD_FAIL_MDC_RPCS_SEM */
 		mutex_lock(&lck->rpcl_mutex);
@@ -141,8 +138,6 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 	}
 
 	mutex_unlock(&lck->rpcl_mutex);
- out:
-	EXIT;
 }
 
 static inline void mdc_update_max_ea_from_body(struct obd_export *exp,

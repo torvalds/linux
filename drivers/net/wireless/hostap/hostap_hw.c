@@ -1425,7 +1425,7 @@ static int prism2_hw_init2(struct net_device *dev, int initial)
 		}
 		list_for_each(ptr, &local->hostap_interfaces) {
 			iface = list_entry(ptr, struct hostap_interface, list);
-			memcpy(iface->dev->dev_addr, dev->dev_addr, ETH_ALEN);
+			eth_hw_addr_inherit(iface->dev, dev);
 		}
 	} else if (local->fw_ap)
 		prism2_check_sta_fw_version(local);
@@ -2175,7 +2175,7 @@ static void hostap_tx_callback(local_info_t *local,
 	struct hostap_tx_callback_info *cb;
 
 	/* Make sure that frame was from us. */
-	if (memcmp(txdesc->addr2, local->dev->dev_addr, ETH_ALEN)) {
+	if (!ether_addr_equal(txdesc->addr2, local->dev->dev_addr)) {
 		printk(KERN_DEBUG "%s: TX callback - foreign frame\n",
 		       local->dev->name);
 		return;

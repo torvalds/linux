@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -110,7 +110,8 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_AP:
-		if (mvmvif->ap_active)
+	case NL80211_IFTYPE_ADHOC:
+		if (mvmvif->ap_ibss_active)
 			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_MONITOR:
@@ -119,35 +120,63 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
-	case NL80211_IFTYPE_ADHOC:
-		if (vif->bss_conf.ibss_joined)
-			data->n_interfaces[id]++;
-		break;
 	default:
 		WARN_ON_ONCE(1);
 		break;
 	}
 }
 
+static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
+					 struct iwl_time_quota_cmd *cmd)
+{
+#ifdef CONFIG_NL80211_TESTMODE
+	struct iwl_mvm_vif *mvmvif;
+	int i, phy_id = -1, beacon_int = 0;
+
+	if (!mvm->noa_duration || !mvm->noa_vif)
+		return;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(mvm->noa_vif);
+	if (!mvmvif->ap_ibss_active)
+		return;
+
+	phy_id = mvmvif->phy_ctxt->id;
+	beacon_int = mvm->noa_vif->bss_conf.beacon_int;
+
+	for (i = 0; i < MAX_BINDINGS; i++) {
+		u32 id_n_c = le32_to_cpu(cmd->quotas[i].id_and_color);
+		u32 id = (id_n_c & FW_CTXT_ID_MSK) >> FW_CTXT_ID_POS;
+		u32 quota = le32_to_cpu(cmd->quotas[i].quota);
+
+		if (id != phy_id)
+			continue;
+
+		quota *= (beacon_int - mvm->noa_duration);
+		quota /= beacon_int;
+
+		cmd->quotas[i].quota = cpu_to_le32(quota);
+	}
+#endif
+}
+
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 {
-	struct iwl_time_quota_cmd cmd;
-	int i, idx, ret, num_active_bindings, quota, quota_rem;
+	struct iwl_time_quota_cmd cmd = {};
+	int i, idx, ret, num_active_macs, quota, quota_rem;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
 		.new_vif = newvif,
 	};
 
+	lockdep_assert_held(&mvm->mutex);
+
 	/* update all upon completion */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		return 0;
 
-	BUILD_BUG_ON(data.colors[MAX_BINDINGS - 1] != -1);
-
-	lockdep_assert_held(&mvm->mutex);
-
-	memset(&cmd, 0, sizeof(cmd));
+	/* iterator data above must match */
+	BUILD_BUG_ON(MAX_BINDINGS != 4);
 
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -162,34 +191,42 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 	 * IWL_MVM_MAX_QUOTA fragments. Divide these fragments
 	 * equally between all the bindings that require quota
 	 */
-	num_active_bindings = 0;
+	num_active_macs = 0;
 	for (i = 0; i < MAX_BINDINGS; i++) {
 		cmd.quotas[i].id_and_color = cpu_to_le32(FW_CTXT_INVALID);
-		if (data.n_interfaces[i] > 0)
-			num_active_bindings++;
+		num_active_macs += data.n_interfaces[i];
 	}
 
-	if (!num_active_bindings)
-		goto send_cmd;
-
-	quota = IWL_MVM_MAX_QUOTA / num_active_bindings;
-	quota_rem = IWL_MVM_MAX_QUOTA % num_active_bindings;
+	quota = 0;
+	quota_rem = 0;
+	if (num_active_macs) {
+		quota = IWL_MVM_MAX_QUOTA / num_active_macs;
+		quota_rem = IWL_MVM_MAX_QUOTA % num_active_macs;
+	}
 
 	for (idx = 0, i = 0; i < MAX_BINDINGS; i++) {
-		if (data.n_interfaces[i] <= 0)
+		if (data.colors[i] < 0)
 			continue;
 
 		cmd.quotas[idx].id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(i, data.colors[i]));
-		cmd.quotas[idx].quota = cpu_to_le32(quota);
-		cmd.quotas[idx].max_duration = cpu_to_le32(IWL_MVM_MAX_QUOTA);
+
+		if (data.n_interfaces[i] <= 0) {
+			cmd.quotas[idx].quota = cpu_to_le32(0);
+			cmd.quotas[idx].max_duration = cpu_to_le32(0);
+		} else {
+			cmd.quotas[idx].quota =
+				cpu_to_le32(quota * data.n_interfaces[i]);
+			cmd.quotas[idx].max_duration = cpu_to_le32(0);
+		}
 		idx++;
 	}
 
 	/* Give the remainder of the session to the first binding */
 	le32_add_cpu(&cmd.quotas[0].quota, quota_rem);
 
-send_cmd:
+	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
+
 	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, CMD_SYNC,
 				   sizeof(cmd), &cmd);
 	if (ret)

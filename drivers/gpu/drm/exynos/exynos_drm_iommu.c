@@ -47,10 +47,16 @@ int drm_create_iommu_mapping(struct drm_device *drm_dev)
 
 	dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms),
 					GFP_KERNEL);
+	if (!dev->dma_parms)
+		goto error;
+
 	dma_set_max_seg_size(dev, 0xffffffffu);
 	dev->archdata.mapping = mapping;
 
 	return 0;
+error:
+	arm_iommu_release_mapping(mapping);
+	return -ENOMEM;
 }
 
 /*
@@ -91,6 +97,9 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	subdrv_dev->dma_parms = devm_kzalloc(subdrv_dev,
 					sizeof(*subdrv_dev->dma_parms),
 					GFP_KERNEL);
+	if (!subdrv_dev->dma_parms)
+		return -ENOMEM;
+
 	dma_set_max_seg_size(subdrv_dev, 0xffffffffu);
 
 	ret = arm_iommu_attach_device(subdrv_dev, dev->archdata.mapping);

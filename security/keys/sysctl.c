@@ -61,5 +61,16 @@ ctl_table key_sysctls[] = {
 		.extra1 = (void *) &zero,
 		.extra2 = (void *) &max,
 	},
+#ifdef CONFIG_PERSISTENT_KEYRINGS
+	{
+		.procname = "persistent_keyring_expiry",
+		.data = &persistent_keyring_expiry,
+		.maxlen = sizeof(unsigned),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = (void *) &zero,
+		.extra2 = (void *) &max,
+	},
+#endif
 	{ }
 };

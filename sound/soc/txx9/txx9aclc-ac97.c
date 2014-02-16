@@ -184,9 +184,6 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -EBUSY;
-
 	drvdata->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(drvdata->base))
 		return PTR_ERR(drvdata->base);

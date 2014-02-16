@@ -70,7 +70,6 @@
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -78,6 +77,8 @@
 #include <linux/if_vlan.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/ip.h>
@@ -88,6 +89,7 @@
 
 #include <asm/io.h>
 #include <asm/reg.h>
+#include <asm/mpc85xx.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
@@ -128,6 +130,7 @@ static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
 static void gfar_configure_serdes(struct net_device *dev);
 static int gfar_poll(struct napi_struct *napi, int budget);
+static int gfar_poll_sq(struct napi_struct *napi, int budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void gfar_netpoll(struct net_device *dev);
 #endif
@@ -592,7 +595,6 @@ static int gfar_parse_group(struct device_node *np,
 			return -EINVAL;
 	}
 
-	grp->grp_id = priv->num_grps;
 	grp->priv = priv;
 	spin_lock_init(&grp->grplock);
 	if (priv->mode == MQ_MG_MODE) {
@@ -792,8 +794,7 @@ err_grp_init:
 	return err;
 }
 
-static int gfar_hwtstamp_ioctl(struct net_device *netdev,
-			       struct ifreq *ifr, int cmd)
+static int gfar_hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
 	struct gfar_private *priv = netdev_priv(netdev);
@@ -842,7 +843,20 @@ static int gfar_hwtstamp_ioctl(struct net_device *netdev,
 		-EFAULT : 0;
 }
 
-/* Ioctl MII Interface */
+static int gfar_hwtstamp_get(struct net_device *netdev, struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	struct gfar_private *priv = netdev_priv(netdev);
+
+	config.flags = 0;
+	config.tx_type = priv->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	config.rx_filter = (priv->hwts_rx_en ?
+			    HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE);
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+		-EFAULT : 0;
+}
+
 static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
@@ -851,7 +865,9 @@ static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -EINVAL;
 
 	if (cmd == SIOCSHWTSTAMP)
-		return gfar_hwtstamp_ioctl(dev, rq, cmd);
+		return gfar_hwtstamp_set(dev, rq);
+	if (cmd == SIOCGHWTSTAMP)
+		return gfar_hwtstamp_get(dev, rq);
 
 	if (!priv->phydev)
 		return -ENODEV;
@@ -939,9 +955,8 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 	}
 }
 
-static void gfar_detect_errata(struct gfar_private *priv)
+static void __gfar_detect_errata_83xx(struct gfar_private *priv)
 {
-	struct device *dev = &priv->ofdev->dev;
 	unsigned int pvr = mfspr(SPRN_PVR);
 	unsigned int svr = mfspr(SPRN_SVR);
 	unsigned int mod = (svr >> 16) & 0xfff6; /* w/o E suffix */
@@ -957,15 +972,33 @@ static void gfar_detect_errata(struct gfar_private *priv)
 	    (pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
 		priv->errata |= GFAR_ERRATA_76;
 
-	/* MPC8313 and MPC837x all rev */
-	if ((pvr == 0x80850010 && mod == 0x80b0) ||
-	    (pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
-		priv->errata |= GFAR_ERRATA_A002;
-
-	/* MPC8313 Rev < 2.0, MPC8548 rev 2.0 */
-	if ((pvr == 0x80850010 && mod == 0x80b0 && rev < 0x0020) ||
-	    (pvr == 0x80210020 && mod == 0x8030 && rev == 0x0020))
+	/* MPC8313 Rev < 2.0 */
+	if (pvr == 0x80850010 && mod == 0x80b0 && rev < 0x0020)
 		priv->errata |= GFAR_ERRATA_12;
+}
+
+static void __gfar_detect_errata_85xx(struct gfar_private *priv)
+{
+	unsigned int svr = mfspr(SPRN_SVR);
+
+	if ((SVR_SOC_VER(svr) == SVR_8548) && (SVR_REV(svr) == 0x20))
+		priv->errata |= GFAR_ERRATA_12;
+	if (((SVR_SOC_VER(svr) == SVR_P2020) && (SVR_REV(svr) < 0x20)) ||
+	    ((SVR_SOC_VER(svr) == SVR_P2010) && (SVR_REV(svr) < 0x20)))
+		priv->errata |= GFAR_ERRATA_76; /* aka eTSEC 20 */
+}
+
+static void gfar_detect_errata(struct gfar_private *priv)
+{
+	struct device *dev = &priv->ofdev->dev;
+
+	/* no plans to fix */
+	priv->errata |= GFAR_ERRATA_A002;
+
+	if (pvr_version_is(PVR_VER_E500V1) || pvr_version_is(PVR_VER_E500V2))
+		__gfar_detect_errata_85xx(priv);
+	else /* non-mpc85xx parts, i.e. e300 core based */
+		__gfar_detect_errata_83xx(priv);
 
 	if (priv->errata)
 		dev_info(dev, "enabled errata workarounds, flags: 0x%x\n",
@@ -1000,7 +1033,7 @@ static int gfar_probe(struct platform_device *ofdev)
 	spin_lock_init(&priv->bflock);
 	INIT_WORK(&priv->reset_task, gfar_reset_task);
 
-	dev_set_drvdata(&ofdev->dev, priv);
+	platform_set_drvdata(ofdev, priv);
 	regs = priv->gfargrp[0].regs;
 
 	gfar_detect_errata(priv);
@@ -1016,7 +1049,14 @@ static int gfar_probe(struct platform_device *ofdev)
 	/* We need to delay at least 3 TX clocks */
 	udelay(2);
 
-	tempval = (MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
+	tempval = 0;
+	if (!priv->pause_aneg_en && priv->tx_pause_en)
+		tempval |= MACCFG1_TX_FLOW;
+	if (!priv->pause_aneg_en && priv->rx_pause_en)
+		tempval |= MACCFG1_RX_FLOW;
+	/* the soft reset bit is not self-resetting, so we need to
+	 * clear it before resuming normal operation
+	 */
 	gfar_write(&regs->maccfg1, tempval);
 
 	/* Initialize MACCFG2. */
@@ -1038,9 +1078,13 @@ static int gfar_probe(struct platform_device *ofdev)
 	dev->ethtool_ops = &gfar_ethtool_ops;
 
 	/* Register for napi ...We are registering NAPI for each grp */
-	for (i = 0; i < priv->num_grps; i++)
-		netif_napi_add(dev, &priv->gfargrp[i].napi, gfar_poll,
+	if (priv->mode == SQ_SG_MODE)
+		netif_napi_add(dev, &priv->gfargrp[0].napi, gfar_poll_sq,
 			       GFAR_DEV_WEIGHT);
+	else
+		for (i = 0; i < priv->num_grps; i++)
+			netif_napi_add(dev, &priv->gfargrp[i].napi, gfar_poll,
+				       GFAR_DEV_WEIGHT);
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM) {
 		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
@@ -1240,14 +1284,12 @@ register_fail:
 
 static int gfar_remove(struct platform_device *ofdev)
 {
-	struct gfar_private *priv = dev_get_drvdata(&ofdev->dev);
+	struct gfar_private *priv = platform_get_drvdata(ofdev);
 
 	if (priv->phy_node)
 		of_node_put(priv->phy_node);
 	if (priv->tbi_node)
 		of_node_put(priv->tbi_node);
-
-	dev_set_drvdata(&ofdev->dev, NULL);
 
 	unregister_netdev(priv->ndev);
 	unmap_group_regs(priv);
@@ -1458,7 +1500,7 @@ static int init_phy(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	uint gigabit_support =
 		priv->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
-		SUPPORTED_1000baseT_Full : 0;
+		GFAR_SUPPORTED_GBIT : 0;
 	phy_interface_t interface;
 
 	priv->oldlink = 0;
@@ -1590,7 +1632,7 @@ static int __gfar_is_rx_idle(struct gfar_private *priv)
 	/* Normaly TSEC should not hang on GRS commands, so we should
 	 * actually wait for IEVENT_GRSC flag.
 	 */
-	if (likely(!gfar_has_errata(priv, GFAR_ERRATA_A002)))
+	if (!gfar_has_errata(priv, GFAR_ERRATA_A002))
 		return 0;
 
 	/* Read the eTSEC register at offset 0xD1C. If bits 7-14 are
@@ -2049,6 +2091,24 @@ static inline struct txbd8 *next_txbd(struct txbd8 *bdp, struct txbd8 *base,
 	return skip_txbd(bdp, 1, base, ring_size);
 }
 
+/* eTSEC12: csum generation not supported for some fcb offsets */
+static inline bool gfar_csum_errata_12(struct gfar_private *priv,
+				       unsigned long fcb_addr)
+{
+	return (gfar_has_errata(priv, GFAR_ERRATA_12) &&
+	       (fcb_addr % 0x20) > 0x18);
+}
+
+/* eTSEC76: csum generation for frames larger than 2500 may
+ * cause excess delays before start of transmission
+ */
+static inline bool gfar_csum_errata_76(struct gfar_private *priv,
+				       unsigned int len)
+{
+	return (gfar_has_errata(priv, GFAR_ERRATA_76) &&
+	       (len > 2500));
+}
+
 /* This is called by the kernel when a frame is ready for transmission.
  * It is pointed to by the dev->hard_start_xmit function pointer
  */
@@ -2061,23 +2121,11 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct txfcb *fcb = NULL;
 	struct txbd8 *txbdp, *txbdp_start, *base, *txbdp_tstamp = NULL;
 	u32 lstatus;
-	int i, rq = 0, do_tstamp = 0;
+	int i, rq = 0;
+	int do_tstamp, do_csum, do_vlan;
 	u32 bufaddr;
 	unsigned long flags;
-	unsigned int nr_frags, nr_txbds, length, fcb_length = GMAC_FCB_LEN;
-
-	/* TOE=1 frames larger than 2500 bytes may see excess delays
-	 * before start of transmission.
-	 */
-	if (unlikely(gfar_has_errata(priv, GFAR_ERRATA_76) &&
-		     skb->ip_summed == CHECKSUM_PARTIAL &&
-		     skb->len > 2500)) {
-		int ret;
-
-		ret = skb_checksum_help(skb);
-		if (ret)
-			return ret;
-	}
+	unsigned int nr_frags, nr_txbds, bytes_sent, fcb_len = 0;
 
 	rq = skb->queue_mapping;
 	tx_queue = priv->tx_queue[rq];
@@ -2085,21 +2133,23 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	base = tx_queue->tx_bd_base;
 	regs = tx_queue->grp->regs;
 
+	do_csum = (CHECKSUM_PARTIAL == skb->ip_summed);
+	do_vlan = vlan_tx_tag_present(skb);
+	do_tstamp = (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+		    priv->hwts_tx_en;
+
+	if (do_csum || do_vlan)
+		fcb_len = GMAC_FCB_LEN;
+
 	/* check if time stamp should be generated */
-	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
-		     priv->hwts_tx_en)) {
-		do_tstamp = 1;
-		fcb_length = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
-	}
+	if (unlikely(do_tstamp))
+		fcb_len = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
 
 	/* make space for additional header when fcb is needed */
-	if (((skb->ip_summed == CHECKSUM_PARTIAL) ||
-	     vlan_tx_tag_present(skb) ||
-	     unlikely(do_tstamp)) &&
-	    (skb_headroom(skb) < fcb_length)) {
+	if (fcb_len && unlikely(skb_headroom(skb) < fcb_len)) {
 		struct sk_buff *skb_new;
 
-		skb_new = skb_realloc_headroom(skb, fcb_length);
+		skb_new = skb_realloc_headroom(skb, fcb_len);
 		if (!skb_new) {
 			dev->stats.tx_errors++;
 			kfree_skb(skb);
@@ -2130,7 +2180,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Update transmit stats */
-	tx_queue->stats.tx_bytes += skb->len;
+	bytes_sent = skb->len;
+	tx_queue->stats.tx_bytes += bytes_sent;
+	/* keep Tx bytes on wire for BQL accounting */
+	GFAR_CB(skb)->bytes_sent = bytes_sent;
 	tx_queue->stats.tx_packets++;
 
 	txbdp = txbdp_start = tx_queue->cur_tx;
@@ -2150,12 +2203,13 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		/* Place the fragment addresses and lengths into the TxBDs */
 		for (i = 0; i < nr_frags; i++) {
+			unsigned int frag_len;
 			/* Point at the next BD, wrapping as needed */
 			txbdp = next_txbd(txbdp, base, tx_queue->tx_ring_size);
 
-			length = skb_shinfo(skb)->frags[i].size;
+			frag_len = skb_shinfo(skb)->frags[i].size;
 
-			lstatus = txbdp->lstatus | length |
+			lstatus = txbdp->lstatus | frag_len |
 				  BD_LFLAG(TXBD_READY);
 
 			/* Handle the last BD specially */
@@ -2165,7 +2219,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			bufaddr = skb_frag_dma_map(priv->dev,
 						   &skb_shinfo(skb)->frags[i],
 						   0,
-						   length,
+						   frag_len,
 						   DMA_TO_DEVICE);
 
 			/* set the TxBD length and buffer pointer */
@@ -2182,36 +2236,38 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		memset(skb->data, 0, GMAC_TXPAL_LEN);
 	}
 
-	/* Set up checksumming */
-	if (CHECKSUM_PARTIAL == skb->ip_summed) {
+	/* Add TxFCB if required */
+	if (fcb_len) {
 		fcb = gfar_add_fcb(skb);
-		/* as specified by errata */
-		if (unlikely(gfar_has_errata(priv, GFAR_ERRATA_12) &&
-			     ((unsigned long)fcb % 0x20) > 0x18)) {
+		lstatus |= BD_LFLAG(TXBD_TOE);
+	}
+
+	/* Set up checksumming */
+	if (do_csum) {
+		gfar_tx_checksum(skb, fcb, fcb_len);
+
+		if (unlikely(gfar_csum_errata_12(priv, (unsigned long)fcb)) ||
+		    unlikely(gfar_csum_errata_76(priv, skb->len))) {
 			__skb_pull(skb, GMAC_FCB_LEN);
 			skb_checksum_help(skb);
-		} else {
-			lstatus |= BD_LFLAG(TXBD_TOE);
-			gfar_tx_checksum(skb, fcb, fcb_length);
+			if (do_vlan || do_tstamp) {
+				/* put back a new fcb for vlan/tstamp TOE */
+				fcb = gfar_add_fcb(skb);
+			} else {
+				/* Tx TOE not used */
+				lstatus &= ~(BD_LFLAG(TXBD_TOE));
+				fcb = NULL;
+			}
 		}
 	}
 
-	if (vlan_tx_tag_present(skb)) {
-		if (unlikely(NULL == fcb)) {
-			fcb = gfar_add_fcb(skb);
-			lstatus |= BD_LFLAG(TXBD_TOE);
-		}
-
+	if (do_vlan)
 		gfar_tx_vlan(skb, fcb);
-	}
 
 	/* Setup tx hardware time stamping if requested */
 	if (unlikely(do_tstamp)) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-		if (fcb == NULL)
-			fcb = gfar_add_fcb(skb);
 		fcb->ptp = 1;
-		lstatus |= BD_LFLAG(TXBD_TOE);
 	}
 
 	txbdp_start->bufPtr = dma_map_single(priv->dev, skb->data,
@@ -2223,15 +2279,15 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * the full frame length.
 	 */
 	if (unlikely(do_tstamp)) {
-		txbdp_tstamp->bufPtr = txbdp_start->bufPtr + fcb_length;
+		txbdp_tstamp->bufPtr = txbdp_start->bufPtr + fcb_len;
 		txbdp_tstamp->lstatus |= BD_LFLAG(TXBD_READY) |
-					 (skb_headlen(skb) - fcb_length);
+					 (skb_headlen(skb) - fcb_len);
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | GMAC_FCB_LEN;
 	} else {
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | skb_headlen(skb);
 	}
 
-	netdev_tx_sent_queue(txq, skb->len);
+	netdev_tx_sent_queue(txq, bytes_sent);
 
 	/* We can work in parallel with gfar_clean_tx_ring(), except
 	 * when modifying num_txbdfree. Note that we didn't grab the lock
@@ -2551,7 +2607,7 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 			bdp = next_txbd(bdp, base, tx_ring_size);
 		}
 
-		bytes_sent += skb->len;
+		bytes_sent += GFAR_CB(skb)->bytes_sent;
 
 		dev_kfree_skb_any(skb);
 
@@ -2825,6 +2881,48 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 	return howmany;
 }
 
+static int gfar_poll_sq(struct napi_struct *napi, int budget)
+{
+	struct gfar_priv_grp *gfargrp =
+		container_of(napi, struct gfar_priv_grp, napi);
+	struct gfar __iomem *regs = gfargrp->regs;
+	struct gfar_priv_tx_q *tx_queue = gfargrp->priv->tx_queue[0];
+	struct gfar_priv_rx_q *rx_queue = gfargrp->priv->rx_queue[0];
+	int work_done = 0;
+
+	/* Clear IEVENT, so interrupts aren't called again
+	 * because of the packets that have already arrived
+	 */
+	gfar_write(&regs->ievent, IEVENT_RTX_MASK);
+
+	/* run Tx cleanup to completion */
+	if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx])
+		gfar_clean_tx_ring(tx_queue);
+
+	work_done = gfar_clean_rx_ring(rx_queue, budget);
+
+	if (work_done < budget) {
+		napi_complete(napi);
+		/* Clear the halt bit in RSTAT */
+		gfar_write(&regs->rstat, gfargrp->rstat);
+
+		gfar_write(&regs->imask, IMASK_DEFAULT);
+
+		/* If we are coalescing interrupts, update the timer
+		 * Otherwise, clear it
+		 */
+		gfar_write(&regs->txic, 0);
+		if (likely(tx_queue->txcoalescing))
+			gfar_write(&regs->txic, tx_queue->txic);
+
+		gfar_write(&regs->rxic, 0);
+		if (unlikely(rx_queue->rxcoalescing))
+			gfar_write(&regs->rxic, rx_queue->rxic);
+	}
+
+	return work_done;
+}
+
 static int gfar_poll(struct napi_struct *napi, int budget)
 {
 	struct gfar_priv_grp *gfargrp =
@@ -2835,7 +2933,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	int work_done = 0, work_done_per_q = 0;
 	int i, budget_per_q = 0;
-	int has_tx_work;
+	int has_tx_work = 0;
 	unsigned long rstat_rxf;
 	int num_act_queues;
 
@@ -2850,62 +2948,51 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	if (num_act_queues)
 		budget_per_q = budget/num_act_queues;
 
-	while (1) {
-		has_tx_work = 0;
-		for_each_set_bit(i, &gfargrp->tx_bit_map, priv->num_tx_queues) {
-			tx_queue = priv->tx_queue[i];
-			/* run Tx cleanup to completion */
-			if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx]) {
-				gfar_clean_tx_ring(tx_queue);
-				has_tx_work = 1;
-			}
+	for_each_set_bit(i, &gfargrp->tx_bit_map, priv->num_tx_queues) {
+		tx_queue = priv->tx_queue[i];
+		/* run Tx cleanup to completion */
+		if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx]) {
+			gfar_clean_tx_ring(tx_queue);
+			has_tx_work = 1;
 		}
+	}
 
-		for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
-			/* skip queue if not active */
-			if (!(rstat_rxf & (RSTAT_CLEAR_RXF0 >> i)))
-				continue;
+	for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
+		/* skip queue if not active */
+		if (!(rstat_rxf & (RSTAT_CLEAR_RXF0 >> i)))
+			continue;
 
-			rx_queue = priv->rx_queue[i];
-			work_done_per_q =
-				gfar_clean_rx_ring(rx_queue, budget_per_q);
-			work_done += work_done_per_q;
+		rx_queue = priv->rx_queue[i];
+		work_done_per_q =
+			gfar_clean_rx_ring(rx_queue, budget_per_q);
+		work_done += work_done_per_q;
 
-			/* finished processing this queue */
-			if (work_done_per_q < budget_per_q) {
-				/* clear active queue hw indication */
-				gfar_write(&regs->rstat,
-					   RSTAT_CLEAR_RXF0 >> i);
-				rstat_rxf &= ~(RSTAT_CLEAR_RXF0 >> i);
-				num_act_queues--;
+		/* finished processing this queue */
+		if (work_done_per_q < budget_per_q) {
+			/* clear active queue hw indication */
+			gfar_write(&regs->rstat,
+				   RSTAT_CLEAR_RXF0 >> i);
+			num_act_queues--;
 
-				if (!num_act_queues)
-					break;
-				/* recompute budget per Rx queue */
-				budget_per_q =
-					(budget - work_done) / num_act_queues;
-			}
+			if (!num_act_queues)
+				break;
 		}
+	}
 
-		if (work_done >= budget)
-			break;
+	if (!num_act_queues && !has_tx_work) {
 
-		if (!num_act_queues && !has_tx_work) {
+		napi_complete(napi);
 
-			napi_complete(napi);
+		/* Clear the halt bit in RSTAT */
+		gfar_write(&regs->rstat, gfargrp->rstat);
 
-			/* Clear the halt bit in RSTAT */
-			gfar_write(&regs->rstat, gfargrp->rstat);
+		gfar_write(&regs->imask, IMASK_DEFAULT);
 
-			gfar_write(&regs->imask, IMASK_DEFAULT);
-
-			/* If we are coalescing interrupts, update the timer
-			 * Otherwise, clear it
-			 */
-			gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
-						  gfargrp->tx_bit_map);
-			break;
-		}
+		/* If we are coalescing interrupts, update the timer
+		 * Otherwise, clear it
+		 */
+		gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
+					  gfargrp->tx_bit_map);
 	}
 
 	return work_done;
@@ -2969,6 +3056,41 @@ static irqreturn_t gfar_interrupt(int irq, void *grp_id)
 	return IRQ_HANDLED;
 }
 
+static u32 gfar_get_flowctrl_cfg(struct gfar_private *priv)
+{
+	struct phy_device *phydev = priv->phydev;
+	u32 val = 0;
+
+	if (!phydev->duplex)
+		return val;
+
+	if (!priv->pause_aneg_en) {
+		if (priv->tx_pause_en)
+			val |= MACCFG1_TX_FLOW;
+		if (priv->rx_pause_en)
+			val |= MACCFG1_RX_FLOW;
+	} else {
+		u16 lcl_adv, rmt_adv;
+		u8 flowctrl;
+		/* get link partner capabilities */
+		rmt_adv = 0;
+		if (phydev->pause)
+			rmt_adv = LPA_PAUSE_CAP;
+		if (phydev->asym_pause)
+			rmt_adv |= LPA_PAUSE_ASYM;
+
+		lcl_adv = mii_advertise_flowctrl(phydev->advertising);
+
+		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
+		if (flowctrl & FLOW_CTRL_TX)
+			val |= MACCFG1_TX_FLOW;
+		if (flowctrl & FLOW_CTRL_RX)
+			val |= MACCFG1_RX_FLOW;
+	}
+
+	return val;
+}
+
 /* Called every time the controller might need to be made
  * aware of new link state.  The PHY code conveys this
  * information through variables in the phydev structure, and this
@@ -2987,6 +3109,7 @@ static void adjust_link(struct net_device *dev)
 	lock_tx_qs(priv);
 
 	if (phydev->link) {
+		u32 tempval1 = gfar_read(&regs->maccfg1);
 		u32 tempval = gfar_read(&regs->maccfg2);
 		u32 ecntrl = gfar_read(&regs->ecntrl);
 
@@ -3035,6 +3158,10 @@ static void adjust_link(struct net_device *dev)
 			priv->oldspeed = phydev->speed;
 		}
 
+		tempval1 &= ~(MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
+		tempval1 |= gfar_get_flowctrl_cfg(priv);
+
+		gfar_write(&regs->maccfg1, tempval1);
 		gfar_write(&regs->maccfg2, tempval);
 		gfar_write(&regs->ecntrl, ecntrl);
 

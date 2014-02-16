@@ -49,8 +49,6 @@
  * Implemented in portals/include/libcfs/<os>/
  */
 int    cfs_curproc_groups_nr(void);
-int    current_is_in_group(gid_t group);
-void   cfs_curproc_groups_dump(gid_t *array, int size);
 
 /*
  * Plus, platform-specific constant
@@ -63,7 +61,6 @@ void   cfs_curproc_groups_dump(gid_t *array, int size);
  */
 
 /* check if task is running in compat mode.*/
-int current_is_32bit(void);
 #define current_pid()		(current->pid)
 #define current_comm()		(current->comm)
 int cfs_get_environ(const char *key, char *value, int *val_len);

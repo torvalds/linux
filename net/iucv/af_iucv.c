@@ -1324,8 +1324,6 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	int err = 0;
 	u32 offset;
 
-	msg->msg_namelen = 0;
-
 	if ((sk->sk_state == IUCV_DISCONN) &&
 	    skb_queue_empty(&iucv->backlog_skb_q) &&
 	    skb_queue_empty(&sk->sk_receive_queue) &&
@@ -2293,7 +2291,7 @@ out_unlock:
 static int afiucv_netdev_event(struct notifier_block *this,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *event_dev = (struct net_device *)ptr;
+	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
 	struct sock *sk;
 	struct iucv_sock *iucv;
 

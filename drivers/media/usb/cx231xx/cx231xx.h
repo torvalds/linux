@@ -72,6 +72,7 @@
 #define CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC 15
 #define CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2 16
 #define CX231XX_BOARD_OTG102 17
+#define CX231XX_BOARD_KWORLD_UB445_USB_HYBRID 18
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4
@@ -945,7 +946,7 @@ int cx231xx_enum_input(struct file *file, void *priv,
 			     struct v4l2_input *i);
 int cx231xx_g_input(struct file *file, void *priv, unsigned int *i);
 int cx231xx_s_input(struct file *file, void *priv, unsigned int i);
-int cx231xx_g_chip_ident(struct file *file, void *fh, struct v4l2_dbg_chip_ident *chip);
+int cx231xx_g_chip_info(struct file *file, void *fh, struct v4l2_dbg_chip_info *chip);
 int cx231xx_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg);
 int cx231xx_s_register(struct file *file, void *priv,

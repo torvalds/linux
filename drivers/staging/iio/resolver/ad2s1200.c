@@ -107,16 +107,16 @@ static int ad2s1200_probe(struct spi_device *spi)
 	unsigned short *pins = spi->dev.platform_data;
 
 	for (pn = 0; pn < AD2S1200_PN; pn++)
-		if (gpio_request_one(pins[pn], GPIOF_DIR_OUT, DRV_NAME)) {
-			pr_err("%s: request gpio pin %d failed\n",
-						DRV_NAME, pins[pn]);
-			goto error_ret;
+		ret = devm_gpio_request_one(&spi->dev, pins[pn], GPIOF_DIR_OUT,
+					    DRV_NAME);
+		if (ret) {
+			dev_err(&spi->dev, "request gpio pin %d failed\n",
+							pins[pn]);
+			return ret;
 		}
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
@@ -131,28 +131,13 @@ static int ad2s1200_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(ad2s1200_channels);
 	indio_dev->name = spi_get_device_id(spi)->name;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	spi->max_speed_hz = AD2S1200_HZ;
 	spi->mode = SPI_MODE_3;
 	spi_setup(spi);
-
-	return 0;
-
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
-	for (--pn; pn >= 0; pn--)
-		gpio_free(pins[pn]);
-	return ret;
-}
-
-static int ad2s1200_remove(struct spi_device *spi)
-{
-	iio_device_unregister(spi_get_drvdata(spi));
-	iio_device_free(spi_get_drvdata(spi));
 
 	return 0;
 }
@@ -170,7 +155,6 @@ static struct spi_driver ad2s1200_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad2s1200_probe,
-	.remove = ad2s1200_remove,
 	.id_table = ad2s1200_id,
 };
 module_spi_driver(ad2s1200_driver);

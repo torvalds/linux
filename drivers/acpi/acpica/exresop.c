@@ -683,7 +683,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			return_ACPI_STATUS(status);
 		}
 
-	      next_operand:
+next_operand:
 		/*
 		 * If more operands needed, decrement stack_ptr to point
 		 * to next operand on stack

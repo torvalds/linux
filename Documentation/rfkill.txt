@@ -71,7 +71,7 @@ To create an rfkill driver, driver's Kconfig needs to have
 	depends on RFKILL || !RFKILL
 
 to ensure the driver cannot be built-in when rfkill is modular. The !RFKILL
-case allows the driver to be built when rfkill is not configured, which which
+case allows the driver to be built when rfkill is not configured, which
 case all rfkill API can still be used but will be provided by static inlines
 which compile to almost nothing.
 

@@ -89,16 +89,14 @@ are not supported.
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/delay.h>
 #include <linux/isapnp.h>
 
 #include "ni_stc.h"
 #include "8255.h"
-
-#undef DEBUG
 
 #define ATMIO 1
 #undef PCIMIO
@@ -436,19 +434,6 @@ static int ni_atmio_attach(struct comedi_device *dev,
 	ret = comedi_request_region(dev, iobase, NI_SIZE);
 	if (ret)
 		return ret;
-
-#ifdef DEBUG
-	/* board existence sanity check */
-	{
-		int i;
-
-		printk(" board fingerprint:");
-		for (i = 0; i < 16; i += 2) {
-			printk(" %04x %02x", inw(dev->iobase + i),
-			       inb(dev->iobase + i + 1));
-		}
-	}
-#endif
 
 	/* get board type */
 

@@ -33,6 +33,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 
 /* usb register definitions */
 #define USB_VENDOR_ID_LSB		0x00
@@ -126,7 +127,8 @@ static inline int twl6030_writeb(struct twl6030_usb *twl, u8 module,
 
 static inline u8 twl6030_readb(struct twl6030_usb *twl, u8 module, u8 address)
 {
-	u8 data, ret = 0;
+	u8 data;
+	int ret;
 
 	ret = twl_i2c_read_u8(module, &data, address);
 	if (ret >= 0)
@@ -324,9 +326,9 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	int			status, err;
 	struct device_node	*np = pdev->dev.of_node;
 	struct device		*dev = &pdev->dev;
-	struct twl4030_usb_data	*pdata = dev->platform_data;
+	struct twl4030_usb_data	*pdata = dev_get_platdata(dev);
 
-	twl = devm_kzalloc(dev, sizeof *twl, GFP_KERNEL);
+	twl = devm_kzalloc(dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
 		return -ENOMEM;
 
@@ -347,7 +349,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	if (np) {
 		twl->regulator = "usb";
 	} else if (pdata) {
-		if (pdata->features & TWL6025_SUBCLASS)
+		if (pdata->features & TWL6032_SUBCLASS)
 			twl->regulator = "ldousb";
 		else
 			twl->regulator = "vusb";

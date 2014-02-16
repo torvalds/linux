@@ -47,6 +47,7 @@ Status: works
 Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/semaphore.h>
 
@@ -207,8 +208,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	case buffer:
 		while (!((status = inb(dev->iobase + DAQP_STATUS))
 			 & DAQP_STATUS_FIFO_EMPTY)) {
-
-			short data;
+			unsigned short data;
 
 			if (status & DAQP_STATUS_DATA_LOST) {
 				s->async->events |=
@@ -689,18 +689,12 @@ static int daqp_do_insn_bits(struct comedi_device *dev,
 			     unsigned int *data)
 {
 	struct daqp_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 
 	if (devpriv->stop)
 		return -EIO;
 
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		outb(s->state, dev->iobase + DAQP_DIGITAL_IO);
-	}
 
 	data[1] = s->state;
 
@@ -715,10 +709,9 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
 	ret = comedi_pcmcia_enable(dev, NULL);

@@ -7,6 +7,7 @@
 
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/blkdev.h>
 #include <linux/compat.h>
 
 #include <cluster/masklog.h>
@@ -303,7 +304,7 @@ int ocfs2_info_handle_journal_size(struct inode *inode,
 	if (o2info_from_user(oij, req))
 		goto bail;
 
-	oij.ij_journal_size = osb->journal->j_inode->i_size;
+	oij.ij_journal_size = i_size_read(osb->journal->j_inode);
 
 	o2info_set_request_filled(&oij.ij_req);
 
@@ -966,15 +967,21 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case FITRIM:
 	{
 		struct super_block *sb = inode->i_sb;
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		int ret = 0;
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
+		if (!blk_queue_discard(q))
+			return -EOPNOTSUPP;
+
 		if (copy_from_user(&range, argp, sizeof(range)))
 			return -EFAULT;
 
+		range.minlen = max_t(u64, q->limits.discard_granularity,
+				     range.minlen);
 		ret = ocfs2_trim_fs(sb, &range);
 		if (ret < 0)
 			return ret;

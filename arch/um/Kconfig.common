@@ -1,12 +1,6 @@
-config DEFCONFIG_LIST
-	string
-	option defconfig_list
-	default "arch/$ARCH/defconfig"
-
 config UML
 	bool
 	default y
-	select HAVE_GENERIC_HARDIRQS
 	select HAVE_UID16
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES

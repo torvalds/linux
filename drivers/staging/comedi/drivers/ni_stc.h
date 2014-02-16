@@ -1491,7 +1491,7 @@ struct ni_board_struct {
 	unsigned short pwm_up_count;	\
 	unsigned short pwm_down_count;	\
 	\
-	short ai_fifo_buffer[0x2000];				\
+	unsigned short ai_fifo_buffer[0x2000];			\
 	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE]; \
 	uint32_t serial_number; \
 	\

@@ -26,7 +26,6 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "pwm-tipwmss.h"
 
@@ -139,17 +138,17 @@ static inline struct ehrpwm_pwm_chip *to_ehrpwm_pwm_chip(struct pwm_chip *chip)
 	return container_of(chip, struct ehrpwm_pwm_chip, chip);
 }
 
-static u16 ehrpwm_read(void *base, int offset)
+static u16 ehrpwm_read(void __iomem *base, int offset)
 {
 	return readw(base + offset);
 }
 
-static void ehrpwm_write(void *base, int offset, unsigned int val)
+static void ehrpwm_write(void __iomem *base, int offset, unsigned int val)
 {
 	writew(val & 0xFFFF, base + offset);
 }
 
-static void ehrpwm_modify(void *base, int offset,
+static void ehrpwm_modify(void __iomem *base, int offset,
 		unsigned short mask, unsigned short val)
 {
 	unsigned short regval;
@@ -359,10 +358,10 @@ static int ehrpwm_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	configure_polarity(pc, pwm->hwpwm);
 
 	/* Enable TBCLK before enabling PWM device */
-	ret = clk_prepare_enable(pc->tbclk);
+	ret = clk_enable(pc->tbclk);
 	if (ret) {
-		pr_err("Failed to enable TBCLK for %s\n",
-				dev_name(pc->chip.dev));
+		dev_err(chip->dev, "Failed to enable TBCLK for %s\n",
+			dev_name(pc->chip.dev));
 		return ret;
 	}
 
@@ -395,7 +394,7 @@ static void ehrpwm_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	ehrpwm_modify(pc->mmio_base, AQCSFRC, aqcsfrc_mask, aqcsfrc_val);
 
 	/* Disabling TBCLK on PWM disable */
-	clk_disable_unprepare(pc->tbclk);
+	clk_disable(pc->tbclk);
 
 	/* Stop Time base counter */
 	ehrpwm_modify(pc->mmio_base, TBCTL, TBCTL_RUN_MASK, TBCTL_STOP_NEXT);
@@ -439,11 +438,6 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct ehrpwm_pwm_chip *pc;
 	u16 status;
-	struct pinctrl *pinctrl;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "unable to select pin group\n");
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc) {
@@ -482,6 +476,12 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(pc->tbclk);
 	}
 
+	ret = clk_prepare(pc->tbclk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "clk_prepare() failed: %d\n", ret);
+		return ret;
+	}
+
 	ret = pwmchip_add(&pc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
@@ -508,12 +508,15 @@ pwmss_clk_failure:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pwmchip_remove(&pc->chip);
+	clk_unprepare(pc->tbclk);
 	return ret;
 }
 
 static int ehrpwm_pwm_remove(struct platform_device *pdev)
 {
 	struct ehrpwm_pwm_chip *pc = platform_get_drvdata(pdev);
+
+	clk_unprepare(pc->tbclk);
 
 	pm_runtime_get_sync(&pdev->dev);
 	/*

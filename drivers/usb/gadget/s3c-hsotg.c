@@ -29,13 +29,13 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_platform.h>
+#include <linux/phy/phy.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
-
-#include <mach/map.h>
 
 #include "s3c-hsotg.h"
 
@@ -82,9 +82,12 @@ struct s3c_hsotg_req;
  * @dir_in: Set to true if this endpoint is of the IN direction, which
  *	    means that it is sending data to the Host.
  * @index: The index for the endpoint registers.
+ * @mc: Multi Count - number of transactions per microframe
+ * @interval - Interval for periodic endpoints
  * @name: The name array passed to the USB core.
  * @halted: Set if the endpoint has been halted.
  * @periodic: Set if this is a periodic ep, such as Interrupt
+ * @isochronous: Set if this is a isochronous ep
  * @sent_zlp: Set if we've sent a zero-length packet.
  * @total_data: The total number of data bytes done.
  * @fifo_size: The size of the FIFO (for periodic IN endpoints)
@@ -120,9 +123,12 @@ struct s3c_hsotg_ep {
 
 	unsigned char		dir_in;
 	unsigned char		index;
+	unsigned char		mc;
+	unsigned char		interval;
 
 	unsigned int		halted:1;
 	unsigned int		periodic:1;
+	unsigned int		isochronous:1;
 	unsigned int		sent_zlp:1;
 
 	char			name[10];
@@ -133,11 +139,13 @@ struct s3c_hsotg_ep {
  * @dev: The parent device supplied to the probe function
  * @driver: USB gadget driver
  * @phy: The otg phy transceiver structure for phy control.
+ * @uphy: The otg phy transceiver structure for old USB phy control.
  * @plat: The platform specific configuration data. This can be removed once
  * all SoCs support usb transceiver.
  * @regs: The memory area mapped for accessing registers.
  * @irq: The IRQ number we are using
  * @supplies: Definition of USB power supplies
+ * @phyif: PHY interface width
  * @dedicated_fifos: Set if the hardware has dedicated IN-EP fifos.
  * @num_of_eps: Number of available EPs (excluding EP0)
  * @debug_root: root directrory for debugfs.
@@ -154,7 +162,8 @@ struct s3c_hsotg_ep {
 struct s3c_hsotg {
 	struct device		 *dev;
 	struct usb_gadget_driver *driver;
-	struct usb_phy		*phy;
+	struct phy		 *phy;
+	struct usb_phy		 *uphy;
 	struct s3c_hsotg_plat	 *plat;
 
 	spinlock_t              lock;
@@ -165,6 +174,7 @@ struct s3c_hsotg {
 
 	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
 
+	u32			phyif;
 	unsigned int		dedicated_fifos:1;
 	unsigned char           num_of_eps;
 
@@ -467,6 +477,7 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 	void *data;
 	int can_write;
 	int pkt_round;
+	int max_transfer;
 
 	to_write -= (buf_pos - hs_ep->last_load);
 
@@ -534,15 +545,17 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 		can_write *= 4;	/* fifo size is in 32bit quantities. */
 	}
 
-	dev_dbg(hsotg->dev, "%s: GNPTXSTS=%08x, can=%d, to=%d, mps %d\n",
-		 __func__, gnptxsts, can_write, to_write, hs_ep->ep.maxpacket);
+	max_transfer = hs_ep->ep.maxpacket * hs_ep->mc;
+
+	dev_dbg(hsotg->dev, "%s: GNPTXSTS=%08x, can=%d, to=%d, max_transfer %d\n",
+		 __func__, gnptxsts, can_write, to_write, max_transfer);
 
 	/*
 	 * limit to 512 bytes of data, it seems at least on the non-periodic
 	 * FIFO, requests of >512 cause the endpoint to get stuck with a
 	 * fragment of the end of the transfer in it.
 	 */
-	if (can_write > 512)
+	if (can_write > 512 && !periodic)
 		can_write = 512;
 
 	/*
@@ -550,19 +563,21 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 	 * the transfer to return that it did not run out of fifo space
 	 * doing it.
 	 */
-	if (to_write > hs_ep->ep.maxpacket) {
-		to_write = hs_ep->ep.maxpacket;
+	if (to_write > max_transfer) {
+		to_write = max_transfer;
 
-		s3c_hsotg_en_gsint(hsotg,
-				   periodic ? GINTSTS_PTxFEmp :
-				   GINTSTS_NPTxFEmp);
+		/* it's needed only when we do not use dedicated fifos */
+		if (!hsotg->dedicated_fifos)
+			s3c_hsotg_en_gsint(hsotg,
+					   periodic ? GINTSTS_PTxFEmp :
+					   GINTSTS_NPTxFEmp);
 	}
 
 	/* see if we can write data */
 
 	if (to_write > can_write) {
 		to_write = can_write;
-		pkt_round = to_write % hs_ep->ep.maxpacket;
+		pkt_round = to_write % max_transfer;
 
 		/*
 		 * Round the write down to an
@@ -580,9 +595,11 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 		 * is more room left.
 		 */
 
-		s3c_hsotg_en_gsint(hsotg,
-				   periodic ? GINTSTS_PTxFEmp :
-				   GINTSTS_NPTxFEmp);
+		/* it's needed only when we do not use dedicated fifos */
+		if (!hsotg->dedicated_fifos)
+			s3c_hsotg_en_gsint(hsotg,
+					   periodic ? GINTSTS_PTxFEmp :
+					   GINTSTS_NPTxFEmp);
 	}
 
 	dev_dbg(hsotg->dev, "write %d/%d, can_write %d, done %d\n",
@@ -726,8 +743,16 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 	else
 		packets = 1;	/* send one packet if length is zero. */
 
+	if (hs_ep->isochronous && length > (hs_ep->mc * hs_ep->ep.maxpacket)) {
+		dev_err(hsotg->dev, "req length > maxpacket*mc\n");
+		return;
+	}
+
 	if (dir_in && index != 0)
-		epsize = DxEPTSIZ_MC(1);
+		if (hs_ep->isochronous)
+			epsize = DxEPTSIZ_MC(packets);
+		else
+			epsize = DxEPTSIZ_MC(1);
 	else
 		epsize = 0;
 
@@ -819,6 +844,9 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 
 	dev_dbg(hsotg->dev, "%s: DxEPCTL=0x%08x\n",
 		__func__, readl(hsotg->regs + epctrl_reg));
+
+	/* enable ep interrupts */
+	s3c_hsotg_ctrl_epint(hsotg, hs_ep->index, hs_ep->dir_in, 1);
 }
 
 /**
@@ -1090,6 +1118,7 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 	bool set = (ctrl->bRequest == USB_REQ_SET_FEATURE);
 	struct s3c_hsotg_ep *ep;
 	int ret;
+	bool halted;
 
 	dev_dbg(hsotg->dev, "%s: %s_FEATURE\n",
 		__func__, set ? "SET" : "CLEAR");
@@ -1104,6 +1133,8 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 
 		switch (le16_to_cpu(ctrl->wValue)) {
 		case USB_ENDPOINT_HALT:
+			halted = ep->halted;
+
 			s3c_hsotg_ep_sethalt(&ep->ep, set);
 
 			ret = s3c_hsotg_send_reply(hsotg, ep0, NULL, 0);
@@ -1113,7 +1144,12 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 				return ret;
 			}
 
-			if (!set) {
+			/*
+			 * we have to complete all requests for ep if it was
+			 * halted, and the halt was cleared by CLEAR_FEATURE
+			 */
+
+			if (!set && halted) {
 				/*
 				 * If we have request in progress,
 				 * then complete it
@@ -1145,6 +1181,9 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 
 	return 1;
 }
+
+static void s3c_hsotg_enqueue_setup(struct s3c_hsotg *hsotg);
+static void s3c_hsotg_disconnect(struct s3c_hsotg *hsotg);
 
 /**
  * s3c_hsotg_process_control - process a control request
@@ -1186,6 +1225,7 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
 		switch (ctrl->bRequest) {
 		case USB_REQ_SET_ADDRESS:
+			s3c_hsotg_disconnect(hsotg);
 			dcfg = readl(hsotg->regs + DCFG);
 			dcfg &= ~DCFG_DevAddr_MASK;
 			dcfg |= ctrl->wValue << DCFG_DevAddr_SHIFT;
@@ -1210,7 +1250,9 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 	/* as a fallback, try delivering it to the driver to deal with */
 
 	if (ret == 0 && hsotg->driver) {
+		spin_unlock(&hsotg->lock);
 		ret = hsotg->driver->setup(&hsotg->gadget, ctrl);
+		spin_lock(&hsotg->lock);
 		if (ret < 0)
 			dev_dbg(hsotg->dev, "driver->setup() ret %d\n", ret);
 	}
@@ -1245,10 +1287,14 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 		 * don't believe we need to anything more to get the EP
 		 * to reply with a STALL packet
 		 */
+
+		 /*
+		  * complete won't be called, so we enqueue
+		  * setup request here
+		  */
+		 s3c_hsotg_enqueue_setup(hsotg);
 	}
 }
-
-static void s3c_hsotg_enqueue_setup(struct s3c_hsotg *hsotg);
 
 /**
  * s3c_hsotg_complete_setup - completion of a setup transfer
@@ -1269,10 +1315,12 @@ static void s3c_hsotg_complete_setup(struct usb_ep *ep,
 		return;
 	}
 
+	spin_lock(&hsotg->lock);
 	if (req->actual == 0)
 		s3c_hsotg_enqueue_setup(hsotg);
 	else
 		s3c_hsotg_process_control(hsotg, req->buf);
+	spin_unlock(&hsotg->lock);
 }
 
 /**
@@ -1697,6 +1745,7 @@ static void s3c_hsotg_set_ep_maxpacket(struct s3c_hsotg *hsotg,
 	struct s3c_hsotg_ep *hs_ep = &hsotg->eps[ep];
 	void __iomem *regs = hsotg->regs;
 	u32 mpsval;
+	u32 mcval;
 	u32 reg;
 
 	if (ep == 0) {
@@ -1704,14 +1753,18 @@ static void s3c_hsotg_set_ep_maxpacket(struct s3c_hsotg *hsotg,
 		mpsval = s3c_hsotg_ep0_mps(mps);
 		if (mpsval > 3)
 			goto bad_mps;
+		hs_ep->ep.maxpacket = mps;
+		hs_ep->mc = 1;
 	} else {
-		if (mps >= DxEPCTL_MPS_LIMIT+1)
+		mpsval = mps & DxEPCTL_MPS_MASK;
+		if (mpsval > 1024)
 			goto bad_mps;
-
-		mpsval = mps;
+		mcval = ((mps >> 11) & 0x3) + 1;
+		hs_ep->mc = mcval;
+		if (mcval > 3)
+			goto bad_mps;
+		hs_ep->ep.maxpacket = mpsval;
 	}
-
-	hs_ep->ep.maxpacket = mps;
 
 	/*
 	 * update both the in and out endpoint controldir_ registers, even
@@ -1781,8 +1834,16 @@ static int s3c_hsotg_trytx(struct s3c_hsotg *hsotg,
 {
 	struct s3c_hsotg_req *hs_req = hs_ep->req;
 
-	if (!hs_ep->dir_in || !hs_req)
+	if (!hs_ep->dir_in || !hs_req) {
+		/**
+		 * if request is not enqueued, we disable interrupts
+		 * for endpoints, excepting ep0
+		 */
+		if (hs_ep->index != 0)
+			s3c_hsotg_ctrl_epint(hsotg, hs_ep->index,
+					     hs_ep->dir_in, 0);
 		return 0;
+	}
 
 	if (hs_req->req.actual < hs_req->req.length) {
 		dev_dbg(hsotg->dev, "trying to write more for ep%d\n",
@@ -1886,8 +1947,10 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 	u32 epctl_reg = dir_in ? DIEPCTL(idx) : DOEPCTL(idx);
 	u32 epsiz_reg = dir_in ? DIEPTSIZ(idx) : DOEPTSIZ(idx);
 	u32 ints;
+	u32 ctrl;
 
 	ints = readl(hsotg->regs + epint_reg);
+	ctrl = readl(hsotg->regs + epctl_reg);
 
 	/* Clear endpoint interrupts */
 	writel(ints, hsotg->regs + epint_reg);
@@ -1896,6 +1959,14 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 		__func__, idx, dir_in ? "in" : "out", ints);
 
 	if (ints & DxEPINT_XferCompl) {
+		if (hs_ep->isochronous && hs_ep->interval == 1) {
+			if (ctrl & DxEPCTL_EOFrNum)
+				ctrl |= DxEPCTL_SetEvenFr;
+			else
+				ctrl |= DxEPCTL_SetOddFr;
+			writel(ctrl, hsotg->regs + epctl_reg);
+		}
+
 		dev_dbg(hsotg->dev,
 			"%s: XferCompl: DxEPCTL=0x%08x, DxEPTSIZ=%08x\n",
 			__func__, readl(hsotg->regs + epctl_reg),
@@ -1962,7 +2033,7 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 	if (ints & DxEPINT_Back2BackSetup)
 		dev_dbg(hsotg->dev, "%s: B2BSetup/INEPNakEff\n", __func__);
 
-	if (dir_in) {
+	if (dir_in && !hs_ep->isochronous) {
 		/* not sure if this is important, but we'll clear it anyway */
 		if (ints & DIEPMSK_INTknTXFEmpMsk) {
 			dev_dbg(hsotg->dev, "%s: ep%d: INTknTXFEmpMsk\n",
@@ -2018,13 +2089,13 @@ static void s3c_hsotg_irq_enumdone(struct s3c_hsotg *hsotg)
 	case DSTS_EnumSpd_FS48:
 		hsotg->gadget.speed = USB_SPEED_FULL;
 		ep0_mps = EP0_MPS_LIMIT;
-		ep_mps = 64;
+		ep_mps = 1023;
 		break;
 
 	case DSTS_EnumSpd_HS:
 		hsotg->gadget.speed = USB_SPEED_HIGH;
 		ep0_mps = EP0_MPS_LIMIT;
-		ep_mps = 512;
+		ep_mps = 1024;
 		break;
 
 	case DSTS_EnumSpd_LS:
@@ -2088,15 +2159,20 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 		s3c_hsotg_complete_request(hsotg, ep, req,
 					   result);
 	}
+	if(hsotg->dedicated_fifos)
+		if ((readl(hsotg->regs + DTXFSTS(ep->index)) & 0xffff) * 4 < 3072)
+			s3c_hsotg_txfifo_flush(hsotg, ep->index);
 }
 
 #define call_gadget(_hs, _entry) \
+do { \
 	if ((_hs)->gadget.speed != USB_SPEED_UNKNOWN &&	\
 	    (_hs)->driver && (_hs)->driver->_entry) { \
 		spin_unlock(&_hs->lock); \
 		(_hs)->driver->_entry(&(_hs)->gadget); \
 		spin_lock(&_hs->lock); \
-		}
+	} \
+} while (0)
 
 /**
  * s3c_hsotg_disconnect - disconnect service
@@ -2213,7 +2289,7 @@ static void s3c_hsotg_core_init(struct s3c_hsotg *hsotg)
 	 */
 
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
-	writel(GUSBCFG_PHYIf16 | GUSBCFG_TOutCal(7) |
+	writel(hsotg->phyif | GUSBCFG_TOutCal(7) |
 	       (0x5 << 10), hsotg->regs + GUSBCFG);
 
 	s3c_hsotg_init_fifo(hsotg);
@@ -2240,15 +2316,19 @@ static void s3c_hsotg_core_init(struct s3c_hsotg *hsotg)
 		       GAHBCFG_HBstLen_Incr4,
 		       hsotg->regs + GAHBCFG);
 	else
-		writel(GAHBCFG_GlblIntrEn, hsotg->regs + GAHBCFG);
+		writel(((hsotg->dedicated_fifos) ? (GAHBCFG_NPTxFEmpLvl |
+						    GAHBCFG_PTxFEmpLvl) : 0) |
+		       GAHBCFG_GlblIntrEn,
+		       hsotg->regs + GAHBCFG);
 
 	/*
-	 * Enabling INTknTXFEmpMsk here seems to be a big mistake, we end
-	 * up being flooded with interrupts if the host is polling the
-	 * endpoint to try and read data.
+	 * If INTknTXFEmpMsk is enabled, it's important to disable ep interrupts
+	 * when we have no data to transfer. Otherwise we get being flooded by
+	 * interrupts.
 	 */
 
-	writel(((hsotg->dedicated_fifos) ? DIEPMSK_TxFIFOEmpty : 0) |
+	writel(((hsotg->dedicated_fifos) ? DIEPMSK_TxFIFOEmpty |
+	       DIEPMSK_INTknTXFEmpMsk : 0) |
 	       DIEPMSK_EPDisbldMsk | DIEPMSK_XferComplMsk |
 	       DIEPMSK_TimeOUTMsk | DIEPMSK_AHBErrMsk |
 	       DIEPMSK_INTknEPMisMsk,
@@ -2377,9 +2457,13 @@ irq_retry:
 
 	if (gintsts & (GINTSTS_OEPInt | GINTSTS_IEPInt)) {
 		u32 daint = readl(hsotg->regs + DAINT);
-		u32 daint_out = daint >> DAINT_OutEP_SHIFT;
-		u32 daint_in = daint & ~(daint_out << DAINT_OutEP_SHIFT);
+		u32 daintmsk = readl(hsotg->regs + DAINTMSK);
+		u32 daint_out, daint_in;
 		int ep;
+
+		daint &= daintmsk;
+		daint_out = daint >> DAINT_OutEP_SHIFT;
+		daint_in = daint & ~(daint_out << DAINT_OutEP_SHIFT);
 
 		dev_dbg(hsotg->dev, "%s: daint=%08x\n", __func__, daint);
 
@@ -2461,7 +2545,6 @@ irq_retry:
 		writel(GINTSTS_USBSusp, hsotg->regs + GINTSTS);
 
 		call_gadget(hsotg, suspend);
-		s3c_hsotg_disconnect(hsotg);
 	}
 
 	if (gintsts & GINTSTS_WkUpInt) {
@@ -2474,8 +2557,6 @@ irq_retry:
 	if (gintsts & GINTSTS_ErlySusp) {
 		dev_dbg(hsotg->dev, "GINTSTS_ErlySusp\n");
 		writel(GINTSTS_ErlySusp, hsotg->regs + GINTSTS);
-
-		s3c_hsotg_disconnect(hsotg);
 	}
 
 	/*
@@ -2578,16 +2659,25 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	epctrl |= DxEPCTL_SNAK;
 
 	/* update the endpoint state */
-	hs_ep->ep.maxpacket = mps;
+	s3c_hsotg_set_ep_maxpacket(hsotg, hs_ep->index, mps);
 
 	/* default, set to non-periodic */
+	hs_ep->isochronous = 0;
 	hs_ep->periodic = 0;
+	hs_ep->halted = 0;
+	hs_ep->interval = desc->bInterval;
+
+	if (hs_ep->interval > 1 && hs_ep->mc > 1)
+		dev_err(hsotg->dev, "MC > 1 when interval is not 1\n");
 
 	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_ISOC:
-		dev_err(hsotg->dev, "no current ISOC support\n");
-		ret = -EINVAL;
-		goto out;
+		epctrl |= DxEPCTL_EPType_Iso;
+		epctrl |= DxEPCTL_SetEvenFr;
+		hs_ep->isochronous = 1;
+		if (dir_in)
+			hs_ep->periodic = 1;
+		break;
 
 	case USB_ENDPOINT_XFER_BULK:
 		epctrl |= DxEPCTL_EPType_Bulk;
@@ -2635,7 +2725,6 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	/* enable the endpoint interrupt */
 	s3c_hsotg_ctrl_epint(hsotg, index, dir_in, 1);
 
-out:
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	return ret;
 }
@@ -2777,6 +2866,8 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 
 	writel(epctl, hs->regs + epreg);
 
+	hs_ep->halted = value;
+
 	return 0;
 }
 
@@ -2823,8 +2914,11 @@ static void s3c_hsotg_phy_enable(struct s3c_hsotg *hsotg)
 
 	dev_dbg(hsotg->dev, "pdev 0x%p\n", pdev);
 
-	if (hsotg->phy)
-		usb_phy_init(hsotg->phy);
+	if (hsotg->phy) {
+		phy_init(hsotg->phy);
+		phy_power_on(hsotg->phy);
+	} else if (hsotg->uphy)
+		usb_phy_init(hsotg->uphy);
 	else if (hsotg->plat->phy_init)
 		hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
 }
@@ -2840,8 +2934,11 @@ static void s3c_hsotg_phy_disable(struct s3c_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 
-	if (hsotg->phy)
-		usb_phy_shutdown(hsotg->phy);
+	if (hsotg->phy) {
+		phy_power_off(hsotg->phy);
+		phy_exit(hsotg->phy);
+	} else if (hsotg->uphy)
+		usb_phy_shutdown(hsotg->uphy);
 	else if (hsotg->plat->phy_exit)
 		hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
 }
@@ -2904,7 +3001,7 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 	int ret;
 
 	if (!hsotg) {
-		printk(KERN_ERR "%s: called with no device\n", __func__);
+		pr_err("%s: called with no device\n", __func__);
 		return -ENODEV;
 	}
 
@@ -2961,9 +3058,6 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 	if (!hsotg)
 		return -ENODEV;
 
-	if (!driver || driver != hsotg->driver || !driver->unbind)
-		return -EINVAL;
-
 	/* all endpoints should be shutdown */
 	for (ep = 0; ep < hsotg->num_of_eps; ep++)
 		s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
@@ -2971,15 +3065,15 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
-	hsotg->driver = NULL;
+	if (!driver)
+		hsotg->driver = NULL;
+
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
-	dev_info(hsotg->dev, "unregistered gadget driver '%s'\n",
-		 driver->driver.name);
+	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	return 0;
 }
@@ -3070,7 +3164,7 @@ static void s3c_hsotg_initep(struct s3c_hsotg *hsotg,
 
 	hs_ep->parent = hsotg;
 	hs_ep->ep.name = hs_ep->name;
-	hs_ep->ep.maxpacket = epnum ? 512 : EP0_MPS_LIMIT;
+	usb_ep_set_maxpacket_limit(&hs_ep->ep, epnum ? 1024 : EP0_MPS_LIMIT);
 	hs_ep->ep.ops = &s3c_hsotg_ep_ops;
 
 	/*
@@ -3204,7 +3298,7 @@ static int state_show(struct seq_file *seq, void *v)
 		   readl(regs + GNPTXSTS),
 		   readl(regs + GRXSTSR));
 
-	seq_printf(seq, "\nEndpoint status:\n");
+	seq_puts(seq, "\nEndpoint status:\n");
 
 	for (idx = 0; idx < 15; idx++) {
 		u32 in, out;
@@ -3221,7 +3315,7 @@ static int state_show(struct seq_file *seq, void *v)
 		seq_printf(seq, ", DIEPTSIZ=0x%08x, DOEPTSIZ=0x%08x",
 			   in, out);
 
-		seq_printf(seq, "\n");
+		seq_puts(seq, "\n");
 	}
 
 	return 0;
@@ -3255,7 +3349,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 	u32 val;
 	int idx;
 
-	seq_printf(seq, "Non-periodic FIFOs:\n");
+	seq_puts(seq, "Non-periodic FIFOs:\n");
 	seq_printf(seq, "RXFIFO: Size %d\n", readl(regs + GRXFSIZ));
 
 	val = readl(regs + GNPTXFSIZ);
@@ -3263,7 +3357,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 		   val >> GNPTXFSIZ_NPTxFDep_SHIFT,
 		   val & GNPTXFSIZ_NPTxFStAddr_MASK);
 
-	seq_printf(seq, "\nPeriodic TXFIFOs:\n");
+	seq_puts(seq, "\nPeriodic TXFIFOs:\n");
 
 	for (idx = 1; idx <= 15; idx++) {
 		val = readl(regs + DPTXFSIZn(idx));
@@ -3334,7 +3428,7 @@ static int ep_show(struct seq_file *seq, void *v)
 		   readl(regs + DIEPTSIZ(index)),
 		   readl(regs + DOEPTSIZ(index)));
 
-	seq_printf(seq, "\n");
+	seq_puts(seq, "\n");
 	seq_printf(seq, "mps %d\n", ep->ep.maxpacket);
 	seq_printf(seq, "total_data=%ld\n", ep->total_data);
 
@@ -3345,7 +3439,7 @@ static int ep_show(struct seq_file *seq, void *v)
 
 	list_for_each_entry(req, &ep->queue, queue) {
 		if (--show_limit < 0) {
-			seq_printf(seq, "not showing more requests...\n");
+			seq_puts(seq, "not showing more requests...\n");
 			break;
 		}
 
@@ -3450,8 +3544,9 @@ static void s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 
 static int s3c_hsotg_probe(struct platform_device *pdev)
 {
-	struct s3c_hsotg_plat *plat = pdev->dev.platform_data;
-	struct usb_phy *phy;
+	struct s3c_hsotg_plat *plat = dev_get_platdata(&pdev->dev);
+	struct phy *phy;
+	struct usb_phy *uphy;
 	struct device *dev = &pdev->dev;
 	struct s3c_hsotg_ep *eps;
 	struct s3c_hsotg *hsotg;
@@ -3466,19 +3561,26 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	/*
+	 * Attempt to find a generic PHY, then look for an old style
+	 * USB PHY, finally fall back to pdata
+	 */
+	phy = devm_phy_get(&pdev->dev, "usb2-phy");
 	if (IS_ERR(phy)) {
-		/* Fallback for pdata */
-		plat = pdev->dev.platform_data;
-		if (!plat) {
-			dev_err(&pdev->dev, "no platform data or transceiver defined\n");
-			return -EPROBE_DEFER;
-		} else {
+		uphy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+		if (IS_ERR(uphy)) {
+			/* Fallback for pdata */
+			plat = dev_get_platdata(&pdev->dev);
+			if (!plat) {
+				dev_err(&pdev->dev,
+				"no platform data or transceiver defined\n");
+				return -EPROBE_DEFER;
+			}
 			hsotg->plat = plat;
-		}
-	} else {
+		} else
+			hsotg->uphy = uphy;
+	} else
 		hsotg->phy = phy;
-	}
 
 	hsotg->dev = dev;
 
@@ -3544,6 +3646,19 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 		dev_err(hsotg->dev, "failed to enable supplies: %d\n", ret);
 		goto err_supplies;
 	}
+
+	/* Set default UTMI width */
+	hsotg->phyif = GUSBCFG_PHYIf16;
+
+	/*
+	 * If using the generic PHY framework, check if the PHY bus
+	 * width is 8-bit and set the phyif appropriately.
+	 */
+	if (hsotg->phy && (phy_get_bus_width(phy) == 8))
+		hsotg->phyif = GUSBCFG_PHYIf8;
+
+	if (hsotg->phy)
+		phy_init(hsotg->phy);
 
 	/* usb phy enable */
 	s3c_hsotg_phy_enable(hsotg);
@@ -3638,6 +3753,8 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 	}
 
 	s3c_hsotg_phy_disable(hsotg);
+	if (hsotg->phy)
+		phy_exit(hsotg->phy);
 	clk_disable_unprepare(hsotg->clk);
 
 	return 0;
@@ -3648,10 +3765,20 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 #define s3c_hsotg_resume NULL
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id s3c_hsotg_of_ids[] = {
+	{ .compatible = "samsung,s3c6400-hsotg", },
+	{ .compatible = "snps,dwc2", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, s3c_hsotg_of_ids);
+#endif
+
 static struct platform_driver s3c_hsotg_driver = {
 	.driver		= {
 		.name	= "s3c-hsotg",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(s3c_hsotg_of_ids),
 	},
 	.probe		= s3c_hsotg_probe,
 	.remove		= s3c_hsotg_remove,

@@ -15,7 +15,8 @@ Mds_initial(struct wbsoft_priv *adapter)
 	return hal_get_tx_buffer(&adapter->sHwData, &pMds->pTxBuffer);
 }
 
-static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor *pDes,  u8 *buffer)
+static void Mds_DurationSet(struct wbsoft_priv *adapter,
+			    struct wb35_descriptor *pDes, u8 *buffer)
 {
 	struct T00_descriptor *pT00;
 	struct T01_descriptor *pT01;
@@ -43,10 +44,11 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 	 * Set RTS/CTS mechanism
 	 ******************************************/
 	if (!boGroupAddr) {
-		/* NOTE : If the protection mode is enabled and the MSDU will be fragmented,
-		 *		 the tx rates of MPDUs will all be DSSS rates. So it will not use
-		 *		 CTS-to-self in this case. CTS-To-self will only be used when without
-		 *		 fragmentation. -- 20050112 */
+		/* NOTE : If the protection mode is enabled and the MSDU will
+		 *	  be fragmented, the tx rates of MPDUs will all be DSSS
+		 *	  rates. So it will not use CTS-to-self in this case.
+		 *	  CTS-To-self will only be used when without
+		 *	  fragmentation. -- 20050112 */
 		BodyLen = (u16)pT00->T00_frame_length;	/* include 802.11 header */
 		BodyLen += 4;	/* CRC */
 
@@ -54,7 +56,8 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 			RTS_on = true; /* Using RTS */
 		else {
 			if (pT01->T01_modulation_type) { /* Is using OFDM */
-				if (CURRENT_PROTECT_MECHANISM) /* Is using protect */
+				/* Is using protect */
+				if (CURRENT_PROTECT_MECHANISM)
 					CTS_on = true; /* Using CTS */
 			}
 		}
@@ -67,9 +70,9 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 			 *  ACK Rate : 24 Mega bps
 			 *  ACK frame length = 14 bytes */
 			Duration = 2*DEFAULT_SIFSTIME +
-					   2*PREAMBLE_PLUS_SIGNAL_PLUS_SIGNALEXTENSION +
-					   ((BodyLen*8 + 22 + Rate*4 - 1)/(Rate*4))*Tsym +
-					   ((112 + 22 + 95)/96)*Tsym;
+				2*PREAMBLE_PLUS_SIGNAL_PLUS_SIGNALEXTENSION +
+				((BodyLen*8 + 22 + Rate*4 - 1)/(Rate*4))*Tsym +
+				((112 + 22 + 95)/96)*Tsym;
 		} else	{ /* DSSS */
 			/* CTS duration
 			 *  2 SIFS + DATA transmit time + 1 ACK
@@ -90,18 +93,21 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 				 * CTS Rate : 24 Mega bps
 				 * CTS frame length = 14 bytes */
 				Duration += (DEFAULT_SIFSTIME +
-								PREAMBLE_PLUS_SIGNAL_PLUS_SIGNALEXTENSION +
-								((112 + 22 + 95)/96)*Tsym);
+					PREAMBLE_PLUS_SIGNAL_PLUS_SIGNALEXTENSION +
+					((112 + 22 + 95)/96)*Tsym);
 			} else {
 				/* CTS + 1 SIFS + CTS duration
 				 * CTS Rate : ?? Mega bps
-				 * CTS frame length = 14 bytes */
-				if (pT01->T01_plcp_header_length) /* long preamble */
+				 * CTS frame length = 14 bytes
+				 */
+				/* long preamble */
+				if (pT01->T01_plcp_header_length)
 					Duration += LONG_PREAMBLE_PLUS_PLCPHEADER_TIME;
 				else
 					Duration += SHORT_PREAMBLE_PLUS_PLCPHEADER_TIME;
 
-				Duration += (((112 + Rate-1) / Rate) + DEFAULT_SIFSTIME);
+				Duration += (((112 + Rate-1) / Rate) +
+					     DEFAULT_SIFSTIME);
 			}
 		}
 
@@ -127,9 +133,10 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 				 *  Rate : ??Mega bps
 				 *  ACK frame length = 14 bytes, tx rate = 24M */
 				Duration = PREAMBLE_PLUS_SIGNAL_PLUS_SIGNALEXTENSION * 3;
-				Duration += (((NextBodyLen*8 + 22 + Rate*4 - 1)/(Rate*4)) * Tsym +
-							(((2*14)*8 + 22 + 95)/96)*Tsym +
-							DEFAULT_SIFSTIME*3);
+				Duration += (((NextBodyLen*8 + 22 + Rate*4 - 1)
+					     /(Rate*4)) * Tsym +
+					     (((2*14)*8 + 22 + 95)/96)*Tsym +
+					    DEFAULT_SIFSTIME*3);
 			} else {
 				/* DSSS
 				 *  data transmit time + 2 ACK + 3 SIFS
@@ -141,11 +148,12 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 				else
 					Duration = SHORT_PREAMBLE_PLUS_PLCPHEADER_TIME*3;
 
-				Duration += (((NextBodyLen + (2*14))*8 + Rate-1) / Rate +
-							DEFAULT_SIFSTIME*3);
+				Duration += (((NextBodyLen + (2*14))*8
+					     + Rate-1) / Rate +
+					    DEFAULT_SIFSTIME*3);
 			}
-
-			((u16 *)buffer)[5] = cpu_to_le16(Duration); /* 4 USHOR for skip 8B USB, 2USHORT=FC + Duration */
+			/* 4 USHOR for skip 8B USB, 2USHORT=FC + Duration */
+			((u16 *)buffer)[5] = cpu_to_le16(Duration);
 
 			/* ----20061009 add by anson's endian */
 			pNextT00->value = cpu_to_le32(pNextT00->value);
@@ -154,7 +162,8 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 
 			buffer += OffsetSize;
 			pT01 = (struct T01_descriptor *)(buffer+4);
-			if (i != 1)	/* The last fragment will not have the next fragment */
+			/* The last fragment will not have the next fragment */
+			if (i != 1)
 				pNextT00 = (struct T00_descriptor *)(buffer+OffsetSize);
 		}
 
@@ -168,7 +177,8 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 			 * ACK frame length = 14 bytes */
 			Duration = PREAMBLE_PLUS_SIGNAL_PLUS_SIGNALEXTENSION;
 			/* The Tx rate of ACK use 24M */
-			Duration += (((112 + 22 + 95)/96)*Tsym + DEFAULT_SIFSTIME);
+			Duration += (((112 + 22 + 95)/96)*Tsym +
+				    DEFAULT_SIFSTIME);
 		} else {
 			/* DSSS
 			 * 1 ACK + 1 SIFS
@@ -183,7 +193,8 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 		}
 	}
 
-	((u16 *)buffer)[5] = cpu_to_le16(Duration); /* 4 USHOR for skip 8B USB, 2USHORT=FC + Duration */
+	/* 4 USHOR for skip 8B USB, 2USHORT=FC + Duration */
+	((u16 *)buffer)[5] = cpu_to_le16(Duration);
 	pT00->value = cpu_to_le32(pT00->value);
 	pT01->value = cpu_to_le32(pT01->value);
 	/* --end 20061009 add */
@@ -191,7 +202,8 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 }
 
 /* The function return the 4n size of usb pk */
-static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDes, u8 *TargetBuffer)
+static u16 Mds_BodyCopy(struct wbsoft_priv *adapter,
+			struct wb35_descriptor *pDes, u8 *TargetBuffer)
 {
 	struct T00_descriptor *pT00;
 	struct wb35_mds *pMds = &adapter->Mds;
@@ -214,9 +226,10 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDe
 		CopySize = SizeLeft;
 		if (SizeLeft > pDes->FragmentThreshold) {
 			CopySize = pDes->FragmentThreshold;
-			pT00->T00_frame_length = 24 + CopySize; /* Set USB length */
-		} else
-			pT00->T00_frame_length = 24 + SizeLeft; /* Set USB length */
+			/* Set USB length */
+			pT00->T00_frame_length = 24 + CopySize;
+		} else  /* Set USB length */
+			pT00->T00_frame_length = 24 + SizeLeft;
 
 		SizeLeft -= CopySize;
 
@@ -246,7 +259,7 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDe
 				buf_index++;
 				buf_index %= MAX_DESCRIPTOR_BUFFER_INDEX;
 			} else {
-				u8	*pctmp = pDes->buffer_address[buf_index];
+				u8 *pctmp = pDes->buffer_address[buf_index];
 				pctmp += CopySize;
 				pDes->buffer_address[buf_index] = pctmp;
 				pDes->buffer_size[buf_index] -= CopySize;
@@ -260,21 +273,27 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDe
 		/* 931130.5.n */
 		if (pMds->MicAdd) {
 			if (!SizeLeft) {
-				pMds->MicWriteAddress[pMds->MicWriteIndex] = buffer - pMds->MicAdd;
-				pMds->MicWriteSize[pMds->MicWriteIndex] = pMds->MicAdd;
+				pMds->MicWriteAddress[pMds->MicWriteIndex] =
+					buffer - pMds->MicAdd;
+				pMds->MicWriteSize[pMds->MicWriteIndex] =
+					pMds->MicAdd;
 				pMds->MicAdd = 0;
 			} else if (SizeLeft < 8) { /* 931130.5.p */
 				pMds->MicAdd = SizeLeft;
-				pMds->MicWriteAddress[pMds->MicWriteIndex] = buffer - (8 - SizeLeft);
-				pMds->MicWriteSize[pMds->MicWriteIndex] = 8 - SizeLeft;
+				pMds->MicWriteAddress[pMds->MicWriteIndex] =
+					buffer - (8 - SizeLeft);
+				pMds->MicWriteSize[pMds->MicWriteIndex] =
+					8 - SizeLeft;
 				pMds->MicWriteIndex++;
 			}
 		}
 
 		/* Does it need to generate the new header for next mpdu? */
 		if (SizeLeft) {
-			buffer = TargetBuffer + Size; /* Get the next 4n start address */
-			memcpy(buffer, TargetBuffer, 32); /* Copy 8B USB +24B 802.11 */
+			/* Get the next 4n start address */
+			buffer = TargetBuffer + Size;
+			/* Copy 8B USB +24B 802.11 */
+			memcpy(buffer, TargetBuffer, 32);
 			pT00 = (struct T00_descriptor *)buffer;
 			pT00->T00_first_mpdu = 0;
 		}
@@ -286,11 +305,13 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDe
 	pT00->T00_IsLastMpdu = 1;
 	buffer = (u8 *)pT00 + 8; /* +8 for USB hdr */
 	buffer[1] &= ~0x04; /* Clear more frag bit of 802.11 frame control */
-	pDes->FragmentCount = FragmentCount; /* Update the correct fragment number */
+	/* Update the correct fragment number */
+	pDes->FragmentCount = FragmentCount;
 	return Size;
 }
 
-static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDes, u8 *TargetBuffer)
+static void Mds_HeaderCopy(struct wbsoft_priv *adapter,
+			   struct wb35_descriptor *pDes, u8 *TargetBuffer)
 {
 	struct wb35_mds *pMds = &adapter->Mds;
 	u8	*src_buffer = pDes->buffer_address[0]; /* 931130.5.g */
@@ -322,7 +343,8 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 
 	FragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;	/* Do not fragment */
 	/* Copy full data, the 1'st buffer contain all the data 931130.5.j */
-	memcpy(TargetBuffer, src_buffer, DOT_11_MAC_HEADER_SIZE); /* Copy header */
+	/* Copy header */
+	memcpy(TargetBuffer, src_buffer, DOT_11_MAC_HEADER_SIZE);
 	pDes->buffer_address[0] = src_buffer + DOT_11_MAC_HEADER_SIZE;
 	pDes->buffer_total_size -= DOT_11_MAC_HEADER_SIZE;
 	pDes->buffer_size[0] = pDes->buffer_total_size;
@@ -350,8 +372,8 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 	for (i = 0; i < 2; i++) {
 		if (i == 1)
 			ctmp1 = ctmpf;
-
-		pMds->TxRate[pDes->Descriptor_ID][i] = ctmp1; /* backup the ta rate and fall back rate */
+		/* backup the ta rate and fall back rate */
+		pMds->TxRate[pDes->Descriptor_ID][i] = ctmp1;
 
 		if (ctmp1 == 108)
 			ctmp2 = 7;
@@ -387,15 +409,17 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 	/*
 	 * Set preamble type
 	 */
-	if ((pT01->T01_modulation_type == 0) && (pT01->T01_transmit_rate == 0))	/* RATE_1M */
+	/* RATE_1M */
+	if ((pT01->T01_modulation_type == 0) && (pT01->T01_transmit_rate == 0))
 		pDes->PreambleMode =  WLAN_PREAMBLE_TYPE_LONG;
 	else
 		pDes->PreambleMode =  CURRENT_PREAMBLE_MODE;
-	pT01->T01_plcp_header_length = pDes->PreambleMode;	/* Set preamble */
+	pT01->T01_plcp_header_length = pDes->PreambleMode; /* Set preamble */
 
 }
 
-static void MLME_GetNextPacket(struct wbsoft_priv *adapter, struct wb35_descriptor *desc)
+static void MLME_GetNextPacket(struct wbsoft_priv *adapter,
+			       struct wb35_descriptor *desc)
 {
 	desc->InternalUsed = desc->buffer_start_index + desc->buffer_number;
 	desc->InternalUsed %= MAX_DESCRIPTOR_BUFFER_INDEX;
@@ -403,7 +427,7 @@ static void MLME_GetNextPacket(struct wbsoft_priv *adapter, struct wb35_descript
 	desc->buffer_size[desc->InternalUsed] = adapter->sMlmeFrame.len;
 	desc->buffer_total_size += adapter->sMlmeFrame.len;
 	desc->buffer_number++;
-	desc->Type = adapter->sMlmeFrame.DataType;
+	desc->Type = adapter->sMlmeFrame.data_type;
 }
 
 static void MLMEfreeMMPDUBuffer(struct wbsoft_priv *adapter, s8 *pData)
@@ -423,14 +447,15 @@ static void MLMEfreeMMPDUBuffer(struct wbsoft_priv *adapter, s8 *pData)
 	}
 }
 
-static void MLME_SendComplete(struct wbsoft_priv *adapter, u8 PacketID, unsigned char SendOK)
+static void MLME_SendComplete(struct wbsoft_priv *adapter, u8 PacketID,
+			      unsigned char SendOK)
 {
     /* Reclaim the data buffer */
 	adapter->sMlmeFrame.len = 0;
 	MLMEfreeMMPDUBuffer(adapter, adapter->sMlmeFrame.pMMPDU);
 
 	/* Return resource */
-	adapter->sMlmeFrame.IsInUsed = PACKET_FREE_TO_USE;
+	adapter->sMlmeFrame.is_in_used = PACKET_FREE_TO_USE;
 }
 
 void
@@ -440,9 +465,9 @@ Mds_Tx(struct wbsoft_priv *adapter)
 	struct wb35_mds *pMds = &adapter->Mds;
 	struct wb35_descriptor	TxDes;
 	struct wb35_descriptor *pTxDes = &TxDes;
-	u8		*XmitBufAddress;
-	u16		XmitBufSize, PacketSize, stmp, CurrentSize, FragmentThreshold;
-	u8		FillIndex, TxDesIndex, FragmentCount, FillCount;
+	u8	*XmitBufAddress;
+	u16	XmitBufSize, PacketSize, stmp, CurrentSize, FragmentThreshold;
+	u8	FillIndex, TxDesIndex, FragmentCount, FillCount;
 	unsigned char	BufferFilled = false;
 
 
@@ -458,12 +483,14 @@ Mds_Tx(struct wbsoft_priv *adapter)
 	/* Start to fill the data */
 	do {
 		FillIndex = pMds->TxFillIndex;
-		if (pMds->TxOwner[FillIndex]) { /* Is owned by software 0:Yes 1:No */
+		/* Is owned by software 0:Yes 1:No */
+		if (pMds->TxOwner[FillIndex]) {
 			pr_debug("[Mds_Tx] Tx Owner is H/W.\n");
 			break;
 		}
 
-		XmitBufAddress = pMds->pTxBuffer + (MAX_USB_TX_BUFFER * FillIndex); /* Get buffer */
+		/* Get buffer */
+		XmitBufAddress = pMds->pTxBuffer + (MAX_USB_TX_BUFFER * FillIndex);
 		XmitBufSize = 0;
 		FillCount = 0;
 		do {
@@ -475,7 +502,8 @@ Mds_Tx(struct wbsoft_priv *adapter)
 			FragmentThreshold = CURRENT_FRAGMENT_THRESHOLD;
 			/* 931130.5.b */
 			FragmentCount = PacketSize/FragmentThreshold + 1;
-			stmp = PacketSize + FragmentCount*32 + 8; /* 931130.5.c 8:MIC */
+			/* 931130.5.c 8:MIC */
+			stmp = PacketSize + FragmentCount*32 + 8;
 			if ((XmitBufSize + stmp) >= MAX_USB_TX_BUFFER)
 				break; /* buffer is not enough */
 
@@ -489,18 +517,23 @@ Mds_Tx(struct wbsoft_priv *adapter)
 
 			TxDesIndex = pMds->TxDesIndex; /* Get the current ID */
 			pTxDes->Descriptor_ID = TxDesIndex;
-			pMds->TxDesFrom[TxDesIndex] = 2; /* Storing the information of source coming from */
+			/* Storing the information of source coming from */
+			pMds->TxDesFrom[TxDesIndex] = 2;
 			pMds->TxDesIndex++;
 			pMds->TxDesIndex %= MAX_USB_TX_DESCRIPTOR;
 
 			MLME_GetNextPacket(adapter, pTxDes);
 
-			/* Copy header. 8byte USB + 24byte 802.11Hdr. Set TxRate, Preamble type */
+			/*
+			 * Copy header. 8byte USB + 24byte 802.11Hdr.
+			 * Set TxRate, Preamble type
+			*/
 			Mds_HeaderCopy(adapter, pTxDes, XmitBufAddress);
 
 			/* For speed up Key setting */
 			if (pTxDes->EapFix) {
-				pr_debug("35: EPA 4th frame detected. Size = %d\n", PacketSize);
+				pr_debug("35: EPA 4th frame detected. Size = %d\n",
+						 PacketSize);
 				pHwData->IsKeyPreSet = 1;
 			}
 
@@ -514,7 +547,9 @@ Mds_Tx(struct wbsoft_priv *adapter)
 			XmitBufSize += CurrentSize;
 			XmitBufAddress += CurrentSize;
 
-			/* Get packet to transmit completed, 1:TESTSTA 2:MLME 3: Ndis data */
+			/* Get packet to transmit completed,
+			 * 1:TESTSTA 2:MLME 3: Ndis data
+			*/
 			MLME_SendComplete(adapter, 0, true);
 
 			/* Software TSC count 20060214 */
@@ -523,7 +558,12 @@ Mds_Tx(struct wbsoft_priv *adapter)
 				pMds->TxTsc_2++;
 
 			FillCount++; /* 20060928 */
-		} while (HAL_USB_MODE_BURST(pHwData)); /* End of multiple MSDU copy loop. false = single true = multiple sending  */
+		/*
+		 * End of multiple MSDU copy loop.
+		 * false = single
+		 * true = multiple sending
+		 */
+		} while (HAL_USB_MODE_BURST(pHwData));
 
 		/* Move to the next one, if necessary */
 		if (BufferFilled) {
@@ -584,7 +624,8 @@ Mds_SendComplete(struct wbsoft_priv *adapter, struct T02_descriptor *pT02)
 					pHwData->tx_retry_count[RetryCount] += RetryCount;
 				else
 					pHwData->tx_retry_count[7] += RetryCount;
-				pr_debug("dto_tx_retry_count =%d\n", pHwData->dto_tx_retry_count);
+				pr_debug("dto_tx_retry_count =%d\n",
+						pHwData->dto_tx_retry_count);
 				MTO_SetTxCount(adapter, TxRate, RetryCount);
 			}
 			pHwData->dto_tx_frag_count += (RetryCount+1);

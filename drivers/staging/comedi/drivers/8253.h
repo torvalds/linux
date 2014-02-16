@@ -21,6 +21,15 @@
 
 #include "../comedi.h"
 
+/*
+ * Common oscillator base values in nanoseconds
+ */
+#define I8254_OSC_BASE_10MHZ		100
+#define I8254_OSC_BASE_5MHZ		200
+#define I8254_OSC_BASE_4MHZ		250
+#define I8254_OSC_BASE_2MHZ		500
+#define I8254_OSC_BASE_1MHZ		1000
+
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 
 static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base,

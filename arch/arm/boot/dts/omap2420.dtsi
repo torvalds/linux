@@ -114,6 +114,15 @@
 			dma-names = "tx", "rx";
 		};
 
+		msdi1: mmc@4809c000 {
+			compatible = "ti,omap2420-mmc";
+			ti,hwmods = "msdi1";
+			reg = <0x4809c000 0x80>;
+			interrupts = <83>;
+			dmas = <&sdma 61 &sdma 62>;
+			dma-names = "tx", "rx";
+		};
+
 		timer1: timer@48028000 {
 			compatible = "ti,omap2420-timer";
 			reg = <0x48028000 0x400>;
@@ -121,5 +130,19 @@
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
 		};
+
+		wd_timer2: wdt@48022000 {
+			compatible = "ti,omap2-wdt";
+			ti,hwmods = "wd_timer2";
+			reg = <0x48022000 0x80>;
+		};
 	};
+};
+
+&i2c1 {
+	compatible = "ti,omap2420-i2c";
+};
+
+&i2c2 {
+	compatible = "ti,omap2420-i2c";
 };

@@ -4,12 +4,15 @@ dm-crypt
 Device-Mapper's "crypt" target provides transparent encryption of block devices
 using the kernel crypto API.
 
+For a more detailed description of supported parameters see:
+http://code.google.com/p/cryptsetup/wiki/DMCrypt
+
 Parameters: <cipher> <key> <iv_offset> <device path> \
 	      <offset> [<#opt_params> <opt_params>]
 
 <cipher>
     Encryption cipher and an optional IV generation mode.
-    (In format cipher[:keycount]-chainmode-ivopts:ivmode).
+    (In format cipher[:keycount]-chainmode-ivmode[:ivopts]).
     Examples:
        des
        aes-cbc-essiv:sha256
@@ -19,7 +22,11 @@ Parameters: <cipher> <key> <iv_offset> <device path> \
 
 <key>
     Key used for encryption. It is encoded as a hexadecimal number.
-    You can only use key sizes that are valid for the selected cipher.
+    You can only use key sizes that are valid for the selected cipher
+    in combination with the selected iv mode.
+    Note that for some iv modes the key string can contain additional
+    keys (for example IV seed) so the key contains more parts concatenated
+    into a single string.
 
 <keycount>
     Multi-key compatibility mode. You can define <keycount> keys and

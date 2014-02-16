@@ -35,6 +35,10 @@ enum pstore_type_id {
 	PSTORE_TYPE_MCE		= 1,
 	PSTORE_TYPE_CONSOLE	= 2,
 	PSTORE_TYPE_FTRACE	= 3,
+	/* PPC64 partition types */
+	PSTORE_TYPE_PPC_RTAS	= 4,
+	PSTORE_TYPE_PPC_OF	= 5,
+	PSTORE_TYPE_PPC_COMMON	= 6,
 	PSTORE_TYPE_UNKNOWN	= 255
 };
 
@@ -47,24 +51,27 @@ struct pstore_info {
 	char		*buf;
 	size_t		bufsize;
 	struct mutex	read_mutex;	/* serialize open/read/close */
+	int		flags;
 	int		(*open)(struct pstore_info *psi);
 	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(u64 *id, enum pstore_type_id *type,
 			int *count, struct timespec *time, char **buf,
-			struct pstore_info *psi);
+			bool *compressed, struct pstore_info *psi);
 	int		(*write)(enum pstore_type_id type,
 			enum kmsg_dump_reason reason, u64 *id,
-			unsigned int part, int count, size_t size,
-			struct pstore_info *psi);
+			unsigned int part, int count, bool compressed,
+			size_t size, struct pstore_info *psi);
 	int		(*write_buf)(enum pstore_type_id type,
 			enum kmsg_dump_reason reason, u64 *id,
-			unsigned int part, const char *buf, size_t size,
-			struct pstore_info *psi);
+			unsigned int part, const char *buf, bool compressed,
+			size_t size, struct pstore_info *psi);
 	int		(*erase)(enum pstore_type_id type, u64 id,
 			int count, struct timespec time,
 			struct pstore_info *psi);
 	void		*data;
 };
+
+#define	PSTORE_FLAGS_FRAGILE	1
 
 #ifdef CONFIG_PSTORE
 extern int pstore_register(struct pstore_info *);

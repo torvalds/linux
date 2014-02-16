@@ -44,6 +44,7 @@
 #include "jfs_imap.h"
 #include "jfs_acl.h"
 #include "jfs_debug.h"
+#include "jfs_xattr.h"
 
 MODULE_DESCRIPTION("The Journaled Filesystem (JFS)");
 MODULE_AUTHOR("Steve Best/Dave Kleikamp/Barry Arndt, IBM");
@@ -92,16 +93,20 @@ static void jfs_handle_error(struct super_block *sb)
 	/* nothing is done for continue beyond marking the superblock dirty */
 }
 
-void jfs_error(struct super_block *sb, const char * function, ...)
+void jfs_error(struct super_block *sb, const char *fmt, ...)
 {
-	static char error_buf[256];
+	struct va_format vaf;
 	va_list args;
 
-	va_start(args, function);
-	vsnprintf(error_buf, sizeof(error_buf), function, args);
-	va_end(args);
+	va_start(args, fmt);
 
-	pr_err("ERROR: (device %s): %s\n", sb->s_id, error_buf);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_err("ERROR: (device %s): %pf: %pV\n",
+	       sb->s_id, __builtin_return_address(0), &vaf);
+
+	va_end(args);
 
 	jfs_handle_error(sb);
 }
@@ -518,6 +523,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	sb->s_op = &jfs_super_operations;
 	sb->s_export_op = &jfs_export_operations;
+	sb->s_xattr = jfs_xattr_handlers;
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &dquot_operations;
 	sb->s_qcop = &dquot_quotactl_ops;
@@ -617,7 +623,7 @@ static int jfs_freeze(struct super_block *sb)
 		txQuiesce(sb);
 		rc = lmLogShutdown(log);
 		if (rc) {
-			jfs_error(sb, "jfs_freeze: lmLogShutdown failed");
+			jfs_error(sb, "lmLogShutdown failed\n");
 
 			/* let operations fail rather than hang */
 			txResume(sb);
@@ -646,12 +652,12 @@ static int jfs_unfreeze(struct super_block *sb)
 	if (!(sb->s_flags & MS_RDONLY)) {
 		rc = updateSuper(sb, FM_MOUNT);
 		if (rc) {
-			jfs_error(sb, "jfs_unfreeze: updateSuper failed");
+			jfs_error(sb, "updateSuper failed\n");
 			goto out;
 		}
 		rc = lmLogInit(log);
 		if (rc)
-			jfs_error(sb, "jfs_unfreeze: lmLogInit failed");
+			jfs_error(sb, "lmLogInit failed\n");
 out:
 		txResume(sb);
 	}

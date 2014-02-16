@@ -60,51 +60,20 @@ enum si476x_pcm_format {
 	SI476X_PCM_FORMAT_S24_LE	= 6,
 };
 
-static unsigned int si476x_codec_read(struct snd_soc_codec *codec,
-				      unsigned int reg)
-{
-	int err;
-	unsigned int val;
-	struct si476x_core *core = codec->control_data;
+static const struct snd_soc_dapm_widget si476x_dapm_widgets[] = {
+SND_SOC_DAPM_OUTPUT("LOUT"),
+SND_SOC_DAPM_OUTPUT("ROUT"),
+};
 
-	si476x_core_lock(core);
-	if (!si476x_core_is_powered_up(core))
-		regcache_cache_only(core->regmap, true);
-
-	err = regmap_read(core->regmap, reg, &val);
-
-	if (!si476x_core_is_powered_up(core))
-		regcache_cache_only(core->regmap, false);
-	si476x_core_unlock(core);
-
-	if (err < 0)
-		return err;
-
-	return val;
-}
-
-static int si476x_codec_write(struct snd_soc_codec *codec,
-			      unsigned int reg, unsigned int val)
-{
-	int err;
-	struct si476x_core *core = codec->control_data;
-
-	si476x_core_lock(core);
-	if (!si476x_core_is_powered_up(core))
-		regcache_cache_only(core->regmap, true);
-
-	err = regmap_write(core->regmap, reg, val);
-
-	if (!si476x_core_is_powered_up(core))
-		regcache_cache_only(core->regmap, false);
-	si476x_core_unlock(core);
-
-	return err;
-}
+static const struct snd_soc_dapm_route si476x_dapm_routes[] = {
+	{ "Capture", NULL, "LOUT" },
+	{ "Capture", NULL, "ROUT" },
+};
 
 static int si476x_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 				    unsigned int fmt)
 {
+	struct si476x_core *core = i2c_mfd_cell_to_core(codec_dai->dev);
 	int err;
 	u16 format = 0;
 
@@ -168,9 +137,14 @@ static int si476x_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
+	si476x_core_lock(core);
+
 	err = snd_soc_update_bits(codec_dai->codec, SI476X_DIGITAL_IO_OUTPUT_FORMAT,
 				  SI476X_DIGITAL_IO_OUTPUT_FORMAT_MASK,
 				  format);
+
+	si476x_core_unlock(core);
+
 	if (err < 0) {
 		dev_err(codec_dai->codec->dev, "Failed to set output format\n");
 		return err;
@@ -183,6 +157,7 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
 {
+	struct si476x_core *core = i2c_mfd_cell_to_core(dai->dev);
 	int rate, width, err;
 
 	rate = params_rate(params);
@@ -208,11 +183,13 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	si476x_core_lock(core);
+
 	err = snd_soc_write(dai->codec, SI476X_DIGITAL_IO_OUTPUT_SAMPLE_RATE,
 			    rate);
 	if (err < 0) {
 		dev_err(dai->codec->dev, "Failed to set sample rate\n");
-		return err;
+		goto out;
 	}
 
 	err = snd_soc_update_bits(dai->codec, SI476X_DIGITAL_IO_OUTPUT_FORMAT,
@@ -221,15 +198,18 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 				  (width << SI476X_DIGITAL_IO_SAMPLE_SIZE_SHIFT));
 	if (err < 0) {
 		dev_err(dai->codec->dev, "Failed to set output width\n");
-		return err;
+		goto out;
 	}
 
-	return 0;
+out:
+	si476x_core_unlock(core);
+
+	return err;
 }
 
 static int si476x_codec_probe(struct snd_soc_codec *codec)
 {
-	codec->control_data = i2c_mfd_cell_to_core(codec->dev);
+	codec->control_data = dev_get_regmap(codec->dev->parent, NULL);
 	return 0;
 }
 
@@ -258,8 +238,10 @@ static struct snd_soc_dai_driver si476x_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_si476x = {
 	.probe  = si476x_codec_probe,
-	.read   = si476x_codec_read,
-	.write  = si476x_codec_write,
+	.dapm_widgets = si476x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(si476x_dapm_widgets),
+	.dapm_routes = si476x_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(si476x_dapm_routes),
 };
 
 static int si476x_platform_probe(struct platform_device *pdev)

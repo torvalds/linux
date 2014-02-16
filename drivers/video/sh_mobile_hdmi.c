@@ -498,7 +498,7 @@ static void sh_hdmi_video_config(struct sh_hdmi *hdmi)
 static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
 {
 	u8 data;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
+	struct sh_mobile_hdmi_info *pdata = dev_get_platdata(hdmi->dev);
 
 	/*
 	 * [7:4] L/R data swap control
@@ -815,7 +815,7 @@ static unsigned long sh_hdmi_rate_error(struct sh_hdmi *hdmi,
 		unsigned long *hdmi_rate, unsigned long *parent_rate)
 {
 	unsigned long target = PICOS2KHZ(mode->pixclock) * 1000, rate_error;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
+	struct sh_mobile_hdmi_info *pdata = dev_get_platdata(hdmi->dev);
 
 	*hdmi_rate = clk_round_rate(hdmi->hdmi_clk, target);
 	if ((long)*hdmi_rate < 0)
@@ -1271,7 +1271,7 @@ static void sh_hdmi_htop1_init(struct sh_hdmi *hdmi)
 
 static int __init sh_hdmi_probe(struct platform_device *pdev)
 {
-	struct sh_mobile_hdmi_info *pdata = pdev->dev.platform_data;
+	struct sh_mobile_hdmi_info *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct resource *htop1_res;
 	int irq = platform_get_irq(pdev, 0), ret;
@@ -1290,7 +1290,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		}
 	}
 
-	hdmi = kzalloc(sizeof(*hdmi), GFP_KERNEL);
+	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi) {
 		dev_err(&pdev->dev, "Cannot allocate device data\n");
 		return -ENOMEM;
@@ -1304,7 +1304,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 	if (IS_ERR(hdmi->hdmi_clk)) {
 		ret = PTR_ERR(hdmi->hdmi_clk);
 		dev_err(&pdev->dev, "Unable to get clock: %d\n", ret);
-		goto egetclk;
+		return ret;
 	}
 
 	/* select register access functions */
@@ -1326,7 +1326,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto erate;
 	}
 
-	ret = clk_enable(hdmi->hdmi_clk);
+	ret = clk_prepare_enable(hdmi->hdmi_clk);
 	if (ret < 0) {
 		dev_err(hdmi->dev, "Cannot enable clock: %d\n", ret);
 		goto erate;
@@ -1404,11 +1404,9 @@ emap_htop1:
 emap:
 	release_mem_region(res->start, resource_size(res));
 ereqreg:
-	clk_disable(hdmi->hdmi_clk);
+	clk_disable_unprepare(hdmi->hdmi_clk);
 erate:
 	clk_put(hdmi->hdmi_clk);
-egetclk:
-	kfree(hdmi);
 
 	return ret;
 }
@@ -1427,13 +1425,12 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&hdmi->edid_work);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	clk_disable(hdmi->hdmi_clk);
+	clk_disable_unprepare(hdmi->hdmi_clk);
 	clk_put(hdmi->hdmi_clk);
 	if (hdmi->htop1)
 		iounmap(hdmi->htop1);
 	iounmap(hdmi->base);
 	release_mem_region(res->start, resource_size(res));
-	kfree(hdmi);
 
 	return 0;
 }

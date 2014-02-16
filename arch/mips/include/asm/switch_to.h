@@ -15,14 +15,23 @@
 #include <asm/cpu-features.h>
 #include <asm/watch.h>
 #include <asm/dsp.h>
+#include <asm/cop2.h>
 
 struct task_struct;
 
-/*
- * switch_to(n) should switch tasks to task nr n, first
- * checking that n isn't the current task, in which case it does nothing.
+/**
+ * resume - resume execution of a task
+ * @prev:	The task previously executed.
+ * @next:	The task to begin executing.
+ * @next_ti:	task_thread_info(next).
+ * @usedfpu:	Non-zero if prev's FP context should be saved.
+ *
+ * This function is used whilst scheduling to save the context of prev & load
+ * the context of next. Returns prev.
  */
-extern asmlinkage void *resume(void *last, void *next, void *next_ti, u32 __usedfpu);
+extern asmlinkage struct task_struct *resume(struct task_struct *prev,
+		struct task_struct *next, struct thread_info *next_ti,
+		u32 usedfpu);
 
 extern unsigned int ll_bit;
 extern struct task_struct *ll_task;
@@ -66,10 +75,18 @@ do {									\
 
 #define switch_to(prev, next, last)					\
 do {									\
-	u32 __usedfpu;							\
+	u32 __usedfpu, __c0_stat;					\
 	__mips_mt_fpaff_switch_to(prev);				\
 	if (cpu_has_dsp)						\
 		__save_dsp(prev);					\
+	if (cop2_present && (KSTK_STATUS(prev) & ST0_CU2)) {		\
+		if (cop2_lazy_restore)					\
+			KSTK_STATUS(prev) &= ~ST0_CU2;			\
+		__c0_stat = read_c0_status();				\
+		write_c0_status(__c0_stat | ST0_CU2);			\
+		cop2_save(&prev->thread.cp2);				\
+		write_c0_status(__c0_stat & ~ST0_CU2);			\
+	}								\
 	__clear_software_ll_bit();					\
 	__usedfpu = test_and_clear_tsk_thread_flag(prev, TIF_USEDFPU);	\
 	(last) = resume(prev, next, task_thread_info(next), __usedfpu); \
@@ -77,6 +94,14 @@ do {									\
 
 #define finish_arch_switch(prev)					\
 do {									\
+	u32 __c0_stat;							\
+	if (cop2_present && !cop2_lazy_restore &&			\
+			(KSTK_STATUS(current) & ST0_CU2)) {		\
+		__c0_stat = read_c0_status();				\
+		write_c0_status(__c0_stat | ST0_CU2);			\
+		cop2_restore(&current->thread.cp2);			\
+		write_c0_status(__c0_stat & ~ST0_CU2);			\
+	}								\
 	if (cpu_has_dsp)						\
 		__restore_dsp(current);					\
 	if (cpu_has_userlocal)						\

@@ -9,7 +9,7 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 
-#define NR_LOOPS  1000000
+#define NR_LOOPS  10000000
 
 /*
  * This test will open software clock events (cpu-clock, task-clock)
@@ -34,7 +34,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		.freq = 1,
 	};
 
-	attr.sample_freq = 10000;
+	attr.sample_freq = 500;
 
 	evlist = perf_evlist__new();
 	if (evlist == NULL) {
@@ -42,10 +42,10 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		return -1;
 	}
 
-	evsel = perf_evsel__new(&attr, 0);
+	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL) {
 		pr_debug("perf_evsel__new\n");
-		goto out_free_evlist;
+		goto out_delete_evlist;
 	}
 	perf_evlist__add(evlist, evsel);
 
@@ -54,16 +54,23 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	if (!evlist->cpus || !evlist->threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
-	perf_evlist__open(evlist);
+	if (perf_evlist__open(evlist)) {
+		const char *knob = "/proc/sys/kernel/perf_event_max_sample_rate";
+
+		err = -errno;
+		pr_debug("Couldn't open evlist: %s\nHint: check %s, using %" PRIu64 " in this test.\n",
+			 strerror(errno), knob, (u64)attr.sample_freq);
+		goto out_delete_evlist;
+	}
 
 	err = perf_evlist__mmap(evlist, 128, true);
 	if (err < 0) {
 		pr_debug("failed to mmap event: %d (%s)\n", errno,
 			 strerror(errno));
-		goto out_close_evlist;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__enable(evlist);
@@ -78,16 +85,18 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE)
-			continue;
+			goto next_event;
 
 		err = perf_evlist__parse_sample(evlist, event, &sample);
 		if (err < 0) {
 			pr_debug("Error during parse sample\n");
-			goto out_unmap_evlist;
+			goto out_delete_evlist;
 		}
 
 		total_periods += sample.period;
 		nr_samples++;
+next_event:
+		perf_evlist__mmap_consume(evlist, 0);
 	}
 
 	if ((u64) nr_samples == total_periods) {
@@ -96,13 +105,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		err = -1;
 	}
 
-out_unmap_evlist:
-	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
-out_delete_maps:
-	perf_evlist__delete_maps(evlist);
-out_free_evlist:
+out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;
 }

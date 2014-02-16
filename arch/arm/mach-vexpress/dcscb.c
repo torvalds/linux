@@ -133,17 +133,8 @@ static void dcscb_power_down(void)
 	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
 		arch_spin_unlock(&dcscb_lock);
 
-		/*
-		 * Flush all cache levels for this cluster.
-		 *
-		 * A15/A7 can hit in the cache with SCTLR.C=0, so we don't need
-		 * a preliminary flush here for those CPUs.  At least, that's
-		 * the theory -- without the extra flush, Linux explodes on
-		 * RTSM (to be investigated).
-		 */
-		flush_cache_all();
-		set_cr(get_cr() & ~CR_C);
-		flush_cache_all();
+		/* Flush all cache levels for this cluster. */
+		v7_exit_coherency_flush(all);
 
 		/*
 		 * This is a harmless no-op.  On platforms with a real
@@ -151,9 +142,6 @@ static void dcscb_power_down(void)
 		 * depending on where the outer cache sits.
 		 */
 		outer_flush_all();
-
-		/* Disable local coherency by clearing the ACTLR "SMP" bit: */
-		set_auxcr(get_auxcr() & ~(1 << 6));
 
 		/*
 		 * Disable cluster-level coherency by masking
@@ -165,20 +153,8 @@ static void dcscb_power_down(void)
 	} else {
 		arch_spin_unlock(&dcscb_lock);
 
-		/*
-		 * Flush the local CPU cache.
-		 *
-		 * A15/A7 can hit in the cache with SCTLR.C=0, so we don't need
-		 * a preliminary flush here for those CPUs.  At least, that's
-		 * the theory -- without the extra flush, Linux explodes on
-		 * RTSM (to be investigated).
-		 */
-		flush_cache_louis();
-		set_cr(get_cr() & ~CR_C);
-		flush_cache_louis();
-
-		/* Disable local coherency by clearing the ACTLR "SMP" bit: */
-		set_auxcr(get_auxcr() & ~(1 << 6));
+		/* Disable and flush the local CPU cache. */
+		v7_exit_coherency_flush(louis);
 	}
 
 	__mcpm_cpu_down(cpu, cluster);

@@ -15,8 +15,8 @@
 #ifndef UART_SB105X_H
 #define UART_SB105X_H
 
-/* 
- * option register 
+/*
+ * option register
  */
 
 /* Device Information Register */
@@ -116,10 +116,10 @@
 #define SB105X_FCR_TXFR	  	0x04	/* TX FIFO Reset */
 #define SB105X_FCR_DMS	  	0x08	/* DMA Mode Select */
 
-#define SB105X_FCR_RTR08  	0x00	/* Receice Trigger Level set at 8 */
-#define SB105X_FCR_RTR16  	0x40  /* Receice Trigger Level set at 16 */
-#define SB105X_FCR_RTR56  	0x80  /* Receice Trigger Level set at 56 */
-#define SB105X_FCR_RTR60  	0xc0  /* Receice Trigger Level set at 60 */
+#define SB105X_FCR_RTR08  	0x00  /* Receive Trigger Level set at 8 */
+#define SB105X_FCR_RTR16  	0x40  /* Receive Trigger Level set at 16 */
+#define SB105X_FCR_RTR56  	0x80  /* Receive Trigger Level set at 56 */
+#define SB105X_FCR_RTR60  	0xc0  /* Receive Trigger Level set at 60 */
 #define SB105X_FCR_TTR08  	0x00  /* Transmit Trigger Level set at 8 */
 #define SB105X_FCR_TTR16	0x10  /* Transmit Trigger Level set at 16 */
 #define SB105X_FCR_TTR32	0x20  /* Transmit Trigger Level set at 32 */

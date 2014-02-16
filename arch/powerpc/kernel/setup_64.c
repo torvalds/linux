@@ -10,7 +10,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#define DEBUG
 
 #include <linux/export.h>
 #include <linux/string.h>
@@ -66,8 +66,7 @@
 #include <asm/code-patching.h>
 #include <asm/kvm_ppc.h>
 #include <asm/hugetlb.h>
-
-#include "setup.h"
+#include <asm/epapr_hcalls.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -76,7 +75,7 @@
 #endif
 
 int boot_cpuid = 0;
-int __initdata spinning_secondaries;
+int spinning_secondaries;
 u64 ppc64_pft_size;
 
 /* Pick defaults since we might want to patch instructions
@@ -97,6 +96,36 @@ EXPORT_SYMBOL_GPL(ppc64_caches);
 int dcache_bsize;
 int icache_bsize;
 int ucache_bsize;
+
+#if defined(CONFIG_PPC_BOOK3E) && defined(CONFIG_SMP)
+static void setup_tlb_core_data(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		int first = cpu_first_thread_sibling(cpu);
+
+		paca[cpu].tcd_ptr = &paca[first].tcd;
+
+		/*
+		 * If we have threads, we need either tlbsrx.
+		 * or e6500 tablewalk mode, or else TLB handlers
+		 * will be racy and could produce duplicate entries.
+		 */
+		if (smt_enabled_at_boot >= 2 &&
+		    !mmu_has_feature(MMU_FTR_USE_TLBRSRV) &&
+		    book3e_htw_mode != PPC_HTW_E6500) {
+			/* Should we panic instead? */
+			WARN_ONCE("%s: unsupported MMU configuration -- expect problems\n",
+				  __func__);
+		}
+	}
+}
+#else
+static void setup_tlb_core_data(void)
+{
+}
+#endif
 
 #ifdef CONFIG_SMP
 
@@ -215,6 +244,8 @@ void __init early_setup(unsigned long dt_ptr)
 	 */
 	early_init_devtree(__va(dt_ptr));
 
+	epapr_paravirt_early_init();
+
 	/* Now we know the logical id of our boot cpu, setup the paca. */
 	setup_paca(&paca[boot_cpuid]);
 	fixup_boot_paca();
@@ -229,6 +260,8 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
 
+	kvm_cma_reserve();
+
 	/*
 	 * Reserve any gigantic pages requested on the command line.
 	 * memblock needs to have been initialized by the time this is
@@ -237,6 +270,18 @@ void __init early_setup(unsigned long dt_ptr)
 	reserve_hugetlb_gpages();
 
 	DBG(" <- early_setup()\n");
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
+	/*
+	 * This needs to be done *last* (after the above DBG() even)
+	 *
+	 * Right after we return from this function, we turn on the MMU
+	 * which means the real-mode access trick that btext does will
+	 * no longer work, it needs to switch to using a real MMU
+	 * mapping. This call will ensure that it does
+	 */
+	btext_map();
+#endif /* CONFIG_PPC_EARLY_DEBUG_BOOTX */
 }
 
 #ifdef CONFIG_SMP
@@ -305,14 +350,14 @@ static void __init initialize_cache_info(void)
 		 * d-cache and i-cache sizes... -Peter
 		 */
 		if (num_cpus == 1) {
-			const u32 *sizep, *lsizep;
+			const __be32 *sizep, *lsizep;
 			u32 size, lsize;
 
 			size = 0;
 			lsize = cur_cpu_spec->dcache_bsize;
 			sizep = of_get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
-				size = *sizep;
+				size = be32_to_cpu(*sizep);
 			lsizep = of_get_property(np, "d-cache-block-size",
 						 NULL);
 			/* fallback if block size missing */
@@ -321,8 +366,8 @@ static void __init initialize_cache_info(void)
 							 "d-cache-line-size",
 							 NULL);
 			if (lsizep != NULL)
-				lsize = *lsizep;
-			if (sizep == 0 || lsizep == 0)
+				lsize = be32_to_cpu(*lsizep);
+			if (sizep == NULL || lsizep == NULL)
 				DBG("Argh, can't find dcache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
 
@@ -335,7 +380,7 @@ static void __init initialize_cache_info(void)
 			lsize = cur_cpu_spec->icache_bsize;
 			sizep = of_get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
-				size = *sizep;
+				size = be32_to_cpu(*sizep);
 			lsizep = of_get_property(np, "i-cache-block-size",
 						 NULL);
 			if (lsizep == NULL)
@@ -343,8 +388,8 @@ static void __init initialize_cache_info(void)
 							 "i-cache-line-size",
 							 NULL);
 			if (lsizep != NULL)
-				lsize = *lsizep;
-			if (sizep == 0 || lsizep == 0)
+				lsize = be32_to_cpu(*lsizep);
+			if (sizep == NULL || lsizep == NULL)
 				DBG("Argh, can't find icache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
 
@@ -430,6 +475,7 @@ void __init setup_system(void)
 
 	smp_setup_cpu_maps();
 	check_smt_enabled();
+	setup_tlb_core_data();
 
 #ifdef CONFIG_SMP
 	/* Release secondary cpus out of their spinloops at 0x60 now that
@@ -505,9 +551,6 @@ static void __init irqstack_early_init(void)
 #ifdef CONFIG_PPC_BOOK3E
 static void __init exc_lvl_early_init(void)
 {
-	extern unsigned int interrupt_base_book3e;
-	extern unsigned int exc_debug_debug_book3e;
-
 	unsigned int i;
 
 	for_each_possible_cpu(i) {
@@ -520,8 +563,7 @@ static void __init exc_lvl_early_init(void)
 	}
 
 	if (cpu_has_feature(CPU_FTR_DEBUG_LVL_EXC))
-		patch_branch(&interrupt_base_book3e + (0x040 / 4) + 1,
-			     (unsigned long)&exc_debug_debug_book3e, 0);
+		patch_exception(0x040, exc_debug_debug_book3e);
 }
 #else
 #define exc_lvl_early_init()
@@ -529,7 +571,8 @@ static void __init exc_lvl_early_init(void)
 
 /*
  * Stack space used when we detect a bad kernel stack pointer, and
- * early in SMP boots before relocation is enabled.
+ * early in SMP boots before relocation is enabled. Exclusive emergency
+ * stack for machine checks.
  */
 static void __init emergency_stack_init(void)
 {
@@ -552,6 +595,13 @@ static void __init emergency_stack_init(void)
 		sp  = memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit);
 		sp += THREAD_SIZE;
 		paca[i].emergency_sp = __va(sp);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+		/* emergency stack for machine check exception handling. */
+		sp  = memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit);
+		sp += THREAD_SIZE;
+		paca[i].mc_emergency_sp = __va(sp);
+#endif
 	}
 }
 
@@ -572,9 +622,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	dcache_bsize = ppc64_caches.dline_size;
 	icache_bsize = ppc64_caches.iline_size;
-
-	/* reboot on panic */
-	panic_timeout = 180;
 
 	if (ppc_md.panic)
 		setup_panic();
@@ -608,8 +655,6 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Initialize the MMU context management stuff */
 	mmu_context_init();
-
-	kvm_linear_init();
 
 	/* Interrupt code needs to be 64K-aligned */
 	if ((unsigned long)_stext & 0xffff)
@@ -701,8 +746,7 @@ void __init setup_per_cpu_areas(void)
 #endif
 
 
-#ifdef CONFIG_PPC_INDIRECT_IO
+#if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
 struct ppc_pci_io ppc_pci_io;
 EXPORT_SYMBOL(ppc_pci_io);
-#endif /* CONFIG_PPC_INDIRECT_IO */
-
+#endif

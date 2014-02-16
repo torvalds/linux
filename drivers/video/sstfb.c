@@ -706,10 +706,10 @@ static void sstfb_setvgapass( struct fb_info *info, int enable )
 	fbiinit0 = sst_read (FBIINIT0);
 	if (par->vgapass) {
 		sst_write(FBIINIT0, fbiinit0 & ~DIS_VGA_PASSTHROUGH);
-		printk(KERN_INFO "fb%d: Enabling VGA pass-through\n", info->node );
+		fb_info(info, "Enabling VGA pass-through\n");
 	} else {
 		sst_write(FBIINIT0, fbiinit0 | DIS_VGA_PASSTHROUGH);
-		printk(KERN_INFO "fb%d: Disabling VGA pass-through\n", info->node );
+		fb_info(info, "Disabling VGA pass-through\n");
 	}
 	pci_write_config_dword(sst_dev, PCI_INIT_ENABLE, tmp);
 }
@@ -1437,8 +1437,8 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_WARNING "sstfb: can't create sysfs entry.\n");
 
 
-	printk(KERN_INFO "fb%d: %s frame buffer device at 0x%p\n",
-	       info->node, fix->id, info->screen_base);
+	fb_info(info, "%s frame buffer device at 0x%p\n",
+		fix->id, info->screen_base);
 
 	return 0;
 

@@ -37,7 +37,6 @@
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
@@ -1448,6 +1447,8 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		tid_info->state = CARL9170_TID_STATE_PROGRESS;
 		tid_info->tid = tid;
 		tid_info->max = sta_info->ampdu_max_len;
+		tid_info->sta = sta;
+		tid_info->vif = vif;
 
 		INIT_LIST_HEAD(&tid_info->list);
 		INIT_LIST_HEAD(&tid_info->tmp_list);
@@ -1857,7 +1858,9 @@ void *carl9170_alloc(size_t priv_size)
 		     IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_PS_NULLFUNC_STACK |
 		     IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
-		     IEEE80211_HW_SIGNAL_DBM;
+		     IEEE80211_HW_SUPPORTS_RC_TABLE |
+		     IEEE80211_HW_SIGNAL_DBM |
+		     IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	if (!modparam_noht) {
 		/*
@@ -1963,18 +1966,6 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	if (!ar->survey)
 		return -ENOMEM;
 	ar->num_channels = chans;
-
-	/*
-	 * I measured this, a bandswitch takes roughly
-	 * 135 ms and a frequency switch about 80.
-	 *
-	 * FIXME: measure these values again once EEPROM settings
-	 *	  are used, that will influence them!
-	 */
-	if (bands == 2)
-		ar->hw->channel_change_time = 135 * 1000;
-	else
-		ar->hw->channel_change_time = 80 * 1000;
 
 	regulatory->current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
 

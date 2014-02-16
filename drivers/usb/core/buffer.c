@@ -2,7 +2,7 @@
  * DMA memory management for framework level HCD code (hc_driver)
  *
  * This implementation plugs in through generic "usb_bus" level methods,
- * and should work with all USB controllers, regardles of bus type.
+ * and should work with all USB controllers, regardless of bus type.
  */
 
 #include <linux/module.h>
@@ -43,10 +43,11 @@ static const size_t	pool_max[HCD_BUFFER_POOLS] = {
  *
  * Call this as part of initializing a host controller that uses the dma
  * memory allocators.  It initializes some pools of dma-coherent memory that
- * will be shared by all drivers using that controller, or returns a negative
- * errno value on error.
+ * will be shared by all drivers using that controller.
  *
  * Call hcd_buffer_destroy() to clean up after using those pools.
+ *
+ * Return: 0 if successful. A negative errno value otherwise.
  */
 int hcd_buffer_create(struct usb_hcd *hcd)
 {

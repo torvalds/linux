@@ -166,7 +166,7 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 			reg.control[i] |= M_PERFCTL_USER;
 		if (ctr[i].exl)
 			reg.control[i] |= M_PERFCTL_EXL;
-		if (current_cpu_type() == CPU_XLR)
+		if (boot_cpu_type() == CPU_XLR)
 			reg.control[i] |= M_PERFCTL_COUNT_ALL_THREADS;
 		reg.counter[i] = 0x80000000 - ctr[i].count;
 	}
@@ -374,6 +374,14 @@ static int __init mipsxx_init(void)
 
 	case CPU_74K:
 		op_model_mipsxx_ops.cpu_type = "mips/74K";
+		break;
+
+	case CPU_INTERAPTIV:
+		op_model_mipsxx_ops.cpu_type = "mips/interAptiv";
+		break;
+
+	case CPU_PROAPTIV:
+		op_model_mipsxx_ops.cpu_type = "mips/proAptiv";
 		break;
 
 	case CPU_5KC:

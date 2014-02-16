@@ -9,6 +9,7 @@ SYNOPSIS
 --------
 [verse]
 'perf trace'
+'perf trace record'
 
 DESCRIPTION
 -----------
@@ -16,32 +17,59 @@ This command will show the events associated with the target, initially
 syscalls, but other system events like pagefaults, task lifetime events,
 scheduling events, etc.
 
-Initially this is a live mode only tool, but eventually will work with
-perf.data files like the other tools, allowing a detached 'record' from
-analysis phases.
+This is a live mode tool in addition to working with perf.data files like
+the other perf tools. Files can be generated using the 'perf record' command
+but the session needs to include the raw_syscalls events (-e 'raw_syscalls:*').
+Alernatively, the 'perf trace record' can be used as a shortcut to
+automatically include the raw_syscalls events when writing events to a file.
+
+The following options apply to perf trace; options to perf trace record are
+found in the perf record man page.
 
 OPTIONS
 -------
 
+-a::
 --all-cpus::
         System-wide collection from all CPUs.
+
+-e::
+--expr::
+	List of events to show, currently only syscall names.
+	Prefixing with ! shows all syscalls but the ones specified.  You may
+	need to escape it.
+
+-o::
+--output=::
+	Output file name.
 
 -p::
 --pid=::
 	Record events on existing process ID (comma separated list).
 
+-t::
 --tid=::
         Record events on existing thread ID (comma separated list).
 
+-u::
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+-v::
+--verbose=::
+        Verbosity level.
+
+-i::
 --no-inherit::
 	Child tasks do not inherit counters.
 
+-m::
 --mmap-pages=::
-	Number of mmap data pages. Must be a power of two.
+	Number of mmap data pages (must be a power of two) or size
+	specification with appended unit character - B/K/M/G. The
+	size is rounded up to have nearest pages power of two value.
 
+-C::
 --cpu::
 Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
 comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
@@ -53,6 +81,31 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --sched:
 	Accrue thread runtime and provide a summary at the end of the session.
+
+-i
+--input
+	Process events from a given perf data file.
+
+-T
+--time
+	Print full timestamp rather time relative to first sample.
+
+--comm::
+        Show process COMM right beside its ID, on by default, disable with --no-comm.
+
+-s::
+--summary::
+	Show only a summary of syscalls by thread with min, max, and average times
+    (in msec) and relative stddev.
+
+-S::
+--with-summary::
+	Show all syscalls followed by a summary by thread with min, max, and
+    average times (in msec) and relative stddev.
+
+--tool_stats::
+	Show tool stats such as number of times fd->pathname was discovered thru
+	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.
 
 SEE ALSO
 --------

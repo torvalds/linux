@@ -71,18 +71,27 @@ flush_cache_all_local(void)
 }
 EXPORT_SYMBOL(flush_cache_all_local);
 
+/* Virtual address of pfn.  */
+#define pfn_va(pfn)	__va(PFN_PHYS(pfn))
+
 void
 update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
-	struct page *page = pte_page(*ptep);
+	unsigned long pfn = pte_pfn(*ptep);
+	struct page *page;
 
-	if (pfn_valid(page_to_pfn(page)) && page_mapping(page) &&
-	    test_bit(PG_dcache_dirty, &page->flags)) {
+	/* We don't have pte special.  As a result, we can be called with
+	   an invalid pfn and we don't need to flush the kernel dcache page.
+	   This occurs with FireGL card in C8000.  */
+	if (!pfn_valid(pfn))
+		return;
 
-		flush_kernel_dcache_page(page);
+	page = pfn_to_page(pfn);
+	if (page_mapping(page) && test_bit(PG_dcache_dirty, &page->flags)) {
+		flush_kernel_dcache_page_addr(pfn_va(pfn));
 		clear_bit(PG_dcache_dirty, &page->flags);
 	} else if (parisc_requires_coherency())
-		flush_kernel_dcache_page(page);
+		flush_kernel_dcache_page_addr(pfn_va(pfn));
 }
 
 void
@@ -379,40 +388,19 @@ void flush_kernel_dcache_page_addr(void *addr)
 }
 EXPORT_SYMBOL(flush_kernel_dcache_page_addr);
 
-void clear_user_page(void *vto, unsigned long vaddr, struct page *page)
-{
-	clear_page_asm(vto);
-	if (!parisc_requires_coherency())
-		flush_kernel_dcache_page_asm(vto);
-}
-EXPORT_SYMBOL(clear_user_page);
-
 void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	struct page *pg)
 {
-	/* Copy using kernel mapping.  No coherency is needed
-	   (all in kmap/kunmap) on machines that don't support
-	   non-equivalent aliasing.  However, the `from' page
-	   needs to be flushed before it can be accessed through
-	   the kernel mapping. */
+       /* Copy using kernel mapping.  No coherency is needed (all in
+	  kunmap) for the `to' page.  However, the `from' page needs to
+	  be flushed through a mapping equivalent to the user mapping
+	  before it can be accessed through the kernel mapping. */
 	preempt_disable();
 	flush_dcache_page_asm(__pa(vfrom), vaddr);
 	preempt_enable();
 	copy_page_asm(vto, vfrom);
-	if (!parisc_requires_coherency())
-		flush_kernel_dcache_page_asm(vto);
 }
 EXPORT_SYMBOL(copy_user_page);
-
-#ifdef CONFIG_PA8X00
-
-void kunmap_parisc(void *addr)
-{
-	if (parisc_requires_coherency())
-		flush_kernel_dcache_page_addr(addr);
-}
-EXPORT_SYMBOL(kunmap_parisc);
-#endif
 
 void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 {
@@ -440,8 +428,8 @@ void __flush_tlb_range(unsigned long sid, unsigned long start,
 	else {
 		unsigned long flags;
 
-		mtsp(sid, 1);
 		purge_tlb_start(flags);
+		mtsp(sid, 1);
 		if (split_tlb) {
 			while (npages--) {
 				pdtlb(start);
@@ -495,44 +483,42 @@ static inline pte_t *get_ptep(pgd_t *pgd, unsigned long addr)
 
 void flush_cache_mm(struct mm_struct *mm)
 {
+	struct vm_area_struct *vma;
+	pgd_t *pgd;
+
 	/* Flushing the whole cache on each cpu takes forever on
 	   rp3440, etc.  So, avoid it if the mm isn't too big.  */
-	if (mm_total_size(mm) < parisc_cache_flush_threshold) {
-		struct vm_area_struct *vma;
+	if (mm_total_size(mm) >= parisc_cache_flush_threshold) {
+		flush_cache_all();
+		return;
+	}
 
-		if (mm->context == mfsp(3)) {
-			for (vma = mm->mmap; vma; vma = vma->vm_next) {
-				flush_user_dcache_range_asm(vma->vm_start,
-					vma->vm_end);
-				if (vma->vm_flags & VM_EXEC)
-					flush_user_icache_range_asm(
-					  vma->vm_start, vma->vm_end);
-			}
-		} else {
-			pgd_t *pgd = mm->pgd;
-
-			for (vma = mm->mmap; vma; vma = vma->vm_next) {
-				unsigned long addr;
-
-				for (addr = vma->vm_start; addr < vma->vm_end;
-				     addr += PAGE_SIZE) {
-					pte_t *ptep = get_ptep(pgd, addr);
-					if (ptep != NULL) {
-						pte_t pte = *ptep;
-						__flush_cache_page(vma, addr,
-						  page_to_phys(pte_page(pte)));
-					}
-				}
-			}
+	if (mm->context == mfsp(3)) {
+		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+			flush_user_dcache_range_asm(vma->vm_start, vma->vm_end);
+			if ((vma->vm_flags & VM_EXEC) == 0)
+				continue;
+			flush_user_icache_range_asm(vma->vm_start, vma->vm_end);
 		}
 		return;
 	}
 
-#ifdef CONFIG_SMP
-	flush_cache_all();
-#else
-	flush_cache_all_local();
-#endif
+	pgd = mm->pgd;
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		unsigned long addr;
+
+		for (addr = vma->vm_start; addr < vma->vm_end;
+		     addr += PAGE_SIZE) {
+			unsigned long pfn;
+			pte_t *ptep = get_ptep(pgd, addr);
+			if (!ptep)
+				continue;
+			pfn = pte_pfn(*ptep);
+			if (!pfn_valid(pfn))
+				continue;
+			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
+		}
+	}
 }
 
 void
@@ -556,33 +542,32 @@ flush_user_icache_range(unsigned long start, unsigned long end)
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end)
 {
+	unsigned long addr;
+	pgd_t *pgd;
+
 	BUG_ON(!vma->vm_mm->context);
 
-	if ((end - start) < parisc_cache_flush_threshold) {
-		if (vma->vm_mm->context == mfsp(3)) {
-			flush_user_dcache_range_asm(start, end);
-			if (vma->vm_flags & VM_EXEC)
-				flush_user_icache_range_asm(start, end);
-		} else {
-			unsigned long addr;
-			pgd_t *pgd = vma->vm_mm->pgd;
-
-			for (addr = start & PAGE_MASK; addr < end;
-			     addr += PAGE_SIZE) {
-				pte_t *ptep = get_ptep(pgd, addr);
-				if (ptep != NULL) {
-					pte_t pte = *ptep;
-					flush_cache_page(vma,
-					   addr, pte_pfn(pte));
-				}
-			}
-		}
-	} else {
-#ifdef CONFIG_SMP
+	if ((end - start) >= parisc_cache_flush_threshold) {
 		flush_cache_all();
-#else
-		flush_cache_all_local();
-#endif
+		return;
+	}
+
+	if (vma->vm_mm->context == mfsp(3)) {
+		flush_user_dcache_range_asm(start, end);
+		if (vma->vm_flags & VM_EXEC)
+			flush_user_icache_range_asm(start, end);
+		return;
+	}
+
+	pgd = vma->vm_mm->pgd;
+	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
+		unsigned long pfn;
+		pte_t *ptep = get_ptep(pgd, addr);
+		if (!ptep)
+			continue;
+		pfn = pte_pfn(*ptep);
+		if (pfn_valid(pfn))
+			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
 	}
 }
 
@@ -591,9 +576,10 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 {
 	BUG_ON(!vma->vm_mm->context);
 
-	flush_tlb_page(vma, vmaddr);
-	__flush_cache_page(vma, vmaddr, page_to_phys(pfn_to_page(pfn)));
-
+	if (pfn_valid(pfn)) {
+		flush_tlb_page(vma, vmaddr);
+		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
+	}
 }
 
 #ifdef CONFIG_PARISC_TMPALIAS

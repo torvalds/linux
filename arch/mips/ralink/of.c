@@ -21,6 +21,7 @@
 #include <asm/reboot.h>
 #include <asm/bootinfo.h>
 #include <asm/addrspace.h>
+#include <asm/prom.h>
 
 #include "common.h"
 
@@ -104,11 +105,14 @@ static int __init plat_of_setup(void)
 	if (!of_have_populated_dt())
 		panic("device tree not present");
 
-	strncpy(of_ids[0].compatible, soc_info.compatible, len);
+	strlcpy(of_ids[0].compatible, soc_info.compatible, len);
 	strncpy(of_ids[1].compatible, "palmbus", len);
 
 	if (of_platform_populate(NULL, of_ids, NULL, NULL))
-		panic("failed to populate DT\n");
+		panic("failed to populate DT");
+
+	/* make sure ithat the reset controller is setup early */
+	ralink_rst_init();
 
 	return 0;
 }

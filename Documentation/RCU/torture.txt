@@ -42,6 +42,16 @@ fqs_holdoff	Holdoff time (in microseconds) between consecutive calls
 fqs_stutter	Wait time (in seconds) between consecutive bursts
 		of calls to force_quiescent_state().
 
+gp_normal	Make the fake writers use normal synchronous grace-period
+		primitives.
+
+gp_exp		Make the fake writers use expedited synchronous grace-period
+		primitives.  If both gp_normal and gp_exp are set, or
+		if neither gp_normal nor gp_exp are set, then randomly
+		choose the primitive so that about 50% are normal and
+		50% expedited.  By default, neither are set, which
+		gives best overall test coverage.
+
 irqreader	Says to invoke RCU readers from irq level.  This is currently
 		done via timers.  Defaults to "1" for variants of RCU that
 		permit this.  (Or, more accurately, variants of RCU that do

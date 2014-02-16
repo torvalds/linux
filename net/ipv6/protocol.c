@@ -36,10 +36,6 @@ int inet6_add_protocol(const struct inet6_protocol *prot, unsigned char protocol
 }
 EXPORT_SYMBOL(inet6_add_protocol);
 
-/*
- *	Remove a protocol from the hash tables.
- */
-
 int inet6_del_protocol(const struct inet6_protocol *prot, unsigned char protocol)
 {
 	int ret;

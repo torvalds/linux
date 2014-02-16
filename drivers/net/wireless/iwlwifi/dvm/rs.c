@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,6 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>
@@ -351,12 +350,6 @@ static void rs_program_fix_rate(struct iwl_priv *priv,
 	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 	lq_sta->active_mimo3_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	/* testmode has higher priority to overwirte the fixed rate */
-	if (priv->tm_fixed_rate)
-		lq_sta->dbg_fixed_rate = priv->tm_fixed_rate;
-#endif
-
 	IWL_DEBUG_RATE(priv, "sta_id %d rate 0x%X\n",
 		lq_sta->lq.sta_id, lq_sta->dbg_fixed_rate);
 
@@ -419,23 +412,18 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 
 	load = rs_tl_get_load(lq_data, tid);
 
-	if ((iwlwifi_mod_params.auto_agg) || (load > IWL_AGG_LOAD_THRESHOLD)) {
-		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
-				sta->addr, tid);
-		ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
-		if (ret == -EAGAIN) {
-			/*
-			 * driver and mac80211 is out of sync
-			 * this might be cause by reloading firmware
-			 * stop the tx ba session here
-			 */
-			IWL_ERR(priv, "Fail start Tx agg on tid: %d\n",
-				tid);
-			ieee80211_stop_tx_ba_session(sta, tid);
-		}
-	} else {
-		IWL_DEBUG_HT(priv, "Aggregation not enabled for tid %d "
-			"because load = %u\n", tid, load);
+	IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
+			sta->addr, tid);
+	ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
+	if (ret == -EAGAIN) {
+		/*
+		 * driver and mac80211 is out of sync
+		 * this might be cause by reloading firmware
+		 * stop the tx ba session here
+		 */
+		IWL_ERR(priv, "Fail start Tx agg on tid: %d\n",
+			tid);
+		ieee80211_stop_tx_ba_session(sta, tid);
 	}
 	return ret;
 }
@@ -1083,12 +1071,7 @@ done:
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
 
-#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_IWLWIFI_DEVICE_TESTMODE)
-	if ((priv->tm_fixed_rate) &&
-	    (priv->tm_fixed_rate != lq_sta->dbg_fixed_rate))
-		rs_program_fix_rate(priv, lq_sta);
-#endif
-	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist)
+	if (priv->lib->bt_params && priv->lib->bt_params->advanced_bt_coexist)
 		rs_bt_update_lq(priv, ctx, lq_sta);
 }
 
@@ -2842,9 +2825,6 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 
 	lq_sta->flush_timer = 0;
 	lq_sta->supp_rates = sta->supp_rates[sband->band];
-	for (j = 0; j < LQ_SIZE; j++)
-		for (i = 0; i < IWL_RATE_COUNT; i++)
-			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
 
 	IWL_DEBUG_RATE(priv, "LQ: *** rate scale station global init for station %d ***\n",
 		       sta_id);
@@ -2913,9 +2893,6 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	priv->tm_fixed_rate = 0;
-#endif
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->dbg_fixed_rate = 0;
 #endif
@@ -3064,11 +3041,11 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 	 * overwrite if needed, pass aggregation time limit
 	 * to uCode in uSec
 	 */
-	if (priv && priv->cfg->bt_params &&
-	    priv->cfg->bt_params->agg_time_limit &&
+	if (priv && priv->lib->bt_params &&
+	    priv->lib->bt_params->agg_time_limit &&
 	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)
 		lq_cmd->agg_params.agg_time_limit =
-			cpu_to_le16(priv->cfg->bt_params->agg_time_limit);
+			cpu_to_le16(priv->lib->bt_params->agg_time_limit);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
@@ -3338,7 +3315,8 @@ static void rs_remove_debugfs(void *priv, void *priv_sta)
  * station is added we ignore it.
  */
 static void rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sband,
-			 struct ieee80211_sta *sta, void *priv_sta)
+			      struct cfg80211_chan_def *chandef,
+			      struct ieee80211_sta *sta, void *priv_sta)
 {
 }
 static struct rate_control_ops rs_ops = {

@@ -1,0 +1,34 @@
+Freescale i.MX audio complex with S/PDIF transceiver
+
+Required properties:
+
+  - compatible : "fsl,imx-audio-spdif"
+
+  - model : The user-visible name of this sound complex
+
+  - spdif-controller : The phandle of the i.MX S/PDIF controller
+
+
+Optional properties:
+
+  - spdif-out : This is a boolean property. If present, the transmitting
+    function of S/PDIF will be enabled, indicating there's a physical
+    S/PDIF out connector/jack on the board or it's connecting to some
+    other IP block, such as an HDMI encoder/display-controller.
+
+  - spdif-in : This is a boolean property. If present, the receiving
+    function of S/PDIF will be enabled, indicating there's a physical
+    S/PDIF in connector/jack on the board.
+
+* Note: At least one of these two properties should be set in the DT binding.
+
+
+Example:
+
+sound-spdif {
+	compatible = "fsl,imx-audio-spdif";
+	model = "imx-spdif";
+	spdif-controller = <&spdif>;
+	spdif-out;
+	spdif-in;
+};

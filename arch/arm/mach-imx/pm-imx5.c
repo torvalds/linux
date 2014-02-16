@@ -169,14 +169,9 @@ static int __init imx5_pm_common_init(void)
 	return imx5_cpuidle_init();
 }
 
-void __init imx51_pm_init(void)
+void __init imx5_pm_init(void)
 {
 	int ret = imx5_pm_common_init();
 	if (!ret)
 		suspend_set_ops(&mx5_suspend_ops);
-}
-
-void __init imx53_pm_init(void)
-{
-	imx5_pm_common_init();
 }

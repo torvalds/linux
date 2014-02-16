@@ -38,6 +38,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>
@@ -638,10 +639,9 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	init_timer(&devpriv->timer);
 	switch (pcidev->device) {
@@ -807,7 +807,7 @@ static int jr3_pci_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &jr3_pci_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {
+static const struct pci_device_id jr3_pci_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL_NEW) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_2_CHANNEL) },

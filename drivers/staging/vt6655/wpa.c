@@ -45,12 +45,12 @@
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
 
-const unsigned char abyOUI00[4] = { 0x00, 0x50, 0xf2, 0x00 };
-const unsigned char abyOUI01[4] = { 0x00, 0x50, 0xf2, 0x01 };
-const unsigned char abyOUI02[4] = { 0x00, 0x50, 0xf2, 0x02 };
-const unsigned char abyOUI03[4] = { 0x00, 0x50, 0xf2, 0x03 };
-const unsigned char abyOUI04[4] = { 0x00, 0x50, 0xf2, 0x04 };
-const unsigned char abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
+static const unsigned char abyOUI00[4] = { 0x00, 0x50, 0xf2, 0x00 };
+static const unsigned char abyOUI01[4] = { 0x00, 0x50, 0xf2, 0x01 };
+static const unsigned char abyOUI02[4] = { 0x00, 0x50, 0xf2, 0x02 };
+static const unsigned char abyOUI03[4] = { 0x00, 0x50, 0xf2, 0x03 };
+static const unsigned char abyOUI04[4] = { 0x00, 0x50, 0xf2, 0x04 };
+static const unsigned char abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
 
 /*+
  *
@@ -241,7 +241,7 @@ WPA_SearchRSN(
 	int ii;
 	unsigned char byPKType = WPA_NONE;
 
-	if (pBSSList->bWPAValid == false)
+	if (!pBSSList->bWPAValid)
 		return false;
 
 	switch (byCmd) {

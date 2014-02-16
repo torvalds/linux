@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
+#include <linux/random.h>
 
 /*
  * Conventions :
@@ -144,6 +145,39 @@ static int pkt_type_offset(void)
 	return -1;
 }
 
+struct bpf_binary_header {
+	unsigned int	pages;
+	/* Note : for security reasons, bpf code will follow a randomly
+	 * sized amount of int3 instructions
+	 */
+	u8		image[];
+};
+
+static struct bpf_binary_header *bpf_alloc_binary(unsigned int proglen,
+						  u8 **image_ptr)
+{
+	unsigned int sz, hole;
+	struct bpf_binary_header *header;
+
+	/* Most of BPF filters are really small,
+	 * but if some of them fill a page, allow at least
+	 * 128 extra bytes to insert a random section of int3
+	 */
+	sz = round_up(proglen + sizeof(*header) + 128, PAGE_SIZE);
+	header = module_alloc(sz);
+	if (!header)
+		return NULL;
+
+	memset(header, 0xcc, sz); /* fill whole space with int3 instructions */
+
+	header->pages = sz / PAGE_SIZE;
+	hole = sz - (proglen + sizeof(*header));
+
+	/* insert a random number of int3 instructions before BPF code */
+	*image_ptr = &header->image[prandom_u32() % hole];
+	return header;
+}
+
 void bpf_jit_compile(struct sk_filter *fp)
 {
 	u8 temp[64];
@@ -153,6 +187,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 	int t_offset, f_offset;
 	u8 t_op, f_op, seen = 0, pass;
 	u8 *image = NULL;
+	struct bpf_binary_header *header = NULL;
 	u8 *func;
 	int pc_ret0 = -1; /* bpf index of first RET #0 instruction (if any) */
 	unsigned int cleanup_addr; /* epilogue code offset */
@@ -324,15 +359,21 @@ void bpf_jit_compile(struct sk_filter *fp)
 				EMIT2(0x89, 0xd0);	/* mov %edx,%eax */
 				break;
 			case BPF_S_ALU_MOD_K: /* A %= K; */
+				if (K == 1) {
+					CLEAR_A();
+					break;
+				}
 				EMIT2(0x31, 0xd2);	/* xor %edx,%edx */
 				EMIT1(0xb9);EMIT(K, 4);	/* mov imm32,%ecx */
 				EMIT2(0xf7, 0xf1);	/* div %ecx */
 				EMIT2(0x89, 0xd0);	/* mov %edx,%eax */
 				break;
-			case BPF_S_ALU_DIV_K: /* A = reciprocal_divide(A, K); */
-				EMIT3(0x48, 0x69, 0xc0); /* imul imm32,%rax,%rax */
-				EMIT(K, 4);
-				EMIT4(0x48, 0xc1, 0xe8, 0x20); /* shr $0x20,%rax */
+			case BPF_S_ALU_DIV_K: /* A /= K */
+				if (K == 1)
+					break;
+				EMIT2(0x31, 0xd2);	/* xor %edx,%edx */
+				EMIT1(0xb9);EMIT(K, 4);	/* mov imm32,%ecx */
+				EMIT2(0xf7, 0xf1);	/* div %ecx */
 				break;
 			case BPF_S_ALU_AND_X:
 				seen |= SEEN_XREG;
@@ -693,7 +734,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
 				if (unlikely(proglen + ilen > oldproglen)) {
 					pr_err("bpb_jit_compile fatal error\n");
 					kfree(addrs);
-					module_free(NULL, image);
+					module_free(NULL, header);
 					return;
 				}
 				memcpy(image + proglen, temp, ilen);
@@ -717,10 +758,8 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
 			break;
 		}
 		if (proglen == oldproglen) {
-			image = module_alloc(max_t(unsigned int,
-						   proglen,
-						   sizeof(struct work_struct)));
-			if (!image)
+			header = bpf_alloc_binary(proglen, &image);
+			if (!header)
 				goto out;
 		}
 		oldproglen = proglen;
@@ -730,7 +769,8 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
 		bpf_jit_dump(flen, proglen, pass, image);
 
 	if (image) {
-		bpf_flush_icache(image, image + proglen);
+		bpf_flush_icache(header, image + proglen);
+		set_memory_ro((unsigned long)header, header->pages);
 		fp->bpf_func = (void *)image;
 	}
 out:
@@ -738,20 +778,23 @@ out:
 	return;
 }
 
-static void jit_free_defer(struct work_struct *arg)
+static void bpf_jit_free_deferred(struct work_struct *work)
 {
-	module_free(NULL, arg);
+	struct sk_filter *fp = container_of(work, struct sk_filter, work);
+	unsigned long addr = (unsigned long)fp->bpf_func & PAGE_MASK;
+	struct bpf_binary_header *header = (void *)addr;
+
+	set_memory_rw(addr, header->pages);
+	module_free(NULL, header);
+	kfree(fp);
 }
 
-/* run from softirq, we must use a work_struct to call
- * module_free() from process context
- */
 void bpf_jit_free(struct sk_filter *fp)
 {
 	if (fp->bpf_func != sk_run_filter) {
-		struct work_struct *work = (struct work_struct *)fp->bpf_func;
-
-		INIT_WORK(work, jit_free_defer);
-		schedule_work(work);
+		INIT_WORK(&fp->work, bpf_jit_free_deferred);
+		schedule_work(&fp->work);
+	} else {
+		kfree(fp);
 	}
 }

@@ -291,6 +291,8 @@ enum ab8500_version {
 #define AB8540_INT_FSYNC2R		213
 #define AB8540_INT_BITCLK2F		214
 #define AB8540_INT_BITCLK2R		215
+/* ab8540_irq_regoffset[27] -> IT[Source|Latch|Mask]33 */
+#define AB8540_INT_RTC_1S		216
 
 /*
  * AB8500_AB9540_NR_IRQS is used when configuring the IRQ numbers for the
@@ -366,7 +368,6 @@ struct ab8500 {
 };
 
 struct ab8500_regulator_platform_data;
-struct ab8500_gpio_platform_data;
 struct ab8500_codec_platform_data;
 struct ab8500_sysctrl_platform_data;
 
@@ -380,7 +381,6 @@ struct ab8500_platform_data {
 	int irq_base;
 	void (*init) (struct ab8500 *);
 	struct ab8500_regulator_platform_data *regulator;
-	struct abx500_gpio_platform_data *gpio;
 	struct ab8500_codec_platform_data *codec;
 	struct ab8500_sysctrl_platform_data *sysctrl;
 };

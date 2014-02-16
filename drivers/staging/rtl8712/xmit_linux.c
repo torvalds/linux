@@ -51,7 +51,7 @@ void _r8712_open_pktfile(_pkt *pktptr, struct pkt_file *pfile)
 	pfile->pkt = pktptr;
 	pfile->cur_addr = pfile->buf_start = pktptr->data;
 	pfile->pkt_len = pfile->buf_len = pktptr->len;
-	pfile->cur_buffer = pfile->buf_start ;
+	pfile->cur_buffer = pfile->buf_start;
 }
 
 uint _r8712_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)

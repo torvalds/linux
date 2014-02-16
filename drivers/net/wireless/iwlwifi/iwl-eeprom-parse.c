@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -614,10 +614,10 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			channel->flags = IEEE80211_CHAN_NO_HT40;
 
 			if (!(eeprom_ch->flags & EEPROM_CHANNEL_IBSS))
-				channel->flags |= IEEE80211_CHAN_NO_IBSS;
+				channel->flags |= IEEE80211_CHAN_NO_IR;
 
 			if (!(eeprom_ch->flags & EEPROM_CHANNEL_ACTIVE))
-				channel->flags |= IEEE80211_CHAN_PASSIVE_SCAN;
+				channel->flags |= IEEE80211_CHAN_NO_IR;
 
 			if (eeprom_ch->flags & EEPROM_CHANNEL_RADAR)
 				channel->flags |= IEEE80211_CHAN_RADAR;
@@ -732,17 +732,16 @@ int iwl_init_sband_channels(struct iwl_nvm_data *data,
 void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 			  struct iwl_nvm_data *data,
 			  struct ieee80211_sta_ht_cap *ht_info,
-			  enum ieee80211_band band)
+			  enum ieee80211_band band,
+			  u8 tx_chains, u8 rx_chains)
 {
 	int max_bit_rate = 0;
-	u8 rx_chains;
-	u8 tx_chains;
 
-	tx_chains = hweight8(data->valid_tx_ant);
+	tx_chains = hweight8(tx_chains);
 	if (cfg->rx_with_siso_diversity)
 		rx_chains = 1;
 	else
-		rx_chains = hweight8(data->valid_rx_ant);
+		rx_chains = hweight8(rx_chains);
 
 	if (!(data->sku_cap_11n_enable) || !cfg->ht_params) {
 		ht_info->ht_supported = false;
@@ -751,6 +750,13 @@ void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 
 	ht_info->ht_supported = true;
 	ht_info->cap = IEEE80211_HT_CAP_DSSSCCK40;
+
+	if (cfg->ht_params->stbc) {
+		ht_info->cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
+
+		if (tx_chains > 1)
+			ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
+	}
 
 	if (iwlwifi_mod_params.amsdu_size_8K)
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
@@ -806,7 +812,8 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	sband->n_bitrates = N_RATES_24;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  IEEE80211_BAND_2GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_2GHZ);
+	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_2GHZ,
+			     data->valid_tx_ant, data->valid_rx_ant);
 
 	sband = &data->bands[IEEE80211_BAND_5GHZ];
 	sband->band = IEEE80211_BAND_5GHZ;
@@ -814,7 +821,8 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	sband->n_bitrates = N_RATES_52;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  IEEE80211_BAND_5GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ);
+	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ,
+			     data->valid_tx_ant, data->valid_rx_ant);
 
 	if (n_channels != n_used)
 		IWL_ERR_DEV(dev, "EEPROM: used only %d of %d channels\n",

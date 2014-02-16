@@ -42,7 +42,7 @@ static int pwmled_probe(struct platform_device *pdev)
 	int					i;
 	int					status;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata || pdata->num_leds < 1)
 		return -ENODEV;
 
@@ -119,7 +119,7 @@ static int pwmled_remove(struct platform_device *pdev)
 	struct pwmled				*leds;
 	unsigned				i;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	leds = platform_get_drvdata(pdev);
 
 	for (i = 0; i < pdata->num_leds; i++) {

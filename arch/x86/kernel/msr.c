@@ -46,7 +46,7 @@ static struct class *msr_class;
 static loff_t msr_seek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
-	struct inode *inode = file->f_mapping->host;
+	struct inode *inode = file_inode(file);
 
 	mutex_lock(&inode->i_mutex);
 	switch (orig) {
@@ -200,7 +200,7 @@ static const struct file_operations msr_fops = {
 	.compat_ioctl = msr_ioctl,
 };
 
-static int __cpuinit msr_device_create(int cpu)
+static int msr_device_create(int cpu)
 {
 	struct device *dev;
 
@@ -214,8 +214,8 @@ static void msr_device_destroy(int cpu)
 	device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
 }
 
-static int __cpuinit msr_class_cpu_callback(struct notifier_block *nfb,
-				unsigned long action, void *hcpu)
+static int msr_class_cpu_callback(struct notifier_block *nfb,
+				  unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	int err = 0;

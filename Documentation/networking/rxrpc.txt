@@ -144,7 +144,7 @@ An overview of the RxRPC protocol:
  (*) Calls use ACK packets to handle reliability.  Data packets are also
      explicitly sequenced per call.
 
- (*) There are two types of positive acknowledgement: hard-ACKs and soft-ACKs.
+ (*) There are two types of positive acknowledgment: hard-ACKs and soft-ACKs.
      A hard-ACK indicates to the far side that all the data received to a point
      has been received and processed; a soft-ACK indicates that the data has
      been received but may yet be discarded and re-requested.  The sender may

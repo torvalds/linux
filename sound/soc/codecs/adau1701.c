@@ -71,7 +71,7 @@
 
 #define ADAU1701_SEROCTL_WORD_LEN_24	0x0000
 #define ADAU1701_SEROCTL_WORD_LEN_20	0x0001
-#define ADAU1701_SEROCTL_WORD_LEN_16	0x0010
+#define ADAU1701_SEROCTL_WORD_LEN_16	0x0002
 #define ADAU1701_SEROCTL_WORD_LEN_MASK	0x0003
 
 #define ADAU1701_AUXNPOW_VBPD		0x40
@@ -91,7 +91,7 @@
 #define ADAU1701_OSCIPOW_OPD		0x04
 #define ADAU1701_DACSET_DACINIT		1
 
-#define ADAU1707_CLKDIV_UNSET		(-1UL)
+#define ADAU1707_CLKDIV_UNSET		(-1U)
 
 #define ADAU1701_FIRMWARE "adau1701.bin"
 
@@ -247,21 +247,21 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 	    gpio_is_valid(adau1701->gpio_pll_mode[1])) {
 		switch (clkdiv) {
 		case 64:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 0);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 0);
 			break;
 		case 256:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 0);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 1);
 			break;
 		case 384:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 1);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 0);
 			break;
 		case 0:	/* fallback */
 		case 512:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 1);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 1);
 			break;
 		}
 	}
@@ -269,10 +269,10 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 	adau1701->pll_clkdiv = clkdiv;
 
 	if (gpio_is_valid(adau1701->gpio_nreset)) {
-		gpio_set_value(adau1701->gpio_nreset, 0);
+		gpio_set_value_cansleep(adau1701->gpio_nreset, 0);
 		/* minimum reset time is 20ns */
 		udelay(1);
-		gpio_set_value(adau1701->gpio_nreset, 1);
+		gpio_set_value_cansleep(adau1701->gpio_nreset, 1);
 		/* power-up time may be as long as 85ms */
 		mdelay(85);
 	}
@@ -299,20 +299,20 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 }
 
 static int adau1701_set_capture_pcm_format(struct snd_soc_codec *codec,
-		snd_pcm_format_t format)
+					   struct snd_pcm_hw_params *params)
 {
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 	unsigned int mask = ADAU1701_SEROCTL_WORD_LEN_MASK;
 	unsigned int val;
 
-	switch (format) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		val = ADAU1701_SEROCTL_WORD_LEN_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		val = ADAU1701_SEROCTL_WORD_LEN_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		val = ADAU1701_SEROCTL_WORD_LEN_24;
 		break;
 	default:
@@ -320,14 +320,14 @@ static int adau1701_set_capture_pcm_format(struct snd_soc_codec *codec,
 	}
 
 	if (adau1701->dai_fmt == SND_SOC_DAIFMT_RIGHT_J) {
-		switch (format) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			val |= ADAU1701_SEROCTL_MSB_DEALY16;
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			val |= ADAU1701_SEROCTL_MSB_DEALY12;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			val |= ADAU1701_SEROCTL_MSB_DEALY8;
 			break;
 		}
@@ -340,7 +340,7 @@ static int adau1701_set_capture_pcm_format(struct snd_soc_codec *codec,
 }
 
 static int adau1701_set_playback_pcm_format(struct snd_soc_codec *codec,
-			snd_pcm_format_t format)
+					    struct snd_pcm_hw_params *params)
 {
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
@@ -348,14 +348,14 @@ static int adau1701_set_playback_pcm_format(struct snd_soc_codec *codec,
 	if (adau1701->dai_fmt != SND_SOC_DAIFMT_RIGHT_J)
 		return 0;
 
-	switch (format) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		val = ADAU1701_SERICTL_RIGHTJ_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		val = ADAU1701_SERICTL_RIGHTJ_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		val = ADAU1701_SERICTL_RIGHTJ_24;
 		break;
 	default:
@@ -374,7 +374,6 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 	unsigned int clkdiv = adau1701->sysclk / params_rate(params);
-	snd_pcm_format_t format;
 	unsigned int val;
 	int ret;
 
@@ -406,11 +405,10 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(adau1701->regmap, ADAU1701_DSPCTRL,
 		ADAU1701_DSPCTRL_SR_MASK, val);
 
-	format = params_format(params);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return adau1701_set_playback_pcm_format(codec, format);
+		return adau1701_set_playback_pcm_format(codec, params);
 	else
-		return adau1701_set_capture_pcm_format(codec, format);
+		return adau1701_set_capture_pcm_format(codec, params);
 }
 
 static int adau1701_set_dai_fmt(struct snd_soc_dai *codec_dai,
@@ -734,7 +732,10 @@ static int adau1701_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adau1701_i2c_id[] = {
+	{ "adau1401", 0 },
+	{ "adau1401a", 0 },
 	{ "adau1701", 0 },
+	{ "adau1702", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adau1701_i2c_id);

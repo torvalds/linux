@@ -326,7 +326,7 @@ static int ixp4xx_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t s
  */
 static int ixp4xx_pci_platform_notify(struct device *dev)
 {
-	if(dev->bus == &pci_bus_type) {
+	if (dev_is_pci(dev)) {
 		*dev->dma_mask =  SZ_64M - 1;
 		dev->coherent_dma_mask = SZ_64M - 1;
 		dmabounce_register_dev(dev, 2048, 4096, ixp4xx_needs_bounce);
@@ -336,9 +336,9 @@ static int ixp4xx_pci_platform_notify(struct device *dev)
 
 static int ixp4xx_pci_platform_notify_remove(struct device *dev)
 {
-	if(dev->bus == &pci_bus_type) {
+	if (dev_is_pci(dev))
 		dmabounce_unregister_dev(dev);
-	}
+
 	return 0;
 }
 

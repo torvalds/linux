@@ -85,6 +85,7 @@
 #define AK8975_MAX_CONVERSION_TIMEOUT	500
 #define AK8975_CONVERSION_DONE_POLL_TIME 10
 #define AK8975_DATA_READY_TIMEOUT	((100*HZ)/1000)
+#define RAW_TO_GAUSS(asa) ((((asa) + 128) * 3000) / 256)
 
 /*
  * Per-instance context data for the device.
@@ -263,17 +264,17 @@ static int ak8975_setup(struct i2c_client *client)
  *
  * HuT = H * 1229/4096, or roughly, 3/10.
  *
- * Since 1uT = 100 gauss, our final scale factor becomes:
+ * Since 1uT = 0.01 gauss, our final scale factor becomes:
  *
- * Hadj = H * ((ASA + 128) / 256) * 3/10 * 100
- * Hadj = H * ((ASA + 128) * 30 / 256
+ * Hadj = H * ((ASA + 128) / 256) * 3/10 * 1/100
+ * Hadj = H * ((ASA + 128) * 0.003) / 256
  *
  * Since ASA doesn't change, we cache the resultant scale factor into the
  * device context in ak8975_setup().
  */
-	data->raw_to_gauss[0] = ((data->asa[0] + 128) * 30) >> 8;
-	data->raw_to_gauss[1] = ((data->asa[1] + 128) * 30) >> 8;
-	data->raw_to_gauss[2] = ((data->asa[2] + 128) * 30) >> 8;
+	data->raw_to_gauss[0] = RAW_TO_GAUSS(data->asa[0]);
+	data->raw_to_gauss[1] = RAW_TO_GAUSS(data->asa[1]);
+	data->raw_to_gauss[2] = RAW_TO_GAUSS(data->asa[2]);
 
 	return 0;
 }
@@ -428,8 +429,9 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		return ak8975_read_axis(indio_dev, chan->address, val);
 	case IIO_CHAN_INFO_SCALE:
-		*val = data->raw_to_gauss[chan->address];
-		return IIO_VAL_INT;
+		*val = 0;
+		*val2 = data->raw_to_gauss[chan->address];
+		return IIO_VAL_INT_PLUS_MICRO;
 	}
 	return -EINVAL;
 }

@@ -1265,11 +1265,9 @@ static void vga16fb_imageblit(struct fb_info *info, const struct fb_image *image
 
 static void vga16fb_destroy(struct fb_info *info)
 {
-	struct platform_device *dev = container_of(info->device, struct platform_device, dev);
 	iounmap(info->screen_base);
 	fb_dealloc_cmap(&info->cmap);
 	/* XXX unshare VGA regions */
-	platform_set_drvdata(dev, NULL);
 	framebuffer_release(info);
 }
 
@@ -1379,8 +1377,7 @@ static int vga16fb_probe(struct platform_device *dev)
 		goto err_check_var;
 	}
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-	       info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	platform_set_drvdata(dev, info);
 
 	return 0;

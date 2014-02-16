@@ -37,17 +37,17 @@ struct brcms_ampdu_session {
 	u16 dma_len;
 };
 
-extern void brcms_c_ampdu_reset_session(struct brcms_ampdu_session *session,
-					struct brcms_c_info *wlc);
-extern int brcms_c_ampdu_add_frame(struct brcms_ampdu_session *session,
-				   struct sk_buff *p);
-extern void brcms_c_ampdu_finalize(struct brcms_ampdu_session *session);
+void brcms_c_ampdu_reset_session(struct brcms_ampdu_session *session,
+				 struct brcms_c_info *wlc);
+int brcms_c_ampdu_add_frame(struct brcms_ampdu_session *session,
+			    struct sk_buff *p);
+void brcms_c_ampdu_finalize(struct brcms_ampdu_session *session);
 
-extern struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc);
-extern void brcms_c_ampdu_detach(struct ampdu_info *ampdu);
-extern void brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
-				 struct sk_buff *p, struct tx_status *txs);
-extern void brcms_c_ampdu_macaddr_upd(struct brcms_c_info *wlc);
-extern void brcms_c_ampdu_shm_upd(struct ampdu_info *ampdu);
+struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc);
+void brcms_c_ampdu_detach(struct ampdu_info *ampdu);
+void brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
+			      struct sk_buff *p, struct tx_status *txs);
+void brcms_c_ampdu_macaddr_upd(struct brcms_c_info *wlc);
+void brcms_c_ampdu_shm_upd(struct ampdu_info *ampdu);
 
 #endif				/* _BRCM_AMPDU_H_ */

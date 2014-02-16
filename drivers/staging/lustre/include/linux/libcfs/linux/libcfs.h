@@ -49,7 +49,6 @@
 #include <linux/libcfs/linux/linux-mem.h>
 #include <linux/libcfs/linux/linux-prim.h>
 #include <linux/libcfs/linux/linux-lock.h>
-#include <linux/libcfs/linux/linux-fs.h>
 #include <linux/libcfs/linux/linux-tcpip.h>
 #include <linux/libcfs/linux/linux-bitops.h>
 #include <linux/libcfs/linux/linux-types.h>
@@ -97,9 +96,6 @@ do {								    \
 /* initial pid  */
 #define LUSTRE_LNET_PID	  12345
 
-#define ENTRY_NESTING_SUPPORT (1)
-#define ENTRY_NESTING   do {;} while (0)
-#define EXIT_NESTING   do {;} while (0)
 #define __current_nesting_level() (0)
 
 /**

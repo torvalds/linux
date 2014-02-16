@@ -39,6 +39,7 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_acct.h>
@@ -47,6 +48,7 @@
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_labels.h>
+#include <net/netfilter/nf_conntrack_synproxy.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
@@ -57,12 +59,6 @@ int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
 				      enum nf_nat_manip_type manip,
 				      const struct nlattr *attr) __read_mostly;
 EXPORT_SYMBOL_GPL(nfnetlink_parse_nat_setup_hook);
-
-int (*nf_nat_seq_adjust_hook)(struct sk_buff *skb,
-			      struct nf_conn *ct,
-			      enum ip_conntrack_info ctinfo,
-			      unsigned int protoff);
-EXPORT_SYMBOL_GPL(nf_nat_seq_adjust_hook);
 
 DEFINE_SPINLOCK(nf_conntrack_lock);
 EXPORT_SYMBOL_GPL(nf_conntrack_lock);
@@ -238,7 +234,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	nf_conntrack_free(ct);
 }
 
-void nf_ct_delete_from_lists(struct nf_conn *ct)
+static void nf_ct_delete_from_lists(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 
@@ -253,7 +249,6 @@ void nf_ct_delete_from_lists(struct nf_conn *ct)
 			     &net->ct.dying);
 	spin_unlock_bh(&nf_conntrack_lock);
 }
-EXPORT_SYMBOL_GPL(nf_ct_delete_from_lists);
 
 static void death_by_event(unsigned long ul_conntrack)
 {
@@ -275,7 +270,7 @@ static void death_by_event(unsigned long ul_conntrack)
 	nf_ct_put(ct);
 }
 
-void nf_ct_dying_timeout(struct nf_conn *ct)
+static void nf_ct_dying_timeout(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *ecache = nf_ct_ecache_find(ct);
@@ -288,27 +283,48 @@ void nf_ct_dying_timeout(struct nf_conn *ct)
 		(prandom_u32() % net->ct.sysctl_events_retry_timeout);
 	add_timer(&ecache->timeout);
 }
-EXPORT_SYMBOL_GPL(nf_ct_dying_timeout);
 
-static void death_by_timeout(unsigned long ul_conntrack)
+bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 {
-	struct nf_conn *ct = (void *)ul_conntrack;
 	struct nf_conn_tstamp *tstamp;
 
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp && tstamp->stop == 0)
 		tstamp->stop = ktime_to_ns(ktime_get_real());
 
-	if (!test_bit(IPS_DYING_BIT, &ct->status) &&
-	    unlikely(nf_conntrack_event(IPCT_DESTROY, ct) < 0)) {
+	if (!nf_ct_is_dying(ct) &&
+	    unlikely(nf_conntrack_event_report(IPCT_DESTROY, ct,
+	    portid, report) < 0)) {
 		/* destroy event was not delivered */
 		nf_ct_delete_from_lists(ct);
 		nf_ct_dying_timeout(ct);
-		return;
+		return false;
 	}
 	set_bit(IPS_DYING_BIT, &ct->status);
 	nf_ct_delete_from_lists(ct);
 	nf_ct_put(ct);
+	return true;
+}
+EXPORT_SYMBOL_GPL(nf_ct_delete);
+
+static void death_by_timeout(unsigned long ul_conntrack)
+{
+	nf_ct_delete((struct nf_conn *)ul_conntrack, 0, 0);
+}
+
+static inline bool
+nf_ct_key_equal(struct nf_conntrack_tuple_hash *h,
+			const struct nf_conntrack_tuple *tuple,
+			u16 zone)
+{
+	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+
+	/* A conntrack can be recreated with the equal tuple,
+	 * so we need to check that the conntrack is confirmed
+	 */
+	return nf_ct_tuple_equal(tuple, &h->tuple) &&
+		nf_ct_zone(ct) == zone &&
+		nf_ct_is_confirmed(ct);
 }
 
 /*
@@ -332,8 +348,7 @@ ____nf_conntrack_find(struct net *net, u16 zone,
 	local_bh_disable();
 begin:
 	hlist_nulls_for_each_entry_rcu(h, n, &net->ct.hash[bucket], hnnode) {
-		if (nf_ct_tuple_equal(tuple, &h->tuple) &&
-		    nf_ct_zone(nf_ct_tuplehash_to_ctrack(h)) == zone) {
+		if (nf_ct_key_equal(h, tuple, zone)) {
 			NF_CT_STAT_INC(net, found);
 			local_bh_enable();
 			return h;
@@ -354,15 +369,6 @@ begin:
 	return NULL;
 }
 
-struct nf_conntrack_tuple_hash *
-__nf_conntrack_find(struct net *net, u16 zone,
-		    const struct nf_conntrack_tuple *tuple)
-{
-	return ____nf_conntrack_find(net, zone, tuple,
-				     hash_conntrack_raw(tuple, zone));
-}
-EXPORT_SYMBOL_GPL(__nf_conntrack_find);
-
 /* Find a connection corresponding to a tuple. */
 static struct nf_conntrack_tuple_hash *
 __nf_conntrack_find_get(struct net *net, u16 zone,
@@ -380,8 +386,7 @@ begin:
 			     !atomic_inc_not_zero(&ct->ct_general.use)))
 			h = NULL;
 		else {
-			if (unlikely(!nf_ct_tuple_equal(tuple, &h->tuple) ||
-				     nf_ct_zone(ct) != zone)) {
+			if (unlikely(!nf_ct_key_equal(h, tuple, zone))) {
 				nf_ct_put(ct);
 				goto begin;
 			}
@@ -443,7 +448,9 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 			goto out;
 
 	add_timer(&ct->timeout);
-	nf_conntrack_get(&ct->ct_general);
+	smp_wmb();
+	/* The caller holds a reference to this object */
+	atomic_set(&ct->ct_general.use, 2);
 	__nf_conntrack_hash_insert(ct, hash, repl_hash);
 	NF_CT_STAT_INC(net, insert);
 	spin_unlock_bh(&nf_conntrack_lock);
@@ -456,6 +463,21 @@ out:
 	return -EEXIST;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_hash_check_insert);
+
+/* deletion from this larval template list happens via nf_ct_put() */
+void nf_conntrack_tmpl_insert(struct net *net, struct nf_conn *tmpl)
+{
+	__set_bit(IPS_TEMPLATE_BIT, &tmpl->status);
+	__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
+	nf_conntrack_get(&tmpl->ct_general);
+
+	spin_lock_bh(&nf_conntrack_lock);
+	/* Overload tuple linked list to put us in template list. */
+	hlist_nulls_add_head_rcu(&tmpl->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
+				 &net->ct.tmpl);
+	spin_unlock_bh(&nf_conntrack_lock);
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_tmpl_insert);
 
 /* Confirm a connection given skb; places it in hash table */
 int
@@ -643,10 +665,7 @@ static noinline int early_drop(struct net *net, unsigned int hash)
 		return dropped;
 
 	if (del_timer(&ct->timeout)) {
-		death_by_timeout((unsigned long)ct);
-		/* Check if we indeed killed this entry. Reliable event
-		   delivery may have inserted it into the dying list. */
-		if (test_bit(IPS_DYING_BIT, &ct->status)) {
+		if (nf_ct_delete(ct, 0, 0)) {
 			dropped = 1;
 			NF_CT_STAT_INC_ATOMIC(net, early_drop);
 		}
@@ -731,11 +750,10 @@ __nf_conntrack_alloc(struct net *net, u16 zone,
 		nf_ct_zone->id = zone;
 	}
 #endif
-	/*
-	 * changes to lookup keys must be done before setting refcnt to 1
+	/* Because we use RCU lookups, we set ct_general.use to zero before
+	 * this is inserted in any list.
 	 */
-	smp_wmb();
-	atomic_set(&ct->ct_general.use, 1);
+	atomic_set(&ct->ct_general.use, 0);
 	return ct;
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
@@ -759,10 +777,16 @@ void nf_conntrack_free(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 
+	/* A freed object has refcnt == 0, that's
+	 * the golden rule for SLAB_DESTROY_BY_RCU
+	 */
+	NF_CT_ASSERT(atomic_read(&ct->ct_general.use) == 0);
+
 	nf_ct_ext_destroy(ct);
-	atomic_dec(&net->ct.count);
 	nf_ct_ext_free(ct);
 	kmem_cache_free(net->ct.nf_conntrack_cachep, ct);
+	smp_mb__before_atomic_dec();
+	atomic_dec(&net->ct.count);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
@@ -795,6 +819,11 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 				  hash);
 	if (IS_ERR(ct))
 		return (struct nf_conntrack_tuple_hash *)ct;
+
+	if (tmpl && nfct_synproxy(tmpl)) {
+		nfct_seqadj_ext_add(ct);
+		nfct_synproxy_ext_add(ct);
+	}
 
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
 	if (timeout_ext)
@@ -847,6 +876,9 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
 		NF_CT_STAT_INC(net, new);
 	}
+
+	/* Now it is inserted into the unconfirmed list, bump refcount */
+	nf_conntrack_get(&ct->ct_general);
 
 	/* Overload tuple linked list to put us in unconfirmed list. */
 	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
@@ -1100,12 +1132,14 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 
 acct:
 	if (do_acct) {
-		struct nf_conn_counter *acct;
+		struct nf_conn_acct *acct;
 
 		acct = nf_conn_acct_find(ct);
 		if (acct) {
-			atomic64_inc(&acct[CTINFO2DIR(ctinfo)].packets);
-			atomic64_add(skb->len, &acct[CTINFO2DIR(ctinfo)].bytes);
+			struct nf_conn_counter *counter = acct->counter;
+
+			atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
+			atomic64_add(skb->len, &counter[CTINFO2DIR(ctinfo)].bytes);
 		}
 	}
 }
@@ -1117,13 +1151,15 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 		       int do_acct)
 {
 	if (do_acct) {
-		struct nf_conn_counter *acct;
+		struct nf_conn_acct *acct;
 
 		acct = nf_conn_acct_find(ct);
 		if (acct) {
-			atomic64_inc(&acct[CTINFO2DIR(ctinfo)].packets);
+			struct nf_conn_counter *counter = acct->counter;
+
+			atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
 			atomic64_add(skb->len - skb_network_offset(skb),
-				     &acct[CTINFO2DIR(ctinfo)].bytes);
+				     &counter[CTINFO2DIR(ctinfo)].bytes);
 		}
 	}
 
@@ -1192,7 +1228,7 @@ EXPORT_SYMBOL_GPL(nf_ct_port_nlattr_tuple_size);
 #endif
 
 /* Used by ipt_REJECT and ip6t_REJECT. */
-static void nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
+static void nf_conntrack_attach(struct sk_buff *nskb, const struct sk_buff *skb)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -1244,7 +1280,7 @@ found:
 
 void nf_ct_iterate_cleanup(struct net *net,
 			   int (*iter)(struct nf_conn *i, void *data),
-			   void *data)
+			   void *data, u32 portid, int report)
 {
 	struct nf_conn *ct;
 	unsigned int bucket = 0;
@@ -1252,37 +1288,14 @@ void nf_ct_iterate_cleanup(struct net *net,
 	while ((ct = get_next_corpse(net, iter, data, &bucket)) != NULL) {
 		/* Time to push up daises... */
 		if (del_timer(&ct->timeout))
-			death_by_timeout((unsigned long)ct);
+			nf_ct_delete(ct, portid, report);
+
 		/* ... else the timer will get him soon. */
 
 		nf_ct_put(ct);
 	}
 }
 EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup);
-
-struct __nf_ct_flush_report {
-	u32 portid;
-	int report;
-};
-
-static int kill_report(struct nf_conn *i, void *data)
-{
-	struct __nf_ct_flush_report *fr = (struct __nf_ct_flush_report *)data;
-	struct nf_conn_tstamp *tstamp;
-
-	tstamp = nf_conn_tstamp_find(i);
-	if (tstamp && tstamp->stop == 0)
-		tstamp->stop = ktime_to_ns(ktime_get_real());
-
-	/* If we fail to deliver the event, death_by_timeout() will retry */
-	if (nf_conntrack_event_report(IPCT_DESTROY, i,
-				      fr->portid, fr->report) < 0)
-		return 1;
-
-	/* Avoid the delivery of the destroy event in death_by_timeout(). */
-	set_bit(IPS_DYING_BIT, &i->status);
-	return 1;
-}
 
 static int kill_all(struct nf_conn *i, void *data)
 {
@@ -1301,11 +1314,7 @@ EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
 void nf_conntrack_flush_report(struct net *net, u32 portid, int report)
 {
-	struct __nf_ct_flush_report fr = {
-		.portid	= portid,
-		.report = report,
-	};
-	nf_ct_iterate_cleanup(net, kill_report, &fr);
+	nf_ct_iterate_cleanup(net, kill_all, NULL, portid, report);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_flush_report);
 
@@ -1351,6 +1360,7 @@ void nf_conntrack_cleanup_end(void)
 	nf_ct_extend_unregister(&nf_ct_zone_extend);
 #endif
 	nf_conntrack_proto_fini();
+	nf_conntrack_seqadj_fini();
 	nf_conntrack_labels_fini();
 	nf_conntrack_helper_fini();
 	nf_conntrack_timeout_fini();
@@ -1386,7 +1396,7 @@ void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
 i_see_dead_people:
 	busy = 0;
 	list_for_each_entry(net, net_exit_list, exit_list) {
-		nf_ct_iterate_cleanup(net, kill_all, NULL);
+		nf_ct_iterate_cleanup(net, kill_all, NULL, 0, 0);
 		nf_ct_release_dying_list(net);
 		if (atomic_read(&net->ct.count) != 0)
 			busy = 1;
@@ -1556,6 +1566,10 @@ int nf_conntrack_init_start(void)
 	if (ret < 0)
 		goto err_labels;
 
+	ret = nf_conntrack_seqadj_init();
+	if (ret < 0)
+		goto err_seqadj;
+
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	ret = nf_ct_extend_register(&nf_ct_zone_extend);
 	if (ret < 0)
@@ -1580,6 +1594,8 @@ err_proto:
 	nf_ct_extend_unregister(&nf_ct_zone_extend);
 err_extend:
 #endif
+	nf_conntrack_seqadj_fini();
+err_seqadj:
 	nf_conntrack_labels_fini();
 err_labels:
 	nf_conntrack_helper_fini();
@@ -1602,9 +1618,6 @@ void nf_conntrack_init_end(void)
 	/* For use by REJECT target */
 	RCU_INIT_POINTER(ip_ct_attach, nf_conntrack_attach);
 	RCU_INIT_POINTER(nf_ct_destroy, destroy_conntrack);
-
-	/* Howto get NAT offsets */
-	RCU_INIT_POINTER(nf_ct_nat_offset, NULL);
 }
 
 /*
@@ -1691,8 +1704,3 @@ err_slabname:
 err_stat:
 	return ret;
 }
-
-s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
-			enum ip_conntrack_dir dir,
-			u32 seq);
-EXPORT_SYMBOL_GPL(nf_ct_nat_offset);

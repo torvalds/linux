@@ -39,21 +39,23 @@ static struct ctl_table acct_sysctl_table[] = {
 unsigned int
 seq_print_acct(struct seq_file *s, const struct nf_conn *ct, int dir)
 {
-	struct nf_conn_counter *acct;
+	struct nf_conn_acct *acct;
+	struct nf_conn_counter *counter;
 
 	acct = nf_conn_acct_find(ct);
 	if (!acct)
 		return 0;
 
+	counter = acct->counter;
 	return seq_printf(s, "packets=%llu bytes=%llu ",
-			  (unsigned long long)atomic64_read(&acct[dir].packets),
-			  (unsigned long long)atomic64_read(&acct[dir].bytes));
+			  (unsigned long long)atomic64_read(&counter[dir].packets),
+			  (unsigned long long)atomic64_read(&counter[dir].bytes));
 };
 EXPORT_SYMBOL_GPL(seq_print_acct);
 
 static struct nf_ct_ext_type acct_extend __read_mostly = {
-	.len	= sizeof(struct nf_conn_counter[IP_CT_DIR_MAX]),
-	.align	= __alignof__(struct nf_conn_counter[IP_CT_DIR_MAX]),
+	.len	= sizeof(struct nf_conn_acct),
+	.align	= __alignof__(struct nf_conn_acct),
 	.id	= NF_CT_EXT_ACCT,
 };
 

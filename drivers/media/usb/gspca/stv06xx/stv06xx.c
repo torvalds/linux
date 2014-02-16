@@ -452,7 +452,7 @@ frame_data:
 					NULL, 0);
 
 			if (sd->bridge == BRIDGE_ST6422)
-				sd->to_skip = gspca_dev->width * 4;
+				sd->to_skip = gspca_dev->pixfmt.width * 4;
 
 			if (chunk_len)
 				PERR("Chunk length is "

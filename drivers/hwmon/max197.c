@@ -261,7 +261,7 @@ static int max197_probe(struct platform_device *pdev)
 {
 	int ch, ret;
 	struct max197_data *data;
-	struct max197_platform_data *pdata = pdev->dev.platform_data;
+	struct max197_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	enum max197_chips chip = platform_get_device_id(pdev)->driver_data;
 
 	if (pdata == NULL) {

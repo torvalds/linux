@@ -14,6 +14,7 @@
 
 /***************************************************************************/
 
+#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/kd.h>
@@ -59,7 +60,7 @@ static void m68vz328_reset(void)
 	);
 }
 
-static void init_hardware(char *command, int size)
+static void __init init_hardware(char *command, int size)
 {
 #ifdef CONFIG_DIRECT_IO_ACCESS
 	SCR = 0x10;					/* allow user access to internal registers */
@@ -145,7 +146,7 @@ _bsc0(char *, getserialnum)
 _bsc1(unsigned char *, gethwaddr, int, a)
 _bsc1(char *, getbenv, char *, a)
 
-static void init_hardware(char *command, int size)
+static void __init init_hardware(char *command, int size)
 {
 	char *p;
 
@@ -167,7 +168,7 @@ static void m68vz328_reset(void)
 {
 }
 
-static void init_hardware(char *command, int size)
+static void __init init_hardware(char *command, int size)
 {
 }
 
@@ -175,7 +176,7 @@ static void init_hardware(char *command, int size)
 #endif
 /***************************************************************************/
 
-void config_BSP(char *command, int size)
+void __init config_BSP(char *command, int size)
 {
 	printk(KERN_INFO "68VZ328 DragonBallVZ support (c) 2001 Lineo, Inc.\n");
 

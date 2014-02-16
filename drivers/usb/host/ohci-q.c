@@ -41,9 +41,13 @@ finish_urb(struct ohci_hcd *ohci, struct urb *urb, int status)
 __releases(ohci->lock)
 __acquires(ohci->lock)
 {
-	 struct device *dev = ohci_to_hcd(ohci)->self.controller;
+	struct device *dev = ohci_to_hcd(ohci)->self.controller;
+	struct usb_host_endpoint *ep = urb->ep;
+	struct urb_priv *urb_priv;
+
 	// ASSERT (urb->hcpriv != 0);
 
+ restart:
 	urb_free_priv (ohci, urb->hcpriv);
 	urb->hcpriv = NULL;
 	if (likely(status == -EINPROGRESS))
@@ -64,10 +68,6 @@ __acquires(ohci->lock)
 		break;
 	}
 
-#ifdef OHCI_VERBOSE_DEBUG
-	urb_print(urb, "RET", usb_pipeout (urb->pipe), status);
-#endif
-
 	/* urb->complete() can reenter this HCD */
 	usb_hcd_unlink_urb_from_ep(ohci_to_hcd(ohci), urb);
 	spin_unlock (&ohci->lock);
@@ -79,6 +79,21 @@ __acquires(ohci->lock)
 			&& ohci_to_hcd(ohci)->self.bandwidth_int_reqs == 0) {
 		ohci->hc_control &= ~(OHCI_CTRL_PLE|OHCI_CTRL_IE);
 		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
+	}
+
+	/*
+	 * An isochronous URB that is sumitted too late won't have any TDs
+	 * (marked by the fact that the td_cnt value is larger than the
+	 * actual number of TDs).  If the next URB on this endpoint is like
+	 * that, give it back now.
+	 */
+	if (!list_empty(&ep->urb_list)) {
+		urb = list_first_entry(&ep->urb_list, struct urb, urb_list);
+		urb_priv = urb->hcpriv;
+		if (urb_priv->td_cnt > urb_priv->length) {
+			status = 0;
+			goto restart;
+		}
 	}
 }
 
@@ -128,7 +143,7 @@ static void periodic_link (struct ohci_hcd *ohci, struct ed *ed)
 {
 	unsigned	i;
 
-	ohci_vdbg (ohci, "link %sed %p branch %d [%dus.], interval %d\n",
+	ohci_dbg(ohci, "link %sed %p branch %d [%dus.], interval %d\n",
 		(ed->hwINFO & cpu_to_hc32 (ohci, ED_ISO)) ? "iso " : "",
 		ed, ed->branch, ed->load, ed->interval);
 
@@ -275,7 +290,7 @@ static void periodic_unlink (struct ohci_hcd *ohci, struct ed *ed)
 	}
 	ohci_to_hcd(ohci)->self.bandwidth_allocated -= ed->load / ed->interval;
 
-	ohci_vdbg (ohci, "unlink %sed %p branch %d [%dus.], interval %d\n",
+	ohci_dbg(ohci, "unlink %sed %p branch %d [%dus.], interval %d\n",
 		(ed->hwINFO & cpu_to_hc32 (ohci, ED_ISO)) ? "iso " : "",
 		ed, ed->branch, ed->load, ed->interval);
 }
@@ -546,7 +561,6 @@ td_fill (struct ohci_hcd *ohci, u32 info,
 		td->hwCBP = cpu_to_hc32 (ohci, data & 0xFFFFF000);
 		*ohci_hwPSWp(ohci, td, 0) = cpu_to_hc16 (ohci,
 						(data & 0x0FFF) | 0xE000);
-		td->ed->last_iso = info & 0xffff;
 	} else {
 		td->hwCBP = cpu_to_hc32 (ohci, data);
 	}
@@ -747,7 +761,7 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 		urb->iso_frame_desc [td->index].status = cc_to_error [cc];
 
 		if (cc != TD_CC_NOERROR)
-			ohci_vdbg (ohci,
+			ohci_dbg(ohci,
 				"urb %p iso td %p (%d) len %d cc %d\n",
 				urb, td, 1 + td->index, dlen, cc);
 
@@ -779,7 +793,7 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 		}
 
 		if (cc != TD_CC_NOERROR && cc < 0x0E)
-			ohci_vdbg (ohci,
+			ohci_dbg(ohci,
 				"urb %p td %p (%d) cc %d, len=%d/%d\n",
 				urb, td, 1 + td->index, cc,
 				urb->actual_length,
@@ -996,7 +1010,7 @@ rescan_this:
 			urb_priv->td_cnt++;
 
 			/* if URB is done, clean up */
-			if (urb_priv->td_cnt == urb_priv->length) {
+			if (urb_priv->td_cnt >= urb_priv->length) {
 				modified = completed = 1;
 				finish_urb(ohci, urb, 0);
 			}
@@ -1086,7 +1100,7 @@ static void takeback_td(struct ohci_hcd *ohci, struct td *td)
 	urb_priv->td_cnt++;
 
 	/* If all this urb's TDs are done, call complete() */
-	if (urb_priv->td_cnt == urb_priv->length)
+	if (urb_priv->td_cnt >= urb_priv->length)
 		finish_urb(ohci, urb, status);
 
 	/* clean schedule:  unlink EDs that are no longer busy */

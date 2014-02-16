@@ -162,7 +162,7 @@ static inline long do_kvm_notify(struct subchannel_id schid,
 	return __rc;
 }
 
-static void virtio_ccw_kvm_notify(struct virtqueue *vq)
+static bool virtio_ccw_kvm_notify(struct virtqueue *vq)
 {
 	struct virtio_ccw_vq_info *info = vq->priv;
 	struct virtio_ccw_device *vcdev;
@@ -171,6 +171,9 @@ static void virtio_ccw_kvm_notify(struct virtqueue *vq)
 	vcdev = to_vc_device(info->vq->vdev);
 	ccw_device_get_schid(vcdev->cdev, &schid);
 	info->cookie = do_kvm_notify(schid, vq->index, info->cookie);
+	if (info->cookie < 0)
+		return false;
+	return true;
 }
 
 static int virtio_ccw_read_vq_conf(struct virtio_ccw_device *vcdev,
@@ -639,8 +642,15 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 	     (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND))) {
 		/* OK */
 	}
-	if (irb_is_error(irb))
-		vcdev->err = -EIO; /* XXX - use real error */
+	if (irb_is_error(irb)) {
+		/* Command reject? */
+		if ((scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK) &&
+		    (irb->ecw[0] & SNS0_CMD_REJECT))
+			vcdev->err = -EOPNOTSUPP;
+		else
+			/* Map everything else to -EIO. */
+			vcdev->err = -EIO;
+	}
 	if (vcdev->curr_io & activity) {
 		switch (activity) {
 		case VIRTIO_CCW_DOING_READ_FEAT:

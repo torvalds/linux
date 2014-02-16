@@ -84,7 +84,7 @@ struct workqueue_struct *svc_rdma_wq;
  * resets the associated statistic to zero. Any read returns it's
  * current value.
  */
-static int read_reset_stat(ctl_table *table, int write,
+static int read_reset_stat(struct ctl_table *table, int write,
 			   void __user *buffer, size_t *lenp,
 			   loff_t *ppos)
 {
@@ -119,7 +119,7 @@ static int read_reset_stat(ctl_table *table, int write,
 }
 
 static struct ctl_table_header *svcrdma_table_header;
-static ctl_table svcrdma_parm_table[] = {
+static struct ctl_table svcrdma_parm_table[] = {
 	{
 		.procname	= "max_requests",
 		.data		= &svcrdma_max_requests,
@@ -214,7 +214,7 @@ static ctl_table svcrdma_parm_table[] = {
 	{ },
 };
 
-static ctl_table svcrdma_table[] = {
+static struct ctl_table svcrdma_table[] = {
 	{
 		.procname	= "svc_rdma",
 		.mode		= 0555,
@@ -223,7 +223,7 @@ static ctl_table svcrdma_table[] = {
 	{ },
 };
 
-static ctl_table svcrdma_root_table[] = {
+static struct ctl_table svcrdma_root_table[] = {
 	{
 		.procname	= "sunrpc",
 		.mode		= 0555,

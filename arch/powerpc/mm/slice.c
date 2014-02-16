@@ -258,7 +258,7 @@ static bool slice_scan_available(unsigned long addr,
 		slice = GET_HIGH_SLICE_INDEX(addr);
 		*boundary_addr = (slice + end) ?
 			((slice + end) << SLICE_HIGH_SHIFT) : SLICE_LOW_TOP;
-		return !!(available.high_slices & (1u << slice));
+		return !!(available.high_slices & (1ul << slice));
 	}
 }
 
@@ -408,7 +408,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	if (fixed && (addr & ((1ul << pshift) - 1)))
 		return -EINVAL;
 	if (fixed && addr > (mm->task_size - len))
-		return -EINVAL;
+		return -ENOMEM;
 
 	/* If hint, make sure it matches our alignment restrictions */
 	if (!fixed && addr) {

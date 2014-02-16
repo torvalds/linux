@@ -398,7 +398,7 @@ static void crystalhd_hw_free_rx_pkt(struct crystalhd_hw *hw,
  * Call back from TX - IOQ deletion.
  *
  * This routine will release the TX DMA rings allocated
- * druing setup_dma rings interface.
+ * during setup_dma rings interface.
  *
  * Memory is allocated per DMA ring basis. This is just
  * a place holder to be able to create the dio queues.
@@ -1061,7 +1061,7 @@ static void cpy_pib_to_app(struct c011_pib *src_pib,
 	dst_pib->aspect_ratio        = src_pib->ppb.aspect_ratio;
 	dst_pib->colour_primaries     = src_pib->ppb.colour_primaries;
 	dst_pib->picture_meta_payload = src_pib->ppb.picture_meta_payload;
-	dst_pib->frame_rate		= src_pib->resolution ;
+	dst_pib->frame_rate		= src_pib->resolution;
 	return;
 }
 
@@ -1517,7 +1517,7 @@ static void crystalhd_rx_isr(struct crystalhd_hw *hw, uint32_t intr_sts)
 	uint32_t i, list_avail = 0;
 	enum BC_STATUS comp_sts = BC_STS_NO_DATA;
 	uint32_t y_err_sts, uv_err_sts, y_dn_sz = 0, uv_dn_sz = 0;
-	bool ret = 0;
+	bool ret = false;
 
 	if (!hw) {
 		BCMLOG_ERR("Invalid Arguments\n");
@@ -1553,11 +1553,10 @@ static void crystalhd_rx_isr(struct crystalhd_hw *hw, uint32_t intr_sts)
 				crystalhd_get_dnsz(hw, i, &y_dn_sz, &uv_dn_sz);
 				/* FIXME: jarod: this is where
 				 my mini pci-e card is tripping up */
-				BCMLOG(BCMLOG_DBG, "list_index:%x rx[%d] Y:%x "
-				       "UV:%x Int:%x YDnSz:%x UVDnSz:%x\n",
+				BCMLOG(BCMLOG_DBG, "list_index:%x rx[%d] Y:%x UV:%x Int:%x YDnSz:%x UVDnSz:%x\n",
 				       i, hw->stats.rx_errors, y_err_sts,
 				       uv_err_sts, intr_sts, y_dn_sz,
-				       		 uv_dn_sz);
+				       uv_dn_sz);
 				hw->rx_list_sts[i] = sts_free;
 				comp_sts = BC_STS_ERROR;
 				break;
@@ -1853,7 +1852,7 @@ bool crystalhd_hw_interrupt(struct crystalhd_adp *adp, struct crystalhd_hw *hw)
 {
 	uint32_t intr_sts = 0;
 	uint32_t deco_intr = 0;
-	bool rc = 0;
+	bool rc = false;
 
 	if (!adp || !hw->dev_started)
 		return rc;
@@ -1866,7 +1865,7 @@ bool crystalhd_hw_interrupt(struct crystalhd_adp *adp, struct crystalhd_hw *hw)
 
 	if (intr_sts) {
 		/* let system know we processed interrupt..*/
-		rc = 1;
+		rc = true;
 		hw->stats.dev_interrupts++;
 	}
 
@@ -1887,7 +1886,7 @@ bool crystalhd_hw_interrupt(struct crystalhd_adp *adp, struct crystalhd_hw *hw)
 		/* FIXME: jarod: No udelay? might this be
 		 the real reason mini pci-e cards were stalling out? */
 		bc_dec_reg_wr(adp, Stream2Host_Intr_Sts, 0);
-		rc = 1;
+		rc = true;
 	}
 
 	/* Rx interrupts */

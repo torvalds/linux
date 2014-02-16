@@ -19,13 +19,13 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <asm/irq.h>
 #include <linux/atomic.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <mach/at91_pmc.h>
 #include <mach/cpu.h>
 
 #include "at91_aic.h"
@@ -38,6 +38,8 @@
 
 #include "at91_rstc.h"
 #include "at91_shdwc.h"
+
+static void (*at91_pm_standby)(void);
 
 static void __init show_reset_status(void)
 {
@@ -153,9 +155,6 @@ static int at91_pm_verify_clocks(void)
 		}
 	}
 
-	if (!IS_ENABLED(CONFIG_AT91_PROGRAMMABLE_CLOCKS))
-		return 1;
-
 	/* PCK0..PCK3 must be disabled, or configured to use clk32k */
 	for (i = 0; i < 4; i++) {
 		u32 css;
@@ -266,14 +265,8 @@ static int at91_pm_enter(suspend_state_t state)
 			 * For ARM 926 based chips, this requirement is weaker
 			 * as at91sam9 can access a RAM in self-refresh mode.
 			 */
-			if (cpu_is_at91rm9200())
-				at91rm9200_standby();
-			else if (cpu_is_at91sam9g45())
-				at91sam9g45_standby();
-			else if (cpu_is_at91sam9263())
-				at91sam9263_standby();
-			else
-				at91sam9_standby();
+			if (at91_pm_standby)
+				at91_pm_standby();
 			break;
 
 		case PM_SUSPEND_ON:
@@ -314,6 +307,18 @@ static const struct platform_suspend_ops at91_pm_ops = {
 	.end	= at91_pm_end,
 };
 
+static struct platform_device at91_cpuidle_device = {
+	.name = "cpuidle-at91",
+};
+
+void at91_pm_set_standby(void (*at91_standby)(void))
+{
+	if (at91_standby) {
+		at91_cpuidle_device.dev.platform_data = at91_standby;
+		at91_pm_standby = at91_standby;
+	}
+}
+
 static int __init at91_pm_init(void)
 {
 #ifdef CONFIG_AT91_SLOW_CLOCK
@@ -325,6 +330,9 @@ static int __init at91_pm_init(void)
 	/* AT91RM9200 SDRAM low-power mode cannot be used with self-refresh. */
 	if (cpu_is_at91rm9200())
 		at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
+	
+	if (at91_cpuidle_device.dev.platform_data)
+		platform_device_register(&at91_cpuidle_device);
 
 	suspend_set_ops(&at91_pm_ops);
 

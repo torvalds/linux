@@ -5,19 +5,10 @@
 #include <linux/sh_dma.h>
 
 /*
- * Generic header for SuperH (H)SCI(F) (used by sh/sh64/h8300 and related parts)
+ * Generic header for SuperH (H)SCI(F) (used by sh/sh64 and related parts)
  */
 
 #define SCIx_NOT_SUPPORTED	(-1)
-
-enum {
-	SCBRR_ALGO_1,		/* ((clk + 16 * bps) / (16 * bps) - 1) */
-	SCBRR_ALGO_2,		/* ((clk + 16 * bps) / (32 * bps) - 1) */
-	SCBRR_ALGO_3,		/* (((clk * 2) + 16 * bps) / (16 * bps) - 1) */
-	SCBRR_ALGO_4,		/* (((clk * 2) + 16 * bps) / (32 * bps) - 1) */
-	SCBRR_ALGO_5,		/* (((clk * 1000 / 32) / bps) - 1) */
-	SCBRR_ALGO_6,		/* HSCIF variable sample rate algorithm */
-};
 
 #define SCSCR_TIE	(1 << 7)
 #define SCSCR_RIE	(1 << 6)
@@ -59,28 +50,6 @@ enum {
 /* HSSRR HSCIF */
 #define HSCIF_SRE	0x8000
 
-/* Offsets into the sci_port->irqs array */
-enum {
-	SCIx_ERI_IRQ,
-	SCIx_RXI_IRQ,
-	SCIx_TXI_IRQ,
-	SCIx_BRI_IRQ,
-	SCIx_NR_IRQS,
-
-	SCIx_MUX_IRQ = SCIx_NR_IRQS,	/* special case */
-};
-
-/* Offsets into the sci_port->gpios array */
-enum {
-	SCIx_SCK,
-	SCIx_RXD,
-	SCIx_TXD,
-	SCIx_CTS,
-	SCIx_RTS,
-
-	SCIx_NR_FNS,
-};
-
 enum {
 	SCIx_PROBE_REGTYPE,
 
@@ -99,19 +68,6 @@ enum {
 	SCIx_NR_REGTYPES,
 };
 
-#define SCIx_IRQ_MUXED(irq)		\
-{					\
-	[SCIx_ERI_IRQ]	= (irq),	\
-	[SCIx_RXI_IRQ]	= (irq),	\
-	[SCIx_TXI_IRQ]	= (irq),	\
-	[SCIx_BRI_IRQ]	= (irq),	\
-}
-
-#define SCIx_IRQ_IS_MUXED(port)			\
-	((port)->cfg->irqs[SCIx_ERI_IRQ] ==	\
-	 (port)->cfg->irqs[SCIx_RXI_IRQ]) ||	\
-	((port)->cfg->irqs[SCIx_ERI_IRQ] &&	\
-	 !(port)->cfg->irqs[SCIx_RXI_IRQ])
 /*
  * SCI register subset common for all port types.
  * Not all registers will exist on all parts.
@@ -140,22 +96,16 @@ struct plat_sci_port_ops {
  * Platform device specific platform_data struct
  */
 struct plat_sci_port {
-	unsigned long	mapbase;		/* resource base */
-	unsigned int	irqs[SCIx_NR_IRQS];	/* ERI, RXI, TXI, BRI */
-	unsigned int	gpios[SCIx_NR_FNS];	/* SCK, RXD, TXD, CTS, RTS */
 	unsigned int	type;			/* SCI / SCIF / IRDA / HSCIF */
 	upf_t		flags;			/* UPF_* flags */
 	unsigned long	capabilities;		/* Port features/capabilities */
 
-	unsigned int	scbrr_algo_id;		/* SCBRR calculation algo */
+	unsigned int	sampling_rate;
 	unsigned int	scscr;			/* SCSCR initialization */
 
 	/*
 	 * Platform overrides if necessary, defaults otherwise.
 	 */
-	int		overrun_bit;
-	unsigned int	error_mask;
-
 	int		port_reg;
 	unsigned char	regshift;
 	unsigned char	regtype;

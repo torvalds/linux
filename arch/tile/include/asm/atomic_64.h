@@ -32,25 +32,6 @@
  * on any routine which updates memory and returns a value.
  */
 
-static inline int atomic_cmpxchg(atomic_t *v, int o, int n)
-{
-	int val;
-	__insn_mtspr(SPR_CMPEXCH_VALUE, o);
-	smp_mb();  /* barrier for proper semantics */
-	val = __insn_cmpexch4((void *)&v->counter, n);
-	smp_mb();  /* barrier for proper semantics */
-	return val;
-}
-
-static inline int atomic_xchg(atomic_t *v, int n)
-{
-	int val;
-	smp_mb();  /* barrier for proper semantics */
-	val = __insn_exch4((void *)&v->counter, n);
-	smp_mb();  /* barrier for proper semantics */
-	return val;
-}
-
 static inline void atomic_add(int i, atomic_t *v)
 {
 	__insn_fetchadd4((void *)&v->counter, i);
@@ -72,7 +53,7 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 		if (oldval == u)
 			break;
 		guess = oldval;
-		oldval = atomic_cmpxchg(v, guess, guess + a);
+		oldval = cmpxchg(&v->counter, guess, guess + a);
 	} while (guess != oldval);
 	return oldval;
 }
@@ -83,25 +64,6 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 
 #define atomic64_read(v)		((v)->counter)
 #define atomic64_set(v, i) ((v)->counter = (i))
-
-static inline long atomic64_cmpxchg(atomic64_t *v, long o, long n)
-{
-	long val;
-	smp_mb();  /* barrier for proper semantics */
-	__insn_mtspr(SPR_CMPEXCH_VALUE, o);
-	val = __insn_cmpexch((void *)&v->counter, n);
-	smp_mb();  /* barrier for proper semantics */
-	return val;
-}
-
-static inline long atomic64_xchg(atomic64_t *v, long n)
-{
-	long val;
-	smp_mb();  /* barrier for proper semantics */
-	val = __insn_exch((void *)&v->counter, n);
-	smp_mb();  /* barrier for proper semantics */
-	return val;
-}
 
 static inline void atomic64_add(long i, atomic64_t *v)
 {
@@ -124,7 +86,7 @@ static inline long atomic64_add_unless(atomic64_t *v, long a, long u)
 		if (oldval == u)
 			break;
 		guess = oldval;
-		oldval = atomic64_cmpxchg(v, guess, guess + a);
+		oldval = cmpxchg(&v->counter, guess, guess + a);
 	} while (guess != oldval);
 	return oldval != u;
 }

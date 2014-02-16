@@ -169,12 +169,12 @@ s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
 		}
 	} else {
 		cbHeaderSize += WLAN_HDR_ADDR3_LEN;
-	};
+	}
 
 	pbyRxBuffer = (unsigned char *)(pbyRxBufferAddr + cbHeaderSize);
-	if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_Bridgetunnel[0])) {
+	if (ether_addr_equal(pbyRxBuffer, pDevice->abySNAP_Bridgetunnel)) {
 		cbHeaderSize += 6;
-	} else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
+	} else if (ether_addr_equal(pbyRxBuffer, pDevice->abySNAP_RFC1042)) {
 		cbHeaderSize += 6;
 		pwType = (unsigned short *)(pbyRxBufferAddr + cbHeaderSize);
 		if ((*pwType != TYPE_PKT_IPX) && (*pwType != cpu_to_le16(0xF380))) {
@@ -263,7 +263,7 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 				psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr2[ii];
 			}
 		}
-	};
+	}
 	*pcbHeaderSize = cbHeaderSize;
 }
 
@@ -379,7 +379,7 @@ device_receive_frame(
 
 	pMACHeader = (PS802_11Header)((unsigned char *)(skb->data) + 8);
 //PLICE_DEBUG<-
-	if (pDevice->bMeasureInProgress == true) {
+	if (pDevice->bMeasureInProgress) {
 		if ((*pbyRsr & RSR_CRCOK) != 0) {
 			pDevice->byBasicMap |= 0x01;
 		}
@@ -420,7 +420,8 @@ device_receive_frame(
 	s_vGetDASA(skb->data+4, &cbHeaderSize, &pDevice->sRxEthHeader);
 
 	// filter packet send from myself
-	if (!compare_ether_addr((unsigned char *)&(pDevice->sRxEthHeader.abySrcAddr[0]), pDevice->abyCurrentNetAddr))
+	if (ether_addr_equal(pDevice->sRxEthHeader.abySrcAddr,
+			     pDevice->abyCurrentNetAddr))
 		return false;
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) || (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
@@ -435,7 +436,7 @@ device_receive_frame(
 	}
 
 	if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-		if (s_bAPModeRxCtl(pDevice, pbyFrame, iSANodeIndex) == true) {
+		if (s_bAPModeRxCtl(pDevice, pbyFrame, iSANodeIndex)) {
 			return false;
 		}
 	}
@@ -591,7 +592,7 @@ device_receive_frame(
 			}
 		} else {
 			// Control Frame
-		};
+		}
 		return false;
 	} else {
 		if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
@@ -607,8 +608,7 @@ device_receive_frame(
 			}
 		} else {
 			// discard DATA packet while not associate || BSSID error
-			if ((pDevice->bLinkPass == false) ||
-			    !(*pbyRsr & RSR_BSSIDOK)) {
+			if (!pDevice->bLinkPass || !(*pbyRsr & RSR_BSSIDOK)) {
 				if (bDeFragRx) {
 					if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
 						DBG_PRT(MSG_LEVEL_ERR, KERN_ERR "%s: can not alloc more frag bufs\n",
@@ -657,7 +657,7 @@ device_receive_frame(
 	// Now it only supports 802.11g Infrastructure Mode, and support rate must up to 54 Mbps
 	if (pDevice->bDiversityEnable && (FrameSize > 50) &&
 	    (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
-	    (pDevice->bLinkPass == true)) {
+	    pDevice->bLinkPass) {
 		BBvAntennaDiversity(pDevice, s_byGetRateIdx(*pbyRxRate), 0);
 	}
 
@@ -682,7 +682,7 @@ device_receive_frame(
 
 	// -----------------------------------------------
 
-	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnable8021x == true)) {
+	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && pDevice->bEnable8021x) {
 		unsigned char abyMacHdr[24];
 
 		// Only 802.1x packet incoming allowed
@@ -697,7 +697,7 @@ device_receive_frame(
 		if (wEtherType == ETH_P_PAE) {
 			skb->dev = pDevice->apdev;
 
-			if (bIsWEP == true) {
+			if (bIsWEP) {
 				// strip IV header(8)
 				memcpy(&abyMacHdr[0], (skb->data + 4), 24);
 				memcpy((skb->data + 4 + cbIVOffset), &abyMacHdr[0], 24);
@@ -769,8 +769,9 @@ device_receive_frame(
 			//DBG_PRN_GRP12(("LocalL: %lx, LocalR: %lx\n", dwLocalMIC_L, dwLocalMIC_R));
 			//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dwMICKey0= %lx,dwMICKey1= %lx \n", dwMICKey0, dwMICKey1);
 
-			if ((cpu_to_le32(*pdwMIC_L) != dwLocalMIC_L) || (cpu_to_le32(*pdwMIC_R) != dwLocalMIC_R) ||
-			    (pDevice->bRxMICFail == true)) {
+			if ((cpu_to_le32(*pdwMIC_L) != dwLocalMIC_L) ||
+			    (cpu_to_le32(*pdwMIC_R) != dwLocalMIC_R) ||
+			    pDevice->bRxMICFail) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MIC comparison is fail!\n");
 				pDevice->bRxMICFail = false;
 				//pDevice->s802_11Counter.TKIPLocalMICFailures.QuadPart++;
@@ -893,13 +894,13 @@ device_receive_frame(
 		return false;
 
 	if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-		if (s_bAPModeRxData(pDevice,
+		if (!s_bAPModeRxData(pDevice,
 				    skb,
 				    FrameSize,
 				    cbHeaderOffset,
 				    iSANodeIndex,
 				    iDANodeIndex
-) == false) {
+)) {
 			if (bDeFragRx) {
 				if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
 					DBG_PRT(MSG_LEVEL_ERR, KERN_ERR "%s: can not alloc more frag bufs\n",
@@ -1122,7 +1123,7 @@ static bool s_bHandleRxEncryption(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey == NULL\n");
 		if (byDecMode == KEY_CTL_WEP) {
 //            pDevice->s802_11Counter.WEPUndecryptableCount.QuadPart++;
-		} else if (pDevice->bLinkPass == true) {
+		} else if (pDevice->bLinkPass) {
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
 		}
 		return false;
@@ -1130,7 +1131,7 @@ static bool s_bHandleRxEncryption(
 	if (byDecMode != pKey->byCipherSuite) {
 		if (byDecMode == KEY_CTL_WEP) {
 //            pDevice->s802_11Counter.WEPUndecryptableCount.QuadPart++;
-		} else if (pDevice->bLinkPass == true) {
+		} else if (pDevice->bLinkPass) {
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
 		}
 		*pKeyOut = NULL;
@@ -1233,7 +1234,7 @@ static bool s_bHostWepRxEncryption(
 	if (byDecMode != pKey->byCipherSuite) {
 		if (byDecMode == KEY_CTL_WEP) {
 //            pDevice->s802_11Counter.WEPUndecryptableCount.QuadPart++;
-		} else if (pDevice->bLinkPass == true) {
+		} else if (pDevice->bLinkPass) {
 //            pDevice->s802_11Counter.DecryptFailureCount.QuadPart++;
 		}
 		return false;
@@ -1244,7 +1245,7 @@ static bool s_bHostWepRxEncryption(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "byDecMode == KEY_CTL_WEP \n");
 		if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
 		    (((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == true) ||
-		    (bOnFly == false)) {
+		    !bOnFly) {
 			// Software WEP
 			// 1. 3253A
 			// 2. WEP 256
@@ -1276,7 +1277,7 @@ static bool s_bHostWepRxEncryption(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "TSC0_15: %x\n", *pwRxTSC15_0);
 
 		if (byDecMode == KEY_CTL_TKIP) {
-			if ((pDevice->byLocalID <= REV_ID_VT3253_A1) || (bOnFly == false)) {
+			if ((pDevice->byLocalID <= REV_ID_VT3253_A1) || !bOnFly) {
 				// Software TKIP
 				// 1. 3253 A
 				// 2. NotOnFly
@@ -1296,7 +1297,7 @@ static bool s_bHostWepRxEncryption(
 		}
 
 		if (byDecMode == KEY_CTL_CCMP) {
-			if (bOnFly == false) {
+			if (!bOnFly) {
 				// Software CCMP
 				// NotOnFly
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "soft KEY_CTL_CCMP\n");

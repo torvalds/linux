@@ -82,7 +82,7 @@ struct davinci_mdio_regs {
 	}	user[0];
 };
 
-struct mdio_platform_data default_pdata = {
+static const struct mdio_platform_data default_pdata = {
 	.bus_freq = DEF_OUT_FREQ,
 };
 
@@ -292,6 +292,7 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_OF)
 static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			 struct platform_device *pdev)
 {
@@ -309,11 +310,11 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 
 	return 0;
 }
-
+#endif
 
 static int davinci_mdio_probe(struct platform_device *pdev)
 {
-	struct mdio_platform_data *pdata = pdev->dev.platform_data;
+	struct mdio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct davinci_mdio_data *data;
 	struct resource *res;
@@ -420,8 +421,7 @@ bail_out:
 
 static int davinci_mdio_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct davinci_mdio_data *data = dev_get_drvdata(dev);
+	struct davinci_mdio_data *data = platform_get_drvdata(pdev);
 
 	if (data->bus) {
 		mdiobus_unregister(data->bus);
@@ -432,8 +432,6 @@ static int davinci_mdio_remove(struct platform_device *pdev)
 		clk_put(data->clk);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	dev_set_drvdata(dev, NULL);
 
 	kfree(data);
 
@@ -487,11 +485,13 @@ static const struct dev_pm_ops davinci_mdio_pm_ops = {
 	.resume_early	= davinci_mdio_resume,
 };
 
+#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id davinci_mdio_of_mtable[] = {
 	{ .compatible = "ti,davinci_mdio", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, davinci_mdio_of_mtable);
+#endif
 
 static struct platform_driver davinci_mdio_driver = {
 	.driver = {

@@ -1865,7 +1865,7 @@ BBvCalculateParameter(
 		break;
 
 	case RATE_5M:
-		if (bCCK == false)
+		if (!bCCK)
 			cbBitCount++;
 		cbUsCount = (cbBitCount * 10) / 55;
 		cbTmp = (cbUsCount * 55) / 10;
@@ -1879,7 +1879,7 @@ BBvCalculateParameter(
 
 	case RATE_11M:
 
-		if (bCCK == false)
+		if (!bCCK)
 			cbBitCount++;
 		cbUsCount = cbBitCount / 11;
 		cbTmp = cbUsCount * 11;
@@ -2434,13 +2434,12 @@ void BBvSetVGAGainOffset(PSDevice pDevice, unsigned char byData)
 
 	BBbReadEmbedded(pDevice->PortOffset, 0x0A, &byBBRxConf);//CR10
 	// patch for 3253B0 Baseband with Cardbus module
-	if (byData == pDevice->abyBBVGA[0]) {
+	if (byData == pDevice->abyBBVGA[0])
 		byBBRxConf |= 0x20;//0010 0000
-	} else if (pDevice->bShortSlotTime) {
+	else if (pDevice->bShortSlotTime)
 		byBBRxConf &= 0xDF;//1101 1111
-	} else {
+	else
 		byBBRxConf |= 0x20;//0010 0000
-	}
 	pDevice->byBBVGACurrent = byData;
 	BBbWriteEmbedded(pDevice->PortOffset, 0x0A, byBBRxConf);//CR10
 }

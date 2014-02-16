@@ -81,11 +81,12 @@ struct client_obd *client_conn2cli(struct lustre_handle *conn);
 
 struct md_open_data;
 struct obd_client_handle {
-	struct lustre_handle  och_fh;
-	struct lu_fid	 och_fid;
-	struct md_open_data  *och_mod;
-	__u32 och_magic;
-	int och_flags;
+	struct lustre_handle	 och_fh;
+	struct lu_fid		 och_fid;
+	struct md_open_data	*och_mod;
+	struct lustre_handle	 och_lease_handle; /* open lock for lease */
+	__u32			 och_magic;
+	fmode_t			 och_flags;
 };
 #define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
 
@@ -96,7 +97,7 @@ void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs);
 /* l_lock.c */
 struct lustre_lock {
 	int			l_depth;
-	task_t		*l_owner;
+	struct task_struct	*l_owner;
 	struct semaphore	l_sem;
 	spinlock_t		l_spin;
 };
@@ -260,10 +261,7 @@ int obd_ioctl_popdata(void *arg, void *data, int len);
 
 static inline void obd_ioctl_freedata(char *buf, int len)
 {
-	ENTRY;
-
 	OBD_FREE_LARGE(buf, len);
-	EXIT;
 	return;
 }
 

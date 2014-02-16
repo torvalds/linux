@@ -21,7 +21,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
+#include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
@@ -114,7 +114,6 @@ struct imx_tve {
 	struct drm_encoder encoder;
 	struct imx_drm_encoder *imx_drm_encoder;
 	struct device *dev;
-	spinlock_t enable_lock;	/* serializes tve_enable/disable */
 	spinlock_t lock;	/* register lock */
 	bool enabled;
 	int mode;
@@ -131,12 +130,14 @@ struct imx_tve {
 };
 
 static void tve_lock(void *__tve)
+__acquires(&tve->lock)
 {
 	struct imx_tve *tve = __tve;
 	spin_lock(&tve->lock);
 }
 
 static void tve_unlock(void *__tve)
+__releases(&tve->lock)
 {
 	struct imx_tve *tve = __tve;
 	spin_unlock(&tve->lock);
@@ -144,12 +145,10 @@ static void tve_unlock(void *__tve)
 
 static void tve_enable(struct imx_tve *tve)
 {
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&tve->enable_lock, flags);
 	if (!tve->enabled) {
-		tve->enabled = 1;
+		tve->enabled = true;
 		clk_prepare_enable(tve->clk);
 		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
 					 TVE_IPU_CLK_EN | TVE_EN,
@@ -164,23 +163,21 @@ static void tve_enable(struct imx_tve *tve)
 		regmap_write(tve->regmap, TVE_INT_CONT_REG, 0);
 	else
 		regmap_write(tve->regmap, TVE_INT_CONT_REG,
-			     TVE_CD_SM_IEN | TVE_CD_LM_IEN | TVE_CD_MON_END_IEN);
-	spin_unlock_irqrestore(&tve->enable_lock, flags);
+			     TVE_CD_SM_IEN |
+			     TVE_CD_LM_IEN |
+			     TVE_CD_MON_END_IEN);
 }
 
 static void tve_disable(struct imx_tve *tve)
 {
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&tve->enable_lock, flags);
 	if (tve->enabled) {
-		tve->enabled = 0;
+		tve->enabled = false;
 		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
 					 TVE_IPU_CLK_EN | TVE_EN, 0);
 		clk_disable_unprepare(tve->clk);
 	}
-	spin_unlock_irqrestore(&tve->enable_lock, flags);
 }
 
 static int tve_setup_tvout(struct imx_tve *tve)
@@ -465,7 +462,9 @@ static int clk_tve_di_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		val = TVE_DAC_FULL_RATE;
 
-	ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_DAC_SAMP_RATE_MASK, val);
+	ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
+				 TVE_DAC_SAMP_RATE_MASK, val);
+
 	if (ret < 0) {
 		dev_err(tve->dev, "failed to set divider: %d\n", ret);
 		return ret;
@@ -561,7 +560,7 @@ static const char *imx_tve_modes[] = {
 	[TVE_MODE_VGA] = "vga",
 };
 
-const int of_get_tve_mode(struct device_node *np)
+static const int of_get_tve_mode(struct device_node *np)
 {
 	const char *bm;
 	int ret, i;
@@ -594,7 +593,6 @@ static int imx_tve_probe(struct platform_device *pdev)
 
 	tve->dev = &pdev->dev;
 	spin_lock_init(&tve->lock);
-	spin_lock_init(&tve->enable_lock);
 
 	ddc_node = of_parse_phandle(np, "ddc", 0);
 	if (ddc_node) {
@@ -609,13 +607,17 @@ static int imx_tve_probe(struct platform_device *pdev)
 	}
 
 	if (tve->mode == TVE_MODE_VGA) {
-		ret = of_property_read_u32(np, "fsl,hsync-pin", &tve->hsync_pin);
+		ret = of_property_read_u32(np, "fsl,hsync-pin",
+					   &tve->hsync_pin);
+
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get vsync pin\n");
 			return ret;
 		}
 
-		ret |= of_property_read_u32(np, "fsl,vsync-pin", &tve->vsync_pin);
+		ret |= of_property_read_u32(np, "fsl,vsync-pin",
+					    &tve->vsync_pin);
+
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get vsync pin\n");
 			return ret;
@@ -623,11 +625,6 @@ static int imx_tve_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get memory region\n");
-		return -ENOENT;
-	}
-
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -690,7 +687,7 @@ static int imx_tve_probe(struct platform_device *pdev)
 	if (val != 0x00100000) {
 		dev_err(&pdev->dev, "configuration register default value indicates this is not a TVEv2\n");
 		return -ENODEV;
-	};
+	}
 
 	/* disable cable detection for VGA mode */
 	ret = regmap_write(tve->regmap, TVE_CD_CONT_REG, 0);
@@ -743,3 +740,4 @@ module_platform_driver(imx_tve_driver);
 MODULE_DESCRIPTION("i.MX Television Encoder driver");
 MODULE_AUTHOR("Philipp Zabel, Pengutronix");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imx-tve");

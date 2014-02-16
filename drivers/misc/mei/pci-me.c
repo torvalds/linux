@@ -76,8 +76,11 @@ static DEFINE_PCI_DEVICE_TABLE(mei_me_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_1)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_2)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_H)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_W)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_LP)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_HR)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_WPT_LP)},
 
 	/* required last entry */
 	{0, }
@@ -141,6 +144,21 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "failed to get pci regions.\n");
 		goto disable_device;
 	}
+
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) ||
+	    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		if (err)
+			err = dma_set_coherent_mask(&pdev->dev,
+						    DMA_BIT_MASK(32));
+	}
+	if (err) {
+		dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
+		goto release_regions;
+	}
+
+
 	/* allocates and initializes the mei dev structure */
 	dev = mei_me_dev_init(pdev);
 	if (!dev) {
@@ -189,13 +207,13 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	schedule_delayed_work(&dev->timer_work, HZ);
 
-	pr_debug("initialization successful.\n");
+	dev_dbg(&pdev->dev, "initialization successful.\n");
 
 	return 0;
 
 release_irq:
+	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
-	flush_scheduled_work();
 	free_irq(pdev->irq, dev);
 disable_msi:
 	pci_disable_msi(pdev);
@@ -231,7 +249,7 @@ static void mei_me_remove(struct pci_dev *pdev)
 	hw = to_me_hw(dev);
 
 
-	dev_err(&pdev->dev, "stop\n");
+	dev_dbg(&pdev->dev, "stop\n");
 	mei_stop(dev);
 
 	/* disable interrupts */
@@ -239,7 +257,6 @@ static void mei_me_remove(struct pci_dev *pdev)
 
 	free_irq(pdev->irq, dev);
 	pci_disable_msi(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	if (hw->mem_addr)
 		pci_iounmap(pdev, hw->mem_addr);
@@ -262,7 +279,7 @@ static int mei_me_pci_suspend(struct device *device)
 	if (!dev)
 		return -ENODEV;
 
-	dev_err(&pdev->dev, "suspend\n");
+	dev_dbg(&pdev->dev, "suspend\n");
 
 	mei_stop(dev);
 
@@ -304,16 +321,14 @@ static int mei_me_pci_resume(struct device *device)
 		return err;
 	}
 
-	mutex_lock(&dev->device_lock);
-	dev->dev_state = MEI_DEV_POWER_UP;
-	mei_clear_interrupts(dev);
-	mei_reset(dev, 1);
-	mutex_unlock(&dev->device_lock);
+	err = mei_restart(dev);
+	if (err)
+		return err;
 
 	/* Start timer if stopped in suspend */
 	schedule_delayed_work(&dev->timer_work, HZ);
 
-	return err;
+	return 0;
 }
 static SIMPLE_DEV_PM_OPS(mei_me_pm_ops, mei_me_pci_suspend, mei_me_pci_resume);
 #define MEI_ME_PM_OPS	(&mei_me_pm_ops)

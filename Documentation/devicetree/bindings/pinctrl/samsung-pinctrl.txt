@@ -12,6 +12,7 @@ Required Properties:
   - "samsung,s3c2440-pinctrl": for S3C2440-compatible pin-controller,
   - "samsung,s3c2450-pinctrl": for S3C2450-compatible pin-controller,
   - "samsung,s3c64xx-pinctrl": for S3C64xx-compatible pin-controller,
+  - "samsung,s5pv210-pinctrl": for S5PV210-compatible pin-controller,
   - "samsung,exynos4210-pinctrl": for Exynos4210 compatible pin-controller.
   - "samsung,exynos4x12-pinctrl": for Exynos4x12 compatible pin-controller.
   - "samsung,exynos5250-pinctrl": for Exynos5250 compatible pin-controller.
@@ -128,7 +129,7 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
      - samsung,s3c64xx-wakeup-eint: represents wakeup interrupt controller
        found on Samsung S3C64xx SoCs,
      - samsung,exynos4210-wakeup-eint: represents wakeup interrupt controller
-       found on Samsung Exynos4210 SoC.
+       found on Samsung Exynos4210 and S5PC110/S5PV210 SoCs.
    - interrupt-parent: phandle of the interrupt parent to which the external
      wakeup interrupts are forwarded to.
    - interrupts: interrupt used by multiplexed wakeup interrupts.

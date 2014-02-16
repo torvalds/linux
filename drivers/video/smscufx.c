@@ -1147,7 +1147,7 @@ static void ufx_free_framebuffer_work(struct work_struct *work)
 
 	fb_destroy_modelist(&info->modelist);
 
-	dev->info = 0;
+	dev->info = NULL;
 
 	/* Assume info structure is freed after this point */
 	framebuffer_release(info);
@@ -1622,7 +1622,7 @@ static int ufx_usb_probe(struct usb_interface *interface,
 {
 	struct usb_device *usbdev;
 	struct ufx_data *dev;
-	struct fb_info *info = 0;
+	struct fb_info *info = NULL;
 	int retval = -ENOMEM;
 	u32 id_rev, fpga_rev;
 

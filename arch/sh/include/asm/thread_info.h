@@ -41,8 +41,6 @@ struct thread_info {
 
 #endif
 
-#define PREEMPT_ACTIVE		0x10000000
-
 #if defined(CONFIG_4KSTACKS)
 #define THREAD_SHIFT	12
 #else

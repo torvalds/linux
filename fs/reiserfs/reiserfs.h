@@ -608,14 +608,6 @@ int reiserfs_resize(struct super_block *, unsigned long);
 
 #define SB_DISK_JOURNAL_HEAD(s) (SB_JOURNAL(s)->j_header_bh->)
 
-/* A safe version of the "bdevname", which returns the "s_id" field of
- * a superblock or else "Null superblock" if the super block is NULL.
- */
-static inline char *reiserfs_bdevname(struct super_block *s)
-{
-	return (s == NULL) ? "Null superblock" : s->s_id;
-}
-
 #define reiserfs_is_journal_aborted(journal) (unlikely (__reiserfs_is_journal_aborted (journal)))
 static inline int __reiserfs_is_journal_aborted(struct reiserfs_journal
 						*journal)
@@ -630,8 +622,8 @@ static inline int __reiserfs_is_journal_aborted(struct reiserfs_journal
  */
 void reiserfs_write_lock(struct super_block *s);
 void reiserfs_write_unlock(struct super_block *s);
-int reiserfs_write_lock_once(struct super_block *s);
-void reiserfs_write_unlock_once(struct super_block *s, int lock_depth);
+int __must_check reiserfs_write_unlock_nested(struct super_block *s);
+void reiserfs_write_lock_nested(struct super_block *s, int depth);
 
 #ifdef CONFIG_REISERFS_CHECK
 void reiserfs_lock_check_recursive(struct super_block *s);
@@ -667,31 +659,33 @@ static inline void reiserfs_lock_check_recursive(struct super_block *s) { }
  * - The inode mutex
  */
 static inline void reiserfs_mutex_lock_safe(struct mutex *m,
-			       struct super_block *s)
+					    struct super_block *s)
 {
-	reiserfs_lock_check_recursive(s);
-	reiserfs_write_unlock(s);
+	int depth;
+
+	depth = reiserfs_write_unlock_nested(s);
 	mutex_lock(m);
-	reiserfs_write_lock(s);
+	reiserfs_write_lock_nested(s, depth);
 }
 
 static inline void
 reiserfs_mutex_lock_nested_safe(struct mutex *m, unsigned int subclass,
-			       struct super_block *s)
+				struct super_block *s)
 {
-	reiserfs_lock_check_recursive(s);
-	reiserfs_write_unlock(s);
+	int depth;
+
+	depth = reiserfs_write_unlock_nested(s);
 	mutex_lock_nested(m, subclass);
-	reiserfs_write_lock(s);
+	reiserfs_write_lock_nested(s, depth);
 }
 
 static inline void
 reiserfs_down_read_safe(struct rw_semaphore *sem, struct super_block *s)
 {
-	reiserfs_lock_check_recursive(s);
-	reiserfs_write_unlock(s);
-	down_read(sem);
-	reiserfs_write_lock(s);
+       int depth;
+       depth = reiserfs_write_unlock_nested(s);
+       down_read(sem);
+       reiserfs_write_lock_nested(s, depth);
 }
 
 /*
@@ -701,9 +695,11 @@ reiserfs_down_read_safe(struct rw_semaphore *sem, struct super_block *s)
 static inline void reiserfs_cond_resched(struct super_block *s)
 {
 	if (need_resched()) {
-		reiserfs_write_unlock(s);
+		int depth;
+
+		depth = reiserfs_write_unlock_nested(s);
 		schedule();
-		reiserfs_write_lock(s);
+		reiserfs_write_lock_nested(s, depth);
 	}
 }
 
@@ -1954,8 +1950,6 @@ struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 #define MAX_US_INT 0xffff
 
 // reiserfs version 2 has max offset 60 bits. Version 1 - 32 bit offset
-#define U32_MAX (~(__u32)0)
-
 static inline loff_t max_reiserfs_offset(struct inode *inode)
 {
 	if (get_inode_item_key_version(inode) == KEY_FORMAT_3_5)

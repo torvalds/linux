@@ -127,14 +127,11 @@
 !Finclude/net/cfg80211.h cfg80211_ibss_params
 !Finclude/net/cfg80211.h cfg80211_connect_params
 !Finclude/net/cfg80211.h cfg80211_pmksa
-!Finclude/net/cfg80211.h cfg80211_send_rx_auth
-!Finclude/net/cfg80211.h cfg80211_send_auth_timeout
-!Finclude/net/cfg80211.h cfg80211_send_rx_assoc
-!Finclude/net/cfg80211.h cfg80211_send_assoc_timeout
-!Finclude/net/cfg80211.h cfg80211_send_deauth
-!Finclude/net/cfg80211.h __cfg80211_send_deauth
-!Finclude/net/cfg80211.h cfg80211_send_disassoc
-!Finclude/net/cfg80211.h __cfg80211_send_disassoc
+!Finclude/net/cfg80211.h cfg80211_rx_mlme_mgmt
+!Finclude/net/cfg80211.h cfg80211_auth_timeout
+!Finclude/net/cfg80211.h cfg80211_rx_assoc_resp
+!Finclude/net/cfg80211.h cfg80211_assoc_timeout
+!Finclude/net/cfg80211.h cfg80211_tx_mlme_mgmt
 !Finclude/net/cfg80211.h cfg80211_ibss_joined
 !Finclude/net/cfg80211.h cfg80211_connect_result
 !Finclude/net/cfg80211.h cfg80211_roamed
@@ -155,8 +152,8 @@
 !Finclude/net/cfg80211.h cfg80211_scan_request
 !Finclude/net/cfg80211.h cfg80211_scan_done
 !Finclude/net/cfg80211.h cfg80211_bss
-!Finclude/net/cfg80211.h cfg80211_inform_bss_frame
-!Finclude/net/cfg80211.h cfg80211_inform_bss
+!Finclude/net/cfg80211.h cfg80211_inform_bss_width_frame
+!Finclude/net/cfg80211.h cfg80211_inform_bss_width
 !Finclude/net/cfg80211.h cfg80211_unlink_bss
 !Finclude/net/cfg80211.h cfg80211_find_ie
 !Finclude/net/cfg80211.h ieee80211_bss_get_ie
@@ -328,6 +325,7 @@
           <title>functions/definitions</title>
 !Finclude/net/mac80211.h ieee80211_rx_status
 !Finclude/net/mac80211.h mac80211_rx_flags
+!Finclude/net/mac80211.h mac80211_tx_info_flags
 !Finclude/net/mac80211.h mac80211_tx_control_flags
 !Finclude/net/mac80211.h mac80211_rate_control_flags
 !Finclude/net/mac80211.h ieee80211_tx_rate

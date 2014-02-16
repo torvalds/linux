@@ -112,9 +112,8 @@ static struct team_port *lb_hash_select_tx_port(struct team *team,
 						struct sk_buff *skb,
 						unsigned char hash)
 {
-	int port_index;
+	int port_index = team_num_to_port_index(team, hash);
 
-	port_index = hash % team->en_port_count;
 	return team_get_port_by_index_rcu(team, port_index);
 }
 
@@ -571,7 +570,7 @@ static int lb_init(struct team *team)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
 	lb_select_tx_port_func_t *func;
-	int err;
+	int i, err;
 
 	/* set default tx port selector */
 	func = lb_select_tx_port_get_func("hash");
@@ -588,6 +587,13 @@ static int lb_init(struct team *team)
 		err = -ENOMEM;
 		goto err_alloc_pcpu_stats;
 	}
+
+	for_each_possible_cpu(i) {
+		struct lb_pcpu_stats *team_lb_stats;
+		team_lb_stats = per_cpu_ptr(lb_priv->pcpu_stats, i);
+		u64_stats_init(&team_lb_stats->syncp);
+	}
+
 
 	INIT_DELAYED_WORK(&lb_priv->ex->stats.refresh_dw, lb_stats_refresh);
 

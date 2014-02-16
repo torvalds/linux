@@ -136,7 +136,11 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	      struct llog_handle **lgh, struct llog_logid *logid,
 	      char *name, enum llog_open_param open_param);
 int llog_close(const struct lu_env *env, struct llog_handle *cathandle);
-int llog_get_size(struct llog_handle *loghandle);
+int llog_is_empty(const struct lu_env *env, struct llog_ctxt *ctxt,
+		  char *name);
+int llog_backup(const struct lu_env *env, struct obd_device *obd,
+		struct llog_ctxt *ctxt, struct llog_ctxt *bak_ctxt,
+		char *name, char *backup);
 
 /* llog_process flags */
 #define LLOG_FLAG_NODEAMON 0x0001
@@ -382,6 +386,13 @@ static inline int llog_data_len(int len)
 	return cfs_size_round(len);
 }
 
+static inline int llog_get_size(struct llog_handle *loghandle)
+{
+	if (loghandle && loghandle->lgh_hdr)
+		return loghandle->lgh_hdr->llh_count;
+	return 0;
+}
+
 static inline struct llog_ctxt *llog_ctxt_get(struct llog_ctxt *ctxt)
 {
 	atomic_inc(&ctxt->loc_refcount);
@@ -469,16 +480,14 @@ static inline int llog_destroy(const struct lu_env *env,
 	struct llog_operations *lop;
 	int rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(handle, &lop);
 	if (rc)
-		RETURN(rc);
+		return rc;
 	if (lop->lop_destroy == NULL)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	rc = lop->lop_destroy(env, handle);
-	RETURN(rc);
+	return rc;
 }
 
 static inline int llog_next_block(const struct lu_env *env,
@@ -489,17 +498,15 @@ static inline int llog_next_block(const struct lu_env *env,
 	struct llog_operations *lop;
 	int rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
-		RETURN(rc);
+		return rc;
 	if (lop->lop_next_block == NULL)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	rc = lop->lop_next_block(env, loghandle, cur_idx, next_idx,
 				 cur_offset, buf, len);
-	RETURN(rc);
+	return rc;
 }
 
 static inline int llog_prev_block(const struct lu_env *env,
@@ -509,16 +516,14 @@ static inline int llog_prev_block(const struct lu_env *env,
 	struct llog_operations *lop;
 	int rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
-		RETURN(rc);
+		return rc;
 	if (lop->lop_prev_block == NULL)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	rc = lop->lop_prev_block(env, loghandle, prev_idx, buf, len);
-	RETURN(rc);
+	return rc;
 }
 
 static inline int llog_connect(struct llog_ctxt *ctxt,
@@ -528,16 +533,14 @@ static inline int llog_connect(struct llog_ctxt *ctxt,
 	struct llog_operations	*lop;
 	int			 rc;
 
-	ENTRY;
-
 	rc = llog_obd2ops(ctxt, &lop);
 	if (rc)
-		RETURN(rc);
+		return rc;
 	if (lop->lop_connect == NULL)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	rc = lop->lop_connect(ctxt, logid, gen, uuid);
-	RETURN(rc);
+	return rc;
 }
 
 /* llog.c */

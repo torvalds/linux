@@ -25,6 +25,7 @@
 #include <linux/kdebug.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>
+#include <linux/reboot.h>
 
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
@@ -36,14 +37,7 @@
 #include <asm/ipi.h>
 #include <asm/smp.h>
 #include <asm/x86_init.h>
-#include <asm/emergency-restart.h>
 #include <asm/nmi.h>
-
-/* BMC sets a bit this MMR non-zero before sending an NMI */
-#define UVH_NMI_MMR				UVH_SCRATCH5
-#define UVH_NMI_MMR_CLEAR			(UVH_NMI_MMR + 8)
-#define UV_NMI_PENDING_MASK			(1UL << 63)
-DEFINE_PER_CPU(unsigned long, cpu_last_nmi_count);
 
 DEFINE_PER_CPU(int, x2apic_extra_bits);
 
@@ -58,7 +52,6 @@ int uv_min_hub_revision_id;
 EXPORT_SYMBOL_GPL(uv_min_hub_revision_id);
 unsigned int uv_apicid_hibits;
 EXPORT_SYMBOL_GPL(uv_apicid_hibits);
-static DEFINE_SPINLOCK(uv_nmi_lock);
 
 static struct apic apic_x2apic_uv_x;
 
@@ -113,7 +106,7 @@ static int __init early_get_pnodeid(void)
 		break;
 	case UV3_HUB_PART_NUMBER:
 	case UV3_HUB_PART_NUMBER_X:
-		uv_min_hub_revision_id += UV3_HUB_REVISION_BASE - 1;
+		uv_min_hub_revision_id += UV3_HUB_REVISION_BASE;
 		break;
 	}
 
@@ -209,7 +202,7 @@ EXPORT_SYMBOL_GPL(uv_possible_blades);
 unsigned long sn_rtc_cycles_per_second;
 EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 
-static int __cpuinit uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
+static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 {
 #ifdef CONFIG_SMP
 	unsigned long val;
@@ -416,7 +409,7 @@ static struct apic __refdata apic_x2apic_uv_x = {
 	.safe_wait_icr_idle		= native_safe_x2apic_wait_icr_idle,
 };
 
-static __cpuinit void set_x2apic_extra_bits(int pnode)
+static void set_x2apic_extra_bits(int pnode)
 {
 	__this_cpu_write(x2apic_extra_bits, pnode << uvh_apicid.s.pnode_shift);
 }
@@ -735,7 +728,7 @@ static void uv_heartbeat(unsigned long ignored)
 	mod_timer_pinned(timer, jiffies + SCIR_CPU_HB_INTERVAL);
 }
 
-static void __cpuinit uv_heartbeat_enable(int cpu)
+static void uv_heartbeat_enable(int cpu)
 {
 	while (!uv_cpu_hub_info(cpu)->scir.enabled) {
 		struct timer_list *timer = &uv_cpu_hub_info(cpu)->scir.timer;
@@ -752,7 +745,7 @@ static void __cpuinit uv_heartbeat_enable(int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __cpuinit uv_heartbeat_disable(int cpu)
+static void uv_heartbeat_disable(int cpu)
 {
 	if (uv_cpu_hub_info(cpu)->scir.enabled) {
 		uv_cpu_hub_info(cpu)->scir.enabled = 0;
@@ -764,8 +757,8 @@ static void __cpuinit uv_heartbeat_disable(int cpu)
 /*
  * cpu hotplug notifier
  */
-static __cpuinit int uv_scir_cpu_notify(struct notifier_block *self,
-				       unsigned long action, void *hcpu)
+static int uv_scir_cpu_notify(struct notifier_block *self, unsigned long action,
+			      void *hcpu)
 {
 	long cpu = (long)hcpu;
 
@@ -835,7 +828,7 @@ int uv_set_vga_state(struct pci_dev *pdev, bool decode,
  * Called on each cpu to initialize the per_cpu UV data area.
  * FIXME: hotplug not supported yet
  */
-void __cpuinit uv_cpu_init(void)
+void uv_cpu_init(void)
 {
 	/* CPU 0 initilization will be done via uv_system_init. */
 	if (!uv_blade_info)
@@ -845,68 +838,6 @@ void __cpuinit uv_cpu_init(void)
 
 	if (get_uv_system_type() == UV_NON_UNIQUE_APIC)
 		set_x2apic_extra_bits(uv_hub_info->pnode);
-}
-
-/*
- * When NMI is received, print a stack trace.
- */
-int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
-{
-	unsigned long real_uv_nmi;
-	int bid;
-
-	/*
-	 * Each blade has an MMR that indicates when an NMI has been sent
-	 * to cpus on the blade. If an NMI is detected, atomically
-	 * clear the MMR and update a per-blade NMI count used to
-	 * cause each cpu on the blade to notice a new NMI.
-	 */
-	bid = uv_numa_blade_id();
-	real_uv_nmi = (uv_read_local_mmr(UVH_NMI_MMR) & UV_NMI_PENDING_MASK);
-
-	if (unlikely(real_uv_nmi)) {
-		spin_lock(&uv_blade_info[bid].nmi_lock);
-		real_uv_nmi = (uv_read_local_mmr(UVH_NMI_MMR) & UV_NMI_PENDING_MASK);
-		if (real_uv_nmi) {
-			uv_blade_info[bid].nmi_count++;
-			uv_write_local_mmr(UVH_NMI_MMR_CLEAR, UV_NMI_PENDING_MASK);
-		}
-		spin_unlock(&uv_blade_info[bid].nmi_lock);
-	}
-
-	if (likely(__get_cpu_var(cpu_last_nmi_count) == uv_blade_info[bid].nmi_count))
-		return NMI_DONE;
-
-	__get_cpu_var(cpu_last_nmi_count) = uv_blade_info[bid].nmi_count;
-
-	/*
-	 * Use a lock so only one cpu prints at a time.
-	 * This prevents intermixed output.
-	 */
-	spin_lock(&uv_nmi_lock);
-	pr_info("UV NMI stack dump cpu %u:\n", smp_processor_id());
-	dump_stack();
-	spin_unlock(&uv_nmi_lock);
-
-	return NMI_HANDLED;
-}
-
-void uv_register_nmi_notifier(void)
-{
-	if (register_nmi_handler(NMI_UNKNOWN, uv_handle_nmi, 0, "uv"))
-		printk(KERN_WARNING "UV NMI handler failed to register\n");
-}
-
-void uv_nmi_init(void)
-{
-	unsigned int value;
-
-	/*
-	 * Unmask NMI on all cpus
-	 */
-	value = apic_read(APIC_LVT1) | APIC_DM_NMI;
-	value &= ~APIC_LVT_MASKED;
-	apic_write(APIC_LVT1, value);
 }
 
 void __init uv_system_init(void)
@@ -1046,9 +977,9 @@ void __init uv_system_init(void)
 	map_mmr_high(max_pnode);
 	map_mmioh_high(min_pnode, max_pnode);
 
+	uv_nmi_setup();
 	uv_cpu_init();
 	uv_scir_register_cpu_notifier();
-	uv_register_nmi_notifier();
 	proc_mkdir("sgi_uv", NULL);
 
 	/* register Legacy VGA I/O redirection handler */

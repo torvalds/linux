@@ -260,6 +260,7 @@ fail:
 	 */
 	return rc;
 }
+EXPORT_SYMBOL_GPL(kvmppc_rtas_hcall);
 
 void kvmppc_rtas_tokens_free(struct kvm *kvm)
 {

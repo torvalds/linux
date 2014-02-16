@@ -35,6 +35,54 @@ DEFINE_EVENT(cpu, cpu_idle,
 	TP_ARGS(state, cpu_id)
 );
 
+TRACE_EVENT(pstate_sample,
+
+	TP_PROTO(u32 core_busy,
+		u32 scaled_busy,
+		u32 state,
+		u64 mperf,
+		u64 aperf,
+		u32 freq
+		),
+
+	TP_ARGS(core_busy,
+		scaled_busy,
+		state,
+		mperf,
+		aperf,
+		freq
+		),
+
+	TP_STRUCT__entry(
+		__field(u32, core_busy)
+		__field(u32, scaled_busy)
+		__field(u32, state)
+		__field(u64, mperf)
+		__field(u64, aperf)
+		__field(u32, freq)
+
+	),
+
+	TP_fast_assign(
+		__entry->core_busy = core_busy;
+		__entry->scaled_busy = scaled_busy;
+		__entry->state = state;
+		__entry->mperf = mperf;
+		__entry->aperf = aperf;
+		__entry->freq = freq;
+		),
+
+	TP_printk("core_busy=%lu scaled=%lu state=%lu mperf=%llu aperf=%llu freq=%lu ",
+		(unsigned long)__entry->core_busy,
+		(unsigned long)__entry->scaled_busy,
+		(unsigned long)__entry->state,
+		(unsigned long long)__entry->mperf,
+		(unsigned long long)__entry->aperf,
+		(unsigned long)__entry->freq
+		)
+
+);
+
 /* This file can get included multiple times, TRACE_HEADER_MULTI_READ at top */
 #ifndef _PWR_EVENT_AVOID_DOUBLE_DEFINING
 #define _PWR_EVENT_AVOID_DOUBLE_DEFINING
@@ -64,6 +112,43 @@ TRACE_EVENT(machine_suspend,
 	),
 
 	TP_printk("state=%lu", (unsigned long)__entry->state)
+);
+
+TRACE_EVENT(device_pm_report_time,
+
+	TP_PROTO(struct device *dev, const char *pm_ops, s64 ops_time,
+		 char *pm_event_str, int error),
+
+	TP_ARGS(dev, pm_ops, ops_time, pm_event_str, error),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(dev))
+		__string(driver, dev_driver_string(dev))
+		__string(parent, dev->parent ? dev_name(dev->parent) : "none")
+		__string(pm_ops, pm_ops ? pm_ops : "none ")
+		__string(pm_event_str, pm_event_str)
+		__field(s64, ops_time)
+		__field(int, error)
+	),
+
+	TP_fast_assign(
+		const char *tmp = dev->parent ? dev_name(dev->parent) : "none";
+		const char *tmp_i = pm_ops ? pm_ops : "none ";
+
+		__assign_str(device, dev_name(dev));
+		__assign_str(driver, dev_driver_string(dev));
+		__assign_str(parent, tmp);
+		__assign_str(pm_ops, tmp_i);
+		__assign_str(pm_event_str, pm_event_str);
+		__entry->ops_time = ops_time;
+		__entry->error = error;
+	),
+
+	/* ops_str has an extra space at the end */
+	TP_printk("%s %s parent=%s state=%s ops=%snsecs=%lld err=%d",
+		__get_str(driver), __get_str(device), __get_str(parent),
+		__get_str(pm_event_str), __get_str(pm_ops),
+		__entry->ops_time, __entry->error)
 );
 
 DECLARE_EVENT_CLASS(wakeup_source,

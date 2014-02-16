@@ -14,8 +14,6 @@
 #include <asm/thread_notify.h>
 #include <asm/v7m.h>
 
-#include <mach/entry-macro.S>
-
 #include "entry-header.S"
 
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -49,7 +47,7 @@ __irq_entry:
 	mov	r1, sp
 	stmdb	sp!, {lr}
 	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	bl	nvic_do_IRQ
+	bl	nvic_handle_irq
 
 	pop	{lr}
 	@

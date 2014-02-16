@@ -19,6 +19,9 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
@@ -37,6 +40,7 @@
 
 	pmu {
 		compatible = "arm,cortex-a8-pmu";
+		reg = <0x54000000 0x800000>;
 		interrupts = <3>;
 		ti,hwmods = "debugss";
 	};
@@ -71,10 +75,58 @@
 	 */
 	ocp {
 		compatible = "simple-bus";
+		reg = <0x68000000 0x10000>;
+		interrupts = <9 10>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 		ti,hwmods = "l3_main";
+
+		aes: aes@480c5000 {
+			compatible = "ti,omap3-aes";
+			ti,hwmods = "aes";
+			reg = <0x480c5000 0x50>;
+			interrupts = <0>;
+		};
+
+		prm: prm@48306000 {
+			compatible = "ti,omap3-prm";
+			reg = <0x48306000 0x4000>;
+
+			prm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prm_clockdomains: clockdomains {
+			};
+		};
+
+		cm: cm@48004000 {
+			compatible = "ti,omap3-cm";
+			reg = <0x48004000 0x4000>;
+
+			cm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			cm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@48002000 {
+			compatible = "ti,omap3-scrm";
+			reg = <0x48002000 0x2000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
 
 		counter32k: counter@48320000 {
 			compatible = "ti,omap-counter32k";
@@ -104,20 +156,24 @@
 
 		omap3_pmx_core: pinmux@48002030 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
-			reg = <0x48002030 0x05cc>;
+			reg = <0x48002030 0x0238>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
 			pinctrl-single,register-width = <16>;
-			pinctrl-single,function-mask = <0x7f1f>;
+			pinctrl-single,function-mask = <0xff1f>;
 		};
 
-		omap3_pmx_wkup: pinmux@0x48002a00 {
+		omap3_pmx_wkup: pinmux@48002a00 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
 			reg = <0x48002a00 0x5c>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
 			pinctrl-single,register-width = <16>;
-			pinctrl-single,function-mask = <0x7f1f>;
+			pinctrl-single,function-mask = <0xff1f>;
 		};
 
 		gpio1: gpio@48310000 {
@@ -189,24 +245,40 @@
 
 		uart1: serial@4806a000 {
 			compatible = "ti,omap3-uart";
+			reg = <0x4806a000 0x2000>;
+			interrupts = <72>;
+			dmas = <&sdma 49 &sdma 50>;
+			dma-names = "tx", "rx";
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
 		};
 
 		uart2: serial@4806c000 {
 			compatible = "ti,omap3-uart";
+			reg = <0x4806c000 0x400>;
+			interrupts = <73>;
+			dmas = <&sdma 51 &sdma 52>;
+			dma-names = "tx", "rx";
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
 		};
 
 		uart3: serial@49020000 {
 			compatible = "ti,omap3-uart";
+			reg = <0x49020000 0x400>;
+			interrupts = <74>;
+			dmas = <&sdma 53 &sdma 54>;
+			dma-names = "tx", "rx";
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
 		};
 
 		i2c1: i2c@48070000 {
 			compatible = "ti,omap3-i2c";
+			reg = <0x48070000 0x80>;
+			interrupts = <56>;
+			dmas = <&sdma 27 &sdma 28>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c1";
@@ -214,6 +286,10 @@
 
 		i2c2: i2c@48072000 {
 			compatible = "ti,omap3-i2c";
+			reg = <0x48072000 0x80>;
+			interrupts = <57>;
+			dmas = <&sdma 29 &sdma 30>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c2";
@@ -221,13 +297,26 @@
 
 		i2c3: i2c@48060000 {
 			compatible = "ti,omap3-i2c";
+			reg = <0x48060000 0x80>;
+			interrupts = <61>;
+			dmas = <&sdma 25 &sdma 26>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c3";
 		};
 
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap3-mailbox";
+			ti,hwmods = "mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>;
+		};
+
 		mcspi1: spi@48098000 {
 			compatible = "ti,omap2-mcspi";
+			reg = <0x48098000 0x100>;
+			interrupts = <65>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "mcspi1";
@@ -246,6 +335,8 @@
 
 		mcspi2: spi@4809a000 {
 			compatible = "ti,omap2-mcspi";
+			reg = <0x4809a000 0x100>;
+			interrupts = <66>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "mcspi2";
@@ -259,6 +350,8 @@
 
 		mcspi3: spi@480b8000 {
 			compatible = "ti,omap2-mcspi";
+			reg = <0x480b8000 0x100>;
+			interrupts = <91>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "mcspi3";
@@ -272,6 +365,8 @@
 
 		mcspi4: spi@480ba000 {
 			compatible = "ti,omap2-mcspi";
+			reg = <0x480ba000 0x100>;
+			interrupts = <48>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "mcspi4";
@@ -280,8 +375,17 @@
 			dma-names = "tx0", "rx0";
 		};
 
+		hdqw1w: 1w@480b2000 {
+			compatible = "ti,omap3-1w";
+			reg = <0x480b2000 0x1000>;
+			interrupts = <58>;
+			ti,hwmods = "hdq1w";
+		};
+
 		mmc1: mmc@4809c000 {
 			compatible = "ti,omap3-hsmmc";
+			reg = <0x4809c000 0x200>;
+			interrupts = <83>;
 			ti,hwmods = "mmc1";
 			ti,dual-volt;
 			dmas = <&sdma 61>, <&sdma 62>;
@@ -290,6 +394,8 @@
 
 		mmc2: mmc@480b4000 {
 			compatible = "ti,omap3-hsmmc";
+			reg = <0x480b4000 0x200>;
+			interrupts = <86>;
 			ti,hwmods = "mmc2";
 			dmas = <&sdma 47>, <&sdma 48>;
 			dma-names = "tx", "rx";
@@ -297,13 +403,23 @@
 
 		mmc3: mmc@480ad000 {
 			compatible = "ti,omap3-hsmmc";
+			reg = <0x480ad000 0x200>;
+			interrupts = <94>;
 			ti,hwmods = "mmc3";
 			dmas = <&sdma 77>, <&sdma 78>;
 			dma-names = "tx", "rx";
 		};
 
+		mmu_isp: mmu@480bd400 {
+			compatible = "ti,omap3-mmu-isp";
+			ti,hwmods = "mmu_isp";
+			reg = <0x480bd400 0x80>;
+			interrupts = <8>;
+		};
+
 		wdt2: wdt@48314000 {
 			compatible = "ti,omap3-wdt";
+			reg = <0x48314000 0x80>;
 			ti,hwmods = "wd_timer2";
 		};
 
@@ -384,6 +500,27 @@
 			dmas = <&sdma 21>,
 			       <&sdma 22>;
 			dma-names = "tx", "rx";
+		};
+
+		sham: sham@480c3000 {
+			compatible = "ti,omap3-sham";
+			ti,hwmods = "sham";
+			reg = <0x480c3000 0x64>;
+			interrupts = <49>;
+		};
+
+		smartreflex_core: smartreflex@480cb000 {
+			compatible = "ti,omap3-smartreflex-core";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x480cb000 0x400>;
+			interrupts = <19>;
+		};
+
+		smartreflex_mpu_iva: smartreflex@480c9000 {
+			compatible = "ti,omap3-smartreflex-iva";
+			ti,hwmods = "smartreflex_mpu_iva";
+			reg = <0x480c9000 0x400>;
+			interrupts = <18>;
 		};
 
 		timer1: timer@48318000 {
@@ -534,3 +671,5 @@
 		};
 	};
 };
+
+/include/ "omap3xxx-clocks.dtsi"

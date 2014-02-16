@@ -15,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include <linux/init.h>
 
 #include <asm/asm.h>
 #include <asm/regdef.h>
@@ -48,8 +47,6 @@
 	 * since the final 16 bytes of the exception vector memory
 	 * (0x170-0x17f) are used to preserve k0, k1, and ra.
 	 */
-
-	__CPUINIT
 
 LEAF(except_vec2_sb1)
 	/*
@@ -141,8 +138,6 @@ unrecoverable:
 #endif
 
 END(except_vec2_sb1)
-
-	__FINIT
 
 	LEAF(handle_vec2_sb1)
 	mfc0	k0,CP0_CONFIG

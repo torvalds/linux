@@ -691,10 +691,6 @@ modified_instr:
 	b	151b
 #endif
 
-	.globl	giveup_fpu
-giveup_fpu:
-	blr
-
 /*
  * This is where the main kernel code starts.
  */
@@ -861,6 +857,9 @@ initial_mmu:
 	li	r11, MI_BOOTINIT	/* Create RPN for address 0 */
 	addis	r11, r11, 0x0080	/* Add 8M */
 	mtspr	SPRN_MD_RPN, r11
+
+	addi	r10, r10, 0x0100
+	mtspr	SPRN_MD_CTR, r10
 
 	addis	r8, r8, 0x0080		/* Add 8M */
 	mtspr	SPRN_MD_EPN, r8

@@ -496,7 +496,6 @@ static int grvga_probe(struct platform_device *dev)
 	return 0;
 
 free_mem:
-	dev_set_drvdata(&dev->dev, NULL);
 	if (grvga_fix_addr)
 		iounmap((void *)virtual_start);
 	else
@@ -530,7 +529,6 @@ static int grvga_remove(struct platform_device *device)
 			kfree((void *)info->screen_base);
 
 		framebuffer_release(info);
-		dev_set_drvdata(&device->dev, NULL);
 	}
 
 	return 0;
@@ -557,19 +555,7 @@ static struct platform_driver grvga_driver = {
 	.remove		= grvga_remove,
 };
 
-
-static int __init grvga_init(void)
-{
-	return platform_driver_register(&grvga_driver);
-}
-
-static void __exit grvga_exit(void)
-{
-	platform_driver_unregister(&grvga_driver);
-}
-
-module_init(grvga_init);
-module_exit(grvga_exit);
+module_platform_driver(grvga_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Aeroflex Gaisler");

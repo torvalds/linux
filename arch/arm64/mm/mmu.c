@@ -203,10 +203,18 @@ static void __init alloc_init_pmd(pud_t *pud, unsigned long addr,
 	do {
 		next = pmd_addr_end(addr, end);
 		/* try section mapping first */
-		if (((addr | next | phys) & ~SECTION_MASK) == 0)
+		if (((addr | next | phys) & ~SECTION_MASK) == 0) {
+			pmd_t old_pmd =*pmd;
 			set_pmd(pmd, __pmd(phys | prot_sect_kernel));
-		else
+			/*
+			 * Check for previous table entries created during
+			 * boot (__create_page_tables) and flush them.
+			 */
+			if (!pmd_none(old_pmd))
+				flush_tlb_all();
+		} else {
 			alloc_init_pte(pmd, addr, next, __phys_to_pfn(phys));
+		}
 		phys += next - addr;
 	} while (pmd++, addr = next, addr != end);
 }
@@ -296,6 +304,7 @@ void __iomem * __init early_io_map(phys_addr_t phys, unsigned long virt)
 static void __init map_mem(void)
 {
 	struct memblock_region *reg;
+	phys_addr_t limit;
 
 	/*
 	 * Temporarily limit the memblock range. We need to do this as
@@ -303,9 +312,11 @@ static void __init map_mem(void)
 	 * memory addressable from the initial direct kernel mapping.
 	 *
 	 * The initial direct kernel mapping, located at swapper_pg_dir,
-	 * gives us PGDIR_SIZE memory starting from PHYS_OFFSET (aligned).
+	 * gives us PGDIR_SIZE memory starting from PHYS_OFFSET (which must be
+	 * aligned to 2MB as per Documentation/arm64/booting.txt).
 	 */
-	memblock_set_current_limit((PHYS_OFFSET & PGDIR_MASK) + PGDIR_SIZE);
+	limit = PHYS_OFFSET + PGDIR_SIZE;
+	memblock_set_current_limit(limit);
 
 	/* map all the memory banks */
 	for_each_memblock(memory, reg) {
@@ -314,6 +325,22 @@ static void __init map_mem(void)
 
 		if (start >= end)
 			break;
+
+#ifndef CONFIG_ARM64_64K_PAGES
+		/*
+		 * For the first memory bank align the start address and
+		 * current memblock limit to prevent create_mapping() from
+		 * allocating pte page tables from unmapped memory.
+		 * When 64K pages are enabled, the pte page table for the
+		 * first PGDIR_SIZE is already present in swapper_pg_dir.
+		 */
+		if (start < limit)
+			start = ALIGN(start, PMD_SIZE);
+		if (end < limit) {
+			limit = end & PMD_MASK;
+			memblock_set_current_limit(limit);
+		}
+#endif
 
 		create_mapping(start, __phys_to_virt(start), end - start);
 	}

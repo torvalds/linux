@@ -34,7 +34,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/hardirq.h>
 #include <linux/export.h>
 
@@ -128,8 +127,6 @@ int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->cq_max_count = cpu_to_be16(count);
 	cq_context->cq_period    = cpu_to_be16(period);
 
@@ -153,8 +150,6 @@ int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->logsize_usrpage = cpu_to_be32(ilog2(entries) << 24);
 	cq_context->log_page_size   = mtt->page_shift - 12;
 	mtt_addr = mlx4_mtt_addr(dev, mtt);
@@ -191,7 +186,7 @@ err_put:
 	mlx4_table_put(dev, &cq_table->table, *cqn);
 
 err_out:
-	mlx4_bitmap_free(&cq_table->bitmap, *cqn);
+	mlx4_bitmap_free(&cq_table->bitmap, *cqn, MLX4_NO_RR);
 	return err;
 }
 
@@ -221,7 +216,7 @@ void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 
 	mlx4_table_put(dev, &cq_table->cmpt_table, cqn);
 	mlx4_table_put(dev, &cq_table->table, cqn);
-	mlx4_bitmap_free(&cq_table->bitmap, cqn);
+	mlx4_bitmap_free(&cq_table->bitmap, cqn, MLX4_NO_RR);
 }
 
 static void mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
@@ -274,8 +269,6 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	}
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->flags	    = cpu_to_be32(!!collapsed << 18);
 	if (timestamp_en)
 		cq_context->flags  |= cpu_to_be32(1 << 19);

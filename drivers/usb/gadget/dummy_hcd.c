@@ -544,7 +544,7 @@ static int dummy_enable(struct usb_ep *_ep,
 		 default:
 			 val = "ctrl";
 			 break;
-		 }; val; }),
+		 } val; }),
 		max, ep->stream_en ? "enabled" : "disabled");
 
 	/* at this point real hardware should be NAKing transfers
@@ -868,7 +868,7 @@ static const struct usb_gadget_ops dummy_ops = {
 /*-------------------------------------------------------------------------*/
 
 /* "function" sysfs attribute */
-static ssize_t show_function(struct device *dev, struct device_attribute *attr,
+static ssize_t function_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct dummy	*dum = gadget_dev_to_dummy(dev);
@@ -877,7 +877,7 @@ static ssize_t show_function(struct device *dev, struct device_attribute *attr,
 		return 0;
 	return scnprintf(buf, PAGE_SIZE, "%s\n", dum->driver->function);
 }
-static DEVICE_ATTR(function, S_IRUGO, show_function, NULL);
+static DEVICE_ATTR_RO(function);
 
 /*-------------------------------------------------------------------------*/
 
@@ -923,8 +923,9 @@ static int dummy_udc_stop(struct usb_gadget *g,
 	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
 	struct dummy		*dum = dum_hcd->dum;
 
-	dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
-			driver->driver.name);
+	if (driver)
+		dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
+				driver->driver.name);
 
 	dum->driver = NULL;
 
@@ -950,7 +951,7 @@ static void init_dummy_udc_hw(struct dummy *dum)
 		list_add_tail(&ep->ep.ep_list, &dum->gadget.ep_list);
 		ep->halted = ep->wedged = ep->already_seen =
 				ep->setup_stage = 0;
-		ep->ep.maxpacket = ~0;
+		usb_ep_set_maxpacket_limit(&ep->ep, ~0);
 		ep->ep.max_streams = 16;
 		ep->last_io = jiffies;
 		ep->gadget = &dum->gadget;
@@ -1000,8 +1001,8 @@ static int dummy_udc_remove(struct platform_device *pdev)
 {
 	struct dummy	*dum = platform_get_drvdata(pdev);
 
-	usb_del_gadget_udc(&dum->gadget);
 	device_remove_file(&dum->gadget.dev, &dev_attr_function);
+	usb_del_gadget_udc(&dum->gadget);
 	return 0;
 }
 
@@ -2270,7 +2271,7 @@ static inline ssize_t show_urb(char *buf, size_t size, struct urb *urb)
 		default:
 			s = "?";
 			break;
-		 }; s; }),
+		 } s; }),
 		ep, ep ? (usb_pipein(urb->pipe) ? "in" : "out") : "",
 		({ char *s; \
 		switch (usb_pipetype(urb->pipe)) { \
@@ -2286,11 +2287,11 @@ static inline ssize_t show_urb(char *buf, size_t size, struct urb *urb)
 		default: \
 			s = "-iso"; \
 			break; \
-		}; s; }),
+		} s; }),
 		urb->actual_length, urb->transfer_buffer_length);
 }
 
-static ssize_t show_urbs(struct device *dev, struct device_attribute *attr,
+static ssize_t urbs_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct usb_hcd		*hcd = dev_get_drvdata(dev);
@@ -2311,7 +2312,7 @@ static ssize_t show_urbs(struct device *dev, struct device_attribute *attr,
 
 	return size;
 }
-static DEVICE_ATTR(urbs, S_IRUGO, show_urbs, NULL);
+static DEVICE_ATTR_RO(urbs);
 
 static int dummy_start_ss(struct dummy_hcd *dum_hcd)
 {

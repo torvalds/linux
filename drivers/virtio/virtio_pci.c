@@ -197,13 +197,14 @@ static void vp_reset(struct virtio_device *vdev)
 }
 
 /* the notify function used when creating a virt queue */
-static void vp_notify(struct virtqueue *vq)
+static bool vp_notify(struct virtqueue *vq)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
 
 	/* we write the queue's selector into the notification register to
 	 * signal the other end */
 	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY);
+	return true;
 }
 
 /* Handle a configuration change: Tell driver if it wants to know. */
@@ -289,9 +290,9 @@ static void vp_free_vectors(struct virtio_device *vdev)
 
 		pci_disable_msix(vp_dev->pci_dev);
 		vp_dev->msix_enabled = 0;
-		vp_dev->msix_vectors = 0;
 	}
 
+	vp_dev->msix_vectors = 0;
 	vp_dev->msix_used_vectors = 0;
 	kfree(vp_dev->msix_names);
 	vp_dev->msix_names = NULL;
@@ -308,6 +309,8 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	const char *name = dev_name(&vp_dev->vdev.dev);
 	unsigned i, v;
 	int err = -ENOMEM;
+
+	vp_dev->msix_vectors = nvectors;
 
 	vp_dev->msix_entries = kmalloc(nvectors * sizeof *vp_dev->msix_entries,
 				       GFP_KERNEL);
@@ -336,7 +339,6 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 		err = -ENOSPC;
 	if (err)
 		goto error;
-	vp_dev->msix_vectors = nvectors;
 	vp_dev->msix_enabled = 1;
 
 	/* Set the vector used for configuration */
@@ -740,7 +742,6 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
 out_set_drvdata:
-	pci_set_drvdata(pci_dev, NULL);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 out_req_regions:
 	pci_release_regions(pci_dev);
@@ -758,14 +759,13 @@ static void virtio_pci_remove(struct pci_dev *pci_dev)
 	unregister_virtio_device(&vp_dev->vdev);
 
 	vp_del_vqs(&vp_dev->vdev);
-	pci_set_drvdata(pci_dev, NULL);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 	kfree(vp_dev);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtio_pci_freeze(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -823,7 +823,7 @@ static struct pci_driver virtio_pci_driver = {
 	.id_table	= virtio_pci_id_table,
 	.probe		= virtio_pci_probe,
 	.remove		= virtio_pci_remove,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.driver.pm	= &virtio_pci_pm_ops,
 #endif
 };

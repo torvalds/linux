@@ -1910,7 +1910,6 @@ static void hamachi_remove_one(struct pci_dev *pdev)
 		iounmap(hmp->base);
 		free_netdev(dev);
 		pci_release_regions(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 

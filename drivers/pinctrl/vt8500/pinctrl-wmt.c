@@ -276,7 +276,20 @@ static int wmt_pctl_dt_node_to_map_pull(struct wmt_pinctrl_data *data,
 	if (!configs)
 		return -ENOMEM;
 
-	configs[0] = pull;
+	switch (pull) {
+	case 0:
+		configs[0] = PIN_CONFIG_BIAS_DISABLE;
+		break;
+	case 1:
+		configs[0] = PIN_CONFIG_BIAS_PULL_DOWN;
+		break;
+	case 2:
+		configs[0] = PIN_CONFIG_BIAS_PULL_UP;
+		break;
+	default:
+		configs[0] = PIN_CONFIG_BIAS_DISABLE;
+		dev_err(data->dev, "invalid pull state %d - disabling\n", pull);
+	}
 
 	map->type = PIN_MAP_TYPE_CONFIGS_PIN;
 	map->data.configs.group_or_pin = data->groups[group];
@@ -424,15 +437,16 @@ static int wmt_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 }
 
 static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
-			   unsigned long config)
+			   unsigned long *configs, unsigned num_configs)
 {
 	struct wmt_pinctrl_data *data = pinctrl_dev_get_drvdata(pctldev);
-	enum pin_config_param param = pinconf_to_config_param(config);
-	u16 arg = pinconf_to_config_argument(config);
+	enum pin_config_param param;
+	u16 arg;
 	u32 bank = WMT_BANK_FROM_PIN(pin);
 	u32 bit = WMT_BIT_FROM_PIN(pin);
 	u32 reg_pull_en = data->banks[bank].reg_pull_en;
 	u32 reg_pull_cfg = data->banks[bank].reg_pull_cfg;
+	int i;
 
 	if ((reg_pull_en == NO_REG) || (reg_pull_cfg == NO_REG)) {
 		dev_err(data->dev, "bias functions not supported on pin %d\n",
@@ -440,28 +454,33 @@ static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 		return -EINVAL;
 	}
 
-	if ((param == PIN_CONFIG_BIAS_PULL_DOWN) ||
-	    (param == PIN_CONFIG_BIAS_PULL_UP)) {
-		if (arg == 0)
-			param = PIN_CONFIG_BIAS_DISABLE;
-	}
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
 
-	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-		wmt_clearbits(data, reg_pull_en, BIT(bit));
-		break;
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		wmt_clearbits(data, reg_pull_cfg, BIT(bit));
-		wmt_setbits(data, reg_pull_en, BIT(bit));
-		break;
-	case PIN_CONFIG_BIAS_PULL_UP:
-		wmt_setbits(data, reg_pull_cfg, BIT(bit));
-		wmt_setbits(data, reg_pull_en, BIT(bit));
-		break;
-	default:
-		dev_err(data->dev, "unknown pinconf param\n");
-		return -EINVAL;
-	}
+		if ((param == PIN_CONFIG_BIAS_PULL_DOWN) ||
+		    (param == PIN_CONFIG_BIAS_PULL_UP)) {
+			if (arg == 0)
+				param = PIN_CONFIG_BIAS_DISABLE;
+		}
+
+		switch (param) {
+		case PIN_CONFIG_BIAS_DISABLE:
+			wmt_clearbits(data, reg_pull_en, BIT(bit));
+			break;
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			wmt_clearbits(data, reg_pull_cfg, BIT(bit));
+			wmt_setbits(data, reg_pull_en, BIT(bit));
+			break;
+		case PIN_CONFIG_BIAS_PULL_UP:
+			wmt_setbits(data, reg_pull_cfg, BIT(bit));
+			wmt_setbits(data, reg_pull_en, BIT(bit));
+			break;
+		default:
+			dev_err(data->dev, "unknown pinconf param\n");
+			return -EINVAL;
+		}
+	} /* for each config */
 
 	return 0;
 }
@@ -559,7 +578,7 @@ static struct gpio_chip wmt_gpio_chip = {
 	.direction_output = wmt_gpio_direction_output,
 	.get = wmt_gpio_get_value,
 	.set = wmt_gpio_set_value,
-	.can_sleep = 0,
+	.can_sleep = false,
 };
 
 int wmt_pinctrl_probe(struct platform_device *pdev,

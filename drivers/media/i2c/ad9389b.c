@@ -32,8 +32,8 @@
 #include <linux/workqueue.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ctrls.h>
 #include <media/ad9389b.h>
 
@@ -65,11 +65,6 @@ MODULE_LICENSE("GPL");
 *
 **********************************************************************
 */
-
-struct i2c_reg_value {
-	u8 reg;
-	u8 value;
-};
 
 struct ad9389b_state_edid {
 	/* total number of blocks */
@@ -143,14 +138,14 @@ static int ad9389b_wr(struct v4l2_subdev *sd, u8 reg, u8 val)
 		if (ret == 0)
 			return 0;
 	}
-	v4l2_err(sd, "I2C Write Problem\n");
+	v4l2_err(sd, "%s: failed reg 0x%x, val 0x%x\n", __func__, reg, val);
 	return ret;
 }
 
 /* To set specific bits in the register, a clear-mask is given (to be AND-ed),
    and then the value-mask (to be OR-ed). */
 static inline void ad9389b_wr_and_or(struct v4l2_subdev *sd, u8 reg,
-						u8 clr_mask, u8 val_mask)
+				     u8 clr_mask, u8 val_mask)
 {
 	ad9389b_wr(sd, reg, (ad9389b_rd(sd, reg) & clr_mask) | val_mask);
 }
@@ -321,12 +316,12 @@ static int ad9389b_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
 	v4l2_dbg(1, debug, sd,
-		"%s: ctrl id: %d, ctrl->val %d\n", __func__, ctrl->id, ctrl->val);
+		 "%s: ctrl id: %d, ctrl->val %d\n", __func__, ctrl->id, ctrl->val);
 
 	if (state->hdmi_mode_ctrl == ctrl) {
 		/* Set HDMI or DVI-D */
 		ad9389b_wr_and_or(sd, 0xaf, 0xfd,
-				ctrl->val == V4L2_DV_TX_MODE_HDMI ? 0x02 : 0x00);
+				  ctrl->val == V4L2_DV_TX_MODE_HDMI ? 0x02 : 0x00);
 		return 0;
 	}
 	if (state->rgb_quantization_range_ctrl == ctrl)
@@ -343,12 +338,6 @@ static const struct v4l2_ctrl_ops ad9389b_ctrl_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ad9389b_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->val = ad9389b_rd(sd, reg->reg & 0xff);
 	reg->size = 1;
 	return 0;
@@ -356,23 +345,10 @@ static int ad9389b_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int ad9389b_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	ad9389b_wr(sd, reg->reg & 0xff, reg->val & 0xff);
 	return 0;
 }
 #endif
-
-static int ad9389b_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_AD9389B, 0);
-}
 
 static int ad9389b_log_status(struct v4l2_subdev *sd)
 {
@@ -406,78 +382,63 @@ static int ad9389b_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "chip revision %d\n", state->chip_revision);
 	v4l2_info(sd, "power %s\n", state->power_on ? "on" : "off");
 	v4l2_info(sd, "%s hotplug, %s Rx Sense, %s EDID (%d block(s))\n",
-			(ad9389b_rd(sd, 0x42) & MASK_AD9389B_HPD_DETECT) ?
-							"detected" : "no",
-			(ad9389b_rd(sd, 0x42) & MASK_AD9389B_MSEN_DETECT) ?
-							"detected" : "no",
-			edid->segments ? "found" : "no", edid->blocks);
-	if (state->have_monitor) {
-		v4l2_info(sd, "%s output %s\n",
-				  (ad9389b_rd(sd, 0xaf) & 0x02) ?
-				  "HDMI" : "DVI-D",
-				  (ad9389b_rd(sd, 0xa1) & 0x3c) ?
-				  "disabled" : "enabled");
-	}
+		  (ad9389b_rd(sd, 0x42) & MASK_AD9389B_HPD_DETECT) ?
+		  "detected" : "no",
+		  (ad9389b_rd(sd, 0x42) & MASK_AD9389B_MSEN_DETECT) ?
+		  "detected" : "no",
+		  edid->segments ? "found" : "no", edid->blocks);
+	v4l2_info(sd, "%s output %s\n",
+		  (ad9389b_rd(sd, 0xaf) & 0x02) ?
+		  "HDMI" : "DVI-D",
+		  (ad9389b_rd(sd, 0xa1) & 0x3c) ?
+		  "disabled" : "enabled");
 	v4l2_info(sd, "ad9389b: %s\n", (ad9389b_rd(sd, 0xb8) & 0x40) ?
-					"encrypted" : "no encryption");
+		  "encrypted" : "no encryption");
 	v4l2_info(sd, "state: %s, error: %s, detect count: %u, msk/irq: %02x/%02x\n",
-			states[ad9389b_rd(sd, 0xc8) & 0xf],
-			errors[ad9389b_rd(sd, 0xc8) >> 4],
-			state->edid_detect_counter,
-			ad9389b_rd(sd, 0x94), ad9389b_rd(sd, 0x96));
+		  states[ad9389b_rd(sd, 0xc8) & 0xf],
+		  errors[ad9389b_rd(sd, 0xc8) >> 4],
+		  state->edid_detect_counter,
+		  ad9389b_rd(sd, 0x94), ad9389b_rd(sd, 0x96));
 	manual_gear = ad9389b_rd(sd, 0x98) & 0x80;
 	v4l2_info(sd, "ad9389b: RGB quantization: %s range\n",
-			ad9389b_rd(sd, 0x3b) & 0x01 ? "limited" : "full");
+		  ad9389b_rd(sd, 0x3b) & 0x01 ? "limited" : "full");
 	v4l2_info(sd, "ad9389b: %s gear %d\n",
 		  manual_gear ? "manual" : "automatic",
 		  manual_gear ? ((ad9389b_rd(sd, 0x98) & 0x70) >> 4) :
-				((ad9389b_rd(sd, 0x9e) & 0x0e) >> 1));
-	if (state->have_monitor) {
-		if (ad9389b_rd(sd, 0xaf) & 0x02) {
-			/* HDMI only */
-			u8 manual_cts = ad9389b_rd(sd, 0x0a) & 0x80;
-			u32 N = (ad9389b_rd(sd, 0x01) & 0xf) << 16 |
-				 ad9389b_rd(sd, 0x02) << 8 |
-				 ad9389b_rd(sd, 0x03);
-			u8 vic_detect = ad9389b_rd(sd, 0x3e) >> 2;
-			u8 vic_sent = ad9389b_rd(sd, 0x3d) & 0x3f;
-			u32 CTS;
+		  ((ad9389b_rd(sd, 0x9e) & 0x0e) >> 1));
+	if (ad9389b_rd(sd, 0xaf) & 0x02) {
+		/* HDMI only */
+		u8 manual_cts = ad9389b_rd(sd, 0x0a) & 0x80;
+		u32 N = (ad9389b_rd(sd, 0x01) & 0xf) << 16 |
+			ad9389b_rd(sd, 0x02) << 8 |
+			ad9389b_rd(sd, 0x03);
+		u8 vic_detect = ad9389b_rd(sd, 0x3e) >> 2;
+		u8 vic_sent = ad9389b_rd(sd, 0x3d) & 0x3f;
+		u32 CTS;
 
-			if (manual_cts)
-				CTS = (ad9389b_rd(sd, 0x07) & 0xf) << 16 |
-				       ad9389b_rd(sd, 0x08) << 8 |
-				       ad9389b_rd(sd, 0x09);
-			else
-				CTS = (ad9389b_rd(sd, 0x04) & 0xf) << 16 |
-				       ad9389b_rd(sd, 0x05) << 8 |
-				       ad9389b_rd(sd, 0x06);
-			N = (ad9389b_rd(sd, 0x01) & 0xf) << 16 |
-			     ad9389b_rd(sd, 0x02) << 8 |
-			     ad9389b_rd(sd, 0x03);
+		if (manual_cts)
+			CTS = (ad9389b_rd(sd, 0x07) & 0xf) << 16 |
+			      ad9389b_rd(sd, 0x08) << 8 |
+			      ad9389b_rd(sd, 0x09);
+		else
+			CTS = (ad9389b_rd(sd, 0x04) & 0xf) << 16 |
+			      ad9389b_rd(sd, 0x05) << 8 |
+			      ad9389b_rd(sd, 0x06);
+		N = (ad9389b_rd(sd, 0x01) & 0xf) << 16 |
+		    ad9389b_rd(sd, 0x02) << 8 |
+		    ad9389b_rd(sd, 0x03);
 
-			v4l2_info(sd, "ad9389b: CTS %s mode: N %d, CTS %d\n",
-				manual_cts ? "manual" : "automatic", N, CTS);
+		v4l2_info(sd, "ad9389b: CTS %s mode: N %d, CTS %d\n",
+			  manual_cts ? "manual" : "automatic", N, CTS);
 
-			v4l2_info(sd, "ad9389b: VIC: detected %d, sent %d\n",
-				vic_detect, vic_sent);
-		}
+		v4l2_info(sd, "ad9389b: VIC: detected %d, sent %d\n",
+			  vic_detect, vic_sent);
 	}
-	if (state->dv_timings.type == V4L2_DV_BT_656_1120) {
-		struct v4l2_bt_timings *bt = bt = &state->dv_timings.bt;
-		u32 frame_width = bt->width + bt->hfrontporch +
-			bt->hsync + bt->hbackporch;
-		u32 frame_height = bt->height + bt->vfrontporch +
-			bt->vsync + bt->vbackporch;
-		u32 frame_size = frame_width * frame_height;
-
-		v4l2_info(sd, "timings: %ux%u%s%u (%ux%u). Pix freq. = %u Hz. Polarities = 0x%x\n",
-			bt->width, bt->height, bt->interlaced ? "i" : "p",
-			frame_size > 0 ?  (unsigned)bt->pixelclock / frame_size : 0,
-			frame_width, frame_height,
-			(unsigned)bt->pixelclock, bt->polarities);
-	} else {
+	if (state->dv_timings.type == V4L2_DV_BT_656_1120)
+		v4l2_print_dv_timings(sd->name, "timings: ",
+				&state->dv_timings, false);
+	else
 		v4l2_info(sd, "no timings set\n");
-	}
 	return 0;
 }
 
@@ -516,7 +477,7 @@ static int ad9389b_s_power(struct v4l2_subdev *sd, int on)
 	}
 	if (i > 1)
 		v4l2_dbg(1, debug, sd,
-			"needed %d retries to powerup the ad9389b\n", i);
+			 "needed %d retries to powerup the ad9389b\n", i);
 
 	/* Select chip: AD9389B */
 	ad9389b_wr_and_or(sd, 0xba, 0xef, 0x10);
@@ -586,21 +547,22 @@ static int ad9389b_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	irq_status = ad9389b_rd(sd, 0x96);
 	/* clear detected interrupts */
 	ad9389b_wr(sd, 0x96, irq_status);
+	/* enable interrupts */
+	ad9389b_set_isr(sd, true);
 
-	if (irq_status & (MASK_AD9389B_HPD_INT | MASK_AD9389B_MSEN_INT))
+	v4l2_dbg(1, debug, sd, "%s: irq_status 0x%x\n", __func__, irq_status);
+
+	if (irq_status & (MASK_AD9389B_HPD_INT))
 		ad9389b_check_monitor_present_status(sd);
 	if (irq_status & MASK_AD9389B_EDID_RDY_INT)
 		ad9389b_check_edid_status(sd);
 
-	/* enable interrupts */
-	ad9389b_set_isr(sd, true);
 	*handled = true;
 	return 0;
 }
 
 static const struct v4l2_subdev_core_ops ad9389b_core_ops = {
 	.log_status = ad9389b_log_status,
-	.g_chip_ident = ad9389b_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ad9389b_g_register,
 	.s_register = ad9389b_s_register,
@@ -630,7 +592,7 @@ static int ad9389b_get_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *edi
 	if (edid->blocks + edid->start_block >= state->edid.segments * 2)
 		edid->blocks = state->edid.segments * 2 - edid->start_block;
 	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
-				128 * edid->blocks);
+	       128 * edid->blocks);
 	return 0;
 }
 
@@ -643,8 +605,6 @@ static const struct v4l2_subdev_pad_ops ad9389b_pad_ops = {
 /* Enable/disable ad9389b output */
 static int ad9389b_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct ad9389b_state *state = get_ad9389b_state(sd);
-
 	v4l2_dbg(1, debug, sd, "%s: %sable\n", __func__, (enable ? "en" : "dis"));
 
 	ad9389b_wr_and_or(sd, 0xa1, ~0x3c, (enable ? 0 : 0x3c));
@@ -652,100 +612,35 @@ static int ad9389b_s_stream(struct v4l2_subdev *sd, int enable)
 		ad9389b_check_monitor_present_status(sd);
 	} else {
 		ad9389b_s_power(sd, 0);
-		state->have_monitor = false;
 	}
 	return 0;
 }
 
-static const struct v4l2_dv_timings ad9389b_timings[] = {
-	V4L2_DV_BT_CEA_720X480P59_94,
-	V4L2_DV_BT_CEA_720X576P50,
-	V4L2_DV_BT_CEA_1280X720P24,
-	V4L2_DV_BT_CEA_1280X720P25,
-	V4L2_DV_BT_CEA_1280X720P30,
-	V4L2_DV_BT_CEA_1280X720P50,
-	V4L2_DV_BT_CEA_1280X720P60,
-	V4L2_DV_BT_CEA_1920X1080P24,
-	V4L2_DV_BT_CEA_1920X1080P25,
-	V4L2_DV_BT_CEA_1920X1080P30,
-	V4L2_DV_BT_CEA_1920X1080P50,
-	V4L2_DV_BT_CEA_1920X1080P60,
-
-	V4L2_DV_BT_DMT_640X350P85,
-	V4L2_DV_BT_DMT_640X400P85,
-	V4L2_DV_BT_DMT_720X400P85,
-	V4L2_DV_BT_DMT_640X480P60,
-	V4L2_DV_BT_DMT_640X480P72,
-	V4L2_DV_BT_DMT_640X480P75,
-	V4L2_DV_BT_DMT_640X480P85,
-	V4L2_DV_BT_DMT_800X600P56,
-	V4L2_DV_BT_DMT_800X600P60,
-	V4L2_DV_BT_DMT_800X600P72,
-	V4L2_DV_BT_DMT_800X600P75,
-	V4L2_DV_BT_DMT_800X600P85,
-	V4L2_DV_BT_DMT_848X480P60,
-	V4L2_DV_BT_DMT_1024X768P60,
-	V4L2_DV_BT_DMT_1024X768P70,
-	V4L2_DV_BT_DMT_1024X768P75,
-	V4L2_DV_BT_DMT_1024X768P85,
-	V4L2_DV_BT_DMT_1152X864P75,
-	V4L2_DV_BT_DMT_1280X768P60_RB,
-	V4L2_DV_BT_DMT_1280X768P60,
-	V4L2_DV_BT_DMT_1280X768P75,
-	V4L2_DV_BT_DMT_1280X768P85,
-	V4L2_DV_BT_DMT_1280X800P60_RB,
-	V4L2_DV_BT_DMT_1280X800P60,
-	V4L2_DV_BT_DMT_1280X800P75,
-	V4L2_DV_BT_DMT_1280X800P85,
-	V4L2_DV_BT_DMT_1280X960P60,
-	V4L2_DV_BT_DMT_1280X960P85,
-	V4L2_DV_BT_DMT_1280X1024P60,
-	V4L2_DV_BT_DMT_1280X1024P75,
-	V4L2_DV_BT_DMT_1280X1024P85,
-	V4L2_DV_BT_DMT_1360X768P60,
-	V4L2_DV_BT_DMT_1400X1050P60_RB,
-	V4L2_DV_BT_DMT_1400X1050P60,
-	V4L2_DV_BT_DMT_1400X1050P75,
-	V4L2_DV_BT_DMT_1400X1050P85,
-	V4L2_DV_BT_DMT_1440X900P60_RB,
-	V4L2_DV_BT_DMT_1440X900P60,
-	V4L2_DV_BT_DMT_1600X1200P60,
-	V4L2_DV_BT_DMT_1680X1050P60_RB,
-	V4L2_DV_BT_DMT_1680X1050P60,
-	V4L2_DV_BT_DMT_1792X1344P60,
-	V4L2_DV_BT_DMT_1856X1392P60,
-	V4L2_DV_BT_DMT_1920X1200P60_RB,
-	V4L2_DV_BT_DMT_1366X768P60,
-	V4L2_DV_BT_DMT_1920X1080P60,
-	{},
+static const struct v4l2_dv_timings_cap ad9389b_timings_cap = {
+	.type = V4L2_DV_BT_656_1120,
+	/* keep this initialization for compatibility with GCC < 4.4.6 */
+	.reserved = { 0 },
+	V4L2_INIT_BT_TIMINGS(0, 1920, 0, 1200, 25000000, 170000000,
+		V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
+			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
+		V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_REDUCED_BLANKING |
+		V4L2_DV_BT_CAP_CUSTOM)
 };
 
 static int ad9389b_s_dv_timings(struct v4l2_subdev *sd,
 				struct v4l2_dv_timings *timings)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
-	int i;
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
 	/* quick sanity check */
-	if (timings->type != V4L2_DV_BT_656_1120)
-		return -EINVAL;
-
-	if (timings->bt.interlaced)
-		return -EINVAL;
-	if (timings->bt.pixelclock < 27000000 ||
-	    timings->bt.pixelclock > 170000000)
+	if (!v4l2_valid_dv_timings(timings, &ad9389b_timings_cap, NULL, NULL))
 		return -EINVAL;
 
 	/* Fill the optional fields .standards and .flags in struct v4l2_dv_timings
-	   if the format is listed in ad9389b_timings[] */
-	for (i = 0; ad9389b_timings[i].bt.width; i++) {
-		if (v4l_match_dv_timings(timings, &ad9389b_timings[i], 0)) {
-			*timings = ad9389b_timings[i];
-			break;
-		}
-	}
+	   if the format is one of the CEA or DMT timings. */
+	v4l2_find_dv_timings_cap(timings, &ad9389b_timings_cap, 0, NULL, NULL);
 
 	timings->bt.flags &= ~V4L2_DV_FL_REDUCED_FPS;
 
@@ -781,28 +676,16 @@ static int ad9389b_g_dv_timings(struct v4l2_subdev *sd,
 }
 
 static int ad9389b_enum_dv_timings(struct v4l2_subdev *sd,
-			struct v4l2_enum_dv_timings *timings)
+				   struct v4l2_enum_dv_timings *timings)
 {
-	if (timings->index >= ARRAY_SIZE(ad9389b_timings))
-		return -EINVAL;
-
-	memset(timings->reserved, 0, sizeof(timings->reserved));
-	timings->timings = ad9389b_timings[timings->index];
-	return 0;
+	return v4l2_enum_dv_timings_cap(timings, &ad9389b_timings_cap,
+			NULL, NULL);
 }
 
 static int ad9389b_dv_timings_cap(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings_cap *cap)
+				  struct v4l2_dv_timings_cap *cap)
 {
-	cap->type = V4L2_DV_BT_656_1120;
-	cap->bt.max_width = 1920;
-	cap->bt.max_height = 1200;
-	cap->bt.min_pixelclock = 27000000;
-	cap->bt.max_pixelclock = 170000000;
-	cap->bt.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
-			 V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT;
-	cap->bt.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |
-		V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM;
+	*cap = ad9389b_timings_cap;
 	return 0;
 }
 
@@ -831,15 +714,15 @@ static int ad9389b_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	u32 N;
 
 	switch (freq) {
-	case 32000: N = 4096; break;
-	case 44100: N = 6272; break;
-	case 48000: N = 6144; break;
-	case 88200: N = 12544; break;
-	case 96000: N = 12288; break;
+	case 32000:  N = 4096;  break;
+	case 44100:  N = 6272;  break;
+	case 48000:  N = 6144;  break;
+	case 88200:  N = 12544; break;
+	case 96000:  N = 12288; break;
 	case 176400: N = 25088; break;
 	case 192000: N = 24576; break;
 	default:
-		return -EINVAL;
+	     return -EINVAL;
 	}
 
 	/* Set N (used with CTS to regenerate the audio clock) */
@@ -855,15 +738,15 @@ static int ad9389b_s_i2s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	u32 i2s_sf;
 
 	switch (freq) {
-	case 32000: i2s_sf = 0x30; break;
-	case 44100: i2s_sf = 0x00; break;
-	case 48000: i2s_sf = 0x20; break;
-	case 88200: i2s_sf = 0x80; break;
-	case 96000: i2s_sf = 0xa0; break;
+	case 32000:  i2s_sf = 0x30; break;
+	case 44100:  i2s_sf = 0x00; break;
+	case 48000:  i2s_sf = 0x20; break;
+	case 88200:  i2s_sf = 0x80; break;
+	case 96000:  i2s_sf = 0xa0; break;
 	case 176400: i2s_sf = 0xc0; break;
 	case 192000: i2s_sf = 0xe0; break;
 	default:
-		return -EINVAL;
+	     return -EINVAL;
 	}
 
 	/* Set sampling frequency for I2S audio to 48 kHz */
@@ -907,7 +790,7 @@ static const struct v4l2_subdev_ops ad9389b_ops = {
 
 /* ----------------------------------------------------------------------- */
 static void ad9389b_dbg_dump_edid(int lvl, int debug, struct v4l2_subdev *sd,
-							int segment, u8 *buf)
+				  int segment, u8 *buf)
 {
 	int i, j;
 
@@ -933,8 +816,8 @@ static void ad9389b_dbg_dump_edid(int lvl, int debug, struct v4l2_subdev *sd,
 static void ad9389b_edid_handler(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct ad9389b_state *state = container_of(dwork,
-			struct ad9389b_state, edid_handler);
+	struct ad9389b_state *state =
+		container_of(dwork, struct ad9389b_state, edid_handler);
 	struct v4l2_subdev *sd = &state->sd;
 	struct ad9389b_edid_detect ed;
 
@@ -951,10 +834,11 @@ static void ad9389b_edid_handler(struct work_struct *work)
 		 * (DVI connectors are particularly prone to this problem). */
 		if (state->edid.read_retries) {
 			state->edid.read_retries--;
-			/* EDID read failed, trigger a retry */
-			ad9389b_wr(sd, 0xc9, 0xf);
+			v4l2_dbg(1, debug, sd, "%s: edid read failed\n", __func__);
+			ad9389b_s_power(sd, false);
+			ad9389b_s_power(sd, true);
 			queue_delayed_work(state->work_queue,
-					&state->edid_handler, EDID_DELAY);
+					   &state->edid_handler, EDID_DELAY);
 			return;
 		}
 	}
@@ -988,11 +872,9 @@ static void ad9389b_setup(struct v4l2_subdev *sd)
 	ad9389b_wr_and_or(sd, 0x15, 0xf1, 0x0);
 	/* Output format: RGB 4:4:4 */
 	ad9389b_wr_and_or(sd, 0x16, 0x3f, 0x0);
-	/* CSC fixed point: +/-2, 1st order interpolation 4:2:2 -> 4:4:4 up
-	   conversion, Aspect ratio: 16:9 */
-	ad9389b_wr_and_or(sd, 0x17, 0xe1, 0x0e);
-	/* Disable pixel repetition and CSC */
-	ad9389b_wr_and_or(sd, 0x3b, 0x9e, 0x0);
+	/* 1st order interpolation 4:2:2 -> 4:4:4 up conversion,
+	   Aspect ratio: 16:9 */
+	ad9389b_wr_and_or(sd, 0x17, 0xf9, 0x06);
 	/* Output format: RGB 4:4:4, Active Format Information is valid. */
 	ad9389b_wr_and_or(sd, 0x45, 0xc7, 0x08);
 	/* Underscanned */
@@ -1022,49 +904,35 @@ static void ad9389b_notify_monitor_detect(struct v4l2_subdev *sd)
 	v4l2_subdev_notify(sd, AD9389B_MONITOR_DETECT, (void *)&mdt);
 }
 
-static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
+static void ad9389b_update_monitor_present_status(struct v4l2_subdev *sd)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 	/* read hotplug and rx-sense state */
 	u8 status = ad9389b_rd(sd, 0x42);
 
 	v4l2_dbg(1, debug, sd, "%s: status: 0x%x%s%s\n",
-			 __func__,
-			 status,
-			 status & MASK_AD9389B_HPD_DETECT ? ", hotplug" : "",
-			 status & MASK_AD9389B_MSEN_DETECT ? ", rx-sense" : "");
+		 __func__,
+		 status,
+		 status & MASK_AD9389B_HPD_DETECT ? ", hotplug" : "",
+		 status & MASK_AD9389B_MSEN_DETECT ? ", rx-sense" : "");
 
-	if ((status & MASK_AD9389B_HPD_DETECT) &&
-	    ((status & MASK_AD9389B_MSEN_DETECT) || state->edid.segments)) {
-		v4l2_dbg(1, debug, sd,
-				"%s: hotplug and (rx-sense or edid)\n", __func__);
-		if (!state->have_monitor) {
-			v4l2_dbg(1, debug, sd, "%s: monitor detected\n", __func__);
-			state->have_monitor = true;
-			ad9389b_set_isr(sd, true);
-			if (!ad9389b_s_power(sd, true)) {
-				v4l2_dbg(1, debug, sd,
-					"%s: monitor detected, powerup failed\n", __func__);
-				return;
-			}
-			ad9389b_setup(sd);
-			ad9389b_notify_monitor_detect(sd);
-			state->edid.read_retries = EDID_MAX_RETRIES;
-			queue_delayed_work(state->work_queue,
-					&state->edid_handler, EDID_DELAY);
-		}
-	} else if (status & MASK_AD9389B_HPD_DETECT) {
+	if (status & MASK_AD9389B_HPD_DETECT) {
 		v4l2_dbg(1, debug, sd, "%s: hotplug detected\n", __func__);
+		state->have_monitor = true;
+		if (!ad9389b_s_power(sd, true)) {
+			v4l2_dbg(1, debug, sd,
+				 "%s: monitor detected, powerup failed\n", __func__);
+			return;
+		}
+		ad9389b_setup(sd);
+		ad9389b_notify_monitor_detect(sd);
 		state->edid.read_retries = EDID_MAX_RETRIES;
 		queue_delayed_work(state->work_queue,
-				&state->edid_handler, EDID_DELAY);
+				   &state->edid_handler, EDID_DELAY);
 	} else if (!(status & MASK_AD9389B_HPD_DETECT)) {
 		v4l2_dbg(1, debug, sd, "%s: hotplug not detected\n", __func__);
-		if (state->have_monitor) {
-			v4l2_dbg(1, debug, sd, "%s: monitor not detected\n", __func__);
-			state->have_monitor = false;
-			ad9389b_notify_monitor_detect(sd);
-		}
+		state->have_monitor = false;
+		ad9389b_notify_monitor_detect(sd);
 		ad9389b_s_power(sd, false);
 		memset(&state->edid, 0, sizeof(struct ad9389b_state_edid));
 	}
@@ -1073,19 +941,48 @@ static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
 	v4l2_ctrl_s_ctrl(state->hotplug_ctrl, ad9389b_have_hotplug(sd) ? 0x1 : 0x0);
 	v4l2_ctrl_s_ctrl(state->rx_sense_ctrl, ad9389b_have_rx_sense(sd) ? 0x1 : 0x0);
 	v4l2_ctrl_s_ctrl(state->have_edid0_ctrl, state->edid.segments ? 0x1 : 0x0);
+
+	/* update with setting from ctrls */
+	ad9389b_s_ctrl(state->rgb_quantization_range_ctrl);
+	ad9389b_s_ctrl(state->hdmi_mode_ctrl);
+}
+
+static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
+{
+	struct ad9389b_state *state = get_ad9389b_state(sd);
+	int retry = 0;
+
+	ad9389b_update_monitor_present_status(sd);
+
+	/*
+	 * Rapid toggling of the hotplug may leave the chip powered off,
+	 * even if we think it is on. In that case reset and power up again.
+	 */
+	while (state->power_on && (ad9389b_rd(sd, 0x41) & 0x40)) {
+		if (++retry > 5) {
+			v4l2_err(sd, "retried %d times, give up\n", retry);
+			return;
+		}
+		v4l2_dbg(1, debug, sd, "%s: reset and re-check status (%d)\n", __func__, retry);
+		ad9389b_notify_monitor_detect(sd);
+		cancel_delayed_work_sync(&state->edid_handler);
+		memset(&state->edid, 0, sizeof(struct ad9389b_state_edid));
+		ad9389b_s_power(sd, false);
+		ad9389b_update_monitor_present_status(sd);
+	}
 }
 
 static bool edid_block_verify_crc(u8 *edid_block)
 {
-	int i;
 	u8 sum = 0;
+	int i;
 
-	for (i = 0; i < 127; i++)
-		sum += *(edid_block + i);
-	return ((255 - sum + 1) == edid_block[127]);
+	for (i = 0; i < 128; i++)
+		sum += edid_block[i];
+	return sum == 0;
 }
 
-static bool edid_segment_verify_crc(struct v4l2_subdev *sd, u32 segment)
+static bool edid_verify_crc(struct v4l2_subdev *sd, u32 segment)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 	u32 blocks = state->edid.blocks;
@@ -1099,6 +996,25 @@ static bool edid_segment_verify_crc(struct v4l2_subdev *sd, u32 segment)
 	return false;
 }
 
+static bool edid_verify_header(struct v4l2_subdev *sd, u32 segment)
+{
+	static const u8 hdmi_header[] = {
+		0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
+	};
+	struct ad9389b_state *state = get_ad9389b_state(sd);
+	u8 *data = state->edid.data;
+	int i;
+
+	if (segment)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(hdmi_header); i++)
+		if (data[i] != hdmi_header[i])
+			return false;
+
+	return true;
+}
+
 static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
@@ -1107,7 +1023,7 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	u8 edidRdy = ad9389b_rd(sd, 0xc5);
 
 	v4l2_dbg(1, debug, sd, "%s: edid ready (retries: %d)\n",
-			 __func__, EDID_MAX_RETRIES - state->edid.read_retries);
+		 __func__, EDID_MAX_RETRIES - state->edid.read_retries);
 
 	if (!(edidRdy & MASK_AD9389B_EDID_RDY))
 		return false;
@@ -1120,14 +1036,16 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	v4l2_dbg(1, debug, sd, "%s: got segment %d\n", __func__, segment);
 	ad9389b_edid_rd(sd, 256, &state->edid.data[segment * 256]);
 	ad9389b_dbg_dump_edid(2, debug, sd, segment,
-			&state->edid.data[segment * 256]);
+			      &state->edid.data[segment * 256]);
 	if (segment == 0) {
 		state->edid.blocks = state->edid.data[0x7e] + 1;
 		v4l2_dbg(1, debug, sd, "%s: %d blocks in total\n",
-				__func__, state->edid.blocks);
+			 __func__, state->edid.blocks);
 	}
-	if (!edid_segment_verify_crc(sd, segment)) {
+	if (!edid_verify_crc(sd, segment) ||
+	    !edid_verify_header(sd, segment)) {
 		/* edid crc error, force reread of edid segment */
+		v4l2_err(sd, "%s: edid crc or header error\n", __func__);
 		ad9389b_s_power(sd, false);
 		ad9389b_s_power(sd, true);
 		return false;
@@ -1137,12 +1055,12 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	if (((state->edid.data[0x7e] >> 1) + 1) > state->edid.segments) {
 		/* Request next EDID segment */
 		v4l2_dbg(1, debug, sd, "%s: request segment %d\n",
-				__func__, state->edid.segments);
+			 __func__, state->edid.segments);
 		ad9389b_wr(sd, 0xc9, 0xf);
 		ad9389b_wr(sd, 0xc4, state->edid.segments);
 		state->edid.read_retries = EDID_MAX_RETRIES;
 		queue_delayed_work(state->work_queue,
-				&state->edid_handler, EDID_DELAY);
+				   &state->edid_handler, EDID_DELAY);
 		return false;
 	}
 
@@ -1186,17 +1104,16 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 		return -EIO;
 
 	v4l_dbg(1, debug, client, "detecting ad9389b client on address 0x%x\n",
-			client->addr << 1);
+		client->addr << 1);
 
-	state = kzalloc(sizeof(struct ad9389b_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
 	/* Platform data */
 	if (pdata == NULL) {
 		v4l_err(client, "No platform data!\n");
-		err = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	}
 	memcpy(&state->pdata, pdata, sizeof(state->pdata));
 
@@ -1212,27 +1129,27 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->hdmi_mode_ctrl = v4l2_ctrl_new_std_menu(hdl, &ad9389b_ctrl_ops,
 			V4L2_CID_DV_TX_MODE, V4L2_DV_TX_MODE_HDMI,
 			0, V4L2_DV_TX_MODE_DVI_D);
-	state->hdmi_mode_ctrl->is_private = true;
 	state->hotplug_ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_DV_TX_HOTPLUG, 0, 1, 0, 0);
-	state->hotplug_ctrl->is_private = true;
 	state->rx_sense_ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_DV_TX_RXSENSE, 0, 1, 0, 0);
-	state->rx_sense_ctrl->is_private = true;
 	state->have_edid0_ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_DV_TX_EDID_PRESENT, 0, 1, 0, 0);
-	state->have_edid0_ctrl->is_private = true;
 	state->rgb_quantization_range_ctrl =
 		v4l2_ctrl_new_std_menu(hdl, &ad9389b_ctrl_ops,
 			V4L2_CID_DV_TX_RGB_RANGE, V4L2_DV_RGB_RANGE_FULL,
 			0, V4L2_DV_RGB_RANGE_AUTO);
-	state->rgb_quantization_range_ctrl->is_private = true;
 	sd->ctrl_handler = hdl;
 	if (hdl->error) {
 		err = hdl->error;
 
 		goto err_hdl;
 	}
+	state->hdmi_mode_ctrl->is_private = true;
+	state->hotplug_ctrl->is_private = true;
+	state->rx_sense_ctrl->is_private = true;
+	state->have_edid0_ctrl->is_private = true;
+	state->rgb_quantization_range_ctrl->is_private = true;
 
 	state->pad.flags = MEDIA_PAD_FL_SINK;
 	err = media_entity_init(&sd->entity, 1, &state->pad, 0);
@@ -1246,17 +1163,19 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 		goto err_entity;
 	}
 	v4l2_dbg(1, debug, sd, "reg 0x41 0x%x, chip version (reg 0x00) 0x%x\n",
-			ad9389b_rd(sd, 0x41), state->chip_revision);
+		 ad9389b_rd(sd, 0x41), state->chip_revision);
 
 	state->edid_i2c_client = i2c_new_dummy(client->adapter, (0x7e>>1));
 	if (state->edid_i2c_client == NULL) {
 		v4l2_err(sd, "failed to register edid i2c client\n");
+		err = -ENOMEM;
 		goto err_entity;
 	}
 
 	state->work_queue = create_singlethread_workqueue(sd->name);
 	if (state->work_queue == NULL) {
 		v4l2_err(sd, "could not create workqueue\n");
+		err = -ENOMEM;
 		goto err_unreg;
 	}
 
@@ -1267,7 +1186,7 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	ad9389b_set_isr(sd, true);
 
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
-			  client->addr << 1, client->adapter->name);
+		  client->addr << 1, client->adapter->name);
 	return 0;
 
 err_unreg:
@@ -1276,8 +1195,6 @@ err_entity:
 	media_entity_cleanup(&sd->entity);
 err_hdl:
 	v4l2_ctrl_handler_free(&state->hdl);
-err_free:
-	kfree(state);
 	return err;
 }
 
@@ -1302,15 +1219,14 @@ static int ad9389b_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	kfree(get_ad9389b_state(sd));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_device_id ad9389b_id[] = {
-	{ "ad9389b", V4L2_IDENT_AD9389B },
-	{ "ad9889b", V4L2_IDENT_AD9389B },
+	{ "ad9389b", 0 },
+	{ "ad9889b", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad9389b_id);

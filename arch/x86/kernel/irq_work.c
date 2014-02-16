@@ -22,14 +22,14 @@ static inline void __smp_irq_work_interrupt(void)
 	irq_work_run();
 }
 
-void smp_irq_work_interrupt(struct pt_regs *regs)
+__visible void smp_irq_work_interrupt(struct pt_regs *regs)
 {
 	irq_work_entering_irq();
 	__smp_irq_work_interrupt();
 	exiting_irq();
 }
 
-void smp_trace_irq_work_interrupt(struct pt_regs *regs)
+__visible void smp_trace_irq_work_interrupt(struct pt_regs *regs)
 {
 	irq_work_entering_irq();
 	trace_irq_work_entry(IRQ_WORK_VECTOR);

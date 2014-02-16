@@ -174,9 +174,8 @@ config CRYPTO_TEST
 	help
 	  Quick & dirty crypto test module.
 
-config CRYPTO_ABLK_HELPER_X86
+config CRYPTO_ABLK_HELPER
 	tristate
-	depends on X86
 	select CRYPTO_CRYPTD
 
 config CRYPTO_GLUE_HELPER_X86
@@ -375,6 +374,25 @@ config CRYPTO_CRC32_PCLMUL
 	  instruction. This option will create 'crc32-plcmul' module,
 	  which will enable any routine to use the CRC-32-IEEE 802.3 checksum
 	  and gain better performance as compared with the table implementation.
+
+config CRYPTO_CRCT10DIF
+	tristate "CRCT10DIF algorithm"
+	select CRYPTO_HASH
+	help
+	  CRC T10 Data Integrity Field computation is being cast as
+	  a crypto transform.  This allows for faster crc t10 diff
+	  transforms to be used if they are available.
+
+config CRYPTO_CRCT10DIF_PCLMUL
+	tristate "CRCT10DIF PCLMULQDQ hardware acceleration"
+	depends on X86 && 64BIT && CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  For x86_64 processors with SSE4.2 and PCLMULQDQ supported,
+	  CRC T10 DIF PCLMULQDQ computation can be hardware
+	  accelerated PCLMULQDQ instruction. This option will create
+	  'crct10dif-plcmul' module, which is faster when computing the
+	  crct10dif checksum as compared with the generic table implementation.
 
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
@@ -676,7 +694,7 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_AES_X86_64 if 64BIT
 	select CRYPTO_AES_586 if !64BIT
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_ALGAPI
 	select CRYPTO_GLUE_HELPER_X86 if 64BIT
 	select CRYPTO_LRW
@@ -757,6 +775,22 @@ config CRYPTO_AES_ARM
 
 	  See <http://csrc.nist.gov/encryption/aes/> for more information.
 
+config CRYPTO_AES_ARM_BS
+	tristate "Bit sliced AES using NEON instructions"
+	depends on ARM && KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES_ARM
+	select CRYPTO_ABLK_HELPER
+	help
+	  Use a faster and more secure NEON based implementation of AES in CBC,
+	  CTR and XTS modes
+
+	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
+	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
+	  around 25%. (CBC encryption speed is not affected by this driver.)
+	  This implementation does not rely on any lookup tables so it is
+	  believed to be invulnerable to cache timing attacks.
+
 config CRYPTO_ANUBIS
 	tristate "Anubis cipher algorithm"
 	select CRYPTO_ALGAPI
@@ -820,25 +854,6 @@ config CRYPTO_BLOWFISH_X86_64
 	  See also:
 	  <http://www.schneier.com/blowfish.html>
 
-config CRYPTO_BLOWFISH_AVX2_X86_64
-	tristate "Blowfish cipher algorithm (x86_64/AVX2)"
-	depends on X86 && 64BIT
-	depends on BROKEN
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
-	select CRYPTO_BLOWFISH_COMMON
-	select CRYPTO_BLOWFISH_X86_64
-	help
-	  Blowfish cipher algorithm (x86_64/AVX2), by Bruce Schneier.
-
-	  This is a variable key length cipher which can use keys from 32
-	  bits to 448 bits in length.  It's fast, simple and specifically
-	  designed for use on "large microprocessors".
-
-	  See also:
-	  <http://www.schneier.com/blowfish.html>
-
 config CRYPTO_CAMELLIA
 	tristate "Camellia cipher algorithms"
 	depends on CRYPTO
@@ -879,7 +894,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	depends on CRYPTO
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_CAMELLIA_X86_64
 	select CRYPTO_LRW
@@ -901,7 +916,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
 	depends on CRYPTO
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_CAMELLIA_X86_64
 	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
@@ -953,7 +968,7 @@ config CRYPTO_CAST5_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_CAST5
 	help
@@ -976,7 +991,7 @@ config CRYPTO_CAST6_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_CAST6
@@ -1094,7 +1109,7 @@ config CRYPTO_SERPENT_SSE2_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_LRW
@@ -1116,7 +1131,7 @@ config CRYPTO_SERPENT_SSE2_586
 	depends on X86 && !64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_LRW
@@ -1138,7 +1153,7 @@ config CRYPTO_SERPENT_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_LRW
@@ -1160,7 +1175,7 @@ config CRYPTO_SERPENT_AVX2_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_SERPENT_AVX_X86_64
@@ -1276,7 +1291,7 @@ config CRYPTO_TWOFISH_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
@@ -1293,31 +1308,6 @@ config CRYPTO_TWOFISH_AVX_X86_64
 
 	  This module provides the Twofish cipher algorithm that processes
 	  eight blocks parallel using the AVX Instruction Set.
-
-	  See also:
-	  <http://www.schneier.com/twofish.html>
-
-config CRYPTO_TWOFISH_AVX2_X86_64
-	tristate "Twofish cipher algorithm (x86_64/AVX2)"
-	depends on X86 && 64BIT
-	depends on BROKEN
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
-	select CRYPTO_GLUE_HELPER_X86
-	select CRYPTO_TWOFISH_COMMON
-	select CRYPTO_TWOFISH_X86_64
-	select CRYPTO_TWOFISH_X86_64_3WAY
-	select CRYPTO_TWOFISH_AVX_X86_64
-	select CRYPTO_LRW
-	select CRYPTO_XTS
-	help
-	  Twofish cipher algorithm (x86_64/AVX2).
-
-	  Twofish was submitted as an AES (Advanced Encryption Standard)
-	  candidate cipher by researchers at CounterPane Systems.  It is a
-	  16 round block cipher supporting key sizes of 128, 192, and 256
-	  bits.
 
 	  See also:
 	  <http://www.schneier.com/twofish.html>
@@ -1361,6 +1351,22 @@ config CRYPTO_842
 	help
 	  This is the 842 algorithm.
 
+config CRYPTO_LZ4
+	tristate "LZ4 compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZ4_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This is the LZ4 algorithm.
+
+config CRYPTO_LZ4HC
+	tristate "LZ4HC compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZ4HC_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This is the LZ4 high compression mode algorithm.
+
 comment "Random Number Generation"
 
 config CRYPTO_ANSI_CPRNG
@@ -1394,6 +1400,9 @@ config CRYPTO_USER_API_SKCIPHER
 	help
 	  This option enables the user-spaces interface for symmetric
 	  key cipher algorithms.
+
+config CRYPTO_HASH_INFO
+	bool
 
 source "drivers/crypto/Kconfig"
 source crypto/asymmetric_keys/Kconfig

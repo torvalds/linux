@@ -78,8 +78,8 @@ typedef int (*cam_get_reg_op) (struct gspca_dev *,
 				struct v4l2_dbg_register *);
 typedef int (*cam_set_reg_op) (struct gspca_dev *,
 				const struct v4l2_dbg_register *);
-typedef int (*cam_ident_op) (struct gspca_dev *,
-				struct v4l2_dbg_chip_ident *);
+typedef int (*cam_chip_info_op) (struct gspca_dev *,
+				struct v4l2_dbg_chip_info *);
 typedef void (*cam_streamparm_op) (struct gspca_dev *,
 				  struct v4l2_streamparm *);
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
@@ -88,6 +88,10 @@ typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
 typedef int (*cam_int_pkt_op) (struct gspca_dev *gspca_dev,
 				u8 *data,
 				int len);
+typedef void (*cam_format_op) (struct gspca_dev *gspca_dev,
+				struct v4l2_format *fmt);
+typedef int (*cam_frmsize_op) (struct gspca_dev *gspca_dev,
+				struct v4l2_frmsizeenum *fsize);
 
 /* subdriver description */
 struct sd_desc {
@@ -109,11 +113,13 @@ struct sd_desc {
 	cam_set_jpg_op set_jcomp;
 	cam_streamparm_op get_streamparm;
 	cam_streamparm_op set_streamparm;
+	cam_format_op try_fmt;
+	cam_frmsize_op enum_framesizes;
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	cam_set_reg_op set_register;
 	cam_get_reg_op get_register;
+	cam_chip_info_op get_chip_info;
 #endif
-	cam_ident_op get_chip_ident;
 #if IS_ENABLED(CONFIG_INPUT)
 	cam_int_pkt_op int_pkt_scan;
 	/* other_input makes the gspca core create gspca_dev->input even when
@@ -183,9 +189,7 @@ struct gspca_dev {
 	__u8 streaming;			/* protected by both mutexes (*) */
 
 	__u8 curr_mode;			/* current camera mode */
-	__u32 pixfmt;			/* current mode parameters */
-	__u16 width;
-	__u16 height;
+	struct v4l2_pix_format pixfmt;	/* current mode parameters */
 	__u32 sequence;			/* frame sequence number */
 
 	wait_queue_head_t wq;		/* wait queue */

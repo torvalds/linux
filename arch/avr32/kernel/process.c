@@ -289,7 +289,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		memset(childregs, 0, sizeof(struct pt_regs));
 		p->thread.cpu_context.r0 = arg;
 		p->thread.cpu_context.r1 = usp; /* fn */
-		p->thread.cpu_context.r2 = syscall_return;
+		p->thread.cpu_context.r2 = (unsigned long)syscall_return;
 		p->thread.cpu_context.pc = (unsigned long)ret_from_kernel_thread;
 		childregs->sr = MODE_SUPERVISOR;
 	} else {

@@ -1421,8 +1421,7 @@ int bnx2fc_map_doorbell(struct bnx2fc_rport *tgt)
 
 	reg_base = pci_resource_start(hba->pcidev,
 					BNX2X_DOORBELL_PCI_BAR);
-	reg_off = BNX2FC_5771X_DB_PAGE_SIZE *
-			(context_id & 0x1FFFF) + DPM_TRIGER_TYPE;
+	reg_off = (1 << BNX2X_DB_SHIFT) * (context_id & 0x1FFFF);
 	tgt->ctx_base = ioremap_nocache(reg_base + reg_off, 4);
 	if (!tgt->ctx_base)
 		return -ENOMEM;

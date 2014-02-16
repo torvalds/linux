@@ -1097,7 +1097,7 @@ static void serial_txx9_unregister_port(int line)
  */
 static int serial_txx9_probe(struct platform_device *dev)
 {
-	struct uart_port *p = dev->dev.platform_data;
+	struct uart_port *p = dev_get_platdata(&dev->dev);
 	struct uart_port port;
 	int ret, i;
 
@@ -1219,8 +1219,6 @@ pciserial_txx9_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 static void pciserial_txx9_remove_one(struct pci_dev *dev)
 {
 	struct uart_txx9_port *up = pci_get_drvdata(dev);
-
-	pci_set_drvdata(dev, NULL);
 
 	if (up) {
 		serial_txx9_unregister_port(up->port.line);

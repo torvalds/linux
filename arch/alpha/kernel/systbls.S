@@ -524,6 +524,8 @@ sys_call_table:
 	.quad sys_sendmmsg
 	.quad sys_process_vm_readv
 	.quad sys_process_vm_writev		/* 505 */
+	.quad sys_kcmp
+	.quad sys_finit_module
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

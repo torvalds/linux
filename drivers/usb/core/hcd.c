@@ -6,7 +6,7 @@
  * (C) Copyright Deti Fliegl 1999
  * (C) Copyright Randy Dunlap 2000
  * (C) Copyright David Brownell 2000-2002
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -40,9 +40,11 @@
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/phy.h>
 
 #include "usb.h"
 
@@ -92,10 +94,7 @@ EXPORT_SYMBOL_GPL (usb_bus_list);
 
 /* used when allocating bus numbers */
 #define USB_MAXBUS		64
-struct usb_busmap {
-	unsigned long busmap [USB_MAXBUS / (8*sizeof (unsigned long))];
-};
-static struct usb_busmap busmap;
+static DECLARE_BITMAP(busmap, USB_MAXBUS);
 
 /* used when updating list of hcds */
 DEFINE_MUTEX(usb_bus_list_lock);	/* exported only for usbfs */
@@ -171,7 +170,7 @@ static const u8 usb25_rh_dev_descriptor[18] = {
 };
 
 /* usb 2.0 root hub device descriptor */
-static const u8 usb2_rh_dev_descriptor [18] = {
+static const u8 usb2_rh_dev_descriptor[18] = {
 	0x12,       /*  __u8  bLength; */
 	0x01,       /*  __u8  bDescriptorType; Device */
 	0x00, 0x02, /*  __le16 bcdUSB; v2.0 */
@@ -194,7 +193,7 @@ static const u8 usb2_rh_dev_descriptor [18] = {
 /* no usb 2.0 root hub "device qualifier" descriptor: one speed only */
 
 /* usb 1.1 root hub device descriptor */
-static const u8 usb11_rh_dev_descriptor [18] = {
+static const u8 usb11_rh_dev_descriptor[18] = {
 	0x12,       /*  __u8  bLength; */
 	0x01,       /*  __u8  bDescriptorType; Device */
 	0x10, 0x01, /*  __le16 bcdUSB; v1.1 */
@@ -219,7 +218,7 @@ static const u8 usb11_rh_dev_descriptor [18] = {
 
 /* Configuration descriptors for our root hubs */
 
-static const u8 fs_rh_config_descriptor [] = {
+static const u8 fs_rh_config_descriptor[] = {
 
 	/* one configuration */
 	0x09,       /*  __u8  bLength; */
@@ -228,13 +227,13 @@ static const u8 fs_rh_config_descriptor [] = {
 	0x01,       /*  __u8  bNumInterfaces; (1) */
 	0x01,       /*  __u8  bConfigurationValue; */
 	0x00,       /*  __u8  iConfiguration; */
-	0xc0,       /*  __u8  bmAttributes; 
+	0xc0,       /*  __u8  bmAttributes;
 				 Bit 7: must be set,
 				     6: Self-powered,
 				     5: Remote wakeup,
 				     4..0: resvd */
 	0x00,       /*  __u8  MaxPower; */
-      
+
 	/* USB 1.1:
 	 * USB 2.0, single TT organization (mandatory):
 	 *	one interface, protocol 0
@@ -256,17 +255,17 @@ static const u8 fs_rh_config_descriptor [] = {
 	0x00,       /*  __u8  if_bInterfaceSubClass; */
 	0x00,       /*  __u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
 	0x00,       /*  __u8  if_iInterface; */
-     
+
 	/* one endpoint (status change endpoint) */
 	0x07,       /*  __u8  ep_bLength; */
 	0x05,       /*  __u8  ep_bDescriptorType; Endpoint */
 	0x81,       /*  __u8  ep_bEndpointAddress; IN Endpoint 1 */
- 	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
- 	0x02, 0x00, /*  __le16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8) */
+	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
+	0x02, 0x00, /*  __le16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8) */
 	0xff        /*  __u8  ep_bInterval; (255ms -- usb 2.0 spec) */
 };
 
-static const u8 hs_rh_config_descriptor [] = {
+static const u8 hs_rh_config_descriptor[] = {
 
 	/* one configuration */
 	0x09,       /*  __u8  bLength; */
@@ -275,13 +274,13 @@ static const u8 hs_rh_config_descriptor [] = {
 	0x01,       /*  __u8  bNumInterfaces; (1) */
 	0x01,       /*  __u8  bConfigurationValue; */
 	0x00,       /*  __u8  iConfiguration; */
-	0xc0,       /*  __u8  bmAttributes; 
+	0xc0,       /*  __u8  bmAttributes;
 				 Bit 7: must be set,
 				     6: Self-powered,
 				     5: Remote wakeup,
 				     4..0: resvd */
 	0x00,       /*  __u8  MaxPower; */
-      
+
 	/* USB 1.1:
 	 * USB 2.0, single TT organization (mandatory):
 	 *	one interface, protocol 0
@@ -303,12 +302,12 @@ static const u8 hs_rh_config_descriptor [] = {
 	0x00,       /*  __u8  if_bInterfaceSubClass; */
 	0x00,       /*  __u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
 	0x00,       /*  __u8  if_iInterface; */
-     
+
 	/* one endpoint (status change endpoint) */
 	0x07,       /*  __u8  ep_bLength; */
 	0x05,       /*  __u8  ep_bDescriptorType; Endpoint */
 	0x81,       /*  __u8  ep_bEndpointAddress; IN Endpoint 1 */
- 	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
+	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
 		    /* __le16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8)
 		     * see hub.c:hub_configure() for details. */
 	(USB_MAXCHILDREN + 1 + 7) / 8, 0x00,
@@ -378,9 +377,10 @@ MODULE_PARM_DESC(authorized_default,
  * @buf: Buffer for USB string descriptor (header + UTF-16LE)
  * @len: Length (in bytes; may be odd) of descriptor buffer.
  *
- * The return value is the number of bytes filled in: 2 + 2*strlen(s) or
- * buflen, whichever is less.
+ * Return: The number of bytes filled in: 2 + 2*strlen(s) or @len,
+ * whichever is less.
  *
+ * Note:
  * USB String descriptors can contain at most 126 characters; input
  * strings longer than that are truncated.
  */
@@ -416,7 +416,8 @@ ascii2desc(char const *s, u8 *buf, unsigned len)
  *
  * Produces either a manufacturer, product or serial number string for the
  * virtual root hub device.
- * Returns the number of bytes filled in: the length of the descriptor or
+ *
+ * Return: The number of bytes filled in: the length of the descriptor or
  * of the provided buffer, whichever is less.
  */
 static unsigned
@@ -426,7 +427,7 @@ rh_string(int id, struct usb_hcd const *hcd, u8 *data, unsigned len)
 	char const *s;
 	static char const langids[4] = {4, USB_DT_STRING, 0x09, 0x04};
 
-	// language ids
+	/* language ids */
 	switch (id) {
 	case 0:
 		/* Array of LANGID codes (0x0409 is MSFT-speak for "en-us") */
@@ -462,19 +463,15 @@ rh_string(int id, struct usb_hcd const *hcd, u8 *data, unsigned len)
 static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 {
 	struct usb_ctrlrequest *cmd;
- 	u16		typeReq, wValue, wIndex, wLength;
+	u16		typeReq, wValue, wIndex, wLength;
 	u8		*ubuf = urb->transfer_buffer;
-	/*
-	 * tbuf should be as big as the BOS descriptor and
-	 * the USB hub descriptor.
-	 */
-	u8		tbuf[USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE]
-		__attribute__((aligned(4)));
-	const u8	*bufp = tbuf;
 	unsigned	len = 0;
 	int		status;
 	u8		patch_wakeup = 0;
 	u8		patch_protocol = 0;
+	u16		tbuf_size;
+	u8		*tbuf = NULL;
+	const u8	*bufp;
 
 	might_sleep();
 
@@ -493,6 +490,18 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 
 	if (wLength > urb->transfer_buffer_length)
 		goto error;
+
+	/*
+	 * tbuf should be at least as big as the
+	 * USB hub descriptor.
+	 */
+	tbuf_size =  max_t(u16, sizeof(struct usb_hub_descriptor), wLength);
+	tbuf = kzalloc(tbuf_size, GFP_KERNEL);
+	if (!tbuf)
+		return -ENOMEM;
+
+	bufp = tbuf;
+
 
 	urb->actual_length = 0;
 	switch (typeReq) {
@@ -516,10 +525,10 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	 */
 
 	case DeviceRequest | USB_REQ_GET_STATUS:
-		tbuf [0] = (device_may_wakeup(&hcd->self.root_hub->dev)
+		tbuf[0] = (device_may_wakeup(&hcd->self.root_hub->dev)
 					<< USB_DEVICE_REMOTE_WAKEUP)
 				| (1 << USB_DEVICE_SELF_POWERED);
-		tbuf [1] = 0;
+		tbuf[1] = 0;
 		len = 2;
 		break;
 	case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
@@ -536,7 +545,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			goto error;
 		break;
 	case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-		tbuf [0] = 1;
+		tbuf[0] = 1;
 		len = 1;
 			/* FALLTHROUGH */
 	case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
@@ -599,13 +608,13 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 		}
 		break;
 	case DeviceRequest | USB_REQ_GET_INTERFACE:
-		tbuf [0] = 0;
+		tbuf[0] = 0;
 		len = 1;
 			/* FALLTHROUGH */
 	case DeviceOutRequest | USB_REQ_SET_INTERFACE:
 		break;
 	case DeviceOutRequest | USB_REQ_SET_ADDRESS:
-		// wValue == urb->dev->devaddr
+		/* wValue == urb->dev->devaddr */
 		dev_dbg (hcd->self.controller, "root hub device address %d\n",
 			wValue);
 		break;
@@ -615,9 +624,9 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	/* ENDPOINT REQUESTS */
 
 	case EndpointRequest | USB_REQ_GET_STATUS:
-		// ENDPOINT_HALT flag
-		tbuf [0] = 0;
-		tbuf [1] = 0;
+		/* ENDPOINT_HALT flag */
+		tbuf[0] = 0;
+		tbuf[1] = 0;
 		len = 2;
 			/* FALLTHROUGH */
 	case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
@@ -673,7 +682,7 @@ error:
 		if (urb->transfer_buffer_length < len)
 			len = urb->transfer_buffer_length;
 		urb->actual_length = len;
-		// always USB_DIR_IN, toward host
+		/* always USB_DIR_IN, toward host */
 		memcpy (ubuf, bufp, len);
 
 		/* report whether RH hardware supports remote wakeup */
@@ -691,18 +700,12 @@ error:
 				bDeviceProtocol = USB_HUB_PR_HS_SINGLE_TT;
 	}
 
+	kfree(tbuf);
+
 	/* any errors get returned through the urb completion */
 	spin_lock_irq(&hcd_root_hub_lock);
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
-
-	/* This peculiar use of spinlocks echoes what real HC drivers do.
-	 * Avoiding calls to local_irq_disable/enable makes the code
-	 * RT-friendly.
-	 */
-	spin_unlock(&hcd_root_hub_lock);
 	usb_hcd_giveback_urb(hcd, urb, status);
-	spin_lock(&hcd_root_hub_lock);
-
 	spin_unlock_irq(&hcd_root_hub_lock);
 	return 0;
 }
@@ -742,9 +745,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 			memcpy(urb->transfer_buffer, buffer, length);
 
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
-			spin_unlock(&hcd_root_hub_lock);
 			usb_hcd_giveback_urb(hcd, urb, 0);
-			spin_lock(&hcd_root_hub_lock);
 		} else {
 			length = 0;
 			set_bit(HCD_FLAG_POLL_PENDING, &hcd->flags);
@@ -834,10 +835,7 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		if (urb == hcd->status_urb) {
 			hcd->status_urb = NULL;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
-
-			spin_unlock(&hcd_root_hub_lock);
 			usb_hcd_giveback_urb(hcd, urb, status);
-			spin_lock(&hcd_root_hub_lock);
 		}
 	}
  done:
@@ -850,9 +848,8 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 /*
  * Show & store the current value of authorized_default
  */
-static ssize_t usb_host_authorized_default_show(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
+static ssize_t authorized_default_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
 {
 	struct usb_device *rh_usb_dev = to_usb_device(dev);
 	struct usb_bus *usb_bus = rh_usb_dev->bus;
@@ -864,9 +861,9 @@ static ssize_t usb_host_authorized_default_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", usb_hcd->authorized_default);
 }
 
-static ssize_t usb_host_authorized_default_store(struct device *dev,
-						 struct device_attribute *attr,
-						 const char *buf, size_t size)
+static ssize_t authorized_default_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t size)
 {
 	ssize_t result;
 	unsigned val;
@@ -879,18 +876,14 @@ static ssize_t usb_host_authorized_default_store(struct device *dev,
 	usb_hcd = bus_to_hcd(usb_bus);
 	result = sscanf(buf, "%u\n", &val);
 	if (result == 1) {
-		usb_hcd->authorized_default = val? 1 : 0;
+		usb_hcd->authorized_default = val ? 1 : 0;
 		result = size;
-	}
-	else
+	} else {
 		result = -EINVAL;
+	}
 	return result;
 }
-
-static DEVICE_ATTR(authorized_default, 0644,
-	    usb_host_authorized_default_show,
-	    usb_host_authorized_default_store);
-
+static DEVICE_ATTR_RW(authorized_default);
 
 /* Group all the USB bus attributes */
 static struct attribute *usb_bus_attrs[] = {
@@ -938,6 +931,8 @@ static void usb_bus_init (struct usb_bus *bus)
  *
  * Assigns a bus number, and links the controller into usbcore data
  * structures so that it can be seen by scanning the bus list.
+ *
+ * Return: 0 if successful. A negative error code otherwise.
  */
 static int usb_register_bus(struct usb_bus *bus)
 {
@@ -945,12 +940,12 @@ static int usb_register_bus(struct usb_bus *bus)
 	int busnum;
 
 	mutex_lock(&usb_bus_list_lock);
-	busnum = find_next_zero_bit (busmap.busmap, USB_MAXBUS, 1);
+	busnum = find_next_zero_bit(busmap, USB_MAXBUS, 1);
 	if (busnum >= USB_MAXBUS) {
 		printk (KERN_ERR "%s: too many buses\n", usbcore_name);
 		goto error_find_busnum;
 	}
-	set_bit (busnum, busmap.busmap);
+	set_bit(busnum, busmap);
 	bus->busnum = busnum;
 
 	/* Add it to the local list of buses */
@@ -991,7 +986,7 @@ static void usb_deregister_bus (struct usb_bus *bus)
 
 	usb_notify_remove_bus(bus);
 
-	clear_bit (bus->busnum, busmap.busmap);
+	clear_bit(bus->busnum, busmap);
 }
 
 /**
@@ -1002,6 +997,8 @@ static void usb_deregister_bus (struct usb_bus *bus)
  * the device properly in the device tree and then calls usb_new_device()
  * to register the usb device.  It also assigns the root hub's USB address
  * (always 1).
+ *
+ * Return: 0 if successful. A negative error code otherwise.
  */
 static int register_root_hub(struct usb_hcd *hcd)
 {
@@ -1108,7 +1105,9 @@ EXPORT_SYMBOL_GPL(usb_hcd_end_port_resume);
  * @isoc: true for isochronous transactions, false for interrupt ones
  * @bytecount: how many bytes in the transaction.
  *
- * Returns approximate bus time in nanoseconds for a periodic transaction.
+ * Return: Approximate bus time in nanoseconds for a periodic transaction.
+ *
+ * Note:
  * See USB 2.0 spec section 5.11.3; only periodic transfers need to be
  * scheduled in software, this function is only used for such scheduling.
  */
@@ -1120,21 +1119,21 @@ long usb_calc_bus_time (int speed, int is_input, int isoc, int bytecount)
 	case USB_SPEED_LOW: 	/* INTR only */
 		if (is_input) {
 			tmp = (67667L * (31L + 10L * BitTime (bytecount))) / 1000L;
-			return (64060L + (2 * BW_HUB_LS_SETUP) + BW_HOST_DELAY + tmp);
+			return 64060L + (2 * BW_HUB_LS_SETUP) + BW_HOST_DELAY + tmp;
 		} else {
 			tmp = (66700L * (31L + 10L * BitTime (bytecount))) / 1000L;
-			return (64107L + (2 * BW_HUB_LS_SETUP) + BW_HOST_DELAY + tmp);
+			return 64107L + (2 * BW_HUB_LS_SETUP) + BW_HOST_DELAY + tmp;
 		}
 	case USB_SPEED_FULL:	/* ISOC or INTR */
 		if (isoc) {
 			tmp = (8354L * (31L + 10L * BitTime (bytecount))) / 1000L;
-			return (((is_input) ? 7268L : 6265L) + BW_HOST_DELAY + tmp);
+			return ((is_input) ? 7268L : 6265L) + BW_HOST_DELAY + tmp;
 		} else {
 			tmp = (8354L * (31L + 10L * BitTime (bytecount))) / 1000L;
-			return (9107L + BW_HOST_DELAY + tmp);
+			return 9107L + BW_HOST_DELAY + tmp;
 		}
 	case USB_SPEED_HIGH:	/* ISOC or INTR */
-		// FIXME adjust for input vs output
+		/* FIXME adjust for input vs output */
 		if (isoc)
 			tmp = HS_NSECS_ISO (bytecount);
 		else
@@ -1166,7 +1165,7 @@ EXPORT_SYMBOL_GPL(usb_calc_bus_time);
  * be disabled.  The actions carried out here are required for URB
  * submission, as well as for endpoint shutdown and for usb_kill_urb.
  *
- * Returns 0 for no error, otherwise a negative error code (in which case
+ * Return: 0 for no error, otherwise a negative error code (in which case
  * the enqueue() method must fail).  If no error occurs but enqueue() fails
  * anyway, it must call usb_hcd_unlink_urb_from_ep() before releasing
  * the private spinlock and returning.
@@ -1221,7 +1220,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_link_urb_to_ep);
  * be disabled.  The actions carried out here are required for making
  * sure than an unlink is valid.
  *
- * Returns 0 for no error, otherwise a negative error code (in which case
+ * Return: 0 for no error, otherwise a negative error code (in which case
  * the dequeue() method must fail).  The possible error codes are:
  *
  *	-EIDRM: @urb was not submitted or has already completed.
@@ -1298,7 +1297,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_unlink_urb_from_ep);
  *   DMA framework is dma_declare_coherent_memory()
  *
  * - So we use that, even though the primary requirement
- *   is that the memory be "local" (hence addressible
+ *   is that the memory be "local" (hence addressable
  *   by that device), not "coherent".
  *
  */
@@ -1648,6 +1647,77 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 
 /*-------------------------------------------------------------------------*/
 
+static void __usb_hcd_giveback_urb(struct urb *urb)
+{
+	struct usb_hcd *hcd = bus_to_hcd(urb->dev->bus);
+	struct usb_anchor *anchor = urb->anchor;
+	int status = urb->unlinked;
+	unsigned long flags;
+
+	urb->hcpriv = NULL;
+	if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
+	    urb->actual_length < urb->transfer_buffer_length &&
+	    !status))
+		status = -EREMOTEIO;
+
+	unmap_urb_for_dma(hcd, urb);
+	usbmon_urb_complete(&hcd->self, urb, status);
+	usb_anchor_suspend_wakeups(anchor);
+	usb_unanchor_urb(urb);
+
+	/* pass ownership to the completion handler */
+	urb->status = status;
+
+	/*
+	 * We disable local IRQs here avoid possible deadlock because
+	 * drivers may call spin_lock() to hold lock which might be
+	 * acquired in one hard interrupt handler.
+	 *
+	 * The local_irq_save()/local_irq_restore() around complete()
+	 * will be removed if current USB drivers have been cleaned up
+	 * and no one may trigger the above deadlock situation when
+	 * running complete() in tasklet.
+	 */
+	local_irq_save(flags);
+	urb->complete(urb);
+	local_irq_restore(flags);
+
+	usb_anchor_resume_wakeups(anchor);
+	atomic_dec(&urb->use_count);
+	if (unlikely(atomic_read(&urb->reject)))
+		wake_up(&usb_kill_urb_queue);
+	usb_put_urb(urb);
+}
+
+static void usb_giveback_urb_bh(unsigned long param)
+{
+	struct giveback_urb_bh *bh = (struct giveback_urb_bh *)param;
+	struct list_head local_list;
+
+	spin_lock_irq(&bh->lock);
+	bh->running = true;
+ restart:
+	list_replace_init(&bh->head, &local_list);
+	spin_unlock_irq(&bh->lock);
+
+	while (!list_empty(&local_list)) {
+		struct urb *urb;
+
+		urb = list_entry(local_list.next, struct urb, urb_list);
+		list_del_init(&urb->urb_list);
+		bh->completing_ep = urb->ep;
+		__usb_hcd_giveback_urb(urb);
+		bh->completing_ep = NULL;
+	}
+
+	/* check if there are new URBs to giveback */
+	spin_lock_irq(&bh->lock);
+	if (!list_empty(&bh->head))
+		goto restart;
+	bh->running = false;
+	spin_unlock_irq(&bh->lock);
+}
+
 /**
  * usb_hcd_giveback_urb - return URB from HCD to device driver
  * @hcd: host controller returning the URB
@@ -1667,25 +1737,37 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
  */
 void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 {
-	urb->hcpriv = NULL;
-	if (unlikely(urb->unlinked))
-		status = urb->unlinked;
-	else if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-			urb->actual_length < urb->transfer_buffer_length &&
-			!status))
-		status = -EREMOTEIO;
+	struct giveback_urb_bh *bh;
+	bool running, high_prio_bh;
 
-	unmap_urb_for_dma(hcd, urb);
-	usbmon_urb_complete(&hcd->self, urb, status);
-	usb_unanchor_urb(urb);
+	/* pass status to tasklet via unlinked */
+	if (likely(!urb->unlinked))
+		urb->unlinked = status;
 
-	/* pass ownership to the completion handler */
-	urb->status = status;
-	urb->complete (urb);
-	atomic_dec (&urb->use_count);
-	if (unlikely(atomic_read(&urb->reject)))
-		wake_up (&usb_kill_urb_queue);
-	usb_put_urb (urb);
+	if (!hcd_giveback_urb_in_bh(hcd) && !is_root_hub(urb->dev)) {
+		__usb_hcd_giveback_urb(urb);
+		return;
+	}
+
+	if (usb_pipeisoc(urb->pipe) || usb_pipeint(urb->pipe)) {
+		bh = &hcd->high_prio_bh;
+		high_prio_bh = true;
+	} else {
+		bh = &hcd->low_prio_bh;
+		high_prio_bh = false;
+	}
+
+	spin_lock(&bh->lock);
+	list_add_tail(&urb->urb_list, &bh->head);
+	running = bh->running;
+	spin_unlock(&bh->lock);
+
+	if (running)
+		;
+	else if (high_prio_bh)
+		tasklet_hi_schedule(&bh->bh);
+	else
+		tasklet_schedule(&bh->bh);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_giveback_urb);
 
@@ -1734,7 +1816,7 @@ rescan:
 				 case USB_ENDPOINT_XFER_INT:
 					s = "-intr"; break;
 				 default:
-			 		s = "-iso"; break;
+					s = "-iso"; break;
 				};
 				s;
 			}));
@@ -1784,7 +1866,7 @@ rescan:
  * pass in the current alternate interface setting in cur_alt,
  * and pass in the new alternate interface setting in new_alt.
  *
- * Returns an error if the requested bandwidth change exceeds the
+ * Return: An error if the requested bandwidth change exceeds the
  * bus bandwidth or host controller internal resources.
  */
 int usb_hcd_alloc_bandwidth(struct usb_device *udev,
@@ -1954,9 +2036,12 @@ void usb_hcd_reset_endpoint(struct usb_device *udev,
  * @num_streams:	number of streams to allocate.
  * @mem_flags:		flags hcd should use to allocate memory.
  *
- * Sets up a group of bulk endpoints to have num_streams stream IDs available.
+ * Sets up a group of bulk endpoints to have @num_streams stream IDs available.
  * Drivers may queue multiple transfers to different stream IDs, which may
  * complete in a different order than they were queued.
+ *
+ * Return: On success, the number of allocated streams. On failure, a negative
+ * error code.
  */
 int usb_alloc_streams(struct usb_interface *interface,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
@@ -1992,8 +2077,11 @@ EXPORT_SYMBOL_GPL(usb_alloc_streams);
  *
  * Reverts a group of bulk endpoints back to not using stream IDs.
  * Can fail if we are given bad arguments, or HCD is broken.
+ *
+ * Return: On success, the number of allocated streams. On failure, a negative
+ * error code.
  */
-void usb_free_streams(struct usb_interface *interface,
+int usb_free_streams(struct usb_interface *interface,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		gfp_t mem_flags)
 {
@@ -2004,14 +2092,14 @@ void usb_free_streams(struct usb_interface *interface,
 	dev = interface_to_usbdev(interface);
 	hcd = bus_to_hcd(dev->bus);
 	if (dev->speed != USB_SPEED_SUPER)
-		return;
+		return -EINVAL;
 
 	/* Streams only apply to bulk endpoints. */
 	for (i = 0; i < num_eps; i++)
 		if (!eps[i] || !usb_endpoint_xfer_bulk(&eps[i]->desc))
-			return;
+			return -EINVAL;
 
-	hcd->driver->free_streams(hcd, dev, eps, num_eps, mem_flags);
+	return hcd->driver->free_streams(hcd, dev, eps, num_eps, mem_flags);
 }
 EXPORT_SYMBOL_GPL(usb_free_streams);
 
@@ -2164,7 +2252,7 @@ static void hcd_resume_work(struct work_struct *work)
 }
 
 /**
- * usb_hcd_resume_root_hub - called by HCD to resume its root hub 
+ * usb_hcd_resume_root_hub - called by HCD to resume its root hub
  * @hcd: host controller for this root hub
  *
  * The USB host controller calls this function when its root hub is
@@ -2201,6 +2289,8 @@ EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
  * khubd identifying and possibly configuring the device.
  * This is needed by OTG controller drivers, where it helps meet
  * HNP protocol timing requirements for starting a port reset.
+ *
+ * Return: 0 if successful.
  */
 int usb_bus_start_enum(struct usb_bus *bus, unsigned port_num)
 {
@@ -2235,18 +2325,13 @@ EXPORT_SYMBOL_GPL(usb_bus_start_enum);
  *
  * If the controller isn't HALTed, calls the driver's irq handler.
  * Checks whether the controller is now dead.
+ *
+ * Return: %IRQ_HANDLED if the IRQ was handled. %IRQ_NONE otherwise.
  */
 irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 {
 	struct usb_hcd		*hcd = __hcd;
-	unsigned long		flags;
 	irqreturn_t		rc;
-
-	/* IRQF_DISABLED doesn't work correctly with shared IRQs
-	 * when the first handler doesn't use it.  So let's just
-	 * assume it's never used.
-	 */
-	local_irq_save(flags);
 
 	if (unlikely(HCD_DEAD(hcd) || !HCD_HW_ACCESSIBLE(hcd)))
 		rc = IRQ_NONE;
@@ -2255,7 +2340,6 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 	else
 		rc = IRQ_HANDLED;
 
-	local_irq_restore(flags);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(usb_hcd_irq);
@@ -2307,6 +2391,14 @@ EXPORT_SYMBOL_GPL (usb_hc_died);
 
 /*-------------------------------------------------------------------------*/
 
+static void init_giveback_urb_bh(struct giveback_urb_bh *bh)
+{
+
+	spin_lock_init(&bh->lock);
+	INIT_LIST_HEAD(&bh->head);
+	tasklet_init(&bh->bh, usb_giveback_urb_bh, (unsigned long)bh);
+}
+
 /**
  * usb_create_shared_hcd - create and initialize an HCD structure
  * @driver: HC driver that will use this hcd
@@ -2320,7 +2412,8 @@ EXPORT_SYMBOL_GPL (usb_hc_died);
  * HC driver's private data.  Initialize the generic members of the
  * hcd structure.
  *
- * If memory is unavailable, returns NULL.
+ * Return: On success, a pointer to the created and initialized HCD structure.
+ * On failure (e.g. if memory is unavailable), %NULL.
  */
 struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 		struct device *dev, const char *bus_name,
@@ -2384,7 +2477,8 @@ EXPORT_SYMBOL_GPL(usb_create_shared_hcd);
  * HC driver's private data.  Initialize the generic members of the
  * hcd structure.
  *
- * If memory is unavailable, returns NULL.
+ * Return: On success, a pointer to the created and initialized HCD
+ * structure. On failure (e.g. if memory is unavailable), %NULL.
  */
 struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
 		struct device *dev, const char *bus_name)
@@ -2452,13 +2546,6 @@ static int usb_hcd_request_irqs(struct usb_hcd *hcd,
 
 	if (hcd->driver->irq) {
 
-		/* IRQF_DISABLED doesn't work as advertised when used together
-		 * with IRQF_SHARED. As usb_hcd_irq() will always disable
-		 * interrupts we can remove it here.
-		 */
-		if (irqflags & IRQF_SHARED)
-			irqflags &= ~IRQF_DISABLED;
-
 		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
 				hcd->driver->description, hcd->self.busnum);
 		retval = request_irq(irqnum, &usb_hcd_irq, irqflags,
@@ -2501,11 +2588,29 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	int retval;
 	struct usb_device *rhdev;
 
+	if (IS_ENABLED(CONFIG_USB_PHY) && !hcd->phy) {
+		struct usb_phy *phy = usb_get_phy_dev(hcd->self.controller, 0);
+
+		if (IS_ERR(phy)) {
+			retval = PTR_ERR(phy);
+			if (retval == -EPROBE_DEFER)
+				return retval;
+		} else {
+			retval = usb_phy_init(phy);
+			if (retval) {
+				usb_put_phy(phy);
+				return retval;
+			}
+			hcd->phy = phy;
+			hcd->remove_phy = 1;
+		}
+	}
+
 	dev_info(hcd->self.controller, "%s\n", hcd->product_desc);
 
 	/* Keep old behaviour if authorized_default is not in [0, 1]. */
 	if (authorized_default < 0 || authorized_default > 1)
-		hcd->authorized_default = hcd->wireless? 0 : 1;
+		hcd->authorized_default = hcd->wireless ? 0 : 1;
 	else
 		hcd->authorized_default = authorized_default;
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
@@ -2516,7 +2621,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	 */
 	if ((retval = hcd_buffer_create(hcd)) != 0) {
 		dev_dbg(hcd->self.controller, "pool alloc failed\n");
-		return retval;
+		goto err_remove_phy;
 	}
 
 	if ((retval = usb_register_bus(&hcd->self)) < 0)
@@ -2563,7 +2668,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	 * should already have been reset (and boot firmware kicked off etc).
 	 */
 	if (hcd->driver->reset && (retval = hcd->driver->reset(hcd)) < 0) {
-		dev_err(hcd->self.controller, "can't setup\n");
+		dev_err(hcd->self.controller, "can't setup: %d\n", retval);
 		goto err_hcd_driver_setup;
 	}
 	hcd->rh_pollable = 1;
@@ -2572,6 +2677,10 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if (device_can_wakeup(hcd->self.controller)
 			&& device_can_wakeup(&hcd->self.root_hub->dev))
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
+
+	/* initialize tasklets */
+	init_giveback_urb_bh(&hcd->high_prio_bh);
+	init_giveback_urb_bh(&hcd->low_prio_bh);
 
 	/* enable irqs just before we start the controller,
 	 * if the BIOS provides legacy PCI irqs.
@@ -2602,12 +2711,6 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if (hcd->uses_new_polling && HCD_POLL_RH(hcd))
 		usb_hcd_poll_rh_status(hcd);
 
-	/*
-	 * Host controllers don't generate their own wakeup requests;
-	 * they only forward requests from the root hub.  Therefore
-	 * controllers should always be enabled for remote wakeup.
-	 */
-	device_wakeup_enable(hcd->self.controller);
 	return retval;
 
 error_create_attr_group:
@@ -2643,8 +2746,14 @@ err_allocate_root_hub:
 	usb_deregister_bus(&hcd->self);
 err_register_bus:
 	hcd_buffer_destroy(hcd);
+err_remove_phy:
+	if (hcd->remove_phy && hcd->phy) {
+		usb_phy_shutdown(hcd->phy);
+		usb_put_phy(hcd->phy);
+		hcd->phy = NULL;
+	}
 	return retval;
-} 
+}
 EXPORT_SYMBOL_GPL(usb_add_hcd);
 
 /**
@@ -2681,6 +2790,16 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	usb_disconnect(&rhdev);		/* Sets rhdev to NULL */
 	mutex_unlock(&usb_bus_list_lock);
 
+	/*
+	 * tasklet_kill() isn't needed here because:
+	 * - driver's disconnect() called from usb_disconnect() should
+	 *   make sure its URBs are completed during the disconnect()
+	 *   callback
+	 *
+	 * - it is too late to run complete() here since driver may have
+	 *   been removed already now
+	 */
+
 	/* Prevent any more root-hub status calls from the timer.
 	 * The HCD might still restart the timer (if a port status change
 	 * interrupt occurs), but usb_hcd_poll_rh_status() won't invoke
@@ -2705,11 +2824,16 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	usb_put_dev(hcd->self.root_hub);
 	usb_deregister_bus(&hcd->self);
 	hcd_buffer_destroy(hcd);
+	if (hcd->remove_phy && hcd->phy) {
+		usb_phy_shutdown(hcd->phy);
+		usb_put_phy(hcd->phy);
+		hcd->phy = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(usb_remove_hcd);
 
 void
-usb_hcd_platform_shutdown(struct platform_device* dev)
+usb_hcd_platform_shutdown(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 
@@ -2731,7 +2855,7 @@ struct usb_mon_operations *mon_ops;
  * Notice that the code is minimally error-proof. Because usbmon needs
  * symbols from usbcore, usbcore gets referenced and cannot be unloaded first.
  */
- 
+
 int usb_mon_register (struct usb_mon_operations *ops)
 {
 

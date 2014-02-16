@@ -405,7 +405,7 @@ static int serial_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENOIOCTLCMD;
 
-	dev_dbg(tty->dev, "%s - cmd 0x%.4x\n", __func__, cmd);
+	dev_dbg(tty->dev, "%s - cmd 0x%04x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCMIWAIT:
@@ -681,20 +681,10 @@ static int serial_port_carrier_raised(struct tty_port *port)
 static void serial_port_dtr_rts(struct tty_port *port, int on)
 {
 	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
-	struct usb_serial *serial = p->serial;
-	struct usb_serial_driver *drv = serial->type;
+	struct usb_serial_driver *drv = p->serial->type;
 
-	if (!drv->dtr_rts)
-		return;
-	/*
-	 * Work-around bug in the tty-layer which can result in dtr_rts
-	 * being called after a disconnect (and tty_unregister_device
-	 * has returned). Remove once bug has been squashed.
-	 */
-	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected)
+	if (drv->dtr_rts)
 		drv->dtr_rts(p, on);
-	mutex_unlock(&serial->disc_mutex);
 }
 
 static const struct tty_port_operations serial_port_ops = {

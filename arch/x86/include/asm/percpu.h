@@ -128,7 +128,8 @@ do {							\
 do {									\
 	typedef typeof(var) pao_T__;					\
 	const int pao_ID__ = (__builtin_constant_p(val) &&		\
-			      ((val) == 1 || (val) == -1)) ? (val) : 0;	\
+			      ((val) == 1 || (val) == -1)) ?		\
+				(int)(val) : 0;				\
 	if (0) {							\
 		pao_T__ pao_tmp__;					\
 		pao_tmp__ = (val);					\
@@ -377,9 +378,6 @@ do {									\
 #define __this_cpu_or_1(pcp, val)	percpu_to_op("or", (pcp), val)
 #define __this_cpu_or_2(pcp, val)	percpu_to_op("or", (pcp), val)
 #define __this_cpu_or_4(pcp, val)	percpu_to_op("or", (pcp), val)
-#define __this_cpu_xor_1(pcp, val)	percpu_to_op("xor", (pcp), val)
-#define __this_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
-#define __this_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define __this_cpu_xchg_1(pcp, val)	percpu_xchg_op(pcp, val)
 #define __this_cpu_xchg_2(pcp, val)	percpu_xchg_op(pcp, val)
 #define __this_cpu_xchg_4(pcp, val)	percpu_xchg_op(pcp, val)
@@ -399,9 +397,6 @@ do {									\
 #define this_cpu_or_1(pcp, val)		percpu_to_op("or", (pcp), val)
 #define this_cpu_or_2(pcp, val)		percpu_to_op("or", (pcp), val)
 #define this_cpu_or_4(pcp, val)		percpu_to_op("or", (pcp), val)
-#define this_cpu_xor_1(pcp, val)	percpu_to_op("xor", (pcp), val)
-#define this_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
-#define this_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define this_cpu_xchg_1(pcp, nval)	percpu_xchg_op(pcp, nval)
 #define this_cpu_xchg_2(pcp, nval)	percpu_xchg_op(pcp, nval)
 #define this_cpu_xchg_4(pcp, nval)	percpu_xchg_op(pcp, nval)
@@ -446,7 +441,6 @@ do {									\
 #define __this_cpu_add_8(pcp, val)	percpu_add_op((pcp), val)
 #define __this_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
 #define __this_cpu_or_8(pcp, val)	percpu_to_op("or", (pcp), val)
-#define __this_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define __this_cpu_add_return_8(pcp, val) percpu_add_return_op(pcp, val)
 #define __this_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
 #define __this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
@@ -456,7 +450,6 @@ do {									\
 #define this_cpu_add_8(pcp, val)	percpu_add_op((pcp), val)
 #define this_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
 #define this_cpu_or_8(pcp, val)		percpu_to_op("or", (pcp), val)
-#define this_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define this_cpu_add_return_8(pcp, val)	percpu_add_return_op(pcp, val)
 #define this_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
 #define this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)

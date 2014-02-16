@@ -84,6 +84,7 @@ static int virtfn_add(struct pci_dev *dev, int id, int reset)
 	virtfn->dev.parent = dev->dev.parent;
 	virtfn->physfn = pci_dev_get(dev);
 	virtfn->is_virtfn = 1;
+	virtfn->multifunction = 0;
 
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
 		res = dev->resource + PCI_IOV_RESOURCES + i;
@@ -286,7 +287,6 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 	    (!(iov->cap & PCI_SRIOV_CAP_VFM) && (nr_virtfn > initial)))
 		return -EINVAL;
 
-	pci_write_config_word(dev, iov->pos + PCI_SRIOV_NUM_VF, nr_virtfn);
 	pci_read_config_word(dev, iov->pos + PCI_SRIOV_VF_OFFSET, &offset);
 	pci_read_config_word(dev, iov->pos + PCI_SRIOV_VF_STRIDE, &stride);
 	if (!offset || (nr_virtfn > 1 && !stride))
@@ -324,7 +324,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 
 		if (!pdev->is_physfn) {
 			pci_dev_put(pdev);
-			return -ENODEV;
+			return -ENOSYS;
 		}
 
 		rc = sysfs_create_link(&dev->dev.kobj,
@@ -334,6 +334,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 			return rc;
 	}
 
+	pci_write_config_word(dev, iov->pos + PCI_SRIOV_NUM_VF, nr_virtfn);
 	iov->ctrl |= PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE;
 	pci_cfg_access_lock(dev);
 	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
@@ -368,6 +369,7 @@ failed:
 	iov->ctrl &= ~(PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE);
 	pci_cfg_access_lock(dev);
 	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
+	pci_write_config_word(dev, iov->pos + PCI_SRIOV_NUM_VF, 0);
 	ssleep(1);
 	pci_cfg_access_unlock(dev);
 
@@ -401,6 +403,7 @@ static void sriov_disable(struct pci_dev *dev)
 		sysfs_remove_link(&dev->dev.kobj, "dep_link");
 
 	iov->num_VFs = 0;
+	pci_write_config_word(dev, iov->pos + PCI_SRIOV_NUM_VF, 0);
 }
 
 static int sriov_init(struct pci_dev *dev, int pos)
@@ -439,6 +442,7 @@ static int sriov_init(struct pci_dev *dev, int pos)
 
 found:
 	pci_write_config_word(dev, pos + PCI_SRIOV_CTRL, ctrl);
+	pci_write_config_word(dev, pos + PCI_SRIOV_NUM_VF, 0);
 	pci_read_config_word(dev, pos + PCI_SRIOV_VF_OFFSET, &offset);
 	pci_read_config_word(dev, pos + PCI_SRIOV_VF_STRIDE, &stride);
 	if (!offset || (total > 1 && !stride))
@@ -608,7 +612,7 @@ resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno)
 	struct resource tmp;
 	enum pci_bar_type type;
 	int reg = pci_iov_resource_bar(dev, resno, &type);
-	
+
 	if (!reg)
 		return 0;
 
@@ -662,7 +666,7 @@ int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 	might_sleep();
 
 	if (!dev->is_physfn)
-		return -ENODEV;
+		return -ENOSYS;
 
 	return sriov_enable(dev, nr_virtfn);
 }
@@ -722,7 +726,7 @@ EXPORT_SYMBOL_GPL(pci_num_vf);
  * @dev: the PCI device
  *
  * Returns number of VFs belonging to this device that are assigned to a guest.
- * If device is not a physical function returns -ENODEV.
+ * If device is not a physical function returns 0.
  */
 int pci_vfs_assigned(struct pci_dev *dev)
 {
@@ -767,12 +771,15 @@ EXPORT_SYMBOL_GPL(pci_vfs_assigned);
  * device's mutex held.
  *
  * Returns 0 if PF is an SRIOV-capable device and
- * value of numvfs valid. If not a PF with VFS, return -EINVAL;
+ * value of numvfs valid. If not a PF return -ENOSYS;
+ * if numvfs is invalid return -EINVAL;
  * if VFs already enabled, return -EBUSY.
  */
 int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs)
 {
-	if (!dev->is_physfn || (numvfs > dev->sriov->total_VFs))
+	if (!dev->is_physfn)
+		return -ENOSYS;
+	if (numvfs > dev->sriov->total_VFs)
 		return -EINVAL;
 
 	/* Shouldn't change if VFs already enabled */
@@ -786,17 +793,17 @@ int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs)
 EXPORT_SYMBOL_GPL(pci_sriov_set_totalvfs);
 
 /**
- * pci_sriov_get_totalvfs -- get total VFs supported on this devic3
+ * pci_sriov_get_totalvfs -- get total VFs supported on this device
  * @dev: the PCI PF device
  *
  * For a PCIe device with SRIOV support, return the PCIe
  * SRIOV capability value of TotalVFs or the value of driver_max_VFs
- * if the driver reduced it.  Otherwise, -EINVAL.
+ * if the driver reduced it.  Otherwise 0.
  */
 int pci_sriov_get_totalvfs(struct pci_dev *dev)
 {
 	if (!dev->is_physfn)
-		return -EINVAL;
+		return 0;
 
 	if (dev->sriov->driver_max_VFs)
 		return dev->sriov->driver_max_VFs;

@@ -59,6 +59,9 @@ struct usb_hub {
 	struct usb_tt		tt;		/* Transaction Translator */
 
 	unsigned		mA_per_port;	/* current for each child */
+#ifdef	CONFIG_PM
+	unsigned		wakeup_enabled_descendants;
+#endif
 
 	unsigned		limited_power:1;
 	unsigned		quiescing:1;
@@ -75,7 +78,7 @@ struct usb_hub {
 
 /**
  * struct usb port - kernel's representation of a usb port
- * @child: usb device attatched to the port
+ * @child: usb device attached to the port
  * @dev: generic device interface
  * @port_owner: port's owner
  * @connect_type: port's connect type

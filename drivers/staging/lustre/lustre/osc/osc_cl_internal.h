@@ -299,7 +299,7 @@ struct osc_lock {
 				 ols_flush:1,
 	/**
 	 * if set, the osc_lock is a glimpse lock. For glimpse locks, we treat
-	 * the EVAVAIL error as torerable, this will make upper logic happy
+	 * the EVAVAIL error as tolerable, this will make upper logic happy
 	 * to wait all glimpse locks to each OSTs to be completed.
 	 * Glimpse lock converts to normal lock if the server lock is
 	 * granted.
@@ -374,7 +374,7 @@ struct osc_page {
 	/**
 	 * Thread that submitted this page for transfer. For debugging.
 	 */
-	task_t	   *ops_submitter;
+	struct task_struct	*ops_submitter;
 	/**
 	 * Submit time - the time when the page is starting RPC. For debugging.
 	 */
@@ -660,7 +660,7 @@ struct osc_extent {
 	/** lock covering this extent */
 	struct cl_lock    *oe_osclock;
 	/** terminator of this extent. Must be true if this extent is in IO. */
-	task_t	*oe_owner;
+	struct task_struct	*oe_owner;
 	/** return value of writeback. If somebody is waiting for this extent,
 	 * this value can be known by outside world. */
 	int		oe_rc;

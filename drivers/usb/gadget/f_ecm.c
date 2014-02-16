@@ -691,7 +691,6 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	int			status;
 	struct usb_ep		*ep;
 
-#ifndef USBF_ECM_INCLUDED
 	struct f_ecm_opts	*ecm_opts;
 
 	if (!can_support_ecm(cdev->gadget))
@@ -715,7 +714,7 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 			return status;
 		ecm_opts->bound = true;
 	}
-#endif
+
 	us = usb_gstrings_attach(cdev, ecm_strings,
 				 ARRAY_SIZE(ecm_string_defs));
 	if (IS_ERR(us))
@@ -834,74 +833,6 @@ fail:
 	return status;
 }
 
-#ifdef USBF_ECM_INCLUDED
-
-static void
-ecm_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct f_ecm		*ecm = func_to_ecm(f);
-
-	DBG(c->cdev, "ecm unbind\n");
-
-	usb_free_all_descriptors(f);
-
-	kfree(ecm->notify_req->buf);
-	usb_ep_free_request(ecm->notify, ecm->notify_req);
-	kfree(ecm);
-}
-
-/**
- * ecm_bind_config - add CDC Ethernet network link to a configuration
- * @c: the configuration to support the network link
- * @ethaddr: a buffer in which the ethernet address of the host side
- *	side of the link was recorded
- * @dev: eth_dev structure
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- *
- * Caller must have called @gether_setup().  Caller is also responsible
- * for calling @gether_cleanup() before module unload.
- */
-int
-ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		struct eth_dev *dev)
-{
-	struct f_ecm	*ecm;
-	int		status;
-
-	if (!can_support_ecm(c->cdev->gadget) || !ethaddr)
-		return -EINVAL;
-
-	/* allocate and initialize one new instance */
-	ecm = kzalloc(sizeof *ecm, GFP_KERNEL);
-	if (!ecm)
-		return -ENOMEM;
-
-	/* export host's Ethernet address in CDC format */
-	snprintf(ecm->ethaddr, sizeof ecm->ethaddr, "%pm", ethaddr);
-	ecm_string_defs[1].s = ecm->ethaddr;
-
-	ecm->port.ioport = dev;
-	ecm->port.cdc_filter = DEFAULT_FILTER;
-
-	ecm->port.func.name = "cdc_ethernet";
-	/* descriptors are per-instance copies */
-	ecm->port.func.bind = ecm_bind;
-	ecm->port.func.unbind = ecm_old_unbind;
-	ecm->port.func.set_alt = ecm_set_alt;
-	ecm->port.func.get_alt = ecm_get_alt;
-	ecm->port.func.setup = ecm_setup;
-	ecm->port.func.disable = ecm_disable;
-
-	status = usb_add_function(c, &ecm->port.func);
-	if (status)
-		kfree(ecm);
-	return status;
-}
-
-#else
-
 static inline struct f_ecm_opts *to_f_ecm_opts(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct f_ecm_opts,
@@ -959,8 +890,11 @@ static struct usb_function_instance *ecm_alloc_inst(void)
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = ecm_free_inst;
 	opts->net = gether_setup_default();
-	if (IS_ERR(opts->net))
-		return ERR_PTR(PTR_ERR(opts->net));
+	if (IS_ERR(opts->net)) {
+		struct net_device *net = opts->net;
+		kfree(opts);
+		return ERR_CAST(net);
+	}
 
 	config_group_init_type_name(&opts->func_inst.group, "", &ecm_func_type);
 
@@ -992,7 +926,7 @@ static void ecm_unbind(struct usb_configuration *c, struct usb_function *f)
 	usb_ep_free_request(ecm->notify, ecm->notify_req);
 }
 
-struct usb_function *ecm_alloc(struct usb_function_instance *fi)
+static struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 {
 	struct f_ecm	*ecm;
 	struct f_ecm_opts *opts;
@@ -1037,5 +971,3 @@ struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 DECLARE_USB_FUNCTION_INIT(ecm, ecm_alloc_inst, ecm_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");
-
-#endif

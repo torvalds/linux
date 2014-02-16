@@ -3,7 +3,7 @@
  *
  * This file contains ConfigFS logic for the Generic Target Engine project.
  *
- * (c) Copyright 2008-2012 RisingTide Systems LLC.
+ * (c) Copyright 2008-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -48,6 +48,7 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 #include "target_core_rd.h"
+#include "target_core_xcopy.h"
 
 extern struct t10_alua_lu_gp *default_lu_gp;
 
@@ -176,16 +177,16 @@ static struct config_group *target_core_register_fabric(
 	 * struct target_fabric_configfs *tf will contain a usage reference.
 	 */
 	pr_debug("Target_Core_ConfigFS: REGISTER tfc_wwn_cit -> %p\n",
-			&TF_CIT_TMPL(tf)->tfc_wwn_cit);
+			&tf->tf_cit_tmpl.tfc_wwn_cit);
 
 	tf->tf_group.default_groups = tf->tf_default_groups;
 	tf->tf_group.default_groups[0] = &tf->tf_disc_group;
 	tf->tf_group.default_groups[1] = NULL;
 
 	config_group_init_type_name(&tf->tf_group, name,
-			&TF_CIT_TMPL(tf)->tfc_wwn_cit);
+			&tf->tf_cit_tmpl.tfc_wwn_cit);
 	config_group_init_type_name(&tf->tf_disc_group, "discovery_auth",
-			&TF_CIT_TMPL(tf)->tfc_discovery_cit);
+			&tf->tf_cit_tmpl.tfc_discovery_cit);
 
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric:"
 			" %s\n", tf->tf_group.cg_item.ci_name);
@@ -268,7 +269,7 @@ static struct configfs_subsystem target_core_fabrics = {
 	},
 };
 
-static struct configfs_subsystem *target_core_subsystem[] = {
+struct configfs_subsystem *target_core_subsystem[] = {
 	&target_core_fabrics,
 	NULL,
 };
@@ -577,9 +578,9 @@ static ssize_t target_core_dev_store_attr_##_name(			\
 	unsigned long val;						\
 	int ret;							\
 									\
-	ret = strict_strtoul(page, 0, &val);				\
+	ret = kstrtoul(page, 0, &val);				\
 	if (ret < 0) {							\
-		pr_err("strict_strtoul() failed with"		\
+		pr_err("kstrtoul() failed with"		\
 			" ret: %d\n", ret);				\
 		return -EINVAL;						\
 	}								\
@@ -635,6 +636,21 @@ SE_DEV_ATTR(emulate_tpu, S_IRUGO | S_IWUSR);
 
 DEF_DEV_ATTRIB(emulate_tpws);
 SE_DEV_ATTR(emulate_tpws, S_IRUGO | S_IWUSR);
+
+DEF_DEV_ATTRIB(emulate_caw);
+SE_DEV_ATTR(emulate_caw, S_IRUGO | S_IWUSR);
+
+DEF_DEV_ATTRIB(emulate_3pc);
+SE_DEV_ATTR(emulate_3pc, S_IRUGO | S_IWUSR);
+
+DEF_DEV_ATTRIB(pi_prot_type);
+SE_DEV_ATTR(pi_prot_type, S_IRUGO | S_IWUSR);
+
+DEF_DEV_ATTRIB_RO(hw_pi_prot_type);
+SE_DEV_ATTR_RO(hw_pi_prot_type);
+
+DEF_DEV_ATTRIB(pi_prot_format);
+SE_DEV_ATTR(pi_prot_format, S_IRUGO | S_IWUSR);
 
 DEF_DEV_ATTRIB(enforce_pr_isids);
 SE_DEV_ATTR(enforce_pr_isids, S_IRUGO | S_IWUSR);
@@ -693,6 +709,11 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_emulate_tas.attr,
 	&target_core_dev_attrib_emulate_tpu.attr,
 	&target_core_dev_attrib_emulate_tpws.attr,
+	&target_core_dev_attrib_emulate_caw.attr,
+	&target_core_dev_attrib_emulate_3pc.attr,
+	&target_core_dev_attrib_pi_prot_type.attr,
+	&target_core_dev_attrib_hw_pi_prot_type.attr,
+	&target_core_dev_attrib_pi_prot_format.attr,
 	&target_core_dev_attrib_enforce_pr_isids.attr,
 	&target_core_dev_attrib_is_nonrot.attr,
 	&target_core_dev_attrib_emulate_rest_reord.attr,
@@ -983,7 +1004,6 @@ static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 	struct se_node_acl *se_nacl;
 	struct t10_pr_registration *pr_reg;
 	char i_buf[PR_REG_ISID_ID_LEN];
-	int prf_isid;
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 
@@ -992,12 +1012,11 @@ static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 		return sprintf(page, "No SPC-3 Reservation holder\n");
 
 	se_nacl = pr_reg->pr_reg_nacl;
-	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
-				PR_REG_ISID_ID_LEN);
+	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
 	return sprintf(page, "SPC-3 Reservation: %s Initiator: %s%s\n",
 		se_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
-		se_nacl->initiatorname, (prf_isid) ? &i_buf[0] : "");
+		se_nacl->initiatorname, i_buf);
 }
 
 static ssize_t target_core_dev_pr_show_spc2_res(struct se_device *dev,
@@ -1116,7 +1135,7 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_registered_i_pts(
 	unsigned char buf[384];
 	char i_buf[PR_REG_ISID_ID_LEN];
 	ssize_t len = 0;
-	int reg_count = 0, prf_isid;
+	int reg_count = 0;
 
 	len += sprintf(page+len, "SPC-3 PR Registrations:\n");
 
@@ -1127,12 +1146,11 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_registered_i_pts(
 		memset(buf, 0, 384);
 		memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 		tfo = pr_reg->pr_reg_nacl->se_tpg->se_tpg_tfo;
-		prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
+		core_pr_dump_initiator_port(pr_reg, i_buf,
 					PR_REG_ISID_ID_LEN);
 		sprintf(buf, "%s Node: %s%s Key: 0x%016Lx PRgen: 0x%08x\n",
 			tfo->get_fabric_name(),
-			pr_reg->pr_reg_nacl->initiatorname, (prf_isid) ?
-			&i_buf[0] : "", pr_reg->pr_res_key,
+			pr_reg->pr_reg_nacl->initiatorname, i_buf, pr_reg->pr_res_key,
 			pr_reg->pr_res_generation);
 
 		if (len + strlen(buf) >= PAGE_SIZE)
@@ -1313,9 +1331,9 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 				ret = -ENOMEM;
 				goto out;
 			}
-			ret = strict_strtoull(arg_p, 0, &tmp_ll);
+			ret = kstrtoull(arg_p, 0, &tmp_ll);
 			if (ret < 0) {
-				pr_err("strict_strtoull() failed for"
+				pr_err("kstrtoull() failed for"
 					" sa_res_key=\n");
 				goto out;
 			}
@@ -1735,6 +1753,176 @@ static struct target_core_configfs_attribute target_core_attr_dev_alua_lu_gp = {
 	.store	= target_core_store_alua_lu_gp,
 };
 
+static ssize_t target_core_show_dev_lba_map(void *p, char *page)
+{
+	struct se_device *dev = p;
+	struct t10_alua_lba_map *map;
+	struct t10_alua_lba_map_member *mem;
+	char *b = page;
+	int bl = 0;
+	char state;
+
+	spin_lock(&dev->t10_alua.lba_map_lock);
+	if (!list_empty(&dev->t10_alua.lba_map_list))
+	    bl += sprintf(b + bl, "%u %u\n",
+			  dev->t10_alua.lba_map_segment_size,
+			  dev->t10_alua.lba_map_segment_multiplier);
+	list_for_each_entry(map, &dev->t10_alua.lba_map_list, lba_map_list) {
+		bl += sprintf(b + bl, "%llu %llu",
+			      map->lba_map_first_lba, map->lba_map_last_lba);
+		list_for_each_entry(mem, &map->lba_map_mem_list,
+				    lba_map_mem_list) {
+			switch (mem->lba_map_mem_alua_state) {
+			case ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED:
+				state = 'O';
+				break;
+			case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
+				state = 'A';
+				break;
+			case ALUA_ACCESS_STATE_STANDBY:
+				state = 'S';
+				break;
+			case ALUA_ACCESS_STATE_UNAVAILABLE:
+				state = 'U';
+				break;
+			default:
+				state = '.';
+				break;
+			}
+			bl += sprintf(b + bl, " %d:%c",
+				      mem->lba_map_mem_alua_pg_id, state);
+		}
+		bl += sprintf(b + bl, "\n");
+	}
+	spin_unlock(&dev->t10_alua.lba_map_lock);
+	return bl;
+}
+
+static ssize_t target_core_store_dev_lba_map(
+	void *p,
+	const char *page,
+	size_t count)
+{
+	struct se_device *dev = p;
+	struct t10_alua_lba_map *lba_map = NULL;
+	struct list_head lba_list;
+	char *map_entries, *ptr;
+	char state;
+	int pg_num = -1, pg;
+	int ret = 0, num = 0, pg_id, alua_state;
+	unsigned long start_lba = -1, end_lba = -1;
+	unsigned long segment_size = -1, segment_mult = -1;
+
+	map_entries = kstrdup(page, GFP_KERNEL);
+	if (!map_entries)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&lba_list);
+	while ((ptr = strsep(&map_entries, "\n")) != NULL) {
+		if (!*ptr)
+			continue;
+
+		if (num == 0) {
+			if (sscanf(ptr, "%lu %lu\n",
+				   &segment_size, &segment_mult) != 2) {
+				pr_err("Invalid line %d\n", num);
+				ret = -EINVAL;
+				break;
+			}
+			num++;
+			continue;
+		}
+		if (sscanf(ptr, "%lu %lu", &start_lba, &end_lba) != 2) {
+			pr_err("Invalid line %d\n", num);
+			ret = -EINVAL;
+			break;
+		}
+		ptr = strchr(ptr, ' ');
+		if (!ptr) {
+			pr_err("Invalid line %d, missing end lba\n", num);
+			ret = -EINVAL;
+			break;
+		}
+		ptr++;
+		ptr = strchr(ptr, ' ');
+		if (!ptr) {
+			pr_err("Invalid line %d, missing state definitions\n",
+			       num);
+			ret = -EINVAL;
+			break;
+		}
+		ptr++;
+		lba_map = core_alua_allocate_lba_map(&lba_list,
+						     start_lba, end_lba);
+		if (IS_ERR(lba_map)) {
+			ret = PTR_ERR(lba_map);
+			break;
+		}
+		pg = 0;
+		while (sscanf(ptr, "%d:%c", &pg_id, &state) == 2) {
+			switch (state) {
+			case 'O':
+				alua_state = ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED;
+				break;
+			case 'A':
+				alua_state = ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED;
+				break;
+			case 'S':
+				alua_state = ALUA_ACCESS_STATE_STANDBY;
+				break;
+			case 'U':
+				alua_state = ALUA_ACCESS_STATE_UNAVAILABLE;
+				break;
+			default:
+				pr_err("Invalid ALUA state '%c'\n", state);
+				ret = -EINVAL;
+				goto out;
+			}
+
+			ret = core_alua_allocate_lba_map_mem(lba_map,
+							     pg_id, alua_state);
+			if (ret) {
+				pr_err("Invalid target descriptor %d:%c "
+				       "at line %d\n",
+				       pg_id, state, num);
+				break;
+			}
+			pg++;
+			ptr = strchr(ptr, ' ');
+			if (ptr)
+				ptr++;
+			else
+				break;
+		}
+		if (pg_num == -1)
+		    pg_num = pg;
+		else if (pg != pg_num) {
+			pr_err("Only %d from %d port groups definitions "
+			       "at line %d\n", pg, pg_num, num);
+			ret = -EINVAL;
+			break;
+		}
+		num++;
+	}
+out:
+	if (ret) {
+		core_alua_free_lba_map(&lba_list);
+		count = ret;
+	} else
+		core_alua_set_lba_map(dev, &lba_list,
+				      segment_size, segment_mult);
+	kfree(map_entries);
+	return count;
+}
+
+static struct target_core_configfs_attribute target_core_attr_dev_lba_map = {
+	.attr	= { .ca_owner = THIS_MODULE,
+		    .ca_name = "lba_map",
+		    .ca_mode = S_IRUGO | S_IWUSR },
+	.show	= target_core_show_dev_lba_map,
+	.store	= target_core_store_dev_lba_map,
+};
+
 static struct configfs_attribute *lio_core_dev_attrs[] = {
 	&target_core_attr_dev_info.attr,
 	&target_core_attr_dev_control.attr,
@@ -1742,6 +1930,7 @@ static struct configfs_attribute *lio_core_dev_attrs[] = {
 	&target_core_attr_dev_udev_path.attr,
 	&target_core_attr_dev_enable.attr,
 	&target_core_attr_dev_alua_lu_gp.attr,
+	&target_core_attr_dev_lba_map.attr,
 	NULL,
 };
 
@@ -1839,11 +2028,11 @@ static ssize_t target_core_alua_lu_gp_store_attr_lu_gp_id(
 	unsigned long lu_gp_id;
 	int ret;
 
-	ret = strict_strtoul(page, 0, &lu_gp_id);
+	ret = kstrtoul(page, 0, &lu_gp_id);
 	if (ret < 0) {
-		pr_err("strict_strtoul() returned %d for"
+		pr_err("kstrtoul() returned %d for"
 			" lu_gp_id\n", ret);
-		return -EINVAL;
+		return ret;
 	}
 	if (lu_gp_id > 0x0000ffff) {
 		pr_err("ALUA lu_gp_id: %lu exceeds maximum:"
@@ -2030,22 +2219,29 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 	int new_state, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do implict ALUA on non valid"
+		pr_err("Unable to do implicit ALUA on non valid"
 			" tg_pt_gp ID: %hu\n", tg_pt_gp->tg_pt_gp_valid_id);
 		return -EINVAL;
 	}
 
-	ret = strict_strtoul(page, 0, &tmp);
+	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {
 		pr_err("Unable to extract new ALUA access state from"
 				" %s\n", page);
-		return -EINVAL;
+		return ret;
 	}
 	new_state = (int)tmp;
 
-	if (!(tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICT_ALUA)) {
-		pr_err("Unable to process implict configfs ALUA"
-			" transition while TPGS_IMPLICT_ALUA is disabled\n");
+	if (!(tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICIT_ALUA)) {
+		pr_err("Unable to process implicit configfs ALUA"
+			" transition while TPGS_IMPLICIT_ALUA is disabled\n");
+		return -EINVAL;
+	}
+	if (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICIT_ALUA &&
+	    new_state == ALUA_ACCESS_STATE_LBA_DEPENDENT) {
+		/* LBA DEPENDENT is only allowed with implicit ALUA */
+		pr_err("Unable to process implicit configfs ALUA transition"
+		       " while explicit ALUA management is enabled\n");
 		return -EINVAL;
 	}
 
@@ -2082,17 +2278,17 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_status(
 		return -EINVAL;
 	}
 
-	ret = strict_strtoul(page, 0, &tmp);
+	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {
 		pr_err("Unable to extract new ALUA access status"
 				" from %s\n", page);
-		return -EINVAL;
+		return ret;
 	}
 	new_status = (int)tmp;
 
 	if ((new_status != ALUA_STATUS_NONE) &&
-	    (new_status != ALUA_STATUS_ALTERED_BY_EXPLICT_STPG) &&
-	    (new_status != ALUA_STATUS_ALTERED_BY_IMPLICT_ALUA)) {
+	    (new_status != ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG) &&
+	    (new_status != ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA)) {
 		pr_err("Illegal ALUA access status: 0x%02x\n",
 				new_status);
 		return -EINVAL;
@@ -2125,6 +2321,90 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_type(
 SE_DEV_ALUA_TG_PT_ATTR(alua_access_type, S_IRUGO | S_IWUSR);
 
 /*
+ * alua_supported_states
+ */
+
+#define SE_DEV_ALUA_SUPPORT_STATE_SHOW(_name, _var, _bit)		\
+static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_support_##_name( \
+	struct t10_alua_tg_pt_gp *t, char *p)				\
+{									\
+	return sprintf(p, "%d\n", !!(t->_var & _bit));			\
+}
+
+#define SE_DEV_ALUA_SUPPORT_STATE_STORE(_name, _var, _bit)		\
+static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_support_##_name(\
+	struct t10_alua_tg_pt_gp *t, const char *p, size_t c)		\
+{									\
+	unsigned long tmp;						\
+	int ret;							\
+									\
+	if (!t->tg_pt_gp_valid_id) {					\
+		pr_err("Unable to do set ##_name ALUA state on non"	\
+		       " valid tg_pt_gp ID: %hu\n",			\
+		       t->tg_pt_gp_valid_id);				\
+		return -EINVAL;						\
+	}								\
+									\
+	ret = kstrtoul(p, 0, &tmp);					\
+	if (ret < 0) {							\
+		pr_err("Invalid value '%s', must be '0' or '1'\n", p);	\
+		return -EINVAL;						\
+	}								\
+	if (tmp > 1) {							\
+		pr_err("Invalid value '%ld', must be '0' or '1'\n", tmp); \
+		return -EINVAL;						\
+	}								\
+	if (!tmp)							\
+		t->_var |= _bit;					\
+	else								\
+		t->_var &= ~_bit;					\
+									\
+	return c;							\
+}
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(transitioning,
+			       tg_pt_gp_alua_supported_states, ALUA_T_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(transitioning,
+				tg_pt_gp_alua_supported_states, ALUA_T_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_transitioning, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(offline,
+			       tg_pt_gp_alua_supported_states, ALUA_O_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(offline,
+				tg_pt_gp_alua_supported_states, ALUA_O_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_offline, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(lba_dependent,
+			       tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(lba_dependent,
+				tg_pt_gp_alua_supported_states, ALUA_LBD_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_lba_dependent, S_IRUGO);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(unavailable,
+			       tg_pt_gp_alua_supported_states, ALUA_U_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(unavailable,
+				tg_pt_gp_alua_supported_states, ALUA_U_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_unavailable, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(standby,
+			       tg_pt_gp_alua_supported_states, ALUA_S_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(standby,
+				tg_pt_gp_alua_supported_states, ALUA_S_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_standby, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(active_optimized,
+			       tg_pt_gp_alua_supported_states, ALUA_AO_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(active_optimized,
+				tg_pt_gp_alua_supported_states, ALUA_AO_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_active_optimized, S_IRUGO | S_IWUSR);
+
+SE_DEV_ALUA_SUPPORT_STATE_SHOW(active_nonoptimized,
+			       tg_pt_gp_alua_supported_states, ALUA_AN_SUP);
+SE_DEV_ALUA_SUPPORT_STATE_STORE(active_nonoptimized,
+				tg_pt_gp_alua_supported_states, ALUA_AN_SUP);
+SE_DEV_ALUA_TG_PT_ATTR(alua_support_active_nonoptimized, S_IRUGO | S_IWUSR);
+
+/*
  * alua_write_metadata
  */
 static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_write_metadata(
@@ -2142,10 +2422,10 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_write_metadata(
 	unsigned long tmp;
 	int ret;
 
-	ret = strict_strtoul(page, 0, &tmp);
+	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {
 		pr_err("Unable to extract alua_write_metadata\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	if ((tmp != 0) && (tmp != 1)) {
@@ -2204,24 +2484,24 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_trans_delay_msecs(
 SE_DEV_ALUA_TG_PT_ATTR(trans_delay_msecs, S_IRUGO | S_IWUSR);
 
 /*
- * implict_trans_secs
+ * implicit_trans_secs
  */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_implict_trans_secs(
+static ssize_t target_core_alua_tg_pt_gp_show_attr_implicit_trans_secs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	char *page)
 {
-	return core_alua_show_implict_trans_secs(tg_pt_gp, page);
+	return core_alua_show_implicit_trans_secs(tg_pt_gp, page);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_implict_trans_secs(
+static ssize_t target_core_alua_tg_pt_gp_store_attr_implicit_trans_secs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	const char *page,
 	size_t count)
 {
-	return core_alua_store_implict_trans_secs(tg_pt_gp, page, count);
+	return core_alua_store_implicit_trans_secs(tg_pt_gp, page, count);
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(implict_trans_secs, S_IRUGO | S_IWUSR);
+SE_DEV_ALUA_TG_PT_ATTR(implicit_trans_secs, S_IRUGO | S_IWUSR);
 
 /*
  * preferred
@@ -2266,11 +2546,11 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_tg_pt_gp_id(
 	unsigned long tg_pt_gp_id;
 	int ret;
 
-	ret = strict_strtoul(page, 0, &tg_pt_gp_id);
+	ret = kstrtoul(page, 0, &tg_pt_gp_id);
 	if (ret < 0) {
-		pr_err("strict_strtoul() returned %d for"
+		pr_err("kstrtoul() returned %d for"
 			" tg_pt_gp_id\n", ret);
-		return -EINVAL;
+		return ret;
 	}
 	if (tg_pt_gp_id > 0x0000ffff) {
 		pr_err("ALUA tg_pt_gp_id: %lu exceeds maximum:"
@@ -2344,10 +2624,17 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	&target_core_alua_tg_pt_gp_alua_access_state.attr,
 	&target_core_alua_tg_pt_gp_alua_access_status.attr,
 	&target_core_alua_tg_pt_gp_alua_access_type.attr,
+	&target_core_alua_tg_pt_gp_alua_support_transitioning.attr,
+	&target_core_alua_tg_pt_gp_alua_support_offline.attr,
+	&target_core_alua_tg_pt_gp_alua_support_lba_dependent.attr,
+	&target_core_alua_tg_pt_gp_alua_support_unavailable.attr,
+	&target_core_alua_tg_pt_gp_alua_support_standby.attr,
+	&target_core_alua_tg_pt_gp_alua_support_active_nonoptimized.attr,
+	&target_core_alua_tg_pt_gp_alua_support_active_optimized.attr,
 	&target_core_alua_tg_pt_gp_alua_write_metadata.attr,
 	&target_core_alua_tg_pt_gp_nonop_delay_msecs.attr,
 	&target_core_alua_tg_pt_gp_trans_delay_msecs.attr,
-	&target_core_alua_tg_pt_gp_implict_trans_secs.attr,
+	&target_core_alua_tg_pt_gp_implicit_trans_secs.attr,
 	&target_core_alua_tg_pt_gp_preferred.attr,
 	&target_core_alua_tg_pt_gp_tg_pt_gp_id.attr,
 	&target_core_alua_tg_pt_gp_members.attr,
@@ -2679,10 +2966,10 @@ static ssize_t target_core_hba_store_attr_hba_mode(struct se_hba *hba,
 	if (transport->pmode_enable_hba == NULL)
 		return -EINVAL;
 
-	ret = strict_strtoul(page, 0, &mode_flag);
+	ret = kstrtoul(page, 0, &mode_flag);
 	if (ret < 0) {
 		pr_err("Unable to extract hba mode flag: %d\n", ret);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (hba->dev_count) {
@@ -2770,11 +3057,11 @@ static struct config_group *target_core_call_addhbatotarget(
 		str++; /* Skip to start of plugin dependent ID */
 	}
 
-	ret = strict_strtoul(str, 0, &plugin_dep_id);
+	ret = kstrtoul(str, 0, &plugin_dep_id);
 	if (ret < 0) {
-		pr_err("strict_strtoul() returned %d for"
+		pr_err("kstrtoul() returned %d for"
 				" plugin_dep_id\n", ret);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(ret);
 	}
 	/*
 	 * Load up TCM subsystem plugins if they have not already been loaded.
@@ -2840,7 +3127,7 @@ static int __init target_core_init_configfs(void)
 	 * and ALUA Logical Unit Group and Target Port Group infrastructure.
 	 */
 	target_cg = &subsys->su_group;
-	target_cg->default_groups = kmalloc(sizeof(struct config_group) * 2,
+	target_cg->default_groups = kmalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!target_cg->default_groups) {
 		pr_err("Unable to allocate target_cg->default_groups\n");
@@ -2930,6 +3217,10 @@ static int __init target_core_init_configfs(void)
 	if (ret < 0)
 		goto out;
 
+	ret = target_xcopy_setup_pt();
+	if (ret < 0)
+		goto out;
+
 	return 0;
 
 out:
@@ -3002,6 +3293,7 @@ static void __exit target_core_exit_configfs(void)
 
 	core_dev_release_virtual_lun0();
 	rd_module_exit();
+	target_xcopy_release_pt();
 	release_se_kmem_caches();
 }
 

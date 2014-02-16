@@ -5,6 +5,7 @@
 #include <rdma/rdma_cm.h>
 
 #define ISERT_RDMA_LISTEN_BACKLOG	10
+#define ISCSI_ISER_SG_TABLESIZE		256
 
 enum isert_desc_type {
 	ISCSI_TX_CONTROL,
@@ -42,18 +43,31 @@ struct iser_tx_desc {
 	struct ib_sge	tx_sg[2];
 	int		num_sge;
 	struct isert_cmd *isert_cmd;
+	struct llist_node *comp_llnode_batch;
+	struct llist_node comp_llnode;
 	struct ib_send_wr send_wr;
 } __packed;
+
+struct fast_reg_descriptor {
+	struct list_head	list;
+	struct ib_mr		*data_mr;
+	struct ib_fast_reg_page_list	*data_frpl;
+	bool			valid;
+};
 
 struct isert_rdma_wr {
 	struct list_head	wr_list;
 	struct isert_cmd	*isert_cmd;
 	enum iser_ib_op_code	iser_ib_op;
 	struct ib_sge		*ib_sge;
+	struct ib_sge		s_ib_sge;
 	int			num_sge;
 	struct scatterlist	*sge;
 	int			send_wr_num;
 	struct ib_send_wr	*send_wr;
+	struct ib_send_wr	s_send_wr;
+	u32			cur_rdma_length;
+	struct fast_reg_descriptor *fr_desc;
 };
 
 struct isert_cmd {
@@ -61,14 +75,13 @@ struct isert_cmd {
 	uint32_t		write_stag;
 	uint64_t		read_va;
 	uint64_t		write_va;
-	u64			sense_buf_dma;
-	u32			sense_buf_len;
+	u64			pdu_buf_dma;
+	u32			pdu_buf_len;
 	u32			read_va_off;
 	u32			write_va_off;
 	u32			rdma_wr_num;
 	struct isert_conn	*conn;
-	struct iscsi_cmd	iscsi_cmd;
-	struct ib_sge		*ib_sge;
+	struct iscsi_cmd	*iscsi_cmd;
 	struct iser_tx_desc	tx_desc;
 	struct isert_rdma_wr	rdma_wr;
 	struct work_struct	comp_work;
@@ -102,9 +115,18 @@ struct isert_conn {
 	struct ib_qp		*conn_qp;
 	struct isert_device	*conn_device;
 	struct work_struct	conn_logout_work;
+	struct mutex		conn_mutex;
 	wait_queue_head_t	conn_wait;
 	wait_queue_head_t	conn_wait_comp_err;
 	struct kref		conn_kref;
+	struct list_head	conn_fr_pool;
+	int			conn_fr_pool_size;
+	/* lock to protect fastreg pool */
+	spinlock_t		conn_lock;
+#define ISERT_COMP_BATCH_COUNT	8
+	int			conn_comp_batch;
+	struct llist_head	conn_comp_llist;
+	struct mutex		conn_comp_mutex;
 };
 
 #define ISERT_MAX_CQ 64
@@ -117,16 +139,21 @@ struct isert_cq_desc {
 };
 
 struct isert_device {
+	int			use_fastreg;
 	int			cqs_used;
 	int			refcount;
 	int			cq_active_qps[ISERT_MAX_CQ];
 	struct ib_device	*ib_device;
-	struct ib_pd		*dev_pd;
-	struct ib_mr		*dev_mr;
 	struct ib_cq		*dev_rx_cq[ISERT_MAX_CQ];
 	struct ib_cq		*dev_tx_cq[ISERT_MAX_CQ];
 	struct isert_cq_desc	*cq_desc;
 	struct list_head	dev_node;
+	struct ib_device_attr	dev_attr;
+	int			(*reg_rdma_mem)(struct iscsi_conn *conn,
+						    struct iscsi_cmd *cmd,
+						    struct isert_rdma_wr *wr);
+	void			(*unreg_rdma_mem)(struct isert_cmd *isert_cmd,
+						  struct isert_conn *isert_conn);
 };
 
 struct isert_np {

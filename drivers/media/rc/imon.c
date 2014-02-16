@@ -1370,7 +1370,7 @@ static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 	 * 0x68nnnnB7 to 0x6AnnnnB7, the left mouse button generates
 	 * 0x688301b7 and the right one 0x688481b7. All other keys generate
 	 * 0x2nnnnnnn. Position coordinate is encoded in buf[1] and buf[2] with
-	 * reversed endianess. Extract direction from buffer, rotate endianess,
+	 * reversed endianness. Extract direction from buffer, rotate endianness,
 	 * adjust sign and feed the values into stabilize(). The resulting codes
 	 * will be 0x01008000, 0x01007F00, which match the newer devices.
 	 */
@@ -1909,10 +1909,8 @@ static struct input_dev *imon_init_idev(struct imon_context *ictx)
 	int ret, i;
 
 	idev = input_allocate_device();
-	if (!idev) {
-		dev_err(ictx->dev, "input dev allocation failed\n");
+	if (!idev)
 		goto out;
-	}
 
 	snprintf(ictx->name_idev, sizeof(ictx->name_idev),
 		 "iMON Panel, Knob and Mouse(%04x:%04x)",
@@ -1960,10 +1958,8 @@ static struct input_dev *imon_init_touch(struct imon_context *ictx)
 	int ret;
 
 	touch = input_allocate_device();
-	if (!touch) {
-		dev_err(ictx->dev, "touchscreen input dev allocation failed\n");
+	if (!touch)
 		goto touch_alloc_failed;
-	}
 
 	snprintf(ictx->name_touch, sizeof(ictx->name_touch),
 		 "iMON USB Touchscreen (%04x:%04x)",

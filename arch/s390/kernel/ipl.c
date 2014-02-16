@@ -2051,12 +2051,12 @@ void s390_reset_system(void (*func)(void *), void *data)
 	__ctl_clear_bit(0,28);
 
 	/* Set new machine check handler */
-	S390_lowcore.mcck_new_psw.mask = psw_kernel_bits | PSW_MASK_DAT;
+	S390_lowcore.mcck_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT;
 	S390_lowcore.mcck_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) s390_base_mcck_handler;
 
 	/* Set new program check handler */
-	S390_lowcore.program_new_psw.mask = psw_kernel_bits | PSW_MASK_DAT;
+	S390_lowcore.program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT;
 	S390_lowcore.program_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
 

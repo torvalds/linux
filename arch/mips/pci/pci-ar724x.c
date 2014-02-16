@@ -362,25 +362,16 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl_base");
-	if (!res)
-		return -EINVAL;
-
 	apc->ctrl_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(apc->ctrl_base))
 		return PTR_ERR(apc->ctrl_base);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_base");
-	if (!res)
-		return -EINVAL;
-
 	apc->devcfg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(apc->devcfg_base))
 		return PTR_ERR(apc->devcfg_base);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "crp_base");
-	if (!res)
-		return -EINVAL;
-
 	apc->crp_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(apc->crp_base))
 		return PTR_ERR(apc->crp_base);

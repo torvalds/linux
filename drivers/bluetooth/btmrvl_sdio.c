@@ -486,7 +486,7 @@ static int btmrvl_sdio_download_fw_w_helper(struct btmrvl_sdio_card *card)
 			if (firmwarelen - offset < txlen)
 				txlen = firmwarelen - offset;
 
-			tx_blocks = (txlen + blksz_dl - 1) / blksz_dl;
+			tx_blocks = DIV_ROUND_UP(txlen, blksz_dl);
 
 			memcpy(fwbuf, &firmware[offset], txlen);
 		}
@@ -554,6 +554,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	skb = bt_skb_alloc(num_blocks * blksz + BTSDIO_DMA_ALIGN, GFP_ATOMIC);
 	if (skb == NULL) {
 		BT_ERR("No free skb");
+		ret = -ENOMEM;
 		goto exit;
 	}
 
@@ -596,15 +597,14 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	case HCI_SCODATA_PKT:
 	case HCI_EVENT_PKT:
 		bt_cb(skb)->pkt_type = type;
-		skb->dev = (void *)hdev;
 		skb_put(skb, buf_len);
 		skb_pull(skb, SDIO_HEADER_LEN);
 
 		if (type == HCI_EVENT_PKT) {
 			if (btmrvl_check_evtpkt(priv, skb))
-				hci_recv_frame(skb);
+				hci_recv_frame(hdev, skb);
 		} else {
-			hci_recv_frame(skb);
+			hci_recv_frame(hdev, skb);
 		}
 
 		hdev->stat.byte_rx += buf_len;
@@ -612,12 +612,11 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 
 	case MRVL_VENDOR_PKT:
 		bt_cb(skb)->pkt_type = HCI_VENDOR_PKT;
-		skb->dev = (void *)hdev;
 		skb_put(skb, buf_len);
 		skb_pull(skb, SDIO_HEADER_LEN);
 
 		if (btmrvl_process_event(priv, skb))
-			hci_recv_frame(skb);
+			hci_recv_frame(hdev, skb);
 
 		hdev->stat.byte_rx += buf_len;
 		break;
@@ -872,7 +871,7 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 	}
 
 	blksz = SDIO_BLOCK_SIZE;
-	buf_block_len = (nb + blksz - 1) / blksz;
+	buf_block_len = DIV_ROUND_UP(nb, blksz);
 
 	sdio_claim_host(card->func);
 
@@ -1044,12 +1043,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 		ret = -ENODEV;
 		goto disable_host_int;
 	}
-
-	priv->btmrvl_dev.psmode = 1;
-	btmrvl_enable_ps(priv);
-
-	priv->btmrvl_dev.gpio_gap = 0xffff;
-	btmrvl_send_hscfg_cmd(priv);
 
 	return 0;
 

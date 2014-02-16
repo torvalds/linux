@@ -31,7 +31,6 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -965,7 +964,7 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 			psta = r8712_alloc_stainfo(&padapter->stapriv,
 						   pnetwork->MacAddress);
 			if (psta == NULL)
-				goto createbss_cmd_fail ;
+				goto createbss_cmd_fail;
 		}
 		r8712_indicate_connect(padapter);
 	} else {

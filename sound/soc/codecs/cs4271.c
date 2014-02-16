@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <sound/pcm.h>
@@ -171,6 +172,26 @@ struct cs4271_private {
 	int				gpio_disable;
 	/* enable soft reset workaround */
 	bool				enable_soft_reset;
+};
+
+static const struct snd_soc_dapm_widget cs4271_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("AINA"),
+SND_SOC_DAPM_INPUT("AINB"),
+
+SND_SOC_DAPM_OUTPUT("AOUTA+"),
+SND_SOC_DAPM_OUTPUT("AOUTA-"),
+SND_SOC_DAPM_OUTPUT("AOUTB+"),
+SND_SOC_DAPM_OUTPUT("AOUTB-"),
+};
+
+static const struct snd_soc_dapm_route cs4271_dapm_routes[] = {
+	{ "Capture", NULL, "AINA" },
+	{ "Capture", NULL, "AINB" },
+
+	{ "AOUTA+", NULL, "Playback" },
+	{ "AOUTA-", NULL, "Playback" },
+	{ "AOUTB+", NULL, "Playback" },
+	{ "AOUTB-", NULL, "Playback" },
 };
 
 /*
@@ -576,8 +597,7 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 				   CS4271_MODE2_MUTECAEQUB,
 				   CS4271_MODE2_MUTECAEQUB);
 
-	return snd_soc_add_codec_controls(codec, cs4271_snd_controls,
-		ARRAY_SIZE(cs4271_snd_controls));
+	return 0;
 }
 
 static int cs4271_remove(struct snd_soc_codec *codec)
@@ -596,6 +616,13 @@ static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
 	.remove			= cs4271_remove,
 	.suspend		= cs4271_soc_suspend,
 	.resume			= cs4271_soc_resume,
+
+	.controls		= cs4271_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs4271_snd_controls),
+	.dapm_widgets		= cs4271_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cs4271_dapm_widgets),
+	.dapm_routes		= cs4271_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(cs4271_dapm_routes),
 };
 
 #if defined(CONFIG_SPI_MASTER)
@@ -648,7 +675,7 @@ static struct spi_driver cs4271_spi_driver = {
 };
 #endif /* defined(CONFIG_SPI_MASTER) */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static const struct i2c_device_id cs4271_i2c_id[] = {
 	{"cs4271", 0},
 	{}
@@ -701,7 +728,7 @@ static struct i2c_driver cs4271_i2c_driver = {
 	.probe		= cs4271_i2c_probe,
 	.remove		= cs4271_i2c_remove,
 };
-#endif /* defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE) */
+#endif /* IS_ENABLED(CONFIG_I2C) */
 
 /*
  * We only register our serial bus driver here without
@@ -714,7 +741,7 @@ static int __init cs4271_modinit(void)
 {
 	int ret;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&cs4271_i2c_driver);
 	if (ret) {
 		pr_err("Failed to register CS4271 I2C driver: %d\n", ret);
@@ -740,7 +767,7 @@ static void __exit cs4271_modexit(void)
 	spi_unregister_driver(&cs4271_spi_driver);
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&cs4271_i2c_driver);
 #endif
 }

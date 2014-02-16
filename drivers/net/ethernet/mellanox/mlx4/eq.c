@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -79,6 +78,7 @@ enum {
 			       (1ull << MLX4_EVENT_TYPE_SRQ_QP_LAST_WQE)    | \
 			       (1ull << MLX4_EVENT_TYPE_SRQ_LIMIT)	    | \
 			       (1ull << MLX4_EVENT_TYPE_CMD)		    | \
+			       (1ull << MLX4_EVENT_TYPE_OP_REQUIRED)	    | \
 			       (1ull << MLX4_EVENT_TYPE_COMM_CHANNEL)       | \
 			       (1ull << MLX4_EVENT_TYPE_FLR_EVENT)	    | \
 			       (1ull << MLX4_EVENT_TYPE_FATAL_WARNING))
@@ -448,6 +448,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 	int i;
 	enum slave_port_gen_event gen_event;
 	unsigned long flags;
+	struct mlx4_vport_state *s_info;
 
 	while ((eqe = next_eqe_sw(eq, dev->caps.eqe_factor))) {
 		/*
@@ -556,7 +557,9 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 						mlx4_dbg(dev, "%s: Sending MLX4_PORT_CHANGE_SUBTYPE_DOWN"
 							 " to slave: %d, port:%d\n",
 							 __func__, i, port);
-						mlx4_slave_event(dev, i, eqe);
+						s_info = &priv->mfunc.master.vf_oper[slave].vport[port].state;
+						if (IFLA_VF_LINK_STATE_AUTO == s_info->link_state)
+							mlx4_slave_event(dev, i, eqe);
 					} else {  /* IB port */
 						set_and_calc_slave_port_state(dev, i, port,
 									      MLX4_PORT_STATE_DEV_EVENT_PORT_DOWN,
@@ -580,7 +583,9 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					for (i = 0; i < dev->num_slaves; i++) {
 						if (i == mlx4_master_func_num(dev))
 							continue;
-						mlx4_slave_event(dev, i, eqe);
+						s_info = &priv->mfunc.master.vf_oper[slave].vport[port].state;
+						if (IFLA_VF_LINK_STATE_AUTO == s_info->link_state)
+							mlx4_slave_event(dev, i, eqe);
 					}
 				else /* IB port */
 					/* port-up event will be sent to a slave when the
@@ -622,6 +627,14 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 
 		case MLX4_EVENT_TYPE_EQ_OVERFLOW:
 			mlx4_warn(dev, "EQ overrun on EQN %d\n", eq->eqn);
+			break;
+
+		case MLX4_EVENT_TYPE_OP_REQUIRED:
+			atomic_inc(&priv->opreq_count);
+			/* FW commands can't be executed from interrupt context
+			 * working in deferred task
+			 */
+			queue_work(mlx4_wq, &priv->opreq_task);
 			break;
 
 		case MLX4_EVENT_TYPE_COMM_CHANNEL:
@@ -922,7 +935,6 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 	if (err)
 		goto err_out_free_mtt;
 
-	memset(eq_context, 0, sizeof *eq_context);
 	eq_context->flags	  = cpu_to_be32(MLX4_EQ_STATUS_OK   |
 						MLX4_EQ_STATE_ARMED);
 	eq_context->log_eq_size	  = ilog2(eq->nent);
@@ -950,7 +962,7 @@ err_out_free_mtt:
 	mlx4_mtt_cleanup(dev, &eq->mtt);
 
 err_out_free_eq:
-	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn);
+	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn, MLX4_USE_RR);
 
 err_out_free_pages:
 	for (i = 0; i < npages; ++i)
@@ -1005,7 +1017,7 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 				    eq->page_list[i].map);
 
 	kfree(eq->page_list);
-	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn);
+	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn, MLX4_USE_RR);
 	mlx4_free_cmd_mailbox(dev, mailbox);
 }
 

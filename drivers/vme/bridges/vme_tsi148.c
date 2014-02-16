@@ -45,7 +45,7 @@ static int geoid;
 
 static const char driver_name[] = "vme_tsi148";
 
-static DEFINE_PCI_DEVICE_TABLE(tsi148_ids) = {
+static const struct pci_device_id tsi148_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_TSI148) },
 	{ },
 };
@@ -1267,7 +1267,7 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 	u32 aspace, cycle, dwidth;
 	struct vme_bus_error *vme_err = NULL;
 	struct vme_bridge *tsi148_bridge;
-	void *addr = image->kern_base + offset;
+	void __iomem *addr = image->kern_base + offset;
 	unsigned int done = 0;
 	unsigned int count32;
 
@@ -1289,7 +1289,7 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 		if (done == count)
 			goto out;
 	}
-	if ((uintptr_t)addr & 0x2) {
+	if ((uintptr_t)(addr + done) & 0x2) {
 		if ((count - done) < 2) {
 			*(u8 *)(buf + done) = ioread8(addr + done);
 			done += 1;
@@ -1348,7 +1348,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	int retval = 0, enabled;
 	unsigned long long vme_base, size;
 	u32 aspace, cycle, dwidth;
-	void *addr = image->kern_base + offset;
+	void __iomem *addr = image->kern_base + offset;
 	unsigned int done = 0;
 	unsigned int count32;
 
@@ -1371,7 +1371,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 		if (done == count)
 			goto out;
 	}
-	if ((uintptr_t)addr & 0x2) {
+	if ((uintptr_t)(addr + done) & 0x2) {
 		if ((count - done) < 2) {
 			iowrite8(*(u8 *)(buf + done), addr + done);
 			done += 1;

@@ -84,7 +84,7 @@ int SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
 int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USHORT Vcid)
 {
 	int	status = 0;
-	BOOLEAN	bHeaderSupressionEnabled = FALSE;
+	bool	bHeaderSupressionEnabled = false;
 	B_UINT16 uiClassifierRuleID;
 	u16	QueueIndex = skb_get_queue_mapping(Packet);
 	struct bcm_leader Leader = {0};
@@ -204,7 +204,7 @@ int tx_pkt_handler(struct bcm_mini_adapter *Adapter /**< pointer to adapter obje
 		/* Check end point for halt/stall. */
 		if (Adapter->bEndPointHalted == TRUE) {
 			Bcm_clear_halt_of_endpoints(Adapter);
-			Adapter->bEndPointHalted = FALSE;
+			Adapter->bEndPointHalted = false;
 			StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 		}
 

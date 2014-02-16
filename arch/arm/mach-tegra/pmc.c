@@ -20,12 +20,16 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/tegra-powergate.h>
 
+#include "flowctrl.h"
 #include "fuse.h"
 #include "pm.h"
 #include "pmc.h"
 #include "sleep.h"
 
+#define TEGRA_POWER_SYSCLK_POLARITY	(1 << 10)  /* sys clk polarity */
+#define TEGRA_POWER_SYSCLK_OE		(1 << 11)  /* system clock enable */
 #define TEGRA_POWER_EFFECT_LP0		(1 << 14)  /* LP0 when CPU pwr gated */
 #define TEGRA_POWER_CPU_PWRREQ_POLARITY	(1 << 15)  /* CPU pwr req polarity */
 #define TEGRA_POWER_CPU_PWRREQ_OE	(1 << 16)  /* CPU pwr req enable */
@@ -39,12 +43,6 @@
 
 #define PMC_CPUPWRGOOD_TIMER	0xc8
 #define PMC_CPUPWROFF_TIMER	0xcc
-
-#define TEGRA_POWERGATE_PCIE	3
-#define TEGRA_POWERGATE_VDEC	4
-#define TEGRA_POWERGATE_CPU1	9
-#define TEGRA_POWERGATE_CPU2	10
-#define TEGRA_POWERGATE_CPU3	11
 
 static u8 tegra_cpu_domains[] = {
 	0xFF,			/* not available for CPU0 */
@@ -163,6 +161,15 @@ int tegra_pmc_cpu_remove_clamping(int cpuid)
 	return tegra_pmc_powergate_remove_clamping(id);
 }
 
+void tegra_pmc_restart(enum reboot_mode mode, const char *cmd)
+{
+	u32 val;
+
+	val = tegra_pmc_readl(0);
+	val |= 0x10;
+	tegra_pmc_writel(val, 0);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static void set_power_timers(u32 us_on, u32 us_off, unsigned long rate)
 {
@@ -193,16 +200,50 @@ enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
 	return pmc_pm_data.suspend_mode;
 }
 
+void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
+{
+	if (mode < TEGRA_SUSPEND_NONE || mode >= TEGRA_MAX_SUSPEND_MODE)
+		return;
+
+	pmc_pm_data.suspend_mode = mode;
+}
+
+void tegra_pmc_suspend(void)
+{
+	tegra_pmc_writel(virt_to_phys(tegra_resume), PMC_SCRATCH41);
+}
+
+void tegra_pmc_resume(void)
+{
+	tegra_pmc_writel(0x0, PMC_SCRATCH41);
+}
+
 void tegra_pmc_pm_set(enum tegra_suspend_mode mode)
 {
-	u32 reg;
+	u32 reg, csr_reg;
 	unsigned long rate = 0;
 
 	reg = tegra_pmc_readl(PMC_CTRL);
 	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
 	reg &= ~TEGRA_POWER_EFFECT_LP0;
 
+	switch (tegra_chip_id) {
+	case TEGRA20:
+	case TEGRA30:
+		break;
+	default:
+		/* Turn off CRAIL */
+		csr_reg = flowctrl_read_cpu_csr(0);
+		csr_reg &= ~FLOW_CTRL_CSR_ENABLE_EXT_MASK;
+		csr_reg |= FLOW_CTRL_CSR_ENABLE_EXT_CRAIL;
+		flowctrl_write_cpu_csr(0, csr_reg);
+		break;
+	}
+
 	switch (mode) {
+	case TEGRA_SUSPEND_LP1:
+		rate = 32768;
+		break;
 	case TEGRA_SUSPEND_LP2:
 		rate = clk_get_rate(tegra_pclk);
 		break;
@@ -224,17 +265,53 @@ void tegra_pmc_suspend_init(void)
 	reg = tegra_pmc_readl(PMC_CTRL);
 	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
 	tegra_pmc_writel(reg, PMC_CTRL);
+
+	reg = tegra_pmc_readl(PMC_CTRL);
+
+	if (!pmc_pm_data.sysclkreq_high)
+		reg |= TEGRA_POWER_SYSCLK_POLARITY;
+	else
+		reg &= ~TEGRA_POWER_SYSCLK_POLARITY;
+
+	/* configure the output polarity while the request is tristated */
+	tegra_pmc_writel(reg, PMC_CTRL);
+
+	/* now enable the request */
+	reg |= TEGRA_POWER_SYSCLK_OE;
+	tegra_pmc_writel(reg, PMC_CTRL);
 }
 #endif
 
 static const struct of_device_id matches[] __initconst = {
+	{ .compatible = "nvidia,tegra124-pmc" },
 	{ .compatible = "nvidia,tegra114-pmc" },
 	{ .compatible = "nvidia,tegra30-pmc" },
 	{ .compatible = "nvidia,tegra20-pmc" },
 	{ }
 };
 
-static void __init tegra_pmc_parse_dt(void)
+void __init tegra_pmc_init_irq(void)
+{
+	struct device_node *np;
+	u32 val;
+
+	np = of_find_matching_node(NULL, matches);
+	BUG_ON(!np);
+
+	tegra_pmc_base = of_iomap(np, 0);
+
+	tegra_pmc_invert_interrupt = of_property_read_bool(np,
+				     "nvidia,invert-interrupt");
+
+	val = tegra_pmc_readl(PMC_CTRL);
+	if (tegra_pmc_invert_interrupt)
+		val |= PMC_CTRL_INTR_LOW;
+	else
+		val &= ~PMC_CTRL_INTR_LOW;
+	tegra_pmc_writel(val, PMC_CTRL);
+}
+
+void __init tegra_pmc_init(void)
 {
 	struct device_node *np;
 	u32 prop;
@@ -245,10 +322,6 @@ static void __init tegra_pmc_parse_dt(void)
 	np = of_find_matching_node(NULL, matches);
 	BUG_ON(!np);
 
-	tegra_pmc_base = of_iomap(np, 0);
-
-	tegra_pmc_invert_interrupt = of_property_read_bool(np,
-				     "nvidia,invert-interrupt");
 	tegra_pclk = of_clk_get_by_name(np, "pclk");
 	WARN_ON(IS_ERR(tegra_pclk));
 
@@ -313,18 +386,4 @@ static void __init tegra_pmc_parse_dt(void)
 	pmc_pm_data.lp0_vec_size = lp0_vec[1];
 
 	pmc_pm_data.suspend_mode = suspend_mode;
-}
-
-void __init tegra_pmc_init(void)
-{
-	u32 val;
-
-	tegra_pmc_parse_dt();
-
-	val = tegra_pmc_readl(PMC_CTRL);
-	if (tegra_pmc_invert_interrupt)
-		val |= PMC_CTRL_INTR_LOW;
-	else
-		val &= ~PMC_CTRL_INTR_LOW;
-	tegra_pmc_writel(val, PMC_CTRL);
 }

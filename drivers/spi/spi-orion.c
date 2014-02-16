@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/clk.h>
+#include <linux/sizes.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
@@ -83,8 +84,8 @@ static int orion_spi_set_transfer_size(struct orion_spi *orion_spi, int size)
 		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
 				  ORION_SPI_IF_8_16_BIT_MODE);
 	} else {
-		pr_debug("Bad bits per word value %d (only 8 or 16 are "
-			 "allowed).\n", size);
+		pr_debug("Bad bits per word value %d (only 8 or 16 are allowed).\n",
+			size);
 		return -EINVAL;
 	}
 
@@ -406,7 +407,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	const u32 *iprop;
 	int size;
 
-	master = spi_alloc_master(&pdev->dev, sizeof *spi);
+	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
 	if (master == NULL) {
 		dev_dbg(&pdev->dev, "master allocation failed\n");
 		return -ENOMEM;
@@ -433,7 +434,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi = spi_master_get_devdata(master);
 	spi->master = master;
 
-	spi->clk = clk_get(&pdev->dev, NULL);
+	spi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(spi->clk)) {
 		status = PTR_ERR(spi->clk);
 		goto out;
@@ -446,33 +447,24 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi->min_speed = DIV_ROUND_UP(tclk_hz, 30);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		status = -ENODEV;
+	spi->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(spi->base)) {
+		status = PTR_ERR(spi->base);
 		goto out_rel_clk;
 	}
-
-	if (!request_mem_region(r->start, resource_size(r),
-				dev_name(&pdev->dev))) {
-		status = -EBUSY;
-		goto out_rel_clk;
-	}
-	spi->base = ioremap(r->start, SZ_1K);
 
 	if (orion_spi_reset(spi) < 0)
-		goto out_rel_mem;
+		goto out_rel_clk;
 
 	master->dev.of_node = pdev->dev.of_node;
-	status = spi_register_master(master);
+	status = devm_spi_register_master(&pdev->dev, master);
 	if (status < 0)
-		goto out_rel_mem;
+		goto out_rel_clk;
 
 	return status;
 
-out_rel_mem:
-	release_mem_region(r->start, resource_size(r));
 out_rel_clk:
 	clk_disable_unprepare(spi->clk);
-	clk_put(spi->clk);
 out:
 	spi_master_put(master);
 	return status;
@@ -482,19 +474,12 @@ out:
 static int orion_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master;
-	struct resource *r;
 	struct orion_spi *spi;
 
 	master = platform_get_drvdata(pdev);
 	spi = spi_master_get_devdata(master);
 
 	clk_disable_unprepare(spi->clk);
-	clk_put(spi->clk);
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, resource_size(r));
-
-	spi_unregister_master(master);
 
 	return 0;
 }

@@ -34,12 +34,12 @@ static int jack_switch_types[SND_JACK_SWITCH_TYPES] = {
 	SW_LINEIN_INSERT,
 };
 
-static int snd_jack_dev_free(struct snd_device *device)
+static int snd_jack_dev_disconnect(struct snd_device *device)
 {
 	struct snd_jack *jack = device->device_data;
 
-	if (jack->private_free)
-		jack->private_free(jack);
+	if (!jack->input_dev)
+		return 0;
 
 	/* If the input device is registered with the input subsystem
 	 * then we need to use a different deallocator. */
@@ -47,6 +47,18 @@ static int snd_jack_dev_free(struct snd_device *device)
 		input_unregister_device(jack->input_dev);
 	else
 		input_free_device(jack->input_dev);
+	jack->input_dev = NULL;
+	return 0;
+}
+
+static int snd_jack_dev_free(struct snd_device *device)
+{
+	struct snd_jack *jack = device->device_data;
+
+	if (jack->private_free)
+		jack->private_free(jack);
+
+	snd_jack_dev_disconnect(device);
 
 	kfree(jack->id);
 	kfree(jack);
@@ -110,6 +122,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 	static struct snd_device_ops ops = {
 		.dev_free = snd_jack_dev_free,
 		.dev_register = snd_jack_dev_register,
+		.dev_disconnect = snd_jack_dev_disconnect,
 	};
 
 	jack = kzalloc(sizeof(struct snd_jack), GFP_KERNEL);

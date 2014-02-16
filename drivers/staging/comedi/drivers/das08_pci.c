@@ -31,6 +31,7 @@
  * Configuration Options: not applicable, uses PCI auto config
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -59,10 +60,9 @@ static int das08_pci_auto_attach(struct comedi_device *dev,
 	struct das08_private_struct *devpriv;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* The das08 driver needs the board_ptr */
 	dev->board_ptr = &das08_pci_boards[0];
@@ -89,7 +89,7 @@ static int das08_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(das08_pci_table) = {
+static const struct pci_device_id das08_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_PCIDAS08) },
 	{ 0 }
 };

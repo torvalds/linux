@@ -160,18 +160,25 @@ void r420_pipes_init(struct radeon_device *rdev)
 
 u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg)
 {
+	unsigned long flags;
 	u32 r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_0001F8_MC_IND_INDEX, S_0001F8_MC_IND_ADDR(reg));
 	r = RREG32(R_0001FC_MC_IND_DATA);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 	return r;
 }
 
 void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_0001F8_MC_IND_INDEX, S_0001F8_MC_IND_ADDR(reg) |
 		S_0001F8_MC_IND_WR_EN(1));
 	WREG32(R_0001FC_MC_IND_DATA, v);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
 static void r420_debugfs(struct radeon_device *rdev)
@@ -318,6 +325,8 @@ int r420_resume(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = r420_startup(rdev);
 	if (r) {
@@ -328,6 +337,7 @@ int r420_resume(struct radeon_device *rdev)
 
 int r420_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r420_cp_errata_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
@@ -341,6 +351,7 @@ int r420_suspend(struct radeon_device *rdev)
 
 void r420_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
@@ -436,6 +447,9 @@ int r420_init(struct radeon_device *rdev)
 			return r;
 	}
 	r420_set_reg_safe(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = r420_startup(rdev);

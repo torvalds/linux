@@ -52,6 +52,9 @@ struct cpuinfo_mips {
 	unsigned int		cputype;
 	int			isa_level;
 	int			tlbsize;
+	int			tlbsizevtlb;
+	int			tlbsizeftlbsets;
+	int			tlbsizeftlbways;
 	struct cache_desc	icache; /* Primary I-cache */
 	struct cache_desc	dcache; /* Primary D or combined I/D cache */
 	struct cache_desc	scache; /* Secondary cache */
@@ -84,6 +87,7 @@ struct cpuinfo_mips {
 extern struct cpuinfo_mips cpu_data[];
 #define current_cpu_data cpu_data[smp_processor_id()]
 #define raw_current_cpu_data cpu_data[raw_smp_processor_id()]
+#define boot_cpu_data cpu_data[0]
 
 extern void cpu_probe(void);
 extern void cpu_report(void);

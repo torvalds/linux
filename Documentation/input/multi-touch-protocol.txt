@@ -80,6 +80,8 @@ Userspace can detect that a driver can report more total contacts than slots
 by noting that the largest supported BTN_TOOL_*TAP event is larger than the
 total number of type B slots reported in the absinfo for the ABS_MT_SLOT axis.
 
+The minimum value of the ABS_MT_SLOT axis must be 0.
+
 Protocol Example A
 ------------------
 

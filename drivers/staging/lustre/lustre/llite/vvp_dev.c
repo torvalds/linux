@@ -213,7 +213,7 @@ int cl_sb_init(struct super_block *sb)
 		cl_env_put(env, &refcheck);
 	} else
 		rc = PTR_ERR(env);
-	RETURN(rc);
+	return rc;
 }
 
 int cl_sb_fini(struct super_block *sb)
@@ -224,7 +224,6 @@ int cl_sb_fini(struct super_block *sb)
 	int		refcheck;
 	int		result;
 
-	ENTRY;
 	sbi = ll_s2sbi(sb);
 	env = cl_env_get(&refcheck);
 	if (!IS_ERR(env)) {
@@ -247,7 +246,7 @@ int cl_sb_fini(struct super_block *sb)
 	 * automatically when last device is destroyed).
 	 */
 	lu_types_stop();
-	RETURN(result);
+	return result;
 }
 
 /****************************************************************************
@@ -298,7 +297,7 @@ static loff_t vvp_pgcache_id_pack(struct vvp_pgcache_id *id)
 		((__u64)id->vpi_bucket << PGC_OBJ_SHIFT);
 }
 
-static int vvp_pgcache_obj_get(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+static int vvp_pgcache_obj_get(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			       struct hlist_node *hnode, void *data)
 {
 	struct vvp_pgcache_id   *id  = data;

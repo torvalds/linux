@@ -1,0 +1,27 @@
+* Allwinner A10 MDIO Ethernet Controller interface
+
+Required properties:
+- compatible: should be "allwinner,sun4i-a10-mdio"
+              (Deprecated: "allwinner,sun4i-mdio").
+- reg: address and length of the register set for the device.
+
+Optional properties:
+- phy-supply: phandle to a regulator if the PHY needs one
+
+Example at the SoC level:
+mdio@01c0b080 {
+	compatible = "allwinner,sun4i-a10-mdio";
+	reg = <0x01c0b080 0x14>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+};
+
+And at the board level:
+
+mdio@01c0b080 {
+	phy-supply = <&reg_emac_3v3>;
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};

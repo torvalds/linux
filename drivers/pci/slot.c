@@ -53,7 +53,7 @@ static ssize_t address_read_file(struct pci_slot *slot, char *buf)
 static const char *pci_bus_speed_strings[] = {
 	"33 MHz PCI",		/* 0x00 */
 	"66 MHz PCI",		/* 0x01 */
-	"66 MHz PCI-X", 	/* 0x02 */
+	"66 MHz PCI-X",		/* 0x02 */
 	"100 MHz PCI-X",	/* 0x03 */
 	"133 MHz PCI-X",	/* 0x04 */
 	NULL,			/* 0x05 */
@@ -318,32 +318,6 @@ err:
 	goto out;
 }
 EXPORT_SYMBOL_GPL(pci_create_slot);
-
-/**
- * pci_renumber_slot - update %struct pci_slot -> number
- * @slot: &struct pci_slot to update
- * @slot_nr: new number for slot
- *
- * The primary purpose of this interface is to allow callers who earlier
- * created a placeholder slot in pci_create_slot() by passing a -1 as
- * slot_nr, to update their %struct pci_slot with the correct @slot_nr.
- */
-void pci_renumber_slot(struct pci_slot *slot, int slot_nr)
-{
-	struct pci_slot *tmp;
-
-	down_write(&pci_bus_sem);
-
-	list_for_each_entry(tmp, &slot->bus->slots, list) {
-		WARN_ON(tmp->number == slot_nr);
-		goto out;
-	}
-
-	slot->number = slot_nr;
-out:
-	up_write(&pci_bus_sem);
-}
-EXPORT_SYMBOL_GPL(pci_renumber_slot);
 
 /**
  * pci_destroy_slot - decrement refcount for physical PCI slot

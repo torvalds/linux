@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,6 @@ enum iwl_power_level {
  *	use IWL_DISABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 0
  * @restart_fw: restart firmware, default = 1
- * @plcp_check: enable plcp health check, default = true
  * @wd_disable: enable stuck queue check, default = 0
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
@@ -101,24 +100,22 @@ enum iwl_power_level {
  * @power_level: power level, default = 1
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
- * @bt_ch_announce: BT channel inhibition, default = enable
- * @auto_agg: enable agg. without check, default = true
  */
 struct iwl_mod_params {
 	int sw_crypto;
 	unsigned int disable_11n;
 	int amsdu_size_8K;
 	bool restart_fw;
-	bool plcp_check;
 	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;
 	bool power_save;
 	int power_level;
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u32 debug_level;
+#endif
 	int ant_coupling;
-	bool bt_ch_announce;
-	bool auto_agg;
+	char *nvm_file;
 };
 
 #endif /* #__iwl_modparams_h__ */

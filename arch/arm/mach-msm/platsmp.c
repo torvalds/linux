@@ -38,7 +38,7 @@ static inline int get_core_count(void)
 	return ((read_cpuid_id() >> 4) & 3) + 1;
 }
 
-static void __cpuinit msm_secondary_init(unsigned int cpu)
+static void msm_secondary_init(unsigned int cpu)
 {
 	/*
 	 * let the primary processor know we're out of the
@@ -54,7 +54,7 @@ static void __cpuinit msm_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static __cpuinit void prepare_cold_cpu(unsigned int cpu)
+static void prepare_cold_cpu(unsigned int cpu)
 {
 	int ret;
 	ret = scm_set_boot_addr(virt_to_phys(msm_secondary_startup),
@@ -73,7 +73,7 @@ static __cpuinit void prepare_cold_cpu(unsigned int cpu)
 				  "address\n");
 }
 
-static int __cpuinit msm_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int msm_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	static int cold_boot_done;
@@ -99,8 +99,7 @@ static int __cpuinit msm_boot_secondary(unsigned int cpu, struct task_struct *id
 	 * "cpu" is Linux's internal ID.
 	 */
 	pen_release = cpu_logical_map(cpu);
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+	sync_cache_w(&pen_release);
 
 	/*
 	 * Send the secondary CPU a soft interrupt, thereby causing

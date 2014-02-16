@@ -940,11 +940,11 @@ static int sht15_probe(struct platform_device *pdev)
 	data->dev = &pdev->dev;
 	init_waitqueue_head(&data->wait_queue);
 
-	if (pdev->dev.platform_data == NULL) {
+	if (dev_get_platdata(&pdev->dev) == NULL) {
 		dev_err(&pdev->dev, "no platform data supplied\n");
 		return -EINVAL;
 	}
-	data->pdata = pdev->dev.platform_data;
+	data->pdata = dev_get_platdata(&pdev->dev);
 	data->supply_uv = data->pdata->supply_mv * 1000;
 	if (data->pdata->checksum)
 		data->checksumming = true;
@@ -957,7 +957,7 @@ static int sht15_probe(struct platform_device *pdev)
 	 * If a regulator is available,
 	 * query what the supply voltage actually is!
 	 */
-	data->reg = devm_regulator_get(data->dev, "vcc");
+	data->reg = devm_regulator_get_optional(data->dev, "vcc");
 	if (!IS_ERR(data->reg)) {
 		int voltage;
 

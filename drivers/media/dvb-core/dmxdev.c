@@ -206,8 +206,6 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 	/* TODO */
 	dvbdev->users--;
 	if (dvbdev->users == 1 && dmxdev->exit == 1) {
-		fops_put(file->f_op);
-		file->f_op = NULL;
 		mutex_unlock(&dmxdev->mutex);
 		wake_up(&dvbdev->wait_queue);
 	} else
@@ -377,10 +375,8 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 		ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer, buffer2,
 					      buffer2_len);
 	}
-	if (ret < 0) {
-		dvb_ringbuffer_flush(&dmxdevfilter->buffer);
+	if (ret < 0)
 		dmxdevfilter->buffer.error = ret;
-	}
 	if (dmxdevfilter->params.sec.flags & DMX_ONESHOT)
 		dmxdevfilter->state = DMXDEV_STATE_DONE;
 	spin_unlock(&dmxdevfilter->dev->lock);
@@ -416,10 +412,8 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 	ret = dvb_dmxdev_buffer_write(buffer, buffer1, buffer1_len);
 	if (ret == buffer1_len)
 		ret = dvb_dmxdev_buffer_write(buffer, buffer2, buffer2_len);
-	if (ret < 0) {
-		dvb_ringbuffer_flush(buffer);
+	if (ret < 0)
 		buffer->error = ret;
-	}
 	spin_unlock(&dmxdevfilter->dev->lock);
 	wake_up(&buffer->queue);
 	return 0;
@@ -1124,8 +1118,6 @@ static int dvb_demux_release(struct inode *inode, struct file *file)
 	mutex_lock(&dmxdev->mutex);
 	dmxdev->dvbdev->users--;
 	if(dmxdev->dvbdev->users==1 && dmxdev->exit==1) {
-		fops_put(file->f_op);
-		file->f_op = NULL;
 		mutex_unlock(&dmxdev->mutex);
 		wake_up(&dmxdev->dvbdev->wait_queue);
 	} else

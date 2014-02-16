@@ -22,7 +22,6 @@ config SIS900
 	tristate "SiS 900/7016 PCI Fast Ethernet Adapter support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
@@ -39,7 +38,6 @@ config SIS190
 	tristate "SiS190/SiS191 gigabit ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  Say Y here if you have a SiS 190 PCI Fast Ethernet adapter or

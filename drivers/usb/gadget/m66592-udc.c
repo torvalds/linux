@@ -1584,7 +1584,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 		goto clean_up;
 	}
 
-	if (pdev->dev.platform_data == NULL) {
+	if (dev_get_platdata(&pdev->dev) == NULL) {
 		dev_err(&pdev->dev, "no platform data\n");
 		ret = -ENODEV;
 		goto clean_up;
@@ -1598,7 +1598,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 		goto clean_up;
 	}
 
-	m66592->pdata = pdev->dev.platform_data;
+	m66592->pdata = dev_get_platdata(&pdev->dev);
 	m66592->irq_trigger = ires->flags & IRQF_TRIGGER_MASK;
 
 	spin_lock_init(&m66592->lock);
@@ -1647,9 +1647,9 @@ static int __init m66592_probe(struct platform_device *pdev)
 		INIT_LIST_HEAD(&ep->queue);
 		ep->ep.name = m66592_ep_name[i];
 		ep->ep.ops = &m66592_ep_ops;
-		ep->ep.maxpacket = 512;
+		usb_ep_set_maxpacket_limit(&ep->ep, 512);
 	}
-	m66592->ep[0].ep.maxpacket = 64;
+	usb_ep_set_maxpacket_limit(&m66592->ep[0].ep, 64);
 	m66592->ep[0].pipenum = 0;
 	m66592->ep[0].fifoaddr = M66592_CFIFO;
 	m66592->ep[0].fifosel = M66592_CFIFOSEL;

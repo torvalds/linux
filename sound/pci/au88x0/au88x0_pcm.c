@@ -671,7 +671,7 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 			return err;
 		break;
 #endif
-	};
+	}
 
 	if (VORTEX_PCM_TYPE(pcm) == VORTEX_PCM_SPDIF) {
 		for (i = 0; i < ARRAY_SIZE(snd_vortex_mixer_spdif); i++) {

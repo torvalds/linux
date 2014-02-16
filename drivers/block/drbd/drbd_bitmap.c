@@ -393,7 +393,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 	 * we must not block on IO to ourselves.
 	 * Context is receiver thread or dmsetup. */
 	bytes = sizeof(struct page *)*want;
-	new_pages = kzalloc(bytes, GFP_NOIO);
+	new_pages = kzalloc(bytes, GFP_NOIO | __GFP_NOWARN);
 	if (!new_pages) {
 		new_pages = __vmalloc(bytes,
 				GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO,
@@ -1028,7 +1028,7 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
 	} else
 		page = b->bm_pages[page_nr];
 	bio->bi_bdev = mdev->ldev->md_bdev;
-	bio->bi_sector = on_disk_sector;
+	bio->bi_iter.bi_sector = on_disk_sector;
 	/* bio_add_page of a single page to an empty bio will always succeed,
 	 * according to api.  Do we want to assert that? */
 	bio_add_page(bio, page, len, 0);

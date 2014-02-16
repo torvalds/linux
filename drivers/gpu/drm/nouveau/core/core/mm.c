@@ -98,6 +98,8 @@ nouveau_mm_head(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 	u32 splitoff;
 	u32 s, e;
 
+	BUG_ON(!type);
+
 	list_for_each_entry(this, &mm->free, fl_entry) {
 		e = this->offset + this->length;
 		s = this->offset;
@@ -162,6 +164,8 @@ nouveau_mm_tail(struct nouveau_mm *mm, u8 type, u32 size_max, u32 size_min,
 	struct nouveau_mm_node *prev, *this, *next;
 	u32 mask = align - 1;
 
+	BUG_ON(!type);
+
 	list_for_each_entry_reverse(this, &mm->free, fl_entry) {
 		u32 e = this->offset + this->length;
 		u32 s = this->offset;
@@ -208,7 +212,6 @@ nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 	struct nouveau_mm_node *node;
 
 	if (block) {
-		mutex_init(&mm->mutex);
 		INIT_LIST_HEAD(&mm->nodes);
 		INIT_LIST_HEAD(&mm->free);
 		mm->block_size = block;

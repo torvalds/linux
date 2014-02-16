@@ -62,43 +62,168 @@ struct drm_prime_member {
 	struct dma_buf *dma_buf;
 	uint32_t handle;
 };
-static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle);
+
+struct drm_prime_attachment {
+	struct sg_table *sgt;
+	enum dma_data_direction dir;
+};
+
+static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle)
+{
+	struct drm_prime_member *member;
+
+	member = kmalloc(sizeof(*member), GFP_KERNEL);
+	if (!member)
+		return -ENOMEM;
+
+	get_dma_buf(dma_buf);
+	member->dma_buf = dma_buf;
+	member->handle = handle;
+	list_add(&member->entry, &prime_fpriv->head);
+	return 0;
+}
+
+static struct dma_buf *drm_prime_lookup_buf_by_handle(struct drm_prime_file_private *prime_fpriv,
+						      uint32_t handle)
+{
+	struct drm_prime_member *member;
+
+	list_for_each_entry(member, &prime_fpriv->head, entry) {
+		if (member->handle == handle)
+			return member->dma_buf;
+	}
+
+	return NULL;
+}
+
+static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv,
+				       struct dma_buf *dma_buf,
+				       uint32_t *handle)
+{
+	struct drm_prime_member *member;
+
+	list_for_each_entry(member, &prime_fpriv->head, entry) {
+		if (member->dma_buf == dma_buf) {
+			*handle = member->handle;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+static int drm_gem_map_attach(struct dma_buf *dma_buf,
+			      struct device *target_dev,
+			      struct dma_buf_attachment *attach)
+{
+	struct drm_prime_attachment *prime_attach;
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+
+	prime_attach = kzalloc(sizeof(*prime_attach), GFP_KERNEL);
+	if (!prime_attach)
+		return -ENOMEM;
+
+	prime_attach->dir = DMA_NONE;
+	attach->priv = prime_attach;
+
+	if (!dev->driver->gem_prime_pin)
+		return 0;
+
+	return dev->driver->gem_prime_pin(obj);
+}
+
+static void drm_gem_map_detach(struct dma_buf *dma_buf,
+			       struct dma_buf_attachment *attach)
+{
+	struct drm_prime_attachment *prime_attach = attach->priv;
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+	struct sg_table *sgt;
+
+	if (dev->driver->gem_prime_unpin)
+		dev->driver->gem_prime_unpin(obj);
+
+	if (!prime_attach)
+		return;
+
+	sgt = prime_attach->sgt;
+	if (sgt) {
+		if (prime_attach->dir != DMA_NONE)
+			dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
+					prime_attach->dir);
+		sg_free_table(sgt);
+	}
+
+	kfree(sgt);
+	kfree(prime_attach);
+	attach->priv = NULL;
+}
+
+void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv,
+					struct dma_buf *dma_buf)
+{
+	struct drm_prime_member *member, *safe;
+
+	list_for_each_entry_safe(member, safe, &prime_fpriv->head, entry) {
+		if (member->dma_buf == dma_buf) {
+			dma_buf_put(dma_buf);
+			list_del(&member->entry);
+			kfree(member);
+		}
+	}
+}
 
 static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 		enum dma_data_direction dir)
 {
+	struct drm_prime_attachment *prime_attach = attach->priv;
 	struct drm_gem_object *obj = attach->dmabuf->priv;
 	struct sg_table *sgt;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	if (WARN_ON(dir == DMA_NONE || !prime_attach))
+		return ERR_PTR(-EINVAL);
+
+	/* return the cached mapping when possible */
+	if (prime_attach->dir == dir)
+		return prime_attach->sgt;
+
+	/*
+	 * two mappings with different directions for the same attachment are
+	 * not allowed
+	 */
+	if (WARN_ON(prime_attach->dir != DMA_NONE))
+		return ERR_PTR(-EBUSY);
 
 	sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
 
-	if (!IS_ERR_OR_NULL(sgt))
-		dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir);
+	if (!IS_ERR(sgt)) {
+		if (!dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir)) {
+			sg_free_table(sgt);
+			kfree(sgt);
+			sgt = ERR_PTR(-ENOMEM);
+		} else {
+			prime_attach->sgt = sgt;
+			prime_attach->dir = dir;
+		}
+	}
 
-	mutex_unlock(&obj->dev->struct_mutex);
 	return sgt;
 }
 
 static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 		struct sg_table *sgt, enum dma_data_direction dir)
 {
-	dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents, dir);
-	sg_free_table(sgt);
-	kfree(sgt);
+	/* nothing to be done here */
 }
 
-static void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
+void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 
-	if (obj->export_dma_buf == dma_buf) {
-		/* drop the reference on the export fd holds */
-		obj->export_dma_buf = NULL;
-		drm_gem_object_unreference_unlocked(obj);
-	}
+	/* drop the reference on the export fd holds */
+	drm_gem_object_unreference_unlocked(obj);
 }
+EXPORT_SYMBOL(drm_gem_dmabuf_release);
 
 static void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 {
@@ -142,10 +267,18 @@ static void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf,
 static int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf,
 		struct vm_area_struct *vma)
 {
-	return -EINVAL;
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+
+	if (!dev->driver->gem_prime_mmap)
+		return -ENOSYS;
+
+	return dev->driver->gem_prime_mmap(obj, vma);
 }
 
 static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
+	.attach = drm_gem_map_attach,
+	.detach = drm_gem_map_detach,
 	.map_dma_buf = drm_gem_map_dma_buf,
 	.unmap_dma_buf = drm_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
@@ -185,68 +318,125 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 				     struct drm_gem_object *obj, int flags)
 {
-	if (dev->driver->gem_prime_pin) {
-		int ret = dev->driver->gem_prime_pin(obj);
-		if (ret)
-			return ERR_PTR(ret);
-	}
 	return dma_buf_export(obj, &drm_gem_prime_dmabuf_ops, obj->size, flags);
 }
 EXPORT_SYMBOL(drm_gem_prime_export);
+
+static struct dma_buf *export_and_register_object(struct drm_device *dev,
+						  struct drm_gem_object *obj,
+						  uint32_t flags)
+{
+	struct dma_buf *dmabuf;
+
+	/* prevent races with concurrent gem_close. */
+	if (obj->handle_count == 0) {
+		dmabuf = ERR_PTR(-ENOENT);
+		return dmabuf;
+	}
+
+	dmabuf = dev->driver->gem_prime_export(dev, obj, flags);
+	if (IS_ERR(dmabuf)) {
+		/* normally the created dma-buf takes ownership of the ref,
+		 * but if that fails then drop the ref
+		 */
+		return dmabuf;
+	}
+
+	/*
+	 * Note that callers do not need to clean up the export cache
+	 * since the check for obj->handle_count guarantees that someone
+	 * will clean it up.
+	 */
+	obj->dma_buf = dmabuf;
+	get_dma_buf(obj->dma_buf);
+	/* Grab a new ref since the callers is now used by the dma-buf */
+	drm_gem_object_reference(obj);
+
+	return dmabuf;
+}
 
 int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
 		int *prime_fd)
 {
 	struct drm_gem_object *obj;
-	void *buf;
 	int ret = 0;
 	struct dma_buf *dmabuf;
 
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
-	if (!obj)
-		return -ENOENT;
-
 	mutex_lock(&file_priv->prime.lock);
+	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	if (!obj)  {
+		ret = -ENOENT;
+		goto out_unlock;
+	}
+
+	dmabuf = drm_prime_lookup_buf_by_handle(&file_priv->prime, handle);
+	if (dmabuf) {
+		get_dma_buf(dmabuf);
+		goto out_have_handle;
+	}
+
+	mutex_lock(&dev->object_name_lock);
 	/* re-export the original imported object */
 	if (obj->import_attach) {
 		dmabuf = obj->import_attach->dmabuf;
+		get_dma_buf(dmabuf);
 		goto out_have_obj;
 	}
 
-	if (obj->export_dma_buf) {
-		dmabuf = obj->export_dma_buf;
+	if (obj->dma_buf) {
+		get_dma_buf(obj->dma_buf);
+		dmabuf = obj->dma_buf;
 		goto out_have_obj;
 	}
 
-	buf = dev->driver->gem_prime_export(dev, obj, flags);
-	if (IS_ERR(buf)) {
+	dmabuf = export_and_register_object(dev, obj, flags);
+	if (IS_ERR(dmabuf)) {
 		/* normally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
 		 */
-		ret = PTR_ERR(buf);
+		ret = PTR_ERR(dmabuf);
+		mutex_unlock(&dev->object_name_lock);
 		goto out;
 	}
-	obj->export_dma_buf = buf;
-
-	/* if we've exported this buffer the cheat and add it to the import list
-	 * so we get the correct handle back
-	 */
-	ret = drm_prime_add_buf_handle(&file_priv->prime,
-				       obj->export_dma_buf, handle);
-	if (ret)
-		goto out;
-
-	*prime_fd = dma_buf_fd(buf, flags);
-	mutex_unlock(&file_priv->prime.lock);
-	return 0;
 
 out_have_obj:
-	get_dma_buf(dmabuf);
-	*prime_fd = dma_buf_fd(dmabuf, flags);
+	/*
+	 * If we've exported this buffer then cheat and add it to the import list
+	 * so we get the correct handle back. We must do this under the
+	 * protection of dev->object_name_lock to ensure that a racing gem close
+	 * ioctl doesn't miss to remove this buffer handle from the cache.
+	 */
+	ret = drm_prime_add_buf_handle(&file_priv->prime,
+				       dmabuf, handle);
+	mutex_unlock(&dev->object_name_lock);
+	if (ret)
+		goto fail_put_dmabuf;
+
+out_have_handle:
+	ret = dma_buf_fd(dmabuf, flags);
+	/*
+	 * We must _not_ remove the buffer from the handle cache since the newly
+	 * created dma buf is already linked in the global obj->dma_buf pointer,
+	 * and that is invariant as long as a userspace gem handle exists.
+	 * Closing the handle will clean out the cache anyway, so we don't leak.
+	 */
+	if (ret < 0) {
+		goto fail_put_dmabuf;
+	} else {
+		*prime_fd = ret;
+		ret = 0;
+	}
+
+	goto out;
+
+fail_put_dmabuf:
+	dma_buf_put(dmabuf);
 out:
 	drm_gem_object_unreference_unlocked(obj);
+out_unlock:
 	mutex_unlock(&file_priv->prime.lock);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
@@ -276,7 +466,7 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 
 	attach = dma_buf_attach(dma_buf, dev->dev);
 	if (IS_ERR(attach))
-		return ERR_PTR(PTR_ERR(attach));
+		return ERR_CAST(attach);
 
 	get_dma_buf(dma_buf);
 
@@ -321,19 +511,26 @@ int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 
 	ret = drm_prime_lookup_buf_handle(&file_priv->prime,
 			dma_buf, handle);
-	if (!ret) {
-		ret = 0;
+	if (ret == 0)
 		goto out_put;
-	}
 
 	/* never seen this one, need to import */
+	mutex_lock(&dev->object_name_lock);
 	obj = dev->driver->gem_prime_import(dev, dma_buf);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
-		goto out_put;
+		goto out_unlock;
 	}
 
-	ret = drm_gem_handle_create(file_priv, obj, handle);
+	if (obj->dma_buf) {
+		WARN_ON(obj->dma_buf != dma_buf);
+	} else {
+		obj->dma_buf = dma_buf;
+		get_dma_buf(dma_buf);
+	}
+
+	/* drm_gem_handle_create_tail unlocks dev->object_name_lock. */
+	ret = drm_gem_handle_create_tail(file_priv, obj, handle);
 	drm_gem_object_unreference_unlocked(obj);
 	if (ret)
 		goto out_put;
@@ -353,7 +550,9 @@ fail:
 	/* hmm, if driver attached, we are relying on the free-object path
 	 * to detach.. which seems ok..
 	 */
-	drm_gem_object_handle_unreference_unlocked(obj);
+	drm_gem_handle_delete(file_priv, *handle);
+out_unlock:
+	mutex_unlock(&dev->object_name_lock);
 out_put:
 	dma_buf_put(dma_buf);
 	mutex_unlock(&file_priv->prime.lock);
@@ -412,8 +611,10 @@ struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
 	int ret;
 
 	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!sg)
+	if (!sg) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	ret = sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
 				nr_pages << PAGE_SHIFT, GFP_KERNEL);
@@ -423,7 +624,7 @@ struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
 	return sg;
 out:
 	kfree(sg);
-	return NULL;
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(drm_prime_pages_to_sg);
 
@@ -436,14 +637,13 @@ int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 	unsigned count;
 	struct scatterlist *sg;
 	struct page *page;
-	u32 len, offset;
+	u32 len;
 	int pg_index;
 	dma_addr_t addr;
 
 	pg_index = 0;
 	for_each_sg(sgt->sgl, sg, sgt->nents, count) {
 		len = sg->length;
-		offset = sg->offset;
 		page = sg_page(sg);
 		addr = sg_dma_address(sg);
 
@@ -491,48 +691,3 @@ void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 	WARN_ON(!list_empty(&prime_fpriv->head));
 }
 EXPORT_SYMBOL(drm_prime_destroy_file_private);
-
-static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle)
-{
-	struct drm_prime_member *member;
-
-	member = kmalloc(sizeof(*member), GFP_KERNEL);
-	if (!member)
-		return -ENOMEM;
-
-	get_dma_buf(dma_buf);
-	member->dma_buf = dma_buf;
-	member->handle = handle;
-	list_add(&member->entry, &prime_fpriv->head);
-	return 0;
-}
-
-int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t *handle)
-{
-	struct drm_prime_member *member;
-
-	list_for_each_entry(member, &prime_fpriv->head, entry) {
-		if (member->dma_buf == dma_buf) {
-			*handle = member->handle;
-			return 0;
-		}
-	}
-	return -ENOENT;
-}
-EXPORT_SYMBOL(drm_prime_lookup_buf_handle);
-
-void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf)
-{
-	struct drm_prime_member *member, *safe;
-
-	mutex_lock(&prime_fpriv->lock);
-	list_for_each_entry_safe(member, safe, &prime_fpriv->head, entry) {
-		if (member->dma_buf == dma_buf) {
-			dma_buf_put(dma_buf);
-			list_del(&member->entry);
-			kfree(member);
-		}
-	}
-	mutex_unlock(&prime_fpriv->lock);
-}
-EXPORT_SYMBOL(drm_prime_remove_buf_handle);

@@ -83,7 +83,7 @@ struct pxamci_host {
 static inline void pxamci_init_ocr(struct pxamci_host *host)
 {
 #ifdef CONFIG_REGULATOR
-	host->vcc = regulator_get(mmc_dev(host->mmc), "vmmc");
+	host->vcc = regulator_get_optional(mmc_dev(host->mmc), "vmmc");
 
 	if (IS_ERR(host->vcc))
 		host->vcc = NULL;
@@ -128,7 +128,7 @@ static inline int pxamci_set_power(struct pxamci_host *host,
 			       !!on ^ host->pdata->gpio_power_invert);
 	}
 	if (!host->vcc && host->pdata && host->pdata->setpower)
-		host->pdata->setpower(mmc_dev(host->mmc), vdd);
+		return host->pdata->setpower(mmc_dev(host->mmc), vdd);
 
 	return 0;
 }
@@ -834,8 +834,6 @@ static int pxamci_remove(struct platform_device *pdev)
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	int gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (mmc) {
 		struct pxamci_host *host = mmc_priv(mmc);
 
@@ -882,35 +880,6 @@ static int pxamci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int pxamci_suspend(struct device *dev)
-{
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_suspend_host(mmc);
-
-	return ret;
-}
-
-static int pxamci_resume(struct device *dev)
-{
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_resume_host(mmc);
-
-	return ret;
-}
-
-static const struct dev_pm_ops pxamci_pm_ops = {
-	.suspend	= pxamci_suspend,
-	.resume		= pxamci_resume,
-};
-#endif
-
 static struct platform_driver pxamci_driver = {
 	.probe		= pxamci_probe,
 	.remove		= pxamci_remove,
@@ -918,9 +887,6 @@ static struct platform_driver pxamci_driver = {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pxa_mmc_dt_ids),
-#ifdef CONFIG_PM
-		.pm	= &pxamci_pm_ops,
-#endif
 	},
 };
 

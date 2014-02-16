@@ -37,7 +37,7 @@
 enum v4l2_mbus_pixelcode {
 	V4L2_MBUS_FMT_FIXED = 0x0001,
 
-	/* RGB - next is 0x100d */
+	/* RGB - next is 0x100e */
 	V4L2_MBUS_FMT_RGB444_2X8_PADHI_BE = 0x1001,
 	V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE = 0x1002,
 	V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE = 0x1003,
@@ -50,8 +50,9 @@ enum v4l2_mbus_pixelcode {
 	V4L2_MBUS_FMT_RGB888_1X24 = 0x100a,
 	V4L2_MBUS_FMT_RGB888_2X12_BE = 0x100b,
 	V4L2_MBUS_FMT_RGB888_2X12_LE = 0x100c,
+	V4L2_MBUS_FMT_ARGB8888_1X32 = 0x100d,
 
-	/* YUV (including grey) - next is 0x2017 */
+	/* YUV (including grey) - next is 0x2018 */
 	V4L2_MBUS_FMT_Y8_1X8 = 0x2001,
 	V4L2_MBUS_FMT_UV8_1X8 = 0x2015,
 	V4L2_MBUS_FMT_UYVY8_1_5X8 = 0x2002,
@@ -74,6 +75,7 @@ enum v4l2_mbus_pixelcode {
 	V4L2_MBUS_FMT_YUYV10_1X20 = 0x200d,
 	V4L2_MBUS_FMT_YVYU10_1X20 = 0x200e,
 	V4L2_MBUS_FMT_YUV10_1X30 = 0x2016,
+	V4L2_MBUS_FMT_AYUV8_1X32 = 0x2017,
 
 	/* Bayer - next is 0x3019 */
 	V4L2_MBUS_FMT_SBGGR8_1X8 = 0x3001,
@@ -108,6 +110,9 @@ enum v4l2_mbus_pixelcode {
 
 	/* S5C73M3 sensor specific interleaved UYVY and JPEG */
 	V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8 = 0x5001,
+
+	/* HSV - next is 0x6002 */
+	V4L2_MBUS_FMT_AHSV8888_1X32 = 0x6001,
 };
 
 /**

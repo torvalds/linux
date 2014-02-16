@@ -43,9 +43,6 @@
 static struct {
 	struct platform_device *pdev;
 
-	struct regulator *vdds_dsi_reg;
-	struct regulator *vdds_sdi_reg;
-
 	const char *default_display_name;
 } core;
 
@@ -77,36 +74,6 @@ EXPORT_SYMBOL(omapdss_is_initialized);
 struct platform_device *dss_get_core_pdev(void)
 {
 	return core.pdev;
-}
-
-/* REGULATORS */
-
-struct regulator *dss_get_vdds_dsi(void)
-{
-	struct regulator *reg;
-
-	if (core.vdds_dsi_reg != NULL)
-		return core.vdds_dsi_reg;
-
-	reg = regulator_get(&core.pdev->dev, "vdds_dsi");
-	if (!IS_ERR(reg))
-		core.vdds_dsi_reg = reg;
-
-	return reg;
-}
-
-struct regulator *dss_get_vdds_sdi(void)
-{
-	struct regulator *reg;
-
-	if (core.vdds_sdi_reg != NULL)
-		return core.vdds_sdi_reg;
-
-	reg = regulator_get(&core.pdev->dev, "vdds_sdi");
-	if (!IS_ERR(reg))
-		core.vdds_sdi_reg = reg;
-
-	return reg;
 }
 
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask)
@@ -189,7 +156,7 @@ int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 	d = debugfs_create_file(name, S_IRUGO, dss_debugfs_dir,
 			write, &dss_debug_fops);
 
-	return PTR_RET(d);
+	return PTR_ERR_OR_ZERO(d);
 }
 #else /* CONFIG_OMAP2_DSS_DEBUGFS */
 static inline int dss_initialize_debugfs(void)
@@ -243,6 +210,8 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	if (def_disp_name)
 		core.default_display_name = def_disp_name;
+	else if (pdata->default_display_name)
+		core.default_display_name = pdata->default_display_name;
 	else if (pdata->default_device)
 		core.default_display_name = pdata->default_device->name;
 
@@ -279,215 +248,6 @@ static struct platform_driver omap_dss_driver = {
 	},
 };
 
-/* BUS */
-static int dss_bus_match(struct device *dev, struct device_driver *driver)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	DSSDBG("bus_match. dev %s/%s, drv %s\n",
-			dev_name(dev), dssdev->driver_name, driver->name);
-
-	return strcmp(dssdev->driver_name, driver->name) == 0;
-}
-
-static ssize_t device_name_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			dssdev->name ?
-			dssdev->name : "");
-}
-
-static struct device_attribute default_dev_attrs[] = {
-	__ATTR(name, S_IRUGO, device_name_show, NULL),
-	__ATTR_NULL,
-};
-
-static ssize_t driver_name_show(struct device_driver *drv, char *buf)
-{
-	struct omap_dss_driver *dssdrv = to_dss_driver(drv);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			dssdrv->driver.name ?
-			dssdrv->driver.name : "");
-}
-static struct driver_attribute default_drv_attrs[] = {
-	__ATTR(name, S_IRUGO, driver_name_show, NULL),
-	__ATTR_NULL,
-};
-
-static struct bus_type dss_bus_type = {
-	.name = "omapdss",
-	.match = dss_bus_match,
-	.dev_attrs = default_dev_attrs,
-	.drv_attrs = default_drv_attrs,
-};
-
-static void dss_bus_release(struct device *dev)
-{
-	DSSDBG("bus_release\n");
-}
-
-static struct device dss_bus = {
-	.release = dss_bus_release,
-};
-
-struct bus_type *dss_get_bus(void)
-{
-	return &dss_bus_type;
-}
-
-/* DRIVER */
-static int dss_driver_probe(struct device *dev)
-{
-	int r;
-	struct omap_dss_driver *dssdrv = to_dss_driver(dev->driver);
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	DSSDBG("driver_probe: dev %s/%s, drv %s\n",
-				dev_name(dev), dssdev->driver_name,
-				dssdrv->driver.name);
-
-	r = dssdrv->probe(dssdev);
-
-	if (r) {
-		DSSERR("driver probe failed: %d\n", r);
-		return r;
-	}
-
-	DSSDBG("probe done for device %s\n", dev_name(dev));
-
-	dssdev->driver = dssdrv;
-
-	return 0;
-}
-
-static int dss_driver_remove(struct device *dev)
-{
-	struct omap_dss_driver *dssdrv = to_dss_driver(dev->driver);
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	DSSDBG("driver_remove: dev %s/%s\n", dev_name(dev),
-			dssdev->driver_name);
-
-	dssdrv->remove(dssdev);
-
-	dssdev->driver = NULL;
-
-	return 0;
-}
-
-int omap_dss_register_driver(struct omap_dss_driver *dssdriver)
-{
-	dssdriver->driver.bus = &dss_bus_type;
-	dssdriver->driver.probe = dss_driver_probe;
-	dssdriver->driver.remove = dss_driver_remove;
-
-	if (dssdriver->get_resolution == NULL)
-		dssdriver->get_resolution = omapdss_default_get_resolution;
-	if (dssdriver->get_recommended_bpp == NULL)
-		dssdriver->get_recommended_bpp =
-			omapdss_default_get_recommended_bpp;
-	if (dssdriver->get_timings == NULL)
-		dssdriver->get_timings = omapdss_default_get_timings;
-
-	return driver_register(&dssdriver->driver);
-}
-EXPORT_SYMBOL(omap_dss_register_driver);
-
-void omap_dss_unregister_driver(struct omap_dss_driver *dssdriver)
-{
-	driver_unregister(&dssdriver->driver);
-}
-EXPORT_SYMBOL(omap_dss_unregister_driver);
-
-/* DEVICE */
-
-static void omap_dss_dev_release(struct device *dev)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	kfree(dssdev);
-}
-
-static int disp_num_counter;
-
-struct omap_dss_device *dss_alloc_and_init_device(struct device *parent)
-{
-	struct omap_dss_device *dssdev;
-
-	dssdev = kzalloc(sizeof(*dssdev), GFP_KERNEL);
-	if (!dssdev)
-		return NULL;
-
-	dssdev->dev.bus = &dss_bus_type;
-	dssdev->dev.parent = parent;
-	dssdev->dev.release = omap_dss_dev_release;
-	dev_set_name(&dssdev->dev, "display%d", disp_num_counter++);
-
-	device_initialize(&dssdev->dev);
-
-	return dssdev;
-}
-
-int dss_add_device(struct omap_dss_device *dssdev)
-{
-	return device_add(&dssdev->dev);
-}
-
-void dss_put_device(struct omap_dss_device *dssdev)
-{
-	put_device(&dssdev->dev);
-}
-
-void dss_unregister_device(struct omap_dss_device *dssdev)
-{
-	device_unregister(&dssdev->dev);
-}
-
-static int dss_unregister_dss_dev(struct device *dev, void *data)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	dss_unregister_device(dssdev);
-	return 0;
-}
-
-void dss_unregister_child_devices(struct device *parent)
-{
-	device_for_each_child(parent, NULL, dss_unregister_dss_dev);
-}
-
-void dss_copy_device_pdata(struct omap_dss_device *dst,
-		const struct omap_dss_device *src)
-{
-	u8 *d = (u8 *)dst;
-	u8 *s = (u8 *)src;
-	size_t dsize = sizeof(struct device);
-
-	memcpy(d + dsize, s + dsize, sizeof(struct omap_dss_device) - dsize);
-}
-
-/* BUS */
-static int __init omap_dss_bus_register(void)
-{
-	int r;
-
-	r = bus_register(&dss_bus_type);
-	if (r) {
-		DSSERR("bus register failed\n");
-		return r;
-	}
-
-	dev_set_name(&dss_bus, "omapdss");
-	r = device_register(&dss_bus);
-	if (r) {
-		DSSERR("bus driver register failed\n");
-		bus_unregister(&dss_bus_type);
-		return r;
-	}
-
-	return 0;
-}
-
 /* INIT */
 static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
 #ifdef CONFIG_OMAP2_DSS_DSI
@@ -506,7 +266,7 @@ static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
 	venc_init_platform_driver,
 #endif
 #ifdef CONFIG_OMAP4_DSS_HDMI
-	hdmi_init_platform_driver,
+	hdmi4_init_platform_driver,
 #endif
 };
 
@@ -527,13 +287,13 @@ static void (*dss_output_drv_unreg_funcs[])(void) __exitdata = {
 	venc_uninit_platform_driver,
 #endif
 #ifdef CONFIG_OMAP4_DSS_HDMI
-	hdmi_uninit_platform_driver,
+	hdmi4_uninit_platform_driver,
 #endif
 };
 
 static bool dss_output_drv_loaded[ARRAY_SIZE(dss_output_drv_reg_funcs)];
 
-static int __init omap_dss_register_drivers(void)
+static int __init omap_dss_init(void)
 {
 	int r;
 	int i;
@@ -564,6 +324,8 @@ static int __init omap_dss_register_drivers(void)
 			dss_output_drv_loaded[i] = true;
 	}
 
+	dss_initialized = true;
+
 	return 0;
 
 err_dispc:
@@ -574,7 +336,7 @@ err_dss:
 	return r;
 }
 
-static void __exit omap_dss_unregister_drivers(void)
+static void __exit omap_dss_exit(void)
 {
 	int i;
 
@@ -589,74 +351,8 @@ static void __exit omap_dss_unregister_drivers(void)
 	platform_driver_unregister(&omap_dss_driver);
 }
 
-#ifdef CONFIG_OMAP2_DSS_MODULE
-static void omap_dss_bus_unregister(void)
-{
-	device_unregister(&dss_bus);
-
-	bus_unregister(&dss_bus_type);
-}
-
-static int __init omap_dss_init(void)
-{
-	int r;
-
-	r = omap_dss_bus_register();
-	if (r)
-		return r;
-
-	r = omap_dss_register_drivers();
-	if (r) {
-		omap_dss_bus_unregister();
-		return r;
-	}
-
-	dss_initialized = true;
-
-	return 0;
-}
-
-static void __exit omap_dss_exit(void)
-{
-	if (core.vdds_dsi_reg != NULL) {
-		regulator_put(core.vdds_dsi_reg);
-		core.vdds_dsi_reg = NULL;
-	}
-
-	if (core.vdds_sdi_reg != NULL) {
-		regulator_put(core.vdds_sdi_reg);
-		core.vdds_sdi_reg = NULL;
-	}
-
-	omap_dss_unregister_drivers();
-
-	omap_dss_bus_unregister();
-}
-
 module_init(omap_dss_init);
 module_exit(omap_dss_exit);
-#else
-static int __init omap_dss_init(void)
-{
-	return omap_dss_bus_register();
-}
-
-static int __init omap_dss_init2(void)
-{
-	int r;
-
-	r = omap_dss_register_drivers();
-	if (r)
-		return r;
-
-	dss_initialized = true;
-
-	return 0;
-}
-
-core_initcall(omap_dss_init);
-device_initcall(omap_dss_init2);
-#endif
 
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
 MODULE_DESCRIPTION("OMAP2/3 Display Subsystem");

@@ -134,7 +134,7 @@ static struct gpio_chip reference_gp = {
 	.direction_input = da9055_gpio_direction_input,
 	.direction_output = da9055_gpio_direction_output,
 	.to_irq = da9055_gpio_to_irq,
-	.can_sleep = 1,
+	.can_sleep = true,
 	.ngpio = 3,
 	.base = -1,
 };
@@ -150,7 +150,7 @@ static int da9055_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gpio->da9055 = dev_get_drvdata(pdev->dev.parent);
-	pdata = gpio->da9055->dev->platform_data;
+	pdata = dev_get_platdata(gpio->da9055->dev);
 
 	gpio->gp = reference_gp;
 	if (pdata && pdata->gpio_base)

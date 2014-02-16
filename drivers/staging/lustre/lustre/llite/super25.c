@@ -38,7 +38,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <lustre_lite.h>
 #include <lustre_ha.h>
 #include <lustre_dlm.h>
@@ -188,11 +187,15 @@ static int __init init_lustre_lite(void)
 	if (rc == 0)
 		rc = vvp_global_init();
 
+	if (rc == 0)
+		rc = ll_xattr_init();
+
 	return rc;
 }
 
 static void __exit exit_lustre_lite(void)
 {
+	ll_xattr_fini();
 	vvp_global_fini();
 	del_timer(&ll_capa_timer);
 	ll_capa_thread_stop();
@@ -214,7 +217,7 @@ static void __exit exit_lustre_lite(void)
 	ll_remote_perm_cachep = NULL;
 
 	kmem_cache_destroy(ll_file_data_slab);
-	if (proc_lustre_fs_root)
+	if (proc_lustre_fs_root && !IS_ERR(proc_lustre_fs_root))
 		lprocfs_remove(&proc_lustre_fs_root);
 }
 

@@ -74,40 +74,43 @@ static size_t copy_in_kernel(size_t count, void __user *to,
 
 /*
  * Returns kernel address for user virtual address. If the returned address is
- * >= -4095 (IS_ERR_VALUE(x) returns true), a fault has occured and the address
- * contains the (negative) exception code.
+ * >= -4095 (IS_ERR_VALUE(x) returns true), a fault has occurred and the
+ * address contains the (negative) exception code.
  */
 #ifdef CONFIG_64BIT
+
 static unsigned long follow_table(struct mm_struct *mm,
 				  unsigned long address, int write)
 {
 	unsigned long *table = (unsigned long *)__pa(mm->pgd);
 
+	if (unlikely(address > mm->context.asce_limit - 1))
+		return -0x38UL;
 	switch (mm->context.asce_bits & _ASCE_TYPE_MASK) {
 	case _ASCE_TYPE_REGION1:
 		table = table + ((address >> 53) & 0x7ff);
-		if (unlikely(*table & _REGION_ENTRY_INV))
+		if (unlikely(*table & _REGION_ENTRY_INVALID))
 			return -0x39UL;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		/* fallthrough */
 	case _ASCE_TYPE_REGION2:
 		table = table + ((address >> 42) & 0x7ff);
-		if (unlikely(*table & _REGION_ENTRY_INV))
+		if (unlikely(*table & _REGION_ENTRY_INVALID))
 			return -0x3aUL;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		/* fallthrough */
 	case _ASCE_TYPE_REGION3:
 		table = table + ((address >> 31) & 0x7ff);
-		if (unlikely(*table & _REGION_ENTRY_INV))
+		if (unlikely(*table & _REGION_ENTRY_INVALID))
 			return -0x3bUL;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		/* fallthrough */
 	case _ASCE_TYPE_SEGMENT:
 		table = table + ((address >> 20) & 0x7ff);
-		if (unlikely(*table & _SEGMENT_ENTRY_INV))
+		if (unlikely(*table & _SEGMENT_ENTRY_INVALID))
 			return -0x10UL;
 		if (unlikely(*table & _SEGMENT_ENTRY_LARGE)) {
-			if (write && (*table & _SEGMENT_ENTRY_RO))
+			if (write && (*table & _SEGMENT_ENTRY_PROTECT))
 				return -0x04UL;
 			return (*table & _SEGMENT_ENTRY_ORIGIN_LARGE) +
 				(address & ~_SEGMENT_ENTRY_ORIGIN_LARGE);
@@ -117,7 +120,7 @@ static unsigned long follow_table(struct mm_struct *mm,
 	table = table + ((address >> 12) & 0xff);
 	if (unlikely(*table & _PAGE_INVALID))
 		return -0x11UL;
-	if (write && (*table & _PAGE_RO))
+	if (write && (*table & _PAGE_PROTECT))
 		return -0x04UL;
 	return (*table & PAGE_MASK) + (address & ~PAGE_MASK);
 }
@@ -130,13 +133,13 @@ static unsigned long follow_table(struct mm_struct *mm,
 	unsigned long *table = (unsigned long *)__pa(mm->pgd);
 
 	table = table + ((address >> 20) & 0x7ff);
-	if (unlikely(*table & _SEGMENT_ENTRY_INV))
+	if (unlikely(*table & _SEGMENT_ENTRY_INVALID))
 		return -0x10UL;
 	table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
 	table = table + ((address >> 12) & 0xff);
 	if (unlikely(*table & _PAGE_INVALID))
 		return -0x11UL;
-	if (write && (*table & _PAGE_RO))
+	if (write && (*table & _PAGE_PROTECT))
 		return -0x04UL;
 	return (*table & PAGE_MASK) + (address & ~PAGE_MASK);
 }
@@ -150,6 +153,8 @@ static __always_inline size_t __user_copy_pt(unsigned long uaddr, void *kptr,
 	unsigned long offset, done, size, kaddr;
 	void *from, *to;
 
+	if (!mm)
+		return n;
 	done = 0;
 retry:
 	spin_lock(&mm->page_table_lock);
@@ -206,7 +211,7 @@ fault:
 	return 0;
 }
 
-size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
+static size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
 {
 	size_t rc;
 
@@ -218,7 +223,7 @@ size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
 	return rc;
 }
 
-size_t copy_to_user_pt(size_t n, void __user *to, const void *from)
+static size_t copy_to_user_pt(size_t n, void __user *to, const void *from)
 {
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return copy_in_kernel(n, to, (void __user *) from);
@@ -259,6 +264,8 @@ static size_t strnlen_user_pt(size_t count, const char __user *src)
 		return 0;
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return strnlen_kernel(count, src);
+	if (!mm)
+		return 0;
 	done = 0;
 retry:
 	spin_lock(&mm->page_table_lock);
@@ -320,6 +327,8 @@ static size_t copy_in_user_pt(size_t n, void __user *to,
 
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return copy_in_kernel(n, to, from);
+	if (!mm)
+		return n;
 	done = 0;
 retry:
 	spin_lock(&mm->page_table_lock);
@@ -408,6 +417,8 @@ int futex_atomic_op_pt(int op, u32 __user *uaddr, int oparg, int *old)
 
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return __futex_atomic_op_pt(op, uaddr, oparg, old);
+	if (unlikely(!current->mm))
+		return -EFAULT;
 	spin_lock(&current->mm->page_table_lock);
 	uaddr = (u32 __force __user *)
 		__dat_user_addr((__force unsigned long) uaddr, 1);
@@ -445,6 +456,8 @@ int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
 
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return __futex_atomic_cmpxchg_pt(uval, uaddr, oldval, newval);
+	if (unlikely(!current->mm))
+		return -EFAULT;
 	spin_lock(&current->mm->page_table_lock);
 	uaddr = (u32 __force __user *)
 		__dat_user_addr((__force unsigned long) uaddr, 1);
@@ -461,9 +474,7 @@ int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
 
 struct uaccess_ops uaccess_pt = {
 	.copy_from_user		= copy_from_user_pt,
-	.copy_from_user_small	= copy_from_user_pt,
 	.copy_to_user		= copy_to_user_pt,
-	.copy_to_user_small	= copy_to_user_pt,
 	.copy_in_user		= copy_in_user_pt,
 	.clear_user		= clear_user_pt,
 	.strnlen_user		= strnlen_user_pt,

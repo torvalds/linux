@@ -40,6 +40,10 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 
+#include <linux/irqdomain.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+
 #include <asm/errno.h>
 #include <asm/signal.h>
 #include <asm/ptrace.h>
@@ -176,6 +180,7 @@ static void __init nlm_init_percpu_irqs(void)
 #endif
 }
 
+
 void nlm_setup_pic_irq(int node, int picirq, int irq, int irt)
 {
 	struct nlm_pic_irq *pic_data;
@@ -203,43 +208,32 @@ void nlm_set_pic_extra_ack(int node, int irq, void (*xack)(struct irq_data *))
 
 static void nlm_init_node_irqs(int node)
 {
-	int i, irt;
-	uint64_t irqmask;
 	struct nlm_soc_info *nodep;
+	int i, irt;
 
 	pr_info("Init IRQ for node %d\n", node);
 	nodep = nlm_get_node(node);
-	irqmask = PERCPU_IRQ_MASK;
+	nodep->irqmask = PERCPU_IRQ_MASK;
 	for (i = PIC_IRT_FIRST_IRQ; i <= PIC_IRT_LAST_IRQ; i++) {
 		irt = nlm_irq_to_irt(i);
-		if (irt == -1)
+		if (irt == -1)		/* unused irq */
 			continue;
-		nlm_setup_pic_irq(node, i, i, irt);
-		/* set interrupts to first cpu in node */
-		nlm_pic_init_irt(nodep->picbase, irt, i,
-					node * NLM_CPUS_PER_NODE, 0);
-		irqmask |= (1ull << i);
-	}
-	nodep->irqmask = irqmask;
-}
+		nodep->irqmask |= 1ull << i;
+		if (irt == -2)		/* not a direct PIC irq */
+			continue;
 
-void __init arch_init_irq(void)
-{
-	/* Initialize the irq descriptors */
-	nlm_init_percpu_irqs();
-	nlm_init_node_irqs(0);
-	write_c0_eimr(nlm_current_node()->irqmask);
-#if defined(CONFIG_CPU_XLR)
-	nlm_setup_fmn_irq();
-#endif
+		nlm_pic_init_irt(nodep->picbase, irt, i,
+				node * nlm_threads_per_node(), 0);
+		nlm_setup_pic_irq(node, i, i, irt);
+	}
 }
 
 void nlm_smp_irq_init(int hwcpuid)
 {
 	int node, cpu;
 
-	node = hwcpuid / NLM_CPUS_PER_NODE;
-	cpu  = hwcpuid % NLM_CPUS_PER_NODE;
+	node = nlm_cpuid_to_node(hwcpuid);
+	cpu  = hwcpuid % nlm_threads_per_node();
 
 	if (cpu == 0 && node != 0)
 		nlm_init_node_irqs(node);
@@ -253,17 +247,106 @@ asmlinkage void plat_irq_dispatch(void)
 
 	node = nlm_nodeid();
 	eirr = read_c0_eirr_and_eimr();
-
-	i = __ilog2_u64(eirr);
-	if (i == -1)
+	if (eirr == 0)
 		return;
 
+	i = __ffs64(eirr);
 	/* per-CPU IRQs don't need translation */
-	if (eirr & PERCPU_IRQ_MASK) {
+	if (i < PIC_IRQ_BASE) {
 		do_IRQ(i);
 		return;
 	}
 
+#if defined(CONFIG_PCI_MSI) && defined(CONFIG_CPU_XLP)
+	/* PCI interrupts need a second level dispatch for MSI bits */
+	if (i >= PIC_PCIE_LINK_MSI_IRQ(0) && i <= PIC_PCIE_LINK_MSI_IRQ(3)) {
+		nlm_dispatch_msi(node, i);
+		return;
+	}
+	if (i >= PIC_PCIE_MSIX_IRQ(0) && i <= PIC_PCIE_MSIX_IRQ(3)) {
+		nlm_dispatch_msix(node, i);
+		return;
+	}
+
+#endif
 	/* top level irq handling */
 	do_IRQ(nlm_irq_to_xirq(node, i));
+}
+
+#ifdef CONFIG_OF
+static const struct irq_domain_ops xlp_pic_irq_domain_ops = {
+	.xlate = irq_domain_xlate_onetwocell,
+};
+
+static int __init xlp_of_pic_init(struct device_node *node,
+					struct device_node *parent)
+{
+	const int n_picirqs = PIC_IRT_LAST_IRQ - PIC_IRQ_BASE + 1;
+	struct irq_domain *xlp_pic_domain;
+	struct resource res;
+	int socid, ret, bus;
+
+	/* we need a hack to get the PIC's SoC chip id */
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret < 0) {
+		pr_err("PIC %s: reg property not found!\n", node->name);
+		return -EINVAL;
+	}
+
+	if (cpu_is_xlp9xx()) {
+		bus = (res.start >> 20) & 0xf;
+		for (socid = 0; socid < NLM_NR_NODES; socid++) {
+			if (!nlm_node_present(socid))
+				continue;
+			if (nlm_get_node(socid)->socbus == bus)
+				break;
+		}
+		if (socid == NLM_NR_NODES) {
+			pr_err("PIC %s: Node mapping for bus %d not found!\n",
+					node->name, bus);
+			return -EINVAL;
+		}
+	} else {
+		socid = (res.start >> 18) & 0x3;
+		if (!nlm_node_present(socid)) {
+			pr_err("PIC %s: node %d does not exist!\n",
+							node->name, socid);
+			return -EINVAL;
+		}
+	}
+
+	if (!nlm_node_present(socid)) {
+		pr_err("PIC %s: node %d does not exist!\n", node->name, socid);
+		return -EINVAL;
+	}
+
+	xlp_pic_domain = irq_domain_add_legacy(node, n_picirqs,
+		nlm_irq_to_xirq(socid, PIC_IRQ_BASE), PIC_IRQ_BASE,
+		&xlp_pic_irq_domain_ops, NULL);
+	if (xlp_pic_domain == NULL) {
+		pr_err("PIC %s: Creating legacy domain failed!\n", node->name);
+		return -EINVAL;
+	}
+	pr_info("Node %d: IRQ domain created for PIC@%pR\n", socid, &res);
+	return 0;
+}
+
+static struct of_device_id __initdata xlp_pic_irq_ids[] = {
+	{ .compatible = "netlogic,xlp-pic", .data = xlp_of_pic_init },
+	{},
+};
+#endif
+
+void __init arch_init_irq(void)
+{
+	/* Initialize the irq descriptors */
+	nlm_init_percpu_irqs();
+	nlm_init_node_irqs(0);
+	write_c0_eimr(nlm_current_node()->irqmask);
+#if defined(CONFIG_CPU_XLR)
+	nlm_setup_fmn_irq();
+#endif
+#if defined(CONFIG_OF)
+	of_irq_init(xlp_pic_irq_ids);
+#endif
 }

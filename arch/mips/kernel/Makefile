@@ -26,15 +26,16 @@ obj-$(CONFIG_CEVT_TXX9)		+= cevt-txx9.o
 obj-$(CONFIG_CSRC_BCM1480)	+= csrc-bcm1480.o
 obj-$(CONFIG_CSRC_GIC)		+= csrc-gic.o
 obj-$(CONFIG_CSRC_IOASIC)	+= csrc-ioasic.o
-obj-$(CONFIG_CSRC_POWERTV)	+= csrc-powertv.o
 obj-$(CONFIG_CSRC_R4K)		+= csrc-r4k.o
 obj-$(CONFIG_CSRC_SB1250)	+= csrc-sb1250.o
 obj-$(CONFIG_SYNC_R4K)		+= sync-r4k.o
 
+obj-$(CONFIG_DEBUG_FS)		+= segment.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_MODULES)		+= mips_ksyms.o module.o
 obj-$(CONFIG_MODULES_USE_ELF_RELA) += module-rela.o
 
+obj-$(CONFIG_FTRACE_SYSCALLS)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o ftrace.o
 
 obj-$(CONFIG_CPU_R4K_FPU)	+= r4k_fpu.o r4k_switch.o
@@ -55,7 +56,11 @@ obj-$(CONFIG_MIPS_CMP)		+= smp-cmp.o
 obj-$(CONFIG_CPU_MIPSR2)	+= spram.o
 
 obj-$(CONFIG_MIPS_VPE_LOADER)	+= vpe.o
+obj-$(CONFIG_MIPS_VPE_LOADER_CMP) += vpe-cmp.o
+obj-$(CONFIG_MIPS_VPE_LOADER_MT) += vpe-mt.o
 obj-$(CONFIG_MIPS_VPE_APSP_API) += rtlx.o
+obj-$(CONFIG_MIPS_VPE_APSP_API_CMP) += rtlx-cmp.o
+obj-$(CONFIG_MIPS_VPE_APSP_API_MT) += rtlx-mt.o
 
 obj-$(CONFIG_I8259)		+= i8259.o
 obj-$(CONFIG_IRQ_CPU)		+= irq_cpu.o
@@ -84,6 +89,7 @@ obj-$(CONFIG_GPIO_TXX9)		+= gpio_txx9.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o crash.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
+obj-$(CONFIG_EARLY_PRINTK_8250)	+= early_printk_8250.o
 obj-$(CONFIG_SPINLOCK_TEST)	+= spinlock_test.o
 obj-$(CONFIG_MIPS_MACHINE)	+= mips_machine.o
 

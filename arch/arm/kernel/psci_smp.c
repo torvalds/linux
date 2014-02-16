@@ -14,7 +14,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/irqchip/arm-gic.h>
 #include <linux/smp.h>
 #include <linux/of.h>
 
@@ -46,8 +45,7 @@
 
 extern void secondary_startup(void);
 
-static int __cpuinit psci_boot_secondary(unsigned int cpu,
-					 struct task_struct *idle)
+static int psci_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	if (psci_ops.cpu_on)
 		return psci_ops.cpu_on(cpu_logical_map(cpu),

@@ -11,7 +11,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/irqflags.h>
 #include <linux/cpumask.h>
 
@@ -20,15 +19,15 @@
 #include <asm/barrier.h>
 #include <asm/mipsregs.h>
 
-static atomic_t __cpuinitdata count_start_flag = ATOMIC_INIT(0);
-static atomic_t __cpuinitdata count_count_start = ATOMIC_INIT(0);
-static atomic_t __cpuinitdata count_count_stop = ATOMIC_INIT(0);
-static atomic_t __cpuinitdata count_reference = ATOMIC_INIT(0);
+static atomic_t count_start_flag = ATOMIC_INIT(0);
+static atomic_t count_count_start = ATOMIC_INIT(0);
+static atomic_t count_count_stop = ATOMIC_INIT(0);
+static atomic_t count_reference = ATOMIC_INIT(0);
 
 #define COUNTON 100
 #define NR_LOOPS 5
 
-void __cpuinit synchronise_count_master(int cpu)
+void synchronise_count_master(int cpu)
 {
 	int i;
 	unsigned long flags;
@@ -106,7 +105,7 @@ void __cpuinit synchronise_count_master(int cpu)
 	printk("done.\n");
 }
 
-void __cpuinit synchronise_count_slave(int cpu)
+void synchronise_count_slave(int cpu)
 {
 	int i;
 	unsigned int initcount;

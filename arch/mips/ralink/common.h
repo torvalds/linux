@@ -46,6 +46,8 @@ extern void ralink_of_remap(void);
 extern void ralink_clk_init(void);
 extern void ralink_clk_add(const char *dev, unsigned long rate);
 
+extern void ralink_rst_init(void);
+
 extern void prom_soc_init(struct ralink_soc_info *soc_info);
 
 __iomem void *plat_of_remap_node(const char *node);

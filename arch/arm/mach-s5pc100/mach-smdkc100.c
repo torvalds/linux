@@ -194,6 +194,7 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
+	&samsung_device_pwm,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 	&smdkc100_lcd_powerdev,
@@ -215,6 +216,7 @@ static struct samsung_bl_gpio_info smdkc100_bl_gpio_info = {
 
 static struct platform_pwm_backlight_data smdkc100_bl_data = {
 	.pwm_id = 0,
+	.enable_gpio = -1,
 };
 
 static void __init smdkc100_map_io(void)
@@ -246,9 +248,9 @@ static void __init smdkc100_machine_init(void)
 	gpio_request(S5PC100_GPH0(6), "GPH0");
 	smdkc100_lcd_power_set(&smdkc100_lcd_power_data, 0);
 
-	samsung_bl_set(&smdkc100_bl_gpio_info, &smdkc100_bl_data);
-
 	platform_add_devices(smdkc100_devices, ARRAY_SIZE(smdkc100_devices));
+
+	samsung_bl_set(&smdkc100_bl_gpio_info, &smdkc100_bl_data);
 }
 
 MACHINE_START(SMDKC100, "SMDKC100")

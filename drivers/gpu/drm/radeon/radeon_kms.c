@@ -32,7 +32,7 @@
 
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
-
+#include <linux/pm_runtime.h>
 /**
  * radeon_driver_unload_kms - Main unload function for KMS.
  *
@@ -50,9 +50,14 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 
 	if (rdev == NULL)
 		return 0;
+
 	if (rdev->rmmio == NULL)
 		goto done_free;
+
+	pm_runtime_get_sync(dev->dev);
+
 	radeon_acpi_fini(rdev);
+	
 	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
 
@@ -125,9 +130,20 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 				"Error during ACPI methods call\n");
 	}
 
+	if (radeon_runtime_pm != 0) {
+		pm_runtime_use_autosuspend(dev->dev);
+		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
+		pm_runtime_set_active(dev->dev);
+		pm_runtime_allow(dev->dev);
+		pm_runtime_mark_last_busy(dev->dev);
+		pm_runtime_put_autosuspend(dev->dev);
+	}
+
 out:
 	if (r)
 		radeon_driver_unload_kms(dev);
+
+
 	return r;
 }
 
@@ -175,7 +191,7 @@ static void radeon_set_filp_rights(struct drm_device *dev,
  * etc. (all asics).
  * Returns 0 on success, -EINVAL on failure.
  */
-int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
+static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_info *info = data;
@@ -191,7 +207,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	switch (info->request) {
 	case RADEON_INFO_DEVICE_ID:
-		*value = dev->pci_device;
+		*value = dev->pdev->device;
 		break;
 	case RADEON_INFO_NUM_GB_PIPES:
 		*value = rdev->num_gb_pipes;
@@ -207,7 +223,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			*value = rdev->accel_working;
 		break;
 	case RADEON_INFO_CRTC_FROM_ID:
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -229,7 +245,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = rdev->accel_working;
 		break;
 	case RADEON_INFO_TILING_CONFIG:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.tile_config;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.tile_config;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.tile_config;
@@ -251,7 +269,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		 *
 		 * When returning, the value is 1 if filp owns hyper-z access,
 		 * 0 otherwise. */
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -263,7 +281,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_WANT_CMASK:
 		/* The same logic as Hyper-Z. */
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -281,7 +299,10 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			*value = rdev->clock.spll.reference_freq * 10;
 		break;
 	case RADEON_INFO_NUM_BACKENDS:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_backends_per_se *
+				rdev->config.cik.max_shader_engines;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_backends_per_se *
 				rdev->config.si.max_shader_engines;
 		else if (rdev->family >= CHIP_CAYMAN)
@@ -298,7 +319,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		}
 		break;
 	case RADEON_INFO_NUM_TILE_PIPES:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_tile_pipes;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_tile_pipes;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.max_tile_pipes;
@@ -316,7 +339,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = 1;
 		break;
 	case RADEON_INFO_BACKEND_MAP:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.backend_map;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.backend_map;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.backend_map;
@@ -343,7 +368,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = RADEON_IB_VM_MAX_SIZE;
 		break;
 	case RADEON_INFO_MAX_PIPES:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_cu_per_sh;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_cu_per_sh;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.max_pipes_per_simd;
@@ -367,7 +394,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		value64 = radeon_get_gpu_clock_counter(rdev);
 		break;
 	case RADEON_INFO_MAX_SE:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_shader_engines;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_shader_engines;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.max_shader_engines;
@@ -377,7 +406,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			*value = 1;
 		break;
 	case RADEON_INFO_MAX_SH_PER_SE:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_sh_per_se;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_sh_per_se;
 		else
 			return -EINVAL;
@@ -386,7 +417,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = rdev->fastfb_working;
 		break;
 	case RADEON_INFO_RING_WORKING:
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -407,18 +438,50 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		}
 		break;
 	case RADEON_INFO_SI_TILE_MODE_ARRAY:
-		if (rdev->family < CHIP_TAHITI) {
-			DRM_DEBUG_KMS("tile mode array is si only!\n");
+		if (rdev->family >= CHIP_BONAIRE) {
+			value = rdev->config.cik.tile_mode_array;
+			value_size = sizeof(uint32_t)*32;
+		} else if (rdev->family >= CHIP_TAHITI) {
+			value = rdev->config.si.tile_mode_array;
+			value_size = sizeof(uint32_t)*32;
+		} else {
+			DRM_DEBUG_KMS("tile mode array is si+ only!\n");
 			return -EINVAL;
 		}
-		value = rdev->config.si.tile_mode_array;
-		value_size = sizeof(uint32_t)*32;
+		break;
+	case RADEON_INFO_CIK_MACROTILE_MODE_ARRAY:
+		if (rdev->family >= CHIP_BONAIRE) {
+			value = rdev->config.cik.macrotile_mode_array;
+			value_size = sizeof(uint32_t)*16;
+		} else {
+			DRM_DEBUG_KMS("macrotile mode array is cik+ only!\n");
+			return -EINVAL;
+		}
+		break;
+	case RADEON_INFO_SI_CP_DMA_COMPUTE:
+		*value = 1;
+		break;
+	case RADEON_INFO_SI_BACKEND_ENABLED_MASK:
+		if (rdev->family >= CHIP_BONAIRE) {
+			*value = rdev->config.cik.backend_enable_mask;
+		} else if (rdev->family >= CHIP_TAHITI) {
+			*value = rdev->config.si.backend_enable_mask;
+		} else {
+			DRM_DEBUG_KMS("BACKEND_ENABLED_MASK is si+ only!\n");
+		}
+		break;
+	case RADEON_INFO_MAX_SCLK:
+		if ((rdev->pm.pm_method == PM_METHOD_DPM) &&
+		    rdev->pm.dpm_enabled)
+			*value = rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk * 10;
+		else
+			*value = rdev->pm.default_sclk * 10;
 		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
 	}
-	if (DRM_COPY_TO_USER(value_ptr, (char*)value, value_size)) {
+	if (copy_to_user(value_ptr, (char*)value, value_size)) {
 		DRM_ERROR("copy_to_user %s:%u\n", __func__, __LINE__);
 		return -EFAULT;
 	}
@@ -429,19 +492,6 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 /*
  * Outdated mess for old drm with Xorg being in charge (void function now).
  */
-/**
- * radeon_driver_firstopen_kms - drm callback for first open
- *
- * @dev: drm dev pointer
- *
- * Nothing to be done for KMS (all asics).
- * Returns 0 on success.
- */
-int radeon_driver_firstopen_kms(struct drm_device *dev)
-{
-	return 0;
-}
-
 /**
  * radeon_driver_firstopen_kms - drm callback for last close
  *
@@ -466,8 +516,13 @@ void radeon_driver_lastclose_kms(struct drm_device *dev)
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct radeon_device *rdev = dev->dev_private;
+	int r;
 
 	file_priv->driver_priv = NULL;
+
+	r = pm_runtime_get_sync(dev->dev);
+	if (r < 0)
+		return r;
 
 	/* new gpu have virtual address space support */
 	if (rdev->family >= CHIP_CAYMAN) {
@@ -497,6 +552,9 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 		file_priv->driver_priv = fpriv;
 	}
+
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 	return 0;
 }
 
@@ -661,21 +719,12 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
 						     vblank_time, flags,
-						     drmcrtc);
-}
-
-/*
- * IOCTL.
- */
-int radeon_dma_ioctl_kms(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv)
-{
-	/* Not valid in KMS. */
-	return -EINVAL;
+						     drmcrtc, &drmcrtc->hwmode);
 }
 
 #define KMS_INVALID_IOCTL(name)						\
-int name(struct drm_device *dev, void *data, struct drm_file *file_priv)\
+static int name(struct drm_device *dev, void *data, struct drm_file	\
+		*file_priv)						\
 {									\
 	DRM_ERROR("invalid ioctl with kms %s\n", __func__);		\
 	return -EINVAL;							\
@@ -713,7 +762,7 @@ KMS_INVALID_IOCTL(radeon_surface_alloc_kms)
 KMS_INVALID_IOCTL(radeon_surface_free_kms)
 
 
-struct drm_ioctl_desc radeon_ioctls_kms[] = {
+const struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_CP_INIT, radeon_cp_init_kms, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(RADEON_CP_START, radeon_cp_start_kms, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(RADEON_CP_STOP, radeon_cp_stop_kms, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
@@ -742,18 +791,18 @@ struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_SURF_ALLOC, radeon_surface_alloc_kms, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(RADEON_SURF_FREE, radeon_surface_free_kms, DRM_AUTH),
 	/* KMS */
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_INFO, radeon_gem_info_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_CREATE, radeon_gem_create_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_MMAP, radeon_gem_mmap_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_SET_DOMAIN, radeon_gem_set_domain_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_INFO, radeon_gem_info_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_CREATE, radeon_gem_create_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_MMAP, radeon_gem_mmap_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_SET_DOMAIN, radeon_gem_set_domain_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_PREAD, radeon_gem_pread_ioctl, DRM_AUTH|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_PWRITE, radeon_gem_pwrite_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_WAIT_IDLE, radeon_gem_wait_idle_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_CS, radeon_cs_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_INFO, radeon_info_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_SET_TILING, radeon_gem_set_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_GET_TILING, radeon_gem_get_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH|DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_VA, radeon_gem_va_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_WAIT_IDLE, radeon_gem_wait_idle_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_CS, radeon_cs_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_INFO, radeon_info_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_SET_TILING, radeon_gem_set_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_GET_TILING, radeon_gem_get_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_VA, radeon_gem_va_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 };
 int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);

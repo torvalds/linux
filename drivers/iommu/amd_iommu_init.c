@@ -26,7 +26,6 @@
 #include <linux/msi.h>
 #include <linux/amd-iommu.h>
 #include <linux/export.h>
-#include <acpi/acpi.h>
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -1384,7 +1383,7 @@ static int iommu_init_msi(struct amd_iommu *iommu)
 	if (iommu->int_enabled)
 		goto enable_faults;
 
-	if (pci_find_capability(iommu->dev, PCI_CAP_ID_MSI))
+	if (iommu->dev->msi_cap)
 		ret = iommu_setup_msi(iommu);
 	else
 		ret = -ENODEV;

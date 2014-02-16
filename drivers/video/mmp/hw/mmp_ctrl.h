@@ -163,6 +163,8 @@ struct lcd_regs {
 
 #define LCD_SCLK(path) ((PATH_PN == path->id) ? LCD_CFG_SCLK_DIV :\
 	((PATH_TV == path->id) ? LCD_TCLK_DIV : LCD_PN2_SCLK_DIV))
+#define intf_rbswap_ctrl(id)	((id) ? (((id) & 1) ? LCD_TVIF_CTRL : \
+				PN2_IOPAD_CONTROL) : LCD_TOP_CTRL)
 
 /* dither configure */
 #ifdef CONFIG_CPU_PXA988
@@ -615,6 +617,8 @@ struct lcd_regs {
 #define LCD_SPU_DUMB_CTRL			0x01B8
 #define	 CFG_DUMBMODE(mode)			((mode)<<28)
 #define	 CFG_DUMBMODE_MASK			0xF0000000
+#define	 CFG_INTFRBSWAP(mode)			((mode)<<24)
+#define	 CFG_INTFRBSWAP_MASK			0x0F000000
 #define	 CFG_LCDGPIO_O(data)			((data)<<20)
 #define	 CFG_LCDGPIO_O_MASK			0x0FF00000
 #define	 CFG_LCDGPIO_ENA(gpio)			((gpio)<<12)
@@ -1427,6 +1431,7 @@ struct mmphw_path_plat {
 	struct mmp_path *path;
 	u32 path_config;
 	u32 link_config;
+	u32 dsi_rbswap;
 };
 
 /* mmp ctrl describes mmp controller related info */

@@ -23,8 +23,7 @@
 /*
  * pm save bfin pint registers
  */
-struct bfin_pm_pint_save {
-	u32 mask_set;
+struct adi_pm_pint_save {
 	u32 assign;
 	u32 edge_set;
 	u32 invert_set;

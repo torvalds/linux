@@ -56,8 +56,8 @@ MODULE_DEVICE_TABLE(usb, stub_table);
  * usbip_status shows the status of usbip-host as long as this driver is bound
  * to the target device.
  */
-static ssize_t show_status(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t usbip_status_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct stub_device *sdev = dev_get_drvdata(dev);
 	int status;
@@ -73,7 +73,7 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", status);
 }
-static DEVICE_ATTR(usbip_status, S_IRUGO, show_status, NULL);
+static DEVICE_ATTR_RO(usbip_status);
 
 /*
  * usbip_sockfd gets a socket descriptor of an established TCP connection that
@@ -357,8 +357,9 @@ static int stub_probe(struct usb_interface *interface,
 	busid_priv = get_busid_priv(udev_busid);
 	if (!busid_priv || (busid_priv->status == STUB_BUSID_REMOV) ||
 	    (busid_priv->status == STUB_BUSID_OTHER)) {
-		dev_info(&interface->dev, "%s is not in match_busid table... "
-			 "skip!\n", udev_busid);
+		dev_info(&interface->dev,
+			"%s is not in match_busid table... skip!\n",
+			udev_busid);
 
 		/*
 		 * Return value should be ENODEV or ENOXIO to continue trying
@@ -375,8 +376,10 @@ static int stub_probe(struct usb_interface *interface,
 	}
 
 	if (!strcmp(udev->bus->bus_name, "vhci_hcd")) {
-		dev_dbg(&udev->dev, "%s is attached on vhci_hcd... skip!\n",
-			 udev_busid);
+		dev_dbg(&udev->dev,
+			"%s is attached on vhci_hcd... skip!\n",
+			udev_busid);
+
 		return -ENODEV;
 	}
 
@@ -386,10 +389,10 @@ static int stub_probe(struct usb_interface *interface,
 			return -ENODEV;
 
 		busid_priv->interf_count++;
-		dev_info(&interface->dev, "usbip-host: register new interface "
-			 "(bus %u dev %u ifn %u)\n",
-			 udev->bus->busnum, udev->devnum,
-			 interface->cur_altsetting->desc.bInterfaceNumber);
+		dev_info(&interface->dev,
+			"usbip-host: register new interface (bus %u dev %u ifn %u)\n",
+			udev->bus->busnum, udev->devnum,
+			interface->cur_altsetting->desc.bInterfaceNumber);
 
 		/* set private data to usb_interface */
 		usb_set_intfdata(interface, sdev);
@@ -412,9 +415,10 @@ static int stub_probe(struct usb_interface *interface,
 	if (!sdev)
 		return -ENOMEM;
 
-	dev_info(&interface->dev, "usbip-host: register new device "
-		 "(bus %u dev %u ifn %u)\n", udev->bus->busnum, udev->devnum,
-		 interface->cur_altsetting->desc.bInterfaceNumber);
+	dev_info(&interface->dev,
+		"usbip-host: register new device (bus %u dev %u ifn %u)\n",
+		udev->bus->busnum, udev->devnum,
+		interface->cur_altsetting->desc.bInterfaceNumber);
 
 	busid_priv->interf_count = 0;
 	busid_priv->shutdown_busid = 0;

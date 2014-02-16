@@ -1537,15 +1537,17 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 
 static int _drbd_send_bio(struct drbd_conf *mdev, struct bio *bio)
 {
-	struct bio_vec *bvec;
-	int i;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+
 	/* hint all but last page with MSG_MORE */
-	bio_for_each_segment(bvec, bio, i) {
+	bio_for_each_segment(bvec, bio, iter) {
 		int err;
 
-		err = _drbd_no_send_page(mdev, bvec->bv_page,
-					 bvec->bv_offset, bvec->bv_len,
-					 i == bio->bi_vcnt - 1 ? 0 : MSG_MORE);
+		err = _drbd_no_send_page(mdev, bvec.bv_page,
+					 bvec.bv_offset, bvec.bv_len,
+					 bio_iter_last(bvec, iter)
+					 ? 0 : MSG_MORE);
 		if (err)
 			return err;
 	}
@@ -1554,15 +1556,16 @@ static int _drbd_send_bio(struct drbd_conf *mdev, struct bio *bio)
 
 static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 {
-	struct bio_vec *bvec;
-	int i;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+
 	/* hint all but last page with MSG_MORE */
-	bio_for_each_segment(bvec, bio, i) {
+	bio_for_each_segment(bvec, bio, iter) {
 		int err;
 
-		err = _drbd_send_page(mdev, bvec->bv_page,
-				      bvec->bv_offset, bvec->bv_len,
-				      i == bio->bi_vcnt - 1 ? 0 : MSG_MORE);
+		err = _drbd_send_page(mdev, bvec.bv_page,
+				      bvec.bv_offset, bvec.bv_len,
+				      bio_iter_last(bvec, iter) ? 0 : MSG_MORE);
 		if (err)
 			return err;
 	}
@@ -2750,37 +2753,35 @@ int __init drbd_init(void)
 		return err;
 	}
 
+	register_reboot_notifier(&drbd_notifier);
+
+	/*
+	 * allocate all necessary structs
+	 */
+	init_waitqueue_head(&drbd_pp_wait);
+
+	drbd_proc = NULL; /* play safe for drbd_cleanup */
+	idr_init(&minors);
+
+	rwlock_init(&global_state_lock);
+	INIT_LIST_HEAD(&drbd_tconns);
+
 	err = drbd_genl_register();
 	if (err) {
 		printk(KERN_ERR "drbd: unable to register generic netlink family\n");
 		goto fail;
 	}
 
-
-	register_reboot_notifier(&drbd_notifier);
-
-	/*
-	 * allocate all necessary structs
-	 */
-	err = -ENOMEM;
-
-	init_waitqueue_head(&drbd_pp_wait);
-
-	drbd_proc = NULL; /* play safe for drbd_cleanup */
-	idr_init(&minors);
-
 	err = drbd_create_mempools();
 	if (err)
 		goto fail;
 
+	err = -ENOMEM;
 	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
 	if (!drbd_proc)	{
 		printk(KERN_ERR "drbd: unable to register proc file\n");
 		goto fail;
 	}
-
-	rwlock_init(&global_state_lock);
-	INIT_LIST_HEAD(&drbd_tconns);
 
 	retry.wq = create_singlethread_workqueue("drbd-reissue");
 	if (!retry.wq) {
@@ -2803,7 +2804,6 @@ int __init drbd_init(void)
 fail:
 	drbd_cleanup();
 	if (err == -ENOMEM)
-		/* currently always the case */
 		printk(KERN_ERR "drbd: ran out of memory\n");
 	else
 		printk(KERN_ERR "drbd: initialization failure\n");
@@ -2881,33 +2881,13 @@ struct meta_data_on_disk {
 	u8 reserved_u8[4096 - (7*8 + 10*4)];
 } __packed;
 
-/**
- * drbd_md_sync() - Writes the meta data super block if the MD_DIRTY flag bit is set
- * @mdev:	DRBD device.
- */
-void drbd_md_sync(struct drbd_conf *mdev)
+
+
+void drbd_md_write(struct drbd_conf *mdev, void *b)
 {
-	struct meta_data_on_disk *buffer;
+	struct meta_data_on_disk *buffer = b;
 	sector_t sector;
 	int i;
-
-	/* Don't accidentally change the DRBD meta data layout. */
-	BUILD_BUG_ON(UI_SIZE != 4);
-	BUILD_BUG_ON(sizeof(struct meta_data_on_disk) != 4096);
-
-	del_timer(&mdev->md_sync_timer);
-	/* timer may be rearmed by drbd_md_mark_dirty() now. */
-	if (!test_and_clear_bit(MD_DIRTY, &mdev->flags))
-		return;
-
-	/* We use here D_FAILED and not D_ATTACHING because we try to write
-	 * metadata even if we detach due to a disk failure! */
-	if (!get_ldev_if_state(mdev, D_FAILED))
-		return;
-
-	buffer = drbd_md_get_buffer(mdev);
-	if (!buffer)
-		goto out;
 
 	memset(buffer, 0, sizeof(*buffer));
 
@@ -2937,6 +2917,35 @@ void drbd_md_sync(struct drbd_conf *mdev)
 		dev_err(DEV, "meta data update failed!\n");
 		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 	}
+}
+
+/**
+ * drbd_md_sync() - Writes the meta data super block if the MD_DIRTY flag bit is set
+ * @mdev:	DRBD device.
+ */
+void drbd_md_sync(struct drbd_conf *mdev)
+{
+	struct meta_data_on_disk *buffer;
+
+	/* Don't accidentally change the DRBD meta data layout. */
+	BUILD_BUG_ON(UI_SIZE != 4);
+	BUILD_BUG_ON(sizeof(struct meta_data_on_disk) != 4096);
+
+	del_timer(&mdev->md_sync_timer);
+	/* timer may be rearmed by drbd_md_mark_dirty() now. */
+	if (!test_and_clear_bit(MD_DIRTY, &mdev->flags))
+		return;
+
+	/* We use here D_FAILED and not D_ATTACHING because we try to write
+	 * metadata even if we detach due to a disk failure! */
+	if (!get_ldev_if_state(mdev, D_FAILED))
+		return;
+
+	buffer = drbd_md_get_buffer(mdev);
+	if (!buffer)
+		goto out;
+
+	drbd_md_write(mdev, buffer);
 
 	/* Update mdev->ldev->md.la_size_sect,
 	 * since we updated it on metadata. */

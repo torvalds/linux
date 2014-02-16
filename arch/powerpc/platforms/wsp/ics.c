@@ -18,6 +18,8 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

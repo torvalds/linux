@@ -119,7 +119,7 @@ static u8 bcm2835_sdhci_readb(struct sdhci_host *host, int reg)
 	return byte;
 }
 
-unsigned int bcm2835_sdhci_get_min_clock(struct sdhci_host *host)
+static unsigned int bcm2835_sdhci_get_min_clock(struct sdhci_host *host)
 {
 	return MIN_FREQ;
 }
@@ -148,7 +148,7 @@ static int bcm2835_sdhci_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	int ret;
 
-	host = sdhci_pltfm_init(pdev, &bcm2835_sdhci_pdata);
+	host = sdhci_pltfm_init(pdev, &bcm2835_sdhci_pdata, 0);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
@@ -178,13 +178,7 @@ err:
 
 static int bcm2835_sdhci_remove(struct platform_device *pdev)
 {
-	struct sdhci_host *host = platform_get_drvdata(pdev);
-	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
-
-	sdhci_remove_host(host, dead);
-	sdhci_pltfm_free(pdev);
-
-	return 0;
+	return sdhci_pltfm_unregister(pdev);
 }
 
 static const struct of_device_id bcm2835_sdhci_of_match[] = {

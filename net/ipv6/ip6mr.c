@@ -110,8 +110,8 @@ static struct kmem_cache *mrt_cachep __read_mostly;
 static struct mr6_table *ip6mr_new_table(struct net *net, u32 id);
 static void ip6mr_free_table(struct mr6_table *mrt);
 
-static int ip6_mr_forward(struct net *net, struct mr6_table *mrt,
-			  struct sk_buff *skb, struct mfc6_cache *cache);
+static void ip6_mr_forward(struct net *net, struct mr6_table *mrt,
+			   struct sk_buff *skb, struct mfc6_cache *cache);
 static int ip6mr_cache_report(struct mr6_table *mrt, struct sk_buff *pkt,
 			      mifi_t mifi, int assert);
 static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
@@ -141,9 +141,12 @@ static struct mr6_table *ip6mr_get_table(struct net *net, u32 id)
 static int ip6mr_fib_lookup(struct net *net, struct flowi6 *flp6,
 			    struct mr6_table **mrt)
 {
-	struct ip6mr_result res;
-	struct fib_lookup_arg arg = { .result = &res, };
 	int err;
+	struct ip6mr_result res;
+	struct fib_lookup_arg arg = {
+		.result = &res,
+		.flags = FIB_LOOKUP_NOREF,
+	};
 
 	err = fib_rules_lookup(net->ipv6.mr6_rules_ops,
 			       flowi6_to_flowi(flp6), 0, &arg);
@@ -259,10 +262,12 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 {
 	struct mr6_table *mrt, *next;
 
+	rtnl_lock();
 	list_for_each_entry_safe(mrt, next, &net->ipv6.mr6_tables, list) {
 		list_del(&mrt->list);
 		ip6mr_free_table(mrt);
 	}
+	rtnl_unlock();
 	fib_rules_unregister(net->ipv6.mr6_rules_ops);
 }
 #else
@@ -289,7 +294,10 @@ static int __net_init ip6mr_rules_init(struct net *net)
 
 static void __net_exit ip6mr_rules_exit(struct net *net)
 {
+	rtnl_lock();
 	ip6mr_free_table(net->ipv6.mrt6);
+	net->ipv6.mrt6 = NULL;
+	rtnl_unlock();
 }
 #endif
 
@@ -667,9 +675,8 @@ static int pim6_rcv(struct sk_buff *skb)
 	skb_reset_network_header(skb);
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->ip_summed = CHECKSUM_NONE;
-	skb->pkt_type = PACKET_HOST;
 
-	skb_tunnel_rx(skb, reg_dev);
+	skb_tunnel_rx(skb, reg_dev, dev_net(reg_dev));
 
 	netif_rx(skb);
 
@@ -1319,7 +1326,7 @@ static int ip6mr_mfc_delete(struct mr6_table *mrt, struct mf6cctl *mfc,
 static int ip6mr_device_event(struct notifier_block *this,
 			      unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct mr6_table *mrt;
 	struct mif_device *v;
@@ -2069,8 +2076,8 @@ static int ip6mr_find_vif(struct mr6_table *mrt, struct net_device *dev)
 	return ct;
 }
 
-static int ip6_mr_forward(struct net *net, struct mr6_table *mrt,
-			  struct sk_buff *skb, struct mfc6_cache *cache)
+static void ip6_mr_forward(struct net *net, struct mr6_table *mrt,
+			   struct sk_buff *skb, struct mfc6_cache *cache)
 {
 	int psend = -1;
 	int vif, ct;
@@ -2151,12 +2158,11 @@ forward:
 last_forward:
 	if (psend != -1) {
 		ip6mr_forward2(net, mrt, skb, cache, psend);
-		return 0;
+		return;
 	}
 
 dont_forward:
 	kfree_skb(skb);
-	return 0;
 }
 
 

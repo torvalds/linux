@@ -5,6 +5,7 @@
 #include "util/trace-event.h"
 #include "util/tool.h"
 #include "util/session.h"
+#include "util/data.h"
 
 #define MEM_OPERATION_LOAD	"load"
 #define MEM_OPERATION_STORE	"store"
@@ -14,7 +15,6 @@ static const char	*mem_operation		= MEM_OPERATION_LOAD;
 struct perf_mem {
 	struct perf_tool	tool;
 	char const		*input_name;
-	symbol_filter_t		annotate_init;
 	bool			hide_unresolved;
 	bool			dump_raw;
 	const char		*cpu_list;
@@ -62,15 +62,13 @@ static int
 dump_raw_samples(struct perf_tool *tool,
 		 union perf_event *event,
 		 struct perf_sample *sample,
-		 struct perf_evsel *evsel __maybe_unused,
 		 struct machine *machine)
 {
 	struct perf_mem *mem = container_of(tool, struct perf_mem, tool);
 	struct addr_location al;
 	const char *fmt;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample,
-				mem->annotate_init) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 				event->header.type);
 		return -1;
@@ -96,7 +94,7 @@ dump_raw_samples(struct perf_tool *tool,
 		symbol_conf.field_sep,
 		sample->tid,
 		symbol_conf.field_sep,
-		event->ip.ip,
+		sample->ip,
 		symbol_conf.field_sep,
 		sample->addr,
 		symbol_conf.field_sep,
@@ -113,18 +111,22 @@ dump_raw_samples(struct perf_tool *tool,
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct perf_evsel *evsel __maybe_unused,
 				struct machine *machine)
 {
-	return dump_raw_samples(tool, event, sample, evsel, machine);
+	return dump_raw_samples(tool, event, sample, machine);
 }
 
 static int report_raw_events(struct perf_mem *mem)
 {
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
 	int err = -EINVAL;
 	int ret;
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &mem->tool);
+	struct perf_session *session = perf_session__new(&file, false,
+							 &mem->tool);
 
 	if (session == NULL)
 		return -ENOMEM;
@@ -192,6 +194,7 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 		.tool = {
 			.sample		= process_sample_event,
 			.mmap		= perf_event__process_mmap,
+			.mmap2		= perf_event__process_mmap2,
 			.comm		= perf_event__process_comm,
 			.lost		= perf_event__process_lost,
 			.fork		= perf_event__process_fork,

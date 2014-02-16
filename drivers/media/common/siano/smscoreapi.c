@@ -922,8 +922,8 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	u32 i, *ptr;
 	u8 *payload = firmware->payload;
 	int rc = 0;
-	firmware->start_address = le32_to_cpu(firmware->start_address);
-	firmware->length = le32_to_cpu(firmware->length);
+	firmware->start_address = le32_to_cpup((__le32 *)&firmware->start_address);
+	firmware->length = le32_to_cpup((__le32 *)&firmware->length);
 
 	mem_address = firmware->start_address;
 
@@ -982,7 +982,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	if (rc < 0)
 		goto exit_fw_download;
 
-	sms_err("sending MSG_SMS_DATA_VALIDITY_REQ expecting 0x%x",
+	sms_debug("sending MSG_SMS_DATA_VALIDITY_REQ expecting 0x%x",
 		calc_checksum);
 	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_DATA_VALIDITY_REQ,
 			sizeof(msg->x_msg_header) +
@@ -1154,7 +1154,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 
 	char *fw_filename = smscore_get_fw_filename(coredev, mode);
 	if (!fw_filename) {
-		sms_info("mode %d not supported on this device", mode);
+		sms_err("mode %d not supported on this device", mode);
 		return -ENOENT;
 	}
 	sms_debug("Firmware name: %s", fw_filename);
@@ -1165,23 +1165,24 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 
 	rc = request_firmware(&fw, fw_filename, coredev->device);
 	if (rc < 0) {
-		sms_info("failed to open \"%s\"", fw_filename);
+		sms_err("failed to open firmware file \"%s\"", fw_filename);
 		return rc;
 	}
 	sms_info("read fw %s, buffer size=0x%zx", fw_filename, fw->size);
 	fw_buf = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
 			 GFP_KERNEL | GFP_DMA);
 	if (!fw_buf) {
-		sms_info("failed to allocate firmware buffer");
-		return -ENOMEM;
-	}
-	memcpy(fw_buf, fw->data, fw->size);
-	fw_buf_size = fw->size;
+		sms_err("failed to allocate firmware buffer");
+		rc = -ENOMEM;
+	} else {
+		memcpy(fw_buf, fw->data, fw->size);
+		fw_buf_size = fw->size;
 
-	rc = (coredev->device_flags & SMS_DEVICE_FAMILY2) ?
-		smscore_load_firmware_family2(coredev, fw_buf, fw_buf_size)
-		: loadfirmware_handler(coredev->context, fw_buf,
-		fw_buf_size);
+		rc = (coredev->device_flags & SMS_DEVICE_FAMILY2) ?
+			smscore_load_firmware_family2(coredev, fw_buf, fw_buf_size)
+			: loadfirmware_handler(coredev->context, fw_buf,
+			fw_buf_size);
+	}
 
 	kfree(fw_buf);
 	release_firmware(fw);
@@ -1561,7 +1562,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		{
 			struct sms_msg_data *validity = (struct sms_msg_data *) phdr;
 
-			sms_err("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x",
+			sms_debug("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x",
 				validity->msg_data[0]);
 			complete(&coredev->data_validity_done);
 			break;

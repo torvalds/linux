@@ -149,11 +149,13 @@ needs. Only UHID_OUTPUT and UHID_OUTPUT_EV have payloads.
   is of type "struct uhid_data_req".
   This may be received even though you haven't received UHID_OPEN, yet.
 
-  UHID_OUTPUT_EV:
+  UHID_OUTPUT_EV (obsolete):
   Same as UHID_OUTPUT but this contains a "struct input_event" as payload. This
   is called for force-feedback, LED or similar events which are received through
   an input device by the HID subsystem. You should convert this into raw reports
   and send them to your device similar to events of type UHID_OUTPUT.
+  This is no longer sent by newer kernels. Instead, HID core converts it into a
+  raw output report and sends it via UHID_OUTPUT.
 
   UHID_FEATURE:
   This event is sent if the kernel driver wants to perform a feature request as

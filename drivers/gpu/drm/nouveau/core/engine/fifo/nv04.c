@@ -632,8 +632,8 @@ nv04_fifo_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nv04_fifo_oclass = {
+struct nouveau_oclass *
+nv04_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0x04),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_fifo_ctor,

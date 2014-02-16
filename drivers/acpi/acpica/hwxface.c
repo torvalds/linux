@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -83,11 +84,17 @@ acpi_status acpi_reset(void)
 		 * For I/O space, write directly to the OSL. This bypasses the port
 		 * validation mechanism, which may block a valid write to the reset
 		 * register.
-		 * Spec section 4.7.3.6 requires register width to be 8.
+		 *
+		 * NOTE:
+		 * The ACPI spec requires the reset register width to be 8, so we
+		 * hardcode it here and ignore the FADT value. This maintains
+		 * compatibility with other ACPI implementations that have allowed
+		 * BIOS code with bad register width values to go unnoticed.
 		 */
 		status =
 		    acpi_os_write_port((acpi_io_address) reset_reg->address,
-				       acpi_gbl_FADT.reset_value, 8);
+				       acpi_gbl_FADT.reset_value,
+				       ACPI_RESET_REGISTER_WIDTH);
 	} else {
 		/* Write the reset value to the reset register */
 
@@ -119,7 +126,8 @@ ACPI_EXPORT_SYMBOL(acpi_reset)
  ******************************************************************************/
 acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
 {
-	u32 value;
+	u32 value_lo;
+	u32 value_hi;
 	u32 width;
 	u64 address;
 	acpi_status status;
@@ -137,13 +145,8 @@ acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
 		return (status);
 	}
 
-	/* Initialize entire 64-bit return value to zero */
-
-	*return_value = 0;
-	value = 0;
-
 	/*
-	 * Two address spaces supported: Memory or IO. PCI_Config is
+	 * Two address spaces supported: Memory or I/O. PCI_Config is
 	 * not supported here because the GAS structure is insufficient
 	 */
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
@@ -155,29 +158,35 @@ acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
 		}
 	} else {		/* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
 
+		value_lo = 0;
+		value_hi = 0;
+
 		width = reg->bit_width;
 		if (width == 64) {
 			width = 32;	/* Break into two 32-bit transfers */
 		}
 
 		status = acpi_hw_read_port((acpi_io_address)
-					   address, &value, width);
+					   address, &value_lo, width);
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
-		*return_value = value;
 
 		if (reg->bit_width == 64) {
 
 			/* Read the top 32 bits */
 
 			status = acpi_hw_read_port((acpi_io_address)
-						   (address + 4), &value, 32);
+						   (address + 4), &value_hi,
+						   32);
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}
-			*return_value |= ((u64)value << 32);
 		}
+
+		/* Set the return value only if status is AE_OK */
+
+		*return_value = (value_lo | ((u64)value_hi << 32));
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_IO,
@@ -186,7 +195,7 @@ acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
 			  ACPI_FORMAT_UINT64(address),
 			  acpi_ut_get_region_name(reg->space_id)));
 
-	return (status);
+	return (AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_read)
@@ -561,10 +570,10 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		break;
 	}
 
-      cleanup1:
+cleanup1:
 	acpi_ut_remove_reference(info->return_object);
 
-      cleanup:
+cleanup:
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While evaluating Sleep State [%s]",

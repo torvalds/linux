@@ -1029,7 +1029,7 @@ static int mga_getparam(struct drm_device *dev, void *data, struct drm_file *fil
 		return -EINVAL;
 	}
 
-	if (DRM_COPY_TO_USER(param->value, &value, sizeof(int))) {
+	if (copy_to_user(param->value, &value, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}
@@ -1083,7 +1083,7 @@ file_priv)
 	return 0;
 }
 
-struct drm_ioctl_desc mga_ioctls[] = {
+const struct drm_ioctl_desc mga_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MGA_INIT, mga_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(MGA_FLUSH, mga_dma_flush, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(MGA_RESET, mga_dma_reset, DRM_AUTH),

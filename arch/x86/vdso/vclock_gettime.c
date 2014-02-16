@@ -85,15 +85,18 @@ static notrace cycle_t vread_pvclock(int *mode)
 	cycle_t ret;
 	u64 last;
 	u32 version;
-	u32 migrate_count;
 	u8 flags;
 	unsigned cpu, cpu1;
 
 
 	/*
-	 * When looping to get a consistent (time-info, tsc) pair, we
-	 * also need to deal with the possibility we can switch vcpus,
-	 * so make sure we always re-fetch time-info for the current vcpu.
+	 * Note: hypervisor must guarantee that:
+	 * 1. cpu ID number maps 1:1 to per-CPU pvclock time info.
+	 * 2. that per-CPU pvclock time info is updated if the
+	 *    underlying CPU changes.
+	 * 3. that version is increased whenever underlying CPU
+	 *    changes.
+	 *
 	 */
 	do {
 		cpu = __getcpu() & VGETCPU_CPU_MASK;
@@ -103,8 +106,6 @@ static notrace cycle_t vread_pvclock(int *mode)
 		 */
 
 		pvti = get_pvti(cpu);
-
-		migrate_count = pvti->migrate_count;
 
 		version = __pvclock_read_cycles(&pvti->pvti, &ret, &flags);
 
@@ -117,8 +118,7 @@ static notrace cycle_t vread_pvclock(int *mode)
 		cpu1 = __getcpu() & VGETCPU_CPU_MASK;
 	} while (unlikely(cpu != cpu1 ||
 			  (pvti->pvti.version & 1) ||
-			  pvti->pvti.version != version ||
-			  pvti->migrate_count != migrate_count));
+			  pvti->pvti.version != version));
 
 	if (unlikely(!(flags & PVCLOCK_TSC_STABLE_BIT)))
 		*mode = VCLOCK_NONE;
@@ -178,7 +178,7 @@ notrace static int __always_inline do_realtime(struct timespec *ts)
 
 	ts->tv_nsec = 0;
 	do {
-		seq = read_seqcount_begin(&gtod->seq);
+		seq = raw_read_seqcount_begin(&gtod->seq);
 		mode = gtod->clock.vclock_mode;
 		ts->tv_sec = gtod->wall_time_sec;
 		ns = gtod->wall_time_snsec;
@@ -198,7 +198,7 @@ notrace static int do_monotonic(struct timespec *ts)
 
 	ts->tv_nsec = 0;
 	do {
-		seq = read_seqcount_begin(&gtod->seq);
+		seq = raw_read_seqcount_begin(&gtod->seq);
 		mode = gtod->clock.vclock_mode;
 		ts->tv_sec = gtod->monotonic_time_sec;
 		ns = gtod->monotonic_time_snsec;
@@ -214,7 +214,7 @@ notrace static int do_realtime_coarse(struct timespec *ts)
 {
 	unsigned long seq;
 	do {
-		seq = read_seqcount_begin(&gtod->seq);
+		seq = raw_read_seqcount_begin(&gtod->seq);
 		ts->tv_sec = gtod->wall_time_coarse.tv_sec;
 		ts->tv_nsec = gtod->wall_time_coarse.tv_nsec;
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
@@ -225,7 +225,7 @@ notrace static int do_monotonic_coarse(struct timespec *ts)
 {
 	unsigned long seq;
 	do {
-		seq = read_seqcount_begin(&gtod->seq);
+		seq = raw_read_seqcount_begin(&gtod->seq);
 		ts->tv_sec = gtod->monotonic_time_coarse.tv_sec;
 		ts->tv_nsec = gtod->monotonic_time_coarse.tv_nsec;
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));

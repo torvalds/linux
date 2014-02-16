@@ -205,7 +205,7 @@ static int pm2xxx_charger_batt_therm_mngt(struct pm2xxx_charger *pm2, int val)
 }
 
 
-int pm2xxx_charger_die_therm_mngt(struct pm2xxx_charger *pm2, int val)
+static int pm2xxx_charger_die_therm_mngt(struct pm2xxx_charger *pm2, int val)
 {
 	queue_work(pm2->charger_wq, &pm2->check_main_thermal_prot_work);
 
@@ -386,7 +386,7 @@ static int pm2_int_reg2(void *pm2_data, int val)
 	if (val & (PM2XXX_INT3_ITCHPRECHARGEWD |
 				PM2XXX_INT3_ITCHCCWD | PM2XXX_INT3_ITCHCVWD)) {
 		dev_dbg(pm2->dev,
-			"Watchdog occured for precharge, CC and CV charge\n");
+			"Watchdog occurred for precharge, CC and CV charge\n");
 	}
 
 	return ret;
@@ -722,8 +722,12 @@ static int pm2xxx_charger_ac_en(struct ux500_charger *charger,
 
 		dev_dbg(pm2->dev, "Enable AC: %dmV %dmA\n", vset, iset);
 		if (!pm2->vddadc_en_ac) {
-			regulator_enable(pm2->regu);
-			pm2->vddadc_en_ac = true;
+			ret = regulator_enable(pm2->regu);
+			if (ret)
+				dev_warn(pm2->dev,
+					"Failed to enable vddadc regulator\n");
+			else
+				pm2->vddadc_en_ac = true;
 		}
 
 		ret = pm2xxx_charging_init(pm2);
@@ -953,37 +957,24 @@ static int  pm2xxx_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *pm2xxx_i2c_client = to_i2c_client(dev);
 	struct pm2xxx_charger *pm2;
-	int ret = 0;
 
 	pm2 = (struct pm2xxx_charger *)i2c_get_clientdata(pm2xxx_i2c_client);
-	if (!pm2) {
-		dev_err(pm2->dev, "no pm2xxx_charger data supplied\n");
-		ret = -EINVAL;
-		return ret;
-	}
-
 	clear_lpn_pin(pm2);
 
-	return ret;
+	return 0;
 }
 
 static int  pm2xxx_runtime_resume(struct device *dev)
 {
 	struct i2c_client *pm2xxx_i2c_client = to_i2c_client(dev);
 	struct pm2xxx_charger *pm2;
-	int ret = 0;
 
 	pm2 = (struct pm2xxx_charger *)i2c_get_clientdata(pm2xxx_i2c_client);
-	if (!pm2) {
-		dev_err(pm2->dev, "no pm2xxx_charger data supplied\n");
-		ret = -EINVAL;
-		return ret;
-	}
 
 	if (gpio_is_valid(pm2->lpn_pin) && gpio_get_value(pm2->lpn_pin) == 0)
 		set_lpn_pin(pm2);
 
-	return ret;
+	return 0;
 }
 
 #endif
@@ -1007,9 +998,14 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	u8 val;
 	int i;
 
+	if (!pl_data) {
+		dev_err(&i2c_client->dev, "No platform data supplied\n");
+		return -EINVAL;
+	}
+
 	pm2 = kzalloc(sizeof(struct pm2xxx_charger), GFP_KERNEL);
 	if (!pm2) {
-		dev_err(pm2->dev, "pm2xxx_charger allocation failed\n");
+		dev_err(&i2c_client->dev, "pm2xxx_charger allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -1070,9 +1066,9 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	pm2->ac_chg.external = true;
 
 	/* Create a work queue for the charger */
-	pm2->charger_wq =
-		create_singlethread_workqueue("pm2xxx_charger_wq");
+	pm2->charger_wq = create_singlethread_workqueue("pm2xxx_charger_wq");
 	if (pm2->charger_wq == NULL) {
+		ret = -ENOMEM;
 		dev_err(pm2->dev, "failed to create work queue\n");
 		goto free_device_info;
 	}

@@ -190,7 +190,7 @@ static int omap_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct omap_chan *c = to_omap_dma_chan(chan);
 
-	dev_info(c->vc.chan.device->dev, "allocating channel for %u\n", c->dma_sig);
+	dev_dbg(c->vc.chan.device->dev, "allocating channel for %u\n", c->dma_sig);
 
 	return omap_request_dma(c->dma_sig, "DMA engine",
 		omap_dma_callback, c, &c->dma_ch);
@@ -203,7 +203,7 @@ static void omap_dma_free_chan_resources(struct dma_chan *chan)
 	vchan_free_chan_resources(&c->vc);
 	omap_free_dma(c->dma_ch);
 
-	dev_info(c->vc.chan.device->dev, "freeing channel for %u\n", c->dma_sig);
+	dev_dbg(c->vc.chan.device->dev, "freeing channel for %u\n", c->dma_sig);
 }
 
 static size_t omap_dma_sg_size(struct omap_sg *sg)
@@ -248,7 +248,7 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 	unsigned long flags;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS || !txstate)
+	if (ret == DMA_COMPLETE || !txstate)
 		return ret;
 
 	spin_lock_irqsave(&c->vc.lock, flags);

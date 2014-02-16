@@ -164,7 +164,8 @@ struct bfa_ioc_attr {
 	u8				port_mode;	/*!< enum bfa_mode */
 	u8				cap_bm;		/*!< capability */
 	u8				port_mode_cfg;	/*!< enum bfa_mode */
-	u8				rsvd[4];	/*!< 64bit align */
+	u8				def_fn;		/*!< 1 if default fn */
+	u8				rsvd[3];	/*!< 64bit align */
 };
 
 /* Adapter capability mask definition */

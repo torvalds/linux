@@ -107,6 +107,8 @@ struct psc_ops {
 	unsigned int	(*set_baudrate)(struct uart_port *port,
 					struct ktermios *new,
 					struct ktermios *old);
+	int		(*clock_alloc)(struct uart_port *port);
+	void		(*clock_relse)(struct uart_port *port);
 	int		(*clock)(struct uart_port *port, int enable);
 	int		(*fifoc_init)(void);
 	void		(*fifoc_uninit)(void);
@@ -419,6 +421,7 @@ struct psc_fifoc {
 
 static struct psc_fifoc __iomem *psc_fifoc;
 static unsigned int psc_fifoc_irq;
+static struct clk *psc_fifoc_clk;
 
 static void mpc512x_psc_fifo_init(struct uart_port *port)
 {
@@ -566,36 +569,73 @@ static unsigned int mpc512x_psc_set_baudrate(struct uart_port *port,
 /* Init PSC FIFO Controller */
 static int __init mpc512x_psc_fifoc_init(void)
 {
+	int err;
 	struct device_node *np;
+	struct clk *clk;
+
+	/* default error code, potentially overwritten by clock calls */
+	err = -ENODEV;
 
 	np = of_find_compatible_node(NULL, NULL,
 				     "fsl,mpc5121-psc-fifo");
 	if (!np) {
 		pr_err("%s: Can't find FIFOC node\n", __func__);
-		return -ENODEV;
+		goto out_err;
 	}
+
+	clk = of_clk_get(np, 0);
+	if (IS_ERR(clk)) {
+		/* backwards compat with device trees that lack clock specs */
+		clk = clk_get_sys(np->name, "ipg");
+	}
+	if (IS_ERR(clk)) {
+		pr_err("%s: Can't lookup FIFO clock\n", __func__);
+		err = PTR_ERR(clk);
+		goto out_ofnode_put;
+	}
+	if (clk_prepare_enable(clk)) {
+		pr_err("%s: Can't enable FIFO clock\n", __func__);
+		clk_put(clk);
+		goto out_ofnode_put;
+	}
+	psc_fifoc_clk = clk;
 
 	psc_fifoc = of_iomap(np, 0);
 	if (!psc_fifoc) {
 		pr_err("%s: Can't map FIFOC\n", __func__);
-		of_node_put(np);
-		return -ENODEV;
+		goto out_clk_disable;
 	}
 
 	psc_fifoc_irq = irq_of_parse_and_map(np, 0);
-	of_node_put(np);
 	if (psc_fifoc_irq == 0) {
 		pr_err("%s: Can't get FIFOC irq\n", __func__);
-		iounmap(psc_fifoc);
-		return -ENODEV;
+		goto out_unmap;
 	}
 
+	of_node_put(np);
 	return 0;
+
+out_unmap:
+	iounmap(psc_fifoc);
+out_clk_disable:
+	clk_disable_unprepare(psc_fifoc_clk);
+	clk_put(psc_fifoc_clk);
+out_ofnode_put:
+	of_node_put(np);
+out_err:
+	return err;
 }
 
 static void __exit mpc512x_psc_fifoc_uninit(void)
 {
 	iounmap(psc_fifoc);
+
+	/* disable the clock, errors are not fatal */
+	if (psc_fifoc_clk) {
+		clk_disable_unprepare(psc_fifoc_clk);
+		clk_put(psc_fifoc_clk);
+		psc_fifoc_clk = NULL;
+	}
 }
 
 /* 512x specific interrupt handler. The caller holds the port lock */
@@ -616,31 +656,103 @@ static irqreturn_t mpc512x_psc_handle_irq(struct uart_port *port)
 	return IRQ_NONE;
 }
 
-static int mpc512x_psc_clock(struct uart_port *port, int enable)
+static struct clk *psc_mclk_clk[MPC52xx_PSC_MAXNUM];
+static struct clk *psc_ipg_clk[MPC52xx_PSC_MAXNUM];
+
+/* called from within the .request_port() callback (allocation) */
+static int mpc512x_psc_alloc_clock(struct uart_port *port)
 {
-	struct clk *psc_clk;
 	int psc_num;
-	char clk_name[10];
+	struct clk *clk;
+	int err;
+
+	psc_num = (port->mapbase & 0xf00) >> 8;
+
+	clk = devm_clk_get(port->dev, "mclk");
+	if (IS_ERR(clk)) {
+		dev_err(port->dev, "Failed to get MCLK!\n");
+		err = PTR_ERR(clk);
+		goto out_err;
+	}
+	err = clk_prepare_enable(clk);
+	if (err) {
+		dev_err(port->dev, "Failed to enable MCLK!\n");
+		goto out_err;
+	}
+	psc_mclk_clk[psc_num] = clk;
+
+	clk = devm_clk_get(port->dev, "ipg");
+	if (IS_ERR(clk)) {
+		dev_err(port->dev, "Failed to get IPG clock!\n");
+		err = PTR_ERR(clk);
+		goto out_err;
+	}
+	err = clk_prepare_enable(clk);
+	if (err) {
+		dev_err(port->dev, "Failed to enable IPG clock!\n");
+		goto out_err;
+	}
+	psc_ipg_clk[psc_num] = clk;
+
+	return 0;
+
+out_err:
+	if (psc_mclk_clk[psc_num]) {
+		clk_disable_unprepare(psc_mclk_clk[psc_num]);
+		psc_mclk_clk[psc_num] = NULL;
+	}
+	if (psc_ipg_clk[psc_num]) {
+		clk_disable_unprepare(psc_ipg_clk[psc_num]);
+		psc_ipg_clk[psc_num] = NULL;
+	}
+	return err;
+}
+
+/* called from within the .release_port() callback (release) */
+static void mpc512x_psc_relse_clock(struct uart_port *port)
+{
+	int psc_num;
+	struct clk *clk;
+
+	psc_num = (port->mapbase & 0xf00) >> 8;
+	clk = psc_mclk_clk[psc_num];
+	if (clk) {
+		clk_disable_unprepare(clk);
+		psc_mclk_clk[psc_num] = NULL;
+	}
+	if (psc_ipg_clk[psc_num]) {
+		clk_disable_unprepare(psc_ipg_clk[psc_num]);
+		psc_ipg_clk[psc_num] = NULL;
+	}
+}
+
+/* implementation of the .clock() callback (enable/disable) */
+static int mpc512x_psc_endis_clock(struct uart_port *port, int enable)
+{
+	int psc_num;
+	struct clk *psc_clk;
+	int ret;
 
 	if (uart_console(port))
 		return 0;
 
 	psc_num = (port->mapbase & 0xf00) >> 8;
-	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
-	psc_clk = clk_get(port->dev, clk_name);
-	if (IS_ERR(psc_clk)) {
+	psc_clk = psc_mclk_clk[psc_num];
+	if (!psc_clk) {
 		dev_err(port->dev, "Failed to get PSC clock entry!\n");
 		return -ENODEV;
 	}
 
-	dev_dbg(port->dev, "%s %sable\n", clk_name, enable ? "en" : "dis");
-
-	if (enable)
-		clk_enable(psc_clk);
-	else
+	dev_dbg(port->dev, "mclk %sable\n", enable ? "en" : "dis");
+	if (enable) {
+		ret = clk_enable(psc_clk);
+		if (ret)
+			dev_err(port->dev, "Failed to enable MCLK!\n");
+		return ret;
+	} else {
 		clk_disable(psc_clk);
-
-	return 0;
+		return 0;
+	}
 }
 
 static void mpc512x_psc_get_irq(struct uart_port *port, struct device_node *np)
@@ -873,7 +985,9 @@ static struct psc_ops mpc5125_psc_ops = {
 	.cw_disable_ints = mpc5125_psc_cw_disable_ints,
 	.cw_restore_ints = mpc5125_psc_cw_restore_ints,
 	.set_baudrate = mpc5125_psc_set_baudrate,
-	.clock = mpc512x_psc_clock,
+	.clock_alloc = mpc512x_psc_alloc_clock,
+	.clock_relse = mpc512x_psc_relse_clock,
+	.clock = mpc512x_psc_endis_clock,
 	.fifoc_init = mpc512x_psc_fifoc_init,
 	.fifoc_uninit = mpc512x_psc_fifoc_uninit,
 	.get_irq = mpc512x_psc_get_irq,
@@ -906,7 +1020,9 @@ static struct psc_ops mpc512x_psc_ops = {
 	.cw_disable_ints = mpc512x_psc_cw_disable_ints,
 	.cw_restore_ints = mpc512x_psc_cw_restore_ints,
 	.set_baudrate = mpc512x_psc_set_baudrate,
-	.clock = mpc512x_psc_clock,
+	.clock_alloc = mpc512x_psc_alloc_clock,
+	.clock_relse = mpc512x_psc_relse_clock,
+	.clock = mpc512x_psc_endis_clock,
 	.fifoc_init = mpc512x_psc_fifoc_init,
 	.fifoc_uninit = mpc512x_psc_fifoc_uninit,
 	.get_irq = mpc512x_psc_get_irq,
@@ -1166,6 +1282,9 @@ mpc52xx_uart_type(struct uart_port *port)
 static void
 mpc52xx_uart_release_port(struct uart_port *port)
 {
+	if (psc_ops->clock_relse)
+		psc_ops->clock_relse(port);
+
 	/* remapped by us ? */
 	if (port->flags & UPF_IOREMAP) {
 		iounmap(port->membase);
@@ -1190,11 +1309,24 @@ mpc52xx_uart_request_port(struct uart_port *port)
 	err = request_mem_region(port->mapbase, sizeof(struct mpc52xx_psc),
 			"mpc52xx_psc_uart") != NULL ? 0 : -EBUSY;
 
-	if (err && (port->flags & UPF_IOREMAP)) {
+	if (err)
+		goto out_membase;
+
+	if (psc_ops->clock_alloc) {
+		err = psc_ops->clock_alloc(port);
+		if (err)
+			goto out_mapregion;
+	}
+
+	return 0;
+
+out_mapregion:
+	release_mem_region(port->mapbase, sizeof(struct mpc52xx_psc));
+out_membase:
+	if (port->flags & UPF_IOREMAP) {
 		iounmap(port->membase);
 		port->membase = NULL;
 	}
-
 	return err;
 }
 
@@ -1237,7 +1369,6 @@ static struct uart_ops mpc52xx_uart_ops = {
 	.shutdown	= mpc52xx_uart_shutdown,
 	.set_termios	= mpc52xx_uart_set_termios,
 /*	.pm		= mpc52xx_uart_pm,		Not supported yet */
-/*	.set_wake	= mpc52xx_uart_set_wake,	Not supported yet */
 	.type		= mpc52xx_uart_type,
 	.release_port	= mpc52xx_uart_release_port,
 	.request_port	= mpc52xx_uart_request_port,
@@ -1702,7 +1833,7 @@ mpc52xx_uart_of_remove(struct platform_device *op)
 static int
 mpc52xx_uart_of_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct uart_port *port = (struct uart_port *) platform_get_drvdata(op);
+	struct uart_port *port = platform_get_drvdata(op);
 
 	if (port)
 		uart_suspend_port(&mpc52xx_uart_driver, port);
@@ -1713,7 +1844,7 @@ mpc52xx_uart_of_suspend(struct platform_device *op, pm_message_t state)
 static int
 mpc52xx_uart_of_resume(struct platform_device *op)
 {
-	struct uart_port *port = (struct uart_port *) platform_get_drvdata(op);
+	struct uart_port *port = platform_get_drvdata(op);
 
 	if (port)
 		uart_resume_port(&mpc52xx_uart_driver, port);

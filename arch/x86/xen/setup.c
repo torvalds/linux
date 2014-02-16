@@ -27,12 +27,16 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/physdev.h>
 #include <xen/features.h>
+#include "mmu.h"
 #include "xen-ops.h"
 #include "vdso.h"
 
 /* These are code, but not functions.  Defined in entry.S */
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
+#ifdef CONFIG_X86_64
+extern asmlinkage void nmi(void);
+#endif
 extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
 extern void xen_syscall32_target(void);
@@ -78,6 +82,9 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 
 	memblock_reserve(start, size);
 
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
 	xen_max_p2m_pfn = PFN_DOWN(start + size);
 	for (pfn = PFN_DOWN(start); pfn < xen_max_p2m_pfn; pfn++) {
 		unsigned long mfn = pfn_to_mfn(pfn);
@@ -100,6 +107,7 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 		.domid        = DOMID_SELF
 	};
 	unsigned long len = 0;
+	int xlated_phys = xen_feature(XENFEAT_auto_translated_physmap);
 	unsigned long pfn;
 	int ret;
 
@@ -113,7 +121,7 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 				continue;
 			frame = mfn;
 		} else {
-			if (mfn != INVALID_P2M_ENTRY)
+			if (!xlated_phys && mfn != INVALID_P2M_ENTRY)
 				continue;
 			frame = pfn;
 		}
@@ -151,6 +159,13 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 static unsigned long __init xen_release_chunk(unsigned long start,
 					      unsigned long end)
 {
+	/*
+	 * Xen already ballooned out the E820 non RAM regions for us
+	 * and set them up properly in EPT.
+	 */
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return end - start;
+
 	return xen_do_chunk(start, end, true);
 }
 
@@ -215,13 +230,25 @@ static void __init xen_set_identity_and_release_chunk(
 	unsigned long pfn;
 
 	/*
-	 * If the PFNs are currently mapped, the VA mapping also needs
-	 * to be updated to be 1:1.
+	 * If the PFNs are currently mapped, clear the mappings
+	 * (except for the ISA region which must be 1:1 mapped) to
+	 * release the refcounts (in Xen) on the original frames.
 	 */
-	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++)
+
+	/*
+	 * PVH E820 matches the hypervisor's P2M which means we need to
+	 * account for the proper values of *release and *identity.
+	 */
+	for (pfn = start_pfn; !xen_feature(XENFEAT_auto_translated_physmap) &&
+	     pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
+		pte_t pte = __pte_ma(0);
+
+		if (pfn < PFN_UP(ISA_END_ADDRESS))
+			pte = mfn_pte(pfn, PAGE_KERNEL_IO);
+
 		(void)HYPERVISOR_update_va_mapping(
-			(unsigned long)__va(pfn << PAGE_SHIFT),
-			mfn_pte(pfn, PAGE_KERNEL_IO), 0);
+			(unsigned long)__va(pfn << PAGE_SHIFT), pte, 0);
+	}
 
 	if (start_pfn < nr_pages)
 		*released += xen_release_chunk(
@@ -313,6 +340,17 @@ static void xen_align_and_add_e820_region(u64 start, u64 size, int type)
 	e820_add_region(start, end - start, type);
 }
 
+void xen_ignore_unusable(struct e820entry *list, size_t map_size)
+{
+	struct e820entry *entry;
+	unsigned int i;
+
+	for (i = 0, entry = list; i < map_size; i++, entry++) {
+		if (entry->type == E820_UNUSABLE)
+			entry->type = E820_RAM;
+	}
+}
+
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
  **/
@@ -352,6 +390,17 @@ char * __init xen_memory_setup(void)
 		rc = 0;
 	}
 	BUG_ON(rc);
+
+	/*
+	 * Xen won't allow a 1:1 mapping to be created to UNUSABLE
+	 * regions, so if we're using the machine memory map leave the
+	 * region as RAM as it is in the pseudo-physical map.
+	 *
+	 * UNUSABLE regions in domUs are not handled and will need
+	 * a patch in the future.
+	 */
+	if (xen_initial_domain())
+		xen_ignore_unusable(map, memmap.nr_entries);
 
 	/* Make sure the Xen-supplied memory map is well-ordered. */
 	sanitize_e820_map(map, memmap.nr_entries, &memmap.nr_entries);
@@ -475,7 +524,7 @@ static void __init fiddle_vdso(void)
 #endif
 }
 
-static int __cpuinit register_callback(unsigned type, const void *func)
+static int register_callback(unsigned type, const void *func)
 {
 	struct callback_register callback = {
 		.type = type,
@@ -486,7 +535,7 @@ static int __cpuinit register_callback(unsigned type, const void *func)
 	return HYPERVISOR_callback_op(CALLBACKOP_register, &callback);
 }
 
-void __cpuinit xen_enable_sysenter(void)
+void xen_enable_sysenter(void)
 {
 	int ret;
 	unsigned sysenter_feature;
@@ -505,7 +554,7 @@ void __cpuinit xen_enable_sysenter(void)
 		setup_clear_cpu_cap(sysenter_feature);
 }
 
-void __cpuinit xen_enable_syscall(void)
+void xen_enable_syscall(void)
 {
 #ifdef CONFIG_X86_64
 	int ret;
@@ -525,17 +574,20 @@ void __cpuinit xen_enable_syscall(void)
 	}
 #endif /* CONFIG_X86_64 */
 }
-
-void __init xen_arch_setup(void)
+void xen_enable_nmi(void)
 {
-	xen_panic_handler_init();
-
+#ifdef CONFIG_X86_64
+	if (register_callback(CALLBACKTYPE_nmi, (char *)nmi))
+		BUG();
+#endif
+}
+void __init xen_pvmmu_arch_setup(void)
+{
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);
 
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		HYPERVISOR_vm_assist(VMASST_CMD_enable,
-				     VMASST_TYPE_pae_extended_cr3);
+	HYPERVISOR_vm_assist(VMASST_CMD_enable,
+			     VMASST_TYPE_pae_extended_cr3);
 
 	if (register_callback(CALLBACKTYPE_event, xen_hypervisor_callback) ||
 	    register_callback(CALLBACKTYPE_failsafe, xen_failsafe_callback))
@@ -543,6 +595,15 @@ void __init xen_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
+	xen_enable_nmi();
+}
+
+/* This function is not called for HVM domains */
+void __init xen_arch_setup(void)
+{
+	xen_panic_handler_init();
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		xen_pvmmu_arch_setup();
 
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {

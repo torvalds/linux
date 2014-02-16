@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,9 +97,6 @@ enum iwl_sta_flags {
 					   STA_FLG_FLG_ANT_B),
 
 	STA_FLG_PS			= BIT(8),
-	STA_FLG_INVALID			= BIT(9),
-	STA_FLG_DLP_EN			= BIT(10),
-	STA_FLG_SET_ALL_KEYS		= BIT(11),
 	STA_FLG_DRAIN_FLOW		= BIT(12),
 	STA_FLG_PAN			= BIT(13),
 	STA_FLG_CLASS_AUTH		= BIT(14),
@@ -138,7 +135,14 @@ enum iwl_sta_flags {
 
 /**
  * enum iwl_sta_key_flag - key flags for the ADD_STA host command
- * @STA_KEY_FLG_EN_MSK: mask for encryption algorithm
+ * @STA_KEY_FLG_NO_ENC: no encryption
+ * @STA_KEY_FLG_WEP: WEP encryption algorithm
+ * @STA_KEY_FLG_CCM: CCMP encryption algorithm
+ * @STA_KEY_FLG_TKIP: TKIP encryption algorithm
+ * @STA_KEY_FLG_EXT: extended cipher algorithm (depends on the FW support)
+ * @STA_KEY_FLG_CMAC: CMAC encryption algorithm
+ * @STA_KEY_FLG_ENC_UNKNOWN: unknown encryption algorithm
+ * @STA_KEY_FLG_EN_MSK: mask for encryption algorithmi value
  * @STA_KEY_FLG_WEP_KEY_MAP: wep is either a group key (0 - legacy WEP) or from
  *	station info array (1 - n 1X mode)
  * @STA_KEY_FLG_KEYID_MSK: the index of the key
@@ -152,6 +156,7 @@ enum iwl_sta_key_flag {
 	STA_KEY_FLG_WEP			= (1 << 0),
 	STA_KEY_FLG_CCM			= (2 << 0),
 	STA_KEY_FLG_TKIP		= (3 << 0),
+	STA_KEY_FLG_EXT			= (4 << 0),
 	STA_KEY_FLG_CMAC		= (6 << 0),
 	STA_KEY_FLG_ENC_UNKNOWN		= (7 << 0),
 	STA_KEY_FLG_EN_MSK		= (7 << 0),
@@ -247,7 +252,7 @@ struct iwl_mvm_keyinfo {
 } __packed;
 
 /**
- * struct iwl_mvm_add_sta_cmd - Add / modify a station in the fw's station table
+ * struct iwl_mvm_add_sta_cmd_v5 - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
  * @add_modify: 1: modify existing, 0: add new station
  * @unicast_tx_key_id: unicast tx key id. Relevant only when unicast key sent
@@ -286,7 +291,7 @@ struct iwl_mvm_keyinfo {
  * ADD_STA sets up the table entry for one station, either creating a new
  * entry, or modifying a pre-existing one.
  */
-struct iwl_mvm_add_sta_cmd {
+struct iwl_mvm_add_sta_cmd_v5 {
 	u8 add_modify;
 	u8 unicast_tx_key_id;
 	u8 multicast_tx_key_id;
@@ -311,6 +316,57 @@ struct iwl_mvm_add_sta_cmd {
 	__le16 beamform_flags;
 	__le32 tfd_queue_msk;
 } __packed; /* ADD_STA_CMD_API_S_VER_5 */
+
+/**
+ * struct iwl_mvm_add_sta_cmd_v6 - Add / modify a station
+ * VER_6 of this command is quite similar to VER_5 except
+ * exclusion of all fields related to the security key installation.
+ */
+struct iwl_mvm_add_sta_cmd_v6 {
+	u8 add_modify;
+	u8 reserved1;
+	__le16 tid_disable_tx;
+	__le32 mac_id_n_color;
+	u8 addr[ETH_ALEN];	/* _STA_ID_MODIFY_INFO_API_S_VER_1 */
+	__le16 reserved2;
+	u8 sta_id;
+	u8 modify_mask;
+	__le16 reserved3;
+	__le32 station_flags;
+	__le32 station_flags_msk;
+	u8 add_immediate_ba_tid;
+	u8 remove_immediate_ba_tid;
+	__le16 add_immediate_ba_ssn;
+	__le16 sleep_tx_count;
+	__le16 sleep_state_flags;
+	__le16 assoc_id;
+	__le16 beamform_flags;
+	__le32 tfd_queue_msk;
+} __packed; /* ADD_STA_CMD_API_S_VER_6 */
+
+/**
+ * struct iwl_mvm_add_sta_key_cmd - add/modify sta key
+ * ( REPLY_ADD_STA_KEY = 0x17 )
+ * @sta_id: index of station in uCode's station table
+ * @key_offset: key offset in key storage
+ * @key_flags: type %iwl_sta_key_flag
+ * @key: key material data
+ * @key2: key material data
+ * @rx_secur_seq_cnt: RX security sequence counter for the key
+ * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
+ * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
+ */
+struct iwl_mvm_add_sta_key_cmd {
+	u8 sta_id;
+	u8 key_offset;
+	__le16 key_flags;
+	u8 key[16];
+	u8 key2[16];
+	u8 rx_secur_seq_cnt[16];
+	u8 tkip_rx_tsc_byte2;
+	u8 reserved;
+	__le16 tkip_rx_ttak[5];
+} __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_1 */
 
 /**
  * enum iwl_mvm_add_sta_rsp_status - status in the response to ADD_STA command

@@ -1,7 +1,7 @@
 	How to Get Your Patch Accepted Into the Hwmon Subsystem
 	-------------------------------------------------------
 
-This text is is a collection of suggestions for people writing patches or
+This text is a collection of suggestions for people writing patches or
 drivers for the hwmon subsystem. Following these suggestions will greatly
 increase the chances of your change being accepted.
 

@@ -38,19 +38,7 @@
 #define UART_MR2_PARITY_MODE_SPACE	0x3
 #define UART_MR2_PARITY_MODE		0x3
 
-#define UART_CSR	0x0008
-#define UART_CSR_115200	0xFF
-#define UART_CSR_57600	0xEE
-#define UART_CSR_38400	0xDD
-#define UART_CSR_28800	0xCC
-#define UART_CSR_19200	0xBB
-#define UART_CSR_14400	0xAA
-#define UART_CSR_9600	0x99
-#define UART_CSR_4800	0x77
-#define UART_CSR_2400	0x55
-#define UART_CSR_1200	0x44
-#define UART_CSR_600	0x33
-#define UART_CSR_300	0x22
+#define UART_CSR			0x0008
 
 #define UART_TF		0x000C
 #define UARTDM_TF	0x0070
@@ -71,6 +59,7 @@
 #define UART_CR_CMD_RESET_RFR		(14 << 4)
 #define UART_CR_CMD_PROTECTION_EN	(16 << 4)
 #define UART_CR_CMD_STALE_EVENT_ENABLE	(80 << 4)
+#define UART_CR_CMD_RESET_TX_READY	(3 << 8)
 #define UART_CR_TX_DISABLE		(1 << 3)
 #define UART_CR_TX_ENABLE		(1 << 2)
 #define UART_CR_RX_DISABLE		(1 << 1)
@@ -151,6 +140,7 @@ static inline void msm_serial_set_mnd_regs_tcxo(struct uart_port *port)
 	msm_write(port, 0xF1, UART_NREG);
 	msm_write(port, 0x0F, UART_DREG);
 	msm_write(port, 0x1A, UART_MNDREG);
+	port->uartclk = 1843200;
 }
 
 /*
@@ -162,6 +152,7 @@ static inline void msm_serial_set_mnd_regs_tcxoby4(struct uart_port *port)
 	msm_write(port, 0xF6, UART_NREG);
 	msm_write(port, 0x0F, UART_DREG);
 	msm_write(port, 0x0A, UART_MNDREG);
+	port->uartclk = 1843200;
 }
 
 static inline
@@ -169,7 +160,7 @@ void msm_serial_set_mnd_regs_from_uartclk(struct uart_port *port)
 {
 	if (port->uartclk == 19200000)
 		msm_serial_set_mnd_regs_tcxo(port);
-	else
+	else if (port->uartclk == 4800000)
 		msm_serial_set_mnd_regs_tcxoby4(port);
 }
 

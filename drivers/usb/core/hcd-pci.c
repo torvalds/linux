@@ -171,6 +171,8 @@ static void ehci_wait_for_companions(struct pci_dev *pdev, struct usb_hcd *hcd,
  * through the hotplug entry's driver_data.
  *
  * Store this function in the HCD's struct pci_driver as probe().
+ *
+ * Return: 0 if successful.
  */
 int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
@@ -212,6 +214,9 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		retval = -ENOMEM;
 		goto disable_pci;
 	}
+
+	hcd->amd_resume_bug = (usb_hcd_amd_remote_wakeup_quirk(dev) &&
+			driver->flags & (HCD_USB11 | HCD_USB3)) ? 1 : 0;
 
 	if (driver->flags & HCD_MEMORY) {
 		/* EHCI, OHCI */
@@ -277,6 +282,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (retval != 0)
 		goto unmap_registers;
+	device_wakeup_enable(hcd->self.controller);
 
 	if (pci_dev_run_wake(dev))
 		pm_runtime_put_noidle(&dev->dev);

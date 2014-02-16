@@ -256,8 +256,8 @@ static inline void rfcomm_dlc_put(struct rfcomm_dlc *d)
 		rfcomm_dlc_free(d);
 }
 
-extern void __rfcomm_dlc_throttle(struct rfcomm_dlc *d);
-extern void __rfcomm_dlc_unthrottle(struct rfcomm_dlc *d);
+void __rfcomm_dlc_throttle(struct rfcomm_dlc *d);
+void __rfcomm_dlc_unthrottle(struct rfcomm_dlc *d);
 
 static inline void rfcomm_dlc_throttle(struct rfcomm_dlc *d)
 {
@@ -300,6 +300,8 @@ struct rfcomm_conninfo {
 
 struct rfcomm_pinfo {
 	struct bt_sock bt;
+	bdaddr_t src;
+	bdaddr_t dst;
 	struct rfcomm_dlc   *dlc;
 	u8     channel;
 	u8     sec_level;

@@ -128,10 +128,12 @@ UTIL_OBJS =  utils/helpers/amd.o utils/helpers/topology.o utils/helpers/msr.o \
 	utils/helpers/sysfs.o utils/helpers/misc.o utils/helpers/cpuid.o \
 	utils/helpers/pci.o utils/helpers/bitmask.o \
 	utils/idle_monitor/nhm_idle.o utils/idle_monitor/snb_idle.o \
+	utils/idle_monitor/hsw_ext_idle.o \
 	utils/idle_monitor/amd_fam14h_idle.o utils/idle_monitor/cpuidle_sysfs.o \
 	utils/idle_monitor/mperf_monitor.o utils/idle_monitor/cpupower-monitor.o \
 	utils/cpupower.o utils/cpufreq-info.o utils/cpufreq-set.o \
-	utils/cpupower-set.o utils/cpupower-info.o utils/cpuidle-info.o
+	utils/cpupower-set.o utils/cpupower-info.o utils/cpuidle-info.o \
+	utils/cpuidle-set.o
 
 UTIL_SRC := $(UTIL_OBJS:.o=.c)
 

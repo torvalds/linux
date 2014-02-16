@@ -95,6 +95,7 @@
  * Digital-IO and Analog-Out only support instruction mode.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -393,11 +394,8 @@ struct rtd_private {
 	long ai_count;		/* total transfer size (samples) */
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
-
-	unsigned char chan_is_bipolar[RTD_MAX_CHANLIST / 8];	/* bit array */
-
+	DECLARE_BITMAP(chan_is_bipolar, RTD_MAX_CHANLIST);
 	unsigned int ao_readback[2];
-
 	unsigned fifosz;
 };
 
@@ -405,14 +403,6 @@ struct rtd_private {
 #define SEND_EOS	0x01	/* send End Of Scan events */
 #define DMA0_ACTIVE	0x02	/* DMA0 is active */
 #define DMA1_ACTIVE	0x04	/* DMA1 is active */
-
-/* Macros for accessing channel list bit array */
-#define CHAN_ARRAY_TEST(array, index) \
-	(((array)[(index)/8] >> ((index) & 0x7)) & 0x1)
-#define CHAN_ARRAY_SET(array, index) \
-	(((array)[(index)/8] |= 1 << ((index) & 0x7)))
-#define CHAN_ARRAY_CLEAR(array, index) \
-	(((array)[(index)/8] &= ~(1 << ((index) & 0x7))))
 
 /*
   Given a desired period and the clock period (both in ns),
@@ -477,17 +467,17 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 		/* +-5 range */
 		r |= 0x000;
 		r |= (range & 0x7) << 4;
-		CHAN_ARRAY_SET(devpriv->chan_is_bipolar, index);
+		__set_bit(index, devpriv->chan_is_bipolar);
 	} else if (range < board->range_uni10) {
 		/* +-10 range */
 		r |= 0x100;
 		r |= ((range - board->range_bip10) & 0x7) << 4;
-		CHAN_ARRAY_SET(devpriv->chan_is_bipolar, index);
+		__set_bit(index, devpriv->chan_is_bipolar);
 	} else {
 		/* +10 range */
 		r |= 0x200;
 		r |= ((range - board->range_uni10) & 0x7) << 4;
-		CHAN_ARRAY_CLEAR(devpriv->chan_is_bipolar, index);
+		__clear_bit(index, devpriv->chan_is_bipolar);
 	}
 
 	switch (aref) {
@@ -505,8 +495,6 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 	case AREF_OTHER:	/* ??? */
 		break;
 	}
-	/*printk ("chan=%d r=%d a=%d -> 0x%x\n",
-	   chan, range, aref, r); */
 	return r;
 }
 
@@ -601,7 +589,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
-		s16 d;
+		unsigned short d;
 		/* trigger conversion */
 		writew(0, devpriv->las0 + LAS0_ADC);
 
@@ -616,13 +604,11 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 
 		/* read data */
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
-		/*printk ("rtd520: Got 0x%x after %d usec\n", d, ii+1); */
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar, 0))
+		if (test_bit(0, devpriv->chan_is_bipolar))
 			/* convert to comedi unsigned data */
-			data[n] = d + 2048;
-		else
-			data[n] = d;
+			d = comedi_offset_munge(s, d);
+		data[n] = d & s->maxdata;
 	}
 
 	/* return the number of samples read/written */
@@ -642,8 +628,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 	int ii;
 
 	for (ii = 0; ii < count; ii++) {
-		short sample;
-		s16 d;
+		unsigned short d;
 
 		if (0 == devpriv->ai_count) {	/* done */
 			d = readw(devpriv->las1 + LAS1_ADC_FIFO);
@@ -652,14 +637,12 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar,
-				    s->async->cur_chan)) {
+		if (test_bit(s->async->cur_chan, devpriv->chan_is_bipolar))
 			/* convert to comedi unsigned data */
-			sample = d + 2048;
-		} else
-			sample = d;
+			d = comedi_offset_munge(s, d);
+		d &= s->maxdata;
 
-		if (!comedi_buf_put(s->async, sample))
+		if (!comedi_buf_put(s->async, d))
 			return -1;
 
 		if (devpriv->ai_count > 0)	/* < 0, means read forever */
@@ -676,22 +659,19 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct rtd_private *devpriv = dev->private;
 
 	while (readl(devpriv->las0 + LAS0_ADC) & FS_ADC_NOT_EMPTY) {
-		short sample;
-		s16 d = readw(devpriv->las1 + LAS1_ADC_FIFO);
+		unsigned short d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 
 		if (0 == devpriv->ai_count) {	/* done */
 			continue;	/* read rest */
 		}
 
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar,
-				    s->async->cur_chan)) {
+		if (test_bit(s->async->cur_chan, devpriv->chan_is_bipolar))
 			/* convert to comedi unsigned data */
-			sample = d + 2048;
-		} else
-			sample = d;
+			d = comedi_offset_munge(s, d);
+		d &= s->maxdata;
 
-		if (!comedi_buf_put(s->async, sample))
+		if (!comedi_buf_put(s->async, d))
 			return -1;
 
 		if (devpriv->ai_count > 0)	/* < 0, means read forever */
@@ -709,7 +689,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t rtd_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct rtd_private *devpriv = dev->private;
 	u32 overrun;
 	u16 status;
@@ -1216,15 +1196,9 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
 			     unsigned int *data)
 {
 	struct rtd_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		writew(s->state & 0xff, devpriv->las0 + LAS0_DIO0);
-	}
 
 	data[1] = readw(devpriv->las0 + LAS0_DIO0) & 0xff;
 
@@ -1237,23 +1211,11 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct rtd_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask = 1 << chan;
+	int ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= mask;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~mask;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
 	/* TODO support digital match interrupts and strobes */
 
@@ -1338,10 +1300,9 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -1463,7 +1424,7 @@ static int rtd520_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &rtd520_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
+static const struct pci_device_id rtd520_pci_table[] = {
 	{ PCI_VDEVICE(RTD, 0x7520), BOARD_DM7520 },
 	{ PCI_VDEVICE(RTD, 0x4520), BOARD_PCI4520 },
 	{ 0 }

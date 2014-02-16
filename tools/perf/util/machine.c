@@ -9,6 +9,7 @@
 #include "strlist.h"
 #include "thread.h"
 #include <stdbool.h>
+#include <symbol/kallsyms.h>
 #include "unwind.h"
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
@@ -25,22 +26,43 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->kmaps.machine = machine;
 	machine->pid = pid;
 
+	machine->symbol_filter = NULL;
+	machine->id_hdr_size = 0;
+
 	machine->root_dir = strdup(root_dir);
 	if (machine->root_dir == NULL)
 		return -ENOMEM;
 
 	if (pid != HOST_KERNEL_ID) {
-		struct thread *thread = machine__findnew_thread(machine, pid);
+		struct thread *thread = machine__findnew_thread(machine, 0,
+								pid);
 		char comm[64];
 
 		if (thread == NULL)
 			return -ENOMEM;
 
 		snprintf(comm, sizeof(comm), "[guest/%d]", pid);
-		thread__set_comm(thread, comm);
+		thread__set_comm(thread, comm, 0);
 	}
 
 	return 0;
+}
+
+struct machine *machine__new_host(void)
+{
+	struct machine *machine = malloc(sizeof(*machine));
+
+	if (machine != NULL) {
+		machine__init(machine, "", HOST_KERNEL_ID);
+
+		if (machine__create_kernel_maps(machine) < 0)
+			goto out_delete;
+	}
+
+	return machine;
+out_delete:
+	free(machine);
+	return NULL;
 }
 
 static void dsos__delete(struct list_head *dsos)
@@ -81,8 +103,7 @@ void machine__exit(struct machine *machine)
 	map_groups__exit(&machine->kmaps);
 	dsos__delete(&machine->user_dsos);
 	dsos__delete(&machine->kernel_dsos);
-	free(machine->root_dir);
-	machine->root_dir = NULL;
+	zfree(&machine->root_dir);
 }
 
 void machine__delete(struct machine *machine)
@@ -95,6 +116,7 @@ void machines__init(struct machines *machines)
 {
 	machine__init(&machines->host, "", HOST_KERNEL_ID);
 	machines->guests = RB_ROOT;
+	machines->symbol_filter = NULL;
 }
 
 void machines__exit(struct machines *machines)
@@ -118,6 +140,8 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 		return NULL;
 	}
 
+	machine->symbol_filter = machines->symbol_filter;
+
 	while (*p != NULL) {
 		parent = *p;
 		pos = rb_entry(parent, struct machine, rb_node);
@@ -131,6 +155,21 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 	rb_insert_color(&machine->rb_node, &machines->guests);
 
 	return machine;
+}
+
+void machines__set_symbol_filter(struct machines *machines,
+				 symbol_filter_t symbol_filter)
+{
+	struct rb_node *nd;
+
+	machines->symbol_filter = symbol_filter;
+	machines->host.symbol_filter = symbol_filter;
+
+	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+		struct machine *machine = rb_entry(nd, struct machine, rb_node);
+
+		machine->symbol_filter = symbol_filter;
+	}
 }
 
 struct machine *machines__find(struct machines *machines, pid_t pid)
@@ -233,7 +272,8 @@ void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size)
 	return;
 }
 
-static struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid,
+static struct thread *__machine__findnew_thread(struct machine *machine,
+						pid_t pid, pid_t tid,
 						bool create)
 {
 	struct rb_node **p = &machine->threads.rb_node;
@@ -241,23 +281,28 @@ static struct thread *__machine__findnew_thread(struct machine *machine, pid_t p
 	struct thread *th;
 
 	/*
-	 * Font-end cache - PID lookups come in blocks,
+	 * Front-end cache - TID lookups come in blocks,
 	 * so most of the time we dont have to look up
 	 * the full rbtree:
 	 */
-	if (machine->last_match && machine->last_match->pid == pid)
+	if (machine->last_match && machine->last_match->tid == tid) {
+		if (pid && pid != machine->last_match->pid_)
+			machine->last_match->pid_ = pid;
 		return machine->last_match;
+	}
 
 	while (*p != NULL) {
 		parent = *p;
 		th = rb_entry(parent, struct thread, rb_node);
 
-		if (th->pid == pid) {
+		if (th->tid == tid) {
 			machine->last_match = th;
+			if (pid && pid != th->pid_)
+				th->pid_ = pid;
 			return th;
 		}
 
-		if (pid < th->pid)
+		if (tid < th->tid)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -266,7 +311,7 @@ static struct thread *__machine__findnew_thread(struct machine *machine, pid_t p
 	if (!create)
 		return NULL;
 
-	th = thread__new(pid);
+	th = thread__new(pid, tid);
 	if (th != NULL) {
 		rb_link_node(&th->rb_node, parent, p);
 		rb_insert_color(&th->rb_node, &machine->threads);
@@ -276,24 +321,28 @@ static struct thread *__machine__findnew_thread(struct machine *machine, pid_t p
 	return th;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t pid)
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
+				       pid_t tid)
 {
-	return __machine__findnew_thread(machine, pid, true);
+	return __machine__findnew_thread(machine, pid, tid, true);
 }
 
-struct thread *machine__find_thread(struct machine *machine, pid_t pid)
+struct thread *machine__find_thread(struct machine *machine, pid_t tid)
 {
-	return __machine__findnew_thread(machine, pid, false);
+	return __machine__findnew_thread(machine, 0, tid, false);
 }
 
-int machine__process_comm_event(struct machine *machine, union perf_event *event)
+int machine__process_comm_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample)
 {
-	struct thread *thread = machine__findnew_thread(machine, event->comm.tid);
+	struct thread *thread = machine__findnew_thread(machine,
+							event->comm.pid,
+							event->comm.tid);
 
 	if (dump_trace)
 		perf_event__fprintf_comm(event, stdout);
 
-	if (thread == NULL || thread__set_comm(thread, event->comm.comm)) {
+	if (thread == NULL || thread__set_comm(thread, event->comm.comm, sample->time)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
@@ -302,7 +351,7 @@ int machine__process_comm_event(struct machine *machine, union perf_event *event
 }
 
 int machine__process_lost_event(struct machine *machine __maybe_unused,
-				union perf_event *event)
+				union perf_event *event, struct perf_sample *sample __maybe_unused)
 {
 	dump_printf(": id:%" PRIu64 ": lost:%" PRIu64 "\n",
 		    event->lost.id, event->lost.lost);
@@ -447,23 +496,22 @@ static int symbol__in_kernel(void *arg, const char *name,
 	return 1;
 }
 
+static void machine__get_kallsyms_filename(struct machine *machine, char *buf,
+					   size_t bufsz)
+{
+	if (machine__is_default_guest(machine))
+		scnprintf(buf, bufsz, "%s", symbol_conf.default_guest_kallsyms);
+	else
+		scnprintf(buf, bufsz, "%s/proc/kallsyms", machine->root_dir);
+}
+
 /* Figure out the start address of kernel map from /proc/kallsyms */
 static u64 machine__get_kernel_start_addr(struct machine *machine)
 {
-	const char *filename;
-	char path[PATH_MAX];
+	char filename[PATH_MAX];
 	struct process_args args;
 
-	if (machine__is_host(machine)) {
-		filename = "/proc/kallsyms";
-	} else {
-		if (machine__is_default_guest(machine))
-			filename = (char *)symbol_conf.default_guest_kallsyms;
-		else {
-			sprintf(path, "%s/proc/kallsyms", machine->root_dir);
-			filename = path;
-		}
-	}
+	machine__get_kallsyms_filename(machine, filename, PATH_MAX);
 
 	if (symbol__restricted_filename(filename, "/proc/kallsyms"))
 		return 0;
@@ -517,11 +565,10 @@ void machine__destroy_kernel_maps(struct machine *machine)
 			 * on one of them.
 			 */
 			if (type == MAP__FUNCTION) {
-				free((char *)kmap->ref_reloc_sym->name);
-				kmap->ref_reloc_sym->name = NULL;
-				free(kmap->ref_reloc_sym);
-			}
-			kmap->ref_reloc_sym = NULL;
+				zfree((char **)&kmap->ref_reloc_sym->name);
+				zfree(&kmap->ref_reloc_sym);
+			} else
+				kmap->ref_reloc_sym = NULL;
 		}
 
 		map__delete(machine->vmlinux_maps[type]);
@@ -628,10 +675,8 @@ int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 	struct map *map = machine->vmlinux_maps[type];
 	int ret = dso__load_vmlinux_path(map->dso, map, filter);
 
-	if (ret > 0) {
+	if (ret > 0)
 		dso__set_loaded(map->dso, type);
-		map__reloc_vmlinux(map);
-	}
 
 	return ret;
 }
@@ -721,8 +766,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *mg,
 				ret = -1;
 				goto out;
 			}
-			dso__set_long_name(map->dso, long_name);
-			map->dso->lname_alloc = 1;
+			dso__set_long_name(map->dso, long_name, true);
 			dso__kernel_module_get_build_id(map->dso, "");
 		}
 	}
@@ -748,77 +792,65 @@ static int machine__set_modules_path(struct machine *machine)
 	return map_groups__set_modules_path_dir(&machine->kmaps, modules_path);
 }
 
+static int machine__create_module(void *arg, const char *name, u64 start)
+{
+	struct machine *machine = arg;
+	struct map *map;
+
+	map = machine__new_module(machine, start, name);
+	if (map == NULL)
+		return -1;
+
+	dso__kernel_module_get_build_id(map->dso, machine->root_dir);
+
+	return 0;
+}
+
 static int machine__create_modules(struct machine *machine)
 {
-	char *line = NULL;
-	size_t n;
-	FILE *file;
-	struct map *map;
 	const char *modules;
 	char path[PATH_MAX];
 
-	if (machine__is_default_guest(machine))
+	if (machine__is_default_guest(machine)) {
 		modules = symbol_conf.default_guest_modules;
-	else {
-		sprintf(path, "%s/proc/modules", machine->root_dir);
+	} else {
+		snprintf(path, PATH_MAX, "%s/proc/modules", machine->root_dir);
 		modules = path;
 	}
 
-	if (symbol__restricted_filename(path, "/proc/modules"))
+	if (symbol__restricted_filename(modules, "/proc/modules"))
 		return -1;
 
-	file = fopen(modules, "r");
-	if (file == NULL)
+	if (modules__parse(modules, machine, machine__create_module))
 		return -1;
 
-	while (!feof(file)) {
-		char name[PATH_MAX];
-		u64 start;
-		char *sep;
-		int line_len;
+	if (!machine__set_modules_path(machine))
+		return 0;
 
-		line_len = getline(&line, &n, file);
-		if (line_len < 0)
-			break;
+	pr_debug("Problems setting modules path maps, continuing anyway...\n");
 
-		if (!line)
-			goto out_failure;
-
-		line[--line_len] = '\0'; /* \n */
-
-		sep = strrchr(line, 'x');
-		if (sep == NULL)
-			continue;
-
-		hex2u64(sep + 1, &start);
-
-		sep = strchr(line, ' ');
-		if (sep == NULL)
-			continue;
-
-		*sep = '\0';
-
-		snprintf(name, sizeof(name), "[%s]", line);
-		map = machine__new_module(machine, start, name);
-		if (map == NULL)
-			goto out_delete_line;
-		dso__kernel_module_get_build_id(map->dso, machine->root_dir);
-	}
-
-	free(line);
-	fclose(file);
-
-	return machine__set_modules_path(machine);
-
-out_delete_line:
-	free(line);
-out_failure:
-	return -1;
+	return 0;
 }
+
+const char *ref_reloc_sym_names[] = {"_text", "_stext", NULL};
 
 int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
+	char filename[PATH_MAX];
+	const char *name;
+	u64 addr = 0;
+	int i;
+
+	machine__get_kallsyms_filename(machine, filename, PATH_MAX);
+
+	for (i = 0; (name = ref_reloc_sym_names[i]) != NULL; i++) {
+		addr = kallsyms__get_function_start(filename, name);
+		if (addr)
+			break;
+	}
+	if (!addr)
+		return -1;
 
 	if (kernel == NULL ||
 	    __machine__create_kernel_maps(machine, kernel) < 0)
@@ -837,6 +869,13 @@ int machine__create_kernel_maps(struct machine *machine)
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */
 	map_groups__fixup_end(&machine->kmaps);
+
+	if (maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name,
+					     addr)) {
+		machine__destroy_kernel_maps(machine);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -858,6 +897,18 @@ static void machine__set_kernel_mmap_len(struct machine *machine,
 	}
 }
 
+static bool machine__uses_kcore(struct machine *machine)
+{
+	struct dso *dso;
+
+	list_for_each_entry(dso, &machine->kernel_dsos, node) {
+		if (dso__is_kcore(dso))
+			return true;
+	}
+
+	return false;
+}
+
 static int machine__process_kernel_mmap_event(struct machine *machine,
 					      union perf_event *event)
 {
@@ -865,6 +916,10 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 	char kmmap_prefix[PATH_MAX];
 	enum dso_kernel_type kernel_type;
 	bool is_kernel_mmap;
+
+	/* If we have maps from kcore then we do not need or want any others */
+	if (machine__uses_kcore(machine))
+		return 0;
 
 	machine__mmap_name(machine, kmmap_prefix, sizeof(kmmap_prefix));
 	if (machine__is_host(machine))
@@ -905,8 +960,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (name == NULL)
 			goto out_problem;
 
-		map->dso->short_name = name;
-		map->dso->sname_alloc = 1;
+		dso__set_short_name(map->dso, name, true);
 		map->end = map->start + event->mmap.len;
 	} else if (is_kernel_mmap) {
 		const char *symbol_name = (event->mmap.filename +
@@ -950,7 +1004,57 @@ out_problem:
 	return -1;
 }
 
-int machine__process_mmap_event(struct machine *machine, union perf_event *event)
+int machine__process_mmap2_event(struct machine *machine,
+				 union perf_event *event,
+				 struct perf_sample *sample __maybe_unused)
+{
+	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	struct thread *thread;
+	struct map *map;
+	enum map_type type;
+	int ret = 0;
+
+	if (dump_trace)
+		perf_event__fprintf_mmap2(event, stdout);
+
+	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
+	    cpumode == PERF_RECORD_MISC_KERNEL) {
+		ret = machine__process_kernel_mmap_event(machine, event);
+		if (ret < 0)
+			goto out_problem;
+		return 0;
+	}
+
+	thread = machine__findnew_thread(machine, event->mmap2.pid,
+					event->mmap2.pid);
+	if (thread == NULL)
+		goto out_problem;
+
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_DATA)
+		type = MAP__VARIABLE;
+	else
+		type = MAP__FUNCTION;
+
+	map = map__new(&machine->user_dsos, event->mmap2.start,
+			event->mmap2.len, event->mmap2.pgoff,
+			event->mmap2.pid, event->mmap2.maj,
+			event->mmap2.min, event->mmap2.ino,
+			event->mmap2.ino_generation,
+			event->mmap2.filename, type);
+
+	if (map == NULL)
+		goto out_problem;
+
+	thread__insert_map(thread, map);
+	return 0;
+
+out_problem:
+	dump_printf("problem processing PERF_RECORD_MMAP2, skipping event.\n");
+	return 0;
+}
+
+int machine__process_mmap_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample __maybe_unused)
 {
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread;
@@ -969,7 +1073,8 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 		return 0;
 	}
 
-	thread = machine__findnew_thread(machine, event->mmap.pid);
+	thread = machine__findnew_thread(machine, event->mmap.pid,
+					 event->mmap.pid);
 	if (thread == NULL)
 		goto out_problem;
 
@@ -980,7 +1085,8 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 
 	map = map__new(&machine->user_dsos, event->mmap.start,
 			event->mmap.len, event->mmap.pgoff,
-			event->mmap.pid, event->mmap.filename,
+			event->mmap.pid, 0, 0, 0, 0,
+			event->mmap.filename,
 			type);
 
 	if (map == NULL)
@@ -991,23 +1097,6 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 
 out_problem:
 	dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
-	return 0;
-}
-
-int machine__process_fork_event(struct machine *machine, union perf_event *event)
-{
-	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);
-	struct thread *parent = machine__findnew_thread(machine, event->fork.ptid);
-
-	if (dump_trace)
-		perf_event__fprintf_task(event, stdout);
-
-	if (thread == NULL || parent == NULL ||
-	    thread__fork(thread, parent) < 0) {
-		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -1022,7 +1111,34 @@ static void machine__remove_thread(struct machine *machine, struct thread *th)
 	list_add_tail(&th->node, &machine->dead_threads);
 }
 
-int machine__process_exit_event(struct machine *machine, union perf_event *event)
+int machine__process_fork_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample)
+{
+	struct thread *thread = machine__find_thread(machine, event->fork.tid);
+	struct thread *parent = machine__findnew_thread(machine,
+							event->fork.ppid,
+							event->fork.ptid);
+
+	/* if a thread currently exists for the thread id remove it */
+	if (thread != NULL)
+		machine__remove_thread(machine, thread);
+
+	thread = machine__findnew_thread(machine, event->fork.pid,
+					 event->fork.tid);
+	if (dump_trace)
+		perf_event__fprintf_task(event, stdout);
+
+	if (thread == NULL || parent == NULL ||
+	    thread__fork(thread, parent, sample->time) < 0) {
+		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int machine__process_exit_event(struct machine *machine, union perf_event *event,
+				struct perf_sample *sample __maybe_unused)
 {
 	struct thread *thread = machine__find_thread(machine, event->fork.tid);
 
@@ -1030,26 +1146,29 @@ int machine__process_exit_event(struct machine *machine, union perf_event *event
 		perf_event__fprintf_task(event, stdout);
 
 	if (thread != NULL)
-		machine__remove_thread(machine, thread);
+		thread__exited(thread);
 
 	return 0;
 }
 
-int machine__process_event(struct machine *machine, union perf_event *event)
+int machine__process_event(struct machine *machine, union perf_event *event,
+			   struct perf_sample *sample)
 {
 	int ret;
 
 	switch (event->header.type) {
 	case PERF_RECORD_COMM:
-		ret = machine__process_comm_event(machine, event); break;
+		ret = machine__process_comm_event(machine, event, sample); break;
 	case PERF_RECORD_MMAP:
-		ret = machine__process_mmap_event(machine, event); break;
+		ret = machine__process_mmap_event(machine, event, sample); break;
+	case PERF_RECORD_MMAP2:
+		ret = machine__process_mmap2_event(machine, event, sample); break;
 	case PERF_RECORD_FORK:
-		ret = machine__process_fork_event(machine, event); break;
+		ret = machine__process_fork_event(machine, event, sample); break;
 	case PERF_RECORD_EXIT:
-		ret = machine__process_exit_event(machine, event); break;
+		ret = machine__process_exit_event(machine, event, sample); break;
 	case PERF_RECORD_LOST:
-		ret = machine__process_lost_event(machine, event); break;
+		ret = machine__process_lost_event(machine, event, sample); break;
 	default:
 		ret = -1;
 		break;
@@ -1058,11 +1177,10 @@ int machine__process_event(struct machine *machine, union perf_event *event)
 	return ret;
 }
 
-static bool symbol__match_parent_regex(struct symbol *sym)
+static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 {
-	if (sym->name && !regexec(&parent_regex, sym->name, 0, NULL, 0))
+	if (sym->name && !regexec(regex, sym->name, 0, NULL, 0))
 		return 1;
-
 	return 0;
 }
 
@@ -1094,7 +1212,7 @@ static void ip__resolve_ams(struct machine *machine, struct thread *thread,
 		 * or else, the symbol is unknown
 		 */
 		thread__find_addr_location(thread, machine, m, MAP__FUNCTION,
-				ip, &al, NULL);
+				ip, &al);
 		if (al.sym)
 			goto found;
 	}
@@ -1112,8 +1230,8 @@ static void ip__resolve_data(struct machine *machine, struct thread *thread,
 
 	memset(&al, 0, sizeof(al));
 
-	thread__find_addr_location(thread, machine, m, MAP__VARIABLE, addr, &al,
-				   NULL);
+	thread__find_addr_location(thread, machine, m, MAP__VARIABLE, addr,
+				   &al);
 	ams->addr = addr;
 	ams->al_addr = al.addr;
 	ams->sym = al.sym;
@@ -1159,11 +1277,13 @@ struct branch_info *machine__resolve_bstack(struct machine *machine,
 static int machine__resolve_callchain_sample(struct machine *machine,
 					     struct thread *thread,
 					     struct ip_callchain *chain,
-					     struct symbol **parent)
-
+					     struct symbol **parent,
+					     struct addr_location *root_al,
+					     int max_stack)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	unsigned int i;
+	int chain_nr = min(max_stack, (int)chain->nr);
+	int i;
 	int err;
 
 	callchain_cursor_reset(&callchain_cursor);
@@ -1173,7 +1293,7 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 		return 0;
 	}
 
-	for (i = 0; i < chain->nr; i++) {
+	for (i = 0; i < chain_nr; i++) {
 		u64 ip;
 		struct addr_location al;
 
@@ -1208,13 +1328,18 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 
 		al.filtered = false;
 		thread__find_addr_location(thread, machine, cpumode,
-					   MAP__FUNCTION, ip, &al, NULL);
+					   MAP__FUNCTION, ip, &al);
 		if (al.sym != NULL) {
 			if (sort__has_parent && !*parent &&
-			    symbol__match_parent_regex(al.sym))
+			    symbol__match_regex(al.sym, &parent_regex))
 				*parent = al.sym;
-			if (!symbol_conf.use_callchain)
-				break;
+			else if (have_ignore_callees && root_al &&
+			  symbol__match_regex(al.sym, &ignore_callees_regex)) {
+				/* Treat this symbol as the root,
+				   forgetting its callees. */
+				*root_al = al;
+				callchain_cursor_reset(&callchain_cursor);
+			}
 		}
 
 		err = callchain_cursor_append(&callchain_cursor,
@@ -1237,15 +1362,15 @@ int machine__resolve_callchain(struct machine *machine,
 			       struct perf_evsel *evsel,
 			       struct thread *thread,
 			       struct perf_sample *sample,
-			       struct symbol **parent)
-
+			       struct symbol **parent,
+			       struct addr_location *root_al,
+			       int max_stack)
 {
 	int ret;
 
-	callchain_cursor_reset(&callchain_cursor);
-
 	ret = machine__resolve_callchain_sample(machine, thread,
-						sample->callchain, parent);
+						sample->callchain, parent,
+						root_al, max_stack);
 	if (ret)
 		return ret;
 
@@ -1261,6 +1386,41 @@ int machine__resolve_callchain(struct machine *machine,
 
 	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
 				   thread, evsel->attr.sample_regs_user,
-				   sample);
+				   sample, max_stack);
 
+}
+
+int machine__for_each_thread(struct machine *machine,
+			     int (*fn)(struct thread *thread, void *p),
+			     void *priv)
+{
+	struct rb_node *nd;
+	struct thread *thread;
+	int rc = 0;
+
+	for (nd = rb_first(&machine->threads); nd; nd = rb_next(nd)) {
+		thread = rb_entry(nd, struct thread, rb_node);
+		rc = fn(thread, priv);
+		if (rc != 0)
+			return rc;
+	}
+
+	list_for_each_entry(thread, &machine->dead_threads, node) {
+		rc = fn(thread, priv);
+		if (rc != 0)
+			return rc;
+	}
+	return rc;
+}
+
+int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
+				  struct target *target, struct thread_map *threads,
+				  perf_event__handler_t process, bool data_mmap)
+{
+	if (target__has_task(target))
+		return perf_event__synthesize_thread_map(tool, threads, process, machine, data_mmap);
+	else if (target__has_cpu(target))
+		return perf_event__synthesize_threads(tool, process, machine, data_mmap);
+	/* command specified */
+	return 0;
 }

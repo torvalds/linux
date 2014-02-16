@@ -1175,15 +1175,12 @@ static int e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		config->rx_discard_short_frames = 0x0;  /* 1=discard, 0=save */
 	}
 
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
-		     "[00-07]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
-		     c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
-		     "[08-15]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
-		     c[8], c[9], c[10], c[11], c[12], c[13], c[14], c[15]);
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
-		     "[16-23]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
-		     c[16], c[17], c[18], c[19], c[20], c[21], c[22], c[23]);
+	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[00-07]=%8ph\n",
+		     c + 0);
+	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[08-15]=%8ph\n",
+		     c + 8);
+	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[16-23]=%8ph\n",
+		     c + 16);
 	return 0;
 }
 
@@ -2988,7 +2985,6 @@ err_out_free_res:
 err_out_disable_pdev:
 	pci_disable_device(pdev);
 err_out_free_dev:
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 	return err;
 }
@@ -3006,7 +3002,6 @@ static void e100_remove(struct pci_dev *pdev)
 		free_netdev(netdev);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 
@@ -3039,7 +3034,7 @@ static void __e100_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		*enable_wake = false;
 	}
 
-	pci_disable_device(pdev);
+	pci_clear_master(pdev);
 }
 
 static int __e100_power_off(struct pci_dev *pdev, bool wake)
@@ -3069,7 +3064,7 @@ static int e100_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 
 	/* disable reverse auto-negotiation */
 	if (nic->phy == phy_82552_v) {
@@ -3160,7 +3155,7 @@ static void e100_io_resume(struct pci_dev *pdev)
 	struct nic *nic = netdev_priv(netdev);
 
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 
 	netif_device_attach(netdev);
 	if (netif_running(netdev)) {

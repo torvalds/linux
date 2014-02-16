@@ -52,9 +52,6 @@ static const struct snd_pcm_hardware bf5xx_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_MMAP_VALID |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_S24_LE |
-				   SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 0x10000,
 	.periods_min		= 1,
@@ -323,18 +320,16 @@ static struct snd_pcm_ops bf5xx_pcm_i2s_ops = {
 	.silence	= bf5xx_pcm_silence,
 };
 
-static u64 bf5xx_pcm_dmamask = DMA_BIT_MASK(32);
-
 static int bf5xx_pcm_i2s_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = bf5xx_pcm_hardware.buffer_bytes_max;
+	int ret;
 
 	pr_debug("%s enter\n", __func__);
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &bf5xx_pcm_dmamask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	return snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
 				SNDRV_DMA_TYPE_DEV, card->dev, size, size);

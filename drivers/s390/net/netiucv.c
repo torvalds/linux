@@ -105,15 +105,9 @@ MODULE_DESCRIPTION ("Linux for S/390 IUCV network driver");
 
 DECLARE_PER_CPU(char[256], iucv_dbf_txt_buf);
 
-/* Allow to sort out low debug levels early to avoid wasted sprints */
-static inline int iucv_dbf_passes(debug_info_t *dbf_grp, int level)
-{
-	return (level <= dbf_grp->level);
-}
-
 #define IUCV_DBF_TEXT_(name, level, text...) \
 	do { \
-		if (iucv_dbf_passes(iucv_dbf_##name, level)) { \
+		if (debug_level_enabled(iucv_dbf_##name, level)) { \
 			char* __buf = get_cpu_var(iucv_dbf_txt_buf); \
 			sprintf(__buf, text); \
 			debug_text_event(iucv_dbf_##name, level, __buf); \
@@ -130,26 +124,6 @@ static inline int iucv_dbf_passes(debug_info_t *dbf_grp, int level)
 /**
  * some more debug stuff
  */
-#define IUCV_HEXDUMP16(importance,header,ptr) \
-PRINT_##importance(header "%02x %02x %02x %02x  %02x %02x %02x %02x  " \
-		   "%02x %02x %02x %02x  %02x %02x %02x %02x\n", \
-		   *(((char*)ptr)),*(((char*)ptr)+1),*(((char*)ptr)+2), \
-		   *(((char*)ptr)+3),*(((char*)ptr)+4),*(((char*)ptr)+5), \
-		   *(((char*)ptr)+6),*(((char*)ptr)+7),*(((char*)ptr)+8), \
-		   *(((char*)ptr)+9),*(((char*)ptr)+10),*(((char*)ptr)+11), \
-		   *(((char*)ptr)+12),*(((char*)ptr)+13), \
-		   *(((char*)ptr)+14),*(((char*)ptr)+15)); \
-PRINT_##importance(header "%02x %02x %02x %02x  %02x %02x %02x %02x  " \
-		   "%02x %02x %02x %02x  %02x %02x %02x %02x\n", \
-		   *(((char*)ptr)+16),*(((char*)ptr)+17), \
-		   *(((char*)ptr)+18),*(((char*)ptr)+19), \
-		   *(((char*)ptr)+20),*(((char*)ptr)+21), \
-		   *(((char*)ptr)+22),*(((char*)ptr)+23), \
-		   *(((char*)ptr)+24),*(((char*)ptr)+25), \
-		   *(((char*)ptr)+26),*(((char*)ptr)+27), \
-		   *(((char*)ptr)+28),*(((char*)ptr)+29), \
-		   *(((char*)ptr)+30),*(((char*)ptr)+31));
-
 #define PRINTK_HEADER " iucv: "       /* for debugging */
 
 /* dummy device to make sure netiucv_pm functions are called */
@@ -765,8 +739,12 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 
 	IUCV_DBF_TEXT(trace, 4, __func__);
 
-	if (conn && conn->netdev)
-		privptr = netdev_priv(conn->netdev);
+	if (!conn || !conn->netdev) {
+		IUCV_DBF_TEXT(data, 2,
+			      "Send confirmation for unlinked connection\n");
+		return;
+	}
+	privptr = netdev_priv(conn->netdev);
 	conn->prof.tx_pending--;
 	if (single_flag) {
 		if ((skb = skb_dequeue(&conn->commit_queue))) {

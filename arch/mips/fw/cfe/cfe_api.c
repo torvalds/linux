@@ -406,12 +406,12 @@ int cfe_setenv(char *name, char *val)
 	return xiocb.xiocb_status;
 }
 
-int cfe_write(int handle, unsigned char *buffer, int length)
+int cfe_write(int handle, const char *buffer, int length)
 {
 	return cfe_writeblk(handle, 0, buffer, length);
 }
 
-int cfe_writeblk(int handle, s64 offset, unsigned char *buffer, int length)
+int cfe_writeblk(int handle, s64 offset, const char *buffer, int length)
 {
 	struct cfe_xiocb xiocb;
 

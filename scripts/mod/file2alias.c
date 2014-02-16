@@ -79,10 +79,12 @@ struct devtable **__start___devtable, **__stop___devtable;
 extern struct devtable *__start___devtable[], *__stop___devtable[];
 #endif /* __MACH__ */
 
-#if __GNUC__ == 3 && __GNUC_MINOR__ < 3
-# define __used			__attribute__((__unused__))
-#else
-# define __used			__attribute__((__used__))
+#if !defined(__used)
+# if __GNUC__ == 3 && __GNUC_MINOR__ < 3
+#  define __used			__attribute__((__unused__))
+# else
+#  define __used			__attribute__((__used__))
+# endif
 #endif
 
 /* Define a variable f that holds the value of field f of struct devid
@@ -208,8 +210,8 @@ static void do_usb_entry(void *symval,
 				range_lo < 0x9 ? "[%X-9" : "[%X",
 				range_lo);
 			sprintf(alias + strlen(alias),
-				range_hi > 0xA ? "a-%X]" : "%X]",
-				range_lo);
+				range_hi > 0xA ? "A-%X]" : "%X]",
+				range_hi);
 		}
 	}
 	if (bcdDevice_initial_digits < (sizeof(bcdDevice_lo) * 2 - 1))

@@ -38,6 +38,9 @@
 
 #include <linux/pci.h>
 #include <linux/export.h>
+#ifdef CONFIG_X86
+#include <asm/mtrr.h>
+#endif
 
 /**
  * Get the bus id.
@@ -181,7 +184,17 @@ int drm_getmap(struct drm_device *dev, void *data,
 	map->type = r_list->map->type;
 	map->flags = r_list->map->flags;
 	map->handle = (void *)(unsigned long) r_list->user_token;
-	map->mtrr = r_list->map->mtrr;
+
+#ifdef CONFIG_X86
+	/*
+	 * There appears to be exactly one user of the mtrr index: dritest.
+	 * It's easy enough to keep it working on non-PAT systems.
+	 */
+	map->mtrr = phys_wc_to_mtrr_index(r_list->map->mtrr);
+#else
+	map->mtrr = -1;
+#endif
+
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
@@ -204,29 +217,30 @@ int drm_getclient(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_client *client = data;
-	struct drm_file *pt;
-	int idx;
-	int i;
 
-	idx = client->idx;
-	i = 0;
+	/*
+	 * Hollowed-out getclient ioctl to keep some dead old drm tests/tools
+	 * not breaking completely. Userspace tools stop enumerating one they
+	 * get -EINVAL, hence this is the return value we need to hand back for
+	 * no clients tracked.
+	 *
+	 * Unfortunately some clients (*cough* libva *cough*) use this in a fun
+	 * attempt to figure out whether they're authenticated or not. Since
+	 * that's the only thing they care about, give it to the directly
+	 * instead of walking one giant list.
+	 */
+	if (client->idx == 0) {
+		client->auth = file_priv->authenticated;
+		client->pid = pid_vnr(file_priv->pid);
+		client->uid = from_kuid_munged(current_user_ns(),
+					       file_priv->uid);
+		client->magic = 0;
+		client->iocs = 0;
 
-	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(pt, &dev->filelist, lhead) {
-		if (i++ >= idx) {
-			client->auth = pt->authenticated;
-			client->pid = pid_vnr(pt->pid);
-			client->uid = from_kuid_munged(current_user_ns(), pt->uid);
-			client->magic = pt->magic;
-			client->iocs = pt->ioctl_count;
-			mutex_unlock(&dev->struct_mutex);
-
-			return 0;
-		}
+		return 0;
+	} else {
+		return -EINVAL;
 	}
-	mutex_unlock(&dev->struct_mutex);
-
-	return -EINVAL;
 }
 
 /**
@@ -243,20 +257,9 @@ int drm_getstats(struct drm_device *dev, void *data,
 		 struct drm_file *file_priv)
 {
 	struct drm_stats *stats = data;
-	int i;
 
+	/* Clear stats to prevent userspace from eating its stack garbage. */
 	memset(stats, 0, sizeof(*stats));
-
-	for (i = 0; i < dev->counters; i++) {
-		if (dev->types[i] == _DRM_STAT_LOCK)
-			stats->data[i].value =
-			    (file_priv->master->lock.hw_lock ? file_priv->master->lock.hw_lock->lock : 0);
-		else
-			stats->data[i].value = atomic_read(&dev->counts[i]);
-		stats->data[i].type = dev->types[i];
-	}
-
-	stats->count = dev->counters;
 
 	return 0;
 }
@@ -290,9 +293,33 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	case DRM_CAP_TIMESTAMP_MONOTONIC:
 		req->value = drm_timestamp_monotonic;
 		break;
+	case DRM_CAP_ASYNC_PAGE_FLIP:
+		req->value = dev->mode_config.async_page_flip;
+		break;
 	default:
 		return -EINVAL;
 	}
+	return 0;
+}
+
+/**
+ * Set device/driver capabilities
+ */
+int
+drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	struct drm_set_client_cap *req = data;
+
+	switch (req->capability) {
+	case DRM_CLIENT_CAP_STEREO_3D:
+		if (req->value > 1)
+			return -EINVAL;
+		file_priv->stereo_allowed = req->value;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -339,9 +366,6 @@ int drm_setversion(struct drm_device *dev, void *data, struct drm_file *file_pri
 			retcode = -EINVAL;
 			goto done;
 		}
-
-		if (dev->driver->set_version)
-			dev->driver->set_version(dev, sv);
 	}
 
 done:

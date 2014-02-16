@@ -15,7 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/of_i2c.h>
+#include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <sound/soc.h>
@@ -130,8 +130,6 @@ static int imx_wm8962_set_bias_level(struct snd_soc_card *card,
 		break;
 	}
 
-	dapm->bias_level = level;
-
 	return 0;
 }
 
@@ -215,9 +213,10 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 		goto fail;
 	}
 	codec_dev = of_find_i2c_device_by_node(codec_np);
-	if (!codec_dev || !codec_dev->driver) {
+	if (!codec_dev || !codec_dev->dev.driver) {
 		dev_err(&pdev->dev, "failed to find codec platform device\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -265,7 +264,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	data->card.late_probe = imx_wm8962_late_probe;
 	data->card.set_bias_level = imx_wm8962_set_bias_level;
 
-	ret = snd_soc_register_card(&data->card);
+	ret = devm_snd_soc_register_card(&pdev->dev, &data->card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 		goto clk_fail;
@@ -278,8 +277,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	return 0;
 
 clk_fail:
-	if (!IS_ERR(data->codec_clk))
-		clk_disable_unprepare(data->codec_clk);
+	clk_disable_unprepare(data->codec_clk);
 fail:
 	if (ssi_np)
 		of_node_put(ssi_np);
@@ -295,7 +293,6 @@ static int imx_wm8962_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(data->codec_clk))
 		clk_disable_unprepare(data->codec_clk);
-	snd_soc_unregister_card(&data->card);
 
 	return 0;
 }
@@ -310,6 +307,7 @@ static struct platform_driver imx_wm8962_driver = {
 	.driver = {
 		.name = "imx-wm8962",
 		.owner = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_wm8962_dt_ids,
 	},
 	.probe = imx_wm8962_probe,

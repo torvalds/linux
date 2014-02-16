@@ -89,7 +89,6 @@ synchronous non-Urb based transfers.
 #include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>

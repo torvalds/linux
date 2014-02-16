@@ -28,8 +28,10 @@
 #ifdef CONFIG_SAMSUNG_ATAGS
 #include <mach/hardware.h>
 #include <mach/map.h>
+#ifndef CONFIG_ARCH_EXYNOS
 #include <mach/regs-clock.h>
 #include <mach/regs-irq.h>
+#endif
 #include <mach/irqs.h>
 #endif
 
@@ -80,7 +82,7 @@ unsigned char pm_uart_udivslot;
 
 #ifdef CONFIG_SAMSUNG_PM_DEBUG
 
-static struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
+static struct pm_uart_save uart_save;
 
 static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 {
@@ -101,11 +103,7 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 
 static void s3c_pm_save_uarts(void)
 {
-	struct pm_uart_save *save = uart_save;
-	unsigned int uart;
-
-	for (uart = 0; uart < CONFIG_SERIAL_SAMSUNG_UARTS; uart++, save++)
-		s3c_pm_save_uart(uart, save);
+	s3c_pm_save_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
 }
 
 static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
@@ -126,11 +124,7 @@ static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 
 static void s3c_pm_restore_uarts(void)
 {
-	struct pm_uart_save *save = uart_save;
-	unsigned int uart;
-
-	for (uart = 0; uart < CONFIG_SERIAL_SAMSUNG_UARTS; uart++, save++)
-		s3c_pm_restore_uart(uart, save);
+	s3c_pm_restore_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
 }
 #else
 static void s3c_pm_save_uarts(void) { }
@@ -190,7 +184,7 @@ void s3c_pm_do_save(struct sleep_save *ptr, int count)
  * restore the UARTs state yet
 */
 
-void s3c_pm_do_restore(struct sleep_save *ptr, int count)
+void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++) {
 		printk(KERN_DEBUG "restore %p (restore %08lx, was %08x)\n",
@@ -211,7 +205,7 @@ void s3c_pm_do_restore(struct sleep_save *ptr, int count)
  * peripherals, as things may be changing!
 */
 
-void s3c_pm_do_restore_core(struct sleep_save *ptr, int count)
+void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++)
 		__raw_writel(ptr->val, ptr->reg);

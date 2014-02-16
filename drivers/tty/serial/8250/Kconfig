@@ -41,7 +41,7 @@ config SERIAL_8250_DEPRECATED_OPTIONS
 	  accept kernel parameters in both forms like 8250_core.nr_uarts=4 and
 	  8250.nr_uarts=4. We now renamed the module back to 8250, but if
 	  anybody noticed in 3.7 and changed their userspace we still have to
-	  keep the 8350_core.* options around until they revert the changes
+	  keep the 8250_core.* options around until they revert the changes
 	  they already did.
 
 	  If 8250 is built as a module, this adds 8250_core alias instead. 
@@ -116,6 +116,8 @@ config SERIAL_8250_PCI
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 	  Saves about 9K.
+	  Note that serial ports on NetMos 9835 Multi-I/O cards are handled
+	  by the parport_serial driver, enabled with CONFIG_PARPORT_SERIAL.
 
 config SERIAL_8250_HP300
 	tristate

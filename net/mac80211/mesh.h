@@ -58,6 +58,7 @@ enum mesh_path_flags {
  * @MESH_WORK_ROOT: the mesh root station needs to send a frame
  * @MESH_WORK_DRIFT_ADJUST: time to compensate for clock drift relative to other
  * mesh nodes
+ * @MESH_WORK_MBSS_CHANGED: rebuild beacon and notify driver of BSS changes
  */
 enum mesh_deferred_task_flags {
 	MESH_WORK_HOUSEKEEPING,
@@ -65,6 +66,7 @@ enum mesh_deferred_task_flags {
 	MESH_WORK_GROW_MPP_TABLE,
 	MESH_WORK_ROOT,
 	MESH_WORK_DRIFT_ADJUST,
+	MESH_WORK_MBSS_CHANGED,
 };
 
 /**
@@ -188,7 +190,6 @@ struct mesh_rmc {
 	u32 idx_mask;
 };
 
-#define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
 #define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
 
 #define MESH_PATH_EXPIRE (600 * HZ)
@@ -214,8 +215,6 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie);
 void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
-void mesh_mgmt_ies_add(struct ieee80211_sub_if_data *sdata,
-		       struct sk_buff *skb);
 int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 			 struct sk_buff *skb);
 int mesh_add_meshid_ie(struct ieee80211_sub_if_data *sdata,
@@ -302,8 +301,8 @@ void mesh_mpath_table_grow(void);
 void mesh_mpp_table_grow(void);
 /* Mesh paths */
 int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
-		       u8 ttl, const u8 *target, __le32 target_sn,
-		       __le16 target_rcode, const u8 *ra);
+		       u8 ttl, const u8 *target, u32 target_sn,
+		       u16 target_rcode, const u8 *ra);
 void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta);
 void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);
@@ -324,14 +323,14 @@ static inline
 u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_inc(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
+	return mesh_accept_plinks_update(sdata) | BSS_CHANGED_BEACON;
 }
 
 static inline
 u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_dec(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
+	return mesh_accept_plinks_update(sdata) | BSS_CHANGED_BEACON;
 }
 
 static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)

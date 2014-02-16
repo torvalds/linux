@@ -339,7 +339,7 @@ static int fsl_spi_bufs(struct spi_device *spi, struct spi_transfer *t,
 	mpc8xxx_spi->tx = t->tx_buf;
 	mpc8xxx_spi->rx = t->rx_buf;
 
-	INIT_COMPLETION(mpc8xxx_spi->done);
+	reinit_completion(&mpc8xxx_spi->done);
 
 	if (mpc8xxx_spi->flags & SPI_CPM_MODE)
 		ret = fsl_spi_cpm_bufs(mpc8xxx_spi, t, is_dma_mapped);
@@ -574,7 +574,7 @@ static void fsl_spi_grlib_cs_control(struct spi_device *spi, bool on)
 
 static void fsl_spi_grlib_probe(struct device *dev)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
 	struct fsl_spi_reg *reg_base = mpc8xxx_spi->reg_base;
@@ -600,7 +600,7 @@ static void fsl_spi_grlib_probe(struct device *dev)
 static struct spi_master * fsl_spi_probe(struct device *dev,
 		struct resource *mem, unsigned int irq)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct spi_master *master;
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	struct fsl_spi_reg *reg_base;
@@ -700,7 +700,8 @@ err:
 static void fsl_spi_cs_control(struct spi_device *spi, bool on)
 {
 	struct device *dev = spi->dev.parent->parent;
-	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(dev->platform_data);
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
+	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
 	u16 cs = spi->chip_select;
 	int gpio = pinfo->gpios[cs];
 	bool alow = pinfo->alow_flags[cs];
@@ -711,7 +712,7 @@ static void fsl_spi_cs_control(struct spi_device *spi, bool on)
 static int of_fsl_spi_get_chipselects(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
 	int ngpios;
 	int i = 0;
@@ -790,7 +791,7 @@ err_alloc_flags:
 
 static int of_fsl_spi_free_chipselects(struct device *dev)
 {
-	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
 	int i;
 
@@ -889,7 +890,7 @@ static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 	int irq;
 	struct spi_master *master;
 
-	if (!pdev->dev.platform_data)
+	if (!dev_get_platdata(&pdev->dev))
 		return -EINVAL;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -901,7 +902,7 @@ static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	master = fsl_spi_probe(&pdev->dev, mem, irq);
-	return PTR_RET(master);
+	return PTR_ERR_OR_ZERO(master);
 }
 
 static int plat_mpc8xxx_spi_remove(struct platform_device *pdev)

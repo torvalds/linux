@@ -102,7 +102,8 @@ BEGIN_FW_FTR_SECTION
 	/* if from user, see if there are any DTL entries to process */
 	ld	r10,PACALPPACAPTR(r13)	/* get ptr to VPA */
 	ld	r11,PACA_DTL_RIDX(r13)	/* get log read index */
-	ld	r10,LPPACA_DTLIDX(r10)	/* get log write index */
+	addi	r10,r10,LPPACA_DTLIDX
+	LDX_BE	r10,0,r10		/* get log write index */
 	cmpd	cr1,r11,r10
 	beq+	cr1,33f
 	bl	.accumulate_stolen_time
@@ -449,15 +450,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_DSCR)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 BEGIN_FTR_SECTION
-	/*
-	 * Back up the TAR across context switches.  Note that the TAR is not
-	 * available for use in the kernel.  (To provide this, the TAR should
-	 * be backed up/restored on exception entry/exit instead, and be in
-	 * pt_regs.  FIXME, this should be in pt_regs anyway (for debug).)
-	 */
-	mfspr	r0,SPRN_TAR
-	std	r0,THREAD_TAR(r3)
-
 	/* Event based branch registers */
 	mfspr	r0, SPRN_BESCR
 	std	r0, THREAD_BESCR(r3)
@@ -531,9 +523,11 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	 */
 	ld	r9,PACA_SLBSHADOWPTR(r13)
 	li	r12,0
-	std	r12,SLBSHADOW_STACKESID(r9) /* Clear ESID */
-	std	r7,SLBSHADOW_STACKVSID(r9)  /* Save VSID */
-	std	r0,SLBSHADOW_STACKESID(r9)  /* Save ESID */
+	std	r12,SLBSHADOW_STACKESID(r9)	/* Clear ESID */
+	li	r12,SLBSHADOW_STACKVSID
+	STDX_BE	r7,r12,r9			/* Save VSID */
+	li	r12,SLBSHADOW_STACKESID
+	STDX_BE	r0,r12,r9			/* Save ESID */
 
 	/* No need to check for MMU_FTR_NO_SLBIE_B here, since when
 	 * we have 1TB segments, the only CPUs known to have the errata
@@ -586,7 +580,13 @@ BEGIN_FTR_SECTION
 	cmpwi	r6,0
 	bne	1f
 	ld	r0,0(r7)
-1:	cmpd	r0,r25
+1:
+BEGIN_FTR_SECTION_NESTED(70)
+	mfspr	r8, SPRN_FSCR
+	rldimi	r8, r6, FSCR_DSCR_LG, (63 - FSCR_DSCR_LG)
+	mtspr	SPRN_FSCR, r8
+END_FTR_SECTION_NESTED(CPU_FTR_ARCH_207S, CPU_FTR_ARCH_207S, 70)
+	cmpd	r0,r25
 	beq	2f
 	mtspr	SPRN_DSCR,r0
 2:
@@ -629,21 +629,51 @@ _GLOBAL(ret_from_except_lite)
 
 	CURRENT_THREAD_INFO(r9, r1)
 	ld	r3,_MSR(r1)
+#ifdef CONFIG_PPC_BOOK3E
+	ld	r10,PACACURRENT(r13)
+#endif /* CONFIG_PPC_BOOK3E */
 	ld	r4,TI_FLAGS(r9)
 	andi.	r3,r3,MSR_PR
 	beq	resume_kernel
+#ifdef CONFIG_PPC_BOOK3E
+	lwz	r3,(THREAD+THREAD_DBCR0)(r10)
+#endif /* CONFIG_PPC_BOOK3E */
 
 	/* Check current_thread_info()->flags */
 	andi.	r0,r4,_TIF_USER_WORK_MASK
+#ifdef CONFIG_PPC_BOOK3E
+	bne	1f
+	/*
+	 * Check to see if the dbcr0 register is set up to debug.
+	 * Use the internal debug mode bit to do this.
+	 */
+	andis.	r0,r3,DBCR0_IDM@h
 	beq	restore
-
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	beq	1f
+	mfmsr	r0
+	rlwinm	r0,r0,0,~MSR_DE	/* Clear MSR.DE */
+	mtmsr	r0
+	mtspr	SPRN_DBCR0,r3
+	li	r10, -1
+	mtspr	SPRN_DBSR,r10
+	b	restore
+#else
+	beq	restore
+#endif
+1:	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq	2f
 	bl	.restore_interrupts
 	SCHEDULE_USER
 	b	.ret_from_except_lite
-
-1:	bl	.save_nvgprs
+2:
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	andi.	r0,r4,_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM
+	bne	3f		/* only restore TM if nothing else to do */
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.restore_tm_state
+	b	restore
+3:
+#endif
+	bl	.save_nvgprs
 	bl	.restore_interrupts
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_notify_resume
@@ -651,9 +681,7 @@ _GLOBAL(ret_from_except_lite)
 
 resume_kernel:
 	/* check current_thread_info, _TIF_EMULATE_STACK_STORE */
-	CURRENT_THREAD_INFO(r9, r1)
-	ld	r8,TI_FLAGS(r9)
-	andis.	r8,r8,_TIF_EMULATE_STACK_STORE@h
+	andis.	r8,r4,_TIF_EMULATE_STACK_STORE@h
 	beq+	1f
 
 	addi	r8,r1,INT_FRAME_SIZE	/* Get the kprobed function entry */
@@ -699,9 +727,9 @@ resume_kernel:
 
 	/*
 	 * Here we are preempting the current task. We want to make
-	 * sure we are soft-disabled first
+	 * sure we are soft-disabled first and reconcile irq state.
 	 */
-	SOFT_DISABLE_INTS(r3,r4)
+	RECONCILE_IRQ_STATE(r3,r4)
 1:	bl	.preempt_schedule_irq
 
 	/* Re-test flags and eventually loop */
@@ -798,6 +826,12 @@ fast_exception_return:
 	andi.	r0,r3,MSR_RI
 	beq-	unrecov_restore
 
+	/* Load PPR from thread struct before we clear MSR:RI */
+BEGIN_FTR_SECTION
+	ld	r2,PACACURRENT(r13)
+	ld	r2,TASKTHREADPPR(r2)
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
 	/*
 	 * Clear RI before restoring r13.  If we are returning to
 	 * userspace and we take an exception after restoring r13,
@@ -818,8 +852,10 @@ fast_exception_return:
 	 */
 	andi.	r0,r3,MSR_PR
 	beq	1f
+BEGIN_FTR_SECTION
+	mtspr	SPRN_PPR,r2	/* Restore PPR */
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ACCOUNT_CPU_USER_EXIT(r2, r4)
-	RESTORE_PPR(r2, r4)
 	REST_GPR(13, r1)
 1:
 	mtspr	SPRN_SRR1,r3
@@ -995,7 +1031,7 @@ _GLOBAL(enter_rtas)
 	
         li      r9,1
         rldicr  r9,r9,MSR_SF_LG,(63-MSR_SF_LG)
-	ori	r9,r9,MSR_IR|MSR_DR|MSR_FE0|MSR_FE1|MSR_FP|MSR_RI
+	ori	r9,r9,MSR_IR|MSR_DR|MSR_FE0|MSR_FE1|MSR_FP|MSR_RI|MSR_LE
 	andc	r6,r0,r9
 	sync				/* disable interrupts so SRR0/1 */
 	mtmsrd	r0			/* don't get trashed */
@@ -1010,6 +1046,8 @@ _GLOBAL(enter_rtas)
 	b	.	/* prevent speculative execution */
 
 _STATIC(rtas_return_loc)
+	FIXUP_ENDIAN
+
 	/* relocation is off at this point */
 	GET_PACA(r4)
 	clrldi	r4,r4,2			/* convert to realmode address */
@@ -1081,28 +1119,30 @@ _GLOBAL(enter_prom)
 	std	r10,_CCR(r1)
 	std	r11,_MSR(r1)
 
-	/* Get the PROM entrypoint */
-	mtlr	r4
+	/* Put PROM address in SRR0 */
+	mtsrr0	r4
 
-	/* Switch MSR to 32 bits mode
+	/* Setup our trampoline return addr in LR */
+	bcl	20,31,$+4
+0:	mflr	r4
+	addi	r4,r4,(1f - 0b)
+       	mtlr	r4
+
+	/* Prepare a 32-bit mode big endian MSR
 	 */
 #ifdef CONFIG_PPC_BOOK3E
 	rlwinm	r11,r11,0,1,31
-	mtmsr	r11
+	mtsrr1	r11
+	rfi
 #else /* CONFIG_PPC_BOOK3E */
-        mfmsr   r11
-        li      r12,1
-        rldicr  r12,r12,MSR_SF_LG,(63-MSR_SF_LG)
-        andc    r11,r11,r12
-        li      r12,1
-        rldicr  r12,r12,MSR_ISF_LG,(63-MSR_ISF_LG)
-        andc    r11,r11,r12
-        mtmsrd  r11
+	LOAD_REG_IMMEDIATE(r12, MSR_SF | MSR_ISF | MSR_LE)
+	andc	r11,r11,r12
+	mtsrr1	r11
+	rfid
 #endif /* CONFIG_PPC_BOOK3E */
-        isync
 
-	/* Enter PROM here... */
-	blrl
+1:	/* Return from OF */
+	FIXUP_ENDIAN
 
 	/* Just make sure that r1 top 32 bits didn't get
 	 * corrupt by OF

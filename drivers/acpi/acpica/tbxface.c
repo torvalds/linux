@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "actables.h"
@@ -147,6 +148,8 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_tables)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_reallocate_root_table
@@ -161,7 +164,7 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
  *              kernel.
  *
  ******************************************************************************/
-acpi_status acpi_reallocate_root_table(void)
+acpi_status __init acpi_reallocate_root_table(void)
 {
 	acpi_status status;
 
@@ -180,6 +183,8 @@ acpi_status acpi_reallocate_root_table(void)
 	status = acpi_tb_resize_root_table_list();
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_reallocate_root_table)
 
 /*******************************************************************************
  *
@@ -356,6 +361,7 @@ acpi_get_table_with_size(char *signature,
 
 	return (AE_NOT_FOUND);
 }
+
 ACPI_EXPORT_SYMBOL(acpi_get_table_with_size)
 
 acpi_status
@@ -367,6 +373,7 @@ acpi_get_table(char *signature,
 	return acpi_get_table_with_size(signature,
 		       instance, out_table, &tbl_size);
 }
+
 ACPI_EXPORT_SYMBOL(acpi_get_table)
 
 /*******************************************************************************
@@ -424,7 +431,6 @@ acpi_get_table_by_index(u32 table_index, struct acpi_table_header **table)
 
 ACPI_EXPORT_SYMBOL(acpi_get_table_by_index)
 
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_table_handler
@@ -465,7 +471,7 @@ acpi_install_table_handler(acpi_table_handler handler, void *context)
 	acpi_gbl_table_handler = handler;
 	acpi_gbl_table_handler_context = context;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -506,7 +512,7 @@ acpi_status acpi_remove_table_handler(acpi_table_handler handler)
 
 	acpi_gbl_table_handler = NULL;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }

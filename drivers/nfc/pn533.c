@@ -13,9 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/device.h>
@@ -83,11 +81,19 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 
 /* How much time we spend listening for initiators */
 #define PN533_LISTEN_TIME 2
+/* Delay between each poll frame (ms) */
+#define PN533_POLL_INTERVAL 10
 
-/* Standard pn533 frame definitions */
+/* Standard pn533 frame definitions (standard and extended)*/
 #define PN533_STD_FRAME_HEADER_LEN (sizeof(struct pn533_std_frame) \
 					+ 2) /* data[0] TFI, data[1] CC */
 #define PN533_STD_FRAME_TAIL_LEN 2 /* data[len] DCS, data[len + 1] postamble*/
+
+#define PN533_EXT_FRAME_HEADER_LEN (sizeof(struct pn533_ext_frame) \
+					+ 2) /* data[0] TFI, data[1] CC */
+
+#define PN533_CMD_DATAEXCH_DATA_MAXLEN	262
+#define PN533_CMD_DATAFRAME_MAXLEN	240	/* max data length (send) */
 
 /*
  * Max extended frame payload len, excluding TFI and CC
@@ -99,6 +105,10 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 				  Postamble (1) */
 #define PN533_STD_FRAME_CHECKSUM(f) (f->data[f->datalen])
 #define PN533_STD_FRAME_POSTAMBLE(f) (f->data[f->datalen + 1])
+/* Half start code (3), LEN (4) should be 0xffff for extended frame */
+#define PN533_STD_IS_EXTENDED(hdr) ((hdr)->datalen == 0xFF \
+					&& (hdr)->datalen_checksum == 0xFF)
+#define PN533_EXT_FRAME_CHECKSUM(f) (f->data[be16_to_cpu(f->datalen)])
 
 /* start of frame */
 #define PN533_STD_FRAME_SOF 0x00FF
@@ -124,7 +134,7 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_ACR122_RDR_TO_PC_ESCAPE 0x83
 
 /* PN533 Commands */
-#define PN533_STD_FRAME_CMD(f) (f->data[1])
+#define PN533_FRAME_CMD(f) (f->data[1])
 
 #define PN533_CMD_GET_FIRMWARE_VERSION 0x02
 #define PN533_CMD_RF_CONFIGURATION 0x32
@@ -138,6 +148,7 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_CMD_TG_INIT_AS_TARGET 0x8c
 #define PN533_CMD_TG_GET_DATA 0x86
 #define PN533_CMD_TG_SET_DATA 0x8e
+#define PN533_CMD_TG_SET_META_DATA 0x94
 #define PN533_CMD_UNDEF 0xff
 
 #define PN533_CMD_RESPONSE(cmd) (cmd + 1)
@@ -168,8 +179,9 @@ struct pn533_fw_version {
 #define PN533_CFGITEM_MAX_RETRIES 0x05
 #define PN533_CFGITEM_PASORI      0x82
 
-#define PN533_CFGITEM_RF_FIELD_ON  0x1
-#define PN533_CFGITEM_RF_FIELD_OFF 0x0
+#define PN533_CFGITEM_RF_FIELD_AUTO_RFCA 0x2
+#define PN533_CFGITEM_RF_FIELD_ON        0x1
+#define PN533_CFGITEM_RF_FIELD_OFF       0x0
 
 #define PN533_CONFIG_TIMING_102 0xb
 #define PN533_CONFIG_TIMING_204 0xc
@@ -257,8 +269,8 @@ static const struct pn533_poll_modulations poll_mod[] = {
 			.initiator_data.felica = {
 				.opcode = PN533_FELICA_OPC_SENSF_REQ,
 				.sc = PN533_FELICA_SENSF_SC_ALL,
-				.rc = PN533_FELICA_SENSF_RC_NO_SYSTEM_CODE,
-				.tsn = 0,
+				.rc = PN533_FELICA_SENSF_RC_SYSTEM_CODE,
+				.tsn = 0x03,
 			},
 		},
 		.len = 7,
@@ -270,8 +282,8 @@ static const struct pn533_poll_modulations poll_mod[] = {
 			.initiator_data.felica = {
 				.opcode = PN533_FELICA_OPC_SENSF_REQ,
 				.sc = PN533_FELICA_SENSF_SC_ALL,
-				.rc = PN533_FELICA_SENSF_RC_NO_SYSTEM_CODE,
-				.tsn = 0,
+				.rc = PN533_FELICA_SENSF_RC_SYSTEM_CODE,
+				.tsn = 0x03,
 			},
 		 },
 		.len = 7,
@@ -352,13 +364,18 @@ struct pn533 {
 	struct urb *in_urb;
 
 	struct sk_buff_head resp_q;
+	struct sk_buff_head fragment_skb;
 
 	struct workqueue_struct	*wq;
 	struct work_struct cmd_work;
 	struct work_struct cmd_complete_work;
-	struct work_struct poll_work;
-	struct work_struct mi_work;
+	struct delayed_work poll_work;
+	struct work_struct mi_rx_work;
+	struct work_struct mi_tx_work;
+	struct work_struct mi_tm_rx_work;
+	struct work_struct mi_tm_tx_work;
 	struct work_struct tg_work;
+	struct work_struct rf_work;
 
 	struct list_head cmd_queue;
 	struct pn533_cmd *cmd;
@@ -366,10 +383,12 @@ struct pn533 {
 	struct mutex cmd_lock;  /* protects cmd queue */
 
 	void *cmd_complete_mi_arg;
+	void *cmd_complete_dep_arg;
 
 	struct pn533_poll_modulations *poll_mod_active[PN533_POLL_MOD_MAX + 1];
 	u8 poll_mod_count;
 	u8 poll_mod_curr;
+	u8 poll_dep;
 	u32 poll_protocols;
 	u32 listen_protocols;
 	struct timer_list listen_timer;
@@ -404,6 +423,15 @@ struct pn533_std_frame {
 	u8 data[];
 } __packed;
 
+struct pn533_ext_frame {	/* Extended Information frame */
+	u8 preamble;
+	__be16 start_frame;
+	__be16 eif_flag;	/* fixed to 0xFFFF */
+	__be16 datalen;
+	u8 datalen_checksum;
+	u8 data[];
+} __packed;
+
 struct pn533_frame_ops {
 	void (*tx_frame_init)(void *frame, u8 cmd_code);
 	void (*tx_frame_finish)(void *frame);
@@ -411,7 +439,7 @@ struct pn533_frame_ops {
 	int tx_header_len;
 	int tx_tail_len;
 
-	bool (*rx_is_frame_valid)(void *frame);
+	bool (*rx_is_frame_valid)(void *frame, struct pn533 *dev);
 	int (*rx_frame_size)(void *frame);
 	int rx_header_len;
 	int rx_tail_len;
@@ -486,11 +514,14 @@ static void pn533_acr122_tx_update_payload_len(void *_frame, int len)
 	frame->datalen += len;
 }
 
-static bool pn533_acr122_is_rx_frame_valid(void *_frame)
+static bool pn533_acr122_is_rx_frame_valid(void *_frame, struct pn533 *dev)
 {
 	struct pn533_acr122_rx_frame *frame = _frame;
 
 	if (frame->ccid.type != 0x83)
+		return false;
+
+	if (!frame->ccid.datalen)
 		return false;
 
 	if (frame->data[frame->ccid.datalen - 2] == 0x63)
@@ -511,7 +542,7 @@ static u8 pn533_acr122_get_cmd_code(void *frame)
 {
 	struct pn533_acr122_rx_frame *f = frame;
 
-	return PN533_STD_FRAME_CMD(f);
+	return PN533_FRAME_CMD(f);
 }
 
 static struct pn533_frame_ops pn533_acr122_frame_ops = {
@@ -529,6 +560,12 @@ static struct pn533_frame_ops pn533_acr122_frame_ops = {
 	.max_payload_len = PN533_ACR122_FRAME_MAX_PAYLOAD_LEN,
 	.get_cmd_code = pn533_acr122_get_cmd_code,
 };
+
+/* The rule: value(high byte) + value(low byte) + checksum = 0 */
+static inline u8 pn533_ext_checksum(u16 value)
+{
+	return ~(u8)(((value & 0xFF00) >> 8) + (u8)(value & 0xFF)) + 1;
+}
 
 /* The rule: value + checksum = 0 */
 static inline u8 pn533_std_checksum(u8 value)
@@ -555,7 +592,7 @@ static void pn533_std_tx_frame_init(void *_frame, u8 cmd_code)
 	frame->preamble = 0;
 	frame->start_frame = cpu_to_be16(PN533_STD_FRAME_SOF);
 	PN533_STD_FRAME_IDENTIFIER(frame) = PN533_STD_FRAME_DIR_OUT;
-	PN533_STD_FRAME_CMD(frame) = cmd_code;
+	PN533_FRAME_CMD(frame) = cmd_code;
 	frame->datalen = 2;
 }
 
@@ -578,21 +615,41 @@ static void pn533_std_tx_update_payload_len(void *_frame, int len)
 	frame->datalen += len;
 }
 
-static bool pn533_std_rx_frame_is_valid(void *_frame)
+static bool pn533_std_rx_frame_is_valid(void *_frame, struct pn533 *dev)
 {
 	u8 checksum;
-	struct pn533_std_frame *frame = _frame;
+	struct pn533_std_frame *stdf = _frame;
 
-	if (frame->start_frame != cpu_to_be16(PN533_STD_FRAME_SOF))
+	if (stdf->start_frame != cpu_to_be16(PN533_STD_FRAME_SOF))
 		return false;
 
-	checksum = pn533_std_checksum(frame->datalen);
-	if (checksum != frame->datalen_checksum)
-		return false;
+	if (likely(!PN533_STD_IS_EXTENDED(stdf))) {
+		/* Standard frame code */
+		dev->ops->rx_header_len = PN533_STD_FRAME_HEADER_LEN;
 
-	checksum = pn533_std_data_checksum(frame->data, frame->datalen);
-	if (checksum != PN533_STD_FRAME_CHECKSUM(frame))
-		return false;
+		checksum = pn533_std_checksum(stdf->datalen);
+		if (checksum != stdf->datalen_checksum)
+			return false;
+
+		checksum = pn533_std_data_checksum(stdf->data, stdf->datalen);
+		if (checksum != PN533_STD_FRAME_CHECKSUM(stdf))
+			return false;
+	} else {
+		/* Extended */
+		struct pn533_ext_frame *eif = _frame;
+
+		dev->ops->rx_header_len = PN533_EXT_FRAME_HEADER_LEN;
+
+		checksum = pn533_ext_checksum(be16_to_cpu(eif->datalen));
+		if (checksum != eif->datalen_checksum)
+			return false;
+
+		/* check data checksum */
+		checksum = pn533_std_data_checksum(eif->data,
+						   be16_to_cpu(eif->datalen));
+		if (checksum != PN533_EXT_FRAME_CHECKSUM(eif))
+			return false;
+	}
 
 	return true;
 }
@@ -612,6 +669,14 @@ static inline int pn533_std_rx_frame_size(void *frame)
 {
 	struct pn533_std_frame *f = frame;
 
+	/* check for Extended Information frame */
+	if (PN533_STD_IS_EXTENDED(f)) {
+		struct pn533_ext_frame *eif = frame;
+
+		return sizeof(struct pn533_ext_frame)
+			+ be16_to_cpu(eif->datalen) + PN533_STD_FRAME_TAIL_LEN;
+	}
+
 	return sizeof(struct pn533_std_frame) + f->datalen +
 	       PN533_STD_FRAME_TAIL_LEN;
 }
@@ -619,8 +684,12 @@ static inline int pn533_std_rx_frame_size(void *frame)
 static u8 pn533_std_get_cmd_code(void *frame)
 {
 	struct pn533_std_frame *f = frame;
+	struct pn533_ext_frame *eif = frame;
 
-	return PN533_STD_FRAME_CMD(f);
+	if (PN533_STD_IS_EXTENDED(f))
+		return PN533_FRAME_CMD(eif);
+	else
+		return PN533_FRAME_CMD(f);
 }
 
 static struct pn533_frame_ops pn533_std_frame_ops = {
@@ -658,32 +727,32 @@ static void pn533_recv_response(struct urb *urb)
 		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-		nfc_dev_dbg(&dev->interface->dev,
-			    "The urb has been canceled (status %d)",
-			    urb->status);
+		dev_dbg(&dev->interface->dev,
+			"The urb has been canceled (status %d)\n",
+			urb->status);
 		goto sched_wq;
 	case -ESHUTDOWN:
 	default:
-		nfc_dev_err(&dev->interface->dev,
-			    "Urb failure (status %d)", urb->status);
+		nfc_err(&dev->interface->dev,
+			"Urb failure (status %d)\n", urb->status);
 		goto sched_wq;
 	}
 
 	in_frame = dev->in_urb->transfer_buffer;
 
-	nfc_dev_dbg(&dev->interface->dev, "Received a frame.");
+	dev_dbg(&dev->interface->dev, "Received a frame\n");
 	print_hex_dump_debug("PN533 RX: ", DUMP_PREFIX_NONE, 16, 1, in_frame,
 			     dev->ops->rx_frame_size(in_frame), false);
 
-	if (!dev->ops->rx_is_frame_valid(in_frame)) {
-		nfc_dev_err(&dev->interface->dev, "Received an invalid frame");
+	if (!dev->ops->rx_is_frame_valid(in_frame, dev)) {
+		nfc_err(&dev->interface->dev, "Received an invalid frame\n");
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
 
 	if (!pn533_rx_frame_is_cmd_response(dev, in_frame)) {
-		nfc_dev_err(&dev->interface->dev,
-			    "It it not the response to the last command");
+		nfc_err(&dev->interface->dev,
+			"It it not the response to the last command\n");
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
@@ -713,29 +782,29 @@ static void pn533_recv_ack(struct urb *urb)
 		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-		nfc_dev_dbg(&dev->interface->dev,
-			    "The urb has been stopped (status %d)",
-			    urb->status);
+		dev_dbg(&dev->interface->dev,
+			"The urb has been stopped (status %d)\n",
+			urb->status);
 		goto sched_wq;
 	case -ESHUTDOWN:
 	default:
-		nfc_dev_err(&dev->interface->dev,
-			    "Urb failure (status %d)", urb->status);
+		nfc_err(&dev->interface->dev,
+			"Urb failure (status %d)\n", urb->status);
 		goto sched_wq;
 	}
 
 	in_frame = dev->in_urb->transfer_buffer;
 
 	if (!pn533_std_rx_frame_is_ack(in_frame)) {
-		nfc_dev_err(&dev->interface->dev, "Received an invalid ack");
+		nfc_err(&dev->interface->dev, "Received an invalid ack\n");
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
 
 	rc = pn533_submit_urb_for_response(dev, GFP_ATOMIC);
 	if (rc) {
-		nfc_dev_err(&dev->interface->dev,
-			    "usb_submit_urb failed with result %d", rc);
+		nfc_err(&dev->interface->dev,
+			"usb_submit_urb failed with result %d\n", rc);
 		cmd->status = rc;
 		goto sched_wq;
 	}
@@ -758,8 +827,6 @@ static int pn533_send_ack(struct pn533 *dev, gfp_t flags)
 	u8 ack[PN533_STD_FRAME_ACK_SIZE] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
 	/* spec 7.1.1.3:  Preamble, SoPC (2), ACK Code (2), Postamble */
 	int rc;
-
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
 	dev->out_urb->transfer_buffer = ack;
 	dev->out_urb->transfer_buffer_length = sizeof(ack);
@@ -863,7 +930,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 	struct pn533_cmd *cmd;
 	int rc = 0;
 
-	nfc_dev_dbg(&dev->interface->dev, "Sending command 0x%x", cmd_code);
+	dev_dbg(&dev->interface->dev, "Sending command 0x%x\n", cmd_code);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
@@ -890,8 +957,8 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 		goto unlock;
 	}
 
-	nfc_dev_dbg(&dev->interface->dev, "%s Queueing command 0x%x", __func__,
-		    cmd_code);
+	dev_dbg(&dev->interface->dev, "%s Queueing command 0x%x\n",
+		__func__, cmd_code);
 
 	INIT_LIST_HEAD(&cmd->queue);
 	list_add_tail(&cmd->queue, &dev->cmd_queue);
@@ -1104,14 +1171,14 @@ static void pn533_send_complete(struct urb *urb)
 		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-		nfc_dev_dbg(&dev->interface->dev,
-			    "The urb has been stopped (status %d)",
-			    urb->status);
+		dev_dbg(&dev->interface->dev,
+			"The urb has been stopped (status %d)\n",
+			urb->status);
 		break;
 	case -ESHUTDOWN:
 	default:
-		nfc_dev_err(&dev->interface->dev,
-			    "Urb failure (status %d)", urb->status);
+		nfc_err(&dev->interface->dev, "Urb failure (status %d)\n",
+			urb->status);
 	}
 }
 
@@ -1235,7 +1302,7 @@ static int pn533_target_found_type_a(struct nfc_target *nfc_tgt, u8 *tgt_data,
 struct pn533_target_felica {
 	u8 pol_res;
 	u8 opcode;
-	u8 nfcid2[8];
+	u8 nfcid2[NFC_NFCID2_MAXSIZE];
 	u8 pad[8];
 	/* optional */
 	u8 syst_code[];
@@ -1274,6 +1341,9 @@ static int pn533_target_found_felica(struct nfc_target *nfc_tgt, u8 *tgt_data,
 
 	memcpy(nfc_tgt->sensf_res, &tgt_felica->opcode, 9);
 	nfc_tgt->sensf_res_len = 9;
+
+	memcpy(nfc_tgt->nfcid2, tgt_felica->nfcid2, NFC_NFCID2_MAXSIZE);
+	nfc_tgt->nfcid2_len = NFC_NFCID2_MAXSIZE;
 
 	return 0;
 }
@@ -1385,8 +1455,8 @@ static int pn533_target_found(struct pn533 *dev, u8 tg, u8 *tgdata,
 	struct nfc_target nfc_tgt;
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s - modulation=%d", __func__,
-		    dev->poll_mod_curr);
+	dev_dbg(&dev->interface->dev, "%s: modulation=%d\n",
+		__func__, dev->poll_mod_curr);
 
 	if (tg != 1)
 		return -EPROTO;
@@ -1408,8 +1478,8 @@ static int pn533_target_found(struct pn533 *dev, u8 tg, u8 *tgdata,
 		rc = pn533_target_found_type_b(&nfc_tgt, tgdata, tgdata_len);
 		break;
 	default:
-		nfc_dev_err(&dev->interface->dev,
-			    "Unknown current poll modulation");
+		nfc_err(&dev->interface->dev,
+			"Unknown current poll modulation\n");
 		return -EPROTO;
 	}
 
@@ -1417,14 +1487,14 @@ static int pn533_target_found(struct pn533 *dev, u8 tg, u8 *tgdata,
 		return rc;
 
 	if (!(nfc_tgt.supported_protocols & dev->poll_protocols)) {
-		nfc_dev_dbg(&dev->interface->dev,
-			    "The Tg found doesn't have the desired protocol");
+		dev_dbg(&dev->interface->dev,
+			"The Tg found doesn't have the desired protocol\n");
 		return -EAGAIN;
 	}
 
-	nfc_dev_dbg(&dev->interface->dev,
-		    "Target found - supported protocols: 0x%x",
-		    nfc_tgt.supported_protocols);
+	dev_dbg(&dev->interface->dev,
+		"Target found - supported protocols: 0x%x\n",
+		nfc_tgt.supported_protocols);
 
 	dev->tgt_available_prots = nfc_tgt.supported_protocols;
 
@@ -1481,7 +1551,8 @@ static int pn533_start_poll_complete(struct pn533 *dev, struct sk_buff *resp)
 	u8 nbtg, tg, *tgdata;
 	int rc, tgdata_len;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	/* Toggle the DEP polling */
+	dev->poll_dep = 1;
 
 	nbtg = resp->data[0];
 	tg = resp->data[1];
@@ -1557,37 +1628,130 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 
 #define PN533_CMD_DATAEXCH_HEAD_LEN 1
 #define PN533_CMD_DATAEXCH_DATA_MAXLEN 262
+static void pn533_wq_tm_mi_recv(struct work_struct *work);
+static struct sk_buff *pn533_build_response(struct pn533 *dev);
+
 static int pn533_tm_get_data_complete(struct pn533 *dev, void *arg,
 				      struct sk_buff *resp)
 {
-	u8 status;
+	struct sk_buff *skb;
+	u8 status, ret, mi;
+	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
-	if (IS_ERR(resp))
+	if (IS_ERR(resp)) {
+		skb_queue_purge(&dev->resp_q);
 		return PTR_ERR(resp);
-
-	status = resp->data[0];
-	skb_pull(resp, sizeof(status));
-
-	if (status != 0) {
-		nfc_tm_deactivated(dev->nfc_dev);
-		dev->tgt_mode = 0;
-		dev_kfree_skb(resp);
-		return 0;
 	}
 
-	return nfc_tm_data_received(dev->nfc_dev, resp);
+	status = resp->data[0];
+
+	ret = status & PN533_CMD_RET_MASK;
+	mi = status & PN533_CMD_MI_MASK;
+
+	skb_pull(resp, sizeof(status));
+
+	if (ret != PN533_CMD_RET_SUCCESS) {
+		rc = -EIO;
+		goto error;
+	}
+
+	skb_queue_tail(&dev->resp_q, resp);
+
+	if (mi) {
+		queue_work(dev->wq, &dev->mi_tm_rx_work);
+		return -EINPROGRESS;
+	}
+
+	skb = pn533_build_response(dev);
+	if (!skb) {
+		rc = -EIO;
+		goto error;
+	}
+
+	return nfc_tm_data_received(dev->nfc_dev, skb);
+
+error:
+	nfc_tm_deactivated(dev->nfc_dev);
+	dev->tgt_mode = 0;
+	skb_queue_purge(&dev->resp_q);
+	dev_kfree_skb(resp);
+
+	return rc;
+}
+
+static void pn533_wq_tm_mi_recv(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, mi_tm_rx_work);
+	struct sk_buff *skb;
+	int rc;
+
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
+
+	skb = pn533_alloc_skb(dev, 0);
+	if (!skb)
+		return;
+
+	rc = pn533_send_cmd_direct_async(dev,
+					PN533_CMD_TG_GET_DATA,
+					skb,
+					pn533_tm_get_data_complete,
+					NULL);
+
+	if (rc < 0)
+		dev_kfree_skb(skb);
+
+	return;
+}
+
+static int pn533_tm_send_complete(struct pn533 *dev, void *arg,
+				  struct sk_buff *resp);
+static void pn533_wq_tm_mi_send(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, mi_tm_tx_work);
+	struct sk_buff *skb;
+	int rc;
+
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
+
+	/* Grab the first skb in the queue */
+	skb = skb_dequeue(&dev->fragment_skb);
+	if (skb == NULL) {	/* No more data */
+		/* Reset the queue for future use */
+		skb_queue_head_init(&dev->fragment_skb);
+		goto error;
+	}
+
+	/* last entry - remove MI bit */
+	if (skb_queue_len(&dev->fragment_skb) == 0) {
+		rc = pn533_send_cmd_direct_async(dev, PN533_CMD_TG_SET_DATA,
+					skb, pn533_tm_send_complete, NULL);
+	} else
+		rc = pn533_send_cmd_direct_async(dev,
+					PN533_CMD_TG_SET_META_DATA,
+					skb, pn533_tm_send_complete, NULL);
+
+	if (rc == 0) /* success */
+		return;
+
+	dev_err(&dev->interface->dev,
+		"Error %d when trying to perform set meta data_exchange", rc);
+
+	dev_kfree_skb(skb);
+
+error:
+	pn533_send_ack(dev, GFP_KERNEL);
+	queue_work(dev->wq, &dev->cmd_work);
 }
 
 static void pn533_wq_tg_get_data(struct work_struct *work)
 {
 	struct pn533 *dev = container_of(work, struct pn533, tg_work);
-
 	struct sk_buff *skb;
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	skb = pn533_alloc_skb(dev, 0);
 	if (!skb)
@@ -1609,7 +1773,7 @@ static int pn533_init_target_complete(struct pn533 *dev, struct sk_buff *resp)
 	size_t gb_len;
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	if (resp->len < ATR_REQ_GB_OFFSET + 1)
 		return -EINVAL;
@@ -1617,8 +1781,8 @@ static int pn533_init_target_complete(struct pn533 *dev, struct sk_buff *resp)
 	mode = resp->data[0];
 	cmd = &resp->data[1];
 
-	nfc_dev_dbg(&dev->interface->dev, "Target mode 0x%x len %d\n",
-		    mode, resp->len);
+	dev_dbg(&dev->interface->dev, "Target mode 0x%x len %d\n",
+		mode, resp->len);
 
 	if ((mode & PN533_INIT_TARGET_RESP_FRAME_MASK) ==
 	    PN533_INIT_TARGET_RESP_ACTIVE)
@@ -1633,8 +1797,8 @@ static int pn533_init_target_complete(struct pn533 *dev, struct sk_buff *resp)
 	rc = nfc_tm_activated(dev->nfc_dev, NFC_PROTO_NFC_DEP_MASK,
 			      comm_mode, gb, gb_len);
 	if (rc < 0) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Error when signaling target activation");
+		nfc_err(&dev->interface->dev,
+			"Error when signaling target activation\n");
 		return rc;
 	}
 
@@ -1648,13 +1812,172 @@ static void pn533_listen_mode_timer(unsigned long data)
 {
 	struct pn533 *dev = (struct pn533 *)data;
 
-	nfc_dev_dbg(&dev->interface->dev, "Listen mode timeout");
+	dev_dbg(&dev->interface->dev, "Listen mode timeout\n");
 
 	dev->cancel_listen = 1;
 
 	pn533_poll_next_mod(dev);
 
-	queue_work(dev->wq, &dev->poll_work);
+	queue_delayed_work(dev->wq, &dev->poll_work,
+			   msecs_to_jiffies(PN533_POLL_INTERVAL));
+}
+
+static int pn533_rf_complete(struct pn533 *dev, void *arg,
+			     struct sk_buff *resp)
+{
+	int rc = 0;
+
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
+
+	if (IS_ERR(resp)) {
+		rc = PTR_ERR(resp);
+
+		nfc_err(&dev->interface->dev, "RF setting error %d", rc);
+
+		return rc;
+	}
+
+	queue_delayed_work(dev->wq, &dev->poll_work,
+			   msecs_to_jiffies(PN533_POLL_INTERVAL));
+
+	dev_kfree_skb(resp);
+	return rc;
+}
+
+static void pn533_wq_rf(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, rf_work);
+	struct sk_buff *skb;
+	int rc;
+
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
+
+	skb = pn533_alloc_skb(dev, 2);
+	if (!skb)
+		return;
+
+	*skb_put(skb, 1) = PN533_CFGITEM_RF_FIELD;
+	*skb_put(skb, 1) = PN533_CFGITEM_RF_FIELD_AUTO_RFCA;
+
+	rc = pn533_send_cmd_async(dev, PN533_CMD_RF_CONFIGURATION, skb,
+				  pn533_rf_complete, NULL);
+	if (rc < 0) {
+		dev_kfree_skb(skb);
+		nfc_err(&dev->interface->dev, "RF setting error %d\n", rc);
+	}
+
+	return;
+}
+
+static int pn533_poll_dep_complete(struct pn533 *dev, void *arg,
+				   struct sk_buff *resp)
+{
+	struct pn533_cmd_jump_dep_response *rsp;
+	struct nfc_target nfc_target;
+	u8 target_gt_len;
+	int rc;
+
+	if (IS_ERR(resp))
+		return PTR_ERR(resp);
+
+	rsp = (struct pn533_cmd_jump_dep_response *)resp->data;
+
+	rc = rsp->status & PN533_CMD_RET_MASK;
+	if (rc != PN533_CMD_RET_SUCCESS) {
+		/* Not target found, turn radio off */
+		queue_work(dev->wq, &dev->rf_work);
+
+		dev_kfree_skb(resp);
+		return 0;
+	}
+
+	dev_dbg(&dev->interface->dev, "Creating new target");
+
+	nfc_target.supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+	nfc_target.nfcid1_len = 10;
+	memcpy(nfc_target.nfcid1, rsp->nfcid3t, nfc_target.nfcid1_len);
+	rc = nfc_targets_found(dev->nfc_dev, &nfc_target, 1);
+	if (rc)
+		goto error;
+
+	dev->tgt_available_prots = 0;
+	dev->tgt_active_prot = NFC_PROTO_NFC_DEP;
+
+	/* ATR_RES general bytes are located at offset 17 */
+	target_gt_len = resp->len - 17;
+	rc = nfc_set_remote_general_bytes(dev->nfc_dev,
+					  rsp->gt, target_gt_len);
+	if (!rc) {
+		rc = nfc_dep_link_is_up(dev->nfc_dev,
+					dev->nfc_dev->targets[0].idx,
+					0, NFC_RF_INITIATOR);
+
+		if (!rc)
+			pn533_poll_reset_mod_list(dev);
+	}
+error:
+	dev_kfree_skb(resp);
+	return rc;
+}
+
+#define PASSIVE_DATA_LEN 5
+static int pn533_poll_dep(struct nfc_dev *nfc_dev)
+{
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	struct sk_buff *skb;
+	int rc, skb_len;
+	u8 *next, nfcid3[NFC_NFCID3_MAXSIZE];
+	u8 passive_data[PASSIVE_DATA_LEN] = {0x00, 0xff, 0xff, 0x00, 0x3};
+
+	dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	if (!dev->gb) {
+		dev->gb = nfc_get_local_general_bytes(nfc_dev, &dev->gb_len);
+
+		if (!dev->gb || !dev->gb_len) {
+			dev->poll_dep = 0;
+			queue_work(dev->wq, &dev->rf_work);
+		}
+	}
+
+	skb_len = 3 + dev->gb_len; /* ActPass + BR + Next */
+	skb_len += PASSIVE_DATA_LEN;
+
+	/* NFCID3 */
+	skb_len += NFC_NFCID3_MAXSIZE;
+	nfcid3[0] = 0x1;
+	nfcid3[1] = 0xfe;
+	get_random_bytes(nfcid3 + 2, 6);
+
+	skb = pn533_alloc_skb(dev, skb_len);
+	if (!skb)
+		return -ENOMEM;
+
+	*skb_put(skb, 1) = 0x01;  /* Active */
+	*skb_put(skb, 1) = 0x02;  /* 424 kbps */
+
+	next = skb_put(skb, 1);  /* Next */
+	*next = 0;
+
+	/* Copy passive data */
+	memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data, PASSIVE_DATA_LEN);
+	*next |= 1;
+
+	/* Copy NFCID3 (which is NFCID2 from SENSF_RES) */
+	memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), nfcid3,
+	       NFC_NFCID3_MAXSIZE);
+	*next |= 2;
+
+	memcpy(skb_put(skb, dev->gb_len), dev->gb, dev->gb_len);
+	*next |= 4; /* We have some Gi */
+
+	rc = pn533_send_cmd_async(dev, PN533_CMD_IN_JUMP_FOR_DEP, skb,
+				  pn533_poll_dep_complete, NULL);
+
+	if (rc < 0)
+		dev_kfree_skb(skb);
+
+	return rc;
 }
 
 static int pn533_poll_complete(struct pn533 *dev, void *arg,
@@ -1663,13 +1986,13 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 	struct pn533_poll_modulations *cur_mod;
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
 
-		nfc_dev_err(&dev->interface->dev, "%s  Poll complete error %d",
-			    __func__, rc);
+		nfc_err(&dev->interface->dev, "%s  Poll complete error %d\n",
+			__func__, rc);
 
 		if (rc == -ENOENT) {
 			if (dev->poll_mod_count != 0)
@@ -1677,8 +2000,8 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 			else
 				goto stop_poll;
 		} else if (rc < 0) {
-			nfc_dev_err(&dev->interface->dev,
-				    "Error %d when running poll", rc);
+			nfc_err(&dev->interface->dev,
+				"Error %d when running poll\n", rc);
 			goto stop_poll;
 		}
 	}
@@ -1697,19 +2020,20 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 		goto done;
 
 	if (!dev->poll_mod_count) {
-		nfc_dev_dbg(&dev->interface->dev, "Polling has been stoped.");
+		dev_dbg(&dev->interface->dev, "Polling has been stopped\n");
 		goto done;
 	}
 
 	pn533_poll_next_mod(dev);
-	queue_work(dev->wq, &dev->poll_work);
+	/* Not target found, turn radio off */
+	queue_work(dev->wq, &dev->rf_work);
 
 done:
 	dev_kfree_skb(resp);
 	return rc;
 
 stop_poll:
-	nfc_dev_err(&dev->interface->dev, "Polling operation has been stopped");
+	nfc_err(&dev->interface->dev, "Polling operation has been stopped\n");
 
 	pn533_poll_reset_mod_list(dev);
 	dev->poll_protocols = 0;
@@ -1739,8 +2063,13 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 
 	mod = dev->poll_mod_active[dev->poll_mod_curr];
 
-	nfc_dev_dbg(&dev->interface->dev, "%s mod len %d\n",
-		    __func__, mod->len);
+	dev_dbg(&dev->interface->dev, "%s mod len %d\n",
+		__func__, mod->len);
+
+	if (dev->poll_dep)  {
+		dev->poll_dep = 0;
+		return pn533_poll_dep(dev->nfc_dev);
+	}
 
 	if (mod->len == 0) {  /* Listen mode */
 		cmd_code = PN533_CMD_TG_INIT_AS_TARGET;
@@ -1751,7 +2080,7 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 	}
 
 	if (!skb) {
-		nfc_dev_err(&dev->interface->dev, "Failed to allocate skb.");
+		nfc_err(&dev->interface->dev, "Failed to allocate skb\n");
 		return -ENOMEM;
 	}
 
@@ -1759,7 +2088,7 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 				  NULL);
 	if (rc < 0) {
 		dev_kfree_skb(skb);
-		nfc_dev_err(&dev->interface->dev, "Polling loop error %d", rc);
+		nfc_err(&dev->interface->dev, "Polling loop error %d\n", rc);
 	}
 
 	return rc;
@@ -1767,15 +2096,15 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 
 static void pn533_wq_poll(struct work_struct *work)
 {
-	struct pn533 *dev = container_of(work, struct pn533, poll_work);
+	struct pn533 *dev = container_of(work, struct pn533, poll_work.work);
 	struct pn533_poll_modulations *cur_mod;
 	int rc;
 
 	cur_mod = dev->poll_mod_active[dev->poll_mod_curr];
 
-	nfc_dev_dbg(&dev->interface->dev,
-		    "%s cancel_listen %d modulation len %d",
-		    __func__, dev->cancel_listen, cur_mod->len);
+	dev_dbg(&dev->interface->dev,
+		"%s cancel_listen %d modulation len %d\n",
+		__func__, dev->cancel_listen, cur_mod->len);
 
 	if (dev->cancel_listen == 1) {
 		dev->cancel_listen = 0;
@@ -1796,20 +2125,23 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 			    u32 im_protocols, u32 tm_protocols)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	struct pn533_poll_modulations *cur_mod;
+	u8 rand_mod;
+	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev,
-		    "%s: im protocols 0x%x tm protocols 0x%x",
-		    __func__, im_protocols, tm_protocols);
+	dev_dbg(&dev->interface->dev,
+		"%s: im protocols 0x%x tm protocols 0x%x\n",
+		__func__, im_protocols, tm_protocols);
 
 	if (dev->tgt_active_prot) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Cannot poll with a target already activated");
+		nfc_err(&dev->interface->dev,
+			"Cannot poll with a target already activated\n");
 		return -EBUSY;
 	}
 
 	if (dev->tgt_mode) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Cannot poll while already being activated");
+		nfc_err(&dev->interface->dev,
+			"Cannot poll while already being activated\n");
 		return -EBUSY;
 	}
 
@@ -1819,29 +2151,40 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 			tm_protocols = 0;
 	}
 
-	dev->poll_mod_curr = 0;
 	pn533_poll_create_mod_list(dev, im_protocols, tm_protocols);
 	dev->poll_protocols = im_protocols;
 	dev->listen_protocols = tm_protocols;
 
-	return pn533_send_poll_frame(dev);
+	/* Do not always start polling from the same modulation */
+	get_random_bytes(&rand_mod, sizeof(rand_mod));
+	rand_mod %= dev->poll_mod_count;
+	dev->poll_mod_curr = rand_mod;
+
+	cur_mod = dev->poll_mod_active[dev->poll_mod_curr];
+
+	rc = pn533_send_poll_frame(dev);
+
+	/* Start listen timer */
+	if (!rc && cur_mod->len == 0 && dev->poll_mod_count > 1)
+		mod_timer(&dev->listen_timer, jiffies + PN533_LISTEN_TIME * HZ);
+
+	return rc;
 }
 
 static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
-
 	del_timer(&dev->listen_timer);
 
 	if (!dev->poll_mod_count) {
-		nfc_dev_dbg(&dev->interface->dev,
-			    "Polling operation was not running");
+		dev_dbg(&dev->interface->dev,
+			"Polling operation was not running\n");
 		return;
 	}
 
 	pn533_abort_cmd(dev, GFP_KERNEL);
+	flush_delayed_work(&dev->poll_work);
 	pn533_poll_reset_mod_list(dev);
 }
 
@@ -1850,11 +2193,10 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	struct pn533_cmd_activate_response *rsp;
 	u16 gt_len;
 	int rc;
-
 	struct sk_buff *skb;
 	struct sk_buff *resp;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	skb = pn533_alloc_skb(dev, sizeof(u8) * 2); /*TG + Next*/
 	if (!skb)
@@ -1870,8 +2212,8 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	rsp = (struct pn533_cmd_activate_response *)resp->data;
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Target activation failed (error 0x%x)", rc);
+		nfc_err(&dev->interface->dev,
+			"Target activation failed (error 0x%x)\n", rc);
 		dev_kfree_skb(resp);
 		return -EIO;
 	}
@@ -1890,39 +2232,38 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s - protocol=%u", __func__,
-		    protocol);
+	dev_dbg(&dev->interface->dev, "%s: protocol=%u\n", __func__, protocol);
 
 	if (dev->poll_mod_count) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Cannot activate while polling");
+		nfc_err(&dev->interface->dev,
+			"Cannot activate while polling\n");
 		return -EBUSY;
 	}
 
 	if (dev->tgt_active_prot) {
-		nfc_dev_err(&dev->interface->dev,
-			    "There is already an active target");
+		nfc_err(&dev->interface->dev,
+			"There is already an active target\n");
 		return -EBUSY;
 	}
 
 	if (!dev->tgt_available_prots) {
-		nfc_dev_err(&dev->interface->dev,
-			    "There is no available target to activate");
+		nfc_err(&dev->interface->dev,
+			"There is no available target to activate\n");
 		return -EINVAL;
 	}
 
 	if (!(dev->tgt_available_prots & (1 << protocol))) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Target doesn't support requested proto %u",
-			    protocol);
+		nfc_err(&dev->interface->dev,
+			"Target doesn't support requested proto %u\n",
+			protocol);
 		return -EINVAL;
 	}
 
 	if (protocol == NFC_PROTO_NFC_DEP) {
 		rc = pn533_activate_target_nfcdep(dev);
 		if (rc) {
-			nfc_dev_err(&dev->interface->dev,
-				    "Activating target with DEP failed %d", rc);
+			nfc_err(&dev->interface->dev,
+				"Activating target with DEP failed %d\n", rc);
 			return rc;
 		}
 	}
@@ -1937,16 +2278,14 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 				    struct nfc_target *target)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
-
 	struct sk_buff *skb;
 	struct sk_buff *resp;
-
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	if (!dev->tgt_active_prot) {
-		nfc_dev_err(&dev->interface->dev, "There is no active target");
+		nfc_err(&dev->interface->dev, "There is no active target\n");
 		return;
 	}
 
@@ -1965,8 +2304,8 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 
 	rc = resp->data[0] & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS)
-		nfc_dev_err(&dev->interface->dev,
-			    "Error 0x%x when releasing the target", rc);
+		nfc_err(&dev->interface->dev,
+			"Error 0x%x when releasing the target\n", rc);
 
 	dev_kfree_skb(resp);
 	return;
@@ -1988,8 +2327,8 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 
 	if (dev->tgt_available_prots &&
 	    !(dev->tgt_available_prots & (1 << NFC_PROTO_NFC_DEP))) {
-		nfc_dev_err(&dev->interface->dev,
-			    "The target does not support DEP");
+		nfc_err(&dev->interface->dev,
+			"The target does not support DEP\n");
 		rc =  -EINVAL;
 		goto error;
 	}
@@ -1998,15 +2337,15 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Bringing DEP link up failed (error 0x%x)", rc);
+		nfc_err(&dev->interface->dev,
+			"Bringing DEP link up failed (error 0x%x)\n", rc);
 		goto error;
 	}
 
 	if (!dev->tgt_available_prots) {
 		struct nfc_target nfc_target;
 
-		nfc_dev_dbg(&dev->interface->dev, "Creating new target");
+		dev_dbg(&dev->interface->dev, "Creating new target\n");
 
 		nfc_target.supported_protocols = NFC_PROTO_NFC_DEP_MASK;
 		nfc_target.nfcid1_len = 10;
@@ -2034,71 +2373,63 @@ error:
 	return rc;
 }
 
-static int pn533_mod_to_baud(struct pn533 *dev)
-{
-	switch (dev->poll_mod_curr) {
-	case PN533_POLL_MOD_106KBPS_A:
-		return 0;
-	case PN533_POLL_MOD_212KBPS_FELICA:
-		return 1;
-	case PN533_POLL_MOD_424KBPS_FELICA:
-		return 2;
-	default:
-		return -EINVAL;
-	}
-}
-
-#define PASSIVE_DATA_LEN 5
+static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf);
 static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			     u8 comm_mode, u8 *gb, size_t gb_len)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct sk_buff *skb;
-	int rc, baud, skb_len;
-	u8 *next, *arg;
-
+	int rc, skb_len;
+	u8 *next, *arg, nfcid3[NFC_NFCID3_MAXSIZE];
 	u8 passive_data[PASSIVE_DATA_LEN] = {0x00, 0xff, 0xff, 0x00, 0x3};
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	if (dev->poll_mod_count) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Cannot bring the DEP link up while polling");
+		nfc_err(&dev->interface->dev,
+			"Cannot bring the DEP link up while polling\n");
 		return -EBUSY;
 	}
 
 	if (dev->tgt_active_prot) {
-		nfc_dev_err(&dev->interface->dev,
-			    "There is already an active target");
+		nfc_err(&dev->interface->dev,
+			"There is already an active target\n");
 		return -EBUSY;
 	}
 
-	baud = pn533_mod_to_baud(dev);
-	if (baud < 0) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Invalid curr modulation %d", dev->poll_mod_curr);
-		return baud;
-	}
-
 	skb_len = 3 + gb_len; /* ActPass + BR + Next */
-	if (comm_mode == NFC_COMM_PASSIVE)
-		skb_len += PASSIVE_DATA_LEN;
+	skb_len += PASSIVE_DATA_LEN;
+
+	/* NFCID3 */
+	skb_len += NFC_NFCID3_MAXSIZE;
+	if (target && !target->nfcid2_len) {
+		nfcid3[0] = 0x1;
+		nfcid3[1] = 0xfe;
+		get_random_bytes(nfcid3 + 2, 6);
+	}
 
 	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
 		return -ENOMEM;
 
 	*skb_put(skb, 1) = !comm_mode;  /* ActPass */
-	*skb_put(skb, 1) = baud;  /* Baud rate */
+	*skb_put(skb, 1) = 0x02;  /* 424 kbps */
 
 	next = skb_put(skb, 1);  /* Next */
 	*next = 0;
 
-	if (comm_mode == NFC_COMM_PASSIVE && baud > 0) {
-		memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data,
-		       PASSIVE_DATA_LEN);
-		*next |= 1;
-	}
+	/* Copy passive data */
+	memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data, PASSIVE_DATA_LEN);
+	*next |= 1;
+
+	/* Copy NFCID3 (which is NFCID2 from SENSF_RES) */
+	if (target && target->nfcid2_len)
+		memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), target->nfcid2,
+		       target->nfcid2_len);
+	else
+		memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), nfcid3,
+		       NFC_NFCID3_MAXSIZE);
+	*next |= 2;
 
 	if (gb != NULL && gb_len > 0) {
 		memcpy(skb_put(skb, gb_len), gb, gb_len);
@@ -2115,6 +2446,8 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	*arg = !comm_mode;
 
+	pn533_rf_field(dev->nfc_dev, 0);
+
 	rc = pn533_send_cmd_async(dev, PN533_CMD_IN_JUMP_FOR_DEP, skb,
 				  pn533_in_dep_link_up_complete, arg);
 
@@ -2130,7 +2463,7 @@ static int pn533_dep_link_down(struct nfc_dev *nfc_dev)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	pn533_poll_reset_mod_list(dev);
 
@@ -2155,7 +2488,7 @@ static struct sk_buff *pn533_build_response(struct pn533 *dev)
 	struct sk_buff *skb, *tmp, *t;
 	unsigned int skb_len = 0, tmp_len = 0;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	if (skb_queue_empty(&dev->resp_q))
 		return NULL;
@@ -2168,8 +2501,8 @@ static struct sk_buff *pn533_build_response(struct pn533 *dev)
 	skb_queue_walk_safe(&dev->resp_q, tmp, t)
 		skb_len += tmp->len;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s total length %d\n",
-		    __func__, skb_len);
+	dev_dbg(&dev->interface->dev, "%s total length %d\n",
+		__func__, skb_len);
 
 	skb = alloc_skb(skb_len, GFP_KERNEL);
 	if (skb == NULL)
@@ -2196,7 +2529,7 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 	int rc = 0;
 	u8 status, ret, mi;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
@@ -2210,8 +2543,8 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 	skb_pull(resp, sizeof(status));
 
 	if (ret != PN533_CMD_RET_SUCCESS) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Exchanging data failed (error 0x%x)", ret);
+		nfc_err(&dev->interface->dev,
+			"Exchanging data failed (error 0x%x)\n", ret);
 		rc = -EIO;
 		goto error;
 	}
@@ -2220,7 +2553,15 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 
 	if (mi) {
 		dev->cmd_complete_mi_arg = arg;
-		queue_work(dev->wq, &dev->mi_work);
+		queue_work(dev->wq, &dev->mi_rx_work);
+		return -EINPROGRESS;
+	}
+
+	/* Prepare for the next round */
+	if (skb_queue_len(&dev->fragment_skb) > 0) {
+		dev->cmd_complete_dep_arg = arg;
+		queue_work(dev->wq, &dev->mi_tx_work);
+
 		return -EINPROGRESS;
 	}
 
@@ -2241,6 +2582,53 @@ _error:
 	return rc;
 }
 
+/* Split the Tx skb into small chunks */
+static int pn533_fill_fragment_skbs(struct pn533 *dev, struct sk_buff *skb)
+{
+	struct sk_buff *frag;
+	int  frag_size;
+
+	do {
+		/* Remaining size */
+		if (skb->len > PN533_CMD_DATAFRAME_MAXLEN)
+			frag_size = PN533_CMD_DATAFRAME_MAXLEN;
+		else
+			frag_size = skb->len;
+
+		/* Allocate and reserve */
+		frag = pn533_alloc_skb(dev, frag_size);
+		if (!frag) {
+			skb_queue_purge(&dev->fragment_skb);
+			break;
+		}
+
+		if (!dev->tgt_mode) {
+			/* Reserve the TG/MI byte */
+			skb_reserve(frag, 1);
+
+			/* MI + TG */
+			if (frag_size  == PN533_CMD_DATAFRAME_MAXLEN)
+				*skb_push(frag, sizeof(u8)) =
+							(PN533_CMD_MI_MASK | 1);
+			else
+				*skb_push(frag, sizeof(u8)) =  1; /* TG */
+		}
+
+		memcpy(skb_put(frag, frag_size), skb->data, frag_size);
+
+		/* Reduce the size of incoming buffer */
+		skb_pull(skb, frag_size);
+
+		/* Add this to skb_queue */
+		skb_queue_tail(&dev->fragment_skb, frag);
+
+	} while (skb->len > 0);
+
+	dev_kfree_skb(skb);
+
+	return skb_queue_len(&dev->fragment_skb);
+}
+
 static int pn533_transceive(struct nfc_dev *nfc_dev,
 			    struct nfc_target *target, struct sk_buff *skb,
 			    data_exchange_cb_t cb, void *cb_context)
@@ -2249,20 +2637,11 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 	struct pn533_data_exchange_arg *arg = NULL;
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
-
-	if (skb->len > PN533_CMD_DATAEXCH_DATA_MAXLEN) {
-		/* TODO: Implement support to multi-part data exchange */
-		nfc_dev_err(&dev->interface->dev,
-			    "Data length greater than the max allowed: %d",
-			    PN533_CMD_DATAEXCH_DATA_MAXLEN);
-		rc = -ENOSYS;
-		goto error;
-	}
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	if (!dev->tgt_active_prot) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Can't exchange data if there is no active target");
+		nfc_err(&dev->interface->dev,
+			"Can't exchange data if there is no active target\n");
 		rc = -EINVAL;
 		goto error;
 	}
@@ -2287,7 +2666,20 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 			break;
 		}
 	default:
-		*skb_push(skb, sizeof(u8)) =  1; /*TG*/
+		/* jumbo frame ? */
+		if (skb->len > PN533_CMD_DATAEXCH_DATA_MAXLEN) {
+			rc = pn533_fill_fragment_skbs(dev, skb);
+			if (rc <= 0)
+				goto error;
+
+			skb = skb_dequeue(&dev->fragment_skb);
+			if (!skb) {
+				rc = -EIO;
+				goto error;
+			}
+		} else {
+			*skb_push(skb, sizeof(u8)) =  1; /* TG */
+		}
 
 		rc = pn533_send_data_async(dev, PN533_CMD_IN_DATA_EXCHANGE,
 					   skb, pn533_data_exchange_complete,
@@ -2312,13 +2704,18 @@ static int pn533_tm_send_complete(struct pn533 *dev, void *arg,
 {
 	u8 status;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	if (IS_ERR(resp))
 		return PTR_ERR(resp);
 
 	status = resp->data[0];
 
+	/* Prepare for the next round */
+	if (skb_queue_len(&dev->fragment_skb) > 0) {
+		queue_work(dev->wq, &dev->mi_tm_tx_work);
+		return -EINPROGRESS;
+	}
 	dev_kfree_skb(resp);
 
 	if (status != 0) {
@@ -2339,31 +2736,45 @@ static int pn533_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
+	/* let's split in multiple chunks if size's too big */
 	if (skb->len > PN533_CMD_DATAEXCH_DATA_MAXLEN) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Data length greater than the max allowed: %d",
-			    PN533_CMD_DATAEXCH_DATA_MAXLEN);
-		return -ENOSYS;
+		rc = pn533_fill_fragment_skbs(dev, skb);
+		if (rc <= 0)
+			goto error;
+
+		/* get the first skb */
+		skb = skb_dequeue(&dev->fragment_skb);
+		if (!skb) {
+			rc = -EIO;
+			goto error;
+		}
+
+		rc = pn533_send_data_async(dev, PN533_CMD_TG_SET_META_DATA, skb,
+						pn533_tm_send_complete, NULL);
+	} else {
+		/* Send th skb */
+		rc = pn533_send_data_async(dev, PN533_CMD_TG_SET_DATA, skb,
+						pn533_tm_send_complete, NULL);
 	}
 
-	rc = pn533_send_data_async(dev, PN533_CMD_TG_SET_DATA, skb,
-				   pn533_tm_send_complete, NULL);
-	if (rc < 0)
+error:
+	if (rc < 0) {
 		dev_kfree_skb(skb);
+		skb_queue_purge(&dev->fragment_skb);
+	}
 
 	return rc;
 }
 
 static void pn533_wq_mi_recv(struct work_struct *work)
 {
-	struct pn533 *dev = container_of(work, struct pn533, mi_work);
-
+	struct pn533 *dev = container_of(work, struct pn533, mi_rx_work);
 	struct sk_buff *skb;
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	skb = pn533_alloc_skb(dev, PN533_CMD_DATAEXCH_HEAD_LEN);
 	if (!skb)
@@ -2395,11 +2806,66 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 	if (rc == 0) /* success */
 		return;
 
-	nfc_dev_err(&dev->interface->dev,
-		    "Error %d when trying to perform data_exchange", rc);
+	nfc_err(&dev->interface->dev,
+		"Error %d when trying to perform data_exchange\n", rc);
 
 	dev_kfree_skb(skb);
 	kfree(dev->cmd_complete_mi_arg);
+
+error:
+	pn533_send_ack(dev, GFP_KERNEL);
+	queue_work(dev->wq, &dev->cmd_work);
+}
+
+static void pn533_wq_mi_send(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, mi_tx_work);
+	struct sk_buff *skb;
+	int rc;
+
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
+
+	/* Grab the first skb in the queue */
+	skb = skb_dequeue(&dev->fragment_skb);
+
+	if (skb == NULL) {	/* No more data */
+		/* Reset the queue for future use */
+		skb_queue_head_init(&dev->fragment_skb);
+		goto error;
+	}
+
+	switch (dev->device_type) {
+	case PN533_DEVICE_PASORI:
+		if (dev->tgt_active_prot != NFC_PROTO_FELICA) {
+			rc = -EIO;
+			break;
+		}
+
+		rc = pn533_send_cmd_direct_async(dev, PN533_CMD_IN_COMM_THRU,
+						 skb,
+						 pn533_data_exchange_complete,
+						 dev->cmd_complete_dep_arg);
+
+		break;
+
+	default:
+		/* Still some fragments? */
+		rc = pn533_send_cmd_direct_async(dev,PN533_CMD_IN_DATA_EXCHANGE,
+						 skb,
+						 pn533_data_exchange_complete,
+						 dev->cmd_complete_dep_arg);
+
+		break;
+	}
+
+	if (rc == 0) /* success */
+		return;
+
+	nfc_err(&dev->interface->dev,
+		"Error %d when trying to perform data_exchange\n", rc);
+
+	dev_kfree_skb(skb);
+	kfree(dev->cmd_complete_dep_arg);
 
 error:
 	pn533_send_ack(dev, GFP_KERNEL);
@@ -2411,10 +2877,9 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 {
 	struct sk_buff *skb;
 	struct sk_buff *resp;
-
 	int skb_len;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	skb_len = sizeof(cfgitem) + cfgdata_len; /* cfgitem + cfgdata */
 
@@ -2461,7 +2926,7 @@ static int pn533_pasori_fw_reset(struct pn533 *dev)
 	struct sk_buff *skb;
 	struct sk_buff *resp;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	skb = pn533_alloc_skb(dev, sizeof(u8));
 	if (!skb)
@@ -2487,9 +2952,9 @@ static void pn533_acr122_poweron_rdr_resp(struct urb *urb)
 {
 	struct pn533_acr122_poweron_rdr_arg *arg = urb->context;
 
-	nfc_dev_dbg(&urb->dev->dev, "%s", __func__);
+	dev_dbg(&urb->dev->dev, "%s\n", __func__);
 
-	print_hex_dump(KERN_ERR, "ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
 		       urb->transfer_buffer, urb->transfer_buffer_length,
 		       false);
 
@@ -2507,7 +2972,7 @@ static int pn533_acr122_poweron_rdr(struct pn533 *dev)
 	void *cntx;
 	struct pn533_acr122_poweron_rdr_arg arg;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	init_completion(&arg.done);
 	cntx = dev->in_urb->context;  /* backup context */
@@ -2520,21 +2985,20 @@ static int pn533_acr122_poweron_rdr(struct pn533 *dev)
 	dev->out_urb->transfer_buffer = cmd;
 	dev->out_urb->transfer_buffer_length = sizeof(cmd);
 
-	print_hex_dump(KERN_ERR, "ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
 		       cmd, sizeof(cmd), false);
 
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
 	if (rc) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Reader power on cmd error %d", rc);
+		nfc_err(&dev->interface->dev,
+			"Reader power on cmd error %d\n", rc);
 		return rc;
 	}
 
 	rc =  usb_submit_urb(dev->in_urb, GFP_KERNEL);
 	if (rc) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Can't submit for reader power on cmd response %d",
-			    rc);
+		nfc_err(&dev->interface->dev,
+			"Can't submit reader poweron cmd response %d\n", rc);
 		return rc;
 	}
 
@@ -2550,23 +3014,24 @@ static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf)
 	u8 rf_field = !!rf;
 	int rc;
 
+	rf_field |= PN533_CFGITEM_RF_FIELD_AUTO_RFCA;
+
 	rc = pn533_set_configuration(dev, PN533_CFGITEM_RF_FIELD,
 				     (u8 *)&rf_field, 1);
 	if (rc) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Error on setting RF field");
+		nfc_err(&dev->interface->dev, "Error on setting RF field\n");
 		return rc;
 	}
 
 	return rc;
 }
 
-int pn533_dev_up(struct nfc_dev *nfc_dev)
+static int pn533_dev_up(struct nfc_dev *nfc_dev)
 {
 	return pn533_rf_field(nfc_dev, 1);
 }
 
-int pn533_dev_down(struct nfc_dev *nfc_dev)
+static int pn533_dev_down(struct nfc_dev *nfc_dev)
 {
 	return pn533_rf_field(nfc_dev, 0);
 }
@@ -2593,17 +3058,6 @@ static int pn533_setup(struct pn533 *dev)
 
 	switch (dev->device_type) {
 	case PN533_DEVICE_STD:
-		max_retries.mx_rty_atr = PN533_CONFIG_MAX_RETRIES_ENDLESS;
-		max_retries.mx_rty_psl = 2;
-		max_retries.mx_rty_passive_act =
-			PN533_CONFIG_MAX_RETRIES_NO_RETRY;
-
-		timing.rfu = PN533_CONFIG_TIMING_102;
-		timing.atr_res_timeout = PN533_CONFIG_TIMING_204;
-		timing.dep_timeout = PN533_CONFIG_TIMING_409;
-
-		break;
-
 	case PN533_DEVICE_PASORI:
 	case PN533_DEVICE_ACR122U:
 		max_retries.mx_rty_atr = 0x2;
@@ -2618,16 +3072,16 @@ static int pn533_setup(struct pn533 *dev)
 		break;
 
 	default:
-		nfc_dev_err(&dev->interface->dev, "Unknown device type %d\n",
-			    dev->device_type);
+		nfc_err(&dev->interface->dev, "Unknown device type %d\n",
+			dev->device_type);
 		return -EINVAL;
 	}
 
 	rc = pn533_set_configuration(dev, PN533_CFGITEM_MAX_RETRIES,
 				     (u8 *)&max_retries, sizeof(max_retries));
 	if (rc) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Error on setting MAX_RETRIES config");
+		nfc_err(&dev->interface->dev,
+			"Error on setting MAX_RETRIES config\n");
 		return rc;
 	}
 
@@ -2635,8 +3089,7 @@ static int pn533_setup(struct pn533 *dev)
 	rc = pn533_set_configuration(dev, PN533_CFGITEM_TIMING,
 				     (u8 *)&timing, sizeof(timing));
 	if (rc) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Error on setting RF timings");
+		nfc_err(&dev->interface->dev, "Error on setting RF timings\n");
 		return rc;
 	}
 
@@ -2650,8 +3103,8 @@ static int pn533_setup(struct pn533 *dev)
 		rc = pn533_set_configuration(dev, PN533_CFGITEM_PASORI,
 					     pasori_cfg, 3);
 		if (rc) {
-			nfc_dev_err(&dev->interface->dev,
-				    "Error while settings PASORI config");
+			nfc_err(&dev->interface->dev,
+				"Error while settings PASORI config\n");
 			return rc;
 		}
 
@@ -2696,8 +3149,8 @@ static int pn533_probe(struct usb_interface *interface,
 	}
 
 	if (!in_endpoint || !out_endpoint) {
-		nfc_dev_err(&interface->dev,
-			    "Could not find bulk-in or bulk-out endpoint");
+		nfc_err(&interface->dev,
+			"Could not find bulk-in or bulk-out endpoint\n");
 		rc = -ENODEV;
 		goto error;
 	}
@@ -2717,9 +3170,13 @@ static int pn533_probe(struct usb_interface *interface,
 
 	INIT_WORK(&dev->cmd_work, pn533_wq_cmd);
 	INIT_WORK(&dev->cmd_complete_work, pn533_wq_cmd_complete);
-	INIT_WORK(&dev->mi_work, pn533_wq_mi_recv);
+	INIT_WORK(&dev->mi_rx_work, pn533_wq_mi_recv);
+	INIT_WORK(&dev->mi_tx_work, pn533_wq_mi_send);
 	INIT_WORK(&dev->tg_work, pn533_wq_tg_get_data);
-	INIT_WORK(&dev->poll_work, pn533_wq_poll);
+	INIT_WORK(&dev->mi_tm_rx_work, pn533_wq_tm_mi_recv);
+	INIT_WORK(&dev->mi_tm_tx_work, pn533_wq_tm_mi_send);
+	INIT_DELAYED_WORK(&dev->poll_work, pn533_wq_poll);
+	INIT_WORK(&dev->rf_work, pn533_wq_rf);
 	dev->wq = alloc_ordered_workqueue("pn533", 0);
 	if (dev->wq == NULL)
 		goto error;
@@ -2729,6 +3186,7 @@ static int pn533_probe(struct usb_interface *interface,
 	dev->listen_timer.function = pn533_listen_mode_timer;
 
 	skb_queue_head_init(&dev->resp_q);
+	skb_queue_head_init(&dev->fragment_skb);
 
 	INIT_LIST_HEAD(&dev->cmd_queue);
 
@@ -2754,16 +3212,15 @@ static int pn533_probe(struct usb_interface *interface,
 
 		rc = pn533_acr122_poweron_rdr(dev);
 		if (rc < 0) {
-			nfc_dev_err(&dev->interface->dev,
-				    "Couldn't poweron the reader (error %d)",
-				    rc);
+			nfc_err(&dev->interface->dev,
+				"Couldn't poweron the reader (error %d)\n", rc);
 			goto destroy_wq;
 		}
 		break;
 
 	default:
-		nfc_dev_err(&dev->interface->dev, "Unknown device type %d\n",
-			    dev->device_type);
+		nfc_err(&dev->interface->dev, "Unknown device type %d\n",
+			dev->device_type);
 		rc = -EINVAL;
 		goto destroy_wq;
 	}
@@ -2773,18 +3230,19 @@ static int pn533_probe(struct usb_interface *interface,
 	if (rc < 0)
 		goto destroy_wq;
 
-	nfc_dev_info(&dev->interface->dev,
-		     "NXP PN533 firmware ver %d.%d now attached",
-		     fw_ver.ver, fw_ver.rev);
+	nfc_info(&dev->interface->dev,
+		 "NXP PN5%02X firmware ver %d.%d now attached\n",
+		 fw_ver.ic, fw_ver.ver, fw_ver.rev);
 
 
 	dev->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols,
-					   NFC_SE_NONE,
 					   dev->ops->tx_header_len +
 					   PN533_CMD_DATAEXCH_HEAD_LEN,
 					   dev->ops->tx_tail_len);
-	if (!dev->nfc_dev)
+	if (!dev->nfc_dev) {
+		rc = -ENOMEM;
 		goto destroy_wq;
+	}
 
 	nfc_set_parent_dev(dev->nfc_dev, &interface->dev);
 	nfc_set_drvdata(dev->nfc_dev, dev);
@@ -2829,6 +3287,7 @@ static void pn533_disconnect(struct usb_interface *interface)
 	usb_kill_urb(dev->in_urb);
 	usb_kill_urb(dev->out_urb);
 
+	flush_delayed_work(&dev->poll_work);
 	destroy_workqueue(dev->wq);
 
 	skb_queue_purge(&dev->resp_q);
@@ -2844,7 +3303,7 @@ static void pn533_disconnect(struct usb_interface *interface)
 	usb_free_urb(dev->out_urb);
 	kfree(dev);
 
-	nfc_dev_info(&interface->dev, "NXP PN533 NFC device disconnected");
+	nfc_info(&interface->dev, "NXP PN533 NFC device disconnected\n");
 }
 
 static struct usb_driver pn533_driver = {

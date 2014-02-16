@@ -36,7 +36,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include "board-zoom.h"
 #include "gpmc.h"
 #include "gpmc-smsc911x.h"
 
@@ -184,45 +183,76 @@ static inline void __init ldp_init_smsc911x(void)
 #define LCD_PANEL_RESET_GPIO		55
 #define LCD_PANEL_QVGA_GPIO		56
 
-static struct panel_generic_dpi_data ldp_panel_data = {
-	.name			= "nec_nl2432dr22-11b",
-	.num_gpios		= 4,
-	/* gpios filled in code */
+static const struct display_timing ldp_lcd_videomode = {
+	.pixelclock	= { 0, 5400000, 0 },
+
+	.hactive = { 0, 240, 0 },
+	.hfront_porch = { 0, 3, 0 },
+	.hback_porch = { 0, 39, 0 },
+	.hsync_len = { 0, 3, 0 },
+
+	.vactive = { 0, 320, 0 },
+	.vfront_porch = { 0, 2, 0 },
+	.vback_porch = { 0, 7, 0 },
+	.vsync_len = { 0, 1, 0 },
+
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE,
 };
 
-static struct omap_dss_device ldp_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "generic_dpi_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 18,
-	.data			= &ldp_panel_data,
+static struct panel_dpi_platform_data ldp_lcd_pdata = {
+	.name                   = "lcd",
+	.source                 = "dpi.0",
+
+	.data_lines		= 18,
+
+	.display_timing		= &ldp_lcd_videomode,
+
+	.enable_gpio		= -1,	/* filled in code */
+	.backlight_gpio		= -1,	/* filled in code */
 };
 
-static struct omap_dss_device *ldp_dss_devices[] = {
-	&ldp_lcd_device,
+static struct platform_device ldp_lcd_device = {
+	.name                   = "panel-dpi",
+	.id                     = 0,
+	.dev.platform_data      = &ldp_lcd_pdata,
 };
 
 static struct omap_dss_board_info ldp_dss_data = {
-	.num_devices	= ARRAY_SIZE(ldp_dss_devices),
-	.devices	= ldp_dss_devices,
-	.default_device	= &ldp_lcd_device,
+	.default_display_name = "lcd",
 };
 
 static void __init ldp_display_init(void)
 {
-	ldp_panel_data.gpios[2] = LCD_PANEL_RESET_GPIO;
-	ldp_panel_data.gpios[3] = LCD_PANEL_QVGA_GPIO;
+	int r;
+
+	static struct gpio gpios[] __initdata = {
+		{LCD_PANEL_RESET_GPIO, GPIOF_OUT_INIT_HIGH, "LCD RESET"},
+		{LCD_PANEL_QVGA_GPIO, GPIOF_OUT_INIT_HIGH, "LCD QVGA"},
+	};
+
+	r = gpio_request_array(gpios, ARRAY_SIZE(gpios));
+	if (r) {
+		pr_err("Cannot request LCD GPIOs, error %d\n", r);
+		return;
+	}
 
 	omap_display_init(&ldp_dss_data);
 }
 
 static int ldp_twl_gpio_setup(struct device *dev, unsigned gpio, unsigned ngpio)
 {
-	ldp_panel_data.gpios[0] = gpio + 7;
-	ldp_panel_data.gpio_invert[0] = true;
+	int res;
 
-	ldp_panel_data.gpios[1] = gpio + 15;
-	ldp_panel_data.gpio_invert[1] = true;
+	/* LCD enable GPIO */
+	ldp_lcd_pdata.enable_gpio = gpio + 7;
+
+	/* Backlight enable GPIO */
+	ldp_lcd_pdata.backlight_gpio = gpio + 15;
+
+	res = platform_device_register(&ldp_lcd_device);
+	if (res)
+		pr_err("Unable to register LCD: %d\n", res);
 
 	return 0;
 }
@@ -380,7 +410,7 @@ static void __init omap_ldp_init(void)
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	board_nand_init(ldp_nand_partitions, ARRAY_SIZE(ldp_nand_partitions),
-			ZOOM_NAND_CS, 0, nand_default_timings);
+			0, 0, nand_default_timings);
 
 	omap_hsmmc_init(mmc);
 	ldp_display_init();

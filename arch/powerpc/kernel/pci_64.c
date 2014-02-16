@@ -109,7 +109,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	hose = pci_bus_to_host(bus);
 
 	/* Check if we have IOs allocated */
-	if (hose->io_base_alloc == 0)
+	if (hose->io_base_alloc == NULL)
 		return 0;
 
 	pr_debug("IO unmapping for PHB %s\n", hose->dn->full_name);
@@ -272,7 +272,7 @@ static void quirk_radeon_32bit_msi(struct pci_dev *dev)
 	struct pci_dn *pdn = pci_get_pdn(dev);
 
 	if (pdn)
-		pdn->force_32bit_msi = 1;
+		pdn->force_32bit_msi = true;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x68f2, quirk_radeon_32bit_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0xaa68, quirk_radeon_32bit_msi);

@@ -183,7 +183,7 @@ static void gx_write_byte(int reg, int value)
  * gx_detect_chipset:
  *
  **/
-static __init struct pci_dev *gx_detect_chipset(void)
+static struct pci_dev * __init gx_detect_chipset(void)
 {
 	struct pci_dev *gx_pci = NULL;
 
@@ -401,7 +401,7 @@ static int cpufreq_gx_target(struct cpufreq_policy *policy,
 
 static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 {
-	unsigned int maxfreq, curfreq;
+	unsigned int maxfreq;
 
 	if (!policy || policy->cpu != 0)
 		return -ENODEV;
@@ -415,10 +415,8 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 		maxfreq = 30000 * gx_freq_mult[getCx86(CX86_DIR1) & 0x0f];
 
 	stock_freq = maxfreq;
-	curfreq = gx_get_cpuspeed(0);
 
 	pr_debug("cpu max frequency is %d.\n", maxfreq);
-	pr_debug("cpu current frequency is %dkHz.\n", curfreq);
 
 	/* setup basic struct for cpufreq API */
 	policy->cpu = 0;
@@ -428,7 +426,6 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 	else
 		policy->min = maxfreq / POLICY_MIN_DIV;
 	policy->max = maxfreq;
-	policy->cur = curfreq;
 	policy->cpuinfo.min_freq = maxfreq / max_duration;
 	policy->cpuinfo.max_freq = maxfreq;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
@@ -446,7 +443,6 @@ static struct cpufreq_driver gx_suspmod_driver = {
 	.target		= cpufreq_gx_target,
 	.init		= cpufreq_gx_cpu_init,
 	.name		= "gx-suspmod",
-	.owner		= THIS_MODULE,
 };
 
 static int __init cpufreq_gx_init(void)
@@ -466,7 +462,7 @@ static int __init cpufreq_gx_init(void)
 
 	pr_debug("geode suspend modulation available.\n");
 
-	params = kzalloc(sizeof(struct gxfreq_params), GFP_KERNEL);
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (params == NULL)
 		return -ENOMEM;
 

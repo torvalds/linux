@@ -142,6 +142,13 @@ V_FUNCTION_END(__kernel_sigtramp_rt64)
 /* Size of CR reg in DWARF unwind info. */
 #define CRSIZE	4
 
+/* Offset of CR reg within a full word. */
+#ifdef __LITTLE_ENDIAN__
+#define CROFF 0
+#else
+#define CROFF (RSIZE - CRSIZE)
+#endif
+
 /* This is the offset of the VMX reg pointer.  */
 #define VREGS	48*RSIZE+33*8
 
@@ -181,7 +188,14 @@ V_FUNCTION_END(__kernel_sigtramp_rt64)
   rsave (31, 31*RSIZE);							\
   rsave (67, 32*RSIZE);		/* ap, used as temp for nip */		\
   rsave (65, 36*RSIZE);		/* lr */				\
-  rsave (70, 38*RSIZE + (RSIZE - CRSIZE)) /* cr */
+  rsave (68, 38*RSIZE + CROFF);	/* cr fields */				\
+  rsave (69, 38*RSIZE + CROFF);						\
+  rsave (70, 38*RSIZE + CROFF);						\
+  rsave (71, 38*RSIZE + CROFF);						\
+  rsave (72, 38*RSIZE + CROFF);						\
+  rsave (73, 38*RSIZE + CROFF);						\
+  rsave (74, 38*RSIZE + CROFF);						\
+  rsave (75, 38*RSIZE + CROFF)
 
 /* Describe where the FP regs are saved.  */
 #define EH_FRAME_FP \

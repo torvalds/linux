@@ -9,10 +9,7 @@ config IP_MULTICAST
 	  intend to participate in the MBONE, a high bandwidth network on top
 	  of the Internet which carries audio and video broadcasts. More
 	  information about the MBONE is on the WWW at
-	  <http://www.savetz.com/mbone/>. Information about the multicast
-	  capabilities of the various network cards is contained in
-	  <file:Documentation/networking/multicast.txt>. For most people, it's
-	  safe to say N.
+	  <http://www.savetz.com/mbone/>. For most people, it's safe to say N.
 
 config IP_ADVANCED_ROUTER
 	bool "IP: advanced router"
@@ -223,10 +220,8 @@ config IP_MROUTE
 	  packets that have several destination addresses. It is needed on the
 	  MBONE, a high bandwidth network on top of the Internet which carries
 	  audio and video broadcasts. In order to do that, you would most
-	  likely run the program mrouted. Information about the multicast
-	  capabilities of the various network cards is contained in
-	  <file:Documentation/networking/multicast.txt>. If you haven't heard
-	  about it, you don't need it.
+	  likely run the program mrouted. If you haven't heard about it, you
+	  don't need it.
 
 config IP_MROUTE_MULTIPLE_TABLES
 	bool "IP: multicast policy routing"
@@ -263,22 +258,6 @@ config IP_PIMSM_V2
 	  this, you need an experimental routing daemon supporting it (pimd or
 	  gated-5). This routing protocol is not used widely, so say N unless
 	  you want to play with it.
-
-config ARPD
-	bool "IP: ARP daemon support"
-	---help---
-	  The kernel maintains an internal cache which maps IP addresses to
-	  hardware addresses on the local network, so that Ethernet
-	  frames are sent to the proper address on the physical networking
-	  layer. Normally, kernel uses the ARP protocol to resolve these
-	  mappings.
-
-	  Saying Y here adds support to have an user space daemon to do this
-	  resolution instead. This is useful for implementing an alternate
-	  address resolution protocol (e.g. NHRP on mGRE tunnels) and also for
-	  testing purposes.
-
-	  If unsure, say N.
 
 config SYN_COOKIES
 	bool "IP: TCP syncookie support"

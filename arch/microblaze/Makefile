@@ -1,3 +1,5 @@
+KBUILD_DEFCONFIG := mmu_defconfig
+
 ifeq ($(CONFIG_MMU),y)
 UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
 else
@@ -72,7 +74,7 @@ all: linux.bin
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-linux.bin linux.bin.gz: vmlinux
+linux.bin linux.bin.gz linux.bin.ub: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 simpleImage.%: vmlinux
@@ -81,6 +83,7 @@ simpleImage.%: vmlinux
 define archhelp
   echo '* linux.bin    - Create raw binary'
   echo '  linux.bin.gz - Create compressed raw binary'
+  echo '  linux.bin.ub - Create U-Boot wrapped raw binary'
   echo '  simpleImage.<dt> - ELF image with $(arch)/boot/dts/<dt>.dts linked in'
   echo '                   - stripped elf with fdt blob'
   echo '  simpleImage.<dt>.unstrip - full ELF image with fdt blob'

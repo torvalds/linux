@@ -14,7 +14,7 @@
  ******************************************************************************
 
   Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andreamrl@tiscali.it>
+  Andrea Merello <andrea.merello@gmail.com>
 
   A special thanks goes to Realtek for their support !
 
@@ -2166,7 +2166,8 @@ static inline u8 ieee80211_SignalStrengthTranslate(
 	return RetSS;
 }
 
-long ieee80211_translate_todbm(u8 signal_strength_index	)// 0-100 index.
+/* 0-100 index */
+static long ieee80211_translate_todbm(u8 signal_strength_index)
 {
 	long	signal_power; // in dBm.
 

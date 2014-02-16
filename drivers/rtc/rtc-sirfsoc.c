@@ -44,6 +44,7 @@ struct sirfsoc_rtc_drv {
 	struct rtc_device	*rtc;
 	u32			rtc_base;
 	u32			irq;
+	unsigned		irq_wake;
 	/* Overflow for every 8 years extra time */
 	u32			overflow_rtc;
 #ifdef CONFIG_PM
@@ -58,7 +59,7 @@ static int sirfsoc_rtc_read_alarm(struct device *dev,
 	unsigned long rtc_alarm, rtc_count;
 	struct sirfsoc_rtc_drv *rtcdrv;
 
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 
 	local_irq_disable();
 
@@ -93,7 +94,7 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 {
 	unsigned long rtc_status_reg, rtc_alarm;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 
 	if (alrm->enabled) {
 		rtc_tm_to_time(&(alrm->time), &rtc_alarm);
@@ -156,7 +157,7 @@ static int sirfsoc_rtc_read_time(struct device *dev,
 {
 	unsigned long tmp_rtc = 0;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 	/*
 	 * This patch is taken from WinCE - Need to validate this for
 	 * correctness. To work around sirfsoc RTC counter double sync logic
@@ -177,7 +178,7 @@ static int sirfsoc_rtc_set_time(struct device *dev,
 {
 	unsigned long rtc_time;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 
 	rtc_tm_to_time(tm, &rtc_time);
 
@@ -273,7 +274,7 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 	err = of_property_read_u32(np, "reg", &rtcdrv->rtc_base);
 	if (err) {
 		dev_err(&pdev->dev, "unable to find base address of rtc node in dtb\n");
-		goto error;
+		return err;
 	}
 
 	platform_set_drvdata(pdev, rtcdrv);
@@ -289,7 +290,7 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 	rtc_div = ((32768 / RTC_HZ) / 2) - 1;
 	sirfsoc_rtc_iobrg_writel(rtc_div, rtcdrv->rtc_base + RTC_DIV);
 
-	rtcdrv->rtc = rtc_device_register(pdev->name, &(pdev->dev),
+	rtcdrv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 			&sirfsoc_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtcdrv->rtc)) {
 		err = PTR_ERR(rtcdrv->rtc);
@@ -321,24 +322,15 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 			rtcdrv);
 	if (err) {
 		dev_err(&pdev->dev, "Unable to register for the SiRF SOC RTC IRQ\n");
-		goto error;
+		return err;
 	}
 
 	return 0;
-
-error:
-	if (rtcdrv->rtc)
-		rtc_device_unregister(rtcdrv->rtc);
-
-	return err;
 }
 
 static int sirfsoc_rtc_remove(struct platform_device *pdev)
 {
-	struct sirfsoc_rtc_drv *rtcdrv = platform_get_drvdata(pdev);
-
 	device_init_wakeup(&pdev->dev, 0);
-	rtc_device_unregister(rtcdrv->rtc);
 
 	return 0;
 }
@@ -355,8 +347,8 @@ static int sirfsoc_rtc_suspend(struct device *dev)
 	rtcdrv->saved_counter =
 		sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_CN);
 	rtcdrv->saved_overflow_rtc = rtcdrv->overflow_rtc;
-	if (device_may_wakeup(&pdev->dev))
-		enable_irq_wake(rtcdrv->irq);
+	if (device_may_wakeup(&pdev->dev) && !enable_irq_wake(rtcdrv->irq))
+		rtcdrv->irq_wake = 1;
 
 	return 0;
 }
@@ -372,7 +364,7 @@ static int sirfsoc_rtc_thaw(struct device *dev)
 {
 	u32 tmp;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 
 	/*
 	 * if resume from snapshot and the rtc power is losed,
@@ -423,8 +415,10 @@ static int sirfsoc_rtc_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sirfsoc_rtc_drv *rtcdrv = platform_get_drvdata(pdev);
 	sirfsoc_rtc_thaw(dev);
-	if (device_may_wakeup(&pdev->dev))
+	if (device_may_wakeup(&pdev->dev) && rtcdrv->irq_wake) {
 		disable_irq_wake(rtcdrv->irq);
+		rtcdrv->irq_wake = 0;
+	}
 
 	return 0;
 }
@@ -434,8 +428,10 @@ static int sirfsoc_rtc_restore(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sirfsoc_rtc_drv *rtcdrv = platform_get_drvdata(pdev);
 
-	if (device_may_wakeup(&pdev->dev))
+	if (device_may_wakeup(&pdev->dev) && rtcdrv->irq_wake) {
 		disable_irq_wake(rtcdrv->irq);
+		rtcdrv->irq_wake = 0;
+	}
 	return 0;
 }
 
@@ -462,7 +458,7 @@ static struct platform_driver sirfsoc_rtc_driver = {
 #ifdef CONFIG_PM
 		.pm = &sirfsoc_rtc_pm_ops,
 #endif
-		.of_match_table = of_match_ptr(sirfsoc_rtc_of_match),
+		.of_match_table = sirfsoc_rtc_of_match,
 	},
 	.probe = sirfsoc_rtc_probe,
 	.remove = sirfsoc_rtc_remove,

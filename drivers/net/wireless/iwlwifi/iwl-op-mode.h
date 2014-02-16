@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ struct iwl_cfg;
  *	1) The driver layer (iwl-drv.c) chooses the op_mode based on the
  *	   capabilities advertized by the fw file (in TLV format).
  *	2) The driver layer starts the op_mode (ops->start)
- *	3) The op_mode registers registers mac80211
+ *	3) The op_mode registers mac80211
  *	4) The op_mode is governed by mac80211
  *	5) The driver layer stops the op_mode
  */
@@ -112,7 +112,7 @@ struct iwl_cfg;
  * @stop: stop the op_mode. Must free all the memory allocated.
  *	May sleep
  * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
- *	HCMD the this Rx responds to.
+ *	HCMD this Rx responds to.
  *	This callback may sleep, it is called from a threaded IRQ handler.
  * @queue_full: notifies that a HW queue is full.
  *	Must be atomic and called with BH disabled.
@@ -155,14 +155,12 @@ void iwl_opmode_deregister(const char *name);
 
 /**
  * struct iwl_op_mode - operational mode
+ * @ops - pointer to its own ops
  *
  * This holds an implementation of the mac80211 / fw API.
- *
- * @ops - pointer to its own ops
  */
 struct iwl_op_mode {
 	const struct iwl_op_mode_ops *ops;
-	const struct iwl_trans *trans;
 
 	char op_mode_specific[0] __aligned(sizeof(void *));
 };

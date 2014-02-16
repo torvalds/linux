@@ -20,7 +20,6 @@ platforms += mti-sead3
 platforms += netlogic
 platforms += pmcs-msp71xx
 platforms += pnx833x
-platforms += powertv
 platforms += ralink
 platforms += rb532
 platforms += sgi-ip22
@@ -30,7 +29,6 @@ platforms += sibyte
 platforms += sni
 platforms += txx9
 platforms += vr41xx
-platforms += wrppmc
 
 # include the platform specific files
 include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))

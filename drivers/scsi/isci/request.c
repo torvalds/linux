@@ -184,8 +184,8 @@ static void sci_io_request_build_ssp_command_iu(struct isci_request *ireq)
 	cmd_iu->task_attr = task->ssp_task.task_attr;
 	cmd_iu->_r_c = 0;
 
-	sci_swab32_cpy(&cmd_iu->cdb, task->ssp_task.cdb,
-		       sizeof(task->ssp_task.cdb) / sizeof(u32));
+	sci_swab32_cpy(&cmd_iu->cdb, task->ssp_task.cmd->cmnd,
+		       (task->ssp_task.cmd->cmd_len+3) / sizeof(u32));
 }
 
 static void sci_task_request_build_ssp_task_iu(struct isci_request *ireq)

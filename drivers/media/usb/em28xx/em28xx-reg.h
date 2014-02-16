@@ -25,10 +25,12 @@
 #define EM28XX_R00_CHIPCFG	0x00
 
 /* em28xx Chip Configuration 0x00 */
-#define EM28XX_CHIPCFG_VENDOR_AUDIO		0x80
-#define EM28XX_CHIPCFG_I2S_VOLUME_CAPABLE	0x40
-#define EM28XX_CHIPCFG_I2S_5_SAMPRATES		0x30
-#define EM28XX_CHIPCFG_I2S_3_SAMPRATES		0x20
+#define EM2860_CHIPCFG_VENDOR_AUDIO		0x80
+#define EM2860_CHIPCFG_I2S_VOLUME_CAPABLE	0x40
+#define EM2820_CHIPCFG_I2S_3_SAMPRATES		0x30
+#define EM2860_CHIPCFG_I2S_5_SAMPRATES		0x30
+#define EM2820_CHIPCFG_I2S_1_SAMPRATE		0x20
+#define EM2860_CHIPCFG_I2S_3_SAMPRATES		0x20
 #define EM28XX_CHIPCFG_AC97			0x10
 #define EM28XX_CHIPCFG_AUDIOMASK		0x30
 
@@ -49,8 +51,9 @@
 
 
 /* GPIO/GPO registers */
-#define EM2880_R04_GPO	0x04    /* em2880-em2883 only */
-#define EM28XX_R08_GPIO	0x08	/* em2820 or upper */
+#define EM2880_R04_GPO		0x04    /* em2880-em2883 only */
+#define EM2820_R08_GPIO_CTRL	0x08	/* em2820-em2873/83 only */
+#define EM2820_R09_GPIO_STATE	0x09	/* em2820-em2873/83 only */
 
 #define EM28XX_R06_I2C_CLK	0x06
 
@@ -67,7 +70,8 @@
 
 
 #define EM28XX_R0A_CHIPID	0x0a
-#define EM28XX_R0C_USBSUSP	0x0c	/* */
+#define EM28XX_R0C_USBSUSP	0x0c
+#define   EM28XX_R0C_USBSUSP_SNAPSHOT	0x20 /* 1=button pressed, needs reset */
 
 #define EM28XX_R0E_AUDIOSRC	0x0e
 #define EM28XX_R0F_XCLK	0x0f
@@ -193,7 +197,20 @@
 #define EM2874_R50_IR_CONFIG    0x50
 #define EM2874_R51_IR           0x51
 #define EM2874_R5F_TS_ENABLE    0x5f
-#define EM2874_R80_GPIO         0x80
+
+/* em2874/174/84, em25xx, em276x/7x/8x GPIO registers */
+/*
+ * NOTE: not all ports are bonded out;
+ * Some ports are multiplexed with special function I/O
+ */
+#define EM2874_R80_GPIO_P0_CTRL    0x80
+#define EM2874_R81_GPIO_P1_CTRL    0x81
+#define EM2874_R82_GPIO_P2_CTRL    0x82
+#define EM2874_R83_GPIO_P3_CTRL    0x83
+#define EM2874_R84_GPIO_P0_STATE   0x84
+#define EM2874_R85_GPIO_P1_STATE   0x85
+#define EM2874_R86_GPIO_P2_STATE   0x86
+#define EM2874_R87_GPIO_P3_STATE   0x87
 
 /* em2874 IR config register (0x50) */
 #define EM2874_IR_NEC           0x00
@@ -230,6 +247,7 @@ enum em28xx_chip_id {
 	CHIP_ID_EM2874 = 65,
 	CHIP_ID_EM2884 = 68,
 	CHIP_ID_EM28174 = 113,
+	CHIP_ID_EM28178 = 114,
 };
 
 /*

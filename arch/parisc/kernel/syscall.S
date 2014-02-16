@@ -649,10 +649,8 @@ cas_action:
 	/* Two exception table entries, one for the load,
 	   the other for the store. Either return -EFAULT.
 	   Each of the entries must be relocated. */
-	.section __ex_table,"aw"
-	ASM_ULONG_INSN (1b - linux_gateway_page), (3b - linux_gateway_page)
-	ASM_ULONG_INSN (2b - linux_gateway_page), (3b - linux_gateway_page)
-	.previous
+	ASM_EXCEPTIONTABLE_ENTRY(1b-linux_gateway_page, 3b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(2b-linux_gateway_page, 3b-linux_gateway_page)
 
 
 	/* Make sure nothing else is placed on this page */

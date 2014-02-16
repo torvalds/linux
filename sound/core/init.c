@@ -66,7 +66,7 @@ static int module_slot_match(struct module *module, int idx)
 #ifdef MODULE
 	const char *s1, *s2;
 
-	if (!module || !module->name || !slots[idx])
+	if (!module || !*module->name || !slots[idx])
 		return 0;
 
 	s1 = module->name;
@@ -131,6 +131,31 @@ static inline int init_info_for_card(struct snd_card *card)
 #define init_info_for_card(card)
 #endif
 
+static int check_empty_slot(struct module *module, int slot)
+{
+	return !slots[slot] || !*slots[slot];
+}
+
+/* return an empty slot number (>= 0) found in the given bitmask @mask.
+ * @mask == -1 == 0xffffffff means: take any free slot up to 32
+ * when no slot is available, return the original @mask as is.
+ */
+static int get_slot_from_bitmask(int mask, int (*check)(struct module *, int),
+				 struct module *module)
+{
+	int slot;
+
+	for (slot = 0; slot < SNDRV_CARDS; slot++) {
+		if (slot < 32 && !(mask & (1U << slot)))
+			continue;
+		if (!test_bit(slot, snd_cards_lock)) {
+			if (check(module, slot))
+				return slot; /* found */
+		}
+	}
+	return mask; /* unchanged */
+}
+
 /**
  *  snd_card_create - create and initialize a soundcard structure
  *  @idx: card index (address) [0 ... (SNDRV_CARDS-1)]
@@ -152,7 +177,7 @@ int snd_card_create(int idx, const char *xid,
 		    struct snd_card **card_ret)
 {
 	struct snd_card *card;
-	int err, idx2;
+	int err;
 
 	if (snd_BUG_ON(!card_ret))
 		return -EINVAL;
@@ -167,32 +192,10 @@ int snd_card_create(int idx, const char *xid,
 		strlcpy(card->id, xid, sizeof(card->id));
 	err = 0;
 	mutex_lock(&snd_card_mutex);
-	if (idx < 0) {
-		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++) {
-			/* idx == -1 == 0xffff means: take any free slot */
-			if (idx2 < sizeof(int) && !(idx & (1U << idx2)))
-				continue;
-			if (!test_bit(idx2, snd_cards_lock)) {
-				if (module_slot_match(module, idx2)) {
-					idx = idx2;
-					break;
-				}
-			}
-		}
-	}
-	if (idx < 0) {
-		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++) {
-			/* idx == -1 == 0xffff means: take any free slot */
-			if (idx2 < sizeof(int) && !(idx & (1U << idx2)))
-				continue;
-			if (!test_bit(idx2, snd_cards_lock)) {
-				if (!slots[idx2] || !*slots[idx2]) {
-					idx = idx2;
-					break;
-				}
-			}
-		}
-	}
+	if (idx < 0) /* first check the matching module-name slot */
+		idx = get_slot_from_bitmask(idx, module_slot_match, module);
+	if (idx < 0) /* if not matched, assign an empty slot */
+		idx = get_slot_from_bitmask(idx, check_empty_slot, module);
 	if (idx < 0)
 		err = -ENODEV;
 	else if (idx < snd_ecards_limit) {
@@ -597,7 +600,7 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
 	/* last resort... */
 	snd_printk(KERN_ERR "unable to set card id (%s)\n", id);
 	if (card->proc_root->name)
-		strcpy(card->id, card->proc_root->name);
+		strlcpy(card->id, card->proc_root->name, sizeof(card->id));
 }
 
 /**

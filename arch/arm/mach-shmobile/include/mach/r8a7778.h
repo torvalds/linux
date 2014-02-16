@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2013  Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,26 +19,65 @@
 #ifndef __ASM_R8A7778_H__
 #define __ASM_R8A7778_H__
 
-#include <linux/mmc/sh_mmcif.h>
-#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/sh_eth.h>
-#include <linux/platform_data/usb-rcar-phy.h>
+
+/* HPB-DMA slave IDs */
+enum {
+	HPBDMA_SLAVE_DUMMY,
+	HPBDMA_SLAVE_SDHI0_TX,
+	HPBDMA_SLAVE_SDHI0_RX,
+	HPBDMA_SLAVE_SSI0_TX,
+	HPBDMA_SLAVE_SSI0_RX,
+	HPBDMA_SLAVE_SSI1_TX,
+	HPBDMA_SLAVE_SSI1_RX,
+	HPBDMA_SLAVE_SSI2_TX,
+	HPBDMA_SLAVE_SSI2_RX,
+	HPBDMA_SLAVE_SSI3_TX,
+	HPBDMA_SLAVE_SSI3_RX,
+	HPBDMA_SLAVE_SSI4_TX,
+	HPBDMA_SLAVE_SSI4_RX,
+	HPBDMA_SLAVE_SSI5_TX,
+	HPBDMA_SLAVE_SSI5_RX,
+	HPBDMA_SLAVE_SSI6_TX,
+	HPBDMA_SLAVE_SSI6_RX,
+	HPBDMA_SLAVE_SSI7_TX,
+	HPBDMA_SLAVE_SSI7_RX,
+	HPBDMA_SLAVE_SSI8_TX,
+	HPBDMA_SLAVE_SSI8_RX,
+	HPBDMA_SLAVE_HPBIF0_TX,
+	HPBDMA_SLAVE_HPBIF0_RX,
+	HPBDMA_SLAVE_HPBIF1_TX,
+	HPBDMA_SLAVE_HPBIF1_RX,
+	HPBDMA_SLAVE_HPBIF2_TX,
+	HPBDMA_SLAVE_HPBIF2_RX,
+	HPBDMA_SLAVE_HPBIF3_TX,
+	HPBDMA_SLAVE_HPBIF3_RX,
+	HPBDMA_SLAVE_HPBIF4_TX,
+	HPBDMA_SLAVE_HPBIF4_RX,
+	HPBDMA_SLAVE_HPBIF5_TX,
+	HPBDMA_SLAVE_HPBIF5_RX,
+	HPBDMA_SLAVE_HPBIF6_TX,
+	HPBDMA_SLAVE_HPBIF6_RX,
+	HPBDMA_SLAVE_HPBIF7_TX,
+	HPBDMA_SLAVE_HPBIF7_RX,
+	HPBDMA_SLAVE_HPBIF8_TX,
+	HPBDMA_SLAVE_HPBIF8_RX,
+	HPBDMA_SLAVE_USBFUNC_TX,
+	HPBDMA_SLAVE_USBFUNC_RX,
+};
 
 extern void r8a7778_add_standard_devices(void);
 extern void r8a7778_add_standard_devices_dt(void);
-extern void r8a7778_add_ether_device(struct sh_eth_plat_data *pdata);
-extern void r8a7778_add_usb_phy_device(struct rcar_phy_platform_data *pdata);
-extern void r8a7778_add_i2c_device(int id);
-extern void r8a7778_add_hspi_device(int id);
-extern void r8a7778_add_mmc_device(struct sh_mmcif_plat_data *info);
+extern void r8a7778_add_dt_devices(void);
 
 extern void r8a7778_init_late(void);
 extern void r8a7778_init_delay(void);
-extern void r8a7778_init_irq(void);
 extern void r8a7778_init_irq_dt(void);
 extern void r8a7778_clock_init(void);
 extern void r8a7778_init_irq_extpin(int irlm);
+extern void r8a7778_init_irq_extpin_dt(int irlm);
 extern void r8a7778_pinmux_init(void);
-extern void r8a7778_sdhi_init(int id, struct sh_mobile_sdhi_info *info);
+
+extern int r8a7778_usb_phy_power(bool enable);
 
 #endif /* __ASM_R8A7778_H__ */

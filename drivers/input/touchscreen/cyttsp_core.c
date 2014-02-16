@@ -84,7 +84,8 @@ static int ttsp_read_block_data(struct cyttsp *ts, u8 command,
 	int tries;
 
 	for (tries = 0; tries < CY_NUM_RETRY; tries++) {
-		error = ts->bus_ops->read(ts, command, length, buf);
+		error = ts->bus_ops->read(ts->dev, ts->xfer_buf, command,
+				length, buf);
 		if (!error)
 			return 0;
 
@@ -101,7 +102,8 @@ static int ttsp_write_block_data(struct cyttsp *ts, u8 command,
 	int tries;
 
 	for (tries = 0; tries < CY_NUM_RETRY; tries++) {
-		error = ts->bus_ops->write(ts, command, length, buf);
+		error = ts->bus_ops->write(ts->dev, ts->xfer_buf, command,
+				length, buf);
 		if (!error)
 			return 0;
 
@@ -240,7 +242,7 @@ static int cyttsp_soft_reset(struct cyttsp *ts)
 	int retval;
 
 	/* wait for interrupt to set ready completion */
-	INIT_COMPLETION(ts->bl_ready);
+	reinit_completion(&ts->bl_ready);
 	ts->state = CY_BL_STATE;
 
 	enable_irq(ts->irq);
@@ -532,7 +534,7 @@ static void cyttsp_close(struct input_dev *dev)
 struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			    struct device *dev, int irq, size_t xfer_buf_size)
 {
-	const struct cyttsp_platform_data *pdata = dev->platform_data;
+	const struct cyttsp_platform_data *pdata = dev_get_platdata(dev);
 	struct cyttsp *ts;
 	struct input_dev *input_dev;
 	int error;
@@ -551,7 +553,7 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 
 	ts->dev = dev;
 	ts->input = input_dev;
-	ts->pdata = dev->platform_data;
+	ts->pdata = dev_get_platdata(dev);
 	ts->bus_ops = bus_ops;
 	ts->irq = irq;
 

@@ -138,6 +138,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 	spec->gen.indep_hp = 1;
 	spec->gen.keep_eapd_on = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
+	spec->gen.add_stereo_mix_input = 1;
 	return spec;
 }
 
@@ -207,9 +208,9 @@ static void vt1708_stop_hp_work(struct hda_codec *codec)
 		return;
 	if (spec->hp_work_active) {
 		snd_hda_codec_write(codec, 0x1, 0, 0xf81, 1);
+		codec->jackpoll_interval = 0;
 		cancel_delayed_work_sync(&codec->jackpoll_work);
 		spec->hp_work_active = false;
-		codec->jackpoll_interval = 0;
 	}
 }
 

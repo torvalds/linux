@@ -22,6 +22,9 @@
 #include <asm/uaccess.h>
 #include "br_private.h"
 
+#define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
+			 NETIF_F_GSO_MASK | NETIF_F_HW_CSUM)
+
 /* net device transmit always called with BH disabled */
 netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -29,7 +32,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	const unsigned char *dest = skb->data;
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
-	struct br_cpu_netstats *brstats = this_cpu_ptr(br->stats);
+	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	u16 vid = 0;
 
 	rcu_read_lock();
@@ -55,26 +58,27 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_pull(skb, ETH_HLEN);
 
 	if (is_broadcast_ether_addr(dest))
-		br_flood_deliver(br, skb);
+		br_flood_deliver(br, skb, false);
 	else if (is_multicast_ether_addr(dest)) {
 		if (unlikely(netpoll_tx_running(dev))) {
-			br_flood_deliver(br, skb);
+			br_flood_deliver(br, skb, false);
 			goto out;
 		}
-		if (br_multicast_rcv(br, NULL, skb)) {
+		if (br_multicast_rcv(br, NULL, skb, vid)) {
 			kfree_skb(skb);
 			goto out;
 		}
 
 		mdst = br_mdb_get(br, skb, vid);
-		if (mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb))
+		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
+		    br_multicast_querier_exists(br, eth_hdr(skb)))
 			br_multicast_deliver(mdst, skb);
 		else
-			br_flood_deliver(br, skb);
+			br_flood_deliver(br, skb, false);
 	} else if ((dst = __br_fdb_get(br, dest, vid)) != NULL)
 		br_deliver(dst->dst, skb);
 	else
-		br_flood_deliver(br, skb);
+		br_flood_deliver(br, skb, true);
 
 out:
 	rcu_read_unlock();
@@ -84,10 +88,17 @@ out:
 static int br_dev_init(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
+	int i;
 
-	br->stats = alloc_percpu(struct br_cpu_netstats);
+	br->stats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!br->stats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct pcpu_sw_netstats *br_dev_stats;
+		br_dev_stats = per_cpu_ptr(br->stats, i);
+		u64_stats_init(&br_dev_stats->syncp);
+	}
 
 	return 0;
 }
@@ -124,12 +135,12 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 						struct rtnl_link_stats64 *stats)
 {
 	struct net_bridge *br = netdev_priv(dev);
-	struct br_cpu_netstats tmp, sum = { 0 };
+	struct pcpu_sw_netstats tmp, sum = { 0 };
 	unsigned int cpu;
 
 	for_each_possible_cpu(cpu) {
 		unsigned int start;
-		const struct br_cpu_netstats *bstats
+		const struct pcpu_sw_netstats *bstats
 			= per_cpu_ptr(br->stats, cpu);
 		do {
 			start = u64_stats_fetch_begin_bh(&bstats->syncp);
@@ -176,8 +187,7 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 
 	spin_lock_bh(&br->lock);
 	if (!ether_addr_equal(dev->dev_addr, addr->sa_data)) {
-		memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-		br_fdb_change_mac_address(br, addr->sa_data);
+		/* Mac address will be changed in br_stp_change_bridge_id(). */
 		br_stp_change_bridge_id(br, addr->sa_data);
 	}
 	spin_unlock_bh(&br->lock);
@@ -215,6 +225,33 @@ static void br_netpoll_cleanup(struct net_device *dev)
 		br_netpoll_disable(p);
 }
 
+static int __br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
+{
+	struct netpoll *np;
+	int err;
+
+	np = kzalloc(sizeof(*p->np), gfp);
+	if (!np)
+		return -ENOMEM;
+
+	err = __netpoll_setup(np, p->dev, gfp);
+	if (err) {
+		kfree(np);
+		return err;
+	}
+
+	p->np = np;
+	return err;
+}
+
+int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
+{
+	if (!p->br->dev->npinfo)
+		return 0;
+
+	return __br_netpoll_enable(p, gfp);
+}
+
 static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni,
 			    gfp_t gfp)
 {
@@ -225,7 +262,7 @@ static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni,
 	list_for_each_entry(p, &br->port_list, list) {
 		if (!p->dev)
 			continue;
-		err = br_netpoll_enable(p, gfp);
+		err = __br_netpoll_enable(p, gfp);
 		if (err)
 			goto fail;
 	}
@@ -236,28 +273,6 @@ out:
 fail:
 	br_netpoll_cleanup(dev);
 	goto out;
-}
-
-int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
-{
-	struct netpoll *np;
-	int err = 0;
-
-	np = kzalloc(sizeof(*p->np), gfp);
-	err = -ENOMEM;
-	if (!np)
-		goto out;
-
-	err = __netpoll_setup(np, p->dev, gfp);
-	if (err) {
-		kfree(np);
-		goto out;
-	}
-
-	p->np = np;
-
-out:
-	return err;
 }
 
 void br_netpoll_disable(struct net_bridge_port *p)
@@ -346,12 +361,10 @@ void br_dev_setup(struct net_device *dev)
 	dev->tx_queue_len = 0;
 	dev->priv_flags = IFF_EBRIDGE;
 
-	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-			NETIF_F_GSO_MASK | NETIF_F_HW_CSUM | NETIF_F_LLTX |
-			NETIF_F_NETNS_LOCAL | NETIF_F_HW_VLAN_CTAG_TX;
-	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-			   NETIF_F_GSO_MASK | NETIF_F_HW_CSUM |
-			   NETIF_F_HW_VLAN_CTAG_TX;
+	dev->features = COMMON_FEATURES | NETIF_F_LLTX | NETIF_F_NETNS_LOCAL |
+			NETIF_F_HW_VLAN_CTAG_TX;
+	dev->hw_features = COMMON_FEATURES | NETIF_F_HW_VLAN_CTAG_TX;
+	dev->vlan_features = COMMON_FEATURES;
 
 	br->dev = dev;
 	spin_lock_init(&br->lock);

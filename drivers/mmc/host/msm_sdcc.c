@@ -1416,28 +1416,10 @@ ioremap_free:
 }
 
 #ifdef CONFIG_PM
-#ifdef CONFIG_MMC_MSM7X00A_RESUME_IN_WQ
-static void
-do_resume_work(struct work_struct *work)
-{
-	struct msmsdcc_host *host =
-		container_of(work, struct msmsdcc_host, resume_task);
-	struct mmc_host	*mmc = host->mmc;
-
-	if (mmc) {
-		mmc_resume_host(mmc);
-		if (host->stat_irq)
-			enable_irq(host->stat_irq);
-	}
-}
-#endif
-
-
 static int
 msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct mmc_host *mmc = mmc_get_drvdata(dev);
-	int rc = 0;
 
 	if (mmc) {
 		struct msmsdcc_host *host = mmc_priv(mmc);
@@ -1445,14 +1427,11 @@ msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 		if (host->stat_irq)
 			disable_irq(host->stat_irq);
 
-		if (mmc->card && mmc->card->type != MMC_TYPE_SDIO)
-			rc = mmc_suspend_host(mmc);
-		if (!rc)
-			msmsdcc_writel(host, 0, MMCIMASK0);
+		msmsdcc_writel(host, 0, MMCIMASK0);
 		if (host->clks_on)
 			msmsdcc_disable_clocks(host, 0);
 	}
-	return rc;
+	return 0;
 }
 
 static int
@@ -1467,8 +1446,6 @@ msmsdcc_resume(struct platform_device *dev)
 
 		msmsdcc_writel(host, host->saved_irq0mask, MMCIMASK0);
 
-		if (mmc->card && mmc->card->type != MMC_TYPE_SDIO)
-			mmc_resume_host(mmc);
 		if (host->stat_irq)
 			enable_irq(host->stat_irq);
 #if BUSCLK_PWRSAVE

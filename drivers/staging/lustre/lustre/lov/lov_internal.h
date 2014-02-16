@@ -89,6 +89,8 @@ struct lov_request_set {
 
 extern struct kmem_cache *lov_oinfo_slab;
 
+extern struct lu_kmem_descr lov_caches[];
+
 void lov_finish_set(struct lov_request_set *set);
 
 static inline void lov_get_reqset(struct lov_request_set *set)
@@ -124,7 +126,7 @@ static inline void lov_llh_put(struct lov_lock_handles *llh)
 		if (atomic_read(&llh->llh_refcount))
 			return;
 
-		OBD_FREE_RCU(llh, sizeof *llh +
+		OBD_FREE_RCU(llh, sizeof(*llh) +
 			     sizeof(*llh->llh_handles) * llh->llh_stripe_count,
 			     &llh->llh_handle);
 	}
@@ -281,8 +283,8 @@ void lsm_free_plain(struct lov_stripe_md *lsm);
 int lovea_destroy_object(struct lov_obd *lov, struct lov_stripe_md *lsm,
 			 struct obdo *oa, void *data);
 /* lproc_lov.c */
-extern struct file_operations lov_proc_target_fops;
 #ifdef LPROCFS
+extern const struct file_operations lov_proc_target_fops;
 void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars)

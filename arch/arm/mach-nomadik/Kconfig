@@ -27,6 +27,7 @@ config MACH_NOMADIK_8815NHK
 	select NOMADIK_8815
 	select I2C
 	select I2C_ALGOBIT
+	select I2C_NOMADIK
 
 endmenu
 endif

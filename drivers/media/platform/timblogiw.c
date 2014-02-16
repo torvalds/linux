@@ -239,13 +239,12 @@ static int timblogiw_querycap(struct file *file, void  *priv,
 	struct video_device *vdev = video_devdata(file);
 
 	dev_dbg(&vdev->dev, "%s: Entry\n",  __func__);
-	memset(cap, 0, sizeof(*cap));
 	strncpy(cap->card, TIMBLOGIWIN_NAME, sizeof(cap->card)-1);
 	strncpy(cap->driver, DRIVER_NAME, sizeof(cap->driver) - 1);
-	strlcpy(cap->bus_info, vdev->name, sizeof(cap->bus_info));
-	cap->version = TIMBLOGIW_VERSION_CODE;
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s", vdev->name);
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 		V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
@@ -404,7 +403,7 @@ static int timblogiw_s_input(struct file *file, void  *priv, unsigned int input)
 	return 0;
 }
 
-static int timblogiw_streamon(struct file *file, void  *priv, unsigned int type)
+static int timblogiw_streamon(struct file *file, void  *priv, enum v4l2_buf_type type)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct timblogiw_fh *fh = priv;
@@ -421,7 +420,7 @@ static int timblogiw_streamon(struct file *file, void  *priv, unsigned int type)
 }
 
 static int timblogiw_streamoff(struct file *file, void  *priv,
-	unsigned int type)
+	enum v4l2_buf_type type)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct timblogiw_fh *fh = priv;
@@ -566,7 +565,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 
 	desc = dmaengine_prep_slave_sg(fh->chan,
 		buf->sg, sg_elems, DMA_DEV_TO_MEM,
-		DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
+		DMA_PREP_INTERRUPT);
 	if (!desc) {
 		spin_lock_irq(&fh->queue_lock);
 		list_del_init(&vb->queue);
@@ -834,11 +833,9 @@ static int timblogiw_probe(struct platform_device *pdev)
 		goto err_request;
 	}
 
-
 	return 0;
 
 err_request:
-	platform_set_drvdata(pdev, NULL);
 	v4l2_device_unregister(&lw->v4l2_dev);
 err_register:
 	kfree(lw);
@@ -857,8 +854,6 @@ static int timblogiw_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&lw->v4l2_dev);
 
 	kfree(lw);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

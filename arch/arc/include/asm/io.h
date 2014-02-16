@@ -100,6 +100,10 @@ static inline void __raw_writel(u32 w, volatile void __iomem *addr)
 
 }
 
+#define readb_relaxed readb
+#define readw_relaxed readw
+#define readl_relaxed readl
+
 #include <asm-generic/io.h>
 
 #endif /* _ASM_ARC_IO_H */

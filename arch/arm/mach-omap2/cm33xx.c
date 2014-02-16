@@ -48,13 +48,13 @@
 /* Private functions */
 
 /* Read a register in a CM instance */
-static inline u32 am33xx_cm_read_reg(s16 inst, u16 idx)
+static inline u32 am33xx_cm_read_reg(u16 inst, u16 idx)
 {
 	return __raw_readl(cm_base + inst + idx);
 }
 
 /* Write into a register in a CM */
-static inline void am33xx_cm_write_reg(u32 val, s16 inst, u16 idx)
+static inline void am33xx_cm_write_reg(u32 val, u16 inst, u16 idx)
 {
 	__raw_writel(val, cm_base + inst + idx);
 }
@@ -138,7 +138,7 @@ static bool _is_module_ready(u16 inst, s16 cdoffs, u16 clkctrl_offs)
  * @c must be the unshifted value for CLKTRCTRL - i.e., this function
  * will handle the shift itself.
  */
-static void _clktrctrl_write(u8 c, s16 inst, u16 cdoffs)
+static void _clktrctrl_write(u8 c, u16 inst, u16 cdoffs)
 {
 	u32 v;
 
@@ -158,7 +158,7 @@ static void _clktrctrl_write(u8 c, s16 inst, u16 cdoffs)
  * Returns true if the clockdomain referred to by (@inst, @cdoffs)
  * is in hardware-supervised idle mode, or 0 otherwise.
  */
-bool am33xx_cm_is_clkdm_in_hwsup(s16 inst, u16 cdoffs)
+bool am33xx_cm_is_clkdm_in_hwsup(u16 inst, u16 cdoffs)
 {
 	u32 v;
 
@@ -177,7 +177,7 @@ bool am33xx_cm_is_clkdm_in_hwsup(s16 inst, u16 cdoffs)
  * Put a clockdomain referred to by (@inst, @cdoffs) into
  * hardware-supervised idle mode.  No return value.
  */
-void am33xx_cm_clkdm_enable_hwsup(s16 inst, u16 cdoffs)
+void am33xx_cm_clkdm_enable_hwsup(u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, inst, cdoffs);
 }
@@ -191,7 +191,7 @@ void am33xx_cm_clkdm_enable_hwsup(s16 inst, u16 cdoffs)
  * software-supervised idle mode, i.e., controlled manually by the
  * Linux OMAP clockdomain code.  No return value.
  */
-void am33xx_cm_clkdm_disable_hwsup(s16 inst, u16 cdoffs)
+void am33xx_cm_clkdm_disable_hwsup(u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, inst, cdoffs);
 }
@@ -204,7 +204,7 @@ void am33xx_cm_clkdm_disable_hwsup(s16 inst, u16 cdoffs)
  * Put a clockdomain referred to by (@inst, @cdoffs) into idle
  * No return value.
  */
-void am33xx_cm_clkdm_force_sleep(s16 inst, u16 cdoffs)
+void am33xx_cm_clkdm_force_sleep(u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, inst, cdoffs);
 }
@@ -217,7 +217,7 @@ void am33xx_cm_clkdm_force_sleep(s16 inst, u16 cdoffs)
  * Take a clockdomain referred to by (@inst, @cdoffs) out of idle,
  * waking it up.  No return value.
  */
-void am33xx_cm_clkdm_force_wakeup(s16 inst, u16 cdoffs)
+void am33xx_cm_clkdm_force_wakeup(u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, inst, cdoffs);
 }

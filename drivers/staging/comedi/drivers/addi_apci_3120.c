@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -65,10 +66,9 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = this_board;
 	dev->board_name = this_board->pc_DriverName;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -164,7 +164,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->len_chanlist = this_board->i_NbrDiChannel;
 	s->range_table = &range_digital;
-	s->io_bits = 0;	/* all bits input */
 	s->insn_bits = apci3120_di_insn_bits;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
@@ -176,7 +175,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->maxdata = this_board->i_DoMaxdata;
 	s->len_chanlist = this_board->i_NbrDoChannel;
 	s->range_table = &range_digital;
-	s->io_bits = 0xf;	/* all bits output */
 	s->insn_bits = apci3120_do_insn_bits;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
@@ -232,7 +230,7 @@ static int apci3120_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci3120_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci3120_pci_table) = {
+static const struct pci_device_id apci3120_pci_table[] = {
 	{ PCI_VDEVICE(AMCC, 0x818d), BOARD_APCI3120 },
 	{ PCI_VDEVICE(AMCC, 0x828d), BOARD_APCI3001 },
 	{ 0 }

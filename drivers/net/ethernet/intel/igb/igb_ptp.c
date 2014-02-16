@@ -97,14 +97,14 @@ static cycle_t igb_ptp_read_82580(const struct cyclecounter *cc)
 {
 	struct igb_adapter *igb = container_of(cc, struct igb_adapter, cc);
 	struct e1000_hw *hw = &igb->hw;
+	u32 lo, hi;
 	u64 val;
-	u32 lo, hi, jk;
 
 	/* The timestamp latches on lowest register read. For the 82580
 	 * the lowest register is SYSTIMR instead of SYSTIML.  However we only
 	 * need to provide nanosecond resolution, so we just ignore it.
 	 */
-	jk = rd32(E1000_SYSTIMR);
+	rd32(E1000_SYSTIMR);
 	lo = rd32(E1000_SYSTIML);
 	hi = rd32(E1000_SYSTIMH);
 
@@ -118,13 +118,13 @@ static cycle_t igb_ptp_read_82580(const struct cyclecounter *cc)
 static void igb_ptp_read_i210(struct igb_adapter *adapter, struct timespec *ts)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 sec, nsec, jk;
+	u32 sec, nsec;
 
 	/* The timestamp latches on lowest register read. For I210/I211, the
 	 * lowest register is SYSTIMR. Since we only need to provide nanosecond
 	 * resolution, we can ignore it.
 	 */
-	jk = rd32(E1000_SYSTIMR);
+	rd32(E1000_SYSTIMR);
 	nsec = rd32(E1000_SYSTIML);
 	sec = rd32(E1000_SYSTIMH);
 

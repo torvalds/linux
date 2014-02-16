@@ -1448,7 +1448,7 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
-	dev_set_drvdata(&pdev->dev, netdev);
+	platform_set_drvdata(pdev, netdev);
 	p = netdev_priv(netdev);
 	netif_napi_add(netdev, &p->napi, octeon_mgmt_napi_poll,
 		       OCTEON_MGMT_NAPI_WEIGHT);
@@ -1545,15 +1545,16 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	mac = of_get_mac_address(pdev->dev.of_node);
 
-	if (mac && is_valid_ether_addr(mac))
+	if (mac)
 		memcpy(netdev->dev_addr, mac, ETH_ALEN);
 	else
 		eth_hw_addr_random(netdev);
 
 	p->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
-	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	result = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (result)
+		goto err;
 
 	netif_carrier_off(netdev);
 	result = register_netdev(netdev);
@@ -1570,7 +1571,7 @@ err:
 
 static int octeon_mgmt_remove(struct platform_device *pdev)
 {
-	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
+	struct net_device *netdev = platform_get_drvdata(pdev);
 
 	unregister_netdev(netdev);
 	free_netdev(netdev);

@@ -44,7 +44,7 @@ extern struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
 static inline struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
 		struct i2c_adapter *i2c, const struct e4000_config *cfg)
 {
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
+	dev_warn(&i2c->dev, "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif

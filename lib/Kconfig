@@ -48,6 +48,9 @@ config STMP_DEVICE
 config PERCPU_RWSEM
 	boolean
 
+config ARCH_USE_CMPXCHG_LOCKREF
+	bool
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -66,6 +69,8 @@ config CRC16
 
 config CRC_T10DIF
 	tristate "CRC calculation for the T10 Data Integrity Field"
+	select CRYPTO
+	select CRYPTO_CRCT10DIF
 	help
 	  This option is only needed if a module that's not in the
 	  kernel tree needs to calculate CRC checks for use with the
@@ -177,6 +182,13 @@ config AUDIT_GENERIC
 	depends on AUDIT && !AUDIT_ARCH
 	default y
 
+config RANDOM32_SELFTEST
+	bool "PRNG perform self test on init"
+	default n
+	help
+	  This option enables the 32 bit PRNG library functions to perform a
+	  self test on initialization.
+
 #
 # compression support is select'ed if needed
 #
@@ -190,6 +202,15 @@ config LZO_COMPRESS
 	tristate
 
 config LZO_DECOMPRESS
+	tristate
+
+config LZ4_COMPRESS
+	tristate
+
+config LZ4HC_COMPRESS
+	tristate
+
+config LZ4_DECOMPRESS
 	tristate
 
 source "lib/xz/Kconfig"
@@ -214,6 +235,10 @@ config DECOMPRESS_XZ
 
 config DECOMPRESS_LZO
 	select LZO_DECOMPRESS
+	tristate
+
+config DECOMPRESS_LZ4
+	select LZ4_DECOMPRESS
 	tristate
 
 #
@@ -296,6 +321,20 @@ config TEXTSEARCH_FSM
 
 config BTREE
 	boolean
+
+config ASSOCIATIVE_ARRAY
+	bool
+	help
+	  Generic associative array.  Can be searched and iterated over whilst
+	  it is being modified.  It is also reasonably quick to search and
+	  modify.  The algorithms are non-recursive, and the trees are highly
+	  capacious.
+
+	  See:
+
+		Documentation/assoc_array.txt
+
+	  for more information.
 
 config HAS_IOMEM
 	boolean

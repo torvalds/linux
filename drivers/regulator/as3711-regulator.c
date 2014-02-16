@@ -30,102 +30,6 @@ struct as3711_regulator {
 	struct regulator_dev *rdev;
 };
 
-static int as3711_list_voltage_sd(struct regulator_dev *rdev,
-				  unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	if (!selector)
-		return 0;
-	if (selector < 0x41)
-		return 600000 + selector * 12500;
-	if (selector < 0x71)
-		return 1400000 + (selector - 0x40) * 25000;
-	return 2600000 + (selector - 0x70) * 50000;
-}
-
-static int as3711_list_voltage_aldo(struct regulator_dev *rdev,
-				    unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	if (selector < 0x10)
-		return 1200000 + selector * 50000;
-	return 1800000 + (selector - 0x10) * 100000;
-}
-
-static int as3711_list_voltage_dldo(struct regulator_dev *rdev,
-				    unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages ||
-	    (selector > 0x10 && selector < 0x20))
-		return -EINVAL;
-
-	if (selector < 0x11)
-		return 900000 + selector * 50000;
-	return 1750000 + (selector - 0x20) * 50000;
-}
-
-static int as3711_bound_check(struct regulator_dev *rdev,
-			      int *min_uV, int *max_uV)
-{
-	struct as3711_regulator *reg = rdev_get_drvdata(rdev);
-	struct as3711_regulator_info *info = reg->reg_info;
-
-	dev_dbg(&rdev->dev, "%s(), %d, %d, %d\n", __func__,
-		*min_uV, rdev->desc->min_uV, info->max_uV);
-
-	if (*max_uV < *min_uV ||
-	    *min_uV > info->max_uV || rdev->desc->min_uV > *max_uV)
-		return -EINVAL;
-
-	if (rdev->desc->n_voltages == 1)
-		return 0;
-
-	if (*max_uV > info->max_uV)
-		*max_uV = info->max_uV;
-
-	if (*min_uV < rdev->desc->min_uV)
-		*min_uV = rdev->desc->min_uV;
-
-	return *min_uV;
-}
-
-static int as3711_sel_check(int min, int max, int bottom, int step)
-{
-	int sel, voltage;
-
-	/* Round up min, when dividing: keeps us within the range */
-	sel = DIV_ROUND_UP(min - bottom, step);
-	voltage = sel * step + bottom;
-	pr_debug("%s(): select %d..%d in %d+N*%d: %d\n", __func__,
-	       min, max, bottom, step, sel);
-	if (voltage > max)
-		return -EINVAL;
-
-	return sel;
-}
-
-static int as3711_map_voltage_sd(struct regulator_dev *rdev,
-				 int min_uV, int max_uV)
-{
-	int ret;
-
-	ret = as3711_bound_check(rdev, &min_uV, &max_uV);
-	if (ret <= 0)
-		return ret;
-
-	if (min_uV <= 1400000)
-		return as3711_sel_check(min_uV, max_uV, 600000, 12500);
-
-	if (min_uV <= 2600000)
-		return as3711_sel_check(min_uV, max_uV, 1400000, 25000) + 0x40;
-
-	return as3711_sel_check(min_uV, max_uV, 2600000, 50000) + 0x70;
-}
-
 /*
  * The regulator API supports 4 modes of operataion: FAST, NORMAL, IDLE and
  * STANDBY. We map them in the following way to AS3711 SD1-4 DCDC modes:
@@ -180,44 +84,14 @@ static unsigned int as3711_get_mode_sd(struct regulator_dev *rdev)
 	return -EINVAL;
 }
 
-static int as3711_map_voltage_aldo(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
-{
-	int ret;
-
-	ret = as3711_bound_check(rdev, &min_uV, &max_uV);
-	if (ret <= 0)
-		return ret;
-
-	if (min_uV <= 1800000)
-		return as3711_sel_check(min_uV, max_uV, 1200000, 50000);
-
-	return as3711_sel_check(min_uV, max_uV, 1800000, 100000) + 0x10;
-}
-
-static int as3711_map_voltage_dldo(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
-{
-	int ret;
-
-	ret = as3711_bound_check(rdev, &min_uV, &max_uV);
-	if (ret <= 0)
-		return ret;
-
-	if (min_uV <= 1700000)
-		return as3711_sel_check(min_uV, max_uV, 900000, 50000);
-
-	return as3711_sel_check(min_uV, max_uV, 1750000, 50000) + 0x20;
-}
-
 static struct regulator_ops as3711_sd_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= as3711_list_voltage_sd,
-	.map_voltage		= as3711_map_voltage_sd,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
 	.get_mode		= as3711_get_mode_sd,
 	.set_mode		= as3711_set_mode_sd,
 };
@@ -228,8 +102,8 @@ static struct regulator_ops as3711_aldo_ops = {
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= as3711_list_voltage_aldo,
-	.map_voltage		= as3711_map_voltage_aldo,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
 static struct regulator_ops as3711_dldo_ops = {
@@ -238,8 +112,24 @@ static struct regulator_ops as3711_dldo_ops = {
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= as3711_list_voltage_dldo,
-	.map_voltage		= as3711_map_voltage_dldo,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+};
+
+static const struct regulator_linear_range as3711_sd_ranges[] = {
+	REGULATOR_LINEAR_RANGE(612500, 0x1, 0x40, 12500),
+	REGULATOR_LINEAR_RANGE(1425000, 0x41, 0x70, 25000),
+	REGULATOR_LINEAR_RANGE(2650000, 0x71, 0x7f, 50000),
+};
+
+static const struct regulator_linear_range as3711_aldo_ranges[] = {
+	REGULATOR_LINEAR_RANGE(1200000, 0, 0xf, 50000),
+	REGULATOR_LINEAR_RANGE(1800000, 0x10, 0x1f, 100000),
+};
+
+static const struct regulator_linear_range as3711_dldo_ranges[] = {
+	REGULATOR_LINEAR_RANGE(900000, 0, 0x10, 50000),
+	REGULATOR_LINEAR_RANGE(1750000, 0x20, 0x3f, 50000),
 };
 
 #define AS3711_REG(_id, _en_reg, _en_bit, _vmask, _vshift, _min_uV, _max_uV, _sfx)	\
@@ -256,6 +146,8 @@ static struct regulator_ops as3711_dldo_ops = {
 		.enable_reg = AS3711_ ## _en_reg,					\
 		.enable_mask = BIT(_en_bit),						\
 		.min_uV	= _min_uV,							\
+		.linear_ranges = as3711_ ## _sfx ## _ranges,				\
+		.n_linear_ranges = ARRAY_SIZE(as3711_ ## _sfx ## _ranges),		\
 	},										\
 	.max_uV = _max_uV,								\
 }
@@ -374,32 +266,15 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 		config.regmap = as3711->regmap;
 		config.of_node = of_node[id];
 
-		rdev = regulator_register(&ri->desc, &config);
+		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "Failed to register regulator %s\n",
 				ri->desc.name);
-			ret = PTR_ERR(rdev);
-			goto eregreg;
+			return PTR_ERR(rdev);
 		}
 		reg->rdev = rdev;
 	}
 	platform_set_drvdata(pdev, regs);
-	return 0;
-
-eregreg:
-	while (--id >= 0)
-		regulator_unregister(regs[id].rdev);
-
-	return ret;
-}
-
-static int as3711_regulator_remove(struct platform_device *pdev)
-{
-	struct as3711_regulator *regs = platform_get_drvdata(pdev);
-	int id;
-
-	for (id = 0; id < AS3711_REGULATOR_NUM; ++id)
-		regulator_unregister(regs[id].rdev);
 	return 0;
 }
 
@@ -409,7 +284,6 @@ static struct platform_driver as3711_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= as3711_regulator_probe,
-	.remove		= as3711_regulator_remove,
 };
 
 static int __init as3711_regulator_init(void)

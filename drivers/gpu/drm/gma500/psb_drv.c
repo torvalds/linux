@@ -131,7 +131,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 
-static struct drm_ioctl_desc psb_ioctls[] = {
+static const struct drm_ioctl_desc psb_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(GMA_ADB, psb_adb_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(GMA_MODE_OPERATION, psb_mode_operation_ioctl,
 		      DRM_AUTH),
@@ -251,6 +251,12 @@ static int psb_driver_unload(struct drm_device *dev)
 			iounmap(dev_priv->sgx_reg);
 			dev_priv->sgx_reg = NULL;
 		}
+		if (dev_priv->aux_reg) {
+			iounmap(dev_priv->aux_reg);
+			dev_priv->aux_reg = NULL;
+		}
+		if (dev_priv->aux_pdev)
+			pci_dev_put(dev_priv->aux_pdev);
 
 		/* Destroy VBT data */
 		psb_intel_destroy_bios(dev);
@@ -266,11 +272,11 @@ static int psb_driver_unload(struct drm_device *dev)
 static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct drm_psb_private *dev_priv;
-	unsigned long resource_start;
+	unsigned long resource_start, resource_len;
 	unsigned long irqflags;
 	int ret = -ENOMEM;
 	struct drm_connector *connector;
-	struct psb_intel_encoder *psb_intel_encoder;
+	struct gma_encoder *gma_encoder;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -295,6 +301,30 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 							PSB_SGX_SIZE);
 	if (!dev_priv->sgx_reg)
 		goto out_err;
+
+	if (IS_MRST(dev)) {
+		dev_priv->aux_pdev = pci_get_bus_and_slot(0, PCI_DEVFN(3, 0));
+
+		if (dev_priv->aux_pdev) {
+			resource_start = pci_resource_start(dev_priv->aux_pdev,
+							    PSB_AUX_RESOURCE);
+			resource_len = pci_resource_len(dev_priv->aux_pdev,
+							PSB_AUX_RESOURCE);
+			dev_priv->aux_reg = ioremap_nocache(resource_start,
+							    resource_len);
+			if (!dev_priv->aux_reg)
+				goto out_err;
+
+			DRM_DEBUG_KMS("Found aux vdc");
+		} else {
+			/* Couldn't find the aux vdc so map to primary vdc */
+			dev_priv->aux_reg = dev_priv->vdc_reg;
+			DRM_DEBUG_KMS("Couldn't find aux pci device");
+		}
+		dev_priv->gmbus_reg = dev_priv->aux_reg;
+	} else {
+		dev_priv->gmbus_reg = dev_priv->vdc_reg;
+	}
 
 	psb_intel_opregion_setup(dev);
 
@@ -359,7 +389,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	drm_irq_install(dev);
 
-	dev->vblank_disable_allowed = 1;
+	dev->vblank_disable_allowed = true;
 
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
@@ -372,9 +402,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	/* Only add backlight support if we have LVDS output */
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
-		psb_intel_encoder = psb_intel_attached_encoder(connector);
+		gma_encoder = gma_attached_encoder(connector);
 
-		switch (psb_intel_encoder->type) {
+		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 		case INTEL_OUTPUT_MIPI:
 			ret = gma_backlight_init(dev);
@@ -441,7 +471,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	struct psb_intel_crtc *psb_intel_crtc;
+	struct gma_crtc *gma_crtc;
 	int i = 0;
 	int32_t obj_id;
 
@@ -449,17 +479,17 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 	obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_CONNECTOR);
 	if (!obj) {
 		dev_dbg(dev->dev, "Invalid Connector object.\n");
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	connector = obj_to_connector(obj);
 	crtc = connector->encoder->crtc;
-	psb_intel_crtc = to_psb_intel_crtc(crtc);
+	gma_crtc = to_gma_crtc(crtc);
 
 	for (i = 0; i < 256; i++)
-		psb_intel_crtc->lut_adj[i] = lut_arg->lut[i];
+		gma_crtc->lut_adj[i] = lut_arg->lut[i];
 
-	psb_intel_crtc_load_lut(crtc);
+	gma_crtc_load_lut(crtc);
 
 	return 0;
 }
@@ -491,7 +521,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 		obj = drm_mode_object_find(dev, obj_id,
 					DRM_MODE_OBJECT_CONNECTOR);
 		if (!obj) {
-			ret = -EINVAL;
+			ret = -ENOENT;
 			goto mode_op_out;
 		}
 
@@ -622,13 +652,12 @@ static const struct file_operations psb_gem_fops = {
 	.unlocked_ioctl = psb_unlocked_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 	.read = drm_read,
 };
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | \
-			   DRIVER_IRQ_VBL | DRIVER_MODESET | DRIVER_GEM ,
+			   DRIVER_MODESET | DRIVER_GEM ,
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
 
@@ -647,12 +676,11 @@ static struct drm_driver driver = {
 	.preclose = psb_driver_preclose,
 	.postclose = psb_driver_close,
 
-	.gem_init_object = psb_gem_init_object,
 	.gem_free_object = psb_gem_free_object,
 	.gem_vm_ops = &psb_gem_vm_ops,
 	.dumb_create = psb_gem_dumb_create,
 	.dumb_map_offset = psb_gem_dumb_map_gtt,
-	.dumb_destroy = psb_gem_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &psb_gem_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

@@ -18,7 +18,6 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -146,7 +145,6 @@ static int jornada720_kbd_probe(struct platform_device *pdev)
  fail2:	/* IRQ, DEVICE, MEMORY */
 	free_irq(IRQ_GPIO0, pdev);
  fail1:	/* DEVICE, MEMORY */
-	platform_set_drvdata(pdev, NULL);
 	input_free_device(input_dev);
 	kfree(jornadakbd);
 	return err;
@@ -157,7 +155,6 @@ static int jornada720_kbd_remove(struct platform_device *pdev)
 	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
 
 	free_irq(IRQ_GPIO0, pdev);
-	platform_set_drvdata(pdev, NULL);
 	input_unregister_device(jornadakbd->input);
 	kfree(jornadakbd);
 

@@ -42,12 +42,6 @@ struct vprbrd_adc {
 	.indexed = 1,					\
 	.channel = _index,				\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
-	.scan_index = _index,				\
-	.scan_type = {					\
-		.sign = 'u',				\
-		.realbits = 8,				\
-		.storagebits = 8,			\
-	},						\
 }
 
 static struct iio_chan_spec const vprbrd_adc_iio_channels[] = {
@@ -73,7 +67,7 @@ static int vprbrd_iio_read_raw(struct iio_dev *iio_dev,
 		mutex_lock(&vb->lock);
 
 		admsg->cmd = VPRBRD_ADC_CMD_GET;
-		admsg->chan = chan->scan_index;
+		admsg->chan = chan->channel;
 		admsg->val = 0x00;
 
 		ret = usb_control_msg(vb->usb_dev,
@@ -124,7 +118,7 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 	int ret;
 
 	/* registering iio */
-	indio_dev = iio_device_alloc(sizeof(*adc));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
 		return -ENOMEM;
@@ -139,27 +133,13 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = vprbrd_adc_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(vprbrd_adc_iio_channels);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&pdev->dev, indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register iio (adc)");
-		goto error;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, indio_dev);
-
-	return 0;
-
-error:
-	iio_device_free(indio_dev);
-	return ret;
-}
-
-static int vprbrd_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -170,7 +150,6 @@ static struct platform_driver vprbrd_adc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= vprbrd_adc_probe,
-	.remove		= vprbrd_adc_remove,
 };
 
 module_platform_driver(vprbrd_adc_driver);

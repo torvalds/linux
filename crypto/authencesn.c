@@ -59,37 +59,19 @@ static void authenc_esn_request_complete(struct aead_request *req, int err)
 static int crypto_authenc_esn_setkey(struct crypto_aead *authenc_esn, const u8 *key,
 				     unsigned int keylen)
 {
-	unsigned int authkeylen;
-	unsigned int enckeylen;
 	struct crypto_authenc_esn_ctx *ctx = crypto_aead_ctx(authenc_esn);
 	struct crypto_ahash *auth = ctx->auth;
 	struct crypto_ablkcipher *enc = ctx->enc;
-	struct rtattr *rta = (void *)key;
-	struct crypto_authenc_key_param *param;
+	struct crypto_authenc_keys keys;
 	int err = -EINVAL;
 
-	if (!RTA_OK(rta, keylen))
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
-	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
-		goto badkey;
-	if (RTA_PAYLOAD(rta) < sizeof(*param))
-		goto badkey;
-
-	param = RTA_DATA(rta);
-	enckeylen = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < enckeylen)
-		goto badkey;
-
-	authkeylen = keylen - enckeylen;
 
 	crypto_ahash_clear_flags(auth, CRYPTO_TFM_REQ_MASK);
 	crypto_ahash_set_flags(auth, crypto_aead_get_flags(authenc_esn) &
 				     CRYPTO_TFM_REQ_MASK);
-	err = crypto_ahash_setkey(auth, key, authkeylen);
+	err = crypto_ahash_setkey(auth, keys.authkey, keys.authkeylen);
 	crypto_aead_set_flags(authenc_esn, crypto_ahash_get_flags(auth) &
 					   CRYPTO_TFM_RES_MASK);
 
@@ -99,7 +81,7 @@ static int crypto_authenc_esn_setkey(struct crypto_aead *authenc_esn, const u8 *
 	crypto_ablkcipher_clear_flags(enc, CRYPTO_TFM_REQ_MASK);
 	crypto_ablkcipher_set_flags(enc, crypto_aead_get_flags(authenc_esn) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_ablkcipher_setkey(enc, key + authkeylen, enckeylen);
+	err = crypto_ablkcipher_setkey(enc, keys.enckey, keys.enckeylen);
 	crypto_aead_set_flags(authenc_esn, crypto_ablkcipher_get_flags(enc) &
 					   CRYPTO_TFM_RES_MASK);
 
@@ -247,7 +229,7 @@ static void authenc_esn_verify_ahash_update_done(struct crypto_async_request *ar
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
 
-	err = memcmp(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
+	err = crypto_memneq(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
 	if (err)
 		goto out;
 
@@ -296,7 +278,7 @@ static void authenc_esn_verify_ahash_update_done2(struct crypto_async_request *a
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
 
-	err = memcmp(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
+	err = crypto_memneq(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
 	if (err)
 		goto out;
 
@@ -336,7 +318,7 @@ static void authenc_esn_verify_ahash_done(struct crypto_async_request *areq,
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
 
-	err = memcmp(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
+	err = crypto_memneq(ihash, ahreq->result, authsize) ? -EBADMSG : 0;
 	if (err)
 		goto out;
 
@@ -568,7 +550,7 @@ static int crypto_authenc_esn_verify(struct aead_request *req)
 	ihash = ohash + authsize;
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
-	return memcmp(ihash, ohash, authsize) ? -EBADMSG : 0;
+	return crypto_memneq(ihash, ohash, authsize) ? -EBADMSG : 0;
 }
 
 static int crypto_authenc_esn_iverify(struct aead_request *req, u8 *iv,

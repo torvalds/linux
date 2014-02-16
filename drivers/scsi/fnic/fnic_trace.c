@@ -189,6 +189,191 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 }
 
 /*
+ * fnic_get_stats_data - Copy fnic stats buffer to a memory file
+ * @fnic_dbgfs_t: pointer to debugfs fnic stats buffer
+ *
+ * Description:
+ * This routine gathers the fnic stats debugfs data from the fnic_stats struct
+ * and dumps it to stats_debug_info.
+ *
+ * Return Value:
+ * This routine returns the amount of bytes that were dumped into
+ * stats_debug_info
+ */
+int fnic_get_stats_data(struct stats_debug_info *debug,
+			struct fnic_stats *stats)
+{
+	int len = 0;
+	int buf_size = debug->buf_size;
+	struct timespec val1, val2;
+
+	len = snprintf(debug->debug_buffer + len, buf_size - len,
+		  "------------------------------------------\n"
+		  "\t\tIO Statistics\n"
+		  "------------------------------------------\n");
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "Number of Active IOs: %lld\nMaximum Active IOs: %lld\n"
+		  "Number of IOs: %lld\nNumber of IO Completions: %lld\n"
+		  "Number of IO Failures: %lld\nNumber of IO NOT Found: %lld\n"
+		  "Number of Memory alloc Failures: %lld\n"
+		  "Number of IOREQ Null: %lld\n"
+		  "Number of SCSI cmd pointer Null: %lld\n",
+		  (u64)atomic64_read(&stats->io_stats.active_ios),
+		  (u64)atomic64_read(&stats->io_stats.max_active_ios),
+		  (u64)atomic64_read(&stats->io_stats.num_ios),
+		  (u64)atomic64_read(&stats->io_stats.io_completions),
+		  (u64)atomic64_read(&stats->io_stats.io_failures),
+		  (u64)atomic64_read(&stats->io_stats.io_not_found),
+		  (u64)atomic64_read(&stats->io_stats.alloc_failures),
+		  (u64)atomic64_read(&stats->io_stats.ioreq_null),
+		  (u64)atomic64_read(&stats->io_stats.sc_null));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "\n------------------------------------------\n"
+		  "\t\tAbort Statistics\n"
+		  "------------------------------------------\n");
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "Number of Aborts: %lld\n"
+		  "Number of Abort Failures: %lld\n"
+		  "Number of Abort Driver Timeouts: %lld\n"
+		  "Number of Abort FW Timeouts: %lld\n"
+		  "Number of Abort IO NOT Found: %lld\n",
+		  (u64)atomic64_read(&stats->abts_stats.aborts),
+		  (u64)atomic64_read(&stats->abts_stats.abort_failures),
+		  (u64)atomic64_read(&stats->abts_stats.abort_drv_timeouts),
+		  (u64)atomic64_read(&stats->abts_stats.abort_fw_timeouts),
+		  (u64)atomic64_read(&stats->abts_stats.abort_io_not_found));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "\n------------------------------------------\n"
+		  "\t\tTerminate Statistics\n"
+		  "------------------------------------------\n");
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "Number of Terminates: %lld\n"
+		  "Maximum Terminates: %lld\n"
+		  "Number of Terminate Driver Timeouts: %lld\n"
+		  "Number of Terminate FW Timeouts: %lld\n"
+		  "Number of Terminate IO NOT Found: %lld\n"
+		  "Number of Terminate Failures: %lld\n",
+		  (u64)atomic64_read(&stats->term_stats.terminates),
+		  (u64)atomic64_read(&stats->term_stats.max_terminates),
+		  (u64)atomic64_read(&stats->term_stats.terminate_drv_timeouts),
+		  (u64)atomic64_read(&stats->term_stats.terminate_fw_timeouts),
+		  (u64)atomic64_read(&stats->term_stats.terminate_io_not_found),
+		  (u64)atomic64_read(&stats->term_stats.terminate_failures));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "\n------------------------------------------\n"
+		  "\t\tReset Statistics\n"
+		  "------------------------------------------\n");
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "Number of Device Resets: %lld\n"
+		  "Number of Device Reset Failures: %lld\n"
+		  "Number of Device Reset Aborts: %lld\n"
+		  "Number of Device Reset Timeouts: %lld\n"
+		  "Number of Device Reset Terminates: %lld\n"
+		  "Number of FW Resets: %lld\n"
+		  "Number of FW Reset Completions: %lld\n"
+		  "Number of FW Reset Failures: %lld\n"
+		  "Number of Fnic Reset: %lld\n"
+		  "Number of Fnic Reset Completions: %lld\n"
+		  "Number of Fnic Reset Failures: %lld\n",
+		  (u64)atomic64_read(&stats->reset_stats.device_resets),
+		  (u64)atomic64_read(&stats->reset_stats.device_reset_failures),
+		  (u64)atomic64_read(&stats->reset_stats.device_reset_aborts),
+		  (u64)atomic64_read(&stats->reset_stats.device_reset_timeouts),
+		  (u64)atomic64_read(
+			  &stats->reset_stats.device_reset_terminates),
+		  (u64)atomic64_read(&stats->reset_stats.fw_resets),
+		  (u64)atomic64_read(&stats->reset_stats.fw_reset_completions),
+		  (u64)atomic64_read(&stats->reset_stats.fw_reset_failures),
+		  (u64)atomic64_read(&stats->reset_stats.fnic_resets),
+		  (u64)atomic64_read(
+			  &stats->reset_stats.fnic_reset_completions),
+		  (u64)atomic64_read(&stats->reset_stats.fnic_reset_failures));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "\n------------------------------------------\n"
+		  "\t\tFirmware Statistics\n"
+		  "------------------------------------------\n");
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "Number of Active FW Requests %lld\n"
+		  "Maximum FW Requests: %lld\n"
+		  "Number of FW out of resources: %lld\n"
+		  "Number of FW IO errors: %lld\n",
+		  (u64)atomic64_read(&stats->fw_stats.active_fw_reqs),
+		  (u64)atomic64_read(&stats->fw_stats.max_fw_reqs),
+		  (u64)atomic64_read(&stats->fw_stats.fw_out_of_resources),
+		  (u64)atomic64_read(&stats->fw_stats.io_fw_errs));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "\n------------------------------------------\n"
+		  "\t\tVlan Discovery Statistics\n"
+		  "------------------------------------------\n");
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "Number of Vlan Discovery Requests Sent %lld\n"
+		  "Vlan Response Received with no FCF VLAN ID: %lld\n"
+		  "No solicitations recvd after vlan set, expiry count: %lld\n"
+		  "Flogi rejects count: %lld\n",
+		  (u64)atomic64_read(&stats->vlan_stats.vlan_disc_reqs),
+		  (u64)atomic64_read(&stats->vlan_stats.resp_withno_vlanID),
+		  (u64)atomic64_read(&stats->vlan_stats.sol_expiry_count),
+		  (u64)atomic64_read(&stats->vlan_stats.flogi_rejects));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "\n------------------------------------------\n"
+		  "\t\tOther Important Statistics\n"
+		  "------------------------------------------\n");
+
+	jiffies_to_timespec(stats->misc_stats.last_isr_time, &val1);
+	jiffies_to_timespec(stats->misc_stats.last_ack_time, &val2);
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "Last ISR time: %llu (%8lu.%8lu)\n"
+		  "Last ACK time: %llu (%8lu.%8lu)\n"
+		  "Number of ISRs: %lld\n"
+		  "Maximum CQ Entries: %lld\n"
+		  "Number of ACK index out of range: %lld\n"
+		  "Number of data count mismatch: %lld\n"
+		  "Number of FCPIO Timeouts: %lld\n"
+		  "Number of FCPIO Aborted: %lld\n"
+		  "Number of SGL Invalid: %lld\n"
+		  "Number of Copy WQ Alloc Failures for ABTs: %lld\n"
+		  "Number of Copy WQ Alloc Failures for Device Reset: %lld\n"
+		  "Number of Copy WQ Alloc Failures for IOs: %lld\n"
+		  "Number of no icmnd itmf Completions: %lld\n"
+		  "Number of QUEUE Fulls: %lld\n"
+		  "Number of rport not ready: %lld\n"
+		  "Number of receive frame errors: %lld\n",
+		  (u64)stats->misc_stats.last_isr_time,
+		  val1.tv_sec, val1.tv_nsec,
+		  (u64)stats->misc_stats.last_ack_time,
+		  val2.tv_sec, val2.tv_nsec,
+		  (u64)atomic64_read(&stats->misc_stats.isr_count),
+		  (u64)atomic64_read(&stats->misc_stats.max_cq_entries),
+		  (u64)atomic64_read(&stats->misc_stats.ack_index_out_of_range),
+		  (u64)atomic64_read(&stats->misc_stats.data_count_mismatch),
+		  (u64)atomic64_read(&stats->misc_stats.fcpio_timeout),
+		  (u64)atomic64_read(&stats->misc_stats.fcpio_aborted),
+		  (u64)atomic64_read(&stats->misc_stats.sgl_invalid),
+		  (u64)atomic64_read(
+			  &stats->misc_stats.abts_cpwq_alloc_failures),
+		  (u64)atomic64_read(
+			  &stats->misc_stats.devrst_cpwq_alloc_failures),
+		  (u64)atomic64_read(&stats->misc_stats.io_cpwq_alloc_failures),
+		  (u64)atomic64_read(&stats->misc_stats.no_icmnd_itmf_cmpls),
+		  (u64)atomic64_read(&stats->misc_stats.queue_fulls),
+		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
+		  (u64)atomic64_read(&stats->misc_stats.frame_errors));
+
+	return len;
+
+}
+
+/*
  * fnic_trace_buf_init - Initialize fnic trace buffer logging facility
  *
  * Description:

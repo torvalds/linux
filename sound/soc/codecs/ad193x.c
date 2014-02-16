@@ -249,15 +249,15 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	struct ad193x_priv *ad193x = snd_soc_codec_get_drvdata(codec);
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		word_len = 3;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		word_len = 1;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 24:
+	case 32:
 		word_len = 0;
 		break;
 	}
@@ -413,7 +413,7 @@ static struct spi_driver ad193x_spi_driver = {
 };
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 
 static const struct regmap_config ad193x_i2c_regmap_config = {
 	.val_bits = 8,
@@ -470,7 +470,7 @@ static int __init ad193x_modinit(void)
 {
 	int ret;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret =  i2c_add_driver(&ad193x_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register AD193X I2C driver: %d\n",
@@ -495,7 +495,7 @@ static void __exit ad193x_modexit(void)
 	spi_unregister_driver(&ad193x_spi_driver);
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&ad193x_i2c_driver);
 #endif
 }

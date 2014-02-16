@@ -46,8 +46,8 @@
 
 
 struct ll_rpc_opcode {
-     __u32       opcode;
-     const char *opname;
+	__u32       opcode;
+	const char *opname;
 } ll_rpc_opcode_table[LUSTRE_MAX_OPCODES] = {
 	{ OST_REPLY,	"ost_reply" },
 	{ OST_GETATTR,      "ost_getattr" },
@@ -114,10 +114,10 @@ struct ll_rpc_opcode {
 	{ MGS_SET_INFO,     "mgs_set_info" },
 	{ MGS_CONFIG_READ,  "mgs_config_read" },
 	{ OBD_PING,	 "obd_ping" },
-	{ OBD_LOG_CANCEL,   "llog_origin_handle_cancel" },
+	{ OBD_LOG_CANCEL,	"llog_cancel" },
 	{ OBD_QC_CALLBACK,  "obd_quota_callback" },
 	{ OBD_IDX_READ,	    "dt_index_read" },
-	{ LLOG_ORIGIN_HANDLE_CREATE,     "llog_origin_handle_create" },
+	{ LLOG_ORIGIN_HANDLE_CREATE,	 "llog_origin_handle_open" },
 	{ LLOG_ORIGIN_HANDLE_NEXT_BLOCK, "llog_origin_handle_next_block" },
 	{ LLOG_ORIGIN_HANDLE_READ_HEADER,"llog_origin_handle_read_header" },
 	{ LLOG_ORIGIN_HANDLE_WRITE_REC,  "llog_origin_handle_write_rec" },
@@ -137,8 +137,8 @@ struct ll_rpc_opcode {
 };
 
 struct ll_eopcode {
-     __u32       opcode;
-     const char *opname;
+	__u32       opcode;
+	const char *opname;
 } ll_eopcode_table[EXTRA_LAST_OPC] = {
 	{ LDLM_GLIMPSE_ENQUEUE, "ldlm_glimpse_enqueue" },
 	{ LDLM_PLAIN_ENQUEUE,   "ldlm_plain_enqueue" },
@@ -221,7 +221,7 @@ void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 	for (i = 0; i < EXTRA_LAST_OPC; i++) {
 		char *units;
 
-		switch(i) {
+		switch (i) {
 		case BRW_WRITE_BYTES:
 		case BRW_READ_BYTES:
 			units = "bytes";
@@ -302,7 +302,7 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file, const char *buffer,
 	 * hose a kernel by allowing the request history to grow too
 	 * far. */
 	bufpages = (svc->srv_buf_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	if (val > num_physpages/(2 * bufpages))
+	if (val > totalram_pages / (2 * bufpages))
 		return -ERANGE;
 
 	spin_lock(&svc->srv_lock);
@@ -480,7 +480,6 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	bool				hp = false;
 	int				i;
 	int				rc = 0;
-	ENTRY;
 
 	/**
 	 * Serialize NRS core lprocfs operations with policy registration/
@@ -613,7 +612,7 @@ out:
 
 	mutex_unlock(&nrs_core.nrs_mutex);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -638,7 +637,6 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file, const char *buffe
 	char			       *cmd_copy = NULL;
 	char			       *token;
 	int				rc = 0;
-	ENTRY;
 
 	if (count >= LPROCFS_NRS_WR_MAX_CMD)
 		GOTO(out, rc = -EINVAL);
@@ -698,7 +696,7 @@ out:
 	if (cmd_copy)
 		OBD_FREE(cmd_copy, LPROCFS_NRS_WR_MAX_CMD);
 
-	RETURN(rc < 0 ? rc : count);
+	return rc < 0 ? rc : count;
 }
 LPROC_SEQ_FOPS(ptlrpc_lprocfs_nrs);
 
@@ -1217,13 +1215,12 @@ int lprocfs_wr_ping(struct file *file, const char *buffer,
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct ptlrpc_request *req;
 	int		    rc;
-	ENTRY;
 
 	LPROCFS_CLIMP_CHECK(obd);
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	LPROCFS_CLIMP_EXIT(obd);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	req->rq_send_state = LUSTRE_IMP_FULL;
 
@@ -1231,8 +1228,8 @@ int lprocfs_wr_ping(struct file *file, const char *buffer,
 
 	ptlrpc_req_finished(req);
 	if (rc >= 0)
-		RETURN(count);
-	RETURN(rc);
+		return count;
+	return rc;
 }
 EXPORT_SYMBOL(lprocfs_wr_ping);
 

@@ -115,6 +115,10 @@ struct fuse_inode {
 enum {
 	/** Advise readdirplus  */
 	FUSE_I_ADVISE_RDPLUS,
+	/** Initialized with readdirplus */
+	FUSE_I_INIT_RDPLUS,
+	/** An operation changing file size is in progress  */
+	FUSE_I_SIZE_UNSTABLE,
 };
 
 struct fuse_conn;
@@ -317,6 +321,7 @@ struct fuse_req {
 		struct {
 			struct fuse_write_in in;
 			struct fuse_write_out out;
+			struct fuse_req *next;
 		} write;
 		struct fuse_notify_retrieve_in retrieve_in;
 		struct fuse_lk_in lk_in;
@@ -370,11 +375,10 @@ struct fuse_conn {
 	/** Lock protecting accessess to  members of this structure */
 	spinlock_t lock;
 
-	/** Mutex protecting against directory alias creation */
-	struct mutex inst_mutex;
-
 	/** Refcount */
 	atomic_t count;
+
+	struct rcu_head rcu;
 
 	/** The user id for this mount */
 	kuid_t user_id;
@@ -480,6 +484,9 @@ struct fuse_conn {
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
 	 */
+
+	/** Is open/release not implemented by fs? */
+	unsigned no_open:1;
 
 	/** Is fsync not implemented by fs? */
 	unsigned no_fsync:1;
@@ -783,6 +790,8 @@ void fuse_abort_conn(struct fuse_conn *fc);
 void fuse_invalidate_attr(struct inode *inode);
 
 void fuse_invalidate_entry_cache(struct dentry *entry);
+
+void fuse_invalidate_atime(struct inode *inode);
 
 /**
  * Acquire reference to fuse_conn

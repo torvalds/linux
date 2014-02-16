@@ -256,8 +256,7 @@ int ui_browser__show(struct ui_browser *browser, const char *title,
 	__ui_browser__show_title(browser, title);
 
 	browser->title = title;
-	free(browser->helpline);
-	browser->helpline = NULL;
+	zfree(&browser->helpline);
 
 	va_start(ap, helpline);
 	err = vasprintf(&browser->helpline, helpline, ap);
@@ -268,12 +267,11 @@ int ui_browser__show(struct ui_browser *browser, const char *title,
 	return err ? 0 : -1;
 }
 
-void ui_browser__hide(struct ui_browser *browser __maybe_unused)
+void ui_browser__hide(struct ui_browser *browser)
 {
 	pthread_mutex_lock(&ui__lock);
 	ui_helpline__pop();
-	free(browser->helpline);
-	browser->helpline = NULL;
+	zfree(&browser->helpline);
 	pthread_mutex_unlock(&ui__lock);
 }
 
@@ -569,7 +567,7 @@ void ui_browser__argv_seek(struct ui_browser *browser, off_t offset, int whence)
 		browser->top = browser->top + browser->top_idx + offset;
 		break;
 	case SEEK_END:
-		browser->top = browser->top + browser->nr_entries + offset;
+		browser->top = browser->top + browser->nr_entries - 1 + offset;
 		break;
 	default:
 		return;
@@ -680,7 +678,7 @@ static void __ui_browser__line_arrow_down(struct ui_browser *browser,
 	if (end >= browser->top_idx + browser->height)
 		end_row = browser->height - 1;
 	else
-		end_row = end - browser->top_idx;;
+		end_row = end - browser->top_idx;
 
 	ui_browser__gotorc(browser, row, column);
 	SLsmg_draw_vline(end_row - row + 1);

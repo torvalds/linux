@@ -123,6 +123,8 @@ int __init main(int argc, char **argv, char **envp)
 
 	setup_env_path();
 
+	setsid();
+
 	new_argv = malloc((argc + 1) * sizeof(char *));
 	if (new_argv == NULL) {
 		perror("Mallocing argv");

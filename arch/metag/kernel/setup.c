@@ -20,6 +20,7 @@
 #include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/of_fdt.h>
+#include <linux/of_platform.h>
 #include <linux/pfn.h>
 #include <linux/root_dev.h>
 #include <linux/sched.h>
@@ -41,7 +42,6 @@
 #include <asm/mmu.h>
 #include <asm/mmzone.h>
 #include <asm/processor.h>
-#include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
@@ -114,7 +114,7 @@ extern u32 __dtb_start[];
 extern struct console dash_console;
 #endif
 
-struct machine_desc *machine_desc __initdata;
+const struct machine_desc *machine_desc __initdata;
 
 /*
  * Map a Linux CPU number to a hardware thread ID
@@ -301,13 +301,9 @@ void __init setup_arch(char **cmdline_p)
 	 * rather than the version from the bootloader. This makes call
 	 * stacks easier to understand and may allow us to unmap the
 	 * bootloader at some point.
-	 *
-	 * We need to keep the LWK handler that TBI installed in order to
-	 * be able to do inter-thread comms.
 	 */
 	for (i = 0; i <= TBID_SIGNUM_MAX; i++)
-		if (i != TBID_SIGNUM_LWK)
-			_pTBI->fnSigs[i] = __TBIUnExpXXX;
+		_pTBI->fnSigs[i] = __TBIUnExpXXX;
 
 	/* A Meta requirement is that the kernel is loaded (virtually)
 	 * at the PAGE_OFFSET.
@@ -407,9 +403,7 @@ void __init setup_arch(char **cmdline_p)
 	cpu_2_hwthread_id[smp_processor_id()] = hard_processor_id();
 	hwthread_id_2_cpu[hard_processor_id()] = smp_processor_id();
 
-	/* Copy device tree blob into non-init memory before unflattening */
-	copy_fdt();
-	unflatten_device_tree();
+	unflatten_and_copy_device_tree();
 
 #ifdef CONFIG_SMP
 	smp_init_cpus();
@@ -424,6 +418,9 @@ static int __init customize_machine(void)
 	/* customizes platform devices, or adds new ones */
 	if (machine_desc->init_machine)
 		machine_desc->init_machine();
+	else
+		of_platform_populate(NULL, of_default_bus_match_table, NULL,
+				     NULL);
 	return 0;
 }
 arch_initcall(customize_machine);
@@ -587,20 +584,20 @@ PTBI pTBI_get(unsigned int cpu)
 EXPORT_SYMBOL(pTBI_get);
 
 #if defined(CONFIG_METAG_DSP) && defined(CONFIG_METAG_FPU)
-char capabilites[] = "dsp fpu";
+static char capabilities[] = "dsp fpu";
 #elif defined(CONFIG_METAG_DSP)
-char capabilites[] = "dsp";
+static char capabilities[] = "dsp";
 #elif defined(CONFIG_METAG_FPU)
-char capabilites[] = "fpu";
+static char capabilities[] = "fpu";
 #else
-char capabilites[] = "";
+static char capabilities[] = "";
 #endif
 
 static struct ctl_table caps_kern_table[] = {
 	{
 		.procname	= "capabilities",
-		.data		= capabilites,
-		.maxlen		= sizeof(capabilites),
+		.data		= capabilities,
+		.maxlen		= sizeof(capabilities),
 		.mode		= 0444,
 		.proc_handler	= proc_dostring,
 	},

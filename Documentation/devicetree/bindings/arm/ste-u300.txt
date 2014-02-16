@@ -22,7 +22,7 @@ This contains the board-specific information.
 - compatible: must be "stericsson,s365".
 - vana15-supply: the regulator supplying the 1.5V to drive the
   board.
-- syscon: a pointer to the syscon node so we can acccess the
+- syscon: a pointer to the syscon node so we can access the
   syscon registers to set the board as self-powered.
 
 Example:

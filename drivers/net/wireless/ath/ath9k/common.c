@@ -49,88 +49,62 @@ int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ath9k_cmn_get_hw_crypto_keytype);
 
-static u32 ath9k_get_extchanmode(struct ieee80211_channel *chan,
-				 enum nl80211_channel_type channel_type)
-{
-	u32 chanmode = 0;
-
-	switch (chan->band) {
-	case IEEE80211_BAND_2GHZ:
-		switch (channel_type) {
-		case NL80211_CHAN_NO_HT:
-		case NL80211_CHAN_HT20:
-			chanmode = CHANNEL_G_HT20;
-			break;
-		case NL80211_CHAN_HT40PLUS:
-			chanmode = CHANNEL_G_HT40PLUS;
-			break;
-		case NL80211_CHAN_HT40MINUS:
-			chanmode = CHANNEL_G_HT40MINUS;
-			break;
-		}
-		break;
-	case IEEE80211_BAND_5GHZ:
-		switch (channel_type) {
-		case NL80211_CHAN_NO_HT:
-		case NL80211_CHAN_HT20:
-			chanmode = CHANNEL_A_HT20;
-			break;
-		case NL80211_CHAN_HT40PLUS:
-			chanmode = CHANNEL_A_HT40PLUS;
-			break;
-		case NL80211_CHAN_HT40MINUS:
-			chanmode = CHANNEL_A_HT40MINUS;
-			break;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return chanmode;
-}
-
 /*
  * Update internal channel flags.
  */
-void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
-			       struct ieee80211_channel *chan,
-			       enum nl80211_channel_type channel_type)
+static void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
+				      struct cfg80211_chan_def *chandef)
 {
+	struct ieee80211_channel *chan = chandef->chan;
+	u16 flags = 0;
+
 	ichan->channel = chan->center_freq;
 	ichan->chan = chan;
 
-	if (chan->band == IEEE80211_BAND_2GHZ) {
-		ichan->chanmode = CHANNEL_G;
-		ichan->channelFlags = CHANNEL_2GHZ | CHANNEL_OFDM;
-	} else {
-		ichan->chanmode = CHANNEL_A;
-		ichan->channelFlags = CHANNEL_5GHZ | CHANNEL_OFDM;
+	if (chan->band == IEEE80211_BAND_5GHZ)
+		flags |= CHANNEL_5GHZ;
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_5:
+		flags |= CHANNEL_QUARTER;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		flags |= CHANNEL_HALF;
+		break;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		break;
+	case NL80211_CHAN_WIDTH_20:
+		flags |= CHANNEL_HT;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		if (chandef->center_freq1 > chandef->chan->center_freq)
+			flags |= CHANNEL_HT40PLUS | CHANNEL_HT;
+		else
+			flags |= CHANNEL_HT40MINUS | CHANNEL_HT;
+		break;
+	default:
+		WARN_ON(1);
 	}
 
-	if (channel_type != NL80211_CHAN_NO_HT)
-		ichan->chanmode = ath9k_get_extchanmode(chan, channel_type);
+	ichan->channelFlags = flags;
 }
-EXPORT_SYMBOL(ath9k_cmn_update_ichannel);
 
 /*
  * Get the internal channel reference.
  */
-struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
-					       struct ath_hw *ah)
+struct ath9k_channel *ath9k_cmn_get_channel(struct ieee80211_hw *hw,
+					    struct ath_hw *ah,
+					    struct cfg80211_chan_def *chandef)
 {
-	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
+	struct ieee80211_channel *curchan = chandef->chan;
 	struct ath9k_channel *channel;
-	u8 chan_idx;
 
-	chan_idx = curchan->hw_value;
-	channel = &ah->channels[chan_idx];
-	ath9k_cmn_update_ichannel(channel, curchan,
-				  cfg80211_get_chandef_type(&hw->conf.chandef));
+	channel = &ah->channels[curchan->hw_value];
+	ath9k_cmn_update_ichannel(channel, chandef);
 
 	return channel;
 }
-EXPORT_SYMBOL(ath9k_cmn_get_curchannel);
+EXPORT_SYMBOL(ath9k_cmn_get_channel);
 
 int ath9k_cmn_count_streams(unsigned int chainmask, int max)
 {

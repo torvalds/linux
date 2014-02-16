@@ -35,12 +35,9 @@
  */
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/version.h>
 #include <linux/vfs.h>
 #include <obd_class.h>
 #include <lprocfs_status.h>
-
-#ifdef LPROCFS
 
 static int mdc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 {
@@ -93,14 +90,13 @@ static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 	struct hsm_action_item	*hai;
 	int			 len;
 	int			 fd, rc;
-	ENTRY;
 
 	rc = lprocfs_write_helper(buffer, count, &fd);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	if (fd < 0)
-		RETURN(-ERANGE);
+		return -ERANGE;
 	CWARN("message to fd %d\n", fd);
 
 	len = sizeof(*lh) + sizeof(*hal) + MTI_NAME_MAXLEN +
@@ -141,8 +137,8 @@ static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 	}
 	OBD_FREE(lh, len);
 	if (rc < 0)
-		RETURN(rc);
-	RETURN(count);
+		return rc;
+	return count;
 }
 
 struct file_operations mdc_kuc_fops = {
@@ -216,4 +212,3 @@ void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)
     lvars->module_vars  = lprocfs_mdc_module_vars;
     lvars->obd_vars     = lprocfs_mdc_obd_vars;
 }
-#endif /* LPROCFS */

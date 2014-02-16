@@ -59,12 +59,13 @@ static inline long access_ok(int type, const void __user * addr,
 /*
  * The exception table contains two values: the first is an address
  * for an instruction that is allowed to fault, and the second is
- * the address to the fixup routine. 
+ * the address to the fixup routine. Even on a 64bit kernel we could
+ * use a 32bit (unsigned int) address here.
  */
 
 struct exception_table_entry {
-	unsigned long insn;  /* address of insn that is allowed to fault.   */
-	long fixup;          /* fixup routine */
+	unsigned long insn;	/* address of insn that is allowed to fault. */
+	unsigned long fixup;	/* fixup routine */
 };
 
 #define ASM_EXCEPTIONTABLE_ENTRY( fault_addr, except_addr )\

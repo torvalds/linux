@@ -60,7 +60,7 @@ static void reg_dump(struct ak4114 *ak4114)
 
 	printk(KERN_DEBUG "AK4114 REG DUMP:\n");
 	for (i = 0; i < 0x20; i++)
-		printk(KERN_DEBUG "reg[%02x] = %02x (%02x)\n", i, reg_read(ak4114, i), i < sizeof(ak4114->regmap) ? ak4114->regmap[i] : 0);
+		printk(KERN_DEBUG "reg[%02x] = %02x (%02x)\n", i, reg_read(ak4114, i), i < ARRAY_SIZE(ak4114->regmap) ? ak4114->regmap[i] : 0);
 }
 #endif
 
@@ -81,7 +81,7 @@ static int snd_ak4114_dev_free(struct snd_device *device)
 
 int snd_ak4114_create(struct snd_card *card,
 		      ak4114_read_t *read, ak4114_write_t *write,
-		      const unsigned char pgm[7], const unsigned char txcsb[5],
+		      const unsigned char pgm[6], const unsigned char txcsb[5],
 		      void *private_data, struct ak4114 **r_ak4114)
 {
 	struct ak4114 *chip;
@@ -101,7 +101,7 @@ int snd_ak4114_create(struct snd_card *card,
 	chip->private_data = private_data;
 	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
 
-	for (reg = 0; reg < 7; reg++)
+	for (reg = 0; reg < 6; reg++)
 		chip->regmap[reg] = pgm[reg];
 	for (reg = 0; reg < 5; reg++)
 		chip->txcsb[reg] = txcsb[reg];
@@ -142,7 +142,7 @@ static void ak4114_init_regs(struct ak4114 *chip)
 	/* release reset, but leave powerdown */
 	reg_write(chip, AK4114_REG_PWRDN, (old | AK4114_RST) & ~AK4114_PWN);
 	udelay(200);
-	for (reg = 1; reg < 7; reg++)
+	for (reg = 1; reg < 6; reg++)
 		reg_write(chip, reg, chip->regmap[reg]);
 	for (reg = 0; reg < 5; reg++)
 		reg_write(chip, reg + AK4114_REG_TXCSB0, chip->txcsb[reg]);

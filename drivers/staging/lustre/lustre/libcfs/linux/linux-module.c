@@ -45,38 +45,37 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 	struct libcfs_ioctl_hdr   *hdr;
 	struct libcfs_ioctl_data  *data;
 	int err;
-	ENTRY;
 
 	hdr = (struct libcfs_ioctl_hdr *)buf;
 	data = (struct libcfs_ioctl_data *)buf;
 
 	err = copy_from_user(buf, (void *)arg, sizeof(*hdr));
 	if (err)
-		RETURN(err);
+		return err;
 
 	if (hdr->ioc_version != LIBCFS_IOCTL_VERSION) {
 		CERROR("PORTALS: version mismatch kernel vs application\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (hdr->ioc_len + buf >= end) {
 		CERROR("PORTALS: user buffer exceeds kernel buffer\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 
 	if (hdr->ioc_len < sizeof(struct libcfs_ioctl_data)) {
 		CERROR("PORTALS: user buffer too small for ioctl\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	err = copy_from_user(buf, (void *)arg, hdr->ioc_len);
 	if (err)
-		RETURN(err);
+		return err;
 
 	if (libcfs_ioctl_is_invalid(data)) {
 		CERROR("PORTALS: ioctl not correctly formatted\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (data->ioc_inllen1)
@@ -86,7 +85,7 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 		data->ioc_inlbuf2 = &data->ioc_bulk[0] +
 			cfs_size_round(data->ioc_inllen1);
 
-	RETURN(0);
+	return 0;
 }
 
 int libcfs_ioctl_popdata(void *arg, void *data, int size)
@@ -137,7 +136,7 @@ static long libcfs_ioctl(struct file *file,
 	struct cfs_psdev_file	 pfile;
 	int    rc = 0;
 
-	if (current_fsuid() != 0)
+	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
 	if ( _IOC_TYPE(cmd) != IOC_LIBCFS_TYPE ||
@@ -171,13 +170,13 @@ static long libcfs_ioctl(struct file *file,
 }
 
 static struct file_operations libcfs_fops = {
-	unlocked_ioctl: libcfs_ioctl,
-	open :	  libcfs_psdev_open,
-	release :       libcfs_psdev_release
+	.unlocked_ioctl	= libcfs_ioctl,
+	.open		= libcfs_psdev_open,
+	.release	= libcfs_psdev_release,
 };
 
-psdev_t libcfs_dev = {
-	LNET_MINOR,
-	"lnet",
-	&libcfs_fops
+struct miscdevice libcfs_dev = {
+	.minor = LNET_MINOR,
+	.name = "lnet",
+	.fops = &libcfs_fops,
 };

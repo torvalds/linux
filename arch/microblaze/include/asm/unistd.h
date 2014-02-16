@@ -38,4 +38,7 @@
 #define __ARCH_WANT_SYS_FORK
 
 #endif /* __ASSEMBLY__ */
+
+#define __NR_syscalls         381
+
 #endif /* _ASM_MICROBLAZE_UNISTD_H */

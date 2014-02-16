@@ -36,7 +36,6 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/irqs.h>
 
 #include <asm/mach/map.h>
 #include <asm/signal.h>
@@ -605,7 +604,7 @@ v3_pci_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	return 1;
 }
 
-static irqreturn_t v3_irq(int dummy, void *devid)
+static irqreturn_t v3_irq(int irq, void *devid)
 {
 #ifdef CONFIG_DEBUG_LL
 	struct pt_regs *regs = get_irq_regs();
@@ -615,7 +614,7 @@ static irqreturn_t v3_irq(int dummy, void *devid)
 	extern void printascii(const char *);
 
 	sprintf(buf, "V3 int %d: pc=0x%08lx [%08lx] LBFADDR=%08x LBFCODE=%02x "
-		"ISTAT=%02x\n", IRQ_AP_V3INT, pc, instr,
+		"ISTAT=%02x\n", irq, pc, instr,
 		__raw_readl(ap_syscon_base + INTEGRATOR_SC_LBFADDR_OFFSET),
 		__raw_readl(ap_syscon_base + INTEGRATOR_SC_LBFCODE_OFFSET) & 255,
 		v3_readb(V3_LB_ISTAT));
@@ -809,21 +808,6 @@ static u8 __init pci_v3_swizzle(struct pci_dev *dev, u8 *pinp)
 	return pci_common_swizzle(dev, pinp);
 }
 
-static int irq_tab[4] __initdata = {
-	IRQ_AP_PCIINT0,	IRQ_AP_PCIINT1,	IRQ_AP_PCIINT2,	IRQ_AP_PCIINT3
-};
-
-/*
- * map the specified device/slot/pin to an IRQ.  This works out such
- * that slot 9 pin 1 is INT0, pin 2 is INT1, and slot 10 pin 1 is INT1.
- */
-static int __init pci_v3_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	int intnr = ((slot - 9) + (pin - 1)) & 3;
-
-	return irq_tab[intnr];
-}
-
 static struct hw_pci pci_v3 __initdata = {
 	.swizzle		= pci_v3_swizzle,
 	.setup			= pci_v3_setup,
@@ -833,31 +817,26 @@ static struct hw_pci pci_v3 __initdata = {
 	.postinit		= pci_v3_postinit,
 };
 
-#ifdef CONFIG_OF
-
-static int __init pci_v3_map_irq_dt(const struct pci_dev *dev, u8 slot, u8 pin)
+static int __init pci_v3_probe(struct platform_device *pdev)
 {
-	struct of_irq oirq;
-	int ret;
-
-	ret = of_irq_map_pci(dev, &oirq);
-	if (ret) {
-		dev_err(&dev->dev, "of_irq_map_pci() %d\n", ret);
-		/* Proper return code 0 == NO_IRQ */
-		return 0;
-	}
-
-	return irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
-}
-
-static int __init pci_v3_dtprobe(struct platform_device *pdev,
-				struct device_node *np)
-{
+	struct device_node *np = pdev->dev.of_node;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
 	struct resource *res;
 	int irq, ret;
+
+	/* Remap the Integrator system controller */
+	ap_syscon_base = devm_ioremap(&pdev->dev, INTEGRATOR_SC_BASE, 0x100);
+	if (!ap_syscon_base) {
+		dev_err(&pdev->dev, "unable to remap the AP syscon for PCIv3\n");
+		return -ENODEV;
+	}
+
+	/* Device tree probe path */
+	if (!np) {
+		dev_err(&pdev->dev, "no device tree node for PCIv3\n");
+		return -ENODEV;
+	}
 
 	if (of_pci_range_parser_init(&parser, np))
 		return -EINVAL;
@@ -919,77 +898,7 @@ static int __init pci_v3_dtprobe(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	pci_v3.map_irq = pci_v3_map_irq_dt;
-	pci_common_init_dev(&pdev->dev, &pci_v3);
-
-	return 0;
-}
-
-#else
-
-static inline int pci_v3_dtprobe(struct platform_device *pdev,
-				  struct device_node *np)
-{
-	return -EINVAL;
-}
-
-#endif
-
-static int __init pci_v3_probe(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	int ret;
-
-	/* Remap the Integrator system controller */
-	ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
-	if (!ap_syscon_base) {
-		dev_err(&pdev->dev, "unable to remap the AP syscon for PCIv3\n");
-		return -ENODEV;
-	}
-
-	/* Device tree probe path */
-	if (np)
-		return pci_v3_dtprobe(pdev, np);
-
-	pci_v3_base = devm_ioremap(&pdev->dev, PHYS_PCI_V3_BASE, SZ_64K);
-	if (!pci_v3_base) {
-		dev_err(&pdev->dev, "unable to remap PCIv3 base\n");
-		return -ENODEV;
-	}
-
-	ret = devm_request_irq(&pdev->dev, IRQ_AP_V3INT, v3_irq, 0, "V3", NULL);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to grab PCI error interrupt: %d\n",
-			ret);
-		return -ENODEV;
-	}
-
-	conf_mem.name = "PCIv3 config";
-	conf_mem.start = PHYS_PCI_CONFIG_BASE;
-	conf_mem.end = PHYS_PCI_CONFIG_BASE + SZ_16M - 1;
-	conf_mem.flags = IORESOURCE_MEM;
-
-	io_mem.name = "PCIv3 I/O";
-	io_mem.start = PHYS_PCI_IO_BASE;
-	io_mem.end = PHYS_PCI_IO_BASE + SZ_16M - 1;
-	io_mem.flags = IORESOURCE_MEM;
-
-	non_mem_pci = 0x00000000;
-	non_mem_pci_sz = SZ_256M;
-	non_mem.name = "PCIv3 non-prefetched mem";
-	non_mem.start = PHYS_PCI_MEM_BASE;
-	non_mem.end = PHYS_PCI_MEM_BASE + SZ_256M - 1;
-	non_mem.flags = IORESOURCE_MEM;
-
-	pre_mem_pci = 0x10000000;
-	pre_mem_pci_sz = SZ_256M;
-	pre_mem.name = "PCIv3 prefetched mem";
-	pre_mem.start = PHYS_PCI_PRE_BASE + SZ_256M;
-	pre_mem.end = PHYS_PCI_PRE_BASE + SZ_256M - 1;
-	pre_mem.flags = IORESOURCE_MEM | IORESOURCE_PREFETCH;
-
-	pci_v3.map_irq = pci_v3_map_irq;
-
+	pci_v3.map_irq = of_irq_parse_and_map_pci;
 	pci_common_init_dev(&pdev->dev, &pci_v3);
 
 	return 0;

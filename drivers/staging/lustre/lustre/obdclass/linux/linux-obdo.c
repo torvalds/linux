@@ -213,9 +213,9 @@ void obdo_to_inode(struct inode *dst, struct obdo *src, obd_flag valid)
 	if (valid & OBD_MD_FLMODE)
 		dst->i_mode = (dst->i_mode & S_IFMT) | (src->o_mode & ~S_IFMT);
 	if (valid & OBD_MD_FLUID)
-		dst->i_uid = src->o_uid;
+		dst->i_uid = make_kuid(&init_user_ns, src->o_uid);
 	if (valid & OBD_MD_FLGID)
-		dst->i_gid = src->o_gid;
+		dst->i_gid = make_kgid(&init_user_ns, src->o_gid);
 	if (valid & OBD_MD_FLFLAGS)
 		dst->i_flags = src->o_flags;
 }

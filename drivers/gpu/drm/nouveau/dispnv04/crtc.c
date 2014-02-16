@@ -22,6 +22,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include <linux/pm_runtime.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -325,8 +326,6 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			regp->MiscOutReg = 0x23;	/* +hsync +vsync */
 	}
 
-	regp->MiscOutReg |= (mode->clock_index & 0x03) << 2;
-
 	/*
 	 * Time Sequencer
 	 */
@@ -606,6 +605,24 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	regp->ramdac_a34 = 0x1;
 }
 
+static int
+nv_crtc_swap_fbs(struct drm_crtc *crtc, struct drm_framebuffer *old_fb)
+{
+	struct nv04_display *disp = nv04_display(crtc->dev);
+	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(crtc->fb);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	int ret;
+
+	ret = nouveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM);
+	if (ret == 0) {
+		if (disp->image[nv_crtc->index])
+			nouveau_bo_unpin(disp->image[nv_crtc->index]);
+		nouveau_bo_ref(nvfb->nvbo, &disp->image[nv_crtc->index]);
+	}
+
+	return ret;
+}
+
 /**
  * Sets up registers for the given mode/adjusted_mode pair.
  *
@@ -622,9 +639,14 @@ nv_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	int ret;
 
 	NV_DEBUG(drm, "CTRC mode on CRTC %d:\n", nv_crtc->index);
 	drm_mode_debug_printmodeline(adjusted_mode);
+
+	ret = nv_crtc_swap_fbs(crtc, old_fb);
+	if (ret)
+		return ret;
 
 	/* unlock must come after turning off FP_TG_CONTROL in output_prepare */
 	nv_lock_vga_crtc_shadow(dev, nv_crtc->index, -1);
@@ -722,12 +744,17 @@ static void nv_crtc_commit(struct drm_crtc *crtc)
 
 static void nv_crtc_destroy(struct drm_crtc *crtc)
 {
+	struct nv04_display *disp = nv04_display(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
 	if (!nv_crtc)
 		return;
 
 	drm_crtc_cleanup(crtc);
+
+	if (disp->image[nv_crtc->index])
+		nouveau_bo_unpin(disp->image[nv_crtc->index]);
+	nouveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
 
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
@@ -751,6 +778,16 @@ nv_crtc_gamma_load(struct drm_crtc *crtc)
 	}
 
 	nouveau_hw_load_state_palette(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);
+}
+
+static void
+nv_crtc_disable(struct drm_crtc *crtc)
+{
+	struct nv04_display *disp = nv04_display(crtc->dev);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	if (disp->image[nv_crtc->index])
+		nouveau_bo_unpin(disp->image[nv_crtc->index]);
+	nouveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
 }
 
 static void
@@ -791,7 +828,6 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	struct drm_framebuffer *drm_fb;
 	struct nouveau_framebuffer *fb;
 	int arb_burst, arb_lwm;
-	int ret;
 
 	NV_DEBUG(drm, "index %d\n", nv_crtc->index);
 
@@ -801,10 +837,8 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		return 0;
 	}
 
-
 	/* If atomic, we want to switch to the fb we were passed, so
-	 * now we update pointers to do that.  (We don't pin; just
-	 * assume we're already pinned and update the base address.)
+	 * now we update pointers to do that.
 	 */
 	if (atomic) {
 		drm_fb = passed_fb;
@@ -812,17 +846,6 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	} else {
 		drm_fb = crtc->fb;
 		fb = nouveau_framebuffer(crtc->fb);
-		/* If not atomic, we can go ahead and pin, and unpin the
-		 * old fb we were passed.
-		 */
-		ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM);
-		if (ret)
-			return ret;
-
-		if (passed_fb) {
-			struct nouveau_framebuffer *ofb = nouveau_framebuffer(passed_fb);
-			nouveau_bo_unpin(ofb->nvbo);
-		}
 	}
 
 	nv_crtc->fb.offset = fb->nvbo->bo.offset;
@@ -877,6 +900,9 @@ static int
 nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 			struct drm_framebuffer *old_fb)
 {
+	int ret = nv_crtc_swap_fbs(crtc, old_fb);
+	if (ret)
+		return ret;
 	return nv04_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
 }
 
@@ -1007,13 +1033,59 @@ nv04_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
+int
+nouveau_crtc_set_config(struct drm_mode_set *set)
+{
+	struct drm_device *dev;
+	struct nouveau_drm *drm;
+	int ret;
+	struct drm_crtc *crtc;
+	bool active = false;
+	if (!set || !set->crtc)
+		return -EINVAL;
+
+	dev = set->crtc->dev;
+
+	/* get a pm reference here */
+	ret = pm_runtime_get_sync(dev->dev);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_crtc_helper_set_config(set);
+
+	drm = nouveau_drm(dev);
+
+	/* if we get here with no crtcs active then we can drop a reference */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (crtc->enabled)
+			active = true;
+	}
+
+	pm_runtime_mark_last_busy(dev->dev);
+	/* if we have active crtcs and we don't have a power ref,
+	   take the current one */
+	if (active && !drm->have_disp_power_ref) {
+		drm->have_disp_power_ref = true;
+		return ret;
+	}
+	/* if we have no active crtcs, then drop the power ref
+	   we got before */
+	if (!active && drm->have_disp_power_ref) {
+		pm_runtime_put_autosuspend(dev->dev);
+		drm->have_disp_power_ref = false;
+	}
+	/* drop the power reference we got coming in here */
+	pm_runtime_put_autosuspend(dev->dev);
+	return ret;
+}
+
 static const struct drm_crtc_funcs nv04_crtc_funcs = {
 	.save = nv_crtc_save,
 	.restore = nv_crtc_restore,
 	.cursor_set = nv04_crtc_cursor_set,
 	.cursor_move = nv04_crtc_cursor_move,
 	.gamma_set = nv_crtc_gamma_set,
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = nouveau_crtc_set_config,
 	.page_flip = nouveau_crtc_page_flip,
 	.destroy = nv_crtc_destroy,
 };
@@ -1027,6 +1099,7 @@ static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {
 	.mode_set_base = nv04_crtc_mode_set_base,
 	.mode_set_base_atomic = nv04_crtc_mode_set_base_atomic,
 	.load_lut = nv_crtc_gamma_load,
+	.disable = nv_crtc_disable,
 };
 
 int

@@ -1,0 +1,108 @@
+/*
+ * Copyright (C) 2012 Imagination Technologies Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "skeleton.dtsi"
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "toumaz,tz1090", "img,meta";
+
+	interrupt-parent = <&intc>;
+
+	intc: interrupt-controller {
+		compatible = "img,meta-intc";
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		num-banks = <2>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		pdc: pdc@0x02006000 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			reg = <0x02006000 0x1000>;
+			compatible = "img,pdc-intc";
+
+			num-perips = <3>;
+			num-syswakes = <3>;
+
+			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>, /* Syswakes */
+			             <30 IRQ_TYPE_LEVEL_HIGH>, /* Perip 0 (RTC) */
+			             <29 IRQ_TYPE_LEVEL_HIGH>, /* Perip 1 (IR) */
+			             <31 IRQ_TYPE_LEVEL_HIGH>; /* Perip 2 (WDT) */
+		};
+
+		pinctrl: pinctrl@02005800 {
+			#gpio-range-cells = <3>;
+			compatible = "img,tz1090-pinctrl";
+			reg = <0x02005800 0xe4>;
+		};
+
+		pdc_pinctrl: pinctrl@02006500 {
+			#gpio-range-cells = <3>;
+			compatible = "img,tz1090-pdc-pinctrl";
+			reg = <0x02006500 0x100>;
+		};
+
+		gpios: gpios@02005800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "img,tz1090-gpio";
+			reg = <0x02005800 0x90>;
+
+			gpios0: bank@0 {
+				gpio-controller;
+				interrupt-controller;
+				#gpio-cells = <2>;
+				#interrupt-cells = <2>;
+				reg = <0>;
+				interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-ranges = <&pinctrl 0 0 30>;
+			};
+			gpios1: bank@1 {
+				gpio-controller;
+				interrupt-controller;
+				#gpio-cells = <2>;
+				#interrupt-cells = <2>;
+				reg = <1>;
+				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-ranges = <&pinctrl 0 30 30>;
+			};
+			gpios2: bank@2 {
+				gpio-controller;
+				interrupt-controller;
+				#gpio-cells = <2>;
+				#interrupt-cells = <2>;
+				reg = <2>;
+				interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-ranges = <&pinctrl 0 60 30>;
+			};
+		};
+
+		pdc_gpios: gpios@02006500 {
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			compatible = "img,tz1090-pdc-gpio";
+			reg = <0x02006500 0x100>;
+
+			interrupt-parent = <&pdc>;
+			interrupts =	<8  IRQ_TYPE_NONE>,
+					<9  IRQ_TYPE_NONE>,
+					<10 IRQ_TYPE_NONE>;
+			gpio-ranges = <&pdc_pinctrl 0 0 7>;
+		};
+	};
+};

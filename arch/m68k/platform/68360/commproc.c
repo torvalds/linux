@@ -31,6 +31,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -77,7 +78,7 @@ void m360_cpm_reset(void);
 
 
 
-void m360_cpm_reset()
+void __init m360_cpm_reset()
 {
 /* 	pte_t		   *pte; */
 

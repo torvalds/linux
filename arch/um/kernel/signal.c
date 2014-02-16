@@ -19,7 +19,7 @@ EXPORT_SYMBOL(unblock_signals);
  * OK, we're invoking a handler
  */
 static void handle_signal(struct pt_regs *regs, unsigned long signr,
-			 struct k_sigaction *ka, siginfo_t *info)
+			 struct k_sigaction *ka, struct siginfo *info)
 {
 	sigset_t *oldset = sigmask_to_save();
 	int singlestep = 0;
@@ -71,7 +71,7 @@ static void handle_signal(struct pt_regs *regs, unsigned long signr,
 static int kern_do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka_copy;
-	siginfo_t info;
+	struct siginfo info;
 	int sig, handled_sig = 0;
 
 	while ((sig = get_signal_to_deliver(&info, &ka_copy, regs, NULL)) > 0) {

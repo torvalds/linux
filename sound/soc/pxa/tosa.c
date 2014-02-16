@@ -275,6 +275,7 @@ static struct platform_driver tosa_driver = {
 	.driver		= {
 		.name	= "tosa-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= tosa_probe,
 	.remove		= tosa_remove,

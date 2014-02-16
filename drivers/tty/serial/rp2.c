@@ -427,7 +427,9 @@ static void rp2_rx_chars(struct rp2_uart_port *up)
 		up->port.icount.rx++;
 	}
 
+	spin_unlock(&up->port.lock);
 	tty_flip_buffer_push(port);
+	spin_lock(&up->port.lock);
 }
 
 static void rp2_tx_chars(struct rp2_uart_port *up)
@@ -808,7 +810,7 @@ static void rp2_remove(struct pci_dev *pdev)
 	rp2_remove_ports(card);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rp2_pci_tbl) = {
+static const struct pci_device_id rp2_pci_tbl[] = {
 
 	/* RocketPort INFINITY cards */
 

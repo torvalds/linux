@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,11 @@
 int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 {
 	int ret;
+
+#if defined(CONFIG_IWLWIFI_DEBUGFS) && defined(CONFIG_PM_SLEEP)
+	if (WARN_ON(mvm->d3_test_active))
+		return -EIO;
+#endif
 
 	/*
 	 * Synchronous commands from this op-mode must hold
@@ -125,6 +130,11 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 
 	lockdep_assert_held(&mvm->mutex);
 
+#if defined(CONFIG_IWLWIFI_DEBUGFS) && defined(CONFIG_PM_SLEEP)
+	if (WARN_ON(mvm->d3_test_active))
+		return -EIO;
+#endif
+
 	/*
 	 * Only synchronous commands can wait for status,
 	 * we use WANT_SKB so the caller can't.
@@ -158,8 +168,8 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 		goto out_free_resp;
 	}
 
-	resp_len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	if (WARN_ON_ONCE(resp_len != sizeof(pkt->hdr) + sizeof(*resp))) {
+	resp_len = iwl_rx_packet_payload_len(pkt);
+	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
 		ret = -EIO;
 		goto out_free_resp;
 	}
@@ -401,6 +411,8 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 			mvm->status, table.valid);
 	}
 
+	IWL_ERR(mvm, "Loaded firmware version: %s\n", mvm->fw->fw_version);
+
 	trace_iwlwifi_dev_ucode_error(trans->dev, table.error_id, table.tsf_low,
 				      table.data1, table.data2, table.data3,
 				      table.blink1, table.blink2, table.ilink1,
@@ -443,6 +455,29 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
 }
 
+void iwl_mvm_dump_sram(struct iwl_mvm *mvm)
+{
+	const struct fw_img *img;
+	int ofs, len = 0;
+	u8 *buf;
+
+	if (!mvm->ucode_loaded)
+		return;
+
+	img = &mvm->fw->img[mvm->cur_ucode];
+	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
+	len = img->sec[IWL_UCODE_SECTION_DATA].len;
+
+	buf = kzalloc(len, GFP_ATOMIC);
+	if (!buf)
+		return;
+
+	iwl_trans_read_mem_bytes(mvm->trans, ofs, buf, len);
+	iwl_print_hex_error(mvm->trans, buf, len);
+
+	kfree(buf);
+}
+
 /**
  * iwl_mvm_send_lq_cmd() - Send link quality command
  * @init: This command is sent as part of station initialization right
@@ -453,21 +488,53 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
  * this case to clear the state indicating that station creation is in
  * progress.
  */
-int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
-			u8 flags, bool init)
+int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 {
 	struct iwl_host_cmd cmd = {
 		.id = LQ_CMD,
 		.len = { sizeof(struct iwl_lq_cmd), },
-		.flags = flags,
+		.flags = init ? CMD_SYNC : CMD_ASYNC,
 		.data = { lq, },
 	};
 
 	if (WARN_ON(lq->sta_id == IWL_MVM_STATION_COUNT))
 		return -EINVAL;
 
-	if (WARN_ON(init && (cmd.flags & CMD_ASYNC)))
-		return -EINVAL;
-
 	return iwl_mvm_send_cmd(mvm, &cmd);
+}
+
+/**
+ * iwl_mvm_update_smps - Get a requst to change the SMPS mode
+ * @req_type: The part of the driver who call for a change.
+ * @smps_requests: The request to change the SMPS mode.
+ *
+ * Get a requst to change the SMPS mode,
+ * and change it according to all other requests in the driver.
+ */
+void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			 enum iwl_mvm_smps_type_request req_type,
+			 enum ieee80211_smps_mode smps_request)
+{
+	struct iwl_mvm_vif *mvmvif;
+	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
+	int i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* SMPS is irrelevant for NICs that don't have at least 2 RX antenna */
+	if (num_of_ant(iwl_fw_valid_rx_ant(mvm->fw)) == 1)
+		return;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	mvmvif->smps_requests[req_type] = smps_request;
+	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
+		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_STATIC) {
+			smps_mode = IEEE80211_SMPS_STATIC;
+			break;
+		}
+		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC)
+			smps_mode = IEEE80211_SMPS_DYNAMIC;
+	}
+
+	ieee80211_request_smps(vif, smps_mode);
 }

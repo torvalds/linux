@@ -27,7 +27,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
@@ -650,8 +649,6 @@ static int mrstouch_remove(struct platform_device *pdev)
 	free_irq(tsdev->irq, tsdev);
 	input_unregister_device(tsdev->input);
 	kfree(tsdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

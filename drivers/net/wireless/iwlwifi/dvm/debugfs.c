@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -69,19 +69,7 @@
 } while (0)
 
 /* file operation */
-#define DEBUGFS_READ_FUNC(name)                                         \
-static ssize_t iwl_dbgfs_##name##_read(struct file *file,               \
-					char __user *user_buf,          \
-					size_t count, loff_t *ppos);
-
-#define DEBUGFS_WRITE_FUNC(name)                                        \
-static ssize_t iwl_dbgfs_##name##_write(struct file *file,              \
-					const char __user *user_buf,    \
-					size_t count, loff_t *ppos);
-
-
 #define DEBUGFS_READ_FILE_OPS(name)                                     \
-	DEBUGFS_READ_FUNC(name);                                        \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.read = iwl_dbgfs_##name##_read,				\
 	.open = simple_open,						\
@@ -89,7 +77,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 };
 
 #define DEBUGFS_WRITE_FILE_OPS(name)                                    \
-	DEBUGFS_WRITE_FUNC(name);                                       \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.write = iwl_dbgfs_##name##_write,                              \
 	.open = simple_open,						\
@@ -98,8 +85,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 
 
 #define DEBUGFS_READ_WRITE_FILE_OPS(name)                               \
-	DEBUGFS_READ_FUNC(name);                                        \
-	DEBUGFS_WRITE_FUNC(name);                                       \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.write = iwl_dbgfs_##name##_write,                              \
 	.read = iwl_dbgfs_##name##_read,                                \
@@ -367,12 +352,12 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 					channels[i].max_power,
 					channels[i].flags & IEEE80211_CHAN_RADAR ?
 					" (IEEE 802.11h required)" : "",
-					((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+					((channels[i].flags & IEEE80211_CHAN_NO_IR)
 					|| (channels[i].flags &
 					IEEE80211_CHAN_RADAR)) ? "" :
 					", IBSS",
 					channels[i].flags &
-					IEEE80211_CHAN_PASSIVE_SCAN ?
+					IEEE80211_CHAN_NO_IR ?
 					"passive only" : "active/passive");
 	}
 	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
@@ -390,12 +375,12 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 					channels[i].max_power,
 					channels[i].flags & IEEE80211_CHAN_RADAR ?
 					" (IEEE 802.11h required)" : "",
-					((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+					((channels[i].flags & IEEE80211_CHAN_NO_IR)
 					|| (channels[i].flags &
 					IEEE80211_CHAN_RADAR)) ? "" :
 					", IBSS",
 					channels[i].flags &
-					IEEE80211_CHAN_PASSIVE_SCAN ?
+					IEEE80211_CHAN_NO_IR ?
 					"passive only" : "active/passive");
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);

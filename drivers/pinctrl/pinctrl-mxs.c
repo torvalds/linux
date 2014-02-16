@@ -233,7 +233,8 @@ static int mxs_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int mxs_pinconf_set(struct pinctrl_dev *pctldev,
-			   unsigned pin, unsigned long config)
+			   unsigned pin, unsigned long *configs,
+			   unsigned num_configs)
 {
 	return -ENOTSUPP;
 }
@@ -249,7 +250,8 @@ static int mxs_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int mxs_pinconf_group_set(struct pinctrl_dev *pctldev,
-				 unsigned group, unsigned long config)
+				 unsigned group, unsigned long *configs,
+				 unsigned num_configs)
 {
 	struct mxs_pinctrl_data *d = pinctrl_dev_get_drvdata(pctldev);
 	struct mxs_group *g = &d->soc->groups[group];
@@ -257,49 +259,56 @@ static int mxs_pinconf_group_set(struct pinctrl_dev *pctldev,
 	u8 ma, vol, pull, bank, shift;
 	u16 pin;
 	u32 i;
+	int n;
+	unsigned long config;
 
-	ma = CONFIG_TO_MA(config);
-	vol = CONFIG_TO_VOL(config);
-	pull = CONFIG_TO_PULL(config);
+	for (n = 0; n < num_configs; n++) {
+		config = configs[n];
 
-	for (i = 0; i < g->npins; i++) {
-		bank = PINID_TO_BANK(g->pins[i]);
-		pin = PINID_TO_PIN(g->pins[i]);
+		ma = CONFIG_TO_MA(config);
+		vol = CONFIG_TO_VOL(config);
+		pull = CONFIG_TO_PULL(config);
 
-		/* drive */
-		reg = d->base + d->soc->regs->drive;
-		reg += bank * 0x40 + pin / 8 * 0x10;
+		for (i = 0; i < g->npins; i++) {
+			bank = PINID_TO_BANK(g->pins[i]);
+			pin = PINID_TO_PIN(g->pins[i]);
 
-		/* mA */
-		if (config & MA_PRESENT) {
-			shift = pin % 8 * 4;
-			writel(0x3 << shift, reg + CLR);
-			writel(ma << shift, reg + SET);
+			/* drive */
+			reg = d->base + d->soc->regs->drive;
+			reg += bank * 0x40 + pin / 8 * 0x10;
+
+			/* mA */
+			if (config & MA_PRESENT) {
+				shift = pin % 8 * 4;
+				writel(0x3 << shift, reg + CLR);
+				writel(ma << shift, reg + SET);
+			}
+
+			/* vol */
+			if (config & VOL_PRESENT) {
+				shift = pin % 8 * 4 + 2;
+				if (vol)
+					writel(1 << shift, reg + SET);
+				else
+					writel(1 << shift, reg + CLR);
+			}
+
+			/* pull */
+			if (config & PULL_PRESENT) {
+				reg = d->base + d->soc->regs->pull;
+				reg += bank * 0x10;
+				shift = pin;
+				if (pull)
+					writel(1 << shift, reg + SET);
+				else
+					writel(1 << shift, reg + CLR);
+			}
 		}
 
-		/* vol */
-		if (config & VOL_PRESENT) {
-			shift = pin % 8 * 4 + 2;
-			if (vol)
-				writel(1 << shift, reg + SET);
-			else
-				writel(1 << shift, reg + CLR);
-		}
+		/* cache the config value for mxs_pinconf_group_get() */
+		g->config = config;
 
-		/* pull */
-		if (config & PULL_PRESENT) {
-			reg = d->base + d->soc->regs->pull;
-			reg += bank * 0x10;
-			shift = pin;
-			if (pull)
-				writel(1 << shift, reg + SET);
-			else
-				writel(1 << shift, reg + CLR);
-		}
-	}
-
-	/* cache the config value for mxs_pinconf_group_get() */
-	g->config = config;
+	} /* for each config */
 
 	return 0;
 }

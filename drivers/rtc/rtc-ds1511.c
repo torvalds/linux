@@ -89,7 +89,6 @@ enum ds1511reg {
 struct rtc_plat_data {
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;		/* virtual base address */
-	int size;				/* amount of memory mapped */
 	int irq;
 	unsigned int irqen;
 	int alrm_sec;
@@ -479,20 +478,14 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 	struct rtc_plat_data *pdata;
 	int ret = 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	pdata->size = resource_size(res);
-	if (!devm_request_mem_region(&pdev->dev, res->start, pdata->size,
-			pdev->name))
-		return -EBUSY;
-	ds1511_base = devm_ioremap(&pdev->dev, res->start, pdata->size);
-	if (!ds1511_base)
-		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ds1511_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ds1511_base))
+		return PTR_ERR(ds1511_base);
 	pdata->ioaddr = ds1511_base;
 	pdata->irq = platform_get_irq(pdev, 0);
 

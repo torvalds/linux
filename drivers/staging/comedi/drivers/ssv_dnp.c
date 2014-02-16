@@ -26,6 +26,7 @@ Status: unknown
 
 /* include files ----------------------------------------------------------- */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 /* Some global definitions: the registers of the DNP ----------------------- */
@@ -45,115 +46,87 @@ Status: unknown
 #define PCMR  0xa3		/* Port C Mode Register                      */
 #define PCDR  0xa7		/* Port C Data Register                      */
 
-/* ------------------------------------------------------------------------- */
-/* The insn_bits interface allows packed reading/writing of DIO channels.    */
-/* The comedi core can convert between insn_bits and insn_read/write, so you */
-/* are able to use these instructions as well.                               */
-/* ------------------------------------------------------------------------- */
-
 static int dnp_dio_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
-	/* The insn data is a mask in data[0] and the new data in data[1],   */
-	/* each channel cooresponding to a bit.                              */
+	unsigned int mask;
+	unsigned int val;
 
-	/* Ports A and B are straight forward: each bit corresponds to an    */
-	/* output pin with the same order. Port C is different: bits 0...3   */
-	/* correspond to bits 4...7 of the output register (PCDR).           */
+	/*
+	 * Ports A and B are straight forward: each bit corresponds to an
+	 * output pin with the same order. Port C is different: bits 0...3
+	 * correspond to bits 4...7 of the output register (PCDR).
+	 */
 
-	if (data[0]) {
-
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
 		outb(PADR, CSCIR);
-		outb((inb(CSCDR)
-		      & ~(u8) (data[0] & 0x0000FF))
-		     | (u8) (data[1] & 0x0000FF), CSCDR);
+		outb(s->state & 0xff, CSCDR);
 
 		outb(PBDR, CSCIR);
-		outb((inb(CSCDR)
-		      & ~(u8) ((data[0] & 0x00FF00) >> 8))
-		     | (u8) ((data[1] & 0x00FF00) >> 8), CSCDR);
+		outb((s->state >> 8) & 0xff, CSCDR);
 
 		outb(PCDR, CSCIR);
-		outb((inb(CSCDR)
-		      & ~(u8) ((data[0] & 0x0F0000) >> 12))
-		     | (u8) ((data[1] & 0x0F0000) >> 12), CSCDR);
+		val = inb(CSCDR) & 0x0f;
+		outb(((s->state >> 12) & 0xf0) | val, CSCDR);
 	}
 
-	/* on return, data[1] contains the value of the digital input lines. */
 	outb(PADR, CSCIR);
-	data[0] = inb(CSCDR);
+	val = inb(CSCDR);
 	outb(PBDR, CSCIR);
-	data[0] += inb(CSCDR) << 8;
+	val |= (inb(CSCDR) << 8);
 	outb(PCDR, CSCIR);
-	data[0] += ((inb(CSCDR) & 0xF0) << 12);
+	val |= ((inb(CSCDR) & 0xf0) << 12);
+
+	data[1] = val;
 
 	return insn->n;
-
 }
-
-/* ------------------------------------------------------------------------- */
-/* Configure the direction of the bidirectional digital i/o pins. chanspec   */
-/* contains the channel to be changed and data[0] contains either            */
-/* COMEDI_INPUT or COMEDI_OUTPUT.                                            */
-/* ------------------------------------------------------------------------- */
 
 static int dnp_dio_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	unsigned int val;
+	int ret;
 
-	u8 register_buffer;
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
-	/* reduces chanspec to lower 16 bits */
-	int chan = CR_CHAN(insn->chanspec);
-
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-	case INSN_CONFIG_DIO_INPUT:
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (inb(CSCDR) & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-	/* Test: which port does the channel belong to?                       */
-
-	/* We have to pay attention with port C: this is the meaning of PCMR: */
-	/* Bit in PCMR:              7 6 5 4 3 2 1 0                          */
-	/* Corresponding port C pin: d 3 d 2 d 1 d 0   d= don't touch         */
-
-	if ((chan >= 0) && (chan <= 7)) {
-		/* this is port A */
+	if (chan < 8) {			/* Port A */
+		mask = 1 << chan;
 		outb(PAMR, CSCIR);
-	} else if ((chan >= 8) && (chan <= 15)) {
-		/* this is port B */
-		chan -= 8;
+	} else if (chan < 16) {		/* Port B */
+		mask = 1 << (chan - 8);
 		outb(PBMR, CSCIR);
-	} else if ((chan >= 16) && (chan <= 19)) {
-		/* this is port C; multiplication with 2 brings bits into     */
-		/* correct position for PCMR!                                 */
-		chan -= 16;
-		chan *= 2;
+	} else {			/* Port C */
+		/*
+		 * We have to pay attention with port C.
+		 * This is the meaning of PCMR:
+		 *   Bit in PCMR:              7 6 5 4 3 2 1 0
+		 *   Corresponding port C pin: d 3 d 2 d 1 d 0   d= don't touch
+		 *
+		 * Multiplication by 2 brings bits into correct position
+		 * for PCMR!
+		 */
+		mask = 1 << ((chan - 16) * 2);
 		outb(PCMR, CSCIR);
-	} else {
-		return -EINVAL;
 	}
 
-	/* read 'old' direction of the port and set bits (out=1, in=0)        */
-	register_buffer = inb(CSCDR);
+	val = inb(CSCDR);
 	if (data[0] == COMEDI_OUTPUT)
-		register_buffer |= (1 << chan);
+		val |= mask;
 	else
-		register_buffer &= ~(1 << chan);
+		val &= ~mask;
+	outb(val, CSCDR);
 
-	outb(register_buffer, CSCDR);
-
-	return 1;
+	return insn->n;
 
 }
 

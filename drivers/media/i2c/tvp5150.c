@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 
 #include "tvp5150_reg.h"
@@ -59,21 +58,17 @@ static int tvp5150_read(struct v4l2_subdev *sd, unsigned char addr)
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
 	unsigned char buffer[1];
 	int rc;
+	struct i2c_msg msg[] = {
+		{ .addr = c->addr, .flags = 0,
+		  .buf = &addr, .len = 1 },
+		{ .addr = c->addr, .flags = I2C_M_RD,
+		  .buf = buffer, .len = 1 }
+	};
 
-	buffer[0] = addr;
-
-	rc = i2c_master_send(c, buffer, 1);
-	if (rc < 0) {
-		v4l2_err(sd, "i2c i/o error: rc == %d (should be 1)\n", rc);
-		return rc;
-	}
-
-	msleep(10);
-
-	rc = i2c_master_recv(c, buffer, 1);
-	if (rc < 0) {
-		v4l2_err(sd, "i2c i/o error: rc == %d (should be 1)\n", rc);
-		return rc;
+	rc = i2c_transfer(c->adapter, msg, 2);
+	if (rc < 0 || rc != 2) {
+		v4l2_err(sd, "i2c i/o error: rc == %d (should be 2)\n", rc);
+		return rc < 0 ? rc : -EIO;
 	}
 
 	v4l2_dbg(2, debug, sd, "tvp5150: read 0x%02x = 0x%02x\n", addr, buffer[0]);
@@ -727,13 +722,11 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	/* First tests should be against specific std */
 
-	if (std == V4L2_STD_ALL) {
-		fmt = VIDEO_STD_AUTO_SWITCH_BIT;	/* Autodetect mode */
-	} else if (std & V4L2_STD_NTSC_443) {
+	if (std == V4L2_STD_NTSC_443) {
 		fmt = VIDEO_STD_NTSC_4_43_BIT;
-	} else if (std & V4L2_STD_PAL_M) {
+	} else if (std == V4L2_STD_PAL_M) {
 		fmt = VIDEO_STD_PAL_M_BIT;
-	} else if (std & (V4L2_STD_PAL_N | V4L2_STD_PAL_Nc)) {
+	} else if (std == V4L2_STD_PAL_N || std == V4L2_STD_PAL_Nc) {
 		fmt = VIDEO_STD_PAL_COMBINATION_N_BIT;
 	} else {
 		/* Then, test against generic ones */
@@ -870,7 +863,7 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	struct v4l2_rect rect = a->c;
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std;
-	int hmax;
+	unsigned int hmax;
 
 	v4l2_dbg(1, debug, sd, "%s left=%d, top=%d, width=%d, height=%d\n",
 		__func__, rect.left, rect.top, rect.width, rect.height);
@@ -880,9 +873,9 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 
 	/* tvp5150 has some special limits */
 	rect.left = clamp(rect.left, 0, TVP5150_MAX_CROP_LEFT);
-	rect.width = clamp(rect.width,
-			   TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect.left,
-			   TVP5150_H_MAX - rect.left);
+	rect.width = clamp_t(unsigned int, rect.width,
+			     TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect.left,
+			     TVP5150_H_MAX - rect.left);
 	rect.top = clamp(rect.top, 0, TVP5150_MAX_CROP_TOP);
 
 	/* Calculate height based on current standard */
@@ -896,9 +889,9 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	else
 		hmax = TVP5150_V_MAX_OTHERS;
 
-	rect.height = clamp(rect.height,
-			    hmax - TVP5150_MAX_CROP_TOP - rect.top,
-			    hmax - rect.top);
+	rect.height = clamp_t(unsigned int, rect.height,
+			      hmax - TVP5150_MAX_CROP_TOP - rect.top,
+			      hmax - rect.top);
 
 	tvp5150_write(sd, TVP5150_VERT_BLANKING_START, rect.top);
 	tvp5150_write(sd, TVP5150_VERT_BLANKING_STOP,
@@ -1031,31 +1024,11 @@ static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	return 0;
 }
 
-static int tvp5150_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	int rev;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	rev = tvp5150_read(sd, TVP5150_ROM_MAJOR_VER) << 8 |
-	      tvp5150_read(sd, TVP5150_ROM_MINOR_VER);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TVP5150,
-					  rev);
-}
-
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	int res;
 
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	res = tvp5150_read(sd, reg->reg & 0xff);
 	if (res < 0) {
 		v4l2_err(sd, "%s: failed with error = %d\n", __func__, res);
@@ -1069,12 +1042,6 @@ static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int tvp5150_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	tvp5150_write(sd, reg->reg & 0xff, reg->val & 0xff);
 	return 0;
 }
@@ -1098,7 +1065,6 @@ static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.log_status = tvp5150_log_status,
 	.s_std = tvp5150_s_std,
 	.reset = tvp5150_reset,
-	.g_chip_ident = tvp5150_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = tvp5150_g_register,
 	.s_register = tvp5150_s_register,
@@ -1152,10 +1118,9 @@ static int tvp5150_probe(struct i2c_client *c,
 	     I2C_FUNC_SMBUS_READ_BYTE | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -EIO;
 
-	core = kzalloc(sizeof(struct tvp5150), GFP_KERNEL);
-	if (!core) {
+	core = devm_kzalloc(&c->dev, sizeof(*core), GFP_KERNEL);
+	if (!core)
 		return -ENOMEM;
-	}
 	sd = &core->sd;
 	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
 
@@ -1166,7 +1131,7 @@ static int tvp5150_probe(struct i2c_client *c,
 	for (i = 0; i < 4; i++) {
 		res = tvp5150_read(sd, TVP5150_MSB_DEV_ID + i);
 		if (res < 0)
-			goto free_core;
+			return res;
 		tvp5150_id[i] = res;
 	}
 
@@ -1209,7 +1174,7 @@ static int tvp5150_probe(struct i2c_client *c,
 	if (core->hdl.error) {
 		res = core->hdl.error;
 		v4l2_ctrl_handler_free(&core->hdl);
-		goto free_core;
+		return res;
 	}
 	v4l2_ctrl_handler_setup(&core->hdl);
 
@@ -1225,10 +1190,6 @@ static int tvp5150_probe(struct i2c_client *c,
 	if (debug > 1)
 		tvp5150_log_status(sd);
 	return 0;
-
-free_core:
-	kfree(core);
-	return res;
 }
 
 static int tvp5150_remove(struct i2c_client *c)
@@ -1242,7 +1203,6 @@ static int tvp5150_remove(struct i2c_client *c)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&decoder->hdl);
-	kfree(to_tvp5150(sd));
 	return 0;
 }
 

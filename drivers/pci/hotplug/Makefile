@@ -31,7 +31,7 @@ pci_hotplug-objs	+=	cpci_hotplug_core.o	\
 				cpci_hotplug_pci.o
 endif
 ifdef CONFIG_ACPI
-pci_hotplug-objs 	+= 	acpi_pcihp.o
+pci_hotplug-objs	+=	acpi_pcihp.o
 endif
 
 cpqphp-objs		:=	cpqphp_core.o	\

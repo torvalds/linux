@@ -244,6 +244,9 @@ struct ost_id {
 #define LL_IOC_LMV_SETSTRIPE	    _IOWR('f', 240, struct lmv_user_md)
 #define LL_IOC_LMV_GETSTRIPE	    _IOWR('f', 241, struct lmv_user_md)
 #define LL_IOC_REMOVE_ENTRY	    _IOWR('f', 242, __u64)
+#define LL_IOC_SET_LEASE		_IOWR('f', 243, long)
+#define LL_IOC_GET_LEASE		_IO('f', 244)
+#define LL_IOC_HSM_IMPORT		_IOWR('f', 245, struct hsm_user_import)
 
 #define LL_STATFS_LMV	   1
 #define LL_STATFS_LOV	   2
@@ -347,6 +350,16 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 } __attribute__((packed));
 
+static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
+{
+	if (lmm_magic == LOV_USER_MAGIC_V3)
+		return sizeof(struct lov_user_md_v3) +
+				stripes * sizeof(struct lov_user_ost_data_v1);
+	else
+		return sizeof(struct lov_user_md_v1) +
+				stripes * sizeof(struct lov_user_ost_data_v1);
+}
+
 /* Compile with -D_LARGEFILE64_SOURCE or -D_GNU_SOURCE (or #define) to
  * use this.  It is unsafe to #define those values in this header as it
  * is possible the application has already #included <sys/stat.h>. */
@@ -415,8 +428,8 @@ struct obd_uuid {
 	char uuid[UUID_MAX];
 };
 
-static inline int obd_uuid_equals(const struct obd_uuid *u1,
-				  const struct obd_uuid *u2)
+static inline bool obd_uuid_equals(const struct obd_uuid *u1,
+				   const struct obd_uuid *u2)
 {
 	return strcmp((char *)u1->uuid, (char *)u2->uuid) == 0;
 }
@@ -433,7 +446,7 @@ static inline void obd_str2uuid(struct obd_uuid *uuid, const char *tmp)
 }
 
 /* For printf's only, make sure uuid is terminated */
-static inline char *obd_uuid2str(struct obd_uuid *uuid)
+static inline char *obd_uuid2str(const struct obd_uuid *uuid)
 {
 	if (uuid->uuid[sizeof(*uuid) - 1] != '\0') {
 		/* Obviously not safe, but for printfs, no real harm done...
@@ -462,6 +475,8 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 
 /* printf display format
    e.g. printf("file FID is "DFID"\n", PFID(fid)); */
+#define FID_NOBRACE_LEN 40
+#define FID_LEN (FID_NOBRACE_LEN + 2)
 #define DFID_NOBRACE LPX64":0x%x:0x%x"
 #define DFID "["DFID_NOBRACE"]"
 #define PFID(fid)     \
@@ -608,10 +623,13 @@ struct if_quotactl {
 };
 
 /* swap layout flags */
-#define	SWAP_LAYOUTS_CHECK_DV1		(1 << 0)
-#define	SWAP_LAYOUTS_CHECK_DV2		(1 << 1)
-#define	SWAP_LAYOUTS_KEEP_MTIME		(1 << 2)
-#define	SWAP_LAYOUTS_KEEP_ATIME		(1 << 3)
+#define SWAP_LAYOUTS_CHECK_DV1		(1 << 0)
+#define SWAP_LAYOUTS_CHECK_DV2		(1 << 1)
+#define SWAP_LAYOUTS_KEEP_MTIME		(1 << 2)
+#define SWAP_LAYOUTS_KEEP_ATIME		(1 << 3)
+
+/* Swap XATTR_NAME_HSM as well, only on the MDT so far */
+#define SWAP_LAYOUTS_MDS_HSM		(1 << 31)
 struct lustre_swap_layouts {
 	__u64	sl_flags;
 	__u32	sl_fd;
@@ -742,7 +760,8 @@ static inline void hsm_set_cl_error(int *flags, int error)
 	*flags |= (error << CLF_HSM_ERR_L);
 }
 
-#define CR_MAXSIZE cfs_size_round(2*NAME_MAX + 1 + sizeof(struct changelog_rec))
+#define CR_MAXSIZE cfs_size_round(2*NAME_MAX + 1 + \
+				  sizeof(struct changelog_ext_rec))
 
 struct changelog_rec {
 	__u16		 cr_namelen;
@@ -1106,12 +1125,26 @@ static inline int hal_size(struct hsm_action_list *hal)
 
 	sz = sizeof(*hal) + cfs_size_round(strlen(hal->hal_fsname));
 	hai = hai_zero(hal);
-	for (i = 0 ; i < hal->hal_count ; i++) {
+	for (i = 0; i < hal->hal_count; i++, hai = hai_next(hai))
 		sz += cfs_size_round(hai->hai_len);
-		hai = hai_next(hai);
-	}
-	return(sz);
+
+	return sz;
 }
+
+/* HSM file import
+ * describe the attributes to be set on imported file
+ */
+struct hsm_user_import {
+	__u64		hui_size;
+	__u64		hui_atime;
+	__u64		hui_mtime;
+	__u32		hui_atime_ns;
+	__u32		hui_mtime_ns;
+	__u32		hui_uid;
+	__u32		hui_gid;
+	__u32		hui_mode;
+	__u32		hui_archive_id;
+};
 
 /* Copytool progress reporting */
 #define HP_FLAG_COMPLETED 0x01

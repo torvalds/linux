@@ -37,6 +37,7 @@
 
 #include <linux/ip.h>
 #include <linux/module.h>
+#include <linux/udp.h>
 
 /*
  *NOTICE!!!: This file will be very big, we should
@@ -172,6 +173,7 @@ u8 rtl_tid_to_ac(u8 tid)
 {
 	return tid_to_ac[tid];
 }
+EXPORT_SYMBOL_GPL(rtl_tid_to_ac);
 
 static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 				  struct ieee80211_sta_ht_cap *ht_cap)
@@ -351,7 +353,6 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 
 	/* TODO: Correct this value for our hw */
 	/* TODO: define these hard code value */
-	hw->channel_change_time = 100;
 	hw->max_listen_interval = 10;
 	hw->max_rate_tries = 4;
 	/* hw->max_rates = 1; */
@@ -406,6 +407,7 @@ void rtl_deinit_deferred_work(struct ieee80211_hw *hw)
 	cancel_delayed_work(&rtlpriv->works.ps_rfon_wq);
 	cancel_delayed_work(&rtlpriv->works.fwevt_wq);
 }
+EXPORT_SYMBOL_GPL(rtl_deinit_deferred_work);
 
 void rtl_init_rfkill(struct ieee80211_hw *hw)
 {
@@ -439,6 +441,7 @@ void rtl_deinit_rfkill(struct ieee80211_hw *hw)
 {
 	wiphy_rfkill_stop_polling(hw->wiphy);
 }
+EXPORT_SYMBOL_GPL(rtl_deinit_rfkill);
 
 int rtl_init_core(struct ieee80211_hw *hw)
 {
@@ -489,10 +492,12 @@ int rtl_init_core(struct ieee80211_hw *hw)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rtl_init_core);
 
 void rtl_deinit_core(struct ieee80211_hw *hw)
 {
 }
+EXPORT_SYMBOL_GPL(rtl_deinit_core);
 
 void rtl_init_rx_config(struct ieee80211_hw *hw)
 {
@@ -501,6 +506,7 @@ void rtl_init_rx_config(struct ieee80211_hw *hw)
 
 	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *) (&mac->rx_conf));
 }
+EXPORT_SYMBOL_GPL(rtl_init_rx_config);
 
 /*********************************************************
  *
@@ -879,6 +885,7 @@ bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(rtl_tx_mgmt_proc);
 
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
@@ -1052,6 +1059,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(rtl_action_proc);
 
 /*should call before software enc*/
 u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
@@ -1066,65 +1074,54 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	if (!ieee80211_is_data(fc))
 		return false;
 
+	ip = (const struct iphdr *)(skb->data + mac_hdr_len +
+				    SNAP_SIZE + PROTOC_TYPE_SIZE);
+	ether_type = be16_to_cpup((__be16 *)
+				  (skb->data + mac_hdr_len + SNAP_SIZE));
 
-	ip = (struct iphdr *)((u8 *) skb->data + mac_hdr_len +
-			      SNAP_SIZE + PROTOC_TYPE_SIZE);
-	ether_type = *(u16 *) ((u8 *) skb->data + mac_hdr_len + SNAP_SIZE);
-	/*	ether_type = ntohs(ether_type); */
+	switch (ether_type) {
+	case ETH_P_IP: {
+		struct udphdr *udp;
+		u16 src;
+		u16 dst;
 
-	if (ETH_P_IP == ether_type) {
-		if (IPPROTO_UDP == ip->protocol) {
-			struct udphdr *udp = (struct udphdr *)((u8 *) ip +
-							       (ip->ihl << 2));
-			if (((((u8 *) udp)[1] == 68) &&
-			     (((u8 *) udp)[3] == 67)) ||
-			    ((((u8 *) udp)[1] == 67) &&
-			     (((u8 *) udp)[3] == 68))) {
-				/*
-				 * 68 : UDP BOOTP client
-				 * 67 : UDP BOOTP server
-				 */
-				RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV),
-					 DBG_DMESG, "dhcp %s !!\n",
-					 is_tx ? "Tx" : "Rx");
+		if (ip->protocol != IPPROTO_UDP)
+			return false;
+		udp = (struct udphdr *)((u8 *)ip + (ip->ihl << 2));
+		src = be16_to_cpu(udp->source);
+		dst = be16_to_cpu(udp->dest);
 
-				if (is_tx) {
-					rtlpriv->enter_ps = false;
-					schedule_work(&rtlpriv->
-						      works.lps_change_work);
-					ppsc->last_delaylps_stamp_jiffies =
-					    jiffies;
-				}
+		/* If this case involves port 68 (UDP BOOTP client) connecting
+		 * with port 67 (UDP BOOTP server), then return true so that
+		 * the lowest speed is used.
+		 */
+		if (!((src == 68 && dst == 67) || (src == 67 && dst == 68)))
+			return false;
 
-				return true;
-			}
-		}
-	} else if (ETH_P_ARP == ether_type) {
-		if (is_tx) {
-			rtlpriv->enter_ps = false;
-			schedule_work(&rtlpriv->works.lps_change_work);
-			ppsc->last_delaylps_stamp_jiffies = jiffies;
-		}
-
-		return true;
-	} else if (ETH_P_PAE == ether_type) {
+		RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
+			 "dhcp %s !!\n", is_tx ? "Tx" : "Rx");
+		break;
+	}
+	case ETH_P_ARP:
+		break;
+	case ETH_P_PAE:
 		RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
 			 "802.1X %s EAPOL pkt!!\n", is_tx ? "Tx" : "Rx");
-
-		if (is_tx) {
-			rtlpriv->enter_ps = false;
-			schedule_work(&rtlpriv->works.lps_change_work);
-			ppsc->last_delaylps_stamp_jiffies = jiffies;
-		}
-
-		return true;
-	} else if (ETH_P_IPV6 == ether_type) {
-		/* IPv6 */
-		return true;
+		break;
+	case ETH_P_IPV6:
+		/* TODO: Is this right? */
+		return false;
+	default:
+		return false;
 	}
-
-	return false;
+	if (is_tx) {
+		rtlpriv->enter_ps = false;
+		schedule_work(&rtlpriv->works.lps_change_work);
+		ppsc->last_delaylps_stamp_jiffies = jiffies;
+	}
+	return true;
 }
+EXPORT_SYMBOL_GPL(rtl_is_special_data);
 
 /*********************************************************
  *
@@ -1295,11 +1292,12 @@ void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (compare_ether_addr(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal_64bits(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	rtlpriv->link_info.bcn_rx_inperiod++;
 }
+EXPORT_SYMBOL_GPL(rtl_beacon_statistic);
 
 void rtl_watchdog_wq_callback(void *data)
 {
@@ -1438,7 +1436,8 @@ void rtl_watchdog_wq_callback(void *data)
 			/* if we can't recv beacon for 6s, we should
 			 * reconnect this AP
 			 */
-			if (rtlpriv->link_info.roam_times >= 3) {
+			if ((rtlpriv->link_info.roam_times >= 3) &&
+			    !is_zero_ether_addr(rtlpriv->mac80211.bssid)) {
 				RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 					 "AP off, try to reconnect now\n");
 				rtlpriv->link_info.roam_times = 0;
@@ -1603,6 +1602,35 @@ err_free:
 }
 EXPORT_SYMBOL(rtl_send_smps_action);
 
+void rtl_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	enum io_type iotype;
+
+	if (!is_hal_stop(rtlhal)) {
+		switch (operation) {
+		case SCAN_OPT_BACKUP:
+			iotype = IO_CMD_PAUSE_DM_BY_SCAN;
+			rtlpriv->cfg->ops->set_hw_reg(hw,
+						      HW_VAR_IO_CMD,
+						      (u8 *)&iotype);
+			break;
+		case SCAN_OPT_RESTORE:
+			iotype = IO_CMD_RESUME_DM_BY_SCAN;
+			rtlpriv->cfg->ops->set_hw_reg(hw,
+						      HW_VAR_IO_CMD,
+						      (u8 *)&iotype);
+			break;
+		default:
+			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+				 "Unknown Scan Backup operation.\n");
+			break;
+		}
+	}
+}
+EXPORT_SYMBOL(rtl_phy_scan_operation_backup);
+
 /* There seem to be issues in mac80211 regarding when del ba frames can be
  * received. As a work around, we make a fake del_ba if we receive a ba_req;
  * however, rx_agg was opened to let mac80211 release some ba related
@@ -1752,7 +1780,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (!ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal_64bits(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	if (rtl_find_221_ie(hw, data, len))
@@ -1793,6 +1821,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 
 	mac->vendor = vendor;
 }
+EXPORT_SYMBOL_GPL(rtl_recognize_peer);
 
 /*********************************************************
  *
@@ -1817,7 +1846,7 @@ static ssize_t rtl_store_debug_level(struct device *d,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 0, &val);
+	ret = kstrtoul(buf, 0, &val);
 	if (ret) {
 		printk(KERN_DEBUG "%s is not in hex or decimal form.\n", buf);
 	} else {
@@ -1849,6 +1878,7 @@ struct attribute_group rtl_attribute_group = {
 	.name = "rtlsysfs",
 	.attrs = rtl_sysfs_entries,
 };
+EXPORT_SYMBOL_GPL(rtl_attribute_group);
 
 MODULE_AUTHOR("lizhaoming	<chaoming_li@realsil.com.cn>");
 MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
@@ -1856,7 +1886,8 @@ MODULE_AUTHOR("Larry Finger	<Larry.FInger@lwfinger.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 802.11n PCI wireless core");
 
-struct rtl_global_var global_var = {};
+struct rtl_global_var rtl_global_var = {};
+EXPORT_SYMBOL_GPL(rtl_global_var);
 
 static int __init rtl_core_module_init(void)
 {
@@ -1864,8 +1895,8 @@ static int __init rtl_core_module_init(void)
 		pr_err("Unable to register rtl_rc, use default RC !!\n");
 
 	/* init some global vars */
-	INIT_LIST_HEAD(&global_var.glb_priv_list);
-	spin_lock_init(&global_var.glb_list_lock);
+	INIT_LIST_HEAD(&rtl_global_var.glb_priv_list);
+	spin_lock_init(&rtl_global_var.glb_list_lock);
 
 	return 0;
 }

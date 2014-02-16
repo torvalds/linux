@@ -262,7 +262,6 @@ void gss_sec_ctx_replace_pf(struct gss_sec *gsec,
 	struct hlist_node     *next;
 	HLIST_HEAD(freelist);
 	unsigned int hash;
-	ENTRY;
 
 	gsec_pf = container_of(gsec, struct gss_sec_pipefs, gsp_base);
 
@@ -287,7 +286,6 @@ void gss_sec_ctx_replace_pf(struct gss_sec *gsec,
 	spin_unlock(&gsec->gs_base.ps_lock);
 
 	ctx_list_destroy_pf(&freelist);
-	EXIT;
 }
 
 static
@@ -297,23 +295,22 @@ int gss_install_rvs_cli_ctx_pf(struct gss_sec *gsec,
 	struct vfs_cred	  vcred;
 	struct ptlrpc_cli_ctx   *cli_ctx;
 	int		      rc;
-	ENTRY;
 
 	vcred.vc_uid = 0;
 	vcred.vc_gid = 0;
 
 	cli_ctx = ctx_create_pf(&gsec->gs_base, &vcred);
 	if (!cli_ctx)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	rc = gss_copy_rvc_cli_ctx(cli_ctx, svc_ctx);
 	if (rc) {
 		ctx_destroy_pf(cli_ctx->cc_sec, cli_ctx);
-		RETURN(rc);
+		return rc;
 	}
 
 	gss_sec_ctx_replace_pf(gsec, cli_ctx);
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -324,7 +321,6 @@ void gss_ctx_cache_gc_pf(struct gss_sec_pipefs *gsec_pf,
 	struct ptlrpc_cli_ctx   *ctx;
 	struct hlist_node       *next;
 	int i;
-	ENTRY;
 
 	sec = &gsec_pf->gsp_base.gs_base;
 
@@ -337,7 +333,6 @@ void gss_ctx_cache_gc_pf(struct gss_sec_pipefs *gsec_pf,
 	}
 
 	sec->ps_gc_next = cfs_time_current_sec() + sec->ps_gc_interval;
-	EXIT;
 }
 
 static
@@ -347,7 +342,6 @@ struct ptlrpc_sec* gss_sec_create_pf(struct obd_import *imp,
 {
 	struct gss_sec_pipefs   *gsec_pf;
 	int		      alloc_size, hash_size, i;
-	ENTRY;
 
 #define GSS_SEC_PIPEFS_CTX_HASH_SIZE    (32)
 
@@ -362,7 +356,7 @@ struct ptlrpc_sec* gss_sec_create_pf(struct obd_import *imp,
 
 	OBD_ALLOC(gsec_pf, alloc_size);
 	if (!gsec_pf)
-		RETURN(NULL);
+		return NULL;
 
 	gsec_pf->gsp_chash_size = hash_size;
 	for (i = 0; i < hash_size; i++)
@@ -380,13 +374,13 @@ struct ptlrpc_sec* gss_sec_create_pf(struct obd_import *imp,
 			goto err_destroy;
 	}
 
-	RETURN(&gsec_pf->gsp_base.gs_base);
+	return &gsec_pf->gsp_base.gs_base;
 
 err_destroy:
 	gss_sec_destroy_common(&gsec_pf->gsp_base);
 err_free:
 	OBD_FREE(gsec_pf, alloc_size);
-	RETURN(NULL);
+	return NULL;
 }
 
 static
@@ -423,7 +417,6 @@ struct ptlrpc_cli_ctx * gss_sec_lookup_ctx_pf(struct ptlrpc_sec *sec,
 	struct hlist_node       *next;
 	HLIST_HEAD(freelist);
 	unsigned int	    hash, gc = 0, found = 0;
-	ENTRY;
 
 	might_sleep();
 
@@ -473,7 +466,7 @@ retry:
 		/* don't allocate for reverse sec */
 		if (sec_is_reverse(sec)) {
 			spin_unlock(&sec->ps_lock);
-			RETURN(NULL);
+			return NULL;
 		}
 
 		if (new) {
@@ -504,7 +497,7 @@ retry:
 	}
 
 	ctx_list_destroy_pf(&freelist);
-	RETURN(ctx);
+	return ctx;
 }
 
 static
@@ -545,7 +538,6 @@ int gss_sec_flush_ctx_cache_pf(struct ptlrpc_sec *sec,
 	struct hlist_node       *next;
 	HLIST_HEAD(freelist);
 	int i, busy = 0;
-	ENTRY;
 
 	might_sleep_if(grace);
 
@@ -584,7 +576,7 @@ int gss_sec_flush_ctx_cache_pf(struct ptlrpc_sec *sec,
 	spin_unlock(&sec->ps_lock);
 
 	ctx_list_destroy_pf(&freelist);
-	RETURN(busy);
+	return busy;
 }
 
 /****************************************
@@ -704,11 +696,9 @@ void upcall_msg_delist(struct gss_upcall_msg *msg)
 static
 void gss_release_msg(struct gss_upcall_msg *gmsg)
 {
-	ENTRY;
 	LASSERT(atomic_read(&gmsg->gum_refcount) > 0);
 
 	if (!atomic_dec_and_test(&gmsg->gum_refcount)) {
-		EXIT;
 		return;
 	}
 
@@ -721,7 +711,6 @@ void gss_release_msg(struct gss_upcall_msg *gmsg)
 	LASSERT(list_empty(&gmsg->gum_list));
 	LASSERT(list_empty(&gmsg->gum_base.list));
 	OBD_FREE_PTR(gmsg);
-	EXIT;
 }
 
 static
@@ -809,19 +798,18 @@ ssize_t gss_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
 	char *data = (char *)msg->data + msg->copied;
 	ssize_t mlen = msg->len;
 	ssize_t left;
-	ENTRY;
 
 	if (mlen > buflen)
 		mlen = buflen;
 	left = copy_to_user(dst, data, mlen);
 	if (left < 0) {
 		msg->errno = left;
-		RETURN(left);
+		return left;
 	}
 	mlen -= left;
 	msg->copied += mlen;
 	msg->errno = 0;
-	RETURN(mlen);
+	return mlen;
 }
 
 static
@@ -835,14 +823,13 @@ ssize_t gss_pipe_downcall(struct file *filp, const char *src, size_t mlen)
 	int		      datalen;
 	int		      timeout, rc;
 	__u32		    mechidx, seq, gss_err;
-	ENTRY;
 
 	mechidx = (__u32) (long) rpci->private;
 	LASSERT(mechidx < MECH_MAX);
 
 	OBD_ALLOC(buf, mlen);
 	if (!buf)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	if (copy_from_user(buf, src, mlen)) {
 		CERROR("failed copy user space data\n");
@@ -940,7 +927,7 @@ out_free:
 	 * hack pipefs: always return asked length unless all following
 	 * downcalls might be messed up. */
 	rc = mlen;
-	RETURN(rc);
+	return rc;
 }
 
 static
@@ -949,13 +936,11 @@ void gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	struct gss_upcall_msg	  *gmsg;
 	struct gss_upcall_msg_data     *gumd;
 	static cfs_time_t	       ratelimit = 0;
-	ENTRY;
 
 	LASSERT(list_empty(&msg->list));
 
 	/* normally errno is >= 0 */
 	if (msg->errno >= 0) {
-		EXIT;
 		return;
 	}
 
@@ -980,7 +965,6 @@ void gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	}
 	gss_msg_fail_ctx(gmsg);
 	gss_release_msg(gmsg);
-	EXIT;
 }
 
 static
@@ -988,7 +972,6 @@ void gss_pipe_release(struct inode *inode)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
 	__u32	     idx;
-	ENTRY;
 
 	idx = (__u32) (long) rpci->private;
 	LASSERT(idx < MECH_MAX);
@@ -1020,7 +1003,6 @@ void gss_pipe_release(struct inode *inode)
 		upcall_list_lock(idx);
 	}
 	upcall_list_unlock(idx);
-	EXIT;
 }
 
 static struct rpc_pipe_ops gss_upcall_ops = {
@@ -1041,7 +1023,6 @@ int gss_ctx_refresh_pf(struct ptlrpc_cli_ctx *ctx)
 	struct gss_sec	     *gsec;
 	struct gss_upcall_msg      *gmsg;
 	int			 rc = 0;
-	ENTRY;
 
 	might_sleep();
 
@@ -1052,14 +1033,14 @@ int gss_ctx_refresh_pf(struct ptlrpc_cli_ctx *ctx)
 	imp = ctx->cc_sec->ps_import;
 	if (!imp->imp_connection) {
 		CERROR("import has no connection set\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	gsec = container_of(ctx->cc_sec, struct gss_sec, gs_base);
 
 	OBD_ALLOC_PTR(gmsg);
 	if (!gmsg)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	/* initialize pipefs base msg */
 	INIT_LIST_HEAD(&gmsg->gum_base.list);
@@ -1107,10 +1088,10 @@ int gss_ctx_refresh_pf(struct ptlrpc_cli_ctx *ctx)
 		goto err_free;
 	}
 
-	RETURN(0);
+	return 0;
 err_free:
 	OBD_FREE_PTR(gmsg);
-	RETURN(rc);
+	return rc;
 }
 
 static

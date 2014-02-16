@@ -135,7 +135,7 @@ static DEFINE_RWLOCK(qdisc_mod_lock);
 
 static struct Qdisc_ops *qdisc_base;
 
-/* Register/uregister queueing discipline */
+/* Register/unregister queueing discipline */
 
 int register_qdisc(struct Qdisc_ops *qops)
 {
@@ -200,6 +200,58 @@ int unregister_qdisc(struct Qdisc_ops *qops)
 }
 EXPORT_SYMBOL(unregister_qdisc);
 
+/* Get default qdisc if not otherwise specified */
+void qdisc_get_default(char *name, size_t len)
+{
+	read_lock(&qdisc_mod_lock);
+	strlcpy(name, default_qdisc_ops->id, len);
+	read_unlock(&qdisc_mod_lock);
+}
+
+static struct Qdisc_ops *qdisc_lookup_default(const char *name)
+{
+	struct Qdisc_ops *q = NULL;
+
+	for (q = qdisc_base; q; q = q->next) {
+		if (!strcmp(name, q->id)) {
+			if (!try_module_get(q->owner))
+				q = NULL;
+			break;
+		}
+	}
+
+	return q;
+}
+
+/* Set new default qdisc to use */
+int qdisc_set_default(const char *name)
+{
+	const struct Qdisc_ops *ops;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	write_lock(&qdisc_mod_lock);
+	ops = qdisc_lookup_default(name);
+	if (!ops) {
+		/* Not found, drop lock and try to load module */
+		write_unlock(&qdisc_mod_lock);
+		request_module("sch_%s", name);
+		write_lock(&qdisc_mod_lock);
+
+		ops = qdisc_lookup_default(name);
+	}
+
+	if (ops) {
+		/* Set new default */
+		module_put(default_qdisc_ops->owner);
+		default_qdisc_ops = ops;
+	}
+	write_unlock(&qdisc_mod_lock);
+
+	return ops ? 0 : -ENOENT;
+}
+
 /* We know handle. Find qdisc among all qdisc's attached to device
    (root qdisc, all its children, children of children etc.)
  */
@@ -219,11 +271,15 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 	return NULL;
 }
 
-static void qdisc_list_add(struct Qdisc *q)
+void qdisc_list_add(struct Qdisc *q)
 {
+	struct Qdisc *root = qdisc_dev(q)->qdisc;
+
+	WARN_ON_ONCE(root == &noop_qdisc);
 	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS))
-		list_add_tail(&q->list, &qdisc_dev(q)->qdisc->list);
+		list_add_tail(&q->list, &root->list);
 }
+EXPORT_SYMBOL(qdisc_list_add);
 
 void qdisc_list_del(struct Qdisc *q)
 {
@@ -285,6 +341,45 @@ static struct Qdisc_ops *qdisc_lookup_ops(struct nlattr *kind)
 	return q;
 }
 
+/* The linklayer setting were not transferred from iproute2, in older
+ * versions, and the rate tables lookup systems have been dropped in
+ * the kernel. To keep backward compatible with older iproute2 tc
+ * utils, we detect the linklayer setting by detecting if the rate
+ * table were modified.
+ *
+ * For linklayer ATM table entries, the rate table will be aligned to
+ * 48 bytes, thus some table entries will contain the same value.  The
+ * mpu (min packet unit) is also encoded into the old rate table, thus
+ * starting from the mpu, we find low and high table entries for
+ * mapping this cell.  If these entries contain the same value, when
+ * the rate tables have been modified for linklayer ATM.
+ *
+ * This is done by rounding mpu to the nearest 48 bytes cell/entry,
+ * and then roundup to the next cell, calc the table entry one below,
+ * and compare.
+ */
+static __u8 __detect_linklayer(struct tc_ratespec *r, __u32 *rtab)
+{
+	int low       = roundup(r->mpu, 48);
+	int high      = roundup(low+1, 48);
+	int cell_low  = low >> r->cell_log;
+	int cell_high = (high >> r->cell_log) - 1;
+
+	/* rtab is too inaccurate at rates > 100Mbit/s */
+	if ((r->rate > (100000000/8)) || (rtab[0] == 0)) {
+		pr_debug("TC linklayer: Giving up ATM detection\n");
+		return TC_LINKLAYER_ETHERNET;
+	}
+
+	if ((cell_high > cell_low) && (cell_high < 256)
+	    && (rtab[cell_low] == rtab[cell_high])) {
+		pr_debug("TC linklayer: Detected ATM, low(%d)=high(%d)=%u\n",
+			 cell_low, cell_high, rtab[cell_high]);
+		return TC_LINKLAYER_ATM;
+	}
+	return TC_LINKLAYER_ETHERNET;
+}
+
 static struct qdisc_rate_table *qdisc_rtab_list;
 
 struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r, struct nlattr *tab)
@@ -308,6 +403,8 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r, struct nlattr *ta
 		rtab->rate = *r;
 		rtab->refcnt = 1;
 		memcpy(rtab->data, nla_data(tab), 1024);
+		if (r->linklayer == TC_LINKLAYER_UNAWARE)
+			r->linklayer = __detect_linklayer(r, rtab->data);
 		rtab->next = qdisc_rtab_list;
 		qdisc_rtab_list = rtab;
 	}
@@ -644,9 +741,11 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 	const struct Qdisc_class_ops *cops;
 	unsigned long cl;
 	u32 parentid;
+	int drops;
 
 	if (n == 0)
 		return;
+	drops = max_t(int, n, 0);
 	while ((parentid = sch->parent)) {
 		if (TC_H_MAJ(parentid) == TC_H_MAJ(TC_H_INGRESS))
 			return;
@@ -663,6 +762,7 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 			cops->put(sch, cl);
 		}
 		sch->q.qlen -= n;
+		sch->qstats.drops += drops;
 	}
 }
 EXPORT_SYMBOL(qdisc_tree_decrease_qlen);
@@ -1813,6 +1913,7 @@ static int __init pktsched_init(void)
 		return err;
 	}
 
+	register_qdisc(&pfifo_fast_ops);
 	register_qdisc(&pfifo_qdisc_ops);
 	register_qdisc(&bfifo_qdisc_ops);
 	register_qdisc(&pfifo_head_drop_qdisc_ops);

@@ -80,6 +80,17 @@ Valid values for pin and group names are:
     dbg, sdio3, spi, uaa, uab, uart2, uart3, sdio1, ddc, gma, gme, gmf, gmg,
     gmh, owr, uda.
 
+Valid values for nvidia,functions are:
+
+  blink, cec, cldvfs, clk12, cpu, dap, dap1, dap2, dev3, displaya,
+  displaya_alt, displayb, dtv, emc_dll, extperiph1, extperiph2,
+  extperiph3, gmi, gmi_alt, hda, hsi, i2c1, i2c2, i2c3, i2c4, i2cpwr,
+  i2s0, i2s1, i2s2, i2s3, i2s4, irda, kbc, nand, nand_alt, owr, pmi,
+  pwm0, pwm1, pwm2, pwm3, pwron, reset_out_n, rsvd1, rsvd2, rsvd3,
+  rsvd4, sdmmc1, sdmmc2, sdmmc3, sdmmc4, soc, spdif, spi1, spi2, spi3,
+  spi4, spi5, spi6, sysclk, trace, uarta, uartb, uartc, uartd, ulpi,
+  usb, vgp1, vgp2, vgp3, vgp4, vgp5, vgp6, vi, vi_alt1, vi_alt3
+
 Example:
 
 	pinmux: pinmux {

@@ -37,7 +37,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
@@ -138,7 +137,10 @@
  * comedi constants
  */
 static const struct comedi_lrange range_usbduxfast_ai_range = {
-	2, {BIP_RANGE(0.75), BIP_RANGE(0.5)}
+	2, {
+		BIP_RANGE(0.75),
+		BIP_RANGE(0.5)
+	}
 };
 
 /*
@@ -1061,10 +1063,9 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 		return -ENODEV;
 	}
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	sema_init(&devpriv->sem, 1);
 	usb_set_intfdata(intf, devpriv);

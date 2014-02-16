@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -4171,8 +4171,6 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	NLP_INT_NODE_ACT(ndlp);
 	atomic_set(&ndlp->cmd_pending, 0);
 	ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
-	if (vport->phba->sli_rev == LPFC_SLI_REV4)
-		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
 }
 
 struct lpfc_nodelist *
@@ -4217,6 +4215,9 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	lpfc_initialize_node(vport, ndlp, did);
 
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+
 
 	if (state != NLP_STE_UNUSED_NODE)
 		lpfc_nlp_set_state(vport, ndlp, state);
@@ -4437,6 +4438,7 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (!ndlp)
 		return;
 	lpfc_issue_els_logo(vport, ndlp, 0);
+	mempool_free(pmb, phba->mbox_mem_pool);
 }
 
 /*
@@ -4456,7 +4458,15 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	int rc;
 	uint16_t rpi;
 
-	if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
+	if (ndlp->nlp_flag & NLP_RPI_REGISTERED ||
+	    ndlp->nlp_flag & NLP_REG_LOGIN_SEND) {
+		if (ndlp->nlp_flag & NLP_REG_LOGIN_SEND)
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+					 "3366 RPI x%x needs to be "
+					 "unregistered nlp_flag x%x "
+					 "did x%x\n",
+					 ndlp->nlp_rpi, ndlp->nlp_flag,
+					 ndlp->nlp_DID);
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (mbox) {
 			/* SLI4 ports require the physical rpi value. */
@@ -5608,6 +5618,9 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	lpfc_initialize_node(vport, ndlp, did);
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node init:       did:x%x",
@@ -6158,11 +6171,43 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 		memcpy(&conn_entry->conn_rec, &conn_rec[i],
 			sizeof(struct lpfc_fcf_conn_rec));
 		conn_entry->conn_rec.vlan_tag =
-			le16_to_cpu(conn_entry->conn_rec.vlan_tag) & 0xFFF;
+			conn_entry->conn_rec.vlan_tag;
 		conn_entry->conn_rec.flags =
-			le16_to_cpu(conn_entry->conn_rec.flags);
+			conn_entry->conn_rec.flags;
 		list_add_tail(&conn_entry->list,
 			&phba->fcf_conn_rec_list);
+	}
+
+	if (!list_empty(&phba->fcf_conn_rec_list)) {
+		i = 0;
+		list_for_each_entry(conn_entry, &phba->fcf_conn_rec_list,
+				    list) {
+			conn_rec = &conn_entry->conn_rec;
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3345 FCF connection list rec[%02d]: "
+					"flags:x%04x, vtag:x%04x, "
+					"fabric_name:x%02x:%02x:%02x:%02x:"
+					"%02x:%02x:%02x:%02x, "
+					"switch_name:x%02x:%02x:%02x:%02x:"
+					"%02x:%02x:%02x:%02x\n", i++,
+					conn_rec->flags, conn_rec->vlan_tag,
+					conn_rec->fabric_name[0],
+					conn_rec->fabric_name[1],
+					conn_rec->fabric_name[2],
+					conn_rec->fabric_name[3],
+					conn_rec->fabric_name[4],
+					conn_rec->fabric_name[5],
+					conn_rec->fabric_name[6],
+					conn_rec->fabric_name[7],
+					conn_rec->switch_name[0],
+					conn_rec->switch_name[1],
+					conn_rec->switch_name[2],
+					conn_rec->switch_name[3],
+					conn_rec->switch_name[4],
+					conn_rec->switch_name[5],
+					conn_rec->switch_name[6],
+					conn_rec->switch_name[7]);
+		}
 	}
 }
 

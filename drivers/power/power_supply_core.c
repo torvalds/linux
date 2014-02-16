@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/notifier.h>
 #include <linux/err.h>
 #include <linux/power_supply.h>
 #include <linux/thermal.h>
@@ -23,6 +24,9 @@
 /* exported for the APM Power driver, APM emulation */
 struct class *power_supply_class;
 EXPORT_SYMBOL_GPL(power_supply_class);
+
+ATOMIC_NOTIFIER_HEAD(power_supply_notifier);
+EXPORT_SYMBOL_GPL(power_supply_notifier);
 
 static struct device_type power_supply_dev_type;
 
@@ -67,23 +71,44 @@ static int __power_supply_changed_work(struct device *dev, void *data)
 
 static void power_supply_changed_work(struct work_struct *work)
 {
+	unsigned long flags;
 	struct power_supply *psy = container_of(work, struct power_supply,
 						changed_work);
 
 	dev_dbg(psy->dev, "%s\n", __func__);
 
-	class_for_each_device(power_supply_class, NULL, psy,
-			      __power_supply_changed_work);
-
-	power_supply_update_leds(psy);
-
-	kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
+	spin_lock_irqsave(&psy->changed_lock, flags);
+	if (psy->changed) {
+		psy->changed = false;
+		spin_unlock_irqrestore(&psy->changed_lock, flags);
+		class_for_each_device(power_supply_class, NULL, psy,
+				      __power_supply_changed_work);
+		power_supply_update_leds(psy);
+		atomic_notifier_call_chain(&power_supply_notifier,
+				PSY_EVENT_PROP_CHANGED, psy);
+		kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
+		spin_lock_irqsave(&psy->changed_lock, flags);
+	}
+	/*
+	 * Dependent power supplies (e.g. battery) may have changed state
+	 * as a result of this event, so poll again and hold the
+	 * wakeup_source until all events are processed.
+	 */
+	if (!psy->changed)
+		pm_relax(psy->dev);
+	spin_unlock_irqrestore(&psy->changed_lock, flags);
 }
 
 void power_supply_changed(struct power_supply *psy)
 {
+	unsigned long flags;
+
 	dev_dbg(psy->dev, "%s\n", __func__);
 
+	spin_lock_irqsave(&psy->changed_lock, flags);
+	psy->changed = true;
+	pm_stay_awake(psy->dev);
+	spin_unlock_irqrestore(&psy->changed_lock, flags);
 	schedule_work(&psy->changed_work);
 }
 EXPORT_SYMBOL_GPL(power_supply_changed);
@@ -109,8 +134,10 @@ static int __power_supply_populate_supplied_from(struct device *dev,
 				psy->name, epsy->name);
 			psy->supplied_from[i-1] = (char *)epsy->name;
 			psy->num_supplies++;
+			of_node_put(np);
 			break;
 		}
+		of_node_put(np);
 	} while (np);
 
 	return 0;
@@ -193,8 +220,10 @@ static int power_supply_check_supplies(struct power_supply *psy)
 		ret = power_supply_find_supply_from_node(np);
 		if (ret) {
 			dev_dbg(psy->dev, "Failed to find supply, defer!\n");
+			of_node_put(np);
 			return -EPROBE_DEFER;
 		}
+		of_node_put(np);
 	} while (np);
 
 	/* All supplies found, allocate char ** array for filling */
@@ -312,6 +341,32 @@ struct power_supply *power_supply_get_by_name(const char *name)
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_name);
 
+#ifdef CONFIG_OF
+static int power_supply_match_device_node(struct device *dev, const void *data)
+{
+	return dev->parent && dev->parent->of_node == data;
+}
+
+struct power_supply *power_supply_get_by_phandle(struct device_node *np,
+							const char *property)
+{
+	struct device_node *power_supply_np;
+	struct device *dev;
+
+	power_supply_np = of_parse_phandle(np, property, 0);
+	if (!power_supply_np)
+		return ERR_PTR(-ENODEV);
+
+	dev = class_find_device(power_supply_class, NULL, power_supply_np,
+						power_supply_match_device_node);
+
+	of_node_put(power_supply_np);
+
+	return dev ? dev_get_drvdata(dev) : NULL;
+}
+EXPORT_SYMBOL_GPL(power_supply_get_by_phandle);
+#endif /* CONFIG_OF */
+
 int power_supply_powers(struct power_supply *psy, struct device *dev)
 {
 	return sysfs_create_link(&psy->dev->kobj, &dev->kobj, "powers");
@@ -323,6 +378,18 @@ static void power_supply_dev_release(struct device *dev)
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 	kfree(dev);
 }
+
+int power_supply_reg_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&power_supply_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(power_supply_reg_notifier);
+
+void power_supply_unreg_notifier(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&power_supply_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(power_supply_unreg_notifier);
 
 #ifdef CONFIG_THERMAL
 static int power_supply_read_temp(struct thermal_zone_device *tzd,
@@ -488,6 +555,10 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	dev_set_drvdata(dev, psy);
 	psy->dev = dev;
 
+	rc = dev_set_name(dev, "%s", psy->name);
+	if (rc)
+		goto dev_set_name_failed;
+
 	INIT_WORK(&psy->changed_work, power_supply_changed_work);
 
 	rc = power_supply_check_supplies(psy);
@@ -496,9 +567,10 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 		goto check_supplies_failed;
 	}
 
-	rc = kobject_set_name(&dev->kobj, "%s", psy->name);
+	spin_lock_init(&psy->changed_lock);
+	rc = device_init_wakeup(dev, true);
 	if (rc)
-		goto kobject_set_name_failed;
+		goto wakeup_init_failed;
 
 	rc = device_add(dev);
 	if (rc)
@@ -526,9 +598,10 @@ register_cooler_failed:
 	psy_unregister_thermal(psy);
 register_thermal_failed:
 	device_del(dev);
-kobject_set_name_failed:
 device_add_failed:
+wakeup_init_failed:
 check_supplies_failed:
+dev_set_name_failed:
 	put_device(dev);
 success:
 	return rc;
@@ -542,6 +615,7 @@ void power_supply_unregister(struct power_supply *psy)
 	power_supply_remove_triggers(psy);
 	psy_unregister_cooler(psy);
 	psy_unregister_thermal(psy);
+	device_init_wakeup(psy->dev, false);
 	device_unregister(psy->dev);
 }
 EXPORT_SYMBOL_GPL(power_supply_unregister);

@@ -1,0 +1,51 @@
+An Intel MIC X100 device is a PCIe form factor add-in coprocessor
+card based on the Intel Many Integrated Core (MIC) architecture
+that runs a Linux OS. It is a PCIe endpoint in a platform and therefore
+implements the three required standard address spaces i.e. configuration,
+memory and I/O. The host OS loads a device driver as is typical for
+PCIe devices. The card itself runs a bootstrap after reset that
+transfers control to the card OS downloaded from the host driver. The
+host driver supports OSPM suspend and resume operations. It shuts down
+the card during suspend and reboots the card OS during resume.
+The card OS as shipped by Intel is a Linux kernel with modifications
+for the X100 devices.
+
+Since it is a PCIe card, it does not have the ability to host hardware
+devices for networking, storage and console. We provide these devices
+on X100 coprocessors thus enabling a self-bootable equivalent environment
+for applications. A key benefit of our solution is that it leverages
+the standard virtio framework for network, disk and console devices,
+though in our case the virtio framework is used across a PCIe bus.
+
+Here is a block diagram of the various components described above. The
+virtio backends are situated on the host rather than the card given better
+single threaded performance for the host compared to MIC, the ability of
+the host to initiate DMA's to/from the card using the MIC DMA engine and
+the fact that the virtio block storage backend can only be on the host.
+
+                              |
+       +----------+           |             +----------+
+       | Card OS  |           |             | Host OS  |
+       +----------+           |             +----------+
+                              |
++-------+ +--------+ +------+ | +---------+  +--------+ +--------+
+| Virtio| |Virtio  | |Virtio| | |Virtio   |  |Virtio  | |Virtio  |
+| Net   | |Console | |Block | | |Net      |  |Console | |Block   |
+| Driver| |Driver  | |Driver| | |backend  |  |backend | |backend |
++-------+ +--------+ +------+ | +---------+  +--------+ +--------+
+    |         |         |     |      |            |         |
+    |         |         |     |User  |            |         |
+    |         |         |     |------|------------|---------|-------
+    +-------------------+     |Kernel +--------------------------+
+              |               |       | Virtio over PCIe IOCTLs  |
+              |               |       +--------------------------+
+      +--------------+        |                   |
+      |Intel MIC     |        |            +---------------+
+      |Card Driver   |        |            |Intel MIC      |
+      +--------------+        |            |Host Driver    |
+              |               |            +---------------+
+              |               |                   |
+     +-------------------------------------------------------------+
+     |                                                             |
+     |                    PCIe Bus                                 |
+     +-------------------------------------------------------------+

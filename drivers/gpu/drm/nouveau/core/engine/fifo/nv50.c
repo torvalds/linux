@@ -26,7 +26,6 @@
 #include <core/engctx.h>
 #include <core/ramht.h>
 #include <core/class.h>
-#include <core/math.h>
 
 #include <subdev/timer.h>
 #include <subdev/bar.h>
@@ -34,6 +33,7 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 
+#include "nv04.h"
 #include "nv50.h"
 
 /*******************************************************************************
@@ -278,7 +278,7 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 		return ret;
 
 	ioffset = args->ioffset;
-	ilength = log2i(args->ilength / 8);
+	ilength = order_base_2(args->ilength / 8);
 
 	nv_wo32(base->ramfc, 0x3c, 0x403f6078);
 	nv_wo32(base->ramfc, 0x44, 0x01003fff);
@@ -461,6 +461,8 @@ nv50_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->intr = nv04_fifo_intr;
 	nv_engine(priv)->cclass = &nv50_fifo_cclass;
 	nv_engine(priv)->sclass = nv50_fifo_sclass;
+	priv->base.pause = nv04_fifo_pause;
+	priv->base.start = nv04_fifo_start;
 	return 0;
 }
 
@@ -503,8 +505,8 @@ nv50_fifo_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nv50_fifo_oclass = {
+struct nouveau_oclass *
+nv50_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0x50),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_fifo_ctor,

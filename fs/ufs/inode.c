@@ -531,7 +531,7 @@ static void ufs_write_failed(struct address_space *mapping, loff_t to)
 	struct inode *inode = mapping->host;
 
 	if (to > inode->i_size)
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 }
 
 static int ufs_write_begin(struct file *file, struct address_space *mapping,

@@ -100,12 +100,12 @@ static int n810_startup(struct snd_pcm_substream *substream)
 				     SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
 
 	n810_ext_control(&codec->dapm);
-	return clk_enable(sys_clkout2);
+	return clk_prepare_enable(sys_clkout2);
 }
 
 static void n810_shutdown(struct snd_pcm_substream *substream)
 {
-	clk_disable(sys_clkout2);
+	clk_disable_unprepare(sys_clkout2);
 }
 
 static int n810_hw_params(struct snd_pcm_substream *substream,
@@ -344,8 +344,11 @@ static int __init n810_soc_init(void)
 	clk_set_parent(sys_clkout2_src, func96m_clk);
 	clk_set_rate(sys_clkout2, 12000000);
 
-	BUG_ON((gpio_request(N810_HEADSET_AMP_GPIO, "hs_amp") < 0) ||
-	       (gpio_request(N810_SPEAKER_AMP_GPIO, "spk_amp") < 0));
+	if (WARN_ON((gpio_request(N810_HEADSET_AMP_GPIO, "hs_amp") < 0) ||
+		    (gpio_request(N810_SPEAKER_AMP_GPIO, "spk_amp") < 0))) {
+		err = -EINVAL;
+		goto err4;
+	}
 
 	gpio_direction_output(N810_HEADSET_AMP_GPIO, 0);
 	gpio_direction_output(N810_SPEAKER_AMP_GPIO, 0);

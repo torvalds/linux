@@ -300,29 +300,29 @@ static ssize_t store_ctlr_mode(struct device *dev,
 
 	switch (ctlr->enabled) {
 	case FCOE_CTLR_ENABLED:
-		LIBFCOE_SYSFS_DBG(ctlr, "Cannot change mode when enabled.");
+		LIBFCOE_SYSFS_DBG(ctlr, "Cannot change mode when enabled.\n");
 		return -EBUSY;
 	case FCOE_CTLR_DISABLED:
 		if (!ctlr->f->set_fcoe_ctlr_mode) {
 			LIBFCOE_SYSFS_DBG(ctlr,
-					  "Mode change not supported by LLD.");
+					  "Mode change not supported by LLD.\n");
 			return -ENOTSUPP;
 		}
 
 		ctlr->mode = fcoe_parse_mode(mode);
 		if (ctlr->mode == FIP_CONN_TYPE_UNKNOWN) {
-			LIBFCOE_SYSFS_DBG(ctlr,
-					  "Unknown mode %s provided.", buf);
+			LIBFCOE_SYSFS_DBG(ctlr, "Unknown mode %s provided.\n",
+					  buf);
 			return -EINVAL;
 		}
 
 		ctlr->f->set_fcoe_ctlr_mode(ctlr);
-		LIBFCOE_SYSFS_DBG(ctlr, "Mode changed to %s.", buf);
+		LIBFCOE_SYSFS_DBG(ctlr, "Mode changed to %s.\n", buf);
 
 		return count;
 	case FCOE_CTLR_UNUSED:
 	default:
-		LIBFCOE_SYSFS_DBG(ctlr, "Mode change not supported.");
+		LIBFCOE_SYSFS_DBG(ctlr, "Mode change not supported.\n");
 		return -ENOTSUPP;
 	};
 }
@@ -507,7 +507,7 @@ static const struct attribute_group *fcoe_fcf_attr_groups[] = {
 	NULL,
 };
 
-struct bus_type fcoe_bus_type;
+static struct bus_type fcoe_bus_type;
 
 static int fcoe_bus_match(struct device *dev,
 			  struct device_driver *drv)
@@ -541,35 +541,39 @@ static void fcoe_fcf_device_release(struct device *dev)
 	kfree(fcf);
 }
 
-struct device_type fcoe_ctlr_device_type = {
+static struct device_type fcoe_ctlr_device_type = {
 	.name = "fcoe_ctlr",
 	.groups = fcoe_ctlr_attr_groups,
 	.release = fcoe_ctlr_device_release,
 };
 
-struct device_type fcoe_fcf_device_type = {
+static struct device_type fcoe_fcf_device_type = {
 	.name = "fcoe_fcf",
 	.groups = fcoe_fcf_attr_groups,
 	.release = fcoe_fcf_device_release,
 };
 
-struct bus_attribute fcoe_bus_attr_group[] = {
-	__ATTR(ctlr_create, S_IWUSR, NULL, fcoe_ctlr_create_store),
-	__ATTR(ctlr_destroy, S_IWUSR, NULL, fcoe_ctlr_destroy_store),
-	__ATTR_NULL
-};
+static BUS_ATTR(ctlr_create, S_IWUSR, NULL, fcoe_ctlr_create_store);
+static BUS_ATTR(ctlr_destroy, S_IWUSR, NULL, fcoe_ctlr_destroy_store);
 
-struct bus_type fcoe_bus_type = {
+static struct attribute *fcoe_bus_attrs[] = {
+	&bus_attr_ctlr_create.attr,
+	&bus_attr_ctlr_destroy.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(fcoe_bus);
+
+static struct bus_type fcoe_bus_type = {
 	.name = "fcoe",
 	.match = &fcoe_bus_match,
-	.bus_attrs = fcoe_bus_attr_group,
+	.bus_groups = fcoe_bus_groups,
 };
 
 /**
  * fcoe_ctlr_device_flush_work() - Flush a FIP ctlr's workqueue
  * @ctlr: Pointer to the FIP ctlr whose workqueue is to be flushed
  */
-void fcoe_ctlr_device_flush_work(struct fcoe_ctlr_device *ctlr)
+static void fcoe_ctlr_device_flush_work(struct fcoe_ctlr_device *ctlr)
 {
 	if (!fcoe_ctlr_work_q(ctlr)) {
 		printk(KERN_ERR
@@ -590,8 +594,8 @@ void fcoe_ctlr_device_flush_work(struct fcoe_ctlr_device *ctlr)
  * Return value:
  *	1 on success / 0 already queued / < 0 for error
  */
-int fcoe_ctlr_device_queue_work(struct fcoe_ctlr_device *ctlr,
-			       struct work_struct *work)
+static int fcoe_ctlr_device_queue_work(struct fcoe_ctlr_device *ctlr,
+				       struct work_struct *work)
 {
 	if (unlikely(!fcoe_ctlr_work_q(ctlr))) {
 		printk(KERN_ERR
@@ -609,7 +613,7 @@ int fcoe_ctlr_device_queue_work(struct fcoe_ctlr_device *ctlr,
  * fcoe_ctlr_device_flush_devloss() - Flush a FIP ctlr's devloss workqueue
  * @ctlr: Pointer to FIP ctlr whose workqueue is to be flushed
  */
-void fcoe_ctlr_device_flush_devloss(struct fcoe_ctlr_device *ctlr)
+static void fcoe_ctlr_device_flush_devloss(struct fcoe_ctlr_device *ctlr)
 {
 	if (!fcoe_ctlr_devloss_work_q(ctlr)) {
 		printk(KERN_ERR
@@ -631,9 +635,9 @@ void fcoe_ctlr_device_flush_devloss(struct fcoe_ctlr_device *ctlr)
  * Return value:
  *	1 on success / 0 already queued / < 0 for error
  */
-int fcoe_ctlr_device_queue_devloss_work(struct fcoe_ctlr_device *ctlr,
-				       struct delayed_work *work,
-				       unsigned long delay)
+static int fcoe_ctlr_device_queue_devloss_work(struct fcoe_ctlr_device *ctlr,
+					       struct delayed_work *work,
+					       unsigned long delay)
 {
 	if (unlikely(!fcoe_ctlr_devloss_work_q(ctlr))) {
 		printk(KERN_ERR
@@ -653,7 +657,7 @@ static int fcoe_fcf_device_match(struct fcoe_fcf_device *new,
 	if (new->switch_name == old->switch_name &&
 	    new->fabric_name == old->fabric_name &&
 	    new->fc_map == old->fc_map &&
-	    compare_ether_addr(new->mac, old->mac) == 0)
+	    ether_addr_equal(new->mac, old->mac))
 		return 1;
 	return 0;
 }

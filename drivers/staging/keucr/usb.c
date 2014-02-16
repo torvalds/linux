@@ -2,7 +2,6 @@
 #include <linux/errno.h>
 #include <linux/freezer.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
@@ -604,9 +603,7 @@ static int eucr_probe(struct usb_interface *intf,
 	if (!(MiscReg03 & 0x02)) {
 		result = -ENODEV;
 		quiesce_and_remove_host(us);
-		pr_info("keucr: The driver only supports SM/MS card. "
-			"To use SD card, "
-			"please build driver/usb/storage/ums-eneub6250.ko\n");
+		pr_info("keucr: The driver only supports SM/MS card. To use SD card, please build driver/usb/storage/ums-eneub6250.ko\n");
 		goto BadDevice;
 	}
 

@@ -22,6 +22,7 @@
  * more details.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -89,16 +90,10 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
 	s->state = inw(dev->iobase + APCI1516_DO_REG);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + APCI1516_DO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -136,10 +131,9 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = this_board;
 	dev->board_name = this_board->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -212,7 +206,7 @@ static int apci1516_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci1516_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci1516_pci_table) = {
+static const struct pci_device_id apci1516_pci_table[] = {
 	{ PCI_VDEVICE(ADDIDATA, 0x1000), BOARD_APCI1016 },
 	{ PCI_VDEVICE(ADDIDATA, 0x1001), BOARD_APCI1516 },
 	{ PCI_VDEVICE(ADDIDATA, 0x1002), BOARD_APCI2016 },

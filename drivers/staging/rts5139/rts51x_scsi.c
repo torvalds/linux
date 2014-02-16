@@ -973,7 +973,7 @@ static int get_dev_status(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 
 	rts51x_pp_status(chip, lun, status, 32);
 
-	buf_len = min(scsi_bufflen(srb), (unsigned int)sizeof(status));
+	buf_len = min_t(unsigned int, scsi_bufflen(srb), sizeof(status));
 	rts51x_set_xfer_buf(status, buf_len, srb);
 	scsi_set_resid(srb, scsi_bufflen(srb) - buf_len);
 
@@ -988,7 +988,7 @@ static int read_status(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 
 	rts51x_read_status(chip, lun, rts51x_status, 16);
 
-	buf_len = min(scsi_bufflen(srb), (unsigned int)sizeof(rts51x_status));
+	buf_len = min_t(unsigned int, scsi_bufflen(srb), sizeof(rts51x_status));
 	rts51x_set_xfer_buf(rts51x_status, buf_len, srb);
 	scsi_set_resid(srb, scsi_bufflen(srb) - buf_len);
 
@@ -1985,7 +1985,6 @@ static int show_info(struct seq_file *m, struct Scsi_Host *host)
 	SPRINTF("       Vendor: Realtek Corp.\n");
 	SPRINTF("      Product: RTS51xx USB Card Reader\n");
 	SPRINTF("      Version: %s\n", DRIVER_VERSION);
-	SPRINTF("        Build: %s\n", __TIME__);
 	return 0;
 }
 

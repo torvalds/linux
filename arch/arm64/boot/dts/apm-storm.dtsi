@@ -103,6 +103,81 @@
 		#size-cells = <2>;
 		ranges;
 
+		clocks {
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			refclk: refclk {
+				compatible = "fixed-clock";
+				#clock-cells = <1>;
+				clock-frequency = <100000000>;
+				clock-output-names = "refclk";
+			};
+
+			pcppll: pcppll@17000100 {
+				compatible = "apm,xgene-pcppll-clock";
+				#clock-cells = <1>;
+				clocks = <&refclk 0>;
+				clock-names = "pcppll";
+				reg = <0x0 0x17000100 0x0 0x1000>;
+				clock-output-names = "pcppll";
+				type = <0>;
+			};
+
+			socpll: socpll@17000120 {
+				compatible = "apm,xgene-socpll-clock";
+				#clock-cells = <1>;
+				clocks = <&refclk 0>;
+				clock-names = "socpll";
+				reg = <0x0 0x17000120 0x0 0x1000>;
+				clock-output-names = "socpll";
+				type = <1>;
+			};
+
+			socplldiv2: socplldiv2  {
+				compatible = "fixed-factor-clock";
+				#clock-cells = <1>;
+				clocks = <&socpll 0>;
+				clock-names = "socplldiv2";
+				clock-mult = <1>;
+				clock-div = <2>;
+				clock-output-names = "socplldiv2";
+			};
+
+			qmlclk: qmlclk {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				clock-names = "qmlclk";
+				reg = <0x0 0x1703C000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "qmlclk";
+			};
+
+			ethclk: ethclk {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				clock-names = "ethclk";
+				reg = <0x0 0x17000000 0x0 0x1000>;
+				reg-names = "div-reg";
+				divider-offset = <0x238>;
+				divider-width = <0x9>;
+				divider-shift = <0x0>;
+				clock-output-names = "ethclk";
+			};
+
+			eth8clk: eth8clk {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&ethclk 0>;
+				clock-names = "eth8clk";
+				reg = <0x0 0x1702C000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "eth8clk";
+			};
+		};
+
 		serial0: serial@1c020000 {
 			device_type = "serial";
 			compatible = "ns16550";

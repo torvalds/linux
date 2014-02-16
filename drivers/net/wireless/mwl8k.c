@@ -9,7 +9,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -1258,7 +1257,7 @@ mwl8k_capture_bssid(struct mwl8k_priv *priv, struct ieee80211_hdr *wh)
 {
 	return priv->capture_beacon &&
 		ieee80211_is_beacon(wh->frame_control) &&
-		ether_addr_equal(wh->addr3, priv->capture_bssid);
+		ether_addr_equal_64bits(wh->addr3, priv->capture_bssid);
 }
 
 static inline void mwl8k_save_beacon(struct ieee80211_hw *hw,
@@ -1548,7 +1547,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 	if (!priv->pending_tx_pkts)
 		return 0;
 
-	retry = 0;
+	retry = 1;
 	rc = 0;
 
 	spin_lock_bh(&priv->tx_lock);
@@ -1572,11 +1571,17 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 
 		spin_lock_bh(&priv->tx_lock);
 
-		if (timeout) {
+		if (timeout || !priv->pending_tx_pkts) {
 			WARN_ON(priv->pending_tx_pkts);
 			if (retry)
 				wiphy_notice(hw->wiphy, "tx rings drained\n");
 			break;
+		}
+
+		if (retry) {
+			mwl8k_tx_start(priv);
+			retry = 0;
+			continue;
 		}
 
 		if (priv->pending_tx_pkts < oldcount) {
@@ -2055,6 +2060,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 				mwl8k_remove_stream(hw, stream);
 				spin_unlock(&priv->stream_lock);
 			}
+			mwl8k_tx_start(priv);
 			spin_unlock_bh(&priv->tx_lock);
 			pci_unmap_single(priv->pdev, dma, skb->len,
 					 PCI_DMA_TODEVICE);
@@ -5886,8 +5892,6 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 
 	hw->extra_tx_headroom -= priv->ap_fw ? REDUCED_TX_HEADROOM : 0;
 
-	hw->channel_change_time = 10;
-
 	hw->queues = MWL8K_TX_WMM_QUEUES;
 
 	/* Set rssi values to dBm */
@@ -6086,7 +6090,6 @@ err_iounmap:
 	if (priv->sram != NULL)
 		pci_iounmap(pdev, priv->sram);
 
-	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 
 err_free_reg:
@@ -6140,7 +6143,6 @@ static void mwl8k_remove(struct pci_dev *pdev)
 unmap:
 	pci_iounmap(pdev, priv->regs);
 	pci_iounmap(pdev, priv->sram);
-	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

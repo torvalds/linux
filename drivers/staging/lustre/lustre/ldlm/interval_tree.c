@@ -125,61 +125,53 @@ static inline __u64 min_u64(__u64 x, __u64 y)
 
 #define interval_for_each(node, root)		   \
 for (node = interval_first(root); node != NULL;	 \
-     node = interval_next(node))
+	node = interval_next(node))
 
 #define interval_for_each_reverse(node, root)	   \
 for (node = interval_last(root); node != NULL;	  \
-     node = interval_prev(node))
+	node = interval_prev(node))
 
 static struct interval_node *interval_first(struct interval_node *node)
 {
-	ENTRY;
-
 	if (!node)
-		RETURN(NULL);
+		return NULL;
 	while (node->in_left)
 		node = node->in_left;
-	RETURN(node);
+	return node;
 }
 
 static struct interval_node *interval_last(struct interval_node *node)
 {
-	ENTRY;
-
 	if (!node)
-		RETURN(NULL);
+		return NULL;
 	while (node->in_right)
 		node = node->in_right;
-	RETURN(node);
+	return node;
 }
 
 static struct interval_node *interval_next(struct interval_node *node)
 {
-	ENTRY;
-
 	if (!node)
-		RETURN(NULL);
+		return NULL;
 	if (node->in_right)
-		RETURN(interval_first(node->in_right));
+		return interval_first(node->in_right);
 	while (node->in_parent && node_is_right_child(node))
 		node = node->in_parent;
-	RETURN(node->in_parent);
+	return node->in_parent;
 }
 
 static struct interval_node *interval_prev(struct interval_node *node)
 {
-	ENTRY;
-
 	if (!node)
-		RETURN(NULL);
+		return NULL;
 
 	if (node->in_left)
-		RETURN(interval_last(node->in_left));
+		return interval_last(node->in_left);
 
 	while (node->in_parent && node_is_left_child(node))
 		node = node->in_parent;
 
-	RETURN(node->in_parent);
+	return node->in_parent;
 }
 
 enum interval_iter interval_iterate(struct interval_node *root,
@@ -188,7 +180,6 @@ enum interval_iter interval_iterate(struct interval_node *root,
 {
 	struct interval_node *node;
 	enum interval_iter rc = INTERVAL_ITER_CONT;
-	ENTRY;
 
 	interval_for_each(node, root) {
 		rc = func(node, data);
@@ -196,7 +187,7 @@ enum interval_iter interval_iterate(struct interval_node *root,
 			break;
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(interval_iterate);
 
@@ -206,7 +197,6 @@ enum interval_iter interval_iterate_reverse(struct interval_node *root,
 {
 	struct interval_node *node;
 	enum interval_iter rc = INTERVAL_ITER_CONT;
-	ENTRY;
 
 	interval_for_each_reverse(node, root) {
 		rc = func(node, data);
@@ -214,7 +204,7 @@ enum interval_iter interval_iterate_reverse(struct interval_node *root,
 			break;
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(interval_iterate_reverse);
 
@@ -225,7 +215,6 @@ struct interval_node *interval_find(struct interval_node *root,
 {
 	struct interval_node *walk = root;
 	int rc;
-	ENTRY;
 
 	while (walk) {
 		rc = extent_compare(ex, &walk->in_extent);
@@ -237,7 +226,7 @@ struct interval_node *interval_find(struct interval_node *root,
 			walk = walk->in_right;
 	}
 
-	RETURN(walk);
+	return walk;
 }
 EXPORT_SYMBOL(interval_find);
 
@@ -250,7 +239,7 @@ static void __rotate_change_maxhigh(struct interval_node *node,
 	left_max = node->in_left ? node->in_left->in_max_high : 0;
 	right_max = node->in_right ? node->in_right->in_max_high : 0;
 	node->in_max_high  = max_u64(interval_high(node),
-				     max_u64(left_max,right_max));
+				     max_u64(left_max, right_max));
 }
 
 /* The left rotation "pivots" around the link from node to node->right, and
@@ -326,7 +315,6 @@ static void interval_insert_color(struct interval_node *node,
 				  struct interval_node **root)
 {
 	struct interval_node *parent, *gparent;
-	ENTRY;
 
 	while ((parent = node->in_parent) && node_is_red(parent)) {
 		gparent = parent->in_parent;
@@ -373,7 +361,6 @@ static void interval_insert_color(struct interval_node *node,
 	}
 
 	(*root)->in_color = INTERVAL_BLACK;
-	EXIT;
 }
 
 struct interval_node *interval_insert(struct interval_node *node,
@@ -381,14 +368,13 @@ struct interval_node *interval_insert(struct interval_node *node,
 
 {
 	struct interval_node **p, *parent = NULL;
-	ENTRY;
 
 	LASSERT(!interval_is_intree(node));
 	p = root;
 	while (*p) {
 		parent = *p;
 		if (node_equal(parent, node))
-			RETURN(parent);
+			return parent;
 
 		/* max_high field must be updated after each iteration */
 		if (parent->in_max_high < interval_high(node))
@@ -409,7 +395,7 @@ struct interval_node *interval_insert(struct interval_node *node,
 	interval_insert_color(node, root);
 	node->in_intree = 1;
 
-	RETURN(NULL);
+	return NULL;
 }
 EXPORT_SYMBOL(interval_insert);
 
@@ -423,7 +409,6 @@ static void interval_erase_color(struct interval_node *node,
 				 struct interval_node **root)
 {
 	struct interval_node *tmp;
-	ENTRY;
 
 	while (node_is_black_or_0(node) && node != *root) {
 		if (parent->in_left == node) {
@@ -442,8 +427,9 @@ static void interval_erase_color(struct interval_node *node,
 			} else {
 				if (node_is_black_or_0(tmp->in_right)) {
 					struct interval_node *o_left;
-					if ((o_left = tmp->in_left))
-					     o_left->in_color = INTERVAL_BLACK;
+					o_left = tmp->in_left;
+					if (o_left)
+						o_left->in_color = INTERVAL_BLACK;
 					tmp->in_color = INTERVAL_RED;
 					__rotate_right(tmp, root);
 					tmp = parent->in_right;
@@ -451,7 +437,7 @@ static void interval_erase_color(struct interval_node *node,
 				tmp->in_color = parent->in_color;
 				parent->in_color = INTERVAL_BLACK;
 				if (tmp->in_right)
-				    tmp->in_right->in_color = INTERVAL_BLACK;
+					tmp->in_right->in_color = INTERVAL_BLACK;
 				__rotate_left(parent, root);
 				node = *root;
 				break;
@@ -472,8 +458,9 @@ static void interval_erase_color(struct interval_node *node,
 			} else {
 				if (node_is_black_or_0(tmp->in_left)) {
 					struct interval_node *o_right;
-					if ((o_right = tmp->in_right))
-					    o_right->in_color = INTERVAL_BLACK;
+					o_right = tmp->in_right;
+					if (o_right)
+						o_right->in_color = INTERVAL_BLACK;
 					tmp->in_color = INTERVAL_RED;
 					__rotate_left(tmp, root);
 					tmp = parent->in_left;
@@ -490,7 +477,6 @@ static void interval_erase_color(struct interval_node *node,
 	}
 	if (node)
 		node->in_color = INTERVAL_BLACK;
-	EXIT;
 }
 
 /*
@@ -501,7 +487,6 @@ static void update_maxhigh(struct interval_node *node,
 			   __u64  old_maxhigh)
 {
 	__u64 left_max, right_max;
-	ENTRY;
 
 	while (node) {
 		left_max = node->in_left ? node->in_left->in_max_high : 0;
@@ -513,7 +498,6 @@ static void update_maxhigh(struct interval_node *node,
 			break;
 		node = node->in_parent;
 	}
-	EXIT;
 }
 
 void interval_erase(struct interval_node *node,
@@ -521,7 +505,6 @@ void interval_erase(struct interval_node *node,
 {
 	struct interval_node *child, *parent;
 	int color;
-	ENTRY;
 
 	LASSERT(interval_is_intree(node));
 	node->in_intree = 0;
@@ -564,7 +547,7 @@ void interval_erase(struct interval_node *node,
 		update_maxhigh(child ? : parent, node->in_max_high);
 		update_maxhigh(node, old->in_max_high);
 		if (parent == old)
-			 parent = node;
+			parent = node;
 		goto color;
 	}
 	parent = node->in_parent;
@@ -586,7 +569,6 @@ void interval_erase(struct interval_node *node,
 color:
 	if (color == INTERVAL_BLACK)
 		interval_erase_color(child, parent, root);
-	EXIT;
 }
 EXPORT_SYMBOL(interval_erase);
 

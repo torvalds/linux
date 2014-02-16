@@ -275,11 +275,8 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	int			i;
 	int			remain;
 	int			mask = msgdata->msg_mask;
-	char		      *file = (char *)msgdata->msg_file;
-	cfs_debug_limit_state_t   *cdls = msgdata->msg_cdls;
-
-	if (strchr(file, '/'))
-		file = strrchr(file, '/') + 1;
+	const char		*file = kbasename(msgdata->msg_file);
+	struct cfs_debug_limit_state   *cdls = msgdata->msg_cdls;
 
 	tcd = cfs_trace_get_tcd();
 
@@ -529,7 +526,7 @@ static void collect_pages_on_all_cpus(struct page_collection *pc)
 	int i, cpu;
 
 	spin_lock(&pc->pc_lock);
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			list_splice_init(&tcd->tcd_pages, &pc->pc_pages);
 			tcd->tcd_cur_pages = 0;
@@ -562,7 +559,7 @@ static void put_pages_back_on_all_cpus(struct page_collection *pc)
 	int i, cpu;
 
 	spin_lock(&pc->pc_lock);
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			cur_head = tcd->tcd_pages.next;
 
@@ -630,7 +627,7 @@ static void put_pages_on_daemon_list(struct page_collection *pc)
 	struct cfs_trace_cpu_data *tcd;
 	int i, cpu;
 
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu)
 			put_pages_on_tcd_daemon_list(pc, tcd);
 	}
@@ -681,6 +678,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	struct file		*filp;
 	struct cfs_trace_page	*tage;
 	struct cfs_trace_page	*tmp;
+	char			*buf;
 	int rc;
 
 	DECL_MMSPACE;
@@ -711,8 +709,11 @@ int cfs_tracefile_dump_all_pages(char *filename)
 
 		__LASSERT_TAGE_INVARIANT(tage);
 
-		rc = filp_write(filp, page_address(tage->page),
-				tage->used, filp_poff(filp));
+		buf = kmap(tage->page);
+		rc = vfs_write(filp, (__force const char __user *)buf,
+			       tage->used, &filp->f_pos);
+		kunmap(tage->page);
+
 		if (rc != (int)tage->used) {
 			printk(KERN_WARNING "wanted to write %u but wrote "
 			       "%d\n", tage->used, rc);
@@ -724,7 +725,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		cfs_tage_free(tage);
 	}
 	MMSPACE_CLOSE;
-	rc = filp_fsync(filp);
+	rc = vfs_fsync(filp, 1);
 	if (rc)
 		printk(KERN_ERR "sync returns %d\n", rc);
 close:
@@ -974,6 +975,7 @@ static int tracefiled(void *arg)
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
 	struct file *filp;
+	char *buf;
 	int last_loop = 0;
 	int rc;
 
@@ -1023,11 +1025,14 @@ static int tracefiled(void *arg)
 
 			if (f_pos >= (off_t)cfs_tracefile_size)
 				f_pos = 0;
-			else if (f_pos > (off_t)filp_size(filp))
-				f_pos = filp_size(filp);
+			else if (f_pos > i_size_read(filp->f_dentry->d_inode))
+				f_pos = i_size_read(filp->f_dentry->d_inode);
 
-			rc = filp_write(filp, page_address(tage->page),
-					tage->used, &f_pos);
+			buf = kmap(tage->page);
+			rc = vfs_write(filp, (__force const char __user *)buf,
+				       tage->used, &f_pos);
+			kunmap(tage->page);
+
 			if (rc != (int)tage->used) {
 				printk(KERN_WARNING "wanted to write %u "
 				       "but wrote %d\n", tage->used, rc);
@@ -1159,7 +1164,7 @@ static void trace_cleanup_on_all_cpus(void)
 	struct cfs_trace_page *tmp;
 	int i, cpu;
 
-	cfs_for_each_possible_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			tcd->tcd_shutting_down = 1;
 

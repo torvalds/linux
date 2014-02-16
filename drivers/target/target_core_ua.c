@@ -3,7 +3,7 @@
  *
  * This file contains logic for SPC-3 Unit Attention emulation
  *
- * (c) Copyright 2009-2012 RisingTide Systems LLC.
+ * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -98,7 +98,6 @@ int core_scsi3_ua_allocate(
 		pr_err("Unable to allocate struct se_ua\n");
 		return -ENOMEM;
 	}
-	INIT_LIST_HEAD(&ua->ua_dev_list);
 	INIT_LIST_HEAD(&ua->ua_nacl_list);
 
 	ua->ua_nacl = nacl;

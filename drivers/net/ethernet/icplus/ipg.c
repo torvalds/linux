@@ -1004,7 +1004,7 @@ static struct net_device_stats *ipg_nic_get_stats(struct net_device *dev)
 	/* Check to see if the NIC has been initialized via nic_open,
 	 * before trying to read statistic registers.
 	 */
-	if (!test_bit(__LINK_STATE_START, &dev->state))
+	if (!netif_running(dev))
 		return &sp->stats;
 
 	sp->stats.rx_packets += ipg_r32(IPG_FRAMESRCVDOK);
@@ -2183,7 +2183,6 @@ static void ipg_remove(struct pci_dev *pdev)
 
 	free_netdev(dev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static const struct net_device_ops ipg_netdev_ops = {
@@ -2298,15 +2297,4 @@ static struct pci_driver ipg_pci_driver = {
 	.remove		= ipg_remove,
 };
 
-static int __init ipg_init_module(void)
-{
-	return pci_register_driver(&ipg_pci_driver);
-}
-
-static void __exit ipg_exit_module(void)
-{
-	pci_unregister_driver(&ipg_pci_driver);
-}
-
-module_init(ipg_init_module);
-module_exit(ipg_exit_module);
+module_pci_driver(ipg_pci_driver);

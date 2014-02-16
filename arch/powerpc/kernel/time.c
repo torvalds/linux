@@ -210,23 +210,23 @@ static u64 scan_dispatch_log(u64 stop_tb)
 	if (!dtl)
 		return 0;
 
-	if (i == vpa->dtl_idx)
+	if (i == be64_to_cpu(vpa->dtl_idx))
 		return 0;
-	while (i < vpa->dtl_idx) {
-		if (dtl_consumer)
-			dtl_consumer(dtl, i);
-		dtb = dtl->timebase;
-		tb_delta = dtl->enqueue_to_dispatch_time +
-			dtl->ready_to_enqueue_time;
+	while (i < be64_to_cpu(vpa->dtl_idx)) {
+		dtb = be64_to_cpu(dtl->timebase);
+		tb_delta = be32_to_cpu(dtl->enqueue_to_dispatch_time) +
+			be32_to_cpu(dtl->ready_to_enqueue_time);
 		barrier();
-		if (i + N_DISPATCH_LOG < vpa->dtl_idx) {
+		if (i + N_DISPATCH_LOG < be64_to_cpu(vpa->dtl_idx)) {
 			/* buffer has overflowed */
-			i = vpa->dtl_idx - N_DISPATCH_LOG;
+			i = be64_to_cpu(vpa->dtl_idx) - N_DISPATCH_LOG;
 			dtl = local_paca->dispatch_log + (i % N_DISPATCH_LOG);
 			continue;
 		}
 		if (dtb > stop_tb)
 			break;
+		if (dtl_consumer)
+			dtl_consumer(dtl, i);
 		stolen += tb_delta;
 		++i;
 		++dtl;
@@ -269,7 +269,7 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
 {
 	u64 stolen = 0;
 
-	if (get_paca()->dtl_ridx != get_paca()->lppaca_ptr->dtl_idx) {
+	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx)) {
 		stolen = scan_dispatch_log(stop_tb);
 		get_paca()->system_time -= stolen;
 	}
@@ -510,7 +510,6 @@ void timer_interrupt(struct pt_regs * regs)
 	 */
 	may_hard_irq_enable();
 
-	__get_cpu_var(irq_stat).timer_irqs++;
 
 #if defined(CONFIG_PPC32) && defined(CONFIG_PMAC)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
@@ -532,10 +531,15 @@ void timer_interrupt(struct pt_regs * regs)
 		*next_tb = ~(u64)0;
 		if (evt->event_handler)
 			evt->event_handler(evt);
+		__get_cpu_var(irq_stat).timer_irqs_event++;
 	} else {
 		now = *next_tb - now;
 		if (now <= DECREMENTER_MAX)
 			set_dec((int)now);
+		/* We may have raced with new irq work */
+		if (test_irq_work_pending())
+			set_dec(1);
+		__get_cpu_var(irq_stat).timer_irqs_others++;
 	}
 
 #ifdef CONFIG_PPC64
@@ -612,7 +616,7 @@ unsigned long long sched_clock(void)
 static int __init get_freq(char *name, int cells, unsigned long *val)
 {
 	struct device_node *cpu;
-	const unsigned int *fp;
+	const __be32 *fp;
 	int found = 0;
 
 	/* The cpu node should have timebase and clock frequency properties */
@@ -631,7 +635,6 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 	return found;
 }
 
-/* should become __cpuinit when secondary_cpu_time_init also is */
 void start_cpu_decrementer(void)
 {
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
@@ -802,8 +805,16 @@ static void __init clocksource_init(void)
 static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev)
 {
+	/* Don't adjust the decrementer if some irq work is pending */
+	if (test_irq_work_pending())
+		return 0;
 	__get_cpu_var(decrementers_next_tb) = get_tb_or_rtc() + evt;
 	set_dec(evt);
+
+	/* We may have raced with new irq work */
+	if (test_irq_work_pending())
+		set_dec(1);
+
 	return 0;
 }
 
@@ -1050,7 +1061,7 @@ static int __init rtc_init(void)
 
 	pdev = platform_device_register_simple("rtc-generic", -1, NULL, 0);
 
-	return PTR_RET(pdev);
+	return PTR_ERR_OR_ZERO(pdev);
 }
 
 module_init(rtc_init);

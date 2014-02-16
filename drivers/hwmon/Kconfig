@@ -296,8 +296,8 @@ config SENSORS_K10TEMP
 	  If you say yes here you get support for the temperature
 	  sensor(s) inside your CPU. Supported are later revisions of
 	  the AMD Family 10h and all revisions of the AMD Family 11h,
-	  12h (Llano), 14h (Brazos) and 15h (Bulldozer/Trinity)
-	  microarchitectures.
+	  12h (Llano), 14h (Brazos), 15h (Bulldozer/Trinity) and
+	  16h (Kabini) microarchitectures.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called k10temp.
@@ -511,6 +511,16 @@ config SENSORS_HIH6130
 	  This driver can also be built as a module.  If so, the module
 	  will be called hih6130.
 
+config SENSORS_HTU21
+	tristate "Measurement Specialties HTU21D humidity/temperature sensors"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Measurement Specialties
+	  HTU21D humidity and temperature sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called htu21.
+
 config SENSORS_CORETEMP
 	tristate "Intel Core/Core2/Atom temperature sensor"
 	depends on X86
@@ -563,8 +573,8 @@ config SENSORS_IT87
 	help
 	  If you say yes here you get support for ITE IT8705F, IT8712F,
 	  IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E,
-	  IT8771E, IT8772E, IT8782F, and IT8783E/F sensor chips, and the
-	  SiS950 clone.
+	  IT8771E, IT8772E, IT8782F, IT8783E/F and IT8603E sensor chips,
+	  and the SiS950 clone.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
@@ -640,12 +650,14 @@ config SENSORS_LM73
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on I2C
+	depends on THERMAL || !THERMAL_OF
 	help
 	  If you say yes here you get support for one common type of
 	  temperature sensor chip, with models including:
 
 		- Analog Devices ADT75
 		- Dallas Semiconductor DS75, DS1775 and DS7505
+		- Global Mixed-mode Technology (GMT) G751
 		- Maxim MAX6625 and MAX6626
 		- Microchip MCP980x
 		- National Semiconductor LM75, LM75A
@@ -1202,8 +1214,8 @@ config SENSORS_ADS1015
 	tristate "Texas Instruments ADS1015"
 	depends on I2C
 	help
-	  If you say yes here you get support for Texas Instruments ADS1015
-	  12-bit 4-input ADC device.
+	  If you say yes here you get support for Texas Instruments
+	  ADS1015/ADS1115 12/16-bit 4-input ADC device.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ads1015.
@@ -1274,6 +1286,7 @@ config SENSORS_THMC50
 config SENSORS_TMP102
 	tristate "Texas Instruments TMP102"
 	depends on I2C
+	depends on THERMAL || !THERMAL_OF
 	help
 	  If you say yes here you get support for Texas Instruments TMP102
 	  sensor chips.

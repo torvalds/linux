@@ -8,12 +8,12 @@
 
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/at91sam9x5.h>
-#include <mach/at91_pmc.h>
 #include <mach/cpu.h>
 
 #include "board.h"
@@ -227,6 +227,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("usart", "f8020000.serial", &usart1_clk),
 	CLKDEV_CON_DEV_ID("usart", "f8024000.serial", &usart2_clk),
 	CLKDEV_CON_DEV_ID("usart", "f8028000.serial", &usart3_clk),
+	CLKDEV_CON_DEV_ID("usart", "f8040000.serial", &uart0_clk),
+	CLKDEV_CON_DEV_ID("usart", "f8044000.serial", &uart1_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "f8008000.timer", &tcb0_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "f800c000.timer", &tcb0_clk),
 	CLKDEV_CON_DEV_ID("mci_clk", "f0008000.mmc", &mmc0_clk),
@@ -320,6 +322,11 @@ static void __init at91sam9x5_map_io(void)
 	at91_init_sram(0, AT91SAM9X5_SRAM_BASE, AT91SAM9X5_SRAM_SIZE);
 }
 
+static void __init at91sam9x5_initialize(void)
+{
+	at91_sysirq_mask_rtc(AT91SAM9X5_BASE_RTC);
+}
+
 /* --------------------------------------------------------------------
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
@@ -327,4 +334,5 @@ static void __init at91sam9x5_map_io(void)
 AT91_SOC_START(at91sam9x5)
 	.map_io = at91sam9x5_map_io,
 	.register_clocks = at91sam9x5_register_clocks,
+	.init = at91sam9x5_initialize,
 AT91_SOC_END

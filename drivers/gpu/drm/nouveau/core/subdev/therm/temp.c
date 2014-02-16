@@ -216,6 +216,25 @@ nouveau_therm_program_alarms_polling(struct nouveau_therm *therm)
 	alarm_timer_callback(&priv->sensor.therm_poll_alarm);
 }
 
+int
+nouveau_therm_sensor_init(struct nouveau_therm *therm)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	priv->sensor.program_alarms(therm);
+	return 0;
+}
+
+int
+nouveau_therm_sensor_fini(struct nouveau_therm *therm, bool suspend)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nouveau_timer *ptimer = nouveau_timer(therm);
+
+	if (suspend)
+		ptimer->alarm_cancel(ptimer, &priv->sensor.therm_poll_alarm);
+	return 0;
+}
+
 void
 nouveau_therm_sensor_preinit(struct nouveau_therm *therm)
 {

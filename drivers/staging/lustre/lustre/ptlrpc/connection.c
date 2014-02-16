@@ -41,7 +41,7 @@
 
 #include "ptlrpc_internal.h"
 
-static cfs_hash_t *conn_hash = NULL;
+static struct cfs_hash *conn_hash = NULL;
 static cfs_hash_ops_t conn_hash_ops;
 
 struct ptlrpc_connection *
@@ -49,7 +49,6 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 		      struct obd_uuid *uuid)
 {
 	struct ptlrpc_connection *conn, *conn2;
-	ENTRY;
 
 	conn = cfs_hash_lookup(conn_hash, &peer);
 	if (conn)
@@ -57,7 +56,7 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 
 	OBD_ALLOC_PTR(conn);
 	if (!conn)
-		RETURN(NULL);
+		return NULL;
 
 	conn->c_peer = peer;
 	conn->c_self = self;
@@ -80,7 +79,6 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 		OBD_FREE_PTR(conn);
 		conn = conn2;
 	}
-	EXIT;
 out:
 	CDEBUG(D_INFO, "conn=%p refcount %d to %s\n",
 	       conn, atomic_read(&conn->c_refcount),
@@ -92,10 +90,9 @@ EXPORT_SYMBOL(ptlrpc_connection_get);
 int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (!conn)
-		RETURN(rc);
+		return rc;
 
 	LASSERT(atomic_read(&conn->c_refcount) > 1);
 
@@ -122,28 +119,24 @@ int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 	       conn, atomic_read(&conn->c_refcount),
 	       libcfs_nid2str(conn->c_peer.nid));
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_connection_put);
 
 struct ptlrpc_connection *
 ptlrpc_connection_addref(struct ptlrpc_connection *conn)
 {
-	ENTRY;
-
 	atomic_inc(&conn->c_refcount);
 	CDEBUG(D_INFO, "conn=%p refcount %d to %s\n",
 	       conn, atomic_read(&conn->c_refcount),
 	       libcfs_nid2str(conn->c_peer.nid));
 
-	RETURN(conn);
+	return conn;
 }
 EXPORT_SYMBOL(ptlrpc_connection_addref);
 
 int ptlrpc_connection_init(void)
 {
-	ENTRY;
-
 	conn_hash = cfs_hash_create("CONN_HASH",
 				    HASH_CONN_CUR_BITS,
 				    HASH_CONN_MAX_BITS,
@@ -152,16 +145,15 @@ int ptlrpc_connection_init(void)
 				    CFS_HASH_MAX_THETA,
 				    &conn_hash_ops, CFS_HASH_DEFAULT);
 	if (!conn_hash)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ptlrpc_connection_init);
 
-void ptlrpc_connection_fini(void) {
-	ENTRY;
+void ptlrpc_connection_fini(void)
+{
 	cfs_hash_putref(conn_hash);
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_connection_fini);
 
@@ -169,7 +161,7 @@ EXPORT_SYMBOL(ptlrpc_connection_fini);
  * Hash operations for net_peer<->connection
  */
 static unsigned
-conn_hashfn(cfs_hash_t *hs, const void *key, unsigned mask)
+conn_hashfn(struct cfs_hash *hs, const void *key, unsigned mask)
 {
 	return cfs_hash_djb2_hash(key, sizeof(lnet_process_id_t), mask);
 }
@@ -203,7 +195,7 @@ conn_object(struct hlist_node *hnode)
 }
 
 static void
-conn_get(cfs_hash_t *hs, struct hlist_node *hnode)
+conn_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
 
@@ -212,7 +204,7 @@ conn_get(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-conn_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+conn_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
 
@@ -221,7 +213,7 @@ conn_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-conn_exit(cfs_hash_t *hs, struct hlist_node *hnode)
+conn_exit(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
 

@@ -1698,7 +1698,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	meye.mchip_irq = pcidev->irq;
 	if (request_irq(meye.mchip_irq, meye_irq,
-			IRQF_DISABLED | IRQF_SHARED, "meye", meye_irq)) {
+			IRQF_SHARED, "meye", meye_irq)) {
 		v4l2_err(v4l2_dev, "request_irq failed\n");
 		goto outreqirq;
 	}

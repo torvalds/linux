@@ -13,6 +13,7 @@
 
 #include <linux/usb.h>
 #include <linux/usb/quirks.h>
+#include <linux/usb/hcd.h>
 #include "usb.h"
 
 /* Lists of quirky USB devices, split in device quirks and interface quirks.
@@ -78,6 +79,12 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x04d8, 0x000c), .driver_info =
 			USB_QUIRK_CONFIG_INTF_STRINGS },
 
+	/* CarrolTouch 4000U */
+	{ USB_DEVICE(0x04e7, 0x0009), .driver_info = USB_QUIRK_RESET_RESUME },
+
+	/* CarrolTouch 4500U */
+	{ USB_DEVICE(0x04e7, 0x0030), .driver_info = USB_QUIRK_RESET_RESUME },
+
 	/* Samsung Android phone modem - ID conflict with SPH-I500 */
 	{ USB_DEVICE(0x04e8, 0x6601), .driver_info =
 			USB_QUIRK_CONFIG_INTF_STRINGS },
@@ -124,6 +131,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Broadcom BCM92035DGROM BT dongle */
 	{ USB_DEVICE(0x0a5c, 0x2021), .driver_info = USB_QUIRK_RESET_RESUME },
 
+	/* MAYA44USB sound device */
+	{ USB_DEVICE(0x0a92, 0x0091), .driver_info = USB_QUIRK_RESET_RESUME },
+
 	/* Action Semiconductor flash disk */
 	{ USB_DEVICE(0x10d6, 0x2200), .driver_info =
 			USB_QUIRK_STRING_FETCH_255 },
@@ -145,6 +155,21 @@ static const struct usb_device_id usb_interface_quirk_list[] = {
 	/* Logitech UVC Cameras */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x046d, USB_CLASS_VIDEO, 1, 0),
 	  .driver_info = USB_QUIRK_RESET_RESUME },
+
+	{ }  /* terminating entry must be last */
+};
+
+static const struct usb_device_id usb_amd_resume_quirk_list[] = {
+	/* Lenovo Mouse with Pixart controller */
+	{ USB_DEVICE(0x17ef, 0x602e), .driver_info = USB_QUIRK_RESET_RESUME },
+
+	/* Pixart Mouse */
+	{ USB_DEVICE(0x093a, 0x2500), .driver_info = USB_QUIRK_RESET_RESUME },
+	{ USB_DEVICE(0x093a, 0x2510), .driver_info = USB_QUIRK_RESET_RESUME },
+	{ USB_DEVICE(0x093a, 0x2521), .driver_info = USB_QUIRK_RESET_RESUME },
+
+	/* Logitech Optical Mouse M90/M100 */
+	{ USB_DEVICE(0x046d, 0xc05a), .driver_info = USB_QUIRK_RESET_RESUME },
 
 	{ }  /* terminating entry must be last */
 };
@@ -175,6 +200,18 @@ static bool usb_match_any_interface(struct usb_device *udev,
 	return false;
 }
 
+static int usb_amd_resume_quirk(struct usb_device *udev)
+{
+	struct usb_hcd *hcd;
+
+	hcd = bus_to_hcd(udev->bus);
+	/* The device should be attached directly to root hub */
+	if (udev->level == 1 && hcd->amd_resume_bug == 1)
+		return 1;
+
+	return 0;
+}
+
 static u32 __usb_detect_quirks(struct usb_device *udev,
 			       const struct usb_device_id *id)
 {
@@ -200,6 +237,15 @@ static u32 __usb_detect_quirks(struct usb_device *udev,
 void usb_detect_quirks(struct usb_device *udev)
 {
 	udev->quirks = __usb_detect_quirks(udev, usb_quirk_list);
+
+	/*
+	 * Pixart-based mice would trigger remote wakeup issue on AMD
+	 * Yangtze chipset, so set them as RESET_RESUME flag.
+	 */
+	if (usb_amd_resume_quirk(udev))
+		udev->quirks |= __usb_detect_quirks(udev,
+				usb_amd_resume_quirk_list);
+
 	if (udev->quirks)
 		dev_dbg(&udev->dev, "USB quirks for this device: %x\n",
 			udev->quirks);

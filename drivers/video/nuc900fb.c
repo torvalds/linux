@@ -91,7 +91,7 @@ static int nuc900fb_check_var(struct fb_var_screeninfo *var,
 			       struct fb_info *info)
 {
 	struct nuc900fb_info *fbi = info->par;
-	struct nuc900fb_mach_info *mach_info = fbi->dev->platform_data;
+	struct nuc900fb_mach_info *mach_info = dev_get_platdata(fbi->dev);
 	struct nuc900fb_display *display = NULL;
 	struct nuc900fb_display *default_display = mach_info->displays +
 						   mach_info->default_display;
@@ -358,7 +358,7 @@ static inline void modify_gpio(void __iomem *reg,
 static int nuc900fb_init_registers(struct fb_info *info)
 {
 	struct nuc900fb_info *fbi = info->par;
-	struct nuc900fb_mach_info *mach_info = fbi->dev->platform_data;
+	struct nuc900fb_mach_info *mach_info = dev_get_platdata(fbi->dev);
 	void __iomem *regs = fbi->io;
 
 	/*reset the display engine*/
@@ -512,7 +512,7 @@ static int nuc900fb_probe(struct platform_device *pdev)
 	int size;
 
 	dev_dbg(&pdev->dev, "devinit\n");
-	mach_info = pdev->dev.platform_data;
+	mach_info = dev_get_platdata(&pdev->dev);
 	if (mach_info == NULL) {
 		dev_err(&pdev->dev,
 			"no platform data for lcd, cannot attach\n");
@@ -587,8 +587,7 @@ static int nuc900fb_probe(struct platform_device *pdev)
 	fbinfo->flags			= FBINFO_FLAG_DEFAULT;
 	fbinfo->pseudo_palette		= &fbi->pseudo_pal;
 
-	ret = request_irq(irq, nuc900fb_irqhandler, 0,
-			  pdev->name, fbinfo);
+	ret = request_irq(irq, nuc900fb_irqhandler, 0, pdev->name, fbi);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot register irq handler %d -err %d\n",
 			irq, ret);
@@ -648,8 +647,7 @@ static int nuc900fb_probe(struct platform_device *pdev)
 		goto free_cpufreq;
 	}
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-		fbinfo->node, fbinfo->fix.id);
+	fb_info(fbinfo, "%s frame buffer device\n", fbinfo->fix.id);
 
 	return 0;
 
@@ -707,7 +705,6 @@ static int nuc900fb_remove(struct platform_device *pdev)
 	release_resource(fbi->mem);
 	kfree(fbi->mem);
 
-	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
 
 	return 0;

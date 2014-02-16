@@ -586,10 +586,10 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	switch( lp->cardtype ) {
 	  case OLD_RIEBL:
 		/* No ethernet address! (Set some default address) */
-		memcpy( dev->dev_addr, OldRieblDefHwaddr, 6 );
+		memcpy(dev->dev_addr, OldRieblDefHwaddr, ETH_ALEN);
 		break;
 	  case NEW_RIEBL:
-		lp->memcpy_f( dev->dev_addr, RIEBL_HWADDR_ADDR, 6 );
+		lp->memcpy_f(dev->dev_addr, RIEBL_HWADDR_ADDR, ETH_ALEN);
 		break;
 	  case PAM_CARD:
 		i = IO->eeprom;
@@ -1147,7 +1147,7 @@ static struct net_device *atarilance_dev;
 static int __init atarilance_module_init(void)
 {
 	atarilance_dev = atarilance_probe(-1);
-	return PTR_RET(atarilance_dev);
+	return PTR_ERR_OR_ZERO(atarilance_dev);
 }
 
 static void __exit atarilance_module_exit(void)

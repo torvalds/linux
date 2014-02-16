@@ -46,13 +46,10 @@
 #include <asm/kgdb.h>
 #endif
 
-#define LINUX_WAITQ(w) ((wait_queue_t *) w)
-#define LINUX_WAITQ_HEAD(w) ((wait_queue_head_t *) w)
-
 void
 init_waitqueue_entry_current(wait_queue_t *link)
 {
-	init_waitqueue_entry(LINUX_WAITQ(link), current);
+	init_waitqueue_entry(link, current);
 }
 EXPORT_SYMBOL(init_waitqueue_entry_current);
 
@@ -74,29 +71,28 @@ add_wait_queue_exclusive_head(wait_queue_head_t *waitq, wait_queue_t *link)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&LINUX_WAITQ_HEAD(waitq)->lock, flags);
-	__add_wait_queue_exclusive(LINUX_WAITQ_HEAD(waitq), LINUX_WAITQ(link));
-	spin_unlock_irqrestore(&LINUX_WAITQ_HEAD(waitq)->lock, flags);
+	spin_lock_irqsave(&waitq->lock, flags);
+	__add_wait_queue_exclusive(waitq, link);
+	spin_unlock_irqrestore(&waitq->lock, flags);
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive_head);
 
 void
-waitq_wait(wait_queue_t *link, cfs_task_state_t state)
+waitq_wait(wait_queue_t *link, long state)
 {
 	schedule();
 }
 EXPORT_SYMBOL(waitq_wait);
 
 int64_t
-waitq_timedwait(wait_queue_t *link, cfs_task_state_t state,
-		    int64_t timeout)
+waitq_timedwait(wait_queue_t *link, long state, int64_t timeout)
 {
 	return schedule_timeout(timeout);
 }
 EXPORT_SYMBOL(waitq_timedwait);
 
 void
-schedule_timeout_and_set_state(cfs_task_state_t state, int64_t timeout)
+schedule_timeout_and_set_state(long state, int64_t timeout)
 {
 	set_current_state(state);
 	schedule_timeout(timeout);
@@ -112,13 +108,13 @@ cfs_pause(cfs_duration_t ticks)
 }
 EXPORT_SYMBOL(cfs_pause);
 
-void cfs_init_timer(timer_list_t *t)
+void cfs_init_timer(struct timer_list *t)
 {
 	init_timer(t);
 }
 EXPORT_SYMBOL(cfs_init_timer);
 
-void cfs_timer_init(timer_list_t *t, cfs_timer_func_t *func, void *arg)
+void cfs_timer_init(struct timer_list *t, cfs_timer_func_t *func, void *arg)
 {
 	init_timer(t);
 	t->function = func;
@@ -126,31 +122,31 @@ void cfs_timer_init(timer_list_t *t, cfs_timer_func_t *func, void *arg)
 }
 EXPORT_SYMBOL(cfs_timer_init);
 
-void cfs_timer_done(timer_list_t *t)
+void cfs_timer_done(struct timer_list *t)
 {
 	return;
 }
 EXPORT_SYMBOL(cfs_timer_done);
 
-void cfs_timer_arm(timer_list_t *t, cfs_time_t deadline)
+void cfs_timer_arm(struct timer_list *t, cfs_time_t deadline)
 {
 	mod_timer(t, deadline);
 }
 EXPORT_SYMBOL(cfs_timer_arm);
 
-void cfs_timer_disarm(timer_list_t *t)
+void cfs_timer_disarm(struct timer_list *t)
 {
 	del_timer(t);
 }
 EXPORT_SYMBOL(cfs_timer_disarm);
 
-int  cfs_timer_is_armed(timer_list_t *t)
+int  cfs_timer_is_armed(struct timer_list *t)
 {
 	return timer_pending(t);
 }
 EXPORT_SYMBOL(cfs_timer_is_armed);
 
-cfs_time_t cfs_timer_deadline(timer_list_t *t)
+cfs_time_t cfs_timer_deadline(struct timer_list *t)
 {
 	return t->expires;
 }

@@ -1,4 +1,3 @@
-#include "annotate.h"
 #include "util.h"
 #include "build-id.h"
 #include "hist.h"
@@ -24,7 +23,8 @@ enum hist_filter {
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_REL,
 	.min_percent = 0.5,
-	.order  = ORDER_CALLEE
+	.order  = ORDER_CALLEE,
+	.key	= CCKEY_FUNCTION
 };
 
 u16 hists__col_len(struct hists *hists, enum hist_column col)
@@ -159,6 +159,10 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	hists__new_col_len(hists, HISTC_MEM_LVL, 21 + 3);
 	hists__new_col_len(hists, HISTC_LOCAL_WEIGHT, 12);
 	hists__new_col_len(hists, HISTC_GLOBAL_WEIGHT, 12);
+
+	if (h->transaction)
+		hists__new_col_len(hists, HISTC_TRANSACTION,
+				   hist_entry__transaction_len());
 }
 
 void hists__output_recalc_col_len(struct hists *hists, int max_rows)
@@ -177,21 +181,21 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows)
 	}
 }
 
-static void hist_entry__add_cpumode_period(struct hist_entry *he,
-					   unsigned int cpumode, u64 period)
+static void he_stat__add_cpumode_period(struct he_stat *he_stat,
+					unsigned int cpumode, u64 period)
 {
 	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
-		he->stat.period_sys += period;
+		he_stat->period_sys += period;
 		break;
 	case PERF_RECORD_MISC_USER:
-		he->stat.period_us += period;
+		he_stat->period_us += period;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
-		he->stat.period_guest_sys += period;
+		he_stat->period_guest_sys += period;
 		break;
 	case PERF_RECORD_MISC_GUEST_USER:
-		he->stat.period_guest_us += period;
+		he_stat->period_guest_us += period;
 		break;
 	default:
 		break;
@@ -218,10 +222,10 @@ static void he_stat__add_stat(struct he_stat *dest, struct he_stat *src)
 	dest->weight		+= src->weight;
 }
 
-static void hist_entry__decay(struct hist_entry *he)
+static void he_stat__decay(struct he_stat *he_stat)
 {
-	he->stat.period = (he->stat.period * 7) / 8;
-	he->stat.nr_events = (he->stat.nr_events * 7) / 8;
+	he_stat->period = (he_stat->period * 7) / 8;
+	he_stat->nr_events = (he_stat->nr_events * 7) / 8;
 	/* XXX need decay for weight too? */
 }
 
@@ -232,7 +236,7 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 	if (prev_period == 0)
 		return true;
 
-	hist_entry__decay(he);
+	he_stat__decay(&he->stat);
 
 	if (!he->filtered)
 		hists->stats.total_period -= prev_period - he->stat.period;
@@ -337,15 +341,15 @@ static u8 symbol__parent_filter(const struct symbol *parent)
 }
 
 static struct hist_entry *add_hist_entry(struct hists *hists,
-				      struct hist_entry *entry,
-				      struct addr_location *al,
-				      u64 period,
-				      u64 weight)
+					 struct hist_entry *entry,
+					 struct addr_location *al)
 {
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
-	int cmp;
+	int64_t cmp;
+	u64 period = entry->stat.period;
+	u64 weight = entry->stat.weight;
 
 	p = &hists->entries_in->rb_node;
 
@@ -368,7 +372,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 			 * This mem info was allocated from machine__resolve_mem
 			 * and will not be used anymore.
 			 */
-			free(entry->mem_info);
+			zfree(&entry->mem_info);
 
 			/* If the map of an existing hist_entry has
 			 * become out-of-date due to an exec() or
@@ -394,81 +398,24 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 	if (!he)
 		return NULL;
 
+	hists->nr_entries++;
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, hists->entries_in);
 out:
-	hist_entry__add_cpumode_period(he, al->cpumode, period);
+	he_stat__add_cpumode_period(&he->stat, al->cpumode, period);
 	return he;
 }
 
-struct hist_entry *__hists__add_mem_entry(struct hists *self,
-					  struct addr_location *al,
-					  struct symbol *sym_parent,
-					  struct mem_info *mi,
-					  u64 period,
-					  u64 weight)
-{
-	struct hist_entry entry = {
-		.thread	= al->thread,
-		.ms = {
-			.map	= al->map,
-			.sym	= al->sym,
-		},
-		.stat = {
-			.period	= period,
-			.weight = weight,
-			.nr_events = 1,
-		},
-		.cpu	= al->cpu,
-		.ip	= al->addr,
-		.level	= al->level,
-		.parent = sym_parent,
-		.filtered = symbol__parent_filter(sym_parent),
-		.hists = self,
-		.mem_info = mi,
-		.branch_info = NULL,
-	};
-	return add_hist_entry(self, &entry, al, period, weight);
-}
-
-struct hist_entry *__hists__add_branch_entry(struct hists *self,
-					     struct addr_location *al,
-					     struct symbol *sym_parent,
-					     struct branch_info *bi,
-					     u64 period,
-					     u64 weight)
-{
-	struct hist_entry entry = {
-		.thread	= al->thread,
-		.ms = {
-			.map	= bi->to.map,
-			.sym	= bi->to.sym,
-		},
-		.cpu	= al->cpu,
-		.ip	= bi->to.addr,
-		.level	= al->level,
-		.stat = {
-			.period	= period,
-			.nr_events = 1,
-			.weight = weight,
-		},
-		.parent = sym_parent,
-		.filtered = symbol__parent_filter(sym_parent),
-		.branch_info = bi,
-		.hists	= self,
-		.mem_info = NULL,
-	};
-
-	return add_hist_entry(self, &entry, al, period, weight);
-}
-
-struct hist_entry *__hists__add_entry(struct hists *self,
+struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
-				      struct symbol *sym_parent, u64 period,
-				      u64 weight)
+				      struct symbol *sym_parent,
+				      struct branch_info *bi,
+				      struct mem_info *mi,
+				      u64 period, u64 weight, u64 transaction)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
+		.comm = thread__comm(al->thread),
 		.ms = {
 			.map	= al->map,
 			.sym	= al->sym,
@@ -477,18 +424,19 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		.ip	= al->addr,
 		.level	= al->level,
 		.stat = {
-			.period	= period,
 			.nr_events = 1,
+			.period	= period,
 			.weight = weight,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
-		.hists	= self,
-		.branch_info = NULL,
-		.mem_info = NULL,
+		.hists	= hists,
+		.branch_info = bi,
+		.mem_info = mi,
+		.transaction = transaction,
 	};
 
-	return add_hist_entry(self, &entry, al, period, weight);
+	return add_hist_entry(hists, &entry, al);
 }
 
 int64_t
@@ -527,8 +475,9 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 
 void hist_entry__free(struct hist_entry *he)
 {
-	free(he->branch_info);
-	free(he->mem_info);
+	zfree(&he->branch_info);
+	zfree(&he->mem_info);
+	free_srcline(he->srcline);
 	free(he);
 }
 
@@ -597,7 +546,7 @@ static void hists__apply_filters(struct hists *hists, struct hist_entry *he)
 	hists__filter_entry_by_symbol(hists, he);
 }
 
-void hists__collapse_resort(struct hists *hists)
+void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 {
 	struct rb_root *root;
 	struct rb_node *next;
@@ -610,6 +559,8 @@ void hists__collapse_resort(struct hists *hists)
 	next = rb_first(root);
 
 	while (next) {
+		if (session_done())
+			break;
 		n = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&n->rb_node_in);
 
@@ -622,6 +573,8 @@ void hists__collapse_resort(struct hists *hists)
 			 */
 			hists__apply_filters(hists, n);
 		}
+		if (prog)
+			ui_progress__update(prog, 1);
 	}
 }
 
@@ -853,16 +806,6 @@ void hists__filter_by_symbol(struct hists *hists)
 	}
 }
 
-int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
-{
-	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
-}
-
-int hist_entry__annotate(struct hist_entry *he, size_t privsize)
-{
-	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
-}
-
 void events_stats__inc(struct events_stats *stats, u32 type)
 {
 	++stats->nr_events[0];
@@ -881,7 +824,7 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
-	int cmp;
+	int64_t cmp;
 
 	if (sort__need_collapse)
 		root = &hists->entries_collapsed;
@@ -912,6 +855,7 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 		rb_link_node(&he->rb_node_in, parent, p);
 		rb_insert_color(&he->rb_node_in, root);
 		hists__inc_nr_entries(hists, he);
+		he->dummy = true;
 	}
 out:
 	return he;

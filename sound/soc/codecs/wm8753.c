@@ -1456,8 +1456,9 @@ static int wm8753_resume(struct snd_soc_codec *codec)
 	if (codec->dapm.suspend_bias_level == SND_SOC_BIAS_ON) {
 		wm8753_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
 		codec->dapm.bias_level = SND_SOC_BIAS_ON;
-		schedule_delayed_work(&codec->dapm.delayed_work,
-			msecs_to_jiffies(caps_charge));
+		queue_delayed_work(system_power_efficient_wq,
+				   &codec->dapm.delayed_work,
+				   msecs_to_jiffies(caps_charge));
 	}
 
 	return 0;
@@ -1595,7 +1596,7 @@ static struct spi_driver wm8753_spi_driver = {
 };
 #endif /* CONFIG_SPI_MASTER */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8753_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -1652,7 +1653,7 @@ static struct i2c_driver wm8753_i2c_driver = {
 static int __init wm8753_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8753_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register wm8753 I2C driver: %d\n",
@@ -1672,7 +1673,7 @@ module_init(wm8753_modinit);
 
 static void __exit wm8753_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8753_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)

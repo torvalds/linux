@@ -30,13 +30,16 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/adc.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/mmc-sdhci-s3c.h>
 #include <plat/regs-serial.h>
+#include <plat/sdhci.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <video/platform_lcd.h>
@@ -214,6 +217,13 @@ static struct platform_device mini6410_lcd_powerdev = {
 	.dev.platform_data	= &mini6410_lcd_power_data,
 };
 
+static struct s3c_sdhci_platdata mini6410_hsmmc1_pdata = {
+	.max_width		= 4,
+	.cd_type		= S3C_SDHCI_CD_GPIO,
+	.ext_cd_gpio		= S3C64XX_GPN(10),
+	.ext_cd_gpio_invert	= true,
+};
+
 static struct platform_device *mini6410_devices[] __initdata = {
 	&mini6410_device_eth,
 	&s3c_device_hsmmc0,
@@ -231,7 +241,7 @@ static void __init mini6410_map_io(void)
 	u32 tmp;
 
 	s3c64xx_init_io(NULL, 0);
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(mini6410_uartcfgs, ARRAY_SIZE(mini6410_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
@@ -321,6 +331,7 @@ static void __init mini6410_machine_init(void)
 
 	s3c_nand_set_platdata(&mini6410_nand_info);
 	s3c_fb_set_platdata(&mini6410_lcd_pdata[features.lcd_index]);
+	s3c_sdhci1_set_platdata(&mini6410_hsmmc1_pdata);
 	s3c24xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */

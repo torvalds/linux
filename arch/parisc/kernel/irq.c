@@ -179,10 +179,6 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_resched_count);
 	seq_puts(p, "  Rescheduling interrupts\n");
-	seq_printf(p, "%*s: ", prec, "CAL");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_call_count);
-	seq_puts(p, "  Function call interrupts\n");
 #endif
 	seq_printf(p, "%*s: ", prec, "UAH");
 	for_each_online_cpu(j)
@@ -499,22 +495,9 @@ static void execute_on_irq_stack(void *func, unsigned long param1)
 	*irq_stack_in_use = 1;
 }
 
-asmlinkage void do_softirq(void)
+void do_softirq_own_stack(void)
 {
-	__u32 pending;
-	unsigned long flags;
-
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-
-	pending = local_softirq_pending();
-
-	if (pending)
-		execute_on_irq_stack(__do_softirq, 0);
-
-	local_irq_restore(flags);
+	execute_on_irq_stack(__do_softirq, 0);
 }
 #endif /* CONFIG_IRQSTACKS */
 

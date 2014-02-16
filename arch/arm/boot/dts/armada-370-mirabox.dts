@@ -9,7 +9,7 @@
  */
 
 /dts-v1/;
-/include/ "armada-370.dtsi"
+#include "armada-370.dtsi"
 
 / {
 	model = "Globalscale Mirabox";
@@ -25,6 +25,25 @@
 	};
 
 	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+
+		pcie-controller {
+			status = "okay";
+
+			/* Internal mini-PCIe connector */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			/* Connected on the PCB to a USB 3.0 XHCI controller */
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+			};
+		};
+
 		internal-regs {
 			serial@12000 {
 				clock-frequency = <200000000>;
@@ -55,13 +74,13 @@
 				green_pwr_led {
 					label = "mirabox:green:pwr";
 					gpios = <&gpio1 31 1>;
-					linux,default-trigger = "heartbeat";
+					default-state = "keep";
 				};
 
 				blue_stat_led {
 					label = "mirabox:blue:stat";
 					gpios = <&gpio2 0 1>;
-					linux,default-trigger = "cpu0";
+					default-state = "off";
 				};
 
 				green_stat_led {
@@ -121,19 +140,24 @@
 				};
 			};
 
-			pcie-controller {
+			nand@d0000 {
 				status = "okay";
+				num-cs = <1>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
 
-				/* Internal mini-PCIe connector */
-				pcie@1,0 {
-					/* Port 0, Lane 0 */
-					status = "okay";
+				partition@0 {
+					label = "U-Boot";
+					reg = <0 0x400000>;
 				};
-
-				/* Connected on the PCB to a USB 3.0 XHCI controller */
-				pcie@2,0 {
-					/* Port 1, Lane 0 */
-					status = "okay";
+				partition@400000 {
+					label = "Linux";
+					reg = <0x400000 0x400000>;
+				};
+				partition@800000 {
+					label = "Filesystem";
+					reg = <0x800000 0x3f800000>;
 				};
 			};
 		};

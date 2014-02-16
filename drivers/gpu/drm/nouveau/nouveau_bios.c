@@ -127,8 +127,8 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_outp
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
 	if (script == LVDS_RESET &&
-	    (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
-	     dev->pci_device == 0x0329))
+	    (dev->pdev->device == 0x0179 || dev->pdev->device == 0x0189 ||
+	     dev->pdev->device == 0x0329))
 		nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
 #endif
 
@@ -1878,9 +1878,6 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	if (dcb->version < 0x21)
 		merge_like_dcb_entries(dev, dcb);
 
-	if (!dcb->entries)
-		return -ENXIO;
-
 	/* dump connector table entries to log, if any exist */
 	idx = -1;
 	while ((conn = olddcb_conn(dev, ++idx))) {
@@ -2054,19 +2051,14 @@ nouveau_bios_posted(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	unsigned htotal;
 
-	if (nv_device(drm->device)->card_type >= NV_50) {
-		if (NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
-		    NVReadVgaCrtc(dev, 0, 0x1a) == 0)
-			return false;
+	if (nv_device(drm->device)->card_type >= NV_50)
 		return true;
-	}
 
 	htotal  = NVReadVgaCrtc(dev, 0, 0x06);
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x01) << 8;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x20) << 4;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x25) & 0x01) << 10;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x41) & 0x01) << 11;
-
 	return (htotal != 0);
 }
 

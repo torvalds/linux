@@ -196,37 +196,18 @@ void psb_gtt_roll(struct drm_device *dev, struct gtt_range *r, int roll)
  */
 static int psb_gtt_attach_pages(struct gtt_range *gt)
 {
-	struct inode *inode;
-	struct address_space *mapping;
-	int i;
-	struct page *p;
-	int pages = gt->gem.size / PAGE_SIZE;
+	struct page **pages;
 
 	WARN_ON(gt->pages);
 
-	/* This is the shared memory object that backs the GEM resource */
-	inode = file_inode(gt->gem.filp);
-	mapping = inode->i_mapping;
+	pages = drm_gem_get_pages(&gt->gem, 0);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
 
-	gt->pages = kmalloc(pages * sizeof(struct page *), GFP_KERNEL);
-	if (gt->pages == NULL)
-		return -ENOMEM;
-	gt->npage = pages;
+	gt->npage = gt->gem.size / PAGE_SIZE;
+	gt->pages = pages;
 
-	for (i = 0; i < pages; i++) {
-		p = shmem_read_mapping_page(mapping, i);
-		if (IS_ERR(p))
-			goto err;
-		gt->pages[i] = p;
-	}
 	return 0;
-
-err:
-	while (i--)
-		page_cache_release(gt->pages[i]);
-	kfree(gt->pages);
-	gt->pages = NULL;
-	return PTR_ERR(p);
 }
 
 /**
@@ -240,13 +221,7 @@ err:
  */
 static void psb_gtt_detach_pages(struct gtt_range *gt)
 {
-	int i;
-	for (i = 0; i < gt->npage; i++) {
-		/* FIXME: do we need to force dirty */
-		set_page_dirty(gt->pages[i]);
-		page_cache_release(gt->pages[i]);
-	}
-	kfree(gt->pages);
+	drm_gem_put_pages(&gt->gem, gt->pages, true, false);
 	gt->pages = NULL;
 }
 

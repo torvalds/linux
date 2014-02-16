@@ -28,6 +28,7 @@
 struct ts2020_config {
 	u8 tuner_address;
 	u8 clk_out_div;
+	u32 frequency_div;
 };
 
 #if IS_ENABLED(CONFIG_DVB_TS2020)

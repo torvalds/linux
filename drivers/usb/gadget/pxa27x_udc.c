@@ -1737,9 +1737,12 @@ static void udc_init_data(struct pxa_udc *dev)
 	}
 
 	/* USB endpoints init */
-	for (i = 1; i < NR_USB_ENDPOINTS; i++)
+	for (i = 1; i < NR_USB_ENDPOINTS; i++) {
 		list_add_tail(&dev->udc_usb_ep[i].usb_ep.ep_list,
 				&dev->gadget.ep_list);
+		usb_ep_set_maxpacket_limit(&dev->udc_usb_ep[i].usb_ep,
+					   dev->udc_usb_ep[i].usb_ep.maxpacket);
+	}
 }
 
 /**
@@ -2422,7 +2425,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		return udc->irq;
 
 	udc->dev = &pdev->dev;
-	udc->mach = pdev->dev.platform_data;
+	udc->mach = dev_get_platdata(&pdev->dev);
 	udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
 	gpio = udc->mach->gpio_pullup;

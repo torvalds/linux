@@ -15,8 +15,8 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/of_i2c.h>
 
 struct i2c_gpio_private_data {
 	struct i2c_adapter adap;
@@ -137,9 +137,9 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	} else {
-		if (!pdev->dev.platform_data)
+		if (!dev_get_platdata(&pdev->dev))
 			return -ENXIO;
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		sda_pin = pdata->sda_pin;
 		scl_pin = pdata->scl_pin;
 	}
@@ -171,7 +171,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 		pdata->scl_pin = scl_pin;
 		of_i2c_gpio_get_props(pdev->dev.of_node, pdata);
 	} else {
-		memcpy(pdata, pdev->dev.platform_data, sizeof(*pdata));
+		memcpy(pdata, dev_get_platdata(&pdev->dev), sizeof(*pdata));
 	}
 
 	if (pdata->sda_is_open_drain) {
@@ -223,8 +223,6 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	ret = i2c_bit_add_numbered_bus(adap);
 	if (ret)
 		goto err_add_bus;
-
-	of_i2c_register_devices(adap);
 
 	platform_set_drvdata(pdev, priv);
 

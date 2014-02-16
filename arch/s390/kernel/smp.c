@@ -59,7 +59,7 @@ enum {
 };
 
 struct pcpu {
-	struct cpu cpu;
+	struct cpu *cpu;
 	struct _lowcore *lowcore;	/* lowcore page(s) for the cpu */
 	unsigned long async_stack;	/* async stack for the cpu */
 	unsigned long panic_stack;	/* panic stack for the cpu */
@@ -159,13 +159,13 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 {
 	int order;
 
-	set_bit(ec_bit, &pcpu->ec_mask);
-	order = pcpu_running(pcpu) ?
-		SIGP_EXTERNAL_CALL : SIGP_EMERGENCY_SIGNAL;
+	if (test_and_set_bit(ec_bit, &pcpu->ec_mask))
+		return;
+	order = pcpu_running(pcpu) ? SIGP_EXTERNAL_CALL : SIGP_EMERGENCY_SIGNAL;
 	pcpu_sigp_retry(pcpu, order, 0);
 }
 
-static int __cpuinit pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
+static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 {
 	struct _lowcore *lc;
 
@@ -283,7 +283,7 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 	struct _lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
-	__load_psw_mask(psw_kernel_bits);
+	__load_psw_mask(PSW_KERNEL_BITS);
 	if (pcpu->address == source_cpu)
 		func(data);	/* should not return */
 	/* Stop target cpu (if func returns this stops the current cpu). */
@@ -362,7 +362,7 @@ void smp_yield_cpu(int cpu)
  * Send cpus emergency shutdown signal. This gives the cpus the
  * opportunity to complete outstanding interrupts.
  */
-void smp_emergency_stop(cpumask_t *cpumask)
+static void smp_emergency_stop(cpumask_t *cpumask)
 {
 	u64 end;
 	int cpu;
@@ -395,7 +395,7 @@ void smp_send_stop(void)
 	int cpu;
 
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(psw_kernel_bits | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	trace_hardirqs_off();
 
 	debug_set_critical();
@@ -533,9 +533,6 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 
 #if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_CRASH_DUMP)
 
-struct save_area *zfcpdump_save_areas[NR_CPUS + 1];
-EXPORT_SYMBOL_GPL(zfcpdump_save_areas);
-
 static void __init smp_get_save_area(int cpu, u16 address)
 {
 	void *lc = pcpu_devices[0].lowcore;
@@ -546,15 +543,9 @@ static void __init smp_get_save_area(int cpu, u16 address)
 	if (!OLDMEM_BASE && (address == boot_cpu_address ||
 			     ipl_info.type != IPL_TYPE_FCP_DUMP))
 		return;
-	if (cpu >= NR_CPUS) {
-		pr_warning("CPU %i exceeds the maximum %i and is excluded "
-			   "from the dump\n", cpu, NR_CPUS - 1);
-		return;
-	}
-	save_area = kmalloc(sizeof(struct save_area), GFP_KERNEL);
+	save_area = dump_save_area_create(cpu);
 	if (!save_area)
 		panic("could not allocate memory for save area\n");
-	zfcpdump_save_areas[cpu] = save_area;
 #ifdef CONFIG_CRASH_DUMP
 	if (address == boot_cpu_address) {
 		/* Copy the registers of the boot cpu. */
@@ -616,10 +607,9 @@ static struct sclp_cpu_info *smp_get_cpu_info(void)
 	return info;
 }
 
-static int __cpuinit smp_add_present_cpu(int cpu);
+static int smp_add_present_cpu(int cpu);
 
-static int __cpuinit __smp_rescan_cpus(struct sclp_cpu_info *info,
-				       int sysfs_add)
+static int __smp_rescan_cpus(struct sclp_cpu_info *info, int sysfs_add)
 {
 	struct pcpu *pcpu;
 	cpumask_t avail;
@@ -685,7 +675,7 @@ static void __init smp_detect_cpus(void)
 /*
  *	Activate a secondary processor.
  */
-static void __cpuinit smp_start_secondary(void *cpuvoid)
+static void smp_start_secondary(void *cpuvoid)
 {
 	S390_lowcore.last_update_clock = get_tod_clock();
 	S390_lowcore.restart_stack = (unsigned long) restart_stack;
@@ -694,7 +684,7 @@ static void __cpuinit smp_start_secondary(void *cpuvoid)
 	S390_lowcore.restart_source = -1UL;
 	restore_access_regs(S390_lowcore.access_regs_save_area);
 	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
-	__load_psw_mask(psw_kernel_bits | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
@@ -708,7 +698,7 @@ static void __cpuinit smp_start_secondary(void *cpuvoid)
 }
 
 /* Upping and downing of CPUs */
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	struct pcpu *pcpu;
 	int rc;
@@ -731,18 +721,14 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	return 0;
 }
 
-static int __init setup_possible_cpus(char *s)
-{
-	int max, cpu;
+static unsigned int setup_possible_cpus __initdata;
 
-	if (kstrtoint(s, 0, &max) < 0)
-		return 0;
-	init_cpu_possible(cpumask_of(0));
-	for (cpu = 1; cpu < max && cpu < nr_cpu_ids; cpu++)
-		set_cpu_possible(cpu, true);
+static int __init _setup_possible_cpus(char *s)
+{
+	get_option(&s, &setup_possible_cpus);
 	return 0;
 }
-early_param("possible_cpus", setup_possible_cpus);
+early_param("possible_cpus", _setup_possible_cpus);
 
 #ifdef CONFIG_HOTPLUG_CPU
 
@@ -784,6 +770,17 @@ void __noreturn cpu_die(void)
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
+
+void __init smp_fill_possible_mask(void)
+{
+	unsigned int possible, cpu;
+
+	possible = setup_possible_cpus;
+	if (!possible)
+		possible = MACHINE_IS_VM ? 64 : nr_cpu_ids;
+	for (cpu = 0; cpu < possible && cpu < nr_cpu_ids; cpu++)
+		set_cpu_possible(cpu, true);
+}
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
@@ -930,7 +927,7 @@ static ssize_t show_idle_count(struct device *dev,
 		idle_count = ACCESS_ONCE(idle->idle_count);
 		if (ACCESS_ONCE(idle->clock_idle_enter))
 			idle_count++;
-	} while ((sequence & 1) || (idle->sequence != sequence));
+	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
 	return sprintf(buf, "%llu\n", idle_count);
 }
 static DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
@@ -948,7 +945,7 @@ static ssize_t show_idle_time(struct device *dev,
 		idle_time = ACCESS_ONCE(idle->idle_time);
 		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
 		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
-	} while ((sequence & 1) || (idle->sequence != sequence));
+	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
 	idle_time += idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
 	return sprintf(buf, "%llu\n", idle_time >> 12);
 }
@@ -964,11 +961,11 @@ static struct attribute_group cpu_online_attr_group = {
 	.attrs = cpu_online_attrs,
 };
 
-static int __cpuinit smp_cpu_notify(struct notifier_block *self,
-				    unsigned long action, void *hcpu)
+static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
+			  void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
-	struct cpu *c = &pcpu_devices[cpu].cpu;
+	struct cpu *c = pcpu_devices[cpu].cpu;
 	struct device *s = &c->dev;
 	int err = 0;
 
@@ -983,12 +980,17 @@ static int __cpuinit smp_cpu_notify(struct notifier_block *self,
 	return notifier_from_errno(err);
 }
 
-static int __cpuinit smp_add_present_cpu(int cpu)
+static int smp_add_present_cpu(int cpu)
 {
-	struct cpu *c = &pcpu_devices[cpu].cpu;
-	struct device *s = &c->dev;
+	struct device *s;
+	struct cpu *c;
 	int rc;
 
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (!c)
+		return -ENOMEM;
+	pcpu_devices[cpu].cpu = c;
+	s = &c->dev;
 	c->hotpluggable = 1;
 	rc = register_cpu(c, cpu);
 	if (rc)

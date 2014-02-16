@@ -655,7 +655,11 @@ explains which is which.
 		  read the irq flags variable, an 'X' will always
 		  be printed here.
 
-  need-resched: 'N' task need_resched is set, '.' otherwise.
+  need-resched:
+	'N' both TIF_NEED_RESCHED and PREEMPT_NEED_RESCHED is set,
+	'n' only TIF_NEED_RESCHED is set,
+	'p' only PREEMPT_NEED_RESCHED is set,
+	'.' otherwise.
 
   hardirq/softirq:
 	'H' - hard irq occurred inside a softirq.
@@ -735,7 +739,7 @@ Here are the available options:
 		 function as well as the function being traced.
 
   print-parent:
-   bash-4000  [01]  1477.606694: simple_strtoul <-strict_strtoul
+   bash-4000  [01]  1477.606694: simple_strtoul <-kstrtoul
 
   noprint-parent:
    bash-4000  [01]  1477.606694: simple_strtoul
@@ -759,7 +763,7 @@ Here are the available options:
             latency-format option is enabled.
 
     bash  4000 1 0 00000000 00010a95 [58127d26] 1720.415ms \
-    (+0.000ms): simple_strtoul (strict_strtoul)
+    (+0.000ms): simple_strtoul (kstrtoul)
 
   raw - This will display raw numbers. This option is best for
 	use with user applications that can translate the raw
@@ -2429,6 +2433,19 @@ The following commands are supported:
    	 set_ftrace_filter
    echo '!schedule:disable_event:sched:sched_switch' > \
    	 set_ftrace_filter
+
+- dump
+  When the function is hit, it will dump the contents of the ftrace
+  ring buffer to the console. This is useful if you need to debug
+  something, and want to dump the trace when a certain function
+  is hit. Perhaps its a function that is called before a tripple
+  fault happens and does not allow you to get a regular dump.
+
+- cpudump
+  When the function is hit, it will dump the contents of the ftrace
+  ring buffer for the current CPU to the console. Unlike the "dump"
+  command, it only prints out the contents of the ring buffer for the
+  CPU that executed the function that triggered the dump.
 
 trace_pipe
 ----------

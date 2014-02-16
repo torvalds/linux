@@ -24,13 +24,6 @@
 #include "libsbew.h"
 #include "pmcc4.h"
 
-
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
 #if defined(CONFIG_SBE_HDLC_V7) || defined(CONFIG_SBE_WAN256T3_HDLC_V7) || \
     defined(CONFIG_SBE_HDLC_V7_MODULE) || defined(CONFIG_SBE_WAN256T3_HDLC_V7_MODULE)
 #define _v7_hdlc_  1
@@ -111,7 +104,7 @@ pci_flush_write (ci_t *ci)
 }
 
 
-STATIC void
+static void
 watchdog_func (unsigned long arg)
 {
     struct watchdog *wd = (void *) arg;
@@ -281,7 +274,7 @@ VMETRO_TRACE (void *x)
 void
 VMETRO_TRIGGER (ci_t *ci, int x)
 {
-    comet_t    *comet;
+    struct s_comet_reg    *comet;
     volatile u_int32_t data;
 
     comet = ci->port[0].cometbase;  /* default to COMET # 0 */

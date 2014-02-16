@@ -197,7 +197,7 @@ static inline int __put_compat_ipc_perm(struct ipc64_perm *p,
 static inline int get_compat_semid64_ds(struct semid64_ds *s64,
 					struct compat_semid64_ds __user *up64)
 {
-	if (!access_ok (VERIFY_READ, up64, sizeof(*up64)))
+	if (!access_ok(VERIFY_READ, up64, sizeof(*up64)))
 		return -EFAULT;
 	return __get_compat_ipc64_perm(&s64->sem_perm, &up64->sem_perm);
 }
@@ -205,7 +205,7 @@ static inline int get_compat_semid64_ds(struct semid64_ds *s64,
 static inline int get_compat_semid_ds(struct semid64_ds *s,
 				      struct compat_semid_ds __user *up)
 {
-	if (!access_ok (VERIFY_READ, up, sizeof(*up)))
+	if (!access_ok(VERIFY_READ, up, sizeof(*up)))
 		return -EFAULT;
 	return __get_compat_ipc_perm(&s->sem_perm, &up->sem_perm);
 }
@@ -215,7 +215,7 @@ static inline int put_compat_semid64_ds(struct semid64_ds *s64,
 {
 	int err;
 
-	if (!access_ok (VERIFY_WRITE, up64, sizeof(*up64)))
+	if (!access_ok(VERIFY_WRITE, up64, sizeof(*up64)))
 		return -EFAULT;
 	err  = __put_compat_ipc64_perm(&s64->sem_perm, &up64->sem_perm);
 	err |= __put_user(s64->sem_otime, &up64->sem_otime);
@@ -229,7 +229,7 @@ static inline int put_compat_semid_ds(struct semid64_ds *s,
 {
 	int err;
 
-	if (!access_ok (VERIFY_WRITE, up, sizeof(*up)))
+	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)))
 		return -EFAULT;
 	err  = __put_compat_ipc_perm(&s->sem_perm, &up->sem_perm);
 	err |= __put_user(s->sem_otime, &up->sem_otime);
@@ -288,11 +288,11 @@ static long do_compat_semctl(int first, int second, int third, u32 pad)
 		break;
 
 	case IPC_SET:
-		if (version == IPC_64) {
+		if (version == IPC_64)
 			err = get_compat_semid64_ds(&s64, compat_ptr(pad));
-		} else {
+		else
 			err = get_compat_semid_ds(&s64, compat_ptr(pad));
-		}
+
 		up64 = compat_alloc_user_space(sizeof(s64));
 		if (copy_to_user(up64, &s64, sizeof(s64)))
 			err = -EFAULT;
@@ -376,12 +376,12 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 			struct compat_ipc_kludge ipck;
 			if (!uptr)
 				return -EINVAL;
-			if (copy_from_user (&ipck, uptr, sizeof(ipck)))
+			if (copy_from_user(&ipck, uptr, sizeof(ipck)))
 				return -EFAULT;
 			uptr = compat_ptr(ipck.msgp);
 			fifth = ipck.msgtyp;
 		}
-		return do_msgrcv(first, uptr, second, fifth, third,
+		return do_msgrcv(first, uptr, second, (s32)fifth, third,
 				 compat_do_msg_fill);
 	}
 	case MSGGET:
@@ -515,11 +515,11 @@ long compat_sys_msgctl(int first, int second, void __user *uptr)
 		break;
 
 	case IPC_SET:
-		if (version == IPC_64) {
+		if (version == IPC_64)
 			err = get_compat_msqid64(&m64, uptr);
-		} else {
+		else
 			err = get_compat_msqid(&m64, uptr);
-		}
+
 		if (err)
 			break;
 		p = compat_alloc_user_space(sizeof(m64));
@@ -702,11 +702,11 @@ long compat_sys_shmctl(int first, int second, void __user *uptr)
 
 
 	case IPC_SET:
-		if (version == IPC_64) {
+		if (version == IPC_64)
 			err = get_compat_shmid64_ds(&s64, uptr);
-		} else {
+		else
 			err = get_compat_shmid_ds(&s64, uptr);
-		}
+
 		if (err)
 			break;
 		p = compat_alloc_user_space(sizeof(s64));

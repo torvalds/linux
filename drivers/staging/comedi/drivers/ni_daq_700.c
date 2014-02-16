@@ -45,9 +45,9 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
 */
 
-#include <linux/ioport.h>
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 
 #include "../comedidev.h"
 
@@ -72,39 +72,39 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 
 static int daq700_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	unsigned int mask;
+	unsigned int val;
 
-		if (data[0] & 0xff)
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0xff)
 			outb(s->state & 0xff, dev->iobase + DIO_W);
 	}
 
-	data[1] = s->state & 0xff;
-	data[1] |= inb(dev->iobase + DIO_R) << 8;
+	val = s->state & 0xff;
+	val |= inb(dev->iobase + DIO_R) << 8;
+
+	data[1] = val;
 
 	return insn->n;
 }
 
 static int daq700_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	unsigned int chan = 1 << CR_CHAN(insn->chanspec);
+	int ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & chan) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
+	/* The DIO channels are not configurable, fix the io_bits */
+	s->io_bits = 0x00ff;
 
 	return insn->n;
 }
@@ -216,7 +216,6 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->insn_bits	= daq700_dio_insn_bits;
 	s->insn_config	= daq700_dio_insn_config;
-	s->state	= 0;
 	s->io_bits	= 0x00ff;
 
 	/* DAQCard-700 ai */

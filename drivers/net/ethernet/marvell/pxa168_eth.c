@@ -19,11 +19,9 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -321,23 +319,6 @@ static void ethernet_phy_set_addr(struct pxa168_eth_private *pep, int phy_addr)
 	wrl(pep, PHY_ADDRESS, reg_data);
 }
 
-static void ethernet_phy_reset(struct pxa168_eth_private *pep)
-{
-	int data;
-
-	data = phy_read(pep->phy, MII_BMCR);
-	if (data < 0)
-		return;
-
-	data |= BMCR_RESET;
-	if (phy_write(pep->phy, MII_BMCR, data) < 0)
-		return;
-
-	do {
-		data = phy_read(pep->phy, MII_BMCR);
-	} while (data >= 0 && data & BMCR_RESET);
-}
-
 static void rxq_refill(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
@@ -357,7 +338,7 @@ static void rxq_refill(struct net_device *dev)
 		/* Get 'used' Rx descriptor */
 		used_rx_desc = pep->rx_used_desc_q;
 		p_used_rx_desc = &pep->p_rx_desc_area[used_rx_desc];
-		size = skb->end - skb->data;
+		size = skb_end_pointer(skb) - skb->data;
 		p_used_rx_desc->buf_ptr = dma_map_single(NULL,
 							 skb->data,
 							 size,
@@ -583,10 +564,9 @@ static int init_hash_table(struct pxa168_eth_private *pep)
 	 * table is full.
 	 */
 	if (pep->htpr == NULL) {
-		pep->htpr = dma_alloc_coherent(pep->dev->dev.parent,
-					       HASH_ADDR_TABLE_SIZE,
-					       &pep->htpr_dma,
-					       GFP_KERNEL | __GFP_ZERO);
+		pep->htpr = dma_zalloc_coherent(pep->dev->dev.parent,
+						HASH_ADDR_TABLE_SIZE,
+						&pep->htpr_dma, GFP_KERNEL);
 		if (pep->htpr == NULL)
 			return -ENOMEM;
 	} else {
@@ -647,7 +627,7 @@ static void eth_port_start(struct net_device *dev)
 		struct ethtool_cmd cmd;
 
 		pxa168_get_settings(pep->dev, &cmd);
-		ethernet_phy_reset(pep);
+		phy_init_hw(pep->phy);
 		pxa168_set_settings(pep->dev, &cmd);
 	}
 
@@ -1024,9 +1004,9 @@ static int rxq_init(struct net_device *dev)
 	pep->rx_desc_count = 0;
 	size = pep->rx_ring_size * sizeof(struct rx_desc);
 	pep->rx_desc_area_size = size;
-	pep->p_rx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
-						 &pep->rx_desc_dma,
-						 GFP_KERNEL | __GFP_ZERO);
+	pep->p_rx_desc_area = dma_zalloc_coherent(pep->dev->dev.parent, size,
+						  &pep->rx_desc_dma,
+						  GFP_KERNEL);
 	if (!pep->p_rx_desc_area)
 		goto out;
 
@@ -1085,9 +1065,9 @@ static int txq_init(struct net_device *dev)
 	pep->tx_desc_count = 0;
 	size = pep->tx_ring_size * sizeof(struct tx_desc);
 	pep->tx_desc_area_size = size;
-	pep->p_tx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
-						 &pep->tx_desc_dma,
-						 GFP_KERNEL | __GFP_ZERO);
+	pep->p_tx_desc_area = dma_zalloc_coherent(pep->dev->dev.parent, size,
+						  &pep->tx_desc_dma,
+						  GFP_KERNEL);
 	if (!pep->p_tx_desc_area)
 		goto out;
 	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
@@ -1124,8 +1104,7 @@ static int pxa168_eth_open(struct net_device *dev)
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	int err;
 
-	err = request_irq(dev->irq, pxa168_eth_int_handler,
-			  IRQF_DISABLED, dev->name, dev);
+	err = request_irq(dev->irq, pxa168_eth_int_handler, 0, dev->name, dev);
 	if (err) {
 		dev_err(&dev->dev, "can't assign irq\n");
 		return -EAGAIN;
@@ -1385,7 +1364,6 @@ static struct phy_device *phy_scan(struct pxa168_eth_private *pep, int phy_addr)
 static void phy_init(struct pxa168_eth_private *pep, int speed, int duplex)
 {
 	struct phy_device *phy = pep->phy;
-	ethernet_phy_reset(pep);
 
 	phy_attach(pep->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_MII);
 
@@ -1517,7 +1495,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	printk(KERN_INFO "%s:Using random mac address\n", DRIVER_NAME);
 	eth_hw_addr_random(dev);
 
-	pep->pd = pdev->dev.platform_data;
+	pep->pd = dev_get_platdata(&pdev->dev);
 	pep->rx_ring_size = NUM_RX_DESCS;
 	if (pep->pd->rx_queue_size)
 		pep->rx_ring_size = pep->pd->rx_queue_size;
@@ -1602,7 +1580,6 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	unregister_netdev(dev);
 	cancel_work_sync(&pep->tx_timeout_task);
 	free_netdev(dev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

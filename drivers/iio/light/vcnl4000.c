@@ -56,7 +56,7 @@ static int vcnl4000_measure(struct vcnl4000_data *data, u8 req_mask,
 				u8 rdy_mask, u8 data_reg, int *val)
 {
 	int tries = 20;
-	u16 buf;
+	__be16 buf;
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND,
@@ -157,7 +157,7 @@ static int vcnl4000_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*data));
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -167,7 +167,7 @@ static int vcnl4000_probe(struct i2c_client *client,
 
 	ret = i2c_smbus_read_byte_data(data->client, VCNL4000_PROD_REV);
 	if (ret < 0)
-		goto error_free_dev;
+		return ret;
 
 	dev_info(&client->dev, "VCNL4000 Ambient light/proximity sensor, Prod %02x, Rev: %02x\n",
 		ret >> 4, ret & 0xf);
@@ -179,25 +179,7 @@ static int vcnl4000_probe(struct i2c_client *client,
 	indio_dev->name = VCNL4000_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto error_free_dev;
-
-	return 0;
-
-error_free_dev:
-	iio_device_free(indio_dev);
-	return ret;
-}
-
-static int vcnl4000_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static struct i2c_driver vcnl4000_driver = {
@@ -206,7 +188,6 @@ static struct i2c_driver vcnl4000_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe  = vcnl4000_probe,
-	.remove = vcnl4000_remove,
 	.id_table = vcnl4000_id,
 };
 

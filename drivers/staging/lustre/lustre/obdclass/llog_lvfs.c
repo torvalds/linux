@@ -64,7 +64,6 @@ static int llog_lvfs_pad(struct obd_device *obd, struct l_file *file,
 	struct llog_rec_hdr rec = { 0 };
 	struct llog_rec_tail tail;
 	int rc;
-	ENTRY;
 
 	LASSERT(len >= LLOG_MIN_REC_SIZE && (len & 0x7) == 0);
 
@@ -86,7 +85,7 @@ static int llog_lvfs_pad(struct obd_device *obd, struct l_file *file,
 	}
 
  out:
-	RETURN(rc);
+	return rc;
 }
 
 static int llog_lvfs_write_blob(struct obd_device *obd, struct l_file *file,
@@ -96,8 +95,6 @@ static int llog_lvfs_write_blob(struct obd_device *obd, struct l_file *file,
 	struct llog_rec_tail end;
 	loff_t saved_off = file->f_pos;
 	int buflen = rec->lrh_len;
-
-	ENTRY;
 
 	file->f_pos = off;
 
@@ -140,7 +137,7 @@ static int llog_lvfs_write_blob(struct obd_device *obd, struct l_file *file,
 	if (saved_off > file->f_pos)
 		file->f_pos = saved_off;
 	LASSERT(rc <= 0);
-	RETURN(rc);
+	return rc;
 }
 
 static int llog_lvfs_read_blob(struct obd_device *obd, struct l_file *file,
@@ -148,14 +145,13 @@ static int llog_lvfs_read_blob(struct obd_device *obd, struct l_file *file,
 {
 	loff_t offset = off;
 	int rc;
-	ENTRY;
 
 	rc = fsfilt_read_record(obd, file, buf, size, &offset);
 	if (rc) {
 		CERROR("error reading log record: rc %d\n", rc);
-		RETURN(rc);
+		return rc;
 	}
-	RETURN(0);
+	return 0;
 }
 
 static int llog_lvfs_read_header(const struct lu_env *env,
@@ -163,7 +159,6 @@ static int llog_lvfs_read_header(const struct lu_env *env,
 {
 	struct obd_device *obd;
 	int rc;
-	ENTRY;
 
 	LASSERT(sizeof(*handle->lgh_hdr) == LLOG_CHUNK_SIZE);
 
@@ -171,7 +166,7 @@ static int llog_lvfs_read_header(const struct lu_env *env,
 
 	if (i_size_read(handle->lgh_file->f_dentry->d_inode) == 0) {
 		CDEBUG(D_HA, "not reading header from 0-byte log\n");
-		RETURN(LLOG_EEMPTY);
+		return LLOG_EEMPTY;
 	}
 
 	rc = llog_lvfs_read_blob(obd, handle->lgh_file, handle->lgh_hdr,
@@ -206,7 +201,7 @@ static int llog_lvfs_read_header(const struct lu_env *env,
 	handle->lgh_last_idx = handle->lgh_hdr->llh_tail.lrt_index;
 	handle->lgh_file->f_pos = i_size_read(handle->lgh_file->f_dentry->d_inode);
 
-	RETURN(rc);
+	return rc;
 }
 
 /* returns negative in on error; 0 if success && reccookie == 0; 1 otherwise */
@@ -223,7 +218,6 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 	struct obd_device *obd;
 	struct file *file;
 	size_t left;
-	ENTRY;
 
 	llh = loghandle->lgh_hdr;
 	file = loghandle->lgh_file;
@@ -236,7 +230,7 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 	else
 		rc = (reclen > LLOG_CHUNK_SIZE) ? -E2BIG : 0;
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	if (buf)
 		/* write_blob adds header and tail to lrh_len. */
@@ -253,7 +247,7 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 		}
 
 		if (idx && llh->llh_size && llh->llh_size != rec->lrh_len)
-			RETURN(-EINVAL);
+			return -EINVAL;
 
 		if (!ext2_test_bit(idx, llh->llh_bitmap))
 			CERROR("Modify unset record %u\n", idx);
@@ -263,7 +257,7 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 		rc = llog_lvfs_write_blob(obd, file, &llh->llh_hdr, NULL, 0);
 		/* we are done if we only write the header or on error */
 		if (rc || idx == 0)
-			RETURN(rc);
+			return rc;
 
 		if (buf) {
 			/* We assume that caller has set lgh_cur_* */
@@ -277,7 +271,7 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 			if (rec->lrh_index != loghandle->lgh_cur_idx) {
 				CERROR("modify idx mismatch %u/%d\n",
 				       idx, loghandle->lgh_cur_idx);
-				RETURN(-EFAULT);
+				return -EFAULT;
 			}
 		} else {
 			/* Assumes constant lrh_len */
@@ -290,7 +284,7 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 			reccookie->lgc_index = idx;
 			rc = 1;
 		}
-		RETURN(rc);
+		return rc;
 	}
 
 	/* Make sure that records don't cross a chunk boundary, so we can
@@ -308,12 +302,12 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 		 index = loghandle->lgh_last_idx + 1;
 		 rc = llog_lvfs_pad(obd, file, left, index);
 		 if (rc)
-			 RETURN(rc);
+			 return rc;
 		 loghandle->lgh_last_idx++; /*for pad rec*/
 	 }
 	 /* if it's the last idx in log file, then return -ENOSPC */
 	 if (loghandle->lgh_last_idx >= LLOG_BITMAP_SIZE(llh) - 1)
-		 RETURN(-ENOSPC);
+		 return -ENOSPC;
 	loghandle->lgh_last_idx++;
 	index = loghandle->lgh_last_idx;
 	LASSERT(index < LLOG_BITMAP_SIZE(llh));
@@ -339,11 +333,11 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 
 	rc = llog_lvfs_write_blob(obd, file, &llh->llh_hdr, NULL, 0);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = llog_lvfs_write_blob(obd, file, rec, buf, file->f_pos);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	CDEBUG(D_RPCTRACE, "added record "DOSTID": idx: %u, %u \n",
 	       POSTID(&loghandle->lgh_id.lgl_oi), index, rec->lrh_len);
@@ -362,7 +356,7 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 	if (rc == 0 && rec->lrh_type == LLOG_GEN_REC)
 		rc = 1;
 
-	RETURN(rc);
+	return rc;
 }
 
 /* We can skip reading at least as many log blocks as the number of
@@ -391,10 +385,9 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 				int len)
 {
 	int rc;
-	ENTRY;
 
 	if (len == 0 || len & (LLOG_CHUNK_SIZE - 1))
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	CDEBUG(D_OTHER, "looking for log index %u (cur idx %u off "LPU64")\n",
 	       next_idx, *cur_idx, *cur_offset);
@@ -419,7 +412,7 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen,
 			       *cur_offset);
-			RETURN(rc);
+			return rc;
 		}
 
 		/* put number of bytes read into rc to make code simpler */
@@ -430,13 +423,13 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 		}
 
 		if (rc == 0) /* end of file, nothing to do */
-			RETURN(0);
+			return 0;
 
 		if (rc < sizeof(*tail)) {
 			CERROR("Invalid llog block at log id "DOSTID"/%u offset"
 			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, *cur_offset);
-			RETURN(-EINVAL);
+			return -EINVAL;
 		}
 
 		rec = buf;
@@ -461,7 +454,7 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 			CERROR("Invalid llog tail at log id "DOSTID"/%u offset "
 			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, *cur_offset);
-			RETURN(-EINVAL);
+			return -EINVAL;
 		}
 		if (tail->lrt_index < next_idx)
 			continue;
@@ -471,11 +464,11 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 		if (rec->lrh_index > next_idx) {
 			CERROR("missed desired record? %u > %u\n",
 			       rec->lrh_index, next_idx);
-			RETURN(-ENOENT);
+			return -ENOENT;
 		}
-		RETURN(0);
+		return 0;
 	}
-	RETURN(-EIO);
+	return -EIO;
 }
 
 static int llog_lvfs_prev_block(const struct lu_env *env,
@@ -484,10 +477,9 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 {
 	__u64 cur_offset;
 	int rc;
-	ENTRY;
 
 	if (len == 0 || len & (LLOG_CHUNK_SIZE - 1))
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	CDEBUG(D_OTHER, "looking for log index %u\n", prev_idx);
 
@@ -508,20 +500,20 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 			       POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen,
 			       cur_offset);
-			RETURN(rc);
+			return rc;
 		}
 
 		/* put number of bytes read into rc to make code simpler */
 		rc = cur_offset - ppos;
 
 		if (rc == 0) /* end of file, nothing to do */
-			RETURN(0);
+			return 0;
 
 		if (rc < sizeof(*tail)) {
 			CERROR("Invalid llog block at log id "DOSTID"/%u offset"
 			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, cur_offset);
-			RETURN(-EINVAL);
+			return -EINVAL;
 		}
 
 		rec = buf;
@@ -544,7 +536,7 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 			CERROR("Invalid llog tail at log id "DOSTID"/%u offset"
 			       LPU64"\n", POSTID(&loghandle->lgh_id.lgl_oi),
 			       loghandle->lgh_id.lgl_ogen, cur_offset);
-			RETURN(-EINVAL);
+			return -EINVAL;
 		}
 		if (tail->lrt_index < prev_idx)
 			continue;
@@ -554,11 +546,11 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 		if (rec->lrh_index > prev_idx) {
 			CERROR("missed desired record? %u > %u\n",
 			       rec->lrh_index, prev_idx);
-			RETURN(-ENOENT);
+			return -ENOENT;
 		}
-		RETURN(0);
+		return 0;
 	}
-	RETURN(-EIO);
+	return -EIO;
 }
 
 static struct file *llog_filp_open(char *dir, char *name, int flags, int mode)
@@ -592,8 +584,6 @@ static int llog_lvfs_open(const struct lu_env *env,  struct llog_handle *handle,
 	struct l_dentry		*dchild = NULL;
 	struct obd_device	*obd;
 	int			 rc = 0;
-
-	ENTRY;
 
 	LASSERT(ctxt);
 	LASSERT(ctxt->loc_exp);
@@ -661,12 +651,12 @@ static int llog_lvfs_open(const struct lu_env *env,  struct llog_handle *handle,
 	if (open_param != LLOG_OPEN_NEW && handle->lgh_file == NULL)
 		GOTO(out_name, rc = -ENOENT);
 
-	RETURN(0);
+	return 0;
 out_name:
 	if (handle->lgh_name != NULL)
 		OBD_FREE(handle->lgh_name, strlen(name) + 1);
 out:
-	RETURN(rc);
+	return rc;
 }
 
 static int llog_lvfs_exist(struct llog_handle *handle)
@@ -688,8 +678,6 @@ static int llog_lvfs_create(const struct lu_env *env,
 	int			 rc = 0;
 	int			 open_flags = O_RDWR | O_CREAT | O_LARGEFILE;
 
-	ENTRY;
-
 	LASSERT(ctxt);
 	LASSERT(ctxt->loc_exp);
 	obd = ctxt->loc_exp->exp_obd;
@@ -699,7 +687,7 @@ static int llog_lvfs_create(const struct lu_env *env,
 		file = llog_filp_open(MOUNT_CONFIGS_DIR, handle->lgh_name,
 				      open_flags, 0644);
 		if (IS_ERR(file))
-			RETURN(PTR_ERR(file));
+			return PTR_ERR(file);
 
 		lustre_build_llog_lvfs_oid(&handle->lgh_id,
 				file->f_dentry->d_inode->i_ino,
@@ -708,7 +696,7 @@ static int llog_lvfs_create(const struct lu_env *env,
 	} else {
 		OBDO_ALLOC(oa);
 		if (oa == NULL)
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 
 		ostid_set_seq_llog(&oa->o_oi);
 		oa->o_valid = OBD_MD_FLGENER | OBD_MD_FLGROUP;
@@ -736,7 +724,7 @@ static int llog_lvfs_create(const struct lu_env *env,
 out:
 		OBDO_FREE(oa);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int llog_lvfs_close(const struct lu_env *env,
@@ -744,10 +732,8 @@ static int llog_lvfs_close(const struct lu_env *env,
 {
 	int rc;
 
-	ENTRY;
-
 	if (handle->lgh_file == NULL)
-		RETURN(0);
+		return 0;
 	rc = filp_close(handle->lgh_file, 0);
 	if (rc)
 		CERROR("%s: error closing llog #"DOSTID"#%08x: "
@@ -759,7 +745,7 @@ static int llog_lvfs_close(const struct lu_env *env,
 		OBD_FREE(handle->lgh_name, strlen(handle->lgh_name) + 1);
 		handle->lgh_name = NULL;
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int llog_lvfs_destroy(const struct lu_env *env,
@@ -772,7 +758,6 @@ static int llog_lvfs_destroy(const struct lu_env *env,
 	void *th;
 	struct inode *inode;
 	int rc, rc1;
-	ENTRY;
 
 	dir = MOUNT_CONFIGS_DIR;
 
@@ -795,12 +780,12 @@ static int llog_lvfs_destroy(const struct lu_env *env,
 
 		dput(fdentry);
 		pop_ctxt(&saved, &obd->obd_lvfs_ctxt, NULL);
-		RETURN(rc);
+		return rc;
 	}
 
 	OBDO_ALLOC(oa);
 	if (oa == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	oa->o_oi = handle->lgh_id.lgl_oi;
 	oa->o_generation = handle->lgh_id.lgl_ogen;
@@ -825,7 +810,7 @@ static int llog_lvfs_destroy(const struct lu_env *env,
 		rc = rc1;
  out:
 	OBDO_FREE(oa);
-	RETURN(rc);
+	return rc;
 }
 
 static int llog_lvfs_declare_create(const struct lu_env *env,

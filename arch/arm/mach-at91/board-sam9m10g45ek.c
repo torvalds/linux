@@ -284,7 +284,7 @@ static struct fb_monspecs at91fb_default_monspecs = {
 					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
 
 /* Driver datas */
-static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data = {
 	.lcdcon_is_backlight		= true,
 	.default_bpp			= 32,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
@@ -295,7 +295,7 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 };
 
 #else
-static struct atmel_lcdfb_info __initdata ek_lcdc_data;
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data;
 #endif
 
 

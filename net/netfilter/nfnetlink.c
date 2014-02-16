@@ -147,9 +147,6 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	const struct nfnetlink_subsystem *ss;
 	int type, err;
 
-	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-
 	/* All the messages must at least contain nfgenmsg */
 	if (nlmsg_len(nlh) < sizeof(struct nfgenmsg))
 		return 0;
@@ -217,9 +214,181 @@ replay:
 	}
 }
 
+static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
+				u_int16_t subsys_id)
+{
+	struct sk_buff *nskb, *oskb = skb;
+	struct net *net = sock_net(skb->sk);
+	const struct nfnetlink_subsystem *ss;
+	const struct nfnl_callback *nc;
+	bool success = true, done = false;
+	int err;
+
+	if (subsys_id >= NFNL_SUBSYS_COUNT)
+		return netlink_ack(skb, nlh, -EINVAL);
+replay:
+	nskb = netlink_skb_clone(oskb, GFP_KERNEL);
+	if (!nskb)
+		return netlink_ack(oskb, nlh, -ENOMEM);
+
+	nskb->sk = oskb->sk;
+	skb = nskb;
+
+	nfnl_lock(subsys_id);
+	ss = rcu_dereference_protected(table[subsys_id].subsys,
+				       lockdep_is_held(&table[subsys_id].mutex));
+	if (!ss) {
+#ifdef CONFIG_MODULES
+		nfnl_unlock(subsys_id);
+		request_module("nfnetlink-subsys-%d", subsys_id);
+		nfnl_lock(subsys_id);
+		ss = rcu_dereference_protected(table[subsys_id].subsys,
+					       lockdep_is_held(&table[subsys_id].mutex));
+		if (!ss)
+#endif
+		{
+			nfnl_unlock(subsys_id);
+			kfree_skb(nskb);
+			return netlink_ack(skb, nlh, -EOPNOTSUPP);
+		}
+	}
+
+	if (!ss->commit || !ss->abort) {
+		nfnl_unlock(subsys_id);
+		kfree_skb(nskb);
+		return netlink_ack(skb, nlh, -EOPNOTSUPP);
+	}
+
+	while (skb->len >= nlmsg_total_size(0)) {
+		int msglen, type;
+
+		nlh = nlmsg_hdr(skb);
+		err = 0;
+
+		if (nlh->nlmsg_len < NLMSG_HDRLEN) {
+			err = -EINVAL;
+			goto ack;
+		}
+
+		/* Only requests are handled by the kernel */
+		if (!(nlh->nlmsg_flags & NLM_F_REQUEST)) {
+			err = -EINVAL;
+			goto ack;
+		}
+
+		type = nlh->nlmsg_type;
+		if (type == NFNL_MSG_BATCH_BEGIN) {
+			/* Malformed: Batch begin twice */
+			success = false;
+			goto done;
+		} else if (type == NFNL_MSG_BATCH_END) {
+			done = true;
+			goto done;
+		} else if (type < NLMSG_MIN_TYPE) {
+			err = -EINVAL;
+			goto ack;
+		}
+
+		/* We only accept a batch with messages for the same
+		 * subsystem.
+		 */
+		if (NFNL_SUBSYS_ID(type) != subsys_id) {
+			err = -EINVAL;
+			goto ack;
+		}
+
+		nc = nfnetlink_find_client(type, ss);
+		if (!nc) {
+			err = -EINVAL;
+			goto ack;
+		}
+
+		{
+			int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
+			u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
+			struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
+			struct nlattr *attr = (void *)nlh + min_len;
+			int attrlen = nlh->nlmsg_len - min_len;
+
+			err = nla_parse(cda, ss->cb[cb_id].attr_count,
+					attr, attrlen, ss->cb[cb_id].policy);
+			if (err < 0)
+				goto ack;
+
+			if (nc->call_batch) {
+				err = nc->call_batch(net->nfnl, skb, nlh,
+						     (const struct nlattr **)cda);
+			}
+
+			/* The lock was released to autoload some module, we
+			 * have to abort and start from scratch using the
+			 * original skb.
+			 */
+			if (err == -EAGAIN) {
+				ss->abort(skb);
+				nfnl_unlock(subsys_id);
+				kfree_skb(nskb);
+				goto replay;
+			}
+		}
+ack:
+		if (nlh->nlmsg_flags & NLM_F_ACK || err) {
+			/* We don't stop processing the batch on errors, thus,
+			 * userspace gets all the errors that the batch
+			 * triggers.
+			 */
+			netlink_ack(skb, nlh, err);
+			if (err)
+				success = false;
+		}
+
+		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
+		if (msglen > skb->len)
+			msglen = skb->len;
+		skb_pull(skb, msglen);
+	}
+done:
+	if (success && done)
+		ss->commit(skb);
+	else
+		ss->abort(skb);
+
+	nfnl_unlock(subsys_id);
+	kfree_skb(nskb);
+}
+
 static void nfnetlink_rcv(struct sk_buff *skb)
 {
-	netlink_rcv_skb(skb, &nfnetlink_rcv_msg);
+	struct nlmsghdr *nlh = nlmsg_hdr(skb);
+	struct net *net = sock_net(skb->sk);
+	int msglen;
+
+	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
+	    skb->len < nlh->nlmsg_len)
+		return;
+
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN)) {
+		netlink_ack(skb, nlh, -EPERM);
+		return;
+	}
+
+	if (nlh->nlmsg_type == NFNL_MSG_BATCH_BEGIN) {
+		struct nfgenmsg *nfgenmsg;
+
+		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
+		if (msglen > skb->len)
+			msglen = skb->len;
+
+		if (nlh->nlmsg_len < NLMSG_HDRLEN ||
+		    skb->len < NLMSG_HDRLEN + sizeof(struct nfgenmsg))
+			return;
+
+		nfgenmsg = nlmsg_data(nlh);
+		skb_pull(skb, msglen);
+		nfnetlink_rcv_batch(skb, nlh, nfgenmsg->res_id);
+	} else {
+		netlink_rcv_skb(skb, &nfnetlink_rcv_msg);
+	}
 }
 
 #ifdef CONFIG_MODULES

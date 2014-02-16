@@ -20,7 +20,7 @@
 #ifndef __ASM_KVM_BOOK3S_64_H__
 #define __ASM_KVM_BOOK3S_64_H__
 
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 static inline struct kvmppc_book3s_shadow_vcpu *svcpu_get(struct kvm_vcpu *vcpu)
 {
 	preempt_disable();
@@ -35,9 +35,9 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 
 #define SPAPR_TCE_SHIFT		12
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
-extern int kvm_hpt_order;		/* order of preallocated HPTs */
+extern unsigned long kvm_rma_pages;
 #endif
 
 #define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
@@ -100,7 +100,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 			/* (masks depend on page size) */
 			rb |= 0x1000;		/* page encoding in LP field */
 			rb |= (va_low & 0x7f) << 16; /* 7b of VA in AVA/LP field */
-			rb |= (va_low & 0xfe);	/* AVAL field (P7 doesn't seem to care) */
+			rb |= ((va_low << 4) & 0xf0);	/* AVAL field (P7 doesn't seem to care) */
 		}
 	} else {
 		/* 4kB page */
@@ -159,35 +159,45 @@ static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
 }
 
 /*
- * Lock and read a linux PTE.  If it's present and writable, atomically
- * set dirty and referenced bits and return the PTE, otherwise return 0.
+ * If it's present and writable, atomically set dirty and referenced bits and
+ * return the PTE, otherwise return 0. If we find a transparent hugepage
+ * and if it is marked splitting we return 0;
  */
-static inline pte_t kvmppc_read_update_linux_pte(pte_t *p, int writing)
+static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing,
+						 unsigned int hugepage)
 {
-	pte_t pte, tmp;
+	pte_t old_pte, new_pte = __pte(0);
 
-	/* wait until _PAGE_BUSY is clear then set it atomically */
-	__asm__ __volatile__ (
-		"1:	ldarx	%0,0,%3\n"
-		"	andi.	%1,%0,%4\n"
-		"	bne-	1b\n"
-		"	ori	%1,%0,%4\n"
-		"	stdcx.	%1,0,%3\n"
-		"	bne-	1b"
-		: "=&r" (pte), "=&r" (tmp), "=m" (*p)
-		: "r" (p), "i" (_PAGE_BUSY)
-		: "cc");
+	while (1) {
+		old_pte = pte_val(*ptep);
+		/*
+		 * wait until _PAGE_BUSY is clear then set it atomically
+		 */
+		if (unlikely(old_pte & _PAGE_BUSY)) {
+			cpu_relax();
+			continue;
+		}
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		/* If hugepage and is trans splitting return None */
+		if (unlikely(hugepage &&
+			     pmd_trans_splitting(pte_pmd(old_pte))))
+			return __pte(0);
+#endif
+		/* If pte is not present return None */
+		if (unlikely(!(old_pte & _PAGE_PRESENT)))
+			return __pte(0);
 
-	if (pte_present(pte)) {
-		pte = pte_mkyoung(pte);
-		if (writing && pte_write(pte))
-			pte = pte_mkdirty(pte);
+		new_pte = pte_mkyoung(old_pte);
+		if (writing && pte_write(old_pte))
+			new_pte = pte_mkdirty(new_pte);
+
+		if (old_pte == __cmpxchg_u64((unsigned long *)ptep, old_pte,
+					     new_pte))
+			break;
 	}
-
-	*p = pte;	/* clears _PAGE_BUSY */
-
-	return pte;
+	return new_pte;
 }
+
 
 /* Return HPTE cache control bits corresponding to Linux pte bits */
 static inline unsigned long hpte_cache_bits(unsigned long pte_val)
@@ -268,7 +278,7 @@ static inline int is_vrma_hpte(unsigned long hpte_v)
 		(HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)));
 }
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 /*
  * Note modification of an HPTE; set the HPTE modified bit
  * if anyone is interested.
@@ -279,6 +289,6 @@ static inline void note_hpte_modification(struct kvm *kvm,
 	if (atomic_read(&kvm->arch.hpte_mod_interest))
 		rev->guest_rpte |= HPTE_GR_MODIFIED;
 }
-#endif /* CONFIG_KVM_BOOK3S_64_HV */
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #endif /* __ASM_KVM_BOOK3S_64_H__ */

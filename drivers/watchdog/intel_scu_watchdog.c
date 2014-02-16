@@ -48,7 +48,7 @@
 #include <linux/atomic.h>
 #include <asm/intel_scu_ipc.h>
 #include <asm/apb_timer.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 
 #include "intel_scu_watchdog.h"
 
@@ -445,7 +445,7 @@ static int __init intel_scu_watchdog_init(void)
 	 *
 	 * If it isn't an intel MID device then it doesn't have this watchdog
 	 */
-	if (!mrst_identify_cpu())
+	if (!intel_mid_identify_cpu())
 		return -ENODEV;
 
 	/* Check boot parameters to verify that their initial values */
@@ -564,5 +564,4 @@ module_exit(intel_scu_watchdog_exit);
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel SCU Watchdog Device Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_VERSION(WDT_VER);

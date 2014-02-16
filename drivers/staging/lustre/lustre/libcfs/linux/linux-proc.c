@@ -54,9 +54,7 @@
 
 #include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/stat.h>
 #include <linux/list.h>
-#include <asm/uaccess.h>
 
 #include <linux/proc_fs.h>
 #include <linux/sysctl.h>
@@ -67,9 +65,7 @@
 #include <asm/div64.h>
 #include "tracefile.h"
 
-#ifdef CONFIG_SYSCTL
 static ctl_table_header_t *lnet_table_header = NULL;
-#endif
 extern char lnet_upcall[1024];
 /**
  * The path of debug log dump upcall script.
@@ -373,7 +369,6 @@ static ctl_table_t lnet_table[] = {
 	 * to go via /proc for portability.
 	 */
 	{
-		INIT_CTL_NAME(PSDEV_DEBUG)
 		.procname = "debug",
 		.data     = &libcfs_debug,
 		.maxlen   = sizeof(int),
@@ -381,7 +376,6 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &proc_dobitmasks,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_SUBSYSTEM_DEBUG)
 		.procname = "subsystem_debug",
 		.data     = &libcfs_subsystem_debug,
 		.maxlen   = sizeof(int),
@@ -389,7 +383,6 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &proc_dobitmasks,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_PRINTK)
 		.procname = "printk",
 		.data     = &libcfs_printk,
 		.maxlen   = sizeof(int),
@@ -397,7 +390,6 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &proc_dobitmasks,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_CONSOLE_RATELIMIT)
 		.procname = "console_ratelimit",
 		.data     = &libcfs_console_ratelimit,
 		.maxlen   = sizeof(int),
@@ -405,21 +397,18 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &proc_dointvec
 	},
 	{
-		INIT_CTL_NAME(PSDEV_CONSOLE_MAX_DELAY_CS)
 		.procname = "console_max_delay_centisecs",
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_console_max_delay_cs
 	},
 	{
-		INIT_CTL_NAME(PSDEV_CONSOLE_MIN_DELAY_CS)
 		.procname = "console_min_delay_centisecs",
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_console_min_delay_cs
 	},
 	{
-		INIT_CTL_NAME(PSDEV_CONSOLE_BACKOFF)
 		.procname = "console_backoff",
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
@@ -427,7 +416,6 @@ static ctl_table_t lnet_table[] = {
 	},
 
 	{
-		INIT_CTL_NAME(PSDEV_DEBUG_PATH)
 		.procname = "debug_path",
 		.data     = libcfs_debug_file_path_arr,
 		.maxlen   = sizeof(libcfs_debug_file_path_arr),
@@ -436,7 +424,6 @@ static ctl_table_t lnet_table[] = {
 	},
 
 	{
-		INIT_CTL_NAME(PSDEV_CPT_TABLE)
 		.procname = "cpu_partition_table",
 		.maxlen   = 128,
 		.mode     = 0444,
@@ -444,7 +431,6 @@ static ctl_table_t lnet_table[] = {
 	},
 
 	{
-		INIT_CTL_NAME(PSDEV_LNET_UPCALL)
 		.procname = "upcall",
 		.data     = lnet_upcall,
 		.maxlen   = sizeof(lnet_upcall),
@@ -452,7 +438,6 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &proc_dostring,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_DEBUG_LOG_UPCALL)
 		.procname = "debug_log_upcall",
 		.data     = lnet_debug_log_upcall,
 		.maxlen   = sizeof(lnet_debug_log_upcall),
@@ -460,54 +445,44 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &proc_dostring,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_MEMUSED)
 		.procname = "lnet_memused",
 		.data     = (int *)&libcfs_kmemory.counter,
 		.maxlen   = sizeof(int),
 		.mode     = 0444,
 		.proc_handler = &proc_dointvec,
-		INIT_STRATEGY(&sysctl_intvec)
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_CATASTROPHE)
 		.procname = "catastrophe",
 		.data     = &libcfs_catastrophe,
 		.maxlen   = sizeof(int),
 		.mode     = 0444,
 		.proc_handler = &proc_dointvec,
-		INIT_STRATEGY(&sysctl_intvec)
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_PANIC_ON_LBUG)
 		.procname = "panic_on_lbug",
 		.data     = &libcfs_panic_on_lbug,
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_dointvec,
-		INIT_STRATEGY(&sysctl_intvec)
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_DUMP_KERNEL)
 		.procname = "dump_kernel",
 		.maxlen   = 256,
 		.mode     = 0200,
 		.proc_handler = &proc_dump_kernel,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_DAEMON_FILE)
 		.procname = "daemon_file",
 		.mode     = 0644,
 		.maxlen   = 256,
 		.proc_handler = &proc_daemon_file,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_DEBUG_MB)
 		.procname = "debug_mb",
 		.mode     = 0644,
 		.proc_handler = &proc_debug_mb,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_WATCHDOG_RATELIMIT)
 		.procname = "watchdog_ratelimit",
 		.data     = &libcfs_watchdog_ratelimit,
 		.maxlen   = sizeof(int),
@@ -516,7 +491,7 @@ static ctl_table_t lnet_table[] = {
 		.extra1   = &min_watchdog_ratelimit,
 		.extra2   = &max_watchdog_ratelimit,
 	},
-	{       INIT_CTL_NAME(PSDEV_LNET_FORCE_LBUG)
+	{
 		.procname = "force_lbug",
 		.data     = NULL,
 		.maxlen   = 0,
@@ -524,7 +499,6 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &libcfs_force_lbug
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_FAIL_LOC)
 		.procname = "fail_loc",
 		.data     = &cfs_fail_loc,
 		.maxlen   = sizeof(cfs_fail_loc),
@@ -532,7 +506,6 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &proc_fail_loc
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_FAIL_VAL)
 		.procname = "fail_val",
 		.data     = &cfs_fail_val,
 		.maxlen   = sizeof(int),
@@ -540,14 +513,11 @@ static ctl_table_t lnet_table[] = {
 		.proc_handler = &proc_dointvec
 	},
 	{
-		INIT_CTL_NAME(0)
 	}
 };
 
-#ifdef CONFIG_SYSCTL
 static ctl_table_t top_table[] = {
 	{
-		INIT_CTL_NAME(CTL_LNET)
 		.procname = "lnet",
 		.mode     = 0555,
 		.data     = NULL,
@@ -555,26 +525,20 @@ static ctl_table_t top_table[] = {
 		.child    = lnet_table,
 	},
 	{
-		INIT_CTL_NAME(0)
 	}
 };
-#endif
 
 int insert_proc(void)
 {
-#ifdef CONFIG_SYSCTL
 	if (lnet_table_header == NULL)
-		lnet_table_header = cfs_register_sysctl_table(top_table, 0);
-#endif
+		lnet_table_header = register_sysctl_table(top_table);
 	return 0;
 }
 
 void remove_proc(void)
 {
-#ifdef CONFIG_SYSCTL
 	if (lnet_table_header != NULL)
 		unregister_sysctl_table(lnet_table_header);
 
 	lnet_table_header = NULL;
-#endif
 }

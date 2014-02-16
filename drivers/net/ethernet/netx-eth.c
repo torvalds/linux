@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/init.h>
@@ -390,7 +389,7 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 
-	pdata = (struct netxeth_platform_data *)pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	priv->xc = request_xc(pdata->xcno, &pdev->dev);
 	if (!priv->xc) {
 		dev_err(&pdev->dev, "unable to request xc engine\n");
@@ -422,7 +421,6 @@ exit_free_pfifo:
 exit_free_xc:
 	free_xc(priv->xc);
 exit_free_netdev:
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 exit:
 	return ret;
@@ -430,10 +428,8 @@ exit:
 
 static int netx_eth_drv_remove(struct platform_device *pdev)
 {
-	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct netx_eth_priv *priv = netdev_priv(ndev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
 	xc_stop(priv->xc);

@@ -75,23 +75,51 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 		gpio-controller;
 	};
 
-2.1) gpio-controller and pinctrl subsystem
-------------------------------------------
+2.1) gpio- and pin-controller interaction
+-----------------------------------------
 
-gpio-controller on a SOC might be tightly coupled with the pinctrl
-subsystem, in the sense that the pins can be used by other functions
-together with optional gpio feature.
+Some or all of the GPIOs provided by a GPIO controller may be routed to pins
+on the package via a pin controller. This allows muxing those pins between
+GPIO and other functions.
 
-While the pin allocation is totally managed by the pin ctrl subsystem,
-gpio (under gpiolib) is still maintained by gpio drivers. It may happen
-that different pin ranges in a SoC is managed by different gpio drivers.
+It is useful to represent which GPIOs correspond to which pins on which pin
+controllers. The gpio-ranges property described below represents this, and
+contains information structures as follows:
 
-This makes it logical to let gpio drivers announce their pin ranges to
-the pin ctrl subsystem and call 'pinctrl_request_gpio' in order to
-request the corresponding pin before any gpio usage.
+	gpio-range-list ::= <single-gpio-range> [gpio-range-list]
+	single-gpio-range ::= <numeric-gpio-range> | <named-gpio-range>
+	numeric-gpio-range ::=
+			<pinctrl-phandle> <gpio-base> <pinctrl-base> <count>
+	named-gpio-range ::= <pinctrl-phandle> <gpio-base> '<0 0>'
+	gpio-phandle : phandle to pin controller node.
+	gpio-base : Base GPIO ID in the GPIO controller
+	pinctrl-base : Base pinctrl pin ID in the pin controller
+	count : The number of GPIOs/pins in this range
 
-For this, the gpio controller can use a pinctrl phandle and pins to
-announce the pinrange to the pin ctrl subsystem. For example,
+The "pin controller node" mentioned above must conform to the bindings
+described in ../pinctrl/pinctrl-bindings.txt.
+
+In case named gpio ranges are used (ranges with both <pinctrl-base> and
+<count> set to 0), the property gpio-ranges-group-names contains one string
+for every single-gpio-range in gpio-ranges:
+	gpiorange-names-list ::= <gpiorange-name> [gpiorange-names-list]
+	gpiorange-name : Name of the pingroup associated to the GPIO range in
+			the respective pin controller.
+
+Elements of gpiorange-names-list corresponding to numeric ranges contain
+the empty string. Elements of gpiorange-names-list corresponding to named
+ranges contain the name of a pin group defined in the respective pin
+controller. The number of pins/GPIOs in the range is the number of pins in
+that pin group.
+
+Previous versions of this binding required all pin controller nodes that
+were referenced by any gpio-ranges property to contain a property named
+#gpio-range-cells with value <3>. This requirement is now deprecated.
+However, that property may still exist in older device trees for
+compatibility reasons, and would still be required even in new device
+trees that need to be compatible with older software.
+
+Example 1:
 
 	qe_pio_e: gpio-controller@1460 {
 		#gpio-cells = <2>;
@@ -99,16 +127,29 @@ announce the pinrange to the pin ctrl subsystem. For example,
 		reg = <0x1460 0x18>;
 		gpio-controller;
 		gpio-ranges = <&pinctrl1 0 20 10>, <&pinctrl2 10 50 20>;
+	};
 
-    }
+Here, a single GPIO controller has GPIOs 0..9 routed to pin controller
+pinctrl1's pins 20..29, and GPIOs 10..19 routed to pin controller pinctrl2's
+pins 50..59.
 
-where,
-   &pinctrl1 and &pinctrl2 is the phandle to the pinctrl DT node.
+Example 2:
 
-   Next values specify the base pin and number of pins for the range
-   handled by 'qe_pio_e' gpio. In the given example from base pin 20 to
-   pin 29 under pinctrl1 with gpio offset 0 and pin 50 to pin 69 under
-   pinctrl2 with gpio offset 10 is handled by this gpio controller.
+	gpio_pio_i: gpio-controller@14B0 {
+		#gpio-cells = <2>;
+		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
+		reg = <0x1480 0x18>;
+		gpio-controller;
+		gpio-ranges =			<&pinctrl1 0 20 10>,
+						<&pinctrl2 10 0 0>,
+						<&pinctrl1 15 0 10>,
+						<&pinctrl2 25 0 0>;
+		gpio-ranges-group-names =	"",
+						"foo",
+						"",
+						"bar";
+	};
 
-The pinctrl node must have "#gpio-range-cells" property to show number of
-arguments to pass with phandle from gpio controllers node.
+Here, three GPIO ranges are defined wrt. two pin controllers. pinctrl1 GPIO
+ranges are defined using pin numbers whereas the GPIO ranges wrt. pinctrl2
+are named "foo" and "bar".

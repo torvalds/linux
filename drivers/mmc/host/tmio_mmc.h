@@ -40,16 +40,31 @@
 
 struct tmio_mmc_data;
 
+/*
+ * We differentiate between the following 3 power states:
+ * 1. card slot powered off, controller stopped. This is used, when either there
+ *    is no card in the slot, or the card really has to be powered down.
+ * 2. card slot powered on, controller stopped. This is used, when a card is in
+ *    the slot, but no activity is currently taking place. This is a power-
+ *    saving mode with card-state preserved. This state can be entered, e.g.
+ *    when MMC clock-gating is used.
+ * 3. card slot powered on, controller running. This is the actual active state.
+ */
+enum tmio_mmc_power {
+	TMIO_MMC_OFF_STOP,	/* card power off, controller stopped */
+	TMIO_MMC_ON_STOP,	/* card power on, controller stopped */
+	TMIO_MMC_ON_RUN,	/* card power on, controller running */
+};
+
 struct tmio_mmc_host {
 	void __iomem *ctl;
-	unsigned long bus_shift;
 	struct mmc_command      *cmd;
 	struct mmc_request      *mrq;
 	struct mmc_data         *data;
 	struct mmc_host         *mmc;
 
-	/* Controller power state */
-	bool			power;
+	/* Controller and card power state */
+	enum tmio_mmc_power	power;
 
 	/* Callbacks for clock / power control */
 	void (*set_pwr)(struct platform_device *host, int state);
@@ -85,6 +100,7 @@ struct tmio_mmc_host {
 	unsigned long		last_req_ts;
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
+	bool			resuming;
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
@@ -159,19 +175,19 @@ int tmio_mmc_host_runtime_resume(struct device *dev);
 
 static inline u16 sd_ctrl_read16(struct tmio_mmc_host *host, int addr)
 {
-	return readw(host->ctl + (addr << host->bus_shift));
+	return readw(host->ctl + (addr << host->pdata->bus_shift));
 }
 
 static inline void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
 		u16 *buf, int count)
 {
-	readsw(host->ctl + (addr << host->bus_shift), buf, count);
+	readsw(host->ctl + (addr << host->pdata->bus_shift), buf, count);
 }
 
 static inline u32 sd_ctrl_read32(struct tmio_mmc_host *host, int addr)
 {
-	return readw(host->ctl + (addr << host->bus_shift)) |
-	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
+	return readw(host->ctl + (addr << host->pdata->bus_shift)) |
+	       readw(host->ctl + ((addr + 2) << host->pdata->bus_shift)) << 16;
 }
 
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
@@ -181,19 +197,19 @@ static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val
 	 */
 	if (host->pdata->write16_hook && host->pdata->write16_hook(host, addr))
 		return;
-	writew(val, host->ctl + (addr << host->bus_shift));
+	writew(val, host->ctl + (addr << host->pdata->bus_shift));
 }
 
 static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
 		u16 *buf, int count)
 {
-	writesw(host->ctl + (addr << host->bus_shift), buf, count);
+	writesw(host->ctl + (addr << host->pdata->bus_shift), buf, count);
 }
 
 static inline void sd_ctrl_write32(struct tmio_mmc_host *host, int addr, u32 val)
 {
-	writew(val, host->ctl + (addr << host->bus_shift));
-	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
+	writew(val, host->ctl + (addr << host->pdata->bus_shift));
+	writew(val >> 16, host->ctl + ((addr + 2) << host->pdata->bus_shift));
 }
 
 

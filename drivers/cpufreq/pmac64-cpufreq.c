@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -69,11 +70,6 @@ static struct cpufreq_frequency_table g5_cpu_freqs[] = {
 	{0,			CPUFREQ_TABLE_END},
 };
 
-static struct freq_attr* g5_cpu_freqs_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 /* Power mode data is an array of the 32 bits PCR values to use for
  * the various frequencies, retrieved from the device-tree
  */
@@ -82,8 +78,6 @@ static int g5_pmode_cur;
 static void (*g5_switch_volt)(int speed_mode);
 static int (*g5_switch_freq)(int speed_mode);
 static int (*g5_query_freq)(void);
-
-static DEFINE_MUTEX(g5_switch_mutex);
 
 static unsigned long transition_latency;
 
@@ -141,7 +135,7 @@ static void g5_vdnap_switch_volt(int speed_mode)
 		pmf_call_one(pfunc_vdnap0_complete, &args);
 		if (done)
 			break;
-		msleep(1);
+		usleep_range(1000, 1000);
 	}
 	if (done == 0)
 		printk(KERN_WARNING "cpufreq: Timeout in clock slewing !\n");
@@ -240,7 +234,7 @@ static void g5_pfunc_switch_volt(int speed_mode)
 		if (pfunc_cpu1_volt_low)
 			pmf_call_one(pfunc_cpu1_volt_low, NULL);
 	}
-	msleep(10); /* should be faster , to fix */
+	usleep_range(10000, 10000); /* should be faster , to fix */
 }
 
 /*
@@ -285,7 +279,7 @@ static int g5_pfunc_switch_freq(int speed_mode)
 		pmf_call_one(pfunc_slewing_done, &args);
 		if (done)
 			break;
-		msleep(1);
+		usleep_range(500, 500);
 	}
 	if (done == 0)
 		printk(KERN_WARNING "cpufreq: Timeout in clock slewing !\n");
@@ -316,37 +310,9 @@ static int g5_pfunc_query_freq(void)
  * Common interface to the cpufreq core
  */
 
-static int g5_cpufreq_verify(struct cpufreq_policy *policy)
+static int g5_cpufreq_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	return cpufreq_frequency_table_verify(policy, g5_cpu_freqs);
-}
-
-static int g5_cpufreq_target(struct cpufreq_policy *policy,
-	unsigned int target_freq, unsigned int relation)
-{
-	unsigned int newstate = 0;
-	struct cpufreq_freqs freqs;
-	int rc;
-
-	if (cpufreq_frequency_table_target(policy, g5_cpu_freqs,
-			target_freq, relation, &newstate))
-		return -EINVAL;
-
-	if (g5_pmode_cur == newstate)
-		return 0;
-
-	mutex_lock(&g5_switch_mutex);
-
-	freqs.old = g5_cpu_freqs[g5_pmode_cur].frequency;
-	freqs.new = g5_cpu_freqs[newstate].frequency;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-	rc = g5_switch_freq(newstate);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	mutex_unlock(&g5_switch_mutex);
-
-	return rc;
+	return g5_switch_freq(index);
 }
 
 static unsigned int g5_cpufreq_get_speed(unsigned int cpu)
@@ -356,36 +322,24 @@ static unsigned int g5_cpufreq_get_speed(unsigned int cpu)
 
 static int g5_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	policy->cpuinfo.transition_latency = transition_latency;
-	policy->cur = g5_cpu_freqs[g5_query_freq()].frequency;
-	/* secondary CPUs are tied to the primary one by the
-	 * cpufreq core if in the secondary policy we tell it that
-	 * it actually must be one policy together with all others. */
-	cpumask_copy(policy->cpus, cpu_online_mask);
-	cpufreq_frequency_table_get_attr(g5_cpu_freqs, policy->cpu);
-
-	return cpufreq_frequency_table_cpuinfo(policy,
-		g5_cpu_freqs);
+	return cpufreq_generic_init(policy, g5_cpu_freqs, transition_latency);
 }
-
 
 static struct cpufreq_driver g5_cpufreq_driver = {
 	.name		= "powermac",
-	.owner		= THIS_MODULE,
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= g5_cpufreq_cpu_init,
-	.verify		= g5_cpufreq_verify,
-	.target		= g5_cpufreq_target,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= g5_cpufreq_target,
 	.get		= g5_cpufreq_get_speed,
-	.attr 		= g5_cpu_freqs_attr,
+	.attr 		= cpufreq_generic_attr,
 };
 
 
 #ifdef CONFIG_PMAC_SMU
 
-static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
+static int __init g5_neo2_cpufreq_init(struct device_node *cpunode)
 {
-	struct device_node *cpunode;
 	unsigned int psize, ssize;
 	unsigned long max_freq;
 	char *freq_method, *volt_method;
@@ -398,26 +352,13 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 	/* Check supported platforms */
 	if (of_machine_is_compatible("PowerMac8,1") ||
 	    of_machine_is_compatible("PowerMac8,2") ||
-	    of_machine_is_compatible("PowerMac9,1"))
+	    of_machine_is_compatible("PowerMac9,1") ||
+	    of_machine_is_compatible("PowerMac12,1"))
 		use_volts_smu = 1;
 	else if (of_machine_is_compatible("PowerMac11,2"))
 		use_volts_vdnap = 1;
 	else
 		return -ENODEV;
-
-	/* Get first CPU node */
-	for (cpunode = NULL;
-	     (cpunode = of_get_next_child(cpus, cpunode)) != NULL;) {
-		const u32 *reg = of_get_property(cpunode, "reg", NULL);
-		if (reg == NULL || (*reg) != 0)
-			continue;
-		if (!strcmp(cpunode->type, "cpu"))
-			break;
-	}
-	if (cpunode == NULL) {
-		printk(KERN_ERR "cpufreq: Can't find any CPU 0 node\n");
-		return -ENODEV;
-	}
 
 	/* Check 970FX for now */
 	valp = of_get_property(cpunode, "cpu-version", NULL);
@@ -447,9 +388,8 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 		if (!shdr)
 			goto bail_noprops;
 		g5_fvt_table = (struct smu_sdbp_fvt *)&shdr[1];
-		ssize = (shdr->len * sizeof(u32)) -
-			sizeof(struct smu_sdbp_header);
-		g5_fvt_count = ssize / sizeof(struct smu_sdbp_fvt);
+		ssize = (shdr->len * sizeof(u32)) - sizeof(*shdr);
+		g5_fvt_count = ssize / sizeof(*g5_fvt_table);
 		g5_fvt_cur = 0;
 
 		/* Sanity checking */
@@ -537,9 +477,9 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 #endif /* CONFIG_PMAC_SMU */
 
 
-static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
+static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 {
-	struct device_node *cpuid = NULL, *hwclock = NULL, *cpunode = NULL;
+	struct device_node *cpuid = NULL, *hwclock = NULL;
 	const u8 *eeprom = NULL;
 	const u32 *valp;
 	u64 max_freq, min_freq, ih, il;
@@ -547,17 +487,6 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
 
 	DBG("cpufreq: Initializing for PowerMac7,2, PowerMac7,3 and"
 	    " RackMac3,1...\n");
-
-	/* Get first CPU node */
-	for (cpunode = NULL;
-	     (cpunode = of_get_next_child(cpus, cpunode)) != NULL;) {
-		if (!strcmp(cpunode->type, "cpu"))
-			break;
-	}
-	if (cpunode == NULL) {
-		printk(KERN_ERR "cpufreq: Can't find any CPU node\n");
-		return -ENODEV;
-	}
 
 	/* Lookup the cpuid eeprom node */
         cpuid = of_find_node_by_path("/u3@0,f8000000/i2c@f8001000/cpuid@a0");
@@ -674,8 +603,10 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
 	g5_cpu_freqs[0].frequency = max_freq;
 	g5_cpu_freqs[1].frequency = min_freq;
 
+	/* Based on a measurement on Xserve G5, rounded up. */
+	transition_latency = 10 * NSEC_PER_MSEC;
+
 	/* Set callbacks */
-	transition_latency = CPUFREQ_ETERNAL;
 	g5_switch_volt = g5_pfunc_switch_volt;
 	g5_switch_freq = g5_pfunc_switch_freq;
 	g5_query_freq = g5_pfunc_query_freq;
@@ -718,25 +649,25 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
 
 static int __init g5_cpufreq_init(void)
 {
-	struct device_node *cpus;
+	struct device_node *cpunode;
 	int rc = 0;
 
-	cpus = of_find_node_by_path("/cpus");
-	if (cpus == NULL) {
-		DBG("No /cpus node !\n");
+	/* Get first CPU node */
+	cpunode = of_cpu_device_node_get(0);
+	if (cpunode == NULL) {
+		pr_err("cpufreq: Can't find any CPU node\n");
 		return -ENODEV;
 	}
 
 	if (of_machine_is_compatible("PowerMac7,2") ||
 	    of_machine_is_compatible("PowerMac7,3") ||
 	    of_machine_is_compatible("RackMac3,1"))
-		rc = g5_pm72_cpufreq_init(cpus);
+		rc = g5_pm72_cpufreq_init(cpunode);
 #ifdef CONFIG_PMAC_SMU
 	else
-		rc = g5_neo2_cpufreq_init(cpus);
+		rc = g5_neo2_cpufreq_init(cpunode);
 #endif /* CONFIG_PMAC_SMU */
 
-	of_node_put(cpus);
 	return rc;
 }
 

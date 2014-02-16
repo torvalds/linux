@@ -14,6 +14,7 @@
 #include <linux/gfp.h>
 #include <linux/cpu.h>
 #include <asm/ctl_reg.h>
+#include <asm/io.h>
 
 /*
  * This function writes to kernel memory bypassing DAT and possible

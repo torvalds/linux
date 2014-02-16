@@ -86,7 +86,7 @@ static int ade7753_spi_read_reg_16(struct device *dev,
 	struct ade7753_state *st = iio_priv(indio_dev);
 	ssize_t ret;
 
-	ret = spi_w8r16(st->us, ADE7753_READ_REG(reg_address));
+	ret = spi_w8r16be(st->us, ADE7753_READ_REG(reg_address));
 	if (ret < 0) {
 		dev_err(&st->us->dev, "problem when reading 16 bit register 0x%02X",
 			reg_address);
@@ -94,7 +94,6 @@ static int ade7753_spi_read_reg_16(struct device *dev,
 	}
 
 	*val = ret;
-	*val = be16_to_cpup(val);
 
 	return 0;
 }
@@ -186,9 +185,9 @@ static ssize_t ade7753_write_8bit(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
-	long val;
+	u8 val;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou8(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 	ret = ade7753_spi_write_reg_8(dev, this_attr->address, val);
@@ -204,9 +203,9 @@ static ssize_t ade7753_write_16bit(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
-	long val;
+	u16 val;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou16(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 	ret = ade7753_spi_write_reg_16(dev, this_attr->address, val);
@@ -223,21 +222,6 @@ static int ade7753_reset(struct device *dev)
 	val |= 1 << 6; /* Software Chip Reset */
 
 	return ade7753_spi_write_reg_16(dev, ADE7753_MODE, val);
-}
-
-static ssize_t ade7753_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	if (len < 1)
-		return -1;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return ade7753_reset(dev);
-	}
-	return -1;
 }
 
 static IIO_DEV_ATTR_AENERGY(ade7753_read_24bit, ADE7753_AENERGY);
@@ -414,11 +398,11 @@ static ssize_t ade7753_write_frequency(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7753_state *st = iio_priv(indio_dev);
-	unsigned long val;
+	u16 val;
 	int ret;
 	u16 reg, t;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou16(buf, 10, &val);
 	if (ret)
 		return ret;
 	if (val == 0)
@@ -458,8 +442,6 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ade7753_read_frequency,
 		ade7753_write_frequency);
 
-static IIO_DEV_ATTR_RESET(ade7753_write_reset);
-
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("27900 14000 7000 3500");
 
 static struct attribute *ade7753_attributes[] = {
@@ -468,7 +450,6 @@ static struct attribute *ade7753_attributes[] = {
 	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_phcal.dev_attr.attr,
 	&iio_dev_attr_cfden.dev_attr.attr,
 	&iio_dev_attr_aenergy.dev_attr.attr,
@@ -515,11 +496,9 @@ static int ade7753_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
 
@@ -535,19 +514,13 @@ static int ade7753_probe(struct spi_device *spi)
 	/* Get the device into a sane initial state */
 	ret = ade7753_initial_setup(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	return 0;
-
-error_free_dev:
-	iio_device_free(indio_dev);
-
-error_ret:
-	return ret;
 }
 
 /* fixme, confirm ordering in this function */
@@ -557,7 +530,6 @@ static int ade7753_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	ade7753_stop_device(&indio_dev->dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

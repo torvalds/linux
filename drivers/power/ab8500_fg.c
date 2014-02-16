@@ -574,8 +574,8 @@ int ab8500_fg_inst_curr_start(struct ab8500_fg *di)
 	}
 
 	/* Return and WFI */
-	INIT_COMPLETION(di->ab8500_fg_started);
-	INIT_COMPLETION(di->ab8500_fg_complete);
+	reinit_completion(&di->ab8500_fg_started);
+	reinit_completion(&di->ab8500_fg_complete);
 	enable_irq(di->irq);
 
 	/* Note: cc_lock is still locked */
@@ -2465,9 +2465,9 @@ static ssize_t charge_full_store(struct ab8500_fg *di, const char *buf,
 				 size_t count)
 {
 	unsigned long charge_full;
-	ssize_t ret = -EINVAL;
+	ssize_t ret;
 
-	ret = strict_strtoul(buf, 10, &charge_full);
+	ret = kstrtoul(buf, 10, &charge_full);
 
 	dev_dbg(di->dev, "Ret %zd charge_full %lu", ret, charge_full);
 
@@ -2489,7 +2489,7 @@ static ssize_t charge_now_store(struct ab8500_fg *di, const char *buf,
 	unsigned long charge_now;
 	ssize_t ret;
 
-	ret = strict_strtoul(buf, 10, &charge_now);
+	ret = kstrtoul(buf, 10, &charge_now);
 
 	dev_dbg(di->dev, "Ret %zd charge_now %lu was %d",
 		ret, charge_now, di->bat_cap.prev_mah);
@@ -3070,7 +3070,6 @@ static int ab8500_fg_remove(struct platform_device *pdev)
 	flush_scheduled_work();
 	ab8500_fg_sysfs_psy_remove_attrs(di->fg_psy.dev);
 	power_supply_unregister(&di->fg_psy);
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 

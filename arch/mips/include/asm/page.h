@@ -11,6 +11,8 @@
 
 #include <spaces.h>
 #include <linux/const.h>
+#include <linux/kernel.h>
+#include <asm/mipsregs.h>
 
 /*
  * PAGE_SHIFT determines the page size
@@ -32,6 +34,29 @@
 #endif
 #define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~((1 << PAGE_SHIFT) - 1))
+
+/*
+ * This is used for calculating the real page sizes
+ * for FTLB or VTLB + FTLB confugrations.
+ */
+static inline unsigned int page_size_ftlb(unsigned int mmuextdef)
+{
+	switch (mmuextdef) {
+	case MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT:
+		if (PAGE_SIZE == (1 << 30))
+			return 5;
+		if (PAGE_SIZE == (1llu << 32))
+			return 6;
+		if (PAGE_SIZE > (256 << 10))
+			return 7; /* reserved */
+			/* fall through */
+	case MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT:
+		return (PAGE_SHIFT - 10) / 2;
+	default:
+		panic("Invalid FTLB configuration with Conf4_mmuextdef=%d value\n",
+		      mmuextdef >> 14);
+	}
+}
 
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 #define HPAGE_SHIFT	(PAGE_SHIFT + PAGE_SHIFT - 3)
@@ -205,10 +230,8 @@ extern int __virt_addr_valid(const volatile void *kaddr);
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE +	\
-								PHYS_OFFSET)
-#define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET -	\
-								PHYS_OFFSET)
+#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE)
+#define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET)
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

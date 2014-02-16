@@ -1,5 +1,5 @@
 /*
- * include/linux/tipc_config.h: Include file for TIPC configuration interface
+ * include/uapi/linux/tipc_config.h: Header for TIPC configuration interface
  *
  * Copyright (c) 2003-2006, Ericsson AB
  * Copyright (c) 2005-2007, 2010-2011, Wind River Systems

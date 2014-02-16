@@ -213,7 +213,7 @@ acpi_status acpi_ns_initialize_devices(void)
 
 	return_ACPI_STATUS(status);
 
-      error_exit:
+error_exit:
 	ACPI_EXCEPTION((AE_INFO, status, "During device initialization"));
 	return_ACPI_STATUS(status);
 }

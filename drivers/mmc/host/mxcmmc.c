@@ -1067,7 +1067,9 @@ static int mxcmci_probe(struct platform_device *pdev)
 		goto out_release_mem;
 	}
 
-	mmc_of_parse(mmc);
+	ret = mmc_of_parse(mmc);
+	if (ret)
+		goto out_free;
 	mmc->ops = &mxcmci_ops;
 
 	/* For devicetree parsing, the bus width is read from devicetree */
@@ -1219,8 +1221,6 @@ static int mxcmci_remove(struct platform_device *pdev)
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct mxcmci_host *host = mmc_priv(mmc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	mmc_remove_host(mmc);
 
 	if (host->vcc)
@@ -1250,28 +1250,20 @@ static int mxcmci_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxcmci_host *host = mmc_priv(mmc);
-	int ret = 0;
 
-	if (mmc)
-		ret = mmc_suspend_host(mmc);
 	clk_disable_unprepare(host->clk_per);
 	clk_disable_unprepare(host->clk_ipg);
-
-	return ret;
+	return 0;
 }
 
 static int mxcmci_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxcmci_host *host = mmc_priv(mmc);
-	int ret = 0;
 
 	clk_prepare_enable(host->clk_per);
 	clk_prepare_enable(host->clk_ipg);
-	if (mmc)
-		ret = mmc_resume_host(mmc);
-
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops mxcmci_pm_ops = {

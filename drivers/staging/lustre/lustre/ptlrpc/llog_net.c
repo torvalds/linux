@@ -57,7 +57,6 @@
 int llog_initiator_connect(struct llog_ctxt *ctxt)
 {
 	struct obd_import *new_imp;
-	ENTRY;
 
 	LASSERT(ctxt);
 	new_imp = ctxt->loc_obd->u.cli.cl_import;
@@ -70,6 +69,6 @@ int llog_initiator_connect(struct llog_ctxt *ctxt)
 		ctxt->loc_imp = class_import_get(new_imp);
 	}
 	mutex_unlock(&ctxt->loc_mutex);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(llog_initiator_connect);

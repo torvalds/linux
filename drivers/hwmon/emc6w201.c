@@ -1,6 +1,6 @@
 /*
  * emc6w201.c - Hardware monitoring driver for the SMSC EMC6W201
- * Copyright (C) 2011  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2011  Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 #define EMC6W201_REG_TEMP_HIGH(nr)	(0x57 + (nr) * 2)
 #define EMC6W201_REG_FAN_MIN(nr)	(0x62 + (nr) * 2)
 
-enum { input, min, max } subfeature;
+enum subfeature { input, min, max };
 
 /*
  * Per-device data
@@ -548,6 +548,6 @@ static struct i2c_driver emc6w201_driver = {
 
 module_i2c_driver(emc6w201_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("SMSC EMC6W201 hardware monitoring driver");
 MODULE_LICENSE("GPL");

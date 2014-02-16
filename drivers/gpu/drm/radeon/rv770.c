@@ -744,10 +744,10 @@ static void rv770_init_golden_registers(struct radeon_device *rdev)
 						 (const u32)ARRAY_SIZE(r7xx_golden_dyn_gpr_registers));
 		radeon_program_register_sequence(rdev,
 						 rv730_golden_registers,
-						 (const u32)ARRAY_SIZE(rv770_golden_registers));
+						 (const u32)ARRAY_SIZE(rv730_golden_registers));
 		radeon_program_register_sequence(rdev,
 						 rv730_mgcg_init,
-						 (const u32)ARRAY_SIZE(rv770_mgcg_init));
+						 (const u32)ARRAY_SIZE(rv730_mgcg_init));
 		break;
 	case CHIP_RV710:
 		radeon_program_register_sequence(rdev,
@@ -758,18 +758,18 @@ static void rv770_init_golden_registers(struct radeon_device *rdev)
 						 (const u32)ARRAY_SIZE(r7xx_golden_dyn_gpr_registers));
 		radeon_program_register_sequence(rdev,
 						 rv710_golden_registers,
-						 (const u32)ARRAY_SIZE(rv770_golden_registers));
+						 (const u32)ARRAY_SIZE(rv710_golden_registers));
 		radeon_program_register_sequence(rdev,
 						 rv710_mgcg_init,
-						 (const u32)ARRAY_SIZE(rv770_mgcg_init));
+						 (const u32)ARRAY_SIZE(rv710_mgcg_init));
 		break;
 	case CHIP_RV740:
 		radeon_program_register_sequence(rdev,
 						 rv740_golden_registers,
-						 (const u32)ARRAY_SIZE(rv770_golden_registers));
+						 (const u32)ARRAY_SIZE(rv740_golden_registers));
 		radeon_program_register_sequence(rdev,
 						 rv740_mgcg_init,
-						 (const u32)ARRAY_SIZE(rv770_mgcg_init));
+						 (const u32)ARRAY_SIZE(rv740_mgcg_init));
 		break;
 	default:
 		break;
@@ -799,103 +799,6 @@ u32 rv770_get_xclk(struct radeon_device *rdev)
 		return reference_clock / 4;
 
 	return reference_clock;
-}
-
-int rv770_uvd_resume(struct radeon_device *rdev)
-{
-	uint64_t addr;
-	uint32_t chip_id, size;
-	int r;
-
-	r = radeon_uvd_resume(rdev);
-	if (r)
-		return r;
-
-	/* programm the VCPU memory controller bits 0-27 */
-	addr = rdev->uvd.gpu_addr >> 3;
-	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 4) >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE0, size);
-
-	addr += size;
-	size = RADEON_UVD_STACK_SIZE >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET1, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE1, size);
-
-	addr += size;
-	size = RADEON_UVD_HEAP_SIZE >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET2, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE2, size);
-
-	/* bits 28-31 */
-	addr = (rdev->uvd.gpu_addr >> 28) & 0xF;
-	WREG32(UVD_LMI_ADDR_EXT, (addr << 12) | (addr << 0));
-
-	/* bits 32-39 */
-	addr = (rdev->uvd.gpu_addr >> 32) & 0xFF;
-	WREG32(UVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
-
-	/* tell firmware which hardware it is running on */
-	switch (rdev->family) {
-	default:
-		return -EINVAL;
-	case CHIP_RV710:
-		chip_id = 0x01000005;
-		break;
-	case CHIP_RV730:
-		chip_id = 0x01000006;
-		break;
-	case CHIP_RV740:
-		chip_id = 0x01000007;
-		break;
-	case CHIP_CYPRESS:
-	case CHIP_HEMLOCK:
-		chip_id = 0x01000008;
-		break;
-	case CHIP_JUNIPER:
-		chip_id = 0x01000009;
-		break;
-	case CHIP_REDWOOD:
-		chip_id = 0x0100000a;
-		break;
-	case CHIP_CEDAR:
-		chip_id = 0x0100000b;
-		break;
-	case CHIP_SUMO:
-	case CHIP_SUMO2:
-		chip_id = 0x0100000c;
-		break;
-	case CHIP_PALM:
-		chip_id = 0x0100000e;
-		break;
-	case CHIP_CAYMAN:
-		chip_id = 0x0100000f;
-		break;
-	case CHIP_BARTS:
-		chip_id = 0x01000010;
-		break;
-	case CHIP_TURKS:
-		chip_id = 0x01000011;
-		break;
-	case CHIP_CAICOS:
-		chip_id = 0x01000012;
-		break;
-	case CHIP_TAHITI:
-		chip_id = 0x01000014;
-		break;
-	case CHIP_VERDE:
-		chip_id = 0x01000015;
-		break;
-	case CHIP_PITCAIRN:
-		chip_id = 0x01000016;
-		break;
-	case CHIP_ARUBA:
-		chip_id = 0x01000017;
-		break;
-	}
-	WREG32(UVD_VCPU_CHIP_ID, chip_id);
-
-	return 0;
 }
 
 u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
@@ -1168,7 +1071,8 @@ static void rv770_mc_program(struct radeon_device *rdev)
  */
 void r700_cp_stop(struct radeon_device *rdev)
 {
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+	if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
 	WREG32(SCRATCH_UMSK, 0);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
@@ -1218,6 +1122,35 @@ void r700_cp_fini(struct radeon_device *rdev)
 	r700_cp_stop(rdev);
 	radeon_ring_fini(rdev, ring);
 	radeon_scratch_free(rdev, ring->rptr_save_reg);
+}
+
+void rv770_set_clk_bypass_mode(struct radeon_device *rdev)
+{
+	u32 tmp, i;
+
+	if (rdev->flags & RADEON_IS_IGP)
+		return;
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL_2);
+	tmp &= SCLK_MUX_SEL_MASK;
+	tmp |= SCLK_MUX_SEL(1) | SCLK_MUX_UPDATE;
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(CG_SPLL_STATUS) & SPLL_CHG_STATUS)
+			break;
+		udelay(1);
+	}
+
+	tmp &= ~SCLK_MUX_UPDATE;
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	tmp = RREG32(MPLL_CNTL_MODE);
+	if ((rdev->family == CHIP_RV710) || (rdev->family == CHIP_RV730))
+		tmp &= ~RV730_MPLL_MCLK_SEL;
+	else
+		tmp &= ~MPLL_MCLK_SEL;
+	WREG32(MPLL_CNTL_MODE, tmp);
 }
 
 /*
@@ -1747,80 +1680,6 @@ static int rv770_mc_init(struct radeon_device *rdev)
 	return 0;
 }
 
-/**
- * rv770_copy_dma - copy pages using the DMA engine
- *
- * @rdev: radeon_device pointer
- * @src_offset: src GPU address
- * @dst_offset: dst GPU address
- * @num_gpu_pages: number of GPU pages to xfer
- * @fence: radeon fence object
- *
- * Copy GPU paging using the DMA engine (r7xx).
- * Used by the radeon ttm implementation to move pages if
- * registered as the asic copy callback.
- */
-int rv770_copy_dma(struct radeon_device *rdev,
-		  uint64_t src_offset, uint64_t dst_offset,
-		  unsigned num_gpu_pages,
-		  struct radeon_fence **fence)
-{
-	struct radeon_semaphore *sem = NULL;
-	int ring_index = rdev->asic->copy.dma_ring_index;
-	struct radeon_ring *ring = &rdev->ring[ring_index];
-	u32 size_in_dw, cur_size_in_dw;
-	int i, num_loops;
-	int r = 0;
-
-	r = radeon_semaphore_create(rdev, &sem);
-	if (r) {
-		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		return r;
-	}
-
-	size_in_dw = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT) / 4;
-	num_loops = DIV_ROUND_UP(size_in_dw, 0xFFFF);
-	r = radeon_ring_lock(rdev, ring, num_loops * 5 + 8);
-	if (r) {
-		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		radeon_semaphore_free(rdev, &sem, NULL);
-		return r;
-	}
-
-	if (radeon_fence_need_sync(*fence, ring->idx)) {
-		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
-					    ring->idx);
-		radeon_fence_note_sync(*fence, ring->idx);
-	} else {
-		radeon_semaphore_free(rdev, &sem, NULL);
-	}
-
-	for (i = 0; i < num_loops; i++) {
-		cur_size_in_dw = size_in_dw;
-		if (cur_size_in_dw > 0xFFFF)
-			cur_size_in_dw = 0xFFFF;
-		size_in_dw -= cur_size_in_dw;
-		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_COPY, 0, 0, cur_size_in_dw));
-		radeon_ring_write(ring, dst_offset & 0xfffffffc);
-		radeon_ring_write(ring, src_offset & 0xfffffffc);
-		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
-		radeon_ring_write(ring, upper_32_bits(src_offset) & 0xff);
-		src_offset += cur_size_in_dw * 4;
-		dst_offset += cur_size_in_dw * 4;
-	}
-
-	r = radeon_fence_emit(rdev, fence, ring->idx);
-	if (r) {
-		radeon_ring_unlock_undo(rdev, ring);
-		return r;
-	}
-
-	radeon_ring_unlock_commit(rdev, ring);
-	radeon_semaphore_free(rdev, &sem, *fence);
-
-	return r;
-}
-
 static int rv770_startup(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring;
@@ -1829,19 +1688,13 @@ static int rv770_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	rv770_pcie_gen2_enable(rdev);
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
-		r = r600_init_microcode(rdev);
-		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
-			return r;
-		}
-	}
-
+	/* scratch needs to be initialized before MC */
 	r = r600_vram_scratch_init(rdev);
 	if (r)
 		return r;
 
 	rv770_mc_program(rdev);
+
 	if (rdev->flags & RADEON_IS_AGP) {
 		rv770_agp_enable(rdev);
 	} else {
@@ -1851,12 +1704,6 @@ static int rv770_startup(struct radeon_device *rdev)
 	}
 
 	rv770_gpu_init(rdev);
-	r = r600_blit_init(rdev);
-	if (r) {
-		r600_blit_fini(rdev);
-		rdev->asic->copy.copy = NULL;
-		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
 
 	/* allocate wb buffer */
 	r = radeon_wb_init(rdev);
@@ -1875,7 +1722,7 @@ static int rv770_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = rv770_uvd_resume(rdev);
+	r = uvd_v2_2_resume(rdev);
 	if (!r) {
 		r = radeon_fence_driver_start_ring(rdev,
 						   R600_RING_TYPE_UVD_INDEX);
@@ -1903,15 +1750,13 @@ static int rv770_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     R600_CP_RB_RPTR, R600_CP_RB_WPTR,
-			     0, 0xfffff, RADEON_CP_PACKET2);
+			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_RB_RPTR, DMA_RB_WPTR,
-			     2, 0x3fffc, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
+			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
 
@@ -1928,12 +1773,10 @@ static int rv770_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	if (ring->ring_size) {
-		r = radeon_ring_init(rdev, ring, ring->ring_size,
-				     R600_WB_UVD_RPTR_OFFSET,
-				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
-				     0, 0xfffff, RADEON_CP_PACKET2);
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
+				     RADEON_CP_PACKET2);
 		if (!r)
-			r = r600_uvd_init(rdev);
+			r = uvd_v1_0_init(rdev);
 
 		if (r)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
@@ -1968,6 +1811,8 @@ int rv770_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	rv770_init_golden_registers(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = rv770_startup(rdev);
 	if (r) {
@@ -1982,7 +1827,9 @@ int rv770_resume(struct radeon_device *rdev)
 
 int rv770_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
+	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);
@@ -2051,6 +1898,17 @@ int rv770_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+		r = r600_init_microcode(rdev);
+		if (r) {
+			DRM_ERROR("Failed to load firmware!\n");
+			return r;
+		}
+	}
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
@@ -2090,7 +1948,7 @@ int rv770_init(struct radeon_device *rdev)
 
 void rv770_fini(struct radeon_device *rdev)
 {
-	r600_blit_fini(rdev);
+	radeon_pm_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_dma_fini(rdev);
 	r600_irq_fini(rdev);
@@ -2098,6 +1956,7 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
+	uvd_v1_0_fini(rdev);
 	radeon_uvd_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);

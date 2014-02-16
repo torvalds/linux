@@ -32,12 +32,6 @@
 
 #include <video/tgafb.h>
 
-#ifdef CONFIG_PCI
-#define TGA_BUS_PCI(dev) (dev->bus == &pci_bus_type)
-#else
-#define TGA_BUS_PCI(dev) 0
-#endif
-
 #ifdef CONFIG_TC
 #define TGA_BUS_TC(dev) (dev->bus == &tc_bus_type)
 #else
@@ -236,7 +230,7 @@ tgafb_set_par(struct fb_info *info)
 	};
 
 	struct tga_par *par = (struct tga_par *) info->par;
-	int tga_bus_pci = TGA_BUS_PCI(par->dev);
+	int tga_bus_pci = dev_is_pci(par->dev);
 	int tga_bus_tc = TGA_BUS_TC(par->dev);
 	u32 htimings, vtimings, pll_freq;
 	u8 tga_type;
@@ -519,7 +513,7 @@ tgafb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned blue,
 		unsigned transp, struct fb_info *info)
 {
 	struct tga_par *par = (struct tga_par *) info->par;
-	int tga_bus_pci = TGA_BUS_PCI(par->dev);
+	int tga_bus_pci = dev_is_pci(par->dev);
 	int tga_bus_tc = TGA_BUS_TC(par->dev);
 
 	if (regno > 255)
@@ -1472,7 +1466,7 @@ static void
 tgafb_init_fix(struct fb_info *info)
 {
 	struct tga_par *par = (struct tga_par *)info->par;
-	int tga_bus_pci = TGA_BUS_PCI(par->dev);
+	int tga_bus_pci = dev_is_pci(par->dev);
 	int tga_bus_tc = TGA_BUS_TC(par->dev);
 	u8 tga_type = par->tga_type;
 	const char *tga_type_name = NULL;
@@ -1496,10 +1490,9 @@ tgafb_init_fix(struct fb_info *info)
 		if (tga_bus_tc)
 			tga_type_name = "Digital ZLX-E3";
 		break;
-	default:
-		tga_type_name = "Unknown";
-		break;
 	}
+	if (!tga_type_name)
+		tga_type_name = "Unknown";
 
 	strlcpy(info->fix.id, tga_type_name, sizeof(info->fix.id));
 
@@ -1560,7 +1553,7 @@ static int tgafb_register(struct device *dev)
 	const struct fb_videomode *modedb_tga = NULL;
 	resource_size_t bar0_start = 0, bar0_len = 0;
 	const char *mode_option_tga = NULL;
-	int tga_bus_pci = TGA_BUS_PCI(dev);
+	int tga_bus_pci = dev_is_pci(dev);
 	int tga_bus_tc = TGA_BUS_TC(dev);
 	unsigned int modedbsize_tga = 0;
 	void __iomem *mem_base;
@@ -1671,8 +1664,8 @@ static int tgafb_register(struct device *dev)
 	if (tga_bus_tc)
 		pr_info("tgafb: SFB+ detected, rev=0x%02x\n",
 			par->tga_chip_rev);
-	pr_info("fb%d: %s frame buffer device at 0x%lx\n",
-		info->node, info->fix.id, (long)bar0_start);
+	fb_info(info, "%s frame buffer device at 0x%lx\n",
+		info->fix.id, (long)bar0_start);
 
 	return 0;
 
@@ -1690,7 +1683,7 @@ static int tgafb_register(struct device *dev)
 static void tgafb_unregister(struct device *dev)
 {
 	resource_size_t bar0_start = 0, bar0_len = 0;
-	int tga_bus_pci = TGA_BUS_PCI(dev);
+	int tga_bus_pci = dev_is_pci(dev);
 	int tga_bus_tc = TGA_BUS_TC(dev);
 	struct fb_info *info = NULL;
 	struct tga_par *par;

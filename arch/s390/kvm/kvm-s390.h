@@ -19,15 +19,18 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 
-/* The current code can have up to 256 pages for virtio */
-#define VIRTIODESCSPACE (256ul * 4096ul)
-
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
-/* negativ values are error codes, positive values for internal conditions */
-#define SIE_INTERCEPT_RERUNVCPU		(1<<0)
-#define SIE_INTERCEPT_UCONTROL		(1<<1)
+/* declare vfacilities extern */
+extern unsigned long *vfacilities;
+
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
+
+/* Transactional Memory Execution related macros */
+#define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & 0x10))
+#define TDB_ADDR		0x1800UL
+#define TDB_FORMAT1		1
+#define IS_ITDB_VALID(vcpu)	((*(char *)vcpu->arch.sie_block->itdba == TDB_FORMAT1))
 
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
 do { \
@@ -88,8 +91,10 @@ static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
 
 static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2)
 {
-	*r1 = (vcpu->arch.sie_block->ipb & 0x00f00000) >> 20;
-	*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
+	if (r1)
+		*r1 = (vcpu->arch.sie_block->ipb & 0x00f00000) >> 20;
+	if (r2)
+		*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
 }
 
 static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)
@@ -112,6 +117,13 @@ static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu)
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
 }
 
+/* Set the condition code in the guest program status word */
+static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
+{
+	vcpu->arch.sie_block->gpsw.mask &= ~(3UL << 44);
+	vcpu->arch.sie_block->gpsw.mask |= cc << 44;
+}
+
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
 void kvm_s390_tasklet(unsigned long parm);
@@ -122,7 +134,6 @@ int __must_check kvm_s390_inject_vm(struct kvm *kvm,
 int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 				      struct kvm_s390_interrupt *s390int);
 int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
-int __must_check kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action);
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 						    u64 cr6, u64 schid);
 
@@ -139,8 +150,8 @@ int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
-int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu,
-				 unsigned long addr);
+int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
+int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
 void s390_vcpu_block(struct kvm_vcpu *vcpu);
 void s390_vcpu_unblock(struct kvm_vcpu *vcpu);
 void exit_sie(struct kvm_vcpu *vcpu);

@@ -35,7 +35,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
@@ -827,11 +826,11 @@ static void usb_alphatrack_disconnect(struct usb_interface *intf)
 		mutex_unlock(&dev->mtx);
 		usb_alphatrack_delete(dev);
 	} else {
+		atomic_set(&dev->writes_pending, 0);
 		dev->intf = NULL;
 		mutex_unlock(&dev->mtx);
 	}
 
-	atomic_set(&dev->writes_pending, 0);
 	mutex_unlock(&disconnect_mutex);
 
 	dev_info(&intf->dev, "Alphatrack Surface #%d now disconnected\n",

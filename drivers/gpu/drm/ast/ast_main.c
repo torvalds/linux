@@ -189,53 +189,6 @@ static int ast_get_dram_info(struct drm_device *dev)
 	return 0;
 }
 
-uint32_t ast_get_max_dclk(struct drm_device *dev, int bpp)
-{
-	struct ast_private *ast = dev->dev_private;
-	uint32_t dclk, jreg;
-	uint32_t dram_bus_width, mclk, dram_bandwidth, actual_dram_bandwidth, dram_efficency = 500;
-
-	dram_bus_width = ast->dram_bus_width;
-	mclk = ast->mclk;
-
-	if (ast->chip == AST2100 ||
-	    ast->chip == AST1100 ||
-	    ast->chip == AST2200 ||
-	    ast->chip == AST2150 ||
-	    ast->dram_bus_width == 16)
-		dram_efficency = 600;
-	else if (ast->chip == AST2300)
-		dram_efficency = 400;
-
-	dram_bandwidth = mclk * dram_bus_width * 2 / 8;
-	actual_dram_bandwidth = dram_bandwidth * dram_efficency / 1000;
-
-	if (ast->chip == AST1180)
-		dclk = actual_dram_bandwidth / ((bpp + 1) / 8);
-	else {
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
-		if ((jreg & 0x08) && (ast->chip == AST2000))
-			dclk = actual_dram_bandwidth / ((bpp + 1 + 16) / 8);
-		else if ((jreg & 0x08) && (bpp == 8))
-			dclk = actual_dram_bandwidth / ((bpp + 1 + 24) / 8);
-		else
-			dclk = actual_dram_bandwidth / ((bpp + 1) / 8);
-	}
-
-	if (ast->chip == AST2100 ||
-	    ast->chip == AST2200 ||
-	    ast->chip == AST2300 ||
-	    ast->chip == AST1180) {
-		if (dclk > 200)
-			dclk = 200;
-	} else {
-		if (dclk > 165)
-			dclk = 165;
-	}
-
-	return dclk;
-}
-
 static void ast_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct ast_framebuffer *ast_fb = to_ast_framebuffer(fb);
@@ -449,20 +402,7 @@ int ast_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-int ast_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-		     uint32_t handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}
-
-int ast_gem_init_object(struct drm_gem_object *obj)
-{
-	BUG();
-	return 0;
-}
-
-void ast_bo_unref(struct ast_bo **bo)
+static void ast_bo_unref(struct ast_bo **bo)
 {
 	struct ttm_buffer_object *tbo;
 
@@ -487,7 +427,7 @@ void ast_gem_free_object(struct drm_gem_object *obj)
 
 static inline u64 ast_bo_mmap_offset(struct ast_bo *bo)
 {
-	return bo->bo.addr_space_offset;
+	return drm_vma_node_offset_addr(&bo->bo.vma_node);
 }
 int
 ast_dumb_mmap_offset(struct drm_file *file,

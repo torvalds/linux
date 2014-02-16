@@ -2,9 +2,7 @@ if ETRAX_ARCH_V10
 
 config ETRAX_ETHERNET
 	bool "Ethernet support"
-	depends on ETRAX_ARCH_V10
-	select ETHERNET
-	select NET_CORE
+	depends on ETRAX_ARCH_V10 && NETDEVICES
 	select MII
 	help
 	  This option enables the ETRAX 100LX built-in 10/100Mbit Ethernet
@@ -419,16 +417,6 @@ config ETRAX_USB_HOST
 	   for CTRL and BULK traffic only, INTR traffic may work as well
 	   however (depending on the requirements of timeliness).
 
-config ETRAX_USB_HOST_PORT1
-	bool "USB port 1 enabled"
-	depends on ETRAX_USB_HOST
-	default n
-
-config ETRAX_USB_HOST_PORT2
-	bool "USB port 2 enabled"
-	depends on ETRAX_USB_HOST
-	default n
-
 config ETRAX_PTABLE_SECTOR
 	int "Byte-offset of partition table sector"
 	depends on ETRAX_AXISFLASHMAP
@@ -529,19 +517,6 @@ config ETRAX_GPIO
 	  Remember that you need to setup the port directions appropriately in
 	  the General configuration.
 
-config ETRAX_PA_BUTTON_BITMASK
-	hex "PA-buttons bitmask"
-	depends on ETRAX_GPIO
-	default "02"
-	help
-	  This is a bitmask with information about what bits on PA that
-	  are used for buttons.
-	  Most products has a so called TEST button on PA1, if that's true
-	  use 02 here.
-	  Use 00 if there are no buttons on PA.
-	  If the bitmask is <> 00 a button driver will be included in the gpio
-	  driver. ETRAX general I/O support must be enabled.
-
 config ETRAX_PA_CHANGEABLE_DIR
 	hex "PA user changeable dir mask"
 	depends on ETRAX_GPIO
@@ -581,52 +556,5 @@ config ETRAX_PB_CHANGEABLE_BITS
 	  can change the value on using ioctl's.
 	  Bit set = changeable.
 	  You probably want 00 here.
-
-config ETRAX_DS1302_RST_ON_GENERIC_PORT
-	bool "DS1302 RST on Generic Port"
-	depends on ETRAX_DS1302
-	help
-	  If your product has the RST signal line for the DS1302 RTC on the
-	  Generic Port then say Y here, otherwise leave it as N in which
-	  case the RST signal line is assumed to be connected to Port PB
-	  (just like the SCL and SDA lines).
-
-config ETRAX_DS1302_RSTBIT
-	int "DS1302 RST bit number"
-	depends on ETRAX_DS1302
-	default "2"
-	help
-	  This is the bit number for the RST signal line of the DS1302 RTC on
-	  the selected port. If you have selected the generic port then it
-	  should be bit 27, otherwise your best bet is bit 5.
-
-config ETRAX_DS1302_SCLBIT
-	int "DS1302 SCL bit number"
-	depends on ETRAX_DS1302
-	default "1"
-	help
-	  This is the bit number for the SCL signal line of the DS1302 RTC on
-	  Port PB. This is probably best left at 3.
-
-config ETRAX_DS1302_SDABIT
-	int "DS1302 SDA bit number"
-	depends on ETRAX_DS1302
-	default "0"
-	help
-	  This is the bit number for the SDA signal line of the DS1302 RTC on
-	  Port PB. This is probably best left at 2.
-
-config ETRAX_DS1302_TRICKLE_CHARGE
-	int "DS1302 Trickle charger value"
-	depends on ETRAX_DS1302
-	default "0"
-	help
-	  This controls the initial value of the trickle charge register.
-	  0 = disabled (use this if you are unsure or have a non rechargeable battery)
-	  Otherwise the following values can be OR:ed together to control the
-	  charge current:
-	  1 = 2kohm, 2 = 4kohm, 3 = 4kohm
-	  4 = 1 diode, 8 = 2 diodes
-	  Allowed values are (increasing current): 0, 11, 10, 9, 7, 6, 5
 
 endif

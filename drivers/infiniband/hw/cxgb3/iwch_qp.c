@@ -883,7 +883,8 @@ u16 iwch_rqes_posted(struct iwch_qp *qhp)
 {
 	union t3_wr *wqe = qhp->wq.queue;
 	u16 count = 0;
-	while ((count+1) != 0 && fw_riwrh_opcode((struct fw_riwrh *)wqe) == T3_WR_RCV) {
+
+	while (count < USHRT_MAX && fw_riwrh_opcode((struct fw_riwrh *)wqe) == T3_WR_RCV) {
 		count++;
 		wqe++;
 	}

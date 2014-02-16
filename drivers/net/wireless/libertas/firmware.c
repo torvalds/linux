@@ -53,6 +53,11 @@ static void main_firmware_cb(const struct firmware *firmware, void *context)
 
 	/* Firmware found! */
 	lbs_fw_loaded(priv, 0, priv->helper_fw, firmware);
+	if (priv->helper_fw) {
+		release_firmware (priv->helper_fw);
+		priv->helper_fw = NULL;
+	}
+	release_firmware (firmware);
 }
 
 static void helper_firmware_cb(const struct firmware *firmware, void *context)

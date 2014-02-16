@@ -16,8 +16,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -80,8 +79,6 @@ static inline void nci_push_data_hdr(struct nci_dev *ndev,
 
 	nci_mt_set((__u8 *)hdr, NCI_MT_DATA_PKT);
 	nci_pbf_set((__u8 *)hdr, pbf);
-
-	skb->dev = (void *) ndev;
 }
 
 static int nci_queue_tx_data_frags(struct nci_dev *ndev,

@@ -110,7 +110,7 @@ static const struct snd_pcm_hardware pcm_hw = {
 #define HIFACE_RATE_96000  0x4a
 #define HIFACE_RATE_176400 0x40
 #define HIFACE_RATE_192000 0x48
-#define HIFACE_RATE_352000 0x58
+#define HIFACE_RATE_352800 0x58
 #define HIFACE_RATE_384000 0x68
 
 static int hiface_pcm_set_rate(struct pcm_runtime *rt, unsigned int rate)
@@ -141,8 +141,8 @@ static int hiface_pcm_set_rate(struct pcm_runtime *rt, unsigned int rate)
 	case 192000:
 		rate_value = HIFACE_RATE_192000;
 		break;
-	case 352000:
-		rate_value = HIFACE_RATE_352000;
+	case 352800:
+		rate_value = HIFACE_RATE_352800;
 		break;
 	case 384000:
 		rate_value = HIFACE_RATE_384000;
@@ -503,7 +503,7 @@ static snd_pcm_uframes_t hiface_pcm_pointer(struct snd_pcm_substream *alsa_sub)
 	snd_pcm_uframes_t dma_offset;
 
 	if (rt->panic || !sub)
-		return SNDRV_PCM_STATE_XRUN;
+		return SNDRV_PCM_POS_XRUN;
 
 	spin_lock_irqsave(&sub->lock, flags);
 	dma_offset = sub->dma_off;

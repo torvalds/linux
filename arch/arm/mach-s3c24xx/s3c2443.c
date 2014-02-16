@@ -22,12 +22,14 @@
 #include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/reboot.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-samsung.h>
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
@@ -59,9 +61,9 @@ static struct device s3c2443_dev = {
 	.bus		= &s3c2443_subsys,
 };
 
-void s3c2443_restart(char mode, const char *cmd)
+void s3c2443_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's')
+	if (mode == REBOOT_SOFT)
 		soft_restart(0);
 
 	__raw_writel(S3C2443_SWRST_RESET, S3C2443_SWRST);

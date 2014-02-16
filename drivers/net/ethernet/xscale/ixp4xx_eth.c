@@ -373,7 +373,7 @@ static void ixp_tx_timestamp(struct port *port, struct sk_buff *skb)
 	__raw_writel(TX_SNAPSHOT_LOCKED, &regs->channel[ch].ch_event);
 }
 
-static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+static int hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 {
 	struct hwtstamp_config cfg;
 	struct ixp46x_ts_regs *regs;
@@ -389,16 +389,8 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	ch = PORT2CHANNEL(port);
 	regs = (struct ixp46x_ts_regs __iomem *) IXP4XX_TIMESYNC_BASE_VIRT;
 
-	switch (cfg.tx_type) {
-	case HWTSTAMP_TX_OFF:
-		port->hwts_tx_en = 0;
-		break;
-	case HWTSTAMP_TX_ON:
-		port->hwts_tx_en = 1;
-		break;
-	default:
+	if (cfg.tx_type != HWTSTAMP_TX_OFF && cfg.tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
-	}
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
@@ -416,9 +408,37 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		return -ERANGE;
 	}
 
+	port->hwts_tx_en = cfg.tx_type == HWTSTAMP_TX_ON;
+
 	/* Clear out any old time stamps. */
 	__raw_writel(TX_SNAPSHOT_LOCKED | RX_SNAPSHOT_LOCKED,
 		     &regs->channel[ch].ch_event);
+
+	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+}
+
+static int hwtstamp_get(struct net_device *netdev, struct ifreq *ifr)
+{
+	struct hwtstamp_config cfg;
+	struct port *port = netdev_priv(netdev);
+
+	cfg.flags = 0;
+	cfg.tx_type = port->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+
+	switch (port->hwts_rx_en) {
+	case 0:
+		cfg.rx_filter = HWTSTAMP_FILTER_NONE;
+		break;
+	case PTP_SLAVE_MODE:
+		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_SYNC;
+		break;
+	case PTP_MASTER_MODE:
+		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -ERANGE;
+	}
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
@@ -965,8 +985,12 @@ static int eth_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	if (cpu_is_ixp46x() && cmd == SIOCSHWTSTAMP)
-		return hwtstamp_ioctl(dev, req, cmd);
+	if (cpu_is_ixp46x()) {
+		if (cmd == SIOCSHWTSTAMP)
+			return hwtstamp_set(dev, req);
+		if (cmd == SIOCGHWTSTAMP)
+			return hwtstamp_get(dev, req);
+	}
 
 	return phy_mii_ioctl(port->phydev, req, cmd);
 }
@@ -1384,7 +1408,7 @@ static int eth_init_one(struct platform_device *pdev)
 {
 	struct port *port;
 	struct net_device *dev;
-	struct eth_plat_info *plat = pdev->dev.platform_data;
+	struct eth_plat_info *plat = dev_get_platdata(&pdev->dev);
 	u32 regs_phys;
 	char phy_id[MII_BUS_ID_SIZE + 3];
 	int err;
@@ -1472,7 +1496,6 @@ err_phy_dis:
 	phy_disconnect(port->phydev);
 err_free_mem:
 	npe_port_tab[NPE_ID(port->id)] = NULL;
-	platform_set_drvdata(pdev, NULL);
 	release_resource(port->mem_res);
 err_npe_rel:
 	npe_release(port->npe);
@@ -1489,7 +1512,6 @@ static int eth_remove_one(struct platform_device *pdev)
 	unregister_netdev(dev);
 	phy_disconnect(port->phydev);
 	npe_port_tab[NPE_ID(port->id)] = NULL;
-	platform_set_drvdata(pdev, NULL);
 	npe_release(port->npe);
 	release_resource(port->mem_res);
 	free_netdev(dev);

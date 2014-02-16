@@ -35,17 +35,14 @@ No interrupts, multi channel or FIFO AI, although the card looks like it could s
 See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"
 
 #include "plx9052.h"
 #include "8255.h"
-
-/* #define CBPCIMDAS_DEBUG */
-#undef CBPCIMDAS_DEBUG
 
 /* Registers for the PCIM-DAS1602/16 */
 
@@ -145,10 +142,9 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			if (!busy)
 				break;
 		}
-		if (i == TIMEOUT) {
-			printk("timeout\n");
+		if (i == TIMEOUT)
 			return -ETIMEDOUT;
-		}
+
 		/* read data */
 		data[n] = inw(dev->iobase + 0);
 	}
@@ -210,10 +206,9 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	unsigned long iobase_8255;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -222,15 +217,6 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 2);
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
 	iobase_8255 = pci_resource_start(pcidev, 4);
-
-/* Dont support IRQ yet */
-/*  get irq */
-/* if(request_irq(pcidev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
-/* { */
-/* printk(" unable to allocate irq %u\n", pcidev->irq); */
-/* return -EINVAL; */
-/* } */
-/* dev->irq = pcidev->irq; */
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -289,7 +275,7 @@ static int cb_pcimdas_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cb_pcimdas_pci_table) = {
+static const struct pci_device_id cb_pcimdas_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0056) },
 	{ 0 }
 };

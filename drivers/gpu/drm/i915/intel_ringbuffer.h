@@ -33,9 +33,21 @@ struct  intel_hw_status_page {
 #define I915_READ_IMR(ring) I915_READ(RING_IMR((ring)->mmio_base))
 #define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
 
-#define I915_READ_NOPID(ring) I915_READ(RING_NOPID((ring)->mmio_base))
-#define I915_READ_SYNC_0(ring) I915_READ(RING_SYNC_0((ring)->mmio_base))
-#define I915_READ_SYNC_1(ring) I915_READ(RING_SYNC_1((ring)->mmio_base))
+enum intel_ring_hangcheck_action {
+	HANGCHECK_IDLE = 0,
+	HANGCHECK_WAIT,
+	HANGCHECK_ACTIVE,
+	HANGCHECK_KICK,
+	HANGCHECK_HUNG,
+};
+
+struct intel_ring_hangcheck {
+	bool deadlock;
+	u32 seqno;
+	u32 acthd;
+	int score;
+	enum intel_ring_hangcheck_action action;
+};
 
 struct  intel_ring_buffer {
 	const char	*name;
@@ -43,8 +55,9 @@ struct  intel_ring_buffer {
 		RCS = 0x0,
 		VCS,
 		BCS,
+		VECS,
 	} id;
-#define I915_NUM_RINGS 3
+#define I915_NUM_RINGS 4
 	u32		mmio_base;
 	void		__iomem *virtual_start;
 	struct		drm_device *dev;
@@ -67,7 +80,7 @@ struct  intel_ring_buffer {
 	 */
 	u32		last_retired_head;
 
-	u32		irq_refcount;		/* protected by dev_priv->irq_lock */
+	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		trace_irq_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
@@ -102,8 +115,11 @@ struct  intel_ring_buffer {
 				   struct intel_ring_buffer *to,
 				   u32 seqno);
 
-	u32		semaphore_register[3]; /*our mbox written by others */
-	u32		signal_mbox[2]; /* mboxes this ring signals to */
+	/* our mbox written by others */
+	u32		semaphore_register[I915_NUM_RINGS];
+	/* mboxes this ring signals to */
+	u32		signal_mbox[I915_NUM_RINGS];
+
 	/**
 	 * List of objects currently involved in rendering from the
 	 * ringbuffer.
@@ -125,8 +141,10 @@ struct  intel_ring_buffer {
 	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
-	u32 outstanding_lazy_request;
+	struct drm_i915_gem_request *preallocated_lazy_request;
+	u32 outstanding_lazy_seqno;
 	bool gpu_caches_dirty;
+	bool fbc_dirty;
 
 	wait_queue_head_t irq_queue;
 
@@ -135,9 +153,15 @@ struct  intel_ring_buffer {
 	 */
 	bool itlb_before_ctx_switch;
 	struct i915_hw_context *default_context;
-	struct drm_i915_gem_object *last_context_obj;
+	struct i915_hw_context *last_context;
 
-	void *private;
+	struct intel_ring_hangcheck hangcheck;
+
+	struct {
+		struct drm_i915_gem_object *obj;
+		u32 gtt_offset;
+		volatile u32 *cpu_page;
+	} scratch;
 };
 
 static inline bool
@@ -215,7 +239,12 @@ static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 	iowrite32(data, ring->virtual_start + ring->tail);
 	ring->tail += 4;
 }
-void intel_ring_advance(struct intel_ring_buffer *ring);
+static inline void intel_ring_advance(struct intel_ring_buffer *ring)
+{
+	ring->tail &= ring->size - 1;
+}
+void __intel_ring_advance(struct intel_ring_buffer *ring);
+
 int __must_check intel_ring_idle(struct intel_ring_buffer *ring);
 void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_ring_buffer *ring);
@@ -224,6 +253,7 @@ int intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring);
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
 int intel_init_blt_ring_buffer(struct drm_device *dev);
+int intel_init_vebox_ring_buffer(struct drm_device *dev);
 
 u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
@@ -235,8 +265,8 @@ static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)
 
 static inline u32 intel_ring_get_seqno(struct intel_ring_buffer *ring)
 {
-	BUG_ON(ring->outstanding_lazy_request == 0);
-	return ring->outstanding_lazy_request;
+	BUG_ON(ring->outstanding_lazy_seqno == 0);
+	return ring->outstanding_lazy_seqno;
 }
 
 static inline void i915_trace_irq_get(struct intel_ring_buffer *ring, u32 seqno)

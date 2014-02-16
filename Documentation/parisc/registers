@@ -78,6 +78,14 @@ Shadow Registers		used by interruption handler code
 TOC enable bit			1
 
 =========================================================================
+
+The PA-RISC architecture defines 7 registers as "shadow registers".
+Those are used in RETURN FROM INTERRUPTION AND RESTORE instruction to reduce
+the state save and restore time by eliminating the need for general register
+(GR) saves and restores in interruption handlers.
+Shadow registers are the GRs 1, 8, 9, 16, 17, 24, and 25.
+
+=========================================================================
 Register usage notes, originally from John Marvin, with some additional
 notes from Randolph Chung.
 

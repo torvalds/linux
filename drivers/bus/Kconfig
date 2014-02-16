@@ -8,10 +8,9 @@ config IMX_WEIM
 	bool "Freescale EIM DRIVER"
 	depends on ARCH_MXC
 	help
-	  Driver for i.MX6 WEIM controller.
+	  Driver for i.MX WEIM controller.
 	  The WEIM(Wireless External Interface Module) works like a bus.
 	  You can attach many different devices on it, such as NOR, onenand.
-	  But now, we only support the Parallel NOR.
 
 config MVEBU_MBUS
 	bool

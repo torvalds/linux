@@ -54,7 +54,7 @@ typedef void (*fsfilt_cb_t)(struct obd_device *obd, __u64 last_rcvd,
 
 struct fsfilt_operations {
 	struct list_head fs_list;
-	module_t *fs_owner;
+	struct module *fs_owner;
 	char   *fs_type;
 	char   *(* fs_getlabel)(struct super_block *sb);
 	void   *(* fs_start)(struct inode *inode, int op, void *desc_private,
@@ -143,16 +143,6 @@ static inline int fsfilt_commit(struct obd_device *obd, struct inode *inode,
 	fsfilt_check_slow(obd, now, "journal start");
 
 	return rc;
-}
-
-static inline int fsfilt_map_inode_pages(struct obd_device *obd,
-					 struct inode *inode,
-					 struct page **page, int pages,
-					 unsigned long *blocks,
-					 int create, struct mutex *mutex)
-{
-	return obd->obd_fsops->fs_map_inode_pages(inode, page, pages, blocks,
-						  create, mutex);
 }
 
 static inline int fsfilt_read_record(struct obd_device *obd, struct file *file,

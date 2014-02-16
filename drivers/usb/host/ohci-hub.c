@@ -212,10 +212,11 @@ __acquires(ohci->lock)
 	/* Sometimes PCI D3 suspend trashes frame timings ... */
 	periodic_reinit (ohci);
 
-	/* the following code is executed with ohci->lock held and
-	 * irqs disabled if and only if autostopped is true
+	/*
+	 * The following code is executed with ohci->lock held and
+	 * irqs disabled if and only if autostopped is true.  This
+	 * will cause sparse to warn about a "context imbalance".
 	 */
-
 skip_resume:
 	/* interrupts might have been disabled */
 	ohci_writel (ohci, OHCI_INTR_INIT, &ohci->regs->intrenable);
@@ -531,7 +532,7 @@ ohci_hub_descriptor (
 	    temp |= 0x0010;
 	else if (rh & RH_A_OCPM)	/* per-port overcurrent reporting? */
 	    temp |= 0x0008;
-	desc->wHubCharacteristics = (__force __u16)cpu_to_hc16(ohci, temp);
+	desc->wHubCharacteristics = cpu_to_le16(temp);
 
 	/* ports removable, and usb 1.0 legacy PortPwrCtrlMask */
 	rh = roothub_b (ohci);
@@ -724,10 +725,8 @@ static int ohci_hub_control (
 		temp = roothub_portstatus (ohci, wIndex);
 		put_unaligned_le32(temp, buf);
 
-#ifndef	OHCI_VERBOSE_DEBUG
-	if (*(u16*)(buf+2))	/* only if wPortChange is interesting */
-#endif
-		dbg_port (ohci, "GetStatus", wIndex, temp);
+		if (*(u16*)(buf+2))	/* only if wPortChange is interesting */
+			dbg_port(ohci, "GetStatus", wIndex, temp);
 		break;
 	case SetHubFeature:
 		switch (wValue) {

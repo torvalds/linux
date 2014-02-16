@@ -115,8 +115,6 @@ extern struct vfsmount *cifs_dfs_d_automount(struct path *path);
 
 /* Functions related to symlinks */
 extern void *cifs_follow_link(struct dentry *direntry, struct nameidata *nd);
-extern void cifs_put_link(struct dentry *direntry,
-			  struct nameidata *nd, void *);
 extern int cifs_readlink(struct dentry *direntry, char __user *buffer,
 			 int buflen);
 extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
@@ -132,5 +130,5 @@ extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "2.01"
+#define CIFS_VERSION   "2.02"
 #endif				/* _CIFSFS_H */

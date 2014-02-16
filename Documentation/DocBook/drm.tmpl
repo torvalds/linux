@@ -156,13 +156,6 @@
             </para></listitem>
           </varlistentry>
           <varlistentry>
-            <term>DRIVER_USE_MTRR</term>
-            <listitem><para>
-              Driver uses MTRR interface for mapping memory, the DRM core will
-              manage MTRR resources. Deprecated.
-            </para></listitem>
-          </varlistentry>
-          <varlistentry>
             <term>DRIVER_PCI_DMA</term>
             <listitem><para>
               Driver is capable of PCI DMA, mapping of PCI DMA buffers to
@@ -186,34 +179,13 @@
           <varlistentry>
             <term>DRIVER_HAVE_IRQ</term><term>DRIVER_IRQ_SHARED</term>
             <listitem><para>
-              DRIVER_HAVE_IRQ indicates whether the driver has an IRQ handler. The
-              DRM core will automatically register an interrupt handler when the
-              flag is set. DRIVER_IRQ_SHARED indicates whether the device &amp;
-              handler support shared IRQs (note that this is required of PCI
-              drivers).
+              DRIVER_HAVE_IRQ indicates whether the driver has an IRQ handler
+              managed by the DRM Core. The core will support simple IRQ handler
+              installation when the flag is set. The installation process is
+              described in <xref linkend="drm-irq-registration"/>.</para>
+              <para>DRIVER_IRQ_SHARED indicates whether the device &amp; handler
+              support shared IRQs (note that this is required of PCI  drivers).
             </para></listitem>
-          </varlistentry>
-          <varlistentry>
-            <term>DRIVER_IRQ_VBL</term>
-            <listitem><para>Unused. Deprecated.</para></listitem>
-          </varlistentry>
-          <varlistentry>
-            <term>DRIVER_DMA_QUEUE</term>
-            <listitem><para>
-              Should be set if the driver queues DMA requests and completes them
-              asynchronously.  Deprecated.
-            </para></listitem>
-          </varlistentry>
-          <varlistentry>
-            <term>DRIVER_FB_DMA</term>
-            <listitem><para>
-              Driver supports DMA to/from the framebuffer, mapping of frambuffer
-              DMA buffers to userspace will be supported. Deprecated.
-            </para></listitem>
-          </varlistentry>
-          <varlistentry>
-            <term>DRIVER_IRQ_VBL2</term>
-            <listitem><para>Unused. Deprecated.</para></listitem>
           </varlistentry>
           <varlistentry>
             <term>DRIVER_GEM</term>
@@ -231,6 +203,12 @@
             <term>DRIVER_PRIME</term>
             <listitem><para>
               Driver implements DRM PRIME buffer sharing.
+            </para></listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>DRIVER_RENDER</term>
+            <listitem><para>
+              Driver supports dedicated render nodes.
             </para></listitem>
           </varlistentry>
         </variablelist>
@@ -344,50 +322,71 @@ char *date;</synopsis>
           The DRM core tries to facilitate IRQ handler registration and
           unregistration by providing <function>drm_irq_install</function> and
           <function>drm_irq_uninstall</function> functions. Those functions only
-          support a single interrupt per device.
+          support a single interrupt per device, devices that use more than one
+          IRQs need to be handled manually.
         </para>
-  <!--!Fdrivers/char/drm/drm_irq.c drm_irq_install-->
-        <para>
-          Both functions get the device IRQ by calling
-          <function>drm_dev_to_irq</function>. This inline function will call a
-          bus-specific operation to retrieve the IRQ number. For platform devices,
-          <function>platform_get_irq</function>(..., 0) is used to retrieve the
-          IRQ number.
-        </para>
-        <para>
-          <function>drm_irq_install</function> starts by calling the
-          <methodname>irq_preinstall</methodname> driver operation. The operation
-          is optional and must make sure that the interrupt will not get fired by
-          clearing all pending interrupt flags or disabling the interrupt.
-        </para>
-        <para>
-          The IRQ will then be requested by a call to
-          <function>request_irq</function>. If the DRIVER_IRQ_SHARED driver
-          feature flag is set, a shared (IRQF_SHARED) IRQ handler will be
-          requested.
-        </para>
-        <para>
-          The IRQ handler function must be provided as the mandatory irq_handler
-          driver operation. It will get passed directly to
-          <function>request_irq</function> and thus has the same prototype as all
-          IRQ handlers. It will get called with a pointer to the DRM device as the
-          second argument.
-        </para>
-        <para>
-          Finally the function calls the optional
-          <methodname>irq_postinstall</methodname> driver operation. The operation
-          usually enables interrupts (excluding the vblank interrupt, which is
-          enabled separately), but drivers may choose to enable/disable interrupts
-          at a different time.
-        </para>
-        <para>
-          <function>drm_irq_uninstall</function> is similarly used to uninstall an
-          IRQ handler. It starts by waking up all processes waiting on a vblank
-          interrupt to make sure they don't hang, and then calls the optional
-          <methodname>irq_uninstall</methodname> driver operation. The operation
-          must disable all hardware interrupts. Finally the function frees the IRQ
-          by calling <function>free_irq</function>.
-        </para>
+        <sect4>
+          <title>Managed IRQ Registration</title>
+          <para>
+            Both the <function>drm_irq_install</function> and
+	    <function>drm_irq_uninstall</function> functions get the device IRQ by
+	    calling <function>drm_dev_to_irq</function>. This inline function will
+	    call a bus-specific operation to retrieve the IRQ number. For platform
+	    devices, <function>platform_get_irq</function>(..., 0) is used to
+	    retrieve the IRQ number.
+          </para>
+          <para>
+            <function>drm_irq_install</function> starts by calling the
+            <methodname>irq_preinstall</methodname> driver operation. The operation
+            is optional and must make sure that the interrupt will not get fired by
+            clearing all pending interrupt flags or disabling the interrupt.
+          </para>
+          <para>
+            The IRQ will then be requested by a call to
+            <function>request_irq</function>. If the DRIVER_IRQ_SHARED driver
+            feature flag is set, a shared (IRQF_SHARED) IRQ handler will be
+            requested.
+          </para>
+          <para>
+            The IRQ handler function must be provided as the mandatory irq_handler
+            driver operation. It will get passed directly to
+            <function>request_irq</function> and thus has the same prototype as all
+            IRQ handlers. It will get called with a pointer to the DRM device as the
+            second argument.
+          </para>
+          <para>
+            Finally the function calls the optional
+            <methodname>irq_postinstall</methodname> driver operation. The operation
+            usually enables interrupts (excluding the vblank interrupt, which is
+            enabled separately), but drivers may choose to enable/disable interrupts
+            at a different time.
+          </para>
+          <para>
+            <function>drm_irq_uninstall</function> is similarly used to uninstall an
+            IRQ handler. It starts by waking up all processes waiting on a vblank
+            interrupt to make sure they don't hang, and then calls the optional
+            <methodname>irq_uninstall</methodname> driver operation. The operation
+            must disable all hardware interrupts. Finally the function frees the IRQ
+            by calling <function>free_irq</function>.
+          </para>
+        </sect4>
+        <sect4>
+          <title>Manual IRQ Registration</title>
+          <para>
+            Drivers that require multiple interrupt handlers can't use the managed
+            IRQ registration functions. In that case IRQs must be registered and
+            unregistered manually (usually with the <function>request_irq</function>
+            and <function>free_irq</function> functions, or their devm_* equivalent).
+          </para>
+          <para>
+            When manually registering IRQs, drivers must not set the DRIVER_HAVE_IRQ
+            driver feature flag, and must not provide the
+	    <methodname>irq_handler</methodname> driver operation. They must set the
+	    <structname>drm_device</structname> <structfield>irq_enabled</structfield>
+	    field to 1 upon registration of the IRQs, and clear it to 0 after
+	    unregistering the IRQs.
+          </para>
+        </sect4>
       </sect3>
       <sect3>
         <title>Memory Manager Initialization</title>
@@ -434,7 +433,7 @@ char *date;</synopsis>
       The DRM core includes two memory managers, namely Translation Table Maps
       (TTM) and Graphics Execution Manager (GEM). TTM was the first DRM memory
       manager to be developed and tried to be a one-size-fits-them all
-      solution. It provides a single userspace API to accomodate the need of
+      solution. It provides a single userspace API to accommodate the need of
       all hardware, supporting both Unified Memory Architecture (UMA) devices
       and devices with dedicated video RAM (i.e. most discrete video cards).
       This resulted in a large, complex piece of code that turned out to be
@@ -701,7 +700,7 @@ char *date;</synopsis>
         <para>
           Similar to global names, GEM file descriptors are also used to share GEM
           objects across processes. They offer additional security: as file
-          descriptors must be explictly sent over UNIX domain sockets to be shared
+          descriptors must be explicitly sent over UNIX domain sockets to be shared
           between applications, they can't be guessed like the globally unique GEM
           names.
         </para>
@@ -1154,7 +1153,7 @@ int max_width, max_height;</synopsis>
           </para>
           <para>
             The <methodname>page_flip</methodname> operation schedules a page flip.
-            Once any pending rendering targetting the new frame buffer has
+            Once any pending rendering targeting the new frame buffer has
             completed, the CRTC will be reprogrammed to display that frame buffer
             after the next vertical refresh. The operation must return immediately
             without waiting for rendering or page flip to complete and must block
@@ -1213,6 +1212,15 @@ int max_width, max_height;</synopsis>
         <sect4>
           <title>Miscellaneous</title>
           <itemizedlist>
+            <listitem>
+              <synopsis>void (*set_property)(struct drm_crtc *crtc,
+                     struct drm_property *property, uint64_t value);</synopsis>
+              <para>
+                Set the value of the given CRTC property to
+                <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
+                for more information about properties.
+              </para>
+            </listitem>
             <listitem>
               <synopsis>void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
                         uint32_t start, uint32_t size);</synopsis>
@@ -1361,6 +1369,15 @@ int max_width, max_height;</synopsis>
             <para>
               Called to destroy the encoder when not needed anymore. See
               <xref linkend="drm-kms-init"/>.
+            </para>
+          </listitem>
+          <listitem>
+            <synopsis>void (*set_property)(struct drm_plane *plane,
+                     struct drm_property *property, uint64_t value);</synopsis>
+            <para>
+              Set the value of the given plane property to
+              <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
+              for more information about properties.
             </para>
           </listitem>
         </itemizedlist>
@@ -1571,6 +1588,15 @@ int max_width, max_height;</synopsis>
         <sect4>
           <title>Miscellaneous</title>
           <itemizedlist>
+            <listitem>
+              <synopsis>void (*set_property)(struct drm_connector *connector,
+                     struct drm_property *property, uint64_t value);</synopsis>
+              <para>
+                Set the value of the given connector property to
+                <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
+                for more information about properties.
+              </para>
+            </listitem>
             <listitem>
               <synopsis>void (*destroy)(struct drm_connector *connector);</synopsis>
               <para>
@@ -1846,10 +1872,6 @@ void intel_crt_init(struct drm_device *dev)
           <synopsis>bool (*mode_fixup)(struct drm_encoder *encoder,
                        const struct drm_display_mode *mode,
                        struct drm_display_mode *adjusted_mode);</synopsis>
-          <note><para>
-            FIXME: The mode argument be const, but the i915 driver modifies
-            mode-&gt;clock in <function>intel_dp_mode_fixup</function>.
-          </para></note>
           <para>
             Let encoders adjust the requested mode or reject it completely. This
             operation returns true if the mode is accepted (possibly after being
@@ -2161,6 +2183,140 @@ void intel_crt_init(struct drm_device *dev)
       <title>EDID Helper Functions Reference</title>
 !Edrivers/gpu/drm/drm_edid.c
     </sect2>
+    <sect2>
+      <title>Rectangle Utilities Reference</title>
+!Pinclude/drm/drm_rect.h rect utils
+!Iinclude/drm/drm_rect.h
+!Edrivers/gpu/drm/drm_rect.c
+    </sect2>
+    <sect2>
+      <title>Flip-work Helper Reference</title>
+!Pinclude/drm/drm_flip_work.h flip utils
+!Iinclude/drm/drm_flip_work.h
+!Edrivers/gpu/drm/drm_flip_work.c
+    </sect2>
+    <sect2>
+      <title>VMA Offset Manager</title>
+!Pdrivers/gpu/drm/drm_vma_manager.c vma offset manager
+!Edrivers/gpu/drm/drm_vma_manager.c
+!Iinclude/drm/drm_vma_manager.h
+    </sect2>
+  </sect1>
+
+  <!-- Internals: kms properties -->
+
+  <sect1 id="drm-kms-properties">
+    <title>KMS Properties</title>
+    <para>
+      Drivers may need to expose additional parameters to applications than
+      those described in the previous sections. KMS supports attaching
+      properties to CRTCs, connectors and planes and offers a userspace API to
+      list, get and set the property values.
+    </para>
+    <para>
+      Properties are identified by a name that uniquely defines the property
+      purpose, and store an associated value. For all property types except blob
+      properties the value is a 64-bit unsigned integer.
+    </para>
+    <para>
+      KMS differentiates between properties and property instances. Drivers
+      first create properties and then create and associate individual instances
+      of those properties to objects. A property can be instantiated multiple
+      times and associated with different objects. Values are stored in property
+      instances, and all other property information are stored in the propery
+      and shared between all instances of the property.
+    </para>
+    <para>
+      Every property is created with a type that influences how the KMS core
+      handles the property. Supported property types are
+      <variablelist>
+        <varlistentry>
+          <term>DRM_MODE_PROP_RANGE</term>
+          <listitem><para>Range properties report their minimum and maximum
+            admissible values. The KMS core verifies that values set by
+            application fit in that range.</para></listitem>
+        </varlistentry>
+        <varlistentry>
+          <term>DRM_MODE_PROP_ENUM</term>
+          <listitem><para>Enumerated properties take a numerical value that
+            ranges from 0 to the number of enumerated values defined by the
+            property minus one, and associate a free-formed string name to each
+            value. Applications can retrieve the list of defined value-name pairs
+            and use the numerical value to get and set property instance values.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+          <term>DRM_MODE_PROP_BITMASK</term>
+          <listitem><para>Bitmask properties are enumeration properties that
+            additionally restrict all enumerated values to the 0..63 range.
+            Bitmask property instance values combine one or more of the
+            enumerated bits defined by the property.</para></listitem>
+        </varlistentry>
+        <varlistentry>
+          <term>DRM_MODE_PROP_BLOB</term>
+          <listitem><para>Blob properties store a binary blob without any format
+            restriction. The binary blobs are created as KMS standalone objects,
+            and blob property instance values store the ID of their associated
+            blob object.</para>
+	    <para>Blob properties are only used for the connector EDID property
+	    and cannot be created by drivers.</para></listitem>
+        </varlistentry>
+      </variablelist>
+    </para>
+    <para>
+      To create a property drivers call one of the following functions depending
+      on the property type. All property creation functions take property flags
+      and name, as well as type-specific arguments.
+      <itemizedlist>
+        <listitem>
+          <synopsis>struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
+                                               const char *name,
+                                               uint64_t min, uint64_t max);</synopsis>
+          <para>Create a range property with the given minimum and maximum
+            values.</para>
+        </listitem>
+        <listitem>
+          <synopsis>struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
+                                              const char *name,
+                                              const struct drm_prop_enum_list *props,
+                                              int num_values);</synopsis>
+          <para>Create an enumerated property. The <parameter>props</parameter>
+            argument points to an array of <parameter>num_values</parameter>
+            value-name pairs.</para>
+        </listitem>
+        <listitem>
+          <synopsis>struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
+                                                 int flags, const char *name,
+                                                 const struct drm_prop_enum_list *props,
+                                                 int num_values);</synopsis>
+          <para>Create a bitmask property. The <parameter>props</parameter>
+            argument points to an array of <parameter>num_values</parameter>
+            value-name pairs.</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+    <para>
+      Properties can additionally be created as immutable, in which case they
+      will be read-only for applications but can be modified by the driver. To
+      create an immutable property drivers must set the DRM_MODE_PROP_IMMUTABLE
+      flag at property creation time.
+    </para>
+    <para>
+      When no array of value-name pairs is readily available at property
+      creation time for enumerated or range properties, drivers can create
+      the property using the <function>drm_property_create</function> function
+      and manually add enumeration value-name pairs by calling the
+      <function>drm_property_add_enum</function> function. Care must be taken to
+      properly specify the property type through the <parameter>flags</parameter>
+      argument.
+    </para>
+    <para>
+      After creating properties drivers can attach property instances to CRTC,
+      connector and plane objects by calling the
+      <function>drm_object_attach_property</function>. The function takes a
+      pointer to the target object, a pointer to the previously created property
+      and an initial instance value.
+    </para>
   </sect1>
 
   <!-- Internals: vertical blanking -->
@@ -2255,18 +2411,18 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
       </abstract>
       <para>
         The <methodname>firstopen</methodname> method is called by the DRM core
-	when an application opens a device that has no other opened file handle.
-	Similarly the <methodname>lastclose</methodname> method is called when
-	the last application holding a file handle opened on the device closes
-	it. Both methods are mostly used for UMS (User Mode Setting) drivers to
-	acquire and release device resources which should be done in the
-	<methodname>load</methodname> and <methodname>unload</methodname>
-	methods for KMS drivers.
+	for legacy UMS (User Mode Setting) drivers only when an application
+	opens a device that has no other opened file handle. UMS drivers can
+	implement it to acquire device resources. KMS drivers can't use the
+	method and must acquire resources in the <methodname>load</methodname>
+	method instead.
       </para>
       <para>
-        Note that the <methodname>lastclose</methodname> method is also called
-	at module unload time or, for hot-pluggable devices, when the device is
-	unplugged. The <methodname>firstopen</methodname> and
+	Similarly the <methodname>lastclose</methodname> method is called when
+	the last application holding a file handle opened on the device closes
+	it, for both UMS and KMS drivers. Additionally, the method is also
+	called at module unload time or, for hot-pluggable devices, when the
+	device is unplugged. The <methodname>firstopen</methodname> and
 	<methodname>lastclose</methodname> calls can thus be unbalanced.
       </para>
       <para>
@@ -2295,7 +2451,12 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
       <para>
         The <methodname>lastclose</methodname> method should restore CRTC and
 	plane properties to default value, so that a subsequent open of the
-	device will not inherit state from the previous user.
+	device will not inherit state from the previous user. It can also be
+	used to execute delayed power switching state changes, e.g. in
+	conjunction with the vga-switcheroo infrastructure. Beyond that KMS
+	drivers should not do any further cleanup. Only legacy UMS drivers might
+	need to clean up device state so that the vga console or an independent
+	fbdev driver could take over.
       </para>
     </sect2>
     <sect2>
@@ -2331,7 +2492,6 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
 	<programlisting>
 	.poll = drm_poll,
 	.read = drm_read,
-	.fasync = drm_fasync,
 	.llseek = no_llseek,
 	</programlisting>
       </para>
@@ -2489,6 +2649,69 @@ int (*resume) (struct drm_device *);</synopsis>
       Cover generic ioctls and sysfs layout here.  We only need high-level
       info, since man pages should cover the rest.
     </para>
+
+  <!-- External: render nodes -->
+
+    <sect1>
+      <title>Render nodes</title>
+      <para>
+        DRM core provides multiple character-devices for user-space to use.
+        Depending on which device is opened, user-space can perform a different
+        set of operations (mainly ioctls). The primary node is always created
+        and called <term>card&lt;num&gt;</term>. Additionally, a currently
+        unused control node, called <term>controlD&lt;num&gt;</term> is also
+        created. The primary node provides all legacy operations and
+        historically was the only interface used by userspace. With KMS, the
+        control node was introduced. However, the planned KMS control interface
+        has never been written and so the control node stays unused to date.
+      </para>
+      <para>
+        With the increased use of offscreen renderers and GPGPU applications,
+        clients no longer require running compositors or graphics servers to
+        make use of a GPU. But the DRM API required unprivileged clients to
+        authenticate to a DRM-Master prior to getting GPU access. To avoid this
+        step and to grant clients GPU access without authenticating, render
+        nodes were introduced. Render nodes solely serve render clients, that
+        is, no modesetting or privileged ioctls can be issued on render nodes.
+        Only non-global rendering commands are allowed. If a driver supports
+        render nodes, it must advertise it via the <term>DRIVER_RENDER</term>
+        DRM driver capability. If not supported, the primary node must be used
+        for render clients together with the legacy drmAuth authentication
+        procedure.
+      </para>
+      <para>
+        If a driver advertises render node support, DRM core will create a
+        separate render node called <term>renderD&lt;num&gt;</term>. There will
+        be one render node per device. No ioctls except  PRIME-related ioctls
+        will be allowed on this node. Especially <term>GEM_OPEN</term> will be
+        explicitly prohibited. Render nodes are designed to avoid the
+        buffer-leaks, which occur if clients guess the flink names or mmap
+        offsets on the legacy interface. Additionally to this basic interface,
+        drivers must mark their driver-dependent render-only ioctls as
+        <term>DRM_RENDER_ALLOW</term> so render clients can use them. Driver
+        authors must be careful not to allow any privileged ioctls on render
+        nodes.
+      </para>
+      <para>
+        With render nodes, user-space can now control access to the render node
+        via basic file-system access-modes. A running graphics server which
+        authenticates clients on the privileged primary/legacy node is no longer
+        required. Instead, a client can open the render node and is immediately
+        granted GPU access. Communication between clients (or servers) is done
+        via PRIME. FLINK from render node to legacy node is not supported. New
+        clients must not use the insecure FLINK interface.
+      </para>
+      <para>
+        Besides dropping all modeset/global ioctls, render nodes also drop the
+        DRM-Master concept. There is no reason to associate render clients with
+        a DRM-Master as they are independent of any graphics server. Besides,
+        they must work without any running master, anyway.
+        Drivers must be able to run without a master object if they support
+        render nodes. If, on the other hand, a driver requires shared state
+        between clients which is visible to user-space and accessible beyond
+        open-file boundaries, they cannot support render nodes.
+      </para>
+    </sect1>
 
   <!-- External: vblank handling -->
 

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2011 LSI Corporation.
+ * Copyright (c) 2000-2013 LSI Corporation.
  *
  *
  *          Name:  mpi2_cnfg.h
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.22
+ *   mpi2_cnfg.h Version:  02.00.24
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -155,6 +155,11 @@
  *                     Added UEFIVersion field to BIOS Page 1 and defined new
  *                     BiosOptions bits.
  *                     Incorporating additions for MPI v2.5.
+ * 11-27-12  02.00.23  Added MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER.
+ *                     Added MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID.
+ * 12-20-12  02.00.24  Marked MPI2_SASIOUNIT1_CONTROL_CLEAR_AFFILIATION as
+ *                     obsolete for MPI v2.5 and later.
+ *                     Added some defines for 12G SAS speeds.
  * --------------------------------------------------------------------------
  */
 
@@ -714,6 +719,7 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_7 {
 #define MPI2_MANUFACTURING7_PAGEVERSION                 (0x01)
 
 /*defines for the Flags field */
+#define MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER       (0x00000002)
 #define MPI2_MANPAGE7_FLAG_USE_SLOT_INFO                (0x00000001)
 
 
@@ -1310,6 +1316,9 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1 {
 #define MPI2_BIOSPAGE1_PAGEVERSION                      (0x05)
 
 /*values for BIOS Page 1 BiosOptions field */
+#define MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID                  (0x000000F0)
+#define MPI2_BIOSPAGE1_OPTIONS_LSI_OEM_ID                   (0x00000000)
+
 #define MPI2_BIOSPAGE1_OPTIONS_MASK_UEFI_HII_REGISTRATION   (0x00000006)
 #define MPI2_BIOSPAGE1_OPTIONS_ENABLE_UEFI_HII              (0x00000000)
 #define MPI2_BIOSPAGE1_OPTIONS_DISABLE_UEFI_HII             (0x00000002)
@@ -1884,6 +1893,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_1 {
 #define MPI2_SAS_PRATE_MAX_RATE_1_5                     (0x80)
 #define MPI2_SAS_PRATE_MAX_RATE_3_0                     (0x90)
 #define MPI2_SAS_PRATE_MAX_RATE_6_0                     (0xA0)
+#define MPI25_SAS_PRATE_MAX_RATE_12_0                   (0xB0)
 #define MPI2_SAS_PRATE_MIN_RATE_MASK                    (0x0F)
 #define MPI2_SAS_PRATE_MIN_RATE_NOT_PROGRAMMABLE        (0x00)
 #define MPI2_SAS_PRATE_MIN_RATE_1_5                     (0x08)
@@ -1897,6 +1907,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_1 {
 #define MPI2_SAS_HWRATE_MAX_RATE_1_5                    (0x80)
 #define MPI2_SAS_HWRATE_MAX_RATE_3_0                    (0x90)
 #define MPI2_SAS_HWRATE_MAX_RATE_6_0                    (0xA0)
+#define MPI25_SAS_HWRATE_MAX_RATE_12_0                  (0xB0)
 #define MPI2_SAS_HWRATE_MIN_RATE_MASK                   (0x0F)
 #define MPI2_SAS_HWRATE_MIN_RATE_1_5                    (0x08)
 #define MPI2_SAS_HWRATE_MIN_RATE_3_0                    (0x09)

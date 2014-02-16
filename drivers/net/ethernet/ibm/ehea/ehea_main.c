@@ -98,10 +98,22 @@ static struct ehea_fw_handle_array ehea_fw_handles;
 static struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 
-static int ehea_probe_adapter(struct platform_device *dev,
-			      const struct of_device_id *id);
+static int ehea_probe_adapter(struct platform_device *dev);
 
 static int ehea_remove(struct platform_device *dev);
+
+static struct of_device_id ehea_module_device_table[] = {
+	{
+		.name = "lhea",
+		.compatible = "IBM,lhea",
+	},
+	{
+		.type = "network",
+		.compatible = "IBM,lhea-ethernet",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, ehea_module_device_table);
 
 static struct of_device_id ehea_device_table[] = {
 	{
@@ -110,9 +122,8 @@ static struct of_device_id ehea_device_table[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, ehea_device_table);
 
-static struct of_platform_driver ehea_driver = {
+static struct platform_driver ehea_driver = {
 	.driver = {
 		.name = "ehea",
 		.owner = THIS_MODULE,
@@ -1286,7 +1297,7 @@ static int ehea_reg_interrupts(struct net_device *dev)
 
 	ret = ibmebus_request_irq(port->qp_eq->attr.ist1,
 				  ehea_qp_aff_irq_handler,
-				  IRQF_DISABLED, port->int_aff_name, port);
+				  0, port->int_aff_name, port);
 	if (ret) {
 		netdev_err(dev, "failed registering irq for qp_aff_irq_handler:ist=%X\n",
 			   port->qp_eq->attr.ist1);
@@ -1304,8 +1315,7 @@ static int ehea_reg_interrupts(struct net_device *dev)
 			 "%s-queue%d", dev->name, i);
 		ret = ibmebus_request_irq(pr->eq->attr.ist1,
 					  ehea_recv_irq_handler,
-					  IRQF_DISABLED, pr->int_send_name,
-					  pr);
+					  0, pr->int_send_name, pr);
 		if (ret) {
 			netdev_err(dev, "failed registering irq for ehea_queue port_res_nr:%d, ist=%X\n",
 				   i, pr->eq->attr.ist1);
@@ -3023,7 +3033,7 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_TSO |
 		      NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_CTAG_TX;
-	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO |
+	dev->features = NETIF_F_SG | NETIF_F_TSO |
 		      NETIF_F_HIGHDMA | NETIF_F_IP_CSUM |
 		      NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		      NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM;
@@ -3251,8 +3261,7 @@ static void ehea_remove_device_sysfs(struct platform_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_remove_port);
 }
 
-static int ehea_probe_adapter(struct platform_device *dev,
-			      const struct of_device_id *id)
+static int ehea_probe_adapter(struct platform_device *dev)
 {
 	struct ehea_adapter *adapter;
 	const u64 *adapter_handle;
@@ -3289,7 +3298,7 @@ static int ehea_probe_adapter(struct platform_device *dev,
 
 	adapter->pd = EHEA_PD_ID;
 
-	dev_set_drvdata(&dev->dev, adapter);
+	platform_set_drvdata(dev, adapter);
 
 
 	/* initialize adapter and ports */
@@ -3322,7 +3331,7 @@ static int ehea_probe_adapter(struct platform_device *dev,
 	}
 
 	ret = ibmebus_request_irq(adapter->neq->attr.ist1,
-				  ehea_interrupt_neq, IRQF_DISABLED,
+				  ehea_interrupt_neq, 0,
 				  "ehea_neq", adapter);
 	if (ret) {
 		dev_err(&dev->dev, "requesting NEQ IRQ failed\n");
@@ -3360,7 +3369,7 @@ out:
 
 static int ehea_remove(struct platform_device *dev)
 {
-	struct ehea_adapter *adapter = dev_get_drvdata(&dev->dev);
+	struct ehea_adapter *adapter = platform_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < EHEA_MAX_PORTS; i++)

@@ -149,9 +149,10 @@ struct pnfs_device {
 	struct nfs4_deviceid dev_id;
 	unsigned int  layout_type;
 	unsigned int  mincount;
+	unsigned int  maxcount;	/* gdia_maxcount */
 	struct page **pages;
 	unsigned int  pgbase;
-	unsigned int  pglen;
+	unsigned int  pglen;	/* reply buffer length */
 };
 
 #define NFS4_PNFS_GETDEVLIST_MAXNUM 16
@@ -170,7 +171,8 @@ extern int nfs4_proc_getdevicelist(struct nfs_server *server,
 				   const struct nfs_fh *fh,
 				   struct pnfs_devicelist *devlist);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
-				   struct pnfs_device *dev);
+				   struct pnfs_device *dev,
+				   struct rpc_cred *cred);
 extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags);
 extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 
@@ -357,6 +359,15 @@ pnfs_ld_layoutret_on_setattr(struct inode *inode)
 		PNFS_LAYOUTRET_ON_SETATTR;
 }
 
+static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	return test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags) != 0 ||
+		test_bit(NFS_INO_LAYOUTCOMMITTING, &nfsi->flags) != 0;
+}
+
 static inline int pnfs_return_layout(struct inode *ino)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
@@ -512,6 +523,13 @@ pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
 {
 	return false;
 }
+
+static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	return false;
+}
+
 
 static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {

@@ -15,18 +15,10 @@
  *
  */
 
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/mm.h>
-#include <linux/scatterlist.h>
-
-#include <linux/io.h>
-
-#include "dev.h"
-#include "debug.h"
-#include "cdma.h"
-#include "channel.h"
-#include "host1x_bo.h"
+#include "../dev.h"
+#include "../debug.h"
+#include "../cdma.h"
+#include "../channel.h"
 
 #define HOST1X_DEBUG_MAX_PAGE_OFFSET 102400
 
@@ -171,8 +163,8 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 				continue;
 			}
 
-			host1x_debug_output(o, "    GATHER at %08x+%04x, %d words\n",
-					    g->base, g->offset, g->words);
+			host1x_debug_output(o, "    GATHER at %#llx+%04x, %d words\n",
+					    (u64)g->base, g->offset, g->words);
 
 			show_gather(o, g->base + g->offset, g->words, cdma,
 				    g->base, mapped);

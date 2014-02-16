@@ -57,7 +57,7 @@ static struct map_desc ts78xx_io_desc[] __initdata = {
 	},
 };
 
-void __init ts78xx_map_io(void)
+static void __init ts78xx_map_io(void)
 {
 	orion5x_map_io();
 	iotable_init(ts78xx_io_desc, ARRAY_SIZE(ts78xx_io_desc));

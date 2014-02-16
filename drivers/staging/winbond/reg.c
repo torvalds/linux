@@ -43,7 +43,7 @@
  */
 
 /* MAX2825 (pure b/g) */
-u32 max2825_rf_data[] = {
+static u32 max2825_rf_data[] = {
 	(0x00<<18) | 0x000a2,
 	(0x01<<18) | 0x21cc0,
 	(0x02<<18) | 0x13806,
@@ -59,7 +59,7 @@ u32 max2825_rf_data[] = {
 	(0x0C<<18) | 0x0c100   /* 11a: 0x0c300, 11g: 0x0c100 */
 };
 
-u32 max2825_channel_data_24[][3] = {
+static u32 max2825_channel_data_24[][3] = {
 	{(0x03 << 18) | 0x30142, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x289A6}, /* channel 01 */
 	{(0x03 << 18) | 0x32141, (0x04 << 18) | 0x08444, (0x05 << 18) | 0x289A6}, /* channel 02 */
 	{(0x03 << 18) | 0x32143, (0x04 << 18) | 0x0aeee, (0x05 << 18) | 0x289A6}, /* channel 03 */
@@ -76,11 +76,11 @@ u32 max2825_channel_data_24[][3] = {
 	{(0x03 << 18) | 0x32941, (0x04 << 18) | 0x09999, (0x05 << 18) | 0x289A6}  /* channel 14 (2484MHz) */
 };
 
-u32 max2825_power_data_24[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100};
+static u32 max2825_power_data_24[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100};
 
 /* ========================================== */
 /* MAX2827 (a/b/g) */
-u32 max2827_rf_data[] = {
+static u32 max2827_rf_data[] = {
 	(0x00 << 18) | 0x000a2,
 	(0x01 << 18) | 0x21cc0,
 	(0x02 << 18) | 0x13806,
@@ -96,7 +96,7 @@ u32 max2827_rf_data[] = {
 	(0x0C << 18) | 0x0c100   /* 11a: 0x0c300, 11g: 0x0c100 */
 };
 
-u32 max2827_channel_data_24[][3] = {
+static u32 max2827_channel_data_24[][3] = {
 	{(0x03 << 18) | 0x30142, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x289A6}, /* channe1 01 */
 	{(0x03 << 18) | 0x32141, (0x04 << 18) | 0x08444, (0x05 << 18) | 0x289A6}, /* channe1 02 */
 	{(0x03 << 18) | 0x32143, (0x04 << 18) | 0x0aeee, (0x05 << 18) | 0x289A6}, /* channe1 03 */
@@ -113,7 +113,7 @@ u32 max2827_channel_data_24[][3] = {
 	{(0x03 << 18) | 0x32941, (0x04 << 18) | 0x09999, (0x05 << 18) | 0x289A6}  /* channel 14 (2484MHz) */
 };
 
-u32 max2827_channel_data_50[][3] = {
+static u32 max2827_channel_data_50[][3] = {
 	{(0x03 << 18) | 0x33cc3, (0x04 << 18) | 0x08ccc, (0x05 << 18) | 0x2A9A6}, /* channel 36 */
 	{(0x03 << 18) | 0x302c0, (0x04 << 18) | 0x08000, (0x05 << 18) | 0x2A9A6}, /* channel 40 */
 	{(0x03 << 18) | 0x302c2, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x2A9A6}, /* channel 44 */
@@ -124,12 +124,12 @@ u32 max2827_channel_data_50[][3] = {
 	{(0x03 << 18) | 0x30ac2, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x2A9A6}  /* channel 64 */
 };
 
-u32 max2827_power_data_24[] = {(0x0C << 18) | 0x0C000, (0x0C << 18) | 0x0D600, (0x0C << 18) | 0x0C100};
-u32 max2827_power_data_50[] = {(0x0C << 18) | 0x0C400, (0x0C << 18) | 0x0D500, (0x0C << 18) | 0x0C300};
+static u32 max2827_power_data_24[] = {(0x0C << 18) | 0x0C000, (0x0C << 18) | 0x0D600, (0x0C << 18) | 0x0C100};
+static u32 max2827_power_data_50[] = {(0x0C << 18) | 0x0C400, (0x0C << 18) | 0x0D500, (0x0C << 18) | 0x0C300};
 
 /* ======================================================= */
 /* MAX2828 (a/b/g) */
-u32 max2828_rf_data[] = {
+static u32 max2828_rf_data[] = {
 	(0x00 << 18) | 0x000a2,
 	(0x01 << 18) | 0x21cc0,
 	(0x02 << 18) | 0x13806,
@@ -145,7 +145,7 @@ u32 max2828_rf_data[] = {
 	(0x0C << 18) | 0x0c100   /* 11a: 0x0c300, 11g: 0x0c100 */
 };
 
-u32 max2828_channel_data_24[][3] = {
+static u32 max2828_channel_data_24[][3] = {
 	{(0x03 << 18) | 0x30142, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x289A6}, /* channe1 01 */
 	{(0x03 << 18) | 0x32141, (0x04 << 18) | 0x08444, (0x05 << 18) | 0x289A6}, /* channe1 02 */
 	{(0x03 << 18) | 0x32143, (0x04 << 18) | 0x0aeee, (0x05 << 18) | 0x289A6}, /* channe1 03 */
@@ -162,7 +162,7 @@ u32 max2828_channel_data_24[][3] = {
 	{(0x03 << 18) | 0x32941, (0x04 << 18) | 0x09999, (0x05 << 18) | 0x289A6}  /* channel 14 (2484MHz) */
 };
 
-u32 max2828_channel_data_50[][3] = {
+static u32 max2828_channel_data_50[][3] = {
 	{(0x03 << 18) | 0x33cc3, (0x04 << 18) | 0x08ccc, (0x05 << 18) | 0x289A6}, /* channel 36 */
 	{(0x03 << 18) | 0x302c0, (0x04 << 18) | 0x08000, (0x05 << 18) | 0x289A6}, /* channel 40 */
 	{(0x03 << 18) | 0x302c2, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x289A6}, /* channel 44 */
@@ -173,12 +173,12 @@ u32 max2828_channel_data_50[][3] = {
 	{(0x03 << 18) | 0x30ac2, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x289A6}  /* channel 64 */
 };
 
-u32 max2828_power_data_24[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100};
-u32 max2828_power_data_50[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100};
+static u32 max2828_power_data_24[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100};
+static u32 max2828_power_data_50[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100};
 
 /* ========================================================== */
 /* MAX2829 (a/b/g) */
-u32 max2829_rf_data[] = {
+static u32 max2829_rf_data[] = {
 	(0x00 << 18) | 0x000a2,
 	(0x01 << 18) | 0x23520,
 	(0x02 << 18) | 0x13802,
@@ -194,7 +194,7 @@ u32 max2829_rf_data[] = {
 	(0x0C << 18) | 0x0F300 /* TXVGA=51, (MAX-6 dB) */
 };
 
-u32 max2829_channel_data_24[][3] = {
+static u32 max2829_channel_data_24[][3] = {
 	{(3 << 18) | 0x30142, (4 << 18) | 0x0b333, (5 << 18) | 0x289C6},  /* 01 (2412MHz) */
 	{(3 << 18) | 0x32141, (4 << 18) | 0x08444, (5 << 18) | 0x289C6},  /* 02 (2417MHz) */
 	{(3 << 18) | 0x32143, (4 << 18) | 0x0aeee, (5 << 18) | 0x289C6},  /* 03 (2422MHz) */
@@ -211,7 +211,7 @@ u32 max2829_channel_data_24[][3] = {
 	{(3 << 18) | 0x32941, (4 << 18) | 0x09999, (5 << 18) | 0x289C6},  /* 14 (2484MHz) */
 };
 
-u32 max2829_channel_data_50[][4] = {
+static u32 max2829_channel_data_50[][4] = {
 	{36, (3 << 18) | 0x33cc3, (4 << 18) | 0x08ccc, (5 << 18) | 0x2A946}, /* 36 (5.180GHz) */
 	{40, (3 << 18) | 0x302c0, (4 << 18) | 0x08000, (5 << 18) | 0x2A946}, /* 40 (5.200GHz) */
 	{44, (3 << 18) | 0x302c2, (4 << 18) | 0x0b333, (5 << 18) | 0x2A946}, /* 44 (5.220GHz) */
@@ -296,51 +296,6 @@ u32 max2829_channel_data_50[][4] = {
  * 0x0c 0x0c000
  * ====================================================================
  */
-u32 maxim_317_rf_data[] = {
-	(0x00 << 18) | 0x000a2,
-	(0x01 << 18) | 0x214c0,
-	(0x02 << 18) | 0x13802,
-	(0x03 << 18) | 0x30143,
-	(0x04 << 18) | 0x0accc,
-	(0x05 << 18) | 0x28986,
-	(0x06 << 18) | 0x18008,
-	(0x07 << 18) | 0x38400,
-	(0x08 << 18) | 0x05108,
-	(0x09 << 18) | 0x27ff8,
-	(0x0A << 18) | 0x14000,
-	(0x0B << 18) | 0x37f99,
-	(0x0C << 18) | 0x0c000
-};
-
-u32 maxim_317_channel_data_24[][3] = {
-	{(0x03 << 18) | 0x30143, (0x04 << 18) | 0x0accc, (0x05 << 18) | 0x28986}, /* channe1 01 */
-	{(0x03 << 18) | 0x32140, (0x04 << 18) | 0x09111, (0x05 << 18) | 0x28986}, /* channe1 02 */
-	{(0x03 << 18) | 0x32142, (0x04 << 18) | 0x0bbbb, (0x05 << 18) | 0x28986}, /* channe1 03 */
-	{(0x03 << 18) | 0x32143, (0x04 << 18) | 0x0accc, (0x05 << 18) | 0x28986}, /* channe1 04 */
-	{(0x03 << 18) | 0x31140, (0x04 << 18) | 0x09111, (0x05 << 18) | 0x28986}, /* channe1 05 */
-	{(0x03 << 18) | 0x31142, (0x04 << 18) | 0x0bbbb, (0x05 << 18) | 0x28986}, /* channe1 06 */
-	{(0x03 << 18) | 0x31143, (0x04 << 18) | 0x0accc, (0x05 << 18) | 0x28986}, /* channe1 07 */
-	{(0x03 << 18) | 0x33140, (0x04 << 18) | 0x09111, (0x05 << 18) | 0x28986}, /* channe1 08 */
-	{(0x03 << 18) | 0x33142, (0x04 << 18) | 0x0bbbb, (0x05 << 18) | 0x28986}, /* channe1 09 */
-	{(0x03 << 18) | 0x33143, (0x04 << 18) | 0x0accc, (0x05 << 18) | 0x28986}, /* channe1 10 */
-	{(0x03 << 18) | 0x30940, (0x04 << 18) | 0x09111, (0x05 << 18) | 0x28986}, /* channe1 11 */
-	{(0x03 << 18) | 0x30942, (0x04 << 18) | 0x0bbbb, (0x05 << 18) | 0x28986}, /* channe1 12 */
-	{(0x03 << 18) | 0x30943, (0x04 << 18) | 0x0accc, (0x05 << 18) | 0x28986}  /* channe1 13 */
-};
-
-u32 maxim_317_channel_data_50[][3] = {
-	{(0x03 << 18) | 0x33cc0, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x2a986}, /* channel 36 */
-	{(0x03 << 18) | 0x302c0, (0x04 << 18) | 0x08000, (0x05 << 18) | 0x2a986}, /* channel 40 */
-	{(0x03 << 18) | 0x302c3, (0x04 << 18) | 0x0accc, (0x05 << 18) | 0x2a986}, /* channel 44 */
-	{(0x03 << 18) | 0x322c1, (0x04 << 18) | 0x09666, (0x05 << 18) | 0x2a986}, /* channel 48 */
-	{(0x03 << 18) | 0x312c2, (0x04 << 18) | 0x09999, (0x05 << 18) | 0x2a986}, /* channel 52 */
-	{(0x03 << 18) | 0x332c0, (0x04 << 18) | 0x0b333, (0x05 << 18) | 0x2a99e}, /* channel 56 */
-	{(0x03 << 18) | 0x30ac0, (0x04 << 18) | 0x08000, (0x05 << 18) | 0x2a99e}, /* channel 60 */
-	{(0x03 << 18) | 0x30ac3, (0x04 << 18) | 0x0accc, (0x05 << 18) | 0x2a99e}  /* channel 64 */
-};
-
-u32 maxim_317_power_data_24[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100};
-u32 maxim_317_power_data_50[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100};
 
 /*
  * ===================================================================
@@ -388,7 +343,7 @@ u32 maxim_317_power_data_50[] = {(0x0C << 18) | 0x0c000, (0x0C << 18) | 0x0c100}
  * 0x0f 0xf00a0 ; Restore Initial Setting
  * ==================================================================
  */
-u32 al2230_rf_data[] = {
+static u32 al2230_rf_data[] = {
 	(0x00 << 20) | 0x09EFC,
 	(0x01 << 20) | 0x8CCCC,
 	(0x02 << 20) | 0x40058,
@@ -406,7 +361,7 @@ u32 al2230_rf_data[] = {
 	(0x0F << 20) | 0xF01A0
 };
 
-u32 al2230s_rf_data[] = {
+static u32 al2230s_rf_data[] = {
 	(0x00 << 20) | 0x09EFC,
 	(0x01 << 20) | 0x8CCCC,
 	(0x02 << 20) | 0x40058,
@@ -424,7 +379,7 @@ u32 al2230s_rf_data[] = {
 	(0x0F << 20) | 0xF01A0
 };
 
-u32 al2230_channel_data_24[][2] = {
+static u32 al2230_channel_data_24[][2] = {
 	{(0x00 << 20) | 0x09EFC, (0x01 << 20) | 0x8CCCC}, /* channe1 01 */
 	{(0x00 << 20) | 0x09EFC, (0x01 << 20) | 0x8CCCD}, /* channe1 02 */
 	{(0x00 << 20) | 0x09E7C, (0x01 << 20) | 0x8CCCC}, /* channe1 03 */
@@ -446,7 +401,7 @@ u32 al2230_channel_data_24[][2] = {
 #define AIROHA_TXVGA_MIDDLE_INDEX	12	/* Index for 0x96602 */
 #define AIROHA_TXVGA_HIGH_INDEX		8	/* Index for 0x97602 1.0.24.0 1.0.28.0 */
 
-u32 al2230_txvga_data[][2] = {
+static u32 al2230_txvga_data[][2] = {
 	/* value , index */
 	{0x090202, 0},
 	{0x094202, 2},
@@ -497,7 +452,7 @@ u32 al2230_txvga_data[][2] = {
  */
 
 /* channel independent registers: */
-u32 al7230_rf_data_24[]	= {
+static u32 al7230_rf_data_24[]	= {
 	(0x00 << 24) | 0x003790,
 	(0x01 << 24) | 0x133331,
 	(0x02 << 24) | 0x841FF2,
@@ -516,7 +471,7 @@ u32 al7230_rf_data_24[]	= {
 	(0x0F << 24) | 0x1ABA8F
 };
 
-u32 al7230_channel_data_24[][2] = {
+static u32 al7230_channel_data_24[][2] = {
 	{(0x00 << 24) | 0x003790, (0x01 << 24) | 0x133331}, /* channe1 01 */
 	{(0x00 << 24) | 0x003790, (0x01 << 24) | 0x1B3331}, /* channe1 02 */
 	{(0x00 << 24) | 0x003790, (0x01 << 24) | 0x033331}, /* channe1 03 */
@@ -534,7 +489,7 @@ u32 al7230_channel_data_24[][2] = {
 };
 
 /* channel independent registers: */
-u32 al7230_rf_data_50[]	= {
+static u32 al7230_rf_data_50[]	= {
 	(0x00 << 24) | 0x0FF520,
 	(0x01 << 24) | 0x000001,
 	(0x02 << 24) | 0x451FE2,
@@ -553,7 +508,7 @@ u32 al7230_rf_data_50[]	= {
 	(0x0F << 24) | 0x12BACF  /* 5Ghz default state */
 };
 
-u32 al7230_channel_data_5[][4] = {
+static u32 al7230_channel_data_5[][4] = {
 	/* channel dependent registers: 0x00, 0x01 and 0x04 */
 	/* 11J =========== */
 	{184, (0x00 << 24) | 0x0FF520, (0x01 << 24) | 0x000001, (0x04 << 24) | 0x67F784}, /* channel 184 */
@@ -603,7 +558,7 @@ u32 al7230_channel_data_5[][4] = {
  */
 
 /* TXVGA Mapping Table <=== Register 0x0B */
-u32 al7230_txvga_data[][2] = {
+static u32 al7230_txvga_data[][2] = {
 	{0x08040B, 0}, /* TXVGA = 0; */
 	{0x08041B, 1}, /* TXVGA = 1; */
 	{0x08042B, 2}, /* TXVGA = 2; */
@@ -675,7 +630,7 @@ u32 al7230_txvga_data[][2] = {
  * W89RF242 RFIC SPI programming initial data
  * Winbond WLAN 11g RFIC BB-SPI register -- version FA5976A rev 1.3b
  */
-u32 w89rf242_rf_data[] = {
+static u32 w89rf242_rf_data[] = {
 	(0x00 << 24) | 0xF86100, /* 3E184; MODA  (0x00) -- Normal mode ; calibration off */
 	(0x01 << 24) | 0xEFFFC2, /* 3BFFF; MODB  (0x01) -- turn off RSSI, and other circuits are turned on */
 	(0x02 << 24) | 0x102504, /* 04094; FSET  (0x02) -- default 20MHz crystal ; Icmp=1.5mA */
@@ -696,7 +651,7 @@ u32 w89rf242_rf_data[] = {
 	(0x12 << 24) | 0x000024  /* TMODC (0x12) -- Turn OFF Temperature sensor */
 };
 
-u32 w89rf242_channel_data_24[][2] = {
+static u32 w89rf242_channel_data_24[][2] = {
 	{(0x03 << 24) | 0x025B06, (0x04 << 24) | 0x080408}, /* channe1 01 */
 	{(0x03 << 24) | 0x025C46, (0x04 << 24) | 0x080408}, /* channe1 02 */
 	{(0x03 << 24) | 0x025D86, (0x04 << 24) | 0x080408}, /* channe1 03 */
@@ -713,9 +668,7 @@ u32 w89rf242_channel_data_24[][2] = {
 	{(0x03 << 24) | 0x026D06, (0x04 << 24) | 0x080408}  /* channe1 14 */
 };
 
-u32 w89rf242_power_data_24[] = {(0x05 << 24) | 0x24C48A, (0x05 << 24) | 0x24C48A, (0x05 << 24) | 0x24C48A};
-
-u32 w89rf242_txvga_old_mapping[][2] = {
+static u32 w89rf242_txvga_old_mapping[][2] = {
 	{0, 0} , /* New <-> Old */
 	{1, 1} ,
 	{2, 2} ,
@@ -738,7 +691,7 @@ u32 w89rf242_txvga_old_mapping[][2] = {
 	{34, 19},
 };
 
-u32 w89rf242_txvga_data[][5] = {
+static u32 w89rf242_txvga_data[][5] = {
 	/* low gain mode */
 	{(0x05 << 24) | 0x24C00A, 0, 0x00292315, 0x0800FEFF, 0x52523131}, /* min gain */
 	{(0x05 << 24) | 0x24C80A, 1, 0x00292315, 0x0800FEFF, 0x52523131},
@@ -920,7 +873,7 @@ void Uxx_power_on_procedure(struct hw_data *pHwData)
 	Wb35Reg_WriteSync(pHwData, 0x03f8, 0x7ff);
 }
 
-static void Set_ChanIndep_RfData_al7230_24(struct hw_data *pHwData, u32 *pltmp, 
+static void Set_ChanIndep_RfData_al7230_24(struct hw_data *pHwData, u32 *pltmp,
 					char number)
 {
 	u8	i;
@@ -930,7 +883,7 @@ static void Set_ChanIndep_RfData_al7230_24(struct hw_data *pHwData, u32 *pltmp,
 	}
 }
 
-static void Set_ChanIndep_RfData_al7230_50(struct hw_data *pHwData, u32 *pltmp, 
+static void Set_ChanIndep_RfData_al7230_50(struct hw_data *pHwData, u32 *pltmp,
 					char number)
 {
 	u8	i;
@@ -1088,7 +1041,7 @@ void RFSynthesizer_initial(struct hw_data *pHwData)
 		msleep(5);
 
 		ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse((0x0F << 20) | 0xF01A0, 20);
-		Wb35Reg_WriteSync(pHwData, 0x0864, ltmp) ;
+		Wb35Reg_WriteSync(pHwData, 0x0864, ltmp);
 
 		Wb35Reg_WriteSync(pHwData, 0x105c, pHwData->reg.BB5C);
 		pHwData->reg.BB50 &= ~0x13; /* (MASK_IQCAL_MODE|MASK_CALIB_START); */
@@ -1620,13 +1573,13 @@ void BBProcessor_initial(struct hw_data *pHwData)
 		reg->SQ3_filter[i] = 0x2f; /* half of Bit 0 ~ 6 */
 }
 
-static inline void set_tx_power_per_channel_max2829(struct hw_data *pHwData,  
+static inline void set_tx_power_per_channel_max2829(struct hw_data *pHwData,
 						struct chan_info Channel)
 {
 	RFSynthesizer_SetPowerIndex(pHwData, 100);
 }
 
-static void set_tx_power_per_channel_al2230(struct hw_data *pHwData,  
+static void set_tx_power_per_channel_al2230(struct hw_data *pHwData,
 					struct chan_info Channel)
 {
 	u8	index = 100;
@@ -1636,7 +1589,7 @@ static void set_tx_power_per_channel_al2230(struct hw_data *pHwData,
 	RFSynthesizer_SetPowerIndex(pHwData, index);
 }
 
-static void set_tx_power_per_channel_al7230(struct hw_data *pHwData,  
+static void set_tx_power_per_channel_al7230(struct hw_data *pHwData,
 					struct chan_info Channel)
 {
 	u8	i, index = 100;
@@ -1660,7 +1613,7 @@ static void set_tx_power_per_channel_al7230(struct hw_data *pHwData,
 	RFSynthesizer_SetPowerIndex(pHwData, index);
 }
 
-static void set_tx_power_per_channel_wb242(struct hw_data *pHwData,  
+static void set_tx_power_per_channel_wb242(struct hw_data *pHwData,
 					struct chan_info Channel)
 {
 	u8	index = 100;
@@ -2096,7 +2049,7 @@ void Mxx_initial(struct hw_data *pHwData)
 	pltmp[5] = reg->M38_MacControl;
 
 	/* M3C */
-	tmp = (DEFAULT_PIFST << 26) | (DEFAULT_EIFST << 16) | (DEFAULT_DIFST << 8) | (DEFAULT_SIFST << 4) | DEFAULT_OSIFST ;
+	tmp = (DEFAULT_PIFST << 26) | (DEFAULT_EIFST << 16) | (DEFAULT_DIFST << 8) | (DEFAULT_SIFST << 4) | DEFAULT_OSIFST;
 	reg->M3C_MacControl = tmp;
 	pltmp[6] = tmp;
 

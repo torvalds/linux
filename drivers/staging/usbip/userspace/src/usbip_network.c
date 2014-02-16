@@ -25,8 +25,42 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#endif
+
 #include "usbip_common.h"
 #include "usbip_network.h"
+
+int usbip_port = 3240;
+char *usbip_port_string = "3240";
+
+void usbip_setup_port_number(char *arg)
+{
+	dbg("parsing port arg '%s'", arg);
+	char *end;
+	unsigned long int port = strtoul(arg, &end, 10);
+
+	if (end == arg) {
+		err("port: could not parse '%s' as a decimal integer", arg);
+		return;
+	}
+
+	if (*end != '\0') {
+		err("port: garbage at end of '%s'", arg);
+		return;
+	}
+
+	if (port > UINT16_MAX) {
+		err("port: %s too high (max=%d)",
+		    arg, UINT16_MAX);
+		return;
+	}
+
+	usbip_port = port;
+	usbip_port_string = arg;
+	info("using port %d (\"%s\")", usbip_port, usbip_port_string);
+}
 
 void usbip_net_pack_uint32_t(int pack, uint32_t *num)
 {
@@ -205,6 +239,18 @@ int usbip_net_set_keepalive(int sockfd)
 	ret = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
 	if (ret < 0)
 		dbg("setsockopt: SO_KEEPALIVE");
+
+	return ret;
+}
+
+int usbip_net_set_v6only(int sockfd)
+{
+	const int val = 1;
+	int ret;
+
+	ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &val, sizeof(val));
+	if (ret < 0)
+		dbg("setsockopt: IPV6_V6ONLY");
 
 	return ret;
 }

@@ -29,10 +29,7 @@
 #include <linux/sysrq.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
-
-#include <bcm63xx_irq.h>
-#include <bcm63xx_regs.h>
-#include <bcm63xx_io.h>
+#include <linux/serial_bcm63xx.h>
 
 #define BCM63XX_NR_UARTS	2
 
@@ -81,13 +78,13 @@ static struct uart_port ports[BCM63XX_NR_UARTS];
 static inline unsigned int bcm_uart_readl(struct uart_port *port,
 					 unsigned int offset)
 {
-	return bcm_readl(port->membase + offset);
+	return __raw_readl(port->membase + offset);
 }
 
 static inline void bcm_uart_writel(struct uart_port *port,
 				  unsigned int value, unsigned int offset)
 {
-	bcm_writel(value, port->membase + offset);
+	__raw_writel(value, port->membase + offset);
 }
 
 /*
@@ -302,7 +299,9 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 	} while (--max_count);
 
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tty_port);
+	spin_lock(&port->lock);
 }
 
 /*
@@ -852,7 +851,6 @@ static int bcm_uart_remove(struct platform_device *pdev)
 
 	port = platform_get_drvdata(pdev);
 	uart_remove_one_port(&bcm_uart_driver, port);
-	platform_set_drvdata(pdev, NULL);
 	/* mark port as free */
 	ports[pdev->id].membase = 0;
 	return 0;

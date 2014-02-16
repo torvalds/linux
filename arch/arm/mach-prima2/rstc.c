@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/reboot.h>
 
 void __iomem *sirfsoc_rstc_base;
 static DEFINE_MUTEX(rstc_lock);
@@ -84,7 +85,7 @@ int sirfsoc_reset_device(struct device *dev)
 
 #define SIRFSOC_SYS_RST_BIT  BIT(31)
 
-void sirfsoc_restart(char mode, const char *cmd)
+void sirfsoc_restart(enum reboot_mode mode, const char *cmd)
 {
 	writel(SIRFSOC_SYS_RST_BIT, sirfsoc_rstc_base);
 }

@@ -1074,9 +1074,9 @@ static struct usb_gadget_ops fotg210_gadget_ops = {
 	.udc_stop		= fotg210_udc_stop,
 };
 
-static int __exit fotg210_udc_remove(struct platform_device *pdev)
+static int fotg210_udc_remove(struct platform_device *pdev)
 {
-	struct fotg210_udc *fotg210 = dev_get_drvdata(&pdev->dev);
+	struct fotg210_udc *fotg210 = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&fotg210->gadget);
 	iounmap(fotg210->reg);
@@ -1088,7 +1088,7 @@ static int __exit fotg210_udc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init fotg210_udc_probe(struct platform_device *pdev)
+static int fotg210_udc_probe(struct platform_device *pdev)
 {
 	struct resource *res, *ires;
 	struct fotg210_udc *fotg210 = NULL;
@@ -1134,7 +1134,7 @@ static int __init fotg210_udc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&fotg210->lock);
 
-	dev_set_drvdata(&pdev->dev, fotg210);
+	platform_set_drvdata(pdev, fotg210);
 
 	fotg210->gadget.ops = &fotg210_gadget_ops;
 
@@ -1157,8 +1157,9 @@ static int __init fotg210_udc_probe(struct platform_device *pdev)
 		INIT_LIST_HEAD(&ep->queue);
 		ep->ep.name = fotg210_ep_name[i];
 		ep->ep.ops = &fotg210_ep_ops;
+		usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);
 	}
-	fotg210->ep[0]->ep.maxpacket = 0x40;
+	usb_ep_set_maxpacket_limit(&fotg210->ep[0]->ep, 0x40);
 	fotg210->gadget.ep0 = &fotg210->ep[0]->ep;
 	INIT_LIST_HEAD(&fotg210->gadget.ep0->ep_list);
 
@@ -1214,6 +1215,6 @@ static struct platform_driver fotg210_driver = {
 
 module_platform_driver(fotg210_driver);
 
-MODULE_AUTHOR("Yuan-Hsin Chen <yhchen@faraday-tech.com>");
+MODULE_AUTHOR("Yuan-Hsin Chen, Feng-Hsin Chiang <john453@faraday-tech.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);

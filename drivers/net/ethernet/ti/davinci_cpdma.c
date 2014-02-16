@@ -64,6 +64,7 @@
 #define CPDMA_DESC_TO_PORT_EN	BIT(20)
 #define CPDMA_TO_PORT_SHIFT	16
 #define CPDMA_DESC_PORT_MASK	(BIT(18) | BIT(17) | BIT(16))
+#define CPDMA_DESC_CRC_LEN	4
 
 #define CPDMA_TEARDOWN_VALUE	0xfffffffc
 
@@ -80,7 +81,7 @@ struct cpdma_desc {
 };
 
 struct cpdma_desc_pool {
-	u32			phys;
+	phys_addr_t		phys;
 	u32			hw_addr;
 	void __iomem		*iomap;		/* ioremap map */
 	void			*cpumap;	/* dma_alloc map */
@@ -218,8 +219,7 @@ static inline dma_addr_t desc_phys(struct cpdma_desc_pool *pool,
 {
 	if (!desc)
 		return 0;
-	return pool->hw_addr + (__force dma_addr_t)desc -
-			    (__force dma_addr_t)pool->iomap;
+	return pool->hw_addr + (__force long)desc - (__force long)pool->iomap;
 }
 
 static inline struct cpdma_desc __iomem *
@@ -590,6 +590,7 @@ int cpdma_chan_get_stats(struct cpdma_chan *chan,
 	spin_unlock_irqrestore(&chan->lock, flags);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpdma_chan_get_stats);
 
 int cpdma_chan_dump(struct cpdma_chan *chan)
 {
@@ -805,6 +806,10 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 		status = -EBUSY;
 		goto unlock_ret;
 	}
+
+	if (status & CPDMA_DESC_PASS_CRC)
+		outlen -= CPDMA_DESC_CRC_LEN;
+
 	status	= status & (CPDMA_DESC_EOQ | CPDMA_DESC_TD_COMPLETE |
 			    CPDMA_DESC_PORT_MASK);
 
@@ -966,7 +971,7 @@ struct cpdma_control_info {
 #define ACCESS_RW	(ACCESS_RO | ACCESS_WO)
 };
 
-struct cpdma_control_info controls[] = {
+static struct cpdma_control_info controls[] = {
 	[CPDMA_CMD_IDLE]	  = {CPDMA_DMACONTROL,	3,  1,      ACCESS_WO},
 	[CPDMA_COPY_ERROR_FRAMES] = {CPDMA_DMACONTROL,	4,  1,      ACCESS_RW},
 	[CPDMA_RX_OFF_LEN_UPDATE] = {CPDMA_DMACONTROL,	2,  1,      ACCESS_RW},

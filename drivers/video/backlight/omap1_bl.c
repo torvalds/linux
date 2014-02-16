@@ -133,7 +133,7 @@ static int omapbl_probe(struct platform_device *pdev)
 	struct backlight_properties props;
 	struct backlight_device *dev;
 	struct omap_backlight *bl;
-	struct omap_backlight_config *pdata = pdev->dev.platform_data;
+	struct omap_backlight_config *pdata = dev_get_platdata(&pdev->dev);
 
 	if (!pdata)
 		return -ENXIO;
@@ -146,8 +146,8 @@ static int omapbl_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = OMAPBL_MAX_INTENSITY;
-	dev = backlight_device_register("omap-bl", &pdev->dev, bl, &omapbl_ops,
-					&props);
+	dev = devm_backlight_device_register(&pdev->dev, "omap-bl", &pdev->dev,
+					bl, &omapbl_ops, &props);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
@@ -170,20 +170,10 @@ static int omapbl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int omapbl_remove(struct platform_device *pdev)
-{
-	struct backlight_device *dev = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(dev);
-
-	return 0;
-}
-
 static SIMPLE_DEV_PM_OPS(omapbl_pm_ops, omapbl_suspend, omapbl_resume);
 
 static struct platform_driver omapbl_driver = {
 	.probe		= omapbl_probe,
-	.remove		= omapbl_remove,
 	.driver		= {
 		.name	= "omap-bl",
 		.pm	= &omapbl_pm_ops,

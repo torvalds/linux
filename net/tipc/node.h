@@ -64,7 +64,6 @@
  * @working_links: number of working links to node (both active and standby)
  * @block_setup: bit mask of conditions preventing link establishment to node
  * @link_cnt: number of links to node
- * @permit_changeover: non-zero if node has redundant links to this system
  * @signature: node instance identifier
  * @bclink: broadcast-related info
  *    @acked: sequence # of last outbound b'cast message acknowledged by node
@@ -74,7 +73,8 @@
  *    @deferred_size: number of OOS b'cast messages in deferred queue
  *    @deferred_head: oldest OOS b'cast message received from node
  *    @deferred_tail: newest OOS b'cast message received from node
- *    @defragm: list of partially reassembled b'cast message fragments from node
+ *    @reasm_head: broadcast reassembly queue head from node
+ *    @reasm_tail: last broadcast fragment received from node
  *    @recv_permitted: true if node is allowed to receive b'cast messages
  */
 struct tipc_node {
@@ -88,7 +88,6 @@ struct tipc_node {
 	int link_cnt;
 	int working_links;
 	int block_setup;
-	int permit_changeover;
 	u32 signature;
 	struct {
 		u32 acked;
@@ -98,7 +97,8 @@ struct tipc_node {
 		u32 deferred_size;
 		struct sk_buff *deferred_head;
 		struct sk_buff *deferred_tail;
-		struct sk_buff *defragm;
+		struct sk_buff *reasm_head;
+		struct sk_buff *reasm_tail;
 		bool recv_permitted;
 	} bclink;
 };
@@ -113,7 +113,6 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 int tipc_node_active_links(struct tipc_node *n_ptr);
-int tipc_node_redundant_links(struct tipc_node *n_ptr);
 int tipc_node_is_up(struct tipc_node *n_ptr);
 struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space);
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space);

@@ -45,6 +45,7 @@ zero volts).
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <asm/div64.h>
@@ -73,11 +74,10 @@ static const int nano_per_micro = 1000;
 
 /* fake analog input ranges */
 static const struct comedi_lrange waveform_ai_ranges = {
-	2,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 }
+	2, {
+		BIP_RANGE(10),
+		BIP_RANGE(5)
+	}
 };
 
 static unsigned short fake_sawtooth(struct comedi_device *dev,
@@ -379,10 +379,9 @@ static int waveform_attach(struct comedi_device *dev,
 	int i;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* set default amplitude and period */
 	if (amplitude <= 0)

@@ -181,7 +181,7 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 			}
 			shift += bpp;
 			shift &= (32 - 1);
-			if (!l) { l = 8; s++; };
+			if (!l) { l = 8; s++; }
 		}
 
 		/* write trailing bits */

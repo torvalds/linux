@@ -387,9 +387,6 @@ static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 	host_file = cfi->cfi_container;
 
-	if (!host_file->f_op)
-		return -ENOTDIR;
-
 	if (host_file->f_op->iterate) {
 		struct inode *host_inode = file_inode(host_file);
 		mutex_lock(&host_inode->i_mutex);
@@ -526,7 +523,7 @@ static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 	if (cii->c_flags & C_FLUSH) 
 		coda_flag_inode_children(inode, C_FLUSH);
 
-	if (de->d_count > 1)
+	if (d_count(de) > 1)
 		/* pretend it's valid, but don't change the flags */
 		goto out;
 
@@ -566,13 +563,12 @@ static int coda_dentry_delete(const struct dentry * dentry)
  * cache manager Venus issues a downcall to the kernel when this 
  * happens 
  */
-int coda_revalidate_inode(struct dentry *dentry)
+int coda_revalidate_inode(struct inode *inode)
 {
 	struct coda_vattr attr;
 	int error;
 	int old_mode;
 	ino_t old_ino;
-	struct inode *inode = dentry->d_inode;
 	struct coda_inode_info *cii = ITOC(inode);
 
 	if (!cii->c_flags)

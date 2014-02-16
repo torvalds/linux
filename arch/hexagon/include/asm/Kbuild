@@ -2,6 +2,7 @@
 header-y += ucontext.h
 
 generic-y += auxvec.h
+generic-y += barrier.h
 generic-y += bug.h
 generic-y += bugs.h
 generic-y += clkdev.h
@@ -15,6 +16,7 @@ generic-y += fb.h
 generic-y += fcntl.h
 generic-y += ftrace.h
 generic-y += hardirq.h
+generic-y += hash.h
 generic-y += hw_irq.h
 generic-y += ioctl.h
 generic-y += ioctls.h
@@ -53,3 +55,4 @@ generic-y += types.h
 generic-y += ucontext.h
 generic-y += unaligned.h
 generic-y += xor.h
+generic-y += preempt.h

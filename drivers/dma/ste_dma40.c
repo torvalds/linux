@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/log2.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
@@ -2408,6 +2409,7 @@ static void d40_set_prio_realtime(struct d40_chan *d40c)
 #define D40_DT_FLAGS_DIR(flags)        ((flags >> 1) & 0x1)
 #define D40_DT_FLAGS_BIG_ENDIAN(flags) ((flags >> 2) & 0x1)
 #define D40_DT_FLAGS_FIXED_CHAN(flags) ((flags >> 3) & 0x1)
+#define D40_DT_FLAGS_HIGH_PRIO(flags)  ((flags >> 4) & 0x1)
 
 static struct dma_chan *d40_xlate(struct of_phandle_args *dma_spec,
 				  struct of_dma *ofdma)
@@ -2444,6 +2446,9 @@ static struct dma_chan *d40_xlate(struct of_phandle_args *dma_spec,
 		cfg.phy_channel = dma_spec->args[1];
 		cfg.use_fixed_channel = true;
 	}
+
+	if (D40_DT_FLAGS_HIGH_PRIO(flags))
+		cfg.high_priority = true;
 
 	return dma_request_channel(cap, stedma40_filter, &cfg);
 }
@@ -2591,6 +2596,9 @@ dma40_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 	int i;
 
 	sg = kcalloc(periods + 1, sizeof(struct scatterlist), GFP_NOWAIT);
+	if (!sg)
+		return NULL;
+
 	for (i = 0; i < periods; i++) {
 		sg_dma_address(&sg[i]) = dma_addr;
 		sg_dma_len(&sg[i]) = period_len;
@@ -2623,7 +2631,7 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 	}
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS)
+	if (ret != DMA_COMPLETE)
 		dma_set_residue(txstate, stedma40_residue(chan));
 
 	if (d40_is_paused(d40c))
@@ -2793,8 +2801,8 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	    src_addr_width >  DMA_SLAVE_BUSWIDTH_8_BYTES   ||
 	    dst_addr_width <= DMA_SLAVE_BUSWIDTH_UNDEFINED ||
 	    dst_addr_width >  DMA_SLAVE_BUSWIDTH_8_BYTES   ||
-	    ((src_addr_width > 1) && (src_addr_width & 1)) ||
-	    ((dst_addr_width > 1) && (dst_addr_width & 1)))
+	    !is_power_of_2(src_addr_width) ||
+	    !is_power_of_2(dst_addr_width))
 		return -EINVAL;
 
 	cfg->src_info.data_width = src_addr_width;
@@ -3139,7 +3147,7 @@ static int __init d40_phy_res_init(struct d40_base *base)
 
 static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 {
-	struct stedma40_platform_data *plat_data = pdev->dev.platform_data;
+	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
 	struct clk *clk = NULL;
 	void __iomem *virtbase = NULL;
 	struct resource *res = NULL;
@@ -3226,8 +3234,8 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	num_log_chans = num_phy_chans * D40_MAX_LOG_CHAN_PER_PHY;
 
 	dev_info(&pdev->dev,
-		 "hardware rev: %d @ 0x%x with %d physical and %d logical channels\n",
-		 rev, res->start, num_phy_chans, num_log_chans);
+		 "hardware rev: %d @ %pa with %d physical and %d logical channels\n",
+		 rev, &res->start, num_phy_chans, num_log_chans);
 
 	base = kzalloc(ALIGN(sizeof(struct d40_base), 4) +
 		       (num_phy_chans + num_log_chans + num_memcpy_chans) *
@@ -3485,7 +3493,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 {
 	struct stedma40_platform_data *pdata;
 	int num_phy = 0, num_memcpy = 0, num_disabled = 0;
-	const const __be32 *list;
+	const __be32 *list;
 
 	pdata = devm_kzalloc(&pdev->dev,
 			     sizeof(struct stedma40_platform_data),
@@ -3516,7 +3524,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 	list = of_get_property(np, "disabled-channels", &num_disabled);
 	num_disabled /= sizeof(*list);
 
-	if (num_disabled > STEDMA40_MAX_PHYS || num_disabled < 0) {
+	if (num_disabled >= STEDMA40_MAX_PHYS || num_disabled < 0) {
 		d40_err(&pdev->dev,
 			"Invalid number of disabled channels specified (%d)\n",
 			num_disabled);
@@ -3535,7 +3543,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 
 static int __init d40_probe(struct platform_device *pdev)
 {
-	struct stedma40_platform_data *plat_data = pdev->dev.platform_data;
+	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -ENOENT;
 	struct d40_base *base = NULL;
@@ -3579,9 +3587,7 @@ static int __init d40_probe(struct platform_device *pdev)
 	if (request_mem_region(res->start, resource_size(res),
 			       D40_NAME " I/O lcpa") == NULL) {
 		ret = -EBUSY;
-		d40_err(&pdev->dev,
-			"Failed to request LCPA region 0x%x-0x%x\n",
-			res->start, res->end);
+		d40_err(&pdev->dev, "Failed to request LCPA region %pR\n", res);
 		goto failure;
 	}
 
@@ -3589,8 +3595,8 @@ static int __init d40_probe(struct platform_device *pdev)
 	val = readl(base->virtbase + D40_DREG_LCPA);
 	if (res->start != val && val != 0) {
 		dev_warn(&pdev->dev,
-			 "[%s] Mismatch LCPA dma 0x%x, def 0x%x\n",
-			 __func__, val, res->start);
+			 "[%s] Mismatch LCPA dma 0x%x, def %pa\n",
+			 __func__, val, &res->start);
 	} else
 		writel(res->start, base->virtbase + D40_DREG_LCPA);
 

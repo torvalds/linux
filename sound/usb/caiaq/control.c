@@ -28,6 +28,7 @@
 #include "control.h"
 
 #define CNT_INTVAL 0x10000
+#define MASCHINE_BANK_SIZE 32
 
 static int control_info(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
@@ -105,6 +106,10 @@ static int control_put(struct snd_kcontrol *kcontrol,
 		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1))
 		cmd = EP1_CMD_DIMM_LEDS;
 
+	if (cdev->chip.usb_id ==
+		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER))
+		cmd = EP1_CMD_DIMM_LEDS;
+
 	if (pos & CNT_INTVAL) {
 		int i = pos & ~CNT_INTVAL;
 
@@ -121,6 +126,20 @@ static int control_put(struct snd_kcontrol *kcontrol,
 				     usb_sndbulkpipe(cdev->chip.dev, 8),
 				     cdev->ep8_out_buf, sizeof(cdev->ep8_out_buf),
 				     &actual_len, 200);
+		} else if (cdev->chip.usb_id ==
+			USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER)) {
+
+			int bank = 0;
+			int offset = 0;
+
+			if (i >= MASCHINE_BANK_SIZE) {
+				bank = 0x1e;
+				offset = MASCHINE_BANK_SIZE;
+			}
+
+			snd_usb_caiaq_send_command_bank(cdev, cmd, bank,
+					cdev->control_state + offset,
+					MASCHINE_BANK_SIZE);
 		} else {
 			snd_usb_caiaq_send_command(cdev, cmd,
 					cdev->control_state, sizeof(cdev->control_state));
@@ -490,6 +509,74 @@ static struct caiaq_controller kontrols4_controller[] = {
 	{ "LED: FX2: Mode",			133 | CNT_INTVAL },
 };
 
+static struct caiaq_controller maschine_controller[] = {
+	{ "LED: Pad 1",				3  | CNT_INTVAL },
+	{ "LED: Pad 2",				2  | CNT_INTVAL },
+	{ "LED: Pad 3",				1  | CNT_INTVAL },
+	{ "LED: Pad 4",				0  | CNT_INTVAL },
+	{ "LED: Pad 5",				7  | CNT_INTVAL },
+	{ "LED: Pad 6",				6  | CNT_INTVAL },
+	{ "LED: Pad 7",				5  | CNT_INTVAL },
+	{ "LED: Pad 8",				4  | CNT_INTVAL },
+	{ "LED: Pad 9",				11 | CNT_INTVAL },
+	{ "LED: Pad 10",			10 | CNT_INTVAL },
+	{ "LED: Pad 11",			9  | CNT_INTVAL },
+	{ "LED: Pad 12",			8  | CNT_INTVAL },
+	{ "LED: Pad 13",			15 | CNT_INTVAL },
+	{ "LED: Pad 14",			14 | CNT_INTVAL },
+	{ "LED: Pad 15",			13 | CNT_INTVAL },
+	{ "LED: Pad 16",			12 | CNT_INTVAL },
+
+	{ "LED: Mute",				16 | CNT_INTVAL },
+	{ "LED: Solo",				17 | CNT_INTVAL },
+	{ "LED: Select",			18 | CNT_INTVAL },
+	{ "LED: Duplicate",			19 | CNT_INTVAL },
+	{ "LED: Navigate",			20 | CNT_INTVAL },
+	{ "LED: Pad Mode",			21 | CNT_INTVAL },
+	{ "LED: Pattern",			22 | CNT_INTVAL },
+	{ "LED: Scene",				23 | CNT_INTVAL },
+
+	{ "LED: Shift",				24 | CNT_INTVAL },
+	{ "LED: Erase",				25 | CNT_INTVAL },
+	{ "LED: Grid",				26 | CNT_INTVAL },
+	{ "LED: Right Bottom",			27 | CNT_INTVAL },
+	{ "LED: Rec",				28 | CNT_INTVAL },
+	{ "LED: Play",				29 | CNT_INTVAL },
+	{ "LED: Left Bottom",			32 | CNT_INTVAL },
+	{ "LED: Restart",			33 | CNT_INTVAL },
+
+	{ "LED: Group A",			41 | CNT_INTVAL },
+	{ "LED: Group B",			40 | CNT_INTVAL },
+	{ "LED: Group C",			37 | CNT_INTVAL },
+	{ "LED: Group D",			36 | CNT_INTVAL },
+	{ "LED: Group E",			39 | CNT_INTVAL },
+	{ "LED: Group F",			38 | CNT_INTVAL },
+	{ "LED: Group G",			35 | CNT_INTVAL },
+	{ "LED: Group H",			34 | CNT_INTVAL },
+
+	{ "LED: Auto Write",			42 | CNT_INTVAL },
+	{ "LED: Snap",				43 | CNT_INTVAL },
+	{ "LED: Right Top",			44 | CNT_INTVAL },
+	{ "LED: Left Top",			45 | CNT_INTVAL },
+	{ "LED: Sampling",			46 | CNT_INTVAL },
+	{ "LED: Browse",			47 | CNT_INTVAL },
+	{ "LED: Step",				48 | CNT_INTVAL },
+	{ "LED: Control",			49 | CNT_INTVAL },
+
+	{ "LED: Top Button 1",			57 | CNT_INTVAL },
+	{ "LED: Top Button 2",			56 | CNT_INTVAL },
+	{ "LED: Top Button 3",			55 | CNT_INTVAL },
+	{ "LED: Top Button 4",			54 | CNT_INTVAL },
+	{ "LED: Top Button 5",			53 | CNT_INTVAL },
+	{ "LED: Top Button 6",			52 | CNT_INTVAL },
+	{ "LED: Top Button 7",			51 | CNT_INTVAL },
+	{ "LED: Top Button 8",			50 | CNT_INTVAL },
+
+	{ "LED: Note Repeat",			58 | CNT_INTVAL },
+
+	{ "Backlight Display",			59 | CNT_INTVAL }
+};
+
 static int add_controls(struct caiaq_controller *c, int num,
 			struct snd_usb_caiaqdev *cdev)
 {
@@ -552,6 +639,11 @@ int snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *cdev)
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLS4):
 		ret = add_controls(kontrols4_controller,
 			ARRAY_SIZE(kontrols4_controller), cdev);
+		break;
+
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER):
+		ret = add_controls(maschine_controller,
+			ARRAY_SIZE(maschine_controller), cdev);
 		break;
 	}
 

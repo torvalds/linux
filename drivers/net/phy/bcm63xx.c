@@ -78,7 +78,7 @@ static struct phy_driver bcm63xx_driver[] = {
 	.name		= "Broadcom BCM63XX (1)",
 	/* ASYM_PAUSE bit is marked RO in datasheet, so don't cheat */
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
-	.flags		= PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT | PHY_IS_INTERNAL,
 	.config_init	= bcm63xx_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -91,7 +91,7 @@ static struct phy_driver bcm63xx_driver[] = {
 	.phy_id_mask	= 0xfffffc00,
 	.name		= "Broadcom BCM63XX (2)",
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
-	.flags		= PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT | PHY_IS_INTERNAL,
 	.config_init	= bcm63xx_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,

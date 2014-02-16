@@ -29,15 +29,7 @@
 
 
 #define IPT_TAB_MASK     15
-static struct tcf_common *tcf_ipt_ht[IPT_TAB_MASK + 1];
-static u32 ipt_idx_gen;
-static DEFINE_RWLOCK(ipt_lock);
-
-static struct tcf_hashinfo ipt_hash_info = {
-	.htab	=	tcf_ipt_ht,
-	.hmask	=	IPT_TAB_MASK,
-	.lock	=	&ipt_lock,
-};
+static struct tcf_hashinfo ipt_hash_info;
 
 static int ipt_init_target(struct xt_entry_target *t, char *table, unsigned int hook)
 {
@@ -133,18 +125,19 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	if (tb[TCA_IPT_INDEX] != NULL)
 		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
-	pc = tcf_hash_check(index, a, bind, &ipt_hash_info);
+	pc = tcf_hash_check(index, a, bind);
 	if (!pc) {
-		pc = tcf_hash_create(index, est, a, sizeof(*ipt), bind,
-				     &ipt_idx_gen, &ipt_hash_info);
+		pc = tcf_hash_create(index, est, a, sizeof(*ipt), bind);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
-		if (!ovr) {
-			tcf_ipt_release(to_ipt(pc), bind);
+		if (bind)/* dont override defaults */
+			return 0;
+		tcf_ipt_release(to_ipt(pc), bind);
+
+		if (!ovr)
 			return -EEXIST;
-		}
 	}
 	ipt = to_ipt(pc);
 
@@ -177,7 +170,7 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	ipt->tcfi_hook  = hook;
 	spin_unlock_bh(&ipt->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &ipt_hash_info);
+		tcf_hash_insert(pc, a->ops->hinfo);
 	return ret;
 
 err3:
@@ -293,28 +286,22 @@ static struct tc_action_ops act_ipt_ops = {
 	.kind		=	"ipt",
 	.hinfo		=	&ipt_hash_info,
 	.type		=	TCA_ACT_IPT,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_ipt,
 	.dump		=	tcf_ipt_dump,
 	.cleanup	=	tcf_ipt_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_ipt_init,
-	.walk		=	tcf_generic_walker
 };
 
 static struct tc_action_ops act_xt_ops = {
 	.kind		=	"xt",
 	.hinfo		=	&ipt_hash_info,
-	.type		=	TCA_ACT_IPT,
-	.capab		=	TCA_CAP_NONE,
+	.type		=	TCA_ACT_XT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_ipt,
 	.dump		=	tcf_ipt_dump,
 	.cleanup	=	tcf_ipt_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_ipt_init,
-	.walk		=	tcf_generic_walker
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-13)");
@@ -324,7 +311,11 @@ MODULE_ALIAS("act_xt");
 
 static int __init ipt_init_module(void)
 {
-	int ret1, ret2;
+	int ret1, ret2, err;
+	err = tcf_hashinfo_init(&ipt_hash_info, IPT_TAB_MASK);
+	if (err)
+		return err;
+
 	ret1 = tcf_register_action(&act_xt_ops);
 	if (ret1 < 0)
 		printk("Failed to load xt action\n");
@@ -332,9 +323,10 @@ static int __init ipt_init_module(void)
 	if (ret2 < 0)
 		printk("Failed to load ipt action\n");
 
-	if (ret1 < 0 && ret2 < 0)
+	if (ret1 < 0 && ret2 < 0) {
+		tcf_hashinfo_destroy(&ipt_hash_info);
 		return ret1;
-	else
+	} else
 		return 0;
 }
 
@@ -342,6 +334,7 @@ static void __exit ipt_cleanup_module(void)
 {
 	tcf_unregister_action(&act_xt_ops);
 	tcf_unregister_action(&act_ipt_ops);
+	tcf_hashinfo_destroy(&ipt_hash_info);
 }
 
 module_init(ipt_init_module);

@@ -758,7 +758,7 @@ struct cl_page {
 	/**
 	 * Debug information, the task is owning the page.
 	 */
-	task_t	      *cp_task;
+	struct task_struct	*cp_task;
 	/**
 	 * Owning IO request in cl_page_state::CPS_PAGEOUT and
 	 * cl_page_state::CPS_PAGEIN states. This field is maintained only in
@@ -768,11 +768,11 @@ struct cl_page {
 	/** List of references to this page, for debugging. */
 	struct lu_ref	    cp_reference;
 	/** Link to an object, for debugging. */
-	struct lu_ref_link      *cp_obj_ref;
+	struct lu_ref_link       cp_obj_ref;
 	/** Link to a queue, for debugging. */
-	struct lu_ref_link      *cp_queue_ref;
+	struct lu_ref_link       cp_queue_ref;
 	/** Per-page flags from enum cl_page_flags. Protected by a VM lock. */
-	unsigned		 cp_flags;
+	unsigned                 cp_flags;
 	/** Assigned if doing a sync_io */
 	struct cl_sync_io       *cp_sync_io;
 };
@@ -1576,13 +1576,13 @@ struct cl_lock {
 	 * \see osc_lock_enqueue_wait(), lov_lock_cancel(), lov_sublock_wait().
 	 */
 	struct mutex		cll_guard;
-	task_t	   *cll_guarder;
+	struct task_struct	*cll_guarder;
 	int		   cll_depth;
 
 	/**
 	 * the owner for INTRANSIT state
 	 */
-	task_t	   *cll_intransit_owner;
+	struct task_struct	*cll_intransit_owner;
 	int		   cll_error;
 	/**
 	 * Number of holds on a lock. A hold prevents a lock from being
@@ -1625,7 +1625,7 @@ struct cl_lock {
 	/**
 	 * A reference for cl_lock::cll_descr::cld_obj. For debugging.
 	 */
-	struct lu_ref_link   *cll_obj_ref;
+	struct lu_ref_link    cll_obj_ref;
 #ifdef CONFIG_LOCKDEP
 	/* "dep_map" name is assumed by lockdep.h macros. */
 	struct lockdep_map    dep_map;
@@ -1869,7 +1869,7 @@ do {								    \
 struct cl_page_list {
 	unsigned	     pl_nr;
 	struct list_head	   pl_pages;
-	task_t	  *pl_owner;
+	struct task_struct	*pl_owner;
 };
 
 /**
@@ -2388,7 +2388,11 @@ struct cl_io {
 	 * Right now, only two opertaions need to verify layout: glimpse
 	 * and setattr.
 	 */
-			     ci_verify_layout:1;
+			     ci_verify_layout:1,
+	/**
+	 * file is released, restore has to to be triggered by vvp layer
+	 */
+			     ci_restore_needed:1;
 	/**
 	 * Number of pages owned by this IO. For invariant checking.
 	 */
@@ -2517,7 +2521,7 @@ struct cl_req_obj {
 	/** object itself */
 	struct cl_object   *ro_obj;
 	/** reference to cl_req_obj::ro_obj. For debugging. */
-	struct lu_ref_link *ro_obj_ref;
+	struct lu_ref_link  ro_obj_ref;
 	/* something else? Number of pages for a given object? */
 };
 
@@ -3096,13 +3100,13 @@ struct cl_io *cl_io_top(struct cl_io *io);
 void cl_io_print(const struct lu_env *env, void *cookie,
 		 lu_printer_t printer, const struct cl_io *io);
 
-#define CL_IO_SLICE_CLEAN(foo_io, base)				 \
-do {								    \
-	typeof(foo_io) __foo_io = (foo_io);			     \
+#define CL_IO_SLICE_CLEAN(foo_io, base)					\
+do {									\
+	typeof(foo_io) __foo_io = (foo_io);				\
 									\
-	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);	       \
-	memset(&__foo_io->base + 1, 0,				  \
-	       (sizeof *__foo_io) - sizeof __foo_io->base);	     \
+	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);		\
+	memset(&__foo_io->base + 1, 0,					\
+	       sizeof(*__foo_io) - sizeof(__foo_io->base));		\
 } while (0)
 
 /** @} cl_io */

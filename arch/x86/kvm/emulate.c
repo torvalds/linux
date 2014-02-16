@@ -130,7 +130,7 @@
 #define Mov         (1<<20)
 /* Misc flags */
 #define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
-#define VendorSpecific (1<<22) /* Vendor specific instruction */
+#define EmulateOnUD (1<<22) /* Emulate if unsupported by the host */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
 #define Op3264      (1<<24) /* Operand is 64b in long mode, 32b otherwise */
 #define Undefined   (1<<25) /* No Such Instruction */
@@ -785,9 +785,10 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
  * @highbyte_regs specifies whether to decode AH,CH,DH,BH.
  */
 static void *decode_register(struct x86_emulate_ctxt *ctxt, u8 modrm_reg,
-			     int highbyte_regs)
+			     int byteop)
 {
 	void *p;
+	int highbyte_regs = (ctxt->rex_prefix == 0) && byteop;
 
 	if (highbyte_regs && modrm_reg >= 4 && modrm_reg < 8)
 		p = (unsigned char *)reg_rmw(ctxt, modrm_reg & 3) + 1;
@@ -1024,7 +1025,6 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 				    struct operand *op)
 {
 	unsigned reg = ctxt->modrm_reg;
-	int highbyte_regs = ctxt->rex_prefix == 0;
 
 	if (!(ctxt->d & ModRM))
 		reg = (ctxt->b & 7) | ((ctxt->rex_prefix & 1) << 3);
@@ -1045,13 +1045,9 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 	}
 
 	op->type = OP_REG;
-	if (ctxt->d & ByteOp) {
-		op->addr.reg = decode_register(ctxt, reg, highbyte_regs);
-		op->bytes = 1;
-	} else {
-		op->addr.reg = decode_register(ctxt, reg, 0);
-		op->bytes = ctxt->op_bytes;
-	}
+	op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+	op->addr.reg = decode_register(ctxt, reg, ctxt->d & ByteOp);
+
 	fetch_register_operand(op);
 	op->orig_val = op->val;
 }
@@ -1082,12 +1078,10 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	ctxt->modrm_seg = VCPU_SREG_DS;
 
 	if (ctxt->modrm_mod == 3) {
-		int highbyte_regs = ctxt->rex_prefix == 0;
-
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm,
-					       highbyte_regs && (ctxt->d & ByteOp));
+				ctxt->d & ByteOp);
 		if (ctxt->d & Sse) {
 			op->type = OP_XMM;
 			op->bytes = 16;
@@ -2025,6 +2019,17 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
+static int em_ret_far_imm(struct x86_emulate_ctxt *ctxt)
+{
+        int rc;
+
+        rc = em_ret_far(ctxt);
+        if (rc != X86EMUL_CONTINUE)
+                return rc;
+        rsp_increment(ctxt, ctxt->src.val);
+        return X86EMUL_CONTINUE;
+}
+
 static int em_cmpxchg(struct x86_emulate_ctxt *ctxt)
 {
 	/* Save real source value, then compare EAX against destination. */
@@ -2950,6 +2955,46 @@ static int em_mov(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+#define FFL(x) bit(X86_FEATURE_##x)
+
+static int em_movbe(struct x86_emulate_ctxt *ctxt)
+{
+	u32 ebx, ecx, edx, eax = 1;
+	u16 tmp;
+
+	/*
+	 * Check MOVBE is set in the guest-visible CPUID leaf.
+	 */
+	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx);
+	if (!(ecx & FFL(MOVBE)))
+		return emulate_ud(ctxt);
+
+	switch (ctxt->op_bytes) {
+	case 2:
+		/*
+		 * From MOVBE definition: "...When the operand size is 16 bits,
+		 * the upper word of the destination register remains unchanged
+		 * ..."
+		 *
+		 * Both casting ->valptr and ->val to u16 breaks strict aliasing
+		 * rules so we have to do the operation almost per hand.
+		 */
+		tmp = (u16)ctxt->src.val;
+		ctxt->dst.val &= ~0xffffUL;
+		ctxt->dst.val |= (unsigned long)swab16(tmp);
+		break;
+	case 4:
+		ctxt->dst.val = swab32((u32)ctxt->src.val);
+		break;
+	case 8:
+		ctxt->dst.val = swab64(ctxt->src.val);
+		break;
+	default:
+		return X86EMUL_PROPAGATE_FAULT;
+	}
+	return X86EMUL_CONTINUE;
+}
+
 static int em_cr_write(struct x86_emulate_ctxt *ctxt)
 {
 	if (ctxt->ops->set_cr(ctxt, ctxt->modrm_reg, ctxt->src.val))
@@ -3245,6 +3290,18 @@ static int em_cpuid(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_sahf(struct x86_emulate_ctxt *ctxt)
+{
+	u32 flags;
+
+	flags = EFLG_CF | EFLG_PF | EFLG_AF | EFLG_ZF | EFLG_SF;
+	flags &= *reg_rmw(ctxt, VCPU_REGS_RAX) >> 8;
+
+	ctxt->eflags &= ~0xffUL;
+	ctxt->eflags |= flags | X86_EFLAGS_FIXED;
+	return X86EMUL_CONTINUE;
+}
+
 static int em_lahf(struct x86_emulate_ctxt *ctxt)
 {
 	*reg_rmw(ctxt, VCPU_REGS_RAX) &= ~0xff00UL;
@@ -3491,7 +3548,7 @@ static const struct opcode group7_rm1[] = {
 
 static const struct opcode group7_rm3[] = {
 	DIP(SrcNone | Prot | Priv,		vmrun,		check_svme_pa),
-	II(SrcNone  | Prot | VendorSpecific,	em_vmmcall,	vmmcall),
+	II(SrcNone  | Prot | EmulateOnUD,	em_vmmcall,	vmmcall),
 	DIP(SrcNone | Prot | Priv,		vmload,		check_svme_pa),
 	DIP(SrcNone | Prot | Priv,		vmsave,		check_svme_pa),
 	DIP(SrcNone | Prot | Priv,		stgi,		check_svme),
@@ -3576,7 +3633,7 @@ static const struct group_dual group7 = { {
 	II(SrcMem16 | Mov | Priv,		em_lmsw, lmsw),
 	II(SrcMem | ByteOp | Priv | NoAccess,	em_invlpg, invlpg),
 }, {
-	I(SrcNone | Priv | VendorSpecific,	em_vmcall),
+	I(SrcNone | Priv | EmulateOnUD,	em_vmcall),
 	EXT(0, group7_rm1),
 	N, EXT(0, group7_rm3),
 	II(SrcNone | DstMem | Mov,		em_smsw, smsw), N,
@@ -3739,7 +3796,8 @@ static const struct opcode opcode_table[256] = {
 	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
 	I(SrcImmFAddr | No64, em_call_far), N,
 	II(ImplicitOps | Stack, em_pushf, pushf),
-	II(ImplicitOps | Stack, em_popf, popf), N, I(ImplicitOps, em_lahf),
+	II(ImplicitOps | Stack, em_popf, popf),
+	I(ImplicitOps, em_sahf), I(ImplicitOps, em_lahf),
 	/* 0xA0 - 0xA7 */
 	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
 	I2bv(DstMem | SrcAcc | Mov | MemAbs | PageTable, em_mov),
@@ -3763,7 +3821,8 @@ static const struct opcode opcode_table[256] = {
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
 	I(Stack | SrcImmU16 | Src2ImmByte, em_enter), I(Stack, em_leave),
-	N, I(ImplicitOps | Stack, em_ret_far),
+	I(ImplicitOps | Stack | SrcImmU16, em_ret_far_imm),
+	I(ImplicitOps | Stack, em_ret_far),
 	D(ImplicitOps), DI(SrcImmByte, intn),
 	D(ImplicitOps | No64), II(ImplicitOps, em_iret, iret),
 	/* 0xD0 - 0xD7 */
@@ -3798,7 +3857,7 @@ static const struct opcode opcode_table[256] = {
 static const struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	G(0, group6), GD(0, &group7), N, N,
-	N, I(ImplicitOps | VendorSpecific, em_syscall),
+	N, I(ImplicitOps | EmulateOnUD, em_syscall),
 	II(ImplicitOps | Priv, em_clts, clts), N,
 	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM), N, N,
@@ -3818,8 +3877,8 @@ static const struct opcode twobyte_table[256] = {
 	IIP(ImplicitOps, em_rdtsc, rdtsc, check_rdtsc),
 	II(ImplicitOps | Priv, em_rdmsr, rdmsr),
 	IIP(ImplicitOps, em_rdpmc, rdpmc, check_rdpmc),
-	I(ImplicitOps | VendorSpecific, em_sysenter),
-	I(ImplicitOps | Priv | VendorSpecific, em_sysexit),
+	I(ImplicitOps | EmulateOnUD, em_sysenter),
+	I(ImplicitOps | Priv | EmulateOnUD, em_sysexit),
 	N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x40 - 0x4F */
@@ -3878,6 +3937,30 @@ static const struct opcode twobyte_table[256] = {
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xF0 - 0xFF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N
+};
+
+static const struct gprefix three_byte_0f_38_f0 = {
+	I(DstReg | SrcMem | Mov, em_movbe), N, N, N
+};
+
+static const struct gprefix three_byte_0f_38_f1 = {
+	I(DstMem | SrcReg | Mov, em_movbe), N, N, N
+};
+
+/*
+ * Insns below are selected by the prefix which indexed by the third opcode
+ * byte.
+ */
+static const struct opcode opcode_map_0f_38[256] = {
+	/* 0x00 - 0x7f */
+	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
+	/* 0x80 - 0xef */
+	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
+	/* 0xf0 - 0xf1 */
+	GP(EmulateOnUD | ModRM | Prefix, &three_byte_0f_38_f0),
+	GP(EmulateOnUD | ModRM | Prefix, &three_byte_0f_38_f1),
+	/* 0xf2 - 0xff */
+	N, N, X4(N), X8(N)
 };
 
 #undef D
@@ -4028,7 +4111,8 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 	case OpMem8:
 		ctxt->memop.bytes = 1;
 		if (ctxt->memop.type == OP_REG) {
-			ctxt->memop.addr.reg = decode_register(ctxt, ctxt->modrm_rm, 1);
+			ctxt->memop.addr.reg = decode_register(ctxt,
+					ctxt->modrm_rm, true);
 			fetch_register_operand(&ctxt->memop);
 		}
 		goto mem_common;
@@ -4114,6 +4198,7 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	ctxt->_eip = ctxt->eip;
 	ctxt->fetch.start = ctxt->_eip;
 	ctxt->fetch.end = ctxt->fetch.start + insn_len;
+	ctxt->opcode_len = 1;
 	if (insn_len > 0)
 		memcpy(ctxt->fetch.data, insn, insn_len);
 
@@ -4196,9 +4281,16 @@ done_prefixes:
 	opcode = opcode_table[ctxt->b];
 	/* Two-byte opcode? */
 	if (ctxt->b == 0x0f) {
-		ctxt->twobyte = 1;
+		ctxt->opcode_len = 2;
 		ctxt->b = insn_fetch(u8, ctxt);
 		opcode = twobyte_table[ctxt->b];
+
+		/* 0F_38 opcode map */
+		if (ctxt->b == 0x38) {
+			ctxt->opcode_len = 3;
+			ctxt->b = insn_fetch(u8, ctxt);
+			opcode = opcode_map_0f_38[ctxt->b];
+		}
 	}
 	ctxt->d = opcode.flags;
 
@@ -4255,7 +4347,7 @@ done_prefixes:
 	if (ctxt->d == 0 || (ctxt->d & NotImpl))
 		return EMULATION_FAILED;
 
-	if (!(ctxt->d & VendorSpecific) && ctxt->only_vendor_specific_insn)
+	if (!(ctxt->d & EmulateOnUD) && ctxt->ud)
 		return EMULATION_FAILED;
 
 	if (mode == X86EMUL_MODE_PROT64 && (ctxt->d & Stack))
@@ -4528,8 +4620,10 @@ special_insn:
 		goto writeback;
 	}
 
-	if (ctxt->twobyte)
+	if (ctxt->opcode_len == 2)
 		goto twobyte_insn;
+	else if (ctxt->opcode_len == 3)
+		goto threebyte_insn;
 
 	switch (ctxt->b) {
 	case 0x63:		/* movsxd */
@@ -4713,6 +4807,8 @@ twobyte_insn:
 	default:
 		goto cannot_emulate;
 	}
+
+threebyte_insn:
 
 	if (rc != X86EMUL_CONTINUE)
 		goto done;

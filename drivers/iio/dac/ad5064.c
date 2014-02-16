@@ -239,10 +239,9 @@ static int ad5064_read_raw(struct iio_dev *indio_dev,
 		if (scale_uv < 0)
 			return scale_uv;
 
-		scale_uv = (scale_uv * 100) >> chan->scan_type.realbits;
-		*val =  scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = scale_uv / 1000;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		break;
 	}
@@ -285,8 +284,9 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 		.name = "powerdown",
 		.read = ad5064_read_dac_powerdown,
 		.write = ad5064_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", false, &ad5064_powerdown_mode_enum),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ad5064_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5064_powerdown_mode_enum),
 	{ },
 };
@@ -299,7 +299,12 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
 	BIT(IIO_CHAN_INFO_SCALE),					\
 	.address = addr,					\
-	.scan_type = IIO_ST('u', (bits), 16, 20 - (bits)),	\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = (bits),				\
+		.storagebits = 16,				\
+		.shift = 20 - bits,				\
+	},							\
 	.ext_info = ad5064_ext_info,				\
 }
 
@@ -442,7 +447,7 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 	unsigned int i;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return  -ENOMEM;
 
@@ -456,23 +461,23 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 	for (i = 0; i < ad5064_num_vref(st); ++i)
 		st->vref_reg[i].supply = ad5064_vref_name(st, i);
 
-	ret = regulator_bulk_get(dev, ad5064_num_vref(st),
+	ret = devm_regulator_bulk_get(dev, ad5064_num_vref(st),
 		st->vref_reg);
 	if (ret) {
 		if (!st->chip_info->internal_vref)
-			goto error_free;
+			return ret;
 		st->use_internal_vref = true;
 		ret = ad5064_write(st, AD5064_CMD_CONFIG, 0,
 			AD5064_CONFIG_INT_VREF_ENABLE, 0);
 		if (ret) {
 			dev_err(dev, "Failed to enable internal vref: %d\n",
 				ret);
-			goto error_free;
+			return ret;
 		}
 	} else {
 		ret = regulator_bulk_enable(ad5064_num_vref(st), st->vref_reg);
 		if (ret)
-			goto error_free_reg;
+			return ret;
 	}
 
 	indio_dev->dev.parent = dev;
@@ -498,11 +503,6 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 error_disable_reg:
 	if (!st->use_internal_vref)
 		regulator_bulk_disable(ad5064_num_vref(st), st->vref_reg);
-error_free_reg:
-	if (!st->use_internal_vref)
-		regulator_bulk_free(ad5064_num_vref(st), st->vref_reg);
-error_free:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -514,12 +514,8 @@ static int ad5064_remove(struct device *dev)
 
 	iio_device_unregister(indio_dev);
 
-	if (!st->use_internal_vref) {
+	if (!st->use_internal_vref)
 		regulator_bulk_disable(ad5064_num_vref(st), st->vref_reg);
-		regulator_bulk_free(ad5064_num_vref(st), st->vref_reg);
-	}
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -12,12 +12,6 @@
 #include <linux/ceph/auth.h>
 #include <linux/ceph/pagelist.h>
 
-/* 
- * Maximum object name size 
- * (must be at least as big as RBD_MAX_MD_NAME_LEN -- currently 100) 
- */
-#define MAX_OBJ_NAME_SIZE 100
-
 struct ceph_msg;
 struct ceph_snap_context;
 struct ceph_osd_request;
@@ -138,6 +132,7 @@ struct ceph_osd_request {
 	__le64           *r_request_pool;
 	void             *r_request_pgid;
 	__le32           *r_request_attempts;
+	bool              r_paused;
 	struct ceph_eversion *r_request_reassert_version;
 
 	int               r_result;
@@ -145,7 +140,6 @@ struct ceph_osd_request {
 	s32               r_reply_op_result[CEPH_OSD_MAX_OP];
 	int               r_got_reply;
 	int		  r_linger;
-	int		  r_completed;
 
 	struct ceph_osd_client *r_osdc;
 	struct kref       r_kref;
@@ -159,13 +153,19 @@ struct ceph_osd_request {
 	struct inode *r_inode;         	      /* for use by callbacks */
 	void *r_priv;			      /* ditto */
 
-	char              r_oid[MAX_OBJ_NAME_SIZE];          /* object name */
-	int               r_oid_len;
+	struct ceph_object_locator r_base_oloc;
+	struct ceph_object_id r_base_oid;
+	struct ceph_object_locator r_target_oloc;
+	struct ceph_object_id r_target_oid;
+
 	u64               r_snapid;
 	unsigned long     r_stamp;            /* send OR check time */
 
-	struct ceph_file_layout r_file_layout;
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
+};
+
+struct ceph_request_redirect {
+	struct ceph_object_locator oloc;
 };
 
 struct ceph_osd_event {
@@ -335,6 +335,8 @@ extern int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 extern int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 				  struct ceph_osd_request *req);
 extern void ceph_osdc_sync(struct ceph_osd_client *osdc);
+
+extern void ceph_osdc_flush_notifies(struct ceph_osd_client *osdc);
 
 extern int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 			       struct ceph_vino vino,

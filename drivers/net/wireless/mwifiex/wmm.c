@@ -37,6 +37,9 @@
 /* Offset for TOS field in the IP header */
 #define IPTOS_OFFSET 5
 
+static bool enable_tx_amsdu;
+module_param(enable_tx_amsdu, bool, 0644);
+
 /* WMM information IE */
 static const u8 wmm_info_ie[] = { WLAN_EID_VENDOR_SPECIFIC, 0x07,
 	0x00, 0x50, 0xf2, 0x02,
@@ -117,7 +120,7 @@ mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, u8 *ra)
 
 	memcpy(ra_list->ra, ra, ETH_ALEN);
 
-	ra_list->total_pkts_size = 0;
+	ra_list->total_pkt_count = 0;
 
 	dev_dbg(adapter->dev, "info: allocated ra_list %p\n", ra_list);
 
@@ -185,7 +188,7 @@ mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra)
 			ra_list, ra_list->is_11n_enabled);
 
 		if (ra_list->is_11n_enabled) {
-			ra_list->pkt_count = 0;
+			ra_list->ba_pkt_count = 0;
 			ra_list->ba_packet_thr =
 					      mwifiex_get_random_ba_threshold();
 		}
@@ -676,8 +679,8 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 
 	skb_queue_tail(&ra_list->skb_head, skb);
 
-	ra_list->total_pkts_size += skb->len;
-	ra_list->pkt_count++;
+	ra_list->ba_pkt_count++;
+	ra_list->total_pkt_count++;
 
 	if (atomic_read(&priv->wmm.highest_queued_prio) <
 						tos_to_tid_inv[tid_down])
@@ -705,7 +708,7 @@ int mwifiex_ret_wmm_get_status(struct mwifiex_private *priv,
 {
 	u8 *curr = (u8 *) &resp->params.get_wmm_status;
 	uint16_t resp_len = le16_to_cpu(resp->size), tlv_len;
-	int valid = true;
+	bool valid = true;
 
 	struct mwifiex_ie_types_data *tlv_hdr;
 	struct mwifiex_ie_types_wmm_queue_status *tlv_wmm_qstatus;
@@ -718,6 +721,9 @@ int mwifiex_ret_wmm_get_status(struct mwifiex_private *priv,
 	while ((resp_len >= sizeof(tlv_hdr->header)) && valid) {
 		tlv_hdr = (struct mwifiex_ie_types_data *) curr;
 		tlv_len = le16_to_cpu(tlv_hdr->header.len);
+
+		if (resp_len < tlv_len + sizeof(tlv_hdr->header))
+			break;
 
 		switch (le16_to_cpu(tlv_hdr->header.type)) {
 		case TLV_TYPE_WMMQSTATUS:
@@ -1034,7 +1040,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	tx_info = MWIFIEX_SKB_TXCB(skb);
 	dev_dbg(adapter->dev, "data: dequeuing the packet %p %p\n", ptr, skb);
 
-	ptr->total_pkts_size -= skb->len;
+	ptr->total_pkt_count--;
 
 	if (!skb_queue_empty(&ptr->skb_head))
 		skb_next = skb_peek(&ptr->skb_head);
@@ -1059,8 +1065,8 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 
 		skb_queue_tail(&ptr->skb_head, skb);
 
-		ptr->total_pkts_size += skb->len;
-		ptr->pkt_count++;
+		ptr->total_pkt_count++;
+		ptr->ba_pkt_count++;
 		tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
@@ -1221,7 +1227,7 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 		   mwifiex_send_single_packet() */
 	} else {
 		if (mwifiex_is_ampdu_allowed(priv, tid) &&
-		    ptr->pkt_count > ptr->ba_packet_thr) {
+		    ptr->ba_pkt_count > ptr->ba_packet_thr) {
 			if (mwifiex_space_avail_for_new_ba_stream(adapter)) {
 				mwifiex_create_ba_tbl(priv, ptr->ra, tid,
 						      BA_SETUP_INPROGRESS);
@@ -1233,11 +1239,10 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 				mwifiex_send_delba(priv, tid_del, ra, 1);
 			}
 		}
-		if (mwifiex_is_amsdu_allowed(priv, tid) &&
+		if (enable_tx_amsdu && mwifiex_is_amsdu_allowed(priv, tid) &&
 		    mwifiex_is_11n_aggragation_possible(priv, ptr,
 							adapter->tx_buf_size))
-			mwifiex_11n_aggregate_pkt(priv, ptr, INTF_HEADER_LEN,
-						  ptr_index, flags);
+			mwifiex_11n_aggregate_pkt(priv, ptr, ptr_index, flags);
 			/* ra_list_spinlock has been freed in
 			   mwifiex_11n_aggregate_pkt() */
 		else

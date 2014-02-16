@@ -77,7 +77,6 @@ struct iio_channel_info {
 	uint64_t mask;
 	unsigned be;
 	unsigned is_signed;
-	unsigned enabled;
 	unsigned location;
 };
 
@@ -335,6 +334,7 @@ inline int build_channel_array(const char *device_dir,
 	while (ent = readdir(dp), ent != NULL) {
 		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
 			   "_en") == 0) {
+			int current_enabled = 0;
 			current = &(*ci_array)[count++];
 			ret = asprintf(&filename,
 				       "%s/%s", scan_el_dir, ent->d_name);
@@ -350,10 +350,10 @@ inline int build_channel_array(const char *device_dir,
 				ret = -errno;
 				goto error_cleanup_array;
 			}
-			fscanf(sysfsfp, "%u", &current->enabled);
+			fscanf(sysfsfp, "%u", &current_enabled);
 			fclose(sysfsfp);
 
-			if (!current->enabled) {
+			if (!current_enabled) {
 				free(filename);
 				count--;
 				continue;
@@ -502,7 +502,7 @@ inline int find_type_by_name(const char *name, const char *type)
 
 inline int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 {
-	int ret;
+	int ret = 0;
 	FILE *sysfsfp;
 	int test;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);

@@ -10,6 +10,7 @@
 #define CPUID_TLBTYPE	3
 #define CPUID_MPUIR	4
 #define CPUID_MPIDR	5
+#define CPUID_REVIDR	6
 
 #ifdef CONFIG_CPU_V7M
 #define CPUID_EXT_PFR0	0x40
@@ -89,13 +90,18 @@ extern unsigned int processor_id;
 		__val;							\
 	})
 
+/*
+ * The memory clobber prevents gcc 4.5 from reordering the mrc before
+ * any is_smp() tests, which can cause undefined instruction aborts on
+ * ARM1136 r0 due to the missing extended CP15 registers.
+ */
 #define read_cpuid_ext(ext_reg)						\
 	({								\
 		unsigned int __val;					\
 		asm("mrc	p15, 0, %0, c0, " ext_reg		\
 		    : "=r" (__val)					\
 		    :							\
-		    : "cc");						\
+		    : "memory");					\
 		__val;							\
 	})
 

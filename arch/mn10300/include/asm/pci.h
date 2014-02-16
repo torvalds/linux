@@ -44,7 +44,6 @@ extern void unit_pci_init(void);
 #define pcibios_assign_all_busses()	0
 #endif
 
-extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_IO		0xBE000004
 #define PCIBIOS_MIN_MEM		0xB8000000
 

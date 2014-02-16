@@ -228,6 +228,11 @@ struct wm8994_pdata {
 	 * lines is mastered.
 	 */
 	int max_channels_clocked[WM8994_NUM_AIF];
+
+	/**
+	 * GPIO for the IRQ pin if host only supports edge triggering
+	 */
+	int irq_gpio;
 };
 
 #endif

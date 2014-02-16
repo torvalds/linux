@@ -18,6 +18,65 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
+/* Informational hook. The decap is still done here. */
+static struct xfrm_tunnel_notifier __rcu *rcv_notify_handlers __read_mostly;
+static DEFINE_MUTEX(xfrm6_mode_tunnel_input_mutex);
+
+int xfrm6_mode_tunnel_input_register(struct xfrm_tunnel_notifier *handler)
+{
+	struct xfrm_tunnel_notifier __rcu **pprev;
+	struct xfrm_tunnel_notifier *t;
+	int ret = -EEXIST;
+	int priority = handler->priority;
+
+	mutex_lock(&xfrm6_mode_tunnel_input_mutex);
+
+	for (pprev = &rcv_notify_handlers;
+	     (t = rcu_dereference_protected(*pprev,
+	     lockdep_is_held(&xfrm6_mode_tunnel_input_mutex))) != NULL;
+	     pprev = &t->next) {
+		if (t->priority > priority)
+			break;
+		if (t->priority == priority)
+			goto err;
+
+	}
+
+	handler->next = *pprev;
+	rcu_assign_pointer(*pprev, handler);
+
+	ret = 0;
+
+err:
+	mutex_unlock(&xfrm6_mode_tunnel_input_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xfrm6_mode_tunnel_input_register);
+
+int xfrm6_mode_tunnel_input_deregister(struct xfrm_tunnel_notifier *handler)
+{
+	struct xfrm_tunnel_notifier __rcu **pprev;
+	struct xfrm_tunnel_notifier *t;
+	int ret = -ENOENT;
+
+	mutex_lock(&xfrm6_mode_tunnel_input_mutex);
+	for (pprev = &rcv_notify_handlers;
+	     (t = rcu_dereference_protected(*pprev,
+	     lockdep_is_held(&xfrm6_mode_tunnel_input_mutex))) != NULL;
+	     pprev = &t->next) {
+		if (t == handler) {
+			*pprev = handler->next;
+			ret = 0;
+			break;
+		}
+	}
+	mutex_unlock(&xfrm6_mode_tunnel_input_mutex);
+	synchronize_net();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xfrm6_mode_tunnel_input_deregister);
+
 static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 {
 	const struct ipv6hdr *outer_iph = ipv6_hdr(skb);
@@ -63,14 +122,24 @@ static int xfrm6_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
+#define for_each_input_rcu(head, handler)	\
+	for (handler = rcu_dereference(head);	\
+	     handler != NULL;			\
+	     handler = rcu_dereference(handler->next))
+
+
 static int xfrm6_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
+	struct xfrm_tunnel_notifier *handler;
 	int err = -EINVAL;
 
 	if (XFRM_MODE_SKB_CB(skb)->protocol != IPPROTO_IPV6)
 		goto out;
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto out;
+
+	for_each_input_rcu(rcv_notify_handlers, handler)
+		handler->handler(skb);
 
 	err = skb_unclone(skb, GFP_ATOMIC);
 	if (err)

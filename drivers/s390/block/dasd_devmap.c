@@ -930,7 +930,7 @@ dasd_use_raw_store(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
-	if ((strict_strtoul(buf, 10, &val) != 0) || val > 1)
+	if ((kstrtoul(buf, 10, &val) != 0) || val > 1)
 		return -EINVAL;
 
 	spin_lock(&dasd_devmap_lock);
@@ -1225,7 +1225,7 @@ dasd_expires_store(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(device))
 		return -ENODEV;
 
-	if ((strict_strtoul(buf, 10, &val) != 0) ||
+	if ((kstrtoul(buf, 10, &val) != 0) ||
 	    (val > DASD_EXPIRES_MAX) || val == 0) {
 		dasd_put_device(device);
 		return -EINVAL;
@@ -1265,7 +1265,7 @@ dasd_retries_store(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(device))
 		return -ENODEV;
 
-	if ((strict_strtoul(buf, 10, &val) != 0) ||
+	if ((kstrtoul(buf, 10, &val) != 0) ||
 	    (val > DASD_RETRIES_MAX)) {
 		dasd_put_device(device);
 		return -EINVAL;
@@ -1307,7 +1307,7 @@ dasd_timeout_store(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(device) || !device->block)
 		return -ENODEV;
 
-	if ((strict_strtoul(buf, 10, &val) != 0) ||
+	if ((kstrtoul(buf, 10, &val) != 0) ||
 	    val > UINT_MAX / HZ) {
 		dasd_put_device(device);
 		return -EINVAL;

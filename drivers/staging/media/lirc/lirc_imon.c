@@ -23,7 +23,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -625,7 +624,7 @@ static void imon_incoming_packet(struct imon_context *context,
 	}
 
 	if (debug) {
-		printk(KERN_INFO "raw packet: ");
+		dev_info(dev, "raw packet: ");
 		for (i = 0; i < len; ++i)
 			printk("%02x ", buf[i]);
 		printk("\n");
@@ -808,7 +807,8 @@ static int imon_probe(struct usb_interface *interface,
 
 	/* Input endpoint is mandatory */
 	if (!ir_ep_found) {
-		dev_err(dev, "%s: no valid input (IR) endpoint found.\n", __func__);
+		dev_err(dev, "%s: no valid input (IR) endpoint found.\n",
+			__func__);
 		retval = -ENODEV;
 		alloc_status = 2;
 		goto alloc_status_switch;
@@ -878,8 +878,8 @@ static int imon_probe(struct usb_interface *interface,
 		alloc_status = 7;
 		goto unlock;
 	} else
-		dev_info(dev, "Registered iMON driver "
-			 "(lirc minor: %d)\n", lirc_minor);
+		dev_info(dev, "Registered iMON driver (lirc minor: %d)\n",
+			 lirc_minor);
 
 	/* Needed while unregistering! */
 	driver->minor = lirc_minor;
@@ -911,8 +911,8 @@ static int imon_probe(struct usb_interface *interface,
 	if (retval) {
 		dev_err(dev, "%s: usb_submit_urb failed for intf0 (%d)\n",
 			__func__, retval);
-		mutex_unlock(&context->ctx_lock);
-		goto exit;
+		alloc_status = 8;
+		goto unlock;
 	}
 
 	usb_set_intfdata(interface, context);
@@ -923,8 +923,8 @@ static int imon_probe(struct usb_interface *interface,
 
 		if (usb_register_dev(interface, &imon_class)) {
 			/* Not a fatal error, so ignore */
-			dev_info(dev, "%s: could not get a minor number for "
-				 "display\n", __func__);
+			dev_info(dev, "%s: could not get a minor number for display\n",
+				 __func__);
 		}
 	}
 
@@ -937,6 +937,8 @@ unlock:
 alloc_status_switch:
 
 	switch (alloc_status) {
+	case 8:
+		lirc_unregister_driver(driver->minor);
 	case 7:
 		usb_free_urb(tx_urb);
 	case 6:
@@ -959,7 +961,6 @@ alloc_status_switch:
 		retval = 0;
 	}
 
-exit:
 	mutex_unlock(&driver_lock);
 
 	return retval;

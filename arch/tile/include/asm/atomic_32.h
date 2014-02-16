@@ -22,40 +22,6 @@
 
 #ifndef __ASSEMBLY__
 
-/* Tile-specific routines to support <linux/atomic.h>. */
-int _atomic_xchg(atomic_t *v, int n);
-int _atomic_xchg_add(atomic_t *v, int i);
-int _atomic_xchg_add_unless(atomic_t *v, int a, int u);
-int _atomic_cmpxchg(atomic_t *v, int o, int n);
-
-/**
- * atomic_xchg - atomically exchange contents of memory with a new value
- * @v: pointer of type atomic_t
- * @i: integer value to store in memory
- *
- * Atomically sets @v to @i and returns old @v
- */
-static inline int atomic_xchg(atomic_t *v, int n)
-{
-	smp_mb();  /* barrier for proper semantics */
-	return _atomic_xchg(v, n);
-}
-
-/**
- * atomic_cmpxchg - atomically exchange contents of memory if it matches
- * @v: pointer of type atomic_t
- * @o: old value that memory should have
- * @n: new value to write to memory if it matches
- *
- * Atomically checks if @v holds @o and replaces it with @n if so.
- * Returns the old value at @v.
- */
-static inline int atomic_cmpxchg(atomic_t *v, int o, int n)
-{
-	smp_mb();  /* barrier for proper semantics */
-	return _atomic_cmpxchg(v, o, n);
-}
-
 /**
  * atomic_add - add integer to atomic variable
  * @i: integer value to add
@@ -65,7 +31,7 @@ static inline int atomic_cmpxchg(atomic_t *v, int o, int n)
  */
 static inline void atomic_add(int i, atomic_t *v)
 {
-	_atomic_xchg_add(v, i);
+	_atomic_xchg_add(&v->counter, i);
 }
 
 /**
@@ -78,7 +44,7 @@ static inline void atomic_add(int i, atomic_t *v)
 static inline int atomic_add_return(int i, atomic_t *v)
 {
 	smp_mb();  /* barrier for proper semantics */
-	return _atomic_xchg_add(v, i) + i;
+	return _atomic_xchg_add(&v->counter, i) + i;
 }
 
 /**
@@ -93,7 +59,7 @@ static inline int atomic_add_return(int i, atomic_t *v)
 static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	smp_mb();  /* barrier for proper semantics */
-	return _atomic_xchg_add_unless(v, a, u);
+	return _atomic_xchg_add_unless(&v->counter, a, u);
 }
 
 /**
@@ -108,21 +74,16 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
  */
 static inline void atomic_set(atomic_t *v, int n)
 {
-	_atomic_xchg(v, n);
+	_atomic_xchg(&v->counter, n);
 }
 
 /* A 64bit atomic type */
 
 typedef struct {
-	u64 __aligned(8) counter;
+	long long counter;
 } atomic64_t;
 
 #define ATOMIC64_INIT(val) { (val) }
-
-u64 _atomic64_xchg(atomic64_t *v, u64 n);
-u64 _atomic64_xchg_add(atomic64_t *v, u64 i);
-u64 _atomic64_xchg_add_unless(atomic64_t *v, u64 a, u64 u);
-u64 _atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n);
 
 /**
  * atomic64_read - read atomic variable
@@ -130,42 +91,14 @@ u64 _atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n);
  *
  * Atomically reads the value of @v.
  */
-static inline u64 atomic64_read(const atomic64_t *v)
+static inline long long atomic64_read(const atomic64_t *v)
 {
 	/*
 	 * Requires an atomic op to read both 32-bit parts consistently.
 	 * Casting away const is safe since the atomic support routines
 	 * do not write to memory if the value has not been modified.
 	 */
-	return _atomic64_xchg_add((atomic64_t *)v, 0);
-}
-
-/**
- * atomic64_xchg - atomically exchange contents of memory with a new value
- * @v: pointer of type atomic64_t
- * @i: integer value to store in memory
- *
- * Atomically sets @v to @i and returns old @v
- */
-static inline u64 atomic64_xchg(atomic64_t *v, u64 n)
-{
-	smp_mb();  /* barrier for proper semantics */
-	return _atomic64_xchg(v, n);
-}
-
-/**
- * atomic64_cmpxchg - atomically exchange contents of memory if it matches
- * @v: pointer of type atomic64_t
- * @o: old value that memory should have
- * @n: new value to write to memory if it matches
- *
- * Atomically checks if @v holds @o and replaces it with @n if so.
- * Returns the old value at @v.
- */
-static inline u64 atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n)
-{
-	smp_mb();  /* barrier for proper semantics */
-	return _atomic64_cmpxchg(v, o, n);
+	return _atomic64_xchg_add((long long *)&v->counter, 0);
 }
 
 /**
@@ -175,9 +108,9 @@ static inline u64 atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n)
  *
  * Atomically adds @i to @v.
  */
-static inline void atomic64_add(u64 i, atomic64_t *v)
+static inline void atomic64_add(long long i, atomic64_t *v)
 {
-	_atomic64_xchg_add(v, i);
+	_atomic64_xchg_add(&v->counter, i);
 }
 
 /**
@@ -187,10 +120,10 @@ static inline void atomic64_add(u64 i, atomic64_t *v)
  *
  * Atomically adds @i to @v and returns @i + @v
  */
-static inline u64 atomic64_add_return(u64 i, atomic64_t *v)
+static inline long long atomic64_add_return(long long i, atomic64_t *v)
 {
 	smp_mb();  /* barrier for proper semantics */
-	return _atomic64_xchg_add(v, i) + i;
+	return _atomic64_xchg_add(&v->counter, i) + i;
 }
 
 /**
@@ -202,10 +135,11 @@ static inline u64 atomic64_add_return(u64 i, atomic64_t *v)
  * Atomically adds @a to @v, so long as @v was not already @u.
  * Returns non-zero if @v was not @u, and zero otherwise.
  */
-static inline u64 atomic64_add_unless(atomic64_t *v, u64 a, u64 u)
+static inline long long atomic64_add_unless(atomic64_t *v, long long a,
+					long long u)
 {
 	smp_mb();  /* barrier for proper semantics */
-	return _atomic64_xchg_add_unless(v, a, u) != u;
+	return _atomic64_xchg_add_unless(&v->counter, a, u) != u;
 }
 
 /**
@@ -218,9 +152,9 @@ static inline u64 atomic64_add_unless(atomic64_t *v, u64 a, u64 u)
  * atomic64_set() can't be just a raw store, since it would be lost if it
  * fell between the load and store of one of the other atomic ops.
  */
-static inline void atomic64_set(atomic64_t *v, u64 n)
+static inline void atomic64_set(atomic64_t *v, long long n)
 {
-	_atomic64_xchg(v, n);
+	_atomic64_xchg(&v->counter, n);
 }
 
 #define atomic64_add_negative(a, v)	(atomic64_add_return((a), (v)) < 0)
@@ -252,21 +186,6 @@ static inline void atomic64_set(atomic64_t *v, u64 n)
  * Internal definitions only beyond this point.
  */
 
-#define ATOMIC_LOCKS_FOUND_VIA_TABLE() \
-  (!CHIP_HAS_CBOX_HOME_MAP() && defined(CONFIG_SMP))
-
-#if ATOMIC_LOCKS_FOUND_VIA_TABLE()
-
-/* Number of entries in atomic_lock_ptr[]. */
-#define ATOMIC_HASH_L1_SHIFT 6
-#define ATOMIC_HASH_L1_SIZE (1 << ATOMIC_HASH_L1_SHIFT)
-
-/* Number of locks in each struct pointed to by atomic_lock_ptr[]. */
-#define ATOMIC_HASH_L2_SHIFT (CHIP_L2_LOG_LINE_SIZE() - 2)
-#define ATOMIC_HASH_L2_SIZE (1 << ATOMIC_HASH_L2_SHIFT)
-
-#else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
-
 /*
  * Number of atomic locks in atomic_locks[]. Must be a power of two.
  * There is no reason for more than PAGE_SIZE / 8 entries, since that
@@ -280,8 +199,6 @@ static inline void atomic64_set(atomic64_t *v, u64 n)
 #ifndef __ASSEMBLY__
 extern int atomic_locks[];
 #endif
-
-#endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 /*
  * All the code that may fault while holding an atomic lock must
@@ -320,11 +237,13 @@ extern struct __get_user __atomic_xchg_add_unless(volatile int *p,
 extern struct __get_user __atomic_or(volatile int *p, int *lock, int n);
 extern struct __get_user __atomic_andn(volatile int *p, int *lock, int n);
 extern struct __get_user __atomic_xor(volatile int *p, int *lock, int n);
-extern u64 __atomic64_cmpxchg(volatile u64 *p, int *lock, u64 o, u64 n);
-extern u64 __atomic64_xchg(volatile u64 *p, int *lock, u64 n);
-extern u64 __atomic64_xchg_add(volatile u64 *p, int *lock, u64 n);
-extern u64 __atomic64_xchg_add_unless(volatile u64 *p,
-				      int *lock, u64 o, u64 n);
+extern long long __atomic64_cmpxchg(volatile long long *p, int *lock,
+					long long o, long long n);
+extern long long __atomic64_xchg(volatile long long *p, int *lock, long long n);
+extern long long __atomic64_xchg_add(volatile long long *p, int *lock,
+					long long n);
+extern long long __atomic64_xchg_add_unless(volatile long long *p,
+					int *lock, long long o, long long n);
 
 /* Return failure from the atomic wrappers. */
 struct __get_user __atomic_bad_address(int __user *addr);

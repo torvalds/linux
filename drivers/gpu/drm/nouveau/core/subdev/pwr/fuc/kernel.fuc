@@ -1,0 +1,454 @@
+/*
+ * Copyright 2013 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs
+ */
+
+/******************************************************************************
+ * kernel data segment
+ *****************************************************************************/
+#ifdef INCLUDE_PROC
+proc_kern:
+process(PROC_KERN, 0, 0)
+proc_list_head:
+#endif
+
+#ifdef INCLUDE_DATA
+proc_list_tail:
+time_prev: .b32 0
+time_next: .b32 0
+#endif
+
+/******************************************************************************
+ * kernel code segment
+ *****************************************************************************/
+#ifdef INCLUDE_CODE
+	bra #init
+
+// read nv register
+//
+// $r15 - current
+// $r14 - addr
+// $r13 - data (return)
+// $r0  - zero
+rd32:
+	nv_iowr(NV_PPWR_MMIO_ADDR, $r14)
+	mov $r13 NV_PPWR_MMIO_CTRL_OP_RD
+	sethi $r13 NV_PPWR_MMIO_CTRL_TRIGGER
+	nv_iowr(NV_PPWR_MMIO_CTRL, $r13)
+	rd32_wait:
+		nv_iord($r13, NV_PPWR_MMIO_CTRL)
+		and $r13 NV_PPWR_MMIO_CTRL_STATUS
+		bra nz #rd32_wait
+	nv_iord($r13, NV_PPWR_MMIO_DATA)
+	ret
+
+// write nv register
+//
+// $r15 - current
+// $r14 - addr
+// $r13 - data
+// $r0  - zero
+wr32:
+	nv_iowr(NV_PPWR_MMIO_ADDR, $r14)
+	nv_iowr(NV_PPWR_MMIO_DATA, $r13)
+	mov $r13 NV_PPWR_MMIO_CTRL_OP_WR
+	or $r13 NV_PPWR_MMIO_CTRL_MASK_B32_0
+	sethi $r13 NV_PPWR_MMIO_CTRL_TRIGGER
+
+#ifdef NVKM_FALCON_MMIO_TRAP
+	push $r13
+	mov $r13 NV_PPWR_INTR_TRIGGER_USER1
+	nv_iowr(NV_PPWR_INTR_TRIGGER, $r13)
+	wr32_host:
+		nv_iord($r13, NV_PPWR_INTR)
+		and $r13 NV_PPWR_INTR_USER1
+		bra nz #wr32_host
+	pop $r13
+#endif
+
+	nv_iowr(NV_PPWR_MMIO_CTRL, $r13)
+	wr32_wait:
+		nv_iord($r13, NV_PPWR_MMIO_CTRL)
+		and $r13 NV_PPWR_MMIO_CTRL_STATUS
+		bra nz #wr32_wait
+	ret
+
+// busy-wait for a period of time
+//
+// $r15 - current
+// $r14 - ns
+// $r0  - zero
+nsec:
+	nv_iord($r8, NV_PPWR_TIMER_LOW)
+	nsec_loop:
+		nv_iord($r9, NV_PPWR_TIMER_LOW)
+		sub b32 $r9 $r8
+		cmp b32 $r9 $r14
+		bra l #nsec_loop
+	ret
+
+// busy-wait for a period of time
+//
+// $r15 - current
+// $r14 - addr
+// $r13 - mask
+// $r12 - data
+// $r11 - timeout (ns)
+// $r0  - zero
+wait:
+	nv_iord($r8, NV_PPWR_TIMER_LOW)
+	wait_loop:
+		nv_rd32($r10, $r14)
+		and $r10 $r13
+		cmp b32 $r10 $r12
+		bra e #wait_done
+		nv_iord($r9, NV_PPWR_TIMER_LOW)
+		sub b32 $r9 $r8
+		cmp b32 $r9 $r11
+		bra l #wait_loop
+	wait_done:
+	ret
+
+// $r15 - current (kern)
+// $r14 - process
+// $r8  - NV_PPWR_INTR
+intr_watchdog:
+	// read process' timer status, skip if not enabled
+	ld b32 $r9 D[$r14 + #proc_time]
+	cmp b32 $r9 0
+	bra z #intr_watchdog_next_proc
+
+	// subtract last timer's value from process' timer,
+	// if it's <= 0 then the timer has expired
+	ld b32 $r10 D[$r0 + #time_prev]
+	sub b32 $r9 $r10
+	bra g #intr_watchdog_next_time
+		mov $r13 KMSG_ALARM
+		call(send_proc)
+		clear b32 $r9
+		bra #intr_watchdog_next_proc
+
+	// otherwise, update the next timer's value if this
+	// process' timer is the soonest
+	intr_watchdog_next_time:
+		// ... or if there's no next timer yet
+		ld b32 $r10 D[$r0 + #time_next]
+		cmp b32 $r10 0
+		bra z #intr_watchdog_next_time_set
+
+		cmp b32 $r9 $r10
+		bra g #intr_watchdog_next_proc
+		intr_watchdog_next_time_set:
+		st b32 D[$r0 + #time_next] $r9
+
+	// update process' timer status, and advance
+	intr_watchdog_next_proc:
+	st b32 D[$r14 + #proc_time] $r9
+	add b32 $r14 #proc_size
+	cmp b32 $r14 #proc_list_tail
+	bra ne #intr_watchdog
+	ret
+
+intr:
+	push $r0
+	clear b32 $r0
+	push $r8
+	push $r9
+	push $r10
+	push $r11
+	push $r12
+	push $r13
+	push $r14
+	push $r15
+	mov $r15 #proc_kern
+	mov $r8 $flags
+	push $r8
+
+	nv_iord($r8, NV_PPWR_DSCRATCH(0))
+	add b32 $r8 1
+	nv_iowr(NV_PPWR_DSCRATCH(0), $r8)
+
+	nv_iord($r8, NV_PPWR_INTR)
+	and $r9 $r8 NV_PPWR_INTR_WATCHDOG
+	bra z #intr_skip_watchdog
+		st b32 D[$r0 + #time_next] $r0
+		mov $r14 #proc_list_head
+		call(intr_watchdog)
+		ld b32 $r9 D[$r0 + #time_next]
+		cmp b32 $r9 0
+		bra z #intr_skip_watchdog
+			nv_iowr(NV_PPWR_WATCHDOG_TIME, $r9)
+			st b32 D[$r0 + #time_prev] $r9
+
+	intr_skip_watchdog:
+	and $r9 $r8 NV_PPWR_INTR_SUBINTR
+	bra z #intr_skip_subintr
+		nv_iord($r9, NV_PPWR_SUBINTR)
+		and $r10 $r9 NV_PPWR_SUBINTR_FIFO
+		bra z #intr_subintr_skip_fifo
+			nv_iord($r12, NV_PPWR_FIFO_INTR)
+			push $r12
+			mov $r14 (PROC_HOST & 0x0000ffff)
+			sethi $r14 (PROC_HOST & 0xffff0000)
+			mov $r13 KMSG_FIFO
+			call(send)
+			pop $r12
+			nv_iowr(NV_PPWR_FIFO_INTR, $r12)
+		intr_subintr_skip_fifo:
+		nv_iowr(NV_PPWR_SUBINTR, $r9)
+
+	intr_skip_subintr:
+	and $r9 $r8 NV_PPWR_INTR_PAUSE
+	bra z #intr_skip_pause
+		and $r10 0xffbf
+
+	intr_skip_pause:
+	and $r9 $r8 NV_PPWR_INTR_USER0
+	bra z #intr_skip_user0
+		and $r10 0xffbf
+
+	intr_skip_user0:
+	nv_iowr(NV_PPWR_INTR_ACK, $r8)
+	pop $r8
+	mov $flags $r8
+	pop $r15
+	pop $r14
+	pop $r13
+	pop $r12
+	pop $r11
+	pop $r10
+	pop $r9
+	pop $r8
+	pop $r0
+	bclr $flags $p0
+	iret
+
+// request the current process be sent a message after a timeout expires
+//
+// $r15 - current
+// $r14 - ticks
+// $r0  - zero
+timer:
+	// interrupts off to prevent racing with timer isr
+	bclr $flags ie0
+
+	// if current process already has a timer set, bail
+	ld b32 $r8 D[$r15 + #proc_time]
+	cmp b32 $r8 0
+	bra g #timer_done
+	st b32 D[$r15 + #proc_time] $r14
+
+	// halt watchdog timer temporarily and check for a pending
+	// interrupt.  if there's one already pending, we can just
+	// bail since the timer isr will queue the next soonest
+	// right after it's done
+	nv_iowr(NV_PPWR_WATCHDOG_ENABLE, $r8)
+	nv_iord($r8, NV_PPWR_INTR)
+	and $r8 NV_PPWR_INTR_WATCHDOG
+	bra nz #timer_enable
+
+	// update the watchdog if this timer should expire first,
+	// or if there's no timeout already set
+	nv_iord($r8, NV_PPWR_WATCHDOG_TIME)
+	cmp b32 $r14 $r0
+	bra e #timer_reset
+	cmp b32 $r14 $r8
+	bra l #timer_done
+	timer_reset:
+	nv_iowr(NV_PPWR_WATCHDOG_TIME, $r14)
+	st b32 D[$r0 + #time_prev] $r14
+
+	// re-enable the watchdog timer
+	timer_enable:
+	mov $r8 1
+	nv_iowr(NV_PPWR_WATCHDOG_ENABLE, $r8)
+
+	// interrupts back on
+	timer_done:
+	bset $flags ie0
+	ret
+
+// send message to another process
+//
+// $r15 - current
+// $r14 - process
+// $r13 - message
+// $r12 - message data 0
+// $r11 - message data 1
+// $r0  - zero
+send_proc:
+	push $r8
+	push $r9
+	// check for space in queue
+	ld b32 $r8 D[$r14 + #proc_qget]
+	ld b32 $r9 D[$r14 + #proc_qput]
+	xor $r8 #proc_qmaskb
+	cmp b32 $r8 $r9
+	bra e #send_done
+
+	// enqueue message
+	and $r8 $r9 #proc_qmaskp
+	shl b32 $r8 $r8 #proc_qlen
+	add b32 $r8 #proc_queue
+	add b32 $r8 $r14
+
+	ld b32 $r10 D[$r15 + #proc_id]
+	st b32 D[$r8 + #msg_process] $r10
+	st b32 D[$r8 + #msg_message] $r13
+	st b32 D[$r8 + #msg_data0] $r12
+	st b32 D[$r8 + #msg_data1] $r11
+
+	// increment PUT
+	add b32 $r9 1
+	and $r9 #proc_qmaskf
+	st b32 D[$r14 + #proc_qput] $r9
+	bset $flags $p2
+	send_done:
+	pop $r9
+	pop $r8
+	ret
+
+// lookup process structure by its name
+//
+// $r15 - current
+// $r14 - process name
+// $r0  - zero
+//
+// $r14 - process
+// $p1  - success
+find:
+	push $r8
+	mov $r8 #proc_list_head
+	bset $flags $p1
+	find_loop:
+		ld b32 $r10 D[$r8 + #proc_id]
+		cmp b32 $r10 $r14
+		bra e #find_done
+		add b32 $r8 #proc_size
+		cmp b32 $r8 #proc_list_tail
+		bra ne #find_loop
+		bclr $flags $p1
+	find_done:
+	mov b32 $r14 $r8
+	pop $r8
+	ret
+
+// send message to another process
+//
+// $r15 - current
+// $r14 - process id
+// $r13 - message
+// $r12 - message data 0
+// $r11 - message data 1
+// $r0  - zero
+send:
+	call(find)
+	bra $p1 #send_proc
+	ret
+
+// process single message for a given process
+//
+// $r15 - current
+// $r14 - process
+// $r0  - zero
+recv:
+	ld b32 $r8 D[$r14 + #proc_qget]
+	ld b32 $r9 D[$r14 + #proc_qput]
+	bclr $flags $p1
+	cmp b32 $r8 $r9
+	bra e #recv_done
+		// dequeue message
+		and $r9 $r8 #proc_qmaskp
+		add b32 $r8 1
+		and $r8 #proc_qmaskf
+		st b32 D[$r14 + #proc_qget] $r8
+		ld b32 $r10 D[$r14 + #proc_recv]
+
+		push $r15
+		mov $r15 $flags
+		push $r15
+		mov b32 $r15 $r14
+
+		shl b32 $r9 $r9 #proc_qlen
+		add b32 $r14 $r9
+		add b32 $r14 #proc_queue
+		ld b32 $r11 D[$r14 + #msg_data1]
+		ld b32 $r12 D[$r14 + #msg_data0]
+		ld b32 $r13 D[$r14 + #msg_message]
+		ld b32 $r14 D[$r14 + #msg_process]
+
+		// process it
+		call $r10
+		pop $r15
+		mov $flags $r15
+		bset $flags $p1
+		pop $r15
+	recv_done:
+	ret
+
+init:
+	// setup stack
+	nv_iord($r1, NV_PPWR_CAPS)
+	extr $r1 $r1 9:17
+	shl b32 $r1 8
+	mov $sp $r1
+
+#ifdef NVKM_FALCON_MMIO_UAS
+	// somehow allows the magic "access mmio via D[]" stuff that's
+	// used by the nv_rd32/nv_wr32 macros to work
+	mov $r1 0x0010
+	sethi $r1 NV_PPWR_UAS_CONFIG_ENABLE
+	nv_iowrs(NV_PPWR_UAS_CONFIG, $r1)
+#endif
+
+	// route all interrupts except user0/1 and pause to fuc
+	mov $r1 0x00e0
+	sethi $r1 0x00000000
+	nv_iowr(NV_PPWR_INTR_ROUTE, $r1)
+
+	// enable watchdog and subintr intrs
+	mov $r1 NV_PPWR_INTR_EN_CLR_MASK
+	nv_iowr(NV_PPWR_INTR_EN_CLR, $r1)
+	mov $r1 NV_PPWR_INTR_EN_SET_WATCHDOG
+	or $r1 NV_PPWR_INTR_EN_SET_SUBINTR
+	nv_iowr(NV_PPWR_INTR_EN_SET, $r1)
+
+	// enable interrupts globally
+	mov $r1 #intr
+	sethi $r1 0x00000000
+	mov $iv0 $r1
+	bset $flags ie0
+
+	// enable watchdog timer
+	mov $r1 1
+	nv_iowr(NV_PPWR_WATCHDOG_ENABLE, $r1)
+
+	// bootstrap processes, idle process will be last, and not return
+	mov $r15 #proc_list_head
+	init_proc:
+		ld b32 $r1 D[$r15 + #proc_init]
+		cmp b32 $r1 0
+		bra z #init_proc
+		call $r1
+		add b32 $r15 #proc_size
+		bra #init_proc
+#endif

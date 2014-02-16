@@ -41,7 +41,7 @@ static inline int cpu_map__nr(const struct cpu_map *map)
 	return map ? map->nr : 1;
 }
 
-static inline bool cpu_map__all(const struct cpu_map *map)
+static inline bool cpu_map__empty(const struct cpu_map *map)
 {
 	return map ? map->map[0] == -1 : true;
 }

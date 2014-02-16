@@ -73,6 +73,7 @@ DEFINE_IDR(ib_uverbs_cq_idr);
 DEFINE_IDR(ib_uverbs_qp_idr);
 DEFINE_IDR(ib_uverbs_srq_idr);
 DEFINE_IDR(ib_uverbs_xrcd_idr);
+DEFINE_IDR(ib_uverbs_rule_idr);
 
 static DEFINE_SPINLOCK(map_lock);
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
@@ -113,7 +114,14 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_OPEN_XRCD]		= ib_uverbs_open_xrcd,
 	[IB_USER_VERBS_CMD_CLOSE_XRCD]		= ib_uverbs_close_xrcd,
 	[IB_USER_VERBS_CMD_CREATE_XSRQ]		= ib_uverbs_create_xsrq,
-	[IB_USER_VERBS_CMD_OPEN_QP]		= ib_uverbs_open_qp
+	[IB_USER_VERBS_CMD_OPEN_QP]		= ib_uverbs_open_qp,
+};
+
+static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
+				    struct ib_udata *ucore,
+				    struct ib_udata *uhw) = {
+	[IB_USER_VERBS_EX_CMD_CREATE_FLOW]	= ib_uverbs_ex_create_flow,
+	[IB_USER_VERBS_EX_CMD_DESTROY_FLOW]	= ib_uverbs_ex_destroy_flow
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -209,6 +217,14 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 		idr_remove_uobj(&ib_uverbs_mw_idr, uobj);
 		ib_dealloc_mw(mw);
+		kfree(uobj);
+	}
+
+	list_for_each_entry_safe(uobj, tmp, &context->rule_list, list) {
+		struct ib_flow *flow_id = uobj->object;
+
+		idr_remove_uobj(&ib_uverbs_rule_idr, uobj);
+		ib_destroy_flow(flow_id);
 		kfree(uobj);
 	}
 
@@ -576,6 +592,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 {
 	struct ib_uverbs_file *file = filp->private_data;
 	struct ib_uverbs_cmd_hdr hdr;
+	__u32 flags;
 
 	if (count < sizeof hdr)
 		return -EINVAL;
@@ -583,22 +600,110 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (copy_from_user(&hdr, buf, sizeof hdr))
 		return -EFAULT;
 
-	if (hdr.in_words * 4 != count)
-		return -EINVAL;
+	flags = (hdr.command &
+		 IB_USER_VERBS_CMD_FLAGS_MASK) >> IB_USER_VERBS_CMD_FLAGS_SHIFT;
 
-	if (hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
-	    !uverbs_cmd_table[hdr.command])
-		return -EINVAL;
+	if (!flags) {
+		__u32 command;
 
-	if (!file->ucontext &&
-	    hdr.command != IB_USER_VERBS_CMD_GET_CONTEXT)
-		return -EINVAL;
+		if (hdr.command & ~(__u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
+					   IB_USER_VERBS_CMD_COMMAND_MASK))
+			return -EINVAL;
 
-	if (!(file->device->ib_dev->uverbs_cmd_mask & (1ull << hdr.command)))
-		return -ENOSYS;
+		command = hdr.command & IB_USER_VERBS_CMD_COMMAND_MASK;
 
-	return uverbs_cmd_table[hdr.command](file, buf + sizeof hdr,
-					     hdr.in_words * 4, hdr.out_words * 4);
+		if (command >= ARRAY_SIZE(uverbs_cmd_table) ||
+		    !uverbs_cmd_table[command])
+			return -EINVAL;
+
+		if (!file->ucontext &&
+		    command != IB_USER_VERBS_CMD_GET_CONTEXT)
+			return -EINVAL;
+
+		if (!(file->device->ib_dev->uverbs_cmd_mask & (1ull << command)))
+			return -ENOSYS;
+
+		if (hdr.in_words * 4 != count)
+			return -EINVAL;
+
+		return uverbs_cmd_table[command](file,
+						 buf + sizeof(hdr),
+						 hdr.in_words * 4,
+						 hdr.out_words * 4);
+
+	} else if (flags == IB_USER_VERBS_CMD_FLAG_EXTENDED) {
+		__u32 command;
+
+		struct ib_uverbs_ex_cmd_hdr ex_hdr;
+		struct ib_udata ucore;
+		struct ib_udata uhw;
+		int err;
+		size_t written_count = count;
+
+		if (hdr.command & ~(__u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
+					   IB_USER_VERBS_CMD_COMMAND_MASK))
+			return -EINVAL;
+
+		command = hdr.command & IB_USER_VERBS_CMD_COMMAND_MASK;
+
+		if (command >= ARRAY_SIZE(uverbs_ex_cmd_table) ||
+		    !uverbs_ex_cmd_table[command])
+			return -ENOSYS;
+
+		if (!file->ucontext)
+			return -EINVAL;
+
+		if (!(file->device->ib_dev->uverbs_ex_cmd_mask & (1ull << command)))
+			return -ENOSYS;
+
+		if (count < (sizeof(hdr) + sizeof(ex_hdr)))
+			return -EINVAL;
+
+		if (copy_from_user(&ex_hdr, buf + sizeof(hdr), sizeof(ex_hdr)))
+			return -EFAULT;
+
+		count -= sizeof(hdr) + sizeof(ex_hdr);
+		buf += sizeof(hdr) + sizeof(ex_hdr);
+
+		if ((hdr.in_words + ex_hdr.provider_in_words) * 8 != count)
+			return -EINVAL;
+
+		if (ex_hdr.cmd_hdr_reserved)
+			return -EINVAL;
+
+		if (ex_hdr.response) {
+			if (!hdr.out_words && !ex_hdr.provider_out_words)
+				return -EINVAL;
+
+			if (!access_ok(VERIFY_WRITE,
+				       (void __user *) (unsigned long) ex_hdr.response,
+				       (hdr.out_words + ex_hdr.provider_out_words) * 8))
+				return -EFAULT;
+		} else {
+			if (hdr.out_words || ex_hdr.provider_out_words)
+				return -EINVAL;
+		}
+
+		INIT_UDATA_BUF_OR_NULL(&ucore, buf, (unsigned long) ex_hdr.response,
+				       hdr.in_words * 8, hdr.out_words * 8);
+
+		INIT_UDATA_BUF_OR_NULL(&uhw,
+				       buf + ucore.inlen,
+				       (unsigned long) ex_hdr.response + ucore.outlen,
+				       ex_hdr.provider_in_words * 8,
+				       ex_hdr.provider_out_words * 8);
+
+		err = uverbs_ex_cmd_table[command](file,
+						   &ucore,
+						   &uhw);
+
+		if (err)
+			return err;
+
+		return written_count;
+	}
+
+	return -ENOSYS;
 }
 
 static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)

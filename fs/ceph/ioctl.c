@@ -183,6 +183,8 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
+	struct ceph_object_locator oloc;
+	struct ceph_object_id oid;
 	u64 len = 1, olen;
 	u64 tmp;
 	struct ceph_pg pgid;
@@ -196,8 +198,10 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	r = ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, len,
 					  &dl.object_no, &dl.object_offset,
 					  &olen);
-	if (r < 0)
+	if (r < 0) {
+		up_read(&osdc->map_sem);
 		return -EIO;
+	}
 	dl.file_offset -= dl.object_offset;
 	dl.object_size = ceph_file_layout_object_size(ci->i_layout);
 	dl.block_size = ceph_file_layout_su(ci->i_layout);
@@ -209,8 +213,14 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	snprintf(dl.object_name, sizeof(dl.object_name), "%llx.%08llx",
 		 ceph_ino(inode), dl.object_no);
 
-	ceph_calc_ceph_pg(&pgid, dl.object_name, osdc->osdmap,
-		ceph_file_layout_pg_pool(ci->i_layout));
+	oloc.pool = ceph_file_layout_pg_pool(ci->i_layout);
+	ceph_oid_set_name(&oid, dl.object_name);
+
+	r = ceph_oloc_oid_to_pg(osdc->osdmap, &oloc, &oid, &pgid);
+	if (r < 0) {
+		up_read(&osdc->map_sem);
+		return r;
+	}
 
 	dl.osd = ceph_calc_pg_primary(osdc->osdmap, pgid);
 	if (dl.osd >= 0) {

@@ -345,4 +345,3 @@ module_exit(advwdt_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marek Michalkiewicz <marekm@linux.org.pl>");
 MODULE_DESCRIPTION("Advantech Single Board Computer WDT driver");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

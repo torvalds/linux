@@ -90,7 +90,7 @@ static int mmio_print_pcidev(struct trace_seq *s, const struct pci_dev *dev)
 	if (drv)
 		ret += trace_seq_printf(s, " %s\n", drv->name);
 	else
-		ret += trace_seq_printf(s, " \n");
+		ret += trace_seq_puts(s, " \n");
 	return ret;
 }
 
@@ -107,7 +107,7 @@ static void mmio_pipe_open(struct trace_iterator *iter)
 	struct header_iter *hiter;
 	struct trace_seq *s = &iter->seq;
 
-	trace_seq_printf(s, "VERSION 20070824\n");
+	trace_seq_puts(s, "VERSION 20070824\n");
 
 	hiter = kzalloc(sizeof(*hiter), GFP_KERNEL);
 	if (!hiter)
@@ -209,7 +209,7 @@ static enum print_line_t mmio_print_rw(struct trace_iterator *iter)
 			(rw->value >> 0) & 0xff, rw->pc, 0);
 		break;
 	default:
-		ret = trace_seq_printf(s, "rw what?\n");
+		ret = trace_seq_puts(s, "rw what?\n");
 		break;
 	}
 	if (ret)
@@ -245,7 +245,7 @@ static enum print_line_t mmio_print_map(struct trace_iterator *iter)
 			secs, usec_rem, m->map_id, 0UL, 0);
 		break;
 	default:
-		ret = trace_seq_printf(s, "map what?\n");
+		ret = trace_seq_puts(s, "map what?\n");
 		break;
 	}
 	if (ret)
@@ -323,7 +323,7 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->rw			= *rw;
 
-	if (!filter_check_discard(call, entry, buffer, event))
+	if (!call_filter_check_discard(call, entry, buffer, event))
 		trace_buffer_unlock_commit(buffer, event, 0, pc);
 }
 
@@ -353,7 +353,7 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->map			= *map;
 
-	if (!filter_check_discard(call, entry, buffer, event))
+	if (!call_filter_check_discard(call, entry, buffer, event))
 		trace_buffer_unlock_commit(buffer, event, 0, pc);
 }
 

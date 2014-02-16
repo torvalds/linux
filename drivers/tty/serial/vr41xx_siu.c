@@ -705,7 +705,7 @@ static int siu_init_ports(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	struct resource *res;
-	int *type = pdev->dev.platform_data;
+	int *type = dev_get_platdata(&pdev->dev);
 	int i;
 
 	if (!type)

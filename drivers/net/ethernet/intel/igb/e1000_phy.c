@@ -341,6 +341,130 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 }
 
 /**
+ *  igb_read_sfp_data_byte - Reads SFP module data.
+ *  @hw: pointer to the HW structure
+ *  @offset: byte location offset to be read
+ *  @data: read data buffer pointer
+ *
+ *  Reads one byte from SFP module data stored
+ *  in SFP resided EEPROM memory or SFP diagnostic area.
+ *  Function should be called with
+ *  E1000_I2CCMD_SFP_DATA_ADDR(<byte offset>) for SFP module database access
+ *  E1000_I2CCMD_SFP_DIAG_ADDR(<byte offset>) for SFP diagnostics parameters
+ *  access
+ **/
+s32 igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data)
+{
+	u32 i = 0;
+	u32 i2ccmd = 0;
+	u32 data_local = 0;
+
+	if (offset > E1000_I2CCMD_SFP_DIAG_ADDR(255)) {
+		hw_dbg("I2CCMD command address exceeds upper limit\n");
+		return -E1000_ERR_PHY;
+	}
+
+	/* Set up Op-code, EEPROM Address,in the I2CCMD
+	 * register. The MAC will take care of interfacing with the
+	 * EEPROM to retrieve the desired data.
+	 */
+	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
+		  E1000_I2CCMD_OPCODE_READ);
+
+	wr32(E1000_I2CCMD, i2ccmd);
+
+	/* Poll the ready bit to see if the I2C read completed */
+	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
+		udelay(50);
+		data_local = rd32(E1000_I2CCMD);
+		if (data_local & E1000_I2CCMD_READY)
+			break;
+	}
+	if (!(data_local & E1000_I2CCMD_READY)) {
+		hw_dbg("I2CCMD Read did not complete\n");
+		return -E1000_ERR_PHY;
+	}
+	if (data_local & E1000_I2CCMD_ERROR) {
+		hw_dbg("I2CCMD Error bit set\n");
+		return -E1000_ERR_PHY;
+	}
+	*data = (u8) data_local & 0xFF;
+
+	return 0;
+}
+
+/**
+ *  e1000_write_sfp_data_byte - Writes SFP module data.
+ *  @hw: pointer to the HW structure
+ *  @offset: byte location offset to write to
+ *  @data: data to write
+ *
+ *  Writes one byte to SFP module data stored
+ *  in SFP resided EEPROM memory or SFP diagnostic area.
+ *  Function should be called with
+ *  E1000_I2CCMD_SFP_DATA_ADDR(<byte offset>) for SFP module database access
+ *  E1000_I2CCMD_SFP_DIAG_ADDR(<byte offset>) for SFP diagnostics parameters
+ *  access
+ **/
+s32 e1000_write_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 data)
+{
+	u32 i = 0;
+	u32 i2ccmd = 0;
+	u32 data_local = 0;
+
+	if (offset > E1000_I2CCMD_SFP_DIAG_ADDR(255)) {
+		hw_dbg("I2CCMD command address exceeds upper limit\n");
+		return -E1000_ERR_PHY;
+	}
+	/* The programming interface is 16 bits wide
+	 * so we need to read the whole word first
+	 * then update appropriate byte lane and write
+	 * the updated word back.
+	 */
+	/* Set up Op-code, EEPROM Address,in the I2CCMD
+	 * register. The MAC will take care of interfacing
+	 * with an EEPROM to write the data given.
+	 */
+	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
+		  E1000_I2CCMD_OPCODE_READ);
+	/* Set a command to read single word */
+	wr32(E1000_I2CCMD, i2ccmd);
+	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
+		udelay(50);
+		/* Poll the ready bit to see if lastly
+		 * launched I2C operation completed
+		 */
+		i2ccmd = rd32(E1000_I2CCMD);
+		if (i2ccmd & E1000_I2CCMD_READY) {
+			/* Check if this is READ or WRITE phase */
+			if ((i2ccmd & E1000_I2CCMD_OPCODE_READ) ==
+			    E1000_I2CCMD_OPCODE_READ) {
+				/* Write the selected byte
+				 * lane and update whole word
+				 */
+				data_local = i2ccmd & 0xFF00;
+				data_local |= data;
+				i2ccmd = ((offset <<
+					E1000_I2CCMD_REG_ADDR_SHIFT) |
+					E1000_I2CCMD_OPCODE_WRITE | data_local);
+				wr32(E1000_I2CCMD, i2ccmd);
+			} else {
+				break;
+			}
+		}
+	}
+	if (!(i2ccmd & E1000_I2CCMD_READY)) {
+		hw_dbg("I2CCMD Write did not complete\n");
+		return -E1000_ERR_PHY;
+	}
+	if (i2ccmd & E1000_I2CCMD_ERROR) {
+		hw_dbg("I2CCMD Error bit set\n");
+		return -E1000_ERR_PHY;
+	}
+	return 0;
+}
+
+/**
  *  igb_read_phy_reg_igp - Read igp PHY register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
@@ -584,11 +708,6 @@ s32 igb_copper_link_setup_m88(struct e1000_hw *hw)
 		hw_dbg("Error committing the PHY changes\n");
 		goto out;
 	}
-	if (phy->type == e1000_phy_i210) {
-		ret_val = igb_set_master_slave_mode(hw);
-		if (ret_val)
-			return ret_val;
-	}
 
 out:
 	return ret_val;
@@ -607,15 +726,13 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	if (phy->reset_disable) {
-		ret_val = 0;
-		goto out;
-	}
+	if (phy->reset_disable)
+		return 0;
 
 	/* Enable CRS on Tx. This must be set for half-duplex operation. */
 	ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
 	if (ret_val)
-		goto out;
+		return ret_val;
 
 	/* Options:
 	 *   MDI/MDI-X = 0 (default)
@@ -656,23 +773,39 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 		phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
 
 	/* Enable downshift and setting it to X6 */
+	if (phy->id == M88E1543_E_PHY_ID) {
+		phy_data &= ~I347AT4_PSCR_DOWNSHIFT_ENABLE;
+		ret_val =
+		    phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
+		if (ret_val)
+			return ret_val;
+
+		ret_val = igb_phy_sw_reset(hw);
+		if (ret_val) {
+			hw_dbg("Error committing the PHY changes\n");
+			return ret_val;
+		}
+	}
+
 	phy_data &= ~I347AT4_PSCR_DOWNSHIFT_MASK;
 	phy_data |= I347AT4_PSCR_DOWNSHIFT_6X;
 	phy_data |= I347AT4_PSCR_DOWNSHIFT_ENABLE;
 
 	ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
 	if (ret_val)
-		goto out;
+		return ret_val;
 
 	/* Commit the changes. */
 	ret_val = igb_phy_sw_reset(hw);
 	if (ret_val) {
 		hw_dbg("Error committing the PHY changes\n");
-		goto out;
+		return ret_val;
 	}
+	ret_val = igb_set_master_slave_mode(hw);
+	if (ret_val)
+		return ret_val;
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -1595,7 +1728,10 @@ s32 igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
 			 * ownership of the resources, wait and try again to
 			 * see if they have relinquished the resources yet.
 			 */
-			udelay(usec_interval);
+			if (usec_interval >= 1000)
+				mdelay(usec_interval/1000);
+			else
+				udelay(usec_interval);
 		}
 		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
 		if (ret_val)
@@ -1682,7 +1818,7 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
 		phy->cable_length = phy_data / (is_cm ? 100 : 1);
 		break;
-	case M88E1545_E_PHY_ID:
+	case M88E1543_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 		/* Remember the original page select and set it to 7 */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
@@ -2014,7 +2150,7 @@ out:
  *  Verify the reset block is not blocking us from resetting.  Acquire
  *  semaphore (if necessary) and read/set/write the device control reset
  *  bit in the PHY.  Wait the appropriate delay time for the device to
- *  reset and relase the semaphore (if necessary).
+ *  reset and release the semaphore (if necessary).
  **/
 s32 igb_phy_hw_reset(struct e1000_hw *hw)
 {

@@ -193,7 +193,7 @@ EXPORT_SYMBOL(libcfs_kkuc_msg_put);
 /* Broadcast groups are global across all mounted filesystems;
  * i.e. registering for a group on 1 fs will get messages for that
  * group from any fs */
-/** A single group reigstration has a uid and a file pointer */
+/** A single group registration has a uid and a file pointer */
 struct kkuc_reg {
 	struct list_head	kr_chain;
 	int		kr_uid;
@@ -206,7 +206,7 @@ static DECLARE_RWSEM(kg_sem);
 
 /** Add a receiver to a broadcast group
  * @param filp pipe to write into
- * @param uid identidier for this receiver
+ * @param uid identifier for this receiver
  * @param group group number
  */
 int libcfs_kkuc_group_add(struct file *filp, int uid, int group, __u32 data)
@@ -246,10 +246,9 @@ EXPORT_SYMBOL(libcfs_kkuc_group_add);
 int libcfs_kkuc_group_rem(int uid, int group)
 {
 	struct kkuc_reg *reg, *next;
-	ENTRY;
 
 	if (kkuc_groups[group].next == NULL)
-		RETURN(0);
+		return 0;
 
 	if (uid == 0) {
 		/* Broadcast a shutdown message */
@@ -275,7 +274,7 @@ int libcfs_kkuc_group_rem(int uid, int group)
 	}
 	up_write(&kg_sem);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_rem);
 
@@ -284,7 +283,6 @@ int libcfs_kkuc_group_put(int group, void *payload)
 	struct kkuc_reg	*reg;
 	int		 rc = 0;
 	int one_success = 0;
-	ENTRY;
 
 	down_read(&kg_sem);
 	list_for_each_entry(reg, &kkuc_groups[group], kr_chain) {
@@ -305,7 +303,7 @@ int libcfs_kkuc_group_put(int group, void *payload)
 	if (one_success)
 		rc = 0;
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_put);
 
@@ -320,26 +318,24 @@ int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
 {
 	struct kkuc_reg *reg;
 	int rc = 0;
-	ENTRY;
 
 	if (group > KUC_GRP_MAX) {
 		CDEBUG(D_WARNING, "Kernelcomm: bad group %d\n", group);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* no link for this group */
 	if (kkuc_groups[group].next == NULL)
-		RETURN(0);
+		return 0;
 
 	down_read(&kg_sem);
 	list_for_each_entry(reg, &kkuc_groups[group], kr_chain) {
-		if (reg->kr_fp != NULL) {
+		if (reg->kr_fp != NULL)
 			rc = cb_func(reg->kr_data, cb_arg);
-		}
 	}
 	up_read(&kg_sem);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_foreach);
 

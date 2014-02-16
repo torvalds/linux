@@ -534,6 +534,8 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 
 	mwifiex_cmd_append_tsf_tlv(priv, &pos, bss_desc);
 
+	mwifiex_11h_process_join(priv, &pos, bss_desc);
+
 	cmd->size = cpu_to_le16((u16) (pos - (u8 *) assoc) + S_DS_GEN);
 
 	/* Set the Capability info at last */
@@ -619,7 +621,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 	int ret = 0;
 	struct ieee_types_assoc_rsp *assoc_rsp;
 	struct mwifiex_bssdescriptor *bss_desc;
-	u8 enable_data = true;
+	bool enable_data = true;
 	u16 cap_info, status_code;
 
 	assoc_rsp = (struct ieee_types_assoc_rsp *) &resp->params;
@@ -919,9 +921,8 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 	memcpy(&priv->curr_bss_params.data_rates,
 	       &adhoc_start->data_rate, priv->curr_bss_params.num_of_rates);
 
-	dev_dbg(adapter->dev, "info: ADHOC_S_CMD: rates=%02x %02x %02x %02x\n",
-		adhoc_start->data_rate[0], adhoc_start->data_rate[1],
-		adhoc_start->data_rate[2], adhoc_start->data_rate[3]);
+	dev_dbg(adapter->dev, "info: ADHOC_S_CMD: rates=%4ph\n",
+		adhoc_start->data_rate);
 
 	dev_dbg(adapter->dev, "info: ADHOC_S_CMD: AD-HOC Start command is ready\n");
 
@@ -1290,8 +1291,10 @@ int mwifiex_associate(struct mwifiex_private *priv,
 {
 	u8 current_bssid[ETH_ALEN];
 
-	/* Return error if the adapter or table entry is not marked as infra */
-	if ((priv->bss_mode != NL80211_IFTYPE_STATION) ||
+	/* Return error if the adapter is not STA role or table entry
+	 * is not marked as infra.
+	 */
+	if ((GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_STA) ||
 	    (bss_desc->bss_mode != NL80211_IFTYPE_STATION))
 		return -1;
 
@@ -1419,12 +1422,19 @@ static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv, u8 *mac)
  */
 int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 {
+	int ret = 0;
+
 	if (!priv->media_connected)
 		return 0;
 
 	switch (priv->bss_mode) {
 	case NL80211_IFTYPE_STATION:
-		return mwifiex_deauthenticate_infra(priv, mac);
+	case NL80211_IFTYPE_P2P_CLIENT:
+		ret = mwifiex_deauthenticate_infra(priv, mac);
+		if (ret)
+			cfg80211_disconnected(priv->netdev, 0, NULL, 0,
+					      GFP_KERNEL);
+		break;
 	case NL80211_IFTYPE_ADHOC:
 		return mwifiex_send_cmd_sync(priv,
 					     HostCmd_CMD_802_11_AD_HOC_STOP,
@@ -1436,7 +1446,7 @@ int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mwifiex_deauthenticate);
 

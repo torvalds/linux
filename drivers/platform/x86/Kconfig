@@ -79,17 +79,6 @@ config ASUS_LAPTOP
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
-config CHROMEOS_LAPTOP
-	tristate "Chrome OS Laptop"
-	depends on I2C
-	depends on DMI
-	---help---
-	  This driver instantiates i2c and smbus devices such as
-	  light sensors and touchpads.
-
-	  If you have a supported Chromebook, choose Y or M here.
-	  The module will be called chromeos_laptop.
-
 config DELL_LAPTOP
 	tristate "Dell Laptop Extras"
 	depends on X86
@@ -176,6 +165,7 @@ config FUJITSU_TABLET
 config AMILO_RFKILL
 	tristate "Fujitsu-Siemens Amilo rfkill support"
 	depends on RFKILL
+	depends on SERIO_I8042
 	---help---
 	  This is a driver for enabling wifi on some Fujitsu-Siemens Amilo
 	  laptops.
@@ -206,6 +196,17 @@ config HP_ACCEL
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called hp_accel.
+
+config HP_WIRELESS
+	tristate "HP WIRELESS"
+	depends on ACPI
+	depends on INPUT
+	help
+	 This driver provides supports for new HP wireless button for Windows 8.
+	 On such systems the driver should load automatically (via ACPI alias).
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called hp-wireless.
 
 config HP_WMI
 	tristate "HP WMI extras"
@@ -503,6 +504,7 @@ config ASUS_WMI
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL || RFKILL = n
 	depends on HOTPLUG_PCI
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
@@ -591,6 +593,7 @@ config ACPI_TOSHIBA
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
+	depends on SERIO_I8042 || SERIO_I8042 = n
 	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	---help---
@@ -730,6 +733,7 @@ config SAMSUNG_LAPTOP
 	tristate "Samsung Laptop driver"
 	depends on X86
 	depends on RFKILL || RFKILL = n
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on BACKLIGHT_CLASS_DEVICE
 	select LEDS_CLASS
 	select NEW_LEDS
@@ -762,7 +766,7 @@ config INTEL_OAKTRAIL
 
 config SAMSUNG_Q10
 	tristate "Samsung Q10 Extras"
-	depends on SERIO_I8042
+	depends on ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver provides support for backlight control on Samsung Q10
@@ -781,6 +785,32 @@ config APPLE_GMUX
 	  graphics as well as the backlight. Currently only backlight
 	  control is supported by the driver.
 
+config INTEL_RST
+        tristate "Intel Rapid Start Technology Driver"
+	depends on ACPI
+	---help---
+	  This driver provides support for modifying paramaters on systems
+	  equipped with Intel's Rapid Start Technology. When put in an ACPI
+	  sleep state, these devices will wake after either a configured
+	  timeout or when the system battery reaches a critical state,
+	  automatically copying memory contents to disk. On resume, the
+	  firmware will copy the memory contents back to RAM and resume the OS
+	  as usual.
+
+config INTEL_SMARTCONNECT
+        tristate "Intel Smart Connect disabling driver"
+	depends on ACPI
+	---help---
+	  Intel Smart Connect is a technology intended to permit devices to
+	  update state by resuming for a short period of time at regular
+	  intervals. If a user enables this functionality under Windows and
+	  then reboots into Linux, the system may remain configured to resume
+	  on suspend. In the absence of any userspace to support it, the system
+	  will then remain awake until something triggers another suspend.
+
+	  This driver checks to determine whether the device has Intel Smart
+	  Connect enabled, and if so disables it.
+
 config PVPANIC
 	tristate "pvpanic device support"
 	depends on ACPI
@@ -788,5 +818,13 @@ config PVPANIC
 	  This driver provides support for the pvpanic device.  pvpanic is
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
+
+config INTEL_BAYTRAIL_MBI
+	tristate
+	depends on PCI
+	---help---
+	  Needed on Baytrail platforms for access to the IOSF Sideband Mailbox
+	  Interface. This is a requirement for systems that need to configure
+	  the PUNIT for power management features such as RAPL.
 
 endif # X86_PLATFORM_DEVICES

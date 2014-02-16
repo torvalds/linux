@@ -17,8 +17,30 @@ if THERMAL
 
 config THERMAL_HWMON
 	bool
+	prompt "Expose thermal sensors as hwmon device"
 	depends on HWMON=y || HWMON=THERMAL
 	default y
+	help
+	  In case a sensor is registered with the thermal
+	  framework, this option will also register it
+	  as a hwmon. The sensor will then have the common
+	  hwmon sysfs interface.
+
+	  Say 'Y' here if you want all thermal sensors to
+	  have hwmon sysfs interface too.
+
+config THERMAL_OF
+	bool
+	prompt "APIs to parse thermal data out of device tree"
+	depends on OF
+	default y
+	help
+	  This options provides helpers to add the support to
+	  read and parse thermal data definitions out of the
+	  device tree blob.
+
+	  Say 'Y' here if you need to build thermal infrastructure
+	  based on device tree.
 
 choice
 	prompt "Default Thermal governor"
@@ -47,7 +69,7 @@ config THERMAL_DEFAULT_GOV_USER_SPACE
 	select THERMAL_GOV_USER_SPACE
 	help
 	  Select this if you want to let the user space manage the
-	  lpatform thermals.
+	  platform thermals.
 
 endchoice
 
@@ -60,6 +82,7 @@ config THERMAL_GOV_STEP_WISE
 	bool "Step_wise thermal governor"
 	help
 	  Enable this to manage platform thermals using a simple linear
+	  governor.
 
 config THERMAL_GOV_USER_SPACE
 	bool "User_space thermal governor"
@@ -69,7 +92,7 @@ config THERMAL_GOV_USER_SPACE
 config CPU_THERMAL
 	bool "generic cpu cooling support"
 	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
+	depends on THERMAL_OF
 	help
 	  This implements the generic cpu cooling mechanism through frequency
 	  reduction. An ACPI version of this already exists
@@ -91,20 +114,31 @@ config THERMAL_EMULATION
 	  because userland can easily disable the thermal policy by simply
 	  flooding this sysfs node with low temperature values.
 
+config IMX_THERMAL
+	tristate "Temperature sensor driver for Freescale i.MX SoCs"
+	depends on CPU_THERMAL
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Support for Temperature Monitor (TEMPMON) found on Freescale i.MX SoCs.
+	  It supports one critical trip point and one passive trip point.  The
+	  cpufreq is used as the cooling device to throttle CPUs when the
+	  passive trip is crossed.
+
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR
 	depends on OF
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
-	  thermal framework
+	  thermal framework.
 
 config RCAR_THERMAL
 	tristate "Renesas R-Car thermal driver"
-	depends on ARCH_SHMOBILE
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  Enable this to plug the R-Car thermal sensor driver into the Linux
-	  thermal framework
+	  thermal framework.
 
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
@@ -113,14 +147,6 @@ config KIRKWOOD_THERMAL
 	help
 	  Support for the Kirkwood thermal sensor driver into the Linux thermal
 	  framework. Only kirkwood 88F6282 and 88F6283 have this sensor.
-
-config EXYNOS_THERMAL
-	tristate "Temperature sensor on Samsung EXYNOS"
-	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5)
-	depends on CPU_THERMAL
-	help
-	  If you say yes here you get support for TMU (Thermal Management
-	  Unit) on SAMSUNG EXYNOS series of SoC.
 
 config DOVE_THERMAL
 	tristate "Temperature sensor on Marvell Dove SoCs"
@@ -168,5 +194,32 @@ config INTEL_POWERCLAMP
 	  Enable this to enable Intel PowerClamp idle injection driver. This
 	  enforce idle time which results in more package C-state residency. The
 	  user interface is exposed via generic thermal framework.
+
+config X86_PKG_TEMP_THERMAL
+	tristate "X86 package temperature thermal driver"
+	depends on X86_THERMAL_VECTOR
+	select THERMAL_GOV_USER_SPACE
+	default m
+	help
+	  Enable this to register CPU digital sensor for package temperature as
+	  thermal zone. Each package will have its own thermal zone. There are
+	  two trip points which can be set by user to get notifications via thermal
+	  notification methods.
+
+config ACPI_INT3403_THERMAL
+	tristate "ACPI INT3403 thermal driver"
+	depends on X86 && ACPI
+	help
+	  This driver uses ACPI INT3403 device objects. If present, it will
+	  register each INT3403 thermal sensor as a thermal zone.
+
+menu "Texas Instruments thermal drivers"
+source "drivers/thermal/ti-soc-thermal/Kconfig"
+endmenu
+
+menu "Samsung thermal drivers"
+depends on PLAT_SAMSUNG
+source "drivers/thermal/samsung/Kconfig"
+endmenu
 
 endif

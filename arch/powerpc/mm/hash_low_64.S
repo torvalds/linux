@@ -148,7 +148,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
-	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
+	/*
+	 * Always add "C" bit for perf. Memory coherence is always enabled
+	 */
+	ori	r3,r3,HPTE_R_C | HPTE_R_M
 
 	/* We eventually do the icache sync here (maybe inline that
 	 * code rather than call a C function...) 
@@ -289,9 +292,10 @@ htab_modify_pte:
 
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* vpn */
-	li	r6,MMU_PAGE_4K		/* page size */
-	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
+	li	r6,MMU_PAGE_4K		/* base page size */
+	li	r7,MMU_PAGE_4K		/* actual page size */
+	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(htab_call_hpte_updatepp)
 	bl	.			/* Patched by htab_finish_init() */
 
@@ -456,7 +460,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
 	andc	r0,r3,r0		/* r0 = pte & ~r0 */
 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
-	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
+	/*
+	 * Always add "C" bit for perf. Memory coherence is always enabled
+	 */
+	ori	r3,r3,HPTE_R_C | HPTE_R_M
 
 	/* We eventually do the icache sync here (maybe inline that
 	 * code rather than call a C function...)
@@ -649,9 +656,10 @@ htab_modify_pte:
 
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* vpn */
-	li	r6,MMU_PAGE_4K		/* page size */
-	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
+	li	r6,MMU_PAGE_4K		/* base page size */
+	li	r7,MMU_PAGE_4K		/* actual page size */
+	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(htab_call_hpte_updatepp)
 	bl	.			/* patched by htab_finish_init() */
 
@@ -793,7 +801,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
-	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
+	/*
+	 * Always add "C" bit for perf. Memory coherence is always enabled
+	 */
+	ori	r3,r3,HPTE_R_C | HPTE_R_M
 
 	/* We eventually do the icache sync here (maybe inline that
 	 * code rather than call a C function...)
@@ -937,9 +948,10 @@ ht64_modify_pte:
 
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* vpn */
-	li	r6,MMU_PAGE_64K
-	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
+	li	r6,MMU_PAGE_64K		/* base page size */
+	li	r7,MMU_PAGE_64K		/* actual page size */
+	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(ht64_call_hpte_updatepp)
 	bl	.			/* patched by htab_finish_init() */
 

@@ -1,0 +1,222 @@
+/*
+ * Copyright 2013 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
+ */
+
+#include "os.h"
+
+#define GF100 0xc0
+#define GF117 0xd7
+#define GK100 0xe0
+#define GK110 0xf0
+#define GK208 0x108
+
+#define NV_PGRAPH_FECS_INTR_ACK                                        0x409004
+#define NV_PGRAPH_FECS_INTR                                            0x409008
+#define NV_PGRAPH_FECS_INTR_FWMTHD                                   0x00000400
+#define NV_PGRAPH_FECS_INTR_CHSW                                     0x00000100
+#define NV_PGRAPH_FECS_INTR_FIFO                                     0x00000004
+#define NV_PGRAPH_FECS_INTR_MODE                                       0x40900c
+#define NV_PGRAPH_FECS_INTR_MODE_FIFO                                0x00000004
+#define NV_PGRAPH_FECS_INTR_MODE_FIFO_LEVEL                          0x00000004
+#define NV_PGRAPH_FECS_INTR_MODE_FIFO_EDGE                           0x00000000
+#define NV_PGRAPH_FECS_INTR_EN_SET                                     0x409010
+#define NV_PGRAPH_FECS_INTR_EN_SET_FIFO                              0x00000004
+#define NV_PGRAPH_FECS_INTR_ROUTE                                      0x40901c
+#define NV_PGRAPH_FECS_ACCESS                                          0x409048
+#define NV_PGRAPH_FECS_ACCESS_FIFO                                   0x00000002
+#define NV_PGRAPH_FECS_FIFO_DATA                                       0x409064
+#define NV_PGRAPH_FECS_FIFO_CMD                                        0x409068
+#define NV_PGRAPH_FECS_FIFO_ACK                                        0x409074
+#define NV_PGRAPH_FECS_CAPS                                            0x409108
+#define NV_PGRAPH_FECS_SIGNAL                                          0x409400
+#define NV_PGRAPH_FECS_IROUTE                                          0x409404
+#define NV_PGRAPH_FECS_BAR_MASK0                                       0x40940c
+#define NV_PGRAPH_FECS_BAR_MASK1                                       0x409410
+#define NV_PGRAPH_FECS_BAR                                             0x409414
+#define NV_PGRAPH_FECS_BAR_SET                                         0x409418
+#define NV_PGRAPH_FECS_RED_SWITCH                                      0x409614
+#define NV_PGRAPH_FECS_RED_SWITCH_ENABLE_ROP                         0x00000400
+#define NV_PGRAPH_FECS_RED_SWITCH_ENABLE_GPC                         0x00000200
+#define NV_PGRAPH_FECS_RED_SWITCH_ENABLE_MAIN                        0x00000100
+#define NV_PGRAPH_FECS_RED_SWITCH_POWER_ROP                          0x00000040
+#define NV_PGRAPH_FECS_RED_SWITCH_POWER_GPC                          0x00000020
+#define NV_PGRAPH_FECS_RED_SWITCH_POWER_MAIN                         0x00000010
+#define NV_PGRAPH_FECS_RED_SWITCH_PAUSE_GPC                          0x00000002
+#define NV_PGRAPH_FECS_RED_SWITCH_PAUSE_MAIN                         0x00000001
+#define NV_PGRAPH_FECS_MMCTX_SAVE_SWBASE                               0x409700
+#define NV_PGRAPH_FECS_MMCTX_LOAD_SWBASE                               0x409704
+#define NV_PGRAPH_FECS_MMCTX_LOAD_COUNT                                0x40974c
+#define NV_PGRAPH_FECS_MMCTX_SAVE_SWBASE                               0x409700
+#define NV_PGRAPH_FECS_MMCTX_LOAD_SWBASE                               0x409704
+#define NV_PGRAPH_FECS_MMCTX_BASE                                      0x409710
+#define NV_PGRAPH_FECS_MMCTX_CTRL                                      0x409714
+#define NV_PGRAPH_FECS_MMCTX_MULTI_STRIDE                              0x409718
+#define NV_PGRAPH_FECS_MMCTX_MULTI_MASK                                0x40971c
+#define NV_PGRAPH_FECS_MMCTX_QUEUE                                     0x409720
+#define NV_PGRAPH_FECS_MMIO_CTRL                                       0x409728
+#define NV_PGRAPH_FECS_MMIO_RDVAL                                      0x40972c
+#define NV_PGRAPH_FECS_MMIO_WRVAL                                      0x409730
+#define NV_PGRAPH_FECS_MMCTX_LOAD_COUNT                                0x40974c
+#if CHIPSET < GK110
+#define NV_PGRAPH_FECS_CC_SCRATCH_VAL(n)                    ((n) * 4 + 0x409800)
+#define NV_PGRAPH_FECS_CC_SCRATCH_SET(n)                    ((n) * 4 + 0x409820)
+#define NV_PGRAPH_FECS_CC_SCRATCH_CLR(n)                    ((n) * 4 + 0x409840)
+#define NV_PGRAPH_FECS_UNK86C                                          0x40986c
+#else
+#define NV_PGRAPH_FECS_CC_SCRATCH_VAL(n)                    ((n) * 4 + 0x409800)
+#define NV_PGRAPH_FECS_CC_SCRATCH_CLR(n)                    ((n) * 4 + 0x409840)
+#define NV_PGRAPH_FECS_UNK86C                                          0x40988c
+#define NV_PGRAPH_FECS_CC_SCRATCH_SET(n)                    ((n) * 4 + 0x4098c0)
+#endif
+#define NV_PGRAPH_FECS_STRANDS_CNT                                     0x409880
+#define NV_PGRAPH_FECS_STRAND_SAVE_SWBASE                              0x409908
+#define NV_PGRAPH_FECS_STRAND_LOAD_SWBASE                              0x40990c
+#define NV_PGRAPH_FECS_STRAND_WORDS                                    0x409910
+#define NV_PGRAPH_FECS_STRAND_DATA                                     0x409918
+#define NV_PGRAPH_FECS_STRAND_SELECT                                   0x40991c
+#define NV_PGRAPH_FECS_STRAND_CMD                                      0x409928
+#define NV_PGRAPH_FECS_STRAND_CMD_SEEK                               0x00000001
+#define NV_PGRAPH_FECS_STRAND_CMD_GET_INFO                           0x00000002
+#define NV_PGRAPH_FECS_STRAND_CMD_SAVE                               0x00000003
+#define NV_PGRAPH_FECS_STRAND_CMD_LOAD                               0x00000004
+#define NV_PGRAPH_FECS_STRAND_CMD_ACTIVATE_FILTER                    0x0000000a
+#define NV_PGRAPH_FECS_STRAND_CMD_DEACTIVATE_FILTER                  0x0000000b
+#define NV_PGRAPH_FECS_STRAND_CMD_ENABLE                             0x0000000c
+#define NV_PGRAPH_FECS_STRAND_CMD_DISABLE                            0x0000000d
+#define NV_PGRAPH_FECS_STRAND_FILTER                                   0x40993c
+#define NV_PGRAPH_FECS_MEM_BASE                                        0x409a04
+#define NV_PGRAPH_FECS_MEM_CHAN                                        0x409a0c
+#define NV_PGRAPH_FECS_MEM_CMD                                         0x409a10
+#define NV_PGRAPH_FECS_MEM_CMD_LOAD_CHAN                             0x00000007
+#define NV_PGRAPH_FECS_MEM_TARGET                                      0x409a20
+#define NV_PGRAPH_FECS_MEM_TARGET_UNK31                              0x80000000
+#define NV_PGRAPH_FECS_MEM_TARGET_AS                                 0x0000001f
+#define NV_PGRAPH_FECS_MEM_TARGET_AS_VM                              0x00000001
+#define NV_PGRAPH_FECS_MEM_TARGET_AS_VRAM                            0x00000002
+#define NV_PGRAPH_FECS_CHAN_ADDR                                       0x409b00
+#define NV_PGRAPH_FECS_CHAN_NEXT                                       0x409b04
+#define NV_PGRAPH_FECS_CHSW                                            0x409b0c
+#define NV_PGRAPH_FECS_CHSW_ACK                                      0x00000001
+#define NV_PGRAPH_FECS_INTR_UP_SET                                     0x409c1c
+#define NV_PGRAPH_FECS_INTR_UP_EN                                      0x409c24
+
+#define NV_PGRAPH_GPCX_GPCCS_INTR_ACK                                  0x41a004
+#define NV_PGRAPH_GPCX_GPCCS_INTR                                      0x41a008
+#define NV_PGRAPH_GPCX_GPCCS_INTR_FIFO                               0x00000004
+#define NV_PGRAPH_GPCX_GPCCS_INTR_EN_SET                               0x41a010
+#define NV_PGRAPH_GPCX_GPCCS_INTR_EN_SET_FIFO                        0x00000004
+#define NV_PGRAPH_GPCX_GPCCS_INTR_ROUTE                                0x41a01c
+#define NV_PGRAPH_GPCX_GPCCS_ACCESS                                    0x41a048
+#define NV_PGRAPH_GPCX_GPCCS_ACCESS_FIFO                             0x00000002
+#define NV_PGRAPH_GPCX_GPCCS_FIFO_DATA                                 0x41a064
+#define NV_PGRAPH_GPCX_GPCCS_FIFO_CMD                                  0x41a068
+#define NV_PGRAPH_GPCX_GPCCS_FIFO_ACK                                  0x41a074
+#define NV_PGRAPH_GPCX_GPCCS_UNITS                                     0x41a608
+#define NV_PGRAPH_GPCX_GPCCS_RED_SWITCH                                0x41a614
+#define NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_UNK11                        0x00000800
+#define NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_ENABLE                       0x00000200
+#define NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_POWER                        0x00000020
+#define NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_PAUSE                        0x00000002
+#define NV_PGRAPH_GPCX_GPCCS_MYINDEX                                   0x41a618
+#define NV_PGRAPH_GPCX_GPCCS_MMCTX_SAVE_SWBASE                         0x41a700
+#define NV_PGRAPH_GPCX_GPCCS_MMCTX_LOAD_SWBASE                         0x41a704
+#define NV_PGRAPH_GPCX_GPCCS_MMCTX_LOAD_COUNT                          0x41a74c
+#if CHIPSET < GK110
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(n)              ((n) * 4 + 0x41a800)
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(n)              ((n) * 4 + 0x41a820)
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_CLR(n)              ((n) * 4 + 0x41a840)
+#define NV_PGRAPH_GPCX_GPCCS_UNK86C                                    0x41a86c
+#else
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(n)              ((n) * 4 + 0x41a800)
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_CLR(n)              ((n) * 4 + 0x41a840)
+#define NV_PGRAPH_GPCX_GPCCS_UNK86C                                    0x41a88c
+#define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(n)              ((n) * 4 + 0x41a8c0)
+#endif
+#define NV_PGRAPH_GPCX_GPCCS_STRAND_SELECT                             0x41a91c
+#define NV_PGRAPH_GPCX_GPCCS_STRAND_CMD                                0x41a928
+#define NV_PGRAPH_GPCX_GPCCS_STRAND_CMD_SAVE                         0x00000003
+#define NV_PGRAPH_GPCX_GPCCS_STRAND_CMD_LOAD                         0x00000004
+#define NV_PGRAPH_GPCX_GPCCS_MEM_BASE                                  0x41aa04
+
+#define mmctx_data(r,c) .b32 (((c - 1) << 26) | r)
+#define queue_init      .skip 72 // (2 * 4) + ((8 * 4) * 2)
+
+#define T_WAIT    0
+#define T_MMCTX   1
+#define T_STRWAIT 2
+#define T_STRINIT 3
+#define T_AUTO    4
+#define T_CHAN    5
+#define T_LOAD    6
+#define T_SAVE    7
+#define T_LCHAN   8
+#define T_LCTXH   9
+
+#if CHIPSET < GK208
+#define imm32(reg,val) /*
+*/	movw reg  ((val) & 0x0000ffff) /*
+*/	sethi reg ((val) & 0xffff0000)
+#else
+#define imm32(reg,val) /*
+*/	mov reg (val)
+#endif
+
+#define nv_mkio(rv,r,i) /*
+*/	imm32(rv, (((r) & 0xffc) << 6) | ((i) << 2))
+
+#define hash #
+#define fn(a) a
+#if CHIPSET < GK208
+#define call(a) call fn(hash)a
+#else
+#define call(a) lcall fn(hash)a
+#endif
+
+#define nv_iord(rv,r,i) /*
+*/	nv_mkio(rv,r,i) /*
+*/	iord rv I[rv]
+
+#define nv_iowr(r,i,rv) /*
+*/	nv_mkio($r0,r,i) /*
+*/	iowr I[$r0] rv /*
+*/	clear b32 $r0
+
+#define nv_rd32(reg,addr) /*
+*/	imm32($r14, addr) /*
+*/	call(nv_rd32) /*
+*/	mov b32 reg $r15
+
+#define nv_wr32(addr,reg) /*
+*/	mov b32 $r15 reg /*
+*/	imm32($r14, addr) /*
+*/	call(nv_wr32)
+
+#define trace_set(bit) /*
+*/	clear b32 $r9 /*
+*/	bset $r9 bit /*
+*/	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_SET(7), 0, $r9)
+
+#define trace_clr(bit) /*
+*/	clear b32 $r9 /*
+*/	bset $r9 bit /*
+*/	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_CLR(7), 0, $r9)

@@ -276,7 +276,8 @@ static irqreturn_t adp5588_irq_handler(int irq, void *devid)
 static int adp5588_irq_setup(struct adp5588_gpio *dev)
 {
 	struct i2c_client *client = dev->client;
-	struct adp5588_gpio_platform_data *pdata = client->dev.platform_data;
+	struct adp5588_gpio_platform_data *pdata =
+			dev_get_platdata(&client->dev);
 	unsigned gpio;
 	int ret;
 
@@ -349,7 +350,8 @@ static void adp5588_irq_teardown(struct adp5588_gpio *dev)
 static int adp5588_gpio_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	struct adp5588_gpio_platform_data *pdata = client->dev.platform_data;
+	struct adp5588_gpio_platform_data *pdata =
+			dev_get_platdata(&client->dev);
 	struct adp5588_gpio *dev;
 	struct gpio_chip *gc;
 	int ret, i, revid;
@@ -378,7 +380,7 @@ static int adp5588_gpio_probe(struct i2c_client *client,
 	gc->direction_output = adp5588_gpio_direction_output;
 	gc->get = adp5588_gpio_get_value;
 	gc->set = adp5588_gpio_set_value;
-	gc->can_sleep = 1;
+	gc->can_sleep = true;
 
 	gc->base = pdata->gpio_start;
 	gc->ngpio = ADP5588_MAXGPIO;
@@ -440,7 +442,8 @@ err:
 
 static int adp5588_gpio_remove(struct i2c_client *client)
 {
-	struct adp5588_gpio_platform_data *pdata = client->dev.platform_data;
+	struct adp5588_gpio_platform_data *pdata =
+			dev_get_platdata(&client->dev);
 	struct adp5588_gpio *dev = i2c_get_clientdata(client);
 	int ret;
 

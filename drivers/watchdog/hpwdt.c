@@ -39,7 +39,7 @@
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 #include <asm/nmi.h>
 
-#define HPWDT_VERSION			"1.3.1"
+#define HPWDT_VERSION			"1.3.3"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
@@ -55,7 +55,7 @@ static void __iomem *pci_mem_addr;		/* the PCI-memory address */
 static unsigned long __iomem *hpwdt_timer_reg;
 static unsigned long __iomem *hpwdt_timer_con;
 
-static DEFINE_PCI_DEVICE_TABLE(hpwdt_devices) = {
+static const struct pci_device_id hpwdt_devices[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB203) },	/* iLO2 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3306) },	/* iLO3 */
 	{0},			/* terminate list */
@@ -148,6 +148,7 @@ struct cmn_registers {
 static unsigned int hpwdt_nmi_decoding;
 static unsigned int allow_kdump = 1;
 static unsigned int is_icru;
+static unsigned int is_uefi;
 static DEFINE_SPINLOCK(rom_lock);
 static void *cru_rom_addr;
 static struct cmn_registers cmn_regs;
@@ -161,7 +162,8 @@ extern asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
 #define HPWDT_ARCH	32
 
 asm(".text                          \n\t"
-    ".align 4                       \n"
+    ".align 4                       \n\t"
+    ".globl asminline_call	    \n"
     "asminline_call:                \n\t"
     "pushl       %ebp               \n\t"
     "movl        %esp, %ebp         \n\t"
@@ -351,7 +353,8 @@ static int detect_cru_service(void)
 #define HPWDT_ARCH	64
 
 asm(".text                      \n\t"
-    ".align 4                   \n"
+    ".align 4                   \n\t"
+    ".globl asminline_call	\n"
     "asminline_call:            \n\t"
     "pushq      %rbp            \n\t"
     "movq       %rsp, %rbp      \n\t"
@@ -484,7 +487,7 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 		goto out;
 
 	spin_lock_irqsave(&rom_lock, rom_pl);
-	if (!die_nmi_called && !is_icru)
+	if (!die_nmi_called && !is_icru && !is_uefi)
 		asminline_call(&cmn_regs, cru_rom_addr);
 	die_nmi_called = 1;
 	spin_unlock_irqrestore(&rom_lock, rom_pl);
@@ -492,14 +495,19 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 	if (allow_kdump)
 		hpwdt_stop();
 
-	if (!is_icru) {
+	if (!is_icru && !is_uefi) {
 		if (cmn_regs.u1.ral == 0) {
 			panic("An NMI occurred, "
 				"but unable to determine source.\n");
 		}
 	}
-	panic("An NMI occurred, please see the Integrated "
-		"Management Log for details.\n");
+	panic("An NMI occurred. Depending on your system the reason "
+		"for the NMI is logged in any one of the following "
+		"resources:\n"
+		"1. Integrated Management Log (IML)\n"
+		"2. OA Syslog\n"
+		"3. OA Forward Progress Log\n"
+		"4. iLO Event Log");
 
 out:
 	return NMI_DONE;
@@ -679,6 +687,8 @@ static void dmi_find_icru(const struct dmi_header *dm, void *dummy)
 		smbios_proliant_ptr = (struct smbios_proliant_info *) dm;
 		if (smbios_proliant_ptr->misc_features & 0x01)
 			is_icru = 1;
+		if (smbios_proliant_ptr->misc_features & 0x408)
+			is_uefi = 1;
 	}
 }
 
@@ -697,7 +707,7 @@ static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
 	 * the old cru detect code.
 	 */
 	dmi_walk(dmi_find_icru, NULL);
-	if (!is_icru) {
+	if (!is_icru && !is_uefi) {
 
 		/*
 		* We need to map the ROM to get the CRU service.
@@ -797,6 +807,12 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		return -ENODEV;
 	}
 
+	/*
+	 * Ignore all auxilary iLO devices with the following PCI ID
+	 */
+	if (dev->subsystem_device == 0x1979)
+		return -ENODEV;
+
 	if (pci_enable_device(dev)) {
 		dev_warn(&dev->dev,
 			"Not possible to enable PCI Device: 0x%x:0x%x.\n",
@@ -870,7 +886,6 @@ MODULE_AUTHOR("Tom Mingarelli");
 MODULE_DESCRIPTION("hp watchdog driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HPWDT_VERSION);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");

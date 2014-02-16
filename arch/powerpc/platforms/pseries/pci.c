@@ -113,7 +113,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	struct device_node *dn, *pdn;
 	struct pci_bus *bus;
-	const uint32_t *pcie_link_speed_stats;
+	const __be32 *pcie_link_speed_stats;
 
 	bus = bridge->bus;
 
@@ -122,7 +122,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 		return 0;
 
 	for (pdn = dn; pdn != NULL; pdn = of_get_next_parent(pdn)) {
-		pcie_link_speed_stats = (const uint32_t *) of_get_property(pdn,
+		pcie_link_speed_stats = of_get_property(pdn,
 			"ibm,pcie-link-speed-stats", NULL);
 		if (pcie_link_speed_stats)
 			break;
@@ -135,7 +135,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 		return 0;
 	}
 
-	switch (pcie_link_speed_stats[0]) {
+	switch (be32_to_cpup(pcie_link_speed_stats)) {
 	case 0x01:
 		bus->max_bus_speed = PCIE_SPEED_2_5GT;
 		break;
@@ -147,7 +147,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 		break;
 	}
 
-	switch (pcie_link_speed_stats[1]) {
+	switch (be32_to_cpup(pcie_link_speed_stats)) {
 	case 0x01:
 		bus->cur_bus_speed = PCIE_SPEED_2_5GT;
 		break;

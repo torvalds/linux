@@ -43,8 +43,6 @@
 #include "dlmdomain.h"
 #include "dlmdebug.h"
 
-#include "dlmver.h"
-
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_DOMAIN)
 #include "cluster/masklog.h"
 
@@ -193,7 +191,7 @@ struct dlm_lock_resource * __dlm_lookup_lockres_full(struct dlm_ctxt *dlm,
 						     unsigned int hash)
 {
 	struct hlist_head *bucket;
-	struct hlist_node *list;
+	struct dlm_lock_resource *res;
 
 	mlog(0, "%.*s\n", len, name);
 
@@ -201,9 +199,7 @@ struct dlm_lock_resource * __dlm_lookup_lockres_full(struct dlm_ctxt *dlm,
 
 	bucket = dlm_lockres_hash(dlm, hash);
 
-	hlist_for_each(list, bucket) {
-		struct dlm_lock_resource *res = hlist_entry(list,
-			struct dlm_lock_resource, hash_node);
+	hlist_for_each_entry(res, bucket, hash_node) {
 		if (res->lockname.name[0] != name[0])
 			continue;
 		if (unlikely(res->lockname.len != len))
@@ -262,22 +258,19 @@ struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
 
 static struct dlm_ctxt * __dlm_lookup_domain_full(const char *domain, int len)
 {
-	struct dlm_ctxt *tmp = NULL;
-	struct list_head *iter;
+	struct dlm_ctxt *tmp;
 
 	assert_spin_locked(&dlm_domain_lock);
 
 	/* tmp->name here is always NULL terminated,
 	 * but domain may not be! */
-	list_for_each(iter, &dlm_domains) {
-		tmp = list_entry (iter, struct dlm_ctxt, list);
+	list_for_each_entry(tmp, &dlm_domains, list) {
 		if (strlen(tmp->name) == len &&
 		    memcmp(tmp->name, domain, len)==0)
-			break;
-		tmp = NULL;
+			return tmp;
 	}
 
-	return tmp;
+	return NULL;
 }
 
 /* For null terminated domain strings ONLY */
@@ -366,25 +359,22 @@ static void __dlm_get(struct dlm_ctxt *dlm)
  * you shouldn't trust your pointer. */
 struct dlm_ctxt *dlm_grab(struct dlm_ctxt *dlm)
 {
-	struct list_head *iter;
-	struct dlm_ctxt *target = NULL;
+	struct dlm_ctxt *target;
+	struct dlm_ctxt *ret = NULL;
 
 	spin_lock(&dlm_domain_lock);
 
-	list_for_each(iter, &dlm_domains) {
-		target = list_entry (iter, struct dlm_ctxt, list);
-
+	list_for_each_entry(target, &dlm_domains, list) {
 		if (target == dlm) {
 			__dlm_get(target);
+			ret = target;
 			break;
 		}
-
-		target = NULL;
 	}
 
 	spin_unlock(&dlm_domain_lock);
 
-	return target;
+	return ret;
 }
 
 int dlm_domain_fully_joined(struct dlm_ctxt *dlm)
@@ -2296,13 +2286,10 @@ static DECLARE_RWSEM(dlm_callback_sem);
 void dlm_fire_domain_eviction_callbacks(struct dlm_ctxt *dlm,
 					int node_num)
 {
-	struct list_head *iter;
 	struct dlm_eviction_cb *cb;
 
 	down_read(&dlm_callback_sem);
-	list_for_each(iter, &dlm->dlm_eviction_callbacks) {
-		cb = list_entry(iter, struct dlm_eviction_cb, ec_item);
-
+	list_for_each_entry(cb, &dlm->dlm_eviction_callbacks, ec_item) {
 		cb->ec_func(node_num, cb->ec_data);
 	}
 	up_read(&dlm_callback_sem);
@@ -2338,8 +2325,6 @@ EXPORT_SYMBOL_GPL(dlm_unregister_eviction_cb);
 static int __init dlm_init(void)
 {
 	int status;
-
-	dlm_print_version();
 
 	status = dlm_init_mle_cache();
 	if (status) {
@@ -2390,6 +2375,7 @@ static void __exit dlm_exit (void)
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("OCFS2 Distributed Lock Management");
 
 module_init(dlm_init);
 module_exit(dlm_exit);

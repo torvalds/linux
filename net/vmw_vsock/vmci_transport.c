@@ -34,8 +34,8 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <net/sock.h>
+#include <net/af_vsock.h>
 
-#include "af_vsock.h"
 #include "vmci_transport_notify.h"
 
 static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg);
@@ -625,13 +625,14 @@ static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg)
 
 	/* Attach the packet to the socket's receive queue as an sk_buff. */
 	skb = alloc_skb(size, GFP_ATOMIC);
-	if (skb) {
-		/* sk_receive_skb() will do a sock_put(), so hold here. */
-		sock_hold(sk);
-		skb_put(skb, size);
-		memcpy(skb->data, dg, size);
-		sk_receive_skb(sk, skb, 0);
-	}
+	if (!skb)
+		return VMCI_ERROR_NO_MEM;
+
+	/* sk_receive_skb() will do a sock_put(), so hold here. */
+	sock_hold(sk);
+	skb_put(skb, size);
+	memcpy(skb->data, dg, size);
+	sk_receive_skb(sk, skb, 0);
 
 	return VMCI_SUCCESS;
 }
@@ -939,10 +940,9 @@ static void vmci_transport_recv_pkt_work(struct work_struct *work)
 		 * reset to prevent that.
 		 */
 		vmci_transport_send_reset(sk, pkt);
-		goto out;
+		break;
 	}
 
-out:
 	release_sock(sk);
 	kfree(recv_pkt_info);
 	/* Release reference obtained in the stream callback when we fetched
@@ -1746,8 +1746,6 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 	if (flags & MSG_OOB || flags & MSG_ERRQUEUE)
 		return -EOPNOTSUPP;
 
-	msg->msg_namelen = 0;
-
 	/* Retrieve the head sk_buff from the socket's receive queue. */
 	err = 0;
 	skb = skb_recv_datagram(&vsk->sk, flags, noblock, &err);
@@ -1781,10 +1779,8 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 		goto out;
 
 	if (msg->msg_name) {
-		struct sockaddr_vm *vm_addr;
-
 		/* Provide the address of the sender. */
-		vm_addr = (struct sockaddr_vm *)msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_vm *, vm_addr, msg->msg_name);
 		vsock_addr_init(vm_addr, dg->src.context, dg->src.resource);
 		msg->msg_namelen = sizeof(*vm_addr);
 	}

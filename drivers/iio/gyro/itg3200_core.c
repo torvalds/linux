@@ -309,11 +309,9 @@ static int itg3200_probe(struct i2c_client *client,
 
 	dev_dbg(&client->dev, "probe I2C dev with IRQ %i", client->irq);
 
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret =  -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -330,7 +328,7 @@ static int itg3200_probe(struct i2c_client *client,
 
 	ret = itg3200_buffer_configure(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	if (client->irq) {
 		ret = itg3200_probe_trigger(indio_dev);
@@ -353,9 +351,6 @@ error_remove_trigger:
 		itg3200_remove_trigger(indio_dev);
 error_unconfigure_buffer:
 	itg3200_buffer_unconfigure(indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
 	return ret;
 }
 
@@ -369,8 +364,6 @@ static int itg3200_remove(struct i2c_client *client)
 		itg3200_remove_trigger(indio_dev);
 
 	itg3200_buffer_unconfigure(indio_dev);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

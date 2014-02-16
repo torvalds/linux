@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -838,10 +838,6 @@ struct iwl_qosparam_cmd {
 #define STA_MODIFY_DELBA_TID_MSK	0x10
 #define STA_MODIFY_SLEEP_TX_COUNT_MSK	0x20
 
-/* Receiver address (actually, Rx station's index into station table),
- * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
-#define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
-
 /* agn */
 struct iwl_keyinfo {
 	__le16 key_flags;
@@ -1223,14 +1219,6 @@ struct iwl_rx_mpdu_res_start {
 #define TX_CMD_SEC_MSK		0x03
 #define TX_CMD_SEC_SHIFT	6
 #define TX_CMD_SEC_KEY128	0x08
-
-/*
- * security overhead sizes
- */
-#define WEP_IV_LEN 4
-#define WEP_ICV_LEN 4
-#define CCMP_MIC_LEN 8
-#define TKIP_ICV_LEN 4
 
 /*
  * REPLY_TX = 0x1c (command)

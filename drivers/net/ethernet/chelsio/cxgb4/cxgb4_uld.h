@@ -131,7 +131,14 @@ static inline void *lookup_atid(const struct tid_info *t, unsigned int atid)
 
 static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 {
-	stid -= t->stid_base;
+	/* Is it a server filter TID? */
+	if (t->nsftids && (stid >= t->sftid_base)) {
+		stid -= t->sftid_base;
+		stid += t->nstids;
+	} else {
+		stid -= t->stid_base;
+	}
+
 	return stid < (t->nstids + t->nsftids) ? t->stid_tab[stid].data : NULL;
 }
 
@@ -154,6 +161,11 @@ struct in6_addr;
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 			__be32 sip, __be16 sport, __be16 vlan,
 			unsigned int queue);
+int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
+			 const struct in6_addr *sip, __be16 sport,
+			 unsigned int queue);
+int cxgb4_remove_server(const struct net_device *dev, unsigned int stid,
+			unsigned int queue, bool ipv6);
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			       __be32 sip, __be16 sport, __be16 vlan,
 			       unsigned int queue,

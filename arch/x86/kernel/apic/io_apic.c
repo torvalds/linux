@@ -37,9 +37,6 @@
 #include <linux/kthread.h>
 #include <linux/jiffies.h>	/* time_after() */
 #include <linux/slab.h>
-#ifdef CONFIG_ACPI
-#include <acpi/acpi_bus.h>
-#endif
 #include <linux/bootmem.h>
 #include <linux/dmar.h>
 #include <linux/hpet.h>
@@ -1142,9 +1139,10 @@ next:
 		if (test_bit(vector, used_vectors))
 			goto next;
 
-		for_each_cpu_and(new_cpu, tmp_mask, cpu_online_mask)
-			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
+		for_each_cpu_and(new_cpu, tmp_mask, cpu_online_mask) {
+			if (per_cpu(vector_irq, new_cpu)[vector] > VECTOR_UNDEFINED)
 				goto next;
+		}
 		/* Found one! */
 		current_vector = vector;
 		current_offset = offset;
@@ -1183,7 +1181,7 @@ static void __clear_irq_vector(int irq, struct irq_cfg *cfg)
 
 	vector = cfg->vector;
 	for_each_cpu_and(cpu, cfg->domain, cpu_online_mask)
-		per_cpu(vector_irq, cpu)[vector] = -1;
+		per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
 
 	cfg->vector = 0;
 	cpumask_clear(cfg->domain);
@@ -1191,11 +1189,10 @@ static void __clear_irq_vector(int irq, struct irq_cfg *cfg)
 	if (likely(!cfg->move_in_progress))
 		return;
 	for_each_cpu_and(cpu, cfg->old_domain, cpu_online_mask) {
-		for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS;
-								vector++) {
+		for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 			if (per_cpu(vector_irq, cpu)[vector] != irq)
 				continue;
-			per_cpu(vector_irq, cpu)[vector] = -1;
+			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
 			break;
 		}
 	}
@@ -1228,12 +1225,12 @@ void __setup_vector_irq(int cpu)
 	/* Mark the free vectors */
 	for (vector = 0; vector < NR_VECTORS; ++vector) {
 		irq = per_cpu(vector_irq, cpu)[vector];
-		if (irq < 0)
+		if (irq <= VECTOR_UNDEFINED)
 			continue;
 
 		cfg = irq_cfg(irq);
 		if (!cpumask_test_cpu(cpu, cfg->domain))
-			per_cpu(vector_irq, cpu)[vector] = -1;
+			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
 	}
 	raw_spin_unlock(&vector_lock);
 }
@@ -1532,6 +1529,11 @@ void intel_ir_io_apic_print_entries(unsigned int apic,
 			ir_entry->zero,
 			ir_entry->vector);
 	}
+}
+
+void ioapic_zap_locks(void)
+{
+	raw_spin_lock_init(&ioapic_lock);
 }
 
 __apicdebuginit(void) print_IO_APIC(int ioapic_idx)
@@ -2197,13 +2199,13 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 
 	me = smp_processor_id();
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
-		unsigned int irq;
+		int irq;
 		unsigned int irr;
 		struct irq_desc *desc;
 		struct irq_cfg *cfg;
 		irq = __this_cpu_read(vector_irq[vector]);
 
-		if (irq == -1)
+		if (irq <= VECTOR_UNDEFINED)
 			continue;
 
 		desc = irq_to_desc(irq);
@@ -3375,12 +3377,15 @@ int io_apic_setup_irq_pin_once(unsigned int irq, int node,
 {
 	unsigned int ioapic_idx = attr->ioapic, pin = attr->ioapic_pin;
 	int ret;
+	struct IO_APIC_route_entry orig_entry;
 
 	/* Avoid redundant programming */
 	if (test_bit(pin, ioapics[ioapic_idx].pin_programmed)) {
-		pr_debug("Pin %d-%d already programmed\n",
-			 mpc_ioapic_id(ioapic_idx), pin);
-		return 0;
+		pr_debug("Pin %d-%d already programmed\n", mpc_ioapic_id(ioapic_idx), pin);
+		orig_entry = ioapic_read_entry(attr->ioapic, pin);
+		if (attr->trigger == orig_entry.trigger && attr->polarity == orig_entry.polarity)
+			return 0;
+		return -EBUSY;
 	}
 	ret = io_apic_setup_irq_pin(irq, node, attr);
 	if (!ret)

@@ -21,7 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
+#include <linux/i2c.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -129,7 +129,7 @@ static int fimc_is_setup_clocks(struct fimc_is *is)
 					ATCLK_MCUISP_FREQUENCY);
 }
 
-int fimc_is_enable_clocks(struct fimc_is *is)
+static int fimc_is_enable_clocks(struct fimc_is *is)
 {
 	int i, ret;
 
@@ -149,7 +149,7 @@ int fimc_is_enable_clocks(struct fimc_is *is)
 	return 0;
 }
 
-void fimc_is_disable_clocks(struct fimc_is *is)
+static void fimc_is_disable_clocks(struct fimc_is *is)
 {
 	int i;
 
@@ -527,8 +527,8 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 			break;
 
 		case HIC_SET_PARAMETER:
-			is->config[is->config_index].p_region_index1 = 0;
-			is->config[is->config_index].p_region_index2 = 0;
+			is->config[is->config_index].p_region_index[0] = 0;
+			is->config[is->config_index].p_region_index[1] = 0;
 			set_bit(IS_ST_BLOCK_CMD_CLEARED, &is->state);
 			pr_debug("HIC_SET_PARAMETER\n");
 			break;
@@ -587,8 +587,8 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 
 		switch (is->i2h_cmd.args[0]) {
 		case HIC_SET_PARAMETER:
-			is->config[is->config_index].p_region_index1 = 0;
-			is->config[is->config_index].p_region_index2 = 0;
+			is->config[is->config_index].p_region_index[0] = 0;
+			is->config[is->config_index].p_region_index[1] = 0;
 			set_bit(IS_ST_BLOCK_CMD_CLEARED, &is->state);
 			break;
 		}
@@ -781,6 +781,9 @@ static int fimc_is_debugfs_create(struct fimc_is *is)
 	return is->debugfs_entry == NULL ? -EIO : 0;
 }
 
+static int fimc_is_runtime_resume(struct device *dev);
+static int fimc_is_runtime_suspend(struct device *dev);
+
 static int fimc_is_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -835,14 +838,20 @@ static int fimc_is_probe(struct platform_device *pdev)
 	}
 	pm_runtime_enable(dev);
 
+	if (!pm_runtime_enabled(dev)) {
+		ret = fimc_is_runtime_resume(dev);
+		if (ret < 0)
+			goto err_irq;
+	}
+
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
-		goto err_irq;
+		goto err_pm;
 
 	is->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(is->alloc_ctx)) {
 		ret = PTR_ERR(is->alloc_ctx);
-		goto err_irq;
+		goto err_pm;
 	}
 	/*
 	 * Register FIMC-IS V4L2 subdevs to this driver. The video nodes
@@ -867,10 +876,13 @@ static int fimc_is_probe(struct platform_device *pdev)
 
 err_dfs:
 	fimc_is_debugfs_remove(is);
-err_vb:
-	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 err_sd:
 	fimc_is_unregister_subdevs(is);
+err_vb:
+	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
+err_pm:
+	if (!pm_runtime_enabled(dev))
+		fimc_is_runtime_suspend(dev);
 err_irq:
 	free_irq(is->irq, is);
 err_clk:
@@ -919,10 +931,13 @@ static int fimc_is_suspend(struct device *dev)
 
 static int fimc_is_remove(struct platform_device *pdev)
 {
-	struct fimc_is *is = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+	struct fimc_is *is = dev_get_drvdata(dev);
 
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	if (!pm_runtime_status_suspended(dev))
+		fimc_is_runtime_suspend(dev);
 	free_irq(is->irq, is);
 	fimc_is_unregister_subdevs(is);
 	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
@@ -993,3 +1008,4 @@ module_exit(fimc_is_module_exit);
 MODULE_ALIAS("platform:" FIMC_IS_DRV_NAME);
 MODULE_AUTHOR("Younghwan Joo <yhwan.joo@samsung.com>");
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");
+MODULE_LICENSE("GPL v2");

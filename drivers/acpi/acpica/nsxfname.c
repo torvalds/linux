@@ -42,7 +42,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -158,6 +159,7 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node;
+	char *node_name;
 
 	/* Parameter validation */
 
@@ -202,11 +204,12 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 
 	/* Just copy the ACPI name from the Node and zero terminate it */
 
-	ACPI_MOVE_NAME(buffer->pointer, acpi_ut_get_node_name(node));
+	node_name = acpi_ut_get_node_name(node);
+	ACPI_MOVE_NAME(buffer->pointer, node_name);
 	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
 	status = AE_OK;
 
-      unlock_and_exit:
+unlock_and_exit:
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
@@ -379,9 +382,14 @@ acpi_get_object_info(acpi_handle handle,
 		 * Get extra info for ACPI Device/Processor objects only:
 		 * Run the _STA, _ADR and, sx_w, and _sx_d methods.
 		 *
-		 * Note: none of these methods are required, so they may or may
+		 * Notes: none of these methods are required, so they may or may
 		 * not be present for this device. The Info->Valid bitfield is used
 		 * to indicate which methods were found and run successfully.
+		 *
+		 * For _STA, if the method does not exist, then (as per the ACPI
+		 * specification), the returned current_status flags will indicate
+		 * that the device is present/functional/enabled. Otherwise, the
+		 * current_status flags reflect the value returned from _STA.
 		 */
 
 		/* Execute the Device._STA method */
@@ -489,7 +497,7 @@ acpi_get_object_info(acpi_handle handle,
 	*return_buffer = info;
 	status = AE_OK;
 
-      cleanup:
+cleanup:
 	if (hid) {
 		ACPI_FREE(hid);
 	}

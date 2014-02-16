@@ -191,7 +191,6 @@ int cirrus_device_init(struct cirrus_device *cdev,
 		      struct pci_dev *pdev,
 		      uint32_t flags);
 void cirrus_device_fini(struct cirrus_device *cdev);
-int cirrus_gem_init_object(struct drm_gem_object *obj);
 void cirrus_gem_free_object(struct drm_gem_object *obj);
 int cirrus_dumb_mmap_offset(struct drm_file *file,
 			    struct drm_device *dev,
@@ -203,9 +202,6 @@ int cirrus_gem_create(struct drm_device *dev,
 int cirrus_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		       struct drm_mode_create_dumb *args);
-int cirrus_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-			uint32_t handle);
 
 int cirrus_framebuffer_init(struct drm_device *dev,
 			   struct cirrus_framebuffer *gfb,
@@ -226,7 +222,7 @@ void cirrus_fbdev_fini(struct cirrus_device *cdev);
 void cirrus_driver_irq_preinstall(struct drm_device *dev);
 int cirrus_driver_irq_postinstall(struct drm_device *dev);
 void cirrus_driver_irq_uninstall(struct drm_device *dev);
-irqreturn_t cirrus_driver_irq_handler(DRM_IRQ_ARGS);
+irqreturn_t cirrus_driver_irq_handler(int irq, void *arg);
 
 				/* cirrus_kms.c */
 int cirrus_driver_load(struct drm_device *dev, unsigned long flags);
@@ -240,8 +236,25 @@ void cirrus_ttm_placement(struct cirrus_bo *bo, int domain);
 int cirrus_bo_create(struct drm_device *dev, int size, int align,
 		     uint32_t flags, struct cirrus_bo **pcirrusbo);
 int cirrus_mmap(struct file *filp, struct vm_area_struct *vma);
-int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait);
-void cirrus_bo_unreserve(struct cirrus_bo *bo);
+
+static inline int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait)
+{
+	int ret;
+
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	if (ret) {
+		if (ret != -ERESTARTSYS && ret != -EBUSY)
+			DRM_ERROR("reserve failed %p\n", bo);
+		return ret;
+	}
+	return 0;
+}
+
+static inline void cirrus_bo_unreserve(struct cirrus_bo *bo)
+{
+	ttm_bo_unreserve(&bo->bo);
+}
+
 int cirrus_bo_push_sysram(struct cirrus_bo *bo);
 int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr);
 #endif				/* __CIRRUS_DRV_H__ */

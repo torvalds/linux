@@ -93,7 +93,7 @@ To avoid priority inversion through request starvation, a request
 queue maintains a separate request pool per each cgroup when
 CONFIG_BLK_CGROUP is enabled, and this parameter applies to each such
 per-block-cgroup request pool.  IOW, if there are N block cgroups,
-each request queue may have upto N request pools, each independently
+each request queue may have up to N request pools, each independently
 regulated by nr_requests.
 
 optimal_io_size (RO)

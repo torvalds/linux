@@ -1595,7 +1595,7 @@ il3945_get_channels_for_scan(struct il_priv *il, enum ieee80211_band band,
 		 *  and use long active_dwell time.
 		 */
 		if (!is_active || il_is_channel_passive(ch_info) ||
-		    (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
+		    (chan->flags & IEEE80211_CHAN_NO_IR)) {
 			scan_ch->type = 0;	/* passive */
 			if (IL_UCODE_API(il->ucode_ver) == 1)
 				scan_ch->active_dwell =
@@ -2396,8 +2396,7 @@ __il3945_up(struct il_priv *il)
 		clear_bit(S_RFKILL, &il->status);
 	else {
 		set_bit(S_RFKILL, &il->status);
-		IL_WARN("Radio disabled by HW RF Kill switch\n");
-		return -ENODEV;
+		return -ERFKILL;
 	}
 
 	_il_wr(il, CSR_INT, 0xFFFFFFFF);
@@ -3119,7 +3118,7 @@ il3945_store_debug_level(struct device *d, struct device_attribute *attr,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 0, &val);
+	ret = kstrtoul(buf, 0, &val);
 	if (ret)
 		IL_INFO("%s is not in hex or decimal form.\n", buf);
 	else
@@ -3575,9 +3574,9 @@ il3945_setup_mac(struct il_priv *il)
 	hw->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->flags |=
-	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS |
-	    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
@@ -3727,7 +3726,8 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 5. Setup HW Constants
 	 * ********************/
 	/* Device-specific setup */
-	if (il3945_hw_set_hw_params(il)) {
+	err = il3945_hw_set_hw_params(il);
+	if (err) {
 		IL_ERR("failed to set hw settings\n");
 		goto out_eeprom_free;
 	}
@@ -3810,7 +3810,6 @@ out_iounmap:
 out_pci_release_regions:
 	pci_release_regions(pdev);
 out_pci_disable_device:
-	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 out_ieee80211_free_hw:
 	ieee80211_free_hw(il->hw);
@@ -3887,7 +3886,6 @@ il3945_pci_remove(struct pci_dev *pdev)
 	iounmap(il->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	il_free_channel_map(il);
 	il_free_geos(il);

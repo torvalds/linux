@@ -109,7 +109,7 @@ unsigned long long sched_clock(void)
 	return ticks << HARDWARE_TO_NS_SHIFT;
 }
 
-static void __cpuinit arch_timer_setup(unsigned int cpu)
+static void arch_timer_setup(unsigned int cpu)
 {
 	unsigned int txdivtime;
 	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
@@ -154,7 +154,7 @@ static void __cpuinit arch_timer_setup(unsigned int cpu)
 	}
 }
 
-static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
+static int arch_timer_cpu_notify(struct notifier_block *self,
 					   unsigned long action, void *hcpu)
 {
 	int cpu = (long)hcpu;
@@ -169,7 +169,7 @@ static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata arch_timer_cpu_nb = {
+static struct notifier_block arch_timer_cpu_nb = {
 	.notifier_call = arch_timer_cpu_notify,
 };
 
@@ -184,6 +184,8 @@ int __init metag_generic_timer_init(void)
 #ifdef CONFIG_METAG_META21
 	hwtimer_freq = get_coreclock() / (metag_in32(EXPAND_TIMER_DIV) + 1);
 #endif
+	pr_info("Timer frequency: %u Hz\n", hwtimer_freq);
+
 	clocksource_register_hz(&clocksource_metag, hwtimer_freq);
 
 	setup_irq(tbisig_map(TBID_SIGNUM_TRT), &metag_timer_irq);

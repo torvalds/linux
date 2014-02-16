@@ -35,13 +35,10 @@
  */
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/version.h>
 #include <linux/vfs.h>
 #include <obd_class.h>
 #include <lprocfs_status.h>
 #include "mgc_internal.h"
-
-#ifdef LPROCFS
 
 LPROC_SEQ_FOPS_RO_TYPE(mgc, uuid);
 LPROC_SEQ_FOPS_RO_TYPE(mgc, connect_flags);
@@ -81,4 +78,3 @@ void lprocfs_mgc_init_vars(struct lprocfs_static_vars *lvars)
 	lvars->module_vars = lprocfs_mgc_module_vars;
 	lvars->obd_vars    = lprocfs_mgc_obd_vars;
 }
-#endif /* LPROCFS */

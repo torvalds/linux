@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -52,7 +50,7 @@ void rt2x00crypto_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 
-	if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags) || !hw_key)
+	if (!rt2x00_has_cap_hw_crypto(rt2x00dev) || !hw_key)
 		return;
 
 	__set_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags);
@@ -80,7 +78,7 @@ unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_key_conf *key = tx_info->control.hw_key;
 	unsigned int overhead = 0;
 
-	if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags) || !key)
+	if (!rt2x00_has_cap_hw_crypto(rt2x00dev) || !key)
 		return overhead;
 
 	/*

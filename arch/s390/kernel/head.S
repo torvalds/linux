@@ -437,7 +437,7 @@ ENTRY(startup_kdump)
 
 #if defined(CONFIG_64BIT)
 #if defined(CONFIG_MARCH_ZEC12)
-	.long 3, 0xc100efe3, 0xf46ce000, 0x00400000
+	.long 3, 0xc100efe3, 0xf46ce800, 0x00400000
 #elif defined(CONFIG_MARCH_Z196)
 	.long 2, 0xc100efe3, 0xf46c0000
 #elif defined(CONFIG_MARCH_Z10)

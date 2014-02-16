@@ -178,6 +178,22 @@ config PM_SLEEP_DEBUG
 	def_bool y
 	depends on PM_DEBUG && PM_SLEEP
 
+config DPM_WATCHDOG
+	bool "Device suspend/resume watchdog"
+	depends on PM_DEBUG && PSTORE
+	---help---
+	  Sets up a watchdog timer to capture drivers that are
+	  locked up attempting to suspend/resume a device.
+	  A detected lockup causes system panic with message
+	  captured in pstore device for inspection in subsequent
+	  boot session.
+
+config DPM_WATCHDOG_TIMEOUT
+	int "Watchdog timeout in seconds"
+	range 1 120
+	default 12
+	depends on DPM_WATCHDOG
+
 config PM_TRACE
 	bool
 	help

@@ -136,7 +136,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	mutex_unlock(&kvm->lock);
 
 	return anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
-				stt, O_RDWR);
+				stt, O_RDWR | O_CLOEXEC);
 
 fail:
 	if (stt) {

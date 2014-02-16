@@ -28,7 +28,7 @@ CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
 CFLAGS_sysinfo.o += -Iinclude/math-emu -Iarch/s390/math-emu -w
 
-obj-y	:= bitmap.o traps.o time.o process.o base.o early.o setup.o vtime.o
+obj-y	:= traps.o time.o process.o base.o early.o setup.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
 obj-y	+= debug.o irq.o ipl.o dis.o diag.o sclp.o vdso.o
 obj-y	+= sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o pgm_check.o
@@ -60,7 +60,8 @@ obj-$(CONFIG_FTRACE_SYSCALLS)  += ftrace.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 
 ifdef CONFIG_64BIT
-obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o perf_cpum_sf.o \
+						perf_cpum_cf_events.o
 obj-y				+= runtime_instr.o cache.o
 endif
 

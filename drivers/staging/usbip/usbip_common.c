@@ -45,19 +45,20 @@ MODULE_PARM_DESC(usbip_debug_flag, "debug flags (defined in usbip_common.h)");
 struct device_attribute dev_attr_usbip_debug;
 EXPORT_SYMBOL_GPL(dev_attr_usbip_debug);
 
-static ssize_t show_flag(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t usbip_debug_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%lx\n", usbip_debug_flag);
 }
 
-static ssize_t store_flag(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t usbip_debug_store(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t count)
 {
 	sscanf(buf, "%lx", &usbip_debug_flag);
 	return count;
 }
-DEVICE_ATTR(usbip_debug, (S_IRUGO | S_IWUSR), show_flag, store_flag);
+DEVICE_ATTR_RW(usbip_debug);
 
 static void usbip_dump_buffer(char *buff, int bufflen)
 {
@@ -154,8 +155,9 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 
 	dev_dbg(dev, "parent %p, bus %p\n", udev->parent, udev->bus);
 
-	dev_dbg(dev, "descriptor %p, config %p, actconfig %p, "
-		"rawdescriptors %p\n", &udev->descriptor, udev->config,
+	dev_dbg(dev,
+		"descriptor %p, config %p, actconfig %p, rawdescriptors %p\n",
+		&udev->descriptor, udev->config,
 		udev->actconfig, udev->rawdescriptors);
 
 	dev_dbg(dev, "have_langid %d, string_langid %d\n",
@@ -365,7 +367,6 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;
 		msg.msg_controllen = 0;
-		msg.msg_namelen    = 0;
 		msg.msg_flags      = MSG_NOSIGNAL;
 
 		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);

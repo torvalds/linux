@@ -1047,7 +1047,8 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	ret = sta2x11_vip_init_controls(vip);
 	if (ret)
 		goto free_mem;
-	if (v4l2_device_register(&pdev->dev, &vip->v4l2_dev))
+	ret = v4l2_device_register(&pdev->dev, &vip->v4l2_dev);
+	if (ret)
 		goto free_mem;
 
 	dev_dbg(&pdev->dev, "BAR #0 at 0x%lx 0x%lx irq %d\n",
@@ -1302,7 +1303,7 @@ static int sta2x11_vip_resume(struct pci_dev *pdev)
 
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(sta2x11_vip_pci_tbl) = {
+static const struct pci_device_id sta2x11_vip_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_STMICRO, PCI_DEVICE_ID_STMICRO_VIP)},
 	{0,}
 };

@@ -48,7 +48,6 @@ static const struct file_operations tdfx_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
 #endif
@@ -56,7 +55,6 @@ static const struct file_operations tdfx_driver_fops = {
 };
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_USE_MTRR,
 	.fops = &tdfx_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

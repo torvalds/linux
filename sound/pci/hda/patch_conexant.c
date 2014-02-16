@@ -66,6 +66,8 @@ struct conexant_spec {
 	hda_nid_t eapds[4];
 	bool dynamic_eapd;
 
+	unsigned int parse_flags; /* flag for snd_hda_parse_pin_defcfg() */
+
 #ifdef ENABLE_CXT_STATIC_QUIRKS
 	const struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
@@ -2934,7 +2936,6 @@ static const struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0401, "Dell Vostro 1014", CXT5066_DELL_VOSTRO),
 	SND_PCI_QUIRK(0x1028, 0x0408, "Dell Inspiron One 19T", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x1028, 0x050f, "Dell Inspiron", CXT5066_IDEAPAD),
-	SND_PCI_QUIRK(0x1028, 0x0510, "Dell Vostro", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x103c, 0x360b, "HP G60", CXT5066_HP_LAPTOP),
 	SND_PCI_QUIRK(0x1043, 0x13f3, "Asus A52J", CXT5066_ASUS),
 	SND_PCI_QUIRK(0x1043, 0x1643, "Asus K52JU", CXT5066_ASUS),
@@ -3200,14 +3201,23 @@ static int cx_auto_init(struct hda_codec *codec)
 	snd_hda_gen_init(codec);
 	if (!spec->dynamic_eapd)
 		cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, true);
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_INIT);
+
 	return 0;
+}
+
+static void cx_auto_free(struct hda_codec *codec)
+{
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_FREE);
+	snd_hda_gen_free(codec);
 }
 
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cx_auto_init,
-	.free = snd_hda_gen_free,
+	.free = cx_auto_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.check_power_status = snd_hda_gen_check_power_status,
@@ -3224,7 +3234,14 @@ enum {
 	CXT_PINCFG_LEMOTE_A1205,
 	CXT_FIXUP_STEREO_DMIC,
 	CXT_FIXUP_INC_MIC_BOOST,
+	CXT_FIXUP_HEADPHONE_MIC_PIN,
+	CXT_FIXUP_HEADPHONE_MIC,
+	CXT_FIXUP_GPIO1,
+	CXT_FIXUP_THINKPAD_ACPI,
 };
+
+/* for hda_fixup_thinkpad_acpi() */
+#include "thinkpad_helper.c"
 
 static void cxt_fixup_stereo_dmic(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)
@@ -3245,6 +3262,60 @@ static void cxt5066_increase_mic_boost(struct hda_codec *codec,
 				  (0x27 << AC_AMPCAP_STEP_SIZE_SHIFT) |
 				  (0 << AC_AMPCAP_MUTE_SHIFT));
 }
+
+static void cxt_update_headset_mode(struct hda_codec *codec)
+{
+	/* The verbs used in this function were tested on a Conexant CX20751/2 codec. */
+	int i;
+	bool mic_mode = false;
+	struct conexant_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->gen.autocfg;
+
+	hda_nid_t mux_pin = spec->gen.imux_pins[spec->gen.cur_mux[0]];
+
+	for (i = 0; i < cfg->num_inputs; i++)
+		if (cfg->inputs[i].pin == mux_pin) {
+			mic_mode = !!cfg->inputs[i].is_headphone_mic;
+			break;
+		}
+
+	if (mic_mode) {
+		snd_hda_codec_write_cache(codec, 0x1c, 0, 0x410, 0x7c); /* enable merged mode for analog int-mic */
+		spec->gen.hp_jack_present = false;
+	} else {
+		snd_hda_codec_write_cache(codec, 0x1c, 0, 0x410, 0x54); /* disable merged mode for analog int-mic */
+		spec->gen.hp_jack_present = snd_hda_jack_detect(codec, spec->gen.autocfg.hp_pins[0]);
+	}
+
+	snd_hda_gen_update_outputs(codec);
+}
+
+static void cxt_update_headset_mode_hook(struct hda_codec *codec,
+					 struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	cxt_update_headset_mode(codec);
+}
+
+static void cxt_fixup_headphone_mic(struct hda_codec *codec,
+				    const struct hda_fixup *fix, int action)
+{
+	struct conexant_spec *spec = codec->spec;
+
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		spec->parse_flags |= HDA_PINCFG_HEADPHONE_MIC;
+		break;
+	case HDA_FIXUP_ACT_PROBE:
+		spec->gen.cap_sync_hook = cxt_update_headset_mode_hook;
+		spec->gen.automute_hook = cxt_update_headset_mode;
+		break;
+	case HDA_FIXUP_ACT_INIT:
+		cxt_update_headset_mode(codec);
+		break;
+	}
+}
+
 
 /* ThinkPad X200 & co with cxt5051 */
 static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
@@ -3283,6 +3354,8 @@ static const struct hda_fixup cxt_fixups[] = {
 	[CXT_PINCFG_LENOVO_TP410] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = cxt_pincfg_lenovo_tp410,
+		.chained = true,
+		.chain_id = CXT_FIXUP_THINKPAD_ACPI,
 	},
 	[CXT_PINCFG_LEMOTE_A1004] = {
 		.type = HDA_FIXUP_PINS,
@@ -3302,6 +3375,32 @@ static const struct hda_fixup cxt_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cxt5066_increase_mic_boost,
 	},
+	[CXT_FIXUP_HEADPHONE_MIC_PIN] = {
+		.type = HDA_FIXUP_PINS,
+		.chained = true,
+		.chain_id = CXT_FIXUP_HEADPHONE_MIC,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x18, 0x03a1913d }, /* use as headphone mic, without its own jack detect */
+			{ }
+		}
+	},
+	[CXT_FIXUP_HEADPHONE_MIC] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_headphone_mic,
+	},
+	[CXT_FIXUP_GPIO1] = {
+		.type = HDA_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{ 0x01, AC_VERB_SET_GPIO_MASK, 0x01 },
+			{ 0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01 },
+			{ 0x01, AC_VERB_SET_GPIO_DATA, 0x01 },
+			{ }
+		},
+	},
+	[CXT_FIXUP_THINKPAD_ACPI] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = hda_fixup_thinkpad_acpi,
+	},
 };
 
 static const struct snd_pci_quirk cxt5051_fixups[] = {
@@ -3311,6 +3410,8 @@ static const struct snd_pci_quirk cxt5051_fixups[] = {
 
 static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x1025, 0x0543, "Acer Aspire One 522", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT_FIXUP_GPIO1),
+	SND_PCI_QUIRK(0x1043, 0x138d, "Asus", CXT_FIXUP_HEADPHONE_MIC_PIN),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo T410", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x215f, "Lenovo T510", CXT_PINCFG_LENOVO_TP410),
@@ -3321,6 +3422,7 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Thinkpad", CXT_FIXUP_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x1c06, 0x2011, "Lemote A1004", CXT_PINCFG_LEMOTE_A1004),
 	SND_PCI_QUIRK(0x1c06, 0x2012, "Lemote A1205", CXT_PINCFG_LEMOTE_A1205),
 	{}
@@ -3395,7 +3497,8 @@ static int patch_conexant_auto(struct hda_codec *codec)
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
-	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, NULL, 0);
+	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, NULL,
+				       spec->parse_flags);
 	if (err < 0)
 		goto error;
 
@@ -3416,10 +3519,12 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		codec->bus->allow_bus_reset = 1;
 	}
 
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
+
 	return 0;
 
  error:
-	snd_hda_gen_free(codec);
+	cx_auto_free(codec);
 	return err;
 }
 
@@ -3480,6 +3585,8 @@ static const struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f15115, .name = "CX20757",
 	  .patch = patch_conexant_auto },
+	{ .id = 0x14f151d7, .name = "CX20952",
+	  .patch = patch_conexant_auto },
 	{} /* terminator */
 };
 
@@ -3506,6 +3613,7 @@ MODULE_ALIAS("snd-hda-codec-id:14f15111");
 MODULE_ALIAS("snd-hda-codec-id:14f15113");
 MODULE_ALIAS("snd-hda-codec-id:14f15114");
 MODULE_ALIAS("snd-hda-codec-id:14f15115");
+MODULE_ALIAS("snd-hda-codec-id:14f151d7");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");

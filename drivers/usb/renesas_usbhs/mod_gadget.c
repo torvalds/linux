@@ -77,9 +77,9 @@ struct usbhsg_recip_handle {
 		struct usbhsg_gpriv, mod)
 
 #define __usbhsg_for_each_uep(start, pos, g, i)	\
-	for (i = start, pos = (g)->uep + i;	\
-	     i < (g)->uep_size;			\
-	     i++, pos = (g)->uep + i)
+	for ((i) = start;					\
+	     ((i) < (g)->uep_size) && ((pos) = (g)->uep + (i));	\
+	     (i)++)
 
 #define usbhsg_for_each_uep(pos, gpriv, i)	\
 	__usbhsg_for_each_uep(1, pos, gpriv, i)
@@ -855,10 +855,6 @@ static int usbhsg_gadget_stop(struct usb_gadget *gadget,
 	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
 
-	if (!driver		||
-	    !driver->unbind)
-		return -EINVAL;
-
 	usbhsg_try_stop(priv, USBHSG_STATUS_REGISTERD);
 	gpriv->driver = NULL;
 
@@ -991,11 +987,11 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 		/* init DCP */
 		if (usbhsg_is_dcp(uep)) {
 			gpriv->gadget.ep0 = &uep->ep;
-			uep->ep.maxpacket = 64;
+			usb_ep_set_maxpacket_limit(&uep->ep, 64);
 		}
 		/* init normal pipe */
 		else {
-			uep->ep.maxpacket = 512;
+			usb_ep_set_maxpacket_limit(&uep->ep, 512);
 			list_add_tail(&uep->ep.ep_list, &gpriv->gadget.ep_list);
 		}
 	}

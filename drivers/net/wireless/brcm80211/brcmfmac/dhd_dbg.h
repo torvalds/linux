@@ -33,7 +33,7 @@
 #define BRCMF_USB_VAL	0x00002000
 #define BRCMF_SCAN_VAL	0x00004000
 #define BRCMF_CONN_VAL	0x00008000
-#define BRCMF_CDC_VAL	0x00010000
+#define BRCMF_BCDC_VAL	0x00010000
 #define BRCMF_SDIO_VAL	0x00020000
 
 /* set default print format */
@@ -141,8 +141,7 @@ struct brcmf_fws_stats {
 	u32 header_pulls;
 	u32 pkt2bus;
 	u32 send_pkts[5];
-	u32 fifo_credits_sent[5];
-	u32 fifo_credits_back[6];
+	u32 requested_sent[5];
 	u32 generic_error;
 	u32 mac_update_failed;
 	u32 mac_ps_update_failed;
@@ -158,6 +157,9 @@ struct brcmf_fws_stats {
 	u32 txs_supp_core;
 	u32 txs_supp_ps;
 	u32 txs_tossed;
+	u32 txs_host_tossed;
+	u32 bus_flow_block;
+	u32 fws_flow_block;
 };
 
 struct brcmf_pub;

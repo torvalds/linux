@@ -33,6 +33,7 @@
 #include <asm/ucontext.h>
 #include <asm/sigframe.h>
 #include <asm/syscalls.h>
+#include <asm/vdso.h>
 #include <arch/interrupts.h>
 
 #define DEBUG_SIG 0
@@ -190,7 +191,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		goto give_sigsegv;
 
-	restorer = VDSO_BASE;
+	restorer = VDSO_SYM(&__vdso_rt_sigreturn);
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = (unsigned long) ka->sa.sa_restorer;
 

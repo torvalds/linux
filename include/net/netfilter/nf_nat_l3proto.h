@@ -35,18 +35,15 @@ struct nf_nat_l3proto {
 				   struct nf_nat_range *range);
 };
 
-extern int nf_nat_l3proto_register(const struct nf_nat_l3proto *);
-extern void nf_nat_l3proto_unregister(const struct nf_nat_l3proto *);
-extern const struct nf_nat_l3proto *__nf_nat_l3proto_find(u8 l3proto);
+int nf_nat_l3proto_register(const struct nf_nat_l3proto *);
+void nf_nat_l3proto_unregister(const struct nf_nat_l3proto *);
+const struct nf_nat_l3proto *__nf_nat_l3proto_find(u8 l3proto);
 
-extern int nf_nat_icmp_reply_translation(struct sk_buff *skb,
-					 struct nf_conn *ct,
-					 enum ip_conntrack_info ctinfo,
-					 unsigned int hooknum);
-extern int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
-					   struct nf_conn *ct,
-					   enum ip_conntrack_info ctinfo,
-					   unsigned int hooknum,
-					   unsigned int hdrlen);
+int nf_nat_icmp_reply_translation(struct sk_buff *skb, struct nf_conn *ct,
+				  enum ip_conntrack_info ctinfo,
+				  unsigned int hooknum);
+int nf_nat_icmpv6_reply_translation(struct sk_buff *skb, struct nf_conn *ct,
+				    enum ip_conntrack_info ctinfo,
+				    unsigned int hooknum, unsigned int hdrlen);
 
 #endif /* _NF_NAT_L3PROTO_H */

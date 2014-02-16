@@ -35,7 +35,6 @@
 #define DEBUG_SUBSYSTEM S_FILTER
 
 #include <linux/fs.h>
-#include <linux/jbd.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
@@ -51,9 +50,8 @@ static struct fsfilt_operations *fsfilt_search_type(const char *type)
 
 	list_for_each(p, &fsfilt_types) {
 		found = list_entry(p, struct fsfilt_operations, fs_list);
-		if (!strcmp(found->fs_type, type)) {
+		if (!strcmp(found->fs_type, type))
 			return found;
-		}
 	}
 	return NULL;
 }
@@ -63,12 +61,13 @@ int fsfilt_register_ops(struct fsfilt_operations *fs_ops)
 	struct fsfilt_operations *found;
 
 	/* lock fsfilt_types list */
-	if ((found = fsfilt_search_type(fs_ops->fs_type))) {
+	found = fsfilt_search_type(fs_ops->fs_type);
+	if (found) {
 		if (found != fs_ops) {
 			CERROR("different operations for type %s\n",
 			       fs_ops->fs_type);
 			/* unlock fsfilt_types list */
-			RETURN(-EEXIST);
+			return -EEXIST;
 		}
 	} else {
 		try_module_get(THIS_MODULE);
@@ -104,14 +103,16 @@ struct fsfilt_operations *fsfilt_get_ops(const char *type)
 	struct fsfilt_operations *fs_ops;
 
 	/* lock fsfilt_types list */
-	if (!(fs_ops = fsfilt_search_type(type))) {
+	fs_ops = fsfilt_search_type(type);
+	if (!fs_ops) {
 		char name[32];
 		int rc;
 
 		snprintf(name, sizeof(name) - 1, "fsfilt_%s", type);
 		name[sizeof(name) - 1] = '\0';
 
-		if (!(rc = request_module("%s", name))) {
+		rc = request_module("%s", name);
+		if (!rc) {
 			fs_ops = fsfilt_search_type(type);
 			CDEBUG(D_INFO, "Loaded module '%s'\n", name);
 			if (!fs_ops)
@@ -120,7 +121,7 @@ struct fsfilt_operations *fsfilt_get_ops(const char *type)
 
 		if (rc) {
 			CERROR("Can't find %s interface\n", name);
-			RETURN(ERR_PTR(rc < 0 ? rc : -rc));
+			return ERR_PTR(rc < 0 ? rc : -rc);
 			/* unlock fsfilt_types list */
 		}
 	}

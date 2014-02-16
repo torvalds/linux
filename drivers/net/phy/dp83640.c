@@ -437,7 +437,10 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 		if (on) {
 			gpio_num = gpio_tab[EXTTS0_GPIO + index];
 			evnt |= (gpio_num & EVNT_GPIO_MASK) << EVNT_GPIO_SHIFT;
-			evnt |= EVNT_RISE;
+			if (rq->extts.flags & PTP_FALLING_EDGE)
+				evnt |= EVNT_FALL;
+			else
+				evnt |= EVNT_RISE;
 		}
 		ext_write(0, phydev, PAGE5, PTP_EVNT, evnt);
 		return 0;
@@ -851,8 +854,8 @@ static int match(struct sk_buff *skb, unsigned int type, struct rxts *rxts)
 
 	seqid = (u16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
 
-	return (rxts->msgtype == (*msgtype & 0xf) &&
-		rxts->seqid   == ntohs(*seqid));
+	return rxts->msgtype == (*msgtype & 0xf) &&
+		rxts->seqid   == ntohs(*seqid);
 }
 
 static void dp83640_free_clocks(void)
@@ -1058,6 +1061,13 @@ static void dp83640_remove(struct phy_device *phydev)
 	kfree(dp83640);
 }
 
+static int dp83640_config_init(struct phy_device *phydev)
+{
+	enable_status_frames(phydev, true);
+	ext_write(0, phydev, PAGE4, PTP_CTL, PTP_ENABLE);
+	return 0;
+}
+
 static int dp83640_ack_interrupt(struct phy_device *phydev)
 {
 	int err = phy_read(phydev, MII_DP83640_MISR);
@@ -1195,11 +1205,6 @@ static int dp83640_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 
 	mutex_lock(&dp83640->clock->extreg_lock);
 
-	if (dp83640->hwts_tx_en || dp83640->hwts_rx_en) {
-		enable_status_frames(phydev, true);
-		ext_write(0, phydev, PAGE4, PTP_CTL, PTP_ENABLE);
-	}
-
 	ext_write(0, phydev, PAGE5, PTP_TXCFG0, txcfg0);
 	ext_write(0, phydev, PAGE5, PTP_RXCFG0, rxcfg0);
 
@@ -1281,6 +1286,7 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 		}
 		/* fall through */
 	case HWTSTAMP_TX_ON:
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		skb_queue_tail(&dp83640->tx_queue, skb);
 		schedule_work(&dp83640->ts_work);
 		break;
@@ -1330,6 +1336,7 @@ static struct phy_driver dp83640_driver = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.probe		= dp83640_probe,
 	.remove		= dp83640_remove,
+	.config_init	= dp83640_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt  = dp83640_ack_interrupt,

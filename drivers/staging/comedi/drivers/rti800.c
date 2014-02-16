@@ -49,10 +49,10 @@
  *   [8] - DAC 1 encoding (same as DAC 0)
  */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
 
 /*
  * Register map
@@ -267,13 +267,7 @@ static int rti800_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data)) {
 		/* Outputs are inverted... */
 		outb(s->state ^ 0xff, dev->iobase + RTI800_DO);
 	}
@@ -298,10 +292,9 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0, dev->iobase + RTI800_CLRFLAGS);
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->adc_2comp = (it->options[4] == 0);
 	devpriv->dac_2comp[0] = (it->options[6] == 0);

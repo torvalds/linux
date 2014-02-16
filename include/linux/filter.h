@@ -6,6 +6,7 @@
 
 #include <linux/atomic.h>
 #include <linux/compat.h>
+#include <linux/workqueue.h>
 #include <uapi/linux/filter.h>
 
 #ifdef CONFIG_COMPAT
@@ -25,15 +26,19 @@ struct sk_filter
 {
 	atomic_t		refcnt;
 	unsigned int         	len;	/* Number of filter blocks */
+	struct rcu_head		rcu;
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,
 					    const struct sock_filter *filter);
-	struct rcu_head		rcu;
-	struct sock_filter     	insns[0];
+	union {
+		struct sock_filter     	insns[0];
+		struct work_struct	work;
+	};
 };
 
-static inline unsigned int sk_filter_len(const struct sk_filter *fp)
+static inline unsigned int sk_filter_size(unsigned int proglen)
 {
-	return fp->len * sizeof(struct sock_filter) + sizeof(*fp);
+	return max(sizeof(struct sk_filter),
+		   offsetof(struct sk_filter, insns[proglen]));
 }
 
 extern int sk_filter(struct sock *sk, struct sk_buff *skb);
@@ -59,22 +64,29 @@ extern void bpf_jit_free(struct sk_filter *fp);
 static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 				u32 pass, void *image)
 {
-	pr_err("flen=%u proglen=%u pass=%u image=%p\n",
+	pr_err("flen=%u proglen=%u pass=%u image=%pK\n",
 	       flen, proglen, pass, image);
 	if (image)
-		print_hex_dump(KERN_ERR, "JIT code: ", DUMP_PREFIX_ADDRESS,
+		print_hex_dump(KERN_ERR, "JIT code: ", DUMP_PREFIX_OFFSET,
 			       16, 1, image, proglen, false);
 }
 #define SK_RUN_FILTER(FILTER, SKB) (*FILTER->bpf_func)(SKB, FILTER->insns)
 #else
+#include <linux/slab.h>
 static inline void bpf_jit_compile(struct sk_filter *fp)
 {
 }
 static inline void bpf_jit_free(struct sk_filter *fp)
 {
+	kfree(fp);
 }
 #define SK_RUN_FILTER(FILTER, SKB) sk_run_filter(SKB, FILTER->insns)
 #endif
+
+static inline int bpf_tell_extensions(void)
+{
+	return SKF_AD_MAX;
+}
 
 enum {
 	BPF_S_RET_K = 1,

@@ -1768,6 +1768,8 @@ err_i2c_del_adapter:
 	i2c_del_adapter(&ttusb->i2c_adap);
 err_unregister_adapter:
 	dvb_unregister_adapter (&ttusb->adapter);
+	ttusb_free_iso_urbs(ttusb);
+	kfree(ttusb);
 	return result;
 }
 

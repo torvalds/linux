@@ -49,7 +49,7 @@ savage_bci_wait_fifo_shadow(drm_savage_private_t * dev_priv, unsigned int n)
 #endif
 
 	for (i = 0; i < SAVAGE_DEFAULT_USEC_TIMEOUT; i++) {
-		DRM_MEMORYBARRIER();
+		mb();
 		status = dev_priv->status_ptr[0];
 		if ((status & mask) < threshold)
 			return 0;
@@ -123,7 +123,7 @@ savage_bci_wait_event_shadow(drm_savage_private_t * dev_priv, uint16_t e)
 	int i;
 
 	for (i = 0; i < SAVAGE_EVENT_USEC_TIMEOUT; i++) {
-		DRM_MEMORYBARRIER();
+		mb();
 		status = dev_priv->status_ptr[1];
 		if ((((status & 0xffff) - e) & 0xffff) <= 0x7fff ||
 		    (status & 0xffff) == 0)
@@ -449,7 +449,7 @@ static void savage_dma_flush(drm_savage_private_t * dev_priv)
 		}
 	}
 
-	DRM_MEMORYBARRIER();
+	mb();
 
 	/* do flush ... */
 	phys_addr = dev_priv->cmd_dma->offset +
@@ -570,9 +570,6 @@ int savage_driver_firstopen(struct drm_device *dev)
 	unsigned int fb_rsrc, aper_rsrc;
 	int ret = 0;
 
-	dev_priv->mtrr[0].handle = -1;
-	dev_priv->mtrr[1].handle = -1;
-	dev_priv->mtrr[2].handle = -1;
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
 		fb_rsrc = 0;
 		fb_base = pci_resource_start(dev->pdev, 0);
@@ -584,21 +581,14 @@ int savage_driver_firstopen(struct drm_device *dev)
 		if (pci_resource_len(dev->pdev, 0) == 0x08000000) {
 			/* Don't make MMIO write-cobining! We need 3
 			 * MTRRs. */
-			dev_priv->mtrr[0].base = fb_base;
-			dev_priv->mtrr[0].size = 0x01000000;
-			dev_priv->mtrr[0].handle =
-			    drm_mtrr_add(dev_priv->mtrr[0].base,
-				         dev_priv->mtrr[0].size, DRM_MTRR_WC);
-			dev_priv->mtrr[1].base = fb_base + 0x02000000;
-			dev_priv->mtrr[1].size = 0x02000000;
-			dev_priv->mtrr[1].handle =
-			    drm_mtrr_add(dev_priv->mtrr[1].base,
-					 dev_priv->mtrr[1].size, DRM_MTRR_WC);
-			dev_priv->mtrr[2].base = fb_base + 0x04000000;
-			dev_priv->mtrr[2].size = 0x04000000;
-			dev_priv->mtrr[2].handle =
-			    drm_mtrr_add(dev_priv->mtrr[2].base,
-					 dev_priv->mtrr[2].size, DRM_MTRR_WC);
+			dev_priv->mtrr_handles[0] =
+				arch_phys_wc_add(fb_base, 0x01000000);
+			dev_priv->mtrr_handles[1] =
+				arch_phys_wc_add(fb_base + 0x02000000,
+						 0x02000000);
+			dev_priv->mtrr_handles[2] =
+				arch_phys_wc_add(fb_base + 0x04000000,
+						0x04000000);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08llx\n",
 				  (unsigned long long)
@@ -616,11 +606,9 @@ int savage_driver_firstopen(struct drm_device *dev)
 		if (pci_resource_len(dev->pdev, 1) == 0x08000000) {
 			/* Can use one MTRR to cover both fb and
 			 * aperture. */
-			dev_priv->mtrr[0].base = fb_base;
-			dev_priv->mtrr[0].size = 0x08000000;
-			dev_priv->mtrr[0].handle =
-			    drm_mtrr_add(dev_priv->mtrr[0].base,
-					 dev_priv->mtrr[0].size, DRM_MTRR_WC);
+			dev_priv->mtrr_handles[0] =
+				arch_phys_wc_add(fb_base,
+						 0x08000000);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08llx\n",
 				  (unsigned long long)
@@ -660,11 +648,10 @@ void savage_driver_lastclose(struct drm_device *dev)
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	int i;
 
-	for (i = 0; i < 3; ++i)
-		if (dev_priv->mtrr[i].handle >= 0)
-			drm_mtrr_del(dev_priv->mtrr[i].handle,
-				 dev_priv->mtrr[i].base,
-				 dev_priv->mtrr[i].size, DRM_MTRR_WC);
+	for (i = 0; i < 3; ++i) {
+		arch_phys_wc_del(dev_priv->mtrr_handles[i]);
+		dev_priv->mtrr_handles[i] = 0;
+	}
 }
 
 int savage_driver_unload(struct drm_device *dev)
@@ -1003,10 +990,10 @@ static int savage_bci_get_buffers(struct drm_device *dev,
 
 		buf->file_priv = file_priv;
 
-		if (DRM_COPY_TO_USER(&d->request_indices[i],
+		if (copy_to_user(&d->request_indices[i],
 				     &buf->idx, sizeof(buf->idx)))
 			return -EFAULT;
-		if (DRM_COPY_TO_USER(&d->request_sizes[i],
+		if (copy_to_user(&d->request_sizes[i],
 				     &buf->total, sizeof(buf->total)))
 			return -EFAULT;
 
@@ -1085,7 +1072,7 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 		drm_idlelock_release(&file_priv->master->lock);
 }
 
-struct drm_ioctl_desc savage_ioctls[] = {
+const struct drm_ioctl_desc savage_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_INIT, savage_bci_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_CMDBUF, savage_bci_cmdbuf, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_EVENT_EMIT, savage_bci_event_emit, DRM_AUTH),

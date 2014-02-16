@@ -530,7 +530,7 @@ static int bfin_mac_ethtool_setwol(struct net_device *dev,
 	if (lp->wol && !lp->irq_wake_requested) {
 		/* register wake irq handler */
 		rc = request_irq(IRQ_MAC_WAKEDET, bfin_mac_wake_interrupt,
-				 IRQF_DISABLED, "EMAC_WAKE", dev);
+				 0, "EMAC_WAKE", dev);
 		if (rc)
 			return rc;
 		lp->irq_wake_requested = true;
@@ -667,8 +667,8 @@ static u32 bfin_select_phc_clock(u32 input_clk, unsigned int *shift_result)
 	return 1000000000UL / ppn;
 }
 
-static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
-		struct ifreq *ifr, int cmd)
+static int bfin_mac_hwtstamp_set(struct net_device *netdev,
+				 struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
 	struct bfin_mac_local *lp = netdev_priv(netdev);
@@ -821,6 +821,16 @@ static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
 
 	lp->stamp_cfg = config;
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+		-EFAULT : 0;
+}
+
+static int bfin_mac_hwtstamp_get(struct net_device *netdev,
+				 struct ifreq *ifr)
+{
+	struct bfin_mac_local *lp = netdev_priv(netdev);
+
+	return copy_to_user(ifr->ifr_data, &lp->stamp_cfg,
+			    sizeof(lp->stamp_cfg)) ?
 		-EFAULT : 0;
 }
 
@@ -1062,7 +1072,8 @@ static void bfin_phc_release(struct bfin_mac_local *lp)
 #else
 # define bfin_mac_hwtstamp_is_none(cfg) 0
 # define bfin_mac_hwtstamp_init(dev)
-# define bfin_mac_hwtstamp_ioctl(dev, ifr, cmd) (-EOPNOTSUPP)
+# define bfin_mac_hwtstamp_set(dev, ifr) (-EOPNOTSUPP)
+# define bfin_mac_hwtstamp_get(dev, ifr) (-EOPNOTSUPP)
 # define bfin_rx_hwtstamp(dev, skb)
 # define bfin_tx_hwtstamp(dev, skb)
 # define bfin_phc_init(netdev, dev) 0
@@ -1496,7 +1507,9 @@ static int bfin_mac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return bfin_mac_hwtstamp_ioctl(netdev, ifr, cmd);
+		return bfin_mac_hwtstamp_set(netdev, ifr);
+	case SIOCGHWTSTAMP:
+		return bfin_mac_hwtstamp_get(netdev, ifr);
 	default:
 		if (lp->phydev)
 			return phy_mii_ioctl(lp->phydev, ifr, cmd);
@@ -1544,7 +1557,6 @@ static int bfin_mac_open(struct net_device *dev)
 		return ret;
 
 	phy_start(lp->phydev);
-	phy_write(lp->phydev, MII_BMCR, BMCR_RESET);
 	setup_system_regs(dev);
 	setup_mac_addr(dev->dev_addr);
 
@@ -1647,12 +1659,12 @@ static int bfin_mac_probe(struct platform_device *pdev)
 
 	setup_mac_addr(ndev->dev_addr);
 
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		dev_err(&pdev->dev, "Cannot get platform device bfin_mii_bus!\n");
 		rc = -ENODEV;
 		goto out_err_probe_mac;
 	}
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	lp->mii_bus = platform_get_drvdata(pd);
 	if (!lp->mii_bus) {
 		dev_err(&pdev->dev, "Cannot get mii_bus!\n");
@@ -1660,7 +1672,7 @@ static int bfin_mac_probe(struct platform_device *pdev)
 		goto out_err_probe_mac;
 	}
 	lp->mii_bus->priv = ndev;
-	mii_bus_data = pd->dev.platform_data;
+	mii_bus_data = dev_get_platdata(&pd->dev);
 
 	rc = mii_probe(ndev, mii_bus_data->phy_mode);
 	if (rc) {
@@ -1686,7 +1698,7 @@ static int bfin_mac_probe(struct platform_device *pdev)
 	/* now, enable interrupts */
 	/* register irq handler */
 	rc = request_irq(IRQ_MAC_RX, bfin_mac_interrupt,
-			IRQF_DISABLED, "EMAC_RX", ndev);
+			0, "EMAC_RX", ndev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot request Blackfin MAC RX IRQ!\n");
 		rc = -EBUSY;
@@ -1719,7 +1731,6 @@ out_err_mii_probe:
 	mdiobus_unregister(lp->mii_bus);
 	mdiobus_free(lp->mii_bus);
 out_err_probe_mac:
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 
 	return rc;
@@ -1731,8 +1742,6 @@ static int bfin_mac_remove(struct platform_device *pdev)
 	struct bfin_mac_local *lp = netdev_priv(ndev);
 
 	bfin_phc_release(lp);
-
-	platform_set_drvdata(pdev, NULL);
 
 	lp->mii_bus->priv = NULL;
 
@@ -1868,7 +1877,6 @@ static int bfin_mii_bus_remove(struct platform_device *pdev)
 	struct bfin_mii_bus_platform_data *mii_bus_pd =
 		dev_get_platdata(&pdev->dev);
 
-	platform_set_drvdata(pdev, NULL);
 	mdiobus_unregister(miibus);
 	kfree(miibus->irq);
 	mdiobus_free(miibus);
