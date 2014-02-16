@@ -108,6 +108,7 @@ struct gss_auth {
 static DEFINE_SPINLOCK(pipe_version_lock);
 static struct rpc_wait_queue pipe_version_rpc_waitqueue;
 static DECLARE_WAIT_QUEUE_HEAD(pipe_version_waitqueue);
+static void gss_put_auth(struct gss_auth *gss_auth);
 
 static void gss_free_ctx(struct gss_cl_ctx *);
 static const struct rpc_pipe_ops gss_upcall_ops_v0;
@@ -320,6 +321,7 @@ gss_release_msg(struct gss_upcall_msg *gss_msg)
 	if (gss_msg->ctx != NULL)
 		gss_put_ctx(gss_msg->ctx);
 	rpc_destroy_wait_queue(&gss_msg->rpc_waitqueue);
+	gss_put_auth(gss_msg->auth);
 	kfree(gss_msg);
 }
 
@@ -500,6 +502,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 		if (err)
 			goto err_free_msg;
 	};
+	kref_get(&gss_auth->kref);
 	return gss_msg;
 err_free_msg:
 	kfree(gss_msg);
@@ -1071,6 +1074,12 @@ gss_free_callback(struct kref *kref)
 }
 
 static void
+gss_put_auth(struct gss_auth *gss_auth)
+{
+	kref_put(&gss_auth->kref, gss_free_callback);
+}
+
+static void
 gss_destroy(struct rpc_auth *auth)
 {
 	struct gss_auth *gss_auth = container_of(auth,
@@ -1091,7 +1100,7 @@ gss_destroy(struct rpc_auth *auth)
 	gss_auth->gss_pipe[1] = NULL;
 	rpcauth_destroy_credcache(auth);
 
-	kref_put(&gss_auth->kref, gss_free_callback);
+	gss_put_auth(gss_auth);
 }
 
 /*
@@ -1262,7 +1271,7 @@ gss_destroy_nullcred(struct rpc_cred *cred)
 	call_rcu(&cred->cr_rcu, gss_free_cred_callback);
 	if (ctx)
 		gss_put_ctx(ctx);
-	kref_put(&gss_auth->kref, gss_free_callback);
+	gss_put_auth(gss_auth);
 }
 
 static void
