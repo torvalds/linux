@@ -845,9 +845,8 @@ init_idx_addr_latched(struct nvbios_init *init)
 	u32 data = nv_ro32(bios, init->offset + 13);
 	u8 count = nv_ro08(bios, init->offset + 17);
 
-	trace("INDEX_ADDRESS_LATCHED\t"
-	      "R[0x%06x] : R[0x%06x]\n\tCTRL &= 0x%08x |= 0x%08x\n",
-	      creg, dreg, mask, data);
+	trace("INDEX_ADDRESS_LATCHED\tR[0x%06x] : R[0x%06x]\n", creg, dreg);
+	trace("\tCTRL &= 0x%08x |= 0x%08x\n", mask, data);
 	init->offset += 18;
 
 	while (count--) {
