@@ -106,8 +106,8 @@ static struct comedi_lrange range_apci035_ai = {
 	}
 };
 
-static int i_WatchdogNbr = 0;
-static int i_Temp = 0;
+static int i_WatchdogNbr;
+static int i_Temp;
 static int i_Flag = 1;
 /*
 +----------------------------------------------------------------------------+
