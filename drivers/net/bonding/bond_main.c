@@ -673,12 +673,12 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		write_unlock_bh(&bond->curr_slave_lock);
 
 		if (old_active) {
-			memcpy(tmp_mac, new_active->dev->dev_addr, ETH_ALEN);
+			ether_addr_copy(tmp_mac, new_active->dev->dev_addr);
 			memcpy(saddr.sa_data, old_active->dev->dev_addr,
 			       ETH_ALEN);
 			saddr.sa_family = new_active->dev->type;
 		} else {
-			memcpy(saddr.sa_data, bond->dev->dev_addr, ETH_ALEN);
+			ether_addr_copy(saddr.sa_data, bond->dev->dev_addr);
 			saddr.sa_family = bond->dev->type;
 		}
 
@@ -692,7 +692,7 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		if (!old_active)
 			goto out;
 
-		memcpy(saddr.sa_data, tmp_mac, ETH_ALEN);
+		ether_addr_copy(saddr.sa_data, tmp_mac);
 		saddr.sa_family = old_active->dev->type;
 
 		rv = dev_set_mac_address(old_active->dev, &saddr);
@@ -1316,7 +1316,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	 * that need it, and for restoring it upon release, and then
 	 * set it to the master's address
 	 */
-	memcpy(new_slave->perm_hwaddr, slave_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(new_slave->perm_hwaddr, slave_dev->dev_addr);
 
 	if (!bond->params.fail_over_mac ||
 	    bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
@@ -1587,7 +1587,7 @@ err_restore_mac:
 		 * MAC if this slave's MAC is in use by the bond, or at
 		 * least print a warning.
 		 */
-		memcpy(addr.sa_data, new_slave->perm_hwaddr, ETH_ALEN);
+		ether_addr_copy(addr.sa_data, new_slave->perm_hwaddr);
 		addr.sa_family = slave_dev->type;
 		dev_set_mac_address(slave_dev, &addr);
 	}
@@ -1776,7 +1776,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 	if (bond->params.fail_over_mac != BOND_FOM_ACTIVE ||
 	    bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
 		/* restore original ("permanent") mac address */
-		memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
+		ether_addr_copy(addr.sa_data, slave->perm_hwaddr);
 		addr.sa_family = slave_dev->type;
 		dev_set_mac_address(slave_dev, &addr);
 	}

@@ -333,7 +333,7 @@ static void rlb_update_entry_from_arp(struct bonding *bond, struct arp_pkt *arp)
 	    (client_info->ip_dst == arp->ip_src) &&
 	    (!ether_addr_equal_64bits(client_info->mac_dst, arp->mac_src))) {
 		/* update the clients MAC address */
-		memcpy(client_info->mac_dst, arp->mac_src, ETH_ALEN);
+		ether_addr_copy(client_info->mac_dst, arp->mac_src);
 		client_info->ntt = 1;
 		bond_info->rx_ntt = 1;
 	}
@@ -669,9 +669,9 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 			/* the entry is already assigned to this client */
 			if (!ether_addr_equal_64bits(arp->mac_dst, mac_bcast)) {
 				/* update mac address from arp */
-				memcpy(client_info->mac_dst, arp->mac_dst, ETH_ALEN);
+				ether_addr_copy(client_info->mac_dst, arp->mac_dst);
 			}
-			memcpy(client_info->mac_src, arp->mac_src, ETH_ALEN);
+			ether_addr_copy(client_info->mac_src, arp->mac_src);
 
 			assigned_slave = client_info->slave;
 			if (assigned_slave) {
@@ -711,8 +711,8 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 		 * will be updated with clients actual unicast mac address
 		 * upon receiving an arp reply.
 		 */
-		memcpy(client_info->mac_dst, arp->mac_dst, ETH_ALEN);
-		memcpy(client_info->mac_src, arp->mac_src, ETH_ALEN);
+		ether_addr_copy(client_info->mac_dst, arp->mac_dst);
+		ether_addr_copy(client_info->mac_src, arp->mac_src);
 		client_info->slave = assigned_slave;
 
 		if (!ether_addr_equal_64bits(client_info->mac_dst, mac_bcast)) {
@@ -763,7 +763,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 		*/
 		tx_slave = rlb_choose_channel(skb, bond);
 		if (tx_slave)
-			memcpy(arp->mac_src, tx_slave->dev->dev_addr, ETH_ALEN);
+			ether_addr_copy(arp->mac_src, tx_slave->dev->dev_addr);
 		pr_debug("Server sent ARP Reply packet\n");
 	} else if (arp->op_code == htons(ARPOP_REQUEST)) {
 		/* Create an entry in the rx_hashtbl for this client as a
@@ -1003,8 +1003,8 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 	char *data;
 
 	memset(&pkt, 0, size);
-	memcpy(pkt.mac_dst, mac_addr, ETH_ALEN);
-	memcpy(pkt.mac_src, mac_addr, ETH_ALEN);
+	ether_addr_copy(pkt.mac_dst, mac_addr);
+	ether_addr_copy(pkt.mac_src, mac_addr);
 	pkt.type = cpu_to_be16(ETH_P_LOOP);
 
 	skb = dev_alloc_skb(size);
@@ -1086,7 +1086,7 @@ static void alb_swap_mac_addr(struct slave *slave1, struct slave *slave2)
 {
 	u8 tmp_mac_addr[ETH_ALEN];
 
-	memcpy(tmp_mac_addr, slave1->dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(tmp_mac_addr, slave1->dev->dev_addr);
 	alb_set_slave_mac_addr(slave1, slave2->dev->dev_addr);
 	alb_set_slave_mac_addr(slave2, tmp_mac_addr);
 
@@ -1283,12 +1283,12 @@ static int alb_set_mac_address(struct bonding *bond, void *addr)
 
 	bond_for_each_slave(bond, slave, iter) {
 		/* save net_device's current hw address */
-		memcpy(tmp_addr, slave->dev->dev_addr, ETH_ALEN);
+		ether_addr_copy(tmp_addr, slave->dev->dev_addr);
 
 		res = dev_set_mac_address(slave->dev, addr);
 
 		/* restore net_device's hw address */
-		memcpy(slave->dev->dev_addr, tmp_addr, ETH_ALEN);
+		ether_addr_copy(slave->dev->dev_addr, tmp_addr);
 
 		if (res)
 			goto unwind;
@@ -1304,9 +1304,9 @@ unwind:
 	bond_for_each_slave(bond, rollback_slave, iter) {
 		if (rollback_slave == slave)
 			break;
-		memcpy(tmp_addr, rollback_slave->dev->dev_addr, ETH_ALEN);
+		ether_addr_copy(tmp_addr, rollback_slave->dev->dev_addr);
 		dev_set_mac_address(rollback_slave->dev, &sa);
-		memcpy(rollback_slave->dev->dev_addr, tmp_addr, ETH_ALEN);
+		ether_addr_copy(rollback_slave->dev->dev_addr, tmp_addr);
 	}
 
 	return res;
@@ -1704,14 +1704,14 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		struct sockaddr sa;
 		u8 tmp_addr[ETH_ALEN];
 
-		memcpy(tmp_addr, new_slave->dev->dev_addr, ETH_ALEN);
+		ether_addr_copy(tmp_addr, new_slave->dev->dev_addr);
 
 		memcpy(sa.sa_data, bond->dev->dev_addr, bond->dev->addr_len);
 		sa.sa_family = bond->dev->type;
 		/* we don't care if it can't change its mac, best effort */
 		dev_set_mac_address(new_slave->dev, &sa);
 
-		memcpy(new_slave->dev->dev_addr, tmp_addr, ETH_ALEN);
+		ether_addr_copy(new_slave->dev->dev_addr, tmp_addr);
 	}
 
 	/* curr_active_slave must be set before calling alb_swap_mac_addr */
