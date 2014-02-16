@@ -1882,6 +1882,8 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		c->lna = tvp->u.data;
 		if (fe->ops.set_lna)
 			r = fe->ops.set_lna(fe);
+		if (r < 0)
+			c->lna = LNA_AUTO;
 		break;
 
 	default:
