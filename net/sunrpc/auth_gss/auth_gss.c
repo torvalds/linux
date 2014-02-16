@@ -500,10 +500,12 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	default:
 		err = gss_encode_v1_msg(gss_msg, service_name, gss_auth->target_name);
 		if (err)
-			goto err_free_msg;
+			goto err_put_pipe_version;
 	};
 	kref_get(&gss_auth->kref);
 	return gss_msg;
+err_put_pipe_version:
+	put_pipe_version(gss_auth->net);
 err_free_msg:
 	kfree(gss_msg);
 err:
