@@ -734,7 +734,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_LLSC;
 		c->tlbsize = 64;
 		break;
-	case PRID_IMP_LOONGSON2:
+	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
 		c->cputype = CPU_LOONGSON2;
 		__cpu_name[cpu] = "ICT Loongson-2";
 
@@ -753,7 +753,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_32FPR;
 		c->tlbsize = 64;
 		break;
-	case PRID_IMP_LOONGSON1:
+	case PRID_IMP_LOONGSON_32:  /* Loongson-1 */
 		decode_configs(c);
 
 		c->cputype = CPU_LOONGSON1;
