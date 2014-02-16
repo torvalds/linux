@@ -117,9 +117,9 @@ static ssize_t bonding_store_bonds(struct class *cls,
 		rv = bond_create(bn->net, ifname);
 		if (rv) {
 			if (rv == -EEXIST)
-				pr_info("%s already exists.\n", ifname);
+				pr_info("%s already exists\n", ifname);
 			else
-				pr_info("%s creation failed.\n", ifname);
+				pr_info("%s creation failed\n", ifname);
 			res = rv;
 		}
 	} else if (command[0] == '-') {
@@ -144,7 +144,7 @@ static ssize_t bonding_store_bonds(struct class *cls,
 	return res;
 
 err_no_cmd:
-	pr_err("no command found in bonding_masters. Use +ifname or -ifname.\n");
+	pr_err("no command found in bonding_masters - use +ifname or -ifname\n");
 	return -EPERM;
 }
 
@@ -1135,7 +1135,7 @@ int bond_create_sysfs(struct bond_net *bn)
 		/* Is someone being kinky and naming a device bonding_master? */
 		if (__dev_get_by_name(bn->net,
 				      class_attr_bonding_masters.attr.name))
-			pr_err("network device named %s already exists in sysfs",
+			pr_err("network device named %s already exists in sysfs\n",
 			       class_attr_bonding_masters.attr.name);
 		ret = 0;
 	}

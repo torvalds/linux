@@ -1079,7 +1079,8 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			/* detect loopback situation */
 			if (MAC_ADDRESS_EQUAL(&(lacpdu->actor_system),
 					      &(port->actor_system))) {
-				pr_err("%s: An illegal loopback occurred on adapter (%s).\nCheck the configuration to verify that all adapters are connected to 802.3ad compliant switch ports\n",
+				pr_err("%s: An illegal loopback occurred on adapter (%s)\n"
+				       "Check the configuration to verify that all adapters are connected to 802.3ad compliant switch ports\n",
 				       port->slave->bond->dev->name,
 				       port->slave->dev->name);
 				return;
@@ -1950,7 +1951,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 			 * new aggregator
 			 */
 			if ((new_aggregator) && ((!new_aggregator->lag_ports) || ((new_aggregator->lag_ports == port) && !new_aggregator->lag_ports->next_port_in_aggregator))) {
-				pr_debug("Some port(s) related to LAG %d - replaceing with LAG %d\n",
+				pr_debug("Some port(s) related to LAG %d - replacing with LAG %d\n",
 					 aggregator->aggregator_identifier,
 					 new_aggregator->aggregator_identifier);
 
@@ -2300,9 +2301,9 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 		port->actor_oper_port_key = (port->actor_admin_port_key &=
 					     ~AD_SPEED_KEY_BITS);
 	}
-	pr_debug("Port %d changed link status to %s",
-		port->actor_port_number,
-		(link == BOND_LINK_UP) ? "UP" : "DOWN");
+	pr_debug("Port %d changed link status to %s\n",
+		 port->actor_port_number,
+		 link == BOND_LINK_UP ? "UP" : "DOWN");
 	/* there is no need to reselect a new aggregator, just signal the
 	 * state machines to reinitialize
 	 */

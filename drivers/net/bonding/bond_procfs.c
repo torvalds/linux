@@ -281,7 +281,7 @@ void __net_init bond_create_proc_dir(struct bond_net *bn)
 	if (!bn->proc_dir) {
 		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
 		if (!bn->proc_dir)
-			pr_warn("Warning: cannot create /proc/net/%s\n",
+			pr_warn("Warning: Cannot create /proc/net/%s\n",
 				DRV_NAME);
 	}
 }
