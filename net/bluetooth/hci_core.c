@@ -2685,6 +2685,7 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 {
 	struct smp_ltk *key, *old_key;
 	bool master = ltk_type_master(type);
+	u8 persistent;
 
 	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type, master);
 	if (old_key)
@@ -2708,8 +2709,13 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 	if (!new_key)
 		return 0;
 
+	if (addr_type == ADDR_LE_DEV_RANDOM && (bdaddr->b[5] & 0xc0) != 0xc0)
+		persistent = 0;
+	else
+		persistent = 1;
+
 	if (type == HCI_SMP_LTK || type == HCI_SMP_LTK_SLAVE)
-		mgmt_new_ltk(hdev, key, 1);
+		mgmt_new_ltk(hdev, key, persistent);
 
 	return 0;
 }
