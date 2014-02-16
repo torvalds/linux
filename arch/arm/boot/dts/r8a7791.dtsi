@@ -53,7 +53,6 @@
 	gpio0: gpio@e6050000 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xe6050000 0 0x50>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 4 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -65,7 +64,6 @@
 	gpio1: gpio@e6051000 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xe6051000 0 0x50>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 5 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -77,7 +75,6 @@
 	gpio2: gpio@e6052000 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xe6052000 0 0x50>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 6 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -89,7 +86,6 @@
 	gpio3: gpio@e6053000 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xe6053000 0 0x50>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -101,7 +97,6 @@
 	gpio4: gpio@e6054000 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xe6054000 0 0x50>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -113,7 +108,6 @@
 	gpio5: gpio@e6055000 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xe6055000 0 0x50>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -125,7 +119,6 @@
 	gpio6: gpio@e6055400 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xe6055400 0 0x50>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -137,7 +130,6 @@
 	gpio7: gpio@e6055800 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xe6055800 0 0x50>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -149,7 +141,6 @@
 	thermal@e61f0000 {
 		compatible = "renesas,thermal-r8a7791", "renesas,rcar-thermal";
 		reg = <0 0xe61f0000 0 0x14>, <0 0xe61f0100 0 0x38>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 69 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp5_clks R8A7791_CLK_THERMAL>;
 	};
@@ -167,7 +158,6 @@
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <0 0xe61c0000 0 0x200>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 1 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 2 IRQ_TYPE_LEVEL_HIGH>,
@@ -189,7 +179,6 @@
 	scifa0: serial@e6c40000 {
 		compatible = "renesas,scifa-r8a7791", "renesas,scifa";
 		reg = <0 0xe6c40000 0 64>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 144 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7791_CLK_SCIFA0>;
 		clock-names = "sci_ick";
@@ -198,7 +187,6 @@
 
 	scifa1: serial@e6c50000 {
 		compatible = "renesas,scifa-r8a7791", "renesas,scifa";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6c50000 0 64>;
 		interrupts = <0 145 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7791_CLK_SCIFA1>;
@@ -208,7 +196,6 @@
 
 	scifa2: serial@e6c60000 {
 		compatible = "renesas,scifa-r8a7791", "renesas,scifa";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6c60000 0 64>;
 		interrupts = <0 151 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7791_CLK_SCIFA2>;
@@ -218,7 +205,6 @@
 
 	scifa3: serial@e6c70000 {
 		compatible = "renesas,scifa-r8a7791", "renesas,scifa";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6c70000 0 64>;
 		interrupts = <0 29 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp11_clks R8A7791_CLK_SCIFA3>;
@@ -228,7 +214,6 @@
 
 	scifa4: serial@e6c78000 {
 		compatible = "renesas,scifa-r8a7791", "renesas,scifa";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6c78000 0 64>;
 		interrupts = <0 30 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp11_clks R8A7791_CLK_SCIFA4>;
@@ -238,7 +223,6 @@
 
 	scifa5: serial@e6c80000 {
 		compatible = "renesas,scifa-r8a7791", "renesas,scifa";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6c80000 0 64>;
 		interrupts = <0 31 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp11_clks R8A7791_CLK_SCIFA5>;
@@ -248,7 +232,6 @@
 
 	scifb0: serial@e6c20000 {
 		compatible = "renesas,scifb-r8a7791", "renesas,scifb";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6c20000 0 64>;
 		interrupts = <0 148 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7791_CLK_SCIFB0>;
@@ -258,7 +241,6 @@
 
 	scifb1: serial@e6c30000 {
 		compatible = "renesas,scifb-r8a7791", "renesas,scifb";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6c30000 0 64>;
 		interrupts = <0 149 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7791_CLK_SCIFB1>;
@@ -268,7 +250,6 @@
 
 	scifb2: serial@e6ce0000 {
 		compatible = "renesas,scifb-r8a7791", "renesas,scifb";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6ce0000 0 64>;
 		interrupts = <0 150 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7791_CLK_SCIFB2>;
@@ -278,7 +259,6 @@
 
 	scif0: serial@e6e60000 {
 		compatible = "renesas,scif-r8a7791", "renesas,scif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6e60000 0 64>;
 		interrupts = <0 152 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_SCIF0>;
@@ -288,7 +268,6 @@
 
 	scif1: serial@e6e68000 {
 		compatible = "renesas,scif-r8a7791", "renesas,scif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6e68000 0 64>;
 		interrupts = <0 153 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_SCIF1>;
@@ -298,7 +277,6 @@
 
 	scif2: serial@e6e58000 {
 		compatible = "renesas,scif-r8a7791", "renesas,scif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6e58000 0 64>;
 		interrupts = <0 22 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_SCIF2>;
@@ -308,7 +286,6 @@
 
 	scif3: serial@e6ea8000 {
 		compatible = "renesas,scif-r8a7791", "renesas,scif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6ea8000 0 64>;
 		interrupts = <0 23 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_SCIF3>;
@@ -318,7 +295,6 @@
 
 	scif4: serial@e6ee0000 {
 		compatible = "renesas,scif-r8a7791", "renesas,scif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6ee0000 0 64>;
 		interrupts = <0 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_SCIF4>;
@@ -328,7 +304,6 @@
 
 	scif5: serial@e6ee8000 {
 		compatible = "renesas,scif-r8a7791", "renesas,scif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe6ee8000 0 64>;
 		interrupts = <0 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_SCIF5>;
@@ -338,7 +313,6 @@
 
 	hscif0: serial@e62c0000 {
 		compatible = "renesas,hscif-r8a7791", "renesas,hscif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe62c0000 0 96>;
 		interrupts = <0 154 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_HSCIF0>;
@@ -348,7 +322,6 @@
 
 	hscif1: serial@e62c8000 {
 		compatible = "renesas,hscif-r8a7791", "renesas,hscif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe62c8000 0 96>;
 		interrupts = <0 155 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_HSCIF1>;
@@ -358,7 +331,6 @@
 
 	hscif2: serial@e62d0000 {
 		compatible = "renesas,hscif-r8a7791", "renesas,hscif";
-		interrupt-parent = <&gic>;
 		reg = <0 0xe62d0000 0 96>;
 		interrupts = <0 21 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_HSCIF2>;
@@ -369,7 +341,6 @@
 	sata0: sata@ee300000 {
 		compatible = "renesas,sata-r8a7791";
 		reg = <0 0xee300000 0 0x2000>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp8_clks R8A7791_CLK_SATA0>;
 		status = "disabled";
@@ -378,7 +349,6 @@
 	sata1: sata@ee500000 {
 		compatible = "renesas,sata-r8a7791";
 		reg = <0 0xee500000 0 0x2000>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 106 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp8_clks R8A7791_CLK_SATA1>;
 		status = "disabled";
@@ -714,7 +684,6 @@
 	spi: spi@e6b10000 {
 		compatible = "renesas,qspi-r8a7791", "renesas,qspi";
 		reg = <0 0xe6b10000 0 0x2c>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 184 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp9_clks R8A7791_CLK_QSPI_MOD>;
 		num-cs = <1>;
