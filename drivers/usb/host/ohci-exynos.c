@@ -17,12 +17,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/samsung_usb_phy.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-#include <linux/usb/otg.h>
 
 #include "ohci.h"
 
@@ -35,8 +35,7 @@ static struct hc_driver __read_mostly exynos_ohci_hc_driver;
 
 struct exynos_ohci_hcd {
 	struct clk *clk;
-	struct usb_phy *phy;
-	struct usb_otg *otg;
+	struct phy *phy;
 };
 
 static void exynos_ohci_phy_enable(struct platform_device *pdev)
@@ -45,7 +44,7 @@ static void exynos_ohci_phy_enable(struct platform_device *pdev)
 	struct exynos_ohci_hcd *exynos_ohci = to_exynos_ohci(hcd);
 
 	if (exynos_ohci->phy)
-		usb_phy_init(exynos_ohci->phy);
+		phy_power_on(exynos_ohci->phy);
 }
 
 static void exynos_ohci_phy_disable(struct platform_device *pdev)
@@ -54,7 +53,7 @@ static void exynos_ohci_phy_disable(struct platform_device *pdev)
 	struct exynos_ohci_hcd *exynos_ohci = to_exynos_ohci(hcd);
 
 	if (exynos_ohci->phy)
-		usb_phy_shutdown(exynos_ohci->phy);
+		phy_power_off(exynos_ohci->phy);
 }
 
 static int exynos_ohci_probe(struct platform_device *pdev)
@@ -62,7 +61,8 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 	struct exynos_ohci_hcd *exynos_ohci;
 	struct usb_hcd *hcd;
 	struct resource *res;
-	struct usb_phy *phy;
+	struct phy *phy;
+	const char *phy_name;
 	int irq;
 	int err;
 
@@ -88,14 +88,14 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 					"samsung,exynos5440-ohci"))
 		goto skip_phy;
 
-	phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
+	phy_name = of_get_property(pdev->dev.of_node, "phy-names", NULL);
+	phy =  devm_phy_get(&pdev->dev, phy_name);
 	if (IS_ERR(phy)) {
 		usb_put_hcd(hcd);
 		dev_warn(&pdev->dev, "no platform data or transceiver defined\n");
 		return -EPROBE_DEFER;
 	} else {
 		exynos_ohci->phy = phy;
-		exynos_ohci->otg = phy->otg;
 	}
 
 skip_phy:
@@ -134,9 +134,6 @@ skip_phy:
 		goto fail_io;
 	}
 
-	if (exynos_ohci->otg)
-		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
-
 	platform_set_drvdata(pdev, hcd);
 
 	exynos_ohci_phy_enable(pdev);
@@ -163,9 +160,6 @@ static int exynos_ohci_remove(struct platform_device *pdev)
 	struct exynos_ohci_hcd *exynos_ohci = to_exynos_ohci(hcd);
 
 	usb_remove_hcd(hcd);
-
-	if (exynos_ohci->otg)
-		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
 
 	exynos_ohci_phy_disable(pdev);
 
@@ -209,9 +203,6 @@ static int exynos_ohci_suspend(struct device *dev)
 
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-	if (exynos_ohci->otg)
-		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
-
 	exynos_ohci_phy_disable(pdev);
 
 	clk_disable_unprepare(exynos_ohci->clk);
@@ -229,9 +220,6 @@ static int exynos_ohci_resume(struct device *dev)
 	struct platform_device *pdev		= to_platform_device(dev);
 
 	clk_prepare_enable(exynos_ohci->clk);
-
-	if (exynos_ohci->otg)
-		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
 
 	exynos_ohci_phy_enable(pdev);
 
