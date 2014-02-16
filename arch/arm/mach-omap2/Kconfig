@@ -165,12 +165,6 @@ config SOC_TI81XX
 	depends on ARCH_OMAP3
 	default y
 
-config OMAP_PACKAGE_ZAF
-       bool
-
-config OMAP_PACKAGE_ZAC
-       bool
-
 config OMAP_PACKAGE_CBC
        bool
 
@@ -284,7 +278,6 @@ config MACH_NOKIA_N8X0
 	select MACH_NOKIA_N800
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
-	select OMAP_PACKAGE_ZAC
 
 config MACH_NOKIA_RX51
 	bool "Nokia N900 (RX-51) phone"
