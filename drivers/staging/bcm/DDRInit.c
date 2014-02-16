@@ -1094,8 +1094,8 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 			RegCount -= T3LP_SKIP_CLOCK_PROGRAM_DUMP_133MHZ;
 			psDDRSetting += T3LP_SKIP_CLOCK_PROGRAM_DUMP_133MHZ;
 			break;
-			default:
-			    return -EINVAL;
+		default:
+			return -EINVAL;
 		}
 		break;
 
