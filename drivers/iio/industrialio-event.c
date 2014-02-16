@@ -366,32 +366,31 @@ static int iio_device_add_event_sysfs(struct iio_dev *indio_dev,
 		ret = iio_device_add_event(indio_dev, chan, i, type, dir,
 			IIO_SEPARATE, &chan->event_spec[i].mask_separate);
 		if (ret < 0)
-			goto error_ret;
+			return ret;
 		attrcount += ret;
 
 		ret = iio_device_add_event(indio_dev, chan, i, type, dir,
 			IIO_SHARED_BY_TYPE,
 			&chan->event_spec[i].mask_shared_by_type);
 		if (ret < 0)
-			goto error_ret;
+			return ret;
 		attrcount += ret;
 
 		ret = iio_device_add_event(indio_dev, chan, i, type, dir,
 			IIO_SHARED_BY_DIR,
 			&chan->event_spec[i].mask_shared_by_dir);
 		if (ret < 0)
-			goto error_ret;
+			return ret;
 		attrcount += ret;
 
 		ret = iio_device_add_event(indio_dev, chan, i, type, dir,
 			IIO_SHARED_BY_ALL,
 			&chan->event_spec[i].mask_shared_by_all);
 		if (ret < 0)
-			goto error_ret;
+			return ret;
 		attrcount += ret;
 	}
 	ret = attrcount;
-error_ret:
 	return ret;
 }
 
@@ -440,10 +439,8 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 
 	indio_dev->event_interface =
 		kzalloc(sizeof(struct iio_event_interface), GFP_KERNEL);
-	if (indio_dev->event_interface == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (indio_dev->event_interface == NULL)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&indio_dev->event_interface->dev_attr_list);
 
@@ -489,8 +486,6 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 error_free_setup_event_lines:
 	iio_free_chan_devattr_list(&indio_dev->event_interface->dev_attr_list);
 	kfree(indio_dev->event_interface);
-error_ret:
-
 	return ret;
 }
 

@@ -692,10 +692,8 @@ int __iio_add_chan_devattr(const char *postfix,
 	struct iio_dev_attr *iio_attr, *t;
 
 	iio_attr = kzalloc(sizeof(*iio_attr), GFP_KERNEL);
-	if (iio_attr == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (iio_attr == NULL)
+		return -ENOMEM;
 	ret = __iio_device_attr_init(&iio_attr->dev_attr,
 				     postfix, chan,
 				     readfunc, writefunc, shared_by);
@@ -720,7 +718,6 @@ error_device_attr_deinit:
 	__iio_device_attr_deinit(&iio_attr->dev_attr);
 error_iio_dev_attr_free:
 	kfree(iio_attr);
-error_ret:
 	return ret;
 }
 
@@ -1134,7 +1131,7 @@ int iio_device_register(struct iio_dev *indio_dev)
 	if (ret) {
 		dev_err(indio_dev->dev.parent,
 			"Failed to register debugfs interfaces\n");
-		goto error_ret;
+		return ret;
 	}
 	ret = iio_device_register_sysfs(indio_dev);
 	if (ret) {
@@ -1175,7 +1172,6 @@ error_free_sysfs:
 	iio_device_unregister_sysfs(indio_dev);
 error_unreg_debugfs:
 	iio_device_unregister_debugfs(indio_dev);
-error_ret:
 	return ret;
 }
 EXPORT_SYMBOL(iio_device_register);
