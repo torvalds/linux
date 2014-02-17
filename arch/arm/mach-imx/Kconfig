@@ -5,11 +5,11 @@ config ARCH_MXC
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_CPU_SUSPEND if PM
 	select CLKSRC_MMIO
-	select GENERIC_ALLOCATOR
 	select GENERIC_IRQ_CHIP
 	select PINCTRL
 	select PM_OPP if PM
 	select SOC_BUS
+	select SRAM
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
