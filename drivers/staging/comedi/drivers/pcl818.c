@@ -1294,6 +1294,57 @@ static void pcl818_reset(struct comedi_device *dev)
 	}
 }
 
+static void pcl818_set_ai_range_table(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_devconfig *it)
+{
+	const struct pcl818_board *board = comedi_board(dev);
+
+	/* default to the range table from the boardinfo */
+	s->range_table = board->ai_range_type;
+
+	/* now check the user config option based on the boardtype */
+	if (board->is_818) {
+		if (it->options[4] == 1 || it->options[4] == 10) {
+			/* secondary range list jumper selectable */
+			s->range_table = &range_pcl818l_h_ai;
+		}
+	} else {
+		switch (it->options[4]) {
+		case 0:
+			s->range_table = &range_bipolar10;
+			break;
+		case 1:
+			s->range_table = &range_bipolar5;
+			break;
+		case 2:
+			s->range_table = &range_bipolar2_5;
+			break;
+		case 3:
+			s->range_table = &range718_bipolar1;
+			break;
+		case 4:
+			s->range_table = &range718_bipolar0_5;
+			break;
+		case 6:
+			s->range_table = &range_unipolar10;
+			break;
+		case 7:
+			s->range_table = &range_unipolar5;
+			break;
+		case 8:
+			s->range_table = &range718_unipolar2;
+			break;
+		case 9:
+			s->range_table = &range718_unipolar1;
+			break;
+		default:
+			s->range_table = &range_unknown;
+			break;
+		}
+	}
+}
+
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl818_board *board = comedi_board(dev);
@@ -1376,7 +1427,9 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->subdev_flags |= SDF_DIFF;
 		}
 		s->maxdata = board->ai_maxdata;
-		s->range_table = board->ai_range_type;
+
+		pcl818_set_ai_range_table(dev, s, it);
+
 		s->insn_read = pcl818_ai_insn_read;
 		if (dev->irq) {
 			dev->read_subdev = s;
@@ -1385,43 +1438,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->do_cmdtest = ai_cmdtest;
 			s->do_cmd = ai_cmd;
 			s->cancel = pcl818_ai_cancel;
-		}
-		if (board->is_818) {
-			if ((it->options[4] == 1) || (it->options[4] == 10))
-				s->range_table = &range_pcl818l_h_ai;	/*  secondary range list jumper selectable */
-		} else {
-			switch (it->options[4]) {
-			case 0:
-				s->range_table = &range_bipolar10;
-				break;
-			case 1:
-				s->range_table = &range_bipolar5;
-				break;
-			case 2:
-				s->range_table = &range_bipolar2_5;
-				break;
-			case 3:
-				s->range_table = &range718_bipolar1;
-				break;
-			case 4:
-				s->range_table = &range718_bipolar0_5;
-				break;
-			case 6:
-				s->range_table = &range_unipolar10;
-				break;
-			case 7:
-				s->range_table = &range_unipolar5;
-				break;
-			case 8:
-				s->range_table = &range718_unipolar2;
-				break;
-			case 9:
-				s->range_table = &range718_unipolar1;
-				break;
-			default:
-				s->range_table = &range_unknown;
-				break;
-			}
 		}
 	}
 
