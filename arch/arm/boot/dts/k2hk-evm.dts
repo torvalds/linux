@@ -15,7 +15,7 @@
 	compatible =  "ti,keystone-evm";
 
 	soc {
-		clock {
+		clocks {
 			refclksys: refclksys {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
