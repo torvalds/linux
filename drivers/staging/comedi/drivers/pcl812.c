@@ -334,14 +334,13 @@ struct pcl812_board {
 	int n_aichan;
 	int n_aichan_diff;
 	int n_aochan;
-	int n_dichan;
-	int n_dochan;
 	int ai_maxdata;
 	unsigned int ai_ns_min;
 	const struct comedi_lrange *rangelist_ai;
 	unsigned int IRQbits;
 	unsigned int has_dma:1;
 	unsigned int has_mpc508_mux:1;
+	unsigned int has_dio:1;
 };
 
 static const struct pcl812_board boardtypes[] = {
@@ -350,77 +349,71 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardPCL812,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_bipolar10,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "pcl812pg",
 		.board_type	= boardPCL812PG,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_pcl812pg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "acl8112pg",
 		.board_type	= boardPCL812PG,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl812pg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "acl8112dg",
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_mpc508_mux	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "acl8112hg",
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_mpc508_mux	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "a821pgl",
 		.board_type	= boardA821,
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 1,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b_ai,
 		.IRQbits	= 0x000c,
+		.has_dio	= 1,
 	}, {
 		.name		= "a821pglnda",
 		.board_type	= boardA821,
@@ -436,64 +429,59 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 1,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_a821pgh_ai,
 		.IRQbits	= 0x000c,
+		.has_dio	= 1,
 	}, {
 		.name		= "a822pgl",
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "a822pgh",
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "a823pgl",
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "a823pgh",
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "pcl813",
 		.board_type	= boardPCL813,
@@ -524,27 +512,25 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_mpc508_mux	= 1,
+		.has_dio	= 1,
 	}, {
 		.name		= "a826pg",
 		.board_type	= boardACL8216,
 		.n_aichan	= 16,
 		.n_aichan_diff	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_dio	= 1,
 	},
 };
 
@@ -1351,10 +1337,8 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		n_subdevices++;
 	if (board->n_aochan > 0)
 		n_subdevices++;
-	if (board->n_dichan > 0)
-		n_subdevices++;
-	if (board->n_dochan > 0)
-		n_subdevices++;
+	if (board->has_dio)
+		n_subdevices += 2;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret)
@@ -1520,24 +1504,22 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		subdev++;
 	}
 
-	/* digital input */
-	if (board->n_dichan > 0) {
+	if (board->has_dio) {
+		/* Digital Input subdevice */
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
-		s->n_chan = board->n_dichan;
+		s->n_chan = 16;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = pcl812_di_insn_bits;
 		subdev++;
-	}
 
-	/* digital output */
-	if (board->n_dochan > 0) {
+		/* Digital Output subdevice */
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = board->n_dochan;
+		s->n_chan = 16;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = pcl812_do_insn_bits;
