@@ -150,6 +150,7 @@
 #define CLK_G2D			345
 #define CLK_MDMA0		346
 #define CLK_SMMU_MDMA0		347
+#define CLK_SSS			348
 
 /* mux clocks */
 #define CLK_MOUT_HDMI		1024

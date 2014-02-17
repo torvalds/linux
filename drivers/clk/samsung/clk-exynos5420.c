@@ -27,6 +27,7 @@
 #define DIV_CPU1		0x504
 #define GATE_BUS_CPU		0x700
 #define GATE_SCLK_CPU		0x800
+#define GATE_IP_G2D		0x8800
 #define CPLL_LOCK		0x10020
 #define DPLL_LOCK		0x10030
 #define EPLL_LOCK		0x10040
@@ -515,6 +516,9 @@ static struct samsung_div_clock exynos5420_div_clks[] __initdata = {
 };
 
 static struct samsung_gate_clock exynos5420_gate_clks[] __initdata = {
+	/* G2D */
+	GATE(CLK_SSS, "sss", "aclk266_g2d", GATE_IP_G2D, 2, 0, 0),
+
 	/* TODO: Re-verify the CG bits for all the gate clocks */
 	GATE_A(CLK_MCT, "pclk_st", "aclk66_psgen", GATE_BUS_PERIS1, 2, 0, 0,
 		"mct"),
