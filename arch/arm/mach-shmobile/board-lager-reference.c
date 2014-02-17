@@ -88,7 +88,6 @@ static void __init lager_add_du_device(void)
 
 static void __init lager_add_standard_devices(void)
 {
-#ifdef CONFIG_COMMON_CLK
 	/*
 	 * This is a really crude hack to provide clkdev support to platform
 	 * devices until they get moved to DT.
@@ -126,9 +125,6 @@ static void __init lager_add_standard_devices(void)
 			clk_put(clk);
 		}
 	}
-#else
-	r8a7790_clock_init();
-#endif
 
 	r8a7790_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
