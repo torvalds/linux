@@ -125,3 +125,15 @@ DT_MACHINE_START(ARMADA_375_DT, "Marvell Armada 375 (Device Tree)")
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_375_dt_compat,
 MACHINE_END
+
+static const char * const armada_38x_dt_compat[] = {
+	"marvell,armada380",
+	"marvell,armada385",
+	NULL,
+};
+
+DT_MACHINE_START(ARMADA_38X_DT, "Marvell Armada 380/385 (Device Tree)")
+	.init_time	= mvebu_timer_and_clk_init,
+	.restart	= mvebu_restart,
+	.dt_compat	= armada_38x_dt_compat,
+MACHINE_END

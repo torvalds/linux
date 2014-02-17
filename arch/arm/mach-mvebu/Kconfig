@@ -51,6 +51,20 @@ config MACH_ARMADA_375
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada 375 SoC with device tree.
 
+config MACH_ARMADA_38X
+	bool "Marvell Armada 380/385 boards"
+	select ARM_ERRATA_720789
+	select ARM_ERRATA_753970
+	select ARM_GIC
+	select ARMADA_38X_CLK
+	select CPU_V7
+	select MACH_MVEBU_V7
+	select NEON
+	select PINCTRL_ARMADA_38X
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada 380/385 SoC with device tree.
+
 config MACH_ARMADA_XP
 	bool "Marvell Armada XP boards"
 	select ARMADA_XP_CLK
