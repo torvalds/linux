@@ -609,9 +609,6 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 	return ret ? ret : n;
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -631,9 +628,6 @@ static int pcl812_ao_insn_write(struct comedi_device *dev,
 	return i;
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
@@ -648,9 +642,6 @@ static int pcl812_ao_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
@@ -676,9 +667,6 @@ static int pcl812_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
@@ -757,9 +745,6 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl812_private *devpriv = dev->private;
@@ -870,9 +855,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 {
 	char err = 1;
@@ -938,9 +920,6 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-*/
 static void transfer_from_dma_buf(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned short *ptr,
@@ -972,9 +951,6 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 	comedi_event(dev, s);
 }
 
-/*
-==============================================================================
-*/
 static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -1019,9 +995,6 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-*/
 static irqreturn_t interrupt_pcl812(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -1037,9 +1010,6 @@ static irqreturn_t interrupt_pcl812(int irq, void *d)
 		return interrupt_pcl812_ai_int(irq, d);
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl812_private *devpriv = dev->private;
@@ -1084,9 +1054,6 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
-/*
-==============================================================================
-*/
 static void setup_range_channel(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				unsigned int rangechan, char wait)
@@ -1129,9 +1096,6 @@ static void setup_range_channel(struct comedi_device *dev,
 		udelay(devpriv->max_812_ai_mode0_rangewait);
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -1147,9 +1111,6 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static void pcl812_reset(struct comedi_device *dev)
 {
 	const struct pcl812_board *board = comedi_board(dev);
