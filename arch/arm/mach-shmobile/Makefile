@@ -58,7 +58,6 @@ obj-$(CONFIG_ARCH_R8A7779)	+= pm-r8a7779.o
 ifdef CONFIG_ARCH_SHMOBILE_MULTI
 obj-$(CONFIG_MACH_GENMAI)	+= board-genmai-reference.o
 obj-$(CONFIG_MACH_KOELSCH)	+= board-koelsch-reference.o
-obj-$(CONFIG_MACH_KZM9D)	+= board-kzm9d-reference.o
 obj-$(CONFIG_MACH_LAGER)	+= board-lager-reference.o
 else
 obj-$(CONFIG_MACH_APE6EVM)	+= board-ape6evm.o

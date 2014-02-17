@@ -47,12 +47,6 @@ config MACH_KOELSCH
 	depends on ARCH_R8A7791
 	select MICREL_PHY if SH_ETH
 
-config MACH_KZM9D
-	bool "KZM9D board"
-	depends on ARCH_EMEV2
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SMSC_PHY if SMSC911X
-
 config MACH_LAGER
 	bool "Lager board"
 	depends on ARCH_R8A7790
