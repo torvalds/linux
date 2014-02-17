@@ -393,7 +393,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 
 //        if (ntStatus == STATUS_NOT_CONNECTED )
 //        {
-            pDevice->fKillEventPollingThread = true;
 //        }
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"IntUSBIoCompleteControl STATUS = %d\n", ntStatus );
     } else {
@@ -403,7 +402,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 	    INTnsProcessData(pDevice);
     }
 
-    if (pDevice->fKillEventPollingThread != true) {
 	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
 	if (ntStatus) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
@@ -411,7 +409,7 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 	} else {
 		pDevice->intBuf.bInUse = true;
 	}
-    }
+
     //
     // We return STATUS_MORE_PROCESSING_REQUIRED so that the completion
     // routine (IofCompleteRequest) will stop working on the irp.

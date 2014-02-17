@@ -70,8 +70,9 @@ void INTvWorkItem(struct vnt_private *pDevice)
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
 
 	spin_lock_irq(&pDevice->lock);
-	if (pDevice->fKillEventPollingThread != true)
-		ntStatus = PIPEnsInterruptRead(pDevice);
+
+	ntStatus = PIPEnsInterruptRead(pDevice);
+
 	spin_unlock_irq(&pDevice->lock);
 }
 

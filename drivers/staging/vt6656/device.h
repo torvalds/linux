@@ -421,7 +421,6 @@ struct vnt_private {
 
 	/* Variables to track resources for the Interrupt In Pipe */
 	INT_BUFFER intBuf;
-	int fKillEventPollingThread;
 	int bEventAvailable;
 
 	/* default config from file by user setting */

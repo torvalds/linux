@@ -1000,7 +1000,6 @@ static int  device_open(struct net_device *dev)
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
     pDevice->bIsRxWorkItemQueued = true;
-    pDevice->fKillEventPollingThread = false;
     pDevice->bEventAvailable = false;
 
    pDevice->bWPADEVUp = false;
@@ -1084,7 +1083,6 @@ static int device_close(struct net_device *dev)
     MP_SET_FLAG(pDevice, fMP_DISCONNECTED);
     MP_CLEAR_FLAG(pDevice, fMP_POST_WRITES);
     MP_CLEAR_FLAG(pDevice, fMP_POST_READS);
-    pDevice->fKillEventPollingThread = true;
 
 	cancel_delayed_work_sync(&pDevice->run_command_work);
 	cancel_delayed_work_sync(&pDevice->second_callback_work);
