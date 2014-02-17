@@ -3352,6 +3352,7 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 		goto free_dst;
 	}
 
+	neigh_release(neigh);
 	step = dev->rdev.lldi.nrxq / dev->rdev.lldi.nchan;
 	rss_qid = dev->rdev.lldi.rxq_ids[pi->port_id * step];
 	window = (__force u16) htons((__force u16)tcph->window);

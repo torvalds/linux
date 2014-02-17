@@ -34,6 +34,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/hdmi.h>
 
 #include <drm/exynos_drm.h>
 
@@ -58,19 +59,6 @@
 /* AUI header info */
 #define HDMI_AUI_VERSION	0x01
 #define HDMI_AUI_LENGTH	0x0A
-
-/* HDMI infoframe to configure HDMI out packet header, AUI and AVI */
-enum HDMI_PACKET_TYPE {
-	/* refer to Table 5-8 Packet Type in HDMI specification v1.4a */
-	/* InfoFrame packet type */
-	HDMI_PACKET_TYPE_INFOFRAME = 0x80,
-	/* Vendor-Specific InfoFrame */
-	HDMI_PACKET_TYPE_VSI = HDMI_PACKET_TYPE_INFOFRAME + 1,
-	/* Auxiliary Video information InfoFrame */
-	HDMI_PACKET_TYPE_AVI = HDMI_PACKET_TYPE_INFOFRAME + 2,
-	/* Audio information InfoFrame */
-	HDMI_PACKET_TYPE_AUI = HDMI_PACKET_TYPE_INFOFRAME + 4
-};
 
 enum hdmi_type {
 	HDMI_TYPE13,
@@ -379,12 +367,6 @@ static const struct hdmiphy_config hdmiphy_v14_configs[] = {
 	},
 };
 
-struct hdmi_infoframe {
-	enum HDMI_PACKET_TYPE type;
-	u8 ver;
-	u8 len;
-};
-
 static inline u32 hdmi_reg_read(struct hdmi_context *hdata, u32 reg_id)
 {
 	return readl(hdata->regs + reg_id);
@@ -682,7 +664,7 @@ static u8 hdmi_chksum(struct hdmi_context *hdata,
 }
 
 static void hdmi_reg_infoframe(struct hdmi_context *hdata,
-			struct hdmi_infoframe *infoframe)
+			union hdmi_infoframe *infoframe)
 {
 	u32 hdr_sum;
 	u8 chksum;
@@ -700,13 +682,15 @@ static void hdmi_reg_infoframe(struct hdmi_context *hdata,
 		return;
 	}
 
-	switch (infoframe->type) {
-	case HDMI_PACKET_TYPE_AVI:
+	switch (infoframe->any.type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
 		hdmi_reg_writeb(hdata, HDMI_AVI_CON, HDMI_AVI_CON_EVERY_VSYNC);
-		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER0, infoframe->type);
-		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER1, infoframe->ver);
-		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER2, infoframe->len);
-		hdr_sum = infoframe->type + infoframe->ver + infoframe->len;
+		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER0, infoframe->any.type);
+		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER1,
+				infoframe->any.version);
+		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER2, infoframe->any.length);
+		hdr_sum = infoframe->any.type + infoframe->any.version +
+			  infoframe->any.length;
 
 		/* Output format zero hardcoded ,RGB YBCR selection */
 		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(1), 0 << 5 |
@@ -722,18 +706,20 @@ static void hdmi_reg_infoframe(struct hdmi_context *hdata,
 		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(4), vic);
 
 		chksum = hdmi_chksum(hdata, HDMI_AVI_BYTE(1),
-					infoframe->len, hdr_sum);
+					infoframe->any.length, hdr_sum);
 		DRM_DEBUG_KMS("AVI checksum = 0x%x\n", chksum);
 		hdmi_reg_writeb(hdata, HDMI_AVI_CHECK_SUM, chksum);
 		break;
-	case HDMI_PACKET_TYPE_AUI:
+	case HDMI_INFOFRAME_TYPE_AUDIO:
 		hdmi_reg_writeb(hdata, HDMI_AUI_CON, 0x02);
-		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER0, infoframe->type);
-		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER1, infoframe->ver);
-		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER2, infoframe->len);
-		hdr_sum = infoframe->type + infoframe->ver + infoframe->len;
+		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER0, infoframe->any.type);
+		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER1,
+				infoframe->any.version);
+		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER2, infoframe->any.length);
+		hdr_sum = infoframe->any.type + infoframe->any.version +
+			  infoframe->any.length;
 		chksum = hdmi_chksum(hdata, HDMI_AUI_BYTE(1),
-					infoframe->len, hdr_sum);
+					infoframe->any.length, hdr_sum);
 		DRM_DEBUG_KMS("AUI checksum = 0x%x\n", chksum);
 		hdmi_reg_writeb(hdata, HDMI_AUI_CHECK_SUM, chksum);
 		break;
@@ -985,7 +971,7 @@ static void hdmi_conf_reset(struct hdmi_context *hdata)
 
 static void hdmi_conf_init(struct hdmi_context *hdata)
 {
-	struct hdmi_infoframe infoframe;
+	union hdmi_infoframe infoframe;
 
 	/* disable HPD interrupts from HDMI IP block, use GPIO instead */
 	hdmi_reg_writemask(hdata, HDMI_INTC_CON, 0, HDMI_INTC_EN_GLOBAL |
@@ -1021,14 +1007,14 @@ static void hdmi_conf_init(struct hdmi_context *hdata)
 		hdmi_reg_writeb(hdata, HDMI_V13_AUI_CON, 0x02);
 		hdmi_reg_writeb(hdata, HDMI_V13_ACR_CON, 0x04);
 	} else {
-		infoframe.type = HDMI_PACKET_TYPE_AVI;
-		infoframe.ver = HDMI_AVI_VERSION;
-		infoframe.len = HDMI_AVI_LENGTH;
+		infoframe.any.type = HDMI_INFOFRAME_TYPE_AVI;
+		infoframe.any.version = HDMI_AVI_VERSION;
+		infoframe.any.length = HDMI_AVI_LENGTH;
 		hdmi_reg_infoframe(hdata, &infoframe);
 
-		infoframe.type = HDMI_PACKET_TYPE_AUI;
-		infoframe.ver = HDMI_AUI_VERSION;
-		infoframe.len = HDMI_AUI_LENGTH;
+		infoframe.any.type = HDMI_INFOFRAME_TYPE_AUDIO;
+		infoframe.any.version = HDMI_AUI_VERSION;
+		infoframe.any.length = HDMI_AUI_LENGTH;
 		hdmi_reg_infoframe(hdata, &infoframe);
 
 		/* enable AVI packet every vsync, fixes purple line problem */
