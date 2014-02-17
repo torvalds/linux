@@ -47,6 +47,8 @@ struct wpan_phy {
 	s8 transmit_power;
 	u8 cca_mode;
 
+	bool lbt;
+
 	struct device dev;
 	int idx;
 
@@ -55,6 +57,7 @@ struct wpan_phy {
 	void (*del_iface)(struct wpan_phy *phy, struct net_device *dev);
 
 	int (*set_txpower)(struct wpan_phy *phy, int db);
+	int (*set_lbt)(struct wpan_phy *phy, bool on);
 
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };

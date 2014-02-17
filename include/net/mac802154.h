@@ -117,6 +117,11 @@ struct ieee802154_dev {
  * set_txpower:
  *	  Set radio transmit power in dB. Called with pib_lock held.
  *	  Returns either zero, or negative errno.
+ *
+ * set_lbt
+ *	  Enables or disables listen before talk on the device. Called with
+ *	  pib_lock held.
+ *	  Returns either zero, or negative errno.
  */
 struct ieee802154_ops {
 	struct module	*owner;
@@ -134,6 +139,7 @@ struct ieee802154_ops {
 	int		(*ieee_addr)(struct ieee802154_dev *dev,
 				     u8 addr[IEEE802154_ADDR_LEN]);
 	int		(*set_txpower)(struct ieee802154_dev *dev, int db);
+	int		(*set_lbt)(struct ieee802154_dev *dev, bool on);
 };
 
 /* Basic interface to register ieee802154 device */

@@ -152,7 +152,7 @@ static inline int is_rf212(struct at86rf230_local *local)
 #define	SR_RESERVED_17_5	0x17, 0x08, 3
 #define	SR_AACK_UPLD_RES_FT	0x17, 0x10, 4
 #define	SR_AACK_FLTR_RES_FT	0x17, 0x20, 5
-#define	SR_RESERVED_17_2	0x17, 0x40, 6
+#define	SR_CSMA_LBT_MODE	0x17, 0x40, 6
 #define	SR_RESERVED_17_1	0x17, 0x80, 7
 #define	RG_FTN_CTRL	(0x18)
 #define	SR_RESERVED_18_2	0x18, 0x7f, 0
@@ -786,6 +786,14 @@ at86rf212_set_txpower(struct ieee802154_dev *dev, int db)
 	return 0;
 }
 
+static int
+at86rf212_set_lbt(struct ieee802154_dev *dev, bool on)
+{
+	struct at86rf230_local *lp = dev->priv;
+
+	return at86rf230_write_subreg(lp, SR_CSMA_LBT_MODE, on);
+}
+
 static struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
 	.xmit = at86rf230_xmit,
@@ -805,6 +813,7 @@ static struct ieee802154_ops at86rf212_ops = {
 	.stop = at86rf230_stop,
 	.set_hw_addr_filt = at86rf230_set_hw_addr_filt,
 	.set_txpower = at86rf212_set_txpower,
+	.set_lbt = at86rf212_set_lbt,
 };
 
 static void at86rf230_irqwork(struct work_struct *work)

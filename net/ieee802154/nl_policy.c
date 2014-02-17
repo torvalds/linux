@@ -54,5 +54,6 @@ const struct nla_policy ieee802154_policy[IEEE802154_ATTR_MAX + 1] = {
 	[IEEE802154_ATTR_CHANNEL_PAGE_LIST] = { .len = 32 * 4, },
 
 	[IEEE802154_ATTR_TXPOWER] = { .type = NLA_S8, },
+	[IEEE802154_ATTR_LBT_ENABLED] = { .type = NLA_U8, },
 };
 
