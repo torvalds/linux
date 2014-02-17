@@ -221,6 +221,7 @@ static int act8865_pdata_from_dt(struct device *dev,
 
 	matched = of_regulator_match(dev, np,
 				act8865_matches, ARRAY_SIZE(act8865_matches));
+	of_node_put(np);
 	if (matched <= 0)
 		return matched;
 
