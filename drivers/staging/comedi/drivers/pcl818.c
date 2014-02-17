@@ -262,24 +262,153 @@ static const struct comedi_lrange range718_unipolar1 = {
 };
 
 struct pcl818_board {
-
-	const char *name;	/*  driver name */
-	int n_ranges;		/*  len of range list */
-	int n_aichan_se;	/*  num of A/D chans in single ended  mode */
-	int n_aichan_diff;	/*  num of A/D chans in diferencial mode */
-	unsigned int ns_min;	/*  minimal allowed delay between samples (in ns) */
-	int n_aochan;		/*  num of D/A chans */
-	int n_dichan;		/*  num of DI chans */
-	int n_dochan;		/*  num of DO chans */
-	const struct comedi_lrange *ai_range_type;	/*  default A/D rangelist */
-	const struct comedi_lrange *ao_range_type;	/*  default D/A rangelist */
-	unsigned int io_range;	/*  len of IO space */
-	unsigned int IRQbits;	/*  allowed interrupts */
-	unsigned int DMAbits;	/*  allowed DMA chans */
-	int ai_maxdata;		/*  maxdata for A/D */
-	int ao_maxdata;		/*  maxdata for D/A */
-	unsigned char fifo;	/*  1=board has FIFO */
+	const char *name;
+	int n_ranges;
+	int n_aichan_se;
+	int n_aichan_diff;
+	unsigned int ns_min;
+	int n_aochan;
+	int n_dichan;
+	int n_dochan;
+	const struct comedi_lrange *ai_range_type;
+	const struct comedi_lrange *ao_range_type;
+	unsigned int io_range;
+	unsigned int IRQbits;
+	unsigned int DMAbits;
+	int ai_maxdata;
+	int ao_maxdata;
+	unsigned char fifo;
 	int is_818;
+};
+
+static const struct pcl818_board boardtypes[] = {
+	{
+		.name		= "pcl818l",
+		.n_ranges	= 4,
+		.n_aichan_se	= 16,
+		.n_aichan_diff	= 8,
+		.ns_min		= 25000,
+		.n_aochan	= 1,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl818l_l_ai,
+		.ao_range_type	= &range_unipolar5,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xfff,
+		.ao_maxdata	= 0xfff,
+		.fifo		= 0,
+		.is_818		= 1,
+	}, {
+		.name		= "pcl818h",
+		.n_ranges	= 9,
+		.n_aichan_se	= 16,
+		.n_aichan_diff	= 8,
+		.ns_min		= 10000,
+		.n_aochan	= 1,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl818h_ai,
+		.ao_range_type	= &range_unipolar5,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xfff,
+		.ao_maxdata	= 0xfff,
+		.fifo		= 0,
+		.is_818		= 1,
+	}, {
+		.name		= "pcl818hd",
+		.n_ranges	= 9,
+		.n_aichan_se	= 16,
+		.n_aichan_diff	= 8,
+		.ns_min		= 10000,
+		.n_aochan	= 1,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl818h_ai,
+		.ao_range_type	= &range_unipolar5,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xfff,
+		.ao_maxdata	= 0xfff,
+		.fifo		= 1,
+		.is_818		= 1,
+	}, {
+		.name		= "pcl818hg",
+		.n_ranges	= 12,
+		.n_aichan_se	= 16,
+		.n_aichan_diff	= 8,
+		.ns_min		= 10000,
+		.n_aochan	= 1,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl818hg_ai,
+		.ao_range_type	= &range_unipolar5,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xfff,
+		.ao_maxdata	= 0xfff,
+		.fifo		= 1,
+		.is_818		= 1,
+	}, {
+		.name		= "pcl818",
+		.n_ranges	= 9,
+		.n_aichan_se	= 16,
+		.n_aichan_diff	= 8,
+		.ns_min		= 10000,
+		.n_aochan	= 2,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl818h_ai,
+		.ao_range_type	= &range_unipolar5,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xfff,
+		.ao_maxdata	= 0xfff,
+		.fifo		= 0,
+		.is_818		= 1,
+	}, {
+		.name		= "pcl718",
+		.n_ranges	= 1,
+		.n_aichan_se	= 16,
+		.n_aichan_diff	= 8,
+		.ns_min		= 16000,
+		.n_aochan	= 2,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_unipolar5,
+		.ao_range_type	= &range_unipolar5,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xfff,
+		.ao_maxdata	= 0xfff,
+		.fifo		= 0,
+		.is_818		= 0,
+	}, {
+		.name		= "pcm3718",
+		.n_ranges	= 9,
+		.n_aichan_se	= 16,
+		.n_aichan_diff	= 8,
+		.ns_min		= 10000,
+		.n_aochan	= 0,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl818h_ai,
+		.ao_range_type	= &range_unipolar5,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xfff,
+		.ao_maxdata	= 0xfff,
+		.fifo		= 0,
+		.is_818		= 1,
+	},
 };
 
 struct pcl818_private {
@@ -1434,31 +1563,6 @@ static void pcl818_detach(struct comedi_device *dev)
 	}
 	comedi_legacy_detach(dev);
 }
-
-static const struct pcl818_board boardtypes[] = {
-	{"pcl818l", 4, 16, 8, 25000, 1, 16, 16, &range_pcl818l_l_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 1},
-	{"pcl818h", 9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 1},
-	{"pcl818hd", 9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 1, 1},
-	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 1, 1},
-	{"pcl818", 9, 16, 8, 10000, 2, 16, 16, &range_pcl818h_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 1},
-	{"pcl718", 1, 16, 8, 16000, 2, 16, 16, &range_unipolar5,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 0},
-	/* pcm3718 */
-	{"pcm3718", 9, 16, 8, 10000, 0, 16, 16, &range_pcl818h_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 1 /* XXX ? */ },
-};
 
 static struct comedi_driver pcl818_driver = {
 	.driver_name	= "pcl818",
