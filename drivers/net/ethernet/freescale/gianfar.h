@@ -9,7 +9,7 @@
  * Maintainer: Kumar Gala
  * Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- * Copyright 2002-2009, 2011 Freescale Semiconductor, Inc.
+ * Copyright 2002-2009, 2011-2013 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -892,8 +892,8 @@ struct gfar {
 #define DEFAULT_MAPPING 	0xFF
 #endif
 
-#define ISRG_SHIFT_TX	0x10
-#define ISRG_SHIFT_RX	0x18
+#define ISRG_RR0	0x80000000
+#define ISRG_TR0	0x00800000
 
 /* The same driver can operate in two modes */
 /* SQ_SG_MODE: Single Queue Single Group Mode
@@ -1113,6 +1113,9 @@ struct gfar_private {
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
 
+	u32 rqueue;
+	u32 tqueue;
+
 	/* RX per device parameters */
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
@@ -1174,6 +1177,31 @@ static inline void gfar_read_filer(struct gfar_private *priv,
 	gfar_write(&regs->rqfar, far);
 	*fcr = gfar_read(&regs->rqfcr);
 	*fpr = gfar_read(&regs->rqfpr);
+}
+
+static inline void gfar_write_isrg(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+	u32 __iomem *baddr = &regs->isrg0;
+	u32 isrg = 0;
+	int grp_idx, i;
+
+	for (grp_idx = 0; grp_idx < priv->num_grps; grp_idx++) {
+		struct gfar_priv_grp *grp = &priv->gfargrp[grp_idx];
+
+		for_each_set_bit(i, &grp->rx_bit_map, priv->num_rx_queues) {
+			isrg |= (ISRG_RR0 >> i);
+		}
+
+		for_each_set_bit(i, &grp->tx_bit_map, priv->num_tx_queues) {
+			isrg |= (ISRG_TR0 >> i);
+		}
+
+		gfar_write(baddr, isrg);
+
+		baddr++;
+		isrg = 0;
+	}
 }
 
 void lock_rx_qs(struct gfar_private *priv);
