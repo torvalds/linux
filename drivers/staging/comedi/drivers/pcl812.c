@@ -507,8 +507,6 @@ static const struct pcl812_board boardtypes[] = {
 };
 
 struct pcl812_private {
-
-	unsigned char valid;	/*  =1 device is OK */
 	unsigned char dma;	/*  >0 use dma ( usedDMA channel) */
 	unsigned char use_diff;	/*  =1 diff inputs */
 	unsigned char use_MPC;	/*  1=board uses MPC508A multiplexor */
@@ -1496,8 +1494,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->max_812_ai_mode0_rangewait = 5;
 		break;
 	}
-
-	devpriv->valid = 1;
 
 	pcl812_reset(dev);
 
