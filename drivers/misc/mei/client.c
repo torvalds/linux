@@ -552,7 +552,8 @@ out:
 int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 {
 	struct mei_device *dev;
-	int i;
+	struct mei_me_client *me_cl;
+	int id;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
@@ -565,19 +566,19 @@ int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 	if (cl->mei_flow_ctrl_creds > 0)
 		return 1;
 
-	for (i = 0; i < dev->me_clients_num; i++) {
-		struct mei_me_client  *me_cl = &dev->me_clients[i];
-		if (me_cl->client_id == cl->me_client_id) {
-			if (me_cl->mei_flow_ctrl_creds) {
-				if (WARN_ON(me_cl->props.single_recv_buf == 0))
-					return -EINVAL;
-				return 1;
-			} else {
-				return 0;
-			}
-		}
+	id = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (id < 0) {
+		cl_err(dev, cl, "no such me client %d\n", cl->me_client_id);
+		return id;
 	}
-	return -ENOENT;
+
+	me_cl = &dev->me_clients[id];
+	if (me_cl->mei_flow_ctrl_creds) {
+		if (WARN_ON(me_cl->props.single_recv_buf == 0))
+			return -EINVAL;
+		return 1;
+	}
+	return 0;
 }
 
 /**
@@ -593,32 +594,31 @@ int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 {
 	struct mei_device *dev;
-	int i;
+	struct mei_me_client *me_cl;
+	int id;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
 
 	dev = cl->dev;
 
-	if (!dev->me_clients_num)
-		return -ENOENT;
-
-	for (i = 0; i < dev->me_clients_num; i++) {
-		struct mei_me_client  *me_cl = &dev->me_clients[i];
-		if (me_cl->client_id == cl->me_client_id) {
-			if (me_cl->props.single_recv_buf != 0) {
-				if (WARN_ON(me_cl->mei_flow_ctrl_creds <= 0))
-					return -EINVAL;
-				dev->me_clients[i].mei_flow_ctrl_creds--;
-			} else {
-				if (WARN_ON(cl->mei_flow_ctrl_creds <= 0))
-					return -EINVAL;
-				cl->mei_flow_ctrl_creds--;
-			}
-			return 0;
-		}
+	id = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (id < 0) {
+		cl_err(dev, cl, "no such me client %d\n", cl->me_client_id);
+		return id;
 	}
-	return -ENOENT;
+
+	me_cl = &dev->me_clients[id];
+	if (me_cl->props.single_recv_buf != 0) {
+		if (WARN_ON(me_cl->mei_flow_ctrl_creds <= 0))
+			return -EINVAL;
+		me_cl->mei_flow_ctrl_creds--;
+	} else {
+		if (WARN_ON(cl->mei_flow_ctrl_creds <= 0))
+			return -EINVAL;
+		cl->mei_flow_ctrl_creds--;
+	}
+	return 0;
 }
 
 /**

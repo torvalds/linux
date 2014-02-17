@@ -22,6 +22,7 @@
 #include "mei_dev.h"
 #include "hbm.h"
 #include "hw-me.h"
+#include "client.h"
 
 static const char *mei_cl_conn_status_str(enum mei_cl_connect_status status)
 {
@@ -340,27 +341,34 @@ int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl)
  *
  * @dev: the device structure
  * @flow: flow control.
+ *
+ * return 0 on success, < 0 otherwise
  */
-static void mei_hbm_add_single_flow_creds(struct mei_device *dev,
+static int mei_hbm_add_single_flow_creds(struct mei_device *dev,
 				  struct hbm_flow_control *flow)
 {
-	struct mei_me_client *client;
-	int i;
+	struct mei_me_client *me_cl;
+	int id;
 
-	for (i = 0; i < dev->me_clients_num; i++) {
-		client = &dev->me_clients[i];
-		if (client && flow->me_addr == client->client_id) {
-			if (client->props.single_recv_buf) {
-				client->mei_flow_ctrl_creds++;
-				dev_dbg(&dev->pdev->dev, "recv flow ctrl msg ME %d (single).\n",
-				    flow->me_addr);
-				dev_dbg(&dev->pdev->dev, "flow control credentials =%d.\n",
-				    client->mei_flow_ctrl_creds);
-			} else {
-				BUG();	/* error in flow control */
-			}
-		}
+	id = mei_me_cl_by_id(dev, flow->me_addr);
+	if (id < 0) {
+		dev_err(&dev->pdev->dev, "no such me client %d\n",
+			flow->me_addr);
+		return id;
 	}
+
+	me_cl = &dev->me_clients[id];
+	if (me_cl->props.single_recv_buf) {
+		me_cl->mei_flow_ctrl_creds++;
+		dev_dbg(&dev->pdev->dev, "recv flow ctrl msg ME %d (single).\n",
+		    flow->me_addr);
+		dev_dbg(&dev->pdev->dev, "flow control credentials =%d.\n",
+		    me_cl->mei_flow_ctrl_creds);
+	} else {
+		BUG();	/* error in flow control */
+	}
+
+	return 0;
 }
 
 /**
