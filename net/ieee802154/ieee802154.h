@@ -53,6 +53,7 @@ int ieee802154_list_phy(struct sk_buff *skb, struct genl_info *info);
 int ieee802154_dump_phy(struct sk_buff *skb, struct netlink_callback *cb);
 int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info);
 int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info);
+int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info);
 
 enum ieee802154_mcgrp_ids {
 	IEEE802154_COORD_MCGRP,

@@ -113,6 +113,32 @@ struct ieee802154_dev {
  *	  Set radio for listening on specific address.
  *	  Set the device for listening on specified address.
  *	  Returns either zero, or negative errno.
+ *
+ * set_txpower:
+ *	  Set radio transmit power in dB. Called with pib_lock held.
+ *	  Returns either zero, or negative errno.
+ *
+ * set_lbt
+ *	  Enables or disables listen before talk on the device. Called with
+ *	  pib_lock held.
+ *	  Returns either zero, or negative errno.
+ *
+ * set_cca_mode
+ *	  Sets the CCA mode used by the device. Called with pib_lock held.
+ *	  Returns either zero, or negative errno.
+ *
+ * set_cca_ed_level
+ *	  Sets the CCA energy detection threshold in dBm. Called with pib_lock
+ *	  held.
+ *	  Returns either zero, or negative errno.
+ *
+ * set_csma_params
+ *	  Sets the CSMA parameter set for the PHY. Called with pib_lock held.
+ *	  Returns either zero, or negative errno.
+ *
+ * set_frame_retries
+ *	  Sets the retransmission attempt limit. Called with pib_lock held.
+ *	  Returns either zero, or negative errno.
  */
 struct ieee802154_ops {
 	struct module	*owner;
@@ -129,6 +155,15 @@ struct ieee802154_ops {
 					    unsigned long changed);
 	int		(*ieee_addr)(struct ieee802154_dev *dev,
 				     u8 addr[IEEE802154_ADDR_LEN]);
+	int		(*set_txpower)(struct ieee802154_dev *dev, int db);
+	int		(*set_lbt)(struct ieee802154_dev *dev, bool on);
+	int		(*set_cca_mode)(struct ieee802154_dev *dev, u8 mode);
+	int		(*set_cca_ed_level)(struct ieee802154_dev *dev,
+					    s32 level);
+	int		(*set_csma_params)(struct ieee802154_dev *dev,
+					   u8 min_be, u8 max_be, u8 retries);
+	int		(*set_frame_retries)(struct ieee802154_dev *dev,
+					     s8 retries);
 };
 
 /* Basic interface to register ieee802154 device */

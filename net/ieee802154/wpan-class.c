@@ -44,9 +44,7 @@ static DEVICE_ATTR_RO(name);
 
 MASTER_SHOW(current_channel, "%d");
 MASTER_SHOW(current_page, "%d");
-MASTER_SHOW_COMPLEX(transmit_power, "%d +- %d dB",
-	((signed char) (phy->transmit_power << 2)) >> 2,
-	(phy->transmit_power >> 6) ? (phy->transmit_power >> 6) * 3 : 1);
+MASTER_SHOW(transmit_power, "%d +- 1 dB");
 MASTER_SHOW(cca_mode, "%d");
 
 static ssize_t channels_supported_show(struct device *dev,
@@ -170,6 +168,12 @@ struct wpan_phy *wpan_phy_alloc(size_t priv_size)
 
 	phy->current_channel = -1; /* not initialised */
 	phy->current_page = 0; /* for compatibility */
+
+	/* defaults per 802.15.4-2011 */
+	phy->min_be = 3;
+	phy->max_be = 5;
+	phy->csma_retries = 4;
+	phy->frame_retries = -1; /* for compatibility, actual default is 3 */
 
 	return phy;
 

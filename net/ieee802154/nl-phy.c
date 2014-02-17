@@ -55,7 +55,15 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 	mutex_lock(&phy->pib_lock);
 	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_PAGE, phy->current_page) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel))
+	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel) ||
+	    nla_put_s8(msg, IEEE802154_ATTR_TXPOWER, phy->transmit_power) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_LBT_ENABLED, phy->lbt) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_CCA_MODE, phy->cca_mode) ||
+	    nla_put_s32(msg, IEEE802154_ATTR_CCA_ED_LEVEL, phy->cca_ed_level) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_CSMA_RETRIES, phy->csma_retries) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_CSMA_MIN_BE, phy->min_be) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_CSMA_MAX_BE, phy->max_be) ||
+	    nla_put_s8(msg, IEEE802154_ATTR_FRAME_RETRIES, phy->frame_retries))
 		goto nla_put_failure;
 	for (i = 0; i < 32; i++) {
 		if (phy->channels_supported[i])
@@ -352,5 +360,193 @@ out_dev:
 	if (dev)
 		dev_put(dev);
 
+	return rc;
+}
+
+static int phy_set_txpower(struct wpan_phy *phy, struct genl_info *info)
+{
+	int txpower = nla_get_s8(info->attrs[IEEE802154_ATTR_TXPOWER]);
+	int rc;
+
+	rc = phy->set_txpower(phy, txpower);
+	if (rc < 0)
+		return rc;
+
+	phy->transmit_power = txpower;
+
+	return 0;
+}
+
+static int phy_set_lbt(struct wpan_phy *phy, struct genl_info *info)
+{
+	u8 on = !!nla_get_u8(info->attrs[IEEE802154_ATTR_LBT_ENABLED]);
+	int rc;
+
+	rc = phy->set_lbt(phy, on);
+	if (rc < 0)
+		return rc;
+
+	phy->lbt = on;
+
+	return 0;
+}
+
+static int phy_set_cca_mode(struct wpan_phy *phy, struct genl_info *info)
+{
+	u8 mode = nla_get_u8(info->attrs[IEEE802154_ATTR_CCA_MODE]);
+	int rc;
+
+	if (mode > 3)
+		return -EINVAL;
+
+	rc = phy->set_cca_mode(phy, mode);
+	if (rc < 0)
+		return rc;
+
+	phy->cca_mode = mode;
+
+	return 0;
+}
+
+static int phy_set_cca_ed_level(struct wpan_phy *phy, struct genl_info *info)
+{
+	s32 level = nla_get_s32(info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]);
+	int rc;
+
+	rc = phy->set_cca_ed_level(phy, level);
+	if (rc < 0)
+		return rc;
+
+	phy->cca_ed_level = level;
+
+	return 0;
+}
+
+static int phy_set_csma_params(struct wpan_phy *phy, struct genl_info *info)
+{
+	int rc;
+	u8 min_be = phy->min_be;
+	u8 max_be = phy->max_be;
+	u8 retries = phy->csma_retries;
+
+	if (info->attrs[IEEE802154_ATTR_CSMA_RETRIES])
+		retries = nla_get_u8(info->attrs[IEEE802154_ATTR_CSMA_RETRIES]);
+	if (info->attrs[IEEE802154_ATTR_CSMA_MIN_BE])
+		min_be = nla_get_u8(info->attrs[IEEE802154_ATTR_CSMA_MIN_BE]);
+	if (info->attrs[IEEE802154_ATTR_CSMA_MAX_BE])
+		max_be = nla_get_u8(info->attrs[IEEE802154_ATTR_CSMA_MAX_BE]);
+
+	if (retries > 5 || max_be > 8 || min_be > max_be ||
+	    retries < -1 || retries > 7)
+		return -EINVAL;
+
+	rc = phy->set_csma_params(phy, min_be, max_be, retries);
+	if (rc < 0)
+		return rc;
+
+	phy->min_be = min_be;
+	phy->max_be = max_be;
+	phy->csma_retries = retries;
+
+	return 0;
+}
+
+static int phy_set_frame_retries(struct wpan_phy *phy, struct genl_info *info)
+{
+	s8 retries = nla_get_s8(info->attrs[IEEE802154_ATTR_FRAME_RETRIES]);
+	int rc;
+
+	rc = phy->set_frame_retries(phy, retries);
+	if (rc < 0)
+		return rc;
+
+	phy->frame_retries = retries;
+
+	return 0;
+}
+
+int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
+{
+	struct wpan_phy *phy;
+	const char *name;
+	int rc = -ENOTSUPP;
+
+	pr_debug("%s\n", __func__);
+
+	if (!info->attrs[IEEE802154_ATTR_PHY_NAME] &&
+	    !info->attrs[IEEE802154_ATTR_LBT_ENABLED] &&
+	    !info->attrs[IEEE802154_ATTR_CCA_MODE] &&
+	    !info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL] &&
+	    !info->attrs[IEEE802154_ATTR_CSMA_RETRIES] &&
+	    !info->attrs[IEEE802154_ATTR_CSMA_MIN_BE] &&
+	    !info->attrs[IEEE802154_ATTR_CSMA_MAX_BE] &&
+	    !info->attrs[IEEE802154_ATTR_FRAME_RETRIES])
+		return -EINVAL;
+
+	name = nla_data(info->attrs[IEEE802154_ATTR_PHY_NAME]);
+	if (name[nla_len(info->attrs[IEEE802154_ATTR_PHY_NAME]) - 1] != '\0')
+		return -EINVAL; /* phy name should be null-terminated */
+
+	phy = wpan_phy_find(name);
+	if (!phy)
+		return -ENODEV;
+
+	if ((!phy->set_txpower && info->attrs[IEEE802154_ATTR_TXPOWER]) ||
+	    (!phy->set_lbt && info->attrs[IEEE802154_ATTR_LBT_ENABLED]) ||
+	    (!phy->set_cca_mode && info->attrs[IEEE802154_ATTR_CCA_MODE]) ||
+	    (!phy->set_cca_ed_level &&
+	     info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]))
+		goto out;
+
+	mutex_lock(&phy->pib_lock);
+
+	if (info->attrs[IEEE802154_ATTR_TXPOWER]) {
+		rc = phy_set_txpower(phy, info);
+		if (rc < 0)
+			goto error;
+	}
+
+	if (info->attrs[IEEE802154_ATTR_LBT_ENABLED]) {
+		rc = phy_set_lbt(phy, info);
+		if (rc < 0)
+			goto error;
+	}
+
+	if (info->attrs[IEEE802154_ATTR_CCA_MODE]) {
+		rc = phy_set_cca_mode(phy, info);
+		if (rc < 0)
+			goto error;
+	}
+
+	if (info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]) {
+		rc = phy_set_cca_ed_level(phy, info);
+		if (rc < 0)
+			goto error;
+	}
+
+	if (info->attrs[IEEE802154_ATTR_CSMA_RETRIES] ||
+	    info->attrs[IEEE802154_ATTR_CSMA_MIN_BE] ||
+	    info->attrs[IEEE802154_ATTR_CSMA_MAX_BE]) {
+		rc = phy_set_csma_params(phy, info);
+		if (rc < 0)
+			goto error;
+	}
+
+	if (info->attrs[IEEE802154_ATTR_FRAME_RETRIES]) {
+		rc = phy_set_frame_retries(phy, info);
+		if (rc < 0)
+			goto error;
+	}
+
+	mutex_unlock(&phy->pib_lock);
+
+	wpan_phy_put(phy);
+
+	return 0;
+
+error:
+	mutex_unlock(&phy->pib_lock);
+out:
+	wpan_phy_put(phy);
 	return rc;
 }
