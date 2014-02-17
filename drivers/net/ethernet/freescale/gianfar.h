@@ -1205,7 +1205,8 @@ void unlock_tx_qs(struct gfar_private *priv);
 irqreturn_t gfar_receive(int irq, void *dev_id);
 int startup_gfar(struct net_device *dev);
 void stop_gfar(struct net_device *dev);
-void gfar_halt(struct net_device *dev);
+void gfar_halt(struct gfar_private *priv);
+void gfar_start(struct gfar_private *priv);
 void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev, int enable,
 		   u32 regnum, u32 read);
 void gfar_configure_coalescing_all(struct gfar_private *priv);
