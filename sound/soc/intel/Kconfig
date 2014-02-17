@@ -11,3 +11,15 @@ config SND_MFLD_MACHINE
 
 config SND_SST_MFLD_PLATFORM
 	tristate
+
+config SND_SOC_INTEL_SST
+	tristate "ASoC support for Intel(R) Smart Sound Technology"
+	select SND_SOC_INTEL_SST_ACPI if ACPI
+	help
+          This adds support for Intel(R) Smart Sound Technology (SST).
+          Say Y if you have such a device
+          If unsure select "N".
+
+config SND_SOC_INTEL_SST_ACPI
+	tristate
+
