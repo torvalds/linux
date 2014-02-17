@@ -131,10 +131,7 @@
 #define boardACL8216	      8	/* and ICP DAS A-826PG */
 #define boardA821	      9	/* PGH, PGL, PGL/NDA versions */
 
-#define PCL812_CTR0	      0
-#define PCL812_CTR1	      1
-#define PCL812_CTR2	      2
-#define PCL812_CTRCTL	      3
+#define PCL812_TIMER_BASE			0x00
 #define PCL812_AD_LO	      4
 #define PCL812_DA1_LO	      4
 #define PCL812_AD_HI	      5
@@ -534,16 +531,26 @@ struct pcl812_private {
 	unsigned int ao_readback[2];	/*  data for AO readback */
 };
 
-/*
-==============================================================================
-*/
-static void start_pacer(struct comedi_device *dev, int mode,
-			unsigned int divisor1, unsigned int divisor2);
 static void setup_range_channel(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				unsigned int rangechan, char wait);
 static int pcl812_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
+
+static void pcl812_start_pacer(struct comedi_device *dev, bool load_timers,
+			       unsigned int divisor1, unsigned int divisor2)
+{
+	unsigned long timer_base = dev->iobase + PCL812_TIMER_BASE;
+
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	udelay(1);
+
+	if (load_timers) {
+		i8254_write(timer_base, 0, 2, divisor2);
+		i8254_write(timer_base, 0, 1, divisor1);
+	}
+}
 
 static unsigned int pcl812_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
@@ -768,7 +775,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					  &cmd->convert_arg, cmd->flags);
 	}
 
-	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
+	pcl812_start_pacer(dev, false, 0, 0);
 
 	memcpy(devpriv->ai_chanlist, cmd->chanlist,
 	       sizeof(unsigned int) * cmd->scan_end_arg);
@@ -862,7 +869,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	switch (cmd->convert_src) {
 	case TRIG_TIMER:
-		start_pacer(dev, 1, divisor1, divisor2);
+		pcl812_start_pacer(dev, true, divisor1, divisor2);
 		break;
 	}
 
@@ -1137,24 +1144,6 @@ static void setup_range_channel(struct comedi_device *dev,
 /*
 ==============================================================================
 */
-static void start_pacer(struct comedi_device *dev, int mode,
-			unsigned int divisor1, unsigned int divisor2)
-{
-	outb(0xb4, dev->iobase + PCL812_CTRCTL);
-	outb(0x74, dev->iobase + PCL812_CTRCTL);
-	udelay(1);
-
-	if (mode == 1) {
-		outb(divisor2 & 0xff, dev->iobase + PCL812_CTR2);
-		outb((divisor2 >> 8) & 0xff, dev->iobase + PCL812_CTR2);
-		outb(divisor1 & 0xff, dev->iobase + PCL812_CTR1);
-		outb((divisor1 >> 8) & 0xff, dev->iobase + PCL812_CTR1);
-	}
-}
-
-/*
-==============================================================================
-*/
 static int pcl812_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -1165,7 +1154,7 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 							/* Stop A/D */
 	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
-	start_pacer(dev, -1, 0, 0);	/*  stop 8254 */
+	pcl812_start_pacer(dev, false, 0, 0);
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 	return 0;
 }
@@ -1193,7 +1182,7 @@ static void pcl812_reset(struct comedi_device *dev)
 	case boardA821:
 		outb(0, dev->iobase + PCL812_DA1_LO);
 		outb(0, dev->iobase + PCL812_DA1_HI);
-		start_pacer(dev, -1, 0, 0);	/*  stop 8254 */
+		pcl812_start_pacer(dev, false, 0, 0);
 		outb(0, dev->iobase + PCL812_DO_HI);
 		outb(0, dev->iobase + PCL812_DO_LO);
 		outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
