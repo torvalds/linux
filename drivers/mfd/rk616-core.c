@@ -4,9 +4,12 @@
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/mfd/rk616.h>
-#include <mach/iomux.h>
+//#include <mach/iomux.h>
 #include <linux/err.h>
 #include <linux/uaccess.h>
+#include <linux/interrupt.h>
+#include <linux/of_gpio.h>
+#include <linux/of_device.h>
 #if defined(CONFIG_DEBUG_FS)
 #include <linux/fs.h>
 #include <linux/debugfs.h>
@@ -61,14 +64,14 @@ static int rk616_i2c_read_reg(struct mfd_rk616 *rk616, u16 reg,u32 *pval)
 	msgs[0].len = 2;
 	msgs[0].buf = reg_buf;
 	msgs[0].scl_rate = rk616->pdata->scl_rate;
-	msgs[0].udelay = client->udelay;
+	//msgs[0].udelay = client->udelay;
 
 	msgs[1].addr = client->addr;
 	msgs[1].flags = client->flags | I2C_M_RD;
 	msgs[1].len = 4;
 	msgs[1].buf = (char *)pval;
 	msgs[1].scl_rate = rk616->pdata->scl_rate;
-	msgs[1].udelay = client->udelay;
+	//msgs[1].udelay = client->udelay;
 
 	ret = i2c_transfer(adap, msgs, 2);
 
@@ -95,7 +98,7 @@ static int rk616_i2c_write_reg(struct mfd_rk616 *rk616, u16 reg,u32 *pval)
 	msg.len = 6;
 	msg.buf = (char *)tx_buf;
 	msg.scl_rate = rk616->pdata->scl_rate;
-	msg.udelay = client->udelay;
+	//msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	kfree(tx_buf);
@@ -132,7 +135,7 @@ static int rk616_i2c_write_bits(struct mfd_rk616 *rk616, u16 reg,u32 mask,u32 *p
 	msg.len = 6;
 	msg.buf = (char *)tx_buf;
 	msg.scl_rate = rk616->pdata->scl_rate;
-	msg.udelay = client->udelay;
+	//msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	kfree(tx_buf);
@@ -162,7 +165,7 @@ static int rk616_i2c_bulk_write(struct mfd_rk616 *rk616, u16 reg,int count,u32 *
 	msg.len = (count<<2) + 2;
 	msg.buf = (char *)tx_buf;
 	msg.scl_rate = rk616->pdata->scl_rate;
-	msg.udelay = client->udelay;
+	//msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	kfree(tx_buf);
@@ -486,7 +489,7 @@ static struct rk616_platform_data *rk616_parse_dt(struct mfd_rk616 *rk616)
 
 	pdata = devm_kzalloc(rk616->dev, sizeof(struct rk616_platform_data), GFP_KERNEL);
 	if (!pdata) {
-		dev_err(&rk616->dev, "rk616_platform_data kmalloc fail!");
+		dev_err(rk616->dev, "rk616_platform_data kmalloc fail!");
 		return NULL;
 	}
 
@@ -520,6 +523,14 @@ static struct rk616_platform_data *rk616_parse_dt(struct mfd_rk616 *rk616)
 {
 	return NULL;
 }
+#endif
+
+#if defined(CONFIG_OF)
+static const struct of_device_id rk616_dt_ids[] = {
+	{.compatible = "rockchip,rk616",},
+	{}
+};
+MODULE_DEVICE_TABLE(of, rk616_dt_ids);
 #endif
 
 
@@ -573,7 +584,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 		#if defined(CONFIG_ARCH_RK29)
 		rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
 		#else
-		iomux_set(I2S0_MCLK);
+		//iomux_set(I2S0_MCLK); //set at i2s driver
 		#endif
 		clk_enable(iis_clk);
 		//clk_set_rate(iis_clk, 11289600);
@@ -603,13 +614,13 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	rk616_clk_common_init(rk616);
 	ret = mfd_add_devices(rk616->dev, -1,
 				      rk616_devs, ARRAY_SIZE(rk616_devs),
-				      NULL, rk616->irq_base);
+				      NULL, rk616->irq_base, NULL);
 	
 	dev_info(&client->dev,"rk616 core probe success!\n");
 	return 0;
 }
 
-static int __devexit rk616_i2c_remove(struct i2c_client *client)
+static int rk616_i2c_remove(struct i2c_client *client)
 {
 	return 0;
 }
@@ -620,15 +631,6 @@ static void rk616_core_shutdown(struct i2c_client *client)
 	if(rk616->pdata->power_deinit)
 		rk616->pdata->power_deinit();
 }
-
-
-#if defined(CONFIG_OF)
-static const struct of_device_id rk616_dt_ids[] = {
-	{.compatible = "rockchip,rk616",},
-	{}
-};
-MODULE_DEVICE_TABLE(of, rk616_dt_ids);
-#endif
 
 
 static const struct i2c_device_id id_table[] = {

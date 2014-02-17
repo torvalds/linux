@@ -151,7 +151,7 @@ static void hdmi_early_resume(struct early_suspend *h)
 		// hdmi_irq();
                 rk616_hdmi_work(hdmi);
 	}
-        if (rk616_hdmi->rk616_drv && rk616_hdmi->rk616_drv->pdata->hdmi_irq == INVALID_GPIO) 
+        if (rk616_hdmi->rk616_drv && !gpio_is_valid(rk616_hdmi->rk616_drv->pdata->hdmi_irq)) 
                 queue_delayed_work(hdmi->workqueue, &rk616_hdmi->rk616_delay_work, 100);
 	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
 	mutex_unlock(&hdmi->enable_mutex);
@@ -170,7 +170,7 @@ static void rk616_delay_work_func(struct work_struct *work)
                         rk616_hdmi_work(hdmi);
 		}
 
-                if (rk616_hdmi->rk616_drv && rk616_hdmi->rk616_drv->pdata->hdmi_irq == INVALID_GPIO) {
+                if (rk616_hdmi->rk616_drv && !gpio_is_valid(rk616_hdmi->rk616_drv->pdata->hdmi_irq)) {
                         queue_delayed_work(hdmi->workqueue, &rk616_hdmi->rk616_delay_work, 100);
                 }
 	}
@@ -299,7 +299,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
                 goto err0;
         }
         
-        printk("res->start = 0x%x\n, xhc-------res->end = 0x%x\n", res->start, res->end);
+        dev_info(hdmi->dev, "res->start = 0x%x\n,res->end = 0x%x\n", res->start, res->end);
         hdmi->regbase = (int)ioremap(res->start, (res->end - res->start) + 1);
         if (!hdmi->regbase) {
                 dev_err(hdmi->dev, "cannot ioremap registers\n");
@@ -330,7 +330,7 @@ static int rk616_hdmi_probe(struct platform_device *pdev)
         }
 #else
         ret = rk616_hdmi_initial(hdmi);
-        if(rk616_hdmi->rk616_drv->pdata->hdmi_irq != INVALID_GPIO) {               
+        if(gpio_is_valid(rk616_hdmi->rk616_drv->pdata->hdmi_irq)) {               
                 INIT_WORK(&rk616_hdmi->rk616_irq_work_struct, rk616_irq_work_func);
                 ret = gpio_request(rk616_hdmi->rk616_drv->pdata->hdmi_irq,"rk616_hdmi_irq");
                 if(ret < 0) {

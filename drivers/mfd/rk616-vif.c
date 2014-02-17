@@ -123,7 +123,7 @@ static bool pll_sel_mclk12m(struct mfd_rk616 *rk616,int pll_id)
 
 
 
-int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
+int rk616_vif_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen,int id)
 {
 	int ret = 0;
 	u32 val = 0;
@@ -170,7 +170,7 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 
 
 	rk616_vif_disable(rk616,id);
-	if( (screen->x_res == 1920) && (screen->y_res == 1080))
+	if( (screen->mode.xres == 1920) && (screen->mode.yres == 1080))
 	{
 		if(pll_use_mclk12m)
 			//rk616_pll_set_rate(rk616,pll_id,0xc11025,0x200000);
@@ -180,7 +180,7 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 		
 		val = (0xc1) | (0x01 <<16);
 	}
-	else if((screen->x_res == 1280) && (screen->y_res == 720))
+	else if((screen->mode.xres == 1280) && (screen->mode.yres == 720))
 	{
 		if(pll_use_mclk12m)
 			//rk616_pll_set_rate(rk616,pll_id,0x01811025,0x200000);
@@ -191,7 +191,7 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 		val = (0xc1) | (0x01 <<16);
 	
 	}
-	else if((screen->x_res == 720))
+	else if((screen->mode.xres == 720))
 	{
 		if(pll_use_mclk12m )
 		{
@@ -207,22 +207,22 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 	
 	ret = rk616->write_dev(rk616,VIF0_REG1 + offset,&val);
 
-	val = (screen->hsync_len << 16) | (screen->hsync_len + screen->left_margin + 
-		screen->right_margin + screen->x_res);
+	val = (screen->mode.hsync_len << 16) | (screen->mode.hsync_len + screen->mode.left_margin + 
+		screen->mode.right_margin + screen->mode.xres);
 	ret = rk616->write_dev(rk616,VIF0_REG2 + offset,&val);
 
 	
-	val = ((screen->hsync_len + screen->left_margin + screen->x_res)<<16) |
-		(screen->hsync_len + screen->left_margin);
+	val = ((screen->mode.hsync_len + screen->mode.left_margin + screen->mode.xres)<<16) |
+		(screen->mode.hsync_len + screen->mode.left_margin);
 	ret = rk616->write_dev(rk616,VIF0_REG3 + offset,&val);
 
-	val = (screen->vsync_len << 16) | (screen->vsync_len + screen->upper_margin + 
-		screen->lower_margin + screen->y_res);
+	val = (screen->mode.vsync_len << 16) | (screen->mode.vsync_len + screen->mode.upper_margin + 
+		screen->mode.lower_margin + screen->mode.yres);
 	ret = rk616->write_dev(rk616,VIF0_REG4 + offset,&val);
 
 
-	val = ((screen->vsync_len + screen->upper_margin + screen->y_res)<<16) |
-		(screen->vsync_len + screen->upper_margin);
+	val = ((screen->mode.vsync_len + screen->mode.upper_margin + screen->mode.yres)<<16) |
+		(screen->mode.vsync_len + screen->mode.upper_margin);
 	ret = rk616->write_dev(rk616,VIF0_REG5 + offset,&val);
 
 	if(id == 0)
@@ -253,7 +253,7 @@ static int rk616_scaler_disable(struct mfd_rk616 *rk616)
 	return 0;
 }
 
-int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
+int rk616_scaler_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen)
 {
 	u32 scl_hor_mode,scl_ver_mode;
 	u32 scl_v_factor,scl_h_factor;
@@ -274,8 +274,8 @@ int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	u8 hor_down_mode = 0;  //1:average,0:bilinear
 	u8 ver_down_mode = 0;
 	u8 bic_coe_sel = 2;
-	rk_screen *src;
-	rk_screen *dst;
+	struct rk_screen *src;
+	struct rk_screen *dst;
 	int pll_id;
 
 	struct rk616_route *route = &rk616->route;
@@ -317,19 +317,19 @@ int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 
 #if 1
 
-	src_htotal = src->hsync_len + src->left_margin + src->x_res + src->right_margin;
-	src_vact_st = src->vsync_len + src->upper_margin  ;
-	dst_vact_st = dst->vsync_len + dst->upper_margin;
+	src_htotal = src->mode.hsync_len + src->mode.left_margin + src->mode.xres + src->mode.right_margin;
+	src_vact_st = src->mode.vsync_len + src->mode.upper_margin  ;
+	dst_vact_st = dst->mode.vsync_len + dst->mode.upper_margin;
 
-	dsp_htotal    = dst->hsync_len + dst->left_margin + dst->x_res + dst->right_margin; //dst_htotal ;
-	dsp_hs_end    = dst->hsync_len;
+	dsp_htotal    = dst->mode.hsync_len + dst->mode.left_margin + dst->mode.xres + dst->mode.right_margin; //dst_htotal ;
+	dsp_hs_end    = dst->mode.hsync_len;
 
-	dsp_vtotal    = dst->vsync_len + dst->upper_margin + dst->y_res + dst->lower_margin;
-	dsp_vs_end    = dst->vsync_len;
+	dsp_vtotal    = dst->mode.vsync_len + dst->mode.upper_margin + dst->mode.yres + dst->mode.lower_margin;
+	dsp_vs_end    = dst->mode.vsync_len;
 
-	dsp_hbor_end  = dst->hsync_len + dst->left_margin + dst->x_res;
-	dsp_hbor_st   = dst->hsync_len + dst->left_margin  ;
-	dsp_vbor_end  = dst->vsync_len + dst->upper_margin + dst->y_res; //dst_vact_end ;
+	dsp_hbor_end  = dst->mode.hsync_len + dst->mode.left_margin + dst->mode.xres;
+	dsp_hbor_st   = dst->mode.hsync_len + dst->mode.left_margin  ;
+	dsp_vbor_end  = dst->mode.vsync_len + dst->mode.upper_margin + dst->mode.yres; //dst_vact_end ;
 	dsp_vbor_st   = dst_vact_st  ;
 
 	dsp_hact_st   = dsp_hbor_st  + bor_left;
@@ -337,8 +337,8 @@ int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	dsp_vact_st   = dsp_vbor_st  + bor_up;
 	dsp_vact_end  = dsp_vbor_end - bor_down; 
 
-	src_w = src->x_res;
-	src_h = src->y_res;
+	src_w = src->mode.xres;
+	src_h = src->mode.yres;
 	dst_w = dsp_hact_end - dsp_hact_st ;
 	dst_h = dsp_vact_end - dsp_vact_st ;
 
@@ -436,7 +436,7 @@ int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 }
 
 
-static int rk616_dual_input_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
+static int rk616_dual_input_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen,
 					bool enable)
 {
 	struct rk616_platform_data *pdata = rk616->pdata;
@@ -495,7 +495,7 @@ static int rk616_dual_input_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
 	
 }
 
-static int rk616_lcd0_input_lcd1_unused_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
+static int rk616_lcd0_input_lcd1_unused_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen,
 							bool enable)
 {
 	struct rk616_platform_data *pdata = rk616->pdata;
@@ -555,7 +555,7 @@ static int rk616_lcd0_input_lcd1_unused_cfg(struct mfd_rk616 *rk616,rk_screen *s
 }
 
 
-static int rk616_lcd0_input_lcd1_output_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
+static int rk616_lcd0_input_lcd1_output_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen,
 							bool enable)
 {
 	struct rk616_route *route = &rk616->route;
@@ -603,7 +603,7 @@ static int rk616_lcd0_input_lcd1_output_cfg(struct mfd_rk616 *rk616,rk_screen *s
 }
 
 
-static int rk616_lcd0_unused_lcd1_input_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
+static int rk616_lcd0_unused_lcd1_input_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen,
 							bool enable)
 {
 	struct rk616_platform_data *pdata = rk616->pdata;
@@ -659,7 +659,7 @@ static int rk616_lcd0_unused_lcd1_input_cfg(struct mfd_rk616 *rk616,rk_screen *s
 	return 0;
 }
 
-int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
+int  rk616_set_router(struct mfd_rk616 *rk616,struct rk_screen *screen,bool enable)
 {
 	struct rk616_platform_data *pdata = rk616->pdata;
 	int ret;
@@ -733,7 +733,7 @@ static int rk616_router_cfg(struct mfd_rk616 *rk616)
 }
 
 
-static int rk616_dither_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
+static int rk616_dither_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen,bool enable)
 {
 	u32 val = 0;
 	int ret = 0;
@@ -752,10 +752,10 @@ static int rk616_dither_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enabl
 	
 }
 
-int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
+int rk616_display_router_cfg(struct mfd_rk616 *rk616,struct rk_screen *screen,bool enable)
 {
 	int ret;
-	rk_screen *hdmi_screen = screen->ext_screen;
+	struct rk_screen *hdmi_screen = screen->ext_screen;
 	ret = rk616_set_router(rk616,screen,enable);
 	if(ret < 0)
 		return ret;
@@ -775,7 +775,7 @@ int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enab
 	
 }
 
-int rk616_set_vif(struct mfd_rk616 *rk616,rk_screen *screen,bool connect)
+int rk616_set_vif(struct mfd_rk616 *rk616,struct rk_screen *screen,bool connect)
 {
 	struct rk616_platform_data *pdata;
 	if(!rk616)

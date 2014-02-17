@@ -1125,6 +1125,28 @@ config MFD_WM8994
 	  core support for the WM8994, in order to use the actual
 	  functionaltiy of the device other drivers must be enabled.
 
+config MFD_RK616
+        bool "RK616(Jetta B) Multifunction device support"
+        depends on I2C=y
+        select MFD_CORE
+        help
+          if you say yes here you get support for the RK616, with func as
+          HDMI、LCD、LVDS、CODEC、MIPI.
+
+config RK616_USE_MCLK_12M
+        bool "Enable 12M clock for timing reconstruction"
+        depends on MFD_RK616
+        select RK_HDMI_CTL_CODEC
+        default y
+        help
+           if you say y here ,it will enable 12M clock for timing reconstruction
+
+config RK616_DEBUG
+        bool "RK616(JettaB) debug enable"
+        depends on MFD_RK616
+        help
+           if you say y here ,it will enable rk616 debug function
+
 endmenu
 endif
 

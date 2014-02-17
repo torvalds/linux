@@ -10,24 +10,8 @@
 	rk616,lcd0_func = <INPUT>;
 	rk616,lcd1_func = <UNUSED>;
 	rk616,lvds_ch_nr = <1>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&lcdc1_lcdc>;
+	pinctrl-1 = <&lcdc1_gpio>;
 
-	hdmi: hdmi{
-		compatible = "rockchip,rk616-hdmi";
-		reg = <0x0400,0x0400>;
-	};
-
-	codec: codec{
-		compatible = "rockchip,rk616-code";
-		reg = <0x0800,0x0400>;
-	};
-
-	mipi: mipi-pyh{
-		compatible = "rockchip,rk616-mipi-phy";
-		reg = <0x0c00,0x0400>;
-	};
-
-	mipi: mipi-ctrl{
-		compatible = "rockchip,rk616-mipi-ctrl";
-		reg = <0x1000,0x0400>;
-	};
 };

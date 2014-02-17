@@ -1,6 +1,7 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 //#include <mach/io.h>
+#include <linux/interrupt.h>
 #include <linux/of_irq.h>
 #include "rk616_hdmi.h"
 #include "rk616_hdmi_hw.h"

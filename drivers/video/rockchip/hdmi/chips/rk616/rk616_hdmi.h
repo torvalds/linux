@@ -28,7 +28,7 @@ extern int rk616_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 
 struct rk616_hdmi {
         struct hdmi             g_hdmi;
-        struct early_suspend    early_suspend;
+        //struct early_suspend    early_suspend;	//TODO Daisen
         struct delayed_work     rk616_delay_work;
         struct work_struct      rk616_irq_work_struct;
         struct mfd_rk616        *rk616_drv;
