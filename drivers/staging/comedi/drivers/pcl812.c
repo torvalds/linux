@@ -340,7 +340,7 @@ struct pcl812_board {
 	unsigned int ai_ns_min;
 	const struct comedi_lrange *rangelist_ai;
 	unsigned int IRQbits;
-	unsigned char DMAbits;
+	unsigned int has_dma:1;
 	unsigned char haveMPC508;
 };
 
@@ -356,7 +356,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_bipolar10,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 	}, {
 		.name		= "pcl812pg",
 		.board_type	= boardPCL812PG,
@@ -368,7 +368,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_pcl812pg_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 	}, {
 		.name		= "acl8112pg",
 		.board_type	= boardPCL812PG,
@@ -380,7 +380,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl812pg_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 	}, {
 		.name		= "acl8112dg",
 		.board_type	= boardACL8112,
@@ -393,7 +393,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 		.haveMPC508	= 1,
 	}, {
 		.name		= "acl8112hg",
@@ -407,7 +407,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 		.haveMPC508	= 1,
 	}, {
 		.name		= "a821pgl",
@@ -454,7 +454,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 	}, {
 		.name		= "a822pgh",
 		.board_type	= boardACL8112,
@@ -467,7 +467,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 	}, {
 		.name		= "a823pgl",
 		.board_type	= boardACL8112,
@@ -480,7 +480,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 	}, {
 		.name		= "a823pgh",
 		.board_type	= boardACL8112,
@@ -493,7 +493,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 	}, {
 		.name		= "pcl813",
 		.board_type	= boardPCL813,
@@ -530,7 +530,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 		.haveMPC508	= 1,
 	}, {
 		.name		= "a826pg",
@@ -544,7 +544,7 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.IRQbits	= 0xdcfc,
-		.DMAbits	= 0x0a,
+		.has_dma	= 1,
 	},
 };
 
@@ -1290,7 +1290,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl812_board *board = comedi_board(dev);
 	struct pcl812_private *devpriv;
 	int ret, subdev;
-	unsigned int dma;
 	unsigned long pages;
 	struct comedi_subdevice *s;
 	int n_subdevices;
@@ -1310,24 +1309,18 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->irq = it->options[1];
 	}
 
-	dma = 0;
-	devpriv->dma = dma;
-	if (!dev->irq)
-		goto no_dma;	/* if we haven't IRQ, we can't use DMA */
-	if (board->DMAbits != 0) {	/* board support DMA */
-		dma = it->options[2];
-		if (((1 << dma) & board->DMAbits) == 0) {
-			dev_err(dev->class_dev,
-				"DMA is out of allowed range, FAIL!\n");
-			return -EINVAL;	/* Bad DMA */
-		}
-		ret = request_dma(dma, dev->board_name);
+	/* we need an IRQ to do DMA on channel 3 or 1 */
+	if (dev->irq && board->has_dma &&
+	    (it->options[2] == 3 || it->options[2] == 1)) {
+		ret = request_dma(it->options[2], dev->board_name);
 		if (ret) {
 			dev_err(dev->class_dev,
-				"unable to allocate DMA %u, FAIL!\n", dma);
-			return -EBUSY;	/* DMA isn't free */
+				"unable to request DMA channel %d\n",
+				it->options[2]);
+			return -EBUSY;
 		}
-		devpriv->dma = dma;
+		devpriv->dma = it->options[2];
+
 		pages = 1;	/* we want 8KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[0]) {
@@ -1352,7 +1345,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->hwdmaptr[1] = virt_to_bus((void *)devpriv->dmabuf[1]);
 		devpriv->hwdmasize[1] = PAGE_SIZE * (1 << pages);
 	}
-no_dma:
 
 	n_subdevices = 0;
 	if (board->n_aichan > 0)
