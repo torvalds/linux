@@ -872,6 +872,12 @@ static int tw9910_s_mbus_config(struct v4l2_subdev *sd,
 	return i2c_smbus_write_byte_data(client, OUTCTR1, val);
 }
 
+static int tw9910_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
+{
+	*norm = V4L2_STD_NTSC | V4L2_STD_PAL;
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_stream	= tw9910_s_stream,
 	.g_mbus_fmt	= tw9910_g_fmt,
@@ -882,6 +888,7 @@ static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.enum_mbus_fmt	= tw9910_enum_fmt,
 	.g_mbus_config	= tw9910_g_mbus_config,
 	.s_mbus_config	= tw9910_s_mbus_config,
+	.g_tvnorms	= tw9910_g_tvnorms,
 };
 
 static struct v4l2_subdev_ops tw9910_subdev_ops = {
