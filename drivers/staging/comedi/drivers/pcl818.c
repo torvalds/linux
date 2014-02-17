@@ -110,8 +110,6 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #include "comedi_fc.h"
 #include "8253.h"
 
-/* #define PCL818_MODE13_AO 1 */
-
 /* boards constants */
 
 #define boardPCL818L 0
@@ -172,10 +170,6 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define INT_TYPE_AI3_INT 4
 #define INT_TYPE_AI3_DMA 5
 #define INT_TYPE_AI3_FIFO 6
-#ifdef PCL818_MODE13_AO
-#define INT_TYPE_AO1_INT 7
-#define INT_TYPE_AO3_INT 8
-#endif
 
 #define MAGIC_DMA_WORD 0x5a5a
 
@@ -766,11 +760,6 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 	case INT_TYPE_AI1_FIFO:
 	case INT_TYPE_AI3_FIFO:
 		return interrupt_pcl818_ai_mode13_fifo(irq, d);
-#ifdef PCL818_MODE13_AO
-	case INT_TYPE_AO1_INT:
-	case INT_TYPE_AO3_INT:
-		return interrupt_pcl818_ao_mode13_int(irq, d);
-#endif
 	default:
 		break;
 	}
@@ -1136,10 +1125,6 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 		case INT_TYPE_AI3_INT:
 		case INT_TYPE_AI1_FIFO:
 		case INT_TYPE_AI3_FIFO:
-#ifdef PCL818_MODE13_AO
-		case INT_TYPE_AO1_INT:
-		case INT_TYPE_AO3_INT:
-#endif
 			outb(inb(dev->iobase + PCL818_CONTROL) & 0x73, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
 			udelay(1);
 			pcl818_start_pacer(dev, false);
