@@ -663,7 +663,7 @@ static ssize_t name##_show(struct device *kdev, \
 		return ret; \
 	return scnprintf(buf, PAGE_SIZE, format, ##__VA_ARGS__); \
 } \
-DEVICE_ATTR_RW(name);
+static DEVICE_ATTR_RW(name);
 
 CP2112_CONFIG_ATTR(vendor_id, ({
 	u16 vid;
@@ -784,7 +784,7 @@ static ssize_t pstr_show(struct device *kdev,
 }
 
 #define CP2112_PSTR_ATTR(name, _report) \
-struct cp2112_pstring_attribute dev_attr_##name = { \
+static struct cp2112_pstring_attribute dev_attr_##name = { \
 	.attr = __ATTR(name, (S_IWUSR | S_IRUGO), pstr_show, pstr_store), \
 	.report = _report, \
 };
