@@ -338,7 +338,6 @@ static void gfar_init_mac(struct net_device *ndev)
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 rctrl = 0;
 	u32 tctrl = 0;
-	u32 attrs = 0;
 
 	/* write the tx/rx base registers */
 	gfar_init_tx_rx_base(priv);
@@ -409,29 +408,6 @@ static void gfar_init_mac(struct net_device *ndev)
 	}
 
 	gfar_write(&regs->tctrl, tctrl);
-
-	/* Set the extraction length and index */
-	attrs = ATTRELI_EL(priv->rx_stash_size) |
-		ATTRELI_EI(priv->rx_stash_index);
-
-	gfar_write(&regs->attreli, attrs);
-
-	/* Start with defaults, and add stashing or locking
-	 * depending on the approprate variables
-	 */
-	attrs = ATTR_INIT_SETTINGS;
-
-	if (priv->bd_stash_en)
-		attrs |= ATTR_BDSTASH;
-
-	if (priv->rx_stash_size != 0)
-		attrs |= ATTR_BUFSTASH;
-
-	gfar_write(&regs->attr, attrs);
-
-	gfar_write(&regs->fifo_tx_thr, priv->fifo_threshold);
-	gfar_write(&regs->fifo_tx_starve, priv->fifo_starve);
-	gfar_write(&regs->fifo_tx_starve_shutoff, priv->fifo_starve_off);
 }
 
 static struct net_device_stats *gfar_get_stats(struct net_device *dev)
@@ -784,13 +760,13 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 
 	if (model && !strcasecmp(model, "TSEC"))
-		priv->device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
+		priv->device_flags |= FSL_GIANFAR_DEV_HAS_GIGABIT |
 				     FSL_GIANFAR_DEV_HAS_COALESCE |
 				     FSL_GIANFAR_DEV_HAS_RMON |
 				     FSL_GIANFAR_DEV_HAS_MULTI_INTR;
 
 	if (model && !strcasecmp(model, "eTSEC"))
-		priv->device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
+		priv->device_flags |= FSL_GIANFAR_DEV_HAS_GIGABIT |
 				     FSL_GIANFAR_DEV_HAS_COALESCE |
 				     FSL_GIANFAR_DEV_HAS_RMON |
 				     FSL_GIANFAR_DEV_HAS_MULTI_INTR |
@@ -1030,7 +1006,7 @@ static void gfar_detect_errata(struct gfar_private *priv)
 static void gfar_hw_init(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u32 tempval;
+	u32 tempval, attrs;
 
 	/* Reset MAC layer */
 	gfar_write(&regs->maccfg1, MACCFG1_SOFT_RESET);
@@ -1051,6 +1027,30 @@ static void gfar_hw_init(struct gfar_private *priv)
 
 	/* Initialize ECNTRL */
 	gfar_write(&regs->ecntrl, ECNTRL_INIT_SETTINGS);
+
+	/* Set the extraction length and index */
+	attrs = ATTRELI_EL(priv->rx_stash_size) |
+		ATTRELI_EI(priv->rx_stash_index);
+
+	gfar_write(&regs->attreli, attrs);
+
+	/* Start with defaults, and add stashing
+	 * depending on driver parameters
+	 */
+	attrs = ATTR_INIT_SETTINGS;
+
+	if (priv->bd_stash_en)
+		attrs |= ATTR_BDSTASH;
+
+	if (priv->rx_stash_size != 0)
+		attrs |= ATTR_BUFSTASH;
+
+	gfar_write(&regs->attr, attrs);
+
+	/* FIFO configs */
+	gfar_write(&regs->fifo_tx_thr, DEFAULT_FIFO_TX_THR);
+	gfar_write(&regs->fifo_tx_starve, DEFAULT_FIFO_TX_STARVE);
+	gfar_write(&regs->fifo_tx_starve_shutoff, DEFAULT_FIFO_TX_STARVE_OFF);
 
 	/* Program the interrupt steering regs, only for MG devices */
 	if (priv->num_grps > 1)
@@ -1231,9 +1231,6 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	/* Initialize the filer table */
 	gfar_init_filer_table(priv);
-
-	/* Create all the sysfs files */
-	gfar_init_sysfs(dev);
 
 	/* Print out the device info */
 	netdev_info(dev, "mac: %pM\n", dev->dev_addr);

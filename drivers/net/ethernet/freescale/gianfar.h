@@ -1130,11 +1130,6 @@ struct gfar_private {
 	u32 __iomem *hash_regs[16];
 	int hash_width;
 
-	/* global parameters */
-	unsigned int fifo_threshold;
-	unsigned int fifo_starve;
-	unsigned int fifo_starve_off;
-
 	/*Filer table*/
 	unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
 	unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
@@ -1215,7 +1210,6 @@ void gfar_halt(struct net_device *dev);
 void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev, int enable,
 		   u32 regnum, u32 read);
 void gfar_configure_coalescing_all(struct gfar_private *priv);
-void gfar_init_sysfs(struct net_device *dev);
 int gfar_set_features(struct net_device *dev, netdev_features_t features);
 void gfar_check_rx_parser_mode(struct gfar_private *priv);
 void gfar_vlan_mode(struct net_device *dev, netdev_features_t features);
