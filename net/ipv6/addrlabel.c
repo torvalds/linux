@@ -6,7 +6,7 @@
  */
 /*
  * Author:
- * 	YOSHIFUJI Hideaki @ USAGI/WIDE Project <yoshfuji@linux-ipv6.org>
+ *	YOSHIFUJI Hideaki @ USAGI/WIDE Project <yoshfuji@linux-ipv6.org>
  */
 
 #include <linux/kernel.h>
@@ -22,7 +22,7 @@
 #if 0
 #define ADDRLABEL(x...) printk(x)
 #else
-#define ADDRLABEL(x...) do { ; } while(0)
+#define ADDRLABEL(x...) do { ; } while (0)
 #endif
 
 /*
@@ -87,39 +87,39 @@ static const __net_initconst struct ip6addrlbl_init_table
 	{	/* ::/0 */
 		.prefix = &in6addr_any,
 		.label = 1,
-	},{	/* fc00::/7 */
-		.prefix = &(struct in6_addr){{{ 0xfc }}},
+	}, {	/* fc00::/7 */
+		.prefix = &(struct in6_addr){ { { 0xfc } } } ,
 		.prefixlen = 7,
 		.label = 5,
-	},{	/* fec0::/10 */
-		.prefix = &(struct in6_addr){{{ 0xfe, 0xc0 }}},
+	}, {	/* fec0::/10 */
+		.prefix = &(struct in6_addr){ { { 0xfe, 0xc0 } } },
 		.prefixlen = 10,
 		.label = 11,
-	},{	/* 2002::/16 */
-		.prefix = &(struct in6_addr){{{ 0x20, 0x02 }}},
+	}, {	/* 2002::/16 */
+		.prefix = &(struct in6_addr){ { { 0x20, 0x02 } } },
 		.prefixlen = 16,
 		.label = 2,
-	},{	/* 3ffe::/16 */
-		.prefix = &(struct in6_addr){{{ 0x3f, 0xfe }}},
+	}, {	/* 3ffe::/16 */
+		.prefix = &(struct in6_addr){ { { 0x3f, 0xfe } } },
 		.prefixlen = 16,
 		.label = 12,
-	},{	/* 2001::/32 */
-		.prefix = &(struct in6_addr){{{ 0x20, 0x01 }}},
+	}, {	/* 2001::/32 */
+		.prefix = &(struct in6_addr){ { { 0x20, 0x01 } } },
 		.prefixlen = 32,
 		.label = 6,
-	},{	/* 2001:10::/28 */
-		.prefix = &(struct in6_addr){{{ 0x20, 0x01, 0x00, 0x10 }}},
+	}, {	/* 2001:10::/28 */
+		.prefix = &(struct in6_addr){ { { 0x20, 0x01, 0x00, 0x10 } } },
 		.prefixlen = 28,
 		.label = 7,
-	},{	/* ::ffff:0:0 */
-		.prefix = &(struct in6_addr){{{ [10] = 0xff, [11] = 0xff }}},
+	}, {	/* ::ffff:0:0 */
+		.prefix = &(struct in6_addr){ { { [10] = 0xff, [11] = 0xff } } },
 		.prefixlen = 96,
 		.label = 4,
-	},{	/* ::/96 */
+	}, {	/* ::/96 */
 		.prefix = &in6addr_any,
 		.prefixlen = 96,
 		.label = 3,
-	},{	/* ::1/128 */
+	}, {	/* ::1/128 */
 		.prefix = &in6addr_loopback,
 		.prefixlen = 128,
 		.label = 0,
@@ -440,7 +440,7 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (label == IPV6_ADDR_LABEL_DEFAULT)
 		return -EINVAL;
 
-	switch(nlh->nlmsg_type) {
+	switch (nlh->nlmsg_type) {
 	case RTM_NEWADDRLABEL:
 		if (ifal->ifal_index &&
 		    !__dev_get_by_index(net, ifal->ifal_index))
