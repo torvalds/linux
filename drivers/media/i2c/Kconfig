@@ -668,6 +668,7 @@ comment "Audio/Video compression chips"
 config VIDEO_SAA6752HS
 	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
 	depends on VIDEO_V4L2 && I2C
+	select CRC32
 	---help---
 	  Support for the Philips SAA6752HS MPEG-2 video and MPEG-audio/AC-3
 	  audio encoder with multiplexer.
