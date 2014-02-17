@@ -1074,7 +1074,6 @@ static int nmk_i2c_remove(struct amba_device *adev)
 	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
-	pm_runtime_disable(&adev->dev);
 
 	return 0;
 }
