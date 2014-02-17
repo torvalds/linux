@@ -91,7 +91,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	return -ENOENT;
 }
 
-static void cleanup_single_sta(struct sta_info *sta)
+static void __cleanup_single_sta(struct sta_info *sta)
 {
 	int ac, i;
 	struct tid_ampdu_tx *tid_tx;
@@ -139,7 +139,14 @@ static void cleanup_single_sta(struct sta_info *sta)
 		ieee80211_purge_tx_queue(&local->hw, &tid_tx->pending);
 		kfree(tid_tx);
 	}
+}
 
+static void cleanup_single_sta(struct sta_info *sta)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+
+	__cleanup_single_sta(sta);
 	sta_info_free(local, sta);
 }
 
@@ -488,21 +495,26 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		goto out_err;
 	}
 
-	/* notify driver */
-	err = sta_info_insert_drv_state(local, sdata, sta);
-	if (err)
-		goto out_err;
-
 	local->num_sta++;
 	local->sta_generation++;
 	smp_mb();
+
+	/* simplify things and don't accept BA sessions yet */
+	set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
 	/* make the station visible */
 	sta_info_hash_add(local, sta);
 
 	list_add_rcu(&sta->list, &local->sta_list);
 
+	/* notify driver */
+	err = sta_info_insert_drv_state(local, sdata, sta);
+	if (err)
+		goto out_remove;
+
 	set_sta_flag(sta, WLAN_STA_INSERTED);
+	/* accept BA sessions now */
+	clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
 	ieee80211_recalc_min_chandef(sdata);
 	ieee80211_sta_debugfs_add(sta);
@@ -523,6 +535,12 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		mesh_accept_plinks_update(sdata);
 
 	return 0;
+ out_remove:
+	sta_info_hash_del(local, sta);
+	list_del_rcu(&sta->list);
+	local->num_sta--;
+	synchronize_net();
+	__cleanup_single_sta(sta);
  out_err:
 	mutex_unlock(&local->sta_mtx);
 	rcu_read_lock();
