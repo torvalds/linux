@@ -8,17 +8,15 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/i2c.h>
-#include <linux/spi/spi.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
-#include <sound/core.h>
+
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/tlv.h>
 #include <sound/soc.h>
+#include <sound/tlv.h>
 
 #include "adav80x.h"
 
@@ -864,10 +862,9 @@ static struct snd_soc_codec_driver adav80x_codec_driver = {
 	.num_dapm_routes = ARRAY_SIZE(adav80x_dapm_routes),
 };
 
-static int adav80x_bus_probe(struct device *dev, struct regmap *regmap)
+int adav80x_bus_probe(struct device *dev, struct regmap *regmap)
 {
 	struct adav80x *adav80x;
-	int ret;
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
@@ -882,9 +879,9 @@ static int adav80x_bus_probe(struct device *dev, struct regmap *regmap)
 	return snd_soc_register_codec(dev, &adav80x_codec_driver,
 		adav80x_dais, ARRAY_SIZE(adav80x_dais));
 }
+EXPORT_SYMBOL_GPL(adav80x_bus_probe);
 
-#if defined(CONFIG_SPI_MASTER)
-static const struct regmap_config adav80x_spi_regmap_config = {
+const struct regmap_config adav80x_regmap_config = {
 	.val_bits = 8,
 	.pad_bits = 1,
 	.reg_bits = 7,
@@ -896,107 +893,7 @@ static const struct regmap_config adav80x_spi_regmap_config = {
 	.reg_defaults = adav80x_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(adav80x_reg_defaults),
 };
-
-static const struct spi_device_id adav80x_spi_id[] = {
-	{ "adav801", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(spi, adav80x_spi_id);
-
-static int adav80x_spi_probe(struct spi_device *spi)
-{
-	return adav80x_bus_probe(&spi->dev,
-		devm_regmap_init_spi(spi, &adav80x_spi_regmap_config));
-}
-
-static int adav80x_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(dev);
-	return 0;
-}
-
-static struct spi_driver adav80x_spi_driver = {
-	.driver = {
-		.name	= "adav801",
-		.owner	= THIS_MODULE,
-	},
-	.probe		= adav80x_spi_probe,
-	.remove		= adav80x_spi_remove,
-	.id_table	= adav80x_spi_id,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_I2C)
-static const struct regmap_config adav80x_i2c_regmap_config = {
-	.val_bits = 8,
-	.pad_bits = 1,
-	.reg_bits = 7,
-
-	.max_register = ADAV80X_PLL_OUTE,
-
-	.cache_type = REGCACHE_RBTREE,
-	.reg_defaults = adav80x_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(adav80x_reg_defaults),
-};
-
-static const struct i2c_device_id adav80x_i2c_id[] = {
-	{ "adav803", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, adav80x_i2c_id);
-
-static int adav80x_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
-{
-	return adav80x_bus_probe(&client->dev,
-		devm_regmap_init_i2c(client, &adav80x_i2c_regmap_config));
-}
-
-static int adav80x_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(dev);
-	return 0;
-}
-
-static struct i2c_driver adav80x_i2c_driver = {
-	.driver = {
-		.name = "adav803",
-		.owner = THIS_MODULE,
-	},
-	.probe = adav80x_i2c_probe,
-	.remove = adav80x_i2c_remove,
-	.id_table = adav80x_i2c_id,
-};
-#endif
-
-static int __init adav80x_init(void)
-{
-	int ret = 0;
-
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&adav80x_i2c_driver);
-	if (ret)
-		return ret;
-#endif
-
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&adav80x_spi_driver);
-#endif
-
-	return ret;
-}
-module_init(adav80x_init);
-
-static void __exit adav80x_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&adav80x_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&adav80x_spi_driver);
-#endif
-}
-module_exit(adav80x_exit);
+EXPORT_SYMBOL_GPL(adav80x_regmap_config);
 
 MODULE_DESCRIPTION("ASoC ADAV80x driver");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
