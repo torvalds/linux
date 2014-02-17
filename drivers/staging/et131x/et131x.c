@@ -2124,7 +2124,11 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Alloc memory for the lookup table */
 	rx_ring->fbr[0] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
+	if (rx_ring->fbr[0] == NULL)
+		return -ENOMEM;
 	rx_ring->fbr[1] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
+	if (rx_ring->fbr[1] == NULL)
+		return -ENOMEM;
 
 	/* The first thing we will do is configure the sizes of the buffer
 	 * rings. These will change based on jumbo packet support.  Larger
@@ -2289,7 +2293,7 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	for (id = 0; id < NUM_FBRS; id++) {
 		fbr = rx_ring->fbr[id];
 
-		if (!fbr->ring_virtaddr)
+		if (!fbr || !fbr->ring_virtaddr)
 			continue;
 
 		/* First the packet memory */
@@ -3591,6 +3595,7 @@ static int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 	if (status) {
 		dev_err(&adapter->pdev->dev,
 			  "et131x_tx_dma_memory_alloc FAILED\n");
+		et131x_tx_dma_memory_free(adapter);
 		return status;
 	}
 	/* Receive buffer memory allocation */
@@ -3598,7 +3603,7 @@ static int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 	if (status) {
 		dev_err(&adapter->pdev->dev,
 			  "et131x_rx_dma_memory_alloc FAILED\n");
-		et131x_tx_dma_memory_free(adapter);
+		et131x_adapter_memory_free(adapter);
 		return status;
 	}
 
