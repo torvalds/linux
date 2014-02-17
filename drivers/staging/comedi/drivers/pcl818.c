@@ -1082,25 +1082,6 @@ end:
 	return 0;
 }
 
-static int pcl818_check(unsigned long iobase)
-{
-	outb(0x00, iobase + PCL818_MUX);
-	udelay(1);
-	if (inb(iobase + PCL818_MUX) != 0x00)
-		return 1;	/* there isn't card */
-	outb(0x55, iobase + PCL818_MUX);
-	udelay(1);
-	if (inb(iobase + PCL818_MUX) != 0x55)
-		return 1;	/* there isn't card */
-	outb(0x00, iobase + PCL818_MUX);
-	udelay(1);
-	outb(0x18, iobase + PCL818_CONTROL);
-	udelay(1);
-	if (inb(iobase + PCL818_CONTROL) != 0x18)
-		return 1;	/* there isn't card */
-	return 0;		/*  ok, card exist */
-}
-
 static void pcl818_reset(struct comedi_device *dev)
 {
 	const struct pcl818_board *board = comedi_board(dev);
@@ -1187,6 +1168,30 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 	}
 }
 
+static int pcl818_check(struct comedi_device *dev)
+{
+	/* the MUX register should return the same value written */
+	outb(0x00, dev->iobase + PCL818_MUX);
+	if (inb(dev->iobase + PCL818_MUX) != 0x00)
+		return -ENODEV;
+	outb(0x55, dev->iobase + PCL818_MUX);
+	if (inb(dev->iobase + PCL818_MUX) != 0x55)
+		return -ENODEV;
+
+	/* reset the MUX register to a known state */
+	outb(0x00, dev->iobase + PCL818_MUX);
+
+	/* the CONTROL register should return the same value written */
+	outb(0x18, dev->iobase + PCL818_CONTROL);
+	if (inb(dev->iobase + PCL818_CONTROL) != 0x18)
+		return -ENODEV;
+
+	/* reset the CONTROL register to a known state */
+	outb(0x00, dev->iobase + PCL818_CONTROL);
+
+	return 0;
+}
+
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl818_board *board = comedi_board(dev);
@@ -1208,10 +1213,9 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	if (pcl818_check(dev->iobase)) {
-		comedi_error(dev, "I can't detect board. FAIL!\n");
-		return -EIO;
-	}
+	ret = pcl818_check(dev);
+	if (ret)
+		return ret;
 
 	/* we can use IRQ 2-7 for async command support */
 	if (it->options[1] >= 2 && it->options[1] <= 7) {
