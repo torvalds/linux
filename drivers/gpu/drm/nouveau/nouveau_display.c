@@ -419,6 +419,7 @@ int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_display *disp;
 	int ret, gen;
 
@@ -459,7 +460,7 @@ nouveau_display_create(struct drm_device *dev)
 	}
 
 	dev->mode_config.funcs = &nouveau_mode_config_funcs;
-	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);
+	dev->mode_config.fb_base = nv_device_resource_start(device, 1);
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;

@@ -139,7 +139,7 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	/* BAR3 */
 	start = 0x0100000000ULL;
-	limit = start + pci_resource_len(device->pdev, 3);
+	limit = start + nv_device_resource_len(device, 3);
 
 	ret = nouveau_vm_new(device, start, limit, start, &vm);
 	if (ret)
@@ -173,7 +173,7 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	/* BAR1 */
 	start = 0x0000000000ULL;
-	limit = start + pci_resource_len(device->pdev, 1);
+	limit = start + nv_device_resource_len(device, 1);
 
 	ret = nouveau_vm_new(device, start, limit--, start, &vm);
 	if (ret)

@@ -1091,10 +1091,10 @@ nvc0_graph_ctor_fw(struct nvc0_graph_priv *priv, const char *fwname,
 	int ret;
 
 	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", device->chipset, fwname);
-	ret = request_firmware(&fw, f, &device->pdev->dev);
+	ret = request_firmware(&fw, f, nv_device_base(device));
 	if (ret) {
 		snprintf(f, sizeof(f), "nouveau/%s", fwname);
-		ret = request_firmware(&fw, f, &device->pdev->dev);
+		ret = request_firmware(&fw, f, nv_device_base(device));
 		if (ret) {
 			nv_error(priv, "failed to load %s\n", fwname);
 			return ret;

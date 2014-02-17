@@ -2069,6 +2069,10 @@ nouveau_bios_init(struct drm_device *dev)
 	struct nvbios *bios = &drm->vbios;
 	int ret;
 
+	/* only relevant for PCI devices */
+	if (!dev->pdev)
+		return 0;
+
 	if (!NVInitVBIOS(dev))
 		return -ENODEV;
 
