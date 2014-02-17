@@ -448,6 +448,29 @@ static const struct net_device_ops gfar_netdev_ops = {
 #endif
 };
 
+static void gfar_ints_disable(struct gfar_private *priv)
+{
+	int i;
+	for (i = 0; i < priv->num_grps; i++) {
+		struct gfar __iomem *regs = priv->gfargrp[i].regs;
+		/* Clear IEVENT */
+		gfar_write(&regs->ievent, IEVENT_INIT_CLEAR);
+
+		/* Initialize IMASK */
+		gfar_write(&regs->imask, IMASK_INIT_CLEAR);
+	}
+}
+
+static void gfar_ints_enable(struct gfar_private *priv)
+{
+	int i;
+	for (i = 0; i < priv->num_grps; i++) {
+		struct gfar __iomem *regs = priv->gfargrp[i].regs;
+		/* Unmask the interrupts we look for */
+		gfar_write(&regs->imask, IMASK_DEFAULT);
+	}
+}
+
 void lock_rx_qs(struct gfar_private *priv)
 {
 	int i;
@@ -1548,19 +1571,10 @@ static void gfar_configure_serdes(struct net_device *dev)
 static void init_registers(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar __iomem *regs = NULL;
-	int i;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 
-	for (i = 0; i < priv->num_grps; i++) {
-		regs = priv->gfargrp[i].regs;
-		/* Clear IEVENT */
-		gfar_write(&regs->ievent, IEVENT_INIT_CLEAR);
+	gfar_ints_disable(priv);
 
-		/* Initialize IMASK */
-		gfar_write(&regs->imask, IMASK_INIT_CLEAR);
-	}
-
-	regs = priv->gfargrp[0].regs;
 	/* Init hash registers to zero */
 	gfar_write(&regs->igaddr0, 0);
 	gfar_write(&regs->igaddr1, 0);
@@ -1622,20 +1636,11 @@ static int __gfar_is_rx_idle(struct gfar_private *priv)
 static void gfar_halt_nodisable(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar __iomem *regs = NULL;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
-	int i;
 
-	for (i = 0; i < priv->num_grps; i++) {
-		regs = priv->gfargrp[i].regs;
-		/* Mask all interrupts */
-		gfar_write(&regs->imask, IMASK_INIT_CLEAR);
+	gfar_ints_disable(priv);
 
-		/* Clear all interrupts */
-		gfar_write(&regs->ievent, IEVENT_INIT_CLEAR);
-	}
-
-	regs = priv->gfargrp[0].regs;
 	/* Stop the DMA, and wait for it to stop */
 	tempval = gfar_read(&regs->dmactrl);
 	if ((tempval & (DMACTRL_GRS | DMACTRL_GTS)) !=
@@ -1823,9 +1828,9 @@ void gfar_start(struct net_device *dev)
 		/* Clear THLT/RHLT, so that the DMA starts polling now */
 		gfar_write(&regs->tstat, priv->gfargrp[i].tstat);
 		gfar_write(&regs->rstat, priv->gfargrp[i].rstat);
-		/* Unmask the interrupts we look for */
-		gfar_write(&regs->imask, IMASK_DEFAULT);
 	}
+
+	gfar_ints_enable(priv);
 
 	dev->trans_start = jiffies; /* prevent tx timeout */
 }
@@ -1931,15 +1936,10 @@ err_irq_fail:
 int startup_gfar(struct net_device *ndev)
 {
 	struct gfar_private *priv = netdev_priv(ndev);
-	struct gfar __iomem *regs = NULL;
 	int err, i, j;
 
-	for (i = 0; i < priv->num_grps; i++) {
-		regs= priv->gfargrp[i].regs;
-		gfar_write(&regs->imask, IMASK_INIT_CLEAR);
-	}
+	gfar_ints_disable(priv);
 
-	regs= priv->gfargrp[0].regs;
 	err = gfar_alloc_skb_resources(ndev);
 	if (err)
 		return err;
