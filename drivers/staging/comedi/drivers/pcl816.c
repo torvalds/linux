@@ -148,11 +148,6 @@ static void setup_channel_list(struct comedi_device *dev,
 static int pcl816_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 
-static int pcl816_ai_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd);
-static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-
 static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters,
 			       unsigned int divisor1, unsigned int divisor2)
 {
