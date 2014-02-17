@@ -333,11 +333,11 @@ struct pcl812_board {
 	int board_type;
 	int n_aichan;
 	int n_aochan;
-	int ai_maxdata;
 	unsigned int ai_ns_min;
 	const struct comedi_lrange *rangelist_ai;
 	unsigned int IRQbits;
 	unsigned int has_dma:1;
+	unsigned int has_16bit_ai:1;
 	unsigned int has_mpc508_mux:1;
 	unsigned int has_dio:1;
 };
@@ -348,7 +348,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardPCL812,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_bipolar10,
 		.IRQbits	= 0xdcfc,
@@ -359,7 +358,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardPCL812PG,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_pcl812pg_ai,
 		.IRQbits	= 0xdcfc,
@@ -370,7 +368,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardPCL812PG,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl812pg_ai,
 		.IRQbits	= 0xdcfc,
@@ -381,7 +378,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
@@ -393,7 +389,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
@@ -405,7 +400,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardA821,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 1,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b_ai,
 		.IRQbits	= 0x000c,
@@ -414,7 +408,6 @@ static const struct pcl812_board boardtypes[] = {
 		.name		= "a821pglnda",
 		.board_type	= boardA821,
 		.n_aichan	= 16,	/* 8 differential */
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b_ai,
 		.IRQbits	= 0x000c,
@@ -423,7 +416,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardA821,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 1,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_a821pgh_ai,
 		.IRQbits	= 0x000c,
@@ -433,7 +425,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
@@ -444,7 +435,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
@@ -455,7 +445,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
@@ -466,7 +455,6 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
@@ -476,36 +464,32 @@ static const struct pcl812_board boardtypes[] = {
 		.name		= "pcl813",
 		.board_type	= boardPCL813,
 		.n_aichan	= 32,
-		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pcl813b_ai,
 	}, {
 		.name		= "pcl813b",
 		.board_type	= boardPCL813B,
 		.n_aichan	= 32,
-		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pcl813b_ai,
 	}, {
 		.name		= "acl8113",
 		.board_type	= boardACL8113,
 		.n_aichan	= 32,
-		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_acl8113_1_ai,
 	}, {
 		.name		= "iso813",
 		.board_type	= boardISO813,
 		.n_aichan	= 32,
-		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_iso813_1_ai,
 	}, {
 		.name		= "acl8216",
 		.board_type	= boardACL8216,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
-		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_16bit_ai	= 1,
 		.has_mpc508_mux	= 1,
 		.has_dio	= 1,
 	}, {
@@ -513,11 +497,11 @@ static const struct pcl812_board boardtypes[] = {
 		.board_type	= boardACL8216,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
-		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
+		.has_16bit_ai	= 1,
 		.has_dio	= 1,
 	},
 };
@@ -1446,7 +1430,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags	|= SDF_GROUND;
 		s->n_chan	= board->n_aichan;
 	}
-	s->maxdata	= board->ai_maxdata;
+	s->maxdata	= board->has_16bit_ai ? 0xffff : 0x0fff;
 
 	pcl812_set_ai_range_table(dev, s, it);
 
