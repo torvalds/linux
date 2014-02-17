@@ -92,7 +92,6 @@ static const struct comedi_lrange range_pcl816 = {
 
 struct pcl816_board {
 	const char *name;
-	int n_ranges;
 	unsigned int ai_ns_min;
 	int n_aochan;
 	const struct comedi_lrange *ai_range_type;
@@ -106,7 +105,6 @@ struct pcl816_board {
 static const struct pcl816_board boardtypes[] = {
 	{
 		.name		= "pcl816",
-		.n_ranges	= 8,
 		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl816,
@@ -117,7 +115,6 @@ static const struct pcl816_board boardtypes[] = {
 		.ao_chanlist	= 1,
 	}, {
 		.name		= "pcl814b",
-		.n_ranges	= 8,
 		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl816,
