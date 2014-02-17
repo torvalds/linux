@@ -521,7 +521,6 @@ struct pcl812_private {
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_chanlist[MAX_CHANLIST_LEN];	/*  our copy of channel/range list */
-	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
 	unsigned int dmapages[2];	/*  how many pages we have allocated */
@@ -787,7 +786,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	} else
 		devpriv->ai_dma = 0;
 
-	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_neverending = 0;
@@ -799,7 +797,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	s->async->cur_chan = 0;
 
 	/*  don't we want wake up every scan? */
-	if ((devpriv->ai_flags & TRIG_WAKE_EOS)) {
+	if (cmd->flags & TRIG_WAKE_EOS) {
 		devpriv->ai_eos = 1;
 
 		/*  DMA is useless for this situation */
