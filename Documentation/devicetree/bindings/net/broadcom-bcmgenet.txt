@@ -7,9 +7,7 @@ Required properties:
 - interrupts: must be two cells, the first cell is the general purpose
   interrupt line, while the second cell is the interrupt for the ring
   RX and TX queues operating in ring mode
-- phy-mode: String, operation mode of the PHY interface. Supported values are
-  "mii", "rgmii", "rgmii-txid", "rev-mii", "moca". Analogous to ePAPR
-  "phy-connection-type" values
+- phy-mode: see ethernet.txt file in the same directory
 - address-cells: should be 1
 - size-cells: should be 1
 
@@ -20,9 +18,8 @@ Optional properties:
 - clock-names: When provided, names of the functional clock phandles, first
   name should be "enet" and second should be "enet-wol".
 
-- phy-handle: A phandle to a phy node defining the PHY address (as the reg
-  property, a single integer), used to describe configurations where a PHY
-  (internal or external) is used.
+- phy-handle: See ethernet.txt file in the same directory; used to describe
+  configurations where a PHY (internal or external) is used.
 
 - fixed-link: When the GENET interface is connected to a MoCA hardware block or
   when operating in a RGMII to RGMII type of connection, or when the MDIO bus is
