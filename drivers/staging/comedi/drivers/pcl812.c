@@ -1247,13 +1247,13 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	int i;
 
-	ret = comedi_request_region(dev, it->options[0], 0x10);
-	if (ret)
-		return ret;
-
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
+
+	ret = comedi_request_region(dev, it->options[0], 0x10);
+	if (ret)
+		return ret;
 
 	if ((1 << it->options[1]) & board->IRQbits) {
 		ret = request_irq(it->options[1], interrupt_pcl812, 0,
