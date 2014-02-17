@@ -258,7 +258,6 @@ static const struct comedi_lrange range718_unipolar1 = {
 
 struct pcl818_board {
 	const char *name;
-	int n_ranges;
 	unsigned int ns_min;
 	int n_aochan;
 	const struct comedi_lrange *ai_range_type;
@@ -273,7 +272,6 @@ struct pcl818_board {
 static const struct pcl818_board boardtypes[] = {
 	{
 		.name		= "pcl818l",
-		.n_ranges	= 4,
 		.ns_min		= 25000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818l_l_ai,
@@ -284,7 +282,6 @@ static const struct pcl818_board boardtypes[] = {
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818h",
-		.n_ranges	= 9,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818h_ai,
@@ -295,7 +292,6 @@ static const struct pcl818_board boardtypes[] = {
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818hd",
-		.n_ranges	= 9,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818h_ai,
@@ -307,7 +303,6 @@ static const struct pcl818_board boardtypes[] = {
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818hg",
-		.n_ranges	= 12,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818hg_ai,
@@ -319,7 +314,6 @@ static const struct pcl818_board boardtypes[] = {
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818",
-		.n_ranges	= 9,
 		.ns_min		= 10000,
 		.n_aochan	= 2,
 		.ai_range_type	= &range_pcl818h_ai,
@@ -330,7 +324,6 @@ static const struct pcl818_board boardtypes[] = {
 		.is_818		= 1,
 	}, {
 		.name		= "pcl718",
-		.n_ranges	= 1,
 		.ns_min		= 16000,
 		.n_aochan	= 2,
 		.ai_range_type	= &range_unipolar5,
@@ -340,7 +333,6 @@ static const struct pcl818_board boardtypes[] = {
 		.has_dma	= 1,
 	}, {
 		.name		= "pcm3718",
-		.n_ranges	= 9,
 		.ns_min		= 10000,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
