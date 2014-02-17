@@ -1460,7 +1460,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	if (nlk->netlink_bind && nlk->groups[0]) {
 		int i;
 
-		for (i=0; i<nlk->ngroups; i++) {
+		for (i = 0; i < nlk->ngroups; i++) {
 			if (test_bit(i, nlk->groups))
 				nlk->netlink_bind(i);
 		}
@@ -2549,7 +2549,7 @@ __nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq, int type, int len, int fla
 	struct nlmsghdr *nlh;
 	int size = nlmsg_msg_size(len);
 
-	nlh = (struct nlmsghdr*)skb_put(skb, NLMSG_ALIGN(size));
+	nlh = (struct nlmsghdr *)skb_put(skb, NLMSG_ALIGN(size));
 	nlh->nlmsg_type = type;
 	nlh->nlmsg_len = size;
 	nlh->nlmsg_flags = flags;
