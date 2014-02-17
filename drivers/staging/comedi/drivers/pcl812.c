@@ -339,7 +339,6 @@ struct pcl812_board {
 	int ai_maxdata;
 	unsigned int ai_ns_min;
 	const struct comedi_lrange *rangelist_ai;
-	const struct comedi_lrange *rangelist_ao;
 	unsigned int IRQbits;
 	unsigned char DMAbits;
 	unsigned char haveMPC508;
@@ -356,7 +355,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_bipolar10,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 	}, {
@@ -369,7 +367,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_pcl812pg_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 	}, {
@@ -382,7 +379,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl812pg_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 	}, {
@@ -396,7 +392,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 		.haveMPC508	= 1,
@@ -411,7 +406,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 		.haveMPC508	= 1,
@@ -426,7 +420,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0x000c,
 	}, {
 		.name		= "a821pglnda",
@@ -448,7 +441,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_a821pgh_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0x000c,
 	}, {
 		.name		= "a822pgl",
@@ -461,7 +453,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 	}, {
@@ -475,7 +466,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 	}, {
@@ -489,7 +479,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112dg_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 	}, {
@@ -503,7 +492,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112hg_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 	}, {
@@ -541,7 +529,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 		.haveMPC508	= 1,
@@ -556,7 +543,6 @@ static const struct pcl812_board boardtypes[] = {
 		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
-		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
 		.DMAbits	= 0x0a,
 	},
@@ -1521,7 +1507,7 @@ no_dma:
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board->n_aochan;
 		s->maxdata = 0xfff;
-		s->range_table = board->rangelist_ao;
+		s->range_table = &range_unipolar5;
 		s->insn_read = pcl812_ao_insn_read;
 		s->insn_write = pcl812_ao_insn_write;
 		switch (board->board_type) {
