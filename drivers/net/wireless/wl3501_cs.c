@@ -43,7 +43,6 @@
 #include <linux/string.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
-#include <linux/etherdevice.h>
 
 #include <net/iw_handler.h>
 
