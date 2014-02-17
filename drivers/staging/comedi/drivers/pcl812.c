@@ -332,7 +332,6 @@ struct pcl812_board {
 	const char *name;
 	int board_type;
 	int n_aichan;
-	int n_aichan_diff;
 	int n_aochan;
 	int ai_maxdata;
 	unsigned int ai_ns_min;
@@ -380,8 +379,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "acl8112dg",
 		.board_type	= boardACL8112,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
@@ -393,8 +391,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "acl8112hg",
 		.board_type	= boardACL8112,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
@@ -406,8 +403,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "a821pgl",
 		.board_type	= boardA821,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 1,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
@@ -417,8 +413,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "a821pglnda",
 		.board_type	= boardA821,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b_ai,
@@ -426,8 +421,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "a821pgh",
 		.board_type	= boardA821,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 1,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
@@ -437,8 +431,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "a822pgl",
 		.board_type	= boardACL8112,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
@@ -449,8 +442,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "a822pgh",
 		.board_type	= boardACL8112,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
@@ -461,8 +453,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "a823pgl",
 		.board_type	= boardACL8112,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
@@ -473,8 +464,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "a823pgh",
 		.board_type	= boardACL8112,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
@@ -509,8 +499,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "acl8216",
 		.board_type	= boardACL8216,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
@@ -522,8 +511,7 @@ static const struct pcl812_board boardtypes[] = {
 	}, {
 		.name		= "a826pg",
 		.board_type	= boardACL8216,
-		.n_aichan	= 16,
-		.n_aichan_diff	= 8,
+		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
@@ -1422,6 +1410,19 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->hwdmasize[1] = PAGE_SIZE * (1 << pages);
 	}
 
+	/* differential analog inputs? */
+	switch (board->board_type) {
+	case boardA821:
+		if (it->options[2] == 1)
+			devpriv->use_diff = 1;
+		break;
+	case boardACL8112:
+	case boardACL8216:
+		if (it->options[4] == 1)
+			devpriv->use_diff = 1;
+		break;
+	}
+
 	n_subdevices = 1;		/* all boardtypes have analog inputs */
 	if (board->n_aochan > 0)
 		n_subdevices++;
@@ -1438,32 +1439,12 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[subdev];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE;
-	switch (board->board_type) {
-	case boardA821:
-		if (it->options[2] == 1) {
-			s->n_chan	= board->n_aichan_diff;
-			s->subdev_flags	|= SDF_DIFF;
-			devpriv->use_diff = 1;
-		} else {
-			s->n_chan	= board->n_aichan;
-			s->subdev_flags	|= SDF_GROUND;
-		}
-		break;
-	case boardACL8112:
-	case boardACL8216:
-		if (it->options[4] == 1) {
-			s->n_chan	= board->n_aichan_diff;
-			s->subdev_flags	|= SDF_DIFF;
-			devpriv->use_diff = 1;
-		} else {
-			s->n_chan	= board->n_aichan;
-			s->subdev_flags	|= SDF_GROUND;
-		}
-		break;
-	default:
-		s->n_chan	= board->n_aichan;
+	if (devpriv->use_diff) {
+		s->subdev_flags	|= SDF_DIFF;
+		s->n_chan	= board->n_aichan / 2;
+	} else {
 		s->subdev_flags	|= SDF_GROUND;
-		break;
+		s->n_chan	= board->n_aichan;
 	}
 	s->maxdata	= board->ai_maxdata;
 
