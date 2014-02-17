@@ -1137,6 +1137,17 @@ static void at91_gpio_free(struct gpio_chip *chip, unsigned offset)
 	pinctrl_free_gpio(gpio);
 }
 
+static int at91_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	void __iomem *pio = at91_gpio->regbase;
+	unsigned mask = 1 << offset;
+	u32 osr;
+
+	osr = readl_relaxed(pio + PIO_OSR);
+	return !(osr & mask);
+}
+
 static int at91_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
@@ -1570,6 +1581,7 @@ static int at91_gpio_of_irq_setup(struct device_node *node,
 static struct gpio_chip at91_gpio_template = {
 	.request		= at91_gpio_request,
 	.free			= at91_gpio_free,
+	.get_direction		= at91_gpio_get_direction,
 	.direction_input	= at91_gpio_direction_input,
 	.get			= at91_gpio_get,
 	.direction_output	= at91_gpio_direction_output,
