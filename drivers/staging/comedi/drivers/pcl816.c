@@ -100,7 +100,6 @@ struct pcl816_board {
 	int n_dochan;
 	const struct comedi_lrange *ai_range_type;
 	unsigned int IRQbits;
-	unsigned int DMAbits;
 	int ai_maxdata;
 	int ao_maxdata;
 	int ai_chanlist;
@@ -118,7 +117,6 @@ static const struct pcl816_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl816,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xffff,
 		.ao_maxdata	= 0xffff,
 		.ai_chanlist	= 1024,
@@ -133,7 +131,6 @@ static const struct pcl816_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl816,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0x3fff,
 		.ao_maxdata	= 0x3fff,
 		.ai_chanlist	= 1024,
@@ -866,7 +863,6 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl816_board *board = comedi_board(dev);
 	struct pcl816_private *devpriv;
 	int ret;
-	unsigned int dma;
 	unsigned long pages;
 	/* int i; */
 	struct comedi_subdevice *s;
@@ -894,30 +890,17 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
 	devpriv->int816_mode = 0;	/* mode of irq */
 
-	/* grab our DMA */
-	dma = 0;
-	devpriv->dma = dma;
-	if (!dev->irq)
-		goto no_dma;	/* if we haven't IRQ, we can't use DMA */
-
-	if (board->DMAbits != 0) {	/* board support DMA */
-		dma = it->options[2];
-		if (dma < 1)
-			goto no_dma;	/* DMA disabled */
-
-		if (((1 << dma) & board->DMAbits) == 0) {
-			dev_err(dev->class_dev,
-				"DMA is out of allowed range, FAIL!\n");
-			return -EINVAL;	/* Bad DMA */
-		}
-		ret = request_dma(dma, dev->board_name);
+	/* we need an IRQ to do DMA on channel 3 or 1 */
+	if (dev->irq && (it->options[2] == 3 || it->options[2] == 1)) {
+		ret = request_dma(it->options[2], dev->board_name);
 		if (ret) {
 			dev_err(dev->class_dev,
-				"unable to allocate DMA %u, FAIL!\n", dma);
-			return -EBUSY;	/* DMA isn't free */
+				"unable to request DMA channel %d\n",
+				it->options[2]);
+			return -EBUSY;
 		}
+		devpriv->dma = it->options[2];
 
-		devpriv->dma = dma;
 		pages = 2;	/* we need 16KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 
@@ -944,8 +927,6 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->hwdmaptr[1] = virt_to_bus((void *)devpriv->dmabuf[1]);
 		devpriv->hwdmasize[1] = (1 << pages) * PAGE_SIZE;
 	}
-
-no_dma:
 
 /*  if (board->n_aochan > 0)
     subdevs[1] = COMEDI_SUBD_AO;
