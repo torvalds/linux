@@ -266,7 +266,6 @@ struct pcl818_board {
 	int n_dichan;
 	int n_dochan;
 	const struct comedi_lrange *ai_range_type;
-	const struct comedi_lrange *ao_range_type;
 	unsigned int IRQbits;
 	unsigned int DMAbits;
 	int ai_maxdata;
@@ -286,7 +285,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818l_l_ai,
-		.ao_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -302,7 +300,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
-		.ao_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -318,7 +315,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
-		.ao_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -335,7 +331,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818hg_ai,
-		.ao_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -352,7 +347,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
-		.ao_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -368,7 +362,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_unipolar5,
-		.ao_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -382,7 +375,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
-		.ao_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -1466,7 +1458,7 @@ no_dma:
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board->n_aochan;
 		s->maxdata = board->ao_maxdata;
-		s->range_table = board->ao_range_type;
+		s->range_table = &range_unipolar5;
 		s->insn_read = pcl818_ao_insn_read;
 		s->insn_write = pcl818_ao_insn_write;
 		if (board->is_818) {
