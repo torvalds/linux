@@ -1633,6 +1633,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	int				i;
 	dma_cap_mask_t			mask;
 	unsigned			sig;
+	unsigned			oob_index;
 	struct resource			*res;
 	struct mtd_part_parser_data	ppdata = {};
 
@@ -1832,9 +1833,11 @@ static int omap_nand_probe(struct platform_device *pdev)
 							(mtd->writesize /
 							nand_chip->ecc.size);
 		if (nand_chip->options & NAND_BUSWIDTH_16)
-			ecclayout->eccpos[0]	= BADBLOCK_MARKER_LENGTH;
+			oob_index		= BADBLOCK_MARKER_LENGTH;
 		else
-			ecclayout->eccpos[0]	= 1;
+			oob_index		= 1;
+		for (i = 0; i < ecclayout->eccbytes; i++, oob_index++)
+			ecclayout->eccpos[i]	= oob_index;
 		ecclayout->oobfree->offset	= ecclayout->eccpos[0] +
 							ecclayout->eccbytes;
 		break;
@@ -1853,7 +1856,12 @@ static int omap_nand_probe(struct platform_device *pdev)
 		ecclayout->eccbytes		= nand_chip->ecc.bytes *
 							(mtd->writesize /
 							nand_chip->ecc.size);
-		ecclayout->eccpos[0]		= BADBLOCK_MARKER_LENGTH;
+		oob_index			= BADBLOCK_MARKER_LENGTH;
+		for (i = 0; i < ecclayout->eccbytes; i++, oob_index++) {
+			ecclayout->eccpos[i] = oob_index;
+			if (((i + 1) % nand_chip->ecc.bytes) == 0)
+				oob_index++;
+		}
 		ecclayout->oobfree->offset	= ecclayout->eccpos[0] +
 							ecclayout->eccbytes;
 		/* software bch library is used for locating errors */
@@ -1889,7 +1897,9 @@ static int omap_nand_probe(struct platform_device *pdev)
 		ecclayout->eccbytes		= nand_chip->ecc.bytes *
 							(mtd->writesize /
 							nand_chip->ecc.size);
-		ecclayout->eccpos[0]		= BADBLOCK_MARKER_LENGTH;
+		oob_index			= BADBLOCK_MARKER_LENGTH;
+		for (i = 0; i < ecclayout->eccbytes; i++, oob_index++)
+			ecclayout->eccpos[i]	= oob_index;
 		ecclayout->oobfree->offset	= ecclayout->eccpos[0] +
 							ecclayout->eccbytes;
 		/* This ECC scheme requires ELM H/W block */
@@ -1919,7 +1929,12 @@ static int omap_nand_probe(struct platform_device *pdev)
 		ecclayout->eccbytes		= nand_chip->ecc.bytes *
 							(mtd->writesize /
 							nand_chip->ecc.size);
-		ecclayout->eccpos[0]		= BADBLOCK_MARKER_LENGTH;
+		oob_index			= BADBLOCK_MARKER_LENGTH;
+		for (i = 0; i < ecclayout->eccbytes; i++, oob_index++) {
+			ecclayout->eccpos[i] = oob_index;
+			if (((i + 1) % nand_chip->ecc.bytes) == 0)
+				oob_index++;
+		}
 		ecclayout->oobfree->offset	= ecclayout->eccpos[0] +
 							ecclayout->eccbytes;
 		/* software bch library is used for locating errors */
@@ -1962,7 +1977,9 @@ static int omap_nand_probe(struct platform_device *pdev)
 		ecclayout->eccbytes		= nand_chip->ecc.bytes *
 							(mtd->writesize /
 							nand_chip->ecc.size);
-		ecclayout->eccpos[0]		= BADBLOCK_MARKER_LENGTH;
+		oob_index			= BADBLOCK_MARKER_LENGTH;
+		for (i = 0; i < ecclayout->eccbytes; i++, oob_index++)
+			ecclayout->eccpos[i]	= oob_index;
 		ecclayout->oobfree->offset	= ecclayout->eccpos[0] +
 							ecclayout->eccbytes;
 		break;
@@ -1981,8 +1998,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 	/* populate remaining ECC layout data */
 	ecclayout->oobfree->length = mtd->oobsize - (BADBLOCK_MARKER_LENGTH +
 							ecclayout->eccbytes);
-	for (i = 1; i < ecclayout->eccbytes; i++)
-		ecclayout->eccpos[i] = ecclayout->eccpos[0] + i;
 	/* check if NAND device's OOB is enough to store ECC signatures */
 	if (mtd->oobsize < (ecclayout->eccbytes + BADBLOCK_MARKER_LENGTH)) {
 		pr_err("not enough OOB bytes required = %d, available=%d\n",
