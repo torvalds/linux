@@ -404,14 +404,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
     }
 
     if (pDevice->fKillEventPollingThread != true) {
-       usb_fill_bulk_urb(pDevice->pInterruptURB,
-		      pDevice->usb,
-		      usb_rcvbulkpipe(pDevice->usb, 1),
-		     (void *) pDevice->intBuf.pDataBuf,
-		     MAX_INTERRUPT_SIZE,
-		     s_nsInterruptUsbIoCompleteRead,
-		     pDevice);
-
 	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
 	if (ntStatus) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
