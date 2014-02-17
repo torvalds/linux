@@ -338,7 +338,6 @@ struct pcl812_board {
 	int n_dochan;
 	int ai_maxdata;
 	unsigned int ai_ns_min;
-	unsigned int i8254_osc_base;
 	const struct comedi_lrange *rangelist_ai;
 	const struct comedi_lrange *rangelist_ao;
 	unsigned int IRQbits;
@@ -356,7 +355,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 33000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_bipolar10,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -370,7 +368,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 33000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_pcl812pg_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -384,7 +381,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_pcl812pg_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -399,7 +395,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -415,7 +410,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -431,7 +425,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_pcl813b_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0x000c,
@@ -442,7 +435,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aichan_diff	= 8,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_pcl813b_ai,
 		.IRQbits	= 0x000c,
 	}, {
@@ -455,7 +447,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_a821pgh_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0x000c,
@@ -469,7 +460,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -484,7 +474,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -499,7 +488,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -514,7 +502,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_ns_min	= 8000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -553,7 +540,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -569,7 +555,6 @@ static const struct pcl812_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_maxdata	= 0xffff,
 		.ai_ns_min	= 10000,
-		.i8254_osc_base	= I8254_OSC_BASE_2MHZ,
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.rangelist_ao	= &range_unipolar5,
 		.IRQbits	= 0xdcfc,
@@ -833,7 +818,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(board->i8254_osc_base,
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
 					  &divisor1, &divisor2,
 					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < board->ai_ns_min)
@@ -861,7 +846,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (cmd->convert_arg < board->ai_ns_min)
 			cmd->convert_arg = board->ai_ns_min;
-		i8253_cascade_ns_to_timer(board->i8254_osc_base,
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
 					  &divisor1, &divisor2,
 					  &cmd->convert_arg, cmd->flags);
 	}
