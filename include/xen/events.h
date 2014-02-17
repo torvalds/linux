@@ -52,7 +52,6 @@ int evtchn_get(unsigned int evtchn);
 void evtchn_put(unsigned int evtchn);
 
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
-int resend_irq_on_evtchn(unsigned int irq);
 void rebind_evtchn_irq(int evtchn, int irq);
 
 static inline void notify_remote_via_evtchn(int port)
