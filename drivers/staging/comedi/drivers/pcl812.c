@@ -505,16 +505,10 @@ static const struct pcl812_board boardtypes[] = {
 
 struct pcl812_private {
 	unsigned char dma;	/*  >0 use dma ( usedDMA channel) */
-	unsigned char use_diff;	/*  =1 diff inputs */
-	unsigned char use_MPC;	/*  1=board uses MPC508A multiplexor */
-	unsigned char use_ext_trg;	/*  1=board uses external trigger */
 	unsigned char range_correction;	/*  =1 we must add 1 to range number */
 	unsigned char old_chan_reg;	/*  lastly used chan/gain pair */
 	unsigned char old_gain_reg;
 	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
-	unsigned char ai_neverending;	/*  =1 we do unlimited AI */
-	unsigned char ai_eos;	/*  1=EOS wake up */
-	unsigned char ai_dma;	/*  =1 we use DMA */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_data_len;	/*  len of data buffer */
@@ -530,6 +524,12 @@ struct pcl812_private {
 	unsigned int ao_readback[2];	/*  data for AO readback */
 	unsigned int divisor1;
 	unsigned int divisor2;
+	unsigned int use_diff:1;
+	unsigned int use_mpc508:1;
+	unsigned int use_ext_trg:1;
+	unsigned int ai_dma:1;
+	unsigned int ai_eos:1;
+	unsigned int ai_neverending:1;
 };
 
 static void setup_range_channel(struct comedi_device *dev,
@@ -1104,7 +1104,7 @@ static void setup_range_channel(struct comedi_device *dev,
 	devpriv->old_chan_reg = chan_reg;
 	devpriv->old_gain_reg = gain_reg;
 
-	if (devpriv->use_MPC) {
+	if (devpriv->use_mpc508) {
 		if (devpriv->use_diff) {
 			chan_reg = chan_reg | 0x30;	/*  DIFF inputs */
 		} else {
@@ -1380,7 +1380,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->cancel	= pcl812_ai_cancel;
 	}
 
-	devpriv->use_MPC = board->has_mpc508_mux;
+	devpriv->use_mpc508 = board->has_mpc508_mux;
 
 	subdev++;
 
