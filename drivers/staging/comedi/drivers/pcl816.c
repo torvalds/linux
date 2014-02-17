@@ -99,7 +99,6 @@ struct pcl816_board {
 	int n_dichan;
 	int n_dochan;
 	const struct comedi_lrange *ai_range_type;
-	const struct comedi_lrange *ao_range_type;
 	unsigned int IRQbits;
 	unsigned int DMAbits;
 	int ai_maxdata;
@@ -118,7 +117,6 @@ static const struct pcl816_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl816,
-		.ao_range_type	= &range_pcl816,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xffff,
@@ -134,7 +132,6 @@ static const struct pcl816_board boardtypes[] = {
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl816,
-		.ao_range_type	= &range_pcl816,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0x3fff,
@@ -989,7 +986,7 @@ case COMEDI_SUBD_AO:
 	s->n_chan = board->n_aochan;
 	s->maxdata = board->ao_maxdata;
 	s->len_chanlist = board->ao_chanlist;
-	s->range_table = board->ao_range_type;
+	s->range_table = &range_pcl816;
 	break;
 
 case COMEDI_SUBD_DI:
