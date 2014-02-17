@@ -519,7 +519,6 @@ struct pcl812_private {
 	unsigned char ai_eos;	/*  1=EOS wake up */
 	unsigned char ai_dma;	/*  =1 we use DMA */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	unsigned int ai_scans;	/*  len of scanlist */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_chanlist[MAX_CHANLIST_LEN];	/*  our copy of channel/range list */
 	unsigned int ai_n_chan;	/*  how many channels is measured */
@@ -792,13 +791,10 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ai_scans = cmd->stop_arg;
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_neverending = 0;
-	} else {
-		devpriv->ai_scans = 0;
+	else
 		devpriv->ai_neverending = 1;
-	}
 
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_poll_ptr = 0;
@@ -835,7 +831,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			} else {
 				/*  how many samples we must transfer? */
 				bytes = devpriv->ai_n_chan *
-					devpriv->ai_scans * sizeof(short);
+					cmd->stop_arg * sizeof(short);
 
 				/*  how many DMA pages we must fill */
 				devpriv->dma_runs_to_end =
@@ -892,6 +888,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int next_chan;
 
 	s->async->events = 0;
@@ -940,7 +937,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 		devpriv->ai_act_scan++;
 		if (!(devpriv->ai_neverending))
 							/* all data sampled */
-			if (devpriv->ai_act_scan >= devpriv->ai_scans) {
+			if (devpriv->ai_act_scan >= cmd->stop_arg) {
 				pcl812_ai_cancel(dev, s);
 				s->async->events |= COMEDI_CB_EOA;
 			}
@@ -959,6 +956,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 				  unsigned int bufptr, unsigned int len)
 {
 	struct pcl812_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int i;
 
 	s->async->events = 0;
@@ -972,7 +970,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 			devpriv->ai_act_scan++;
 			if (!devpriv->ai_neverending)
 							/* all data sampled */
-				if (devpriv->ai_act_scan >= devpriv->ai_scans) {
+				if (devpriv->ai_act_scan >= cmd->stop_arg) {
 					pcl812_ai_cancel(dev, s);
 					s->async->events |= COMEDI_CB_EOA;
 					break;
