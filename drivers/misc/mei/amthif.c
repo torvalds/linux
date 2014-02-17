@@ -133,14 +133,12 @@ int mei_amthif_host_init(struct mei_device *dev)
 struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file)
 {
-	struct mei_cl_cb *pos = NULL;
-	struct mei_cl_cb *next = NULL;
+	struct mei_cl_cb *cb;
 
-	list_for_each_entry_safe(pos, next,
-				&dev->amthif_rd_complete_list.list, list) {
-		if (pos->cl && pos->cl == &dev->iamthif_cl &&
-			pos->file_object == file)
-			return pos;
+	list_for_each_entry(cb, &dev->amthif_rd_complete_list.list, list) {
+		if (cb->cl && cb->cl == &dev->iamthif_cl &&
+			cb->file_object == file)
+			return cb;
 	}
 	return NULL;
 }

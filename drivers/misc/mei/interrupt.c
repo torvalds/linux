@@ -574,8 +574,7 @@ EXPORT_SYMBOL_GPL(mei_irq_write_handler);
 void mei_timer(struct work_struct *work)
 {
 	unsigned long timeout;
-	struct mei_cl *cl_pos = NULL;
-	struct mei_cl *cl_next = NULL;
+	struct mei_cl *cl;
 	struct mei_cl_cb  *cb_pos = NULL;
 	struct mei_cl_cb  *cb_next = NULL;
 
@@ -603,9 +602,9 @@ void mei_timer(struct work_struct *work)
 		goto out;
 
 	/*** connect/disconnect timeouts ***/
-	list_for_each_entry_safe(cl_pos, cl_next, &dev->file_list, link) {
-		if (cl_pos->timer_count) {
-			if (--cl_pos->timer_count == 0) {
+	list_for_each_entry(cl, &dev->file_list, link) {
+		if (cl->timer_count) {
+			if (--cl->timer_count == 0) {
 				dev_err(&dev->pdev->dev, "timer: connect/disconnect timeout.\n");
 				mei_reset(dev);
 				goto out;
@@ -655,10 +654,10 @@ void mei_timer(struct work_struct *work)
 			list_for_each_entry_safe(cb_pos, cb_next,
 				&dev->amthif_rd_complete_list.list, list) {
 
-				cl_pos = cb_pos->file_object->private_data;
+				cl = cb_pos->file_object->private_data;
 
 				/* Finding the AMTHI entry. */
-				if (cl_pos == &dev->iamthif_cl)
+				if (cl == &dev->iamthif_cl)
 					list_del(&cb_pos->list);
 			}
 			mei_io_cb_free(dev->iamthif_current_cb);

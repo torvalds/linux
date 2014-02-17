@@ -380,8 +380,7 @@ static int mei_hbm_add_single_flow_creds(struct mei_device *dev,
 static void mei_hbm_cl_flow_control_res(struct mei_device *dev,
 		struct hbm_flow_control *flow_control)
 {
-	struct mei_cl *cl = NULL;
-	struct mei_cl *next = NULL;
+	struct mei_cl *cl;
 
 	if (!flow_control->host_addr) {
 		/* single receive buffer */
@@ -390,7 +389,7 @@ static void mei_hbm_cl_flow_control_res(struct mei_device *dev,
 	}
 
 	/* normal connection */
-	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
+	list_for_each_entry(cl, &dev->file_list, link) {
 		if (mei_hbm_cl_addr_equal(cl, flow_control)) {
 			cl->mei_flow_ctrl_creds++;
 			dev_dbg(&dev->pdev->dev, "flow ctrl msg for host %d ME %d.\n",
@@ -557,10 +556,10 @@ static void mei_hbm_cl_connect_res(struct mei_device *dev,
 static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 		struct hbm_client_connect_request *disconnect_req)
 {
-	struct mei_cl *cl, *next;
+	struct mei_cl *cl;
 	struct mei_cl_cb *cb;
 
-	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
+	list_for_each_entry(cl, &dev->file_list, link) {
 		if (mei_hbm_cl_addr_equal(cl, disconnect_req)) {
 			dev_dbg(&dev->pdev->dev, "disconnect request host client %d ME client %d.\n",
 					disconnect_req->host_addr,

@@ -145,9 +145,9 @@ static struct device_type mei_cl_device_type = {
 static struct mei_cl *mei_bus_find_mei_cl_by_uuid(struct mei_device *dev,
 						uuid_le uuid)
 {
-	struct mei_cl *cl, *next;
+	struct mei_cl *cl;
 
-	list_for_each_entry_safe(cl, next, &dev->device_list, device_link) {
+	list_for_each_entry(cl, &dev->device_list, device_link) {
 		if (!uuid_le_cmp(uuid, cl->device_uuid))
 			return cl;
 	}

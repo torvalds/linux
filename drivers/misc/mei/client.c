@@ -251,10 +251,9 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
 {
 	struct mei_device *dev = cl->dev;
-	struct mei_cl_cb *cb = NULL;
-	struct mei_cl_cb *next = NULL;
+	struct mei_cl_cb *cb;
 
-	list_for_each_entry_safe(cb, next, &dev->read_list.list, list)
+	list_for_each_entry(cb, &dev->read_list.list, list)
 		if (mei_cl_cmp_id(cl, cb->cl))
 			return cb;
 	return NULL;
@@ -458,17 +457,17 @@ free:
 bool mei_cl_is_other_connecting(struct mei_cl *cl)
 {
 	struct mei_device *dev;
-	struct mei_cl *pos;
-	struct mei_cl *next;
+	struct mei_cl *ocl; /* the other client */
 
 	if (WARN_ON(!cl || !cl->dev))
 		return false;
 
 	dev = cl->dev;
 
-	list_for_each_entry_safe(pos, next, &dev->file_list, link) {
-		if ((pos->state == MEI_FILE_CONNECTING) &&
-		    (pos != cl) && cl->me_client_id == pos->me_client_id)
+	list_for_each_entry(ocl, &dev->file_list, link) {
+		if (ocl->state == MEI_FILE_CONNECTING &&
+		    ocl != cl &&
+		    cl->me_client_id == ocl->me_client_id)
 			return true;
 
 	}
@@ -901,9 +900,9 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 void mei_cl_all_disconnect(struct mei_device *dev)
 {
-	struct mei_cl *cl, *next;
+	struct mei_cl *cl;
 
-	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
+	list_for_each_entry(cl, &dev->file_list, link) {
 		cl->state = MEI_FILE_DISCONNECTED;
 		cl->mei_flow_ctrl_creds = 0;
 		cl->timer_count = 0;
@@ -918,8 +917,8 @@ void mei_cl_all_disconnect(struct mei_device *dev)
  */
 void mei_cl_all_wakeup(struct mei_device *dev)
 {
-	struct mei_cl *cl, *next;
-	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
+	struct mei_cl *cl;
+	list_for_each_entry(cl, &dev->file_list, link) {
 		if (waitqueue_active(&cl->rx_wait)) {
 			cl_dbg(dev, cl, "Waking up reading client!\n");
 			wake_up_interruptible(&cl->rx_wait);
