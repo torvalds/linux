@@ -96,8 +96,6 @@ struct pcl816_board {
 	int n_aichan;
 	unsigned int ai_ns_min;
 	int n_aochan;
-	int n_dichan;
-	int n_dochan;
 	const struct comedi_lrange *ai_range_type;
 	unsigned int IRQbits;
 	int ai_maxdata;
@@ -113,8 +111,6 @@ static const struct pcl816_board boardtypes[] = {
 		.n_aichan	= 16,
 		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl816,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xffff,
@@ -127,8 +123,6 @@ static const struct pcl816_board boardtypes[] = {
 		.n_aichan	= 16,
 		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl816,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0x3fff,
@@ -928,14 +922,6 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->hwdmasize[1] = (1 << pages) * PAGE_SIZE;
 	}
 
-/*  if (board->n_aochan > 0)
-    subdevs[1] = COMEDI_SUBD_AO;
-  if (board->n_dichan > 0)
-    subdevs[2] = COMEDI_SUBD_DI;
-  if (board->n_dochan > 0)
-    subdevs[3] = COMEDI_SUBD_DO;
-*/
-
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
@@ -962,7 +948,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 #if 0
-case COMEDI_SUBD_AO:
+	subdevs[1] = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 	s->n_chan = board->n_aochan;
 	s->maxdata = board->ao_maxdata;
@@ -970,19 +956,17 @@ case COMEDI_SUBD_AO:
 	s->range_table = &range_pcl816;
 	break;
 
-case COMEDI_SUBD_DI:
+	subdevs[2] = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = board->n_dichan;
+	s->n_chan = 16;
 	s->maxdata = 1;
-	s->len_chanlist = board->n_dichan;
 	s->range_table = &range_digital;
 	break;
 
-case COMEDI_SUBD_DO:
+	subdevs[3] = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = board->n_dochan;
+	s->n_chan = 16;
 	s->maxdata = 1;
-	s->len_chanlist = board->n_dochan;
 	s->range_table = &range_digital;
 	break;
 #endif
