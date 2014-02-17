@@ -115,14 +115,11 @@ int mei_amthif_host_init(struct mei_device *dev)
 
 	cl->state = MEI_FILE_CONNECTING;
 
-	if (mei_hbm_cl_connect_req(dev, cl)) {
-		dev_dbg(&dev->pdev->dev, "amthif: Failed to connect to ME client\n");
-		cl->state = MEI_FILE_DISCONNECTED;
-		cl->host_client_id = 0;
-	} else {
-		cl->timer_count = MEI_CONNECT_TIMEOUT;
-	}
-	return 0;
+	ret = mei_cl_connect(cl, NULL);
+
+	dev->iamthif_state = MEI_IAMTHIF_IDLE;
+
+	return ret;
 }
 
 /**

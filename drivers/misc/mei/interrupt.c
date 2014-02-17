@@ -487,7 +487,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		wake_up_interruptible(&dev->wait_stop_wd);
 	}
 
-	if (dev->dev_state == MEI_DEV_ENABLED) {
+	if (mei_cl_is_connected(&dev->wd_cl)) {
 		if (dev->wd_pending &&
 		    mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
 			if (mei_wd_send(dev))
@@ -612,6 +612,9 @@ void mei_timer(struct work_struct *work)
 			}
 		}
 	}
+
+	if (!mei_cl_is_connected(&dev->iamthif_cl))
+		goto out;
 
 	if (dev->iamthif_stall_timer) {
 		if (--dev->iamthif_stall_timer == 0) {

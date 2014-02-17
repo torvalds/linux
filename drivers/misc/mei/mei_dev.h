@@ -543,7 +543,7 @@ int mei_wd_host_init(struct mei_device *dev);
  *   once we got connection to the WD Client
  * @dev - mei device
  */
-void mei_watchdog_register(struct mei_device *dev);
+int mei_watchdog_register(struct mei_device *dev);
 /*
  * mei_watchdog_unregister  - Unregistering watchdog interface
  * @dev - mei device
