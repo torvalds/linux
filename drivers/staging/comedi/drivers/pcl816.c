@@ -99,7 +99,6 @@ struct pcl816_board {
 	int ai_maxdata;
 	int ao_maxdata;
 	int ai_chanlist;
-	int ao_chanlist;
 };
 
 static const struct pcl816_board boardtypes[] = {
@@ -112,7 +111,6 @@ static const struct pcl816_board boardtypes[] = {
 		.ai_maxdata	= 0xffff,
 		.ao_maxdata	= 0xffff,
 		.ai_chanlist	= 1024,
-		.ao_chanlist	= 1,
 	}, {
 		.name		= "pcl814b",
 		.ai_ns_min	= 10000,
@@ -122,7 +120,6 @@ static const struct pcl816_board boardtypes[] = {
 		.ai_maxdata	= 0x3fff,
 		.ao_maxdata	= 0x3fff,
 		.ai_chanlist	= 1024,
-		.ao_chanlist	= 1,
 	},
 };
 
@@ -942,7 +939,6 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 	s->n_chan = board->n_aochan;
 	s->maxdata = board->ao_maxdata;
-	s->len_chanlist = board->ao_chanlist;
 	s->range_table = &range_pcl816;
 	break;
 
