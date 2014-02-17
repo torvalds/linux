@@ -61,14 +61,14 @@ struct sh_tmu_device {
 
 	enum sh_tmu_model model;
 
+	raw_spinlock_t lock; /* Protect the shared start/stop register */
+
 	struct sh_tmu_channel *channels;
 	unsigned int num_channels;
 
 	bool has_clockevent;
 	bool has_clocksource;
 };
-
-static DEFINE_RAW_SPINLOCK(sh_tmu_lock);
 
 #define TSTR -1 /* shared register */
 #define TCOR  0 /* channel register */
@@ -132,7 +132,7 @@ static void sh_tmu_start_stop_ch(struct sh_tmu_channel *ch, int start)
 	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
-	raw_spin_lock_irqsave(&sh_tmu_lock, flags);
+	raw_spin_lock_irqsave(&ch->tmu->lock, flags);
 	value = sh_tmu_read(ch, TSTR);
 
 	if (start)
@@ -141,7 +141,7 @@ static void sh_tmu_start_stop_ch(struct sh_tmu_channel *ch, int start)
 		value &= ~(1 << ch->index);
 
 	sh_tmu_write(ch, TSTR, value);
-	raw_spin_unlock_irqrestore(&sh_tmu_lock, flags);
+	raw_spin_unlock_irqrestore(&ch->tmu->lock, flags);
 }
 
 static int __sh_tmu_enable(struct sh_tmu_channel *ch)
@@ -523,6 +523,8 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 
 	tmu->pdev = pdev;
 	tmu->model = id->driver_data;
+
+	raw_spin_lock_init(&tmu->lock);
 
 	/* Get hold of clock. */
 	tmu->clk = clk_get(&tmu->pdev->dev, "fck");
