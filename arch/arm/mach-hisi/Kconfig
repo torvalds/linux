@@ -4,7 +4,7 @@ config ARCH_HI3xxx
 	select ARM_GIC
 	select ARM_TIMER_SP804
 	select CACHE_L2X0
-	select HAVE_ARM_SCU
+	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select PINCTRL
 	select PINCTRL_SINGLE
