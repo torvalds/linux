@@ -360,9 +360,6 @@ static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int *chanlist, unsigned int n_chan);
 
-static int pcl818_ai_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-
 static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters)
 {
 	struct pcl818_private *devpriv = dev->private;
@@ -533,7 +530,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	}
 	outb(0, dev->iobase + PCL818_STATUS);	/* clear INT request */
 	comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
-	pcl818_ai_cancel(dev, s);
+	s->cancel(dev, s);
 	s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -547,7 +544,7 @@ conv_finish:
 			"A/D mode1/3 IRQ - channel dropout %x!=%x !\n",
 			chan,
 			devpriv->act_chanlist[devpriv->act_chanlist_pos]);
-		pcl818_ai_cancel(dev, s);
+		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
@@ -564,7 +561,7 @@ conv_finish:
 
 	if (!devpriv->neverending_ai) {
 		if (devpriv->ai_act_scan == 0) {	/* all data sampled */
-			pcl818_ai_cancel(dev, s);
+			s->cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA;
 		}
 	}
@@ -615,7 +612,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 				(ptr[bufptr] & 0xf),
 				devpriv->act_chanlist[devpriv->act_chanlist_pos],
 				devpriv->act_chanlist_pos);
-			pcl818_ai_cancel(dev, s);
+			s->cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			return IRQ_HANDLED;
@@ -635,7 +632,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 		if (!devpriv->neverending_ai)
 			if (devpriv->ai_act_scan == 0) {	/* all data sampled */
-				pcl818_ai_cancel(dev, s);
+				s->cancel(dev, s);
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(dev, s);
 				return IRQ_HANDLED;
@@ -666,7 +663,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 
 	if (lo & 4) {
 		comedi_error(dev, "A/D mode1/3 FIFO overflow!");
-		pcl818_ai_cancel(dev, s);
+		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
@@ -674,7 +671,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 
 	if (lo & 1) {
 		comedi_error(dev, "A/D mode1/3 FIFO interrupt without data!");
-		pcl818_ai_cancel(dev, s);
+		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
@@ -692,7 +689,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 				"A/D mode1/3 FIFO - channel dropout %d!=%d !\n",
 				(lo & 0xf),
 				devpriv->act_chanlist[devpriv->act_chanlist_pos]);
-			pcl818_ai_cancel(dev, s);
+			s->cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			return IRQ_HANDLED;
@@ -712,7 +709,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 
 		if (!devpriv->neverending_ai)
 			if (devpriv->ai_act_scan == 0) {	/* all data sampled */
-				pcl818_ai_cancel(dev, s);
+				s->cancel(dev, s);
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(dev, s);
 				return IRQ_HANDLED;
@@ -732,6 +729,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 
 	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
@@ -750,7 +748,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 			 */
 			devpriv->ai_act_scan = 0;
 			devpriv->neverending_ai = 0;
-			pcl818_ai_cancel(dev, dev->read_subdev);
+			s->cancel(dev, s);
 		}
 
 		outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
