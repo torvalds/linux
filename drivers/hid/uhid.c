@@ -123,6 +123,89 @@ static int uhid_hid_parse(struct hid_device *hid)
 	return hid_parse_report(hid, uhid->rd_data, uhid->rd_size);
 }
 
+static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
+			    __u8 *buf, size_t count, unsigned char rtype)
+{
+	struct uhid_device *uhid = hid->driver_data;
+	__u8 report_type;
+	struct uhid_event *ev;
+	unsigned long flags;
+	int ret;
+	size_t uninitialized_var(len);
+	struct uhid_feature_answer_req *req;
+
+	if (!uhid->running)
+		return -EIO;
+
+	switch (rtype) {
+	case HID_FEATURE_REPORT:
+		report_type = UHID_FEATURE_REPORT;
+		break;
+	case HID_OUTPUT_REPORT:
+		report_type = UHID_OUTPUT_REPORT;
+		break;
+	case HID_INPUT_REPORT:
+		report_type = UHID_INPUT_REPORT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = mutex_lock_interruptible(&uhid->report_lock);
+	if (ret)
+		return ret;
+
+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+	if (!ev) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	spin_lock_irqsave(&uhid->qlock, flags);
+	ev->type = UHID_FEATURE;
+	ev->u.feature.id = atomic_inc_return(&uhid->report_id);
+	ev->u.feature.rnum = rnum;
+	ev->u.feature.rtype = report_type;
+
+	atomic_set(&uhid->report_done, 0);
+	uhid_queue(uhid, ev);
+	spin_unlock_irqrestore(&uhid->qlock, flags);
+
+	ret = wait_event_interruptible_timeout(uhid->report_wait,
+				atomic_read(&uhid->report_done), 5 * HZ);
+
+	/*
+	 * Make sure "uhid->running" is cleared on shutdown before
+	 * "uhid->report_done" is set.
+	 */
+	smp_rmb();
+	if (!ret || !uhid->running) {
+		ret = -EIO;
+	} else if (ret < 0) {
+		ret = -ERESTARTSYS;
+	} else {
+		spin_lock_irqsave(&uhid->qlock, flags);
+		req = &uhid->report_buf.u.feature_answer;
+
+		if (req->err) {
+			ret = -EIO;
+		} else {
+			ret = 0;
+			len = min(count,
+				min_t(size_t, req->size, UHID_DATA_MAX));
+			memcpy(buf, req->data, len);
+		}
+
+		spin_unlock_irqrestore(&uhid->qlock, flags);
+	}
+
+	atomic_set(&uhid->report_done, 1);
+
+unlock:
+	mutex_unlock(&uhid->report_lock);
+	return ret ? ret : len;
+}
+
 static int uhid_hid_output_raw(struct hid_device *hid, __u8 *buf, size_t count,
 			       unsigned char report_type)
 {
