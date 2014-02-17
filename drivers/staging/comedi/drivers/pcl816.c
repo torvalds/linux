@@ -106,7 +106,6 @@ struct pcl816_board {
 	int ao_maxdata;
 	int ai_chanlist;
 	int ao_chanlist;
-	int i8254_osc_base;
 };
 
 static const struct pcl816_board boardtypes[] = {
@@ -126,7 +125,6 @@ static const struct pcl816_board boardtypes[] = {
 		.ao_maxdata	= 0xffff,
 		.ai_chanlist	= 1024,
 		.ao_chanlist	= 1,
-		.i8254_osc_base	= I8254_OSC_BASE_10MHZ,
 	}, {
 		.name		= "pcl814b",
 		.n_ranges	= 8,
@@ -143,7 +141,6 @@ static const struct pcl816_board boardtypes[] = {
 		.ao_maxdata	= 0x3fff,
 		.ai_chanlist	= 1024,
 		.ao_chanlist	= 1,
-		.i8254_osc_base	= I8254_OSC_BASE_10MHZ,
 	},
 };
 
@@ -480,7 +477,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(board->i8254_osc_base,
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
 					  &divisor1, &divisor2,
 					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < board->ai_ns_min)
@@ -519,7 +516,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (cmd->convert_arg < board->ai_ns_min)
 			cmd->convert_arg = board->ai_ns_min;
 
-		i8253_cascade_ns_to_timer(board->i8254_osc_base,
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
 					  &divisor1, &divisor2,
 					  &cmd->convert_arg, cmd->flags);
 
