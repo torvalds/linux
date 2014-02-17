@@ -375,13 +375,6 @@ static void gfar_init_mac(struct net_device *ndev)
 		rctrl |= RCTRL_PADDING(priv->padding);
 	}
 
-	/* Insert receive time stamps into padding alignment bytes */
-	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER) {
-		rctrl &= ~RCTRL_PAL_MASK;
-		rctrl |= RCTRL_PADDING(8);
-		priv->padding = 8;
-	}
-
 	/* Enable HW time stamping if requested from user space */
 	if (priv->hwts_rx_en) {
 		rctrl |= RCTRL_PRSDEP_INIT | RCTRL_TS_ENABLE;
@@ -770,7 +763,6 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 				     FSL_GIANFAR_DEV_HAS_COALESCE |
 				     FSL_GIANFAR_DEV_HAS_RMON |
 				     FSL_GIANFAR_DEV_HAS_MULTI_INTR |
-				     FSL_GIANFAR_DEV_HAS_PADDING |
 				     FSL_GIANFAR_DEV_HAS_CSUM |
 				     FSL_GIANFAR_DEV_HAS_VLAN |
 				     FSL_GIANFAR_DEV_HAS_MAGIC_PACKET |
@@ -1168,10 +1160,9 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	gfar_init_addr_hash_table(priv);
 
-	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_PADDING)
-		priv->padding = DEFAULT_PADDING;
-	else
-		priv->padding = 0;
+	/* Insert receive time stamps into padding alignment bytes */
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)
+		priv->padding = 8;
 
 	if (dev->features & NETIF_F_IP_CSUM ||
 	    priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)
