@@ -134,7 +134,6 @@ struct pcl816_private {
 	int irq_blocked;	/*  1=IRQ now uses any subdev */
 	int irq_was_now_closed;	/*  when IRQ finish, there's stored int816_mode for last interrupt */
 	int int816_mode;	/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
-	struct comedi_subdevice *last_int_sub;	/*  ptr to subdevice which now finish */
 	int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int ai_act_chanlist_len;	/*  how long is actual MUX list */
@@ -660,7 +659,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 			devpriv->irq_blocked = 0;
 			devpriv->irq_was_now_closed = devpriv->int816_mode;
 			devpriv->int816_mode = 0;
-			devpriv->last_int_sub = s;
 /* s->busy = 0; */
 			break;
 		}
