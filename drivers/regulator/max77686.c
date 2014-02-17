@@ -412,6 +412,7 @@ static int max77686_pmic_dt_parse_pdata(struct platform_device *pdev,
 	if (!rdata) {
 		dev_err(&pdev->dev,
 			"could not allocate memory for regulator data\n");
+		of_node_put(regulators_np);
 		return -ENOMEM;
 	}
 
@@ -425,6 +426,7 @@ static int max77686_pmic_dt_parse_pdata(struct platform_device *pdev,
 	}
 
 	pdata->regulators = rdata;
+	of_node_put(regulators_np);
 
 	return 0;
 }
