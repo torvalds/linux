@@ -267,9 +267,9 @@ struct pcl818_board {
 	int n_dochan;
 	const struct comedi_lrange *ai_range_type;
 	unsigned int IRQbits;
-	unsigned int DMAbits;
 	int ai_maxdata;
 	int ao_maxdata;
+	unsigned int has_dma:1;
 	unsigned int has_fifo:1;
 	int is_818;
 };
@@ -286,9 +286,9 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818l_l_ai,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
+		.has_dma	= 1,
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818h",
@@ -301,9 +301,9 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
+		.has_dma	= 1,
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818hd",
@@ -316,9 +316,9 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
+		.has_dma	= 1,
 		.has_fifo	= 1,
 		.is_818		= 1,
 	}, {
@@ -332,9 +332,9 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818hg_ai,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
+		.has_dma	= 1,
 		.has_fifo	= 1,
 		.is_818		= 1,
 	}, {
@@ -348,9 +348,9 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
+		.has_dma	= 1,
 		.is_818		= 1,
 	}, {
 		.name		= "pcl718",
@@ -363,9 +363,9 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
+		.has_dma	= 1,
 	}, {
 		.name		= "pcm3718",
 		.n_ranges	= 9,
@@ -376,9 +376,9 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
-		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
+		.has_dma	= 1,
 		.is_818		= 1,
 	},
 };
@@ -1315,7 +1315,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl818_board *board = comedi_board(dev);
 	struct pcl818_private *devpriv;
 	int ret;
-	int dma;
 	unsigned long pages;
 	struct comedi_subdevice *s;
 
@@ -1347,24 +1346,18 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
 	devpriv->ai_mode = 0;	/* mode of irq */
 
-	/* grab our DMA */
-	dma = 0;
-	devpriv->dma = dma;
-	if (!dev->irq)
-		goto no_dma;	/* if we haven't IRQ, we can't use DMA */
-	if (board->DMAbits != 0) {	/* board support DMA */
-		dma = it->options[2];
-		if (dma < 1)
-			goto no_dma;	/* DMA disabled */
-		if (((1 << dma) & board->DMAbits) == 0) {
+	/* we need an IRQ to do DMA on channel 3 or 1 */
+	if (dev->irq && board->has_dma &&
+	    (it->options[2] == 3 || it->options[2] == 1)) {
+		ret = request_dma(it->options[2], dev->board_name);
+		if (ret) {
 			dev_err(dev->class_dev,
-				"DMA is out of allowed range, FAIL!\n");
-			return -EINVAL;	/* Bad DMA */
+				"unable to request DMA channel %d\n",
+				it->options[2]);
+			return -EBUSY;
 		}
-		ret = request_dma(dma, dev->board_name);
-		if (ret)
-			return -EBUSY;	/* DMA isn't free */
-		devpriv->dma = dma;
+		devpriv->dma = it->options[2];
+
 		pages = 2;	/* we need 16KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[0])
@@ -1380,8 +1373,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->hwdmaptr[1] = virt_to_bus((void *)devpriv->dmabuf[1]);
 		devpriv->hwdmasize[1] = (1 << pages) * PAGE_SIZE;
 	}
-
-no_dma:
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
