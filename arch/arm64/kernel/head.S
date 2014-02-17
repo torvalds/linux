@@ -384,26 +384,18 @@ ENDPROC(__calc_phys_offset)
  * Preserves:	tbl, flags
  * Corrupts:	phys, start, end, pstate
  */
-	.macro	create_block_map, tbl, flags, phys, start, end, idmap=0
+	.macro	create_block_map, tbl, flags, phys, start, end
 	lsr	\phys, \phys, #BLOCK_SHIFT
-	.if	\idmap
-	and	\start, \phys, #PTRS_PER_PTE - 1	// table index
-	.else
 	lsr	\start, \start, #BLOCK_SHIFT
 	and	\start, \start, #PTRS_PER_PTE - 1	// table index
-	.endif
 	orr	\phys, \flags, \phys, lsl #BLOCK_SHIFT	// table entry
-	.ifnc	\start,\end
 	lsr	\end, \end, #BLOCK_SHIFT
 	and	\end, \end, #PTRS_PER_PTE - 1		// table end index
-	.endif
 9999:	str	\phys, [\tbl, \start, lsl #3]		// store the entry
-	.ifnc	\start,\end
 	add	\start, \start, #1			// next entry
 	add	\phys, \phys, #BLOCK_SIZE		// next block
 	cmp	\start, \end
 	b.ls	9999b
-	.endif
 	.endm
 
 /*
@@ -435,9 +427,13 @@ __create_page_tables:
 	 * Create the identity mapping.
 	 */
 	add	x0, x25, #PAGE_SIZE		// section table address
-	adr	x3, __turn_mmu_on		// virtual/physical address
+	ldr	x3, =KERNEL_START
+	add	x3, x3, x28			// __pa(KERNEL_START)
 	create_pgd_entry x25, x0, x3, x5, x6
-	create_block_map x0, x7, x3, x5, x5, idmap=1
+	ldr	x6, =KERNEL_END
+	mov	x5, x3				// __pa(KERNEL_START)
+	add	x6, x6, x28			// __pa(KERNEL_END)
+	create_block_map x0, x7, x3, x5, x6
 
 	/*
 	 * Map the kernel image (starting with PHYS_OFFSET).
@@ -445,7 +441,7 @@ __create_page_tables:
 	add	x0, x26, #PAGE_SIZE		// section table address
 	mov	x5, #PAGE_OFFSET
 	create_pgd_entry x26, x0, x5, x3, x6
-	ldr	x6, =KERNEL_END - 1
+	ldr	x6, =KERNEL_END
 	mov	x3, x24				// phys offset
 	create_block_map x0, x7, x3, x5, x6
 
