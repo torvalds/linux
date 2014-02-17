@@ -272,8 +272,11 @@ struct v4l2_mbus_frame_desc {
    g_std_output: get current standard for video OUTPUT devices. This is ignored
 	by video input devices.
 
-   g_tvnorms_output: get v4l2_std_id with all standards supported by video
-	OUTPUT device. This is ignored by video input devices.
+   g_tvnorms: get v4l2_std_id with all standards supported by the video
+	CAPTURE device. This is ignored by video output devices.
+
+   g_tvnorms_output: get v4l2_std_id with all standards supported by the video
+	OUTPUT device. This is ignored by video capture devices.
 
    s_crystal_freq: sets the frequency of the crystal used to generate the
 	clocks in Hz. An extra flags field allows device specific configuration
@@ -316,6 +319,7 @@ struct v4l2_subdev_video_ops {
 	int (*s_std_output)(struct v4l2_subdev *sd, v4l2_std_id std);
 	int (*g_std_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*querystd)(struct v4l2_subdev *sd, v4l2_std_id *std);
+	int (*g_tvnorms)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*g_tvnorms_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
