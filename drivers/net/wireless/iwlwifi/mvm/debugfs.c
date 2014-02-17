@@ -350,6 +350,9 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 			 le32_to_cpu(notif->secondary_ch_lut));
 	pos += scnprintf(buf+pos, bufsz-pos, "bt_activity_grading = %d\n",
 			 le32_to_cpu(notif->bt_activity_grading));
+	pos += scnprintf(buf+pos, bufsz-pos,
+			 "antenna isolation = %d CORUN LUT index = %d\n",
+			 mvm->last_ant_isol, mvm->last_corun_lut);
 
 	mutex_unlock(&mvm->mutex);
 

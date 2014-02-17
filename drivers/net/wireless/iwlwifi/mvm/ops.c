@@ -220,6 +220,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
 	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, false),
 	RX_HANDLER(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics, true),
+	RX_HANDLER(ANTENNA_COUPLING_NOTIFICATION,
+		   iwl_mvm_rx_ant_coupling_notif, true),
 
 	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif, false),
 
@@ -321,6 +323,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(MAC_PM_POWER_TABLE),
 	CMD(BT_COEX_CI),
 	CMD(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION),
+	CMD(ANTENNA_COUPLING_NOTIFICATION),
 };
 #undef CMD
 
