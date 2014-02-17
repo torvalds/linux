@@ -521,7 +521,6 @@ struct pcl812_private {
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_chanlist[MAX_CHANLIST_LEN];	/*  our copy of channel/range list */
-	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
@@ -772,7 +771,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
-	devpriv->ai_n_chan = cmd->chanlist_len;
 	memcpy(devpriv->ai_chanlist, cmd->chanlist,
 	       sizeof(unsigned int) * cmd->scan_end_arg);
 	/*  select first channel and range */
@@ -780,7 +778,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->dma) {	/*  check if we can use DMA transfer */
 		devpriv->ai_dma = 1;
-		for (i = 1; i < devpriv->ai_n_chan; i++)
+		for (i = 1; i < cmd->chanlist_len; i++)
 			if (devpriv->ai_chanlist[0] != devpriv->ai_chanlist[i]) {
 				/*  we cann't use DMA :-( */
 				devpriv->ai_dma = 0;
@@ -805,7 +803,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ai_eos = 1;
 
 		/*  DMA is useless for this situation */
-		if (devpriv->ai_n_chan == 1)
+		if (cmd->chanlist_len == 1)
 			devpriv->ai_dma = 0;
 	}
 
@@ -813,9 +811,9 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*  we use EOS, so adapt DMA buffer to one scan */
 		if (devpriv->ai_eos) {
 			devpriv->dmabytestomove[0] =
-			    devpriv->ai_n_chan * sizeof(short);
+			    cmd->chanlist_len * sizeof(short);
 			devpriv->dmabytestomove[1] =
-			    devpriv->ai_n_chan * sizeof(short);
+			    cmd->chanlist_len * sizeof(short);
 			devpriv->dma_runs_to_end = 1;
 		} else {
 			devpriv->dmabytestomove[0] = devpriv->hwdmasize[0];
@@ -830,7 +828,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				devpriv->dma_runs_to_end = 1;
 			} else {
 				/*  how many samples we must transfer? */
-				bytes = devpriv->ai_n_chan *
+				bytes = cmd->chanlist_len *
 					cmd->stop_arg * sizeof(short);
 
 				/*  how many DMA pages we must fill */
@@ -924,7 +922,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 
 	/* Set up next channel. Added by abbotti 2010-01-20, but untested. */
 	next_chan = s->async->cur_chan + 1;
-	if (next_chan >= devpriv->ai_n_chan)
+	if (next_chan >= cmd->chanlist_len)
 		next_chan = 0;
 	if (devpriv->ai_chanlist[s->async->cur_chan] !=
 			devpriv->ai_chanlist[next_chan])
@@ -965,7 +963,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 		comedi_buf_put(s->async, ptr[bufptr++]);
 
 		s->async->cur_chan++;
-		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+		if (s->async->cur_chan >= cmd->chanlist_len) {
 			s->async->cur_chan = 0;
 			devpriv->ai_act_scan++;
 			if (!devpriv->ai_neverending)
