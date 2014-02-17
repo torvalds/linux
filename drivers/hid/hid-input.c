@@ -350,9 +350,9 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 			ret = -ENOMEM;
 			break;
 		}
-		ret = dev->hid_get_raw_report(dev, dev->battery_report_id,
-					      buf, 2,
-					      dev->battery_report_type);
+		ret = hid_hw_raw_request(dev, dev->battery_report_id, buf, 2,
+					 dev->battery_report_type,
+					 HID_REQ_GET_REPORT);
 
 		if (ret != 2) {
 			ret = -ENODATA;
@@ -1184,7 +1184,7 @@ static void hidinput_led_worker(struct work_struct *work)
 
 	hid_output_report(report, buf);
 	/* synchronous output report */
-	hid->hid_output_raw_report(hid, buf, len, HID_OUTPUT_REPORT);
+	hid_output_raw_report(hid, buf, len, HID_OUTPUT_REPORT);
 	kfree(buf);
 }
 
@@ -1263,9 +1263,7 @@ static struct hid_input *hidinput_allocate(struct hid_device *hid)
 	}
 
 	input_set_drvdata(input_dev, hid);
-	if (hid->ll_driver->hidinput_input_event)
-		input_dev->event = hid->ll_driver->hidinput_input_event;
-	else if (hid->ll_driver->request || hid->hid_output_raw_report)
+	if (hid->ll_driver->request || hid->hid_output_raw_report)
 		input_dev->event = hidinput_input_event;
 	input_dev->open = hidinput_open;
 	input_dev->close = hidinput_close;

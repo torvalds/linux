@@ -1005,7 +1005,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	hid->driver_data = client;
 	hid->ll_driver = &i2c_hid_ll_driver;
-	hid->hid_get_raw_report = i2c_hid_get_raw_report;
 	hid->hid_output_raw_report = i2c_hid_output_raw_report;
 	hid->dev.parent = &client->dev;
 	ACPI_COMPANION_SET(&hid->dev, ACPI_COMPANION(&client->dev));
