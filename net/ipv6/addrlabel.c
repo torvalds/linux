@@ -504,12 +504,13 @@ static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	hlist_for_each_entry_rcu(p, &ip6addrlbl_table.head, list) {
 		if (idx >= s_idx &&
 		    net_eq(ip6addrlbl_net(p), net)) {
-			if ((err = ip6addrlbl_fill(skb, p,
-						   ip6addrlbl_table.seq,
-						   NETLINK_CB(cb->skb).portid,
-						   cb->nlh->nlmsg_seq,
-						   RTM_NEWADDRLABEL,
-						   NLM_F_MULTI)) <= 0)
+			err = ip6addrlbl_fill(skb, p,
+					      ip6addrlbl_table.seq,
+					      NETLINK_CB(cb->skb).portid,
+					      cb->nlh->nlmsg_seq,
+					      RTM_NEWADDRLABEL,
+					      NLM_F_MULTI);
+			if (err <= 0)
 				break;
 		}
 		idx++;
@@ -567,7 +568,8 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		goto out;
 	}
 
-	if (!(skb = nlmsg_new(ip6addrlbl_msgsize(), GFP_KERNEL))) {
+	skb = nlmsg_new(ip6addrlbl_msgsize(), GFP_KERNEL);
+	if (!skb) {
 		ip6addrlbl_put(p);
 		return -ENOBUFS;
 	}
