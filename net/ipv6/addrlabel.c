@@ -28,8 +28,7 @@
 /*
  * Policy Table
  */
-struct ip6addrlbl_entry
-{
+struct ip6addrlbl_entry {
 #ifdef CONFIG_NET_NS
 	struct net *lbl_net;
 #endif
@@ -527,7 +526,7 @@ static inline int ip6addrlbl_msgsize(void)
 		+ nla_total_size(4);	/* IFAL_LABEL */
 }
 
-static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh)
+static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct ifaddrlblmsg *ifal;
