@@ -38,8 +38,6 @@
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
 #include <net/udp.h>
-#include <linux/sctp.h>
-
 
 #include "i40e_type.h"
 #include "i40e_virtchnl.h"
