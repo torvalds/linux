@@ -165,6 +165,17 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_cmd *cmd);
 static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 
+static unsigned int pcl816_ai_get_sample(struct comedi_device *dev,
+					 struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + PCL816_AD_HI) << 8;
+	val |= inb(dev->iobase + PCL816_AD_LO);
+
+	return val & s->maxdata;
+}
+
 static int pcl816_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -206,9 +217,8 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 			return ret;
 		}
 
-		/*  return read value */
-		data[n] = ((inb(dev->iobase + PCL816_AD_HI) << 8) |
-			  (inb(dev->iobase + PCL816_AD_LO)));
+		data[n] = pcl816_ai_get_sample(dev, s);
+
 		/* clear INT (conversion end) flag */
 		outb(0, dev->iobase + PCL816_CLRINT);
 	}
@@ -225,7 +235,6 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	unsigned char low, hi;
 	int timeout = 50;	/* wait max 50us */
 
 	while (timeout--) {
@@ -244,11 +253,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 
 	}
 
-	/*  get the sample */
-	low = inb(dev->iobase + PCL816_AD_LO);
-	hi = inb(dev->iobase + PCL816_AD_HI);
-
-	comedi_buf_put(s->async, (hi << 8) | low);
+	comedi_buf_put(s->async, pcl816_ai_get_sample(dev, s));
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 
@@ -655,8 +660,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 			outb(0xb0, dev->iobase + PCL816_CTRCTL);
 			outb(0x70, dev->iobase + PCL816_CTRCTL);
 			outb(0, dev->iobase + PCL816_AD_LO);
-			inb(dev->iobase + PCL816_AD_LO);
-			inb(dev->iobase + PCL816_AD_HI);
+			pcl816_ai_get_sample(dev, s);
 
 			/* clear INT request */
 			outb(0, dev->iobase + PCL816_CLRINT);
