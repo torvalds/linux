@@ -536,8 +536,6 @@ struct pcl812_private {
 static void setup_range_channel(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				unsigned int rangechan, char wait);
-static int pcl812_ai_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
 
 static void pcl812_start_pacer(struct comedi_device *dev, bool load_timers)
 {
@@ -911,7 +909,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 
 	if (err) {
 		dev_dbg(dev->class_dev, "A/D cmd IRQ without DRDY!\n");
-		pcl812_ai_cancel(dev, s);
+		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
@@ -935,7 +933,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 		if (!(devpriv->ai_neverending))
 							/* all data sampled */
 			if (devpriv->ai_act_scan >= cmd->stop_arg) {
-				pcl812_ai_cancel(dev, s);
+				s->cancel(dev, s);
 				s->async->events |= COMEDI_CB_EOA;
 			}
 	}
@@ -968,7 +966,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 			if (!devpriv->ai_neverending)
 							/* all data sampled */
 				if (devpriv->ai_act_scan >= cmd->stop_arg) {
-					pcl812_ai_cancel(dev, s);
+					s->cancel(dev, s);
 					s->async->events |= COMEDI_CB_EOA;
 					break;
 				}
