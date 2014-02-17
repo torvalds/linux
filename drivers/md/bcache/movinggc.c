@@ -24,12 +24,10 @@ static bool moving_pred(struct keybuf *buf, struct bkey *k)
 					   moving_gc_keys);
 	unsigned i;
 
-	for (i = 0; i < KEY_PTRS(k); i++) {
-		struct bucket *g = PTR_BUCKET(c, k, i);
-
-		if (GC_MOVE(g))
+	for (i = 0; i < KEY_PTRS(k); i++)
+		if (ptr_available(c, k, i) &&
+		    GC_MOVE(PTR_BUCKET(c, k, i)))
 			return true;
-	}
 
 	return false;
 }
