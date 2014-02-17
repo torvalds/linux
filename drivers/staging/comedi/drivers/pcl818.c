@@ -372,6 +372,21 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 static void start_pacer(struct comedi_device *dev, int mode,
 			unsigned int divisor1, unsigned int divisor2);
 
+static unsigned int pcl818_ai_get_sample(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 unsigned int *chan)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + PCL818_AD_HI) << 8;
+	val |= inb(dev->iobase + PCL818_AD_LO);
+
+	if (chan)
+		*chan = val & 0xf;
+
+	return (val >> 4) & s->maxdata;
+}
+
 static int pcl818_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -416,8 +431,7 @@ static int pcl818_ai_insn_read(struct comedi_device *dev,
 			return ret;
 		}
 
-		data[n] = ((inb(dev->iobase + PCL818_AD_HI) << 4) |
-			   (inb(dev->iobase + PCL818_AD_LO) >> 4));
+		data[n] = pcl818_ai_get_sample(dev, s, NULL);
 	}
 
 	return n;
@@ -502,7 +516,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	unsigned char low;
+	unsigned int chan;
 	int timeout = 50;	/* wait max 50us */
 
 	while (timeout--) {
@@ -518,14 +532,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	return IRQ_HANDLED;
 
 conv_finish:
-	low = inb(dev->iobase + PCL818_AD_LO);
-	comedi_buf_put(s->async, ((inb(dev->iobase + PCL818_AD_HI) << 4) | (low >> 4)));	/*  get one sample */
+	comedi_buf_put(s->async, pcl818_ai_get_sample(dev, s, &chan));
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 
-	if ((low & 0xf) != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {	/*  dropout! */
+	if (chan != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {
 		dev_dbg(dev->class_dev,
 			"A/D mode1/3 IRQ - channel dropout %x!=%x !\n",
-			(low & 0xf),
+			chan,
 			devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 		pcl818_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
@@ -1166,8 +1179,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 			udelay(1);
 			start_pacer(dev, -1, 0, 0);
 			outb(0, dev->iobase + PCL818_AD_LO);
-			inb(dev->iobase + PCL818_AD_LO);
-			inb(dev->iobase + PCL818_AD_HI);
+			pcl818_ai_get_sample(dev, s, NULL);
 			outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 			outb(0, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
 			if (devpriv->usefifo) {	/*  FIFO shutdown */
