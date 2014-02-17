@@ -331,7 +331,7 @@ struct pcl818_private {
 	unsigned int divisor1;
 	unsigned int divisor2;
 	unsigned int usefifo:1;
-	unsigned int irq_blocked:1;
+	unsigned int ai_cmd_running:1;
 	unsigned int irq_was_now_closed:1;
 	unsigned int neverending_ai:1;
 };
@@ -727,7 +727,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	if (devpriv->irq_blocked && devpriv->irq_was_now_closed) {
+	if (devpriv->ai_cmd_running && devpriv->irq_was_now_closed) {
 		if ((devpriv->neverending_ai || (!devpriv->neverending_ai &&
 						 devpriv->ai_act_scan > 0)) &&
 		    (devpriv->ai_mode == INT_TYPE_AI1_DMA ||
@@ -763,7 +763,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 
-	if (!devpriv->irq_blocked || !devpriv->ai_mode) {
+	if (!devpriv->ai_cmd_running || !devpriv->ai_mode) {
 		comedi_error(dev, "bad IRQ!");
 		return IRQ_NONE;
 	}
@@ -824,7 +824,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int seglen;
 
-	if (devpriv->irq_blocked)
+	if (devpriv->ai_cmd_running)
 		return -EBUSY;
 
 	pcl818_start_pacer(dev, false);
@@ -838,7 +838,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 
 	devpriv->ai_act_scan = cmd->stop_arg;
 	devpriv->ai_act_chan = 0;
-	devpriv->irq_blocked = 1;
+	devpriv->ai_cmd_running = 1;
 	devpriv->irq_was_now_closed = 0;
 	devpriv->act_chanlist_pos = 0;
 	devpriv->dma_runs_to_end = 0;
@@ -1099,7 +1099,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 {
 	struct pcl818_private *devpriv = dev->private;
 
-	if (devpriv->irq_blocked > 0) {
+	if (devpriv->ai_cmd_running) {
 		devpriv->irq_was_now_closed = 1;
 
 		switch (devpriv->ai_mode) {
@@ -1128,7 +1128,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 				outb(0, dev->iobase + PCL818_FI_FLUSH);
 				outb(0, dev->iobase + PCL818_FI_ENABLE);
 			}
-			devpriv->irq_blocked = 0;
+			devpriv->ai_cmd_running = 0;
 			devpriv->neverending_ai = 0;
 			devpriv->ai_mode = 0;
 			devpriv->irq_was_now_closed = 0;
@@ -1287,7 +1287,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->irq = it->options[1];
 	}
 
-	devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
 	devpriv->ai_mode = 0;	/* mode of irq */
 
 	/* we need an IRQ to do DMA on channel 3 or 1 */
