@@ -22,6 +22,8 @@
 #include "common-board-devices.h"
 #include "dss-common.h"
 #include "control.h"
+#include "omap-secure.h"
+#include "soc.h"
 
 struct pdata_init {
 	const char *compatible;
@@ -169,6 +171,22 @@ static void __init am3517_evm_legacy_init(void)
 	omap_ctrl_writel(v, AM35XX_CONTROL_IP_SW_RESET);
 	omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET); /* OCP barrier */
 }
+
+static void __init nokia_n900_legacy_init(void)
+{
+	hsmmc2_internal_input_clk();
+
+	if (omap_type() == OMAP2_DEVICE_TYPE_SEC) {
+		if (IS_ENABLED(CONFIG_ARM_ERRATA_430973)) {
+			pr_info("RX-51: Enabling ARM errata 430973 workaround\n");
+			/* set IBE to 1 */
+			rx51_secure_update_aux_cr(BIT(6), 0);
+		} else {
+			pr_warning("RX-51: Not enabling ARM errata 430973 workaround\n");
+			pr_warning("Thumb binaries may crash randomly without this workaround\n");
+		}
+	}
+}
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #ifdef CONFIG_ARCH_OMAP4
@@ -259,7 +277,7 @@ struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 static struct pdata_init pdata_quirks[] __initdata = {
 #ifdef CONFIG_ARCH_OMAP3
 	{ "compulab,omap3-sbc-t3730", omap3_sbc_t3730_legacy_init, },
-	{ "nokia,omap3-n900", hsmmc2_internal_input_clk, },
+	{ "nokia,omap3-n900", nokia_n900_legacy_init, },
 	{ "nokia,omap3-n9", hsmmc2_internal_input_clk, },
 	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
 	{ "isee,omap3-igep0020", omap3_igep0020_legacy_init, },
