@@ -292,7 +292,7 @@ static void sh_tmu_clocksource_resume(struct clocksource *cs)
 }
 
 static int sh_tmu_register_clocksource(struct sh_tmu_channel *ch,
-				       char *name, unsigned long rating)
+				       const char *name, unsigned long rating)
 {
 	struct clocksource *cs = &ch->cs;
 
@@ -393,7 +393,7 @@ static void sh_tmu_clock_event_resume(struct clock_event_device *ced)
 }
 
 static void sh_tmu_register_clockevent(struct sh_tmu_channel *ch,
-				       char *name, unsigned long rating)
+				       const char *name, unsigned long rating)
 {
 	struct clock_event_device *ced = &ch->ced;
 	int ret;
@@ -424,7 +424,7 @@ static void sh_tmu_register_clockevent(struct sh_tmu_channel *ch,
 	}
 }
 
-static int sh_tmu_register(struct sh_tmu_channel *ch, char *name,
+static int sh_tmu_register(struct sh_tmu_channel *ch, const char *name,
 		    unsigned long clockevent_rating,
 		    unsigned long clocksource_rating)
 {
@@ -453,7 +453,7 @@ static int sh_tmu_channel_setup(struct sh_tmu_channel *ch,
 	ch->cs_enabled = false;
 	ch->enable_count = 0;
 
-	return sh_tmu_register(ch, (char *)dev_name(&tmu->pdev->dev),
+	return sh_tmu_register(ch, dev_name(&tmu->pdev->dev),
 			       cfg->clockevent_rating,
 			       cfg->clocksource_rating);
 }
