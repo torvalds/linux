@@ -2348,6 +2348,9 @@ int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 {
 	int ret;
 
+	if (!cfts || cfts[0].name[0] == '\0')
+		return 0;
+
 	ret = cgroup_init_cftypes(ss, cfts);
 	if (ret)
 		return ret;
