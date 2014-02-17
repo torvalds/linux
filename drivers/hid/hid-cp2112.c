@@ -361,7 +361,7 @@ static int cp2112_read(struct cp2112_device *dev, u8 *data, size_t size)
 	if (ret)
 		return ret;
 
-	hid_dbg(hdev, "read %d of %d bytes requested\n",
+	hid_dbg(hdev, "read %d of %zd bytes requested\n",
 		dev->read_length, size);
 
 	if (size > dev->read_length)
@@ -552,7 +552,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	if (ret < 0)
 		goto power_normal;
 	if (ret != read_length) {
-		hid_warn(hdev, "short read: %d < %d\n", ret, read_length);
+		hid_warn(hdev, "short read: %d < %zd\n", ret, read_length);
 		ret = -EIO;
 		goto power_normal;
 	}
