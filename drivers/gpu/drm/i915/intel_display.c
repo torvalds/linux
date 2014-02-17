@@ -11232,10 +11232,20 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	 * the crtc fixup. */
 }
 
-void i915_redisable_vga(struct drm_device *dev)
+void i915_redisable_vga_power_on(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 vga_reg = i915_vgacntrl_reg(dev);
+
+	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
+		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
+		i915_disable_vga(dev);
+	}
+}
+
+void i915_redisable_vga(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* This function can be called both from intel_modeset_setup_hw_state or
 	 * at a very early point in our resume sequence, where the power well
@@ -11244,14 +11254,10 @@ void i915_redisable_vga(struct drm_device *dev)
 	 * level, just check if the power well is enabled instead of trying to
 	 * follow the "don't touch the power well if we don't need it" policy
 	 * the rest of the driver uses. */
-	if ((IS_HASWELL(dev) || IS_BROADWELL(dev)) &&
-	    (I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_STATE_ENABLED) == 0)
+	if (!intel_display_power_enabled(dev_priv, POWER_DOMAIN_VGA))
 		return;
 
-	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
-		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
-		i915_disable_vga(dev);
-	}
+	i915_redisable_vga_power_on(dev);
 }
 
 static void intel_modeset_readout_hw_state(struct drm_device *dev)
