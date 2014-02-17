@@ -261,7 +261,6 @@ struct pcl818_board {
 	unsigned int ns_min;
 	int n_aochan;
 	const struct comedi_lrange *ai_range_type;
-	unsigned int IRQbits;
 	int ai_maxdata;
 	int ao_maxdata;
 	unsigned int has_dma:1;
@@ -275,7 +274,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 25000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818l_l_ai,
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
@@ -285,7 +283,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818h_ai,
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
@@ -295,7 +292,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818h_ai,
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
@@ -306,7 +302,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818hg_ai,
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
@@ -317,7 +312,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 10000,
 		.n_aochan	= 2,
 		.ai_range_type	= &range_pcl818h_ai,
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
@@ -327,7 +321,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 16000,
 		.n_aochan	= 2,
 		.ai_range_type	= &range_unipolar5,
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
@@ -335,7 +328,6 @@ static const struct pcl818_board boardtypes[] = {
 		.name		= "pcm3718",
 		.ns_min		= 10000,
 		.ai_range_type	= &range_pcl818h_ai,
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
@@ -1347,7 +1339,8 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 
-	if ((1 << it->options[1]) & board->IRQbits) {
+	/* we can use IRQ 2-7 for async command support */
+	if (it->options[1] >= 2 && it->options[1] <= 7) {
 		ret = request_irq(it->options[1], interrupt_pcl818, 0,
 				  dev->board_name, dev);
 		if (ret == 0)
