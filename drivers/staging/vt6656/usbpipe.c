@@ -364,6 +364,19 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
     //      4) The irp was cancelled.
     //      5) Some other failure from the USB device object.
     //
+	switch (urb->status) {
+	case 0:
+	case -ETIMEDOUT:
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		pDevice->intBuf.bInUse = false;
+		return;
+	default:
+		break;
+	}
+
     ntStatus = urb->status;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_nsInterruptUsbIoCompleteRead Status %d\n", ntStatus);
