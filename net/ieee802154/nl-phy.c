@@ -58,7 +58,8 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel) ||
 	    nla_put_s8(msg, IEEE802154_ATTR_TXPOWER, phy->transmit_power) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_LBT_ENABLED, phy->lbt) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_CCA_MODE, phy->cca_mode))
+	    nla_put_u8(msg, IEEE802154_ATTR_CCA_MODE, phy->cca_mode) ||
+	    nla_put_s32(msg, IEEE802154_ATTR_CCA_ED_LEVEL, phy->cca_ed_level))
 		goto nla_put_failure;
 	for (i = 0; i < 32; i++) {
 		if (phy->channels_supported[i])
@@ -403,6 +404,20 @@ static int phy_set_cca_mode(struct wpan_phy *phy, struct genl_info *info)
 	return 0;
 }
 
+static int phy_set_cca_ed_level(struct wpan_phy *phy, struct genl_info *info)
+{
+	s32 level = nla_get_s32(info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]);
+	int rc;
+
+	rc = phy->set_cca_ed_level(phy, level);
+	if (rc < 0)
+		return rc;
+
+	phy->cca_ed_level = level;
+
+	return 0;
+}
+
 int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
 {
 	struct wpan_phy *phy;
@@ -413,7 +428,8 @@ int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
 
 	if (!info->attrs[IEEE802154_ATTR_PHY_NAME] &&
 	    !info->attrs[IEEE802154_ATTR_LBT_ENABLED] &&
-	    !info->attrs[IEEE802154_ATTR_CCA_MODE])
+	    !info->attrs[IEEE802154_ATTR_CCA_MODE] &&
+	    !info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL])
 		return -EINVAL;
 
 	name = nla_data(info->attrs[IEEE802154_ATTR_PHY_NAME]);
@@ -426,7 +442,9 @@ int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
 
 	if ((!phy->set_txpower && info->attrs[IEEE802154_ATTR_TXPOWER]) ||
 	    (!phy->set_lbt && info->attrs[IEEE802154_ATTR_LBT_ENABLED]) ||
-	    (!phy->set_cca_mode && info->attrs[IEEE802154_ATTR_CCA_MODE]))
+	    (!phy->set_cca_mode && info->attrs[IEEE802154_ATTR_CCA_MODE]) ||
+	    (!phy->set_cca_ed_level &&
+	     info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]))
 		goto out;
 
 	mutex_lock(&phy->pib_lock);
@@ -445,6 +463,12 @@ int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[IEEE802154_ATTR_CCA_MODE]) {
 		rc = phy_set_cca_mode(phy, info);
+		if (rc < 0)
+			goto error;
+	}
+
+	if (info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]) {
+		rc = phy_set_cca_ed_level(phy, info);
 		if (rc < 0)
 			goto error;
 	}

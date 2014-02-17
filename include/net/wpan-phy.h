@@ -48,6 +48,7 @@ struct wpan_phy {
 	u8 cca_mode;
 
 	bool lbt;
+	s32 cca_ed_level;
 
 	struct device dev;
 	int idx;
@@ -59,6 +60,7 @@ struct wpan_phy {
 	int (*set_txpower)(struct wpan_phy *phy, int db);
 	int (*set_lbt)(struct wpan_phy *phy, bool on);
 	int (*set_cca_mode)(struct wpan_phy *phy, u8 cca_mode);
+	int (*set_cca_ed_level)(struct wpan_phy *phy, int level);
 
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };

@@ -52,6 +52,8 @@ struct at86rf230_local {
 	spinlock_t lock;
 	bool irq_busy;
 	bool is_tx;
+
+	int rssi_base_val;
 };
 
 static inline int is_rf212(struct at86rf230_local *local)
@@ -580,6 +582,8 @@ at86rf230_stop(struct ieee802154_dev *dev)
 static int
 at86rf230_set_channel(struct at86rf230_local *lp, int page, int channel)
 {
+	lp->rssi_base_val = -91;
+
 	return at86rf230_write_subreg(lp, SR_CHANNEL, channel);
 }
 
@@ -595,10 +599,13 @@ at86rf212_set_channel(struct at86rf230_local *lp, int page, int channel)
 	if (rc < 0)
 		return rc;
 
-	if (page == 0)
+	if (page == 0) {
 		rc = at86rf230_write_subreg(lp, SR_BPSK_QPSK, 0);
-	else
+		lp->rssi_base_val = -100;
+	} else {
 		rc = at86rf230_write_subreg(lp, SR_BPSK_QPSK, 1);
+		lp->rssi_base_val = -98;
+	}
 	if (rc < 0)
 		return rc;
 
@@ -802,6 +809,20 @@ at86rf212_set_cca_mode(struct ieee802154_dev *dev, u8 mode)
 	return at86rf230_write_subreg(lp, SR_CCA_MODE, mode);
 }
 
+static int
+at86rf212_set_cca_ed_level(struct ieee802154_dev *dev, s32 level)
+{
+	struct at86rf230_local *lp = dev->priv;
+	int desens_steps;
+
+	if (level < lp->rssi_base_val || level > 30)
+		return -EINVAL;
+
+	desens_steps = (level - lp->rssi_base_val) * 100 / 207;
+
+	return at86rf230_write_subreg(lp, SR_CCA_ED_THRES, desens_steps);
+}
+
 static struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
 	.xmit = at86rf230_xmit,
@@ -823,6 +844,7 @@ static struct ieee802154_ops at86rf212_ops = {
 	.set_txpower = at86rf212_set_txpower,
 	.set_lbt = at86rf212_set_lbt,
 	.set_cca_mode = at86rf212_set_cca_mode,
+	.set_cca_ed_level = at86rf212_set_cca_ed_level,
 };
 
 static void at86rf230_irqwork(struct work_struct *work)
