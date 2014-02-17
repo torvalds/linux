@@ -517,7 +517,6 @@ struct pcl812_private {
 	unsigned char ai_dma;	/*  =1 we use DMA */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
-	unsigned int ai_chanlist[MAX_CHANLIST_LEN];	/*  our copy of channel/range list */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned int dmapages;
 	unsigned int hwdmasize;
@@ -769,15 +768,13 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	pcl812_start_pacer(dev, false);
 
-	memcpy(devpriv->ai_chanlist, cmd->chanlist,
-	       sizeof(unsigned int) * cmd->scan_end_arg);
 	/*  select first channel and range */
-	setup_range_channel(dev, s, devpriv->ai_chanlist[0], 1);
+	setup_range_channel(dev, s, cmd->chanlist[0], 1);
 
 	if (devpriv->dma) {	/*  check if we can use DMA transfer */
 		devpriv->ai_dma = 1;
 		for (i = 1; i < cmd->chanlist_len; i++)
-			if (devpriv->ai_chanlist[0] != devpriv->ai_chanlist[i]) {
+			if (cmd->chanlist[0] != cmd->chanlist[i]) {
 				/*  we cann't use DMA :-( */
 				devpriv->ai_dma = 0;
 				break;
@@ -921,9 +918,8 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	next_chan = s->async->cur_chan + 1;
 	if (next_chan >= cmd->chanlist_len)
 		next_chan = 0;
-	if (devpriv->ai_chanlist[s->async->cur_chan] !=
-			devpriv->ai_chanlist[next_chan])
-		setup_range_channel(dev, s, devpriv->ai_chanlist[next_chan], 0);
+	if (cmd->chanlist[s->async->cur_chan] != cmd->chanlist[next_chan])
+		setup_range_channel(dev, s, cmd->chanlist[next_chan], 0);
 
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
