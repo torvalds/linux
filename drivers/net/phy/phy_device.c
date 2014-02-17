@@ -540,11 +540,7 @@ int phy_init_hw(struct phy_device *phydev)
 	if (!phydev->drv || !phydev->drv->config_init)
 		return 0;
 
-	ret = phy_write(phydev, MII_BMCR, BMCR_RESET);
-	if (ret < 0)
-		return ret;
-
-	ret = phy_poll_reset(phydev);
+	ret = genphy_soft_reset(phydev);
 	if (ret < 0)
 		return ret;
 
@@ -1044,6 +1040,27 @@ static int gen10g_read_status(struct phy_device *phydev)
 
 	return 0;
 }
+
+/**
+ * genphy_soft_reset - software reset the PHY via BMCR_RESET bit
+ * @phydev: target phy_device struct
+ *
+ * Description: Perform a software PHY reset using the standard
+ * BMCR_RESET bit and poll for the reset bit to be cleared.
+ *
+ * Returns: 0 on success, < 0 on failure
+ */
+int genphy_soft_reset(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_write(phydev, MII_BMCR, BMCR_RESET);
+	if (ret < 0)
+		return ret;
+
+	return phy_poll_reset(phydev);
+}
+EXPORT_SYMBOL(genphy_soft_reset);
 
 static int genphy_config_init(struct phy_device *phydev)
 {
