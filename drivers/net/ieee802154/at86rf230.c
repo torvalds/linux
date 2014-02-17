@@ -37,7 +37,6 @@
 
 struct at86rf230_local {
 	struct spi_device *spi;
-	int rstn, slp_tr, dig2;
 
 	u8 part;
 	u8 vers;
@@ -54,6 +53,11 @@ struct at86rf230_local {
 	bool irq_busy;
 	bool is_tx;
 };
+
+static inline int is_rf212(struct at86rf230_local *local)
+{
+	return local->part == 7;
+}
 
 #define	RG_TRX_STATUS	(0x01)
 #define	SR_TRX_STATUS		0x01, 0x1f, 0
@@ -100,7 +104,9 @@ struct at86rf230_local {
 #define	SR_SFD_VALUE		0x0b, 0xff, 0
 #define	RG_TRX_CTRL_2	(0x0c)
 #define	SR_OQPSK_DATA_RATE	0x0c, 0x03, 0
-#define	SR_RESERVED_0c_2	0x0c, 0x7c, 2
+#define	SR_SUB_MODE		0x0c, 0x04, 2
+#define	SR_BPSK_QPSK		0x0c, 0x08, 3
+#define	SR_RESERVED_0c_4	0x0c, 0x70, 4
 #define	SR_RX_SAFE_MODE		0x0c, 0x80, 7
 #define	RG_ANT_DIV	(0x0d)
 #define	SR_ANT_CTRL		0x0d, 0x03, 0
@@ -242,6 +248,57 @@ struct at86rf230_local {
 #define STATE_RX_AACK_ON_NOCLK	0x1D
 #define STATE_BUSY_RX_AACK_NOCLK 0x1E
 #define STATE_TRANSITION_IN_PROGRESS 0x1F
+
+static int
+__at86rf230_detect_device(struct spi_device *spi, u16 *man_id, u8 *part,
+		u8 *version)
+{
+	u8 data[4];
+	u8 *buf = kmalloc(2, GFP_KERNEL);
+	int status;
+	struct spi_message msg;
+	struct spi_transfer xfer = {
+		.len	= 2,
+		.tx_buf	= buf,
+		.rx_buf	= buf,
+	};
+	u8 reg;
+
+	if (!buf)
+		return -ENOMEM;
+
+	for (reg = RG_PART_NUM; reg <= RG_MAN_ID_1; reg++) {
+		buf[0] = (reg & CMD_REG_MASK) | CMD_REG;
+		buf[1] = 0xff;
+		dev_vdbg(&spi->dev, "buf[0] = %02x\n", buf[0]);
+		spi_message_init(&msg);
+		spi_message_add_tail(&xfer, &msg);
+
+		status = spi_sync(spi, &msg);
+		dev_vdbg(&spi->dev, "status = %d\n", status);
+		if (msg.status)
+			status = msg.status;
+
+		dev_vdbg(&spi->dev, "status = %d\n", status);
+		dev_vdbg(&spi->dev, "buf[0] = %02x\n", buf[0]);
+		dev_vdbg(&spi->dev, "buf[1] = %02x\n", buf[1]);
+
+		if (status == 0)
+			data[reg - RG_PART_NUM] = buf[1];
+		else
+			break;
+	}
+
+	if (status == 0) {
+		*part = data[0];
+		*version = data[1];
+		*man_id = (data[3] << 8) | data[2];
+	}
+
+	kfree(buf);
+
+	return status;
+}
 
 static int
 __at86rf230_write(struct at86rf230_local *lp, u8 addr, u8 data)
@@ -520,6 +577,27 @@ at86rf230_stop(struct ieee802154_dev *dev)
 }
 
 static int
+at86rf230_set_channel(struct at86rf230_local *lp, int page, int channel)
+{
+	return at86rf230_write_subreg(lp, SR_CHANNEL, channel);
+}
+
+static int
+at86rf212_set_channel(struct at86rf230_local *lp, int page, int channel)
+{
+	int rc;
+
+	if (channel == 0)
+		rc = at86rf230_write_subreg(lp, SR_SUB_MODE, 0);
+	else
+		rc = at86rf230_write_subreg(lp, SR_SUB_MODE, 1);
+	if (rc < 0)
+		return rc;
+
+	return at86rf230_write_subreg(lp, SR_CHANNEL, channel);
+}
+
+static int
 at86rf230_channel(struct ieee802154_dev *dev, int page, int channel)
 {
 	struct at86rf230_local *lp = dev->priv;
@@ -527,12 +605,19 @@ at86rf230_channel(struct ieee802154_dev *dev, int page, int channel)
 
 	might_sleep();
 
-	if (page != 0 || channel < 11 || channel > 26) {
+	if (page < 0 || page > 31 ||
+	    !(lp->dev->phy->channels_supported[page] & BIT(channel))) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
 
-	rc = at86rf230_write_subreg(lp, SR_CHANNEL, channel);
+	if (is_rf212(lp))
+		rc = at86rf212_set_channel(lp, page, channel);
+	else
+		rc = at86rf230_set_channel(lp, page, channel);
+	if (rc < 0)
+		return rc;
+
 	msleep(1); /* Wait for PLL */
 	dev->phy->current_channel = channel;
 
@@ -678,6 +763,16 @@ static struct ieee802154_ops at86rf230_ops = {
 	.set_hw_addr_filt = at86rf230_set_hw_addr_filt,
 };
 
+static struct ieee802154_ops at86rf212_ops = {
+	.owner = THIS_MODULE,
+	.xmit = at86rf230_xmit,
+	.ed = at86rf230_ed,
+	.set_channel = at86rf230_channel,
+	.start = at86rf230_start,
+	.stop = at86rf230_stop,
+	.set_hw_addr_filt = at86rf230_set_hw_addr_filt,
+};
+
 static void at86rf230_irqwork(struct work_struct *work)
 {
 	struct at86rf230_local *lp =
@@ -759,7 +854,8 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 
 	dev_info(&lp->spi->dev, "Status: %02x\n", status);
 	if (status == STATE_P_ON) {
-		rc = at86rf230_write_subreg(lp, SR_TRX_CMD, STATE_TRX_OFF);
+		rc = at86rf230_write_subreg(lp, SR_TRX_CMD,
+					    STATE_FORCE_TRX_OFF);
 		if (rc)
 			return rc;
 		msleep(1);
@@ -824,26 +920,18 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	return 0;
 }
 
-static void at86rf230_fill_data(struct spi_device *spi)
-{
-	struct at86rf230_local *lp = spi_get_drvdata(spi);
-	struct at86rf230_platform_data *pdata = spi->dev.platform_data;
-
-	lp->rstn = pdata->rstn;
-	lp->slp_tr = pdata->slp_tr;
-	lp->dig2 = pdata->dig2;
-}
-
 static int at86rf230_probe(struct spi_device *spi)
 {
 	struct at86rf230_platform_data *pdata;
 	struct ieee802154_dev *dev;
 	struct at86rf230_local *lp;
-	u8 man_id_0, man_id_1, status;
+	u16 man_id = 0;
+	u8 part = 0, version = 0, status;
 	irq_handler_t irq_handler;
 	work_func_t irq_worker;
-	int rc, supported = 0;
+	int rc;
 	const char *chip;
+	struct ieee802154_ops *ops = NULL;
 
 	if (!spi->irq) {
 		dev_err(&spi->dev, "no IRQ specified\n");
@@ -856,20 +944,85 @@ static int at86rf230_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	dev = ieee802154_alloc_device(sizeof(*lp), &at86rf230_ops);
-	if (!dev)
-		return -ENOMEM;
+	rc = gpio_request(pdata->rstn, "rstn");
+	if (rc)
+		return rc;
+
+	if (gpio_is_valid(pdata->slp_tr)) {
+		rc = gpio_request(pdata->slp_tr, "slp_tr");
+		if (rc)
+			goto err_slp_tr;
+	}
+
+	rc = gpio_direction_output(pdata->rstn, 1);
+	if (rc)
+		goto err_gpio_dir;
+
+	if (gpio_is_valid(pdata->slp_tr)) {
+		rc = gpio_direction_output(pdata->slp_tr, 0);
+		if (rc)
+			goto err_gpio_dir;
+	}
+
+	/* Reset */
+	msleep(1);
+	gpio_set_value(pdata->rstn, 0);
+	msleep(1);
+	gpio_set_value(pdata->rstn, 1);
+	msleep(1);
+
+	rc = __at86rf230_detect_device(spi, &man_id, &part, &version);
+	if (rc < 0)
+		goto err_gpio_dir;
+
+	if (man_id != 0x001f) {
+		dev_err(&spi->dev, "Non-Atmel dev found (MAN_ID %02x %02x)\n",
+			man_id >> 8, man_id & 0xFF);
+		rc = -EINVAL;
+		goto err_gpio_dir;
+	}
+
+	switch (part) {
+	case 2:
+		chip = "at86rf230";
+		/* FIXME: should be easy to support; */
+		break;
+	case 3:
+		chip = "at86rf231";
+		ops = &at86rf230_ops;
+		break;
+	case 7:
+		chip = "at86rf212";
+		if (version == 1)
+			ops = &at86rf212_ops;
+		break;
+	default:
+		chip = "UNKNOWN";
+		break;
+	}
+
+	dev_info(&spi->dev, "Detected %s chip version %d\n", chip, version);
+	if (!ops) {
+		rc = -ENOTSUPP;
+		goto err_gpio_dir;
+	}
+
+	dev = ieee802154_alloc_device(sizeof(*lp), ops);
+	if (!dev) {
+		rc = -ENOMEM;
+		goto err_gpio_dir;
+	}
 
 	lp = dev->priv;
 	lp->dev = dev;
+	lp->part = part;
+	lp->vers = version;
 
 	lp->spi = spi;
 
 	dev->parent = &spi->dev;
 	dev->extra_tx_headroom = 0;
-	/* We do support only 2.4 Ghz */
-	dev->phy->channels_supported[0] = 0x7FFF800;
-	dev->flags = IEEE802154_HW_OMIT_CKSUM;
+	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK;
 
 	if (pdata->irq_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
 		irq_worker = at86rf230_irqwork;
@@ -886,86 +1039,20 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, lp);
 
-	at86rf230_fill_data(spi);
-
-	rc = gpio_request(lp->rstn, "rstn");
-	if (rc)
-		goto err_rstn;
-
-	if (gpio_is_valid(lp->slp_tr)) {
-		rc = gpio_request(lp->slp_tr, "slp_tr");
-		if (rc)
-			goto err_slp_tr;
-	}
-
-	rc = gpio_direction_output(lp->rstn, 1);
-	if (rc)
-		goto err_gpio_dir;
-
-	if (gpio_is_valid(lp->slp_tr)) {
-		rc = gpio_direction_output(lp->slp_tr, 0);
-		if (rc)
-			goto err_gpio_dir;
-	}
-
-	/* Reset */
-	msleep(1);
-	gpio_set_value(lp->rstn, 0);
-	msleep(1);
-	gpio_set_value(lp->rstn, 1);
-	msleep(1);
-
-	rc = at86rf230_read_subreg(lp, SR_MAN_ID_0, &man_id_0);
-	if (rc)
-		goto err_gpio_dir;
-	rc = at86rf230_read_subreg(lp, SR_MAN_ID_1, &man_id_1);
-	if (rc)
-		goto err_gpio_dir;
-
-	if (man_id_1 != 0x00 || man_id_0 != 0x1f) {
-		dev_err(&spi->dev, "Non-Atmel dev found (MAN_ID %02x %02x)\n",
-			man_id_1, man_id_0);
-		rc = -EINVAL;
-		goto err_gpio_dir;
-	}
-
-	rc = at86rf230_read_subreg(lp, SR_PART_NUM, &lp->part);
-	if (rc)
-		goto err_gpio_dir;
-
-	rc = at86rf230_read_subreg(lp, SR_VERSION_NUM, &lp->vers);
-	if (rc)
-		goto err_gpio_dir;
-
-	switch (lp->part) {
-	case 2:
-		chip = "at86rf230";
-		/* supported = 1;  FIXME: should be easy to support; */
-		break;
-	case 3:
-		chip = "at86rf231";
-		supported = 1;
-		break;
-	default:
-		chip = "UNKNOWN";
-		break;
-	}
-
-	dev_info(&spi->dev, "Detected %s chip version %d\n", chip, lp->vers);
-	if (!supported) {
-		rc = -ENOTSUPP;
-		goto err_gpio_dir;
-	}
+	if (is_rf212(lp))
+		dev->phy->channels_supported[0] = 0x00007FF;
+	else
+		dev->phy->channels_supported[0] = 0x7FFF800;
 
 	rc = at86rf230_hw_init(lp);
 	if (rc)
-		goto err_gpio_dir;
+		goto err_hw_init;
 
 	rc = request_irq(spi->irq, irq_handler,
 			 IRQF_SHARED | pdata->irq_type,
 			 dev_name(&spi->dev), lp);
 	if (rc)
-		goto err_gpio_dir;
+		goto err_hw_init;
 
 	/* Read irq status register to reset irq line */
 	rc = at86rf230_read_subreg(lp, RG_IRQ_STATUS, 0xff, 0, &status);
@@ -980,30 +1067,33 @@ static int at86rf230_probe(struct spi_device *spi)
 
 err_irq:
 	free_irq(spi->irq, lp);
+err_hw_init:
 	flush_work(&lp->irqwork);
-err_gpio_dir:
-	if (gpio_is_valid(lp->slp_tr))
-		gpio_free(lp->slp_tr);
-err_slp_tr:
-	gpio_free(lp->rstn);
-err_rstn:
+	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_device(lp->dev);
+
+err_gpio_dir:
+	if (gpio_is_valid(pdata->slp_tr))
+		gpio_free(pdata->slp_tr);
+err_slp_tr:
+	gpio_free(pdata->rstn);
 	return rc;
 }
 
 static int at86rf230_remove(struct spi_device *spi)
 {
 	struct at86rf230_local *lp = spi_get_drvdata(spi);
+	struct at86rf230_platform_data *pdata = spi->dev.platform_data;
 
 	ieee802154_unregister_device(lp->dev);
 
 	free_irq(spi->irq, lp);
 	flush_work(&lp->irqwork);
 
-	if (gpio_is_valid(lp->slp_tr))
-		gpio_free(lp->slp_tr);
-	gpio_free(lp->rstn);
+	if (gpio_is_valid(pdata->slp_tr))
+		gpio_free(pdata->slp_tr);
+	gpio_free(pdata->rstn);
 
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_device(lp->dev);
