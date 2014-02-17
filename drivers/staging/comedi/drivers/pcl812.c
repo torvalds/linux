@@ -1422,9 +1422,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->hwdmasize[1] = PAGE_SIZE * (1 << pages);
 	}
 
-	n_subdevices = 0;
-	if (board->n_aichan > 0)
-		n_subdevices++;
+	n_subdevices = 1;		/* all boardtypes have analog inputs */
 	if (board->n_aochan > 0)
 		n_subdevices++;
 	if (board->has_dio)
@@ -1436,59 +1434,59 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	subdev = 0;
 
-	/* analog input */
-	if (board->n_aichan > 0) {
-		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE;
-		switch (board->board_type) {
-		case boardA821:
-			if (it->options[2] == 1) {
-				s->n_chan = board->n_aichan_diff;
-				s->subdev_flags |= SDF_DIFF;
-				devpriv->use_diff = 1;
-			} else {
-				s->n_chan = board->n_aichan;
-				s->subdev_flags |= SDF_GROUND;
-			}
-			break;
-		case boardACL8112:
-		case boardACL8216:
-			if (it->options[4] == 1) {
-				s->n_chan = board->n_aichan_diff;
-				s->subdev_flags |= SDF_DIFF;
-				devpriv->use_diff = 1;
-			} else {
-				s->n_chan = board->n_aichan;
-				s->subdev_flags |= SDF_GROUND;
-			}
-			break;
-		default:
-			s->n_chan = board->n_aichan;
-			s->subdev_flags |= SDF_GROUND;
-			break;
+	/* Analog Input subdevice */
+	s = &dev->subdevices[subdev];
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE;
+	switch (board->board_type) {
+	case boardA821:
+		if (it->options[2] == 1) {
+			s->n_chan	= board->n_aichan_diff;
+			s->subdev_flags	|= SDF_DIFF;
+			devpriv->use_diff = 1;
+		} else {
+			s->n_chan	= board->n_aichan;
+			s->subdev_flags	|= SDF_GROUND;
 		}
-		s->maxdata = board->ai_maxdata;
-
-		pcl812_set_ai_range_table(dev, s, it);
-
-		if (board->board_type == boardACL8216)
-			s->insn_read = acl8216_ai_insn_read;
-		else
-			s->insn_read = pcl812_ai_insn_read;
-
-		devpriv->use_MPC = board->has_mpc508_mux;
-		if (dev->irq) {
-			dev->read_subdev = s;
-			s->subdev_flags |= SDF_CMD_READ;
-			s->len_chanlist = MAX_CHANLIST_LEN;
-			s->do_cmdtest = pcl812_ai_cmdtest;
-			s->do_cmd = pcl812_ai_cmd;
-			s->poll = pcl812_ai_poll;
-			s->cancel = pcl812_ai_cancel;
+		break;
+	case boardACL8112:
+	case boardACL8216:
+		if (it->options[4] == 1) {
+			s->n_chan	= board->n_aichan_diff;
+			s->subdev_flags	|= SDF_DIFF;
+			devpriv->use_diff = 1;
+		} else {
+			s->n_chan	= board->n_aichan;
+			s->subdev_flags	|= SDF_GROUND;
 		}
-		subdev++;
+		break;
+	default:
+		s->n_chan	= board->n_aichan;
+		s->subdev_flags	|= SDF_GROUND;
+		break;
 	}
+	s->maxdata	= board->ai_maxdata;
+
+	pcl812_set_ai_range_table(dev, s, it);
+
+	if (board->board_type == boardACL8216)
+		s->insn_read	= acl8216_ai_insn_read;
+	else
+		s->insn_read	= pcl812_ai_insn_read;
+
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= MAX_CHANLIST_LEN;
+		s->do_cmdtest	= pcl812_ai_cmdtest;
+		s->do_cmd	= pcl812_ai_cmd;
+		s->poll		= pcl812_ai_poll;
+		s->cancel	= pcl812_ai_cancel;
+	}
+
+	devpriv->use_MPC = board->has_mpc508_mux;
+
+	subdev++;
 
 	/* analog output */
 	if (board->n_aochan > 0) {
