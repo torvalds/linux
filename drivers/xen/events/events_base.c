@@ -469,9 +469,6 @@ static void xen_evtchn_close(unsigned int port)
 	close.port = port;
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
 		BUG();
-
-	/* Closed ports are implicitly re-bound to VCPU0. */
-	bind_evtchn_to_cpu(port, 0);
 }
 
 static void pirq_query_unmask(int irq)
