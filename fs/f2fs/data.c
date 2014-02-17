@@ -805,38 +805,30 @@ static int f2fs_write_data_page(struct page *page,
 
 	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
 write:
-	if (unlikely(sbi->por_doing)) {
-		err = AOP_WRITEPAGE_ACTIVATE;
+	if (unlikely(sbi->por_doing))
 		goto redirty_out;
-	}
 
 	/* Dentry blocks are controlled by checkpoint */
 	if (S_ISDIR(inode->i_mode)) {
 		inode_dec_dirty_dents(inode);
 		err = do_write_data_page(page, &fio);
-	} else {
-		f2fs_lock_op(sbi);
-
-		if (f2fs_has_inline_data(inode) || f2fs_may_inline(inode)) {
-			err = f2fs_write_inline_data(inode, page, offset);
-			f2fs_unlock_op(sbi);
-			goto out;
-		} else {
-			err = do_write_data_page(page, &fio);
-		}
-
-		f2fs_unlock_op(sbi);
-		need_balance_fs = true;
+		goto done;
 	}
-	if (err == -ENOENT)
-		goto out;
-	else if (err)
+
+	if (!wbc->for_reclaim)
+		need_balance_fs = true;
+	else if (has_not_enough_free_secs(sbi, 0))
 		goto redirty_out;
 
-	if (wbc->for_reclaim) {
-		f2fs_submit_merged_bio(sbi, DATA, WRITE);
-		need_balance_fs = false;
-	}
+	f2fs_lock_op(sbi);
+	if (f2fs_has_inline_data(inode) || f2fs_may_inline(inode))
+		err = f2fs_write_inline_data(inode, page, offset);
+	else
+		err = do_write_data_page(page, &fio);
+	f2fs_unlock_op(sbi);
+done:
+	if (err && err != -ENOENT)
+		goto redirty_out;
 
 	clear_cold_data(page);
 out:
@@ -848,7 +840,7 @@ out:
 redirty_out:
 	wbc->pages_skipped++;
 	set_page_dirty(page);
-	return err;
+	return AOP_WRITEPAGE_ACTIVATE;
 }
 
 #define MAX_DESIRED_PAGES_WP	4096
