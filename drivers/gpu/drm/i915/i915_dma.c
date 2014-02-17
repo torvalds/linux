@@ -1321,11 +1321,11 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_vga_switcheroo;
 
+	intel_power_domains_init_hw(dev_priv);
+
 	ret = drm_irq_install(dev);
 	if (ret)
 		goto cleanup_gem_stolen;
-
-	intel_power_domains_init_hw(dev_priv);
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
