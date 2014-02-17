@@ -95,24 +95,63 @@ static const struct comedi_lrange range_pcl816 = {
 };
 
 struct pcl816_board {
+	const char *name;
+	int n_ranges;
+	int n_aichan;
+	unsigned int ai_ns_min;
+	int n_aochan;
+	int n_dichan;
+	int n_dochan;
+	const struct comedi_lrange *ai_range_type;
+	const struct comedi_lrange *ao_range_type;
+	unsigned int io_range;
+	unsigned int IRQbits;
+	unsigned int DMAbits;
+	int ai_maxdata;
+	int ao_maxdata;
+	int ai_chanlist;
+	int ao_chanlist;
+	int i8254_osc_base;
+};
 
-	const char *name;	/*  board name */
-	int n_ranges;		/*  len of range list */
-	int n_aichan;		/*  num of A/D chans in diferencial mode */
-	unsigned int ai_ns_min;	/*  minimal allowed delay between samples (in ns) */
-	int n_aochan;		/*  num of D/A chans */
-	int n_dichan;		/*  num of DI chans */
-	int n_dochan;		/*  num of DO chans */
-	const struct comedi_lrange *ai_range_type;	/*  default A/D rangelist */
-	const struct comedi_lrange *ao_range_type;	/*  default D/A rangelist */
-	unsigned int io_range;	/*  len of IO space */
-	unsigned int IRQbits;	/*  allowed interrupts */
-	unsigned int DMAbits;	/*  allowed DMA chans */
-	int ai_maxdata;		/*  maxdata for A/D */
-	int ao_maxdata;		/*  maxdata for D/A */
-	int ai_chanlist;	/*  allowed len of channel list A/D */
-	int ao_chanlist;	/*  allowed len of channel list D/A */
-	int i8254_osc_base;	/*  1/frequency of on board oscilator in ns */
+static const struct pcl816_board boardtypes[] = {
+	{
+		.name		= "pcl816",
+		.n_ranges	= 8,
+		.n_aichan	= 16,
+		.ai_ns_min	= 10000,
+		.n_aochan	= 1,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl816,
+		.ao_range_type	= &range_pcl816,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xffff,
+		.ao_maxdata	= 0xffff,
+		.ai_chanlist	= 1024,
+		.ao_chanlist	= 1,
+		.i8254_osc_base	= I8254_OSC_BASE_10MHZ,
+	}, {
+		.name		= "pcl814b",
+		.n_ranges	= 8,
+		.n_aichan	= 16,
+		.ai_ns_min	= 10000,
+		.n_aochan	= 1,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl816,
+		.ao_range_type	= &range_pcl816,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0x3fff,
+		.ao_maxdata	= 0x3fff,
+		.ai_chanlist	= 1024,
+		.ao_chanlist	= 1,
+		.i8254_osc_base	= I8254_OSC_BASE_10MHZ,
+	},
 };
 
 struct pcl816_private {
@@ -1001,27 +1040,6 @@ static void pcl816_detach(struct comedi_device *dev)
 	}
 	comedi_legacy_detach(dev);
 }
-
-static const struct pcl816_board boardtypes[] = {
-	{"pcl816", 8, 16, 10000, 1, 16, 16, &range_pcl816,
-	 &range_pcl816, PCLx1x_RANGE,
-	 0x00fc,		/*  IRQ mask */
-	 0x0a,			/*  DMA mask */
-	 0xffff,		/*  16-bit card */
-	 0xffff,		/*  D/A maxdata */
-	 1024,
-	 1,			/*  ao chan list */
-	 I8254_OSC_BASE_10MHZ},
-	{"pcl814b", 8, 16, 10000, 1, 16, 16, &range_pcl816,
-	 &range_pcl816, PCLx1x_RANGE,
-	 0x00fc,
-	 0x0a,
-	 0x3fff,		/* 14 bit card */
-	 0x3fff,
-	 1024,
-	 1,
-	 I8254_OSC_BASE_10MHZ},
-};
 
 static struct comedi_driver pcl816_driver = {
 	.driver_name	= "pcl816",
