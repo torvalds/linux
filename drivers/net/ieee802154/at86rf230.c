@@ -567,7 +567,7 @@ at86rf230_start(struct ieee802154_dev *dev)
 	if (rc)
 		return rc;
 
-	return at86rf230_state(dev, STATE_RX_ON);
+	return at86rf230_state(dev, STATE_RX_AACK_ON);
 }
 
 static void
