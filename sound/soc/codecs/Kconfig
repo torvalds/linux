@@ -16,7 +16,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AB8500_CODEC if ABX500_CORE
 	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
 	select SND_SOC_AD1836 if SPI_MASTER
-	select SND_SOC_AD193X if SND_SOC_I2C_AND_SPI
+	select SND_SOC_AD193X_SPI if SPI_MASTER
+	select SND_SOC_AD193X_I2C if I2C
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
 	select SND_SOC_AD73311
 	select SND_SOC_ADAU1373 if I2C
@@ -181,6 +182,14 @@ config SND_SOC_AD1836
 
 config SND_SOC_AD193X
 	tristate
+
+config SND_SOC_AD193X_SPI
+	tristate
+	select SND_SOC_AD193X
+
+config SND_SOC_AD193X_I2C
+	tristate
+	select SND_SOC_AD193X
 
 config SND_SOC_AD1980
 	tristate
