@@ -44,10 +44,6 @@ Configuration Options:
 #include "comedi_fc.h"
 #include "8253.h"
 
-/* boards constants */
-/* IO space len */
-#define PCLx1x_RANGE 16
-
 /* INTEL 8254 counters */
 #define PCL816_CTR0 4
 #define PCL816_CTR1 5
@@ -104,7 +100,6 @@ struct pcl816_board {
 	int n_dochan;
 	const struct comedi_lrange *ai_range_type;
 	const struct comedi_lrange *ao_range_type;
-	unsigned int io_range;
 	unsigned int IRQbits;
 	unsigned int DMAbits;
 	int ai_maxdata;
@@ -125,7 +120,6 @@ static const struct pcl816_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl816,
 		.ao_range_type	= &range_pcl816,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xffff,
@@ -143,7 +137,6 @@ static const struct pcl816_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl816,
 		.ao_range_type	= &range_pcl816,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0x3fff,
@@ -884,7 +877,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* int i; */
 	struct comedi_subdevice *s;
 
-	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
