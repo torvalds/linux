@@ -37,14 +37,14 @@ struct wpan_phy {
 	struct mutex pib_lock;
 
 	/*
-	 * This is a PIB according to 802.15.4-2006.
+	 * This is a PIB according to 802.15.4-2011.
 	 * We do not provide timing-related variables, as they
 	 * aren't used outside of driver
 	 */
 	u8 current_channel;
 	u8 current_page;
 	u32 channels_supported[32];
-	u8 transmit_power;
+	s8 transmit_power;
 	u8 cca_mode;
 
 	struct device dev;
@@ -53,6 +53,8 @@ struct wpan_phy {
 	struct net_device *(*add_iface)(struct wpan_phy *phy,
 					const char *name, int type);
 	void (*del_iface)(struct wpan_phy *phy, struct net_device *dev);
+
+	int (*set_txpower)(struct wpan_phy *phy, int db);
 
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };

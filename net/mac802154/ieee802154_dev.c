@@ -165,6 +165,16 @@ err:
 	return ERR_PTR(err);
 }
 
+static int mac802154_set_txpower(struct wpan_phy *phy, int db)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	if (!priv->ops->set_txpower)
+		return -ENOTSUPP;
+
+	return priv->ops->set_txpower(&priv->hw, db);
+}
+
 struct ieee802154_dev *
 ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 {
@@ -242,6 +252,7 @@ int ieee802154_register_device(struct ieee802154_dev *dev)
 
 	priv->phy->add_iface = mac802154_add_iface;
 	priv->phy->del_iface = mac802154_del_iface;
+	priv->phy->set_txpower = mac802154_set_txpower;
 
 	rc = wpan_phy_register(priv->phy);
 	if (rc < 0)

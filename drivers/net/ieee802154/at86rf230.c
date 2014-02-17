@@ -753,6 +753,30 @@ at86rf230_set_hw_addr_filt(struct ieee802154_dev *dev,
 	return 0;
 }
 
+static int
+at86rf212_set_txpower(struct ieee802154_dev *dev, int db)
+{
+	struct at86rf230_local *lp = dev->priv;
+	int rc;
+
+	/* typical maximum output is 5dBm with RG_PHY_TX_PWR 0x60, lower five
+	 * bits decrease power in 1dB steps. 0x60 represents extra PA gain of
+	 * 0dB.
+	 * thus, supported values for db range from -26 to 5, for 31dB of
+	 * reduction to 0dB of reduction.
+	 */
+	if (db > 5 || db < -26)
+		return -EINVAL;
+
+	db = -(db - 5);
+
+	rc = __at86rf230_write(lp, RG_PHY_TX_PWR, 0x60 | db);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
 static struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
 	.xmit = at86rf230_xmit,
@@ -771,6 +795,7 @@ static struct ieee802154_ops at86rf212_ops = {
 	.start = at86rf230_start,
 	.stop = at86rf230_stop,
 	.set_hw_addr_filt = at86rf230_set_hw_addr_filt,
+	.set_txpower = at86rf212_set_txpower,
 };
 
 static void at86rf230_irqwork(struct work_struct *work)

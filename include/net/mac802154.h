@@ -113,6 +113,10 @@ struct ieee802154_dev {
  *	  Set radio for listening on specific address.
  *	  Set the device for listening on specified address.
  *	  Returns either zero, or negative errno.
+ *
+ * set_txpower:
+ *	  Set radio transmit power in dB. Called with pib_lock held.
+ *	  Returns either zero, or negative errno.
  */
 struct ieee802154_ops {
 	struct module	*owner;
@@ -129,6 +133,7 @@ struct ieee802154_ops {
 					    unsigned long changed);
 	int		(*ieee_addr)(struct ieee802154_dev *dev,
 				     u8 addr[IEEE802154_ADDR_LEN]);
+	int		(*set_txpower)(struct ieee802154_dev *dev, int db);
 };
 
 /* Basic interface to register ieee802154 device */
