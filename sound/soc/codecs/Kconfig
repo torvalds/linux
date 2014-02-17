@@ -66,7 +66,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2518 if I2C
-	select SND_SOC_SSM2602 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_SSM2602_SPI if SPI_MASTER
+	select SND_SOC_SSM2602_I2C if I2C
 	select SND_SOC_STA32X if I2C
 	select SND_SOC_STA529 if I2C
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
@@ -340,6 +341,14 @@ config SND_SOC_SSM2518
 	tristate
 
 config SND_SOC_SSM2602
+	tristate
+
+config SND_SOC_SSM2602_SPI
+	select SND_SOC_SSM2602
+	tristate
+
+config SND_SOC_SSM2602_I2C
+	select SND_SOC_SSM2602
 	tristate
 
 config SND_SOC_STA32X

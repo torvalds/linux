@@ -27,27 +27,15 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/pm.h>
-#include <linux/i2c.h>
-#include <linux/spi/spi.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <sound/core.h>
+
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/initval.h>
 #include <sound/tlv.h>
 
 #include "ssm2602.h"
-
-enum ssm2602_type {
-	SSM2602,
-	SSM2604,
-};
 
 /* codec private data */
 struct ssm2602_priv {
@@ -529,7 +517,7 @@ static int ssm2602_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int ssm2602_probe(struct snd_soc_codec *codec)
+static int ssm2602_codec_probe(struct snd_soc_codec *codec)
 {
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
@@ -554,7 +542,7 @@ static int ssm2602_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(ssm2602_routes));
 }
 
-static int ssm2604_probe(struct snd_soc_codec *codec)
+static int ssm2604_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
@@ -568,7 +556,7 @@ static int ssm2604_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(ssm2604_routes));
 }
 
-static int ssm260x_probe(struct snd_soc_codec *codec)
+static int ssm260x_codec_probe(struct snd_soc_codec *codec)
 {
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 	int ret;
@@ -597,10 +585,10 @@ static int ssm260x_probe(struct snd_soc_codec *codec)
 
 	switch (ssm2602->type) {
 	case SSM2602:
-		ret = ssm2602_probe(codec);
+		ret = ssm2602_codec_probe(codec);
 		break;
 	case SSM2604:
-		ret = ssm2604_probe(codec);
+		ret = ssm2604_codec_probe(codec);
 		break;
 	}
 
@@ -620,7 +608,7 @@ static int ssm2602_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
-	.probe =	ssm260x_probe,
+	.probe =	ssm260x_codec_probe,
 	.remove =	ssm2602_remove,
 	.suspend =	ssm2602_suspend,
 	.resume =	ssm2602_resume,
@@ -639,7 +627,7 @@ static bool ssm2602_register_volatile(struct device *dev, unsigned int reg)
 	return reg == SSM2602_RESET;
 }
 
-static const struct regmap_config ssm2602_regmap_config = {
+const struct regmap_config ssm2602_regmap_config = {
 	.val_bits = 9,
 	.reg_bits = 7,
 
@@ -650,134 +638,28 @@ static const struct regmap_config ssm2602_regmap_config = {
 	.reg_defaults_raw = ssm2602_reg,
 	.num_reg_defaults_raw = ARRAY_SIZE(ssm2602_reg),
 };
+EXPORT_SYMBOL_GPL(ssm2602_regmap_config);
 
-#if defined(CONFIG_SPI_MASTER)
-static int ssm2602_spi_probe(struct spi_device *spi)
+int ssm2602_probe(struct device *dev, enum ssm2602_type type,
+	struct regmap *regmap)
 {
 	struct ssm2602_priv *ssm2602;
-	int ret;
 
-	ssm2602 = devm_kzalloc(&spi->dev, sizeof(struct ssm2602_priv),
-			       GFP_KERNEL);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	ssm2602 = devm_kzalloc(dev, sizeof(*ssm2602), GFP_KERNEL);
 	if (ssm2602 == NULL)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, ssm2602);
+	dev_set_drvdata(dev, ssm2602);
 	ssm2602->type = SSM2602;
+	ssm2602->regmap = regmap;
 
-	ssm2602->regmap = devm_regmap_init_spi(spi, &ssm2602_regmap_config);
-	if (IS_ERR(ssm2602->regmap))
-		return PTR_ERR(ssm2602->regmap);
-
-	ret = snd_soc_register_codec(&spi->dev,
-			&soc_codec_dev_ssm2602, &ssm2602_dai, 1);
-	return ret;
+	return snd_soc_register_codec(dev, &soc_codec_dev_ssm2602,
+		&ssm2602_dai, 1);
 }
-
-static int ssm2602_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
-static struct spi_driver ssm2602_spi_driver = {
-	.driver = {
-		.name	= "ssm2602",
-		.owner	= THIS_MODULE,
-	},
-	.probe		= ssm2602_spi_probe,
-	.remove		= ssm2602_spi_remove,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_I2C)
-/*
- * ssm2602 2 wire address is determined by GPIO5
- * state during powerup.
- *    low  = 0x1a
- *    high = 0x1b
- */
-static int ssm2602_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
-{
-	struct ssm2602_priv *ssm2602;
-	int ret;
-
-	ssm2602 = devm_kzalloc(&i2c->dev, sizeof(struct ssm2602_priv),
-			       GFP_KERNEL);
-	if (ssm2602 == NULL)
-		return -ENOMEM;
-
-	i2c_set_clientdata(i2c, ssm2602);
-	ssm2602->type = id->driver_data;
-
-	ssm2602->regmap = devm_regmap_init_i2c(i2c, &ssm2602_regmap_config);
-	if (IS_ERR(ssm2602->regmap))
-		return PTR_ERR(ssm2602->regmap);
-
-	ret = snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_ssm2602, &ssm2602_dai, 1);
-	return ret;
-}
-
-static int ssm2602_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
-}
-
-static const struct i2c_device_id ssm2602_i2c_id[] = {
-	{ "ssm2602", SSM2602 },
-	{ "ssm2603", SSM2602 },
-	{ "ssm2604", SSM2604 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, ssm2602_i2c_id);
-
-/* corgi i2c codec control layer */
-static struct i2c_driver ssm2602_i2c_driver = {
-	.driver = {
-		.name = "ssm2602",
-		.owner = THIS_MODULE,
-	},
-	.probe = ssm2602_i2c_probe,
-	.remove = ssm2602_i2c_remove,
-	.id_table = ssm2602_i2c_id,
-};
-#endif
-
-
-static int __init ssm2602_modinit(void)
-{
-	int ret = 0;
-
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&ssm2602_spi_driver);
-	if (ret)
-		return ret;
-#endif
-
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&ssm2602_i2c_driver);
-	if (ret)
-		return ret;
-#endif
-
-	return ret;
-}
-module_init(ssm2602_modinit);
-
-static void __exit ssm2602_exit(void)
-{
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&ssm2602_spi_driver);
-#endif
-
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&ssm2602_i2c_driver);
-#endif
-}
-module_exit(ssm2602_exit);
+EXPORT_SYMBOL_GPL(ssm2602_probe);
 
 MODULE_DESCRIPTION("ASoC SSM2602/SSM2603/SSM2604 driver");
 MODULE_AUTHOR("Cliff Cai");
