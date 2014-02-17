@@ -1894,7 +1894,7 @@ static int bcm_char_ioctl_nvm_raw_read(void __user *argp, struct bcm_mini_adapte
 {
 	struct bcm_nvm_readwrite stNVMRead;
 	struct bcm_ioctl_buffer IoBuffer;
-	INT NOB;
+	unsigned int NOB;
 	INT BuffSize;
 	INT ReadOffset = 0;
 	UINT ReadBytes = 0;
