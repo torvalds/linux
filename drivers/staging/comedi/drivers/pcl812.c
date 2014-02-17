@@ -341,7 +341,7 @@ struct pcl812_board {
 	const struct comedi_lrange *rangelist_ai;
 	unsigned int IRQbits;
 	unsigned int has_dma:1;
-	unsigned char haveMPC508;
+	unsigned int has_mpc508_mux:1;
 };
 
 static const struct pcl812_board boardtypes[] = {
@@ -394,7 +394,7 @@ static const struct pcl812_board boardtypes[] = {
 		.rangelist_ai	= &range_acl8112dg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
-		.haveMPC508	= 1,
+		.has_mpc508_mux	= 1,
 	}, {
 		.name		= "acl8112hg",
 		.board_type	= boardACL8112,
@@ -408,7 +408,7 @@ static const struct pcl812_board boardtypes[] = {
 		.rangelist_ai	= &range_acl8112hg_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
-		.haveMPC508	= 1,
+		.has_mpc508_mux	= 1,
 	}, {
 		.name		= "a821pgl",
 		.board_type	= boardA821,
@@ -531,7 +531,7 @@ static const struct pcl812_board boardtypes[] = {
 		.rangelist_ai	= &range_pcl813b2_ai,
 		.IRQbits	= 0xdcfc,
 		.has_dma	= 1,
-		.haveMPC508	= 1,
+		.has_mpc508_mux	= 1,
 	}, {
 		.name		= "a826pg",
 		.board_type	= boardACL8216,
@@ -1401,7 +1401,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		else
 			s->insn_read = pcl812_ai_insn_read;
 
-		devpriv->use_MPC = board->haveMPC508;
+		devpriv->use_MPC = board->has_mpc508_mux;
 		if (dev->irq) {
 			dev->read_subdev = s;
 			s->subdev_flags |= SDF_CMD_READ;
