@@ -188,6 +188,7 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 
 	ret = of_regulator_match(&pdev->dev, regulators, tps65090_matches,
 			ARRAY_SIZE(tps65090_matches));
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Error parsing regulator init data: %d\n", ret);
