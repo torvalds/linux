@@ -585,7 +585,7 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d,
 	spin_lock_irqsave(&pctl->lock, flags);
 
 	regval = readl(pctl->membase + reg);
-	regval &= ~IRQ_CFG_IRQ_MASK;
+	regval &= ~(IRQ_CFG_IRQ_MASK << index);
 	writel(regval | (mode << index), pctl->membase + reg);
 
 	spin_unlock_irqrestore(&pctl->lock, flags);
