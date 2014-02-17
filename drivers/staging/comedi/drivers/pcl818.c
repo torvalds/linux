@@ -318,11 +318,8 @@ struct pcl818_private {
 	int next_dma_buf;	/*  which DMA buffer will be used next round */
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
-	unsigned char neverending_ai;	/*  if=1, then we do neverending record (you must use cancel()) */
 	unsigned int ns_min;	/*  manimal allowed delay between samples (in us) for actual card */
 	int i8253_osc_base;	/*  1/frequency of on board oscilator in ns */
-	int irq_blocked;	/*  1=IRQ now uses any subdev */
-	int irq_was_now_closed;	/*  when IRQ finish, there's stored int818_mode for last interrupt */
 	int ai_mode;		/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
 	int ai_act_scan;	/*  how many scans we finished */
 	int ai_act_chan;	/*  actual position in actual scan */
@@ -330,10 +327,13 @@ struct pcl818_private {
 	unsigned int act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	unsigned char usefifo;	/*  1=use fifo */
 	unsigned int ao_readback[2];
 	unsigned int divisor1;
 	unsigned int divisor2;
+	unsigned int usefifo:1;
+	unsigned int irq_blocked:1;
+	unsigned int irq_was_now_closed:1;
+	unsigned int neverending_ai:1;
 };
 
 static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,	/*  used for gain list programming */
