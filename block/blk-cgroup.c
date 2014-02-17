@@ -336,7 +336,7 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	 * under queue_lock.  If it's not pointing to @blkg now, it never
 	 * will.  Hint assignment itself can race safely.
 	 */
-	if (rcu_dereference_raw(blkcg->blkg_hint) == blkg)
+	if (rcu_access_pointer(blkcg->blkg_hint) == blkg)
 		rcu_assign_pointer(blkcg->blkg_hint, NULL);
 
 	/*
