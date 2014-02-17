@@ -263,8 +263,6 @@ struct pcl818_board {
 	int n_aichan_diff;
 	unsigned int ns_min;
 	int n_aochan;
-	int n_dichan;
-	int n_dochan;
 	const struct comedi_lrange *ai_range_type;
 	unsigned int IRQbits;
 	int ai_maxdata;
@@ -282,8 +280,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_aichan_diff	= 8,
 		.ns_min		= 25000,
 		.n_aochan	= 1,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818l_l_ai,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
@@ -297,8 +293,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
@@ -312,8 +306,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
@@ -328,8 +320,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818hg_ai,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
@@ -344,8 +334,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
@@ -359,8 +347,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_aichan_diff	= 8,
 		.ns_min		= 16000,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_unipolar5,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
@@ -372,8 +358,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_aichan_se	= 16,
 		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xfff,
@@ -1465,29 +1449,23 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	if (!board->n_dichan) {
-		s->type = COMEDI_SUBD_UNUSED;
-	} else {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE;
-		s->n_chan = board->n_dichan;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = pcl818_di_insn_bits;
-	}
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl818_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	if (!board->n_dochan) {
-		s->type = COMEDI_SUBD_UNUSED;
-	} else {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = board->n_dochan;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = pcl818_do_insn_bits;
-	}
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl818_do_insn_bits;
 
 	/* select 1/10MHz oscilator */
 	if ((it->options[3] == 0) || (it->options[3] == 10))
