@@ -621,8 +621,8 @@ void ftrace_replace_code(int enable)
 	return;
 
  remove_breakpoints:
+	pr_warn("Failed on %s (%d):\n", report, count);
 	ftrace_bug(ret, rec ? rec->ip : 0);
-	printk(KERN_WARNING "Failed on %s (%d):\n", report, count);
 	for_ftrace_rec_iter(iter) {
 		rec = ftrace_rec_iter_record(iter);
 		/*
