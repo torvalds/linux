@@ -340,6 +340,7 @@ static int max8660_pdata_from_dt(struct device *dev,
 		rmatch[i].name = max8660_reg[i].name;
 
 	matched = of_regulator_match(dev, np, rmatch, ARRAY_SIZE(rmatch));
+	of_node_put(np);
 	if (matched <= 0)
 		return matched;
 
