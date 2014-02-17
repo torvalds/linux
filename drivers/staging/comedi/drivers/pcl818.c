@@ -334,7 +334,6 @@ struct pcl818_private {
 	int irq_blocked;	/*  1=IRQ now uses any subdev */
 	int irq_was_now_closed;	/*  when IRQ finish, there's stored int818_mode for last interrupt */
 	int ai_mode;		/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
-	struct comedi_subdevice *last_int_sub;	/*  ptr to subdevice which now finish */
 	int ai_act_scan;	/*  how many scans we finished */
 	int ai_act_chan;	/*  actual position in actual scan */
 	unsigned int act_chanlist[16];	/*  MUX setting for actual AI operations */
@@ -1179,7 +1178,6 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 				outb(0, dev->iobase + PCL818_FI_ENABLE);
 			}
 			devpriv->irq_blocked = 0;
-			devpriv->last_int_sub = s;
 			devpriv->neverending_ai = 0;
 			devpriv->ai_mode = 0;
 			devpriv->irq_was_now_closed = 0;
