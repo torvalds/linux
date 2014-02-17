@@ -590,6 +590,8 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp, struct bcm_mini_
 
 	if (IoBuffer.InputLength > sizeof(gpio_multi_info))
 		return -EINVAL;
+	if (IoBuffer.OutputLength > sizeof(gpio_multi_info))
+		IoBuffer.OutputLength = sizeof(gpio_multi_info);
 
 	if (copy_from_user(&gpio_multi_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
 		return -EFAULT;
@@ -680,6 +682,8 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp, struct bcm_mini_a
 
 	if (IoBuffer.InputLength > sizeof(gpio_multi_mode))
 		return -EINVAL;
+	if (IoBuffer.OutputLength > sizeof(gpio_multi_mode))
+		IoBuffer.OutputLength = sizeof(gpio_multi_mode);
 
 	if (copy_from_user(&gpio_multi_mode, IoBuffer.InputBuffer, IoBuffer.InputLength))
 		return -EFAULT;
