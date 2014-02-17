@@ -45,6 +45,7 @@ struct platform_device;
 struct rtsx_slot {
 	struct platform_device	*p_dev;
 	void			(*card_event)(struct platform_device *p_dev);
+	void			(*done_transfer)(struct platform_device *p_dev);
 };
 
 #endif
