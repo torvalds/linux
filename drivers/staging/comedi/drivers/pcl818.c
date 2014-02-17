@@ -342,7 +342,6 @@ struct pcl818_private {
 	unsigned int act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
-	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned int ai_timer1;	/*  timers */
 	unsigned int ai_timer2;
@@ -1118,7 +1117,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int retval;
 
 	devpriv->ai_chanlist = cmd->chanlist;
-	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
