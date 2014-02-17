@@ -716,6 +716,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		err = hci_dev_open(hdev->id);
 		if (err) {
 			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
+			mgmt_index_added(hdev);
 			hci_dev_put(hdev);
 			goto done;
 		}
