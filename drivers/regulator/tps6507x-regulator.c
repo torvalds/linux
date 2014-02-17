@@ -395,6 +395,7 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 	matches = tps6507x_matches;
 
 	ret = of_regulator_match(&pdev->dev, regulators, matches, count);
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);
