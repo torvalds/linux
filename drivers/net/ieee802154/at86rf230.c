@@ -926,18 +926,9 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	if (rc)
 		return rc;
 
-	dev_info(&lp->spi->dev, "Status: %02x\n", status);
-	if (status == STATE_P_ON) {
-		rc = at86rf230_write_subreg(lp, SR_TRX_CMD,
-					    STATE_FORCE_TRX_OFF);
-		if (rc)
-			return rc;
-		msleep(1);
-		rc = at86rf230_read_subreg(lp, SR_TRX_STATUS, &status);
-		if (rc)
-			return rc;
-		dev_info(&lp->spi->dev, "Status: %02x\n", status);
-	}
+	rc = at86rf230_write_subreg(lp, SR_TRX_CMD, STATE_FORCE_TRX_OFF);
+	if (rc)
+		return rc;
 
 	/* configure irq polarity, defaults to high active */
 	if (pdata->irq_type & (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW))
@@ -964,16 +955,6 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 		return rc;
 	/* Wait the next SLEEP cycle */
 	msleep(100);
-
-	rc = at86rf230_write_subreg(lp, SR_TRX_CMD, STATE_TX_ON);
-	if (rc)
-		return rc;
-	msleep(1);
-
-	rc = at86rf230_read_subreg(lp, SR_TRX_STATUS, &status);
-	if (rc)
-		return rc;
-	dev_info(&lp->spi->dev, "Status: %02x\n", status);
 
 	rc = at86rf230_read_subreg(lp, SR_DVDD_OK, &status);
 	if (rc)
