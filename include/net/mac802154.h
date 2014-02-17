@@ -131,6 +131,14 @@ struct ieee802154_dev {
  *	  Sets the CCA energy detection threshold in dBm. Called with pib_lock
  *	  held.
  *	  Returns either zero, or negative errno.
+ *
+ * set_csma_params
+ *	  Sets the CSMA parameter set for the PHY. Called with pib_lock held.
+ *	  Returns either zero, or negative errno.
+ *
+ * set_frame_retries
+ *	  Sets the retransmission attempt limit. Called with pib_lock held.
+ *	  Returns either zero, or negative errno.
  */
 struct ieee802154_ops {
 	struct module	*owner;
@@ -152,6 +160,10 @@ struct ieee802154_ops {
 	int		(*set_cca_mode)(struct ieee802154_dev *dev, u8 mode);
 	int		(*set_cca_ed_level)(struct ieee802154_dev *dev,
 					    s32 level);
+	int		(*set_csma_params)(struct ieee802154_dev *dev,
+					   u8 min_be, u8 max_be, u8 retries);
+	int		(*set_frame_retries)(struct ieee802154_dev *dev,
+					     s8 retries);
 };
 
 /* Basic interface to register ieee802154 device */

@@ -46,6 +46,10 @@ struct wpan_phy {
 	u32 channels_supported[32];
 	s8 transmit_power;
 	u8 cca_mode;
+	u8 min_be;
+	u8 max_be;
+	u8 csma_retries;
+	s8 frame_retries;
 
 	bool lbt;
 	s32 cca_ed_level;
@@ -61,6 +65,9 @@ struct wpan_phy {
 	int (*set_lbt)(struct wpan_phy *phy, bool on);
 	int (*set_cca_mode)(struct wpan_phy *phy, u8 cca_mode);
 	int (*set_cca_ed_level)(struct wpan_phy *phy, int level);
+	int (*set_csma_params)(struct wpan_phy *phy, u8 min_be, u8 max_be,
+			       u8 retries);
+	int (*set_frame_retries)(struct wpan_phy *phy, s8 retries);
 
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };

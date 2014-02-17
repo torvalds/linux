@@ -169,6 +169,12 @@ struct wpan_phy *wpan_phy_alloc(size_t priv_size)
 	phy->current_channel = -1; /* not initialised */
 	phy->current_page = 0; /* for compatibility */
 
+	/* defaults per 802.15.4-2011 */
+	phy->min_be = 3;
+	phy->max_be = 5;
+	phy->csma_retries = 4;
+	phy->frame_retries = -1; /* for compatibility, actual default is 3 */
+
 	return phy;
 
 out:

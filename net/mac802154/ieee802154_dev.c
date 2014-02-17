@@ -205,6 +205,27 @@ static int mac802154_set_cca_ed_level(struct wpan_phy *phy, s32 level)
 	return priv->ops->set_cca_ed_level(&priv->hw, level);
 }
 
+static int mac802154_set_csma_params(struct wpan_phy *phy, u8 min_be,
+				     u8 max_be, u8 retries)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	if (!priv->ops->set_csma_params)
+		return -ENOTSUPP;
+
+	return priv->ops->set_csma_params(&priv->hw, min_be, max_be, retries);
+}
+
+static int mac802154_set_frame_retries(struct wpan_phy *phy, s8 retries)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	if (!priv->ops->set_frame_retries)
+		return -ENOTSUPP;
+
+	return priv->ops->set_frame_retries(&priv->hw, retries);
+}
+
 struct ieee802154_dev *
 ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 {
@@ -286,6 +307,8 @@ int ieee802154_register_device(struct ieee802154_dev *dev)
 	priv->phy->set_lbt = mac802154_set_lbt;
 	priv->phy->set_cca_mode = mac802154_set_cca_mode;
 	priv->phy->set_cca_ed_level = mac802154_set_cca_ed_level;
+	priv->phy->set_csma_params = mac802154_set_csma_params;
+	priv->phy->set_frame_retries = mac802154_set_frame_retries;
 
 	rc = wpan_phy_register(priv->phy);
 	if (rc < 0)
