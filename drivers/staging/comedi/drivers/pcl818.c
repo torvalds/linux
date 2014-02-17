@@ -341,7 +341,6 @@ struct pcl818_private {
 	unsigned int act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int act_chanlist_pos;	/*  actual position in MUX list */
-	unsigned int ai_scans;	/*  len of scanlist */
 	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_flags;	/*  flaglist */
@@ -790,13 +789,14 @@ static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
 	struct pcl818_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int flags;
 	unsigned int bytes;
 
 	disable_dma(devpriv->dma);	/*  disable dma */
 	bytes = devpriv->hwdmasize[0];
 	if (!devpriv->neverending_ai) {
-		bytes = devpriv->ai_n_chan * devpriv->ai_scans * sizeof(short);	/*  how many */
+		bytes = devpriv->ai_n_chan * cmd->stop_arg * sizeof(short);	/*  how many */
 		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize[0];	/*  how many DMA pages we must fiil */
 		devpriv->last_dma_run = bytes % devpriv->hwdmasize[0];	/* on last dma transfer must be moved */
 		devpriv->dma_runs_to_end--;
@@ -848,16 +848,12 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 
 	udelay(1);
 
-	devpriv->ai_act_scan = devpriv->ai_scans;
+	devpriv->ai_act_scan = cmd->stop_arg;
 	devpriv->ai_act_chan = 0;
 	devpriv->irq_blocked = 1;
 	devpriv->irq_was_now_closed = 0;
-	devpriv->neverending_ai = 0;
 	devpriv->act_chanlist_pos = 0;
 	devpriv->dma_runs_to_end = 0;
-
-	if ((devpriv->ai_scans == 0) || (devpriv->ai_scans == -1))
-		devpriv->neverending_ai = 1;	/* well, user want neverending */
 
 	if (mode == 1) {
 		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
@@ -1127,9 +1123,9 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_timer2 = 0;
 
 	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_scans = cmd->stop_arg;
+		devpriv->neverending_ai = 0;
 	else
-		devpriv->ai_scans = 0;
+		devpriv->neverending_ai = 1;
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 3 */
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 */
