@@ -29,20 +29,21 @@
  * mei_me_cl_by_uuid - locate index of me client
  *
  * @dev: mei device
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
  * returns me client index or -ENOENT if not found
  */
 int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *uuid)
 {
-	int i, res = -ENOENT;
+	int i;
 
 	for (i = 0; i < dev->me_clients_num; ++i)
 		if (uuid_le_cmp(*uuid,
-				dev->me_clients[i].props.protocol_name) == 0) {
-			res = i;
-			break;
-		}
+				dev->me_clients[i].props.protocol_name) == 0)
+			return i;
 
-	return res;
+	return -ENOENT;
 }
 
 
@@ -60,16 +61,12 @@ int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *uuid)
 int mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 {
 	int i;
+
 	for (i = 0; i < dev->me_clients_num; i++)
 		if (dev->me_clients[i].client_id == client_id)
-			break;
-	if (WARN_ON(dev->me_clients[i].client_id != client_id))
-		return -ENOENT;
+			return i;
 
-	if (i == dev->me_clients_num)
-		return -ENOENT;
-
-	return i;
+	return -ENOENT;
 }
 
 
