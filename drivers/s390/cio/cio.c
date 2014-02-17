@@ -54,7 +54,7 @@ debug_info_t *cio_debug_crw_id;
  */
 static int __init cio_debug_init(void)
 {
-	cio_debug_msg_id = debug_register("cio_msg", 16, 1, 16 * sizeof(long));
+	cio_debug_msg_id = debug_register("cio_msg", 16, 1, 11 * sizeof(long));
 	if (!cio_debug_msg_id)
 		goto out_unregister;
 	debug_register_view(cio_debug_msg_id, &debug_sprintf_view);
@@ -64,7 +64,7 @@ static int __init cio_debug_init(void)
 		goto out_unregister;
 	debug_register_view(cio_debug_trace_id, &debug_hex_ascii_view);
 	debug_set_level(cio_debug_trace_id, 2);
-	cio_debug_crw_id = debug_register("cio_crw", 16, 1, 16 * sizeof(long));
+	cio_debug_crw_id = debug_register("cio_crw", 8, 1, 8 * sizeof(long));
 	if (!cio_debug_crw_id)
 		goto out_unregister;
 	debug_register_view(cio_debug_crw_id, &debug_sprintf_view);
