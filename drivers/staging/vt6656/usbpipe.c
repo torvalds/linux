@@ -400,9 +400,12 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 		     pDevice);
 
 	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
-	if (ntStatus != 0) {
-	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit int URB failed %d\n", ntStatus);
-           }
+	if (ntStatus) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"Submit int URB failed %d\n", ntStatus);
+	} else {
+		pDevice->intBuf.bInUse = true;
+	}
     }
     //
     // We return STATUS_MORE_PROCESSING_REQUIRED so that the completion
