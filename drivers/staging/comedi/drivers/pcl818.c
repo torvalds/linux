@@ -121,11 +121,6 @@ A word or two about DMA. Driver support DMA operations at two ways:
 #define boardPCL818 4
 #define boardPCL718 5
 
-/* IO space len */
-#define PCLx1x_RANGE 16
-/* IO space len if we use FIFO */
-#define PCLx1xFIFO_RANGE 32
-
 /* W: clear INT request */
 #define PCL818_CLRINT 8
 /* R: return status byte */
@@ -272,12 +267,11 @@ struct pcl818_board {
 	int n_dochan;
 	const struct comedi_lrange *ai_range_type;
 	const struct comedi_lrange *ao_range_type;
-	unsigned int io_range;
 	unsigned int IRQbits;
 	unsigned int DMAbits;
 	int ai_maxdata;
 	int ao_maxdata;
-	unsigned char fifo;
+	unsigned int has_fifo:1;
 	int is_818;
 };
 
@@ -293,7 +287,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818l_l_ai,
 		.ao_range_type	= &range_unipolar5,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -310,7 +303,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.ao_range_type	= &range_unipolar5,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -327,12 +319,11 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.ao_range_type	= &range_unipolar5,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
-		.fifo		= 1,
+		.has_fifo	= 1,
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818hg",
@@ -345,12 +336,11 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818hg_ai,
 		.ao_range_type	= &range_unipolar5,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
-		.fifo		= 1,
+		.has_fifo	= 1,
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818",
@@ -363,7 +353,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.ao_range_type	= &range_unipolar5,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -380,7 +369,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_unipolar5,
 		.ao_range_type	= &range_unipolar5,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -395,7 +383,6 @@ static const struct pcl818_board boardtypes[] = {
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
 		.ao_range_type	= &range_unipolar5,
-		.io_range	= PCLx1x_RANGE,
 		.IRQbits	= 0x00fc,
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
@@ -407,7 +394,6 @@ static const struct pcl818_board boardtypes[] = {
 struct pcl818_private {
 
 	unsigned int dma;	/*  used DMA, 0=don't use DMA */
-	unsigned int io_range;
 	unsigned long dmabuf[2];	/*  pointers to begin of DMA buffers */
 	unsigned int dmapages[2];	/*  len of DMA buffers in PAGE_SIZEs */
 	unsigned int hwdmaptr[2];	/*  hardware address of DMA buffers */
@@ -1345,13 +1331,12 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	devpriv->io_range = board->io_range;
-	if ((board->fifo) && (it->options[2] == -1)) {
-		/*  we've board with FIFO and we want to use FIFO */
-		devpriv->io_range = PCLx1xFIFO_RANGE;
+	/* should we use the FIFO? */
+	if (board->has_fifo && it->options[2] == -1)
 		devpriv->usefifo = 1;
-	}
-	ret = comedi_request_region(dev, it->options[0], devpriv->io_range);
+
+	ret = comedi_request_region(dev, it->options[0],
+				    devpriv->usefifo ? 0x20 : 0x10);
 	if (ret)
 		return ret;
 
