@@ -340,9 +340,6 @@ static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0
 	0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
 };
 
-/*
-==============================================================================
-*/
 static void setup_channel_list(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       unsigned int *chanlist, unsigned int n_chan,
@@ -431,11 +428,6 @@ static int pcl818_ai_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-/*
-==============================================================================
-   ANALOG OUTPUT MODE0, 818 cards
-   only one sample per call is supported
-*/
 static int pcl818_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
@@ -469,12 +461,6 @@ static int pcl818_ao_insn_write(struct comedi_device *dev,
 	return n;
 }
 
-/*
-==============================================================================
-   DIGITAL INPUT MODE0, 818 cards
-
-   only one sample per call is supported
-*/
 static int pcl818_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
@@ -500,11 +486,6 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-   analog input interrupt mode 1 & 3, 818 cards
-   one sample per interrupt version
-*/
 static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -560,10 +541,6 @@ conv_finish:
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-   analog input dma mode 1 & 3, 818 cards
-*/
 static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -635,10 +612,6 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-   analog input interrupt mode 1 & 3, 818HD/HG cards
-*/
 static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -712,10 +685,6 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-    INT procedure
-*/
 static irqreturn_t interrupt_pcl818(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -772,10 +741,6 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 	return IRQ_NONE;
 }
 
-/*
-==============================================================================
-   ANALOG INPUT MODE 1 or 3 DMA , 818 cards
-*/
 static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
@@ -813,10 +778,6 @@ static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 	}
 }
 
-/*
-==============================================================================
-   ANALOG INPUT MODE 1 or 3, 818 cards
-*/
 static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
@@ -884,11 +845,6 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
- Check if channel list from user is builded correctly
- If it's ok, then program scan/gain logic
-*/
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int *chanlist, unsigned int n_chan)
@@ -969,10 +925,6 @@ static void setup_channel_list(struct comedi_device *dev,
 	     dev->iobase + PCL818_MUX);
 }
 
-/*
-==============================================================================
- Check if board is switched to SE (1) or DIFF(0) mode
-*/
 static int check_single_ended(unsigned int port)
 {
 	if (inb(port + PCL818_STATUS) & 0x20)
@@ -980,9 +932,6 @@ static int check_single_ended(unsigned int port)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
@@ -1061,9 +1010,6 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl818_private *devpriv = dev->private;
@@ -1090,10 +1036,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return -1;
 }
 
-/*
-==============================================================================
- cancel any mode 1-4 AI
-*/
 static int pcl818_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -1140,10 +1082,6 @@ end:
 	return 0;
 }
 
-/*
-==============================================================================
- chech for PCL818
-*/
 static int pcl818_check(unsigned long iobase)
 {
 	outb(0x00, iobase + PCL818_MUX);
@@ -1163,10 +1101,6 @@ static int pcl818_check(unsigned long iobase)
 	return 0;		/*  ok, card exist */
 }
 
-/*
-==============================================================================
- reset whole PCL-818 cards
-*/
 static void pcl818_reset(struct comedi_device *dev)
 {
 	const struct pcl818_board *board = comedi_board(dev);
