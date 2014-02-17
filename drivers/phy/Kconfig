@@ -5,7 +5,7 @@
 menu "PHY Subsystem"
 
 config GENERIC_PHY
-	tristate "PHY Core"
+	bool "PHY Core"
 	help
 	  Generic PHY support.
 
