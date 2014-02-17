@@ -1056,7 +1056,7 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 	local->sched_scan_req = NULL;
 
 	if (rcu_access_pointer(local->sched_scan_sdata))
-		drv_sched_scan_stop(local, sdata);
+		ret = drv_sched_scan_stop(local, sdata);
 
 out:
 	mutex_unlock(&local->mtx);
