@@ -341,6 +341,8 @@ struct pcl818_private {
 	unsigned int ai_timer2;
 	unsigned char usefifo;	/*  1=use fifo */
 	unsigned int ao_readback[2];
+	unsigned int divisor1;
+	unsigned int divisor2;
 };
 
 static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,	/*  used for gain list programming */
@@ -361,9 +363,9 @@ static int check_channel_list(struct comedi_device *dev,
 static int pcl818_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 
-static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters,
-			       unsigned int divisor1, unsigned int divisor2)
+static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters)
 {
+	struct pcl818_private *devpriv = dev->private;
 	unsigned long timer_base = dev->iobase + PCL818_TIMER_BASE;
 
 	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
@@ -371,8 +373,8 @@ static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters,
 	udelay(1);
 
 	if (load_counters) {
-		i8254_write(timer_base, 0, 2, divisor2);
-		i8254_write(timer_base, 0, 1, divisor1);
+		i8254_write(timer_base, 0, 2, devpriv->divisor2);
+		i8254_write(timer_base, 0, 1, devpriv->divisor1);
 	}
 }
 
@@ -836,13 +838,12 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 {
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
 	if (devpriv->irq_blocked)
 		return -EBUSY;
 
-	pcl818_start_pacer(dev, false, 0, 0);
+	pcl818_start_pacer(dev, false);
 
 	seglen = check_channel_list(dev, s, devpriv->ai_chanlist,
 				    cmd->chanlist_len);
@@ -859,21 +860,6 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	devpriv->irq_was_now_closed = 0;
 	devpriv->act_chanlist_pos = 0;
 	devpriv->dma_runs_to_end = 0;
-
-	if (mode == 1) {
-		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
-					  &divisor1, &divisor2,
-					  &cmd->convert_arg,
-					  TRIG_ROUND_NEAREST);
-		if (divisor1 == 1) {	/* PCL718/818 crash if any divisor is set to 1 */
-			divisor1 = 2;
-			divisor2 /= 2;
-		}
-		if (divisor2 == 1) {
-			divisor2 = 2;
-			divisor1 /= 2;
-		}
-	}
 
 	outb(0, dev->iobase + PCL818_CNTENABLE);	/* enable pacer */
 
@@ -911,7 +897,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 		}
 	}
 
-	pcl818_start_pacer(dev, mode == 1, divisor1, divisor2);
+	pcl818_start_pacer(dev, mode == 1);
 
 	return 0;
 }
@@ -1021,7 +1007,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct pcl818_board *board = comedi_board(dev);
 	struct pcl818_private *devpriv = dev->private;
 	int err = 0;
-	int tmp, divisor1 = 0, divisor2 = 0;
+	int tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -1070,7 +1056,8 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
-					  &divisor1, &divisor2,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
 					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < board->ns_min)
 			cmd->convert_arg = board->ns_min;
@@ -1157,7 +1144,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 #endif
 			outb(inb(dev->iobase + PCL818_CONTROL) & 0x73, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
 			udelay(1);
-			pcl818_start_pacer(dev, false, 0, 0);
+			pcl818_start_pacer(dev, false);
 			outb(0, dev->iobase + PCL818_AD_LO);
 			pcl818_ai_get_sample(dev, s, NULL);
 			outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
