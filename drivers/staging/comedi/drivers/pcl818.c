@@ -298,7 +298,6 @@ static const struct pcl818_board boardtypes[] = {
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
-		.fifo		= 0,
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818h",
@@ -316,7 +315,6 @@ static const struct pcl818_board boardtypes[] = {
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
-		.fifo		= 0,
 		.is_818		= 1,
 	}, {
 		.name		= "pcl818hd",
@@ -370,7 +368,6 @@ static const struct pcl818_board boardtypes[] = {
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
-		.fifo		= 0,
 		.is_818		= 1,
 	}, {
 		.name		= "pcl718",
@@ -388,15 +385,12 @@ static const struct pcl818_board boardtypes[] = {
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
-		.fifo		= 0,
-		.is_818		= 0,
 	}, {
 		.name		= "pcm3718",
 		.n_ranges	= 9,
 		.n_aichan_se	= 16,
 		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
-		.n_aochan	= 0,
 		.n_dichan	= 16,
 		.n_dochan	= 16,
 		.ai_range_type	= &range_pcl818h_ai,
@@ -406,7 +400,6 @@ static const struct pcl818_board boardtypes[] = {
 		.DMAbits	= 0x0a,
 		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
-		.fifo		= 0,
 		.is_818		= 1,
 	},
 };
