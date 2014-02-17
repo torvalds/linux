@@ -608,33 +608,6 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 	return ret ? ret : n;
 }
 
-static int acl8216_ai_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	int ret = 0;
-	int n;
-
-	/* select software trigger */
-	outb(1, dev->iobase + PCL812_MODE);
-	/*  select channel and renge */
-	setup_range_channel(dev, s, insn->chanspec, 1);
-	for (n = 0; n < insn->n; n++) {
-		/* start conversion */
-		outb(255, dev->iobase + PCL812_SOFTTRIG);
-		udelay(5);
-
-		ret = comedi_timeout(dev, s, insn, pcl812_ai_eoc, 0);
-		if (ret)
-			break;
-
-		data[n] = pcl812_ai_get_sample(dev, s);
-	}
-	outb(0, dev->iobase + PCL812_MODE);
-
-	return ret ? ret : n;
-}
-
 /*
 ==============================================================================
 */
@@ -1435,10 +1408,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	pcl812_set_ai_range_table(dev, s, it);
 
-	if (board->board_type == boardACL8216)
-		s->insn_read	= acl8216_ai_insn_read;
-	else
-		s->insn_read	= pcl812_ai_insn_read;
+	s->insn_read	= pcl812_ai_insn_read;
 
 	if (dev->irq) {
 		dev->read_subdev = s;
