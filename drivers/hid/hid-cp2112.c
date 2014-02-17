@@ -174,8 +174,9 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	u8 buf[5];
 	int ret;
 
-	ret = hdev->hid_get_raw_report(hdev, CP2112_GPIO_CONFIG, buf,
-				       sizeof(buf), HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
+				       sizeof(buf), HID_FEATURE_REPORT,
+				       HID_REQ_GET_REPORT);
 	if (ret != sizeof(buf)) {
 		hid_err(hdev, "error requesting GPIO config: %d\n", ret);
 		return ret;
@@ -220,8 +221,8 @@ static int cp2112_gpio_get(struct gpio_chip *chip, unsigned offset)
 	u8 buf[2];
 	int ret;
 
-	ret = hdev->hid_get_raw_report(hdev, CP2112_GPIO_GET, buf, sizeof(buf),
-				       HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_GET, buf, sizeof(buf),
+				       HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 	if (ret != sizeof(buf)) {
 		hid_err(hdev, "error requesting GPIO values: %d\n", ret);
 		return ret;
@@ -241,8 +242,9 @@ static int cp2112_gpio_direction_output(struct gpio_chip *chip,
 
 	cp2112_gpio_set(chip, offset, value);
 
-	ret = hdev->hid_get_raw_report(hdev, CP2112_GPIO_CONFIG, buf,
-				       sizeof(buf), HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
+				       sizeof(buf), HID_FEATURE_REPORT,
+				       HID_REQ_GET_REPORT);
 	if (ret != sizeof(buf)) {
 		hid_err(hdev, "error requesting GPIO config: %d\n", ret);
 		return ret;
@@ -271,8 +273,8 @@ static int cp2112_hid_get(struct hid_device *hdev, unsigned char report_number,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = hdev->hid_get_raw_report(hdev, report_number, buf, count,
-				       report_type);
+	ret = hid_hw_raw_request(hdev, report_number, buf, count,
+				       report_type, HID_REQ_GET_REPORT);
 	memcpy(data, buf, count);
 	kfree(buf);
 	return ret;
