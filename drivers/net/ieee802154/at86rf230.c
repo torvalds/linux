@@ -106,7 +106,8 @@ static inline int is_rf212(struct at86rf230_local *local)
 #define	SR_OQPSK_DATA_RATE	0x0c, 0x03, 0
 #define	SR_SUB_MODE		0x0c, 0x04, 2
 #define	SR_BPSK_QPSK		0x0c, 0x08, 3
-#define	SR_RESERVED_0c_4	0x0c, 0x70, 4
+#define	SR_OQPSK_SUB1_RC_EN	0x0c, 0x10, 4
+#define	SR_RESERVED_0c_5	0x0c, 0x60, 5
 #define	SR_RX_SAFE_MODE		0x0c, 0x80, 7
 #define	RG_ANT_DIV	(0x0d)
 #define	SR_ANT_CTRL		0x0d, 0x03, 0
@@ -594,6 +595,13 @@ at86rf212_set_channel(struct at86rf230_local *lp, int page, int channel)
 	if (rc < 0)
 		return rc;
 
+	if (page == 0)
+		rc = at86rf230_write_subreg(lp, SR_BPSK_QPSK, 0);
+	else
+		rc = at86rf230_write_subreg(lp, SR_BPSK_QPSK, 1);
+	if (rc < 0)
+		return rc;
+
 	return at86rf230_write_subreg(lp, SR_CHANNEL, channel);
 }
 
@@ -620,6 +628,7 @@ at86rf230_channel(struct ieee802154_dev *dev, int page, int channel)
 
 	msleep(1); /* Wait for PLL */
 	dev->phy->current_channel = channel;
+	dev->phy->current_page = page;
 
 	return 0;
 }
@@ -1064,10 +1073,12 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, lp);
 
-	if (is_rf212(lp))
+	if (is_rf212(lp)) {
 		dev->phy->channels_supported[0] = 0x00007FF;
-	else
+		dev->phy->channels_supported[2] = 0x00007FF;
+	} else {
 		dev->phy->channels_supported[0] = 0x7FFF800;
+	}
 
 	rc = at86rf230_hw_init(lp);
 	if (rc)
