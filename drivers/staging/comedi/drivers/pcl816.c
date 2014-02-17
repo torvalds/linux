@@ -93,7 +93,6 @@ static const struct comedi_lrange range_pcl816 = {
 struct pcl816_board {
 	const char *name;
 	int n_ranges;
-	int n_aichan;
 	unsigned int ai_ns_min;
 	int n_aochan;
 	const struct comedi_lrange *ai_range_type;
@@ -108,7 +107,6 @@ static const struct pcl816_board boardtypes[] = {
 	{
 		.name		= "pcl816",
 		.n_ranges	= 8,
-		.n_aichan	= 16,
 		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl816,
@@ -120,7 +118,6 @@ static const struct pcl816_board boardtypes[] = {
 	}, {
 		.name		= "pcl814b",
 		.n_ranges	= 8,
-		.n_aichan	= 16,
 		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl816,
@@ -927,24 +924,20 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	s = &dev->subdevices[0];
-	if (board->n_aichan > 0) {
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_CMD_READ | SDF_DIFF;
-		s->n_chan = board->n_aichan;
-		s->maxdata = board->ai_maxdata;
-		s->range_table = board->ai_range_type;
-		s->insn_read = pcl816_ai_insn_read;
-		if (dev->irq) {
-			dev->read_subdev = s;
-			s->subdev_flags |= SDF_CMD_READ;
-			s->len_chanlist = board->ai_chanlist;
-			s->do_cmdtest = pcl816_ai_cmdtest;
-			s->do_cmd = pcl816_ai_cmd;
-			s->poll = pcl816_ai_poll;
-			s->cancel = pcl816_ai_cancel;
-		}
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_CMD_READ | SDF_DIFF;
+	s->n_chan	= 16;
+	s->maxdata	= board->ai_maxdata;
+	s->range_table	= board->ai_range_type;
+	s->insn_read	= pcl816_ai_insn_read;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= board->ai_chanlist;
+		s->do_cmdtest	= pcl816_ai_cmdtest;
+		s->do_cmd	= pcl816_ai_cmd;
+		s->poll		= pcl816_ai_poll;
+		s->cancel	= pcl816_ai_cancel;
 	}
 
 #if 0
