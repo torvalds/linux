@@ -94,7 +94,6 @@ struct pcl816_board {
 	const char *name;
 	unsigned int ai_ns_min;
 	int n_aochan;
-	const struct comedi_lrange *ai_range_type;
 	unsigned int IRQbits;
 	int ai_maxdata;
 	int ao_maxdata;
@@ -106,7 +105,6 @@ static const struct pcl816_board boardtypes[] = {
 		.name		= "pcl816",
 		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
-		.ai_range_type	= &range_pcl816,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xffff,
 		.ao_maxdata	= 0xffff,
@@ -115,7 +113,6 @@ static const struct pcl816_board boardtypes[] = {
 		.name		= "pcl814b",
 		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
-		.ai_range_type	= &range_pcl816,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0x3fff,
 		.ao_maxdata	= 0x3fff,
@@ -922,7 +919,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags	= SDF_CMD_READ | SDF_DIFF;
 	s->n_chan	= 16;
 	s->maxdata	= board->ai_maxdata;
-	s->range_table	= board->ai_range_type;
+	s->range_table	= &range_pcl816;
 	s->insn_read	= pcl816_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
