@@ -341,7 +341,6 @@ struct pcl818_private {
 	unsigned int act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int act_chanlist_pos;	/*  actual position in MUX list */
-	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
@@ -515,6 +514,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan;
 	int timeout = 50;	/* wait max 50us */
 
@@ -549,7 +549,7 @@ conv_finish:
 		devpriv->act_chanlist_pos = 0;
 
 	s->async->cur_chan++;
-	if (s->async->cur_chan >= devpriv->ai_n_chan) {
+	if (s->async->cur_chan >= cmd->chanlist_len) {
 		s->async->cur_chan = 0;
 		devpriv->ai_act_scan--;
 	}
@@ -573,6 +573,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int i, len, bufptr;
 	unsigned long flags;
 	unsigned short *ptr;
@@ -622,7 +623,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 			devpriv->act_chanlist_pos = 0;
 
 		s->async->cur_chan++;
-		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+		if (s->async->cur_chan >= cmd->chanlist_len) {
 			s->async->cur_chan = 0;
 			devpriv->ai_act_scan--;
 		}
@@ -650,6 +651,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int i, len;
 	unsigned char lo;
 
@@ -698,7 +700,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 			devpriv->act_chanlist_pos = 0;
 
 		s->async->cur_chan++;
-		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+		if (s->async->cur_chan >= cmd->chanlist_len) {
 			s->async->cur_chan = 0;
 			devpriv->ai_act_scan--;
 		}
@@ -796,7 +798,7 @@ static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 	disable_dma(devpriv->dma);	/*  disable dma */
 	bytes = devpriv->hwdmasize[0];
 	if (!devpriv->neverending_ai) {
-		bytes = devpriv->ai_n_chan * cmd->stop_arg * sizeof(short);	/*  how many */
+		bytes = cmd->chanlist_len * cmd->stop_arg * sizeof(short);	/*  how many */
 		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize[0];	/*  how many DMA pages we must fiil */
 		devpriv->last_dma_run = bytes % devpriv->hwdmasize[0];	/* on last dma transfer must be moved */
 		devpriv->dma_runs_to_end--;
@@ -840,11 +842,11 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
 	seglen = check_channel_list(dev, s, devpriv->ai_chanlist,
-				    devpriv->ai_n_chan);
+				    cmd->chanlist_len);
 	if (seglen < 1)
 		return -EINVAL;
 	setup_channel_list(dev, s, devpriv->ai_chanlist,
-			   devpriv->ai_n_chan, seglen);
+			   cmd->chanlist_len, seglen);
 
 	udelay(1);
 
@@ -1115,7 +1117,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval;
 
-	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
