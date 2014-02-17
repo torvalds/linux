@@ -551,6 +551,17 @@ static void setup_range_channel(struct comedi_device *dev,
 static int pcl812_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 
+static unsigned int pcl812_ai_get_sample(struct comedi_device *dev,
+					 struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + PCL812_AD_HI) << 8;
+	val |= inb(dev->iobase + PCL812_AD_LO);
+
+	return val & s->maxdata;
+}
+
 static int pcl812_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -578,7 +589,6 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 	struct pcl812_private *devpriv = dev->private;
 	int ret = 0;
 	int n;
-	int hi;
 
 	/* select software trigger */
 	outb(devpriv->mode_reg_int | 1, dev->iobase + PCL812_MODE);
@@ -593,8 +603,7 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			break;
 
-		hi = inb(dev->iobase + PCL812_AD_HI);
-		data[n] = ((hi & 0xf) << 8) | inb(dev->iobase + PCL812_AD_LO);
+		data[n] = pcl812_ai_get_sample(dev, s);
 	}
 	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
 
@@ -621,9 +630,7 @@ static int acl8216_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			break;
 
-		data[n] =
-		    (inb(dev->iobase +
-			 PCL812_AD_HI) << 8) | inb(dev->iobase + PCL812_AD_LO);
+		data[n] = pcl812_ai_get_sample(dev, s);
 	}
 	outb(0, dev->iobase + PCL812_MODE);
 
@@ -912,7 +919,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 {
 	char err = 1;
-	unsigned int mask, timeout;
+	unsigned int timeout;
 	struct comedi_device *dev = d;
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -922,7 +929,6 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 
 	timeout = 50;		/* wait max 50us, it must finish under 33us */
 	if (devpriv->ai_is16b) {
-		mask = 0xffff;
 		while (timeout--) {
 			if (!(inb(dev->iobase + ACL8216_STATUS) & ACL8216_DRDY)) {
 				err = 0;
@@ -931,7 +937,6 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 			udelay(1);
 		}
 	} else {
-		mask = 0x0fff;
 		while (timeout--) {
 			if (!(inb(dev->iobase + PCL812_AD_HI) & PCL812_DRDY)) {
 				err = 0;
@@ -949,9 +954,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	comedi_buf_put(s->async,
-		       ((inb(dev->iobase + PCL812_AD_HI) << 8) |
-			inb(dev->iobase + PCL812_AD_LO)) & mask);
+	comedi_buf_put(s->async, pcl812_ai_get_sample(dev, s));
 
 	/* Set up next channel. Added by abbotti 2010-01-20, but untested. */
 	next_chan = s->async->cur_chan + 1;
