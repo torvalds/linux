@@ -752,7 +752,7 @@ static int get_loss_clg(struct netem_sched_data *q, const struct nlattr *attr)
 
 			q->loss_model = CLG_4_STATES;
 
-			q->clg.state = 1;
+			q->clg.state = TX_IN_GAP_PERIOD;
 			q->clg.a1 = gi->p13;
 			q->clg.a2 = gi->p31;
 			q->clg.a3 = gi->p32;
@@ -770,7 +770,7 @@ static int get_loss_clg(struct netem_sched_data *q, const struct nlattr *attr)
 			}
 
 			q->loss_model = CLG_GILB_ELL;
-			q->clg.state = 1;
+			q->clg.state = GOOD_STATE;
 			q->clg.a1 = ge->p;
 			q->clg.a2 = ge->r;
 			q->clg.a3 = ge->h;
