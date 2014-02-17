@@ -666,7 +666,7 @@ static int nmk_i2c_xfer_one(struct nmk_i2c_dev *dev, u16 flags)
 static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 		struct i2c_msg msgs[], int num_msgs)
 {
-	int status;
+	int status = 0;
 	int i;
 	struct nmk_i2c_dev *dev = i2c_get_adapdata(i2c_adap);
 	int j;
@@ -674,19 +674,6 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 	dev->busy = true;
 
 	pm_runtime_get_sync(&dev->adev->dev);
-
-	status = clk_prepare_enable(dev->clk);
-	if (status) {
-		dev_err(&dev->adev->dev, "can't prepare_enable clock\n");
-		goto out_clk;
-	}
-
-	/* Optionaly enable pins to be muxed in and configured */
-	pinctrl_pm_select_default_state(&dev->adev->dev);
-
-	status = init_hw(dev);
-	if (status)
-		goto out;
 
 	/* Attempt three times to send the message queue */
 	for (j = 0; j < 3; j++) {
@@ -707,12 +694,6 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 		if (status == 0)
 			break;
 	}
-
-out:
-	clk_disable_unprepare(dev->clk);
-out_clk:
-	/* Optionally let pins go into idle state */
-	pinctrl_pm_select_idle_state(&dev->adev->dev);
 
 	pm_runtime_put_sync(&dev->adev->dev);
 
@@ -930,6 +911,41 @@ static int nmk_i2c_resume(struct device *dev)
 #define nmk_i2c_resume	NULL
 #endif
 
+#ifdef CONFIG_PM
+static int nmk_i2c_runtime_suspend(struct device *dev)
+{
+	struct amba_device *adev = to_amba_device(dev);
+	struct nmk_i2c_dev *nmk_i2c = amba_get_drvdata(adev);
+
+	clk_disable_unprepare(nmk_i2c->clk);
+	pinctrl_pm_select_idle_state(dev);
+	return 0;
+}
+
+static int nmk_i2c_runtime_resume(struct device *dev)
+{
+	struct amba_device *adev = to_amba_device(dev);
+	struct nmk_i2c_dev *nmk_i2c = amba_get_drvdata(adev);
+	int ret;
+
+	ret = clk_prepare_enable(nmk_i2c->clk);
+	if (ret) {
+		dev_err(dev, "can't prepare_enable clock\n");
+		return ret;
+	}
+
+	pinctrl_pm_select_default_state(dev);
+
+	ret = init_hw(nmk_i2c);
+	if (ret) {
+		clk_disable_unprepare(nmk_i2c->clk);
+		pinctrl_pm_select_idle_state(dev);
+	}
+
+	return ret;
+}
+#endif
+
 /*
  * We use noirq so that we suspend late and resume before the wakeup interrupt
  * to ensure that we do the !pm_runtime_suspended() check in resume before
@@ -938,6 +954,9 @@ static int nmk_i2c_resume(struct device *dev)
 static const struct dev_pm_ops nmk_i2c_pm = {
 	.suspend_noirq	= nmk_i2c_suspend,
 	.resume_noirq	= nmk_i2c_resume,
+	SET_PM_RUNTIME_PM_OPS(nmk_i2c_runtime_suspend,
+			nmk_i2c_runtime_resume,
+			NULL)
 };
 
 static unsigned int nmk_i2c_functionality(struct i2c_adapter *adap)
@@ -1001,11 +1020,6 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 
 	amba_set_drvdata(adev, dev);
 
-	/* Select default pin state */
-	pinctrl_pm_select_default_state(&adev->dev);
-	/* If possible, let's go to idle until the first transfer */
-	pinctrl_pm_select_idle_state(&adev->dev);
-
 	dev->virtbase = devm_ioremap(&adev->dev, adev->res.start,
 				resource_size(&adev->res));
 	if (IS_ERR(dev->virtbase)) {
@@ -1030,6 +1044,14 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_mem;
 	}
 
+	ret = clk_prepare_enable(dev->clk);
+	if (ret) {
+		dev_err(&adev->dev, "can't prepare_enable clock\n");
+		goto err_no_mem;
+	}
+
+	init_hw(dev);
+
 	adap = &dev->adap;
 	adap->dev.of_node = np;
 	adap->dev.parent = &adev->dev;
@@ -1049,13 +1071,15 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = i2c_add_adapter(adap);
 	if (ret) {
 		dev_err(&adev->dev, "failed to add adapter\n");
-		goto err_no_mem;
+		goto err_no_adap;
 	}
 
 	pm_runtime_put(&adev->dev);
 
 	return 0;
 
+ err_no_adap:
+	clk_disable_unprepare(dev->clk);
  err_no_mem:
 
 	return ret;
@@ -1072,6 +1096,7 @@ static int nmk_i2c_remove(struct amba_device *adev)
 	clear_all_interrupts(dev);
 	/* disable the controller */
 	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
+	clk_disable_unprepare(dev->clk);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
 
