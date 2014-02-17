@@ -131,8 +131,6 @@ struct pcl816_private {
 	int next_dma_buf;	/*  which DMA buffer will be used next round */
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
-
-	unsigned int ai_scans;	/*  len of scanlist */
 	unsigned char ai_neverending;	/*  if=1, then we do neverending record (you must use cancel()) */
 	int irq_blocked;	/*  1=IRQ now uses any subdev */
 	int irq_was_now_closed;	/*  when IRQ finish, there's stored int816_mode for last interrupt */
@@ -235,6 +233,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int timeout = 50;	/* wait max 50us */
 
 	while (timeout--) {
@@ -268,7 +267,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 
 	if (!devpriv->ai_neverending)
 					/* all data sampled */
-		if (devpriv->ai_act_scan >= devpriv->ai_scans) {
+		if (devpriv->ai_act_scan >= cmd->stop_arg) {
 			/* all data sampled */
 			pcl816_ai_cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA;
@@ -287,6 +286,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 				  unsigned int bufptr, unsigned int len)
 {
 	struct pcl816_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int i;
 
 	s->async->events = 0;
@@ -308,7 +308,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 
 		if (!devpriv->ai_neverending)
 						/*  all data sampled */
-			if (devpriv->ai_act_scan >= devpriv->ai_scans) {
+			if (devpriv->ai_act_scan >= cmd->stop_arg) {
 				pcl816_ai_cancel(dev, s);
 				s->async->events |= COMEDI_CB_EOA;
 				s->async->events |= COMEDI_CB_BLOCK;
@@ -527,13 +527,10 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_poll_ptr = 0;
 	devpriv->irq_was_now_closed = 0;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ai_scans = cmd->stop_arg;
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_neverending = 0;
-	} else {
-		devpriv->ai_scans = 0;
+	else
 		devpriv->ai_neverending = 1;
-	}
 
 	if (devpriv->dma) {
 		bytes = devpriv->hwdmasize[0];
