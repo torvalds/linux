@@ -672,6 +672,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 
 	num = of_regulator_match(&pdev->dev, node, da9063_matches,
 				 ARRAY_SIZE(da9063_matches));
+	of_node_put(node);
 	if (num < 0) {
 		dev_err(&pdev->dev, "Failed to match regulators\n");
 		return ERR_PTR(-EINVAL);
