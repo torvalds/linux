@@ -44,9 +44,6 @@
 
 #include "gianfar.h"
 
-extern int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue,
-			      int rx_work_limit);
-
 #define GFAR_MAX_COAL_USECS 0xffff
 #define GFAR_MAX_COAL_FRAMES 0xff
 static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
@@ -466,15 +463,13 @@ static void gfar_gringparam(struct net_device *dev,
 }
 
 /* Change the current ring parameters, stopping the controller if
- * necessary so that we don't mess things up while we're in
- * motion.  We wait for the ring to be clean before reallocating
- * the rings.
+ * necessary so that we don't mess things up while we're in motion.
  */
 static int gfar_sringparam(struct net_device *dev,
 			   struct ethtool_ringparam *rvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	int err = 0, i = 0;
+	int err = 0, i;
 
 	if (rvals->rx_pending > GFAR_RX_MAX_RING_SIZE)
 		return -EINVAL;
@@ -492,38 +487,15 @@ static int gfar_sringparam(struct net_device *dev,
 		return -EINVAL;
 	}
 
-
-	if (dev->flags & IFF_UP) {
-		unsigned long flags;
-
-		/* Halt TX and RX, and process the frames which
-		 * have already been received
-		 */
-		local_irq_save(flags);
-		lock_tx_qs(priv);
-		lock_rx_qs(priv);
-
-		gfar_halt(priv);
-
-		unlock_rx_qs(priv);
-		unlock_tx_qs(priv);
-		local_irq_restore(flags);
-
-		for (i = 0; i < priv->num_rx_queues; i++)
-			gfar_clean_rx_ring(priv->rx_queue[i],
-					   priv->rx_queue[i]->rx_ring_size);
-
-		/* Now we take down the rings to rebuild them */
+	if (dev->flags & IFF_UP)
 		stop_gfar(dev);
-	}
 
-	/* Change the size */
-	for (i = 0; i < priv->num_rx_queues; i++) {
+	/* Change the sizes */
+	for (i = 0; i < priv->num_rx_queues; i++)
 		priv->rx_queue[i]->rx_ring_size = rvals->rx_pending;
+
+	for (i = 0; i < priv->num_tx_queues; i++)
 		priv->tx_queue[i]->tx_ring_size = rvals->tx_pending;
-		priv->tx_queue[i]->num_txbdfree =
-			priv->tx_queue[i]->tx_ring_size;
-	}
 
 	/* Rebuild the rings with the new size */
 	if (dev->flags & IFF_UP) {
@@ -607,10 +579,8 @@ static int gfar_spauseparam(struct net_device *dev,
 
 int gfar_set_features(struct net_device *dev, netdev_features_t features)
 {
-	struct gfar_private *priv = netdev_priv(dev);
-	unsigned long flags;
-	int err = 0, i = 0;
 	netdev_features_t changed = dev->features ^ features;
+	int err = 0;
 
 	if (changed & (NETIF_F_HW_VLAN_CTAG_TX|NETIF_F_HW_VLAN_CTAG_RX))
 		gfar_vlan_mode(dev, features);
@@ -619,23 +589,6 @@ int gfar_set_features(struct net_device *dev, netdev_features_t features)
 		return 0;
 
 	if (dev->flags & IFF_UP) {
-		/* Halt TX and RX, and process the frames which
-		 * have already been received
-		 */
-		local_irq_save(flags);
-		lock_tx_qs(priv);
-		lock_rx_qs(priv);
-
-		gfar_halt(priv);
-
-		unlock_tx_qs(priv);
-		unlock_rx_qs(priv);
-		local_irq_restore(flags);
-
-		for (i = 0; i < priv->num_rx_queues; i++)
-			gfar_clean_rx_ring(priv->rx_queue[i],
-					   priv->rx_queue[i]->rx_ring_size);
-
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
 
