@@ -44,12 +44,7 @@ Configuration Options:
 #include "comedi_fc.h"
 #include "8253.h"
 
-/* INTEL 8254 counters */
-#define PCL816_CTR0 4
-#define PCL816_CTR1 5
-#define PCL816_CTR2 6
-/* R: counter read-back register W: counter control */
-#define PCL816_CTRCTL 7
+#define PCL816_TIMER_BASE			0x04
 
 /* R: A/D high byte W: A/D range control */
 #define PCL816_RANGE 9
@@ -152,13 +147,30 @@ static void setup_channel_list(struct comedi_device *dev,
 			       unsigned int *chanlist, unsigned int seglen);
 static int pcl816_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
-static void start_pacer(struct comedi_device *dev, int mode,
-			unsigned int divisor1, unsigned int divisor2);
 
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_cmd *cmd);
 static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+
+static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters,
+			       unsigned int divisor1, unsigned int divisor2)
+{
+	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
+
+	i8254_set_mode(timer_base, 0, 0, I8254_MODE1 | I8254_BINARY);
+	i8254_write(timer_base, 0, 0, 0x00ff);
+	udelay(1);
+
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	udelay(1);
+
+	if (load_counters) {
+		i8254_write(timer_base, 0, 2, divisor2);
+		i8254_write(timer_base, 0, 1, divisor1);
+	}
+}
 
 static unsigned int pcl816_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
@@ -506,7 +518,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 	}
 
-	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
+	pcl816_start_pacer(dev, false, 0, 0);
 
 	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
 	if (seglen < 1)
@@ -554,7 +566,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		enable_dma(devpriv->dma);
 	}
 
-	start_pacer(dev, 1, divisor1, divisor2);
+	pcl816_start_pacer(dev, true, divisor1, divisor2);
 	dmairq = ((devpriv->dma & 0x3) << 4) | (dev->irq & 0x7);
 
 	switch (cmd->convert_src) {
@@ -646,8 +658,11 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 			outb(0, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
 
 			/* Stop pacer */
-			outb(0xb0, dev->iobase + PCL816_CTRCTL);
-			outb(0x70, dev->iobase + PCL816_CTRCTL);
+			i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
+				       2, I8254_MODE0 | I8254_BINARY);
+			i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
+				       1, I8254_MODE0 | I8254_BINARY);
+
 			outb(0, dev->iobase + PCL816_AD_LO);
 			pcl816_ai_get_sample(dev, s);
 
@@ -695,6 +710,8 @@ static int pcl816_check(unsigned long iobase)
 */
 static void pcl816_reset(struct comedi_device *dev)
 {
+	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
+
 /* outb (0, dev->iobase + PCL818_DA_LO);         DAC=0V */
 /* outb (0, dev->iobase + PCL818_DA_HI); */
 /* udelay (1); */
@@ -704,42 +721,13 @@ static void pcl816_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL816_CONTROL);
 	outb(0, dev->iobase + PCL816_MUX);
 	outb(0, dev->iobase + PCL816_CLRINT);
-	outb(0xb0, dev->iobase + PCL816_CTRCTL);	/* Stop pacer */
-	outb(0x70, dev->iobase + PCL816_CTRCTL);
-	outb(0x30, dev->iobase + PCL816_CTRCTL);
+
+	/* Stop pacer */
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE0 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
+
 	outb(0, dev->iobase + PCL816_RANGE);
-}
-
-/*
-==============================================================================
- Start/stop pacer onboard pacer
-*/
-static void
-start_pacer(struct comedi_device *dev, int mode, unsigned int divisor1,
-	    unsigned int divisor2)
-{
-	outb(0x32, dev->iobase + PCL816_CTRCTL);
-	outb(0xff, dev->iobase + PCL816_CTR0);
-	outb(0x00, dev->iobase + PCL816_CTR0);
-	udelay(1);
-
-	/*  set counter 2 as mode 3 */
-	outb(0xb4, dev->iobase + PCL816_CTRCTL);
-	/*  set counter 1 as mode 3 */
-	outb(0x74, dev->iobase + PCL816_CTRCTL);
-	udelay(1);
-
-	if (mode == 1) {
-		dev_dbg(dev->class_dev, "mode %d, divisor1 %d, divisor2 %d\n",
-			mode, divisor1, divisor2);
-		outb(divisor2 & 0xff, dev->iobase + PCL816_CTR2);
-		outb((divisor2 >> 8) & 0xff, dev->iobase + PCL816_CTR2);
-		outb(divisor1 & 0xff, dev->iobase + PCL816_CTR1);
-		outb((divisor1 >> 8) & 0xff, dev->iobase + PCL816_CTR1);
-	}
-
-	/* clear pending interrupts (just in case) */
-/* outb(0, dev->iobase + PCL816_CLRINT); */
 }
 
 /*
