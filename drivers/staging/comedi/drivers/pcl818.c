@@ -331,8 +331,6 @@ struct pcl818_private {
 	unsigned int act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	unsigned int ai_timer1;	/*  timers */
-	unsigned int ai_timer2;
 	unsigned char usefifo;	/*  1=use fifo */
 	unsigned int ao_readback[2];
 	unsigned int divisor1;
@@ -1077,8 +1075,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_timer1 = 0;
-	devpriv->ai_timer2 = 0;
 
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->neverending_ai = 0;
@@ -1087,7 +1083,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 3 */
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 */
-			devpriv->ai_timer1 = cmd->convert_arg;
 			retval = pcl818_ai_cmd_mode(1, dev, s);
 			return retval;
 		}
