@@ -121,12 +121,11 @@ static const struct pcl816_board boardtypes[] = {
 };
 
 struct pcl816_private {
-
 	unsigned int dma;	/*  used DMA, 0=don't use DMA */
+	unsigned int dmapages;
+	unsigned int hwdmasize;
 	unsigned long dmabuf[2];	/*  pointers to begin of DMA buffers */
-	unsigned int dmapages[2];	/*  len of DMA buffers in PAGE_SIZEs */
 	unsigned int hwdmaptr[2];	/*  hardware address of DMA buffers */
-	unsigned int hwdmasize[2];	/*  len of DMA buffers in Bytes */
 	unsigned int dmasamplsize;	/*  size in samples hwdmasize[0]/2 */
 	int next_dma_buf;	/*  which DMA buffer will be used next round */
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
@@ -339,13 +338,10 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 /* clear_dma_ff (devpriv->dma); */
 		set_dma_addr(devpriv->dma,
 			     devpriv->hwdmaptr[devpriv->next_dma_buf]);
-		if (devpriv->dma_runs_to_end) {
-			set_dma_count(devpriv->dma,
-				      devpriv->hwdmasize[devpriv->
-							 next_dma_buf]);
-		} else {
+		if (devpriv->dma_runs_to_end)
+			set_dma_count(devpriv->dma, devpriv->hwdmasize);
+		else
 			set_dma_count(devpriv->dma, devpriv->last_dma_run);
-		}
 		release_dma_lock(dma_flags);
 		enable_dma(devpriv->dma);
 	}
@@ -355,7 +351,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 
 	ptr = (unsigned short *)devpriv->dmabuf[this_dma_buf];
 
-	len = (devpriv->hwdmasize[0] >> 1) - devpriv->ai_poll_ptr;
+	len = (devpriv->hwdmasize >> 1) - devpriv->ai_poll_ptr;
 	bufptr = devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr = 0;
 
@@ -531,7 +527,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ai_neverending = 1;
 
 	if (devpriv->dma) {
-		bytes = devpriv->hwdmasize[0];
+		bytes = devpriv->hwdmasize;
 		if (!devpriv->ai_neverending) {
 			/*  how many */
 			bytes = s->async->cmd.chanlist_len *
@@ -539,14 +535,13 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			sizeof(short);
 
 			/*  how many DMA pages we must fill */
-			devpriv->dma_runs_to_end = bytes /
-			devpriv->hwdmasize[0];
+			devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
 
 			/* on last dma transfer must be moved */
-			devpriv->last_dma_run = bytes % devpriv->hwdmasize[0];
+			devpriv->last_dma_run = bytes % devpriv->hwdmasize;
 			devpriv->dma_runs_to_end--;
 			if (devpriv->dma_runs_to_end >= 0)
-				bytes = devpriv->hwdmasize[0];
+				bytes = devpriv->hwdmasize;
 		} else
 			devpriv->dma_runs_to_end = -1;
 
@@ -611,7 +606,7 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/*  where is now DMA in buffer */
-	top1 = devpriv->hwdmasize[0] - top1;
+	top1 = devpriv->hwdmasize - top1;
 	top1 >>= 1;		/*  sample position */
 	top2 = top1 - devpriv->ai_poll_ptr;
 	if (top2 < 1) {		/*  no new samples */
@@ -843,10 +838,9 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl816_board *board = comedi_board(dev);
 	struct pcl816_private *devpriv;
-	int ret;
-	unsigned long pages;
-	/* int i; */
 	struct comedi_subdevice *s;
+	int ret;
+	int i;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
@@ -882,31 +876,19 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		devpriv->dma = it->options[2];
 
-		pages = 2;	/* we need 16KB */
-		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
+		devpriv->dmapages = 2;	/* we need 16KB */
+		devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
 
-		if (!devpriv->dmabuf[0]) {
-			dev_err(dev->class_dev,
-				"unable to allocate DMA buffer, FAIL!\n");
-			/*
-			 * maybe experiment with try_to_free_pages()
-			 * will help ....
-			 */
-			return -EBUSY;	/* no buffer :-( */
-		}
-		devpriv->dmapages[0] = pages;
-		devpriv->hwdmaptr[0] = virt_to_bus((void *)devpriv->dmabuf[0]);
-		devpriv->hwdmasize[0] = (1 << pages) * PAGE_SIZE;
+		for (i = 0; i < 2; i++) {
+			unsigned long dmabuf;
 
-		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
-		if (!devpriv->dmabuf[1]) {
-			dev_err(dev->class_dev,
-				"unable to allocate DMA buffer, FAIL!\n");
-			return -EBUSY;
+			dmabuf = __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
+			if (!dmabuf)
+				return -ENOMEM;
+
+			devpriv->dmabuf[i] = dmabuf;
+			devpriv->hwdmaptr[i] = virt_to_bus((void *)dmabuf);
 		}
-		devpriv->dmapages[1] = pages;
-		devpriv->hwdmaptr[1] = virt_to_bus((void *)devpriv->dmabuf[1]);
-		devpriv->hwdmasize[1] = (1 << pages) * PAGE_SIZE;
 	}
 
 	ret = comedi_alloc_subdevices(dev, 1);
@@ -968,9 +950,9 @@ static void pcl816_detach(struct comedi_device *dev)
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
 		if (devpriv->dmabuf[0])
-			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
+			free_pages(devpriv->dmabuf[0], devpriv->dmapages);
 		if (devpriv->dmabuf[1])
-			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
+			free_pages(devpriv->dmabuf[1], devpriv->dmapages);
 	}
 	comedi_legacy_detach(dev);
 }
