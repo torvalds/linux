@@ -1176,7 +1176,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		evergreen_tiling_fields(tiling_flags, &bankw, &bankh, &mtaspect, &tile_split);
 
 		/* Set NUM_BANKS. */
-		if (rdev->family >= CHIP_BONAIRE) {
+		if (rdev->family >= CHIP_TAHITI) {
 			unsigned tileb, index, num_banks, tile_split_bytes;
 
 			/* Calculate the macrotile mode index. */
@@ -1194,13 +1194,14 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 				return -EINVAL;
 			}
 
-			num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
+			if (rdev->family >= CHIP_BONAIRE)
+				num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
+			else
+				num_banks = (rdev->config.si.tile_mode_array[index] >> 20) & 0x3;
 			fb_format |= EVERGREEN_GRPH_NUM_BANKS(num_banks);
 		} else {
-			/* SI and older. */
-			if (rdev->family >= CHIP_TAHITI)
-				tmp = rdev->config.si.tile_config;
-			else if (rdev->family >= CHIP_CAYMAN)
+			/* NI and older. */
+			if (rdev->family >= CHIP_CAYMAN)
 				tmp = rdev->config.cayman.tile_config;
 			else
 				tmp = rdev->config.evergreen.tile_config;
