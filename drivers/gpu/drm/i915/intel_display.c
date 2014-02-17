@@ -1122,7 +1122,7 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
 		state = true;
 
-	if (!intel_display_power_enabled(dev_priv->dev,
+	if (!intel_display_power_enabled(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder))) {
 		cur_state = false;
 	} else {
@@ -6863,23 +6863,23 @@ static unsigned long get_pipe_power_domains(struct drm_device *dev,
 	return mask;
 }
 
-void intel_display_set_init_power(struct drm_device *dev, bool enable)
+void intel_display_set_init_power(struct drm_i915_private *dev_priv,
+				  bool enable)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (dev_priv->power_domains.init_power_on == enable)
 		return;
 
 	if (enable)
-		intel_display_power_get(dev, POWER_DOMAIN_INIT);
+		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 	else
-		intel_display_power_put(dev, POWER_DOMAIN_INIT);
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 	dev_priv->power_domains.init_power_on = enable;
 }
 
 static void modeset_update_crtc_power_domains(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long pipe_domains[I915_MAX_PIPES] = { 0, };
 	struct intel_crtc *crtc;
 
@@ -6898,19 +6898,19 @@ static void modeset_update_crtc_power_domains(struct drm_device *dev)
 						crtc->config.pch_pfit.enabled);
 
 		for_each_power_domain(domain, pipe_domains[crtc->pipe])
-			intel_display_power_get(dev, domain);
+			intel_display_power_get(dev_priv, domain);
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
 		enum intel_display_power_domain domain;
 
 		for_each_power_domain(domain, crtc->enabled_power_domains)
-			intel_display_power_put(dev, domain);
+			intel_display_power_put(dev_priv, domain);
 
 		crtc->enabled_power_domains = pipe_domains[crtc->pipe];
 	}
 
-	intel_display_set_init_power(dev, false);
+	intel_display_set_init_power(dev_priv, false);
 }
 
 static void haswell_modeset_global_resources(struct drm_device *dev)
@@ -6991,7 +6991,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 			pipe_config->cpu_transcoder = TRANSCODER_EDP;
 	}
 
-	if (!intel_display_power_enabled(dev,
+	if (!intel_display_power_enabled(dev_priv,
 			POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder)))
 		return false;
 
@@ -7019,7 +7019,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	intel_get_pipe_timings(crtc, pipe_config);
 
 	pfit_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
-	if (intel_display_power_enabled(dev, pfit_domain))
+	if (intel_display_power_enabled(dev_priv, pfit_domain))
 		ironlake_get_pfit_config(crtc, pipe_config);
 
 	if (IS_HASWELL(dev))
@@ -11595,7 +11595,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 	for_each_pipe(i) {
 		error->pipe[i].power_domain_on =
-			intel_display_power_enabled_sw(dev, POWER_DOMAIN_PIPE(i));
+			intel_display_power_enabled_sw(dev_priv,
+						       POWER_DOMAIN_PIPE(i));
 		if (!error->pipe[i].power_domain_on)
 			continue;
 
@@ -11633,7 +11634,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 		enum transcoder cpu_transcoder = transcoders[i];
 
 		error->transcoder[i].power_domain_on =
-			intel_display_power_enabled_sw(dev,
+			intel_display_power_enabled_sw(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder));
 		if (!error->transcoder[i].power_domain_on)
 			continue;

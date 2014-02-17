@@ -1024,9 +1024,9 @@ struct i915_power_well {
 	int count;
 	unsigned long domains;
 	void *data;
-	void (*set)(struct drm_device *dev, struct i915_power_well *power_well,
+	void (*set)(struct drm_i915_private *dev_priv, struct i915_power_well *power_well,
 		    bool enable);
-	bool (*is_enabled)(struct drm_device *dev,
+	bool (*is_enabled)(struct drm_i915_private *dev_priv,
 			   struct i915_power_well *power_well);
 };
 

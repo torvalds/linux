@@ -434,7 +434,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
 	hsw_disable_package_c8(dev_priv);
-	intel_display_set_init_power(dev, true);
+	intel_display_set_init_power(dev_priv, true);
 
 	drm_kms_helper_poll_disable(dev);
 
@@ -556,7 +556,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
-	intel_power_domains_init_hw(dev);
+	intel_power_domains_init_hw(dev_priv);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
