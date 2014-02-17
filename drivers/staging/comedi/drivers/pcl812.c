@@ -527,7 +527,6 @@ struct pcl812_private {
 	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	unsigned int ai_is16b;	/*  =1 we have 16 bit card */
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
 	unsigned int dmapages[2];	/*  how many pages we have allocated */
 	unsigned int hwdmaptr[2];	/*  HW PTR to DMA buf */
@@ -567,10 +566,9 @@ static int pcl812_ai_eoc(struct comedi_device *dev,
 			 struct comedi_insn *insn,
 			 unsigned long context)
 {
-	struct pcl812_private *devpriv = dev->private;
 	unsigned int status;
 
-	if (devpriv->ai_is16b) {
+	if (s->maxdata > 0x0fff) {
 		status = inb(dev->iobase + ACL8216_STATUS);
 		if ((status & ACL8216_DRDY) == 0)
 			return 0;
@@ -928,7 +926,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	s->async->events = 0;
 
 	timeout = 50;		/* wait max 50us, it must finish under 33us */
-	if (devpriv->ai_is16b) {
+	if (s->maxdata > 0x0fff) {
 		while (timeout--) {
 			if (!(inb(dev->iobase + ACL8216_STATUS) & ACL8216_DRDY)) {
 				err = 0;
@@ -1508,7 +1506,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	switch (board->board_type) {
 	case boardACL8216:
-		devpriv->ai_is16b = 1;
 	case boardPCL812PG:
 	case boardPCL812:
 	case boardACL8112:
