@@ -552,13 +552,7 @@ err:
 void mei_nfc_host_exit(struct mei_device *dev)
 {
 	struct mei_nfc_dev *ndev = &nfc_dev;
-
 	cancel_work_sync(&ndev->init_work);
-
-	mutex_lock(&dev->device_lock);
-	if (ndev->cl && ndev->cl->device)
-		mei_cl_remove_device(ndev->cl->device);
-
-	mei_nfc_free(ndev);
-	mutex_unlock(&dev->device_lock);
 }
+
+

@@ -524,6 +524,22 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
 	schedule_work(&device->event_work);
 }
 
+void mei_cl_bus_remove_devices(struct mei_device *dev)
+{
+	struct mei_cl *cl, *next;
+
+	mutex_lock(&dev->device_lock);
+	list_for_each_entry_safe(cl, next, &dev->device_list, device_link) {
+		if (cl->device)
+			mei_cl_remove_device(cl->device);
+
+		list_del(&cl->device_link);
+		mei_cl_unlink(cl);
+		kfree(cl);
+	}
+	mutex_unlock(&dev->device_lock);
+}
+
 int __init mei_cl_bus_init(void)
 {
 	return bus_register(&mei_cl_bus_type);

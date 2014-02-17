@@ -296,6 +296,7 @@ int __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length);
 int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length);
 int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
 void mei_cl_bus_rx_event(struct mei_cl *cl);
+void mei_cl_bus_remove_devices(struct mei_device *dev);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
 
