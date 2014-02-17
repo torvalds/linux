@@ -795,22 +795,16 @@ static void netvsc_channel_cb(void *context)
 	struct netvsc_device *net_device;
 	u32 bytes_recvd;
 	u64 request_id;
-	unsigned char *packet;
 	struct vmpacket_descriptor *desc;
 	unsigned char *buffer;
 	int bufferlen = NETVSC_PACKET_SIZE;
 	struct net_device *ndev;
 
-	packet = kzalloc(NETVSC_PACKET_SIZE * sizeof(unsigned char),
-			 GFP_ATOMIC);
-	if (!packet)
-		return;
-	buffer = packet;
-
 	net_device = get_inbound_net_device(device);
 	if (!net_device)
-		goto out;
+		return;
 	ndev = net_device->ndev;
+	buffer = net_device->cb_buffer;
 
 	do {
 		ret = vmbus_recvpacket_raw(device->channel, buffer, bufferlen,
@@ -838,23 +832,16 @@ static void netvsc_channel_cb(void *context)
 					break;
 				}
 
-				/* reset */
-				if (bufferlen > NETVSC_PACKET_SIZE) {
-					kfree(buffer);
-					buffer = packet;
-					bufferlen = NETVSC_PACKET_SIZE;
-				}
 			} else {
-				/* reset */
-				if (bufferlen > NETVSC_PACKET_SIZE) {
-					kfree(buffer);
-					buffer = packet;
-					bufferlen = NETVSC_PACKET_SIZE;
-				}
-
+				/*
+				 * We are done for this pass.
+				 */
 				break;
 			}
+
 		} else if (ret == -ENOBUFS) {
+			if (bufferlen > NETVSC_PACKET_SIZE)
+				kfree(buffer);
 			/* Handle large packet */
 			buffer = kmalloc(bytes_recvd, GFP_ATOMIC);
 			if (buffer == NULL) {
@@ -869,8 +856,8 @@ static void netvsc_channel_cb(void *context)
 		}
 	} while (1);
 
-out:
-	kfree(buffer);
+	if (bufferlen > NETVSC_PACKET_SIZE)
+		kfree(buffer);
 	return;
 }
 
