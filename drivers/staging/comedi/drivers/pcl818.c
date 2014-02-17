@@ -1225,8 +1225,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->irq = it->options[1];
 	}
 
-	devpriv->ai_mode = 0;	/* mode of irq */
-
 	/* we need an IRQ to do DMA on channel 3 or 1 */
 	if (dev->irq && board->has_dma &&
 	    (it->options[2] == 3 || it->options[2] == 1)) {
