@@ -872,27 +872,15 @@ static int adav80x_bus_probe(struct device *dev, struct regmap *regmap)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	adav80x = kzalloc(sizeof(*adav80x), GFP_KERNEL);
+	adav80x = devm_kzalloc(dev, sizeof(*adav80x), GFP_KERNEL);
 	if (!adav80x)
 		return -ENOMEM;
-
 
 	dev_set_drvdata(dev, adav80x);
 	adav80x->regmap = regmap;
 
-	ret = snd_soc_register_codec(dev, &adav80x_codec_driver,
+	return snd_soc_register_codec(dev, &adav80x_codec_driver,
 		adav80x_dais, ARRAY_SIZE(adav80x_dais));
-	if (ret)
-		kfree(adav80x);
-
-	return ret;
-}
-
-static int adav80x_bus_remove(struct device *dev)
-{
-	snd_soc_unregister_codec(dev);
-	kfree(dev_get_drvdata(dev));
-	return 0;
 }
 
 #if defined(CONFIG_SPI_MASTER)
@@ -923,7 +911,8 @@ static int adav80x_spi_probe(struct spi_device *spi)
 
 static int adav80x_spi_remove(struct spi_device *spi)
 {
-	return adav80x_bus_remove(&spi->dev);
+	snd_soc_unregister_codec(dev);
+	return 0;
 }
 
 static struct spi_driver adav80x_spi_driver = {
@@ -965,7 +954,8 @@ static int adav80x_i2c_probe(struct i2c_client *client,
 
 static int adav80x_i2c_remove(struct i2c_client *client)
 {
-	return adav80x_bus_remove(&client->dev);
+	snd_soc_unregister_codec(dev);
+	return 0;
 }
 
 static struct i2c_driver adav80x_i2c_driver = {
