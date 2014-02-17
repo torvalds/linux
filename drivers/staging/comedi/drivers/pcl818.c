@@ -271,7 +271,7 @@ struct pcl818_board {
 	int ao_maxdata;
 	unsigned int has_dma:1;
 	unsigned int has_fifo:1;
-	int is_818;
+	unsigned int is_818:1;
 };
 
 static const struct pcl818_board boardtypes[] = {
