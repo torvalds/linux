@@ -329,7 +329,6 @@ struct pcl818_private {
 	unsigned int act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int act_chanlist_pos;	/*  actual position in MUX list */
-	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned char usefifo;	/*  1=use fifo */
 	unsigned int ao_readback[2];
@@ -830,12 +829,10 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 
 	pcl818_start_pacer(dev, false);
 
-	seglen = check_channel_list(dev, s, devpriv->ai_chanlist,
-				    cmd->chanlist_len);
+	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
 	if (seglen < 1)
 		return -EINVAL;
-	setup_channel_list(dev, s, devpriv->ai_chanlist,
-			   cmd->chanlist_len, seglen);
+	setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len, seglen);
 
 	udelay(1);
 
@@ -1073,7 +1070,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval;
 
-	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 
 	if (cmd->stop_src == TRIG_COUNT)
