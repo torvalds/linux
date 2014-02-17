@@ -150,12 +150,8 @@ A word or two about DMA. Driver support DMA operations at two ways:
 /* W: PCL718 second D/A */
 #define PCL718_DA2_LO 6
 #define PCL718_DA2_HI 7
-/* counters */
-#define PCL818_CTR0 12
-#define PCL818_CTR1 13
-#define PCL818_CTR2 14
-/* W: counter control */
-#define PCL818_CTRCTL 15
+
+#define PCL818_TIMER_BASE			0x0c
 
 /* W: fifo enable/disable */
 #define PCL818_FI_ENABLE 6
@@ -364,8 +360,21 @@ static int check_channel_list(struct comedi_device *dev,
 
 static int pcl818_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
-static void start_pacer(struct comedi_device *dev, int mode,
-			unsigned int divisor1, unsigned int divisor2);
+
+static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters,
+			       unsigned int divisor1, unsigned int divisor2)
+{
+	unsigned long timer_base = dev->iobase + PCL818_TIMER_BASE;
+
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	udelay(1);
+
+	if (load_counters) {
+		i8254_write(timer_base, 0, 2, divisor2);
+		i8254_write(timer_base, 0, 1, divisor1);
+	}
+}
 
 static unsigned int pcl818_ai_get_sample(struct comedi_device *dev,
 					 struct comedi_subdevice *s,
@@ -833,7 +842,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	if (devpriv->irq_blocked)
 		return -EBUSY;
 
-	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
+	pcl818_start_pacer(dev, false, 0, 0);
 
 	seglen = check_channel_list(dev, s, devpriv->ai_chanlist,
 				    cmd->chanlist_len);
@@ -902,28 +911,9 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 		}
 	}
 
-	start_pacer(dev, mode, divisor1, divisor2);
+	pcl818_start_pacer(dev, mode == 1, divisor1, divisor2);
 
 	return 0;
-}
-
-/*
-==============================================================================
- Start/stop pacer onboard pacer
-*/
-static void start_pacer(struct comedi_device *dev, int mode,
-			unsigned int divisor1, unsigned int divisor2)
-{
-	outb(0xb4, dev->iobase + PCL818_CTRCTL);
-	outb(0x74, dev->iobase + PCL818_CTRCTL);
-	udelay(1);
-
-	if (mode == 1) {
-		outb(divisor2 & 0xff, dev->iobase + PCL818_CTR2);
-		outb((divisor2 >> 8) & 0xff, dev->iobase + PCL818_CTR2);
-		outb(divisor1 & 0xff, dev->iobase + PCL818_CTR1);
-		outb((divisor1 >> 8) & 0xff, dev->iobase + PCL818_CTR1);
-	}
 }
 
 /*
@@ -1167,7 +1157,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 #endif
 			outb(inb(dev->iobase + PCL818_CONTROL) & 0x73, dev->iobase + PCL818_CONTROL);	/* Stop A/D */
 			udelay(1);
-			start_pacer(dev, -1, 0, 0);
+			pcl818_start_pacer(dev, false, 0, 0);
 			outb(0, dev->iobase + PCL818_AD_LO);
 			pcl818_ai_get_sample(dev, s, NULL);
 			outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
@@ -1220,6 +1210,7 @@ static void pcl818_reset(struct comedi_device *dev)
 {
 	const struct pcl818_board *board = comedi_board(dev);
 	struct pcl818_private *devpriv = dev->private;
+	unsigned long timer_base = dev->iobase + PCL818_TIMER_BASE;
 
 	if (devpriv->usefifo) {	/*  FIFO shutdown */
 		outb(0, dev->iobase + PCL818_FI_INTCLR);
@@ -1236,9 +1227,12 @@ static void pcl818_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL818_CNTENABLE);
 	outb(0, dev->iobase + PCL818_MUX);
 	outb(0, dev->iobase + PCL818_CLRINT);
-	outb(0xb0, dev->iobase + PCL818_CTRCTL);	/* Stop pacer */
-	outb(0x70, dev->iobase + PCL818_CTRCTL);
-	outb(0x30, dev->iobase + PCL818_CTRCTL);
+
+	/* Stop pacer */
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE0 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
+
 	if (board->is_818) {
 		outb(0, dev->iobase + PCL818_RANGE);
 	} else {
