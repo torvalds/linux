@@ -259,8 +259,6 @@ static const struct comedi_lrange range718_unipolar1 = {
 struct pcl818_board {
 	const char *name;
 	int n_ranges;
-	int n_aichan_se;
-	int n_aichan_diff;
 	unsigned int ns_min;
 	int n_aochan;
 	const struct comedi_lrange *ai_range_type;
@@ -276,8 +274,6 @@ static const struct pcl818_board boardtypes[] = {
 	{
 		.name		= "pcl818l",
 		.n_ranges	= 4,
-		.n_aichan_se	= 16,
-		.n_aichan_diff	= 8,
 		.ns_min		= 25000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818l_l_ai,
@@ -289,8 +285,6 @@ static const struct pcl818_board boardtypes[] = {
 	}, {
 		.name		= "pcl818h",
 		.n_ranges	= 9,
-		.n_aichan_se	= 16,
-		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818h_ai,
@@ -302,8 +296,6 @@ static const struct pcl818_board boardtypes[] = {
 	}, {
 		.name		= "pcl818hd",
 		.n_ranges	= 9,
-		.n_aichan_se	= 16,
-		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818h_ai,
@@ -316,8 +308,6 @@ static const struct pcl818_board boardtypes[] = {
 	}, {
 		.name		= "pcl818hg",
 		.n_ranges	= 12,
-		.n_aichan_se	= 16,
-		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818hg_ai,
@@ -330,8 +320,6 @@ static const struct pcl818_board boardtypes[] = {
 	}, {
 		.name		= "pcl818",
 		.n_ranges	= 9,
-		.n_aichan_se	= 16,
-		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.n_aochan	= 2,
 		.ai_range_type	= &range_pcl818h_ai,
@@ -343,8 +331,6 @@ static const struct pcl818_board boardtypes[] = {
 	}, {
 		.name		= "pcl718",
 		.n_ranges	= 1,
-		.n_aichan_se	= 16,
-		.n_aichan_diff	= 8,
 		.ns_min		= 16000,
 		.n_aochan	= 2,
 		.ai_range_type	= &range_unipolar5,
@@ -355,8 +341,6 @@ static const struct pcl818_board boardtypes[] = {
 	}, {
 		.name		= "pcm3718",
 		.n_ranges	= 9,
-		.n_aichan_se	= 16,
-		.n_aichan_diff	= 8,
 		.ns_min		= 10000,
 		.ai_range_type	= &range_pcl818h_ai,
 		.IRQbits	= 0x00fc,
@@ -1414,31 +1398,27 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	s = &dev->subdevices[0];
-	if (!board->n_aichan_se) {
-		s->type = COMEDI_SUBD_UNUSED;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE;
+	if (check_single_ended(dev->iobase)) {
+		s->n_chan	= 16;
+		s->subdev_flags	|= SDF_COMMON | SDF_GROUND;
 	} else {
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE;
-		if (check_single_ended(dev->iobase)) {
-			s->n_chan = board->n_aichan_se;
-			s->subdev_flags |= SDF_COMMON | SDF_GROUND;
-		} else {
-			s->n_chan = board->n_aichan_diff;
-			s->subdev_flags |= SDF_DIFF;
-		}
-		s->maxdata = board->ai_maxdata;
+		s->n_chan	= 8;
+		s->subdev_flags	|= SDF_DIFF;
+	}
+	s->maxdata	= board->ai_maxdata;
 
-		pcl818_set_ai_range_table(dev, s, it);
+	pcl818_set_ai_range_table(dev, s, it);
 
-		s->insn_read = pcl818_ai_insn_read;
-		if (dev->irq) {
-			dev->read_subdev = s;
-			s->subdev_flags |= SDF_CMD_READ;
-			s->len_chanlist = s->n_chan;
-			s->do_cmdtest = ai_cmdtest;
-			s->do_cmd = ai_cmd;
-			s->cancel = pcl818_ai_cancel;
-		}
+	s->insn_read	= pcl818_ai_insn_read;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= s->n_chan;
+		s->do_cmdtest	= ai_cmdtest;
+		s->do_cmd	= ai_cmd;
+		s->cancel	= pcl818_ai_cancel;
 	}
 
 	s = &dev->subdevices[1];
