@@ -99,10 +99,6 @@ static int pata_imx_probe(struct platform_device *pdev)
 	struct resource *io_res;
 	int ret;
 
-	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (io_res == NULL)
-		return -EINVAL;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0)
 		return -EINVAL;
@@ -133,10 +129,9 @@ static int pata_imx_probe(struct platform_device *pdev)
 	ap->pio_mask = ATA_PIO0;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
-	priv->host_regs = devm_ioremap(&pdev->dev, io_res->start,
-		resource_size(io_res));
+	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->host_regs = devm_ioremap_resource(&pdev->dev, io_res);
 	if (!priv->host_regs) {
-		dev_err(&pdev->dev, "failed to map IO/CTL base\n");
 		ret = -EBUSY;
 		goto err;
 	}
