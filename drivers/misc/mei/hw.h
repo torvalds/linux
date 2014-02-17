@@ -89,19 +89,19 @@ enum mei_stop_reason_types {
  * Client Connect Status
  * used by hbm_client_connect_response.status
  */
-enum client_connect_status_types {
-	CCS_SUCCESS = 0x00,
-	CCS_NOT_FOUND = 0x01,
-	CCS_ALREADY_STARTED = 0x02,
-	CCS_OUT_OF_RESOURCES = 0x03,
-	CCS_MESSAGE_SMALL = 0x04
+enum mei_cl_connect_status {
+	MEI_CL_CONN_SUCCESS          = 0x00,
+	MEI_CL_CONN_NOT_FOUND        = 0x01,
+	MEI_CL_CONN_ALREADY_STARTED  = 0x02,
+	MEI_CL_CONN_OUT_OF_RESOURCES = 0x03,
+	MEI_CL_CONN_MESSAGE_SMALL    = 0x04
 };
 
 /*
  * Client Disconnect Status
  */
-enum client_disconnect_status_types {
-	CDS_SUCCESS = 0x00
+enum  mei_cl_disconnect_status {
+	MEI_CL_DISCONN_SUCCESS = 0x00
 };
 
 /*

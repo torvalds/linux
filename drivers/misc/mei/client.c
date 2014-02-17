@@ -521,18 +521,19 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 	}
 
 	mutex_unlock(&dev->device_lock);
-	rets = wait_event_timeout(dev->wait_recvd_msg,
-				 (cl->state == MEI_FILE_CONNECTED ||
-				  cl->state == MEI_FILE_DISCONNECTED),
-				 mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
+	wait_event_timeout(dev->wait_recvd_msg,
+			(cl->state == MEI_FILE_CONNECTED ||
+			 cl->state == MEI_FILE_DISCONNECTED),
+			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
 	if (cl->state != MEI_FILE_CONNECTED) {
-		rets = -EFAULT;
+		/* something went really wrong */
+		if (!cl->status)
+			cl->status = -EFAULT;
 
 		mei_io_list_flush(&dev->ctrl_rd_list, cl);
 		mei_io_list_flush(&dev->ctrl_wr_list, cl);
-		goto out;
 	}
 
 	rets = cl->status;
