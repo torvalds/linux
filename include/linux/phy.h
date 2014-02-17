@@ -440,6 +440,11 @@ struct phy_driver {
 	u32 flags;
 
 	/*
+	 * Called to issue a PHY software reset
+	 */
+	int (*soft_reset)(struct phy_device *phydev);
+
+	/*
 	 * Called to initialize the PHY,
 	 * including after a reset
 	 */

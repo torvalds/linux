@@ -535,12 +535,16 @@ static int phy_poll_reset(struct phy_device *phydev)
 
 int phy_init_hw(struct phy_device *phydev)
 {
-	int ret;
+	int ret = 0;
 
 	if (!phydev->drv || !phydev->drv->config_init)
 		return 0;
 
-	ret = genphy_soft_reset(phydev);
+	if (phydev->drv->soft_reset)
+		ret = phydev->drv->soft_reset(phydev);
+	else
+		ret = genphy_soft_reset(phydev);
+
 	if (ret < 0)
 		return ret;
 
@@ -1108,6 +1112,12 @@ static int genphy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int gen10g_soft_reset(struct phy_device *phydev)
+{
+	/* Do nothing for now */
+	return 0;
+}
+
 static int gen10g_config_init(struct phy_device *phydev)
 {
 	/* Temporarily just say we support everything */
@@ -1282,6 +1292,7 @@ static struct phy_driver genphy_driver[] = {
 	.phy_id		= 0xffffffff,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Generic PHY",
+	.soft_reset	= genphy_soft_reset,
 	.config_init	= genphy_config_init,
 	.features	= 0,
 	.config_aneg	= genphy_config_aneg,
@@ -1294,6 +1305,7 @@ static struct phy_driver genphy_driver[] = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,
 	.name           = "Generic 10G PHY",
+	.soft_reset	= gen10g_soft_reset,
 	.config_init    = gen10g_config_init,
 	.features       = 0,
 	.config_aneg    = gen10g_config_aneg,
