@@ -545,11 +545,11 @@ static int max6639_detect(struct i2c_client *client,
 static int max6639_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct max6639_data *data;
 	int err;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct max6639_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct max6639_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -562,22 +562,20 @@ static int max6639_probe(struct i2c_client *client,
 		return err;
 
 	/* Register sysfs hooks */
-	err = sysfs_create_group(&client->dev.kobj, &max6639_group);
+	err = sysfs_create_group(&dev->kobj, &max6639_group);
 	if (err)
 		return err;
 
-	data->hwmon_dev = hwmon_device_register(&client->dev);
+	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
 		goto error_remove;
 	}
 
-	dev_info(&client->dev, "temperature sensor and fan control found\n");
-
 	return 0;
 
 error_remove:
-	sysfs_remove_group(&client->dev.kobj, &max6639_group);
+	sysfs_remove_group(&dev->kobj, &max6639_group);
 	return err;
 }
 
