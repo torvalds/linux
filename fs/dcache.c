@@ -2653,6 +2653,9 @@ static void __d_materialise_dentry(struct dentry *dentry, struct dentry *anon)
  * DCACHE_DISCONNECTED), then d_move that in place of the given dentry
  * and return it, else simply d_add the inode to the dentry and return NULL.
  *
+ * If a non-IS_ROOT directory is found, the filesystem is corrupt, and
+ * we should error out: directories can't have multiple aliases.
+ *
  * This is needed in the lookup routine of any filesystem that is exportable
  * (via knfsd) so that we can build dcache paths to directories effectively.
  *
@@ -2673,9 +2676,13 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 
 	if (inode && S_ISDIR(inode->i_mode)) {
 		spin_lock(&inode->i_lock);
-		new = __d_find_alias(inode, 1);
+		new = __d_find_any_alias(inode);
 		if (new) {
-			BUG_ON(!(new->d_flags & DCACHE_DISCONNECTED));
+			if (!IS_ROOT(new) || !(new->d_flags & DCACHE_DISCONNECTED)) {
+				spin_unlock(&inode->i_lock);
+				dput(new);
+				return ERR_PTR(-EIO);
+			}
 			write_seqlock(&rename_lock);
 			__d_materialise_dentry(dentry, new);
 			write_sequnlock(&rename_lock);
