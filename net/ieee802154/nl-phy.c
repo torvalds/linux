@@ -57,7 +57,8 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 	    nla_put_u8(msg, IEEE802154_ATTR_PAGE, phy->current_page) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel) ||
 	    nla_put_s8(msg, IEEE802154_ATTR_TXPOWER, phy->transmit_power) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_LBT_ENABLED, phy->lbt))
+	    nla_put_u8(msg, IEEE802154_ATTR_LBT_ENABLED, phy->lbt) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_CCA_MODE, phy->cca_mode))
 		goto nla_put_failure;
 	for (i = 0; i < 32; i++) {
 		if (phy->channels_supported[i])
@@ -385,6 +386,23 @@ static int phy_set_lbt(struct wpan_phy *phy, struct genl_info *info)
 	return 0;
 }
 
+static int phy_set_cca_mode(struct wpan_phy *phy, struct genl_info *info)
+{
+	u8 mode = nla_get_u8(info->attrs[IEEE802154_ATTR_CCA_MODE]);
+	int rc;
+
+	if (mode > 3)
+		return -EINVAL;
+
+	rc = phy->set_cca_mode(phy, mode);
+	if (rc < 0)
+		return rc;
+
+	phy->cca_mode = mode;
+
+	return 0;
+}
+
 int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
 {
 	struct wpan_phy *phy;
@@ -394,7 +412,8 @@ int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
 	pr_debug("%s\n", __func__);
 
 	if (!info->attrs[IEEE802154_ATTR_PHY_NAME] &&
-	    !info->attrs[IEEE802154_ATTR_LBT_ENABLED])
+	    !info->attrs[IEEE802154_ATTR_LBT_ENABLED] &&
+	    !info->attrs[IEEE802154_ATTR_CCA_MODE])
 		return -EINVAL;
 
 	name = nla_data(info->attrs[IEEE802154_ATTR_PHY_NAME]);
@@ -406,7 +425,8 @@ int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
 		return -ENODEV;
 
 	if ((!phy->set_txpower && info->attrs[IEEE802154_ATTR_TXPOWER]) ||
-	    (!phy->set_lbt && info->attrs[IEEE802154_ATTR_LBT_ENABLED]))
+	    (!phy->set_lbt && info->attrs[IEEE802154_ATTR_LBT_ENABLED]) ||
+	    (!phy->set_cca_mode && info->attrs[IEEE802154_ATTR_CCA_MODE]))
 		goto out;
 
 	mutex_lock(&phy->pib_lock);
@@ -419,6 +439,12 @@ int ieee802154_set_phyparams(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[IEEE802154_ATTR_LBT_ENABLED]) {
 		rc = phy_set_lbt(phy, info);
+		if (rc < 0)
+			goto error;
+	}
+
+	if (info->attrs[IEEE802154_ATTR_CCA_MODE]) {
+		rc = phy_set_cca_mode(phy, info);
 		if (rc < 0)
 			goto error;
 	}

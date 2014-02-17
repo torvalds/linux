@@ -122,6 +122,10 @@ struct ieee802154_dev {
  *	  Enables or disables listen before talk on the device. Called with
  *	  pib_lock held.
  *	  Returns either zero, or negative errno.
+ *
+ * set_cca_mode
+ *	  Sets the CCA mode used by the device. Called with pib_lock held.
+ *	  Returns either zero, or negative errno.
  */
 struct ieee802154_ops {
 	struct module	*owner;
@@ -140,6 +144,7 @@ struct ieee802154_ops {
 				     u8 addr[IEEE802154_ADDR_LEN]);
 	int		(*set_txpower)(struct ieee802154_dev *dev, int db);
 	int		(*set_lbt)(struct ieee802154_dev *dev, bool on);
+	int		(*set_cca_mode)(struct ieee802154_dev *dev, u8 mode);
 };
 
 /* Basic interface to register ieee802154 device */

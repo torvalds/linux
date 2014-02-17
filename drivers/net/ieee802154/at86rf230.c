@@ -794,6 +794,14 @@ at86rf212_set_lbt(struct ieee802154_dev *dev, bool on)
 	return at86rf230_write_subreg(lp, SR_CSMA_LBT_MODE, on);
 }
 
+static int
+at86rf212_set_cca_mode(struct ieee802154_dev *dev, u8 mode)
+{
+	struct at86rf230_local *lp = dev->priv;
+
+	return at86rf230_write_subreg(lp, SR_CCA_MODE, mode);
+}
+
 static struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
 	.xmit = at86rf230_xmit,
@@ -814,6 +822,7 @@ static struct ieee802154_ops at86rf212_ops = {
 	.set_hw_addr_filt = at86rf230_set_hw_addr_filt,
 	.set_txpower = at86rf212_set_txpower,
 	.set_lbt = at86rf212_set_lbt,
+	.set_cca_mode = at86rf212_set_cca_mode,
 };
 
 static void at86rf230_irqwork(struct work_struct *work)

@@ -185,6 +185,16 @@ static int mac802154_set_lbt(struct wpan_phy *phy, bool on)
 	return priv->ops->set_lbt(&priv->hw, on);
 }
 
+static int mac802154_set_cca_mode(struct wpan_phy *phy, u8 mode)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	if (!priv->ops->set_cca_mode)
+		return -ENOTSUPP;
+
+	return priv->ops->set_cca_mode(&priv->hw, mode);
+}
+
 struct ieee802154_dev *
 ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 {
@@ -264,6 +274,7 @@ int ieee802154_register_device(struct ieee802154_dev *dev)
 	priv->phy->del_iface = mac802154_del_iface;
 	priv->phy->set_txpower = mac802154_set_txpower;
 	priv->phy->set_lbt = mac802154_set_lbt;
+	priv->phy->set_cca_mode = mac802154_set_cca_mode;
 
 	rc = wpan_phy_register(priv->phy);
 	if (rc < 0)

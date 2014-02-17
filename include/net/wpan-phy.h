@@ -58,6 +58,7 @@ struct wpan_phy {
 
 	int (*set_txpower)(struct wpan_phy *phy, int db);
 	int (*set_lbt)(struct wpan_phy *phy, bool on);
+	int (*set_cca_mode)(struct wpan_phy *phy, u8 cca_mode);
 
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };

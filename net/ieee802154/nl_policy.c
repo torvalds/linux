@@ -55,5 +55,6 @@ const struct nla_policy ieee802154_policy[IEEE802154_ATTR_MAX + 1] = {
 
 	[IEEE802154_ATTR_TXPOWER] = { .type = NLA_S8, },
 	[IEEE802154_ATTR_LBT_ENABLED] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CCA_MODE] = { .type = NLA_U8, },
 };
 
