@@ -261,7 +261,6 @@ struct pcl818_board {
 	unsigned int ns_min;
 	int n_aochan;
 	const struct comedi_lrange *ai_range_type;
-	int ai_maxdata;
 	int ao_maxdata;
 	unsigned int has_dma:1;
 	unsigned int has_fifo:1;
@@ -274,7 +273,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 25000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818l_l_ai,
-		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
 		.is_818		= 1,
@@ -283,7 +281,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818h_ai,
-		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
 		.is_818		= 1,
@@ -292,7 +289,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818h_ai,
-		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
 		.has_fifo	= 1,
@@ -302,7 +298,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 10000,
 		.n_aochan	= 1,
 		.ai_range_type	= &range_pcl818hg_ai,
-		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
 		.has_fifo	= 1,
@@ -312,7 +307,6 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 10000,
 		.n_aochan	= 2,
 		.ai_range_type	= &range_pcl818h_ai,
-		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
 		.is_818		= 1,
@@ -321,14 +315,12 @@ static const struct pcl818_board boardtypes[] = {
 		.ns_min		= 16000,
 		.n_aochan	= 2,
 		.ai_range_type	= &range_unipolar5,
-		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
 	}, {
 		.name		= "pcm3718",
 		.ns_min		= 10000,
 		.ai_range_type	= &range_pcl818h_ai,
-		.ai_maxdata	= 0xfff,
 		.ao_maxdata	= 0xfff,
 		.has_dma	= 1,
 		.is_818		= 1,
@@ -1392,7 +1384,7 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->n_chan	= 8;
 		s->subdev_flags	|= SDF_DIFF;
 	}
-	s->maxdata	= board->ai_maxdata;
+	s->maxdata	= 0x0fff;
 
 	pcl818_set_ai_range_table(dev, s, it);
 
