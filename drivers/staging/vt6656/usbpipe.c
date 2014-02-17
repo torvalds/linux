@@ -348,22 +348,12 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
 
 static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 {
-	struct vnt_private *pDevice = (struct vnt_private *)urb->context;
-	int ntStatus;
+	struct vnt_private *priv = (struct vnt_private *)urb->context;
+	int status;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptUsbIoCompleteRead\n");
-    //
-    // The context given to IoSetCompletionRoutine is the receive buffer object
-    //
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"---->s_nsInterruptUsbIoCompleteRead\n");
 
-    //
-    // We have a number of cases:
-    //      1) The USB read timed out and we received no data.
-    //      2) The USB read timed out and we received some data.
-    //      3) The USB read was successful and fully filled our irp buffer.
-    //      4) The irp was cancelled.
-    //      5) Some other failure from the USB device object.
-    //
 	switch (urb->status) {
 	case 0:
 	case -ETIMEDOUT:
@@ -371,50 +361,39 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		pDevice->intBuf.bInUse = false;
+		priv->intBuf.bInUse = false;
 		return;
 	default:
 		break;
 	}
 
-    ntStatus = urb->status;
+	status = urb->status;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_nsInterruptUsbIoCompleteRead Status %d\n", ntStatus);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+		"s_nsInterruptUsbIoCompleteRead Status %d\n", status);
 
-    // if we were not successful, we need to free the int buffer for future use right here
-    // otherwise interrupt data handler will free int buffer after it handle it.
-    if (( ntStatus != STATUS_SUCCESS )) {
-        pDevice->ulBulkInError++;
-        pDevice->intBuf.bInUse = false;
+	if (status != STATUS_SUCCESS) {
+		priv->ulBulkInError++;
+		priv->intBuf.bInUse = false;
 
-//        if (ntStatus == USBD_STATUS_CRC) {
-//            pDevice->ulIntInContCRCError++;
-//        }
-
-//        if (ntStatus == STATUS_NOT_CONNECTED )
-//        {
-//        }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"IntUSBIoCompleteControl STATUS = %d\n", ntStatus );
-    } else {
-	    pDevice->ulIntInBytesRead += (unsigned long) urb->actual_length;
-	    pDevice->ulIntInContCRCError = 0;
-	    pDevice->bEventAvailable = true;
-	    INTnsProcessData(pDevice);
-    }
-
-	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
-	if (ntStatus) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"Submit int URB failed %d\n", ntStatus);
+			"IntUSBIoCompleteControl STATUS = %d\n", status);
 	} else {
-		pDevice->intBuf.bInUse = true;
+		priv->ulIntInBytesRead += (unsigned long)urb->actual_length;
+		priv->ulIntInContCRCError = 0;
+		priv->bEventAvailable = true;
+		INTnsProcessData(priv);
 	}
 
-    //
-    // We return STATUS_MORE_PROCESSING_REQUIRED so that the completion
-    // routine (IofCompleteRequest) will stop working on the irp.
-    //
-    return ;
+	status = usb_submit_urb(priv->pInterruptURB, GFP_ATOMIC);
+	if (status) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"Submit int URB failed %d\n", status);
+	} else {
+		priv->intBuf.bInUse = true;
+	}
+
+	return;
 }
 
 /*
