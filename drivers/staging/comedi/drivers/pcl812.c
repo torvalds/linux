@@ -522,10 +522,10 @@ struct pcl812_private {
 	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_chanlist[MAX_CHANLIST_LEN];	/*  our copy of channel/range list */
 	unsigned int ai_data_len;	/*  len of data buffer */
+	unsigned int dmapages;
+	unsigned int hwdmasize;
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
-	unsigned int dmapages[2];	/*  how many pages we have allocated */
 	unsigned int hwdmaptr[2];	/*  HW PTR to DMA buf */
-	unsigned int hwdmasize[2];	/*  DMA buf size in bytes */
 	unsigned int dmabytestomove[2];	/*  how many bytes DMA transfer */
 	int next_dma_buf;	/*  which buffer is next to use */
 	unsigned int dma_runs_to_end;	/*  how many times we must switch DMA buffers */
@@ -814,14 +814,14 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			    cmd->chanlist_len * sizeof(short);
 			devpriv->dma_runs_to_end = 1;
 		} else {
-			devpriv->dmabytestomove[0] = devpriv->hwdmasize[0];
-			devpriv->dmabytestomove[1] = devpriv->hwdmasize[1];
-			if (devpriv->ai_data_len < devpriv->hwdmasize[0])
+			devpriv->dmabytestomove[0] = devpriv->hwdmasize;
+			devpriv->dmabytestomove[1] = devpriv->hwdmasize;
+			if (devpriv->ai_data_len < devpriv->hwdmasize) {
 				devpriv->dmabytestomove[0] =
 				    devpriv->ai_data_len;
-			if (devpriv->ai_data_len < devpriv->hwdmasize[1])
 				devpriv->dmabytestomove[1] =
 				    devpriv->ai_data_len;
+			}
 			if (devpriv->ai_neverending) {
 				devpriv->dma_runs_to_end = 1;
 			} else {
@@ -842,12 +842,12 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				devpriv->dma_runs_to_end--;
 			}
 		}
-		if (devpriv->dmabytestomove[0] > devpriv->hwdmasize[0]) {
-			devpriv->dmabytestomove[0] = devpriv->hwdmasize[0];
+		if (devpriv->dmabytestomove[0] > devpriv->hwdmasize) {
+			devpriv->dmabytestomove[0] = devpriv->hwdmasize;
 			devpriv->ai_eos = 0;
 		}
-		if (devpriv->dmabytestomove[1] > devpriv->hwdmasize[1]) {
-			devpriv->dmabytestomove[1] = devpriv->hwdmasize[1];
+		if (devpriv->dmabytestomove[1] > devpriv->hwdmasize) {
+			devpriv->dmabytestomove[1] = devpriv->hwdmasize;
 			devpriv->ai_eos = 0;
 		}
 		devpriv->next_dma_buf = 0;
@@ -1303,10 +1303,11 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl812_board *board = comedi_board(dev);
 	struct pcl812_private *devpriv;
-	int ret, subdev;
-	unsigned long pages;
 	struct comedi_subdevice *s;
 	int n_subdevices;
+	int subdev;
+	int ret;
+	int i;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
@@ -1335,29 +1336,19 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		devpriv->dma = it->options[2];
 
-		pages = 1;	/* we want 8KB */
-		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
-		if (!devpriv->dmabuf[0]) {
-			dev_err(dev->class_dev,
-				"unable to allocate DMA buffer, FAIL!\n");
-			/*
-			 * maybe experiment with try_to_free_pages()
-			 * will help ....
-			 */
-			return -EBUSY;	/* no buffer :-( */
+		devpriv->dmapages = 1;	/* we want 8KB */
+		devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
+
+		for (i = 0; i < 2; i++) {
+			unsigned long dmabuf;
+
+			dmabuf =  __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
+			if (!dmabuf)
+				return -ENOMEM;
+
+			devpriv->dmabuf[i] = dmabuf;
+			devpriv->hwdmaptr[i] = virt_to_bus((void *)dmabuf);
 		}
-		devpriv->dmapages[0] = pages;
-		devpriv->hwdmaptr[0] = virt_to_bus((void *)devpriv->dmabuf[0]);
-		devpriv->hwdmasize[0] = PAGE_SIZE * (1 << pages);
-		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
-		if (!devpriv->dmabuf[1]) {
-			dev_err(dev->class_dev,
-				"unable to allocate DMA buffer, FAIL!\n");
-			return -EBUSY;
-		}
-		devpriv->dmapages[1] = pages;
-		devpriv->hwdmaptr[1] = virt_to_bus((void *)devpriv->dmabuf[1]);
-		devpriv->hwdmasize[1] = PAGE_SIZE * (1 << pages);
 	}
 
 	/* differential analog inputs? */
@@ -1500,9 +1491,9 @@ static void pcl812_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (devpriv->dmabuf[0])
-			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
+			free_pages(devpriv->dmabuf[0], devpriv->dmapages);
 		if (devpriv->dmabuf[1])
-			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
+			free_pages(devpriv->dmabuf[1], devpriv->dmapages);
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
 	}
