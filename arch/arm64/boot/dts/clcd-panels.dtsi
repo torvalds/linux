@@ -1,0 +1,52 @@
+/*
+ * ARM Ltd. Versatile Express
+ *
+ */
+
+/ {
+	panels {
+		panel@0 {
+			compatible	= "panel";
+			mode		= "VGA";
+			refresh		= <60>;
+			xres		= <640>;
+			yres		= <480>;
+			pixclock	= <39721>;
+			left_margin	= <40>;
+			right_margin	= <24>;
+			upper_margin	= <32>;
+			lower_margin	= <11>;
+			hsync_len	= <96>;
+			vsync_len	= <2>;
+			sync		= <0>;
+			vmode		= "FB_VMODE_NONINTERLACED";
+
+			tim2		= "TIM2_BCD", "TIM2_IPC";
+			cntl		= "CNTL_LCDTFT", "CNTL_BGR", "CNTL_LCDVCOMP(1)";
+			caps		= "CLCD_CAP_5551", "CLCD_CAP_565", "CLCD_CAP_888";
+			bpp		= <16>;
+		};
+
+		panel@1 {
+			compatible	= "panel";
+			mode		= "XVGA";
+			refresh		= <60>;
+			xres		= <1024>;
+			yres		= <768>;
+			pixclock	= <15748>;
+			left_margin	= <152>;
+			right_margin	= <48>;
+			upper_margin	= <23>;
+			lower_margin	= <3>;
+			hsync_len	= <104>;
+			vsync_len	= <4>;
+			sync		= <0>;
+			vmode		= "FB_VMODE_NONINTERLACED";
+
+			tim2		= "TIM2_BCD", "TIM2_IPC";
+			cntl		= "CNTL_LCDTFT", "CNTL_BGR", "CNTL_LCDVCOMP(1)";
+			caps		= "CLCD_CAP_5551", "CLCD_CAP_565", "CLCD_CAP_888";
+			bpp		= <16>;
+		};
+	};
+};
