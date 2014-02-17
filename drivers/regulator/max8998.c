@@ -674,8 +674,10 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 
 	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
 				pdata->num_regulators, GFP_KERNEL);
-	if (!rdata)
+	if (!rdata) {
+		of_node_put(regulators_np);
 		return -ENOMEM;
+	}
 
 	pdata->regulators = rdata;
 	for (i = 0; i < ARRAY_SIZE(regulators); ++i) {
@@ -691,6 +693,9 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 		++rdata;
 	}
 	pdata->num_regulators = rdata - pdata->regulators;
+
+	of_node_put(reg_np);
+	of_node_put(regulators_np);
 
 	ret = max8998_pmic_dt_parse_dvs_gpio(iodev, pdata, pmic_np);
 	if (ret)
