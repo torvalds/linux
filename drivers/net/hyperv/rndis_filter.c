@@ -58,9 +58,6 @@ struct rndis_request {
 	u8 request_ext[RNDIS_EXT_LEN];
 };
 
-static void rndis_filter_send_completion(void *ctx);
-
-
 static struct rndis_device *get_rndis_device(void)
 {
 	struct rndis_device *device;
@@ -277,7 +274,7 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 				"rndis response buffer overflow "
 				"detected (size %u max %zu)\n",
 				resp->msg_len,
-				sizeof(struct rndis_filter_packet));
+				sizeof(struct rndis_message));
 
 			if (resp->ndis_msg_type ==
 			    RNDIS_MSG_RESET_C) {
@@ -898,17 +895,14 @@ int rndis_filter_close(struct hv_device *dev)
 int rndis_filter_send(struct hv_device *dev,
 			     struct hv_netvsc_packet *pkt)
 {
-	int ret;
-	struct rndis_filter_packet *filter_pkt;
 	struct rndis_message *rndis_msg;
 	struct rndis_packet *rndis_pkt;
 	u32 rndis_msg_size;
 	bool isvlan = pkt->vlan_tci & VLAN_TAG_PRESENT;
 
 	/* Add the rndis header */
-	filter_pkt = (struct rndis_filter_packet *)pkt->extension;
+	rndis_msg = (struct rndis_message *)pkt->extension;
 
-	rndis_msg = &filter_pkt->msg;
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
 	if (isvlan)
 		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
@@ -961,34 +955,5 @@ int rndis_filter_send(struct hv_device *dev,
 		pkt->page_buf[1].len = rndis_msg_size - pkt->page_buf[0].len;
 	}
 
-	/* Save the packet send completion and context */
-	filter_pkt->completion = pkt->completion.send.send_completion;
-	filter_pkt->completion_ctx =
-				pkt->completion.send.send_completion_ctx;
-
-	/* Use ours */
-	pkt->completion.send.send_completion = rndis_filter_send_completion;
-	pkt->completion.send.send_completion_ctx = filter_pkt;
-
-	ret = netvsc_send(dev, pkt);
-	if (ret != 0) {
-		/*
-		 * Reset the completion to originals to allow retries from
-		 * above
-		 */
-		pkt->completion.send.send_completion =
-				filter_pkt->completion;
-		pkt->completion.send.send_completion_ctx =
-				filter_pkt->completion_ctx;
-	}
-
-	return ret;
-}
-
-static void rndis_filter_send_completion(void *ctx)
-{
-	struct rndis_filter_packet *filter_pkt = ctx;
-
-	/* Pass it back to the original handler */
-	filter_pkt->completion(filter_pkt->completion_ctx);
+	return netvsc_send(dev, pkt);
 }
