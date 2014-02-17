@@ -1937,10 +1937,15 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		 * be able to determine if there is a public address
 		 * or not.
 		 *
+		 * In case of user channel usage, it is not important
+		 * if a public address or static random address is
+		 * available.
+		 *
 		 * This check is only valid for BR/EDR controllers
 		 * since AMP controllers do not have an address.
 		 */
-		if (hdev->dev_type == HCI_BREDR &&
+		if (!test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) &&
+		    hdev->dev_type == HCI_BREDR &&
 		    !bacmp(&hdev->bdaddr, BDADDR_ANY) &&
 		    !bacmp(&hdev->static_addr, BDADDR_ANY)) {
 			ret = -EADDRNOTAVAIL;
