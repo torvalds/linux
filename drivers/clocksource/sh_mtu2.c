@@ -37,7 +37,7 @@
 struct sh_mtu2_priv {
 	void __iomem *mapbase;
 	struct clk *clk;
-	struct irqaction irqaction;
+	int irq;
 	struct platform_device *pdev;
 	unsigned long rate;
 	unsigned long periodic;
@@ -244,10 +244,11 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_priv *p,
 	dev_info(&p->pdev->dev, "used for clock events\n");
 	clockevents_register_device(ced);
 
-	ret = setup_irq(p->irqaction.irq, &p->irqaction);
+	ret = request_irq(p->irq, sh_mtu2_interrupt,
+			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			  dev_name(&p->pdev->dev), p);
 	if (ret) {
-		dev_err(&p->pdev->dev, "failed to request irq %d\n",
-			p->irqaction.irq);
+		dev_err(&p->pdev->dev, "failed to request irq %d\n", p->irq);
 		return;
 	}
 }
@@ -265,7 +266,7 @@ static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 {
 	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	struct resource *res;
-	int irq, ret;
+	int ret;
 	ret = -ENXIO;
 
 	memset(p, 0, sizeof(*p));
@@ -284,8 +285,8 @@ static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 		goto err0;
 	}
 
-	irq = platform_get_irq(p->pdev, 0);
-	if (irq < 0) {
+	p->irq = platform_get_irq(p->pdev, 0);
+	if (p->irq < 0) {
 		dev_err(&p->pdev->dev, "failed to get irq\n");
 		goto err0;
 	}
@@ -296,13 +297,6 @@ static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 		dev_err(&p->pdev->dev, "failed to remap I/O memory\n");
 		goto err0;
 	}
-
-	/* setup data for setup_irq() (too early for request_irq()) */
-	p->irqaction.name = dev_name(&p->pdev->dev);
-	p->irqaction.handler = sh_mtu2_interrupt;
-	p->irqaction.dev_id = p;
-	p->irqaction.irq = irq;
-	p->irqaction.flags = IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING;
 
 	/* get hold of clock */
 	p->clk = clk_get(&p->pdev->dev, "mtu2_fck");
