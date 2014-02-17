@@ -1271,6 +1271,96 @@ static void pcl812_reset(struct comedi_device *dev)
 	udelay(5);
 }
 
+static void pcl812_set_ai_range_table(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_devconfig *it)
+{
+	const struct pcl812_board *board = comedi_board(dev);
+	struct pcl812_private *devpriv = dev->private;
+
+	/* default to the range table from the boardinfo */
+	s->range_table = board->rangelist_ai;
+
+	/* now check the user config option based on the boardtype */
+	switch (board->board_type) {
+	case boardPCL812PG:
+		if (it->options[4] == 1)
+			s->range_table = &range_pcl812pg2_ai;
+		break;
+	case boardPCL812:
+		switch (it->options[4]) {
+		case 0:
+			s->range_table = &range_bipolar10;
+			break;
+		case 1:
+			s->range_table = &range_bipolar5;
+			break;
+		case 2:
+			s->range_table = &range_bipolar2_5;
+			break;
+		case 3:
+			s->range_table = &range812_bipolar1_25;
+			break;
+		case 4:
+			s->range_table = &range812_bipolar0_625;
+			break;
+		case 5:
+			s->range_table = &range812_bipolar0_3125;
+			break;
+		default:
+			s->range_table = &range_bipolar10;
+			break;
+		}
+		break;
+	case boardPCL813B:
+		if (it->options[1] == 1)
+			s->range_table = &range_pcl813b2_ai;
+		break;
+	case boardISO813:
+		switch (it->options[1]) {
+		case 0:
+			s->range_table = &range_iso813_1_ai;
+			break;
+		case 1:
+			s->range_table = &range_iso813_1_2_ai;
+			break;
+		case 2:
+			s->range_table = &range_iso813_2_ai;
+			devpriv->range_correction = 1;
+			break;
+		case 3:
+			s->range_table = &range_iso813_2_2_ai;
+			devpriv->range_correction = 1;
+			break;
+		default:
+			s->range_table = &range_iso813_1_ai;
+			break;
+		}
+		break;
+	case boardACL8113:
+		switch (it->options[1]) {
+		case 0:
+			s->range_table = &range_acl8113_1_ai;
+			break;
+		case 1:
+			s->range_table = &range_acl8113_1_2_ai;
+			break;
+		case 2:
+			s->range_table = &range_acl8113_2_ai;
+			devpriv->range_correction = 1;
+			break;
+		case 3:
+			s->range_table = &range_acl8113_2_2_ai;
+			devpriv->range_correction = 1;
+			break;
+		default:
+			s->range_table = &range_acl8113_1_ai;
+			break;
+		}
+		break;
+	}
+}
+
 static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl812_board *board = comedi_board(dev);
@@ -1379,7 +1469,9 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			break;
 		}
 		s->maxdata = board->ai_maxdata;
-		s->range_table = board->rangelist_ai;
+
+		pcl812_set_ai_range_table(dev, s, it);
+
 		if (board->board_type == boardACL8216)
 			s->insn_read = acl8216_ai_insn_read;
 		else
@@ -1394,84 +1486,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->do_cmd = pcl812_ai_cmd;
 			s->poll = pcl812_ai_poll;
 			s->cancel = pcl812_ai_cancel;
-		}
-		switch (board->board_type) {
-		case boardPCL812PG:
-			if (it->options[4] == 1)
-				s->range_table = &range_pcl812pg2_ai;
-			break;
-		case boardPCL812:
-			switch (it->options[4]) {
-			case 0:
-				s->range_table = &range_bipolar10;
-				break;
-			case 1:
-				s->range_table = &range_bipolar5;
-				break;
-			case 2:
-				s->range_table = &range_bipolar2_5;
-				break;
-			case 3:
-				s->range_table = &range812_bipolar1_25;
-				break;
-			case 4:
-				s->range_table = &range812_bipolar0_625;
-				break;
-			case 5:
-				s->range_table = &range812_bipolar0_3125;
-				break;
-			default:
-				s->range_table = &range_bipolar10;
-				break;
-			}
-			break;
-			break;
-		case boardPCL813B:
-			if (it->options[1] == 1)
-				s->range_table = &range_pcl813b2_ai;
-			break;
-		case boardISO813:
-			switch (it->options[1]) {
-			case 0:
-				s->range_table = &range_iso813_1_ai;
-				break;
-			case 1:
-				s->range_table = &range_iso813_1_2_ai;
-				break;
-			case 2:
-				s->range_table = &range_iso813_2_ai;
-				devpriv->range_correction = 1;
-				break;
-			case 3:
-				s->range_table = &range_iso813_2_2_ai;
-				devpriv->range_correction = 1;
-				break;
-			default:
-				s->range_table = &range_iso813_1_ai;
-				break;
-			}
-			break;
-		case boardACL8113:
-			switch (it->options[1]) {
-			case 0:
-				s->range_table = &range_acl8113_1_ai;
-				break;
-			case 1:
-				s->range_table = &range_acl8113_1_2_ai;
-				break;
-			case 2:
-				s->range_table = &range_acl8113_2_ai;
-				devpriv->range_correction = 1;
-				break;
-			case 3:
-				s->range_table = &range_acl8113_2_2_ai;
-				devpriv->range_correction = 1;
-				break;
-			default:
-				s->range_table = &range_acl8113_1_ai;
-				break;
-			}
-			break;
 		}
 		subdev++;
 	}
