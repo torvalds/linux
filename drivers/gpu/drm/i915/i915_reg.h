@@ -190,6 +190,8 @@
  * Memory interface instructions used by the kernel
  */
 #define MI_INSTR(opcode, flags) (((opcode) << 23) | (flags))
+/* Many MI commands use bit 22 of the header dword for GGTT vs PPGTT */
+#define  MI_GLOBAL_GTT    (1<<22)
 
 #define MI_NOOP			MI_INSTR(0, 0)
 #define MI_USER_INTERRUPT	MI_INSTR(0x02, 0)
@@ -270,6 +272,7 @@
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
 #define   MI_INVALIDATE_TLB		(1<<18)
 #define   MI_FLUSH_DW_OP_STOREDW	(1<<14)
+#define   MI_FLUSH_DW_OP_MASK		(3<<14)
 #define   MI_FLUSH_DW_NOTIFY		(1<<8)
 #define   MI_INVALIDATE_BSD		(1<<7)
 #define   MI_FLUSH_DW_USE_GTT		(1<<2)
@@ -336,6 +339,7 @@
 #define   PIPE_CONTROL_CS_STALL				(1<<20)
 #define   PIPE_CONTROL_TLB_INVALIDATE			(1<<18)
 #define   PIPE_CONTROL_QW_WRITE				(1<<14)
+#define   PIPE_CONTROL_POST_SYNC_OP_MASK                (3<<14)
 #define   PIPE_CONTROL_DEPTH_STALL			(1<<13)
 #define   PIPE_CONTROL_WRITE_FLUSH			(1<<12)
 #define   PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH	(1<<12) /* gen6+ */
@@ -364,6 +368,8 @@
 #define MI_URB_CLEAR            MI_INSTR(0x19, 0)
 #define MI_UPDATE_GTT           MI_INSTR(0x23, 0)
 #define MI_CLFLUSH              MI_INSTR(0x27, 0)
+#define MI_REPORT_PERF_COUNT    MI_INSTR(0x28, 0)
+#define   MI_REPORT_PERF_COUNT_GGTT (1<<0)
 #define MI_LOAD_REGISTER_MEM    MI_INSTR(0x29, 0)
 #define MI_LOAD_REGISTER_REG    MI_INSTR(0x2A, 0)
 #define MI_RS_STORE_DATA_IMM    MI_INSTR(0x2B, 0)

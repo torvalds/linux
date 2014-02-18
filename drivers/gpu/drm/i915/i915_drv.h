@@ -1732,11 +1732,17 @@ struct drm_i915_cmd_descriptor {
 	 * the expected value, the parser rejects it. Only valid if flags has
 	 * the CMD_DESC_BITMASK bit set. Only entries where mask is non-zero
 	 * are valid.
+	 *
+	 * If the check specifies a non-zero condition_mask then the parser
+	 * only performs the check when the bits specified by condition_mask
+	 * are non-zero.
 	 */
 	struct {
 		u32 offset;
 		u32 mask;
 		u32 expected;
+		u32 condition_offset;
+		u32 condition_mask;
 	} bits[MAX_CMD_DESC_BITMASKS];
 };
 

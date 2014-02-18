@@ -124,10 +124,20 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_STORE_DWORD_INDEX,             SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   W,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC }               ),
-	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   W,
-	      .reg = { .offset = 1, .mask = 0x007FFFFC }               ),
-	CMD(  MI_LOAD_REGISTER_MEM,             SMI,   !F,  0xFF,   W,
-	      .reg = { .offset = 1, .mask = 0x007FFFFC }               ),
+	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   W | B,
+	      .reg = { .offset = 1, .mask = 0x007FFFFC },
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
+	CMD(  MI_LOAD_REGISTER_MEM,             SMI,   !F,  0xFF,   W | B,
+	      .reg = { .offset = 1, .mask = 0x007FFFFC },
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
 	CMD(  MI_BATCH_BUFFER_START,            SMI,   !F,  0xFF,   S  ),
 };
 
@@ -139,9 +149,31 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_SET_CONTEXT,                   SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_URB_CLEAR,                     SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3F,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
 	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0xFF,   R  ),
-	CMD(  MI_CLFLUSH,                       SMI,   !F,  0x3FF,  S  ),
-	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_CLFLUSH,                       SMI,   !F,  0x3FF,  B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
+	CMD(  MI_REPORT_PERF_COUNT,             SMI,   !F,  0x3F,   B,
+	      .bits = {{
+			.offset = 1,
+			.mask = MI_REPORT_PERF_COUNT_GGTT,
+			.expected = 0,
+	      }},						       ),
+	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
 	CMD(  GFX_OP_3DSTATE_VF_STATISTICS,     S3D,    F,  1,      S  ),
 	CMD(  PIPELINE_SELECT,                  S3D,    F,  1,      S  ),
 	CMD(  MEDIA_VFE_STATE,			S3D,   !F,  0xFFFF, B,
@@ -158,6 +190,13 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 			.offset = 1,
 			.mask = (PIPE_CONTROL_MMIO_WRITE | PIPE_CONTROL_NOTIFY),
 			.expected = 0,
+	      },
+	      {
+			.offset = 1,
+		        .mask = PIPE_CONTROL_GLOBAL_GTT_IVB,
+			.expected = 0,
+			.condition_offset = 1,
+			.condition_mask = PIPE_CONTROL_POST_SYNC_OP_MASK,
 	      }},						       ),
 };
 
@@ -184,15 +223,32 @@ static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
 
 static const struct drm_i915_cmd_descriptor video_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
-	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
 	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
 	CMD(  MI_FLUSH_DW,                      SMI,   !F,  0x3F,   B,
 	      .bits = {{
 			.offset = 0,
 			.mask = MI_FLUSH_DW_NOTIFY,
 			.expected = 0,
+	      },
+	      {
+			.offset = 1,
+			.mask = MI_FLUSH_DW_USE_GTT,
+			.expected = 0,
+			.condition_offset = 0,
+			.condition_mask = MI_FLUSH_DW_OP_MASK,
 	      }},						       ),
-	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
 	/*
 	 * MFX_WAIT doesn't fit the way we handle length for most commands.
 	 * It has a length field but it uses a non-standard length bias.
@@ -203,26 +259,55 @@ static const struct drm_i915_cmd_descriptor video_cmds[] = {
 
 static const struct drm_i915_cmd_descriptor vecs_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
-	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
 	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
 	CMD(  MI_FLUSH_DW,                      SMI,   !F,  0x3F,   B,
 	      .bits = {{
 			.offset = 0,
 			.mask = MI_FLUSH_DW_NOTIFY,
 			.expected = 0,
+	      },
+	      {
+			.offset = 1,
+			.mask = MI_FLUSH_DW_USE_GTT,
+			.expected = 0,
+			.condition_offset = 0,
+			.condition_mask = MI_FLUSH_DW_OP_MASK,
 	      }},						       ),
-	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
 };
 
 static const struct drm_i915_cmd_descriptor blt_cmds[] = {
 	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
-	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3FF,  S  ),
+	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3FF,  B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_GLOBAL_GTT,
+			.expected = 0,
+	      }},						       ),
 	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
 	CMD(  MI_FLUSH_DW,                      SMI,   !F,  0x3F,   B,
 	      .bits = {{
 			.offset = 0,
 			.mask = MI_FLUSH_DW_NOTIFY,
 			.expected = 0,
+	      },
+	      {
+			.offset = 1,
+			.mask = MI_FLUSH_DW_USE_GTT,
+			.expected = 0,
+			.condition_offset = 0,
+			.condition_mask = MI_FLUSH_DW_OP_MASK,
 	      }},						       ),
 	CMD(  COLOR_BLT,                        S2D,   !F,  0x3F,   S  ),
 	CMD(  SRC_COPY_BLT,                     S2D,   !F,  0x3F,   S  ),
@@ -617,8 +702,18 @@ finish:
  */
 bool i915_needs_cmd_parser(struct intel_ring_buffer *ring)
 {
+	drm_i915_private_t *dev_priv = ring->dev->dev_private;
+
 	/* No command tables indicates a platform without parsing */
 	if (!ring->cmd_tables)
+		return false;
+
+	/*
+	 * XXX: VLV is Gen7 and therefore has cmd_tables, but has PPGTT
+	 * disabled. That will cause all of the parser's PPGTT checks to
+	 * fail. For now, disable parsing when PPGTT is off.
+	 */
+	if (!dev_priv->mm.aliasing_ppgtt)
 		return false;
 
 	return (i915.enable_cmd_parser == 1);
@@ -736,6 +831,16 @@ int i915_parse_cmds(struct intel_ring_buffer *ring,
 
 				if (desc->bits[i].mask == 0)
 					break;
+
+				if (desc->bits[i].condition_mask != 0) {
+					u32 offset =
+						desc->bits[i].condition_offset;
+					u32 condition = cmd[offset] &
+						desc->bits[i].condition_mask;
+
+					if (condition == 0)
+						continue;
+				}
 
 				dword = cmd[desc->bits[i].offset] &
 					desc->bits[i].mask;
