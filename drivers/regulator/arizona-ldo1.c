@@ -189,10 +189,8 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	int ret;
 
 	ldo1 = devm_kzalloc(&pdev->dev, sizeof(*ldo1), GFP_KERNEL);
-	if (ldo1 == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!ldo1)
 		return -ENOMEM;
-	}
 
 	ldo1->arizona = arizona;
 
