@@ -392,8 +392,10 @@ static const char *twl6040_amicr_texts[] =
 	{"Headset Mic", "Sub Mic", "Aux/FM Right", "Off"};
 
 static const struct soc_enum twl6040_enum[] = {
-	SOC_ENUM_SINGLE(TWL6040_REG_MICLCTL, 3, 4, twl6040_amicl_texts),
-	SOC_ENUM_SINGLE(TWL6040_REG_MICRCTL, 3, 4, twl6040_amicr_texts),
+	SOC_ENUM_SINGLE(TWL6040_REG_MICLCTL, 3,
+			ARRAY_SIZE(twl6040_amicl_texts), twl6040_amicl_texts),
+	SOC_ENUM_SINGLE(TWL6040_REG_MICRCTL, 3,
+			ARRAY_SIZE(twl6040_amicr_texts), twl6040_amicr_texts),
 };
 
 static const char *twl6040_hs_texts[] = {
@@ -476,9 +478,8 @@ static const char *twl6040_power_mode_texts[] = {
 	"Low-Power", "High-Performance",
 };
 
-static const struct soc_enum twl6040_power_mode_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(twl6040_power_mode_texts),
-			twl6040_power_mode_texts);
+static SOC_ENUM_SINGLE_EXT_DECL(twl6040_power_mode_enum,
+				twl6040_power_mode_texts);
 
 static int twl6040_headset_power_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
