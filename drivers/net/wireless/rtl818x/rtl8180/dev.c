@@ -476,9 +476,10 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 		struct sk_buff *skb = dev_alloc_skb(MAX_RX_SIZE);
 		dma_addr_t *mapping;
 		entry = &priv->rx_ring[i];
-		if (!skb)
-			return 0;
-
+		if (!skb) {
+			wiphy_err(dev->wiphy, "Cannot allocate RX skb\n");
+			return -ENOMEM;
+		}
 		priv->rx_buf[i] = skb;
 		mapping = (dma_addr_t *)skb->cb;
 		*mapping = pci_map_single(priv->pdev, skb_tail_pointer(skb),
