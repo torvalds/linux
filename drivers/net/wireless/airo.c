@@ -36,7 +36,7 @@
 #include <linux/bitops.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/unaligned.h>
 
 #include <linux/netdevice.h>
@@ -45,7 +45,7 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
