@@ -129,8 +129,27 @@
 			interrupts = <0 372 4>;
 		};
 
+		mdio {
+			compatible = "hisilicon,hip04-mdio";
+			reg = <0x28f1000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			phy0: ethernet-phy@0 {
+				reg = <0>;
+				marvell,reg-init = <18 0x14 0 0x8001>;
+				device_type = "ethernet-phy";
+			};
+
+			phy1: ethernet-phy@1 {
+				reg = <1>;
+				marvell,reg-init = <18 0x14 0 0x8001>;
+				device_type = "ethernet-phy";
+			};
+		};
+
 		ppebase: ppebase@28c0000 {
-			compatible = "hisilicon,ppebase";
+			compatible = "hisilicon,hip04-ppebase";
 			reg = <0x28c0000 0x10000>;
 		};
 
@@ -146,18 +165,21 @@
 		ge0: ethernet@2800000 {
 			compatible = "hisilicon,hip04-mac";
 			reg = <0x2800000 0x10000>;
-			interrupts = <0 412 4>;
+			interrupts = <0 402 4>;
 			port = <0>;
 			speed = <1000>;
 			id = <1>;
+			phy-handle = <&phy0>;
 		};
+
 		ge8: ethernet@2880000 {
 			compatible = "hisilicon,hip04-mac";
 			reg = <0x2880000 0x10000>;
-			interrupts = <0 420 4>;
+			interrupts = <0 410 4>;
 			port = <8>;
 			speed = <1000>;
 			id = <2>;
+			phy-handle = <&phy1>;
 		};
 	};
 };
