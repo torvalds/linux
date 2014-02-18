@@ -1213,20 +1213,13 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 		void		*rx_buf = t->rx_buf;
 		unsigned	len = t->len;
 
-		if (t->speed_hz > OMAP2_MCSPI_MAX_FREQ
-				|| (len && !(rx_buf || tx_buf))) {
+		if ((len && !(rx_buf || tx_buf))) {
 			dev_dbg(mcspi->dev, "transfer: %d Hz, %d %s%s, %d bpw\n",
 					t->speed_hz,
 					len,
 					tx_buf ? "tx" : "",
 					rx_buf ? "rx" : "",
 					t->bits_per_word);
-			return -EINVAL;
-		}
-		if (t->speed_hz && t->speed_hz < (OMAP2_MCSPI_MAX_FREQ >> 15)) {
-			dev_dbg(mcspi->dev, "speed_hz %d below minimum %d Hz\n",
-					t->speed_hz,
-					OMAP2_MCSPI_MAX_FREQ >> 15);
 			return -EINVAL;
 		}
 
@@ -1340,6 +1333,8 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	master->transfer_one_message = omap2_mcspi_transfer_one_message;
 	master->cleanup = omap2_mcspi_cleanup;
 	master->dev.of_node = node;
+	master->max_speed_hz = OMAP2_MCSPI_MAX_FREQ;
+	master->min_speed_hz = OMAP2_MCSPI_MAX_FREQ >> 15;
 
 	platform_set_drvdata(pdev, master);
 
