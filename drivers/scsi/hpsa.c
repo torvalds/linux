@@ -1858,7 +1858,8 @@ out:
 	return rc;
 }
 
-static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr)
+static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr,
+	u8 reset_type)
 {
 	int rc = IO_OK;
 	struct CommandList *c;
@@ -1872,8 +1873,9 @@ static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr)
 	}
 
 	/* fill_cmd can't fail here, no data buffer to map. */
-	(void) fill_cmd(c, HPSA_DEVICE_RESET_MSG, h,
-			NULL, 0, 0, scsi3addr, TYPE_MSG);
+	(void) fill_cmd(c, HPSA_DEVICE_RESET_MSG, h, NULL, 0, 0,
+			scsi3addr, TYPE_MSG);
+	c->Request.CDB[1] = reset_type; /* fill_cmd defaults to LUN reset */
 	hpsa_scsi_do_simple_cmd_core(h, c);
 	/* no unmap needed here because no data xfer. */
 
@@ -3390,7 +3392,7 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	dev_warn(&h->pdev->dev, "resetting device %d:%d:%d:%d\n",
 		h->scsi_host->host_no, dev->bus, dev->target, dev->lun);
 	/* send a reset to the SCSI LUN which the command was sent to */
-	rc = hpsa_send_reset(h, dev->scsi3addr);
+	rc = hpsa_send_reset(h, dev->scsi3addr, HPSA_RESET_TYPE_LUN);
 	if (rc == 0 && wait_for_device_to_become_ready(h, dev->scsi3addr) == 0)
 		return SUCCESS;
 
