@@ -413,20 +413,16 @@ static void confirm_work(struct work_struct *work)
 {
 	struct smp_chan *smp = container_of(work, struct smp_chan, confirm);
 	struct l2cap_conn *conn = smp->conn;
-	struct crypto_blkcipher *tfm;
+	struct hci_dev *hdev = conn->hcon->hdev;
+	struct crypto_blkcipher *tfm = hdev->tfm_aes;
 	struct smp_cmd_pairing_confirm cp;
 	int ret;
 	u8 res[16], reason;
 
 	BT_DBG("conn %p", conn);
 
-	tfm = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm)) {
-		reason = SMP_UNSPECIFIED;
-		goto error;
-	}
-
-	smp->tfm = tfm;
+	/* Prevent mutual access to hdev->tfm_aes */
+	hci_dev_lock(hdev);
 
 	if (conn->hcon->out)
 		ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp,
@@ -436,6 +432,9 @@ static void confirm_work(struct work_struct *work)
 		ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp,
 			     conn->hcon->dst_type, &conn->hcon->dst,
 			     conn->hcon->src_type, &conn->hcon->src, res);
+
+	hci_dev_unlock(hdev);
+
 	if (ret) {
 		reason = SMP_UNSPECIFIED;
 		goto error;
@@ -457,7 +456,8 @@ static void random_work(struct work_struct *work)
 	struct smp_chan *smp = container_of(work, struct smp_chan, random);
 	struct l2cap_conn *conn = smp->conn;
 	struct hci_conn *hcon = conn->hcon;
-	struct crypto_blkcipher *tfm = smp->tfm;
+	struct hci_dev *hdev = hcon->hdev;
+	struct crypto_blkcipher *tfm = hdev->tfm_aes;
 	u8 reason, confirm[16], res[16], key[16];
 	int ret;
 
@@ -468,6 +468,9 @@ static void random_work(struct work_struct *work)
 
 	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
 
+	/* Prevent mutual access to hdev->tfm_aes */
+	hci_dev_lock(hdev);
+
 	if (hcon->out)
 		ret = smp_c1(tfm, smp->tk, smp->rrnd, smp->preq, smp->prsp,
 			     hcon->src_type, &hcon->src,
@@ -476,6 +479,9 @@ static void random_work(struct work_struct *work)
 		ret = smp_c1(tfm, smp->tk, smp->rrnd, smp->preq, smp->prsp,
 			     hcon->dst_type, &hcon->dst,
 			     hcon->src_type, &hcon->src, res);
+
+	hci_dev_unlock(hdev);
+
 	if (ret) {
 		reason = SMP_UNSPECIFIED;
 		goto error;
@@ -561,9 +567,6 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 	struct smp_chan *smp = conn->smp_chan;
 
 	BUG_ON(!smp);
-
-	if (smp->tfm)
-		crypto_free_blkcipher(smp->tfm);
 
 	kfree(smp);
 	conn->smp_chan = NULL;

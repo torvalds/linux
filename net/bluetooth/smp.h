@@ -133,7 +133,6 @@ struct smp_chan {
 	u8		id_addr_type;
 	u8		irk[16];
 	unsigned long	smp_flags;
-	struct crypto_blkcipher	*tfm;
 	struct work_struct confirm;
 	struct work_struct random;
 };
