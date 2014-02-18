@@ -84,8 +84,8 @@ static const struct soc_enum wm8974_enum[] = {
 
 static const char *wm8974_auxmode_text[] = { "Buffer", "Mixer" };
 
-static const struct soc_enum wm8974_auxmode =
-	SOC_ENUM_SINGLE(WM8974_INPUT,  3, 2, wm8974_auxmode_text);
+static SOC_ENUM_SINGLE_DECL(wm8974_auxmode,
+			    WM8974_INPUT,  3, wm8974_auxmode_text);
 
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
