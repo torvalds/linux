@@ -143,4 +143,7 @@ int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
 void smp_chan_destroy(struct l2cap_conn *conn);
 
+bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
+		     bdaddr_t *bdaddr);
+
 #endif /* __SMP_H */

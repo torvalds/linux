@@ -78,6 +78,52 @@ static int smp_e(struct crypto_blkcipher *tfm, const u8 *k, u8 *r)
 	return err;
 }
 
+static int smp_ah(struct crypto_blkcipher *tfm, u8 irk[16], u8 r[3], u8 res[3])
+{
+	u8 _res[16], k[16];
+	int err;
+
+	/* r' = padding || r */
+	memset(_res, 0, 13);
+	_res[13] = r[2];
+	_res[14] = r[1];
+	_res[15] = r[0];
+
+	swap128(irk, k);
+	err = smp_e(tfm, k, _res);
+	if (err) {
+		BT_ERR("Encrypt error");
+		return err;
+	}
+
+	/* The output of the random address function ah is:
+	 *	ah(h, r) = e(k, r') mod 2^24
+	 * The output of the security function e is then truncated to 24 bits
+	 * by taking the least significant 24 bits of the output of e as the
+	 * result of ah.
+	 */
+	res[0] = _res[15];
+	res[1] = _res[14];
+	res[2] = _res[13];
+
+	return 0;
+}
+
+bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
+		     bdaddr_t *bdaddr)
+{
+	u8 hash[3];
+	int err;
+
+	BT_DBG("RPA %pMR IRK %*phN", bdaddr, 16, irk);
+
+	err = smp_ah(tfm, irk, &bdaddr->b[3], hash);
+	if (err)
+		return false;
+
+	return !memcmp(bdaddr->b, hash, 3);
+}
+
 static int smp_c1(struct crypto_blkcipher *tfm, u8 k[16], u8 r[16],
 		  u8 preq[7], u8 pres[7], u8 _iat, bdaddr_t *ia,
 		  u8 _rat, bdaddr_t *ra, u8 res[16])
