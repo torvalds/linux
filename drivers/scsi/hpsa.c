@@ -1438,6 +1438,7 @@ static int hpsa_map_one(struct pci_dev *pdev,
 	cp->SG[0].Addr.upper =
 	  (u32) ((addr64 >> 32) & (u64) 0x00000000FFFFFFFF);
 	cp->SG[0].Len = buflen;
+	cp->SG[0].Ext = HPSA_SG_LAST; /* we are not chaining */
 	cp->Header.SGList = (u8) 1;   /* no. SGs contig in this cmd */
 	cp->Header.SGTotal = (u16) 1; /* total sgs in this cmd list */
 	return 0;
@@ -2139,7 +2140,7 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 		curr_sg->Addr.lower = (u32) (addr64 & 0x0FFFFFFFFULL);
 		curr_sg->Addr.upper = (u32) ((addr64 >> 32) & 0x0FFFFFFFFULL);
 		curr_sg->Len = len;
-		curr_sg->Ext = 0;  /* we are not chaining */
+		curr_sg->Ext = (i < scsi_sg_count(cmd) - 1) ? 0 : HPSA_SG_LAST;
 		curr_sg++;
 	}
 
@@ -3041,7 +3042,7 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		c->SG[0].Addr.lower = temp64.val32.lower;
 		c->SG[0].Addr.upper = temp64.val32.upper;
 		c->SG[0].Len = iocommand.buf_size;
-		c->SG[0].Ext = 0; /* we are not chaining*/
+		c->SG[0].Ext = HPSA_SG_LAST; /* we are not chaining*/
 	}
 	hpsa_scsi_do_simple_cmd_core_if_no_lockup(h, c);
 	if (iocommand.buf_size > 0)
@@ -3171,8 +3172,7 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 			c->SG[i].Addr.lower = temp64.val32.lower;
 			c->SG[i].Addr.upper = temp64.val32.upper;
 			c->SG[i].Len = buff_size[i];
-			/* we are not chaining */
-			c->SG[i].Ext = 0;
+			c->SG[i].Ext = i < sg_used - 1 ? 0 : HPSA_SG_LAST;
 		}
 	}
 	hpsa_scsi_do_simple_cmd_core_if_no_lockup(h, c);

@@ -25,6 +25,7 @@
 #define SENSEINFOBYTES          32 /* may vary between hbas */
 #define SG_ENTRIES_IN_CMD	32 /* Max SG entries excluding chain blocks */
 #define HPSA_SG_CHAIN		0x80000000
+#define HPSA_SG_LAST		0x40000000
 #define MAXREPLYQS              256
 
 /* Command Status value */
