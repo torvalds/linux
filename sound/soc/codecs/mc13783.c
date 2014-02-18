@@ -408,8 +408,8 @@ static const char * const adcl_enum_text[] = {
 	"MC1L", "RXINL",
 };
 
-static const struct soc_enum adcl_enum =
-	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(adcl_enum_text), adcl_enum_text);
+static SOC_ENUM_SINGLE_DECL(adcl_enum,
+			    0, 0, adcl_enum_text);
 
 static const struct snd_kcontrol_new left_input_mux =
 	SOC_DAPM_ENUM_VIRT("Route", adcl_enum);
@@ -418,8 +418,8 @@ static const char * const adcr_enum_text[] = {
 	"MC1R", "MC2", "RXINR", "TXIN",
 };
 
-static const struct soc_enum adcr_enum =
-	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(adcr_enum_text), adcr_enum_text);
+static SOC_ENUM_SINGLE_DECL(adcr_enum,
+			    0, 0, adcr_enum_text);
 
 static const struct snd_kcontrol_new right_input_mux =
 	SOC_DAPM_ENUM_VIRT("Route", adcr_enum);
@@ -580,9 +580,9 @@ static struct snd_soc_dapm_route mc13783_routes[] = {
 static const char * const mc13783_3d_mixer[] = {"Stereo", "Phase Mix",
 						"Mono", "Mono Mix"};
 
-static const struct soc_enum mc13783_enum_3d_mixer =
-	SOC_ENUM_SINGLE(MC13783_AUDIO_RX1, 16, ARRAY_SIZE(mc13783_3d_mixer),
-			mc13783_3d_mixer);
+static SOC_ENUM_SINGLE_DECL(mc13783_enum_3d_mixer,
+			    MC13783_AUDIO_RX1, 16,
+			    mc13783_3d_mixer);
 
 static struct snd_kcontrol_new mc13783_control_list[] = {
 	SOC_SINGLE("Loudspeaker enable", MC13783_AUDIO_RX0, 5, 1, 0),
