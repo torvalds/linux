@@ -46,7 +46,7 @@ struct i915_params i915 __read_mostly = {
 	.reset = true,
 	.invert_brightness = 0,
 	.disable_display = 0,
-	.enable_cmd_parser = 0,
+	.enable_cmd_parser = 1,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -151,4 +151,4 @@ MODULE_PARM_DESC(disable_display, "Disable display (default: false)");
 
 module_param_named(enable_cmd_parser, i915.enable_cmd_parser, int, 0600);
 MODULE_PARM_DESC(enable_cmd_parser,
-		 "Enable command parsing (1=enabled, 0=disabled [default])");
+		 "Enable command parsing (1=enabled [default], 0=disabled)");
