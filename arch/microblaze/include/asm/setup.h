@@ -25,8 +25,8 @@ int setup_early_printk(char *opt);
 void remap_early_printk(void);
 void disable_early_printk(void);
 
-void heartbeat(void);
-void setup_heartbeat(void);
+void microblaze_heartbeat(void);
+void microblaze_setup_heartbeat(void);
 
 #   ifdef CONFIG_MMU
 extern void mmu_reset(void);
