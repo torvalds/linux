@@ -2318,10 +2318,18 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	if (cp->addr.type == BDADDR_BREDR)
+	if (cp->addr.type == BDADDR_BREDR) {
 		err = hci_remove_link_key(hdev, &cp->addr.bdaddr);
-	else
-		err = hci_remove_ltk(hdev, &cp->addr.bdaddr);
+	} else {
+		u8 addr_type;
+
+		if (cp->addr.type == BDADDR_LE_PUBLIC)
+			addr_type = ADDR_LE_DEV_PUBLIC;
+		else
+			addr_type = ADDR_LE_DEV_RANDOM;
+
+		err = hci_remove_ltk(hdev, &cp->addr.bdaddr, addr_type);
+	}
 
 	if (err < 0) {
 		err = cmd_complete(sk, hdev->id, MGMT_OP_UNPAIR_DEVICE,
