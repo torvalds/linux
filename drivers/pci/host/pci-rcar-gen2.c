@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 
 /* AHB-PCI Bridge PCI communication registers */
@@ -98,6 +99,7 @@ struct rcar_pci_priv {
 	struct resource mem_res;
 	struct resource *cfg_res;
 	int irq;
+	unsigned long window_size;
 };
 
 /* PCI configuration space operations */
@@ -241,10 +243,31 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	iowrite32(val, reg + RCAR_USBCTR_REG);
 	udelay(4);
 
-	/* De-assert reset and set PCIAHB window1 size to 1GB */
+	/* De-assert reset and reset PCIAHB window1 size */
 	val &= ~(RCAR_USBCTR_PCIAHB_WIN1_MASK | RCAR_USBCTR_PCICLK_MASK |
 		 RCAR_USBCTR_USBH_RST | RCAR_USBCTR_PLL_RST);
-	iowrite32(val | RCAR_USBCTR_PCIAHB_WIN1_1G, reg + RCAR_USBCTR_REG);
+
+	/* Setup PCIAHB window1 size */
+	switch (priv->window_size) {
+	case SZ_2G:
+		val |= RCAR_USBCTR_PCIAHB_WIN1_2G;
+		break;
+	case SZ_1G:
+		val |= RCAR_USBCTR_PCIAHB_WIN1_1G;
+		break;
+	case SZ_512M:
+		val |= RCAR_USBCTR_PCIAHB_WIN1_512M;
+		break;
+	default:
+		pr_warn("unknown window size %ld - defaulting to 256M\n",
+			priv->window_size);
+		priv->window_size = SZ_256M;
+		/* fall-through */
+	case SZ_256M:
+		val |= RCAR_USBCTR_PCIAHB_WIN1_256M;
+		break;
+	}
+	iowrite32(val, reg + RCAR_USBCTR_REG);
 
 	/* Configure AHB master and slave modes */
 	iowrite32(RCAR_AHB_BUS_MODE, reg + RCAR_AHB_BUS_CTR_REG);
@@ -255,7 +278,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	       RCAR_PCI_ARBITER_PCIBP_MODE;
 	iowrite32(val, reg + RCAR_PCI_ARBITER_CTR_REG);
 
-	/* PCI-AHB mapping: 0x40000000-0x80000000 */
+	/* PCI-AHB mapping: 0x40000000 base */
 	iowrite32(0x40000000 | RCAR_PCIAHB_PREFETCH16,
 		  reg + RCAR_PCIAHB_WIN1_CTR_REG);
 
@@ -340,6 +363,8 @@ static int rcar_pci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no valid irq found\n");
 		return priv->irq;
 	}
+
+	priv->window_size = SZ_1G;
 
 	hw_private[0] = priv;
 	memset(&hw, 0, sizeof(hw));
