@@ -1989,7 +1989,7 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	sram_write(tp, SRAM_10M_AMP2, data);
 }
 
-static void r8153_u1u2en(struct r8152 *tp, int enable)
+static void r8153_u1u2en(struct r8152 *tp, bool enable)
 {
 	u8 u1u2[8];
 
@@ -2001,7 +2001,7 @@ static void r8153_u1u2en(struct r8152 *tp, int enable)
 	usb_ocp_write(tp, USB_TOLERANCE, BYTE_EN_SIX_BYTES, sizeof(u1u2), u1u2);
 }
 
-static void r8153_u2p3en(struct r8152 *tp, int enable)
+static void r8153_u2p3en(struct r8152 *tp, bool enable)
 {
 	u32 ocp_data;
 
@@ -2013,7 +2013,7 @@ static void r8153_u2p3en(struct r8152 *tp, int enable)
 	ocp_write_word(tp, MCU_TYPE_USB, USB_U2P3_CTRL, ocp_data);
 }
 
-static void r8153_power_cut_en(struct r8152 *tp, int enable)
+static void r8153_power_cut_en(struct r8152 *tp, bool enable)
 {
 	u32 ocp_data;
 
@@ -2261,8 +2261,8 @@ static void rtl8152_down(struct r8152 *tp)
 
 static void rtl8153_down(struct r8152 *tp)
 {
-	r8153_u1u2en(tp, 0);
-	r8153_power_cut_en(tp, 0);
+	r8153_u1u2en(tp, false);
+	r8153_power_cut_en(tp, false);
 	r8153_disable_aldps(tp);
 	r8153_enter_oob(tp);
 	r8153_enable_aldps(tp);
@@ -2455,7 +2455,7 @@ static void r8153_init(struct r8152 *tp)
 	u32 ocp_data;
 	int i;
 
-	r8153_u1u2en(tp, 0);
+	r8153_u1u2en(tp, false);
 
 	for (i = 0; i < 500; i++) {
 		if (ocp_read_word(tp, MCU_TYPE_PLA, PLA_BOOT_CTRL) &
@@ -2471,7 +2471,7 @@ static void r8153_init(struct r8152 *tp)
 		msleep(20);
 	}
 
-	r8153_u2p3en(tp, 0);
+	r8153_u2p3en(tp, false);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_WDT11_CTRL);
 	ocp_data &= ~TIMER11_EN;
@@ -2496,8 +2496,8 @@ static void r8153_init(struct r8152 *tp)
 	ocp_data |= SEN_VAL_NORMAL | SEL_RXIDLE;
 	ocp_write_word(tp, MCU_TYPE_USB, USB_AFE_CTRL2, ocp_data);
 
-	r8153_power_cut_en(tp, 0);
-	r8153_u1u2en(tp, 1);
+	r8153_power_cut_en(tp, false);
+	r8153_u1u2en(tp, true);
 
 	r8153_first_init(tp);
 
@@ -2677,7 +2677,7 @@ static void rtl8152_unload(struct r8152 *tp)
 
 static void rtl8153_unload(struct r8152 *tp)
 {
-	r8153_power_cut_en(tp, 1);
+	r8153_power_cut_en(tp, true);
 }
 
 static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
