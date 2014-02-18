@@ -379,14 +379,10 @@ static inline unsigned long slave_oldest_target_arp_rx(struct bonding *bond,
 static inline unsigned long slave_last_rx(struct bonding *bond,
 					struct slave *slave)
 {
-	if (slave_do_arp_validate(bond, slave)) {
-		if (bond->params.arp_all_targets == BOND_ARP_TARGETS_ALL)
-			return slave_oldest_target_arp_rx(bond, slave);
-		else
-			return slave->last_arp_rx;
-	}
+	if (bond->params.arp_all_targets == BOND_ARP_TARGETS_ALL)
+		return slave_oldest_target_arp_rx(bond, slave);
 
-	return slave->dev->last_rx;
+	return slave->last_arp_rx;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
