@@ -134,6 +134,9 @@ extern int radeon_runtime_pm;
 /* R600+ */
 #define R600_RING_TYPE_UVD_INDEX	5
 
+/* number of hw syncs before falling back on blocking */
+#define RADEON_NUM_SYNCS			4
+
 /* hardcode those limit for now */
 #define RADEON_VA_IB_OFFSET			(1 << 20)
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
@@ -544,7 +547,6 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 /*
  * Semaphores.
  */
-/* everything here is constant */
 struct radeon_semaphore {
 	struct radeon_sa_bo		*sa_bo;
 	signed				waiters;
