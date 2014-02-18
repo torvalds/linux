@@ -2126,7 +2126,8 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 	*physical_mode = 0;
 
 	/* For I/O accelerator mode we need to read physical device handles */
-	if (h->transMethod & CFGTBL_Trans_io_accel1) {
+	if (h->transMethod & CFGTBL_Trans_io_accel1 ||
+		h->transMethod & CFGTBL_Trans_io_accel2) {
 		*physical_mode = HPSA_REPORT_PHYS_EXTENDED;
 		physical_entry_size = 24;
 	}
