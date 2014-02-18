@@ -1,8 +1,8 @@
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM sst
+#define TRACE_SYSTEM intel-sst
 
-#if !defined(_TRACE_SST_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_SST_H
+#if !defined(_TRACE_INTEL_SST_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_INTEL_SST_H
 
 #include <linux/types.h>
 #include <linux/ktime.h>

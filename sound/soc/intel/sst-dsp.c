@@ -24,7 +24,7 @@
 #include "sst-dsp-priv.h"
 
 #define CREATE_TRACE_POINTS
-#include <trace/events/sst.h>
+#include <trace/events/intel-sst.h>
 
 /* Public API */
 void sst_dsp_shim_write(struct sst_dsp *sst, u32 offset, u32 value)
