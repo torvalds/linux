@@ -634,16 +634,17 @@ static bool is_gen8_shadowed(struct drm_i915_private *dev_priv, u32 reg)
 #define __gen8_write(x) \
 static void \
 gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
-	bool __needs_put = reg < 0x40000 && !is_gen8_shadowed(dev_priv, reg); \
 	REG_WRITE_HEADER; \
-	if (__needs_put) { \
-		dev_priv->uncore.funcs.force_wake_get(dev_priv, \
-							FORCEWAKE_ALL); \
-	} \
-	__raw_i915_write##x(dev_priv, reg, val); \
-	if (__needs_put) { \
-		dev_priv->uncore.funcs.force_wake_put(dev_priv, \
-							FORCEWAKE_ALL); \
+	if (reg < 0x40000 && !is_gen8_shadowed(dev_priv, reg)) { \
+		if (dev_priv->uncore.forcewake_count == 0) \
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,	\
+							      FORCEWAKE_ALL); \
+		__raw_i915_write##x(dev_priv, reg, val); \
+		if (dev_priv->uncore.forcewake_count == 0) \
+			dev_priv->uncore.funcs.force_wake_put(dev_priv, \
+							      FORCEWAKE_ALL); \
+	} else { \
+		__raw_i915_write##x(dev_priv, reg, val); \
 	} \
 	REG_WRITE_FOOTER; \
 }
