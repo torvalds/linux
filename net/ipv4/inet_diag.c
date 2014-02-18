@@ -941,13 +941,15 @@ next_normal:
 			++num;
 		}
 
-		if (r->idiag_states & TCPF_TIME_WAIT) {
+		if (r->idiag_states & (TCPF_TIME_WAIT | TCPF_FIN_WAIT2)) {
 			struct inet_timewait_sock *tw;
 
 			inet_twsk_for_each(tw, node,
 				    &head->twchain) {
 
 				if (num < s_num)
+					goto next_dying;
+				if (!(r->idiag_states & (1 << tw->tw_substate)))
 					goto next_dying;
 				if (r->sdiag_family != AF_UNSPEC &&
 						tw->tw_family != r->sdiag_family)
