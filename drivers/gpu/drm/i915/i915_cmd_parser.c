@@ -115,7 +115,7 @@
 	      ---------------------------------------------------------- */
 static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_NOOP,                          SMI,    F,  1,      S  ),
-	CMD(  MI_USER_INTERRUPT,                SMI,    F,  1,      S  ),
+	CMD(  MI_USER_INTERRUPT,                SMI,    F,  1,      R  ),
 	CMD(  MI_WAIT_FOR_EVENT,                SMI,    F,  1,      M  ),
 	CMD(  MI_ARB_CHECK,                     SMI,    F,  1,      S  ),
 	CMD(  MI_REPORT_HEAD,                   SMI,    F,  1,      S  ),
@@ -156,7 +156,7 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	CMD(  GFX_OP_PIPE_CONTROL(5),           S3D,   !F,  0xFF,   B,
 	      .bits = {{
 			.offset = 1,
-			.mask = PIPE_CONTROL_MMIO_WRITE,
+			.mask = (PIPE_CONTROL_MMIO_WRITE | PIPE_CONTROL_NOTIFY),
 			.expected = 0,
 	      }},						       ),
 };
@@ -186,6 +186,12 @@ static const struct drm_i915_cmd_descriptor video_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
+	CMD(  MI_FLUSH_DW,                      SMI,   !F,  0x3F,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_FLUSH_DW_NOTIFY,
+			.expected = 0,
+	      }},						       ),
 	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
 	/*
 	 * MFX_WAIT doesn't fit the way we handle length for most commands.
@@ -199,6 +205,12 @@ static const struct drm_i915_cmd_descriptor vecs_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
+	CMD(  MI_FLUSH_DW,                      SMI,   !F,  0x3F,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_FLUSH_DW_NOTIFY,
+			.expected = 0,
+	      }},						       ),
 	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
 };
 
@@ -206,6 +218,12 @@ static const struct drm_i915_cmd_descriptor blt_cmds[] = {
 	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3FF,  S  ),
 	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
+	CMD(  MI_FLUSH_DW,                      SMI,   !F,  0x3F,   B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_FLUSH_DW_NOTIFY,
+			.expected = 0,
+	      }},						       ),
 	CMD(  COLOR_BLT,                        S2D,   !F,  0x3F,   S  ),
 	CMD(  SRC_COPY_BLT,                     S2D,   !F,  0x3F,   S  ),
 };
