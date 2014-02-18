@@ -133,6 +133,7 @@
 #define CFGTBL_Trans_Simple     0x00000002l
 #define CFGTBL_Trans_Performant 0x00000004l
 #define CFGTBL_Trans_io_accel1	0x00000080l
+#define CFGTBL_Trans_io_accel2	0x00000100l
 #define CFGTBL_Trans_use_short_tags 0x20000000l
 #define CFGTBL_Trans_enable_directed_msix (1 << 30)
 

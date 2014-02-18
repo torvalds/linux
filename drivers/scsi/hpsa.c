@@ -5485,7 +5485,8 @@ static int hpsa_kickoff_rescan(struct ctlr_info *h)
 	char *event_type;
 
 	/* Ask the controller to clear the events we're handling. */
-	if (h->transMethod & (CFGTBL_Trans_io_accel1) &&
+	if ((h->transMethod & (CFGTBL_Trans_io_accel1
+			| CFGTBL_Trans_io_accel2)) &&
 		(h->events & HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_STATE_CHANGE ||
 		 h->events & HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_CONFIG_CHANGE)) {
 
