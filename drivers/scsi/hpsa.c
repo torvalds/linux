@@ -891,6 +891,9 @@ static void hpsa_scsi_update_entry(struct ctlr_info *h, int hostno,
 	/* Raid offload parameters changed. */
 	h->dev[entry]->offload_config = new_entry->offload_config;
 	h->dev[entry]->offload_enabled = new_entry->offload_enabled;
+	h->dev[entry]->ioaccel_handle = new_entry->ioaccel_handle;
+	h->dev[entry]->offload_to_mirror = new_entry->offload_to_mirror;
+	h->dev[entry]->raid_map = new_entry->raid_map;
 
 	dev_info(&h->pdev->dev, "%s device c%db%dt%dl%d updated.\n",
 		scsi_device_type(new_entry->devtype), hostno, new_entry->bus,
