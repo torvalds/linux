@@ -25,13 +25,17 @@
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"
 
-static void dw_mci_rockchip_prepare_command(struct dw_mci *host, u32 *cmdr)
+static void dw_mci_pltfm_prepare_command(struct dw_mci *host, u32 *cmdr)
 {
 	*cmdr |= SDMMC_CMD_USE_HOLD_REG;
 }
 
 static const struct dw_mci_drv_data rockchip_drv_data = {
-	.prepare_command	= dw_mci_rockchip_prepare_command,
+	.prepare_command	= dw_mci_pltfm_prepare_command,
+};
+
+static const struct dw_mci_drv_data socfpga_drv_data = {
+	.prepare_command	= dw_mci_pltfm_prepare_command,
 };
 
 int dw_mci_pltfm_register(struct platform_device *pdev,
@@ -92,6 +96,8 @@ static const struct of_device_id dw_mci_pltfm_match[] = {
 	{ .compatible = "snps,dw-mshc", },
 	{ .compatible = "rockchip,rk2928-dw-mshc",
 		.data = &rockchip_drv_data },
+	{ .compatible = "altr,socfpga-dw-mshc",
+		.data = &socfpga_drv_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
