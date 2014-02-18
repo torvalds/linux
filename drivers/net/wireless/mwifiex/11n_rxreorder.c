@@ -142,7 +142,7 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 	mwifiex_11n_dispatch_pkt(priv, tbl, (tbl->start_win + tbl->win_size) &
 					    (MAX_TID_VALUE - 1));
 
-	del_timer(&tbl->timer_context.timer);
+	del_timer_sync(&tbl->timer_context.timer);
 
 	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	list_del(&tbl->list);

@@ -786,7 +786,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	unsigned long flags;
 
 	/* Now we got response from FW, cancel the command timer */
-	del_timer(&adapter->cmd_timer);
+	del_timer_sync(&adapter->cmd_timer);
 
 	if (!adapter->curr_cmd || !adapter->curr_cmd->resp_skb) {
 		resp = (struct host_cmd_ds_command *) adapter->upld_buf;
