@@ -8,8 +8,8 @@ Required properties:
   interrupt line, while the second cell is the interrupt for the ring
   RX and TX queues operating in ring mode
 - phy-mode: see ethernet.txt file in the same directory
-- address-cells: should be 1
-- size-cells: should be 1
+- #address-cells: should be 1
+- #size-cells: should be 1
 
 Optional properties:
 - clocks: When provided, must be two phandles to the functional clocks nodes
@@ -39,8 +39,8 @@ MDIO bus node required properties:
   parent node compatible property (e.g: brcm,genet-v4 pairs with
   brcm,genet-mdio-v4)
 - reg: address and length relative to the parent node base register address
-- address-cells: address cell for MDIO bus addressing, should be 1
-- size-cells: size of the cells for MDIO bus addressing, should be 0
+- #address-cells: address cell for MDIO bus addressing, should be 1
+- #size-cells: size of the cells for MDIO bus addressing, should be 0
 
 Ethernet PHY node properties:
 
