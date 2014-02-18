@@ -401,7 +401,9 @@ struct kvm {
 	unsigned long mmu_notifier_seq;
 	long mmu_notifier_count;
 #endif
-	long tlbs_dirty;
+	/* Protected by mmu_lock */
+	bool tlbs_dirty;
+
 	struct list_head devices;
 };
 
