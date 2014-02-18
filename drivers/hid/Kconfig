@@ -177,7 +177,7 @@ config HID_PRODIKEYS
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
-	depends on USB_HID && I2C
+	depends on USB_HID && I2C && GPIOLIB
 	---help---
 	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
 	This is a HID device driver which registers as an i2c adapter
