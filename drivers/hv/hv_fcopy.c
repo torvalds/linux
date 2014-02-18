@@ -327,7 +327,7 @@ static ssize_t fcopy_write(struct file *file, const char __user *buf,
 	return sizeof(int);
 }
 
-int fcopy_open(struct inode *inode, struct file *f)
+static int fcopy_open(struct inode *inode, struct file *f)
 {
 	/*
 	 * The user level daemon that will open this device is
@@ -344,7 +344,7 @@ int fcopy_open(struct inode *inode, struct file *f)
 	return 0;
 }
 
-int fcopy_release(struct inode *inode, struct file *f)
+static int fcopy_release(struct inode *inode, struct file *f)
 {
 	/*
 	 * The daemon has exited; reset the state.
