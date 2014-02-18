@@ -990,7 +990,6 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 		*keydist &= req->resp_key_dist;
 	}
 
-
 	BT_DBG("keydist 0x%x", *keydist);
 
 	if (*keydist & SMP_DIST_ENC_KEY) {

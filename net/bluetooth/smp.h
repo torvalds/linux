@@ -132,7 +132,6 @@ struct smp_chan {
 	struct crypto_blkcipher	*tfm;
 	struct work_struct confirm;
 	struct work_struct random;
-
 };
 
 /* SMP Commands */
