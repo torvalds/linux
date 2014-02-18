@@ -228,7 +228,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct beacon_data *presp;
 	enum nl80211_bss_scan_width scan_width;
 	bool have_higher_than_11mbit;
-	bool radar_required = false;
+	bool radar_required;
 	int err;
 
 	sdata_assert_lock(sdata);
@@ -284,20 +284,19 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	}
 
 	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
-					    &chandef);
+					    &chandef, NL80211_IFTYPE_ADHOC);
 	if (err < 0) {
 		sdata_info(sdata,
 			   "Failed to join IBSS, invalid chandef\n");
 		return;
 	}
-	if (err > 0) {
-		if (!ifibss->userspace_handles_dfs) {
-			sdata_info(sdata,
-				   "Failed to join IBSS, DFS channel without control program\n");
-			return;
-		}
-		radar_required = true;
+	if (err > 0 && !ifibss->userspace_handles_dfs) {
+		sdata_info(sdata,
+			   "Failed to join IBSS, DFS channel without control program\n");
+		return;
 	}
+
+	radar_required = err;
 
 	mutex_lock(&local->mtx);
 	if (ieee80211_vif_use_channel(sdata, &chandef,
@@ -777,7 +776,8 @@ static void ieee80211_ibss_csa_mark_radar(struct ieee80211_sub_if_data *sdata)
 	 * unavailable.
 	 */
 	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
-					    &ifibss->chandef);
+					    &ifibss->chandef,
+					    NL80211_IFTYPE_ADHOC);
 	if (err > 0)
 		cfg80211_radar_event(sdata->local->hw.wiphy, &ifibss->chandef,
 				     GFP_ATOMIC);
@@ -876,16 +876,16 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 
 	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
-					    &params.chandef);
+					    &params.chandef,
+					    NL80211_IFTYPE_ADHOC);
 	if (err < 0)
 		goto disconnect;
-	if (err) {
+	if (err > 0 && !ifibss->userspace_handles_dfs) {
 		/* IBSS-DFS only allowed with a control program */
-		if (!ifibss->userspace_handles_dfs)
-			goto disconnect;
-
-		params.radar_required = true;
+		goto disconnect;
 	}
+
+	params.radar_required = err;
 
 	if (cfg80211_chandef_identical(&params.chandef,
 				       &sdata->vif.bss_conf.chandef)) {

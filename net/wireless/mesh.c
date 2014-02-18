@@ -179,10 +179,13 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 				     NL80211_IFTYPE_MESH_POINT))
 		return -EINVAL;
 
-	err = cfg80211_chandef_dfs_required(wdev->wiphy, &setup->chandef);
+	err = cfg80211_chandef_dfs_required(wdev->wiphy,
+					    &setup->chandef,
+					    NL80211_IFTYPE_MESH_POINT);
 	if (err < 0)
 		return err;
-	if (err)
+
+	if (err > 0)
 		radar_detect_width = BIT(setup->chandef.width);
 
 	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,

@@ -903,14 +903,15 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	}
 
 	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
-					    &params.chandef);
+					    &params.chandef,
+					    NL80211_IFTYPE_MESH_POINT);
 	if (err < 0)
 		return false;
-	if (err) {
-		params.radar_required = true;
+	if (err > 0)
 		/* TODO: DFS not (yet) supported */
 		return false;
-	}
+
+	params.radar_required = err;
 
 	if (cfg80211_chandef_identical(&params.chandef,
 				       &sdata->vif.bss_conf.chandef)) {

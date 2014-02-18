@@ -3275,12 +3275,15 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 				     wdev->iftype))
 		return -EINVAL;
 
-	err = cfg80211_chandef_dfs_required(wdev->wiphy, &params.chandef);
+	err = cfg80211_chandef_dfs_required(wdev->wiphy,
+					    &params.chandef,
+					    NL80211_IFTYPE_AP);
 	if (err < 0)
 		return err;
-	if (err) {
-		radar_detect_width = BIT(params.chandef.width);
+
+	if (err > 0) {
 		params.radar_required = true;
+		radar_detect_width = BIT(params.chandef.width);
 	}
 
 	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
@@ -5806,7 +5809,8 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 	if (wdev->cac_started)
 		return -EBUSY;
 
-	err = cfg80211_chandef_dfs_required(wdev->wiphy, &chandef);
+	err = cfg80211_chandef_dfs_required(wdev->wiphy, &chandef,
+					    NL80211_IFTYPE_UNSPECIFIED);
 	if (err < 0)
 		return err;
 
@@ -5942,22 +5946,15 @@ skip_beacons:
 				     wdev->iftype))
 		return -EINVAL;
 
-	switch (dev->ieee80211_ptr->iftype) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_P2P_GO:
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
-		err = cfg80211_chandef_dfs_required(wdev->wiphy,
-						    &params.chandef);
-		if (err < 0)
-			return err;
-		if (err) {
-			radar_detect_width = BIT(params.chandef.width);
-			params.radar_required = true;
-		}
-		break;
-	default:
-		break;
+	err = cfg80211_chandef_dfs_required(wdev->wiphy,
+					    &params.chandef,
+					    wdev->iftype);
+	if (err < 0)
+		return err;
+
+	if (err > 0) {
+		radar_detect_width = BIT(params.chandef.width);
+		params.radar_required = true;
 	}
 
 	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
