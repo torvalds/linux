@@ -794,9 +794,8 @@ nf_tables_counters(struct nft_base_chain *chain, const struct nlattr *attr)
 	stats->pkts = be64_to_cpu(nla_get_be64(tb[NFTA_COUNTER_PACKETS]));
 
 	if (chain->stats) {
-		/* nfnl_lock is held, add some nfnl function for this, later */
 		struct nft_stats __percpu *oldstats =
-			rcu_dereference_protected(chain->stats, 1);
+				nft_dereference(chain->stats);
 
 		rcu_assign_pointer(chain->stats, newstats);
 		synchronize_rcu();
