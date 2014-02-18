@@ -793,7 +793,6 @@ struct radeon_ib {
 struct radeon_ring {
 	struct radeon_bo	*ring_obj;
 	volatile uint32_t	*ring;
-	unsigned		rptr;
 	unsigned		rptr_offs;
 	unsigned		rptr_save_reg;
 	u64			next_rptr_gpu_addr;
@@ -958,7 +957,8 @@ void radeon_ring_undo(struct radeon_ring *ring);
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring);
-void radeon_ring_lockup_update(struct radeon_ring *ring);
+void radeon_ring_lockup_update(struct radeon_device *rdev,
+			       struct radeon_ring *ring);
 bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
 unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring,
 			    uint32_t **data);

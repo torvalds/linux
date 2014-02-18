@@ -98,14 +98,14 @@ int vce_v1_0_start(struct radeon_device *rdev)
 	WREG32_P(VCE_STATUS, 1, ~1);
 
 	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
-	WREG32(VCE_RB_RPTR, ring->rptr);
+	WREG32(VCE_RB_RPTR, ring->wptr);
 	WREG32(VCE_RB_WPTR, ring->wptr);
 	WREG32(VCE_RB_BASE_LO, ring->gpu_addr);
 	WREG32(VCE_RB_BASE_HI, upper_32_bits(ring->gpu_addr));
 	WREG32(VCE_RB_SIZE, ring->ring_size / 4);
 
 	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
-	WREG32(VCE_RB_RPTR2, ring->rptr);
+	WREG32(VCE_RB_RPTR2, ring->wptr);
 	WREG32(VCE_RB_WPTR2, ring->wptr);
 	WREG32(VCE_RB_BASE_LO2, ring->gpu_addr);
 	WREG32(VCE_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));

@@ -342,9 +342,10 @@ bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
  */
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	ring->rptr = radeon_ring_get_rptr(rdev, ring);
+	uint32_t rptr = radeon_ring_get_rptr(rdev, ring);
+
 	/* This works because ring_size is a power of 2 */
-	ring->ring_free_dw = (ring->rptr + (ring->ring_size / 4));
+	ring->ring_free_dw = rptr + (ring->ring_size / 4);
 	ring->ring_free_dw -= ring->wptr;
 	ring->ring_free_dw &= ring->ptr_mask;
 	if (!ring->ring_free_dw) {
@@ -376,7 +377,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 		/* This is an empty ring update lockup info to avoid
 		 * false positive.
 		 */
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 	}
 	ndw = (ndw + ring->align_mask) & ~ring->align_mask;
 	while (ndw > (ring->ring_free_dw - 1)) {
@@ -490,8 +491,7 @@ void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *
 {
 	int r;
 
-	radeon_ring_free_size(rdev, ring);
-	if (ring->rptr == ring->wptr) {
+	if (radeon_ring_get_rptr(rdev, ring) == ring->wptr) {
 		r = radeon_ring_alloc(rdev, ring, 1);
 		if (!r) {
 			radeon_ring_write(ring, ring->nop);
@@ -507,9 +507,10 @@ void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *
  *
  * Update the last rptr value and timestamp (all asics).
  */
-void radeon_ring_lockup_update(struct radeon_ring *ring)
+void radeon_ring_lockup_update(struct radeon_device *rdev,
+			       struct radeon_ring *ring)
 {
-	ring->last_rptr = ring->rptr;
+	ring->last_rptr = radeon_ring_get_rptr(rdev, ring);
 	ring->last_activity = jiffies;
 }
 
@@ -535,18 +536,18 @@ void radeon_ring_lockup_update(struct radeon_ring *ring)
  **/
 bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
+	uint32_t rptr = radeon_ring_get_rptr(rdev, ring);
 	unsigned long cjiffies, elapsed;
 
 	cjiffies = jiffies;
 	if (!time_after(cjiffies, ring->last_activity)) {
 		/* likely a wrap around */
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	ring->rptr = radeon_ring_get_rptr(rdev, ring);
-	if (ring->rptr != ring->last_rptr) {
+	if (rptr != ring->last_rptr) {
 		/* CP is still working no lockup */
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
 	elapsed = jiffies_to_msecs(cjiffies - ring->last_activity);
@@ -709,7 +710,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	if (radeon_debugfs_ring_init(rdev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
-	radeon_ring_lockup_update(ring);
+	radeon_ring_lockup_update(rdev, ring);
 	return 0;
 }
 
@@ -780,8 +781,6 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n",
 		   ring->wptr, ring->wptr);
-	seq_printf(m, "driver's copy of the rptr: 0x%08x [%5d]\n",
-		   ring->rptr, ring->rptr);
 	seq_printf(m, "last semaphore signal addr : 0x%016llx\n",
 		   ring->last_semaphore_signal_addr);
 	seq_printf(m, "last semaphore wait addr   : 0x%016llx\n",

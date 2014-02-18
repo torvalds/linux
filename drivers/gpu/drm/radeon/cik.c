@@ -4031,8 +4031,6 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	WREG32(CP_RB0_BASE, rb_addr);
 	WREG32(CP_RB0_BASE_HI, upper_32_bits(rb_addr));
 
-	ring->rptr = RREG32(CP_RB0_RPTR);
-
 	/* start the ring */
 	cik_cp_gfx_start(rdev);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = true;
@@ -4587,8 +4585,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		rdev->ring[idx].wptr = 0;
 		mqd->queue_state.cp_hqd_pq_wptr = rdev->ring[idx].wptr;
 		WREG32(CP_HQD_PQ_WPTR, mqd->queue_state.cp_hqd_pq_wptr);
-		rdev->ring[idx].rptr = RREG32(CP_HQD_PQ_RPTR);
-		mqd->queue_state.cp_hqd_pq_rptr = rdev->ring[idx].rptr;
+		mqd->queue_state.cp_hqd_pq_rptr = RREG32(CP_HQD_PQ_RPTR);
 
 		/* set the vmid for the queue */
 		mqd->queue_state.cp_hqd_vmid = 0;
@@ -5118,7 +5115,7 @@ bool cik_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	if (!(reset_mask & (RADEON_RESET_GFX |
 			    RADEON_RESET_COMPUTE |
 			    RADEON_RESET_CP))) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
 	/* force CP activities */

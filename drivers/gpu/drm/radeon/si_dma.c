@@ -49,7 +49,7 @@ bool si_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 		mask = RADEON_RESET_DMA1;
 
 	if (!(reset_mask & mask)) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
 	/* force ring activities */
