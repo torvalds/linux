@@ -1121,6 +1121,70 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
+	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
+	[IFLA_ADDRESS]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+	[IFLA_BROADCAST]	= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+	[IFLA_MAP]		= { .len = sizeof(struct rtnl_link_ifmap) },
+	[IFLA_MTU]		= { .type = NLA_U32 },
+	[IFLA_LINK]		= { .type = NLA_U32 },
+	[IFLA_MASTER]		= { .type = NLA_U32 },
+	[IFLA_CARRIER]		= { .type = NLA_U8 },
+	[IFLA_TXQLEN]		= { .type = NLA_U32 },
+	[IFLA_WEIGHT]		= { .type = NLA_U32 },
+	[IFLA_OPERSTATE]	= { .type = NLA_U8 },
+	[IFLA_LINKMODE]		= { .type = NLA_U8 },
+	[IFLA_LINKINFO]		= { .type = NLA_NESTED },
+	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
+	[IFLA_NET_NS_FD]	= { .type = NLA_U32 },
+	[IFLA_IFALIAS]	        = { .type = NLA_STRING, .len = IFALIASZ-1 },
+	[IFLA_VFINFO_LIST]	= {. type = NLA_NESTED },
+	[IFLA_VF_PORTS]		= { .type = NLA_NESTED },
+	[IFLA_PORT_SELF]	= { .type = NLA_NESTED },
+	[IFLA_AF_SPEC]		= { .type = NLA_NESTED },
+	[IFLA_EXT_MASK]		= { .type = NLA_U32 },
+	[IFLA_PROMISCUITY]	= { .type = NLA_U32 },
+	[IFLA_NUM_TX_QUEUES]	= { .type = NLA_U32 },
+	[IFLA_NUM_RX_QUEUES]	= { .type = NLA_U32 },
+	[IFLA_PHYS_PORT_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_PORT_ID_LEN },
+};
+
+static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
+	[IFLA_INFO_KIND]	= { .type = NLA_STRING },
+	[IFLA_INFO_DATA]	= { .type = NLA_NESTED },
+	[IFLA_INFO_SLAVE_KIND]	= { .type = NLA_STRING },
+	[IFLA_INFO_SLAVE_DATA]	= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy ifla_vfinfo_policy[IFLA_VF_INFO_MAX+1] = {
+	[IFLA_VF_INFO]		= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
+	[IFLA_VF_MAC]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_mac) },
+	[IFLA_VF_VLAN]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_vlan) },
+	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_tx_rate) },
+	[IFLA_VF_SPOOFCHK]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_spoofchk) },
+};
+
+static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
+	[IFLA_PORT_VF]		= { .type = NLA_U32 },
+	[IFLA_PORT_PROFILE]	= { .type = NLA_STRING,
+				    .len = PORT_PROFILE_MAX },
+	[IFLA_PORT_VSI_TYPE]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_port_vsi)},
+	[IFLA_PORT_INSTANCE_UUID] = { .type = NLA_BINARY,
+				      .len = PORT_UUID_MAX },
+	[IFLA_PORT_HOST_UUID]	= { .type = NLA_STRING,
+				    .len = PORT_UUID_MAX },
+	[IFLA_PORT_REQUEST]	= { .type = NLA_U8, },
+	[IFLA_PORT_RESPONSE]	= { .type = NLA_U16, },
+};
+
 static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1170,70 +1234,11 @@ out:
 	return skb->len;
 }
 
-const struct nla_policy ifla_policy[IFLA_MAX+1] = {
-	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
-	[IFLA_ADDRESS]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
-	[IFLA_BROADCAST]	= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
-	[IFLA_MAP]		= { .len = sizeof(struct rtnl_link_ifmap) },
-	[IFLA_MTU]		= { .type = NLA_U32 },
-	[IFLA_LINK]		= { .type = NLA_U32 },
-	[IFLA_MASTER]		= { .type = NLA_U32 },
-	[IFLA_CARRIER]		= { .type = NLA_U8 },
-	[IFLA_TXQLEN]		= { .type = NLA_U32 },
-	[IFLA_WEIGHT]		= { .type = NLA_U32 },
-	[IFLA_OPERSTATE]	= { .type = NLA_U8 },
-	[IFLA_LINKMODE]		= { .type = NLA_U8 },
-	[IFLA_LINKINFO]		= { .type = NLA_NESTED },
-	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
-	[IFLA_NET_NS_FD]	= { .type = NLA_U32 },
-	[IFLA_IFALIAS]	        = { .type = NLA_STRING, .len = IFALIASZ-1 },
-	[IFLA_VFINFO_LIST]	= {. type = NLA_NESTED },
-	[IFLA_VF_PORTS]		= { .type = NLA_NESTED },
-	[IFLA_PORT_SELF]	= { .type = NLA_NESTED },
-	[IFLA_AF_SPEC]		= { .type = NLA_NESTED },
-	[IFLA_EXT_MASK]		= { .type = NLA_U32 },
-	[IFLA_PROMISCUITY]	= { .type = NLA_U32 },
-	[IFLA_NUM_TX_QUEUES]	= { .type = NLA_U32 },
-	[IFLA_NUM_RX_QUEUES]	= { .type = NLA_U32 },
-	[IFLA_PHYS_PORT_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_PORT_ID_LEN },
-};
-EXPORT_SYMBOL(ifla_policy);
-
-static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
-	[IFLA_INFO_KIND]	= { .type = NLA_STRING },
-	[IFLA_INFO_DATA]	= { .type = NLA_NESTED },
-	[IFLA_INFO_SLAVE_KIND]	= { .type = NLA_STRING },
-	[IFLA_INFO_SLAVE_DATA]	= { .type = NLA_NESTED },
-};
-
-static const struct nla_policy ifla_vfinfo_policy[IFLA_VF_INFO_MAX+1] = {
-	[IFLA_VF_INFO]		= { .type = NLA_NESTED },
-};
-
-static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
-	[IFLA_VF_MAC]		= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_mac) },
-	[IFLA_VF_VLAN]		= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_vlan) },
-	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_tx_rate) },
-	[IFLA_VF_SPOOFCHK]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_spoofchk) },
-};
-
-static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
-	[IFLA_PORT_VF]		= { .type = NLA_U32 },
-	[IFLA_PORT_PROFILE]	= { .type = NLA_STRING,
-				    .len = PORT_PROFILE_MAX },
-	[IFLA_PORT_VSI_TYPE]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_port_vsi)},
-	[IFLA_PORT_INSTANCE_UUID] = { .type = NLA_BINARY,
-				      .len = PORT_UUID_MAX },
-	[IFLA_PORT_HOST_UUID]	= { .type = NLA_STRING,
-				    .len = PORT_UUID_MAX },
-	[IFLA_PORT_REQUEST]	= { .type = NLA_U8, },
-	[IFLA_PORT_RESPONSE]	= { .type = NLA_U16, },
-};
+int rtnl_nla_parse_ifla(struct nlattr **tb, const struct nlattr *head, int len)
+{
+	return nla_parse(tb, IFLA_MAX, head, len, ifla_policy);
+}
+EXPORT_SYMBOL(rtnl_nla_parse_ifla);
 
 struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[])
 {

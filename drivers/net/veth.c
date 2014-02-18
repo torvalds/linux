@@ -14,6 +14,7 @@
 #include <linux/etherdevice.h>
 #include <linux/u64_stats_sync.h>
 
+#include <net/rtnetlink.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <linux/veth.h>
@@ -323,10 +324,9 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 
 		nla_peer = data[VETH_INFO_PEER];
 		ifmp = nla_data(nla_peer);
-		err = nla_parse(peer_tb, IFLA_MAX,
-				nla_data(nla_peer) + sizeof(struct ifinfomsg),
-				nla_len(nla_peer) - sizeof(struct ifinfomsg),
-				ifla_policy);
+		err = rtnl_nla_parse_ifla(peer_tb,
+					  nla_data(nla_peer) + sizeof(struct ifinfomsg),
+					  nla_len(nla_peer) - sizeof(struct ifinfomsg));
 		if (err < 0)
 			return err;
 
