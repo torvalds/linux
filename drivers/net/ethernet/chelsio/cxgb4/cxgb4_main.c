@@ -3776,6 +3776,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.dbfifo_int_thresh = dbfifo_int_thresh;
 	lli.sge_pktshift = adap->sge.pktshift;
 	lli.enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
+	lli.ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
 
 	handle = ulds[uld].add(&lli);
 	if (IS_ERR(handle)) {
@@ -5379,6 +5380,21 @@ static int adap_init0(struct adapter *adap)
 	params[0] = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
 	val[0] = 1;
 	(void) t4_set_params(adap, adap->mbox, adap->fn, 0, 1, params, val);
+
+	/*
+	 * Find out whether we're allowed to use the T5+ ULPTX MEMWRITE DSGL
+	 * capability.  Earlier versions of the firmware didn't have the
+	 * ULPTX_MEMWRITE_DSGL so we'll interpret a query failure as no
+	 * permission to use ULPTX MEMWRITE DSGL.
+	 */
+	if (is_t4(adap->params.chip)) {
+		adap->params.ulptx_memwrite_dsgl = false;
+	} else {
+		params[0] = FW_PARAM_DEV(ULPTX_MEMWRITE_DSGL);
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0,
+				      1, params, val);
+		adap->params.ulptx_memwrite_dsgl = (ret == 0 && val[0] != 0);
+	}
 
 	/*
 	 * Get device capabilities so we can determine what resources we need
