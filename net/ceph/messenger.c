@@ -840,9 +840,13 @@ static bool ceph_msg_data_bio_advance(struct ceph_msg_data_cursor *cursor,
 
 	if (!cursor->bvec_iter.bi_size) {
 		bio = bio->bi_next;
-		cursor->bvec_iter = bio->bi_iter;
+		cursor->bio = bio;
+		if (bio)
+			cursor->bvec_iter = bio->bi_iter;
+		else
+			memset(&cursor->bvec_iter, 0,
+			       sizeof(cursor->bvec_iter));
 	}
-	cursor->bio = bio;
 
 	if (!cursor->last_piece) {
 		BUG_ON(!cursor->resid);

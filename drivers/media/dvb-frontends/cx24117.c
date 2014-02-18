@@ -1176,7 +1176,7 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 
 	switch (demod) {
 	case 0:
-		dev_err(&state->priv->i2c->dev,
+		dev_err(&i2c->dev,
 			"%s: Error attaching frontend %d\n",
 			KBUILD_MODNAME, demod);
 		goto error1;
@@ -1200,12 +1200,6 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 	state->demod = demod - 1;
 	state->priv = priv;
 
-	/* test i2c bus for ack */
-	if (demod == 0) {
-		if (cx24117_readreg(state, 0x00) < 0)
-			goto error3;
-	}
-
 	dev_info(&state->priv->i2c->dev,
 		"%s: Attaching frontend %d\n",
 		KBUILD_MODNAME, state->demod);
@@ -1216,8 +1210,6 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
-error3:
-	kfree(state);
 error2:
 	cx24117_release_priv(priv);
 error1:

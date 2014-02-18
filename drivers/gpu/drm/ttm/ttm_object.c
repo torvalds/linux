@@ -292,7 +292,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 
 		if (ret == 0) {
 			ref = drm_hash_entry(hash, struct ttm_ref_object, hash);
-			if (!kref_get_unless_zero(&ref->kref)) {
+			if (kref_get_unless_zero(&ref->kref)) {
 				rcu_read_unlock();
 				break;
 			}

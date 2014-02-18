@@ -184,7 +184,7 @@ void blk_mq_free_tags(struct blk_mq_tags *tags)
 ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page)
 {
 	char *orig_page = page;
-	int cpu;
+	unsigned int cpu;
 
 	if (!tags)
 		return 0;

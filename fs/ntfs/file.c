@@ -2134,7 +2134,7 @@ static ssize_t ntfs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	ret = ntfs_file_aio_write_nolock(iocb, iov, nr_segs, &iocb->ki_pos);
 	mutex_unlock(&inode->i_mutex);
 	if (ret > 0) {
-		int err = generic_write_sync(file, pos, ret);
+		int err = generic_write_sync(file, iocb->ki_pos - ret, ret);
 		if (err < 0)
 			ret = err;
 	}

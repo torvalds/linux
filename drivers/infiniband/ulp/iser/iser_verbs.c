@@ -652,9 +652,13 @@ static int iser_disconnected_handler(struct rdma_cm_id *cma_id)
 	/* getting here when the state is UP means that the conn is being *
 	 * terminated asynchronously from the iSCSI layer's perspective.  */
 	if (iser_conn_state_comp_exch(ib_conn, ISER_CONN_UP,
-				      ISER_CONN_TERMINATING))
-		iscsi_conn_failure(ib_conn->iser_conn->iscsi_conn,
-				   ISCSI_ERR_CONN_FAILED);
+					ISER_CONN_TERMINATING)){
+		if (ib_conn->iser_conn)
+			iscsi_conn_failure(ib_conn->iser_conn->iscsi_conn,
+					   ISCSI_ERR_CONN_FAILED);
+		else
+			iser_err("iscsi_iser connection isn't bound\n");
+	}
 
 	/* Complete the termination process if no posts are pending */
 	if (ib_conn->post_recv_buf_count == 0 &&

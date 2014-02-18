@@ -7,7 +7,7 @@ help.  Contact the Chinese maintainer if this translation is outdated
 or if there is a problem with the translation.
 
 Maintainer: Catalin Marinas <catalin.marinas@arm.com>
-Chinese maintainer: Fu Wei <tekkamanninja@gmail.com>
+Chinese maintainer: Fu Wei <wefu@redhat.com>
 ---------------------------------------------------------------------
 Documentation/arm64/memory.txt 的中文翻译
 
@@ -16,9 +16,9 @@ Documentation/arm64/memory.txt 的中文翻译
 译存在问题，请联系中文版维护者。
 
 英文版维护者： Catalin Marinas <catalin.marinas@arm.com>
-中文版维护者： 傅炜  Fu Wei <tekkamanninja@gmail.com>
-中文版翻译者： 傅炜  Fu Wei <tekkamanninja@gmail.com>
-中文版校译者： 傅炜  Fu Wei <tekkamanninja@gmail.com>
+中文版维护者： 傅炜  Fu Wei <wefu@redhat.com>
+中文版翻译者： 傅炜  Fu Wei <wefu@redhat.com>
+中文版校译者： 傅炜  Fu Wei <wefu@redhat.com>
 
 以下为正文
 ---------------------------------------------------------------------
@@ -41,7 +41,7 @@ AArch64 Linux 使用页大小为 4KB 的 3 级转换表配置，对于用户和�
 TTBR1 中，且从不写入 TTBR0。
 
 
-AArch64 Linux 内存布局：
+AArch64 Linux 在页大小为 4KB 时的内存布局：
 
 起始地址			结束地址			大小		用途
 -----------------------------------------------------------------------
@@ -55,13 +55,40 @@ ffffffbc00000000	ffffffbdffffffff	   8GB		vmemmap
 
 ffffffbe00000000	ffffffbffbbfffff	  ~8GB		[防护页，未来用于 vmmemap]
 
+ffffffbffbc00000	ffffffbffbdfffff	   2MB		earlyprintk 设备
+
 ffffffbffbe00000	ffffffbffbe0ffff	  64KB		PCI I/O 空间
 
-ffffffbbffff0000	ffffffbcffffffff	  ~2MB		[防护页]
+ffffffbffbe10000	ffffffbcffffffff	  ~2MB		[防护页]
 
 ffffffbffc000000	ffffffbfffffffff	  64MB		模块
 
 ffffffc000000000	ffffffffffffffff	 256GB		内核逻辑内存映射
+
+
+AArch64 Linux 在页大小为 64KB 时的内存布局：
+
+起始地址			结束地址			大小		用途
+-----------------------------------------------------------------------
+0000000000000000	000003ffffffffff	   4TB		用户空间
+
+fffffc0000000000	fffffdfbfffeffff	  ~2TB		vmalloc
+
+fffffdfbffff0000	fffffdfbffffffff	  64KB		[防护页]
+
+fffffdfc00000000	fffffdfdffffffff	   8GB		vmemmap
+
+fffffdfe00000000	fffffdfffbbfffff	  ~8GB		[防护页，未来用于 vmmemap]
+
+fffffdfffbc00000	fffffdfffbdfffff	   2MB		earlyprintk 设备
+
+fffffdfffbe00000	fffffdfffbe0ffff	  64KB		PCI I/O 空间
+
+fffffdfffbe10000	fffffdfffbffffff	  ~2MB		[防护页]
+
+fffffdfffc000000	fffffdffffffffff	  64MB		模块
+
+fffffe0000000000	ffffffffffffffff	   2TB		内核逻辑内存映射
 
 
 4KB 页大小的转换表查找：
@@ -91,3 +118,10 @@ ffffffc000000000	ffffffffffffffff	 256GB		内核逻辑内存映射
  |                 |    +--------------------------> [41:29] L2 索引 (仅使用 38:29 )
  |                 +-------------------------------> [47:42] L1 索引 (未使用)
  +-------------------------------------------------> [63] TTBR0/1
+
+当使用 KVM 时, 管理程序（hypervisor）在 EL2 中通过相对内核虚拟地址的
+一个固定偏移来映射内核页（内核虚拟地址的高 24 位设为零）:
+
+起始地址			结束地址			大小		用途
+-----------------------------------------------------------------------
+0000004000000000	0000007fffffffff	 256GB		在 HYP 中映射的内核对象
