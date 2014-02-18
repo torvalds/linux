@@ -278,13 +278,13 @@ static const DECLARE_TLV_DB_SCALE(attn_tlv, -6300, 100, 1);
 static const char * const cs42l73_pgaa_text[] = { "Line A", "Mic 1" };
 static const char * const cs42l73_pgab_text[] = { "Line B", "Mic 2" };
 
-static const struct soc_enum pgaa_enum =
-	SOC_ENUM_SINGLE(CS42L73_ADCIPC, 3,
-		ARRAY_SIZE(cs42l73_pgaa_text), cs42l73_pgaa_text);
+static SOC_ENUM_SINGLE_DECL(pgaa_enum,
+			    CS42L73_ADCIPC, 3,
+			    cs42l73_pgaa_text);
 
-static const struct soc_enum pgab_enum =
-	SOC_ENUM_SINGLE(CS42L73_ADCIPC, 7,
-		ARRAY_SIZE(cs42l73_pgab_text), cs42l73_pgab_text);
+static SOC_ENUM_SINGLE_DECL(pgab_enum,
+			    CS42L73_ADCIPC, 7,
+			    cs42l73_pgab_text);
 
 static const struct snd_kcontrol_new pgaa_mux =
 	SOC_DAPM_ENUM("Left Analog Input Capture Mux", pgaa_enum);
@@ -309,9 +309,9 @@ static const struct snd_kcontrol_new input_right_mixer[] = {
 static const char * const cs42l73_ng_delay_text[] = {
 	"50ms", "100ms", "150ms", "200ms" };
 
-static const struct soc_enum ng_delay_enum =
-	SOC_ENUM_SINGLE(CS42L73_NGCAB, 0,
-		ARRAY_SIZE(cs42l73_ng_delay_text), cs42l73_ng_delay_text);
+static SOC_ENUM_SINGLE_DECL(ng_delay_enum,
+			    CS42L73_NGCAB, 0,
+			    cs42l73_ng_delay_text);
 
 static const char * const cs42l73_mono_mix_texts[] = {
 	"Left", "Right", "Mono Mix"};
@@ -357,19 +357,19 @@ static const struct snd_kcontrol_new esl_xsp_mixer =
 static const char * const cs42l73_ip_swap_text[] = {
 	"Stereo", "Mono A", "Mono B", "Swap A-B"};
 
-static const struct soc_enum ip_swap_enum =
-	SOC_ENUM_SINGLE(CS42L73_MIOPC, 6,
-		ARRAY_SIZE(cs42l73_ip_swap_text), cs42l73_ip_swap_text);
+static SOC_ENUM_SINGLE_DECL(ip_swap_enum,
+			    CS42L73_MIOPC, 6,
+			    cs42l73_ip_swap_text);
 
 static const char * const cs42l73_spo_mixer_text[] = {"Mono", "Stereo"};
 
-static const struct soc_enum vsp_output_mux_enum =
-	SOC_ENUM_SINGLE(CS42L73_MIXERCTL, 5,
-		ARRAY_SIZE(cs42l73_spo_mixer_text), cs42l73_spo_mixer_text);
+static SOC_ENUM_SINGLE_DECL(vsp_output_mux_enum,
+			    CS42L73_MIXERCTL, 5,
+			    cs42l73_spo_mixer_text);
 
-static const struct soc_enum xsp_output_mux_enum =
-	SOC_ENUM_SINGLE(CS42L73_MIXERCTL, 4,
-		ARRAY_SIZE(cs42l73_spo_mixer_text), cs42l73_spo_mixer_text);
+static SOC_ENUM_SINGLE_DECL(xsp_output_mux_enum,
+			    CS42L73_MIXERCTL, 4,
+			    cs42l73_spo_mixer_text);
 
 static const struct snd_kcontrol_new vsp_output_mux =
 	SOC_DAPM_ENUM("Route", vsp_output_mux_enum);
