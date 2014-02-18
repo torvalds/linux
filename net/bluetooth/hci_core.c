@@ -2807,6 +2807,7 @@ int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 bdaddr_type)
 {
 	struct smp_ltk *k, *tmp;
+	int removed = 0;
 
 	list_for_each_entry_safe(k, tmp, &hdev->long_term_keys, list) {
 		if (bacmp(bdaddr, &k->bdaddr) || k->bdaddr_type != bdaddr_type)
@@ -2816,9 +2817,10 @@ int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 bdaddr_type)
 
 		list_del(&k->list);
 		kfree(k);
+		removed++;
 	}
 
-	return 0;
+	return removed ? 0 : -ENOENT;
 }
 
 /* HCI command timer function */
