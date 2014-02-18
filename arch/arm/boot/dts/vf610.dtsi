@@ -88,6 +88,21 @@
 				arm,tag-latency = <2 2 2>;
 			};
 
+			edma0: dma-controller@40018000 {
+				#dma-cells = <2>;
+				compatible = "fsl,vf610-edma";
+				reg = <0x40018000 0x2000>,
+					<0x40024000 0x1000>,
+					<0x40025000 0x1000>;
+				interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>,
+						<0 9 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma-tx", "edma-err";
+				dma-channels = <32>;
+				clock-names = "dmamux0", "dmamux1";
+				clocks = <&clks VF610_CLK_DMAMUX0>,
+					<&clks VF610_CLK_DMAMUX1>;
+			};
+
 			uart0: serial@40027000 {
 				compatible = "fsl,vf610-lpuart";
 				reg = <0x40027000 0x1000>;
@@ -262,6 +277,21 @@
 			#size-cells = <1>;
 			reg = <0x40080000 0x80000>;
 			ranges;
+
+			edma1: dma-controller@40098000 {
+				#dma-cells = <2>;
+				compatible = "fsl,vf610-edma";
+				reg = <0x40098000 0x2000>,
+					<0x400a1000 0x1000>,
+					<0x400a2000 0x1000>;
+				interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>,
+						<0 11 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma-tx", "edma-err";
+				dma-channels = <32>;
+				clock-names = "dmamux0", "dmamux1";
+				clocks = <&clks VF610_CLK_DMAMUX2>,
+					<&clks VF610_CLK_DMAMUX3>;
+			};
 
 			uart4: serial@400a9000 {
 				compatible = "fsl,vf610-lpuart";
