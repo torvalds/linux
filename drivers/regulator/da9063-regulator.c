@@ -363,7 +363,7 @@ static int da9063_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 
 	sel = regulator_map_voltage_linear(rdev, uV, uV);
 	if (sel < 0)
-		return -EINVAL;
+		return sel;
 
 	sel <<= ffs(rdev->desc->vsel_mask) - 1;
 
@@ -755,7 +755,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Error while reading BUCKs configuration\n");
-		return -EIO;
+		return ret;
 	}
 	bcores_merged = val & DA9063_BCORE_MERGE;
 	bmem_bio_merged = val & DA9063_BUCK_MERGE;
