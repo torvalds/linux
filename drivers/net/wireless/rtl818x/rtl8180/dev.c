@@ -627,11 +627,23 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 
 	if (priv->r8185) {
 		reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
+
+		/* CW is not on per-packet basis.
+		 * in rtl8185 the CW_VALUE reg is used.
+		 */
 		reg &= ~RTL818X_CW_CONF_PERPACKET_CW;
+		/* retry limit IS on per-packet basis.
+		 * the short and long retry limit in TX_CONF
+		 * reg are ignored
+		 */
 		reg |= RTL818X_CW_CONF_PERPACKET_RETRY;
 		rtl818x_iowrite8(priv, &priv->map->CW_CONF, reg);
 
 		reg = rtl818x_ioread8(priv, &priv->map->TX_AGC_CTL);
+		/* TX antenna and TX gain are not on per-packet basis.
+		 * TX Antenna is selected by ANTSEL reg (RX in BB regs).
+		 * TX gain is selected with CCK_TX_AGC and OFDM_TX_AGC regs
+		 */
 		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN;
 		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL;
 		reg |=  RTL818X_TX_AGC_CTL_FEEDBACK_ANT;
