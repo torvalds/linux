@@ -428,7 +428,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	struct hid_device *hdev = dev->hdev;
 	u8 buf[64];
 	__be16 word;
-	size_t count;
+	ssize_t count;
 	size_t read_length = 0;
 	unsigned int retries;
 	int ret;
