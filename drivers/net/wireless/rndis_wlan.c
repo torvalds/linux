@@ -1290,7 +1290,8 @@ static int set_channel(struct usbnet *usbdev, int channel)
 	if (is_associated(usbdev))
 		return 0;
 
-	dsconfig = ieee80211_dsss_chan_to_freq(channel) * 1000;
+	dsconfig = 1000 *
+		ieee80211_channel_to_frequency(channel, IEEE80211_BAND_2GHZ);
 
 	len = sizeof(config);
 	ret = rndis_query_oid(usbdev,
