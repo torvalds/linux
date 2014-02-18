@@ -6419,7 +6419,7 @@ static void hpsa_ctlr_needs_rescan(struct ctlr_info *h)
 		return;
 
 	h->events = readl(&(h->cfgtable->event_notify));
-	if (!h->events && !h->drv_req_rescan)
+	if (!(h->events & RESCAN_REQUIRED_EVENT_BITS) && !h->drv_req_rescan)
 		return;
 
 	/*
