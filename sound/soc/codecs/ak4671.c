@@ -237,19 +237,17 @@ static const struct snd_kcontrol_new ak4671_rout3_mixer_controls[] = {
 /* Input MUXs */
 static const char *ak4671_lin_mux_texts[] =
 		{"LIN1", "LIN2", "LIN3", "LIN4"};
-static const struct soc_enum ak4671_lin_mux_enum =
-	SOC_ENUM_SINGLE(AK4671_MIC_SIGNAL_SELECT, 0,
-			ARRAY_SIZE(ak4671_lin_mux_texts),
-			ak4671_lin_mux_texts);
+static SOC_ENUM_SINGLE_DECL(ak4671_lin_mux_enum,
+			    AK4671_MIC_SIGNAL_SELECT, 0,
+			    ak4671_lin_mux_texts);
 static const struct snd_kcontrol_new ak4671_lin_mux_control =
 	SOC_DAPM_ENUM("Route", ak4671_lin_mux_enum);
 
 static const char *ak4671_rin_mux_texts[] =
 		{"RIN1", "RIN2", "RIN3", "RIN4"};
-static const struct soc_enum ak4671_rin_mux_enum =
-	SOC_ENUM_SINGLE(AK4671_MIC_SIGNAL_SELECT, 2,
-			ARRAY_SIZE(ak4671_rin_mux_texts),
-			ak4671_rin_mux_texts);
+static SOC_ENUM_SINGLE_DECL(ak4671_rin_mux_enum,
+			    AK4671_MIC_SIGNAL_SELECT, 2,
+			    ak4671_rin_mux_texts);
 static const struct snd_kcontrol_new ak4671_rin_mux_control =
 	SOC_DAPM_ENUM("Route", ak4671_rin_mux_enum);
 
