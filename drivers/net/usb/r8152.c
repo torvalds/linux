@@ -2021,6 +2021,7 @@ static void r8152b_exit_oob(struct r8152 *tp)
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, ocp_data);
 
 	rxdy_gated_en(tp, true);
+	r8153_teredo_off(tp);
 	r8152b_hw_phy_cfg(tp);
 
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_NORAML);
