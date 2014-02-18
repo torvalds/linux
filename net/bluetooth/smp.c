@@ -991,6 +991,8 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	bacpy(&hcon->dst, &smp->id_addr);
 	hcon->dst_type = smp->id_addr_type;
 
+	l2cap_conn_update_id_addr(hcon);
+
 	smp_distribute_keys(conn, 1);
 
 	return 0;

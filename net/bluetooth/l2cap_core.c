@@ -609,6 +609,23 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	return;
 }
 
+void l2cap_conn_update_id_addr(struct hci_conn *hcon)
+{
+	struct l2cap_conn *conn = hcon->l2cap_data;
+	struct l2cap_chan *chan;
+
+	mutex_lock(&conn->chan_lock);
+
+	list_for_each_entry(chan, &conn->chan_l, list) {
+		l2cap_chan_lock(chan);
+		bacpy(&chan->dst, &hcon->dst);
+		chan->dst_type = bdaddr_type(hcon, hcon->dst_type);
+		l2cap_chan_unlock(chan);
+	}
+
+	mutex_unlock(&conn->chan_lock);
+}
+
 static void l2cap_chan_le_connect_reject(struct l2cap_chan *chan)
 {
 	struct l2cap_conn *conn = chan->conn;
