@@ -182,6 +182,7 @@ struct ctlr_info {
 #define HPSATMF_LOG_QRY_ASYNC   (1 << 25)
 	u32 events;
 	int	acciopath_status;
+	int	drv_req_rescan;	/* flag for driver to request rescan event */
 };
 #define HPSA_ABORT_MSG 0
 #define HPSA_DEVICE_RESET_MSG 1

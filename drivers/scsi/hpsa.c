@@ -1457,6 +1457,7 @@ static void process_ioaccel2_completion(struct ctlr_info *h,
 				"%s: Error 0x%02x, Retrying on standard path.\n",
 				"HP SSD Smart Path", c2->error_data.status);
 		dev->offload_enabled = 0;
+		h->drv_req_rescan = 1;	/* schedule controller for a rescan */
 		cmd->result = DID_SOFT_ERROR << 16;
 		cmd_free(h, c);
 		cmd->scsi_done(cmd);
@@ -6138,6 +6139,9 @@ static int hpsa_kickoff_rescan(struct ctlr_info *h)
 	int i;
 	char *event_type;
 
+	/* Clear the driver-requested rescan flag */
+	h->drv_req_rescan = 0;
+
 	/* Ask the controller to clear the events we're handling. */
 	if ((h->transMethod & (CFGTBL_Trans_io_accel1
 			| CFGTBL_Trans_io_accel2)) &&
@@ -6185,7 +6189,9 @@ static int hpsa_kickoff_rescan(struct ctlr_info *h)
 
 /* Check a register on the controller to see if there are configuration
  * changes (added/changed/removed logical drives, etc.) which mean that
- * we should rescan the controller for devices.  If so, add the controller
+ * we should rescan the controller for devices.
+ * Also check flag for driver-initiated rescan.
+ * If either flag or controller event indicate rescan, add the controller
  * to the list of controllers needing to be rescanned, and gets a
  * reference to the associated scsi_host.
  */
@@ -6195,7 +6201,7 @@ static void hpsa_ctlr_needs_rescan(struct ctlr_info *h)
 		return;
 
 	h->events = readl(&(h->cfgtable->event_notify));
-	if (!h->events)
+	if (!h->events && !h->drv_req_rescan)
 		return;
 
 	/*
@@ -6368,6 +6374,8 @@ reinit_after_soft_reset:
 
 	/* Enable Accelerated IO path at driver layer */
 	h->acciopath_status = 1;
+
+	h->drv_req_rescan = 0;
 
 	/* Turn the interrupts on so we can service requests */
 	h->access.set_intr_mask(h, HPSA_INTR_ON);
