@@ -349,6 +349,16 @@ config MOXART_DMA
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the MOXA ART SoC DMA controller.
+ 
+config FSL_EDMA
+	tristate "Freescale eDMA engine support"
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Freescale eDMA engine with programmable channel
+	  multiplexing capability for DMA request sources(slot).
+	  This module can be found on Freescale Vybrid and LS-1 SoCs.
 
 config DMA_ENGINE
 	bool
