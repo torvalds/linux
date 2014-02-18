@@ -128,6 +128,7 @@
 #define CFGTBL_AccCmds          0x00000001l
 #define DOORBELL_CTLR_RESET	0x00000004l
 #define DOORBELL_CTLR_RESET2	0x00000020l
+#define DOORBELL_CLEAR_EVENTS	0x00000040l
 
 #define CFGTBL_Trans_Simple     0x00000002l
 #define CFGTBL_Trans_Performant 0x00000004l
@@ -495,6 +496,8 @@ struct CfgTable {
 	u32		io_accel_max_embedded_sg_count;
 	u32		io_accel_request_size_offset;
 	u32		event_notify;
+#define HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_STATE_CHANGE (1 << 30)
+#define HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_CONFIG_CHANGE (1 << 31)
 	u32		clear_event_notify;
 };
 

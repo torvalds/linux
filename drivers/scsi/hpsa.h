@@ -176,6 +176,7 @@ struct ctlr_info {
 #define HPSATMF_LOG_QRY_TASK    (1 << 23)
 #define HPSATMF_LOG_QRY_TSET    (1 << 24)
 #define HPSATMF_LOG_QRY_ASYNC   (1 << 25)
+	u32 events;
 };
 #define HPSA_ABORT_MSG 0
 #define HPSA_DEVICE_RESET_MSG 1
