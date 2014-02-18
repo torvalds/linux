@@ -14,7 +14,9 @@ nouveau_vga_set_decode(void *priv, bool state)
 {
 	struct nouveau_device *device = nouveau_dev(priv);
 
-	if (device->chipset >= 0x40)
+	if (device->card_type == NV_40 && device->chipset >= 0x4c)
+		nv_wr32(device, 0x088060, state);
+	else if (device->chipset >= 0x40)
 		nv_wr32(device, 0x088054, state);
 	else
 		nv_wr32(device, 0x001854, state);
