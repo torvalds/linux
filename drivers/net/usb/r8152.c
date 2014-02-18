@@ -2273,15 +2273,6 @@ static int rtl8152_open(struct net_device *netdev)
 	struct r8152 *tp = netdev_priv(netdev);
 	int res = 0;
 
-	res = usb_submit_urb(tp->intr_urb, GFP_KERNEL);
-	if (res) {
-		if (res == -ENODEV)
-			netif_device_detach(tp->netdev);
-		netif_warn(tp, ifup, netdev, "intr_urb submit failed: %d\n",
-			   res);
-		return res;
-	}
-
 	rtl8152_set_speed(tp, AUTONEG_ENABLE,
 			  tp->mii.supports_gmii ? SPEED_1000 : SPEED_100,
 			  DUPLEX_FULL);
@@ -2289,6 +2280,14 @@ static int rtl8152_open(struct net_device *netdev)
 	netif_carrier_off(netdev);
 	netif_start_queue(netdev);
 	set_bit(WORK_ENABLE, &tp->flags);
+	res = usb_submit_urb(tp->intr_urb, GFP_KERNEL);
+	if (res) {
+		if (res == -ENODEV)
+			netif_device_detach(tp->netdev);
+		netif_warn(tp, ifup, netdev, "intr_urb submit failed: %d\n",
+			   res);
+	}
+
 
 	return res;
 }
@@ -2298,8 +2297,8 @@ static int rtl8152_close(struct net_device *netdev)
 	struct r8152 *tp = netdev_priv(netdev);
 	int res = 0;
 
-	usb_kill_urb(tp->intr_urb);
 	clear_bit(WORK_ENABLE, &tp->flags);
+	usb_kill_urb(tp->intr_urb);
 	cancel_delayed_work_sync(&tp->schedule);
 	netif_stop_queue(netdev);
 	tasklet_disable(&tp->tl);

@@ -101,28 +101,22 @@ static void tunnel_dst_reset_all(struct ip_tunnel *t)
 		__tunnel_dst_set(per_cpu_ptr(t->dst_cache, i), NULL);
 }
 
-static struct dst_entry *tunnel_dst_get(struct ip_tunnel *t)
+static struct rtable *tunnel_rtable_get(struct ip_tunnel *t, u32 cookie)
 {
 	struct dst_entry *dst;
 
 	rcu_read_lock();
 	dst = rcu_dereference(this_cpu_ptr(t->dst_cache)->dst);
-	if (dst)
+	if (dst) {
+		if (dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+			rcu_read_unlock();
+			tunnel_dst_reset(t);
+			return NULL;
+		}
 		dst_hold(dst);
-	rcu_read_unlock();
-	return dst;
-}
-
-static struct dst_entry *tunnel_dst_check(struct ip_tunnel *t, u32 cookie)
-{
-	struct dst_entry *dst = tunnel_dst_get(t);
-
-	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
-		tunnel_dst_reset(t);
-		return NULL;
 	}
-
-	return dst;
+	rcu_read_unlock();
+	return (struct rtable *)dst;
 }
 
 /* Often modified stats are per cpu, other are shared (netdev->stats) */
@@ -584,7 +578,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	struct flowi4 fl4;
 	u8     tos, ttl;
 	__be16 df;
-	struct rtable *rt = NULL;	/* Route to the other host */
+	struct rtable *rt;		/* Route to the other host */
 	unsigned int max_headroom;	/* The extra header space needed */
 	__be32 dst;
 	int err;
@@ -657,8 +651,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
 			 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link);
 
-	if (connected)
-		rt = (struct rtable *)tunnel_dst_check(tunnel, 0);
+	rt = connected ? tunnel_rtable_get(tunnel, 0) : NULL;
 
 	if (!rt) {
 		rt = ip_route_output_key(tunnel->net, &fl4);

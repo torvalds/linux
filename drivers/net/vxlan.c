@@ -469,7 +469,6 @@ static inline struct hlist_head *vxlan_fdb_head(struct vxlan_dev *vxlan,
 /* Look up Ethernet address in forwarding table */
 static struct vxlan_fdb *__vxlan_find_mac(struct vxlan_dev *vxlan,
 					const u8 *mac)
-
 {
 	struct hlist_head *head = vxlan_fdb_head(vxlan, mac);
 	struct vxlan_fdb *f;
@@ -596,10 +595,8 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head, struct sk_buff 
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
-		goto found;
 	}
 
-found:
 	type = eh->h_proto;
 
 	rcu_read_lock();
