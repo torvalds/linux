@@ -466,7 +466,6 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	start_win = tbl->start_win;
 	win_size = tbl->win_size;
 	end_win = ((start_win + win_size) - 1) & (MAX_TID_VALUE - 1);
-	del_timer(&tbl->timer_context.timer);
 	mod_timer(&tbl->timer_context.timer,
 		  jiffies + msecs_to_jiffies(MIN_FLUSH_TIMER_MS * win_size));
 
