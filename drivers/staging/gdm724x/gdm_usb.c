@@ -119,28 +119,15 @@ out:
 
 static struct usb_tx_sdu *alloc_tx_sdu_struct(void)
 {
-	struct usb_tx_sdu *t_sdu = NULL;
-	int ret = 0;
-
+	struct usb_tx_sdu *t_sdu;
 
 	t_sdu = kzalloc(sizeof(struct usb_tx_sdu), GFP_ATOMIC);
-	if (!t_sdu) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!t_sdu)
+		return NULL;
 
 	t_sdu->buf = kmalloc(SDU_BUF_SIZE, GFP_ATOMIC);
 	if (!t_sdu->buf) {
-		ret = -ENOMEM;
-		goto out;
-	}
-out:
-
-	if (ret < 0) {
-		if (t_sdu) {
-			kfree(t_sdu->buf);
-			kfree(t_sdu);
-		}
+		kfree(t_sdu);
 		return NULL;
 	}
 
