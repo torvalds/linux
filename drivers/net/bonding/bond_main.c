@@ -2257,6 +2257,8 @@ int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 	__be32 sip, tip;
 	int alen;
 
+	slave->last_arp_rx = jiffies;
+
 	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
 		return RX_HANDLER_ANOTHER;
 
