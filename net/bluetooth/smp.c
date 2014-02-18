@@ -565,8 +565,12 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 void smp_chan_destroy(struct l2cap_conn *conn)
 {
 	struct smp_chan *smp = conn->smp_chan;
+	bool complete;
 
 	BUG_ON(!smp);
+
+	complete = test_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
+	mgmt_smp_complete(conn->hcon, complete);
 
 	kfree(smp);
 	conn->smp_chan = NULL;
@@ -1187,6 +1191,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 	if (conn->hcon->out || force || !(rsp->init_key_dist & 0x07)) {
 		clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags);
 		cancel_delayed_work_sync(&conn->security_timer);
+		set_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
 		smp_chan_destroy(conn);
 	}
 

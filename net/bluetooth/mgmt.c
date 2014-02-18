@@ -2655,6 +2655,16 @@ static void pairing_complete(struct pending_cmd *cmd, u8 status)
 	mgmt_pending_remove(cmd);
 }
 
+void mgmt_smp_complete(struct hci_conn *conn, bool complete)
+{
+	u8 status = complete ? MGMT_STATUS_SUCCESS : MGMT_STATUS_FAILED;
+	struct pending_cmd *cmd;
+
+	cmd = find_pairing(conn);
+	if (cmd)
+		pairing_complete(cmd, status);
+}
+
 static void pairing_complete_cb(struct hci_conn *conn, u8 status)
 {
 	struct pending_cmd *cmd;
@@ -2668,7 +2678,7 @@ static void pairing_complete_cb(struct hci_conn *conn, u8 status)
 		pairing_complete(cmd, mgmt_status(status));
 }
 
-static void le_connect_complete_cb(struct hci_conn *conn, u8 status)
+static void le_pairing_complete_cb(struct hci_conn *conn, u8 status)
 {
 	struct pending_cmd *cmd;
 
@@ -2755,13 +2765,16 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	/* For LE, just connecting isn't a proof that the pairing finished */
-	if (cp->addr.type == BDADDR_BREDR)
+	if (cp->addr.type == BDADDR_BREDR) {
 		conn->connect_cfm_cb = pairing_complete_cb;
-	else
-		conn->connect_cfm_cb = le_connect_complete_cb;
+		conn->security_cfm_cb = pairing_complete_cb;
+		conn->disconn_cfm_cb = pairing_complete_cb;
+	} else {
+		conn->connect_cfm_cb = le_pairing_complete_cb;
+		conn->security_cfm_cb = le_pairing_complete_cb;
+		conn->disconn_cfm_cb = le_pairing_complete_cb;
+	}
 
-	conn->security_cfm_cb = pairing_complete_cb;
-	conn->disconn_cfm_cb = pairing_complete_cb;
 	conn->io_capability = cp->io_cap;
 	cmd->user_data = conn;
 
