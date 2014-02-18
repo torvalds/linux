@@ -565,6 +565,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	BT_DBG("conn %p", conn);
 
+	if (skb->len < sizeof(*req))
+		return SMP_UNSPECIFIED;
+
 	if (conn->hcon->link_mode & HCI_LM_MASTER)
 		return SMP_CMD_NOTSUPP;
 
@@ -617,6 +620,9 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	BT_DBG("conn %p", conn);
 
+	if (skb->len < sizeof(*rsp))
+		return SMP_UNSPECIFIED;
+
 	if (!(conn->hcon->link_mode & HCI_LM_MASTER))
 		return SMP_CMD_NOTSUPP;
 
@@ -661,6 +667,9 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
 
+	if (skb->len < sizeof(smp->pcnf))
+		return SMP_UNSPECIFIED;
+
 	memcpy(smp->pcnf, skb->data, sizeof(smp->pcnf));
 	skb_pull(skb, sizeof(smp->pcnf));
 
@@ -685,6 +694,9 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct hci_dev *hdev = conn->hcon->hdev;
 
 	BT_DBG("conn %p", conn);
+
+	if (skb->len < sizeof(smp->rrnd))
+		return SMP_UNSPECIFIED;
 
 	swap128(skb->data, smp->rrnd);
 	skb_pull(skb, sizeof(smp->rrnd));
@@ -724,6 +736,9 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_chan *smp;
 
 	BT_DBG("conn %p", conn);
+
+	if (skb->len < sizeof(*rp))
+		return SMP_UNSPECIFIED;
 
 	if (!(conn->hcon->link_mode & HCI_LM_MASTER))
 		return SMP_CMD_NOTSUPP;
@@ -814,6 +829,11 @@ static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_cmd_encrypt_info *rp = (void *) skb->data;
 	struct smp_chan *smp = conn->smp_chan;
 
+	BT_DBG("conn %p", conn);
+
+	if (skb->len < sizeof(*rp))
+		return SMP_UNSPECIFIED;
+
 	skb_pull(skb, sizeof(*rp));
 
 	memcpy(smp->tk, rp->ltk, sizeof(smp->tk));
@@ -828,6 +848,11 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct hci_dev *hdev = conn->hcon->hdev;
 	struct hci_conn *hcon = conn->hcon;
 	u8 authenticated;
+
+	BT_DBG("conn %p", conn);
+
+	if (skb->len < sizeof(*rp))
+		return SMP_UNSPECIFIED;
 
 	skb_pull(skb, sizeof(*rp));
 
