@@ -6134,6 +6134,28 @@ static void __exit hpsa_cleanup(void)
 static void __attribute__((unused)) verify_offsets(void)
 {
 #define VERIFY_OFFSET(member, offset) \
+	BUILD_BUG_ON(offsetof(struct io_accel2_cmd, member) != offset)
+
+	VERIFY_OFFSET(IU_type, 0);
+	VERIFY_OFFSET(direction, 1);
+	VERIFY_OFFSET(reply_queue, 2);
+	/* VERIFY_OFFSET(reserved1, 3);  */
+	VERIFY_OFFSET(scsi_nexus, 4);
+	VERIFY_OFFSET(Tag, 8);
+	VERIFY_OFFSET(cdb, 16);
+	VERIFY_OFFSET(cciss_lun, 32);
+	VERIFY_OFFSET(data_len, 40);
+	VERIFY_OFFSET(cmd_priority_task_attr, 44);
+	VERIFY_OFFSET(sg_count, 45);
+	/* VERIFY_OFFSET(reserved3 */
+	VERIFY_OFFSET(err_ptr, 48);
+	VERIFY_OFFSET(err_len, 56);
+	/* VERIFY_OFFSET(reserved4  */
+	VERIFY_OFFSET(sg, 64);
+
+#undef VERIFY_OFFSET
+
+#define VERIFY_OFFSET(member, offset) \
 	BUILD_BUG_ON(offsetof(struct io_accel1_cmd, member) != offset)
 
 	VERIFY_OFFSET(dev_handle, 0x00);

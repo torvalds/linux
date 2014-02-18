@@ -258,6 +258,14 @@ struct ctlr_info {
 
 #define HPSA_INTR_ON 	1
 #define HPSA_INTR_OFF	0
+
+/*
+ * Inbound Post Queue offsets for IO Accelerator Mode 2
+ */
+#define IOACCEL2_INBOUND_POSTQ_32	0x48
+#define IOACCEL2_INBOUND_POSTQ_64_LOW	0xd0
+#define IOACCEL2_INBOUND_POSTQ_64_HI	0xd4
+
 /*
 	Send the command to the hardware
 */

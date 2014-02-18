@@ -332,6 +332,7 @@ struct ErrorInfo {
 #define CMD_IOCTL_PEND  0x01
 #define CMD_SCSI	0x03
 #define CMD_IOACCEL1	0x04
+#define CMD_IOACCEL2	0x05
 
 #define DIRECT_LOOKUP_SHIFT 5
 #define DIRECT_LOOKUP_BIT 0x10
@@ -384,6 +385,7 @@ struct CommandList {
 
 /* Max S/G elements in I/O accelerator command */
 #define IOACCEL1_MAXSGENTRIES           24
+#define IOACCEL2_MAXSGENTRIES		28
 
 /*
  * Structure for I/O accelerator (mode 1) commands.
@@ -443,6 +445,103 @@ struct io_accel1_cmd {
 #define IOACCEL1_HCFLAGS_CISS_FORMAT    0x0013
 
 #define IOACCEL1_BUSADDR_CMDTYPE        0x00000060
+
+struct ioaccel2_sg_element {
+	u64 address;
+	u32 length;
+	u8 reserved[3];
+	u8 chain_indicator;
+#define IOACCEL2_CHAIN 0x80
+};
+
+/*
+ * SCSI Response Format structure for IO Accelerator Mode 2
+ */
+struct io_accel2_scsi_response {
+	u8 IU_type;
+#define IOACCEL2_IU_TYPE_SRF			0x60
+	u8 reserved1[3];
+	u8 req_id[4];		/* request identifier */
+	u8 reserved2[4];
+	u8 serv_response;		/* service response */
+#define IOACCEL2_SERV_RESPONSE_COMPLETE		0x000
+#define IOACCEL2_SERV_RESPONSE_FAILURE		0x001
+#define IOACCEL2_SERV_RESPONSE_TMF_COMPLETE	0x002
+#define IOACCEL2_SERV_RESPONSE_TMF_SUCCESS	0x003
+#define IOACCEL2_SERV_RESPONSE_TMF_REJECTED	0x004
+#define IOACCEL2_SERV_RESPONSE_TMF_WRONG_LUN	0x005
+	u8 status;			/* status */
+#define IOACCEL2_STATUS_SR_TASK_COMP_GOOD	0x00
+#define IOACCEL2_STATUS_SR_TASK_COMP_CHK_COND	0x02
+#define IOACCEL2_STATUS_SR_TASK_COMP_BUSY	0x08
+#define IOACCEL2_STATUS_SR_TASK_COMP_RES_CON	0x18
+#define IOACCEL2_STATUS_SR_TASK_COMP_SET_FULL	0x28
+#define IOACCEL2_STATUS_SR_TASK_COMP_ABORTED	0x40
+	u8 data_present;		/* low 2 bits */
+#define IOACCEL2_NO_DATAPRESENT		0x000
+#define IOACCEL2_RESPONSE_DATAPRESENT	0x001
+#define IOACCEL2_SENSE_DATA_PRESENT	0x002
+#define IOACCEL2_RESERVED		0x003
+	u8 sense_data_len;		/* sense/response data length */
+	u8 resid_cnt[4];		/* residual count */
+	u8 sense_data_buff[32];		/* sense/response data buffer */
+};
+
+#define IOACCEL2_64_PAD 76
+#define IOACCEL2_32_PAD 76
+#define IOACCEL2_PAD (IS_32_BIT * IOACCEL2_32_PAD + \
+			IS_64_BIT * IOACCEL2_64_PAD)
+/*
+ * Structure for I/O accelerator (mode 2 or m2) commands.
+ * Note that this structure must be 128-byte aligned in size.
+ */
+struct io_accel2_cmd {
+	u8  IU_type;			/* IU Type */
+	u8  direction;                  /* Transfer direction, 2 bits */
+	u8  reply_queue;		/* Reply Queue ID */
+	u8  reserved1;			/* Reserved */
+	u32 scsi_nexus;			/* Device Handle */
+	struct vals32 Tag;		/* cciss tag */
+	u8  cdb[16];			/* SCSI Command Descriptor Block */
+	u8  cciss_lun[8];		/* 8 byte SCSI address */
+	u32 data_len;			/* Total bytes to transfer */
+	u8  cmd_priority_task_attr;	/* priority and task attrs */
+#define IOACCEL2_PRIORITY_MASK 0x78
+#define IOACCEL2_ATTR_MASK 0x07
+	u8  sg_count;			/* Number of sg elements */
+	u8  reserved3[2];		/* Reserved */
+	u64 err_ptr;			/* Error Pointer */
+	u32 err_len;			/* Error Length*/
+	u8 reserved4[4];		/* Reserved */
+	struct ioaccel2_sg_element sg[IOACCEL2_MAXSGENTRIES];
+	struct io_accel2_scsi_response error_data;
+	u8 pad[IOACCEL2_PAD];
+};
+
+/*
+ * defines for Mode 2 command struct
+ * FIXME: this can't be all I need mfm
+ */
+#define IOACCEL2_IU_TYPE	0x40
+#define IU_TYPE_TMF		0x41
+#define IOACCEL2_DIR_NO_DATA	0x00
+#define IOACCEL2_DIR_DATA_IN	0x01
+#define IOACCEL2_DIR_DATA_OUT	0x02
+/*
+ * SCSI Task Management Request format for Accelerator Mode 2
+ */
+struct hpsa_tmf_struct {
+	u8 iu_type;		/* Information Unit Type */
+	u8 reply_queue;		/* Reply Queue ID */
+	u8 tmf;			/* Task Management Function */
+	u8 reserved1;		/* byte 3 Reserved */
+	u32 it_nexus;		/* SCSI I-T Nexus */
+	u8 lun_id[8];		/* LUN ID for TMF request */
+	struct vals32 Tag;	/* cciss tag associated w/ request */
+	struct vals32 abort_tag;/* cciss tag of SCSI cmd or task to abort */
+	u64 error_ptr;		/* Error Pointer */
+	u32 error_len;		/* Error Length */
+};
 
 /* Configuration Table Structure */
 struct HostWrite {
