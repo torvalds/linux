@@ -416,22 +416,21 @@ static const char *bass_mode_text[] = {
 	"Linear", "Adaptive",
 };
 
-static const struct soc_enum bass_mode =
-	SOC_ENUM_SINGLE(WM8955_BASS_CONTROL, 7, 2, bass_mode_text);
+static SOC_ENUM_SINGLE_DECL(bass_mode, WM8955_BASS_CONTROL, 7, bass_mode_text);
 
 static const char *bass_cutoff_text[] = {
 	"Low", "High"
 };
 
-static const struct soc_enum bass_cutoff =
-	SOC_ENUM_SINGLE(WM8955_BASS_CONTROL, 6, 2, bass_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(bass_cutoff, WM8955_BASS_CONTROL, 6,
+			    bass_cutoff_text);
 
 static const char *treble_cutoff_text[] = {
 	"High", "Low"
 };
 
-static const struct soc_enum treble_cutoff =
-	SOC_ENUM_SINGLE(WM8955_TREBLE_CONTROL, 6, 2, treble_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(treble_cutoff, WM8955_TREBLE_CONTROL, 2,
+			    treble_cutoff_text);
 
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(atten_tlv, -600, 600, 0);
