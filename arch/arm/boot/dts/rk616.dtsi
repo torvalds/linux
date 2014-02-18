@@ -10,8 +10,5 @@
 	rk616,lcd0_func = <INPUT>;
 	rk616,lcd1_func = <UNUSED>;
 	rk616,lvds_ch_nr = <1>;
-	pinctrl-names = "default", "gpio";
-	pinctrl-0 = <&lcdc1_lcdc>;
-	pinctrl-1 = <&lcdc1_gpio>;
 
 };

@@ -293,6 +293,8 @@ struct hdmi {
 	int xscale;					// x direction scale value
 	int yscale;					// y directoon scale value
 	int tmdsclk;				// TDMS Clock frequency
+
+	struct list_head pwrlist_head;
 	
 	int (*insert)(struct hdmi  *hdmi);
 	int (*remove)(struct hdmi  *hdmi);
@@ -336,4 +338,7 @@ extern int hdmi_find_best_mode(struct hdmi* hdmi, int vic);
 extern int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok);
 extern int hdmi_switch_fb(struct hdmi *hdmi, int vic);
 extern void hdmi_work(struct work_struct *work);
+int rk_hdmi_parse_dt(struct hdmi *hdmi_drv);
+int rk_hdmi_pwr_enable(struct hdmi *dev_drv);
+int rk_hdmi_pwr_disable(struct hdmi *dev_drv);
 #endif

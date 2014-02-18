@@ -2,9 +2,8 @@
 #include "cat66121_hdmi.h"
 #include "cat66121_hdmi_hw.h"
 #include <asm/atomic.h>
-#include <mach/io.h>
-#include <mach/gpio.h>
-#include <mach/iomux.h>
+//#include <mach/io.h>
+//#include <mach/gpio.h>
 #include "hdmitx.h"
 
 extern HDMITXDEV hdmiTxDev[HDMITX_MAX_DEV_COUNT] ;
@@ -186,9 +185,9 @@ int cat66121_detect_device(void)
 
 	return 0;
 }
-int cat66121_hdmi_sys_init(void)
+int cat66121_hdmi_sys_init(struct hdmi *hdmi_drv)
 {
-	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	hdmi_dbg(hdmi_drv->dev, "[%s]\n", __FUNCTION__);
 	HDMITX_InitTxDev(&InstanceData);
 	InitHDMITX();
 	msleep(1);
@@ -232,7 +231,7 @@ void cat66121_InterruptClr(void)
 	intclr3 &= ~(B_TX_INTACTDONE);
 	HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,intclr3); // INTACTDONE reset to zero.
 }
-void cat66121_hdmi_interrupt(void)
+void cat66121_hdmi_interrupt(struct hdmi *hdmi_drv)
 {
 	char sysstat = 0; 
 	mutex_lock(&handler_mutex);
@@ -314,9 +313,9 @@ void cat66121_hdmi_interrupt(void)
 				HDMITX_DEBUG_PRINTF(("HPD unplug\n") );
 			}
 			cat66121_hdmi->plug_status = sysstat;
-			if(hdmi->state == HDMI_SLEEP)
-				hdmi->state = WAIT_HOTPLUG;
-			queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(0));	
+			if(hdmi_drv->state == HDMI_SLEEP)
+				hdmi_drv->state = WAIT_HOTPLUG;
+			queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work, msecs_to_jiffies(0));
 		}
 		if(intdata1 & (B_TX_INT_RX_SENSE)) {
 				hdmiTxDev[0].bAuthenticated = FALSE;
@@ -324,7 +323,7 @@ void cat66121_hdmi_interrupt(void)
 	}
     
 #ifdef SUPPORT_HDCP
-        if(hdmi->display == HDMI_ENABLE)
+        if(hdmi_drv->display == HDMI_ENABLE)
         {
                 if(getHDMITX_LinkStatus())
                 {
@@ -342,7 +341,7 @@ void cat66121_hdmi_interrupt(void)
 	mutex_unlock(&handler_mutex);
 }
 
-int cat66121_hdmi_sys_detect_hpd(void)
+int cat66121_hdmi_sys_detect_hpd(struct hdmi *hdmi_drv)
 {
 	char HPD= 0;
 	BYTE sysstat;
@@ -364,9 +363,9 @@ int cat66121_hdmi_sys_detect_hpd(void)
 		return HDMI_HPD_REMOVED;
 }
 
-int cat66121_hdmi_sys_read_edid(int block, unsigned char *buff)
+int cat66121_hdmi_sys_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 {
-	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	hdmi_dbg(hdmi_drv->dev, "[%s]\n", __FUNCTION__);
 	return (getHDMITX_EDIDBlock(block, buff) == TRUE)?HDMI_ERROR_SUCESS:HDMI_ERROR_FALSE;
 }
 
@@ -401,7 +400,7 @@ void ConfigfHdmiVendorSpecificInfoFrame(BYTE _3D_Stru)
 static void cat66121_sys_config_avi(int VIC, int bOutputColorMode, int aspec, int Colorimetry, int pixelrep)
 {
 	AVI_InfoFrame *AviInfo;
-	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	//hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
 	AviInfo = (AVI_InfoFrame *)CommunBuff ;
 
 	AviInfo->pktbyte.AVI_HB[0] = AVI_INFOFRAME_TYPE|0x80 ;
@@ -444,7 +443,7 @@ static void cat66121_sys_config_avi(int VIC, int bOutputColorMode, int aspec, in
 
 }
 
-int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
+int cat66121_hdmi_sys_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpara)
 {
 	struct fb_videomode *mode;
 	HDMI_Aspec aspec ;
@@ -452,7 +451,7 @@ int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
 	VIDEOPCLKLEVEL level ;
 
 	if(vpara == NULL) {
-		hdmi_err(hdmi->dev, "[%s] input parameter error\n", __FUNCTION__);
+		hdmi_err(hdmi_drv->dev, "[%s] input parameter error\n", __FUNCTION__);
 		return -1;
 	}
 
@@ -483,11 +482,11 @@ int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
 	mode = (struct fb_videomode *)hdmi_vic_to_videomode(vpara->vic);
 	if(mode == NULL)
 	{
-		hdmi_err(hdmi->dev, "[%s] not found vic %d\n", __FUNCTION__, vpara->vic);
+		hdmi_err(hdmi_drv->dev, "[%s] not found vic %d\n", __FUNCTION__, vpara->vic);
 		return -ENOENT;
 	}
 
-	hdmi->tmdsclk = mode->pixclock;
+	hdmi_drv->tmdsclk = mode->pixclock;
 	switch(vpara->vic)
 	{
 		case HDMI_640x480p60:
@@ -606,11 +605,11 @@ int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
 		bInputColorMode &= ~F_VIDMODE_16_235 ;
 	}
 	
-	if( (hdmi->tmdsclk*(pixelrep+1))>80000000L )
+	if( (hdmi_drv->tmdsclk*(pixelrep+1))>80000000L )
 	{
 		level = PCLK_HIGH ;
 	}
-	else if((hdmi->tmdsclk*(pixelrep+1))>20000000L)
+	else if((hdmi_drv->tmdsclk*(pixelrep+1))>20000000L)
 	{
 		level = PCLK_MEDIUM ;
 	}
@@ -660,7 +659,7 @@ static void cat66121_hdmi_config_aai(void)
 	HDMITX_EnableAudioInfoFrame(TRUE, (unsigned char *)AudioInfo);
 }
 
-int cat66121_hdmi_sys_config_audio(struct hdmi_audio *audio)
+int cat66121_hdmi_sys_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 {
 	cat66121_hdmi_config_aai();
 	HDMITX_EnableAudioOutput(
@@ -669,13 +668,13 @@ int cat66121_hdmi_sys_config_audio(struct hdmi_audio *audio)
 			INPUT_SAMPLE_FREQ_HZ,
 			audio->channel,
 			NULL, // pointer to cahnnel status.
-			hdmi->tmdsclk*(pixelrep+1));
+			hdmi_drv->tmdsclk*(pixelrep+1));
 	return HDMI_ERROR_SUCESS;
 }
 
-void cat66121_hdmi_sys_enalbe_output(int enable)
+void cat66121_hdmi_sys_enalbe_output(struct hdmi *hdmi_drv, int enable)
 {
-	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	hdmi_dbg(hdmi_drv->dev, "[%s]\n", __FUNCTION__);
 	
 	if(enable){
 #if 0//def SUPPORT_HDCP
@@ -689,9 +688,9 @@ void cat66121_hdmi_sys_enalbe_output(int enable)
 	DumpHDMITXReg() ;
 }
 
-int cat66121_hdmi_sys_insert(void)
+int cat66121_hdmi_sys_insert(struct hdmi *hdmi_drv)
 {
-	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	hdmi_dbg(hdmi_drv->dev, "[%s]\n", __FUNCTION__);
 	if(getHDMI_PowerStatus()==FALSE)
 		HDMITX_PowerOn();
 
@@ -699,9 +698,9 @@ int cat66121_hdmi_sys_insert(void)
 	return 0;
 }
 
-int cat66121_hdmi_sys_remove(void)
+int cat66121_hdmi_sys_remove(struct hdmi *hdmi_drv)
 {
-	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	hdmi_dbg(hdmi_drv->dev, "[%s]\n", __FUNCTION__);
 #if 0//def SUPPORT_HDCP
 	cancel_delayed_work_sync(&hdcp_delay_work);
 	HDMITX_EnableHDCP(FALSE);

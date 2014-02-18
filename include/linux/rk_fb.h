@@ -201,6 +201,7 @@ struct color_key_cfg {
 struct pwr_ctr {
 	char name[32];
 	int type;
+	int is_rst;
 	int gpio;
 	int atv_val;
 	char rgl_name[32];
