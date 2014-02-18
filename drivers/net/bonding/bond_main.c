@@ -2372,7 +2372,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 
 		if (slave->link != BOND_LINK_UP) {
 			if (bond_time_in_interval(bond, trans_start, 1) &&
-			    bond_time_in_interval(bond, slave->dev->last_rx, 1)) {
+			    bond_time_in_interval(bond, slave->last_arp_rx, 1)) {
 
 				slave->link  = BOND_LINK_UP;
 				slave_state_changed = 1;
@@ -2401,7 +2401,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 			 * if we don't know our ip yet
 			 */
 			if (!bond_time_in_interval(bond, trans_start, 2) ||
-			    !bond_time_in_interval(bond, slave->dev->last_rx, 2)) {
+			    !bond_time_in_interval(bond, slave->last_arp_rx, 2)) {
 
 				slave->link  = BOND_LINK_DOWN;
 				slave_state_changed = 1;
