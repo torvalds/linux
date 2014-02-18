@@ -2255,15 +2255,16 @@ int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 	struct arphdr *arp = (struct arphdr *)skb->data;
 	unsigned char *arp_ptr;
 	__be32 sip, tip;
-	int alen;
+	int alen, is_arp = skb->protocol == __cpu_to_be16(ETH_P_ARP);
 
-	slave->last_arp_rx = jiffies;
-
-	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
+	if (!slave_do_arp_validate(bond, slave)) {
+		if ((slave_do_arp_validate_only(bond, slave) && is_arp) ||
+		    !slave_do_arp_validate_only(bond, slave))
+			slave->last_arp_rx = jiffies;
 		return RX_HANDLER_ANOTHER;
-
-	if (!slave_do_arp_validate(bond, slave))
-		goto out_unlock;
+	} else if (!is_arp) {
+		return RX_HANDLER_ANOTHER;
+	}
 
 	alen = arp_hdr_len(bond->dev);
 
