@@ -416,6 +416,12 @@
 /* There are the 4 64-bit counter registers, one for each stream output */
 #define GEN7_SO_NUM_PRIMS_WRITTEN(n) (0x5200 + (n) * 8)
 
+#define _GEN7_PIPEA_DE_LOAD_SL	0x70068
+#define _GEN7_PIPEB_DE_LOAD_SL	0x71068
+#define GEN7_PIPE_DE_LOAD_SL(pipe) _PIPE(pipe, \
+					 _GEN7_PIPEA_DE_LOAD_SL, \
+					 _GEN7_PIPEB_DE_LOAD_SL)
+
 /*
  * Reset registers
  */

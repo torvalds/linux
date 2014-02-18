@@ -281,6 +281,19 @@ static const u32 gen7_blt_regs[] = {
 	BCS_SWCTRL,
 };
 
+static const u32 ivb_master_regs[] = {
+	FORCEWAKE_MT,
+	DERRMR,
+	GEN7_PIPE_DE_LOAD_SL(PIPE_A),
+	GEN7_PIPE_DE_LOAD_SL(PIPE_B),
+	GEN7_PIPE_DE_LOAD_SL(PIPE_C),
+};
+
+static const u32 hsw_master_regs[] = {
+	FORCEWAKE_MT,
+	DERRMR,
+};
+
 #undef REG64
 
 static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
@@ -409,6 +422,14 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 		ring->reg_table = gen7_render_regs;
 		ring->reg_count = ARRAY_SIZE(gen7_render_regs);
 
+		if (IS_HASWELL(ring->dev)) {
+			ring->master_reg_table = hsw_master_regs;
+			ring->master_reg_count = ARRAY_SIZE(hsw_master_regs);
+		} else {
+			ring->master_reg_table = ivb_master_regs;
+			ring->master_reg_count = ARRAY_SIZE(ivb_master_regs);
+		}
+
 		ring->get_cmd_length_mask = gen7_render_get_cmd_length_mask;
 		break;
 	case VCS:
@@ -427,6 +448,14 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 
 		ring->reg_table = gen7_blt_regs;
 		ring->reg_count = ARRAY_SIZE(gen7_blt_regs);
+
+		if (IS_HASWELL(ring->dev)) {
+			ring->master_reg_table = hsw_master_regs;
+			ring->master_reg_count = ARRAY_SIZE(hsw_master_regs);
+		} else {
+			ring->master_reg_table = ivb_master_regs;
+			ring->master_reg_count = ARRAY_SIZE(ivb_master_regs);
+		}
 
 		ring->get_cmd_length_mask = gen7_blt_get_cmd_length_mask;
 		break;
