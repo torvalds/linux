@@ -103,6 +103,14 @@ struct smp_ltk {
 	u8 val[16];
 };
 
+struct smp_irk {
+	struct list_head list;
+	bdaddr_t rpa;
+	bdaddr_t bdaddr;
+	u8 addr_type;
+	u8 val[16];
+};
+
 struct link_key {
 	struct list_head list;
 	bdaddr_t bdaddr;
@@ -269,6 +277,7 @@ struct hci_dev {
 	struct list_head	uuids;
 	struct list_head	link_keys;
 	struct list_head	long_term_keys;
+	struct list_head	identity_resolving_keys;
 	struct list_head	remote_oob_data;
 	struct list_head	le_conn_params;
 
@@ -786,6 +795,13 @@ struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int hci_smp_ltks_clear(struct hci_dev *hdev);
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
+
+struct smp_irk *hci_find_irk_by_rpa(struct hci_dev *hdev, bdaddr_t *rpa);
+struct smp_irk *hci_find_irk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				     u8 addr_type);
+int hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type,
+		u8 val[16], bdaddr_t *rpa);
+void hci_smp_irks_clear(struct hci_dev *hdev);
 
 int hci_remote_oob_data_clear(struct hci_dev *hdev);
 struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,

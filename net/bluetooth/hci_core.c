@@ -35,6 +35,8 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#include "smp.h"
+
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);
 static void hci_tx_work(struct work_struct *work);
@@ -2544,6 +2546,16 @@ int hci_smp_ltks_clear(struct hci_dev *hdev)
 	return 0;
 }
 
+void hci_smp_irks_clear(struct hci_dev *hdev)
+{
+	struct smp_irk *k, *tmp;
+
+	list_for_each_entry_safe(k, tmp, &hdev->identity_resolving_keys, list) {
+		list_del(&k->list);
+		kfree(k);
+	}
+}
+
 struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
 	struct link_key *k;
@@ -2628,6 +2640,39 @@ struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		    bacmp(bdaddr, &k->bdaddr) == 0 &&
 		    ltk_type_master(k->type) == master)
 			return k;
+
+	return NULL;
+}
+
+struct smp_irk *hci_find_irk_by_rpa(struct hci_dev *hdev, bdaddr_t *rpa)
+{
+	struct smp_irk *irk;
+
+	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
+		if (!bacmp(&irk->rpa, rpa))
+			return irk;
+	}
+
+	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
+		if (smp_irk_matches(hdev->tfm_aes, irk->val, rpa)) {
+			bacpy(&irk->rpa, rpa);
+			return irk;
+		}
+	}
+
+	return NULL;
+}
+
+struct smp_irk *hci_find_irk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				     u8 addr_type)
+{
+	struct smp_irk *irk;
+
+	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
+		if (addr_type == irk->addr_type &&
+		    bacmp(bdaddr, &irk->bdaddr) == 0)
+			return irk;
+	}
 
 	return NULL;
 }
@@ -2722,6 +2767,29 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 
 	if (type == HCI_SMP_LTK || type == HCI_SMP_LTK_SLAVE)
 		mgmt_new_ltk(hdev, key, persistent);
+
+	return 0;
+}
+
+int hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type,
+		u8 val[16], bdaddr_t *rpa)
+{
+	struct smp_irk *irk;
+
+	irk = hci_find_irk_by_addr(hdev, bdaddr, addr_type);
+	if (!irk) {
+		irk = kzalloc(sizeof(*irk), GFP_KERNEL);
+		if (!irk)
+			return -ENOMEM;
+
+		bacpy(&irk->bdaddr, bdaddr);
+		irk->addr_type = addr_type;
+
+		list_add(&irk->list, &hdev->identity_resolving_keys);
+	}
+
+	memcpy(irk->val, val, 16);
+	bacpy(&irk->rpa, rpa);
 
 	return 0;
 }
@@ -3120,6 +3188,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_LIST_HEAD(&hdev->uuids);
 	INIT_LIST_HEAD(&hdev->link_keys);
 	INIT_LIST_HEAD(&hdev->long_term_keys);
+	INIT_LIST_HEAD(&hdev->identity_resolving_keys);
 	INIT_LIST_HEAD(&hdev->remote_oob_data);
 	INIT_LIST_HEAD(&hdev->le_conn_params);
 	INIT_LIST_HEAD(&hdev->conn_hash.list);
@@ -3320,6 +3389,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_uuids_clear(hdev);
 	hci_link_keys_clear(hdev);
 	hci_smp_ltks_clear(hdev);
+	hci_smp_irks_clear(hdev);
 	hci_remote_oob_data_clear(hdev);
 	hci_conn_params_clear(hdev);
 	hci_dev_unlock(hdev);
