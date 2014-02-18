@@ -1397,10 +1397,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	bond_update_speed_duplex(new_slave);
 
-	new_slave->last_arp_rx = jiffies -
+	new_slave->last_rx = jiffies -
 		(msecs_to_jiffies(bond->params.arp_interval) + 1);
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
-		new_slave->target_last_arp_rx[i] = new_slave->last_arp_rx;
+		new_slave->target_last_arp_rx[i] = new_slave->last_rx;
 
 	if (bond->params.miimon && !bond->params.use_carrier) {
 		link_reporting = bond_check_dev_link(bond, slave_dev, 1);
@@ -2242,7 +2242,7 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 		pr_debug("bva: sip %pI4 not found in targets\n", &sip);
 		return;
 	}
-	slave->last_arp_rx = jiffies;
+	slave->last_rx = jiffies;
 	slave->target_last_arp_rx[i] = jiffies;
 }
 
@@ -2257,7 +2257,7 @@ int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 	if (!slave_do_arp_validate(bond, slave)) {
 		if ((slave_do_arp_validate_only(bond, slave) && is_arp) ||
 		    !slave_do_arp_validate_only(bond, slave))
-			slave->last_arp_rx = jiffies;
+			slave->last_rx = jiffies;
 		return RX_HANDLER_ANOTHER;
 	} else if (!is_arp) {
 		return RX_HANDLER_ANOTHER;
@@ -2369,7 +2369,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 
 		if (slave->link != BOND_LINK_UP) {
 			if (bond_time_in_interval(bond, trans_start, 1) &&
-			    bond_time_in_interval(bond, slave->last_arp_rx, 1)) {
+			    bond_time_in_interval(bond, slave->last_rx, 1)) {
 
 				slave->link  = BOND_LINK_UP;
 				slave_state_changed = 1;
@@ -2398,7 +2398,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 			 * if we don't know our ip yet
 			 */
 			if (!bond_time_in_interval(bond, trans_start, 2) ||
-			    !bond_time_in_interval(bond, slave->last_arp_rx, 2)) {
+			    !bond_time_in_interval(bond, slave->last_rx, 2)) {
 
 				slave->link  = BOND_LINK_DOWN;
 				slave_state_changed = 1;

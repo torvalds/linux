@@ -190,7 +190,7 @@ struct slave {
 	int    delay;
 	/* all three in jiffies */
 	unsigned long last_link_up;
-	unsigned long last_arp_rx;
+	unsigned long last_rx;
 	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
@@ -383,7 +383,7 @@ static inline unsigned long slave_last_rx(struct bonding *bond,
 	if (bond->params.arp_all_targets == BOND_ARP_TARGETS_ALL)
 		return slave_oldest_target_arp_rx(bond, slave);
 
-	return slave->last_arp_rx;
+	return slave->last_rx;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
