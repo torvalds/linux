@@ -287,6 +287,30 @@ static int check_for_busy(struct ctlr_info *h, struct CommandList *c)
 	return 1;
 }
 
+static ssize_t host_store_hp_ssd_smart_path_status(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	int status, len;
+	struct ctlr_info *h;
+	struct Scsi_Host *shost = class_to_shost(dev);
+	char tmpbuf[10];
+
+	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+		return -EACCES;
+	len = count > sizeof(tmpbuf) - 1 ? sizeof(tmpbuf) - 1 : count;
+	strncpy(tmpbuf, buf, len);
+	tmpbuf[len] = '\0';
+	if (sscanf(tmpbuf, "%d", &status) != 1)
+		return -EINVAL;
+	h = shost_to_hba(shost);
+	h->acciopath_status = !!status;
+	dev_warn(&h->pdev->dev,
+		"hpsa: HP SSD Smart Path %s via sysfs update.\n",
+		h->acciopath_status ? "enabled" : "disabled");
+	return count;
+}
+
 static ssize_t host_store_rescan(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
@@ -332,6 +356,17 @@ static ssize_t host_show_transport_mode(struct device *dev,
 	return snprintf(buf, 20, "%s\n",
 		h->transMethod & CFGTBL_Trans_Performant ?
 			"performant" : "simple");
+}
+
+static ssize_t host_show_hp_ssd_smart_path_status(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct ctlr_info *h;
+	struct Scsi_Host *shost = class_to_shost(dev);
+
+	h = shost_to_hba(shost);
+	return snprintf(buf, 30, "HP SSD Smart Path %s\n",
+		(h->acciopath_status == 1) ?  "enabled" : "disabled");
 }
 
 /* List of controllers which cannot be hard reset on kexec with reset_devices */
@@ -546,6 +581,9 @@ static DEVICE_ATTR(unique_id, S_IRUGO, unique_id_show, NULL);
 static DEVICE_ATTR(rescan, S_IWUSR, NULL, host_store_rescan);
 static DEVICE_ATTR(hp_ssd_smart_path_enabled, S_IRUGO,
 			host_show_hp_ssd_smart_path_enabled, NULL);
+static DEVICE_ATTR(hp_ssd_smart_path_status, S_IWUSR|S_IRUGO|S_IROTH,
+		host_show_hp_ssd_smart_path_status,
+		host_store_hp_ssd_smart_path_status);
 static DEVICE_ATTR(firmware_revision, S_IRUGO,
 	host_show_firmware_revision, NULL);
 static DEVICE_ATTR(commands_outstanding, S_IRUGO,
@@ -569,6 +607,7 @@ static struct device_attribute *hpsa_shost_attrs[] = {
 	&dev_attr_commands_outstanding,
 	&dev_attr_transport_mode,
 	&dev_attr_resettable,
+	&dev_attr_hp_ssd_smart_path_status,
 	NULL,
 };
 
@@ -3341,7 +3380,8 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	 * Retries always go down the normal I/O path.
 	 */
 	if (likely(cmd->retries == 0 &&
-		cmd->request->cmd_type == REQ_TYPE_FS)) {
+		cmd->request->cmd_type == REQ_TYPE_FS &&
+		h->acciopath_status)) {
 		if (dev->offload_enabled) {
 			rc = hpsa_scsi_ioaccel_raid_map(h, c);
 			if (rc == 0)
@@ -6325,6 +6365,9 @@ reinit_after_soft_reset:
 
 		goto reinit_after_soft_reset;
 	}
+
+	/* Enable Accelerated IO path at driver layer */
+	h->acciopath_status = 1;
 
 	/* Turn the interrupts on so we can service requests */
 	h->access.set_intr_mask(h, HPSA_INTR_ON);
