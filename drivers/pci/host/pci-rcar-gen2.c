@@ -91,9 +91,6 @@
 
 #define RCAR_PCI_UNIT_REV_REG		(RCAR_AHBPCI_PCICOM_OFFSET + 0x48)
 
-/* Number of internal PCI controllers */
-#define RCAR_PCI_NR_CONTROLLERS		3
-
 struct rcar_pci_priv {
 	struct device *dev;
 	void __iomem *reg;
@@ -177,7 +174,7 @@ static int rcar_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 /* PCI interrupt mapping */
-static int __init rcar_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int rcar_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct pci_sys_data *sys = dev->bus->sysdata;
 	struct rcar_pci_priv *priv = sys->private_data;
@@ -226,7 +223,7 @@ static inline void rcar_pci_setup_errirq(struct rcar_pci_priv *priv) { }
 #endif
 
 /* PCI host controller setup */
-static int __init rcar_pci_setup(int nr, struct pci_sys_data *sys)
+static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 {
 	struct rcar_pci_priv *priv = sys->private_data;
 	void __iomem *reg = priv->reg;
@@ -292,6 +289,8 @@ static int __init rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	pci_add_resource(&sys->resources, &priv->io_res);
 	pci_add_resource(&sys->resources, &priv->mem_res);
 
+	/* Setup bus number based on platform device id */
+	sys->busnr = to_platform_device(priv->dev)->id;
 	return 1;
 }
 
@@ -300,48 +299,13 @@ static struct pci_ops rcar_pci_ops = {
 	.write	= rcar_pci_write_config,
 };
 
-static struct hw_pci rcar_hw_pci __initdata = {
-	.map_irq	= rcar_pci_map_irq,
-	.ops		= &rcar_pci_ops,
-	.setup		= rcar_pci_setup,
-};
-
-static int rcar_pci_count __initdata;
-
-static int __init rcar_pci_add_controller(struct rcar_pci_priv *priv)
-{
-	void **private_data;
-	int count;
-
-	if (rcar_hw_pci.nr_controllers < rcar_pci_count)
-		goto add_priv;
-
-	/* (Re)allocate private data pointer array if needed */
-	count = rcar_pci_count + RCAR_PCI_NR_CONTROLLERS;
-	private_data = kzalloc(count * sizeof(void *), GFP_KERNEL);
-	if (!private_data)
-		return -ENOMEM;
-
-	rcar_pci_count = count;
-	if (rcar_hw_pci.private_data) {
-		memcpy(private_data, rcar_hw_pci.private_data,
-		       rcar_hw_pci.nr_controllers * sizeof(void *));
-		kfree(rcar_hw_pci.private_data);
-	}
-
-	rcar_hw_pci.private_data = private_data;
-
-add_priv:
-	/* Add private data pointer to the array */
-	rcar_hw_pci.private_data[rcar_hw_pci.nr_controllers++] = priv;
-	return 0;
-}
-
-static int __init rcar_pci_probe(struct platform_device *pdev)
+static int rcar_pci_probe(struct platform_device *pdev)
 {
 	struct resource *cfg_res, *mem_res;
 	struct rcar_pci_priv *priv;
 	void __iomem *reg;
+	struct hw_pci hw;
+	void *hw_private[1];
 
 	cfg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(&pdev->dev, cfg_res);
@@ -377,31 +341,27 @@ static int __init rcar_pci_probe(struct platform_device *pdev)
 		return priv->irq;
 	}
 
-	return rcar_pci_add_controller(priv);
+	hw_private[0] = priv;
+	memset(&hw, 0, sizeof(hw));
+	hw.nr_controllers = ARRAY_SIZE(hw_private);
+	hw.private_data = hw_private;
+	hw.map_irq = rcar_pci_map_irq;
+	hw.ops = &rcar_pci_ops;
+	hw.setup = rcar_pci_setup;
+	pci_common_init_dev(&pdev->dev, &hw);
+	return 0;
 }
 
 static struct platform_driver rcar_pci_driver = {
 	.driver = {
 		.name = "pci-rcar-gen2",
+		.owner = THIS_MODULE,
+		.suppress_bind_attrs = true,
 	},
+	.probe = rcar_pci_probe,
 };
 
-static int __init rcar_pci_init(void)
-{
-	int retval;
-
-	retval = platform_driver_probe(&rcar_pci_driver, rcar_pci_probe);
-	if (!retval)
-		pci_common_init(&rcar_hw_pci);
-
-	/* Private data pointer array is not needed any more */
-	kfree(rcar_hw_pci.private_data);
-	rcar_hw_pci.private_data = NULL;
-
-	return retval;
-}
-
-subsys_initcall(rcar_pci_init);
+module_platform_driver(rcar_pci_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas R-Car Gen2 internal PCI");
