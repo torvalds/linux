@@ -5856,36 +5856,15 @@ err_out:
  **/
 static int i40e_reserve_msix_vectors(struct i40e_pf *pf, int vectors)
 {
-	int err = 0;
-
-	pf->num_msix_entries = 0;
-	while (vectors >= I40E_MIN_MSIX) {
-		err = pci_enable_msix(pf->pdev, pf->msix_entries, vectors);
-		if (err == 0) {
-			/* good to go */
-			pf->num_msix_entries = vectors;
-			break;
-		} else if (err < 0) {
-			/* total failure */
-			dev_info(&pf->pdev->dev,
-				 "MSI-X vector reservation failed: %d\n", err);
-			vectors = 0;
-			break;
-		} else {
-			/* err > 0 is the hint for retry */
-			dev_info(&pf->pdev->dev,
-				 "MSI-X vectors wanted %d, retrying with %d\n",
-				 vectors, err);
-			vectors = err;
-		}
-	}
-
-	if (vectors > 0 && vectors < I40E_MIN_MSIX) {
+	vectors = pci_enable_msix_range(pf->pdev, pf->msix_entries,
+					I40E_MIN_MSIX, vectors);
+	if (vectors < 0) {
 		dev_info(&pf->pdev->dev,
-			 "Couldn't get enough vectors, only %d available\n",
-			 vectors);
+			 "MSI-X vector reservation failed: %d\n", vectors);
 		vectors = 0;
 	}
+
+	pf->num_msix_entries = vectors;
 
 	return vectors;
 }
