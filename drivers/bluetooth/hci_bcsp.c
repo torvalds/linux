@@ -715,6 +715,9 @@ static int bcsp_open(struct hci_uart *hu)
 static int bcsp_close(struct hci_uart *hu)
 {
 	struct bcsp_struct *bcsp = hu->priv;
+
+	del_timer_sync(&bcsp->tbcsp);
+
 	hu->priv = NULL;
 
 	BT_DBG("hu %p", hu);
@@ -722,7 +725,6 @@ static int bcsp_close(struct hci_uart *hu)
 	skb_queue_purge(&bcsp->unack);
 	skb_queue_purge(&bcsp->rel);
 	skb_queue_purge(&bcsp->unrel);
-	del_timer(&bcsp->tbcsp);
 
 	kfree(bcsp);
 	return 0;
