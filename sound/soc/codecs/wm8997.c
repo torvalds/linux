@@ -123,10 +123,12 @@ static const unsigned int wm8997_osr_val[] = {
 
 static const struct soc_enum wm8997_hpout_osr[] = {
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_1L,
-			      ARIZONA_OUT1_OSR_SHIFT, 0x7, 3,
+			      ARIZONA_OUT1_OSR_SHIFT, 0x7,
+			      ARRAY_SIZE(wm8997_osr_text),
 			      wm8997_osr_text, wm8997_osr_val),
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_3L,
-			      ARIZONA_OUT3_OSR_SHIFT, 0x7, 3,
+			      ARIZONA_OUT3_OSR_SHIFT, 0x7,
+			      ARRAY_SIZE(wm8997_osr_text),
 			      wm8997_osr_text, wm8997_osr_val),
 };
 
