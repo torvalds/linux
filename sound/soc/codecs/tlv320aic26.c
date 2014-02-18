@@ -238,8 +238,9 @@ static struct snd_soc_dai_driver aic26_dai = {
  * ALSA controls
  */
 static const char *aic26_capture_src_text[] = {"Mic", "Aux"};
-static const struct soc_enum aic26_capture_src_enum =
-	SOC_ENUM_SINGLE(AIC26_REG_AUDIO_CTRL1, 12, 2, aic26_capture_src_text);
+static SOC_ENUM_SINGLE_DECL(aic26_capture_src_enum,
+			    AIC26_REG_AUDIO_CTRL1, 12,
+			    aic26_capture_src_text);
 
 static const struct snd_kcontrol_new aic26_snd_controls[] = {
 	/* Output */
