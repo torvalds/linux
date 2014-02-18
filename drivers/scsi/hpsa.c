@@ -222,6 +222,9 @@ static void hpsa_wait_for_mode_change_ack(struct ctlr_info *h);
 #define BOARD_READY 1
 static void hpsa_drain_commands(struct ctlr_info *h);
 static void hpsa_flush_cache(struct ctlr_info *h);
+static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
+	struct CommandList *c, u32 ioaccel_handle, u8 *cdb, int cdb_len,
+	u8 *scsi3addr);
 
 static inline struct ctlr_info *sdev_to_hba(struct scsi_device *sdev)
 {
@@ -622,6 +625,32 @@ static inline u32 next_command(struct ctlr_info *h, u8 q)
 	return a;
 }
 
+/*
+ * There are some special bits in the bus address of the
+ * command that we have to set for the controller to know
+ * how to process the command:
+ *
+ * Normal performant mode:
+ * bit 0: 1 means performant mode, 0 means simple mode.
+ * bits 1-3 = block fetch table entry
+ * bits 4-6 = command type (== 0)
+ *
+ * ioaccel1 mode:
+ * bit 0 = "performant mode" bit.
+ * bits 1-3 = block fetch table entry
+ * bits 4-6 = command type (== 110)
+ * (command type is needed because ioaccel1 mode
+ * commands are submitted through the same register as normal
+ * mode commands, so this is how the controller knows whether
+ * the command is normal mode or ioaccel1 mode.)
+ *
+ * ioaccel2 mode:
+ * bit 0 = "performant mode" bit.
+ * bits 1-4 = block fetch table entry (note extra bit)
+ * bits 4-6 = not needed, because ioaccel2 mode has
+ * a separate special register for submitting commands.
+ */
+
 /* set_performant_mode: Modify the tag for cciss performant
  * set bit 0 for pull model, bits 3-1 for block fetch
  * register number
@@ -634,6 +663,41 @@ static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
 			c->Header.ReplyQueue =
 				raw_smp_processor_id() % h->nreply_queues;
 	}
+}
+
+static void set_ioaccel1_performant_mode(struct ctlr_info *h,
+						struct CommandList *c)
+{
+	struct io_accel1_cmd *cp = &h->ioaccel_cmd_pool[c->cmdindex];
+
+	/* Tell the controller to post the reply to the queue for this
+	 * processor.  This seems to give the best I/O throughput.
+	 */
+	cp->ReplyQueue = smp_processor_id() % h->nreply_queues;
+	/* Set the bits in the address sent down to include:
+	 *  - performant mode bit (bit 0)
+	 *  - pull count (bits 1-3)
+	 *  - command type (bits 4-6)
+	 */
+	c->busaddr |= 1 | (h->ioaccel1_blockFetchTable[c->Header.SGList] << 1) |
+					IOACCEL1_BUSADDR_CMDTYPE;
+}
+
+static void set_ioaccel2_performant_mode(struct ctlr_info *h,
+						struct CommandList *c)
+{
+	struct io_accel2_cmd *cp = &h->ioaccel2_cmd_pool[c->cmdindex];
+
+	/* Tell the controller to post the reply to the queue for this
+	 * processor.  This seems to give the best I/O throughput.
+	 */
+	cp->reply_queue = smp_processor_id() % h->nreply_queues;
+	/* Set the bits in the address sent down to include:
+	 *  - performant mode bit not used in ioaccel mode 2
+	 *  - pull count (bits 0-3)
+	 *  - command type isn't needed for ioaccel2
+	 */
+	c->busaddr |= (h->ioaccel2_blockFetchTable[cp->sg_count]);
 }
 
 static int is_firmware_flash_cmd(u8 *cdb)
@@ -670,7 +734,16 @@ static void enqueue_cmd_and_start_io(struct ctlr_info *h,
 {
 	unsigned long flags;
 
-	set_performant_mode(h, c);
+	switch (c->cmd_type) {
+	case CMD_IOACCEL1:
+		set_ioaccel1_performant_mode(h, c);
+		break;
+	case CMD_IOACCEL2:
+		set_ioaccel2_performant_mode(h, c);
+		break;
+	default:
+		set_performant_mode(h, c);
+	}
 	dial_down_lockup_detection_during_fw_flash(h, c);
 	spin_lock_irqsave(&h->lock, flags);
 	addQ(&h->reqQ, c);
@@ -1228,6 +1301,123 @@ static void hpsa_unmap_sg_chain_block(struct ctlr_info *h,
 	pci_unmap_single(h->pdev, temp64.val, chain_sg->Len, PCI_DMA_TODEVICE);
 }
 
+static void handle_ioaccel_mode2_error(struct ctlr_info *h,
+					struct CommandList *c,
+					struct scsi_cmnd *cmd,
+					struct io_accel2_cmd *c2)
+{
+	int data_len;
+
+	switch (c2->error_data.serv_response) {
+	case IOACCEL2_SERV_RESPONSE_COMPLETE:
+		switch (c2->error_data.status) {
+		case IOACCEL2_STATUS_SR_TASK_COMP_GOOD:
+			break;
+		case IOACCEL2_STATUS_SR_TASK_COMP_CHK_COND:
+			dev_warn(&h->pdev->dev,
+				"%s: task complete with check condition.\n",
+				"HP SSD Smart Path");
+			if (c2->error_data.data_present !=
+					IOACCEL2_SENSE_DATA_PRESENT)
+				break;
+			/* copy the sense data */
+			data_len = c2->error_data.sense_data_len;
+			if (data_len > SCSI_SENSE_BUFFERSIZE)
+				data_len = SCSI_SENSE_BUFFERSIZE;
+			if (data_len > sizeof(c2->error_data.sense_data_buff))
+				data_len =
+					sizeof(c2->error_data.sense_data_buff);
+			memcpy(cmd->sense_buffer,
+				c2->error_data.sense_data_buff, data_len);
+			cmd->result |= SAM_STAT_CHECK_CONDITION;
+			break;
+		case IOACCEL2_STATUS_SR_TASK_COMP_BUSY:
+			dev_warn(&h->pdev->dev,
+				"%s: task complete with BUSY status.\n",
+				"HP SSD Smart Path");
+			break;
+		case IOACCEL2_STATUS_SR_TASK_COMP_RES_CON:
+			dev_warn(&h->pdev->dev,
+				"%s: task complete with reservation conflict.\n",
+				"HP SSD Smart Path");
+			break;
+		case IOACCEL2_STATUS_SR_TASK_COMP_SET_FULL:
+			/* Make scsi midlayer do unlimited retries */
+			cmd->result = DID_IMM_RETRY << 16;
+			break;
+		case IOACCEL2_STATUS_SR_TASK_COMP_ABORTED:
+			dev_warn(&h->pdev->dev,
+				"%s: task complete with aborted status.\n",
+				"HP SSD Smart Path");
+			break;
+		default:
+			dev_warn(&h->pdev->dev,
+				"%s: task complete with unrecognized status: 0x%02x\n",
+				"HP SSD Smart Path", c2->error_data.status);
+			break;
+		}
+		break;
+	case IOACCEL2_SERV_RESPONSE_FAILURE:
+		/* don't expect to get here. */
+		dev_warn(&h->pdev->dev,
+			"unexpected delivery or target failure, status = 0x%02x\n",
+			c2->error_data.status);
+		break;
+	case IOACCEL2_SERV_RESPONSE_TMF_COMPLETE:
+		break;
+	case IOACCEL2_SERV_RESPONSE_TMF_SUCCESS:
+		break;
+	case IOACCEL2_SERV_RESPONSE_TMF_REJECTED:
+		dev_warn(&h->pdev->dev, "task management function rejected.\n");
+		break;
+	case IOACCEL2_SERV_RESPONSE_TMF_WRONG_LUN:
+		dev_warn(&h->pdev->dev, "task management function invalid LUN\n");
+		break;
+	default:
+		dev_warn(&h->pdev->dev,
+			"%s: Unrecognized server response: 0x%02x\n",
+			"HP SSD Smart Path", c2->error_data.serv_response);
+		break;
+	}
+}
+
+static void process_ioaccel2_completion(struct ctlr_info *h,
+		struct CommandList *c, struct scsi_cmnd *cmd,
+		struct hpsa_scsi_dev_t *dev)
+{
+	struct io_accel2_cmd *c2 = &h->ioaccel2_cmd_pool[c->cmdindex];
+
+	/* check for good status */
+	if (likely(c2->error_data.serv_response == 0 &&
+			c2->error_data.status == 0)) {
+		cmd_free(h, c);
+		cmd->scsi_done(cmd);
+		return;
+	}
+
+	/* Any RAID offload error results in retry which will use
+	 * the normal I/O path so the controller can handle whatever's
+	 * wrong.
+	 */
+	if (is_logical_dev_addr_mode(dev->scsi3addr) &&
+		c2->error_data.serv_response ==
+			IOACCEL2_SERV_RESPONSE_FAILURE) {
+		if (c2->error_data.status !=
+				IOACCEL2_STATUS_SR_IOACCEL_DISABLED)
+			dev_warn(&h->pdev->dev,
+				"%s: Error 0x%02x, Retrying on standard path.\n",
+				"HP SSD Smart Path", c2->error_data.status);
+		dev->offload_enabled = 0;
+		cmd->result = DID_SOFT_ERROR << 16;
+		cmd_free(h, c);
+		cmd->scsi_done(cmd);
+		return;
+	}
+	handle_ioaccel_mode2_error(h, c, cmd, c2);
+	cmd_free(h, c);
+	cmd->scsi_done(cmd);
+}
+
 static void complete_scsi_command(struct CommandList *cp)
 {
 	struct scsi_cmnd *cmd;
@@ -1252,6 +1442,10 @@ static void complete_scsi_command(struct CommandList *cp)
 
 	cmd->result = (DID_OK << 16); 		/* host byte */
 	cmd->result |= (COMMAND_COMPLETE << 8);	/* msg byte */
+
+	if (cp->cmd_type == CMD_IOACCEL2)
+		return process_ioaccel2_completion(h, cp, cmd, dev);
+
 	cmd->result |= ei->ScsiStatus;
 
 	/* copy the sense data whether we need to or not. */
@@ -2463,10 +2657,7 @@ static int fixup_ioaccel_cdb(u8 *cdb, int *cdb_len)
 	return 0;
 }
 
-/*
- * Queue a command to the I/O accelerator path.
- */
-static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
+static int hpsa_scsi_ioaccel1_queue_command(struct ctlr_info *h,
 	struct CommandList *c, u32 ioaccel_handle, u8 *cdb, int cdb_len,
 	u8 *scsi3addr)
 {
@@ -2538,6 +2729,7 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 		control |= IOACCEL1_CONTROL_NODATAXFER;
 	}
 
+	c->Header.SGList = use_sg;
 	/* Fill out the command structure to submit */
 	cp->dev_handle = ioaccel_handle & 0xFFFF;
 	cp->transfer_len = total_len;
@@ -2546,19 +2738,7 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 	cp->control = control;
 	memcpy(cp->CDB, cdb, cdb_len);
 	memcpy(cp->CISS_LUN, scsi3addr, 8);
-
-	/* Tell the controller to post the reply to the queue for this
-	 * processor.  This seems to give the best I/O throughput.
-	 */
-	cp->ReplyQueue = smp_processor_id() % h->nreply_queues;
-
-	/* Set the bits in the address sent down to include:
-	 *  - performant mode bit (bit 0)
-	 *  - pull count (bits 1-3)
-	 *  - command type (bits 4-6)
-	 */
-	c->busaddr |= 1 | (h->ioaccel1_blockFetchTable[use_sg] << 1) |
-					IOACCEL1_BUSADDR_CMDTYPE;
+	/* Tag was already set at init time. */
 	enqueue_cmd_and_start_io(h, c);
 	return 0;
 }
@@ -2575,6 +2755,106 @@ static int hpsa_scsi_ioaccel_direct_map(struct ctlr_info *h,
 
 	return hpsa_scsi_ioaccel_queue_command(h, c, dev->ioaccel_handle,
 		cmd->cmnd, cmd->cmd_len, dev->scsi3addr);
+}
+
+static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
+	struct CommandList *c, u32 ioaccel_handle, u8 *cdb, int cdb_len,
+	u8 *scsi3addr)
+{
+	struct scsi_cmnd *cmd = c->scsi_cmd;
+	struct io_accel2_cmd *cp = &h->ioaccel2_cmd_pool[c->cmdindex];
+	struct ioaccel2_sg_element *curr_sg;
+	int use_sg, i;
+	struct scatterlist *sg;
+	u64 addr64;
+	u32 len;
+	u32 total_len = 0;
+
+	if (scsi_sg_count(cmd) > h->ioaccel_maxsg)
+		return IO_ACCEL_INELIGIBLE;
+
+	if (fixup_ioaccel_cdb(cdb, &cdb_len))
+		return IO_ACCEL_INELIGIBLE;
+	c->cmd_type = CMD_IOACCEL2;
+	/* Adjust the DMA address to point to the accelerated command buffer */
+	c->busaddr = (u32) h->ioaccel2_cmd_pool_dhandle +
+				(c->cmdindex * sizeof(*cp));
+	BUG_ON(c->busaddr & 0x0000007F);
+
+	memset(cp, 0, sizeof(*cp));
+	cp->IU_type = IOACCEL2_IU_TYPE;
+
+	use_sg = scsi_dma_map(cmd);
+	if (use_sg < 0)
+		return use_sg;
+
+	if (use_sg) {
+		BUG_ON(use_sg > IOACCEL2_MAXSGENTRIES);
+		curr_sg = cp->sg;
+		scsi_for_each_sg(cmd, sg, use_sg, i) {
+			addr64 = (u64) sg_dma_address(sg);
+			len  = sg_dma_len(sg);
+			total_len += len;
+			curr_sg->address = cpu_to_le64(addr64);
+			curr_sg->length = cpu_to_le32(len);
+			curr_sg->reserved[0] = 0;
+			curr_sg->reserved[1] = 0;
+			curr_sg->reserved[2] = 0;
+			curr_sg->chain_indicator = 0;
+			curr_sg++;
+		}
+
+		switch (cmd->sc_data_direction) {
+		case DMA_TO_DEVICE:
+			cp->direction = IOACCEL2_DIR_DATA_OUT;
+			break;
+		case DMA_FROM_DEVICE:
+			cp->direction = IOACCEL2_DIR_DATA_IN;
+			break;
+		case DMA_NONE:
+			cp->direction = IOACCEL2_DIR_NO_DATA;
+			break;
+		default:
+			dev_err(&h->pdev->dev, "unknown data direction: %d\n",
+				cmd->sc_data_direction);
+			BUG();
+			break;
+		}
+	} else {
+		cp->direction = IOACCEL2_DIR_NO_DATA;
+	}
+	cp->scsi_nexus = ioaccel_handle;
+	cp->Tag.lower = (c->cmdindex << DIRECT_LOOKUP_SHIFT) |
+				DIRECT_LOOKUP_BIT;
+	memcpy(cp->cdb, cdb, sizeof(cp->cdb));
+	memset(cp->cciss_lun, 0, sizeof(cp->cciss_lun));
+	cp->cmd_priority_task_attr = 0;
+
+	/* fill in sg elements */
+	cp->sg_count = (u8) use_sg;
+
+	cp->data_len = cpu_to_le32(total_len);
+	cp->err_ptr = cpu_to_le64(c->busaddr +
+			offsetof(struct io_accel2_cmd, error_data));
+	cp->err_len = cpu_to_le32((u32) sizeof(cp->error_data));
+
+	enqueue_cmd_and_start_io(h, c);
+	return 0;
+}
+
+/*
+ * Queue a command to the correct I/O accelerator path.
+ */
+static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
+	struct CommandList *c, u32 ioaccel_handle, u8 *cdb, int cdb_len,
+	u8 *scsi3addr)
+{
+	if (h->transMethod & CFGTBL_Trans_io_accel1)
+		return hpsa_scsi_ioaccel1_queue_command(h, c, ioaccel_handle,
+						cdb, cdb_len, scsi3addr);
+	else
+		return hpsa_scsi_ioaccel2_queue_command(h, c, ioaccel_handle,
+						cdb, cdb_len, scsi3addr);
 }
 
 /*
@@ -4251,7 +4531,8 @@ static inline void finish_cmd(struct CommandList *c)
 	spin_unlock_irqrestore(&h->lock, flags);
 
 	dial_up_lockup_detection_on_fw_flash_complete(c->h, c);
-	if (likely(c->cmd_type == CMD_IOACCEL1 || c->cmd_type == CMD_SCSI))
+	if (likely(c->cmd_type == CMD_IOACCEL1 || c->cmd_type == CMD_SCSI
+			|| c->cmd_type == CMD_IOACCEL2))
 		complete_scsi_command(c);
 	else if (c->cmd_type == CMD_IOCTL_PEND)
 		complete(c->waiting);
@@ -5974,6 +6255,12 @@ static void hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 		access = SA5_ioaccel_mode1_access;
 		writel(10, &h->cfgtable->HostWrite.CoalIntDelay);
 		writel(4, &h->cfgtable->HostWrite.CoalIntCount);
+	} else {
+		if (trans_support & CFGTBL_Trans_io_accel2) {
+			access = SA5_ioaccel_mode2_access;
+			writel(10, &h->cfgtable->HostWrite.CoalIntDelay);
+			writel(4, &h->cfgtable->HostWrite.CoalIntCount);
+		}
 	}
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
 	hpsa_wait_for_mode_change_ack(h);

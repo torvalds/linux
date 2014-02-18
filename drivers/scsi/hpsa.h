@@ -282,6 +282,18 @@ static void SA5_submit_command(struct ctlr_info *h,
 	(void) readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
 }
 
+static void SA5_submit_command_ioaccel2(struct ctlr_info *h,
+	struct CommandList *c)
+{
+	dev_dbg(&h->pdev->dev, "Sending %x, tag = %x\n", c->busaddr,
+		c->Header.Tag.lower);
+	if (c->cmd_type == CMD_IOACCEL2)
+		writel(c->busaddr, h->vaddr + IOACCEL2_INBOUND_POSTQ_32);
+	else
+		writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
+	(void) readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
+}
+
 /*
  *  This card is the opposite of the other cards.
  *   0 turns interrupts on...
@@ -473,6 +485,14 @@ static struct access_method SA5_ioaccel_mode1_access = {
 	SA5_fifo_full,
 	SA5_ioaccel_mode1_intr_pending,
 	SA5_ioaccel_mode1_completed,
+};
+
+static struct access_method SA5_ioaccel_mode2_access = {
+	SA5_submit_command_ioaccel2,
+	SA5_performant_intr_mask,
+	SA5_fifo_full,
+	SA5_performant_intr_pending,
+	SA5_performant_completed,
 };
 
 static struct access_method SA5_performant_access = {
