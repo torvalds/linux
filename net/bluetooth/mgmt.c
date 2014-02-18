@@ -5325,6 +5325,7 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 {
 	char buf[512];
 	struct mgmt_ev_device_found *ev = (void *) buf;
+	struct smp_irk *irk;
 	size_t ev_size;
 
 	if (!hci_discovery_active(hdev))
@@ -5336,8 +5337,15 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	memset(buf, 0, sizeof(buf));
 
-	bacpy(&ev->addr.bdaddr, bdaddr);
-	ev->addr.type = link_to_bdaddr(link_type, addr_type);
+	irk = hci_get_irk(hdev, bdaddr, addr_type);
+	if (irk) {
+		bacpy(&ev->addr.bdaddr, &irk->bdaddr);
+		ev->addr.type = link_to_bdaddr(link_type, irk->addr_type);
+	} else {
+		bacpy(&ev->addr.bdaddr, bdaddr);
+		ev->addr.type = link_to_bdaddr(link_type, addr_type);
+	}
+
 	ev->rssi = rssi;
 	if (cfm_name)
 		ev->flags |= __constant_cpu_to_le32(MGMT_DEV_FOUND_CONFIRM_NAME);
