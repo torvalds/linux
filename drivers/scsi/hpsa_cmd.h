@@ -144,8 +144,10 @@
 #define CFGTBL_BusType_Fibre2G  0x00000200l
 
 /* VPD Inquiry types */
+#define HPSA_VPD_SUPPORTED_PAGES        0x00
 #define HPSA_VPD_LV_DEVICE_GEOMETRY     0xC1
 #define HPSA_VPD_LV_IOACCEL_STATUS      0xC2
+#define HPSA_VPD_HEADER_SZ              4
 
 struct vals32 {
 	u32   lower;

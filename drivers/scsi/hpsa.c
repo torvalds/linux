@@ -2064,6 +2064,49 @@ static int hpsa_get_raid_map(struct ctlr_info *h,
 	return rc;
 }
 
+static int hpsa_vpd_page_supported(struct ctlr_info *h,
+	unsigned char scsi3addr[], u8 page)
+{
+	int rc;
+	int i;
+	int pages;
+	unsigned char *buf, bufsize;
+
+	buf = kzalloc(256, GFP_KERNEL);
+	if (!buf)
+		return 0;
+
+	/* Get the size of the page list first */
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr,
+				VPD_PAGE | HPSA_VPD_SUPPORTED_PAGES,
+				buf, HPSA_VPD_HEADER_SZ);
+	if (rc != 0)
+		goto exit_unsupported;
+	pages = buf[3];
+	if ((pages + HPSA_VPD_HEADER_SZ) <= 255)
+		bufsize = pages + HPSA_VPD_HEADER_SZ;
+	else
+		bufsize = 255;
+
+	/* Get the whole VPD page list */
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr,
+				VPD_PAGE | HPSA_VPD_SUPPORTED_PAGES,
+				buf, bufsize);
+	if (rc != 0)
+		goto exit_unsupported;
+
+	pages = buf[3];
+	for (i = 1; i <= pages; i++)
+		if (buf[3 + i] == page)
+			goto exit_supported;
+exit_unsupported:
+	kfree(buf);
+	return 0;
+exit_supported:
+	kfree(buf);
+	return 1;
+}
+
 static void hpsa_get_ioaccel_status(struct ctlr_info *h,
 	unsigned char *scsi3addr, struct hpsa_scsi_dev_t *this_device)
 {
@@ -2077,6 +2120,8 @@ static void hpsa_get_ioaccel_status(struct ctlr_info *h,
 	buf = kzalloc(64, GFP_KERNEL);
 	if (!buf)
 		return;
+	if (!hpsa_vpd_page_supported(h, scsi3addr, HPSA_VPD_LV_IOACCEL_STATUS))
+		goto out;
 	rc = hpsa_scsi_do_inquiry(h, scsi3addr,
 			VPD_PAGE | HPSA_VPD_LV_IOACCEL_STATUS, buf, 64);
 	if (rc != 0)
