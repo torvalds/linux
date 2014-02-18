@@ -331,6 +331,7 @@
 #define   DISPLAY_PLANE_B           (1<<20)
 #define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|(len-2))
 #define   PIPE_CONTROL_GLOBAL_GTT_IVB			(1<<24) /* gen7+ */
+#define   PIPE_CONTROL_MMIO_WRITE			(1<<23)
 #define   PIPE_CONTROL_CS_STALL				(1<<20)
 #define   PIPE_CONTROL_TLB_INVALIDATE			(1<<18)
 #define   PIPE_CONTROL_QW_WRITE				(1<<14)
@@ -371,6 +372,8 @@
 
 #define PIPELINE_SELECT                ((0x3<<29)|(0x1<<27)|(0x1<<24)|(0x4<<16))
 #define GFX_OP_3DSTATE_VF_STATISTICS   ((0x3<<29)|(0x1<<27)|(0x0<<24)|(0xB<<16))
+#define MEDIA_VFE_STATE                ((0x3<<29)|(0x2<<27)|(0x0<<24)|(0x0<<16))
+#define  MEDIA_VFE_STATE_MMIO_ACCESS_MASK (0x18)
 #define GPGPU_OBJECT                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x4<<16))
 #define GPGPU_WALKER                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x5<<16))
 #define GFX_OP_3DSTATE_DX9_CONSTANTF_VS \

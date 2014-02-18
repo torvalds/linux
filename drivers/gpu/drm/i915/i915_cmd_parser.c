@@ -122,9 +122,12 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_SUSPEND_FLUSH,                 SMI,    F,  1,      S  ),
 	CMD(  MI_SEMAPHORE_MBOX,                SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_STORE_DWORD_INDEX,             SMI,   !F,  0xFF,   R  ),
-	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   R  ),
-	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   R  ),
-	CMD(  MI_LOAD_REGISTER_MEM,             SMI,   !F,  0xFF,   R  ),
+	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   W,
+	      .reg = { .offset = 1, .mask = 0x007FFFFC }               ),
+	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   W,
+	      .reg = { .offset = 1, .mask = 0x007FFFFC }               ),
+	CMD(  MI_LOAD_REGISTER_MEM,             SMI,   !F,  0xFF,   W,
+	      .reg = { .offset = 1, .mask = 0x007FFFFC }               ),
 	CMD(  MI_BATCH_BUFFER_START,            SMI,   !F,  0xFF,   S  ),
 };
 
@@ -141,9 +144,21 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
 	CMD(  GFX_OP_3DSTATE_VF_STATISTICS,     S3D,    F,  1,      S  ),
 	CMD(  PIPELINE_SELECT,                  S3D,    F,  1,      S  ),
+	CMD(  MEDIA_VFE_STATE,			S3D,   !F,  0xFFFF, B,
+	      .bits = {{
+			.offset = 2,
+			.mask = MEDIA_VFE_STATE_MMIO_ACCESS_MASK,
+			.expected = 0,
+	      }},						       ),
 	CMD(  GPGPU_OBJECT,                     S3D,   !F,  0xFF,   S  ),
 	CMD(  GPGPU_WALKER,                     S3D,   !F,  0xFF,   S  ),
 	CMD(  GFX_OP_3DSTATE_SO_DECL_LIST,      S3D,   !F,  0x1FF,  S  ),
+	CMD(  GFX_OP_PIPE_CONTROL(5),           S3D,   !F,  0xFF,   B,
+	      .bits = {{
+			.offset = 1,
+			.mask = PIPE_CONTROL_MMIO_WRITE,
+			.expected = 0,
+	      }},						       ),
 };
 
 static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
