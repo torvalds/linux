@@ -87,10 +87,11 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg)
 }
 
 /**
- * tipc_multicast - send a multicast message to local and remote destinations
+ * tipc_port_mcast_xmit - send a multicast message to local and remote
+ * destinations
  */
-int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
-		   struct iovec const *msg_sect, unsigned int len)
+int tipc_port_mcast_xmit(u32 ref, struct tipc_name_seq const *seq,
+			 struct iovec const *msg_sect, unsigned int len)
 {
 	struct tipc_msg *hdr;
 	struct sk_buff *buf;
@@ -131,7 +132,7 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 				return -ENOMEM;
 			}
 		}
-		res = tipc_bclink_send_msg(buf);
+		res = tipc_bclink_xmit(buf);
 		if ((res < 0) && (dports.count != 0))
 			kfree_skb(ibuf);
 	} else {
@@ -140,7 +141,7 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 
 	if (res >= 0) {
 		if (ibuf)
-			tipc_port_recv_mcast(ibuf, &dports);
+			tipc_port_mcast_rcv(ibuf, &dports);
 	} else {
 		tipc_port_list_free(&dports);
 	}
@@ -148,11 +149,11 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 }
 
 /**
- * tipc_port_recv_mcast - deliver multicast message to all destination ports
+ * tipc_port_mcast_rcv - deliver multicast message to all destination ports
  *
  * If there is no port list, perform a lookup to create one
  */
-void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp)
+void tipc_port_mcast_rcv(struct sk_buff *buf, struct tipc_port_list *dp)
 {
 	struct tipc_msg *msg;
 	struct tipc_port_list dports = {0, NULL, };
@@ -176,7 +177,7 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp)
 		msg_set_destnode(msg, tipc_own_addr);
 		if (dp->count == 1) {
 			msg_set_destport(msg, dp->ports[0]);
-			tipc_port_recv_msg(buf);
+			tipc_port_rcv(buf);
 			tipc_port_list_free(dp);
 			return;
 		}
@@ -191,7 +192,7 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp)
 			if ((index == 0) && (cnt != 0))
 				item = item->next;
 			msg_set_destport(buf_msg(b), item->ports[index]);
-			tipc_port_recv_msg(b);
+			tipc_port_rcv(b);
 		}
 	}
 exit:
@@ -422,17 +423,17 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	/* send returned message & dispose of rejected message */
 	src_node = msg_prevnode(msg);
 	if (in_own_node(src_node))
-		tipc_port_recv_msg(rbuf);
+		tipc_port_rcv(rbuf);
 	else
-		tipc_link_send(rbuf, src_node, msg_link_selector(rmsg));
+		tipc_link_xmit(rbuf, src_node, msg_link_selector(rmsg));
 exit:
 	kfree_skb(buf);
 	return data_sz;
 }
 
-int tipc_port_reject_sections(struct tipc_port *p_ptr, struct tipc_msg *hdr,
-			      struct iovec const *msg_sect, unsigned int len,
-			      int err)
+int tipc_port_iovec_reject(struct tipc_port *p_ptr, struct tipc_msg *hdr,
+			   struct iovec const *msg_sect, unsigned int len,
+			   int err)
 {
 	struct sk_buff *buf;
 	int res;
@@ -519,7 +520,7 @@ static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 er
 	return buf;
 }
 
-void tipc_port_recv_proto_msg(struct sk_buff *buf)
+void tipc_port_proto_rcv(struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 	struct tipc_port *p_ptr;
@@ -760,7 +761,7 @@ int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
 	return res;
 }
 
-int tipc_connect(u32 ref, struct tipc_portid const *peer)
+int tipc_port_connect(u32 ref, struct tipc_portid const *peer)
 {
 	struct tipc_port *p_ptr;
 	int res;
@@ -768,17 +769,17 @@ int tipc_connect(u32 ref, struct tipc_portid const *peer)
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return -EINVAL;
-	res = __tipc_connect(ref, p_ptr, peer);
+	res = __tipc_port_connect(ref, p_ptr, peer);
 	tipc_port_unlock(p_ptr);
 	return res;
 }
 
 /*
- * __tipc_connect - connect to a remote peer
+ * __tipc_port_connect - connect to a remote peer
  *
  * Port must be locked.
  */
-int __tipc_connect(u32 ref, struct tipc_port *p_ptr,
+int __tipc_port_connect(u32 ref, struct tipc_port *p_ptr,
 			struct tipc_portid const *peer)
 {
 	struct tipc_msg *msg;
@@ -815,7 +816,7 @@ exit:
  *
  * Port must be locked.
  */
-int __tipc_disconnect(struct tipc_port *tp_ptr)
+int __tipc_port_disconnect(struct tipc_port *tp_ptr)
 {
 	if (tp_ptr->connected) {
 		tp_ptr->connected = 0;
@@ -828,10 +829,10 @@ int __tipc_disconnect(struct tipc_port *tp_ptr)
 }
 
 /*
- * tipc_disconnect(): Disconnect port form peer.
+ * tipc_port_disconnect(): Disconnect port form peer.
  *                    This is a node local operation.
  */
-int tipc_disconnect(u32 ref)
+int tipc_port_disconnect(u32 ref)
 {
 	struct tipc_port *p_ptr;
 	int res;
@@ -839,15 +840,15 @@ int tipc_disconnect(u32 ref)
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return -EINVAL;
-	res = __tipc_disconnect(p_ptr);
+	res = __tipc_port_disconnect(p_ptr);
 	tipc_port_unlock(p_ptr);
 	return res;
 }
 
 /*
- * tipc_shutdown(): Send a SHUTDOWN msg to peer and disconnect
+ * tipc_port_shutdown(): Send a SHUTDOWN msg to peer and disconnect
  */
-int tipc_shutdown(u32 ref)
+int tipc_port_shutdown(u32 ref)
 {
 	struct tipc_port *p_ptr;
 	struct sk_buff *buf = NULL;
@@ -859,13 +860,13 @@ int tipc_shutdown(u32 ref)
 	buf = port_build_peer_abort_msg(p_ptr, TIPC_CONN_SHUTDOWN);
 	tipc_port_unlock(p_ptr);
 	tipc_net_route_msg(buf);
-	return tipc_disconnect(ref);
+	return tipc_port_disconnect(ref);
 }
 
 /**
- * tipc_port_recv_msg - receive message from lower layer and deliver to port user
+ * tipc_port_rcv - receive message from lower layer and deliver to port user
  */
-int tipc_port_recv_msg(struct sk_buff *buf)
+int tipc_port_rcv(struct sk_buff *buf)
 {
 	struct tipc_port *p_ptr;
 	struct tipc_msg *msg = buf_msg(buf);
@@ -894,19 +895,19 @@ int tipc_port_recv_msg(struct sk_buff *buf)
 }
 
 /*
- *  tipc_port_recv_sections(): Concatenate and deliver sectioned
- *                        message for this node.
+ *  tipc_port_iovec_rcv: Concatenate and deliver sectioned
+ *                       message for this node.
  */
-static int tipc_port_recv_sections(struct tipc_port *sender,
-				   struct iovec const *msg_sect,
-				   unsigned int len)
+static int tipc_port_iovec_rcv(struct tipc_port *sender,
+			       struct iovec const *msg_sect,
+			       unsigned int len)
 {
 	struct sk_buff *buf;
 	int res;
 
 	res = tipc_msg_build(&sender->phdr, msg_sect, len, MAX_MSG_SIZE, &buf);
 	if (likely(buf))
-		tipc_port_recv_msg(buf);
+		tipc_port_rcv(buf);
 	return res;
 }
 
@@ -927,10 +928,10 @@ int tipc_send(u32 ref, struct iovec const *msg_sect, unsigned int len)
 	if (!tipc_port_congested(p_ptr)) {
 		destnode = port_peernode(p_ptr);
 		if (likely(!in_own_node(destnode)))
-			res = tipc_link_send_sections_fast(p_ptr, msg_sect,
-							   len, destnode);
+			res = tipc_link_iovec_xmit_fast(p_ptr, msg_sect, len,
+							destnode);
 		else
-			res = tipc_port_recv_sections(p_ptr, msg_sect, len);
+			res = tipc_port_iovec_rcv(p_ptr, msg_sect, len);
 
 		if (likely(res != -ELINKCONG)) {
 			p_ptr->congested = 0;
@@ -974,13 +975,13 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 
 	if (likely(destport || destnode)) {
 		if (likely(in_own_node(destnode)))
-			res = tipc_port_recv_sections(p_ptr, msg_sect, len);
+			res = tipc_port_iovec_rcv(p_ptr, msg_sect, len);
 		else if (tipc_own_addr)
-			res = tipc_link_send_sections_fast(p_ptr, msg_sect,
-							   len, destnode);
+			res = tipc_link_iovec_xmit_fast(p_ptr, msg_sect, len,
+							destnode);
 		else
-			res = tipc_port_reject_sections(p_ptr, msg, msg_sect,
-							len, TIPC_ERR_NO_NODE);
+			res = tipc_port_iovec_reject(p_ptr, msg, msg_sect,
+						     len, TIPC_ERR_NO_NODE);
 		if (likely(res != -ELINKCONG)) {
 			if (res > 0)
 				p_ptr->sent++;
@@ -991,8 +992,8 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 		}
 		return -ELINKCONG;
 	}
-	return tipc_port_reject_sections(p_ptr, msg, msg_sect, len,
-					 TIPC_ERR_NO_NAME);
+	return tipc_port_iovec_reject(p_ptr, msg, msg_sect, len,
+				      TIPC_ERR_NO_NAME);
 }
 
 /**
@@ -1017,12 +1018,12 @@ int tipc_send2port(u32 ref, struct tipc_portid const *dest,
 	msg_set_hdr_sz(msg, BASIC_H_SIZE);
 
 	if (in_own_node(dest->node))
-		res =  tipc_port_recv_sections(p_ptr, msg_sect, len);
+		res =  tipc_port_iovec_rcv(p_ptr, msg_sect, len);
 	else if (tipc_own_addr)
-		res = tipc_link_send_sections_fast(p_ptr, msg_sect, len,
-						   dest->node);
+		res = tipc_link_iovec_xmit_fast(p_ptr, msg_sect, len,
+						dest->node);
 	else
-		res = tipc_port_reject_sections(p_ptr, msg, msg_sect, len,
+		res = tipc_port_iovec_reject(p_ptr, msg, msg_sect, len,
 						TIPC_ERR_NO_NODE);
 	if (likely(res != -ELINKCONG)) {
 		if (res > 0)

@@ -216,8 +216,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 			      const struct tipc_media_addr *media_addr);
 void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down);
 void tipc_link_failover_send_queue(struct tipc_link *l_ptr);
-void tipc_link_dup_send_queue(struct tipc_link *l_ptr,
-			      struct tipc_link *dest);
+void tipc_link_dup_queue_xmit(struct tipc_link *l_ptr, struct tipc_link *dest);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
 int tipc_link_is_up(struct tipc_link *l_ptr);
 int tipc_link_is_active(struct tipc_link *l_ptr);
@@ -231,23 +230,23 @@ struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area,
 					  int req_tlv_space);
 void tipc_link_reset(struct tipc_link *l_ptr);
 void tipc_link_reset_list(unsigned int bearer_id);
-int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
-void tipc_link_send_names(struct list_head *message_list, u32 dest);
+int tipc_link_xmit(struct sk_buff *buf, u32 dest, u32 selector);
+void tipc_link_names_xmit(struct list_head *message_list, u32 dest);
+int __tipc_link_xmit(struct tipc_link *l_ptr, struct sk_buff *buf);
 int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
-int tipc_link_send_sections_fast(struct tipc_port *sender,
-				 struct iovec const *msg_sect,
-				 unsigned int len, u32 destnode);
-void tipc_link_recv_bundle(struct sk_buff *buf);
-int  tipc_link_frag_rcv(struct sk_buff **reasm_head,
-			struct sk_buff **reasm_tail,
-			struct sk_buff **fbuf);
-void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ, int prob,
-			      u32 gap, u32 tolerance, u32 priority,
-			      u32 acked_mtu);
+int tipc_link_iovec_xmit_fast(struct tipc_port *sender,
+			      struct iovec const *msg_sect,
+			      unsigned int len, u32 destnode);
+void tipc_link_bundle_rcv(struct sk_buff *buf);
+int tipc_link_frag_rcv(struct sk_buff **reasm_head,
+		       struct sk_buff **reasm_tail,
+		       struct sk_buff **fbuf);
+void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,
+			  u32 gap, u32 tolerance, u32 priority, u32 acked_mtu);
 void tipc_link_push_queue(struct tipc_link *l_ptr);
 u32 tipc_link_defer_pkt(struct sk_buff **head, struct sk_buff **tail,
-		   struct sk_buff *buf);
+			struct sk_buff *buf);
 void tipc_link_wakeup_ports(struct tipc_link *l_ptr, int all);
 void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window);
 void tipc_link_retransmit(struct tipc_link *l_ptr,

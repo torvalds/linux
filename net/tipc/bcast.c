@@ -356,9 +356,9 @@ static void bclink_peek_nack(struct tipc_msg *msg)
 }
 
 /*
- * tipc_bclink_send_msg - broadcast a packet to all nodes in cluster
+ * tipc_bclink_xmit - broadcast a packet to all nodes in cluster
  */
-int tipc_bclink_send_msg(struct sk_buff *buf)
+int tipc_bclink_xmit(struct sk_buff *buf)
 {
 	int res;
 
@@ -370,7 +370,7 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 		goto exit;
 	}
 
-	res = tipc_link_send_buf(bcl, buf);
+	res = __tipc_link_xmit(bcl, buf);
 	if (likely(res >= 0)) {
 		bclink_set_last_sent();
 		bcl->stats.queue_sz_counts++;
@@ -399,19 +399,18 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
 	 */
 
 	if (((seqno - tipc_own_addr) % TIPC_MIN_LINK_WIN) == 0) {
-		tipc_link_send_proto_msg(
-			node->active_links[node->addr & 1],
-			STATE_MSG, 0, 0, 0, 0, 0);
+		tipc_link_proto_xmit(node->active_links[node->addr & 1],
+				     STATE_MSG, 0, 0, 0, 0, 0);
 		bcl->stats.sent_acks++;
 	}
 }
 
 /**
- * tipc_bclink_recv_pkt - receive a broadcast packet, and deliver upwards
+ * tipc_bclink_rcv - receive a broadcast packet, and deliver upwards
  *
  * tipc_net_lock is read_locked, no other locks set
  */
-void tipc_bclink_recv_pkt(struct sk_buff *buf)
+void tipc_bclink_rcv(struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 	struct tipc_node *node;
@@ -468,7 +467,7 @@ receive:
 			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
 			if (likely(msg_mcast(msg)))
-				tipc_port_recv_mcast(buf, NULL);
+				tipc_port_mcast_rcv(buf, NULL);
 			else
 				kfree_skb(buf);
 		} else if (msg_user(msg) == MSG_BUNDLER) {
@@ -478,7 +477,7 @@ receive:
 			bcl->stats.recv_bundled += msg_msgcnt(msg);
 			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
-			tipc_link_recv_bundle(buf);
+			tipc_link_bundle_rcv(buf);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
 			int ret;
 			ret = tipc_link_frag_rcv(&node->bclink.reasm_head,
@@ -503,7 +502,7 @@ receive:
 			bclink_accept_pkt(node, seqno);
 			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
-			tipc_named_recv(buf);
+			tipc_named_rcv(buf);
 		} else {
 			spin_lock_bh(&bc_lock);
 			bclink_accept_pkt(node, seqno);

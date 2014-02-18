@@ -132,25 +132,25 @@ int tipc_publish(struct tipc_port *p_ptr, unsigned int scope,
 int tipc_withdraw(struct tipc_port *p_ptr, unsigned int scope,
 		  struct tipc_name_seq const *name_seq);
 
-int tipc_connect(u32 portref, struct tipc_portid const *port);
+int tipc_port_connect(u32 portref, struct tipc_portid const *port);
 
-int tipc_disconnect(u32 portref);
+int tipc_port_disconnect(u32 portref);
 
-int tipc_shutdown(u32 ref);
+int tipc_port_shutdown(u32 ref);
 
 
 /*
  * The following routines require that the port be locked on entry
  */
-int __tipc_disconnect(struct tipc_port *tp_ptr);
-int __tipc_connect(u32 ref, struct tipc_port *p_ptr,
+int __tipc_port_disconnect(struct tipc_port *tp_ptr);
+int __tipc_port_connect(u32 ref, struct tipc_port *p_ptr,
 		   struct tipc_portid const *peer);
 int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
 /*
  * TIPC messaging routines
  */
-int tipc_port_recv_msg(struct sk_buff *buf);
+int tipc_port_rcv(struct sk_buff *buf);
 int tipc_send(u32 portref, struct iovec const *msg_sect, unsigned int len);
 
 int tipc_send2name(u32 portref, struct tipc_name const *name, u32 domain,
@@ -159,15 +159,15 @@ int tipc_send2name(u32 portref, struct tipc_name const *name, u32 domain,
 int tipc_send2port(u32 portref, struct tipc_portid const *dest,
 		   struct iovec const *msg_sect, unsigned int len);
 
-int tipc_multicast(u32 portref, struct tipc_name_seq const *seq,
-		   struct iovec const *msg, unsigned int len);
+int tipc_port_mcast_xmit(u32 portref, struct tipc_name_seq const *seq,
+			 struct iovec const *msg, unsigned int len);
 
-int tipc_port_reject_sections(struct tipc_port *p_ptr, struct tipc_msg *hdr,
-			      struct iovec const *msg_sect, unsigned int len,
-			      int err);
+int tipc_port_iovec_reject(struct tipc_port *p_ptr, struct tipc_msg *hdr,
+			   struct iovec const *msg_sect, unsigned int len,
+			   int err);
 struct sk_buff *tipc_port_get_ports(void);
-void tipc_port_recv_proto_msg(struct sk_buff *buf);
-void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp);
+void tipc_port_proto_rcv(struct sk_buff *buf);
+void tipc_port_mcast_rcv(struct sk_buff *buf, struct tipc_port_list *dp);
 void tipc_port_reinit(void);
 
 /**

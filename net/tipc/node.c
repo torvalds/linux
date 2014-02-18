@@ -162,7 +162,7 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 		pr_info("New link <%s> becomes standby\n", l_ptr->name);
 		return;
 	}
-	tipc_link_dup_send_queue(active[0], l_ptr);
+	tipc_link_dup_queue_xmit(active[0], l_ptr);
 	if (l_ptr->priority == active[0]->priority) {
 		active[0] = l_ptr;
 		return;

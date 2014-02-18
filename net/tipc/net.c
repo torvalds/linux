@@ -146,19 +146,19 @@ void tipc_net_route_msg(struct sk_buff *buf)
 	if (tipc_in_scope(dnode, tipc_own_addr)) {
 		if (msg_isdata(msg)) {
 			if (msg_mcast(msg))
-				tipc_port_recv_mcast(buf, NULL);
+				tipc_port_mcast_rcv(buf, NULL);
 			else if (msg_destport(msg))
-				tipc_port_recv_msg(buf);
+				tipc_port_rcv(buf);
 			else
 				net_route_named_msg(buf);
 			return;
 		}
 		switch (msg_user(msg)) {
 		case NAME_DISTRIBUTOR:
-			tipc_named_recv(buf);
+			tipc_named_rcv(buf);
 			break;
 		case CONN_MANAGER:
-			tipc_port_recv_proto_msg(buf);
+			tipc_port_proto_rcv(buf);
 			break;
 		default:
 			kfree_skb(buf);
@@ -168,7 +168,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 
 	/* Handle message for another node */
 	skb_trim(buf, msg_size(msg));
-	tipc_link_send(buf, dnode, msg_link_selector(msg));
+	tipc_link_xmit(buf, dnode, msg_link_selector(msg));
 }
 
 void tipc_net_start(u32 addr)
