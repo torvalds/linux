@@ -1888,11 +1888,12 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 	struct ReportLUNdata *physdev, u32 *nphysicals,
 	struct ReportLUNdata *logdev, u32 *nlogicals)
 {
-	if (hpsa_scsi_do_report_phys_luns(h, physdev, reportlunsize, 0)) {
+	if (hpsa_scsi_do_report_phys_luns(h, physdev, reportlunsize,
+					HPSA_REPORT_PHYS_EXTENDED)) {
 		dev_err(&h->pdev->dev, "report physical LUNs failed.\n");
 		return -1;
 	}
-	*nphysicals = be32_to_cpu(*((__be32 *)physdev->LUNListLength)) / 8;
+	*nphysicals = be32_to_cpu(*((__be32 *)physdev->LUNListLength)) / 24;
 	if (*nphysicals > HPSA_MAX_PHYS_LUN) {
 		dev_warn(&h->pdev->dev, "maximum physical LUNs (%d) exceeded."
 			"  %d LUNs ignored.\n", HPSA_MAX_PHYS_LUN,
@@ -1923,7 +1924,8 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 }
 
 u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position, int i,
-	int nphysicals, int nlogicals, struct ReportLUNdata *physdev_list,
+	int nphysicals, int nlogicals,
+	struct ReportExtendedLUNdata *physdev_list,
 	struct ReportLUNdata *logdev_list)
 {
 	/* Helper function, figure out where the LUN ID info is coming from
@@ -1959,7 +1961,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	 * tell which devices we already know about, vs. new
 	 * devices, vs.  disappearing devices.
 	 */
-	struct ReportLUNdata *physdev_list = NULL;
+	struct ReportExtendedLUNdata *physdev_list = NULL;
 	struct ReportLUNdata *logdev_list = NULL;
 	u32 nphysicals = 0;
 	u32 nlogicals = 0;
@@ -1982,7 +1984,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	}
 	memset(lunzerobits, 0, sizeof(lunzerobits));
 
-	if (hpsa_gather_lun_info(h, reportlunsize, physdev_list, &nphysicals,
+	if (hpsa_gather_lun_info(h, reportlunsize,
+			(struct ReportLUNdata *) physdev_list, &nphysicals,
 			logdev_list, &nlogicals))
 		goto out;
 

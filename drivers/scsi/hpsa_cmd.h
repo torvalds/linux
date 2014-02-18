@@ -162,6 +162,7 @@ struct InquiryData {
 
 #define HPSA_REPORT_LOG 0xc2    /* Report Logical LUNs */
 #define HPSA_REPORT_PHYS 0xc3   /* Report Physical LUNs */
+#define HPSA_REPORT_PHYS_EXTENDED 0x02
 struct ReportLUNdata {
 	u8 LUNListLength[4];
 	u32 reserved;
