@@ -42,6 +42,8 @@
 #define CMD_UNSOLICITED_ABORT   0x000A
 #define CMD_TIMEOUT             0x000B
 #define CMD_UNABORTABLE		0x000C
+#define CMD_IOACCEL_DISABLED	0x000E
+
 
 /* Unit Attentions ASC's as defined for the MSA2012sa */
 #define POWER_OR_RESET			0x29
@@ -137,6 +139,11 @@
 #define CFGTBL_BusType_Ultra3   0x00000002l
 #define CFGTBL_BusType_Fibre1G  0x00000100l
 #define CFGTBL_BusType_Fibre2G  0x00000200l
+
+/* VPD Inquiry types */
+#define HPSA_VPD_LV_DEVICE_GEOMETRY     0xC1
+#define HPSA_VPD_LV_IOACCEL_STATUS      0xC2
+
 struct vals32 {
 	u32   lower;
 	u32   upper;
@@ -165,9 +172,46 @@ struct InquiryData {
 #define HPSA_REPORT_LOG 0xc2    /* Report Logical LUNs */
 #define HPSA_REPORT_PHYS 0xc3   /* Report Physical LUNs */
 #define HPSA_REPORT_PHYS_EXTENDED 0x02
+#define HPSA_CISS_READ	0xc0	/* CISS Read */
+#define HPSA_GET_RAID_MAP 0xc8	/* CISS Get RAID Layout Map */
+
+#define RAID_MAP_MAX_ENTRIES   256
+
+struct raid_map_disk_data {
+	u32   ioaccel_handle;         /**< Handle to access this disk via the
+					*  I/O accelerator */
+	u8    xor_mult[2];            /**< XOR multipliers for this position,
+					*  valid for data disks only */
+	u8    reserved[2];
+};
+
+struct raid_map_data {
+	u32   structure_size;		/* Size of entire structure in bytes */
+	u32   volume_blk_size;		/* bytes / block in the volume */
+	u64   volume_blk_cnt;		/* logical blocks on the volume */
+	u8    phys_blk_shift;		/* Shift factor to convert between
+					 * units of logical blocks and physical
+					 * disk blocks */
+	u8    parity_rotation_shift;	/* Shift factor to convert between units
+					 * of logical stripes and physical
+					 * stripes */
+	u16   strip_size;		/* blocks used on each disk / stripe */
+	u64   disk_starting_blk;	/* First disk block used in volume */
+	u64   disk_blk_cnt;		/* disk blocks used by volume / disk */
+	u16   data_disks_per_row;	/* data disk entries / row in the map */
+	u16   metadata_disks_per_row;	/* mirror/parity disk entries / row
+					 * in the map */
+	u16   row_cnt;			/* rows in each layout map */
+	u16   layout_map_count;		/* layout maps (1 map per mirror/parity
+					 * group) */
+	u8    reserved[20];
+	struct raid_map_disk_data data[RAID_MAP_MAX_ENTRIES];
+};
+
 struct ReportLUNdata {
 	u8 LUNListLength[4];
-	u32 reserved;
+	u8 extended_response_flag;
+	u8 reserved[3];
 	u8 LUN[HPSA_MAX_LUN][8];
 };
 
@@ -331,7 +375,7 @@ struct CommandList {
  */
 #define IS_32_BIT ((8 - sizeof(long))/4)
 #define IS_64_BIT (!IS_32_BIT)
-#define PAD_32 (4)
+#define PAD_32 (36)
 #define PAD_64 (4)
 #define COMMANDLIST_PAD (IS_32_BIT * PAD_32 + IS_64_BIT * PAD_64)
 	u8 pad[COMMANDLIST_PAD];
@@ -371,6 +415,11 @@ struct io_accel1_cmd {
 	struct vals32 host_addr;	/* 0x70 - 0x77 */
 	u8  CISS_LUN[8];		/* 0x78 - 0x7F */
 	struct SGDescriptor SG[IOACCEL1_MAXSGENTRIES];
+#define IOACCEL1_PAD_64 0
+#define IOACCEL1_PAD_32 0
+#define IOACCEL1_PAD (IS_32_BIT * IOACCEL1_PAD_32 + \
+			IS_64_BIT * IOACCEL1_PAD_64)
+	u8 pad[IOACCEL1_PAD];
 };
 
 #define IOACCEL1_FUNCTION_SCSIIO        0x00
@@ -407,6 +456,8 @@ struct HostWrite {
 #define MEMQ_MODE       0x08
 #define IOACCEL_MODE_1  0x80
 
+#define DRIVER_SUPPORT_UA_ENABLE        0x00000001
+
 struct CfgTable {
 	u8            Signature[4];
 	u32		SpecValence;
@@ -435,8 +486,16 @@ struct CfgTable {
 	u32		misc_fw_support; /* offset 0x78 */
 #define			MISC_FW_DOORBELL_RESET (0x02)
 #define			MISC_FW_DOORBELL_RESET2 (0x010)
+#define			MISC_FW_RAID_OFFLOAD_BASIC (0x020)
+#define			MISC_FW_EVENT_NOTIFY (0x080)
 	u8		driver_version[32];
-
+	u32             max_cached_write_size;
+	u8              driver_scratchpad[16];
+	u32             max_error_info_length;
+	u32		io_accel_max_embedded_sg_count;
+	u32		io_accel_request_size_offset;
+	u32		event_notify;
+	u32		clear_event_notify;
 };
 
 #define NUM_BLOCKFETCH_ENTRIES 8

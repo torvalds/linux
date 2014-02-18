@@ -47,6 +47,13 @@ struct hpsa_scsi_dev_t {
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 	u32 ioaccel_handle;
+	int offload_config;		/* I/O accel RAID offload configured */
+	int offload_enabled;		/* I/O accel RAID offload enabled */
+	int offload_to_mirror;		/* Send next I/O accelerator RAID
+					 * offload request to mirror drive
+					 */
+	struct raid_map_data raid_map;	/* I/O accelerator RAID map */
+
 };
 
 struct reply_pool {
@@ -133,6 +140,10 @@ struct ctlr_info {
 	u32 *blockFetchTable;
 	u32 *ioaccel1_blockFetchTable;
 	unsigned char *hba_inquiry_data;
+	u32 driver_support;
+	u32 fw_support;
+	int ioaccel_support;
+	int ioaccel_maxsg;
 	u64 last_intr_timestamp;
 	u32 last_heartbeat;
 	u64 last_heartbeat_timestamp;
@@ -406,8 +417,7 @@ static bool SA5_ioaccel_mode1_intr_pending(struct ctlr_info *h)
 #define IOACCEL_MODE1_CONSUMER_INDEX     0x1BC
 #define IOACCEL_MODE1_REPLY_UNUSED       0xFFFFFFFFFFFFFFFFULL
 
-static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h,
-							u8 q)
+static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h, u8 q)
 {
 	u64 register_value;
 	struct reply_pool *rq = &h->reply_queue[q];
@@ -420,12 +430,18 @@ static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h,
 		rq->head[rq->current_entry] = IOACCEL_MODE1_REPLY_UNUSED;
 		if (++rq->current_entry == rq->size)
 			rq->current_entry = 0;
+		/*
+		 * @todo
+		 *
+		 * Don't really need to write the new index after each command,
+		 * but with current driver design this is easiest.
+		 */
+		wmb();
+		writel((q << 24) | rq->current_entry, h->vaddr +
+				IOACCEL_MODE1_CONSUMER_INDEX);
 		spin_lock_irqsave(&h->lock, flags);
 		h->commands_outstanding--;
 		spin_unlock_irqrestore(&h->lock, flags);
-	} else {
-		writel((q << 24) | rq->current_entry,
-			h->vaddr + IOACCEL_MODE1_CONSUMER_INDEX);
 	}
 	return (unsigned long) register_value;
 }

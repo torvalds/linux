@@ -49,6 +49,7 @@
 #include <linux/atomic.h>
 #include <linux/kthread.h>
 #include <linux/jiffies.h>
+#include <asm/div64.h>
 #include "hpsa_cmd.h"
 #include "hpsa.h"
 
@@ -216,6 +217,7 @@ static int hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id);
 static int hpsa_wait_for_board_state(struct pci_dev *pdev, void __iomem *vaddr,
 				     int wait_for_ready);
 static inline void finish_cmd(struct CommandList *c);
+static void hpsa_wait_for_mode_change_ack(struct ctlr_info *h);
 #define BOARD_NOT_READY 0
 #define BOARD_READY 1
 
@@ -1195,6 +1197,7 @@ static void complete_scsi_command(struct CommandList *cp)
 	struct scsi_cmnd *cmd;
 	struct ctlr_info *h;
 	struct ErrorInfo *ei;
+	struct hpsa_scsi_dev_t *dev;
 
 	unsigned char sense_key;
 	unsigned char asc;      /* additional sense code */
@@ -1204,6 +1207,7 @@ static void complete_scsi_command(struct CommandList *cp)
 	ei = cp->err_info;
 	cmd = (struct scsi_cmnd *) cp->scsi_cmd;
 	h = cp->h;
+	dev = cmd->device->hostdata;
 
 	scsi_dma_unmap(cmd); /* undo the DMA mappings */
 	if ((cp->cmd_type == CMD_SCSI) &&
@@ -1242,6 +1246,19 @@ static void complete_scsi_command(struct CommandList *cp)
 		cp->Header.Tag.upper = c->Tag.upper;
 		memcpy(cp->Header.LUN.LunAddrBytes, c->CISS_LUN, 8);
 		memcpy(cp->Request.CDB, c->CDB, cp->Request.CDBLen);
+
+		/* Any RAID offload error results in retry which will use
+		 * the normal I/O path so the controller can handle whatever's
+		 * wrong.
+		 */
+		if (is_logical_dev_addr_mode(dev->scsi3addr)) {
+			if (ei->CommandStatus == CMD_IOACCEL_DISABLED)
+				dev->offload_enabled = 0;
+			cmd->result = DID_SOFT_ERROR << 16;
+			cmd_free(h, cp);
+			cmd->scsi_done(cmd);
+			return;
+		}
 	}
 
 	/* an error has occurred */
@@ -1405,6 +1422,14 @@ static void complete_scsi_command(struct CommandList *cp)
 	case CMD_UNABORTABLE:
 		cmd->result = DID_ERROR << 16;
 		dev_warn(&h->pdev->dev, "Command unabortable\n");
+		break;
+	case CMD_IOACCEL_DISABLED:
+		/* This only handles the direct pass-through case since RAID
+		 * offload is handled above.  Just attempt a retry.
+		 */
+		cmd->result = DID_SOFT_ERROR << 16;
+		dev_warn(&h->pdev->dev,
+				"cp %p had HP SSD Smart Path error\n", cp);
 		break;
 	default:
 		cmd->result = DID_ERROR << 16;
@@ -1650,6 +1675,147 @@ static void hpsa_get_raid_level(struct ctlr_info *h,
 	return;
 }
 
+#define HPSA_MAP_DEBUG
+#ifdef HPSA_MAP_DEBUG
+static void hpsa_debug_map_buff(struct ctlr_info *h, int rc,
+				struct raid_map_data *map_buff)
+{
+	struct raid_map_disk_data *dd = &map_buff->data[0];
+	int map, row, col;
+	u16 map_cnt, row_cnt, disks_per_row;
+
+	if (rc != 0)
+		return;
+
+	dev_info(&h->pdev->dev, "structure_size = %u\n",
+				le32_to_cpu(map_buff->structure_size));
+	dev_info(&h->pdev->dev, "volume_blk_size = %u\n",
+			le32_to_cpu(map_buff->volume_blk_size));
+	dev_info(&h->pdev->dev, "volume_blk_cnt = 0x%llx\n",
+			le64_to_cpu(map_buff->volume_blk_cnt));
+	dev_info(&h->pdev->dev, "physicalBlockShift = %u\n",
+			map_buff->phys_blk_shift);
+	dev_info(&h->pdev->dev, "parity_rotation_shift = %u\n",
+			map_buff->parity_rotation_shift);
+	dev_info(&h->pdev->dev, "strip_size = %u\n",
+			le16_to_cpu(map_buff->strip_size));
+	dev_info(&h->pdev->dev, "disk_starting_blk = 0x%llx\n",
+			le64_to_cpu(map_buff->disk_starting_blk));
+	dev_info(&h->pdev->dev, "disk_blk_cnt = 0x%llx\n",
+			le64_to_cpu(map_buff->disk_blk_cnt));
+	dev_info(&h->pdev->dev, "data_disks_per_row = %u\n",
+			le16_to_cpu(map_buff->data_disks_per_row));
+	dev_info(&h->pdev->dev, "metadata_disks_per_row = %u\n",
+			le16_to_cpu(map_buff->metadata_disks_per_row));
+	dev_info(&h->pdev->dev, "row_cnt = %u\n",
+			le16_to_cpu(map_buff->row_cnt));
+	dev_info(&h->pdev->dev, "layout_map_count = %u\n",
+			le16_to_cpu(map_buff->layout_map_count));
+
+	map_cnt = le16_to_cpu(map_buff->layout_map_count);
+	for (map = 0; map < map_cnt; map++) {
+		dev_info(&h->pdev->dev, "Map%u:\n", map);
+		row_cnt = le16_to_cpu(map_buff->row_cnt);
+		for (row = 0; row < row_cnt; row++) {
+			dev_info(&h->pdev->dev, "  Row%u:\n", row);
+			disks_per_row =
+				le16_to_cpu(map_buff->data_disks_per_row);
+			for (col = 0; col < disks_per_row; col++, dd++)
+				dev_info(&h->pdev->dev,
+					"    D%02u: h=0x%04x xor=%u,%u\n",
+					col, dd->ioaccel_handle,
+					dd->xor_mult[0], dd->xor_mult[1]);
+			disks_per_row =
+				le16_to_cpu(map_buff->metadata_disks_per_row);
+			for (col = 0; col < disks_per_row; col++, dd++)
+				dev_info(&h->pdev->dev,
+					"    M%02u: h=0x%04x xor=%u,%u\n",
+					col, dd->ioaccel_handle,
+					dd->xor_mult[0], dd->xor_mult[1]);
+		}
+	}
+}
+#else
+static void hpsa_debug_map_buff(__attribute__((unused)) struct ctlr_info *h,
+			__attribute__((unused)) int rc,
+			__attribute__((unused)) struct raid_map_data *map_buff)
+{
+}
+#endif
+
+static int hpsa_get_raid_map(struct ctlr_info *h,
+	unsigned char *scsi3addr, struct hpsa_scsi_dev_t *this_device)
+{
+	int rc = 0;
+	struct CommandList *c;
+	struct ErrorInfo *ei;
+
+	c = cmd_special_alloc(h);
+	if (c == NULL) {
+		dev_warn(&h->pdev->dev, "cmd_special_alloc returned NULL!\n");
+		return -ENOMEM;
+	}
+	if (fill_cmd(c, HPSA_GET_RAID_MAP, h, &this_device->raid_map,
+			sizeof(this_device->raid_map), 0,
+			scsi3addr, TYPE_CMD)) {
+		dev_warn(&h->pdev->dev, "Out of memory in hpsa_get_raid_map()\n");
+		cmd_special_free(h, c);
+		return -ENOMEM;
+	}
+	hpsa_scsi_do_simple_cmd_with_retry(h, c, PCI_DMA_FROMDEVICE);
+	ei = c->err_info;
+	if (ei->CommandStatus != 0 && ei->CommandStatus != CMD_DATA_UNDERRUN) {
+		hpsa_scsi_interpret_error(c);
+		cmd_special_free(h, c);
+		return -1;
+	}
+	cmd_special_free(h, c);
+
+	/* @todo in the future, dynamically allocate RAID map memory */
+	if (le32_to_cpu(this_device->raid_map.structure_size) >
+				sizeof(this_device->raid_map)) {
+		dev_warn(&h->pdev->dev, "RAID map size is too large!\n");
+		rc = -1;
+	}
+	hpsa_debug_map_buff(h, rc, &this_device->raid_map);
+	return rc;
+}
+
+static void hpsa_get_ioaccel_status(struct ctlr_info *h,
+	unsigned char *scsi3addr, struct hpsa_scsi_dev_t *this_device)
+{
+	int rc;
+	unsigned char *buf;
+	u8 ioaccel_status;
+
+	this_device->offload_config = 0;
+	this_device->offload_enabled = 0;
+
+	buf = kzalloc(64, GFP_KERNEL);
+	if (!buf)
+		return;
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr,
+			HPSA_VPD_LV_IOACCEL_STATUS, buf, 64);
+	if (rc != 0)
+		goto out;
+
+#define IOACCEL_STATUS_BYTE 4
+#define OFFLOAD_CONFIGURED_BIT 0x01
+#define OFFLOAD_ENABLED_BIT 0x02
+	ioaccel_status = buf[IOACCEL_STATUS_BYTE];
+	this_device->offload_config =
+		!!(ioaccel_status & OFFLOAD_CONFIGURED_BIT);
+	if (this_device->offload_config) {
+		this_device->offload_enabled =
+			!!(ioaccel_status & OFFLOAD_ENABLED_BIT);
+		if (hpsa_get_raid_map(h, scsi3addr, this_device))
+			this_device->offload_enabled = 0;
+	}
+out:
+	kfree(buf);
+	return;
+}
+
 /* Get the device id from inquiry page 0x83 */
 static int hpsa_get_device_id(struct ctlr_info *h, unsigned char *scsi3addr,
 	unsigned char *device_id, int buflen)
@@ -1698,6 +1864,14 @@ static int hpsa_scsi_do_report_luns(struct ctlr_info *h, int logical,
 	    ei->CommandStatus != CMD_DATA_UNDERRUN) {
 		hpsa_scsi_interpret_error(c);
 		rc = -1;
+	} else {
+		if (buf->extended_response_flag != extended_response) {
+			dev_err(&h->pdev->dev,
+				"report luns requested format %u, got %u\n",
+				extended_response,
+				buf->extended_response_flag);
+			rc = -1;
+		}
 	}
 out:
 	cmd_special_free(h, c);
@@ -1763,10 +1937,15 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		sizeof(this_device->device_id));
 
 	if (this_device->devtype == TYPE_DISK &&
-		is_logical_dev_addr_mode(scsi3addr))
+		is_logical_dev_addr_mode(scsi3addr)) {
 		hpsa_get_raid_level(h, scsi3addr, &this_device->raid_level);
-	else
+		if (h->fw_support & MISC_FW_RAID_OFFLOAD_BASIC)
+			hpsa_get_ioaccel_status(h, scsi3addr, this_device);
+	} else {
 		this_device->raid_level = RAID_UNKNOWN;
+		this_device->offload_config = 0;
+		this_device->offload_enabled = 0;
+	}
 
 	if (is_OBDR_device) {
 		/* See if this is a One-Button-Disaster-Recovery device
@@ -1903,15 +2082,25 @@ static int add_ext_target_dev(struct ctlr_info *h,
  */
 static int hpsa_gather_lun_info(struct ctlr_info *h,
 	int reportlunsize,
-	struct ReportLUNdata *physdev, u32 *nphysicals,
+	struct ReportLUNdata *physdev, u32 *nphysicals, int *physical_mode,
 	struct ReportLUNdata *logdev, u32 *nlogicals)
 {
+	int physical_entry_size = 8;
+
+	*physical_mode = 0;
+
+	/* For I/O accelerator mode we need to read physical device handles */
+	if (h->transMethod & CFGTBL_Trans_io_accel1) {
+		*physical_mode = HPSA_REPORT_PHYS_EXTENDED;
+		physical_entry_size = 24;
+	}
 	if (hpsa_scsi_do_report_phys_luns(h, physdev, reportlunsize,
-					HPSA_REPORT_PHYS_EXTENDED)) {
+							*physical_mode)) {
 		dev_err(&h->pdev->dev, "report physical LUNs failed.\n");
 		return -1;
 	}
-	*nphysicals = be32_to_cpu(*((__be32 *)physdev->LUNListLength)) / 24;
+	*nphysicals = be32_to_cpu(*((__be32 *)physdev->LUNListLength)) /
+							physical_entry_size;
 	if (*nphysicals > HPSA_MAX_PHYS_LUN) {
 		dev_warn(&h->pdev->dev, "maximum physical LUNs (%d) exceeded."
 			"  %d LUNs ignored.\n", HPSA_MAX_PHYS_LUN,
@@ -1983,10 +2172,11 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	struct ReportLUNdata *logdev_list = NULL;
 	u32 nphysicals = 0;
 	u32 nlogicals = 0;
+	int physical_mode = 0;
 	u32 ndev_allocated = 0;
 	struct hpsa_scsi_dev_t **currentsd, *this_device, *tmpdevice;
 	int ncurrent = 0;
-	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 8;
+	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 24;
 	int i, n_ext_target_devs, ndevs_to_allocate;
 	int raid_ctlr_position;
 	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
@@ -2004,7 +2194,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 
 	if (hpsa_gather_lun_info(h, reportlunsize,
 			(struct ReportLUNdata *) physdev_list, &nphysicals,
-			logdev_list, &nlogicals))
+			&physical_mode, logdev_list, &nlogicals))
 		goto out;
 
 	/* We might see up to the maximum number of logical and physical disks
@@ -2085,12 +2275,16 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 				ncurrent++;
 			break;
 		case TYPE_DISK:
-			if (i < nphysicals)
+			if (i >= nphysicals) {
+				ncurrent++;
 				break;
-			memcpy(&this_device->ioaccel_handle,
-				&lunaddrbytes[20],
-				sizeof(this_device->ioaccel_handle));
-			ncurrent++;
+			}
+			if (physical_mode == HPSA_REPORT_PHYS_EXTENDED) {
+				memcpy(&this_device->ioaccel_handle,
+					&lunaddrbytes[20],
+					sizeof(this_device->ioaccel_handle));
+				ncurrent++;
+			}
 			break;
 		case TYPE_TAPE:
 		case TYPE_MEDIUM_CHANGER:
@@ -2184,15 +2378,62 @@ sglist_finished:
 	return 0;
 }
 
+#define IO_ACCEL_INELIGIBLE (1)
+static int fixup_ioaccel_cdb(u8 *cdb, int *cdb_len)
+{
+	int is_write = 0;
+	u32 block;
+	u32 block_cnt;
+
+	/* Perform some CDB fixups if needed using 10 byte reads/writes only */
+	switch (cdb[0]) {
+	case WRITE_6:
+	case WRITE_12:
+		is_write = 1;
+	case READ_6:
+	case READ_12:
+		if (*cdb_len == 6) {
+			block = (((u32) cdb[2]) << 8) | cdb[3];
+			block_cnt = cdb[4];
+		} else {
+			BUG_ON(*cdb_len != 12);
+			block = (((u32) cdb[2]) << 24) |
+				(((u32) cdb[3]) << 16) |
+				(((u32) cdb[4]) << 8) |
+				cdb[5];
+			block_cnt =
+				(((u32) cdb[6]) << 24) |
+				(((u32) cdb[7]) << 16) |
+				(((u32) cdb[8]) << 8) |
+				cdb[9];
+		}
+		if (block_cnt > 0xffff)
+			return IO_ACCEL_INELIGIBLE;
+
+		cdb[0] = is_write ? WRITE_10 : READ_10;
+		cdb[1] = 0;
+		cdb[2] = (u8) (block >> 24);
+		cdb[3] = (u8) (block >> 16);
+		cdb[4] = (u8) (block >> 8);
+		cdb[5] = (u8) (block);
+		cdb[6] = 0;
+		cdb[7] = (u8) (block_cnt >> 8);
+		cdb[8] = (u8) (block_cnt);
+		cdb[9] = 0;
+		*cdb_len = 10;
+		break;
+	}
+	return 0;
+}
+
 /*
  * Queue a command to the I/O accelerator path.
- * This method does not currently support S/G chaining.
  */
 static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
-					struct CommandList *c)
+	struct CommandList *c, u32 ioaccel_handle, u8 *cdb, int cdb_len,
+	u8 *scsi3addr)
 {
 	struct scsi_cmnd *cmd = c->scsi_cmd;
-	struct hpsa_scsi_dev_t *dev = cmd->device->hostdata;
 	struct io_accel1_cmd *cp = &h->ioaccel_cmd_pool[c->cmdindex];
 	unsigned int len;
 	unsigned int total_len = 0;
@@ -2202,7 +2443,14 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 	struct SGDescriptor *curr_sg;
 	u32 control = IOACCEL1_CONTROL_SIMPLEQUEUE;
 
+	/* TODO: implement chaining support */
+	if (scsi_sg_count(cmd) > h->ioaccel_maxsg)
+		return IO_ACCEL_INELIGIBLE;
+
 	BUG_ON(cmd->cmd_len > IOACCEL1_IOFLAGS_CDBLEN_MAX);
+
+	if (fixup_ioaccel_cdb(cdb, &cdb_len))
+		return IO_ACCEL_INELIGIBLE;
 
 	c->cmd_type = CMD_IOACCEL1;
 
@@ -2254,13 +2502,13 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 	}
 
 	/* Fill out the command structure to submit */
-	cp->dev_handle = dev->ioaccel_handle;
+	cp->dev_handle = ioaccel_handle & 0xFFFF;
 	cp->transfer_len = total_len;
 	cp->io_flags = IOACCEL1_IOFLAGS_IO_REQ |
-			(cmd->cmd_len & IOACCEL1_IOFLAGS_CDBLEN_MASK);
+			(cdb_len & IOACCEL1_IOFLAGS_CDBLEN_MASK);
 	cp->control = control;
-	memcpy(cp->CDB, cmd->cmnd, cmd->cmd_len);
-	memcpy(cp->CISS_LUN, dev->scsi3addr, 8);
+	memcpy(cp->CDB, cdb, cdb_len);
+	memcpy(cp->CISS_LUN, scsi3addr, 8);
 
 	/* Tell the controller to post the reply to the queue for this
 	 * processor.  This seems to give the best I/O throughput.
@@ -2274,13 +2522,212 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 	 */
 	c->busaddr |= 1 | (h->ioaccel1_blockFetchTable[use_sg] << 1) |
 					IOACCEL1_BUSADDR_CMDTYPE;
-
-	/* execute command (bypassing cmd queue if possible) */
-	if (unlikely(h->access.fifo_full(h)))
-		enqueue_cmd_and_start_io(h, c);
-	else
-		h->access.submit_command(h, c);
+	enqueue_cmd_and_start_io(h, c);
 	return 0;
+}
+
+/*
+ * Queue a command directly to a device behind the controller using the
+ * I/O accelerator path.
+ */
+static int hpsa_scsi_ioaccel_direct_map(struct ctlr_info *h,
+	struct CommandList *c)
+{
+	struct scsi_cmnd *cmd = c->scsi_cmd;
+	struct hpsa_scsi_dev_t *dev = cmd->device->hostdata;
+
+	return hpsa_scsi_ioaccel_queue_command(h, c, dev->ioaccel_handle,
+		cmd->cmnd, cmd->cmd_len, dev->scsi3addr);
+}
+
+/*
+ * Attempt to perform offload RAID mapping for a logical volume I/O.
+ */
+static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
+	struct CommandList *c)
+{
+	struct scsi_cmnd *cmd = c->scsi_cmd;
+	struct hpsa_scsi_dev_t *dev = cmd->device->hostdata;
+	struct raid_map_data *map = &dev->raid_map;
+	struct raid_map_disk_data *dd = &map->data[0];
+	int is_write = 0;
+	u32 map_index;
+	u64 first_block, last_block;
+	u32 block_cnt;
+	u32 blocks_per_row;
+	u64 first_row, last_row;
+	u32 first_row_offset, last_row_offset;
+	u32 first_column, last_column;
+	u32 map_row;
+	u32 disk_handle;
+	u64 disk_block;
+	u32 disk_block_cnt;
+	u8 cdb[16];
+	u8 cdb_len;
+#if BITS_PER_LONG == 32
+	u64 tmpdiv;
+#endif
+
+	BUG_ON(!(dev->offload_config && dev->offload_enabled));
+
+	/* check for valid opcode, get LBA and block count */
+	switch (cmd->cmnd[0]) {
+	case WRITE_6:
+		is_write = 1;
+	case READ_6:
+		first_block =
+			(((u64) cmd->cmnd[2]) << 8) |
+			cmd->cmnd[3];
+		block_cnt = cmd->cmnd[4];
+		break;
+	case WRITE_10:
+		is_write = 1;
+	case READ_10:
+		first_block =
+			(((u64) cmd->cmnd[2]) << 24) |
+			(((u64) cmd->cmnd[3]) << 16) |
+			(((u64) cmd->cmnd[4]) << 8) |
+			cmd->cmnd[5];
+		block_cnt =
+			(((u32) cmd->cmnd[7]) << 8) |
+			cmd->cmnd[8];
+		break;
+	case WRITE_12:
+		is_write = 1;
+	case READ_12:
+		first_block =
+			(((u64) cmd->cmnd[2]) << 24) |
+			(((u64) cmd->cmnd[3]) << 16) |
+			(((u64) cmd->cmnd[4]) << 8) |
+			cmd->cmnd[5];
+		block_cnt =
+			(((u32) cmd->cmnd[6]) << 24) |
+			(((u32) cmd->cmnd[7]) << 16) |
+			(((u32) cmd->cmnd[8]) << 8) |
+		cmd->cmnd[9];
+		break;
+	case WRITE_16:
+		is_write = 1;
+	case READ_16:
+		first_block =
+			(((u64) cmd->cmnd[2]) << 56) |
+			(((u64) cmd->cmnd[3]) << 48) |
+			(((u64) cmd->cmnd[4]) << 40) |
+			(((u64) cmd->cmnd[5]) << 32) |
+			(((u64) cmd->cmnd[6]) << 24) |
+			(((u64) cmd->cmnd[7]) << 16) |
+			(((u64) cmd->cmnd[8]) << 8) |
+			cmd->cmnd[9];
+		block_cnt =
+			(((u32) cmd->cmnd[10]) << 24) |
+			(((u32) cmd->cmnd[11]) << 16) |
+			(((u32) cmd->cmnd[12]) << 8) |
+			cmd->cmnd[13];
+		break;
+	default:
+		return IO_ACCEL_INELIGIBLE; /* process via normal I/O path */
+	}
+	BUG_ON(block_cnt == 0);
+	last_block = first_block + block_cnt - 1;
+
+	/* check for write to non-RAID-0 */
+	if (is_write && dev->raid_level != 0)
+		return IO_ACCEL_INELIGIBLE;
+
+	/* check for invalid block or wraparound */
+	if (last_block >= map->volume_blk_cnt || last_block < first_block)
+		return IO_ACCEL_INELIGIBLE;
+
+	/* calculate stripe information for the request */
+	blocks_per_row = map->data_disks_per_row * map->strip_size;
+#if BITS_PER_LONG == 32
+	tmpdiv = first_block;
+	(void) do_div(tmpdiv, blocks_per_row);
+	first_row = tmpdiv;
+	tmpdiv = last_block;
+	(void) do_div(tmpdiv, blocks_per_row);
+	last_row = tmpdiv;
+	first_row_offset = (u32) (first_block - (first_row * blocks_per_row));
+	last_row_offset = (u32) (last_block - (last_row * blocks_per_row));
+	tmpdiv = first_row_offset;
+	(void) do_div(tmpdiv,  map->strip_size);
+	first_column = tmpdiv;
+	tmpdiv = last_row_offset;
+	(void) do_div(tmpdiv, map->strip_size);
+	last_column = tmpdiv;
+#else
+	first_row = first_block / blocks_per_row;
+	last_row = last_block / blocks_per_row;
+	first_row_offset = (u32) (first_block - (first_row * blocks_per_row));
+	last_row_offset = (u32) (last_block - (last_row * blocks_per_row));
+	first_column = first_row_offset / map->strip_size;
+	last_column = last_row_offset / map->strip_size;
+#endif
+
+	/* if this isn't a single row/column then give to the controller */
+	if ((first_row != last_row) || (first_column != last_column))
+		return IO_ACCEL_INELIGIBLE;
+
+	/* proceeding with driver mapping */
+	map_row = ((u32)(first_row >> map->parity_rotation_shift)) %
+				map->row_cnt;
+	map_index = (map_row * (map->data_disks_per_row +
+				map->metadata_disks_per_row)) + first_column;
+	if (dev->raid_level == 2) {
+		/* simple round-robin balancing of RAID 1+0 reads across
+		 * primary and mirror members.  this is appropriate for SSD
+		 * but not optimal for HDD.
+		 */
+		if (dev->offload_to_mirror)
+			map_index += map->data_disks_per_row;
+		dev->offload_to_mirror = !dev->offload_to_mirror;
+	}
+	disk_handle = dd[map_index].ioaccel_handle;
+	disk_block = map->disk_starting_blk + (first_row * map->strip_size) +
+			(first_row_offset - (first_column * map->strip_size));
+	disk_block_cnt = block_cnt;
+
+	/* handle differing logical/physical block sizes */
+	if (map->phys_blk_shift) {
+		disk_block <<= map->phys_blk_shift;
+		disk_block_cnt <<= map->phys_blk_shift;
+	}
+	BUG_ON(disk_block_cnt > 0xffff);
+
+	/* build the new CDB for the physical disk I/O */
+	if (disk_block > 0xffffffff) {
+		cdb[0] = is_write ? WRITE_16 : READ_16;
+		cdb[1] = 0;
+		cdb[2] = (u8) (disk_block >> 56);
+		cdb[3] = (u8) (disk_block >> 48);
+		cdb[4] = (u8) (disk_block >> 40);
+		cdb[5] = (u8) (disk_block >> 32);
+		cdb[6] = (u8) (disk_block >> 24);
+		cdb[7] = (u8) (disk_block >> 16);
+		cdb[8] = (u8) (disk_block >> 8);
+		cdb[9] = (u8) (disk_block);
+		cdb[10] = (u8) (disk_block_cnt >> 24);
+		cdb[11] = (u8) (disk_block_cnt >> 16);
+		cdb[12] = (u8) (disk_block_cnt >> 8);
+		cdb[13] = (u8) (disk_block_cnt);
+		cdb[14] = 0;
+		cdb[15] = 0;
+		cdb_len = 16;
+	} else {
+		cdb[0] = is_write ? WRITE_10 : READ_10;
+		cdb[1] = 0;
+		cdb[2] = (u8) (disk_block >> 24);
+		cdb[3] = (u8) (disk_block >> 16);
+		cdb[4] = (u8) (disk_block >> 8);
+		cdb[5] = (u8) (disk_block);
+		cdb[6] = 0;
+		cdb[7] = (u8) (disk_block_cnt >> 8);
+		cdb[8] = (u8) (disk_block_cnt);
+		cdb[9] = 0;
+		cdb_len = 10;
+	}
+	return hpsa_scsi_ioaccel_queue_command(h, c, disk_handle, cdb, cdb_len,
+						dev->scsi3addr);
 }
 
 static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
@@ -2291,6 +2738,7 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	unsigned char scsi3addr[8];
 	struct CommandList *c;
 	unsigned long flags;
+	int rc = 0;
 
 	/* Get the ptr to our adapter structure out of cmd->host. */
 	h = sdev_to_hba(cmd->device);
@@ -2326,13 +2774,29 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	c->cmd_type = CMD_SCSI;
 	c->scsi_cmd = cmd;
 
-	/* Call alternate submit routine for I/O accelerated commands */
-	if ((likely(h->transMethod & CFGTBL_Trans_io_accel1)) &&
-		(dev->ioaccel_handle) &&
-		((cmd->cmnd[0] == READ_10) || (cmd->cmnd[0] == WRITE_10)) &&
-		(scsi_sg_count(cmd) <= IOACCEL1_MAXSGENTRIES) &&
-		likely(cmd->request->cmd_type == REQ_TYPE_FS))
-		return hpsa_scsi_ioaccel_queue_command(h, c);
+	/* Call alternate submit routine for I/O accelerated commands.
+	 * Retries always go down the normal I/O path.
+	 */
+	if (likely(cmd->retries == 0 &&
+		cmd->request->cmd_type == REQ_TYPE_FS)) {
+		if (dev->offload_enabled) {
+			rc = hpsa_scsi_ioaccel_raid_map(h, c);
+			if (rc == 0)
+				return 0; /* Sent on ioaccel path */
+			if (rc < 0) {   /* scsi_dma_map failed. */
+				cmd_free(h, c);
+				return SCSI_MLQUEUE_HOST_BUSY;
+			}
+		} else if (dev->ioaccel_handle) {
+			rc = hpsa_scsi_ioaccel_direct_map(h, c);
+			if (rc == 0)
+				return 0; /* Sent on direct map path */
+			if (rc < 0) {   /* scsi_dma_map failed. */
+				cmd_free(h, c);
+				return SCSI_MLQUEUE_HOST_BUSY;
+			}
+		}
+	}
 
 	c->Header.ReplyQueue = 0;  /* unused in simple mode */
 	memcpy(&c->Header.LUN.LunAddrBytes[0], &scsi3addr[0], 8);
@@ -3515,6 +3979,18 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.Type.Direction = XFER_NONE;
 			c->Request.Timeout = 0;
 			break;
+		case HPSA_GET_RAID_MAP:
+			c->Request.CDBLen = 12;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_READ;
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = HPSA_CISS_READ;
+			c->Request.CDB[1] = cmd;
+			c->Request.CDB[6] = (size >> 24) & 0xFF; /* MSB */
+			c->Request.CDB[7] = (size >> 16) & 0xFF;
+			c->Request.CDB[8] = (size >> 8) & 0xFF;
+			c->Request.CDB[9] = size & 0xFF;
+			break;
 		default:
 			dev_warn(&h->pdev->dev, "unknown command 0x%c\n", cmd);
 			BUG();
@@ -4485,6 +4961,7 @@ static void hpsa_find_board_params(struct ctlr_info *h)
 	hpsa_get_max_perf_mode_cmds(h);
 	h->nr_cmds = h->max_commands - 4; /* Allow room for some ioctls */
 	h->maxsgentries = readl(&(h->cfgtable->MaxScatterGatherElements));
+	h->fw_support = readl(&(h->cfgtable->misc_fw_support));
 	/*
 	 * Limit in-command s/g elements to 32 save dma'able memory.
 	 * Howvever spec says if 0, use 31
@@ -4569,18 +5046,19 @@ static int hpsa_enter_simple_mode(struct ctlr_info *h)
 		return -ENOTSUPP;
 
 	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
+
 	/* Update the field, and then ring the doorbell */
 	writel(CFGTBL_Trans_Simple, &(h->cfgtable->HostWrite.TransportRequest));
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
 	hpsa_wait_for_mode_change_ack(h);
 	print_cfg_table(&h->pdev->dev, h->cfgtable);
-	if (!(readl(&(h->cfgtable->TransportActive)) & CFGTBL_Trans_Simple)) {
-		dev_warn(&h->pdev->dev,
-			"unable to get board into simple mode\n");
-		return -ENODEV;
-	}
+	if (!(readl(&(h->cfgtable->TransportActive)) & CFGTBL_Trans_Simple))
+		goto error;
 	h->transMethod = CFGTBL_Trans_Simple;
 	return 0;
+error:
+	dev_warn(&h->pdev->dev, "unable to get board into simple mode\n");
+	return -ENODEV;
 }
 
 static int hpsa_pci_init(struct ctlr_info *h)
@@ -4961,7 +5439,7 @@ reinit_after_soft_reset:
 	 * the 5 lower bits of the address are used by the hardware. and by
 	 * the driver.  See comments in hpsa.h for more info.
 	 */
-#define COMMANDLIST_ALIGNMENT 32
+#define COMMANDLIST_ALIGNMENT 128
 	BUILD_BUG_ON(sizeof(struct CommandList) % COMMANDLIST_ALIGNMENT);
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
@@ -5338,8 +5816,8 @@ static void hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 		h->reply_queue[i].current_entry =
 			readl(h->vaddr + IOACCEL_MODE1_PRODUCER_INDEX);
 	}
-	bft[7] = IOACCEL1_MAXSGENTRIES + 8;
-	calc_bucket_map(bft, ARRAY_SIZE(bft), IOACCEL1_MAXSGENTRIES, 8,
+	bft[7] = h->ioaccel_maxsg + 8;
+	calc_bucket_map(bft, ARRAY_SIZE(bft), h->ioaccel_maxsg, 8,
 			h->ioaccel1_blockFetchTable);
 
 	/* initialize all reply queue entries to unused */
@@ -5370,6 +5848,11 @@ static void hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 
 static int hpsa_alloc_ioaccel_cmd_and_bft(struct ctlr_info *h)
 {
+	h->ioaccel_maxsg =
+		readl(&(h->cfgtable->io_accel_max_embedded_sg_count));
+	if (h->ioaccel_maxsg > IOACCEL1_MAXSGENTRIES)
+		h->ioaccel_maxsg = IOACCEL1_MAXSGENTRIES;
+
 	/* Command structures must be aligned on a 128-byte boundary
 	 * because the 7 lower bits of the address are used by the
 	 * hardware.
@@ -5383,7 +5866,7 @@ static int hpsa_alloc_ioaccel_cmd_and_bft(struct ctlr_info *h)
 			&(h->ioaccel_cmd_pool_dhandle));
 
 	h->ioaccel1_blockFetchTable =
-		kmalloc(((IOACCEL1_MAXSGENTRIES + 1) *
+		kmalloc(((h->ioaccel_maxsg + 1) *
 				sizeof(u32)), GFP_KERNEL);
 
 	if ((h->ioaccel_cmd_pool == NULL) ||
