@@ -275,10 +275,7 @@ static int isl12057_probe(struct i2c_client *client,
 	dev_set_drvdata(dev, data);
 
 	rtc = devm_rtc_device_register(dev, DRV_NAME, &rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(rtc);
 }
 
 #ifdef CONFIG_OF
