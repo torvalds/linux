@@ -549,35 +549,36 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 	struct pcnet32_rx_head *new_rx_ring;
 	struct sk_buff **new_skb_list;
 	int new, overlap;
+	unsigned int entries = 1 << size;
 
 	new_rx_ring = pci_alloc_consistent(lp->pci_dev,
 					   sizeof(struct pcnet32_rx_head) *
-					   (1 << size),
+					   entries,
 					   &new_ring_dma_addr);
 	if (new_rx_ring == NULL) {
 		netif_err(lp, drv, dev, "Consistent memory allocation failed\n");
 		return;
 	}
-	memset(new_rx_ring, 0, sizeof(struct pcnet32_rx_head) * (1 << size));
+	memset(new_rx_ring, 0, sizeof(struct pcnet32_rx_head) * entries);
 
-	new_dma_addr_list = kcalloc(1 << size, sizeof(dma_addr_t), GFP_ATOMIC);
+	new_dma_addr_list = kcalloc(entries, sizeof(dma_addr_t), GFP_ATOMIC);
 	if (!new_dma_addr_list)
 		goto free_new_rx_ring;
 
-	new_skb_list = kcalloc(1 << size, sizeof(struct sk_buff *),
+	new_skb_list = kcalloc(entries, sizeof(struct sk_buff *),
 			       GFP_ATOMIC);
 	if (!new_skb_list)
 		goto free_new_lists;
 
 	/* first copy the current receive buffers */
-	overlap = min(size, lp->rx_ring_size);
+	overlap = min(entries, lp->rx_ring_size);
 	for (new = 0; new < overlap; new++) {
 		new_rx_ring[new] = lp->rx_ring[new];
 		new_dma_addr_list[new] = lp->rx_dma_addr[new];
 		new_skb_list[new] = lp->rx_skbuff[new];
 	}
 	/* now allocate any new buffers needed */
-	for (; new < size; new++) {
+	for (; new < entries; new++) {
 		struct sk_buff *rx_skbuff;
 		new_skb_list[new] = netdev_alloc_skb(dev, PKT_BUF_SKB);
 		rx_skbuff = new_skb_list[new];
@@ -612,7 +613,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 			    lp->rx_ring_size, lp->rx_ring,
 			    lp->rx_ring_dma_addr);
 
-	lp->rx_ring_size = (1 << size);
+	lp->rx_ring_size = entries;
 	lp->rx_mod_mask = lp->rx_ring_size - 1;
 	lp->rx_len_bits = (size << 4);
 	lp->rx_ring = new_rx_ring;
@@ -634,8 +635,7 @@ free_new_lists:
 	kfree(new_dma_addr_list);
 free_new_rx_ring:
 	pci_free_consistent(lp->pci_dev,
-			    sizeof(struct pcnet32_rx_head) *
-			    (1 << size),
+			    sizeof(struct pcnet32_rx_head) * entries,
 			    new_rx_ring,
 			    new_ring_dma_addr);
 }
