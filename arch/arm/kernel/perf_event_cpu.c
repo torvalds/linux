@@ -267,15 +267,6 @@ static int probe_current_pmu(struct arm_pmu *pmu)
 		case ARM_CPU_PART_CORTEX_A9:
 			ret = armv7_a9_pmu_init(pmu);
 			break;
-		case ARM_CPU_PART_CORTEX_A5:
-			ret = armv7_a5_pmu_init(pmu);
-			break;
-		case ARM_CPU_PART_CORTEX_A15:
-			ret = armv7_a15_pmu_init(pmu);
-			break;
-		case ARM_CPU_PART_CORTEX_A7:
-			ret = armv7_a7_pmu_init(pmu);
-			break;
 		}
 	/* Intel CPUs [xscale]. */
 	} else if (implementor == ARM_CPU_IMP_INTEL) {
