@@ -15,7 +15,7 @@
 #include <linux/of_platform.h>
 #include "common.h"
 
-void __init sirfsoc_init_late(void)
+static void __init sirfsoc_init_late(void)
 {
 	sirfsoc_pm_init();
 }
