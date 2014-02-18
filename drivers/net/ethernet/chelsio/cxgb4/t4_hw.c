@@ -573,7 +573,7 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
 	u32 cclk_param, cclk_val;
 	int i, ret, addr;
-	int ec, sn;
+	int ec, sn, pn;
 	u8 *vpd, csum;
 	unsigned int vpdr_len, kw_offset, id_len;
 
@@ -638,6 +638,7 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 
 	FIND_VPD_KW(ec, "EC");
 	FIND_VPD_KW(sn, "SN");
+	FIND_VPD_KW(pn, "PN");
 #undef FIND_VPD_KW
 
 	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, id_len);
@@ -647,6 +648,8 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
 	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
 	strim(p->sn);
+	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
+	strim(p->pn);
 
 	/*
 	 * Ask firmware for the Core Clock since it knows how to translate the

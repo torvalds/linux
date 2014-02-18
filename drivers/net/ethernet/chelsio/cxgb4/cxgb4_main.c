@@ -5839,8 +5839,8 @@ static void print_port_info(const struct net_device *dev)
 		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
 		    (adap->flags & USING_MSIX) ? " MSI-X" :
 		    (adap->flags & USING_MSI) ? " MSI" : "");
-	netdev_info(dev, "S/N: %s, E/C: %s\n",
-		    adap->params.vpd.sn, adap->params.vpd.ec);
+	netdev_info(dev, "S/N: %s, P/N: %s\n",
+		    adap->params.vpd.sn, adap->params.vpd.pn);
 }
 
 static void enable_pcie_relaxed_ordering(struct pci_dev *dev)
