@@ -956,7 +956,6 @@ void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *c
 void radeon_ring_undo(struct radeon_ring *ring);
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
-void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring);
 void radeon_ring_lockup_update(struct radeon_device *rdev,
 			       struct radeon_ring *ring);
 bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring);

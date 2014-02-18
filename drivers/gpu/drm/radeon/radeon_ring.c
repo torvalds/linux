@@ -479,28 +479,6 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *rin
 }
 
 /**
- * radeon_ring_force_activity - add some nop packets to the ring
- *
- * @rdev: radeon_device pointer
- * @ring: radeon_ring structure holding ring information
- *
- * Add some nop packets to the ring to force activity (all asics).
- * Used for lockup detection to see if the rptr is advancing.
- */
-void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring)
-{
-	int r;
-
-	if (radeon_ring_get_rptr(rdev, ring) == ring->wptr) {
-		r = radeon_ring_alloc(rdev, ring, 1);
-		if (!r) {
-			radeon_ring_write(ring, ring->nop);
-			radeon_ring_commit(rdev, ring);
-		}
-	}
-}
-
-/**
  * radeon_ring_lockup_update - update lockup variables
  *
  * @ring: radeon_ring structure holding ring information
@@ -519,21 +497,7 @@ void radeon_ring_lockup_update(struct radeon_device *rdev,
  * @rdev:       radeon device structure
  * @ring:       radeon_ring structure holding ring information
  *
- * We don't need to initialize the lockup tracking information as we will either
- * have CP rptr to a different value of jiffies wrap around which will force
- * initialization of the lockup tracking informations.
- *
- * A possible false positivie is if we get call after while and last_cp_rptr ==
- * the current CP rptr, even if it's unlikely it might happen. To avoid this
- * if the elapsed time since last call is bigger than 2 second than we return
- * false and update the tracking information. Due to this the caller must call
- * radeon_ring_test_lockup several time in less than 2sec for lockup to be reported
- * the fencing code should be cautious about that.
- *
- * Caller should write to the ring to force CP to do something so we don't get
- * false positive when CP is just gived nothing to do.
- *
- **/
+ */
 bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	uint32_t rptr = radeon_ring_get_rptr(rdev, ring);
