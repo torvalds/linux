@@ -3568,6 +3568,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_conn_complete *ev = (void *) skb->data;
 	struct hci_conn *conn;
+	struct smp_irk *irk;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
 
@@ -3598,6 +3599,13 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->out = true;
 			conn->link_mode |= HCI_LM_MASTER;
 		}
+	}
+
+	/* Track the connection based on the Identity Address from now on */
+	irk = hci_get_irk(hdev, &ev->bdaddr, ev->bdaddr_type);
+	if (irk) {
+		bacpy(&conn->dst, &irk->bdaddr);
+		conn->dst_type = irk->addr_type;
 	}
 
 	if (ev->status) {

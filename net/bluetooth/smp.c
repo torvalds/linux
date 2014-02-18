@@ -987,6 +987,10 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	hci_add_irk(conn->hcon->hdev, &smp->id_addr, smp->id_addr_type,
 		    smp->irk, &rpa);
 
+	/* Track the connection based on the Identity Address from now on */
+	bacpy(&hcon->dst, &smp->id_addr);
+	hcon->dst_type = smp->id_addr_type;
+
 	smp_distribute_keys(conn, 1);
 
 	return 0;
