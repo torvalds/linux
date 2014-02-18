@@ -164,7 +164,6 @@ static void __init keystone_timer_init(struct device_node *np)
 	unsigned long rate;
 	struct clk *clk;
 	int irq, error;
-	u32 tgcr;
 
 	irq  = irq_of_parse_and_map(np, 0);
 	if (irq == NO_IRQ) {
@@ -199,12 +198,10 @@ static void __init keystone_timer_init(struct device_node *np)
 	keystone_timer_barrier();
 
 	/* reset timer as 64-bit, no pre-scaler, plus features are disabled */
-	tgcr = 0;
 	keystone_timer_writel(0, TGCR);
 
 	/* unreset timer */
-	tgcr |= TGCR_TIM_UNRESET_MASK;
-	keystone_timer_writel(tgcr, TGCR);
+	keystone_timer_writel(TGCR_TIM_UNRESET_MASK, TGCR);
 
 	/* init counter to zero */
 	keystone_timer_writel(0, TIM12);
