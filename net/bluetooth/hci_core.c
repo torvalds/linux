@@ -29,6 +29,7 @@
 #include <linux/idr.h>
 #include <linux/rfkill.h>
 #include <linux/debugfs.h>
+#include <linux/crypto.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -3205,9 +3206,18 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	dev_set_name(&hdev->dev, "%s", hdev->name);
 
+	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
+					       CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hdev->tfm_aes)) {
+		BT_ERR("Unable to create crypto context");
+		error = PTR_ERR(hdev->tfm_aes);
+		hdev->tfm_aes = NULL;
+		goto err_wqueue;
+	}
+
 	error = device_add(&hdev->dev);
 	if (error < 0)
-		goto err_wqueue;
+		goto err_tfm;
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				    RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops,
@@ -3243,6 +3253,8 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	return id;
 
+err_tfm:
+	crypto_free_blkcipher(hdev->tfm_aes);
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
 	destroy_workqueue(hdev->req_workqueue);
@@ -3292,6 +3304,9 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_unregister(hdev->rfkill);
 		rfkill_destroy(hdev->rfkill);
 	}
+
+	if (hdev->tfm_aes)
+		crypto_free_blkcipher(hdev->tfm_aes);
 
 	device_del(&hdev->dev);
 
