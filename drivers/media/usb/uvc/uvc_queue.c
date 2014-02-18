@@ -48,9 +48,6 @@ static int uvc_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 	struct uvc_streaming *stream =
 			container_of(queue, struct uvc_streaming, queue);
 
-	if (*nbuffers > UVC_MAX_VIDEO_BUFFERS)
-		*nbuffers = UVC_MAX_VIDEO_BUFFERS;
-
 	*nplanes = 1;
 
 	sizes[0] = stream->ctrl.dwMaxVideoFrameSize;
