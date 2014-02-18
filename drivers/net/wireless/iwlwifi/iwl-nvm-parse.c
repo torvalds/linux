@@ -516,6 +516,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		if (!nvm_calib) {
 			IWL_ERR_DEV(dev,
 				    "Can't parse empty Calib NVM sections\n");
+			kfree(data);
 			return NULL;
 		}
 		/* in family 8000 Xtal calibration values moved to OTP */
