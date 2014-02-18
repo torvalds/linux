@@ -221,7 +221,7 @@ static inline void finish_cmd(struct CommandList *c);
 static void hpsa_wait_for_mode_change_ack(struct ctlr_info *h);
 #define BOARD_NOT_READY 0
 #define BOARD_READY 1
-static void hpsa_drain_commands(struct ctlr_info *h);
+static void hpsa_drain_accel_commands(struct ctlr_info *h);
 static void hpsa_flush_cache(struct ctlr_info *h);
 static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 	struct CommandList *c, u32 ioaccel_handle, u8 *cdb, int cdb_len,
@@ -6374,7 +6374,7 @@ static int hpsa_kickoff_rescan(struct ctlr_info *h)
 		scsi_block_requests(h->scsi_host);
 		for (i = 0; i < h->ndevices; i++)
 			h->dev[i]->offload_enabled = 0;
-		hpsa_drain_commands(h);
+		hpsa_drain_accel_commands(h);
 		/* Set 'accelerator path config change' bit */
 		dev_warn(&h->pdev->dev,
 			"Acknowledging event: 0x%08x (HP SSD Smart Path %s)\n",
@@ -7078,16 +7078,26 @@ clean_up:
 	kfree(h->blockFetchTable);
 }
 
-static void hpsa_drain_commands(struct ctlr_info *h)
+static int is_accelerated_cmd(struct CommandList *c)
 {
-	int cmds_out;
+	return c->cmd_type == CMD_IOACCEL1 || c->cmd_type == CMD_IOACCEL2;
+}
+
+static void hpsa_drain_accel_commands(struct ctlr_info *h)
+{
+	struct CommandList *c = NULL;
 	unsigned long flags;
+	int accel_cmds_out;
 
 	do { /* wait for all outstanding commands to drain out */
+		accel_cmds_out = 0;
 		spin_lock_irqsave(&h->lock, flags);
-		cmds_out = h->commands_outstanding;
+		list_for_each_entry(c, &h->cmpQ, list)
+			accel_cmds_out += is_accelerated_cmd(c);
+		list_for_each_entry(c, &h->reqQ, list)
+			accel_cmds_out += is_accelerated_cmd(c);
 		spin_unlock_irqrestore(&h->lock, flags);
-		if (cmds_out <= 0)
+		if (accel_cmds_out <= 0)
 			break;
 		msleep(100);
 	} while (1);
