@@ -188,8 +188,9 @@ struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
 	struct bonding *bond; /* our master */
 	int    delay;
-	unsigned long jiffies;
-	unsigned long last_arp_rx;
+	/* all three in jiffies */
+	unsigned long last_link_up;
+	unsigned long last_rx;
 	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
@@ -342,11 +343,22 @@ static inline bool bond_is_active_slave(struct slave *slave)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)
 #define BOND_ARP_VALIDATE_ALL		(BOND_ARP_VALIDATE_ACTIVE | \
 					 BOND_ARP_VALIDATE_BACKUP)
+#define BOND_ARP_FILTER			(BOND_ARP_VALIDATE_ALL + 1)
+#define BOND_ARP_FILTER_ACTIVE		(BOND_ARP_VALIDATE_ACTIVE | \
+					 BOND_ARP_FILTER)
+#define BOND_ARP_FILTER_BACKUP		(BOND_ARP_VALIDATE_BACKUP | \
+					 BOND_ARP_FILTER)
 
 static inline int slave_do_arp_validate(struct bonding *bond,
 					struct slave *slave)
 {
 	return bond->params.arp_validate & (1 << bond_slave_state(slave));
+}
+
+static inline int slave_do_arp_validate_only(struct bonding *bond,
+					     struct slave *slave)
+{
+	return bond->params.arp_validate & BOND_ARP_FILTER;
 }
 
 /* Get the oldest arp which we've received on this slave for bond's
@@ -368,14 +380,10 @@ static inline unsigned long slave_oldest_target_arp_rx(struct bonding *bond,
 static inline unsigned long slave_last_rx(struct bonding *bond,
 					struct slave *slave)
 {
-	if (slave_do_arp_validate(bond, slave)) {
-		if (bond->params.arp_all_targets == BOND_ARP_TARGETS_ALL)
-			return slave_oldest_target_arp_rx(bond, slave);
-		else
-			return slave->last_arp_rx;
-	}
+	if (bond->params.arp_all_targets == BOND_ARP_TARGETS_ALL)
+		return slave_oldest_target_arp_rx(bond, slave);
 
-	return slave->dev->last_rx;
+	return slave->last_rx;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

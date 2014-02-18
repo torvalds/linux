@@ -47,11 +47,14 @@ static struct bond_opt_value bond_xmit_hashtype_tbl[] = {
 };
 
 static struct bond_opt_value bond_arp_validate_tbl[] = {
-	{ "none",   BOND_ARP_VALIDATE_NONE,   BOND_VALFLAG_DEFAULT},
-	{ "active", BOND_ARP_VALIDATE_ACTIVE, 0},
-	{ "backup", BOND_ARP_VALIDATE_BACKUP, 0},
-	{ "all",    BOND_ARP_VALIDATE_ALL,    0},
-	{ NULL,     -1,                       0},
+	{ "none",		BOND_ARP_VALIDATE_NONE,		BOND_VALFLAG_DEFAULT},
+	{ "active",		BOND_ARP_VALIDATE_ACTIVE,	0},
+	{ "backup",		BOND_ARP_VALIDATE_BACKUP,	0},
+	{ "all",		BOND_ARP_VALIDATE_ALL,		0},
+	{ "filter",		BOND_ARP_FILTER,		0},
+	{ "filter_active",	BOND_ARP_FILTER_ACTIVE,		0},
+	{ "filter_backup",	BOND_ARP_FILTER_BACKUP,		0},
+	{ NULL,			-1,				0},
 };
 
 static struct bond_opt_value bond_arp_all_targets_tbl[] = {
@@ -151,7 +154,8 @@ static struct bond_option bond_opts[] = {
 		.id = BOND_OPT_ARP_VALIDATE,
 		.name = "arp_validate",
 		.desc = "validate src/dst of ARP probes",
-		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ACTIVEBACKUP)),
+		.unsuppmodes = BIT(BOND_MODE_8023AD) | BIT(BOND_MODE_TLB) |
+			       BIT(BOND_MODE_ALB),
 		.values = bond_arp_validate_tbl,
 		.set = bond_option_arp_validate_set
 	},
@@ -809,8 +813,7 @@ int bond_option_arp_interval_set(struct bonding *bond,
 			cancel_delayed_work_sync(&bond->arp_work);
 		} else {
 			/* arp_validate can be set only in active-backup mode */
-			if (bond->params.arp_validate)
-				bond->recv_probe = bond_arp_rcv;
+			bond->recv_probe = bond_arp_rcv;
 			cancel_delayed_work_sync(&bond->mii_work);
 			queue_delayed_work(bond->wq, &bond->arp_work, 0);
 		}
