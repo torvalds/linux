@@ -432,6 +432,9 @@ static void link_report(struct net_device *dev)
 		case SPEED_100:
 			s = "100Mbps";
 			break;
+		case 40000: /* Need a SPEED_40000 in ethtool.h */
+			s = "40Gbps";
+			break;
 		}
 
 		netdev_info(dev, "link up, %s, full-duplex, %s PAUSE\n", s,
@@ -2199,6 +2202,8 @@ static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
 	else if (type == FW_PORT_TYPE_FIBER_XFI ||
 		 type == FW_PORT_TYPE_FIBER_XAUI || type == FW_PORT_TYPE_SFP)
 		v |= SUPPORTED_FIBRE;
+	else if (type == FW_PORT_TYPE_BP40_BA)
+		v |= SUPPORTED_40000baseSR4_Full;
 
 	if (caps & FW_PORT_CAP_ANEG)
 		v |= SUPPORTED_Autoneg;
@@ -2215,6 +2220,8 @@ static unsigned int to_fw_linkcaps(unsigned int caps)
 		v |= FW_PORT_CAP_SPEED_1G;
 	if (caps & ADVERTISED_10000baseT_Full)
 		v |= FW_PORT_CAP_SPEED_10G;
+	if (caps & ADVERTISED_40000baseSR4_Full)
+		v |= FW_PORT_CAP_SPEED_40G;
 	return v;
 }
 
@@ -2269,6 +2276,8 @@ static unsigned int speed_to_caps(int speed)
 		return FW_PORT_CAP_SPEED_1G;
 	if (speed == SPEED_10000)
 		return FW_PORT_CAP_SPEED_10G;
+	if (speed == 40000) /* Need SPEED_40000 in ethtool.h */
+		return FW_PORT_CAP_SPEED_40G;
 	return 0;
 }
 
@@ -2296,8 +2305,10 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		cap = speed_to_caps(speed);
 
-		if (!(lc->supported & cap) || (speed == SPEED_1000) ||
-		    (speed == SPEED_10000))
+		if (!(lc->supported & cap) ||
+		    (speed == SPEED_1000) ||
+		    (speed == SPEED_10000) ||
+		    (speed == 40000))
 			return -EINVAL;
 		lc->requested_speed = cap;
 		lc->advertising = 0;
@@ -5799,11 +5810,6 @@ static int init_rss(struct adapter *adap)
 
 static void print_port_info(const struct net_device *dev)
 {
-	static const char *base[] = {
-		"R XFI", "R XAUI", "T SGMII", "T XFI", "T XAUI", "KX4", "CX4",
-		"KX", "KR", "R SFP+", "KR/KX", "KR/KX/KX4"
-	};
-
 	char buf[80];
 	char *bufp = buf;
 	const char *spd = "";
@@ -5821,9 +5827,11 @@ static void print_port_info(const struct net_device *dev)
 		bufp += sprintf(bufp, "1000/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
 		bufp += sprintf(bufp, "10G/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
+		bufp += sprintf(bufp, "40G/");
 	if (bufp != buf)
 		--bufp;
-	sprintf(bufp, "BASE-%s", base[pi->port_type]);
+	sprintf(bufp, "BASE-%s", t4_get_port_type_description(pi->port_type));
 
 	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
 		    adap->params.vpd.id,

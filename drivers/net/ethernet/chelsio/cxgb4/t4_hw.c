@@ -1155,7 +1155,8 @@ out:
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_ANEG)
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
+		     FW_PORT_CAP_ANEG)
 
 /**
  *	t4_link_start - apply link configuration to MAC/PHY
@@ -2244,6 +2245,36 @@ static unsigned int get_mps_bg_map(struct adapter *adap, int idx)
 	if (n == 1)
 		return idx < 2 ? (3 << (2 * idx)) : 0;
 	return 1 << idx;
+}
+
+/**
+ *      t4_get_port_type_description - return Port Type string description
+ *      @port_type: firmware Port Type enumeration
+ */
+const char *t4_get_port_type_description(enum fw_port_type port_type)
+{
+	static const char *const port_type_description[] = {
+		"R XFI",
+		"R XAUI",
+		"T SGMII",
+		"T XFI",
+		"T XAUI",
+		"KX4",
+		"CX4",
+		"KX",
+		"KR",
+		"R SFP+",
+		"KR/KX",
+		"KR/KX/KX4",
+		"R QSFP_10G",
+		"",
+		"R QSFP",
+		"R BP40_BA",
+	};
+
+	if (port_type < ARRAY_SIZE(port_type_description))
+		return port_type_description[port_type];
+	return "UNKNOWN";
 }
 
 /**
@@ -3538,6 +3569,8 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			speed = SPEED_1000;
 		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
 			speed = SPEED_10000;
+		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
+			speed = 40000; /* Need SPEED_40000 in ethtool.h */
 
 		if (link_ok != lc->link_ok || speed != lc->speed ||
 		    fc != lc->fc) {                    /* something changed */
