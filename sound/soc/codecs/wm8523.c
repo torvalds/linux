@@ -75,8 +75,8 @@ static const char *wm8523_zd_count_text[] = {
 	"2048",
 };
 
-static const struct soc_enum wm8523_zc_count =
-	SOC_ENUM_SINGLE(WM8523_ZERO_DETECT, 0, 2, wm8523_zd_count_text);
+static SOC_ENUM_SINGLE_DECL(wm8523_zc_count, WM8523_ZERO_DETECT, 0,
+			    wm8523_zd_count_text);
 
 static const struct snd_kcontrol_new wm8523_controls[] = {
 SOC_DOUBLE_R_TLV("Playback Volume", WM8523_DAC_GAINL, WM8523_DAC_GAINR,
