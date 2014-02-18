@@ -312,6 +312,31 @@ static ssize_t host_store_hp_ssd_smart_path_status(struct device *dev,
 	return count;
 }
 
+static ssize_t host_store_raid_offload_debug(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	int debug_level, len;
+	struct ctlr_info *h;
+	struct Scsi_Host *shost = class_to_shost(dev);
+	char tmpbuf[10];
+
+	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+		return -EACCES;
+	len = count > sizeof(tmpbuf) - 1 ? sizeof(tmpbuf) - 1 : count;
+	strncpy(tmpbuf, buf, len);
+	tmpbuf[len] = '\0';
+	if (sscanf(tmpbuf, "%d", &debug_level) != 1)
+		return -EINVAL;
+	if (debug_level < 0)
+		debug_level = 0;
+	h = shost_to_hba(shost);
+	h->raid_offload_debug = debug_level;
+	dev_warn(&h->pdev->dev, "hpsa: Set raid_offload_debug level = %d\n",
+		h->raid_offload_debug);
+	return count;
+}
+
 static ssize_t host_store_rescan(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
@@ -585,6 +610,8 @@ static DEVICE_ATTR(hp_ssd_smart_path_enabled, S_IRUGO,
 static DEVICE_ATTR(hp_ssd_smart_path_status, S_IWUSR|S_IRUGO|S_IROTH,
 		host_show_hp_ssd_smart_path_status,
 		host_store_hp_ssd_smart_path_status);
+static DEVICE_ATTR(raid_offload_debug, S_IWUSR, NULL,
+			host_store_raid_offload_debug);
 static DEVICE_ATTR(firmware_revision, S_IRUGO,
 	host_show_firmware_revision, NULL);
 static DEVICE_ATTR(commands_outstanding, S_IRUGO,
@@ -609,6 +636,7 @@ static struct device_attribute *hpsa_shost_attrs[] = {
 	&dev_attr_transport_mode,
 	&dev_attr_resettable,
 	&dev_attr_hp_ssd_smart_path_status,
+	&dev_attr_raid_offload_debug,
 	NULL,
 };
 
@@ -2020,6 +2048,10 @@ static void hpsa_debug_map_buff(struct ctlr_info *h, int rc,
 	if (rc != 0)
 		return;
 
+	/* Show details only if debugging has been activated. */
+	if (h->raid_offload_debug < 2)
+		return;
+
 	dev_info(&h->pdev->dev, "structure_size = %u\n",
 				le32_to_cpu(map_buff->structure_size));
 	dev_info(&h->pdev->dev, "volume_blk_size = %u\n",
@@ -2505,6 +2537,17 @@ static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
 	scsi_nexus = cpu_to_le32((u32) c2a->scsi_nexus);
 	find = c2a->scsi_nexus;
 
+	if (h->raid_offload_debug > 0)
+		dev_info(&h->pdev->dev,
+			"%s: scsi_nexus:0x%08x device id: 0x%02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x\n",
+			__func__, scsi_nexus,
+			d->device_id[0], d->device_id[1], d->device_id[2],
+			d->device_id[3], d->device_id[4], d->device_id[5],
+			d->device_id[6], d->device_id[7], d->device_id[8],
+			d->device_id[9], d->device_id[10], d->device_id[11],
+			d->device_id[12], d->device_id[13], d->device_id[14],
+			d->device_id[15]);
+
 	/* Get the list of physical devices */
 	physicals = kzalloc(reportsize, GFP_KERNEL);
 	if (hpsa_scsi_do_report_phys_luns(h, (struct ReportLUNdata *) physicals,
@@ -2529,6 +2572,15 @@ static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
 		found = 1;
 		memcpy(scsi3addr, &((struct ReportExtendedLUNdata *)
 					physicals)->LUN[i][0], 8);
+		if (h->raid_offload_debug > 0)
+			dev_info(&h->pdev->dev,
+				"%s: Searched h=0x%08x, Found h=0x%08x, scsiaddr 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				__func__, find,
+				((struct ReportExtendedLUNdata *)
+					physicals)->LUN[i][20],
+				scsi3addr[0], scsi3addr[1], scsi3addr[2],
+				scsi3addr[3], scsi3addr[4], scsi3addr[5],
+				scsi3addr[6], scsi3addr[7]);
 		break; /* found it */
 	}
 
@@ -4077,6 +4129,13 @@ static int hpsa_send_reset_as_abort_ioaccel2(struct ctlr_info *h,
 			return -1; /* not abortable */
 	}
 
+	if (h->raid_offload_debug > 0)
+		dev_info(&h->pdev->dev,
+			"Reset as abort: Abort requested on C%d:B%d:T%d:L%d scsi3addr 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			h->scsi_host->host_no, dev->bus, dev->target, dev->lun,
+			scsi3addr[0], scsi3addr[1], scsi3addr[2], scsi3addr[3],
+			scsi3addr[4], scsi3addr[5], scsi3addr[6], scsi3addr[7]);
+
 	if (!dev->offload_enabled) {
 		dev_warn(&h->pdev->dev,
 			"Can't abort: device is not operating in HP SSD Smart Path mode.\n");
@@ -4090,6 +4149,11 @@ static int hpsa_send_reset_as_abort_ioaccel2(struct ctlr_info *h,
 	}
 
 	/* send the reset */
+	if (h->raid_offload_debug > 0)
+		dev_info(&h->pdev->dev,
+			"Reset as abort: Resetting physical device at scsi3addr 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			psa[0], psa[1], psa[2], psa[3],
+			psa[4], psa[5], psa[6], psa[7]);
 	rc = hpsa_send_reset(h, psa, HPSA_RESET_TYPE_TARGET);
 	if (rc != 0) {
 		dev_warn(&h->pdev->dev,

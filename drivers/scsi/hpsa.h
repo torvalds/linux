@@ -199,6 +199,7 @@ struct ctlr_info {
 		CTLR_STATE_CHANGE_EVENT_AIO_CONFIG_CHANGE)
 	int	acciopath_status;
 	int	drv_req_rescan;	/* flag for driver to request rescan event */
+	int	raid_offload_debug;
 };
 #define HPSA_ABORT_MSG 0
 #define HPSA_DEVICE_RESET_MSG 1
