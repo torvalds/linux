@@ -1847,17 +1847,37 @@ static void hpsa_scsi_do_simple_cmd_with_retry(struct ctlr_info *h,
 	hpsa_pci_unmap(h->pdev, c, 1, data_direction);
 }
 
-static void hpsa_scsi_interpret_error(struct CommandList *cp)
+static void hpsa_print_cmd(struct ctlr_info *h, char *txt,
+				struct CommandList *c)
 {
-	struct ErrorInfo *ei;
-	struct device *d = &cp->h->pdev->dev;
+	const u8 *cdb = c->Request.CDB;
+	const u8 *lun = c->Header.LUN.LunAddrBytes;
 
-	ei = cp->err_info;
+	dev_warn(&h->pdev->dev, "%s: LUN:%02x%02x%02x%02x%02x%02x%02x%02x"
+	" CDB:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		txt, lun[0], lun[1], lun[2], lun[3],
+		lun[4], lun[5], lun[6], lun[7],
+		cdb[0], cdb[1], cdb[2], cdb[3],
+		cdb[4], cdb[5], cdb[6], cdb[7],
+		cdb[8], cdb[9], cdb[10], cdb[11],
+		cdb[12], cdb[13], cdb[14], cdb[15]);
+}
+
+static void hpsa_scsi_interpret_error(struct ctlr_info *h,
+			struct CommandList *cp)
+{
+	const struct ErrorInfo *ei = cp->err_info;
+	struct device *d = &cp->h->pdev->dev;
+	const u8 *sd = ei->SenseInfo;
+
 	switch (ei->CommandStatus) {
 	case CMD_TARGET_STATUS:
-		dev_warn(d, "cmd %p has completed with errors\n", cp);
-		dev_warn(d, "cmd %p has SCSI Status = %x\n", cp,
-				ei->ScsiStatus);
+		hpsa_print_cmd(h, "SCSI status", cp);
+		if (ei->ScsiStatus == SAM_STAT_CHECK_CONDITION)
+			dev_warn(d, "SCSI Status = 02, Sense key = %02x, ASC = %02x, ASCQ = %02x\n",
+				sd[2] & 0x0f, sd[12], sd[13]);
+		else
+			dev_warn(d, "SCSI Status = %02x\n", ei->ScsiStatus);
 		if (ei->ScsiStatus == 0)
 			dev_warn(d, "SCSI status is abnormally zero.  "
 			"(probably indicates selection timeout "
@@ -1865,48 +1885,45 @@ static void hpsa_scsi_interpret_error(struct CommandList *cp)
 			"firmware bug, circa July, 2001.)\n");
 		break;
 	case CMD_DATA_UNDERRUN: /* let mid layer handle it. */
-			dev_info(d, "UNDERRUN\n");
 		break;
 	case CMD_DATA_OVERRUN:
-		dev_warn(d, "cp %p has completed with data overrun\n", cp);
+		hpsa_print_cmd(h, "overrun condition", cp);
 		break;
 	case CMD_INVALID: {
 		/* controller unfortunately reports SCSI passthru's
 		 * to non-existent targets as invalid commands.
 		 */
-		dev_warn(d, "cp %p is reported invalid (probably means "
-			"target device no longer present)\n", cp);
-		/* print_bytes((unsigned char *) cp, sizeof(*cp), 1, 0);
-		print_cmd(cp);  */
+		hpsa_print_cmd(h, "invalid command", cp);
+		dev_warn(d, "probably means device no longer present\n");
 		}
 		break;
 	case CMD_PROTOCOL_ERR:
-		dev_warn(d, "cp %p has protocol error \n", cp);
+		hpsa_print_cmd(h, "protocol error", cp);
 		break;
 	case CMD_HARDWARE_ERR:
-		/* cmd->result = DID_ERROR << 16; */
-		dev_warn(d, "cp %p had hardware error\n", cp);
+		hpsa_print_cmd(h, "hardware error", cp);
 		break;
 	case CMD_CONNECTION_LOST:
-		dev_warn(d, "cp %p had connection lost\n", cp);
+		hpsa_print_cmd(h, "connection lost", cp);
 		break;
 	case CMD_ABORTED:
-		dev_warn(d, "cp %p was aborted\n", cp);
+		hpsa_print_cmd(h, "aborted", cp);
 		break;
 	case CMD_ABORT_FAILED:
-		dev_warn(d, "cp %p reports abort failed\n", cp);
+		hpsa_print_cmd(h, "abort failed", cp);
 		break;
 	case CMD_UNSOLICITED_ABORT:
-		dev_warn(d, "cp %p aborted due to an unsolicited abort\n", cp);
+		hpsa_print_cmd(h, "unsolicited abort", cp);
 		break;
 	case CMD_TIMEOUT:
-		dev_warn(d, "cp %p timed out\n", cp);
+		hpsa_print_cmd(h, "timed out", cp);
 		break;
 	case CMD_UNABORTABLE:
-		dev_warn(d, "Command unabortable\n");
+		hpsa_print_cmd(h, "unabortable", cp);
 		break;
 	default:
-		dev_warn(d, "cp %p returned unknown status %x\n", cp,
+		hpsa_print_cmd(h, "unknown status", cp);
+		dev_warn(d, "Unknown command status %x\n",
 				ei->CommandStatus);
 	}
 }
@@ -1934,7 +1951,7 @@ static int hpsa_scsi_do_inquiry(struct ctlr_info *h, unsigned char *scsi3addr,
 	hpsa_scsi_do_simple_cmd_with_retry(h, c, PCI_DMA_FROMDEVICE);
 	ei = c->err_info;
 	if (ei->CommandStatus != 0 && ei->CommandStatus != CMD_DATA_UNDERRUN) {
-		hpsa_scsi_interpret_error(c);
+		hpsa_scsi_interpret_error(h, c);
 		rc = -1;
 	}
 out:
@@ -1965,7 +1982,7 @@ static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr,
 
 	ei = c->err_info;
 	if (ei->CommandStatus != 0) {
-		hpsa_scsi_interpret_error(c);
+		hpsa_scsi_interpret_error(h, c);
 		rc = -1;
 	}
 	cmd_special_free(h, c);
@@ -2089,7 +2106,7 @@ static int hpsa_get_raid_map(struct ctlr_info *h,
 	hpsa_scsi_do_simple_cmd_with_retry(h, c, PCI_DMA_FROMDEVICE);
 	ei = c->err_info;
 	if (ei->CommandStatus != 0 && ei->CommandStatus != CMD_DATA_UNDERRUN) {
-		hpsa_scsi_interpret_error(c);
+		hpsa_scsi_interpret_error(h, c);
 		cmd_special_free(h, c);
 		return -1;
 	}
@@ -2231,7 +2248,7 @@ static int hpsa_scsi_do_report_luns(struct ctlr_info *h, int logical,
 	ei = c->err_info;
 	if (ei->CommandStatus != 0 &&
 	    ei->CommandStatus != CMD_DATA_UNDERRUN) {
-		hpsa_scsi_interpret_error(c);
+		hpsa_scsi_interpret_error(h, c);
 		rc = -1;
 	} else {
 		if (buf->extended_response_flag != extended_response) {
@@ -3975,7 +3992,7 @@ static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
 	default:
 		dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: interpreting error.\n",
 			__func__, tagupper, taglower);
-		hpsa_scsi_interpret_error(c);
+		hpsa_scsi_interpret_error(h, c);
 		rc = -1;
 		break;
 	}
