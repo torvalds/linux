@@ -209,7 +209,7 @@ static void mei_txe_remove(struct pci_dev *pdev)
 }
 
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int mei_txe_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -273,7 +273,7 @@ static SIMPLE_DEV_PM_OPS(mei_txe_pm_ops,
 #define MEI_TXE_PM_OPS	(&mei_txe_pm_ops)
 #else
 #define MEI_TXE_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 /*
  *  PCI driver structure
  */
