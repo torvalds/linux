@@ -128,6 +128,10 @@ struct smp_chan {
 	u8		pcnf[16]; /* SMP Pairing Confirm */
 	u8		tk[16]; /* SMP Temporary Key */
 	u8		enc_key_size;
+	u8		remote_key_dist;
+	bdaddr_t	id_addr;
+	u8		id_addr_type;
+	u8		irk[16];
 	unsigned long	smp_flags;
 	struct crypto_blkcipher	*tfm;
 	struct work_struct confirm;
