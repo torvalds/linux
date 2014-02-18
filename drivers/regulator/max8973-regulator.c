@@ -379,10 +379,8 @@ static int max8973_probe(struct i2c_client *client,
 	}
 
 	max = devm_kzalloc(&client->dev, sizeof(*max), GFP_KERNEL);
-	if (!max) {
-		dev_err(&client->dev, "Memory allocation for max failed\n");
+	if (!max)
 		return -ENOMEM;
-	}
 
 	max->regmap = devm_regmap_init_i2c(client, &max8973_regmap_config);
 	if (IS_ERR(max->regmap)) {
