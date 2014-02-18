@@ -183,8 +183,9 @@ static void cmd_special_free(struct ctlr_info *h, struct CommandList *c);
 static struct CommandList *cmd_alloc(struct ctlr_info *h);
 static struct CommandList *cmd_special_alloc(struct ctlr_info *h);
 static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
-	void *buff, size_t size, u8 page_code, unsigned char *scsi3addr,
+	void *buff, size_t size, u16 page_code, unsigned char *scsi3addr,
 	int cmd_type);
+#define VPD_PAGE (1 << 8)
 
 static int hpsa_scsi_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
 static void hpsa_scan_start(struct Scsi_Host *);
@@ -1878,7 +1879,7 @@ static void hpsa_scsi_interpret_error(struct CommandList *cp)
 }
 
 static int hpsa_scsi_do_inquiry(struct ctlr_info *h, unsigned char *scsi3addr,
-			unsigned char page, unsigned char *buf,
+			u16 page, unsigned char *buf,
 			unsigned char bufsize)
 {
 	int rc = IO_OK;
@@ -1948,7 +1949,7 @@ static void hpsa_get_raid_level(struct ctlr_info *h,
 	buf = kzalloc(64, GFP_KERNEL);
 	if (!buf)
 		return;
-	rc = hpsa_scsi_do_inquiry(h, scsi3addr, 0xC1, buf, 64);
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE | 0xC1, buf, 64);
 	if (rc == 0)
 		*raid_level = buf[8];
 	if (*raid_level > RAID_UNKNOWN)
@@ -2077,7 +2078,7 @@ static void hpsa_get_ioaccel_status(struct ctlr_info *h,
 	if (!buf)
 		return;
 	rc = hpsa_scsi_do_inquiry(h, scsi3addr,
-			HPSA_VPD_LV_IOACCEL_STATUS, buf, 64);
+			VPD_PAGE | HPSA_VPD_LV_IOACCEL_STATUS, buf, 64);
 	if (rc != 0)
 		goto out;
 
@@ -2110,7 +2111,7 @@ static int hpsa_get_device_id(struct ctlr_info *h, unsigned char *scsi3addr,
 	buf = kzalloc(64, GFP_KERNEL);
 	if (!buf)
 		return -1;
-	rc = hpsa_scsi_do_inquiry(h, scsi3addr, 0x83, buf, 64);
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE | 0x83, buf, 64);
 	if (rc == 0)
 		memcpy(device_id, &buf[8], buflen);
 	kfree(buf);
@@ -4629,7 +4630,7 @@ static int hpsa_send_host_reset(struct ctlr_info *h, unsigned char *scsi3addr,
 }
 
 static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
-	void *buff, size_t size, u8 page_code, unsigned char *scsi3addr,
+	void *buff, size_t size, u16 page_code, unsigned char *scsi3addr,
 	int cmd_type)
 {
 	int pci_dir = XFER_NONE;
@@ -4652,9 +4653,9 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 		switch (cmd) {
 		case HPSA_INQUIRY:
 			/* are we trying to read a vital product page */
-			if (page_code != 0) {
+			if (page_code & VPD_PAGE) {
 				c->Request.CDB[1] = 0x01;
-				c->Request.CDB[2] = page_code;
+				c->Request.CDB[2] = (page_code & 0xff);
 			}
 			c->Request.CDBLen = 6;
 			c->Request.Type.Attribute = ATTR_SIMPLE;
