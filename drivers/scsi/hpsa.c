@@ -5044,6 +5044,10 @@ static void hpsa_find_board_params(struct ctlr_info *h)
 
 	/* Find out what task management functions are supported and cache */
 	h->TMFSupportFlags = readl(&(h->cfgtable->TMFSupportFlags));
+	if (!(HPSATMF_PHYS_TASK_ABORT & h->TMFSupportFlags))
+		dev_warn(&h->pdev->dev, "Physical aborts not supported\n");
+	if (!(HPSATMF_LOG_TASK_ABORT & h->TMFSupportFlags))
+		dev_warn(&h->pdev->dev, "Logical aborts not supported\n");
 }
 
 static inline bool hpsa_CISS_signature_present(struct ctlr_info *h)
