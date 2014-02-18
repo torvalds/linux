@@ -228,11 +228,8 @@ static int act8865_pdata_from_dt(struct device *dev,
 	pdata->regulators = devm_kzalloc(dev,
 				sizeof(struct act8865_regulator_data) *
 				ARRAY_SIZE(act8865_matches), GFP_KERNEL);
-	if (!pdata->regulators) {
-		dev_err(dev, "%s: failed to allocate act8865 registor\n",
-						__func__);
+	if (!pdata->regulators)
 		return -ENOMEM;
-	}
 
 	pdata->num_regulators = matched;
 	regulator = pdata->regulators;
