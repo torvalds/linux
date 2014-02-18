@@ -147,12 +147,12 @@ struct sst_pdata {
 	u32 lpe_size;
 	u32 pcicfg_base;
 	u32 pcicfg_size;
+	u32 fw_base;
+	u32 fw_size;
 	int irq;
 
 	/* Firmware */
 	const char *fw_filename;
-	u32 fw_base;
-	u32 fw_size;
 
 	/* DMA */
 	u32 dma_base;
