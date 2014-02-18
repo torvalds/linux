@@ -142,6 +142,7 @@ struct ctlr_info {
 	u32 *blockFetchTable;
 	u32 *ioaccel1_blockFetchTable;
 	u32 *ioaccel2_blockFetchTable;
+	u32 *ioaccel2_bft2_regs;
 	unsigned char *hba_inquiry_data;
 	u32 driver_support;
 	u32 fw_support;

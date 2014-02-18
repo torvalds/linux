@@ -547,7 +547,7 @@ struct hpsa_tmf_struct {
 /* Configuration Table Structure */
 struct HostWrite {
 	u32 TransportRequest;
-	u32 Reserved;
+	u32 command_pool_addr_hi;
 	u32 CoalIntDelay;
 	u32 CoalIntCount;
 };
