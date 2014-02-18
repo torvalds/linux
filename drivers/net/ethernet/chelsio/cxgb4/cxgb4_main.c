@@ -5614,9 +5614,10 @@ static const struct pci_error_handlers cxgb4_eeh = {
 	.resume         = eeh_resume,
 };
 
-static inline bool is_10g_port(const struct link_config *lc)
+static inline bool is_x_10g_port(const struct link_config *lc)
 {
-	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0;
+	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0 ||
+	       (lc->supported & FW_PORT_CAP_SPEED_40G) != 0;
 }
 
 static inline void init_rspq(struct sge_rspq *q, u8 timer_idx, u8 pkt_cnt_idx,
@@ -5640,7 +5641,7 @@ static void cfg_queues(struct adapter *adap)
 	int i, q10g = 0, n10g = 0, qidx = 0;
 
 	for_each_port(adap, i)
-		n10g += is_10g_port(&adap2pinfo(adap, i)->link_cfg);
+		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
 
 	/*
 	 * We default to 1 queue per non-10G port and up to # of cores queues
@@ -5655,7 +5656,7 @@ static void cfg_queues(struct adapter *adap)
 		struct port_info *pi = adap2pinfo(adap, i);
 
 		pi->first_qset = qidx;
-		pi->nqsets = is_10g_port(&pi->link_cfg) ? q10g : 1;
+		pi->nqsets = is_x_10g_port(&pi->link_cfg) ? q10g : 1;
 		qidx += pi->nqsets;
 	}
 
