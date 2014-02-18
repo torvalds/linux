@@ -2868,10 +2868,37 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 
 static DEF_SCSI_QCMD(hpsa_scsi_queue_command)
 
+static int do_not_scan_if_controller_locked_up(struct ctlr_info *h)
+{
+	unsigned long flags;
+
+	/*
+	 * Don't let rescans be initiated on a controller known
+	 * to be locked up.  If the controller locks up *during*
+	 * a rescan, that thread is probably hosed, but at least
+	 * we can prevent new rescan threads from piling up on a
+	 * locked up controller.
+	 */
+	spin_lock_irqsave(&h->lock, flags);
+	if (unlikely(h->lockup_detected)) {
+		spin_unlock_irqrestore(&h->lock, flags);
+		spin_lock_irqsave(&h->scan_lock, flags);
+		h->scan_finished = 1;
+		wake_up_all(&h->scan_wait_queue);
+		spin_unlock_irqrestore(&h->scan_lock, flags);
+		return 1;
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	return 0;
+}
+
 static void hpsa_scan_start(struct Scsi_Host *sh)
 {
 	struct ctlr_info *h = shost_to_hba(sh);
 	unsigned long flags;
+
+	if (do_not_scan_if_controller_locked_up(h))
+		return;
 
 	/* wait until any scan already in progress is finished. */
 	while (1) {
@@ -2888,6 +2915,9 @@ static void hpsa_scan_start(struct Scsi_Host *sh)
 	}
 	h->scan_finished = 0; /* mark scan as in progress */
 	spin_unlock_irqrestore(&h->scan_lock, flags);
+
+	if (do_not_scan_if_controller_locked_up(h))
+		return;
 
 	hpsa_update_scsi_devices(h, h->scsi_host->host_no);
 
