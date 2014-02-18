@@ -430,8 +430,8 @@ static const struct snd_kcontrol_new samp_ctl =
 static const char * const speaker_amp_source_text[] = {
 	"CODEC", "Right"
 };
-static const SOC_ENUM_SINGLE_DECL(speaker_amp_source, MC13783_AUDIO_RX0, 4,
-				  speaker_amp_source_text);
+static SOC_ENUM_SINGLE_DECL(speaker_amp_source, MC13783_AUDIO_RX0, 4,
+			    speaker_amp_source_text);
 static const struct snd_kcontrol_new speaker_amp_source_mux =
 	SOC_DAPM_ENUM("Speaker Amp Source MUX", speaker_amp_source);
 
@@ -439,8 +439,8 @@ static const char * const headset_amp_source_text[] = {
 	"CODEC", "Mixer"
 };
 
-static const SOC_ENUM_SINGLE_DECL(headset_amp_source, MC13783_AUDIO_RX0, 11,
-				  headset_amp_source_text);
+static SOC_ENUM_SINGLE_DECL(headset_amp_source, MC13783_AUDIO_RX0, 11,
+			    headset_amp_source_text);
 static const struct snd_kcontrol_new headset_amp_source_mux =
 	SOC_DAPM_ENUM("Headset Amp Source MUX", headset_amp_source);
 
