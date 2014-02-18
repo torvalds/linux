@@ -265,6 +265,7 @@ int udf_expand_file_adinicb(struct inode *inode)
 		.nr_to_write = 1,
 	};
 
+	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex));
 	if (!iinfo->i_lenAlloc) {
 		if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_SHORT_AD))
 			iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
