@@ -116,27 +116,27 @@
 static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_NOOP,                          SMI,    F,  1,      S  ),
 	CMD(  MI_USER_INTERRUPT,                SMI,    F,  1,      S  ),
-	CMD(  MI_WAIT_FOR_EVENT,                SMI,    F,  1,      S  ),
+	CMD(  MI_WAIT_FOR_EVENT,                SMI,    F,  1,      R  ),
 	CMD(  MI_ARB_CHECK,                     SMI,    F,  1,      S  ),
 	CMD(  MI_REPORT_HEAD,                   SMI,    F,  1,      S  ),
 	CMD(  MI_SUSPEND_FLUSH,                 SMI,    F,  1,      S  ),
-	CMD(  MI_SEMAPHORE_MBOX,                SMI,   !F,  0xFF,   S  ),
-	CMD(  MI_STORE_DWORD_INDEX,             SMI,   !F,  0xFF,   S  ),
-	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   S  ),
-	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   S  ),
-	CMD(  MI_LOAD_REGISTER_MEM,             SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_SEMAPHORE_MBOX,                SMI,   !F,  0xFF,   R  ),
+	CMD(  MI_STORE_DWORD_INDEX,             SMI,   !F,  0xFF,   R  ),
+	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   R  ),
+	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   R  ),
+	CMD(  MI_LOAD_REGISTER_MEM,             SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_BATCH_BUFFER_START,            SMI,   !F,  0xFF,   S  ),
 };
 
 static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	CMD(  MI_FLUSH,                         SMI,    F,  1,      S  ),
-	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      S  ),
+	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_PREDICATE,                     SMI,    F,  1,      S  ),
 	CMD(  MI_TOPOLOGY_FILTER,               SMI,    F,  1,      S  ),
-	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   S  ),
-	CMD(  MI_SET_CONTEXT,                   SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
+	CMD(  MI_SET_CONTEXT,                   SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_URB_CLEAR,                     SMI,   !F,  0xFF,   S  ),
-	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_CLFLUSH,                       SMI,   !F,  0x3FF,  S  ),
 	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
 	CMD(  GFX_OP_3DSTATE_VF_STATISTICS,     S3D,    F,  1,      S  ),
@@ -151,7 +151,9 @@ static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
 	CMD(  MI_RS_CONTROL,                    SMI,    F,  1,      S  ),
 	CMD(  MI_URB_ATOMIC_ALLOC,              SMI,    F,  1,      S  ),
 	CMD(  MI_RS_CONTEXT,                    SMI,    F,  1,      S  ),
-	CMD(  MI_LOAD_REGISTER_REG,             SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   R  ),
+	CMD(  MI_LOAD_SCAN_LINES_EXCL,          SMI,   !F,  0x3F,   R  ),
+	CMD(  MI_LOAD_REGISTER_REG,             SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_RS_STORE_DATA_IMM,             SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_LOAD_URB_MEM,                  SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_STORE_URB_MEM,                 SMI,   !F,  0xFF,   S  ),
@@ -166,8 +168,9 @@ static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
 };
 
 static const struct drm_i915_cmd_descriptor video_cmds[] = {
-	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      S  ),
+	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
 	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
 	/*
 	 * MFX_WAIT doesn't fit the way we handle length for most commands.
@@ -178,16 +181,23 @@ static const struct drm_i915_cmd_descriptor video_cmds[] = {
 };
 
 static const struct drm_i915_cmd_descriptor vecs_cmds[] = {
-	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      S  ),
+	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
 	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   S  ),
 };
 
 static const struct drm_i915_cmd_descriptor blt_cmds[] = {
-	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   S  ),
+	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3FF,  S  ),
+	CMD(  MI_UPDATE_GTT,                    SMI,   !F,  0x3F,   R  ),
 	CMD(  COLOR_BLT,                        S2D,   !F,  0x3F,   S  ),
 	CMD(  SRC_COPY_BLT,                     S2D,   !F,  0x3F,   S  ),
+};
+
+static const struct drm_i915_cmd_descriptor hsw_blt_cmds[] = {
+	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   R  ),
+	CMD(  MI_LOAD_SCAN_LINES_EXCL,          SMI,   !F,  0x3F,   R  ),
 };
 
 #undef CMD
@@ -226,6 +236,12 @@ static const struct drm_i915_cmd_table hsw_vebox_cmds[] = {
 static const struct drm_i915_cmd_table gen7_blt_cmds[] = {
 	{ common_cmds, ARRAY_SIZE(common_cmds) },
 	{ blt_cmds, ARRAY_SIZE(blt_cmds) },
+};
+
+static const struct drm_i915_cmd_table hsw_blt_ring_cmds[] = {
+	{ common_cmds, ARRAY_SIZE(common_cmds) },
+	{ blt_cmds, ARRAY_SIZE(blt_cmds) },
+	{ hsw_blt_cmds, ARRAY_SIZE(hsw_blt_cmds) },
 };
 
 static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
@@ -359,8 +375,14 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 		ring->get_cmd_length_mask = gen7_bsd_get_cmd_length_mask;
 		break;
 	case BCS:
-		ring->cmd_tables = gen7_blt_cmds;
-		ring->cmd_table_count = ARRAY_SIZE(gen7_blt_cmds);
+		if (IS_HASWELL(ring->dev)) {
+			ring->cmd_tables = hsw_blt_ring_cmds;
+			ring->cmd_table_count = ARRAY_SIZE(hsw_blt_ring_cmds);
+		} else {
+			ring->cmd_tables = gen7_blt_cmds;
+			ring->cmd_table_count = ARRAY_SIZE(gen7_blt_cmds);
+		}
+
 		ring->get_cmd_length_mask = gen7_blt_get_cmd_length_mask;
 		break;
 	case VECS:

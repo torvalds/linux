@@ -358,6 +358,7 @@
 #define MI_PREDICATE            MI_INSTR(0x0C, 0)
 #define MI_RS_CONTEXT           MI_INSTR(0x0F, 0)
 #define MI_TOPOLOGY_FILTER      MI_INSTR(0x0D, 0)
+#define MI_LOAD_SCAN_LINES_EXCL MI_INSTR(0x13, 0)
 #define MI_URB_CLEAR            MI_INSTR(0x19, 0)
 #define MI_UPDATE_GTT           MI_INSTR(0x23, 0)
 #define MI_CLFLUSH              MI_INSTR(0x27, 0)
