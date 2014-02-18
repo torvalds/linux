@@ -121,6 +121,10 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 	pmd_val(*pmd) |= PMD_S2_RDWR;
 }
 
+#define kvm_pgd_addr_end(addr, end)	pgd_addr_end(addr, end)
+#define kvm_pud_addr_end(addr, end)	pud_addr_end(addr, end)
+#define kvm_pmd_addr_end(addr, end)	pmd_addr_end(addr, end)
+
 struct kvm;
 
 #define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
