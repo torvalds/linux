@@ -3159,6 +3159,7 @@ static struct usb_driver rtl8152_driver = {
 	.resume =	rtl8152_resume,
 	.reset_resume =	rtl8152_resume,
 	.supports_autosuspend = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(rtl8152_driver);
