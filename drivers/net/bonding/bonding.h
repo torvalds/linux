@@ -188,7 +188,8 @@ struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
 	struct bonding *bond; /* our master */
 	int    delay;
-	unsigned long jiffies;
+	/* all three in jiffies */
+	unsigned long last_link_up;
 	unsigned long last_arp_rx;
 	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
 	s8     link;    /* one of BOND_LINK_XXXX */
