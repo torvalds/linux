@@ -119,6 +119,11 @@ static const struct pci_device_id hpsa_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSI,     0x103C, 0x21C7},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSI,     0x103C, 0x21C8},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSI,     0x103C, 0x21C9},
+	{PCI_VENDOR_ID_HP_3PAR, 0x0075, 0x1590, 0x0076},
+	{PCI_VENDOR_ID_HP_3PAR, 0x0075, 0x1590, 0x0087},
+	{PCI_VENDOR_ID_HP_3PAR, 0x0075, 0x1590, 0x007D},
+	{PCI_VENDOR_ID_HP_3PAR, 0x0075, 0x1590, 0x0088},
+	{PCI_VENDOR_ID_HP, 0x333f, 0x103c, 0x333f},
 	{PCI_VENDOR_ID_HP,     PCI_ANY_ID,	PCI_ANY_ID, PCI_ANY_ID,
 		PCI_CLASS_STORAGE_RAID << 8, 0xffff << 8, 0},
 	{0,}
@@ -164,6 +169,11 @@ static struct board_type products[] = {
 	{0x21C7103C, "Smart Array", &SA5_access},
 	{0x21C8103C, "Smart Array", &SA5_access},
 	{0x21C9103C, "Smart Array", &SA5_access},
+	{0x00761590, "HP Storage P1224 Array Controller", &SA5_access},
+	{0x00871590, "HP Storage P1224e Array Controller", &SA5_access},
+	{0x007D1590, "HP Storage P1228 Array Controller", &SA5_access},
+	{0x00881590, "HP Storage P1228e Array Controller", &SA5_access},
+	{0x333f103c, "HP StorageWorks 1210m Array Controller", &SA5_access},
 	{0xFFFF103C, "Unknown Smart Array", &SA5_access},
 };
 
