@@ -14,6 +14,8 @@
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/dmapool.h>
+#include <linux/phy.h>
+#include <linux/of_mdio.h>
 
 #define PPE_CFG_RX_CFF_ADDR	0x100
 #define PPE_CFG_POOL_GRP	0x300
@@ -35,6 +37,18 @@
 #define PPE_RINT		0x604
 #define PPE_CFG_STS_MODE	0x700
 #define PPE_HIS_RX_PKT_CNT	0x804
+
+#define GE_MAX_FRM_SIZE_REG	0x3c
+#define GE_SHORT_RUNTS_THR_REG	0x50
+#define GE_TX_LOCAL_PAGE_REG	0x5c
+#define GE_TRANSMIT_CONTROL_REG	0x60
+#define GE_CF_CRC_STRIP_REG	0x1b0
+#define GE_RECV_CONTROL_REG	0x1e0
+#define PPE_CFG_MAX_FRAME_LEN_REG	0x408
+#define PPE_CFG_BUS_CTRL_REG	0x424
+#define PPE_CFG_RX_PKT_MODE_REG	0x438
+#define GMAC_PPE_RX_PKT_MAX_LEN  (379)
+#define GMAC_MAX_PKT_LEN         1516
 
 /* REG_INTERRUPT_MASK */
 #define RCV_INT			BIT(10)
@@ -71,6 +85,7 @@ struct hip04_priv {
 	void __iomem *base;
 	unsigned int port;
 	unsigned int speed;
+	unsigned int duplex;
 	unsigned int id;
 	unsigned int reg_inten;
 
@@ -90,6 +105,9 @@ struct hip04_priv {
 	unsigned char *rx_buf[RX_DESC_NUM];
 	unsigned int rx_head;
 	unsigned int rx_buf_size;
+
+	struct device_node *phy_node;
+	struct phy_device *phy;
 };
 
 static void __iomem *ppebase;
@@ -98,105 +116,38 @@ static void hip04_config_port(struct hip04_priv *priv, u32 speed, u32 duplex)
 {
 	u32 val, reg;
 
+	priv->speed = speed;
+	priv->duplex = duplex;
+
 	switch (speed) {
 	case SPEED_1000:
 		reg = 8;
 		break;
 	case SPEED_100:
-		reg = 1;
+		if (!priv->id)
+			reg = 1;
+		else
+			reg = 7;
 		break;
 	default:
 		reg = 0;
 		break;
 	}
-
 	val = readl_relaxed(priv->base + GE_PORT_MODE);
+	val &= ~(0xf);
 	val |= reg;
 	writel_relaxed(val, priv->base + GE_PORT_MODE);
 
-	reg = (duplex) ? BIT(1) : BIT(0);
+	reg = (duplex) ? BIT(0) : 0;
 	val = readl_relaxed(priv->base + GE_DUPLEX_TYPE);
+	val &= ~(0x1);
 	val |= reg;
 	writel_relaxed(val, priv->base + GE_DUPLEX_TYPE);
 
 	val = readl_relaxed(priv->base + GE_MODE_CHANGE_EN);
-	val |= BIT(1);
+	val |= BIT(0);
 	writel_relaxed(val, priv->base + GE_MODE_CHANGE_EN);
 }
-
-#ifdef OBSOLETE_CONFIG
-#define GE_MAX_FRM_SIZE_REG	0x3c
-#define GE_SHORT_RUNTS_THR_REG	0x50
-#define GE_TX_LOCAL_PAGE_REG	0x5c
-#define GE_TRANSMIT_CONTROL_REG	0x60
-#define GE_CF_CRC_STRIP_REG	0x1b0
-#define GE_RECV_CONTROL_REG	0x1e0
-#define PPE_CFG_MAX_FRAME_LEN_REG	0x408
-#define PPE_CFG_BUS_CTRL_REG	0x424
-#define PPE_CFG_RX_PKT_MODE_REG	0x438
-#define GMAC_PPE_RX_PKT_MAX_LEN  (379)
-#define GMAC_MAX_PKT_LEN         1516
-
-static void hip04_test_config(struct hip04_priv *priv)
-{
-	u32 val;
-
-	/* pkt mode */
-	val = readl_relaxed(priv->base + PPE_CFG_RX_PKT_MODE_REG);
-	val &= ~(0xc0000);		/* [19:18] */
-	val |= 1 << 18;			/* align */
-	writel_relaxed(val, priv->base + PPE_CFG_RX_PKT_MODE_REG);
-
-	/* set bus ctrl */
-	val = 1 << 14;	/* buffer locally release */
-	val |= 1;	/* big endian */
-	/* fixme: fe only ?*/
-	val &= ~BIT(7);	/* disable poe */
-	writel_relaxed(val, priv->base + PPE_CFG_BUS_CTRL_REG);
-
-	/* set max pkt len, curtail if exceed */
-	val = readl_relaxed(priv->base + PPE_CFG_MAX_FRAME_LEN_REG);
-	val &= ~(0x3fff);		/* [13:0]*/
-	val |= GMAC_PPE_RX_PKT_MAX_LEN;	/* max buffer len */
-	writel_relaxed(val, priv->base + PPE_CFG_MAX_FRAME_LEN_REG);
-
-	/* set max len of each pkt */
-	val = readl_relaxed(priv->base + GE_MAX_FRM_SIZE_REG);
-	val &= ~(0xffff);		/* [15:0]*/
-	val |= GMAC_MAX_PKT_LEN;	/* max buffer len */
-	writel_relaxed(val, priv->base + GE_MAX_FRM_SIZE_REG);
-
-	/* set min len of each pkt */
-	val = readl_relaxed(priv->base + GE_SHORT_RUNTS_THR_REG);
-	val |= 31;			/* min buffer len */
-	writel_relaxed(val, priv->base + GE_SHORT_RUNTS_THR_REG);
-
-	/* tx */
-	val = readl_relaxed(priv->base + GE_TRANSMIT_CONTROL_REG);
-	val |= 1 << 5;			/* tx auto neg */
-	val |= 1 << 6;			/* tx add crc */
-	val |= 1 << 7;			/* tx short pad through */
-	writel_relaxed(val, priv->base + GE_TRANSMIT_CONTROL_REG);
-
-	/* rx crc */
-	val = readl_relaxed(priv->base + GE_CF_CRC_STRIP_REG);
-	val |= 1;			/* rx strip crc */
-	writel_relaxed(val, priv->base + GE_CF_CRC_STRIP_REG);
-
-	/* rx pad */
-	val = readl_relaxed(priv->base + GE_RECV_CONTROL_REG);
-	val |= 1 << 3;			/* rx strip pad */
-	writel_relaxed(val, priv->base + GE_RECV_CONTROL_REG);
-
-	/* auto neg control */
-	val = readl_relaxed(priv->base + GE_TX_LOCAL_PAGE_REG);
-	val |= 1;
-	val &= ~(0x1e0);	/* [8:5] = 0*/
-	val &= ~(0x3c0);	/* [13:10] = 0*/
-	val &= ~(0x8000);	/* [15] = 0*/
-	writel_relaxed(val, priv->base + GE_TX_LOCAL_PAGE_REG);
-}
-#endif
 
 static void hip04_reset_ppe(struct hip04_priv *priv)
 {
@@ -244,6 +195,61 @@ static void hip04_config_fifo(struct hip04_priv *priv)
 	val &= ~(0x1f80f);		/* [16:11] [3:0]*/
 	val |= 2 << 11;			/* align */
 	writel_relaxed(val, priv->base + PPE_CFG_RX_CTRL_REG);
+
+	/* following cfg required for 1000M */
+	/* pkt mode */
+	val = readl_relaxed(priv->base + PPE_CFG_RX_PKT_MODE_REG);
+	val &= ~(0xc0000);		/* [19:18] */
+	val |= 1 << 18;			/* align */
+	writel_relaxed(val, priv->base + PPE_CFG_RX_PKT_MODE_REG);
+
+	/* set bus ctrl */
+	val = 1 << 14;	/* buffer locally release */
+	val |= 1;	/* big endian */
+	writel_relaxed(val, priv->base + PPE_CFG_BUS_CTRL_REG);
+
+	/* set max pkt len, curtail if exceed */
+	val = readl_relaxed(priv->base + PPE_CFG_MAX_FRAME_LEN_REG);
+	val &= ~(0x3fff);		/* [13:0]*/
+	val |= GMAC_PPE_RX_PKT_MAX_LEN;	/* max buffer len */
+	writel_relaxed(val, priv->base + PPE_CFG_MAX_FRAME_LEN_REG);
+
+	/* set max len of each pkt */
+	val = readl_relaxed(priv->base + GE_MAX_FRM_SIZE_REG);
+	val &= ~(0xffff);		/* [15:0]*/
+	val |= GMAC_MAX_PKT_LEN;	/* max buffer len */
+	writel_relaxed(val, priv->base + GE_MAX_FRM_SIZE_REG);
+
+	/* set min len of each pkt */
+	val = readl_relaxed(priv->base + GE_SHORT_RUNTS_THR_REG);
+	val |= 31;			/* min buffer len */
+	writel_relaxed(val, priv->base + GE_SHORT_RUNTS_THR_REG);
+
+	/* tx */
+	val = readl_relaxed(priv->base + GE_TRANSMIT_CONTROL_REG);
+	val |= 1 << 5;			/* tx auto neg */
+	val |= 1 << 6;			/* tx add crc */
+	val |= 1 << 7;			/* tx short pad through */
+	writel_relaxed(val, priv->base + GE_TRANSMIT_CONTROL_REG);
+
+	/* rx crc */
+	val = readl_relaxed(priv->base + GE_CF_CRC_STRIP_REG);
+	val |= 1;			/* rx strip crc */
+	writel_relaxed(val, priv->base + GE_CF_CRC_STRIP_REG);
+
+	/* rx */
+	val = readl_relaxed(priv->base + GE_RECV_CONTROL_REG);
+	val |= 1 << 3;			/* rx strip pad */
+	val |= 1 << 4;			/* run pkt en */
+	writel_relaxed(val, priv->base + GE_RECV_CONTROL_REG);
+
+	/* auto neg control */
+	val = readl_relaxed(priv->base + GE_TX_LOCAL_PAGE_REG);
+	val |= 1;
+	val &= ~(0x1e0);	/* [8:5] = 0*/
+	val &= ~(0x3c0);	/* [13:10] = 0*/
+	val &= ~(0x8000);	/* [15] = 0*/
+	writel_relaxed(val, priv->base + GE_TX_LOCAL_PAGE_REG);
 }
 
 static void hip04_mac_enable(struct net_device *ndev, bool enable)
@@ -502,6 +508,15 @@ out_unlock:
 	return ret;
 }
 
+static void hip04_adjust_link(struct net_device *ndev)
+{
+	struct hip04_priv *priv = netdev_priv(ndev);
+	struct phy_device *phy = priv->phy;
+
+	if ((priv->speed != phy->speed) || (priv->duplex != phy->duplex))
+		hip04_config_port(priv, phy->speed, phy->duplex);
+}
+
 static int hip04_mac_open(struct net_device *ndev)
 {
 	struct hip04_priv *priv = netdev_priv(ndev);
@@ -519,6 +534,14 @@ static int hip04_mac_open(struct net_device *ndev)
 	priv->tx_head = 0;
 	priv->tx_tail = 0;
 	priv->tx_count = 0;
+
+	if (priv->phy_node) {
+		priv->phy = of_phy_connect(ndev, priv->phy_node,
+			&hip04_adjust_link, 0, PHY_INTERFACE_MODE_GMII);
+		if (!priv->phy)
+			return -ENODEV;
+		phy_start(priv->phy);
+	}
 
 	netif_start_queue(ndev);
 	hip04_mac_enable(ndev, true);
@@ -663,7 +686,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	if (!ppebase) {
 		struct device_node *n;
 
-		n = of_find_compatible_node(NULL, NULL, "hisilicon,ppebase");
+		n = of_find_compatible_node(NULL, NULL, "hisilicon,hip04-ppebase");
 		if (!n) {
 			ret = -EINVAL;
 			netdev_err(ndev, "not find hisilicon,ppebase\n");
@@ -689,6 +712,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 		priv->speed = SPEED_100;
 	else
 		priv->speed = SPEED_1000;
+	priv->duplex = DUPLEX_FULL;
 
 	/* fixme any id can be used directly? */
 	ret = of_property_read_u32(node, "id", &priv->id);
@@ -710,7 +734,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	hip04_reset_ppe(priv);
-	hip04_config_port(priv, priv->speed, DUPLEX_FULL);
+	hip04_config_port(priv, priv->speed, priv->duplex);
 	hip04_config_fifo(priv);
 	random_ether_addr(ndev->dev_addr);
 	hip04_update_mac_address(ndev);
@@ -730,6 +754,8 @@ static int hip04_mac_probe(struct platform_device *pdev)
 		goto init_fail;
 	}
 
+	priv->phy_node = of_parse_phandle(node, "phy-handle", 0);
+
 	ret = register_netdev(ndev);
 	if (ret) {
 		free_netdev(ndev);
@@ -740,6 +766,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 alloc_fail:
 	hip04_free_ring(ndev);
 init_fail:
+	of_node_put(priv->phy_node);
 	free_netdev(ndev);
 	return ret;
 }
@@ -747,11 +774,13 @@ init_fail:
 static int hip04_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct hip04_priv *priv = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
 	free_irq(ndev->irq, ndev);
 	free_netdev(ndev);
 	free_netdev(ndev);
+	of_node_put(priv->phy_node);
 
 	return 0;
 }
