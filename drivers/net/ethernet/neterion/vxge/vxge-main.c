@@ -2349,12 +2349,18 @@ start:
 	vdev->vxge_entries[j].entry = VXGE_ALARM_MSIX_ID;
 	vdev->vxge_entries[j].in_use = 0;
 
-	ret = pci_enable_msix(vdev->pdev, vdev->entries, vdev->intr_cnt);
-	if (ret > 0) {
+	ret = pci_enable_msix_range(vdev->pdev,
+				    vdev->entries, 3, vdev->intr_cnt);
+	if (ret < 0) {
+		ret = -ENODEV;
+		goto enable_msix_failed;
+	} else if (ret < vdev->intr_cnt) {
+		pci_disable_msix(vdev->pdev);
+
 		vxge_debug_init(VXGE_ERR,
 			"%s: MSI-X enable failed for %d vectors, ret: %d",
 			VXGE_DRIVER_NAME, vdev->intr_cnt, ret);
-		if ((max_config_vpath != VXGE_USE_DEFAULT) || (ret < 3)) {
+		if (max_config_vpath != VXGE_USE_DEFAULT) {
 			ret = -ENODEV;
 			goto enable_msix_failed;
 		}
@@ -2368,9 +2374,6 @@ start:
 		vxge_close_vpaths(vdev, temp);
 		vdev->no_of_vpath = temp;
 		goto start;
-	} else if (ret < 0) {
-		ret = -ENODEV;
-		goto enable_msix_failed;
 	}
 	return 0;
 

@@ -41,29 +41,27 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	switch (use_msi) {
 	case 3:
 	case 1:
+		wil_dbg_misc(wil, "Setup %d MSI interrupts\n", use_msi);
+		break;
 	case 0:
+		wil_dbg_misc(wil, "MSI interrupts disabled, use INTx\n");
 		break;
 	default:
-		wil_err(wil, "Invalid use_msi=%d, default to 1\n",
-			use_msi);
+		wil_err(wil, "Invalid use_msi=%d, default to 1\n", use_msi);
 		use_msi = 1;
 	}
-	wil->n_msi = use_msi;
-	if (wil->n_msi) {
-		wil_dbg_misc(wil, "Setup %d MSI interrupts\n", use_msi);
-		rc = pci_enable_msi_block(pdev, wil->n_msi);
-		if (rc && (wil->n_msi == 3)) {
-			wil_err(wil, "3 MSI mode failed, try 1 MSI\n");
-			wil->n_msi = 1;
-			rc = pci_enable_msi_block(pdev, wil->n_msi);
-		}
-		if (rc) {
-			wil_err(wil, "pci_enable_msi failed, use INTx\n");
-			wil->n_msi = 0;
-		}
-	} else {
-		wil_dbg_misc(wil, "MSI interrupts disabled, use INTx\n");
+
+	if (use_msi == 3 && pci_enable_msi_range(pdev, 3, 3) < 0) {
+		wil_err(wil, "3 MSI mode failed, try 1 MSI\n");
+		use_msi = 1;
 	}
+
+	if (use_msi == 1 && pci_enable_msi(pdev)) {
+		wil_err(wil, "pci_enable_msi failed, use INTx\n");
+		use_msi = 0;
+	}
+
+	wil->n_msi = use_msi;
 
 	rc = wil6210_init_irq(wil, pdev->irq);
 	if (rc)

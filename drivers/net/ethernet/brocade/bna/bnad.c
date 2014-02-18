@@ -2666,9 +2666,11 @@ bnad_enable_msix(struct bnad *bnad)
 	for (i = 0; i < bnad->msix_num; i++)
 		bnad->msix_table[i].entry = i;
 
-	ret = pci_enable_msix(bnad->pcidev, bnad->msix_table, bnad->msix_num);
-	if (ret > 0) {
-		/* Not enough MSI-X vectors. */
+	ret = pci_enable_msix_range(bnad->pcidev, bnad->msix_table,
+				    1, bnad->msix_num);
+	if (ret < 0) {
+		goto intx_mode;
+	} else if (ret < bnad->msix_num) {
 		pr_warn("BNA: %d MSI-X vectors allocated < %d requested\n",
 			ret, bnad->msix_num);
 
@@ -2681,18 +2683,11 @@ bnad_enable_msix(struct bnad *bnad)
 		bnad->msix_num = BNAD_NUM_TXQ + BNAD_NUM_RXP +
 			 BNAD_MAILBOX_MSIX_VECTORS;
 
-		if (bnad->msix_num > ret)
+		if (bnad->msix_num > ret) {
+			pci_disable_msix(bnad->pcidev);
 			goto intx_mode;
-
-		/* Try once more with adjusted numbers */
-		/* If this fails, fall back to INTx */
-		ret = pci_enable_msix(bnad->pcidev, bnad->msix_table,
-				      bnad->msix_num);
-		if (ret)
-			goto intx_mode;
-
-	} else if (ret < 0)
-		goto intx_mode;
+		}
+	}
 
 	pci_intx(bnad->pcidev, 0);
 
