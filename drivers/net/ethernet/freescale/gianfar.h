@@ -9,7 +9,7 @@
  * Maintainer: Kumar Gala
  * Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- * Copyright 2002-2009, 2011 Freescale Semiconductor, Inc.
+ * Copyright 2002-2009, 2011-2013 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -880,7 +880,6 @@ struct gfar {
 #define FSL_GIANFAR_DEV_HAS_CSUM		0x00000010
 #define FSL_GIANFAR_DEV_HAS_VLAN		0x00000020
 #define FSL_GIANFAR_DEV_HAS_EXTENDED_HASH	0x00000040
-#define FSL_GIANFAR_DEV_HAS_PADDING		0x00000080
 #define FSL_GIANFAR_DEV_HAS_MAGIC_PACKET	0x00000100
 #define FSL_GIANFAR_DEV_HAS_BD_STASHING		0x00000200
 #define FSL_GIANFAR_DEV_HAS_BUF_STASHING	0x00000400
@@ -892,8 +891,8 @@ struct gfar {
 #define DEFAULT_MAPPING 	0xFF
 #endif
 
-#define ISRG_SHIFT_TX	0x10
-#define ISRG_SHIFT_RX	0x18
+#define ISRG_RR0	0x80000000
+#define ISRG_TR0	0x00800000
 
 /* The same driver can operate in two modes */
 /* SQ_SG_MODE: Single Queue Single Group Mode
@@ -1113,6 +1112,9 @@ struct gfar_private {
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
 
+	u32 rqueue;
+	u32 tqueue;
+
 	/* RX per device parameters */
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
@@ -1126,11 +1128,6 @@ struct gfar_private {
 	/* Hash registers and their width */
 	u32 __iomem *hash_regs[16];
 	int hash_width;
-
-	/* global parameters */
-	unsigned int fifo_threshold;
-	unsigned int fifo_starve;
-	unsigned int fifo_starve_off;
 
 	/*Filer table*/
 	unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
@@ -1176,6 +1173,31 @@ static inline void gfar_read_filer(struct gfar_private *priv,
 	*fpr = gfar_read(&regs->rqfpr);
 }
 
+static inline void gfar_write_isrg(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+	u32 __iomem *baddr = &regs->isrg0;
+	u32 isrg = 0;
+	int grp_idx, i;
+
+	for (grp_idx = 0; grp_idx < priv->num_grps; grp_idx++) {
+		struct gfar_priv_grp *grp = &priv->gfargrp[grp_idx];
+
+		for_each_set_bit(i, &grp->rx_bit_map, priv->num_rx_queues) {
+			isrg |= (ISRG_RR0 >> i);
+		}
+
+		for_each_set_bit(i, &grp->tx_bit_map, priv->num_tx_queues) {
+			isrg |= (ISRG_TR0 >> i);
+		}
+
+		gfar_write(baddr, isrg);
+
+		baddr++;
+		isrg = 0;
+	}
+}
+
 void lock_rx_qs(struct gfar_private *priv);
 void lock_tx_qs(struct gfar_private *priv);
 void unlock_rx_qs(struct gfar_private *priv);
@@ -1183,11 +1205,11 @@ void unlock_tx_qs(struct gfar_private *priv);
 irqreturn_t gfar_receive(int irq, void *dev_id);
 int startup_gfar(struct net_device *dev);
 void stop_gfar(struct net_device *dev);
-void gfar_halt(struct net_device *dev);
+void gfar_halt(struct gfar_private *priv);
+void gfar_start(struct gfar_private *priv);
 void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev, int enable,
 		   u32 regnum, u32 read);
 void gfar_configure_coalescing_all(struct gfar_private *priv);
-void gfar_init_sysfs(struct net_device *dev);
 int gfar_set_features(struct net_device *dev, netdev_features_t features);
 void gfar_check_rx_parser_mode(struct gfar_private *priv);
 void gfar_vlan_mode(struct net_device *dev, netdev_features_t features);
