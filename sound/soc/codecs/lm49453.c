@@ -213,15 +213,13 @@ static const char *lm49453_adcl_mux_text[] = { "MIC1", "Aux_L" };
 
 static const char *lm49453_adcr_mux_text[] = { "MIC2", "Aux_R" };
 
-static const struct soc_enum lm49453_adcl_enum =
-	SOC_ENUM_SINGLE(LM49453_P0_ANALOG_MIXER_ADC_REG, 0,
-			ARRAY_SIZE(lm49453_adcl_mux_text),
-			lm49453_adcl_mux_text);
+static SOC_ENUM_SINGLE_DECL(lm49453_adcl_enum,
+			    LM49453_P0_ANALOG_MIXER_ADC_REG, 0,
+			    lm49453_adcl_mux_text);
 
-static const struct soc_enum lm49453_adcr_enum =
-	SOC_ENUM_SINGLE(LM49453_P0_ANALOG_MIXER_ADC_REG, 1,
-			ARRAY_SIZE(lm49453_adcr_mux_text),
-			lm49453_adcr_mux_text);
+static SOC_ENUM_SINGLE_DECL(lm49453_adcr_enum,
+			    LM49453_P0_ANALOG_MIXER_ADC_REG, 1,
+			    lm49453_adcr_mux_text);
 
 static const struct snd_kcontrol_new lm49453_adcl_mux_control =
 	SOC_DAPM_ENUM("ADC Left Mux", lm49453_adcl_enum);
