@@ -372,14 +372,14 @@ static int parse_icmpv6(struct sk_buff *skb, struct sw_flow_key *key,
 			    && opt_len == 8) {
 				if (unlikely(!is_zero_ether_addr(key->ipv6.nd.sll)))
 					goto invalid;
-				memcpy(key->ipv6.nd.sll,
-				    &nd->opt[offset+sizeof(*nd_opt)], ETH_ALEN);
+				ether_addr_copy(key->ipv6.nd.sll,
+						&nd->opt[offset+sizeof(*nd_opt)]);
 			} else if (nd_opt->nd_opt_type == ND_OPT_TARGET_LL_ADDR
 				   && opt_len == 8) {
 				if (unlikely(!is_zero_ether_addr(key->ipv6.nd.tll)))
 					goto invalid;
-				memcpy(key->ipv6.nd.tll,
-				    &nd->opt[offset+sizeof(*nd_opt)], ETH_ALEN);
+				ether_addr_copy(key->ipv6.nd.tll,
+						&nd->opt[offset+sizeof(*nd_opt)]);
 			}
 
 			icmp_len -= opt_len;
@@ -439,8 +439,8 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 	 * header in the linear data area.
 	 */
 	eth = eth_hdr(skb);
-	memcpy(key->eth.src, eth->h_source, ETH_ALEN);
-	memcpy(key->eth.dst, eth->h_dest, ETH_ALEN);
+	ether_addr_copy(key->eth.src, eth->h_source);
+	ether_addr_copy(key->eth.dst, eth->h_dest);
 
 	__skb_pull(skb, 2 * ETH_ALEN);
 	/* We are going to push all headers that we pull, so no need to
@@ -538,8 +538,8 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				key->ip.proto = ntohs(arp->ar_op);
 			memcpy(&key->ipv4.addr.src, arp->ar_sip, sizeof(key->ipv4.addr.src));
 			memcpy(&key->ipv4.addr.dst, arp->ar_tip, sizeof(key->ipv4.addr.dst));
-			memcpy(key->ipv4.arp.sha, arp->ar_sha, ETH_ALEN);
-			memcpy(key->ipv4.arp.tha, arp->ar_tha, ETH_ALEN);
+			ether_addr_copy(key->ipv4.arp.sha, arp->ar_sha);
+			ether_addr_copy(key->ipv4.arp.tha, arp->ar_tha);
 		}
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		int nh_len;             /* IPv6 Header + Extensions */

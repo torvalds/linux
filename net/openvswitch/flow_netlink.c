@@ -986,8 +986,8 @@ int ovs_nla_put_flow(const struct sw_flow_key *swkey,
 		goto nla_put_failure;
 
 	eth_key = nla_data(nla);
-	memcpy(eth_key->eth_src, output->eth.src, ETH_ALEN);
-	memcpy(eth_key->eth_dst, output->eth.dst, ETH_ALEN);
+	ether_addr_copy(eth_key->eth_src, output->eth.src);
+	ether_addr_copy(eth_key->eth_dst, output->eth.dst);
 
 	if (swkey->eth.tci || swkey->eth.type == htons(ETH_P_8021Q)) {
 		__be16 eth_type;
@@ -1059,8 +1059,8 @@ int ovs_nla_put_flow(const struct sw_flow_key *swkey,
 		arp_key->arp_sip = output->ipv4.addr.src;
 		arp_key->arp_tip = output->ipv4.addr.dst;
 		arp_key->arp_op = htons(output->ip.proto);
-		memcpy(arp_key->arp_sha, output->ipv4.arp.sha, ETH_ALEN);
-		memcpy(arp_key->arp_tha, output->ipv4.arp.tha, ETH_ALEN);
+		ether_addr_copy(arp_key->arp_sha, output->ipv4.arp.sha);
+		ether_addr_copy(arp_key->arp_tha, output->ipv4.arp.tha);
 	}
 
 	if ((swkey->eth.type == htons(ETH_P_IP) ||
@@ -1147,8 +1147,8 @@ int ovs_nla_put_flow(const struct sw_flow_key *swkey,
 				nd_key = nla_data(nla);
 				memcpy(nd_key->nd_target, &output->ipv6.nd.target,
 							sizeof(nd_key->nd_target));
-				memcpy(nd_key->nd_sll, output->ipv6.nd.sll, ETH_ALEN);
-				memcpy(nd_key->nd_tll, output->ipv6.nd.tll, ETH_ALEN);
+				ether_addr_copy(nd_key->nd_sll, output->ipv6.nd.sll);
+				ether_addr_copy(nd_key->nd_tll, output->ipv6.nd.tll);
 			}
 		}
 	}
