@@ -6776,8 +6776,10 @@ static void l2cap_data_channel(struct l2cap_conn *conn, u16 cid,
 		 * But we don't have any other choice. L2CAP doesn't
 		 * provide flow control mechanism. */
 
-		if (chan->imtu < skb->len)
+		if (chan->imtu < skb->len) {
+			BT_ERR("Dropping L2CAP data: receive buffer overflow");
 			goto drop;
+		}
 
 		if (!chan->ops->recv(chan, skb))
 			goto done;
