@@ -311,17 +311,6 @@ config CRYPTO_DEV_S5P
 	  Select this to offload Samsung S5PV210 or S5PC110 from AES
 	  algorithms execution.
 
-config CRYPTO_DEV_TEGRA_AES
-	tristate "Support for TEGRA AES hw engine"
-	depends on ARCH_TEGRA
-	select CRYPTO_AES
-	help
-	  TEGRA processors have AES module accelerator. Select this if you
-	  want to use the TEGRA module for AES algorithms.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called tegra-aes.
-
 config CRYPTO_DEV_NX
 	bool "Support for IBM Power7+ in-Nest cryptographic acceleration"
 	depends on PPC64 && IBMVIO
