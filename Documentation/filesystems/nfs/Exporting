@@ -66,23 +66,31 @@ b/ A per-superblock list "s_anon" of dentries which are the roots of
 
 c/ Helper routines to allocate anonymous dentries, and to help attach
    loose directory dentries at lookup time. They are:
-    d_alloc_anon(inode) will return a dentry for the given inode.
+    d_obtain_alias(inode) will return a dentry for the given inode.
       If the inode already has a dentry, one of those is returned.
       If it doesn't, a new anonymous (IS_ROOT and
         DCACHE_DISCONNECTED) dentry is allocated and attached.
       In the case of a directory, care is taken that only one dentry
       can ever be attached.
-    d_splice_alias(inode, dentry) will make sure that there is a
-      dentry with the same name and parent as the given dentry, and
-      which refers to the given inode.
-      If the inode is a directory and already has a dentry, then that
-      dentry is d_moved over the given dentry.
-      If the passed dentry gets attached, care is taken that this is
-      mutually exclusive to a d_alloc_anon operation.
-      If the passed dentry is used, NULL is returned, else the used
-      dentry is returned.  This corresponds to the calling pattern of
-      ->lookup.
-  
+    d_splice_alias(inode, dentry) or d_materialise_unique(dentry, inode)
+      will introduce a new dentry into the tree; either the passed-in
+      dentry or a preexisting alias for the given inode (such as an
+      anonymous one created by d_obtain_alias), if appropriate.  The two
+      functions differ in their handling of directories with preexisting
+      aliases:
+        d_splice_alias will use any existing IS_ROOT dentry, but it will
+	  return -EIO rather than try to move a dentry with a different
+	  parent.  This is appropriate for local filesystems, which
+	  should never see such an alias unless the filesystem is
+	  corrupted somehow (for example, if two on-disk directory
+	  entries refer to the same directory.)
+	d_materialise_unique will attempt to move any dentry.  This is
+	  appropriate for distributed filesystems, where finding a
+	  directory other than where we last cached it may be a normal
+	  consequence of concurrent operations on other hosts.
+      Both functions return NULL when the passed-in dentry is used,
+      following the calling convention of ->lookup.
+
  
 Filesystem Issues
 -----------------
@@ -120,12 +128,12 @@ struct which has the following members:
 
   fh_to_dentry (mandatory)
     Given a filehandle fragment, this should find the implied object and
-    create a dentry for it (possibly with d_alloc_anon).
+    create a dentry for it (possibly with d_obtain_alias).
 
   fh_to_parent (optional but strongly recommended)
     Given a filehandle fragment, this should find the parent of the
-    implied object and create a dentry for it (possibly with d_alloc_anon).
-    May fail if the filehandle fragment is too small.
+    implied object and create a dentry for it (possibly with
+    d_obtain_alias).  May fail if the filehandle fragment is too small.
 
   get_parent (optional but strongly recommended)
     When given a dentry for a directory, this should return  a dentry for
