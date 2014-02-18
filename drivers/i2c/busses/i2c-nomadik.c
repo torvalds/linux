@@ -976,7 +976,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	struct i2c_vendor_data *vendor = id->data;
 	u32 max_fifo_threshold = (vendor->fifodepth / 2) - 1;
 
-	dev = kzalloc(sizeof(struct nmk_i2c_dev), GFP_KERNEL);
+	dev = devm_kzalloc(&adev->dev, sizeof(struct nmk_i2c_dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&adev->dev, "cannot allocate memory\n");
 		ret = -ENOMEM;
@@ -1006,27 +1006,28 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	/* If possible, let's go to idle until the first transfer */
 	pinctrl_pm_select_idle_state(&adev->dev);
 
-	dev->virtbase = ioremap(adev->res.start, resource_size(&adev->res));
-	if (!dev->virtbase) {
+	dev->virtbase = devm_ioremap(&adev->dev, adev->res.start,
+				resource_size(&adev->res));
+	if (IS_ERR(dev->virtbase)) {
 		ret = -ENOMEM;
-		goto err_no_ioremap;
+		goto err_no_mem;
 	}
 
 	dev->irq = adev->irq[0];
-	ret = request_irq(dev->irq, i2c_irq_handler, 0,
+	ret = devm_request_irq(&adev->dev, dev->irq, i2c_irq_handler, 0,
 				DRIVER_NAME, dev);
 	if (ret) {
 		dev_err(&adev->dev, "cannot claim the irq %d\n", dev->irq);
-		goto err_irq;
+		goto err_no_mem;
 	}
 
 	pm_suspend_ignore_children(&adev->dev, true);
 
-	dev->clk = clk_get(&adev->dev, NULL);
+	dev->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		dev_err(&adev->dev, "could not get i2c clock\n");
 		ret = PTR_ERR(dev->clk);
-		goto err_no_clk;
+		goto err_no_mem;
 	}
 
 	adap = &dev->adap;
@@ -1048,21 +1049,13 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = i2c_add_adapter(adap);
 	if (ret) {
 		dev_err(&adev->dev, "failed to add adapter\n");
-		goto err_add_adap;
+		goto err_no_mem;
 	}
 
 	pm_runtime_put(&adev->dev);
 
 	return 0;
 
- err_add_adap:
-	clk_put(dev->clk);
- err_no_clk:
-	free_irq(dev->irq, dev);
- err_irq:
-	iounmap(dev->virtbase);
- err_no_ioremap:
-	kfree(dev);
  err_no_mem:
 
 	return ret;
@@ -1079,13 +1072,9 @@ static int nmk_i2c_remove(struct amba_device *adev)
 	clear_all_interrupts(dev);
 	/* disable the controller */
 	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
-	free_irq(dev->irq, dev);
-	iounmap(dev->virtbase);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
-	clk_put(dev->clk);
 	pm_runtime_disable(&adev->dev);
-	kfree(dev);
 
 	return 0;
 }
