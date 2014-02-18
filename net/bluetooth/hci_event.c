@@ -1704,7 +1704,7 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	} else {
 		conn->state = BT_CLOSED;
 		if (conn->type == ACL_LINK)
-			mgmt_connect_failed(hdev, &ev->bdaddr, conn->type,
+			mgmt_connect_failed(hdev, &conn->dst, conn->type,
 					    conn->dst_type, ev->status);
 	}
 
