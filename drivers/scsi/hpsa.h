@@ -105,6 +105,8 @@ struct ctlr_info {
 	dma_addr_t		cmd_pool_dhandle;
 	struct io_accel1_cmd	*ioaccel_cmd_pool;
 	dma_addr_t		ioaccel_cmd_pool_dhandle;
+	struct io_accel2_cmd	*ioaccel2_cmd_pool;
+	dma_addr_t		ioaccel2_cmd_pool_dhandle;
 	struct ErrorInfo 	*errinfo_pool;
 	dma_addr_t		errinfo_pool_dhandle;
 	unsigned long  		*cmd_pool_bits;
@@ -139,6 +141,7 @@ struct ctlr_info {
 	dma_addr_t reply_pool_dhandle;
 	u32 *blockFetchTable;
 	u32 *ioaccel1_blockFetchTable;
+	u32 *ioaccel2_blockFetchTable;
 	unsigned char *hba_inquiry_data;
 	u32 driver_support;
 	u32 fw_support;
