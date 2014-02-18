@@ -1083,6 +1083,15 @@ static inline bool hci_bdaddr_is_rpa(bdaddr_t *bdaddr, u8 addr_type)
 	return false;
 }
 
+static inline struct smp_irk *hci_get_irk(struct hci_dev *hdev,
+					  bdaddr_t *bdaddr, u8 addr_type)
+{
+	if (!hci_bdaddr_is_rpa(bdaddr, addr_type))
+		return NULL;
+
+	return hci_find_irk_by_rpa(hdev, bdaddr);
+}
+
 int hci_register_cb(struct hci_cb *hcb);
 int hci_unregister_cb(struct hci_cb *hcb);
 
