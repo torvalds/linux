@@ -522,7 +522,7 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 	num_entries = of_property_count_u32_elems(dev->of_node, pname);
 	if (num_entries < 0) {
 		dev_err(dev, "No '%s' property?\n", pname);
-		return -ENODEV;
+		return num_entries;
 	}
 
 	if (!num_entries || (num_entries % num_values)) {
