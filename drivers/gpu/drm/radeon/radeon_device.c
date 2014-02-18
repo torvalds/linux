@@ -1445,10 +1445,9 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
 
-	mutex_lock(&rdev->ring_lock);
 	/* wait for gpu to finish processing current batch */
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
-		r = radeon_fence_wait_empty_locked(rdev, i);
+		r = radeon_fence_wait_empty(rdev, i);
 		if (r) {
 			/* delay GPU reset to resume */
 			force_completion = true;
@@ -1457,7 +1456,6 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	if (force_completion) {
 		radeon_fence_driver_force_completion(rdev);
 	}
-	mutex_unlock(&rdev->ring_lock);
 
 	radeon_save_bios_scratch_regs(rdev);
 

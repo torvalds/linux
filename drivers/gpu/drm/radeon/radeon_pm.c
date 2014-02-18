@@ -260,7 +260,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 		if (!ring->ready) {
 			continue;
 		}
-		r = radeon_fence_wait_empty_locked(rdev, i);
+		r = radeon_fence_wait_empty(rdev, i);
 		if (r) {
 			/* needs a GPU reset dont reset here */
 			mutex_unlock(&rdev->ring_lock);
@@ -896,7 +896,7 @@ force:
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
 		struct radeon_ring *ring = &rdev->ring[i];
 		if (ring->ready)
-			radeon_fence_wait_empty_locked(rdev, i);
+			radeon_fence_wait_empty(rdev, i);
 	}
 
 	/* program the new power state */

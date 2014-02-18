@@ -382,7 +382,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 		if (ndw < ring->ring_free_dw) {
 			break;
 		}
-		r = radeon_fence_wait_next_locked(rdev, ring->idx);
+		r = radeon_fence_wait_next(rdev, ring->idx);
 		if (r)
 			return r;
 	}
