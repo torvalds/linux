@@ -342,11 +342,22 @@ static inline bool bond_is_active_slave(struct slave *slave)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)
 #define BOND_ARP_VALIDATE_ALL		(BOND_ARP_VALIDATE_ACTIVE | \
 					 BOND_ARP_VALIDATE_BACKUP)
+#define BOND_ARP_FILTER			(BOND_ARP_VALIDATE_ALL + 1)
+#define BOND_ARP_FILTER_ACTIVE		(BOND_ARP_VALIDATE_ACTIVE | \
+					 BOND_ARP_FILTER)
+#define BOND_ARP_FILTER_BACKUP		(BOND_ARP_VALIDATE_BACKUP | \
+					 BOND_ARP_FILTER)
 
 static inline int slave_do_arp_validate(struct bonding *bond,
 					struct slave *slave)
 {
 	return bond->params.arp_validate & (1 << bond_slave_state(slave));
+}
+
+static inline int slave_do_arp_validate_only(struct bonding *bond,
+					     struct slave *slave)
+{
+	return bond->params.arp_validate & BOND_ARP_FILTER;
 }
 
 /* Get the oldest arp which we've received on this slave for bond's

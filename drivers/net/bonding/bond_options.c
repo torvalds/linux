@@ -47,11 +47,14 @@ static struct bond_opt_value bond_xmit_hashtype_tbl[] = {
 };
 
 static struct bond_opt_value bond_arp_validate_tbl[] = {
-	{ "none",   BOND_ARP_VALIDATE_NONE,   BOND_VALFLAG_DEFAULT},
-	{ "active", BOND_ARP_VALIDATE_ACTIVE, 0},
-	{ "backup", BOND_ARP_VALIDATE_BACKUP, 0},
-	{ "all",    BOND_ARP_VALIDATE_ALL,    0},
-	{ NULL,     -1,                       0},
+	{ "none",		BOND_ARP_VALIDATE_NONE,		BOND_VALFLAG_DEFAULT},
+	{ "active",		BOND_ARP_VALIDATE_ACTIVE,	0},
+	{ "backup",		BOND_ARP_VALIDATE_BACKUP,	0},
+	{ "all",		BOND_ARP_VALIDATE_ALL,		0},
+	{ "filter",		BOND_ARP_FILTER,		0},
+	{ "filter_active",	BOND_ARP_FILTER_ACTIVE,		0},
+	{ "filter_backup",	BOND_ARP_FILTER_BACKUP,		0},
+	{ NULL,			-1,				0},
 };
 
 static struct bond_opt_value bond_arp_all_targets_tbl[] = {
