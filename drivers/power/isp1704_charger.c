@@ -444,8 +444,6 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 		ret = PTR_ERR(isp->phy);
 		goto fail0;
 	}
-	if (!isp->phy)
-		goto fail0;
 
 	isp->dev = &pdev->dev;
 	platform_set_drvdata(pdev, isp);
