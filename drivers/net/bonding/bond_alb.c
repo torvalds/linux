@@ -1449,9 +1449,8 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 
 	if (tx_slave && SLAVE_IS_OK(tx_slave)) {
 		if (tx_slave != rcu_dereference(bond->curr_active_slave)) {
-			memcpy(eth_data->h_source,
-			       tx_slave->dev->dev_addr,
-			       ETH_ALEN);
+			ether_addr_copy(eth_data->h_source,
+					tx_slave->dev->dev_addr);
 		}
 
 		bond_dev_queue_xmit(bond, skb, tx_slave->dev);

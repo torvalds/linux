@@ -2384,8 +2384,8 @@ int __bond_3ad_get_active_agg_info(struct bonding *bond,
 		ad_info->ports = aggregator->num_of_ports;
 		ad_info->actor_key = aggregator->actor_oper_aggregator_key;
 		ad_info->partner_key = aggregator->partner_oper_aggregator_key;
-		memcpy(ad_info->partner_system,
-		       aggregator->partner_system.mac_addr_value, ETH_ALEN);
+		ether_addr_copy(ad_info->partner_system,
+				aggregator->partner_system.mac_addr_value);
 		return 0;
 	}
 

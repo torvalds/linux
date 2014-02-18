@@ -674,8 +674,8 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 
 		if (old_active) {
 			ether_addr_copy(tmp_mac, new_active->dev->dev_addr);
-			memcpy(saddr.sa_data, old_active->dev->dev_addr,
-			       ETH_ALEN);
+			ether_addr_copy(saddr.sa_data,
+					old_active->dev->dev_addr);
 			saddr.sa_family = new_active->dev->type;
 		} else {
 			ether_addr_copy(saddr.sa_data, bond->dev->dev_addr);
@@ -1139,7 +1139,7 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 			kfree_skb(skb);
 			return RX_HANDLER_CONSUMED;
 		}
-		memcpy(eth_hdr(skb)->h_dest, bond->dev->dev_addr, ETH_ALEN);
+		ether_addr_copy(eth_hdr(skb)->h_dest, bond->dev->dev_addr);
 	}
 
 	return ret;
