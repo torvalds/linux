@@ -209,7 +209,10 @@ struct raid_map_data {
 	u16   row_cnt;			/* rows in each layout map */
 	u16   layout_map_count;		/* layout maps (1 map per mirror/parity
 					 * group) */
-	u8    reserved[20];
+	u16   flags;			/* Bit 0 set if encryption enabled */
+#define RAID_MAP_FLAG_ENCRYPT_ON  0x01
+	u16   dekindex;			/* Data encryption key index. */
+	u8    reserved[16];
 	struct raid_map_disk_data data[RAID_MAP_MAX_ENTRIES];
 };
 
@@ -502,11 +505,17 @@ struct io_accel2_scsi_response {
  */
 struct io_accel2_cmd {
 	u8  IU_type;			/* IU Type */
-	u8  direction;                  /* Transfer direction, 2 bits */
+	u8  direction;			/* direction, memtype, and encryption */
+#define IOACCEL2_DIRECTION_MASK		0x03 /* bits 0,1: direction  */
+#define IOACCEL2_DIRECTION_MEMTYPE_MASK	0x04 /* bit 2: memtype source/dest */
+					     /*     0b=PCIe, 1b=DDR */
+#define IOACCEL2_DIRECTION_ENCRYPT_MASK	0x08 /* bit 3: encryption flag */
+					     /*     0=off, 1=on */
 	u8  reply_queue;		/* Reply Queue ID */
 	u8  reserved1;			/* Reserved */
 	u32 scsi_nexus;			/* Device Handle */
-	struct vals32 Tag;		/* cciss tag */
+	u32 Tag;			/* cciss tag, lower 4 bytes only */
+	u32 tweak_lower;		/* Encryption tweak, lower 4 bytes */
 	u8  cdb[16];			/* SCSI Command Descriptor Block */
 	u8  cciss_lun[8];		/* 8 byte SCSI address */
 	u32 data_len;			/* Total bytes to transfer */
@@ -514,10 +523,10 @@ struct io_accel2_cmd {
 #define IOACCEL2_PRIORITY_MASK 0x78
 #define IOACCEL2_ATTR_MASK 0x07
 	u8  sg_count;			/* Number of sg elements */
-	u8  reserved3[2];		/* Reserved */
+	u16 dekindex;			/* Data encryption key index */
 	u64 err_ptr;			/* Error Pointer */
 	u32 err_len;			/* Error Length*/
-	u8 reserved4[4];		/* Reserved */
+	u32 tweak_upper;		/* Encryption tweak, upper 4 bytes */
 	struct ioaccel2_sg_element sg[IOACCEL2_MAXSGENTRIES];
 	struct io_accel2_scsi_response error_data;
 	u8 pad[IOACCEL2_PAD];

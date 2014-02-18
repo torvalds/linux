@@ -2027,6 +2027,14 @@ static void hpsa_debug_map_buff(struct ctlr_info *h, int rc,
 			le16_to_cpu(map_buff->row_cnt));
 	dev_info(&h->pdev->dev, "layout_map_count = %u\n",
 			le16_to_cpu(map_buff->layout_map_count));
+	dev_info(&h->pdev->dev, "flags = %u\n",
+			le16_to_cpu(map_buff->flags));
+	if (map_buff->flags & RAID_MAP_FLAG_ENCRYPT_ON)
+		dev_info(&h->pdev->dev, "encrypytion = ON\n");
+	else
+		dev_info(&h->pdev->dev, "encrypytion = OFF\n");
+	dev_info(&h->pdev->dev, "dekindex = %u\n",
+			le16_to_cpu(map_buff->dekindex));
 
 	map_cnt = le16_to_cpu(map_buff->layout_map_count);
 	for (map = 0; map < map_cnt; map++) {
@@ -2967,6 +2975,128 @@ static int hpsa_scsi_ioaccel_direct_map(struct ctlr_info *h,
 		cmd->cmnd, cmd->cmd_len, dev->scsi3addr);
 }
 
+/*
+ * Set encryption parameters for the ioaccel2 request
+ */
+static void set_encrypt_ioaccel2(struct ctlr_info *h,
+	struct CommandList *c, struct io_accel2_cmd *cp)
+{
+	struct scsi_cmnd *cmd = c->scsi_cmd;
+	struct hpsa_scsi_dev_t *dev = cmd->device->hostdata;
+	struct raid_map_data *map = &dev->raid_map;
+	u64 first_block;
+
+	BUG_ON(!(dev->offload_config && dev->offload_enabled));
+
+	/* Are we doing encryption on this device */
+	if (!(map->flags & RAID_MAP_FLAG_ENCRYPT_ON))
+		return;
+	/* Set the data encryption key index. */
+	cp->dekindex = map->dekindex;
+
+	/* Set the encryption enable flag, encoded into direction field. */
+	cp->direction |= IOACCEL2_DIRECTION_ENCRYPT_MASK;
+
+	/* Set encryption tweak values based on logical block address
+	 * If block size is 512, tweak value is LBA.
+	 * For other block sizes, tweak is (LBA * block size)/ 512)
+	 */
+	switch (cmd->cmnd[0]) {
+	/* Required? 6-byte cdbs eliminated by fixup_ioaccel_cdb */
+	case WRITE_6:
+	case READ_6:
+		if (map->volume_blk_size == 512) {
+			cp->tweak_lower =
+				(((u32) cmd->cmnd[2]) << 8) |
+					cmd->cmnd[3];
+			cp->tweak_upper = 0;
+		} else {
+			first_block =
+				(((u64) cmd->cmnd[2]) << 8) |
+					cmd->cmnd[3];
+			first_block = (first_block * map->volume_blk_size)/512;
+			cp->tweak_lower = (u32)first_block;
+			cp->tweak_upper = (u32)(first_block >> 32);
+		}
+		break;
+	case WRITE_10:
+	case READ_10:
+		if (map->volume_blk_size == 512) {
+			cp->tweak_lower =
+				(((u32) cmd->cmnd[2]) << 24) |
+				(((u32) cmd->cmnd[3]) << 16) |
+				(((u32) cmd->cmnd[4]) << 8) |
+					cmd->cmnd[5];
+			cp->tweak_upper = 0;
+		} else {
+			first_block =
+				(((u64) cmd->cmnd[2]) << 24) |
+				(((u64) cmd->cmnd[3]) << 16) |
+				(((u64) cmd->cmnd[4]) << 8) |
+					cmd->cmnd[5];
+			first_block = (first_block * map->volume_blk_size)/512;
+			cp->tweak_lower = (u32)first_block;
+			cp->tweak_upper = (u32)(first_block >> 32);
+		}
+		break;
+	/* Required? 12-byte cdbs eliminated by fixup_ioaccel_cdb */
+	case WRITE_12:
+	case READ_12:
+		if (map->volume_blk_size == 512) {
+			cp->tweak_lower =
+				(((u32) cmd->cmnd[2]) << 24) |
+				(((u32) cmd->cmnd[3]) << 16) |
+				(((u32) cmd->cmnd[4]) << 8) |
+					cmd->cmnd[5];
+			cp->tweak_upper = 0;
+		} else {
+			first_block =
+				(((u64) cmd->cmnd[2]) << 24) |
+				(((u64) cmd->cmnd[3]) << 16) |
+				(((u64) cmd->cmnd[4]) << 8) |
+					cmd->cmnd[5];
+			first_block = (first_block * map->volume_blk_size)/512;
+			cp->tweak_lower = (u32)first_block;
+			cp->tweak_upper = (u32)(first_block >> 32);
+		}
+		break;
+	case WRITE_16:
+	case READ_16:
+		if (map->volume_blk_size == 512) {
+			cp->tweak_lower =
+				(((u32) cmd->cmnd[6]) << 24) |
+				(((u32) cmd->cmnd[7]) << 16) |
+				(((u32) cmd->cmnd[8]) << 8) |
+					cmd->cmnd[9];
+			cp->tweak_upper =
+				(((u32) cmd->cmnd[2]) << 24) |
+				(((u32) cmd->cmnd[3]) << 16) |
+				(((u32) cmd->cmnd[4]) << 8) |
+					cmd->cmnd[5];
+		} else {
+			first_block =
+				(((u64) cmd->cmnd[2]) << 56) |
+				(((u64) cmd->cmnd[3]) << 48) |
+				(((u64) cmd->cmnd[4]) << 40) |
+				(((u64) cmd->cmnd[5]) << 32) |
+				(((u64) cmd->cmnd[6]) << 24) |
+				(((u64) cmd->cmnd[7]) << 16) |
+				(((u64) cmd->cmnd[8]) << 8) |
+					cmd->cmnd[9];
+			first_block = (first_block * map->volume_blk_size)/512;
+			cp->tweak_lower = (u32)first_block;
+			cp->tweak_upper = (u32)(first_block >> 32);
+		}
+		break;
+	default:
+		dev_err(&h->pdev->dev,
+			"ERROR: %s: IOACCEL request CDB size not supported for encryption\n",
+			__func__);
+		BUG();
+		break;
+	}
+}
+
 static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 	struct CommandList *c, u32 ioaccel_handle, u8 *cdb, int cdb_len,
 	u8 *scsi3addr)
@@ -3016,13 +3146,16 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 
 		switch (cmd->sc_data_direction) {
 		case DMA_TO_DEVICE:
-			cp->direction = IOACCEL2_DIR_DATA_OUT;
+			cp->direction &= ~IOACCEL2_DIRECTION_MASK;
+			cp->direction |= IOACCEL2_DIR_DATA_OUT;
 			break;
 		case DMA_FROM_DEVICE:
-			cp->direction = IOACCEL2_DIR_DATA_IN;
+			cp->direction &= ~IOACCEL2_DIRECTION_MASK;
+			cp->direction |= IOACCEL2_DIR_DATA_IN;
 			break;
 		case DMA_NONE:
-			cp->direction = IOACCEL2_DIR_NO_DATA;
+			cp->direction &= ~IOACCEL2_DIRECTION_MASK;
+			cp->direction |= IOACCEL2_DIR_NO_DATA;
 			break;
 		default:
 			dev_err(&h->pdev->dev, "unknown data direction: %d\n",
@@ -3031,10 +3164,15 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 			break;
 		}
 	} else {
-		cp->direction = IOACCEL2_DIR_NO_DATA;
+		cp->direction &= ~IOACCEL2_DIRECTION_MASK;
+		cp->direction |= IOACCEL2_DIR_NO_DATA;
 	}
+
+	/* Set encryption parameters, if necessary */
+	set_encrypt_ioaccel2(h, c, cp);
+
 	cp->scsi_nexus = ioaccel_handle;
-	cp->Tag.lower = (c->cmdindex << DIRECT_LOOKUP_SHIFT) |
+	cp->Tag = (c->cmdindex << DIRECT_LOOKUP_SHIFT) |
 				DIRECT_LOOKUP_BIT;
 	memcpy(cp->cdb, cdb, sizeof(cp->cdb));
 	memset(cp->cciss_lun, 0, sizeof(cp->cciss_lun));
@@ -3792,8 +3930,9 @@ static void hpsa_get_tag(struct ctlr_info *h,
 	if (c->cmd_type == CMD_IOACCEL2) {
 		struct io_accel2_cmd *cm2 = (struct io_accel2_cmd *)
 			&h->ioaccel2_cmd_pool[c->cmdindex];
-		*tagupper = cm2->Tag.upper;
-		*taglower = cm2->Tag.lower;
+		/* upper tag not used in ioaccel2 mode */
+		memset(tagupper, 0, sizeof(*tagupper));
+		*taglower = cm2->Tag;
 		return;
 	}
 	*tagupper = c->Header.Tag.upper;
@@ -3841,8 +3980,8 @@ static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
 		break;
 	}
 	cmd_special_free(h, c);
-	dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: Finished.\n", __func__,
-		abort->Header.Tag.upper, abort->Header.Tag.lower);
+	dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: Finished.\n",
+		__func__, tagupper, taglower);
 	return rc;
 }
 
@@ -6970,6 +7109,28 @@ static void __exit hpsa_cleanup(void)
 
 static void __attribute__((unused)) verify_offsets(void)
 {
+#define VERIFY_OFFSET(member, offset) \
+	BUILD_BUG_ON(offsetof(struct raid_map_data, member) != offset)
+
+	VERIFY_OFFSET(structure_size, 0);
+	VERIFY_OFFSET(volume_blk_size, 4);
+	VERIFY_OFFSET(volume_blk_cnt, 8);
+	VERIFY_OFFSET(phys_blk_shift, 16);
+	VERIFY_OFFSET(parity_rotation_shift, 17);
+	VERIFY_OFFSET(strip_size, 18);
+	VERIFY_OFFSET(disk_starting_blk, 20);
+	VERIFY_OFFSET(disk_blk_cnt, 28);
+	VERIFY_OFFSET(data_disks_per_row, 36);
+	VERIFY_OFFSET(metadata_disks_per_row, 38);
+	VERIFY_OFFSET(row_cnt, 40);
+	VERIFY_OFFSET(layout_map_count, 42);
+	VERIFY_OFFSET(flags, 44);
+	VERIFY_OFFSET(dekindex, 46);
+	/* VERIFY_OFFSET(reserved, 48 */
+	VERIFY_OFFSET(data, 64);
+
+#undef VERIFY_OFFSET
+
 #define VERIFY_OFFSET(member, offset) \
 	BUILD_BUG_ON(offsetof(struct io_accel2_cmd, member) != offset)
 
