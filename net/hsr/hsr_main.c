@@ -138,8 +138,8 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			break;
 
 		if (dev == hsr_priv->slave[0])
-			memcpy(hsr_priv->dev->dev_addr,
-			       hsr_priv->slave[0]->dev_addr, ETH_ALEN);
+			ether_addr_copy(hsr_priv->dev->dev_addr,
+					hsr_priv->slave[0]->dev_addr);
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
 		res = hsr_create_self_node(&hsr_priv->self_node_db,
