@@ -283,7 +283,7 @@ static void dce6_audio_enable(struct radeon_device *rdev,
 			      bool enable)
 {
 	WREG32_ENDPOINT(pin->offset, AZ_F0_CODEC_PIN_CONTROL_HOTPLUG_CONTROL,
-			AUDIO_ENABLED);
+			enable ? AUDIO_ENABLED : 0);
 	DRM_INFO("%s audio %d support\n", enable ? "Enabling" : "Disabling", pin->id);
 }
 
