@@ -67,12 +67,12 @@ static const char *wm9705_mic[] = {"Mic 1", "Mic 2"};
 static const char *wm9705_rec_sel[] = {"Mic", "CD", "NC", "NC",
 	"Line", "Stereo Mix", "Mono Mix", "Phone"};
 
-static const struct soc_enum wm9705_enum_mic =
-	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 8, 2, wm9705_mic);
-static const struct soc_enum wm9705_enum_rec_l =
-	SOC_ENUM_SINGLE(AC97_REC_SEL, 8, 8, wm9705_rec_sel);
-static const struct soc_enum wm9705_enum_rec_r =
-	SOC_ENUM_SINGLE(AC97_REC_SEL, 0, 8, wm9705_rec_sel);
+static SOC_ENUM_SINGLE_DECL(wm9705_enum_mic,
+			    AC97_GENERAL_PURPOSE, 8, wm9705_mic);
+static SOC_ENUM_SINGLE_DECL(wm9705_enum_rec_l,
+			    AC97_REC_SEL, 8, wm9705_rec_sel);
+static SOC_ENUM_SINGLE_DECL(wm9705_enum_rec_r,
+			    AC97_REC_SEL, 0, wm9705_rec_sel);
 
 /* Headphone Mixer */
 static const struct snd_kcontrol_new wm9705_hp_mixer_controls[] = {
