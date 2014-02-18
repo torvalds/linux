@@ -2507,7 +2507,7 @@ static void be_msix_disable(struct be_adapter *adapter)
 
 static int be_msix_enable(struct be_adapter *adapter)
 {
-	int i, status, num_vec;
+	int i, num_vec;
 	struct device *dev = &adapter->pdev->dev;
 
 	/* If RoCE is supported, program the max number of NIC vectors that
@@ -2523,24 +2523,11 @@ static int be_msix_enable(struct be_adapter *adapter)
 	for (i = 0; i < num_vec; i++)
 		adapter->msix_entries[i].entry = i;
 
-	status = pci_enable_msix(adapter->pdev, adapter->msix_entries, num_vec);
-	if (status == 0) {
-		goto done;
-	} else if (status >= MIN_MSIX_VECTORS) {
-		num_vec = status;
-		status = pci_enable_msix(adapter->pdev, adapter->msix_entries,
-					 num_vec);
-		if (!status)
-			goto done;
-	}
+	num_vec = pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
+					MIN_MSIX_VECTORS, num_vec);
+	if (num_vec < 0)
+		goto fail;
 
-	dev_warn(dev, "MSIx enable failed\n");
-
-	/* INTx is not supported in VFs, so fail probe if enable_msix fails */
-	if (!be_physfn(adapter))
-		return status;
-	return 0;
-done:
 	if (be_roce_supported(adapter) && num_vec > MIN_MSIX_VECTORS) {
 		adapter->num_msix_roce_vec = num_vec / 2;
 		dev_info(dev, "enabled %d MSI-x vector(s) for RoCE\n",
@@ -2551,6 +2538,14 @@ done:
 
 	dev_info(dev, "enabled %d MSI-x vector(s) for NIC\n",
 		 adapter->num_msix_vec);
+	return 0;
+
+fail:
+	dev_warn(dev, "MSIx enable failed\n");
+
+	/* INTx is not supported in VFs, so fail probe if enable_msix fails */
+	if (!be_physfn(adapter))
+		return num_vec;
 	return 0;
 }
 
