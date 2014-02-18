@@ -3601,8 +3601,16 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 	}
 
-	/* Track the connection based on the Identity Address from now on */
-	irk = hci_get_irk(hdev, &ev->bdaddr, ev->bdaddr_type);
+	/* Lookup the identity address from the stored connection
+	 * address and address type.
+	 *
+	 * When establishing connections to an identity address, the
+	 * connection procedure will store the resolvable random
+	 * address first. Now if it can be converted back into the
+	 * identity address, start using the identity address from
+	 * now on.
+	 */
+	irk = hci_get_irk(hdev, &conn->dst, conn->dst_type);
 	if (irk) {
 		bacpy(&conn->dst, &irk->bdaddr);
 		conn->dst_type = irk->addr_type;

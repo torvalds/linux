@@ -623,6 +623,19 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	else
 		dst_type = ADDR_LE_DEV_RANDOM;
 
+	/* When given an identity address with existing identity
+	 * resolving key, the connection needs to be established
+	 * to a resolvable random address.
+	 *
+	 * This uses the cached random resolvable address from
+	 * a previous scan. When no cached address is available,
+	 * try connecting to the identity address instead.
+	 *
+	 * Storing the resolvable random address is required here
+	 * to handle connection failures. The address will later
+	 * be resolved back into the original identity address
+	 * from the connect request.
+	 */
 	irk = hci_find_irk_by_addr(hdev, dst, dst_type);
 	if (irk && bacmp(&irk->rpa, BDADDR_ANY)) {
 		dst = &irk->rpa;
