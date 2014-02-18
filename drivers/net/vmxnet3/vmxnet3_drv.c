@@ -2738,35 +2738,26 @@ vmxnet3_read_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac)
 static int
 vmxnet3_acquire_msix_vectors(struct vmxnet3_adapter *adapter, int nvec)
 {
-	do {
-		int err = pci_enable_msix(adapter->pdev,
-					  adapter->intr.msix_entries, nvec);
-		if (!err) {
-			return nvec;
-		} else if (err < 0) {
-			dev_err(&adapter->netdev->dev,
-				"Failed to enable MSI-X, error: %d\n", err);
-			return err;
-		} else if (err < VMXNET3_LINUX_MIN_MSIX_VECT) {
-			dev_info(&adapter->pdev->dev,
-				 "Number of MSI-X which can be allocated "
-				 "is lower than min threshold required.\n");
-			return -ENOSPC;
-		} else {
-			/* If fails to enable required number of MSI-x vectors
-			 * try enabling minimum number of vectors required.
-			 */
-			dev_err(&adapter->netdev->dev,
-				"Failed to enable %d MSI-X, trying %d\n",
-				nvec, VMXNET3_LINUX_MIN_MSIX_VECT);
-			nvec = VMXNET3_LINUX_MIN_MSIX_VECT;
-		}
-	} while (nvec >= VMXNET3_LINUX_MIN_MSIX_VECT);
+	int ret = pci_enable_msix_range(adapter->pdev,
+					adapter->intr.msix_entries, nvec, nvec);
 
-	/*
-	 * Should never get here
-	 */
-	return -ENOSPC;
+	if (ret == -ENOSPC && nvec > VMXNET3_LINUX_MIN_MSIX_VECT) {
+		dev_err(&adapter->netdev->dev,
+			"Failed to enable %d MSI-X, trying %d\n",
+			nvec, VMXNET3_LINUX_MIN_MSIX_VECT);
+
+		ret = pci_enable_msix_range(adapter->pdev,
+					    adapter->intr.msix_entries,
+					    VMXNET3_LINUX_MIN_MSIX_VECT,
+					    VMXNET3_LINUX_MIN_MSIX_VECT);
+	}
+
+	if (ret < 0) {
+		dev_err(&adapter->netdev->dev,
+			"Failed to enable MSI-X, error: %d\n", ret);
+	}
+
+	return ret;
 }
 
 
