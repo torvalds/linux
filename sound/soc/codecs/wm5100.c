@@ -506,21 +506,21 @@ static const char *wm5100_lhpf_mode_text[] = {
 	"Low-pass", "High-pass"
 };
 
-static const struct soc_enum wm5100_lhpf1_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF1_1, WM5100_LHPF1_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf1_mode,
+			    WM5100_HPLPF1_1, WM5100_LHPF1_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf2_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF2_1, WM5100_LHPF2_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf2_mode,
+			    WM5100_HPLPF2_1, WM5100_LHPF2_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf3_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF3_1, WM5100_LHPF3_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf3_mode,
+			    WM5100_HPLPF3_1, WM5100_LHPF3_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf4_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF4_1, WM5100_LHPF4_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf4_mode,
+			    WM5100_HPLPF4_1, WM5100_LHPF4_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
 static const struct snd_kcontrol_new wm5100_snd_controls[] = {
 SOC_SINGLE("IN1 High Performance Switch", WM5100_IN1L_CONTROL,
