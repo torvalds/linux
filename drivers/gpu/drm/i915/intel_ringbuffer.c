@@ -1388,6 +1388,8 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (IS_I830(ring->dev) || IS_845G(ring->dev))
 		ring->effective_size -= 128;
 
+	i915_cmd_parser_init_ring(ring);
+
 	return 0;
 
 err_unmap:

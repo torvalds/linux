@@ -175,6 +175,18 @@
 #define VGA_CR_DATA_CGA 0x3d5
 
 /*
+ * Instruction field definitions used by the command parser
+ */
+#define INSTR_CLIENT_SHIFT      29
+#define INSTR_CLIENT_MASK       0xE0000000
+#define   INSTR_MI_CLIENT       0x0
+#define   INSTR_BC_CLIENT       0x2
+#define   INSTR_RC_CLIENT       0x3
+#define INSTR_SUBCLIENT_SHIFT   27
+#define INSTR_SUBCLIENT_MASK    0x18000000
+#define   INSTR_MEDIA_SUBCLIENT 0x2
+
+/*
  * Memory interface instructions used by the kernel
  */
 #define MI_INSTR(opcode, flags) (((opcode) << 23) | (flags))
