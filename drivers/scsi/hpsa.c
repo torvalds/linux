@@ -2330,7 +2330,8 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	if ((likely(h->transMethod & CFGTBL_Trans_io_accel1)) &&
 		(dev->ioaccel_handle) &&
 		((cmd->cmnd[0] == READ_10) || (cmd->cmnd[0] == WRITE_10)) &&
-		(scsi_sg_count(cmd) <= IOACCEL1_MAXSGENTRIES))
+		(scsi_sg_count(cmd) <= IOACCEL1_MAXSGENTRIES) &&
+		likely(cmd->request->cmd_type == REQ_TYPE_FS))
 		return hpsa_scsi_ioaccel_queue_command(h, c);
 
 	c->Header.ReplyQueue = 0;  /* unused in simple mode */
