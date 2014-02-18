@@ -101,8 +101,7 @@ static const char *lm4857_mode[] = {
 	"Headphone",
 };
 
-static const struct soc_enum lm4857_mode_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(lm4857_mode), lm4857_mode);
+static SOC_ENUM_SINGLE_EXT_DECL(lm4857_mode_enum, lm4857_mode);
 
 static const struct snd_soc_dapm_widget lm4857_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN"),
