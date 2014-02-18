@@ -1455,12 +1455,12 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 
 		bond_dev_queue_xmit(bond, skb, tx_slave->dev);
 		goto out;
-	} else {
-		if (tx_slave) {
-			_lock_tx_hashtbl(bond);
-			__tlb_clear_slave(bond, tx_slave, 0);
-			_unlock_tx_hashtbl(bond);
-		}
+	}
+
+	if (tx_slave) {
+		_lock_tx_hashtbl(bond);
+		__tlb_clear_slave(bond, tx_slave, 0);
+		_unlock_tx_hashtbl(bond);
 	}
 
 	/* no suitable interface, frame not sent */
