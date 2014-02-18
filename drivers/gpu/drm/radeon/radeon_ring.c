@@ -485,8 +485,8 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *rin
 void radeon_ring_lockup_update(struct radeon_device *rdev,
 			       struct radeon_ring *ring)
 {
-	ring->last_rptr = radeon_ring_get_rptr(rdev, ring);
-	ring->last_activity = jiffies;
+	atomic_set(&ring->last_rptr, radeon_ring_get_rptr(rdev, ring));
+	atomic64_set(&ring->last_activity, jiffies_64);
 }
 
 /**
@@ -498,22 +498,19 @@ void radeon_ring_lockup_update(struct radeon_device *rdev,
 bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	uint32_t rptr = radeon_ring_get_rptr(rdev, ring);
-	unsigned long cjiffies, elapsed;
+	uint64_t last = atomic64_read(&ring->last_activity);
+	uint64_t elapsed;
 
-	cjiffies = jiffies;
-	if (!time_after(cjiffies, ring->last_activity)) {
-		/* likely a wrap around */
+	if (rptr != atomic_read(&ring->last_rptr)) {
+		/* ring is still working, no lockup */
 		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	if (rptr != ring->last_rptr) {
-		/* CP is still working no lockup */
-		radeon_ring_lockup_update(rdev, ring);
-		return false;
-	}
-	elapsed = jiffies_to_msecs(cjiffies - ring->last_activity);
+
+	elapsed = jiffies_to_msecs(jiffies_64 - last);
 	if (radeon_lockup_timeout && elapsed >= radeon_lockup_timeout) {
-		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
+		dev_err(rdev->dev, "ring %d stalled for more than %llumsec\n",
+			ring->idx, elapsed);
 		return true;
 	}
 	/* give a chance to the GPU ... */

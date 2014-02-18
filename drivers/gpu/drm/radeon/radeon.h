@@ -805,8 +805,8 @@ struct radeon_ring {
 	unsigned		ring_size;
 	unsigned		ring_free_dw;
 	int			count_dw;
-	unsigned long		last_activity;
-	unsigned		last_rptr;
+	atomic_t		last_rptr;
+	atomic64_t		last_activity;
 	uint64_t		gpu_addr;
 	uint32_t		align_mask;
 	uint32_t		ptr_mask;
