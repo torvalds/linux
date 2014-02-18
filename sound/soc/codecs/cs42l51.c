@@ -135,8 +135,7 @@ static const char *chan_mix[] = {
 	"R L",
 };
 
-static const struct soc_enum cs42l51_chan_mix =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(chan_mix), chan_mix);
+static SOC_ENUM_SINGLE_EXT_DECL(cs42l51_chan_mix, chan_mix);
 
 static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 	SOC_DOUBLE_R_SX_TLV("PCM Playback Volume",
@@ -192,22 +191,22 @@ static int cs42l51_pdn_event(struct snd_soc_dapm_widget *w,
 
 static const char *cs42l51_dac_names[] = {"Direct PCM",
 	"DSP PCM", "ADC"};
-static const struct soc_enum cs42l51_dac_mux_enum =
-	SOC_ENUM_SINGLE(CS42L51_DAC_CTL, 6, 3, cs42l51_dac_names);
+static SOC_ENUM_SINGLE_DECL(cs42l51_dac_mux_enum,
+			    CS42L51_DAC_CTL, 6, cs42l51_dac_names);
 static const struct snd_kcontrol_new cs42l51_dac_mux_controls =
 	SOC_DAPM_ENUM("Route", cs42l51_dac_mux_enum);
 
 static const char *cs42l51_adcl_names[] = {"AIN1 Left", "AIN2 Left",
 	"MIC Left", "MIC+preamp Left"};
-static const struct soc_enum cs42l51_adcl_mux_enum =
-	SOC_ENUM_SINGLE(CS42L51_ADC_INPUT, 4, 4, cs42l51_adcl_names);
+static SOC_ENUM_SINGLE_DECL(cs42l51_adcl_mux_enum,
+			    CS42L51_ADC_INPUT, 4, cs42l51_adcl_names);
 static const struct snd_kcontrol_new cs42l51_adcl_mux_controls =
 	SOC_DAPM_ENUM("Route", cs42l51_adcl_mux_enum);
 
 static const char *cs42l51_adcr_names[] = {"AIN1 Right", "AIN2 Right",
 	"MIC Right", "MIC+preamp Right"};
-static const struct soc_enum cs42l51_adcr_mux_enum =
-	SOC_ENUM_SINGLE(CS42L51_ADC_INPUT, 6, 4, cs42l51_adcr_names);
+static SOC_ENUM_SINGLE_DECL(cs42l51_adcr_mux_enum,
+			    CS42L51_ADC_INPUT, 6, cs42l51_adcr_names);
 static const struct snd_kcontrol_new cs42l51_adcr_mux_controls =
 	SOC_DAPM_ENUM("Route", cs42l51_adcr_mux_enum);
 
