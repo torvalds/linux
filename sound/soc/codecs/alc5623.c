@@ -228,32 +228,37 @@ static const char *alc5623_aux_out_input_sel[] = {
 		"Vmid", "HPOut Mix", "Speaker Mix", "Mono Mix"};
 
 /* auxout output mux */
-static const struct soc_enum alc5623_aux_out_input_enum =
-SOC_ENUM_SINGLE(ALC5623_OUTPUT_MIXER_CTRL, 6, 4, alc5623_aux_out_input_sel);
+static SOC_ENUM_SINGLE_DECL(alc5623_aux_out_input_enum,
+			    ALC5623_OUTPUT_MIXER_CTRL, 6,
+			    alc5623_aux_out_input_sel);
 static const struct snd_kcontrol_new alc5623_auxout_mux_controls =
 SOC_DAPM_ENUM("Route", alc5623_aux_out_input_enum);
 
 /* speaker output mux */
-static const struct soc_enum alc5623_spkout_input_enum =
-SOC_ENUM_SINGLE(ALC5623_OUTPUT_MIXER_CTRL, 10, 4, alc5623_spkout_input_sel);
+static SOC_ENUM_SINGLE_DECL(alc5623_spkout_input_enum,
+			    ALC5623_OUTPUT_MIXER_CTRL, 10,
+			    alc5623_spkout_input_sel);
 static const struct snd_kcontrol_new alc5623_spkout_mux_controls =
 SOC_DAPM_ENUM("Route", alc5623_spkout_input_enum);
 
 /* headphone left output mux */
-static const struct soc_enum alc5623_hpl_out_input_enum =
-SOC_ENUM_SINGLE(ALC5623_OUTPUT_MIXER_CTRL, 9, 2, alc5623_hpl_out_input_sel);
+static SOC_ENUM_SINGLE_DECL(alc5623_hpl_out_input_enum,
+			    ALC5623_OUTPUT_MIXER_CTRL, 9,
+			    alc5623_hpl_out_input_sel);
 static const struct snd_kcontrol_new alc5623_hpl_out_mux_controls =
 SOC_DAPM_ENUM("Route", alc5623_hpl_out_input_enum);
 
 /* headphone right output mux */
-static const struct soc_enum alc5623_hpr_out_input_enum =
-SOC_ENUM_SINGLE(ALC5623_OUTPUT_MIXER_CTRL, 8, 2, alc5623_hpr_out_input_sel);
+static SOC_ENUM_SINGLE_DECL(alc5623_hpr_out_input_enum,
+			    ALC5623_OUTPUT_MIXER_CTRL, 8,
+			    alc5623_hpr_out_input_sel);
 static const struct snd_kcontrol_new alc5623_hpr_out_mux_controls =
 SOC_DAPM_ENUM("Route", alc5623_hpr_out_input_enum);
 
 /* speaker output N select */
-static const struct soc_enum alc5623_spk_n_sour_enum =
-SOC_ENUM_SINGLE(ALC5623_OUTPUT_MIXER_CTRL, 14, 4, alc5623_spk_n_sour_sel);
+static SOC_ENUM_SINGLE_DECL(alc5623_spk_n_sour_enum,
+			    ALC5623_OUTPUT_MIXER_CTRL, 14,
+			    alc5623_spk_n_sour_sel);
 static const struct snd_kcontrol_new alc5623_spkoutn_mux_controls =
 SOC_DAPM_ENUM("Route", alc5623_spk_n_sour_enum);
 
@@ -338,8 +343,9 @@ SND_SOC_DAPM_VMID("Vmid"),
 };
 
 static const char *alc5623_amp_names[] = {"AB Amp", "D Amp"};
-static const struct soc_enum alc5623_amp_enum =
-	SOC_ENUM_SINGLE(ALC5623_OUTPUT_MIXER_CTRL, 13, 2, alc5623_amp_names);
+static SOC_ENUM_SINGLE_DECL(alc5623_amp_enum,
+			    ALC5623_OUTPUT_MIXER_CTRL, 13,
+			    alc5623_amp_names);
 static const struct snd_kcontrol_new alc5623_amp_mux_controls =
 	SOC_DAPM_ENUM("Route", alc5623_amp_enum);
 
