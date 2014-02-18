@@ -103,7 +103,7 @@ static int ams_delta_set_audio_mode(struct snd_kcontrol *kcontrol,
 	if (!codec->hw_write)
 		return -EUNATCH;
 
-	if (ucontrol->value.enumerated.item[0] >= control->max)
+	if (ucontrol->value.enumerated.item[0] >= control->items)
 		return -EINVAL;
 
 	mutex_lock(&codec->mutex);

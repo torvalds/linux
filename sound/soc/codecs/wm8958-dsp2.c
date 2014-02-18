@@ -944,7 +944,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		for (i = 0; i < pdata->num_mbc_cfgs; i++)
 			wm8994->mbc_texts[i] = pdata->mbc_cfgs[i].name;
 
-		wm8994->mbc_enum.max = pdata->num_mbc_cfgs;
+		wm8994->mbc_enum.items = pdata->num_mbc_cfgs;
 		wm8994->mbc_enum.texts = wm8994->mbc_texts;
 
 		ret = snd_soc_add_codec_controls(wm8994->hubs.codec,
@@ -973,7 +973,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		for (i = 0; i < pdata->num_vss_cfgs; i++)
 			wm8994->vss_texts[i] = pdata->vss_cfgs[i].name;
 
-		wm8994->vss_enum.max = pdata->num_vss_cfgs;
+		wm8994->vss_enum.items = pdata->num_vss_cfgs;
 		wm8994->vss_enum.texts = wm8994->vss_texts;
 
 		ret = snd_soc_add_codec_controls(wm8994->hubs.codec,
@@ -1003,7 +1003,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		for (i = 0; i < pdata->num_vss_hpf_cfgs; i++)
 			wm8994->vss_hpf_texts[i] = pdata->vss_hpf_cfgs[i].name;
 
-		wm8994->vss_hpf_enum.max = pdata->num_vss_hpf_cfgs;
+		wm8994->vss_hpf_enum.items = pdata->num_vss_hpf_cfgs;
 		wm8994->vss_hpf_enum.texts = wm8994->vss_hpf_texts;
 
 		ret = snd_soc_add_codec_controls(wm8994->hubs.codec,
@@ -1034,7 +1034,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		for (i = 0; i < pdata->num_enh_eq_cfgs; i++)
 			wm8994->enh_eq_texts[i] = pdata->enh_eq_cfgs[i].name;
 
-		wm8994->enh_eq_enum.max = pdata->num_enh_eq_cfgs;
+		wm8994->enh_eq_enum.items = pdata->num_enh_eq_cfgs;
 		wm8994->enh_eq_enum.texts = wm8994->enh_eq_texts;
 
 		ret = snd_soc_add_codec_controls(wm8994->hubs.codec,

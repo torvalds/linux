@@ -1981,7 +1981,7 @@ static void wm8904_handle_retune_mobile_pdata(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "Allocated %d unique ReTune Mobile names\n",
 		wm8904->num_retune_mobile_texts);
 
-	wm8904->retune_mobile_enum.max = wm8904->num_retune_mobile_texts;
+	wm8904->retune_mobile_enum.items = wm8904->num_retune_mobile_texts;
 	wm8904->retune_mobile_enum.texts = wm8904->retune_mobile_texts;
 
 	ret = snd_soc_add_codec_controls(codec, &control, 1);
@@ -2022,7 +2022,7 @@ static void wm8904_handle_pdata(struct snd_soc_codec *codec)
 		for (i = 0; i < pdata->num_drc_cfgs; i++)
 			wm8904->drc_texts[i] = pdata->drc_cfgs[i].name;
 
-		wm8904->drc_enum.max = pdata->num_drc_cfgs;
+		wm8904->drc_enum.items = pdata->num_drc_cfgs;
 		wm8904->drc_enum.texts = wm8904->drc_texts;
 
 		ret = snd_soc_add_codec_controls(codec, &control, 1);
