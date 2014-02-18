@@ -891,6 +891,10 @@ static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (skb->len < sizeof(*rp))
 		return SMP_UNSPECIFIED;
 
+	/* Ignore this PDU if it wasn't requested */
+	if (!(smp->remote_key_dist & SMP_DIST_ENC_KEY))
+		return 0;
+
 	skb_pull(skb, sizeof(*rp));
 
 	memcpy(smp->tk, rp->ltk, sizeof(smp->tk));
@@ -910,6 +914,10 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (skb->len < sizeof(*rp))
 		return SMP_UNSPECIFIED;
+
+	/* Ignore this PDU if it wasn't requested */
+	if (!(smp->remote_key_dist & SMP_DIST_ENC_KEY))
+		return 0;
 
 	skb_pull(skb, sizeof(*rp));
 
@@ -935,6 +943,10 @@ static int smp_cmd_ident_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (skb->len < sizeof(*info))
 		return SMP_UNSPECIFIED;
 
+	/* Ignore this PDU if it wasn't requested */
+	if (!(smp->remote_key_dist & SMP_DIST_ID_KEY))
+		return 0;
+
 	skb_pull(skb, sizeof(*info));
 
 	memcpy(smp->irk, info->irk, 16);
@@ -954,6 +966,10 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 
 	if (skb->len < sizeof(*info))
 		return SMP_UNSPECIFIED;
+
+	/* Ignore this PDU if it wasn't requested */
+	if (!(smp->remote_key_dist & SMP_DIST_ID_KEY))
+		return 0;
 
 	skb_pull(skb, sizeof(*info));
 
