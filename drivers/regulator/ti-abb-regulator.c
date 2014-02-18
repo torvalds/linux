@@ -533,20 +533,15 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 	num_entries /= num_values;
 
 	info = devm_kzalloc(dev, sizeof(*info) * num_entries, GFP_KERNEL);
-	if (!info) {
-		dev_err(dev, "Can't allocate info table for '%s' property\n",
-			pname);
+	if (!info)
 		return -ENOMEM;
-	}
+
 	abb->info = info;
 
 	volt_table = devm_kzalloc(dev, sizeof(unsigned int) * num_entries,
 				  GFP_KERNEL);
-	if (!volt_table) {
-		dev_err(dev, "Can't allocate voltage table for '%s' property\n",
-			pname);
+	if (!volt_table)
 		return -ENOMEM;
-	}
 
 	abb->rdesc.n_voltages = num_entries;
 	abb->rdesc.volt_table = volt_table;
