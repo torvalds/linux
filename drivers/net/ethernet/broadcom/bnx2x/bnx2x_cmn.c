@@ -1638,36 +1638,16 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 	DP(BNX2X_MSG_SP, "about to request enable msix with %d vectors\n",
 	   msix_vec);
 
-	rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], msix_vec);
-
+	rc = pci_enable_msix_range(bp->pdev, &bp->msix_table[0],
+				   BNX2X_MIN_MSIX_VEC_CNT(bp), msix_vec);
 	/*
 	 * reconfigure number of tx/rx queues according to available
 	 * MSI-X vectors
 	 */
-	if (rc >= BNX2X_MIN_MSIX_VEC_CNT(bp)) {
-		/* how less vectors we will have? */
-		int diff = msix_vec - rc;
-
-		BNX2X_DEV_INFO("Trying to use less MSI-X vectors: %d\n", rc);
-
-		rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], rc);
-
-		if (rc) {
-			BNX2X_DEV_INFO("MSI-X is not attainable rc %d\n", rc);
-			goto no_msix;
-		}
-		/*
-		 * decrease number of queues by number of unallocated entries
-		 */
-		bp->num_ethernet_queues -= diff;
-		bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
-
-		BNX2X_DEV_INFO("New queue configuration set: %d\n",
-			       bp->num_queues);
-	} else if (rc > 0) {
+	if (rc == -ENOSPC) {
 		/* Get by with single vector */
-		rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], 1);
-		if (rc) {
+		rc = pci_enable_msix_range(bp->pdev, &bp->msix_table[0], 1, 1);
+		if (rc < 0) {
 			BNX2X_DEV_INFO("Single MSI-X is not attainable rc %d\n",
 				       rc);
 			goto no_msix;
@@ -1680,8 +1660,22 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 		bp->num_ethernet_queues = 1;
 		bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
 	} else if (rc < 0) {
-		BNX2X_DEV_INFO("MSI-X is not attainable  rc %d\n", rc);
+		BNX2X_DEV_INFO("MSI-X is not attainable rc %d\n", rc);
 		goto no_msix;
+	} else if (rc < msix_vec) {
+		/* how less vectors we will have? */
+		int diff = msix_vec - rc;
+
+		BNX2X_DEV_INFO("Trying to use less MSI-X vectors: %d\n", rc);
+
+		/*
+		 * decrease number of queues by number of unallocated entries
+		 */
+		bp->num_ethernet_queues -= diff;
+		bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
+
+		BNX2X_DEV_INFO("New queue configuration set: %d\n",
+			       bp->num_queues);
 	}
 
 	bp->flags |= USING_MSIX_FLAG;
