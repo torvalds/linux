@@ -2308,42 +2308,6 @@ static inline bool ieee80211_is_public_action(struct ieee80211_hdr *hdr,
 }
 
 /**
- * ieee80211_dsss_chan_to_freq - get channel center frequency
- * @channel: the DSSS channel
- *
- * Convert IEEE802.11 DSSS channel to the center frequency (MHz).
- * Ref IEEE 802.11-2007 section 15.6
- */
-static inline int ieee80211_dsss_chan_to_freq(int channel)
-{
-	if ((channel > 0) && (channel < 14))
-		return 2407 + (channel * 5);
-	else if (channel == 14)
-		return 2484;
-	else
-		return -1;
-}
-
-/**
- * ieee80211_freq_to_dsss_chan - get channel
- * @freq: the frequency
- *
- * Convert frequency (MHz) to IEEE802.11 DSSS channel
- * Ref IEEE 802.11-2007 section 15.6
- *
- * This routine selects the channel with the closest center frequency.
- */
-static inline int ieee80211_freq_to_dsss_chan(int freq)
-{
-	if ((freq >= 2410) && (freq < 2475))
-		return (freq - 2405) / 5;
-	else if ((freq >= 2482) && (freq < 2487))
-		return 14;
-	else
-		return -1;
-}
-
-/**
  * ieee80211_tu_to_usec - convert time units (TU) to microseconds
  * @tu: the TUs
  */
