@@ -63,15 +63,16 @@ static const u16 ssm2602_reg[SSM2602_CACHEREGNUM] = {
 
 /*Appending several "None"s just for OSS mixer use*/
 static const char *ssm2602_input_select[] = {
-	"Line", "Mic", "None", "None", "None",
-	"None", "None", "None",
+	"Line", "Mic",
 };
 
 static const char *ssm2602_deemph[] = {"None", "32Khz", "44.1Khz", "48Khz"};
 
 static const struct soc_enum ssm2602_enum[] = {
-	SOC_ENUM_SINGLE(SSM2602_APANA, 2, 2, ssm2602_input_select),
-	SOC_ENUM_SINGLE(SSM2602_APDIGI, 1, 4, ssm2602_deemph),
+	SOC_ENUM_SINGLE(SSM2602_APANA, 2, ARRAY_SIZE(ssm2602_input_select),
+			ssm2602_input_select),
+	SOC_ENUM_SINGLE(SSM2602_APDIGI, 1, ARRAY_SIZE(ssm2602_deemph),
+			ssm2602_deemph),
 };
 
 static const unsigned int ssm260x_outmix_tlv[] = {
