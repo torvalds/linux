@@ -31,8 +31,8 @@ struct ad193x_priv {
  */
 static const char * const ad193x_deemp[] = {"None", "48kHz", "44.1kHz", "32kHz"};
 
-static const struct soc_enum ad193x_deemp_enum =
-	SOC_ENUM_SINGLE(AD193X_DAC_CTRL2, 1, 4, ad193x_deemp);
+static SOC_ENUM_SINGLE_DECL(ad193x_deemp_enum, AD193X_DAC_CTRL2, 1,
+			    ad193x_deemp);
 
 static const DECLARE_TLV_DB_MINMAX(adau193x_tlv, -9563, 0);
 
