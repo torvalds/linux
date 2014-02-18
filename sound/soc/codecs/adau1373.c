@@ -576,8 +576,8 @@ static const char *adau1373_decimator_text[] = {
 	"DMIC1",
 };
 
-static const struct soc_enum adau1373_decimator_enum =
-	SOC_ENUM_SINGLE(0, 0, 2, adau1373_decimator_text);
+static SOC_ENUM_SINGLE_DECL(adau1373_decimator_enum,
+			    0, 0, adau1373_decimator_text);
 
 static const struct snd_kcontrol_new adau1373_decimator_mux =
 	SOC_DAPM_ENUM_VIRT("Decimator Mux", adau1373_decimator_enum);
