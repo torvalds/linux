@@ -55,7 +55,7 @@ struct drm_fb_helper_surface_size {
  *             save the current lut when force-restoring the fbdev for e.g.
  *             kdbg.
  * @fb_probe: Driver callback to allocate and initialize the fbdev info
- *            structure. Futhermore it also needs to allocate the drm
+ *            structure. Furthermore it also needs to allocate the drm
  *            framebuffer used to back the fbdev.
  * @initial_config: Setup an initial fbdev display configuration
  *

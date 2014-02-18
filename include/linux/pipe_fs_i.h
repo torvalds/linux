@@ -35,7 +35,7 @@ struct pipe_buffer {
  *	@tmp_page: cached released page
  *	@readers: number of current readers of this pipe
  *	@writers: number of current writers of this pipe
- *	@files: number of struct file refering this pipe (protected by ->i_lock)
+ *	@files: number of struct file referring this pipe (protected by ->i_lock)
  *	@waiting_writers: number of writers blocked waiting for room
  *	@r_counter: reader counter
  *	@w_counter: writer counter

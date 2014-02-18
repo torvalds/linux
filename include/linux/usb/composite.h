@@ -92,7 +92,7 @@ struct usb_configuration;
  * @suspend: Notifies functions when the host stops sending USB traffic.
  * @resume: Notifies functions when the host restarts USB traffic.
  * @get_status: Returns function status as a reply to
- *	GetStatus() request when the recepient is Interface.
+ *	GetStatus() request when the recipient is Interface.
  * @func_suspend: callback to be called when
  *	SetFeature(FUNCTION_SUSPEND) is reseived
  *

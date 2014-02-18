@@ -234,7 +234,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @mode_bits: flags understood by this controller driver
  * @bits_per_word_mask: A mask indicating which values of bits_per_word are
  *	supported by the driver. Bit n indicates that a bits_per_word n+1 is
- *	suported. If set, the SPI core will reject any transfer with an
+ *	supported. If set, the SPI core will reject any transfer with an
  *	unsupported bits_per_word. If not set, this value is simply ignored,
  *	and it's up to the individual driver to perform any validation.
  * @min_speed_hz: Lowest supported transfer speed
@@ -259,7 +259,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @cur_msg: the currently in-flight message
  * @cur_msg_prepared: spi_prepare_message was called for the currently
  *                    in-flight message
- * @xfer_completion: used by core tranfer_one_message()
+ * @xfer_completion: used by core transfer_one_message()
  * @busy: message pump is busy
  * @running: message pump is running
  * @rt: whether this queue is set to run as a realtime task
@@ -493,7 +493,7 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * @rx_buf: data to be read (dma-safe memory), or NULL
  * @tx_dma: DMA address of tx_buf, if @spi_message.is_dma_mapped
  * @rx_dma: DMA address of rx_buf, if @spi_message.is_dma_mapped
- * @tx_nbits: number of bits used for writting. If 0 the default
+ * @tx_nbits: number of bits used for writing. If 0 the default
  *      (SPI_NBITS_SINGLE) is used.
  * @rx_nbits: number of bits used for reading. If 0 the default
  *      (SPI_NBITS_SINGLE) is used.
@@ -551,7 +551,7 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * by the results of previous messages and where the whole transaction
  * ends when the chipselect goes intactive.
  *
- * When SPI can transfer in 1x,2x or 4x. It can get this tranfer information
+ * When SPI can transfer in 1x,2x or 4x. It can get this transfer information
  * from device through @tx_nbits and @rx_nbits. In Bi-direction, these
  * two should both be set. User can set transfer mode with SPI_NBITS_SINGLE(1x)
  * SPI_NBITS_DUAL(2x) and SPI_NBITS_QUAD(4x) to support these three transfer.

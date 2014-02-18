@@ -358,7 +358,7 @@ exit:
  * @name: a pointer to a string containing the name of the file to create.
  * @mode: the permission that the file should have.
  * @parent: a pointer to the parent dentry for this file.  This should be a
- *          directory dentry if set.  If this paramater is NULL, then the
+ *          directory dentry if set.  If this parameter is NULL, then the
  *          file will be created in the root of the debugfs filesystem.
  * @data: a pointer to something that the caller will want to get to later
  *        on.  The inode.i_private pointer will point to this value on
@@ -400,7 +400,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_file);
  * @name: a pointer to a string containing the name of the directory to
  *        create.
  * @parent: a pointer to the parent dentry for this file.  This should be a
- *          directory dentry if set.  If this paramater is NULL, then the
+ *          directory dentry if set.  If this parameter is NULL, then the
  *          directory will be created in the root of the debugfs filesystem.
  *
  * This function creates a directory in debugfs with the given name.
@@ -425,7 +425,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_dir);
  * @name: a pointer to a string containing the name of the symbolic link to
  *        create.
  * @parent: a pointer to the parent dentry for this symbolic link.  This
- *          should be a directory dentry if set.  If this paramater is NULL,
+ *          should be a directory dentry if set.  If this parameter is NULL,
  *          then the symbolic link will be created in the root of the debugfs
  *          filesystem.
  * @target: a pointer to a string containing the path to the target of the
