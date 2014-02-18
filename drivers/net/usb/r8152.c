@@ -23,7 +23,7 @@
 #include <linux/ipv6.h>
 
 /* Version Information */
-#define DRIVER_VERSION "v1.04.0 (2014/01/15)"
+#define DRIVER_VERSION "v1.05.0 (2014/02/18)"
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
 #define DRIVER_DESC "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 #define MODULENAME "r8152"
@@ -62,6 +62,8 @@
 #define PLA_RSTTELLY		0xe800
 #define PLA_CR			0xe813
 #define PLA_CRWECR		0xe81c
+#define PLA_CONFIG12		0xe81e	/* CONFIG1, CONFIG2 */
+#define PLA_CONFIG34		0xe820	/* CONFIG3, CONFIG4 */
 #define PLA_CONFIG5		0xe822
 #define PLA_PHY_PWR		0xe84c
 #define PLA_OOB_CTRL		0xe84f
@@ -216,7 +218,14 @@
 /* PAL_BDC_CR */
 #define ALDPS_PROXY_MODE	0x0001
 
+/* PLA_CONFIG34 */
+#define LINK_ON_WAKE_EN		0x0010
+#define LINK_OFF_WAKE_EN	0x0008
+
 /* PLA_CONFIG5 */
+#define BWF_EN			0x0040
+#define MWF_EN			0x0020
+#define UWF_EN			0x0010
 #define LAN_WAKE_EN		0x0002
 
 /* PLA_LED_FEATURE */
@@ -436,6 +445,8 @@ enum rtl8152_flags {
 	RTL8152_SET_RX_MODE,
 	WORK_ENABLE,
 	RTL8152_LINK_CHG,
+	SELECTIVE_SUSPEND,
+	PHY_RESET,
 };
 
 /* Define these values to match your device */
@@ -514,11 +525,13 @@ struct r8152 {
 		void (*init)(struct r8152 *);
 		int (*enable)(struct r8152 *);
 		void (*disable)(struct r8152 *);
+		void (*up)(struct r8152 *);
 		void (*down)(struct r8152 *);
 		void (*unload)(struct r8152 *);
 	} rtl_ops;
 
 	int intr_interval;
+	u32 saved_wolopts;
 	u32 msg_enable;
 	u32 tx_qlen;
 	u16 ocp_base;
@@ -865,11 +878,21 @@ static u16 sram_read(struct r8152 *tp, u16 addr)
 static int read_mii_word(struct net_device *netdev, int phy_id, int reg)
 {
 	struct r8152 *tp = netdev_priv(netdev);
+	int ret;
 
 	if (phy_id != R8152_PHY_ID)
 		return -EINVAL;
 
-	return r8152_mdio_read(tp, reg);
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		goto out;
+
+	ret = r8152_mdio_read(tp, reg);
+
+	usb_autopm_put_interface(tp->intf);
+
+out:
+	return ret;
 }
 
 static
@@ -880,7 +903,12 @@ void write_mii_word(struct net_device *netdev, int phy_id, int reg, int val)
 	if (phy_id != R8152_PHY_ID)
 		return;
 
+	if (usb_autopm_get_interface(tp->intf) < 0)
+		return;
+
 	r8152_mdio_write(tp, reg, val);
+
+	usb_autopm_put_interface(tp->intf);
 }
 
 static
@@ -889,11 +917,26 @@ int r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags);
 static inline void set_ethernet_addr(struct r8152 *tp)
 {
 	struct net_device *dev = tp->netdev;
+	int ret;
 	u8 node_id[8] = {0};
 
-	if (pla_ocp_read(tp, PLA_IDR, sizeof(node_id), node_id) < 0)
+	if (tp->version == RTL_VER_01)
+		ret = pla_ocp_read(tp, PLA_IDR, sizeof(node_id), node_id);
+	else
+		ret = pla_ocp_read(tp, PLA_BACKUP, sizeof(node_id), node_id);
+
+	if (ret < 0) {
 		netif_notice(tp, probe, dev, "inet addr fail\n");
-	else {
+	} else {
+		if (tp->version != RTL_VER_01) {
+			ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR,
+				       CRWECR_CONFIG);
+			pla_ocp_write(tp, PLA_IDR, BYTE_EN_SIX_BYTES,
+				      sizeof(node_id), node_id);
+			ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR,
+				       CRWECR_NORAML);
+		}
+
 		memcpy(dev->dev_addr, node_id, dev->addr_len);
 		memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	}
@@ -950,6 +993,8 @@ static void read_bulk_callback(struct urb *urb)
 	/* This avoid the re-submitting bulk */
 	if (!netif_carrier_ok(netdev))
 		return;
+
+	usb_mark_last_busy(tp->udev);
 
 	switch (status) {
 	case 0:
@@ -1018,6 +1063,8 @@ static void write_bulk_callback(struct urb *urb)
 	list_add_tail(&agg->list, &tp->tx_free);
 	spin_unlock_irqrestore(&tp->tx_lock, flags);
 
+	usb_autopm_put_interface_async(tp->intf);
+
 	if (!netif_carrier_ok(tp->netdev))
 		return;
 
@@ -1028,7 +1075,7 @@ static void write_bulk_callback(struct urb *urb)
 		return;
 
 	if (!skb_queue_empty(&tp->tx_queue))
-		tasklet_schedule(&tp->tl);
+		schedule_delayed_work(&tp->schedule, 0);
 }
 
 static void intr_callback(struct urb *urb)
@@ -1284,8 +1331,15 @@ r8152_tx_csum(struct r8152 *tp, struct tx_desc *desc, struct sk_buff *skb)
 
 static int r8152_tx_agg_fill(struct r8152 *tp, struct tx_agg *agg)
 {
-	int remain;
+	struct sk_buff_head skb_head, *tx_queue = &tp->tx_queue;
+	unsigned long flags;
+	int remain, ret;
 	u8 *tx_data;
+
+	__skb_queue_head_init(&skb_head);
+	spin_lock_irqsave(&tx_queue->lock, flags);
+	skb_queue_splice_init(tx_queue, &skb_head);
+	spin_unlock_irqrestore(&tx_queue->lock, flags);
 
 	tx_data = agg->head;
 	agg->skb_num = agg->skb_len = 0;
@@ -1296,14 +1350,14 @@ static int r8152_tx_agg_fill(struct r8152 *tp, struct tx_agg *agg)
 		struct sk_buff *skb;
 		unsigned int len;
 
-		skb = skb_dequeue(&tp->tx_queue);
+		skb = __skb_dequeue(&skb_head);
 		if (!skb)
 			break;
 
 		remain -= sizeof(*tx_desc);
 		len = skb->len;
 		if (remain < len) {
-			skb_queue_head(&tp->tx_queue, skb);
+			__skb_queue_head(&skb_head, skb);
 			break;
 		}
 
@@ -1321,28 +1375,50 @@ static int r8152_tx_agg_fill(struct r8152 *tp, struct tx_agg *agg)
 		remain = rx_buf_sz - (int)(tx_agg_align(tx_data) - agg->head);
 	}
 
-	netif_tx_lock(tp->netdev);
+	if (!skb_queue_empty(&skb_head)) {
+		spin_lock_irqsave(&tx_queue->lock, flags);
+		skb_queue_splice(&skb_head, tx_queue);
+		spin_unlock_irqrestore(&tx_queue->lock, flags);
+	}
+
+	netif_tx_lock_bh(tp->netdev);
 
 	if (netif_queue_stopped(tp->netdev) &&
 	    skb_queue_len(&tp->tx_queue) < tp->tx_qlen)
 		netif_wake_queue(tp->netdev);
 
-	netif_tx_unlock(tp->netdev);
+	netif_tx_unlock_bh(tp->netdev);
+
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		goto out_tx_fill;
 
 	usb_fill_bulk_urb(agg->urb, tp->udev, usb_sndbulkpipe(tp->udev, 2),
 			  agg->head, (int)(tx_data - (u8 *)agg->head),
 			  (usb_complete_t)write_bulk_callback, agg);
 
-	return usb_submit_urb(agg->urb, GFP_ATOMIC);
+	ret = usb_submit_urb(agg->urb, GFP_KERNEL);
+	if (ret < 0)
+		usb_autopm_put_interface(tp->intf);
+
+out_tx_fill:
+	return ret;
 }
 
 static void rx_bottom(struct r8152 *tp)
 {
 	unsigned long flags;
-	struct list_head *cursor, *next;
+	struct list_head *cursor, *next, rx_queue;
 
+	if (list_empty(&tp->rx_done))
+		return;
+
+	INIT_LIST_HEAD(&rx_queue);
 	spin_lock_irqsave(&tp->rx_lock, flags);
-	list_for_each_safe(cursor, next, &tp->rx_done) {
+	list_splice_init(&tp->rx_done, &rx_queue);
+	spin_unlock_irqrestore(&tp->rx_lock, flags);
+
+	list_for_each_safe(cursor, next, &rx_queue) {
 		struct rx_desc *rx_desc;
 		struct rx_agg *agg;
 		int len_used = 0;
@@ -1351,7 +1427,6 @@ static void rx_bottom(struct r8152 *tp)
 		int ret;
 
 		list_del_init(cursor);
-		spin_unlock_irqrestore(&tp->rx_lock, flags);
 
 		agg = list_entry(cursor, struct rx_agg, list);
 		urb = agg->urb;
@@ -1389,7 +1464,7 @@ static void rx_bottom(struct r8152 *tp)
 			memcpy(skb->data, rx_data, pkt_len);
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, netdev);
-			netif_rx(skb);
+			netif_receive_skb(skb);
 			stats->rx_packets++;
 			stats->rx_bytes += pkt_len;
 
@@ -1401,13 +1476,13 @@ static void rx_bottom(struct r8152 *tp)
 
 submit:
 		ret = r8152_submit_rx(tp, agg, GFP_ATOMIC);
-		spin_lock_irqsave(&tp->rx_lock, flags);
 		if (ret && ret != -ENODEV) {
-			list_add_tail(&agg->list, next);
+			spin_lock_irqsave(&tp->rx_lock, flags);
+			list_add_tail(&agg->list, &tp->rx_done);
+			spin_unlock_irqrestore(&tp->rx_lock, flags);
 			tasklet_schedule(&tp->tl);
 		}
 	}
-	spin_unlock_irqrestore(&tp->rx_lock, flags);
 }
 
 static void tx_bottom(struct r8152 *tp)
@@ -1465,7 +1540,6 @@ static void bottom_half(unsigned long data)
 		return;
 
 	rx_bottom(tp);
-	tx_bottom(tp);
 }
 
 static
@@ -1476,6 +1550,27 @@ int r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags)
 		      (usb_complete_t)read_bulk_callback, agg);
 
 	return usb_submit_urb(agg->urb, mem_flags);
+}
+
+static void rtl_drop_queued_tx(struct r8152 *tp)
+{
+	struct net_device_stats *stats = &tp->netdev->stats;
+	struct sk_buff_head skb_head, *tx_queue = &tp->tx_queue;
+	unsigned long flags;
+	struct sk_buff *skb;
+
+	if (skb_queue_empty(tx_queue))
+		return;
+
+	__skb_queue_head_init(&skb_head);
+	spin_lock_irqsave(&tx_queue->lock, flags);
+	skb_queue_splice_init(tx_queue, &skb_head);
+	spin_unlock_irqrestore(&tx_queue->lock, flags);
+
+	while ((skb = __skb_dequeue(&skb_head))) {
+		dev_kfree_skb(skb);
+		stats->tx_dropped++;
+	}
 }
 
 static void rtl8152_tx_timeout(struct net_device *netdev)
@@ -1554,7 +1649,7 @@ static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 		netif_stop_queue(netdev);
 
 	if (!list_empty(&tp->tx_free))
-		tasklet_schedule(&tp->tl);
+		schedule_delayed_work(&tp->schedule, 0);
 
 	return NETDEV_TX_OK;
 }
@@ -1613,6 +1708,18 @@ static void rtl_set_eee_plus(struct r8152 *tp)
 	}
 }
 
+static void rxdy_gated_en(struct r8152 *tp, bool enable)
+{
+	u32 ocp_data;
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MISC_1);
+	if (enable)
+		ocp_data |= RXDY_GATED_EN;
+	else
+		ocp_data &= ~RXDY_GATED_EN;
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MISC_1, ocp_data);
+}
+
 static int rtl_enable(struct r8152 *tp)
 {
 	u32 ocp_data;
@@ -1624,9 +1731,7 @@ static int rtl_enable(struct r8152 *tp)
 	ocp_data |= CR_RE | CR_TE;
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CR, ocp_data);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MISC_1);
-	ocp_data &= ~RXDY_GATED_EN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MISC_1, ocp_data);
+	rxdy_gated_en(tp, false);
 
 	INIT_LIST_HEAD(&tp->rx_done);
 	ret = 0;
@@ -1681,8 +1786,6 @@ static int rtl8153_enable(struct r8152 *tp)
 
 static void rtl8152_disable(struct r8152 *tp)
 {
-	struct net_device_stats *stats = rtl8152_get_stats(tp->netdev);
-	struct sk_buff *skb;
 	u32 ocp_data;
 	int i;
 
@@ -1690,17 +1793,12 @@ static void rtl8152_disable(struct r8152 *tp)
 	ocp_data &= ~RCR_ACPT_ALL;
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, ocp_data);
 
-	while ((skb = skb_dequeue(&tp->tx_queue))) {
-		dev_kfree_skb(skb);
-		stats->tx_dropped++;
-	}
+	rtl_drop_queued_tx(tp);
 
 	for (i = 0; i < RTL8152_MAX_TX; i++)
 		usb_kill_urb(tp->tx_info[i].urb);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MISC_1);
-	ocp_data |= RXDY_GATED_EN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MISC_1, ocp_data);
+	rxdy_gated_en(tp, true);
 
 	for (i = 0; i < 1000; i++) {
 		ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
@@ -1721,6 +1819,198 @@ static void rtl8152_disable(struct r8152 *tp)
 	rtl8152_nic_reset(tp);
 }
 
+static void r8152_power_cut_en(struct r8152 *tp, bool enable)
+{
+	u32 ocp_data;
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_UPS_CTRL);
+	if (enable)
+		ocp_data |= POWER_CUT;
+	else
+		ocp_data &= ~POWER_CUT;
+	ocp_write_word(tp, MCU_TYPE_USB, USB_UPS_CTRL, ocp_data);
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS);
+	ocp_data &= ~RESUME_INDICATE;
+	ocp_write_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS, ocp_data);
+
+}
+
+#define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
+
+static u32 __rtl_get_wol(struct r8152 *tp)
+{
+	u32 ocp_data;
+	u32 wolopts = 0;
+
+	ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_CONFIG5);
+	if (!(ocp_data & LAN_WAKE_EN))
+		return 0;
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CONFIG34);
+	if (ocp_data & LINK_ON_WAKE_EN)
+		wolopts |= WAKE_PHY;
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CONFIG5);
+	if (ocp_data & UWF_EN)
+		wolopts |= WAKE_UCAST;
+	if (ocp_data & BWF_EN)
+		wolopts |= WAKE_BCAST;
+	if (ocp_data & MWF_EN)
+		wolopts |= WAKE_MCAST;
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CFG_WOL);
+	if (ocp_data & MAGIC_EN)
+		wolopts |= WAKE_MAGIC;
+
+	return wolopts;
+}
+
+static void __rtl_set_wol(struct r8152 *tp, u32 wolopts)
+{
+	u32 ocp_data;
+
+	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_CONFIG);
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CONFIG34);
+	ocp_data &= ~LINK_ON_WAKE_EN;
+	if (wolopts & WAKE_PHY)
+		ocp_data |= LINK_ON_WAKE_EN;
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CONFIG34, ocp_data);
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CONFIG5);
+	ocp_data &= ~(UWF_EN | BWF_EN | MWF_EN | LAN_WAKE_EN);
+	if (wolopts & WAKE_UCAST)
+		ocp_data |= UWF_EN;
+	if (wolopts & WAKE_BCAST)
+		ocp_data |= BWF_EN;
+	if (wolopts & WAKE_MCAST)
+		ocp_data |= MWF_EN;
+	if (wolopts & WAKE_ANY)
+		ocp_data |= LAN_WAKE_EN;
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CONFIG5, ocp_data);
+
+	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_NORAML);
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CFG_WOL);
+	ocp_data &= ~MAGIC_EN;
+	if (wolopts & WAKE_MAGIC)
+		ocp_data |= MAGIC_EN;
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CFG_WOL, ocp_data);
+
+	if (wolopts & WAKE_ANY)
+		device_set_wakeup_enable(&tp->udev->dev, true);
+	else
+		device_set_wakeup_enable(&tp->udev->dev, false);
+}
+
+static void rtl_runtime_suspend_enable(struct r8152 *tp, bool enable)
+{
+	if (enable) {
+		u32 ocp_data;
+
+		__rtl_set_wol(tp, WAKE_ANY);
+
+		ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_CONFIG);
+
+		ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CONFIG34);
+		ocp_data |= LINK_OFF_WAKE_EN;
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_CONFIG34, ocp_data);
+
+		ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_NORAML);
+	} else {
+		__rtl_set_wol(tp, tp->saved_wolopts);
+	}
+}
+
+static void rtl_phy_reset(struct r8152 *tp)
+{
+	u16 data;
+	int i;
+
+	clear_bit(PHY_RESET, &tp->flags);
+
+	data = r8152_mdio_read(tp, MII_BMCR);
+
+	/* don't reset again before the previous one complete */
+	if (data & BMCR_RESET)
+		return;
+
+	data |= BMCR_RESET;
+	r8152_mdio_write(tp, MII_BMCR, data);
+
+	for (i = 0; i < 50; i++) {
+		msleep(20);
+		if ((r8152_mdio_read(tp, MII_BMCR) & BMCR_RESET) == 0)
+			break;
+	}
+}
+
+static void rtl_clear_bp(struct r8152 *tp)
+{
+	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_0, 0);
+	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_2, 0);
+	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_4, 0);
+	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_6, 0);
+	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_0, 0);
+	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_2, 0);
+	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_4, 0);
+	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_6, 0);
+	mdelay(3);
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_BP_BA, 0);
+	ocp_write_word(tp, MCU_TYPE_USB, USB_BP_BA, 0);
+}
+
+static void r8153_clear_bp(struct r8152 *tp)
+{
+	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_BP_EN, 0);
+	ocp_write_byte(tp, MCU_TYPE_USB, USB_BP_EN, 0);
+	rtl_clear_bp(tp);
+}
+
+static void r8153_teredo_off(struct r8152 *tp)
+{
+	u32 ocp_data;
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TEREDO_CFG);
+	ocp_data &= ~(TEREDO_SEL | TEREDO_RS_EVENT_MASK | OOB_TEREDO_EN);
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_TEREDO_CFG, ocp_data);
+
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_WDT6_CTRL, WDT6_SET_MODE);
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_REALWOW_TIMER, 0);
+	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_TEREDO_TIMER, 0);
+}
+
+static void r8152b_disable_aldps(struct r8152 *tp)
+{
+	ocp_reg_write(tp, OCP_ALDPS_CONFIG, ENPDNPS | LINKENA | DIS_SDSAVE);
+	msleep(20);
+}
+
+static inline void r8152b_enable_aldps(struct r8152 *tp)
+{
+	ocp_reg_write(tp, OCP_ALDPS_CONFIG, ENPWRSAVE | ENPDNPS |
+					    LINKENA | DIS_SDSAVE);
+}
+
+static void r8152b_hw_phy_cfg(struct r8152 *tp)
+{
+	u16 data;
+
+	data = r8152_mdio_read(tp, MII_BMCR);
+	if (data & BMCR_PDOWN) {
+		data &= ~BMCR_PDOWN;
+		r8152_mdio_write(tp, MII_BMCR, data);
+	}
+
+	r8152b_disable_aldps(tp);
+
+	rtl_clear_bp(tp);
+
+	r8152b_enable_aldps(tp);
+	set_bit(PHY_RESET, &tp->flags);
+}
+
 static void r8152b_exit_oob(struct r8152 *tp)
 {
 	u32	ocp_data;
@@ -1730,9 +2020,9 @@ static void r8152b_exit_oob(struct r8152 *tp)
 	ocp_data &= ~RCR_ACPT_ALL;
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, ocp_data);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MISC_1);
-	ocp_data |= RXDY_GATED_EN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MISC_1, ocp_data);
+	rxdy_gated_en(tp, true);
+	r8153_teredo_off(tp);
+	r8152b_hw_phy_cfg(tp);
 
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_NORAML);
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CR, 0x00);
@@ -1838,10 +2128,6 @@ static void r8152b_enter_oob(struct r8152 *tp)
 
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, RTL8152_RMS);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CFG_WOL);
-	ocp_data |= MAGIC_EN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CFG_WOL, ocp_data);
-
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CPCR);
 	ocp_data |= CPCR_RX_VLAN;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CPCR, ocp_data);
@@ -1854,27 +2140,11 @@ static void r8152b_enter_oob(struct r8152 *tp)
 	ocp_data |= NOW_IS_OOB | DIS_MCU_CLROOB;
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL, ocp_data);
 
-	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CONFIG5, LAN_WAKE_EN);
-
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MISC_1);
-	ocp_data &= ~RXDY_GATED_EN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MISC_1, ocp_data);
+	rxdy_gated_en(tp, false);
 
 	ocp_data = ocp_read_dword(tp, MCU_TYPE_PLA, PLA_RCR);
 	ocp_data |= RCR_APM | RCR_AM | RCR_AB;
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, ocp_data);
-}
-
-static void r8152b_disable_aldps(struct r8152 *tp)
-{
-	ocp_reg_write(tp, OCP_ALDPS_CONFIG, ENPDNPS | LINKENA | DIS_SDSAVE);
-	msleep(20);
-}
-
-static inline void r8152b_enable_aldps(struct r8152 *tp)
-{
-	ocp_reg_write(tp, OCP_ALDPS_CONFIG, ENPWRSAVE | ENPDNPS |
-					    LINKENA | DIS_SDSAVE);
 }
 
 static void r8153_hw_phy_cfg(struct r8152 *tp)
@@ -1883,7 +2153,13 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	u16 data;
 
 	ocp_reg_write(tp, OCP_ADC_CFG, CKADSEL_L | ADC_EN | EN_EMI_L);
-	r8152_mdio_write(tp, MII_BMCR, BMCR_ANENABLE);
+	data = r8152_mdio_read(tp, MII_BMCR);
+	if (data & BMCR_PDOWN) {
+		data &= ~BMCR_PDOWN;
+		r8152_mdio_write(tp, MII_BMCR, data);
+	}
+
+	r8153_clear_bp(tp);
 
 	if (tp->version == RTL_VER_03) {
 		data = ocp_reg_read(tp, OCP_EEE_CFG);
@@ -1919,9 +2195,11 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	data = sram_read(tp, SRAM_10M_AMP2);
 	data |= AMP_DN;
 	sram_write(tp, SRAM_10M_AMP2, data);
+
+	set_bit(PHY_RESET, &tp->flags);
 }
 
-static void r8153_u1u2en(struct r8152 *tp, int enable)
+static void r8153_u1u2en(struct r8152 *tp, bool enable)
 {
 	u8 u1u2[8];
 
@@ -1933,7 +2211,7 @@ static void r8153_u1u2en(struct r8152 *tp, int enable)
 	usb_ocp_write(tp, USB_TOLERANCE, BYTE_EN_SIX_BYTES, sizeof(u1u2), u1u2);
 }
 
-static void r8153_u2p3en(struct r8152 *tp, int enable)
+static void r8153_u2p3en(struct r8152 *tp, bool enable)
 {
 	u32 ocp_data;
 
@@ -1945,7 +2223,7 @@ static void r8153_u2p3en(struct r8152 *tp, int enable)
 	ocp_write_word(tp, MCU_TYPE_USB, USB_U2P3_CTRL, ocp_data);
 }
 
-static void r8153_power_cut_en(struct r8152 *tp, int enable)
+static void r8153_power_cut_en(struct r8152 *tp, bool enable)
 {
 	u32 ocp_data;
 
@@ -1961,28 +2239,12 @@ static void r8153_power_cut_en(struct r8152 *tp, int enable)
 	ocp_write_word(tp, MCU_TYPE_USB, USB_MISC_0, ocp_data);
 }
 
-static void r8153_teredo_off(struct r8152 *tp)
-{
-	u32 ocp_data;
-
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TEREDO_CFG);
-	ocp_data &= ~(TEREDO_SEL | TEREDO_RS_EVENT_MASK | OOB_TEREDO_EN);
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_TEREDO_CFG, ocp_data);
-
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_WDT6_CTRL, WDT6_SET_MODE);
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_REALWOW_TIMER, 0);
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_TEREDO_TIMER, 0);
-}
-
 static void r8153_first_init(struct r8152 *tp)
 {
 	u32 ocp_data;
 	int i;
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MISC_1);
-	ocp_data |= RXDY_GATED_EN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MISC_1, ocp_data);
-
+	rxdy_gated_en(tp, true);
 	r8153_teredo_off(tp);
 
 	ocp_data = ocp_read_dword(tp, MCU_TYPE_PLA, PLA_RCR);
@@ -2075,10 +2337,6 @@ static void r8153_enter_oob(struct r8152 *tp)
 
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, RTL8152_RMS);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CFG_WOL);
-	ocp_data |= MAGIC_EN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CFG_WOL, ocp_data);
-
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TEREDO_CFG);
 	ocp_data &= ~TEREDO_WAKE_MASK;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_TEREDO_CFG, ocp_data);
@@ -2095,11 +2353,7 @@ static void r8153_enter_oob(struct r8152 *tp)
 	ocp_data |= NOW_IS_OOB | DIS_MCU_CLROOB;
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL, ocp_data);
 
-	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CONFIG5, LAN_WAKE_EN);
-
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MISC_1);
-	ocp_data &= ~RXDY_GATED_EN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MISC_1, ocp_data);
+	rxdy_gated_en(tp, false);
 
 	ocp_data = ocp_read_dword(tp, MCU_TYPE_PLA, PLA_RCR);
 	ocp_data |= RCR_APM | RCR_AM | RCR_AB;
@@ -2190,11 +2444,25 @@ static int rtl8152_set_speed(struct r8152 *tp, u8 autoneg, u16 speed, u8 duplex)
 		bmcr = BMCR_ANENABLE | BMCR_ANRESTART;
 	}
 
+	if (test_bit(PHY_RESET, &tp->flags))
+		bmcr |= BMCR_RESET;
+
 	if (tp->mii.supports_gmii)
 		r8152_mdio_write(tp, MII_CTRL1000, gbcr);
 
 	r8152_mdio_write(tp, MII_ADVERTISE, anar);
 	r8152_mdio_write(tp, MII_BMCR, bmcr);
+
+	if (test_bit(PHY_RESET, &tp->flags)) {
+		int i;
+
+		clear_bit(PHY_RESET, &tp->flags);
+		for (i = 0; i < 50; i++) {
+			msleep(20);
+			if ((r8152_mdio_read(tp, MII_BMCR) & BMCR_RESET) == 0)
+				break;
+		}
+	}
 
 out:
 
@@ -2203,12 +2471,7 @@ out:
 
 static void rtl8152_down(struct r8152 *tp)
 {
-	u32	ocp_data;
-
-	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_UPS_CTRL);
-	ocp_data &= ~POWER_CUT;
-	ocp_write_word(tp, MCU_TYPE_USB, USB_UPS_CTRL, ocp_data);
-
+	r8152_power_cut_en(tp, false);
 	r8152b_disable_aldps(tp);
 	r8152b_enter_oob(tp);
 	r8152b_enable_aldps(tp);
@@ -2216,8 +2479,8 @@ static void rtl8152_down(struct r8152 *tp)
 
 static void rtl8153_down(struct r8152 *tp)
 {
-	r8153_u1u2en(tp, 0);
-	r8153_power_cut_en(tp, 0);
+	r8153_u1u2en(tp, false);
+	r8153_power_cut_en(tp, false);
 	r8153_disable_aldps(tp);
 	r8153_enter_oob(tp);
 	r8153_enable_aldps(tp);
@@ -2252,6 +2515,9 @@ static void rtl_work_func_t(struct work_struct *work)
 {
 	struct r8152 *tp = container_of(work, struct r8152, schedule.work);
 
+	if (usb_autopm_get_interface(tp->intf) < 0)
+		return;
+
 	if (!test_bit(WORK_ENABLE, &tp->flags))
 		goto out1;
 
@@ -2264,14 +2530,41 @@ static void rtl_work_func_t(struct work_struct *work)
 	if (test_bit(RTL8152_SET_RX_MODE, &tp->flags))
 		_rtl8152_set_rx_mode(tp->netdev);
 
+	if (tp->speed & LINK_STATUS)
+		tx_bottom(tp);
+
+	if (test_bit(PHY_RESET, &tp->flags))
+		rtl_phy_reset(tp);
+
 out1:
-	return;
+	usb_autopm_put_interface(tp->intf);
 }
 
 static int rtl8152_open(struct net_device *netdev)
 {
 	struct r8152 *tp = netdev_priv(netdev);
 	int res = 0;
+
+	res = alloc_all_mem(tp);
+	if (res)
+		goto out;
+
+	res = usb_autopm_get_interface(tp->intf);
+	if (res < 0) {
+		free_all_mem(tp);
+		goto out;
+	}
+
+	/* The WORK_ENABLE may be set when autoresume occurs */
+	if (test_bit(WORK_ENABLE, &tp->flags)) {
+		clear_bit(WORK_ENABLE, &tp->flags);
+		usb_kill_urb(tp->intr_urb);
+		cancel_delayed_work_sync(&tp->schedule);
+		if (tp->speed & LINK_STATUS)
+			tp->rtl_ops.disable(tp);
+	}
+
+	tp->rtl_ops.up(tp);
 
 	rtl8152_set_speed(tp, AUTONEG_ENABLE,
 			  tp->mii.supports_gmii ? SPEED_1000 : SPEED_100,
@@ -2286,9 +2579,12 @@ static int rtl8152_open(struct net_device *netdev)
 			netif_device_detach(tp->netdev);
 		netif_warn(tp, ifup, netdev, "intr_urb submit failed: %d\n",
 			   res);
+		free_all_mem(tp);
 	}
 
+	usb_autopm_put_interface(tp->intf);
 
+out:
 	return res;
 }
 
@@ -2301,33 +2597,30 @@ static int rtl8152_close(struct net_device *netdev)
 	usb_kill_urb(tp->intr_urb);
 	cancel_delayed_work_sync(&tp->schedule);
 	netif_stop_queue(netdev);
-	tasklet_disable(&tp->tl);
-	tp->rtl_ops.disable(tp);
-	tasklet_enable(&tp->tl);
+
+	res = usb_autopm_get_interface(tp->intf);
+	if (res < 0) {
+		rtl_drop_queued_tx(tp);
+	} else {
+		/*
+		 * The autosuspend may have been enabled and wouldn't
+		 * be disable when autoresume occurs, because the
+		 * netif_running() would be false.
+		 */
+		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
+			rtl_runtime_suspend_enable(tp, false);
+			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+		}
+
+		tasklet_disable(&tp->tl);
+		tp->rtl_ops.down(tp);
+		tasklet_enable(&tp->tl);
+		usb_autopm_put_interface(tp->intf);
+	}
+
+	free_all_mem(tp);
 
 	return res;
-}
-
-static void rtl_clear_bp(struct r8152 *tp)
-{
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_0, 0);
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_2, 0);
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_4, 0);
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_6, 0);
-	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_0, 0);
-	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_2, 0);
-	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_4, 0);
-	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_6, 0);
-	mdelay(3);
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_BP_BA, 0);
-	ocp_write_word(tp, MCU_TYPE_USB, USB_BP_BA, 0);
-}
-
-static void r8153_clear_bp(struct r8152 *tp)
-{
-	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_BP_EN, 0);
-	ocp_write_byte(tp, MCU_TYPE_USB, USB_BP_EN, 0);
-	rtl_clear_bp(tp);
 }
 
 static void r8152b_enable_eee(struct r8152 *tp)
@@ -2378,18 +2671,9 @@ static void r8152b_enable_fc(struct r8152 *tp)
 	r8152_mdio_write(tp, MII_ADVERTISE, anar);
 }
 
-static void r8152b_hw_phy_cfg(struct r8152 *tp)
-{
-	r8152_mdio_write(tp, MII_BMCR, BMCR_ANENABLE);
-	r8152b_disable_aldps(tp);
-}
-
 static void r8152b_init(struct r8152 *tp)
 {
 	u32 ocp_data;
-	int i;
-
-	rtl_clear_bp(tp);
 
 	if (tp->version == RTL_VER_01) {
 		ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_LED_FEATURE);
@@ -2397,17 +2681,7 @@ static void r8152b_init(struct r8152 *tp)
 		ocp_write_word(tp, MCU_TYPE_PLA, PLA_LED_FEATURE, ocp_data);
 	}
 
-	r8152b_hw_phy_cfg(tp);
-
-	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_UPS_CTRL);
-	ocp_data &= ~POWER_CUT;
-	ocp_write_word(tp, MCU_TYPE_USB, USB_UPS_CTRL, ocp_data);
-
-	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS);
-	ocp_data &= ~RESUME_INDICATE;
-	ocp_write_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS, ocp_data);
-
-	r8152b_exit_oob(tp);
+	r8152_power_cut_en(tp, false);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR);
 	ocp_data |= TX_10M_IDLE_EN | PFM_PWM_SWITCH;
@@ -2424,14 +2698,6 @@ static void r8152b_init(struct r8152 *tp)
 	r8152b_enable_aldps(tp);
 	r8152b_enable_fc(tp);
 
-	r8152_mdio_write(tp, MII_BMCR, BMCR_RESET | BMCR_ANENABLE |
-				       BMCR_ANRESTART);
-	for (i = 0; i < 100; i++) {
-		udelay(100);
-		if (!(r8152_mdio_read(tp, MII_BMCR) & BMCR_RESET))
-			break;
-	}
-
 	/* enable rx aggregation */
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_USB_CTRL);
 	ocp_data &= ~RX_AGG_DISABLE;
@@ -2443,7 +2709,7 @@ static void r8153_init(struct r8152 *tp)
 	u32 ocp_data;
 	int i;
 
-	r8153_u1u2en(tp, 0);
+	r8153_u1u2en(tp, false);
 
 	for (i = 0; i < 500; i++) {
 		if (ocp_read_word(tp, MCU_TYPE_PLA, PLA_BOOT_CTRL) &
@@ -2459,13 +2725,11 @@ static void r8153_init(struct r8152 *tp)
 		msleep(20);
 	}
 
-	r8153_u2p3en(tp, 0);
+	r8153_u2p3en(tp, false);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_WDT11_CTRL);
 	ocp_data &= ~TIMER11_EN;
 	ocp_write_word(tp, MCU_TYPE_USB, USB_WDT11_CTRL, ocp_data);
-
-	r8153_clear_bp(tp);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_LED_FEATURE);
 	ocp_data &= ~LED_MODE_MASK;
@@ -2484,10 +2748,8 @@ static void r8153_init(struct r8152 *tp)
 	ocp_data |= SEN_VAL_NORMAL | SEL_RXIDLE;
 	ocp_write_word(tp, MCU_TYPE_USB, USB_AFE_CTRL2, ocp_data);
 
-	r8153_power_cut_en(tp, 0);
-	r8153_u1u2en(tp, 1);
-
-	r8153_first_init(tp);
+	r8153_power_cut_en(tp, false);
+	r8153_u1u2en(tp, true);
 
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL, ALDPS_SPDWN_RATIO);
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL2, EEE_SPDWN_RATIO);
@@ -2502,25 +2764,29 @@ static void r8153_init(struct r8152 *tp)
 	r8153_enable_eee(tp);
 	r8153_enable_aldps(tp);
 	r8152b_enable_fc(tp);
-
-	r8152_mdio_write(tp, MII_BMCR, BMCR_RESET | BMCR_ANENABLE |
-				       BMCR_ANRESTART);
 }
 
 static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct r8152 *tp = usb_get_intfdata(intf);
 
-	netif_device_detach(tp->netdev);
+	if (PMSG_IS_AUTO(message))
+		set_bit(SELECTIVE_SUSPEND, &tp->flags);
+	else
+		netif_device_detach(tp->netdev);
 
 	if (netif_running(tp->netdev)) {
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
 		cancel_delayed_work_sync(&tp->schedule);
-		tasklet_disable(&tp->tl);
+		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
+			rtl_runtime_suspend_enable(tp, true);
+		} else {
+			tasklet_disable(&tp->tl);
+			tp->rtl_ops.down(tp);
+			tasklet_enable(&tp->tl);
+		}
 	}
-
-	tp->rtl_ops.down(tp);
 
 	return 0;
 }
@@ -2529,20 +2795,75 @@ static int rtl8152_resume(struct usb_interface *intf)
 {
 	struct r8152 *tp = usb_get_intfdata(intf);
 
-	tp->rtl_ops.init(tp);
-	netif_device_attach(tp->netdev);
+	if (!test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
+		tp->rtl_ops.init(tp);
+		netif_device_attach(tp->netdev);
+	}
+
 	if (netif_running(tp->netdev)) {
-		rtl8152_set_speed(tp, AUTONEG_ENABLE,
+		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
+			rtl_runtime_suspend_enable(tp, false);
+			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+			if (tp->speed & LINK_STATUS)
+				tp->rtl_ops.disable(tp);
+		} else {
+			tp->rtl_ops.up(tp);
+			rtl8152_set_speed(tp, AUTONEG_ENABLE,
 				tp->mii.supports_gmii ? SPEED_1000 : SPEED_100,
 				DUPLEX_FULL);
+		}
 		tp->speed = 0;
 		netif_carrier_off(tp->netdev);
 		set_bit(WORK_ENABLE, &tp->flags);
 		usb_submit_urb(tp->intr_urb, GFP_KERNEL);
-		tasklet_enable(&tp->tl);
 	}
 
 	return 0;
+}
+
+static void rtl8152_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct r8152 *tp = netdev_priv(dev);
+
+	if (usb_autopm_get_interface(tp->intf) < 0)
+		return;
+
+	wol->supported = WAKE_ANY;
+	wol->wolopts = __rtl_get_wol(tp);
+
+	usb_autopm_put_interface(tp->intf);
+}
+
+static int rtl8152_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct r8152 *tp = netdev_priv(dev);
+	int ret;
+
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		goto out_set_wol;
+
+	__rtl_set_wol(tp, wol->wolopts);
+	tp->saved_wolopts = wol->wolopts & WAKE_ANY;
+
+	usb_autopm_put_interface(tp->intf);
+
+out_set_wol:
+	return ret;
+}
+
+static u32 rtl8152_get_msglevel(struct net_device *dev)
+{
+	struct r8152 *tp = netdev_priv(dev);
+
+	return tp->msg_enable;
+}
+
+static void rtl8152_set_msglevel(struct net_device *dev, u32 value)
+{
+	struct r8152 *tp = netdev_priv(dev);
+
+	tp->msg_enable = value;
 }
 
 static void rtl8152_get_drvinfo(struct net_device *netdev,
@@ -2569,8 +2890,18 @@ int rtl8152_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 static int rtl8152_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct r8152 *tp = netdev_priv(dev);
+	int ret;
 
-	return rtl8152_set_speed(tp, cmd->autoneg, cmd->speed, cmd->duplex);
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		goto out;
+
+	ret = rtl8152_set_speed(tp, cmd->autoneg, cmd->speed, cmd->duplex);
+
+	usb_autopm_put_interface(tp->intf);
+
+out:
+	return ret;
 }
 
 static struct ethtool_ops ops = {
@@ -2578,13 +2909,21 @@ static struct ethtool_ops ops = {
 	.get_settings = rtl8152_get_settings,
 	.set_settings = rtl8152_set_settings,
 	.get_link = ethtool_op_get_link,
+	.get_msglevel = rtl8152_get_msglevel,
+	.set_msglevel = rtl8152_set_msglevel,
+	.get_wol = rtl8152_get_wol,
+	.set_wol = rtl8152_set_wol,
 };
 
 static int rtl8152_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 {
 	struct r8152 *tp = netdev_priv(netdev);
 	struct mii_ioctl_data *data = if_mii(rq);
-	int res = 0;
+	int res;
+
+	res = usb_autopm_get_interface(tp->intf);
+	if (res < 0)
+		goto out;
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
@@ -2607,6 +2946,9 @@ static int rtl8152_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 		res = -EOPNOTSUPP;
 	}
 
+	usb_autopm_put_interface(tp->intf);
+
+out:
 	return res;
 }
 
@@ -2659,22 +3001,13 @@ static void r8152b_get_version(struct r8152 *tp)
 
 static void rtl8152_unload(struct r8152 *tp)
 {
-	u32	ocp_data;
-
-	if (tp->version != RTL_VER_01) {
-		ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_UPS_CTRL);
-		ocp_data |= POWER_CUT;
-		ocp_write_word(tp, MCU_TYPE_USB, USB_UPS_CTRL, ocp_data);
-	}
-
-	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS);
-	ocp_data &= ~RESUME_INDICATE;
-	ocp_write_word(tp, MCU_TYPE_USB, USB_PM_CTRL_STATUS, ocp_data);
+	if (tp->version != RTL_VER_01)
+		r8152_power_cut_en(tp, true);
 }
 
 static void rtl8153_unload(struct r8152 *tp)
 {
-	r8153_power_cut_en(tp, 1);
+	r8153_power_cut_en(tp, true);
 }
 
 static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
@@ -2689,6 +3022,7 @@ static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 			ops->init		= r8152b_init;
 			ops->enable		= rtl8152_enable;
 			ops->disable		= rtl8152_disable;
+			ops->up			= r8152b_exit_oob;
 			ops->down		= rtl8152_down;
 			ops->unload		= rtl8152_unload;
 			ret = 0;
@@ -2697,6 +3031,7 @@ static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 			ops->init		= r8153_init;
 			ops->enable		= rtl8153_enable;
 			ops->disable		= rtl8152_disable;
+			ops->up			= r8153_first_init;
 			ops->down		= rtl8153_down;
 			ops->unload		= rtl8153_unload;
 			ret = 0;
@@ -2712,6 +3047,7 @@ static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 			ops->init		= r8153_init;
 			ops->enable		= rtl8153_enable;
 			ops->disable		= rtl8152_disable;
+			ops->up			= r8153_first_init;
 			ops->down		= rtl8153_down;
 			ops->unload		= rtl8153_unload;
 			ret = 0;
@@ -2775,13 +3111,11 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp->mii.phy_id = R8152_PHY_ID;
 	tp->mii.supports_gmii = 0;
 
+	intf->needs_remote_wakeup = 1;
+
 	r8152b_get_version(tp);
 	tp->rtl_ops.init(tp);
 	set_ethernet_addr(tp);
-
-	ret = alloc_all_mem(tp);
-	if (ret)
-		goto out;
 
 	usb_set_intfdata(intf, tp);
 
@@ -2790,6 +3124,12 @@ static int rtl8152_probe(struct usb_interface *intf,
 		netif_err(tp, probe, netdev, "couldn't register the device\n");
 		goto out1;
 	}
+
+	tp->saved_wolopts = __rtl_get_wol(tp);
+	if (tp->saved_wolopts)
+		device_set_wakeup_enable(&udev->dev, true);
+	else
+		device_set_wakeup_enable(&udev->dev, false);
 
 	netif_info(tp, probe, netdev, "%s\n", DRIVER_VERSION);
 
@@ -2812,7 +3152,6 @@ static void rtl8152_disconnect(struct usb_interface *intf)
 		tasklet_kill(&tp->tl);
 		unregister_netdev(tp->netdev);
 		tp->rtl_ops.unload(tp);
-		free_all_mem(tp);
 		free_netdev(tp->netdev);
 	}
 }
@@ -2835,6 +3174,8 @@ static struct usb_driver rtl8152_driver = {
 	.suspend =	rtl8152_suspend,
 	.resume =	rtl8152_resume,
 	.reset_resume =	rtl8152_resume,
+	.supports_autosuspend = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(rtl8152_driver);
