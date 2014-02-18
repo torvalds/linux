@@ -487,7 +487,6 @@ static struct snd_soc_dai_driver cs42l51_dai = {
 
 static int cs42l51_probe(struct snd_soc_codec *codec)
 {
-	struct cs42l51_private *cs42l51 = snd_soc_codec_get_drvdata(codec);
 	int ret, reg;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
