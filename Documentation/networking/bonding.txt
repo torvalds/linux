@@ -270,9 +270,9 @@ arp_ip_target
 arp_validate
 
 	Specifies whether or not ARP probes and replies should be
-	validated in the active-backup mode.  This causes the ARP
-	monitor to examine the incoming ARP requests and replies, and
-	only consider a slave to be up if it is receiving the
+	validated in any mode that supports arp monitoring.  This causes
+	the ARP monitor to examine the incoming ARP requests and replies,
+	and only consider a slave to be up if it is receiving the
 	appropriate ARP traffic.
 
 	Possible values are:

@@ -4183,10 +4183,6 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (arp_validate) {
-		if (bond_mode != BOND_MODE_ACTIVEBACKUP) {
-			pr_err("arp_validate only supported in active-backup mode\n");
-			return -EINVAL;
-		}
 		if (!arp_interval) {
 			pr_err("arp_validate requires arp_interval\n");
 			return -EINVAL;

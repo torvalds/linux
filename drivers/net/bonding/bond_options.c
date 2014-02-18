@@ -151,7 +151,8 @@ static struct bond_option bond_opts[] = {
 		.id = BOND_OPT_ARP_VALIDATE,
 		.name = "arp_validate",
 		.desc = "validate src/dst of ARP probes",
-		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ACTIVEBACKUP)),
+		.unsuppmodes = BIT(BOND_MODE_8023AD) | BIT(BOND_MODE_TLB) |
+			       BIT(BOND_MODE_ALB),
 		.values = bond_arp_validate_tbl,
 		.set = bond_option_arp_validate_set
 	},
