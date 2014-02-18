@@ -83,8 +83,8 @@ static bool wm8731_writeable(struct device *dev, unsigned int reg)
 
 static const char *wm8731_input_select[] = {"Line In", "Mic"};
 
-static const struct soc_enum wm8731_insel_enum =
-	SOC_ENUM_SINGLE(WM8731_APANA, 2, 2, wm8731_input_select);
+static SOC_ENUM_SINGLE_DECL(wm8731_insel_enum,
+			    WM8731_APANA, 2, wm8731_input_select);
 
 static int wm8731_deemph[] = { 0, 32000, 44100, 48000 };
 
