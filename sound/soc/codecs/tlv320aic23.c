@@ -64,16 +64,16 @@ static const struct regmap_config tlv320aic23_regmap = {
 static const char *rec_src_text[] = { "Line", "Mic" };
 static const char *deemph_text[] = {"None", "32Khz", "44.1Khz", "48Khz"};
 
-static const struct soc_enum rec_src_enum =
-	SOC_ENUM_SINGLE(TLV320AIC23_ANLG, 2, 2, rec_src_text);
+static SOC_ENUM_SINGLE_DECL(rec_src_enum,
+			    TLV320AIC23_ANLG, 2, rec_src_text);
 
 static const struct snd_kcontrol_new tlv320aic23_rec_src_mux_controls =
 SOC_DAPM_ENUM("Input Select", rec_src_enum);
 
-static const struct soc_enum tlv320aic23_rec_src =
-	SOC_ENUM_SINGLE(TLV320AIC23_ANLG, 2, 2, rec_src_text);
-static const struct soc_enum tlv320aic23_deemph =
-	SOC_ENUM_SINGLE(TLV320AIC23_DIGT, 1, 4, deemph_text);
+static SOC_ENUM_SINGLE_DECL(tlv320aic23_rec_src,
+			    TLV320AIC23_ANLG, 2, rec_src_text);
+static SOC_ENUM_SINGLE_DECL(tlv320aic23_deemph,
+			    TLV320AIC23_DIGT, 1, deemph_text);
 
 static const DECLARE_TLV_DB_SCALE(out_gain_tlv, -12100, 100, 0);
 static const DECLARE_TLV_DB_SCALE(input_gain_tlv, -1725, 75, 0);
