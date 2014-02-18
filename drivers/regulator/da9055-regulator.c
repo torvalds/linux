@@ -567,7 +567,7 @@ static int da9055_regulator_dt_init(struct platform_device *pdev,
 	of_node_put(nproot);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error matching regulator: %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 
 	config->init_data = da9055_reg_matches[regid].init_data;
