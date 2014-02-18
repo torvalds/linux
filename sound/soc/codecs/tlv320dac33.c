@@ -478,9 +478,7 @@ static const char *dac33_fifo_mode_texts[] = {
 	"Bypass", "Mode 1", "Mode 7"
 };
 
-static const struct soc_enum dac33_fifo_mode_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(dac33_fifo_mode_texts),
-			    dac33_fifo_mode_texts);
+static SOC_ENUM_SINGLE_EXT_DECL(dac33_fifo_mode_enum, dac33_fifo_mode_texts);
 
 /* L/R Line Output Gain */
 static const char *lr_lineout_gain_texts[] = {
@@ -488,15 +486,13 @@ static const char *lr_lineout_gain_texts[] = {
 	"Line 0dB DAC 12dB", "Line 6dB DAC 18dB",
 };
 
-static const struct soc_enum l_lineout_gain_enum =
-	SOC_ENUM_SINGLE(DAC33_LDAC_PWR_CTRL, 0,
-			ARRAY_SIZE(lr_lineout_gain_texts),
-			lr_lineout_gain_texts);
+static SOC_ENUM_SINGLE_DECL(l_lineout_gain_enum,
+			    DAC33_LDAC_PWR_CTRL, 0,
+			    lr_lineout_gain_texts);
 
-static const struct soc_enum r_lineout_gain_enum =
-	SOC_ENUM_SINGLE(DAC33_RDAC_PWR_CTRL, 0,
-			ARRAY_SIZE(lr_lineout_gain_texts),
-			lr_lineout_gain_texts);
+static SOC_ENUM_SINGLE_DECL(r_lineout_gain_enum,
+			    DAC33_RDAC_PWR_CTRL, 0,
+			    lr_lineout_gain_texts);
 
 /*
  * DACL/R digital volume control:
@@ -534,18 +530,16 @@ static const struct snd_kcontrol_new dac33_dapm_abypassr_control =
 /* LOP L/R invert selection */
 static const char *dac33_lr_lom_texts[] = {"DAC", "LOP"};
 
-static const struct soc_enum dac33_left_lom_enum =
-	SOC_ENUM_SINGLE(DAC33_OUT_AMP_CTRL, 3,
-			ARRAY_SIZE(dac33_lr_lom_texts),
-			dac33_lr_lom_texts);
+static SOC_ENUM_SINGLE_DECL(dac33_left_lom_enum,
+			    DAC33_OUT_AMP_CTRL, 3,
+			    dac33_lr_lom_texts);
 
 static const struct snd_kcontrol_new dac33_dapm_left_lom_control =
 SOC_DAPM_ENUM("Route", dac33_left_lom_enum);
 
-static const struct soc_enum dac33_right_lom_enum =
-	SOC_ENUM_SINGLE(DAC33_OUT_AMP_CTRL, 2,
-			ARRAY_SIZE(dac33_lr_lom_texts),
-			dac33_lr_lom_texts);
+static SOC_ENUM_SINGLE_DECL(dac33_right_lom_enum,
+			    DAC33_OUT_AMP_CTRL, 2,
+			    dac33_lr_lom_texts);
 
 static const struct snd_kcontrol_new dac33_dapm_right_lom_control =
 SOC_DAPM_ENUM("Route", dac33_right_lom_enum);
