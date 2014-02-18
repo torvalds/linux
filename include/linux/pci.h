@@ -463,7 +463,6 @@ struct pci_bus {
 	unsigned int		is_added:1;
 };
 
-#define pci_bus_b(n)	list_entry(n, struct pci_bus, node)
 #define to_pci_bus(n)	container_of(n, struct pci_bus, dev)
 
 /*
