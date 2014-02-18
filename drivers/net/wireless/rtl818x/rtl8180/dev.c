@@ -1137,7 +1137,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	return 0;
 
  err_iounmap:
-	iounmap(priv->map);
+	pci_iounmap(pdev, priv->map);
 
  err_free_dev:
 	ieee80211_free_hw(dev);
