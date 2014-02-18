@@ -854,9 +854,6 @@ int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	int rc;
 	tid_t tid;
 
-	if ((rc = can_set_xattr(inode, name, value, value_len)))
-		return rc;
-
 	/*
 	 * If this is a request for a synthetic attribute in the system.*
 	 * namespace use the generic infrastructure to resolve a handler
@@ -864,6 +861,9 @@ int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	 */
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_setxattr(dentry, name, value, value_len, flags);
+
+	if ((rc = can_set_xattr(inode, name, value, value_len)))
+		return rc;
 
 	if (value == NULL) {	/* empty EA, do not remove */
 		value = "";
@@ -1034,9 +1034,6 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 	int rc;
 	tid_t tid;
 
-	if ((rc = can_set_xattr(inode, name, NULL, 0)))
-		return rc;
-
 	/*
 	 * If this is a request for a synthetic attribute in the system.*
 	 * namespace use the generic infrastructure to resolve a handler
@@ -1044,6 +1041,9 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 	 */
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_removexattr(dentry, name);
+
+	if ((rc = can_set_xattr(inode, name, NULL, 0)))
+		return rc;
 
 	tid = txBegin(inode->i_sb, 0);
 	mutex_lock(&ji->commit_mutex);
@@ -1061,7 +1061,7 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
  * attributes are handled directly.
  */
 const struct xattr_handler *jfs_xattr_handlers[] = {
-#ifdef JFS_POSIX_ACL
+#ifdef CONFIG_JFS_POSIX_ACL
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
 #endif
