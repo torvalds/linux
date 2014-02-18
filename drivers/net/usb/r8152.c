@@ -1845,7 +1845,14 @@ static inline void r8152b_enable_aldps(struct r8152 *tp)
 
 static void r8152b_hw_phy_cfg(struct r8152 *tp)
 {
-	r8152_mdio_write(tp, MII_BMCR, BMCR_ANENABLE);
+	u16 data;
+
+	data = r8152_mdio_read(tp, MII_BMCR);
+	if (data & BMCR_PDOWN) {
+		data &= ~BMCR_PDOWN;
+		r8152_mdio_write(tp, MII_BMCR, data);
+	}
+
 	r8152b_disable_aldps(tp);
 }
 
@@ -1995,7 +2002,11 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	u16 data;
 
 	ocp_reg_write(tp, OCP_ADC_CFG, CKADSEL_L | ADC_EN | EN_EMI_L);
-	r8152_mdio_write(tp, MII_BMCR, BMCR_ANENABLE);
+	data = r8152_mdio_read(tp, MII_BMCR);
+	if (data & BMCR_PDOWN) {
+		data &= ~BMCR_PDOWN;
+		r8152_mdio_write(tp, MII_BMCR, data);
+	}
 
 	if (tp->version == RTL_VER_03) {
 		data = ocp_reg_read(tp, OCP_EEE_CFG);
