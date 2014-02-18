@@ -2073,7 +2073,7 @@ static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	if (memcmp(cp->uuid, bt_uuid_any, 16) == 0) {
-		err = hci_uuids_clear(hdev);
+		hci_uuids_clear(hdev);
 
 		if (enable_service_cache(hdev)) {
 			err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_UUID,

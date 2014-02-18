@@ -2506,7 +2506,7 @@ static void hci_discov_off(struct work_struct *work)
 	mgmt_discoverable_timeout(hdev);
 }
 
-int hci_uuids_clear(struct hci_dev *hdev)
+void hci_uuids_clear(struct hci_dev *hdev)
 {
 	struct bt_uuid *uuid, *tmp;
 
@@ -2514,11 +2514,9 @@ int hci_uuids_clear(struct hci_dev *hdev)
 		list_del(&uuid->list);
 		kfree(uuid);
 	}
-
-	return 0;
 }
 
-int hci_link_keys_clear(struct hci_dev *hdev)
+void hci_link_keys_clear(struct hci_dev *hdev)
 {
 	struct list_head *p, *n;
 
@@ -2530,11 +2528,9 @@ int hci_link_keys_clear(struct hci_dev *hdev)
 		list_del(p);
 		kfree(key);
 	}
-
-	return 0;
 }
 
-int hci_smp_ltks_clear(struct hci_dev *hdev)
+void hci_smp_ltks_clear(struct hci_dev *hdev)
 {
 	struct smp_ltk *k, *tmp;
 
@@ -2542,8 +2538,6 @@ int hci_smp_ltks_clear(struct hci_dev *hdev)
 		list_del(&k->list);
 		kfree(k);
 	}
-
-	return 0;
 }
 
 void hci_smp_irks_clear(struct hci_dev *hdev)
@@ -2873,7 +2867,7 @@ int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return 0;
 }
 
-int hci_remote_oob_data_clear(struct hci_dev *hdev)
+void hci_remote_oob_data_clear(struct hci_dev *hdev)
 {
 	struct oob_data *data, *n;
 
@@ -2881,8 +2875,6 @@ int hci_remote_oob_data_clear(struct hci_dev *hdev)
 		list_del(&data->list);
 		kfree(data);
 	}
-
-	return 0;
 }
 
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
@@ -2951,7 +2943,7 @@ struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
-int hci_blacklist_clear(struct hci_dev *hdev)
+void hci_blacklist_clear(struct hci_dev *hdev)
 {
 	struct list_head *p, *n;
 
@@ -2961,8 +2953,6 @@ int hci_blacklist_clear(struct hci_dev *hdev)
 		list_del(p);
 		kfree(b);
 	}
-
-	return 0;
 }
 
 int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
@@ -2991,8 +2981,10 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
 
-	if (!bacmp(bdaddr, BDADDR_ANY))
-		return hci_blacklist_clear(hdev);
+	if (!bacmp(bdaddr, BDADDR_ANY)) {
+		hci_blacklist_clear(hdev);
+		return 0;
+	}
 
 	entry = hci_blacklist_lookup(hdev, bdaddr, type);
 	if (!entry)
