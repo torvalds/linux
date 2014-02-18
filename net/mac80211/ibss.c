@@ -1639,7 +1639,33 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	u32 changed = 0;
 	u32 rate_flags;
 	struct ieee80211_supported_band *sband;
+	enum ieee80211_chanctx_mode chanmode;
+	struct ieee80211_local *local = sdata->local;
+	int radar_detect_width = 0;
 	int i;
+	int ret;
+
+	ret = cfg80211_chandef_dfs_required(local->hw.wiphy,
+					    &params->chandef,
+					    sdata->wdev.iftype);
+	if (ret < 0)
+		return ret;
+
+	if (ret > 0) {
+		if (!params->userspace_handles_dfs)
+			return -EINVAL;
+		radar_detect_width = BIT(params->chandef.width);
+	}
+
+	chanmode = (params->channel_fixed && !ret) ?
+		IEEE80211_CHANCTX_SHARED : IEEE80211_CHANCTX_EXCLUSIVE;
+
+	mutex_lock(&local->chanctx_mtx);
+	ret = ieee80211_check_combinations(sdata, &params->chandef, chanmode,
+					   radar_detect_width);
+	mutex_unlock(&local->chanctx_mtx);
+	if (ret < 0)
+		return ret;
 
 	if (params->bssid) {
 		memcpy(sdata->u.ibss.bssid, params->bssid, ETH_ALEN);
@@ -1654,7 +1680,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 
 	/* fix basic_rates if channel does not support these rates */
 	rate_flags = ieee80211_chandef_rate_flags(&params->chandef);
-	sband = sdata->local->hw.wiphy->bands[params->chandef.chan->band];
+	sband = local->hw.wiphy->bands[params->chandef.chan->band];
 	for (i = 0; i < sband->n_bitrates; i++) {
 		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
 			sdata->u.ibss.basic_rates &= ~BIT(i);
@@ -1703,9 +1729,9 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
-	sdata->needed_rx_chains = sdata->local->rx_chains;
+	sdata->needed_rx_chains = local->rx_chains;
 
-	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
+	ieee80211_queue_work(&local->hw, &sdata->work);
 
 	return 0;
 }
