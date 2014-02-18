@@ -449,6 +449,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	fh_lock(fhp);
 	host_err = notify_change(dentry, iap, NULL);
 	fh_unlock(fhp);
+	err = nfserrno(host_err);
 
 out_put_write_access:
 	if (size_change)
