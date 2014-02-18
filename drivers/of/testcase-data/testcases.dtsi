@@ -1,0 +1,2 @@
+#include "tests-phandle.dtsi"
+#include "tests-interrupts.dtsi"
