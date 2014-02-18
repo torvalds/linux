@@ -81,6 +81,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_SCAN_PARAMS,
 	MGMT_OP_SET_SECURE_CONN,
 	MGMT_OP_SET_DEBUG_KEYS,
+	MGMT_OP_LOAD_IRKS,
 };
 
 static const u16 mgmt_events[] = {
@@ -4158,6 +4159,82 @@ unlock:
 	return err;
 }
 
+static bool irk_is_valid(struct mgmt_irk_info *irk)
+{
+	switch (irk->addr.type) {
+	case BDADDR_LE_PUBLIC:
+		return true;
+
+	case BDADDR_LE_RANDOM:
+		/* Two most significant bits shall be set */
+		if ((irk->addr.bdaddr.b[5] & 0xc0) != 0xc0)
+			return false;
+		return true;
+	}
+
+	return false;
+}
+
+static int load_irks(struct sock *sk, struct hci_dev *hdev, void *cp_data,
+		     u16 len)
+{
+	struct mgmt_cp_load_irks *cp = cp_data;
+	u16 irk_count, expected_len;
+	int i, err;
+
+	BT_DBG("request for %s", hdev->name);
+
+	if (!lmp_le_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_IRKS,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
+	irk_count = __le16_to_cpu(cp->irk_count);
+
+	expected_len = sizeof(*cp) + irk_count * sizeof(struct mgmt_irk_info);
+	if (expected_len != len) {
+		BT_ERR("load_irks: expected %u bytes, got %u bytes",
+		       len, expected_len);
+		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_IRKS,
+				  MGMT_STATUS_INVALID_PARAMS);
+	}
+
+	BT_DBG("%s irk_count %u", hdev->name, irk_count);
+
+	for (i = 0; i < irk_count; i++) {
+		struct mgmt_irk_info *key = &cp->irks[i];
+
+		if (!irk_is_valid(key))
+			return cmd_status(sk, hdev->id,
+					  MGMT_OP_LOAD_IRKS,
+					  MGMT_STATUS_INVALID_PARAMS);
+	}
+
+	hci_dev_lock(hdev);
+
+	hci_smp_irks_clear(hdev);
+
+	for (i = 0; i < irk_count; i++) {
+		struct mgmt_irk_info *irk = &cp->irks[i];
+		u8 addr_type;
+
+		if (irk->addr.type == BDADDR_LE_PUBLIC)
+			addr_type = ADDR_LE_DEV_PUBLIC;
+		else
+			addr_type = ADDR_LE_DEV_RANDOM;
+
+		hci_add_irk(hdev, &irk->addr.bdaddr, addr_type, irk->val,
+			    BDADDR_ANY);
+	}
+
+	set_bit(HCI_RPA_RESOLVING, &hdev->dev_flags);
+
+	err = cmd_complete(sk, hdev->id, MGMT_OP_LOAD_IRKS, 0, NULL, 0);
+
+	hci_dev_unlock(hdev);
+
+	return err;
+}
+
 static bool ltk_is_valid(struct mgmt_ltk_info *key)
 {
 	if (key->master != 0x00 && key->master != 0x01)
@@ -4296,6 +4373,8 @@ static const struct mgmt_handler {
 	{ set_scan_params,        false, MGMT_SET_SCAN_PARAMS_SIZE },
 	{ set_secure_conn,        false, MGMT_SETTING_SIZE },
 	{ set_debug_keys,         false, MGMT_SETTING_SIZE },
+	{ },
+	{ load_irks,              true,  MGMT_LOAD_IRKS_SIZE },
 };
 
 
