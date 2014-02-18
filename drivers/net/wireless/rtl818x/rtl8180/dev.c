@@ -642,6 +642,8 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	else
 		reg &= ~RTL818X_TX_CONF_HW_SEQNUM;
 
+	reg &= ~RTL818X_TX_CONF_DISCW;
+
 	/* different meaning, same value on both rtl8185 and rtl8180 */
 	reg &= ~RTL818X_TX_CONF_SAT_HWPLCP;
 
