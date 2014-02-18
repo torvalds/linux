@@ -242,7 +242,8 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	/* attempt to locate a drivable fan, and determine control method */
 	ret = gpio->find(gpio, 0, DCB_GPIO_FAN, 0xff, &func);
 	if (ret == 0) {
-		if (func.log[0] & DCB_GPIO_LOG_DIR_IN) {
+		/* FIXME: is this really the place to perform such checks ? */
+		if (func.line != 16 && func.log[0] & DCB_GPIO_LOG_DIR_IN) {
 			nv_debug(therm, "GPIO_FAN is in input mode\n");
 			ret = -EINVAL;
 		} else {
