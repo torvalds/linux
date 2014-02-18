@@ -193,7 +193,8 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	      },
 	      {
 			.offset = 1,
-		        .mask = PIPE_CONTROL_GLOBAL_GTT_IVB,
+		        .mask = (PIPE_CONTROL_GLOBAL_GTT_IVB |
+				 PIPE_CONTROL_STORE_DATA_INDEX),
 			.expected = 0,
 			.condition_offset = 1,
 			.condition_mask = PIPE_CONTROL_POST_SYNC_OP_MASK,
@@ -242,6 +243,13 @@ static const struct drm_i915_cmd_descriptor video_cmds[] = {
 			.expected = 0,
 			.condition_offset = 0,
 			.condition_mask = MI_FLUSH_DW_OP_MASK,
+	      },
+	      {
+			.offset = 0,
+			.mask = MI_FLUSH_DW_STORE_INDEX,
+			.expected = 0,
+			.condition_offset = 0,
+			.condition_mask = MI_FLUSH_DW_OP_MASK,
 	      }},						       ),
 	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   B,
 	      .bits = {{
@@ -278,6 +286,13 @@ static const struct drm_i915_cmd_descriptor vecs_cmds[] = {
 			.expected = 0,
 			.condition_offset = 0,
 			.condition_mask = MI_FLUSH_DW_OP_MASK,
+	      },
+	      {
+			.offset = 0,
+			.mask = MI_FLUSH_DW_STORE_INDEX,
+			.expected = 0,
+			.condition_offset = 0,
+			.condition_mask = MI_FLUSH_DW_OP_MASK,
 	      }},						       ),
 	CMD(  MI_CONDITIONAL_BATCH_BUFFER_END,  SMI,   !F,  0xFF,   B,
 	      .bits = {{
@@ -305,6 +320,13 @@ static const struct drm_i915_cmd_descriptor blt_cmds[] = {
 	      {
 			.offset = 1,
 			.mask = MI_FLUSH_DW_USE_GTT,
+			.expected = 0,
+			.condition_offset = 0,
+			.condition_mask = MI_FLUSH_DW_OP_MASK,
+	      },
+	      {
+			.offset = 0,
+			.mask = MI_FLUSH_DW_STORE_INDEX,
 			.expected = 0,
 			.condition_offset = 0,
 			.condition_mask = MI_FLUSH_DW_OP_MASK,
