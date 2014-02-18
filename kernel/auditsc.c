@@ -811,7 +811,8 @@ void audit_filter_inodes(struct task_struct *tsk, struct audit_context *ctx)
 	rcu_read_unlock();
 }
 
-static inline struct audit_context *audit_get_context(struct task_struct *tsk,
+/* Transfer the audit context pointer to the caller, clearing it in the tsk's struct */
+static inline struct audit_context *audit_take_context(struct task_struct *tsk,
 						      int return_valid,
 						      long return_code)
 {
@@ -1474,7 +1475,7 @@ void __audit_free(struct task_struct *tsk)
 {
 	struct audit_context *context;
 
-	context = audit_get_context(tsk, 0, 0);
+	context = audit_take_context(tsk, 0, 0);
 	if (!context)
 		return;
 
@@ -1568,7 +1569,7 @@ void __audit_syscall_exit(int success, long return_code)
 	else
 		success = AUDITSC_FAILURE;
 
-	context = audit_get_context(tsk, success, return_code);
+	context = audit_take_context(tsk, success, return_code);
 	if (!context)
 		return;
 
