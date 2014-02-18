@@ -2328,6 +2328,8 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		else
 			addr_type = ADDR_LE_DEV_RANDOM;
 
+		hci_remove_irk(hdev, &cp->addr.bdaddr, addr_type);
+
 		err = hci_remove_ltk(hdev, &cp->addr.bdaddr, addr_type);
 	}
 

@@ -2823,6 +2823,21 @@ int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 bdaddr_type)
 	return removed ? 0 : -ENOENT;
 }
 
+void hci_remove_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type)
+{
+	struct smp_irk *k, *tmp;
+
+	list_for_each_entry_safe(k, tmp, &hdev->long_term_keys, list) {
+		if (bacmp(bdaddr, &k->bdaddr) || k->addr_type != addr_type)
+			continue;
+
+		BT_DBG("%s removing %pMR", hdev->name, bdaddr);
+
+		list_del(&k->list);
+		kfree(k);
+	}
+}
+
 /* HCI command timer function */
 static void hci_cmd_timeout(unsigned long arg)
 {

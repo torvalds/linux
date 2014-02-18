@@ -801,6 +801,7 @@ struct smp_irk *hci_find_irk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				     u8 addr_type);
 int hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type,
 		u8 val[16], bdaddr_t *rpa);
+void hci_remove_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type);
 void hci_smp_irks_clear(struct hci_dev *hdev);
 
 void hci_remote_oob_data_clear(struct hci_dev *hdev);
