@@ -1208,9 +1208,6 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 	m->actual_length = 0;
 	m->status = 0;
 
-	/* reject invalid messages and transfers */
-	if (list_empty(&m->transfers))
-		return -EINVAL;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		const void	*tx_buf = t->tx_buf;
 		void		*rx_buf = t->rx_buf;
