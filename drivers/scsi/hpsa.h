@@ -46,6 +46,7 @@ struct hpsa_scsi_dev_t {
 	unsigned char vendor[8];        /* bytes 8-15 of inquiry data */
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
+	u32 ioaccel_handle;
 };
 
 struct reply_pool {
@@ -95,6 +96,8 @@ struct ctlr_info {
 	/* pointers to command and error info pool */
 	struct CommandList 	*cmd_pool;
 	dma_addr_t		cmd_pool_dhandle;
+	struct io_accel1_cmd	*ioaccel_cmd_pool;
+	dma_addr_t		ioaccel_cmd_pool_dhandle;
 	struct ErrorInfo 	*errinfo_pool;
 	dma_addr_t		errinfo_pool_dhandle;
 	unsigned long  		*cmd_pool_bits;
@@ -128,6 +131,7 @@ struct ctlr_info {
 	u8 nreply_queues;
 	dma_addr_t reply_pool_dhandle;
 	u32 *blockFetchTable;
+	u32 *ioaccel1_blockFetchTable;
 	unsigned char *hba_inquiry_data;
 	u64 last_intr_timestamp;
 	u32 last_heartbeat;
@@ -387,12 +391,59 @@ static bool SA5_performant_intr_pending(struct ctlr_info *h)
 	return register_value & SA5_OUTDB_STATUS_PERF_BIT;
 }
 
+#define SA5_IOACCEL_MODE1_INTR_STATUS_CMP_BIT    0x100
+
+static bool SA5_ioaccel_mode1_intr_pending(struct ctlr_info *h)
+{
+	unsigned long register_value = readl(h->vaddr + SA5_INTR_STATUS);
+
+	return (register_value & SA5_IOACCEL_MODE1_INTR_STATUS_CMP_BIT) ?
+		true : false;
+}
+
+#define IOACCEL_MODE1_REPLY_QUEUE_INDEX  0x1A0
+#define IOACCEL_MODE1_PRODUCER_INDEX     0x1B8
+#define IOACCEL_MODE1_CONSUMER_INDEX     0x1BC
+#define IOACCEL_MODE1_REPLY_UNUSED       0xFFFFFFFFFFFFFFFFULL
+
+static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h,
+							u8 q)
+{
+	u64 register_value;
+	struct reply_pool *rq = &h->reply_queue[q];
+	unsigned long flags;
+
+	BUG_ON(q >= h->nreply_queues);
+
+	register_value = rq->head[rq->current_entry];
+	if (register_value != IOACCEL_MODE1_REPLY_UNUSED) {
+		rq->head[rq->current_entry] = IOACCEL_MODE1_REPLY_UNUSED;
+		if (++rq->current_entry == rq->size)
+			rq->current_entry = 0;
+		spin_lock_irqsave(&h->lock, flags);
+		h->commands_outstanding--;
+		spin_unlock_irqrestore(&h->lock, flags);
+	} else {
+		writel((q << 24) | rq->current_entry,
+			h->vaddr + IOACCEL_MODE1_CONSUMER_INDEX);
+	}
+	return (unsigned long) register_value;
+}
+
 static struct access_method SA5_access = {
 	SA5_submit_command,
 	SA5_intr_mask,
 	SA5_fifo_full,
 	SA5_intr_pending,
 	SA5_completed,
+};
+
+static struct access_method SA5_ioaccel_mode1_access = {
+	SA5_submit_command,
+	SA5_performant_intr_mask,
+	SA5_fifo_full,
+	SA5_ioaccel_mode1_intr_pending,
+	SA5_ioaccel_mode1_completed,
 };
 
 static struct access_method SA5_performant_access = {

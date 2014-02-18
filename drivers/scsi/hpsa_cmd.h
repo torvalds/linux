@@ -129,6 +129,7 @@
 
 #define CFGTBL_Trans_Simple     0x00000002l
 #define CFGTBL_Trans_Performant 0x00000004l
+#define CFGTBL_Trans_io_accel1	0x00000080l
 #define CFGTBL_Trans_use_short_tags 0x20000000l
 #define CFGTBL_Trans_enable_directed_msix (1 << 30)
 
@@ -285,6 +286,7 @@ struct ErrorInfo {
 /* Command types */
 #define CMD_IOCTL_PEND  0x01
 #define CMD_SCSI	0x03
+#define CMD_IOACCEL1	0x04
 
 #define DIRECT_LOOKUP_SHIFT 5
 #define DIRECT_LOOKUP_BIT 0x10
@@ -335,6 +337,63 @@ struct CommandList {
 	u8 pad[COMMANDLIST_PAD];
 };
 
+/* Max S/G elements in I/O accelerator command */
+#define IOACCEL1_MAXSGENTRIES           24
+
+/*
+ * Structure for I/O accelerator (mode 1) commands.
+ * Note that this structure must be 128-byte aligned in size.
+ */
+struct io_accel1_cmd {
+	u16 dev_handle;			/* 0x00 - 0x01 */
+	u8  reserved1;			/* 0x02 */
+	u8  function;			/* 0x03 */
+	u8  reserved2[8];		/* 0x04 - 0x0B */
+	u32 err_info;			/* 0x0C - 0x0F */
+	u8  reserved3[2];		/* 0x10 - 0x11 */
+	u8  err_info_len;		/* 0x12 */
+	u8  reserved4;			/* 0x13 */
+	u8  sgl_offset;			/* 0x14 */
+	u8  reserved5[7];		/* 0x15 - 0x1B */
+	u32 transfer_len;		/* 0x1C - 0x1F */
+	u8  reserved6[4];		/* 0x20 - 0x23 */
+	u16 io_flags;			/* 0x24 - 0x25 */
+	u8  reserved7[14];		/* 0x26 - 0x33 */
+	u8  LUN[8];			/* 0x34 - 0x3B */
+	u32 control;			/* 0x3C - 0x3F */
+	u8  CDB[16];			/* 0x40 - 0x4F */
+	u8  reserved8[16];		/* 0x50 - 0x5F */
+	u16 host_context_flags;		/* 0x60 - 0x61 */
+	u16 timeout_sec;		/* 0x62 - 0x63 */
+	u8  ReplyQueue;			/* 0x64 */
+	u8  reserved9[3];		/* 0x65 - 0x67 */
+	struct vals32 Tag;		/* 0x68 - 0x6F */
+	struct vals32 host_addr;	/* 0x70 - 0x77 */
+	u8  CISS_LUN[8];		/* 0x78 - 0x7F */
+	struct SGDescriptor SG[IOACCEL1_MAXSGENTRIES];
+};
+
+#define IOACCEL1_FUNCTION_SCSIIO        0x00
+#define IOACCEL1_SGLOFFSET              32
+
+#define IOACCEL1_IOFLAGS_IO_REQ         0x4000
+#define IOACCEL1_IOFLAGS_CDBLEN_MASK    0x001F
+#define IOACCEL1_IOFLAGS_CDBLEN_MAX     16
+
+#define IOACCEL1_CONTROL_NODATAXFER     0x00000000
+#define IOACCEL1_CONTROL_DATA_OUT       0x01000000
+#define IOACCEL1_CONTROL_DATA_IN        0x02000000
+#define IOACCEL1_CONTROL_TASKPRIO_MASK  0x00007800
+#define IOACCEL1_CONTROL_TASKPRIO_SHIFT 11
+#define IOACCEL1_CONTROL_SIMPLEQUEUE    0x00000000
+#define IOACCEL1_CONTROL_HEADOFQUEUE    0x00000100
+#define IOACCEL1_CONTROL_ORDEREDQUEUE   0x00000200
+#define IOACCEL1_CONTROL_ACA            0x00000400
+
+#define IOACCEL1_HCFLAGS_CISS_FORMAT    0x0013
+
+#define IOACCEL1_BUSADDR_CMDTYPE        0x00000060
+
 /* Configuration Table Structure */
 struct HostWrite {
 	u32 TransportRequest;
@@ -346,6 +405,7 @@ struct HostWrite {
 #define SIMPLE_MODE     0x02
 #define PERFORMANT_MODE 0x04
 #define MEMQ_MODE       0x08
+#define IOACCEL_MODE_1  0x80
 
 struct CfgTable {
 	u8            Signature[4];
