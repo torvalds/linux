@@ -787,6 +787,11 @@ static void hpsa_scsi_update_entry(struct ctlr_info *h, int hostno,
 
 	/* Raid level changed. */
 	h->dev[entry]->raid_level = new_entry->raid_level;
+
+	/* Raid offload parameters changed. */
+	h->dev[entry]->offload_config = new_entry->offload_config;
+	h->dev[entry]->offload_enabled = new_entry->offload_enabled;
+
 	dev_info(&h->pdev->dev, "%s device c%db%dt%dl%d updated.\n",
 		scsi_device_type(new_entry->devtype), hostno, new_entry->bus,
 		new_entry->target, new_entry->lun);
@@ -906,6 +911,10 @@ static inline int device_updated(struct hpsa_scsi_dev_t *dev1,
 	 * needs to be told anything about the change.
 	 */
 	if (dev1->raid_level != dev2->raid_level)
+		return 1;
+	if (dev1->offload_config != dev2->offload_config)
+		return 1;
+	if (dev1->offload_enabled != dev2->offload_enabled)
 		return 1;
 	return 0;
 }
