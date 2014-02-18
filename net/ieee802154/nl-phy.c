@@ -436,8 +436,7 @@ static int phy_set_csma_params(struct wpan_phy *phy, struct genl_info *info)
 	if (info->attrs[IEEE802154_ATTR_CSMA_MAX_BE])
 		max_be = nla_get_u8(info->attrs[IEEE802154_ATTR_CSMA_MAX_BE]);
 
-	if (retries > 5 || max_be > 8 || min_be > max_be ||
-	    retries < -1 || retries > 7)
+	if (retries > 5 || max_be < 3 || max_be > 8 || min_be > max_be)
 		return -EINVAL;
 
 	rc = phy->set_csma_params(phy, min_be, max_be, retries);
@@ -455,6 +454,9 @@ static int phy_set_frame_retries(struct wpan_phy *phy, struct genl_info *info)
 {
 	s8 retries = nla_get_s8(info->attrs[IEEE802154_ATTR_FRAME_RETRIES]);
 	int rc;
+
+	if (retries < -1 || retries > 7)
+		return -EINVAL;
 
 	rc = phy->set_frame_retries(phy, retries);
 	if (rc < 0)
