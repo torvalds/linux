@@ -706,11 +706,17 @@ static inline unsigned int flits_to_desc(unsigned int n)
  *	@skb: the packet
  *
  *	Returns whether an Ethernet packet is small enough to fit as
- *	immediate data.
+ *	immediate data. Return value corresponds to headroom required.
  */
 static inline int is_eth_imm(const struct sk_buff *skb)
 {
-	return skb->len <= MAX_IMM_TX_PKT_LEN - sizeof(struct cpl_tx_pkt);
+	int hdrlen = skb_shinfo(skb)->gso_size ?
+			sizeof(struct cpl_tx_pkt_lso_core) : 0;
+
+	hdrlen += sizeof(struct cpl_tx_pkt);
+	if (skb->len <= MAX_IMM_TX_PKT_LEN - hdrlen)
+		return hdrlen;
+	return 0;
 }
 
 /**
@@ -723,9 +729,10 @@ static inline int is_eth_imm(const struct sk_buff *skb)
 static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 {
 	unsigned int flits;
+	int hdrlen = is_eth_imm(skb);
 
-	if (is_eth_imm(skb))
-		return DIV_ROUND_UP(skb->len + sizeof(struct cpl_tx_pkt), 8);
+	if (hdrlen)
+		return DIV_ROUND_UP(skb->len + hdrlen, sizeof(__be64));
 
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1) + 4;
 	if (skb_shinfo(skb)->gso_size)
@@ -971,6 +978,7 @@ static inline void txq_advance(struct sge_txq *q, unsigned int n)
  */
 netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	int len;
 	u32 wr_mid;
 	u64 cntrl, *end;
 	int qidx, credits;
@@ -982,6 +990,7 @@ netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct cpl_tx_pkt_core *cpl;
 	const struct skb_shared_info *ssi;
 	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+	bool immediate = false;
 
 	/*
 	 * The chip min packet length is 10 octets but play safe and reject
@@ -1011,7 +1020,10 @@ out_free:	dev_kfree_skb(skb);
 		return NETDEV_TX_BUSY;
 	}
 
-	if (!is_eth_imm(skb) &&
+	if (is_eth_imm(skb))
+		immediate = true;
+
+	if (!immediate &&
 	    unlikely(map_skb(adap->pdev_dev, skb, addr) < 0)) {
 		q->mapping_err++;
 		goto out_free;
@@ -1028,6 +1040,8 @@ out_free:	dev_kfree_skb(skb);
 	wr->r3 = cpu_to_be64(0);
 	end = (u64 *)wr + flits;
 
+	len = immediate ? skb->len : 0;
+	len += sizeof(*cpl);
 	ssi = skb_shinfo(skb);
 	if (ssi->gso_size) {
 		struct cpl_tx_pkt_lso *lso = (void *)wr;
@@ -1035,8 +1049,9 @@ out_free:	dev_kfree_skb(skb);
 		int l3hdr_len = skb_network_header_len(skb);
 		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
 
+		len += sizeof(*lso);
 		wr->op_immdlen = htonl(FW_WR_OP(FW_ETH_TX_PKT_WR) |
-				       FW_WR_IMMDLEN(sizeof(*lso)));
+				       FW_WR_IMMDLEN(len));
 		lso->c.lso_ctrl = htonl(LSO_OPCODE(CPL_TX_PKT_LSO) |
 					LSO_FIRST_SLICE | LSO_LAST_SLICE |
 					LSO_IPV6(v6) |
@@ -1054,9 +1069,6 @@ out_free:	dev_kfree_skb(skb);
 		q->tso++;
 		q->tx_cso += ssi->gso_segs;
 	} else {
-		int len;
-
-		len = is_eth_imm(skb) ? skb->len + sizeof(*cpl) : sizeof(*cpl);
 		wr->op_immdlen = htonl(FW_WR_OP(FW_ETH_TX_PKT_WR) |
 				       FW_WR_IMMDLEN(len));
 		cpl = (void *)(wr + 1);
@@ -1078,7 +1090,7 @@ out_free:	dev_kfree_skb(skb);
 	cpl->len = htons(skb->len);
 	cpl->ctrl1 = cpu_to_be64(cntrl);
 
-	if (is_eth_imm(skb)) {
+	if (immediate) {
 		inline_tx_skb(skb, &q->q, cpl + 1);
 		dev_kfree_skb(skb);
 	} else {
