@@ -2475,7 +2475,6 @@ static int enable_msix(struct adapter *adapter)
 		for (i = 0; i < want; ++i)
 			adapter->msix_info[i].vec = entries[i].vector;
 	} else if (err > 0) {
-		pci_disable_msix(adapter->pdev);
 		dev_info(adapter->pdev_dev, "only %d MSI-X vectors left,"
 			 " not using MSI-X\n", err);
 	}
