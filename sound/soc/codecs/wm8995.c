@@ -423,24 +423,24 @@ static const char *in1l_text[] = {
 	"Differential", "Single-ended IN1LN", "Single-ended IN1LP"
 };
 
-static const SOC_ENUM_SINGLE_DECL(in1l_enum, WM8995_LEFT_LINE_INPUT_CONTROL,
-				  2, in1l_text);
+static SOC_ENUM_SINGLE_DECL(in1l_enum, WM8995_LEFT_LINE_INPUT_CONTROL,
+			    2, in1l_text);
 
 static const char *in1r_text[] = {
 	"Differential", "Single-ended IN1RN", "Single-ended IN1RP"
 };
 
-static const SOC_ENUM_SINGLE_DECL(in1r_enum, WM8995_LEFT_LINE_INPUT_CONTROL,
-				  0, in1r_text);
+static SOC_ENUM_SINGLE_DECL(in1r_enum, WM8995_LEFT_LINE_INPUT_CONTROL,
+			    0, in1r_text);
 
 static const char *dmic_src_text[] = {
 	"DMICDAT1", "DMICDAT2", "DMICDAT3"
 };
 
-static const SOC_ENUM_SINGLE_DECL(dmic_src1_enum, WM8995_POWER_MANAGEMENT_5,
-				  8, dmic_src_text);
-static const SOC_ENUM_SINGLE_DECL(dmic_src2_enum, WM8995_POWER_MANAGEMENT_5,
-				  6, dmic_src_text);
+static SOC_ENUM_SINGLE_DECL(dmic_src1_enum, WM8995_POWER_MANAGEMENT_5,
+			    8, dmic_src_text);
+static SOC_ENUM_SINGLE_DECL(dmic_src2_enum, WM8995_POWER_MANAGEMENT_5,
+			    6, dmic_src_text);
 
 static const struct snd_kcontrol_new wm8995_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("DAC1 Volume", WM8995_DAC1_LEFT_VOLUME,
@@ -899,14 +899,14 @@ static const char *spk_src_text[] = {
 	"DAC1L", "DAC1R", "DAC2L", "DAC2R"
 };
 
-static const SOC_ENUM_SINGLE_DECL(spk1l_src_enum, WM8995_LEFT_PDM_SPEAKER_1,
-				  0, spk_src_text);
-static const SOC_ENUM_SINGLE_DECL(spk1r_src_enum, WM8995_RIGHT_PDM_SPEAKER_1,
-				  0, spk_src_text);
-static const SOC_ENUM_SINGLE_DECL(spk2l_src_enum, WM8995_LEFT_PDM_SPEAKER_2,
-				  0, spk_src_text);
-static const SOC_ENUM_SINGLE_DECL(spk2r_src_enum, WM8995_RIGHT_PDM_SPEAKER_2,
-				  0, spk_src_text);
+static SOC_ENUM_SINGLE_DECL(spk1l_src_enum, WM8995_LEFT_PDM_SPEAKER_1,
+			    0, spk_src_text);
+static SOC_ENUM_SINGLE_DECL(spk1r_src_enum, WM8995_RIGHT_PDM_SPEAKER_1,
+			    0, spk_src_text);
+static SOC_ENUM_SINGLE_DECL(spk2l_src_enum, WM8995_LEFT_PDM_SPEAKER_2,
+			    0, spk_src_text);
+static SOC_ENUM_SINGLE_DECL(spk2r_src_enum, WM8995_RIGHT_PDM_SPEAKER_2,
+			    0, spk_src_text);
 
 static const struct snd_kcontrol_new spk1l_mux =
 	SOC_DAPM_ENUM("SPK1L SRC", spk1l_src_enum);
