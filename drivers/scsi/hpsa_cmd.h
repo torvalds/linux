@@ -82,8 +82,9 @@
 #define ATTR_ACA                0x07
 
 /* cdb type */
-#define TYPE_CMD				0x00
-#define TYPE_MSG				0x01
+#define TYPE_CMD		0x00
+#define TYPE_MSG		0x01
+#define TYPE_IOACCEL2_CMD	0x81 /* 0x81 is not used by hardware */
 
 /* Message Types  */
 #define HPSA_TASK_MANAGEMENT    0x00
@@ -525,7 +526,7 @@ struct io_accel2_cmd {
  * FIXME: this can't be all I need mfm
  */
 #define IOACCEL2_IU_TYPE	0x40
-#define IU_TYPE_TMF		0x41
+#define IOACCEL2_IU_TMF_TYPE	0x41
 #define IOACCEL2_DIR_NO_DATA	0x00
 #define IOACCEL2_DIR_DATA_IN	0x01
 #define IOACCEL2_DIR_DATA_OUT	0x02

@@ -2307,6 +2307,85 @@ static int add_ext_target_dev(struct ctlr_info *h,
 }
 
 /*
+ * Get address of physical disk used for an ioaccel2 mode command:
+ *	1. Extract ioaccel2 handle from the command.
+ *	2. Find a matching ioaccel2 handle from list of physical disks.
+ *	3. Return:
+ *		1 and set scsi3addr to address of matching physical
+ *		0 if no matching physical disk was found.
+ */
+static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
+	struct CommandList *ioaccel2_cmd_to_abort, unsigned char *scsi3addr)
+{
+	struct ReportExtendedLUNdata *physicals = NULL;
+	int responsesize = 24;	/* size of physical extended response */
+	int extended = 2;	/* flag forces reporting 'other dev info'. */
+	int reportsize = sizeof(*physicals) + HPSA_MAX_PHYS_LUN * responsesize;
+	u32 nphysicals = 0;	/* number of reported physical devs */
+	int found = 0;		/* found match (1) or not (0) */
+	u32 find;		/* handle we need to match */
+	int i;
+	struct scsi_cmnd *scmd;	/* scsi command within request being aborted */
+	struct hpsa_scsi_dev_t *d; /* device of request being aborted */
+	struct io_accel2_cmd *c2a; /* ioaccel2 command to abort */
+	u32 it_nexus;		/* 4 byte device handle for the ioaccel2 cmd */
+	u32 scsi_nexus;		/* 4 byte device handle for the ioaccel2 cmd */
+
+	if (ioaccel2_cmd_to_abort->cmd_type != CMD_IOACCEL2)
+		return 0; /* no match */
+
+	/* point to the ioaccel2 device handle */
+	c2a = &h->ioaccel2_cmd_pool[ioaccel2_cmd_to_abort->cmdindex];
+	if (c2a == NULL)
+		return 0; /* no match */
+
+	scmd = (struct scsi_cmnd *) ioaccel2_cmd_to_abort->scsi_cmd;
+	if (scmd == NULL)
+		return 0; /* no match */
+
+	d = scmd->device->hostdata;
+	if (d == NULL)
+		return 0; /* no match */
+
+	it_nexus = cpu_to_le32((u32) d->ioaccel_handle);
+	scsi_nexus = cpu_to_le32((u32) c2a->scsi_nexus);
+	find = c2a->scsi_nexus;
+
+	/* Get the list of physical devices */
+	physicals = kzalloc(reportsize, GFP_KERNEL);
+	if (hpsa_scsi_do_report_phys_luns(h, (struct ReportLUNdata *) physicals,
+		reportsize, extended)) {
+		dev_err(&h->pdev->dev,
+			"Can't lookup %s device handle: report physical LUNs failed.\n",
+			"HP SSD Smart Path");
+		kfree(physicals);
+		return 0;
+	}
+	nphysicals = be32_to_cpu(*((__be32 *)physicals->LUNListLength)) /
+							responsesize;
+
+
+	/* find ioaccel2 handle in list of physicals: */
+	for (i = 0; i < nphysicals; i++) {
+		/* handle is in bytes 28-31 of each lun */
+		if (memcmp(&((struct ReportExtendedLUNdata *)
+				physicals)->LUN[i][20], &find, 4) != 0) {
+			continue; /* didn't match */
+		}
+		found = 1;
+		memcpy(scsi3addr, &((struct ReportExtendedLUNdata *)
+					physicals)->LUN[i][0], 8);
+		break; /* found it */
+	}
+
+	kfree(physicals);
+	if (found)
+		return 1;
+	else
+		return 0;
+
+}
+/*
  * Do CISS_REPORT_PHYS and CISS_REPORT_LOG.  Data is returned in physdev,
  * logdev.  The number of luns in physdev and logdev are returned in
  * *nphysicals and *nlogicals, respectively.
@@ -3423,11 +3502,19 @@ static void hpsa_get_tag(struct ctlr_info *h,
 			&h->ioaccel_cmd_pool[c->cmdindex];
 		*tagupper = cm1->Tag.upper;
 		*taglower = cm1->Tag.lower;
-	} else {
-		*tagupper = c->Header.Tag.upper;
-		*taglower = c->Header.Tag.lower;
+		return;
 	}
+	if (c->cmd_type == CMD_IOACCEL2) {
+		struct io_accel2_cmd *cm2 = (struct io_accel2_cmd *)
+			&h->ioaccel2_cmd_pool[c->cmdindex];
+		*tagupper = cm2->Tag.upper;
+		*taglower = cm2->Tag.lower;
+		return;
+	}
+	*tagupper = c->Header.Tag.upper;
+	*taglower = c->Header.Tag.lower;
 }
+
 
 static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
 	struct CommandList *abort, int swizzle)
@@ -3524,6 +3611,71 @@ static struct CommandList *hpsa_find_cmd_in_queue_by_tag(struct ctlr_info *h,
 	return NULL;
 }
 
+/* ioaccel2 path firmware cannot handle abort task requests.
+ * Change abort requests to physical target reset, and send to the
+ * address of the physical disk used for the ioaccel 2 command.
+ * Return 0 on success (IO_OK)
+ *	 -1 on failure
+ */
+
+static int hpsa_send_reset_as_abort_ioaccel2(struct ctlr_info *h,
+	unsigned char *scsi3addr, struct CommandList *abort)
+{
+	int rc = IO_OK;
+	struct scsi_cmnd *scmd; /* scsi command within request being aborted */
+	struct hpsa_scsi_dev_t *dev; /* device to which scsi cmd was sent */
+	unsigned char phys_scsi3addr[8]; /* addr of phys disk with volume */
+	unsigned char *psa = &phys_scsi3addr[0];
+
+	/* Get a pointer to the hpsa logical device. */
+	scmd = (struct scsi_cmnd *) abort->scsi_cmd;
+	dev = (struct hpsa_scsi_dev_t *)(scmd->device->hostdata);
+	if (dev == NULL) {
+		dev_warn(&h->pdev->dev,
+			"Cannot abort: no device pointer for command.\n");
+			return -1; /* not abortable */
+	}
+
+	if (!dev->offload_enabled) {
+		dev_warn(&h->pdev->dev,
+			"Can't abort: device is not operating in HP SSD Smart Path mode.\n");
+		return -1; /* not abortable */
+	}
+
+	/* Incoming scsi3addr is logical addr. We need physical disk addr. */
+	if (!hpsa_get_pdisk_of_ioaccel2(h, abort, psa)) {
+		dev_warn(&h->pdev->dev, "Can't abort: Failed lookup of physical address.\n");
+		return -1; /* not abortable */
+	}
+
+	/* send the reset */
+	rc = hpsa_send_reset(h, psa, HPSA_RESET_TYPE_TARGET);
+	if (rc != 0) {
+		dev_warn(&h->pdev->dev,
+			"Reset as abort: Failed on physical device at scsi3addr 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			psa[0], psa[1], psa[2], psa[3],
+			psa[4], psa[5], psa[6], psa[7]);
+		return rc; /* failed to reset */
+	}
+
+	/* wait for device to recover */
+	if (wait_for_device_to_become_ready(h, psa) != 0) {
+		dev_warn(&h->pdev->dev,
+			"Reset as abort: Failed: Device never recovered from reset: 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			psa[0], psa[1], psa[2], psa[3],
+			psa[4], psa[5], psa[6], psa[7]);
+		return -1;  /* failed to recover */
+	}
+
+	/* device recovered */
+	dev_info(&h->pdev->dev,
+		"Reset as abort: Device recovered from reset: scsi3addr 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		psa[0], psa[1], psa[2], psa[3],
+		psa[4], psa[5], psa[6], psa[7]);
+
+	return rc; /* success */
+}
+
 /* Some Smart Arrays need the abort tag swizzled, and some don't.  It's hard to
  * tell which kind we're dealing with, so we send the abort both ways.  There
  * shouldn't be any collisions between swizzled and unswizzled tags due to the
@@ -3536,6 +3688,14 @@ static int hpsa_send_abort_both_ways(struct ctlr_info *h,
 	u8 swizzled_tag[8];
 	struct CommandList *c;
 	int rc = 0, rc2 = 0;
+
+	/* ioccelerator mode 2 commands should be aborted via the
+	 * accelerated path, since RAID path is unaware of these commands,
+	 * but underlying firmware can't handle abort TMF.
+	 * Change abort to physical device reset.
+	 */
+	if (abort->cmd_type == CMD_IOACCEL2)
+		return hpsa_send_reset_as_abort_ioaccel2(h, scsi3addr, abort);
 
 	/* we do not expect to find the swizzled tag in our queue, but
 	 * check anyway just to be sure the assumptions which make this
