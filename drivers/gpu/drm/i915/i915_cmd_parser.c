@@ -244,6 +244,45 @@ static const struct drm_i915_cmd_table hsw_blt_ring_cmds[] = {
 	{ hsw_blt_cmds, ARRAY_SIZE(hsw_blt_cmds) },
 };
 
+/*
+ * Register whitelists, sorted by increasing register offset.
+ *
+ * Some registers that userspace accesses are 64 bits. The register
+ * access commands only allow 32-bit accesses. Hence, we have to include
+ * entries for both halves of the 64-bit registers.
+ */
+
+/* Convenience macro for adding 64-bit registers */
+#define REG64(addr) (addr), (addr + sizeof(u32))
+
+static const u32 gen7_render_regs[] = {
+	REG64(HS_INVOCATION_COUNT),
+	REG64(DS_INVOCATION_COUNT),
+	REG64(IA_VERTICES_COUNT),
+	REG64(IA_PRIMITIVES_COUNT),
+	REG64(VS_INVOCATION_COUNT),
+	REG64(GS_INVOCATION_COUNT),
+	REG64(GS_PRIMITIVES_COUNT),
+	REG64(CL_INVOCATION_COUNT),
+	REG64(CL_PRIMITIVES_COUNT),
+	REG64(PS_INVOCATION_COUNT),
+	REG64(PS_DEPTH_COUNT),
+	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(0)),
+	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(1)),
+	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(2)),
+	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(3)),
+	GEN7_SO_WRITE_OFFSET(0),
+	GEN7_SO_WRITE_OFFSET(1),
+	GEN7_SO_WRITE_OFFSET(2),
+	GEN7_SO_WRITE_OFFSET(3),
+};
+
+static const u32 gen7_blt_regs[] = {
+	BCS_SWCTRL,
+};
+
+#undef REG64
+
 static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
 {
 	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
@@ -367,6 +406,9 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 			ring->cmd_table_count = ARRAY_SIZE(gen7_render_cmds);
 		}
 
+		ring->reg_table = gen7_render_regs;
+		ring->reg_count = ARRAY_SIZE(gen7_render_regs);
+
 		ring->get_cmd_length_mask = gen7_render_get_cmd_length_mask;
 		break;
 	case VCS:
@@ -382,6 +424,9 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 			ring->cmd_tables = gen7_blt_cmds;
 			ring->cmd_table_count = ARRAY_SIZE(gen7_blt_cmds);
 		}
+
+		ring->reg_table = gen7_blt_regs;
+		ring->reg_count = ARRAY_SIZE(gen7_blt_regs);
 
 		ring->get_cmd_length_mask = gen7_blt_get_cmd_length_mask;
 		break;

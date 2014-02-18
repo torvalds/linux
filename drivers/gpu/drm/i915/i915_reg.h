@@ -397,6 +397,26 @@
 #define SRC_COPY_BLT  ((0x2<<29)|(0x43<<22))
 
 /*
+ * Registers used only by the command parser
+ */
+#define BCS_SWCTRL 0x22200
+
+#define HS_INVOCATION_COUNT 0x2300
+#define DS_INVOCATION_COUNT 0x2308
+#define IA_VERTICES_COUNT   0x2310
+#define IA_PRIMITIVES_COUNT 0x2318
+#define VS_INVOCATION_COUNT 0x2320
+#define GS_INVOCATION_COUNT 0x2328
+#define GS_PRIMITIVES_COUNT 0x2330
+#define CL_INVOCATION_COUNT 0x2338
+#define CL_PRIMITIVES_COUNT 0x2340
+#define PS_INVOCATION_COUNT 0x2348
+#define PS_DEPTH_COUNT      0x2350
+
+/* There are the 4 64-bit counter registers, one for each stream output */
+#define GEN7_SO_NUM_PRIMS_WRITTEN(n) (0x5200 + (n) * 8)
+
+/*
  * Reset registers
  */
 #define DEBUG_RESET_I830		0x6070
