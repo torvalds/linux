@@ -2602,12 +2602,27 @@ static void swizzle_abort_tag(u8 *tag)
 	tag[7] = original_tag[4];
 }
 
+static void hpsa_get_tag(struct ctlr_info *h,
+	struct CommandList *c, u32 *taglower, u32 *tagupper)
+{
+	if (c->cmd_type == CMD_IOACCEL1) {
+		struct io_accel1_cmd *cm1 = (struct io_accel1_cmd *)
+			&h->ioaccel_cmd_pool[c->cmdindex];
+		*tagupper = cm1->Tag.upper;
+		*taglower = cm1->Tag.lower;
+	} else {
+		*tagupper = c->Header.Tag.upper;
+		*taglower = c->Header.Tag.lower;
+	}
+}
+
 static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
 	struct CommandList *abort, int swizzle)
 {
 	int rc = IO_OK;
 	struct CommandList *c;
 	struct ErrorInfo *ei;
+	u32 tagupper, taglower;
 
 	c = cmd_special_alloc(h);
 	if (c == NULL) {	/* trouble... */
@@ -2621,8 +2636,9 @@ static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
 	if (swizzle)
 		swizzle_abort_tag(&c->Request.CDB[4]);
 	hpsa_scsi_do_simple_cmd_core(h, c);
+	hpsa_get_tag(h, abort, &taglower, &tagupper);
 	dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: do_simple_cmd_core completed.\n",
-		__func__, abort->Header.Tag.upper, abort->Header.Tag.lower);
+		__func__, tagupper, taglower);
 	/* no unmap needed here because no data xfer. */
 
 	ei = c->err_info;
@@ -2634,8 +2650,7 @@ static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
 		break;
 	default:
 		dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: interpreting error.\n",
-			__func__, abort->Header.Tag.upper,
-			abort->Header.Tag.lower);
+			__func__, tagupper, taglower);
 		hpsa_scsi_interpret_error(c);
 		rc = -1;
 		break;
@@ -2747,6 +2762,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 	struct scsi_cmnd *as;	/* ptr to scsi cmd inside aborted command. */
 	char msg[256];		/* For debug messaging. */
 	int ml = 0;
+	u32 tagupper, taglower;
 
 	/* Find the controller of the command to be aborted */
 	h = sdev_to_hba(sc->device);
@@ -2779,9 +2795,8 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 				msg);
 		return FAILED;
 	}
-
-	ml += sprintf(msg+ml, "Tag:0x%08x:%08x ",
-		abort->Header.Tag.upper, abort->Header.Tag.lower);
+	hpsa_get_tag(h, abort, &taglower, &tagupper);
+	ml += sprintf(msg+ml, "Tag:0x%08x:%08x ", tagupper, taglower);
 	as  = (struct scsi_cmnd *) abort->scsi_cmd;
 	if (as != NULL)
 		ml += sprintf(msg+ml, "Command:0x%x SN:0x%lx ",
