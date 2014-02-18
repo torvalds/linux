@@ -861,8 +861,7 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 			}
 			if (!buffer_mapped(bh)) {
 				zero_user(page, block_start, blocksize);
-				if (!err)
-					set_buffer_uptodate(bh);
+				set_buffer_uptodate(bh);
 				continue;
 			}
 		}
