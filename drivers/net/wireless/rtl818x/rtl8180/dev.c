@@ -341,6 +341,12 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	 */
 	wmb();
 	entry->flags = cpu_to_le32(tx_flags);
+	/* We must be sure this has been written before followings HW
+	 * register write, because this write will made the HW attempts
+	 * to DMA the just-written data
+	 */
+	wmb();
+
 	__skb_queue_tail(&ring->queue, skb);
 	if (ring->entries - skb_queue_len(&ring->queue) < 2)
 		ieee80211_stop_queue(dev, prio);
