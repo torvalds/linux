@@ -896,3 +896,22 @@ int i915_parse_cmds(struct intel_ring_buffer *ring,
 
 	return ret;
 }
+
+/**
+ * i915_cmd_parser_get_version() - get the cmd parser version number
+ *
+ * The cmd parser maintains a simple increasing integer version number suitable
+ * for passing to userspace clients to determine what operations are permitted.
+ *
+ * Return: the current version number of the cmd parser
+ */
+int i915_cmd_parser_get_version(void)
+{
+	/*
+	 * Command parser version history
+	 *
+	 * 1. Initial version. Checks batches and reports violations, but leaves
+	 *    hardware parsing enabled (so does not allow new use cases).
+	 */
+	return 1;
+}
