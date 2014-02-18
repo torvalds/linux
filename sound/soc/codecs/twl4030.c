@@ -415,10 +415,9 @@ static const struct snd_kcontrol_new twl4030_dapm_carkitr_controls[] = {
 static const char *twl4030_handsfreel_texts[] =
 		{"Voice", "AudioL1", "AudioL2", "AudioR2"};
 
-static const struct soc_enum twl4030_handsfreel_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_HFL_CTL, 0,
-			ARRAY_SIZE(twl4030_handsfreel_texts),
-			twl4030_handsfreel_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_handsfreel_enum,
+			    TWL4030_REG_HFL_CTL, 0,
+			    twl4030_handsfreel_texts);
 
 static const struct snd_kcontrol_new twl4030_dapm_handsfreel_control =
 SOC_DAPM_ENUM("Route", twl4030_handsfreel_enum);
@@ -431,10 +430,9 @@ static const struct snd_kcontrol_new twl4030_dapm_handsfreelmute_control =
 static const char *twl4030_handsfreer_texts[] =
 		{"Voice", "AudioR1", "AudioR2", "AudioL2"};
 
-static const struct soc_enum twl4030_handsfreer_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_HFR_CTL, 0,
-			ARRAY_SIZE(twl4030_handsfreer_texts),
-			twl4030_handsfreer_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_handsfreer_enum,
+			    TWL4030_REG_HFR_CTL, 0,
+			    twl4030_handsfreer_texts);
 
 static const struct snd_kcontrol_new twl4030_dapm_handsfreer_control =
 SOC_DAPM_ENUM("Route", twl4030_handsfreer_enum);
@@ -448,10 +446,9 @@ static const struct snd_kcontrol_new twl4030_dapm_handsfreermute_control =
 static const char *twl4030_vibra_texts[] =
 		{"AudioL1", "AudioR1", "AudioL2", "AudioR2"};
 
-static const struct soc_enum twl4030_vibra_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_VIBRA_CTL, 2,
-			ARRAY_SIZE(twl4030_vibra_texts),
-			twl4030_vibra_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_vibra_enum,
+			    TWL4030_REG_VIBRA_CTL, 2,
+			    twl4030_vibra_texts);
 
 static const struct snd_kcontrol_new twl4030_dapm_vibra_control =
 SOC_DAPM_ENUM("Route", twl4030_vibra_enum);
@@ -460,10 +457,9 @@ SOC_DAPM_ENUM("Route", twl4030_vibra_enum);
 static const char *twl4030_vibrapath_texts[] =
 		{"Local vibrator", "Audio"};
 
-static const struct soc_enum twl4030_vibrapath_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_VIBRA_CTL, 4,
-			ARRAY_SIZE(twl4030_vibrapath_texts),
-			twl4030_vibrapath_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_vibrapath_enum,
+			    TWL4030_REG_VIBRA_CTL, 4,
+			    twl4030_vibrapath_texts);
 
 static const struct snd_kcontrol_new twl4030_dapm_vibrapath_control =
 SOC_DAPM_ENUM("Route", twl4030_vibrapath_enum);
@@ -490,10 +486,9 @@ static const struct snd_kcontrol_new twl4030_dapm_analogrmic_controls[] = {
 static const char *twl4030_micpathtx1_texts[] =
 		{"Analog", "Digimic0"};
 
-static const struct soc_enum twl4030_micpathtx1_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_ADCMICSEL, 0,
-			ARRAY_SIZE(twl4030_micpathtx1_texts),
-			twl4030_micpathtx1_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_micpathtx1_enum,
+			    TWL4030_REG_ADCMICSEL, 0,
+			    twl4030_micpathtx1_texts);
 
 static const struct snd_kcontrol_new twl4030_dapm_micpathtx1_control =
 SOC_DAPM_ENUM("Route", twl4030_micpathtx1_enum);
@@ -502,10 +497,9 @@ SOC_DAPM_ENUM("Route", twl4030_micpathtx1_enum);
 static const char *twl4030_micpathtx2_texts[] =
 		{"Analog", "Digimic1"};
 
-static const struct soc_enum twl4030_micpathtx2_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_ADCMICSEL, 2,
-			ARRAY_SIZE(twl4030_micpathtx2_texts),
-			twl4030_micpathtx2_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_micpathtx2_enum,
+			    TWL4030_REG_ADCMICSEL, 2,
+			    twl4030_micpathtx2_texts);
 
 static const struct snd_kcontrol_new twl4030_dapm_micpathtx2_control =
 SOC_DAPM_ENUM("Route", twl4030_micpathtx2_enum);
@@ -955,10 +949,9 @@ static const char *twl4030_op_modes_texts[] = {
 	"Option 2 (voice/audio)", "Option 1 (audio)"
 };
 
-static const struct soc_enum twl4030_op_modes_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_CODEC_MODE, 0,
-			ARRAY_SIZE(twl4030_op_modes_texts),
-			twl4030_op_modes_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_op_modes_enum,
+			    TWL4030_REG_CODEC_MODE, 0,
+			    twl4030_op_modes_texts);
 
 static int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -1044,10 +1037,9 @@ static const char *twl4030_avadc_clk_priority_texts[] = {
 	"Voice high priority", "HiFi high priority"
 };
 
-static const struct soc_enum twl4030_avadc_clk_priority_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_AVADC_CTL, 2,
-			ARRAY_SIZE(twl4030_avadc_clk_priority_texts),
-			twl4030_avadc_clk_priority_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_avadc_clk_priority_enum,
+			    TWL4030_REG_AVADC_CTL, 2,
+			    twl4030_avadc_clk_priority_texts);
 
 static const char *twl4030_rampdelay_texts[] = {
 	"27/20/14 ms", "55/40/27 ms", "109/81/55 ms", "218/161/109 ms",
@@ -1055,40 +1047,36 @@ static const char *twl4030_rampdelay_texts[] = {
 	"3495/2581/1748 ms"
 };
 
-static const struct soc_enum twl4030_rampdelay_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_HS_POPN_SET, 2,
-			ARRAY_SIZE(twl4030_rampdelay_texts),
-			twl4030_rampdelay_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_rampdelay_enum,
+			    TWL4030_REG_HS_POPN_SET, 2,
+			    twl4030_rampdelay_texts);
 
 /* Vibra H-bridge direction mode */
 static const char *twl4030_vibradirmode_texts[] = {
 	"Vibra H-bridge direction", "Audio data MSB",
 };
 
-static const struct soc_enum twl4030_vibradirmode_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_VIBRA_CTL, 5,
-			ARRAY_SIZE(twl4030_vibradirmode_texts),
-			twl4030_vibradirmode_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_vibradirmode_enum,
+			    TWL4030_REG_VIBRA_CTL, 5,
+			    twl4030_vibradirmode_texts);
 
 /* Vibra H-bridge direction */
 static const char *twl4030_vibradir_texts[] = {
 	"Positive polarity", "Negative polarity",
 };
 
-static const struct soc_enum twl4030_vibradir_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_VIBRA_CTL, 1,
-			ARRAY_SIZE(twl4030_vibradir_texts),
-			twl4030_vibradir_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_vibradir_enum,
+			    TWL4030_REG_VIBRA_CTL, 1,
+			    twl4030_vibradir_texts);
 
 /* Digimic Left and right swapping */
 static const char *twl4030_digimicswap_texts[] = {
 	"Not swapped", "Swapped",
 };
 
-static const struct soc_enum twl4030_digimicswap_enum =
-	SOC_ENUM_SINGLE(TWL4030_REG_MISC_SET_1, 0,
-			ARRAY_SIZE(twl4030_digimicswap_texts),
-			twl4030_digimicswap_texts);
+static SOC_ENUM_SINGLE_DECL(twl4030_digimicswap_enum,
+			    TWL4030_REG_MISC_SET_1, 0,
+			    twl4030_digimicswap_texts);
 
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 	/* Codec operation mode control */
