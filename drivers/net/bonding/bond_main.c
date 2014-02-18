@@ -2260,8 +2260,6 @@ int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
 		return RX_HANDLER_ANOTHER;
 
-	read_lock(&bond->lock);
-
 	if (!slave_do_arp_validate(bond, slave))
 		goto out_unlock;
 
@@ -2318,7 +2316,6 @@ int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 		bond_validate_arp(bond, slave, tip, sip);
 
 out_unlock:
-	read_unlock(&bond->lock);
 	if (arp != (struct arphdr *)skb->data)
 		kfree(arp);
 	return RX_HANDLER_ANOTHER;
