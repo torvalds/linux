@@ -580,7 +580,6 @@ static int rkclk_register(struct rkclk *rkclk)
 	const char		**parent_names = NULL;
 	struct clk_hw		*rate_hw;
 	int			parent_num;
-	struct device_node	*node = rkclk->np;
 
 
 	clk_debug("%s >>>>>start: clk_name=%s, clk_type=%x\n",
@@ -699,7 +698,6 @@ static int rkclk_register(struct rkclk *rkclk)
 
 	if (clk) {
 		clk_debug("clk name=%s, flags=0x%lx\n", clk->name, clk->flags);
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 		clk_register_clkdev(clk, rkclk->clk_name, NULL);
 	} else {
 		clk_err("%s: clk(\"%s\") register clk error\n",
@@ -707,6 +705,115 @@ static int rkclk_register(struct rkclk *rkclk)
 	}
 
 	return 0;
+}
+
+static int rkclk_add_provider(struct device_node *np)
+{
+	int i, cnt, ret = 0;
+	const char *name = NULL;
+	struct clk *clk = NULL;
+	struct clk_onecell_data *clk_data = NULL;
+
+
+	clk_debug("\n");
+
+	cnt = of_property_count_strings(np, "clock-output-names");
+	if (cnt < 0) {
+		clk_err("%s: error in clock-output-names, cnt=%d\n", __func__,
+				cnt);
+		return -EINVAL;
+	}
+
+	clk_debug("%s: cnt = %d\n", __func__, cnt);
+
+	if (cnt == 0) {
+		clk_debug("%s: nothing to do\n", __func__);
+		return 0;
+	}
+
+	if (cnt == 1) {
+		of_property_read_string(np, "clock-output-names", &name);
+		clk_debug("clock-output-names = %s\n", name);
+
+		clk = clk_get_sys(NULL, name);
+		if (IS_ERR(clk)) {
+			clk_err("%s: fail to get %s\n", __func__, name);
+			return -EINVAL;
+		}
+
+		ret = of_clk_add_provider(np, of_clk_src_simple_get, clk);
+		clk_debug("use of_clk_src_simple_get, ret=%d\n", ret);
+	} else {
+		clk_data = kzalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
+		if (!clk_data)
+			return -ENOMEM;
+
+		clk_data->clks = kzalloc(cnt * sizeof(struct clk *), GFP_KERNEL);
+		if (!clk_data->clks) {
+			kfree(clk_data);
+			return -ENOMEM;
+		}
+
+		clk_data->clk_num = cnt;
+
+		for (i=0; i<cnt; i++) {
+			of_property_read_string_index(np, "clock-output-names",
+					i, &name);
+			clk_debug("clock-output-names[%d]=%s\n", i, name);
+
+			/* ignore empty slots */
+			if (!strcmp("reserved", name))
+				continue;
+
+			clk = clk_get_sys(NULL, name);
+			if (IS_ERR(clk)) {
+				clk_err("%s: fail to get %s\n", __func__, name);
+				continue;
+			}
+
+			clk_data->clks[i] = clk;
+		}
+
+		ret = of_clk_add_provider(np, of_clk_src_onecell_get, clk_data);
+		clk_debug("use of_clk_src_onecell_get, ret=%d\n", ret);
+	}
+
+	return ret;
+}
+
+static void rkclk_cache_parents(struct rkclk *rkclk)
+{
+	struct clk *clk, *parent;
+	u8 num_parents;
+	int i;
+
+
+	clk = clk_get(NULL, rkclk->clk_name);
+	if (IS_ERR(clk)) {
+		clk_err("%s: %s clk_get error\n",
+				__func__, rkclk->clk_name);
+		return;
+	} else {
+		clk_debug("%s: %s clk_get success\n",
+				__func__, __clk_get_name(clk));
+	}
+
+	num_parents = __clk_get_num_parents(clk);
+	clk_debug("\t\tnum_parents=%d, parent=%s\n", num_parents,
+			__clk_get_name(__clk_get_parent(clk)));
+
+	for (i=0; i<num_parents; i++) {
+		/* parent will be cached after this func is called */
+		parent = clk_get_parent_by_index(clk, i);
+		if (IS_ERR(parent)) {
+			clk_err("fail to get parents[%d]=%s\n", i,
+					clk->parent_names[i]);
+			continue;
+		} else {
+			clk_debug("\t\tparents[%d]: %s\n", i,
+					__clk_get_name(parent));
+		}
+	}
 }
 
 #ifdef RKCLK_DEBUG
@@ -832,10 +939,9 @@ void rkclk_init_clks(struct device_node *node);
 
 static void __init rk_clk_tree_init(struct device_node *np)
 {
-	struct device_node *node;
-
-	struct device_node *node_init;
+	struct device_node *node, *node_tmp, *node_prd, *node_init;
 	struct rkclk *rkclk;
+	const char *compatible;
 
 
 	printk("%s start! cru base = 0x%08x\n", __func__, (u32)RK_CRU_VIRT);
@@ -847,41 +953,32 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	}
 
 	for_each_available_child_of_node(np, node) {
+		clk_debug("\n");
+		of_property_read_string(node, "compatible",
+				&compatible);
 
-		if (!ERR_PTR(of_property_match_string(node,
-						"compatible",
-						"fixed-clock"))) {
+		if (strcmp(compatible, "fixed-clock") == 0) {
+			clk_debug("do nothing for fixed-clock node\n");
 			continue;
-
-		} else if (!ERR_PTR(of_property_match_string(node,
-						"compatible",
-						"rockchip,rk-pll-cons"))) {
-			if (ERR_PTR(rkclk_init_pllcon(node))) {
-				clk_err("%s: init pll clk err\n", __func__);
+		} else if (strcmp(compatible, "rockchip,rk-pll-cons") == 0) {
+			if (rkclk_init_pllcon(node) != 0) {
+				clk_err("%s: init pll cons err\n", __func__);
 				return ;
 			}
-
-		} else if (!ERR_PTR(of_property_match_string(node,
-						"compatible",
-						"rockchip,rk-sel-cons"))) {
-			if (ERR_PTR(rkclk_init_selcon(node))) {
+		} else if (strcmp(compatible, "rockchip,rk-sel-cons") == 0) {
+			if (rkclk_init_selcon(node) != 0) {
 				clk_err("%s: init sel cons err\n", __func__);
 				return ;
 			}
-
-		} else if (!ERR_PTR(of_property_match_string(node,
-						"compatible",
-						"rockchip,rk-gate-cons"))) {
-			if (ERR_PTR(rkclk_init_gatecon(node))) {
+		} else if (strcmp(compatible, "rockchip,rk-gate-cons") == 0) {
+			if (rkclk_init_gatecon(node) != 0) {
 				clk_err("%s: init gate cons err\n", __func__);
 				return ;
 			}
-
 		} else {
 			clk_err("%s: unknown\n", __func__);
 		}
-
-	};
+	}
 
 #if 0
 	list_for_each_entry(rkclk, &rk_clks, node) {
@@ -921,38 +1018,37 @@ static void __init rk_clk_tree_init(struct device_node *np)
 		rkclk_register(rkclk);
 	}
 
-	/* check clock parents init */
-	list_for_each_entry(rkclk, &rk_clks, node) {
-		struct clk *clk;
-		int i = 0;
-		const char *clk_name = rkclk->clk_name;
-		clk = clk_get(NULL, clk_name);
-		if (IS_ERR(clk)) {
-			clk_err("%s: clk(\"%s\") \tclk_get error\n",
-					__func__, clk_name);
-			continue;
-		} else {
-			clk_debug("%s: clk(\"%s\") \tclk_get success\n",
-					__func__, __clk_get_name(clk));
-		}
+	for_each_available_child_of_node(np, node) {
+		of_property_read_string(node, "compatible",
+				&compatible);
 
-		if (clk->parents) {
-			for (i = 0; i < clk->num_parents; i++) {
-				if (clk->parents[i])
-					clk_debug("\t\tclk(\"%s\"): init parent:%s\n",
-							clk->name,
-							clk->parents[i]->name);
-				else {
-					clk->parents[i] = clk_get(NULL, clk->parent_names[i]);
-					clk_debug("\t\tclk(\"%s\"): init parent:%s\n",
-							clk->name,
-							clk->parents[i]->name);
+		if (strcmp(compatible, "fixed-clock") == 0) {
+			clk_debug("do nothing for fixed-clock node\n");
+			continue;
+		} else if (strcmp(compatible, "rockchip,rk-pll-cons") == 0) {
+			for_each_available_child_of_node(node, node_prd) {
+				rkclk_add_provider(node_prd);
+			}
+		} else if (strcmp(compatible, "rockchip,rk-sel-cons") == 0) {
+			for_each_available_child_of_node(node, node_tmp) {
+				for_each_available_child_of_node(node_tmp,
+						node_prd) {
+					rkclk_add_provider(node_prd);
 				}
 			}
-
+		} else if (strcmp(compatible, "rockchip,rk-gate-cons") == 0) {
+			for_each_available_child_of_node(node, node_prd) {
+				rkclk_add_provider(node_prd);
+			}
 		} else {
-			clk_debug("\t\tNOT A MUX CLK, parent num=%d\n", clk->num_parents);
+			clk_err("%s: unknown\n", __func__);
 		}
+	}
+
+	/* fill clock parents cache after all clocks have been registered */
+	list_for_each_entry(rkclk, &rk_clks, node) {
+		clk_debug("\n");
+		rkclk_cache_parents(rkclk);
 	}
 
 	rk_clk_test();
