@@ -158,10 +158,10 @@ typedef enum __device_msg_level {
 /*
  * Enum of context types for SendPacket
  */
-typedef enum _CONTEXT_TYPE {
-    CONTEXT_DATA_PACKET = 1,
-    CONTEXT_MGMT_PACKET
-} CONTEXT_TYPE;
+enum {
+	CONTEXT_DATA_PACKET = 1,
+	CONTEXT_MGMT_PACKET
+};
 
 /* RCB (Receive Control Block) */
 struct vnt_rcb {
@@ -180,7 +180,7 @@ struct vnt_usb_send_context {
 	struct sk_buff *pPacket;
 	struct urb *pUrb;
 	unsigned int uBufLen;
-	CONTEXT_TYPE Type;
+	u8 type;
 	struct ethhdr sEthHeader;
 	void *Next;
 	bool bBoolInUse;

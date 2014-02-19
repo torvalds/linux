@@ -1610,7 +1610,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     pTX_Buffer->byType = 0x00;
 
     pContext->pPacket = NULL;
-    pContext->Type = CONTEXT_MGMT_PACKET;
+    pContext->type = CONTEXT_MGMT_PACKET;
     pContext->uBufLen = (u16)cbReqCount + 4;  //USB header
 
     if (WLAN_GET_FC_TODS(pMACHeader->frame_control) == 0) {
@@ -1702,7 +1702,7 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
     pTX_Buffer->byType = 0x01;
 
     pContext->pPacket = NULL;
-    pContext->Type = CONTEXT_MGMT_PACKET;
+    pContext->type = CONTEXT_MGMT_PACKET;
     pContext->uBufLen = (u16)cbReqCount + 4;  //USB header
 
     PIPEnsSendBulkOut(pDevice,pContext);
@@ -2050,7 +2050,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     pTX_Buffer->byType = 0x00;
 
     pContext->pPacket = skb;
-    pContext->Type = CONTEXT_MGMT_PACKET;
+    pContext->type = CONTEXT_MGMT_PACKET;
     pContext->uBufLen = (u16)cbReqCount + 4;  //USB header
 
     if (WLAN_GET_FC_TODS(pMACHeader->frame_control) == 0) {
@@ -2440,7 +2440,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
     pTX_Buffer->wTxByteCount = (u16)BytesToWrite;
 
     pContext->pPacket = skb;
-    pContext->Type = CONTEXT_DATA_PACKET;
+    pContext->type = CONTEXT_DATA_PACKET;
     pContext->uBufLen = (u16)BytesToWrite + 4 ; //USB header
 
     s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),
@@ -2594,7 +2594,7 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
     pTX_Buffer->wTxByteCount = (u16)BytesToWrite;
 
     pContext->pPacket = NULL;
-    pContext->Type = CONTEXT_DATA_PACKET;
+    pContext->type = CONTEXT_DATA_PACKET;
     pContext->uBufLen = (u16)BytesToWrite + 4 ; //USB header
 
     s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),

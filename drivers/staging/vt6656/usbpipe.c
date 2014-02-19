@@ -610,7 +610,7 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	struct vnt_usb_send_context *context =
 			(struct vnt_usb_send_context *)urb->context;
 	struct vnt_private *priv = context->pDevice;
-	CONTEXT_TYPE context_type = context->Type;
+	u8 context_type = context->type;
 	unsigned long buf_len = context->uBufLen;
 	int status;
 
