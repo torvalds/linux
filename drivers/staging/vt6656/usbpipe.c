@@ -295,42 +295,39 @@ static void s_nsControlInUsbIoCompleteRead(struct urb *urb)
  *
  */
 
-int PIPEnsInterruptRead(struct vnt_private *pDevice)
+int PIPEnsInterruptRead(struct vnt_private *priv)
 {
-	int ntStatus = STATUS_FAILURE;
+	int status = STATUS_FAILURE;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartInterruptUsbRead()\n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"---->s_nsStartInterruptUsbRead()\n");
 
-    if(pDevice->intBuf.bInUse == true){
-        return (STATUS_FAILURE);
-    }
-    pDevice->intBuf.bInUse = true;
-//    pDevice->bEventAvailable = false;
-    pDevice->ulIntInPosted++;
+	if (priv->intBuf.bInUse == true)
+		return STATUS_FAILURE;
 
-    //
-    // Now that we have created the urb, we will send a
-    // request to the USB device object.
-    //
+	priv->intBuf.bInUse = true;
+	priv->ulIntInPosted++;
 
-	usb_fill_int_urb(pDevice->pInterruptURB,
-		pDevice->usb,
-		usb_rcvbulkpipe(pDevice->usb, 1),
-		pDevice->intBuf.pDataBuf,
+	usb_fill_int_urb(priv->pInterruptURB,
+		priv->usb,
+		usb_rcvbulkpipe(priv->usb, 1),
+		priv->intBuf.pDataBuf,
 		MAX_INTERRUPT_SIZE,
 		s_nsInterruptUsbIoCompleteRead,
-		pDevice,
-		pDevice->int_interval);
+		priv,
+		priv->int_interval);
 
-	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
-	if (ntStatus) {
+	status = usb_submit_urb(priv->pInterruptURB, GFP_ATOMIC);
+	if (status) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"Submit int URB failed %d\n", ntStatus);
-		pDevice->intBuf.bInUse = false;
+			"Submit int URB failed %d\n", status);
+		priv->intBuf.bInUse = false;
 	}
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----s_nsStartInterruptUsbRead Return(%x)\n",ntStatus);
-    return ntStatus;
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+		"<----s_nsStartInterruptUsbRead Return(%x)\n", status);
+
+	return status;
 }
 
 /*
