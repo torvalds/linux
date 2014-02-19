@@ -634,7 +634,7 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 {
 	u8 protect = cdb[1] >> 5;
 
-	if (!cmd->t_prot_sg || !cmd->t_prot_nents)
+	if ((!cmd->t_prot_sg || !cmd->t_prot_nents) && cmd->prot_pto)
 		return true;
 
 	switch (dev->dev_attrib.pi_prot_type) {

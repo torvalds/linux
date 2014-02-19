@@ -570,6 +570,7 @@ struct se_cmd {
 	enum target_prot_ho	prot_handover;
 	sense_reason_t		pi_err;
 	sector_t		bad_sector;
+	bool			prot_pto;
 };
 
 struct se_ua {
