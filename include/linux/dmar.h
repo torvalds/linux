@@ -26,6 +26,7 @@
 #include <linux/msi.h>
 #include <linux/irqreturn.h>
 #include <linux/rwsem.h>
+#include <linux/rcupdate.h>
 
 struct acpi_dmar_header;
 
@@ -41,7 +42,7 @@ struct dmar_drhd_unit {
 	struct list_head list;		/* list of drhd units	*/
 	struct  acpi_dmar_header *hdr;	/* ACPI header		*/
 	u64	reg_base_addr;		/* register base address*/
-	struct	pci_dev **devices; 	/* target device array	*/
+	struct	pci_dev __rcu **devices;/* target device array	*/
 	int	devices_cnt;		/* target device count	*/
 	u16	segment;		/* PCI domain		*/
 	u8	ignored:1; 		/* ignore drhd		*/
@@ -53,22 +54,31 @@ extern struct rw_semaphore dmar_global_lock;
 extern struct list_head dmar_drhd_units;
 
 #define for_each_drhd_unit(drhd) \
-	list_for_each_entry(drhd, &dmar_drhd_units, list)
+	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)
 
 #define for_each_active_drhd_unit(drhd)					\
-	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
 		if (drhd->ignored) {} else
 
 #define for_each_active_iommu(i, drhd)					\
-	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
 		if (i=drhd->iommu, drhd->ignored) {} else
 
 #define for_each_iommu(i, drhd)						\
-	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
 		if (i=drhd->iommu, 0) {} else 
 
+static inline bool dmar_rcu_check(void)
+{
+	return rwsem_is_locked(&dmar_global_lock) ||
+	       system_state == SYSTEM_BOOTING;
+}
+
+#define	dmar_rcu_dereference(p)	rcu_dereference_check((p), dmar_rcu_check())
+
 #define	for_each_dev_scope(a, c, p, d)	\
-	for ((p) = 0; ((d) = (p) < (c) ? (a)[(p)] : NULL, (p) < (c)); (p)++)
+	for ((p) = 0; ((d) = (p) < (c) ? dmar_rcu_dereference((a)[(p)]) : \
+			NULL, (p) < (c)); (p)++)
 
 #define	for_each_active_dev_scope(a, c, p, d)	\
 	for_each_dev_scope((a), (c), (p), (d))	if (!(d)) { continue; } else
@@ -78,6 +88,7 @@ extern int dmar_dev_scope_init(void);
 extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
 				struct pci_dev ***devices, u16 segment);
 extern void *dmar_alloc_dev_scope(void *start, void *end, int *cnt);
+extern void dmar_free_dev_scope(struct pci_dev __rcu ***devices, int *cnt);
 extern void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt);
 
 /* Intel IOMMU detection */

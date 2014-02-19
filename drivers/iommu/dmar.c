@@ -71,13 +71,13 @@ static void __init dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 	 * the very end.
 	 */
 	if (drhd->include_all)
-		list_add_tail(&drhd->list, &dmar_drhd_units);
+		list_add_tail_rcu(&drhd->list, &dmar_drhd_units);
 	else
-		list_add(&drhd->list, &dmar_drhd_units);
+		list_add_rcu(&drhd->list, &dmar_drhd_units);
 }
 
 static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
-					   struct pci_dev **dev, u16 segment)
+					   struct pci_dev __rcu **dev, u16 segment)
 {
 	struct pci_bus *bus;
 	struct pci_dev *pdev = NULL;
@@ -122,7 +122,9 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 			pci_name(pdev));
 		return -EINVAL;
 	}
-	*dev = pdev;
+
+	rcu_assign_pointer(*dev, pdev);
+
 	return 0;
 }
 
@@ -149,7 +151,7 @@ void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
 }
 
 int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
-				struct pci_dev ***devices, u16 segment)
+				struct pci_dev __rcu ***devices, u16 segment)
 {
 	struct acpi_dmar_device_scope *scope;
 	int index, ret;
@@ -177,7 +179,7 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 	return 0;
 }
 
-void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt)
+void dmar_free_dev_scope(struct pci_dev __rcu ***devices, int *cnt)
 {
 	int i;
 	struct pci_dev *tmp_dev;
@@ -186,9 +188,10 @@ void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt)
 		for_each_active_dev_scope(*devices, *cnt, i, tmp_dev)
 			pci_dev_put(tmp_dev);
 		kfree(*devices);
-		*devices = NULL;
-		*cnt = 0;
 	}
+
+	*devices = NULL;
+	*cnt = 0;
 }
 
 /**
@@ -410,7 +413,7 @@ parse_dmar_table(void)
 	return ret;
 }
 
-static int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
+static int dmar_pci_device_match(struct pci_dev __rcu *devices[], int cnt,
 			  struct pci_dev *dev)
 {
 	int index;
@@ -431,11 +434,12 @@ static int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
 struct dmar_drhd_unit *
 dmar_find_matched_drhd_unit(struct pci_dev *dev)
 {
-	struct dmar_drhd_unit *dmaru = NULL;
+	struct dmar_drhd_unit *dmaru;
 	struct acpi_dmar_hardware_unit *drhd;
 
 	dev = pci_physfn(dev);
 
+	rcu_read_lock();
 	for_each_drhd_unit(dmaru) {
 		drhd = container_of(dmaru->hdr,
 				    struct acpi_dmar_hardware_unit,
@@ -443,14 +447,17 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 
 		if (dmaru->include_all &&
 		    drhd->segment == pci_domain_nr(dev->bus))
-			return dmaru;
+			goto out;
 
 		if (dmar_pci_device_match(dmaru->devices,
 					  dmaru->devices_cnt, dev))
-			return dmaru;
+			goto out;
 	}
+	dmaru = NULL;
+out:
+	rcu_read_unlock();
 
-	return NULL;
+	return dmaru;
 }
 
 int __init dmar_dev_scope_init(void)

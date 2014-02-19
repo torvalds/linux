@@ -385,14 +385,14 @@ struct dmar_rmrr_unit {
 	struct acpi_dmar_header *hdr;	/* ACPI header		*/
 	u64	base_address;		/* reserved base address*/
 	u64	end_address;		/* reserved end address */
-	struct pci_dev **devices;	/* target devices */
+	struct pci_dev __rcu **devices;	/* target devices */
 	int	devices_cnt;		/* target device count */
 };
 
 struct dmar_atsr_unit {
 	struct list_head list;		/* list of ATSR units */
 	struct acpi_dmar_header *hdr;	/* ACPI header */
-	struct pci_dev **devices;	/* target devices */
+	struct pci_dev __rcu **devices;	/* target devices */
 	int devices_cnt;		/* target device count */
 	u8 include_all:1;		/* include all ports */
 };
@@ -634,12 +634,15 @@ static void domain_update_iommu_superpage(struct dmar_domain *domain)
 	}
 
 	/* set iommu_superpage to the smallest common denominator */
+	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
 		mask &= cap_super_page_val(iommu->cap);
 		if (!mask) {
 			break;
 		}
 	}
+	rcu_read_unlock();
+
 	domain->iommu_superpage = fls(mask);
 }
 
@@ -658,6 +661,7 @@ static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
 	struct pci_dev *dev;
 	int i;
 
+	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
 		if (segment != drhd->segment)
 			continue;
@@ -677,6 +681,7 @@ static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
 	}
 	iommu = NULL;
 out:
+	rcu_read_unlock();
 
 	return iommu;
 }
@@ -1535,10 +1540,12 @@ static void domain_exit(struct dmar_domain *domain)
 	dma_pte_free_pagetable(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
 
 	/* clear attached or cached domains */
+	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd)
 		if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE ||
 		    test_bit(iommu->seq_id, domain->iommu_bmp))
 			iommu_detach_domain(domain, iommu);
+	rcu_read_unlock();
 
 	free_domain_mem(domain);
 }
@@ -2338,6 +2345,7 @@ static bool device_has_rmrr(struct pci_dev *dev)
 	struct pci_dev *tmp;
 	int i;
 
+	rcu_read_lock();
 	for_each_rmrr_units(rmrr) {
 		/*
 		 * Return TRUE if this RMRR contains the device that
@@ -2346,9 +2354,11 @@ static bool device_has_rmrr(struct pci_dev *dev)
 		for_each_active_dev_scope(rmrr->devices,
 					  rmrr->devices_cnt, i, tmp)
 			if (tmp == dev) {
+				rcu_read_unlock();
 				return true;
 			}
 	}
+	rcu_read_unlock();
 	return false;
 }
 
@@ -3512,7 +3522,7 @@ int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
 	atsru->hdr = hdr;
 	atsru->include_all = atsr->flags & 0x1;
 
-	list_add(&atsru->list, &dmar_atsr_units);
+	list_add_rcu(&atsru->list, &dmar_atsr_units);
 
 	return 0;
 }
@@ -3574,6 +3584,7 @@ int dmar_find_matched_atsr_unit(struct pci_dev *dev)
 	if (!bridge)
 		return 0;
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(atsru, &dmar_atsr_units, list) {
 		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
 		if (atsr->segment != pci_domain_nr(dev->bus))
@@ -3588,6 +3599,7 @@ int dmar_find_matched_atsr_unit(struct pci_dev *dev)
 	}
 	ret = 0;
 out:
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -3604,7 +3616,7 @@ int __init dmar_parse_rmrr_atsr_dev(void)
 			return ret;
 	}
 
-	list_for_each_entry(atsr, &dmar_atsr_units, list) {
+	list_for_each_entry_rcu(atsr, &dmar_atsr_units, list) {
 		ret = atsr_parse_dev(atsr);
 		if (ret)
 			return ret;
