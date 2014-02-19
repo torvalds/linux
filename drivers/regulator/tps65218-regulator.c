@@ -243,14 +243,12 @@ static int tps65218_regulator_probe(struct platform_device *pdev)
 	int id;
 
 	match = of_match_device(tps65218_of_match, &pdev->dev);
-	if (match) {
-		template = match->data;
-		id = template->id;
-		init_data = of_get_regulator_init_data(&pdev->dev,
-						      pdev->dev.of_node);
-	} else {
+	if (!match)
 		return -ENODEV;
-	}
+
+	template = match->data;
+	id = template->id;
+	init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node);
 
 	platform_set_drvdata(pdev, tps);
 
@@ -274,7 +272,7 @@ static struct platform_driver tps65218_regulator_driver = {
 	.driver = {
 		.name = "tps65218-pmic",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(tps65218_of_match),
+		.of_match_table = tps65218_of_match,
 	},
 	.probe = tps65218_regulator_probe,
 };

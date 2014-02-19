@@ -515,7 +515,7 @@ config REGULATOR_TPS65217
 
 config REGULATOR_TPS65218
 	tristate "TI TPS65218 Power regulators"
-	depends on MFD_TPS65218
+	depends on MFD_TPS65218 && OF
 	help
 	  This driver supports TPS65218 voltage regulator chips. TPS65218
 	  provides six step-down converters and one general-purpose LDO
