@@ -2721,7 +2721,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		key = old_key;
 	} else {
 		old_key_type = conn ? conn->key_type : 0xff;
-		key = kzalloc(sizeof(*key), GFP_ATOMIC);
+		key = kzalloc(sizeof(*key), GFP_KERNEL);
 		if (!key)
 			return -ENOMEM;
 		list_add(&key->list, &hdev->link_keys);
@@ -2773,7 +2773,7 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 	if (old_key)
 		key = old_key;
 	else {
-		key = kzalloc(sizeof(*key), GFP_ATOMIC);
+		key = kzalloc(sizeof(*key), GFP_KERNEL);
 		if (!key)
 			return -ENOMEM;
 		list_add(&key->list, &hdev->long_term_keys);
@@ -2938,7 +2938,7 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	data = hci_find_remote_oob_data(hdev, bdaddr);
 	if (!data) {
-		data = kmalloc(sizeof(*data), GFP_ATOMIC);
+		data = kmalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
 
@@ -2965,7 +2965,7 @@ int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	data = hci_find_remote_oob_data(hdev, bdaddr);
 	if (!data) {
-		data = kmalloc(sizeof(*data), GFP_ATOMIC);
+		data = kmalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
 
