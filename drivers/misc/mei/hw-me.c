@@ -513,6 +513,8 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 		}
 	}
 
+	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
+
 	rets = mei_irq_write_handler(dev, &complete_list);
 
 	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);

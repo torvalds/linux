@@ -605,7 +605,6 @@ static int mei_txe_write(struct mei_device *dev,
 		mei_txe_input_payload_write(dev, i + 1, reg);
 	}
 
-	dev->hbuf_is_ready = false;
 	/* Set Input-Doorbell */
 	mei_txe_input_doorbell_set(hw);
 
@@ -983,19 +982,15 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 		dev->hbuf_is_ready = true;
 
 	if (hw->aliveness && dev->hbuf_is_ready) {
-		/* if SeC did not complete reading the written data by host */
-		if (!mei_txe_is_input_ready(dev)) {
-			dev_dbg(&dev->pdev->dev, "got Input Ready Int, but SEC_IPC_INPUT_STATUS_RDY is 0.\n");
-			goto end;
-		}
 
+		/* get the real register value */
+		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 		rets = mei_irq_write_handler(dev, &complete_list);
-		if (rets)
-			dev_err(&dev->pdev->dev,
-				"mei_irq_write_handler ret = %d.\n", rets);
+		if (rets && rets != -EMSGSIZE)
+			dev_err(&dev->pdev->dev, "mei_irq_write_handler ret = %d.\n",
+				rets);
+		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 	}
-
-
 
 	mei_irq_compl_handler(dev, &complete_list);
 

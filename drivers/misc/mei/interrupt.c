@@ -446,10 +446,10 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 	s32 slots;
 	int ret;
 
-	if (!mei_hbuf_is_ready(dev)) {
-		dev_dbg(&dev->pdev->dev, "host buffer is not empty.\n");
+
+	if (!mei_hbuf_acquire(dev))
 		return 0;
-	}
+
 	slots = mei_hbuf_empty_slots(dev);
 	if (slots <= 0)
 		return -EMSGSIZE;

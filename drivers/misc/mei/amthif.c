@@ -296,9 +296,8 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 	if (ret < 0)
 		return ret;
 
-	if (ret && dev->hbuf_is_ready) {
+	if (ret && mei_hbuf_acquire(dev)) {
 		ret = 0;
-		dev->hbuf_is_ready = false;
 		if (cb->request_buffer.size > mei_hbuf_max_len(dev)) {
 			mei_hdr.length = mei_hbuf_max_len(dev);
 			mei_hdr.msg_complete = 0;
@@ -330,10 +329,6 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 			list_add_tail(&cb->list, &dev->write_list.list);
 		}
 	} else {
-		if (!dev->hbuf_is_ready)
-			dev_dbg(&dev->pdev->dev, "host buffer is not empty");
-
-		dev_dbg(&dev->pdev->dev, "No flow control credentials, so add iamthif cb to write list.\n");
 		list_add_tail(&cb->list, &dev->write_list.list);
 	}
 	return 0;

@@ -371,6 +371,23 @@ void mei_host_client_init(struct work_struct *work)
 	mutex_unlock(&dev->device_lock);
 }
 
+/**
+ * mei_hbuf_acquire: try to acquire host buffer
+ *
+ * @dev: the device structure
+ * returns true if host buffer was acquired
+ */
+bool mei_hbuf_acquire(struct mei_device *dev)
+{
+	if (!dev->hbuf_is_ready) {
+		dev_dbg(&dev->pdev->dev, "hbuf is not ready\n");
+		return false;
+	}
+
+	dev->hbuf_is_ready = false;
+
+	return true;
+}
 
 /**
  * mei_cl_disconnect - disconnect host client from the me one
@@ -402,8 +419,7 @@ int mei_cl_disconnect(struct mei_cl *cl)
 		return -ENOMEM;
 
 	cb->fop_type = MEI_FOP_CLOSE;
-	if (dev->hbuf_is_ready) {
-		dev->hbuf_is_ready = false;
+	if (mei_hbuf_acquire(dev)) {
 		if (mei_hbm_cl_disconnect_req(dev, cl)) {
 			rets = -ENODEV;
 			cl_err(dev, cl, "failed to disconnect.\n");
@@ -503,9 +519,8 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 
 	cb->fop_type = MEI_FOP_CONNECT;
 
-	if (dev->hbuf_is_ready && !mei_cl_is_other_connecting(cl)) {
-		dev->hbuf_is_ready = false;
-
+	/* run hbuf acquire last so we don't have to undo */
+	if (!mei_cl_is_other_connecting(cl) && mei_hbuf_acquire(dev)) {
 		if (mei_hbm_cl_connect_req(dev, cl)) {
 			rets = -ENODEV;
 			goto out;
@@ -663,8 +678,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 		goto err;
 
 	cb->fop_type = MEI_FOP_READ;
-	if (dev->hbuf_is_ready) {
-		dev->hbuf_is_ready = false;
+	if (mei_hbuf_acquire(dev)) {
 		if (mei_hbm_cl_flow_control_req(dev, cl)) {
 			cl_err(dev, cl, "flow control send failed\n");
 			rets = -ENODEV;
@@ -799,21 +813,29 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 
 
 	cb->fop_type = MEI_FOP_WRITE;
+	cb->buf_idx = 0;
+	cl->writing_state = MEI_IDLE;
+
+	mei_hdr.host_addr = cl->host_client_id;
+	mei_hdr.me_addr = cl->me_client_id;
+	mei_hdr.reserved = 0;
+	mei_hdr.msg_complete = 0;
+	mei_hdr.internal = cb->internal;
 
 	rets = mei_cl_flow_ctrl_creds(cl);
 	if (rets < 0)
 		goto err;
 
-	/* Host buffer is not ready, we queue the request */
-	if (rets == 0 || !dev->hbuf_is_ready) {
-		cb->buf_idx = 0;
-		/* unseting complete will enqueue the cb for write */
-		mei_hdr.msg_complete = 0;
+	if (rets == 0) {
+		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
 		rets = buf->size;
 		goto out;
 	}
-
-	dev->hbuf_is_ready = false;
+	if (!mei_hbuf_acquire(dev)) {
+		cl_dbg(dev, cl, "Cannot acquire the host buffer: not sending.\n");
+		rets = buf->size;
+		goto out;
+	}
 
 	/* Check for a maximum length */
 	if (buf->size > mei_hbuf_max_len(dev)) {
@@ -823,12 +845,6 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 		mei_hdr.length = buf->size;
 		mei_hdr.msg_complete = 1;
 	}
-
-	mei_hdr.host_addr = cl->host_client_id;
-	mei_hdr.me_addr = cl->me_client_id;
-	mei_hdr.reserved = 0;
-	mei_hdr.internal = cb->internal;
-
 
 	rets = mei_write_message(dev, &mei_hdr, buf->data);
 	if (rets)
