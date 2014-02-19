@@ -117,13 +117,9 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 	return 0;
 }
 
-int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
-				struct pci_dev ***devices, u16 segment)
+void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
 {
 	struct acpi_dmar_device_scope *scope;
-	void * tmp = start;
-	int index;
-	int ret;
 
 	*cnt = 0;
 	while (start < end) {
@@ -138,15 +134,24 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 		start += scope->length;
 	}
 	if (*cnt == 0)
-		return 0;
+		return NULL;
 
-	*devices = kcalloc(*cnt, sizeof(struct pci_dev *), GFP_KERNEL);
-	if (!*devices)
+	return kcalloc(*cnt, sizeof(struct pci_dev *), GFP_KERNEL);
+}
+
+int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
+				struct pci_dev ***devices, u16 segment)
+{
+	struct acpi_dmar_device_scope *scope;
+	int index, ret;
+
+	*devices = dmar_alloc_dev_scope(start, end, cnt);
+	if (*cnt == 0)
+		return 0;
+	else if (!*devices)
 		return -ENOMEM;
 
-	start = tmp;
-	index = 0;
-	while (start < end) {
+	for (index = 0; start < end; start += scope->length) {
 		scope = start;
 		if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT ||
 		    scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE) {
@@ -158,7 +163,6 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 			}
 			index ++;
 		}
-		start += scope->length;
 	}
 
 	return 0;

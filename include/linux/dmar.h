@@ -69,6 +69,7 @@ extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
 extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
 				struct pci_dev ***devices, u16 segment);
+extern void *dmar_alloc_dev_scope(void *start, void *end, int *cnt);
 extern void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt);
 
 /* Intel IOMMU detection */
