@@ -860,3 +860,22 @@ int iscsit_ta_default_erl(
 
 	return 0;
 }
+
+int iscsit_ta_t10_pi(
+	struct iscsi_portal_group *tpg,
+	u32 flag)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((flag != 0) && (flag != 1)) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	a->t10_pi = flag;
+	pr_debug("iSCSI_TPG[%hu] - T10 Protection information bit:"
+		" %s\n", tpg->tpgt, (a->t10_pi) ?
+		"ON" : "OFF");
+
+	return 0;
+}
