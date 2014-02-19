@@ -4798,7 +4798,22 @@ void mgmt_new_irk(struct hci_dev *hdev, struct smp_irk *irk)
 
 	memset(&ev, 0, sizeof(ev));
 
-	ev.store_hint = 0x01;
+	/* For identity resolving keys from devices that are already
+	 * using a public address or static random address, do not
+	 * ask for storing this key. The identity resolving key really
+	 * is only mandatory for devices using resovlable random
+	 * addresses.
+	 *
+	 * Storing all identity resolving keys has the downside that
+	 * they will be also loaded on next boot of they system. More
+	 * identity resolving keys, means more time during scanning is
+	 * needed to actually resolve these addresses.
+	 */
+	if (bacmp(&irk->rpa, BDADDR_ANY))
+		ev.store_hint = 0x01;
+	else
+		ev.store_hint = 0x00;
+
 	bacpy(&ev.rpa, &irk->rpa);
 	bacpy(&ev.irk.addr.bdaddr, &irk->bdaddr);
 	ev.irk.addr.type = link_to_bdaddr(LE_LINK, irk->addr_type);
