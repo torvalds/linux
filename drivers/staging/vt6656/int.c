@@ -84,7 +84,7 @@ void INTnsProcessData(struct vnt_private *priv)
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
 
-	int_data = (struct vnt_interrupt_data *)priv->intBuf.pDataBuf;
+	int_data = (struct vnt_interrupt_data *)priv->int_buf.data_buf;
 
 	if (int_data->tsr0 & TSR_VALID) {
 		if (int_data->tsr0 & (TSR_TMO | TSR_RETRYTMO))
@@ -178,8 +178,8 @@ void INTnsProcessData(struct vnt_private *priv)
 			bScheduleCommand((void *) priv,
 					WLAN_CMD_RADIO,
 					NULL);
-	priv->intBuf.uDataLen = 0;
-	priv->intBuf.bInUse = false;
+
+	priv->int_buf.in_use = false;
 
 	stats->tx_errors = priv->wstats.discard.retries;
 	stats->tx_dropped = priv->wstats.discard.retries;

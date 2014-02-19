@@ -206,12 +206,10 @@ typedef struct _DEFAULT_CONFIG {
 /*
  * Structure to keep track of USB interrupt packets
  */
-typedef struct {
-    unsigned int            uDataLen;
-    u8 *           pDataBuf;
-  /* struct urb *pUrb; */
-    bool            bInUse;
-} INT_BUFFER, *PINT_BUFFER;
+struct vnt_interrupt_buffer {
+	u8 *data_buf;
+	bool in_use;
+};
 
 /*++ NDIS related */
 
@@ -420,7 +418,7 @@ struct vnt_private {
 	struct vnt_tx_pkt_info pkt_info[16];
 
 	/* Variables to track resources for the Interrupt In Pipe */
-	INT_BUFFER intBuf;
+	struct vnt_interrupt_buffer int_buf;
 	int bEventAvailable;
 
 	/* default config from file by user setting */

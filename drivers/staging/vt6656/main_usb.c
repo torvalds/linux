@@ -800,8 +800,8 @@ static void usb_device_reset(struct vnt_private *pDevice)
 
 static void device_free_int_bufs(struct vnt_private *pDevice)
 {
-    kfree(pDevice->intBuf.pDataBuf);
-    return;
+	kfree(pDevice->int_buf.data_buf);
+	return;
 }
 
 static bool device_alloc_bufs(struct vnt_private *pDevice)
@@ -873,8 +873,8 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
 	    goto free_rx_tx;
 	}
 
-    pDevice->intBuf.pDataBuf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
-	if (pDevice->intBuf.pDataBuf == NULL) {
+    pDevice->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
+	if (pDevice->int_buf.data_buf == NULL) {
 	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int buf\n");
 	    usb_free_urb(pDevice->pInterruptURB);
 	    goto free_rx_tx;

@@ -302,16 +302,16 @@ int PIPEnsInterruptRead(struct vnt_private *priv)
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"---->s_nsStartInterruptUsbRead()\n");
 
-	if (priv->intBuf.bInUse == true)
+	if (priv->int_buf.in_use == true)
 		return STATUS_FAILURE;
 
-	priv->intBuf.bInUse = true;
+	priv->int_buf.in_use = true;
 	priv->ulIntInPosted++;
 
 	usb_fill_int_urb(priv->pInterruptURB,
 		priv->usb,
 		usb_rcvbulkpipe(priv->usb, 1),
-		priv->intBuf.pDataBuf,
+		priv->int_buf.data_buf,
 		MAX_INTERRUPT_SIZE,
 		s_nsInterruptUsbIoCompleteRead,
 		priv,
@@ -321,7 +321,7 @@ int PIPEnsInterruptRead(struct vnt_private *priv)
 	if (status) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"Submit int URB failed %d\n", status);
-		priv->intBuf.bInUse = false;
+		priv->int_buf.in_use = false;
 	}
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
@@ -360,7 +360,7 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		priv->intBuf.bInUse = false;
+		priv->int_buf.in_use = false;
 		return;
 	default:
 		break;
@@ -373,7 +373,7 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 
 	if (status != STATUS_SUCCESS) {
 		priv->ulBulkInError++;
-		priv->intBuf.bInUse = false;
+		priv->int_buf.in_use = false;
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"IntUSBIoCompleteControl STATUS = %d\n", status);
@@ -389,7 +389,7 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"Submit int URB failed %d\n", status);
 	} else {
-		priv->intBuf.bInUse = true;
+		priv->int_buf.in_use = true;
 	}
 
 	return;
