@@ -3977,8 +3977,8 @@ static int skd_acquire_msix(struct skd_device *skdev)
 		goto msix_out;
 	}
 
-	qentry = skdev->msix_entries;
 	for (i = 0; i < skdev->msix_count; i++) {
+		qentry = &skdev->msix_entries[i];
 		qentry->vector = entries[i].vector;
 		qentry->entry = entries[i].entry;
 		qentry->rsp = NULL;
@@ -3987,7 +3987,6 @@ static int skd_acquire_msix(struct skd_device *skdev)
 			 skdev->name, __func__, __LINE__,
 			 pci_name(pdev), skdev->name,
 			 i, qentry->vector, qentry->entry);
-		qentry++;
 	}
 
 	/* Enable MSI-X vectors for the base queue */
