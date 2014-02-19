@@ -20,6 +20,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include "../codecs/rk610_codec.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 #ifdef CONFIG_MACH_RK_FAC
@@ -40,7 +41,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
-	unsigned int pll_out = 0; 
+	unsigned int pll_out = 0, dai_fmt = cpu_dai->card->dai_link[0].dai_fmt;
 	int div_bclk,div_mclk;
 //	struct clk	*general_pll;
 	
@@ -75,10 +76,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 	snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, SND_SOC_CLOCK_IN);
 	
-//	#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 	
-//		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-//	#endif	
-	#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
+	if ((dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBS_CFS) {
 		div_bclk = 63;
 		div_mclk = pll_out/(params_rate(params)*64) - 1;
 		
@@ -88,7 +86,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
 		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
 //		DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));		
-	#endif
+	}
     return 0;
 }
 
@@ -99,27 +97,8 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	.name = "RK610_CODEC",
 	.stream_name = "RK610 CODEC PCM",
-#if defined(CONFIG_MACH_RK3168_DS1006H)|| defined(CONFIG_MACH_RK3168_LR097)
-	.codec_name = "RK610_CODEC.4-0060",
-#else
-	.codec_name = "RK610_CODEC.0-0060",
-#endif
-#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
-	.cpu_dai_name = "rockchip-i2s.0",
-#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-	.cpu_dai_name = "rockchip-i2s.1",
-#else	
-	.cpu_dai_name = "rockchip-i2s.2",	
-#endif
 	.codec_dai_name = "rk610_codec",
 	.ops = &rk29_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 };
 static struct snd_soc_card rockchip_rk610_snd_card = {
 	.name = "RK_RK610",
@@ -134,8 +113,13 @@ static int rockchip_rk610_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

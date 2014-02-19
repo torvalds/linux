@@ -21,6 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/wm8900.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 #include <linux/clk.h>
@@ -37,7 +38,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-        unsigned int pll_out = 0; 
+        unsigned int pll_out = 0, dai_fmt = cpu_dai->card->dai_link[0].dai_fmt;
 		int div_bclk,div_mclk;
         int ret;
 		struct clk	*general_pll;
@@ -68,13 +69,11 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         //snd_soc_dai_set_pll(codec_dai, NULL, 12000000, pll_out);
         snd_soc_dai_set_clkdiv(codec_dai, WM8900_LRCLK_MODE, 0x000);
 
-        #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-        snd_soc_dai_set_clkdiv(codec_dai, WM8900_BCLK_DIV, WM8900_BCLK_DIV_4);        
-        snd_soc_dai_set_clkdiv(codec_dai, WM8900_DAC_LRCLK,(pll_out/4)/params_rate(params));
-        snd_soc_dai_set_clkdiv(codec_dai, WM8900_ADC_LRCLK,(pll_out/4)/params_rate(params));
-        #endif
-
-        #if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
+	if ((dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM) {
+		snd_soc_dai_set_clkdiv(codec_dai, WM8900_BCLK_DIV, WM8900_BCLK_DIV_4);
+		snd_soc_dai_set_clkdiv(codec_dai, WM8900_DAC_LRCLK,(pll_out/4)/params_rate(params));
+		snd_soc_dai_set_clkdiv(codec_dai, WM8900_ADC_LRCLK,(pll_out/4)/params_rate(params));
+	} else {
 		general_pll=clk_get(NULL, "general_pll");
 		if(clk_get_rate(general_pll)>260000000)
 		{
@@ -97,7 +96,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
         snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
         snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
-        #endif
+	}
         DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
         
         return 0;
@@ -154,18 +153,9 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	.name = "WM8900",
 	.stream_name = "WM8900 PCM",
-	.codec_name = "WM8900.0-001a",
-	.cpu_dai_name = "rockchip-i2s.0",
 	.codec_dai_name = "WM8900 HiFi",
 	.init = rk29_wm8900_init,
 	.ops = &rk29_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 };
 
 static struct snd_soc_card rockchip_wm8900_snd_card = {
@@ -181,8 +171,13 @@ static int rockchip_wm8900_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

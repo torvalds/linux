@@ -21,6 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/tlv320aic3111.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
@@ -122,18 +123,9 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	.name = "AIC3111",
 	.stream_name = "AIC3111 PCM",
-	.codec_name = "AIC3111.0-0018",
-	.cpu_dai_name = "rockchip-i2s.0",
 	.codec_dai_name = "AIC3111 HiFi",
 	.init = rk29_aic3111_init,
 	.ops = &rk29_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 };
 
 static struct snd_soc_card rockchip_aic3111_snd_card = {
@@ -149,8 +141,13 @@ static int rockchip_aic3111_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

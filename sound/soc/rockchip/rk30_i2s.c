@@ -51,6 +51,8 @@
 
 #define MAX_I2S 3
 
+static DEFINE_SPINLOCK(lock);
+
 struct rk30_i2s_info {
 	void __iomem	*regs;
 
@@ -61,12 +63,12 @@ struct rk30_i2s_info {
 
 	bool i2s_tx_status;//active = true;
 	bool i2s_rx_status;
-
-	spinlock_t spinlock_wr;//write read reg spin_lock
 };
 
 #if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
 extern int hdmi_get_hotplug(void);
+#else
+#define hdmi_get_hotplug() 0
 #endif
 
 static inline struct rk30_i2s_info *to_info(struct snd_soc_dai *dai)
@@ -80,8 +82,10 @@ static inline struct rk30_i2s_info *to_info(struct snd_soc_dai *dai)
 static void rockchip_snd_txctrl(struct rk30_i2s_info *i2s, int on)
 {
 	u32 opr, xfer, clr;
+	unsigned long flags;
+	int is_need_delay = false;
 
-	spin_lock(&i2s->spinlock_wr);
+	spin_lock_irqsave(&lock, flags);
 
 	opr  = readl(&(pheadi2s->I2S_DMACR));
 	xfer = readl(&(pheadi2s->I2S_XFER));
@@ -102,36 +106,40 @@ static void rockchip_snd_txctrl(struct rk30_i2s_info *i2s, int on)
 		}
 
 		i2s->i2s_tx_status = 1;
-		spin_unlock(&i2s->spinlock_wr);
+
 	} else { //stop tx
 		i2s->i2s_tx_status = 0;
 		opr  &= ~I2S_TRAN_DMA_ENABLE;
 		writel(opr, &(pheadi2s->I2S_DMACR));
 
-		if (i2s->i2s_rx_status == 0//sync stop i2s rx tx lcrk
-#if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
-		    && hdmi_get_hotplug() == 0 //HDMI_HPD_REMOVED
-#endif
-		) {
+		if (i2s->i2s_rx_status == 0 && hdmi_get_hotplug() == 0) {
 			xfer &= ~I2S_TX_TRAN_START;
 			xfer &= ~I2S_RX_TRAN_START;
 			writel(xfer, &(pheadi2s->I2S_XFER));	
+
 			clr |= I2S_TX_CLEAR;
 			clr |= I2S_RX_CLEAR;
 			writel(clr, &(pheadi2s->I2S_CLR));
-			spin_unlock(&i2s->spinlock_wr);
-			udelay(1);
+
+			is_need_delay = true;
+
 			I2S_DBG("rockchip_snd_txctrl: stop xfer\n");
-		} else
-			spin_unlock(&i2s->spinlock_wr);
+		}
 	}
+
+	spin_unlock_irqrestore(&lock, flags);
+
+	if (is_need_delay)
+		udelay(1);
 }
 
 static void rockchip_snd_rxctrl(struct rk30_i2s_info *i2s, int on)
 {
 	u32 opr, xfer, clr;
+	unsigned long flags;
+	int is_need_delay = false;
 
-	spin_lock(&i2s->spinlock_wr);
+	spin_lock_irqsave(&lock, flags);
 
 	opr  = readl(&(pheadi2s->I2S_DMACR));
 	xfer = readl(&(pheadi2s->I2S_XFER));
@@ -152,30 +160,31 @@ static void rockchip_snd_rxctrl(struct rk30_i2s_info *i2s, int on)
 		}
 
 		i2s->i2s_rx_status = 1;
-		spin_unlock(&i2s->spinlock_wr);
 	} else {
 		i2s->i2s_rx_status = 0;
 
 		opr  &= ~I2S_RECE_DMA_ENABLE;
 		writel(opr, &(pheadi2s->I2S_DMACR));
 
-		if (i2s->i2s_tx_status == 0//sync stop i2s rx tx lcrk
-#if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
-		    && hdmi_get_hotplug() == 0 //HDMI_HPD_REMOVED
-#endif
-		) {
+		if (i2s->i2s_tx_status == 0 && hdmi_get_hotplug() == 0) {
 			xfer &= ~I2S_RX_TRAN_START;
 			xfer &= ~I2S_TX_TRAN_START;
 			writel(xfer, &(pheadi2s->I2S_XFER));
+
 			clr |= I2S_RX_CLEAR;
 			clr |= I2S_TX_CLEAR;
 			writel(clr, &(pheadi2s->I2S_CLR));
-			spin_unlock(&i2s->spinlock_wr);
-			udelay(1);
+
+			is_need_delay = true;
+
 			I2S_DBG("rockchip_snd_rxctrl: stop xfer\n");
-		} else
-			spin_unlock(&i2s->spinlock_wr);
+		}
 	}
+
+	spin_unlock_irqrestore(&lock, flags);
+
+	if (is_need_delay)
+		udelay(1);
 }
 
 /*
@@ -187,20 +196,23 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	struct rk30_i2s_info *i2s = to_info(cpu_dai);
 	u32 tx_ctl,rx_ctl;
 	u32 iis_ckr_value;//clock generation register
+	unsigned long flags;
 
 	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
-	spin_lock(&i2s->spinlock_wr);
+	spin_lock_irqsave(&lock, flags);
 
 	tx_ctl = readl(&(pheadi2s->I2S_TXCR));
 	iis_ckr_value = readl(&(pheadi2s->I2S_CKR));
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
+		//Codec is master, so set cpu slave.
 		iis_ckr_value &= ~I2S_MODE_MASK;
 		iis_ckr_value |= I2S_SLAVE_MODE;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
+		//Codec is slave, so set cpu master.
 		iis_ckr_value &= ~I2S_MODE_MASK;
 		iis_ckr_value |= I2S_MASTER_MODE;
 		break;
@@ -236,7 +248,7 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	rx_ctl = tx_ctl & 0x00007FFF;
 	writel(rx_ctl, &(pheadi2s->I2S_RXCR));
 
-	spin_unlock(&i2s->spinlock_wr);
+	spin_unlock_irqrestore(&lock, flags);
 	return 0;
 }
 
@@ -246,8 +258,8 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct rk30_i2s_info *i2s = to_info(dai);
 	u32 iismod;
 	u32 dmarc;
-	u32 iis_ckr_value;//clock generation register
-		
+	unsigned long flags;
+
 	I2S_DBG("Enter %s, %d \n", __func__, __LINE__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -255,7 +267,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	else
 		dai->capture_dma_data = &i2s->capture_dma_data;
 
-	spin_lock(&i2s->spinlock_wr);
+	spin_lock_irqsave(&lock, flags);
 
 	/* Working copies of register */
 	iismod = readl(&(pheadi2s->I2S_TXCR));
@@ -279,15 +291,6 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	iis_ckr_value = readl(&(pheadi2s->I2S_CKR));
-	#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
-	iis_ckr_value &= ~I2S_SLAVE_MODE;
-	#endif
-	#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-	iis_ckr_value |= I2S_SLAVE_MODE;
-	#endif
-	writel(iis_ckr_value, &(pheadi2s->I2S_CKR));   
-
 	dmarc = readl(&(pheadi2s->I2S_DMACR));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -304,7 +307,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	iismod = iismod & 0x00007FFF;
 	writel(iismod, &(pheadi2s->I2S_RXCR));
 
-	spin_unlock(&i2s->spinlock_wr);
+	spin_unlock_irqrestore(&lock, flags);
 
 	return 0;
 }
@@ -364,10 +367,11 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 {
 	struct rk30_i2s_info *i2s;
 	u32 reg;
+	unsigned long flags;
 
 	i2s = to_info(cpu_dai);
 
-	spin_lock(&i2s->spinlock_wr);
+	spin_lock_irqsave(&lock, flags);
 
 	//stereo mode MCLK/SCK=4  
 	reg = readl(&(pheadi2s->I2S_CKR));
@@ -392,7 +396,7 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 		return -EINVAL;
 	}
 	writel(reg, &(pheadi2s->I2S_CKR));
-	spin_unlock(&i2s->spinlock_wr);
+	spin_unlock_irqrestore(&lock, flags);
 
 	return 0;
 }
@@ -501,8 +505,6 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	spin_lock_init(&i2s->spinlock_wr);
-
 	i2s->i2s_clk= clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2s->i2s_clk)) {
 		dev_err(&pdev->dev, "Can't retrieve i2s clock\n");
@@ -537,12 +539,12 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	regs_base = mem->start;
 
 	i2s->playback_dma_data.addr = regs_base + I2S_TXR_BUFF;
-	i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s->playback_dma_data.maxburst = 4;
+	i2s->playback_dma_data.addr_width = 4;
+	i2s->playback_dma_data.maxburst = 1;
 
 	i2s->capture_dma_data.addr = regs_base + I2S_RXR_BUFF;
-	i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s->capture_dma_data.maxburst = 4;
+	i2s->capture_dma_data.addr_width = 4;
+	i2s->capture_dma_data.maxburst = 1;
 
 	i2s->i2s_tx_status = false;
 	i2s->i2s_rx_status = false;

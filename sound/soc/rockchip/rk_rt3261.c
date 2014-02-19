@@ -22,6 +22,7 @@
 #include <linux/of_gpio.h>
 
 #include "../codecs/rt3261.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
@@ -220,36 +221,17 @@ static struct snd_soc_ops rockchip_rt3261_voice_ops = {
 static struct snd_soc_dai_link rockchip_rt3261_dai[] = {
 	{
 		.name = "RT3261 I2S1",
-		.stream_name = "RT3261 PCM",
-		.codec_name = "rt3261.0-001c",
-		#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
-			.cpu_dai_name = "rockchip-i2s.0",
-		#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-			.cpu_dai_name = "rockchip-i2s.1",
-		#endif
+		.stream_name = "RT3261 PCM1",
 		.codec_dai_name = "rt3261-aif1",
 		.init = rockchip_rt3261_init,
 		.ops = &rockchip_rt3261_hifi_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 	},
 	{
 		.name = "RT3261 I2S2",
-		.stream_name = "RT3261 PCM",
-		.codec_name = "rt3261.0-001c",
-		#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
-			.cpu_dai_name = "rockchip-i2s.0",
-		#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-			.cpu_dai_name = "rockchip-i2s.1",
-		#endif 
+		.stream_name = "RT3261 PCM2",
 		.codec_dai_name = "rt3261-aif2",
 		.ops = &rockchip_rt3261_voice_ops,
-		.no_pcm = 1;
+		.no_pcm = 1,
 	},
 };
 
@@ -264,6 +246,24 @@ static struct snd_soc_card rockchip_rt3261_snd_card = {
 	.num_links = ARRAY_SIZE(rockchip_rt3261_dai),
 };
 
+/*
+dts:
+	rockchip-rt3261 {
+		compatible = "rockchip-rt3261";
+		dais {
+			dai0 {
+				codec-name = "rt3261.0-001c";
+				cpu-dai-name = "rockchip-i2s.1";
+				format = "i2s";
+			};
+
+			dai1 {
+				codec-name = "rt3261.0-001c";
+				cpu-dai-name = "rockchip-i2s.1";
+			};
+		};
+	};
+*/
 static int rockchip_rt3261_audio_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -271,8 +271,13 @@ static int rockchip_rt3261_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

@@ -13,62 +13,7 @@ config SND_RK_SOC_I2S
 config SND_RK_SOC_SPDIF
 	tristate
 
-config SND_RK_SOC_I2S_8CH
-	bool "Soc RK I2S 8 Channel support(I2S0)"
-	default y
-	depends on SND_RK_SOC_I2S && !ARCH_RK3066B && !ARCH_RK3188 && !ARCH_RK319X
-	help
-       This supports the use of the 8 Channel I2S interface on rk processors.
-				
-if SND_RK_SOC_I2S_8CH
-choice
-  bool "Set I2S0 using the number of channels"
-  default SND_I2SO_USE_DOUBLE_CHANNELS
-	config SND_I2SO_USE_EIGHT_CHANNELS
-		tristate  "I2S0 use 8 channels"
-
-	config SND_I2SO_USE_DOUBLE_CHANNELS
-		tristate  "I2S0 use 2 channels"
-endchoice
-endif
-
-config SND_RK_SOC_I2S_2CH
-	bool "Soc RK I2S 2 Channel support(I2S1)"
-	depends on SND_RK_SOC_I2S && !ARCH_RK2928 && !ARCH_RK3026
-	default y if (ARCH_RK3066B || ARCH_RK3188)
-	help
-         This supports the use of the 2 Channel I2S interface on rk processors.
-		 
-choice
-	bool "Set I2S GRF Output Voltage"
-	depends on (ARCH_RK3066B || ARCH_RK3188) && SND_RK_SOC_I2S_2CH
-	default SND_I2S_USE_33V
-
-	config SND_I2S_USE_33V
-		bool "I2S use 3.3V"
-
-	config SND_I2S_USE_18V
-		bool "I2S use 1.8V"
-endchoice
-
-config SND_RK_SOC_I2S2_2CH
-	bool "Soc RK I2S 2 Channel support(I2S2)"
-	default n
-	depends on SND_RK_SOC_I2S && ARCH_RK30 && !ARCH_RK2928 && !ARCH_RK3066B && !ARCH_RK3026
-	help
-		This supports the use of the 2 Channel I2S2 interface on rk30 processors.
-
-if 	SND_RK_SOC_I2S_2CH || SND_RK_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH
-choice
-  bool "Set i2s on DMA event mode"
-  default SND_I2S_DMA_EVENT_STATIC
-	config SND_I2S_DMA_EVENT_DYNAMIC
-		tristate  "dynamic mode"
-
-	config SND_I2S_DMA_EVENT_STATIC
-		tristate  "static mode"
-endchoice
-endif
+if SND_RK_SOC
 
 if SND_RK_SOC && RK_HDMI
 choice
@@ -86,7 +31,7 @@ choice
 		select SND_SOC_HDMI_SPDIF
 		tristate  "HDMI use SPDIF"
 endchoice
-endif
+endif #SND_RK_SOC && RK_HDMI
 
 config SND_RK_SOC_AK4396
 	tristate "SoC I2S Audio support for rockchip - AK4396"
@@ -343,28 +288,4 @@ config SND_RK_SOC_RK3190
           Say Y if you want to add support for SoC audio on rockchip
           with the RK3190 internal codec.
 
-if SND_RK_SOC_I2S_2CH || SND_RK_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH  
-choice
-  bool "Set i2s type"
-  default SND_RK_CODEC_SOC_SLAVE
-	config SND_RK_CODEC_SOC_MASTER
-		tristate  "Codec run in Master"
-
-	config SND_RK_CODEC_SOC_SLAVE
-		tristate  "Codec run in Slave"
-endchoice
-
-config ADJUST_VOL_BY_CODEC
-	bool "Adjust volume by codec"
-    default n
-    help
-    	  adjust volume by codec
-
-config PHONE_INCALL_IS_SUSPEND
-	bool "Incalling Whether suspend codec"
-    default n
-    help
-		set "y" phone incall status cannot into suspend codec
-
-endif
-
+endif #SND_RK_SOC

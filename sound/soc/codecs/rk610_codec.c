@@ -601,6 +601,7 @@ static int rk610_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
+	unsigned int dai_fmt = snd_soc_pcm_runtime->card->dai_link[0].dai_fmt
 
 	u16 iface = rk610_codec_read_reg_cache(codec, ACCELCODEC_R09) & 0x1f3;
 	u16 srate = rk610_codec_read_reg_cache(codec, ACCELCODEC_R00) & 0x180;
@@ -631,9 +632,9 @@ static int rk610_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 	rk610_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_DISABLE|ASC_INT_DISABLE);  //0x00
 
 	/* set iface & srate */
-	#ifdef CONFIG_SND_RK_CODEC_SOC_MASTER
-	iface |= ASC_INVERT_BCLK;//翻转BCLK  master状态送出的少了半个时钟，导致未到最大音量的时候破音、
-	#endif
+	if ((dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM)
+		iface |= ASC_INVERT_BCLK;//翻转BCLK  master状态送出的少了半个时钟，导致未到最大音量的时候破音、
+
 	rk610_codec_write(codec, ACCELCODEC_R09, iface);
 	if (coeff >= 0){
 	//    rk610_codec_write(codec, ACCELCODEC_R00, srate|coeff_div[coeff].bclk);

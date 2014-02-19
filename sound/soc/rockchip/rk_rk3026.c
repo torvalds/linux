@@ -21,6 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/rk3026_codec.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
@@ -197,32 +198,13 @@ static struct snd_soc_dai_link rk_dai[] = {
 	{
 		.name = "RK3026 I2S1",
 		.stream_name = "RK3026 PCM",
-		.codec_name = "rk3026-codec",
-#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
-		.cpu_dai_name = "rockchip-i2s.0",
-#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-		.cpu_dai_name = "rockchip-i2s.1",
-#endif
 		.codec_dai_name = "rk3026-hifi",
 		.init = rk3026_init,
 		.ops = &rk3026_hifi_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 	},
 	{
 		.name = "RK3026 I2S2",
 		.stream_name = "RK3026 PCM",
-		.codec_name = "rk3026-codec",
-#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
-		.cpu_dai_name = "rockchip-i2s.0",
-#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-		.cpu_dai_name = "rockchip-i2s.1",
-#endif
 		.codec_dai_name = "rk3026-voice",
 		.ops = &rk3026_voice_ops,
 	},
@@ -241,8 +223,13 @@ static int rockchip_rk3026_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

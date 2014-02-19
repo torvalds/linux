@@ -14,6 +14,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
@@ -72,21 +73,8 @@ static struct snd_soc_ops hdmi_i2s_hifi_ops = {
 static struct snd_soc_dai_link hdmi_i2s_dai = {
 	.name = "HDMI I2S",
 	.stream_name = "HDMI PCM",
-	.codec_name = "hdmi-i2s",
-#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
-	.cpu_dai_name = "rockchip-i2s.0",
-#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-	.cpu_dai_name = "rockchip-i2s.1",
-#endif
 	.codec_dai_name = "rk-hdmi-i2s-hifi",
 	.ops = &hdmi_i2s_hifi_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 };
 
 static struct snd_soc_card rockchip_hdmi_i2s_snd_card = {
@@ -102,8 +90,13 @@ static int rockchip_hdmi_i2s_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

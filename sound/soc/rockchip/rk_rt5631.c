@@ -20,14 +20,10 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include "../codecs/rt5631.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
-#ifdef CONFIG_MACH_RK_FAC
-#include <plat/config.h>
-extern int codec_type;
-#endif
 #if 0
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
@@ -40,7 +36,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-        unsigned int pll_out = 0; 
+	unsigned int pll_out = 0, dai_fmt = cpu_dai->card->dai_link[0].dai_fmt;
         int ret;
 
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
@@ -71,8 +67,21 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
                 return -EINVAL;
                 break;
         }
-#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
+
 	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+
+	/*Set the system clk for codec*/
+	ret=snd_soc_dai_set_sysclk(codec_dai, 0,pll_out,SND_SOC_CLOCK_IN);
+	if (ret < 0)
+	{
+		DBG("rk29_hw_params_rt5631:failed to set the sysclk for codec side\n");
+		return ret;
+	}
+
+	//Codec is master, so is not need to set clkdiv for cpu.
+	if ((dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM)
+		return 0;
+
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, 64-1);//bclk = 2*32*lrck; 2*32fs
 	switch(params_rate(params)) {
         case 176400:		
@@ -86,31 +95,8 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         DBG("default:%s, %d, MCLK=%d BCLK=%d LRCK=%d\n",
 		__FUNCTION__,__LINE__,pll_out,pll_out/4,params_rate(params));			
 			break;
-	}	
-		
-#if 0		//use pll from blck
-          /*Set the pll of rt5631,the Pll source from BITCLK on CPU is master mode*/
-         //bitclk is 64fs           
-		    ret=snd_soc_dai_set_pll(codec_dai,0,params_rate(params)*64,pll_out);
-		    if (ret < 0)
-		    { 
-		       DBG("rk29_hw_params_rt5631:failed to set the pll for codec side\n"); 
-		  	   return ret;
-		    }
-#endif	    
-	/*Set the system clk for codec*/
-	ret=snd_soc_dai_set_sysclk(codec_dai, 0,pll_out,SND_SOC_CLOCK_IN);
-	if (ret < 0)
-	{
-		DBG("rk29_hw_params_rt5631:failed to set the sysclk for codec side\n"); 
-		return ret;
-	}	    
-#endif
+	}
 
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-	//snd_soc_dai_set_pll(codec_dai,0,pll_out, 22579200);
-	snd_soc_dai_set_sysclk(codec_dai,0,pll_out, SND_SOC_CLOCK_IN);						      
-#endif       
 	return 0;
 }
 
@@ -170,24 +156,9 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	.name = "rt5631",
 	.stream_name = "rt5631 PCM",
-	.codec_name = "rt5631.0-001a",
-#if defined(CONFIG_SND_RK_SOC_I2S_8CH)	
-	.cpu_dai_name = "rockchip-i2s.0",
-#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-	.cpu_dai_name = "rockchip-i2s.1",
-#else
-	.cpu_dai_name = "rockchip-i2s.2",
-#endif
 	.codec_dai_name = "rt5631-hifi",
 	.init = rk29_rt5631_init,
 	.ops = &rk29_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 };
 
 static struct snd_soc_card rockchip_rt5631_snd_card = {
@@ -203,8 +174,13 @@ static int rockchip_rt5631_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

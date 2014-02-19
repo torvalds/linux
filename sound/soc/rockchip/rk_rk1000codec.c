@@ -21,6 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/rk1000_codec.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
@@ -59,22 +60,9 @@ static struct snd_soc_dai_link rk29_dai[] = {
 	{
 		.name = "RK1000",
 		.stream_name = "RK1000 CODEC PCM",
-		.codec_name = "RK1000_CODEC.0-0060",
 		.codec_dai_name = "rk1000_codec",
-#if defined(CONFIG_SND_RK_SOC_I2S_8CH)        
-		.cpu_dai_name = "rockchip-i2s.0",
-#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-		.cpu_dai_name = "rockchip-i2s.1",
-#endif
 		.init = rk29_rk1000_codec_init,
 		.ops = &rk29_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 	}
 };
 
@@ -91,8 +79,13 @@ static int rockchip_rk1000_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

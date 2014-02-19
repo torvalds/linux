@@ -16,6 +16,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
 #include <linux/delay.h>    
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 #if 1
@@ -35,7 +36,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-    unsigned int pll_out = 0;
+    unsigned int pll_out = 0, dai_fmt = cpu_dai->card->dai_link[0].dai_fmt;
     //unsigned int pll_div;
     int ret;
 
@@ -67,7 +68,8 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
                 return -EINVAL;
                 break;
         }
-#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
+	if ((dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM)
+		goto skip__;
 	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, 64-1);//bclk = 2*32*lrck; 2*32fs
 	switch(params_rate(params)) {
@@ -91,51 +93,10 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		DBG("rk29_hw_params_cx2070x:failed to set the sysclk for codec side\n"); 
 		return ret;
 	}	 
-#endif 
+skip__:
 
-#if 0
-    switch (params_rate(params))
-	{
-		case 8000:
-			pll_div = 12;
-			break;
-		case 16000:
-			pll_div = 6;
-			break;
-		case 32000:
-			pll_div = 3;
-			break;
-		case 48000:
-			pll_div = 2;
-			break;
-		case 96000:
-			pll_div = 1;
-			break;
-		case 11025:
-			pll_div = 8;
-			break;
-		case 22050:
-			pll_div = 4;
-			break;
-		case 44100:
-			pll_div = 2;
-			break;
-		case 88200:
-			pll_div = 1;
-			break;
-    		default:
-			printk("Not yet supported!\n");
-			return -EINVAL;
-	}
-	ret = snd_soc_dai_set_clkdiv(codec_dai, cx2070x_CLK_DIV_ID, pll_div*4);
-	if (ret < 0)
-		return ret;	
-#endif
-
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
-	//snd_soc_dai_set_pll(codec_dai,0,pll_out, 22579200);
-	snd_soc_dai_set_sysclk(codec_dai,0,pll_out, SND_SOC_CLOCK_IN);						      
-#endif       
+	if ((dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM)
+		snd_soc_dai_set_sysclk(codec_dai,0,pll_out, SND_SOC_CLOCK_IN);
 	return 0;
 }
 
@@ -200,18 +161,9 @@ static struct snd_soc_dai_link rk29_dai[] = {
 	{ /* Primary DAI i/f */
 		.name = "CX2070X AIF1",
 		.stream_name = "CX2070X PCM",
-		.cpu_dai_name = "rockchip-i2s.1",
 		.codec_dai_name = "cx2070x-hifi",
-		.codec_name = "cx2070x.0-0014",
 		.init = cx2070x_init,
 		.ops = &rk29_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 	},
 };
 
@@ -231,8 +183,13 @@ static int rockchip_cx2070x_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

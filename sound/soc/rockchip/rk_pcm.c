@@ -34,17 +34,9 @@ static const struct snd_pcm_hardware rockchip_pcm_hardware = {
 				    SNDRV_PCM_FMTBIT_S16_LE,
 	.channels_min		= 2,
 	.channels_max		= 8,
-#ifdef CONFIG_RK_SRAM_DMA
-	.buffer_bytes_max	= 24*1024,//period_bytes_max * periods_max
-#else
 	.buffer_bytes_max	= 128*1024,
-#endif
 	.period_bytes_min	= 64,  ///PAGE_SIZE,
-#ifdef CONFIG_RK_SRAM_DMA
-	.period_bytes_max	= 8*1024,
-#else
 	.period_bytes_max	= 2048*4,///PAGE_SIZE*2,
-#endif
 	.periods_min		= 3,///2,
 	.periods_max		= 128,
 	.fifo_size		= 16,

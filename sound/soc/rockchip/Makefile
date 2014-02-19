@@ -1,5 +1,5 @@
 # ROCKCHIP Platform Support
-snd-soc-rockchip-objs := rk_pcm.o
+snd-soc-rockchip-objs := rk_pcm.o card_info.o
 ifdef CONFIG_ARCH_RK29
 snd-soc-rockchip-i2s-objs := rk29_i2s.o
 else

@@ -21,6 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/rk616_codec.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
@@ -101,7 +102,6 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0, div = 4;
-	int ret;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
@@ -224,35 +224,16 @@ static struct snd_soc_dai_link rk_dai[] = {
 	{
 		.name = "RK616 I2S1",
 		.stream_name = "RK616 PCM",
-		.codec_name = "rk616-codec.4-0050",
-#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
-		.cpu_dai_name = "rockchip-i2s.0",
-#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-		.cpu_dai_name = "rockchip-i2s.1",
-#endif
 		.codec_dai_name = "rk616-hifi",
 		.init = rk616_init,
 		.ops = &rk616_hifi_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 	},
 	{
 		.name = "RK616 I2S2",
 		.stream_name = "RK616 PCM",
-		.codec_name = "rk616-codec.4-0050",
-#if defined(CONFIG_SND_RK_SOC_I2S_8CH)
-		.cpu_dai_name = "rockchip-i2s.0",
-#elif defined(CONFIG_SND_RK_SOC_I2S_2CH)
-		.cpu_dai_name = "rockchip-i2s.1",
-#endif
 		.codec_dai_name = "rk616-voice",
 		.ops = &rk616_voice_ops,
-		.no_pcm = 1;
+		.no_pcm = 1,
 	},
 };
 
@@ -269,8 +250,13 @@ static int rockchip_rk616_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

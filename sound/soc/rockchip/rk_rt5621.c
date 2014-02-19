@@ -21,6 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/rt5621.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
@@ -36,7 +37,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned int pll_out = 0; 
+	unsigned int pll_out = 0, dai_fmt = cpu_dai->card->dai_link[0].dai_fmt;
 	unsigned int lrclk = 0;
 	int ret;
 	  
@@ -62,46 +63,33 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	}
 	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 
-#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
-#if 0	//use pll from blck
-	/*Set the pll of rt5621,the Pll source from BITCLK on CPU is master mode*/
-	//bitclk is 64fs           
-	ret=snd_soc_dai_set_pll(codec_dai,RT5621_PLL_FR_BCLK,params_rate(params)*64,pll_out);
-	if (ret < 0) { 
-		DBG("rk29_hw_params_rt5621:failed to set the pll for codec side\n"); 
-		return ret;
+	if ((dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM) {
+
+		if((24576000%params_rate(params))==0)	//for 8k,16k,32k,48k
+		{
+			snd_soc_dai_set_pll(codec_dai,RT5621_PLL_FR_MCLK,pll_out, 24576000);
+			snd_soc_dai_set_sysclk(codec_dai,0, 24576000, SND_SOC_CLOCK_IN);
+		}
+		else if((22579200%params_rate(params))==0)	//for 11k,22k,44k
+		{
+			snd_soc_dai_set_pll(codec_dai,RT5621_PLL_FR_MCLK,pll_out, 22579200);
+			snd_soc_dai_set_sysclk(codec_dai,0, 22579200, SND_SOC_CLOCK_IN);
+		}
 	}
-#endif	    
-	/*Set the system clk for codec*/
-	ret=snd_soc_dai_set_sysclk(codec_dai, 0,pll_out,SND_SOC_CLOCK_IN);
-	if (ret < 0) {
-		DBG("rk29_hw_params_rt5621:failed to set the sysclk for codec side\n"); 
-		return ret;
-	}	    
-#endif
-  
 
-  #if defined (CONFIG_SND_RK_CODEC_SOC_MASTER) 
 
-	if((24576000%params_rate(params))==0)	//for 8k,16k,32k,48k
-	{
-		snd_soc_dai_set_pll(codec_dai,RT5621_PLL_FR_MCLK,pll_out, 24576000);
-		snd_soc_dai_set_sysclk(codec_dai,0, 24576000, SND_SOC_CLOCK_IN);			
+	if ((dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBS_CFS) {
+		/*Set the system clk for codec*/
+		ret=snd_soc_dai_set_sysclk(codec_dai, 0,pll_out,SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			DBG("rk29_hw_params_rt5621:failed to set the sysclk for codec side\n");
+			return ret;
+		}
+
+		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
+		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
 	}
-	else if((22579200%params_rate(params))==0)	//for 11k,22k,44k
-	{
-		snd_soc_dai_set_pll(codec_dai,RT5621_PLL_FR_MCLK,pll_out, 22579200);
-		snd_soc_dai_set_sysclk(codec_dai,0, 22579200, SND_SOC_CLOCK_IN);			
-	}
-      
-#endif
-
-
-#if defined (CONFIG_SND_RK_CODEC_SOC_SLAVE)
-	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
-#endif
 
 	DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
         
@@ -145,18 +133,9 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	.name = "RT5621",
 	.stream_name = "RT5621 PCM",
-	.codec_name = "RT5621.0-001a",
-	.cpu_dai_name = "rockchip-i2s.0",
 	.codec_dai_name = "RT5621 HiFi",
 	.init = rk29_rt5621_init,
 	.ops = &rk29_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 };
 
 static struct snd_soc_card rockchip_rt5621_snd_card = {
@@ -172,8 +151,13 @@ static int rockchip_rt5621_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 

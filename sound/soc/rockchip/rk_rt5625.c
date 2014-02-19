@@ -21,6 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/rt5625.h"
+#include "card_info.h"
 #include "rk_pcm.h"
 #include "rk_i2s.h"
 
@@ -150,23 +151,12 @@ static struct snd_soc_dai_link rk29_dai[] = {
 	{
 		.name = "RT5625 I2S1",
 		.stream_name = "RT5625 PCM",
-		.codec_name = "rt5625.0-001f",
-		.cpu_dai_name = "rockchip-i2s.0",
 		.codec_dai_name = "rt5625-aif1",
 		.ops = &rk29_ops,
-#if defined (CONFIG_SND_RK_CODEC_SOC_MASTER)
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
-#else
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#endif
 	},
 	{
 		.name = "RT5625 I2S2",
 		.stream_name = "RT5625 PCM",
-		.codec_name = "rt5625.0-001f",
-		.cpu_dai_name = "rockchip-i2s.0",
 		.codec_dai_name = "rt5625-aif2",
 		.ops = &rt5625_voice_ops,
 	},
@@ -185,8 +175,13 @@ static int rockchip_rt5625_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
+	ret = snd_soc_register_card(card);
 	if (ret)
 		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
 
