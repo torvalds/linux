@@ -28,4 +28,8 @@
 #define HWCAP_LPAE	(1 << 20)
 #define HWCAP_EVTSTRM	(1 << 21)
 
+/*
+ * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2
+ */
+
 #endif /* _UAPI__ASMARM_HWCAP_H */
