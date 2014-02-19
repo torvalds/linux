@@ -51,7 +51,6 @@
 
 #include "dgap_driver.h"
 #include "dgap_pci.h"
-#include "dgap_fep5.h"
 #include "dgap_conf.h"
 #include "dgap_parse.h"
 #include "dgap_types.h"
