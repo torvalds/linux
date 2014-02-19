@@ -24,6 +24,7 @@ enum samsung_pll_type {
 	pll_4650,
 	pll_4650c,
 	pll_6552,
+	pll_6552_s3c2416,
 	pll_6553,
 };
 

@@ -564,7 +564,9 @@ static const struct clk_ops samsung_pll46xx_clk_min_ops = {
 #define PLL6552_PDIV_MASK	0x3f
 #define PLL6552_SDIV_MASK	0x7
 #define PLL6552_MDIV_SHIFT	16
+#define PLL6552_MDIV_SHIFT_2416	14
 #define PLL6552_PDIV_SHIFT	8
+#define PLL6552_PDIV_SHIFT_2416	5
 #define PLL6552_SDIV_SHIFT	0
 
 static unsigned long samsung_pll6552_recalc_rate(struct clk_hw *hw,
@@ -575,8 +577,13 @@ static unsigned long samsung_pll6552_recalc_rate(struct clk_hw *hw,
 	u64 fvco = parent_rate;
 
 	pll_con = __raw_readl(pll->con_reg);
-	mdiv = (pll_con >> PLL6552_MDIV_SHIFT) & PLL6552_MDIV_MASK;
-	pdiv = (pll_con >> PLL6552_PDIV_SHIFT) & PLL6552_PDIV_MASK;
+	if (pll->type == pll_6552_s3c2416) {
+		mdiv = (pll_con >> PLL6552_MDIV_SHIFT_2416) & PLL6552_MDIV_MASK;
+		pdiv = (pll_con >> PLL6552_PDIV_SHIFT_2416) & PLL6552_PDIV_MASK;
+	} else {
+		mdiv = (pll_con >> PLL6552_MDIV_SHIFT) & PLL6552_MDIV_MASK;
+		pdiv = (pll_con >> PLL6552_PDIV_SHIFT) & PLL6552_PDIV_MASK;
+	}
 	sdiv = (pll_con >> PLL6552_SDIV_SHIFT) & PLL6552_SDIV_MASK;
 
 	fvco *= mdiv;
@@ -773,6 +780,7 @@ static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
 			init.ops = &samsung_pll36xx_clk_ops;
 		break;
 	case pll_6552:
+	case pll_6552_s3c2416:
 		init.ops = &samsung_pll6552_clk_ops;
 		break;
 	case pll_6553:
