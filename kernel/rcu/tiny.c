@@ -37,10 +37,6 @@
 #include <linux/prefetch.h>
 #include <linux/ftrace_event.h>
 
-#ifdef CONFIG_RCU_TRACE
-#include <trace/events/rcu.h>
-#endif /* #else #ifdef CONFIG_RCU_TRACE */
-
 #include "rcu.h"
 
 /* Forward declarations for tiny_plugin.h. */

@@ -58,8 +58,6 @@
 #include <linux/suspend.h>
 
 #include "tree.h"
-#include <trace/events/rcu.h>
-
 #include "rcu.h"
 
 MODULE_ALIAS("rcutree");
