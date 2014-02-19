@@ -1386,8 +1386,8 @@ static int ahci_bad_pmp_check_ready(struct ata_link *link)
 	return ata_check_ready(status);
 }
 
-int ahci_pmp_retry_softreset(struct ata_link *link, unsigned int *class,
-				unsigned long deadline)
+static int ahci_pmp_retry_softreset(struct ata_link *link, unsigned int *class,
+				    unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	void __iomem *port_mmio = ahci_port_base(ap);
