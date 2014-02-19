@@ -267,23 +267,6 @@ static int tps65218_regulator_probe(struct platform_device *pdev)
 		return PTR_ERR(rdev);
 	}
 
-	/* Save regulator */
-	tps->rdev[id] = rdev;
-
-	return 0;
-}
-
-static int tps65218_regulator_remove(struct platform_device *pdev)
-{
-	struct tps65218 *tps = platform_get_drvdata(pdev);
-	const struct of_device_id	*match;
-	const struct tps_info		*template;
-
-	match = of_match_device(tps65218_of_match, &pdev->dev);
-	template = match->data;
-	regulator_unregister(tps->rdev[template->id]);
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
@@ -294,7 +277,6 @@ static struct platform_driver tps65218_regulator_driver = {
 		.of_match_table = of_match_ptr(tps65218_of_match),
 	},
 	.probe = tps65218_regulator_probe,
-	.remove = tps65218_regulator_remove,
 };
 
 module_platform_driver(tps65218_regulator_driver);
