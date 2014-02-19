@@ -33,7 +33,38 @@
 
 #include "dgap_types.h"         /* Additional types needed by the Digi header files */
 #include "digi.h"               /* Digi specific ioctl header */
-#include "dgap_kcompat.h"       /* Kernel 2.4/2.6 compat includes */
+
+#if !defined(TTY_FLIPBUF_SIZE)
+# define TTY_FLIPBUF_SIZE 512
+#endif
+
+/* Sparse stuff */
+# ifndef __user
+#  define __user
+#  define __kernel
+#  define __safe
+#  define __force
+#  define __chk_user_ptr(x) (void)0
+# endif
+
+
+#  define PARM_STR(VAR, INIT, PERM, DESC) \
+		static char *VAR = INIT; \
+		char *dgap_##VAR; \
+		module_param(VAR, charp, PERM); \
+		MODULE_PARM_DESC(VAR, DESC);
+
+#  define PARM_INT(VAR, INIT, PERM, DESC) \
+		static int VAR = INIT; \
+		int dgap_##VAR; \
+		module_param(VAR, int, PERM); \
+		MODULE_PARM_DESC(VAR, DESC);
+
+#  define PARM_ULONG(VAR, INIT, PERM, DESC) \
+		static ulong VAR = INIT; \
+		ulong dgap_##VAR; \
+		module_param(VAR, long, PERM); \
+		MODULE_PARM_DESC(VAR, DESC);
 
 /*************************************************************************
  *
