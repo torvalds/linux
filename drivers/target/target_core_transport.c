@@ -2206,7 +2206,7 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 				return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
 
-		if (cmd->prot_type != TARGET_PROT_NORMAL) {
+		if (cmd->prot_op != TARGET_PROT_NORMAL) {
 			ret = target_alloc_sgl(&cmd->t_prot_sg,
 					       &cmd->t_prot_nents,
 					       cmd->prot_length, true);

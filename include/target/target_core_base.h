@@ -463,6 +463,12 @@ enum target_prot_type {
 	TARGET_DIF_TYPE3_PROT,
 };
 
+enum target_core_dif_check {
+	TARGET_DIF_CHECK_GUARD  = 0x1 << 0,
+	TARGET_DIF_CHECK_APPTAG = 0x1 << 1,
+	TARGET_DIF_CHECK_REFTAG = 0x1 << 2,
+};
+
 struct se_dif_v1_tuple {
 	__be16			guard_tag;
 	__be16			app_tag;
@@ -556,6 +562,7 @@ struct se_cmd {
 	/* DIF related members */
 	enum target_prot_op	prot_op;
 	enum target_prot_type	prot_type;
+	u8			prot_checks;
 	u32			prot_length;
 	u32			reftag_seed;
 	struct scatterlist	*t_prot_sg;
