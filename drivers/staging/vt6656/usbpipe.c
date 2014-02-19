@@ -616,6 +616,19 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkOutIoCompleteWrite\n");
 
+	switch (urb->status) {
+	case 0:
+	case -ETIMEDOUT:
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		pContext->bBoolInUse = false;
+		return;
+	default:
+		break;
+	}
+
     if (!netif_device_present(pDevice->dev))
 	    return;
 
