@@ -87,7 +87,6 @@ static const struct comedi_lrange range_pcl816 = {
 
 struct pcl816_board {
 	const char *name;
-	unsigned int ai_ns_min;
 	int n_aochan;
 	unsigned int IRQbits;
 	int ai_maxdata;
@@ -98,7 +97,6 @@ struct pcl816_board {
 static const struct pcl816_board boardtypes[] = {
 	{
 		.name		= "pcl816",
-		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xffff,
@@ -106,7 +104,6 @@ static const struct pcl816_board boardtypes[] = {
 		.ai_chanlist	= 1024,
 	}, {
 		.name		= "pcl814b",
-		.ai_ns_min	= 10000,
 		.n_aochan	= 1,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0x3fff,
@@ -408,7 +405,6 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct pcl816_board *board = comedi_board(dev);
 	int err = 0;
 	int tmp, divisor1 = 0, divisor2 = 0;
 
@@ -440,8 +436,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->convert_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 board->ai_ns_min);
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
 	else	/* TRIG_EXT */
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
@@ -462,8 +457,8 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
 					  &divisor1, &divisor2,
 					  &cmd->convert_arg, cmd->flags);
-		if (cmd->convert_arg < board->ai_ns_min)
-			cmd->convert_arg = board->ai_ns_min;
+		if (cmd->convert_arg < 10000)
+			cmd->convert_arg = 10000;
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -485,7 +480,6 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 
 static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct pcl816_board *board = comedi_board(dev);
 	struct pcl816_private *devpriv = dev->private;
 	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -495,8 +489,8 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EBUSY;
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < board->ai_ns_min)
-			cmd->convert_arg = board->ai_ns_min;
+		if (cmd->convert_arg < 10000)
+			cmd->convert_arg = 10000;
 
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
 					  &divisor1, &divisor2,
