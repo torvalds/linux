@@ -45,7 +45,7 @@ struct vidi_win_data {
 };
 
 struct vidi_context {
-	struct exynos_drm_subdrv	subdrv;
+	struct drm_device		*drm_dev;
 	struct drm_crtc			*crtc;
 	struct vidi_win_data		win_data[WINDOWS_NR];
 	struct edid			*raw_edid;
@@ -58,6 +58,7 @@ struct vidi_context {
 	bool				direct_vblank;
 	struct work_struct		work;
 	struct mutex			lock;
+	int				pipe;
 };
 
 static const char fake_edid_info[] = {
@@ -85,10 +86,9 @@ static const char fake_edid_info[] = {
 	0x00, 0x00, 0x00, 0x06
 };
 
-static bool vidi_display_is_connected(struct device *dev)
+static bool vidi_display_is_connected(struct exynos_drm_display *display)
 {
-	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = display->ctx;
 
 	/*
 	 * connection request would come from user side
@@ -97,11 +97,10 @@ static bool vidi_display_is_connected(struct device *dev)
 	return ctx->connected ? true : false;
 }
 
-static struct edid *vidi_get_edid(struct device *dev,
+static struct edid *vidi_get_edid(struct exynos_drm_display *display,
 			struct drm_connector *connector)
 {
-	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = display->ctx;
 	struct edid *edid;
 
 	/*
@@ -122,14 +121,8 @@ static struct edid *vidi_get_edid(struct device *dev,
 	return edid;
 }
 
-static void *vidi_get_panel(struct device *dev)
-{
-	/* TODO. */
-
-	return NULL;
-}
-
-static int vidi_check_mode(struct device *dev, struct drm_display_mode *mode)
+static int vidi_check_mode(struct exynos_drm_display *display,
+			struct drm_display_mode *mode)
 {
 	/* TODO. */
 
@@ -137,11 +130,14 @@ static int vidi_check_mode(struct device *dev, struct drm_display_mode *mode)
 }
 
 static struct exynos_drm_display_ops vidi_display_ops = {
-	.type = EXYNOS_DISPLAY_TYPE_VIDI,
 	.is_connected = vidi_display_is_connected,
 	.get_edid = vidi_get_edid,
-	.get_panel = vidi_get_panel,
 	.check_mode = vidi_check_mode,
+};
+
+static struct exynos_drm_display vidi_display = {
+	.type = EXYNOS_DISPLAY_TYPE_VIDI,
+	.ops = &vidi_display_ops,
 };
 
 static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
@@ -323,7 +319,38 @@ static void vidi_win_disable(struct exynos_drm_manager *mgr, int zpos)
 	/* TODO. */
 }
 
+static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
+			struct drm_device *drm_dev, int pipe)
+{
+	struct vidi_context *ctx = mgr->ctx;
+
+	DRM_ERROR("vidi initialize ct=%p dev=%p pipe=%d\n", ctx, drm_dev, pipe);
+
+	ctx->drm_dev = drm_dev;
+	ctx->pipe = pipe;
+
+	/*
+	 * enable drm irq mode.
+	 * - with irq_enabled = 1, we can use the vblank feature.
+	 *
+	 * P.S. note that we wouldn't use drm irq handler but
+	 *	just specific driver own one instead because
+	 *	drm framework supports only one irq handler.
+	 */
+	drm_dev->irq_enabled = 1;
+
+	/*
+	 * with vblank_disable_allowed = 1, vblank interrupt will be disabled
+	 * by drm timer once a current process gives up ownership of
+	 * vblank event.(after drm_vblank_put function is called)
+	 */
+	drm_dev->vblank_disable_allowed = 1;
+
+	return 0;
+}
+
 static struct exynos_drm_manager_ops vidi_manager_ops = {
+	.initialize = vidi_mgr_initialize,
 	.dpms = vidi_dpms,
 	.commit = vidi_commit,
 	.enable_vblank = vidi_enable_vblank,
@@ -334,19 +361,16 @@ static struct exynos_drm_manager_ops vidi_manager_ops = {
 };
 
 static struct exynos_drm_manager vidi_manager = {
-	.pipe		= -1,
-	.ops		= &vidi_manager_ops,
-	.display_ops	= &vidi_display_ops,
+	.type = EXYNOS_DISPLAY_TYPE_VIDI,
+	.ops = &vidi_manager_ops,
 };
 
 static void vidi_fake_vblank_handler(struct work_struct *work)
 {
 	struct vidi_context *ctx = container_of(work, struct vidi_context,
 					work);
-	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct exynos_drm_manager *manager = subdrv->manager;
 
-	if (manager->pipe < 0)
+	if (ctx->pipe < 0)
 		return;
 
 	/* refresh rate is about 50Hz. */
@@ -355,7 +379,7 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 	mutex_lock(&ctx->lock);
 
 	if (ctx->direct_vblank) {
-		drm_handle_vblank(subdrv->drm_dev, manager->pipe);
+		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
 		ctx->direct_vblank = false;
 		mutex_unlock(&ctx->lock);
 		return;
@@ -363,34 +387,7 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 
 	mutex_unlock(&ctx->lock);
 
-	exynos_drm_crtc_finish_pageflip(subdrv->drm_dev, manager->pipe);
-}
-
-static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
-{
-	/*
-	 * enable drm irq mode.
-	 * - with irq_enabled = true, we can use the vblank feature.
-	 *
-	 * P.S. note that we wouldn't use drm irq handler but
-	 *	just specific driver own one instead because
-	 *	drm framework supports only one irq handler.
-	 */
-	drm_dev->irq_enabled = true;
-
-	/*
-	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
-	 * by drm timer once a current process gives up ownership of
-	 * vblank event.(after drm_vblank_put function is called)
-	 */
-	drm_dev->vblank_disable_allowed = true;
-
-	return 0;
-}
-
-static void vidi_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
-{
-	/* TODO. */
+	exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
 }
 
 static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
@@ -460,7 +457,7 @@ static int vidi_store_connection(struct device *dev,
 
 	DRM_DEBUG_KMS("requested connection.\n");
 
-	drm_helper_hpd_irq_event(ctx->subdrv.drm_dev);
+	drm_helper_hpd_irq_event(ctx->drm_dev);
 
 	return len;
 }
@@ -473,8 +470,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 {
 	struct vidi_context *ctx = NULL;
 	struct drm_encoder *encoder;
-	struct exynos_drm_manager *manager;
-	struct exynos_drm_display_ops *display_ops;
+	struct exynos_drm_display *display;
 	struct drm_exynos_vidi_connection *vidi = data;
 
 	if (!vidi) {
@@ -489,11 +485,10 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 
 	list_for_each_entry(encoder, &drm_dev->mode_config.encoder_list,
 								head) {
-		manager = exynos_drm_get_manager(encoder);
-		display_ops = manager->display_ops;
+		display = exynos_drm_get_display(encoder);
 
-		if (display_ops->type == EXYNOS_DISPLAY_TYPE_VIDI) {
-			ctx = manager->ctx;
+		if (display->type == EXYNOS_DISPLAY_TYPE_VIDI) {
+			ctx = display->ctx;
 			break;
 		}
 	}
@@ -532,7 +527,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	}
 
 	ctx->connected = vidi->connection;
-	drm_helper_hpd_irq_event(ctx->subdrv.drm_dev);
+	drm_helper_hpd_irq_event(ctx->drm_dev);
 
 	return 0;
 }
@@ -541,7 +536,6 @@ static int vidi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct vidi_context *ctx;
-	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -553,12 +547,7 @@ static int vidi_probe(struct platform_device *pdev)
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
 	vidi_manager.ctx = ctx;
-
-	subdrv = &ctx->subdrv;
-	subdrv->dev = dev;
-	subdrv->manager = &vidi_manager;
-	subdrv->probe = vidi_subdrv_probe;
-	subdrv->remove = vidi_subdrv_remove;
+	vidi_display.ctx = ctx;
 
 	mutex_init(&ctx->lock);
 
@@ -568,7 +557,8 @@ static int vidi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		DRM_INFO("failed to create connection sysfs.\n");
 
-	exynos_drm_subdrv_register(subdrv);
+	exynos_drm_manager_register(&vidi_manager);
+	exynos_drm_display_register(&vidi_display);
 
 	return 0;
 }
@@ -577,7 +567,8 @@ static int vidi_remove(struct platform_device *pdev)
 {
 	struct vidi_context *ctx = platform_get_drvdata(pdev);
 
-	exynos_drm_subdrv_unregister(&ctx->subdrv);
+	exynos_drm_display_unregister(&vidi_display);
+	exynos_drm_manager_unregister(&vidi_manager);
 
 	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
 		kfree(ctx->raw_edid);

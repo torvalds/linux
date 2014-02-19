@@ -74,15 +74,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	exynos_drm_mode_config_init(dev);
 
-	/*
-	 * EXYNOS4 is enough to have two CRTCs and each crtc would be used
-	 * without dependency of hardware.
-	 */
-	for (nr = 0; nr < MAX_CRTC; nr++) {
-		ret = exynos_drm_crtc_create(dev, nr);
-		if (ret)
-			goto err_release_iommu_mapping;
-	}
+	ret = exynos_drm_initialize_managers(dev);
+	if (ret)
+		goto err_mode_config_cleanup;
 
 	for (nr = 0; nr < MAX_PLANE; nr++) {
 		struct drm_plane *plane;
@@ -90,12 +84,16 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 		plane = exynos_plane_init(dev, possible_crtcs, false);
 		if (!plane)
-			goto err_release_iommu_mapping;
+			goto err_manager_cleanup;
 	}
+
+	ret = exynos_drm_initialize_displays(dev);
+	if (ret)
+		goto err_manager_cleanup;
 
 	ret = drm_vblank_init(dev, MAX_CRTC);
 	if (ret)
-		goto err_release_iommu_mapping;
+		goto err_display_cleanup;
 
 	/*
 	 * probe sub drivers such as display controller and hdmi driver,
@@ -129,7 +127,12 @@ err_drm_device:
 	exynos_drm_device_unregister(dev);
 err_vblank:
 	drm_vblank_cleanup(dev);
-err_release_iommu_mapping:
+err_display_cleanup:
+	exynos_drm_remove_displays(dev);
+err_manager_cleanup:
+	exynos_drm_remove_managers(dev);
+err_mode_config_cleanup:
+	drm_mode_config_cleanup(dev);
 	drm_release_iommu_mapping(dev);
 err_crtc:
 	drm_mode_config_cleanup(dev);
@@ -144,6 +147,8 @@ static int exynos_drm_unload(struct drm_device *dev)
 	exynos_drm_device_unregister(dev);
 	drm_vblank_cleanup(dev);
 	drm_kms_helper_poll_fini(dev);
+	exynos_drm_remove_displays(dev);
+	exynos_drm_remove_managers(dev);
 	drm_mode_config_cleanup(dev);
 
 	drm_release_iommu_mapping(dev);

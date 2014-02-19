@@ -105,7 +105,6 @@ struct fimd_win_data {
 };
 
 struct fimd_context {
-	struct exynos_drm_subdrv	subdrv;
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	int				irq;
@@ -120,6 +119,7 @@ struct fimd_context {
 	u32				vidcon0;
 	u32				vidcon1;
 	bool				suspended;
+	int				pipe;
 	struct mutex			lock;
 	wait_queue_head_t		wait_vsync_queue;
 	atomic_t			wait_vsync_event;
@@ -147,22 +147,22 @@ static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	return (struct fimd_driver_data *)of_id->data;
 }
 
-static bool fimd_display_is_connected(struct device *dev)
+static bool fimd_display_is_connected(struct exynos_drm_display *display)
 {
 	/* TODO. */
 
 	return true;
 }
 
-static void *fimd_get_panel(struct device *dev)
+static void *fimd_get_panel(struct exynos_drm_display *display)
 {
-	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = display->ctx;
 
 	return &ctx->panel;
 }
 
-static int fimd_check_mode(struct device *dev, struct drm_display_mode *mode)
+static int fimd_check_mode(struct exynos_drm_display *display,
+			struct drm_display_mode *mode)
 {
 	/* TODO. */
 
@@ -170,70 +170,55 @@ static int fimd_check_mode(struct device *dev, struct drm_display_mode *mode)
 }
 
 static struct exynos_drm_display_ops fimd_display_ops = {
-	.type = EXYNOS_DISPLAY_TYPE_LCD,
 	.is_connected = fimd_display_is_connected,
 	.get_panel = fimd_get_panel,
 	.check_mode = fimd_check_mode,
 };
 
+static struct exynos_drm_display fimd_display = {
+	.type = EXYNOS_DISPLAY_TYPE_LCD,
+	.ops = &fimd_display_ops,
+};
+
 static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
-			struct drm_device *drm_dev)
+			struct drm_device *drm_dev, int pipe)
 {
 	struct fimd_context *ctx = mgr->ctx;
 
 	ctx->drm_dev = drm_dev;
+	ctx->pipe = pipe;
+
+	/*
+	 * enable drm irq mode.
+	 * - with irq_enabled = true, we can use the vblank feature.
+	 *
+	 * P.S. note that we wouldn't use drm irq handler but
+	 *	just specific driver own one instead because
+	 *	drm framework supports only one irq handler.
+	 */
+	drm_dev->irq_enabled = true;
+
+	/*
+	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
+	 * by drm timer once a current process gives up ownership of
+	 * vblank event.(after drm_vblank_put function is called)
+	 */
+	drm_dev->vblank_disable_allowed = true;
+
+	/* attach this sub driver to iommu mapping if supported. */
+	if (is_drm_iommu_supported(ctx->drm_dev))
+		drm_iommu_attach_device(ctx->drm_dev, ctx->dev);
 
 	return 0;
 }
 
-static void fimd_dpms(struct exynos_drm_manager *mgr, int mode)
+static void fimd_mgr_remove(struct exynos_drm_manager *mgr)
 {
 	struct fimd_context *ctx = mgr->ctx;
 
-	DRM_DEBUG_KMS("%d\n", mode);
-
-	mutex_lock(&ctx->lock);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		/*
-		 * enable fimd hardware only if suspended status.
-		 *
-		 * P.S. fimd_dpms function would be called at booting time so
-		 * clk_enable could be called double time.
-		 */
-		if (ctx->suspended)
-			pm_runtime_get_sync(ctx->dev);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		if (!ctx->suspended)
-			pm_runtime_put_sync(ctx->dev);
-		break;
-	default:
-		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
-		break;
-	}
-
-	mutex_unlock(&ctx->lock);
-}
-
-static void fimd_apply(struct exynos_drm_manager *mgr)
-{
-	struct fimd_context *ctx = mgr->ctx;
-	struct exynos_drm_manager_ops *mgr_ops = mgr->ops;
-	struct fimd_win_data *win_data;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		win_data = &ctx->win_data[i];
-		if (win_data->enabled && (mgr_ops && mgr_ops->win_commit))
-			mgr_ops->win_commit(mgr, i);
-	}
-
-	if (mgr_ops && mgr_ops->commit)
-		mgr_ops->commit(mgr);
+	/* detach this sub driver from iommu mapping if supported. */
+	if (is_drm_iommu_supported(ctx->drm_dev))
+		drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
 }
 
 static void fimd_commit(struct exynos_drm_manager *mgr)
@@ -661,8 +646,42 @@ static void fimd_win_disable(struct exynos_drm_manager *mgr, int zpos)
 	win_data->enabled = false;
 }
 
+static void fimd_dpms(struct exynos_drm_manager *mgr, int mode)
+{
+	struct fimd_context *ctx = mgr->ctx;
+
+	DRM_DEBUG_KMS("%d\n", mode);
+
+	mutex_lock(&ctx->lock);
+
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		/*
+		 * enable fimd hardware only if suspended status.
+		 *
+		 * P.S. fimd_dpms function would be called at booting time so
+		 * clk_enable could be called double time.
+		 */
+		if (ctx->suspended)
+			pm_runtime_get_sync(ctx->dev);
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		if (!ctx->suspended)
+			pm_runtime_put_sync(ctx->dev);
+		break;
+	default:
+		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
+		break;
+	}
+
+	mutex_unlock(&ctx->lock);
+}
+
 static struct exynos_drm_manager_ops fimd_manager_ops = {
 	.initialize = fimd_mgr_initialize,
+	.remove = fimd_mgr_remove,
 	.dpms = fimd_dpms,
 	.commit = fimd_commit,
 	.enable_vblank = fimd_enable_vblank,
@@ -674,16 +693,13 @@ static struct exynos_drm_manager_ops fimd_manager_ops = {
 };
 
 static struct exynos_drm_manager fimd_manager = {
-	.pipe		= -1,
-	.ops		= &fimd_manager_ops,
-	.display_ops	= &fimd_display_ops,
+	.type = EXYNOS_DISPLAY_TYPE_LCD,
+	.ops = &fimd_manager_ops,
 };
 
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
-	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct exynos_drm_manager *manager = subdrv->manager;
 	u32 val;
 
 	val = readl(ctx->regs + VIDINTCON1);
@@ -693,11 +709,11 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 		writel(VIDINTCON1_INT_FRAME, ctx->regs + VIDINTCON1);
 
 	/* check the crtc is detached already from encoder */
-	if (manager->pipe < 0 || !ctx->drm_dev)
+	if (ctx->pipe < 0 || !ctx->drm_dev)
 		goto out;
 
-	drm_handle_vblank(ctx->drm_dev, manager->pipe);
-	exynos_drm_crtc_finish_pageflip(ctx->drm_dev, manager->pipe);
+	drm_handle_vblank(ctx->drm_dev, ctx->pipe);
+	exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
 
 	/* set wait vsync event to zero and wake up queue. */
 	if (atomic_read(&ctx->wait_vsync_event)) {
@@ -706,39 +722,6 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	}
 out:
 	return IRQ_HANDLED;
-}
-
-static int fimd_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
-{
-	/*
-	 * enable drm irq mode.
-	 * - with irq_enabled = true, we can use the vblank feature.
-	 *
-	 * P.S. note that we wouldn't use drm irq handler but
-	 *	just specific driver own one instead because
-	 *	drm framework supports only one irq handler.
-	 */
-	drm_dev->irq_enabled = true;
-
-	/*
-	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
-	 * by drm timer once a current process gives up ownership of
-	 * vblank event.(after drm_vblank_put function is called)
-	 */
-	drm_dev->vblank_disable_allowed = true;
-
-	/* attach this sub driver to iommu mapping if supported. */
-	if (is_drm_iommu_supported(drm_dev))
-		drm_iommu_attach_device(drm_dev, dev);
-
-	return 0;
-}
-
-static void fimd_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
-{
-	/* detach this sub driver from iommu mapping if supported. */
-	if (is_drm_iommu_supported(drm_dev))
-		drm_iommu_detach_device(drm_dev, dev);
 }
 
 static int fimd_configure_clocks(struct fimd_context *ctx, struct device *dev)
@@ -826,9 +809,8 @@ static int fimd_clock(struct fimd_context *ctx, bool enable)
 	return 0;
 }
 
-static void fimd_window_suspend(struct device *dev)
+static void fimd_window_suspend(struct exynos_drm_manager *mgr)
 {
-	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
 	struct fimd_context *ctx = mgr->ctx;
 	struct fimd_win_data *win_data;
 	int i;
@@ -841,9 +823,8 @@ static void fimd_window_suspend(struct device *dev)
 	fimd_wait_for_vblank(mgr);
 }
 
-static void fimd_window_resume(struct device *dev)
+static void fimd_window_resume(struct exynos_drm_manager *mgr)
 {
-	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
 	struct fimd_context *ctx = mgr->ctx;
 	struct fimd_win_data *win_data;
 	int i;
@@ -855,10 +836,24 @@ static void fimd_window_resume(struct device *dev)
 	}
 }
 
+static void fimd_apply(struct exynos_drm_manager *mgr)
+{
+	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_win_data *win_data;
+	int i;
+
+	for (i = 0; i < WINDOWS_NR; i++) {
+		win_data = &ctx->win_data[i];
+		if (win_data->enabled)
+			fimd_win_commit(mgr, i);
+	}
+
+	fimd_commit(mgr);
+}
+
 static int fimd_activate(struct exynos_drm_manager *mgr, bool enable)
 {
 	struct fimd_context *ctx = mgr->ctx;
-	struct device *dev = ctx->subdrv.dev;
 
 	if (enable) {
 		int ret;
@@ -873,11 +868,11 @@ static int fimd_activate(struct exynos_drm_manager *mgr, bool enable)
 		if (test_and_clear_bit(0, &ctx->irq_flags))
 			fimd_enable_vblank(mgr);
 
-		fimd_window_resume(dev);
+		fimd_window_resume(mgr);
 
 		fimd_apply(mgr);
 	} else {
-		fimd_window_suspend(dev);
+		fimd_window_suspend(mgr);
 
 		fimd_clock(ctx, false);
 		ctx->suspended = true;
@@ -914,7 +909,6 @@ static int fimd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimd_context *ctx;
-	struct exynos_drm_subdrv *subdrv;
 	struct resource *res;
 	int win;
 	int ret = -EINVAL;
@@ -961,26 +955,21 @@ static int fimd_probe(struct platform_device *pdev)
 	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
 
-	fimd_manager.ctx = ctx;
-
-	subdrv = &ctx->subdrv;
-
-	subdrv->dev = dev;
-	subdrv->manager = &fimd_manager;
-	subdrv->probe = fimd_subdrv_probe;
-	subdrv->remove = fimd_subdrv_remove;
-
 	mutex_init(&ctx->lock);
 
 	platform_set_drvdata(pdev, &fimd_manager);
+
+	fimd_manager.ctx = ctx;
+	exynos_drm_manager_register(&fimd_manager);
+
+	fimd_display.ctx = ctx;
+	exynos_drm_display_register(&fimd_display);
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
 	for (win = 0; win < WINDOWS_NR; win++)
 		fimd_clear_win(ctx, win);
-
-	exynos_drm_subdrv_register(subdrv);
 
 	return 0;
 }
@@ -991,7 +980,8 @@ static int fimd_remove(struct platform_device *pdev)
 	struct exynos_drm_manager *mgr = platform_get_drvdata(pdev);
 	struct fimd_context *ctx = mgr->ctx;
 
-	exynos_drm_subdrv_unregister(&ctx->subdrv);
+	exynos_drm_display_unregister(&fimd_display);
+	exynos_drm_manager_unregister(&fimd_manager);
 
 	if (ctx->suspended)
 		goto out;

@@ -19,10 +19,12 @@
  * exynos hdmi common context structure.
  *
  * @drm_dev: pointer to drm_device.
+ * @pipe: pipe for mixer
  * @ctx: pointer to the context of specific device driver.
  *	this context should be hdmi_context or mixer_context.
  */
 struct exynos_drm_hdmi_context {
+	int			pipe;
 	void			*ctx;
 };
 
