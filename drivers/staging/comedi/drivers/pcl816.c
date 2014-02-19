@@ -116,15 +116,15 @@ struct pcl816_private {
 	int next_dma_buf;	/*  which DMA buffer will be used next round */
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
-	unsigned char ai_neverending;	/*  if=1, then we do neverending record (you must use cancel()) */
-	int irq_blocked;	/*  1=IRQ now uses any subdev */
-	int irq_was_now_closed;	/*  when IRQ finish, there's stored int816_mode for last interrupt */
 	int int816_mode;	/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
 	int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int divisor1;
 	unsigned int divisor2;
+	unsigned int irq_blocked:1;
+	unsigned int irq_was_now_closed:1;
+	unsigned int ai_neverending:1;
 };
 
 /*
@@ -601,7 +601,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 {
 	struct pcl816_private *devpriv = dev->private;
 
-	if (devpriv->irq_blocked > 0) {
+	if (devpriv->irq_blocked) {
 		switch (devpriv->int816_mode) {
 		case INT_TYPE_AI1_DMA:
 		case INT_TYPE_AI3_DMA:
@@ -628,7 +628,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 			/* Stop A/D */
 			outb(0, dev->iobase + PCL816_CONTROL);
 			devpriv->irq_blocked = 0;
-			devpriv->irq_was_now_closed = devpriv->int816_mode;
+			devpriv->irq_was_now_closed = 1;
 			devpriv->int816_mode = 0;
 /* s->busy = 0; */
 			break;
