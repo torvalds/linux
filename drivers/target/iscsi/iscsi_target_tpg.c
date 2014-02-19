@@ -225,6 +225,7 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->prod_mode_write_protect = TA_PROD_MODE_WRITE_PROTECT;
 	a->demo_mode_discovery = TA_DEMO_MODE_DISCOVERY;
 	a->default_erl = TA_DEFAULT_ERL;
+	a->t10_pi = TA_DEFAULT_T10_PI;
 }
 
 int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_group *tpg)
@@ -500,6 +501,7 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 	init_completion(&tpg_np->tpg_np_comp);
 	kref_init(&tpg_np->tpg_np_kref);
 	tpg_np->tpg_np		= np;
+	np->tpg_np		= tpg_np;
 	tpg_np->tpg		= tpg;
 
 	spin_lock(&tpg->tpg_np_lock);
