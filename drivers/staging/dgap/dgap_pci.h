@@ -19,7 +19,6 @@
  *	NOTE: THIS IS A SHARED HEADER. DO NOT CHANGE CODING STYLE!!!
  */
 
-/* $Id: dgap_pci.h,v 1.1 2009/10/23 14:01:57 markh Exp $ */
 
 #ifndef __DGAP_PCI_H
 #define __DGAP_PCI_H

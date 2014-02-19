@@ -17,7 +17,6 @@
  *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
  *	Thank you.
  *
- * $Id: dgap_fep5.c,v 1.2 2011/06/21 10:35:40 markh Exp $
  */
 
 

@@ -21,7 +21,6 @@
  *****************************************************************************
  * Header file for dgap_trace.c
  *
- * $Id: dgap_trace.h,v 1.1 2009/10/23 14:01:57 markh Exp $
  */
 
 #ifndef __DGAP_TRACE_H

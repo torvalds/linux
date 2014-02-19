@@ -29,7 +29,6 @@
  *
  */
 
-/* $Id: dgap_trace.c,v 1.1 2009/10/23 14:01:57 markh Exp $ */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>	/* For jiffies, task states */

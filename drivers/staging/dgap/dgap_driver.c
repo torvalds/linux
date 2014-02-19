@@ -27,7 +27,6 @@
  *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
  *	Thank you.
  *
- * $Id: dgap_driver.c,v 1.3 2011/06/21 10:35:16 markh Exp $
  */
 
 

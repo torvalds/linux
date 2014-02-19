@@ -20,7 +20,6 @@
  *
  *	dgap_conf.h - Header file for installations and parse files.
  *
- *	$Id: dgap_conf.h,v 1.1 2009/10/23 14:01:57 markh Exp $
  *
  *	NOTE: THIS IS A SHARED HEADER. DO NOT CHANGE CODING STYLE!!!
  */

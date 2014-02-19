@@ -32,7 +32,6 @@
  *
  * dgap_parse.c - Parses the configuration information from the input file.
  *
- * $Id: dgap_parse.c,v 1.1 2009/10/23 14:01:57 markh Exp $
  *
  */
 #include <linux/kernel.h>
