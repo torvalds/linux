@@ -67,8 +67,6 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	cpol = mode & SPI_CPOL;
 
 	speed_hz = xfer->speed_hz ? : spi->max_speed_hz;
-	if (speed_hz > OCTEON_SPI_MAX_CLOCK_HZ)
-		speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
 
 	clkdiv = octeon_get_io_clock_rate() / (2 * speed_hz);
 
@@ -214,6 +212,7 @@ static int octeon_spi_probe(struct platform_device *pdev)
 
 	master->transfer_one_message = octeon_spi_transfer_one_message;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	master->max_speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
 
 	master->dev.of_node = pdev->dev.of_node;
 	err = devm_spi_register_master(&pdev->dev, master);
