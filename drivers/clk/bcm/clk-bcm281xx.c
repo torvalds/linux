@@ -321,8 +321,17 @@ static struct peri_clk_data pwm_data = {
 	.trig		= TRIGGER(0x0afc, 15),
 };
 
+static struct bus_clk_data bsc3_apb_data = {
+	.policy		= POLICY(0x0048, 4),
+	.gate		= HW_SW_GATE(0x0484, 16, 0, 1),
+};
+
 static struct ccu_data slave_ccu_data = {
 	BCM281XX_CCU_COMMON(slave, SLAVE),
+	.policy		= {
+		.enable		= CCU_LVM_EN(0x0034, 0),
+		.control	= CCU_POLICY_CTL(0x000c, 0, 1, 2),
+	},
 	.kona_clks	= {
 		[BCM281XX_SLAVE_CCU_UARTB] =
 			KONA_CLK(slave, uartb, peri),
@@ -341,9 +350,11 @@ static struct ccu_data slave_ccu_data = {
 		[BCM281XX_SLAVE_CCU_BSC2] =
 			KONA_CLK(slave, bsc2, peri),
 		[BCM281XX_SLAVE_CCU_BSC3] =
-			KONA_CLK(slave, bsc3, peri),
+			KONA_CLK_PREREQ(slave, bsc3, peri, bsc3_apb),
 		[BCM281XX_SLAVE_CCU_PWM] =
 			KONA_CLK(slave, pwm, peri),
+		[BCM281XX_SLAVE_CCU_BSC3_APB] =
+			KONA_CLK(slave, bsc3_apb, bus),
 		[BCM281XX_SLAVE_CCU_CLOCK_COUNT] = LAST_KONA_CLK,
 	},
 };
