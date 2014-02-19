@@ -3473,11 +3473,6 @@ static void __init init_iommu_pm_ops(void)
 static inline void init_iommu_pm_ops(void) {}
 #endif	/* CONFIG_PM */
 
-static void __init dmar_register_rmrr_unit(struct dmar_rmrr_unit *rmrr)
-{
-	list_add(&rmrr->list, &dmar_rmrr_units);
-}
-
 
 int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header)
 {
@@ -3492,21 +3487,17 @@ int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header)
 	rmrr = (struct acpi_dmar_reserved_memory *)header;
 	rmrru->base_address = rmrr->base_address;
 	rmrru->end_address = rmrr->end_address;
+	rmrru->devices = dmar_alloc_dev_scope((void *)(rmrr + 1),
+				((void *)rmrr) + rmrr->header.length,
+				&rmrru->devices_cnt);
+	if (rmrru->devices_cnt && rmrru->devices == NULL) {
+		kfree(rmrru);
+		return -ENOMEM;
+	}
 
-	dmar_register_rmrr_unit(rmrru);
+	list_add(&rmrru->list, &dmar_rmrr_units);
+
 	return 0;
-}
-
-static int __init
-rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
-{
-	struct acpi_dmar_reserved_memory *rmrr;
-
-	rmrr = (struct acpi_dmar_reserved_memory *) rmrru->hdr;
-	return dmar_parse_dev_scope((void *)(rmrr + 1),
-				    ((void *)rmrr) + rmrr->header.length,
-				    &rmrru->devices_cnt, &rmrru->devices,
-				    rmrr->segment);
 }
 
 int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
@@ -3521,24 +3512,19 @@ int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
 
 	atsru->hdr = hdr;
 	atsru->include_all = atsr->flags & 0x1;
+	if (!atsru->include_all) {
+		atsru->devices = dmar_alloc_dev_scope((void *)(atsr + 1),
+				(void *)atsr + atsr->header.length,
+				&atsru->devices_cnt);
+		if (atsru->devices_cnt && atsru->devices == NULL) {
+			kfree(atsru);
+			return -ENOMEM;
+		}
+	}
 
 	list_add_rcu(&atsru->list, &dmar_atsr_units);
 
 	return 0;
-}
-
-static int __init atsr_parse_dev(struct dmar_atsr_unit *atsru)
-{
-	struct acpi_dmar_atsr *atsr;
-
-	if (atsru->include_all)
-		return 0;
-
-	atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
-	return dmar_parse_dev_scope((void *)(atsr + 1),
-				    (void *)atsr + atsr->header.length,
-				    &atsru->devices_cnt, &atsru->devices,
-				    atsr->segment);
 }
 
 static void intel_iommu_free_atsr(struct dmar_atsr_unit *atsru)
@@ -3602,27 +3588,6 @@ out:
 	rcu_read_unlock();
 
 	return ret;
-}
-
-int __init dmar_parse_rmrr_atsr_dev(void)
-{
-	struct dmar_rmrr_unit *rmrr;
-	struct dmar_atsr_unit *atsr;
-	int ret;
-
-	list_for_each_entry(rmrr, &dmar_rmrr_units, list) {
-		ret = rmrr_parse_dev(rmrr);
-		if (ret)
-			return ret;
-	}
-
-	list_for_each_entry_rcu(atsr, &dmar_atsr_units, list) {
-		ret = atsr_parse_dev(atsr);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)

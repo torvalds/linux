@@ -173,7 +173,6 @@ extern int arch_setup_dmar_msi(unsigned int irq);
 
 #ifdef CONFIG_INTEL_IOMMU
 extern int iommu_detected, no_iommu;
-extern int dmar_parse_rmrr_atsr_dev(void);
 extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header);
 extern int dmar_parse_one_atsr(struct acpi_dmar_header *header);
 extern int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info);
@@ -185,10 +184,6 @@ static inline int dmar_parse_one_rmrr(struct acpi_dmar_header *header)
 	return 0;
 }
 static inline int dmar_parse_one_atsr(struct acpi_dmar_header *header)
-{
-	return 0;
-}
-static inline int dmar_parse_rmrr_atsr_dev(void)
 {
 	return 0;
 }

@@ -60,6 +60,7 @@ LIST_HEAD(dmar_drhd_units);
 
 struct acpi_table_header * __initdata dmar_tbl;
 static acpi_size dmar_tbl_size;
+static int dmar_dev_scope_status = 1;
 
 static int alloc_iommu(struct dmar_drhd_unit *drhd);
 static void free_iommu(struct intel_iommu *iommu);
@@ -74,58 +75,6 @@ static void __init dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 		list_add_tail_rcu(&drhd->list, &dmar_drhd_units);
 	else
 		list_add_rcu(&drhd->list, &dmar_drhd_units);
-}
-
-static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
-					   struct pci_dev __rcu **dev, u16 segment)
-{
-	struct pci_bus *bus;
-	struct pci_dev *pdev = NULL;
-	struct acpi_dmar_pci_path *path;
-	int count;
-
-	bus = pci_find_bus(segment, scope->bus);
-	path = (struct acpi_dmar_pci_path *)(scope + 1);
-	count = (scope->length - sizeof(struct acpi_dmar_device_scope))
-		/ sizeof(struct acpi_dmar_pci_path);
-
-	while (count) {
-		if (pdev)
-			pci_dev_put(pdev);
-		/*
-		 * Some BIOSes list non-exist devices in DMAR table, just
-		 * ignore it
-		 */
-		if (!bus) {
-			pr_warn("Device scope bus [%d] not found\n", scope->bus);
-			break;
-		}
-		pdev = pci_get_slot(bus, PCI_DEVFN(path->device, path->function));
-		if (!pdev) {
-			/* warning will be printed below */
-			break;
-		}
-		path ++;
-		count --;
-		bus = pdev->subordinate;
-	}
-	if (!pdev) {
-		pr_warn("Device scope device [%04x:%02x:%02x.%02x] not found\n",
-			segment, scope->bus, path->device, path->function);
-		return 0;
-	}
-	if ((scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT && \
-			pdev->subordinate) || (scope->entry_type == \
-			ACPI_DMAR_SCOPE_TYPE_BRIDGE && !pdev->subordinate)) {
-		pci_dev_put(pdev);
-		pr_warn("Device scope type does not match for %s\n",
-			pci_name(pdev));
-		return -EINVAL;
-	}
-
-	rcu_assign_pointer(*dev, pdev);
-
-	return 0;
 }
 
 void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
@@ -148,35 +97,6 @@ void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
 		return NULL;
 
 	return kcalloc(*cnt, sizeof(struct pci_dev *), GFP_KERNEL);
-}
-
-int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
-				struct pci_dev __rcu ***devices, u16 segment)
-{
-	struct acpi_dmar_device_scope *scope;
-	int index, ret;
-
-	*devices = dmar_alloc_dev_scope(start, end, cnt);
-	if (*cnt == 0)
-		return 0;
-	else if (!*devices)
-		return -ENOMEM;
-
-	for (index = 0; start < end; start += scope->length) {
-		scope = start;
-		if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT ||
-		    scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE) {
-			ret = dmar_parse_one_dev_scope(scope,
-				&(*devices)[index], segment);
-			if (ret) {
-				dmar_free_dev_scope(devices, cnt);
-				return ret;
-			}
-			index ++;
-		}
-	}
-
-	return 0;
 }
 
 void dmar_free_dev_scope(struct pci_dev __rcu ***devices, int *cnt)
@@ -220,6 +140,8 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 		if (!info) {
 			pr_warn("Out of memory when allocating notify_info "
 				"for %s.\n", pci_name(dev));
+			if (dmar_dev_scope_status == 0)
+				dmar_dev_scope_status = -ENOMEM;
 			return NULL;
 		}
 	}
@@ -349,6 +271,8 @@ static int dmar_pci_bus_add_dev(struct dmar_pci_notify_info *info)
 	}
 	if (ret >= 0)
 		ret = dmar_iommu_notify_scope_dev(info);
+	if (ret < 0 && dmar_dev_scope_status == 0)
+		dmar_dev_scope_status = ret;
 
 	return ret;
 }
@@ -418,9 +342,21 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	dmaru->reg_base_addr = drhd->address;
 	dmaru->segment = drhd->segment;
 	dmaru->include_all = drhd->flags & 0x1; /* BIT0: INCLUDE_ALL */
+	if (!dmaru->include_all) {
+		dmaru->devices = dmar_alloc_dev_scope((void *)(drhd + 1),
+					((void *)drhd) + drhd->header.length,
+					&dmaru->devices_cnt);
+		if (dmaru->devices_cnt && dmaru->devices == NULL) {
+			kfree(dmaru);
+			return -ENOMEM;
+		}
+	}
 
 	ret = alloc_iommu(dmaru);
 	if (ret) {
+		if (!dmaru->include_all)
+			dmar_free_dev_scope(&dmaru->devices,
+					    &dmaru->devices_cnt);
 		kfree(dmaru);
 		return ret;
 	}
@@ -435,21 +371,6 @@ static void dmar_free_drhd(struct dmar_drhd_unit *dmaru)
 	if (dmaru->iommu)
 		free_iommu(dmaru->iommu);
 	kfree(dmaru);
-}
-
-static int __init dmar_parse_dev(struct dmar_drhd_unit *dmaru)
-{
-	struct acpi_dmar_hardware_unit *drhd;
-
-	drhd = (struct acpi_dmar_hardware_unit *) dmaru->hdr;
-
-	if (dmaru->include_all)
-		return 0;
-
-	return dmar_parse_dev_scope((void *)(drhd + 1),
-				    ((void *)drhd) + drhd->header.length,
-				    &dmaru->devices_cnt, &dmaru->devices,
-				    drhd->segment);
 }
 
 #ifdef CONFIG_ACPI_NUMA
@@ -665,34 +586,35 @@ out:
 
 int __init dmar_dev_scope_init(void)
 {
-	static int dmar_dev_scope_initialized;
-	struct dmar_drhd_unit *drhd;
-	int ret = -ENODEV;
+	struct pci_dev *dev = NULL;
+	struct dmar_pci_notify_info *info;
 
-	if (dmar_dev_scope_initialized)
-		return dmar_dev_scope_initialized;
+	if (dmar_dev_scope_status != 1)
+		return dmar_dev_scope_status;
 
-	if (list_empty(&dmar_drhd_units))
-		goto fail;
+	if (list_empty(&dmar_drhd_units)) {
+		dmar_dev_scope_status = -ENODEV;
+	} else {
+		dmar_dev_scope_status = 0;
 
-	for_each_drhd_unit(drhd) {
-		ret = dmar_parse_dev(drhd);
-		if (ret)
-			goto fail;
+		for_each_pci_dev(dev) {
+			if (dev->is_virtfn)
+				continue;
+
+			info = dmar_alloc_pci_notify_info(dev,
+					BUS_NOTIFY_ADD_DEVICE);
+			if (!info) {
+				return dmar_dev_scope_status;
+			} else {
+				dmar_pci_bus_add_dev(info);
+				dmar_free_pci_notify_info(info);
+			}
+		}
+
+		bus_register_notifier(&pci_bus_type, &dmar_pci_bus_nb);
 	}
 
-	ret = dmar_parse_rmrr_atsr_dev();
-	if (ret)
-		goto fail;
-
-	bus_register_notifier(&pci_bus_type, &dmar_pci_bus_nb);
-
-	dmar_dev_scope_initialized = 1;
-	return 0;
-
-fail:
-	dmar_dev_scope_initialized = ret;
-	return ret;
+	return dmar_dev_scope_status;
 }
 
 
@@ -1617,7 +1539,8 @@ static int __init dmar_free_unused_resources(void)
 	if (irq_remapping_enabled || intel_iommu_enabled)
 		return 0;
 
-	bus_unregister_notifier(&pci_bus_type, &dmar_pci_bus_nb);
+	if (dmar_dev_scope_status != 1 && !list_empty(&dmar_drhd_units))
+		bus_unregister_notifier(&pci_bus_type, &dmar_pci_bus_nb);
 
 	down_write(&dmar_global_lock);
 	list_for_each_entry_safe(dmaru, dmaru_n, &dmar_drhd_units, list) {
