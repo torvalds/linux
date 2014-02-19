@@ -210,7 +210,7 @@
 #define USBA_FIFO_BASE(x)	((x) << 16)
 
 /* Synth parameters */
-#define USBA_NR_ENDPOINTS	7
+#define USBA_NR_DMAS		7
 
 #define EP0_FIFO_SIZE		64
 #define EP0_EPT_SIZE		USBA_EPT_SIZE_64
