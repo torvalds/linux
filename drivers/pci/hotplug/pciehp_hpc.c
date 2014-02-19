@@ -619,9 +619,10 @@ static void pcie_disable_notification(struct controller *ctrl)
 
 /*
  * pciehp has a 1:1 bus:slot relationship so we ultimately want a secondary
- * bus reset of the bridge, but if the slot supports surprise removal (or
- * link state change based hotplug), we need to disable presence detection
- * (or link state notifications) around the bus reset and clear any spurious
+ * bus reset of the bridge, but at the same time we want to ensure that it is
+ * not seen as a hot-unplug, followed by the hot-plug of the device. Thus,
+ * disable link state notification and presence detection change notification
+ * momentarily, if we see that they could interfere. Also, clear any spurious
  * events after.
  */
 int pciehp_reset_slot(struct slot *slot, int probe)
@@ -633,7 +634,7 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	if (probe)
 		return 0;
 
-	if (HP_SUPR_RM(ctrl) && !ATTN_BUTTN(ctrl)) {
+	if (!ATTN_BUTTN(ctrl)) {
 		ctrl_mask |= PCI_EXP_SLTCTL_PDCE;
 		stat_mask |= PCI_EXP_SLTSTA_PDC;
 	}

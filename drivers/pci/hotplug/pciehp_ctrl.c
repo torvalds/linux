@@ -535,9 +535,16 @@ static void interrupt_event_handler(struct work_struct *work)
 		pciehp_green_led_off(p_slot);
 		break;
 	case INT_PRESENCE_ON:
-	case INT_PRESENCE_OFF:
 		if (!HP_SUPR_RM(ctrl))
 			break;
+		ctrl_dbg(ctrl, "Surprise Insertion\n");
+		handle_surprise_event(p_slot);
+		break;
+	case INT_PRESENCE_OFF:
+		/*
+		 * Regardless of surprise capability, we need to
+		 * definitely remove a card that has been pulled out!
+		 */
 		ctrl_dbg(ctrl, "Surprise Removal\n");
 		handle_surprise_event(p_slot);
 		break;
