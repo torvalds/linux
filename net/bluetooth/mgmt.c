@@ -4330,9 +4330,9 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 		else
 			type = HCI_SMP_LTK_SLAVE;
 
-		hci_add_ltk(hdev, &key->addr.bdaddr, addr_type,
-			    type, 0, key->type, key->val,
-			    key->enc_size, key->ediv, key->rand);
+		hci_add_ltk(hdev, &key->addr.bdaddr, addr_type, type,
+			    key->type, key->val, key->enc_size, key->ediv,
+			    key->rand);
 	}
 
 	err = cmd_complete(sk, hdev->id, MGMT_OP_LOAD_LONG_TERM_KEYS, 0,

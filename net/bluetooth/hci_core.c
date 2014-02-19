@@ -2762,9 +2762,8 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 }
 
 struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			    u8 addr_type, u8 type, int new_key,
-			    u8 authenticated, u8 tk[16], u8 enc_size,
-			    __le16 ediv, u8 rand[8])
+			    u8 addr_type, u8 type, u8 authenticated,
+			    u8 tk[16], u8 enc_size, __le16 ediv, u8 rand[8])
 {
 	struct smp_ltk *key, *old_key;
 	bool master = ltk_type_master(type);
@@ -2787,12 +2786,6 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	key->enc_size = enc_size;
 	key->type = type;
 	memcpy(key->rand, rand, sizeof(key->rand));
-
-	if (!new_key)
-		return key;
-
-	if (type == HCI_SMP_LTK || type == HCI_SMP_LTK_SLAVE)
-		mgmt_new_ltk(hdev, key);
 
 	return key;
 }

@@ -532,7 +532,7 @@ static void random_work(struct work_struct *work)
 		       SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
 
 		hci_add_ltk(hcon->hdev, &hcon->dst, hcon->dst_type,
-			    HCI_SMP_STK_SLAVE, 0, 0, stk, smp->enc_key_size,
+			    HCI_SMP_STK_SLAVE, 0, stk, smp->enc_key_size,
 			    ediv, rand);
 	}
 
@@ -931,7 +931,7 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 	authenticated = (hcon->sec_level == BT_SECURITY_HIGH);
-	ltk = hci_add_ltk(hdev, &hcon->dst, hcon->dst_type, HCI_SMP_LTK, 1,
+	ltk = hci_add_ltk(hdev, &hcon->dst, hcon->dst_type, HCI_SMP_LTK,
 			  authenticated, smp->tk, smp->enc_key_size,
 			  rp->ediv, rp->rand);
 	smp->ltk = ltk;
@@ -1106,6 +1106,25 @@ done:
 	return err;
 }
 
+static void smp_notify_keys(struct l2cap_conn *conn)
+{
+	struct smp_chan *smp = conn->smp_chan;
+	struct hci_conn *hcon = conn->hcon;
+	struct hci_dev *hdev = hcon->hdev;
+
+	if (smp->ltk) {
+		smp->ltk->bdaddr_type = hcon->dst_type;
+		bacpy(&smp->ltk->bdaddr, &hcon->dst);
+		mgmt_new_ltk(hdev, smp->ltk);
+	}
+
+	if (smp->slave_ltk) {
+		smp->slave_ltk->bdaddr_type = hcon->dst_type;
+		bacpy(&smp->slave_ltk->bdaddr, &hcon->dst);
+		mgmt_new_ltk(hdev, smp->slave_ltk);
+	}
+}
+
 int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 {
 	struct smp_cmd_pairing *req, *rsp;
@@ -1151,9 +1170,8 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 
 		authenticated = hcon->sec_level == BT_SECURITY_HIGH;
 		ltk = hci_add_ltk(hcon->hdev, &hcon->dst, hcon->dst_type,
-				  HCI_SMP_LTK_SLAVE, 1, authenticated,
-				  enc.ltk, smp->enc_key_size, ediv,
-				  ident.rand);
+				  HCI_SMP_LTK_SLAVE, authenticated, enc.ltk,
+				  smp->enc_key_size, ediv, ident.rand);
 		smp->slave_ltk = ltk;
 
 		ident.ediv = ediv;
@@ -1197,6 +1215,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 		clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags);
 		cancel_delayed_work_sync(&conn->security_timer);
 		set_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
+		smp_notify_keys(conn);
 		smp_chan_destroy(conn);
 	}
 
