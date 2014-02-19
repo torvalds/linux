@@ -127,9 +127,6 @@ struct pcl816_private {
 	unsigned int ai_neverending:1;
 };
 
-/*
-==============================================================================
-*/
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int *chanlist, unsigned int chanlen);
@@ -216,11 +213,6 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-/*
-==============================================================================
-   analog input interrupt mode 1 & 3, 818 cards
-   one sample per interrupt version
-*/
 static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -266,10 +258,6 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-   analog input dma mode 1 & 3, 816 cards
-*/
 static void transfer_from_dma_buf(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned short *ptr,
@@ -346,10 +334,6 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-    INT procedure
-*/
 static irqreturn_t interrupt_pcl816(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -383,9 +367,6 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 	return IRQ_NONE;
 }
 
-/*
-==============================================================================
-*/
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
@@ -592,10 +573,6 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
-/*
-==============================================================================
- cancel any mode 1-4 AI
-*/
 static int pcl816_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -637,10 +614,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
- chech for PCL816
-*/
 static int pcl816_check(unsigned long iobase)
 {
 	outb(0x00, iobase + PCL816_MUX);
@@ -660,10 +633,6 @@ static int pcl816_check(unsigned long iobase)
 	return 0;		/*  ok, card exist */
 }
 
-/*
-==============================================================================
- reset whole PCL-816 cards
-*/
 static void pcl816_reset(struct comedi_device *dev)
 {
 	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
@@ -686,11 +655,6 @@ static void pcl816_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL816_RANGE);
 }
 
-/*
-==============================================================================
- Check if channel list from user is built correctly
- If it's ok, then return non-zero length of repeated segment of channel list
-*/
 static int
 check_channel_list(struct comedi_device *dev,
 		   struct comedi_subdevice *s, unsigned int *chanlist,
@@ -747,10 +711,6 @@ check_channel_list(struct comedi_device *dev,
 	return seglen;	/*  we can serve this with MUX logic */
 }
 
-/*
-==============================================================================
- Program scan/gain logic with channel list.
-*/
 static void
 setup_channel_list(struct comedi_device *dev,
 		   struct comedi_subdevice *s, unsigned int *chanlist,
