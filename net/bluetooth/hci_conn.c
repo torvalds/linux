@@ -225,8 +225,8 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 	cp.conn_interval_max	= cpu_to_le16(max);
 	cp.conn_latency		= cpu_to_le16(latency);
 	cp.supervision_timeout	= cpu_to_le16(to_multiplier);
-	cp.min_ce_len		= __constant_cpu_to_le16(0x0001);
-	cp.max_ce_len		= __constant_cpu_to_le16(0x0001);
+	cp.min_ce_len		= __constant_cpu_to_le16(0x0000);
+	cp.max_ce_len		= __constant_cpu_to_le16(0x0000);
 
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_UPDATE, sizeof(cp), &cp);
 }
