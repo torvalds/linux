@@ -1495,12 +1495,14 @@ il3945_irq_tasklet(struct il_priv *il)
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		D_ISR("Wakeup interrupt\n");
 		il_rx_queue_update_write_ptr(il, &il->rxq);
+
+		spin_lock_irqsave(&il->lock, flags);
 		il_txq_update_write_ptr(il, &il->txq[0]);
 		il_txq_update_write_ptr(il, &il->txq[1]);
 		il_txq_update_write_ptr(il, &il->txq[2]);
 		il_txq_update_write_ptr(il, &il->txq[3]);
 		il_txq_update_write_ptr(il, &il->txq[4]);
-		il_txq_update_write_ptr(il, &il->txq[5]);
+		spin_unlock_irqrestore(&il->lock, flags);
 
 		il->isr_stats.wakeup++;
 		handled |= CSR_INT_BIT_WAKEUP;
