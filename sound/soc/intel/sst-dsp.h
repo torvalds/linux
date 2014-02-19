@@ -152,7 +152,7 @@ struct sst_pdata {
 	int irq;
 
 	/* Firmware */
-	const char *fw_filename;
+	const struct firmware *fw;
 
 	/* DMA */
 	u32 dma_base;

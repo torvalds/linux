@@ -16,6 +16,7 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -56,6 +57,32 @@ struct sst_acpi_priv {
 	struct sst_acpi_desc *desc;
 };
 
+static void sst_acpi_fw_cb(const struct firmware *fw, void *context)
+{
+	struct platform_device *pdev = context;
+	struct device *dev = &pdev->dev;
+	struct sst_acpi_priv *sst_acpi = platform_get_drvdata(pdev);
+	struct sst_pdata *sst_pdata = &sst_acpi->sst_pdata;
+	struct sst_acpi_desc *desc = sst_acpi->desc;
+
+	sst_pdata->fw = fw;
+	if (!fw) {
+		dev_err(dev, "Cannot load firmware %s\n", desc->fw_filename);
+		return;
+	}
+
+	/* register PCM and DAI driver */
+	sst_acpi->pdev_pcm =
+		platform_device_register_data(dev, desc->drv_name, -1,
+					      sst_pdata, sizeof(*sst_pdata));
+	if (IS_ERR(sst_acpi->pdev_pcm)) {
+		dev_err(dev, "Cannot register device %s. Error %d\n",
+			desc->drv_name, (int)PTR_ERR(sst_acpi->pdev_pcm));
+	}
+
+	return;
+}
+
 static int sst_acpi_probe(struct platform_device *pdev)
 {
 	const struct acpi_device_id *id;
@@ -79,7 +106,6 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	desc = mach->res_desc;
 	sst_pdata = &sst_acpi->sst_pdata;
 	sst_pdata->id = desc->sst_id;
-	sst_pdata->fw_filename = desc->fw_filename;
 	sst_acpi->desc = desc;
 
 	if (desc->resindex_dma_base >= 0) {
@@ -118,37 +144,33 @@ static int sst_acpi_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* register PCM and DAI driver */
-	sst_acpi->pdev_pcm =
-		platform_device_register_data(dev, desc->drv_name, -1,
-					      sst_pdata, sizeof(*sst_pdata));
-	if (IS_ERR(sst_acpi->pdev_pcm))
-		return PTR_ERR(sst_acpi->pdev_pcm);
-
-	/* register machine driver */
 	platform_set_drvdata(pdev, sst_acpi);
 
+	/* register machine driver */
 	sst_acpi->pdev_mach =
 		platform_device_register_data(dev, mach->drv_name, -1,
 					      sst_pdata, sizeof(*sst_pdata));
-	if (IS_ERR(sst_acpi->pdev_mach)) {
-		ret = PTR_ERR(sst_acpi->pdev_mach);
-		goto sst_err;
-	}
+	if (IS_ERR(sst_acpi->pdev_mach))
+		return PTR_ERR(sst_acpi->pdev_mach);
 
-	return ret;
+	/* continue SST probing after firmware is loaded */
+	ret = request_firmware_nowait(THIS_MODULE, true, desc->fw_filename,
+				      dev, GFP_KERNEL, pdev, sst_acpi_fw_cb);
+	if (ret)
+		platform_device_unregister(sst_acpi->pdev_mach);
 
-sst_err:
-	platform_device_unregister(sst_acpi->pdev_pcm);
 	return ret;
 }
 
 static int sst_acpi_remove(struct platform_device *pdev)
 {
 	struct sst_acpi_priv *sst_acpi = platform_get_drvdata(pdev);
+	struct sst_pdata *sst_pdata = &sst_acpi->sst_pdata;
 
 	platform_device_unregister(sst_acpi->pdev_mach);
-	platform_device_unregister(sst_acpi->pdev_pcm);
+	if (!IS_ERR_OR_NULL(sst_acpi->pdev_pcm))
+		platform_device_unregister(sst_acpi->pdev_pcm);
+	release_firmware(sst_pdata->fw);
 
 	return 0;
 }
