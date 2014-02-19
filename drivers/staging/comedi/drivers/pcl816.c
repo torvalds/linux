@@ -122,8 +122,6 @@ struct pcl816_private {
 	int int816_mode;	/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
 	int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_act_chanlist[16];	/*  MUX setting for actual AI operations */
-	unsigned int ai_act_chanlist_len;	/*  how long is actual MUX list */
-	unsigned int ai_act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int divisor1;
 	unsigned int divisor2;
@@ -251,9 +249,6 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 
-	if (++devpriv->ai_act_chanlist_pos >= devpriv->ai_act_chanlist_len)
-		devpriv->ai_act_chanlist_pos = 0;
-
 	s->async->cur_chan++;
 	if (s->async->cur_chan >= cmd->chanlist_len) {
 		s->async->cur_chan = 0;
@@ -289,11 +284,6 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 	for (i = 0; i < len; i++) {
 
 		comedi_buf_put(s->async, ptr[bufptr++]);
-
-		if (++devpriv->ai_act_chanlist_pos >=
-		    devpriv->ai_act_chanlist_len) {
-			devpriv->ai_act_chanlist_pos = 0;
-		}
 
 		s->async->cur_chan++;
 		if (s->async->cur_chan >= cmd->chanlist_len) {
@@ -768,9 +758,6 @@ setup_channel_list(struct comedi_device *dev,
 {
 	struct pcl816_private *devpriv = dev->private;
 	unsigned int i;
-
-	devpriv->ai_act_chanlist_len = seglen;
-	devpriv->ai_act_chanlist_pos = 0;
 
 	for (i = 0; i < seglen; i++) {	/*  store range list to card */
 		devpriv->ai_act_chanlist[i] = CR_CHAN(chanlist[i]);
