@@ -624,15 +624,15 @@ static ssize_t
 card_id_show_attr(struct device *dev,
 		  struct device_attribute *attr, char *buf)
 {
-	struct snd_card *card = dev_get_drvdata(dev);
-	return snprintf(buf, PAGE_SIZE, "%s\n", card ? card->id : "(null)");
+	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
+	return snprintf(buf, PAGE_SIZE, "%s\n", card->id);
 }
 
 static ssize_t
 card_id_store_attr(struct device *dev, struct device_attribute *attr,
 		   const char *buf, size_t count)
 {
-	struct snd_card *card = dev_get_drvdata(dev);
+	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
 	char buf1[sizeof(card->id)];
 	size_t copy = count > sizeof(card->id) - 1 ?
 					sizeof(card->id) - 1 : count;
@@ -664,8 +664,8 @@ static ssize_t
 card_number_show_attr(struct device *dev,
 		     struct device_attribute *attr, char *buf)
 {
-	struct snd_card *card = dev_get_drvdata(dev);
-	return snprintf(buf, PAGE_SIZE, "%i\n", card ? card->number : -1);
+	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
+	return snprintf(buf, PAGE_SIZE, "%i\n", card->number);
 }
 
 static DEVICE_ATTR(number, S_IRUGO, card_number_show_attr, NULL);
