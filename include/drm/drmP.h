@@ -1207,6 +1207,11 @@ static inline bool drm_is_render_client(struct drm_file *file_priv)
 	return file_priv->minor->type == DRM_MINOR_RENDER;
 }
 
+static inline bool drm_is_control_client(const struct drm_file *file_priv)
+{
+	return file_priv->minor->type == DRM_MINOR_CONTROL;
+}
+
 /******************************************************************/
 /** \name Internal function definitions */
 /*@{*/
