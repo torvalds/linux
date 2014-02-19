@@ -614,7 +614,7 @@ xfs_sb_read_verify(
 		if (!xfs_verify_cksum(bp->b_addr, be16_to_cpu(dsb->sb_sectsize),
 				      offsetof(struct xfs_sb, sb_crc))) {
 			/* Only fail bad secondaries on a known V5 filesystem */
-			if (bp->b_bn != XFS_SB_DADDR &&
+			if (bp->b_bn == XFS_SB_DADDR ||
 			    xfs_sb_version_hascrc(&mp->m_sb)) {
 				error = EFSCORRUPTED;
 				goto out_error;
