@@ -102,8 +102,8 @@ int mei_cl_disconnect(struct mei_cl *cl);
 int mei_cl_connect(struct mei_cl *cl, struct file *file);
 int mei_cl_read_start(struct mei_cl *cl, size_t length);
 int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking);
-int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
-				s32 *slots, struct mei_cl_cb *cmpl_list);
+int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
+		     struct mei_cl_cb *cmpl_list);
 
 void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 

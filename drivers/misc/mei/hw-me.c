@@ -354,7 +354,7 @@ static int mei_me_write_message(struct mei_device *dev,
 
 	dw_cnt = mei_data2slots(length);
 	if (empty_slots < 0 || dw_cnt > empty_slots)
-		return -EIO;
+		return -EMSGSIZE;
 
 	mei_me_reg_write(hw, H_CB_WW, *((u32 *) header));
 

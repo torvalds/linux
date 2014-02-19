@@ -515,8 +515,8 @@ struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 
 void mei_amthif_run_next_cmd(struct mei_device *dev);
 
-int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
-				  s32 *slots, struct mei_cl_cb *cmpl_list);
+int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
+			struct mei_cl_cb *cmpl_list);
 
 void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb);
 int mei_amthif_irq_read_msg(struct mei_device *dev,

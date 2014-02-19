@@ -436,23 +436,23 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 
 
 /**
- * mei_amthif_irq_write_completed - processes completed iamthif operation.
+ * mei_amthif_irq_write - write iamthif command in irq thread context.
  *
  * @dev: the device structure.
- * @slots: free slots.
  * @cb_pos: callback block.
  * @cl: private data of the file object.
  * @cmpl_list: complete list.
  *
  * returns 0, OK; otherwise, error.
  */
-int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
-				  s32 *slots, struct mei_cl_cb *cmpl_list)
+int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
+			 struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	struct mei_msg_hdr mei_hdr;
 	size_t len = dev->iamthif_msg_buf_size - dev->iamthif_msg_buf_index;
 	u32 msg_slots = mei_data2slots(len);
+	int slots;
 	int rets;
 
 	rets = mei_cl_flow_ctrl_creds(cl);
@@ -469,13 +469,15 @@ int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	mei_hdr.reserved = 0;
 	mei_hdr.internal = 0;
 
-	if (*slots >= msg_slots) {
+	slots = mei_hbuf_empty_slots(dev);
+
+	if (slots >= msg_slots) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
 	/* Split the message only if we can write the whole host buffer */
-	} else if (*slots == dev->hbuf_depth) {
-		msg_slots = *slots;
-		len = (*slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
+	} else if (slots == dev->hbuf_depth) {
+		msg_slots = slots;
+		len = (slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 0;
 	} else {
@@ -485,7 +487,6 @@ int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(&mei_hdr));
 
-	*slots -=  msg_slots;
 	rets = mei_write_message(dev, &mei_hdr,
 			dev->iamthif_msg_buf + dev->iamthif_msg_buf_index);
 	if (rets) {

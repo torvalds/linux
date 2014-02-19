@@ -566,7 +566,9 @@ static int mei_txe_write(struct mei_device *dev,
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	unsigned long rem;
 	unsigned long length;
+	int slots = dev->hbuf_depth;
 	u32 *reg_buf = (u32 *)buf;
+	u32 dw_cnt;
 	int i;
 
 	if (WARN_ON(!header || !buf))
@@ -576,11 +578,9 @@ static int mei_txe_write(struct mei_device *dev,
 
 	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
 
-	if ((length + sizeof(struct mei_msg_hdr)) > PAYLOAD_SIZE) {
-		dev_err(&dev->pdev->dev, "write length exceeded = %ld > %d\n",
-			length + sizeof(struct mei_msg_hdr), PAYLOAD_SIZE);
-		return -ERANGE;
-	}
+	dw_cnt = mei_data2slots(length);
+	if (dw_cnt > slots)
+		return -EMSGSIZE;
 
 	if (WARN(!hw->aliveness, "txe write: aliveness not asserted\n"))
 		return -EAGAIN;
@@ -604,6 +604,9 @@ static int mei_txe_write(struct mei_device *dev,
 		memcpy(&reg, &buf[length - rem], rem);
 		mei_txe_input_payload_write(dev, i + 1, reg);
 	}
+
+	/* after each write the whole buffer is consumed */
+	hw->slots = 0;
 
 	/* Set Input-Doorbell */
 	mei_txe_input_doorbell_set(hw);
@@ -632,7 +635,8 @@ static size_t mei_txe_hbuf_max_len(const struct mei_device *dev)
  */
 static int mei_txe_hbuf_empty_slots(struct mei_device *dev)
 {
-	return dev->hbuf_depth;
+	struct mei_txe_hw *hw = to_txe_hw(dev);
+	return hw->slots;
 }
 
 /**
@@ -978,11 +982,12 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 		}
 	}
 	/* Input Ready: Detection if host can write to SeC */
-	if (test_and_clear_bit(TXE_INTR_IN_READY_BIT, &hw->intr_cause))
+	if (test_and_clear_bit(TXE_INTR_IN_READY_BIT, &hw->intr_cause)) {
 		dev->hbuf_is_ready = true;
+		hw->slots = dev->hbuf_depth;
+	}
 
 	if (hw->aliveness && dev->hbuf_is_ready) {
-
 		/* get the real register value */
 		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 		rets = mei_irq_write_handler(dev, &complete_list);

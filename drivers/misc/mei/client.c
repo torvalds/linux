@@ -698,26 +698,25 @@ err:
 }
 
 /**
- * mei_cl_irq_write_complete - write a message to device
+ * mei_cl_irq_write - write a message to device
  *	from the interrupt thread context
  *
  * @cl: client
  * @cb: callback block.
- * @slots: free slots.
  * @cmpl_list: complete list.
  *
  * returns 0, OK; otherwise error.
  */
-int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
-				     s32 *slots, struct mei_cl_cb *cmpl_list)
+int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
+		     struct mei_cl_cb *cmpl_list)
 {
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
 	size_t len;
 	u32 msg_slots;
+	int slots;
 	int rets;
-
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -735,6 +734,7 @@ int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return 0;
 	}
 
+	slots = mei_hbuf_empty_slots(dev);
 	len = buf->size - cb->buf_idx;
 	msg_slots = mei_data2slots(len);
 
@@ -743,13 +743,13 @@ int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	mei_hdr.reserved = 0;
 	mei_hdr.internal = cb->internal;
 
-	if (*slots >= msg_slots) {
+	if (slots >= msg_slots) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
 	/* Split the message only if we can write the whole host buffer */
-	} else if (*slots == dev->hbuf_depth) {
-		msg_slots = *slots;
-		len = (*slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
+	} else if (slots == dev->hbuf_depth) {
+		msg_slots = slots;
+		len = (slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 0;
 	} else {
@@ -760,7 +760,6 @@ int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	cl_dbg(dev, cl, "buf: size = %d idx = %lu\n",
 			cb->request_buffer.size, cb->buf_idx);
 
-	*slots -=  msg_slots;
 	rets = mei_write_message(dev, &mei_hdr, buf->data + cb->buf_idx);
 	if (rets) {
 		cl->status = rets;
