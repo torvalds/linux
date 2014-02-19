@@ -125,6 +125,8 @@ struct pcl816_private {
 	unsigned int ai_act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int ai_act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
+	unsigned int divisor1;
+	unsigned int divisor2;
 };
 
 /*
@@ -139,9 +141,9 @@ static void setup_channel_list(struct comedi_device *dev,
 static int pcl816_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 
-static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters,
-			       unsigned int divisor1, unsigned int divisor2)
+static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters)
 {
+	struct pcl816_private *devpriv = dev->private;
 	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
 
 	i8254_set_mode(timer_base, 0, 0, I8254_MODE1 | I8254_BINARY);
@@ -153,8 +155,8 @@ static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters,
 	udelay(1);
 
 	if (load_counters) {
-		i8254_write(timer_base, 0, 2, divisor2);
-		i8254_write(timer_base, 0, 1, divisor1);
+		i8254_write(timer_base, 0, 2, devpriv->divisor2);
+		i8254_write(timer_base, 0, 1, devpriv->divisor1);
 	}
 }
 
@@ -399,8 +401,9 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	struct pcl816_private *devpriv = dev->private;
 	int err = 0;
-	int tmp, divisor1 = 0, divisor2 = 0;
+	int tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -449,7 +452,8 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &divisor1, &divisor2,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
 					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < 10000)
 			cmd->convert_arg = 10000;
@@ -475,33 +479,14 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl816_private *devpriv = dev->private;
-	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int dma_flags, bytes, dmairq;
 	unsigned int seglen;
 
 	if (devpriv->irq_blocked)
 		return -EBUSY;
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < 10000)
-			cmd->convert_arg = 10000;
-
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &divisor1, &divisor2,
-					  &cmd->convert_arg, cmd->flags);
-
-		/*  PCL816 crash if any divisor is set to 1 */
-		if (divisor1 == 1) {
-			divisor1 = 2;
-			divisor2 /= 2;
-		}
-		if (divisor2 == 1) {
-			divisor2 = 2;
-			divisor1 /= 2;
-		}
-	}
-
-	pcl816_start_pacer(dev, false, 0, 0);
+	pcl816_start_pacer(dev, false);
 
 	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
 	if (seglen < 1)
@@ -549,7 +534,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		enable_dma(devpriv->dma);
 	}
 
-	pcl816_start_pacer(dev, true, divisor1, divisor2);
+	pcl816_start_pacer(dev, true);
 	dmairq = ((devpriv->dma & 0x3) << 4) | (dev->irq & 0x7);
 
 	switch (cmd->convert_src) {
