@@ -25,6 +25,7 @@ comment "S3C24XX SoCs"
 config CPU_S3C2410
 	bool "SAMSUNG S3C2410"
 	default y
+	depends on SAMSUNG_CLOCK
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2410
 	select S3C2410_CLOCK
@@ -38,6 +39,7 @@ config CPU_S3C2410
 
 config CPU_S3C2412
 	bool "SAMSUNG S3C2412"
+	depends on SAMSUNG_CLOCK
 	select CPU_ARM926T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2412_DMA if S3C24XX_DMA
@@ -58,6 +60,7 @@ config CPU_S3C2416
 
 config CPU_S3C2440
 	bool "SAMSUNG S3C2440"
+	depends on SAMSUNG_CLOCK
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2410_CLOCK
@@ -68,6 +71,7 @@ config CPU_S3C2440
 
 config CPU_S3C2442
 	bool "SAMSUNG S3C2442"
+	depends on SAMSUNG_CLOCK
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
 	select S3C2410_CLOCK
