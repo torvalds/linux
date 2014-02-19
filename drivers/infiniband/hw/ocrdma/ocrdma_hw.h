@@ -112,8 +112,7 @@ int ocrdma_mbx_create_qp(struct ocrdma_qp *, struct ib_qp_init_attr *attrs,
 			 u8 enable_dpp_cq, u16 dpp_cq_id, u16 *dpp_offset,
 			 u16 *dpp_credit_lmt);
 int ocrdma_mbx_modify_qp(struct ocrdma_dev *, struct ocrdma_qp *,
-			 struct ib_qp_attr *attrs, int attr_mask,
-			 enum ib_qp_state old_qps);
+			 struct ib_qp_attr *attrs, int attr_mask);
 int ocrdma_mbx_query_qp(struct ocrdma_dev *, struct ocrdma_qp *,
 			struct ocrdma_qp_params *param);
 int ocrdma_mbx_destroy_qp(struct ocrdma_dev *, struct ocrdma_qp *);

@@ -1296,7 +1296,7 @@ int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	 */
 	if (status < 0)
 		return status;
-	status = ocrdma_mbx_modify_qp(dev, qp, attr, attr_mask, old_qps);
+	status = ocrdma_mbx_modify_qp(dev, qp, attr, attr_mask);
 	if (!status && attr_mask & IB_QP_STATE && attr->qp_state == IB_QPS_RTR)
 		ocrdma_flush_rq_db(qp);
 

@@ -2127,8 +2127,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 
 static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 				struct ocrdma_modify_qp *cmd,
-				struct ib_qp_attr *attrs, int attr_mask,
-				enum ib_qp_state old_qps)
+				struct ib_qp_attr *attrs, int attr_mask)
 {
 	int status = 0;
 
@@ -2233,8 +2232,7 @@ pmtu_err:
 }
 
 int ocrdma_mbx_modify_qp(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
-			 struct ib_qp_attr *attrs, int attr_mask,
-			 enum ib_qp_state old_qps)
+			 struct ib_qp_attr *attrs, int attr_mask)
 {
 	int status = -ENOMEM;
 	struct ocrdma_modify_qp *cmd;
@@ -2257,7 +2255,7 @@ int ocrdma_mbx_modify_qp(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 		    OCRDMA_QP_PARAMS_STATE_MASK;
 	}
 
-	status = ocrdma_set_qp_params(qp, cmd, attrs, attr_mask, old_qps);
+	status = ocrdma_set_qp_params(qp, cmd, attrs, attr_mask);
 	if (status)
 		goto mbx_err;
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
