@@ -1148,10 +1148,9 @@ out:
 EXPORT_SYMBOL(xfrm_state_add);
 
 #ifdef CONFIG_XFRM_MIGRATE
-static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
+static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig)
 {
 	struct net *net = xs_net(orig);
-	int err = -ENOMEM;
 	struct xfrm_state *x = xfrm_state_alloc(net);
 	if (!x)
 		goto out;
@@ -1200,15 +1199,13 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	}
 
 	if (orig->replay_esn) {
-		err = xfrm_replay_clone(x, orig);
-		if (err)
+		if (xfrm_replay_clone(x, orig))
 			goto error;
 	}
 
 	memcpy(&x->mark, &orig->mark, sizeof(x->mark));
 
-	err = xfrm_init_state(x);
-	if (err)
+	if (xfrm_init_state(x) < 0)
 		goto error;
 
 	x->props.flags = orig->props.flags;
@@ -1223,8 +1220,6 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
  error:
 	xfrm_state_put(x);
 out:
-	if (errp)
-		*errp = err;
 	return NULL;
 }
 
@@ -1276,9 +1271,8 @@ struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 				      struct xfrm_migrate *m)
 {
 	struct xfrm_state *xc;
-	int err;
 
-	xc = xfrm_state_clone(x, &err);
+	xc = xfrm_state_clone(x);
 	if (!xc)
 		return NULL;
 
@@ -1291,7 +1285,7 @@ struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 		   state is to be updated as it is a part of triplet */
 		xfrm_state_insert(xc);
 	} else {
-		if ((err = xfrm_state_add(xc)) < 0)
+		if (xfrm_state_add(xc) < 0)
 			goto error;
 	}
 
