@@ -41,7 +41,7 @@ asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 
 static void chip_unmask(struct irq_data *d)
 {
-	unsigned ien;
+	u32 ien;
 	ien = RDCTL(CTL_IENABLE);
 	ien |= (1 << d->hwirq);
 	WRCTL(CTL_IENABLE, ien);
@@ -49,7 +49,7 @@ static void chip_unmask(struct irq_data *d)
 
 static void chip_mask(struct irq_data *d)
 {
-	unsigned ien;
+	u32 ien;
 	ien = RDCTL(CTL_IENABLE);
 	ien &= ~(1 << d->hwirq);
 	WRCTL(CTL_IENABLE, ien);
