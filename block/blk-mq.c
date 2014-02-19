@@ -860,6 +860,8 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
+	if (is_sync)
+		rw |= REQ_SYNC;
 	trace_block_getrq(q, bio, rw);
 	rq = __blk_mq_alloc_request(hctx, GFP_ATOMIC, false);
 	if (likely(rq))
