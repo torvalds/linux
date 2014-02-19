@@ -312,15 +312,15 @@ int PIPEnsInterruptRead(struct vnt_private *pDevice)
     // Now that we have created the urb, we will send a
     // request to the USB device object.
     //
-    pDevice->pInterruptURB->interval = pDevice->int_interval;
 
-usb_fill_bulk_urb(pDevice->pInterruptURB,
+	usb_fill_int_urb(pDevice->pInterruptURB,
 		pDevice->usb,
 		usb_rcvbulkpipe(pDevice->usb, 1),
-		(void *) pDevice->intBuf.pDataBuf,
+		pDevice->intBuf.pDataBuf,
 		MAX_INTERRUPT_SIZE,
 		s_nsInterruptUsbIoCompleteRead,
-		pDevice);
+		pDevice,
+		pDevice->int_interval);
 
 	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
 	if (ntStatus != 0) {
