@@ -96,6 +96,7 @@ static const struct of_device_id tps65218_of_match[] = {
 	TPS65218_OF_MATCH("ti,tps65218-dcdc5", tps65218_pmic_regs[DCDC5]),
 	TPS65218_OF_MATCH("ti,tps65218-dcdc6", tps65218_pmic_regs[DCDC6]),
 	TPS65218_OF_MATCH("ti,tps65218-ldo1", tps65218_pmic_regs[LDO1]),
+	{ }
 };
 MODULE_DEVICE_TABLE(of, tps65218_of_match);
 
