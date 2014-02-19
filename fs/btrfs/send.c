@@ -178,6 +178,47 @@ struct send_ctx {
 	 * own move/rename can be performed.
 	 */
 	struct rb_root waiting_dir_moves;
+
+	/*
+	 * A directory that is going to be rm'ed might have a child directory
+	 * which is in the pending directory moves index above. In this case,
+	 * the directory can only be removed after the move/rename of its child
+	 * is performed. Example:
+	 *
+	 * Parent snapshot:
+	 *
+	 * .                        (ino 256)
+	 * |-- a/                   (ino 257)
+	 *     |-- b/               (ino 258)
+	 *         |-- c/           (ino 259)
+	 *         |   |-- x/       (ino 260)
+	 *         |
+	 *         |-- y/           (ino 261)
+	 *
+	 * Send snapshot:
+	 *
+	 * .                        (ino 256)
+	 * |-- a/                   (ino 257)
+	 *     |-- b/               (ino 258)
+	 *         |-- YY/          (ino 261)
+	 *              |-- x/      (ino 260)
+	 *
+	 * Sequence of steps that lead to the send snapshot:
+	 * rm -f /a/b/c/foo.txt
+	 * mv /a/b/y /a/b/YY
+	 * mv /a/b/c/x /a/b/YY
+	 * rmdir /a/b/c
+	 *
+	 * When the child is processed, its move/rename is delayed until its
+	 * parent is processed (as explained above), but all other operations
+	 * like update utimes, chown, chgrp, etc, are performed and the paths
+	 * that it uses for those operations must use the orphanized name of
+	 * its parent (the directory we're going to rm later), so we need to
+	 * memorize that name.
+	 *
+	 * Indexed by the inode number of the directory to be deleted.
+	 */
+	struct rb_root orphan_dirs;
 };
 
 struct pending_dir_move {
@@ -192,6 +233,18 @@ struct pending_dir_move {
 struct waiting_dir_move {
 	struct rb_node node;
 	u64 ino;
+	/*
+	 * There might be some directory that could not be removed because it
+	 * was waiting for this directory inode to be moved first. Therefore
+	 * after this directory is moved, we can try to rmdir the ino rmdir_ino.
+	 */
+	u64 rmdir_ino;
+};
+
+struct orphan_dir_info {
+	struct rb_node node;
+	u64 ino;
+	u64 gen;
 };
 
 struct name_cache_entry {
@@ -216,6 +269,11 @@ struct name_cache_entry {
 };
 
 static int is_waiting_for_move(struct send_ctx *sctx, u64 ino);
+
+static struct waiting_dir_move *
+get_waiting_dir_move(struct send_ctx *sctx, u64 ino);
+
+static int is_waiting_for_rm(struct send_ctx *sctx, u64 dir_ino);
 
 static int need_send_hole(struct send_ctx *sctx)
 {
@@ -2113,6 +2171,14 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 	while (!stop && ino != BTRFS_FIRST_FREE_OBJECTID) {
 		fs_path_reset(name);
 
+		if (is_waiting_for_rm(sctx, ino)) {
+			ret = gen_unique_name(sctx, ino, gen, name);
+			if (ret < 0)
+				goto out;
+			ret = fs_path_add_path(dest, name);
+			break;
+		}
+
 		ret = __get_cur_name_and_parent(sctx, ino, gen, skip_name_cache,
 				&parent_inode, &parent_gen, name);
 		if (ret < 0)
@@ -2641,12 +2707,78 @@ out:
 	return ret;
 }
 
+static struct orphan_dir_info *
+add_orphan_dir_info(struct send_ctx *sctx, u64 dir_ino)
+{
+	struct rb_node **p = &sctx->orphan_dirs.rb_node;
+	struct rb_node *parent = NULL;
+	struct orphan_dir_info *entry, *odi;
+
+	odi = kmalloc(sizeof(*odi), GFP_NOFS);
+	if (!odi)
+		return ERR_PTR(-ENOMEM);
+	odi->ino = dir_ino;
+	odi->gen = 0;
+
+	while (*p) {
+		parent = *p;
+		entry = rb_entry(parent, struct orphan_dir_info, node);
+		if (dir_ino < entry->ino) {
+			p = &(*p)->rb_left;
+		} else if (dir_ino > entry->ino) {
+			p = &(*p)->rb_right;
+		} else {
+			kfree(odi);
+			return entry;
+		}
+	}
+
+	rb_link_node(&odi->node, parent, p);
+	rb_insert_color(&odi->node, &sctx->orphan_dirs);
+	return odi;
+}
+
+static struct orphan_dir_info *
+get_orphan_dir_info(struct send_ctx *sctx, u64 dir_ino)
+{
+	struct rb_node *n = sctx->orphan_dirs.rb_node;
+	struct orphan_dir_info *entry;
+
+	while (n) {
+		entry = rb_entry(n, struct orphan_dir_info, node);
+		if (dir_ino < entry->ino)
+			n = n->rb_left;
+		else if (dir_ino > entry->ino)
+			n = n->rb_right;
+		else
+			return entry;
+	}
+	return NULL;
+}
+
+static int is_waiting_for_rm(struct send_ctx *sctx, u64 dir_ino)
+{
+	struct orphan_dir_info *odi = get_orphan_dir_info(sctx, dir_ino);
+
+	return odi != NULL;
+}
+
+static void free_orphan_dir_info(struct send_ctx *sctx,
+				 struct orphan_dir_info *odi)
+{
+	if (!odi)
+		return;
+	rb_erase(&odi->node, &sctx->orphan_dirs);
+	kfree(odi);
+}
+
 /*
  * Returns 1 if a directory can be removed at this point in time.
  * We check this by iterating all dir items and checking if the inode behind
  * the dir item was already processed.
  */
-static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 send_progress)
+static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
+		     u64 send_progress)
 {
 	int ret = 0;
 	struct btrfs_root *root = sctx->parent_root;
@@ -2674,6 +2806,8 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 send_progress)
 		goto out;
 
 	while (1) {
+		struct waiting_dir_move *dm;
+
 		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
 			ret = btrfs_next_leaf(root, path);
 			if (ret < 0)
@@ -2692,6 +2826,21 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 send_progress)
 				struct btrfs_dir_item);
 		btrfs_dir_item_key_to_cpu(path->nodes[0], di, &loc);
 
+		dm = get_waiting_dir_move(sctx, loc.objectid);
+		if (dm) {
+			struct orphan_dir_info *odi;
+
+			odi = add_orphan_dir_info(sctx, dir);
+			if (IS_ERR(odi)) {
+				ret = PTR_ERR(odi);
+				goto out;
+			}
+			odi->gen = dir_gen;
+			dm->rmdir_ino = dir;
+			ret = 0;
+			goto out;
+		}
+
 		if (loc.objectid > send_progress) {
 			ret = 0;
 			goto out;
@@ -2709,19 +2858,9 @@ out:
 
 static int is_waiting_for_move(struct send_ctx *sctx, u64 ino)
 {
-	struct rb_node *n = sctx->waiting_dir_moves.rb_node;
-	struct waiting_dir_move *entry;
+	struct waiting_dir_move *entry = get_waiting_dir_move(sctx, ino);
 
-	while (n) {
-		entry = rb_entry(n, struct waiting_dir_move, node);
-		if (ino < entry->ino)
-			n = n->rb_left;
-		else if (ino > entry->ino)
-			n = n->rb_right;
-		else
-			return 1;
-	}
-	return 0;
+	return entry != NULL;
 }
 
 static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino)
@@ -2734,6 +2873,7 @@ static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino)
 	if (!dm)
 		return -ENOMEM;
 	dm->ino = ino;
+	dm->rmdir_ino = 0;
 
 	while (*p) {
 		parent = *p;
@@ -2753,24 +2893,31 @@ static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino)
 	return 0;
 }
 
-static int del_waiting_dir_move(struct send_ctx *sctx, u64 ino)
+static struct waiting_dir_move *
+get_waiting_dir_move(struct send_ctx *sctx, u64 ino)
 {
 	struct rb_node *n = sctx->waiting_dir_moves.rb_node;
 	struct waiting_dir_move *entry;
 
 	while (n) {
 		entry = rb_entry(n, struct waiting_dir_move, node);
-		if (ino < entry->ino) {
+		if (ino < entry->ino)
 			n = n->rb_left;
-		} else if (ino > entry->ino) {
+		else if (ino > entry->ino)
 			n = n->rb_right;
-		} else {
-			rb_erase(&entry->node, &sctx->waiting_dir_moves);
-			kfree(entry);
-			return 0;
-		}
+		else
+			return entry;
 	}
-	return -ENOENT;
+	return NULL;
+}
+
+static void free_waiting_dir_move(struct send_ctx *sctx,
+				  struct waiting_dir_move *dm)
+{
+	if (!dm)
+		return;
+	rb_erase(&dm->node, &sctx->waiting_dir_moves);
+	kfree(dm);
 }
 
 static int add_pending_dir_move(struct send_ctx *sctx, u64 parent_ino)
@@ -2861,6 +3008,8 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	u64 orig_progress = sctx->send_progress;
 	struct recorded_ref *cur;
 	u64 parent_ino, parent_gen;
+	struct waiting_dir_move *dm = NULL;
+	u64 rmdir_ino = 0;
 	int ret;
 
 	name = fs_path_alloc();
@@ -2870,8 +3019,10 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 		goto out;
 	}
 
-	ret = del_waiting_dir_move(sctx, pm->ino);
-	ASSERT(ret == 0);
+	dm = get_waiting_dir_move(sctx, pm->ino);
+	ASSERT(dm);
+	rmdir_ino = dm->rmdir_ino;
+	free_waiting_dir_move(sctx, dm);
 
 	ret = get_first_ref(sctx->parent_root, pm->ino,
 			    &parent_ino, &parent_gen, name);
@@ -2914,6 +3065,35 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	if (ret < 0)
 		goto out;
 
+	if (rmdir_ino) {
+		struct orphan_dir_info *odi;
+
+		odi = get_orphan_dir_info(sctx, rmdir_ino);
+		if (!odi) {
+			/* already deleted */
+			goto finish;
+		}
+		ret = can_rmdir(sctx, rmdir_ino, odi->gen, sctx->cur_ino + 1);
+		if (ret < 0)
+			goto out;
+		if (!ret)
+			goto finish;
+
+		name = fs_path_alloc();
+		if (!name) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		ret = get_cur_path(sctx, rmdir_ino, odi->gen, name);
+		if (ret < 0)
+			goto out;
+		ret = send_rmdir(sctx, name);
+		if (ret < 0)
+			goto out;
+		free_orphan_dir_info(sctx, odi);
+	}
+
+finish:
 	ret = send_utimes(sctx, pm->ino, pm->gen);
 	if (ret < 0)
 		goto out;
@@ -2923,6 +3103,8 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	 * and old parent(s).
 	 */
 	list_for_each_entry(cur, &pm->update_refs, list) {
+		if (cur->dir == rmdir_ino)
+			continue;
 		ret = send_utimes(sctx, cur->dir, cur->dir_gen);
 		if (ret < 0)
 			goto out;
@@ -3259,7 +3441,8 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 		 * later, we do this check again and rmdir it then if possible.
 		 * See the use of check_dirs for more details.
 		 */
-		ret = can_rmdir(sctx, sctx->cur_ino, sctx->cur_ino);
+		ret = can_rmdir(sctx, sctx->cur_ino, sctx->cur_inode_gen,
+				sctx->cur_ino);
 		if (ret < 0)
 			goto out;
 		if (ret) {
@@ -3352,7 +3535,8 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 				goto out;
 		} else if (ret == inode_state_did_delete &&
 			   cur->dir != last_dir_ino_rm) {
-			ret = can_rmdir(sctx, cur->dir, sctx->cur_ino);
+			ret = can_rmdir(sctx, cur->dir, cur->dir_gen,
+					sctx->cur_ino);
 			if (ret < 0)
 				goto out;
 			if (ret) {
@@ -5389,6 +5573,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 
 	sctx->pending_dir_moves = RB_ROOT;
 	sctx->waiting_dir_moves = RB_ROOT;
+	sctx->orphan_dirs = RB_ROOT;
 
 	sctx->clone_roots = vzalloc(sizeof(struct clone_root) *
 			(arg->clone_sources_count + 1));
@@ -5524,6 +5709,16 @@ out:
 		dm = rb_entry(n, struct waiting_dir_move, node);
 		rb_erase(&dm->node, &sctx->waiting_dir_moves);
 		kfree(dm);
+	}
+
+	WARN_ON(sctx && !ret && !RB_EMPTY_ROOT(&sctx->orphan_dirs));
+	while (sctx && !RB_EMPTY_ROOT(&sctx->orphan_dirs)) {
+		struct rb_node *n;
+		struct orphan_dir_info *odi;
+
+		n = rb_first(&sctx->orphan_dirs);
+		odi = rb_entry(n, struct orphan_dir_info, node);
+		free_orphan_dir_info(sctx, odi);
 	}
 
 	if (sort_clone_roots) {
