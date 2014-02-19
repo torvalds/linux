@@ -1451,7 +1451,7 @@ xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
 {
 	int err = 0;
 	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	struct net *net = xs_net(*dst);
+	struct net *net = xs_net(*src);
 
 	if (!afinfo)
 		return -EAFNOSUPPORT;
