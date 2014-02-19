@@ -2168,7 +2168,8 @@ u32 __tcp_select_window(struct sock *sk)
 	 */
 	int mss = icsk->icsk_ack.rcv_mss;
 	int free_space = tcp_space(sk);
-	int full_space = min_t(int, tp->window_clamp, tcp_full_space(sk));
+	int allowed_space = tcp_full_space(sk);
+	int full_space = min_t(int, tp->window_clamp, allowed_space);
 	int window;
 
 	if (mss > full_space)
@@ -2181,7 +2182,19 @@ u32 __tcp_select_window(struct sock *sk)
 			tp->rcv_ssthresh = min(tp->rcv_ssthresh,
 					       4U * tp->advmss);
 
-		if (free_space < mss)
+		/* free_space might become our new window, make sure we don't
+		 * increase it due to wscale.
+		 */
+		free_space = round_down(free_space, 1 << tp->rx_opt.rcv_wscale);
+
+		/* if free space is less than mss estimate, or is below 1/16th
+		 * of the maximum allowed, try to move to zero-window, else
+		 * tcp_clamp_window() will grow rcv buf up to tcp_rmem[2], and
+		 * new incoming data is dropped due to memory limits.
+		 * With large window, mss test triggers way too late in order
+		 * to announce zero window in time before rmem limit kicks in.
+		 */
+		if (free_space < (allowed_space >> 4) || free_space < mss)
 			return 0;
 	}
 
