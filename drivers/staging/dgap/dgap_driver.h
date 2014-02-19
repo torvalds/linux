@@ -31,8 +31,18 @@
 #include <linux/tty.h>          /* To pick up the various tty structs/defines */
 #include <linux/interrupt.h>    /* For irqreturn_t type */
 
-#include "dgap_types.h"         /* Additional types needed by the Digi header files */
 #include "digi.h"               /* Digi specific ioctl header */
+
+#ifndef TRUE
+# define TRUE 1
+#endif
+
+#ifndef FALSE
+# define FALSE 0
+#endif
+
+/* Required for our shared headers! */
+typedef unsigned char		uchar;
 
 #if !defined(TTY_FLIPBUF_SIZE)
 # define TTY_FLIPBUF_SIZE 512

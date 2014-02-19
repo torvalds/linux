@@ -50,7 +50,6 @@
 #include <linux/kdev_t.h>
 
 #include "dgap_driver.h"
-#include "dgap_types.h"
 
 #define init_MUTEX(sem)         sema_init(sem, 1)
 #define DECLARE_MUTEX(name)     \
