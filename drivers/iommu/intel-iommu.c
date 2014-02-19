@@ -3603,18 +3603,19 @@ static int device_notifier(struct notifier_block *nb,
 	if (iommu_dummy(pdev))
 		return 0;
 
+	if (action != BUS_NOTIFY_UNBOUND_DRIVER &&
+	    action != BUS_NOTIFY_DEL_DEVICE)
+		return 0;
+
 	domain = find_domain(pdev);
 	if (!domain)
 		return 0;
 
-	if (action == BUS_NOTIFY_UNBOUND_DRIVER) {
-		domain_remove_one_dev_info(domain, pdev);
-
-		if (!(domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE) &&
-		    !(domain->flags & DOMAIN_FLAG_STATIC_IDENTITY) &&
-		    list_empty(&domain->devices))
-			domain_exit(domain);
-	}
+	domain_remove_one_dev_info(domain, pdev);
+	if (!(domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE) &&
+	    !(domain->flags & DOMAIN_FLAG_STATIC_IDENTITY) &&
+	    list_empty(&domain->devices))
+		domain_exit(domain);
 
 	return 0;
 }
