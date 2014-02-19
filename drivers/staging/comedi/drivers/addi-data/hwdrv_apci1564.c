@@ -153,14 +153,12 @@ static int i_APCI1564_ConfigDigitalInput(struct comedi_device *dev,
 			outl(0x4,
 				devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP +
 				APCI1564_DIGITAL_IP_IRQ);
-		}
-		else {
+		} else {
 			outl(0x6,
 				devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP +
 				APCI1564_DIGITAL_IP_IRQ);
 		}
-	}
-	else {
+	} else {
 		outl(0x0,
 			devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP +
 			APCI1564_DIGITAL_IP_INTERRUPT_MODE1);
@@ -225,24 +223,22 @@ static int i_APCI1564_ConfigDigitalOutput(struct comedi_device *dev,
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
 	}
-	if (data[0]) {
+
+	if (data[0])
 		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	}
-	else {
+	else
 		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-	}
-	if (data[1] == ADDIDATA_ENABLE) {
+
+	if (data[1] == ADDIDATA_ENABLE)
 		ul_Command = ul_Command | 0x1;
-	}
-	else {
+	else
 		ul_Command = ul_Command & 0xFFFFFFFE;
-	}
-	if (data[2] == ADDIDATA_ENABLE) {
+
+	if (data[2] == ADDIDATA_ENABLE)
 		ul_Command = ul_Command | 0x2;
-	}
-	else {
+	else
 		ul_Command = ul_Command & 0xFFFFFFFD;
-	}
+
 	outl(ul_Command,
 		devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
 		APCI1564_DIGITAL_OP_INTERRUPT);
@@ -322,8 +318,7 @@ static int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 		outl(data[3],
 			devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP_WATCHDOG +
 			APCI1564_TCW_RELOAD_VALUE);
-	}
-	else if (data[0] == ADDIDATA_TIMER) {
+	} else if (data[0] == ADDIDATA_TIMER) {
 		/* First Stop The Timer */
 		ul_Command1 =
 			inl(devpriv->i_IobaseAmcc + APCI1564_TIMER +
@@ -356,8 +351,7 @@ static int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 			outl(0x0,
 				devpriv->iobase + APCI1564_COUNTER4 +
 				APCI1564_TCW_IRQ);
-		}
-		else {
+		} else {
 			outl(0x0, devpriv->i_IobaseAmcc + APCI1564_TIMER + APCI1564_TCW_PROG);	/* disable Timer interrupt */
 		}
 
@@ -377,8 +371,7 @@ static int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 		ul_Command1 =
 			(ul_Command1 & 0xFFF719E2UL) | 2UL << 13UL | 0x10UL;
 		outl(ul_Command1, devpriv->i_IobaseAmcc + APCI1564_TIMER + APCI1564_TCW_PROG);	/* mode 2 */
-	}
-	else if (data[0] == ADDIDATA_COUNTER) {
+	} else if (data[0] == ADDIDATA_COUNTER) {
 		devpriv->b_TimerSelectMode = ADDIDATA_COUNTER;
 		devpriv->b_ModeSelectRegister = data[5];
 
@@ -420,8 +413,7 @@ static int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 		outl(ul_Command1,
 			devpriv->iobase + ((data[5] - 1) * 0x20) +
 			APCI1564_TCW_PROG);
-	}
-	else {
+	} else {
 		printk(" Invalid subdevice.");
 	}
 
@@ -495,8 +487,7 @@ static int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device *d
 			outl(ul_Command1,
 				devpriv->i_IobaseAmcc + APCI1564_TIMER +
 				APCI1564_TCW_PROG);
-		}
-		else if (data[1] == 0) {
+		} else if (data[1] == 0) {
 			/* Stop The Timer */
 
 			ul_Command1 =
@@ -515,13 +506,11 @@ static int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device *d
 		if (data[1] == 1) {
 			/* Start the Counter subdevice */
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
-		}
-		else if (data[1] == 0) {
+		} else if (data[1] == 0) {
 			/*  Stops the Counter subdevice */
 			ul_Command1 = 0;
 
-		}
-		else if (data[1] == 2) {
+		} else if (data[1] == 2) {
 			/*  Clears the Counter subdevice */
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x400;
 		}
@@ -570,8 +559,7 @@ static int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
 		data[1] =
 			inl(devpriv->i_IobaseAmcc +
 			APCI1564_DIGITAL_OP_WATCHDOG);
-	}
-	else if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
+	} else if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
 		/*  Stores the status of the Timer */
 		data[0] =
 			inl(devpriv->i_IobaseAmcc + APCI1564_TIMER +
@@ -579,8 +567,7 @@ static int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
 
 		/*  Stores the Actual value of the Timer */
 		data[1] = inl(devpriv->i_IobaseAmcc + APCI1564_TIMER);
-	}
-	else if (devpriv->b_TimerSelectMode == ADDIDATA_COUNTER) {
+	} else if (devpriv->b_TimerSelectMode == ADDIDATA_COUNTER) {
 		/*  Read the Counter Actual Value. */
 		data[0] =
 			inl(devpriv->iobase + ((devpriv->b_ModeSelectRegister -
@@ -601,8 +588,7 @@ static int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
 
 		/* Get the overflow status */
 		data[4] = (unsigned char) ((ul_Command1 >> 0) & 1);
-	}
-	else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
+	} else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_WATCHDOG)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_COUNTER)) {
 		printk("\n Invalid Subdevice !!!\n");
