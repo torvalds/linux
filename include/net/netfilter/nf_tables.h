@@ -326,13 +326,15 @@ static inline void *nft_expr_priv(const struct nft_expr *expr)
  *	@handle: rule handle
  *	@genmask: generation mask
  *	@dlen: length of expression data
+ *	@ulen: length of user data (used for comments)
  *	@data: expression data
  */
 struct nft_rule {
 	struct list_head		list;
-	u64				handle:46,
+	u64				handle:42,
 					genmask:2,
-					dlen:16;
+					dlen:12,
+					ulen:8;
 	unsigned char			data[]
 		__attribute__((aligned(__alignof__(struct nft_expr))));
 };
@@ -369,6 +371,11 @@ static inline struct nft_expr *nft_expr_next(const struct nft_expr *expr)
 static inline struct nft_expr *nft_expr_last(const struct nft_rule *rule)
 {
 	return (struct nft_expr *)&rule->data[rule->dlen];
+}
+
+static inline void *nft_userdata(const struct nft_rule *rule)
+{
+	return (void *)&rule->data[rule->dlen];
 }
 
 /*

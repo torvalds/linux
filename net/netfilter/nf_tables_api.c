@@ -1295,6 +1295,8 @@ static const struct nla_policy nft_rule_policy[NFTA_RULE_MAX + 1] = {
 	[NFTA_RULE_EXPRESSIONS]	= { .type = NLA_NESTED },
 	[NFTA_RULE_COMPAT]	= { .type = NLA_NESTED },
 	[NFTA_RULE_POSITION]	= { .type = NLA_U64 },
+	[NFTA_RULE_USERDATA]	= { .type = NLA_BINARY,
+				    .len = NFT_USERDATA_MAXLEN },
 };
 
 static int nf_tables_fill_rule_info(struct sk_buff *skb, u32 portid, u32 seq,
@@ -1346,6 +1348,10 @@ static int nf_tables_fill_rule_info(struct sk_buff *skb, u32 portid, u32 seq,
 		nla_nest_end(skb, elem);
 	}
 	nla_nest_end(skb, list);
+
+	if (rule->ulen &&
+	    nla_put(skb, NFTA_RULE_USERDATA, rule->ulen, nft_userdata(rule)))
+		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
 
@@ -1583,7 +1589,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 	struct nft_expr *expr;
 	struct nft_ctx ctx;
 	struct nlattr *tmp;
-	unsigned int size, i, n;
+	unsigned int size, i, n, ulen = 0;
 	int err, rem;
 	bool create;
 	u64 handle, pos_handle;
@@ -1649,8 +1655,11 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 		}
 	}
 
+	if (nla[NFTA_RULE_USERDATA])
+		ulen = nla_len(nla[NFTA_RULE_USERDATA]);
+
 	err = -ENOMEM;
-	rule = kzalloc(sizeof(*rule) + size, GFP_KERNEL);
+	rule = kzalloc(sizeof(*rule) + size + ulen, GFP_KERNEL);
 	if (rule == NULL)
 		goto err1;
 
@@ -1658,6 +1667,10 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 
 	rule->handle = handle;
 	rule->dlen   = size;
+	rule->ulen   = ulen;
+
+	if (ulen)
+		nla_memcpy(nft_userdata(rule), nla[NFTA_RULE_USERDATA], ulen);
 
 	expr = nft_expr_first(rule);
 	for (i = 0; i < n; i++) {
