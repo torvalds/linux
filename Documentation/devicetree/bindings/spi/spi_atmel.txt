@@ -5,6 +5,9 @@ Required properties:
 - reg: Address and length of the register set for the device
 - interrupts: Should contain spi interrupt
 - cs-gpios: chipselects
+- clock-names: tuple listing input clock names.
+	Required elements: "spi_clk"
+- clocks: phandles to input clocks.
 
 Example:
 
@@ -14,6 +17,8 @@ spi1: spi@fffcc000 {
 	interrupts = <13 4 5>;
 	#address-cells = <1>;
 	#size-cells = <0>;
+	clocks = <&spi1_clk>;
+	clock-names = "spi_clk";
 	cs-gpios = <&pioB 3 0>;
 	status = "okay";
 

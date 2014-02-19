@@ -602,7 +602,7 @@ static int vmw_cmd_cid_check(struct vmw_private *dev_priv,
 {
 	struct vmw_cid_cmd {
 		SVGA3dCmdHeader header;
-		__le32 cid;
+		uint32_t cid;
 	} *cmd;
 
 	cmd = container_of(header, struct vmw_cid_cmd, header);
@@ -1835,7 +1835,7 @@ static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
 	return 0;
 }
 
-static const struct vmw_cmd_entry const vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
+static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DEFINE, &vmw_cmd_invalid,
 		    false, false, false),
 	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DESTROY, &vmw_cmd_invalid,
@@ -2032,6 +2032,9 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 		goto out_invalid;
 
 	entry = &vmw_cmd_entries[cmd_id];
+	if (unlikely(!entry->func))
+		goto out_invalid;
+
 	if (unlikely(!entry->user_allow && !sw_context->kernel))
 		goto out_privileged;
 
@@ -2469,7 +2472,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (dev_priv->has_mob) {
 		ret = vmw_rebind_contexts(sw_context);
 		if (unlikely(ret != 0))
-			goto out_err;
+			goto out_unlock_binding;
 	}
 
 	cmd = vmw_fifo_reserve(dev_priv, command_size);

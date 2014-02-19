@@ -2373,7 +2373,7 @@ F:	include/linux/cpufreq.h
 
 CPU FREQUENCY DRIVERS - ARM BIG LITTLE
 M:	Viresh Kumar <viresh.kumar@linaro.org>
-M:	Sudeep KarkadaNagesha <sudeep.karkadanagesha@arm.com>
+M:	Sudeep Holla <sudeep.holla@arm.com>
 L:	cpufreq@vger.kernel.org
 L:	linux-pm@vger.kernel.org
 W:	http://www.arm.com/products/processors/technologies/biglittleprocessing.php
@@ -2863,7 +2863,7 @@ M:	Jani Nikula <jani.nikula@linux.intel.com>
 L:	intel-gfx@lists.freedesktop.org
 L:	dri-devel@lists.freedesktop.org
 Q:	http://patchwork.freedesktop.org/project/intel-gfx/
-T:	git git://people.freedesktop.org/~danvet/drm-intel
+T:	git git://anongit.freedesktop.org/drm-intel
 S:	Supported
 F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
@@ -3329,6 +3329,17 @@ W:	http://www.linuxfoundation.org/en/Net:Bridge
 S:	Maintained
 F:	include/linux/netfilter_bridge/
 F:	net/bridge/
+
+ETHERNET PHY LIBRARY
+M:	Florian Fainelli <f.fainelli@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	include/linux/phy.h
+F:	include/linux/phy_fixed.h
+F:	drivers/net/phy/
+F:	Documentation/networking/phy.txt
+F:	drivers/of/of_mdio.c
+F:	drivers/of/of_net.c
 
 EXT2 FILE SYSTEM
 M:	Jan Kara <jack@suse.cz>
