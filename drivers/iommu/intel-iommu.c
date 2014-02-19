@@ -1298,15 +1298,6 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 
 	g_iommus[iommu->seq_id] = NULL;
 
-	/* if all iommus are freed, free g_iommus */
-	for (i = 0; i < g_num_of_iommus; i++) {
-		if (g_iommus[i])
-			break;
-	}
-
-	if (i == g_num_of_iommus)
-		kfree(g_iommus);
-
 	/* free context mapping */
 	free_context_table(iommu);
 }
@@ -2461,7 +2452,7 @@ static int __init init_dmars(void)
 		sizeof(struct deferred_flush_tables), GFP_KERNEL);
 	if (!deferred_flush) {
 		ret = -ENOMEM;
-		goto error;
+		goto free_g_iommus;
 	}
 
 	for_each_active_iommu(iommu, drhd) {
@@ -2469,7 +2460,7 @@ static int __init init_dmars(void)
 
 		ret = iommu_init_domains(iommu);
 		if (ret)
-			goto error;
+			goto free_iommu;
 
 		/*
 		 * TBD:
@@ -2479,7 +2470,7 @@ static int __init init_dmars(void)
 		ret = iommu_alloc_root_entry(iommu);
 		if (ret) {
 			printk(KERN_ERR "IOMMU: allocate root entry failed\n");
-			goto error;
+			goto free_iommu;
 		}
 		if (!ecap_pass_through(iommu->ecap))
 			hw_pass_through = 0;
@@ -2548,7 +2539,7 @@ static int __init init_dmars(void)
 		ret = iommu_prepare_static_identity_mapping(hw_pass_through);
 		if (ret) {
 			printk(KERN_CRIT "Failed to setup IOMMU pass-through\n");
-			goto error;
+			goto free_iommu;
 		}
 	}
 	/*
@@ -2606,7 +2597,7 @@ static int __init init_dmars(void)
 
 		ret = dmar_set_interrupt(iommu);
 		if (ret)
-			goto error;
+			goto free_iommu;
 
 		iommu_set_root_entry(iommu);
 
@@ -2615,17 +2606,20 @@ static int __init init_dmars(void)
 
 		ret = iommu_enable_translation(iommu);
 		if (ret)
-			goto error;
+			goto free_iommu;
 
 		iommu_disable_protect_mem_regions(iommu);
 	}
 
 	return 0;
-error:
+
+free_iommu:
 	for_each_active_iommu(iommu, drhd)
 		free_dmar_iommu(iommu);
 	kfree(deferred_flush);
+free_g_iommus:
 	kfree(g_iommus);
+error:
 	return ret;
 }
 
