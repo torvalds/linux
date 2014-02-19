@@ -1694,6 +1694,10 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 
 static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
+	/*
+	 * yes, some broken gcc emit "warning: 'i' may be used uninitialized"
+	 * but no, we are not going to take a patch that assigns NULL below.
+	 */
 	struct irq_info *i;
 	struct hlist_node *n;
 	struct hlist_head *h;
