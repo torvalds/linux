@@ -371,9 +371,7 @@ static const char *mux_pllp3_pllc_clkm[] = {
 static const char *mux_pllm_pllc_pllp_plla_pllc2_c3_clkm[] = {
 	"pll_m", "pll_c", "pll_p", "pll_a", "pll_c2", "pll_c3", "clk_m"
 };
-static u32 mux_pllm_pllc_pllp_plla_pllc2_c3_clkm_idx[] = {
-	[0] = 0, [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 6,
-};
+#define mux_pllm_pllc_pllp_plla_pllc2_c3_clkm_idx NULL
 
 static const char *mux_pllm_pllc2_c_c3_pllp_plla_pllc4[] = {
 	"pll_m", "pll_c2", "pll_c", "pll_c3", "pll_p", "pll_a_out0", "pll_c4",
