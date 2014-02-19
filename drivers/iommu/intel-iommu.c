@@ -3562,37 +3562,34 @@ int dmar_find_matched_atsr_unit(struct pci_dev *dev)
 {
 	int i;
 	struct pci_bus *bus;
+	struct pci_dev *bridge = NULL;
 	struct acpi_dmar_atsr *atsr;
 	struct dmar_atsr_unit *atsru;
 
 	dev = pci_physfn(dev);
-
-	list_for_each_entry(atsru, &dmar_atsr_units, list) {
-		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
-		if (atsr->segment == pci_domain_nr(dev->bus))
-			goto found;
-	}
-
-	return 0;
-
-found:
 	for (bus = dev->bus; bus; bus = bus->parent) {
-		struct pci_dev *bridge = bus->self;
-
+		bridge = bus->self;
 		if (!bridge || !pci_is_pcie(bridge) ||
 		    pci_pcie_type(bridge) == PCI_EXP_TYPE_PCI_BRIDGE)
 			return 0;
-
-		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_ROOT_PORT) {
-			for (i = 0; i < atsru->devices_cnt; i++)
-				if (atsru->devices[i] == bridge)
-					return 1;
+		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_ROOT_PORT)
 			break;
-		}
 	}
+	if (!bridge)
+		return 0;
 
-	if (atsru->include_all)
-		return 1;
+	list_for_each_entry_rcu(atsru, &dmar_atsr_units, list) {
+		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
+		if (atsr->segment != pci_domain_nr(dev->bus))
+			continue;
+
+		for (i = 0; i < atsru->devices_cnt; i++)
+			if (atsru->devices[i] == bridge)
+				return 1;
+
+		if (atsru->include_all)
+			return 1;
+	}
 
 	return 0;
 }
