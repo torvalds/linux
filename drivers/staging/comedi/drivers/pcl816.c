@@ -614,25 +614,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcl816_check(unsigned long iobase)
-{
-	outb(0x00, iobase + PCL816_MUX);
-	udelay(1);
-	if (inb(iobase + PCL816_MUX) != 0x00)
-		return 1;	/* there isn't card */
-	outb(0x55, iobase + PCL816_MUX);
-	udelay(1);
-	if (inb(iobase + PCL816_MUX) != 0x55)
-		return 1;	/* there isn't card */
-	outb(0x00, iobase + PCL816_MUX);
-	udelay(1);
-	outb(0x18, iobase + PCL816_CONTROL);
-	udelay(1);
-	if (inb(iobase + PCL816_CONTROL) != 0x18)
-		return 1;	/* there isn't card */
-	return 0;		/*  ok, card exist */
-}
-
 static void pcl816_reset(struct comedi_device *dev)
 {
 	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
@@ -733,6 +714,30 @@ setup_channel_list(struct comedi_device *dev,
 	     dev->iobase + PCL816_MUX);
 }
 
+static int pcl816_check(struct comedi_device *dev)
+{
+	/* the MUX register should return the same value written */
+	outb(0x00, dev->iobase + PCL816_MUX);
+	if (inb(dev->iobase + PCL816_MUX) != 0x00)
+		return -ENODEV;
+	outb(0x55, dev->iobase + PCL816_MUX);
+	if (inb(dev->iobase + PCL816_MUX) != 0x55)
+		return -ENODEV;
+
+	/* reset the MUX register to a known state */
+	outb(0x00, dev->iobase + PCL816_MUX);
+
+	/* the CONTROL register should return the same value written */
+	outb(0x18, dev->iobase + PCL816_CONTROL);
+	if (inb(dev->iobase + PCL816_CONTROL) != 0x18)
+		return -ENODEV;
+
+	/* reset the CONTROL register to a known state */
+	outb(0x00, dev->iobase + PCL816_CONTROL);
+
+	return 0;
+}
+
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl816_board *board = comedi_board(dev);
@@ -741,18 +746,17 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	int i;
 
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
+
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
-	if (pcl816_check(dev->iobase)) {
-		dev_err(dev->class_dev, "I can't detect board. FAIL!\n");
-		return -EIO;
-	}
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
+	ret = pcl816_check(dev);
+	if (ret)
+		return ret;
 
 	/* we can use IRQ 2-7 for async command support */
 	if (it->options[1] >= 2 && it->options[1] <= 7) {
