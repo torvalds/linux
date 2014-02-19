@@ -4765,13 +4765,18 @@ void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 	mgmt_event(MGMT_EV_NEW_LINK_KEY, hdev, &ev, sizeof(ev), NULL);
 }
 
-void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent)
+void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key)
 {
 	struct mgmt_ev_new_long_term_key ev;
 
 	memset(&ev, 0, sizeof(ev));
 
-	ev.store_hint = persistent;
+	if (key->bdaddr_type == ADDR_LE_DEV_RANDOM &&
+	    (key->bdaddr.b[5] & 0xc0) != 0xc0)
+		ev.store_hint = 0x00;
+	else
+		ev.store_hint = 0x01;
+
 	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
 	ev.key.addr.type = link_to_bdaddr(LE_LINK, key->bdaddr_type);
 	ev.key.type = key->authenticated;
