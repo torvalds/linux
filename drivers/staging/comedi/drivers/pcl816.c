@@ -802,9 +802,6 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->irq = it->options[1];
 	}
 
-	devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
-	devpriv->int816_mode = 0;	/* mode of irq */
-
 	/* we need an IRQ to do DMA on channel 3 or 1 */
 	if (dev->irq && (it->options[2] == 3 || it->options[2] == 1)) {
 		ret = request_dma(it->options[2], dev->board_name);
