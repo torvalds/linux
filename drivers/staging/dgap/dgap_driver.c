@@ -50,7 +50,6 @@
 #include <linux/kdev_t.h>
 
 #include "dgap_driver.h"
-#include "dgap_parse.h"
 #include "dgap_types.h"
 
 #define init_MUTEX(sem)         sema_init(sem, 1)
@@ -168,6 +167,17 @@ int dgap_tty_class_destroy(void);
 
 void dgap_create_tty_sysfs(struct un_t *un, struct device *c);
 void dgap_remove_tty_sysfs(struct device *c);
+
+/*
+ * Function prototypes from dgap_parse.h
+ */
+int dgap_parsefile(char **in, int Remove);
+struct cnode *dgap_find_config(int type, int bus, int slot);
+uint dgap_config_get_number_of_ports(struct board_t *bd);
+char *dgap_create_config_string(struct board_t *bd, char *string);
+char *dgap_get_config_letters(struct board_t *bd, char *string);
+uint dgap_config_get_useintr(struct board_t *bd);
+uint dgap_config_get_altpin(struct board_t *bd);
 
 /* Driver load/unload functions */
 int			dgap_init_module(void);
