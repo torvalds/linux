@@ -3989,7 +3989,7 @@ static int skd_acquire_msix(struct skd_device *skdev)
 	}
 
 	/* Enable MSI-X vectors for the base queue */
-	for (i = 0; i < SKD_MAX_MSIX_COUNT; i++) {
+	for (i = 0; i < skdev->msix_count; i++) {
 		qentry = &skdev->msix_entries[i];
 		snprintf(qentry->isr_name, sizeof(qentry->isr_name),
 			 "%s%d-msix %s", DRV_NAME, skdev->devno,
