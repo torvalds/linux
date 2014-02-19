@@ -536,3 +536,10 @@ struct mgmt_ev_passkey_notify {
 	__le32	passkey;
 	__u8	entered;
 } __packed;
+
+#define MGMT_EV_NEW_IRK			0x0018
+struct mgmt_ev_new_irk {
+	__u8     store_hint;
+	bdaddr_t rpa;
+	struct mgmt_irk_info irk;
+} __packed;

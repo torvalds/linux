@@ -1112,6 +1112,9 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	struct hci_conn *hcon = conn->hcon;
 	struct hci_dev *hdev = hcon->hdev;
 
+	if (smp->remote_irk)
+		mgmt_new_irk(hdev, smp->remote_irk);
+
 	if (smp->ltk) {
 		smp->ltk->bdaddr_type = hcon->dst_type;
 		bacpy(&smp->ltk->bdaddr, &hcon->dst);

@@ -1211,6 +1211,7 @@ void mgmt_discovering(struct hci_dev *hdev, u8 discovering);
 int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key);
+void mgmt_new_irk(struct hci_dev *hdev, struct smp_irk *irk);
 void mgmt_reenable_advertising(struct hci_dev *hdev);
 void mgmt_smp_complete(struct hci_conn *conn, bool complete);
 

@@ -4792,6 +4792,21 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key)
 	mgmt_event(MGMT_EV_NEW_LONG_TERM_KEY, hdev, &ev, sizeof(ev), NULL);
 }
 
+void mgmt_new_irk(struct hci_dev *hdev, struct smp_irk *irk)
+{
+	struct mgmt_ev_new_irk ev;
+
+	memset(&ev, 0, sizeof(ev));
+
+	ev.store_hint = 0x01;
+	bacpy(&ev.rpa, &irk->rpa);
+	bacpy(&ev.irk.addr.bdaddr, &irk->bdaddr);
+	ev.irk.addr.type = link_to_bdaddr(LE_LINK, irk->addr_type);
+	memcpy(ev.irk.val, irk->val, sizeof(irk->val));
+
+	mgmt_event(MGMT_EV_NEW_IRK, hdev, &ev, sizeof(ev), NULL);
+}
+
 static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type, u8 *data,
 				  u8 data_len)
 {
