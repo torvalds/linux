@@ -4611,8 +4611,8 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	INIT_WORK(&dd->work[7].work, mtip_workq_sdbf7);
 
 	pci_set_master(pdev);
-	rv = pci_enable_msi(pdev);
-	if (rv) {
+	rv = pci_enable_msi_range(pdev, 1, 1);
+	if (rv < 0) {
 		dev_warn(&pdev->dev,
 			"Unable to enable MSI interrupt.\n");
 		goto msi_initialize_err;
