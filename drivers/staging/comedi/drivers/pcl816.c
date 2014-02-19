@@ -87,7 +87,6 @@ static const struct comedi_lrange range_pcl816 = {
 
 struct pcl816_board {
 	const char *name;
-	unsigned int IRQbits;
 	int ai_maxdata;
 	int ao_maxdata;
 	int ai_chanlist;
@@ -96,13 +95,11 @@ struct pcl816_board {
 static const struct pcl816_board boardtypes[] = {
 	{
 		.name		= "pcl816",
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xffff,
 		.ao_maxdata	= 0xffff,
 		.ai_chanlist	= 1024,
 	}, {
 		.name		= "pcl814b",
-		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0x3fff,
 		.ao_maxdata	= 0x3fff,
 		.ai_chanlist	= 1024,
@@ -827,7 +824,8 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	if ((1 << it->options[1]) & board->IRQbits) {
+	/* we can use IRQ 2-7 for async command support */
+	if (it->options[1] >= 2 && it->options[1] <= 7) {
 		ret = request_irq(it->options[1], interrupt_pcl816, 0,
 				  dev->board_name, dev);
 		if (ret == 0)
