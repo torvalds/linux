@@ -133,6 +133,9 @@ struct smp_chan {
 	bdaddr_t	id_addr;
 	u8		id_addr_type;
 	u8		irk[16];
+	struct smp_ltk	*ltk;
+	struct smp_ltk	*slave_ltk;
+	struct smp_irk	*remote_irk;
 	unsigned long	smp_flags;
 	struct work_struct confirm;
 	struct work_struct random;
