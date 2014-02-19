@@ -167,13 +167,9 @@ test_make_install_info_O := $(test_ok)
 test_make_install_pdf    := $(test_ok)
 test_make_install_pdf_O  := $(test_ok)
 
-# Kbuild tests only
-#test_make_python_perf_so_O := test -f $$TMP/tools/perf/python/perf.so
-#test_make_perf_o_O         := test -f $$TMP/tools/perf/perf.o
-#test_make_util_map_o_O     := test -f $$TMP/tools/perf/util/map.o
-
-test_make_perf_o_O     := true
-test_make_util_map_o_O := true
+test_make_python_perf_so_O    := test -f $$TMP_O/python/perf.so
+test_make_perf_o_O            := test -f $$TMP_O/perf.o
+test_make_util_map_o_O        := test -f $$TMP_O/util/map.o
 
 test_default = test -x $(PERF)/perf
 test = $(if $(test_$1),$(test_$1),$(test_default))
