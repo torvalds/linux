@@ -1580,6 +1580,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
+	btrfs_scrub_cancel(root->fs_info);
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 }
