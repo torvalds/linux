@@ -138,8 +138,6 @@ static int check_channel_list(struct comedi_device *dev,
 static void setup_channel_list(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       unsigned int *chanlist, unsigned int seglen);
-static int pcl816_ai_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
 
 static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters)
 {
@@ -242,7 +240,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 	if (!timeout) {		/*  timeout, bail error */
 		outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 		comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
-		pcl816_ai_cancel(dev, s);
+		s->cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
@@ -266,7 +264,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 					/* all data sampled */
 		if (devpriv->ai_act_scan >= cmd->stop_arg) {
 			/* all data sampled */
-			pcl816_ai_cancel(dev, s);
+			s->cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA;
 		}
 	comedi_event(dev, s);
@@ -306,7 +304,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 		if (!devpriv->ai_neverending)
 						/*  all data sampled */
 			if (devpriv->ai_act_scan >= cmd->stop_arg) {
-				pcl816_ai_cancel(dev, s);
+				s->cancel(dev, s);
 				s->async->events |= COMEDI_CB_EOA;
 				s->async->events |= COMEDI_CB_BLOCK;
 				break;
