@@ -139,6 +139,8 @@ int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
 
 #define NVSP_PROTOCOL_VERSION_1		2
 #define NVSP_PROTOCOL_VERSION_2		0x30002
+#define NVSP_PROTOCOL_VERSION_4		0x40000
+#define NVSP_PROTOCOL_VERSION_5		0x50000
 
 enum {
 	NVSP_MSG_TYPE_NONE = 0,
@@ -193,6 +195,23 @@ enum {
 
 	NVSP_MSG2_TYPE_ALLOC_CHIMNEY_HANDLE,
 	NVSP_MSG2_TYPE_ALLOC_CHIMNEY_HANDLE_COMP,
+
+	NVSP_MSG2_MAX = NVSP_MSG2_TYPE_ALLOC_CHIMNEY_HANDLE_COMP,
+
+	/* Version 4 messages */
+	NVSP_MSG4_TYPE_SEND_VF_ASSOCIATION,
+	NVSP_MSG4_TYPE_SWITCH_DATA_PATH,
+	NVSP_MSG4_TYPE_UPLINK_CONNECT_STATE_DEPRECATED,
+
+	NVSP_MSG4_MAX = NVSP_MSG4_TYPE_UPLINK_CONNECT_STATE_DEPRECATED,
+
+	/* Version 5 messages */
+	NVSP_MSG5_TYPE_OID_QUERY_EX,
+	NVSP_MSG5_TYPE_OID_QUERY_EX_COMP,
+	NVSP_MSG5_TYPE_SUBCHANNEL,
+	NVSP_MSG5_TYPE_SEND_INDIRECTION_TABLE,
+
+	NVSP_MSG5_MAX = NVSP_MSG5_TYPE_SEND_INDIRECTION_TABLE,
 };
 
 enum {
@@ -447,10 +466,44 @@ union nvsp_2_message_uber {
 	struct nvsp_2_free_rxbuf free_rxbuf;
 } __packed;
 
+enum nvsp_subchannel_operation {
+	NVSP_SUBCHANNEL_NONE = 0,
+	NVSP_SUBCHANNEL_ALLOCATE,
+	NVSP_SUBCHANNEL_MAX
+};
+
+struct nvsp_5_subchannel_request {
+	u32 op;
+	u32 num_subchannels;
+} __packed;
+
+struct nvsp_5_subchannel_complete {
+	u32 status;
+	u32 num_subchannels; /* Actual number of subchannels allocated */
+} __packed;
+
+struct nvsp_5_send_indirect_table {
+	/* The number of entries in the send indirection table */
+	u32 count;
+
+	/* The offset of the send indireciton table from top of this struct.
+	 * The send indirection table tells which channel to put the send
+	 * traffic on. Each entry is a channel number.
+	 */
+	u32 offset;
+} __packed;
+
+union nvsp_5_message_uber {
+	struct nvsp_5_subchannel_request subchn_req;
+	struct nvsp_5_subchannel_complete subchn_comp;
+	struct nvsp_5_send_indirect_table send_table;
+} __packed;
+
 union nvsp_all_messages {
 	union nvsp_message_init_uber init_msg;
 	union nvsp_1_message_uber v1_msg;
 	union nvsp_2_message_uber v2_msg;
+	union nvsp_5_message_uber v5_msg;
 } __packed;
 
 /* ALL Messages */

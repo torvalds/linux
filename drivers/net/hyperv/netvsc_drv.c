@@ -327,7 +327,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	if (nvdev == NULL || nvdev->destroy)
 		return -ENODEV;
 
-	if (nvdev->nvsp_version == NVSP_PROTOCOL_VERSION_2)
+	if (nvdev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
 		limit = NETVSC_MTU;
 
 	if (mtu < 68 || mtu > limit)

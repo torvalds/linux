@@ -290,7 +290,7 @@ static int negotiate_nvsp_ver(struct hv_device *device,
 	    NVSP_STAT_SUCCESS)
 		return -EINVAL;
 
-	if (nvsp_ver != NVSP_PROTOCOL_VERSION_2)
+	if (nvsp_ver == NVSP_PROTOCOL_VERSION_1)
 		return 0;
 
 	/* NVSPv2 only: Send NDIS config */
@@ -314,6 +314,9 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	struct nvsp_message *init_packet;
 	int ndis_version;
 	struct net_device *ndev;
+	u32 ver_list[] = { NVSP_PROTOCOL_VERSION_1, NVSP_PROTOCOL_VERSION_2,
+		NVSP_PROTOCOL_VERSION_4, NVSP_PROTOCOL_VERSION_5 };
+	int i, num_ver = 4; /* number of different NVSP versions */
 
 	net_device = get_outbound_net_device(device);
 	if (!net_device)
@@ -323,13 +326,14 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	init_packet = &net_device->channel_init_pkt;
 
 	/* Negotiate the latest NVSP protocol supported */
-	if (negotiate_nvsp_ver(device, net_device, init_packet,
-			       NVSP_PROTOCOL_VERSION_2) == 0) {
-		net_device->nvsp_version = NVSP_PROTOCOL_VERSION_2;
-	} else if (negotiate_nvsp_ver(device, net_device, init_packet,
-				    NVSP_PROTOCOL_VERSION_1) == 0) {
-		net_device->nvsp_version = NVSP_PROTOCOL_VERSION_1;
-	} else {
+	for (i = num_ver - 1; i >= 0; i--)
+		if (negotiate_nvsp_ver(device, net_device, init_packet,
+				       ver_list[i])  == 0) {
+			net_device->nvsp_version = ver_list[i];
+			break;
+		}
+
+	if (i < 0) {
 		ret = -EPROTO;
 		goto cleanup;
 	}
@@ -339,7 +343,10 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	/* Send the ndis version */
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 
-	ndis_version = 0x00050001;
+	if (net_device->nvsp_version <= NVSP_PROTOCOL_VERSION_4)
+		ndis_version = 0x00050001;
+	else
+		ndis_version = 0x0006001e;
 
 	init_packet->hdr.msg_type = NVSP_MSG1_TYPE_SEND_NDIS_VER;
 	init_packet->msg.v1_msg.
