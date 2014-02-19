@@ -639,9 +639,9 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 	card->hbnr.init = NUM_HB;
 	card->hbnr.max = MAX_HB;
 
-	card->sm_handle = 0x00000000;
+	card->sm_handle = NULL;
 	card->sm_addr = 0x00000000;
-	card->lg_handle = 0x00000000;
+	card->lg_handle = NULL;
 	card->lg_addr = 0x00000000;
 
 	card->efbie = 1;	/* To prevent push_rxbufs from enabling the interrupt */
@@ -979,7 +979,7 @@ static void push_rxbufs(ns_dev * card, struct sk_buff *skb)
 				addr2 = card->sm_addr;
 				handle2 = card->sm_handle;
 				card->sm_addr = 0x00000000;
-				card->sm_handle = 0x00000000;
+				card->sm_handle = NULL;
 			} else {	/* (!sm_addr) */
 
 				card->sm_addr = addr1;
@@ -993,7 +993,7 @@ static void push_rxbufs(ns_dev * card, struct sk_buff *skb)
 				addr2 = card->lg_addr;
 				handle2 = card->lg_handle;
 				card->lg_addr = 0x00000000;
-				card->lg_handle = 0x00000000;
+				card->lg_handle = NULL;
 			} else {	/* (!lg_addr) */
 
 				card->lg_addr = addr1;
