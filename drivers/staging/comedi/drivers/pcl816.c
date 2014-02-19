@@ -370,7 +370,7 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 	}
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-	if (!dev->irq || !devpriv->ai_cmd_running || !devpriv->int816_mode) {
+	if (!devpriv->ai_cmd_running || !devpriv->int816_mode) {
 		if (devpriv->irq_was_now_closed) {
 			devpriv->irq_was_now_closed = 0;
 			/*  comedi_error(dev,"last IRQ.."); */
