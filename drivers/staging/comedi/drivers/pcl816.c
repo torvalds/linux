@@ -87,7 +87,6 @@ static const struct comedi_lrange range_pcl816 = {
 
 struct pcl816_board {
 	const char *name;
-	int n_aochan;
 	unsigned int IRQbits;
 	int ai_maxdata;
 	int ao_maxdata;
@@ -97,14 +96,12 @@ struct pcl816_board {
 static const struct pcl816_board boardtypes[] = {
 	{
 		.name		= "pcl816",
-		.n_aochan	= 1,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0xffff,
 		.ao_maxdata	= 0xffff,
 		.ai_chanlist	= 1024,
 	}, {
 		.name		= "pcl814b",
-		.n_aochan	= 1,
 		.IRQbits	= 0x00fc,
 		.ai_maxdata	= 0x3fff,
 		.ao_maxdata	= 0x3fff,
@@ -890,7 +887,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #if 0
 	subdevs[1] = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-	s->n_chan = board->n_aochan;
+	s->n_chan = 1;
 	s->maxdata = board->ao_maxdata;
 	s->range_table = &range_pcl816;
 	break;
