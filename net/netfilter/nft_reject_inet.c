@@ -21,9 +21,9 @@ static void nft_reject_inet_eval(const struct nft_expr *expr,
 {
 	switch (pkt->ops->pf) {
 	case NFPROTO_IPV4:
-		nft_reject_ipv4_eval(expr, data, pkt);
+		return nft_reject_ipv4_eval(expr, data, pkt);
 	case NFPROTO_IPV6:
-		nft_reject_ipv6_eval(expr, data, pkt);
+		return nft_reject_ipv6_eval(expr, data, pkt);
 	}
 }
 
