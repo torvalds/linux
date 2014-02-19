@@ -50,4 +50,8 @@ config TEGRA30_MC
 	  analysis, especially for IOMMU/SMMU(System Memory Management
 	  Unit) module.
 
+config FSL_IFC
+	bool
+	depends on FSL_SOC
+
 endif
