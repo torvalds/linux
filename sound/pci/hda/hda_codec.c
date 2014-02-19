@@ -821,35 +821,35 @@ static int init_unsol_queue(struct hda_bus *bus)
 /*
  * destructor
  */
-static void snd_hda_codec_free(struct hda_codec *codec);
-
-static int snd_hda_bus_free(struct hda_bus *bus)
+static void snd_hda_bus_free(struct hda_bus *bus)
 {
-	struct hda_codec *codec, *n;
-
 	if (!bus)
-		return 0;
+		return;
+
+	WARN_ON(!list_empty(&bus->codec_list));
 	if (bus->workq)
 		flush_workqueue(bus->workq);
 	if (bus->unsol)
 		kfree(bus->unsol);
-	list_for_each_entry_safe(codec, n, &bus->codec_list, list) {
-		snd_hda_codec_free(codec);
-	}
 	if (bus->ops.private_free)
 		bus->ops.private_free(bus);
 	if (bus->workq)
 		destroy_workqueue(bus->workq);
 
 	kfree(bus);
-	return 0;
 }
 
 static int snd_hda_bus_dev_free(struct snd_device *device)
 {
+	snd_hda_bus_free(device->device_data);
+	return 0;
+}
+
+static int snd_hda_bus_dev_disconnect(struct snd_device *device)
+{
 	struct hda_bus *bus = device->device_data;
 	bus->shutdown = 1;
-	return snd_hda_bus_free(bus);
+	return 0;
 }
 
 /**
@@ -867,6 +867,7 @@ int snd_hda_bus_new(struct snd_card *card,
 	struct hda_bus *bus;
 	int err;
 	static struct snd_device_ops dev_ops = {
+		.dev_disconnect = snd_hda_bus_dev_disconnect,
 		.dev_free = snd_hda_bus_dev_free,
 	};
 
@@ -1376,6 +1377,12 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
 static unsigned int hda_set_power_state(struct hda_codec *codec,
 				unsigned int power_state);
 
+static int snd_hda_codec_dev_free(struct snd_device *device)
+{
+	snd_hda_codec_free(device->device_data);
+	return 0;
+}
+
 /**
  * snd_hda_codec_new - create a HDA codec
  * @bus: the bus to assign
@@ -1392,6 +1399,9 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	char component[31];
 	hda_nid_t fg;
 	int err;
+	static struct snd_device_ops dev_ops = {
+		.dev_free = snd_hda_codec_dev_free,
+	};
 
 	if (snd_BUG_ON(!bus))
 		return -EINVAL;
@@ -1511,6 +1521,10 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	sprintf(component, "HDA:%08x,%08x,%08x", codec->vendor_id,
 		codec->subsystem_id, codec->revision_id);
 	snd_component_add(codec->bus->card, component);
+
+	err = snd_device_new(bus->card, SNDRV_DEV_CODEC, codec, &dev_ops);
+	if (err < 0)
+		goto error;
 
 	if (codecp)
 		*codecp = codec;
