@@ -496,33 +496,6 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 	}
 }
 
-static int ci_usb_phy_init(struct ci_hdrc *ci)
-{
-	if (ci->platdata->phy) {
-		ci->transceiver = ci->platdata->phy;
-		return usb_phy_init(ci->transceiver);
-	} else {
-		ci->global_phy = true;
-		ci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
-		if (IS_ERR(ci->transceiver))
-			ci->transceiver = NULL;
-
-		return 0;
-	}
-}
-
-static void ci_usb_phy_destroy(struct ci_hdrc *ci)
-{
-	if (!ci->transceiver)
-		return;
-
-	otg_set_peripheral(ci->transceiver->otg, NULL);
-	if (ci->global_phy)
-		usb_put_phy(ci->transceiver);
-	else
-		usb_phy_shutdown(ci->transceiver);
-}
-
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -561,7 +534,26 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	hw_phymode_configure(ci);
 
-	ret = ci_usb_phy_init(ci);
+	if (ci->platdata->phy)
+		ci->transceiver = ci->platdata->phy;
+	else
+		ci->transceiver = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+
+	if (IS_ERR(ci->transceiver)) {
+		ret = PTR_ERR(ci->transceiver);
+		/*
+		 * if -ENXIO is returned, it means PHY layer wasn't
+		 * enabled, so it makes no sense to return -EPROBE_DEFER
+		 * in that case, since no PHY driver will ever probe.
+		 */
+		if (ret == -ENXIO)
+			return ret;
+
+		dev_err(dev, "no usb2 phy configured\n");
+		return -EPROBE_DEFER;
+	}
+
+	ret = usb_phy_init(ci->transceiver);
 	if (ret) {
 		dev_err(dev, "unable to init phy: %d\n", ret);
 		return ret;
@@ -573,7 +565,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ci->irq < 0) {
 		dev_err(dev, "missing IRQ\n");
 		ret = -ENODEV;
-		goto destroy_phy;
+		goto deinit_phy;
 	}
 
 	ci_get_otg_capable(ci);
@@ -590,23 +582,12 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		ret = ci_hdrc_gadget_init(ci);
 		if (ret)
 			dev_info(dev, "doesn't support gadget\n");
-		if (!ret && ci->transceiver) {
-			ret = otg_set_peripheral(ci->transceiver->otg,
-							&ci->gadget);
-			/*
-			 * If we implement all USB functions using chipidea drivers,
-			 * it doesn't need to call above API, meanwhile, if we only
-			 * use gadget function, calling above API is useless.
-			 */
-			if (ret && ret != -ENOTSUPP)
-				goto destroy_phy;
-		}
 	}
 
 	if (!ci->roles[CI_ROLE_HOST] && !ci->roles[CI_ROLE_GADGET]) {
 		dev_err(dev, "no supported roles\n");
 		ret = -ENODEV;
-		goto destroy_phy;
+		goto deinit_phy;
 	}
 
 	if (ci->is_otg) {
@@ -663,8 +644,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	free_irq(ci->irq, ci);
 stop:
 	ci_role_destroy(ci);
-destroy_phy:
-	ci_usb_phy_destroy(ci);
+deinit_phy:
+	usb_phy_shutdown(ci->transceiver);
 
 	return ret;
 }
@@ -677,7 +658,8 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
-	ci_usb_phy_destroy(ci);
+	usb_phy_shutdown(ci->transceiver);
+	kfree(ci->hw_bank.regmap);
 
 	return 0;
 }

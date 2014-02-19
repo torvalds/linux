@@ -1837,12 +1837,6 @@ void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
 
 	dma_pool_destroy(ci->td_pool);
 	dma_pool_destroy(ci->qh_pool);
-
-	if (ci->transceiver) {
-		otg_set_peripheral(ci->transceiver->otg, NULL);
-		if (ci->global_phy)
-			usb_put_phy(ci->transceiver);
-	}
 }
 
 static int udc_id_switch_for_device(struct ci_hdrc *ci)
