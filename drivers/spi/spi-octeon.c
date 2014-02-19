@@ -33,12 +33,6 @@ struct octeon_spi {
 	u64 cs_enax;
 };
 
-struct octeon_spi_setup {
-	u32 max_speed_hz;
-	u8 chip_select;
-	u8 mode;
-};
-
 static void octeon_spi_wait_ready(struct octeon_spi *p)
 {
 	union cvmx_mpi_sts mpi_sts;
@@ -56,6 +50,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 				  struct spi_transfer *xfer,
 				  bool last_xfer)
 {
+	struct spi_device *spi = msg->spi;
 	union cvmx_mpi_cfg mpi_cfg;
 	union cvmx_mpi_tx mpi_tx;
 	unsigned int clkdiv;
@@ -67,16 +62,11 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	int len;
 	int i;
 
-	struct octeon_spi_setup *msg_setup = spi_get_ctldata(msg->spi);
-
-	speed_hz = msg_setup->max_speed_hz;
-	mode = msg_setup->mode;
+	mode = spi->mode;
 	cpha = mode & SPI_CPHA;
 	cpol = mode & SPI_CPOL;
 
-	if (xfer->speed_hz)
-		speed_hz = xfer->speed_hz;
-
+	speed_hz = xfer->speed_hz ? : spi->max_speed_hz;
 	if (speed_hz > OCTEON_SPI_MAX_CLOCK_HZ)
 		speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
 
@@ -92,8 +82,8 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	mpi_cfg.s.cslate = cpha ? 1 : 0;
 	mpi_cfg.s.enable = 1;
 
-	if (msg_setup->chip_select < 4)
-		p->cs_enax |= 1ull << (12 + msg_setup->chip_select);
+	if (spi->chip_select < 4)
+		p->cs_enax |= 1ull << (12 + spi->chip_select);
 	mpi_cfg.u64 |= p->cs_enax;
 
 	if (mpi_cfg.u64 != p->last_cfg) {
@@ -113,7 +103,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 			cvmx_write_csr(p->register_base + OCTEON_SPI_DAT0 + (8 * i), d);
 		}
 		mpi_tx.u64 = 0;
-		mpi_tx.s.csid = msg_setup->chip_select;
+		mpi_tx.s.csid = spi->chip_select;
 		mpi_tx.s.leavecs = 1;
 		mpi_tx.s.txnum = tx_buf ? OCTEON_SPI_MAX_BYTES : 0;
 		mpi_tx.s.totnum = OCTEON_SPI_MAX_BYTES;
@@ -138,7 +128,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	}
 
 	mpi_tx.u64 = 0;
-	mpi_tx.s.csid = msg_setup->chip_select;
+	mpi_tx.s.csid = spi->chip_select;
 	if (last_xfer)
 		mpi_tx.s.leavecs = xfer->cs_change;
 	else
@@ -168,15 +158,6 @@ static int octeon_spi_transfer_one_message(struct spi_master *master,
 	int status = 0;
 	struct spi_transfer *xfer;
 
-	/*
-	 * We better have set the configuration via a call to .setup
-	 * before we get here.
-	 */
-	if (spi_get_ctldata(msg->spi) == NULL) {
-		status = -EINVAL;
-		goto err;
-	}
-
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		bool last_xfer = list_is_last(&xfer->transfer_list,
 					      &msg->transfers);
@@ -192,40 +173,6 @@ err:
 	msg->actual_length = total_len;
 	spi_finalize_current_message(master);
 	return status;
-}
-
-static struct octeon_spi_setup *octeon_spi_new_setup(struct spi_device *spi)
-{
-	struct octeon_spi_setup *setup = kzalloc(sizeof(*setup), GFP_KERNEL);
-	if (!setup)
-		return NULL;
-
-	setup->max_speed_hz = spi->max_speed_hz;
-	setup->chip_select = spi->chip_select;
-	setup->mode = spi->mode;
-	return setup;
-}
-
-static int octeon_spi_setup(struct spi_device *spi)
-{
-	struct octeon_spi_setup *new_setup;
-	struct octeon_spi_setup *old_setup = spi_get_ctldata(spi);
-
-	new_setup = octeon_spi_new_setup(spi);
-	if (!new_setup)
-		return -ENOMEM;
-
-	spi_set_ctldata(spi, new_setup);
-	kfree(old_setup);
-
-	return 0;
-}
-
-static void octeon_spi_cleanup(struct spi_device *spi)
-{
-	struct octeon_spi_setup *old_setup = spi_get_ctldata(spi);
-	spi_set_ctldata(spi, NULL);
-	kfree(old_setup);
 }
 
 static int octeon_spi_probe(struct platform_device *pdev)
@@ -265,8 +212,6 @@ static int octeon_spi_probe(struct platform_device *pdev)
 			    SPI_LSB_FIRST |
 			    SPI_3WIRE;
 
-	master->setup = octeon_spi_setup;
-	master->cleanup = octeon_spi_cleanup;
 	master->transfer_one_message = octeon_spi_transfer_one_message;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 
