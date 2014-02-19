@@ -35,8 +35,9 @@ make_tags           := tags
 make_cscope         := cscope
 make_help           := help
 make_doc            := doc
-make_perf_o         := perf.o
-make_util_map_o     := util/map.o
+make_perf_o           := perf.o
+make_util_map_o       := util/map.o
+make_util_pmu_bison_o := util/pmu-bison.o
 make_install        := install
 make_install_bin    := install-bin
 make_install_doc    := install-doc
@@ -73,6 +74,7 @@ run += make_help
 run += make_doc
 run += make_perf_o
 run += make_util_map_o
+run += make_util_pmu_bison_o
 run += make_install
 run += make_install_bin
 # FIXME 'install-*' commented out till they're fixed
@@ -113,8 +115,9 @@ test_make_doc_O  := $(test_ok)
 
 test_make_python_perf_so := test -f $(PERF)/python/perf.so
 
-test_make_perf_o     := test -f $(PERF)/perf.o
-test_make_util_map_o := test -f $(PERF)/util/map.o
+test_make_perf_o           := test -f $(PERF)/perf.o
+test_make_util_map_o       := test -f $(PERF)/util/map.o
+test_make_util_pmu_bison_o := test -f $(PERF)/util/pmu-bison.o
 
 define test_dest_files
   for file in $(1); do				\
@@ -170,6 +173,7 @@ test_make_install_pdf_O  := $(test_ok)
 test_make_python_perf_so_O    := test -f $$TMP_O/python/perf.so
 test_make_perf_o_O            := test -f $$TMP_O/perf.o
 test_make_util_map_o_O        := test -f $$TMP_O/util/map.o
+test_make_util_pmu_bison_o_O := test -f $$TMP_O/util/pmu-bison.o
 
 test_default = test -x $(PERF)/perf
 test = $(if $(test_$1),$(test_$1),$(test_default))
