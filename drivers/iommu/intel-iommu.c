@@ -1365,6 +1365,7 @@ static int iommu_attach_domain(struct dmar_domain *domain,
 	}
 
 	domain->id = num;
+	domain->iommu_count++;
 	set_bit(num, iommu->domain_ids);
 	set_bit(iommu->seq_id, domain->iommu_bmp);
 	iommu->domains[num] = domain;
@@ -1489,7 +1490,6 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 		domain->iommu_snooping = 0;
 
 	domain->iommu_superpage = fls(cap_super_page_val(iommu->cap));
-	domain->iommu_count = 1;
 	domain->nid = iommu->node;
 
 	/* always allocate the top pgd */
