@@ -51,6 +51,8 @@ isert_unreg_rdma(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn);
 static int
 isert_reg_rdma(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	       struct isert_rdma_wr *wr);
+static int
+isert_put_response(struct iscsi_conn *conn, struct iscsi_cmd *cmd);
 
 static void
 isert_qp_event_callback(struct ib_event *e, void *context)
@@ -1652,6 +1654,18 @@ isert_completion_put(struct iser_tx_desc *tx_desc, struct isert_cmd *isert_cmd,
 }
 
 static void
+isert_completion_rdma_write(struct iser_tx_desc *tx_desc,
+			    struct isert_cmd *isert_cmd)
+{
+	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
+	struct isert_conn *isert_conn = isert_cmd->conn;
+	struct isert_device *device = isert_conn->conn_device;
+
+	device->unreg_rdma_mem(isert_cmd, isert_conn);
+	isert_put_response(isert_conn->conn, cmd);
+}
+
+static void
 isert_completion_rdma_read(struct iser_tx_desc *tx_desc,
 			   struct isert_cmd *isert_cmd)
 {
@@ -1773,8 +1787,9 @@ __isert_send_completion(struct iser_tx_desc *tx_desc,
 					  isert_conn, ib_dev);
 		break;
 	case ISER_IB_RDMA_WRITE:
-		pr_err("isert_send_completion: Got ISER_IB_RDMA_WRITE\n");
-		dump_stack();
+		pr_debug("isert_send_completion: Got ISER_IB_RDMA_WRITE\n");
+		atomic_dec(&isert_conn->post_send_buf_count);
+		isert_completion_rdma_write(tx_desc, isert_cmd);
 		break;
 	case ISER_IB_RDMA_READ:
 		pr_debug("isert_send_completion: Got ISER_IB_RDMA_READ:\n");
