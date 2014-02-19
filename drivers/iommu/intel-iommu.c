@@ -3637,11 +3637,13 @@ static int device_notifier(struct notifier_block *nb,
 	if (!domain)
 		return 0;
 
+	down_read(&dmar_global_lock);
 	domain_remove_one_dev_info(domain, pdev);
 	if (!(domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE) &&
 	    !(domain->flags & DOMAIN_FLAG_STATIC_IDENTITY) &&
 	    list_empty(&domain->devices))
 		domain_exit(domain);
+	up_read(&dmar_global_lock);
 
 	return 0;
 }
@@ -3659,6 +3661,13 @@ int __init intel_iommu_init(void)
 	/* VT-d is required for a TXT/tboot launch, so enforce that */
 	force_on = tboot_force_iommu();
 
+	if (iommu_init_mempool()) {
+		if (force_on)
+			panic("tboot: Failed to initialize iommu memory\n");
+		return -ENOMEM;
+	}
+
+	down_write(&dmar_global_lock);
 	if (dmar_table_init()) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMAR table\n");
@@ -3681,12 +3690,6 @@ int __init intel_iommu_init(void)
 	if (no_iommu || dmar_disabled)
 		goto out_free_dmar;
 
-	if (iommu_init_mempool()) {
-		if (force_on)
-			panic("tboot: Failed to initialize iommu memory\n");
-		goto out_free_dmar;
-	}
-
 	if (list_empty(&dmar_rmrr_units))
 		printk(KERN_INFO "DMAR: No RMRR found\n");
 
@@ -3696,7 +3699,7 @@ int __init intel_iommu_init(void)
 	if (dmar_init_reserved_ranges()) {
 		if (force_on)
 			panic("tboot: Failed to reserve iommu ranges\n");
-		goto out_free_mempool;
+		goto out_free_reserved_range;
 	}
 
 	init_no_remapping_devices();
@@ -3708,6 +3711,7 @@ int __init intel_iommu_init(void)
 		printk(KERN_ERR "IOMMU: dmar init failed\n");
 		goto out_free_reserved_range;
 	}
+	up_write(&dmar_global_lock);
 	printk(KERN_INFO
 	"PCI-DMA: Intel(R) Virtualization Technology for Directed I/O\n");
 
@@ -3729,10 +3733,10 @@ int __init intel_iommu_init(void)
 
 out_free_reserved_range:
 	put_iova_domain(&reserved_iova_list);
-out_free_mempool:
-	iommu_exit_mempool();
 out_free_dmar:
 	intel_iommu_free_dmars();
+	up_write(&dmar_global_lock);
+	iommu_exit_mempool();
 	return ret;
 }
 

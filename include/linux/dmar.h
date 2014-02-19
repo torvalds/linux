@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/msi.h>
 #include <linux/irqreturn.h>
+#include <linux/rwsem.h>
 
 struct acpi_dmar_header;
 
@@ -48,6 +49,7 @@ struct dmar_drhd_unit {
 	struct intel_iommu *iommu;
 };
 
+extern struct rw_semaphore dmar_global_lock;
 extern struct list_head dmar_drhd_units;
 
 #define for_each_drhd_unit(drhd) \

@@ -43,10 +43,19 @@
 
 #include "irq_remapping.h"
 
-/* No locks are needed as DMA remapping hardware unit
- * list is constructed at boot time and hotplug of
- * these units are not supported by the architecture.
+/*
+ * Assumptions:
+ * 1) The hotplug framework guarentees that DMAR unit will be hot-added
+ *    before IO devices managed by that unit.
+ * 2) The hotplug framework guarantees that DMAR unit will be hot-removed
+ *    after IO devices managed by that unit.
+ * 3) Hotplug events are rare.
+ *
+ * Locking rules for DMA and interrupt remapping related global data structures:
+ * 1) Use dmar_global_lock in process context
+ * 2) Use RCU in interrupt context
  */
+DECLARE_RWSEM(dmar_global_lock);
 LIST_HEAD(dmar_drhd_units);
 
 struct acpi_table_header * __initdata dmar_tbl;
@@ -565,6 +574,7 @@ int __init detect_intel_iommu(void)
 {
 	int ret;
 
+	down_write(&dmar_global_lock);
 	ret = dmar_table_detect();
 	if (ret)
 		ret = check_zero_address();
@@ -582,6 +592,7 @@ int __init detect_intel_iommu(void)
 	}
 	early_acpi_os_unmap_memory((void __iomem *)dmar_tbl, dmar_tbl_size);
 	dmar_tbl = NULL;
+	up_write(&dmar_global_lock);
 
 	return ret ? 1 : -ENODEV;
 }
@@ -1394,10 +1405,12 @@ static int __init dmar_free_unused_resources(void)
 	if (irq_remapping_enabled || intel_iommu_enabled)
 		return 0;
 
+	down_write(&dmar_global_lock);
 	list_for_each_entry_safe(dmaru, dmaru_n, &dmar_drhd_units, list) {
 		list_del(&dmaru->list);
 		dmar_free_drhd(dmaru);
 	}
+	up_write(&dmar_global_lock);
 
 	return 0;
 }
