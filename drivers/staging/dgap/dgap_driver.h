@@ -34,7 +34,6 @@
 #include "dgap_types.h"         /* Additional types needed by the Digi header files */
 #include "digi.h"               /* Digi specific ioctl header */
 #include "dgap_kcompat.h"       /* Kernel 2.4/2.6 compat includes */
-#include "dgap_sysfs.h"		/* Support for SYSFS */
 
 /*************************************************************************
  *

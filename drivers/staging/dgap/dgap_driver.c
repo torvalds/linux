@@ -54,7 +54,6 @@
 #include "dgap_fep5.h"
 #include "dgap_conf.h"
 #include "dgap_parse.h"
-#include "dgap_sysfs.h"
 #include "dgap_types.h"
 
 #define init_MUTEX(sem)         sema_init(sem, 1)
@@ -151,6 +150,27 @@ static char *dgap_savestring(char *s);
 static struct cnode *dgap_newnode(int t);
 static int dgap_checknode(struct cnode *p);
 static void dgap_err(char *s);
+
+/*
+ * Function prototypes from dgap_sysfs.h 
+ */ 
+struct board_t;
+struct channel_t;
+struct un_t;
+struct pci_driver;
+struct class_device;
+
+void dgap_create_ports_sysfiles(struct board_t *bd);
+void dgap_remove_ports_sysfiles(struct board_t *bd);
+
+void dgap_create_driver_sysfiles(struct pci_driver *);
+void dgap_remove_driver_sysfiles(struct pci_driver *);
+
+int dgap_tty_class_init(void);
+int dgap_tty_class_destroy(void);
+
+void dgap_create_tty_sysfs(struct un_t *un, struct device *c);
+void dgap_remove_tty_sysfs(struct device *c);
 
 /* Driver load/unload functions */
 int			dgap_init_module(void);
