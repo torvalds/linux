@@ -661,6 +661,9 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 
 	cmd->prot_type = dev->dev_attrib.pi_prot_type;
 	cmd->prot_length = dev->prot_length * sectors;
+	pr_debug("%s: prot_type=%d, prot_length=%d prot_op=%d prot_checks=%d\n",
+		 __func__, cmd->prot_type, cmd->prot_length,
+		 cmd->prot_op, cmd->prot_checks);
 
 	return true;
 }
