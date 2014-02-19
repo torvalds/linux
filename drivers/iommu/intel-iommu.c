@@ -2015,7 +2015,7 @@ static int dmar_insert_dev_info(int segment, int bus, int devfn,
 /* domain is initialized */
 static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 {
-	struct dmar_domain *domain;
+	struct dmar_domain *domain, *free = NULL;
 	struct intel_iommu *iommu;
 	struct dmar_drhd_unit *drhd;
 	struct pci_dev *dev_tmp;
@@ -2062,17 +2062,16 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 		free_domain_mem(domain);
 		goto error;
 	}
-	if (domain_init(domain, gaw)) {
-		domain_exit(domain);
+	free = domain;
+	if (domain_init(domain, gaw))
 		goto error;
-	}
 
 	/* register pcie-to-pci device */
 	if (dev_tmp) {
-		if (dmar_insert_dev_info(segment, bus, devfn, NULL, &domain)) {
-			domain_exit(domain);
+		if (dmar_insert_dev_info(segment, bus, devfn, NULL, &domain))
 			goto error;
-		}
+		else
+			free = NULL;
 	}
 
 found_domain:
@@ -2080,6 +2079,8 @@ found_domain:
 				 pdev, &domain) == 0)
 		return domain;
 error:
+	if (free)
+		domain_exit(free);
 	/* recheck it here, maybe others set it */
 	return find_domain(pdev);
 }
