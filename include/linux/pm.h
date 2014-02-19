@@ -719,14 +719,26 @@ static inline void dpm_for_each_dev(void *data, void (*fn)(struct device *, void
 {
 }
 
-#define pm_generic_prepare	NULL
-#define pm_generic_suspend	NULL
-#define pm_generic_resume	NULL
-#define pm_generic_freeze	NULL
-#define pm_generic_thaw		NULL
-#define pm_generic_restore	NULL
-#define pm_generic_poweroff	NULL
-#define pm_generic_complete	NULL
+#define pm_generic_prepare		NULL
+#define pm_generic_suspend_late		NULL
+#define pm_generic_suspend_noirq	NULL
+#define pm_generic_suspend		NULL
+#define pm_generic_resume_early		NULL
+#define pm_generic_resume_noirq		NULL
+#define pm_generic_resume		NULL
+#define pm_generic_freeze_noirq		NULL
+#define pm_generic_freeze_late		NULL
+#define pm_generic_freeze		NULL
+#define pm_generic_thaw_noirq		NULL
+#define pm_generic_thaw_early		NULL
+#define pm_generic_thaw			NULL
+#define pm_generic_restore_noirq	NULL
+#define pm_generic_restore_early	NULL
+#define pm_generic_restore		NULL
+#define pm_generic_poweroff_noirq	NULL
+#define pm_generic_poweroff_late	NULL
+#define pm_generic_poweroff		NULL
+#define pm_generic_complete		NULL
 #endif /* !CONFIG_PM_SLEEP */
 
 /* How to reorder dpm_list after device_move() */
