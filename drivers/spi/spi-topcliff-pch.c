@@ -1116,8 +1116,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	dma->nent = num;
 	dma->desc_tx = desc_tx;
 
-	dev_dbg(&data->master->dev, "\n%s:Pulling down SSN low - writing "
-		"0x2 to SSNXCR\n", __func__);
+	dev_dbg(&data->master->dev, "%s:Pulling down SSN low - writing 0x2 to SSNXCR\n", __func__);
 
 	spin_lock_irqsave(&data->lock, flags);
 	pch_spi_writereg(data->master, PCH_SSNXCR, SSN_LOW);
