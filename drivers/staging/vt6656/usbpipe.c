@@ -607,21 +607,14 @@ int PIPEnsSendBulkOut(struct vnt_private *pDevice,
 
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 {
-	struct vnt_private *pDevice;
+	struct vnt_usb_send_context *pContext =
+			(struct vnt_usb_send_context *)urb->context;
+	struct vnt_private *pDevice = pContext->pDevice;
+	CONTEXT_TYPE ContextType = pContext->Type;
+	unsigned long ulBufLen = pContext->uBufLen;
 	int status;
-	CONTEXT_TYPE ContextType;
-	unsigned long ulBufLen;
-	struct vnt_usb_send_context *pContext;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkOutIoCompleteWrite\n");
-    //
-    // The context given to IoSetCompletionRoutine is an USB_CONTEXT struct
-    //
-	pContext = (struct vnt_usb_send_context *)urb->context;
-
-    pDevice = pContext->pDevice;
-    ContextType = pContext->Type;
-    ulBufLen = pContext->uBufLen;
 
     if (!netif_device_present(pDevice->dev))
 	    return;
