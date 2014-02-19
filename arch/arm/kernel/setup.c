@@ -1009,6 +1009,11 @@ static const char *hwcap_str[] = {
 };
 
 static const char *hwcap2_str[] = {
+	"aes",
+	"pmull",
+	"sha1",
+	"sha2",
+	"crc32",
 	NULL
 };
 
