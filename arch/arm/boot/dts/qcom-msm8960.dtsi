@@ -119,4 +119,11 @@
 		reg = <0x500000 0x1000>;
 		qcom,controller-type = "pmic-arbiter";
 	};
+
+	rng@1a500000 {
+		compatible = "qcom,prng";
+		reg = <0x1a500000 0x200>;
+		clocks = <&gcc PRNG_CLK>;
+		clock-names = "core";
+	};
 };
