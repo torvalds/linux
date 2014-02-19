@@ -4615,7 +4615,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	if (rv) {
 		dev_warn(&pdev->dev,
 			"Unable to enable MSI interrupt.\n");
-		goto block_initialize_err;
+		goto msi_initialize_err;
 	}
 
 	/* Initialize the block layer. */
@@ -4645,6 +4645,8 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 
 block_initialize_err:
 	pci_disable_msi(pdev);
+
+msi_initialize_err:
 	if (dd->isr_workq) {
 		flush_workqueue(dd->isr_workq);
 		destroy_workqueue(dd->isr_workq);
