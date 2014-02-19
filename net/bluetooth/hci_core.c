@@ -2761,9 +2761,10 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 	return 0;
 }
 
-int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
-		int new_key, u8 authenticated, u8 tk[16], u8 enc_size, __le16
-		ediv, u8 rand[8])
+struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			    u8 addr_type, u8 type, int new_key,
+			    u8 authenticated, u8 tk[16], u8 enc_size,
+			    __le16 ediv, u8 rand[8])
 {
 	struct smp_ltk *key, *old_key;
 	bool master = ltk_type_master(type);
@@ -2775,7 +2776,7 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 	else {
 		key = kzalloc(sizeof(*key), GFP_KERNEL);
 		if (!key)
-			return -ENOMEM;
+			return NULL;
 		list_add(&key->list, &hdev->long_term_keys);
 	}
 
@@ -2789,7 +2790,7 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 	memcpy(key->rand, rand, sizeof(key->rand));
 
 	if (!new_key)
-		return 0;
+		return key;
 
 	if (addr_type == ADDR_LE_DEV_RANDOM && (bdaddr->b[5] & 0xc0) != 0xc0)
 		persistent = 0;
@@ -2799,11 +2800,11 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 	if (type == HCI_SMP_LTK || type == HCI_SMP_LTK_SLAVE)
 		mgmt_new_ltk(hdev, key, persistent);
 
-	return 0;
+	return key;
 }
 
-int hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type,
-		u8 val[16], bdaddr_t *rpa)
+struct smp_irk *hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			    u8 addr_type, u8 val[16], bdaddr_t *rpa)
 {
 	struct smp_irk *irk;
 
@@ -2811,7 +2812,7 @@ int hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type,
 	if (!irk) {
 		irk = kzalloc(sizeof(*irk), GFP_KERNEL);
 		if (!irk)
-			return -ENOMEM;
+			return NULL;
 
 		bacpy(&irk->bdaddr, bdaddr);
 		irk->addr_type = addr_type;
@@ -2822,7 +2823,7 @@ int hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type,
 	memcpy(irk->val, val, 16);
 	bacpy(&irk->rpa, rpa);
 
-	return 0;
+	return irk;
 }
 
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
