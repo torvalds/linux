@@ -88,8 +88,7 @@ static unsigned long cci_ctrl_phys;
 
 #define CCI_REV_R0		0
 #define CCI_REV_R1		1
-#define CCI_REV_R0_P4		4
-#define CCI_REV_R1_P2		6
+#define CCI_REV_R1_PX		5
 
 #define CCI_PMU_EVT_SEL		0x000
 #define CCI_PMU_CNTR		0x004
@@ -193,20 +192,15 @@ static int probe_cci_revision(void)
 	rev = readl_relaxed(cci_ctrl_base + CCI_PID2) & CCI_PID2_REV_MASK;
 	rev >>= CCI_PID2_REV_SHIFT;
 
-	if (rev <= CCI_REV_R0_P4)
+	if (rev < CCI_REV_R1_PX)
 		return CCI_REV_R0;
-	else if (rev <= CCI_REV_R1_P2)
+	else
 		return CCI_REV_R1;
-
-	return -ENOENT;
 }
 
 static struct pmu_port_event_ranges *port_range_by_rev(void)
 {
 	int rev = probe_cci_revision();
-
-	if (rev < 0)
-		return NULL;
 
 	return &port_event_range[rev];
 }
