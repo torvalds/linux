@@ -91,6 +91,7 @@ struct isert_rdma_wr {
 	struct ib_send_wr	*send_wr;
 	struct ib_send_wr	s_send_wr;
 	struct isert_data_buf	data;
+	struct isert_data_buf	prot;
 	struct fast_reg_descriptor *fr_desc;
 };
 
