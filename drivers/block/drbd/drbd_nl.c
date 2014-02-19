@@ -2776,7 +2776,7 @@ static int nla_put_drbd_cfg_context(struct sk_buff *skb,
 	if (device &&
 	    nla_put_u32(skb, T_ctx_volume, device->vnr))
 		goto nla_put_failure;
-	if (nla_put_string(skb, T_ctx_resource_name, connection->resource->name))
+	if (nla_put_string(skb, T_ctx_resource_name, resource->name))
 		goto nla_put_failure;
 	if (connection) {
 		if (connection->my_addr_len &&
