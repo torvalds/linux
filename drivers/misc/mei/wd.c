@@ -111,13 +111,16 @@ int mei_wd_host_init(struct mei_device *dev)
  * returns 0 if success,
  *	-EIO when message send fails
  *	-EINVAL when invalid message is to be sent
+ *	-ENODEV on flow control failure
  */
 int mei_wd_send(struct mei_device *dev)
 {
+	struct mei_cl *cl = &dev->wd_cl;
 	struct mei_msg_hdr hdr;
+	int ret;
 
-	hdr.host_addr = dev->wd_cl.host_client_id;
-	hdr.me_addr = dev->wd_cl.me_client_id;
+	hdr.host_addr = cl->host_client_id;
+	hdr.me_addr = cl->me_client_id;
 	hdr.msg_complete = 1;
 	hdr.reserved = 0;
 	hdr.internal = 0;
@@ -126,10 +129,24 @@ int mei_wd_send(struct mei_device *dev)
 		hdr.length = MEI_WD_START_MSG_SIZE;
 	else if (!memcmp(dev->wd_data, mei_stop_wd_params, MEI_WD_HDR_SIZE))
 		hdr.length = MEI_WD_STOP_MSG_SIZE;
-	else
+	else {
+		dev_err(&dev->pdev->dev, "wd: invalid message is to be sent, aborting\n");
 		return -EINVAL;
+	}
 
-	return mei_write_message(dev, &hdr, dev->wd_data);
+	ret = mei_write_message(dev, &hdr, dev->wd_data);
+	if (ret) {
+		dev_err(&dev->pdev->dev, "wd: write message failed\n");
+		return ret;
+	}
+
+	ret = mei_cl_flow_ctrl_reduce(cl);
+	if (ret) {
+		dev_err(&dev->pdev->dev, "wd: flow_ctrl_reduce failed.\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -159,16 +176,9 @@ int mei_wd_stop(struct mei_device *dev)
 		goto out;
 
 	if (ret && mei_hbuf_acquire(dev)) {
-		ret = 0;
-
-		if (!mei_wd_send(dev)) {
-			ret = mei_cl_flow_ctrl_reduce(&dev->wd_cl);
-			if (ret)
-				goto out;
-		} else {
-			dev_err(&dev->pdev->dev, "wd: send stop failed\n");
-		}
-
+		ret = mei_wd_send(dev);
+		if (ret)
+			goto out;
 		dev->wd_pending = false;
 	} else {
 		dev->wd_pending = true;
@@ -289,18 +299,10 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 
 		dev_dbg(&dev->pdev->dev, "wd: sending ping\n");
 
-		if (mei_wd_send(dev)) {
-			dev_err(&dev->pdev->dev, "wd: send failed.\n");
-			ret = -EIO;
+		ret = mei_wd_send(dev);
+		if (ret)
 			goto end;
-		}
-
-		if (mei_cl_flow_ctrl_reduce(&dev->wd_cl)) {
-			dev_err(&dev->pdev->dev, "wd: mei_cl_flow_ctrl_reduce() failed.\n");
-			ret = -EIO;
-			goto end;
-		}
-
+		dev->wd_pending = false;
 	} else {
 		dev->wd_pending = true;
 	}

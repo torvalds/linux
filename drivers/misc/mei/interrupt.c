@@ -480,10 +480,9 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 	if (mei_cl_is_connected(&dev->wd_cl)) {
 		if (dev->wd_pending &&
 		    mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
-			if (mei_wd_send(dev))
-				dev_dbg(&dev->pdev->dev, "wd send failed.\n");
-			else if (mei_cl_flow_ctrl_reduce(&dev->wd_cl))
-				return -EIO;
+			ret = mei_wd_send(dev);
+			if (ret)
+				return ret;
 			dev->wd_pending = false;
 		}
 	}
