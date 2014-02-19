@@ -611,7 +611,7 @@ xfs_sb_read_verify(
 						XFS_SB_VERSION_5) ||
 	     dsb->sb_crc != 0)) {
 
-		if (!xfs_verify_cksum(bp->b_addr, be16_to_cpu(dsb->sb_sectsize),
+		if (!xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
 				      offsetof(struct xfs_sb, sb_crc))) {
 			/* Only fail bad secondaries on a known V5 filesystem */
 			if (bp->b_bn == XFS_SB_DADDR ||
@@ -643,7 +643,6 @@ xfs_sb_quiet_read_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_dsb	*dsb = XFS_BUF_TO_SBP(bp);
-
 
 	if (dsb->sb_magicnum == cpu_to_be32(XFS_SB_MAGIC)) {
 		/* XFS filesystem, verify noisily! */
