@@ -59,6 +59,72 @@ static long samsung_pll_round_rate(struct clk_hw *hw,
 }
 
 /*
+ * PLL2126 Clock Type
+ */
+
+#define PLL2126_MDIV_MASK	(0xff)
+#define PLL2126_PDIV_MASK	(0x3f)
+#define PLL2126_SDIV_MASK	(0x3)
+#define PLL2126_MDIV_SHIFT	(16)
+#define PLL2126_PDIV_SHIFT	(8)
+#define PLL2126_SDIV_SHIFT	(0)
+
+static unsigned long samsung_pll2126_recalc_rate(struct clk_hw *hw,
+				unsigned long parent_rate)
+{
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
+	u32 pll_con, mdiv, pdiv, sdiv;
+	u64 fvco = parent_rate;
+
+	pll_con = __raw_readl(pll->con_reg);
+	mdiv = (pll_con >> PLL2126_MDIV_SHIFT) & PLL2126_MDIV_MASK;
+	pdiv = (pll_con >> PLL2126_PDIV_SHIFT) & PLL2126_PDIV_MASK;
+	sdiv = (pll_con >> PLL2126_SDIV_SHIFT) & PLL2126_SDIV_MASK;
+
+	fvco *= (mdiv + 8);
+	do_div(fvco, (pdiv + 2) << sdiv);
+
+	return (unsigned long)fvco;
+}
+
+static const struct clk_ops samsung_pll2126_clk_ops = {
+	.recalc_rate = samsung_pll2126_recalc_rate,
+};
+
+/*
+ * PLL3000 Clock Type
+ */
+
+#define PLL3000_MDIV_MASK	(0xff)
+#define PLL3000_PDIV_MASK	(0x3)
+#define PLL3000_SDIV_MASK	(0x3)
+#define PLL3000_MDIV_SHIFT	(16)
+#define PLL3000_PDIV_SHIFT	(8)
+#define PLL3000_SDIV_SHIFT	(0)
+
+static unsigned long samsung_pll3000_recalc_rate(struct clk_hw *hw,
+				unsigned long parent_rate)
+{
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
+	u32 pll_con, mdiv, pdiv, sdiv;
+	u64 fvco = parent_rate;
+
+	pll_con = __raw_readl(pll->con_reg);
+	mdiv = (pll_con >> PLL3000_MDIV_SHIFT) & PLL3000_MDIV_MASK;
+	pdiv = (pll_con >> PLL3000_PDIV_SHIFT) & PLL3000_PDIV_MASK;
+	sdiv = (pll_con >> PLL3000_SDIV_SHIFT) & PLL3000_SDIV_MASK;
+
+	fvco *= (2 * (mdiv + 8));
+	do_div(fvco, pdiv << sdiv);
+
+	return (unsigned long)fvco;
+}
+
+static const struct clk_ops samsung_pll3000_clk_ops = {
+	.recalc_rate = samsung_pll3000_recalc_rate,
+};
+
+/*
  * PLL35xx Clock Type
  */
 /* Maximum lock time can be 270 * PDIV cycles */
@@ -753,6 +819,12 @@ static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
 	}
 
 	switch (pll_clk->type) {
+	case pll_2126:
+		init.ops = &samsung_pll2126_clk_ops;
+		break;
+	case pll_3000:
+		init.ops = &samsung_pll3000_clk_ops;
+		break;
 	/* clk_ops for 35xx and 2550 are similar */
 	case pll_35xx:
 	case pll_2550:
