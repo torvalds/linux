@@ -261,6 +261,7 @@ ifdef NO_LIBELF
   NO_DWARF := 1
   NO_DEMANGLE := 1
   NO_LIBUNWIND := 1
+  NO_LIBDW_DWARF_UNWIND := 1
 else
   ifeq ($(feature-libelf), 0)
     ifeq ($(feature-glibc), 1)
