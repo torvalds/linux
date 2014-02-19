@@ -591,14 +591,24 @@ endif
 #
 # Print the result of the feature test:
 #
-feature_print = $(eval $(feature_print_code)) $(info $(MSG))
+feature_print_status = $(eval $(feature_print_status_code)) $(info $(MSG))
 
-define feature_print_code
+define feature_print_status_code
   ifeq ($(feature-$(1)), 1)
     MSG = $(shell printf '...%30s: [ \033[32mon\033[m  ]' $(1))
   else
     MSG = $(shell printf '...%30s: [ \033[31mOFF\033[m ]' $(1))
   endif
+endef
+
+feature_print_var = $(eval $(feature_print_var_code)) $(info $(MSG))
+define feature_print_var_code
+    MSG = $(shell printf '...%30s: %s' $(1) $($(1)))
+endef
+
+feature_print_text = $(eval $(feature_print_text_code)) $(info $(MSG))
+define feature_print_text_code
+    MSG = $(shell printf '...%30s: %s' $(1) $(2))
 endef
 
 PERF_FEATURES := $(foreach feat,$(LIB_FEATURE_TESTS),feature-$(feat)($(feature-$(feat))))
@@ -633,11 +643,16 @@ endif
 ifeq ($(display_lib),1)
   $(info )
   $(info Auto-detecting system features:)
-  $(foreach feat,$(LIB_FEATURE_TESTS),$(call feature_print,$(feat),))
+  $(foreach feat,$(LIB_FEATURE_TESTS),$(call feature_print_status,$(feat),))
 endif
 
 ifeq ($(display_vf),1)
-  $(foreach feat,$(VF_FEATURE_TESTS),$(call feature_print,$(feat),))
+  $(foreach feat,$(VF_FEATURE_TESTS),$(call feature_print_status,$(feat),))
+  $(info )
+  $(call feature_print_var,prefix)
+  $(call feature_print_var,bindir)
+  $(call feature_print_var,libdir)
+  $(call feature_print_var,sysconfdir)
 endif
 
 ifeq ($(display_lib),1)
