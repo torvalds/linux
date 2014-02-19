@@ -100,7 +100,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI1564_TCW_WARN_TIMEBASE			28
 
 /* Global variables */
-static unsigned int ui_InterruptStatus_1564 = 0;
+static unsigned int ui_InterruptStatus_1564;
 static unsigned int ui_InterruptData, ui_Type;
 
 /*
