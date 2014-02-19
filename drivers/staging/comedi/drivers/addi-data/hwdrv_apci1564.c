@@ -414,7 +414,7 @@ static int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 			devpriv->iobase + ((data[5] - 1) * 0x20) +
 			APCI1564_TCW_PROG);
 	} else {
-		printk(" Invalid subdevice.");
+		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
 
 	return insn->n;
@@ -472,7 +472,7 @@ static int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device *d
 				APCI1564_TCW_PROG);
 			break;
 		default:
-			printk("\nSpecified functionality does not exist\n");
+			dev_err(dev->class_dev, "Specified functionality does not exist.\n");
 			return -EINVAL;
 		}
 	}
@@ -591,7 +591,7 @@ static int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
 	} else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_WATCHDOG)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_COUNTER)) {
-		printk("\n Invalid Subdevice !!!\n");
+		dev_err(dev->class_dev, "Invalid Subdevice!\n");
 	}
 	return insn->n;
 }
@@ -665,7 +665,7 @@ static void v_APCI1564_Interrupt(int irq, void *d)
 		APCI1564_TCW_IRQ) & 0x1;
 	if (ui_DI == 0 && ui_DO == 0 && ui_Timer == 0 && ui_C1 == 0
 		&& ui_C2 == 0 && ui_C3 == 0 && ui_C4 == 0) {
-		printk("\nInterrupt from unknown source\n");
+		dev_err(dev->class_dev, "Interrupt from unknown source.\n");
 	}
 
 	if (ui_DI == 1) {
