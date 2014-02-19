@@ -451,11 +451,6 @@ enum target_prot_op {
 	TARGET_PROT_DOUT_PASS,
 };
 
-enum target_prot_ho {
-	PROT_SEPERATED,
-	PROT_INTERLEAVED,
-};
-
 enum target_prot_type {
 	TARGET_DIF_TYPE0_PROT,
 	TARGET_DIF_TYPE1_PROT,
@@ -567,7 +562,6 @@ struct se_cmd {
 	u32			reftag_seed;
 	struct scatterlist	*t_prot_sg;
 	unsigned int		t_prot_nents;
-	enum target_prot_ho	prot_handover;
 	sense_reason_t		pi_err;
 	sector_t		bad_sector;
 	bool			prot_pto;
