@@ -4463,7 +4463,13 @@ static inline void ftrace_startup_enable(int command) { }
 			(ops)->flags |= FTRACE_OPS_FL_ENABLED;		\
 		___ret;							\
 	})
-# define ftrace_shutdown(ops, command) __unregister_ftrace_function(ops)
+# define ftrace_shutdown(ops, command)					\
+	({								\
+		int ___ret = __unregister_ftrace_function(ops);		\
+		if (!___ret)						\
+			(ops)->flags &= ~FTRACE_OPS_FL_ENABLED;		\
+		___ret;							\
+	})
 
 # define ftrace_startup_sysctl()	do { } while (0)
 # define ftrace_shutdown_sysctl()	do { } while (0)
