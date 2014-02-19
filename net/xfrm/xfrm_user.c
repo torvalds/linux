@@ -32,11 +32,6 @@
 #include <linux/in6.h>
 #endif
 
-static inline int aead_len(struct xfrm_algo_aead *alg)
-{
-	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
-}
-
 static int verify_one_alg(struct nlattr **attrs, enum xfrm_attr_type_t type)
 {
 	struct nlattr *rt = attrs[type];
