@@ -2686,10 +2686,23 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		wait_event(sctx->list_wait,
 			   atomic_read(&sctx->bios_in_flight) == 0);
-		atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
+		atomic_inc(&fs_info->scrubs_paused);
+		wake_up(&fs_info->scrub_pause_wait);
+
+		/*
+		 * must be called before we decrease @scrub_paused.
+		 * make sure we don't block transaction commit while
+		 * we are waiting pending workers finished.
+		 */
 		wait_event(sctx->list_wait,
 			   atomic_read(&sctx->workers_pending) == 0);
-		scrub_blocked_if_needed(fs_info);
+		atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
+
+		mutex_lock(&fs_info->scrub_lock);
+		__scrub_blocked_if_needed(fs_info);
+		atomic_dec(&fs_info->scrubs_paused);
+		mutex_unlock(&fs_info->scrub_lock);
+		wake_up(&fs_info->scrub_pause_wait);
 
 		btrfs_put_block_group(cache);
 		if (ret)
