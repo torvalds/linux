@@ -58,7 +58,7 @@ u64 swp_count = 0;
  */
 static int swp_handler(struct pt_regs *regs, unsigned int instr)
 {
-	u32 address_reg, destreg, data, type;
+	u32 destreg, data, type;
 	uintptr_t address;
 	unsigned int res = 0;
 	u32 temp32;
@@ -102,7 +102,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 	if (type == TYPE_SWPB) {
 		do {
 			temp8 = ldax8((u8 *) address);
-		} while (stx8((u8 *) address, (u8) data));
+		} while (stlx8((u8 *) address, (u8) data));
 		regs->regs[destreg] = temp8;
 		regs->pc += 4;
 		swpb_count++;
