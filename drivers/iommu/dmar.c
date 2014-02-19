@@ -170,9 +170,12 @@ int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 
 void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt)
 {
+	int i;
+	struct pci_dev *tmp_dev;
+
 	if (*devices && *cnt) {
-		while (--*cnt >= 0)
-			pci_dev_put((*devices)[*cnt]);
+		for_each_active_dev_scope(*devices, *cnt, i, tmp_dev)
+			pci_dev_put(tmp_dev);
 		kfree(*devices);
 		*devices = NULL;
 		*cnt = 0;
@@ -402,10 +405,11 @@ static int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
 			  struct pci_dev *dev)
 {
 	int index;
+	struct pci_dev *tmp;
 
 	while (dev) {
-		for (index = 0; index < cnt; index++)
-			if (dev == devices[index])
+		for_each_active_dev_scope(devices, cnt, index, tmp)
+			if (dev == tmp)
 				return 1;
 
 		/* Check our parent */
@@ -452,7 +456,7 @@ int __init dmar_dev_scope_init(void)
 	if (list_empty(&dmar_drhd_units))
 		goto fail;
 
-	list_for_each_entry(drhd, &dmar_drhd_units, list) {
+	for_each_drhd_unit(drhd) {
 		ret = dmar_parse_dev(drhd);
 		if (ret)
 			goto fail;

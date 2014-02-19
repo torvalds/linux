@@ -654,29 +654,31 @@ static void domain_update_iommu_cap(struct dmar_domain *domain)
 static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
 {
 	struct dmar_drhd_unit *drhd = NULL;
+	struct intel_iommu *iommu;
+	struct pci_dev *dev;
 	int i;
 
-	for_each_active_drhd_unit(drhd) {
+	for_each_active_iommu(iommu, drhd) {
 		if (segment != drhd->segment)
 			continue;
 
-		for (i = 0; i < drhd->devices_cnt; i++) {
-			if (drhd->devices[i] &&
-			    drhd->devices[i]->bus->number == bus &&
-			    drhd->devices[i]->devfn == devfn)
-				return drhd->iommu;
-			if (drhd->devices[i] &&
-			    drhd->devices[i]->subordinate &&
-			    drhd->devices[i]->subordinate->number <= bus &&
-			    drhd->devices[i]->subordinate->busn_res.end >= bus)
-				return drhd->iommu;
+		for_each_active_dev_scope(drhd->devices,
+					  drhd->devices_cnt, i, dev) {
+			if (dev->bus->number == bus && dev->devfn == devfn)
+				goto out;
+			if (dev->subordinate &&
+			    dev->subordinate->number <= bus &&
+			    dev->subordinate->busn_res.end >= bus)
+				goto out;
 		}
 
 		if (drhd->include_all)
-			return drhd->iommu;
+			goto out;
 	}
+	iommu = NULL;
+out:
 
-	return NULL;
+	return iommu;
 }
 
 static void domain_flush_cache(struct dmar_domain *domain,
@@ -2333,17 +2335,19 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 static bool device_has_rmrr(struct pci_dev *dev)
 {
 	struct dmar_rmrr_unit *rmrr;
+	struct pci_dev *tmp;
 	int i;
 
 	for_each_rmrr_units(rmrr) {
-		for (i = 0; i < rmrr->devices_cnt; i++) {
-			/*
-			 * Return TRUE if this RMRR contains the device that
-			 * is passed in.
-			 */
-			if (rmrr->devices[i] == dev)
+		/*
+		 * Return TRUE if this RMRR contains the device that
+		 * is passed in.
+		 */
+		for_each_active_dev_scope(rmrr->devices,
+					  rmrr->devices_cnt, i, tmp)
+			if (tmp == dev) {
 				return true;
-		}
+			}
 	}
 	return false;
 }
@@ -2593,14 +2597,9 @@ static int __init init_dmars(void)
 	 */
 	printk(KERN_INFO "IOMMU: Setting RMRR:\n");
 	for_each_rmrr_units(rmrr) {
-		for (i = 0; i < rmrr->devices_cnt; i++) {
-			pdev = rmrr->devices[i];
-			/*
-			 * some BIOS lists non-exist devices in DMAR
-			 * table.
-			 */
-			if (!pdev)
-				continue;
+		/* some BIOS lists non-exist devices in DMAR table. */
+		for_each_active_dev_scope(rmrr->devices, rmrr->devices_cnt,
+					  i, pdev) {
 			ret = iommu_prepare_rmrr_dev(rmrr, pdev);
 			if (ret)
 				printk(KERN_ERR
@@ -3288,13 +3287,14 @@ DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT_SNB, quir
 static void __init init_no_remapping_devices(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct pci_dev *dev;
+	int i;
 
 	for_each_drhd_unit(drhd) {
 		if (!drhd->include_all) {
-			int i;
-			for (i = 0; i < drhd->devices_cnt; i++)
-				if (drhd->devices[i] != NULL)
-					break;
+			for_each_active_dev_scope(drhd->devices,
+						  drhd->devices_cnt, i, dev)
+				break;
 			/* ignore DMAR unit if no pci devices exist */
 			if (i == drhd->devices_cnt)
 				drhd->ignored = 1;
@@ -3302,15 +3302,13 @@ static void __init init_no_remapping_devices(void)
 	}
 
 	for_each_active_drhd_unit(drhd) {
-		int i;
 		if (drhd->include_all)
 			continue;
 
-		for (i = 0; i < drhd->devices_cnt; i++)
-			if (drhd->devices[i] &&
-			    !IS_GFX_DEVICE(drhd->devices[i]))
+		for_each_active_dev_scope(drhd->devices,
+					  drhd->devices_cnt, i, dev)
+			if (!IS_GFX_DEVICE(dev))
 				break;
-
 		if (i < drhd->devices_cnt)
 			continue;
 
@@ -3320,11 +3318,9 @@ static void __init init_no_remapping_devices(void)
 			intel_iommu_gfx_mapped = 1;
 		} else {
 			drhd->ignored = 1;
-			for (i = 0; i < drhd->devices_cnt; i++) {
-				if (!drhd->devices[i])
-					continue;
-				drhd->devices[i]->dev.archdata.iommu = DUMMY_DEVICE_DOMAIN_INFO;
-			}
+			for_each_active_dev_scope(drhd->devices,
+						  drhd->devices_cnt, i, dev)
+				dev->dev.archdata.iommu = DUMMY_DEVICE_DOMAIN_INFO;
 		}
 	}
 }
@@ -3560,9 +3556,9 @@ static void intel_iommu_free_dmars(void)
 
 int dmar_find_matched_atsr_unit(struct pci_dev *dev)
 {
-	int i;
+	int i, ret = 1;
 	struct pci_bus *bus;
-	struct pci_dev *bridge = NULL;
+	struct pci_dev *bridge = NULL, *tmp;
 	struct acpi_dmar_atsr *atsr;
 	struct dmar_atsr_unit *atsru;
 
@@ -3583,22 +3579,24 @@ int dmar_find_matched_atsr_unit(struct pci_dev *dev)
 		if (atsr->segment != pci_domain_nr(dev->bus))
 			continue;
 
-		for (i = 0; i < atsru->devices_cnt; i++)
-			if (atsru->devices[i] == bridge)
-				return 1;
+		for_each_dev_scope(atsru->devices, atsru->devices_cnt, i, tmp)
+			if (tmp == bridge)
+				goto out;
 
 		if (atsru->include_all)
-			return 1;
+			goto out;
 	}
+	ret = 0;
+out:
 
-	return 0;
+	return ret;
 }
 
 int __init dmar_parse_rmrr_atsr_dev(void)
 {
 	struct dmar_rmrr_unit *rmrr;
 	struct dmar_atsr_unit *atsr;
-	int ret = 0;
+	int ret;
 
 	list_for_each_entry(rmrr, &dmar_rmrr_units, list) {
 		ret = rmrr_parse_dev(rmrr);
@@ -3612,7 +3610,7 @@ int __init dmar_parse_rmrr_atsr_dev(void)
 			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 /*

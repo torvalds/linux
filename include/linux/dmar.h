@@ -65,6 +65,12 @@ extern struct list_head dmar_drhd_units;
 	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
 		if (i=drhd->iommu, 0) {} else 
 
+#define	for_each_dev_scope(a, c, p, d)	\
+	for ((p) = 0; ((d) = (p) < (c) ? (a)[(p)] : NULL, (p) < (c)); (p)++)
+
+#define	for_each_active_dev_scope(a, c, p, d)	\
+	for_each_dev_scope((a), (c), (p), (d))	if (!(d)) { continue; } else
+
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
 extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
