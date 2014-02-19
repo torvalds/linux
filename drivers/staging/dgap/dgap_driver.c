@@ -52,7 +52,6 @@
 #include "dgap_driver.h"
 #include "dgap_pci.h"
 #include "dgap_fep5.h"
-#include "dgap_tty.h"
 #include "dgap_conf.h"
 #include "dgap_parse.h"
 #include "dgap_sysfs.h"
@@ -128,6 +127,14 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 static void dgap_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios);
 static int dgap_tty_put_char(struct tty_struct *tty, unsigned char c);
 static void dgap_tty_send_xchar(struct tty_struct *tty, char ch);
+
+int	dgap_tty_register(struct board_t *brd);
+int	dgap_tty_preinit(void);
+int     dgap_tty_init(struct board_t *);
+void	dgap_tty_post_uninit(void);
+void	dgap_tty_uninit(struct board_t *);
+void	dgap_carrier(struct channel_t *ch);
+void	dgap_input(struct channel_t *ch);
 
 /*
  * Our function prototypes from dgap_fep5
