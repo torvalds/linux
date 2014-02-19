@@ -41,8 +41,10 @@ struct sst_ops {
 	u64 (*read64)(void __iomem *addr, u32 offset);
 
 	/* DSP I/DRAM IO */
-	void (*ram_read)(struct sst_dsp *sst, void *dest, void *src, size_t bytes);
-	void (*ram_write)(struct sst_dsp *sst, void *dest, void *src, size_t bytes);
+	void (*ram_read)(struct sst_dsp *sst, void  *dest, void __iomem *src,
+		size_t bytes);
+	void (*ram_write)(struct sst_dsp *sst, void __iomem *dest, void *src,
+		size_t bytes);
 
 	void (*dump)(struct sst_dsp *);
 
@@ -295,6 +297,7 @@ struct sst_module *sst_module_get_from_id(struct sst_dsp *dsp, u32 id);
 struct sst_module *sst_mem_block_alloc_scratch(struct sst_dsp *dsp);
 void sst_mem_block_free_scratch(struct sst_dsp *dsp,
 	struct sst_module *scratch);
+int sst_block_module_remove(struct sst_module *module);
 
 /* Register the DSPs memory blocks - would be nice to read from ACPI */
 struct sst_mem_block *sst_mem_block_register(struct sst_dsp *dsp, u32 offset,

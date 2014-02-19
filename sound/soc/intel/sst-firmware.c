@@ -30,7 +30,7 @@
 #include "sst-dsp.h"
 #include "sst-dsp-priv.h"
 
-static void sst_memcpy32(void *dest, void *src, u32 bytes)
+static void sst_memcpy32(volatile void __iomem *dest, void *src, u32 bytes)
 {
 	u32 i;
 
