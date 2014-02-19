@@ -840,6 +840,41 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 }
 
 /**
+ * drm_vblank_enable - enable the vblank interrupt on a CRTC
+ * @dev: DRM device
+ * @crtc: CRTC in question
+ */
+static int drm_vblank_enable(struct drm_device *dev, int crtc)
+{
+	int ret = 0;
+
+	assert_spin_locked(&dev->vbl_lock);
+
+	spin_lock(&dev->vblank_time_lock);
+
+	if (!dev->vblank[crtc].enabled) {
+		/* Enable vblank irqs under vblank_time_lock protection.
+		 * All vblank count & timestamp updates are held off
+		 * until we are done reinitializing master counter and
+		 * timestamps. Filtercode in drm_handle_vblank() will
+		 * prevent double-accounting of same vblank interval.
+		 */
+		ret = dev->driver->enable_vblank(dev, crtc);
+		DRM_DEBUG("enabling vblank on crtc %d, ret: %d\n", crtc, ret);
+		if (ret)
+			atomic_dec(&dev->vblank[crtc].refcount);
+		else {
+			dev->vblank[crtc].enabled = true;
+			drm_update_vblank_count(dev, crtc);
+		}
+	}
+
+	spin_unlock(&dev->vblank_time_lock);
+
+	return ret;
+}
+
+/**
  * drm_vblank_get - get a reference count on vblank events
  * @dev: DRM device
  * @crtc: which CRTC to own
@@ -858,25 +893,7 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	/* Going from 0->1 means we have to enable interrupts again */
 	if (atomic_add_return(1, &dev->vblank[crtc].refcount) == 1) {
-		spin_lock(&dev->vblank_time_lock);
-		if (!dev->vblank[crtc].enabled) {
-			/* Enable vblank irqs under vblank_time_lock protection.
-			 * All vblank count & timestamp updates are held off
-			 * until we are done reinitializing master counter and
-			 * timestamps. Filtercode in drm_handle_vblank() will
-			 * prevent double-accounting of same vblank interval.
-			 */
-			ret = dev->driver->enable_vblank(dev, crtc);
-			DRM_DEBUG("enabling vblank on crtc %d, ret: %d\n",
-				  crtc, ret);
-			if (ret)
-				atomic_dec(&dev->vblank[crtc].refcount);
-			else {
-				dev->vblank[crtc].enabled = true;
-				drm_update_vblank_count(dev, crtc);
-			}
-		}
-		spin_unlock(&dev->vblank_time_lock);
+		ret = drm_vblank_enable(dev, crtc);
 	} else {
 		if (!dev->vblank[crtc].enabled) {
 			atomic_dec(&dev->vblank[crtc].refcount);
@@ -944,6 +961,23 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 EXPORT_SYMBOL(drm_vblank_off);
+
+/**
+ * drm_vblank_on - enable vblank events on a CRTC
+ * @dev: DRM device
+ * @crtc: CRTC in question
+ */
+void drm_vblank_on(struct drm_device *dev, int crtc)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	/* re-enable interrupts if there's are users left */
+	if (atomic_read(&dev->vblank[crtc].refcount) != 0)
+		WARN_ON(drm_vblank_enable(dev, crtc));
+	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+}
+EXPORT_SYMBOL(drm_vblank_on);
 
 /**
  * drm_vblank_pre_modeset - account for vblanks across mode sets
