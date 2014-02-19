@@ -218,9 +218,8 @@ static void teardown_mcfg_map(struct pci_root_info *info)
 }
 #endif
 
-static acpi_status
-resource_to_addr(struct acpi_resource *resource,
-			struct acpi_resource_address64 *addr)
+static acpi_status resource_to_addr(struct acpi_resource *resource,
+				    struct acpi_resource_address64 *addr)
 {
 	acpi_status status;
 	struct acpi_resource_memory24 *memory24;
@@ -265,8 +264,7 @@ resource_to_addr(struct acpi_resource *resource,
 	return AE_ERROR;
 }
 
-static acpi_status
-count_resource(struct acpi_resource *acpi_res, void *data)
+static acpi_status count_resource(struct acpi_resource *acpi_res, void *data)
 {
 	struct pci_root_info *info = data;
 	struct acpi_resource_address64 addr;
@@ -278,8 +276,7 @@ count_resource(struct acpi_resource *acpi_res, void *data)
 	return AE_OK;
 }
 
-static acpi_status
-setup_resource(struct acpi_resource *acpi_res, void *data)
+static acpi_status setup_resource(struct acpi_resource *acpi_res, void *data)
 {
 	struct pci_root_info *info = data;
 	struct resource *res;
@@ -435,9 +432,9 @@ static void release_pci_root_info(struct pci_host_bridge *bridge)
 	__release_pci_root_info(info);
 }
 
-static void
-probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
-		    int busnum, int domain)
+static void probe_pci_root_info(struct pci_root_info *info,
+				struct acpi_device *device,
+				int busnum, int domain)
 {
 	size_t size;
 
@@ -473,11 +470,11 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 {
 	struct acpi_device *device = root->device;
-	struct pci_root_info *info = NULL;
+	struct pci_root_info *info;
 	int domain = root->segment;
 	int busnum = root->secondary.start;
 	LIST_HEAD(resources);
-	struct pci_bus *bus = NULL;
+	struct pci_bus *bus;
 	struct pci_sysdata *sd;
 	int node;
 
@@ -509,15 +506,12 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	sd->domain = domain;
 	sd->node = node;
 	sd->companion = device;
-	/*
-	 * Maybe the desired pci bus has been already scanned. In such case
-	 * it is unnecessary to scan the pci bus with the given domain,busnum.
-	 */
+
 	bus = pci_find_bus(domain, busnum);
 	if (bus) {
 		/*
-		 * If the desired bus exits, the content of bus->sysdata will
-		 * be replaced by sd.
+		 * If the desired bus has been scanned already, replace
+		 * its bus->sysdata.
 		 */
 		memcpy(bus->sysdata, sd, sizeof(*sd));
 		kfree(info);

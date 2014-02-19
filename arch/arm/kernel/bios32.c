@@ -19,7 +19,7 @@
 static int debug_pci;
 
 /*
- * We can't use pci_find_device() here since we are
+ * We can't use pci_get_device() here since we are
  * called from interrupt context.
  */
 static void pcibios_bus_report_status(struct pci_bus *bus, u_int status_mask, int warn)
