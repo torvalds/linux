@@ -647,6 +647,12 @@ config S3C2443_COMMON
 	  Common code for the S3C2443 and similar processors, which includes
 	  the S3C2416 and S3C2450.
 
+config S3C2443_COMMON_CLK
+	bool
+	help
+	  Temporary symbol to build the clock driver based on the common clock
+	  framework.
+
 config S3C2443_DMA
 	bool
 	help
