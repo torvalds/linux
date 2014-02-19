@@ -909,6 +909,10 @@ void vRunCommand(struct work_struct *work)
 		s_bCommandComplete(pDevice);
 		break;
 
+	case WLAN_CMD_CONFIGURE_FILTER_START:
+		vnt_configure_filter(pDevice);
+		s_bCommandComplete(pDevice);
+		break;
 	default:
 		s_bCommandComplete(pDevice);
 		break;
@@ -1007,6 +1011,11 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
 
 		case WLAN_CMD_11H_CHSW:
 			pDevice->eCommandState = WLAN_CMD_11H_CHSW_START;
+			break;
+
+		case WLAN_CMD_CONFIGURE_FILTER:
+			pDevice->eCommandState =
+						WLAN_CMD_CONFIGURE_FILTER_START;
 			break;
 
 		default:

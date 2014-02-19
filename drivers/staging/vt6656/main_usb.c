@@ -974,8 +974,6 @@ static int  device_open(struct net_device *dev)
 		goto free_all;
 	}
 
-    device_set_multi(pDevice->dev);
-
     /* init for key management */
     KeyvInitTable(pDevice,&pDevice->sKey);
 	memcpy(pDevice->vnt_mgmt.abyMACAddr,
@@ -1349,13 +1347,25 @@ static int Read_config_file(struct vnt_private *pDevice)
 static void device_set_multi(struct net_device *dev)
 {
 	struct vnt_private *priv = netdev_priv(dev);
+	unsigned long flags;
+
+	if (priv->flags & DEVICE_FLAGS_OPENED) {
+		spin_lock_irqsave(&priv->lock, flags);
+
+		bScheduleCommand(priv, WLAN_CMD_CONFIGURE_FILTER, NULL);
+
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
+}
+
+void vnt_configure_filter(struct vnt_private *priv)
+{
+	struct net_device *dev = priv->dev;
 	struct vnt_manager *mgmt = &priv->vnt_mgmt;
 	struct netdev_hw_addr *ha;
 	u64 mc_filter = 0;
 	u8 tmp = 0;
 	int rc;
-
-	spin_lock_irq(&priv->lock);
 
 	rc = CONTROLnsRequestIn(priv, MESSAGE_TYPE_READ,
 		MAC_REG_RCR, MESSAGE_REQUEST_MACREG, 1, &tmp);
@@ -1403,8 +1413,6 @@ static void device_set_multi(struct net_device *dev)
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"priv->byRxMode out= %x\n", priv->byRxMode);
-
-	spin_unlock_irq(&priv->lock);
 }
 
 static struct net_device_stats *device_get_stats(struct net_device *dev)
