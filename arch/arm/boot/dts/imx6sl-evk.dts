@@ -195,6 +195,7 @@
 			vgen1_reg: vgen1 {
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1550000>;
+				regulator-always-on;
 			};
 
 			vgen2_reg: vgen2 {
