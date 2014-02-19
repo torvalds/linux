@@ -140,33 +140,34 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 
 static void vblank_disable_fn(unsigned long arg)
 {
-	struct drm_device *dev = (struct drm_device *)arg;
+	struct drm_vblank_crtc *vblank = (void *)arg;
+	struct drm_device *dev = vblank->dev;
 	unsigned long irqflags;
-	int i;
+	int crtc = vblank->crtc;
 
 	if (!dev->vblank_disable_allowed)
 		return;
 
-	for (i = 0; i < dev->num_crtcs; i++) {
-		spin_lock_irqsave(&dev->vbl_lock, irqflags);
-		if (atomic_read(&dev->vblank[i].refcount) == 0 &&
-		    dev->vblank[i].enabled) {
-			DRM_DEBUG("disabling vblank on crtc %d\n", i);
-			vblank_disable_and_save(dev, i);
-		}
-		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	if (atomic_read(&vblank->refcount) == 0 && vblank->enabled) {
+		DRM_DEBUG("disabling vblank on crtc %d\n", crtc);
+		vblank_disable_and_save(dev, crtc);
 	}
+	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 
 void drm_vblank_cleanup(struct drm_device *dev)
 {
+	int crtc;
+
 	/* Bail if the driver didn't call drm_vblank_init() */
 	if (dev->num_crtcs == 0)
 		return;
 
-	del_timer_sync(&dev->vblank_disable_timer);
-
-	vblank_disable_fn((unsigned long)dev);
+	for (crtc = 0; crtc < dev->num_crtcs; crtc++) {
+		del_timer_sync(&dev->vblank[crtc].disable_timer);
+		vblank_disable_fn((unsigned long)&dev->vblank[crtc]);
+	}
 
 	kfree(dev->vblank);
 
@@ -178,8 +179,6 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 {
 	int i, ret = -ENOMEM;
 
-	setup_timer(&dev->vblank_disable_timer, vblank_disable_fn,
-		    (unsigned long)dev);
 	spin_lock_init(&dev->vbl_lock);
 	spin_lock_init(&dev->vblank_time_lock);
 
@@ -189,8 +188,13 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	if (!dev->vblank)
 		goto err;
 
-	for (i = 0; i < num_crtcs; i++)
+	for (i = 0; i < num_crtcs; i++) {
+		dev->vblank[i].dev = dev;
+		dev->vblank[i].crtc = i;
 		init_waitqueue_head(&dev->vblank[i].queue);
+		setup_timer(&dev->vblank[i].disable_timer, vblank_disable_fn,
+			    (unsigned long)&dev->vblank[i]);
+	}
 
 	DRM_INFO("Supports vblank timestamp caching Rev 2 (21.10.2013).\n");
 
@@ -900,7 +904,7 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 	/* Last user schedules interrupt disable */
 	if (atomic_dec_and_test(&dev->vblank[crtc].refcount) &&
 	    (drm_vblank_offdelay > 0))
-		mod_timer(&dev->vblank_disable_timer,
+		mod_timer(&dev->vblank[crtc].disable_timer,
 			  jiffies + ((drm_vblank_offdelay * HZ)/1000));
 }
 EXPORT_SYMBOL(drm_vblank_put);
@@ -909,8 +913,6 @@ EXPORT_SYMBOL(drm_vblank_put);
  * drm_vblank_off - disable vblank events on a CRTC
  * @dev: DRM device
  * @crtc: CRTC in question
- *
- * Caller must hold event lock.
  */
 void drm_vblank_off(struct drm_device *dev, int crtc)
 {
