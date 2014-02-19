@@ -145,7 +145,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= 0x32450003,
 		.idmask		= 0xffffffff,
 		.map_io		= s3c2416_map_io,
-		.init_clocks	= s3c2416_init_clocks,
 		.init_uarts	= s3c2416_init_uarts,
 		.init		= s3c2416_init,
 		.name		= name_s3c2416,
@@ -154,7 +153,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= 0x32443001,
 		.idmask		= 0xffffffff,
 		.map_io		= s3c2443_map_io,
-		.init_clocks	= s3c2443_init_clocks,
 		.init_uarts	= s3c2443_init_uarts,
 		.init		= s3c2443_init,
 		.name		= name_s3c2443,
@@ -535,4 +533,18 @@ struct platform_device s3c2443_device_dma = {
 		.platform_data	= &s3c2443_dma_platdata,
 	},
 };
+#endif
+
+#ifdef CONFIG_CPU_S3C2416
+void __init s3c2416_init_clocks(int xtal)
+{
+	s3c2443_common_clk_init(NULL, xtal, 0, S3C24XX_VA_CLKPWR);
+}
+#endif
+
+#ifdef CONFIG_CPU_S3C2443
+void __init s3c2443_init_clocks(int xtal)
+{
+	s3c2443_common_clk_init(NULL, xtal, 1, S3C24XX_VA_CLKPWR);
+}
 #endif
