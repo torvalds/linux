@@ -121,6 +121,18 @@
 			>;
 		};
 
+		pinctrl_sai2: sai2grp {
+			fsl,pins = <
+				VF610_PAD_PTA16__SAI2_TX_BCLK		0x02ed
+				VF610_PAD_PTA18__SAI2_TX_DATA		0x02ee
+				VF610_PAD_PTA19__SAI2_TX_SYNC		0x02ed
+				VF610_PAD_PTA21__SAI2_RX_BCLK		0x02ed
+				VF610_PAD_PTA22__SAI2_RX_DATA		0x02ed
+				VF610_PAD_PTA23__SAI2_RX_SYNC		0x02ed
+				VF610_PAD_PTB18__EXT_AUDIO_MCLK		0x02ed
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				VF610_PAD_PTB4__UART1_TX		0x21a2
@@ -128,6 +140,12 @@
 			>;
 		};
 	};
+};
+
+&sai2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai2>;
+	status = "okay";
 };
 
 &uart1 {
