@@ -31,7 +31,6 @@
 
 #define DRIVER_NAME		"CCI-400"
 #define DRIVER_NAME_PMU		DRIVER_NAME " PMU"
-#define PMU_NAME		"CCI_400"
 
 #define CCI_PORT_CTRL		0x0
 #define CCI_CTRL_STATUS		0xc
@@ -160,6 +159,15 @@ static struct pmu_port_event_ranges port_event_range[] = {
 		.master_min = CCI_REV_R1_MASTER_PORT_MIN_EV,
 		.master_max = CCI_REV_R1_MASTER_PORT_MAX_EV,
 	},
+};
+
+/*
+ * Export different PMU names for the different revisions so userspace knows
+ * because the event ids are different
+ */
+static char *const pmu_names[] = {
+	[CCI_REV_R0] = "CCI_400",
+	[CCI_REV_R1] = "CCI_400_r1",
 };
 
 struct cci_pmu_drv_data {
@@ -520,7 +528,7 @@ static void pmu_write_counter(struct perf_event *event, u32 value)
 static int cci_pmu_init(struct arm_pmu *cci_pmu, struct platform_device *pdev)
 {
 	*cci_pmu = (struct arm_pmu){
-		.name             = PMU_NAME,
+		.name		  = pmu_names[probe_cci_revision()],
 		.max_period       = (1LLU << 32) - 1,
 		.get_hw_events    = pmu_get_hw_events,
 		.get_event_idx    = pmu_get_event_idx,
