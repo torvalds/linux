@@ -57,18 +57,26 @@ struct fast_reg_descriptor {
 	bool			valid;
 };
 
+struct isert_data_buf {
+	struct scatterlist     *sg;
+	int			nents;
+	u32			sg_off;
+	u32			len; /* cur_rdma_length */
+	u32			offset;
+	unsigned int		dma_nents;
+	enum dma_data_direction dma_dir;
+};
+
 struct isert_rdma_wr {
 	struct list_head	wr_list;
 	struct isert_cmd	*isert_cmd;
 	enum iser_ib_op_code	iser_ib_op;
 	struct ib_sge		*ib_sge;
 	struct ib_sge		s_ib_sge;
-	int			num_sge;
-	struct scatterlist	*sge;
 	int			send_wr_num;
 	struct ib_send_wr	*send_wr;
 	struct ib_send_wr	s_send_wr;
-	u32			cur_rdma_length;
+	struct isert_data_buf	data;
 	struct fast_reg_descriptor *fr_desc;
 };
 
