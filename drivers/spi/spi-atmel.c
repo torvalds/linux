@@ -1221,9 +1221,6 @@ static int atmel_spi_transfer_one_message(struct spi_master *master,
 	dev_dbg(&spi->dev, "new message %p submitted for %s\n",
 					msg, dev_name(&spi->dev));
 
-	if (unlikely(list_empty(&msg->transfers)))
-		return -EINVAL;
-
 	atmel_spi_lock(as);
 	cs_activate(as, spi);
 
