@@ -170,7 +170,6 @@ struct omap_hsmmc_host {
 	struct	regulator	*vcc_aux;
 	struct	regulator	*pbias;
 	bool			pbias_enabled;
-	int			pbias_disable;
 	void	__iomem		*base;
 	resource_size_t		mapbase;
 	spinlock_t		irq_lock; /* Prevent races with irq handler */
@@ -271,13 +270,6 @@ static int omap_hsmmc_set_power(struct device *dev, int slot, int power_on,
 	 * voltage always-on regulator.
 	 */
 	if (!host->vcc)
-		return 0;
-	/*
-	 * With DT, never turn OFF the regulator for MMC1. This is because
-	 * the pbias cell programming support is still missing when
-	 * booting with Device tree
-	 */
-	if (host->pbias_disable && !vdd)
 		return 0;
 
 	if (mmc_slot(host).before_set_reg)
@@ -1543,13 +1535,7 @@ static void omap_hsmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		 * of external transceiver; but they all handle 1.8V.
 		 */
 		if ((OMAP_HSMMC_READ(host->base, HCTL) & SDVSDET) &&
-			(ios->vdd == DUAL_VOLT_OCR_BIT) &&
-			/*
-			 * With pbias cell programming missing, this
-			 * can't be allowed on MMC1 when booting with device
-			 * tree.
-			 */
-			!host->pbias_disable) {
+			(ios->vdd == DUAL_VOLT_OCR_BIT)) {
 				/*
 				 * The mmc_select_voltage fn of the core does
 				 * not seem to set the power_mode to
@@ -1900,10 +1886,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(host->dev);
 
 	omap_hsmmc_context_save(host);
-
-	/* This can be removed once we support PBIAS with DT */
-	if (host->dev->of_node && res->start == 0x4809c000)
-		host->pbias_disable = 1;
 
 	host->dbclk = clk_get(&pdev->dev, "mmchsdb_fck");
 	/*
