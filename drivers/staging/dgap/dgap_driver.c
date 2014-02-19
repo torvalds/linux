@@ -122,19 +122,28 @@ static void dgap_tty_set_termios(struct tty_struct *tty, struct ktermios *old_te
 static int dgap_tty_put_char(struct tty_struct *tty, unsigned char c);
 static void dgap_tty_send_xchar(struct tty_struct *tty, char ch);
 
-int	dgap_tty_register(struct board_t *brd);
-int	dgap_tty_preinit(void);
-int     dgap_tty_init(struct board_t *);
-void	dgap_tty_post_uninit(void);
-void	dgap_tty_uninit(struct board_t *);
-void	dgap_carrier(struct channel_t *ch);
-void	dgap_input(struct channel_t *ch);
+static int	dgap_tty_register(struct board_t *brd);
+static int	dgap_tty_preinit(void);
+static int     dgap_tty_init(struct board_t *);
+static void	dgap_tty_post_uninit(void);
+static void	dgap_tty_uninit(struct board_t *);
+static void	dgap_carrier(struct channel_t *ch);
+static void	dgap_input(struct channel_t *ch);
 
 /*
  * Our function prototypes from dgap_fep5
  */
 static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds);
 static int dgap_event(struct board_t *bd);
+
+static void dgap_poll_tasklet(unsigned long data);
+static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2, uint ncmds);
+static void dgap_cmdw(struct channel_t *ch, uchar cmd, u16 word, uint ncmds);
+static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt);
+static int dgap_param(struct tty_struct *tty);
+static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned char *fbuf, int *len);
+static uint dgap_get_custom_baud(struct channel_t *ch);
+static void dgap_firmware_reset_port(struct channel_t *ch);
 
 /*
  * Function prototypes from dgap_parse.c.
@@ -155,28 +164,38 @@ struct un_t;
 struct pci_driver;
 struct class_device;
 
-void dgap_create_ports_sysfiles(struct board_t *bd);
-void dgap_remove_ports_sysfiles(struct board_t *bd);
+static void dgap_create_ports_sysfiles(struct board_t *bd);
+static void dgap_remove_ports_sysfiles(struct board_t *bd);
 
-void dgap_create_driver_sysfiles(struct pci_driver *);
-void dgap_remove_driver_sysfiles(struct pci_driver *);
+static void dgap_create_driver_sysfiles(struct pci_driver *);
+static void dgap_remove_driver_sysfiles(struct pci_driver *);
 
-int dgap_tty_class_init(void);
-int dgap_tty_class_destroy(void);
+static int dgap_tty_class_init(void);
+static int dgap_tty_class_destroy(void);
 
-void dgap_create_tty_sysfs(struct un_t *un, struct device *c);
-void dgap_remove_tty_sysfs(struct device *c);
+static void dgap_create_tty_sysfs(struct un_t *un, struct device *c);
+static void dgap_remove_tty_sysfs(struct device *c);
 
 /*
  * Function prototypes from dgap_parse.h
  */
-int dgap_parsefile(char **in, int Remove);
-struct cnode *dgap_find_config(int type, int bus, int slot);
-uint dgap_config_get_number_of_ports(struct board_t *bd);
-char *dgap_create_config_string(struct board_t *bd, char *string);
-char *dgap_get_config_letters(struct board_t *bd, char *string);
-uint dgap_config_get_useintr(struct board_t *bd);
-uint dgap_config_get_altpin(struct board_t *bd);
+static int dgap_parsefile(char **in, int Remove);
+static struct cnode *dgap_find_config(int type, int bus, int slot);
+static uint dgap_config_get_number_of_ports(struct board_t *bd);
+static char *dgap_create_config_string(struct board_t *bd, char *string);
+static char *dgap_get_config_letters(struct board_t *bd, char *string);
+static uint dgap_config_get_useintr(struct board_t *bd);
+static uint dgap_config_get_altpin(struct board_t *bd);
+
+static int	dgap_ms_sleep(ulong ms);
+static char	*dgap_ioctl_name(int cmd);
+static void	dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len);
+static void	dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len);
+static void	dgap_do_conc_load(struct board_t *brd, uchar *uaddr, int len);
+static void	dgap_do_config_load(uchar __user *uaddr, int len);
+static int	dgap_after_config_loaded(void);
+static int	dgap_finalize_board_init(struct board_t *brd);
+
 
 /* Driver load/unload functions */
 int			dgap_init_module(void);
@@ -198,16 +217,16 @@ static struct file_operations DgapBoardFops =
 /*
  * Globals
  */
-uint			dgap_NumBoards;
-struct board_t		*dgap_Board[MAXBOARDS];
+static uint			dgap_NumBoards;
+static struct board_t		*dgap_Board[MAXBOARDS];
 DEFINE_SPINLOCK(dgap_global_lock);
-ulong			dgap_poll_counter;
-char			*dgap_config_buf;
-int			dgap_driver_state = DRIVER_INITIALIZED;
+static ulong			dgap_poll_counter;
+static char			*dgap_config_buf;
+static int			dgap_driver_state = DRIVER_INITIALIZED;
 DEFINE_SPINLOCK(dgap_dl_lock);
-wait_queue_head_t	dgap_dl_wait;
-int			dgap_dl_action;
-int			dgap_poll_tick = 20;	/* Poll interval - 20 ms */
+static wait_queue_head_t	dgap_dl_wait;
+static int			dgap_dl_action;
+static int			dgap_poll_tick = 20;	/* Poll interval - 20 ms */
 
 /*
  * Static vars.
@@ -219,13 +238,13 @@ static struct class *	dgap_class;
 
 static struct board_t	*dgap_BoardsByMajor[256];
 static uchar		*dgap_TmpWriteBuf = NULL;
-static DECLARE_MUTEX(dgap_TmpWriteSem);
+DECLARE_MUTEX(dgap_TmpWriteSem);
 static uint dgap_count = 500;
 
 /*
  * Poller stuff
  */
-static 			DEFINE_SPINLOCK(dgap_poll_lock);	/* Poll scheduling lock */
+DEFINE_SPINLOCK(dgap_poll_lock);	/* Poll scheduling lock */
 static ulong		dgap_poll_time;				/* Time of next poll */
 static uint		dgap_poll_stop;				/* Used to tell poller to stop */
 static struct timer_list dgap_poll_timer;
@@ -290,7 +309,7 @@ static struct pci_driver dgap_driver = {
 };
 
 
-char *dgap_state_text[] = {
+static char *dgap_state_text[] = {
 	"Board Failed",
 	"Configuration for board not found.\n\t\t\tRun mpi to configure board.",
 	"Board Found",
@@ -314,7 +333,7 @@ char *dgap_state_text[] = {
 	"Board READY",
 };
 
-char *dgap_driver_state_text[] = {
+static char *dgap_driver_state_text[] = {
 	"Driver Initialized",
 	"Driver needs configuration load.",
 	"Driver requested configuration from download daemon.",
@@ -854,7 +873,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 }
 
 
-int dgap_finalize_board_init(struct board_t *brd) {
+static int dgap_finalize_board_init(struct board_t *brd) {
 
         int rc;
 
@@ -1186,7 +1205,7 @@ static void dgap_mbuf(struct board_t *brd, const char *fmt, ...) {
  *
  * Returns 0 if timed out, !0 (showing signal) if interrupted by a signal.
  */
-int dgap_ms_sleep(ulong ms)
+static int dgap_ms_sleep(ulong ms)
 {
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout((ms * HZ) / 1000);
@@ -1198,7 +1217,7 @@ int dgap_ms_sleep(ulong ms)
 /*
  *      dgap_ioctl_name() : Returns a text version of each ioctl value.
  */
-char *dgap_ioctl_name(int cmd)
+static char *dgap_ioctl_name(int cmd)
 {
 	switch(cmd) {
 
@@ -1258,7 +1277,7 @@ char *dgap_ioctl_name(int cmd)
  *
  * Initialize any global tty related data before we download any boards.
  */
-int dgap_tty_preinit(void)
+static int dgap_tty_preinit(void)
 {
 	unsigned long flags;
 
@@ -1288,7 +1307,7 @@ int dgap_tty_preinit(void)
  *
  * Init the tty subsystem for this board.
  */
-int dgap_tty_register(struct board_t *brd)
+static int dgap_tty_register(struct board_t *brd)
 {
 	int rc = 0;
 
@@ -1384,7 +1403,7 @@ int dgap_tty_register(struct board_t *brd)
  * Init the tty subsystem.  Called once per board after board has been
  * downloaded and init'ed.
  */
-int dgap_tty_init(struct board_t *brd)
+static int dgap_tty_init(struct board_t *brd)
 {
 	int i;
 	int tlw;
@@ -1562,7 +1581,7 @@ int dgap_tty_init(struct board_t *brd)
  *
  * UnInitialize any global tty related data.
  */
-void dgap_tty_post_uninit(void)
+static void dgap_tty_post_uninit(void)
 {
 	kfree(dgap_TmpWriteBuf);
 	dgap_TmpWriteBuf = NULL;
@@ -1575,7 +1594,7 @@ void dgap_tty_post_uninit(void)
  * Uninitialize the TTY portion of this driver.  Free all memory and
  * resources.
  */
-void dgap_tty_uninit(struct board_t *brd)
+static void dgap_tty_uninit(struct board_t *brd)
 {
 	int i = 0;
 
@@ -1733,7 +1752,7 @@ static void dgap_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *b
  *
  *=======================================================================*/
 
-void dgap_input(struct channel_t *ch)
+static void dgap_input(struct channel_t *ch)
 {
 	struct board_t *bd;
 	struct bs_t	*bs;
@@ -1950,7 +1969,7 @@ void dgap_input(struct channel_t *ch)
  * Determines when CARRIER changes state and takes appropriate
  * action.
  ************************************************************************/
-void dgap_carrier(struct channel_t *ch)
+static void dgap_carrier(struct channel_t *ch)
 {
 	struct board_t *bd;
 
@@ -4640,7 +4659,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 /*
  * Loads the dgap.conf config file from the user.
  */
-void dgap_do_config_load(uchar __user *uaddr, int len)
+static void dgap_do_config_load(uchar __user *uaddr, int len)
 {
 	int orig_len = len;
 	char *to_addr;
@@ -4685,7 +4704,7 @@ void dgap_do_config_load(uchar __user *uaddr, int len)
 }
 
 
-int dgap_after_config_loaded(void)
+static int dgap_after_config_loaded(void)
 {
 	int i = 0;
 	int rc = 0;
@@ -4750,7 +4769,7 @@ static int dgap_usertoboard(struct board_t *brd, char *to_addr, char __user *fro
  * Copies the BIOS code from the user to the board,
  * and starts the BIOS running.
  */
-void dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len)
+static void dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len)
 {
 	uchar *addr;
 	uint offset;
@@ -4825,7 +4844,7 @@ static void dgap_do_wait_for_bios(struct board_t *brd)
  * Copies the FEP code from the user to the board,
  * and starts the FEP running.
  */
-void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len)
+static void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len)
 {
 	uchar *addr;
 	uint offset;
@@ -4987,7 +5006,7 @@ failed:
 /*
  * Sends a concentrator image into the FEP5 board.
  */
-void dgap_do_conc_load(struct board_t *brd, uchar *uaddr, int len)
+static void dgap_do_conc_load(struct board_t *brd, uchar *uaddr, int len)
 {
 	char *vaddr;
 	u16 offset = 0;
@@ -5122,7 +5141,7 @@ static void dgap_get_vpd(struct board_t *brd)
 /*
  * Our board poller function.
  */
-void dgap_poll_tasklet(unsigned long data)
+static void dgap_poll_tasklet(unsigned long data)
 {
 	struct board_t *bd = (struct board_t *) data;
 	ulong  lock_flags;
@@ -5388,7 +5407,7 @@ out:
  *                        in the cmd buffer before returning.
  *
  *=======================================================================*/
-void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2, uint ncmds)
+static void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2, uint ncmds)
 {
 	char		*vaddr = NULL;
 	struct cm_t	*cm_addr = NULL;
@@ -5478,7 +5497,7 @@ void dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2, uint n
  *                        in the cmd buffer before returning.
  *
  *=======================================================================*/
-void dgap_cmdw(struct channel_t *ch, uchar cmd, u16 word, uint ncmds)
+static void dgap_cmdw(struct channel_t *ch, uchar cmd, u16 word, uint ncmds)
 {
 	char		*vaddr = NULL;
 	struct cm_t	*cm_addr = NULL;
@@ -5666,7 +5685,7 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
  *              cnt     - Number of characters to move.
  *
  *=======================================================================*/
-void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
+static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
 {
 	int    n;
 	char   *taddr;
@@ -5721,7 +5740,7 @@ void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
  * and returns it back to the user.
  * Returns 0 on error.
  */
-uint dgap_get_custom_baud(struct channel_t *ch)
+static uint dgap_get_custom_baud(struct channel_t *ch)
 {
 	uchar *vaddr;
 	ulong offset = 0;
@@ -5758,7 +5777,7 @@ uint dgap_get_custom_baud(struct channel_t *ch)
 /*
  * Calls the firmware to reset this channel.
  */
-void dgap_firmware_reset_port(struct channel_t *ch)
+static void dgap_firmware_reset_port(struct channel_t *ch)
 {
 	dgap_cmdb(ch, CHRESET, 0, 0, 0);
 
@@ -5789,7 +5808,7 @@ void dgap_firmware_reset_port(struct channel_t *ch)
  *              struct tty_struct *     - TTY for port.
  *
  *=======================================================================*/
-int dgap_param(struct tty_struct *tty)
+static int dgap_param(struct tty_struct *tty)
 {
 	struct ktermios *ts;
 	struct board_t *bd;
@@ -6136,7 +6155,7 @@ int dgap_param(struct tty_struct *tty)
  * Convert the FEP5 way of reporting parity errors and breaks into
  * the Linux line discipline way.
  */
-void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned char *fbuf, int *len)
+static void dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned char *fbuf, int *len)
 {
 	int l = *len;
 	int count = 0;
@@ -6562,7 +6581,7 @@ static ssize_t dgap_driver_pollrate_store(struct device_driver *ddp, const char 
 static DRIVER_ATTR(pollrate, (S_IRUSR | S_IWUSR), dgap_driver_pollrate_show, dgap_driver_pollrate_store);
 
 
-void dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
+static void dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 {
 	int rc = 0;
 	struct device_driver *driverfs = &dgap_driver->driver;
@@ -6581,7 +6600,7 @@ void dgap_create_driver_sysfiles(struct pci_driver *dgap_driver)
 }
 
 
-void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
+static void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
 {
 	struct device_driver *driverfs = &dgap_driver->driver;
 	driver_remove_file(driverfs, &driver_attr_version);
@@ -6791,7 +6810,7 @@ static DEVICE_ATTR(ports_txcount, S_IRUSR, dgap_ports_txcount_show, NULL);
 /* this function creates the sys files that will export each signal status
  * to sysfs each value will be put in a separate filename
  */
-void dgap_create_ports_sysfiles(struct board_t *bd)
+static void dgap_create_ports_sysfiles(struct board_t *bd)
 {
 	int rc = 0;
 
@@ -6813,7 +6832,7 @@ void dgap_create_ports_sysfiles(struct board_t *bd)
 
 
 /* removes all the sys files created for that port */
-void dgap_remove_ports_sysfiles(struct board_t *bd)
+static void dgap_remove_ports_sysfiles(struct board_t *bd)
 {
 	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_state);
 	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_baud);
@@ -7212,7 +7231,7 @@ static struct attribute_group dgap_tty_attribute_group = {
 
 
 
-void dgap_create_tty_sysfs(struct un_t *un, struct device *c)
+static void dgap_create_tty_sysfs(struct un_t *un, struct device *c)
 {
 	int ret;
 
@@ -7228,7 +7247,7 @@ void dgap_create_tty_sysfs(struct un_t *un, struct device *c)
 }
 
 
-void dgap_remove_tty_sysfs(struct device *c)
+static void dgap_remove_tty_sysfs(struct device *c)
 {
 	sysfs_remove_group(&c->kobj, &dgap_tty_attribute_group);
 }
@@ -7236,7 +7255,7 @@ void dgap_remove_tty_sysfs(struct device *c)
 /*
  * Parse a configuration file read into memory as a string.
  */
-int	dgap_parsefile(char **in, int Remove)
+static int	dgap_parsefile(char **in, int Remove)
 {
 	struct cnode *p, *brd, *line, *conc;
 	int	rc;
@@ -8212,7 +8231,7 @@ static char	*dgap_savestring(char *s)
 /*
  * Given a board pointer, returns whether we should use interrupts or not.
  */
-uint dgap_config_get_useintr(struct board_t *bd)
+static uint dgap_config_get_useintr(struct board_t *bd)
 {
 	struct cnode *p = NULL;
 
@@ -8239,7 +8258,7 @@ uint dgap_config_get_useintr(struct board_t *bd)
 /*
  * Given a board pointer, returns whether we turn on altpin or not.
  */
-uint dgap_config_get_altpin(struct board_t *bd)
+static uint dgap_config_get_altpin(struct board_t *bd)
 {
 	struct cnode *p = NULL;
 
@@ -8268,7 +8287,7 @@ uint dgap_config_get_altpin(struct board_t *bd)
  * Given a specific type of board, if found, detached link and
  * returns the first occurrence in the list.
  */
-struct cnode *dgap_find_config(int type, int bus, int slot)
+static struct cnode *dgap_find_config(int type, int bus, int slot)
 {
 	struct cnode *p, *prev = NULL, *prev2 = NULL, *found = NULL;
 
@@ -8334,7 +8353,7 @@ struct cnode *dgap_find_config(int type, int bus, int slot)
  * all ports user specified should be on the board.
  * (This does NOT mean they are all actually present right now tho)
  */
-uint dgap_config_get_number_of_ports(struct board_t *bd)
+static uint dgap_config_get_number_of_ports(struct board_t *bd)
 {
 	int count = 0;
 	struct cnode *p = NULL;
@@ -8363,7 +8382,7 @@ uint dgap_config_get_number_of_ports(struct board_t *bd)
 	return (count);
 }
 
-char *dgap_create_config_string(struct board_t *bd, char *string)
+static char *dgap_create_config_string(struct board_t *bd, char *string)
 {
 	char *ptr = string;
 	struct cnode *p = NULL;
@@ -8422,7 +8441,7 @@ char *dgap_create_config_string(struct board_t *bd, char *string)
 
 
 
-char *dgap_get_config_letters(struct board_t *bd, char *string)
+static char *dgap_get_config_letters(struct board_t *bd, char *string)
 {
 	int found = FALSE;
 	char *ptr = string;

@@ -663,8 +663,6 @@ enum {
 	REQUESTED_CONCENTRATOR
 };
 
-extern char *dgap_state_text[];
-extern char *dgap_driver_state_text[];
 
 
 /*
@@ -1502,51 +1500,5 @@ struct cnode {
 		int  useintr;
 	} u;
 };
-
-/*************************************************************************
- *
- * Prototypes for non-static functions used in more than one module
- *
- *************************************************************************/
-
-extern int		dgap_ms_sleep(ulong ms);
-extern char		*dgap_ioctl_name(int cmd);
-extern void		dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len);
-extern void		dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len);
-extern void		dgap_do_conc_load(struct board_t *brd, uchar *uaddr, int len);
-extern void		dgap_do_config_load(uchar __user *uaddr, int len);
-extern int		dgap_after_config_loaded(void);
-extern int		dgap_finalize_board_init(struct board_t *brd);
-
-/*
- * Our Global Variables.
- */
-extern int		dgap_driver_state;	/* The state of the driver	*/
-extern int		dgap_debug;		/* Debug variable		*/
-extern int		dgap_rawreadok;		/* Set if user wants rawreads	*/
-extern int		dgap_poll_tick;		/* Poll interval - 20 ms	*/
-extern spinlock_t	dgap_global_lock;	/* Driver global spinlock	*/
-extern uint		dgap_NumBoards;		/* Total number of boards	*/
-extern struct board_t	*dgap_Board[MAXBOARDS];	/* Array of board structs	*/
-extern ulong		dgap_poll_counter;	/* Times the poller has run	*/
-extern char		*dgap_config_buf;	/* The config file buffer	*/
-extern spinlock_t	dgap_dl_lock;		/* Downloader spinlock		*/
-extern wait_queue_head_t dgap_dl_wait;		/* Wait queue for downloader	*/
-extern int		dgap_dl_action;		/* Action flag for downloader	*/
-extern int		dgap_registerttyswithsysfs; /* Should we register the	*/
-						    /* ttys with sysfs or not	*/
-
-/*
- * Global functions declared in dgap_fep5.c, but must be hidden from
- * user space programs.
- */
-extern void	dgap_poll_tasklet(unsigned long data);
-extern void	dgap_cmdb(struct channel_t *ch, uchar cmd, uchar byte1, uchar byte2, uint ncmds);
-extern void	dgap_cmdw(struct channel_t *ch, uchar cmd, u16 word, uint ncmds);
-extern void	dgap_wmove(struct channel_t *ch, char *buf, uint cnt);
-extern int	dgap_param(struct tty_struct *tty);
-extern void	dgap_parity_scan(struct channel_t *ch, unsigned char *cbuf, unsigned char *fbuf, int *len);
-extern uint	dgap_get_custom_baud(struct channel_t *ch);
-extern void	dgap_firmware_reset_port(struct channel_t *ch);
 
 #endif
