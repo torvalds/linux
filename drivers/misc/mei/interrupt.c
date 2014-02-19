@@ -474,7 +474,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 
 	if (dev->wd_state == MEI_WD_STOPPING) {
 		dev->wd_state = MEI_WD_IDLE;
-		wake_up_interruptible(&dev->wait_stop_wd);
+		wake_up(&dev->wait_stop_wd);
 	}
 
 	if (mei_cl_is_connected(&dev->wd_cl)) {
