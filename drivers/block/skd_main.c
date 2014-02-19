@@ -3910,43 +3910,44 @@ static void skd_release_msix(struct skd_device *skdev)
 	struct skd_msix_entry *qentry;
 	int i;
 
-	if (skdev->msix_entries == NULL)
-		return;
-	for (i = 0; i < skdev->msix_count; i++) {
-		qentry = &skdev->msix_entries[i];
-		skdev = qentry->rsp;
+	if (skdev->msix_entries) {
+		for (i = 0; i < skdev->msix_count; i++) {
+			qentry = &skdev->msix_entries[i];
+			skdev = qentry->rsp;
 
-		if (qentry->have_irq)
-			devm_free_irq(&skdev->pdev->dev,
-				      qentry->vector, qentry->rsp);
+			if (qentry->have_irq)
+				devm_free_irq(&skdev->pdev->dev,
+					      qentry->vector, qentry->rsp);
+		}
+
+		kfree(skdev->msix_entries);
 	}
-	pci_disable_msix(skdev->pdev);
-	kfree(skdev->msix_entries);
+
+	if (skdev->msix_count)
+		pci_disable_msix(skdev->pdev);
+
 	skdev->msix_count = 0;
 	skdev->msix_entries = NULL;
 }
 
 static int skd_acquire_msix(struct skd_device *skdev)
 {
-	int i, rc;
-	struct pci_dev *pdev;
-	struct msix_entry *entries = NULL;
+	int i, rc, msix_count = SKD_MAX_MSIX_COUNT;
+	struct pci_dev *pdev = skdev->pdev;
+	struct msix_entry *entries;
 	struct skd_msix_entry *qentry;
 
-	pdev = skdev->pdev;
-	skdev->msix_count = SKD_MAX_MSIX_COUNT;
-	entries = kzalloc(sizeof(struct msix_entry) * SKD_MAX_MSIX_COUNT,
-			  GFP_KERNEL);
+	entries = kzalloc(sizeof(struct msix_entry) * msix_count, GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
 
-	for (i = 0; i < SKD_MAX_MSIX_COUNT; i++)
+	for (i = 0; i < msix_count; i++)
 		entries[i].entry = i;
 
-	rc = pci_enable_msix(pdev, entries, SKD_MAX_MSIX_COUNT);
+	rc = pci_enable_msix(pdev, entries, msix_count);
 	if (rc < 0)
 		goto msix_out;
-	if (rc) {
+	else if (rc) {
 		if (rc < SKD_MIN_MSIX_COUNT) {
 			pr_err("(%s): failed to enable MSI-X %d\n",
 			       skd_name(skdev), rc);
@@ -3956,20 +3957,21 @@ static int skd_acquire_msix(struct skd_device *skdev)
 			 skdev->name, __func__, __LINE__,
 			 pci_name(pdev), skdev->name, rc);
 
-		skdev->msix_count = rc;
-		rc = pci_enable_msix(pdev, entries, skdev->msix_count);
+		msix_count = rc;
+		rc = pci_enable_msix(pdev, entries, msix_count);
 		if (rc) {
 			pr_err("(%s): failed to enable MSI-X "
 			       "support (%d) %d\n",
-			       skd_name(skdev), skdev->msix_count, rc);
+			       skd_name(skdev), msix_count, rc);
 			goto msix_out;
 		}
 	}
+
+	skdev->msix_count = msix_count;
 	skdev->msix_entries = kzalloc(sizeof(struct skd_msix_entry) *
 				      skdev->msix_count, GFP_KERNEL);
 	if (!skdev->msix_entries) {
 		rc = -ENOMEM;
-		skdev->msix_count = 0;
 		pr_err("(%s): msix table allocation error\n",
 		       skd_name(skdev));
 		goto msix_out;
