@@ -138,6 +138,15 @@ static long n_barrier_attempts;
 static long n_barrier_successes;
 static struct list_head rcu_torture_removed;
 
+static int rcu_torture_writer_state;
+#define RTWS_FIXED_DELAY	0
+#define RTWS_DELAY		1
+#define RTWS_REPLACE		2
+#define RTWS_DEF_FREE		3
+#define RTWS_EXP_SYNC		4
+#define RTWS_STUTTER		5
+#define RTWS_STOPPING		6
+
 #if defined(MODULE) || defined(CONFIG_RCU_TORTURE_TEST_RUNNABLE)
 #define RCUTORTURE_RUNNABLE_INIT 1
 #else
@@ -214,6 +223,7 @@ rcu_torture_free(struct rcu_torture *p)
  */
 
 struct rcu_torture_ops {
+	int ttype;
 	void (*init)(void);
 	int (*readlock)(void);
 	void (*read_delay)(struct torture_random_state *rrsp);
@@ -312,6 +322,7 @@ static void rcu_sync_torture_init(void)
 }
 
 static struct rcu_torture_ops rcu_ops = {
+	.ttype		= RCU_FLAVOR,
 	.init		= rcu_sync_torture_init,
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,
@@ -355,6 +366,7 @@ static void rcu_bh_torture_deferred_free(struct rcu_torture *p)
 }
 
 static struct rcu_torture_ops rcu_bh_ops = {
+	.ttype		= RCU_BH_FLAVOR,
 	.init		= rcu_sync_torture_init,
 	.readlock	= rcu_bh_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
@@ -397,6 +409,7 @@ call_rcu_busted(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 }
 
 static struct rcu_torture_ops rcu_busted_ops = {
+	.ttype		= INVALID_RCU_FLAVOR,
 	.init		= rcu_sync_torture_init,
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
@@ -492,6 +505,7 @@ static void srcu_torture_synchronize_expedited(void)
 }
 
 static struct rcu_torture_ops srcu_ops = {
+	.ttype		= SRCU_FLAVOR,
 	.init		= rcu_sync_torture_init,
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
@@ -527,6 +541,7 @@ static void rcu_sched_torture_deferred_free(struct rcu_torture *p)
 }
 
 static struct rcu_torture_ops sched_ops = {
+	.ttype		= RCU_SCHED_FLAVOR,
 	.init		= rcu_sync_torture_init,
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
@@ -699,12 +714,15 @@ rcu_torture_writer(void *arg)
 	set_user_nice(current, MAX_NICE);
 
 	do {
+		rcu_torture_writer_state = RTWS_FIXED_DELAY;
 		schedule_timeout_uninterruptible(1);
 		rp = rcu_torture_alloc();
 		if (rp == NULL)
 			continue;
 		rp->rtort_pipe_count = 0;
+		rcu_torture_writer_state = RTWS_DELAY;
 		udelay(torture_random(&rand) & 0x3ff);
+		rcu_torture_writer_state = RTWS_REPLACE;
 		old_rp = rcu_dereference_check(rcu_torture_current,
 					       current == writer_task);
 		rp->rtort_mbtest = 1;
@@ -721,8 +739,10 @@ rcu_torture_writer(void *arg)
 			else
 				exp = gp_exp;
 			if (!exp) {
+				rcu_torture_writer_state = RTWS_DEF_FREE;
 				cur_ops->deferred_free(old_rp);
 			} else {
+				rcu_torture_writer_state = RTWS_EXP_SYNC;
 				cur_ops->exp_sync();
 				list_add(&old_rp->rtort_free,
 					 &rcu_torture_removed);
@@ -743,8 +763,10 @@ rcu_torture_writer(void *arg)
 			}
 		}
 		rcutorture_record_progress(++rcu_torture_current_version);
+		rcu_torture_writer_state = RTWS_STUTTER;
 		stutter_wait("rcu_torture_writer");
 	} while (!torture_must_stop());
+	rcu_torture_writer_state = RTWS_STOPPING;
 	torture_kthread_stopping("rcu_torture_writer");
 	return 0;
 }
@@ -937,6 +959,7 @@ rcu_torture_printk(char *page)
 	int i;
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long batchsummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
+	static unsigned long rtcv_snap = ULONG_MAX;
 
 	for_each_possible_cpu(cpu) {
 		for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
@@ -997,6 +1020,20 @@ rcu_torture_printk(char *page)
 	page += sprintf(page, "\n");
 	if (cur_ops->stats)
 		cur_ops->stats(page);
+	if (rtcv_snap == rcu_torture_current_version &&
+	    rcu_torture_current != NULL) {
+		int __maybe_unused flags;
+		unsigned long __maybe_unused gpnum;
+		unsigned long __maybe_unused completed;
+
+		rcutorture_get_gp_data(cur_ops->ttype,
+				       &flags, &gpnum, &completed);
+		page += sprintf(page,
+				"??? Writer stall state %d g%lu c%lu f%#x\n",
+				rcu_torture_writer_state,
+				gpnum, completed, flags);
+	}
+	rtcv_snap = rcu_torture_current_version;
 }
 
 /*
