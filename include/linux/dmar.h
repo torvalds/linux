@@ -50,6 +50,15 @@ struct dmar_drhd_unit {
 	struct intel_iommu *iommu;
 };
 
+struct dmar_pci_notify_info {
+	struct pci_dev			*dev;
+	unsigned long			event;
+	int				bus;
+	u16				seg;
+	u16				level;
+	struct acpi_dmar_pci_path	path[];
+}  __attribute__((packed));
+
 extern struct rw_semaphore dmar_global_lock;
 extern struct list_head dmar_drhd_units;
 
@@ -89,12 +98,18 @@ extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
 				struct pci_dev ***devices, u16 segment);
 extern void *dmar_alloc_dev_scope(void *start, void *end, int *cnt);
 extern void dmar_free_dev_scope(struct pci_dev __rcu ***devices, int *cnt);
-extern void dmar_free_dev_scope(struct pci_dev ***devices, int *cnt);
-
+extern int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
+				 void *start, void*end, u16 segment,
+				 struct pci_dev __rcu **devices,
+				 int devices_cnt);
+extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
+				 u16 segment, struct pci_dev __rcu **devices,
+				 int count);
 /* Intel IOMMU detection */
 extern int detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
 #else
+struct dmar_pci_notify_info;
 static inline int detect_intel_iommu(void)
 {
 	return -ENODEV;
@@ -161,6 +176,7 @@ extern int iommu_detected, no_iommu;
 extern int dmar_parse_rmrr_atsr_dev(void);
 extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header);
 extern int dmar_parse_one_atsr(struct acpi_dmar_header *header);
+extern int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info);
 extern int intel_iommu_init(void);
 #else /* !CONFIG_INTEL_IOMMU: */
 static inline int intel_iommu_init(void) { return -ENODEV; }
@@ -173,6 +189,10 @@ static inline int dmar_parse_one_atsr(struct acpi_dmar_header *header)
 	return 0;
 }
 static inline int dmar_parse_rmrr_atsr_dev(void)
+{
+	return 0;
+}
+static inline int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 {
 	return 0;
 }
