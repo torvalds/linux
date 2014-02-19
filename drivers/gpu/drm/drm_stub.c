@@ -127,8 +127,6 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 	INIT_LIST_HEAD(&master->magicfree);
 	master->minor = minor;
 
-	list_add_tail(&master->head, &minor->master_list);
-
 	return master;
 }
 
@@ -145,8 +143,6 @@ static void drm_master_destroy(struct kref *kref)
 	struct drm_magic_entry *pt, *next;
 	struct drm_device *dev = master->minor->dev;
 	struct drm_map_list *r_list, *list_temp;
-
-	list_del(&master->head);
 
 	if (dev->driver->master_destroy)
 		dev->driver->master_destroy(dev, master);
@@ -273,7 +269,6 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 
 	minor->type = type;
 	minor->dev = dev;
-	INIT_LIST_HEAD(&minor->master_list);
 
 	*drm_minor_get_slot(dev, type) = minor;
 	return 0;
