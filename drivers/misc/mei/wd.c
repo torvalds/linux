@@ -53,7 +53,7 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  *
  * @dev: the device structure
  *
- * returns -ENENT if wd client cannot be found
+ * returns -ENOTTY if wd client cannot be found
  *         -EIO if write has failed
  *         0 on success
  */
@@ -73,7 +73,7 @@ int mei_wd_host_init(struct mei_device *dev)
 	id = mei_me_cl_by_uuid(dev, &mei_wd_guid);
 	if (id < 0) {
 		dev_info(&dev->pdev->dev, "wd: failed to find the client\n");
-		return id;
+		return -ENOTTY;
 	}
 
 	cl->me_client_id = dev->me_clients[id].client_id;
@@ -185,7 +185,7 @@ int mei_wd_stop(struct mei_device *dev)
 		ret = 0;
 	} else {
 		if (!ret)
-			ret = -ETIMEDOUT;
+			ret = -ETIME;
 		dev_warn(&dev->pdev->dev,
 			"wd: stop failed to complete ret=%d.\n", ret);
 	}

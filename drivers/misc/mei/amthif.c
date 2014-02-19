@@ -78,10 +78,9 @@ int mei_amthif_host_init(struct mei_device *dev)
 
 	i = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
 	if (i < 0) {
-		ret = i;
 		dev_info(&dev->pdev->dev,
-			"amthif: failed to find the client %d\n", ret);
-		return ret;
+			"amthif: failed to find the client %d\n", i);
+		return -ENOTTY;
 	}
 
 	cl->me_client_id = dev->me_clients[i].client_id;
@@ -174,14 +173,13 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	/* Only possible if we are in timeout */
 	if (!cl || cl != &dev->iamthif_cl) {
 		dev_dbg(&dev->pdev->dev, "bad file ext.\n");
-		return -ETIMEDOUT;
+		return -ETIME;
 	}
 
 	i = mei_me_cl_by_id(dev, dev->iamthif_cl.me_client_id);
-
 	if (i < 0) {
 		dev_dbg(&dev->pdev->dev, "amthif client not found.\n");
-		return -ENODEV;
+		return -ENOTTY;
 	}
 	dev_dbg(&dev->pdev->dev, "checking amthif data\n");
 	cb = mei_amthif_find_read_list_entry(dev, file);
@@ -222,7 +220,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 			dev_dbg(&dev->pdev->dev, "amthif Time out\n");
 			/* 15 sec for the message has expired */
 			list_del(&cb->list);
-			rets = -ETIMEDOUT;
+			rets = -ETIME;
 			goto free;
 		}
 	}

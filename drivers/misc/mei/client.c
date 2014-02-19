@@ -664,7 +664,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 	i = mei_me_cl_by_id(dev, cl->me_client_id);
 	if (i < 0) {
 		cl_err(dev, cl, "no such me client %d\n", cl->me_client_id);
-		return  -ENODEV;
+		return  -ENOTTY;
 	}
 
 	cb = mei_io_cb_init(cl, NULL);
@@ -852,13 +852,12 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	cl->writing_state = MEI_WRITING;
 	cb->buf_idx = mei_hdr.length;
 
-	rets = buf->size;
 out:
 	if (mei_hdr.msg_complete) {
-		if (mei_cl_flow_ctrl_reduce(cl)) {
-			rets = -ENODEV;
+		rets = mei_cl_flow_ctrl_reduce(cl);
+		if (rets < 0)
 			goto err;
-		}
+
 		list_add_tail(&cb->list, &dev->write_waiting_list.list);
 	} else {
 		list_add_tail(&cb->list, &dev->write_list.list);
@@ -868,15 +867,18 @@ out:
 	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {
 
 		mutex_unlock(&dev->device_lock);
-		if (wait_event_interruptible(cl->tx_wait,
-			cl->writing_state == MEI_WRITE_COMPLETE)) {
-				if (signal_pending(current))
-					rets = -EINTR;
-				else
-					rets = -ERESTARTSYS;
-		}
+		rets = wait_event_interruptible(cl->tx_wait,
+				cl->writing_state == MEI_WRITE_COMPLETE);
 		mutex_lock(&dev->device_lock);
+		/* wait_event_interruptible returns -ERESTARTSYS */
+		if (rets) {
+			if (signal_pending(current))
+				rets = -EINTR;
+			goto err;
+		}
 	}
+
+	rets = buf->size;
 err:
 	return rets;
 }

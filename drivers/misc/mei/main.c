@@ -340,7 +340,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	id = mei_me_cl_by_id(dev, cl->me_client_id);
 	if (id < 0) {
-		rets = -ENODEV;
+		rets = -ENOTTY;
 		goto out;
 	}
 

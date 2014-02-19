@@ -244,7 +244,7 @@ static int mei_me_hw_ready_wait(struct mei_device *dev)
 	mutex_lock(&dev->device_lock);
 	if (!err && !dev->recvd_hw_ready) {
 		if (!err)
-			err = -ETIMEDOUT;
+			err = -ETIME;
 		dev_err(&dev->pdev->dev,
 			"wait hw ready failed. status = %d\n", err);
 		return err;
@@ -303,7 +303,7 @@ static bool mei_me_hbuf_is_empty(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns -1(ESLOTS_OVERFLOW) if overflow, otherwise empty slots count
+ * returns -EOVERFLOW if overflow, otherwise empty slots count
  */
 static int mei_me_hbuf_empty_slots(struct mei_device *dev)
 {
@@ -326,7 +326,7 @@ static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
 
 
 /**
- * mei_write_message - writes a message to mei device.
+ * mei_me_write_message - writes a message to mei device.
  *
  * @dev: the device structure
  * @header: mei HECI header of message
@@ -381,7 +381,7 @@ static int mei_me_write_message(struct mei_device *dev,
  *
  * @dev: the device structure
  *
- * returns -1(ESLOTS_OVERFLOW) if overflow, otherwise filled slots count
+ * returns -EOVERFLOW if overflow, otherwise filled slots count
  */
 static int mei_me_count_full_read_slots(struct mei_device *dev)
 {

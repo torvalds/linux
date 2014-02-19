@@ -350,7 +350,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 		dev_err(&dev->pdev->dev, "less data available than length=%08x.\n",
 				*slots);
 		/* we can't read the message */
-		ret = -ERANGE;
+		ret = -EBADMSG;
 		goto end;
 	}
 
@@ -483,7 +483,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 			if (mei_wd_send(dev))
 				dev_dbg(&dev->pdev->dev, "wd send failed.\n");
 			else if (mei_cl_flow_ctrl_reduce(&dev->wd_cl))
-				return -ENODEV;
+				return -EIO;
 			dev->wd_pending = false;
 		}
 	}
