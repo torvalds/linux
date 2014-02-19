@@ -369,7 +369,6 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_file *rawmidi_file = NULL;
 	wait_queue_t wait;
-	struct snd_ctl_file *kctl;
 
 	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK)) 
 		return -EINVAL;		/* invalid combination */
@@ -413,16 +412,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&rmidi->open_wait, &wait);
 	while (1) {
-		subdevice = -1;
-		read_lock(&card->ctl_files_rwlock);
-		list_for_each_entry(kctl, &card->ctl_files, list) {
-			if (kctl->pid == task_pid(current)) {
-				subdevice = kctl->prefer_rawmidi_subdevice;
-				if (subdevice != -1)
-					break;
-			}
-		}
-		read_unlock(&card->ctl_files_rwlock);
+		subdevice = snd_ctl_get_preferred_subdevice(card, SND_CTL_SUBDEV_RAWMIDI);
 		err = rawmidi_open_priv(rmidi, subdevice, fflags, rawmidi_file);
 		if (err >= 0)
 			break;
@@ -862,7 +852,7 @@ static int snd_rawmidi_control_ioctl(struct snd_card *card,
 		
 		if (get_user(val, (int __user *)argp))
 			return -EFAULT;
-		control->prefer_rawmidi_subdevice = val;
+		control->preferred_subdevice[SND_CTL_SUBDEV_RAWMIDI] = val;
 		return 0;
 	}
 	case SNDRV_CTL_IOCTL_RAWMIDI_INFO:

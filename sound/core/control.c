@@ -50,7 +50,7 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 	unsigned long flags;
 	struct snd_card *card;
 	struct snd_ctl_file *ctl;
-	int err;
+	int i, err;
 
 	err = nonseekable_open(inode, file);
 	if (err < 0)
@@ -79,8 +79,8 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&ctl->change_sleep);
 	spin_lock_init(&ctl->read_lock);
 	ctl->card = card;
-	ctl->prefer_pcm_subdevice = -1;
-	ctl->prefer_rawmidi_subdevice = -1;
+	for (i = 0; i < SND_CTL_SUBDEV_ITEMS; i++)
+		ctl->preferred_subdevice[i] = -1;
 	ctl->pid = get_pid(task_pid(current));
 	file->private_data = ctl;
 	write_lock_irqsave(&card->ctl_files_rwlock, flags);
@@ -1606,6 +1606,27 @@ static int snd_ctl_fasync(int fd, struct file * file, int on)
 	ctl = file->private_data;
 	return fasync_helper(fd, file, on, &ctl->fasync);
 }
+
+/* return the preferred subdevice number if already assigned;
+ * otherwise return -1
+ */
+int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type)
+{
+	struct snd_ctl_file *kctl;
+	int subdevice = -1;
+
+	read_lock(&card->ctl_files_rwlock);
+	list_for_each_entry(kctl, &card->ctl_files, list) {
+		if (kctl->pid == task_pid(current)) {
+			subdevice = kctl->preferred_subdevice[type];
+			if (subdevice != -1)
+				break;
+		}
+	}
+	read_unlock(&card->ctl_files_rwlock);
+	return subdevice;
+}
+EXPORT_SYMBOL_GPL(snd_ctl_get_preferred_subdevice);
 
 /*
  * ioctl32 compat

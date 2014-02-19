@@ -161,7 +161,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 			
 			if (get_user(val, (int __user *)arg))
 				return -EFAULT;
-			control->prefer_pcm_subdevice = val;
+			control->preferred_subdevice[SND_CTL_SUBDEV_PCM] = val;
 			return 0;
 		}
 	}
@@ -901,9 +901,8 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	struct snd_pcm_str * pstr;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-	struct snd_ctl_file *kctl;
 	struct snd_card *card;
-	int prefer_subdevice = -1;
+	int prefer_subdevice;
 	size_t size;
 
 	if (snd_BUG_ON(!pcm || !rsubstream))
@@ -914,15 +913,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 		return -ENODEV;
 
 	card = pcm->card;
-	read_lock(&card->ctl_files_rwlock);
-	list_for_each_entry(kctl, &card->ctl_files, list) {
-		if (kctl->pid == task_pid(current)) {
-			prefer_subdevice = kctl->prefer_pcm_subdevice;
-			if (prefer_subdevice != -1)
-				break;
-		}
-	}
-	read_unlock(&card->ctl_files_rwlock);
+	prefer_subdevice = snd_ctl_get_preferred_subdevice(card, SND_CTL_SUBDEV_PCM);
 
 	switch (stream) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
