@@ -3234,7 +3234,7 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 	struct soc_bytes *params = (void *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	int ret, len;
-	unsigned int val;
+	unsigned int val, mask;
 	void *data;
 
 	if (!codec->using_regmap)
@@ -3264,12 +3264,36 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 			((u8 *)data)[0] |= val;
 			break;
 		case 2:
-			((u16 *)data)[0] &= cpu_to_be16(~params->mask);
-			((u16 *)data)[0] |= cpu_to_be16(val);
+			mask = ~params->mask;
+			ret = regmap_parse_val(codec->control_data,
+							&mask, &mask);
+			if (ret != 0)
+				goto out;
+
+			((u16 *)data)[0] &= mask;
+
+			ret = regmap_parse_val(codec->control_data,
+							&val, &val);
+			if (ret != 0)
+				goto out;
+
+			((u16 *)data)[0] |= val;
 			break;
 		case 4:
-			((u32 *)data)[0] &= cpu_to_be32(~params->mask);
-			((u32 *)data)[0] |= cpu_to_be32(val);
+			mask = ~params->mask;
+			ret = regmap_parse_val(codec->control_data,
+							&mask, &mask);
+			if (ret != 0)
+				goto out;
+
+			((u32 *)data)[0] &= mask;
+
+			ret = regmap_parse_val(codec->control_data,
+							&val, &val);
+			if (ret != 0)
+				goto out;
+
+			((u32 *)data)[0] |= val;
 			break;
 		default:
 			ret = -EINVAL;
