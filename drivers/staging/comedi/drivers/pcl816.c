@@ -122,7 +122,7 @@ struct pcl816_private {
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int divisor1;
 	unsigned int divisor2;
-	unsigned int irq_blocked:1;
+	unsigned int ai_cmd_running:1;
 	unsigned int irq_was_now_closed:1;
 	unsigned int ai_neverending:1;
 };
@@ -370,7 +370,7 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 	}
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-	if (!dev->irq || !devpriv->irq_blocked || !devpriv->int816_mode) {
+	if (!dev->irq || !devpriv->ai_cmd_running || !devpriv->int816_mode) {
 		if (devpriv->irq_was_now_closed) {
 			devpriv->irq_was_now_closed = 0;
 			/*  comedi_error(dev,"last IRQ.."); */
@@ -471,7 +471,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int dma_flags, bytes, dmairq;
 	unsigned int seglen;
 
-	if (devpriv->irq_blocked)
+	if (devpriv->ai_cmd_running)
 		return -EBUSY;
 
 	pcl816_start_pacer(dev, false);
@@ -484,7 +484,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_act_scan = 0;
 	s->async->cur_chan = 0;
-	devpriv->irq_blocked = 1;
+	devpriv->ai_cmd_running = 1;
 	devpriv->ai_poll_ptr = 0;
 	devpriv->irq_was_now_closed = 0;
 
@@ -601,7 +601,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 {
 	struct pcl816_private *devpriv = dev->private;
 
-	if (devpriv->irq_blocked) {
+	if (devpriv->ai_cmd_running) {
 		switch (devpriv->int816_mode) {
 		case INT_TYPE_AI1_DMA:
 		case INT_TYPE_AI3_DMA:
@@ -627,7 +627,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 
 			/* Stop A/D */
 			outb(0, dev->iobase + PCL816_CONTROL);
-			devpriv->irq_blocked = 0;
+			devpriv->ai_cmd_running = 0;
 			devpriv->irq_was_now_closed = 1;
 			devpriv->int816_mode = 0;
 /* s->busy = 0; */
