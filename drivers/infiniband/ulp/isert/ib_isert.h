@@ -50,11 +50,25 @@ struct iser_tx_desc {
 	struct ib_send_wr send_wr;
 } __packed;
 
+enum isert_indicator {
+	ISERT_PROTECTED		= 1 << 0,
+	ISERT_DATA_KEY_VALID	= 1 << 1,
+	ISERT_PROT_KEY_VALID	= 1 << 2,
+	ISERT_SIG_KEY_VALID	= 1 << 3,
+};
+
+struct pi_context {
+	struct ib_mr		       *prot_mr;
+	struct ib_fast_reg_page_list   *prot_frpl;
+	struct ib_mr		       *sig_mr;
+};
+
 struct fast_reg_descriptor {
-	struct list_head	list;
-	struct ib_mr		*data_mr;
-	struct ib_fast_reg_page_list	*data_frpl;
-	bool			valid;
+	struct list_head		list;
+	struct ib_mr		       *data_mr;
+	struct ib_fast_reg_page_list   *data_frpl;
+	u8				ind;
+	struct pi_context	       *pi_ctx;
 };
 
 struct isert_data_buf {
@@ -149,6 +163,7 @@ struct isert_cq_desc {
 
 struct isert_device {
 	int			use_fastreg;
+	bool			pi_capable;
 	int			cqs_used;
 	int			refcount;
 	int			cq_active_qps[ISERT_MAX_CQ];
