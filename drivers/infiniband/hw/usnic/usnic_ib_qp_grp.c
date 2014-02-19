@@ -629,6 +629,7 @@ static int qp_grp_id_from_flow(struct usnic_ib_qp_grp_flow *qp_flow,
 {
 	enum usnic_transport_type trans_type = qp_flow->trans_type;
 	int err;
+	uint16_t port_num = 0;
 
 	switch (trans_type) {
 	case USNIC_TRANSPORT_ROCE_CUSTOM:
@@ -637,9 +638,15 @@ static int qp_grp_id_from_flow(struct usnic_ib_qp_grp_flow *qp_flow,
 	case USNIC_TRANSPORT_IPV4_UDP:
 		err = usnic_transport_sock_get_addr(qp_flow->udp.sock,
 							NULL, NULL,
-							(uint16_t *) id);
+							&port_num);
 		if (err)
 			return err;
+		/*
+		 * Copy port_num to stack first and then to *id,
+		 * so that the short to int cast works for little
+		 * and big endian systems.
+		 */
+		*id = port_num;
 		break;
 	default:
 		usnic_err("Unsupported transport %u\n", trans_type);
