@@ -149,6 +149,32 @@ CORE_FEATURE_TESTS =			\
 	stackprotector-all		\
 	timerfd
 
+LIB_FEATURE_TESTS =			\
+	dwarf				\
+	glibc				\
+	gtk2				\
+	libaudit			\
+	libbfd				\
+	libelf				\
+	libnuma				\
+	libperl				\
+	libpython			\
+	libslang			\
+	libunwind
+
+VF_FEATURE_TESTS =			\
+	backtrace			\
+	fortify-source			\
+	gtk2-infobar			\
+	libelf-getphdrnum		\
+	libelf-mmap			\
+	libpython-version		\
+	on-exit				\
+	stackprotector-all		\
+	timerfd				\
+	libunwind-debug-frame		\
+	bionic
+
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all CORE_FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not
 # mentioned in this list we need to refactor this ;-).
@@ -161,17 +187,6 @@ endef
 $(foreach feat,$(CORE_FEATURE_TESTS),$(call set_test_all_flags,$(feat)))
 
 #
-# So here we detect whether test-all was rebuilt, to be able
-# to skip the print-out of the long features list if the file
-# existed before and after it was built:
-#
-ifeq ($(wildcard $(OUTPUT)config/feature-checks/test-all.bin),)
-  test-all-failed := 1
-else
-  test-all-failed := 0
-endif
-
-#
 # Special fast-path for the 'all features are available' case:
 #
 $(call feature_check,all,$(MSG))
@@ -180,15 +195,6 @@ $(call feature_check,all,$(MSG))
 # Just in case the build freshly failed, make sure we print the
 # feature matrix:
 #
-ifeq ($(feature-all), 0)
-  test-all-failed := 1
-endif
-
-ifeq ($(test-all-failed),1)
-  $(info )
-  $(info Auto-detecting system features:)
-endif
-
 ifeq ($(feature-all), 1)
   #
   # test-all.c passed - just set all the core feature flags to 1:
@@ -197,27 +203,6 @@ ifeq ($(feature-all), 1)
 else
   $(shell $(MAKE) OUTPUT=$(OUTPUT_FEATURES) CFLAGS="$(EXTRA_CFLAGS)" LDFLAGS=$(LDFLAGS) -i -j -C config/feature-checks $(addsuffix .bin,$(CORE_FEATURE_TESTS)) >/dev/null 2>&1)
   $(foreach feat,$(CORE_FEATURE_TESTS),$(call feature_check,$(feat)))
-endif
-
-#
-# Print the result of the feature test:
-#
-feature_print = $(eval $(feature_print_code)) $(info $(MSG))
-
-define feature_print_code
-  ifeq ($(feature-$(1)), 1)
-    MSG = $(shell printf '...%30s: [ \033[32mon\033[m  ]' $(1))
-  else
-    MSG = $(shell printf '...%30s: [ \033[31mOFF\033[m ]' $(1))
-  endif
-endef
-
-#
-# Only print out our features if we rebuilt the testcases or if a test failed:
-#
-ifeq ($(test-all-failed), 1)
-  $(foreach feat,$(CORE_FEATURE_TESTS),$(call feature_print,$(feat)))
-  $(info )
 endif
 
 ifeq ($(feature-stackprotector-all), 1)
@@ -601,4 +586,60 @@ perfexec_instdir_SQ = $(subst ','\'',$(perfexec_instdir))
 ifdef DESTDIR
 plugindir=$(libdir)/traceevent/plugins
 plugindir_SQ= $(subst ','\'',$(plugindir))
+endif
+
+#
+# Print the result of the feature test:
+#
+feature_print = $(eval $(feature_print_code)) $(info $(MSG))
+
+define feature_print_code
+  ifeq ($(feature-$(1)), 1)
+    MSG = $(shell printf '...%30s: [ \033[32mon\033[m  ]' $(1))
+  else
+    MSG = $(shell printf '...%30s: [ \033[31mOFF\033[m ]' $(1))
+  endif
+endef
+
+PERF_FEATURES := $(foreach feat,$(LIB_FEATURE_TESTS),feature-$(feat)($(feature-$(feat))))
+PERF_FEATURES_FILE := $(shell touch $(OUTPUT)PERF-FEATURES; cat $(OUTPUT)PERF-FEATURES)
+
+# The $(display_lib) controls the default detection message
+# output. It's set if:
+# - detected features differes from stored features from
+#   last build (in PERF-FEATURES file)
+# - one of the $(LIB_FEATURE_TESTS) is not detected
+# - VF is enabled
+
+ifneq ("$(PERF_FEATURES)","$(PERF_FEATURES_FILE)")
+  $(shell echo "$(PERF_FEATURES)" > $(OUTPUT)PERF-FEATURES)
+  display_lib := 1
+endif
+
+feature_check = $(eval $(feature_check_code))
+define feature_check_code
+  ifneq ($(feature-$(1)), 1)
+    display_lib := 1
+  endif
+endef
+
+$(foreach feat,$(LIB_FEATURE_TESTS),$(call feature_check,$(feat)))
+
+ifeq ($(VF),1)
+  display_lib := 1
+  display_vf := 1
+endif
+
+ifeq ($(display_lib),1)
+  $(info )
+  $(info Auto-detecting system features:)
+  $(foreach feat,$(LIB_FEATURE_TESTS),$(call feature_print,$(feat),))
+endif
+
+ifeq ($(display_vf),1)
+  $(foreach feat,$(VF_FEATURE_TESTS),$(call feature_print,$(feat),))
+endif
+
+ifeq ($(display_lib),1)
+  $(info )
 endif
