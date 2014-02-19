@@ -1020,12 +1020,9 @@ exit:
 	read_unlock_bh(&tipc_net_lock);
 
 	/* Couldn't find a link to the destination node */
-	if (buf)
-		return tipc_reject_msg(buf, TIPC_ERR_NO_NODE);
-	if (res >= 0)
-		return tipc_port_iovec_reject(sender, hdr, msg_sect, len,
-					      TIPC_ERR_NO_NODE);
-	return res;
+	kfree_skb(buf);
+	tipc_port_iovec_reject(sender, hdr, msg_sect, len, TIPC_ERR_NO_NODE);
+	return -ENETUNREACH;
 }
 
 /*
@@ -1163,8 +1160,9 @@ error:
 	} else {
 reject:
 		kfree_skb_list(buf_chain);
-		return tipc_port_iovec_reject(sender, hdr, msg_sect,
-					      len, TIPC_ERR_NO_NODE);
+		tipc_port_iovec_reject(sender, hdr, msg_sect, len,
+				       TIPC_ERR_NO_NODE);
+		return -ENETUNREACH;
 	}
 
 	/* Append chain of fragments to send queue & send them */
