@@ -776,7 +776,7 @@ static void sh_cmt_register_clockevent(struct sh_cmt_channel *ch,
 	ced->features = CLOCK_EVT_FEAT_PERIODIC;
 	ced->features |= CLOCK_EVT_FEAT_ONESHOT;
 	ced->rating = rating;
-	ced->cpumask = cpumask_of(0);
+	ced->cpumask = cpu_possible_mask;
 	ced->set_next_event = sh_cmt_clock_event_next;
 	ced->set_mode = sh_cmt_clock_event_mode;
 	ced->suspend = sh_cmt_clock_event_suspend;
