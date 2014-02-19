@@ -1123,6 +1123,7 @@ struct il_power_mgr {
 	struct il_powertable_cmd sleep_cmd_next;
 	int debug_sleep_level_override;
 	bool pci_pm;
+	bool ps_disabled;
 };
 
 struct il_priv {
