@@ -1297,6 +1297,13 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 
 	if ((iommu->domains) && (iommu->domain_ids)) {
 		for_each_set_bit(i, iommu->domain_ids, cap_ndoms(iommu->cap)) {
+			/*
+			 * Domain id 0 is reserved for invalid translation
+			 * if hardware supports caching mode.
+			 */
+			if (cap_caching_mode(iommu->cap) && i == 0)
+				continue;
+
 			domain = iommu->domains[i];
 			clear_bit(i, iommu->domain_ids);
 
