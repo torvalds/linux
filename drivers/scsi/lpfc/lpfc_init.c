@@ -5280,6 +5280,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	kfree(phba->sli4_hba.cpu_map);
 	phba->sli4_hba.num_present_cpu = 0;
 	phba->sli4_hba.num_online_cpu = 0;
+	phba->sli4_hba.curr_disp_cpu = 0;
 
 	/* Free memory allocated for msi-x interrupt vector entries */
 	kfree(phba->sli4_hba.msix_entries);
@@ -6850,6 +6851,7 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	}
 	phba->sli4_hba.num_online_cpu = i;
 	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
+	phba->sli4_hba.curr_disp_cpu = 0;
 
 	if (i < cfg_fcp_io_channel) {
 		lpfc_printf_log(phba,

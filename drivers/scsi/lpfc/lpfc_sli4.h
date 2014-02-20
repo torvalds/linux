@@ -607,6 +607,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_vector_map_info *cpu_map;
 	uint16_t num_online_cpu;
 	uint16_t num_present_cpu;
+	uint16_t curr_disp_cpu;
 };
 
 enum lpfc_sge_type {

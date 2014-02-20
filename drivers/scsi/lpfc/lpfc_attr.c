@@ -4288,7 +4288,7 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_vector_map_info *cpup;
-	int  idx, len = 0;
+	int  len = 0;
 
 	if ((phba->sli_rev != LPFC_SLI_REV4) ||
 	    (phba->intr_type != MSIX))
@@ -4316,23 +4316,39 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 		break;
 	}
 
-	cpup = phba->sli4_hba.cpu_map;
-	for (idx = 0; idx < phba->sli4_hba.num_present_cpu; idx++) {
+	while (phba->sli4_hba.curr_disp_cpu < phba->sli4_hba.num_present_cpu) {
+		cpup = &phba->sli4_hba.cpu_map[phba->sli4_hba.curr_disp_cpu];
+
+		/* margin should fit in this and the truncated message */
 		if (cpup->irq == LPFC_VECTOR_MAP_EMPTY)
 			len += snprintf(buf + len, PAGE_SIZE-len,
 					"CPU %02d io_chan %02d "
 					"physid %d coreid %d\n",
-					idx, cpup->channel_id, cpup->phys_id,
+					phba->sli4_hba.curr_disp_cpu,
+					cpup->channel_id, cpup->phys_id,
 					cpup->core_id);
 		else
 			len += snprintf(buf + len, PAGE_SIZE-len,
 					"CPU %02d io_chan %02d "
 					"physid %d coreid %d IRQ %d\n",
-					idx, cpup->channel_id, cpup->phys_id,
+					phba->sli4_hba.curr_disp_cpu,
+					cpup->channel_id, cpup->phys_id,
 					cpup->core_id, cpup->irq);
 
-		cpup++;
+		phba->sli4_hba.curr_disp_cpu++;
+
+		/* display max number of CPUs keeping some margin */
+		if (phba->sli4_hba.curr_disp_cpu <
+				phba->sli4_hba.num_present_cpu &&
+				(len >= (PAGE_SIZE - 64))) {
+			len += snprintf(buf + len, PAGE_SIZE-len, "more...\n");
+			break;
+		}
 	}
+
+	if (phba->sli4_hba.curr_disp_cpu == phba->sli4_hba.num_present_cpu)
+		phba->sli4_hba.curr_disp_cpu = 0;
+
 	return len;
 }
 
