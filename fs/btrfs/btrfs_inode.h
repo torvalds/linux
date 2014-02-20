@@ -109,14 +109,17 @@ struct btrfs_inode {
 	u64 last_trans;
 
 	/*
-	 * log transid when this inode was last modified
-	 */
-	u64 last_sub_trans;
-
-	/*
 	 * transid that last logged this inode
 	 */
 	u64 logged_trans;
+
+	/*
+	 * log transid when this inode was last modified
+	 */
+	int last_sub_trans;
+
+	/* a local copy of root's last_log_commit */
+	int last_log_commit;
 
 	/* total number of bytes pending delalloc, used by stat to calc the
 	 * real block usage of the file
@@ -154,9 +157,6 @@ struct btrfs_inode {
 
 	/* flags field from the on disk inode */
 	u32 flags;
-
-	/* a local copy of root's last_log_commit */
-	unsigned long last_log_commit;
 
 	/*
 	 * Counters to keep track of the number of extent item's we may use due

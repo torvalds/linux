@@ -2362,7 +2362,7 @@ static int update_log_root(struct btrfs_trans_handle *trans,
 }
 
 static int wait_log_commit(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, unsigned long transid)
+			   struct btrfs_root *root, int transid)
 {
 	DEFINE_WAIT(wait);
 	int index = transid % 2;
@@ -2434,7 +2434,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	int ret;
 	struct btrfs_root *log = root->log_root;
 	struct btrfs_root *log_root_tree = root->fs_info->log_root_tree;
-	unsigned long log_transid = 0;
+	int log_transid = 0;
 	struct blk_plug plug;
 
 	mutex_lock(&root->log_mutex);
