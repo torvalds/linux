@@ -93,13 +93,14 @@ static void tunnel_dst_reset(struct ip_tunnel *t)
 	tunnel_dst_set(t, NULL);
 }
 
-static void tunnel_dst_reset_all(struct ip_tunnel *t)
+void ip_tunnel_dst_reset_all(struct ip_tunnel *t)
 {
 	int i;
 
 	for_each_possible_cpu(i)
 		__tunnel_dst_set(per_cpu_ptr(t->dst_cache, i), NULL);
 }
+EXPORT_SYMBOL(ip_tunnel_dst_reset_all);
 
 static struct rtable *tunnel_rtable_get(struct ip_tunnel *t, u32 cookie)
 {
@@ -713,7 +714,7 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 		if (set_mtu)
 			dev->mtu = mtu;
 	}
-	tunnel_dst_reset_all(t);
+	ip_tunnel_dst_reset_all(t);
 	netdev_state_change(dev);
 }
 
@@ -1042,7 +1043,7 @@ void ip_tunnel_uninit(struct net_device *dev)
 	if (itn->fb_tunnel_dev != dev)
 		ip_tunnel_del(netdev_priv(dev));
 
-	tunnel_dst_reset_all(tunnel);
+	ip_tunnel_dst_reset_all(tunnel);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_uninit);
 
