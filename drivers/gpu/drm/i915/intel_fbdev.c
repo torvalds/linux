@@ -291,6 +291,24 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 	bool *save_enabled;
 	bool any_enabled = false;
 
+	/*
+	 * If the user specified any force options, just bail here
+	 * and use that config.
+	 */
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		struct drm_fb_helper_connector *fb_conn;
+		struct drm_connector *connector;
+
+		fb_conn = fb_helper->connector_info[i];
+		connector = fb_conn->connector;
+
+		if (!enabled[i])
+			continue;
+
+		if (connector->force != DRM_FORCE_UNSPECIFIED)
+			return false;
+	}
+
 	save_enabled = kcalloc(dev->mode_config.num_connector, sizeof(bool),
 			       GFP_KERNEL);
 	if (!save_enabled)
