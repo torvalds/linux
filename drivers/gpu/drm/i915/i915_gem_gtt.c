@@ -1001,15 +1001,9 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		kunmap_atomic(pt_vaddr);
 }
 
-static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
+static void gen6_ppgtt_unmap_pages(struct i915_hw_ppgtt *ppgtt)
 {
-	struct i915_hw_ppgtt *ppgtt =
-		container_of(vm, struct i915_hw_ppgtt, base);
 	int i;
-
-	list_del(&vm->global_link);
-	drm_mm_takedown(&ppgtt->base.mm);
-	drm_mm_remove_node(&ppgtt->node);
 
 	if (ppgtt->pt_dma_addr) {
 		for (i = 0; i < ppgtt->num_pd_entries; i++)
@@ -1017,11 +1011,29 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 				       ppgtt->pt_dma_addr[i],
 				       4096, PCI_DMA_BIDIRECTIONAL);
 	}
+}
+
+static void gen6_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
+{
+	int i;
 
 	kfree(ppgtt->pt_dma_addr);
 	for (i = 0; i < ppgtt->num_pd_entries; i++)
 		__free_page(ppgtt->pt_pages[i]);
 	kfree(ppgtt->pt_pages);
+}
+
+static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
+
+	list_del(&vm->global_link);
+	drm_mm_takedown(&ppgtt->base.mm);
+	drm_mm_remove_node(&ppgtt->node);
+
+	gen6_ppgtt_unmap_pages(ppgtt);
+	gen6_ppgtt_free(ppgtt);
 }
 
 static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
