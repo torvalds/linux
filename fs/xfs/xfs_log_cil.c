@@ -721,7 +721,7 @@ xlog_cil_empty(
  * background commit, returns without it held once background commits are
  * allowed again.
  */
-int
+void
 xfs_log_commit_cil(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
@@ -767,7 +767,6 @@ xfs_log_commit_cil(
 	xlog_cil_push_background(log);
 
 	up_read(&cil->xc_ctx_lock);
-	return 0;
 }
 
 /*
