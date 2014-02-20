@@ -2375,14 +2375,14 @@ static int wait_log_commit(struct btrfs_trans_handle *trans,
 				&wait, TASK_UNINTERRUPTIBLE);
 		mutex_unlock(&root->log_mutex);
 
-		if (root->fs_info->last_trans_log_full_commit !=
+		if (ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) !=
 		    trans->transid && root->log_transid < transid + 2 &&
 		    atomic_read(&root->log_commit[index]))
 			schedule();
 
 		finish_wait(&root->log_commit_wait[index], &wait);
 		mutex_lock(&root->log_mutex);
-	} while (root->fs_info->last_trans_log_full_commit !=
+	} while (ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) !=
 		 trans->transid && root->log_transid < transid + 2 &&
 		 atomic_read(&root->log_commit[index]));
 	return 0;
@@ -2392,12 +2392,12 @@ static void wait_for_writer(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root)
 {
 	DEFINE_WAIT(wait);
-	while (root->fs_info->last_trans_log_full_commit !=
+	while (ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) !=
 	       trans->transid && atomic_read(&root->log_writers)) {
 		prepare_to_wait(&root->log_writer_wait,
 				&wait, TASK_UNINTERRUPTIBLE);
 		mutex_unlock(&root->log_mutex);
-		if (root->fs_info->last_trans_log_full_commit !=
+		if (ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) !=
 		    trans->transid && atomic_read(&root->log_writers))
 			schedule();
 		mutex_lock(&root->log_mutex);
@@ -2456,7 +2456,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	}
 
 	/* bail out if we need to do a full commit */
-	if (root->fs_info->last_trans_log_full_commit == trans->transid) {
+	if (ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) ==
+	    trans->transid) {
 		ret = -EAGAIN;
 		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&root->log_mutex);
@@ -2515,7 +2516,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 			mutex_unlock(&log_root_tree->log_mutex);
 			goto out;
 		}
-		root->fs_info->last_trans_log_full_commit = trans->transid;
+		ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) =
+								trans->transid;
 		btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2547,7 +2549,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * now that we've moved on to the tree of log tree roots,
 	 * check the full commit flag again
 	 */
-	if (root->fs_info->last_trans_log_full_commit == trans->transid) {
+	if (ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) ==
+	    trans->transid) {
 		blk_finish_plug(&plug);
 		btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 		btrfs_free_logged_extents(log, log_transid);
