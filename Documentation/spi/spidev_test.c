@@ -81,7 +81,9 @@ static void print_usage(const char *prog)
 	     "  -O --cpol     clock polarity\n"
 	     "  -L --lsb      least significant bit first\n"
 	     "  -C --cs-high  chip select active high\n"
-	     "  -3 --3wire    SI/SO signals shared\n");
+	     "  -3 --3wire    SI/SO signals shared\n"
+	     "  -N --no-cs    no chip select\n"
+	     "  -R --ready    slave pulls low to pause\n");
 	exit(1);
 }
 
