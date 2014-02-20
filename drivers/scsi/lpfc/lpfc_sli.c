@@ -678,7 +678,8 @@ lpfc_handle_rrq_active(struct lpfc_hba *phba)
 			next_time = rrq->rrq_stop_time;
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
-	if (!list_empty(&phba->active_rrq_list))
+	if ((!list_empty(&phba->active_rrq_list)) &&
+	    (!(phba->pport->load_flag & FC_UNLOADING)))
 		mod_timer(&phba->rrq_tmr, next_time);
 	list_for_each_entry_safe(rrq, nextrrq, &send_rrq, list) {
 		list_del(&rrq->list);
@@ -792,7 +793,9 @@ lpfc_cleanup_wt_rrqs(struct lpfc_hba *phba)
 		list_del(&rrq->list);
 		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
 	}
-	if (!list_empty(&phba->active_rrq_list))
+	if ((!list_empty(&phba->active_rrq_list)) &&
+	    (!(phba->pport->load_flag & FC_UNLOADING)))
+
 		mod_timer(&phba->rrq_tmr, next_time);
 }
 
@@ -1323,7 +1326,8 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	if ((unlikely(pring->ringno == LPFC_ELS_RING)) &&
 	   (piocb->iocb.ulpCommand != CMD_ABORT_XRI_CN) &&
-	   (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN)) {
+	   (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN) &&
+	 (!(piocb->vport->load_flag & FC_UNLOADING))) {
 		if (!piocb->vport)
 			BUG();
 		else

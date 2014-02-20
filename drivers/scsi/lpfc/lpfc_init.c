@@ -1006,9 +1006,14 @@ lpfc_rrq_timeout(unsigned long ptr)
 
 	phba = (struct lpfc_hba *)ptr;
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
-	phba->hba_flag |= HBA_RRQ_ACTIVE;
+	if (!(phba->pport->load_flag & FC_UNLOADING))
+		phba->hba_flag |= HBA_RRQ_ACTIVE;
+	else
+		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
-	lpfc_worker_wake_up(phba);
+
+	if (!(phba->pport->load_flag & FC_UNLOADING))
+		lpfc_worker_wake_up(phba);
 }
 
 /**
