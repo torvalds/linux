@@ -58,7 +58,7 @@ static void __init emev2_add_standard_devices_dt(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char *emev2_boards_compat_dt[] __initdata = {
+static const char *emev2_boards_compat_dt[] __initconst = {
 	"renesas,emev2",
 	NULL,
 };
