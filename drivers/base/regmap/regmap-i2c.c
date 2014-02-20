@@ -49,11 +49,13 @@ static int regmap_i2c_gather_write(void *context,
 	xfer[0].flags = 0;
 	xfer[0].len = reg_size;
 	xfer[0].buf = (void *)reg;
+	xfer[0].scl_rate = 100*1000;
 
 	xfer[1].addr = i2c->addr;
 	xfer[1].flags = I2C_M_NOSTART;
 	xfer[1].len = val_size;
 	xfer[1].buf = (void *)val;
+	xfer[1].scl_rate = 100*1000;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	if (ret == 2)
@@ -77,11 +79,13 @@ static int regmap_i2c_read(void *context,
 	xfer[0].flags = 0;
 	xfer[0].len = reg_size;
 	xfer[0].buf = (void *)reg;
+	xfer[0].scl_rate = 100*1000;
 
 	xfer[1].addr = i2c->addr;
 	xfer[1].flags = I2C_M_RD;
 	xfer[1].len = val_size;
 	xfer[1].buf = val;
+	xfer[1].scl_rate = 100*1000;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	if (ret == 2)
