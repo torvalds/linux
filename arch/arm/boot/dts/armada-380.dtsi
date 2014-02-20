@@ -12,7 +12,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-/include/ "armada-38x.dtsi"
+#include "armada-38x.dtsi"
 
 / {
 	model = "Marvell Armada 380 family SoC";
