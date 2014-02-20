@@ -385,28 +385,11 @@ static inline int scsi_host_is_busy(struct Scsi_Host *shost)
 	return 0;
 }
 
-/*
- * Function:	scsi_run_queue()
- *
- * Purpose:	Select a proper request queue to serve next
- *
- * Arguments:	q	- last request's queue
- *
- * Returns:     Nothing
- *
- * Notes:	The previous command was completely finished, start
- *		a new one if possible.
- */
-static void scsi_run_queue(struct request_queue *q)
+static void scsi_starved_list_run(struct Scsi_Host *shost)
 {
-	struct scsi_device *sdev = q->queuedata;
-	struct Scsi_Host *shost;
 	LIST_HEAD(starved_list);
+	struct scsi_device *sdev;
 	unsigned long flags;
-
-	shost = sdev->host;
-	if (scsi_target(sdev)->single_lun)
-		scsi_single_lun_run(sdev);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_splice_init(&shost->starved_list, &starved_list);
@@ -459,6 +442,28 @@ static void scsi_run_queue(struct request_queue *q)
 	/* put any unprocessed entries back */
 	list_splice(&starved_list, &shost->starved_list);
 	spin_unlock_irqrestore(shost->host_lock, flags);
+}
+
+/*
+ * Function:   scsi_run_queue()
+ *
+ * Purpose:    Select a proper request queue to serve next
+ *
+ * Arguments:  q       - last request's queue
+ *
+ * Returns:     Nothing
+ *
+ * Notes:      The previous command was completely finished, start
+ *             a new one if possible.
+ */
+static void scsi_run_queue(struct request_queue *q)
+{
+	struct scsi_device *sdev = q->queuedata;
+
+	if (scsi_target(sdev)->single_lun)
+		scsi_single_lun_run(sdev);
+	if (!list_empty(&sdev->host->starved_list))
+		scsi_starved_list_run(sdev->host);
 
 	blk_run_queue(q);
 }
