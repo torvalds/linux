@@ -165,11 +165,15 @@ enum iwl_ucode_sec {
  * just an offset to the HW address.
  */
 #define IWL_UCODE_SECTION_MAX 12
+#define IWL_API_ARRAY_SIZE	1
+#define IWL_CAPABILITIES_ARRAY_SIZE	1
 
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+	u32 api[IWL_API_ARRAY_SIZE];
+	u32 capa[IWL_CAPABILITIES_ARRAY_SIZE];
 };
 
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
