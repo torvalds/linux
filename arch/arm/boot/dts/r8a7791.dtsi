@@ -429,7 +429,7 @@
 				R8A7791_CLK_MSIOF1 R8A7791_CLK_SCIFB2
 			>;
 			clock-output-names =
-				"scifa2", "scifa1", "scifa0", "misof2", "scifb0",
+				"scifa2", "scifa1", "scifa0", "msiof2", "scifb0",
 				"scifb1", "msiof1", "scifb2";
 		};
 		mstp3_clks: mstp3_clks@e615013c {
