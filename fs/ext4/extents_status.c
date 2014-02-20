@@ -658,8 +658,7 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 
 	newes.es_lblk = lblk;
 	newes.es_len = len;
-	ext4_es_store_pblock(&newes, pblk);
-	ext4_es_store_status(&newes, status);
+	ext4_es_store_pblock_status(&newes, pblk, status);
 	trace_ext4_es_insert_extent(inode, &newes);
 
 	ext4_es_insert_extent_check(inode, &newes);
@@ -699,8 +698,7 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 
 	newes.es_lblk = lblk;
 	newes.es_len = len;
-	ext4_es_store_pblock(&newes, pblk);
-	ext4_es_store_status(&newes, status);
+	ext4_es_store_pblock_status(&newes, pblk, status);
 	trace_ext4_es_cache_extent(inode, &newes);
 
 	if (!len)
@@ -812,13 +810,13 @@ retry:
 
 			newes.es_lblk = end + 1;
 			newes.es_len = len2;
+			block = 0x7FDEADBEEF;
 			if (ext4_es_is_written(&orig_es) ||
-			    ext4_es_is_unwritten(&orig_es)) {
+			    ext4_es_is_unwritten(&orig_es))
 				block = ext4_es_pblock(&orig_es) +
 					orig_es.es_len - len2;
-				ext4_es_store_pblock(&newes, block);
-			}
-			ext4_es_store_status(&newes, ext4_es_status(&orig_es));
+			ext4_es_store_pblock_status(&newes, block,
+						    ext4_es_status(&orig_es));
 			err = __es_insert_extent(inode, &newes);
 			if (err) {
 				es->es_lblk = orig_es.es_lblk;
