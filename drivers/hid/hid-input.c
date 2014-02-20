@@ -1150,7 +1150,7 @@ static void hidinput_led_worker(struct work_struct *work)
 					      led_work);
 	struct hid_field *field;
 	struct hid_report *report;
-	int len;
+	int len, ret;
 	__u8 *buf;
 
 	field = hidinput_get_led_field(hid);
@@ -1184,7 +1184,10 @@ static void hidinput_led_worker(struct work_struct *work)
 
 	hid_output_report(report, buf);
 	/* synchronous output report */
-	hid_output_raw_report(hid, buf, len, HID_OUTPUT_REPORT);
+	ret = hid_hw_output_report(hid, buf, len);
+	if (ret == -ENOSYS)
+		hid_hw_raw_request(hid, report->id, buf, len, HID_OUTPUT_REPORT,
+				HID_REQ_SET_REPORT);
 	kfree(buf);
 }
 
@@ -1263,7 +1266,8 @@ static struct hid_input *hidinput_allocate(struct hid_device *hid)
 	}
 
 	input_set_drvdata(input_dev, hid);
-	if (hid->ll_driver->request || hid->hid_output_raw_report)
+	if (hid->ll_driver->request || hid->ll_driver->output_report ||
+	    hid->ll_driver->raw_request)
 		input_dev->event = hidinput_input_event;
 	input_dev->open = hidinput_open;
 	input_dev->close = hidinput_close;
