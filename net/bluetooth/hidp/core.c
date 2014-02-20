@@ -767,6 +767,9 @@ static int hidp_setup_hid(struct hidp_session *session,
 	snprintf(hid->phys, sizeof(hid->phys), "%pMR",
 		 &l2cap_pi(session->ctrl_sock->sk)->chan->src);
 
+	/* NOTE: Some device modules depend on the dst address being stored in
+	 * uniq. Please be aware of this before making changes to this behavior.
+	 */
 	snprintf(hid->uniq, sizeof(hid->uniq), "%pMR",
 		 &l2cap_pi(session->ctrl_sock->sk)->chan->dst);
 
