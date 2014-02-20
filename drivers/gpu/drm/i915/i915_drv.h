@@ -691,6 +691,7 @@ struct i915_gtt {
 };
 #define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
 
+#define GEN8_LEGACY_PDPS 4
 struct i915_hw_ppgtt {
 	struct i915_address_space base;
 	struct kref ref;
@@ -698,14 +699,14 @@ struct i915_hw_ppgtt {
 	unsigned num_pd_entries;
 	union {
 		struct page **pt_pages;
-		struct page *gen8_pt_pages;
+		struct page **gen8_pt_pages[GEN8_LEGACY_PDPS];
 	};
 	struct page *pd_pages;
 	int num_pd_pages;
 	int num_pt_pages;
 	union {
 		uint32_t pd_offset;
-		dma_addr_t pd_dma_addr[4];
+		dma_addr_t pd_dma_addr[GEN8_LEGACY_PDPS];
 	};
 	union {
 		dma_addr_t *pt_dma_addr;
