@@ -202,18 +202,12 @@ ux500_regulator_debug_init(struct platform_device *pdev,
 	rdebug.num_regulators = num_regulators;
 
 	rdebug.state_before_suspend = kzalloc(num_regulators, GFP_KERNEL);
-	if (!rdebug.state_before_suspend) {
-		dev_err(&pdev->dev,
-			"could not allocate memory for saving state\n");
+	if (!rdebug.state_before_suspend)
 		goto exit_destroy_power_state;
-	}
 
 	rdebug.state_after_suspend = kzalloc(num_regulators, GFP_KERNEL);
-	if (!rdebug.state_after_suspend) {
-		dev_err(&pdev->dev,
-			"could not allocate memory for saving state\n");
+	if (!rdebug.state_after_suspend)
 		goto exit_free;
-	}
 
 	dbx500_regulator_testcase(regulator_info, num_regulators);
 	return 0;
