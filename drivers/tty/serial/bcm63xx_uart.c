@@ -589,7 +589,7 @@ static int bcm_uart_request_port(struct uart_port *port)
 {
 	unsigned int size;
 
-	size = RSET_UART_SIZE;
+	size = UART_REG_SIZE;
 	if (!request_mem_region(port->mapbase, size, "bcm63xx")) {
 		dev_err(port->dev, "Memory region busy\n");
 		return -EBUSY;
@@ -609,7 +609,7 @@ static int bcm_uart_request_port(struct uart_port *port)
  */
 static void bcm_uart_release_port(struct uart_port *port)
 {
-	release_mem_region(port->mapbase, RSET_UART_SIZE);
+	release_mem_region(port->mapbase, UART_REG_SIZE);
 	iounmap(port->membase);
 }
 
