@@ -13,6 +13,7 @@
  */
 
 #include "skeleton.dtsi"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 
 #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
 
@@ -109,7 +110,7 @@
 			timer@c600 {
 				compatible = "arm,cortex-a9-twd-timer";
 				reg = <0xc600 0x20>;
-				interrupts = <1 13 0x301>;
+				interrupts = <GIC_PPI 13 0x301>;
 				clocks = <&coreclk 2>;
 			};
 
@@ -128,7 +129,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				cell-index = <0>;
-				interrupts = <0 1 0x4>;
+				interrupts = <GIC_SPI 1 0x4>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -139,7 +140,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				cell-index = <1>;
-				interrupts = <0 63 0x4>;
+				interrupts = <GIC_SPI 63 0x4>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -149,7 +150,7 @@
 				reg = <0x11000 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interrupts = <0 2 0x4>;
+				interrupts = <GIC_SPI 2 0x4>;
 				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
@@ -160,7 +161,7 @@
 				reg = <0x11100 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interrupts = <0 3 0x4>;
+				interrupts = <GIC_SPI 3 0x4>;
 				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
@@ -170,7 +171,7 @@
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12000 0x100>;
 				reg-shift = <2>;
-				interrupts = <0 12 4>;
+				interrupts = <GIC_SPI 12 4>;
 				reg-io-width = <1>;
 				status = "disabled";
 			};
@@ -179,7 +180,7 @@
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12100 0x100>;
 				reg-shift = <2>;
-				interrupts = <0 13 4>;
+				interrupts = <GIC_SPI 13 4>;
 				reg-io-width = <1>;
 				status = "disabled";
 			};
@@ -197,8 +198,8 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				interrupts = <0 53 0x4>, <0 54 0x4>,
-					     <0 55 0x4>, <0 56 0x4>;
+				interrupts = <GIC_SPI 53 0x4>, <GIC_SPI 54 0x4>,
+					     <GIC_SPI 55 0x4>, <GIC_SPI 56 0x4>;
 			};
 
 			gpio1: gpio@18140 {
@@ -209,8 +210,8 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				interrupts = <0 58 0x4>, <0 59 0x4>,
-					     <0 60 0x4>, <0 61 0x4>;
+				interrupts = <GIC_SPI 58 0x4>, <GIC_SPI 59 0x4>,
+					     <GIC_SPI 60 0x4>, <GIC_SPI 61 0x4>;
 			};
 
 			system-controller@18200 {
@@ -244,17 +245,17 @@
 				#size-cells = <1>;
 				interrupt-controller;
 				msi-controller;
-				interrupts = <1 15 0x4>;
+				interrupts = <GIC_PPI 15 0x4>;
 			};
 
 			timer@20300 {
 				compatible = "marvell,armada-380-timer",
 					     "marvell,armada-xp-timer";
 				reg = <0x20300 0x30>, <0x21040 0x30>;
-				interrupts-extended = <&gic  0  8 4>,
-						      <&gic  0  9 4>,
-						      <&gic  0 10 4>,
-						      <&gic  0 11 4>,
+				interrupts-extended = <&gic  GIC_SPI  8 4>,
+						      <&gic  GIC_SPI  9 4>,
+						      <&gic  GIC_SPI 10 4>,
+						      <&gic  GIC_SPI 11 4>,
 						      <&mpic 5>,
 						      <&mpic 6>;
 				clocks = <&coreclk 2>, <&refclk>;
@@ -285,12 +286,12 @@
 				status = "okay";
 
 				xor00 {
-					interrupts = <0 22 0x4>;
+					interrupts = <GIC_SPI 22 0x4>;
 					dmacap,memcpy;
 					dmacap,xor;
 				};
 				xor01 {
-					interrupts = <0 23 0x4>;
+					interrupts = <GIC_SPI 23 0x4>;
 					dmacap,memcpy;
 					dmacap,xor;
 					dmacap,memset;
@@ -305,12 +306,12 @@
 				status = "okay";
 
 				xor10 {
-					interrupts = <0 65 0x4>;
+					interrupts = <GIC_SPI 65 0x4>;
 					dmacap,memcpy;
 					dmacap,xor;
 				};
 				xor11 {
-					interrupts = <0 66 0x4>;
+					interrupts = <GIC_SPI 66 0x4>;
 					dmacap,memcpy;
 					dmacap,xor;
 					dmacap,memset;
