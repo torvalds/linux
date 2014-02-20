@@ -1330,9 +1330,6 @@ void __hid_request(struct hid_device *hid, struct hid_report *report,
 	int ret;
 	int len;
 
-	if (!hid->ll_driver->raw_request)
-		return;
-
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
 	if (!buf)
 		return;
@@ -2470,6 +2467,14 @@ int hid_add_device(struct hid_device *hdev)
 	 * wait for coming driver */
 	if (hid_ignore(hdev))
 		return -ENODEV;
+
+	/*
+	 * Check for the mandatory transport channel.
+	 */
+	 if (!hdev->ll_driver->raw_request) {
+		hid_err(hdev, "transport driver missing .raw_request()\n");
+		return -EINVAL;
+	 }
 
 	/*
 	 * Read the device report descriptor once and use as template

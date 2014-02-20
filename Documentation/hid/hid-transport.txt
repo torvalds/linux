@@ -283,7 +283,8 @@ The available HID callbacks are:
                        int reqtype)
    Same as ->request() but provides the report as raw buffer. This request shall
    be synchronous. A transport driver must not use ->wait() to complete such
-   requests.
+   requests. This request is mandatory and hid core will reject the device if
+   it is missing.
 
  - int (*output_report) (struct hid_device *hdev, __u8 *buf, size_t len)
    Send raw output report via intr channel. Used by some HID device drivers
