@@ -1,5 +1,6 @@
 /*
- * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2013 Boundary Devices, Inc.
+ * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -12,11 +13,11 @@
 
 /dts-v1/;
 #include "imx6q.dtsi"
-#include "imx6qdl-sabrelite.dtsi"
+#include "imx6qdl-nitrogen6x.dtsi"
 
 / {
-	model = "Freescale i.MX6 Quad SABRE Lite Board";
-	compatible = "fsl,imx6q-sabrelite", "fsl,imx6q";
+	model = "Freescale i.MX6 Quad Nitrogen6x Board";
+	compatible = "fsl,imx6q-nitrogen6x", "fsl,imx6q";
 };
 
 &sata {
