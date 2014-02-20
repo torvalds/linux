@@ -45,6 +45,13 @@ config COMMON_CLK_MAX77686
 	---help---
 	  This driver supports Maxim 77686 crystal oscillator clock. 
 
+config COMMON_CLK_SCPI
+	tristate "Clock driver for oscillators controlled via SCPI interface"
+	depends on ARM_SCPI_MHU
+	---help---
+	  This driver provides support for oscillators that are controlled
+	  by firmware that implements the SCPI interface.
+
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
