@@ -29,6 +29,32 @@
  *
  */
 
+/*
+ *      In the original out of kernel Digi dgap driver, firmware
+ *      loading was done via user land to driver handshaking.
+ *
+ *      For cards that support a concentrator (port expander),
+ *      I believe the concentrator its self told the card which
+ *      concentrator is actually attached and then that info
+ *      was used to tell user land which concentrator firmware
+ *      image was to be downloaded. I think even the BIOS or
+ *      FEP images required could change with the connection
+ *      of a particular concentrator.
+ *
+ *      Since I have no access to any of these cards or
+ *      concentrators, I cannot put the correct concentrator
+ *      firmware file names into the firmware_info structure
+ *      as is now done for the BIOS and FEP images.
+ *
+ *      I think, but am not certain, that the cards supporting
+ *      concentrators will function without them. So support
+ *      of these cards has been left in this driver.
+ *
+ *      In order to fully support those cards, they would
+ *      either have to be acquired for dissection or maybe
+ *      Digi International could provide some assistance.
+ */
+#undef DIGI_CONCENTRATORS_SUPPORTED
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -48,6 +74,7 @@
 #include <linux/string.h>
 #include <linux/device.h>
 #include <linux/kdev_t.h>
+#include <linux/firmware.h>
 
 #include "dgap.h"
 
@@ -191,11 +218,18 @@ static int	dgap_ms_sleep(ulong ms);
 static char	*dgap_ioctl_name(int cmd);
 static void	dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len);
 static void	dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len);
+#ifdef DIGI_CONCENTRATORS_SUPPORTED
 static void	dgap_do_conc_load(struct board_t *brd, uchar *uaddr, int len);
-static void	dgap_do_config_load(uchar __user *uaddr, int len);
-static int	dgap_after_config_loaded(void);
+#endif
+static int	dgap_after_config_loaded(int board);
 static int	dgap_finalize_board_init(struct board_t *brd);
 
+static void dgap_get_vpd(struct board_t *brd);
+static void dgap_do_reset_board(struct board_t *brd);
+static void dgap_do_wait_for_bios(struct board_t *brd);
+static void dgap_do_wait_for_fep(struct board_t *brd);
+static void dgap_sysfs_create(struct board_t *brd);
+static int dgap_firmware_load(struct pci_dev *pdev, int card_type);
 
 /* Driver load/unload functions */
 int			dgap_init_module(void);
@@ -249,6 +283,24 @@ static ulong		dgap_poll_time;				/* Time of next poll */
 static uint		dgap_poll_stop;				/* Used to tell poller to stop */
 static struct timer_list dgap_poll_timer;
 
+/*
+     SUPPORTED PRODUCTS
+
+     Card Model               Number of Ports      Interface
+     ----------------------------------------------------------------
+     Acceleport Xem           4 - 64              (EIA232 & EIA422)
+     Acceleport Xr            4 & 8               (EIA232)
+     Acceleport Xr 920        4 & 8               (EIA232)
+     Acceleport C/X           8 - 128             (EIA232)
+     Acceleport EPC/X         8 - 224             (EIA232)
+     Acceleport Xr/422        4 & 8               (EIA422)
+     Acceleport 2r/920        2                   (EIA232)
+     Acceleport 4r/920        4                   (EIA232)
+     Acceleport 8r/920        8                   (EIA232)
+
+     IBM 8-Port Asynchronous PCI Adapter          (EIA232)
+     IBM 128-Port Asynchronous PCI Adapter        (EIA232 & EIA422)
+*/
 
 static struct pci_device_id dgap_pci_tbl[] = {
 	{       DIGI_VID, PCI_DEVICE_XEM_DID,	PCI_ANY_ID, PCI_ANY_ID, 0, 0,	0 },
@@ -308,6 +360,35 @@ static struct pci_driver dgap_driver = {
 	.remove		= dgap_remove_one,
 };
 
+struct firmware_info {
+	uchar *conf_name;       /* dgap.conf */
+	uchar *bios_name;	/* BIOS filename */
+	uchar *fep_name;	/* FEP  filename */
+	uchar *con_name;	/* Concentrator filename  FIXME*/
+	int num;                /* sequence number */
+};
+
+/*
+ * Firmware - BIOS, FEP, and CONC filenames
+ */
+static struct firmware_info fw_info[] = {
+	{ "dgap/dgap.conf", "dgap/sxbios.bin",  "dgap/sxfep.bin",  0, 0 },
+	{ "dgap/dgap.conf", "dgap/cxpbios.bin", "dgap/cxpfep.bin", 0, 1 },
+	{ "dgap/dgap.conf", "dgap/cxpbios.bin", "dgap/cxpfep.bin", 0, 2 },
+	{ "dgap/dgap.conf", "dgap/pcibios.bin", "dgap/pcifep.bin", 0, 3 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 4 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 5 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 6 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 7 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 8 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 9 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 10 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 11 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 12 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 13 },
+	{ "dgap/dgap.conf", "dgap/sxbios.bin",  "dgap/sxfep.bin",  0, 14 },
+	{0,}
+};
 
 static char *dgap_state_text[] = {
 	"Board Failed",
@@ -477,6 +558,8 @@ int dgap_init_module(void)
 
 	APR(("%s, Digi International Part Number %s\n", DG_NAME, DG_PART));
 
+	dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
+
 	/*
 	 * Initialize global stuff
 	 */
@@ -505,6 +588,7 @@ int dgap_init_module(void)
 	}
 	else {
 		dgap_create_driver_sysfiles(&dgap_driver);
+		dgap_driver_state = DRIVER_READY;
 	}
 
 	DPR_INIT(("Finished init_module. Returning %d\n", rc));
@@ -550,9 +634,6 @@ static int dgap_start(void)
 			device_create(dgap_class, NULL,
 				MKDEV(DIGI_DGAP_MAJOR, 0),
 				NULL, "dgap_mgmt");
-			device_create(dgap_class, NULL,
-				MKDEV(DIGI_DGAP_MAJOR, 1),
-				NULL, "dgap_downld");
 			dgap_Major_Control_Registered = TRUE;
 		}
 
@@ -608,6 +689,7 @@ static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (rc == 0) {
 			dgap_NumBoards++;
 			DPR_INIT(("Incrementing numboards to %d\n", dgap_NumBoards));
+			rc = dgap_firmware_load(pdev, ent->driver_data);
 		}
 	}
 	return rc;
@@ -907,6 +989,150 @@ static int dgap_finalize_board_init(struct board_t *brd) {
 	return(0);
 }
 
+static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
+{
+	struct board_t *brd = dgap_Board[dgap_NumBoards - 1];
+	const struct firmware *fw;
+	int ret;
+
+	dgap_get_vpd(brd);
+	dgap_do_reset_board(brd);
+
+	if ((fw_info[card_type].conf_name) &&
+	    (dgap_driver_state == DRIVER_NEED_CONFIG_LOAD)) {
+		ret = request_firmware(&fw, fw_info[card_type].conf_name,
+					 &pdev->dev);
+		if (ret) {
+			pr_err("dgap: config file %s not found\n",
+				fw_info[card_type].conf_name);
+			return ret;
+		}
+		if (!dgap_config_buf) {
+			dgap_config_buf = kmalloc(fw->size + 1, GFP_ATOMIC);
+			if (!dgap_config_buf) {
+				release_firmware(fw);
+				return -ENOMEM;
+			}
+		}
+
+		memcpy(dgap_config_buf, fw->data, fw->size);
+		release_firmware(fw);
+		dgap_config_buf[fw->size + 1] = '\0';
+
+		if (dgap_parsefile(&dgap_config_buf, TRUE) != 0)
+			return -EINVAL;
+
+		dgap_driver_state = -1;
+	}
+
+	ret = dgap_after_config_loaded(brd->boardnum);
+	if (ret)
+		return ret;
+	/*
+	 * Match this board to a config the user created for us.
+	 */
+	brd->bd_config =
+		dgap_find_config(brd->type, brd->pci_bus, brd->pci_slot);
+
+	/*
+	 * Because the 4 port Xr products share the same PCI ID
+	 * as the 8 port Xr products, if we receive a NULL config
+	 * back, and this is a PAPORT8 board, retry with a
+	 * PAPORT4 attempt as well.
+	 */
+	if (brd->type == PAPORT8 && !brd->bd_config)
+		brd->bd_config =
+			dgap_find_config(PAPORT4, brd->pci_bus, brd->pci_slot);
+
+	if (!brd->bd_config) {
+		pr_err("dgap: No valid configuration found\n");
+		return -EINVAL;
+	}
+
+	dgap_tty_register(brd);
+	dgap_finalize_board_init(brd);
+
+	if (fw_info[card_type].bios_name) {
+		ret = request_firmware(&fw, fw_info[card_type].bios_name,
+					&pdev->dev);
+		if (ret) {
+			pr_err("dgap: bios file %s not found\n",
+				fw_info[card_type].bios_name);
+			return ret;
+		}
+		dgap_do_bios_load(brd, (char *)fw->data, fw->size);
+		release_firmware(fw);
+
+		/* Wait for BIOS to test board... */
+		dgap_do_wait_for_bios(brd);
+
+		if (brd->state != FINISHED_BIOS_LOAD)
+			return -ENXIO;
+	}
+
+	if (fw_info[card_type].fep_name) {
+		ret = request_firmware(&fw, fw_info[card_type].fep_name,
+					&pdev->dev);
+		if (ret) {
+			pr_err("dgap: fep file %s not found\n",
+				fw_info[card_type].fep_name);
+			return ret;
+		}
+		dgap_do_fep_load(brd, (char *)fw->data, fw->size);
+		release_firmware(fw);
+
+		/* Wait for FEP to load on board... */
+		dgap_do_wait_for_fep(brd);
+
+		if (brd->state != FINISHED_FEP_LOAD)
+			return -ENXIO;
+	}
+
+#ifdef DIGI_CONCENTRATORS_SUPPORTED
+	/*
+	 * If this is a CX or EPCX, we need to see if the firmware
+	 * is requesting a concentrator image from us.
+	 */
+	if ((bd->type == PCX) || (bd->type == PEPC)) {
+		chk_addr = (u16 *) (vaddr + DOWNREQ);
+		/* Nonzero if FEP is requesting concentrator image. */
+		check = readw(chk_addr);
+		vaddr = brd->re_map_membase;
+	}
+
+	if (fw_info[card_type].con_name && check && vaddr) {
+		ret = request_firmware(&fw, fw_info[card_type].con_name,
+					&pdev->dev);
+		if (ret) {
+			pr_err("dgap: conc file %s not found\n",
+				fw_info[card_type].con_name);
+			return ret;
+		}
+		/* Put concentrator firmware loading code here */
+		offset = readw((u16 *) (vaddr + DOWNREQ));
+		memcpy_toio(offset, fw->data, fw->size);
+
+		dgap_do_conc_load(brd, (char *)fw->data, fw->size)
+		release_firmware(fw);
+	}
+#endif
+	/*
+	 * Do tty device initialization.
+	 */
+	ret = dgap_tty_init(brd);
+	if (ret < 0) {
+		dgap_tty_uninit(brd);
+		pr_err("dgap: Can't init tty devices (%d)\n", ret);
+		return ret;
+	}
+
+	dgap_sysfs_create(brd);
+
+	brd->state = BOARD_READY;
+	brd->dpastatus = BD_RUNNING;
+
+	return 0;
+}
 
 /*
  * Remap PCI memory.
@@ -983,37 +1209,18 @@ static void dgap_poll_handler(ulong dummy)
 	int i;
         struct board_t *brd;
         unsigned long lock_flags;
-        unsigned long lock_flags2;
 	ulong new_time;
 
 	dgap_poll_counter++;
 
 
 	/*
-	 * If driver needs the config file still,
-	 * keep trying to wake up the downloader to
-	 * send us the file.
-	 */
-        if (dgap_driver_state == DRIVER_NEED_CONFIG_LOAD) {
-		/*
-		 * Signal downloader, its got some work to do.
-		 */
-		DGAP_LOCK(dgap_dl_lock, lock_flags2);
-		if (dgap_dl_action != 1) {
-			dgap_dl_action = 1;
-			wake_up_interruptible(&dgap_dl_wait);
-		}
-		DGAP_UNLOCK(dgap_dl_lock, lock_flags2);
-		goto schedule_poller;
-        }
-	/*
 	 * Do not start the board state machine until
 	 * driver tells us its up and running, and has
 	 * everything it needs.
 	 */
-	else if (dgap_driver_state != DRIVER_READY) {
+	if (dgap_driver_state != DRIVER_READY)
 		goto schedule_poller;
-	}
 
 	/*
 	 * If we have just 1 board, or the system is not SMP,
@@ -4656,112 +4863,54 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		return(-ENOIOCTLCMD);
 	}
 }
-/*
- * Loads the dgap.conf config file from the user.
- */
-static void dgap_do_config_load(uchar __user *uaddr, int len)
+
+static int dgap_after_config_loaded(int board)
 {
-	int orig_len = len;
-	char *to_addr;
-	uchar __user *from_addr = uaddr;
-	char buf[U2BSIZE];
-	int n;
-
-	to_addr = dgap_config_buf = kzalloc(len + 1, GFP_ATOMIC);
-	if (!dgap_config_buf) {
-		DPR_INIT(("dgap_do_config_load - unable to allocate memory for file\n"));
-		dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
-		return;
-	}
-
-	n = U2BSIZE;
-	while (len) {
-
-		if (n > len)
-			n = len;
-
-		if (copy_from_user((char *) &buf, from_addr, n) == -1 )
-			return;
-
-		/* Copy data from buffer to kernel memory */
-		memcpy(to_addr, buf, n);
-
-		/* increment counts */
-		len -= n;
-		to_addr += n;
-		from_addr += n;
-		n = U2BSIZE;
-	}
-
-	dgap_config_buf[orig_len] = '\0';
-
-	to_addr = dgap_config_buf;
-	dgap_parsefile(&to_addr, TRUE);
-
-	DPR_INIT(("dgap_config_load() finish\n"));
-
-	return;
-}
-
-
-static int dgap_after_config_loaded(void)
-{
-	int i = 0;
-	int rc = 0;
+	/*
+	 * Initialize KME waitqueues...
+	 */
+	init_waitqueue_head(&(dgap_Board[board]->kme_wait));
 
 	/*
-	 * Register our ttys, now that we have the config loaded.
+	 * allocate flip buffer for board.
 	 */
-	for (i = 0; i < dgap_NumBoards; ++i) {
+	dgap_Board[board]->flipbuf = kmalloc(MYFLIPLEN, GFP_ATOMIC);
+	if (!dgap_Board[board]->flipbuf)
+		return -ENOMEM;
 
-		/*
-		 * Initialize KME waitqueues...
-		 */
-		init_waitqueue_head(&(dgap_Board[i]->kme_wait));
-
-		/*
-		 * allocate flip buffer for board.
-		 */
-		dgap_Board[i]->flipbuf = kzalloc(MYFLIPLEN, GFP_ATOMIC);
-		dgap_Board[i]->flipflagbuf = kzalloc(MYFLIPLEN, GFP_ATOMIC);
+	dgap_Board[board]->flipflagbuf = kmalloc(MYFLIPLEN, GFP_ATOMIC);
+	if (!dgap_Board[board]->flipflagbuf) {
+		kfree(dgap_Board[board]->flipbuf);
+		return -ENOMEM;
 	}
 
-	return rc;
+	return 0;
 }
 
 
 
-/*=======================================================================
- *
- *      usertoboard - copy from user space to board space.
- *
- *=======================================================================*/
-static int dgap_usertoboard(struct board_t *brd, char *to_addr, char __user *from_addr, int len)
+/*
+ * Create pr and tty device entries
+ */
+static void dgap_sysfs_create(struct board_t *brd)
 {
-	char buf[U2BSIZE];
-	int n = U2BSIZE;
+	struct channel_t *ch;
+	int j = 0;
 
-	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
-		return -EFAULT;
+	ch = brd->channels[0];
+	for (j = 0; j < brd->nasync; j++, ch = brd->channels[j]) {
+		struct device *classp;
+		classp = tty_register_device(brd->SerialDriver, j,
+						&(ch->ch_bd->pdev->dev));
+		ch->ch_tun.un_sysfs = classp;
+		dgap_create_tty_sysfs(&ch->ch_tun, classp);
 
-	while (len) {
-		if (n > len)
-			n = len;
-
-		if (copy_from_user((char *) &buf, from_addr, n) == -1 ) {
-			return -EFAULT;
-		}
-
-		/* Copy data from buffer to card memory */
-		memcpy_toio(to_addr, buf, n);
-
-		/* increment counts */
-		len -= n;
-		to_addr += n;
-		from_addr += n;
-		n = U2BSIZE;
+		classp = tty_register_device(brd->PrintDriver, j,
+						&(ch->ch_bd->pdev->dev));
+		ch->ch_pun.un_sysfs = classp;
+		dgap_create_tty_sysfs(&ch->ch_pun, classp);
 	}
-	return 0;
+	dgap_create_ports_sysfiles(brd);
 }
 
 
@@ -4792,18 +4941,13 @@ static void dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len)
 	 * Download bios
 	 */
 	offset = 0x1000;
-	if (dgap_usertoboard(brd, addr + offset, ubios, len) == -1 ) {
-		brd->state = BOARD_FAILED;
-		brd->dpastatus = BD_NOFEP;
-		return;
-	}
+	memcpy_toio(addr + offset, ubios, len);
 
 	writel(0x0bf00401, addr);
 	writel(0, (addr + 4));
 
 	/* Clear the reset, and change states. */
 	writeb(FEPCLR, brd->re_map_port);
-	brd->state = WAIT_BIOS_LOAD;
 }
 
 
@@ -4814,6 +4958,8 @@ static void dgap_do_wait_for_bios(struct board_t *brd)
 {
 	uchar *addr;
 	u16 word;
+	u16 err1;
+	u16 err2;
 
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) || !brd->re_map_membase)
 		return;
@@ -4821,22 +4967,31 @@ static void dgap_do_wait_for_bios(struct board_t *brd)
 	addr = brd->re_map_membase;
 	word = readw(addr + POSTAREA);
 
-	/* Check to see if BIOS thinks board is good. (GD). */
-	if (word == *(u16 *) "GD") {
-		DPR_INIT(("GOT GD in memory, moving states.\n"));
-		brd->state = FINISHED_BIOS_LOAD;
-		return;
+	/*
+	 * It can take 5-6 seconds for a board to
+	 * pass the bios self test and post results.
+	 * Give it 10 seconds.
+	 */
+	brd->wait_for_bios = 0;
+	while (brd->wait_for_bios < 1000) {
+		/* Check to see if BIOS thinks board is good. (GD). */
+		if (word == *(u16 *) "GD") {
+			DPR_INIT(("GOT GD in memory, moving states.\n"));
+			brd->state = FINISHED_BIOS_LOAD;
+			return;
+		}
+		msleep_interruptible(10);
+		brd->wait_for_bios++;
+		word = readw(addr + POSTAREA);
 	}
 
-	/* Give up on board after too long of time taken */
-	if (brd->wait_for_bios++ > 5000) {
-		u16 err1 = readw(addr + SEQUENCE);
-		u16 err2 = readw(addr + ERROR);
-		APR(("***WARNING*** %s failed diagnostics.  Error #(%x,%x).\n",
-			brd->name, err1, err2));
-		brd->state = BOARD_FAILED;
-		brd->dpastatus = BD_NOFEP;
-	}
+	/* Gave up on board after too long of time taken */
+	err1 = readw(addr + SEQUENCE);
+	err2 = readw(addr + ERROR);
+	APR(("***WARNING*** %s failed diagnostics.  Error #(%x,%x).\n",
+		brd->name, err1, err2));
+	brd->state = BOARD_FAILED;
+	brd->dpastatus = BD_NOBIOS;
 }
 
 
@@ -4844,7 +4999,7 @@ static void dgap_do_wait_for_bios(struct board_t *brd)
  * Copies the FEP code from the user to the board,
  * and starts the FEP running.
  */
-static void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len)
+static void dgap_do_fep_load(struct board_t *brd, uchar *ufep, int len)
 {
 	uchar *addr;
 	uint offset;
@@ -4860,11 +5015,7 @@ static void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len)
 	 * Download FEP
 	 */
 	offset = 0x1000;
-	if (dgap_usertoboard(brd, addr + offset, ufep, len) == -1 ) {
-		brd->state = BOARD_FAILED;
-		brd->dpastatus = BD_NOFEP;
-		return;
-	}
+	memcpy_toio(addr + offset, ufep, len);
 
 	/*
 	 * If board is a concentrator product, we need to give
@@ -4889,9 +5040,6 @@ static void dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len)
 	writel(0xbfc01004, (addr + 0xc34));
 	writel(0x3, (addr + 0xc30));
 
-	/* change states. */
-	brd->state = WAIT_FEP_LOAD;
-
 	DPR_INIT(("dgap_do_fep_load() for board %s : finish\n", brd->name));
 
 }
@@ -4904,42 +5052,45 @@ static void dgap_do_wait_for_fep(struct board_t *brd)
 {
 	uchar *addr;
 	u16 word;
+	u16 err1;
+	u16 err2;
 
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) || !brd->re_map_membase)
 		return;
 
 	addr = brd->re_map_membase;
-
-	DPR_INIT(("dgap_do_wait_for_fep() for board %s : start. addr: %p\n", brd->name, addr));
-
 	word = readw(addr + FEPSTAT);
 
-	/* Check to see if FEP is up and running now. */
-	if (word == *(u16 *) "OS") {
-		DPR_INIT(("GOT OS in memory for board %s, moving states.\n", brd->name));
-		brd->state = FINISHED_FEP_LOAD;
+	/*
+	 * It can take 2-3 seconds for the FEP to
+	 * be up and running. Give it 5 secs.
+	 */
+	brd->wait_for_fep = 0;
+	while (brd->wait_for_fep < 500) {
+		/* Check to see if FEP is up and running now. */
+		if (word == *(u16 *) "OS") {
+			brd->state = FINISHED_FEP_LOAD;
+			/*
+			 * Check to see if the board can support FEP5+ commands.
+			*/
+			word = readw(addr + FEP5_PLUS);
+			if (word == *(u16 *) "5A")
+				brd->bd_flags |= BD_FEP5PLUS;
 
-		/*
-		 * Check to see if the board can support FEP5+ commands.
-		 */
-		word = readw(addr + FEP5_PLUS);
-		if (word == *(u16 *) "5A") {
-			DPR_INIT(("GOT 5A in memory for board %s, board supports extended FEP5 commands.\n", brd->name));
-			brd->bd_flags |= BD_FEP5PLUS;
+			return;
 		}
-
-		return;
+		msleep_interruptible(10);
+		brd->wait_for_fep++;
+		word = readw(addr + FEPSTAT);
 	}
 
-	/* Give up on board after too long of time taken */
-	if (brd->wait_for_fep++ > 5000) {
-		u16 err1 = readw(addr + SEQUENCE);
-		u16 err2 = readw(addr + ERROR);
-		APR(("***WARNING*** FEPOS for %s not functioning.  Error #(%x,%x).\n",
-			brd->name, err1, err2));
-		brd->state = BOARD_FAILED;
-		brd->dpastatus = BD_NOFEP;
-	}
+	/* Gave up on board after too long of time taken */
+	err1 = readw(addr + SEQUENCE);
+	err2 = readw(addr + ERROR);
+	APR(("***WARNING*** FEPOS for %s not functioning.  Error #(%x,%x).\n",
+		brd->name, err1, err2));
+	brd->state = BOARD_FAILED;
+	brd->dpastatus = BD_NOFEP;
 
 	DPR_INIT(("dgap_do_wait_for_fep() for board %s : finish\n", brd->name));
 }
@@ -5003,6 +5154,7 @@ failed:
 }
 
 
+#ifdef DIGI_CONCENTRATORS_SUPPORTED
 /*
  * Sends a concentrator image into the FEP5 board.
  */
@@ -5019,19 +5171,14 @@ static void dgap_do_conc_load(struct board_t *brd, uchar *uaddr, int len)
 
 	offset = readw((u16 *) (vaddr + DOWNREQ));
 	to_dp = (struct downld_t *) (vaddr + (int) offset);
-
-	/*
-	 * The image was already read into kernel space,
-	 * we do NOT need a user space read here
-	 */
-	memcpy_toio((char *) to_dp, uaddr, sizeof(struct downld_t));
+	memcpy_toio(to_dp, uaddr, len);
 
 	/* Tell card we have data for it */
 	writew(0, vaddr + (DOWNREQ));
 
 	brd->conc_dl_status = NO_PENDING_CONCENTRATOR_REQUESTS;
 }
-
+#endif
 
 #define EXPANSION_ROM_SIZE	(64 * 1024)
 #define FEP5_ROM_MAGIC		(0xFEFFFFFF)
@@ -5148,8 +5295,6 @@ static void dgap_poll_tasklet(unsigned long data)
 	ulong  lock_flags2;
 	char *vaddr;
 	u16 head, tail;
-	u16 *chk_addr;
-	u16 check = 0;
 
 	if (!bd || (bd->magic != DGAP_BOARD_MAGIC)) {
 		APR(("dgap_poll_tasklet() - NULL or bad bd.\n"));
@@ -5181,30 +5326,6 @@ static void dgap_poll_tasklet(unsigned long data)
 
 		if (!bd->nasync) {
 			goto out;
-		}
-
-		/*
-		 * If this is a CX or EPCX, we need to see if the firmware
-		 * is requesting a concentrator image from us.
-		 */
-		if ((bd->type == PCX) || (bd->type == PEPC)) {
-			chk_addr = (u16 *) (vaddr + DOWNREQ);
-			check = readw(chk_addr);
-			/* Nonzero if FEP is requesting concentrator image. */
-			if (check) {
-				if (bd->conc_dl_status == NO_PENDING_CONCENTRATOR_REQUESTS)
-					bd->conc_dl_status = NEED_CONCENTRATOR;
-				/*
-				 * Signal downloader, its got some work to do.
-				 */
-				DGAP_LOCK(dgap_dl_lock, lock_flags2);
-				if (dgap_dl_action != 1) {
-					dgap_dl_action = 1;
-					wake_up_interruptible(&dgap_dl_wait);
-				}
-				DGAP_UNLOCK(dgap_dl_lock, lock_flags2);
-
-			}
 		}
 
 		eaddr = (struct ev_t *) (vaddr + EVBUF);
