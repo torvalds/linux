@@ -33,6 +33,11 @@
 #define HID_USAGE_SENSOR_DATA_LIGHT				0x2004d0
 #define HID_USAGE_SENSOR_LIGHT_ILLUM				0x2004d1
 
+/* PROX (200011) */
+#define HID_USAGE_SENSOR_PROX                                   0x200011
+#define HID_USAGE_SENSOR_DATA_PRESENCE                          0x2004b0
+#define HID_USAGE_SENSOR_HUMAN_PRESENCE                         0x2004b1
+
 /* Gyro 3D: (200076) */
 #define HID_USAGE_SENSOR_GYRO_3D				0x200076
 #define HID_USAGE_SENSOR_DATA_ANGL_VELOCITY			0x200456
