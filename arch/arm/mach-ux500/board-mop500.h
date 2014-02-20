@@ -88,8 +88,4 @@ extern struct msp_i2s_platform_data msp1_platform_data;
 extern struct msp_i2s_platform_data msp2_platform_data;
 extern struct msp_i2s_platform_data msp3_platform_data;
 
-void __init mop500_pinmaps_init(void);
-void __init snowball_pinmaps_init(void);
-void __init hrefv60_pinmaps_init(void);
-
 #endif

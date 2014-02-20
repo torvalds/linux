@@ -191,16 +191,6 @@ static void __init u8500_init_machine(void)
 {
 	struct device *parent = db8500_soc_device_init();
 
-	/* Pinmaps must be in place before devices register */
-	if (of_machine_is_compatible("st-ericsson,mop500"))
-		mop500_pinmaps_init();
-	else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
-		snowball_pinmaps_init();
-	} else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
-		hrefv60_pinmaps_init();
-	else if (of_machine_is_compatible("st-ericsson,ccu9540")) {}
-		/* TODO: Add pinmaps for ccu9540 board. */
-
 	/* automatically probe child nodes of dbx5x0 devices */
 	if (of_machine_is_compatible("st-ericsson,u8540"))
 		of_platform_populate(NULL, u8500_local_bus_nodes,
