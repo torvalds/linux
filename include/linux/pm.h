@@ -352,7 +352,7 @@ const struct dev_pm_ops name = { \
 
 /*
  * Use this for defining a set of PM operations to be used in all situations
- * (sustem suspend, hibernation or runtime PM).
+ * (system suspend, hibernation or runtime PM).
  * NOTE: In general, system suspend callbacks, .suspend() and .resume(), should
  * be different from the corresponding runtime PM callbacks, .runtime_suspend(),
  * and .runtime_resume(), because .runtime_suspend() always works on an already
