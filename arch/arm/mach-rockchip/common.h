@@ -4,6 +4,10 @@
 extern unsigned long rockchip_boot_fn;
 extern struct smp_operations rockchip_smp_ops;
 
+extern int rockchip_cpu_kill(unsigned int cpu);
+extern void rockchip_cpu_die(unsigned int cpu);
+extern int rockchip_cpu_disable(unsigned int cpu);
+
 #define BOOT_MODE_NORMAL		0
 #define BOOT_MODE_FACTORY2		1
 #define BOOT_MODE_RECOVERY		2
@@ -17,5 +21,6 @@ extern struct smp_operations rockchip_smp_ops;
 extern int rockchip_boot_mode(void);
 extern void __init rockchip_boot_mode_init(u32 flag, u32 mode);
 extern void rockchip_restart_get_boot_mode(const char *cmd, u32 *flag, u32 *mode);
+extern void __init rockchip_suspend_init(void);
 
 #endif

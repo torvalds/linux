@@ -1,9 +1,11 @@
 obj-y += common.o
 obj-y += cpu.o
 obj-y += rk3188.o
+obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_RK_FPGA) += fpga.o
 obj-$(CONFIG_CPU_IDLE) += cpuidle.o
 obj-$(CONFIG_SMP) += platsmp.o
+obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 obj-$(CONFIG_FIQ_DEBUGGER) += rk_fiq_debugger.o
 obj-$(CONFIG_CPU_FREQ) += rk3188-cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o

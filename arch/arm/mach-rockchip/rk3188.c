@@ -329,6 +329,7 @@ DT_MACHINE_START(RK3188_DT, "RK30board")
 	.map_io		= rk3188_dt_map_io,
 	.init_time	= rk3188_dt_init_timer,
 	.dt_compat	= rk3188_dt_compat,
+	.init_late	= rockchip_suspend_init,
 	.restart	= rk3188_restart,
 MACHINE_END
 

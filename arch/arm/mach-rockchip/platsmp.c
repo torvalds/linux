@@ -156,4 +156,9 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 struct smp_operations rockchip_smp_ops __initdata = {
 	.smp_prepare_cpus	= rockchip_smp_prepare_cpus,
 	.smp_boot_secondary	= rockchip_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_kill		= rockchip_cpu_kill,
+	.cpu_die		= rockchip_cpu_die,
+	.cpu_disable		= rockchip_cpu_disable,
+#endif
 };
