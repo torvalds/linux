@@ -8653,6 +8653,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	     fb->pitches[0] != crtc->fb->pitches[0]))
 		return -EINVAL;
 
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		goto out_hang;
+
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL)
 		return -ENOMEM;
@@ -8727,6 +8730,13 @@ cleanup:
 free_work:
 	kfree(work);
 
+	if (ret == -EIO) {
+out_hang:
+		intel_crtc_wait_for_pending_flips(crtc);
+		ret = intel_pipe_set_base(crtc, crtc->x, crtc->y, fb);
+		if (ret == 0 && event)
+			drm_send_vblank_event(dev, intel_crtc->pipe, event);
+	}
 	return ret;
 }
 
