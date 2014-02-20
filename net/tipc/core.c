@@ -122,30 +122,59 @@ static void tipc_core_stop(void)
  */
 static int tipc_core_start(void)
 {
-	int res;
+	int err;
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 
-	res = tipc_handler_start();
-	if (!res)
-		res = tipc_ref_table_init(tipc_max_ports, tipc_random);
-	if (!res)
-		res = tipc_nametbl_init();
-	if (!res)
-		res = tipc_netlink_start();
-	if (!res)
-		res = tipc_socket_init();
-	if (!res)
-		res = tipc_register_sysctl();
-	if (!res)
-		res = tipc_subscr_start();
-	if (!res)
-		res = tipc_cfg_init();
-	if (res) {
-		tipc_handler_stop();
-		tipc_core_stop();
-	}
-	return res;
+	err = tipc_handler_start();
+	if (err)
+		goto out_handler;
+
+	err = tipc_ref_table_init(tipc_max_ports, tipc_random);
+	if (err)
+		goto out_reftbl;
+
+	err = tipc_nametbl_init();
+	if (err)
+		goto out_nametbl;
+
+	err = tipc_netlink_start();
+	if (err)
+		goto out_netlink;
+
+	err = tipc_socket_init();
+	if (err)
+		goto out_socket;
+
+	err = tipc_register_sysctl();
+	if (err)
+		goto out_sysctl;
+
+	err = tipc_subscr_start();
+	if (err)
+		goto out_subscr;
+
+	err = tipc_cfg_init();
+	if (err)
+		goto out_cfg;
+
+	return 0;
+out_cfg:
+	tipc_subscr_stop();
+out_subscr:
+	tipc_unregister_sysctl();
+out_sysctl:
+	tipc_socket_stop();
+out_socket:
+	tipc_netlink_stop();
+out_netlink:
+	tipc_nametbl_stop();
+out_nametbl:
+	tipc_ref_table_stop();
+out_reftbl:
+	tipc_handler_stop();
+out_handler:
+	return err;
 }
 
 static int __init tipc_init(void)

@@ -945,9 +945,6 @@ void tipc_nametbl_stop(void)
 {
 	u32 i;
 
-	if (!table.types)
-		return;
-
 	/* Verify name table is empty, then release it */
 	write_lock_bh(&tipc_nametbl_lock);
 	for (i = 0; i < TIPC_NAMETBL_SIZE; i++) {
