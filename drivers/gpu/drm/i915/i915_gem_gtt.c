@@ -1725,11 +1725,6 @@ static inline unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
 	bdw_gmch_ctl &= BDW_GMCH_GGMS_MASK;
 	if (bdw_gmch_ctl)
 		bdw_gmch_ctl = 1 << bdw_gmch_ctl;
-	if (bdw_gmch_ctl > 4) {
-		WARN_ON(!i915.preliminary_hw_support);
-		return 4<<20;
-	}
-
 	return bdw_gmch_ctl << 20;
 }
 
