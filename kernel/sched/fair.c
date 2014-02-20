@@ -7317,7 +7317,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
  */
 static void switched_to_fair(struct rq *rq, struct task_struct *p)
 {
-	if (!p->se.on_rq)
+	struct sched_entity *se = &p->se;
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	/*
+	 * Since the real-depth could have been changed (only FAIR
+	 * class maintain depth value), reset depth properly.
+	 */
+	se->depth = se->parent ? se->parent->depth + 1 : 0;
+#endif
+	if (!se->on_rq)
 		return;
 
 	/*
