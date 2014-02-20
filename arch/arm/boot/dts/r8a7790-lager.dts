@@ -91,3 +91,7 @@
 	non-removable;
 	status = "okay";
 };
+
+&sata1 {
+	status = "okay";
+};
