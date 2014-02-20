@@ -759,11 +759,15 @@ int __init db1300_board_setup(void)
 {
 	unsigned short whoami;
 
-	db1300_gpio_config();
 	bcsr_init(DB1300_BCSR_PHYS_ADDR,
 		  DB1300_BCSR_PHYS_ADDR + DB1300_BCSR_HEXLED_OFS);
 
 	whoami = bcsr_read(BCSR_WHOAMI);
+	if (BCSR_WHOAMI_BOARD(whoami) != BCSR_WHOAMI_DB1300)
+		return -ENODEV;
+
+	db1300_gpio_config();
+
 	printk(KERN_INFO "NetLogic DBAu1300 Development Platform.\n\t"
 		"BoardID %d   CPLD Rev %d   DaughtercardID %d\n",
 		BCSR_WHOAMI_BOARD(whoami), BCSR_WHOAMI_CPLD(whoami),

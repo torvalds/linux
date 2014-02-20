@@ -999,6 +999,15 @@ static int __init au1550_spi_init(void)
 	 * create memory device with 8 bits dev_devwidth
 	 * needed for proper byte ordering to spi fifo
 	 */
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1550:
+	case ALCHEMY_CPU_AU1200:
+	case ALCHEMY_CPU_AU1300:
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	if (usedma) {
 		ddma_memid = au1xxx_ddma_add_device(&au1550_spi_mem_dbdev);
 		if (!ddma_memid)

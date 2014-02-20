@@ -1,12 +1,13 @@
 /*
- * DB1200/PB1200 / DB1550 / DB1300 board support.
- *
- * These 4 boards can reliably be supported in a single kernel image.
+ * Alchemy DB/PB1xxx board support.
  */
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-db1x00/bcsr.h>
 
+int __init db1000_board_setup(void);
+int __init db1000_dev_setup(void);
+int __init db1500_pci_setup(void);
 int __init db1200_board_setup(void);
 int __init db1200_dev_setup(void);
 int __init db1300_board_setup(void);
@@ -18,6 +19,17 @@ int __init db1550_pci_setup(int);
 static const char *board_type_str(void)
 {
 	switch (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI))) {
+	case BCSR_WHOAMI_DB1000:
+		return "DB1000";
+	case BCSR_WHOAMI_DB1500:
+		return "DB1500";
+	case BCSR_WHOAMI_DB1100:
+		return "DB1100";
+	case BCSR_WHOAMI_PB1500:
+	case BCSR_WHOAMI_PB1500R2:
+		return "PB1500";
+	case BCSR_WHOAMI_PB1100:
+		return "PB1100";
 	case BCSR_WHOAMI_PB1200_DDR1:
 	case BCSR_WHOAMI_PB1200_DDR2:
 		return "PB1200";
@@ -45,6 +57,11 @@ void __init board_setup(void)
 	int ret;
 
 	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+	case ALCHEMY_CPU_AU1500:
+	case ALCHEMY_CPU_AU1100:
+		ret = db1000_board_setup();
+		break;
 	case ALCHEMY_CPU_AU1550:
 		ret = db1550_board_setup();
 		break;
@@ -62,7 +79,7 @@ void __init board_setup(void)
 		panic("cannot initialize board support");
 }
 
-int __init db1235_arch_init(void)
+static int __init db1xxx_arch_init(void)
 {
 	int id = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
 	if (id == BCSR_WHOAMI_DB1550)
@@ -70,14 +87,24 @@ int __init db1235_arch_init(void)
 	else if ((id == BCSR_WHOAMI_PB1550_SDR) ||
 		 (id == BCSR_WHOAMI_PB1550_DDR))
 		return db1550_pci_setup(1);
+	else if ((id == BCSR_WHOAMI_DB1500) || (id == BCSR_WHOAMI_PB1500) ||
+		 (id == BCSR_WHOAMI_PB1500R2))
+		return db1500_pci_setup();
 
 	return 0;
 }
-arch_initcall(db1235_arch_init);
+arch_initcall(db1xxx_arch_init);
 
-int __init db1235_dev_init(void)
+static int __init db1xxx_dev_init(void)
 {
 	switch (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI))) {
+	case BCSR_WHOAMI_DB1000:
+	case BCSR_WHOAMI_DB1500:
+	case BCSR_WHOAMI_DB1100:
+	case BCSR_WHOAMI_PB1500:
+	case BCSR_WHOAMI_PB1500R2:
+	case BCSR_WHOAMI_PB1100:
+		return db1000_dev_setup();
 	case BCSR_WHOAMI_PB1200_DDR1:
 	case BCSR_WHOAMI_PB1200_DDR2:
 	case BCSR_WHOAMI_DB1200:
@@ -91,4 +118,4 @@ int __init db1235_dev_init(void)
 	}
 	return 0;
 }
-device_initcall(db1235_dev_init);
+device_initcall(db1xxx_dev_init);

@@ -89,6 +89,15 @@ int __init db1200_board_setup(void)
 		return -ENODEV;
 
 	whoami = bcsr_read(BCSR_WHOAMI);
+	switch (BCSR_WHOAMI_BOARD(whoami)) {
+	case BCSR_WHOAMI_PB1200_DDR1:
+	case BCSR_WHOAMI_PB1200_DDR2:
+	case BCSR_WHOAMI_DB1200:
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	printk(KERN_INFO "Alchemy/AMD/RMI %s Board, CPLD Rev %d"
 		"  Board-ID %d	Daughtercard ID %d\n", get_system_type(),
 		(whoami >> 4) & 0xf, (whoami >> 8) & 0xf, whoami & 0xf);
