@@ -722,6 +722,20 @@ struct lpfc_hba {
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
+	uint32_t cfg_fof;
+	uint32_t cfg_EnableXLane;
+	uint8_t cfg_oas_tgt_wwpn[8];
+	uint8_t cfg_oas_vpt_wwpn[8];
+	uint32_t cfg_oas_lun_state;
+#define OAS_LUN_ENABLE	1
+#define OAS_LUN_DISABLE	0
+	uint32_t cfg_oas_lun_status;
+#define OAS_LUN_STATUS_EXISTS	0x01
+	uint32_t cfg_oas_flags;
+#define OAS_FIND_ANY_VPORT	0x01
+#define OAS_FIND_ANY_TARGET	0x02
+#define OAS_LUN_VALID	0x04
+	uint32_t cfg_XLanePriority;
 	uint32_t cfg_enable_bg;
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
@@ -973,6 +987,9 @@ struct lpfc_hba {
 	atomic_t sdev_cnt;
 	uint8_t fips_spec_rev;
 	uint8_t fips_level;
+	spinlock_t devicelock;	/* lock for luns list */
+	mempool_t *device_data_mem_pool;
+	struct list_head luns;
 };
 
 static inline struct Scsi_Host *

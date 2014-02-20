@@ -42,6 +42,7 @@
 
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
+#define LPFC_DEVICE_DATA_POOL_SIZE 64   /* max elements in device data pool */
 
 int
 lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
@@ -164,6 +165,16 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		phba->lpfc_drb_pool = NULL;
 	}
 
+	if (phba->cfg_EnableXLane) {
+		phba->device_data_mem_pool = mempool_create_kmalloc_pool(
+					LPFC_DEVICE_DATA_POOL_SIZE,
+					sizeof(struct lpfc_device_data));
+		if (!phba->device_data_mem_pool)
+			goto fail_free_hrb_pool;
+	} else {
+		phba->device_data_mem_pool = NULL;
+	}
+
 	return 0;
  fail_free_hrb_pool:
 	pci_pool_destroy(phba->lpfc_hrb_pool);
@@ -206,6 +217,7 @@ lpfc_mem_free(struct lpfc_hba *phba)
 {
 	int i;
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
+	struct lpfc_device_data *device_data;
 
 	/* Free HBQ pools */
 	lpfc_sli_hbqbuf_free_all(phba);
@@ -249,6 +261,19 @@ lpfc_mem_free(struct lpfc_hba *phba)
 	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
 	phba->lpfc_scsi_dma_buf_pool = NULL;
 
+	/* Free Device Data memory pool */
+	if (phba->device_data_mem_pool) {
+		/* Ensure all objects have been returned to the pool */
+		while (!list_empty(&phba->luns)) {
+			device_data = list_first_entry(&phba->luns,
+						       struct lpfc_device_data,
+						       listentry);
+			list_del(&device_data->listentry);
+			mempool_free(device_data, phba->device_data_mem_pool);
+		}
+		mempool_destroy(phba->device_data_mem_pool);
+	}
+	phba->device_data_mem_pool = NULL;
 	return;
 }
 

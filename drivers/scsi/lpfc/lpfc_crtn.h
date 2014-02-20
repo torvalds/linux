@@ -187,6 +187,11 @@ void lpfc_offline_prep(struct lpfc_hba *, int);
 void lpfc_offline(struct lpfc_hba *);
 void lpfc_reset_hba(struct lpfc_hba *);
 
+int lpfc_fof_queue_create(struct lpfc_hba *);
+int lpfc_fof_queue_setup(struct lpfc_hba *);
+int lpfc_fof_queue_destroy(struct lpfc_hba *);
+irqreturn_t lpfc_sli4_fof_intr_handler(int, void *);
+
 int lpfc_sli_setup(struct lpfc_hba *);
 int lpfc_sli_queue_setup(struct lpfc_hba *);
 
@@ -472,3 +477,20 @@ void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);
 uint32_t lpfc_sli_port_speed_get(struct lpfc_hba *);
 int lpfc_sli4_request_firmware_update(struct lpfc_hba *, uint8_t);
 void lpfc_sli4_offline_eratt(struct lpfc_hba *);
+
+struct lpfc_device_data *lpfc_create_device_data(struct lpfc_hba *,
+						struct lpfc_name *,
+						struct lpfc_name *,
+						uint64_t, bool);
+void lpfc_delete_device_data(struct lpfc_hba *, struct lpfc_device_data*);
+struct lpfc_device_data *__lpfc_get_device_data(struct lpfc_hba *,
+					struct list_head *list,
+					struct lpfc_name *,
+					struct lpfc_name *, uint64_t);
+bool lpfc_enable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
+			 struct lpfc_name *, uint64_t);
+bool lpfc_disable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
+			  struct lpfc_name *, uint64_t);
+bool lpfc_find_next_oas_lun(struct lpfc_hba *, struct lpfc_name *,
+			    struct lpfc_name *, uint64_t *, struct lpfc_name *,
+			    struct lpfc_name *, uint64_t *, uint32_t *);
