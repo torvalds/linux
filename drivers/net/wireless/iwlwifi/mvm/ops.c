@@ -185,9 +185,10 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	 * (PCIe power is lost before PERST# is asserted), causing ME FW
 	 * to lose ownership and not being able to obtain it back.
 	 */
-	iwl_set_bits_mask_prph(mvm->trans, APMG_PS_CTRL_REG,
-			       APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
-			       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
+	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+		iwl_set_bits_mask_prph(mvm->trans, APMG_PS_CTRL_REG,
+				       APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
+				       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 }
 
 struct iwl_rx_handlers {
@@ -222,10 +223,12 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 
 	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif, false),
 
+	RX_HANDLER(EOSP_NOTIFICATION, iwl_mvm_rx_eosp_notif, false),
+
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
 	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
-		   iwl_mvm_rx_scan_offload_complete_notif, false),
+		   iwl_mvm_rx_scan_offload_complete_notif, true),
 	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_sched_scan_results,
 		   false),
 
@@ -284,9 +287,11 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(BEACON_NOTIFICATION),
 	CMD(BEACON_TEMPLATE_CMD),
 	CMD(STATISTICS_NOTIFICATION),
+	CMD(EOSP_NOTIFICATION),
 	CMD(REDUCE_TX_POWER_CMD),
 	CMD(TX_ANT_CONFIGURATION_CMD),
 	CMD(D3_CONFIG_CMD),
+	CMD(D0I3_END_CMD),
 	CMD(PROT_OFFLOAD_CONFIG_CMD),
 	CMD(OFFLOADS_QUERY_CMD),
 	CMD(REMOTE_WAKE_CONFIG_CMD),
@@ -309,6 +314,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(BT_PROFILE_NOTIFICATION),
 	CMD(BT_CONFIG),
 	CMD(MCAST_FILTER_CMD),
+	CMD(BCAST_FILTER_CMD),
 	CMD(REPLY_SF_CFG_CMD),
 	CMD(REPLY_BEACON_FILTERING_CMD),
 	CMD(REPLY_THERMAL_MNG_BACKOFF),
@@ -320,6 +326,24 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 
 /* this forward declaration can avoid to export the function */
 static void iwl_mvm_async_handlers_wk(struct work_struct *wk);
+static void iwl_mvm_d0i3_exit_work(struct work_struct *wk);
+
+static u32 calc_min_backoff(struct iwl_trans *trans, const struct iwl_cfg *cfg)
+{
+	const struct iwl_pwr_tx_backoff *pwr_tx_backoff = cfg->pwr_tx_backoffs;
+
+	if (!pwr_tx_backoff)
+		return 0;
+
+	while (pwr_tx_backoff->pwr) {
+		if (trans->dflt_pwr_limit >= pwr_tx_backoff->pwr)
+			return pwr_tx_backoff->backoff;
+
+		pwr_tx_backoff++;
+	}
+
+	return 0;
+}
 
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
@@ -333,6 +357,14 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		TX_CMD,
 	};
 	int err, scan_size;
+	u32 min_backoff;
+
+	/*
+	 * We use IWL_MVM_STATION_COUNT to check the validity of the station
+	 * index all over the driver - check that its value corresponds to the
+	 * array size.
+	 */
+	BUILD_BUG_ON(ARRAY_SIZE(mvm->fw_id_to_mac_id) != IWL_MVM_STATION_COUNT);
 
 	/********************************
 	 * 1. Allocating and configuring HW data
@@ -373,6 +405,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_WORK(&mvm->async_handlers_wk, iwl_mvm_async_handlers_wk);
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
 	INIT_WORK(&mvm->sta_drained_wk, iwl_mvm_sta_drained_wk);
+	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
 
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
@@ -421,7 +454,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	IWL_INFO(mvm, "Detected %s, REV=0x%X\n",
 		 mvm->cfg->name, mvm->trans->hw_rev);
 
-	iwl_mvm_tt_initialize(mvm);
+	min_backoff = calc_min_backoff(trans, cfg);
+	iwl_mvm_tt_initialize(mvm, min_backoff);
 
 	/*
 	 * If the NVM exists in an external file,
@@ -462,12 +496,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (err)
 		goto out_unregister;
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)
-		mvm->pm_ops = &pm_mac_ops;
-	else
-		mvm->pm_ops = &pm_legacy_ops;
-
 	memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
+
+	/* rpm starts with a taken ref. only set the appropriate bit here. */
+	set_bit(IWL_MVM_REF_UCODE_DOWN, mvm->ref_bitmap);
 
 	return op_mode;
 
@@ -508,7 +540,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	mvm->phy_db = NULL;
 
 	iwl_free_nvm_data(mvm->nvm_data);
-	for (i = 0; i < NVM_NUM_OF_SECTIONS; i++)
+	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
 
 	ieee80211_free_hw(mvm->hw);
@@ -703,6 +735,29 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 	iwl_abort_notification_waits(&mvm->notif_wait);
 
 	/*
+	 * This is a bit racy, but worst case we tell mac80211 about
+	 * a stopped/aborted scan when that was already done which
+	 * is not a problem. It is necessary to abort any os scan
+	 * here because mac80211 requires having the scan cleared
+	 * before restarting.
+	 * We'll reset the scan_status to NONE in restart cleanup in
+	 * the next start() call from mac80211. If restart isn't called
+	 * (no fw restart) scan status will stay busy.
+	 */
+	switch (mvm->scan_status) {
+	case IWL_MVM_SCAN_NONE:
+		break;
+	case IWL_MVM_SCAN_OS:
+		ieee80211_scan_completed(mvm->hw, true);
+		break;
+	case IWL_MVM_SCAN_SCHED:
+		/* Sched scan will be restarted by mac80211 in restart_hw. */
+		if (!mvm->restart_fw)
+			ieee80211_sched_scan_stopped(mvm->hw);
+		break;
+	}
+
+	/*
 	 * If we're restarting already, don't cycle restarts.
 	 * If INIT fw asserted, it will likely fail again.
 	 * If WoWLAN fw asserted, don't restart either, mac80211
@@ -733,25 +788,8 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
 	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR && mvm->restart_fw) {
-		/*
-		 * This is a bit racy, but worst case we tell mac80211 about
-		 * a stopped/aborted (sched) scan when that was already done
-		 * which is not a problem. It is necessary to abort any scan
-		 * here because mac80211 requires having the scan cleared
-		 * before restarting.
-		 * We'll reset the scan_status to NONE in restart cleanup in
-		 * the next start() call from mac80211.
-		 */
-		switch (mvm->scan_status) {
-		case IWL_MVM_SCAN_NONE:
-			break;
-		case IWL_MVM_SCAN_OS:
-			ieee80211_scan_completed(mvm->hw, true);
-			break;
-		case IWL_MVM_SCAN_SCHED:
-			ieee80211_sched_scan_stopped(mvm->hw);
-			break;
-		}
+		/* don't let the transport/FW power down */
+		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 		if (mvm->restart_fw > 0)
 			mvm->restart_fw--;
@@ -778,6 +816,163 @@ static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 	iwl_mvm_nic_restart(mvm);
 }
 
+struct iwl_d0i3_iter_data {
+	struct iwl_mvm *mvm;
+	u8 ap_sta_id;
+	u8 vif_count;
+};
+
+static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
+					struct ieee80211_vif *vif)
+{
+	struct iwl_d0i3_iter_data *data = _data;
+	struct iwl_mvm *mvm = data->mvm;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE;
+
+	IWL_DEBUG_RPM(mvm, "entering D0i3 - vif %pM\n", vif->addr);
+	if (vif->type != NL80211_IFTYPE_STATION ||
+	    !vif->bss_conf.assoc)
+		return;
+
+	iwl_mvm_update_d0i3_power_mode(mvm, vif, true, flags);
+
+	/*
+	 * on init/association, mvm already configures POWER_TABLE_CMD
+	 * and REPLY_MCAST_FILTER_CMD, so currently don't
+	 * reconfigure them (we might want to use different
+	 * params later on, though).
+	 */
+	data->ap_sta_id = mvmvif->ap_sta_id;
+	data->vif_count++;
+}
+
+static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE;
+	int ret;
+	struct iwl_d0i3_iter_data d0i3_iter_data = {
+		.mvm = mvm,
+	};
+	struct iwl_wowlan_config_cmd wowlan_config_cmd = {
+		.wakeup_filter = cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
+					     IWL_WOWLAN_WAKEUP_BEACON_MISS |
+					     IWL_WOWLAN_WAKEUP_LINK_CHANGE |
+					     IWL_WOWLAN_WAKEUP_BCN_FILTERING),
+	};
+	struct iwl_d3_manager_config d3_cfg_cmd = {
+		.min_sleep_time = cpu_to_le32(1000),
+	};
+
+	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_enter_d0i3_iterator,
+						   &d0i3_iter_data);
+	if (d0i3_iter_data.vif_count == 1) {
+		mvm->d0i3_ap_sta_id = d0i3_iter_data.ap_sta_id;
+	} else {
+		WARN_ON_ONCE(d0i3_iter_data.vif_count > 1);
+		mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+	}
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
+				   sizeof(wowlan_config_cmd),
+				   &wowlan_config_cmd);
+	if (ret)
+		return ret;
+
+	return iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD,
+				    flags | CMD_MAKE_TRANS_IDLE,
+				    sizeof(d3_cfg_cmd), &d3_cfg_cmd);
+}
+
+static void iwl_mvm_exit_d0i3_iterator(void *_data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = _data;
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO;
+
+	IWL_DEBUG_RPM(mvm, "exiting D0i3 - vif %pM\n", vif->addr);
+	if (vif->type != NL80211_IFTYPE_STATION ||
+	    !vif->bss_conf.assoc)
+		return;
+
+	iwl_mvm_update_d0i3_power_mode(mvm, vif, false, flags);
+}
+
+static void iwl_mvm_d0i3_disconnect_iter(void *data, u8 *mac,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc &&
+	    mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
+		ieee80211_connection_loss(vif);
+}
+
+static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
+{
+	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, d0i3_exit_work);
+	struct iwl_host_cmd get_status_cmd = {
+		.id = WOWLAN_GET_STATUSES,
+		.flags = CMD_SYNC | CMD_HIGH_PRIO | CMD_WANT_SKB,
+	};
+	struct iwl_wowlan_status_v6 *status;
+	int ret;
+	u32 disconnection_reasons, wakeup_reasons;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd(mvm, &get_status_cmd);
+	if (ret)
+		goto out;
+
+	if (!get_status_cmd.resp_pkt)
+		goto out;
+
+	status = (void *)get_status_cmd.resp_pkt->data;
+	wakeup_reasons = le32_to_cpu(status->wakeup_reasons);
+
+	IWL_DEBUG_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
+
+	disconnection_reasons =
+		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
+		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
+	if (wakeup_reasons & disconnection_reasons)
+		ieee80211_iterate_active_interfaces(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_d0i3_disconnect_iter, mvm);
+
+	iwl_free_resp(&get_status_cmd);
+out:
+	mutex_unlock(&mvm->mutex);
+}
+
+static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE |
+		    CMD_WAKE_UP_TRANS;
+	int ret;
+
+	IWL_DEBUG_RPM(mvm, "MVM exiting D0i3\n");
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, flags, 0, NULL);
+	if (ret)
+		goto out;
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_exit_d0i3_iterator,
+						   mvm);
+out:
+	schedule_work(&mvm->d0i3_exit_work);
+	return ret;
+}
+
 static const struct iwl_op_mode_ops iwl_mvm_ops = {
 	.start = iwl_op_mode_mvm_start,
 	.stop = iwl_op_mode_mvm_stop,
@@ -789,4 +984,6 @@ static const struct iwl_op_mode_ops iwl_mvm_ops = {
 	.nic_error = iwl_mvm_nic_error,
 	.cmd_queue_full = iwl_mvm_cmd_queue_full,
 	.nic_config = iwl_mvm_nic_config,
+	.enter_d0i3 = iwl_mvm_enter_d0i3,
+	.exit_d0i3 = iwl_mvm_exit_d0i3,
 };

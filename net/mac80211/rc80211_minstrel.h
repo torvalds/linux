@@ -123,7 +123,7 @@ struct minstrel_debugfs_info {
 	char buf[];
 };
 
-extern struct rate_control_ops mac80211_minstrel;
+extern const struct rate_control_ops mac80211_minstrel;
 void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
 void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 

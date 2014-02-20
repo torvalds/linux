@@ -1178,9 +1178,6 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
 
-	if (sc->csa_vif == vif)
-		sc->csa_vif = NULL;
-
 	ath9k_ps_wakeup(sc);
 	ath9k_calculate_summary_state(hw, NULL);
 	ath9k_ps_restore(sc);
@@ -1609,7 +1606,7 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 	common->curaid = bss_conf->aid;
 	ath9k_hw_write_associd(sc->sc_ah);
 
-	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
+	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
@@ -1866,7 +1863,7 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 
 static bool ath9k_has_tx_pending(struct ath_softc *sc)
 {
-	int i, npend;
+	int i, npend = 0;
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (!ATH_TXQ_SETUP(sc, i))
@@ -2086,13 +2083,8 @@ static void ath9k_channel_switch_beacon(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
 					struct cfg80211_chan_def *chandef)
 {
-	struct ath_softc *sc = hw->priv;
-
-	/* mac80211 does not support CSA in multi-if cases (yet) */
-	if (WARN_ON(sc->csa_vif))
-		return;
-
-	sc->csa_vif = vif;
+	/* depend on vif->csa_active only */
+	return;
 }
 
 struct ieee80211_ops ath9k_ops = {

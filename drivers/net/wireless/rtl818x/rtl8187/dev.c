@@ -785,7 +785,7 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	rtl818x_iowrite16(priv, (__le16 *)0xFF34, 0x0FFF);
 
 	reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
-	reg |= RTL818X_CW_CONF_PERPACKET_RETRY_SHIFT;
+	reg |= RTL818X_CW_CONF_PERPACKET_RETRY;
 	rtl818x_iowrite8(priv, &priv->map->CW_CONF, reg);
 
 	/* Auto Rate Fallback Register (ARFR): 1M-54M setting */
@@ -943,8 +943,8 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 		rtl818x_iowrite32(priv, &priv->map->RX_CONF, reg);
 
 		reg = rtl818x_ioread8(priv, &priv->map->TX_AGC_CTL);
-		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN_SHIFT;
-		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT;
+		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN;
+		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL;
 		reg &= ~RTL818X_TX_AGC_CTL_FEEDBACK_ANT;
 		rtl818x_iowrite8(priv, &priv->map->TX_AGC_CTL, reg);
 
@@ -986,13 +986,13 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, &priv->map->RX_CONF, reg);
 
 	reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
-	reg &= ~RTL818X_CW_CONF_PERPACKET_CW_SHIFT;
-	reg |= RTL818X_CW_CONF_PERPACKET_RETRY_SHIFT;
+	reg &= ~RTL818X_CW_CONF_PERPACKET_CW;
+	reg |= RTL818X_CW_CONF_PERPACKET_RETRY;
 	rtl818x_iowrite8(priv, &priv->map->CW_CONF, reg);
 
 	reg = rtl818x_ioread8(priv, &priv->map->TX_AGC_CTL);
-	reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN_SHIFT;
-	reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT;
+	reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN;
+	reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL;
 	reg &= ~RTL818X_TX_AGC_CTL_FEEDBACK_ANT;
 	rtl818x_iowrite8(priv, &priv->map->TX_AGC_CTL, reg);
 

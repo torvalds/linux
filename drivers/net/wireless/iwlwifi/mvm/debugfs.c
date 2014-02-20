@@ -90,7 +90,7 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 					 size_t count, loff_t *ppos)
 {
-	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
 	int sta_id, drain, ret;
 
 	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
@@ -105,13 +105,12 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 
 	mutex_lock(&mvm->mutex);
 
-	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
-					lockdep_is_held(&mvm->mutex));
-	if (IS_ERR_OR_NULL(sta))
+	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
+
+	if (!mvmsta)
 		ret = -ENOENT;
 	else
-		ret = iwl_mvm_drain_sta(mvm, (void *)sta->drv_priv, drain) ? :
-			count;
+		ret = iwl_mvm_drain_sta(mvm, mvmsta, drain) ? : count;
 
 	mutex_unlock(&mvm->mutex);
 
@@ -251,7 +250,7 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 	}
 
 	mutex_lock(&mvm->mutex);
-	ret = iwl_mvm_power_update_device_mode(mvm);
+	ret = iwl_mvm_power_update_device(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -600,6 +599,187 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 	return count;
 }
 
+#define ADD_TEXT(...) pos += scnprintf(buf + pos, bufsz - pos, __VA_ARGS__)
+#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+static ssize_t iwl_dbgfs_bcast_filters_read(struct file *file,
+					    char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_bcast_filter_cmd cmd;
+	const struct iwl_fw_bcast_filter *filter;
+	char *buf;
+	int bufsz = 1024;
+	int i, j, pos = 0;
+	ssize_t ret;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&mvm->mutex);
+	if (!iwl_mvm_bcast_filter_build_cmd(mvm, &cmd)) {
+		ADD_TEXT("None\n");
+		mutex_unlock(&mvm->mutex);
+		goto out;
+	}
+	mutex_unlock(&mvm->mutex);
+
+	for (i = 0; cmd.filters[i].attrs[0].mask; i++) {
+		filter = &cmd.filters[i];
+
+		ADD_TEXT("Filter [%d]:\n", i);
+		ADD_TEXT("\tDiscard=%d\n", filter->discard);
+		ADD_TEXT("\tFrame Type: %s\n",
+			 filter->frame_type ? "IPv4" : "Generic");
+
+		for (j = 0; j < ARRAY_SIZE(filter->attrs); j++) {
+			const struct iwl_fw_bcast_filter_attr *attr;
+
+			attr = &filter->attrs[j];
+			if (!attr->mask)
+				break;
+
+			ADD_TEXT("\tAttr [%d]: offset=%d (from %s), mask=0x%x, value=0x%x reserved=0x%x\n",
+				 j, attr->offset,
+				 attr->offset_type ? "IP End" :
+						     "Payload Start",
+				 be32_to_cpu(attr->mask),
+				 be32_to_cpu(attr->val),
+				 le16_to_cpu(attr->reserved1));
+		}
+	}
+out:
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_bcast_filters_write(struct iwl_mvm *mvm, char *buf,
+					     size_t count, loff_t *ppos)
+{
+	int pos, next_pos;
+	struct iwl_fw_bcast_filter filter = {};
+	struct iwl_bcast_filter_cmd cmd;
+	u32 filter_id, attr_id, mask, value;
+	int err = 0;
+
+	if (sscanf(buf, "%d %hhi %hhi %n", &filter_id, &filter.discard,
+		   &filter.frame_type, &pos) != 3)
+		return -EINVAL;
+
+	if (filter_id >= ARRAY_SIZE(mvm->dbgfs_bcast_filtering.cmd.filters) ||
+	    filter.frame_type > BCAST_FILTER_FRAME_TYPE_IPV4)
+		return -EINVAL;
+
+	for (attr_id = 0; attr_id < ARRAY_SIZE(filter.attrs);
+	     attr_id++) {
+		struct iwl_fw_bcast_filter_attr *attr =
+				&filter.attrs[attr_id];
+
+		if (pos >= count)
+			break;
+
+		if (sscanf(&buf[pos], "%hhi %hhi %i %i %n",
+			   &attr->offset, &attr->offset_type,
+			   &mask, &value, &next_pos) != 4)
+			return -EINVAL;
+
+		attr->mask = cpu_to_be32(mask);
+		attr->val = cpu_to_be32(value);
+		if (mask)
+			filter.num_attrs++;
+
+		pos += next_pos;
+	}
+
+	mutex_lock(&mvm->mutex);
+	memcpy(&mvm->dbgfs_bcast_filtering.cmd.filters[filter_id],
+	       &filter, sizeof(filter));
+
+	/* send updated bcast filtering configuration */
+	if (mvm->dbgfs_bcast_filtering.override &&
+	    iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
+		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, CMD_SYNC,
+					   sizeof(cmd), &cmd);
+	mutex_unlock(&mvm->mutex);
+
+	return err ?: count;
+}
+
+static ssize_t iwl_dbgfs_bcast_filters_macs_read(struct file *file,
+						 char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_bcast_filter_cmd cmd;
+	char *buf;
+	int bufsz = 1024;
+	int i, pos = 0;
+	ssize_t ret;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&mvm->mutex);
+	if (!iwl_mvm_bcast_filter_build_cmd(mvm, &cmd)) {
+		ADD_TEXT("None\n");
+		mutex_unlock(&mvm->mutex);
+		goto out;
+	}
+	mutex_unlock(&mvm->mutex);
+
+	for (i = 0; i < ARRAY_SIZE(cmd.macs); i++) {
+		const struct iwl_fw_bcast_mac *mac = &cmd.macs[i];
+
+		ADD_TEXT("Mac [%d]: discard=%d attached_filters=0x%x\n",
+			 i, mac->default_discard, mac->attached_filters);
+	}
+out:
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_bcast_filters_macs_write(struct iwl_mvm *mvm,
+						  char *buf, size_t count,
+						  loff_t *ppos)
+{
+	struct iwl_bcast_filter_cmd cmd;
+	struct iwl_fw_bcast_mac mac = {};
+	u32 mac_id, attached_filters;
+	int err = 0;
+
+	if (!mvm->bcast_filters)
+		return -ENOENT;
+
+	if (sscanf(buf, "%d %hhi %i", &mac_id, &mac.default_discard,
+		   &attached_filters) != 3)
+		return -EINVAL;
+
+	if (mac_id >= ARRAY_SIZE(cmd.macs) ||
+	    mac.default_discard > 1 ||
+	    attached_filters >= BIT(ARRAY_SIZE(cmd.filters)))
+		return -EINVAL;
+
+	mac.attached_filters = cpu_to_le16(attached_filters);
+
+	mutex_lock(&mvm->mutex);
+	memcpy(&mvm->dbgfs_bcast_filtering.cmd.macs[mac_id],
+	       &mac, sizeof(mac));
+
+	/* send updated bcast filtering configuration */
+	if (mvm->dbgfs_bcast_filtering.override &&
+	    iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
+		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, CMD_SYNC,
+					   sizeof(cmd), &cmd);
+	mutex_unlock(&mvm->mutex);
+
+	return err ?: count;
+}
+#endif
+
 #ifdef CONFIG_PM_SLEEP
 static ssize_t iwl_dbgfs_d3_sram_write(struct iwl_mvm *mvm, char *buf,
 				       size_t count, loff_t *ppos)
@@ -658,15 +838,74 @@ static ssize_t iwl_dbgfs_d3_sram_read(struct file *file, char __user *user_buf,
 }
 #endif
 
+#define PRINT_MVM_REF(ref) do {					\
+	if (test_bit(ref, mvm->ref_bitmap))			\
+		pos += scnprintf(buf + pos, bufsz - pos,	\
+				 "\t(0x%lx) %s\n",		\
+				 BIT(ref), #ref);		\
+} while (0)
+
+static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
+					char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	int pos = 0;
+	char buf[256];
+	const size_t bufsz = sizeof(buf);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "taken mvm refs: 0x%lx\n",
+			 mvm->ref_bitmap[0]);
+
+	PRINT_MVM_REF(IWL_MVM_REF_UCODE_DOWN);
+	PRINT_MVM_REF(IWL_MVM_REF_SCAN);
+	PRINT_MVM_REF(IWL_MVM_REF_ROC);
+	PRINT_MVM_REF(IWL_MVM_REF_P2P_CLIENT);
+	PRINT_MVM_REF(IWL_MVM_REF_AP_IBSS);
+	PRINT_MVM_REF(IWL_MVM_REF_USER);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_d0i3_refs_write(struct iwl_mvm *mvm, char *buf,
+					 size_t count, loff_t *ppos)
+{
+	unsigned long value;
+	int ret;
+	bool taken;
+
+	ret = kstrtoul(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&mvm->mutex);
+
+	taken = test_bit(IWL_MVM_REF_USER, mvm->ref_bitmap);
+	if (value == 1 && !taken)
+		iwl_mvm_ref(mvm, IWL_MVM_REF_USER);
+	else if (value == 0 && taken)
+		iwl_mvm_unref(mvm, IWL_MVM_REF_USER);
+	else
+		ret = -EINVAL;
+
+	mutex_unlock(&mvm->mutex);
+
+	if (ret < 0)
+		return ret;
+	return count;
+}
+
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct iwl_mvm)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_mvm)
-#define MVM_DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-		if (!debugfs_create_file(#name, mode, parent, mvm,	\
+#define MVM_DEBUGFS_ADD_FILE_ALIAS(alias, name, parent, mode) do {	\
+		if (!debugfs_create_file(alias, mode, parent, mvm,	\
 					 &iwl_dbgfs_##name##_ops))	\
 			goto err;					\
 	} while (0)
+#define MVM_DEBUGFS_ADD_FILE(name, parent, mode) \
+	MVM_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
 
 /* Device wide debugfs entries */
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
@@ -680,6 +919,12 @@ MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
+
+#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
@@ -687,6 +932,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
 
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 {
+	struct dentry *bcast_dir __maybe_unused;
 	char buf[100];
 
 	mvm->debugfs_dir = dbgfs_dir;
@@ -705,6 +951,27 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,
 			     S_IWUSR | S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
+
+#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING) {
+		bcast_dir = debugfs_create_dir("bcast_filtering",
+					       mvm->debugfs_dir);
+		if (!bcast_dir)
+			goto err;
+
+		if (!debugfs_create_bool("override", S_IRUSR | S_IWUSR,
+				bcast_dir,
+				&mvm->dbgfs_bcast_filtering.override))
+			goto err;
+
+		MVM_DEBUGFS_ADD_FILE_ALIAS("filters", bcast_filters,
+					   bcast_dir, S_IWUSR | S_IRUSR);
+		MVM_DEBUGFS_ADD_FILE_ALIAS("macs", bcast_filters_macs,
+					   bcast_dir, S_IWUSR | S_IRUSR);
+	}
+#endif
+
 #ifdef CONFIG_PM_SLEEP
 	MVM_DEBUGFS_ADD_FILE(d3_sram, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(d3_test, mvm->debugfs_dir, S_IRUSR);

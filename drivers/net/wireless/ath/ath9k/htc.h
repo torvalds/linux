@@ -277,7 +277,6 @@ struct ath9k_htc_rxbuf {
 };
 
 struct ath9k_htc_rx {
-	int last_rssi; /* FIXME: per-STA */
 	struct list_head rxbuf;
 	spinlock_t rxbuflock;
 };

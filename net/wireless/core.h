@@ -211,6 +211,7 @@ struct cfg80211_event {
 		} dc;
 		struct {
 			u8 bssid[ETH_ALEN];
+			struct ieee80211_channel *channel;
 		} ij;
 	};
 };
@@ -258,7 +259,8 @@ int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
-void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid);
+void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
+			    struct ieee80211_channel *channel);
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev);
 
@@ -443,7 +445,8 @@ static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 void
 cfg80211_get_chan_state(struct wireless_dev *wdev,
 		        struct ieee80211_channel **chan,
-		        enum cfg80211_chan_mode *chanmode);
+		        enum cfg80211_chan_mode *chanmode,
+		        u8 *radar_detect);
 
 int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 				 struct cfg80211_chan_def *chandef);

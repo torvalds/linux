@@ -129,22 +129,16 @@ static void iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
 			      struct ieee80211_rx_status *rx_status)
 {
 	int rssi_a, rssi_b, rssi_a_dbm, rssi_b_dbm, max_rssi_dbm;
-	int rssi_all_band_a, rssi_all_band_b;
-	u32 agc_a, agc_b, max_agc;
+	u32 agc_a, agc_b;
 	u32 val;
 
 	val = le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_AGC_IDX]);
 	agc_a = (val & IWL_OFDM_AGC_A_MSK) >> IWL_OFDM_AGC_A_POS;
 	agc_b = (val & IWL_OFDM_AGC_B_MSK) >> IWL_OFDM_AGC_B_POS;
-	max_agc = max_t(u32, agc_a, agc_b);
 
 	val = le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_RSSI_AB_IDX]);
 	rssi_a = (val & IWL_OFDM_RSSI_INBAND_A_MSK) >> IWL_OFDM_RSSI_A_POS;
 	rssi_b = (val & IWL_OFDM_RSSI_INBAND_B_MSK) >> IWL_OFDM_RSSI_B_POS;
-	rssi_all_band_a = (val & IWL_OFDM_RSSI_ALLBAND_A_MSK) >>
-				IWL_OFDM_RSSI_ALLBAND_A_POS;
-	rssi_all_band_b = (val & IWL_OFDM_RSSI_ALLBAND_B_MSK) >>
-				IWL_OFDM_RSSI_ALLBAND_B_POS;
 
 	/*
 	 * dBm = rssi dB - agc dB - constant.
@@ -364,10 +358,10 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		rx_status.flag |= RX_FLAG_40MHZ;
 		break;
 	case RATE_MCS_CHAN_WIDTH_80:
-		rx_status.flag |= RX_FLAG_80MHZ;
+		rx_status.vht_flag |= RX_VHT_FLAG_80MHZ;
 		break;
 	case RATE_MCS_CHAN_WIDTH_160:
-		rx_status.flag |= RX_FLAG_160MHZ;
+		rx_status.vht_flag |= RX_VHT_FLAG_160MHZ;
 		break;
 	}
 	if (rate_n_flags & RATE_MCS_SGI_MSK)

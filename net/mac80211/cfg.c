@@ -451,11 +451,11 @@ void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
 		rinfo->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
 	if (sta->last_rx_rate_flag & RX_FLAG_SHORT_GI)
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
-	if (sta->last_rx_rate_flag & RX_FLAG_80MHZ)
+	if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_80MHZ)
 		rinfo->flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
-	if (sta->last_rx_rate_flag & RX_FLAG_80P80MHZ)
+	if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_80P80MHZ)
 		rinfo->flags |= RATE_INFO_FLAGS_80P80_MHZ_WIDTH;
-	if (sta->last_rx_rate_flag & RX_FLAG_160MHZ)
+	if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_160MHZ)
 		rinfo->flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
 }
 
@@ -970,9 +970,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	/* TODO: make hostapd tell us what it wants */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 	sdata->needed_rx_chains = sdata->local->rx_chains;
-	sdata->radar_required = params->radar_required;
 
 	mutex_lock(&local->mtx);
+	sdata->radar_required = params->radar_required;
 	err = ieee80211_vif_use_channel(sdata, &params->chandef,
 					IEEE80211_CHANCTX_SHARED);
 	mutex_unlock(&local->mtx);
@@ -1056,6 +1056,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	int err;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	sdata_assert_lock(sdata);
 
 	/* don't allow changing the beacon while CSA is in place - offset
 	 * of channel switch counter may change
@@ -1082,6 +1083,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	struct beacon_data *old_beacon;
 	struct probe_resp *old_probe_resp;
 	struct cfg80211_chan_def chandef;
+
+	sdata_assert_lock(sdata);
 
 	old_beacon = sdata_dereference(sdata->u.ap.beacon, sdata);
 	if (!old_beacon)
@@ -1342,6 +1345,18 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	if (params->vht_capa)
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 						    params->vht_capa, sta);
+
+	if (params->opmode_notif_used) {
+		enum ieee80211_band band =
+			ieee80211_get_sdata_band(sdata);
+
+		/* returned value is only needed for rc update, but the
+		 * rc isn't initialized here yet, so ignore it
+		 */
+		__ieee80211_vht_handle_opmode(sdata, sta,
+					      params->opmode_notif,
+					      band, false);
+	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
@@ -2630,6 +2645,18 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	if (!roc)
 		return -ENOMEM;
 
+	/*
+	 * If the duration is zero, then the driver
+	 * wouldn't actually do anything. Set it to
+	 * 10 for now.
+	 *
+	 * TODO: cancel the off-channel operation
+	 *       when we get the SKB's TX status and
+	 *       the wait time was zero before.
+	 */
+	if (!duration)
+		duration = 10;
+
 	roc->chan = channel;
 	roc->duration = duration;
 	roc->req_duration = duration;
@@ -2670,18 +2697,6 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	}
 
 	/* otherwise actually kick it off here (for error handling) */
-
-	/*
-	 * If the duration is zero, then the driver
-	 * wouldn't actually do anything. Set it to
-	 * 10 for now.
-	 *
-	 * TODO: cancel the off-channel operation
-	 *       when we get the SKB's TX status and
-	 *       the wait time was zero before.
-	 */
-	if (!duration)
-		duration = 10;
 
 	ret = drv_remain_on_channel(local, sdata, channel, duration, type);
 	if (ret) {
@@ -2990,13 +3005,78 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 	return new_beacon;
 }
 
+void ieee80211_csa_finish(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	ieee80211_queue_work(&sdata->local->hw,
+			     &sdata->csa_finalize_work);
+}
+EXPORT_SYMBOL(ieee80211_csa_finish);
+
+static void ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	int err, changed = 0;
+
+	sdata_assert_lock(sdata);
+
+	mutex_lock(&local->mtx);
+	sdata->radar_required = sdata->csa_radar_required;
+	err = ieee80211_vif_change_channel(sdata, &changed);
+	mutex_unlock(&local->mtx);
+	if (WARN_ON(err < 0))
+		return;
+
+	if (!local->use_chanctx) {
+		local->_oper_chandef = sdata->csa_chandef;
+		ieee80211_hw_config(local, 0);
+	}
+
+	sdata->vif.csa_active = false;
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
+		kfree(sdata->u.ap.next_beacon);
+		sdata->u.ap.next_beacon = NULL;
+
+		if (err < 0)
+			return;
+		changed |= err;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		err = ieee80211_ibss_finish_csa(sdata);
+		if (err < 0)
+			return;
+		changed |= err;
+		break;
+#ifdef CONFIG_MAC80211_MESH
+	case NL80211_IFTYPE_MESH_POINT:
+		err = ieee80211_mesh_finish_csa(sdata);
+		if (err < 0)
+			return;
+		changed |= err;
+		break;
+#endif
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	ieee80211_bss_info_change_notify(sdata, changed);
+
+	ieee80211_wake_queues_by_reason(&sdata->local->hw,
+					IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_CSA);
+
+	cfg80211_ch_switch_notify(sdata->dev, &sdata->csa_chandef);
+}
+
 void ieee80211_csa_finalize_work(struct work_struct *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
 			     csa_finalize_work);
-	struct ieee80211_local *local = sdata->local;
-	int err, changed = 0;
 
 	sdata_lock(sdata);
 	/* AP might have been stopped while waiting for the lock. */
@@ -3006,53 +3086,7 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 	if (!ieee80211_sdata_running(sdata))
 		goto unlock;
 
-	sdata->radar_required = sdata->csa_radar_required;
-	mutex_lock(&local->mtx);
-	err = ieee80211_vif_change_channel(sdata, &changed);
-	mutex_unlock(&local->mtx);
-	if (WARN_ON(err < 0))
-		goto unlock;
-
-	if (!local->use_chanctx) {
-		local->_oper_chandef = sdata->csa_chandef;
-		ieee80211_hw_config(local, 0);
-	}
-
-	ieee80211_bss_info_change_notify(sdata, changed);
-
-	sdata->vif.csa_active = false;
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP:
-		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
-		if (err < 0)
-			goto unlock;
-
-		changed |= err;
-		kfree(sdata->u.ap.next_beacon);
-		sdata->u.ap.next_beacon = NULL;
-
-		ieee80211_bss_info_change_notify(sdata, err);
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		ieee80211_ibss_finish_csa(sdata);
-		break;
-#ifdef CONFIG_MAC80211_MESH
-	case NL80211_IFTYPE_MESH_POINT:
-		err = ieee80211_mesh_finish_csa(sdata);
-		if (err < 0)
-			goto unlock;
-		break;
-#endif
-	default:
-		WARN_ON(1);
-		goto unlock;
-	}
-
-	ieee80211_wake_queues_by_reason(&sdata->local->hw,
-					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
-
-	cfg80211_ch_switch_notify(sdata->dev, &sdata->csa_chandef);
+	ieee80211_csa_finalize(sdata);
 
 unlock:
 	sdata_unlock(sdata);
@@ -3066,9 +3100,9 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_chanctx *chanctx;
 	struct ieee80211_if_mesh __maybe_unused *ifmsh;
-	int err, num_chanctx;
+	int err, num_chanctx, changed = 0;
 
-	lockdep_assert_held(&sdata->wdev.mtx);
+	sdata_assert_lock(sdata);
 
 	if (!list_empty(&local->roc_list) || local->scanning)
 		return -EBUSY;
@@ -3107,19 +3141,40 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
-		sdata->csa_counter_offset_beacon =
-			params->counter_offset_beacon;
-		sdata->csa_counter_offset_presp = params->counter_offset_presp;
 		sdata->u.ap.next_beacon =
 			cfg80211_beacon_dup(&params->beacon_after);
 		if (!sdata->u.ap.next_beacon)
 			return -ENOMEM;
 
+		/*
+		 * With a count of 0, we don't have to wait for any
+		 * TBTT before switching, so complete the CSA
+		 * immediately.  In theory, with a count == 1 we
+		 * should delay the switch until just before the next
+		 * TBTT, but that would complicate things so we switch
+		 * immediately too.  If we would delay the switch
+		 * until the next TBTT, we would have to set the probe
+		 * response here.
+		 *
+		 * TODO: A channel switch with count <= 1 without
+		 * sending a CSA action frame is kind of useless,
+		 * because the clients won't know we're changing
+		 * channels.  The action frame must be implemented
+		 * either here or in the userspace.
+		 */
+		if (params->count <= 1)
+			break;
+
+		sdata->csa_counter_offset_beacon =
+			params->counter_offset_beacon;
+		sdata->csa_counter_offset_presp = params->counter_offset_presp;
 		err = ieee80211_assign_beacon(sdata, &params->beacon_csa);
 		if (err < 0) {
 			kfree(sdata->u.ap.next_beacon);
 			return err;
 		}
+		changed |= err;
+
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (!sdata->vif.bss_conf.ibss_joined)
@@ -3147,16 +3202,20 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		    params->chandef.chan->band)
 			return -EINVAL;
 
-		err = ieee80211_ibss_csa_beacon(sdata, params);
-		if (err < 0)
-			return err;
+		/* see comments in the NL80211_IFTYPE_AP block */
+		if (params->count > 1) {
+			err = ieee80211_ibss_csa_beacon(sdata, params);
+			if (err < 0)
+				return err;
+			changed |= err;
+		}
+
+		ieee80211_send_action_csa(sdata, params);
+
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
 		ifmsh = &sdata->u.mesh;
-
-		if (!ifmsh->mesh_id)
-			return -EINVAL;
 
 		if (params->chandef.width != sdata->vif.bss_conf.chandef.width)
 			return -EINVAL;
@@ -3166,17 +3225,27 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		    params->chandef.chan->band)
 			return -EINVAL;
 
-		ifmsh->chsw_init = true;
-		if (!ifmsh->pre_value)
-			ifmsh->pre_value = 1;
-		else
-			ifmsh->pre_value++;
-
-		err = ieee80211_mesh_csa_beacon(sdata, params, true);
-		if (err < 0) {
-			ifmsh->chsw_init = false;
-			return err;
+		if (ifmsh->csa_role == IEEE80211_MESH_CSA_ROLE_NONE) {
+			ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_INIT;
+			if (!ifmsh->pre_value)
+				ifmsh->pre_value = 1;
+			else
+				ifmsh->pre_value++;
 		}
+
+		/* see comments in the NL80211_IFTYPE_AP block */
+		if (params->count > 1) {
+			err = ieee80211_mesh_csa_beacon(sdata, params);
+			if (err < 0) {
+				ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
+				return err;
+			}
+			changed |= err;
+		}
+
+		if (ifmsh->csa_role == IEEE80211_MESH_CSA_ROLE_INIT)
+			ieee80211_send_action_csa(sdata, params);
+
 		break;
 #endif
 	default:
@@ -3193,8 +3262,13 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	sdata->csa_chandef = params->chandef;
 	sdata->vif.csa_active = true;
 
-	ieee80211_bss_info_change_notify(sdata, err);
-	drv_channel_switch_beacon(sdata, &params->chandef);
+	if (changed) {
+		ieee80211_bss_info_change_notify(sdata, changed);
+		drv_channel_switch_beacon(sdata, &params->chandef);
+	} else {
+		/* if the beacon didn't change, we can finalize immediately */
+		ieee80211_csa_finalize(sdata);
+	}
 
 	return 0;
 }
@@ -3865,7 +3939,7 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
 	return 0;
 }
 
-struct cfg80211_ops mac80211_config_ops = {
+const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
 	.change_virtual_intf = ieee80211_change_iface,

@@ -611,6 +611,7 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
+	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	priv->ah->opmode = NL80211_IFTYPE_STATION;
 }
 

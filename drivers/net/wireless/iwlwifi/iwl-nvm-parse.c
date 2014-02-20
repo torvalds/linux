@@ -402,11 +402,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	iwl_init_sbands(dev, cfg, data, nvm_sw, sku & NVM_SKU_CAP_11AC_ENABLE,
 			tx_chains, rx_chains);
 
-	data->calib_version = 255;   /* TODO:
-					this value will prevent some checks from
-					failing, we need to check if this
-					field is still needed, and if it does,
-					where is it in the NVM*/
+	data->calib_version = 255;
 
 	return data;
 }

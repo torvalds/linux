@@ -287,8 +287,8 @@ static int wl1271_init_sta_beacon_filter(struct wl1271 *wl,
 	if (ret < 0)
 		return ret;
 
-	/* enable beacon filtering */
-	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, true);
+	/* disable beacon filtering until we get the first beacon */
+	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, false);
 	if (ret < 0)
 		return ret;
 
@@ -462,7 +462,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	 * If the basic rates contain OFDM rates, use OFDM only
 	 * rates for unicast TX as well. Else use all supported rates.
 	 */
-	if ((wlvif->basic_rate_set & CONF_TX_OFDM_RATES))
+	if (wl->ofdm_only_ap && (wlvif->basic_rate_set & CONF_TX_OFDM_RATES))
 		supported_rates = CONF_TX_OFDM_RATES;
 	else
 		supported_rates = CONF_TX_ENABLED_RATES;

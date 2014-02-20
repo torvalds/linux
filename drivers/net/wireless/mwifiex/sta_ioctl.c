@@ -290,7 +290,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 		if (mwifiex_band_to_radio_type(bss_desc->bss_band) ==
 						HostCmd_SCAN_RADIO_TYPE_BG)
-			config_bands = BAND_B | BAND_G | BAND_GN | BAND_GAC;
+			config_bands = BAND_B | BAND_G | BAND_GN;
 		else
 			config_bands = BAND_A | BAND_AN | BAND_AAC;
 
@@ -865,6 +865,7 @@ static int mwifiex_sec_ioctl_set_wapi_key(struct mwifiex_private *priv,
 static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			      struct mwifiex_ds_encrypt_key *encrypt_key)
 {
+	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret;
 	struct mwifiex_wep_key *wep_key;
 	int index;
@@ -879,10 +880,17 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		/* Copy the required key as the current key */
 		wep_key = &priv->wep_key[index];
 		if (!wep_key->key_length) {
-			dev_err(priv->adapter->dev,
+			dev_err(adapter->dev,
 				"key not set, so cannot enable it\n");
 			return -1;
 		}
+
+		if (adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2) {
+			memcpy(encrypt_key->key_material,
+			       wep_key->key_material, wep_key->key_length);
+			encrypt_key->key_len = wep_key->key_length;
+		}
+
 		priv->wep_key_curr_index = (u16) index;
 		priv->sec_info.wep_enabled = 1;
 	} else {
@@ -897,13 +905,25 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		priv->sec_info.wep_enabled = 1;
 	}
 	if (wep_key->key_length) {
+		void *enc_key;
+
+		if (encrypt_key->key_disable)
+			memset(&priv->wep_key[index], 0,
+			       sizeof(struct mwifiex_wep_key));
+
+		if (adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+			enc_key = encrypt_key;
+		else
+			enc_key = NULL;
+
 		/* Send request to firmware */
 		ret = mwifiex_send_cmd_async(priv,
 					     HostCmd_CMD_802_11_KEY_MATERIAL,
-					     HostCmd_ACT_GEN_SET, 0, NULL);
+					     HostCmd_ACT_GEN_SET, 0, enc_key);
 		if (ret)
 			return ret;
 	}
+
 	if (priv->sec_info.wep_enabled)
 		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
 	else
@@ -1044,19 +1064,27 @@ int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
 
 	memset(&encrypt_key, 0, sizeof(struct mwifiex_ds_encrypt_key));
 	encrypt_key.key_len = key_len;
+	encrypt_key.key_index = key_index;
 
 	if (kp && kp->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
 		encrypt_key.is_igtk_key = true;
 
 	if (!disable) {
-		encrypt_key.key_index = key_index;
 		if (key_len)
 			memcpy(encrypt_key.key_material, key, key_len);
+		else
+			encrypt_key.is_current_wep_key = true;
+
 		if (mac_addr)
 			memcpy(encrypt_key.mac_addr, mac_addr, ETH_ALEN);
-		if (kp && kp->seq && kp->seq_len)
+		if (kp && kp->seq && kp->seq_len) {
 			memcpy(encrypt_key.pn, kp->seq, kp->seq_len);
+			encrypt_key.pn_len = kp->seq_len;
+			encrypt_key.is_rx_seq_valid = true;
+		}
 	} else {
+		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP)
+			return 0;
 		encrypt_key.key_disable = true;
 		if (mac_addr)
 			memcpy(encrypt_key.mac_addr, mac_addr, ETH_ALEN);
@@ -1391,7 +1419,7 @@ static int mwifiex_misc_ioctl_gen_ie(struct mwifiex_private *priv,
  * with requisite parameters and calls the IOCTL handler.
  */
 int
-mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len)
+mwifiex_set_gen_ie(struct mwifiex_private *priv, const u8 *ie, int ie_len)
 {
 	struct mwifiex_ds_misc_gen_ie gen_ie;
 

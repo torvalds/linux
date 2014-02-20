@@ -23,7 +23,6 @@
 
 #include "hw.h"
 #include "hw-ops.h"
-#include "rc.h"
 #include "ar9003_mac.h"
 #include "ar9003_mci.h"
 #include "ar9003_phy.h"
