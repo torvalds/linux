@@ -99,7 +99,8 @@ static void __cleanup_single_sta(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 	struct ps_data *ps;
 
-	if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
+	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
+	    test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
 		    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			ps = &sdata->bss->ps;
@@ -109,6 +110,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 			return;
 
 		clear_sta_flag(sta, WLAN_STA_PS_STA);
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
 
 		atomic_dec(&ps->num_sta_ps);
 		sta_info_recalc_tim(sta);
@@ -1090,10 +1092,14 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL(ieee80211_find_sta);
 
-static void clear_sta_ps_flags(void *_sta)
+/* powersave support code */
+void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 {
-	struct sta_info *sta = _sta;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff_head pending;
+	int filtered = 0, buffered = 0, ac;
+	unsigned long flags;
 	struct ps_data *ps;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -1103,20 +1109,6 @@ static void clear_sta_ps_flags(void *_sta)
 		ps = &sdata->u.mesh.ps;
 	else
 		return;
-
-	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-	if (test_and_clear_sta_flag(sta, WLAN_STA_PS_STA))
-		atomic_dec(&ps->num_sta_ps);
-}
-
-/* powersave support code */
-void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
-{
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct ieee80211_local *local = sdata->local;
-	struct sk_buff_head pending;
-	int filtered = 0, buffered = 0, ac;
-	unsigned long flags;
 
 	clear_sta_flag(sta, WLAN_STA_SP);
 
@@ -1148,8 +1140,12 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 		buffered += tmp - count;
 	}
 
-	ieee80211_add_pending_skbs_fn(local, &pending, clear_sta_ps_flags, sta);
+	ieee80211_add_pending_skbs(local, &pending);
+	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+	clear_sta_flag(sta, WLAN_STA_PS_STA);
 	spin_unlock(&sta->ps_lock);
+
+	atomic_dec(&ps->num_sta_ps);
 
 	/* This station just woke up and isn't aware of our SMPS state */
 	if (!ieee80211_smps_is_restrictive(sta->known_smps_mode,
