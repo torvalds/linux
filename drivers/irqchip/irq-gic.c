@@ -235,7 +235,9 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 
 static int gic_retrigger(struct irq_data *d)
 {
+#ifdef CONFIG_FIQ_DEBUGGER
 	u32 mask = 1 << (gic_irq(d) % 32);
+#endif
 
 	if (gic_arch_extn.irq_retrigger)
 		return gic_arch_extn.irq_retrigger(d);
@@ -445,9 +447,8 @@ static void __init gic_dist_init(struct gic_chip_data *gic)
 	for (i = 0; i < gic_irqs; i += 32) {
 		writel_relaxed(0xffffffff, base + GIC_DIST_IGROUP + i * 4 / 32);
 	}
-	
 	dsb();
-	writel_relaxed(0x3, base + GIC_DIST_CTRL);
+	writel_relaxed(3, base + GIC_DIST_CTRL);
 #else
 	writel_relaxed(1, base + GIC_DIST_CTRL);
 #endif
@@ -577,7 +578,11 @@ static void gic_dist_restore(unsigned int gic_nr)
 		writel_relaxed(gic_data[gic_nr].saved_spi_enable[i],
 			dist_base + GIC_DIST_ENABLE_SET + i * 4);
 
+#ifdef CONFIG_FIQ_DEBUGGER
+	writel_relaxed(3, dist_base + GIC_DIST_CTRL);
+#else
 	writel_relaxed(1, dist_base + GIC_DIST_CTRL);
+#endif
 }
 
 static void gic_cpu_save(unsigned int gic_nr)
@@ -634,7 +639,11 @@ static void gic_cpu_restore(unsigned int gic_nr)
 		writel_relaxed(0xa0a0a0a0, dist_base + GIC_DIST_PRI + i * 4);
 
 	writel_relaxed(0xf0, cpu_base + GIC_CPU_PRIMASK);
+#ifdef CONFIG_FIQ_DEBUGGER
+	writel_relaxed(0x0f, cpu_base + GIC_CPU_CTRL);
+#else
 	writel_relaxed(1, cpu_base + GIC_CPU_CTRL);
+#endif
 }
 
 static int gic_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
@@ -718,6 +727,7 @@ void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 #else
 	writel_relaxed(map << 16 | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
 #endif
+
 	raw_spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
 #endif
@@ -898,14 +908,15 @@ static int gic_irq_domain_xlate(struct irq_domain *d,
 static int __cpuinit gic_secondary_init(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
-	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN) {
+	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
 		gic_cpu_init(&gic_data[0]);
 #ifdef CONFIG_FIQ_DEBUGGER
+	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN) {
 		/*set SGI to none secure state*/
 		writel_relaxed(0xffffffff, gic_data_dist_base(&gic_data[0]) + GIC_DIST_IGROUP);
 		writel_relaxed(0xf, gic_data_cpu_base(&gic_data[0]) + GIC_CPU_CTRL);
-#endif
 	}
+#endif
 	return NOTIFY_OK;
 }
 
