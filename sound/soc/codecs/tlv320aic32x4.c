@@ -534,29 +534,29 @@ static int aic32x4_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		/* Switch off PLL */
-		snd_soc_update_bits(codec, AIC32X4_PLLPR,
-				    AIC32X4_PLLEN, 0);
-
-		/* Switch off NDAC Divider */
-		snd_soc_update_bits(codec, AIC32X4_NDAC,
-				    AIC32X4_NDACEN, 0);
-
-		/* Switch off MDAC Divider */
-		snd_soc_update_bits(codec, AIC32X4_MDAC,
-				    AIC32X4_MDACEN, 0);
-
-		/* Switch off NADC Divider */
-		snd_soc_update_bits(codec, AIC32X4_NADC,
-				    AIC32X4_NADCEN, 0);
+		/* Switch off BCLK_N Divider */
+		snd_soc_update_bits(codec, AIC32X4_BCLKN,
+				    AIC32X4_BCLKEN, 0);
 
 		/* Switch off MADC Divider */
 		snd_soc_update_bits(codec, AIC32X4_MADC,
 				    AIC32X4_MADCEN, 0);
 
-		/* Switch off BCLK_N Divider */
-		snd_soc_update_bits(codec, AIC32X4_BCLKN,
-				    AIC32X4_BCLKEN, 0);
+		/* Switch off NADC Divider */
+		snd_soc_update_bits(codec, AIC32X4_NADC,
+				    AIC32X4_NADCEN, 0);
+
+		/* Switch off MDAC Divider */
+		snd_soc_update_bits(codec, AIC32X4_MDAC,
+				    AIC32X4_MDACEN, 0);
+
+		/* Switch off NDAC Divider */
+		snd_soc_update_bits(codec, AIC32X4_NDAC,
+				    AIC32X4_NDACEN, 0);
+
+		/* Switch off PLL */
+		snd_soc_update_bits(codec, AIC32X4_PLLPR,
+				    AIC32X4_PLLEN, 0);
 
 		/* Switch off master clock */
 		clk_disable_unprepare(aic32x4->mclk);
