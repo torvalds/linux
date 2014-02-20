@@ -144,6 +144,12 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&root->log_mutex);
 	if (root->log_root) {
+		if (ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) ==
+		    trans->transid) {
+			ret = -EAGAIN;
+			goto out;
+		}
+
 		if (!root->log_start_pid) {
 			root->log_start_pid = current->pid;
 			root->log_multiple_pids = false;
@@ -2527,6 +2533,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		blk_finish_plug(&plug);
 		btrfs_abort_transaction(trans, root, ret);
 		btrfs_free_logged_extents(log, log_transid);
+		ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) =
+								trans->transid;
 		mutex_unlock(&root->log_mutex);
 		goto out;
 	}
@@ -2569,13 +2577,13 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 			list_del_init(&root_log_ctx.list);
 
 		blk_finish_plug(&plug);
+		ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) =
+								trans->transid;
 		if (ret != -ENOSPC) {
 			btrfs_abort_transaction(trans, root, ret);
 			mutex_unlock(&log_root_tree->log_mutex);
 			goto out;
 		}
-		ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) =
-								trans->transid;
 		btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2629,6 +2637,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 					 EXTENT_DIRTY | EXTENT_NEW);
 	blk_finish_plug(&plug);
 	if (ret) {
+		ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) =
+								trans->transid;
 		btrfs_abort_transaction(trans, root, ret);
 		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2657,6 +2667,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 */
 	ret = write_ctree_super(trans, root->fs_info->tree_root, 1);
 	if (ret) {
+		ACCESS_ONCE(root->fs_info->last_trans_log_full_commit) =
+								trans->transid;
 		btrfs_abort_transaction(trans, root, ret);
 		goto out_wake_log_root;
 	}
