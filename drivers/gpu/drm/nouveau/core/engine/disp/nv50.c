@@ -1058,6 +1058,7 @@ nv50_disp_intr_error_code[] = {
 static void
 nv50_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 {
+	struct nv50_disp_impl *impl = (void *)nv_object(priv)->oclass;
 	u32 data = nv_rd32(priv, 0x610084 + (chid * 0x08));
 	u32 addr = nv_rd32(priv, 0x610080 + (chid * 0x08));
 	u32 code = (addr & 0x00ff0000) >> 16;
@@ -1077,6 +1078,37 @@ nv50_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 	nv_error(priv, "%s [%s] chid %d mthd 0x%04x data 0x%08x\n",
 		 et ? et->name : etunk, ec ? ec->name : ecunk,
 		 chid, mthd, data);
+
+	if (chid == 0) {
+		switch (mthd) {
+		case 0x0080:
+			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 0,
+					    impl->mthd.core);
+			break;
+		default:
+			break;
+		}
+	} else
+	if (chid <= 2) {
+		switch (mthd) {
+		case 0x0080:
+			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 1,
+					    impl->mthd.base);
+			break;
+		default:
+			break;
+		}
+	} else
+	if (chid <= 4) {
+		switch (mthd) {
+		case 0x0080:
+			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 3,
+					    impl->mthd.ovly);
+			break;
+		default:
+			break;
+		}
+	}
 
 	nv_wr32(priv, 0x610020, 0x00010000 << chid);
 	nv_wr32(priv, 0x610080 + (chid * 0x08), 0x90000000);

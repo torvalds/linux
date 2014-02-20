@@ -1222,6 +1222,53 @@ nvd0_disp_intr_supervisor(struct work_struct *work)
 	nv_wr32(priv, 0x6101d0, 0x80000000);
 }
 
+static void
+nvd0_disp_intr_error(struct nv50_disp_priv *priv, int chid)
+{
+	const struct nv50_disp_impl *impl = (void *)nv_object(priv)->oclass;
+	u32 mthd = nv_rd32(priv, 0x6101f0 + (chid * 12));
+	u32 data = nv_rd32(priv, 0x6101f4 + (chid * 12));
+	u32 unkn = nv_rd32(priv, 0x6101f8 + (chid * 12));
+
+	nv_error(priv, "chid %d mthd 0x%04x data 0x%08x "
+		       "0x%08x 0x%08x\n",
+		 chid, (mthd & 0x0000ffc), data, mthd, unkn);
+
+	if (chid == 0) {
+		switch (mthd) {
+		case 0x0080:
+			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 0,
+					    impl->mthd.core);
+			break;
+		default:
+			break;
+		}
+	} else
+	if (chid <= 4) {
+		switch (mthd) {
+		case 0x0080:
+			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 1,
+					    impl->mthd.base);
+			break;
+		default:
+			break;
+		}
+	} else
+	if (chid <= 8) {
+		switch (mthd) {
+		case 0x0080:
+			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 5,
+					    impl->mthd.ovly);
+			break;
+		default:
+			break;
+		}
+	}
+
+	nv_wr32(priv, 0x61009c, (1 << chid));
+	nv_wr32(priv, 0x6101f0 + (chid * 12), 0x90000000);
+}
+
 void
 nvd0_disp_intr(struct nouveau_subdev *subdev)
 {
@@ -1238,18 +1285,8 @@ nvd0_disp_intr(struct nouveau_subdev *subdev)
 	if (intr & 0x00000002) {
 		u32 stat = nv_rd32(priv, 0x61009c);
 		int chid = ffs(stat) - 1;
-		if (chid >= 0) {
-			u32 mthd = nv_rd32(priv, 0x6101f0 + (chid * 12));
-			u32 data = nv_rd32(priv, 0x6101f4 + (chid * 12));
-			u32 unkn = nv_rd32(priv, 0x6101f8 + (chid * 12));
-
-			nv_error(priv, "chid %d mthd 0x%04x data 0x%08x "
-				       "0x%08x 0x%08x\n",
-				 chid, (mthd & 0x0000ffc), data, mthd, unkn);
-			nv_wr32(priv, 0x61009c, (1 << chid));
-			nv_wr32(priv, 0x6101f0 + (chid * 12), 0x90000000);
-		}
-
+		if (chid >= 0)
+			nvd0_disp_intr_error(priv, chid);
 		intr &= ~0x00000002;
 	}
 
