@@ -854,7 +854,8 @@ static void sixaxis_parse_report(struct sony_sc *sc, __u8 *rd, int size)
 		battery_capacity = 100;
 		battery_charging = !(rd[30] & 0x01);
 	} else {
-		battery_capacity = sixaxis_battery_capacity[rd[30]];
+		__u8 index = rd[30] <= 5 ? rd[30] : 5;
+		battery_capacity = sixaxis_battery_capacity[index];
 		battery_charging = 0;
 	}
 	cable_state = !((rd[31] >> 4) & 0x01);
