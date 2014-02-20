@@ -14,6 +14,7 @@
 
 #include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
 
@@ -110,7 +111,7 @@
 			timer@c600 {
 				compatible = "arm,cortex-a9-twd-timer";
 				reg = <0xc600 0x20>;
-				interrupts = <GIC_PPI 13 0x301>;
+				interrupts = <GIC_PPI 13 (IRQ_TYPE_EDGE_RISING | GIC_CPU_MASK_SIMPLE(2))>;
 				clocks = <&coreclk 2>;
 			};
 
@@ -129,7 +130,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				cell-index = <0>;
-				interrupts = <GIC_SPI 1 0x4>;
+				interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -140,7 +141,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				cell-index = <1>;
-				interrupts = <GIC_SPI 63 0x4>;
+				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -150,7 +151,7 @@
 				reg = <0x11000 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interrupts = <GIC_SPI 2 0x4>;
+				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
@@ -161,7 +162,7 @@
 				reg = <0x11100 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interrupts = <GIC_SPI 3 0x4>;
+				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
@@ -171,7 +172,7 @@
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12000 0x100>;
 				reg-shift = <2>;
-				interrupts = <GIC_SPI 12 4>;
+				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
 				status = "disabled";
 			};
@@ -180,7 +181,7 @@
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12100 0x100>;
 				reg-shift = <2>;
-				interrupts = <GIC_SPI 13 4>;
+				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
 				status = "disabled";
 			};
@@ -198,8 +199,10 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				interrupts = <GIC_SPI 53 0x4>, <GIC_SPI 54 0x4>,
-					     <GIC_SPI 55 0x4>, <GIC_SPI 56 0x4>;
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			gpio1: gpio@18140 {
@@ -210,8 +213,10 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				interrupts = <GIC_SPI 58 0x4>, <GIC_SPI 59 0x4>,
-					     <GIC_SPI 60 0x4>, <GIC_SPI 61 0x4>;
+				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			system-controller@18200 {
@@ -245,17 +250,17 @@
 				#size-cells = <1>;
 				interrupt-controller;
 				msi-controller;
-				interrupts = <GIC_PPI 15 0x4>;
+				interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			timer@20300 {
 				compatible = "marvell,armada-380-timer",
 					     "marvell,armada-xp-timer";
 				reg = <0x20300 0x30>, <0x21040 0x30>;
-				interrupts-extended = <&gic  GIC_SPI  8 4>,
-						      <&gic  GIC_SPI  9 4>,
-						      <&gic  GIC_SPI 10 4>,
-						      <&gic  GIC_SPI 11 4>,
+				interrupts-extended = <&gic  GIC_SPI  8 IRQ_TYPE_LEVEL_HIGH>,
+						      <&gic  GIC_SPI  9 IRQ_TYPE_LEVEL_HIGH>,
+						      <&gic  GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+						      <&gic  GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
 						      <&mpic 5>,
 						      <&mpic 6>;
 				clocks = <&coreclk 2>, <&refclk>;
@@ -286,12 +291,12 @@
 				status = "okay";
 
 				xor00 {
-					interrupts = <GIC_SPI 22 0x4>;
+					interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 					dmacap,memcpy;
 					dmacap,xor;
 				};
 				xor01 {
-					interrupts = <GIC_SPI 23 0x4>;
+					interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 					dmacap,memcpy;
 					dmacap,xor;
 					dmacap,memset;
@@ -306,12 +311,12 @@
 				status = "okay";
 
 				xor10 {
-					interrupts = <GIC_SPI 65 0x4>;
+					interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 					dmacap,memcpy;
 					dmacap,xor;
 				};
 				xor11 {
-					interrupts = <GIC_SPI 66 0x4>;
+					interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 					dmacap,memcpy;
 					dmacap,xor;
 					dmacap,memset;
