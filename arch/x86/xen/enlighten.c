@@ -1473,6 +1473,18 @@ static void xen_pvh_set_cr_flags(int cpu)
 	 * X86_CR0_TS, X86_CR0_PE, X86_CR0_ET are set by Xen for HVM guests
 	 * (which PVH shared codepaths), while X86_CR0_PG is for PVH. */
 	write_cr0(read_cr0() | X86_CR0_MP | X86_CR0_NE | X86_CR0_WP | X86_CR0_AM);
+
+	if (!cpu)
+		return;
+	/*
+	 * For BSP, PSE PGE are set in probe_page_size_mask(), for APs
+	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu_init.
+	*/
+	if (cpu_has_pse)
+		set_in_cr4(X86_CR4_PSE);
+
+	if (cpu_has_pge)
+		set_in_cr4(X86_CR4_PGE);
 }
 
 /*

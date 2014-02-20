@@ -444,6 +444,7 @@ config X86_INTEL_MID
 	bool "Intel MID platform support"
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
+	depends on X86_PLATFORM_DEVICES
 	depends on PCI
 	depends on PCI_GOANY
 	depends on X86_IO_APIC
@@ -1051,9 +1052,9 @@ config MICROCODE_INTEL
 	  This options enables microcode patch loading support for Intel
 	  processors.
 
-	  For latest news and information on obtaining all the required
-	  Intel ingredients for this driver, check:
-	  <http://www.urbanmyth.org/microcode/>.
+	  For the current Intel microcode data package go to
+	  <https://downloadcenter.intel.com> and search for
+	  'Linux Processor Microcode Data File'.
 
 config MICROCODE_AMD
 	bool "AMD microcode loading support"

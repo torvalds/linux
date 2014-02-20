@@ -226,6 +226,7 @@ static int nft_ct_init_validate_get(const struct nft_expr *expr,
 		if (tb[NFTA_CT_DIRECTION] != NULL)
 			return -EINVAL;
 		break;
+	case NFT_CT_L3PROTOCOL:
 	case NFT_CT_PROTOCOL:
 	case NFT_CT_SRC:
 	case NFT_CT_DST:
@@ -311,8 +312,19 @@ static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_CT_KEY, htonl(priv->key)))
 		goto nla_put_failure;
-	if (nla_put_u8(skb, NFTA_CT_DIRECTION, priv->dir))
-		goto nla_put_failure;
+
+	switch (priv->key) {
+	case NFT_CT_PROTOCOL:
+	case NFT_CT_SRC:
+	case NFT_CT_DST:
+	case NFT_CT_PROTO_SRC:
+	case NFT_CT_PROTO_DST:
+		if (nla_put_u8(skb, NFTA_CT_DIRECTION, priv->dir))
+			goto nla_put_failure;
+	default:
+		break;
+	}
+
 	return 0;
 
 nla_put_failure:

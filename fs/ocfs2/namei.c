@@ -664,6 +664,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
 	sigset_t oldset;
+	u64 old_de_ino;
 
 	trace_ocfs2_link((unsigned long long)OCFS2_I(inode)->ip_blkno,
 			 old_dentry->d_name.len, old_dentry->d_name.name,
@@ -682,6 +683,22 @@ static int ocfs2_link(struct dentry *old_dentry,
 	}
 
 	if (!dir->i_nlink) {
+		err = -ENOENT;
+		goto out;
+	}
+
+	err = ocfs2_lookup_ino_from_name(dir, old_dentry->d_name.name,
+			old_dentry->d_name.len, &old_de_ino);
+	if (err) {
+		err = -ENOENT;
+		goto out;
+	}
+
+	/*
+	 * Check whether another node removed the source inode while we
+	 * were in the vfs.
+	 */
+	if (old_de_ino != OCFS2_I(inode)->ip_blkno) {
 		err = -ENOENT;
 		goto out;
 	}

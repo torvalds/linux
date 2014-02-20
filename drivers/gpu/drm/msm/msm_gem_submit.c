@@ -163,7 +163,7 @@ retry:
 
 
 		/* if locking succeeded, pin bo: */
-		ret = msm_gem_get_iova(&msm_obj->base,
+		ret = msm_gem_get_iova_locked(&msm_obj->base,
 				submit->gpu->id, &iova);
 
 		/* this would break the logic in the fail path.. there is no
@@ -247,7 +247,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 	/* For now, just map the entire thing.  Eventually we probably
 	 * to do it page-by-page, w/ kmap() if not vmap()d..
 	 */
-	ptr = msm_gem_vaddr(&obj->base);
+	ptr = msm_gem_vaddr_locked(&obj->base);
 
 	if (IS_ERR(ptr)) {
 		ret = PTR_ERR(ptr);
@@ -307,14 +307,12 @@ static void submit_cleanup(struct msm_gem_submit *submit, bool fail)
 {
 	unsigned i;
 
-	mutex_lock(&submit->dev->struct_mutex);
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
 		submit_unlock_unpin_bo(submit, i);
 		list_del_init(&msm_obj->submit_entry);
 		drm_gem_object_unreference(&msm_obj->base);
 	}
-	mutex_unlock(&submit->dev->struct_mutex);
 
 	ww_acquire_fini(&submit->ticket);
 	kfree(submit);
@@ -341,6 +339,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	if (args->nr_cmds > MAX_CMDS)
 		return -EINVAL;
+
+	mutex_lock(&dev->struct_mutex);
 
 	submit = submit_create(dev, gpu, args->nr_bos);
 	if (!submit) {
@@ -410,5 +410,6 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 out:
 	if (submit)
 		submit_cleanup(submit, !!ret);
+	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
