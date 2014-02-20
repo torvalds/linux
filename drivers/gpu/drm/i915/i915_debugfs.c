@@ -2182,6 +2182,7 @@ static void intel_connector_info(struct seq_file *m,
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct drm_display_mode *mode;
 
 	seq_printf(m, "connector %d: type %s, status: %s\n",
 		   connector->base.id, drm_get_connector_name(connector),
@@ -2204,6 +2205,9 @@ static void intel_connector_info(struct seq_file *m,
 	else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
 		intel_lvds_info(m, intel_connector);
 
+	seq_printf(m, "\tmodes:\n");
+	list_for_each_entry(mode, &connector->modes, head)
+		intel_seq_print_mode(m, 2, mode);
 }
 
 static int i915_display_info(struct seq_file *m, void *unused)
