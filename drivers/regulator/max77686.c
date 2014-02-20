@@ -410,8 +410,6 @@ static int max77686_pmic_dt_parse_pdata(struct platform_device *pdev,
 	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
 			     pdata->num_regulators, GFP_KERNEL);
 	if (!rdata) {
-		dev_err(&pdev->dev,
-			"could not allocate memory for regulator data\n");
 		of_node_put(regulators_np);
 		return -ENOMEM;
 	}
