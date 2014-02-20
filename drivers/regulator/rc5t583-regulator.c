@@ -134,10 +134,8 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 
 	regs = devm_kzalloc(&pdev->dev, RC5T583_REGULATOR_MAX *
 			sizeof(struct rc5t583_regulator), GFP_KERNEL);
-	if (!regs) {
-		dev_err(&pdev->dev, "Memory allocation failed exiting..\n");
+	if (!regs)
 		return -ENOMEM;
-	}
 
 
 	for (id = 0; id < RC5T583_REGULATOR_MAX; ++id) {
