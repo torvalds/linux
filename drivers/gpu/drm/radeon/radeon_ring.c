@@ -153,11 +153,9 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		return r;
 	}
 
-	/* if we can't remember our last VM flush then flush now! */
-	/* XXX figure out why we have to flush for every IB */
-	if (ib->vm /*&& !ib->vm->last_flush*/) {
-		radeon_ring_vm_flush(rdev, ib->ring, ib->vm);
-	}
+	if (ib->vm)
+		radeon_vm_flush(rdev, ib->vm, ib->ring);
+
 	if (const_ib) {
 		radeon_ring_ib_execute(rdev, const_ib->ring, const_ib);
 		radeon_semaphore_free(rdev, &const_ib->semaphore, NULL);
@@ -172,10 +170,10 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	if (const_ib) {
 		const_ib->fence = radeon_fence_ref(ib->fence);
 	}
-	/* we just flushed the VM, remember that */
-	if (ib->vm && !ib->vm->last_flush) {
-		ib->vm->last_flush = radeon_fence_ref(ib->fence);
-	}
+
+	if (ib->vm)
+		radeon_vm_fence(rdev, ib->vm, ib->fence);
+
 	radeon_ring_unlock_commit(rdev, ring);
 	return 0;
 }

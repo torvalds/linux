@@ -379,6 +379,27 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 }
 
 /**
+ * radeon_vm_flush - hardware flush the vm
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm we want to flush
+ * @ring: ring to use for flush
+ *
+ * Flush the vm (cayman+).
+ *
+ * Global and local mutex must be locked!
+ */
+void radeon_vm_flush(struct radeon_device *rdev,
+		     struct radeon_vm *vm,
+		     int ring)
+{
+	/* if we can't remember our last VM flush then flush now! */
+	/* XXX figure out why we have to flush all the time */
+	if (!vm->last_flush || true)
+		radeon_ring_vm_flush(rdev, ring, vm);
+}
+
+/**
  * radeon_vm_fence - remember fence for vm
  *
  * @rdev: radeon_device pointer
@@ -394,14 +415,18 @@ void radeon_vm_fence(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_fence *fence)
 {
-	radeon_fence_unref(&rdev->vm_manager.active[vm->id]);
-	rdev->vm_manager.active[vm->id] = radeon_fence_ref(fence);
-
 	radeon_fence_unref(&vm->fence);
 	vm->fence = radeon_fence_ref(fence);
 
+	radeon_fence_unref(&rdev->vm_manager.active[vm->id]);
+	rdev->vm_manager.active[vm->id] = radeon_fence_ref(fence);
+
 	radeon_fence_unref(&vm->last_id_use);
 	vm->last_id_use = radeon_fence_ref(fence);
+
+        /* we just flushed the VM, remember that */
+        if (!vm->last_flush)
+                vm->last_flush = radeon_fence_ref(fence);
 }
 
 /**

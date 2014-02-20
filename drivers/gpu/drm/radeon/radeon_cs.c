@@ -511,10 +511,6 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	}
 
-	if (!r) {
-		radeon_vm_fence(rdev, vm, parser->ib.fence);
-	}
-
 out:
 	radeon_vm_add_to_lru(rdev, vm);
 	mutex_unlock(&vm->mutex);
