@@ -75,14 +75,9 @@ struct thread_info {
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
-	struct thread_info *ti;
-	__asm__ __volatile__(
-		"mov	%0, sp\n"
-		"and	%0, %0, %1\n"
-		: "=&r" (ti)
-		: "r" (~(THREAD_SIZE-1))
-		);
-	return ti;
+	register unsigned long sp asm("sp");
+
+	return (struct thread_info *)(sp & ~(THREAD_SIZE - 1));
 }
 #endif /* !__ASSEMBLY__ */
 
