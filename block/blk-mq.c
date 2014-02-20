@@ -73,8 +73,8 @@ static void blk_mq_hctx_mark_pending(struct blk_mq_hw_ctx *hctx,
 		set_bit(ctx->index_hw, hctx->ctx_map);
 }
 
-static struct request *blk_mq_alloc_rq(struct blk_mq_hw_ctx *hctx, gfp_t gfp,
-				       bool reserved)
+static struct request *__blk_mq_alloc_request(struct blk_mq_hw_ctx *hctx,
+					      gfp_t gfp, bool reserved)
 {
 	struct request *rq;
 	unsigned int tag;
@@ -191,12 +191,6 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
 	ctx->rq_dispatched[rw_is_sync(rw_flags)]++;
-}
-
-static struct request *__blk_mq_alloc_request(struct blk_mq_hw_ctx *hctx,
-					      gfp_t gfp, bool reserved)
-{
-	return blk_mq_alloc_rq(hctx, gfp, reserved);
 }
 
 static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
