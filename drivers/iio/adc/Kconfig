@@ -157,7 +157,7 @@ config VIPERBOARD_ADC
 	  Say yes here to access the ADC part of the Nano River
 	  Technologies Viperboard.
 
-config RK_ADC
+config ROCKCHIP_ADC
         tristate "Rockchip ADC support"
         depends on OF
         help
