@@ -8,6 +8,8 @@ Required properties:
 
 Optional properties:
  - reset-gpios: Reset-GPIO phandle with args as described in gpio/gpio.txt
+ - clocks/clock-names: Clock named 'mclk' for the master clock of the codec.
+   See clock/clock-bindings.txt for information about the detailed format.
 
 
 Example:
@@ -15,4 +17,6 @@ Example:
 codec: tlv320aic32x4@18 {
 	compatible = "ti,tlv320aic32x4";
 	reg = <0x18>;
+	clocks = <&clks 201>;
+	clock-names = "mclk";
 };

@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <sound/tlv320aic32x4.h>
 #include <sound/core.h>
@@ -67,6 +68,7 @@ struct aic32x4_priv {
 	u32 micpga_routing;
 	bool swapdacs;
 	int rstn_gpio;
+	struct clk *mclk;
 };
 
 /* 0dB min, 0.5dB steps */
@@ -487,8 +489,18 @@ static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
 static int aic32x4_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
 {
+	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
+		/* Switch on master clock */
+		ret = clk_prepare_enable(aic32x4->mclk);
+		if (ret) {
+			dev_err(codec->dev, "Failed to enable master clock\n");
+			return ret;
+		}
+
 		/* Switch on PLL */
 		snd_soc_update_bits(codec, AIC32X4_PLLPR,
 				    AIC32X4_PLLEN, AIC32X4_PLLEN);
@@ -539,6 +551,9 @@ static int aic32x4_set_bias_level(struct snd_soc_codec *codec,
 		/* Switch off BCLK_N Divider */
 		snd_soc_update_bits(codec, AIC32X4_BCLKN,
 				    AIC32X4_BCLKEN, 0);
+
+		/* Switch off master clock */
+		clk_disable_unprepare(aic32x4->mclk);
 		break;
 	case SND_SOC_BIAS_OFF:
 		break;
@@ -715,6 +730,12 @@ static int aic32x4_i2c_probe(struct i2c_client *i2c,
 		aic32x4->swapdacs = false;
 		aic32x4->micpga_routing = 0;
 		aic32x4->rstn_gpio = -1;
+	}
+
+	aic32x4->mclk = devm_clk_get(&i2c->dev, "mclk");
+	if (IS_ERR(aic32x4->mclk)) {
+		dev_err(&i2c->dev, "Failed getting the mclk. The current implementation does not support the usage of this codec without mclk\n");
+		return PTR_ERR(aic32x4->mclk);
 	}
 
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
