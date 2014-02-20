@@ -790,17 +790,32 @@ static inline int test_tgt_sess_count(struct qla_tgt *tgt)
 }
 
 /* Called by tcm_qla2xxx configfs code */
-void qlt_stop_phase1(struct qla_tgt *tgt)
+int qlt_stop_phase1(struct qla_tgt *tgt)
 {
 	struct scsi_qla_host *vha = tgt->vha;
 	struct qla_hw_data *ha = tgt->ha;
 	unsigned long flags;
 
+	mutex_lock(&qla_tgt_mutex);
+	if (!vha->fc_vport) {
+		struct Scsi_Host *sh = vha->host;
+		struct fc_host_attrs *fc_host = shost_to_fc_host(sh);
+		bool npiv_vports;
+
+		spin_lock_irqsave(sh->host_lock, flags);
+		npiv_vports = (fc_host->npiv_vports_inuse);
+		spin_unlock_irqrestore(sh->host_lock, flags);
+
+		if (npiv_vports) {
+			mutex_unlock(&qla_tgt_mutex);
+			return -EPERM;
+		}
+	}
 	if (tgt->tgt_stop || tgt->tgt_stopped) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf04e,
 		    "Already in tgt->tgt_stop or tgt_stopped state\n");
-		dump_stack();
-		return;
+		mutex_unlock(&qla_tgt_mutex);
+		return -EPERM;
 	}
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe003, "Stopping target for host %ld(%p)\n",
@@ -815,6 +830,7 @@ void qlt_stop_phase1(struct qla_tgt *tgt)
 	qlt_clear_tgt_db(tgt, true);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	mutex_unlock(&vha->vha_tgt.tgt_mutex);
+	mutex_unlock(&qla_tgt_mutex);
 
 	flush_delayed_work(&tgt->sess_del_work);
 
@@ -841,6 +857,7 @@ void qlt_stop_phase1(struct qla_tgt *tgt)
 
 	/* Wait for sessions to clear out (just in case) */
 	wait_event(tgt->waitQ, test_tgt_sess_count(tgt));
+	return 0;
 }
 EXPORT_SYMBOL(qlt_stop_phase1);
 
