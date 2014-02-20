@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/rockchip_ion.h>
+#include <linux/uaccess.h>
 #include "../ion_priv.h"
 
 #ifdef CONFIG_OF
@@ -35,6 +36,9 @@ struct ion_heap_desc {
 	enum ion_heap_type type;
 	const char *name;
 };
+
+extern struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
+ 						int id);
 
 static struct ion_heap_desc ion_heap_meta[] = {
 	{
@@ -101,7 +105,7 @@ static int rockchip_ion_get_heap_size(struct device_node *node,
 static struct ion_platform_data *rockchip_ion_parse_dt(
 					struct device *dev)
 {
-        struct device_node *dt_node = dev->of_node;
+	struct device_node *dt_node = dev->of_node;
 	struct ion_platform_data *pdata = 0;
 	struct device_node *node;
 	uint32_t val = 0;
@@ -164,6 +168,39 @@ EXPORT_SYMBOL(rockchip_ion_client_create);
 static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			      unsigned long arg)
 {
+	pr_info("[%s %d] cmd=%X\n", __func__, __LINE__, cmd);
+
+	switch (cmd) {
+	case ION_IOC_CLEAN_CACHES:
+	case ION_IOC_INV_CACHES:
+	case ION_IOC_CLEAN_INV_CACHES:
+		break;
+	case ION_IOC_GET_PHYS:
+	{
+		struct ion_phys_data data;
+		struct ion_handle *handle;
+		int ret;
+		
+		if (copy_from_user(&data, (void __user *)arg,
+					sizeof(struct ion_phys_data)))
+			return -EFAULT;
+
+		handle = ion_handle_get_by_id(client, data.handle);
+		if (IS_ERR(handle))
+			return PTR_ERR(handle);
+
+		ret = ion_phys(client, handle, &data.phys, (size_t *)&data.size);
+		pr_info("ret=%d, phys=0x%X\n", ret, data.phys);
+		if(ret < 0)
+			return ret;
+		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_phys_data)))
+			return -EFAULT;
+		break;
+	}
+	default:
+		return -ENOTTY;
+	}
+	
 	return 0;
 }
 

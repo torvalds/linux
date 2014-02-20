@@ -31,10 +31,10 @@ enum ion_heap_ids {
 
 #define ION_HEAP(bit) (1 << (bit))
 
-#define ION_VIDEO_HEAP_NAME	"video"
-#define ION_AUDIO_HEAP_NAME	"audio"
+#define ION_VIDEO_HEAP_NAME		"video"
+#define ION_AUDIO_HEAP_NAME		"audio"
 #define ION_CAMERA_HEAP_NAME	"camera_preview"
-#define ION_IOMMU_HEAP_NAME	"iommu"
+#define ION_IOMMU_HEAP_NAME		"iommu"
 #define ION_VMALLOC_HEAP_NAME	"vmalloc"
 
 #define ION_SET_CACHED(__cache)		(__cache | ION_FLAG_CACHED)
@@ -62,28 +62,34 @@ struct ion_flush_data {
 	unsigned int length;
 };
 
+struct ion_phys_data {
+	ion_user_handle_t handle;
+	unsigned long phys;
+	unsigned long size;
+};
+
 #define ION_IOC_ROCKCHIP_MAGIC 'R'
 
 /**
- * DOC: ION_IOC_CLEAN_CACHES - clean the caches
- *
  * Clean the caches of the handle specified.
  */
 #define ION_IOC_CLEAN_CACHES	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 0, \
 						struct ion_flush_data)
 /**
- * DOC: ION_IOC_INV_CACHES - invalidate the caches
- *
  * Invalidate the caches of the handle specified.
  */
 #define ION_IOC_INV_CACHES	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 1, \
 						struct ion_flush_data)
 /**
- * DOC: ION_IOC_CLEAN_INV_CACHES - clean and invalidate the caches
- *
  * Clean and invalidate the caches of the handle specified.
  */
 #define ION_IOC_CLEAN_INV_CACHES	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 2, \
 						struct ion_flush_data)
+
+/**
+ * Get phys addr of the handle specified.
+ */
+#define ION_IOC_GET_PHYS	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 3, \
+						struct ion_phys_data)
 
 #endif
