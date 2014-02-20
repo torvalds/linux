@@ -157,4 +157,10 @@ config VIPERBOARD_ADC
 	  Say yes here to access the ADC part of the Nano River
 	  Technologies Viperboard.
 
+config RK_ADC
+        tristate "Rockchip ADC support"
+        depends on OF
+        help
+          Core support for the ADC block found in the Rockchip series
+          of SoCs for drivers such as the key and battery to use it.
 endmenu

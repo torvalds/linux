@@ -407,6 +407,19 @@
 		status = "disabled";
         };
 
+    adc: adc@2006c000 {
+	   compatible = "rockchip,saradc";
+	   reg = <0x2006c000 0x100>;
+	   interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+           #io-channel-cells = <1>;
+	   io-channel-ranges;
+           rockchip,adc-vref = <1800>;
+           clock-frequency = <1000000>;
+           clocks = <&clk_saradc>, <&clk_gates7 14>;
+           clock-names = "saradc", "pclk_saradc"; 
+           status = "disabled";
+    };
+
 	spdif: rockchip-spdif@0x1011e000 {
 		compatible = "rockchip-spdif";
 		reg = <0x1011e000 0x2000>;

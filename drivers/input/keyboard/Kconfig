@@ -12,6 +12,13 @@ menuconfig INPUT_KEYBOARD
 
 if INPUT_KEYBOARD
 
+config KEYS_RK
+        tristate "rk keyboard"
+        depends on RK_ADC 
+        default y
+        help
+          rk keyboard drivers(gpio and adc)
+
 config KEYBOARD_ADP5520
 	tristate "Keypad Support for ADP5520 PMIC"
 	depends on PMIC_ADP5520
