@@ -514,6 +514,12 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		  "logical block %lu\n", inode->i_ino, flags, map->m_len,
 		  (unsigned long) map->m_lblk);
 
+	/*
+	 * ext4_map_blocks returns an int, and m_len is an unsigned int
+	 */
+	if (unlikely(map->m_len > INT_MAX))
+		map->m_len = INT_MAX;
+
 	/* Lookup extent status tree firstly */
 	if (ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
 		ext4_es_lru_add(inode);
