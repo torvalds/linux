@@ -2616,9 +2616,12 @@ struct ieee80211_iface_limit {
  *	only in special cases.
  * @radar_detect_widths: bitmap of channel widths supported for radar detection
  *
- * These examples can be expressed as follows:
+ * With this structure the driver can describe which interface
+ * combinations it supports concurrently.
  *
- * Allow #STA <= 1, #AP <= 1, matching BI, channels = 1, 2 total:
+ * Examples:
+ *
+ * 1. Allow #STA <= 1, #AP <= 1, matching BI, channels = 1, 2 total:
  *
  *  struct ieee80211_iface_limit limits1[] = {
  *	{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
@@ -2632,7 +2635,7 @@ struct ieee80211_iface_limit {
  *  };
  *
  *
- * Allow #{AP, P2P-GO} <= 8, channels = 1, 8 total:
+ * 2. Allow #{AP, P2P-GO} <= 8, channels = 1, 8 total:
  *
  *  struct ieee80211_iface_limit limits2[] = {
  *	{ .max = 8, .types = BIT(NL80211_IFTYPE_AP) |
@@ -2646,7 +2649,8 @@ struct ieee80211_iface_limit {
  *  };
  *
  *
- * Allow #STA <= 1, #{P2P-client,P2P-GO} <= 3 on two channels, 4 total.
+ * 3. Allow #STA <= 1, #{P2P-client,P2P-GO} <= 3 on two channels, 4 total.
+ *
  * This allows for an infrastructure connection and three P2P connections.
  *
  *  struct ieee80211_iface_limit limits3[] = {
