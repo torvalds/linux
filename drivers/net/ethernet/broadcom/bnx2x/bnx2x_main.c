@@ -8001,19 +8001,25 @@ void bnx2x_free_mem(struct bnx2x *bp)
 
 int bnx2x_alloc_mem_cnic(struct bnx2x *bp)
 {
-	if (!CHIP_IS_E1x(bp))
+	if (!CHIP_IS_E1x(bp)) {
 		/* size = the status block + ramrod buffers */
-		BNX2X_PCI_ALLOC(bp->cnic_sb.e2_sb, &bp->cnic_sb_mapping,
-				sizeof(struct host_hc_status_block_e2));
-	else
-		BNX2X_PCI_ALLOC(bp->cnic_sb.e1x_sb,
-				&bp->cnic_sb_mapping,
-				sizeof(struct
-				       host_hc_status_block_e1x));
+		bp->cnic_sb.e2_sb = BNX2X_PCI_ALLOC(&bp->cnic_sb_mapping,
+						    sizeof(struct host_hc_status_block_e2));
+		if (!bp->cnic_sb.e2_sb)
+			goto alloc_mem_err;
+	} else {
+		bp->cnic_sb.e1x_sb = BNX2X_PCI_ALLOC(&bp->cnic_sb_mapping,
+						     sizeof(struct host_hc_status_block_e1x));
+		if (!bp->cnic_sb.e1x_sb)
+			goto alloc_mem_err;
+	}
 
-	if (CONFIGURE_NIC_MODE(bp) && !bp->t2)
+	if (CONFIGURE_NIC_MODE(bp) && !bp->t2) {
 		/* allocate searcher T2 table, as it wasn't allocated before */
-		BNX2X_PCI_ALLOC(bp->t2, &bp->t2_mapping, SRC_T2_SZ);
+		bp->t2 = BNX2X_PCI_ALLOC(&bp->t2_mapping, SRC_T2_SZ);
+		if (!bp->t2)
+			goto alloc_mem_err;
+	}
 
 	/* write address to which L5 should insert its values */
 	bp->cnic_eth_dev.addr_drv_info_to_mcp =
@@ -8034,15 +8040,22 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 {
 	int i, allocated, context_size;
 
-	if (!CONFIGURE_NIC_MODE(bp) && !bp->t2)
+	if (!CONFIGURE_NIC_MODE(bp) && !bp->t2) {
 		/* allocate searcher T2 table */
-		BNX2X_PCI_ALLOC(bp->t2, &bp->t2_mapping, SRC_T2_SZ);
+		bp->t2 = BNX2X_PCI_ALLOC(&bp->t2_mapping, SRC_T2_SZ);
+		if (!bp->t2)
+			goto alloc_mem_err;
+	}
 
-	BNX2X_PCI_ALLOC(bp->def_status_blk, &bp->def_status_blk_mapping,
-			sizeof(struct host_sp_status_block));
+	bp->def_status_blk = BNX2X_PCI_ALLOC(&bp->def_status_blk_mapping,
+					     sizeof(struct host_sp_status_block));
+	if (!bp->def_status_blk)
+		goto alloc_mem_err;
 
-	BNX2X_PCI_ALLOC(bp->slowpath, &bp->slowpath_mapping,
-			sizeof(struct bnx2x_slowpath));
+	bp->slowpath = BNX2X_PCI_ALLOC(&bp->slowpath_mapping,
+				       sizeof(struct bnx2x_slowpath));
+	if (!bp->slowpath)
+		goto alloc_mem_err;
 
 	/* Allocate memory for CDU context:
 	 * This memory is allocated separately and not in the generic ILT
@@ -8062,12 +8075,16 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 	for (i = 0, allocated = 0; allocated < context_size; i++) {
 		bp->context[i].size = min(CDU_ILT_PAGE_SZ,
 					  (context_size - allocated));
-		BNX2X_PCI_ALLOC(bp->context[i].vcxt,
-				&bp->context[i].cxt_mapping,
-				bp->context[i].size);
+		bp->context[i].vcxt = BNX2X_PCI_ALLOC(&bp->context[i].cxt_mapping,
+						      bp->context[i].size);
+		if (!bp->context[i].vcxt)
+			goto alloc_mem_err;
 		allocated += bp->context[i].size;
 	}
-	BNX2X_ALLOC(bp->ilt->lines, sizeof(struct ilt_line) * ILT_MAX_LINES);
+	bp->ilt->lines = kcalloc(ILT_MAX_LINES, sizeof(struct ilt_line),
+				 GFP_KERNEL);
+	if (!bp->ilt->lines)
+		goto alloc_mem_err;
 
 	if (bnx2x_ilt_mem_op(bp, ILT_MEMOP_ALLOC))
 		goto alloc_mem_err;
@@ -8076,11 +8093,15 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 		goto alloc_mem_err;
 
 	/* Slow path ring */
-	BNX2X_PCI_ALLOC(bp->spq, &bp->spq_mapping, BCM_PAGE_SIZE);
+	bp->spq = BNX2X_PCI_ALLOC(&bp->spq_mapping, BCM_PAGE_SIZE);
+	if (!bp->spq)
+		goto alloc_mem_err;
 
 	/* EQ */
-	BNX2X_PCI_ALLOC(bp->eq_ring, &bp->eq_mapping,
-			BCM_PAGE_SIZE * NUM_EQ_PAGES);
+	bp->eq_ring = BNX2X_PCI_ALLOC(&bp->eq_mapping,
+				      BCM_PAGE_SIZE * NUM_EQ_PAGES);
+	if (!bp->eq_ring)
+		goto alloc_mem_err;
 
 	return 0;
 
@@ -11954,7 +11975,7 @@ static int bnx2x_init_mcast_macs_list(struct bnx2x *bp,
 {
 	int mc_count = netdev_mc_count(bp->dev);
 	struct bnx2x_mcast_list_elem *mc_mac =
-		kzalloc(sizeof(*mc_mac) * mc_count, GFP_ATOMIC);
+		kcalloc(mc_count, sizeof(*mc_mac), GFP_ATOMIC);
 	struct netdev_hw_addr *ha;
 
 	if (!mc_mac)

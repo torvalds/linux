@@ -2120,7 +2120,9 @@ int bnx2x_iov_alloc_mem(struct bnx2x *bp)
 		cxt->size = min_t(size_t, tot_size, CDU_ILT_PAGE_SZ);
 
 		if (cxt->size) {
-			BNX2X_PCI_ALLOC(cxt->addr, &cxt->mapping, cxt->size);
+			cxt->addr = BNX2X_PCI_ALLOC(&cxt->mapping, cxt->size);
+			if (!cxt->addr)
+				goto alloc_mem_err;
 		} else {
 			cxt->addr = NULL;
 			cxt->mapping = 0;
@@ -2130,20 +2132,28 @@ int bnx2x_iov_alloc_mem(struct bnx2x *bp)
 
 	/* allocate vfs ramrods dma memory - client_init and set_mac */
 	tot_size = BNX2X_NR_VIRTFN(bp) * sizeof(struct bnx2x_vf_sp);
-	BNX2X_PCI_ALLOC(BP_VFDB(bp)->sp_dma.addr, &BP_VFDB(bp)->sp_dma.mapping,
-			tot_size);
+	BP_VFDB(bp)->sp_dma.addr = BNX2X_PCI_ALLOC(&BP_VFDB(bp)->sp_dma.mapping,
+						   tot_size);
+	if (!BP_VFDB(bp)->sp_dma.addr)
+		goto alloc_mem_err;
 	BP_VFDB(bp)->sp_dma.size = tot_size;
 
 	/* allocate mailboxes */
 	tot_size = BNX2X_NR_VIRTFN(bp) * MBX_MSG_ALIGNED_SIZE;
-	BNX2X_PCI_ALLOC(BP_VF_MBX_DMA(bp)->addr, &BP_VF_MBX_DMA(bp)->mapping,
-			tot_size);
+	BP_VF_MBX_DMA(bp)->addr = BNX2X_PCI_ALLOC(&BP_VF_MBX_DMA(bp)->mapping,
+						  tot_size);
+	if (!BP_VF_MBX_DMA(bp)->addr)
+		goto alloc_mem_err;
+
 	BP_VF_MBX_DMA(bp)->size = tot_size;
 
 	/* allocate local bulletin boards */
 	tot_size = BNX2X_NR_VIRTFN(bp) * BULLETIN_CONTENT_SIZE;
-	BNX2X_PCI_ALLOC(BP_VF_BULLETIN_DMA(bp)->addr,
-			&BP_VF_BULLETIN_DMA(bp)->mapping, tot_size);
+	BP_VF_BULLETIN_DMA(bp)->addr = BNX2X_PCI_ALLOC(&BP_VF_BULLETIN_DMA(bp)->mapping,
+						       tot_size);
+	if (!BP_VF_BULLETIN_DMA(bp)->addr)
+		goto alloc_mem_err;
+
 	BP_VF_BULLETIN_DMA(bp)->size = tot_size;
 
 	return 0;
@@ -3825,12 +3835,16 @@ int bnx2x_vf_pci_alloc(struct bnx2x *bp)
 	mutex_init(&bp->vf2pf_mutex);
 
 	/* allocate vf2pf mailbox for vf to pf channel */
-	BNX2X_PCI_ALLOC(bp->vf2pf_mbox, &bp->vf2pf_mbox_mapping,
-			sizeof(struct bnx2x_vf_mbx_msg));
+	bp->vf2pf_mbox = BNX2X_PCI_ALLOC(&bp->vf2pf_mbox_mapping,
+					 sizeof(struct bnx2x_vf_mbx_msg));
+	if (!bp->vf2pf_mbox)
+		goto alloc_mem_err;
 
 	/* allocate pf 2 vf bulletin board */
-	BNX2X_PCI_ALLOC(bp->pf2vf_bulletin, &bp->pf2vf_bulletin_mapping,
-			sizeof(union pf_vf_bulletin));
+	bp->pf2vf_bulletin = BNX2X_PCI_ALLOC(&bp->pf2vf_bulletin_mapping,
+					     sizeof(union pf_vf_bulletin));
+	if (!bp->pf2vf_bulletin)
+		goto alloc_mem_err;
 
 	return 0;
 

@@ -2228,8 +2228,10 @@ static int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 		sizeof(struct per_queue_stats) * num_queue_stats +
 		sizeof(struct stats_counter);
 
-	BNX2X_PCI_ALLOC(bp->fw_stats, &bp->fw_stats_mapping,
-			bp->fw_stats_data_sz + bp->fw_stats_req_sz);
+	bp->fw_stats = BNX2X_PCI_ALLOC(&bp->fw_stats_mapping,
+				       bp->fw_stats_data_sz + bp->fw_stats_req_sz);
+	if (!bp->fw_stats)
+		goto alloc_mem_err;
 
 	/* Set shortcuts */
 	bp->fw_stats_req = (struct bnx2x_fw_stats_req *)bp->fw_stats;
@@ -4357,14 +4359,17 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 
 	if (!IS_FCOE_IDX(index)) {
 		/* status blocks */
-		if (!CHIP_IS_E1x(bp))
-			BNX2X_PCI_ALLOC(sb->e2_sb,
-				&bnx2x_fp(bp, index, status_blk_mapping),
-				sizeof(struct host_hc_status_block_e2));
-		else
-			BNX2X_PCI_ALLOC(sb->e1x_sb,
-				&bnx2x_fp(bp, index, status_blk_mapping),
-			    sizeof(struct host_hc_status_block_e1x));
+		if (!CHIP_IS_E1x(bp)) {
+			sb->e2_sb = BNX2X_PCI_ALLOC(&bnx2x_fp(bp, index, status_blk_mapping),
+						    sizeof(struct host_hc_status_block_e2));
+			if (!sb->e2_sb)
+				goto alloc_mem_err;
+		} else {
+			sb->e1x_sb = BNX2X_PCI_ALLOC(&bnx2x_fp(bp, index, status_blk_mapping),
+						     sizeof(struct host_hc_status_block_e1x));
+			if (!sb->e1x_sb)
+				goto alloc_mem_err;
+		}
 	}
 
 	/* FCoE Queue uses Default SB and doesn't ACK the SB, thus no need to
@@ -4383,35 +4388,49 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 			   "allocating tx memory of fp %d cos %d\n",
 			   index, cos);
 
-			BNX2X_ALLOC(txdata->tx_buf_ring,
-				sizeof(struct sw_tx_bd) * NUM_TX_BD);
-			BNX2X_PCI_ALLOC(txdata->tx_desc_ring,
-				&txdata->tx_desc_mapping,
-				sizeof(union eth_tx_bd_types) * NUM_TX_BD);
+			txdata->tx_buf_ring = kcalloc(NUM_TX_BD,
+						      sizeof(struct sw_tx_bd),
+						      GFP_KERNEL);
+			if (!txdata->tx_buf_ring)
+				goto alloc_mem_err;
+			txdata->tx_desc_ring = BNX2X_PCI_ALLOC(&txdata->tx_desc_mapping,
+							       sizeof(union eth_tx_bd_types) * NUM_TX_BD);
+			if (!txdata->tx_desc_ring)
+				goto alloc_mem_err;
 		}
 	}
 
 	/* Rx */
 	if (!skip_rx_queue(bp, index)) {
 		/* fastpath rx rings: rx_buf rx_desc rx_comp */
-		BNX2X_ALLOC(bnx2x_fp(bp, index, rx_buf_ring),
-				sizeof(struct sw_rx_bd) * NUM_RX_BD);
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, index, rx_desc_ring),
-				&bnx2x_fp(bp, index, rx_desc_mapping),
-				sizeof(struct eth_rx_bd) * NUM_RX_BD);
+		bnx2x_fp(bp, index, rx_buf_ring) =
+			kcalloc(NUM_RX_BD, sizeof(struct sw_rx_bd), GFP_KERNEL);
+		if (!bnx2x_fp(bp, index, rx_buf_ring))
+			goto alloc_mem_err;
+		bnx2x_fp(bp, index, rx_desc_ring) =
+			BNX2X_PCI_ALLOC(&bnx2x_fp(bp, index, rx_desc_mapping),
+					sizeof(struct eth_rx_bd) * NUM_RX_BD);
+		if (!bnx2x_fp(bp, index, rx_desc_ring))
+			goto alloc_mem_err;
 
 		/* Seed all CQEs by 1s */
-		BNX2X_PCI_FALLOC(bnx2x_fp(bp, index, rx_comp_ring),
-				 &bnx2x_fp(bp, index, rx_comp_mapping),
-				 sizeof(struct eth_fast_path_rx_cqe) *
-				 NUM_RCQ_BD);
+		bnx2x_fp(bp, index, rx_comp_ring) =
+			BNX2X_PCI_FALLOC(&bnx2x_fp(bp, index, rx_comp_mapping),
+					 sizeof(struct eth_fast_path_rx_cqe) * NUM_RCQ_BD);
+		if (!bnx2x_fp(bp, index, rx_comp_ring))
+			goto alloc_mem_err;
 
 		/* SGE ring */
-		BNX2X_ALLOC(bnx2x_fp(bp, index, rx_page_ring),
-				sizeof(struct sw_rx_page) * NUM_RX_SGE);
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, index, rx_sge_ring),
-				&bnx2x_fp(bp, index, rx_sge_mapping),
-				BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
+		bnx2x_fp(bp, index, rx_page_ring) =
+			kcalloc(NUM_RX_SGE, sizeof(struct sw_rx_page),
+				GFP_KERNEL);
+		if (!bnx2x_fp(bp, index, rx_page_ring))
+			goto alloc_mem_err;
+		bnx2x_fp(bp, index, rx_sge_ring) =
+			BNX2X_PCI_ALLOC(&bnx2x_fp(bp, index, rx_sge_mapping),
+					BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
+		if (!bnx2x_fp(bp, index, rx_sge_ring))
+			goto alloc_mem_err;
 		/* RX BD ring */
 		bnx2x_set_next_page_rx_bd(fp);
 
