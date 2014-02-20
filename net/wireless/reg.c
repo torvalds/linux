@@ -91,7 +91,7 @@ static struct regulatory_request __rcu *last_request =
 /* To trigger userspace events */
 static struct platform_device *reg_pdev;
 
-static struct device_type reg_device_type = {
+static const struct device_type reg_device_type = {
 	.uevent = reg_device_uevent,
 };
 
@@ -522,6 +522,77 @@ bool reg_is_valid_request(const char *alpha2)
 	return alpha2_equal(lr->alpha2, alpha2);
 }
 
+static const struct ieee80211_regdomain *reg_get_regdomain(struct wiphy *wiphy)
+{
+	struct regulatory_request *lr = get_last_request();
+
+	/*
+	 * Follow the driver's regulatory domain, if present, unless a country
+	 * IE has been processed or a user wants to help complaince further
+	 */
+	if (lr->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	    lr->initiator != NL80211_REGDOM_SET_BY_USER &&
+	    wiphy->regd)
+		return get_wiphy_regdom(wiphy);
+
+	return get_cfg80211_regdom();
+}
+
+unsigned int reg_get_max_bandwidth(const struct ieee80211_regdomain *rd,
+				   const struct ieee80211_reg_rule *rule)
+{
+	const struct ieee80211_freq_range *freq_range = &rule->freq_range;
+	const struct ieee80211_freq_range *freq_range_tmp;
+	const struct ieee80211_reg_rule *tmp;
+	u32 start_freq, end_freq, idx, no;
+
+	for (idx = 0; idx < rd->n_reg_rules; idx++)
+		if (rule == &rd->reg_rules[idx])
+			break;
+
+	if (idx == rd->n_reg_rules)
+		return 0;
+
+	/* get start_freq */
+	no = idx;
+
+	while (no) {
+		tmp = &rd->reg_rules[--no];
+		freq_range_tmp = &tmp->freq_range;
+
+		if (freq_range_tmp->end_freq_khz < freq_range->start_freq_khz)
+			break;
+
+		if (freq_range_tmp->max_bandwidth_khz)
+			break;
+
+		freq_range = freq_range_tmp;
+	}
+
+	start_freq = freq_range->start_freq_khz;
+
+	/* get end_freq */
+	freq_range = &rule->freq_range;
+	no = idx;
+
+	while (no < rd->n_reg_rules - 1) {
+		tmp = &rd->reg_rules[++no];
+		freq_range_tmp = &tmp->freq_range;
+
+		if (freq_range_tmp->start_freq_khz > freq_range->end_freq_khz)
+			break;
+
+		if (freq_range_tmp->max_bandwidth_khz)
+			break;
+
+		freq_range = freq_range_tmp;
+	}
+
+	end_freq = freq_range->end_freq_khz;
+
+	return end_freq - start_freq;
+}
+
 /* Sanity check on a regulatory rule */
 static bool is_valid_reg_rule(const struct ieee80211_reg_rule *rule)
 {
@@ -630,7 +701,9 @@ reg_intersect_dfs_region(const enum nl80211_dfs_regions dfs_region1,
  * Helper for regdom_intersect(), this does the real
  * mathematical intersection fun
  */
-static int reg_rules_intersect(const struct ieee80211_reg_rule *rule1,
+static int reg_rules_intersect(const struct ieee80211_regdomain *rd1,
+			       const struct ieee80211_regdomain *rd2,
+			       const struct ieee80211_reg_rule *rule1,
 			       const struct ieee80211_reg_rule *rule2,
 			       struct ieee80211_reg_rule *intersected_rule)
 {
@@ -638,7 +711,7 @@ static int reg_rules_intersect(const struct ieee80211_reg_rule *rule1,
 	struct ieee80211_freq_range *freq_range;
 	const struct ieee80211_power_rule *power_rule1, *power_rule2;
 	struct ieee80211_power_rule *power_rule;
-	u32 freq_diff;
+	u32 freq_diff, max_bandwidth1, max_bandwidth2;
 
 	freq_range1 = &rule1->freq_range;
 	freq_range2 = &rule2->freq_range;
@@ -652,8 +725,24 @@ static int reg_rules_intersect(const struct ieee80211_reg_rule *rule1,
 					 freq_range2->start_freq_khz);
 	freq_range->end_freq_khz = min(freq_range1->end_freq_khz,
 				       freq_range2->end_freq_khz);
-	freq_range->max_bandwidth_khz = min(freq_range1->max_bandwidth_khz,
-					    freq_range2->max_bandwidth_khz);
+
+	max_bandwidth1 = freq_range1->max_bandwidth_khz;
+	max_bandwidth2 = freq_range2->max_bandwidth_khz;
+
+	/*
+	 * In case max_bandwidth1 == 0 and max_bandwith2 == 0 set
+	 * output bandwidth as 0 (auto calculation). Next we will
+	 * calculate this correctly in handle_channel function.
+	 * In other case calculate output bandwidth here.
+	 */
+	if (max_bandwidth1 || max_bandwidth2) {
+		if (!max_bandwidth1)
+			max_bandwidth1 = reg_get_max_bandwidth(rd1, rule1);
+		if (!max_bandwidth2)
+			max_bandwidth2 = reg_get_max_bandwidth(rd2, rule2);
+	}
+
+	freq_range->max_bandwidth_khz = min(max_bandwidth1, max_bandwidth2);
 
 	freq_diff = freq_range->end_freq_khz - freq_range->start_freq_khz;
 	if (freq_range->max_bandwidth_khz > freq_diff)
@@ -713,7 +802,8 @@ regdom_intersect(const struct ieee80211_regdomain *rd1,
 		rule1 = &rd1->reg_rules[x];
 		for (y = 0; y < rd2->n_reg_rules; y++) {
 			rule2 = &rd2->reg_rules[y];
-			if (!reg_rules_intersect(rule1, rule2, &dummy_rule))
+			if (!reg_rules_intersect(rd1, rd2, rule1, rule2,
+						 &dummy_rule))
 				num_rules++;
 		}
 	}
@@ -738,7 +828,8 @@ regdom_intersect(const struct ieee80211_regdomain *rd1,
 			 * a memcpy()
 			 */
 			intersected_rule = &rd->reg_rules[rule_idx];
-			r = reg_rules_intersect(rule1, rule2, intersected_rule);
+			r = reg_rules_intersect(rd1, rd2, rule1, rule2,
+						intersected_rule);
 			/*
 			 * No need to memset here the intersected rule here as
 			 * we're not using the stack anymore
@@ -821,18 +912,8 @@ const struct ieee80211_reg_rule *freq_reg_info(struct wiphy *wiphy,
 					       u32 center_freq)
 {
 	const struct ieee80211_regdomain *regd;
-	struct regulatory_request *lr = get_last_request();
 
-	/*
-	 * Follow the driver's regulatory domain, if present, unless a country
-	 * IE has been processed or a user wants to help complaince further
-	 */
-	if (lr->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    lr->initiator != NL80211_REGDOM_SET_BY_USER &&
-	    wiphy->regd)
-		regd = get_wiphy_regdom(wiphy);
-	else
-		regd = get_cfg80211_regdom();
+	regd = reg_get_regdomain(wiphy);
 
 	return freq_reg_info_regd(wiphy, center_freq, regd);
 }
@@ -903,6 +984,8 @@ static void handle_channel(struct wiphy *wiphy,
 	const struct ieee80211_freq_range *freq_range = NULL;
 	struct wiphy *request_wiphy = NULL;
 	struct regulatory_request *lr = get_last_request();
+	const struct ieee80211_regdomain *regd;
+	u32 max_bandwidth_khz;
 
 	request_wiphy = wiphy_idx_to_wiphy(lr->wiphy_idx);
 
@@ -944,11 +1027,18 @@ static void handle_channel(struct wiphy *wiphy,
 	power_rule = &reg_rule->power_rule;
 	freq_range = &reg_rule->freq_range;
 
-	if (freq_range->max_bandwidth_khz < MHZ_TO_KHZ(40))
+	max_bandwidth_khz = freq_range->max_bandwidth_khz;
+	/* Check if auto calculation requested */
+	if (!max_bandwidth_khz) {
+		regd = reg_get_regdomain(wiphy);
+		max_bandwidth_khz = reg_get_max_bandwidth(regd, reg_rule);
+	}
+
+	if (max_bandwidth_khz < MHZ_TO_KHZ(40))
 		bw_flags = IEEE80211_CHAN_NO_HT40;
-	if (freq_range->max_bandwidth_khz < MHZ_TO_KHZ(80))
+	if (max_bandwidth_khz < MHZ_TO_KHZ(80))
 		bw_flags |= IEEE80211_CHAN_NO_80MHZ;
-	if (freq_range->max_bandwidth_khz < MHZ_TO_KHZ(160))
+	if (max_bandwidth_khz < MHZ_TO_KHZ(160))
 		bw_flags |= IEEE80211_CHAN_NO_160MHZ;
 
 	if (lr->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
@@ -1334,6 +1424,7 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	const struct ieee80211_reg_rule *reg_rule = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
 	const struct ieee80211_freq_range *freq_range = NULL;
+	u32 max_bandwidth_khz;
 
 	reg_rule = freq_reg_info_regd(wiphy, MHZ_TO_KHZ(chan->center_freq),
 				      regd);
@@ -1351,11 +1442,16 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	power_rule = &reg_rule->power_rule;
 	freq_range = &reg_rule->freq_range;
 
-	if (freq_range->max_bandwidth_khz < MHZ_TO_KHZ(40))
+	max_bandwidth_khz = freq_range->max_bandwidth_khz;
+	/* Check if auto calculation requested */
+	if (!max_bandwidth_khz)
+		max_bandwidth_khz = reg_get_max_bandwidth(regd, reg_rule);
+
+	if (max_bandwidth_khz < MHZ_TO_KHZ(40))
 		bw_flags = IEEE80211_CHAN_NO_HT40;
-	if (freq_range->max_bandwidth_khz < MHZ_TO_KHZ(80))
+	if (max_bandwidth_khz < MHZ_TO_KHZ(80))
 		bw_flags |= IEEE80211_CHAN_NO_80MHZ;
-	if (freq_range->max_bandwidth_khz < MHZ_TO_KHZ(160))
+	if (max_bandwidth_khz < MHZ_TO_KHZ(160))
 		bw_flags |= IEEE80211_CHAN_NO_160MHZ;
 
 	chan->flags |= map_regdom_flags(reg_rule->flags) | bw_flags;
@@ -1683,16 +1779,8 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	struct wiphy *wiphy = NULL;
 	enum reg_request_treatment treatment;
 
-	if (WARN_ON(!reg_request->alpha2))
-		return;
-
 	if (reg_request->wiphy_idx != WIPHY_IDX_INVALID)
 		wiphy = wiphy_idx_to_wiphy(reg_request->wiphy_idx);
-
-	if (reg_request->initiator == NL80211_REGDOM_SET_BY_DRIVER && !wiphy) {
-		kfree(reg_request);
-		return;
-	}
 
 	switch (reg_request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
@@ -1703,23 +1791,33 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		if (treatment == REG_REQ_OK ||
 		    treatment == REG_REQ_ALREADY_SET)
 			return;
-		schedule_delayed_work(&reg_timeout, msecs_to_jiffies(3142));
+		queue_delayed_work(system_power_efficient_wq,
+				   &reg_timeout, msecs_to_jiffies(3142));
 		return;
 	case NL80211_REGDOM_SET_BY_DRIVER:
+		if (!wiphy)
+			goto out_free;
 		treatment = reg_process_hint_driver(wiphy, reg_request);
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		if (!wiphy)
+			goto out_free;
 		treatment = reg_process_hint_country_ie(wiphy, reg_request);
 		break;
 	default:
 		WARN(1, "invalid initiator %d\n", reg_request->initiator);
-		return;
+		goto out_free;
 	}
 
 	/* This is required so that the orig_* parameters are saved */
 	if (treatment == REG_REQ_ALREADY_SET && wiphy &&
 	    wiphy->regulatory_flags & REGULATORY_STRICT_REG)
 		wiphy_update_regulatory(wiphy, reg_request->initiator);
+
+	return;
+
+out_free:
+	kfree(reg_request);
 }
 
 /*
@@ -2147,6 +2245,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 	const struct ieee80211_reg_rule *reg_rule = NULL;
 	const struct ieee80211_freq_range *freq_range = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
+	char bw[32];
 
 	pr_info("  (start_freq - end_freq @ bandwidth), (max_antenna_gain, max_eirp)\n");
 
@@ -2155,22 +2254,29 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 		freq_range = &reg_rule->freq_range;
 		power_rule = &reg_rule->power_rule;
 
+		if (!freq_range->max_bandwidth_khz)
+			snprintf(bw, 32, "%d KHz, AUTO",
+				 reg_get_max_bandwidth(rd, reg_rule));
+		else
+			snprintf(bw, 32, "%d KHz",
+				 freq_range->max_bandwidth_khz);
+
 		/*
 		 * There may not be documentation for max antenna gain
 		 * in certain regions
 		 */
 		if (power_rule->max_antenna_gain)
-			pr_info("  (%d KHz - %d KHz @ %d KHz), (%d mBi, %d mBm)\n",
+			pr_info("  (%d KHz - %d KHz @ %s), (%d mBi, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,
-				freq_range->max_bandwidth_khz,
+				bw,
 				power_rule->max_antenna_gain,
 				power_rule->max_eirp);
 		else
-			pr_info("  (%d KHz - %d KHz @ %d KHz), (N/A, %d mBm)\n",
+			pr_info("  (%d KHz - %d KHz @ %s), (N/A, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,
-				freq_range->max_bandwidth_khz,
+				bw,
 				power_rule->max_eirp);
 	}
 }
@@ -2294,7 +2400,8 @@ static int reg_set_rd_driver(const struct ieee80211_regdomain *rd,
 
 	request_wiphy = wiphy_idx_to_wiphy(driver_request->wiphy_idx);
 	if (!request_wiphy) {
-		schedule_delayed_work(&reg_timeout, 0);
+		queue_delayed_work(system_power_efficient_wq,
+				   &reg_timeout, 0);
 		return -ENODEV;
 	}
 
@@ -2354,7 +2461,8 @@ static int reg_set_rd_country_ie(const struct ieee80211_regdomain *rd,
 
 	request_wiphy = wiphy_idx_to_wiphy(country_ie_request->wiphy_idx);
 	if (!request_wiphy) {
-		schedule_delayed_work(&reg_timeout, 0);
+		queue_delayed_work(system_power_efficient_wq,
+				   &reg_timeout, 0);
 		return -ENODEV;
 	}
 

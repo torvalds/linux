@@ -737,7 +737,7 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 }
 EXPORT_SYMBOL(cfg80211_unregister_wdev);
 
-static struct device_type wiphy_type = {
+static const struct device_type wiphy_type = {
 	.name	= "wlan",
 };
 

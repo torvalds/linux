@@ -69,6 +69,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 
 		break;
 	case HostCmd_CMD_802_11_SCAN:
+	case HostCmd_CMD_802_11_SCAN_EXT:
 		/* Cancel all pending scan command */
 		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
 		list_for_each_entry_safe(cmd_node, tmp_node,
@@ -561,13 +562,13 @@ static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of set/get key material.
+ * This function handles the command response of set/get v1 key material.
  *
  * Handling includes updating the driver parameters to reflect the
  * changes.
  */
-static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
-					   struct host_cmd_ds_command *resp)
+static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
+					      struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_key_material *key =
 						&resp->params.key_material;
@@ -587,6 +588,51 @@ static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 	       le16_to_cpu(priv->aes_key.key_param_set.key_len));
 
 	return 0;
+}
+
+/*
+ * This function handles the command response of set/get v2 key material.
+ *
+ * Handling includes updating the driver parameters to reflect the
+ * changes.
+ */
+static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
+					      struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_802_11_key_material_v2 *key_v2;
+	__le16 len;
+
+	key_v2 = &resp->params.key_material_v2;
+	if (le16_to_cpu(key_v2->action) == HostCmd_ACT_GEN_SET) {
+		if ((le16_to_cpu(key_v2->key_param_set.key_info) & KEY_MCAST)) {
+			dev_dbg(priv->adapter->dev, "info: key: GTK is set\n");
+			priv->wpa_is_gtk_set = true;
+			priv->scan_block = false;
+		}
+	}
+
+	if (key_v2->key_param_set.key_type != KEY_TYPE_ID_AES)
+		return 0;
+
+	memset(priv->aes_key_v2.key_param_set.key_params.aes.key, 0,
+	       WLAN_KEY_LEN_CCMP);
+	priv->aes_key_v2.key_param_set.key_params.aes.key_len =
+				key_v2->key_param_set.key_params.aes.key_len;
+	len = priv->aes_key_v2.key_param_set.key_params.aes.key_len;
+	memcpy(priv->aes_key_v2.key_param_set.key_params.aes.key,
+	       key_v2->key_param_set.key_params.aes.key, le16_to_cpu(len));
+
+	return 0;
+}
+
+/* Wrapper function for processing response of key material command */
+static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
+					   struct host_cmd_ds_command *resp)
+{
+	if (priv->adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+		return mwifiex_ret_802_11_key_material_v2(priv, resp);
+	else
+		return mwifiex_ret_802_11_key_material_v1(priv, resp);
 }
 
 /*
@@ -800,7 +846,60 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 
 	return 0;
 }
+static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
+				 struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_tdls_oper *cmd_tdls_oper = &resp->params.tdls_oper;
+	u16 reason = le16_to_cpu(cmd_tdls_oper->reason);
+	u16 action = le16_to_cpu(cmd_tdls_oper->tdls_action);
+	struct mwifiex_sta_node *node =
+			   mwifiex_get_sta_entry(priv, cmd_tdls_oper->peer_mac);
 
+	switch (action) {
+	case ACT_TDLS_DELETE:
+		if (reason)
+			dev_err(priv->adapter->dev,
+				"TDLS link delete for %pM failed: reason %d\n",
+				cmd_tdls_oper->peer_mac, reason);
+		else
+			dev_dbg(priv->adapter->dev,
+				"TDLS link config for %pM successful\n",
+				cmd_tdls_oper->peer_mac);
+		break;
+	case ACT_TDLS_CREATE:
+		if (reason) {
+			dev_err(priv->adapter->dev,
+				"TDLS link creation for %pM failed: reason %d",
+				cmd_tdls_oper->peer_mac, reason);
+			if (node && reason != TDLS_ERR_LINK_EXISTS)
+				node->tdls_status = TDLS_SETUP_FAILURE;
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link creation for %pM successful",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
+	case ACT_TDLS_CONFIG:
+		if (reason) {
+			dev_err(priv->adapter->dev,
+				"TDLS link config for %pM failed, reason %d\n",
+				cmd_tdls_oper->peer_mac, reason);
+			if (node)
+				node->tdls_status = TDLS_SETUP_FAILURE;
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link config for %pM successful\n",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
+	default:
+		dev_err(priv->adapter->dev,
+			"Unknown TDLS command action respnse %d", action);
+		return -1;
+	}
+
+	return 0;
+}
 /*
  * This function handles the command response for subscribe event command.
  */
@@ -869,6 +968,10 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
+		adapter->curr_cmd->wait_q_enabled = false;
+		break;
+	case HostCmd_CMD_802_11_SCAN_EXT:
+		ret = mwifiex_ret_802_11_scan_ext(priv);
 		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
@@ -998,6 +1101,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_MEF_CFG:
 		break;
 	case HostCmd_CMD_COALESCE_CFG:
+		break;
+	case HostCmd_CMD_TDLS_OPER:
+		ret = mwifiex_ret_tdls_oper(priv, resp);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

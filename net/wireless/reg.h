@@ -34,6 +34,8 @@ int __init regulatory_init(void);
 void regulatory_exit(void);
 
 int set_regdom(const struct ieee80211_regdomain *rd);
+unsigned int reg_get_max_bandwidth(const struct ieee80211_regdomain *rd,
+				   const struct ieee80211_reg_rule *rule);
 
 bool reg_last_request_cell_base(void);
 

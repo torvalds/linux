@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,27 +60,73 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __MVM_CONSTANTS_H
-#define __MVM_CONSTANTS_H
 
-#define IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT	(100 * USEC_PER_MSEC)
-#define IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT	(100 * USEC_PER_MSEC)
-#define IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT	(10 * USEC_PER_MSEC)
-#define IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT	(10 * USEC_PER_MSEC)
-#define IWL_MVM_UAPSD_RX_DATA_TIMEOUT		(50 * USEC_PER_MSEC)
-#define IWL_MVM_UAPSD_TX_DATA_TIMEOUT		(50 * USEC_PER_MSEC)
-#define IWL_MVM_PS_HEAVY_TX_THLD_PACKETS	20
-#define IWL_MVM_PS_HEAVY_RX_THLD_PACKETS	8
-#define IWL_MVM_PS_SNOOZE_HEAVY_TX_THLD_PACKETS	30
-#define IWL_MVM_PS_SNOOZE_HEAVY_RX_THLD_PACKETS	20
-#define IWL_MVM_PS_HEAVY_TX_THLD_PERCENT	50
-#define IWL_MVM_PS_HEAVY_RX_THLD_PERCENT	50
-#define IWL_MVM_PS_SNOOZE_INTERVAL		25
-#define IWL_MVM_PS_SNOOZE_WINDOW		50
-#define IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW		25
-#define IWL_MVM_LOWLAT_QUOTA_MIN_PERCENT	64
-#define IWL_MVM_LOWLAT_SINGLE_BINDING_MAXDUR	24 /* TU */
-#define IWL_MVM_LOWLAT_DUAL_BINDING_MAXDUR	24 /* TU */
-#define IWL_MVM_BT_COEX_SYNC2SCO		1
+#include <linux/module.h>
+#include <linux/stringify.h>
+#include "iwl-config.h"
+#include "iwl-agn-hw.h"
 
-#endif /* __MVM_CONSTANTS_H */
+/* Highest firmware API version supported */
+#define IWL8000_UCODE_API_MAX	8
+
+/* Oldest version we won't warn about */
+#define IWL8000_UCODE_API_OK	8
+
+/* Lowest firmware API version supported */
+#define IWL8000_UCODE_API_MIN	8
+
+/* NVM versions */
+#define IWL8000_NVM_VERSION		0x0a1d
+#define IWL8000_TX_POWER_VERSION	0xffff /* meaningless */
+
+#define IWL8000_FW_PRE "iwlwifi-8000-"
+#define IWL8000_MODULE_FIRMWARE(api) IWL8000_FW_PRE __stringify(api) ".ucode"
+
+#define NVM_HW_SECTION_NUM_FAMILY_8000		10
+
+static const struct iwl_base_params iwl8000_base_params = {
+	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.pll_cfg_val = 0,
+	.shadow_ram_support = true,
+	.led_compensation = 57,
+	.wd_timeout = IWL_LONG_WD_TIMEOUT,
+	.max_event_log_size = 512,
+	.shadow_reg_enable = true,
+	.pcie_l1_allowed = true,
+};
+
+static const struct iwl_ht_params iwl8000_ht_params = {
+	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
+};
+
+#define IWL_DEVICE_8000						\
+	.ucode_api_max = IWL8000_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL8000_UCODE_API_OK,			\
+	.ucode_api_min = IWL8000_UCODE_API_MIN,			\
+	.device_family = IWL_DEVICE_FAMILY_8000,		\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
+	.base_params = &iwl8000_base_params,			\
+	.led_mode = IWL_LED_RF_STATE,				\
+	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000
+
+const struct iwl_cfg iwl8260_2ac_cfg = {
+	.name = "Intel(R) Dual Band Wireless AC 8260",
+	.fw_name_pre = IWL8000_FW_PRE,
+	IWL_DEVICE_8000,
+	.ht_params = &iwl8000_ht_params,
+	.nvm_ver = IWL8000_NVM_VERSION,
+	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
+};
+
+const struct iwl_cfg iwl8260_n_cfg = {
+	.name = "Intel(R) Dual Band Wireless-AC 8260",
+	.fw_name_pre = IWL8000_FW_PRE,
+	IWL_DEVICE_8000,
+	.ht_params = &iwl8000_ht_params,
+	.nvm_ver = IWL8000_NVM_VERSION,
+	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
+};
+
+MODULE_FIRMWARE(IWL8000_MODULE_FIRMWARE(IWL8000_UCODE_API_OK));

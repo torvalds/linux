@@ -2566,7 +2566,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 			sc->beacon.tx_processed = true;
 			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
 
-			ath9k_csa_is_finished(sc);
+			ath9k_csa_update(sc);
 			continue;
 		}
 

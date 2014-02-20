@@ -54,6 +54,10 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 
 	priv->scan_block = false;
 
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
+	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		mwifiex_disable_all_tdls_links(priv);
+
 	/* Free Tx and Rx packets, report disconnect to upper layer */
 	mwifiex_clean_txrx(priv);
 
@@ -329,6 +333,14 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_PORT_RELEASE:
 		dev_dbg(adapter->dev, "event: PORT RELEASE\n");
+		break;
+
+	case EVENT_EXT_SCAN_REPORT:
+		dev_dbg(adapter->dev, "event: EXT_SCAN Report\n");
+		if (adapter->ext_scan)
+			ret = mwifiex_handle_event_ext_scan_report(priv,
+						adapter->event_skb->data);
+
 		break;
 
 	case EVENT_WMM_STATUS_CHANGE:

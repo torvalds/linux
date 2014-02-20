@@ -538,7 +538,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 
 	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
-	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
+	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	sc->config.txpowlimit = ATH_TXPOWER_MAX;
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
@@ -1106,19 +1106,11 @@ static int __init ath9k_init(void)
 {
 	int error;
 
-	/* Register rate control algorithm */
-	error = ath_rate_control_register();
-	if (error != 0) {
-		pr_err("Unable to register rate control algorithm: %d\n",
-		       error);
-		goto err_out;
-	}
-
 	error = ath_pci_init();
 	if (error < 0) {
 		pr_err("No PCI devices found, driver not installed\n");
 		error = -ENODEV;
-		goto err_rate_unregister;
+		goto err_out;
 	}
 
 	error = ath_ahb_init();
@@ -1131,9 +1123,6 @@ static int __init ath9k_init(void)
 
  err_pci_exit:
 	ath_pci_exit();
-
- err_rate_unregister:
-	ath_rate_control_unregister();
  err_out:
 	return error;
 }
@@ -1144,7 +1133,6 @@ static void __exit ath9k_exit(void)
 	is_ath9k_unloaded = true;
 	ath_ahb_exit();
 	ath_pci_exit();
-	ath_rate_control_unregister();
 	pr_info("%s: Driver unloaded\n", dev_info);
 }
 module_exit(ath9k_exit);

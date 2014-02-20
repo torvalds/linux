@@ -963,7 +963,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	};
 	int ret, i;
 	int len __maybe_unused;
-	u8 old_aux_sta_id, old_ap_sta_id = IWL_MVM_STATION_COUNT;
 
 	if (!wowlan) {
 		/*
@@ -979,8 +978,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 		return -ENOMEM;
 
 	mutex_lock(&mvm->mutex);
-
-	old_aux_sta_id = mvm->aux_sta.sta_id;
 
 	/* see if there's only a single BSS vif and it's associated */
 	ieee80211_iterate_active_interfaces_atomic(
@@ -1067,16 +1064,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	iwl_trans_stop_device(mvm->trans);
 
 	/*
-	 * The D3 firmware still hardcodes the AP station ID for the
-	 * BSS we're associated with as 0. Store the real STA ID here
-	 * and assign 0. When we leave this function, we'll restore
-	 * the original value for the resume code.
-	 */
-	old_ap_sta_id = mvm_ap_sta->sta_id;
-	mvm_ap_sta->sta_id = 0;
-	mvmvif->ap_sta_id = 0;
-
-	/*
 	 * Set the HW restart bit -- this is mostly true as we're
 	 * going to load new firmware and reprogram that, though
 	 * the reprogramming is going to be manual to avoid adding
@@ -1095,16 +1082,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	mvm->ptk_icvlen = 0;
 	mvm->ptk_ivlen = 0;
 	mvm->ptk_icvlen = 0;
-
-	/*
-	 * The D3 firmware still hardcodes the AP station ID for the
-	 * BSS we're associated with as 0. As a result, we have to move
-	 * the auxiliary station to ID 1 so the ID 0 remains free for
-	 * the AP station for later.
-	 * We set the sta_id to 1 here, and reset it to its previous
-	 * value (that we stored above) later.
-	 */
-	mvm->aux_sta.sta_id = 1;
 
 	ret = iwl_mvm_load_d3_fw(mvm);
 	if (ret)
@@ -1191,11 +1168,11 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	ret = iwl_mvm_power_update_device_mode(mvm);
+	ret = iwl_mvm_power_update_device(mvm);
 	if (ret)
 		goto out;
 
-	ret = iwl_mvm_power_update_mode(mvm, vif);
+	ret = iwl_mvm_power_update_mac(mvm, vif);
 	if (ret)
 		goto out;
 
@@ -1222,10 +1199,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	iwl_trans_d3_suspend(mvm->trans, test);
  out:
-	mvm->aux_sta.sta_id = old_aux_sta_id;
-	mvm_ap_sta->sta_id = old_ap_sta_id;
-	mvmvif->ap_sta_id = old_ap_sta_id;
-
 	if (ret < 0)
 		ieee80211_restart_hw(mvm->hw);
  out_noreset:

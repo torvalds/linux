@@ -292,11 +292,8 @@ static void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif)
 		(unsigned long long)tsfadjust, avp->av_bslot);
 }
 
-bool ath9k_csa_is_finished(struct ath_softc *sc)
+bool ath9k_csa_is_finished(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
-	struct ieee80211_vif *vif;
-
-	vif = sc->csa_vif;
 	if (!vif || !vif->csa_active)
 		return false;
 
@@ -304,9 +301,21 @@ bool ath9k_csa_is_finished(struct ath_softc *sc)
 		return false;
 
 	ieee80211_csa_finish(vif);
-
-	sc->csa_vif = NULL;
 	return true;
+}
+
+static void ath9k_csa_update_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = data;
+	ath9k_csa_is_finished(sc, vif);
+}
+
+void ath9k_csa_update(struct ath_softc *sc)
+{
+	ieee80211_iterate_active_interfaces(sc->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    ath9k_csa_update_vif,
+					    sc);
 }
 
 void ath9k_beacon_tasklet(unsigned long data)
@@ -362,12 +371,12 @@ void ath9k_beacon_tasklet(unsigned long data)
 		return;
 	}
 
-	/* EDMA devices check that in the tx completion function. */
-	if (!edma && ath9k_csa_is_finished(sc))
-		return;
-
 	slot = ath9k_beacon_choose_slot(sc);
 	vif = sc->beacon.bslot[slot];
+
+	/* EDMA devices check that in the tx completion function. */
+	if (!edma && ath9k_csa_is_finished(sc, vif))
+		return;
 
 	if (!vif || !vif->bss_conf.enable_beacon)
 		return;

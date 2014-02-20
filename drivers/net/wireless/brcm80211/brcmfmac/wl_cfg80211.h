@@ -491,7 +491,8 @@ void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
 s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			  const u8 *vndr_ie_buf, u32 vndr_ie_len);
 s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif);
-struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key);
+const struct brcmf_tlv *
+brcmf_parse_tlvs(const void *buf, int buflen, uint key);
 u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
 			struct ieee80211_channel *ch);
 u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state);

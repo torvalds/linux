@@ -595,7 +595,8 @@ int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 	}
 
 	/* Send command */
-	if (cmd_no == HostCmd_CMD_802_11_SCAN) {
+	if (cmd_no == HostCmd_CMD_802_11_SCAN ||
+	    cmd_no == HostCmd_CMD_802_11_SCAN_EXT) {
 		mwifiex_queue_scan_cmd(priv, cmd_node);
 	} else {
 		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
@@ -1454,7 +1455,10 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_get_hw_spec *hw_spec = &resp->params.hw_spec;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int i;
+	struct mwifiex_ie_types_header *tlv;
+	struct hw_spec_fw_api_rev *api_rev;
+	u16 resp_size, api_id;
+	int i, left_len, parsed_len = 0;
 
 	adapter->fw_cap_info = le32_to_cpu(hw_spec->fw_cap_info);
 
@@ -1498,8 +1502,10 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 		/* Copy 11AC cap */
 		adapter->hw_dot_11ac_dev_cap =
 					le32_to_cpu(hw_spec->dot_11ac_dev_cap);
-		adapter->usr_dot_11ac_dev_cap_bg = adapter->hw_dot_11ac_dev_cap;
-		adapter->usr_dot_11ac_dev_cap_a = adapter->hw_dot_11ac_dev_cap;
+		adapter->usr_dot_11ac_dev_cap_bg = adapter->hw_dot_11ac_dev_cap
+					& ~MWIFIEX_DEF_11AC_CAP_BF_RESET_MASK;
+		adapter->usr_dot_11ac_dev_cap_a = adapter->hw_dot_11ac_dev_cap
+					& ~MWIFIEX_DEF_11AC_CAP_BF_RESET_MASK;
 
 		/* Copy 11AC mcs */
 		adapter->hw_dot_11ac_mcs_support =
@@ -1508,6 +1514,46 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 					adapter->hw_dot_11ac_mcs_support;
 	} else {
 		adapter->is_hw_11ac_capable = false;
+	}
+
+	resp_size = le16_to_cpu(resp->size) - S_DS_GEN;
+	if (resp_size > sizeof(struct host_cmd_ds_get_hw_spec)) {
+		/* we have variable HW SPEC information */
+		left_len = resp_size - sizeof(struct host_cmd_ds_get_hw_spec);
+		while (left_len > sizeof(struct mwifiex_ie_types_header)) {
+			tlv = (void *)&hw_spec->tlvs + parsed_len;
+			switch (le16_to_cpu(tlv->type)) {
+			case TLV_TYPE_FW_API_REV:
+				api_rev = (struct hw_spec_fw_api_rev *)tlv;
+				api_id = le16_to_cpu(api_rev->api_id);
+				switch (api_id) {
+				case KEY_API_VER_ID:
+					adapter->fw_key_api_major_ver =
+							api_rev->major_ver;
+					adapter->fw_key_api_minor_ver =
+							api_rev->minor_ver;
+					dev_dbg(adapter->dev,
+						"fw_key_api v%d.%d\n",
+						adapter->fw_key_api_major_ver,
+						adapter->fw_key_api_minor_ver);
+					break;
+				default:
+					dev_warn(adapter->dev,
+						 "Unknown FW api_id: %d\n",
+						 api_id);
+					break;
+				}
+				break;
+			default:
+				dev_warn(adapter->dev,
+					 "Unknown GET_HW_SPEC TLV type: %#x\n",
+					 le16_to_cpu(tlv->type));
+				break;
+			}
+			parsed_len += le16_to_cpu(tlv->len) +
+				      sizeof(struct mwifiex_ie_types_header);
+			left_len -= parsed_len;
+		}
 	}
 
 	dev_dbg(adapter->dev, "info: GET_HW_SPEC: fw_release_number- %#x\n",

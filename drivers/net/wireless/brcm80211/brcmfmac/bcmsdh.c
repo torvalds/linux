@@ -43,7 +43,6 @@
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
 #include "sdio_host.h"
-#include "sdio_chip.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
@@ -827,7 +826,7 @@ brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		}
 		if (!write)
 			memcpy(data, pkt->data, dsize);
-		skb_trim(pkt, dsize);
+		skb_trim(pkt, 0);
 
 		/* Adjust for next transfer (if any) */
 		size -= dsize;
@@ -1115,11 +1114,12 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 	.remove = brcmf_ops_sdio_remove,
 	.name = BRCMFMAC_SDIO_PDATA_NAME,
 	.id_table = brcmf_sdmmc_ids,
-#ifdef CONFIG_PM_SLEEP
 	.drv = {
+		.owner = THIS_MODULE,
+#ifdef CONFIG_PM_SLEEP
 		.pm = &brcmf_sdio_pm_ops,
-	},
 #endif	/* CONFIG_PM_SLEEP */
+	},
 };
 
 static int brcmf_sdio_pd_probe(struct platform_device *pdev)

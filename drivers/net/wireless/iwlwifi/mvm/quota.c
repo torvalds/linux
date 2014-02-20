@@ -65,9 +65,14 @@
 #include "fw-api.h"
 #include "mvm.h"
 
+#define QUOTA_100	IWL_MVM_MAX_QUOTA
+#define QUOTA_LOWLAT_MIN ((QUOTA_100 * IWL_MVM_LOWLAT_QUOTA_MIN_PERCENT) / 100)
+
 struct iwl_mvm_quota_iterator_data {
 	int n_interfaces[MAX_BINDINGS];
 	int colors[MAX_BINDINGS];
+	int low_latency[MAX_BINDINGS];
+	int n_low_latency_bindings;
 	struct ieee80211_vif *new_vif;
 };
 
@@ -107,22 +112,29 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		if (vif->bss_conf.assoc)
-			data->n_interfaces[id]++;
-		break;
+			break;
+		return;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
 		if (mvmvif->ap_ibss_active)
-			data->n_interfaces[id]++;
-		break;
+			break;
+		return;
 	case NL80211_IFTYPE_MONITOR:
 		if (mvmvif->monitor_active)
-			data->n_interfaces[id]++;
-		break;
+			break;
+		return;
 	case NL80211_IFTYPE_P2P_DEVICE:
-		break;
+		return;
 	default:
 		WARN_ON_ONCE(1);
-		break;
+		return;
+	}
+
+	data->n_interfaces[id]++;
+
+	if (iwl_mvm_vif_low_latency(mvmvif) && !data->low_latency[id]) {
+		data->n_low_latency_bindings++;
+		data->low_latency[id] = true;
 	}
 }
 
@@ -162,12 +174,13 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 {
 	struct iwl_time_quota_cmd cmd = {};
-	int i, idx, ret, num_active_macs, quota, quota_rem;
+	int i, idx, ret, num_active_macs, quota, quota_rem, n_non_lowlat;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
 		.new_vif = newvif,
 	};
+	u32 ll_max_duration;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -186,6 +199,21 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 		iwl_mvm_quota_iterator(&data, newvif->addr, newvif);
 	}
 
+	switch (data.n_low_latency_bindings) {
+	case 0: /* no low latency - use default */
+		ll_max_duration = 0;
+		break;
+	case 1: /* SingleBindingLowLatencyMode */
+		ll_max_duration = IWL_MVM_LOWLAT_SINGLE_BINDING_MAXDUR;
+		break;
+	case 2: /* DualBindingLowLatencyMode */
+		ll_max_duration = IWL_MVM_LOWLAT_DUAL_BINDING_MAXDUR;
+		break;
+	default: /* MultiBindingLowLatencyMode */
+		ll_max_duration = 0;
+		break;
+	}
+
 	/*
 	 * The FW's scheduling session consists of
 	 * IWL_MVM_MAX_QUOTA fragments. Divide these fragments
@@ -197,11 +225,39 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 		num_active_macs += data.n_interfaces[i];
 	}
 
-	quota = 0;
-	quota_rem = 0;
-	if (num_active_macs) {
-		quota = IWL_MVM_MAX_QUOTA / num_active_macs;
-		quota_rem = IWL_MVM_MAX_QUOTA % num_active_macs;
+	n_non_lowlat = num_active_macs;
+
+	if (data.n_low_latency_bindings == 1) {
+		for (i = 0; i < MAX_BINDINGS; i++) {
+			if (data.low_latency[i]) {
+				n_non_lowlat -= data.n_interfaces[i];
+				break;
+			}
+		}
+	}
+
+	if (data.n_low_latency_bindings == 1 && n_non_lowlat) {
+		/*
+		 * Reserve quota for the low latency binding in case that
+		 * there are several data bindings but only a single
+		 * low latency one. Split the rest of the quota equally
+		 * between the other data interfaces.
+		 */
+		quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_non_lowlat;
+		quota_rem = QUOTA_100 - n_non_lowlat * quota -
+			    QUOTA_LOWLAT_MIN;
+	} else if (num_active_macs) {
+		/*
+		 * There are 0 or more than 1 low latency bindings, or all the
+		 * data interfaces belong to the single low latency binding.
+		 * Split the quota equally between the data interfaces.
+		 */
+		quota = QUOTA_100 / num_active_macs;
+		quota_rem = QUOTA_100 % num_active_macs;
+	} else {
+		/* values don't really matter - won't be used */
+		quota = 0;
+		quota_rem = 0;
 	}
 
 	for (idx = 0, i = 0; i < MAX_BINDINGS; i++) {
@@ -211,19 +267,42 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 		cmd.quotas[idx].id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(i, data.colors[i]));
 
-		if (data.n_interfaces[i] <= 0) {
+		if (data.n_interfaces[i] <= 0)
 			cmd.quotas[idx].quota = cpu_to_le32(0);
-			cmd.quotas[idx].max_duration = cpu_to_le32(0);
-		} else {
+		else if (data.n_low_latency_bindings == 1 && n_non_lowlat &&
+			 data.low_latency[i])
+			/*
+			 * There is more than one binding, but only one of the
+			 * bindings is in low latency. For this case, allocate
+			 * the minimal required quota for the low latency
+			 * binding.
+			 */
+			cmd.quotas[idx].quota = cpu_to_le32(QUOTA_LOWLAT_MIN);
+
+		else
 			cmd.quotas[idx].quota =
 				cpu_to_le32(quota * data.n_interfaces[i]);
+
+		WARN_ONCE(le32_to_cpu(cmd.quotas[idx].quota) > QUOTA_100,
+			  "Binding=%d, quota=%u > max=%u\n",
+			  idx, le32_to_cpu(cmd.quotas[idx].quota), QUOTA_100);
+
+		if (data.n_interfaces[i] && !data.low_latency[i])
+			cmd.quotas[idx].max_duration =
+				cpu_to_le32(ll_max_duration);
+		else
 			cmd.quotas[idx].max_duration = cpu_to_le32(0);
-		}
+
 		idx++;
 	}
 
-	/* Give the remainder of the session to the first binding */
-	le32_add_cpu(&cmd.quotas[0].quota, quota_rem);
+	/* Give the remainder of the session to the first data binding */
+	for (i = 0; i < MAX_BINDINGS; i++) {
+		if (le32_to_cpu(cmd.quotas[i].quota) != 0) {
+			le32_add_cpu(&cmd.quotas[i].quota, quota_rem);
+			break;
+		}
+	}
 
 	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
 

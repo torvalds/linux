@@ -286,7 +286,6 @@ static void rtl_rate_free_sta(void *rtlpriv,
 }
 
 static struct rate_control_ops rtl_rate_ops = {
-	.module = NULL,
 	.name = "rtl_rc",
 	.alloc = rtl_rate_alloc,
 	.free = rtl_rate_free,

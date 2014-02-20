@@ -128,7 +128,7 @@ struct iwl_drv {
 	const struct iwl_cfg *cfg;
 
 	int fw_index;                   /* firmware we're trying to load */
-	char firmware_name[25];         /* name of firmware file to load */
+	char firmware_name[32];         /* name of firmware file to load */
 
 	struct completion request_firmware_complete;
 
@@ -237,7 +237,8 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -ENOENT;
 	}
 
-	sprintf(drv->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
+	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
+		 name_pre, tag);
 
 	IWL_DEBUG_INFO(drv, "attempting to load firmware %s'%s'\n",
 		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)

@@ -378,7 +378,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	flags = iwlwifi_mod_params.bt_coex_active ?
 			BT_COEX_NW : BT_COEX_DISABLE;
-	flags |= BT_CH_PRIMARY_EN | BT_CH_SECONDARY_EN | BT_SYNC_2_BT_DISABLE;
 	bt_cmd->flags = cpu_to_le32(flags);
 
 	bt_cmd->valid_bit_msk = cpu_to_le32(BT_VALID_ENABLE |
@@ -398,6 +397,9 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 					    BT_VALID_TXTX_DELTA_FREQ_THRS |
 					    BT_VALID_TXRX_MAX_FREQ_0 |
 					    BT_VALID_SYNC_TO_SCO);
+
+	if (IWL_MVM_BT_COEX_SYNC2SCO)
+		bt_cmd->flags |= cpu_to_le32(BT_COEX_SYNC2SCO);
 
 	if (mvm->cfg->bt_shared_single_ant)
 		memcpy(&bt_cmd->decision_lut, iwl_single_shared_ant,
@@ -489,8 +491,7 @@ static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
 	return ret;
 }
 
-static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
-				       bool enable)
+int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id, bool enable)
 {
 	struct iwl_bt_coex_cmd *bt_cmd;
 	/* Send ASYNC since this can be sent from an atomic context */
@@ -500,25 +501,16 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 		.dataflags = { IWL_HCMD_DFL_DUP, },
 		.flags = CMD_ASYNC,
 	};
-
-	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvmsta;
 	int ret;
 
-	if (sta_id == IWL_MVM_STATION_COUNT)
+	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
+	if (!mvmsta)
 		return 0;
-
-	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
-					lockdep_is_held(&mvm->mutex));
-
-	/* This can happen if the station has been removed right now */
-	if (IS_ERR_OR_NULL(sta))
-		return 0;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	/* nothing to do */
-	if (mvmsta->bt_reduced_txpower == enable)
+	if (mvmsta->bt_reduced_txpower_dbg ||
+	    mvmsta->bt_reduced_txpower == enable)
 		return 0;
 
 	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_ATOMIC);
@@ -552,6 +544,7 @@ struct iwl_bt_iterator_data {
 	bool reduced_tx_power;
 	struct ieee80211_chanctx_conf *primary;
 	struct ieee80211_chanctx_conf *secondary;
+	bool primary_ll;
 };
 
 static inline
@@ -577,71 +570,112 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	struct iwl_mvm *mvm = data->mvm;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	enum ieee80211_smps_mode smps_mode;
+	u32 bt_activity_grading;
 	int ave_rssi;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (vif->type != NL80211_IFTYPE_STATION &&
-	    vif->type != NL80211_IFTYPE_AP)
-		return;
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		/* default smps_mode for BSS / P2P client is AUTOMATIC */
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+		data->num_bss_ifaces++;
 
-	smps_mode = IEEE80211_SMPS_AUTOMATIC;
+		/*
+		 * Count unassoc BSSes, relax SMSP constraints
+		 * and disable reduced Tx Power
+		 */
+		if (!vif->bss_conf.assoc) {
+			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+					    smps_mode);
+			if (iwl_mvm_bt_coex_reduced_txp(mvm,
+							mvmvif->ap_sta_id,
+							false))
+				IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
+			return;
+		}
+		break;
+	case NL80211_IFTYPE_AP:
+		/* default smps_mode for AP / GO is OFF */
+		smps_mode = IEEE80211_SMPS_OFF;
+		if (!mvmvif->ap_ibss_active) {
+			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+					    smps_mode);
+			return;
+		}
+
+		/* the Ack / Cts kill mask must be default if AP / GO */
+		data->reduced_tx_power = false;
+		break;
+	default:
+		return;
+	}
 
 	chanctx_conf = rcu_dereference(vif->chanctx_conf);
 
 	/* If channel context is invalid or not on 2.4GHz .. */
 	if ((!chanctx_conf ||
 	     chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ)) {
-		/* ... and it is an associated STATION, relax constraints */
-		if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc)
-			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-					    smps_mode);
-		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
+		/* ... relax constraints and disable rssi events */
+		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+				    smps_mode);
+		if (vif->type == NL80211_IFTYPE_STATION)
+			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}
 
-	/* SoftAP / GO will always be primary */
+	bt_activity_grading = le32_to_cpu(data->notif->bt_activity_grading);
+	if (bt_activity_grading >= BT_HIGH_TRAFFIC)
+		smps_mode = IEEE80211_SMPS_STATIC;
+	else if (bt_activity_grading >= BT_LOW_TRAFFIC)
+		smps_mode = vif->type == NL80211_IFTYPE_AP ?
+				IEEE80211_SMPS_OFF :
+				IEEE80211_SMPS_DYNAMIC;
+	IWL_DEBUG_COEX(data->mvm,
+		       "mac %d: bt_status %d bt_activity_grading %d smps_req %d\n",
+		       mvmvif->id, data->notif->bt_status, bt_activity_grading,
+		       smps_mode);
+
+	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX, smps_mode);
+
+	/* low latency is always primary */
+	if (iwl_mvm_vif_low_latency(mvmvif)) {
+		data->primary_ll = true;
+
+		data->secondary = data->primary;
+		data->primary = chanctx_conf;
+	}
+
 	if (vif->type == NL80211_IFTYPE_AP) {
 		if (!mvmvif->ap_ibss_active)
 			return;
 
-		/* the Ack / Cts kill mask must be default if AP / GO */
-		data->reduced_tx_power = false;
-
 		if (chanctx_conf == data->primary)
 			return;
 
-		/* downgrade the current primary no matter what its type is */
-		data->secondary = data->primary;
-		data->primary = chanctx_conf;
+		if (!data->primary_ll) {
+			/*
+			 * downgrade the current primary no matter what its
+			 * type is.
+			 */
+			data->secondary = data->primary;
+			data->primary = chanctx_conf;
+		} else {
+			/* there is low latency vif - we will be secondary */
+			data->secondary = chanctx_conf;
+		}
 		return;
 	}
 
-	data->num_bss_ifaces++;
-
-	/* we are now a STA / P2P Client, and take associated ones only */
-	if (!vif->bss_conf.assoc)
-		return;
-
-	/* STA / P2P Client, try to be primary if first vif */
+	/*
+	 * STA / P2P Client, try to be primary if first vif. If we are in low
+	 * latency mode, we are already in primary and just don't do much
+	 */
 	if (!data->primary || data->primary == chanctx_conf)
 		data->primary = chanctx_conf;
 	else if (!data->secondary)
 		/* if secondary is not NULL, it might be a GO */
 		data->secondary = chanctx_conf;
-
-	if (le32_to_cpu(data->notif->bt_activity_grading) >= BT_HIGH_TRAFFIC)
-		smps_mode = IEEE80211_SMPS_STATIC;
-	else if (le32_to_cpu(data->notif->bt_activity_grading) >=
-		 BT_LOW_TRAFFIC)
-		smps_mode = IEEE80211_SMPS_DYNAMIC;
-
-	IWL_DEBUG_COEX(data->mvm,
-		       "mac %d: bt_status %d bt_activity_grading %d smps_req %d\n",
-		       mvmvif->id,  data->notif->bt_status,
-		       data->notif->bt_activity_grading, smps_mode);
-
-	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX, smps_mode);
 
 	/* don't reduce the Tx power if in loose scheme */
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
