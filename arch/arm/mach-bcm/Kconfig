@@ -99,6 +99,23 @@ config ARCH_BCM_5301X
 	  different SoC or with the older BCM47XX and BCM53XX based
 	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
 
+config ARCH_BCM_63XX
+	bool "Broadcom BCM63xx DSL SoC" if ARCH_MULTI_V7
+	depends on MMU
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
+	select ARM_GIC
+	select ARM_GLOBAL_TIMER
+	select CACHE_L2X0
+	select HAVE_ARM_ARCH_TIMER
+	select HAVE_ARM_TWD if SMP
+	select HAVE_ARM_SCU if SMP
+	select HAVE_SMP
+	help
+	  This enables support for systems based on Broadcom DSL SoCs.
+	  It currently supports the 'BCM63XX' ARM-based family, which includes
+	  the BCM63138 variant.
+
 config ARCH_BRCMSTB
 	bool "Broadcom BCM7XXX based boards" if ARCH_MULTI_V7
 	depends on MMU
