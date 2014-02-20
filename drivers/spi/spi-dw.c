@@ -439,12 +439,6 @@ static void pump_transfers(unsigned long data)
 
 		if (transfer->speed_hz != speed) {
 			speed = transfer->speed_hz;
-			if (speed > dws->max_freq) {
-				printk(KERN_ERR "MRST SPI0: unsupported"
-					"freq: %dHz\n", speed);
-				message->status = -EIO;
-				goto early_exit;
-			}
 
 			/* clk_div doesn't support odd number */
 			clk_div = dws->max_freq / speed;
@@ -809,6 +803,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	master->cleanup = dw_spi_cleanup;
 	master->setup = dw_spi_setup;
 	master->transfer = dw_spi_transfer;
+	master->max_speed_hz = dws->max_freq;
 
 	/* Basic HW init */
 	spi_hw_init(dws);
