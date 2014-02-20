@@ -283,38 +283,10 @@ void blk_mq_free_request(struct request *rq)
 	__blk_mq_free_request(hctx, ctx, rq);
 }
 
-static void blk_mq_bio_endio(struct request *rq, struct bio *bio, int error)
+bool blk_mq_end_io_partial(struct request *rq, int error, unsigned int nr_bytes)
 {
-	if (error)
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		error = -EIO;
-
-	if (unlikely(rq->cmd_flags & REQ_QUIET))
-		set_bit(BIO_QUIET, &bio->bi_flags);
-
-	/* don't actually finish bio if it's part of flush sequence */
-	if (!(rq->cmd_flags & REQ_FLUSH_SEQ))
-		bio_endio(bio, error);
-}
-
-void blk_mq_end_io(struct request *rq, int error)
-{
-	struct bio *bio = rq->bio;
-	unsigned int bytes = 0;
-
-	trace_block_rq_complete(rq->q, rq);
-
-	while (bio) {
-		struct bio *next = bio->bi_next;
-
-		bio->bi_next = NULL;
-		bytes += bio->bi_iter.bi_size;
-		blk_mq_bio_endio(rq, bio, error);
-		bio = next;
-	}
-
-	blk_account_io_completion(rq, bytes);
+	if (blk_update_request(rq, error, blk_rq_bytes(rq)))
+		return true;
 
 	blk_account_io_done(rq);
 
@@ -322,8 +294,9 @@ void blk_mq_end_io(struct request *rq, int error)
 		rq->end_io(rq, error);
 	else
 		blk_mq_free_request(rq);
+	return false;
 }
-EXPORT_SYMBOL(blk_mq_end_io);
+EXPORT_SYMBOL(blk_mq_end_io_partial);
 
 static void __blk_mq_complete_request_remote(void *data)
 {

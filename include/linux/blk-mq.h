@@ -133,7 +133,13 @@ struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_ind
 struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_reg *, unsigned int);
 void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *, unsigned int);
 
-void blk_mq_end_io(struct request *rq, int error);
+bool blk_mq_end_io_partial(struct request *rq, int error,
+		unsigned int nr_bytes);
+static inline void blk_mq_end_io(struct request *rq, int error)
+{
+	bool done = !blk_mq_end_io_partial(rq, error, blk_rq_bytes(rq));
+	BUG_ON(!done);
+}
 
 void blk_mq_complete_request(struct request *rq);
 
