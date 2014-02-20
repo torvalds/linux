@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012,2013 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2014 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,31 +11,16 @@
  */
 
 #include <linux/init.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 
-#include "common.h"
-
-static const char * const msm_dt_match[] __initconst = {
-	"qcom,msm8660-fluid",
+static const char * const qcom_dt_match[] __initconst = {
 	"qcom,msm8660-surf",
 	"qcom,msm8960-cdp",
-	NULL
-};
-
-static const char * const apq8074_dt_match[] __initconst = {
 	"qcom,apq8074-dragonboard",
 	NULL
 };
 
-DT_MACHINE_START(MSM_DT, "Qualcomm MSM (Flattened Device Tree)")
-	.smp = smp_ops(msm_smp_ops),
-	.dt_compat = msm_dt_match,
-MACHINE_END
-
-DT_MACHINE_START(APQ_DT, "Qualcomm MSM (Flattened Device Tree)")
-	.dt_compat = apq8074_dt_match,
+DT_MACHINE_START(QCOM_DT, "Qualcomm (Flattened Device Tree)")
+	.dt_compat = qcom_dt_match,
 MACHINE_END
