@@ -189,6 +189,16 @@ u64 sst_dsp_shim_read64_unlocked(struct sst_dsp *sst, u32 offset);
 int sst_dsp_shim_update_bits64_unlocked(struct sst_dsp *sst, u32 offset,
 					u64 mask, u64 value);
 
+/* Internal generic low-level SST IO functions - can be overidden */
+void sst_shim32_write(void __iomem *addr, u32 offset, u32 value);
+u32 sst_shim32_read(void __iomem *addr, u32 offset);
+void sst_shim32_write64(void __iomem *addr, u32 offset, u64 value);
+u64 sst_shim32_read64(void __iomem *addr, u32 offset);
+void sst_memcpy_toio_32(struct sst_dsp *sst,
+			void __iomem *dest, void *src, size_t bytes);
+void sst_memcpy_fromio_32(struct sst_dsp *sst,
+			  void *dest, void __iomem *src, size_t bytes);
+
 /* DSP reset & boot */
 void sst_dsp_reset(struct sst_dsp *sst);
 int sst_dsp_boot(struct sst_dsp *sst);

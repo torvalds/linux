@@ -27,6 +27,66 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/intel-sst.h>
 
+/* Internal generic low-level SST IO functions - can be overidden */
+void sst_shim32_write(void __iomem *addr, u32 offset, u32 value)
+{
+	writel(value, addr + offset);
+}
+EXPORT_SYMBOL_GPL(sst_shim32_write);
+
+u32 sst_shim32_read(void __iomem *addr, u32 offset)
+{
+	return readl(addr + offset);
+}
+EXPORT_SYMBOL_GPL(sst_shim32_read);
+
+void sst_shim32_write64(void __iomem *addr, u32 offset, u64 value)
+{
+	memcpy_toio(addr + offset, &value, sizeof(value));
+}
+EXPORT_SYMBOL_GPL(sst_shim32_write64);
+
+u64 sst_shim32_read64(void __iomem *addr, u32 offset)
+{
+	u64 val;
+
+	memcpy_fromio(&val, addr + offset, sizeof(val));
+	return val;
+}
+EXPORT_SYMBOL_GPL(sst_shim32_read64);
+
+static inline void _sst_memcpy_toio_32(volatile u32 __iomem *dest,
+	u32 *src, size_t bytes)
+{
+	int i, words = bytes >> 2;
+
+	for (i = 0; i < words; i++)
+		writel(src[i], dest + i);
+}
+
+static inline void _sst_memcpy_fromio_32(u32 *dest,
+	const volatile __iomem u32 *src, size_t bytes)
+{
+	int i, words = bytes >> 2;
+
+	for (i = 0; i < words; i++)
+		dest[i] = readl(src + i);
+}
+
+void sst_memcpy_toio_32(struct sst_dsp *sst,
+	void __iomem *dest, void *src, size_t bytes)
+{
+	_sst_memcpy_toio_32(dest, src, bytes);
+}
+EXPORT_SYMBOL_GPL(sst_memcpy_toio_32);
+
+void sst_memcpy_fromio_32(struct sst_dsp *sst, void *dest,
+	void __iomem *src, size_t bytes)
+{
+	_sst_memcpy_fromio_32(dest, src, bytes);
+}
+EXPORT_SYMBOL_GPL(sst_memcpy_fromio_32);
+
 /* Public API */
 void sst_dsp_shim_write(struct sst_dsp *sst, u32 offset, u32 value)
 {
