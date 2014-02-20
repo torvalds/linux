@@ -446,6 +446,21 @@ static int sh_msiof_spi_setup_transfer(struct spi_device *spi,
 	return spi_bitbang_setup_transfer(spi, t);
 }
 
+static int sh_msiof_spi_setup(struct spi_device *spi)
+{
+	struct device_node	*np = spi->master->dev.of_node;
+
+	if (!np) {
+		/*
+		 * Use spi->controller_data for CS (same strategy as spi_gpio),
+		 * if any. otherwise let HW control CS
+		 */
+		spi->cs_gpio = (uintptr_t)spi->controller_data;
+	}
+
+	return spi_bitbang_setup(spi);
+}
+
 static void sh_msiof_spi_chipselect(struct spi_device *spi, int is_on)
 {
 	struct sh_msiof_spi_priv *p = spi_master_get_devdata(spi->master);
@@ -471,8 +486,8 @@ static void sh_msiof_spi_chipselect(struct spi_device *spi, int is_on)
 					  !!(spi->mode & SPI_CS_HIGH));
 	}
 
-	/* use spi->controller data for CS (same strategy as spi_gpio) */
-	gpio_set_value((uintptr_t)spi->controller_data, value);
+	if (spi->cs_gpio >= 0)
+		gpio_set_value(spi->cs_gpio, value);
 
 	if (is_on == BITBANG_CS_INACTIVE) {
 		if (test_and_clear_bit(0, &p->flags)) {
@@ -759,7 +774,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->dev.of_node = pdev->dev.of_node;
 	master->num_chipselect = p->info->num_chipselect;
-	master->setup = spi_bitbang_setup;
+	master->setup = sh_msiof_spi_setup;
 	master->cleanup = spi_bitbang_cleanup;
 
 	p->bitbang.master = master;
