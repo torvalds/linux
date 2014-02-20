@@ -2496,7 +2496,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	root->log_transid++;
 	log->log_transid = root->log_transid;
 	root->log_start_pid = 0;
-	smp_mb();
 	/*
 	 * IO has been started, blocks of the log tree have WRITTEN flag set
 	 * in their headers. new modifications of the log will be written to
@@ -2589,8 +2588,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 				btrfs_header_level(log_root_tree->node));
 
 	log_root_tree->log_transid++;
-	smp_mb();
-
 	mutex_unlock(&log_root_tree->log_mutex);
 
 	/*
