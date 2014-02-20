@@ -111,4 +111,8 @@ nva3_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
+	.mthd.core = &nv94_disp_mast_mthd_chan,
+	.mthd.base = &nv84_disp_sync_mthd_chan,
+	.mthd.ovly = &nv84_disp_ovly_mthd_chan,
+	.mthd.prev = 0x000004,
 }.base.base;

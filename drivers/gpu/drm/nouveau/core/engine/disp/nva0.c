@@ -30,6 +30,51 @@
 #include "nv50.h"
 
 /*******************************************************************************
+ * EVO overlay channel objects
+ ******************************************************************************/
+
+static const struct nv50_disp_mthd_list
+nva0_disp_ovly_mthd_base = {
+	.mthd = 0x0000,
+	.addr = 0x000000,
+	.data = {
+		{ 0x0080, 0x000000 },
+		{ 0x0084, 0x6109a0 },
+		{ 0x0088, 0x6109c0 },
+		{ 0x008c, 0x6109c8 },
+		{ 0x0090, 0x6109b4 },
+		{ 0x0094, 0x610970 },
+		{ 0x00a0, 0x610998 },
+		{ 0x00a4, 0x610964 },
+		{ 0x00b0, 0x610c98 },
+		{ 0x00b4, 0x610ca4 },
+		{ 0x00b8, 0x610cac },
+		{ 0x00c0, 0x610958 },
+		{ 0x00e0, 0x6109a8 },
+		{ 0x00e4, 0x6109d0 },
+		{ 0x00e8, 0x6109d8 },
+		{ 0x0100, 0x61094c },
+		{ 0x0104, 0x610984 },
+		{ 0x0108, 0x61098c },
+		{ 0x0800, 0x6109f8 },
+		{ 0x0808, 0x610a08 },
+		{ 0x080c, 0x610a10 },
+		{ 0x0810, 0x610a00 },
+		{}
+	}
+};
+
+static const struct nv50_disp_mthd_chan
+nva0_disp_ovly_mthd_chan = {
+	.name = "Overlay",
+	.addr = 0x000540,
+	.data = {
+		{ "Global", 1, &nva0_disp_ovly_mthd_base },
+		{}
+	}
+};
+
+/*******************************************************************************
  * Base display object
  ******************************************************************************/
 
@@ -94,4 +139,8 @@ nva0_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
+	.mthd.core = &nv84_disp_mast_mthd_chan,
+	.mthd.base = &nv84_disp_sync_mthd_chan,
+	.mthd.ovly = &nva0_disp_ovly_mthd_chan,
+	.mthd.prev = 0x000004,
 }.base.base;
