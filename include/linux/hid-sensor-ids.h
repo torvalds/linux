@@ -38,6 +38,11 @@
 #define HID_USAGE_SENSOR_DATA_PRESENCE                          0x2004b0
 #define HID_USAGE_SENSOR_HUMAN_PRESENCE                         0x2004b1
 
+/* Pressure (200031) */
+#define HID_USAGE_SENSOR_PRESSURE                               0x200031
+#define HID_USAGE_SENSOR_DATA_ATMOSPHERIC_PRESSURE              0x200430
+#define HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE                   0x200431
+
 /* Gyro 3D: (200076) */
 #define HID_USAGE_SENSOR_GYRO_3D				0x200076
 #define HID_USAGE_SENSOR_DATA_ANGL_VELOCITY			0x200456
