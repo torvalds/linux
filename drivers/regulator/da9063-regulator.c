@@ -774,10 +774,8 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	size = sizeof(struct da9063_regulators) +
 		n_regulators * sizeof(struct da9063_regulator);
 	regulators = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!regulators) {
-		dev_err(&pdev->dev, "No memory for regulators\n");
+	if (!regulators)
 		return -ENOMEM;
-	}
 
 	regulators->n_regulators = n_regulators;
 	platform_set_drvdata(pdev, regulators);
