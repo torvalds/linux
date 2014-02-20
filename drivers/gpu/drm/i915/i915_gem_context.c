@@ -99,9 +99,8 @@
 static int do_switch(struct intel_ring_buffer *ring,
 		     struct i915_hw_context *to);
 
-static void ppgtt_release(struct kref *kref)
+static void do_ppgtt_cleanup(struct i915_hw_ppgtt *ppgtt)
 {
-	struct i915_hw_ppgtt *ppgtt = container_of(kref, struct i915_hw_ppgtt, ref);
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_address_space *vm = &ppgtt->base;
@@ -133,6 +132,15 @@ static void ppgtt_release(struct kref *kref)
 	}
 
 	ppgtt->base.cleanup(&ppgtt->base);
+}
+
+static void ppgtt_release(struct kref *kref)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(kref, struct i915_hw_ppgtt, ref);
+
+	do_ppgtt_cleanup(ppgtt);
+	kfree(ppgtt);
 }
 
 static size_t get_context_alignment(struct drm_device *dev)

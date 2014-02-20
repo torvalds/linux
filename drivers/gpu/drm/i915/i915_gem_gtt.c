@@ -859,7 +859,6 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	for (i = 0; i < ppgtt->num_pd_entries; i++)
 		__free_page(ppgtt->pt_pages[i]);
 	kfree(ppgtt->pt_pages);
-	kfree(ppgtt);
 }
 
 static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
