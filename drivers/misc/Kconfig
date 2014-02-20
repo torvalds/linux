@@ -51,6 +51,21 @@ config AD525X_DPOT_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad525x_dpot-spi.
 
+config ARM_SCPI_MHU
+	tristate "ARM SCPI MHU driver"
+	depends on ARM || ARM64
+	default n
+	help
+	  This driver provides support for communication with the
+	  System Control Processor (SCP) device present in some ARM based
+	  systems via the SCPI Message Handling Unit.
+
+	  SCP offers access to DVFS tables, control of certain system clocks,
+	  enabling or disabling computing cores and clusters, watchdog patting
+	  and even system reset.
+
+	  If you know your system has one, say Y here.
+
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on HAVE_CLK

@@ -1,0 +1,29 @@
+ARM SCPI MHU driver.
+
+This driver uses the Message Handling Unit hardware to talk with
+a System Controll Processor using the SCPI interface.
+
+Required properties:
+  - compatible: "arm,scpi-mhu"
+  - reg: two pairs of register address and size data, first for the
+    start of the MHU registers area, second for the payload area.
+  - interrupts: Interrupt list for low priority and high priority
+    channel, in that order.
+  - #clock-cells: from common clock bindings; should be set to 1 if
+    the SCP offers support for controlling oscillator frequencies, 0
+    otherwise.
+  - clock-output-names: List of names for the the oscillator output(s).
+
+
+Examples:
+   scp: scp@2b1f0000 {
+	compatible = "arm,scpi-mhu";
+	reg = <0x0 0x2b1f0000 0x0 0x10000>,   /* MHU registers */
+	      <0x0 0x2e000000 0x0 0x10000>;   /* Payload area */
+	interrupts = <0 36 4>,    /* low priority channel interrupt */
+		     <0 35 4>,	  /* high priority channel interrupt */
+		     <0 37 4>;    /* secure channel interrupt */
+	#clock-cells = <1>;
+	clock-output-names= "a57", "a53", "gpu", hdlcd0", "hdlcd1";
+   };
+
