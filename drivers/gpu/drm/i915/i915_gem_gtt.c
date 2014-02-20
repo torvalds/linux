@@ -1036,14 +1036,14 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	gen6_ppgtt_free(ppgtt);
 }
 
-static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
+static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
 {
 #define GEN6_PD_ALIGN (PAGE_SIZE * 16)
 #define GEN6_PD_SIZE (GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE)
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool retried = false;
-	int i, ret;
+	int ret;
 
 	/* PPGTT PDEs reside in the GGTT and consists of 512 entries. The
 	 * allocator works in address space sizes, so it's multiplied by page
@@ -1070,8 +1070,85 @@ alloc:
 	if (ppgtt->node.start < dev_priv->gtt.mappable_end)
 		DRM_DEBUG("Forced to use aperture for PDEs\n");
 
-	ppgtt->base.pte_encode = dev_priv->gtt.base.pte_encode;
 	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
+	return ret;
+}
+
+static int gen6_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt)
+{
+	int i;
+
+	ppgtt->pt_pages = kcalloc(ppgtt->num_pd_entries, sizeof(struct page *),
+				  GFP_KERNEL);
+
+	if (!ppgtt->pt_pages)
+		return -ENOMEM;
+
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		ppgtt->pt_pages[i] = alloc_page(GFP_KERNEL);
+		if (!ppgtt->pt_pages[i]) {
+			gen6_ppgtt_free(ppgtt);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
+static int gen6_ppgtt_alloc(struct i915_hw_ppgtt *ppgtt)
+{
+	int ret;
+
+	ret = gen6_ppgtt_allocate_page_directories(ppgtt);
+	if (ret)
+		return ret;
+
+	ret = gen6_ppgtt_allocate_page_tables(ppgtt);
+	if (ret) {
+		drm_mm_remove_node(&ppgtt->node);
+		return ret;
+	}
+
+	ppgtt->pt_dma_addr = kcalloc(ppgtt->num_pd_entries, sizeof(dma_addr_t),
+				     GFP_KERNEL);
+	if (!ppgtt->pt_dma_addr) {
+		drm_mm_remove_node(&ppgtt->node);
+		gen6_ppgtt_free(ppgtt);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int gen6_ppgtt_setup_page_tables(struct i915_hw_ppgtt *ppgtt)
+{
+	struct drm_device *dev = ppgtt->base.dev;
+	int i;
+
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		dma_addr_t pt_addr;
+
+		pt_addr = pci_map_page(dev->pdev, ppgtt->pt_pages[i], 0, 4096,
+				       PCI_DMA_BIDIRECTIONAL);
+
+		if (pci_dma_mapping_error(dev->pdev, pt_addr)) {
+			gen6_ppgtt_unmap_pages(ppgtt);
+			return -EIO;
+		}
+
+		ppgtt->pt_dma_addr[i] = pt_addr;
+	}
+
+	return 0;
+}
+
+static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
+{
+	struct drm_device *dev = ppgtt->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ppgtt->base.pte_encode = dev_priv->gtt.base.pte_encode;
 	if (IS_GEN6(dev)) {
 		ppgtt->enable = gen6_ppgtt_enable;
 		ppgtt->switch_mm = gen6_mm_switch;
@@ -1083,71 +1160,35 @@ alloc:
 		ppgtt->switch_mm = gen7_mm_switch;
 	} else
 		BUG();
+
+	ret = gen6_ppgtt_alloc(ppgtt);
+	if (ret)
+		return ret;
+
+	ret = gen6_ppgtt_setup_page_tables(ppgtt);
+	if (ret) {
+		gen6_ppgtt_free(ppgtt);
+		return ret;
+	}
+
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->base.scratch = dev_priv->gtt.base.scratch;
 	ppgtt->base.start = 0;
 	ppgtt->base.total = GEN6_PPGTT_PD_ENTRIES * I915_PPGTT_PT_ENTRIES * PAGE_SIZE;
-	ppgtt->pt_pages = kcalloc(ppgtt->num_pd_entries, sizeof(struct page *),
-				  GFP_KERNEL);
-	if (!ppgtt->pt_pages) {
-		drm_mm_remove_node(&ppgtt->node);
-		return -ENOMEM;
-	}
+	ppgtt->debug_dump = gen6_dump_ppgtt;
 
-	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		ppgtt->pt_pages[i] = alloc_page(GFP_KERNEL);
-		if (!ppgtt->pt_pages[i])
-			goto err_pt_alloc;
-	}
-
-	ppgtt->pt_dma_addr = kcalloc(ppgtt->num_pd_entries, sizeof(dma_addr_t),
-				     GFP_KERNEL);
-	if (!ppgtt->pt_dma_addr)
-		goto err_pt_alloc;
-
-	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		dma_addr_t pt_addr;
-
-		pt_addr = pci_map_page(dev->pdev, ppgtt->pt_pages[i], 0, 4096,
-				       PCI_DMA_BIDIRECTIONAL);
-
-		if (pci_dma_mapping_error(dev->pdev, pt_addr)) {
-			ret = -EIO;
-			goto err_pd_pin;
-
-		}
-		ppgtt->pt_dma_addr[i] = pt_addr;
-	}
+	ppgtt->pd_offset =
+		ppgtt->node.start / PAGE_SIZE * sizeof(gen6_gtt_pte_t);
 
 	ppgtt->base.clear_range(&ppgtt->base, 0, ppgtt->base.total, true);
-	ppgtt->debug_dump = gen6_dump_ppgtt;
 
 	DRM_DEBUG_DRIVER("Allocated pde space (%ldM) at GTT entry: %lx\n",
 			 ppgtt->node.size >> 20,
 			 ppgtt->node.start / PAGE_SIZE);
-	ppgtt->pd_offset =
-		ppgtt->node.start / PAGE_SIZE * sizeof(gen6_gtt_pte_t);
 
 	return 0;
-
-err_pd_pin:
-	if (ppgtt->pt_dma_addr) {
-		for (i--; i >= 0; i--)
-			pci_unmap_page(dev->pdev, ppgtt->pt_dma_addr[i],
-				       4096, PCI_DMA_BIDIRECTIONAL);
-	}
-err_pt_alloc:
-	kfree(ppgtt->pt_dma_addr);
-	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		if (ppgtt->pt_pages[i])
-			__free_page(ppgtt->pt_pages[i]);
-	}
-	kfree(ppgtt->pt_pages);
-	drm_mm_remove_node(&ppgtt->node);
-
-	return ret;
 }
 
 int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
