@@ -130,10 +130,8 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct fixed_voltage_data),
 			       GFP_KERNEL);
-	if (drvdata == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate device data\n");
+	if (!drvdata)
 		return -ENOMEM;
-	}
 
 	drvdata->desc.name = devm_kstrdup(&pdev->dev,
 					  config->supply_name,
