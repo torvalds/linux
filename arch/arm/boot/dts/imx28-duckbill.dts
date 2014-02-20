@@ -1,7 +1,5 @@
 /*
- * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * Author: Fabio Estevam <fabio.estevam@freescale.com>
+ * Copyright (C) 2013 Michael Heimpold <mhei@heimpold.de>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -12,24 +10,25 @@
  */
 
 /dts-v1/;
-#include "imx23.dtsi"
+#include "imx28.dtsi"
 
 / {
-	model = "i.MX23 Olinuxino Low Cost Board";
-	compatible = "olimex,imx23-olinuxino", "fsl,imx23";
+	model = "I2SE Duckbill";
+	compatible = "i2se,duckbill", "fsl,imx28";
 
 	memory {
-		reg = <0x40000000 0x04000000>;
+		reg = <0x40000000 0x08000000>;
 	};
 
 	apb@80000000 {
 		apbh@80000000 {
 			ssp0: ssp@80010000 {
-				compatible = "fsl,imx23-mmc";
+				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
-				pinctrl-0 = <&mmc0_4bit_pins_a &mmc0_pins_fixup>;
-				bus-width = <4>;
-				broken-cd;
+				pinctrl-0 = <&mmc0_8bit_pins_a
+					&mmc0_cd_cfg &mmc0_sck_cfg>;
+				bus-width = <8>;
+				vmmc-supply = <&reg_3p3v>;
 				status = "okay";
 			};
 
@@ -40,48 +39,30 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						MX23_PAD_GPMI_ALE__GPIO_0_17
+						MX28_PAD_ENET0_RX_CLK__GPIO_4_13 /* PHY Reset */
 					>;
 					fsl,drive-strength = <MXS_DRIVE_4mA>;
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				led_pin_gpio2_1: led_gpio2_1@0 {
+				led_pins_a: led_gpio@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						MX23_PAD_SSP1_DETECT__GPIO_2_1
+						MX28_PAD_AUART1_RX__GPIO_3_4
+						MX28_PAD_AUART1_TX__GPIO_3_5
 					>;
 					fsl,drive-strength = <MXS_DRIVE_4mA>;
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
-			};
-
-			ssp1: ssp@80034000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,imx23-spi";
-				pinctrl-names = "default";
-				pinctrl-0 = <&spi2_pins_a>;
-				status = "okay";
 			};
 		};
 
 		apbx@80040000 {
-			lradc@80050000 {
-				status = "okay";
-			};
-
-			duart: serial@80070000 {
+			duart: serial@80074000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&duart_pins_a>;
-				status = "okay";
-			};
-
-			auart0: serial@8006c000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&auart0_2pins_a>;
 				status = "okay";
 			};
 
@@ -93,7 +74,16 @@
 
 	ahb@80080000 {
 		usb0: usb@80080000 {
-			vbus-supply = <&reg_usb0_vbus>;
+			status = "okay";
+		};
+
+		mac0: ethernet@800f0000 {
+			phy-mode = "rmii";
+			pinctrl-names = "default";
+			pinctrl-0 = <&mac0_pins_a>;
+			phy-supply = <&reg_3p3v>;
+			phy-reset-gpios = <&gpio4 13 0>;
+			phy-reset-duration = <100>;
 			status = "okay";
 		};
 	};
@@ -103,26 +93,29 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		reg_usb0_vbus: regulator@0 {
+		reg_3p3v: regulator@0 {
 			compatible = "regulator-fixed";
 			reg = <0>;
-			regulator-name = "usb0_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			startup-delay-us = <300>; /* LAN9215 requires a POR of 200us minimum */
-			gpio = <&gpio0 17 0>;
+			regulator-name = "3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
 		};
 	};
 
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pin_gpio2_1>;
+		pinctrl-0 = <&led_pins_a>;
 
-		user {
-			label = "green";
-			gpios = <&gpio2 1 1>;
+		status {
+			label = "duckbill:green:status";
+			gpios = <&gpio3 5 0>;
+		};
+
+		failure {
+			label = "duckbill:red:status";
+			gpios = <&gpio3 4 0>;
 		};
 	};
 };

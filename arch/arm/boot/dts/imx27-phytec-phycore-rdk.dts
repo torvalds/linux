@@ -7,7 +7,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "imx27-phytec-phycore-som.dts"
+#include "imx27-phytec-phycore-som.dtsi"
 
 / {
 	model = "Phytec pcm970";
@@ -16,32 +16,119 @@
 
 &cspi1 {
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio4 28 0>, <&gpio4 27 0>;
+	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>,
+		   <&gpio4 27 GPIO_ACTIVE_LOW>;
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	camgpio: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&iomuxc {
+	imx27_phycore_rdk {
+		pinctrl_i2c1: i2c1grp {
+			/* Add pullup to DATA line */
+			fsl,pins = <
+				MX27_PAD_I2C_DATA__I2C_DATA	0x1
+				MX27_PAD_I2C_CLK__I2C_CLK	0x0
+			>;
+		};
+
+		pinctrl_owire1: owire1grp {
+			fsl,pins = <
+				MX27_PAD_RTCK__OWIRE 0x0
+			>;
+		};
+
+		pinctrl_sdhc2: sdhc2grp {
+			fsl,pins = <
+				MX27_PAD_SD2_CLK__SD2_CLK 0x0
+				MX27_PAD_SD2_CMD__SD2_CMD 0x0
+				MX27_PAD_SD2_D0__SD2_D0 0x0
+				MX27_PAD_SD2_D1__SD2_D1 0x0
+				MX27_PAD_SD2_D2__SD2_D2 0x0
+				MX27_PAD_SD2_D3__SD2_D3 0x0
+				MX27_PAD_SSI3_FS__GPIO3_28	0x0 /* WP */
+				MX27_PAD_SSI3_RXDAT__GPIO3_29	0x0 /* CD */
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX27_PAD_UART1_TXD__UART1_TXD 0x0
+				MX27_PAD_UART1_RXD__UART1_RXD 0x0
+				MX27_PAD_UART1_CTS__UART1_CTS 0x0
+				MX27_PAD_UART1_RTS__UART1_RTS 0x0
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX27_PAD_UART2_TXD__UART2_TXD 0x0
+				MX27_PAD_UART2_RXD__UART2_RXD 0x0
+				MX27_PAD_UART2_CTS__UART2_CTS 0x0
+				MX27_PAD_UART2_RTS__UART2_RTS 0x0
+			>;
+		};
+
+		pinctrl_weim: weimgrp {
+			fsl,pins = <
+				MX27_PAD_CS4_B__CS4_B		0x0 /* CS4 */
+				MX27_PAD_SD1_D1__GPIO5_19	0x0 /* CAN IRQ */
+			>;
+		};
+	};
+};
+
+&owire {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_owire1>;
+	status = "okay";
 };
 
 &sdhci2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhc2>;
 	bus-width = <4>;
-	cd-gpios = <&gpio3 29 0>;
-	wp-gpios = <&gpio3 28 0>;
+	cd-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+	wp-gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&vmmc1_reg>;
 	status = "okay";
 };
 
 &uart1 {
 	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
 };
 
 &uart2 {
 	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
 	status = "okay";
 };
 
 &weim {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim>;
+
 	can@d4000000 {
 		compatible = "nxp,sja1000";
 		reg = <4 0x00000000 0x00000100>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <19 0x2>;
+		interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
 		nxp,external-clock-frequency = <16000000>;
 		nxp,tx-output-config = <0x16>;
 		nxp,no-comparator-bypass;

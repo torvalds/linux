@@ -35,6 +35,7 @@ emmicro	EM Microelectronic
 epfl	Ecole Polytechnique Fédérale de Lausanne
 epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
+eukrea  Eukréa Electromatique
 fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
@@ -92,6 +93,7 @@ toshiba	Toshiba Corporation
 toumaz	Toumaz
 v3	V3 Semiconductor
 via	VIA Technologies, Inc.
+voipac	Voipac Technologies s.r.o.
 winbond Winbond Electronics corp.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.

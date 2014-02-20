@@ -43,9 +43,12 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_usb0_vbus: usb0_vbus {
+		reg_usb0_vbus: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "usb0_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
@@ -53,8 +56,9 @@
 			enable-active-high;
 		};
 
-		reg_usb1_vbus: usb1_vbus {
+		reg_usb1_vbus: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "usb1_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
@@ -62,24 +66,27 @@
 			enable-active-high;
 		};
 
-		reg_2p5v: 2p5v {
+		reg_2p5v: regulator@2 {
 			compatible = "regulator-fixed";
+			reg = <2>;
 			regulator-name = "2P5V";
 			regulator-min-microvolt = <2500000>;
 			regulator-max-microvolt = <2500000>;
 			regulator-always-on;
 		};
 
-		reg_3p3v: 3p3v {
+		reg_3p3v: regulator@3 {
 			compatible = "regulator-fixed";
+			reg = <3>;
 			regulator-name = "3P3V";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
 
-		reg_can_xcvr: can-xcvr {
+		reg_can_xcvr: regulator@4 {
 			compatible = "regulator-fixed";
+			reg = <4>;
 			regulator-name = "CAN XCVR";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
@@ -89,8 +96,9 @@
 			pinctrl-0 = <&tx28_flexcan_xcvr_pins>;
 		};
 
-		reg_lcd: lcd-power {
+		reg_lcd: regulator@5 {
 			compatible = "regulator-fixed";
+			reg = <5>;
 			regulator-name = "LCD POWER";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
@@ -98,8 +106,9 @@
 			enable-active-high;
 		};
 
-		reg_lcd_reset: lcd-reset {
+		reg_lcd_reset: regulator@6 {
 			compatible = "regulator-fixed";
+			reg = <6>;
 			regulator-name = "LCD RESET";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;

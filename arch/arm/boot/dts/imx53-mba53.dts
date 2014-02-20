@@ -17,14 +17,6 @@
 	model = "TQ MBa53 starter kit";
 	compatible = "tq,mba53", "tq,tqma53", "fsl,imx53";
 
-	reg_backlight: fixed@0 {
-		compatible = "regulator-fixed";
-		regulator-name = "lcd-supply";
-		gpio = <&gpio2 5 0>;
-		startup-delay-us = <5000>;
-		enable-active-low;
-	};
-
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm2 0 50000>;
@@ -43,12 +35,28 @@
 		status = "disabled";
 	};
 
-	reg_3p2v: 3p2v {
-		compatible = "regulator-fixed";
-		regulator-name = "3P2V";
-		regulator-min-microvolt = <3200000>;
-		regulator-max-microvolt = <3200000>;
-		regulator-always-on;
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_backlight: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "lcd-supply";
+			gpio = <&gpio2 5 0>;
+			startup-delay-us = <5000>;
+			enable-active-low;
+		};
+
+		reg_3p2v: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "3P2V";
+			regulator-min-microvolt = <3200000>;
+			regulator-max-microvolt = <3200000>;
+			regulator-always-on;
+		};
 	};
 
 	sound {
@@ -148,14 +156,14 @@
 &audmux {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux_1>;
+	pinctrl-0 = <&pinctrl_audmux>;
 };
 
 &i2c2 {
 	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clocks = <&clks 150>;
+		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
 	};

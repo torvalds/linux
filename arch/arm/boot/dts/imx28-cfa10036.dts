@@ -100,6 +100,8 @@
 		usb0: usb@80080000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&usb0_otg_cfa10036>;
+			dr_mode = "peripheral";
+			phy_type = "utmi";
 			status = "okay";
 		};
 	};

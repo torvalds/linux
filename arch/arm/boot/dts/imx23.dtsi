@@ -23,6 +23,7 @@
 		serial1 = &auart1;
 		spi0 = &ssp0;
 		spi1 = &ssp1;
+		usbphy0 = &usbphy0;
 	};
 
 	cpus {
@@ -428,7 +429,7 @@
 				status = "disabled";
 			};
 
-			lradc@80050000 {
+			lradc: lradc@80050000 {
 				compatible = "fsl,imx23-lradc";
 				reg = <0x80050000 0x2000>;
 				interrupts = <36 37 38 39 40 41 42 43 44>;
@@ -525,5 +526,10 @@
 			clocks = <&clks 40>;
 			status = "disabled";
 		};
+	};
+
+	iio_hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&lradc 8>;
 	};
 };
