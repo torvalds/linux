@@ -1617,6 +1617,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 {
 	struct spi_master *master = spi->master;
 	struct spi_transfer *xfer;
+	int w_size, n_words;
 
 	if (list_empty(&message->transfers))
 		return -EINVAL;
@@ -1667,6 +1668,22 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 					BIT(xfer->bits_per_word - 1)))
 				return -EINVAL;
 		}
+
+		/*
+		 * SPI transfer length should be multiple of SPI word size
+		 * where SPI word size should be power-of-two multiple
+		 */
+		if (xfer->bits_per_word <= 8)
+			w_size = 1;
+		else if (xfer->bits_per_word <= 16)
+			w_size = 2;
+		else
+			w_size = 4;
+
+		n_words = xfer->len / w_size;
+		/* No partial transfers accepted */
+		if (!n_words || xfer->len % w_size)
+			return -EINVAL;
 
 		if (xfer->speed_hz && master->min_speed_hz &&
 		    xfer->speed_hz < master->min_speed_hz)
