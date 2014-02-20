@@ -709,7 +709,6 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 			      struct cfg80211_sched_scan_request *req,
 			      struct ieee80211_sched_scan_ies *ies)
 {
-	int supported_bands = 0;
 	int band_2ghz = mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels;
 	int band_5ghz = mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
 	int head = 0;
@@ -726,13 +725,8 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (band_2ghz)
-		supported_bands++;
-	if (band_5ghz)
-		supported_bands++;
-
 	cmd_len = sizeof(struct iwl_scan_offload_cfg) +
-				supported_bands * SCAN_OFFLOAD_PROBE_REQ_SIZE;
+		  2 * SCAN_OFFLOAD_PROBE_REQ_SIZE;
 
 	scan_cfg = kzalloc(cmd_len, GFP_KERNEL);
 	if (!scan_cfg)
