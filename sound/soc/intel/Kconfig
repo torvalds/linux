@@ -24,3 +24,5 @@ config SND_SOC_INTEL_SST
 config SND_SOC_INTEL_SST_ACPI
 	tristate
 
+config SND_SOC_INTEL_HASWELL
+	tristate
