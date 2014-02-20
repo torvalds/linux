@@ -1520,12 +1520,14 @@ nv50_disp_intr_supervisor(struct work_struct *work)
 {
 	struct nv50_disp_priv *priv =
 		container_of(work, struct nv50_disp_priv, supervisor);
+	struct nv50_disp_impl *impl = (void *)nv_object(priv)->oclass;
 	u32 super = nv_rd32(priv, 0x610030);
 	int head;
 
 	nv_debug(priv, "supervisor 0x%08x 0x%08x\n", priv->super, super);
 
 	if (priv->super & 0x00000010) {
+		nv50_disp_mthd_chan(priv, NV_DBG_DEBUG, 0, impl->mthd.core);
 		for (head = 0; head < priv->head.nr; head++) {
 			if (!(super & (0x00000020 << head)))
 				continue;

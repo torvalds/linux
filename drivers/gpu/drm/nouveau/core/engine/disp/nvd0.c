@@ -1174,6 +1174,7 @@ nvd0_disp_intr_supervisor(struct work_struct *work)
 {
 	struct nv50_disp_priv *priv =
 		container_of(work, struct nv50_disp_priv, supervisor);
+	struct nv50_disp_impl *impl = (void *)nv_object(priv)->oclass;
 	u32 mask[4];
 	int head;
 
@@ -1184,6 +1185,7 @@ nvd0_disp_intr_supervisor(struct work_struct *work)
 	}
 
 	if (priv->super & 0x00000001) {
+		nv50_disp_mthd_chan(priv, NV_DBG_DEBUG, 0, impl->mthd.core);
 		for (head = 0; head < priv->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
