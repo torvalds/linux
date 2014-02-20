@@ -1191,8 +1191,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	r = radeon_gem_init(rdev);
 	if (r)
 		return r;
-	/* initialize vm here */
-	mutex_init(&rdev->vm_manager.lock);
+
 	/* Adjust VM size here.
 	 * Currently set to 4GB ((1 << 20) 4k pages).
 	 * Max GPUVM size for cayman and SI is 40 bits.

@@ -884,7 +884,6 @@ struct radeon_vm {
 };
 
 struct radeon_vm_manager {
-	struct mutex			lock;
 	struct radeon_fence		*active[RADEON_NUM_VM];
 	uint32_t			max_pfn;
 	/* number of VMIDs */

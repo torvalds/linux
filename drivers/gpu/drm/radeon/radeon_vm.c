@@ -110,12 +110,10 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
 	if (!rdev->vm_manager.enabled)
 		return;
 
-	mutex_lock(&rdev->vm_manager.lock);
 	for (i = 0; i < RADEON_NUM_VM; ++i)
 		radeon_fence_unref(&rdev->vm_manager.active[i]);
 	radeon_asic_vm_fini(rdev);
 	rdev->vm_manager.enabled = false;
-	mutex_unlock(&rdev->vm_manager.lock);
 }
 
 /**
@@ -734,7 +732,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
  * Fill in the page table entries for @bo (cayman+).
  * Returns 0 for success, -EINVAL for failure.
  *
- * Object have to be reserved & global and local mutex must be locked!
+ * Object have to be reserved and mutex must be locked!
  */
 int radeon_vm_bo_update(struct radeon_device *rdev,
 			struct radeon_vm *vm,
@@ -842,12 +840,10 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 {
 	int r = 0;
 
-	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&bo_va->vm->mutex);
-	if (bo_va->soffset) {
+	if (bo_va->soffset)
 		r = radeon_vm_bo_update(rdev, bo_va->vm, bo_va->bo, NULL);
-	}
-	mutex_unlock(&rdev->vm_manager.lock);
+
 	list_del(&bo_va->vm_list);
 	mutex_unlock(&bo_va->vm->mutex);
 	list_del(&bo_va->bo_list);

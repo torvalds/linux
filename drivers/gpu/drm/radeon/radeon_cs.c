@@ -502,7 +502,6 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
 		radeon_uvd_note_usage(rdev);
 
-	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
 	r = radeon_bo_vm_update_pte(parser, vm);
 	if (r) {
@@ -510,8 +509,6 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 	radeon_cs_sync_rings(parser);
 	radeon_semaphore_sync_to(parser->ib.semaphore, vm->fence);
-	radeon_semaphore_sync_to(parser->ib.semaphore,
-				 radeon_vm_grab_id(rdev, vm, parser->ring));
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
@@ -522,7 +519,6 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 
 out:
 	mutex_unlock(&vm->mutex);
-	mutex_unlock(&rdev->vm_manager.lock);
 	return r;
 }
 

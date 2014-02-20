@@ -145,6 +145,13 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		return r;
 	}
 
+	/* grab a vm id if necessary */
+	if (ib->vm) {
+		struct radeon_fence *vm_id_fence;
+		vm_id_fence = radeon_vm_grab_id(rdev, ib->vm, ib->ring);
+        	radeon_semaphore_sync_to(ib->semaphore, vm_id_fence);
+	}
+
 	/* sync with other rings */
 	r = radeon_semaphore_sync_rings(rdev, ib->semaphore, ib->ring);
 	if (r) {
