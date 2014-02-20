@@ -1,5 +1,5 @@
 config ARCH_MVEBU
-	bool "Marvell SOCs with Device Tree support" if ARCH_MULTI_V7
+	bool "Marvell Engineering Business Unit (MVEBU) SoCs" if ARCH_MULTI_V7
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
 	select COMMON_CLK
@@ -19,7 +19,7 @@ config ARCH_MVEBU
 
 if ARCH_MVEBU
 
-menu "Marvell SOC with device tree"
+menu "Marvell EBU SoC variants"
 
 config MACH_ARMADA_370_XP
 	bool
