@@ -530,6 +530,10 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 		radeon_vm_init(rdev, &fpriv->vm);
 
+		r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
+		if (r)
+			return r;
+
 		/* map the ib pool buffer read only into
 		 * virtual address space */
 		bo_va = radeon_vm_bo_add(rdev, &fpriv->vm,
@@ -537,6 +541,8 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		r = radeon_vm_bo_set_addr(rdev, bo_va, RADEON_VA_IB_OFFSET,
 					  RADEON_VM_PAGE_READABLE |
 					  RADEON_VM_PAGE_SNOOPED);
+
+		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
 		if (r) {
 			radeon_vm_fini(rdev, &fpriv->vm);
 			kfree(fpriv);
