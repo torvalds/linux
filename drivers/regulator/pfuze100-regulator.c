@@ -252,7 +252,7 @@ static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 
 	np = of_node_get(dev->of_node);
 	if (!np)
-		return 0;
+		return -EINVAL;
 
 	parent = of_get_child_by_name(np, "regulators");
 	if (!parent) {
