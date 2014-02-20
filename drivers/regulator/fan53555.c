@@ -244,10 +244,9 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 
 	di = devm_kzalloc(&client->dev, sizeof(struct fan53555_device_info),
 					GFP_KERNEL);
-	if (!di) {
-		dev_err(&client->dev, "Failed to allocate device info data!\n");
+	if (!di)
 		return -ENOMEM;
-	}
+
 	di->regmap = devm_regmap_init_i2c(client, &fan53555_regmap_config);
 	if (IS_ERR(di->regmap)) {
 		dev_err(&client->dev, "Failed to allocate regmap!\n");
