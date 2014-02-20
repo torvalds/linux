@@ -546,7 +546,7 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 				 size_t count, loff_t *off)
 {
 	u32 __iomem *piobuf;
-	u32 plen, clen, pbufn;
+	u32 plen, pbufn, maxlen_reserve;
 	struct qib_diag_xpkt dp;
 	u32 *tmpbuf = NULL;
 	struct qib_devdata *dd;
@@ -590,15 +590,20 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 	}
 	ppd = &dd->pport[dp.port - 1];
 
-	/* need total length before first word written */
-	/* +1 word is for the qword padding */
-	plen = sizeof(u32) + dp.len;
-	clen = dp.len >> 2;
-
-	if ((plen + 4) > ppd->ibmaxlen) {
+	/*
+	 * need total length before first word written, plus 2 Dwords. One Dword
+	 * is for padding so we get the full user data when not aligned on
+	 * a word boundary. The other Dword is to make sure we have room for the
+	 * ICRC which gets tacked on later.
+	 */
+	maxlen_reserve = 2 * sizeof(u32);
+	if (dp.len > ppd->ibmaxlen - maxlen_reserve) {
 		ret = -EINVAL;
-		goto bail;      /* before writing pbc */
+		goto bail;
 	}
+
+	plen = sizeof(u32) + dp.len;
+
 	tmpbuf = vmalloc(plen);
 	if (!tmpbuf) {
 		qib_devinfo(dd->pcidev,
@@ -638,11 +643,11 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 	 */
 	if (dd->flags & QIB_PIO_FLUSH_WC) {
 		qib_flush_wc();
-		qib_pio_copy(piobuf + 2, tmpbuf, clen - 1);
+		qib_pio_copy(piobuf + 2, tmpbuf, plen - 1);
 		qib_flush_wc();
-		__raw_writel(tmpbuf[clen - 1], piobuf + clen + 1);
+		__raw_writel(tmpbuf[plen - 1], piobuf + plen + 1);
 	} else
-		qib_pio_copy(piobuf + 2, tmpbuf, clen);
+		qib_pio_copy(piobuf + 2, tmpbuf, plen);
 
 	if (dd->flags & QIB_USE_SPCL_TRIG) {
 		u32 spcl_off = (pbufn >= dd->piobcnt2k) ? 2047 : 1023;
