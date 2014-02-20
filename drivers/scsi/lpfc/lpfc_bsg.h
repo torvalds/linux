@@ -231,6 +231,8 @@ struct lpfc_sli_config_emb0_subsys {
 #define SLI_CONFIG_SUBSYS_FCOE		0x0C
 #define FCOE_OPCODE_READ_FCF		0x08
 #define FCOE_OPCODE_ADD_FCF		0x09
+#define FCOE_OPCODE_SET_DPORT_MODE	0x27
+#define FCOE_OPCODE_GET_DPORT_RESULTS	0x28
 };
 
 struct lpfc_sli_config_emb1_subsys {
