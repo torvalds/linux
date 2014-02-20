@@ -8,6 +8,7 @@
  * Copyright (C) 1997 Theodore Ts'o
  */
 
+#include <linux/hardirq.h>
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
@@ -134,7 +135,7 @@ int proc_alloc_inum(unsigned int *inum)
 	int error;
 
 retry:
-	if (!ida_pre_get(&proc_inum_ida, GFP_KERNEL))
+	if (!ida_pre_get(&proc_inum_ida, (in_atomic() || irqs_disabled()) ? GFP_ATOMIC : GFP_KERNEL))
 		return -ENOMEM;
 
 	spin_lock_irq(&proc_inum_lock);
@@ -387,7 +388,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 
 	len = strlen(fn);
 
-	ent = kzalloc(sizeof(struct proc_dir_entry) + len + 1, GFP_KERNEL);
+	ent = kzalloc(sizeof(struct proc_dir_entry) + len + 1, (in_atomic() || irqs_disabled()) ? GFP_ATOMIC : GFP_KERNEL);
 	if (!ent)
 		goto out;
 
