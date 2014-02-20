@@ -380,10 +380,8 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 
 	tps_board = devm_kzalloc(&pdev->dev, sizeof(*tps_board),
 					GFP_KERNEL);
-	if (!tps_board) {
-		dev_err(&pdev->dev, "Failure to alloc pdata for regulators.\n");
+	if (!tps_board)
 		return NULL;
-	}
 
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
@@ -406,10 +404,8 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 
 	reg_data = devm_kzalloc(&pdev->dev, (sizeof(struct regulator_init_data)
 					* TPS6507X_NUM_REGULATOR), GFP_KERNEL);
-	if (!reg_data) {
-		dev_err(&pdev->dev, "Failure to alloc init data for regulators.\n");
+	if (!reg_data)
 		return NULL;
-	}
 
 	tps_board->tps6507x_pmic_init_data = reg_data;
 
