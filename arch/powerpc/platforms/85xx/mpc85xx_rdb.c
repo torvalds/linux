@@ -86,10 +86,6 @@ void __init mpc85xx_rdb_pic_init(void)
  */
 static void __init mpc85xx_rdb_setup_arch(void)
 {
-#ifdef CONFIG_QUICC_ENGINE
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_rdb_setup_arch()", 0);
 
@@ -101,6 +97,7 @@ static void __init mpc85xx_rdb_setup_arch(void)
 	mpc85xx_qe_init();
 #if defined(CONFIG_UCC_GETH) || defined(CONFIG_SERIAL_QE)
 	if (machine_is(p1025_rdb)) {
+		struct device_node *np;
 
 		struct ccsr_guts __iomem *guts;
 
