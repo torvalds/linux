@@ -2379,42 +2379,6 @@ static inline bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 		return HAS_ALIASING_PPGTT(dev);
 }
 
-static inline void ppgtt_release(struct kref *kref)
-{
-	struct i915_hw_ppgtt *ppgtt = container_of(kref, struct i915_hw_ppgtt, ref);
-	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_address_space *vm = &ppgtt->base;
-
-	if (ppgtt == dev_priv->mm.aliasing_ppgtt ||
-	    (list_empty(&vm->active_list) && list_empty(&vm->inactive_list))) {
-		ppgtt->base.cleanup(&ppgtt->base);
-		return;
-	}
-
-	/*
-	 * Make sure vmas are unbound before we take down the drm_mm
-	 *
-	 * FIXME: Proper refcounting should take care of this, this shouldn't be
-	 * needed at all.
-	 */
-	if (!list_empty(&vm->active_list)) {
-		struct i915_vma *vma;
-
-		list_for_each_entry(vma, &vm->active_list, mm_list)
-			if (WARN_ON(list_empty(&vma->vma_link) ||
-				    list_is_singular(&vma->vma_link)))
-				break;
-
-		i915_gem_evict_vm(&ppgtt->base, true);
-	} else {
-		i915_gem_retire_requests(dev);
-		i915_gem_evict_vm(&ppgtt->base, false);
-	}
-
-	ppgtt->base.cleanup(&ppgtt->base);
-}
-
 /* i915_gem_stolen.c */
 int i915_gem_init_stolen(struct drm_device *dev);
 int i915_gem_stolen_setup_compression(struct drm_device *dev, int size);
