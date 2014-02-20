@@ -365,6 +365,113 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 	gen8_ppgtt_free(ppgtt);
 }
 
+static int gen8_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt,
+					   const int max_pdp)
+{
+	struct page *pt_pages;
+	const int num_pt_pages = GEN8_PDES_PER_PAGE * max_pdp;
+
+	pt_pages = alloc_pages(GFP_KERNEL, get_order(num_pt_pages << PAGE_SHIFT));
+	if (!pt_pages)
+		return -ENOMEM;
+
+	ppgtt->gen8_pt_pages = pt_pages;
+	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
+
+	return 0;
+}
+
+static int gen8_ppgtt_allocate_dma(struct i915_hw_ppgtt *ppgtt)
+{
+	int i;
+
+	for (i = 0; i < ppgtt->num_pd_pages; i++) {
+		ppgtt->gen8_pt_dma_addr[i] = kcalloc(GEN8_PDES_PER_PAGE,
+						     sizeof(dma_addr_t),
+						     GFP_KERNEL);
+		if (!ppgtt->gen8_pt_dma_addr[i])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int gen8_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt,
+						const int max_pdp)
+{
+	ppgtt->pd_pages = alloc_pages(GFP_KERNEL, get_order(max_pdp << PAGE_SHIFT));
+	if (!ppgtt->pd_pages)
+		return -ENOMEM;
+
+	ppgtt->num_pd_pages = 1 << get_order(max_pdp << PAGE_SHIFT);
+	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPS);
+
+	return 0;
+}
+
+static int gen8_ppgtt_alloc(struct i915_hw_ppgtt *ppgtt,
+			    const int max_pdp)
+{
+	int ret;
+
+	ret = gen8_ppgtt_allocate_page_directories(ppgtt, max_pdp);
+	if (ret)
+		return ret;
+
+	ret = gen8_ppgtt_allocate_page_tables(ppgtt, max_pdp);
+	if (ret) {
+		__free_pages(ppgtt->pd_pages, get_order(max_pdp << PAGE_SHIFT));
+		return ret;
+	}
+
+	ppgtt->num_pd_entries = max_pdp * GEN8_PDES_PER_PAGE;
+
+	ret = gen8_ppgtt_allocate_dma(ppgtt);
+	if (ret)
+		gen8_ppgtt_free(ppgtt);
+
+	return ret;
+}
+
+static int gen8_ppgtt_setup_page_directories(struct i915_hw_ppgtt *ppgtt,
+					     const int pd)
+{
+	dma_addr_t pd_addr;
+	int ret;
+
+	pd_addr = pci_map_page(ppgtt->base.dev->pdev,
+			       &ppgtt->pd_pages[pd], 0,
+			       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+
+	ret = pci_dma_mapping_error(ppgtt->base.dev->pdev, pd_addr);
+	if (ret)
+		return ret;
+
+	ppgtt->pd_dma_addr[pd] = pd_addr;
+
+	return 0;
+}
+
+static int gen8_ppgtt_setup_page_tables(struct i915_hw_ppgtt *ppgtt,
+					const int pd,
+					const int pt)
+{
+	dma_addr_t pt_addr;
+	struct page *p;
+	int ret;
+
+	p = &ppgtt->gen8_pt_pages[pd * GEN8_PDES_PER_PAGE + pt];
+	pt_addr = pci_map_page(ppgtt->base.dev->pdev,
+			       p, 0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	ret = pci_dma_mapping_error(ppgtt->base.dev->pdev, pt_addr);
+	if (ret)
+		return ret;
+
+	ppgtt->gen8_pt_dma_addr[pd][pt] = pt_addr;
+
+	return 0;
+}
+
 /**
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
  * with a net effect resembling a 2-level page table in normal x86 terms. Each
@@ -377,69 +484,30 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
  */
 static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 {
-	struct page *pt_pages;
 	const int max_pdp = DIV_ROUND_UP(size, 1 << 30);
-	const int num_pt_pages = GEN8_PDES_PER_PAGE * max_pdp;
-	struct pci_dev *hwdev = ppgtt->base.dev->pdev;
+	const int min_pt_pages = GEN8_PDES_PER_PAGE * max_pdp;
 	int i, j, ret;
 
 	if (size % (1<<30))
 		DRM_INFO("Pages will be wasted unless GTT size (%llu) is divisible by 1GB\n", size);
 
-	/* 1. Do all our allocations for page directories and page tables */
-	ppgtt->pd_pages = alloc_pages(GFP_KERNEL, get_order(max_pdp << PAGE_SHIFT));
-	if (!ppgtt->pd_pages)
-		return -ENOMEM;
-
-	pt_pages = alloc_pages(GFP_KERNEL, get_order(num_pt_pages << PAGE_SHIFT));
-	if (!pt_pages) {
-		__free_pages(ppgtt->pd_pages, get_order(max_pdp << PAGE_SHIFT));
-		return -ENOMEM;
-	}
-
-	ppgtt->gen8_pt_pages = pt_pages;
-	ppgtt->num_pd_pages = 1 << get_order(max_pdp << PAGE_SHIFT);
-	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
-	ppgtt->num_pd_entries = max_pdp * GEN8_PDES_PER_PAGE;
-	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPS);
-
-	for (i = 0; i < max_pdp; i++) {
-		ppgtt->gen8_pt_dma_addr[i] = kcalloc(GEN8_PDES_PER_PAGE,
-						     sizeof(dma_addr_t),
-						     GFP_KERNEL);
-		if (!ppgtt->gen8_pt_dma_addr[i]) {
-			ret = -ENOMEM;
-			goto bail;
-		}
-	}
+	/* 1. Do all our allocations for page directories and page tables. */
+	ret = gen8_ppgtt_alloc(ppgtt, max_pdp);
+	if (ret)
+		return ret;
 
 	/*
-	 * 2. Create all the DMA mappings for the page directories and page
-	 * tables
+	 * 2. Create DMA mappings for the page directories and page tables.
 	 */
 	for (i = 0; i < max_pdp; i++) {
-		dma_addr_t pd_addr, pt_addr;
-
-		/* Get the page directory mappings */
-		pd_addr = pci_map_page(hwdev, &ppgtt->pd_pages[i], 0,
-				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-		ret = pci_dma_mapping_error(ppgtt->base.dev->pdev, pd_addr);
+		ret = gen8_ppgtt_setup_page_directories(ppgtt, i);
 		if (ret)
 			goto bail;
 
-		ppgtt->pd_dma_addr[i] = pd_addr;
-
-		/* And the page table mappings per page directory */
 		for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
-			struct page *p = &pt_pages[i * GEN8_PDES_PER_PAGE + j];
-
-			pt_addr = pci_map_page(hwdev, p, 0, PAGE_SIZE,
-					       PCI_DMA_BIDIRECTIONAL);
-			ret = pci_dma_mapping_error(hwdev, pt_addr);
+			ret = gen8_ppgtt_setup_page_tables(ppgtt, i, j);
 			if (ret)
 				goto bail;
-
-			ppgtt->gen8_pt_dma_addr[i][j] = pt_addr;
 		}
 	}
 
@@ -478,7 +546,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 			 ppgtt->num_pd_pages, ppgtt->num_pd_pages - max_pdp);
 	DRM_DEBUG_DRIVER("Allocated %d pages for page tables (%lld wasted)\n",
 			 ppgtt->num_pt_pages,
-			 (ppgtt->num_pt_pages - num_pt_pages) +
+			 (ppgtt->num_pt_pages - min_pt_pages) +
 			 size % (1<<30));
 	return 0;
 
