@@ -707,17 +707,12 @@ static struct cpufreq_driver rk3188_cpufreq_driver = {
 };
 
 static int __init rk3188_cpufreq_driver_init(void)
-{	
+{
+	if (!cpu_is_rk3188())
+		return 0;
 	register_pm_notifier(&rk3188_cpufreq_pm_notifier);
 	register_reboot_notifier(&rk3188_cpufreq_reboot_notifier);
 	return cpufreq_register_driver(&rk3188_cpufreq_driver);
 }
 
-static void __exit rk3188_cpufreq_driver_exit(void)
-{
-	cpufreq_unregister_driver(&rk3188_cpufreq_driver);
-}
-
 device_initcall(rk3188_cpufreq_driver_init);
-module_exit(rk3188_cpufreq_driver_exit);
-
