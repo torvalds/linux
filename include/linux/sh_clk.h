@@ -52,6 +52,7 @@ struct clk {
 	unsigned long		flags;
 
 	void __iomem		*enable_reg;
+	void __iomem		*status_reg;
 	unsigned int		enable_bit;
 	void __iomem		*mapped_reg;
 
@@ -116,22 +117,26 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 		      unsigned long *best_freq, unsigned long *parent_freq,
 		      unsigned int div_min, unsigned int div_max);
 
-#define SH_CLK_MSTP(_parent, _enable_reg, _enable_bit, _flags)		\
+#define SH_CLK_MSTP(_parent, _enable_reg, _enable_bit, _status_reg, _flags) \
 {									\
 	.parent		= _parent,					\
 	.enable_reg	= (void __iomem *)_enable_reg,			\
 	.enable_bit	= _enable_bit,					\
+	.status_reg	= _status_reg,					\
 	.flags		= _flags,					\
 }
 
-#define SH_CLK_MSTP32(_p, _r, _b, _f)					\
-	SH_CLK_MSTP(_p, _r, _b, _f | CLK_ENABLE_REG_32BIT)
+#define SH_CLK_MSTP32(_p, _r, _b, _f)				\
+	SH_CLK_MSTP(_p, _r, _b, 0, _f | CLK_ENABLE_REG_32BIT)
 
-#define SH_CLK_MSTP16(_p, _r, _b, _f)					\
-	SH_CLK_MSTP(_p, _r, _b, _f | CLK_ENABLE_REG_16BIT)
+#define SH_CLK_MSTP32_STS(_p, _r, _b, _s, _f)			\
+	SH_CLK_MSTP(_p, _r, _b, _s, _f | CLK_ENABLE_REG_32BIT)
 
-#define SH_CLK_MSTP8(_p, _r, _b, _f)					\
-	SH_CLK_MSTP(_p, _r, _b, _f | CLK_ENABLE_REG_8BIT)
+#define SH_CLK_MSTP16(_p, _r, _b, _f)				\
+	SH_CLK_MSTP(_p, _r, _b, 0, _f | CLK_ENABLE_REG_16BIT)
+
+#define SH_CLK_MSTP8(_p, _r, _b, _f)				\
+	SH_CLK_MSTP(_p, _r, _b, 0, _f | CLK_ENABLE_REG_8BIT)
 
 int sh_clk_mstp_register(struct clk *clks, int nr);
 
