@@ -57,40 +57,39 @@ DEFINE_CLK_FIXED_RATE(func_32k_ck, CLK_IS_ROOT, 32768, 0x0);
 
 DEFINE_CLK_FIXED_RATE(mcbsp_clks, CLK_IS_ROOT, 0x0, 0x0);
 
-static struct clk osc_ck;
+DEFINE_CLK_FIXED_RATE(virt_12m_ck, CLK_IS_ROOT, 12000000, 0x0);
 
-static const struct clk_ops osc_ck_ops = {
-	.recalc_rate	= &omap2_osc_clk_recalc,
+DEFINE_CLK_FIXED_RATE(virt_13m_ck, CLK_IS_ROOT, 13000000, 0x0);
+
+DEFINE_CLK_FIXED_RATE(virt_19200000_ck, CLK_IS_ROOT, 19200000, 0x0);
+
+DEFINE_CLK_FIXED_RATE(virt_26m_ck, CLK_IS_ROOT, 26000000, 0x0);
+
+/* 26M ck is a dummy, added to fill the hole in the aplls_clkin parent list */
+static const char *aplls_clkin_ck_parent_names[] = {
+	"virt_19200000_ck", "virt_26m_ck", "virt_13m_ck", "virt_12m_ck",
 };
 
-static struct clk_hw_omap osc_ck_hw = {
-	.hw = {
-		.clk = &osc_ck,
-	},
-};
-
-static struct clk osc_ck = {
-	.name	= "osc_ck",
-	.ops	= &osc_ck_ops,
-	.hw	= &osc_ck_hw.hw,
-	.flags	= CLK_IS_ROOT,
-};
+DEFINE_CLK_MUX(aplls_clkin_ck, aplls_clkin_ck_parent_names, NULL, 0x0,
+	       OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1), OMAP24XX_APLLS_CLKIN_SHIFT,
+	       OMAP24XX_APLLS_CLKIN_WIDTH, 0x0, NULL);
 
 DEFINE_CLK_FIXED_RATE(secure_32k_ck, CLK_IS_ROOT, 32768, 0x0);
 
-static struct clk sys_ck;
+DEFINE_CLK_FIXED_FACTOR(aplls_clkin_x2_ck, "aplls_clkin_ck", &aplls_clkin_ck,
+			0x0, 2, 1);
 
-static const char *sys_ck_parent_names[] = {
-	"osc_ck",
+static const char *osc_ck_parent_names[] = {
+	"aplls_clkin_ck", "aplls_clkin_x2_ck",
 };
 
-static const struct clk_ops sys_ck_ops = {
-	.init		= &omap2_init_clk_clkdm,
-	.recalc_rate	= &omap2xxx_sys_clk_recalc,
-};
+DEFINE_CLK_MUX(osc_ck, osc_ck_parent_names, NULL, 0x0,
+	       OMAP2420_PRCM_CLKSRC_CTRL, OMAP_SYSCLKDIV_SHIFT,
+	       OMAP_SYSCLKDIV_WIDTH, CLK_MUX_INDEX_ONE, NULL);
 
-DEFINE_STRUCT_CLK_HW_OMAP(sys_ck, "wkup_clkdm");
-DEFINE_STRUCT_CLK(sys_ck, sys_ck_parent_names, sys_ck_ops);
+DEFINE_CLK_DIVIDER(sys_ck, "osc_ck", &osc_ck, 0x0, OMAP2420_PRCM_CLKSRC_CTRL,
+		   OMAP_SYSCLKDIV_SHIFT, OMAP_SYSCLKDIV_WIDTH,
+		   CLK_DIVIDER_ONE_BASED, NULL);
 
 static struct dpll_data dpll_dd = {
 	.mult_div1_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
@@ -1741,6 +1740,12 @@ static struct omap_clk omap2420_clks[] = {
 	/* external root sources */
 	CLK(NULL,	"func_32k_ck",	&func_32k_ck),
 	CLK(NULL,	"secure_32k_ck", &secure_32k_ck),
+	CLK(NULL,	"virt_12m_ck",	&virt_12m_ck),
+	CLK(NULL,	"virt_13m_ck",	&virt_13m_ck),
+	CLK(NULL,	"virt_19200000_ck",	&virt_19200000_ck),
+	CLK(NULL,	"virt_26m_ck",	&virt_26m_ck),
+	CLK(NULL,	"aplls_clkin_ck",	&aplls_clkin_ck),
+	CLK(NULL,	"aplls_clkin_x2_ck",	&aplls_clkin_x2_ck),
 	CLK(NULL,	"osc_ck",	&osc_ck),
 	CLK(NULL,	"sys_ck",	&sys_ck),
 	CLK(NULL,	"alt_ck",	&alt_ck),
@@ -1904,7 +1909,6 @@ static const char *enable_init_clks[] = {
 
 int __init omap2420_clk_init(void)
 {
-	prcm_clksrc_ctrl = OMAP2420_PRCM_CLKSRC_CTRL;
 	cpu_mask = RATE_IN_242X;
 	rate_table = omap2420_rate_table;
 

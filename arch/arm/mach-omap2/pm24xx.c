@@ -249,6 +249,10 @@ static void __init prcm_setup_regs(void)
 	/* Enable wake-up events */
 	omap2_prm_write_mod_reg(OMAP24XX_EN_GPIOS_MASK | OMAP24XX_EN_GPT1_MASK,
 				WKUP_MOD, PM_WKEN);
+
+	/* Enable SYS_CLKEN control when all domains idle */
+	omap2_prm_set_mod_reg_bits(OMAP_AUTOEXTCLKMODE_MASK, OMAP24XX_GR_MOD,
+				   OMAP2_PRCM_CLKSRC_CTRL_OFFSET);
 }
 
 int __init omap2_pm_init(void)
