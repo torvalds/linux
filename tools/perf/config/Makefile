@@ -309,7 +309,7 @@ endif # NO_LIBELF
 
 ifndef NO_LIBUNWIND
   ifneq ($(feature-libunwind), 1)
-    msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 1.1);
+    msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 1.1 and/or set LIBUNWIND_DIR);
     NO_LIBUNWIND := 1
   else
     ifeq ($(ARCH),arm)
