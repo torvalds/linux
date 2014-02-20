@@ -711,6 +711,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	master->mode_bits |= SPI_LSB_FIRST | SPI_3WIRE;
 	master->flags = 0;
 	master->bus_num = pdev->id;
+	master->dev.of_node = pdev->dev.of_node;
 	master->num_chipselect = p->info->num_chipselect;
 	master->setup = spi_bitbang_setup;
 	master->cleanup = spi_bitbang_cleanup;
