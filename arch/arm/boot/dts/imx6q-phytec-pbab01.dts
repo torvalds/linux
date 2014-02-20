@@ -21,6 +21,10 @@
 	status = "okay";
 };
 
+&gpmi {
+	status = "okay";
+};
+
 &uart4 {
 	status = "okay";
 };
