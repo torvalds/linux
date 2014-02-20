@@ -1723,6 +1723,9 @@ struct btrfs_root {
 	atomic_t log_commit[2];
 	atomic_t log_batch;
 	int log_transid;
+	/* No matter the commit succeeds or not*/
+	int log_transid_committed;
+	/* Just be updated when the commit succeeds. */
 	int last_log_commit;
 	pid_t log_start_pid;
 	bool log_multiple_pids;
