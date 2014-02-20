@@ -4771,6 +4771,17 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key)
 
 	memset(&ev, 0, sizeof(ev));
 
+	/* Devices using resolvable or non-resolvable random addresses
+	 * without providing an indentity resolving key don't require
+	 * to store long term keys. Their addresses will change the
+	 * next time around.
+	 *
+	 * Only when a remote device provides an identity address
+	 * make sure the long term key is stored. If the remote
+	 * identity is known, the long term keys are internally
+	 * mapped to the identity address. So allow static random
+	 * and public addresses here.
+	 */
 	if (key->bdaddr_type == ADDR_LE_DEV_RANDOM &&
 	    (key->bdaddr.b[5] & 0xc0) != 0xc0)
 		ev.store_hint = 0x00;
