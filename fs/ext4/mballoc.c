@@ -4008,8 +4008,7 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 			(unsigned long)ac->ac_b_ex.fe_len,
 			(unsigned long)ac->ac_b_ex.fe_logical,
 			(int)ac->ac_criteria);
-	ext4_msg(ac->ac_sb, KERN_ERR, "%lu scanned, %d found",
-		 ac->ac_ex_scanned, ac->ac_found);
+	ext4_msg(ac->ac_sb, KERN_ERR, "%d found", ac->ac_found);
 	ext4_msg(ac->ac_sb, KERN_ERR, "groups: ");
 	ngroups = ext4_get_groups_count(sb);
 	for (i = 0; i < ngroups; i++) {
