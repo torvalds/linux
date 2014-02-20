@@ -151,6 +151,7 @@ struct hci_dev {
 	__u8		bus;
 	__u8		dev_type;
 	bdaddr_t	bdaddr;
+	bdaddr_t	random_addr;
 	bdaddr_t	static_addr;
 	__u8		own_addr_type;
 	__u8		dev_name[HCI_MAX_NAME_LENGTH];

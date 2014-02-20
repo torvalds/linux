@@ -959,6 +959,26 @@ static void hci_cc_read_local_oob_ext_data(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
+
+static void hci_cc_le_set_random_addr(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+	bdaddr_t *sent;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_RANDOM_ADDR);
+	if (!sent)
+		return;
+
+	hci_dev_lock(hdev);
+
+	if (!status)
+		bacpy(&hdev->random_addr, sent);
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 *sent, status = *((__u8 *) skb->data);
@@ -2306,6 +2326,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_USER_PASSKEY_NEG_REPLY:
 		hci_cc_user_passkey_neg_reply(hdev, skb);
+		break;
+
+	case HCI_OP_LE_SET_RANDOM_ADDR:
+		hci_cc_le_set_random_addr(hdev, skb);
 		break;
 
 	case HCI_OP_LE_SET_ADV_ENABLE:
