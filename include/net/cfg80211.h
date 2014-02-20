@@ -2796,7 +2796,7 @@ struct wiphy_vendor_command {
  * @perm_addr: permanent MAC address of this device
  * @addr_mask: If the device supports multiple MAC addresses by masking,
  *	set this to a mask with variable bits set to 1, e.g. if the last
- *	four bits are variable then set it to 00:...:00:0f. The actual
+ *	four bits are variable then set it to 00-00-00-00-00-0f. The actual
  *	variable bits shall be determined by the interfaces added, with
  *	interfaces not matching the mask being rejected to be brought up.
  * @n_addresses: number of addresses in @addresses.
