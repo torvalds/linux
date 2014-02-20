@@ -178,6 +178,7 @@ struct hci_dev {
 	__u16		page_scan_interval;
 	__u16		page_scan_window;
 	__u8		page_scan_type;
+	__u8		le_adv_channel_map;
 	__u16		le_scan_interval;
 	__u16		le_scan_window;
 	__u16		le_conn_min_interval;

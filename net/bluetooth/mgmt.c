@@ -1374,7 +1374,7 @@ static void enable_advertising(struct hci_request *req)
 	cp.max_interval = __constant_cpu_to_le16(0x0800);
 	cp.type = get_adv_type(hdev);
 	cp.own_address_type = hdev->own_addr_type;
-	cp.channel_map = 0x07;
+	cp.channel_map = hdev->le_adv_channel_map;
 
 	hci_req_add(req, HCI_OP_LE_SET_ADV_PARAM, sizeof(cp), &cp);
 
