@@ -12,7 +12,7 @@
 # Change this to use a different config.h
 CONFIG ?= os_memory_64m
 
-UDD_FILE_PREFIX = ../mali/
+UDD_FILE_PREFIX = 
 
 # set the SVN_REV to ${MALI_RELEASE_NAME} due to ARM using subversion
 SVN_REV := $(MALI_RELEASE_NAME)
