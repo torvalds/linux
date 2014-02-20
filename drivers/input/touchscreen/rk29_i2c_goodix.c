@@ -519,7 +519,7 @@ static int rk_ts_resume(struct i2c_client *client)
 	}
 #endif
 	
-	enable_irq(client->irq);
+	enable_irq(ts->irq);
 
 	return 0;
 }
