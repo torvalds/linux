@@ -1200,6 +1200,8 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	init_waitqueue_head(&root->log_writer_wait);
 	init_waitqueue_head(&root->log_commit_wait[0]);
 	init_waitqueue_head(&root->log_commit_wait[1]);
+	INIT_LIST_HEAD(&root->log_ctxs[0]);
+	INIT_LIST_HEAD(&root->log_ctxs[1]);
 	atomic_set(&root->log_commit[0], 0);
 	atomic_set(&root->log_commit[1], 0);
 	atomic_set(&root->log_writers, 0);

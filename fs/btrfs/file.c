@@ -1864,8 +1864,9 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret = 0;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_log_ctx ctx;
+	int ret = 0;
 	bool full_sync = 0;
 
 	trace_btrfs_sync_file(file, datasync);
@@ -1959,7 +1960,9 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 	trans->sync = true;
 
-	ret = btrfs_log_dentry_safe(trans, root, dentry);
+	btrfs_init_log_ctx(&ctx);
+
+	ret = btrfs_log_dentry_safe(trans, root, dentry, &ctx);
 	if (ret < 0) {
 		/* Fallthrough and commit/free transaction. */
 		ret = 1;
@@ -1979,7 +1982,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (ret != BTRFS_NO_LOG_SYNC) {
 		if (!ret) {
-			ret = btrfs_sync_log(trans, root);
+			ret = btrfs_sync_log(trans, root, &ctx);
 			if (!ret) {
 				ret = btrfs_end_transaction(trans, root);
 				goto out;

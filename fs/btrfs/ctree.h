@@ -1718,6 +1718,7 @@ struct btrfs_root {
 	struct mutex log_mutex;
 	wait_queue_head_t log_writer_wait;
 	wait_queue_head_t log_commit_wait[2];
+	struct list_head log_ctxs[2];
 	atomic_t log_writers;
 	atomic_t log_commit[2];
 	atomic_t log_batch;
