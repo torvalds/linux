@@ -857,17 +857,22 @@ struct radeon_mec {
 #define R600_PTE_READABLE	(1 << 5)
 #define R600_PTE_WRITEABLE	(1 << 6)
 
+struct radeon_vm_pt {
+	struct radeon_bo		*bo;
+	uint64_t			addr;
+};
+
 struct radeon_vm {
-	struct list_head		list;
 	struct list_head		va;
 	unsigned			id;
 
 	/* contains the page directory */
-	struct radeon_sa_bo		*page_directory;
+	struct radeon_bo		*page_directory;
 	uint64_t			pd_gpu_addr;
+	unsigned			max_pde_used;
 
 	/* array of page tables, one for each page directory entry */
-	struct radeon_sa_bo		**page_tables;
+	struct radeon_vm_pt		*page_tables;
 
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
@@ -880,9 +885,7 @@ struct radeon_vm {
 
 struct radeon_vm_manager {
 	struct mutex			lock;
-	struct list_head		lru_vm;
 	struct radeon_fence		*active[RADEON_NUM_VM];
-	struct radeon_sa_manager	sa_manager;
 	uint32_t			max_pfn;
 	/* number of VMIDs */
 	unsigned			nvm;
@@ -1011,6 +1014,7 @@ struct radeon_cs_parser {
 	unsigned		nrelocs;
 	struct radeon_cs_reloc	*relocs;
 	struct radeon_cs_reloc	**relocs_ptr;
+	struct radeon_bo_list	*vm_bos;
 	struct list_head	validated;
 	unsigned		dma_reloc_idx;
 	/* indices of various chunks */
@@ -2798,10 +2802,11 @@ extern void radeon_program_register_sequence(struct radeon_device *rdev,
  */
 int radeon_vm_manager_init(struct radeon_device *rdev);
 void radeon_vm_manager_fini(struct radeon_device *rdev);
-void radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
+int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
-int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm);
-void radeon_vm_add_to_lru(struct radeon_device *rdev, struct radeon_vm *vm);
+struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
+					 struct radeon_vm *vm,
+                                         struct list_head *head);
 struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 				       struct radeon_vm *vm, int ring);
 void radeon_vm_flush(struct radeon_device *rdev,
@@ -2811,6 +2816,8 @@ void radeon_vm_fence(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_fence *fence);
 uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr);
+int radeon_vm_update_page_directory(struct radeon_device *rdev,
+				    struct radeon_vm *vm);
 int radeon_vm_bo_update(struct radeon_device *rdev,
 			struct radeon_vm *vm,
 			struct radeon_bo *bo,

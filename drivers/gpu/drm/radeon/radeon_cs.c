@@ -168,6 +168,10 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 
 	radeon_cs_buckets_get_list(&buckets, &p->validated);
 
+	if (p->cs_flags & RADEON_CS_USE_VM)
+		p->vm_bos = radeon_vm_get_bos(p->rdev, p->ib.vm,
+					      &p->validated);
+
 	return radeon_bo_list_validate(p->rdev, &p->ticket, &p->validated, p->ring);
 }
 
@@ -401,6 +405,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 	kfree(parser->track);
 	kfree(parser->relocs);
 	kfree(parser->relocs_ptr);
+	kfree(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);
@@ -440,24 +445,32 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 	return r;
 }
 
-static int radeon_bo_vm_update_pte(struct radeon_cs_parser *parser,
+static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 				   struct radeon_vm *vm)
 {
-	struct radeon_device *rdev = parser->rdev;
-	struct radeon_bo_list *lobj;
-	struct radeon_bo *bo;
-	int r;
+	struct radeon_device *rdev = p->rdev;
+	int i, r;
 
-	r = radeon_vm_bo_update(rdev, vm, rdev->ring_tmp_bo.bo, &rdev->ring_tmp_bo.bo->tbo.mem);
-	if (r) {
+	r = radeon_vm_update_page_directory(rdev, vm);
+	if (r)
 		return r;
-	}
-	list_for_each_entry(lobj, &parser->validated, tv.head) {
-		bo = lobj->bo;
-		r = radeon_vm_bo_update(parser->rdev, vm, bo, &bo->tbo.mem);
-		if (r) {
+
+	r = radeon_vm_bo_update(rdev, vm, rdev->ring_tmp_bo.bo,
+				&rdev->ring_tmp_bo.bo->tbo.mem);
+	if (r)
+		return r;
+
+	for (i = 0; i < p->nrelocs; i++) {
+		struct radeon_bo *bo;
+
+		/* ignore duplicates */
+		if (p->relocs_ptr[i] != &p->relocs[i])
+			continue;
+
+		bo = p->relocs[i].robj;
+		r = radeon_vm_bo_update(rdev, vm, bo, &bo->tbo.mem);
+		if (r)
 			return r;
-		}
 	}
 	return 0;
 }
@@ -491,10 +504,6 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
-	r = radeon_vm_alloc_pt(rdev, vm);
-	if (r) {
-		goto out;
-	}
 	r = radeon_bo_vm_update_pte(parser, vm);
 	if (r) {
 		goto out;
@@ -512,7 +521,6 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 
 out:
-	radeon_vm_add_to_lru(rdev, vm);
 	mutex_unlock(&vm->mutex);
 	mutex_unlock(&rdev->vm_manager.lock);
 	return r;

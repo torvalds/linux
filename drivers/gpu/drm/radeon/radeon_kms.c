@@ -559,7 +559,9 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 			return -ENOMEM;
 		}
 
-		radeon_vm_init(rdev, &fpriv->vm);
+		r = radeon_vm_init(rdev, &fpriv->vm);
+		if (r)
+			return r;
 
 		r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
 		if (r)

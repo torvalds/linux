@@ -1198,7 +1198,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	 * Max GPUVM size for cayman and SI is 40 bits.
 	 */
 	rdev->vm_manager.max_pfn = 1 << 20;
-	INIT_LIST_HEAD(&rdev->vm_manager.lru_vm);
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
