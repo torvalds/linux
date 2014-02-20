@@ -109,12 +109,12 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 		       int flags, __u64 valid)
 {
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req = NULL;
 	int xattr_type, rc;
 	struct obd_capa *oc;
+	struct rmtacl_ctl_entry *rce = NULL;
 #ifdef CONFIG_FS_POSIX_ACL
 	posix_acl_xattr_header *new_value = NULL;
-	struct rmtacl_ctl_entry *rce = NULL;
 	ext_acl_xattr_header *acl = NULL;
 #endif
 	const char *pv = value;
@@ -183,11 +183,17 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 		valid |= rce_ops2valid(rce->rce_ops);
 	}
 #endif
-	oc = ll_mdscapa_get(inode);
-	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode), oc,
-			 valid, name, pv, size, 0, flags, ll_i2suppgid(inode),
-			 &req);
-	capa_put(oc);
+	if (sbi->ll_xattr_cache_enabled &&
+	    (rce == NULL || rce->rce_ops == RMT_LSETFACL)) {
+		rc = ll_xattr_cache_update(inode, name, pv, size, valid, flags);
+	} else {
+		oc = ll_mdscapa_get(inode);
+		rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode), oc,
+				valid, name, pv, size, 0, flags,
+				ll_i2suppgid(inode), &req);
+		capa_put(oc);
+	}
+
 #ifdef CONFIG_FS_POSIX_ACL
 	if (new_value != NULL)
 		lustre_posix_acl_xattr_free(new_value, size);
@@ -352,48 +358,54 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 #endif
 
 do_getxattr:
-	oc = ll_mdscapa_get(inode);
-	rc = md_getxattr(sbi->ll_md_exp, ll_inode2fid(inode), oc,
-			 valid | (rce ? rce_ops2valid(rce->rce_ops) : 0),
-			 name, NULL, 0, size, 0, &req);
-	capa_put(oc);
-	if (rc) {
-		if (rc == -EOPNOTSUPP && xattr_type == XATTR_USER_T) {
-			LCONSOLE_INFO("Disabling user_xattr feature because "
-				      "it is not supported on the server\n");
-			sbi->ll_flags &= ~LL_SBI_USER_XATTR;
+	if (sbi->ll_xattr_cache_enabled && (rce == NULL ||
+					    rce->rce_ops == RMT_LGETFACL ||
+					    rce->rce_ops == RMT_LSETFACL)) {
+		rc = ll_xattr_cache_get(inode, name, buffer, size, valid);
+		if (rc < 0)
+			GOTO(out_xattr, rc);
+	} else {
+		oc = ll_mdscapa_get(inode);
+		rc = md_getxattr(sbi->ll_md_exp, ll_inode2fid(inode), oc,
+				valid | (rce ? rce_ops2valid(rce->rce_ops) : 0),
+				name, NULL, 0, size, 0, &req);
+		capa_put(oc);
+
+		if (rc < 0)
+			GOTO(out_xattr, rc);
+
+		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
+		LASSERT(body);
+
+		/* only detect the xattr size */
+		if (size == 0)
+			GOTO(out, rc = body->eadatasize);
+
+		if (size < body->eadatasize) {
+			CERROR("server bug: replied size %u > %u\n",
+				body->eadatasize, (int)size);
+			GOTO(out, rc = -ERANGE);
 		}
-		return rc;
+
+		if (body->eadatasize == 0)
+			GOTO(out, rc = -ENODATA);
+
+		/* do not need swab xattr data */
+		xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
+							body->eadatasize);
+		if (!xdata)
+			GOTO(out, rc = -EFAULT);
+
+		memcpy(buffer, xdata, body->eadatasize);
+		rc = body->eadatasize;
 	}
-
-	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-	LASSERT(body);
-
-	/* only detect the xattr size */
-	if (size == 0)
-		GOTO(out, rc = body->eadatasize);
-
-	if (size < body->eadatasize) {
-		CERROR("server bug: replied size %u > %u\n",
-		       body->eadatasize, (int)size);
-		GOTO(out, rc = -ERANGE);
-	}
-
-	if (body->eadatasize == 0)
-		GOTO(out, rc = -ENODATA);
-
-	/* do not need swab xattr data */
-	xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
-					     body->eadatasize);
-	if (!xdata)
-		GOTO(out, rc = -EFAULT);
 
 #ifdef CONFIG_FS_POSIX_ACL
-	if (body->eadatasize >= 0 && rce && rce->rce_ops == RMT_LSETFACL) {
+	if (rce && rce->rce_ops == RMT_LSETFACL) {
 		ext_acl_xattr_header *acl;
 
-		acl = lustre_posix_acl_xattr_2ext((posix_acl_xattr_header *)xdata,
-						  body->eadatasize);
+		acl = lustre_posix_acl_xattr_2ext(
+					(posix_acl_xattr_header *)buffer, rc);
 		if (IS_ERR(acl))
 			GOTO(out, rc = PTR_ERR(acl));
 
@@ -406,12 +418,12 @@ do_getxattr:
 	}
 #endif
 
-	if (body->eadatasize == 0) {
-		rc = -ENODATA;
-	} else {
-		LASSERT(buffer);
-		memcpy(buffer, xdata, body->eadatasize);
-		rc = body->eadatasize;
+out_xattr:
+	if (rc == -EOPNOTSUPP && xattr_type == XATTR_USER_T) {
+		LCONSOLE_INFO(
+			"%s: disabling user_xattr feature because it is not supported on the server: rc = %d\n",
+			ll_get_fsname(inode->i_sb, NULL, 0), rc);
+		sbi->ll_flags &= ~LL_SBI_USER_XATTR;
 	}
 out:
 	ptlrpc_req_finished(req);

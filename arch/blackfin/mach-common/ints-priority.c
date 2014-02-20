@@ -471,13 +471,8 @@ void handle_sec_ssi_fault(uint32_t gstat)
 
 }
 
-void handle_sec_fault(unsigned int irq, struct irq_desc *desc)
+void handle_sec_fault(uint32_t sec_gstat)
 {
-	uint32_t sec_gstat;
-
-	raw_spin_lock(&desc->lock);
-
-	sec_gstat = bfin_read32(SEC_GSTAT);
 	if (sec_gstat & SEC_GSTAT_ERR) {
 
 		switch (sec_gstat & SEC_GSTAT_ERRC) {
@@ -494,17 +489,15 @@ void handle_sec_fault(unsigned int irq, struct irq_desc *desc)
 
 
 	}
-
-	raw_spin_unlock(&desc->lock);
-
-	handle_fasteoi_irq(irq, desc);
 }
 
-void handle_core_fault(unsigned int irq, struct irq_desc *desc)
+static struct irqaction bfin_fault_irq = {
+	.name = "Blackfin fault",
+};
+
+static irqreturn_t bfin_fault_routine(int irq, void *data)
 {
 	struct pt_regs *fp = get_irq_regs();
-
-	raw_spin_lock(&desc->lock);
 
 	switch (irq) {
 	case IRQ_C0_DBL_FAULT:
@@ -522,11 +515,15 @@ void handle_core_fault(unsigned int irq, struct irq_desc *desc)
 	case IRQ_C0_NMI_L1_PARITY_ERR:
 		panic("Core 0 NMI L1 parity error");
 		break;
+	case IRQ_SEC_ERR:
+		pr_err("SEC error\n");
+		handle_sec_fault(bfin_read32(SEC_GSTAT));
+		break;
 	default:
-		panic("Core 1 fault %d occurs unexpectedly", irq);
+		panic("Unknown fault %d", irq);
 	}
 
-	raw_spin_unlock(&desc->lock);
+	return IRQ_HANDLED;
 }
 #endif /* SEC_GCTL */
 
@@ -1195,12 +1192,7 @@ int __init init_arch_irq(void)
 				handle_percpu_irq);
 		} else {
 			irq_set_chip(irq, &bfin_sec_irqchip);
-			if (irq == IRQ_SEC_ERR)
-				irq_set_handler(irq, handle_sec_fault);
-			else if (irq >= IRQ_C0_DBL_FAULT && irq < CORE_IRQS)
-				irq_set_handler(irq, handle_core_fault);
-			else
-				irq_set_handler(irq, handle_fasteoi_irq);
+			irq_set_handler(irq, handle_fasteoi_irq);
 			__irq_set_preflow_handler(irq, bfin_sec_preflow_handler);
 		}
 	}
@@ -1238,6 +1230,13 @@ int __init init_arch_irq(void)
 #ifdef CONFIG_PM
 	register_syscore_ops(&sec_pm_syscore_ops);
 #endif
+
+	bfin_fault_irq.handler = bfin_fault_routine;
+#ifdef CONFIG_L1_PARITY_CHECK
+	setup_irq(IRQ_C0_NMI_L1_PARITY_ERR, &bfin_fault_irq);
+#endif
+	setup_irq(IRQ_C0_DBL_FAULT, &bfin_fault_irq);
+	setup_irq(IRQ_SEC_ERR, &bfin_fault_irq);
 
 	return 0;
 }

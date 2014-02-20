@@ -1,6 +1,6 @@
 obj-$(CONFIG_TIDSPBRIDGE)	+= tidspbridge.o
 
-libgen = gen/gh.o gen/uuidutil.o
+libgen = gen/gh.o
 libcore = core/chnl_sm.o core/msg_sm.o core/io_sm.o core/tiomap3430.o \
 		core/tiomap3430_pwr.o core/tiomap_io.o \
 		core/ue_deh.o core/wdt.o core/dsp-clock.o core/sync.o

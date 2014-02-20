@@ -28,9 +28,9 @@ struct page;
 
 void clear_page_asm(void *page);
 void copy_page_asm(void *to, void *from);
-void clear_user_page(void *vto, unsigned long vaddr, struct page *pg);
+#define clear_user_page(vto, vaddr, page) clear_page_asm(vto)
 void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
-			   struct page *pg);
+			struct page *pg);
 
 /* #define CONFIG_PARISC_TMPALIAS */
 

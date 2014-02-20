@@ -33,6 +33,8 @@
 
 #ifdef CONFIG_64BIT
 #include <asm/exception-64e.h>
+#include <asm/hw_irq.h>
+#include <asm/irqflags.h>
 #else
 #include "../kernel/head_booke.h" /* for THREAD_NORMSAVE() */
 #endif
@@ -319,6 +321,8 @@ kvm_handler BOOKE_INTERRUPT_DEBUG, EX_PARAMS(DBG), \
 	SPRN_DSRR0, SPRN_DSRR1, 0
 kvm_handler BOOKE_INTERRUPT_DEBUG, EX_PARAMS(CRIT), \
 	SPRN_CSRR0, SPRN_CSRR1, 0
+kvm_handler BOOKE_INTERRUPT_LRAT_ERROR, EX_PARAMS(GEN), \
+	SPRN_SRR0, SPRN_SRR1, (NEED_EMU | NEED_DEAR | NEED_ESR)
 #else
 /*
  * For input register values, see arch/powerpc/include/asm/kvm_booke_hv_asm.h
@@ -464,6 +468,15 @@ _GLOBAL(kvmppc_resume_host)
 	rlwinm	r3, r3, 0, ~SPRN_EPCR_DMIUH
 	mtspr	SPRN_EPCR, r3
 	isync
+
+#ifdef CONFIG_64BIT
+	/*
+	 * We enter with interrupts disabled in hardware, but
+	 * we need to call RECONCILE_IRQ_STATE to ensure
+	 * that the software state is kept in sync.
+	 */
+	RECONCILE_IRQ_STATE(r3,r5)
+#endif
 
 	/* Switch to kernel stack and jump to handler. */
 	PPC_LL	r3, HOST_RUN(r1)

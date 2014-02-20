@@ -258,17 +258,14 @@ static SIMPLE_DEV_PM_OPS(twl6040_vibra_pm_ops, twl6040_vibra_suspend, NULL);
 static int twl6040_vibra_probe(struct platform_device *pdev)
 {
 	struct device *twl6040_core_dev = pdev->dev.parent;
-	struct device_node *twl6040_core_node = NULL;
+	struct device_node *twl6040_core_node;
 	struct vibra_info *info;
 	int vddvibl_uV = 0;
 	int vddvibr_uV = 0;
 	int ret;
 
-#ifdef CONFIG_OF
 	twl6040_core_node = of_find_node_by_name(twl6040_core_dev->of_node,
 						 "vibra");
-#endif
-
 	if (!twl6040_core_node) {
 		dev_err(&pdev->dev, "parent of node is missing?\n");
 		return -EINVAL;
@@ -276,6 +273,7 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info) {
+		of_node_put(twl6040_core_node);
 		dev_err(&pdev->dev, "couldn't allocate memory\n");
 		return -ENOMEM;
 	}
@@ -294,6 +292,8 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 			     &info->vibrmotor_res);
 	of_property_read_u32(twl6040_core_node, "ti,vddvibl-uV", &vddvibl_uV);
 	of_property_read_u32(twl6040_core_node, "ti,vddvibr-uV", &vddvibr_uV);
+
+	of_node_put(twl6040_core_node);
 
 	if ((!info->vibldrv_res && !info->viblmotor_res) ||
 	    (!info->vibrdrv_res && !info->vibrmotor_res)) {

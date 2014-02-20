@@ -47,13 +47,6 @@ u8 atombios_get_backlight_level(struct radeon_encoder *radeon_encoder);
 void radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level);
 u8 radeon_legacy_get_backlight_level(struct radeon_encoder *radeon_encoder);
 
-u32 radeon_ring_generic_get_rptr(struct radeon_device *rdev,
-				 struct radeon_ring *ring);
-u32 radeon_ring_generic_get_wptr(struct radeon_device *rdev,
-				 struct radeon_ring *ring);
-void radeon_ring_generic_set_wptr(struct radeon_device *rdev,
-				  struct radeon_ring *ring);
-
 /*
  * r100,rv100,rs100,rv200,rs200
  */
@@ -147,6 +140,13 @@ extern u32 r100_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void r100_post_page_flip(struct radeon_device *rdev, int crtc);
 extern void r100_wait_for_vblank(struct radeon_device *rdev, int crtc);
 extern int r100_mc_wait_for_idle(struct radeon_device *rdev);
+
+u32 r100_gfx_get_rptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring);
+u32 r100_gfx_get_wptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring);
+void r100_gfx_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring);
 
 /*
  * r200,rv250,rs300,rv280
@@ -368,6 +368,12 @@ int r600_mc_wait_for_idle(struct radeon_device *rdev);
 int r600_pcie_gart_init(struct radeon_device *rdev);
 void r600_scratch_init(struct radeon_device *rdev);
 int r600_init_microcode(struct radeon_device *rdev);
+u32 r600_gfx_get_rptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring);
+u32 r600_gfx_get_wptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring);
+void r600_gfx_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring);
 /* r600 irq */
 int r600_irq_process(struct radeon_device *rdev);
 int r600_irq_init(struct radeon_device *rdev);
@@ -392,6 +398,7 @@ int rv6xx_get_temp(struct radeon_device *rdev);
 int r600_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int r600_dpm_pre_set_power_state(struct radeon_device *rdev);
 void r600_dpm_post_set_power_state(struct radeon_device *rdev);
+int r600_dpm_late_enable(struct radeon_device *rdev);
 /* r600 dma */
 uint32_t r600_dma_get_rptr(struct radeon_device *rdev,
 			   struct radeon_ring *ring);
@@ -454,6 +461,7 @@ int rv770_get_temp(struct radeon_device *rdev);
 /* rv7xx pm */
 int rv770_dpm_init(struct radeon_device *rdev);
 int rv770_dpm_enable(struct radeon_device *rdev);
+int rv770_dpm_late_enable(struct radeon_device *rdev);
 void rv770_dpm_disable(struct radeon_device *rdev);
 int rv770_dpm_set_power_state(struct radeon_device *rdev);
 void rv770_dpm_setup_asic(struct radeon_device *rdev);
@@ -543,8 +551,11 @@ void btc_dpm_fini(struct radeon_device *rdev);
 u32 btc_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 btc_dpm_get_mclk(struct radeon_device *rdev, bool low);
 bool btc_dpm_vblank_too_short(struct radeon_device *rdev);
+void btc_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						     struct seq_file *m);
 int sumo_dpm_init(struct radeon_device *rdev);
 int sumo_dpm_enable(struct radeon_device *rdev);
+int sumo_dpm_late_enable(struct radeon_device *rdev);
 void sumo_dpm_disable(struct radeon_device *rdev);
 int sumo_dpm_pre_set_power_state(struct radeon_device *rdev);
 int sumo_dpm_set_power_state(struct radeon_device *rdev);
@@ -591,6 +602,19 @@ void cayman_dma_vm_set_page(struct radeon_device *rdev,
 
 void cayman_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 
+u32 cayman_gfx_get_rptr(struct radeon_device *rdev,
+			struct radeon_ring *ring);
+u32 cayman_gfx_get_wptr(struct radeon_device *rdev,
+			struct radeon_ring *ring);
+void cayman_gfx_set_wptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring);
+uint32_t cayman_dma_get_rptr(struct radeon_device *rdev,
+			     struct radeon_ring *ring);
+uint32_t cayman_dma_get_wptr(struct radeon_device *rdev,
+			     struct radeon_ring *ring);
+void cayman_dma_set_wptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring);
+
 int ni_dpm_init(struct radeon_device *rdev);
 void ni_dpm_setup_asic(struct radeon_device *rdev);
 int ni_dpm_enable(struct radeon_device *rdev);
@@ -610,6 +634,7 @@ int ni_dpm_force_performance_level(struct radeon_device *rdev,
 bool ni_dpm_vblank_too_short(struct radeon_device *rdev);
 int trinity_dpm_init(struct radeon_device *rdev);
 int trinity_dpm_enable(struct radeon_device *rdev);
+int trinity_dpm_late_enable(struct radeon_device *rdev);
 void trinity_dpm_disable(struct radeon_device *rdev);
 int trinity_dpm_pre_set_power_state(struct radeon_device *rdev);
 int trinity_dpm_set_power_state(struct radeon_device *rdev);
@@ -669,6 +694,7 @@ int si_get_temp(struct radeon_device *rdev);
 int si_dpm_init(struct radeon_device *rdev);
 void si_dpm_setup_asic(struct radeon_device *rdev);
 int si_dpm_enable(struct radeon_device *rdev);
+int si_dpm_late_enable(struct radeon_device *rdev);
 void si_dpm_disable(struct radeon_device *rdev);
 int si_dpm_pre_set_power_state(struct radeon_device *rdev);
 int si_dpm_set_power_state(struct radeon_device *rdev);
@@ -739,17 +765,30 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			  uint32_t incr, uint32_t flags);
 void cik_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 int cik_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
-u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
-			      struct radeon_ring *ring);
-u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
-			      struct radeon_ring *ring);
-void cik_compute_ring_set_wptr(struct radeon_device *rdev,
-			       struct radeon_ring *ring);
+u32 cik_gfx_get_rptr(struct radeon_device *rdev,
+		     struct radeon_ring *ring);
+u32 cik_gfx_get_wptr(struct radeon_device *rdev,
+		     struct radeon_ring *ring);
+void cik_gfx_set_wptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring);
+u32 cik_compute_get_rptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring);
+u32 cik_compute_get_wptr(struct radeon_device *rdev,
+			 struct radeon_ring *ring);
+void cik_compute_set_wptr(struct radeon_device *rdev,
+			  struct radeon_ring *ring);
+u32 cik_sdma_get_rptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring);
+u32 cik_sdma_get_wptr(struct radeon_device *rdev,
+		      struct radeon_ring *ring);
+void cik_sdma_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring);
 int ci_get_temp(struct radeon_device *rdev);
 int kv_get_temp(struct radeon_device *rdev);
 
 int ci_dpm_init(struct radeon_device *rdev);
 int ci_dpm_enable(struct radeon_device *rdev);
+int ci_dpm_late_enable(struct radeon_device *rdev);
 void ci_dpm_disable(struct radeon_device *rdev);
 int ci_dpm_pre_set_power_state(struct radeon_device *rdev);
 int ci_dpm_set_power_state(struct radeon_device *rdev);
@@ -770,6 +809,7 @@ void ci_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
 
 int kv_dpm_init(struct radeon_device *rdev);
 int kv_dpm_enable(struct radeon_device *rdev);
+int kv_dpm_late_enable(struct radeon_device *rdev);
 void kv_dpm_disable(struct radeon_device *rdev);
 int kv_dpm_pre_set_power_state(struct radeon_device *rdev);
 int kv_dpm_set_power_state(struct radeon_device *rdev);

@@ -22,6 +22,6 @@ void foo(void)
 #ifdef CONFIG_SMP
 	DEFINE(NR_CPUS_BITS, ilog2(CONFIG_NR_CPUS));
 #endif
-	DEFINE(BLOATED_SPINLOCKS, sizeof(spinlock_t) > sizeof(int));
+	DEFINE(SPINLOCK_SIZE, sizeof(spinlock_t));
 	/* End of constants */
 }

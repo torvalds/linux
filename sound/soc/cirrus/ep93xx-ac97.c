@@ -19,10 +19,13 @@
 #include <linux/slab.h>
 
 #include <sound/core.h>
+#include <sound/dmaengine_pcm.h>
 #include <sound/ac97_codec.h>
 #include <sound/soc.h>
 
 #include <linux/platform_data/dma-ep93xx.h>
+
+#include "ep93xx-pcm.h"
 
 /*
  * Per channel (1-4) registers.
@@ -95,6 +98,8 @@ struct ep93xx_ac97_info {
 	struct device		*dev;
 	void __iomem		*regs;
 	struct completion	done;
+	struct snd_dmaengine_dai_dma_data dma_params_rx;
+	struct snd_dmaengine_dai_dma_data dma_params_tx;
 };
 
 /* currently ALSA only supports a single AC97 device */
@@ -315,8 +320,13 @@ static int ep93xx_ac97_trigger(struct snd_pcm_substream *substream,
 
 static int ep93xx_ac97_dai_probe(struct snd_soc_dai *dai)
 {
-	dai->playback_dma_data = &ep93xx_ac97_pcm_out;
-	dai->capture_dma_data = &ep93xx_ac97_pcm_in;
+	struct ep93xx_ac97_info *info = snd_soc_dai_get_drvdata(dai);
+
+	info->dma_params_tx.filter_data = &ep93xx_ac97_pcm_out;
+	info->dma_params_rx.filter_data = &ep93xx_ac97_pcm_in;
+
+	dai->playback_dma_data = &info->dma_params_tx;
+	dai->capture_dma_data = &info->dma_params_rx;
 
 	return 0;
 }
@@ -394,8 +404,14 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
+	ret = devm_ep93xx_pcm_platform_register(&pdev->dev);
+	if (ret)
+		goto fail_unregister;
+
 	return 0;
 
+fail_unregister:
+	snd_soc_unregister_component(&pdev->dev);
 fail:
 	ep93xx_ac97_info = NULL;
 	snd_soc_set_ac97_ops(NULL);

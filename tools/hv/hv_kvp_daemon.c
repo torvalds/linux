@@ -26,7 +26,6 @@
 #include <sys/socket.h>
 #include <sys/poll.h>
 #include <sys/utsname.h>
-#include <linux/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

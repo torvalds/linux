@@ -426,8 +426,9 @@ struct fib_alias *fib_find_alias(struct list_head *fah, u8 tos, u32 prio)
 	return NULL;
 }
 
-int fib_detect_death(struct fib_info *fi, int order,
-		     struct fib_info **last_resort, int *last_idx, int dflt)
+static int fib_detect_death(struct fib_info *fi, int order,
+			    struct fib_info **last_resort, int *last_idx,
+			    int dflt)
 {
 	struct neighbour *n;
 	int state = NUD_NONE;

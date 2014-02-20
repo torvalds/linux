@@ -35,7 +35,6 @@
 
 #include <linux/gfp.h>
 #include <linux/export.h>
-#include <linux/init.h>
 
 #include <linux/mlx4/cmd.h>
 #include <linux/mlx4/qp.h>
@@ -250,7 +249,7 @@ void __mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 
 	if (mlx4_is_qp_reserved(dev, (u32) base_qpn))
 		return;
-	mlx4_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt);
+	mlx4_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt, MLX4_USE_RR);
 }
 
 void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)

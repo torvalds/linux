@@ -83,8 +83,10 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
 	}
 
 	if (RANGE_LENGTH(it.range_type) != lr->length) {
-		DPRINTK("wrong length %d should be %d (0x%08x)\n",
-			RANGE_LENGTH(it.range_type), lr->length, it.range_type);
+		dev_dbg(dev->class_dev,
+			"wrong length %d should be %d (0x%08x)\n",
+			RANGE_LENGTH(it.range_type),
+			lr->length, it.range_type);
 		return -EINVAL;
 	}
 
@@ -123,7 +125,8 @@ static int aref_invalid(struct comedi_subdevice *s, unsigned int chanspec)
 	default:
 		break;
 	}
-	DPRINTK("subdevice does not support aref %i", aref);
+	dev_dbg(s->device->class_dev, "subdevice does not support aref %i",
+		aref);
 	return 1;
 }
 

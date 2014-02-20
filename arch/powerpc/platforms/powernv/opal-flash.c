@@ -76,8 +76,8 @@
 /* Validate buffer size */
 #define VALIDATE_BUF_SIZE	4096
 
-/* XXX: Assume candidate image size is <= 256MB */
-#define MAX_IMAGE_SIZE	0x10000000
+/* XXX: Assume candidate image size is <= 1GB */
+#define MAX_IMAGE_SIZE	0x40000000
 
 /* Flash sg list version */
 #define SG_LIST_VERSION (1UL)
@@ -101,27 +101,6 @@ struct image_header_t {
 	uint16_t	magic;
 	uint16_t	version;
 	uint32_t	size;
-};
-
-/* Scatter/gather entry */
-struct opal_sg_entry {
-	void	*data;
-	long	length;
-};
-
-/* We calculate number of entries based on PAGE_SIZE */
-#define SG_ENTRIES_PER_NODE ((PAGE_SIZE - 16) / sizeof(struct opal_sg_entry))
-
-/*
- * This struct is very similar but not identical to that
- * needed by the opal flash update. All we need to do for
- * opal is rewrite num_entries into a version/length and
- * translate the pointers to absolute.
- */
-struct opal_sg_list {
-	unsigned long num_entries;
-	struct opal_sg_list *next;
-	struct opal_sg_entry entry[SG_ENTRIES_PER_NODE];
 };
 
 struct validate_flash_t {
@@ -333,7 +312,7 @@ static struct opal_sg_list *image_data_to_sglist(void)
 	addr = image_data.data;
 	size = image_data.size;
 
-	sg1 = kzalloc((sizeof(struct opal_sg_list)), GFP_KERNEL);
+	sg1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!sg1)
 		return NULL;
 
@@ -351,8 +330,7 @@ static struct opal_sg_list *image_data_to_sglist(void)
 
 		sg1->num_entries++;
 		if (sg1->num_entries >= SG_ENTRIES_PER_NODE) {
-			sg1->next = kzalloc((sizeof(struct opal_sg_list)),
-					    GFP_KERNEL);
+			sg1->next = kzalloc(PAGE_SIZE, GFP_KERNEL);
 			if (!sg1->next) {
 				pr_err("%s : Failed to allocate memory\n",
 				       __func__);
@@ -402,7 +380,10 @@ static int opal_flash_update(int op)
 		else
 			sg->next = NULL;
 
-		/* Make num_entries into the version/length field */
+		/*
+		 * Convert num_entries to version/length format
+		 * to satisfy OPAL.
+		 */
 		sg->num_entries = (SG_LIST_VERSION << 56) |
 			(sg->num_entries * sizeof(struct opal_sg_entry) + 16);
 	}

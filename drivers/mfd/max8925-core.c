@@ -45,7 +45,7 @@ static struct resource touch_resources[] = {
 	},
 };
 
-static struct mfd_cell touch_devs[] = {
+static const struct mfd_cell touch_devs[] = {
 	{
 		.name		= "max8925-touch",
 		.num_resources	= 1,
@@ -63,7 +63,7 @@ static struct resource power_supply_resources[] = {
 	},
 };
 
-static struct mfd_cell power_devs[] = {
+static const struct mfd_cell power_devs[] = {
 	{
 		.name		= "max8925-power",
 		.num_resources	= 1,
@@ -81,7 +81,7 @@ static struct resource rtc_resources[] = {
 	},
 };
 
-static struct mfd_cell rtc_devs[] = {
+static const struct mfd_cell rtc_devs[] = {
 	{
 		.name		= "max8925-rtc",
 		.num_resources	= 1,
@@ -104,7 +104,7 @@ static struct resource onkey_resources[] = {
 	},
 };
 
-static struct mfd_cell onkey_devs[] = {
+static const struct mfd_cell onkey_devs[] = {
 	{
 		.name		= "max8925-onkey",
 		.num_resources	= 2,

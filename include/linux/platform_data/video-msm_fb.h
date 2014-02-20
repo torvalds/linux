@@ -1,5 +1,4 @@
-/* arch/arm/mach-msm/include/mach/msm_fb.h
- *
+/*
  * Internal shared definitions for various MSM framebuffer parts.
  *
  * Copyright (C) 2007 Google Incorporated

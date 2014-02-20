@@ -42,12 +42,12 @@
 
 		health {
 			label = "status:green:health";
-			gpios = <&gpio1 14 1>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 		fault {
 			label = "status:orange:fault";
-			gpios = <&gpio1 15 1>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 	};
 	regulators {
@@ -95,7 +95,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		compatible = "marvell,88e1116";
 		reg = <0>;
 	};

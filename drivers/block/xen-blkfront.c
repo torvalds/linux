@@ -162,7 +162,7 @@ static DEFINE_SPINLOCK(minor_lock);
 #define DEV_NAME	"xvd"	/* name in /dev */
 
 #define SEGS_PER_INDIRECT_FRAME \
-	(PAGE_SIZE/sizeof(struct blkif_request_segment_aligned))
+	(PAGE_SIZE/sizeof(struct blkif_request_segment))
 #define INDIRECT_GREFS(_segs) \
 	((_segs + SEGS_PER_INDIRECT_FRAME - 1)/SEGS_PER_INDIRECT_FRAME)
 
@@ -393,7 +393,7 @@ static int blkif_queue_request(struct request *req)
 	unsigned long id;
 	unsigned int fsect, lsect;
 	int i, ref, n;
-	struct blkif_request_segment_aligned *segments = NULL;
+	struct blkif_request_segment *segments = NULL;
 
 	/*
 	 * Used to store if we are able to queue the request by just using
@@ -550,7 +550,7 @@ static int blkif_queue_request(struct request *req)
 			} else {
 				n = i % SEGS_PER_INDIRECT_FRAME;
 				segments[n] =
-					(struct blkif_request_segment_aligned) {
+					(struct blkif_request_segment) {
 							.gref       = ref,
 							.first_sect = fsect,
 							.last_sect  = lsect };
@@ -1356,7 +1356,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 		char *type;
 		int len;
 		/* no unplug has been done: do not hook devices != xen vbds */
-		if (xen_platform_pci_unplug & XEN_UNPLUG_UNNECESSARY) {
+		if (xen_has_pv_and_legacy_disk_devices()) {
 			int major;
 
 			if (!VDEV_IS_EXTENDED(vdevice))
@@ -1547,7 +1547,7 @@ static int blkif_recover(struct blkfront_info *info)
 			for (i = 0; i < pending; i++) {
 				offset = (i * segs * PAGE_SIZE) >> 9;
 				size = min((unsigned int)(segs * PAGE_SIZE) >> 9,
-					   (unsigned int)(bio->bi_size >> 9) - offset);
+					   (unsigned int)bio_sectors(bio) - offset);
 				cloned_bio = bio_clone(bio, GFP_NOIO);
 				BUG_ON(cloned_bio == NULL);
 				bio_trim(cloned_bio, offset, size);
@@ -1904,13 +1904,16 @@ static void blkback_changed(struct xenbus_device *dev,
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
 	case XenbusStateUnknown:
-	case XenbusStateClosed:
 		break;
 
 	case XenbusStateConnected:
 		blkfront_connect(info);
 		break;
 
+	case XenbusStateClosed:
+		if (dev->state == XenbusStateClosed)
+			break;
+		/* Missed the backend's Closing state -- fallthrough */
 	case XenbusStateClosing:
 		blkfront_closing(info);
 		break;
@@ -2079,7 +2082,7 @@ static int __init xlblk_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+	if (!xen_has_pv_disk_devices())
 		return -ENODEV;
 
 	if (register_blkdev(XENVBD_MAJOR, DEV_NAME)) {

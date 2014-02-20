@@ -116,11 +116,6 @@ static int adt7316_spi_probe(struct spi_device *spi_dev)
 	return adt7316_probe(&spi_dev->dev, &bus, spi_dev->modalias);
 }
 
-static int adt7316_spi_remove(struct spi_device *spi_dev)
-{
-	return adt7316_remove(&spi_dev->dev);
-}
-
 static const struct spi_device_id adt7316_spi_id[] = {
 	{ "adt7316", 0 },
 	{ "adt7317", 0 },
@@ -140,7 +135,6 @@ static struct spi_driver adt7316_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adt7316_spi_probe,
-	.remove = adt7316_spi_remove,
 	.id_table = adt7316_spi_id,
 };
 module_spi_driver(adt7316_driver);

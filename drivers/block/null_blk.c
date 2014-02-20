@@ -1,4 +1,5 @@
 #include <linux/module.h>
+
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -59,13 +60,15 @@ enum {
 	NULL_IRQ_NONE		= 0,
 	NULL_IRQ_SOFTIRQ	= 1,
 	NULL_IRQ_TIMER		= 2,
+};
 
+enum {
 	NULL_Q_BIO		= 0,
 	NULL_Q_RQ		= 1,
 	NULL_Q_MQ		= 2,
 };
 
-static int submit_queues = 1;
+static int submit_queues;
 module_param(submit_queues, int, S_IRUGO);
 MODULE_PARM_DESC(submit_queues, "Number of submission queues");
 
@@ -101,9 +104,9 @@ static int hw_queue_depth = 64;
 module_param(hw_queue_depth, int, S_IRUGO);
 MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
 
-static bool use_per_node_hctx = true;
+static bool use_per_node_hctx = false;
 module_param(use_per_node_hctx, bool, S_IRUGO);
-MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: true");
+MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
 
 static void put_tag(struct nullb_queue *nq, unsigned int tag)
 {
@@ -171,18 +174,20 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
-	if (cmd->rq) {
-		if (queue_mode == NULL_Q_MQ)
-			blk_mq_end_io(cmd->rq, 0);
-		else {
-			INIT_LIST_HEAD(&cmd->rq->queuelist);
-			blk_end_request_all(cmd->rq, 0);
-		}
-	} else if (cmd->bio)
+	switch (queue_mode)  {
+	case NULL_Q_MQ:
+		blk_mq_end_io(cmd->rq, 0);
+		return;
+	case NULL_Q_RQ:
+		INIT_LIST_HEAD(&cmd->rq->queuelist);
+		blk_end_request_all(cmd->rq, 0);
+		break;
+	case NULL_Q_BIO:
 		bio_endio(cmd->bio, 0);
+		break;
+	}
 
-	if (queue_mode != NULL_Q_MQ)
-		free_cmd(cmd);
+	free_cmd(cmd);
 }
 
 static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
@@ -194,6 +199,7 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 	cq = &per_cpu(completion_queues, smp_processor_id());
 
 	while ((entry = llist_del_all(&cq->list)) != NULL) {
+		entry = llist_reverse_order(entry);
 		do {
 			cmd = container_of(entry, struct nullb_cmd, ll_list);
 			end_cmd(cmd);
@@ -220,61 +226,31 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 
 static void null_softirq_done_fn(struct request *rq)
 {
-	blk_end_request_all(rq, 0);
+	end_cmd(rq->special);
 }
-
-#ifdef CONFIG_SMP
-
-static void null_ipi_cmd_end_io(void *data)
-{
-	struct completion_queue *cq;
-	struct llist_node *entry, *next;
-	struct nullb_cmd *cmd;
-
-	cq = &per_cpu(completion_queues, smp_processor_id());
-
-	entry = llist_del_all(&cq->list);
-
-	while (entry) {
-		next = entry->next;
-		cmd = llist_entry(entry, struct nullb_cmd, ll_list);
-		end_cmd(cmd);
-		entry = next;
-	}
-}
-
-static void null_cmd_end_ipi(struct nullb_cmd *cmd)
-{
-	struct call_single_data *data = &cmd->csd;
-	int cpu = get_cpu();
-	struct completion_queue *cq = &per_cpu(completion_queues, cpu);
-
-	cmd->ll_list.next = NULL;
-
-	if (llist_add(&cmd->ll_list, &cq->list)) {
-		data->func = null_ipi_cmd_end_io;
-		data->flags = 0;
-		__smp_call_function_single(cpu, data, 0);
-	}
-
-	put_cpu();
-}
-
-#endif /* CONFIG_SMP */
 
 static inline void null_handle_cmd(struct nullb_cmd *cmd)
 {
 	/* Complete IO by inline, softirq or timer */
 	switch (irqmode) {
+	case NULL_IRQ_SOFTIRQ:
+		switch (queue_mode)  {
+		case NULL_Q_MQ:
+			blk_mq_complete_request(cmd->rq);
+			break;
+		case NULL_Q_RQ:
+			blk_complete_request(cmd->rq);
+			break;
+		case NULL_Q_BIO:
+			/*
+			 * XXX: no proper submitting cpu information available.
+			 */
+			end_cmd(cmd);
+			break;
+		}
+		break;
 	case NULL_IRQ_NONE:
 		end_cmd(cmd);
-		break;
-	case NULL_IRQ_SOFTIRQ:
-#ifdef CONFIG_SMP
-		null_cmd_end_ipi(cmd);
-#else
-		end_cmd(cmd);
-#endif
 		break;
 	case NULL_IRQ_TIMER:
 		null_cmd_end_timer(cmd);
@@ -346,13 +322,51 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
 
 static struct blk_mq_hw_ctx *null_alloc_hctx(struct blk_mq_reg *reg, unsigned int hctx_index)
 {
-	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL,
-				hctx_index);
+	int b_size = DIV_ROUND_UP(reg->nr_hw_queues, nr_online_nodes);
+	int tip = (reg->nr_hw_queues % nr_online_nodes);
+	int node = 0, i, n;
+
+	/*
+	 * Split submit queues evenly wrt to the number of nodes. If uneven,
+	 * fill the first buckets with one extra, until the rest is filled with
+	 * no extra.
+	 */
+	for (i = 0, n = 1; i < hctx_index; i++, n++) {
+		if (n % b_size == 0) {
+			n = 0;
+			node++;
+
+			tip--;
+			if (!tip)
+				b_size = reg->nr_hw_queues / nr_online_nodes;
+		}
+	}
+
+	/*
+	 * A node might not be online, therefore map the relative node id to the
+	 * real node id.
+	 */
+	for_each_online_node(n) {
+		if (!node)
+			break;
+		node--;
+	}
+
+	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL, n);
 }
 
 static void null_free_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_index)
 {
 	kfree(hctx);
+}
+
+static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
+{
+	BUG_ON(!nullb);
+	BUG_ON(!nq);
+
+	init_waitqueue_head(&nq->wait);
+	nq->queue_depth = nullb->queue_depth;
 }
 
 static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
@@ -361,10 +375,9 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct nullb *nullb = data;
 	struct nullb_queue *nq = &nullb->queues[index];
 
-	init_waitqueue_head(&nq->wait);
-	nq->queue_depth = nullb->queue_depth;
-	nullb->nr_queues++;
 	hctx->driver_data = nq;
+	null_init_queue(nullb, nq);
+	nullb->nr_queues++;
 
 	return 0;
 }
@@ -373,6 +386,7 @@ static struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
 	.map_queue      = blk_mq_map_queue,
 	.init_hctx	= null_init_hctx,
+	.complete	= null_softirq_done_fn,
 };
 
 static struct blk_mq_reg null_mq_reg = {
@@ -387,10 +401,7 @@ static void null_del_dev(struct nullb *nullb)
 	list_del_init(&nullb->list);
 
 	del_gendisk(nullb->disk);
-	if (queue_mode == NULL_Q_MQ)
-		blk_mq_free_queue(nullb->q);
-	else
-		blk_cleanup_queue(nullb->q);
+	blk_cleanup_queue(nullb->q);
 	put_disk(nullb->disk);
 	kfree(nullb);
 }
@@ -417,13 +428,13 @@ static int setup_commands(struct nullb_queue *nq)
 
 	nq->cmds = kzalloc(nq->queue_depth * sizeof(*cmd), GFP_KERNEL);
 	if (!nq->cmds)
-		return 1;
+		return -ENOMEM;
 
 	tag_size = ALIGN(nq->queue_depth, BITS_PER_LONG) / BITS_PER_LONG;
 	nq->tag_map = kzalloc(tag_size * sizeof(unsigned long), GFP_KERNEL);
 	if (!nq->tag_map) {
 		kfree(nq->cmds);
-		return 1;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < nq->queue_depth; i++) {
@@ -454,33 +465,37 @@ static void cleanup_queues(struct nullb *nullb)
 
 static int setup_queues(struct nullb *nullb)
 {
-	struct nullb_queue *nq;
-	int i;
-
-	nullb->queues = kzalloc(submit_queues * sizeof(*nq), GFP_KERNEL);
+	nullb->queues = kzalloc(submit_queues * sizeof(struct nullb_queue),
+								GFP_KERNEL);
 	if (!nullb->queues)
-		return 1;
+		return -ENOMEM;
 
 	nullb->nr_queues = 0;
 	nullb->queue_depth = hw_queue_depth;
 
-	if (queue_mode == NULL_Q_MQ)
-		return 0;
+	return 0;
+}
+
+static int init_driver_queues(struct nullb *nullb)
+{
+	struct nullb_queue *nq;
+	int i, ret = 0;
 
 	for (i = 0; i < submit_queues; i++) {
 		nq = &nullb->queues[i];
-		init_waitqueue_head(&nq->wait);
-		nq->queue_depth = hw_queue_depth;
-		if (setup_commands(nq))
-			break;
+
+		null_init_queue(nullb, nq);
+
+		ret = setup_commands(nq);
+		if (ret)
+			goto err_queue;
 		nullb->nr_queues++;
 	}
 
-	if (i == submit_queues)
-		return 0;
-
+	return 0;
+err_queue:
 	cleanup_queues(nullb);
-	return 1;
+	return ret;
 }
 
 static int null_add_dev(void)
@@ -518,11 +533,13 @@ static int null_add_dev(void)
 	} else if (queue_mode == NULL_Q_BIO) {
 		nullb->q = blk_alloc_queue_node(GFP_KERNEL, home_node);
 		blk_queue_make_request(nullb->q, null_queue_bio);
+		init_driver_queues(nullb);
 	} else {
 		nullb->q = blk_init_queue_node(null_request_fn, &nullb->lock, home_node);
 		blk_queue_prep_rq(nullb->q, null_rq_prep_fn);
 		if (nullb->q)
 			blk_queue_softirq_done(nullb->q, null_softirq_done_fn);
+		init_driver_queues(nullb);
 	}
 
 	if (!nullb->q)
@@ -534,10 +551,7 @@ static int null_add_dev(void)
 	disk = nullb->disk = alloc_disk_node(1, home_node);
 	if (!disk) {
 queue_fail:
-		if (queue_mode == NULL_Q_MQ)
-			blk_mq_free_queue(nullb->q);
-		else
-			blk_cleanup_queue(nullb->q);
+		blk_cleanup_queue(nullb->q);
 		cleanup_queues(nullb);
 err:
 		kfree(nullb);
@@ -571,15 +585,19 @@ static int __init null_init(void)
 {
 	unsigned int i;
 
-#if !defined(CONFIG_SMP)
-	if (irqmode == NULL_IRQ_SOFTIRQ) {
-		pr_warn("null_blk: softirq completions not available.\n");
-		pr_warn("null_blk: using direct completions.\n");
-		irqmode = NULL_IRQ_NONE;
+	if (bs > PAGE_SIZE) {
+		pr_warn("null_blk: invalid block size\n");
+		pr_warn("null_blk: defaults block size to %lu\n", PAGE_SIZE);
+		bs = PAGE_SIZE;
 	}
-#endif
 
-	if (submit_queues > nr_cpu_ids)
+	if (queue_mode == NULL_Q_MQ && use_per_node_hctx) {
+		if (submit_queues < nr_online_nodes) {
+			pr_warn("null_blk: submit_queues param is set to %u.",
+							nr_online_nodes);
+			submit_queues = nr_online_nodes;
+		}
+	} else if (submit_queues > nr_cpu_ids)
 		submit_queues = nr_cpu_ids;
 	else if (!submit_queues)
 		submit_queues = 1;

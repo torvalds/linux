@@ -51,7 +51,7 @@ config DRM_EXYNOS_G2D
 
 config DRM_EXYNOS_IPP
 	bool "Exynos DRM IPP"
-	depends on DRM_EXYNOS && !ARCH_MULTIPLATFORM
+	depends on DRM_EXYNOS
 	help
 	  Choose this option if you want to use IPP feature for DRM.
 
@@ -69,6 +69,6 @@ config DRM_EXYNOS_ROTATOR
 
 config DRM_EXYNOS_GSC
 	bool "Exynos DRM GSC"
-	depends on DRM_EXYNOS_IPP && ARCH_EXYNOS5
+	depends on DRM_EXYNOS_IPP && ARCH_EXYNOS5 && !ARCH_MULTIPLATFORM
 	help
 	  Choose this option if you want to use Exynos GSC for DRM.

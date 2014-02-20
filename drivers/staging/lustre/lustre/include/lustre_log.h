@@ -136,7 +136,11 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	      struct llog_handle **lgh, struct llog_logid *logid,
 	      char *name, enum llog_open_param open_param);
 int llog_close(const struct lu_env *env, struct llog_handle *cathandle);
-int llog_get_size(struct llog_handle *loghandle);
+int llog_is_empty(const struct lu_env *env, struct llog_ctxt *ctxt,
+		  char *name);
+int llog_backup(const struct lu_env *env, struct obd_device *obd,
+		struct llog_ctxt *ctxt, struct llog_ctxt *bak_ctxt,
+		char *name, char *backup);
 
 /* llog_process flags */
 #define LLOG_FLAG_NODEAMON 0x0001
@@ -380,6 +384,13 @@ static inline int llog_handle2ops(struct llog_handle *loghandle,
 static inline int llog_data_len(int len)
 {
 	return cfs_size_round(len);
+}
+
+static inline int llog_get_size(struct llog_handle *loghandle)
+{
+	if (loghandle && loghandle->lgh_hdr)
+		return loghandle->lgh_hdr->llh_count;
+	return 0;
 }
 
 static inline struct llog_ctxt *llog_ctxt_get(struct llog_ctxt *ctxt)

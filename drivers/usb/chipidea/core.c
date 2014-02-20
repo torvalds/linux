@@ -75,60 +75,53 @@
 #include "otg.h"
 
 /* Controller register map */
-static uintptr_t ci_regs_nolpm[] = {
-	[CAP_CAPLENGTH]		= 0x000UL,
-	[CAP_HCCPARAMS]		= 0x008UL,
-	[CAP_DCCPARAMS]		= 0x024UL,
-	[CAP_TESTMODE]		= 0x038UL,
-	[OP_USBCMD]		= 0x000UL,
-	[OP_USBSTS]		= 0x004UL,
-	[OP_USBINTR]		= 0x008UL,
-	[OP_DEVICEADDR]		= 0x014UL,
-	[OP_ENDPTLISTADDR]	= 0x018UL,
-	[OP_PORTSC]		= 0x044UL,
-	[OP_DEVLC]		= 0x084UL,
-	[OP_OTGSC]		= 0x064UL,
-	[OP_USBMODE]		= 0x068UL,
-	[OP_ENDPTSETUPSTAT]	= 0x06CUL,
-	[OP_ENDPTPRIME]		= 0x070UL,
-	[OP_ENDPTFLUSH]		= 0x074UL,
-	[OP_ENDPTSTAT]		= 0x078UL,
-	[OP_ENDPTCOMPLETE]	= 0x07CUL,
-	[OP_ENDPTCTRL]		= 0x080UL,
+static const u8 ci_regs_nolpm[] = {
+	[CAP_CAPLENGTH]		= 0x00U,
+	[CAP_HCCPARAMS]		= 0x08U,
+	[CAP_DCCPARAMS]		= 0x24U,
+	[CAP_TESTMODE]		= 0x38U,
+	[OP_USBCMD]		= 0x00U,
+	[OP_USBSTS]		= 0x04U,
+	[OP_USBINTR]		= 0x08U,
+	[OP_DEVICEADDR]		= 0x14U,
+	[OP_ENDPTLISTADDR]	= 0x18U,
+	[OP_PORTSC]		= 0x44U,
+	[OP_DEVLC]		= 0x84U,
+	[OP_OTGSC]		= 0x64U,
+	[OP_USBMODE]		= 0x68U,
+	[OP_ENDPTSETUPSTAT]	= 0x6CU,
+	[OP_ENDPTPRIME]		= 0x70U,
+	[OP_ENDPTFLUSH]		= 0x74U,
+	[OP_ENDPTSTAT]		= 0x78U,
+	[OP_ENDPTCOMPLETE]	= 0x7CU,
+	[OP_ENDPTCTRL]		= 0x80U,
 };
 
-static uintptr_t ci_regs_lpm[] = {
-	[CAP_CAPLENGTH]		= 0x000UL,
-	[CAP_HCCPARAMS]		= 0x008UL,
-	[CAP_DCCPARAMS]		= 0x024UL,
-	[CAP_TESTMODE]		= 0x0FCUL,
-	[OP_USBCMD]		= 0x000UL,
-	[OP_USBSTS]		= 0x004UL,
-	[OP_USBINTR]		= 0x008UL,
-	[OP_DEVICEADDR]		= 0x014UL,
-	[OP_ENDPTLISTADDR]	= 0x018UL,
-	[OP_PORTSC]		= 0x044UL,
-	[OP_DEVLC]		= 0x084UL,
-	[OP_OTGSC]		= 0x0C4UL,
-	[OP_USBMODE]		= 0x0C8UL,
-	[OP_ENDPTSETUPSTAT]	= 0x0D8UL,
-	[OP_ENDPTPRIME]		= 0x0DCUL,
-	[OP_ENDPTFLUSH]		= 0x0E0UL,
-	[OP_ENDPTSTAT]		= 0x0E4UL,
-	[OP_ENDPTCOMPLETE]	= 0x0E8UL,
-	[OP_ENDPTCTRL]		= 0x0ECUL,
+static const u8 ci_regs_lpm[] = {
+	[CAP_CAPLENGTH]		= 0x00U,
+	[CAP_HCCPARAMS]		= 0x08U,
+	[CAP_DCCPARAMS]		= 0x24U,
+	[CAP_TESTMODE]		= 0xFCU,
+	[OP_USBCMD]		= 0x00U,
+	[OP_USBSTS]		= 0x04U,
+	[OP_USBINTR]		= 0x08U,
+	[OP_DEVICEADDR]		= 0x14U,
+	[OP_ENDPTLISTADDR]	= 0x18U,
+	[OP_PORTSC]		= 0x44U,
+	[OP_DEVLC]		= 0x84U,
+	[OP_OTGSC]		= 0xC4U,
+	[OP_USBMODE]		= 0xC8U,
+	[OP_ENDPTSETUPSTAT]	= 0xD8U,
+	[OP_ENDPTPRIME]		= 0xDCU,
+	[OP_ENDPTFLUSH]		= 0xE0U,
+	[OP_ENDPTSTAT]		= 0xE4U,
+	[OP_ENDPTCOMPLETE]	= 0xE8U,
+	[OP_ENDPTCTRL]		= 0xECU,
 };
 
 static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 {
 	int i;
-
-	kfree(ci->hw_bank.regmap);
-
-	ci->hw_bank.regmap = kzalloc((OP_LAST + 1) * sizeof(void *),
-				     GFP_KERNEL);
-	if (!ci->hw_bank.regmap)
-		return -ENOMEM;
 
 	for (i = 0; i < OP_ENDPTCTRL; i++)
 		ci->hw_bank.regmap[i] =
@@ -208,7 +201,8 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 	reg = hw_read(ci, CAP_HCCPARAMS, HCCPARAMS_LEN) >>
 		__ffs(HCCPARAMS_LEN);
 	ci->hw_bank.lpm  = reg;
-	hw_alloc_regmap(ci, !!reg);
+	if (reg)
+		hw_alloc_regmap(ci, !!reg);
 	ci->hw_bank.size = ci->hw_bank.op - ci->hw_bank.abs;
 	ci->hw_bank.size += OP_LAST;
 	ci->hw_bank.size /= sizeof(u32);
@@ -242,7 +236,7 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 
 static void hw_phymode_configure(struct ci_hdrc *ci)
 {
-	u32 portsc, lpm, sts;
+	u32 portsc, lpm, sts = 0;
 
 	switch (ci->platdata->phy_mode) {
 	case USBPHY_INTERFACE_MODE_UTMI:
@@ -272,10 +266,12 @@ static void hw_phymode_configure(struct ci_hdrc *ci)
 
 	if (ci->hw_bank.lpm) {
 		hw_write(ci, OP_DEVLC, DEVLC_PTS(7) | DEVLC_PTW, lpm);
-		hw_write(ci, OP_DEVLC, DEVLC_STS, sts);
+		if (sts)
+			hw_write(ci, OP_DEVLC, DEVLC_STS, DEVLC_STS);
 	} else {
 		hw_write(ci, OP_PORTSC, PORTSC_PTS(7) | PORTSC_PTW, portsc);
-		hw_write(ci, OP_PORTSC, PORTSC_STS, sts);
+		if (sts)
+			hw_write(ci, OP_PORTSC, PORTSC_STS, PORTSC_STS);
 	}
 }
 
@@ -554,12 +550,16 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	ci->dev = dev;
 	ci->platdata = dev->platform_data;
+	ci->imx28_write_fix = !!(ci->platdata->flags &
+		CI_HDRC_IMX28_WRITE_FIX);
 
 	ret = hw_device_init(ci, base);
 	if (ret < 0) {
 		dev_err(dev, "can't initialize hardware\n");
 		return -ENODEV;
 	}
+
+	hw_phymode_configure(ci);
 
 	ret = ci_usb_phy_init(ci);
 	if (ret) {
@@ -577,8 +577,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	ci_get_otg_capable(ci);
-
-	hw_phymode_configure(ci);
 
 	dr_mode = ci->platdata->dr_mode;
 	/* initialize role(s) before the interrupt is requested */
@@ -642,6 +640,10 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 			: CI_ROLE_GADGET;
 	}
 
+	/* only update vbus status for peripheral */
+	if (ci->role == CI_ROLE_GADGET)
+		ci_handle_vbus_change(ci);
+
 	ret = ci_role_start(ci, ci->role);
 	if (ret) {
 		dev_err(dev, "can't start %s role\n", ci_role(ci)->name);
@@ -676,7 +678,6 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
 	ci_usb_phy_destroy(ci);
-	kfree(ci->hw_bank.regmap);
 
 	return 0;
 }

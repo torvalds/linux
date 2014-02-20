@@ -274,9 +274,9 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 }
 EXPORT_SYMBOL(fld_client_del_target);
 
-#ifdef LPROCFS
 struct proc_dir_entry *fld_type_proc_dir = NULL;
 
+#ifdef LPROCFS
 static int fld_client_proc_init(struct lu_client_fld *fld)
 {
 	int rc;
@@ -504,10 +504,7 @@ static int __init fld_mod_init(void)
 	fld_type_proc_dir = lprocfs_register(LUSTRE_FLD_NAME,
 					     proc_lustre_root,
 					     NULL, NULL);
-	if (IS_ERR(fld_type_proc_dir))
-		return PTR_ERR(fld_type_proc_dir);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(fld_type_proc_dir);
 }
 
 static void __exit fld_mod_exit(void)

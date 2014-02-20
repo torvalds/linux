@@ -169,9 +169,10 @@ static unsigned long htab_convert_pte_flags(unsigned long pteflags)
 	if ((pteflags & _PAGE_USER) && !((pteflags & _PAGE_RW) &&
 					 (pteflags & _PAGE_DIRTY)))
 		rflags |= 1;
-
-	/* Always add C */
-	return rflags | HPTE_R_C;
+	/*
+	 * Always add "C" bit for perf. Memory coherence is always enabled
+	 */
+	return rflags | HPTE_R_C | HPTE_R_M;
 }
 
 int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
@@ -205,6 +206,20 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		/* Make kernel text executable */
 		if (overlaps_kernel_text(vaddr, vaddr + step))
 			tprot &= ~HPTE_R_N;
+
+		/*
+		 * If relocatable, check if it overlaps interrupt vectors that
+		 * are copied down to real 0. For relocatable kernel
+		 * (e.g. kdump case) we copy interrupt vectors down to real
+		 * address 0. Mark that region as executable. This is
+		 * because on p8 system with relocation on exception feature
+		 * enabled, exceptions are raised with MMU (IR=DR=1) ON. Hence
+		 * in order to execute the interrupt handlers in virtual
+		 * mode the vector region need to be marked as executable.
+		 */
+		if ((PHYSICAL_START > MEMORY_START) &&
+			overlaps_interrupt_vector_text(vaddr, vaddr + step))
+				tprot &= ~HPTE_R_N;
 
 		hash = hpt_hash(vpn, shift, ssize);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);

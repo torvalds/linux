@@ -127,7 +127,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 		 * APs with pairwise keys should never receive Michael MIC
 		 * errors for non-zero keyidx because these are reserved for
 		 * group keys and only the AP is sending real multicast
-		 * frames in the BSS. (
+		 * frames in the BSS.
 		 */
 		return RX_DROP_UNUSABLE;
 	}
@@ -545,6 +545,106 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
+static ieee80211_tx_result
+ieee80211_crypto_cs_encrypt(struct ieee80211_tx_data *tx,
+			    struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_key *key = tx->key;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	const struct ieee80211_cipher_scheme *cs = key->sta->cipher_scheme;
+	int hdrlen;
+	u8 *pos;
+
+	if (info->control.hw_key &&
+	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)) {
+		/* hwaccel has no need for preallocated head room */
+		return TX_CONTINUE;
+	}
+
+	if (unlikely(skb_headroom(skb) < cs->hdr_len &&
+		     pskb_expand_head(skb, cs->hdr_len, 0, GFP_ATOMIC)))
+		return TX_DROP;
+
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+
+	pos = skb_push(skb, cs->hdr_len);
+	memmove(pos, pos + cs->hdr_len, hdrlen);
+	skb_set_network_header(skb, skb_network_offset(skb) + cs->hdr_len);
+
+	return TX_CONTINUE;
+}
+
+static inline int ieee80211_crypto_cs_pn_compare(u8 *pn1, u8 *pn2, int len)
+{
+	int i;
+
+	/* pn is little endian */
+	for (i = len - 1; i >= 0; i--) {
+		if (pn1[i] < pn2[i])
+			return -1;
+		else if (pn1[i] > pn2[i])
+			return 1;
+	}
+
+	return 0;
+}
+
+static ieee80211_rx_result
+ieee80211_crypto_cs_decrypt(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_key *key = rx->key;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
+	const struct ieee80211_cipher_scheme *cs = NULL;
+	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
+	int data_len;
+	u8 *rx_pn;
+	u8 *skb_pn;
+	u8 qos_tid;
+
+	if (!rx->sta || !rx->sta->cipher_scheme ||
+	    !(status->flag & RX_FLAG_DECRYPTED))
+		return RX_DROP_UNUSABLE;
+
+	if (!ieee80211_is_data(hdr->frame_control))
+		return RX_CONTINUE;
+
+	cs = rx->sta->cipher_scheme;
+
+	data_len = rx->skb->len - hdrlen - cs->hdr_len;
+
+	if (data_len < 0)
+		return RX_DROP_UNUSABLE;
+
+	if (ieee80211_is_data_qos(hdr->frame_control))
+		qos_tid = *ieee80211_get_qos_ctl(hdr) &
+				IEEE80211_QOS_CTL_TID_MASK;
+	else
+		qos_tid = 0;
+
+	if (skb_linearize(rx->skb))
+		return RX_DROP_UNUSABLE;
+
+	hdr = (struct ieee80211_hdr *)rx->skb->data;
+
+	rx_pn = key->u.gen.rx_pn[qos_tid];
+	skb_pn = rx->skb->data + hdrlen + cs->pn_off;
+
+	if (ieee80211_crypto_cs_pn_compare(skb_pn, rx_pn, cs->pn_len) <= 0)
+		return RX_DROP_UNUSABLE;
+
+	memcpy(rx_pn, skb_pn, cs->pn_len);
+
+	/* remove security header and MIC */
+	if (pskb_trim(rx->skb, rx->skb->len - cs->mic_len))
+		return RX_DROP_UNUSABLE;
+
+	memmove(rx->skb->data + cs->hdr_len, rx->skb->data, hdrlen);
+	skb_pull(rx->skb, cs->hdr_len);
+
+	return RX_CONTINUE;
+}
 
 static void bip_aad(struct sk_buff *skb, u8 *aad)
 {
@@ -685,6 +785,7 @@ ieee80211_crypto_hw_encrypt(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info = NULL;
+	ieee80211_tx_result res;
 
 	skb_queue_walk(&tx->skbs, skb) {
 		info  = IEEE80211_SKB_CB(skb);
@@ -692,9 +793,24 @@ ieee80211_crypto_hw_encrypt(struct ieee80211_tx_data *tx)
 		/* handle hw-only algorithm */
 		if (!info->control.hw_key)
 			return TX_DROP;
+
+		if (tx->key->sta->cipher_scheme) {
+			res = ieee80211_crypto_cs_encrypt(tx, skb);
+			if (res != TX_CONTINUE)
+				return res;
+		}
 	}
 
 	ieee80211_tx_set_protected(tx);
 
 	return TX_CONTINUE;
+}
+
+ieee80211_rx_result
+ieee80211_crypto_hw_decrypt(struct ieee80211_rx_data *rx)
+{
+	if (rx->sta->cipher_scheme)
+		return ieee80211_crypto_cs_decrypt(rx);
+
+	return RX_DROP_UNUSABLE;
 }

@@ -447,6 +447,8 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
+	info->offset = ntfy->node->offset;
+
 done:
 	if (ret)
 		nouveau_abi16_ntfy_fini(chan, ntfy);

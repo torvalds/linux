@@ -230,12 +230,20 @@ struct vnt_tx_buffer {
 	union vnt_tx_head tx_head;
 } __packed;
 
+struct vnt_tx_short_buf_head {
+	u16 fifo_ctl;
+	u16 time_stamp;
+	struct vnt_phy_field ab;
+	u16 duration;
+	u16 time_stamp_off;
+} __packed;
+
 struct vnt_beacon_buffer {
 	u8 byType;
 	u8 byPKTNO;
 	u16 wTxByteCount;
-	u16 wFIFOCtl;
-	u16 wTimeStamp;
+	struct vnt_tx_short_buf_head short_head;
+	struct ieee80211_hdr hdr;
 } __packed;
 
 void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb);

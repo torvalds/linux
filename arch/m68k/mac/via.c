@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 
-#include <asm/bootinfo.h>
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_via.h>

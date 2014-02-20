@@ -68,7 +68,7 @@ static DECLARE_COMPLETION(cpu_running);
 /*
  * "thread" is assumed to be a valid Meta hardware thread ID.
  */
-int boot_secondary(unsigned int thread, struct task_struct *idle)
+static int boot_secondary(unsigned int thread, struct task_struct *idle)
 {
 	u32 val;
 
@@ -491,7 +491,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
+	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC);
 }
 
 void show_ipi_list(struct seq_file *p)
@@ -517,11 +517,10 @@ static DEFINE_SPINLOCK(stop_lock);
  *
  *  Bit 0 - Inter-processor function call
  */
-static int do_IPI(struct pt_regs *regs)
+static int do_IPI(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned long msgs, nextmsg;
 	int handled = 0;
 
@@ -546,18 +545,12 @@ static int do_IPI(struct pt_regs *regs)
 			generic_smp_call_function_interrupt();
 			break;
 
-		case IPI_CALL_FUNC_SINGLE:
-			generic_smp_call_function_single_interrupt();
-			break;
-
 		default:
 			pr_crit("CPU%u: Unknown IPI message 0x%lx\n",
 				cpu, nextmsg);
 			break;
 		}
 	}
-
-	set_irq_regs(old_regs);
 
 	return handled;
 }
@@ -624,7 +617,7 @@ static void kick_raise_softirq(cpumask_t callmap, unsigned int irq)
 static TBIRES ipi_handler(TBIRES State, int SigNum, int Triggers,
 		   int Inst, PTBI pTBI, int *handled)
 {
-	*handled = do_IPI((struct pt_regs *)State.Sig.pCtx);
+	*handled = do_IPI();
 
 	return State;
 }

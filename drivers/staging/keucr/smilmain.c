@@ -4,49 +4,28 @@
 #include "smcommon.h"
 #include "smil.h"
 
-int         Check_D_LogCHS(WORD *, BYTE *, BYTE *);
-void        Initialize_D_Media(void);
-void        PowerOff_D_Media(void);
-int         Check_D_MediaPower(void);
-int         Check_D_MediaExist(void);
-int         Check_D_MediaWP(void);
-int         Check_D_MediaFmt(struct us_data *);
-int         Check_D_MediaFmtForEraseAll(struct us_data *);
-int         Conv_D_MediaAddr(struct us_data *, DWORD);
-int         Inc_D_MediaAddr(struct us_data *);
-int         Check_D_FirstSect(void);
-int         Check_D_LastSect(void);
-int         Media_D_ReadOneSect(struct us_data *, WORD, BYTE *);
-int         Media_D_WriteOneSect(struct us_data *, WORD, BYTE *);
-int         Media_D_CopyBlockHead(struct us_data *);
-int         Media_D_CopyBlockTail(struct us_data *);
-int         Media_D_EraseOneBlock(void);
-int         Media_D_EraseAllBlock(void);
+static int         Conv_D_MediaAddr(struct us_data *, DWORD);
+static int         Inc_D_MediaAddr(struct us_data *);
+static int         Media_D_ReadOneSect(struct us_data *, WORD, BYTE *);
 
-int  Copy_D_BlockAll(struct us_data *, DWORD);
-int  Copy_D_BlockHead(struct us_data *);
-int  Copy_D_BlockTail(struct us_data *);
-int  Reassign_D_BlockHead(struct us_data *);
+static int  Copy_D_BlockAll(struct us_data *, DWORD);
 
-int  Assign_D_WriteBlock(void);
-int  Release_D_ReadBlock(struct us_data *);
-int  Release_D_WriteBlock(struct us_data *);
-int  Release_D_CopySector(struct us_data *);
+static int  Assign_D_WriteBlock(void);
+static int  Release_D_ReadBlock(struct us_data *);
+static int  Release_D_WriteBlock(struct us_data *);
+static int  Release_D_CopySector(struct us_data *);
 
-int  Copy_D_PhyOneSect(struct us_data *);
-int  Read_D_PhyOneSect(struct us_data *, WORD, BYTE *);
-int  Write_D_PhyOneSect(struct us_data *, WORD, BYTE *);
-int  Erase_D_PhyOneBlock(struct us_data *);
+static int  Copy_D_PhyOneSect(struct us_data *);
+static int  Read_D_PhyOneSect(struct us_data *, WORD, BYTE *);
+static int  Erase_D_PhyOneBlock(struct us_data *);
 
-int  Set_D_PhyFmtValue(struct us_data *);
-int  Search_D_CIS(struct us_data *);
-int  Make_D_LogTable(struct us_data *);
-void Check_D_BlockIsFull(void);
+static int  Set_D_PhyFmtValue(struct us_data *);
+static int  Search_D_CIS(struct us_data *);
+static int  Make_D_LogTable(struct us_data *);
 
-int  MarkFail_D_PhyOneBlock(struct us_data *);
+static int  MarkFail_D_PhyOneBlock(struct us_data *);
 
-DWORD ErrXDCode;
-DWORD ErrCode;
+static DWORD ErrCode;
 static BYTE  WorkBuf[SECTSIZE];
 static BYTE  Redundant[REDTSIZE];
 static BYTE  WorkRedund[REDTSIZE];
@@ -64,10 +43,6 @@ static BYTE BitData[] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 #define Set_D_Bit(a, b)    (a[(BYTE)((b) / 8)] |= BitData[(b) % 8])
 #define Clr_D_Bit(a, b)    (a[(BYTE)((b) / 8)] &= ~BitData[(b) % 8])
 #define Chk_D_Bit(a, b)    (a[(BYTE)((b) / 8)] & BitData[(b) % 8])
-
-BYTE     IsSSFDCCompliance;
-BYTE     IsXDCompliance;
-
 
 /* ----- SM_FreeMem() ------------------------------------------------- */
 int SM_FreeMem(void)
@@ -167,7 +142,7 @@ int Media_D_CopySector(struct us_data *us, DWORD start, WORD count, BYTE *buf)
 }
 
 /* ----- Release_D_CopySector() ------------------------------------------ */
-int Release_D_CopySector(struct us_data *us)
+static int Release_D_CopySector(struct us_data *us)
 {
 	Log2Phy[Media.Zone][Media.LogBlock] = WriteBlock;
 	Media.PhyBlock = ReadBlock;
@@ -211,7 +186,7 @@ int Check_D_MediaFmt(struct us_data *us)
 
 /* SmartMedia Physical Address Control Subroutine */
 /* ----- Conv_D_MediaAddr() --------------------------------------------- */
-int Conv_D_MediaAddr(struct us_data *us, DWORD addr)
+static int Conv_D_MediaAddr(struct us_data *us, DWORD addr)
 {
 	DWORD temp;
 
@@ -240,7 +215,7 @@ int Conv_D_MediaAddr(struct us_data *us, DWORD addr)
 }
 
 /* ----- Inc_D_MediaAddr() ---------------------------------------------- */
-int Inc_D_MediaAddr(struct us_data *us)
+static int Inc_D_MediaAddr(struct us_data *us)
 {
 	WORD        LogBlock = Media.LogBlock;
 
@@ -290,7 +265,7 @@ int Inc_D_MediaAddr(struct us_data *us)
 
 /* SmartMedia Read/Write Subroutine with Retry */
 /* ----- Media_D_ReadOneSect() ------------------------------------------ */
-int Media_D_ReadOneSect(struct us_data *us, WORD count, BYTE *buf)
+static int Media_D_ReadOneSect(struct us_data *us, WORD count, BYTE *buf)
 {
 	DWORD err, retry;
 
@@ -334,7 +309,7 @@ int Media_D_ReadOneSect(struct us_data *us, WORD count, BYTE *buf)
 
 /* SmartMedia Physical Sector Data Copy Subroutine */
 /* ----- Copy_D_BlockAll() ---------------------------------------------- */
-int Copy_D_BlockAll(struct us_data *us, DWORD mode)
+static int Copy_D_BlockAll(struct us_data *us, DWORD mode)
 {
 	BYTE sect;
 
@@ -371,7 +346,7 @@ int Copy_D_BlockAll(struct us_data *us, DWORD mode)
 
 /* SmartMedia Physical Block Assign/Release Subroutine */
 /* ----- Assign_D_WriteBlock() ------------------------------------------ */
-int Assign_D_WriteBlock(void)
+static int Assign_D_WriteBlock(void)
 {
 	ReadBlock = Media.PhyBlock;
 
@@ -404,7 +379,7 @@ int Assign_D_WriteBlock(void)
 }
 
 /* ----- Release_D_ReadBlock() ------------------------------------------ */
-int Release_D_ReadBlock(struct us_data *us)
+static int Release_D_ReadBlock(struct us_data *us)
 {
 	DWORD mode;
 
@@ -438,7 +413,7 @@ int Release_D_ReadBlock(struct us_data *us)
 }
 
 /* ----- Release_D_WriteBlock() ----------------------------------------- */
-int Release_D_WriteBlock(struct us_data *us)
+static int Release_D_WriteBlock(struct us_data *us)
 {
 	SectCopyMode = COMPLETED;
 	Media.PhyBlock = WriteBlock;
@@ -452,12 +427,12 @@ int Release_D_WriteBlock(struct us_data *us)
 
 /* SmartMedia Physical Sector Data Copy Subroutine */
 /* ----- Copy_D_PhyOneSect() -------------------------------------------- */
-int Copy_D_PhyOneSect(struct us_data *us)
+static int Copy_D_PhyOneSect(struct us_data *us)
 {
 	int           i;
 	DWORD  err, retry;
 
-	/* pr_info("Copy_D_PhyOneSect --- Secotr = %x\n", Media.Sector); */
+	/* pr_info("Copy_D_PhyOneSect --- Sector = %x\n", Media.Sector); */
 	if (ReadBlock != NO_ASSIGN) {
 		Media.PhyBlock = ReadBlock;
 		for (retry = 0; retry < 2; retry++) {
@@ -529,7 +504,7 @@ int Copy_D_PhyOneSect(struct us_data *us)
 
 /* SmartMedia Physical Sector Read/Write/Erase Subroutine */
 /* ----- Read_D_PhyOneSect() -------------------------------------------- */
-int Read_D_PhyOneSect(struct us_data *us, WORD count, BYTE *buf)
+static int Read_D_PhyOneSect(struct us_data *us, WORD count, BYTE *buf)
 {
 	int           i;
 	DWORD  retry;
@@ -580,7 +555,7 @@ int Read_D_PhyOneSect(struct us_data *us, WORD count, BYTE *buf)
 }
 
 /* ----- Erase_D_PhyOneBlock() ------------------------------------------ */
-int Erase_D_PhyOneBlock(struct us_data *us)
+static int Erase_D_PhyOneBlock(struct us_data *us)
 {
 	if (Ssfdc_D_EraseBlock(us)) {
 		ErrCode = ERR_HwError;
@@ -597,7 +572,7 @@ int Erase_D_PhyOneBlock(struct us_data *us)
 
 /* SmartMedia Physical Format Check Local Subroutine */
 /* ----- Set_D_PhyFmtValue() -------------------------------------------- */
-int Set_D_PhyFmtValue(struct us_data *us)
+static int Set_D_PhyFmtValue(struct us_data *us)
 {
 	if (Set_D_SsfdcModel(us->SM_DeviceID))
 		return ERROR;
@@ -606,7 +581,7 @@ int Set_D_PhyFmtValue(struct us_data *us)
 }
 
 /* ----- Search_D_CIS() ------------------------------------------------- */
-int Search_D_CIS(struct us_data *us)
+static int Search_D_CIS(struct us_data *us)
 {
 	Media.Zone = 0;
 	Media.Sector = 0;
@@ -660,7 +635,7 @@ int Search_D_CIS(struct us_data *us)
 }
 
 /* ----- Make_D_LogTable() ---------------------------------------------- */
-int Make_D_LogTable(struct us_data *us)
+static int Make_D_LogTable(struct us_data *us)
 {
 	WORD  phyblock, logblock;
 
@@ -761,7 +736,7 @@ int Make_D_LogTable(struct us_data *us)
 }
 
 /* ----- MarkFail_D_PhyOneBlock() --------------------------------------- */
-int MarkFail_D_PhyOneBlock(struct us_data *us)
+static int MarkFail_D_PhyOneBlock(struct us_data *us)
 {
 	BYTE sect;
 

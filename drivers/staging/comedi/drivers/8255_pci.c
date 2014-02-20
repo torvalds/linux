@@ -63,7 +63,8 @@ enum pci_8255_boardid {
 	BOARD_ADLINK_PCI7296,
 	BOARD_CB_PCIDIO24,
 	BOARD_CB_PCIDIO24H,
-	BOARD_CB_PCIDIO48H,
+	BOARD_CB_PCIDIO48H_OLD,
+	BOARD_CB_PCIDIO48H_NEW,
 	BOARD_CB_PCIDIO96H,
 	BOARD_NI_PCIDIO96,
 	BOARD_NI_PCIDIO96B,
@@ -106,9 +107,14 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 		.dio_badr	= 2,
 		.n_8255		= 1,
 	},
-	[BOARD_CB_PCIDIO48H] = {
+	[BOARD_CB_PCIDIO48H_OLD] = {
 		.name		= "cb_pci-dio48h",
 		.dio_badr	= 1,
+		.n_8255		= 2,
+	},
+	[BOARD_CB_PCIDIO48H_NEW] = {
+		.name		= "cb_pci-dio48h",
+		.dio_badr	= 2,
 		.n_8255		= 2,
 	},
 	[BOARD_CB_PCIDIO96H] = {
@@ -257,13 +263,16 @@ static int pci_8255_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &pci_8255_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
+static const struct pci_device_id pci_8255_pci_table[] = {
 	{ PCI_VDEVICE(ADLINK, 0x7224), BOARD_ADLINK_PCI7224 },
 	{ PCI_VDEVICE(ADLINK, 0x7248), BOARD_ADLINK_PCI7248 },
 	{ PCI_VDEVICE(ADLINK, 0x7296), BOARD_ADLINK_PCI7296 },
 	{ PCI_VDEVICE(CB, 0x0028), BOARD_CB_PCIDIO24 },
 	{ PCI_VDEVICE(CB, 0x0014), BOARD_CB_PCIDIO24H },
-	{ PCI_VDEVICE(CB, 0x000b), BOARD_CB_PCIDIO48H },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CB, 0x000b, 0x0000, 0x0000),
+	  .driver_data = BOARD_CB_PCIDIO48H_OLD },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CB, 0x000b, PCI_VENDOR_ID_CB, 0x000b),
+	  .driver_data = BOARD_CB_PCIDIO48H_NEW },
 	{ PCI_VDEVICE(CB, 0x0017), BOARD_CB_PCIDIO96H },
 	{ PCI_VDEVICE(NI, 0x0160), BOARD_NI_PCIDIO96 },
 	{ PCI_VDEVICE(NI, 0x1630), BOARD_NI_PCIDIO96B },

@@ -278,7 +278,6 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
-	spin_lock_init(&acl->stats_lock);
 	acl->dynamic_node_acl = 1;
 
 	tpg->se_tpg_tfo->set_default_node_attributes(acl);
@@ -406,7 +405,6 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
-	spin_lock_init(&acl->stats_lock);
 
 	tpg->se_tpg_tfo->set_default_node_attributes(acl);
 
@@ -658,15 +656,9 @@ static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 
-	ret = percpu_ref_init(&lun->lun_ref, core_tpg_lun_ref_release);
+	ret = core_tpg_add_lun(se_tpg, lun, lun_access, dev);
 	if (ret < 0)
 		return ret;
-
-	ret = core_tpg_post_addlun(se_tpg, lun, lun_access, dev);
-	if (ret < 0) {
-		percpu_ref_cancel_init(&lun->lun_ref);
-		return ret;
-	}
 
 	return 0;
 }
@@ -789,7 +781,7 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 }
 EXPORT_SYMBOL(core_tpg_deregister);
 
-struct se_lun *core_tpg_pre_addlun(
+struct se_lun *core_tpg_alloc_lun(
 	struct se_portal_group *tpg,
 	u32 unpacked_lun)
 {
@@ -819,11 +811,11 @@ struct se_lun *core_tpg_pre_addlun(
 	return lun;
 }
 
-int core_tpg_post_addlun(
+int core_tpg_add_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun,
 	u32 lun_access,
-	void *lun_ptr)
+	struct se_device *dev)
 {
 	int ret;
 
@@ -831,7 +823,7 @@ int core_tpg_post_addlun(
 	if (ret < 0)
 		return ret;
 
-	ret = core_dev_export(lun_ptr, tpg, lun);
+	ret = core_dev_export(dev, tpg, lun);
 	if (ret < 0) {
 		percpu_ref_cancel_init(&lun->lun_ref);
 		return ret;

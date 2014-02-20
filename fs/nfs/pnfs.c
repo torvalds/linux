@@ -1790,6 +1790,15 @@ pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_readpages);
 
+static void pnfs_clear_layoutcommitting(struct inode *inode)
+{
+	unsigned long *bitlock = &NFS_I(inode)->flags;
+
+	clear_bit_unlock(NFS_INO_LAYOUTCOMMITTING, bitlock);
+	smp_mb__after_clear_bit();
+	wake_up_bit(bitlock, NFS_INO_LAYOUTCOMMITTING);
+}
+
 /*
  * There can be multiple RW segments.
  */
@@ -1807,7 +1816,6 @@ static void pnfs_list_write_lseg(struct inode *inode, struct list_head *listp)
 static void pnfs_list_write_lseg_done(struct inode *inode, struct list_head *listp)
 {
 	struct pnfs_layout_segment *lseg, *tmp;
-	unsigned long *bitlock = &NFS_I(inode)->flags;
 
 	/* Matched by references in pnfs_set_layoutcommit */
 	list_for_each_entry_safe(lseg, tmp, listp, pls_lc_list) {
@@ -1815,9 +1823,7 @@ static void pnfs_list_write_lseg_done(struct inode *inode, struct list_head *lis
 		pnfs_put_lseg(lseg);
 	}
 
-	clear_bit_unlock(NFS_INO_LAYOUTCOMMITTING, bitlock);
-	smp_mb__after_clear_bit();
-	wake_up_bit(bitlock, NFS_INO_LAYOUTCOMMITTING);
+	pnfs_clear_layoutcommitting(inode);
 }
 
 void pnfs_set_lo_fail(struct pnfs_layout_segment *lseg)
@@ -1881,43 +1887,37 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	struct nfs4_layoutcommit_data *data;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t end_pos;
-	int status = 0;
+	int status;
+
+	if (!pnfs_layoutcommit_outstanding(inode))
+		return 0;
 
 	dprintk("--> %s inode %lu\n", __func__, inode->i_ino);
 
-	if (!test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags))
-		return 0;
+	status = -EAGAIN;
+	if (test_and_set_bit(NFS_INO_LAYOUTCOMMITTING, &nfsi->flags)) {
+		if (!sync)
+			goto out;
+		status = wait_on_bit_lock(&nfsi->flags,
+				NFS_INO_LAYOUTCOMMITTING,
+				nfs_wait_bit_killable,
+				TASK_KILLABLE);
+		if (status)
+			goto out;
+	}
 
+	status = -ENOMEM;
 	/* Note kzalloc ensures data->res.seq_res.sr_slot == NULL */
 	data = kzalloc(sizeof(*data), GFP_NOFS);
-	if (!data) {
-		status = -ENOMEM;
-		goto out;
-	}
+	if (!data)
+		goto clear_layoutcommitting;
 
-	if (!test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags))
-		goto out_free;
-
-	if (test_and_set_bit(NFS_INO_LAYOUTCOMMITTING, &nfsi->flags)) {
-		if (!sync) {
-			status = -EAGAIN;
-			goto out_free;
-		}
-		status = wait_on_bit_lock(&nfsi->flags, NFS_INO_LAYOUTCOMMITTING,
-					nfs_wait_bit_killable, TASK_KILLABLE);
-		if (status)
-			goto out_free;
-	}
+	status = 0;
+	spin_lock(&inode->i_lock);
+	if (!test_and_clear_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags))
+		goto out_unlock;
 
 	INIT_LIST_HEAD(&data->lseg_list);
-	spin_lock(&inode->i_lock);
-	if (!test_and_clear_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
-		clear_bit(NFS_INO_LAYOUTCOMMITTING, &nfsi->flags);
-		spin_unlock(&inode->i_lock);
-		wake_up_bit(&nfsi->flags, NFS_INO_LAYOUTCOMMITTING);
-		goto out_free;
-	}
-
 	pnfs_list_write_lseg(inode, &data->lseg_list);
 
 	end_pos = nfsi->layout->plh_lwb;
@@ -1940,8 +1940,11 @@ out:
 		mark_inode_dirty_sync(inode);
 	dprintk("<-- %s status %d\n", __func__, status);
 	return status;
-out_free:
+out_unlock:
+	spin_unlock(&inode->i_lock);
 	kfree(data);
+clear_layoutcommitting:
+	pnfs_clear_layoutcommitting(inode);
 	goto out;
 }
 

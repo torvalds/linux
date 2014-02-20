@@ -286,8 +286,8 @@ asmlinkage long sys32_getegid16(void)
 }
 
 #ifdef CONFIG_SYSVIPC
-COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
-		unsigned long, third, compat_uptr_t, ptr)
+COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, compat_ulong_t, second,
+		compat_ulong_t, third, compat_uptr_t, ptr)
 {
 	if (call >> 16)		/* hack for backward compatibility */
 		return -EINVAL;

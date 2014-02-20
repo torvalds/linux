@@ -30,6 +30,7 @@
 #include <linux/memblock.h>
 #include <linux/sort.h>
 #include <linux/of_fdt.h>
+#include <linux/dma-contiguous.h>
 
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -158,6 +159,8 @@ void __init arm64_memblock_init(void)
 			break;
 		memblock_reserve(base, size);
 	}
+
+	dma_contiguous_reserve(0);
 
 	memblock_allow_resize();
 	memblock_dump_all();

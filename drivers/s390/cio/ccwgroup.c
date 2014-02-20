@@ -128,14 +128,14 @@ static ssize_t ccwgroup_online_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(dev->driver);
 	unsigned long value;
 	int ret;
 
-	if (!dev->driver)
-		return -EINVAL;
-	if (!try_module_get(gdrv->driver.owner))
-		return -EINVAL;
+	device_lock(dev);
+	if (!dev->driver) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = kstrtoul(buf, 0, &value);
 	if (ret)
@@ -148,7 +148,7 @@ static ssize_t ccwgroup_online_store(struct device *dev,
 	else
 		ret = -EINVAL;
 out:
-	module_put(gdrv->driver.owner);
+	device_unlock(dev);
 	return (ret == 0) ? count : ret;
 }
 

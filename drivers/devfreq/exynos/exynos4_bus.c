@@ -30,9 +30,9 @@
 extern unsigned int exynos_result_of_asv;
 #endif
 
-#include <mach/regs-clock.h>
+#include <mach/map.h>
 
-#include <plat/map-s5p.h>
+#include "exynos4_bus.h"
 
 #define MAX_SAFEVOLT	1200000 /* 1.2V */
 

@@ -83,6 +83,8 @@ enum board_ids {
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 				 unsigned long deadline);
+static void ahci_mcp89_apple_enable(struct pci_dev *pdev);
+static bool is_mcp89_apple(struct pci_dev *pdev);
 static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline);
 #ifdef CONFIG_PM
@@ -427,6 +429,9 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	  .driver_data = board_ahci_yes_fbs },			/* 88se9128 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9125),
 	  .driver_data = board_ahci_yes_fbs },			/* 88se9125 */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_MARVELL_EXT, 0x9178,
+			 PCI_VENDOR_ID_MARVELL_EXT, 0x9170),
+	  .driver_data = board_ahci_yes_fbs },			/* 88se9170 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x917a),
 	  .driver_data = board_ahci_yes_fbs },			/* 88se9172 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9172),
@@ -661,6 +666,10 @@ static int ahci_pci_device_resume(struct pci_dev *pdev)
 	if (rc)
 		return rc;
 
+	/* Apple BIOS helpfully mangles the registers on resume */
+	if (is_mcp89_apple(pdev))
+		ahci_mcp89_apple_enable(pdev);
+
 	if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND) {
 		rc = ahci_pci_reset_controller(host);
 		if (rc)
@@ -775,6 +784,48 @@ static void ahci_p5wdh_workaround(struct ata_host *host)
 		ap->ops = &ahci_p5wdh_ops;
 		ap->link.flags |= ATA_LFLAG_NO_SRST | ATA_LFLAG_ASSUME_ATA;
 	}
+}
+
+/*
+ * Macbook7,1 firmware forcibly disables MCP89 AHCI and changes PCI ID when
+ * booting in BIOS compatibility mode.  We restore the registers but not ID.
+ */
+static void ahci_mcp89_apple_enable(struct pci_dev *pdev)
+{
+	u32 val;
+
+	printk(KERN_INFO "ahci: enabling MCP89 AHCI mode\n");
+
+	pci_read_config_dword(pdev, 0xf8, &val);
+	val |= 1 << 0x1b;
+	/* the following changes the device ID, but appears not to affect function */
+	/* val = (val & ~0xf0000000) | 0x80000000; */
+	pci_write_config_dword(pdev, 0xf8, val);
+
+	pci_read_config_dword(pdev, 0x54c, &val);
+	val |= 1 << 0xc;
+	pci_write_config_dword(pdev, 0x54c, val);
+
+	pci_read_config_dword(pdev, 0x4a4, &val);
+	val &= 0xff;
+	val |= 0x01060100;
+	pci_write_config_dword(pdev, 0x4a4, val);
+
+	pci_read_config_dword(pdev, 0x54c, &val);
+	val &= ~(1 << 0xc);
+	pci_write_config_dword(pdev, 0x54c, val);
+
+	pci_read_config_dword(pdev, 0xf8, &val);
+	val &= ~(1 << 0x1b);
+	pci_write_config_dword(pdev, 0xf8, val);
+}
+
+static bool is_mcp89_apple(struct pci_dev *pdev)
+{
+	return pdev->vendor == PCI_VENDOR_ID_NVIDIA &&
+		pdev->device == PCI_DEVICE_ID_NVIDIA_NFORCE_MCP89_SATA &&
+		pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE &&
+		pdev->subsystem_device == 0xcb89;
 }
 
 /* only some SB600 ahci controllers can do 64bit DMA */
@@ -1097,26 +1148,40 @@ static inline void ahci_gtf_filter_workaround(struct ata_host *host)
 {}
 #endif
 
-int ahci_init_interrupts(struct pci_dev *pdev, struct ahci_host_priv *hpriv)
+static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
+			 struct ahci_host_priv *hpriv)
 {
-	int rc;
-	unsigned int maxvec;
+	int rc, nvec;
 
-	if (!(hpriv->flags & AHCI_HFLAG_NO_MSI)) {
-		rc = pci_enable_msi_block_auto(pdev, &maxvec);
-		if (rc > 0) {
-			if ((rc == maxvec) || (rc == 1))
-				return rc;
-			/*
-			 * Assume that advantage of multipe MSIs is negated,
-			 * so fallback to single MSI mode to save resources
-			 */
-			pci_disable_msi(pdev);
-			if (!pci_enable_msi(pdev))
-				return 1;
-		}
-	}
+	if (hpriv->flags & AHCI_HFLAG_NO_MSI)
+		goto intx;
 
+	rc = pci_msi_vec_count(pdev);
+	if (rc < 0)
+		goto intx;
+
+	/*
+	 * If number of MSIs is less than number of ports then Sharing Last
+	 * Message mode could be enforced. In this case assume that advantage
+	 * of multipe MSIs is negated and use single MSI mode instead.
+	 */
+	if (rc < n_ports)
+		goto single_msi;
+
+	nvec = rc;
+	rc = pci_enable_msi_block(pdev, nvec);
+	if (rc)
+		goto intx;
+
+	return nvec;
+
+single_msi:
+	rc = pci_enable_msi(pdev);
+	if (rc)
+		goto intx;
+	return 1;
+
+intx:
 	pci_intx(pdev, 1);
 	return 0;
 }
@@ -1209,15 +1274,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pdev->vendor == PCI_VENDOR_ID_MARVELL && !marvell_enable)
 		return -ENODEV;
 
-	/*
-	 * For some reason, MCP89 on MacBook 7,1 doesn't work with
-	 * ahci, use ata_generic instead.
-	 */
-	if (pdev->vendor == PCI_VENDOR_ID_NVIDIA &&
-	    pdev->device == PCI_DEVICE_ID_NVIDIA_NFORCE_MCP89_SATA &&
-	    pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE &&
-	    pdev->subsystem_device == 0xcb89)
-		return -ENODEV;
+	/* Apple BIOS on MCP89 prevents us using AHCI */
+	if (is_mcp89_apple(pdev))
+		ahci_mcp89_apple_enable(pdev);
 
 	/* Promise's PDC42819 is a SAS/SATA controller that has an AHCI mode.
 	 * At the moment, we can only use the AHCI mode. Let the users know
@@ -1238,15 +1297,6 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	/* AHCI controllers often implement SFF compatible interface.
-	 * Grab all PCI BARs just in case.
-	 */
-	rc = pcim_iomap_regions_request_all(pdev, 1 << ahci_pci_bar, DRV_NAME);
-	if (rc == -EBUSY)
-		pcim_pin_device(pdev);
-	if (rc)
-		return rc;
-
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
 	    (pdev->device == 0x2652 || pdev->device == 0x2653)) {
 		u8 map;
@@ -1262,6 +1312,15 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			return -ENODEV;
 		}
 	}
+
+	/* AHCI controllers often implement SFF compatible interface.
+	 * Grab all PCI BARs just in case.
+	 */
+	rc = pcim_iomap_regions_request_all(pdev, 1 << ahci_pci_bar, DRV_NAME);
+	if (rc == -EBUSY)
+		pcim_pin_device(pdev);
+	if (rc)
+		return rc;
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
@@ -1282,10 +1341,6 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		hpriv->flags &= ~AHCI_HFLAG_32BIT_ONLY;
 
 	hpriv->mmio = pcim_iomap_table(pdev)[ahci_pci_bar];
-
-	n_msis = ahci_init_interrupts(pdev, hpriv);
-	if (n_msis > 1)
-		hpriv->flags |= AHCI_HFLAG_MULTI_MSI;
 
 	/* save initial config */
 	ahci_pci_save_initial_config(pdev, hpriv);
@@ -1340,6 +1395,10 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * both CAP.NP and port_map.
 	 */
 	n_ports = max(ahci_nr_ports(hpriv->cap), fls(hpriv->port_map));
+
+	n_msis = ahci_init_interrupts(pdev, n_ports, hpriv);
+	if (n_msis > 1)
+		hpriv->flags |= AHCI_HFLAG_MULTI_MSI;
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	if (!host)

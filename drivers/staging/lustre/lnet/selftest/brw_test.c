@@ -41,11 +41,12 @@
 #include "selftest.h"
 
 static int brw_srv_workitems = SFW_TEST_WI_MAX;
-CFS_MODULE_PARM(brw_srv_workitems, "i", int, 0644, "# BRW server workitems");
+module_param(brw_srv_workitems, int, 0644);
+MODULE_PARM_DESC(brw_srv_workitems, "# BRW server workitems");
 
 static int brw_inject_errors;
-CFS_MODULE_PARM(brw_inject_errors, "i", int, 0644,
-		"# data errors to inject randomly, zero by default");
+module_param(brw_inject_errors, int, 0644);
+MODULE_PARM_DESC(brw_inject_errors, "# data errors to inject randomly, zero by default");
 
 static void
 brw_client_fini(sfw_test_instance_t *tsi)

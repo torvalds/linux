@@ -1840,8 +1840,8 @@ static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 
 	max98090->lrclk = params_rate(params);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		snd_soc_update_bits(codec, M98090_REG_INTERFACE_FORMAT,
 			M98090_WS_MASK, 0);
 		break;

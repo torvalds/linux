@@ -385,7 +385,7 @@ static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"pll0_sysclk7",	&pll0_sysclk7),
 	CLK("i2c_davinci.1",	NULL,		&i2c0_clk),
 	CLK(NULL,		"timer0",	&timerp64_0_clk),
-	CLK("watchdog",		NULL,		&timerp64_1_clk),
+	CLK("davinci-wdt",	NULL,		&timerp64_1_clk),
 	CLK(NULL,		"arm_rom",	&arm_rom_clk),
 	CLK(NULL,		"scr0_ss",	&scr0_ss_clk),
 	CLK(NULL,		"scr1_ss",	&scr1_ss_clk),
@@ -1153,7 +1153,6 @@ static struct davinci_id da830_ids[] = {
 
 static struct davinci_gpio_platform_data da830_gpio_platform_data = {
 	.ngpio = 128,
-	.intc_irq_num = DA830_N_CP_INTC_IRQ,
 };
 
 int __init da830_register_gpio(void)

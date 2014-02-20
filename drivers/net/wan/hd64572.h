@@ -218,7 +218,7 @@ typedef struct {
 #define ST_TX_EOM     0x80	/* End of frame */
 #define ST_TX_UNDRRUN 0x08
 #define ST_TX_OWNRSHP 0x02
-#define ST_TX_EOT     0x01	/* End of transmition */
+#define ST_TX_EOT     0x01	/* End of transmission */
 
 #define ST_RX_EOM     0x80	/* End of frame */
 #define ST_RX_SHORT   0x40	/* Short frame */

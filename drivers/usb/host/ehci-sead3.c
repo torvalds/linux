@@ -126,6 +126,7 @@ static int ehci_hcd_sead3_drv_probe(struct platform_device *pdev)
 			  IRQF_SHARED);
 	if (ret == 0) {
 		platform_set_drvdata(pdev, hcd);
+		device_wakeup_enable(hcd->self.controller);
 		return ret;
 	}
 

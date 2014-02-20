@@ -713,7 +713,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 	unsigned i;
 
 	/* check if the id is still valid */
-	if (vm->fence && vm->fence == rdev->vm_manager.active[vm->id])
+	if (vm->last_id_use && vm->last_id_use == rdev->vm_manager.active[vm->id])
 		return NULL;
 
 	/* we definately need to flush */
@@ -726,6 +726,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 		if (fence == NULL) {
 			/* found a free one */
 			vm->id = i;
+			trace_radeon_vm_grab_id(vm->id, ring);
 			return NULL;
 		}
 
@@ -769,6 +770,9 @@ void radeon_vm_fence(struct radeon_device *rdev,
 
 	radeon_fence_unref(&vm->fence);
 	vm->fence = radeon_fence_ref(fence);
+
+	radeon_fence_unref(&vm->last_id_use);
+	vm->last_id_use = radeon_fence_ref(fence);
 }
 
 /**
@@ -1303,6 +1307,8 @@ void radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	vm->id = 0;
 	vm->fence = NULL;
+	vm->last_flush = NULL;
+	vm->last_id_use = NULL;
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->list);
 	INIT_LIST_HEAD(&vm->va);
@@ -1341,5 +1347,6 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	}
 	radeon_fence_unref(&vm->fence);
 	radeon_fence_unref(&vm->last_flush);
+	radeon_fence_unref(&vm->last_id_use);
 	mutex_unlock(&vm->mutex);
 }

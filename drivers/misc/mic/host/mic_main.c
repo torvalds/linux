@@ -115,7 +115,7 @@ static irqreturn_t mic_shutdown_db(int irq, void *data)
 	struct mic_device *mdev = data;
 	struct mic_bootparam *bootparam = mdev->dp;
 
-	mdev->ops->ack_interrupt(mdev);
+	mdev->ops->intr_workarounds(mdev);
 
 	switch (bootparam->shutdown_status) {
 	case MIC_HALTED:

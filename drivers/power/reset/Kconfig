@@ -6,6 +6,12 @@ menuconfig POWER_RESET
 
 	  Say Y here to enable board reset and power off
 
+config POWER_RESET_AS3722
+	bool "ams AS3722 power-off driver"
+	depends on MFD_AS3722 && POWER_RESET
+	help
+	  This driver supports turning off board via a ams AS3722 power-off.
+
 config POWER_RESET_GPIO
 	bool "GPIO power-off driver"
 	depends on OF_GPIO && POWER_RESET

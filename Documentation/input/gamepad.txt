@@ -68,7 +68,7 @@ features that you need, first. How each feature is mapped is described below.
 Legacy drivers often don't comply to these rules. As we cannot change them
 for backwards-compatibility reasons, you need to provide fixup mappings in
 user-space yourself. Some of them might also provide module-options that
-change the mappings so you can adivce users to set these.
+change the mappings so you can advise users to set these.
 
 All new gamepads are supposed to comply with this mapping. Please report any
 bugs, if they don't.
@@ -150,10 +150,10 @@ Menu-Pad:
                   BTN_START
   Many pads also have a third button which is branded or has a special symbol
   and meaning. Such buttons are mapped as BTN_MODE. Examples are the Nintendo
-  "HOME" button, the XBox "X"-button or Sony "P" button.
+  "HOME" button, the XBox "X"-button or Sony "PS" button.
 
 Rumble:
-  Rumble is adverticed as FF_RUMBLE.
+  Rumble is advertised as FF_RUMBLE.
 
 ----------------------------------------------------------------------------
   Written 2013 by David Herrmann <dh.herrmann@gmail.com>

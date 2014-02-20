@@ -8,8 +8,6 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/clk-provider.h>
-#include <linux/irqchip.h>
 #include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
@@ -48,15 +46,9 @@ static void __init s3c64xx_dt_map_io(void)
 		panic("SoC is not S3C64xx!");
 }
 
-static void __init s3c64xx_dt_init_irq(void)
-{
-	of_clk_init(NULL);
-	samsung_wdt_reset_of_init();
-	irqchip_init();
-};
-
 static void __init s3c64xx_dt_init_machine(void)
 {
+	samsung_wdt_reset_of_init();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -79,7 +71,6 @@ DT_MACHINE_START(S3C6400_DT, "Samsung S3C64xx (Flattened Device Tree)")
 	/* Maintainer: Tomasz Figa <tomasz.figa@gmail.com> */
 	.dt_compat	= s3c64xx_dt_compat,
 	.map_io		= s3c64xx_dt_map_io,
-	.init_irq	= s3c64xx_dt_init_irq,
 	.init_machine	= s3c64xx_dt_init_machine,
 	.restart        = s3c64xx_dt_restart,
 MACHINE_END

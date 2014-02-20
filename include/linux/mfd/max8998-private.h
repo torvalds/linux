@@ -1,5 +1,5 @@
 /*
- * max8998.h - Voltage regulator driver for the Maxim 8998
+ * max8998-private.h - Voltage regulator driver for the Maxim 8998
  *
  *  Copyright (C) 2009-2010 Samsung Electrnoics
  *  Kyungmin Park <kyungmin.park@samsung.com>

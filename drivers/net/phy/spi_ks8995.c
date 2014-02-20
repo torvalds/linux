@@ -15,7 +15,6 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -171,14 +170,14 @@ static int ks8995_write(struct ks8995_switch *ks, char *buf,
 
 static inline int ks8995_read_reg(struct ks8995_switch *ks, u8 addr, u8 *buf)
 {
-	return (ks8995_read(ks, buf, addr, 1) != 1);
+	return ks8995_read(ks, buf, addr, 1) != 1;
 }
 
 static inline int ks8995_write_reg(struct ks8995_switch *ks, u8 addr, u8 val)
 {
 	char buf = val;
 
-	return (ks8995_write(ks, &buf, addr, 1) != 1);
+	return ks8995_write(ks, &buf, addr, 1) != 1;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -325,7 +324,6 @@ static int ks8995_probe(struct spi_device *spi)
 	return 0;
 
 err_drvdata:
-	spi_set_drvdata(spi, NULL);
 	kfree(ks);
 	return err;
 }
@@ -337,7 +335,6 @@ static int ks8995_remove(struct spi_device *spi)
 	ks8995 = spi_get_drvdata(spi);
 	sysfs_remove_bin_file(&spi->dev.kobj, &ks8995_registers_attr);
 
-	spi_set_drvdata(spi, NULL);
 	kfree(ks8995);
 
 	return 0;

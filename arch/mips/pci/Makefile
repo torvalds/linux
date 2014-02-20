@@ -60,4 +60,5 @@ obj-$(CONFIG_CPU_XLP)		+= pci-xlp.o
 
 ifdef CONFIG_PCI_MSI
 obj-$(CONFIG_CAVIUM_OCTEON_SOC) += msi-octeon.o
+obj-$(CONFIG_CPU_XLP)		+= msi-xlp.o
 endif

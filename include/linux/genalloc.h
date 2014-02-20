@@ -30,6 +30,8 @@
 #ifndef __GENALLOC_H__
 #define __GENALLOC_H__
 
+#include <linux/spinlock_types.h>
+
 struct device;
 struct device_node;
 

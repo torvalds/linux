@@ -187,9 +187,10 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
-				     unsigned int rate)
+				     struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int i, j, ret;
 	int adg_clk_div_table[] = {
@@ -199,6 +200,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 		1, 2, 4, 8, 16, 6, 12,
 	};
 	unsigned int main_rate;
+	unsigned int rate = rsnd_scu_get_ssi_rate(priv, &ssi->mod, runtime);
 
 	/*
 	 * Find best clock, and try to start ADG
@@ -209,7 +211,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 			/*
 			 * this driver is assuming that
 			 * system word is 64fs (= 2 x 32bit)
-			 * see rsnd_ssi_start()
+			 * see rsnd_ssi_init()
 			 */
 			main_rate = rate / adg_clk_div_table[i]
 				* 32 * 2 * ssi_clk_mul_table[j];
@@ -251,14 +253,10 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		clk_enable(ssi->clk);
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
-			struct snd_pcm_runtime *runtime;
-
-			runtime = rsnd_io_to_runtime(io);
-
 			if (rsnd_ssi_clk_from_parent(ssi))
 				rsnd_ssi_hw_start(ssi->parent, rdai, io);
 			else
-				rsnd_ssi_master_clk_start(ssi, runtime->rate);
+				rsnd_ssi_master_clk_start(ssi, io);
 		}
 	}
 
@@ -457,6 +455,10 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 	/* enable PIO IRQ */
 	ssi->cr_etc = UIEN | OIEN | DIEN;
 
+	/* enable PIO interrupt if gen2 */
+	if (rsnd_is_gen2(priv))
+		rsnd_mod_write(&ssi->mod, INT_ENABLE, 0x0f000000);
+
 	rsnd_ssi_hw_start(ssi, rdai, io);
 
 	dev_dbg(dev, "%s.%d start\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
@@ -650,7 +652,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 
 		snprintf(name, RSND_SSI_NAME_SIZE, "ssi.%d", i);
 
-		clk = clk_get(dev, name);
+		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk))
 			return PTR_ERR(clk);
 
@@ -711,7 +713,6 @@ void rsnd_ssi_remove(struct platform_device *pdev,
 	int i;
 
 	for_each_rsnd_ssi(ssi, priv, i) {
-		clk_put(ssi->clk);
 		if (rsnd_ssi_dma_available(ssi))
 			rsnd_dma_quit(priv, rsnd_mod_to_dma(&ssi->mod));
 	}

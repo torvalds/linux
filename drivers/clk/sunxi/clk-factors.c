@@ -30,17 +30,9 @@
  * parent - fixed parent.  No clk_set_parent support
  */
 
-struct clk_factors {
-	struct clk_hw hw;
-	void __iomem *reg;
-	struct clk_factors_config *config;
-	void (*get_factors) (u32 *rate, u32 parent, u8 *n, u8 *k, u8 *m, u8 *p);
-	spinlock_t *lock;
-};
-
 #define to_clk_factors(_hw) container_of(_hw, struct clk_factors, hw)
 
-#define SETMASK(len, pos)		(((-1U) >> (31-len))  << (pos))
+#define SETMASK(len, pos)		(((1U << (len)) - 1) << (pos))
 #define CLRMASK(len, pos)		(~(SETMASK(len, pos)))
 #define FACTOR_GET(bit, len, reg)	(((reg) & SETMASK(len, bit)) >> (bit))
 
@@ -88,7 +80,7 @@ static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
 static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long parent_rate)
 {
-	u8 n, k, m, p;
+	u8 n = 0, k = 0, m = 0, p = 0;
 	u32 reg;
 	struct clk_factors *factors = to_clk_factors(hw);
 	struct clk_factors_config *config = factors->config;
@@ -120,61 +112,8 @@ static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static const struct clk_ops clk_factors_ops = {
+const struct clk_ops clk_factors_ops = {
 	.recalc_rate = clk_factors_recalc_rate,
 	.round_rate = clk_factors_round_rate,
 	.set_rate = clk_factors_set_rate,
 };
-
-/**
- * clk_register_factors - register a factors clock with
- * the clock framework
- * @dev: device registering this clock
- * @name: name of this clock
- * @parent_name: name of clock's parent
- * @flags: framework-specific flags
- * @reg: register address to adjust factors
- * @config: shift and width of factors n, k, m and p
- * @get_factors: function to calculate the factors for a given frequency
- * @lock: shared register lock for this clock
- */
-struct clk *clk_register_factors(struct device *dev, const char *name,
-				 const char *parent_name,
-				 unsigned long flags, void __iomem *reg,
-				 struct clk_factors_config *config,
-				 void (*get_factors)(u32 *rate, u32 parent,
-						     u8 *n, u8 *k, u8 *m, u8 *p),
-				 spinlock_t *lock)
-{
-	struct clk_factors *factors;
-	struct clk *clk;
-	struct clk_init_data init;
-
-	/* allocate the factors */
-	factors = kzalloc(sizeof(struct clk_factors), GFP_KERNEL);
-	if (!factors) {
-		pr_err("%s: could not allocate factors clk\n", __func__);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	init.name = name;
-	init.ops = &clk_factors_ops;
-	init.flags = flags;
-	init.parent_names = (parent_name ? &parent_name : NULL);
-	init.num_parents = (parent_name ? 1 : 0);
-
-	/* struct clk_factors assignments */
-	factors->reg = reg;
-	factors->config = config;
-	factors->lock = lock;
-	factors->hw.init = &init;
-	factors->get_factors = get_factors;
-
-	/* register the clock */
-	clk = clk_register(dev, &factors->hw);
-
-	if (IS_ERR(clk))
-		kfree(factors);
-
-	return clk;
-}

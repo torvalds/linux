@@ -255,7 +255,8 @@ Writing a PHY driver
 
    config_init: configures PHY into a sane state after a reset.
      For instance, a Davicom PHY requires descrambling disabled.
-   probe: Does any setup needed by the driver
+   probe: Allocate phy->priv, optionally refuse to bind.
+   PHY may not have been reset or had fixups run yet.
    suspend/resume: power management
    config_aneg: Changes the speed/duplex/negotiation settings
    read_status: Reads the current speed/duplex/negotiation settings

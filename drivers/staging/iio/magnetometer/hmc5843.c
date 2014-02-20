@@ -451,7 +451,12 @@ done:
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
 			BIT(IIO_CHAN_INFO_SAMP_FREQ),			\
 		.scan_index = idx,					\
-		.scan_type = IIO_ST('s', 16, 16, IIO_BE),		\
+		.scan_type = {						\
+			.sign = 's',					\
+			.realbits = 16,					\
+			.storagebits = 16,				\
+			.endianness = IIO_BE,				\
+		},							\
 	}
 
 static const struct iio_chan_spec hmc5843_channels[] = {
@@ -624,10 +629,17 @@ static const struct i2c_device_id hmc5843_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hmc5843_id);
 
+static const struct of_device_id hmc5843_of_match[] = {
+	{ .compatible = "honeywell,hmc5843" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, hmc5843_of_match);
+
 static struct i2c_driver hmc5843_driver = {
 	.driver = {
 		.name	= "hmc5843",
 		.pm	= HMC5843_PM_OPS,
+		.of_match_table = hmc5843_of_match,
 	},
 	.id_table	= hmc5843_id,
 	.probe		= hmc5843_probe,

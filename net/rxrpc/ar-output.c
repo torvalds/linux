@@ -152,8 +152,8 @@ int rxrpc_client_sendmsg(struct kiocb *iocb, struct rxrpc_sock *rx,
 	if (trans) {
 		service_id = rx->service_id;
 		if (msg->msg_name) {
-			struct sockaddr_rxrpc *srx =
-				(struct sockaddr_rxrpc *) msg->msg_name;
+			DECLARE_SOCKADDR(struct sockaddr_rxrpc *, srx,
+					 msg->msg_name);
 			service_id = htons(srx->srx_service);
 		}
 		key = rx->key;

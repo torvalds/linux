@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2014 B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll <martin@hundeboll.net>
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -355,7 +353,7 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 		batadv_add_counter(bat_priv, BATADV_CNT_FRAG_FWD_BYTES,
 				   skb->len + ETH_HLEN);
 
-		packet->header.ttl--;
+		packet->ttl--;
 		batadv_send_skb_packet(skb, neigh_node->if_incoming,
 				       neigh_node->addr);
 		ret = true;
@@ -444,9 +442,9 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 		goto out_err;
 
 	/* Create one header to be copied to all fragments */
-	frag_header.header.packet_type = BATADV_UNICAST_FRAG;
-	frag_header.header.version = BATADV_COMPAT_VERSION;
-	frag_header.header.ttl = BATADV_TTL;
+	frag_header.packet_type = BATADV_UNICAST_FRAG;
+	frag_header.version = BATADV_COMPAT_VERSION;
+	frag_header.ttl = BATADV_TTL;
 	frag_header.seqno = htons(atomic_inc_return(&bat_priv->frag_seqno));
 	frag_header.reserved = 0;
 	frag_header.no = 0;

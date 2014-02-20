@@ -29,7 +29,6 @@ struct spear_dma_data {
 	dma_addr_t addr;
 	u32 max_burst;
 	enum dma_slave_buswidth addr_width;
-	bool (*filter)(struct dma_chan *chan, void *slave);
 };
 
 #endif /* SPEAR_DMA_H */

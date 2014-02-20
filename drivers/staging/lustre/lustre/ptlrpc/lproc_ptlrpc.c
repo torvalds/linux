@@ -46,8 +46,8 @@
 
 
 struct ll_rpc_opcode {
-     __u32       opcode;
-     const char *opname;
+	__u32       opcode;
+	const char *opname;
 } ll_rpc_opcode_table[LUSTRE_MAX_OPCODES] = {
 	{ OST_REPLY,	"ost_reply" },
 	{ OST_GETATTR,      "ost_getattr" },
@@ -114,10 +114,10 @@ struct ll_rpc_opcode {
 	{ MGS_SET_INFO,     "mgs_set_info" },
 	{ MGS_CONFIG_READ,  "mgs_config_read" },
 	{ OBD_PING,	 "obd_ping" },
-	{ OBD_LOG_CANCEL,   "llog_origin_handle_cancel" },
+	{ OBD_LOG_CANCEL,	"llog_cancel" },
 	{ OBD_QC_CALLBACK,  "obd_quota_callback" },
 	{ OBD_IDX_READ,	    "dt_index_read" },
-	{ LLOG_ORIGIN_HANDLE_CREATE,     "llog_origin_handle_create" },
+	{ LLOG_ORIGIN_HANDLE_CREATE,	 "llog_origin_handle_open" },
 	{ LLOG_ORIGIN_HANDLE_NEXT_BLOCK, "llog_origin_handle_next_block" },
 	{ LLOG_ORIGIN_HANDLE_READ_HEADER,"llog_origin_handle_read_header" },
 	{ LLOG_ORIGIN_HANDLE_WRITE_REC,  "llog_origin_handle_write_rec" },
@@ -137,8 +137,8 @@ struct ll_rpc_opcode {
 };
 
 struct ll_eopcode {
-     __u32       opcode;
-     const char *opname;
+	__u32       opcode;
+	const char *opname;
 } ll_eopcode_table[EXTRA_LAST_OPC] = {
 	{ LDLM_GLIMPSE_ENQUEUE, "ldlm_glimpse_enqueue" },
 	{ LDLM_PLAIN_ENQUEUE,   "ldlm_plain_enqueue" },
@@ -221,7 +221,7 @@ void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 	for (i = 0; i < EXTRA_LAST_OPC; i++) {
 		char *units;
 
-		switch(i) {
+		switch (i) {
 		case BRW_WRITE_BYTES:
 		case BRW_READ_BYTES:
 			units = "bytes";

@@ -49,6 +49,7 @@ static __u8 *holtek_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			}
 			break;
 		case USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A04A:
+		case USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A070:
 		case USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A081:
 			if (*rsize >= 113 && rdesc[106] == 0xff && rdesc[107] == 0x7f
 					&& rdesc[111] == 0xff && rdesc[112] == 0x7f) {
@@ -65,6 +66,8 @@ static __u8 *holtek_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 static const struct hid_device_id holtek_mouse_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK_ALT,
 			USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A067) },
+        { HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK_ALT,
+			USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A070) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK_ALT,
 			USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A04A) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK_ALT,

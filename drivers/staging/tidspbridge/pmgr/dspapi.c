@@ -162,7 +162,7 @@ static u8 size_cmd[] = {
 	ARRAY_SIZE(cmm_cmd),
 };
 
-static inline void _cp_fm_usr(void *to, const void __user * from,
+static inline void _cp_fm_usr(void *to, const void __user *from,
 			      int *err, unsigned long bytes)
 {
 	if (*err)
@@ -507,7 +507,7 @@ u32 mgrwrap_wait_for_bridge_events(union trapped_args *args, void *pr_ctxt)
 /*
  * ======== MGRWRAP_GetProcessResourceInfo ========
  */
-u32 __deprecated mgrwrap_get_process_resources_info(union trapped_args * args,
+u32 __deprecated mgrwrap_get_process_resources_info(union trapped_args *args,
 						    void *pr_ctxt)
 {
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);
@@ -581,7 +581,7 @@ func_end:
 /*
  * ======== procwrap_detach ========
  */
-u32 __deprecated procwrap_detach(union trapped_args * args, void *pr_ctxt)
+u32 __deprecated procwrap_detach(union trapped_args *args, void *pr_ctxt)
 {
 	/* proc_detach called at bridge_release only */
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);
@@ -1564,7 +1564,7 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 /*
  * ======== strmwrap_get_event_handle ========
  */
-u32 __deprecated strmwrap_get_event_handle(union trapped_args * args,
+u32 __deprecated strmwrap_get_event_handle(union trapped_args *args,
 					   void *pr_ctxt)
 {
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);
@@ -1793,7 +1793,7 @@ u32 strmwrap_select(union trapped_args *args, void *pr_ctxt)
 /*
  * ======== cmmwrap_calloc_buf ========
  */
-u32 __deprecated cmmwrap_calloc_buf(union trapped_args * args, void *pr_ctxt)
+u32 __deprecated cmmwrap_calloc_buf(union trapped_args *args, void *pr_ctxt)
 {
 	/* This operation is done in kernel */
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);
@@ -1803,7 +1803,7 @@ u32 __deprecated cmmwrap_calloc_buf(union trapped_args * args, void *pr_ctxt)
 /*
  * ======== cmmwrap_free_buf ========
  */
-u32 __deprecated cmmwrap_free_buf(union trapped_args * args, void *pr_ctxt)
+u32 __deprecated cmmwrap_free_buf(union trapped_args *args, void *pr_ctxt)
 {
 	/* This operation is done in kernel */
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);

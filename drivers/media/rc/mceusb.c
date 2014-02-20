@@ -199,6 +199,7 @@ static bool debug;
 #define VENDOR_TIVO		0x105a
 #define VENDOR_CONEXANT		0x0572
 #define VENDOR_TWISTEDMELON	0x2596
+#define VENDOR_HAUPPAUGE	0x2040
 
 enum mceusb_model_type {
 	MCE_GEN2 = 0,		/* Most boards */
@@ -210,6 +211,7 @@ enum mceusb_model_type {
 	MULTIFUNCTION,
 	TIVO_KIT,
 	MCE_GEN2_NO_TX,
+	HAUPPAUGE_CX_HYBRID_TV,
 };
 
 struct mceusb_model {
@@ -257,6 +259,11 @@ static const struct mceusb_model mceusb_model[] = {
 	[CX_HYBRID_TV] = {
 		.no_tx = 1, /* tx isn't wired up at all */
 		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
+	},
+	[HAUPPAUGE_CX_HYBRID_TV] = {
+		.rc_map = RC_MAP_HAUPPAUGE,
+		.no_tx = 1, /* eeprom says it has no tx */
+		.name = "Conexant Hybrid TV (cx231xx) MCE IR no TX",
 	},
 	[MULTIFUNCTION] = {
 		.mce_gen2 = 1,
@@ -399,6 +406,9 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_TWISTEDMELON, 0x8016) },
 	/* Twisted Melon Inc. - Manta Transceiver */
 	{ USB_DEVICE(VENDOR_TWISTEDMELON, 0x8042) },
+	/* Hauppauge WINTV-HVR-HVR 930C-HD - based on cx231xx */
+	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb130),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
 	/* Terminating entry */
 	{ }
 };

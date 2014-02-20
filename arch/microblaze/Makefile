@@ -1,3 +1,5 @@
+KBUILD_DEFCONFIG := mmu_defconfig
+
 ifeq ($(CONFIG_MMU),y)
 UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
 else

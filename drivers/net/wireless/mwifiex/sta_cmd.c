@@ -354,7 +354,7 @@ mwifiex_cmd_802_11_hs_cfg(struct mwifiex_private *priv,
 	}
 	if (hs_activate) {
 		hs_cfg->action = cpu_to_le16(HS_ACTIVATE);
-		hs_cfg->params.hs_activate.resp_ctrl = RESP_NEEDED;
+		hs_cfg->params.hs_activate.resp_ctrl = cpu_to_le16(RESP_NEEDED);
 	} else {
 		hs_cfg->action = cpu_to_le16(HS_CONFIGURE);
 		hs_cfg->params.hs_config.conditions = hscfg_param->conditions;
@@ -1156,30 +1156,62 @@ static u32 mwifiex_parse_cal_cfg(u8 *src, size_t len, u8 *dst)
 	return d - dst;
 }
 
+int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
+			    struct device_node *node, const char *prefix)
+{
+#ifdef CONFIG_OF
+	struct property *prop;
+	size_t len = strlen(prefix);
+	int ret;
+
+	/* look for all matching property names */
+	for_each_property_of_node(node, prop) {
+		if (len > strlen(prop->name) ||
+		    strncmp(prop->name, prefix, len))
+			continue;
+
+		/* property header is 6 bytes, data must fit in cmd buffer */
+		if (prop && prop->value && prop->length > 6 &&
+		    prop->length <= MWIFIEX_SIZE_OF_CMD_BUFFER - S_DS_GEN) {
+			ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_CFG_DATA,
+						    HostCmd_ACT_GEN_SET, 0,
+						    prop);
+			if (ret)
+				return ret;
+		}
+	}
+#endif
+	return 0;
+}
+
 /* This function prepares command of set_cfg_data. */
 static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
-				struct host_cmd_ds_command *cmd,
-				u16 cmd_action)
+				struct host_cmd_ds_command *cmd, void *data_buf)
 {
-	struct host_cmd_ds_802_11_cfg_data *cfg_data = &cmd->params.cfg_data;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	u32 len, cal_data_offset;
-	u8 *tmp_cmd = (u8 *)cmd;
+	struct property *prop = data_buf;
+	u32 len;
+	u8 *data = (u8 *)cmd + S_DS_GEN;
+	int ret;
 
-	cal_data_offset = S_DS_GEN + sizeof(*cfg_data);
-	if ((adapter->cal_data->data) && (adapter->cal_data->size > 0))
+	if (prop) {
+		len = prop->length;
+		ret = of_property_read_u8_array(adapter->dt_node, prop->name,
+						data, len);
+		if (ret)
+			return ret;
+		dev_dbg(adapter->dev,
+			"download cfg_data from device tree: %s\n", prop->name);
+	} else if (adapter->cal_data->data && adapter->cal_data->size > 0) {
 		len = mwifiex_parse_cal_cfg((u8 *)adapter->cal_data->data,
-					    adapter->cal_data->size,
-					    (u8 *)(tmp_cmd + cal_data_offset));
-	else
+					    adapter->cal_data->size, data);
+		dev_dbg(adapter->dev, "download cfg_data from config file\n");
+	} else {
 		return -1;
-
-	cfg_data->action = cpu_to_le16(cmd_action);
-	cfg_data->type = cpu_to_le16(CFG_DATA_TYPE_CAL);
-	cfg_data->data_len = cpu_to_le16(len);
+	}
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_CFG_DATA);
-	cmd->size = cpu_to_le16(S_DS_GEN + sizeof(*cfg_data) + len);
+	cmd->size = cpu_to_le16(S_DS_GEN + len);
 
 	return 0;
 }
@@ -1267,7 +1299,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_get_hw_spec(priv, cmd_ptr);
 		break;
 	case HostCmd_CMD_CFG_DATA:
-		ret = mwifiex_cmd_cfg_data(priv, cmd_ptr, cmd_action);
+		ret = mwifiex_cmd_cfg_data(priv, cmd_ptr, data_buf);
 		break;
 	case HostCmd_CMD_MAC_CONTROL:
 		ret = mwifiex_cmd_mac_control(priv, cmd_ptr, cmd_action,
@@ -1527,7 +1559,19 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 		if (ret)
 			return -1;
 
-		/* Download calibration data to firmware */
+		/* Download calibration data to firmware.
+		 * The cal-data can be read from device tree and/or
+		 * a configuration file and downloaded to firmware.
+		 */
+		adapter->dt_node =
+				of_find_node_by_name(NULL, "marvell_cfgdata");
+		if (adapter->dt_node) {
+			ret = mwifiex_dnld_dt_cfgdata(priv, adapter->dt_node,
+						      "marvell,caldata");
+			if (ret)
+				return -1;
+		}
+
 		if (adapter->cal_data) {
 			ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_CFG_DATA,
 						HostCmd_ACT_GEN_SET, 0, NULL);

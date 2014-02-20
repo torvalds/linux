@@ -478,7 +478,6 @@ typedef struct lnet_peer {
 	lnet_rc_data_t		*lp_rcd;	/* router checker state */
 } lnet_peer_t;
 
-
 /* peer hash size */
 #define LNET_PEER_HASH_BITS     9
 #define LNET_PEER_HASH_SIZE     (1 << LNET_PEER_HASH_BITS)
@@ -504,6 +503,7 @@ typedef struct {
 	int			lr_seq;		/* sequence for round-robin */
 	unsigned int		lr_downis;	/* number of down NIs */
 	unsigned int		lr_hops;	/* how far I am */
+	unsigned int            lr_priority;    /* route priority */
 } lnet_route_t;
 
 #define LNET_REMOTE_NETS_HASH_DEFAULT	(1U << 7)

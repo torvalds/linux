@@ -40,6 +40,7 @@
 #include <asm/uaccess.h>
 
 #include "uverbs.h"
+#include "core_priv.h"
 
 struct uverbs_lock_class {
 	struct lock_class_key	key;
@@ -1961,6 +1962,9 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	attr->alt_ah_attr.port_num 	    = cmd.alt_dest.port_num;
 
 	if (qp->real_qp == qp) {
+		ret = ib_resolve_eth_l2_attrs(qp, attr, &cmd.attr_mask);
+		if (ret)
+			goto out;
 		ret = qp->device->modify_qp(qp, attr,
 			modify_qp_mask(qp->qp_type, cmd.attr_mask), &udata);
 	} else {
@@ -2593,6 +2597,9 @@ out_put:
 static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 				union ib_flow_spec *ib_spec)
 {
+	if (kern_spec->reserved)
+		return -EINVAL;
+
 	ib_spec->type = kern_spec->type;
 
 	switch (ib_spec->type) {
@@ -2646,6 +2653,9 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	void *ib_spec;
 	int i;
 
+	if (ucore->inlen < sizeof(cmd))
+		return -EINVAL;
+
 	if (ucore->outlen < sizeof(resp))
 		return -ENOSPC;
 
@@ -2669,6 +2679,10 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	if (cmd.flow_attr.size > ucore->inlen ||
 	    cmd.flow_attr.size >
 	    (cmd.flow_attr.num_of_specs * sizeof(struct ib_uverbs_flow_spec)))
+		return -EINVAL;
+
+	if (cmd.flow_attr.reserved[0] ||
+	    cmd.flow_attr.reserved[1])
 		return -EINVAL;
 
 	if (cmd.flow_attr.num_of_specs) {
@@ -2731,6 +2745,7 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	if (cmd.flow_attr.size || (i != flow_attr->num_of_specs)) {
 		pr_warn("create flow failed, flow %d: %d bytes left from uverb cmd\n",
 			i, cmd.flow_attr.size);
+		err = -EINVAL;
 		goto err_free;
 	}
 	flow_id = ib_create_flow(qp, flow_attr, IB_FLOW_DOMAIN_USER);
@@ -2791,9 +2806,15 @@ int ib_uverbs_ex_destroy_flow(struct ib_uverbs_file *file,
 	struct ib_uobject		*uobj;
 	int				ret;
 
+	if (ucore->inlen < sizeof(cmd))
+		return -EINVAL;
+
 	ret = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
 	if (ret)
 		return ret;
+
+	if (cmd.comp_mask)
+		return -EINVAL;
 
 	uobj = idr_write_uobj(&ib_uverbs_rule_idr, cmd.flow_handle,
 			      file->ucontext);

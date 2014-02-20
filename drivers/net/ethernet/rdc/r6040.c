@@ -34,7 +34,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
@@ -222,6 +221,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 		cmd = ioread16(ioaddr + MMDIO);
 		if (!(cmd & MDIO_READ))
 			break;
+		udelay(1);
 	}
 
 	if (limit < 0)
@@ -245,6 +245,7 @@ static int r6040_phy_write(void __iomem *ioaddr,
 		cmd = ioread16(ioaddr + MMDIO);
 		if (!(cmd & MDIO_WRITE))
 			break;
+		udelay(1);
 	}
 
 	return (limit < 0) ? -ETIMEDOUT : 0;
@@ -834,8 +835,8 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	/* Set TX descriptor & Transmit it */
 	lp->tx_free_desc--;
 	descptr = lp->tx_insert_ptr;
-	if (skb->len < MISR)
-		descptr->len = MISR;
+	if (skb->len < ETH_ZLEN)
+		descptr->len = ETH_ZLEN;
 	else
 		descptr->len = skb->len;
 

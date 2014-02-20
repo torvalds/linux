@@ -65,13 +65,19 @@
 
 #define SSBI_TIMEOUT_US			100
 
+enum ssbi_controller_type {
+	MSM_SBI_CTRL_SSBI = 0,
+	MSM_SBI_CTRL_SSBI2,
+	MSM_SBI_CTRL_PMIC_ARBITER,
+};
+
 struct ssbi {
 	struct device		*slave;
 	void __iomem		*base;
 	spinlock_t		lock;
 	enum ssbi_controller_type controller_type;
 	int (*read)(struct ssbi *, u16 addr, u8 *buf, int len);
-	int (*write)(struct ssbi *, u16 addr, u8 *buf, int len);
+	int (*write)(struct ssbi *, u16 addr, const u8 *buf, int len);
 };
 
 #define to_ssbi(dev)	platform_get_drvdata(to_platform_device(dev))
@@ -140,7 +146,7 @@ err:
 }
 
 static int
-ssbi_write_bytes(struct ssbi *ssbi, u16 addr, u8 *buf, int len)
+ssbi_write_bytes(struct ssbi *ssbi, u16 addr, const u8 *buf, int len)
 {
 	int ret = 0;
 
@@ -217,7 +223,7 @@ err:
 }
 
 static int
-ssbi_pa_write_bytes(struct ssbi *ssbi, u16 addr, u8 *buf, int len)
+ssbi_pa_write_bytes(struct ssbi *ssbi, u16 addr, const u8 *buf, int len)
 {
 	u32 cmd;
 	int ret = 0;
@@ -249,7 +255,7 @@ int ssbi_read(struct device *dev, u16 addr, u8 *buf, int len)
 }
 EXPORT_SYMBOL_GPL(ssbi_read);
 
-int ssbi_write(struct device *dev, u16 addr, u8 *buf, int len)
+int ssbi_write(struct device *dev, u16 addr, const u8 *buf, int len)
 {
 	struct ssbi *ssbi = to_ssbi(dev);
 	unsigned long flags;
@@ -311,7 +317,7 @@ static int ssbi_probe(struct platform_device *pdev)
 	return of_platform_populate(np, NULL, NULL, &pdev->dev);
 }
 
-static struct of_device_id ssbi_match_table[] = {
+static const struct of_device_id ssbi_match_table[] = {
 	{ .compatible = "qcom,ssbi" },
 	{}
 };

@@ -21,9 +21,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -44,9 +43,9 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal helpers.  */
-static struct sctp_ulpevent * sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
+static struct sctp_ulpevent *sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
 					      struct sctp_ulpevent *);
-static struct sctp_ulpevent * sctp_ulpq_order(struct sctp_ulpq *,
+static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *,
 					      struct sctp_ulpevent *);
 static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq);
 
@@ -108,7 +107,7 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	event = sctp_ulpq_reasm(ulpq, event);
 
 	/* Do ordering if needed.  */
-	if ((event) && (event->msg_flags & MSG_EOR)){
+	if ((event) && (event->msg_flags & MSG_EOR)) {
 		/* Create a temporary list to collect chunks on.  */
 		skb_queue_head_init(&temp);
 		__skb_queue_tail(&temp, sctp_event2skb(event));
@@ -337,7 +336,8 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct net *net,
 		pos = f_frag->next;
 
 	/* Get the last skb in the f_frag's frag_list if present. */
-	for (last = list; list; last = list, list = list->next);
+	for (last = list; list; last = list, list = list->next)
+		;
 
 	/* Add the list of remaining fragments to the first fragments
 	 * frag_list.
@@ -727,7 +727,7 @@ static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
 
 	while ((event = sctp_ulpq_retrieve_reassembled(ulpq)) != NULL) {
 		/* Do ordering if needed.  */
-		if ((event) && (event->msg_flags & MSG_EOR)){
+		if ((event) && (event->msg_flags & MSG_EOR)) {
 			skb_queue_head_init(&temp);
 			__skb_queue_tail(&temp, sctp_event2skb(event));
 

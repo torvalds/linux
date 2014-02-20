@@ -23,6 +23,7 @@
  */
 
 #include <linux/threads.h>
+#include <linux/init.h>
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -80,6 +81,7 @@ END_FTR_SECTION(0, 1)
 	 * of the function that the cpu should jump to to continue
 	 * initialization.
 	 */
+	.balign 8
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
 	.llong	0x0
@@ -470,6 +472,7 @@ _STATIC(__after_prom_start)
 	mtctr	r8
 	bctr
 
+.balign 8
 p_end:	.llong	_end - _stext
 
 4:	/* Now copy the rest of the kernel up to _end */

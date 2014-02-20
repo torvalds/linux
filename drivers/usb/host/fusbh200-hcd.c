@@ -57,12 +57,7 @@
 
 static const char	hcd_name [] = "fusbh200_hcd";
 
-#undef VERBOSE_DEBUG
 #undef FUSBH200_URB_TRACE
-
-#ifdef DEBUG
-#define FUSBH200_STATS
-#endif
 
 /* magic numbers that can affect system performance */
 #define	FUSBH200_TUNE_CERR		3	/* 0-3 qtd retries; 0 == don't stop */
@@ -108,14 +103,6 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 #define fusbh200_warn(fusbh200, fmt, args...) \
 	dev_warn (fusbh200_to_hcd(fusbh200)->self.controller , fmt , ## args )
 
-#ifdef VERBOSE_DEBUG
-#	define fusbh200_vdbg fusbh200_dbg
-#else
-	static inline void fusbh200_vdbg(struct fusbh200_hcd *fusbh200, ...) {}
-#endif
-
-#ifdef	DEBUG
-
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
  * see EHCI spec, Table 2-4 for each value
@@ -130,13 +117,6 @@ static void dbg_hcs_params (struct fusbh200_hcd *fusbh200, char *label)
 		HCS_N_PORTS (params)
 		);
 }
-#else
-
-static inline void dbg_hcs_params (struct fusbh200_hcd *fusbh200, char *label) {}
-
-#endif
-
-#ifdef	DEBUG
 
 /* check the values in the HCCPARAMS register
  * (host controller _Capability_ parameters)
@@ -153,13 +133,6 @@ static void dbg_hcc_params (struct fusbh200_hcd *fusbh200, char *label)
 		HCC_PGM_FRAMELISTLEN(params) ? "256/512/1024" : "1024",
 		HCC_CANPARK(params) ? " park" : "");
 }
-#else
-
-static inline void dbg_hcc_params (struct fusbh200_hcd *fusbh200, char *label) {}
-
-#endif
-
-#ifdef	DEBUG
 
 static void __maybe_unused
 dbg_qtd (const char *label, struct fusbh200_hcd *fusbh200, struct fusbh200_qtd *qtd)
@@ -302,29 +275,6 @@ dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 		(status & PORT_CONNECT) ? " CONNECT" : "");
 }
 
-#else
-static inline void __maybe_unused
-dbg_qh (char *label, struct fusbh200_hcd *fusbh200, struct fusbh200_qh *qh)
-{}
-
-static inline int __maybe_unused
-dbg_status_buf (char *buf, unsigned len, const char *label, u32 status)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_command_buf (char *buf, unsigned len, const char *label, u32 command)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_intr_buf (char *buf, unsigned len, const char *label, u32 enable)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
-{ return 0; }
-
-#endif	/* DEBUG */
-
 /* functions have the "wrong" filename when they're output... */
 #define dbg_status(fusbh200, label, status) { \
 	char _buf [80]; \
@@ -345,13 +295,6 @@ dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 }
 
 /*-------------------------------------------------------------------------*/
-
-#ifdef STUB_DEBUG_FILES
-
-static inline void create_debug_files (struct fusbh200_hcd *bus) { }
-static inline void remove_debug_files (struct fusbh200_hcd *bus) { }
-
-#else
 
 /* troubleshooting help: expose state in debugfs */
 
@@ -775,7 +718,6 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		next += temp;
 	}
 
-#ifdef FUSBH200_STATS
 	temp = scnprintf (next, size,
 		"irq normal %ld err %ld iaa %ld (lost %ld)\n",
 		fusbh200->stats.normal, fusbh200->stats.error, fusbh200->stats.iaa,
@@ -787,7 +729,6 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		fusbh200->stats.complete, fusbh200->stats.unlink);
 	size -= temp;
 	next += temp;
-#endif
 
 done:
 	spin_unlock_irqrestore (&fusbh200->lock, flags);
@@ -928,7 +869,6 @@ static inline void remove_debug_files (struct fusbh200_hcd *fusbh200)
 	debugfs_remove_recursive(fusbh200->debug_dir);
 }
 
-#endif /* STUB_DEBUG_FILES */
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -1362,7 +1302,7 @@ static void fusbh200_iaa_watchdog(struct fusbh200_hcd *fusbh200)
 			fusbh200_writel(fusbh200, STS_IAA, &fusbh200->regs->status);
 		}
 
-		fusbh200_vdbg(fusbh200, "IAA watchdog: status %x cmd %x\n",
+		fusbh200_dbg(fusbh200, "IAA watchdog: status %x cmd %x\n",
 				status, cmd);
 		end_unlink_async(fusbh200);
 	}
@@ -1769,10 +1709,8 @@ static int fusbh200_hub_control (
 		if (test_bit(wIndex, &fusbh200->port_c_suspend))
 			status |= USB_PORT_STAT_C_SUSPEND << 16;
 
-#ifndef	VERBOSE_DEBUG
-	if (status & ~0xffff)	/* only if wPortChange is interesting */
-#endif
-		dbg_port (fusbh200, "GetStatus", wIndex + 1, temp);
+		if (status & ~0xffff)	/* only if wPortChange is interesting */
+			dbg_port(fusbh200, "GetStatus", wIndex + 1, temp);
 		put_unaligned_le32(status, buf);
 		break;
 	case SetHubFeature:
@@ -1814,7 +1752,7 @@ static int fusbh200_hub_control (
 			 * which can be fine if this root hub has a
 			 * transaction translator built in.
 			 */
-			fusbh200_vdbg (fusbh200, "port %d reset\n", wIndex + 1);
+			fusbh200_dbg(fusbh200, "port %d reset\n", wIndex + 1);
 			temp |= PORT_RESET;
 			temp &= ~PORT_PE;
 
@@ -2230,13 +2168,13 @@ static void fusbh200_clear_tt_buffer(struct fusbh200_hcd *fusbh200, struct fusbh
 	 * Note: this routine is never called for Isochronous transfers.
 	 */
 	if (urb->dev->tt && !usb_pipeint(urb->pipe) && !qh->clearing_tt) {
-#ifdef DEBUG
 		struct usb_device *tt = urb->dev->tt->hub;
+
 		dev_dbg(&tt->dev,
 			"clear tt buffer port %d, a%d ep%d t%08x\n",
 			urb->dev->ttport, urb->dev->devnum,
 			usb_pipeendpoint(urb->pipe), token);
-#endif /* DEBUG */
+
 		if (urb->dev->tt->hub !=
 		    fusbh200_to_hcd(fusbh200)->self.root_hub) {
 			if (usb_hub_clear_tt_buffer(urb) == 0)
@@ -2297,7 +2235,7 @@ static int qtd_copy_status (
 			status = -EPROTO;
 		}
 
-		fusbh200_vdbg (fusbh200,
+		fusbh200_dbg(fusbh200,
 			"dev%d ep%d%s qtd token %08x --> status %d\n",
 			usb_pipedevice (urb->pipe),
 			usb_pipeendpoint (urb->pipe),
@@ -3529,11 +3467,9 @@ periodic_usecs (struct fusbh200_hcd *fusbh200, unsigned frame, unsigned uframe)
 			break;
 		}
 	}
-#ifdef	DEBUG
 	if (usecs > fusbh200->uframe_periodic_max)
 		fusbh200_err (fusbh200, "uframe %d sched overrun: %d usecs\n",
 			frame * 8 + uframe, usecs);
-#endif
 	return usecs;
 }
 
@@ -4586,7 +4522,7 @@ static void itd_link_urb(
 	if (unlikely (list_empty(&stream->td_list))) {
 		fusbh200_to_hcd(fusbh200)->self.bandwidth_allocated
 				+= stream->bandwidth;
-		fusbh200_vdbg (fusbh200,
+		fusbh200_dbg(fusbh200,
 			"schedule devp %s ep%d%s-iso period %d start %d.%d\n",
 			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
@@ -4717,7 +4653,7 @@ static bool itd_complete(struct fusbh200_hcd *fusbh200, struct fusbh200_itd *itd
 	if (unlikely(list_is_singular(&stream->td_list))) {
 		fusbh200_to_hcd(fusbh200)->self.bandwidth_allocated
 				-= stream->bandwidth;
-		fusbh200_vdbg (fusbh200,
+		fusbh200_dbg(fusbh200,
 			"deschedule devp %s ep%d%s-iso\n",
 			dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
@@ -5115,13 +5051,11 @@ static void fusbh200_stop (struct usb_hcd *hcd)
 	spin_unlock_irq (&fusbh200->lock);
 	fusbh200_mem_cleanup (fusbh200);
 
-#ifdef	FUSBH200_STATS
 	fusbh200_dbg(fusbh200, "irq normal %ld err %ld iaa %ld (lost %ld)\n",
 		fusbh200->stats.normal, fusbh200->stats.error, fusbh200->stats.iaa,
 		fusbh200->stats.lost_iaa);
 	fusbh200_dbg (fusbh200, "complete %ld unlink %ld\n",
 		fusbh200->stats.complete, fusbh200->stats.unlink);
-#endif
 
 	dbg_status (fusbh200, "fusbh200_stop completed",
 		    fusbh200_readl(fusbh200, &fusbh200->regs->status));
@@ -5364,13 +5298,6 @@ static irqreturn_t fusbh200_irq (struct usb_hcd *hcd)
 	fusbh200_writel(fusbh200, masked_status, &fusbh200->regs->status);
 	cmd = fusbh200_readl(fusbh200, &fusbh200->regs->command);
 	bh = 0;
-
-#ifdef	VERBOSE_DEBUG
-	/* unrequested/ignored: Frame List Rollover */
-	dbg_status (fusbh200, "irq", status);
-#endif
-
-	/* INT, ERR, and IAA interrupt rates can be throttled */
 
 	/* normal [4.15.1.2] or error [4.15.1.1] completion */
 	if (likely ((status & (STS_INT|STS_ERR)) != 0)) {
@@ -5871,6 +5798,7 @@ static int fusbh200_hcd_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to add hcd with err %d\n", retval);
 		goto fail_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return retval;
 
@@ -5936,13 +5864,11 @@ static int __init fusbh200_hcd_init(void)
 		 sizeof(struct fusbh200_qh), sizeof(struct fusbh200_qtd),
 		 sizeof(struct fusbh200_itd));
 
-#ifdef DEBUG
 	fusbh200_debug_root = debugfs_create_dir("fusbh200", usb_debug_root);
 	if (!fusbh200_debug_root) {
 		retval = -ENOENT;
 		goto err_debug;
 	}
-#endif
 
 	retval = platform_driver_register(&fusbh200_hcd_fusbh200_driver);
 	if (retval < 0)
@@ -5951,11 +5877,9 @@ static int __init fusbh200_hcd_init(void)
 
 	platform_driver_unregister(&fusbh200_hcd_fusbh200_driver);
 clean:
-#ifdef DEBUG
 	debugfs_remove(fusbh200_debug_root);
 	fusbh200_debug_root = NULL;
 err_debug:
-#endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
@@ -5964,9 +5888,7 @@ module_init(fusbh200_hcd_init);
 static void __exit fusbh200_hcd_cleanup(void)
 {
 	platform_driver_unregister(&fusbh200_hcd_fusbh200_driver);
-#ifdef DEBUG
 	debugfs_remove(fusbh200_debug_root);
-#endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(fusbh200_hcd_cleanup);

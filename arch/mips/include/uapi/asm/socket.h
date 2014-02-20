@@ -96,4 +96,6 @@
 
 #define SO_MAX_PACING_RATE	47
 
+#define SO_BPF_EXTENSIONS	48
+
 #endif /* _UAPI_ASM_SOCKET_H */

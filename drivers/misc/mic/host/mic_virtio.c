@@ -156,7 +156,8 @@ static int mic_vringh_copy(struct mic_vdev *mvdev, struct vringh_kiov *iov,
 static int _mic_virtio_copy(struct mic_vdev *mvdev,
 	struct mic_copy_desc *copy)
 {
-	int ret = 0, iovcnt = copy->iovcnt;
+	int ret = 0;
+	u32 iovcnt = copy->iovcnt;
 	struct iovec iov;
 	struct iovec __user *u_iov = copy->iov;
 	void __user *ubuf = NULL;
@@ -369,7 +370,7 @@ static irqreturn_t mic_virtio_intr_handler(int irq, void *data)
 	struct mic_vdev *mvdev = data;
 	struct mic_device *mdev = mvdev->mdev;
 
-	mdev->ops->ack_interrupt(mdev);
+	mdev->ops->intr_workarounds(mdev);
 	schedule_work(&mvdev->virtio_bh_work);
 	return IRQ_HANDLED;
 }

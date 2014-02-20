@@ -94,12 +94,14 @@ struct efx_mcdi_mtd_partition {
  * struct efx_mcdi_data - extra state for NICs that implement MCDI
  * @iface: Interface/protocol state
  * @hwmon: Hardware monitor state
+ * @fn_flags: Flags for this function, as returned by %MC_CMD_DRV_ATTACH.
  */
 struct efx_mcdi_data {
 	struct efx_mcdi_iface iface;
 #ifdef CONFIG_SFC_MCDI_MON
 	struct efx_mcdi_mon hwmon;
 #endif
+	u32 fn_flags;
 };
 
 #ifdef CONFIG_SFC_MCDI_MON
@@ -116,12 +118,19 @@ void efx_mcdi_fini(struct efx_nic *efx);
 int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd, const efx_dword_t *inbuf,
 		 size_t inlen, efx_dword_t *outbuf, size_t outlen,
 		 size_t *outlen_actual);
+int efx_mcdi_rpc_quiet(struct efx_nic *efx, unsigned cmd,
+		       const efx_dword_t *inbuf, size_t inlen,
+		       efx_dword_t *outbuf, size_t outlen,
+		       size_t *outlen_actual);
 
 int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
 		       const efx_dword_t *inbuf, size_t inlen);
 int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			efx_dword_t *outbuf, size_t outlen,
 			size_t *outlen_actual);
+int efx_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned cmd,
+			      size_t inlen, efx_dword_t *outbuf,
+			      size_t outlen, size_t *outlen_actual);
 
 typedef void efx_mcdi_async_completer(struct efx_nic *efx,
 				      unsigned long cookie, int rc,
@@ -131,6 +140,15 @@ int efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
 		       const efx_dword_t *inbuf, size_t inlen, size_t outlen,
 		       efx_mcdi_async_completer *complete,
 		       unsigned long cookie);
+int efx_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
+			     const efx_dword_t *inbuf, size_t inlen,
+			     size_t outlen,
+			     efx_mcdi_async_completer *complete,
+			     unsigned long cookie);
+
+void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
+			    size_t inlen, efx_dword_t *outbuf,
+			    size_t outlen, int rc);
 
 int efx_mcdi_poll_reboot(struct efx_nic *efx);
 void efx_mcdi_mode_poll(struct efx_nic *efx);
@@ -147,6 +165,8 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
  */
 #define MCDI_DECLARE_BUF(_name, _len)					\
 	efx_dword_t _name[DIV_ROUND_UP(_len, 4)]
+#define MCDI_DECLARE_BUF_OUT_OR_ERR(_name, _len)			\
+	MCDI_DECLARE_BUF(_name, max_t(size_t, _len, 8))
 #define _MCDI_PTR(_buf, _offset)					\
 	((u8 *)(_buf) + (_offset))
 #define MCDI_PTR(_buf, _field)						\
@@ -301,6 +321,7 @@ int efx_mcdi_set_mac(struct efx_nic *efx);
 #define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
 void efx_mcdi_mac_start_stats(struct efx_nic *efx);
 void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
+void efx_mcdi_mac_pull_stats(struct efx_nic *efx);
 bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
 enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
 int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);

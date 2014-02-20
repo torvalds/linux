@@ -178,10 +178,3 @@ endef
 _ge_attempt = $(if $(get-executable),$(get-executable),$(_gea_warn)$(call _gea_err,$(2)))
 _gea_warn = $(warning The path '$(1)' is not executable.)
 _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
-
-ifneq ($(findstring $(MAKEFLAGS),s),s)
-  ifneq ($(V),1)
-    QUIET_CLEAN		= @printf '  CLEAN    %s\n' $1;
-    QUIET_INSTALL	= @printf '  INSTALL  %s\n' $1;
-  endif
-endif

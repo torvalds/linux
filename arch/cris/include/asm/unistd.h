@@ -4,7 +4,7 @@
 #include <uapi/asm/unistd.h>
 
 
-#define NR_syscalls 336
+#define NR_syscalls 360
 
 #include <arch/unistd.h>
 

@@ -78,11 +78,14 @@ enum adv7604_op_format_sel {
 	ADV7604_OP_FORMAT_SEL_SDR_ITU656_24_MODE2 = 0x8a,
 };
 
+enum adv7604_drive_strength {
+	ADV7604_DR_STR_MEDIUM_LOW = 1,
+	ADV7604_DR_STR_MEDIUM_HIGH = 2,
+	ADV7604_DR_STR_HIGH = 3,
+};
+
 /* Platform dependent definition */
 struct adv7604_platform_data {
-	/* connector - HDMI or DVI? */
-	unsigned connector_hdmi:1;
-
 	/* DIS_PWRDNB: 1 if the PWRDNB pin is unused and unconnected */
 	unsigned disable_pwrdnb:1;
 
@@ -110,6 +113,15 @@ struct adv7604_platform_data {
 	unsigned replicate_av_codes:1;
 	unsigned invert_cbcr:1;
 
+	/* IO register 0x06 */
+	unsigned inv_vs_pol:1;
+	unsigned inv_hs_pol:1;
+
+	/* IO register 0x14 */
+	enum adv7604_drive_strength dr_str_data;
+	enum adv7604_drive_strength dr_str_clk;
+	enum adv7604_drive_strength dr_str_sync;
+
 	/* IO register 0x30 */
 	unsigned output_bus_lsb_to_msb:1;
 
@@ -131,15 +143,19 @@ struct adv7604_platform_data {
 	u8 i2c_vdp;
 };
 
-/*
- * Mode of operation.
- * This is used as the input argument of the s_routing video op.
- */
-enum adv7604_mode {
-	ADV7604_MODE_COMP,
-	ADV7604_MODE_GR,
-	ADV7604_MODE_HDMI,
+enum adv7604_input_port {
+	ADV7604_INPUT_HDMI_PORT_A,
+	ADV7604_INPUT_HDMI_PORT_B,
+	ADV7604_INPUT_HDMI_PORT_C,
+	ADV7604_INPUT_HDMI_PORT_D,
+	ADV7604_INPUT_VGA_RGB,
+	ADV7604_INPUT_VGA_COMP,
 };
+
+#define ADV7604_EDID_PORT_A 0
+#define ADV7604_EDID_PORT_B 1
+#define ADV7604_EDID_PORT_C 2
+#define ADV7604_EDID_PORT_D 3
 
 #define V4L2_CID_ADV_RX_ANALOG_SAMPLING_PHASE	(V4L2_CID_DV_CLASS_BASE + 0x1000)
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR_MANUAL	(V4L2_CID_DV_CLASS_BASE + 0x1001)

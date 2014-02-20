@@ -181,9 +181,16 @@ static void add_ref(struct iw_cm_id *cm_id)
 static void rem_ref(struct iw_cm_id *cm_id)
 {
 	struct iwcm_id_private *cm_id_priv;
+	int cb_destroy;
+
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
-	if (iwcm_deref_id(cm_id_priv) &&
-	    test_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags)) {
+
+	/*
+	 * Test bit before deref in case the cm_id gets freed on another
+	 * thread.
+	 */
+	cb_destroy = test_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
+	if (iwcm_deref_id(cm_id_priv) && cb_destroy) {
 		BUG_ON(!list_empty(&cm_id_priv->work_list));
 		free_cm_id(cm_id_priv);
 	}
@@ -327,7 +334,6 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 {
 	struct iwcm_id_private *cm_id_priv;
 	unsigned long flags;
-	int ret;
 
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
 	/*
@@ -343,7 +349,7 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 		cm_id_priv->state = IW_CM_STATE_DESTROYING;
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		/* destroy the listening endpoint */
-		ret = cm_id->device->iwcm->destroy_listen(cm_id);
+		cm_id->device->iwcm->destroy_listen(cm_id);
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 		break;
 	case IW_CM_STATE_ESTABLISHED:

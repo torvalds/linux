@@ -6,6 +6,9 @@ Required properties:
   additional mode or an USART new feature.
 - reg: Should contain registers location and length
 - interrupts: Should contain interrupt
+- clock-names: tuple listing input clock names.
+	Required elements: "usart"
+- clocks: phandles to input clocks.
 
 Optional properties:
 - atmel,use-dma-rx: use of PDC or DMA for receiving data
@@ -26,6 +29,8 @@ Example:
 		compatible = "atmel,at91sam9260-usart";
 		reg = <0xfff8c000 0x4000>;
 		interrupts = <7>;
+		clocks = <&usart0_clk>;
+		clock-names = "usart";
 		atmel,use-dma-rx;
 		atmel,use-dma-tx;
 	};
@@ -35,6 +40,8 @@ Example:
 		compatible = "atmel,at91sam9260-usart";
 		reg = <0xf001c000 0x100>;
 		interrupts = <12 4 5>;
+		clocks = <&usart0_clk>;
+		clock-names = "usart";
 		atmel,use-dma-rx;
 		atmel,use-dma-tx;
 		dmas = <&dma0 2 0x3>,

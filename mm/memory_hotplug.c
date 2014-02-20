@@ -9,7 +9,6 @@
 #include <linux/swap.h>
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
-#include <linux/bootmem.h>
 #include <linux/compiler.h>
 #include <linux/export.h>
 #include <linux/pagevec.h>
@@ -269,7 +268,7 @@ static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
 }
 
 /* Can fail with -ENOMEM from allocating a wait table with vmalloc() or
- * alloc_bootmem_node_nopanic() */
+ * alloc_bootmem_node_nopanic()/memblock_virt_alloc_node_nopanic() */
 static int __ref ensure_zone_is_initialized(struct zone *zone,
 			unsigned long start_pfn, unsigned long num_pages)
 {
@@ -1108,17 +1107,18 @@ int __ref add_memory(int nid, u64 start, u64 size)
 	if (ret)
 		return ret;
 
-	lock_memory_hotplug();
-
 	res = register_memory_resource(start, size);
 	ret = -EEXIST;
 	if (!res)
-		goto out;
+		return ret;
 
 	{	/* Stupid hack to suppress address-never-null warning */
 		void *p = NODE_DATA(nid);
 		new_pgdat = !p;
 	}
+
+	lock_memory_hotplug();
+
 	new_node = !node_online(nid);
 	if (new_node) {
 		pgdat = hotadd_new_pgdat(nid, start);
@@ -1310,7 +1310,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 #ifdef CONFIG_DEBUG_VM
 			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
 			       pfn);
-			dump_page(page);
+			dump_page(page, "failed to remove from LRU");
 #endif
 			put_page(page);
 			/* Because we don't have big zone->lock. we should
@@ -1446,6 +1446,7 @@ static int __init cmdline_parse_movable_node(char *p)
 	 * the kernel away from hotpluggable memory.
 	 */
 	memblock_set_bottom_up(true);
+	movable_node_enabled = true;
 #else
 	pr_warn("movable_node option not supported\n");
 #endif

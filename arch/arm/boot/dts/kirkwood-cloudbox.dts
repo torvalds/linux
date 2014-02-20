@@ -66,8 +66,8 @@
 
 		button@1 {
 			label = "Power push button";
-			linux,code = <116>;
-			gpios = <&gpio0 16 1>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -76,17 +76,17 @@
 
 		red-fail {
 			label = "cloudbox:red:fail";
-			gpios = <&gpio0 14 0>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
 		blue-sata {
 			label = "cloudbox:blue:sata";
-			gpios = <&gpio0 15 0>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
-		gpios = <&gpio0 17 0>;
+		gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -94,7 +94,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
-		device_type = "ethernet-phy";
 		reg = <0>;
 	};
 };

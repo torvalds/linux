@@ -41,7 +41,7 @@
  * channel is allowed to transfer before the DMA engine pauses
  * the current channel and switches to the next channel
  */
-#define FSL_DMA_MR_BWC         0x08000000
+#define FSL_DMA_MR_BWC         0x0A000000
 
 /* Special MR definition for MPC8349 */
 #define FSL_DMA_MR_EOTIE	0x00000080

@@ -24,7 +24,6 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>

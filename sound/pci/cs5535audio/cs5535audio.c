@@ -253,7 +253,7 @@ static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id)
 static int snd_cs5535audio_free(struct cs5535audio *cs5535au)
 {
 	synchronize_irq(cs5535au->irq);
-	pci_set_power_state(cs5535au->pci, 3);
+	pci_set_power_state(cs5535au->pci, PCI_D3hot);
 
 	if (cs5535au->irq >= 0)
 		free_irq(cs5535au->irq, cs5535au);

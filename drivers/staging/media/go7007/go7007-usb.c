@@ -19,7 +19,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/slab.h>

@@ -22,37 +22,16 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
+#include "nv04.h"
 
-struct nv1a_devinit_priv {
-	struct nouveau_devinit base;
-	u8 owner;
-};
-
-static int
-nv1a_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
-{
-	struct nv1a_devinit_priv *priv;
-	int ret;
-
-	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.pll_set = nv04_devinit_pll_set;
-	return 0;
-}
-
-struct nouveau_oclass
-nv1a_devinit_oclass = {
-	.handle = NV_SUBDEV(DEVINIT, 0x1a),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv1a_devinit_ctor,
+struct nouveau_oclass *
+nv1a_devinit_oclass = &(struct nouveau_devinit_impl) {
+	.base.handle = NV_SUBDEV(DEVINIT, 0x1a),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_devinit_ctor,
 		.dtor = nv04_devinit_dtor,
 		.init = nv04_devinit_init,
 		.fini = nv04_devinit_fini,
 	},
-};
+	.pll_set = nv04_devinit_pll_set,
+}.base;

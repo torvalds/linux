@@ -8,7 +8,6 @@
 
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/if.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>

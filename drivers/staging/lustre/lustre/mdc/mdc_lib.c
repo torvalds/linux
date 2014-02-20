@@ -174,12 +174,13 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	}
 }
 
-static __u64 mds_pack_open_flags(__u32 flags, __u32 mode)
+static __u64 mds_pack_open_flags(__u64 flags, __u32 mode)
 {
 	__u64 cr_flags = (flags & (FMODE_READ | FMODE_WRITE |
 				   MDS_OPEN_HAS_EA | MDS_OPEN_HAS_OBJS |
 				   MDS_OPEN_OWNEROVERRIDE | MDS_OPEN_LOCK |
-				   MDS_OPEN_BY_FID));
+				   MDS_OPEN_BY_FID | MDS_OPEN_LEASE |
+				   MDS_OPEN_RELEASE));
 	if (flags & O_CREAT)
 		cr_flags |= MDS_OPEN_CREAT;
 	if (flags & O_EXCL)
@@ -207,7 +208,7 @@ static __u64 mds_pack_open_flags(__u32 flags, __u32 mode)
 
 /* packing of MDS records */
 void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		   __u32 mode, __u64 rdev, __u32 flags, const void *lmm,
+		   __u32 mode, __u64 rdev, __u64 flags, const void *lmm,
 		   int lmmlen)
 {
 	struct mdt_rec_create *rec;
@@ -234,6 +235,7 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_suppgid2 = op_data->op_suppgids[1];
 	rec->cr_bias     = op_data->op_bias;
 	rec->cr_umask    = current_umask();
+	rec->cr_old_handle = op_data->op_handle;
 
 	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
 	/* the next buffer is child capa, which is used for replay,
@@ -489,6 +491,28 @@ void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
 	}
 }
 
+static void mdc_hsm_release_pack(struct ptlrpc_request *req,
+				 struct md_op_data *op_data)
+{
+	if (op_data->op_bias & MDS_HSM_RELEASE) {
+		struct close_data *data;
+		struct ldlm_lock *lock;
+
+		data = req_capsule_client_get(&req->rq_pill, &RMF_CLOSE_DATA);
+		LASSERT(data != NULL);
+
+		lock = ldlm_handle2lock(&op_data->op_lease_handle);
+		if (lock != NULL) {
+			data->cd_handle = lock->l_remote_handle;
+			ldlm_lock_put(lock);
+		}
+		ldlm_cli_cancel(&op_data->op_lease_handle, LCF_LOCAL);
+
+		data->cd_data_version = op_data->op_data_version;
+		data->cd_fid = op_data->op_fid2;
+	}
+}
+
 void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 {
 	struct mdt_ioepoch *epoch;
@@ -500,6 +524,7 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	mdc_setattr_pack_rec(rec, op_data);
 	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
 	mdc_ioepoch_pack(epoch, op_data);
+	mdc_hsm_release_pack(req, op_data);
 }
 
 static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)

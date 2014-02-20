@@ -101,6 +101,7 @@
 #define SPRN_IVOR39	0x1B1	/* Interrupt Vector Offset Register 39 */
 #define SPRN_IVOR40	0x1B2	/* Interrupt Vector Offset Register 40 */
 #define SPRN_IVOR41	0x1B3	/* Interrupt Vector Offset Register 41 */
+#define SPRN_IVOR42	0x1B4	/* Interrupt Vector Offset Register 42 */
 #define SPRN_GIVOR2	0x1B8	/* Guest IVOR2 */
 #define SPRN_GIVOR3	0x1B9	/* Guest IVOR3 */
 #define SPRN_GIVOR4	0x1BA	/* Guest IVOR4 */
@@ -170,6 +171,7 @@
 #define SPRN_L2CSR1	0x3FA	/* L2 Data Cache Control and Status Register 1 */
 #define SPRN_DCCR	0x3FA	/* Data Cache Cacheability Register */
 #define SPRN_ICCR	0x3FB	/* Instruction Cache Cacheability Register */
+#define SPRN_PWRMGTCR0	0x3FB	/* Power management control register 0 */
 #define SPRN_SVR	0x3FF	/* System Version Register */
 
 /*
@@ -215,6 +217,14 @@
 /* Bit definitions for CCR1. */
 #define	CCR1_DPC	0x00000100 /* Disable L1 I-Cache/D-Cache parity checking */
 #define	CCR1_TCS	0x00000080 /* Timer Clock Select */
+
+/* Bit definitions for PWRMGTCR0. */
+#define PWRMGTCR0_PW20_WAIT		(1 << 14) /* PW20 state enable bit */
+#define PWRMGTCR0_PW20_ENT_SHIFT	8
+#define PWRMGTCR0_PW20_ENT		0x3F00
+#define PWRMGTCR0_AV_IDLE_PD_EN		(1 << 22) /* Altivec idle enable */
+#define PWRMGTCR0_AV_IDLE_CNT_SHIFT	16
+#define PWRMGTCR0_AV_IDLE_CNT		0x3F0000
 
 /* Bit definitions for the MCSR. */
 #define MCSR_MCS	0x80000000 /* Machine Check Summary */

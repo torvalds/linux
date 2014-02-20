@@ -20,7 +20,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -416,7 +415,7 @@ static int rtl8187_init_urbs(struct ieee80211_hw *dev)
 	struct rtl8187_rx_info *info;
 	int ret = 0;
 
-	while (skb_queue_len(&priv->rx_queue) < 16) {
+	while (skb_queue_len(&priv->rx_queue) < 32) {
 		skb = __dev_alloc_skb(RTL8187_MAX_RX, GFP_KERNEL);
 		if (!skb) {
 			ret = -ENOMEM;

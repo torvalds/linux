@@ -173,7 +173,7 @@ static inline u16 Mk16(u8 hi, u8 lo)
 
 static inline u16 Mk16_le(u16 *v)
 {
-	return le16_to_cpu(*v);
+	return *v;
 }
 
 
@@ -427,7 +427,7 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "TKIP: replay detected: STA="
 				       " %pM previous TSC %08x%04x received "
-				      "TSC %08x%04x\n",hdr->addr2,
+				      "TSC %08x%04x\n", hdr->addr2,
 				      tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
 			}
 			tkey->dot11RSNAStatsTKIPReplays++;
@@ -752,13 +752,13 @@ static struct lib80211_crypto_ops rtllib_crypt_tkip = {
 };
 
 
-int __init rtllib_crypto_tkip_init(void)
+static int __init rtllib_crypto_tkip_init(void)
 {
 	return lib80211_register_crypto_ops(&rtllib_crypt_tkip);
 }
 
 
-void __exit rtllib_crypto_tkip_exit(void)
+static void __exit rtllib_crypto_tkip_exit(void)
 {
 	lib80211_unregister_crypto_ops(&rtllib_crypt_tkip);
 }

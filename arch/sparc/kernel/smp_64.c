@@ -123,10 +123,11 @@ void smp_callin(void)
 		rmb();
 
 	set_cpu_online(cpuid, true);
-	local_irq_enable();
 
 	/* idle thread is expected to have preempt disabled */
 	preempt_disable();
+
+	local_irq_enable();
 
 	cpu_startup_entry(CPUHP_ONLINE);
 }
