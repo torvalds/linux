@@ -652,12 +652,12 @@ struct i915_address_space {
 				     enum i915_cache_level level,
 				     bool valid); /* Create a valid PTE */
 	void (*clear_range)(struct i915_address_space *vm,
-			    unsigned int first_entry,
-			    unsigned int num_entries,
+			    uint64_t start,
+			    uint64_t length,
 			    bool use_scratch);
 	void (*insert_entries)(struct i915_address_space *vm,
 			       struct sg_table *st,
-			       unsigned int first_entry,
+			       uint64_t start,
 			       enum i915_cache_level cache_level);
 	void (*cleanup)(struct i915_address_space *vm);
 };
