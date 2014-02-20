@@ -255,6 +255,18 @@ config HW_RANDOM_MXC_RNGA
 
 	  If unsure, say Y.
 
+config HW_RANDOM_IMX_RNG
+        tristate "Freescale RNG B/C Random Number Generator"
+        depends on HW_RANDOM && ARCH_MXC && HAVE_IMX_RNG
+        ---help---
+          This driver provides kernel-side support for the Random Number
+          Generator (RNGBB and RNGC) hardware found on Freescale i.MX processors.
+
+          To compile this driver as a module, choose M here: the
+          module will be called fsl-rngc.
+
+          If unsure, say Y.
+
 config HW_RANDOM_NOMADIK
 	tristate "ST-Ericsson Nomadik Random Number Generator support"
 	depends on ARCH_NOMADIK

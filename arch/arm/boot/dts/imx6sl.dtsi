@@ -939,9 +939,11 @@
 				reg = <0x021b0000 0x4000>;
 			};
 
-			rngb: rngb@021b4000 {
+			rng: rng@021b4000 {
+				compatible = "fsl,imx6sl-rng", "fsl,imx-rng", "imx-rng";
 				reg = <0x021b4000 0x4000>;
 				interrupts = <0 5 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SL_CLK_DUMMY>;
 			};
 
 			weim: weim@021b8000 {
