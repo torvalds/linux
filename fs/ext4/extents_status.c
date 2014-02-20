@@ -184,7 +184,7 @@ static void ext4_es_print_tree(struct inode *inode)
 	while (node) {
 		struct extent_status *es;
 		es = rb_entry(node, struct extent_status, rb_node);
-		printk(KERN_DEBUG " [%u/%u) %llu %llx",
+		printk(KERN_DEBUG " [%u/%u) %llu %x",
 		       es->es_lblk, es->es_len,
 		       ext4_es_pblock(es), ext4_es_status(es));
 		node = rb_next(node);
@@ -445,8 +445,8 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 				pr_warn("ES insert assertion failed for "
 					"inode: %lu we can find an extent "
 					"at block [%d/%d/%llu/%c], but we "
-					"want to add an delayed/hole extent "
-					"[%d/%d/%llu/%llx]\n",
+					"want to add a delayed/hole extent "
+					"[%d/%d/%llu/%x]\n",
 					inode->i_ino, ee_block, ee_len,
 					ee_start, ee_status ? 'u' : 'w',
 					es->es_lblk, es->es_len,
@@ -486,8 +486,8 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		if (!ext4_es_is_delayed(es) && !ext4_es_is_hole(es)) {
 			pr_warn("ES insert assertion failed for inode: %lu "
 				"can't find an extent at block %d but we want "
-				"to add an written/unwritten extent "
-				"[%d/%d/%llu/%llx]\n", inode->i_ino,
+				"to add a written/unwritten extent "
+				"[%d/%d/%llu/%x]\n", inode->i_ino,
 				es->es_lblk, es->es_lblk, es->es_len,
 				ext4_es_pblock(es), ext4_es_status(es));
 		}
@@ -524,7 +524,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 			 */
 			pr_warn("ES insert assertion failed for inode: %lu "
 				"We can find blocks but we want to add a "
-				"delayed/hole extent [%d/%d/%llu/%llx]\n",
+				"delayed/hole extent [%d/%d/%llu/%x]\n",
 				inode->i_ino, es->es_lblk, es->es_len,
 				ext4_es_pblock(es), ext4_es_status(es));
 			return;
@@ -554,7 +554,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 		if (ext4_es_is_written(es)) {
 			pr_warn("ES insert assertion failed for inode: %lu "
 				"We can't find the block but we want to add "
-				"an written extent [%d/%d/%llu/%llx]\n",
+				"a written extent [%d/%d/%llu/%x]\n",
 				inode->i_ino, es->es_lblk, es->es_len,
 				ext4_es_pblock(es), ext4_es_status(es));
 			return;
