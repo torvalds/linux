@@ -6189,10 +6189,6 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 
 		memcpy(&conn_entry->conn_rec, &conn_rec[i],
 			sizeof(struct lpfc_fcf_conn_rec));
-		conn_entry->conn_rec.vlan_tag =
-			conn_entry->conn_rec.vlan_tag;
-		conn_entry->conn_rec.flags =
-			conn_entry->conn_rec.flags;
 		list_add_tail(&conn_entry->list,
 			&phba->fcf_conn_rec_list);
 	}
