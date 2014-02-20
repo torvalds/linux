@@ -7,4 +7,5 @@ obj-$(CONFIG_SMP) += platsmp.o
 obj-$(CONFIG_FIQ_DEBUGGER) += rk_fiq_debugger.o
 obj-$(CONFIG_CPU_FREQ) += rk3188-cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
+obj-$(CONFIG_RK29_VPU) += vpu_service.o
 obj-$(CONFIG_RK_PL330_DMA_TEST) += dma_memcpy_test.o
