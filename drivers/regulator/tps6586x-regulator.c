@@ -363,10 +363,8 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(&pdev->dev, "Memory alloction failed\n");
+	if (!pdata)
 		return NULL;
-	}
 
 	for (i = 0; i < num; i++) {
 		int id;
@@ -420,10 +418,8 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 
 	rdev = devm_kzalloc(&pdev->dev, TPS6586X_ID_MAX_REGULATOR *
 				sizeof(*rdev), GFP_KERNEL);
-	if (!rdev) {
-		dev_err(&pdev->dev, "Mmemory alloc failed\n");
+	if (!rdev)
 		return -ENOMEM;
-	}
 
 	version = tps6586x_get_version(pdev->dev.parent);
 
