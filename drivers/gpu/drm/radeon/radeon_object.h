@@ -180,7 +180,7 @@ extern int radeon_sa_bo_manager_suspend(struct radeon_device *rdev,
 extern int radeon_sa_bo_new(struct radeon_device *rdev,
 			    struct radeon_sa_manager *sa_manager,
 			    struct radeon_sa_bo **sa_bo,
-			    unsigned size, unsigned align, bool block);
+			    unsigned size, unsigned align);
 extern void radeon_sa_bo_free(struct radeon_device *rdev,
 			      struct radeon_sa_bo **sa_bo,
 			      struct radeon_fence *fence);
