@@ -121,8 +121,7 @@ void blk_mq_init_commands(struct request_queue *, void (*init)(void *data, struc
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule);
 
-void blk_mq_insert_request(struct request_queue *, struct request *,
-		bool, bool);
+void blk_mq_insert_request(struct request *, bool, bool, bool);
 void blk_mq_run_queues(struct request_queue *q, bool async);
 void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
