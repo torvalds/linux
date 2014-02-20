@@ -1035,13 +1035,13 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nvd0_disp_oclass = {
-	.handle = NV_ENGINE(DISP, 0x90),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nvd0_disp_oclass = &(struct nv50_disp_impl) {
+	.base.base.handle = NV_ENGINE(DISP, 0x90),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvd0_disp_ctor,
 		.dtor = _nouveau_disp_dtor,
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
-};
+}.base.base;

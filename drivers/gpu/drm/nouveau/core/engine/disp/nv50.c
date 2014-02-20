@@ -27,8 +27,6 @@
 #include <core/handle.h>
 #include <core/class.h>
 
-#include <engine/disp.h>
-
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/disp.h>
@@ -1346,13 +1344,13 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nv50_disp_oclass = {
-	.handle = NV_ENGINE(DISP, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nv50_disp_oclass = &(struct nv50_disp_impl) {
+	.base.base.handle = NV_ENGINE(DISP, 0x50),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_disp_ctor,
 		.dtor = _nouveau_disp_dtor,
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
-};
+}.base.base;

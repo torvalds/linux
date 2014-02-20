@@ -8,9 +8,13 @@
 #include <core/event.h>
 
 #include <engine/dmaobj.h>
-#include <engine/disp.h>
 
 #include "dport.h"
+#include "priv.h"
+
+struct nv50_disp_impl {
+	struct nouveau_disp_impl base;
+};
 
 struct nv50_disp_priv {
 	struct nouveau_disp base;

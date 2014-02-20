@@ -29,6 +29,10 @@
 
 #include "nv50.h"
 
+/*******************************************************************************
+ * Base display object
+ ******************************************************************************/
+
 static struct nouveau_oclass
 nv84_disp_sclass[] = {
 	{ NV84_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs },
@@ -58,6 +62,10 @@ nv84_disp_base_oclass[] = {
 	{ NV84_DISP_CLASS, &nv50_disp_base_ofuncs, nv84_disp_base_omthds },
 	{}
 };
+
+/*******************************************************************************
+ * Display engine implementation
+ ******************************************************************************/
 
 static int
 nv84_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -91,13 +99,13 @@ nv84_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nv84_disp_oclass = {
-	.handle = NV_ENGINE(DISP, 0x82),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nv84_disp_oclass = &(struct nv50_disp_impl) {
+	.base.base.handle = NV_ENGINE(DISP, 0x82),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv84_disp_ctor,
 		.dtor = _nouveau_disp_dtor,
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
-};
+}.base.base;
