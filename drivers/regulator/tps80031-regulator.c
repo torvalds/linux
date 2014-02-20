@@ -693,10 +693,8 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(&pdev->dev,
 			TPS80031_REGULATOR_MAX * sizeof(*pmic), GFP_KERNEL);
-	if (!pmic) {
-		dev_err(&pdev->dev, "mem alloc for pmic failed\n");
+	if (!pmic)
 		return -ENOMEM;
-	}
 
 	for (num = 0; num < TPS80031_REGULATOR_MAX; ++num) {
 		tps_pdata = pdata->regulator_pdata[num];
