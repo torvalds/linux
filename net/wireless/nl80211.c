@@ -5913,17 +5913,22 @@ skip_beacons:
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &params.chandef))
 		return -EINVAL;
 
-	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP ||
-	    dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO ||
-	    dev->ieee80211_ptr->iftype == NL80211_IFTYPE_ADHOC) {
+	switch (dev->ieee80211_ptr->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
 		err = cfg80211_chandef_dfs_required(wdev->wiphy,
 						    &params.chandef);
-		if (err < 0) {
+		if (err < 0)
 			return err;
-		} else if (err) {
+		if (err) {
 			radar_detect_width = BIT(params.chandef.width);
 			params.radar_required = true;
 		}
+		break;
+	default:
+		break;
 	}
 
 	err = cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
