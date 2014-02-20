@@ -42,32 +42,80 @@ struct sh_msiof_spi_priv {
 	int rx_fifo_size;
 };
 
-#define TMDR1	0x00
-#define TMDR2	0x04
-#define TMDR3	0x08
-#define RMDR1	0x10
-#define RMDR2	0x14
-#define RMDR3	0x18
-#define TSCR	0x20
-#define RSCR	0x22
-#define CTR	0x28
-#define FCTR	0x30
-#define STR	0x40
-#define IER	0x44
-#define TDR1	0x48
-#define TDR2	0x4c
-#define TFDR	0x50
-#define RDR1	0x58
-#define RDR2	0x5c
-#define RFDR	0x60
+#define TMDR1	0x00	/* Transmit Mode Register 1 */
+#define TMDR2	0x04	/* Transmit Mode Register 2 */
+#define TMDR3	0x08	/* Transmit Mode Register 3 */
+#define RMDR1	0x10	/* Receive Mode Register 1 */
+#define RMDR2	0x14	/* Receive Mode Register 2 */
+#define RMDR3	0x18	/* Receive Mode Register 3 */
+#define TSCR	0x20	/* Transmit Clock Select Register */
+#define RSCR	0x22	/* Receive Clock Select Register (SH, A1, APE6) */
+#define CTR	0x28	/* Control Register */
+#define FCTR	0x30	/* FIFO Control Register */
+#define STR	0x40	/* Status Register */
+#define IER	0x44	/* Interrupt Enable Register */
+#define TDR1	0x48	/* Transmit Control Data Register 1 (SH, A1) */
+#define TDR2	0x4c	/* Transmit Control Data Register 2 (SH, A1) */
+#define TFDR	0x50	/* Transmit FIFO Data Register */
+#define RDR1	0x58	/* Receive Control Data Register 1 (SH, A1) */
+#define RDR2	0x5c	/* Receive Control Data Register 2 (SH, A1) */
+#define RFDR	0x60	/* Receive FIFO Data Register */
 
-#define CTR_TSCKE (1 << 15)
-#define CTR_TFSE  (1 << 14)
-#define CTR_TXE   (1 << 9)
-#define CTR_RXE   (1 << 8)
+/* TMDR1 and RMDR1 */
+#define MDR1_TRMD	 0x80000000 /* Transfer Mode (1 = Master mode) */
+#define MDR1_SYNCMD_MASK 0x30000000 /* SYNC Mode */
+#define MDR1_SYNCMD_SPI	 0x20000000 /*   Level mode/SPI */
+#define MDR1_SYNCMD_LR	 0x30000000 /*   L/R mode */
+#define MDR1_SYNCAC_SHIFT	 25 /* Sync Polarity (1 = Active-low) */
+#define MDR1_BITLSB_SHIFT	 24 /* MSB/LSB First (1 = LSB first) */
+#define MDR1_FLD_MASK	 0x000000c0 /* Frame Sync Signal Interval (0-3) */
+#define MDR1_FLD_SHIFT		  2
+#define MDR1_XXSTP	 0x00000001 /* Transmission/Reception Stop on FIFO */
+/* TMDR1 */
+#define TMDR1_PCON	 0x40000000 /* Transfer Signal Connection */
 
-#define STR_TEOF  (1 << 23)
-#define STR_REOF  (1 << 7)
+/* TMDR2 and RMDR2 */
+#define MDR2_BITLEN1(i)	(((i) - 1) << 24) /* Data Size (8-32 bits) */
+#define MDR2_WDLEN1(i)	(((i) - 1) << 16) /* Word Count (1-64/256 (SH, A1))) */
+#define MDR2_GRPMASK1	0x00000001 /* Group Output Mask 1 (SH, A1) */
+
+/* TSCR and RSCR */
+#define SCR_BRPS_MASK	    0x1f00 /* Prescaler Setting (1-32) */
+#define SCR_BRPS(i)	(((i) - 1) << 8)
+#define SCR_BRDV_MASK	    0x0007 /* Baud Rate Generator's Division Ratio */
+#define SCR_BRDV_DIV_2	    0x0000
+#define SCR_BRDV_DIV_4	    0x0001
+#define SCR_BRDV_DIV_8	    0x0002
+#define SCR_BRDV_DIV_16	    0x0003
+#define SCR_BRDV_DIV_32	    0x0004
+#define SCR_BRDV_DIV_1	    0x0007
+
+/* CTR */
+#define CTR_TSCKIZ_MASK	0xc0000000 /* Transmit Clock I/O Polarity Select */
+#define CTR_TSCKIZ_SCK	0x80000000 /*   Disable SCK when TX disabled */
+#define CTR_TSCKIZ_POL_SHIFT	30 /*   Transmit Clock Polarity */
+#define CTR_RSCKIZ_MASK	0x30000000 /* Receive Clock Polarity Select */
+#define CTR_RSCKIZ_SCK	0x20000000 /*   Must match CTR_TSCKIZ_SCK */
+#define CTR_RSCKIZ_POL_SHIFT	28 /*   Receive Clock Polarity */
+#define CTR_TEDG_SHIFT		27 /* Transmit Timing (1 = falling edge) */
+#define CTR_REDG_SHIFT		26 /* Receive Timing (1 = falling edge) */
+#define CTR_TXDIZ_MASK	0x00c00000 /* Pin Output When TX is Disabled */
+#define CTR_TXDIZ_LOW	0x00000000 /*   0 */
+#define CTR_TXDIZ_HIGH	0x00400000 /*   1 */
+#define CTR_TXDIZ_HIZ	0x00800000 /*   High-impedance */
+#define CTR_TSCKE	0x00008000 /* Transmit Serial Clock Output Enable */
+#define CTR_TFSE	0x00004000 /* Transmit Frame Sync Signal Output Enable */
+#define CTR_TXE		0x00000200 /* Transmit Enable */
+#define CTR_RXE		0x00000100 /* Receive Enable */
+
+/* STR and IER */
+#define STR_TEOF	0x00800000 /* Frame Transmission End */
+#define STR_REOF	0x00000080 /* Frame Reception End */
+
+
+#define DEFAULT_TX_FIFO_SIZE	64
+#define DEFAULT_RX_FIFO_SIZE	64
+
 
 static u32 sh_msiof_read(struct sh_msiof_spi_priv *p, int reg_offs)
 {
@@ -131,17 +179,17 @@ static struct {
 	unsigned short div;
 	unsigned short scr;
 } const sh_msiof_spi_clk_table[] = {
-	{ 1, 0x0007 },
-	{ 2, 0x0000 },
-	{ 4, 0x0001 },
-	{ 8, 0x0002 },
-	{ 16, 0x0003 },
-	{ 32, 0x0004 },
-	{ 64, 0x1f00 },
-	{ 128, 0x1f01 },
-	{ 256, 0x1f02 },
-	{ 512, 0x1f03 },
-	{ 1024, 0x1f04 },
+	{ 1,	SCR_BRPS( 1) | SCR_BRDV_DIV_1 },
+	{ 2,	SCR_BRPS( 1) | SCR_BRDV_DIV_2 },
+	{ 4,	SCR_BRPS( 1) | SCR_BRDV_DIV_4 },
+	{ 8,	SCR_BRPS( 1) | SCR_BRDV_DIV_8 },
+	{ 16,	SCR_BRPS( 1) | SCR_BRDV_DIV_16 },
+	{ 32,	SCR_BRPS( 1) | SCR_BRDV_DIV_32 },
+	{ 64,	SCR_BRPS(32) | SCR_BRDV_DIV_2 },
+	{ 128,	SCR_BRPS(32) | SCR_BRDV_DIV_4 },
+	{ 256,	SCR_BRPS(32) | SCR_BRDV_DIV_8 },
+	{ 512,	SCR_BRPS(32) | SCR_BRDV_DIV_16 },
+	{ 1024,	SCR_BRPS(32) | SCR_BRDV_DIV_32 },
 };
 
 static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
@@ -182,21 +230,21 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	 */
 	sh_msiof_write(p, FCTR, 0);
 
-	tmp = 0;
-	tmp |= !cs_high << 25;
-	tmp |= lsb_first << 24;
-	sh_msiof_write(p, TMDR1, 0xe0000005 | tmp);
-	sh_msiof_write(p, RMDR1, 0x20000005 | tmp);
+	tmp = MDR1_SYNCMD_SPI | 1 << MDR1_FLD_SHIFT | MDR1_XXSTP;
+	tmp |= !cs_high << MDR1_SYNCAC_SHIFT;
+	tmp |= lsb_first << MDR1_BITLSB_SHIFT;
+	sh_msiof_write(p, TMDR1, tmp | MDR1_TRMD | TMDR1_PCON);
+	sh_msiof_write(p, RMDR1, tmp);
 
-	tmp = 0xa0000000;
-	tmp |= cpol << 30; /* TSCKIZ */
-	tmp |= cpol << 28; /* RSCKIZ */
+	tmp = 0;
+	tmp |= CTR_TSCKIZ_SCK | cpol << CTR_TSCKIZ_POL_SHIFT;
+	tmp |= CTR_RSCKIZ_SCK | cpol << CTR_RSCKIZ_POL_SHIFT;
 
 	edge = cpol ^ !cpha;
 
-	tmp |= edge << 27; /* TEDG */
-	tmp |= edge << 26; /* REDG */
-	tmp |= (tx_hi_z ? 2 : 0) << 22; /* TXDIZ */
+	tmp |= edge << CTR_TEDG_SHIFT;
+	tmp |= edge << CTR_REDG_SHIFT;
+	tmp |= tx_hi_z ? CTR_TXDIZ_HIZ : CTR_TXDIZ_LOW;
 	sh_msiof_write(p, CTR, tmp);
 }
 
@@ -204,12 +252,12 @@ static void sh_msiof_spi_set_mode_regs(struct sh_msiof_spi_priv *p,
 				       const void *tx_buf, void *rx_buf,
 				       u32 bits, u32 words)
 {
-	u32 dr2 = ((bits - 1) << 24) | ((words - 1) << 16);
+	u32 dr2 = MDR2_BITLEN1(bits) | MDR2_WDLEN1(words);
 
 	if (tx_buf)
 		sh_msiof_write(p, TMDR2, dr2);
 	else
-		sh_msiof_write(p, TMDR2, dr2 | 1);
+		sh_msiof_write(p, TMDR2, dr2 | MDR2_GRPMASK1);
 
 	if (rx_buf)
 		sh_msiof_write(p, RMDR2, dr2);
@@ -695,8 +743,8 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	/* The standard version of MSIOF use 64 word FIFOs */
-	p->tx_fifo_size = 64;
-	p->rx_fifo_size = 64;
+	p->tx_fifo_size = DEFAULT_TX_FIFO_SIZE;
+	p->rx_fifo_size = DEFAULT_RX_FIFO_SIZE;
 
 	/* Platform data may override FIFO sizes */
 	if (p->info->tx_fifo_override)
