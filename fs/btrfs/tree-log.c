@@ -139,7 +139,6 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root)
 {
 	int ret;
-	int err = 0;
 
 	mutex_lock(&root->log_mutex);
 	if (root->log_root) {
@@ -155,24 +154,27 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 		mutex_unlock(&root->log_mutex);
 		return 0;
 	}
-	root->log_multiple_pids = false;
-	root->log_start_pid = current->pid;
+
+	ret = 0;
 	mutex_lock(&root->fs_info->tree_log_mutex);
-	if (!root->fs_info->log_root_tree) {
+	if (!root->fs_info->log_root_tree)
 		ret = btrfs_init_log_root_tree(trans, root->fs_info);
-		if (ret)
-			err = ret;
-	}
-	if (err == 0 && !root->log_root) {
+	mutex_unlock(&root->fs_info->tree_log_mutex);
+	if (ret)
+		goto out;
+
+	if (!root->log_root) {
 		ret = btrfs_add_log_tree(trans, root);
 		if (ret)
-			err = ret;
+			goto out;
 	}
-	mutex_unlock(&root->fs_info->tree_log_mutex);
+	root->log_multiple_pids = false;
+	root->log_start_pid = current->pid;
 	atomic_inc(&root->log_batch);
 	atomic_inc(&root->log_writers);
+out:
 	mutex_unlock(&root->log_mutex);
-	return err;
+	return ret;
 }
 
 /*
@@ -4116,7 +4118,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 
 	ret = start_log_trans(trans, root);
 	if (ret)
-		goto end_trans;
+		goto end_no_trans;
 
 	ret = btrfs_log_inode(trans, root, inode, inode_only);
 	if (ret)
