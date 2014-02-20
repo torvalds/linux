@@ -123,10 +123,6 @@ static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, 
 
 	dev = hidraw_table[minor]->hid;
 
-	if (!dev->hid_output_raw_report) {
-		ret = -ENODEV;
-		goto out;
-	}
 
 	if (count > HID_MAX_BUFFER_SIZE) {
 		hid_warn(dev, "pid %d passed too large report\n",
@@ -153,7 +149,20 @@ static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, 
 		goto out_free;
 	}
 
-	ret = hid_output_raw_report(dev, buf, count, report_type);
+	if (report_type == HID_OUTPUT_REPORT) {
+		ret = hid_hw_output_report(dev, buf, count);
+		/*
+		 * compatibility with old implementation of USB-HID and I2C-HID:
+		 * if the device does not support receiving output reports,
+		 * on an interrupt endpoint, fallback to SET_REPORT HID command.
+		 */
+		if (ret != -ENOSYS)
+			goto out_free;
+	}
+
+	ret = hid_hw_raw_request(dev, buf[0], buf, count, report_type,
+				HID_REQ_SET_REPORT);
+
 out_free:
 	kfree(buf);
 out:
