@@ -1403,6 +1403,10 @@ static void cache_set_flush(struct closure *cl)
 		if (ca->alloc_thread)
 			kthread_stop(ca->alloc_thread);
 
+	cancel_delayed_work_sync(&c->journal.work);
+	/* flush last journal entry if needed */
+	c->journal.work.work.func(&c->journal.work.work);
+
 	closure_return(cl);
 }
 

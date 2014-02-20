@@ -536,6 +536,7 @@ void bch_journal_next(struct journal *j)
 	atomic_set(&fifo_back(&j->pin), 1);
 
 	j->cur->data->seq	= ++j->seq;
+	j->cur->dirty		= false;
 	j->cur->need_write	= false;
 	j->cur->data->keys	= 0;
 
@@ -731,7 +732,10 @@ static void journal_write_work(struct work_struct *work)
 					   struct cache_set,
 					   journal.work);
 	spin_lock(&c->journal.lock);
-	journal_try_write(c);
+	if (c->journal.cur->dirty)
+		journal_try_write(c);
+	else
+		spin_unlock(&c->journal.lock);
 }
 
 /*
@@ -761,7 +765,8 @@ atomic_t *bch_journal(struct cache_set *c,
 	if (parent) {
 		closure_wait(&w->wait, parent);
 		journal_try_write(c);
-	} else if (!w->need_write) {
+	} else if (!w->dirty) {
+		w->dirty = true;
 		schedule_delayed_work(&c->journal.work,
 				      msecs_to_jiffies(c->journal_delay_ms));
 		spin_unlock(&c->journal.lock);
