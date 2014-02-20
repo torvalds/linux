@@ -30,6 +30,7 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_bcm63xx.h>
+#include <linux/io.h>
 
 #define BCM63XX_NR_UARTS	2
 
