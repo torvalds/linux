@@ -60,8 +60,7 @@ enum {
 	BAND_A = 4,
 	BAND_GN = 8,
 	BAND_AN = 16,
-	BAND_GAC = 32,
-	BAND_AAC = 64,
+	BAND_AAC = 32,
 };
 
 #define MWIFIEX_WPA_PASSHPHRASE_LEN 64
@@ -86,6 +85,10 @@ struct wep_key {
 #define BAND_CONFIG_A           0x01
 #define MWIFIEX_SUPPORTED_RATES                 14
 #define MWIFIEX_SUPPORTED_RATES_EXT             32
+#define MWIFIEX_TDLS_SUPPORTED_RATES		8
+#define MWIFIEX_TDLS_DEF_QOS_CAPAB		0xf
+#define MWIFIEX_PRIO_BK				2
+#define MWIFIEX_PRIO_VI				5
 
 struct mwifiex_uap_bss_param {
 	u8 channel;
@@ -233,7 +236,10 @@ struct mwifiex_ds_encrypt_key {
 	u8 mac_addr[ETH_ALEN];
 	u32 is_wapi_key;
 	u8 pn[PN_LEN];		/* packet number */
+	u8 pn_len;
 	u8 is_igtk_key;
+	u8 is_current_wep_key;
+	u8 is_rx_seq_valid;
 };
 
 struct mwifiex_power_cfg {
@@ -430,6 +436,18 @@ struct mwifiex_coalesce_rule {
 struct mwifiex_ds_coalesce_cfg {
 	u16 num_of_rules;
 	struct mwifiex_coalesce_rule rule[MWIFIEX_COALESCE_MAX_RULES];
+};
+
+struct mwifiex_ds_tdls_oper {
+	u16 tdls_action;
+	u8 peer_mac[ETH_ALEN];
+	u16 capability;
+	u8 qos_info;
+	u8 *ext_capab;
+	u8 ext_capab_len;
+	u8 *supp_rates;
+	u8 supp_rates_len;
+	u8 *ht_capab;
 };
 
 #endif /* !_MWIFIEX_IOCTL_H_ */

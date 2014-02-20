@@ -119,7 +119,7 @@ menu "Compile-time checks and compiler options"
 
 config DEBUG_INFO
 	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && !COMPILE_TEST
 	help
           If you say Y here the resulting kernel image will include
 	  debugging info resulting in a larger kernel image.
@@ -1555,17 +1555,6 @@ config PROVIDE_OHCI1394_DMA_INIT
 	  in charge of the OHCI-1394 controllers should be used instead.
 
 	  See Documentation/debugging-via-ohci1394.txt for more information.
-
-config FIREWIRE_OHCI_REMOTE_DMA
-	bool "Remote debugging over FireWire with firewire-ohci"
-	depends on FIREWIRE_OHCI
-	help
-	  This option lets you use the FireWire bus for remote debugging
-	  with help of the firewire-ohci driver. It enables unfiltered
-	  remote DMA in firewire-ohci.
-	  See Documentation/debugging-via-ohci1394.txt for more information.
-
-	  If unsure, say N.
 
 config BUILD_DOCSRC
 	bool "Build targets in Documentation/ tree"

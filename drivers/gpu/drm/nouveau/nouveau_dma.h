@@ -155,7 +155,7 @@ BEGIN_IMC0(struct nouveau_channel *chan, int subc, int mthd, u16 data)
 }
 
 #define WRITE_PUT(val) do {                                                    \
-	DRM_MEMORYBARRIER();                                                   \
+	mb();                                                   \
 	nouveau_bo_rd32(chan->push.buffer, 0);                                 \
 	nv_wo32(chan->object, chan->user_put, ((val) << 2) + chan->push.vma.offset);  \
 } while (0)

@@ -163,6 +163,7 @@ enum {
 	TX_ANT_CONFIGURATION_CMD = 0x98,
 	BT_CONFIG = 0x9b,
 	STATISTICS_NOTIFICATION = 0x9d,
+	EOSP_NOTIFICATION = 0x9e,
 	REDUCE_TX_POWER_CMD = 0x9f,
 
 	/* RF-KILL commands and notifications */
@@ -190,6 +191,7 @@ enum {
 	REPLY_DEBUG_CMD = 0xf0,
 	DEBUG_LOG_MSG = 0xf7,
 
+	BCAST_FILTER_CMD = 0xcf,
 	MCAST_FILTER_CMD = 0xd0,
 
 	/* D3 commands/notifications */
@@ -197,6 +199,7 @@ enum {
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
 	OFFLOADS_QUERY_CMD = 0xd5,
 	REMOTE_WAKE_CONFIG_CMD = 0xd6,
+	D0I3_END_CMD = 0xed,
 
 	/* for WoWLAN in particular */
 	WOWLAN_PATTERNS = 0xe0,
@@ -303,6 +306,7 @@ struct iwl_phy_cfg_cmd {
 #define PHY_CFG_RX_CHAIN_B	BIT(13)
 #define PHY_CFG_RX_CHAIN_C	BIT(14)
 
+#define NVM_MAX_NUM_SECTIONS	11
 
 /* Target of the NVM_ACCESS_CMD */
 enum {
@@ -313,14 +317,9 @@ enum {
 
 /* Section types for NVM_ACCESS_CMD */
 enum {
-	NVM_SECTION_TYPE_HW = 0,
-	NVM_SECTION_TYPE_SW,
-	NVM_SECTION_TYPE_PAPD,
-	NVM_SECTION_TYPE_BT,
-	NVM_SECTION_TYPE_CALIBRATION,
-	NVM_SECTION_TYPE_PRODUCTION,
-	NVM_SECTION_TYPE_POST_FCS_CALIB,
-	NVM_NUM_OF_SECTIONS,
+	NVM_SECTION_TYPE_SW = 1,
+	NVM_SECTION_TYPE_CALIBRATION = 4,
+	NVM_SECTION_TYPE_PRODUCTION = 5,
 };
 
 /**
@@ -411,6 +410,35 @@ struct mvm_alive_resp {
 	__le32 alive_counter_ptr;
 	__le32 scd_base_ptr;		/* SRAM address for SCD */
 } __packed; /* ALIVE_RES_API_S_VER_1 */
+
+struct mvm_alive_resp_ver2 {
+	__le16 status;
+	__le16 flags;
+	u8 ucode_minor;
+	u8 ucode_major;
+	__le16 id;
+	u8 api_minor;
+	u8 api_major;
+	u8 ver_subtype;
+	u8 ver_type;
+	u8 mac;
+	u8 opt;
+	__le16 reserved2;
+	__le32 timestamp;
+	__le32 error_event_table_ptr;	/* SRAM address for error log */
+	__le32 log_event_table_ptr;	/* SRAM address for LMAC event log */
+	__le32 cpu_register_ptr;
+	__le32 dbgm_config_ptr;
+	__le32 alive_counter_ptr;
+	__le32 scd_base_ptr;		/* SRAM address for SCD */
+	__le32 st_fwrd_addr;		/* pointer to Store and forward */
+	__le32 st_fwrd_size;
+	u8 umac_minor;			/* UMAC version: minor */
+	u8 umac_major;			/* UMAC version: major */
+	__le16 umac_id;			/* UMAC version: id */
+	__le32 error_info_addr;		/* SRAM address for UMAC error log */
+	__le32 dbg_print_buff_addr;
+} __packed; /* ALIVE_RES_API_S_VER_2 */
 
 /* Error response/notification */
 enum {
@@ -1158,6 +1186,90 @@ struct iwl_mcast_filter_cmd {
 	u8 reserved[2];
 	u8 addr_list[0];
 } __packed; /* MCAST_FILTERING_CMD_API_S_VER_1 */
+
+#define MAX_BCAST_FILTERS 8
+#define MAX_BCAST_FILTER_ATTRS 2
+
+/**
+ * enum iwl_mvm_bcast_filter_attr_offset - written by fw for each Rx packet
+ * @BCAST_FILTER_OFFSET_PAYLOAD_START: offset is from payload start.
+ * @BCAST_FILTER_OFFSET_IP_END: offset is from ip header end (i.e.
+ *	start of ip payload).
+ */
+enum iwl_mvm_bcast_filter_attr_offset {
+	BCAST_FILTER_OFFSET_PAYLOAD_START = 0,
+	BCAST_FILTER_OFFSET_IP_END = 1,
+};
+
+/**
+ * struct iwl_fw_bcast_filter_attr - broadcast filter attribute
+ * @offset_type:	&enum iwl_mvm_bcast_filter_attr_offset.
+ * @offset:	starting offset of this pattern.
+ * @val:		value to match - big endian (MSB is the first
+ *		byte to match from offset pos).
+ * @mask:	mask to match (big endian).
+ */
+struct iwl_fw_bcast_filter_attr {
+	u8 offset_type;
+	u8 offset;
+	__le16 reserved1;
+	__be32 val;
+	__be32 mask;
+} __packed; /* BCAST_FILTER_ATT_S_VER_1 */
+
+/**
+ * enum iwl_mvm_bcast_filter_frame_type - filter frame type
+ * @BCAST_FILTER_FRAME_TYPE_ALL: consider all frames.
+ * @BCAST_FILTER_FRAME_TYPE_IPV4: consider only ipv4 frames
+ */
+enum iwl_mvm_bcast_filter_frame_type {
+	BCAST_FILTER_FRAME_TYPE_ALL = 0,
+	BCAST_FILTER_FRAME_TYPE_IPV4 = 1,
+};
+
+/**
+ * struct iwl_fw_bcast_filter - broadcast filter
+ * @discard: discard frame (1) or let it pass (0).
+ * @frame_type: &enum iwl_mvm_bcast_filter_frame_type.
+ * @num_attrs: number of valid attributes in this filter.
+ * @attrs: attributes of this filter. a filter is considered matched
+ *	only when all its attributes are matched (i.e. AND relationship)
+ */
+struct iwl_fw_bcast_filter {
+	u8 discard;
+	u8 frame_type;
+	u8 num_attrs;
+	u8 reserved1;
+	struct iwl_fw_bcast_filter_attr attrs[MAX_BCAST_FILTER_ATTRS];
+} __packed; /* BCAST_FILTER_S_VER_1 */
+
+/**
+ * struct iwl_fw_bcast_mac - per-mac broadcast filtering configuration.
+ * @default_discard: default action for this mac (discard (1) / pass (0)).
+ * @attached_filters: bitmap of relevant filters for this mac.
+ */
+struct iwl_fw_bcast_mac {
+	u8 default_discard;
+	u8 reserved1;
+	__le16 attached_filters;
+} __packed; /* BCAST_MAC_CONTEXT_S_VER_1 */
+
+/**
+ * struct iwl_bcast_filter_cmd - broadcast filtering configuration
+ * @disable: enable (0) / disable (1)
+ * @max_bcast_filters: max number of filters (MAX_BCAST_FILTERS)
+ * @max_macs: max number of macs (NUM_MAC_INDEX_DRIVER)
+ * @filters: broadcast filters
+ * @macs: broadcast filtering configuration per-mac
+ */
+struct iwl_bcast_filter_cmd {
+	u8 disable;
+	u8 max_bcast_filters;
+	u8 max_macs;
+	u8 reserved1;
+	struct iwl_fw_bcast_filter filters[MAX_BCAST_FILTERS];
+	struct iwl_fw_bcast_mac macs[NUM_MAC_INDEX_DRIVER];
+} __packed; /* BCAST_FILTERING_HCMD_API_S_VER_1 */
 
 struct mvm_statistics_dbg {
 	__le32 burst_check;

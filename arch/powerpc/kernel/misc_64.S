@@ -67,6 +67,7 @@ PPC64_CACHES:
 
 _KPROBE(flush_icache_range)
 BEGIN_FTR_SECTION
+	PURGE_PREFETCHED_INS
 	blr
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 /*
@@ -210,6 +211,11 @@ _GLOBAL(__flush_dcache_icache)
  * 
  * Different systems have different cache line sizes
  */
+
+BEGIN_FTR_SECTION
+	PURGE_PREFETCHED_INS
+	blr
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 
 /* Flush the dcache */
  	ld	r7,PPC64_CACHES@toc(r2)

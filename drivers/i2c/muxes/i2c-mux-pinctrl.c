@@ -18,7 +18,6 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/i2c-mux-pinctrl.h>

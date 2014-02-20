@@ -837,7 +837,7 @@ unsigned int gnttab_max_grant_frames(void)
 }
 EXPORT_SYMBOL_GPL(gnttab_max_grant_frames);
 
-int gnttab_setup_auto_xlat_frames(unsigned long addr)
+int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 {
 	xen_pfn_t *pfn;
 	unsigned int max_nr_gframes = __max_nr_grant_frames();
@@ -849,8 +849,8 @@ int gnttab_setup_auto_xlat_frames(unsigned long addr)
 
 	vaddr = xen_remap(addr, PAGE_SIZE * max_nr_gframes);
 	if (vaddr == NULL) {
-		pr_warn("Failed to ioremap gnttab share frames (addr=0x%08lx)!\n",
-			addr);
+		pr_warn("Failed to ioremap gnttab share frames (addr=%pa)!\n",
+			&addr);
 		return -ENOMEM;
 	}
 	pfn = kcalloc(max_nr_gframes, sizeof(pfn[0]), GFP_KERNEL);

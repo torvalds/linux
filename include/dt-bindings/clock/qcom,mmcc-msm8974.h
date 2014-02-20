@@ -57,7 +57,7 @@
 #define EXTPCLK_CLK_SRC					40
 #define HDMI_CLK_SRC					41
 #define VSYNC_CLK_SRC					42
-#define RBCPR_CLK_SRC					43
+#define MMSS_RBCPR_CLK_SRC				43
 #define CAMSS_CCI_CCI_AHB_CLK				44
 #define CAMSS_CCI_CCI_CLK				45
 #define CAMSS_CSI0_AHB_CLK				46

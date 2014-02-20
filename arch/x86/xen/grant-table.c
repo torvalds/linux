@@ -162,14 +162,15 @@ static int __init xlated_setup_gnttab_pages(void)
 	rc = arch_gnttab_map_shared(pfns, nr_grant_frames, nr_grant_frames,
 				    &xen_auto_xlat_grant_frames.vaddr);
 
-	kfree(pages);
 	if (rc) {
 		pr_warn("%s Couldn't map %ld pfns rc:%d\n", __func__,
 			nr_grant_frames, rc);
 		free_xenballooned_pages(nr_grant_frames, pages);
+		kfree(pages);
 		kfree(pfns);
 		return rc;
 	}
+	kfree(pages);
 
 	xen_auto_xlat_grant_frames.pfn = pfns;
 	xen_auto_xlat_grant_frames.count = nr_grant_frames;

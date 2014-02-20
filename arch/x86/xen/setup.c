@@ -35,7 +35,7 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 #ifdef CONFIG_X86_64
-extern const char nmi[];
+extern asmlinkage void nmi(void);
 #endif
 extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
@@ -577,7 +577,7 @@ void xen_enable_syscall(void)
 void xen_enable_nmi(void)
 {
 #ifdef CONFIG_X86_64
-	if (register_callback(CALLBACKTYPE_nmi, nmi))
+	if (register_callback(CALLBACKTYPE_nmi, (char *)nmi))
 		BUG();
 #endif
 }

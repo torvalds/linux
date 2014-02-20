@@ -176,6 +176,7 @@ struct pnv_phb {
 	union {
 		unsigned char			blob[PNV_PCI_DIAG_BUF_SIZE];
 		struct OpalIoP7IOCPhbErrorData	p7ioc;
+		struct OpalIoPhb3ErrorData	phb3;
 		struct OpalIoP7IOCErrorData 	hub_diag;
 	} diag;
 
@@ -186,6 +187,8 @@ extern struct pci_ops pnv_pci_ops;
 extern struct pnv_eeh_ops ioda_eeh_ops;
 #endif
 
+void pnv_pci_dump_phb_diag_data(struct pci_controller *hose,
+				unsigned char *log_buff);
 int pnv_pci_cfg_read(struct device_node *dn,
 		     int where, int size, u32 *val);
 int pnv_pci_cfg_write(struct device_node *dn,

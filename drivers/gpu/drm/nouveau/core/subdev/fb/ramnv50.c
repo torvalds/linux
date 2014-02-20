@@ -70,13 +70,11 @@ nv50_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nv50_ramseq *hwsq = &ram->hwsq;
 	struct nvbios_perfE perfE;
 	struct nvbios_pll mpll;
-	struct bit_entry M;
 	struct {
 		u32 data;
 		u8  size;
 	} ramcfg, timing;
-	u8  ver, hdr, cnt, strap;
-	u32 data;
+	u8  ver, hdr, cnt, len, strap;
 	int N1, M1, N2, M2, P;
 	int ret, i;
 
@@ -93,16 +91,7 @@ nv50_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	} while (perfE.memory < freq);
 
 	/* locate specific data set for the attached memory */
-	if (bit_entry(bios, 'M', &M) || M.version != 1 || M.length < 5) {
-		nv_error(pfb, "invalid/missing memory table\n");
-		return -EINVAL;
-	}
-
-	strap = (nv_rd32(pfb, 0x101000) & 0x0000003c) >> 2;
-	data = nv_ro16(bios, M.offset + 3);
-	if (data)
-		strap = nv_ro08(bios, data + strap);
-
+	strap = nvbios_ramcfg_index(bios);
 	if (strap >= cnt) {
 		nv_error(pfb, "invalid ramcfg strap\n");
 		return -EINVAL;
@@ -113,7 +102,8 @@ nv50_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	/* lookup memory timings, if bios says they're present */
 	strap = nv_ro08(bios, ramcfg.data + 0x01);
 	if (strap != 0xff) {
-		timing.data = nvbios_timing_entry(bios, strap, &ver, &hdr);
+		timing.data = nvbios_timingEe(bios, strap, &ver, &hdr,
+					     &cnt, &len);
 		if (!timing.data || ver != 0x10 || hdr < 0x12) {
 			nv_error(pfb, "invalid/missing timing entry "
 				 "%02x %04x %02x %02x\n",

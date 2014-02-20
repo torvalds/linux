@@ -608,14 +608,6 @@ int reiserfs_resize(struct super_block *, unsigned long);
 
 #define SB_DISK_JOURNAL_HEAD(s) (SB_JOURNAL(s)->j_header_bh->)
 
-/* A safe version of the "bdevname", which returns the "s_id" field of
- * a superblock or else "Null superblock" if the super block is NULL.
- */
-static inline char *reiserfs_bdevname(struct super_block *s)
-{
-	return (s == NULL) ? "Null superblock" : s->s_id;
-}
-
 #define reiserfs_is_journal_aborted(journal) (unlikely (__reiserfs_is_journal_aborted (journal)))
 static inline int __reiserfs_is_journal_aborted(struct reiserfs_journal
 						*journal)

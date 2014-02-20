@@ -344,7 +344,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
  */
 _KPROBE(flush_icache_range)
 BEGIN_FTR_SECTION
-	isync
+	PURGE_PREFETCHED_INS
 	blr				/* for 601, do nothing */
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	li	r5,L1_CACHE_BYTES-1
@@ -448,6 +448,7 @@ _GLOBAL(invalidate_dcache_range)
  */
 _GLOBAL(__flush_dcache_icache)
 BEGIN_FTR_SECTION
+	PURGE_PREFETCHED_INS
 	blr
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	rlwinm	r3,r3,0,0,31-PAGE_SHIFT		/* Get page base address */
@@ -489,6 +490,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_44x)
  */
 _GLOBAL(__flush_dcache_icache_phys)
 BEGIN_FTR_SECTION
+	PURGE_PREFETCHED_INS
 	blr					/* for 601, do nothing */
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	mfmsr	r10

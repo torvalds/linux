@@ -15,7 +15,6 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/init.h>
 
 #include <asm/inst.h>
 #include <asm/elf.h>

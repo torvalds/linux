@@ -13102,9 +13102,9 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 
 		if (atomic_read(&pdev->enable_cnt) == 1)
 			pci_release_regions(pdev);
-	}
 
-	pci_disable_device(pdev);
+		pci_disable_device(pdev);
+	}
 }
 
 static void bnx2x_remove_one(struct pci_dev *pdev)

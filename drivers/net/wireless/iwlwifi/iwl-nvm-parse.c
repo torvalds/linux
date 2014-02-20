@@ -182,6 +182,11 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 	for (ch_idx = 0; ch_idx < IWL_NUM_CHANNELS; ch_idx++) {
 		ch_flags = __le16_to_cpup(nvm_ch_flags + ch_idx);
+
+		if (ch_idx >= NUM_2GHZ_CHANNELS &&
+		    !data->sku_cap_band_52GHz_enable)
+			ch_flags &= ~NVM_CHANNEL_VALID;
+
 		if (!(ch_flags & NVM_CHANNEL_VALID)) {
 			IWL_DEBUG_EEPROM(dev,
 					 "Ch. %d Flags %x [%sGHz] - No traffic\n",
@@ -397,11 +402,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	iwl_init_sbands(dev, cfg, data, nvm_sw, sku & NVM_SKU_CAP_11AC_ENABLE,
 			tx_chains, rx_chains);
 
-	data->calib_version = 255;   /* TODO:
-					this value will prevent some checks from
-					failing, we need to check if this
-					field is still needed, and if it does,
-					where is it in the NVM*/
+	data->calib_version = 255;
 
 	return data;
 }

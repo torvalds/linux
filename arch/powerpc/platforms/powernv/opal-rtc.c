@@ -18,6 +18,7 @@
 
 #include <asm/opal.h>
 #include <asm/firmware.h>
+#include <asm/machdep.h>
 
 static void opal_to_tm(u32 y_m_d, u64 h_m_s_ms, struct rtc_time *tm)
 {
@@ -48,8 +49,11 @@ unsigned long __init opal_get_boot_time(void)
 		else
 			mdelay(10);
 	}
-	if (rc != OPAL_SUCCESS)
+	if (rc != OPAL_SUCCESS) {
+		ppc_md.get_rtc_time = NULL;
+		ppc_md.set_rtc_time = NULL;
 		return 0;
+	}
 	y_m_d = be32_to_cpu(__y_m_d);
 	h_m_s_ms = be64_to_cpu(__h_m_s_ms);
 	opal_to_tm(y_m_d, h_m_s_ms, &tm);

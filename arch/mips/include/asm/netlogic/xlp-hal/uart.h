@@ -94,7 +94,8 @@
 #define nlm_read_uart_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_uart_reg(b, r, v)	nlm_write_reg(b, r, v)
 #define nlm_get_uart_pcibase(node, inst)	\
-		nlm_pcicfg_base(XLP_IO_UART_OFFSET(node, inst))
+	nlm_pcicfg_base(cpu_is_xlp9xx() ?  XLP9XX_IO_UART_OFFSET(node) : \
+						XLP_IO_UART_OFFSET(node, inst))
 #define nlm_get_uart_regbase(node, inst)	\
 			(nlm_get_uart_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
 

@@ -77,7 +77,7 @@ extern u8 acpi_gbl_create_osi_method;
 extern u8 acpi_gbl_disable_auto_repair;
 extern u8 acpi_gbl_disable_ssdt_table_load;
 extern u8 acpi_gbl_do_not_use_xsdt;
-extern bool acpi_gbl_enable_aml_debug_object;
+extern u8 acpi_gbl_enable_aml_debug_object;
 extern u8 acpi_gbl_enable_interpreter_slack;
 extern u32 acpi_gbl_trace_flags;
 extern acpi_name acpi_gbl_trace_method_name;

@@ -700,3 +700,8 @@ out:
 	free_page((unsigned long) sccb);
 	return rc;
 }
+
+bool sclp_has_sprp(void)
+{
+	return !!(sclp_fac84 & 0x2);
+}

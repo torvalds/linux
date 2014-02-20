@@ -4,7 +4,7 @@
  * Based on lm75.c and lm85.c
  * Supports adm1030 / adm1031
  * Copyright (C) 2004 Alexandre d'Alton <alex@alexdalton.org>
- * Reworked by Jean Delvare <khali@linux-fr.org>
+ * Reworked by Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

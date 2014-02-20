@@ -586,6 +586,8 @@ int rv515_resume(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r =  rv515_startup(rdev);
 	if (r) {
@@ -596,6 +598,7 @@ int rv515_resume(struct radeon_device *rdev)
 
 int rv515_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	rs600_irq_disable(rdev);
@@ -612,6 +615,7 @@ void rv515_set_safe_registers(struct radeon_device *rdev)
 
 void rv515_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
@@ -684,6 +688,9 @@ int rv515_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rv515_set_safe_registers(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = rv515_startup(rdev);

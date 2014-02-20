@@ -8,6 +8,44 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 
+#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC64
+static inline int tlb1_next(void)
+{
+	struct paca_struct *paca = get_paca();
+	struct tlb_core_data *tcd;
+	int this, next;
+
+	tcd = paca->tcd_ptr;
+	this = tcd->esel_next;
+
+	next = this + 1;
+	if (next >= tcd->esel_max)
+		next = tcd->esel_first;
+
+	tcd->esel_next = next;
+	return this;
+}
+#else
+static inline int tlb1_next(void)
+{
+	int index, ncams;
+
+	ncams = mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY;
+
+	index = __get_cpu_var(next_tlbcam_idx);
+
+	/* Just round-robin the entries and wrap when we hit the end */
+	if (unlikely(index == ncams - 1))
+		__get_cpu_var(next_tlbcam_idx) = tlbcam_index;
+	else
+		__get_cpu_var(next_tlbcam_idx)++;
+
+	return index;
+}
+#endif /* !PPC64 */
+#endif /* FSL */
+
 static inline int mmu_get_tsize(int psize)
 {
 	return mmu_psize_defs[psize].enc;
@@ -47,7 +85,7 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 	struct mm_struct *mm;
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-	int index, ncams;
+	int index;
 #endif
 
 	if (unlikely(is_kernel_addr(ea)))
@@ -77,18 +115,11 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 	}
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-	ncams = mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY;
-
 	/* We have to use the CAM(TLB1) on FSL parts for hugepages */
-	index = __get_cpu_var(next_tlbcam_idx);
+	index = tlb1_next();
 	mtspr(SPRN_MAS0, MAS0_ESEL(index) | MAS0_TLBSEL(1));
-
-	/* Just round-robin the entries and wrap when we hit the end */
-	if (unlikely(index == ncams - 1))
-		__get_cpu_var(next_tlbcam_idx) = tlbcam_index;
-	else
-		__get_cpu_var(next_tlbcam_idx)++;
 #endif
+
 	mas1 = MAS1_VALID | MAS1_TID(mm->context.id) | MAS1_TSIZE(tsize);
 	mas2 = ea & ~((1UL << shift) - 1);
 	mas2 |= (pte_val(pte) >> PTE_WIMGE_SHIFT) & MAS2_WIMGE_MASK;
@@ -103,7 +134,8 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 	if (mmu_has_feature(MMU_FTR_USE_PAIRED_MAS)) {
 		mtspr(SPRN_MAS7_MAS3, mas7_3);
 	} else {
-		mtspr(SPRN_MAS7, upper_32_bits(mas7_3));
+		if (mmu_has_feature(MMU_FTR_BIG_PHYS))
+			mtspr(SPRN_MAS7, upper_32_bits(mas7_3));
 		mtspr(SPRN_MAS3, lower_32_bits(mas7_3));
 	}
 

@@ -21,5 +21,7 @@ obj-$(CONFIG_EARLY_PRINTK)	+= sead3-console.o
 obj-$(CONFIG_USB_EHCI_HCD)	+= sead3-ehci.o
 obj-$(CONFIG_OF)		+= sead3.dtb.o
 
+CFLAGS_sead3-setup.o = -I$(src)/../../../scripts/dtc/libfdt
+
 $(obj)/%.dtb: $(obj)/%.dts
 	$(call if_changed,dtc)

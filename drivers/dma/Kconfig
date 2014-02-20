@@ -306,6 +306,12 @@ config DMA_OMAP
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
+config DMA_BCM2835
+	tristate "BCM2835 DMA engine support"
+	depends on (ARCH_BCM2835 || MACH_BCM2708)
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
 config TI_CPPI41
 	tristate "AM33xx CPPI41 DMA support"
 	depends on ARCH_OMAP
@@ -335,6 +341,14 @@ config K3_DMA
 	help
 	  Support the DMA engine for Hisilicon K3 platform
 	  devices.
+
+config MOXART_DMA
+	tristate "MOXART DMA support"
+	depends on ARCH_MOXART
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the MOXA ART SoC DMA controller.
 
 config DMA_ENGINE
 	bool

@@ -25,25 +25,29 @@
 /* XXX */
 void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk)
 {
-	u32 v, r;
+	u32 v;
+	void __iomem *r;
 
-	r = ((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
+	r = (__force void __iomem *)
+		((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
 
-	v = __raw_readl((__force void __iomem *)r);
+	v = omap2_clk_readl(clk, r);
 	v |= (1 << clk->enable_bit);
-	__raw_writel(v, (__force void __iomem *)r);
+	omap2_clk_writel(v, clk, r);
 }
 
 /* XXX */
 void omap2_clkt_iclk_deny_idle(struct clk_hw_omap *clk)
 {
-	u32 v, r;
+	u32 v;
+	void __iomem *r;
 
-	r = ((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
+	r = (__force void __iomem *)
+		((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
 
-	v = __raw_readl((__force void __iomem *)r);
+	v = omap2_clk_readl(clk, r);
 	v &= ~(1 << clk->enable_bit);
-	__raw_writel(v, (__force void __iomem *)r);
+	omap2_clk_writel(v, clk, r);
 }
 
 /* Public data */

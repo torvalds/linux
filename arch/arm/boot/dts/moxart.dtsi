@@ -26,12 +26,6 @@
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <0>;
-
-		ref12: ref12M {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <12000000>;
-		};
 	};
 
 	soc {

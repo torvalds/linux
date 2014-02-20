@@ -2523,6 +2523,18 @@ that used it. It was originally scheduled for removal in 2.6.35.
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.14</title>
+      <orderedlist>
+        <listitem>
+		<para> In struct <structname>v4l2_rect</structname>, the type
+of <structfield>width</structfield> and <structfield>height</structfield>
+fields changed from _s32 to _u32.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 

@@ -130,6 +130,21 @@ void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 }
 IWL_EXPORT_SYMBOL(iwl_write_prph);
 
+int iwl_poll_prph_bit(struct iwl_trans *trans, u32 addr,
+		      u32 bits, u32 mask, int timeout)
+{
+	int t = 0;
+
+	do {
+		if ((iwl_read_prph(trans, addr) & mask) == (bits & mask))
+			return t;
+		udelay(IWL_POLL_INTERVAL);
+		t += IWL_POLL_INTERVAL;
+	} while (t < timeout);
+
+	return -ETIMEDOUT;
+}
+
 void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 {
 	unsigned long flags;

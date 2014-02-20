@@ -70,37 +70,24 @@
 
 /**
  * enum iwl_bt_coex_flags - flags for BT_COEX command
- * @BT_CH_PRIMARY_EN:
- * @BT_CH_SECONDARY_EN:
- * @BT_NOTIF_COEX_OFF:
  * @BT_COEX_MODE_POS:
  * @BT_COEX_MODE_MSK:
  * @BT_COEX_DISABLE:
  * @BT_COEX_2W:
  * @BT_COEX_3W:
  * @BT_COEX_NW:
- * @BT_USE_DEFAULTS:
- * @BT_SYNC_2_BT_DISABLE:
- * @BT_COEX_CORUNNING_TBL_EN:
+ * @BT_COEX_SYNC2SCO:
  *
  * The COEX_MODE must be set for each command. Even if it is not changed.
  */
 enum iwl_bt_coex_flags {
-	BT_CH_PRIMARY_EN		= BIT(0),
-	BT_CH_SECONDARY_EN		= BIT(1),
-	BT_NOTIF_COEX_OFF		= BIT(2),
 	BT_COEX_MODE_POS		= 3,
 	BT_COEX_MODE_MSK		= BITS(3) << BT_COEX_MODE_POS,
 	BT_COEX_DISABLE			= 0x0 << BT_COEX_MODE_POS,
 	BT_COEX_2W			= 0x1 << BT_COEX_MODE_POS,
 	BT_COEX_3W			= 0x2 << BT_COEX_MODE_POS,
 	BT_COEX_NW			= 0x3 << BT_COEX_MODE_POS,
-	BT_USE_DEFAULTS			= BIT(6),
-	BT_SYNC_2_BT_DISABLE		= BIT(7),
-	BT_COEX_CORUNNING_TBL_EN	= BIT(8),
-	BT_COEX_MPLUT_TBL_EN		= BIT(9),
-	/* Bit 10 is reserved */
-	BT_COEX_WF_PRIO_BOOST_CHECK_EN	= BIT(11),
+	BT_COEX_SYNC2SCO		= BIT(7),
 };
 
 /*

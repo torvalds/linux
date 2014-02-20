@@ -47,25 +47,36 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct vsp1_rwpf *rpf = to_rwpf(subdev);
 	const struct vsp1_format_info *fmtinfo = rpf->video.fmtinfo;
 	const struct v4l2_pix_format_mplane *format = &rpf->video.format;
+	const struct v4l2_rect *crop = &rpf->crop;
 	u32 pstride;
 	u32 infmt;
 
 	if (!enable)
 		return 0;
 
-	/* Source size and stride. Cropping isn't supported yet. */
+	/* Source size, stride and crop offsets.
+	 *
+	 * The crop offsets correspond to the location of the crop rectangle top
+	 * left corner in the plane buffer. Only two offsets are needed, as
+	 * planes 2 and 3 always have identical strides.
+	 */
 	vsp1_rpf_write(rpf, VI6_RPF_SRC_BSIZE,
-		       (format->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
-		       (format->height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
+		       (crop->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
+		       (crop->height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
 	vsp1_rpf_write(rpf, VI6_RPF_SRC_ESIZE,
-		       (format->width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
-		       (format->height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
+		       (crop->width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
+		       (crop->height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
 
+	rpf->offsets[0] = crop->top * format->plane_fmt[0].bytesperline
+			+ crop->left * fmtinfo->bpp[0] / 8;
 	pstride = format->plane_fmt[0].bytesperline
 		<< VI6_RPF_SRCM_PSTRIDE_Y_SHIFT;
-	if (format->num_planes > 1)
+	if (format->num_planes > 1) {
+		rpf->offsets[1] = crop->top * format->plane_fmt[1].bytesperline
+				+ crop->left * fmtinfo->bpp[1] / 8;
 		pstride |= format->plane_fmt[1].bytesperline
 			<< VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
+	}
 
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_PSTRIDE, pstride);
 
@@ -113,6 +124,8 @@ static struct v4l2_subdev_pad_ops rpf_pad_ops = {
 	.enum_frame_size = vsp1_rwpf_enum_frame_size,
 	.get_fmt = vsp1_rwpf_get_format,
 	.set_fmt = vsp1_rwpf_set_format,
+	.get_selection = vsp1_rwpf_get_selection,
+	.set_selection = vsp1_rwpf_set_selection,
 };
 
 static struct v4l2_subdev_ops rpf_ops = {
@@ -129,11 +142,14 @@ static void rpf_vdev_queue(struct vsp1_video *video,
 {
 	struct vsp1_rwpf *rpf = container_of(video, struct vsp1_rwpf, video);
 
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y, buf->addr[0]);
+	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
+		       buf->addr[0] + rpf->offsets[0]);
 	if (buf->buf.num_planes > 1)
-		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0, buf->addr[1]);
+		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
+			       buf->addr[1] + rpf->offsets[1]);
 	if (buf->buf.num_planes > 2)
-		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1, buf->addr[2]);
+		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
+			       buf->addr[2] + rpf->offsets[1]);
 }
 
 static const struct vsp1_video_operations rpf_vdev_ops = {

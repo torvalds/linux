@@ -257,10 +257,26 @@ u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_get_apic_base);
 
-void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
+int kvm_set_apic_base(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	/* TODO: reserve bits check */
-	kvm_lapic_set_base(vcpu, data);
+	u64 old_state = vcpu->arch.apic_base &
+		(MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE);
+	u64 new_state = msr_info->data &
+		(MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE);
+	u64 reserved_bits = ((~0ULL) << cpuid_maxphyaddr(vcpu)) |
+		0x2ff | (guest_cpuid_has_x2apic(vcpu) ? 0 : X2APIC_ENABLE);
+
+	if (!msr_info->host_initiated &&
+	    ((msr_info->data & reserved_bits) != 0 ||
+	     new_state == X2APIC_ENABLE ||
+	     (new_state == MSR_IA32_APICBASE_ENABLE &&
+	      old_state == (MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE)) ||
+	     (new_state == (MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE) &&
+	      old_state == 0)))
+		return 1;
+
+	kvm_lapic_set_base(vcpu, msr_info->data);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_set_apic_base);
 
@@ -1840,6 +1856,7 @@ static int set_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		if (__copy_to_user((void __user *)addr, instructions, 4))
 			return 1;
 		kvm->arch.hv_hypercall = data;
+		mark_page_dirty(kvm, gfn);
 		break;
 	}
 	case HV_X64_MSR_REFERENCE_TSC: {
@@ -1868,19 +1885,21 @@ static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	switch (msr) {
 	case HV_X64_MSR_APIC_ASSIST_PAGE: {
+		u64 gfn;
 		unsigned long addr;
 
 		if (!(data & HV_X64_MSR_APIC_ASSIST_PAGE_ENABLE)) {
 			vcpu->arch.hv_vapic = data;
 			break;
 		}
-		addr = gfn_to_hva(vcpu->kvm, data >>
-				  HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_SHIFT);
+		gfn = data >> HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_SHIFT;
+		addr = gfn_to_hva(vcpu->kvm, gfn);
 		if (kvm_is_error_hva(addr))
 			return 1;
 		if (__clear_user((void __user *)addr, PAGE_SIZE))
 			return 1;
 		vcpu->arch.hv_vapic = data;
+		mark_page_dirty(vcpu->kvm, gfn);
 		break;
 	}
 	case HV_X64_MSR_EOI:
@@ -2006,8 +2025,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case 0x200 ... 0x2ff:
 		return set_msr_mtrr(vcpu, msr, data);
 	case MSR_IA32_APICBASE:
-		kvm_set_apic_base(vcpu, data);
-		break;
+		return kvm_set_apic_base(vcpu, msr_info);
 	case APIC_BASE_MSR ... APIC_BASE_MSR + 0x3ff:
 		return kvm_x2apic_msr_write(vcpu, msr, data);
 	case MSR_IA32_TSCDEADLINE:
@@ -2598,10 +2616,10 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_GET_TSC_KHZ:
 	case KVM_CAP_KVMCLOCK_CTRL:
 	case KVM_CAP_READONLY_MEM:
+	case KVM_CAP_HYPERV_TIME:
 #ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
 	case KVM_CAP_ASSIGN_DEV_IRQ:
 	case KVM_CAP_PCI_2_3:
-	case KVM_CAP_HYPERV_TIME:
 #endif
 		r = 1;
 		break;
@@ -6409,6 +6427,7 @@ EXPORT_SYMBOL_GPL(kvm_task_switch);
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
+	struct msr_data apic_base_msr;
 	int mmu_reset_needed = 0;
 	int pending_vec, max_bits, idx;
 	struct desc_ptr dt;
@@ -6432,7 +6451,9 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 	mmu_reset_needed |= vcpu->arch.efer != sregs->efer;
 	kvm_x86_ops->set_efer(vcpu, sregs->efer);
-	kvm_set_apic_base(vcpu, sregs->apic_base);
+	apic_base_msr.data = sregs->apic_base;
+	apic_base_msr.host_initiated = true;
+	kvm_set_apic_base(vcpu, &apic_base_msr);
 
 	mmu_reset_needed |= kvm_read_cr0(vcpu) != sregs->cr0;
 	kvm_x86_ops->set_cr0(vcpu, sregs->cr0);

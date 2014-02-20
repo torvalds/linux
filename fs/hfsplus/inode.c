@@ -261,7 +261,7 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 	mark_inode_dirty(inode);
 
 	if (attr->ia_valid & ATTR_MODE) {
-		error = hfsplus_posix_acl_chmod(inode);
+		error = posix_acl_chmod(inode, inode->i_mode);
 		if (unlikely(error))
 			return error;
 	}
@@ -331,9 +331,10 @@ static const struct inode_operations hfsplus_file_inode_operations = {
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
 	.listxattr	= hfsplus_listxattr,
-	.removexattr	= hfsplus_removexattr,
+	.removexattr	= generic_removexattr,
 #ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
 	.get_acl	= hfsplus_get_posix_acl,
+	.set_acl	= hfsplus_set_posix_acl,
 #endif
 };
 

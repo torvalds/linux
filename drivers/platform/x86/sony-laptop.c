@@ -789,7 +789,7 @@ static int sony_nc_buffer_call(acpi_handle handle, char *name, u64 *value,
 		void *buffer, size_t buflen)
 {
 	int ret = 0;
-	size_t len = len;
+	size_t len;
 	union acpi_object *object = __call_snc_method(handle, name, value);
 
 	if (!object)

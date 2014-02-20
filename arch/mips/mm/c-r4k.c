@@ -1020,10 +1020,14 @@ static void probe_pcache(void)
 		 */
 		config1 = read_c0_config1();
 
-		if ((lsize = ((config1 >> 19) & 7)))
-			c->icache.linesz = 2 << lsize;
-		else
-			c->icache.linesz = lsize;
+		lsize = (config1 >> 19) & 7;
+
+		/* IL == 7 is reserved */
+		if (lsize == 7)
+			panic("Invalid icache line size");
+
+		c->icache.linesz = lsize ? 2 << lsize : 0;
+
 		c->icache.sets = 32 << (((config1 >> 22) + 1) & 7);
 		c->icache.ways = 1 + ((config1 >> 16) & 7);
 
@@ -1040,10 +1044,14 @@ static void probe_pcache(void)
 		 */
 		c->dcache.flags = 0;
 
-		if ((lsize = ((config1 >> 10) & 7)))
-			c->dcache.linesz = 2 << lsize;
-		else
-			c->dcache.linesz= lsize;
+		lsize = (config1 >> 10) & 7;
+
+		/* DL == 7 is reserved */
+		if (lsize == 7)
+			panic("Invalid dcache line size");
+
+		c->dcache.linesz = lsize ? 2 << lsize : 0;
+
 		c->dcache.sets = 32 << (((config1 >> 13) + 1) & 7);
 		c->dcache.ways = 1 + ((config1 >> 7) & 7);
 
@@ -1105,6 +1113,8 @@ static void probe_pcache(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
 		if (current_cpu_type() == CPU_74K)
 			alias_74k_erratum(c);
 		if ((read_c0_config7() & (1 << 16))) {

@@ -919,7 +919,7 @@ static void __init acpi_cpufreq_boost_init(void)
 	}
 }
 
-static void __exit acpi_cpufreq_boost_exit(void)
+static void acpi_cpufreq_boost_exit(void)
 {
 	if (msrs) {
 		unregister_cpu_notifier(&boost_nb);
@@ -969,9 +969,10 @@ static int __init acpi_cpufreq_init(void)
 	acpi_cpufreq_boost_init();
 
 	ret = cpufreq_register_driver(&acpi_cpufreq_driver);
-	if (ret)
+	if (ret) {
 		free_acpi_perf_data();
-
+		acpi_cpufreq_boost_exit();
+	}
 	return ret;
 }
 

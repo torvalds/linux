@@ -73,14 +73,9 @@ struct dm_verity_io {
 	sector_t block;
 	unsigned n_blocks;
 
-	/* saved bio vector */
-	struct bio_vec *io_vec;
-	unsigned io_vec_size;
+	struct bvec_iter iter;
 
 	struct work_struct work;
-
-	/* A space for short vectors; longer vectors are allocated separately. */
-	struct bio_vec io_vec_inline[DM_VERITY_IO_VEC_INLINE];
 
 	/*
 	 * Three variably-size fields follow this struct:
@@ -284,9 +279,10 @@ release_ret_r:
 static int verity_verify_io(struct dm_verity_io *io)
 {
 	struct dm_verity *v = io->v;
+	struct bio *bio = dm_bio_from_per_bio_data(io,
+						   v->ti->per_bio_data_size);
 	unsigned b;
 	int i;
-	unsigned vector = 0, offset = 0;
 
 	for (b = 0; b < io->n_blocks; b++) {
 		struct shash_desc *desc;
@@ -336,31 +332,22 @@ test_block_hash:
 		}
 
 		todo = 1 << v->data_dev_block_bits;
-		do {
-			struct bio_vec *bv;
+		while (io->iter.bi_size) {
 			u8 *page;
-			unsigned len;
+			struct bio_vec bv = bio_iter_iovec(bio, io->iter);
 
-			BUG_ON(vector >= io->io_vec_size);
-			bv = &io->io_vec[vector];
-			page = kmap_atomic(bv->bv_page);
-			len = bv->bv_len - offset;
-			if (likely(len >= todo))
-				len = todo;
-			r = crypto_shash_update(desc,
-					page + bv->bv_offset + offset, len);
+			page = kmap_atomic(bv.bv_page);
+			r = crypto_shash_update(desc, page + bv.bv_offset,
+						bv.bv_len);
 			kunmap_atomic(page);
+
 			if (r < 0) {
 				DMERR("crypto_shash_update failed: %d", r);
 				return r;
 			}
-			offset += len;
-			if (likely(offset == bv->bv_len)) {
-				offset = 0;
-				vector++;
-			}
-			todo -= len;
-		} while (todo);
+
+			bio_advance_iter(bio, &io->iter, bv.bv_len);
+		}
 
 		if (!v->version) {
 			r = crypto_shash_update(desc, v->salt, v->salt_size);
@@ -383,8 +370,6 @@ test_block_hash:
 			return -EIO;
 		}
 	}
-	BUG_ON(vector != io->io_vec_size);
-	BUG_ON(offset);
 
 	return 0;
 }
@@ -400,10 +385,7 @@ static void verity_finish_io(struct dm_verity_io *io, int error)
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_private = io->orig_bi_private;
 
-	if (io->io_vec != io->io_vec_inline)
-		mempool_free(io->io_vec, v->vec_mempool);
-
-	bio_endio(bio, error);
+	bio_endio_nodec(bio, error);
 }
 
 static void verity_work(struct work_struct *w)
@@ -493,9 +475,9 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	struct dm_verity_io *io;
 
 	bio->bi_bdev = v->data_dev->bdev;
-	bio->bi_sector = verity_map_sector(v, bio->bi_sector);
+	bio->bi_iter.bi_sector = verity_map_sector(v, bio->bi_iter.bi_sector);
 
-	if (((unsigned)bio->bi_sector | bio_sectors(bio)) &
+	if (((unsigned)bio->bi_iter.bi_sector | bio_sectors(bio)) &
 	    ((1 << (v->data_dev_block_bits - SECTOR_SHIFT)) - 1)) {
 		DMERR_LIMIT("unaligned io");
 		return -EIO;
@@ -514,18 +496,12 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	io->v = v;
 	io->orig_bi_end_io = bio->bi_end_io;
 	io->orig_bi_private = bio->bi_private;
-	io->block = bio->bi_sector >> (v->data_dev_block_bits - SECTOR_SHIFT);
-	io->n_blocks = bio->bi_size >> v->data_dev_block_bits;
+	io->block = bio->bi_iter.bi_sector >> (v->data_dev_block_bits - SECTOR_SHIFT);
+	io->n_blocks = bio->bi_iter.bi_size >> v->data_dev_block_bits;
 
 	bio->bi_end_io = verity_end_io;
 	bio->bi_private = io;
-	io->io_vec_size = bio_segments(bio);
-	if (io->io_vec_size < DM_VERITY_IO_VEC_INLINE)
-		io->io_vec = io->io_vec_inline;
-	else
-		io->io_vec = mempool_alloc(v->vec_mempool, GFP_NOIO);
-	memcpy(io->io_vec, bio_iovec(bio),
-	       io->io_vec_size * sizeof(struct bio_vec));
+	io->iter = bio->bi_iter;
 
 	verity_submit_prefetch(v, io);
 
