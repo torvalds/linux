@@ -23,14 +23,20 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 #include <linux/phy.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/rcar-du.h>
 #include <linux/platform_device.h>
 #include <linux/sh_eth.h>
+#include <linux/spi/flash.h>
+#include <linux/spi/rspi.h>
+#include <linux/spi/spi.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7791.h>
@@ -92,6 +98,7 @@ static void __init koelsch_add_du_device(void)
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
 	.phy			= 0x1,
+	.phy_irq		= irq_pin(0),
 	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
 	.phy_interface		= PHY_INTERFACE_MODE_RMII,
 	.ether_link_active_low	= 1,
@@ -148,6 +155,55 @@ static const struct gpio_keys_platform_data koelsch_keys_pdata __initconst = {
 	.nbuttons	= ARRAY_SIZE(gpio_buttons),
 };
 
+/* QSPI */
+static const struct resource qspi_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6b10000, 0x1000),
+	DEFINE_RES_IRQ_NAMED(gic_spi(184), "mux"),
+};
+
+static const struct rspi_plat_data qspi_pdata __initconst = {
+	.num_chipselect = 1,
+};
+
+/* SPI Flash memory (Spansion S25FL512SAGMFIG11 64 MiB) */
+static struct mtd_partition spi_flash_part[] = {
+	{
+		.name		= "loader",
+		.offset		= 0x00000000,
+		.size		= 512 * 1024,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	{
+		.name		= "bootenv",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 512 * 1024,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	{
+		.name		= "data",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static const struct flash_platform_data spi_flash_data = {
+	.name		= "m25p80",
+	.parts		= spi_flash_part,
+	.nr_parts	= ARRAY_SIZE(spi_flash_part),
+	.type		= "s25fl512s",
+};
+
+static const struct spi_board_info spi_info[] __initconst = {
+	{
+		.modalias	= "m25p80",
+		.platform_data	= &spi_flash_data,
+		.mode		= SPI_MODE_0,
+		.max_speed_hz	= 30000000,
+		.bus_num	= 0,
+		.chip_select	= 0,
+	},
+};
+
 /* SATA0 */
 static const struct resource sata0_resources[] __initconst = {
 	DEFINE_RES_MEM(0xee300000, 0x2000),
@@ -162,6 +218,38 @@ static const struct platform_device_info sata0_info __initconst = {
 	.num_res	= ARRAY_SIZE(sata0_resources),
 	.dma_mask	= DMA_BIT_MASK(32),
 };
+
+/* I2C */
+static const struct resource i2c_resources[] __initconst = {
+	/* I2C0 */
+	DEFINE_RES_MEM(0xE6508000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(287)),
+	/* I2C1 */
+	DEFINE_RES_MEM(0xE6518000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(288)),
+	/* I2C2 */
+	DEFINE_RES_MEM(0xE6530000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(286)),
+	/* I2C3 */
+	DEFINE_RES_MEM(0xE6540000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(290)),
+	/* I2C4 */
+	DEFINE_RES_MEM(0xE6520000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(19)),
+	/* I2C5 */
+	DEFINE_RES_MEM(0xE6528000, 0x40),
+	DEFINE_RES_IRQ(gic_spi(20)),
+};
+
+static void __init koelsch_add_i2c(unsigned idx)
+{
+	unsigned res_idx = idx * 2;
+
+	BUG_ON(res_idx >= ARRAY_SIZE(i2c_resources));
+
+	platform_device_register_simple("i2c-rcar_gen2", idx,
+					i2c_resources + res_idx, 2);
+}
 
 static const struct pinctrl_map koelsch_pinctrl_map[] = {
 	/* DU */
@@ -180,12 +268,26 @@ static const struct pinctrl_map koelsch_pinctrl_map[] = {
 				  "eth_rmii", "eth"),
 	PIN_MAP_MUX_GROUP_DEFAULT("r8a7791-ether", "pfc-r8a7791",
 				  "intc_irq0", "intc"),
+	/* QSPI */
+	PIN_MAP_MUX_GROUP_DEFAULT("qspi.0", "pfc-r8a7791",
+				  "qspi_ctrl", "qspi"),
+	PIN_MAP_MUX_GROUP_DEFAULT("qspi.0", "pfc-r8a7791",
+				  "qspi_data4", "qspi"),
 	/* SCIF0 (CN19: DEBUG SERIAL0) */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.6", "pfc-r8a7791",
 				  "scif0_data_d", "scif0"),
 	/* SCIF1 (CN20: DEBUG SERIAL1) */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.7", "pfc-r8a7791",
 				  "scif1_data_d", "scif1"),
+	/* I2C1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-rcar_gen2.1", "pfc-r8a7791",
+				  "i2c1_e", "i2c1"),
+	/* I2C2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-rcar_gen2.2", "pfc-r8a7791",
+				  "i2c2", "i2c2"),
+	/* I2C4 */
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-rcar_gen2.4", "pfc-r8a7791",
+				  "i2c4_c", "i2c4"),
 };
 
 static void __init koelsch_add_standard_devices(void)
@@ -205,10 +307,20 @@ static void __init koelsch_add_standard_devices(void)
 	platform_device_register_data(&platform_bus, "gpio-keys", -1,
 				      &koelsch_keys_pdata,
 				      sizeof(koelsch_keys_pdata));
+	platform_device_register_resndata(&platform_bus, "qspi", 0,
+					  qspi_resources,
+					  ARRAY_SIZE(qspi_resources),
+					  &qspi_pdata, sizeof(qspi_pdata));
+	spi_register_board_info(spi_info, ARRAY_SIZE(spi_info));
 
 	koelsch_add_du_device();
 
 	platform_device_register_full(&sata0_info);
+
+	koelsch_add_i2c(1);
+	koelsch_add_i2c(2);
+	koelsch_add_i2c(4);
+	koelsch_add_i2c(5);
 }
 
 /*
@@ -231,6 +343,8 @@ static int koelsch_ksz8041_fixup(struct phy_device *phydev)
 static void __init koelsch_init(void)
 {
 	koelsch_add_standard_devices();
+
+	irq_set_irq_type(irq_pin(0), IRQ_TYPE_LEVEL_LOW);
 
 	if (IS_ENABLED(CONFIG_PHYLIB))
 		phy_register_fixup_for_id("r8a7791-ether-ff:01",
