@@ -1011,11 +1011,8 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 
 	pmic_plat_data = devm_kzalloc(&pdev->dev, sizeof(*pmic_plat_data),
 					GFP_KERNEL);
-
-	if (!pmic_plat_data) {
-		dev_err(&pdev->dev, "Failure to alloc pdata for regulators.\n");
+	if (!pmic_plat_data)
 		return NULL;
-	}
 
 	np = of_node_get(pdev->dev.parent->of_node);
 	regulators = of_get_child_by_name(np, "regulators");
@@ -1098,10 +1095,8 @@ static int tps65910_probe(struct platform_device *pdev)
 	}
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
-	if (!pmic) {
-		dev_err(&pdev->dev, "Memory allocation failed for pmic\n");
+	if (!pmic)
 		return -ENOMEM;
-	}
 
 	pmic->mfd = tps65910;
 	platform_set_drvdata(pdev, pmic);
@@ -1130,24 +1125,18 @@ static int tps65910_probe(struct platform_device *pdev)
 
 	pmic->desc = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct regulator_desc), GFP_KERNEL);
-	if (!pmic->desc) {
-		dev_err(&pdev->dev, "Memory alloc fails for desc\n");
+	if (!pmic->desc)
 		return -ENOMEM;
-	}
 
 	pmic->info = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct tps_info *), GFP_KERNEL);
-	if (!pmic->info) {
-		dev_err(&pdev->dev, "Memory alloc fails for info\n");
+	if (!pmic->info)
 		return -ENOMEM;
-	}
 
 	pmic->rdev = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct regulator_dev *), GFP_KERNEL);
-	if (!pmic->rdev) {
-		dev_err(&pdev->dev, "Memory alloc fails for rdev\n");
+	if (!pmic->rdev)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < pmic->num_regulators && i < TPS65910_NUM_REGS;
 			i++, info++) {
