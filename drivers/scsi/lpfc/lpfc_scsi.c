@@ -315,7 +315,25 @@ lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 	unsigned long new_queue_depth, old_queue_depth;
 
 	old_queue_depth = sdev->queue_depth;
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+
+	switch (reason) {
+	case SCSI_QDEPTH_DEFAULT:
+		/* change request from sysfs, fall through */
+	case SCSI_QDEPTH_RAMP_UP:
+		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		break;
+	case SCSI_QDEPTH_QFULL:
+		if (scsi_track_queue_full(sdev, qdepth) == 0)
+			return sdev->queue_depth;
+
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
+				 "0711 detected queue full - lun queue "
+				 "depth adjusted to %d.\n", sdev->queue_depth);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
 	new_queue_depth = sdev->queue_depth;
 	rdata = lpfc_rport_data_from_scsi_device(sdev);
 	if (rdata)
@@ -388,50 +406,6 @@ lpfc_rampdown_queue_depth(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_rampup_queue_depth - Post RAMP_UP_QUEUE event for worker thread
- * @phba: The Hba for which this call is being executed.
- *
- * This routine post WORKER_RAMP_UP_QUEUE event for @phba vport. This routine
- * post at most 1 event every 5 minute after last_ramp_up_time or
- * last_rsrc_error_time.  This routine wakes up worker thread of @phba
- * to process WORKER_RAM_DOWN_EVENT event.
- *
- * This routine should be called with no lock held.
- **/
-static inline void
-lpfc_rampup_queue_depth(struct lpfc_vport  *vport,
-			uint32_t queue_depth)
-{
-	unsigned long flags;
-	struct lpfc_hba *phba = vport->phba;
-	uint32_t evt_posted;
-	atomic_inc(&phba->num_cmd_success);
-
-	if (vport->cfg_lun_queue_depth <= queue_depth)
-		return;
-	spin_lock_irqsave(&phba->hbalock, flags);
-	if (time_before(jiffies,
-			phba->last_ramp_up_time + QUEUE_RAMP_UP_INTERVAL) ||
-	    time_before(jiffies,
-			phba->last_rsrc_error_time + QUEUE_RAMP_UP_INTERVAL)) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return;
-	}
-	phba->last_ramp_up_time = jiffies;
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-
-	spin_lock_irqsave(&phba->pport->work_port_lock, flags);
-	evt_posted = phba->pport->work_port_events & WORKER_RAMP_UP_QUEUE;
-	if (!evt_posted)
-		phba->pport->work_port_events |= WORKER_RAMP_UP_QUEUE;
-	spin_unlock_irqrestore(&phba->pport->work_port_lock, flags);
-
-	if (!evt_posted)
-		lpfc_worker_wake_up(phba);
-	return;
-}
-
-/**
  * lpfc_ramp_down_queue_handler - WORKER_RAMP_DOWN_QUEUE event handler
  * @phba: The Hba for which this call is being executed.
  *
@@ -475,41 +449,6 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 								new_queue_depth;
 				lpfc_change_queue_depth(sdev, new_queue_depth,
 							SCSI_QDEPTH_DEFAULT);
-			}
-		}
-	lpfc_destroy_vport_work_array(phba, vports);
-	atomic_set(&phba->num_rsrc_err, 0);
-	atomic_set(&phba->num_cmd_success, 0);
-}
-
-/**
- * lpfc_ramp_up_queue_handler - WORKER_RAMP_UP_QUEUE event handler
- * @phba: The Hba for which this call is being executed.
- *
- * This routine is called to  process WORKER_RAMP_UP_QUEUE event for worker
- * thread.This routine increases queue depth for all scsi device on each vport
- * associated with @phba by 1. This routine also sets @phba num_rsrc_err and
- * num_cmd_success to zero.
- **/
-void
-lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
-{
-	struct lpfc_vport **vports;
-	struct Scsi_Host  *shost;
-	struct scsi_device *sdev;
-	int i;
-
-	vports = lpfc_create_vport_work_array(phba);
-	if (vports != NULL)
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			shost = lpfc_shost_from_vport(vports[i]);
-			shost_for_each_device(sdev, shost) {
-				if (vports[i]->cfg_lun_queue_depth <=
-				    sdev->queue_depth)
-					continue;
-				lpfc_change_queue_depth(sdev,
-							sdev->queue_depth+1,
-							SCSI_QDEPTH_RAMP_UP);
 			}
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -4040,7 +3979,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_nodelist *pnode = rdata->pnode;
 	struct scsi_cmnd *cmd;
 	int result;
-	struct scsi_device *tmp_sdev;
 	int depth;
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
@@ -4283,32 +4221,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return;
-	}
-
-	if (!result)
-		lpfc_rampup_queue_depth(vport, queue_depth);
-
-	/*
-	 * Check for queue full.  If the lun is reporting queue full, then
-	 * back off the lun queue depth to prevent target overloads.
-	 */
-	if (result == SAM_STAT_TASK_SET_FULL && pnode &&
-	    NLP_CHK_NODE_ACT(pnode)) {
-		shost_for_each_device(tmp_sdev, shost) {
-			if (tmp_sdev->id != scsi_id)
-				continue;
-			depth = scsi_track_queue_full(tmp_sdev,
-						      tmp_sdev->queue_depth-1);
-			if (depth <= 0)
-				continue;
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
-					 "0711 detected queue full - lun queue "
-					 "depth adjusted to %d.\n", depth);
-			lpfc_send_sdev_queuedepth_change_event(phba, vport,
-							       pnode,
-							       tmp_sdev->lun,
-							       depth+1, depth);
-		}
 	}
 
 	spin_lock_irqsave(&phba->hbalock, flags);

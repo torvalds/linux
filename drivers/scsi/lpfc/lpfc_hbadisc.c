@@ -674,8 +674,6 @@ lpfc_work_done(struct lpfc_hba *phba)
 				lpfc_fdmi_timeout_handler(vport);
 			if (work_port_events & WORKER_RAMP_DOWN_QUEUE)
 				lpfc_ramp_down_queue_handler(phba);
-			if (work_port_events & WORKER_RAMP_UP_QUEUE)
-				lpfc_ramp_up_queue_handler(phba);
 			if (work_port_events & WORKER_DELAYED_DISC_TMO)
 				lpfc_delayed_disc_timeout_handler(vport);
 		}

@@ -73,8 +73,6 @@ struct lpfc_sli2_slim;
  */
 /* 1 Second */
 #define QUEUE_RAMP_DOWN_INTERVAL	(msecs_to_jiffies(1000 * 1))
-/* 5 minutes */
-#define QUEUE_RAMP_UP_INTERVAL		(msecs_to_jiffies(1000 * 300))
 
 /* Number of exchanges reserved for discovery to complete */
 #define LPFC_DISC_IOCB_BUFF_COUNT 20
@@ -885,7 +883,6 @@ struct lpfc_hba {
 	atomic_t num_cmd_success;
 	unsigned long last_rsrc_error_time;
 	unsigned long last_ramp_down_time;
-	unsigned long last_ramp_up_time;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
