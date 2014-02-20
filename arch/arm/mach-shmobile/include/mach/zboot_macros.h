@@ -62,4 +62,47 @@
 2 :
 .endm
 
+/* loop until a given value has been read (with mask) */
+.macro WAIT_MASK, addr, data, cmp
+	LDR	r0, 2f
+	LDR	r1, 3f
+	LDR	r2, 4f
+1:
+	LDR	r3, [r0, #0]
+	AND	r3, r1, r3
+	CMP	r2, r3
+	BNE	1b
+	B	5f
+2:	.long	\addr
+3:	.long	\data
+4:	.long	\cmp
+5:
+.endm
+
+/* read 32-bit value from addr, "or" an immediate and write back */
+.macro ED_OR, addr, data
+	LDR r4, 1f
+	LDR r5, 2f
+	LDR r6, [r4]
+	ORR r5, r6, r5
+	STR r5, [r4]
+	B	3f
+1:	.long	\addr
+2:	.long	\data
+3:
+.endm
+
+/* read 32-bit value from addr, "and" an immediate and write back */
+.macro ED_AND, addr, data
+	LDR r4, 1f
+	LDR r5, 2f
+	LDR r6, [r4]
+	AND r5, r6, r5
+	STR r5, [r4]
+	B	3f
+1:	.long \addr
+2:	.long \data
+3:
+.endm
+
 #endif /* __ZBOOT_MACRO_H */

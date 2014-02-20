@@ -44,14 +44,14 @@ static void __init lager_add_standard_devices(void)
 
 	for (i = 0; i < ARRAY_SIZE(scif_names); ++i) {
 		clk = clk_get(NULL, scif_names[i]);
-		if (clk) {
+		if (!IS_ERR(clk)) {
 			clk_register_clkdev(clk, NULL, "sh-sci.%u", i);
 			clk_put(clk);
 		}
 	}
 
 	clk = clk_get(NULL, "cmt0");
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		clk_register_clkdev(clk, NULL, "sh_cmt.0");
 		clk_put(clk);
 	}

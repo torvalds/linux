@@ -45,15 +45,18 @@ config MACH_GENMAI
 config MACH_KOELSCH
 	bool "Koelsch board"
 	depends on ARCH_R8A7791
+	select MICREL_PHY if SH_ETH
 
 config MACH_KZM9D
 	bool "KZM9D board"
 	depends on ARCH_EMEV2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SMSC_PHY if SMSC911X
 
 config MACH_LAGER
 	bool "Lager board"
 	depends on ARCH_R8A7790
+	select MICREL_PHY if SH_ETH
 
 comment "Renesas ARM SoCs System Configuration"
 endif
@@ -154,11 +157,13 @@ comment "Renesas ARM SoCs Board Type"
 config MACH_APE6EVM
 	bool "APE6EVM board"
 	depends on ARCH_R8A73A4
+	select SMSC_PHY if SMSC911X
 	select USE_OF
 
 config MACH_APE6EVM_REFERENCE
 	bool "APE6EVM board - Reference Device Tree Implementation"
 	depends on ARCH_R8A73A4
+	select SMSC_PHY if SMSC911X
 	select USE_OF
 	---help---
 	   Use reference implementation of APE6EVM board support
@@ -172,6 +177,7 @@ config MACH_MACKEREL
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SMSC_PHY if SMSC911X
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select USE_OF
 
@@ -180,6 +186,7 @@ config MACH_ARMADILLO800EVA
 	depends on ARCH_R8A7740
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SMSC_PHY if SH_ETH
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
 
@@ -188,6 +195,7 @@ config MACH_ARMADILLO800EVA_REFERENCE
 	depends on ARCH_R8A7740
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SMSC_PHY if SH_ETH
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
 	---help---
@@ -201,11 +209,11 @@ config MACH_BOCKW
 	bool "BOCK-W platform"
 	depends on ARCH_R8A7778
 	select ARCH_REQUIRE_GPIOLIB
-	select RENESAS_INTC_IRQPIN
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select USE_OF
+	select RENESAS_INTC_IRQPIN
 	select SND_SOC_AK4554 if SND_SIMPLE_CARD
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
+	select USE_OF
 
 config MACH_BOCKW_REFERENCE
 	bool "BOCK-W  - Reference Device Tree Implementation"
@@ -242,6 +250,7 @@ config MACH_MARZEN
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SMSC_PHY if SMSC911X
 	select USE_OF
 
 config MACH_MARZEN_REFERENCE
@@ -249,6 +258,7 @@ config MACH_MARZEN_REFERENCE
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SMSC_PHY if SMSC911X
 	select USE_OF
 	---help---
 	   Use reference implementation of Marzen board support
@@ -261,6 +271,7 @@ config MACH_LAGER
 	bool "Lager board"
 	depends on ARCH_R8A7790
 	select USE_OF
+	select MICREL_PHY if SH_ETH
 
 config MACH_KOELSCH
 	bool "Koelsch board"
