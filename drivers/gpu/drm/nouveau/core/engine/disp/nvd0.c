@@ -1178,7 +1178,7 @@ nvd0_disp_intr_supervisor(struct work_struct *work)
 	u32 mask[4];
 	int head;
 
-	nv_debug(priv, "supervisor %08x\n", priv->super);
+	nv_debug(priv, "supervisor %d\n", ffs(priv->super));
 	for (head = 0; head < priv->head.nr; head++) {
 		mask[head] = nv_rd32(priv, 0x6101d4 + (head * 0x800));
 		nv_debug(priv, "head %d: 0x%08x\n", head, mask[head]);
@@ -1189,6 +1189,7 @@ nvd0_disp_intr_supervisor(struct work_struct *work)
 		for (head = 0; head < priv->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
+			nv_debug(priv, "supervisor 1.0 - head %d\n", head);
 			nvd0_disp_intr_unk1_0(priv, head);
 		}
 	} else
@@ -1196,16 +1197,19 @@ nvd0_disp_intr_supervisor(struct work_struct *work)
 		for (head = 0; head < priv->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
+			nv_debug(priv, "supervisor 2.0 - head %d\n", head);
 			nvd0_disp_intr_unk2_0(priv, head);
 		}
 		for (head = 0; head < priv->head.nr; head++) {
 			if (!(mask[head] & 0x00010000))
 				continue;
+			nv_debug(priv, "supervisor 2.1 - head %d\n", head);
 			nvd0_disp_intr_unk2_1(priv, head);
 		}
 		for (head = 0; head < priv->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
+			nv_debug(priv, "supervisor 2.2 - head %d\n", head);
 			nvd0_disp_intr_unk2_2(priv, head);
 		}
 	} else
@@ -1213,6 +1217,7 @@ nvd0_disp_intr_supervisor(struct work_struct *work)
 		for (head = 0; head < priv->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
+			nv_debug(priv, "supervisor 3.0 - head %d\n", head);
 			nvd0_disp_intr_unk4_0(priv, head);
 		}
 	}
