@@ -51,14 +51,6 @@ acpi_evaluate_reference(acpi_handle handle,
 acpi_status
 acpi_evaluate_ost(acpi_handle handle, u32 source_event, u32 status_code,
 		  struct acpi_buffer *status_buf);
-#ifdef ACPI_HOTPLUG_OST
-#define	acpi_evaluate_hotplug_ost	acpi_evaluate_ost
-#else
-static inline acpi_status
-acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
-			u32 status_code, struct acpi_buffer *status_buf)
-{ return AE_OK; }
-#endif
 
 acpi_status
 acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld);
