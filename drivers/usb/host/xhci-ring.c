@@ -922,13 +922,27 @@ static void xhci_kill_endpoint_urbs(struct xhci_hcd *xhci,
 	struct xhci_ring *ring;
 
 	ep = &xhci->devs[slot_id]->eps[ep_index];
-	ring = ep->ring;
-	if (!ring)
-		return;
-	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-			"Killing URBs for slot ID %u, ep index %u",
-			slot_id, ep_index);
-	xhci_kill_ring_urbs(xhci, ring);
+	if ((ep->ep_state & EP_HAS_STREAMS) ||
+			(ep->ep_state & EP_GETTING_NO_STREAMS)) {
+		int stream_id;
+
+		for (stream_id = 0; stream_id < ep->stream_info->num_streams;
+				stream_id++) {
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Killing URBs for slot ID %u, ep index %u, stream %u",
+					slot_id, ep_index, stream_id + 1);
+			xhci_kill_ring_urbs(xhci,
+					ep->stream_info->stream_rings[stream_id]);
+		}
+	} else {
+		ring = ep->ring;
+		if (!ring)
+			return;
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Killing URBs for slot ID %u, ep index %u",
+				slot_id, ep_index);
+		xhci_kill_ring_urbs(xhci, ring);
+	}
 	while (!list_empty(&ep->cancelled_td_list)) {
 		cur_td = list_first_entry(&ep->cancelled_td_list,
 				struct xhci_td, cancelled_td_list);
