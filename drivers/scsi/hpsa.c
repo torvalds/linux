@@ -4142,7 +4142,7 @@ static int hpsa_register_scsi(struct ctlr_info *h)
 static int wait_for_device_to_become_ready(struct ctlr_info *h,
 	unsigned char lunaddr[])
 {
-	int rc = 0;
+	int rc;
 	int count = 0;
 	int waittime = 1; /* seconds */
 	struct CommandList *c;
@@ -4162,6 +4162,7 @@ static int wait_for_device_to_become_ready(struct ctlr_info *h,
 		 */
 		msleep(1000 * waittime);
 		count++;
+		rc = 0; /* Device ready. */
 
 		/* Increase wait time with each try, up to a point. */
 		if (waittime < HPSA_MAX_WAIT_INTERVAL_SECS)
