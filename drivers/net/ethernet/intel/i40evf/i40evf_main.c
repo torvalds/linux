@@ -2034,8 +2034,8 @@ static void i40evf_init_task(struct work_struct *work)
 	netdev->netdev_ops = &i40evf_netdev_ops;
 	i40evf_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
-
-	netdev->features |= NETIF_F_SG |
+	netdev->features |= NETIF_F_HIGHDMA |
+			    NETIF_F_SG |
 			    NETIF_F_IP_CSUM |
 			    NETIF_F_SCTP_CSUM |
 			    NETIF_F_IPV6_CSUM |
@@ -2180,20 +2180,18 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev;
 	struct i40evf_adapter *adapter = NULL;
 	struct i40e_hw *hw = NULL;
-	int err, pci_using_dac;
+	int err;
 
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
 
 	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		pci_using_dac = true;
 		/* coherent mask for the same size will always succeed if
 		 * dma_set_mask does
 		 */
 		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 	} else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		pci_using_dac = false;
 		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	} else {
 		dev_err(&pdev->dev, "%s: DMA configuration failed: %d\n",
@@ -2224,8 +2222,6 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, netdev);
 	adapter = netdev_priv(netdev);
-	if (pci_using_dac)
-		netdev->features |= NETIF_F_HIGHDMA;
 
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
