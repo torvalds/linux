@@ -26,6 +26,7 @@
 #include <core/parent.h>
 #include <core/handle.h>
 #include <core/class.h>
+#include <core/enum.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -780,25 +781,46 @@ nv50_disp_cclass = {
  * Display engine implementation
  ******************************************************************************/
 
+static const struct nouveau_enum
+nv50_disp_intr_error_type[] = {
+	{ 3, "ILLEGAL_MTHD" },
+	{ 4, "INVALID_VALUE" },
+	{ 5, "INVALID_STATE" },
+	{ 7, "INVALID_HANDLE" },
+	{}
+};
+
+static const struct nouveau_enum
+nv50_disp_intr_error_code[] = {
+	{ 0x00, "" },
+	{}
+};
+
 static void
-nv50_disp_intr_error(struct nv50_disp_priv *priv)
+nv50_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 {
-	u32 channels = (nv_rd32(priv, 0x610020) & 0x001f0000) >> 16;
-	u32 addr, data;
-	int chid;
+	u32 data = nv_rd32(priv, 0x610084 + (chid * 0x08));
+	u32 addr = nv_rd32(priv, 0x610080 + (chid * 0x08));
+	u32 code = (addr & 0x00ff0000) >> 16;
+	u32 type = (addr & 0x00007000) >> 12;
+	u32 mthd = (addr & 0x00000ffc);
+	const struct nouveau_enum *ec, *et;
+	char ecunk[6], etunk[6];
 
-	for (chid = 0; chid < 5; chid++) {
-		if (!(channels & (1 << chid)))
-			continue;
+	et = nouveau_enum_find(nv50_disp_intr_error_type, type);
+	if (!et)
+		snprintf(etunk, sizeof(etunk), "UNK%02X", type);
 
-		nv_wr32(priv, 0x610020, 0x00010000 << chid);
-		addr = nv_rd32(priv, 0x610080 + (chid * 0x08));
-		data = nv_rd32(priv, 0x610084 + (chid * 0x08));
-		nv_wr32(priv, 0x610080 + (chid * 0x08), 0x90000000);
+	ec = nouveau_enum_find(nv50_disp_intr_error_code, code);
+	if (!ec)
+		snprintf(ecunk, sizeof(ecunk), "UNK%02X", code);
 
-		nv_error(priv, "chid %d mthd 0x%04x data 0x%08x 0x%08x\n",
-			 chid, addr & 0xffc, data, addr);
-	}
+	nv_error(priv, "%s [%s] chid %d mthd 0x%04x data 0x%08x\n",
+		 et ? et->name : etunk, ec ? ec->name : ecunk,
+		 chid, mthd, data);
+
+	nv_wr32(priv, 0x610020, 0x00010000 << chid);
+	nv_wr32(priv, 0x610080 + (chid * 0x08), 0x90000000);
 }
 
 static u16
@@ -1288,9 +1310,10 @@ nv50_disp_intr(struct nouveau_subdev *subdev)
 	u32 intr0 = nv_rd32(priv, 0x610020);
 	u32 intr1 = nv_rd32(priv, 0x610024);
 
-	if (intr0 & 0x001f0000) {
-		nv50_disp_intr_error(priv);
-		intr0 &= ~0x001f0000;
+	while (intr0 & 0x001f0000) {
+		u32 chid = __ffs(intr0 & 0x001f0000) - 16;
+		nv50_disp_intr_error(priv, chid);
+		intr0 &= ~(0x00010000 << chid);
 	}
 
 	if (intr1 & 0x00000004) {
