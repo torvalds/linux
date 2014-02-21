@@ -972,9 +972,14 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		f->remove = true;
 	}
+	/* remove all VLAN filters */
+	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
+		f->remove = true;
+	}
 	if (!(adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) &&
 	    adapter->state != __I40EVF_RESETTING) {
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
 		/* disable receives */
 		adapter->aq_required |= I40EVF_FLAG_AQ_DISABLE_QUEUES;
 		mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
