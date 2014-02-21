@@ -1759,7 +1759,7 @@ static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 		return;
 
 	seq_printf(m, "Page directories: %d\n", ppgtt->num_pd_pages);
-	seq_printf(m, "Page tables: %d\n", ppgtt->num_pt_pages);
+	seq_printf(m, "Page tables: %d\n", ppgtt->num_pd_entries);
 	for_each_ring(ring, dev_priv, unused) {
 		seq_printf(m, "%s\n", ring->name);
 		for (i = 0; i < 4; i++) {

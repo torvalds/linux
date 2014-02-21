@@ -433,7 +433,6 @@ static int gen8_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt,
 					   const int max_pdp)
 {
 	struct page **pt_pages[GEN8_LEGACY_PDPS];
-	const int num_pt_pages = GEN8_PDES_PER_PAGE * max_pdp;
 	int i, ret;
 
 	for (i = 0; i < max_pdp; i++) {
@@ -449,8 +448,6 @@ static int gen8_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt,
 	 */
 	for (i = 0; i < max_pdp; i++)
 		ppgtt->gen8_pt_pages[i] = pt_pages[i];
-
-	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
 
 	return 0;
 
@@ -618,18 +615,15 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->base.start = 0;
-	ppgtt->base.total = ppgtt->num_pt_pages * GEN8_PTES_PER_PAGE * PAGE_SIZE;
+	ppgtt->base.total = ppgtt->num_pd_entries * GEN8_PTES_PER_PAGE * PAGE_SIZE;
 
-	ppgtt->base.clear_range(&ppgtt->base, 0,
-				ppgtt->num_pd_entries * GEN8_PTES_PER_PAGE * PAGE_SIZE,
-				true);
+	ppgtt->base.clear_range(&ppgtt->base, 0, ppgtt->base.total, true);
 
 	DRM_DEBUG_DRIVER("Allocated %d pages for page directories (%d wasted)\n",
 			 ppgtt->num_pd_pages, ppgtt->num_pd_pages - max_pdp);
 	DRM_DEBUG_DRIVER("Allocated %d pages for page tables (%lld wasted)\n",
-			 ppgtt->num_pt_pages,
-			 (ppgtt->num_pt_pages - min_pt_pages) +
-			 size % (1<<30));
+			 ppgtt->num_pd_entries,
+			 (ppgtt->num_pd_entries - min_pt_pages) + size % (1<<30));
 	return 0;
 
 bail:
