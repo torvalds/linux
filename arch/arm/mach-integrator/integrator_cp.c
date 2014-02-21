@@ -23,7 +23,6 @@
 #include <linux/irqchip/versatile-fpga.h>
 #include <linux/gfp.h>
 #include <linux/mtd/physmap.h>
-#include <linux/platform_data/clk-integrator.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -33,8 +32,6 @@
 #include <mach/platform.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/arm_timer.h>
-#include <asm/hardware/icst.h>
 
 #include <mach/lm.h>
 
@@ -42,8 +39,6 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-
-#include <asm/hardware/timer-sp.h>
 
 #include <plat/clcd.h>
 #include <plat/sched_clock.h>
@@ -250,7 +245,6 @@ static void __init intcp_init_irq_of(void)
 {
 	cm_init();
 	of_irq_init(fpga_irq_of_match);
-	integrator_clk_init(true);
 }
 
 /*
