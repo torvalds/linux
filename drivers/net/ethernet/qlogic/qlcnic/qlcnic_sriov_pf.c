@@ -17,6 +17,7 @@
 #define QLC_MAC_STAR_DEL	7
 #define QLC_VF_FLOOD_BIT	BIT_16
 #define QLC_FLOOD_MODE		0x5
+#define QLC_SRIOV_ALLOW_VLAN0	BIT_19
 
 static int qlcnic_sriov_pf_get_vport_handle(struct qlcnic_adapter *, u8);
 
@@ -337,8 +338,11 @@ static int qlcnic_sriov_pf_cfg_vlan_filtering(struct qlcnic_adapter *adapter,
 		return err;
 
 	cmd.req.arg[1] = 0x4;
-	if (enable)
+	if (enable) {
 		cmd.req.arg[1] |= BIT_16;
+		if (qlcnic_84xx_check(adapter))
+			cmd.req.arg[1] |= QLC_SRIOV_ALLOW_VLAN0;
+	}
 
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err)
