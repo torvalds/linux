@@ -409,9 +409,9 @@ nvc0_fifo_intr_sched(struct nvc0_fifo_priv *priv)
 static const struct nouveau_enum
 nvc0_fifo_fault_engine[] = {
 	{ 0x00, "PGRAPH", NULL, NVDEV_ENGINE_GR },
-	{ 0x03, "PEEPHOLE" },
-	{ 0x04, "BAR1" },
-	{ 0x05, "BAR3" },
+	{ 0x03, "PEEPHOLE", NULL, NVDEV_ENGINE_IFB },
+	{ 0x04, "BAR1", NULL, NVDEV_SUBDEV_BAR },
+	{ 0x05, "BAR3", NULL, NVDEV_SUBDEV_INSTMEM },
 	{ 0x07, "PFIFO", NULL, NVDEV_ENGINE_FIFO },
 	{ 0x10, "PBSP", NULL, NVDEV_ENGINE_BSP },
 	{ 0x11, "PPPP", NULL, NVDEV_ENGINE_PPP },
@@ -485,30 +485,27 @@ nvc0_fifo_intr_fault(struct nvc0_fifo_priv *priv, int unit)
 	char ecunk[6] = "";
 	char gpcid[3] = "";
 
-	switch (unit) {
-	case 3: /* PEEPHOLE */
-		nv_mask(priv, 0x001718, 0x00000000, 0x00000000);
-		break;
-	case 4: /* BAR1 */
-		nv_mask(priv, 0x001704, 0x00000000, 0x00000000);
-		break;
-	case 5: /* BAR3 */
-		nv_mask(priv, 0x001714, 0x00000000, 0x00000000);
-		break;
-	default:
-		break;
-	}
-
 	er = nouveau_enum_find(nvc0_fifo_fault_reason, reason);
 	if (!er)
 		snprintf(erunk, sizeof(erunk), "UNK%02X", reason);
 
 	eu = nouveau_enum_find(nvc0_fifo_fault_engine, unit);
 	if (eu) {
-		if (eu->data2) {
+		switch (eu->data2) {
+		case NVDEV_SUBDEV_BAR:
+			nv_mask(priv, 0x001704, 0x00000000, 0x00000000);
+			break;
+		case NVDEV_SUBDEV_INSTMEM:
+			nv_mask(priv, 0x001714, 0x00000000, 0x00000000);
+			break;
+		case NVDEV_ENGINE_IFB:
+			nv_mask(priv, 0x001718, 0x00000000, 0x00000000);
+			break;
+		default:
 			engine = nouveau_engine(priv, eu->data2);
 			if (engine)
 				engctx = nouveau_engctx_get(engine, inst);
+			break;
 		}
 	} else {
 		snprintf(euunk, sizeof(euunk), "UNK%02x", unit);
