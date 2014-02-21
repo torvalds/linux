@@ -893,10 +893,6 @@ static int rspi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static void rspi_cleanup(struct spi_device *spi)
-{
-}
-
 static u16 qspi_transfer_mode(const struct spi_transfer *xfer)
 {
 	if (xfer->tx_buf)
@@ -1255,7 +1251,6 @@ static int rspi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->setup = rspi_setup;
 	master->transfer_one = ops->transfer_one;
-	master->cleanup = rspi_cleanup;
 	master->prepare_message = rspi_prepare_message;
 	master->unprepare_message = rspi_unprepare_message;
 	master->mode_bits = ops->mode_bits;
