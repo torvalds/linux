@@ -2084,8 +2084,6 @@ static void i40evf_init_task(struct work_struct *work)
 
 	netif_carrier_off(netdev);
 
-	strcpy(netdev->name, "eth%d");
-
 	adapter->vsi.id = adapter->vsi_res->vsi_id;
 	adapter->vsi.seid = adapter->vsi_res->vsi_id; /* dummy */
 	adapter->vsi.back = adapter;
