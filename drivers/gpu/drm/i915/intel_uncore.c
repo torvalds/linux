@@ -89,14 +89,14 @@ static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv,
 	__gen6_gt_wait_for_thread_c0(dev_priv);
 }
 
-static void __gen6_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
+static void __gen7_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
 {
 	__raw_i915_write32(dev_priv, FORCEWAKE_MT, _MASKED_BIT_DISABLE(0xffff));
 	/* something from same cacheline, but !FORCEWAKE_MT */
 	__raw_posting_read(dev_priv, ECOBUS);
 }
 
-static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv,
+static void __gen7_gt_force_wake_mt_get(struct drm_i915_private *dev_priv,
 							int fw_engine)
 {
 	u32 forcewake_ack;
@@ -142,14 +142,16 @@ static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
-static void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv,
+static void __gen7_gt_force_wake_mt_put(struct drm_i915_private *dev_priv,
 							int fw_engine)
 {
 	__raw_i915_write32(dev_priv, FORCEWAKE_MT,
 			   _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
 	/* something from same cacheline, but !FORCEWAKE_MT */
 	__raw_posting_read(dev_priv, ECOBUS);
-	gen6_gt_check_fifodbg(dev_priv);
+
+	if (IS_GEN7(dev_priv->dev))
+		gen6_gt_check_fifodbg(dev_priv);
 }
 
 static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
@@ -316,7 +318,7 @@ static void intel_uncore_forcewake_reset(struct drm_device *dev)
 		__gen6_gt_force_wake_reset(dev_priv);
 
 	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_GEN8(dev))
-		__gen6_gt_force_wake_mt_reset(dev_priv);
+		__gen7_gt_force_wake_mt_reset(dev_priv);
 }
 
 void intel_uncore_early_sanitize(struct drm_device *dev)
@@ -690,8 +692,8 @@ void intel_uncore_init(struct drm_device *dev)
 		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
 		dev_priv->uncore.funcs.force_wake_put = __vlv_force_wake_put;
 	} else if (IS_HASWELL(dev) || IS_GEN8(dev)) {
-		dev_priv->uncore.funcs.force_wake_get = __gen6_gt_force_wake_mt_get;
-		dev_priv->uncore.funcs.force_wake_put = __gen6_gt_force_wake_mt_put;
+		dev_priv->uncore.funcs.force_wake_get = __gen7_gt_force_wake_mt_get;
+		dev_priv->uncore.funcs.force_wake_put = __gen7_gt_force_wake_mt_put;
 	} else if (IS_IVYBRIDGE(dev)) {
 		u32 ecobus;
 
@@ -705,16 +707,16 @@ void intel_uncore_init(struct drm_device *dev)
 		 * forcewake being disabled.
 		 */
 		mutex_lock(&dev->struct_mutex);
-		__gen6_gt_force_wake_mt_get(dev_priv, FORCEWAKE_ALL);
+		__gen7_gt_force_wake_mt_get(dev_priv, FORCEWAKE_ALL);
 		ecobus = __raw_i915_read32(dev_priv, ECOBUS);
-		__gen6_gt_force_wake_mt_put(dev_priv, FORCEWAKE_ALL);
+		__gen7_gt_force_wake_mt_put(dev_priv, FORCEWAKE_ALL);
 		mutex_unlock(&dev->struct_mutex);
 
 		if (ecobus & FORCEWAKE_MT_ENABLE) {
 			dev_priv->uncore.funcs.force_wake_get =
-				__gen6_gt_force_wake_mt_get;
+				__gen7_gt_force_wake_mt_get;
 			dev_priv->uncore.funcs.force_wake_put =
-				__gen6_gt_force_wake_mt_put;
+				__gen7_gt_force_wake_mt_put;
 		} else {
 			DRM_INFO("No MT forcewake available on Ivybridge, this can result in issues\n");
 			DRM_INFO("when using vblank-synced partial screen updates.\n");
@@ -988,7 +990,10 @@ static int gen6_do_reset(struct drm_device *dev)
 	}
 
 	/* Restore fifo count */
-	dev_priv->uncore.fifo_count = __raw_i915_read32(dev_priv, GTFIFOCTL) & GT_FIFO_FREE_ENTRIES_MASK;
+	if (IS_GEN6(dev) || IS_GEN7(dev))
+		dev_priv->uncore.fifo_count =
+			__raw_i915_read32(dev_priv, GTFIFOCTL) &
+			GT_FIFO_FREE_ENTRIES_MASK;
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 	return ret;
