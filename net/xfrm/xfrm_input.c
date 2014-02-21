@@ -108,7 +108,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	int err;
 	__be32 seq;
 	__be32 seq_hi;
-	struct xfrm_state *x;
+	struct xfrm_state *x = NULL;
 	xfrm_address_t *daddr;
 	struct xfrm_mode *inner_mode;
 	unsigned int family;
@@ -120,8 +120,13 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		async = 1;
 		x = xfrm_input_state(skb);
 		seq = XFRM_SKB_CB(skb)->seq.input.low;
+		family = x->outer_mode->afinfo->family;
 		goto resume;
 	}
+
+	daddr = (xfrm_address_t *)(skb_network_header(skb) +
+				   XFRM_SPI_SKB_CB(skb)->daddroff);
+	family = XFRM_SPI_SKB_CB(skb)->family;
 
 	/* Allocate new secpath or COW existing one. */
 	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
@@ -136,10 +141,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 			secpath_put(skb->sp);
 		skb->sp = sp;
 	}
-
-	daddr = (xfrm_address_t *)(skb_network_header(skb) +
-				   XFRM_SPI_SKB_CB(skb)->daddroff);
-	family = XFRM_SPI_SKB_CB(skb)->family;
 
 	seq = 0;
 	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0) {
@@ -201,7 +202,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		if (nexthdr == -EINPROGRESS)
 			return 0;
-
 resume:
 		spin_lock(&x->lock);
 		if (nexthdr <= 0) {
@@ -263,6 +263,10 @@ resume:
 		}
 	} while (!err);
 
+	err = xfrm_rcv_cb(skb, family, x->type->proto, 0);
+	if (err)
+		goto drop;
+
 	nf_reset(skb);
 
 	if (decaps) {
@@ -276,6 +280,7 @@ resume:
 drop_unlock:
 	spin_unlock(&x->lock);
 drop:
+	xfrm_rcv_cb(skb, family, x && x->type ? x->type->proto : nexthdr, -1);
 	kfree_skb(skb);
 	return 0;
 }

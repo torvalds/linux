@@ -1347,6 +1347,18 @@ struct xfrm_algo_desc {
 	struct sadb_alg desc;
 };
 
+/* XFRM protocol handlers.  */
+struct xfrm4_protocol {
+	int (*handler)(struct sk_buff *skb);
+	int (*input_handler)(struct sk_buff *skb, int nexthdr, __be32 spi,
+			     int encap_type);
+	int (*cb_handler)(struct sk_buff *skb, int err);
+	int (*err_handler)(struct sk_buff *skb, u32 info);
+
+	struct xfrm4_protocol __rcu *next;
+	int priority;
+};
+
 /* XFRM tunnel handlers.  */
 struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
@@ -1498,13 +1510,18 @@ int xfrm4_rcv(struct sk_buff *skb);
 
 static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 {
-	return xfrm4_rcv_encap(skb, nexthdr, spi, 0);
+	XFRM_SPI_SKB_CB(skb)->family = AF_INET;
+	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct iphdr, daddr);
+	return xfrm_input(skb, nexthdr, spi, 0);
 }
 
 int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_output(struct sk_buff *skb);
 int xfrm4_output_finish(struct sk_buff *skb);
+int xfrm4_rcv_cb(struct sk_buff *skb, u8 protocol, int err);
+int xfrm4_protocol_register(struct xfrm4_protocol *handler, unsigned char protocol);
+int xfrm4_protocol_deregister(struct xfrm4_protocol *handler, unsigned char protocol);
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 void xfrm4_local_error(struct sk_buff *skb, u32 mtu);
@@ -1750,6 +1767,18 @@ static inline int xfrm_mark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 	if (m->m | m->v)
 		ret = nla_put(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
 	return ret;
+}
+
+static inline int xfrm_rcv_cb(struct sk_buff *skb, unsigned int family,
+			      u8 protocol, int err)
+{
+	switch(family) {
+#ifdef CONFIG_INET
+	case AF_INET:
+		return xfrm4_rcv_cb(skb, protocol, err);
+#endif
+	}
+	return 0;
 }
 
 #endif	/* _NET_XFRM_H */
