@@ -167,9 +167,13 @@ static void i40evf_tx_timeout(struct net_device *netdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	adapter->tx_timeout_count++;
-
-	/* Do the reset outside of interrupt context */
-	schedule_work(&adapter->reset_task);
+	dev_info(&adapter->pdev->dev, "TX timeout detected.\n");
+	if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING)) {
+		dev_info(&adapter->pdev->dev, "Requesting reset from PF\n");
+		i40evf_request_reset(adapter);
+		adapter->flags |= I40EVF_FLAG_RESET_PENDING;
+		schedule_work(&adapter->reset_task);
+	}
 }
 
 /**

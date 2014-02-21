@@ -654,6 +654,18 @@ void i40evf_request_stats(struct i40evf_adapter *adapter)
 		/* if the request failed, don't lock out others */
 		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 }
+/**
+ * i40evf_request_reset
+ * @adapter: adapter structure
+ *
+ * Request that the PF reset this VF. No response is expected.
+ **/
+void i40evf_request_reset(struct i40evf_adapter *adapter)
+{
+	/* Don't check CURRENT_OP - this is always higher priority */
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_RESET_VF, NULL, 0);
+	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
+}
 
 /**
  * i40evf_virtchnl_completion
