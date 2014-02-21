@@ -96,8 +96,10 @@ nvc0_fifo_runlist_update(struct nvc0_fifo_priv *priv)
 	nv_wr32(priv, 0x002270, cur->addr >> 12);
 	nv_wr32(priv, 0x002274, 0x01f00000 | (p >> 3));
 
-	if (!nv_wait(priv, 0x00227c, 0x00100000, 0x00000000))
-		nv_error(priv, "runlist update failed\n");
+	if (wait_event_timeout(priv->runlist.wait,
+			       !(nv_rd32(priv, 0x00227c) & 0x00100000),
+			       msecs_to_jiffies(2000)) == 0)
+		nv_error(priv, "runlist update timeout\n");
 	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
