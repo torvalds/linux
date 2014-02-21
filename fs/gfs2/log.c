@@ -712,7 +712,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 		tr->tr_first = sdp->sd_log_flush_head;
 
 	gfs2_ordered_write(sdp);
-	lops_before_commit(sdp);
+	lops_before_commit(sdp, tr);
 	gfs2_log_flush_bio(sdp, WRITE);
 
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
@@ -744,6 +744,27 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	kfree(tr);
 }
 
+/**
+ * gfs2_merge_trans - Merge a new transaction into a cached transaction
+ * @old: Original transaction to be expanded
+ * @new: New transaction to be merged
+ */
+
+static void gfs2_merge_trans(struct gfs2_trans *old, struct gfs2_trans *new)
+{
+	WARN_ON_ONCE(old->tr_attached != 1);
+
+	old->tr_num_buf_new	+= new->tr_num_buf_new;
+	old->tr_num_databuf_new	+= new->tr_num_databuf_new;
+	old->tr_num_buf_rm	+= new->tr_num_buf_rm;
+	old->tr_num_databuf_rm	+= new->tr_num_databuf_rm;
+	old->tr_num_revoke	+= new->tr_num_revoke;
+	old->tr_num_revoke_rm	+= new->tr_num_revoke_rm;
+
+	list_splice_tail_init(&new->tr_databuf, &old->tr_databuf);
+	list_splice_tail_init(&new->tr_buf, &old->tr_buf);
+}
+
 static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	unsigned int reserved;
@@ -766,8 +787,9 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 			     sdp->sd_jdesc->jd_blocks);
 	sdp->sd_log_blks_reserved = reserved;
 
-	if (sdp->sd_log_tr == NULL &&
-	    (tr->tr_num_buf_new || tr->tr_num_databuf_new)) {
+	if (sdp->sd_log_tr) {
+		gfs2_merge_trans(sdp->sd_log_tr, tr);
+	} else if (tr->tr_num_buf_new || tr->tr_num_databuf_new) {
 		gfs2_assert_withdraw(sdp, tr->tr_t_gh.gh_gl);
 		sdp->sd_log_tr = tr;
 		tr->tr_attached = 1;

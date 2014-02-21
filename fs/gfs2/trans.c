@@ -51,6 +51,9 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	if (revokes)
 		tr->tr_reserved += gfs2_struct2blk(sdp, revokes,
 						   sizeof(u64));
+	INIT_LIST_HEAD(&tr->tr_databuf);
+	INIT_LIST_HEAD(&tr->tr_buf);
+
 	sb_start_intwrite(sdp->sd_vfs);
 	gfs2_holder_init(sdp->sd_trans_gl, LM_ST_SHARED, 0, &tr->tr_t_gh);
 
@@ -211,7 +214,7 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
 		sdp->sd_log_num_databuf++;
-		list_add_tail(&bd->bd_list, &sdp->sd_log_le_databuf);
+		list_add_tail(&bd->bd_list, &tr->tr_databuf);
 	}
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
@@ -239,7 +242,7 @@ static void meta_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	mh->__pad0 = cpu_to_be64(0);
 	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
 	sdp->sd_log_num_buf++;
-	list_add(&bd->bd_list, &sdp->sd_log_le_buf);
+	list_add(&bd->bd_list, &tr->tr_buf);
 	tr->tr_num_buf_new++;
 }
 

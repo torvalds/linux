@@ -491,24 +491,23 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 	gfs2_log_unlock(sdp);
 }
 
-static void buf_lo_before_commit(struct gfs2_sbd *sdp)
+static void buf_lo_before_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	unsigned int limit = buf_limit(sdp); /* 503 for 4k blocks */
-
-	gfs2_before_commit(sdp, limit, sdp->sd_log_num_buf,
-			   &sdp->sd_log_le_buf, 0);
+	if (tr == NULL)
+		return;
+	gfs2_before_commit(sdp, limit, sdp->sd_log_num_buf, &tr->tr_buf, 0);
 }
 
 static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
-	struct list_head *head = &sdp->sd_log_le_buf;
+	struct list_head *head;
 	struct gfs2_bufdata *bd;
 
-	if (tr == NULL) {
-		gfs2_assert(sdp, list_empty(head));
+	if (tr == NULL)
 		return;
-	}
 
+	head = &tr->tr_buf;
 	while (!list_empty(head)) {
 		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
 		list_del_init(&bd->bd_list);
@@ -620,7 +619,7 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	        jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
 }
 
-static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
+static void revoke_lo_before_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	struct gfs2_meta_header *mh;
 	unsigned int offset;
@@ -760,12 +759,12 @@ static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
  *
  */
 
-static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
+static void databuf_lo_before_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	unsigned int limit = buf_limit(sdp) / 2;
-
-	gfs2_before_commit(sdp, limit, sdp->sd_log_num_databuf,
-			   &sdp->sd_log_le_databuf, 1);
+	if (tr == NULL)
+		return;
+	gfs2_before_commit(sdp, limit, sdp->sd_log_num_databuf, &tr->tr_databuf, 1);
 }
 
 static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
@@ -840,14 +839,13 @@ static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 
 static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
-	struct list_head *head = &sdp->sd_log_le_databuf;
+	struct list_head *head;
 	struct gfs2_bufdata *bd;
 
-	if (tr == NULL) {
-		gfs2_assert(sdp, list_empty(head));
+	if (tr == NULL)
 		return;
-	}
 
+	head = &tr->tr_databuf;
 	while (!list_empty(head)) {
 		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
 		list_del_init(&bd->bd_list);
