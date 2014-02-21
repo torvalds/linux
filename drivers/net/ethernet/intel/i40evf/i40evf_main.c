@@ -2048,7 +2048,6 @@ static void i40evf_init_task(struct work_struct *work)
 				    NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
-	/* The HW MAC address was set and/or determined in sw_init */
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
 		dev_info(&pdev->dev, "Invalid MAC address %pMAC, using random\n",
 			 adapter->hw.mac.addr);
