@@ -372,6 +372,27 @@ out:
 }
 
 static const struct nouveau_enum
+nvc0_fifo_sched_reason[] = {
+	{ 0x0a, "CTXSW_TIMEOUT" },
+	{}
+};
+
+static void
+nvc0_fifo_intr_sched(struct nvc0_fifo_priv *priv)
+{
+	u32 intr = nv_rd32(priv, 0x00254c);
+	u32 code = intr & 0x000000ff;
+	const struct nouveau_enum *en;
+	char enunk[6] = "";
+
+	en = nouveau_enum_find(nvc0_fifo_sched_reason, code);
+	if (!en)
+		snprintf(enunk, sizeof(enunk), "UNK%02x", code);
+
+	nv_error(priv, "SCHED_ERROR [ %s ]\n", en ? en->name : enunk);
+}
+
+static const struct nouveau_enum
 nvc0_fifo_fault_engine[] = {
 	{ 0x00, "PGRAPH", NULL, NVDEV_ENGINE_GR },
 	{ 0x03, "PEEPHOLE" },
@@ -603,8 +624,7 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x00000100) {
-		u32 intr = nv_rd32(priv, 0x00254c);
-		nv_warn(priv, "INTR 0x00000100: 0x%08x\n", intr);
+		nvc0_fifo_intr_sched(priv);
 		nv_wr32(priv, 0x002100, 0x00000100);
 		stat &= ~0x00000100;
 	}
