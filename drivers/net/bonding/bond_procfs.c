@@ -69,9 +69,7 @@ static void bond_info_show_master(struct seq_file *seq)
 	struct slave *curr;
 	int i;
 
-	read_lock(&bond->curr_slave_lock);
-	curr = bond->curr_active_slave;
-	read_unlock(&bond->curr_slave_lock);
+	curr = rcu_dereference(bond->curr_active_slave);
 
 	seq_printf(seq, "Bonding Mode: %s",
 		   bond_mode_name(bond->params.mode));
