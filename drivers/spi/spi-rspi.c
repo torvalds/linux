@@ -859,7 +859,9 @@ static int qspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 {
 	struct rspi_data *rspi = spi_master_get_devdata(master);
 
-	if (xfer->tx_buf && xfer->tx_nbits > SPI_NBITS_SINGLE) {
+	if (spi->mode & SPI_LOOP) {
+		return qspi_transfer_out_in(rspi, xfer);
+	} else if (xfer->tx_buf && xfer->tx_nbits > SPI_NBITS_SINGLE) {
 		/* Quad or Dual SPI Write */
 		return qspi_transfer_out(rspi, xfer);
 	} else if (xfer->rx_buf && xfer->rx_nbits > SPI_NBITS_SINGLE) {
