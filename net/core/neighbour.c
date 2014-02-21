@@ -3046,7 +3046,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	if (!t)
 		goto err;
 
-	for (i = 0; i < ARRAY_SIZE(t->neigh_vars); i++) {
+	for (i = 0; i < NEIGH_VAR_GC_INTERVAL; i++) {
 		t->neigh_vars[i].data += (long) p;
 		t->neigh_vars[i].extra1 = dev;
 		t->neigh_vars[i].extra2 = p;
