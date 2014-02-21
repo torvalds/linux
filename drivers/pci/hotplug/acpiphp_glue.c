@@ -304,13 +304,6 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	if (acpi_has_method(handle, "_STA"))
 		newfunc->flags |= FUNC_HAS_STA;
 
-	/*
-	 * Dock stations' notify handler should be used for dock devices instead
-	 * of the common one, so clear hp.event in their contexts.
-	 */
-	if (acpi_has_method(handle, "_DCK"))
-		context->hp.event = NULL;
-
 	acpi_unlock_hp_context();
 
 	/* search for objects that share the same slot */
