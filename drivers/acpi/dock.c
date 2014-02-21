@@ -1,7 +1,9 @@
 /*
  *  dock.c - ACPI dock station driver
  *
- *  Copyright (C) 2006 Kristen Carlson Accardi <kristen.c.accardi@intel.com>
+ *  Copyright (C) 2006, 2014, Intel Corp.
+ *  Author: Kristen Carlson Accardi <kristen.c.accardi@intel.com>
+ *          Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
