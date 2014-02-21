@@ -671,7 +671,6 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 complete_reset:
 	/* reallocate vf resources to reset the VSI state */
 	i40e_free_vf_res(vf);
-	mdelay(10);
 	i40e_alloc_vf_res(vf);
 	i40e_enable_vf_mappings(vf);
 	set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
