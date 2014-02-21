@@ -494,9 +494,11 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 static void buf_lo_before_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	unsigned int limit = buf_limit(sdp); /* 503 for 4k blocks */
+	unsigned int nbuf;
 	if (tr == NULL)
 		return;
-	gfs2_before_commit(sdp, limit, sdp->sd_log_num_buf, &tr->tr_buf, 0);
+	nbuf = tr->tr_num_buf_new - tr->tr_num_buf_rm;
+	gfs2_before_commit(sdp, limit, nbuf, &tr->tr_buf, 0);
 }
 
 static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
@@ -511,11 +513,8 @@ static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	while (!list_empty(head)) {
 		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
 		list_del_init(&bd->bd_list);
-		sdp->sd_log_num_buf--;
-
 		gfs2_unpin(sdp, bd->bd_bh, tr);
 	}
-	gfs2_assert_warn(sdp, !sdp->sd_log_num_buf);
 }
 
 static void buf_lo_before_scan(struct gfs2_jdesc *jd,
@@ -761,10 +760,12 @@ static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 
 static void databuf_lo_before_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
-	unsigned int limit = buf_limit(sdp) / 2;
+	unsigned int limit = databuf_limit(sdp);
+	unsigned int nbuf;
 	if (tr == NULL)
 		return;
-	gfs2_before_commit(sdp, limit, sdp->sd_log_num_databuf, &tr->tr_databuf, 1);
+	nbuf = tr->tr_num_databuf_new - tr->tr_num_databuf_rm;
+	gfs2_before_commit(sdp, limit, nbuf, &tr->tr_databuf, 1);
 }
 
 static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
@@ -849,10 +850,8 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	while (!list_empty(head)) {
 		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
 		list_del_init(&bd->bd_list);
-		sdp->sd_log_num_databuf--;
 		gfs2_unpin(sdp, bd->bd_bh, tr);
 	}
-	gfs2_assert_warn(sdp, !sdp->sd_log_num_databuf);
 }
 
 

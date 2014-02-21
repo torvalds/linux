@@ -748,15 +748,10 @@ struct gfs2_sbd {
 
 	struct gfs2_trans *sd_log_tr;
 	unsigned int sd_log_blks_reserved;
-	unsigned int sd_log_commited_buf;
-	unsigned int sd_log_commited_databuf;
 	int sd_log_commited_revoke;
 
 	atomic_t sd_log_pinned;
-	unsigned int sd_log_num_buf;
 	unsigned int sd_log_num_revoke;
-	unsigned int sd_log_num_rg;
-	unsigned int sd_log_num_databuf;
 
 	struct list_head sd_log_le_revoke;
 	struct list_head sd_log_le_ordered;
