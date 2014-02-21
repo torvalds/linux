@@ -524,7 +524,8 @@ static int i40evf_request_misc_irq(struct i40evf_adapter *adapter)
 			  adapter->misc_vector_name, netdev);
 	if (err) {
 		dev_err(&adapter->pdev->dev,
-			"request_irq for msix_aq failed: %d\n", err);
+			"request_irq for %s failed: %d\n",
+			adapter->misc_vector_name, err);
 		free_irq(adapter->msix_entries[0].vector, netdev);
 	}
 	return err;

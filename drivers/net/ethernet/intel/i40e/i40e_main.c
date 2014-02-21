@@ -5925,7 +5925,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 
 	} else if (vec == I40E_MIN_MSIX) {
 		/* Adjust for minimal MSIX use */
-		dev_info(&pf->pdev->dev, "Features disabled, not enough MSIX vectors\n");
+		dev_info(&pf->pdev->dev, "Features disabled, not enough MSI-X vectors\n");
 		pf->flags &= ~I40E_FLAG_VMDQ_ENABLED;
 		pf->num_vmdq_vsis = 0;
 		pf->num_vmdq_qps = 0;
@@ -6054,7 +6054,7 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 
 	if (!(pf->flags & I40E_FLAG_MSIX_ENABLED) &&
 	    (pf->flags & I40E_FLAG_MSI_ENABLED)) {
-		dev_info(&pf->pdev->dev, "MSIX not available, trying MSI\n");
+		dev_info(&pf->pdev->dev, "MSI-X not available, trying MSI\n");
 		err = pci_enable_msi(pf->pdev);
 		if (err) {
 			dev_info(&pf->pdev->dev, "MSI init failed - %d\n", err);
@@ -6063,7 +6063,7 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 	}
 
 	if (!(pf->flags & (I40E_FLAG_MSIX_ENABLED | I40E_FLAG_MSI_ENABLED)))
-		dev_info(&pf->pdev->dev, "MSIX and MSI not available, falling back to Legacy IRQ\n");
+		dev_info(&pf->pdev->dev, "MSI-X and MSI not available, falling back to Legacy IRQ\n");
 
 	/* track first vector for misc interrupts */
 	err = i40e_get_lump(pf, pf->irq_pile, 1, I40E_PILE_VALID_BIT-1);
@@ -6090,7 +6090,8 @@ static int i40e_setup_misc_vector(struct i40e_pf *pf)
 				  i40e_intr, 0, pf->misc_int_name, pf);
 		if (err) {
 			dev_info(&pf->pdev->dev,
-				 "request_irq for msix_misc failed: %d\n", err);
+				 "request_irq for %s failed: %d\n",
+				 pf->misc_int_name, err);
 			return -EFAULT;
 		}
 	}
