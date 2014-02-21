@@ -46,6 +46,7 @@ struct hpsa_scsi_dev_t {
 	unsigned char vendor[8];        /* bytes 8-15 of inquiry data */
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
+	unsigned char volume_offline;	/* discovered via TUR or VPD */
 	u32 ioaccel_handle;
 	int offload_config;		/* I/O accel RAID offload configured */
 	int offload_enabled;		/* I/O accel RAID offload enabled */
@@ -197,10 +198,18 @@ struct ctlr_info {
 		CTLR_STATE_CHANGE_EVENT_REDUNDANT_CNTRL | \
 		CTLR_STATE_CHANGE_EVENT_AIO_ENABLED_DISABLED | \
 		CTLR_STATE_CHANGE_EVENT_AIO_CONFIG_CHANGE)
+	spinlock_t offline_device_lock;
+	struct list_head offline_device_list;
 	int	acciopath_status;
 	int	drv_req_rescan;	/* flag for driver to request rescan event */
 	int	raid_offload_debug;
 };
+
+struct offline_device_entry {
+	unsigned char scsi3addr[8];
+	struct list_head offline_list;
+};
+
 #define HPSA_ABORT_MSG 0
 #define HPSA_DEVICE_RESET_MSG 1
 #define HPSA_RESET_TYPE_CONTROLLER 0x00

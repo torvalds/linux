@@ -1133,12 +1133,119 @@ static int hpsa_scsi_find_entry(struct hpsa_scsi_dev_t *needle,
 					return DEVICE_UPDATED;
 				return DEVICE_SAME;
 			} else {
+				/* Keep offline devices offline */
+				if (needle->volume_offline)
+					return DEVICE_NOT_FOUND;
 				return DEVICE_CHANGED;
 			}
 		}
 	}
 	*index = -1;
 	return DEVICE_NOT_FOUND;
+}
+
+static void hpsa_monitor_offline_device(struct ctlr_info *h,
+					unsigned char scsi3addr[])
+{
+	struct offline_device_entry *device;
+	unsigned long flags;
+
+	/* Check to see if device is already on the list */
+	spin_lock_irqsave(&h->offline_device_lock, flags);
+	list_for_each_entry(device, &h->offline_device_list, offline_list) {
+		if (memcmp(device->scsi3addr, scsi3addr,
+			sizeof(device->scsi3addr)) == 0) {
+			spin_unlock_irqrestore(&h->offline_device_lock, flags);
+			return;
+		}
+	}
+	spin_unlock_irqrestore(&h->offline_device_lock, flags);
+
+	/* Device is not on the list, add it. */
+	device = kmalloc(sizeof(*device), GFP_KERNEL);
+	if (!device) {
+		dev_warn(&h->pdev->dev, "out of memory in %s\n", __func__);
+		return;
+	}
+	memcpy(device->scsi3addr, scsi3addr, sizeof(device->scsi3addr));
+	spin_lock_irqsave(&h->offline_device_lock, flags);
+	list_add_tail(&device->offline_list, &h->offline_device_list);
+	spin_unlock_irqrestore(&h->offline_device_lock, flags);
+}
+
+/* Print a message explaining various offline volume states */
+static void hpsa_show_volume_status(struct ctlr_info *h,
+	struct hpsa_scsi_dev_t *sd)
+{
+	if (sd->volume_offline == HPSA_VPD_LV_STATUS_UNSUPPORTED)
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume status is not available through vital product data pages.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+	switch (sd->volume_offline) {
+	case HPSA_LV_OK:
+		break;
+	case HPSA_LV_UNDERGOING_ERASE:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is undergoing background erase process.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_UNDERGOING_RPI:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is undergoing rapid parity initialization process.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_PENDING_RPI:
+		dev_info(&h->pdev->dev,
+				"C%d:B%d:T%d:L%d Volume is queued for rapid parity initialization process.\n",
+				h->scsi_host->host_no,
+				sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_ENCRYPTED_NO_KEY:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is encrypted and cannot be accessed because key is not present.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_PLAINTEXT_IN_ENCRYPT_ONLY_CONTROLLER:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is not encrypted and cannot be accessed because controller is in encryption-only mode.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_UNDERGOING_ENCRYPTION:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is undergoing encryption process.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_UNDERGOING_ENCRYPTION_REKEYING:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is undergoing encryption re-keying process.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_ENCRYPTED_IN_NON_ENCRYPTED_CONTROLLER:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is encrypted and cannot be accessed because controller does not have encryption enabled.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_PENDING_ENCRYPTION:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is pending migration to encrypted state, but process has not started.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	case HPSA_LV_PENDING_ENCRYPTION_REKEYING:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is encrypted and is pending encryption rekeying.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
+	}
 }
 
 static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
@@ -1205,6 +1312,20 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 	for (i = 0; i < nsds; i++) {
 		if (!sd[i]) /* if already added above. */
 			continue;
+
+		/* Don't add devices which are NOT READY, FORMAT IN PROGRESS
+		 * as the SCSI mid-layer does not handle such devices well.
+		 * It relentlessly loops sending TUR at 3Hz, then READ(10)
+		 * at 160Hz, and prevents the system from coming up.
+		 */
+		if (sd[i]->volume_offline) {
+			hpsa_show_volume_status(h, sd[i]);
+			dev_info(&h->pdev->dev, "c%db%dt%dl%d: temporarily offline\n",
+				h->scsi_host->host_no,
+				sd[i]->bus, sd[i]->target, sd[i]->lun);
+			continue;
+		}
+
 		device_change = hpsa_scsi_find_entry(sd[i], h->dev,
 					h->ndevices, &entry);
 		if (device_change == DEVICE_NOT_FOUND) {
@@ -1222,6 +1343,17 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 		}
 	}
 	spin_unlock_irqrestore(&h->devlock, flags);
+
+	/* Monitor devices which are in one of several NOT READY states to be
+	 * brought online later. This must be done without holding h->devlock,
+	 * so don't touch h->dev[]
+	 */
+	for (i = 0; i < nsds; i++) {
+		if (!sd[i]) /* if already added above. */
+			continue;
+		if (sd[i]->volume_offline)
+			hpsa_monitor_offline_device(h, sd[i]->scsi3addr);
+	}
 
 	/* Don't notify scsi mid layer of any changes the first time through
 	 * (or if there are no changes) scsi_scan_host will do it later the
@@ -2326,6 +2458,117 @@ static inline void hpsa_set_bus_target_lun(struct hpsa_scsi_dev_t *device,
 	device->lun = lun;
 }
 
+/* Use VPD inquiry to get details of volume status */
+static int hpsa_get_volume_status(struct ctlr_info *h,
+					unsigned char scsi3addr[])
+{
+	int rc;
+	int status;
+	int size;
+	unsigned char *buf;
+
+	buf = kzalloc(64, GFP_KERNEL);
+	if (!buf)
+		return HPSA_VPD_LV_STATUS_UNSUPPORTED;
+
+	/* Does controller have VPD for logical volume status? */
+	if (!hpsa_vpd_page_supported(h, scsi3addr, HPSA_VPD_LV_STATUS)) {
+		dev_warn(&h->pdev->dev, "Logical volume status VPD page is unsupported.\n");
+		goto exit_failed;
+	}
+
+	/* Get the size of the VPD return buffer */
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE | HPSA_VPD_LV_STATUS,
+					buf, HPSA_VPD_HEADER_SZ);
+	if (rc != 0) {
+		dev_warn(&h->pdev->dev, "Logical volume status VPD inquiry failed.\n");
+		goto exit_failed;
+	}
+	size = buf[3];
+
+	/* Now get the whole VPD buffer */
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE | HPSA_VPD_LV_STATUS,
+					buf, size + HPSA_VPD_HEADER_SZ);
+	if (rc != 0) {
+		dev_warn(&h->pdev->dev, "Logical volume status VPD inquiry failed.\n");
+		goto exit_failed;
+	}
+	status = buf[4]; /* status byte */
+
+	kfree(buf);
+	return status;
+exit_failed:
+	kfree(buf);
+	return HPSA_VPD_LV_STATUS_UNSUPPORTED;
+}
+
+/* Determine offline status of a volume.
+ * Return either:
+ *  0 (not offline)
+ * -1 (offline for unknown reasons)
+ *  # (integer code indicating one of several NOT READY states
+ *     describing why a volume is to be kept offline)
+ */
+static unsigned char hpsa_volume_offline(struct ctlr_info *h,
+					unsigned char scsi3addr[])
+{
+	struct CommandList *c;
+	unsigned char *sense, sense_key, asc, ascq;
+	int ldstat = 0;
+	u16 cmd_status;
+	u8 scsi_status;
+#define ASC_LUN_NOT_READY 0x04
+#define ASCQ_LUN_NOT_READY_FORMAT_IN_PROGRESS 0x04
+#define ASCQ_LUN_NOT_READY_INITIALIZING_CMD_REQ 0x02
+
+	c = cmd_alloc(h);
+	if (!c)
+		return 0;
+	(void) fill_cmd(c, TEST_UNIT_READY, h, NULL, 0, 0, scsi3addr, TYPE_CMD);
+	hpsa_scsi_do_simple_cmd_core(h, c);
+	sense = c->err_info->SenseInfo;
+	sense_key = sense[2];
+	asc = sense[12];
+	ascq = sense[13];
+	cmd_status = c->err_info->CommandStatus;
+	scsi_status = c->err_info->ScsiStatus;
+	cmd_free(h, c);
+	/* Is the volume 'not ready'? */
+	if (cmd_status != CMD_TARGET_STATUS ||
+		scsi_status != SAM_STAT_CHECK_CONDITION ||
+		sense_key != NOT_READY ||
+		asc != ASC_LUN_NOT_READY)  {
+		return 0;
+	}
+
+	/* Determine the reason for not ready state */
+	ldstat = hpsa_get_volume_status(h, scsi3addr);
+
+	/* Keep volume offline in certain cases: */
+	switch (ldstat) {
+	case HPSA_LV_UNDERGOING_ERASE:
+	case HPSA_LV_UNDERGOING_RPI:
+	case HPSA_LV_PENDING_RPI:
+	case HPSA_LV_ENCRYPTED_NO_KEY:
+	case HPSA_LV_PLAINTEXT_IN_ENCRYPT_ONLY_CONTROLLER:
+	case HPSA_LV_UNDERGOING_ENCRYPTION:
+	case HPSA_LV_UNDERGOING_ENCRYPTION_REKEYING:
+	case HPSA_LV_ENCRYPTED_IN_NON_ENCRYPTED_CONTROLLER:
+		return ldstat;
+	case HPSA_VPD_LV_STATUS_UNSUPPORTED:
+		/* If VPD status page isn't available,
+		 * use ASC/ASCQ to determine state
+		 */
+		if ((ascq == ASCQ_LUN_NOT_READY_FORMAT_IN_PROGRESS) ||
+			(ascq == ASCQ_LUN_NOT_READY_INITIALIZING_CMD_REQ))
+			return ldstat;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static int hpsa_update_device_info(struct ctlr_info *h,
 	unsigned char scsi3addr[], struct hpsa_scsi_dev_t *this_device,
 	unsigned char *is_OBDR_device)
@@ -2368,10 +2611,13 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		hpsa_get_raid_level(h, scsi3addr, &this_device->raid_level);
 		if (h->fw_support & MISC_FW_RAID_OFFLOAD_BASIC)
 			hpsa_get_ioaccel_status(h, scsi3addr, this_device);
+		this_device->volume_offline =
+			hpsa_volume_offline(h, scsi3addr);
 	} else {
 		this_device->raid_level = RAID_UNKNOWN;
 		this_device->offload_config = 0;
 		this_device->offload_enabled = 0;
+		this_device->volume_offline = 0;
 	}
 
 	if (is_OBDR_device) {
@@ -6442,7 +6688,7 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	h->last_heartbeat_timestamp = now;
 }
 
-static int hpsa_kickoff_rescan(struct ctlr_info *h)
+static void hpsa_ack_ctlr_events(struct ctlr_info *h)
 {
 	int i;
 	char *event_type;
@@ -6485,41 +6731,48 @@ static int hpsa_kickoff_rescan(struct ctlr_info *h)
 		hpsa_wait_for_mode_change_ack(h);
 #endif
 	}
-
-	/* Something in the device list may have changed to trigger
-	 * the event, so do a rescan.
-	 */
-	hpsa_scan_start(h->scsi_host);
-	/* release reference taken on scsi host in check_controller_events */
-	scsi_host_put(h->scsi_host);
-	return 0;
+	return;
 }
 
 /* Check a register on the controller to see if there are configuration
  * changes (added/changed/removed logical drives, etc.) which mean that
  * we should rescan the controller for devices.
  * Also check flag for driver-initiated rescan.
- * If either flag or controller event indicate rescan, add the controller
- * to the list of controllers needing to be rescanned, and gets a
- * reference to the associated scsi_host.
  */
-static void hpsa_ctlr_needs_rescan(struct ctlr_info *h)
+static int hpsa_ctlr_needs_rescan(struct ctlr_info *h)
 {
+	if (h->drv_req_rescan)
+		return 1;
+
 	if (!(h->fw_support & MISC_FW_EVENT_NOTIFY))
-		return;
+		return 0;
 
 	h->events = readl(&(h->cfgtable->event_notify));
-	if (!(h->events & RESCAN_REQUIRED_EVENT_BITS) && !h->drv_req_rescan)
-		return;
-
-	/*
-	 * Take a reference on scsi host for the duration of the scan
-	 * Release in hpsa_kickoff_rescan().  No lock needed for scan_list
-	 * as only a single thread accesses this list.
-	 */
-	scsi_host_get(h->scsi_host);
-	hpsa_kickoff_rescan(h);
+	return h->events & RESCAN_REQUIRED_EVENT_BITS;
 }
+
+/*
+ * Check if any of the offline devices have become ready
+ */
+static int hpsa_offline_devices_ready(struct ctlr_info *h)
+{
+	unsigned long flags;
+	struct offline_device_entry *d;
+	struct list_head *this, *tmp;
+
+	spin_lock_irqsave(&h->offline_device_lock, flags);
+	list_for_each_safe(this, tmp, &h->offline_device_list) {
+		d = list_entry(this, struct offline_device_entry,
+				offline_list);
+		spin_unlock_irqrestore(&h->offline_device_lock, flags);
+		if (!hpsa_volume_offline(h, d->scsi3addr))
+			return 1;
+		spin_lock_irqsave(&h->offline_device_lock, flags);
+	}
+	spin_unlock_irqrestore(&h->offline_device_lock, flags);
+	return 0;
+}
+
 
 static void hpsa_monitor_ctlr_worker(struct work_struct *work)
 {
@@ -6529,7 +6782,15 @@ static void hpsa_monitor_ctlr_worker(struct work_struct *work)
 	detect_controller_lockup(h);
 	if (h->lockup_detected)
 		return;
-	hpsa_ctlr_needs_rescan(h);
+
+	if (hpsa_ctlr_needs_rescan(h) || hpsa_offline_devices_ready(h)) {
+		scsi_host_get(h->scsi_host);
+		h->drv_req_rescan = 0;
+		hpsa_ack_ctlr_events(h);
+		hpsa_scan_start(h->scsi_host);
+		scsi_host_put(h->scsi_host);
+	}
+
 	spin_lock_irqsave(&h->lock, flags);
 	if (h->remove_in_progress) {
 		spin_unlock_irqrestore(&h->lock, flags);
@@ -6579,7 +6840,9 @@ reinit_after_soft_reset:
 	h->intr_mode = hpsa_simple_mode ? SIMPLE_MODE_INT : PERF_MODE_INT;
 	INIT_LIST_HEAD(&h->cmpQ);
 	INIT_LIST_HEAD(&h->reqQ);
+	INIT_LIST_HEAD(&h->offline_device_list);
 	spin_lock_init(&h->lock);
+	spin_lock_init(&h->offline_device_lock);
 	spin_lock_init(&h->scan_lock);
 	spin_lock_init(&h->passthru_count_lock);
 	rc = hpsa_pci_init(h);
