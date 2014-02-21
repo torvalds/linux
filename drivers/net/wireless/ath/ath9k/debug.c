@@ -866,6 +866,12 @@ static ssize_t read_file_reset(struct file *file, char __user *user_buf,
 			 "%17s: %2d\n", "PLL RX Hang",
 			 sc->debug.stats.reset[RESET_TYPE_PLL_HANG]);
 	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%17s: %2d\n", "MAC Hang",
+			 sc->debug.stats.reset[RESET_TYPE_MAC_HANG]);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%17s: %2d\n", "Stuck Beacon",
+			 sc->debug.stats.reset[RESET_TYPE_BEACON_STUCK]);
+	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%17s: %2d\n", "MCI Reset",
 			 sc->debug.stats.reset[RESET_TYPE_MCI]);
 
