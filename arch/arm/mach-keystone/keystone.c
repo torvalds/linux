@@ -47,6 +47,9 @@ static void __init keystone_init(void)
 
 static const char *keystone_match[] __initconst = {
 	"ti,keystone-evm",
+	"ti,k2hk-evm",
+	"ti,k2l-evm",
+	"ti,k2e-evm",
 	NULL,
 };
 
