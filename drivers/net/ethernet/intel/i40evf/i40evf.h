@@ -196,8 +196,6 @@ struct i40evf_adapter {
 
 	/* RX */
 	struct i40e_ring *rx_rings[I40E_MAX_VSI_QP];
-	int txd_count;
-	int rxd_count;
 	u64 hw_csum_rx_error;
 	int num_msix_vectors;
 	struct msix_entry *msix_entries;
@@ -287,6 +285,7 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter);
 void i40evf_del_vlans(struct i40evf_adapter *adapter);
 void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags);
 void i40evf_request_stats(struct i40evf_adapter *adapter);
+void i40evf_request_reset(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum i40e_virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);

@@ -31,10 +31,10 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710 X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "0.9.11"
+#define DRV_VERSION "0.9.13"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
-	"Copyright (c) 2013 Intel Corporation.";
+	"Copyright (c) 2013 - 2014 Intel Corporation.";
 
 /* i40evf_pci_tbl - PCI Device ID Table
  *
@@ -167,9 +167,13 @@ static void i40evf_tx_timeout(struct net_device *netdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	adapter->tx_timeout_count++;
-
-	/* Do the reset outside of interrupt context */
-	schedule_work(&adapter->reset_task);
+	dev_info(&adapter->pdev->dev, "TX timeout detected.\n");
+	if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING)) {
+		dev_info(&adapter->pdev->dev, "Requesting reset from PF\n");
+		i40evf_request_reset(adapter);
+		adapter->flags |= I40EVF_FLAG_RESET_PENDING;
+		schedule_work(&adapter->reset_task);
+	}
 }
 
 /**
@@ -210,6 +214,9 @@ static void i40evf_irq_disable(struct i40evf_adapter *adapter)
 {
 	int i;
 	struct i40e_hw *hw = &adapter->hw;
+
+	if (!adapter->msix_entries)
+		return;
 
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
 		wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1), 0);
@@ -517,7 +524,8 @@ static int i40evf_request_misc_irq(struct i40evf_adapter *adapter)
 			  adapter->misc_vector_name, netdev);
 	if (err) {
 		dev_err(&adapter->pdev->dev,
-			"request_irq for msix_aq failed: %d\n", err);
+			"request_irq for %s failed: %d\n",
+			adapter->misc_vector_name, err);
 		free_irq(adapter->msix_entries[0].vector, netdev);
 	}
 	return err;
@@ -968,9 +976,14 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		f->remove = true;
 	}
+	/* remove all VLAN filters */
+	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
+		f->remove = true;
+	}
 	if (!(adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) &&
 	    adapter->state != __I40EVF_RESETTING) {
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
 		/* disable receives */
 		adapter->aq_required |= I40EVF_FLAG_AQ_DISABLE_QUEUES;
 		mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
@@ -1927,14 +1940,14 @@ static void i40evf_init_task(struct work_struct *work)
 		adapter->flags &= ~I40EVF_FLAG_RESET_PENDING;
 		err = i40e_set_mac_type(hw);
 		if (err) {
-			dev_info(&pdev->dev, "%s: set_mac_type failed: %d\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Failed to set MAC type (%d)\n",
+				err);
 		goto err;
 		}
 		err = i40evf_check_reset_complete(hw);
 		if (err) {
-			dev_info(&pdev->dev, "%s: device is still in reset (%d).\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Device is still in reset (%d)\n",
+				err);
 			goto err;
 		}
 		hw->aq.num_arq_entries = I40EVF_AQ_LEN;
@@ -1944,14 +1957,14 @@ static void i40evf_init_task(struct work_struct *work)
 
 		err = i40evf_init_adminq(hw);
 		if (err) {
-			dev_info(&pdev->dev, "%s: init_adminq failed: %d\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Failed to init Admin Queue (%d)\n",
+				err);
 			goto err;
 		}
 		err = i40evf_send_api_ver(adapter);
 		if (err) {
-			dev_info(&pdev->dev, "%s: unable to send to PF (%d)\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Unable to send to PF (%d)\n",
+				err);
 			i40evf_shutdown_adminq(hw);
 			goto err;
 		}
@@ -1965,13 +1978,13 @@ static void i40evf_init_task(struct work_struct *work)
 		/* aq msg sent, awaiting reply */
 		err = i40evf_verify_api_ver(adapter);
 		if (err) {
-			dev_err(&pdev->dev, "Unable to verify API version, error %d\n",
+			dev_err(&pdev->dev, "Unable to verify API version (%d)\n",
 				err);
 			goto err;
 		}
 		err = i40evf_send_vf_config_msg(adapter);
 		if (err) {
-			dev_err(&pdev->dev, "Unable send config request, error %d\n",
+			dev_err(&pdev->dev, "Unable send config request (%d)\n",
 				err);
 			goto err;
 		}
@@ -1985,18 +1998,15 @@ static void i40evf_init_task(struct work_struct *work)
 				(I40E_MAX_VF_VSI *
 				 sizeof(struct i40e_virtchnl_vsi_resource));
 			adapter->vf_res = kzalloc(bufsz, GFP_KERNEL);
-			if (!adapter->vf_res) {
-				dev_err(&pdev->dev, "%s: unable to allocate memory\n",
-					__func__);
+			if (!adapter->vf_res)
 				goto err;
-			}
 		}
 		err = i40evf_get_vf_config(adapter);
 		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
 			goto restart;
 		if (err) {
-			dev_info(&pdev->dev, "%s: unable to get VF config (%d)\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Unable to get VF config (%d)\n",
+				err);
 			goto err_alloc;
 		}
 		adapter->state = __I40EVF_INIT_SW;
@@ -2010,20 +2020,17 @@ static void i40evf_init_task(struct work_struct *work)
 			adapter->vsi_res = &adapter->vf_res->vsi_res[i];
 	}
 	if (!adapter->vsi_res) {
-		dev_info(&pdev->dev, "%s: no LAN VSI found\n", __func__);
+		dev_err(&pdev->dev, "No LAN VSI found\n");
 		goto err_alloc;
 	}
 
 	adapter->flags |= I40EVF_FLAG_RX_CSUM_ENABLED;
 
-	adapter->txd_count = I40EVF_DEFAULT_TXD;
-	adapter->rxd_count = I40EVF_DEFAULT_RXD;
-
 	netdev->netdev_ops = &i40evf_netdev_ops;
 	i40evf_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
-
-	netdev->features |= NETIF_F_SG |
+	netdev->features |= NETIF_F_HIGHDMA |
+			    NETIF_F_SG |
 			    NETIF_F_IP_CSUM |
 			    NETIF_F_SCTP_CSUM |
 			    NETIF_F_IPV6_CSUM |
@@ -2039,11 +2046,9 @@ static void i40evf_init_task(struct work_struct *work)
 				    NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
-	/* The HW MAC address was set and/or determined in sw_init */
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
-		dev_info(&pdev->dev,
-			"Invalid MAC address %pMAC, using random\n",
-			adapter->hw.mac.addr);
+		dev_info(&pdev->dev, "Invalid MAC address %pMAC, using random\n",
+			 adapter->hw.mac.addr);
 		random_ether_addr(adapter->hw.mac.addr);
 	}
 	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
@@ -2076,8 +2081,6 @@ static void i40evf_init_task(struct work_struct *work)
 		goto err_sw_init;
 
 	netif_carrier_off(netdev);
-
-	strcpy(netdev->name, "eth%d");
 
 	adapter->vsi.id = adapter->vsi_res->vsi_id;
 	adapter->vsi.seid = adapter->vsi_res->vsi_id; /* dummy */
@@ -2168,20 +2171,18 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev;
 	struct i40evf_adapter *adapter = NULL;
 	struct i40e_hw *hw = NULL;
-	int err, pci_using_dac;
+	int err;
 
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
 
 	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		pci_using_dac = true;
 		/* coherent mask for the same size will always succeed if
 		 * dma_set_mask does
 		 */
 		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 	} else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		pci_using_dac = false;
 		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	} else {
 		dev_err(&pdev->dev, "%s: DMA configuration failed: %d\n",
@@ -2212,8 +2213,6 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, netdev);
 	adapter = netdev_priv(netdev);
-	if (pci_using_dac)
-		netdev->features |= NETIF_F_HIGHDMA;
 
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
@@ -2363,16 +2362,14 @@ static void i40evf_remove(struct pci_dev *pdev)
 	}
 	adapter->state = __I40EVF_REMOVE;
 
-	if (adapter->num_msix_vectors) {
+	if (adapter->msix_entries) {
 		i40evf_misc_irq_disable(adapter);
-		del_timer_sync(&adapter->watchdog_timer);
-
-		flush_scheduled_work();
-
 		i40evf_free_misc_irq(adapter);
-
 		i40evf_reset_interrupt_capability(adapter);
 	}
+
+	del_timer_sync(&adapter->watchdog_timer);
+	flush_scheduled_work();
 
 	if (hw->aq.asq.count)
 		i40evf_shutdown_adminq(hw);

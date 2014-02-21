@@ -38,7 +38,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 31
+#define DRV_VERSION_BUILD 32
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -3108,13 +3108,13 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 
 	pf_q = vsi->base_queue;
 	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
-		j = 1000;
-		do {
-			usleep_range(1000, 2000);
+		for (j = 0; j < 50; j++) {
 			tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
-		} while (j-- && ((tx_reg >> I40E_QTX_ENA_QENA_REQ_SHIFT)
-			       ^ (tx_reg >> I40E_QTX_ENA_QENA_STAT_SHIFT)) & 1);
-
+			if (((tx_reg >> I40E_QTX_ENA_QENA_REQ_SHIFT) & 1) ==
+			    ((tx_reg >> I40E_QTX_ENA_QENA_STAT_SHIFT) & 1))
+				break;
+			usleep_range(1000, 2000);
+		}
 		/* Skip if the queue is already in the requested state */
 		if (enable && (tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
 			continue;
@@ -3124,8 +3124,7 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		/* turn on/off the queue */
 		if (enable) {
 			wr32(hw, I40E_QTX_HEAD(pf_q), 0);
-			tx_reg |= I40E_QTX_ENA_QENA_REQ_MASK |
-				  I40E_QTX_ENA_QENA_STAT_MASK;
+			tx_reg |= I40E_QTX_ENA_QENA_REQ_MASK;
 		} else {
 			tx_reg &= ~I40E_QTX_ENA_QENA_REQ_MASK;
 		}
@@ -3172,12 +3171,13 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 
 	pf_q = vsi->base_queue;
 	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
-		j = 1000;
-		do {
-			usleep_range(1000, 2000);
+		for (j = 0; j < 50; j++) {
 			rx_reg = rd32(hw, I40E_QRX_ENA(pf_q));
-		} while (j-- && ((rx_reg >> I40E_QRX_ENA_QENA_REQ_SHIFT)
-			       ^ (rx_reg >> I40E_QRX_ENA_QENA_STAT_SHIFT)) & 1);
+			if (((rx_reg >> I40E_QRX_ENA_QENA_REQ_SHIFT) & 1) ==
+			    ((rx_reg >> I40E_QRX_ENA_QENA_STAT_SHIFT) & 1))
+				break;
+			usleep_range(1000, 2000);
+		}
 
 		if (enable) {
 			/* is STAT set ? */
@@ -3191,11 +3191,9 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 
 		/* turn on/off the queue */
 		if (enable)
-			rx_reg |= I40E_QRX_ENA_QENA_REQ_MASK |
-				  I40E_QRX_ENA_QENA_STAT_MASK;
+			rx_reg |= I40E_QRX_ENA_QENA_REQ_MASK;
 		else
-			rx_reg &= ~(I40E_QRX_ENA_QENA_REQ_MASK |
-				  I40E_QRX_ENA_QENA_STAT_MASK);
+			rx_reg &= ~I40E_QRX_ENA_QENA_REQ_MASK;
 		wr32(hw, I40E_QRX_ENA(pf_q), rx_reg);
 
 		/* wait for the change to finish */
@@ -5927,7 +5925,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 
 	} else if (vec == I40E_MIN_MSIX) {
 		/* Adjust for minimal MSIX use */
-		dev_info(&pf->pdev->dev, "Features disabled, not enough MSIX vectors\n");
+		dev_info(&pf->pdev->dev, "Features disabled, not enough MSI-X vectors\n");
 		pf->flags &= ~I40E_FLAG_VMDQ_ENABLED;
 		pf->num_vmdq_vsis = 0;
 		pf->num_vmdq_qps = 0;
@@ -6056,7 +6054,7 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 
 	if (!(pf->flags & I40E_FLAG_MSIX_ENABLED) &&
 	    (pf->flags & I40E_FLAG_MSI_ENABLED)) {
-		dev_info(&pf->pdev->dev, "MSIX not available, trying MSI\n");
+		dev_info(&pf->pdev->dev, "MSI-X not available, trying MSI\n");
 		err = pci_enable_msi(pf->pdev);
 		if (err) {
 			dev_info(&pf->pdev->dev, "MSI init failed - %d\n", err);
@@ -6065,7 +6063,7 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 	}
 
 	if (!(pf->flags & (I40E_FLAG_MSIX_ENABLED | I40E_FLAG_MSI_ENABLED)))
-		dev_info(&pf->pdev->dev, "MSIX and MSI not available, falling back to Legacy IRQ\n");
+		dev_info(&pf->pdev->dev, "MSI-X and MSI not available, falling back to Legacy IRQ\n");
 
 	/* track first vector for misc interrupts */
 	err = i40e_get_lump(pf, pf->irq_pile, 1, I40E_PILE_VALID_BIT-1);
@@ -6092,7 +6090,8 @@ static int i40e_setup_misc_vector(struct i40e_pf *pf)
 				  i40e_intr, 0, pf->misc_int_name, pf);
 		if (err) {
 			dev_info(&pf->pdev->dev,
-				 "request_irq for msix_misc failed: %d\n", err);
+				 "request_irq for %s failed: %d\n",
+				 pf->misc_int_name, err);
 			return -EFAULT;
 		}
 	}
