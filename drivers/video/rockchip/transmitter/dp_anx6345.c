@@ -5,8 +5,14 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
-#include <linux/anx6345.h>
+
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+#include<linux/earlysuspend.h>
+#endif
+#if defined(CONFIG_OF)
+#include <linux/of_gpio.h>
+#endif
+#include "anx6345.h"
 
 #if defined(CONFIG_DEBUG_FS)
 #include <linux/fs.h>
@@ -16,6 +22,54 @@
 
 
 //#define BIST_MODE 0
+static int i2c_master_reg8_send(const struct i2c_client *client,
+		const char reg, const char *buf, int count, int scl_rate)
+{
+        struct i2c_adapter *adap=client->adapter;
+        struct i2c_msg msg;
+        int ret;
+        char *tx_buf = (char *)kmalloc(count + 1, GFP_KERNEL);
+        if(!tx_buf)
+                return -ENOMEM;
+        tx_buf[0] = reg;
+        memcpy(tx_buf+1, buf, count);
+
+        msg.addr = client->addr;
+        msg.flags = client->flags;
+        msg.len = count + 1;
+        msg.buf = (char *)tx_buf;
+        msg.scl_rate = scl_rate;
+
+        ret = i2c_transfer(adap, &msg, 1);
+        kfree(tx_buf);
+        return (ret == 1) ? count : ret;
+
+}
+
+static int i2c_master_reg8_recv(const struct i2c_client *client,
+		const char reg, char *buf, int count, int scl_rate)
+{
+        struct i2c_adapter *adap=client->adapter;
+        struct i2c_msg msgs[2];
+        int ret;
+        char reg_buf = reg;
+
+        msgs[0].addr = client->addr;
+        msgs[0].flags = client->flags;
+        msgs[0].len = 1;
+        msgs[0].buf = &reg_buf;
+        msgs[0].scl_rate = scl_rate;
+
+        msgs[1].addr = client->addr;
+        msgs[1].flags = client->flags | I2C_M_RD;
+        msgs[1].len = count;
+        msgs[1].buf = (char *)buf;
+        msgs[1].scl_rate = scl_rate;
+
+        ret = i2c_transfer(adap, msgs, 2);
+
+        return (ret == 2)? count : ret;
+}
 
 static int anx6345_i2c_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
@@ -78,14 +132,13 @@ static int edp_reg_show(struct seq_file *s, void *v)
 		printk(KERN_ERR "no edp device!\n");
 		return 0;
 	}
-
+	
 	seq_printf(s,"0x70:\n");
 	for(i=0;i< MAX_REG;i++)
 	{
 		anx6345_i2c_read_p0_reg(anx6345->client, i , &val);
 		seq_printf(s,"0x%02x>>0x%02x\n",i,val);
 	}
-
 	
 	seq_printf(s,"\n0x72:\n");
 	for(i=0;i< MAX_REG;i++)
@@ -571,53 +624,120 @@ static int anx980x_init(struct i2c_client *client)
 	return 0;
 }
 
+#if 1
 static int anx6345_bist_mode(struct i2c_client *client)
 {
+	struct edp_anx6345 *anx6345 = i2c_get_clientdata(client);
+	struct rk_screen *screen = &anx6345->screen;
+	u16 x_total ,y_total;
+	u32 total, act_total;
 	char val = 0x00;
 	//these register are for bist mode
-	val = 0x2c;
+	x_total = screen->mode.left_margin + screen->mode.right_margin +
+			screen->mode.xres + screen->mode.hsync_len;
+	y_total = screen->mode.upper_margin + screen->mode.lower_margin +
+			screen->mode.yres + screen->mode.vsync_len;
+	total = x_total * y_total;
+	printk("%s>>>>total:0x%08x\n",__func__, total);
+	act_total = screen->mode.xres * screen->mode.yres;
+	val = y_total & 0xff;
 	anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_LINEL_REG,&val);
-	val = 0x06;
+	val = (y_total >> 8);
 	anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_LINEH_REG,&val);
-	val = 0x00;
+	val = (screen->mode.yres & 0xff);
 	anx6345_i2c_write_p1_reg(client,SP_TX_ACT_LINEL_REG,&val);
-	val = 0x06;
+	val = (screen->mode.yres >> 8);
 	anx6345_i2c_write_p1_reg(client,SP_TX_ACT_LINEH_REG,&val);
-	val = 0x02;
+	val = screen->mode.lower_margin;
 	anx6345_i2c_write_p1_reg(client,SP_TX_VF_PORCH_REG,&val);
-	val = 0x04;
+	val = screen->mode.vsync_len;
 	anx6345_i2c_write_p1_reg(client,SP_TX_VSYNC_CFG_REG,&val);
-	val = 0x26;
+	val = screen->mode.upper_margin;
 	anx6345_i2c_write_p1_reg(client,SP_TX_VB_PORCH_REG,&val);
+	val = total & 0xff;
 	val = 0x50;
 	anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_PIXELL_REG,&val);
+	val = total >> 8;
 	val = 0x04;
 	anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_PIXELH_REG,&val);
+	val = (act_total & 0xff);
 	val = 0x00;
 	anx6345_i2c_write_p1_reg(client,SP_TX_ACT_PIXELL_REG,&val);
+	val = (act_total >> 8);
 	val = 0x04;
 	anx6345_i2c_write_p1_reg(client,SP_TX_ACT_PIXELH_REG,&val);
-	val = 0x18;
+	val = screen->mode.right_margin & 0xff;
 	anx6345_i2c_write_p1_reg(client,SP_TX_HF_PORCHL_REG,&val);
-	val = 0x00;
+	val = screen->mode.right_margin >> 8;
 	anx6345_i2c_write_p1_reg(client,SP_TX_HF_PORCHH_REG,&val);
-	val = 0x10;
+	val = screen->mode.hsync_len & 0xff;
 	anx6345_i2c_write_p1_reg(client,SP_TX_HSYNC_CFGL_REG,&val);
-	val = 0x00;
+	val = screen->mode.hsync_len >> 8;
 	anx6345_i2c_write_p1_reg(client,SP_TX_HSYNC_CFGH_REG,&val);
-	val = 0x28;
+	val = screen->mode.left_margin & 0xff;
 	anx6345_i2c_write_p1_reg(client,SP_TX_HB_PORCHL_REG,&val);
+	val = screen->mode.left_margin  >> 8;
+	anx6345_i2c_write_p1_reg(client,SP_TX_HB_PORCHH_REG,&val);
 	val = 0x13;
 	anx6345_i2c_write_p1_reg(client,SP_TX_VID_CTRL10_REG,&val);
 
 
        //enable BIST. In normal mode, don't need to config this reg
 	val = 0x08;
-	anx6345_i2c_write_p1_reg(client, 0x0b, &val);
+	anx6345_i2c_write_p1_reg(client, SP_TX_VID_CTRL4_REG, &val);
 	printk("anx6345 enter bist mode\n");
 
 	return 0;
 }
+#else
+static int anx6345_bist_mode(struct i2c_client *client)
+{
+        char val = 0x00;
+        //these register are for bist mode
+        val = 0x2c;
+        anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_LINEL_REG,&val);
+        val = 0x06;
+        anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_LINEH_REG,&val);
+        val = 0x00;
+        anx6345_i2c_write_p1_reg(client,SP_TX_ACT_LINEL_REG,&val);
+        val = 0x06;
+        anx6345_i2c_write_p1_reg(client,SP_TX_ACT_LINEH_REG,&val);
+        val = 0x02;
+        anx6345_i2c_write_p1_reg(client,SP_TX_VF_PORCH_REG,&val);
+        val = 0x04;
+        anx6345_i2c_write_p1_reg(client,SP_TX_VSYNC_CFG_REG,&val);
+        val = 0x26;
+        anx6345_i2c_write_p1_reg(client,SP_TX_VB_PORCH_REG,&val);
+        val = 0x50;
+        anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_PIXELL_REG,&val);
+        val = 0x04;
+        anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_PIXELH_REG,&val);
+        val = 0x00;
+        anx6345_i2c_write_p1_reg(client,SP_TX_ACT_PIXELL_REG,&val);
+        val = 0x04;
+        anx6345_i2c_write_p1_reg(client,SP_TX_ACT_PIXELH_REG,&val);
+        val = 0x18;
+        anx6345_i2c_write_p1_reg(client,SP_TX_HF_PORCHL_REG,&val);
+        val = 0x00;
+        anx6345_i2c_write_p1_reg(client,SP_TX_HF_PORCHH_REG,&val);
+        val = 0x10;
+        anx6345_i2c_write_p1_reg(client,SP_TX_HSYNC_CFGL_REG,&val);
+        val = 0x00;
+        anx6345_i2c_write_p1_reg(client,SP_TX_HSYNC_CFGH_REG,&val);
+        val = 0x28;
+        anx6345_i2c_write_p1_reg(client,SP_TX_HB_PORCHL_REG,&val);
+        val = 0x13;
+        anx6345_i2c_write_p1_reg(client,SP_TX_VID_CTRL10_REG,&val);
+	 //enable BIST. In normal mode, don't need to config this reg
+	val = 0x08;
+	anx6345_i2c_write_p1_reg(client, SP_TX_VID_CTRL4_REG, &val);
+	printk("anx6345 enter bist mode\n");
+
+	return 0;
+}
+
+#endif
+
 static int anx6345_init(struct i2c_client *client)
 {
 	char val = 0x00;
@@ -758,31 +878,98 @@ static void anx6345_late_resume(struct early_suspend *h)
 }
 #endif				
 
+#if defined(CONFIG_OF)
+
+static int anx6345_power_ctl(struct anx6345_platform_data  *pdata)
+{
+       int ret;
+       ret = gpio_request(pdata->dvdd33_en_pin, "dvdd33_en_pin");
+       if (ret != 0) {
+	       gpio_free(pdata->dvdd33_en_pin);
+	       printk(KERN_ERR "request dvdd33 en pin fail!\n");
+	       return -1;
+       } else {
+	       gpio_direction_output(pdata->dvdd33_en_pin, pdata->dvdd33_en_val);
+       }
+       mdelay(5);
+
+       ret = gpio_request(pdata->dvdd18_en_pin, "dvdd18_en_pin");
+       if (ret != 0) {
+	       gpio_free(pdata->dvdd18_en_pin);
+	       printk(KERN_ERR "request dvdd18 en pin fail!\n");
+	       return -1;
+       } else {
+	       gpio_direction_output(pdata->dvdd18_en_pin, pdata->dvdd18_en_pin);
+       }
+
+       ret = gpio_request(pdata->edp_rst_pin, "edp_rst_pin");
+       if (ret != 0) {
+	       gpio_free(pdata->edp_rst_pin);
+	       printk(KERN_ERR "request rst pin fail!\n");
+	       return -1;
+       } else {
+	       gpio_direction_output(pdata->edp_rst_pin, 0);
+	       msleep(50);
+	       gpio_direction_output(pdata->edp_rst_pin, 1);
+       }
+       return 0;
+
+}
+
+static void anx6345_parse_dt(struct edp_anx6345 *anx6345)
+{
+	struct device_node *np = anx6345->client->dev.of_node;
+	struct anx6345_platform_data *pdata;
+	enum of_gpio_flags dvdd33_flags,dvdd18_flags,rst_flags;
+	pdata = devm_kzalloc(&anx6345->client->dev,
+			sizeof(struct anx6345_platform_data ), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(&anx6345->client->dev, 
+			"failed to allocate platform data\n");
+		return ;
+	}
+	pdata->dvdd33_en_pin = of_get_named_gpio_flags(np, "dvdd33-gpio", 0, &dvdd33_flags);
+	pdata->dvdd18_en_pin = of_get_named_gpio_flags(np, "dvdd18-gpio", 0, &dvdd18_flags);
+	pdata->edp_rst_pin = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
+	pdata->dvdd33_en_val = (dvdd33_flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+	pdata->dvdd18_en_val = (dvdd18_flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+	pdata->power_ctl = anx6345_power_ctl;
+	anx6345->pdata = pdata;
+	
+}
+#else
+static void anx6345_parse_dt(struct edp_anx6345 * anx6345)
+{
+	
+}
+#endif
 static int anx6345_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
-	int ret;
-	
-	struct edp_anx6345 *anx6345 = NULL;
+	struct edp_anx6345 *anx6345;
 	int chip_id;
 
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
 	{
 		dev_err(&client->dev, "Must have I2C_FUNC_I2C.\n");
-		ret = -ENODEV;
+		return -ENODEV;
 	}
-	anx6345 = kzalloc(sizeof(struct edp_anx6345), GFP_KERNEL);
-	if (anx6345 == NULL)
-	{
-		printk(KERN_ALERT "alloc for struct anx6345 fail\n");
-		ret = -ENOMEM;
+	anx6345 = devm_kzalloc(&client->dev, sizeof(struct edp_anx6345),
+				GFP_KERNEL);
+	if (unlikely(!anx6345)) {
+		dev_err(&client->dev, "alloc for struct anx6345 fail\n");
+		return -ENOMEM;
 	}
 
 	anx6345->client = client;
-	anx6345->pdata = client->dev.platform_data;
+	anx6345->pdata = dev_get_platdata(&client->dev);
+	if (!anx6345->pdata) {
+		anx6345_parse_dt(anx6345);
+	}
 	i2c_set_clientdata(client,anx6345);
+	rk_fb_get_prmry_screen(&anx6345->screen);
 	if(anx6345->pdata->power_ctl)
-		anx6345->pdata->power_ctl();
+		anx6345->pdata->power_ctl(anx6345->pdata);
 
 #if defined(CONFIG_DEBUG_FS)
 	anx6345->debugfs_dir = debugfs_create_dir("edp", NULL);
@@ -808,12 +995,12 @@ static int anx6345_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 
 	anx6345->edp_anx_init(client);
 
-	printk("edp anx%x probe ok\n",get_dp_chip_id(client));
-
-	return ret;
+	dev_info(&client->dev, "edp anx%x probe ok \n", get_dp_chip_id(client));
+	
+	return 0;
 }
 
-static int __devexit anx6345_i2c_remove(struct i2c_client *client)
+static int  anx6345_i2c_remove(struct i2c_client *client)
 {
 	return 0;
 }
@@ -823,10 +1010,20 @@ static const struct i2c_device_id id_table[] = {
 	{ }
 };
 
+#if defined(CONFIG_OF)
+static struct of_device_id anx6345_dt_ids[] = {
+	{ .compatible = "analogix, anx6345" },
+	{ }
+};
+#endif
+
 static struct i2c_driver anx6345_i2c_driver  = {
 	.driver = {
 		.name  = "anx6345",
 		.owner = THIS_MODULE,
+#if defined(CONFIG_OF)
+		.of_match_table = of_match_ptr(anx6345_dt_ids),
+#endif
 	},
 	.probe		= &anx6345_i2c_probe,
 	.remove     	= &anx6345_i2c_remove,
