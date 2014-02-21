@@ -94,11 +94,6 @@ static int ipmmu_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct shmobile_ipmmu_platform_data *pdata = pdev->dev.platform_data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot get platform resources\n");
-		return -ENOENT;
-	}
 	ipmmu = devm_kzalloc(&pdev->dev, sizeof(*ipmmu), GFP_KERNEL);
 	if (!ipmmu) {
 		dev_err(&pdev->dev, "cannot allocate device data\n");
@@ -106,12 +101,12 @@ static int ipmmu_probe(struct platform_device *pdev)
 	}
 	spin_lock_init(&ipmmu->flush_lock);
 	ipmmu->dev = &pdev->dev;
-	ipmmu->ipmmu_base = devm_ioremap_nocache(&pdev->dev, res->start,
-						resource_size(res));
-	if (!ipmmu->ipmmu_base) {
-		dev_err(&pdev->dev, "ioremap_nocache failed\n");
-		return -ENOMEM;
-	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ipmmu->ipmmu_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ipmmu->ipmmu_base))
+		return PTR_ERR(ipmmu->ipmmu_base);
+
 	ipmmu->dev_names = pdata->dev_names;
 	ipmmu->num_dev_names = pdata->num_dev_names;
 	platform_set_drvdata(pdev, ipmmu);
