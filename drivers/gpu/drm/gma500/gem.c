@@ -62,9 +62,6 @@ int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 	int ret = 0;
 	struct drm_gem_object *obj;
 
-	if (!(dev->driver->driver_features & DRIVER_GEM))
-		return -ENODEV;
-
 	mutex_lock(&dev->struct_mutex);
 
 	/* GEM does all our handle to object mapping */
