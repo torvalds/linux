@@ -8215,10 +8215,8 @@ void intel_mark_idle(struct drm_device *dev)
 
 	dev_priv->mm.busy = false;
 
-	hsw_package_c8_gpu_idle(dev_priv);
-
 	if (!i915.powersave)
-		return;
+		goto out;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (!crtc->fb)
@@ -8229,6 +8227,9 @@ void intel_mark_idle(struct drm_device *dev)
 
 	if (INTEL_INFO(dev)->gen >= 6)
 		gen6_rps_idle(dev->dev_private);
+
+out:
+	hsw_package_c8_gpu_idle(dev_priv);
 }
 
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
