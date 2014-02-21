@@ -10,8 +10,8 @@
 */
 int rk_hdmi_pwr_ctr_parse_dt(struct hdmi *dev_drv)
 {
-	struct device_node *root  = of_parse_phandle(dev_drv->dev->of_node,
-				"power_ctr", 0);
+	struct device_node *root  = of_find_node_by_name(dev_drv->dev->of_node,
+				"power_ctr");
 	struct device_node *child;
 	struct rk_disp_pwr_ctr_list *pwr_ctr;
 	struct list_head *pos;
@@ -94,8 +94,14 @@ int rk_hdmi_pwr_enable(struct hdmi *dev_drv)
 		if (pwr_ctr->type == GPIO) {
 			gpio_direction_output(pwr_ctr->gpio,pwr_ctr->atv_val);
 			mdelay(pwr_ctr->delay);
-			if(pwr_ctr->is_rst == 1)
-				gpio_direction_output(pwr_ctr->gpio,((pwr_ctr->atv_val == 1) ? 0:1));
+			if(pwr_ctr->is_rst == 1) {
+				if(pwr_ctr->atv_val == 1)
+					gpio_set_value(pwr_ctr->gpio, 0);
+				else
+					gpio_set_value(pwr_ctr->gpio, 1);
+
+				mdelay(pwr_ctr->delay);
+			}
 		}
 	}
 
@@ -116,8 +122,12 @@ int rk_hdmi_pwr_disable(struct hdmi *dev_drv)
 		pwr_ctr = &pwr_ctr_list->pwr_ctr;
 		if (pwr_ctr->type == GPIO) {
 			gpio_set_value(pwr_ctr->gpio,pwr_ctr->atv_val);
-			if(pwr_ctr->is_rst == 1)
-				gpio_direction_output(pwr_ctr->gpio,((pwr_ctr->atv_val == 1) ? 0:1));
+			if(pwr_ctr->is_rst == 1) {
+				if(pwr_ctr->atv_val == 1)
+					gpio_set_value(pwr_ctr->gpio, 0);
+				else
+					gpio_set_value(pwr_ctr->gpio, 1);
+			}
 		}
 	}
 

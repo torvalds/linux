@@ -307,7 +307,7 @@ static struct rk_lcdc_driver *rk_get_prmry_lcdc_drv(void)
 		return NULL;
 
 	for (i = 0; i < inf->num_lcdc; i++) {
-		if (inf->lcdc_dev_drv[i]->screen_ctr_info->prop ==  PRMRY) {
+		if (inf->lcdc_dev_drv[i]->prop ==  PRMRY) {
 			dev_drv = inf->lcdc_dev_drv[i];
 			break;
 		}
@@ -349,7 +349,7 @@ static struct rk_lcdc_driver  *rk_get_extend_lcdc_drv(void)
 		return NULL;
 
 	for (i = 0; i < inf->num_lcdc; i++) {
-		if (inf->lcdc_dev_drv[i]->screen_ctr_info->prop == EXTEND) {
+		if (inf->lcdc_dev_drv[i]->prop == EXTEND) {
 			dev_drv = inf->lcdc_dev_drv[i];
 			break;
 		}
@@ -1510,7 +1510,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	dev_drv = inf->lcdc_dev_drv[0];
 #else
 	for (i = 0; i < inf->num_lcdc; i++) {
-		if (inf->lcdc_dev_drv[i]->screen_ctr_info->prop == EXTEND) {
+		if (inf->lcdc_dev_drv[i]->prop == EXTEND) {
 			dev_drv = inf->lcdc_dev_drv[i];
 			break;
 		}
@@ -1661,7 +1661,7 @@ static int init_lcdc_win(struct rk_lcdc_driver *dev_drv, struct rk_lcdc_win *def
 			dev_err(dev_drv->dev, "kzmalloc for win fail!");
 			return   -ENOMEM;
 		}
-		win = &def_win[i];
+
 		strcpy(win->name, def_win->name);
 		win->id = def_win->id;
 		win->support_3d = def_win->support_3d;
