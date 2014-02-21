@@ -128,6 +128,7 @@ static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid)
 	}
 	memset(new, 0, sizeof(struct nat_entry));
 	nat_set_nid(new, nid);
+	new->checkpointed = true;
 	list_add_tail(&new->list, &nm_i->nat_entries);
 	nm_i->nat_cnt++;
 	return new;
@@ -149,7 +150,6 @@ retry:
 		nat_set_blkaddr(e, le32_to_cpu(ne->block_addr));
 		nat_set_ino(e, le32_to_cpu(ne->ino));
 		nat_set_version(e, ne->version);
-		e->checkpointed = true;
 	}
 	write_unlock(&nm_i->nat_tree_lock);
 }
@@ -169,7 +169,6 @@ retry:
 			goto retry;
 		}
 		e->ni = *ni;
-		e->checkpointed = true;
 		f2fs_bug_on(ni->blk_addr == NEW_ADDR);
 	} else if (new_blkaddr == NEW_ADDR) {
 		/*
@@ -180,9 +179,6 @@ retry:
 		e->ni = *ni;
 		f2fs_bug_on(ni->blk_addr != NULL_ADDR);
 	}
-
-	if (new_blkaddr == NEW_ADDR)
-		e->checkpointed = false;
 
 	/* sanity check */
 	f2fs_bug_on(nat_get_blkaddr(e) != ni->blk_addr);
@@ -1787,7 +1783,6 @@ flush_now:
 		} else {
 			write_lock(&nm_i->nat_tree_lock);
 			__clear_nat_cache_dirty(nm_i, ne);
-			ne->checkpointed = true;
 			write_unlock(&nm_i->nat_tree_lock);
 		}
 	}
