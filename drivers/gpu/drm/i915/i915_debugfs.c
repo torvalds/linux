@@ -1348,6 +1348,8 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		return 0;
 	}
 
+	intel_runtime_pm_get(dev_priv);
+
 	if (intel_fbc_enabled(dev)) {
 		seq_puts(m, "FBC enabled\n");
 	} else {
@@ -1391,6 +1393,9 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		}
 		seq_putc(m, '\n');
 	}
+
+	intel_runtime_pm_put(dev_priv);
+
 	return 0;
 }
 
@@ -1405,10 +1410,14 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 		return 0;
 	}
 
+	intel_runtime_pm_get(dev_priv);
+
 	if (IS_BROADWELL(dev) || I915_READ(IPS_CTL) & IPS_ENABLE)
 		seq_puts(m, "enabled\n");
 	else
 		seq_puts(m, "disabled\n");
+
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
@@ -1420,6 +1429,8 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool sr_enabled = false;
 
+	intel_runtime_pm_get(dev_priv);
+
 	if (HAS_PCH_SPLIT(dev))
 		sr_enabled = I915_READ(WM1_LP_ILK) & WM1_LP_SR_EN;
 	else if (IS_CRESTLINE(dev) || IS_I945G(dev) || IS_I945GM(dev))
@@ -1428,6 +1439,8 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 		sr_enabled = I915_READ(INSTPM) & INSTPM_SELF_EN;
 	else if (IS_PINEVIEW(dev))
 		sr_enabled = I915_READ(DSPFW3) & PINEVIEW_SELF_REFRESH_EN;
+
+	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "self-refresh: %s\n",
 		   sr_enabled ? "enabled" : "disabled");
@@ -1974,11 +1987,15 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
+	intel_runtime_pm_get(dev_priv);
+
 	rdmsrl(MSR_RAPL_POWER_UNIT, power);
 	power = (power & 0x1f00) >> 8;
 	units = 1000000 / (1 << power); /* convert to uJ */
 	power = I915_READ(MCH_SECP_NRG_STTS);
 	power *= units;
+
+	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "%llu", (long long unsigned)power);
 
