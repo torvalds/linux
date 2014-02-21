@@ -334,7 +334,7 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 	 * by the native PCIe hotplug (PCIeHP), becuase that code is supposed to
 	 * expose slots to user space in those cases.
 	 */
-	if ((acpi_pci_check_ejectable(pbus, handle) || is_dock_device(handle))
+	if ((acpi_pci_check_ejectable(pbus, handle) || is_dock_device(adev))
 	    && !(pdev && device_is_managed_by_native_pciehp(pdev))) {
 		unsigned long long sun;
 		int retval;
@@ -369,7 +369,7 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 				       &val, 60*1000))
 		slot->flags |= SLOT_ENABLED;
 
-	if (is_dock_device(handle)) {
+	if (is_dock_device(adev)) {
 		/* we don't want to call this device's _EJ0
 		 * because we want the dock notify handler
 		 * to call it after it calls _DCK
@@ -411,7 +411,7 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 		list_for_each_entry(func, &slot->funcs, sibling) {
 			struct acpi_device *adev = func_to_acpi_device(func);
 
-			if (is_dock_device(adev->handle))
+			if (is_dock_device(adev))
 				unregister_hotplug_dock_device(adev->handle);
 
 			acpi_lock_hp_context();
