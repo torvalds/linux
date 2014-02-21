@@ -16,26 +16,28 @@
 #ifndef _LINUX_ROCKCHIP_ION_H
 #define _LINUX_ROCKCHIP_ION_H
 
+#ifdef __KERNEL__
 #include "../../drivers/staging/android/ion/ion.h"
+#else
+#include <linux/ion.h>
+#endif
 
 enum ion_heap_ids {
 	INVALID_HEAP_ID = -1,
-	ION_VIDEO_HEAP_ID = 1,
-	ION_CAMERA_HEAP_ID,
+	ION_CMA_HEAP_ID = 1,
 	ION_IOMMU_HEAP_ID,
-	ION_AUDIO_HEAP_ID,
 	ION_SYSTEM_HEAP_ID,
+	ION_DRM_HEAP_ID,
 
 	ION_HEAP_ID_RESERVED = 31
 };
 
 #define ION_HEAP(bit) (1 << (bit))
 
-#define ION_VIDEO_HEAP_NAME		"video"
-#define ION_AUDIO_HEAP_NAME		"audio"
-#define ION_CAMERA_HEAP_NAME	"camera_preview"
+#define ION_CMA_HEAP_NAME		"cma"
 #define ION_IOMMU_HEAP_NAME		"iommu"
-#define ION_VMALLOC_HEAP_NAME	"vmalloc"
+#define ION_SYSTEM_HEAP_NAME	"vmalloc"
+#define ION_DRM_HEAP_NAME		"drm"
 
 #define ION_SET_CACHED(__cache)		(__cache | ION_FLAG_CACHED)
 #define ION_SET_UNCACHED(__cache)	(__cache & ~ION_FLAG_CACHED)
@@ -55,7 +57,7 @@ enum ion_heap_ids {
  * the cache operations performed
  */
 struct ion_flush_data {
-	struct ion_handle *handle;
+	ion_user_handle_t handle;
 	int fd;
 	void *vaddr;
 	unsigned int offset;

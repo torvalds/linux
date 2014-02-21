@@ -1583,7 +1583,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		fb_mem_size = 3 * (fbi->var.xres * fbi->var.yres) << 2;
 		fb_mem_size = ALIGN(fb_mem_size, SZ_1M);
 #if defined(CONFIG_ION_ROCKCHIP)
-		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, ION_HEAP(ION_VIDEO_HEAP_ID), 0);
+		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, ION_HEAP(ION_CMA_HEAP_ID), 0);
 		if (IS_ERR(handle)) {
 			dev_err(fbi->device, "failed to ion_alloc:%ld\n",PTR_ERR(handle));
 			return -ENOMEM;

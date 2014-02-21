@@ -42,29 +42,24 @@ extern struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
 
 static struct ion_heap_desc ion_heap_meta[] = {
 	{
-		.id	= ION_SYSTEM_HEAP_ID,
+		.id		= ION_SYSTEM_HEAP_ID,
 		.type	= ION_HEAP_TYPE_SYSTEM,
-		.name	= ION_VMALLOC_HEAP_NAME,
+		.name	= ION_SYSTEM_HEAP_NAME,
 	},
 	{
-		.id	= ION_VIDEO_HEAP_ID,
+		.id		= ION_CMA_HEAP_ID,
 		.type	= ION_HEAP_TYPE_DMA,
-		.name	= ION_VIDEO_HEAP_NAME,
+		.name	= ION_CMA_HEAP_NAME,
 	},
 	{
-		.id	= ION_AUDIO_HEAP_ID,
-		.type	= ION_HEAP_TYPE_DMA,
-		.name	= ION_AUDIO_HEAP_NAME,
-	},
-	{
-		.id	= ION_IOMMU_HEAP_ID,
+		.id		= ION_IOMMU_HEAP_ID,
 		.type	= ION_HEAP_TYPE_DMA,//ION_HEAP_TYPE_IOMMU,
 		.name	= ION_IOMMU_HEAP_NAME,
 	},
 	{
-		.id	= ION_CAMERA_HEAP_ID,
+		.id 	= ION_DRM_HEAP_ID,
 		.type	= ION_HEAP_TYPE_DMA,
-		.name	= ION_CAMERA_HEAP_NAME,
+		.name	= ION_DRM_HEAP_NAME,
 	},
 };
 
@@ -116,7 +111,7 @@ static struct ion_platform_data *rockchip_ion_parse_dt(
 	for_each_child_of_node(dt_node, node)
 		num_heaps++;
 
-        pr_info("%s: num_heaps = %d\n", __func__, num_heaps);
+	pr_info("%s: num_heaps = %d\n", __func__, num_heaps);
         
 	if (!num_heaps)
 		return ERR_PTR(-EINVAL);
@@ -125,7 +120,7 @@ static struct ion_platform_data *rockchip_ion_parse_dt(
 			num_heaps*sizeof(struct ion_platform_heap), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
-        pdata->heaps = (struct ion_platform_heap*)((void*)pdata+sizeof(struct ion_platform_data));
+	pdata->heaps = (struct ion_platform_heap*)((void*)pdata+sizeof(struct ion_platform_data));
 	pdata->nr = num_heaps;
         
 	for_each_child_of_node(dt_node, node) {
@@ -146,8 +141,8 @@ static struct ion_platform_data *rockchip_ion_parse_dt(
 			goto free_heaps;
 
 //		rockchip_ion_get_heap_adjacent(node, &pdata->heaps[idx]);
-                pdata->heaps[idx].priv = dev;
-                pr_info("%d:  %d  %d  %s  0x%08X\n", idx, pdata->heaps[idx].type, pdata->heaps[idx].id, pdata->heaps[idx].name, pdata->heaps[idx].size);
+		pdata->heaps[idx].priv = dev;
+		pr_info("%d:  %d  %d  %s  0x%08X\n", idx, pdata->heaps[idx].type, pdata->heaps[idx].id, pdata->heaps[idx].name, pdata->heaps[idx].size);
 
 		++idx;
 	}
@@ -207,11 +202,9 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 static int rockchip_ion_probe(struct platform_device *pdev)
 {
 	struct ion_platform_data *pdata;
-        unsigned int pdata_needs_to_be_freed;
+	unsigned int pdata_needs_to_be_freed;
 	int err;
 	int i;
-
-        printk("%s\n", __func__);
 
 	if (pdev->dev.of_node) {
 		pdata = rockchip_ion_parse_dt(&pdev->dev);
@@ -247,12 +240,12 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 	if (pdata_needs_to_be_freed)
 		kfree(pdata);
 
-        pr_info("Rockchip ion module is successfully loaded\n");
+	pr_info("Rockchip ion module is successfully loaded\n");
 	return 0;
 err:
 	for (i = 0; i < num_heaps; i++) {
-        	if (heaps[i])
-			ion_heap_destroy(heaps[i]);
+		if (heaps[i])
+		ion_heap_destroy(heaps[i]);
 	}
 	if (pdata_needs_to_be_freed)
 		kfree(pdata);
@@ -262,39 +255,39 @@ err:
 
 static int rockchip_ion_remove(struct platform_device *pdev)
 {
-        struct ion_device *idev = platform_get_drvdata(pdev);
-        int i;
+	struct ion_device *idev = platform_get_drvdata(pdev);
+	int i;
 
-        ion_device_destroy(idev);
-        for (i = 0; i < num_heaps; i++)
-                ion_heap_destroy(heaps[i]);
-        kfree(heaps);
-        return 0;
+	ion_device_destroy(idev);
+	for (i = 0; i < num_heaps; i++)
+		ion_heap_destroy(heaps[i]);
+	kfree(heaps);
+	return 0;
 }
 
 static const struct of_device_id rockchip_ion_dt_ids[] = {
-        { .compatible = "rockchip,ion", },
-        {}
+	{ .compatible = "rockchip,ion", },
+	{}
 };
 
 static struct platform_driver ion_driver = {
-        .probe = rockchip_ion_probe,
-        .remove = rockchip_ion_remove,
-        .driver = {
-                .name = "ion-rockchip",
-                .owner	= THIS_MODULE,
-                .of_match_table = of_match_ptr(rockchip_ion_dt_ids),
-        },
+	.probe = rockchip_ion_probe,
+	.remove = rockchip_ion_remove,
+	.driver = {
+		.name = "ion-rockchip",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(rockchip_ion_dt_ids),
+	},
 };
 
 static int __init ion_init(void)
 {
-        return platform_driver_register(&ion_driver);
+	return platform_driver_register(&ion_driver);
 }
 
 static void __exit ion_exit(void)
 {
-        platform_driver_unregister(&ion_driver);
+	platform_driver_unregister(&ion_driver);
 }
 
 subsys_initcall(ion_init);
