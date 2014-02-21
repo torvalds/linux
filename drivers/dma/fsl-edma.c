@@ -723,13 +723,13 @@ static struct dma_chan *fsl_edma_xlate(struct of_phandle_args *dma_spec,
 		struct of_dma *ofdma)
 {
 	struct fsl_edma_engine *fsl_edma = ofdma->of_dma_data;
-	struct dma_chan *chan;
+	struct dma_chan *chan, *_chan;
 
 	if (dma_spec->args_count != 2)
 		return NULL;
 
 	mutex_lock(&fsl_edma->fsl_edma_mutex);
-	list_for_each_entry(chan, &fsl_edma->dma_dev.channels, device_node) {
+	list_for_each_entry_safe(chan, _chan, &fsl_edma->dma_dev.channels, device_node) {
 		if (chan->client_count)
 			continue;
 		if ((chan->chan_id / DMAMUX_NR) == dma_spec->args[0]) {
