@@ -117,8 +117,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ipmmu);
 	ipmmu_reg_write(ipmmu, IMCTR1, 0x0); /* disable TLB */
 	ipmmu_reg_write(ipmmu, IMCTR2, 0x0); /* disable PMB */
-	ipmmu_iommu_init(ipmmu);
-	return 0;
+	return ipmmu_iommu_init(ipmmu);
 }
 
 static struct platform_driver ipmmu_driver = {
