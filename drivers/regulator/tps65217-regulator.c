@@ -202,7 +202,7 @@ static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
 		return NULL;
 
 	for (i = 0; i < count; i++) {
-		if (!reg_matches[i].init_data || !reg_matches[i].of_node)
+		if (!reg_matches[i].of_node)
 			continue;
 
 		pdata->tps65217_init_data[i] = reg_matches[i].init_data;
@@ -222,7 +222,6 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct tps65217_board *pdata = dev_get_platdata(tps->dev);
-	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
 	int i;
@@ -243,19 +242,9 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tps);
 
 	for (i = 0; i < TPS65217_NUM_REGULATOR; i++) {
-
-		reg_data = pdata->tps65217_init_data[i];
-
-		/*
-		 * Regulator API handles empty constraints but not NULL
-		 * constraints
-		 */
-		if (!reg_data)
-			continue;
-
 		/* Register the regulators */
 		config.dev = tps->dev;
-		config.init_data = reg_data;
+		config.init_data = pdata->tps65217_init_data[i];
 		config.driver_data = tps;
 		config.regmap = tps->regmap;
 		if (tps->dev->of_node)
