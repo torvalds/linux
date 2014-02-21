@@ -4242,6 +4242,10 @@ static u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
 static u32 vmx_exec_control(struct vcpu_vmx *vmx)
 {
 	u32 exec_control = vmcs_config.cpu_based_exec_ctrl;
+
+	if (vmx->vcpu.arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT)
+		exec_control &= ~CPU_BASED_MOV_DR_EXITING;
+
 	if (!vm_need_tpr_shadow(vmx->vcpu.kvm)) {
 		exec_control &= ~CPU_BASED_TPR_SHADOW;
 #ifdef CONFIG_X86_64
