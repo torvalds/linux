@@ -80,7 +80,7 @@ static struct acpiphp_context *acpiphp_init_context(struct acpi_device *adev)
 		return NULL;
 
 	context->refcount = 1;
-	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_event);
+	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_event, NULL);
 	return context;
 }
 
