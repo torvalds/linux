@@ -417,7 +417,6 @@ struct f2fs_sb_info {
 	struct mutex node_write;		/* locking node writes */
 	struct mutex writepages;		/* mutex for writepages() */
 	bool por_doing;				/* recovery is doing or not */
-	bool on_build_free_nids;		/* build_free_nids is doing */
 	wait_queue_head_t cp_wait;
 
 	/* for orphan inode management */
