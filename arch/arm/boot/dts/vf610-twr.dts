@@ -47,6 +47,14 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
+
+		reg_vcc_3v3_mcu: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "vcc_3v3_mcu";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
 	};
 
 	sound {
@@ -77,6 +85,13 @@
 			bitclock-master;
 		};
 	};
+};
+
+&adc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0_ad5>;
+	vref-supply = <&reg_vcc_3v3_mcu>;
+	status = "okay";
 };
 
 &dspi0 {
@@ -128,6 +143,12 @@
 
 &iomuxc {
 	vf610-twr {
+		pinctrl_adc0_ad5: adc0ad5grp {
+			fsl,pins = <
+				VF610_PAD_PTC30__ADC0_SE5		0xa1
+			>;
+		};
+
 		pinctrl_dspi0: dspi0grp {
 			fsl,pins = <
 				VF610_PAD_PTB19__DSPI0_CS0		0x1182
