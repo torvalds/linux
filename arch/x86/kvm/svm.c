@@ -34,6 +34,7 @@
 #include <asm/perf_event.h>
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
+#include <asm/debugreg.h>
 #include <asm/kvm_para.h>
 
 #include <asm/virtext.h>
@@ -1683,6 +1684,21 @@ static void svm_set_dr6(struct kvm_vcpu *vcpu, unsigned long value)
 	mark_dirty(svm->vmcb, VMCB_DR);
 }
 
+static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	get_debugreg(vcpu->arch.db[0], 0);
+	get_debugreg(vcpu->arch.db[1], 1);
+	get_debugreg(vcpu->arch.db[2], 2);
+	get_debugreg(vcpu->arch.db[3], 3);
+	vcpu->arch.dr6 = svm_get_dr6(vcpu);
+	vcpu->arch.dr7 = svm->vmcb->save.dr7;
+
+	vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_WONT_EXIT;
+	set_dr_intercepts(svm);
+}
+
 static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2973,6 +2989,17 @@ static int dr_interception(struct vcpu_svm *svm)
 	int reg, dr;
 	unsigned long val;
 	int err;
+
+	if (svm->vcpu.guest_debug == 0) {
+		/*
+		 * No more DR vmexits; force a reload of the debug registers
+		 * and reenter on this instruction.  The next vmexit will
+		 * retrieve the full state of the debug registers.
+		 */
+		clr_dr_intercepts(svm);
+		svm->vcpu.arch.switch_db_regs |= KVM_DEBUGREG_WONT_EXIT;
+		return 1;
+	}
 
 	if (!boot_cpu_has(X86_FEATURE_DECODEASSISTS))
 		return emulate_on_interception(svm);
@@ -4300,6 +4327,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.get_dr6 = svm_get_dr6,
 	.set_dr6 = svm_set_dr6,
 	.set_dr7 = svm_set_dr7,
+	.sync_dirty_debug_regs = svm_sync_dirty_debug_regs,
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
