@@ -345,6 +345,32 @@ nvc0_fifo_cclass = {
  * PFIFO engine
  ******************************************************************************/
 
+static int
+nvc0_fifo_swmthd(struct nvc0_fifo_priv *priv, u32 chid, u32 mthd, u32 data)
+{
+	struct nvc0_fifo_chan *chan = NULL;
+	struct nouveau_handle *bind;
+	unsigned long flags;
+	int ret = -EINVAL;
+
+	spin_lock_irqsave(&priv->base.lock, flags);
+	if (likely(chid >= priv->base.min && chid <= priv->base.max))
+		chan = (void *)priv->base.channel[chid];
+	if (unlikely(!chan))
+		goto out;
+
+	bind = nouveau_namedb_get_class(nv_namedb(chan), 0x906e);
+	if (likely(bind)) {
+		if (!mthd || !nv_call(bind->object, mthd, data))
+			ret = 0;
+		nouveau_namedb_put(bind);
+	}
+
+out:
+	spin_unlock_irqrestore(&priv->base.lock, flags);
+	return ret;
+}
+
 static const struct nouveau_enum nvc0_fifo_fault_unit[] = {
 	{ 0x00, "PGRAPH", NULL, NVDEV_ENGINE_GR },
 	{ 0x03, "PEEPHOLE" },
@@ -400,13 +426,6 @@ static const struct nouveau_enum nvc0_fifo_fault_gpcclient[] = {
 	{}
 };
 
-static const struct nouveau_bitfield nvc0_fifo_pbdma_intr[] = {
-/*	{ 0x00008000, "" }	seen with null ib push */
-	{ 0x00200000, "ILLEGAL_MTHD" },
-	{ 0x00800000, "EMPTY_SUBC" },
-	{}
-};
-
 static void
 nvc0_fifo_isr_vm_fault(struct nvc0_fifo_priv *priv, int unit)
 {
@@ -458,34 +477,16 @@ nvc0_fifo_isr_vm_fault(struct nvc0_fifo_priv *priv, int unit)
 	nouveau_engctx_put(engctx);
 }
 
-static int
-nvc0_fifo_swmthd(struct nvc0_fifo_priv *priv, u32 chid, u32 mthd, u32 data)
-{
-	struct nvc0_fifo_chan *chan = NULL;
-	struct nouveau_handle *bind;
-	unsigned long flags;
-	int ret = -EINVAL;
-
-	spin_lock_irqsave(&priv->base.lock, flags);
-	if (likely(chid >= priv->base.min && chid <= priv->base.max))
-		chan = (void *)priv->base.channel[chid];
-	if (unlikely(!chan))
-		goto out;
-
-	bind = nouveau_namedb_get_class(nv_namedb(chan), 0x906e);
-	if (likely(bind)) {
-		if (!mthd || !nv_call(bind->object, mthd, data))
-			ret = 0;
-		nouveau_namedb_put(bind);
-	}
-
-out:
-	spin_unlock_irqrestore(&priv->base.lock, flags);
-	return ret;
-}
+static const struct nouveau_bitfield
+nvc0_fifo_pbdma_intr[] = {
+/*	{ 0x00008000, "" }	seen with null ib push */
+	{ 0x00200000, "ILLEGAL_MTHD" },
+	{ 0x00800000, "EMPTY_SUBC" },
+	{}
+};
 
 static void
-nvc0_fifo_isr_pbdma_intr(struct nvc0_fifo_priv *priv, int unit)
+nvc0_fifo_intr_pbdma(struct nvc0_fifo_priv *priv, int unit)
 {
 	u32 stat = nv_rd32(priv, 0x040108 + (unit * 0x2000));
 	u32 addr = nv_rd32(priv, 0x0400c0 + (unit * 0x2000));
@@ -615,16 +616,13 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x20000000) {
-		u32 units = nv_rd32(priv, 0x0025a0);
-		u32 u = units;
-
-		while (u) {
-			int i = __ffs(u);
-			nvc0_fifo_isr_pbdma_intr(priv, i);
-			u &= ~(1 << i);
+		u32 mask = nv_rd32(priv, 0x0025a0);
+		while (mask) {
+			u32 unit = __ffs(mask);
+			nvc0_fifo_intr_pbdma(priv, unit);
+			nv_wr32(priv, 0x0025a0, (1 << unit));
+			mask &= ~(1 << unit);
 		}
-
-		nv_wr32(priv, 0x0025a0, units);
 		stat &= ~0x20000000;
 	}
 
