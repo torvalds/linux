@@ -160,7 +160,7 @@ struct fsnotify_group {
 
 	struct fasync_struct *fsn_fa;    /* async notification */
 
-	struct fsnotify_event overflow_event;	/* Event we queue when the
+	struct fsnotify_event *overflow_event;	/* Event we queue when the
 						 * notification list is too
 						 * full */
 

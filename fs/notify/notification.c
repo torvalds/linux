@@ -98,11 +98,11 @@ int fsnotify_add_notify_event(struct fsnotify_group *group,
 	if (group->q_len >= group->max_events) {
 		ret = 2;
 		/* Queue overflow event only if it isn't already queued */
-		if (!list_empty(&group->overflow_event.list)) {
+		if (!list_empty(&group->overflow_event->list)) {
 			mutex_unlock(&group->notification_mutex);
 			return ret;
 		}
-		event = &group->overflow_event;
+		event = group->overflow_event;
 		goto queue;
 	}
 
