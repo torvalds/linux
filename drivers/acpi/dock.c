@@ -68,15 +68,10 @@ struct dock_station {
 };
 static LIST_HEAD(dock_stations);
 static int dock_station_count;
-static DEFINE_MUTEX(hotplug_lock);
 
 struct dock_dependent_device {
 	struct list_head list;
 	struct acpi_device *adev;
-	const struct acpi_dock_ops *hp_ops;
-	void *hp_context;
-	unsigned int hp_refcount;
-	void (*hp_release)(void *);
 };
 
 #define DOCK_DOCKING	0x00000001
@@ -129,70 +124,15 @@ static void remove_dock_dependent_devices(struct dock_station *ds)
 	}
 }
 
-/**
- * dock_init_hotplug - Initialize a hotplug device on a docking station.
- * @dd: Dock-dependent device.
- * @ops: Dock operations to attach to the dependent device.
- * @context: Data to pass to the @ops callbacks and @release.
- * @init: Optional initialization routine to run after setting up context.
- * @release: Optional release routine to run on removal.
- */
-static int dock_init_hotplug(struct dock_dependent_device *dd,
-			     const struct acpi_dock_ops *ops, void *context,
-			     void (*init)(void *), void (*release)(void *))
-{
-	int ret = 0;
-
-	mutex_lock(&hotplug_lock);
-	if (WARN_ON(dd->hp_context)) {
-		ret = -EEXIST;
-	} else {
-		dd->hp_refcount = 1;
-		dd->hp_ops = ops;
-		dd->hp_context = context;
-		dd->hp_release = release;
-		if (init)
-			init(context);
-	}
-	mutex_unlock(&hotplug_lock);
-	return ret;
-}
-
-/**
- * dock_release_hotplug - Decrement hotplug reference counter of dock device.
- * @dd: Dock-dependent device.
- *
- * Decrement the reference counter of @dd and if 0, detach its hotplug
- * operations from it, reset its context pointer and run the optional release
- * routine if present.
- */
-static void dock_release_hotplug(struct dock_dependent_device *dd)
-{
-	mutex_lock(&hotplug_lock);
-	if (dd->hp_context && !--dd->hp_refcount) {
-		void (*release)(void *) = dd->hp_release;
-		void *context = dd->hp_context;
-
-		dd->hp_ops = NULL;
-		dd->hp_context = NULL;
-		dd->hp_release = NULL;
-		if (release)
-			release(context);
-	}
-	mutex_unlock(&hotplug_lock);
-}
-
 static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
 			       enum dock_callback_type cb_type)
 {
 	struct acpi_device *adev = dd->adev;
-	acpi_notify_handler cb = NULL;
-	bool run = false;
 
 	acpi_lock_hp_context();
 
 	if (!adev->hp)
-		goto no_context;
+		goto out;
 
 	if (cb_type == DOCK_CALL_FIXUP) {
 		void (*fixup)(struct acpi_device *);
@@ -223,37 +163,8 @@ static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
 		}
 	}
 
- no_context:
+ out:
 	acpi_unlock_hp_context();
-
-	mutex_lock(&hotplug_lock);
-
-	if (dd->hp_context) {
-		run = true;
-		dd->hp_refcount++;
-		if (dd->hp_ops) {
-			switch (cb_type) {
-			case DOCK_CALL_FIXUP:
-				cb = dd->hp_ops->fixup;
-				break;
-			case DOCK_CALL_UEVENT:
-				cb = dd->hp_ops->uevent;
-				break;
-			default:
-				cb = dd->hp_ops->handler;
-			}
-		}
-	}
-
-	mutex_unlock(&hotplug_lock);
-
-	if (!run)
-		return;
-
-	if (cb)
-		cb(dd->adev->handle, event, dd->hp_context);
-
-	dock_release_hotplug(dd);
 }
 
 static struct dock_station *find_dock_station(acpi_handle handle)
@@ -504,80 +415,6 @@ static int dock_in_progress(struct dock_station *ds)
 		return 1;
 	return 0;
 }
-
-/**
- * register_hotplug_dock_device - register a hotplug function
- * @handle: the handle of the device
- * @ops: handlers to call after docking
- * @context: device specific data
- * @init: Optional initialization routine to run after registration
- * @release: Optional release routine to run on unregistration
- *
- * If a driver would like to perform a hotplug operation after a dock
- * event, they can register an acpi_notifiy_handler to be called by
- * the dock driver after _DCK is executed.
- */
-int register_hotplug_dock_device(acpi_handle handle,
-				 const struct acpi_dock_ops *ops, void *context,
-				 void (*init)(void *), void (*release)(void *))
-{
-	struct dock_dependent_device *dd;
-	struct dock_station *dock_station;
-	struct acpi_device *adev;
-	int ret = -EINVAL;
-
-	if (WARN_ON(!context))
-		return -EINVAL;
-
-	if (!dock_station_count)
-		return -ENODEV;
-
-	ret = acpi_bus_get_device(handle, &adev);
-	if (ret)
-		return ret;
-
-	/*
-	 * make sure this handle is for a device dependent on the dock,
-	 * this would include the dock station itself
-	 */
-	list_for_each_entry(dock_station, &dock_stations, sibling) {
-		/*
-		 * An ATA bay can be in a dock and itself can be ejected
-		 * separately, so there are two 'dock stations' which need the
-		 * ops
-		 */
-		dd = find_dock_dependent_device(dock_station, adev);
-		if (dd && !dock_init_hotplug(dd, ops, context, init, release))
-			ret = 0;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(register_hotplug_dock_device);
-
-/**
- * unregister_hotplug_dock_device - remove yourself from the hotplug list
- * @handle: the acpi handle of the device
- */
-void unregister_hotplug_dock_device(acpi_handle handle)
-{
-	struct dock_dependent_device *dd;
-	struct dock_station *dock_station;
-	struct acpi_device *adev;
-
-	if (!dock_station_count)
-		return;
-
-	if (acpi_bus_get_device(handle, &adev))
-		return;
-
-	list_for_each_entry(dock_station, &dock_stations, sibling) {
-		dd = find_dock_dependent_device(dock_station, adev);
-		if (dd)
-			dock_release_hotplug(dd);
-	}
-}
-EXPORT_SYMBOL_GPL(unregister_hotplug_dock_device);
 
 /**
  * handle_eject_request - handle an undock request checking for error conditions
