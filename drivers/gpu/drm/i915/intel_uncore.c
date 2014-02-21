@@ -40,6 +40,12 @@
 
 #define __raw_posting_read(dev_priv__, reg__) (void)__raw_i915_read32(dev_priv__, reg__)
 
+static void
+assert_device_not_suspended(struct drm_i915_private *dev_priv)
+{
+	WARN(HAS_RUNTIME_PM(dev_priv->dev) && dev_priv->pm.suspended,
+	     "Device suspended\n");
+}
 
 static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
 {
@@ -294,6 +300,8 @@ static void gen6_force_wake_timer(unsigned long arg)
 	struct drm_i915_private *dev_priv = (void *)arg;
 	unsigned long irqflags;
 
+	assert_device_not_suspended(dev_priv);
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (--dev_priv->uncore.forcewake_count == 0)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
@@ -450,13 +458,6 @@ hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 		DRM_ERROR("Unclaimed write to %x\n", reg);
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 	}
-}
-
-static void
-assert_device_not_suspended(struct drm_i915_private *dev_priv)
-{
-	WARN(HAS_RUNTIME_PM(dev_priv->dev) && dev_priv->pm.suspended,
-	     "Device suspended\n");
 }
 
 #define REG_READ_HEADER(x) \
