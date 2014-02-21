@@ -92,7 +92,7 @@ int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 					dev_err(dev_drv->dev, "%s ivalid gpio\n", child->name);
 					return -EINVAL;
 				}
-				pwr_ctr->pwr_ctr.atv_val = flags & OF_GPIO_ACTIVE_LOW;
+				pwr_ctr->pwr_ctr.atv_val = !(flags & OF_GPIO_ACTIVE_LOW);
 				ret = gpio_request(pwr_ctr->pwr_ctr.gpio,child->name);
 				if (ret) {
 					dev_err(dev_drv->dev, "request %s gpio fail:%d\n",
@@ -168,7 +168,41 @@ int rk_disp_pwr_disable(struct rk_lcdc_driver *dev_drv)
 	return 0;
 }
 
-
+int rk_fb_video_mode_from_timing(const struct display_timing *dt, 
+				struct rk_screen *screen)
+{
+	screen->mode.pixclock = dt->pixelclock.typ;
+	screen->mode.left_margin = dt->hback_porch.typ;
+	screen->mode.right_margin = dt->hfront_porch.typ;
+	screen->mode.xres = dt->hactive.typ;
+	screen->mode.hsync_len = dt->hsync_len.typ;
+	screen->mode.upper_margin = dt->vback_porch.typ;
+	screen->mode.lower_margin = dt->vfront_porch.typ;
+	screen->mode.yres = dt->vactive.typ;
+	screen->mode.vsync_len = dt->vsync_len.typ;
+	screen->type = dt->screen_type;
+	screen->lvds_format = dt->lvds_format;
+	screen->face = dt->face;
+	if (dt->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
+		screen->pin_dclk = 1;
+	else
+		screen->pin_dclk = 0;
+	if(dt->flags & DISPLAY_FLAGS_HSYNC_HIGH)
+		screen->pin_hsync = 1;
+	else
+		screen->pin_hsync = 0;
+	if(dt->flags & DISPLAY_FLAGS_VSYNC_HIGH)
+		screen->pin_vsync = 1;
+	else
+		screen->pin_vsync = 0;
+	if(dt->flags & DISPLAY_FLAGS_DE_HIGH)
+		screen->pin_den = 1;
+	else
+		screen->pin_den = 0;
+	
+	return 0;
+	
+}
 int rk_disp_prase_timing_dt(struct rk_lcdc_driver *dev_drv)
 {
 	struct display_timings *disp_timing;
@@ -180,16 +214,7 @@ int rk_disp_prase_timing_dt(struct rk_lcdc_driver *dev_drv)
 		return -EINVAL;
 	}
 	dt = display_timings_get(disp_timing, 0);
-
-	screen->mode.pixclock = dt->pixelclock.typ;
-	screen->mode.left_margin = dt->hback_porch.typ;
-	screen->mode.right_margin = dt->hfront_porch.typ;
-	screen->mode.xres = dt->hactive.typ;
-	screen->mode.hsync_len = dt->hsync_len.typ;
-	screen->mode.upper_margin = dt->vback_porch.typ;
-	screen->mode.lower_margin = dt->vfront_porch.typ;
-	screen->mode.yres = dt->vactive.typ;
-	screen->mode.vsync_len = dt->vsync_len.typ;
+	rk_fb_video_mode_from_timing(dt, screen);
 	printk(KERN_DEBUG "dclk:%d\n"
 			 "hactive:%d\n"
 			 "hback_porch:%d\n"
@@ -358,10 +383,12 @@ static struct rk_lcdc_driver  *rk_get_extend_lcdc_drv(void)
 	return dev_drv;
 }
 
-struct rk_screen *rk_fb_get_prmry_screen(void)
+int rk_fb_get_prmry_screen(struct rk_screen *screen)
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
-	return dev_drv->screen0;
+	memcpy(screen, dev_drv->screen0, sizeof(struct rk_screen));
+	return 0;
+	
 
 }
 

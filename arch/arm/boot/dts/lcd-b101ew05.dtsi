@@ -8,19 +8,19 @@
                         rockchip,debug = <0>;
                         lcd_en:lcd_en {
                                 rockchip,power_type = <GPIO>;
-                                gpios = <&gpio0 GPIO_B0 1>;
+                                gpios = <&gpio0 GPIO_B0 GPIO_ACTIVE_HIGH>;
                                 rockchip,delay = <10>;
                         };
 
                      /*   bl_en:bl_en {
                                 rockchip,power_type = <GPIO>;
-                                gpios = <&gpio0 GPIO_A2 1>;
+                                gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
                                 rockchip,delay = <10>;
                         };
 
                         bl_ctr:bl_ctr {
                                 rockchip,power_type = <GPIO>;
-                                gpios = <&gpio3 GPIO_D6 1>;
+                                gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
                                 rockchip,delay = <10>;
                         };
 
@@ -34,19 +34,25 @@
 		disp_timings: display-timings {
                         native-mode = <&timing0>;
                         timing0: timing0 {
+				screen_type = <SCREEN_LVDS>;
+				lvds_format = <LVDS_8BIT_2>;
+				out_face    = <OUT_D888_P666>;
 				clock-frequency = <71000000>;
 				hactive = <1280>;
-                                vactive = <800>;
-                                hback-porch = <100>;
-                                hfront-porch = <18>;
-                                vback-porch = <8>;
-                                vfront-porch = <6>;
-                                hsync-len = <10>;
-                                vsync-len = <2>;
-                                hsync-active = <0>;
-                                vsync-active = <0>;
-                                de-active = <1>;
-                                pixelclk-active = <0>;
+				vactive = <800>;
+				hback-porch = <100>;
+				hfront-porch = <18>;
+				vback-porch = <8>;
+				vfront-porch = <6>;
+				hsync-len = <10>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+				swap-rb = <0>;
+				swap-rg = <0>;
+				swap-gb = <0>;
                      	};
                };
 };
