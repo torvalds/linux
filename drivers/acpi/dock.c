@@ -185,8 +185,37 @@ static void dock_release_hotplug(struct dock_dependent_device *dd)
 static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
 			       enum dock_callback_type cb_type)
 {
+	struct acpi_device *adev = dd->adev;
 	acpi_notify_handler cb = NULL;
 	bool run = false;
+
+	acpi_lock_hp_context();
+
+	if (!adev->hp)
+		goto no_context;
+
+	if (cb_type == DOCK_CALL_FIXUP) {
+		void (*fixup)(struct acpi_device *);
+
+		fixup = adev->hp->fixup;
+		if (fixup) {
+			acpi_unlock_hp_context();
+			fixup(adev);
+			return;
+		}
+	} else {
+		int (*notify)(struct acpi_device *, u32);
+
+		notify = adev->hp->event;
+		if (notify) {
+			acpi_unlock_hp_context();
+			notify(adev, event);
+			return;
+		}
+	}
+
+ no_context:
+	acpi_unlock_hp_context();
 
 	mutex_lock(&hotplug_lock);
 

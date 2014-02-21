@@ -60,6 +60,7 @@ static LIST_HEAD(bridge_list);
 static DEFINE_MUTEX(bridge_mutex);
 
 static int acpiphp_hotplug_event(struct acpi_device *adev, u32 type);
+static void acpiphp_post_dock_fixup(struct acpi_device *adev);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(struct pci_bus *bus);
 static void hotplug_event(u32 type, struct acpiphp_context *context);
@@ -80,7 +81,8 @@ static struct acpiphp_context *acpiphp_init_context(struct acpi_device *adev)
 		return NULL;
 
 	context->refcount = 1;
-	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_event, NULL);
+	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_event,
+			    acpiphp_post_dock_fixup);
 	return context;
 }
 
@@ -130,6 +132,27 @@ static inline void put_bridge(struct acpiphp_bridge *bridge)
 	kref_put(&bridge->ref, free_bridge);
 }
 
+static struct acpiphp_context *acpiphp_grab_context(struct acpi_device *adev)
+{
+	struct acpiphp_context *context;
+
+	acpi_lock_hp_context();
+	context = acpiphp_get_context(adev);
+	if (!context || context->func.parent->is_going_away) {
+		acpi_unlock_hp_context();
+		return NULL;
+	}
+	get_bridge(context->func.parent);
+	acpiphp_put_context(context);
+	acpi_unlock_hp_context();
+	return context;
+}
+
+static void acpiphp_let_context_go(struct acpiphp_context *context)
+{
+	put_bridge(context->func.parent);
+}
+
 static void free_bridge(struct kref *kref)
 {
 	struct acpiphp_context *context;
@@ -164,28 +187,29 @@ static void free_bridge(struct kref *kref)
 	acpi_unlock_hp_context();
 }
 
-/*
- * the _DCK method can do funny things... and sometimes not
- * hah-hah funny.
+/**
+ * acpiphp_post_dock_fixup - Post-dock fixups for PCI devices.
+ * @adev: ACPI device object corresponding to a PCI device.
  *
- * TBD - figure out a way to only call fixups for
- * systems that require them.
+ * TBD - figure out a way to only call fixups for systems that require them.
  */
-static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
+static void acpiphp_post_dock_fixup(struct acpi_device *adev)
 {
-	struct acpiphp_context *context = data;
-	struct pci_bus *bus = context->func.slot->bus;
+	struct acpiphp_context *context = acpiphp_grab_context(adev);
+	struct pci_bus *bus;
 	u32 buses;
 
-	if (!bus->self)
+	if (!context)
 		return;
+
+	bus = context->func.slot->bus;
+	if (!bus->self)
+		goto out;
 
 	/* fixup bad _DCK function that rewrites
 	 * secondary bridge on slot
 	 */
-	pci_read_config_dword(bus->self,
-			PCI_PRIMARY_BUS,
-			&buses);
+	pci_read_config_dword(bus->self, PCI_PRIMARY_BUS, &buses);
 
 	if (((buses >> 8) & 0xff) != bus->busn_res.start) {
 		buses = (buses & 0xff000000)
@@ -194,23 +218,10 @@ static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
 			| ((unsigned int)(bus->busn_res.end) << 16);
 		pci_write_config_dword(bus->self, PCI_PRIMARY_BUS, buses);
 	}
+
+ out:
+	acpiphp_let_context_go(context);
 }
-
-static void dock_event(acpi_handle handle, u32 type, void *data)
-{
-	struct acpi_device *adev;
-
-	adev = acpi_bus_get_acpi_device(handle);
-	if (adev) {
-		acpiphp_hotplug_event(adev, type);
-		acpi_bus_put_acpi_device(adev);
-	}
-}
-
-static const struct acpi_dock_ops acpiphp_dock_ops = {
-	.fixup = post_dock_fixups,
-	.handler = dock_event,
-};
 
 /* Check whether the PCI device is managed by native PCIe hotplug driver */
 static bool device_is_managed_by_native_pciehp(struct pci_dev *pdev)
@@ -239,20 +250,6 @@ static bool device_is_managed_by_native_pciehp(struct pci_dev *pdev)
 		return false;
 
 	return true;
-}
-
-static void acpiphp_dock_init(void *data)
-{
-	struct acpiphp_context *context = data;
-
-	get_bridge(context->func.parent);
-}
-
-static void acpiphp_dock_release(void *data)
-{
-	struct acpiphp_context *context = data;
-
-	put_bridge(context->func.parent);
 }
 
 /**
@@ -300,14 +297,17 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 	newfunc = &context->func;
 	newfunc->function = function;
 	newfunc->parent = bridge;
+	acpi_unlock_hp_context();
 
-	if (acpi_has_method(handle, "_EJ0"))
+	/*
+	 * If this is a dock device, its _EJ0 should be executed by the dock
+	 * notify handler after calling _DCK.
+	 */
+	if (!is_dock_device(adev) && acpi_has_method(handle, "_EJ0"))
 		newfunc->flags = FUNC_HAS_EJ0;
 
 	if (acpi_has_method(handle, "_STA"))
 		newfunc->flags |= FUNC_HAS_STA;
-
-	acpi_unlock_hp_context();
 
 	/* search for objects that share the same slot */
 	list_for_each_entry(slot, &bridge->slots, node)
@@ -369,18 +369,6 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 				       &val, 60*1000))
 		slot->flags |= SLOT_ENABLED;
 
-	if (is_dock_device(adev)) {
-		/* we don't want to call this device's _EJ0
-		 * because we want the dock notify handler
-		 * to call it after it calls _DCK
-		 */
-		newfunc->flags &= ~FUNC_HAS_EJ0;
-		if (register_hotplug_dock_device(handle,
-			&acpiphp_dock_ops, context,
-			acpiphp_dock_init, acpiphp_dock_release))
-			pr_debug("failed to register dock device\n");
-	}
-
 	return AE_OK;
 }
 
@@ -411,11 +399,9 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 		list_for_each_entry(func, &slot->funcs, sibling) {
 			struct acpi_device *adev = func_to_acpi_device(func);
 
-			if (is_dock_device(adev))
-				unregister_hotplug_dock_device(adev->handle);
-
 			acpi_lock_hp_context();
 			adev->hp->event = NULL;
+			adev->hp->fixup = NULL;
 			acpi_unlock_hp_context();
 		}
 		slot->flags |= SLOT_IS_GOING_AWAY;
@@ -851,19 +837,12 @@ static int acpiphp_hotplug_event(struct acpi_device *adev, u32 type)
 {
 	struct acpiphp_context *context;
 
-	acpi_lock_hp_context();
-	context = acpiphp_get_context(adev);
-	if (!context || context->func.parent->is_going_away) {
-		acpi_unlock_hp_context();
+	context = acpiphp_grab_context(adev);
+	if (!context)
 		return -ENODATA;
-	}
-	get_bridge(context->func.parent);
-	acpiphp_put_context(context);
-	acpi_unlock_hp_context();
 
 	hotplug_event(type, context);
-
-	put_bridge(context->func.parent);
+	acpiphp_let_context_go(context);
 	return 0;
 }
 
