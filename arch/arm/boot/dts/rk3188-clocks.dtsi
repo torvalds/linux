@@ -68,7 +68,6 @@
 			compatible = "rockchip,rk-clock-regs";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			reg = <0x0000 0x0100>;
 			ranges;
 
 			/* PLL control regs */
@@ -183,8 +182,10 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <9 5>;
 						clocks = <&clk_core>;
+						clock-output-names = "clk_core";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx = <CLKOPS_RATE_CORE>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[15:14]: reserved */
@@ -443,7 +444,9 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 6>;
 						clocks = <&clk_hsicphy480m_mux>;
+						clock-output-names = "clk_hsicphy480m";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[15:14]: reserved */
@@ -722,10 +725,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 5>;
 						clocks = <&clk_mac_pll_mux>;
+						clock-output-names = "clk_mac_pll";
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
-
+						#clock-cells = <0>;
 					};
 
 					/* reg[15:13]: reserved */
@@ -765,15 +769,15 @@
 						compatible = "rockchip,rk3188-inv-con";
 						rockchip,bits = <7 1>;
 						clocks = <&clk_hsadc>;
-						rockchip,div-type = <CLK_DIVIDER_FIXED>;
-						rockchip,div-relations = <1>;
 					};
 
 					clk_hsadc_div: clk_hsadc_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 8>;
 						clocks = <&clk_hsadc_pll_mux>;
+						clock-output-names = "clk_hsadc_pll";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
+						#clock-cells = <0>;
 					};
 				};
 
@@ -846,7 +850,9 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 2>;
 						clocks = <&clk_ddr>;
+						clock-output-names = "clk_ddr";
 						rockchip,div-type = <CLK_DIVIDER_POWER_OF_TWO>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[7:2]: reserved */
@@ -883,9 +889,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 8>;
 						clocks = <&dclk_lcdc0>;
+						clock-output-names = "dclk_lcdc0";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_DCLK_LCDC>;
+						#clock-cells = <0>;
 					};
 				};
 
@@ -910,9 +918,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 8>;
 						clocks = <&dclk_lcdc1>;
+						clock-output-names = "dclk_lcdc1";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_DCLK_LCDC>;
+						#clock-cells = <0>;
 					};
 				};
 
@@ -934,9 +944,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <1 5>;
 						clocks = <&cif_out_pll_mux>;
+						clock-output-names = "cif_out_pll";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[6]: reserved */
@@ -987,9 +999,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
 						clocks = <&aclk_lcdc0>;
+						clock-output-names = "aclk_lcdc0";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[6:5]: reserved */
@@ -1006,9 +1020,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 5>;
 						clocks = <&aclk_lcdc1>;
+						clock-output-names = "aclk_lcdc1";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[14:13]: reserved */
@@ -1032,9 +1048,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
 						clocks = <&clk_vepu>;
+						clock-output-names = "clk_vepu";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[6:5]: reserved */
@@ -1051,9 +1069,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 5>;
 						clocks = <&clk_vdpu>;
+						clock-output-names = "clk_vdpu";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[14:13]: reserved */
@@ -1077,8 +1097,11 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
 						clocks = <&clk_gpu>;
+						clock-output-names = "clk_gpu";
+						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						#clock-cells = <0>;
 					};
 
 					/* reg[6:5]: reserved */

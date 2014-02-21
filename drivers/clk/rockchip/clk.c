@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2013 ROCKCHIP, Inc.
  * Author: chenxing <chenxing@rock-chips.com>
+ *         Dai Kelin <dkl@rock-chips.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -24,88 +25,60 @@
 #include "clk-pll.h"
 
 
-struct rkclk_divmap_table {
-	u32		reg_val;
-	u32		div_val;
+struct rkclk_muxinfo {
+	const char		*clk_name;
+	struct device_node	*np;
+	struct clk_mux		*mux;
+	u8			parent_num;
+	const char		**parent_names;
+	u32			clkops_idx;
 };
 
 struct rkclk_divinfo {
-	struct clk_divider *div;
-	void __iomem	*addr;
-	u32		shift;
-	u32		width;
-	u32		div_type;
-	u32		max_div;
-	u32		fixed_div_val;
-	u32		clkops_idx;
-	const char	*clk_name;
-	const char	*parent_name;
-	struct clk_div_table		*div_table;
-	struct list_head		node;
-};
-
-struct rkclk_muxinfo {
-	struct clk_mux	*mux;
-	void __iomem	*addr;
-	u32		shift;
-	u32		width;
-	u32		parent_num;
-	u32		clkops_idx;
-	//u8		mux_flags;
-	const char	*clk_name;
-	const char	**parent_names;
-	struct list_head	node;
+	const char		*clk_name;
+	struct device_node	*np;
+	struct clk_divider	*div;
+	u32			div_type;
+	const char		*parent_name;
+	u32			clkops_idx;
 };
 
 struct rkclk_fracinfo {
-	struct clk_hw	hw;
-	void __iomem	*addr;
-	u32		shift;
-	u32		width;
-	u32		frac_type;
-	u32		clkops_idx;
-	const char	*clk_name;
-	const char	*parent_name;
-	struct list_head	node;
+	const char		*clk_name;
+	struct device_node 	*np;
+	struct clk_divider	*frac;
+	u32			frac_type;
+	const char		*parent_name;
+	u32			clkops_idx;
 };
 
 struct rkclk_gateinfo {
-	struct clk_gate	*gate;
-	void __iomem	*addr;
-	u32		shift;
-	u32		clkops_idx;
-	const char	*clk_name;
-	const char	*parent_name;
+	const char		*clk_name;
+	struct device_node 	*np;
+	struct clk_gate		*gate;
+	const char		*parent_name;
+	//u32			clkops_idx;
 };
 
 struct rkclk_pllinfo {
-	struct clk_hw	hw;
-	void __iomem	*addr;
-	u32		width;
-	const char	*clk_name;
-	const char	*parent_name;
-	/*
-	 * const char	**clkout_names;
-	 */
-	u32		clkops_idx;
-	u32		id;
-	struct list_head	node;
+	const char		*clk_name;
+	struct device_node 	*np;
+	struct clk_pll		*pll;
+	const char		*parent_name;
+	u32			clkops_idx;
 };
 
 struct rkclk {
-	const char	*clk_name;
-	u32		clk_type;
-	u32		flags;
-	/*
-	 * store nodes creat this rkclk
-	 * */
-	struct device_node		*np;
-	struct rkclk_pllinfo		*pll_info;
-	struct rkclk_muxinfo		*mux_info;
-	struct rkclk_divinfo		*div_info;
-	struct rkclk_fracinfo		*frac_info;
-	struct rkclk_gateinfo		*gate_info;
-	struct list_head		node;
+	const char		*clk_name;
+	//struct device_node 	*np;
+	u32			clk_type;
+	u32			flags;
+	struct rkclk_muxinfo	*mux_info;
+	struct rkclk_divinfo	*div_info;
+	struct rkclk_fracinfo	*frac_info;
+	struct rkclk_pllinfo	*pll_info;
+	struct rkclk_gateinfo	*gate_info;
+	struct list_head	node;
 };
 
 static DEFINE_SPINLOCK(clk_lock);
@@ -117,279 +90,445 @@ LIST_HEAD(rk_clks);
 #define RKCLK_FRAC_TYPE	(1 << 3)
 #define RKCLK_GATE_TYPE	(1 << 4)
 
-static int rkclk_init_muxinfo(struct device_node *np,
-		struct rkclk_muxinfo *mux, void __iomem *addr)
+static int rkclk_init_muxinfo(struct device_node *np, void __iomem *addr)
 {
+	struct rkclk_muxinfo *muxinfo = NULL;
+	struct clk_mux *mux = NULL;
+	u32 shift, width;
+	u32 flags;
 	int cnt, i, ret = 0;
 	u8 found = 0;
-	struct rkclk *rkclk;
-	u32 flags;
+	struct rkclk *rkclk = NULL;
 
-	mux = kzalloc(sizeof(struct rkclk_muxinfo), GFP_KERNEL);
-	if (!mux)
-		return -ENOMEM;
+
+	muxinfo = kzalloc(sizeof(struct rkclk_muxinfo), GFP_KERNEL);
+	if (!muxinfo) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	muxinfo->mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
+	if (!muxinfo->mux) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	mux = muxinfo->mux;
+
+	ret = of_property_read_string(np, "clock-output-names",
+			&muxinfo->clk_name);
+	if (ret != 0)
+		goto out;
+
+	muxinfo->np = np;
+
+	cnt = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	if (cnt < 0) {
+		ret = -EINVAL;
+		goto out;
+	} else {
+		clk_debug("%s: parent cnt = %d\n", __func__, cnt);
+		muxinfo->parent_num = (u8)cnt;
+	}
+
+	muxinfo->parent_names = kzalloc(cnt * sizeof(char *), GFP_KERNEL);
+	for (i = 0; i < cnt ; i++) {
+		muxinfo->parent_names[i] = of_clk_get_parent_name(np, i);
+	}
+
+	mux->reg = addr;
+
+	ret = of_property_read_u32_index(np, "rockchip,bits", 0, &shift);
+	if (ret != 0) {
+		goto out;
+	} else {
+		mux->shift = (u8)shift;
+	}
+
+	ret = of_property_read_u32_index(np, "rockchip,bits", 1, &width);
+	if (ret != 0)
+		goto out;
+	mux->mask = (1 << width) - 1;
+
+	mux->flags = CLK_MUX_HIWORD_MASK;
+
+	ret = of_property_read_u32(np, "rockchip,clkops-idx",
+			&muxinfo->clkops_idx);
+	if (ret != 0) {
+		muxinfo->clkops_idx = CLKOPS_TABLE_END;
+		ret = 0;
+	}
 
 	ret = of_property_read_u32(np, "rockchip,flags", &flags);
-	if (ret != 0)
+	if (ret != 0) {
 		flags = 0;
-	/*
-	 * Get control bit addr
-	 */
-	ret = of_property_read_u32_index(np, "rockchip,bits", 0, &mux->shift);
-	if (ret != 0)
-		return -EINVAL;
-
-	ret = of_property_read_u32(np, "rockchip,clkops-idx", &mux->clkops_idx);
-	if (ret != 0)
-		mux->clkops_idx = CLKOPS_TABLE_END;
-
-	ret = of_property_read_u32_index(np, "rockchip,bits", 1, &mux->width);
-	if (ret != 0)
-		return -EINVAL;
-	mux->addr = addr;
-
-	ret = of_property_read_string(np, "clock-output-names", &mux->clk_name);
-	if (ret != 0)
-		return -EINVAL;
-
-	/*
-	 * Get parents' cnt
-	 */
-	cnt = of_count_phandle_with_args(np, "clocks", "#clock-cells");
-	if (cnt< 0)
-		return -EINVAL;
-
-	mux->parent_num = cnt;
-	mux->parent_names = kzalloc(cnt * sizeof(char *), GFP_KERNEL);
-
-	clk_debug("%s: parent cnt = %d\n", __func__, cnt);
-	for (i = 0; i < cnt ; i++) {
-
-		mux->parent_names[i] = of_clk_get_parent_name(np, i);
+		ret = 0;
 	}
 
 	found = 0;
 	list_for_each_entry(rkclk, &rk_clks, node) {
-		if (strcmp(mux->clk_name, rkclk->clk_name) == 0) {
-			if (rkclk->mux_info != NULL)
-				clk_err("%s(%d): This clk(%s) has been used\n",
-						__func__, __LINE__, mux->clk_name);
-			clk_debug("%s: find match %s\n", __func__, rkclk->clk_name);
+		if (strcmp(muxinfo->clk_name, rkclk->clk_name) == 0) {
+			if (rkclk->mux_info != NULL) {
+				clk_err("%s %d:\n", __func__, __LINE__);
+				clk_err("This clk(%s) has been used,"
+						"will be overwrited here!\n",
+						rkclk->clk_name);
+			}
+			clk_debug("%s: find match %s\n", __func__,
+					rkclk->clk_name);
 			found = 1;
-			rkclk->mux_info = mux;
+			rkclk->mux_info = muxinfo;
 			rkclk->clk_type |= RKCLK_MUX_TYPE;
 			rkclk->flags |= flags;
 			break;
 		}
 	}
+
 	if (!found) {
 		rkclk = kzalloc(sizeof(struct rkclk), GFP_KERNEL);
-		rkclk->clk_name = mux->clk_name;
-		rkclk->mux_info = mux;
+		if (!rkclk) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		rkclk->clk_name = muxinfo->clk_name;
+		rkclk->mux_info = muxinfo;
 		rkclk->clk_type = RKCLK_MUX_TYPE;
 		rkclk->flags = flags;
-		rkclk->np = np;
 		clk_debug("%s: creat %s\n", __func__, rkclk->clk_name);
-
 		list_add_tail(&rkclk->node, &rk_clks);
 	}
-	return 0;
-}
 
-static int rkclk_init_divinfo(struct device_node *np,
-		struct rkclk_divinfo *div, void __iomem *addr)
-{
-	int cnt = 0, i = 0, ret = 0;
-	struct rkclk *rkclk;
-	u8 found = 0;
-
-	div = kzalloc(sizeof(struct rkclk_divinfo), GFP_KERNEL);
-	if (!div)
-		return -ENOMEM;
-
-	of_property_read_u32_index(np, "rockchip,bits", 0, &div->shift);
-	of_property_read_u32_index(np, "rockchip,bits", 1, &div->width);
-	div->addr = addr;
-
-	of_property_read_u32(np, "rockchip,div-type", &div->div_type);
-
-	ret = of_property_read_u32(np, "rockchip,clkops-idx", &div->clkops_idx);
-	if (ret != 0)
-		div->clkops_idx = CLKOPS_TABLE_END;
-
-	cnt = of_property_count_strings(np, "clock-output-names");
-	if (cnt <= 0)
-		div->clk_name = of_clk_get_parent_name(np, 0);
-	else {
-		ret = of_property_read_string(np, "clock-output-names", &div->clk_name);
-		if (ret != 0)
-			return -EINVAL;
-		div->parent_name = of_clk_get_parent_name(np, 0);
+out:
+	if (ret) {
+		clk_err("%s error, ret = %d\n", __func__, ret);
+		if (muxinfo) {
+			if (muxinfo->mux)
+				kfree(muxinfo->mux);
+			kfree(muxinfo);
+		}
+		if (rkclk)
+			kfree(rkclk);
 	}
 
-	switch (div->div_type) {
+	return ret;
+}
+
+static int rkclk_init_divinfo(struct device_node *np, void __iomem *addr)
+{
+	int cnt = 0, i = 0, ret = 0;
+	struct rkclk *rkclk = NULL;
+	u8 found = 0;
+	u32 flags;
+	u32 shift, width;
+	struct rkclk_divinfo *divinfo = NULL;
+	struct clk_divider *div = NULL;
+	struct clk_div_table	*table;
+	u32 table_val, table_div;
+
+
+	divinfo = kzalloc(sizeof(struct rkclk_divinfo), GFP_KERNEL);
+	if (!divinfo) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	divinfo->div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
+	if (!divinfo->div) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	div = divinfo->div;
+
+	ret = of_property_read_string(np, "clock-output-names",
+			&divinfo->clk_name);
+	if (ret != 0)
+		goto out;
+
+	divinfo->parent_name = of_clk_get_parent_name(np, 0);
+
+	divinfo->np = np;
+
+	ret = of_property_read_u32(np, "rockchip,clkops-idx",
+			&divinfo->clkops_idx);
+	if (ret != 0) {
+		divinfo->clkops_idx = CLKOPS_TABLE_END;
+		ret = 0;
+	}
+
+	ret = of_property_read_u32(np, "rockchip,flags", &flags);
+	if (ret != 0) {
+		flags = 0;
+		ret = 0;
+	}
+
+	ret = of_property_read_u32(np, "rockchip,div-type", &divinfo->div_type);
+	if (ret != 0)
+		goto out;
+
+	switch (divinfo->div_type) {
 		case CLK_DIVIDER_PLUS_ONE:
 		case CLK_DIVIDER_ONE_BASED:
 		case CLK_DIVIDER_POWER_OF_TWO:
 			break;
-		case CLK_DIVIDER_FIXED:
-			of_property_read_u32_index(np, "rockchip,div-relations", 0,
-					&div->fixed_div_val);
-			clk_debug("%s:%s fixed_div = %d\n", __func__,
-					div->clk_name, div->fixed_div_val);
-			break;
 		case CLK_DIVIDER_USER_DEFINE:
 			of_get_property(np, "rockchip,div-relations", &cnt);
-			cnt /= 4 * 2;
-			div->div_table = kzalloc(cnt * sizeof(struct clk_div_table),
-					GFP_KERNEL);
-
-			for (i = 0; i < cnt; i++) {
-				of_property_read_u32_index(np, "rockchip,div-relations", i * 2,
-						&div->div_table[i].val);
-				of_property_read_u32_index(np, "rockchip,div-relations", i * 2 + 1,
-						&div->div_table[i].div);
-				clk_debug("\tGet div table %d: val=%d, div=%d\n",
-						i, div->div_table[i].val,
-						div->div_table[i].div);
+			if (cnt <= 0) {
+				ret = -EINVAL;
+				goto out;
 			}
+			cnt /= 4 * 2;
+			table = kzalloc(cnt * sizeof(struct clk_div_table),
+					GFP_KERNEL);
+			if (!table) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			for (i = 0; i < cnt; i++) {
+				ret = of_property_read_u32_index(np,
+						"rockchip,div-relations", i * 2,
+						&table_val);
+				if (ret)
+					goto out;
+				ret = of_property_read_u32_index(np,
+						"rockchip,div-relations",
+						i * 2 + 1, &table_div);
+				if (ret)
+					goto out;
+				table[i].val = (unsigned int)table_val;
+				table[i].div = (unsigned int)table_div;
+				clk_debug("\tGet div table %d: val=%d, div=%d\n",
+						i, table_val, table_div);
+			}
+			div->table = table;
 			break;
 		default:
-			clk_err("%s: %s: unknown rockchip,div-type, please check dtsi\n",
-					__func__, div->clk_name);
-			break;
+			clk_err("%s: %s: unknown rockchip,div-type\n", __func__,
+					divinfo->clk_name);
+			ret = -EINVAL;
+			goto out;
 	}
+
+	div->reg = addr;
+	ret = of_property_read_u32_index(np, "rockchip,bits", 0, &shift);
+	if (ret)
+		goto out;
+	ret = of_property_read_u32_index(np, "rockchip,bits", 1, &width);
+	if (ret)
+		goto out;
+	div->shift = (u8)shift;
+	div->width = (u8)width;
+	div->flags = CLK_DIVIDER_HIWORD_MASK | divinfo->div_type;
 
 	found = 0;
 	list_for_each_entry(rkclk, &rk_clks, node) {
-		if (strcmp(div->clk_name, rkclk->clk_name) == 0) {
-			if (rkclk->div_info != NULL)
-				clk_err("%s(Line %d): This clk(%s) has been used\n",
-						__func__, __LINE__, rkclk->clk_name);
-			clk_debug("%s: find match %s\n", __func__, rkclk->clk_name);
+		if (strcmp(divinfo->clk_name, rkclk->clk_name) == 0) {
+			if (rkclk->div_info != NULL) {
+				clk_err("%s %d:\n", __func__, __LINE__);
+				clk_err("This clk(%s) has been used,"
+						"will be overwrited here!\n",
+						rkclk->clk_name);
+			}
+			clk_debug("%s: find match %s\n", __func__,
+					rkclk->clk_name);
 			found = 1;
-			rkclk->div_info = div;
+			rkclk->div_info = divinfo;
 			rkclk->clk_type |= RKCLK_DIV_TYPE;
+			rkclk->flags |= flags;
 			break;
 		}
 	}
+
 	if (!found) {
 		rkclk = kzalloc(sizeof(struct rkclk), GFP_KERNEL);
-		rkclk->clk_name = div->clk_name;
-		rkclk->div_info = div;
-		rkclk->clk_type |= RKCLK_DIV_TYPE;
-		rkclk->np = np;
+		if (!rkclk) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		rkclk->clk_name = divinfo->clk_name;
+		rkclk->div_info = divinfo;
+		rkclk->clk_type = RKCLK_DIV_TYPE;
+		rkclk->flags = flags;
 		clk_debug("%s: creat %s\n", __func__, rkclk->clk_name);
-
 		list_add_tail(&rkclk->node, &rk_clks);
 	}
-	return 0;
 
+out:
+	if (ret) {
+		clk_err("%s error, ret = %d\n", __func__, ret);
+		if(table)
+			kfree(table);
+		if (divinfo) {
+			if (divinfo->div)
+				kfree(divinfo->div);
+			kfree(divinfo);
+		}
+		if (rkclk)
+			kfree(rkclk);
+	}
 
+	return ret;
 }
 
-static int rkclk_init_fracinfo(struct device_node *np,
-		struct rkclk_fracinfo *frac, void __iomem *addr)
+static int rkclk_init_fracinfo(struct device_node *np, void __iomem *addr)
 {
-	struct rkclk *rkclk;
+	struct rkclk *rkclk = NULL;
 	u8 found = 0;
 	int ret = 0;
+	struct rkclk_fracinfo *fracinfo = NULL;
+	struct clk_divider *frac = NULL;
+	u32 shift, width, flags;
 
-	frac = kzalloc(sizeof(struct rkclk_fracinfo), GFP_KERNEL);
-	if (!frac)
-		return -ENOMEM;
 
-	of_property_read_u32_index(np, "rockchip,bits", 0, &frac->shift);
-	of_property_read_u32_index(np, "rockchip,bits", 1, &frac->width);
-	frac->addr = addr;
+	fracinfo = kzalloc(sizeof(struct rkclk_fracinfo), GFP_KERNEL);
+	if (!fracinfo) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
-	ret = of_property_read_u32(np, "rockchip,clkops-idx", &frac->clkops_idx);
+	fracinfo->frac = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
+	if (!fracinfo->frac) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	frac = fracinfo->frac;
+
+	ret = of_property_read_string(np, "clock-output-names",
+			&fracinfo->clk_name);
 	if (ret != 0)
-		frac->clkops_idx = CLKOPS_TABLE_END;
+		goto out;
 
-	frac->parent_name = of_clk_get_parent_name(np, 0);
-	ret = of_property_read_string(np, "clock-output-names", &frac->clk_name);
-	if (ret != 0)
-		return -EINVAL;
+	fracinfo->parent_name = of_clk_get_parent_name(np, 0);
+	fracinfo->np = np;
+
+	ret = of_property_read_u32(np, "rockchip,clkops-idx",
+			&fracinfo->clkops_idx);
+	if (ret != 0) {
+		fracinfo->clkops_idx = CLKOPS_TABLE_END;
+		clk_err("frac node without specified ops!\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = of_property_read_u32(np, "rockchip,flags", &flags);
+	if (ret != 0) {
+		clk_debug("if not specified, frac use CLK_SET_RATE_PARENT flag "
+				"as default\n");
+		flags = CLK_SET_RATE_PARENT;
+		ret = 0;
+	}
+
+	frac->reg = addr;
+	ret = of_property_read_u32_index(np, "rockchip,bits", 0, &shift);
+	if (ret)
+		goto out;
+	ret = of_property_read_u32_index(np, "rockchip,bits", 1, &width);
+	if (ret)
+		goto out;
+	frac->shift = (u8)shift;
+	frac->width = (u8)width;
+	frac->flags = 0;
 
 	found = 0;
 	list_for_each_entry(rkclk, &rk_clks, node) {
-		if (strcmp(frac->clk_name, rkclk->clk_name) == 0) {
-			if (rkclk->frac_info != NULL)
-				clk_err("%s(%d): This clk(%s) has been used\n",
-						__func__, __LINE__, frac->clk_name);
-			clk_debug("%s: find match %s\n", __func__, rkclk->clk_name);
+		if (strcmp(fracinfo->clk_name, rkclk->clk_name) == 0) {
+			if (rkclk->frac_info != NULL) {
+				clk_err("%s %d:\n", __func__, __LINE__);
+				clk_err("This clk(%s) has been used,"
+						"will be overwrited here!\n",
+						rkclk->clk_name);
+			}
+			clk_debug("%s: find match %s\n", __func__,
+					rkclk->clk_name);
 			found = 1;
-			rkclk->frac_info = frac;
+			rkclk->frac_info = fracinfo;
 			rkclk->clk_type |= RKCLK_FRAC_TYPE;
-			rkclk->flags |= CLK_SET_RATE_PARENT;
+			rkclk->flags |= flags;
 			break;
 		}
 	}
+
 	if (!found) {
 		rkclk = kzalloc(sizeof(struct rkclk), GFP_KERNEL);
-		rkclk->clk_name = frac->clk_name;
-		rkclk->frac_info = frac;
+		if (!rkclk) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		rkclk->clk_name = fracinfo->clk_name;
+		rkclk->frac_info = fracinfo;
 		rkclk->clk_type = RKCLK_FRAC_TYPE;
-		rkclk->flags = CLK_SET_RATE_PARENT;
-		rkclk->np = np;
+		rkclk->flags = flags;
 		clk_debug("%s: creat %s\n", __func__, rkclk->clk_name);
-
 		list_add_tail(&rkclk->node, &rk_clks);
 	}
-	return 0;
+
+out:
+	if (ret) {
+		clk_err("%s error, ret = %d\n", __func__, ret);
+		if (fracinfo) {
+			if (fracinfo->frac)
+				kfree(fracinfo->frac);
+			kfree(fracinfo);
+		}
+		if (rkclk)
+			kfree(rkclk);
+	}
+
+	return ret;
 }
 
 static int __init rkclk_init_selcon(struct device_node *np)
 {
 	struct device_node *node_con, *node;
 	void __iomem *reg = 0;
+	int ret = 0;
 
-	struct rkclk_divinfo *divinfo;
-	struct rkclk_muxinfo *muxinfo;
-	struct rkclk_fracinfo *fracinfo;
 
 	for_each_available_child_of_node(np, node_con) {
-
 		reg = of_iomap(node_con, 0);
+		clk_debug("\n");
+		clk_debug("%s: reg = 0x%x\n", __func__, (u32)reg);
 
 		for_each_available_child_of_node(node_con, node) {
+			clk_debug("\n");
+			if (of_device_is_compatible(node,
+						"rockchip,rk3188-div-con"))
+				ret = rkclk_init_divinfo(node, reg);
 
-			if (of_device_is_compatible(node, "rockchip,rk3188-div-con"))
-				rkclk_init_divinfo(node, divinfo, reg);
+			else if (of_device_is_compatible(node,
+						"rockchip,rk3188-mux-con"))
+				ret = rkclk_init_muxinfo(node, reg);
 
-			else if (of_device_is_compatible(node, "rockchip,rk3188-mux-con"))
-				rkclk_init_muxinfo(node, muxinfo, reg);
+			else if (of_device_is_compatible(node,
+						"rockchip,rk3188-frac-con"))
+				ret = rkclk_init_fracinfo(node, reg);
 
-			else if (of_device_is_compatible(node, "rockchip,rk3188-frac-con"))
-				rkclk_init_fracinfo(node, fracinfo, reg);
-
-			else if (of_device_is_compatible(node, "rockchip,rk3188-inv-con"))
+			else if (of_device_is_compatible(node,
+						"rockchip,rk3188-inv-con"))
 				clk_debug("INV clk\n");
 
-			else
-				clk_err("%s: unknown controler type, plz check dtsi "
-						"or add type support\n", __func__);
-
+			else {
+				clk_err("%s: unknown controller type\n",
+						__func__);
+				ret = -EINVAL;
+			}
 		}
 	}
-	return 0;
+
+	return ret;
 }
 
 static int __init rkclk_init_gatecon(struct device_node *np)
 {
-	struct clk_onecell_data *clk_data;
 	struct device_node *node;
-	const char *clk_parent;
 	const char *clk_name;
 	void __iomem *reg;
-	void __iomem *reg_idx;
 	int cnt;
-	int reg_bit;
 	int i;
 	struct rkclk_gateinfo *gateinfo;
 	u8 found = 0;
 	struct rkclk *rkclk;
+	int ret = 0;
+	struct clk_gate *gate = NULL;
+
 
 	for_each_available_child_of_node(np, node) {
 		cnt = of_property_count_strings(node, "clock-output-names");
@@ -400,47 +539,62 @@ static int __init rkclk_init_gatecon(struct device_node *np)
 		}
 
 		if (cnt == 0) {
-			pr_info("%s: nothing to do\n", __func__);
+			clk_debug("%s: nothing to do\n", __func__);
 			continue;
 		}
 
 		reg = of_iomap(node, 0);
-
-		clk_data = kzalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
-		if (!clk_data)
-			return -ENOMEM;
-
-		clk_data->clks = kzalloc(cnt * sizeof(struct clk *), GFP_KERNEL);
-		if (!clk_data->clks) {
-			kfree(clk_data);
-			return -ENOMEM;
-		}
+		clk_debug("\n");
+		clk_debug("%s: reg = 0x%x\n", __func__, (u32)reg);
 
 		for (i = 0; i < cnt; i++) {
-			of_property_read_string_index(node, "clock-output-names",
-					i, &clk_name);
+			ret = of_property_read_string_index(node,
+					"clock-output-names", i, &clk_name);
+			if (ret != 0)
+				goto out;
 
 			/* ignore empty slots */
-			if (!strcmp("reserved", clk_name))
+			if (!strcmp("reserved", clk_name)) {
+				clk_debug("do nothing for reserved clk\n");
 				continue;
+			}
 
-			clk_parent = of_clk_get_parent_name(node, i);
+			gateinfo = kzalloc(sizeof(struct rkclk_gateinfo),
+					GFP_KERNEL);
+			if (!gateinfo) {
+				ret = -ENOMEM;
+				goto out;
+			}
 
-			reg_idx = reg + (4 * (i / 16));
-			reg_bit = (i % 16);
+			gateinfo->gate = kzalloc(sizeof(struct clk_gate),
+					GFP_KERNEL);
+			if (!gateinfo->gate) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			gate = gateinfo->gate;
 
-			gateinfo = kzalloc(sizeof(struct rkclk_gateinfo), GFP_KERNEL);
 			gateinfo->clk_name = clk_name;
-			gateinfo->parent_name = clk_parent;
-			gateinfo->addr = reg;
-			gateinfo->shift = reg_bit;
+			gateinfo->parent_name = of_clk_get_parent_name(node, i);
+			gateinfo->np = node;
+
+			gate->reg = reg;
+			gate->bit_idx = (i % 16);
+			gate->flags = CLK_GATE_HIWORD_MASK |
+				CLK_GATE_SET_TO_DISABLE;
+
 			found = 0;
 			list_for_each_entry(rkclk, &rk_clks, node) {
 				if (strcmp(clk_name, rkclk->clk_name) == 0) {
-					if (rkclk->gate_info != NULL)
-						clk_err("%s(%d): This clk(%s) has been used\n",
-								__func__, __LINE__, clk_name);
-					clk_debug("%s: find match %s\n", __func__, rkclk->clk_name);
+					if (rkclk->gate_info != NULL) {
+						clk_err("%s %d:\n", __func__,
+								__LINE__);
+						clk_err("This clk(%s) has been used,"
+								"will be overwrited here!\n",
+								rkclk->clk_name);
+					}
+					clk_debug("%s: find match %s\n",
+							__func__, rkclk->clk_name);
 					found = 1;
 					rkclk->gate_info = gateinfo;
 					rkclk->clk_type |= RKCLK_GATE_TYPE;
@@ -449,259 +603,331 @@ static int __init rkclk_init_gatecon(struct device_node *np)
 			}
 			if (!found) {
 				rkclk = kzalloc(sizeof(struct rkclk), GFP_KERNEL);
+				if (!rkclk) {
+					ret = -ENOMEM;
+					goto out;
+				}
 				rkclk->clk_name = gateinfo->clk_name;
 				rkclk->gate_info = gateinfo;
-				rkclk->clk_type |= RKCLK_GATE_TYPE;
-				rkclk->np = node;
-				clk_debug("%s: creat %s\n", __func__, rkclk->clk_name);
-
+				rkclk->clk_type = RKCLK_GATE_TYPE;
+				clk_debug("%s: creat %s\n", __func__,
+						rkclk->clk_name);
 				list_add_tail(&rkclk->node, &rk_clks);
+			}
+
+out:
+			if (ret) {
+				clk_err("%s error, ret = %d\n", __func__, ret);
+				if (gateinfo) {
+					if (gateinfo->gate)
+						kfree(gateinfo->gate);
+					kfree(gateinfo);
+				}
+				if (rkclk)
+					kfree(rkclk);
 			}
 		}
 
 	}
+
 	return 0;
 }
 
 static int __init rkclk_init_pllcon(struct device_node *np)
 {
-	struct rkclk_pllinfo *pllinfo;
-	struct device_node *node;
-	struct rkclk *rkclk;
+	struct device_node *node = NULL;
+	struct rkclk_pllinfo *pllinfo = NULL;
 	void __iomem	*reg;
-	int i = 0;
-	int ret = 0, clknum = 0;
+	struct clk_pll *pll = NULL;
 	u8 found = 0;
+	int ret = 0;
+	struct rkclk *rkclk = NULL;
+	u32 flags;
+	u32 pll_id;
+
 
 	for_each_available_child_of_node(np, node) {
-		clknum = of_property_count_strings(node, "clock-output-names");
-		if (clknum < 0) {
-			clk_err("%s: error in get clock-output-names numbers = %d\n",
-					__func__, clknum);
-			return -EINVAL;
+		pllinfo = kzalloc(sizeof(struct rkclk_pllinfo), GFP_KERNEL);
+		if (!pllinfo) {
+			ret = -ENOMEM;
+			goto out;
 		}
+
+		pllinfo->pll = kzalloc(sizeof(struct clk_pll), GFP_KERNEL);
+		if (!pllinfo->pll) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		pll = pllinfo->pll;
+
+		pllinfo->np = node;
+
+		ret = of_property_read_string_index(node, "clock-output-names",
+				0, &pllinfo->clk_name);
+		if (ret)
+			goto out;
+
+		pllinfo->parent_name = of_clk_get_parent_name(node, 0);
+
+		ret = of_property_read_u32(np, "rockchip,flags", &flags);
+		if (ret != 0) {
+			flags = 0;
+			ret = 0;
+		}
+
 		reg = of_iomap(node, 0);
+		if (reg == NULL) {
+			clk_err("%s: can not get reg addr info\n", __func__);
+			ret = -EINVAL;
+			goto out;
+		} else {
+			pll->reg = reg;
+		}
 
-		for (i = 0; i < clknum; i++) {
-			pllinfo = kzalloc(sizeof(struct rkclk_pllinfo), GFP_KERNEL);
-			if (!pllinfo)
-				return -ENOMEM;
+		ret = of_property_read_u32_index(node, "reg", 1, &pll->width);
+		if (ret != 0) {
+			clk_err("%s: can not get reg length info\n", __func__);
+			goto out;
+		}
 
-			/*
-			 * Get pll parent name
-			 */
-			pllinfo->parent_name = of_clk_get_parent_name(node, i);
+		ret = of_property_read_u32(node, "rockchip,pll-id", &pll_id);
+		if (ret != 0) {
+			clk_err("%s: can not get pll-id\n", __func__);
+			goto out;
+		} else {
+			pll->id = (u8)pll_id;
+		}
 
-			/*
-			 * Get pll output name
-			 */
-			of_property_read_string_index(node, "clock-output-names",
-					i, &pllinfo->clk_name);
+		clk_debug("%s: pllname=%s, parent=%s, flags=%u, "
+				"addr=0x%x, len=0x%x, id=%d\n",
+				__func__, pllinfo->clk_name,
+				pllinfo->parent_name, flags,
+				(u32)pll->reg, pll->width, pll->id);
 
-			pllinfo->addr = reg;
-
-			ret = of_property_read_u32_index(node, "reg", 1, &pllinfo->width);
-			if (ret != 0) {
-				clk_err("%s: can not get reg info\n", __func__);
-			}
-
-			ret = of_property_read_u32(node, "rockchip,pll-id", &pllinfo->id);
-			if (ret != 0) {
-				clk_err("%s: can not get pll-id\n", __func__);
-			}
-
-			clk_debug("%s: parent=%s, pllname=%s, reg =%08x, id = %d, cnt=%d\n",
-					__func__,pllinfo->parent_name,
-					pllinfo->clk_name,(u32)pllinfo->addr,
-					pllinfo->id,pllinfo->width);
-
-			found = 0;
-			list_for_each_entry(rkclk, &rk_clks, node) {
-				if (strcmp(pllinfo->clk_name, rkclk->clk_name) == 0) {
-					if (rkclk->pll_info != NULL)
-						clk_err("%s(%d): This clk(%s) has been used\n",
-								__func__, __LINE__, pllinfo->clk_name);
-					clk_debug("%s: find match %s\n", __func__, rkclk->clk_name);
-					found = 1;
-					rkclk->pll_info = pllinfo;
-					rkclk->clk_type |= RKCLK_PLL_TYPE;
-					break;
+		found = 0;
+		list_for_each_entry(rkclk, &rk_clks, node) {
+			if (strcmp(pllinfo->clk_name, rkclk->clk_name) == 0) {
+				if (rkclk->pll_info != NULL) {
+					clk_err("%s %d:\n", __func__, __LINE__);
+					clk_err("This clk(%s) has been used,"
+							"will be overwrited here!\n",
+							rkclk->clk_name);
 				}
-			}
-			if (!found) {
-				rkclk = kzalloc(sizeof(struct rkclk), GFP_KERNEL);
-				rkclk->clk_name = pllinfo->clk_name;
+				clk_debug("%s: find match %s\n", __func__,
+						rkclk->clk_name);
+				found = 1;
 				rkclk->pll_info = pllinfo;
 				rkclk->clk_type |= RKCLK_PLL_TYPE;
-				rkclk->np = node;
-
-				list_add_tail(&rkclk->node, &rk_clks);
+				rkclk->flags |= flags;
+				break;
 			}
+		}
+
+		if (!found) {
+			rkclk = kzalloc(sizeof(struct rkclk), GFP_KERNEL);
+			if (!rkclk) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			rkclk->clk_name = pllinfo->clk_name;
+			rkclk->pll_info = pllinfo;
+			rkclk->clk_type = RKCLK_PLL_TYPE;
+			rkclk->flags = flags;
+			list_add_tail(&rkclk->node, &rk_clks);
 		}
 	}
 
-	return 0;
-}
+out:
+	if (ret) {
+		clk_err("%s error, ret = %d\n", __func__, ret);
+		if (pllinfo) {
+			if (pllinfo->pll)
+				kfree(pllinfo->pll);
+			kfree(pllinfo);
+		}
+		if (rkclk)
+			kfree(rkclk);
+	}
 
-static unsigned long clk_div_special_recalc_rate(struct clk_hw *hw,
-		unsigned long parent_rate)
-{
-	return parent_rate;
+	return ret;
 }
-static long clk_div_special_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *prate)
-{
-	return rate;
-}
-static int clk_div_special_set_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
-{
-	return 0;
-}
-
-// For fixed div clks and For user defined div clk
-const struct clk_ops clk_div_special_ops = {
-	.recalc_rate = clk_div_special_recalc_rate,
-	.round_rate = clk_div_special_round_rate,
-	.set_rate = clk_div_special_set_rate,
-};
 
 static int rkclk_register(struct rkclk *rkclk)
 {
+	struct clk		*clk = NULL;
 	struct clk_mux		*mux = NULL;
 	struct clk_divider	*div = NULL;
 	struct clk_gate		*gate = NULL;
 	struct clk_pll		*pll = NULL;
+	struct clk_divider	*frac = NULL;
 
-	const struct clk_ops	*rate_ops = NULL;
+	struct clk_hw		*mux_hw = NULL;
 	const struct clk_ops	*mux_ops = NULL;
+	struct clk_hw		*rate_hw = NULL;
+	const struct clk_ops	*rate_ops = NULL;
+	struct clk_hw		*gate_hw = NULL;
+	const struct clk_ops	*gate_ops = NULL;
 
-	struct clk		*clk = NULL;
-	const char		**parent_names = NULL;
-	struct clk_hw		*rate_hw;
 	int			parent_num;
+	const char		**parent_names = NULL;
 
 
-	clk_debug("%s >>>>>start: clk_name=%s, clk_type=%x\n",
-			__func__, rkclk->clk_name, rkclk->clk_type);
+	if (rkclk && rkclk->clk_name) {
+		clk_debug("%s: clk_name=%s, clk_type=0x%x, flags=0x%x\n",
+				__func__, rkclk->clk_name, rkclk->clk_type,
+				rkclk->flags);
+	} else {
+		clk_err("%s: rkclk or clk_name is NULL!\n", __func__);
+		return -EINVAL;
+	}
 
-	if (rkclk->clk_type & RKCLK_PLL_TYPE) {
-		pll = kzalloc(sizeof(struct clk_pll), GFP_KERNEL);
-		rate_ops = &clk_pll_ops;
-		pll->reg = rkclk->pll_info->addr;
-		//pll->shift = 0;
-		pll->width = rkclk->pll_info->width;
-		pll->id = rkclk->pll_info->id;
-		rate_hw = &pll->hw;
+	if (rkclk->mux_info && rkclk->mux_info->mux)
+		mux = rkclk->mux_info->mux;
+	if (rkclk->div_info && rkclk->div_info->div)
+		div = rkclk->div_info->div;
+	if (rkclk->gate_info && rkclk->gate_info->gate)
+		gate = rkclk->gate_info->gate;
+	if (rkclk->pll_info && rkclk->pll_info->pll)
+		pll = rkclk->pll_info->pll;
+	if (rkclk->frac_info && rkclk->frac_info->frac)
+		frac = rkclk->frac_info->frac;
 
+	switch (rkclk->clk_type) {
+		case RKCLK_MUX_TYPE:
+			/* only mux without specified ops will be registered here */
+			if (rkclk->mux_info->clkops_idx == CLKOPS_TABLE_END) {
+				clk_debug("use clk_register_mux\n");
+				clk = clk_register_mux_table(NULL, rkclk->clk_name,
+						rkclk->mux_info->parent_names,
+						rkclk->mux_info->parent_num,
+						rkclk->flags, mux->reg, mux->shift,
+						mux->mask, mux->flags, NULL, &clk_lock);
+				goto add_lookup;
+			} else
+				goto rgs_comp;
+		case RKCLK_PLL_TYPE:
+			clk_debug("use rk_clk_register_pll\n");
+			clk = rk_clk_register_pll(NULL, rkclk->clk_name,
+					rkclk->pll_info->parent_name,
+					rkclk->flags, pll->reg, pll->width,
+					pll->id, &clk_lock);
+			//kfree!!!!!!!
+			goto add_lookup;
+		case RKCLK_DIV_TYPE:
+			/* only div without specified ops will be registered here */
+			if (rkclk->div_info->clkops_idx == CLKOPS_TABLE_END) {
+				clk_debug("use clk_register_divider\n");
+				clk = clk_register_divider(NULL, rkclk->clk_name,
+						rkclk->div_info->parent_name,
+						rkclk->flags, div->reg, div->shift,
+						div->width, div->flags, &clk_lock);
+				goto add_lookup;
+			} else
+				goto rgs_comp;
+		case RKCLK_FRAC_TYPE:
+			if (rkclk->frac_info->clkops_idx == CLKOPS_TABLE_END) {
+				clk_err("frac node without specified ops!\n");
+				return -EINVAL;
+			} else
+				goto rgs_comp;
+		case RKCLK_GATE_TYPE:
+			clk_debug("use clk_register_gate\n");
+			clk = clk_register_gate(NULL, rkclk->clk_name,
+					rkclk->gate_info->parent_name, rkclk->flags,
+					gate->reg, gate->bit_idx, gate->flags,
+					&clk_lock);
+			goto add_lookup;
+		case (RKCLK_DIV_TYPE|RKCLK_PLL_TYPE):
+		case (RKCLK_DIV_TYPE|RKCLK_FRAC_TYPE):
+		case (RKCLK_PLL_TYPE|RKCLK_FRAC_TYPE):
+		case (RKCLK_DIV_TYPE|RKCLK_PLL_TYPE|RKCLK_FRAC_TYPE):
+			clk_err("Invalid rkclk type!\n");
+			return -EINVAL;
+		default:
+			goto rgs_comp;
+	}
+
+rgs_comp:
+	clk_debug("use clk_register_composite\n");
+
+	/* prepare args for clk_register_composite */
+
+	/* prepare parent_num && parent_names
+	 * priority: MUX > DIV=PLL=FRAC > GATE
+	 */
+	if (rkclk->clk_type & RKCLK_MUX_TYPE) {
+		parent_num = rkclk->mux_info->parent_num;
+		parent_names = rkclk->mux_info->parent_names;
+	} else if (rkclk->clk_type & RKCLK_DIV_TYPE ) {
 		parent_num = 1;
-		parent_names = &rkclk->pll_info->parent_name;
-
+		parent_names = &(rkclk->div_info->parent_name);
+	} else if (rkclk->clk_type & RKCLK_PLL_TYPE) {
+		parent_num = 1;
+		parent_names = &(rkclk->pll_info->parent_name);
 	} else if (rkclk->clk_type & RKCLK_FRAC_TYPE) {
-		div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
-		div->reg = rkclk->frac_info->addr;
-		div->shift = (u8)rkclk->frac_info->shift;
-		div->width = rkclk->frac_info->width;
-		div->flags = CLK_DIVIDER_HIWORD_MASK;
-
-		rate_hw = &div->hw;
-		rate_ops = rk_get_clkops(rkclk->frac_info->clkops_idx);
-
 		parent_num = 1;
-		parent_names = &rkclk->frac_info->parent_name;
+		parent_names = &(rkclk->frac_info->parent_name);
+	} else if (rkclk->clk_type & RKCLK_GATE_TYPE) {
+		parent_num = 1;
+		parent_names = &(rkclk->gate_info->parent_name);
+	}
 
-	} else if (rkclk->clk_type & RKCLK_DIV_TYPE) {
-		div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
+	/* prepare mux_hw && mux_ops */
+	if (rkclk->clk_type & RKCLK_MUX_TYPE) {
+		mux_hw = &mux->hw;
+		mux_ops = &clk_mux_ops;
+	}
+
+	/* prepare rate_hw && rate_ops
+	 * priority: DIV=PLL=FRAC > MUX
+	 */
+	if (rkclk->clk_type & RKCLK_DIV_TYPE) {
+		rate_hw = &div->hw;
 		if (rkclk->div_info->clkops_idx != CLKOPS_TABLE_END)
 			rate_ops = rk_get_clkops(rkclk->div_info->clkops_idx);
 		else
 			rate_ops = &clk_divider_ops;
-		div->reg = rkclk->div_info->addr;
-		div->shift = (u8)rkclk->div_info->shift;
-		div->width = rkclk->div_info->width;
-		div->flags = CLK_DIVIDER_HIWORD_MASK | rkclk->div_info->div_type;
-		rate_hw = &div->hw;
-		if (rkclk->div_info->div_table)
-			div->table = rkclk->div_info->div_table;
-
-		parent_num = 1;
-		parent_names = &rkclk->div_info->parent_name;
-		if (rkclk->clk_type != (rkclk->clk_type & CLK_DIVIDER_MASK)) {
-			// FIXME: fixed div add here
-			clk_err("%s: %d, unknown clk_type=%x\n",
-					__func__, __LINE__, rkclk->clk_type);
-
+	} else if (rkclk->clk_type & RKCLK_PLL_TYPE) {
+		rate_hw = &pll->hw;
+		rate_ops = &clk_pll_ops;
+	} else if (rkclk->clk_type & RKCLK_FRAC_TYPE) {
+		rate_hw = &frac->hw;
+		rate_ops = rk_get_clkops(rkclk->frac_info->clkops_idx);
+	} else if ((rkclk->clk_type & RKCLK_MUX_TYPE) &&
+			(rkclk->mux_info->clkops_idx != CLKOPS_TABLE_END)) {
+		/* when a mux node has specified clkops_idx, prepare rate_hw &&
+		 * rate_ops and use clk_register_composite to register it later.
+		 */
+		/*FIXME*/
+		rate_hw = kzalloc(sizeof(struct clk_hw), GFP_KERNEL);
+		if (!rate_hw) {
+			clk_err("%s: fail to alloc rate_hw!\n", __func__);
+			return -ENOMEM;
 		}
-	}
-
-	if (rkclk->clk_type & RKCLK_MUX_TYPE) {
-		mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
-		mux->reg = rkclk->mux_info->addr;
-		mux->shift = (u8)rkclk->mux_info->shift;
-		mux->mask = (1 << rkclk->mux_info->width) - 1;
-		mux->flags = CLK_MUX_HIWORD_MASK;
-		mux_ops = &clk_mux_ops;
-		if (rkclk->mux_info->clkops_idx != CLKOPS_TABLE_END) {
-			rate_hw = kzalloc(sizeof(struct clk_hw), GFP_KERNEL);
-			rate_ops = rk_get_clkops(rkclk->mux_info->clkops_idx);
-		}
-
-		parent_num = rkclk->mux_info->parent_num;
-		parent_names = rkclk->mux_info->parent_names;
+		rate_ops = rk_get_clkops(rkclk->mux_info->clkops_idx);
 	}
 
 	if (rkclk->clk_type & RKCLK_GATE_TYPE) {
-		gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
-		gate->reg = rkclk->gate_info->addr;
-		gate->bit_idx = rkclk->gate_info->shift;
-		gate->flags = CLK_GATE_HIWORD_MASK | CLK_GATE_SET_TO_DISABLE;
-
+		gate_hw = &gate->hw;
+		gate_ops = &clk_gate_ops;
 	}
 
-	// FIXME: flag(CLK_IGNORE_UNUSED) may need an input argument
-	if (rkclk->clk_type == RKCLK_MUX_TYPE
-			&& rkclk->mux_info->clkops_idx == CLKOPS_TABLE_END) {
-		clk_debug("use clk_register_mux\n");
-		clk = clk_register_mux(NULL, rkclk->clk_name,
-				rkclk->mux_info->parent_names,
-				(u8)rkclk->mux_info->parent_num,
-				rkclk->flags, mux->reg, mux->shift, mux->mask,
-				mux->flags, &clk_lock);
-	} else if (rkclk->clk_type == RKCLK_DIV_TYPE) {
-		clk_debug("use clk_register_divider\n");
-		clk = clk_register_divider(NULL, rkclk->clk_name,
-				rkclk->div_info->parent_name,
-				rkclk->flags, div->reg, div->shift,
-				div->width, div->flags, &clk_lock);
-	} else if (rkclk->clk_type == RKCLK_GATE_TYPE) {
-		clk_debug("use clk_register_gate\n");
-		clk = clk_register_gate(NULL, rkclk->clk_name,
-				rkclk->gate_info->parent_name,
-				rkclk->flags, gate->reg,
-				gate->bit_idx,
-				gate->flags, &clk_lock);
-	} else if (rkclk->clk_type == RKCLK_PLL_TYPE) {
-		clk_debug("use rk_clk_register_pll\n");
-		clk = rk_clk_register_pll(NULL, rkclk->clk_name,
-				rkclk->pll_info->parent_name,
-				rkclk->flags, pll->reg, pll->width,
-				pll->id, &clk_lock);
-	} else {
-		clk_debug("use clk_register_composite\n");
-		clk = clk_register_composite(NULL, rkclk->clk_name,
-				parent_names, parent_num,
-				mux ? &mux->hw : NULL, mux ? mux_ops : NULL,
-				rate_hw, rate_ops,
-				gate ? &gate->hw : NULL, gate ? &clk_gate_ops : NULL,
-				rkclk->flags);
-	}
+	clk_debug("parent_num=%d, mux_hw=%d mux_ops=%d, rate_hw=%d rate_ops=%d,"
+			" gate_hw=%d gate_ops=%d\n",
+			parent_num, mux_hw?1:0, mux_ops?1:0, rate_hw?1:0, 
+			rate_ops?1:0, gate_hw?1:0, gate_ops?1:0);
 
+	clk = clk_register_composite(NULL, rkclk->clk_name, parent_names,
+			parent_num, mux_hw, mux_ops, rate_hw, rate_ops,
+			gate_hw, gate_ops, rkclk->flags);
+
+add_lookup:
 	if (clk) {
 		clk_debug("clk name=%s, flags=0x%lx\n", clk->name, clk->flags);
 		clk_register_clkdev(clk, rkclk->clk_name, NULL);
 	} else {
-		clk_err("%s: clk(\"%s\") register clk error\n",
-				__func__, rkclk->clk_name);
+		clk_err("%s: clk(\"%s\") register clk error\n", __func__,
+				rkclk->clk_name);
 	}
 
 	return 0;
@@ -831,10 +1057,96 @@ void rk_dump_cru(void)
 	}
 	printk("\n\n");
 }
+
+void rkclk_dump_info(struct rkclk *rkclk)
+{
+	struct clk_mux		*mux = NULL;
+	struct clk_divider	*div = NULL;
+	struct clk_gate		*gate = NULL;
+	struct clk_pll		*pll = NULL;
+	struct clk_divider	*frac = NULL;
+	int i;
+
+
+	clk_debug("%s: clkname=%s, type=0x%x, flags=0x%x\n",
+			__func__, (rkclk->clk_name)?(rkclk->clk_name):NULL,
+			rkclk->clk_type, rkclk->flags);
+
+	if (rkclk->mux_info && rkclk->mux_info->mux)
+		mux = rkclk->mux_info->mux;
+	if (rkclk->div_info && rkclk->div_info->div)
+		div = rkclk->div_info->div;
+	if (rkclk->pll_info && rkclk->pll_info->pll)
+		pll = rkclk->pll_info->pll;
+	if (rkclk->frac_info && rkclk->frac_info->frac)
+		frac = rkclk->frac_info->frac;
+	if (rkclk->gate_info && rkclk->gate_info->gate)
+		gate = rkclk->gate_info->gate;
+
+	if (rkclk->mux_info) {
+		clk_debug("\t\tmux_info: name=%s, clkops_idx=%u\n",
+				rkclk->mux_info->clk_name,
+				rkclk->mux_info->clkops_idx);
+		for (i = 0; i < rkclk->mux_info->parent_num; i++)
+			clk_debug("\t\t\tparent[%d]: %s\n", i,
+					rkclk->mux_info->parent_names[i]);
+		if (mux) {
+			clk_debug("\t\tmux: reg=0x%x, mask=0x%x, shift=0x%x, "
+					"mux_flags=0x%x\n", (u32)mux->reg,
+					mux->mask, mux->shift, mux->flags);
+		}
+	}
+	if (rkclk->pll_info) {
+		clk_debug("\t\tpll_info: name=%s, parent=%s, clkops_idx=0x%x\n",
+				rkclk->pll_info->clk_name,
+				rkclk->pll_info->parent_name,
+				rkclk->pll_info->clkops_idx);
+		if (pll) {
+			clk_debug("\t\tpll: reg=0x%x, width=0x%x, id=%d\n",
+					(u32)pll->reg, pll->width, pll->id);
+		}
+	}
+	if (rkclk->div_info) {
+		clk_debug("\t\tdiv_info: name=%s, div_type=0x%x, parent=%s, "
+				"clkops_idx=%d\n",
+				rkclk->div_info->clk_name,
+				rkclk->div_info->div_type,
+				rkclk->div_info->parent_name,
+				rkclk->div_info->clkops_idx);
+		if (div) {
+			clk_debug("\t\tdiv: reg=0x%x, shift=0x%x, width=0x%x, "
+					"div_flags=0x%x\n", (u32)div->reg,
+					div->shift, div->width, div->flags);
+		}
+	}
+	if (rkclk->frac_info) {
+		clk_debug("\t\tfrac_info: name=%s, parent=%s, clkops_idx=%d\n",
+				rkclk->frac_info->clk_name,
+				rkclk->frac_info->parent_name,
+				rkclk->frac_info->clkops_idx);
+		if (frac) {
+			clk_debug("\t\tfrac: reg=0x%x, shift=0x%x, width=0x%x, "
+					"div_flags=0x%x\n", (u32)frac->reg,
+					frac->shift, frac->width, frac->flags);
+		}
+	}
+	if (rkclk->gate_info) {
+		clk_debug("\t\tgate_info: name=%s, parent=%s\n",
+				rkclk->gate_info->clk_name,
+				rkclk->gate_info->parent_name);
+		if (gate) {
+			clk_debug("\t\tgate: reg=0x%x, bit_idx=%d, "
+					"gate_flags=0x%x\n", (u32)gate->reg,
+					gate->bit_idx, gate->flags);
+		}
+	}
+}
 #else
-void rk_dump_cru(void){}
+void rk_dump_cru(void) {}
+void rkclk_dump_info(struct rkclk *rkclk) {}
 #endif
 EXPORT_SYMBOL_GPL(rk_dump_cru);
+
 
 #ifdef RKCLK_TEST
 struct test_table {
@@ -930,10 +1242,9 @@ void rk_clk_test(void)
 
 }
 #else
-void rk_clk_test(void){}
+void rk_clk_test(void) {}
 #endif
 EXPORT_SYMBOL_GPL(rk_clk_test);
-
 
 void rkclk_init_clks(struct device_node *node);
 
@@ -980,41 +1291,10 @@ static void __init rk_clk_tree_init(struct device_node *np)
 		}
 	}
 
-#if 0
 	list_for_each_entry(rkclk, &rk_clks, node) {
-		int i;
-		clk_debug("%s: clkname = %s; type=%d\n",
-				__func__, rkclk->clk_name,
-				rkclk->clk_type);
-		if (rkclk->pll_info) {
-			clk_debug("\t\tpll: name=%s, parent=%s\n",
-					rkclk->pll_info->clk_name,
-					rkclk->pll_info->parent_name);
-		}
-		if (rkclk->mux_info) {
-			for (i = 0; i < rkclk->mux_info->parent_num; i++)
-				clk_debug("\t\tmux name=%s, parent: %s\n",
-						rkclk->mux_info->clk_name,
-						rkclk->mux_info->parent_names[i]);
-		}
-		if (rkclk->div_info) {
-			clk_debug("\t\tdiv name=%s\n",
-					rkclk->div_info->clk_name);
-		}
-		if (rkclk->frac_info) {
-			clk_debug("\t\tfrac name=%s\n",
-					rkclk->frac_info->clk_name);
-		}
-		if (rkclk->gate_info) {
-			clk_debug("\t\tgate name=%s, \taddr=%08x, \tshift=%d\n",
-					rkclk->gate_info->clk_name,
-					(u32)rkclk->gate_info->addr,
-					rkclk->gate_info->shift);
-		}
-	}
-#endif
-
-	list_for_each_entry(rkclk, &rk_clks, node) {
+		clk_debug("\n");
+		rkclk_dump_info(rkclk);
+		clk_debug("\n");
 		rkclk_register(rkclk);
 	}
 
@@ -1051,16 +1331,16 @@ static void __init rk_clk_tree_init(struct device_node *np)
 		rkclk_cache_parents(rkclk);
 	}
 
-	rk_clk_test();
-
 	rkclk_init_clks(node_init);
 
+	rk_clk_test();
 }
 CLK_OF_DECLARE(rk_clocks, "rockchip,rk-clock-regs", rk_clk_tree_init);
 
 
-/********************************** rockchip clks init****************************************/
-const char *of_clk_init_rate_get_info(struct device_node *np, int index,u32 *rate)
+/***************************** rockchip clks init******************************/
+const char *of_clk_init_rate_get_info(struct device_node *np,
+		int index,u32 *rate)
 {
 	struct of_phandle_args clkspec;
 	const char *clk_name;
@@ -1069,12 +1349,13 @@ const char *of_clk_init_rate_get_info(struct device_node *np, int index,u32 *rat
 	if (index < 0)
 		return NULL;
 
-	rc = of_parse_phandle_with_args(np, "rockchip,clocks-init-rate", "#clock-init-cells", index,
-			&clkspec);
+	rc = of_parse_phandle_with_args(np, "rockchip,clocks-init-rate",
+			"#clock-init-cells", index, &clkspec);
 	if (rc)
 		return NULL;
 
-	if (of_property_read_string_index(clkspec.np, "clock-output-names",0,&clk_name) < 0)
+	if (of_property_read_string_index(clkspec.np, "clock-output-names", 0,
+				&clk_name) < 0)
 		return NULL;
 
 	*rate= clkspec.args[0];
@@ -1083,7 +1364,8 @@ const char *of_clk_init_rate_get_info(struct device_node *np, int index,u32 *rat
 	return clk_name;
 }
 
-const char *of_clk_init_parent_get_info(struct device_node *np, int index,const char **clk_child_name)
+const char *of_clk_init_parent_get_info(struct device_node *np, int index,
+		const char **clk_child_name)
 {
 	struct of_phandle_args clkspec;
 	const char *clk_name;
@@ -1094,12 +1376,13 @@ const char *of_clk_init_parent_get_info(struct device_node *np, int index,const 
 	if (index < 0)
 		return NULL;
 
-	rc = of_parse_phandle_with_args(np, "rockchip,clocks-init-parent", "#clock-init-cells", index,
-			&clkspec);
+	rc = of_parse_phandle_with_args(np, "rockchip,clocks-init-parent",
+			"#clock-init-cells", index, &clkspec);
 	if (rc)
 		return NULL;
 
-	if (of_property_read_string_index(clkspec.np, "clock-output-names",0,&clk_name) < 0)
+	if (of_property_read_string_index(clkspec.np, "clock-output-names", 0,
+				&clk_name) < 0)
 		return NULL;
 
 
@@ -1114,7 +1397,8 @@ const char *of_clk_init_parent_get_info(struct device_node *np, int index,const 
 			return NULL;
 		}
 
-		if (of_property_read_string_index(node, "clock-output-names",0,clk_child_name) < 0)
+		if (of_property_read_string_index(node, "clock-output-names", 0,
+					clk_child_name) < 0)
 			return NULL;
 
 		of_node_put(node);//???
@@ -1136,7 +1420,8 @@ void rkclk_init_clks(struct device_node *np)
 	const char *clk_name, *clk_parent_name;
 
 
-	cnt_parent = of_count_phandle_with_args(np, "rockchip,clocks-init-parent", "#clock-init-cells");
+	cnt_parent = of_count_phandle_with_args(np,
+			"rockchip,clocks-init-parent", "#clock-init-cells");
 
 	printk("%s: cnt_parent = %d\n",__FUNCTION__,cnt_parent);
 
@@ -1159,7 +1444,8 @@ void rkclk_init_clks(struct device_node *np)
 				clk_parent_name);
 	}
 
-	cnt_rate = of_count_phandle_with_args(np, "rockchip,clocks-init-rate", "#clock-init-cells");
+	cnt_rate = of_count_phandle_with_args(np, "rockchip,clocks-init-rate",
+			"#clock-init-cells");
 
 	printk("%s: cnt_rate = %d\n",__FUNCTION__,cnt_rate);
 

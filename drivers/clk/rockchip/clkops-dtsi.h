@@ -10,18 +10,18 @@
 
 
 /* rate_ops index */
-#define CLKOPS_RATE_MUX_DIV		0
-#define CLKOPS_RATE_EVENDIV		1
-#define CLKOPS_RATE_DCLK_LCDC		2
-#define CLKOPS_RATE_I2S_FRAC		3
-#define CLKOPS_RATE_FRAC		4
-#define CLKOPS_RATE_I2S			5
-#define CLKOPS_RATE_CIFOUT		6
-#define CLKOPS_RATE_UART		7
-#define CLKOPS_RATE_HSADC		8
-#define CLKOPS_RATE_MAC_REF		9
-#define CLKOPS_RATE_CORE		10
-#define CLKOPS_RATE_CORE_PERI		11
+#define CLKOPS_RATE_MUX_DIV		1
+#define CLKOPS_RATE_EVENDIV		2
+#define CLKOPS_RATE_DCLK_LCDC		3
+#define CLKOPS_RATE_I2S_FRAC		4
+#define CLKOPS_RATE_FRAC		5
+#define CLKOPS_RATE_I2S			6
+#define CLKOPS_RATE_CIFOUT		7
+#define CLKOPS_RATE_UART		8
+#define CLKOPS_RATE_HSADC		9
+#define CLKOPS_RATE_MAC_REF		10
+#define CLKOPS_RATE_CORE		11
+#define CLKOPS_RATE_CORE_PERI		12
 #define CLKOPS_TABLE_END		(~0)
 
 
@@ -32,12 +32,13 @@
 #define CLK_DIVIDER_ONE_BASED		BIT(0)
 #define CLK_DIVIDER_POWER_OF_TWO	BIT(1)
 #define CLK_DIVIDER_ALLOW_ZERO		BIT(2)
+#define CLK_DIVIDER_HIWORD_MASK		BIT(3)
 
 /* Rockchip special defined */
-#define CLK_DIVIDER_FIXED		BIT(6)
+//#define CLK_DIVIDER_FIXED		BIT(6)
 #define CLK_DIVIDER_USER_DEFINE		BIT(7)
 /* CLK_DIVIDER_MASK defined the bits been used above */
-#define CLK_DIVIDER_MASK		(0xFF)
+//#define CLK_DIVIDER_MASK		(0xFF)
 
 
 /*
