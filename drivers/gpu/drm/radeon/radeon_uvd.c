@@ -805,8 +805,7 @@ void radeon_uvd_note_usage(struct radeon_device *rdev)
 		    (rdev->pm.dpm.hd != hd)) {
 			rdev->pm.dpm.sd = sd;
 			rdev->pm.dpm.hd = hd;
-			/* disable this for now */
-			/*streams_changed = true;*/
+			streams_changed = true;
 		}
 	}
 
