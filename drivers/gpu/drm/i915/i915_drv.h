@@ -1124,6 +1124,14 @@ struct i915_gem_mm {
 	 */
 	bool interruptible;
 
+	/**
+	 * Is the GPU currently considered idle, or busy executing userspace
+	 * requests?  Whilst idle, we attempt to power down the hardware and
+	 * display clocks. In order to reduce the effect on performance, there
+	 * is a slight delay before we do so.
+	 */
+	bool busy;
+
 	/** Bit 6 swizzling required for X tiling */
 	uint32_t bit_6_swizzle_x;
 	/** Bit 6 swizzling required for Y tiling */

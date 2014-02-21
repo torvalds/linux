@@ -2148,7 +2148,6 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
 	u32 request_ring_position, request_start;
-	int was_empty;
 	int ret;
 
 	request_start = intel_ring_get_tail(ring);
@@ -2199,7 +2198,6 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 		i915_gem_context_reference(request->ctx);
 
 	request->emitted_jiffies = jiffies;
-	was_empty = list_empty(&ring->request_list);
 	list_add_tail(&request->list, &ring->request_list);
 	request->file_priv = NULL;
 
@@ -2220,13 +2218,11 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	if (!dev_priv->ums.mm_suspended) {
 		i915_queue_hangcheck(ring->dev);
 
-		if (was_empty) {
-			cancel_delayed_work_sync(&dev_priv->mm.idle_work);
-			queue_delayed_work(dev_priv->wq,
-					   &dev_priv->mm.retire_work,
-					   round_jiffies_up_relative(HZ));
-			intel_mark_busy(dev_priv->dev);
-		}
+		cancel_delayed_work_sync(&dev_priv->mm.idle_work);
+		queue_delayed_work(dev_priv->wq,
+				   &dev_priv->mm.retire_work,
+				   round_jiffies_up_relative(HZ));
+		intel_mark_busy(dev_priv->dev);
 	}
 
 	if (out_seqno)
