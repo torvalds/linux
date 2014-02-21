@@ -2554,7 +2554,7 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 	sdp_write_and_or(sd, 0xdd, 0xf0, pdata->sdp_free_run_force |
 					 (pdata->sdp_free_run_cbar_en << 1) |
 					 (pdata->sdp_free_run_man_col_en << 2) |
-					 (pdata->sdp_free_run_force << 3));
+					 (pdata->sdp_free_run_auto << 3));
 
 	/* TODO from platform data */
 	cp_write(sd, 0x69, 0x14);   /* Enable CP CSC */

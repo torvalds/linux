@@ -39,7 +39,7 @@ struct mic_copy_desc {
 #else
 	struct iovec *iov;
 #endif
-	int iovcnt;
+	__u32 iovcnt;
 	__u8 vr_idx;
 	__u8 update_used;
 	__u32 out_len;

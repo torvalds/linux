@@ -1,8 +1,8 @@
 VERSION = 3
-PATCHLEVEL = 13
+PATCHLEVEL = 14
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = One Giant Leap for Frogkind
+EXTRAVERSION = -rc3
+NAME = Shuffling Zombie Juror
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

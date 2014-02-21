@@ -515,6 +515,7 @@ bool v4l2_detect_gtf(unsigned frame_height,
 		aspect.denominator = 9;
 	}
 	image_width = ((image_height * aspect.numerator) / aspect.denominator);
+	image_width = (image_width + GTF_CELL_GRAN/2) & ~(GTF_CELL_GRAN - 1);
 
 	/* Horizontal */
 	if (default_gtf)

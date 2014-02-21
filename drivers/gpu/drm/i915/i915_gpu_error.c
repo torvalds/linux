@@ -146,7 +146,10 @@ static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
 		va_list tmp;
 
 		va_copy(tmp, args);
-		if (!__i915_error_seek(e, vsnprintf(NULL, 0, f, tmp)))
+		len = vsnprintf(NULL, 0, f, tmp);
+		va_end(tmp);
+
+		if (!__i915_error_seek(e, len))
 			return;
 	}
 

@@ -197,7 +197,7 @@
 		reg = <0 0xe6508000 0 0x40>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 287 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp3_clks R8A7790_CLK_I2C0>;
+		clocks = <&mstp9_clks R8A7790_CLK_I2C0>;
 		status = "disabled";
 	};
 
@@ -208,7 +208,7 @@
 		reg = <0 0xe6518000 0 0x40>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 288 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp3_clks R8A7790_CLK_I2C1>;
+		clocks = <&mstp9_clks R8A7790_CLK_I2C1>;
 		status = "disabled";
 	};
 
@@ -219,7 +219,7 @@
 		reg = <0 0xe6530000 0 0x40>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 286 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp3_clks R8A7790_CLK_I2C2>;
+		clocks = <&mstp9_clks R8A7790_CLK_I2C2>;
 		status = "disabled";
 	};
 
@@ -230,7 +230,7 @@
 		reg = <0 0xe6540000 0 0x40>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 290 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp3_clks R8A7790_CLK_I2C3>;
+		clocks = <&mstp9_clks R8A7790_CLK_I2C3>;
 		status = "disabled";
 	};
 

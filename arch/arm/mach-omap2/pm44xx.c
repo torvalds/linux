@@ -24,6 +24,8 @@
 #include "powerdomain.h"
 #include "pm.h"
 
+u16 pm44xx_errata;
+
 struct power_state {
 	struct powerdomain *pwrdm;
 	u32 next_state;
@@ -196,6 +198,19 @@ static inline int omap4_init_static_deps(void)
 	}
 
 	return ret;
+}
+
+/**
+ * omap4_pm_init_early - Does early initialization necessary for OMAP4+ devices
+ *
+ * Initializes basic stuff for power management functionality.
+ */
+int __init omap4_pm_init_early(void)
+{
+	if (cpu_is_omap446x())
+		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
+
+	return 0;
 }
 
 /**

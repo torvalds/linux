@@ -667,6 +667,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->memory_size = 512*1024*1024;
 	}
 	dev_priv->max_mob_pages = 0;
+	dev_priv->max_mob_size = 0;
 	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
 		uint64_t mem_size =
 			vmw_read(dev_priv,
@@ -676,6 +677,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->prim_bb_mem =
 			vmw_read(dev_priv,
 				 SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM);
+		dev_priv->max_mob_size =
+			vmw_read(dev_priv, SVGA_REG_MOB_MAX_SIZE);
 	} else
 		dev_priv->prim_bb_mem = dev_priv->vram_size;
 
@@ -941,6 +944,7 @@ static void vmw_postclose(struct drm_device *dev,
 		drm_master_put(&vmw_fp->locked_master);
 	}
 
+	vmw_compat_shader_man_destroy(vmw_fp->shman);
 	ttm_object_file_release(&vmw_fp->tfile);
 	kfree(vmw_fp);
 }
@@ -960,11 +964,17 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 	if (unlikely(vmw_fp->tfile == NULL))
 		goto out_no_tfile;
 
+	vmw_fp->shman = vmw_compat_shader_man_create(dev_priv);
+	if (IS_ERR(vmw_fp->shman))
+		goto out_no_shman;
+
 	file_priv->driver_priv = vmw_fp;
 	dev_priv->bdev.dev_mapping = dev->dev_mapping;
 
 	return 0;
 
+out_no_shman:
+	ttm_object_file_release(&vmw_fp->tfile);
 out_no_tfile:
 	kfree(vmw_fp);
 	return ret;

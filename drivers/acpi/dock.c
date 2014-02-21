@@ -609,7 +609,7 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
 static void dock_notify(struct dock_station *ds, u32 event)
 {
 	acpi_handle handle = ds->handle;
-	struct acpi_device *ad;
+	struct acpi_device *adev = NULL;
 	int surprise_removal = 0;
 
 	/*
@@ -632,7 +632,8 @@ static void dock_notify(struct dock_station *ds, u32 event)
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		if (!dock_in_progress(ds) && acpi_bus_get_device(handle, &ad)) {
+		acpi_bus_get_device(handle, &adev);
+		if (!dock_in_progress(ds) && !acpi_device_enumerated(adev)) {
 			begin_dock(ds);
 			dock(ds);
 			if (!dock_present(ds)) {

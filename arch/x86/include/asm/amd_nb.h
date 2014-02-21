@@ -19,7 +19,7 @@ extern int amd_cache_northbridges(void);
 extern void amd_flush_garts(void);
 extern int amd_numa_init(void);
 extern int amd_get_subcaches(int);
-extern int amd_set_subcaches(int, int);
+extern int amd_set_subcaches(int, unsigned long);
 
 struct amd_l3_cache {
 	unsigned indices;
