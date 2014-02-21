@@ -2450,8 +2450,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (err) {
 			switch (err) {
 			case -ENOTRECOVERABLE:
-				dev_err(&pdev->dev, "Adapter initialization failed due to a faulty hardware. Please reboot\n");
-				dev_err(&pdev->dev, "If reboot doesn't help, please replace the adapter with new one and return the faulty adapter for repair\n");
+				dev_err(&pdev->dev, "Adapter initialization failed due to a faulty hardware\n");
+				dev_err(&pdev->dev, "Please replace the adapter with new one and return the faulty adapter for repair\n");
 				goto err_out_free_hw;
 			case -ENOMEM:
 				dev_err(&pdev->dev, "Adapter initialization failed. Please reboot\n");
