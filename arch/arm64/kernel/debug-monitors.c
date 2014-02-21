@@ -138,8 +138,6 @@ void disable_debug_monitors(enum debug_el el)
 static void clear_os_lock(void *unused)
 {
 	asm volatile("msr oslar_el1, %0" : : "r" (0));
-	isb();
-	local_dbg_enable();
 }
 
 static int __cpuinit os_lock_notify(struct notifier_block *self,
@@ -158,8 +156,9 @@ static struct notifier_block __cpuinitdata os_lock_nb = {
 static int __cpuinit debug_monitors_init(void)
 {
 	/* Clear the OS lock. */
-	smp_call_function(clear_os_lock, NULL, 1);
-	clear_os_lock(NULL);
+	on_each_cpu(clear_os_lock, NULL, 1);
+	isb();
+	local_dbg_enable();
 
 	/* Register hotplug handler. */
 	register_cpu_notifier(&os_lock_nb);
