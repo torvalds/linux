@@ -61,6 +61,11 @@ struct nvc0_fifo_base {
 
 struct nvc0_fifo_chan {
 	struct nouveau_fifo_chan base;
+	enum {
+		STOPPED,
+		RUNNING,
+		KILLED
+	} state;
 };
 
 /*******************************************************************************
@@ -79,16 +84,18 @@ nvc0_fifo_runlist_update(struct nvc0_fifo_priv *priv)
 	priv->runlist.active = !priv->runlist.active;
 
 	for (i = 0, p = 0; i < 128; i++) {
-		if (!(nv_rd32(priv, 0x003004 + (i * 8)) & 1))
-			continue;
-		nv_wo32(cur, p + 0, i);
-		nv_wo32(cur, p + 4, 0x00000004);
-		p += 8;
+		struct nvc0_fifo_chan *chan = (void *)priv->base.channel[i];
+		if (chan && chan->state == RUNNING) {
+			nv_wo32(cur, p + 0, i);
+			nv_wo32(cur, p + 4, 0x00000004);
+			p += 8;
+		}
 	}
 	bar->flush(bar);
 
 	nv_wr32(priv, 0x002270, cur->addr >> 12);
 	nv_wr32(priv, 0x002274, 0x01f00000 | (p >> 3));
+
 	if (!nv_wait(priv, 0x00227c, 0x00100000, 0x00000000))
 		nv_error(priv, "runlist update failed\n");
 	mutex_unlock(&nv_subdev(priv)->mutex);
@@ -242,8 +249,12 @@ nvc0_fifo_chan_init(struct nouveau_object *object)
 		return ret;
 
 	nv_wr32(priv, 0x003000 + (chid * 8), 0xc0000000 | base->addr >> 12);
-	nv_wr32(priv, 0x003004 + (chid * 8), 0x001f0001);
-	nvc0_fifo_runlist_update(priv);
+
+	if (chan->state == STOPPED && (chan->state = RUNNING) == RUNNING) {
+		nv_wr32(priv, 0x003004 + (chid * 8), 0x001f0001);
+		nvc0_fifo_runlist_update(priv);
+	}
+
 	return 0;
 }
 
@@ -256,13 +267,14 @@ nvc0_fifo_chan_fini(struct nouveau_object *object, bool suspend)
 	struct nvc0_fifo_chan *chan = (void *)object;
 	u32 chid = chan->base.chid;
 
-	nv_mask(priv, 0x003004 + (chid * 8), 0x00000001, 0x00000000);
-	nvc0_fifo_runlist_update(priv);
+	if (chan->state == RUNNING && (chan->state = STOPPED) == STOPPED) {
+		nv_mask(priv, 0x003004 + (chid * 8), 0x00000001, 0x00000000);
+		nvc0_fifo_runlist_update(priv);
+	}
 
 	nvc0_fifo_intr_engine(priv);
 
 	nv_wr32(priv, 0x003000 + (chid * 8), 0x00000000);
-
 	return nouveau_fifo_channel_fini(&chan->base, suspend);
 }
 
