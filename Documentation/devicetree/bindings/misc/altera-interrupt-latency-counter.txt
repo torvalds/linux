@@ -1,0 +1,49 @@
+Altera Interrupt Latency Counter soft IP
+Altera Interrupt Latency Counter IP core driver provides a sysfs interface
+for user to obtain interrupt latency values from Altera Interrupt Latency
+Counter soft IP.
+
+The sysfs interface is located at path,
+/sys/bus/platform/devices/{addr}.ilc/ilc_data/{int_#}
+with
+- {addr}  = the base address of the soft ip
+- {int_#} = the interrupt number
+
+Example use case:
+# cat /sys/bus/platform/devices/c0010000.ilc/ilc_data/40
+
+Required properties:
+- compatible :
+  - "altr,ilc-1.0"
+- reg :
+  - physical base address of the soft ip and length of memory mapped region
+- interrupt-parent :
+  - interrupt source phandle similiar to the interrupt source node
+- interrupts :
+  -interrupt number. The interrupt specifier format depends on the interrupt
+   controller parent
+
+Altera specific properties:
+- altr,sw-fifo-depth :
+  - define software fifo depth needed to record latency values
+
+Note:
+- For edge triggered interrupt, the order of loading the ILC driver relative
+ to driver of the actual interrupt source affects the meaning of the ILC
+ values. If the ILC driver is loaded first, then the count values represent
+ the time to the start of the interrupt handler of the of the interrupt source.
+ If the order is switched, then the counts represent the time to finish the
+ interrupt handler for the interrupt source.
+
+- The driver for the interrupt source must be changed to request a shared irq.
+
+Example:
+	interrupt_latency_counter_0: intc@0x10000000 {
+		compatible = "altr,ilc-1.0";
+		reg = <0x10000000 0x00000100>;
+		interrupt-parent = < &interrupt_parent >;
+		interrupts = < 0 1 4 >;
+		altr,sw-fifo-depth = < 32 >;
+	};
+
+
