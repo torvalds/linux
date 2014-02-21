@@ -322,6 +322,7 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
 {
 	int i;
 	int num_of_eqs;
+	int num_rx_rings;
 	struct mlx4_dev *dev = mdev->dev;
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
@@ -335,8 +336,10 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
 					   dev->caps.comp_pool/
 					   dev->caps.num_ports) - 1;
 
+		num_rx_rings = min_t(int, num_of_eqs,
+				     netif_get_num_default_rss_queues());
 		mdev->profile.prof[i].rx_ring_num =
-			rounddown_pow_of_two(num_of_eqs);
+			rounddown_pow_of_two(num_rx_rings);
 	}
 }
 
