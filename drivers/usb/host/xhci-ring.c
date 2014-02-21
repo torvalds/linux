@@ -900,6 +900,43 @@ remove_finished_td:
 	/* Return to the event handler with xhci->lock re-acquired */
 }
 
+static void xhci_kill_ring_urbs(struct xhci_hcd *xhci, struct xhci_ring *ring)
+{
+	struct xhci_td *cur_td;
+
+	while (!list_empty(&ring->td_list)) {
+		cur_td = list_first_entry(&ring->td_list,
+				struct xhci_td, td_list);
+		list_del_init(&cur_td->td_list);
+		if (!list_empty(&cur_td->cancelled_td_list))
+			list_del_init(&cur_td->cancelled_td_list);
+		xhci_giveback_urb_in_irq(xhci, cur_td, -ESHUTDOWN);
+	}
+}
+
+static void xhci_kill_endpoint_urbs(struct xhci_hcd *xhci,
+		int slot_id, int ep_index)
+{
+	struct xhci_td *cur_td;
+	struct xhci_virt_ep *ep;
+	struct xhci_ring *ring;
+
+	ep = &xhci->devs[slot_id]->eps[ep_index];
+	ring = ep->ring;
+	if (!ring)
+		return;
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Killing URBs for slot ID %u, ep index %u",
+			slot_id, ep_index);
+	xhci_kill_ring_urbs(xhci, ring);
+	while (!list_empty(&ep->cancelled_td_list)) {
+		cur_td = list_first_entry(&ep->cancelled_td_list,
+				struct xhci_td, cancelled_td_list);
+		list_del_init(&cur_td->cancelled_td_list);
+		xhci_giveback_urb_in_irq(xhci, cur_td, -ESHUTDOWN);
+	}
+}
+
 /* Watchdog timer function for when a stop endpoint command fails to complete.
  * In this case, we assume the host controller is broken or dying or dead.  The
  * host may still be completing some other events, so we have to be careful to
@@ -923,9 +960,6 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 {
 	struct xhci_hcd *xhci;
 	struct xhci_virt_ep *ep;
-	struct xhci_virt_ep *temp_ep;
-	struct xhci_ring *ring;
-	struct xhci_td *cur_td;
 	int ret, i, j;
 	unsigned long flags;
 
@@ -982,34 +1016,8 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 	for (i = 0; i < MAX_HC_SLOTS; i++) {
 		if (!xhci->devs[i])
 			continue;
-		for (j = 0; j < 31; j++) {
-			temp_ep = &xhci->devs[i]->eps[j];
-			ring = temp_ep->ring;
-			if (!ring)
-				continue;
-			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-					"Killing URBs for slot ID %u, "
-					"ep index %u", i, j);
-			while (!list_empty(&ring->td_list)) {
-				cur_td = list_first_entry(&ring->td_list,
-						struct xhci_td,
-						td_list);
-				list_del_init(&cur_td->td_list);
-				if (!list_empty(&cur_td->cancelled_td_list))
-					list_del_init(&cur_td->cancelled_td_list);
-				xhci_giveback_urb_in_irq(xhci, cur_td,
-						-ESHUTDOWN);
-			}
-			while (!list_empty(&temp_ep->cancelled_td_list)) {
-				cur_td = list_first_entry(
-						&temp_ep->cancelled_td_list,
-						struct xhci_td,
-						cancelled_td_list);
-				list_del_init(&cur_td->cancelled_td_list);
-				xhci_giveback_urb_in_irq(xhci, cur_td,
-						-ESHUTDOWN);
-			}
-		}
+		for (j = 0; j < 31; j++)
+			xhci_kill_endpoint_urbs(xhci, i, j);
 	}
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
