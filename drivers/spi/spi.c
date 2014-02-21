@@ -892,7 +892,7 @@ static int spi_stop_queue(struct spi_master *master)
 	 */
 	while ((!list_empty(&master->queue) || master->busy) && limit--) {
 		spin_unlock_irqrestore(&master->queue_lock, flags);
-		msleep(10);
+		usleep_range(10000, 11000);
 		spin_lock_irqsave(&master->queue_lock, flags);
 	}
 
