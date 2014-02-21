@@ -1281,6 +1281,7 @@ static void ntb_free_interrupts(struct ntb_device *ndev)
 				free_irq(msix->vector, &ndev->db_cb[i]);
 		}
 		pci_disable_msix(pdev);
+		kfree(ndev->msix_entries);
 	} else {
 		free_irq(pdev->irq, ndev);
 
