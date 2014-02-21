@@ -428,6 +428,14 @@ out:
 		intel_runtime_pm_put(dev_priv);
 }
 
+void assert_force_wake_inactive(struct drm_i915_private *dev_priv)
+{
+	if (!dev_priv->uncore.funcs.force_wake_get)
+		return;
+
+	WARN_ON(dev_priv->uncore.forcewake_count > 0);
+}
+
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
 	 ((reg) < 0x40000 && (reg) != FORCEWAKE)

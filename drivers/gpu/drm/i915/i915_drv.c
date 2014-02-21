@@ -849,6 +849,7 @@ static int i915_runtime_suspend(struct device *device)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	WARN_ON(!HAS_RUNTIME_PM(dev));
+	assert_force_wake_inactive(dev_priv);
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
