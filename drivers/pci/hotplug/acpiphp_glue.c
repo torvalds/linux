@@ -255,9 +255,15 @@ static void acpiphp_dock_release(void *data)
 	put_bridge(context->func.parent);
 }
 
-/* callback routine to register each ACPI PCI slot object */
-static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
-				 void **rv)
+/**
+ * acpiphp_add_context - Add ACPIPHP context to an ACPI device object.
+ * @handle: ACPI handle of the object to add a context to.
+ * @lvl: Not used.
+ * @data: The object's parent ACPIPHP bridge.
+ * @rv: Not used.
+ */
+static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
+				       void **rv)
 {
 	struct acpiphp_bridge *bridge = data;
 	struct acpiphp_context *context;
@@ -270,9 +276,6 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	struct pci_bus *pbus = bridge->pci_bus;
 	struct pci_dev *pdev = bridge->pci_dev;
 	u32 val;
-
-	if (pdev && device_is_managed_by_native_pciehp(pdev))
-		return AE_OK;
 
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 	if (ACPI_FAILURE(status)) {
@@ -325,8 +328,14 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
 	list_add_tail(&slot->node, &bridge->slots);
 
-	/* Register slots for ejectable functions only. */
-	if (acpi_pci_check_ejectable(pbus, handle)  || is_dock_device(handle)) {
+	/*
+	 * Expose slots to user space for functions that have _EJ0 or _RMV or
+	 * are located in dock stations.  Do not expose them for devices handled
+	 * by the native PCIe hotplug (PCIeHP), becuase that code is supposed to
+	 * expose slots to user space in those cases.
+	 */
+	if ((acpi_pci_check_ejectable(pbus, handle) || is_dock_device(handle))
+	    && !(pdev && device_is_managed_by_native_pciehp(pdev))) {
 		unsigned long long sun;
 		int retval;
 
@@ -923,14 +932,14 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		acpi_unlock_hp_context();
 	}
 
-	/* must be added to the list prior to calling register_slot */
+	/* Must be added to the list prior to calling acpiphp_add_context(). */
 	mutex_lock(&bridge_mutex);
 	list_add(&bridge->list, &bridge_list);
 	mutex_unlock(&bridge_mutex);
 
 	/* register all slot objects under this bridge */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
-				     register_slot, NULL, bridge, NULL);
+				     acpiphp_add_context, NULL, bridge, NULL);
 	if (ACPI_FAILURE(status)) {
 		acpi_handle_err(handle, "failed to register slots\n");
 		cleanup_bridge(bridge);
