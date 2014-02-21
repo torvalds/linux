@@ -2000,7 +2000,6 @@ static void name_cache_free(struct send_ctx *sctx)
  */
 static int __get_cur_name_and_parent(struct send_ctx *sctx,
 				     u64 ino, u64 gen,
-				     int skip_name_cache,
 				     u64 *parent_ino,
 				     u64 *parent_gen,
 				     struct fs_path *dest)
@@ -2010,8 +2009,6 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	struct btrfs_path *path = NULL;
 	struct name_cache_entry *nce = NULL;
 
-	if (skip_name_cache)
-		goto get_ref;
 	/*
 	 * First check if we already did a call to this function with the same
 	 * ino/gen. If yes, check if the cache entry is still up-to-date. If yes
@@ -2056,12 +2053,11 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 		goto out_cache;
 	}
 
-get_ref:
 	/*
 	 * Depending on whether the inode was already processed or not, use
 	 * send_root or parent_root for ref lookup.
 	 */
-	if (ino < sctx->send_progress && !skip_name_cache)
+	if (ino < sctx->send_progress)
 		ret = get_first_ref(sctx->send_root, ino,
 				    parent_ino, parent_gen, dest);
 	else
@@ -2085,8 +2081,6 @@ get_ref:
 			goto out;
 		ret = 1;
 	}
-	if (skip_name_cache)
-		goto out;
 
 out_cache:
 	/*
@@ -2154,16 +2148,12 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 	u64 parent_inode = 0;
 	u64 parent_gen = 0;
 	int stop = 0;
-	int skip_name_cache = 0;
 
 	name = fs_path_alloc();
 	if (!name) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	if (is_waiting_for_move(sctx, ino))
-		skip_name_cache = 1;
 
 	dest->reversed = 1;
 	fs_path_reset(dest);
@@ -2179,16 +2169,19 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 			break;
 		}
 
-		ret = __get_cur_name_and_parent(sctx, ino, gen, skip_name_cache,
-				&parent_inode, &parent_gen, name);
+		if (is_waiting_for_move(sctx, ino)) {
+			ret = get_first_ref(sctx->parent_root, ino,
+					    &parent_inode, &parent_gen, name);
+		} else {
+			ret = __get_cur_name_and_parent(sctx, ino, gen,
+							&parent_inode,
+							&parent_gen, name);
+			if (ret)
+				stop = 1;
+		}
+
 		if (ret < 0)
 			goto out;
-		if (ret)
-			stop = 1;
-
-		if (!skip_name_cache &&
-		    is_waiting_for_move(sctx, parent_inode))
-			skip_name_cache = 1;
 
 		ret = fs_path_add_path(dest, name);
 		if (ret < 0)
