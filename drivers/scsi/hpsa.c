@@ -3570,8 +3570,6 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 	cp->Tag = (c->cmdindex << DIRECT_LOOKUP_SHIFT) |
 				DIRECT_LOOKUP_BIT;
 	memcpy(cp->cdb, cdb, sizeof(cp->cdb));
-	memset(cp->cciss_lun, 0, sizeof(cp->cciss_lun));
-	cp->cmd_priority_task_attr = 0;
 
 	/* fill in sg elements */
 	cp->sg_count = (u8) use_sg;
