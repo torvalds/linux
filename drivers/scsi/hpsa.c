@@ -2128,6 +2128,37 @@ out:
 	return rc;
 }
 
+static int hpsa_bmic_ctrl_mode_sense(struct ctlr_info *h,
+		unsigned char *scsi3addr, unsigned char page,
+		struct bmic_controller_parameters *buf, size_t bufsize)
+{
+	int rc = IO_OK;
+	struct CommandList *c;
+	struct ErrorInfo *ei;
+
+	c = cmd_special_alloc(h);
+
+	if (c == NULL) {			/* trouble... */
+		dev_warn(&h->pdev->dev, "cmd_special_alloc returned NULL!\n");
+		return -ENOMEM;
+	}
+
+	if (fill_cmd(c, BMIC_SENSE_CONTROLLER_PARAMETERS, h, buf, bufsize,
+			page, scsi3addr, TYPE_CMD)) {
+		rc = -1;
+		goto out;
+	}
+	hpsa_scsi_do_simple_cmd_with_retry(h, c, PCI_DMA_FROMDEVICE);
+	ei = c->err_info;
+	if (ei->CommandStatus != 0 && ei->CommandStatus != CMD_DATA_UNDERRUN) {
+		hpsa_scsi_interpret_error(h, c);
+		rc = -1;
+	}
+out:
+	cmd_special_free(h, c);
+	return rc;
+	}
+
 static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr,
 	u8 reset_type)
 {
@@ -2929,6 +2960,24 @@ u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position, int i,
 	return NULL;
 }
 
+static int hpsa_hba_mode_enabled(struct ctlr_info *h)
+{
+	int rc;
+	struct bmic_controller_parameters *ctlr_params;
+	ctlr_params = kzalloc(sizeof(struct bmic_controller_parameters),
+		GFP_KERNEL);
+
+	if (!ctlr_params)
+		return 0;
+	rc = hpsa_bmic_ctrl_mode_sense(h, RAID_CTLR_LUNID, 0, ctlr_params,
+		sizeof(struct bmic_controller_parameters));
+	if (rc != 0) {
+		kfree(ctlr_params);
+		return 0;
+	}
+	return ctlr_params->nvram_flags & (1 << 3) ? 1 : 0;
+}
+
 static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 {
 	/* the idea here is we could get notified
@@ -2952,6 +3001,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 24;
 	int i, n_ext_target_devs, ndevs_to_allocate;
 	int raid_ctlr_position;
+	u8 rescan_hba_mode;
 	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
@@ -2964,6 +3014,15 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		goto out;
 	}
 	memset(lunzerobits, 0, sizeof(lunzerobits));
+
+	rescan_hba_mode = hpsa_hba_mode_enabled(h);
+
+	if (!h->hba_mode_enabled && rescan_hba_mode)
+		dev_warn(&h->pdev->dev, "HBA mode enabled\n");
+	else if (h->hba_mode_enabled && !rescan_hba_mode)
+		dev_warn(&h->pdev->dev, "HBA mode disabled\n");
+
+	h->hba_mode_enabled = rescan_hba_mode;
 
 	if (hpsa_gather_lun_info(h, reportlunsize,
 			(struct ReportLUNdata *) physdev_list, &nphysicals,
@@ -3048,7 +3107,19 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 				ncurrent++;
 			break;
 		case TYPE_DISK:
-			if (i >= nphysicals) {
+			if (h->hba_mode_enabled) {
+				/* never use raid mapper in HBA mode */
+				this_device->offload_enabled = 0;
+				ncurrent++;
+				break;
+			} else if (h->acciopath_status) {
+				if (i >= nphysicals) {
+					ncurrent++;
+					break;
+				}
+			} else {
+				if (i < nphysicals)
+					break;
 				ncurrent++;
 				break;
 			}
@@ -4116,7 +4187,10 @@ static int hpsa_register_scsi(struct ctlr_info *h)
 	sh->max_lun = HPSA_MAX_LUN;
 	sh->max_id = HPSA_MAX_LUN;
 	sh->can_queue = h->nr_cmds;
-	sh->cmd_per_lun = h->nr_cmds;
+	if (h->hba_mode_enabled)
+		sh->cmd_per_lun = 7;
+	else
+		sh->cmd_per_lun = h->nr_cmds;
 	sh->sg_tablesize = h->maxsgentries;
 	h->scsi_host = sh;
 	sh->hostdata[0] = (unsigned long) h;
@@ -5260,6 +5334,16 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.CDB[7] = (size >> 16) & 0xFF;
 			c->Request.CDB[8] = (size >> 8) & 0xFF;
 			c->Request.CDB[9] = size & 0xFF;
+			break;
+		case BMIC_SENSE_CONTROLLER_PARAMETERS:
+			c->Request.CDBLen = 10;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_READ;
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = BMIC_READ;
+			c->Request.CDB[6] = BMIC_SENSE_CONTROLLER_PARAMETERS;
+			c->Request.CDB[7] = (size >> 16) & 0xFF;
+			c->Request.CDB[8] = (size >> 8) & 0xFF;
 			break;
 		default:
 			dev_warn(&h->pdev->dev, "unknown command 0x%c\n", cmd);
@@ -6885,6 +6969,7 @@ reinit_after_soft_reset:
 
 	pci_set_drvdata(pdev, h);
 	h->ndevices = 0;
+	h->hba_mode_enabled = 0;
 	h->scsi_host = NULL;
 	spin_lock_init(&h->devlock);
 	hpsa_put_ctlr_into_performant_mode(h);
@@ -6944,8 +7029,8 @@ reinit_after_soft_reset:
 		goto reinit_after_soft_reset;
 	}
 
-	/* Enable Accelerated IO path at driver layer */
-	h->acciopath_status = 1;
+		/* Enable Accelerated IO path at driver layer */
+		h->acciopath_status = 1;
 
 	h->drv_req_rescan = 0;
 

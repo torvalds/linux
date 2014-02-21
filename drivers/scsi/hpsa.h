@@ -64,6 +64,46 @@ struct reply_pool {
 	u32 current_entry;
 };
 
+#pragma pack(1)
+struct bmic_controller_parameters {
+	u8   led_flags;
+	u8   enable_command_list_verification;
+	u8   backed_out_write_drives;
+	u16  stripes_for_parity;
+	u8   parity_distribution_mode_flags;
+	u16  max_driver_requests;
+	u16  elevator_trend_count;
+	u8   disable_elevator;
+	u8   force_scan_complete;
+	u8   scsi_transfer_mode;
+	u8   force_narrow;
+	u8   rebuild_priority;
+	u8   expand_priority;
+	u8   host_sdb_asic_fix;
+	u8   pdpi_burst_from_host_disabled;
+	char software_name[64];
+	char hardware_name[32];
+	u8   bridge_revision;
+	u8   snapshot_priority;
+	u32  os_specific;
+	u8   post_prompt_timeout;
+	u8   automatic_drive_slamming;
+	u8   reserved1;
+	u8   nvram_flags;
+	u8   cache_nvram_flags;
+	u8   drive_config_flags;
+	u16  reserved2;
+	u8   temp_warning_level;
+	u8   temp_shutdown_level;
+	u8   temp_condition_reset;
+	u8   max_coalesce_commands;
+	u32  max_coalesce_delay;
+	u8   orca_password[4];
+	u8   access_id[16];
+	u8   reserved[356];
+};
+#pragma pack()
+
 struct ctlr_info {
 	int	ctlr;
 	char	devname[8];
@@ -89,6 +129,7 @@ struct ctlr_info {
 	unsigned int msi_vector;
 	int intr_mode; /* either PERF_MODE_INT or SIMPLE_MODE_INT */
 	struct access_method access;
+	char hba_mode_enabled;
 
 	/* queue and queue Info */
 	struct list_head reqQ;
