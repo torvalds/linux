@@ -11042,7 +11042,9 @@ void intel_modeset_init(struct drm_device *dev)
 	/* Just in case the BIOS is doing something questionable. */
 	intel_disable_fbc(dev);
 
+	mutex_lock(&dev->mode_config.mutex);
 	intel_modeset_setup_hw_state(dev, false);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 static void
