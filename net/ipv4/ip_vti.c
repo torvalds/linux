@@ -123,10 +123,32 @@ static int vti_rcv_cb(struct sk_buff *skb, int err)
 	return 0;
 }
 
+static bool vti_state_check(const struct xfrm_state *x, __be32 dst, __be32 src)
+{
+	xfrm_address_t *daddr = (xfrm_address_t *)&dst;
+	xfrm_address_t *saddr = (xfrm_address_t *)&src;
+
+	/* if there is no transform then this tunnel is not functional.
+	 * Or if the xfrm is not mode tunnel.
+	 */
+	if (!x || x->props.mode != XFRM_MODE_TUNNEL ||
+	    x->props.family != AF_INET)
+		return false;
+
+	if (!dst)
+		return xfrm_addr_equal(saddr, &x->props.saddr, AF_INET);
+
+	if (!xfrm_state_addr_check(x, daddr, saddr, AF_INET))
+		return false;
+
+	return true;
+}
+
 static netdev_tx_t vti_xmit(struct sk_buff *skb, struct net_device *dev,
 			    struct flowi *fl)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	struct ip_tunnel_parm *parms = &tunnel->parms;
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *tdev;	/* Device to other host */
 	int err;
@@ -143,15 +165,12 @@ static netdev_tx_t vti_xmit(struct sk_buff *skb, struct net_device *dev,
 		goto tx_error_icmp;
 	}
 
-	/* if there is no transform then this tunnel is not functional.
-	 * Or if the xfrm is not mode tunnel.
-	 */
-	if (!dst->xfrm ||
-	    dst->xfrm->props.mode != XFRM_MODE_TUNNEL) {
+	if (!vti_state_check(dst->xfrm, parms->iph.daddr, parms->iph.saddr)) {
 		dev->stats.tx_carrier_errors++;
 		dst_release(dst);
 		goto tx_error_icmp;
 	}
+
 	tdev = dst->dev;
 
 	if (tdev == dev) {
