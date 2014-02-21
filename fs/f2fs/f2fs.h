@@ -247,6 +247,7 @@ struct f2fs_nm_info {
 	struct list_head dirty_nat_entries; /* cached nat entry list (dirty) */
 
 	/* free node ids management */
+	struct radix_tree_root free_nid_root;/* root of the free_nid cache */
 	struct list_head free_nid_list;	/* a list for free nids */
 	spinlock_t free_nid_list_lock;	/* protect free nid list */
 	unsigned int fcnt;		/* the number of free node id */
