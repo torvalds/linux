@@ -339,6 +339,7 @@ struct kvm_pmu {
 
 enum {
 	KVM_DEBUGREG_BP_ENABLED = 1,
+	KVM_DEBUGREG_WONT_EXIT = 2,
 };
 
 struct kvm_vcpu_arch {
@@ -707,6 +708,7 @@ struct kvm_x86_ops {
 	void (*set_gdt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
 	u64 (*get_dr6)(struct kvm_vcpu *vcpu);
 	void (*set_dr6)(struct kvm_vcpu *vcpu, unsigned long value);
+	void (*sync_dirty_debug_regs)(struct kvm_vcpu *vcpu);
 	void (*set_dr7)(struct kvm_vcpu *vcpu, unsigned long value);
 	void (*cache_reg)(struct kvm_vcpu *vcpu, enum kvm_reg reg);
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
