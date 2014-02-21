@@ -540,7 +540,7 @@ void intel_update_fbc(struct drm_device *dev)
 			DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
 	}
-	if ((INTEL_INFO(dev)->gen < 4 || IS_HASWELL(dev)) &&
+	if ((INTEL_INFO(dev)->gen < 4 || HAS_DDI(dev)) &&
 	    intel_crtc->plane != PLANE_A) {
 		if (set_no_fbc_reason(dev_priv, FBC_BAD_PLANE))
 			DRM_DEBUG_KMS("plane not A, disabling compression\n");
