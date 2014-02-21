@@ -771,7 +771,6 @@ config	SOC_IMX50
 config	SOC_IMX53
 	bool "i.MX53 support"
 	select HAVE_IMX_SRC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select PINCTRL_IMX53
 	select SOC_IMX5
 
