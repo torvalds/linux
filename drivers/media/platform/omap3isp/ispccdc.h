@@ -63,12 +63,6 @@ struct ispccdc_lsc_config_req {
 
 /*
  * ispccdc_lsc - CCDC LSC parameters
- * @update_config: Set when user changes config
- * @request_enable: Whether LSC is requested to be enabled
- * @config: LSC config set by user
- * @update_table: Set when user provides a new LSC table to table_new
- * @table_new: LSC table set by user, ISP address
- * @table_inuse: LSC table currently in use, ISP address
  */
 struct ispccdc_lsc {
 	enum ispccdc_lsc_state state;
