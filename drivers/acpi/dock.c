@@ -114,16 +114,6 @@ static int add_dock_dependent_device(struct dock_station *ds,
 	return 0;
 }
 
-static void remove_dock_dependent_devices(struct dock_station *ds)
-{
-	struct dock_dependent_device *dd, *aux;
-
-	list_for_each_entry_safe(dd, aux, &ds->dependent_devices, list) {
-		list_del(&dd->list);
-		kfree(dd);
-	}
-}
-
 static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
 			       enum dock_callback_type cb_type)
 {
@@ -674,8 +664,8 @@ void acpi_dock_add(struct acpi_device *adev)
 	return;
 
 err_rmgroup:
-	remove_dock_dependent_devices(dock_station);
 	sysfs_remove_group(&dd->dev.kobj, &dock_attribute_group);
+
 err_unregister:
 	platform_device_unregister(dd);
 	acpi_handle_err(handle, "%s encountered error %d\n", __func__, ret);
