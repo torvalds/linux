@@ -668,6 +668,8 @@ static int acpi_sbs_resume(struct device *dev)
 	acpi_sbs_callback(sbs);
 	return 0;
 }
+#else
+#define acpi_sbs_resume NULL
 #endif
 
 static SIMPLE_DEV_PM_OPS(acpi_sbs_pm, NULL, acpi_sbs_resume);
