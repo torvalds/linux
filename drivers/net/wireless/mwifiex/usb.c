@@ -22,8 +22,6 @@
 
 #define USB_VERSION	"1.0"
 
-static const char usbdriver_name[] = "usb8xxx";
-
 static struct mwifiex_if_ops usb_ops;
 static struct semaphore add_remove_card_sem;
 static struct usb_card_rec *usb_card;
@@ -567,7 +565,7 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver mwifiex_usb_driver = {
-	.name = usbdriver_name,
+	.name = "mwifiex_usb",
 	.probe = mwifiex_usb_probe,
 	.disconnect = mwifiex_usb_disconnect,
 	.id_table = mwifiex_usb_table,
