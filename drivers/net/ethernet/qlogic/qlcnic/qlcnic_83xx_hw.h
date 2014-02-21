@@ -308,6 +308,8 @@ struct qlc_83xx_reset {
 #define QLC_83XX_IDC_FLASH_PARAM_ADDR			0x3e8020
 
 struct qlcnic_adapter;
+struct qlcnic_fw_dump;
+
 struct qlc_83xx_idc {
 	int (*state_entry) (struct qlcnic_adapter *);
 	u64		sec_counter;
@@ -650,4 +652,10 @@ int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *);
 void qlcnic_83xx_aer_stop_poll_work(struct qlcnic_adapter *);
 int qlcnic_83xx_aer_reset(struct qlcnic_adapter *);
 void qlcnic_83xx_aer_start_poll_work(struct qlcnic_adapter *);
+u32 qlcnic_83xx_get_saved_state(void *, u32);
+void qlcnic_83xx_set_saved_state(void *, u32, u32);
+void qlcnic_83xx_cache_tmpl_hdr_values(struct qlcnic_fw_dump *);
+u32 qlcnic_83xx_get_cap_size(void *, int);
+void qlcnic_83xx_set_sys_info(void *, int, u32);
+void qlcnic_83xx_store_cap_mask(void *, u32);
 #endif

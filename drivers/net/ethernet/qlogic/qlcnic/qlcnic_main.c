@@ -90,7 +90,6 @@ static void qlcnic_82xx_io_resume(struct pci_dev *);
 static void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *);
 static pci_ers_result_t qlcnic_82xx_io_error_detected(struct pci_dev *,
 						      pci_channel_state_t);
-
 static u32 qlcnic_vlan_tx_check(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -561,6 +560,12 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.disable_sds_intr		= qlcnic_82xx_disable_sds_intr,
 	.enable_tx_intr			= qlcnic_82xx_enable_tx_intr,
 	.disable_tx_intr		= qlcnic_82xx_disable_tx_intr,
+	.get_saved_state		= qlcnic_82xx_get_saved_state,
+	.set_saved_state		= qlcnic_82xx_set_saved_state,
+	.cache_tmpl_hdr_values		= qlcnic_82xx_cache_tmpl_hdr_values,
+	.get_cap_size			= qlcnic_82xx_get_cap_size,
+	.set_sys_info			= qlcnic_82xx_set_sys_info,
+	.store_cap_mask			= qlcnic_82xx_store_cap_mask,
 };
 
 static int qlcnic_check_multi_tx_capability(struct qlcnic_adapter *adapter)

@@ -203,7 +203,12 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.disable_sds_intr		= qlcnic_83xx_disable_sds_intr,
 	.enable_tx_intr			= qlcnic_83xx_enable_tx_intr,
 	.disable_tx_intr		= qlcnic_83xx_disable_tx_intr,
-
+	.get_saved_state		= qlcnic_83xx_get_saved_state,
+	.set_saved_state		= qlcnic_83xx_set_saved_state,
+	.cache_tmpl_hdr_values		= qlcnic_83xx_cache_tmpl_hdr_values,
+	.get_cap_size			= qlcnic_83xx_get_cap_size,
+	.set_sys_info			= qlcnic_83xx_set_sys_info,
+	.store_cap_mask			= qlcnic_83xx_store_cap_mask,
 };
 
 static struct qlcnic_nic_template qlcnic_83xx_ops = {
