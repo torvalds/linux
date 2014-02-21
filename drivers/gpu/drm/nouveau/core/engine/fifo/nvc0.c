@@ -244,23 +244,20 @@ nvc0_fifo_chan_init(struct nouveau_object *object)
 	return 0;
 }
 
+static void nvc0_fifo_intr_engine(struct nvc0_fifo_priv *priv);
+
 static int
 nvc0_fifo_chan_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nvc0_fifo_priv *priv = (void *)object->engine;
 	struct nvc0_fifo_chan *chan = (void *)object;
 	u32 chid = chan->base.chid;
-	u32 mask, engine;
 
 	nv_mask(priv, 0x003004 + (chid * 8), 0x00000001, 0x00000000);
 	nvc0_fifo_runlist_update(priv);
-	mask = nv_rd32(priv, 0x0025a4);
-	for (engine = 0; mask && engine < 16; engine++) {
-		if (!(mask & (1 << engine)))
-			continue;
-		nv_mask(priv, 0x0025a8 + (engine * 4), 0x00000000, 0x00000000);
-		mask &= ~(1 << engine);
-	}
+
+	nvc0_fifo_intr_engine(priv);
+
 	nv_wr32(priv, 0x003000 + (chid * 8), 0x00000000);
 
 	return nouveau_fifo_channel_fini(&chan->base, suspend);
@@ -516,6 +513,39 @@ nvc0_fifo_isr_pbdma_intr(struct nvc0_fifo_priv *priv, int unit)
 }
 
 static void
+nvc0_fifo_intr_engine_unit(struct nvc0_fifo_priv *priv, int engn)
+{
+	u32 intr = nv_rd32(priv, 0x0025a8 + (engn * 0x04));
+	u32 inte = nv_rd32(priv, 0x002628);
+	u32 unkn;
+
+	for (unkn = 0; unkn < 8; unkn++) {
+		u32 ints = (intr >> (unkn * 0x04)) & inte;
+		if (ints & 0x1) {
+			nouveau_event_trigger(priv->base.uevent, 0);
+			ints &= ~1;
+		}
+		if (ints) {
+			nv_error(priv, "ENGINE %d %d %01x", engn, unkn, ints);
+			nv_mask(priv, 0x002628, ints, 0);
+		}
+	}
+
+	nv_wr32(priv, 0x0025a8 + (engn * 0x04), intr);
+}
+
+static void
+nvc0_fifo_intr_engine(struct nvc0_fifo_priv *priv)
+{
+	u32 mask = nv_rd32(priv, 0x0025a4);
+	while (mask) {
+		u32 unit = __ffs(mask);
+		nvc0_fifo_intr_engine_unit(priv, unit);
+		mask &= ~(1 << unit);
+	}
+}
+
+static void
 nvc0_fifo_intr(struct nouveau_subdev *subdev)
 {
 	struct nvc0_fifo_priv *priv = (void *)subdev;
@@ -587,9 +617,7 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x80000000) {
-		u32 intr = nv_mask(priv, 0x0025a8, 0x00000000, 0x00000000);
-		nouveau_event_trigger(priv->base.uevent, 0);
-		nv_debug(priv, "INTR 0x80000000: 0x%08x\n", intr);
+		nvc0_fifo_intr_engine(priv);
 		stat &= ~0x80000000;
 	}
 
@@ -710,7 +738,7 @@ nvc0_fifo_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x002a00, 0xffffffff); /* clears PFIFO.INTR bit 30 */
 	nv_wr32(priv, 0x002100, 0xffffffff);
 	nv_wr32(priv, 0x002140, 0x3fffffff);
-	nv_wr32(priv, 0x002628, 0x00000001); /* makes mthd 0x20 work */
+	nv_wr32(priv, 0x002628, 0x00000001); /* ENGINE_INTR_EN */
 	return 0;
 }
 
