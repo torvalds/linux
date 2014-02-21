@@ -28,7 +28,7 @@ static u32 xstate_required_size(u64 xstate_bv)
 	int feature_bit = 0;
 	u32 ret = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
 
-	xstate_bv &= ~XSTATE_FPSSE;
+	xstate_bv &= XSTATE_EXTEND_MASK;
 	while (xstate_bv) {
 		if (xstate_bv & 0x1) {
 		        u32 eax, ebx, ecx, edx;
@@ -74,8 +74,8 @@ void kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		vcpu->arch.guest_supported_xcr0 =
 			(best->eax | ((u64)best->edx << 32)) &
 			host_xcr0 & KVM_SUPPORTED_XCR0;
-		vcpu->arch.guest_xstate_size =
-			xstate_required_size(vcpu->arch.guest_supported_xcr0);
+		vcpu->arch.guest_xstate_size = best->ebx =
+			xstate_required_size(vcpu->arch.xcr0);
 	}
 
 	kvm_pmu_cpuid_update(vcpu);

@@ -595,13 +595,13 @@ static void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu)
 
 int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 {
-	u64 xcr0;
+	u64 xcr0 = xcr;
+	u64 old_xcr0 = vcpu->arch.xcr0;
 	u64 valid_bits;
 
 	/* Only support XCR_XFEATURE_ENABLED_MASK(xcr0) now  */
 	if (index != XCR_XFEATURE_ENABLED_MASK)
 		return 1;
-	xcr0 = xcr;
 	if (!(xcr0 & XSTATE_FP))
 		return 1;
 	if ((xcr0 & XSTATE_YMM) && !(xcr0 & XSTATE_SSE))
@@ -618,6 +618,9 @@ int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 
 	kvm_put_guest_xcr0(vcpu);
 	vcpu->arch.xcr0 = xcr0;
+
+	if ((xcr0 ^ old_xcr0) & XSTATE_EXTEND_MASK)
+		kvm_update_cpuid(vcpu);
 	return 0;
 }
 
