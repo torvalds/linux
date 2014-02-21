@@ -496,17 +496,17 @@ void acpi_device_hotplug(void *data, u32 src)
 			goto err_out;
 		}
 	} else {
-		int (*event)(struct acpi_device *, u32);
+		int (*notify)(struct acpi_device *, u32);
 
 		acpi_lock_hp_context();
-		event = adev->hp ? adev->hp->event : NULL;
+		notify = adev->hp ? adev->hp->notify : NULL;
 		acpi_unlock_hp_context();
 		/*
 		 * There may be additional notify handlers for device objects
 		 * without the .event() callback, so ignore them here.
 		 */
-		if (event)
-			error = event(adev, src);
+		if (notify)
+			error = notify(adev, src);
 		else
 			goto out;
 	}

@@ -203,10 +203,19 @@ static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
 			fixup(adev);
 			return;
 		}
+	} else if (cb_type == DOCK_CALL_UEVENT) {
+		void (*uevent)(struct acpi_device *, u32);
+
+		uevent = adev->hp->uevent;
+		if (uevent) {
+			acpi_unlock_hp_context();
+			uevent(adev, event);
+			return;
+		}
 	} else {
 		int (*notify)(struct acpi_device *, u32);
 
-		notify = adev->hp->event;
+		notify = adev->hp->notify;
 		if (notify) {
 			acpi_unlock_hp_context();
 			notify(adev, event);

@@ -59,7 +59,7 @@
 static LIST_HEAD(bridge_list);
 static DEFINE_MUTEX(bridge_mutex);
 
-static int acpiphp_hotplug_event(struct acpi_device *adev, u32 type);
+static int acpiphp_hotplug_notify(struct acpi_device *adev, u32 type);
 static void acpiphp_post_dock_fixup(struct acpi_device *adev);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(struct pci_bus *bus);
@@ -81,7 +81,7 @@ static struct acpiphp_context *acpiphp_init_context(struct acpi_device *adev)
 		return NULL;
 
 	context->refcount = 1;
-	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_event,
+	acpi_set_hp_context(adev, &context->hp, acpiphp_hotplug_notify, NULL,
 			    acpiphp_post_dock_fixup);
 	return context;
 }
@@ -400,7 +400,7 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 			struct acpi_device *adev = func_to_acpi_device(func);
 
 			acpi_lock_hp_context();
-			adev->hp->event = NULL;
+			adev->hp->notify = NULL;
 			adev->hp->fixup = NULL;
 			acpi_unlock_hp_context();
 		}
@@ -833,7 +833,7 @@ static void hotplug_event(u32 type, struct acpiphp_context *context)
 		put_bridge(bridge);
 }
 
-static int acpiphp_hotplug_event(struct acpi_device *adev, u32 type)
+static int acpiphp_hotplug_notify(struct acpi_device *adev, u32 type)
 {
 	struct acpiphp_context *context;
 
