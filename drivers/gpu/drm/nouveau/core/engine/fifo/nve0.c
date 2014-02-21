@@ -112,7 +112,7 @@ nve0_fifo_runlist_update(struct nve0_fifo_priv *priv, u32 engine)
 
 	nv_wr32(priv, 0x002270, cur->addr >> 12);
 	nv_wr32(priv, 0x002274, (engine << 20) | (p >> 3));
-	if (!nv_wait(priv, 0x002284 + (engine * 4), 0x00100000, 0x00000000))
+	if (!nv_wait(priv, 0x002284 + (engine * 8), 0x00100000, 0x00000000))
 		nv_error(priv, "runlist %d update timeout\n", engine);
 	mutex_unlock(&nv_subdev(priv)->mutex);
 }

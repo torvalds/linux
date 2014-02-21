@@ -162,7 +162,7 @@ static DEFINE_SPINLOCK(minor_lock);
 #define DEV_NAME	"xvd"	/* name in /dev */
 
 #define SEGS_PER_INDIRECT_FRAME \
-	(PAGE_SIZE/sizeof(struct blkif_request_segment_aligned))
+	(PAGE_SIZE/sizeof(struct blkif_request_segment))
 #define INDIRECT_GREFS(_segs) \
 	((_segs + SEGS_PER_INDIRECT_FRAME - 1)/SEGS_PER_INDIRECT_FRAME)
 
@@ -393,7 +393,7 @@ static int blkif_queue_request(struct request *req)
 	unsigned long id;
 	unsigned int fsect, lsect;
 	int i, ref, n;
-	struct blkif_request_segment_aligned *segments = NULL;
+	struct blkif_request_segment *segments = NULL;
 
 	/*
 	 * Used to store if we are able to queue the request by just using
@@ -550,7 +550,7 @@ static int blkif_queue_request(struct request *req)
 			} else {
 				n = i % SEGS_PER_INDIRECT_FRAME;
 				segments[n] =
-					(struct blkif_request_segment_aligned) {
+					(struct blkif_request_segment) {
 							.gref       = ref,
 							.first_sect = fsect,
 							.last_sect  = lsect };
@@ -1904,13 +1904,16 @@ static void blkback_changed(struct xenbus_device *dev,
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
 	case XenbusStateUnknown:
-	case XenbusStateClosed:
 		break;
 
 	case XenbusStateConnected:
 		blkfront_connect(info);
 		break;
 
+	case XenbusStateClosed:
+		if (dev->state == XenbusStateClosed)
+			break;
+		/* Missed the backend's Closing state -- fallthrough */
 	case XenbusStateClosing:
 		blkfront_closing(info);
 		break;

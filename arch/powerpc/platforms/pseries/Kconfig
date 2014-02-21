@@ -20,6 +20,7 @@ config PPC_PSERIES
 	select PPC_DOORBELL
 	select HAVE_CONTEXT_TRACKING
 	select HOTPLUG_CPU if SMP
+	select ARCH_RANDOM
 	default y
 
 config PPC_SPLPAR
