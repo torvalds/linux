@@ -148,9 +148,8 @@ static void __unset_cpu_idle(struct kvm_vcpu *vcpu)
 
 static void __reset_intercept_indicators(struct kvm_vcpu *vcpu)
 {
-	atomic_clear_mask(CPUSTAT_ECALL_PEND |
-		CPUSTAT_IO_INT | CPUSTAT_EXT_INT | CPUSTAT_STOP_INT,
-		&vcpu->arch.sie_block->cpuflags);
+	atomic_clear_mask(CPUSTAT_IO_INT | CPUSTAT_EXT_INT | CPUSTAT_STOP_INT,
+			  &vcpu->arch.sie_block->cpuflags);
 	vcpu->arch.sie_block->lctl = 0x0000;
 	vcpu->arch.sie_block->ictl &= ~(ICTL_LPSW | ICTL_STCTL | ICTL_PINT);
 
@@ -524,6 +523,20 @@ static void deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 	}
 }
 
+/* Check whether SIGP interpretation facility has an external call pending */
+int kvm_s390_si_ext_call_pending(struct kvm_vcpu *vcpu)
+{
+	atomic_t *sigp_ctrl = &vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].ctrl;
+
+	if (!psw_extint_disabled(vcpu) &&
+	    (vcpu->arch.sie_block->gcr[0] & 0x2000ul) &&
+	    (atomic_read(sigp_ctrl) & SIGP_CTRL_C) &&
+	    (atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_ECALL_PEND))
+		return 1;
+
+	return 0;
+}
+
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
@@ -552,6 +565,9 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	}
 
 	if (!rc && kvm_cpu_has_pending_timer(vcpu))
+		rc = 1;
+
+	if (!rc && kvm_s390_si_ext_call_pending(vcpu))
 		rc = 1;
 
 	return rc;
@@ -610,7 +626,8 @@ no_timer:
 	while (list_empty(&vcpu->arch.local_int.list) &&
 		list_empty(&vcpu->arch.local_int.float_int->list) &&
 		(!vcpu->arch.local_int.timer_due) &&
-		!signal_pending(current)) {
+		!signal_pending(current) &&
+		!kvm_s390_si_ext_call_pending(vcpu)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_bh(&vcpu->arch.local_int.lock);
 		spin_unlock(&vcpu->arch.local_int.float_int->lock);
@@ -667,6 +684,11 @@ void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu)
 	}
 	atomic_set(&li->active, 0);
 	spin_unlock_bh(&li->lock);
+
+	/* clear pending external calls set by sigp interpretation facility */
+	atomic_clear_mask(CPUSTAT_ECALL_PEND, &vcpu->arch.sie_block->cpuflags);
+	atomic_clear_mask(SIGP_CTRL_C,
+			  &vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].ctrl);
 }
 
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)

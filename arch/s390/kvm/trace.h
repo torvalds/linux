@@ -239,6 +239,29 @@ TRACE_EVENT(kvm_s390_handle_sigp,
 			   __entry->cpu_addr, __entry->parameter)
 	);
 
+TRACE_EVENT(kvm_s390_handle_sigp_pei,
+	    TP_PROTO(VCPU_PROTO_COMMON, __u8 order_code, __u16 cpu_addr),
+	    TP_ARGS(VCPU_ARGS_COMMON, order_code, cpu_addr),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    __field(__u8, order_code)
+		    __field(__u16, cpu_addr)
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    __entry->order_code = order_code;
+		    __entry->cpu_addr = cpu_addr;
+		    ),
+
+	    VCPU_TP_PRINTK("handle sigp pei order %02x (%s), cpu address %04x",
+			   __entry->order_code,
+			   __print_symbolic(__entry->order_code,
+					    sigp_order_codes),
+			   __entry->cpu_addr)
+	);
+
 TRACE_EVENT(kvm_s390_handle_diag,
 	    TP_PROTO(VCPU_PROTO_COMMON, __u16 code),
 	    TP_ARGS(VCPU_ARGS_COMMON, code),

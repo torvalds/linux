@@ -272,6 +272,8 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 		irq.type = KVM_S390_INT_CPU_TIMER;
 		break;
 	case EXT_IRQ_EXTERNAL_CALL:
+		if (kvm_s390_si_ext_call_pending(vcpu))
+			return 0;
 		irq.type = KVM_S390_INT_EXTERNAL_CALL;
 		irq.parm = vcpu->arch.sie_block->extcpuaddr;
 		break;
@@ -323,6 +325,8 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.sie_block->ipa == 0xb254)	/* MVPG */
 		return handle_mvpg_pei(vcpu);
+	if (vcpu->arch.sie_block->ipa >> 8 == 0xae)	/* SIGP */
+		return kvm_s390_handle_sigp_pei(vcpu);
 
 	return -EOPNOTSUPP;
 }
