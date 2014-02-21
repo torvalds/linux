@@ -41,8 +41,11 @@
 
 struct nvc0_fifo_priv {
 	struct nouveau_fifo base;
-	struct nouveau_gpuobj *runlist[2];
-	int cur_runlist;
+	struct {
+		struct nouveau_gpuobj *mem[2];
+		int active;
+		wait_queue_head_t wait;
+	} runlist;
 	struct {
 		struct nouveau_gpuobj *mem;
 		struct nouveau_vma bar;
@@ -72,8 +75,8 @@ nvc0_fifo_runlist_update(struct nvc0_fifo_priv *priv)
 	int i, p;
 
 	mutex_lock(&nv_subdev(priv)->mutex);
-	cur = priv->runlist[priv->cur_runlist];
-	priv->cur_runlist = !priv->cur_runlist;
+	cur = priv->runlist.mem[priv->runlist.active];
+	priv->runlist.active = !priv->runlist.active;
 
 	for (i = 0, p = 0; i < 128; i++) {
 		if (!(nv_rd32(priv, 0x003004 + (i * 8)) & 1))
@@ -513,6 +516,23 @@ nvc0_fifo_isr_pbdma_intr(struct nvc0_fifo_priv *priv, int unit)
 }
 
 static void
+nvc0_fifo_intr_runlist(struct nvc0_fifo_priv *priv)
+{
+	u32 intr = nv_rd32(priv, 0x002a00);
+
+	if (intr & 0x10000000) {
+		wake_up(&priv->runlist.wait);
+		nv_wr32(priv, 0x002a00, 0x10000000);
+		intr &= ~0x10000000;
+	}
+
+	if (intr) {
+		nv_error(priv, "RUNLIST 0x%08x\n", intr);
+		nv_wr32(priv, 0x002a00, intr);
+	}
+}
+
+static void
 nvc0_fifo_intr_engine_unit(struct nvc0_fifo_priv *priv, int engn)
 {
 	u32 intr = nv_rd32(priv, 0x0025a8 + (engn * 0x04));
@@ -609,10 +629,7 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x40000000) {
-		u32 intr0 = nv_rd32(priv, 0x0025a4);
-		u32 intr1 = nv_mask(priv, 0x002a00, 0x00000000, 0x00000);
-		nv_debug(priv, "INTR 0x40000000: 0x%08x 0x%08x\n",
-			       intr0, intr1);
+		nvc0_fifo_intr_runlist(priv);
 		stat &= ~0x40000000;
 	}
 
@@ -656,14 +673,16 @@ nvc0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 0x1000, 0,
-				&priv->runlist[0]);
+				&priv->runlist.mem[0]);
 	if (ret)
 		return ret;
 
 	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 0x1000, 0,
-				&priv->runlist[1]);
+				&priv->runlist.mem[1]);
 	if (ret)
 		return ret;
+
+	init_waitqueue_head(&priv->runlist.wait);
 
 	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 128 * 0x1000, 0x1000, 0,
 				&priv->user.mem);
@@ -693,8 +712,8 @@ nvc0_fifo_dtor(struct nouveau_object *object)
 
 	nouveau_gpuobj_unmap(&priv->user.bar);
 	nouveau_gpuobj_ref(NULL, &priv->user.mem);
-	nouveau_gpuobj_ref(NULL, &priv->runlist[1]);
-	nouveau_gpuobj_ref(NULL, &priv->runlist[0]);
+	nouveau_gpuobj_ref(NULL, &priv->runlist.mem[0]);
+	nouveau_gpuobj_ref(NULL, &priv->runlist.mem[1]);
 
 	nouveau_fifo_destroy(&priv->base);
 }
@@ -735,9 +754,8 @@ nvc0_fifo_init(struct nouveau_object *object)
 	nv_mask(priv, 0x002200, 0x00000001, 0x00000001);
 	nv_wr32(priv, 0x002254, 0x10000000 | priv->user.bar.offset >> 12);
 
-	nv_wr32(priv, 0x002a00, 0xffffffff); /* clears PFIFO.INTR bit 30 */
 	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0x3fffffff);
+	nv_wr32(priv, 0x002140, 0x7fffffff);
 	nv_wr32(priv, 0x002628, 0x00000001); /* ENGINE_INTR_EN */
 	return 0;
 }
