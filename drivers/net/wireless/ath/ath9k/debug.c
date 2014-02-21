@@ -135,7 +135,8 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
-	unsigned int len = 0, size = 1024;
+	unsigned int len = 0;
+	const unsigned int size = 1024;
 	ssize_t retval = 0;
 	char *buf;
 
@@ -307,13 +308,13 @@ static ssize_t read_file_antenna_diversity(struct file *file,
 	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
 	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
 	struct ath_hw_antcomb_conf div_ant_conf;
-	unsigned int len = 0, size = 1024;
+	unsigned int len = 0;
+	const unsigned int size = 1024;
 	ssize_t retval = 0;
 	char *buf;
-	char *lna_conf_str[4] = {"LNA1_MINUS_LNA2",
-				 "LNA2",
-				 "LNA1",
-				 "LNA1_PLUS_LNA2"};
+	static const char *lna_conf_str[4] = {
+		"LNA1_MINUS_LNA2", "LNA2", "LNA1", "LNA1_PLUS_LNA2"
+	};
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
@@ -716,10 +717,13 @@ static ssize_t read_file_queues(struct file *file, char __user *user_buf,
 	struct ath_softc *sc = file->private_data;
 	struct ath_txq *txq;
 	char *buf;
-	unsigned int len = 0, size = 1024;
+	unsigned int len = 0;
+	const unsigned int size = 1024;
 	ssize_t retval = 0;
 	int i;
-	char *qname[4] = {"VO", "VI", "BE", "BK"};
+	static const char *qname[4] = {
+		"VO", "VI", "BE", "BK"
+	};
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
