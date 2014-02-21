@@ -3108,13 +3108,13 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 
 	pf_q = vsi->base_queue;
 	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
-		j = 1000;
-		do {
-			usleep_range(1000, 2000);
+		for (j = 0; j < 50; j++) {
 			tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
-		} while (j-- && ((tx_reg >> I40E_QTX_ENA_QENA_REQ_SHIFT)
-			       ^ (tx_reg >> I40E_QTX_ENA_QENA_STAT_SHIFT)) & 1);
-
+			if (((tx_reg >> I40E_QTX_ENA_QENA_REQ_SHIFT) & 1) ==
+			    ((tx_reg >> I40E_QTX_ENA_QENA_STAT_SHIFT) & 1))
+				break;
+			usleep_range(1000, 2000);
+		}
 		/* Skip if the queue is already in the requested state */
 		if (enable && (tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
 			continue;
@@ -3124,8 +3124,7 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		/* turn on/off the queue */
 		if (enable) {
 			wr32(hw, I40E_QTX_HEAD(pf_q), 0);
-			tx_reg |= I40E_QTX_ENA_QENA_REQ_MASK |
-				  I40E_QTX_ENA_QENA_STAT_MASK;
+			tx_reg |= I40E_QTX_ENA_QENA_REQ_MASK;
 		} else {
 			tx_reg &= ~I40E_QTX_ENA_QENA_REQ_MASK;
 		}
@@ -3172,12 +3171,13 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 
 	pf_q = vsi->base_queue;
 	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
-		j = 1000;
-		do {
-			usleep_range(1000, 2000);
+		for (j = 0; j < 50; j++) {
 			rx_reg = rd32(hw, I40E_QRX_ENA(pf_q));
-		} while (j-- && ((rx_reg >> I40E_QRX_ENA_QENA_REQ_SHIFT)
-			       ^ (rx_reg >> I40E_QRX_ENA_QENA_STAT_SHIFT)) & 1);
+			if (((rx_reg >> I40E_QRX_ENA_QENA_REQ_SHIFT) & 1) ==
+			    ((rx_reg >> I40E_QRX_ENA_QENA_STAT_SHIFT) & 1))
+				break;
+			usleep_range(1000, 2000);
+		}
 
 		if (enable) {
 			/* is STAT set ? */
@@ -3191,11 +3191,9 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 
 		/* turn on/off the queue */
 		if (enable)
-			rx_reg |= I40E_QRX_ENA_QENA_REQ_MASK |
-				  I40E_QRX_ENA_QENA_STAT_MASK;
+			rx_reg |= I40E_QRX_ENA_QENA_REQ_MASK;
 		else
-			rx_reg &= ~(I40E_QRX_ENA_QENA_REQ_MASK |
-				  I40E_QRX_ENA_QENA_STAT_MASK);
+			rx_reg &= ~I40E_QRX_ENA_QENA_REQ_MASK;
 		wr32(hw, I40E_QRX_ENA(pf_q), rx_reg);
 
 		/* wait for the change to finish */
