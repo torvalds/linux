@@ -1025,18 +1025,12 @@ DEFINE_CLK_OMAP_MUX_GATE(iva1_ifck, "iva1_clkdm", dsp_fck_clksel,
 			 OMAP2420_EN_IVA_COP_SHIFT, &clkhwops_wait,
 			 dsp_fck_parent_names, dsp_fck_ops);
 
+DEFINE_CLK_FIXED_FACTOR(iva1_ifck_div, "iva1_ifck", &iva1_ifck, 0x0, 1, 2);
+
 static struct clk iva1_mpu_int_ifck;
 
 static const char *iva1_mpu_int_ifck_parent_names[] = {
-	"iva1_ifck",
-};
-
-static const struct clk_ops iva1_mpu_int_ifck_ops = {
-	.init		= &omap2_init_clk_clkdm,
-	.enable		= &omap2_dflt_clk_enable,
-	.disable	= &omap2_dflt_clk_disable,
-	.is_enabled	= &omap2_dflt_clk_is_enabled,
-	.recalc_rate	= &omap_fixed_divisor_recalc,
+	"iva1_ifck_div",
 };
 
 static struct clk_hw_omap iva1_mpu_int_ifck_hw = {
@@ -1047,11 +1041,10 @@ static struct clk_hw_omap iva1_mpu_int_ifck_hw = {
 	.enable_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP2420_EN_IVA_MPU_SHIFT,
 	.clkdm_name	= "iva1_clkdm",
-	.fixed_div	= 2,
 };
 
 DEFINE_STRUCT_CLK(iva1_mpu_int_ifck, iva1_mpu_int_ifck_parent_names,
-		  iva1_mpu_int_ifck_ops);
+		  aes_ick_ops);
 
 static struct clk mailboxes_ick;
 
