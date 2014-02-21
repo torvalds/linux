@@ -310,13 +310,13 @@ static void intel_uncore_forcewake_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev))
 		vlv_force_wake_reset(dev_priv);
-	} else if (INTEL_INFO(dev)->gen >= 6) {
+	else if (IS_GEN6(dev) || IS_GEN7(dev))
 		__gen6_gt_force_wake_reset(dev_priv);
-		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
-			__gen6_gt_force_wake_mt_reset(dev_priv);
-	}
+
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_GEN8(dev))
+		__gen6_gt_force_wake_mt_reset(dev_priv);
 }
 
 void intel_uncore_early_sanitize(struct drm_device *dev)
