@@ -293,7 +293,7 @@ static int __ccdc_lsc_enable(struct isp_ccdc_device *ccdc, int enable)
 			isp_reg_clr(isp, OMAP3_ISP_IOMEM_CCDC,
 				    ISPCCDC_LSC_CONFIG, ISPCCDC_LSC_ENABLE);
 			ccdc->lsc.state = LSC_STATE_STOPPED;
-			dev_warn(to_device(ccdc), "LSC prefecth timeout\n");
+			dev_warn(to_device(ccdc), "LSC prefetch timeout\n");
 			return -ETIMEDOUT;
 		}
 		ccdc->lsc.state = LSC_STATE_RUNNING;

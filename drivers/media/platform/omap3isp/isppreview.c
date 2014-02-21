@@ -122,7 +122,7 @@ static struct omap3isp_prev_csc flr_prev_csc = {
 #define PREV_MAX_OUT_WIDTH_REV_15	4096
 
 /*
- * Coeficient Tables for the submodules in Preview.
+ * Coefficient Tables for the submodules in Preview.
  * Array is initialised with the values from.the tables text file.
  */
 
@@ -1372,7 +1372,7 @@ static void preview_init_params(struct isp_prev_device *prev)
 }
 
 /*
- * preview_max_out_width - Handle previewer hardware ouput limitations
+ * preview_max_out_width - Handle previewer hardware output limitations
  * @isp_revision : ISP revision
  * returns maximum width output for current isp revision
  */

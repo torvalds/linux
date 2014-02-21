@@ -597,7 +597,7 @@ static int isp_video_buffer_wait(struct isp_video_buffer *buf, int nonblocking)
  * isp_video_queue_free - Free video buffers memory
  *
  * Buffers can only be freed if the queue isn't streaming and if no buffer is
- * mapped to userspace. Return -EBUSY if those conditions aren't statisfied.
+ * mapped to userspace. Return -EBUSY if those conditions aren't satisfied.
  *
  * This function must be called with the queue lock held.
  */

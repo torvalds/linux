@@ -391,7 +391,7 @@ static void isp_disable_interrupts(struct isp_device *isp)
  * @isp: OMAP3 ISP device
  * @idle: Consider idle state.
  *
- * Set the power settings for the ISP and SBL bus and cConfigure the HS/VS
+ * Set the power settings for the ISP and SBL bus and configure the HS/VS
  * interrupt source.
  *
  * We need to configure the HS/VS interrupt source before interrupts get
