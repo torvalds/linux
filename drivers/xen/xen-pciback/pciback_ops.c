@@ -213,8 +213,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 		entries[i].vector = op->msix_entries[i].vector;
 	}
 
-	result = pci_enable_msix(dev, entries, op->value);
-
+	result = pci_enable_msix_exact(dev, entries, op->value);
 	if (result == 0) {
 		for (i = 0; i < op->value; i++) {
 			op->msix_entries[i].entry = entries[i].entry;
