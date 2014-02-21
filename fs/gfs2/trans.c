@@ -98,7 +98,7 @@ static void gfs2_print_trans(const struct gfs2_trans *tr)
 {
 	printk(KERN_WARNING "GFS2: Transaction created at: %pSR\n",
 	       (void *)tr->tr_ip);
-	printk(KERN_WARNING "GFS2: blocks=%u revokes=%u reserved=%u touched=%d\n",
+	printk(KERN_WARNING "GFS2: blocks=%u revokes=%u reserved=%u touched=%u\n",
 	       tr->tr_blocks, tr->tr_revokes, tr->tr_reserved, tr->tr_touched);
 	printk(KERN_WARNING "GFS2: Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
 	       tr->tr_num_buf_new, tr->tr_num_buf_rm,

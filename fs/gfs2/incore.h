@@ -462,11 +462,11 @@ struct gfs2_trans {
 	unsigned int tr_blocks;
 	unsigned int tr_revokes;
 	unsigned int tr_reserved;
+	unsigned int tr_touched:1;
+	unsigned int tr_attached:1;
 
 	struct gfs2_holder tr_t_gh;
 
-	int tr_touched;
-	int tr_attached;
 
 	unsigned int tr_num_buf_new;
 	unsigned int tr_num_databuf_new;
