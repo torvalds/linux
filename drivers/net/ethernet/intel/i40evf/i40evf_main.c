@@ -2025,9 +2025,6 @@ static void i40evf_init_task(struct work_struct *work)
 
 	adapter->flags |= I40EVF_FLAG_RX_CSUM_ENABLED;
 
-	adapter->txd_count = I40EVF_DEFAULT_TXD;
-	adapter->rxd_count = I40EVF_DEFAULT_RXD;
-
 	netdev->netdev_ops = &i40evf_netdev_ops;
 	i40evf_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;

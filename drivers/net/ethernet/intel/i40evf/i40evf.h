@@ -196,8 +196,6 @@ struct i40evf_adapter {
 
 	/* RX */
 	struct i40e_ring *rx_rings[I40E_MAX_VSI_QP];
-	int txd_count;
-	int rxd_count;
 	u64 hw_csum_rx_error;
 	int num_msix_vectors;
 	struct msix_entry *msix_entries;
