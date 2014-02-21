@@ -29,7 +29,7 @@ Required properties:
 - #size-cells      : Must be <0>
 
 Optional properties:
-- clocks:           : Must contain a reference to the functional clock.
+- clocks           : Must contain a reference to the functional clock.
 
 Pinctrl properties might be needed, too.  See
 Documentation/devicetree/bindings/pinctrl/renesas,*.
