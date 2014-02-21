@@ -350,6 +350,9 @@ struct jedec_ecc_info {
 	u8 reserved[2];
 } __packed;
 
+/* JEDEC features */
+#define JEDEC_FEATURE_16_BIT_BUS	(1 << 0)
+
 struct nand_jedec_params {
 	/* rev info and features block */
 	/* 'J' 'E' 'S' 'D'  */
@@ -925,4 +928,10 @@ static inline int nand_opcode_8bits(unsigned int command)
 	return command == NAND_CMD_READID;
 }
 
+/* return the supported JEDEC features. */
+static inline int jedec_feature(struct nand_chip *chip)
+{
+	return chip->jedec_version ? le16_to_cpu(chip->jedec_params.features)
+		: 0;
+}
 #endif /* __LINUX_MTD_NAND_H */
