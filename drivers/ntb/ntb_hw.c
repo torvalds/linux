@@ -1086,19 +1086,12 @@ static int ntb_setup_msix(struct ntb_device *ndev)
 	struct msix_entry *msix;
 	int msix_entries;
 	int rc, i;
-	u16 val;
 
-	if (!pdev->msix_cap) {
-		rc = -EIO;
+	msix_entries = pci_msix_vec_count(pdev);
+	if (msix_entries < 0) {
+		rc = msix_entries;
 		goto err;
-	}
-
-	rc = pci_read_config_word(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, &val);
-	if (rc)
-		goto err;
-
-	msix_entries = msix_table_size(val);
-	if (msix_entries > ndev->limits.msix_cnt) {
+	} else if (msix_entries > ndev->limits.msix_cnt) {
 		rc = -EINVAL;
 		goto err;
 	}
