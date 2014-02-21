@@ -33,6 +33,71 @@
 #include <linux/debugfs.h>
 
 /*
+ * Error-checking SWP macros implemented using ldrex{b}/strex{b}
+ */
+
+static int swpb(u8 in, u8 *out, u8 *addr)
+{
+	u8 _out;
+	int res;
+	int err = 0;
+
+	do {
+		__asm__ __volatile__(
+		"0:	ldxrb	%w1, %4\n"
+		"1:	stxrb	%w0, %w3, %4\n"
+		"2:\n"
+		"	.section	 .fixup,\"ax\"\n"
+		"	.align		2\n"
+		"3:	mov	%w2, %5\n"
+		"	b	2b\n"
+		"	.previous\n"
+		"	.section	 __ex_table,\"a\"\n"
+		"	.align		3\n"
+		"	.quad		0b, 3b\n"
+		"	.quad		1b, 3b\n"
+		"	.previous"
+		: "=&r" (res), "=r" (_out), "=r" (err)
+		: "r" (in), "Q" (addr), "i" (-EFAULT)
+		: "cc", "memory");
+	} while (err == 0 && res != 0);
+
+	if (err == 0)
+		*out = _out;
+	return err;
+}
+
+static int swp(u32 in, u32 *out, u32 *addr)
+{
+	u32 _out;
+	int res;
+	int err = 0;
+
+	do {
+		__asm__ __volatile__(
+		"0:	ldxr	%w1, %4\n"
+		"1:	stxr	%w0, %w3, %4\n"
+		"2:\n"
+		"	.section	 .fixup,\"ax\"\n"
+		"	.align		2\n"
+		"3:	mov	%w2, %5\n"
+		"	b	2b\n"
+		"	.previous\n"
+		"	.section	 __ex_table,\"a\"\n"
+		"	.align		3\n"
+		"	.quad		0b, 3b\n"
+		"	.quad		1b, 3b\n"
+		"	.previous"
+		: "=&r" (res), "=r" (_out), "=r" (err)
+		: "r" (in), "Q" (addr), "i" (-EFAULT)
+		: "cc", "memory");
+	} while (err == 0 && res != 0);
+
+	if (err == 0)
+		*out = _out;
+	return err;
+}
+/*
  * Macros/defines for extracting register numbers from instruction.
  */
 #define EXTRACT_REG_NUM(instruction, offset) \
@@ -61,6 +126,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 	u32 destreg, data, type;
 	uintptr_t address;
 	unsigned int res = 0;
+	int err;
 	u32 temp32;
 	u8 temp8;
 
@@ -100,9 +166,9 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 		res = -EFAULT;
 	}
 	if (type == TYPE_SWPB) {
-		do {
-			temp8 = ldax8((u8 *) address);
-		} while (stlx8((u8 *) address, (u8) data));
+		err = swpb((u8) data, &temp8, (u8 *) address);
+		if (err)
+			return err;
 		regs->regs[destreg] = temp8;
 		regs->pc += 4;
 		swpb_count++;
@@ -111,9 +177,9 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 		pr_debug("SWP instruction on unaligned pointer!\n");
 		return -EFAULT;
 	} else {
-		do {
-			temp32 = ldax32((u32 *) address);
-		} while (stlx32((u32 *) address, (u32) data));
+		err = swp((u32) data, &temp32, (u32 *) address);
+		if (err)
+			return err;
 		regs->regs[destreg] = temp32;
 		regs->pc += 4;
 		swp_count++;
