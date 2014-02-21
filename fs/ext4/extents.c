@@ -1691,7 +1691,7 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 * the extent that was written properly split out and conversion to
 	 * initialized is trivial.
 	 */
-	if (ext4_ext_is_uninitialized(ex1) || ext4_ext_is_uninitialized(ex2))
+	if (ext4_ext_is_uninitialized(ex1) != ext4_ext_is_uninitialized(ex2))
 		return 0;
 
 	ext1_ee_len = ext4_ext_get_actual_len(ex1);
@@ -1707,6 +1707,11 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 * this can result in the top bit of ee_len being set.
 	 */
 	if (ext1_ee_len + ext2_ee_len > EXT_INIT_MAX_LEN)
+		return 0;
+	if (ext4_ext_is_uninitialized(ex1) &&
+	    (ext4_test_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN) ||
+	     atomic_read(&EXT4_I(inode)->i_unwritten) ||
+	     (ext1_ee_len + ext2_ee_len > EXT_UNINIT_MAX_LEN)))
 		return 0;
 #ifdef AGGRESSIVE_TEST
 	if (ext1_ee_len >= 4)
@@ -1731,7 +1736,7 @@ static int ext4_ext_try_to_merge_right(struct inode *inode,
 {
 	struct ext4_extent_header *eh;
 	unsigned int depth, len;
-	int merge_done = 0;
+	int merge_done = 0, uninit;
 
 	depth = ext_depth(inode);
 	BUG_ON(path[depth].p_hdr == NULL);
@@ -1741,8 +1746,11 @@ static int ext4_ext_try_to_merge_right(struct inode *inode,
 		if (!ext4_can_extents_be_merged(inode, ex, ex + 1))
 			break;
 		/* merge with next extent! */
+		uninit = ext4_ext_is_uninitialized(ex);
 		ex->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ex)
 				+ ext4_ext_get_actual_len(ex + 1));
+		if (uninit)
+			ext4_ext_mark_uninitialized(ex);
 
 		if (ex + 1 < EXT_LAST_EXTENT(eh)) {
 			len = (EXT_LAST_EXTENT(eh) - ex - 1)
@@ -1896,7 +1904,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	struct ext4_ext_path *npath = NULL;
 	int depth, len, err;
 	ext4_lblk_t next;
-	int mb_flags = 0;
+	int mb_flags = 0, uninit;
 
 	if (unlikely(ext4_ext_get_actual_len(newext) == 0)) {
 		EXT4_ERROR_INODE(inode, "ext4_ext_get_actual_len(newext) == 0");
@@ -1946,9 +1954,11 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 						  path + depth);
 			if (err)
 				return err;
-
+			uninit = ext4_ext_is_uninitialized(ex);
 			ex->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ex)
 					+ ext4_ext_get_actual_len(newext));
+			if (uninit)
+				ext4_ext_mark_uninitialized(ex);
 			eh = path[depth].p_hdr;
 			nearex = ex;
 			goto merge;
@@ -1971,10 +1981,13 @@ prepend:
 			if (err)
 				return err;
 
+			uninit = ext4_ext_is_uninitialized(ex);
 			ex->ee_block = newext->ee_block;
 			ext4_ext_store_pblock(ex, ext4_ext_pblock(newext));
 			ex->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ex)
 					+ ext4_ext_get_actual_len(newext));
+			if (uninit)
+				ext4_ext_mark_uninitialized(ex);
 			eh = path[depth].p_hdr;
 			nearex = ex;
 			goto merge;
