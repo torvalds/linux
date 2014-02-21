@@ -211,7 +211,7 @@ static void ccp2_mem_enable(struct isp_ccp2_device *ccp2, u8 enable)
 /*
  * ccp2_phyif_config - Initialize CCP2 phy interface config
  * @ccp2: Pointer to ISP CCP2 device
- * @config: CCP2 platform data
+ * @pdata: CCP2 platform data
  *
  * Configure the CCP2 physical interface module from platform data.
  *

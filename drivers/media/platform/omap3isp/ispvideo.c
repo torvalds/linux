@@ -333,7 +333,7 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 
 /*
  * ispmmu_vmap - Wrapper for Virtual memory mapping of a scatter gather list
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @sglist: Pointer to source Scatter gather list to allocate.
  * @sglen: Number of elements of the scatter-gatter list.
  *
@@ -363,7 +363,7 @@ ispmmu_vmap(struct isp_device *isp, const struct scatterlist *sglist, int sglen)
 
 /*
  * ispmmu_vunmap - Unmap a device address from the ISP MMU
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @da: Device address generated from a ispmmu_vmap call.
  */
 static void ispmmu_vunmap(struct isp_device *isp, dma_addr_t da)

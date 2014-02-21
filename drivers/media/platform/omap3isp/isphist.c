@@ -299,7 +299,7 @@ static u32 hist_get_buf_size(struct omap3isp_hist_config *conf)
 
 /*
  * hist_validate_params - Helper function to check user given params.
- * @user_cfg: Pointer to user configuration structure.
+ * @new_conf: Pointer to user configuration structure.
  *
  * Returns 0 on success configuration.
  */

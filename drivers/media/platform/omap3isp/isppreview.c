@@ -971,7 +971,8 @@ static void preview_setup_hw(struct isp_prev_device *prev, u32 update,
 
 /*
  * preview_config_ycpos - Configure byte layout of YUV image.
- * @mode: Indicates the required byte layout.
+ * @prev: pointer to previewer private structure
+ * @pixelcode: pixel code
  */
 static void
 preview_config_ycpos(struct isp_prev_device *prev,
@@ -1373,7 +1374,7 @@ static void preview_init_params(struct isp_prev_device *prev)
 
 /*
  * preview_max_out_width - Handle previewer hardware output limitations
- * @isp_revision : ISP revision
+ * @prev: pointer to previewer private structure
  * returns maximum width output for current isp revision
  */
 static unsigned int preview_max_out_width(struct isp_prev_device *prev)
@@ -1619,7 +1620,7 @@ static const struct v4l2_ctrl_ops preview_ctrl_ops = {
 
 /*
  * preview_ioctl - Handle preview module private ioctl's
- * @prev: pointer to preview context structure
+ * @sd: pointer to v4l2 subdev structure
  * @cmd: configuration command
  * @arg: configuration argument
  * return -EINVAL or zero on success
@@ -2350,7 +2351,7 @@ error_video_in:
 
 /*
  * omap3isp_preview_init - Previewer initialization.
- * @dev : Pointer to ISP device
+ * @isp : Pointer to ISP device
  * return -ENOMEM or zero on success
  */
 int omap3isp_preview_init(struct isp_device *isp)

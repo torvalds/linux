@@ -674,7 +674,7 @@ static void ccdc_config_imgattr(struct isp_ccdc_device *ccdc, u32 colptn)
 /*
  * ccdc_config - Set CCDC configuration from userspace
  * @ccdc: Pointer to ISP CCDC device.
- * @userspace_add: Structure containing CCDC configuration sent from userspace.
+ * @ccdc_struct: Structure containing CCDC configuration sent from userspace.
  *
  * Returns 0 if successful, -EINVAL if the pointer to the configuration
  * structure is null, or the copy_from_user function fails to copy user space
@@ -793,7 +793,7 @@ static void ccdc_apply_controls(struct isp_ccdc_device *ccdc)
 
 /*
  * omap3isp_ccdc_restore_context - Restore values of the CCDC module registers
- * @dev: Pointer to ISP device
+ * @isp: Pointer to ISP device
  */
 void omap3isp_ccdc_restore_context(struct isp_device *isp)
 {
@@ -2525,7 +2525,7 @@ error_video:
 
 /*
  * omap3isp_ccdc_init - CCDC module initialization.
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  *
  * TODO: Get the initialisation values from platform data.
  *
@@ -2564,7 +2564,7 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 
 /*
  * omap3isp_ccdc_cleanup - CCDC module cleanup.
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  */
 void omap3isp_ccdc_cleanup(struct isp_device *isp)
 {
