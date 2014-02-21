@@ -287,11 +287,11 @@ TRACE_EVENT(writeback_queue_io,
 		__field(int,		reason)
 	),
 	TP_fast_assign(
-		unsigned long older_than_this = work->older_than_this;
+		unsigned long *older_than_this = work->older_than_this;
 		strncpy(__entry->name, dev_name(wb->bdi->dev), 32);
-		__entry->older	= older_than_this;
+		__entry->older	= older_than_this ?  *older_than_this : 0;
 		__entry->age	= older_than_this ?
-				  (jiffies - older_than_this) * 1000 / HZ : -1;
+				  (jiffies - *older_than_this) * 1000 / HZ : -1;
 		__entry->moved	= moved;
 		__entry->reason	= work->reason;
 	),
