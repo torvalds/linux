@@ -2255,14 +2255,13 @@ static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
 		return true;
 
 	if (elapsed <= DRM_I915_CTX_BAN_PERIOD) {
-		if (dev_priv->gpu_error.stop_rings == 0 &&
-		    i915_gem_context_is_default(ctx)) {
-			DRM_ERROR("gpu hanging too fast, banning!\n");
-		} else {
+		if (!i915_gem_context_is_default(ctx)) {
 			DRM_DEBUG("context hanging too fast, banning!\n");
+			return true;
+		} else if (dev_priv->gpu_error.stop_rings == 0) {
+			DRM_ERROR("gpu hanging too fast, banning!\n");
+			return true;
 		}
-
-		return true;
 	}
 
 	return false;
