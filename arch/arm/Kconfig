@@ -936,8 +936,6 @@ source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-bcm/Kconfig"
 
-source "arch/arm/mach-bcm2835/Kconfig"
-
 source "arch/arm/mach-berlin/Kconfig"
 
 source "arch/arm/mach-clps711x/Kconfig"
