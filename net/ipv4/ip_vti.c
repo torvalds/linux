@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/if_ether.h>
+#include <linux/icmpv6.h>
 
 #include <net/sock.h>
 #include <net/ip.h>
@@ -122,23 +123,13 @@ static int vti_rcv_cb(struct sk_buff *skb, int err)
 	return 0;
 }
 
-/* This function assumes it is being called from dev_queue_xmit()
- * and that skb is filled properly by that function.
- */
-static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t vti_xmit(struct sk_buff *skb, struct net_device *dev,
+			    struct flowi *fl)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *tdev;	/* Device to other host */
-	struct flowi fl;
 	int err;
-
-	if (skb->protocol != htons(ETH_P_IP))
-		goto tx_error;
-
-	memset(&fl, 0, sizeof(fl));
-	skb->mark = be32_to_cpu(tunnel->parms.o_key);
-	xfrm_decode_session(skb, &fl, AF_INET);
 
 	if (!dst) {
 		dev->stats.tx_carrier_errors++;
@@ -146,7 +137,7 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	dst_hold(dst);
-	dst = xfrm_lookup(tunnel->net, dst, &fl, NULL, 0);
+	dst = xfrm_lookup(tunnel->net, dst, fl, NULL, 0);
 	if (IS_ERR(dst)) {
 		dev->stats.tx_carrier_errors++;
 		goto tx_error_icmp;
@@ -178,7 +169,6 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			tunnel->err_count = 0;
 	}
 
-	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(dev)));
 	skb_dst_set(skb, dst);
 	skb->dev = skb_dst(skb)->dev;
@@ -195,6 +185,36 @@ tx_error:
 	dev->stats.tx_errors++;
 	kfree_skb(skb);
 	return NETDEV_TX_OK;
+}
+
+/* This function assumes it is being called from dev_queue_xmit()
+ * and that skb is filled properly by that function.
+ */
+static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+	struct flowi fl;
+
+	memset(&fl, 0, sizeof(fl));
+
+	skb->mark = be32_to_cpu(tunnel->parms.o_key);
+
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		xfrm_decode_session(skb, &fl, AF_INET);
+		memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
+		break;
+	case htons(ETH_P_IPV6):
+		xfrm_decode_session(skb, &fl, AF_INET6);
+		memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
+		break;
+	default:
+		dev->stats.tx_errors++;
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	return vti_xmit(skb, dev, &fl);
 }
 
 static int vti4_err(struct sk_buff *skb, u32 info)
