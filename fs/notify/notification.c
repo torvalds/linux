@@ -132,7 +132,11 @@ struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group *group
 
 	event = list_first_entry(&group->notification_list,
 				 struct fsnotify_event, list);
-	list_del(&event->list);
+	/*
+	 * We need to init list head for the case of overflow event so that
+	 * check in fsnotify_add_notify_events() works
+	 */
+	list_del_init(&event->list);
 	group->q_len--;
 
 	return event;
