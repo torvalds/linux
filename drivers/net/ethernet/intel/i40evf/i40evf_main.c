@@ -215,6 +215,9 @@ static void i40evf_irq_disable(struct i40evf_adapter *adapter)
 	int i;
 	struct i40e_hw *hw = &adapter->hw;
 
+	if (!adapter->msix_entries)
+		return;
+
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
 		wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1), 0);
 		synchronize_irq(adapter->msix_entries[i].vector);
@@ -2372,16 +2375,14 @@ static void i40evf_remove(struct pci_dev *pdev)
 	}
 	adapter->state = __I40EVF_REMOVE;
 
-	if (adapter->num_msix_vectors) {
+	if (adapter->msix_entries) {
 		i40evf_misc_irq_disable(adapter);
-		del_timer_sync(&adapter->watchdog_timer);
-
-		flush_scheduled_work();
-
 		i40evf_free_misc_irq(adapter);
-
 		i40evf_reset_interrupt_capability(adapter);
 	}
+
+	del_timer_sync(&adapter->watchdog_timer);
+	flush_scheduled_work();
 
 	if (hw->aq.asq.count)
 		i40evf_shutdown_adminq(hw);
