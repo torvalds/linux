@@ -71,6 +71,17 @@ void acpi_unlock_hp_context(void)
 	mutex_unlock(&acpi_hp_context_lock);
 }
 
+void acpi_initialize_hp_context(struct acpi_device *adev,
+				struct acpi_hotplug_context *hp,
+				int (*notify)(struct acpi_device *, u32),
+				void (*uevent)(struct acpi_device *, u32))
+{
+	acpi_lock_hp_context();
+	acpi_set_hp_context(adev, hp, notify, uevent, NULL);
+	acpi_unlock_hp_context();
+}
+EXPORT_SYMBOL_GPL(acpi_initialize_hp_context);
+
 int acpi_scan_add_handler(struct acpi_scan_handler *handler)
 {
 	if (!handler || !handler->attach)
