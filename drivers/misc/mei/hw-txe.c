@@ -18,6 +18,7 @@
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/irqreturn.h>
 
 #include <linux/mei.h>
 

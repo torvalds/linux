@@ -17,6 +17,8 @@
 #ifndef _MEI_HW_TXE_H_
 #define _MEI_HW_TXE_H_
 
+#include <linux/irqreturn.h>
+
 #include "hw.h"
 #include "hw-txe-regs.h"
 
