@@ -293,7 +293,7 @@ static int block_module_prepare(struct sst_module *module)
 	/* enable each block so that's it'e ready for module P/S data */
 	list_for_each_entry(block, &module->block_list, module_list) {
 
-		if (block->ops && block->ops->enable)
+		if (block->ops && block->ops->enable) {
 			ret = block->ops->enable(block);
 			if (ret < 0) {
 				dev_err(module->dsp->dev,
@@ -301,6 +301,7 @@ static int block_module_prepare(struct sst_module *module)
 					block->type, block->index);
 				goto err;
 			}
+		}
 	}
 	return ret;
 
