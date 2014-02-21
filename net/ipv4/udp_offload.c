@@ -17,6 +17,8 @@
 static DEFINE_SPINLOCK(udp_offload_lock);
 static struct udp_offload_priv __rcu *udp_offload_base __read_mostly;
 
+#define udp_deref_protected(X) rcu_dereference_protected(X, lockdep_is_held(&udp_offload_lock))
+
 struct udp_offload_priv {
 	struct udp_offload	*offload;
 	struct rcu_head		rcu;
@@ -100,8 +102,7 @@ out:
 
 int udp_add_offload(struct udp_offload *uo)
 {
-	struct udp_offload_priv __rcu **head = &udp_offload_base;
-	struct udp_offload_priv *new_offload = kzalloc(sizeof(*new_offload), GFP_KERNEL);
+	struct udp_offload_priv *new_offload = kzalloc(sizeof(*new_offload), GFP_ATOMIC);
 
 	if (!new_offload)
 		return -ENOMEM;
@@ -109,8 +110,8 @@ int udp_add_offload(struct udp_offload *uo)
 	new_offload->offload = uo;
 
 	spin_lock(&udp_offload_lock);
-	rcu_assign_pointer(new_offload->next, rcu_dereference(*head));
-	rcu_assign_pointer(*head, new_offload);
+	new_offload->next = udp_offload_base;
+	rcu_assign_pointer(udp_offload_base, new_offload);
 	spin_unlock(&udp_offload_lock);
 
 	return 0;
@@ -130,12 +131,12 @@ void udp_del_offload(struct udp_offload *uo)
 
 	spin_lock(&udp_offload_lock);
 
-	uo_priv = rcu_dereference(*head);
+	uo_priv = udp_deref_protected(*head);
 	for (; uo_priv != NULL;
-		uo_priv = rcu_dereference(*head)) {
-
+	     uo_priv = udp_deref_protected(*head)) {
 		if (uo_priv->offload == uo) {
-			rcu_assign_pointer(*head, rcu_dereference(uo_priv->next));
+			rcu_assign_pointer(*head,
+					   udp_deref_protected(uo_priv->next));
 			goto unlock;
 		}
 		head = &uo_priv->next;

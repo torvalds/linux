@@ -726,9 +726,6 @@ static int vxge_learn_mac(struct vxgedev *vdev, u8 *mac_header)
 	int vpath_idx = 0;
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct vxge_vpath *vpath = NULL;
-	struct __vxge_hw_device *hldev;
-
-	hldev = pci_get_drvdata(vdev->pdev);
 
 	mac_address = (u8 *)&mac_addr;
 	memcpy(mac_address, mac_header, ETH_ALEN);
@@ -2443,9 +2440,6 @@ static void vxge_rem_msix_isr(struct vxgedev *vdev)
 
 static void vxge_rem_isr(struct vxgedev *vdev)
 {
-	struct __vxge_hw_device *hldev;
-	hldev = pci_get_drvdata(vdev->pdev);
-
 #ifdef CONFIG_PCI_MSI
 	if (vdev->config.intr_type == MSI_X) {
 		vxge_rem_msix_isr(vdev);
