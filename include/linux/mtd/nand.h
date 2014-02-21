@@ -590,7 +590,11 @@ struct nand_buffers {
  * @subpagesize:	[INTERN] holds the subpagesize
  * @onfi_version:	[INTERN] holds the chip ONFI version (BCD encoded),
  *			non 0 if ONFI supported.
+ * @jedec_version:	[INTERN] holds the chip JEDEC version (BCD encoded),
+ *			non 0 if JEDEC supported.
  * @onfi_params:	[INTERN] holds the ONFI page parameter when ONFI is
+ *			supported, 0 otherwise.
+ * @jedec_params:	[INTERN] holds the JEDEC parameter page when JEDEC is
  *			supported, 0 otherwise.
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
@@ -664,7 +668,11 @@ struct nand_chip {
 	int badblockbits;
 
 	int onfi_version;
-	struct nand_onfi_params	onfi_params;
+	int jedec_version;
+	union {
+		struct nand_onfi_params	onfi_params;
+		struct nand_jedec_params jedec_params;
+	};
 
 	int read_retries;
 
