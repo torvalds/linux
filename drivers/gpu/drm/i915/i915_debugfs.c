@@ -2016,7 +2016,7 @@ static int i915_pc8_status(struct seq_file *m, void *unused)
 	mutex_lock(&dev_priv->pc8.lock);
 	seq_printf(m, "Requirements met: %s\n",
 		   yesno(dev_priv->pc8.requirements_met));
-	seq_printf(m, "GPU idle: %s\n", yesno(dev_priv->pc8.gpu_idle));
+	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->mm.busy));
 	seq_printf(m, "Disable count: %d\n", dev_priv->pc8.disable_count);
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(dev_priv->pc8.irqs_disabled));

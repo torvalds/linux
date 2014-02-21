@@ -1321,11 +1321,10 @@ struct ilk_wm_values {
  * Ideally every piece of our code that needs PC8+ disabled would call
  * hsw_disable_package_c8, which would increment disable_count and prevent the
  * system from reaching PC8+. But we don't have a symmetric way to do this for
- * everything, so we have the requirements_met and gpu_idle variables. When we
- * switch requirements_met or gpu_idle to true we decrease disable_count, and
- * increase it in the opposite case. The requirements_met variable is true when
- * all the CRTCs, encoders and the power well are disabled. The gpu_idle
- * variable is true when the GPU is idle.
+ * everything, so we have the requirements_met variable. When we switch
+ * requirements_met to true we decrease disable_count, and increase it in the
+ * opposite case. The requirements_met variable is true when all the CRTCs,
+ * encoders and the power well are disabled.
  *
  * In addition to everything, we only actually enable PC8+ if disable_count
  * stays at zero for at least some seconds. This is implemented with the
@@ -1348,7 +1347,6 @@ struct ilk_wm_values {
  */
 struct i915_package_c8 {
 	bool requirements_met;
-	bool gpu_idle;
 	bool irqs_disabled;
 	/* Only true after the delayed work task actually enables it. */
 	bool enabled;

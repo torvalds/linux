@@ -6817,32 +6817,6 @@ done:
 	mutex_unlock(&dev_priv->pc8.lock);
 }
 
-static void hsw_package_c8_gpu_idle(struct drm_i915_private *dev_priv)
-{
-	if (!HAS_PC8(dev_priv->dev))
-		return;
-
-	mutex_lock(&dev_priv->pc8.lock);
-	if (!dev_priv->pc8.gpu_idle) {
-		dev_priv->pc8.gpu_idle = true;
-		__hsw_enable_package_c8(dev_priv);
-	}
-	mutex_unlock(&dev_priv->pc8.lock);
-}
-
-static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
-{
-	if (!HAS_PC8(dev_priv->dev))
-		return;
-
-	mutex_lock(&dev_priv->pc8.lock);
-	if (dev_priv->pc8.gpu_idle) {
-		dev_priv->pc8.gpu_idle = false;
-		__hsw_disable_package_c8(dev_priv);
-	}
-	mutex_unlock(&dev_priv->pc8.lock);
-}
-
 #define for_each_power_domain(domain, mask)				\
 	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
 		if ((1 << (domain)) & (mask))
@@ -8200,7 +8174,7 @@ void intel_mark_busy(struct drm_device *dev)
 	if (dev_priv->mm.busy)
 		return;
 
-	hsw_package_c8_gpu_busy(dev_priv);
+	hsw_disable_package_c8(dev_priv);
 	i915_update_gfx_val(dev_priv);
 	dev_priv->mm.busy = true;
 }
@@ -8229,7 +8203,7 @@ void intel_mark_idle(struct drm_device *dev)
 		gen6_rps_idle(dev->dev_private);
 
 out:
-	hsw_package_c8_gpu_idle(dev_priv);
+	hsw_enable_package_c8(dev_priv);
 }
 
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
