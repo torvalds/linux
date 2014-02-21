@@ -128,7 +128,7 @@ static int vti_rcv_cb(struct sk_buff *skb, int err)
 static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct rtable *rt;		/* Route to the other host */
+	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *tdev;	/* Device to other host */
 	struct flowi fl;
 	int err;
@@ -140,14 +140,14 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->mark = be32_to_cpu(tunnel->parms.o_key);
 	xfrm_decode_session(skb, &fl, AF_INET);
 
-	if (!skb_dst(skb)) {
+	if (!dst) {
 		dev->stats.tx_carrier_errors++;
 		goto tx_error_icmp;
 	}
 
-	dst_hold(skb_dst(skb));
-	rt = (struct rtable *)xfrm_lookup(tunnel->net, skb_dst(skb), &fl, NULL, 0);
-	if (IS_ERR(rt)) {
+	dst_hold(dst);
+	dst = xfrm_lookup(tunnel->net, dst, &fl, NULL, 0);
+	if (IS_ERR(dst)) {
 		dev->stats.tx_carrier_errors++;
 		goto tx_error_icmp;
 	}
@@ -155,16 +155,16 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* if there is no transform then this tunnel is not functional.
 	 * Or if the xfrm is not mode tunnel.
 	 */
-	if (!rt->dst.xfrm ||
-	    rt->dst.xfrm->props.mode != XFRM_MODE_TUNNEL) {
+	if (!dst->xfrm ||
+	    dst->xfrm->props.mode != XFRM_MODE_TUNNEL) {
 		dev->stats.tx_carrier_errors++;
-		ip_rt_put(rt);
+		dst_release(dst);
 		goto tx_error_icmp;
 	}
-	tdev = rt->dst.dev;
+	tdev = dst->dev;
 
 	if (tdev == dev) {
-		ip_rt_put(rt);
+		dst_release(dst);
 		dev->stats.collisions++;
 		goto tx_error;
 	}
@@ -180,7 +180,7 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(dev)));
-	skb_dst_set(skb, &rt->dst);
+	skb_dst_set(skb, dst);
 	skb->dev = skb_dst(skb)->dev;
 
 	err = dst_output(skb);
