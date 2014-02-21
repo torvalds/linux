@@ -2194,6 +2194,10 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 
 	/* Write out first; it's useful to apply even if we fail later. */
 	for (i = 0; i < num_regs; i++) {
+		if (regs[i].reg % map->reg_stride) {
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = _regmap_write(map, regs[i].reg, regs[i].def);
 		if (ret != 0) {
 			dev_err(map->dev, "Failed to write %x = %x: %d\n",
