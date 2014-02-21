@@ -1939,14 +1939,14 @@ static void i40evf_init_task(struct work_struct *work)
 		adapter->flags &= ~I40EVF_FLAG_RESET_PENDING;
 		err = i40e_set_mac_type(hw);
 		if (err) {
-			dev_info(&pdev->dev, "%s: set_mac_type failed: %d\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Failed to set MAC type (%d)\n",
+				err);
 		goto err;
 		}
 		err = i40evf_check_reset_complete(hw);
 		if (err) {
-			dev_info(&pdev->dev, "%s: device is still in reset (%d).\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Device is still in reset (%d)\n",
+				err);
 			goto err;
 		}
 		hw->aq.num_arq_entries = I40EVF_AQ_LEN;
@@ -1956,14 +1956,14 @@ static void i40evf_init_task(struct work_struct *work)
 
 		err = i40evf_init_adminq(hw);
 		if (err) {
-			dev_info(&pdev->dev, "%s: init_adminq failed: %d\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Failed to init Admin Queue (%d)\n",
+				err);
 			goto err;
 		}
 		err = i40evf_send_api_ver(adapter);
 		if (err) {
-			dev_info(&pdev->dev, "%s: unable to send to PF (%d)\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Unable to send to PF (%d)\n",
+				err);
 			i40evf_shutdown_adminq(hw);
 			goto err;
 		}
@@ -1977,13 +1977,13 @@ static void i40evf_init_task(struct work_struct *work)
 		/* aq msg sent, awaiting reply */
 		err = i40evf_verify_api_ver(adapter);
 		if (err) {
-			dev_err(&pdev->dev, "Unable to verify API version, error %d\n",
+			dev_err(&pdev->dev, "Unable to verify API version (%d)\n",
 				err);
 			goto err;
 		}
 		err = i40evf_send_vf_config_msg(adapter);
 		if (err) {
-			dev_err(&pdev->dev, "Unable send config request, error %d\n",
+			dev_err(&pdev->dev, "Unable send config request (%d)\n",
 				err);
 			goto err;
 		}
@@ -1997,18 +1997,15 @@ static void i40evf_init_task(struct work_struct *work)
 				(I40E_MAX_VF_VSI *
 				 sizeof(struct i40e_virtchnl_vsi_resource));
 			adapter->vf_res = kzalloc(bufsz, GFP_KERNEL);
-			if (!adapter->vf_res) {
-				dev_err(&pdev->dev, "%s: unable to allocate memory\n",
-					__func__);
+			if (!adapter->vf_res)
 				goto err;
-			}
 		}
 		err = i40evf_get_vf_config(adapter);
 		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
 			goto restart;
 		if (err) {
-			dev_info(&pdev->dev, "%s: unable to get VF config (%d)\n",
-				__func__, err);
+			dev_err(&pdev->dev, "Unable to get VF config (%d)\n",
+				err);
 			goto err_alloc;
 		}
 		adapter->state = __I40EVF_INIT_SW;
@@ -2022,7 +2019,7 @@ static void i40evf_init_task(struct work_struct *work)
 			adapter->vsi_res = &adapter->vf_res->vsi_res[i];
 	}
 	if (!adapter->vsi_res) {
-		dev_info(&pdev->dev, "%s: no LAN VSI found\n", __func__);
+		dev_err(&pdev->dev, "No LAN VSI found\n");
 		goto err_alloc;
 	}
 
@@ -2053,9 +2050,8 @@ static void i40evf_init_task(struct work_struct *work)
 
 	/* The HW MAC address was set and/or determined in sw_init */
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
-		dev_info(&pdev->dev,
-			"Invalid MAC address %pMAC, using random\n",
-			adapter->hw.mac.addr);
+		dev_info(&pdev->dev, "Invalid MAC address %pMAC, using random\n",
+			 adapter->hw.mac.addr);
 		random_ether_addr(adapter->hw.mac.addr);
 	}
 	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
