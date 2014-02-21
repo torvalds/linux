@@ -298,6 +298,8 @@ static void gen6_force_wake_timer(unsigned long arg)
 	if (--dev_priv->uncore.forcewake_count == 0)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 static void intel_uncore_forcewake_reset(struct drm_device *dev)
@@ -392,24 +394,30 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 {
 	unsigned long irqflags;
+	bool delayed = false;
 
 	if (!dev_priv->uncore.funcs.force_wake_put)
 		return;
 
 	/* Redirect to VLV specific routine */
-	if (IS_VALLEYVIEW(dev_priv->dev))
-		return vlv_force_wake_put(dev_priv, fw_engine);
+	if (IS_VALLEYVIEW(dev_priv->dev)) {
+		vlv_force_wake_put(dev_priv, fw_engine);
+		goto out;
+	}
 
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (--dev_priv->uncore.forcewake_count == 0) {
 		dev_priv->uncore.forcewake_count++;
+		delayed = true;
 		mod_timer_pinned(&dev_priv->uncore.force_wake_timer,
 				 jiffies + 1);
 	}
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
-	intel_runtime_pm_put(dev_priv);
+out:
+	if (!delayed)
+		intel_runtime_pm_put(dev_priv);
 }
 
 /* We give fast paths for the really cool registers */
