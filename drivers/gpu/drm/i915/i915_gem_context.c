@@ -746,9 +746,6 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	struct i915_hw_context *ctx;
 	int ret;
 
-	if (!(dev->driver->driver_features & DRIVER_GEM))
-		return -ENODEV;
-
 	if (!HAS_HW_CONTEXTS(dev))
 		return -ENODEV;
 
@@ -774,9 +771,6 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_hw_context *ctx;
 	int ret;
-
-	if (!(dev->driver->driver_features & DRIVER_GEM))
-		return -ENODEV;
 
 	if (args->ctx_id == DEFAULT_CONTEXT_ID)
 		return -ENOENT;
