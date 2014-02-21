@@ -1,7 +1,7 @@
 /*
  * caam - Freescale FSL CAAM support for hw_random
  *
- * Copyright 2011-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2015 Freescale Semiconductor, Inc.
  *
  * Based on caamalg.c crypto API driver.
  *
@@ -111,6 +111,10 @@ static void rng_done(struct device *jrdev, u32 *desc, u32 err, void *context)
 
 	atomic_set(&bd->empty, BUF_NOT_EMPTY);
 	complete(&bd->filled);
+
+	/* Buffer refilled, invalidate cache */
+	dma_sync_single_for_cpu(jrdev, bd->addr, RN_BUF_SIZE, DMA_FROM_DEVICE);
+
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "rng refreshed buf@: ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, bd->buf, RN_BUF_SIZE, 1);
