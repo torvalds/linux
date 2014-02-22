@@ -75,13 +75,10 @@ static int report__config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
-static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_location *al,
-				      struct perf_sample *sample, struct perf_evsel *evsel,
-				      union perf_event *event)
+static int report__add_mem_hist_entry(struct report *rep, struct addr_location *al,
+				      struct perf_sample *sample, struct perf_evsel *evsel)
 {
-	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct hist_entry *he;
 	struct mem_info *mi, *mx;
 	uint64_t cost;
@@ -90,7 +87,7 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	if (err)
 		return err;
 
-	mi = machine__resolve_mem(al->machine, al->thread, sample, cpumode);
+	mi = sample__resolve_mem(sample, al);
 	if (!mi)
 		return -ENOMEM;
 
@@ -129,10 +126,9 @@ out:
 	return err;
 }
 
-static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_location *al,
+static int report__add_branch_hist_entry(struct report *rep, struct addr_location *al,
 					 struct perf_sample *sample, struct perf_evsel *evsel)
 {
-	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	unsigned i;
 	struct hist_entry *he;
@@ -142,8 +138,7 @@ static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_loc
 	if (err)
 		return err;
 
-	bi = machine__resolve_bstack(al->machine, al->thread,
-				     sample->branch_stack);
+	bi = sample__resolve_bstack(sample, al);
 	if (!bi)
 		return -ENOMEM;
 
@@ -184,10 +179,9 @@ out:
 	return err;
 }
 
-static int report__add_hist_entry(struct perf_tool *tool, struct perf_evsel *evsel,
+static int report__add_hist_entry(struct report *rep, struct perf_evsel *evsel,
 				  struct addr_location *al, struct perf_sample *sample)
 {
-	struct report *rep = container_of(tool, struct report, tool);
 	struct symbol *parent = NULL;
 	struct hist_entry *he;
 	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
@@ -236,18 +230,18 @@ static int process_sample_event(struct perf_tool *tool,
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
-		ret = report__add_branch_hist_entry(tool, &al, sample, evsel);
+		ret = report__add_branch_hist_entry(rep, &al, sample, evsel);
 		if (ret < 0)
 			pr_debug("problem adding lbr entry, skipping event\n");
 	} else if (rep->mem_mode == 1) {
-		ret = report__add_mem_hist_entry(tool, &al, sample, evsel, event);
+		ret = report__add_mem_hist_entry(rep, &al, sample, evsel);
 		if (ret < 0)
 			pr_debug("problem adding mem entry, skipping event\n");
 	} else {
 		if (al.map != NULL)
 			al.map->dso->hit = 1;
 
-		ret = report__add_hist_entry(tool, evsel, &al, sample);
+		ret = report__add_hist_entry(rep, evsel, &al, sample);
 		if (ret < 0)
 			pr_debug("problem incrementing symbol period, skipping event\n");
 	}

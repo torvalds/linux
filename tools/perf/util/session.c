@@ -702,11 +702,12 @@ static void regs_dump__printf(u64 mask, u64 *regs)
 	}
 }
 
-static void regs_user__printf(struct perf_sample *sample, u64 mask)
+static void regs_user__printf(struct perf_sample *sample)
 {
 	struct regs_dump *user_regs = &sample->user_regs;
 
 	if (user_regs->regs) {
+		u64 mask = user_regs->mask;
 		printf("... user regs: mask 0x%" PRIx64 "\n", mask);
 		regs_dump__printf(mask, user_regs->regs);
 	}
@@ -806,7 +807,7 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 		branch_stack__printf(sample);
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)
-		regs_user__printf(sample, evsel->attr.sample_regs_user);
+		regs_user__printf(sample);
 
 	if (sample_type & PERF_SAMPLE_STACK_USER)
 		stack_user__printf(&sample->user_stack);
@@ -1008,6 +1009,12 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 		if (err == 0)
 			perf_session__set_id_hdr_size(session);
 		return err;
+	case PERF_RECORD_HEADER_EVENT_TYPE:
+		/*
+		 * Depreceated, but we need to handle it for sake
+		 * of old data files create in pipe mode.
+		 */
+		return 0;
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
 		lseek(fd, file_offset, SEEK_SET);

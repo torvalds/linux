@@ -6,6 +6,7 @@ tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
 tools/include/asm/bug.h
 tools/include/linux/compiler.h
+tools/include/linux/hash.h
 include/linux/const.h
 include/linux/perf_event.h
 include/linux/rbtree.h

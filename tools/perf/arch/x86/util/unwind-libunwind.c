@@ -5,7 +5,7 @@
 #include "../../util/unwind.h"
 
 #ifdef HAVE_ARCH_X86_64_SUPPORT
-int unwind__arch_reg_id(int regnum)
+int libunwind__arch_reg_id(int regnum)
 {
 	int id;
 
@@ -69,7 +69,7 @@ int unwind__arch_reg_id(int regnum)
 	return id;
 }
 #else
-int unwind__arch_reg_id(int regnum)
+int libunwind__arch_reg_id(int regnum)
 {
 	int id;
 
