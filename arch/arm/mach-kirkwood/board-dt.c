@@ -21,10 +21,96 @@
 #include <linux/irqchip.h>
 #include <linux/kexec.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
 #include <plat/common.h>
-#include "common.h"
+#include <plat/cache-feroceon-l2.h>
+#include <plat/pcie.h>
 #include "pm.h"
+
+static struct map_desc kirkwood_io_desc[] __initdata = {
+	{
+		.virtual	= (unsigned long) KIRKWOOD_REGS_VIRT_BASE,
+		.pfn		= __phys_to_pfn(KIRKWOOD_REGS_PHYS_BASE),
+		.length		= KIRKWOOD_REGS_SIZE,
+		.type		= MT_DEVICE,
+	},
+};
+
+static void __init kirkwood_map_io(void)
+{
+	iotable_init(kirkwood_io_desc, ARRAY_SIZE(kirkwood_io_desc));
+}
+
+static void __init kirkwood_l2_init(void)
+{
+#ifdef CONFIG_CACHE_FEROCEON_L2
+#ifdef CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH
+	writel(readl(L2_CONFIG_REG) | L2_WRITETHROUGH, L2_CONFIG_REG);
+	feroceon_l2_init(1);
+#else
+	writel(readl(L2_CONFIG_REG) & ~L2_WRITETHROUGH, L2_CONFIG_REG);
+	feroceon_l2_init(0);
+#endif
+#endif
+}
+
+static struct resource kirkwood_cpufreq_resources[] = {
+	[0] = {
+		.start  = CPU_CONTROL_PHYS,
+		.end    = CPU_CONTROL_PHYS + 3,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device kirkwood_cpufreq_device = {
+	.name		= "kirkwood-cpufreq",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(kirkwood_cpufreq_resources),
+	.resource	= kirkwood_cpufreq_resources,
+};
+
+static void __init kirkwood_cpufreq_init(void)
+{
+	platform_device_register(&kirkwood_cpufreq_device);
+}
+
+static struct resource kirkwood_cpuidle_resource[] = {
+	{
+		.flags	= IORESOURCE_MEM,
+		.start	= DDR_OPERATION_BASE,
+		.end	= DDR_OPERATION_BASE + 3,
+	},
+};
+
+static struct platform_device kirkwood_cpuidle = {
+	.name		= "kirkwood_cpuidle",
+	.id		= -1,
+	.resource	= kirkwood_cpuidle_resource,
+	.num_resources	= 1,
+};
+
+static void __init kirkwood_cpuidle_init(void)
+{
+	platform_device_register(&kirkwood_cpuidle);
+}
+
+/* Temporary here since mach-mvebu has a function we can use */
+static void kirkwood_restart(enum reboot_mode mode, const char *cmd)
+{
+	/*
+	 * Enable soft reset to assert RSTOUTn.
+	 */
+	writel(SOFT_RESET_OUT_EN, RSTOUTn_MASK);
+
+	/*
+	 * Assert soft reset.
+	 */
+	writel(SOFT_RESET, SYSTEM_SOFT_RESET);
+
+	while (1)
+		;
+}
 
 #define MV643XX_ETH_MAC_ADDR_LOW	0x0414
 #define MV643XX_ETH_MAC_ADDR_HIGH	0x0418
