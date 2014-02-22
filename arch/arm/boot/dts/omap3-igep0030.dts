@@ -13,7 +13,7 @@
 
 / {
 	model = "IGEP COM MODULE (TI OMAP AM/DM37x)";
-	compatible = "isee,omap3-igep0030", "ti,omap3";
+	compatible = "isee,omap3-igep0030", "ti,omap36xx", "ti,omap3";
 
 	leds {
 		pinctrl-names = "default";
