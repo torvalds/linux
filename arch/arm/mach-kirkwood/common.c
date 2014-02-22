@@ -36,6 +36,7 @@
 #include <plat/time.h>
 #include <linux/platform_data/dma-mv_xor.h>
 #include "common.h"
+#include "pm.h"
 
 /* These can go away once Kirkwood uses the mvebu-mbus DT binding */
 #define KIRKWOOD_MBUS_NAND_TARGET 0x01

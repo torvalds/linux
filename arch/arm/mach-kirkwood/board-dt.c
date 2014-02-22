@@ -24,6 +24,7 @@
 #include <mach/bridge-regs.h>
 #include <plat/common.h>
 #include "common.h"
+#include "pm.h"
 
 #define MV643XX_ETH_MAC_ADDR_LOW	0x0414
 #define MV643XX_ETH_MAC_ADDR_HIGH	0x0418
