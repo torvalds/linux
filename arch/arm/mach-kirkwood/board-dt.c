@@ -20,11 +20,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/irqchip.h>
 #include <linux/kexec.h>
+#include <asm/hardware/cache-feroceon-l2.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
 #include <plat/common.h>
-#include <plat/cache-feroceon-l2.h>
 #include <plat/pcie.h>
 #include "pm.h"
 

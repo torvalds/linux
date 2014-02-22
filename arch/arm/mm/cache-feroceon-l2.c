@@ -16,7 +16,7 @@
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
-#include <plat/cache-feroceon-l2.h>
+#include <asm/hardware/cache-feroceon-l2.h>
 
 /*
  * Low-level cache maintenance operations.
