@@ -3393,10 +3393,36 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	}
 }
 
+static int em28xx_usb_suspend(struct usb_interface *interface,
+				pm_message_t message)
+{
+	struct em28xx *dev;
+
+	dev = usb_get_intfdata(interface);
+	if (!dev)
+		return 0;
+	em28xx_suspend_extension(dev);
+	return 0;
+}
+
+static int em28xx_usb_resume(struct usb_interface *interface)
+{
+	struct em28xx *dev;
+
+	dev = usb_get_intfdata(interface);
+	if (!dev)
+		return 0;
+	em28xx_resume_extension(dev);
+	return 0;
+}
+
 static struct usb_driver em28xx_usb_driver = {
 	.name = "em28xx",
 	.probe = em28xx_usb_probe,
 	.disconnect = em28xx_usb_disconnect,
+	.suspend = em28xx_usb_suspend,
+	.resume = em28xx_usb_resume,
+	.reset_resume = em28xx_usb_resume,
 	.id_table = em28xx_id_table,
 };
 
