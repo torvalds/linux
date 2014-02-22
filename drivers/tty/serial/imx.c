@@ -1116,25 +1116,25 @@ static int imx_startup(struct uart_port *port)
 	 */
 	if (sport->txirq > 0) {
 		retval = request_irq(sport->rxirq, imx_rxint, 0,
-				DRIVER_NAME, sport);
+				     dev_name(port->dev), sport);
 		if (retval)
 			goto error_out1;
 
 		retval = request_irq(sport->txirq, imx_txint, 0,
-				DRIVER_NAME, sport);
+				     dev_name(port->dev), sport);
 		if (retval)
 			goto error_out2;
 
 		/* do not use RTS IRQ on IrDA */
 		if (!USE_IRDA(sport)) {
 			retval = request_irq(sport->rtsirq, imx_rtsint, 0,
-					DRIVER_NAME, sport);
+					     dev_name(port->dev), sport);
 			if (retval)
 				goto error_out3;
 		}
 	} else {
 		retval = request_irq(sport->port.irq, imx_int, 0,
-				DRIVER_NAME, sport);
+				     dev_name(port->dev), sport);
 		if (retval) {
 			free_irq(sport->port.irq, sport);
 			goto error_out1;
