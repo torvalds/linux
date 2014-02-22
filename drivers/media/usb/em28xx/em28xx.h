@@ -713,6 +713,8 @@ struct em28xx_ops {
 	int id;
 	int (*init)(struct em28xx *);
 	int (*fini)(struct em28xx *);
+	int (*suspend)(struct em28xx *);
+	int (*resume)(struct em28xx *);
 };
 
 /* Provided by em28xx-i2c.c */
@@ -758,6 +760,8 @@ int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
 void em28xx_init_extension(struct em28xx *dev);
 void em28xx_close_extension(struct em28xx *dev);
+int em28xx_suspend_extension(struct em28xx *dev);
+int em28xx_resume_extension(struct em28xx *dev);
 
 /* Provided by em28xx-cards.c */
 extern struct em28xx_board em28xx_boards[];
