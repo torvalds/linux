@@ -475,7 +475,7 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_106A,
 				      digital_in_send_sens_req);
 
-	if (im_protocols & DIGITAL_PROTO_NFCF_RF_TECH) {
+	if (matching_im_protocols & DIGITAL_PROTO_NFCF_RF_TECH) {
 		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_212F,
 				      digital_in_send_sensf_req);
 
@@ -487,7 +487,7 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_ISO15693,
 				      digital_in_send_iso15693_inv_req);
 
-	if (tm_protocols & NFC_PROTO_NFC_DEP_MASK) {
+	if (matching_tm_protocols & NFC_PROTO_NFC_DEP_MASK) {
 		if (ddev->ops->tg_listen_mdaa) {
 			digital_add_poll_tech(ddev, 0,
 					      digital_tg_listen_mdaa);
