@@ -432,14 +432,23 @@ static void ahci_host_stop(struct ata_host *host)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int ahci_suspend(struct device *dev)
+/**
+ * ahci_platform_suspend_host - Suspend an ahci-platform host
+ * @dev: device pointer for the host
+ *
+ * This function does all the usual steps needed to suspend an
+ * ahci-platform host, note any necessary resources (ie clks, phy, etc.)
+ * must be disabled after calling this.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_suspend_host(struct device *dev)
 {
-	struct ahci_platform_data *pdata = dev_get_platdata(dev);
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	void __iomem *mmio = hpriv->mmio;
 	u32 ctl;
-	int rc;
 
 	if (hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
 		dev_err(dev, "firmware update required for suspend/resume\n");
@@ -456,7 +465,58 @@ static int ahci_suspend(struct device *dev)
 	writel(ctl, mmio + HOST_CTL);
 	readl(mmio + HOST_CTL); /* flush */
 
-	rc = ata_host_suspend(host, PMSG_SUSPEND);
+	return ata_host_suspend(host, PMSG_SUSPEND);
+}
+EXPORT_SYMBOL_GPL(ahci_platform_suspend_host);
+
+/**
+ * ahci_platform_resume_host - Resume an ahci-platform host
+ * @dev: device pointer for the host
+ *
+ * This function does all the usual steps needed to resume an ahci-platform
+ * host, note any necessary resources (ie clks, phy, etc.)  must be
+ * initialized / enabled before calling this.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_resume_host(struct device *dev)
+{
+	struct ata_host *host = dev_get_drvdata(dev);
+	int rc;
+
+	if (dev->power.power_state.event == PM_EVENT_SUSPEND) {
+		rc = ahci_reset_controller(host);
+		if (rc)
+			return rc;
+
+		ahci_init_controller(host);
+	}
+
+	ata_host_resume(host);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ahci_platform_resume_host);
+
+/**
+ * ahci_platform_suspend - Suspend an ahci-platform device
+ * @dev: the platform device to suspend
+ *
+ * This function suspends the host associated with the device, followed by
+ * disabling all the resources of the device.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_suspend(struct device *dev)
+{
+	struct ahci_platform_data *pdata = dev_get_platdata(dev);
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	int rc;
+
+	rc = ahci_platform_suspend_host(dev);
 	if (rc)
 		return rc;
 
@@ -467,8 +527,19 @@ static int ahci_suspend(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ahci_platform_suspend);
 
-static int ahci_resume(struct device *dev)
+/**
+ * ahci_platform_resume - Resume an ahci-platform device
+ * @dev: the platform device to resume
+ *
+ * This function enables all the resources of the device followed by
+ * resuming the host associated with the device.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_resume(struct device *dev)
 {
 	struct ahci_platform_data *pdata = dev_get_platdata(dev);
 	struct ata_host *host = dev_get_drvdata(dev);
@@ -485,15 +556,9 @@ static int ahci_resume(struct device *dev)
 			goto disable_resources;
 	}
 
-	if (dev->power.power_state.event == PM_EVENT_SUSPEND) {
-		rc = ahci_reset_controller(host);
-		if (rc)
-			goto disable_resources;
-
-		ahci_init_controller(host);
-	}
-
-	ata_host_resume(host);
+	rc = ahci_platform_resume_host(dev);
+	if (rc)
+		goto disable_resources;
 
 	return 0;
 
@@ -502,9 +567,11 @@ disable_resources:
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ahci_platform_resume);
 #endif
 
-static SIMPLE_DEV_PM_OPS(ahci_pm_ops, ahci_suspend, ahci_resume);
+static SIMPLE_DEV_PM_OPS(ahci_pm_ops, ahci_platform_suspend,
+			 ahci_platform_resume);
 
 static const struct of_device_id ahci_of_match[] = {
 	{ .compatible = "snps,spear-ahci", },
