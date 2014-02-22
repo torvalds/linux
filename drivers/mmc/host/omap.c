@@ -1262,6 +1262,13 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
+	if (slot->pdata->get_cover_state != NULL) {
+		setup_timer(&slot->cover_timer, mmc_omap_cover_timer,
+			    (unsigned long)slot);
+		tasklet_init(&slot->cover_tasklet, mmc_omap_cover_handler,
+			     (unsigned long)slot);
+	}
+
 	r = mmc_add_host(mmc);
 	if (r < 0)
 		goto err_remove_host;
@@ -1278,11 +1285,6 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 					&dev_attr_cover_switch);
 		if (r < 0)
 			goto err_remove_slot_name;
-
-		setup_timer(&slot->cover_timer, mmc_omap_cover_timer,
-			    (unsigned long)slot);
-		tasklet_init(&slot->cover_tasklet, mmc_omap_cover_handler,
-			     (unsigned long)slot);
 		tasklet_schedule(&slot->cover_tasklet);
 	}
 
