@@ -446,6 +446,12 @@ config SPI_SIRF
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
 
+config SPI_SUN4I
+	tristate "Allwinner A10 SoCs SPI controller"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  SPI driver for Allwinner sun4i, sun5i and sun7i SoCs
+
 config SPI_SUN6I
 	tristate "Allwinner A31 SPI controller"
 	depends on ARCH_SUNXI || COMPILE_TEST
