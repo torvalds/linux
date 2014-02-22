@@ -1,4 +1,4 @@
-Marvell Armada 370 and Armada XP Interrupt Controller
+Marvell Armada 370, 375, 38x, XP Interrupt Controller
 -----------------------------------------------------
 
 Required properties:
@@ -16,7 +16,13 @@ Required properties:
   automatically map to the interrupt controller registers of the
   current CPU)
 
+Optional properties:
 
+- interrupts: If defined, then it indicates that this MPIC is
+  connected as a slave to another interrupt controller. This is
+  typically the case on Armada 375 and Armada 38x, where the MPIC is
+  connected as a slave to the Cortex-A9 GIC. The provided interrupt
+  indicate to which GIC interrupt the MPIC output is connected.
 
 Example:
 
