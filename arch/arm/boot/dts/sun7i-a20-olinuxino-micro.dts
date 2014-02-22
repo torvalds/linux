@@ -18,7 +18,24 @@
 	model = "Olimex A20-Olinuxino Micro";
 	compatible = "olimex,a20-olinuxino-micro", "allwinner,sun7i-a20";
 
+	aliases {
+		spi0 = &spi1;
+		spi1 = &spi2;
+	};
+
 	soc@01c00000 {
+		spi1: spi@01c06000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi1_pins_a>;
+			status = "okay";
+		};
+
+		spi2: spi@01c17000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi2_pins_a>;
+			status = "okay";
+		};
+
 		pinctrl@01c20800 {
 			led_pins_olinuxino: led_pins@0 {
 				allwinner,pins = "PH2";
