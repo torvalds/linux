@@ -27,7 +27,7 @@
 
 static u8 llcp_magic[3] = {0x46, 0x66, 0x6d};
 
-static struct list_head llcp_devices;
+static LIST_HEAD(llcp_devices);
 
 static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb);
 
@@ -1622,8 +1622,6 @@ void nfc_llcp_unregister_device(struct nfc_dev *dev)
 
 int __init nfc_llcp_init(void)
 {
-	INIT_LIST_HEAD(&llcp_devices);
-
 	return nfc_llcp_sock_init();
 }
 
