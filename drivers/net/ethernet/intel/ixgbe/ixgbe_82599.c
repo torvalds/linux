@@ -1597,35 +1597,20 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 {
 
 	u32 hi_hash_dword, lo_hash_dword, flow_vm_vlan;
-	u32 bucket_hash = 0;
+	u32 bucket_hash = 0, hi_dword = 0;
+	int i;
 
 	/* Apply masks to input data */
-	input->dword_stream[0]  &= input_mask->dword_stream[0];
-	input->dword_stream[1]  &= input_mask->dword_stream[1];
-	input->dword_stream[2]  &= input_mask->dword_stream[2];
-	input->dword_stream[3]  &= input_mask->dword_stream[3];
-	input->dword_stream[4]  &= input_mask->dword_stream[4];
-	input->dword_stream[5]  &= input_mask->dword_stream[5];
-	input->dword_stream[6]  &= input_mask->dword_stream[6];
-	input->dword_stream[7]  &= input_mask->dword_stream[7];
-	input->dword_stream[8]  &= input_mask->dword_stream[8];
-	input->dword_stream[9]  &= input_mask->dword_stream[9];
-	input->dword_stream[10] &= input_mask->dword_stream[10];
+	for (i = 0; i <= 10; i++)
+		input->dword_stream[i] &= input_mask->dword_stream[i];
 
 	/* record the flow_vm_vlan bits as they are a key part to the hash */
 	flow_vm_vlan = ntohl(input->dword_stream[0]);
 
 	/* generate common hash dword */
-	hi_hash_dword = ntohl(input->dword_stream[1] ^
-				    input->dword_stream[2] ^
-				    input->dword_stream[3] ^
-				    input->dword_stream[4] ^
-				    input->dword_stream[5] ^
-				    input->dword_stream[6] ^
-				    input->dword_stream[7] ^
-				    input->dword_stream[8] ^
-				    input->dword_stream[9] ^
-				    input->dword_stream[10]);
+	for (i = 1; i <= 10; i++)
+		hi_dword ^= input->dword_stream[i];
+	hi_hash_dword = ntohl(hi_dword);
 
 	/* low dword is word swapped version of common */
 	lo_hash_dword = (hi_hash_dword >> 16) | (hi_hash_dword << 16);
@@ -1644,21 +1629,8 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 	lo_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan << 16);
 
 	/* Process remaining 30 bit of the key */
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(1);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(2);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(3);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(4);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(5);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(6);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(7);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(8);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(9);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(10);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(11);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(12);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(13);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(14);
-	IXGBE_COMPUTE_BKT_HASH_ITERATION(15);
+	for (i = 1; i <= 15; i++)
+		IXGBE_COMPUTE_BKT_HASH_ITERATION(i);
 
 	/*
 	 * Limit hash to 13 bits since max bucket count is 8K.
