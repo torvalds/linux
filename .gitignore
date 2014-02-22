@@ -52,7 +52,7 @@ modules.builtin
 /debian/
 
 #
-# git files that we don't want to ignore even it they are dot-files
+# git files that we don't want to ignore even if they are dot-files
 #
 !.gitignore
 !.mailmap
