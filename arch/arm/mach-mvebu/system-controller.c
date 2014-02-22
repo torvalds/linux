@@ -54,7 +54,7 @@ static const struct mvebu_system_controller orion_system_controller = {
 	.system_soft_reset = 0x1,
 };
 
-static struct of_device_id of_system_controller_table[] = {
+static const struct of_device_id of_system_controller_table[] = {
 	{
 		.compatible = "marvell,orion-system-controller",
 		.data = (void *) &orion_system_controller,
@@ -90,13 +90,12 @@ void mvebu_restart(enum reboot_mode mode, const char *cmd)
 
 static int __init mvebu_system_controller_init(void)
 {
+	const struct of_device_id *match;
 	struct device_node *np;
 
-	np = of_find_matching_node(NULL, of_system_controller_table);
+	np = of_find_matching_node_and_match(NULL, of_system_controller_table,
+					     &match);
 	if (np) {
-		const struct of_device_id *match =
-		    of_match_node(of_system_controller_table, np);
-		BUG_ON(!match);
 		system_controller_base = of_iomap(np, 0);
 		mvebu_sc = (struct mvebu_system_controller *)match->data;
 		of_node_put(np);
