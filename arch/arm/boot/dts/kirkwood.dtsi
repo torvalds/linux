@@ -161,6 +161,11 @@
 			#clock-cells = <1>;
 		};
 
+		l2: l2-cache@20128 {
+			compatible = "marvell,kirkwood-cache";
+			reg = <0x20128 0x4>;
+		};
+
 		intc: main-interrupt-ctrl@20200 {
 			compatible = "marvell,orion-intc";
 			interrupt-controller;
