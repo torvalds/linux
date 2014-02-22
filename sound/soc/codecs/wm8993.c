@@ -1559,8 +1559,6 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 
 static int wm8993_remove(struct snd_soc_codec *codec)
 {
-	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
-
 	wm8993_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
