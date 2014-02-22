@@ -27,6 +27,7 @@
 #include <plat/common.h>
 #include <plat/pcie.h>
 #include "kirkwood-pm.h"
+#include "common.h"
 
 static struct resource kirkwood_cpufreq_resources[] = {
 	[0] = {
@@ -66,23 +67,6 @@ static struct platform_device kirkwood_cpuidle = {
 static void __init kirkwood_cpuidle_init(void)
 {
 	platform_device_register(&kirkwood_cpuidle);
-}
-
-/* Temporary here since mach-mvebu has a function we can use */
-static void kirkwood_restart(enum reboot_mode mode, const char *cmd)
-{
-	/*
-	 * Enable soft reset to assert RSTOUTn.
-	 */
-	writel(SOFT_RESET_OUT_EN, RSTOUTn_MASK);
-
-	/*
-	 * Assert soft reset.
-	 */
-	writel(SOFT_RESET, SYSTEM_SOFT_RESET);
-
-	while (1)
-		;
 }
 
 #define MV643XX_ETH_MAC_ADDR_LOW	0x0414
@@ -204,6 +188,6 @@ static const char * const kirkwood_dt_board_compat[] = {
 DT_MACHINE_START(KIRKWOOD_DT, "Marvell Kirkwood (Flattened Device Tree)")
 	/* Maintainer: Jason Cooper <jason@lakedaemon.net> */
 	.init_machine	= kirkwood_dt_init,
-	.restart	= kirkwood_restart,
+	.restart	= mvebu_restart,
 	.dt_compat	= kirkwood_dt_board_compat,
 MACHINE_END
