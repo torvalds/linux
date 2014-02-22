@@ -1793,6 +1793,9 @@ enum {
 #define IXGBE_EEPROM_RD_BUFFER_MAX_COUNT 512 /* EEPROM words # read in burst */
 #define IXGBE_EEPROM_WR_BUFFER_MAX_COUNT 256 /* EEPROM words # wr in burst */
 
+#define IXGBE_EEPROM_CTRL_2	1 /* EEPROM CTRL word 2 */
+#define IXGBE_EEPROM_CCD_BIT	2 /* EEPROM Core Clock Disable bit */
+
 #ifndef IXGBE_EEPROM_GRANT_ATTEMPTS
 #define IXGBE_EEPROM_GRANT_ATTEMPTS 1000 /* EEPROM # attempts to gain grant */
 #endif
