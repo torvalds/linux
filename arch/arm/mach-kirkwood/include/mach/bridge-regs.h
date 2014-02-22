@@ -80,5 +80,6 @@
 #define CGC_RESERVED		(0x6 << 21)
 
 #define MEMORY_PM_CTRL		(BRIDGE_VIRT_BASE + 0x118)
+#define MEMORY_PM_CTRL_PHYS	(BRIDGE_PHYS_BASE + 0x118)
 
 #endif
