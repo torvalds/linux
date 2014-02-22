@@ -33,5 +33,7 @@ struct ahci_platform_data {
 
 int ahci_platform_enable_clks(struct ahci_host_priv *hpriv);
 void ahci_platform_disable_clks(struct ahci_host_priv *hpriv);
+int ahci_platform_enable_resources(struct ahci_host_priv *hpriv);
+void ahci_platform_disable_resources(struct ahci_host_priv *hpriv);
 
 #endif /* _AHCI_PLATFORM_H */

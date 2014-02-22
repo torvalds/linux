@@ -132,6 +132,62 @@ void ahci_platform_disable_clks(struct ahci_host_priv *hpriv)
 }
 EXPORT_SYMBOL_GPL(ahci_platform_disable_clks);
 
+/**
+ * ahci_platform_enable_resources - Enable platform resources
+ * @hpriv: host private area to store config values
+ *
+ * This function enables all ahci_platform managed resources in the
+ * following order:
+ * 1) Regulator
+ * 2) Clocks (through ahci_platform_enable_clks)
+ *
+ * If resource enabling fails at any point the previous enabled resources
+ * are disabled in reverse order.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_enable_resources(struct ahci_host_priv *hpriv)
+{
+	int rc;
+
+	if (hpriv->target_pwr) {
+		rc = regulator_enable(hpriv->target_pwr);
+		if (rc)
+			return rc;
+	}
+
+	rc = ahci_platform_enable_clks(hpriv);
+	if (rc)
+		goto disable_regulator;
+
+	return 0;
+
+disable_regulator:
+	if (hpriv->target_pwr)
+		regulator_disable(hpriv->target_pwr);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ahci_platform_enable_resources);
+
+/**
+ * ahci_platform_disable_resources - Disable platform resources
+ * @hpriv: host private area to store config values
+ *
+ * This function disables all ahci_platform managed resources in the
+ * following order:
+ * 1) Clocks (through ahci_platform_disable_clks)
+ * 2) Regulator
+ */
+void ahci_platform_disable_resources(struct ahci_host_priv *hpriv)
+{
+	ahci_platform_disable_clks(hpriv);
+
+	if (hpriv->target_pwr)
+		regulator_disable(hpriv->target_pwr);
+}
+EXPORT_SYMBOL_GPL(ahci_platform_disable_resources);
+
 static void ahci_put_clks(struct ahci_host_priv *hpriv)
 {
 	int c;
@@ -214,15 +270,9 @@ static int ahci_probe(struct platform_device *pdev)
 		hpriv->clks[i] = clk;
 	}
 
-	if (hpriv->target_pwr) {
-		rc = regulator_enable(hpriv->target_pwr);
-		if (rc)
-			goto free_clk;
-	}
-
-	rc = ahci_enable_clks(dev, hpriv);
+	rc = ahci_platform_enable_resources(hpriv);
 	if (rc)
-		goto disable_regulator;
+		goto free_clk;
 
 	/*
 	 * Some platforms might need to prepare for mmio region access,
@@ -233,7 +283,7 @@ static int ahci_probe(struct platform_device *pdev)
 	if (pdata && pdata->init) {
 		rc = pdata->init(dev, hpriv->mmio);
 		if (rc)
-			goto disable_unprepare_clk;
+			goto disable_resources;
 	}
 
 	ahci_save_initial_config(dev, hpriv,
@@ -303,11 +353,8 @@ static int ahci_probe(struct platform_device *pdev)
 pdata_exit:
 	if (pdata && pdata->exit)
 		pdata->exit(dev);
-disable_unprepare_clk:
-	ahci_disable_clks(hpriv);
-disable_regulator:
-	if (hpriv->target_pwr)
-		regulator_disable(hpriv->target_pwr);
+disable_resources:
+	ahci_platform_disable_resources(hpriv);
 free_clk:
 	ahci_put_clks(hpriv);
 	return rc;
@@ -322,11 +369,8 @@ static void ahci_host_stop(struct ata_host *host)
 	if (pdata && pdata->exit)
 		pdata->exit(dev);
 
-	ahci_disable_clks(hpriv);
+	ahci_platform_disable_resources(hpriv);
 	ahci_put_clks(hpriv);
-
-	if (hpriv->target_pwr)
-		regulator_disable(hpriv->target_pwr);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -361,10 +405,7 @@ static int ahci_suspend(struct device *dev)
 	if (pdata && pdata->suspend)
 		return pdata->suspend(dev);
 
-	ahci_disable_clks(hpriv);
-
-	if (hpriv->target_pwr)
-		regulator_disable(hpriv->target_pwr);
+	ahci_platform_disable_resources(hpriv);
 
 	return 0;
 }
@@ -376,26 +417,20 @@ static int ahci_resume(struct device *dev)
 	struct ahci_host_priv *hpriv = host->private_data;
 	int rc;
 
-	if (hpriv->target_pwr) {
-		rc = regulator_enable(hpriv->target_pwr);
-		if (rc)
-			return rc;
-	}
-
-	rc = ahci_enable_clks(dev, hpriv);
+	rc = ahci_platform_enable_resources(hpriv);
 	if (rc)
-		goto disable_regulator;
+		return rc;
 
 	if (pdata && pdata->resume) {
 		rc = pdata->resume(dev);
 		if (rc)
-			goto disable_unprepare_clk;
+			goto disable_resources;
 	}
 
 	if (dev->power.power_state.event == PM_EVENT_SUSPEND) {
 		rc = ahci_reset_controller(host);
 		if (rc)
-			goto disable_unprepare_clk;
+			goto disable_resources;
 
 		ahci_init_controller(host);
 	}
@@ -404,11 +439,8 @@ static int ahci_resume(struct device *dev)
 
 	return 0;
 
-disable_unprepare_clk:
-	ahci_disable_clks(hpriv);
-disable_regulator:
-	if (hpriv->target_pwr)
-		regulator_disable(hpriv->target_pwr);
+disable_resources:
+	ahci_platform_disable_resources(hpriv);
 
 	return rc;
 }
