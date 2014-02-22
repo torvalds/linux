@@ -1515,11 +1515,68 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	return 0;
 }
 
+static int em28xx_dvb_suspend(struct em28xx *dev)
+{
+	int ret = 0;
+
+	if (dev->is_audio_only)
+		return 0;
+
+	if (!dev->board.has_dvb)
+		return 0;
+
+	em28xx_info("Suspending DVB extension");
+	if (dev->dvb) {
+		struct em28xx_dvb *dvb = dev->dvb;
+
+		if (dvb->fe[0]) {
+			ret = dvb_frontend_suspend(dvb->fe[0]);
+			em28xx_info("fe0 suspend %d", ret);
+		}
+		if (dvb->fe[1]) {
+			dvb_frontend_suspend(dvb->fe[1]);
+			em28xx_info("fe1 suspend %d", ret);
+		}
+	}
+
+	return 0;
+}
+
+static int em28xx_dvb_resume(struct em28xx *dev)
+{
+	int ret = 0;
+
+	if (dev->is_audio_only)
+		return 0;
+
+	if (!dev->board.has_dvb)
+		return 0;
+
+	em28xx_info("Resuming DVB extension");
+	if (dev->dvb) {
+		struct em28xx_dvb *dvb = dev->dvb;
+
+		if (dvb->fe[0]) {
+			ret = dvb_frontend_resume(dvb->fe[0]);
+			em28xx_info("fe0 resume %d", ret);
+		}
+
+		if (dvb->fe[1]) {
+			ret = dvb_frontend_resume(dvb->fe[1]);
+			em28xx_info("fe1 resume %d", ret);
+		}
+	}
+
+	return 0;
+}
+
 static struct em28xx_ops dvb_ops = {
 	.id   = EM28XX_DVB,
 	.name = "Em28xx dvb Extension",
 	.init = em28xx_dvb_init,
 	.fini = em28xx_dvb_fini,
+	.suspend = em28xx_dvb_suspend,
+	.resume = em28xx_dvb_resume,
 };
 
 static int __init em28xx_dvb_register(void)
