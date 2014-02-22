@@ -74,7 +74,7 @@ static u8 mxc_w1_ds2_reset_bus(void *data)
 
 		udelay(100);
 	}
-	return (reg_val >> 7) & 0x1;
+	return (reg_val >> 6) & 0x1;
 }
 
 /*
