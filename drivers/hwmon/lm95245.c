@@ -149,7 +149,6 @@ static struct lm95245_data *lm95245_update_device(struct device *dev)
 		+ msecs_to_jiffies(data->interval)) || !data->valid) {
 		int i;
 
-		dev_dbg(&client->dev, "Updating lm95245 data.\n");
 		for (i = 0; i < ARRAY_SIZE(lm95245_reg_address); i++)
 			data->regs[i]
 			  = i2c_smbus_read_byte_data(client,
