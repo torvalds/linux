@@ -14,6 +14,7 @@
 #include <mach/kirkwood.h>
 
 #define CPU_CONFIG		(BRIDGE_VIRT_BASE + 0x0100)
+#define CPU_CONFIG_PHYS		(BRIDGE_PHYS_BASE + 0x0100)
 #define CPU_CONFIG_ERROR_PROP	0x00000004
 
 #define CPU_CONTROL		(BRIDGE_VIRT_BASE + 0x0104)

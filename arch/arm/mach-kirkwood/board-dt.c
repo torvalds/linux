@@ -191,15 +191,23 @@ eth_fixup_skip:
 	}
 }
 
+/*
+ * Disable propagation of mbus errors to the CPU local bus, as this
+ * causes mbus errors (which can occur for example for PCI aborts) to
+ * throw CPU aborts, which we're not set up to deal with.
+ */
+static void __init kirkwood_disable_mbus_error_propagation(void)
+{
+	void __iomem *cpu_config;
+
+	cpu_config = ioremap(CPU_CONFIG_PHYS, 4);
+	writel(readl(cpu_config) & ~CPU_CONFIG_ERROR_PROP, cpu_config);
+	iounmap(cpu_config);
+}
+
 static void __init kirkwood_dt_init(void)
 {
-	/*
-	 * Disable propagation of mbus errors to the CPU local bus,
-	 * as this causes mbus errors (which can occur for example
-	 * for PCI aborts) to throw CPU aborts, which we're not set
-	 * up to deal with.
-	 */
-	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
+	kirkwood_disable_mbus_error_propagation();
 
 	BUG_ON(mvebu_mbus_dt_init());
 
