@@ -1479,7 +1479,9 @@ static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 
 static int wm8962_dsp2_write_config(struct snd_soc_codec *codec)
 {
-	return regcache_sync_region(codec->control_data,
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+
+	return regcache_sync_region(wm8962->regmap,
 				    WM8962_HDBASS_AI_1, WM8962_MAX_REGISTER);
 }
 
