@@ -6,8 +6,8 @@ Each SATA controller should have its own node.
 Required properties:
 - compatible        : compatible list, one of "snps,spear-ahci",
                       "snps,exynos5440-ahci", "ibm,476gtr-ahci",
-                      "allwinner,sun4i-a10-ahci", "fsl,imx53-ahci" or
-                      "fsl,imx6q-ahci"
+                      "allwinner,sun4i-a10-ahci", "fsl,imx53-ahci"
+                      "fsl,imx6q-ahci" or "snps,dwc-ahci"
 - interrupts        : <interrupt mapping for SATA IRQ>
 - reg               : <registers mapping>
 
