@@ -664,75 +664,6 @@ static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_set_fiber_fixed_speed - Set module link speed for fixed fiber
- *  @hw: pointer to hardware structure
- *  @speed: link speed to set
- *
- *  We set the module speed differently for fixed fiber.  For other
- *  multi-speed devices we don't have an error value so here if we
- *  detect an error we just log it and exit.
- */
-static void ixgbe_set_fiber_fixed_speed(struct ixgbe_hw *hw,
-					ixgbe_link_speed speed)
-{
-	s32 status;
-	u8 rs, eeprom_data;
-
-	switch (speed) {
-	case IXGBE_LINK_SPEED_10GB_FULL:
-		/* one bit mask same as setting on */
-		rs = IXGBE_SFF_SOFT_RS_SELECT_10G;
-		break;
-	case IXGBE_LINK_SPEED_1GB_FULL:
-		rs = IXGBE_SFF_SOFT_RS_SELECT_1G;
-		break;
-	default:
-		hw_dbg(hw, "Invalid fixed module speed\n");
-		return;
-	}
-
-	/* Set RS0 */
-	status = hw->phy.ops.read_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
-					   IXGBE_I2C_EEPROM_DEV_ADDR2,
-					   &eeprom_data);
-	if (status) {
-		hw_dbg(hw, "Failed to read Rx Rate Select RS0\n");
-		goto out;
-	}
-
-	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) | rs;
-
-	status = hw->phy.ops.write_i2c_byte(hw, IXGBE_SFF_SFF_8472_OSCB,
-					    IXGBE_I2C_EEPROM_DEV_ADDR2,
-					    eeprom_data);
-	if (status) {
-		hw_dbg(hw, "Failed to write Rx Rate Select RS0\n");
-		goto out;
-	}
-
-	/* Set RS1 */
-	status = hw->phy.ops.read_i2c_byte(hw, IXGBE_SFF_SFF_8472_ESCB,
-					   IXGBE_I2C_EEPROM_DEV_ADDR2,
-					   &eeprom_data);
-	if (status) {
-		hw_dbg(hw, "Failed to read Rx Rate Select RS1\n");
-		goto out;
-	}
-
-	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) & rs;
-
-	status = hw->phy.ops.write_i2c_byte(hw, IXGBE_SFF_SFF_8472_ESCB,
-					    IXGBE_I2C_EEPROM_DEV_ADDR2,
-					    eeprom_data);
-	if (status) {
-		hw_dbg(hw, "Failed to write Rx Rate Select RS1\n");
-		goto out;
-	}
-out:
-	return;
-}
-
-/**
  *  ixgbe_setup_mac_link_multispeed_fiber - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
@@ -842,10 +773,6 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 
 		/* Set the module link speed */
 		switch (hw->phy.media_type) {
-		case ixgbe_media_type_fiber_fixed:
-			ixgbe_set_fiber_fixed_speed(hw,
-						IXGBE_LINK_SPEED_1GB_FULL);
-			break;
 		case ixgbe_media_type_fiber:
 			esdp_reg &= ~IXGBE_ESDP_SDP5;
 			esdp_reg |= IXGBE_ESDP_SDP5_DIR;
