@@ -26,6 +26,7 @@
 #include <linux/omap-dma.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/mmc.h>
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -336,6 +337,7 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd)
 	u32 cmdreg;
 	u32 resptype;
 	u32 cmdtype;
+	u16 irq_mask;
 
 	host->cmd = cmd;
 
@@ -388,12 +390,14 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd)
 	OMAP_MMC_WRITE(host, CTO, 200);
 	OMAP_MMC_WRITE(host, ARGL, cmd->arg & 0xffff);
 	OMAP_MMC_WRITE(host, ARGH, cmd->arg >> 16);
-	OMAP_MMC_WRITE(host, IE,
-		       OMAP_MMC_STAT_A_EMPTY    | OMAP_MMC_STAT_A_FULL    |
-		       OMAP_MMC_STAT_CMD_CRC    | OMAP_MMC_STAT_CMD_TOUT  |
-		       OMAP_MMC_STAT_DATA_CRC   | OMAP_MMC_STAT_DATA_TOUT |
-		       OMAP_MMC_STAT_END_OF_CMD | OMAP_MMC_STAT_CARD_ERR  |
-		       OMAP_MMC_STAT_END_OF_DATA);
+	irq_mask = OMAP_MMC_STAT_A_EMPTY    | OMAP_MMC_STAT_A_FULL    |
+		   OMAP_MMC_STAT_CMD_CRC    | OMAP_MMC_STAT_CMD_TOUT  |
+		   OMAP_MMC_STAT_DATA_CRC   | OMAP_MMC_STAT_DATA_TOUT |
+		   OMAP_MMC_STAT_END_OF_CMD | OMAP_MMC_STAT_CARD_ERR  |
+		   OMAP_MMC_STAT_END_OF_DATA;
+	if (cmd->opcode == MMC_ERASE)
+		irq_mask &= ~OMAP_MMC_STAT_DATA_TOUT;
+	OMAP_MMC_WRITE(host, IE, irq_mask);
 	OMAP_MMC_WRITE(host, CMD, cmdreg);
 }
 
@@ -1234,7 +1238,7 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 
 	mmc->caps = 0;
 	if (host->pdata->slots[id].wires >= 4)
-		mmc->caps |= MMC_CAP_4_BIT_DATA;
+		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_ERASE;
 
 	mmc->ops = &mmc_omap_ops;
 	mmc->f_min = 400000;
