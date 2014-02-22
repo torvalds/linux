@@ -152,7 +152,6 @@ struct mmc_omap_host {
 	u32			total_bytes_left;
 
 	unsigned		features;
-	unsigned		use_dma:1;
 	unsigned		brs_received:1, dma_done:1;
 	unsigned		dma_in_use:1;
 	spinlock_t		dma_lock;
@@ -944,7 +943,7 @@ static void
 mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 {
 	struct mmc_data *data = req->data;
-	int i, use_dma, block_size;
+	int i, use_dma = 1, block_size;
 	unsigned sg_len;
 
 	host->data = data;
@@ -969,13 +968,10 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 	sg_len = (data->blocks == 1) ? 1 : data->sg_len;
 
 	/* Only do DMA for entire blocks */
-	use_dma = host->use_dma;
-	if (use_dma) {
-		for (i = 0; i < sg_len; i++) {
-			if ((data->sg[i].length % block_size) != 0) {
-				use_dma = 0;
-				break;
-			}
+	for (i = 0; i < sg_len; i++) {
+		if ((data->sg[i].length % block_size) != 0) {
+			use_dma = 0;
+			break;
 		}
 	}
 
@@ -1369,7 +1365,6 @@ static int mmc_omap_probe(struct platform_device *pdev)
 
 	host->id = pdev->id;
 	host->irq = irq;
-	host->use_dma = 1;
 	host->phys_base = res->start;
 	host->iclk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(host->iclk))
