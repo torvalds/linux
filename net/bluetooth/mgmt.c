@@ -106,6 +106,7 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_DEVICE_UNBLOCKED,
 	MGMT_EV_DEVICE_UNPAIRED,
 	MGMT_EV_PASSKEY_NOTIFY,
+	MGMT_EV_NEW_IRK,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
