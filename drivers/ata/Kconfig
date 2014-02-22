@@ -106,6 +106,15 @@ config AHCI_IMX
 
 	  If unsure, say N.
 
+config AHCI_SUNXI
+	tristate "Allwinner sunxi AHCI SATA support"
+	depends on ARCH_SUNXI && SATA_AHCI_PLATFORM
+	help
+	  This option enables support for the Allwinner sunxi SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
 	depends on FSL_SOC
