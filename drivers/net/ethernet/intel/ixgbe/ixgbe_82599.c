@@ -517,12 +517,16 @@ out:
  **/
 static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
 {
-	u32 autoc2_reg;
+	u32 autoc2_reg, fwsm;
 	u16 ee_ctrl_2 = 0;
 
 	hw->eeprom.ops.read(hw, IXGBE_EEPROM_CTRL_2, &ee_ctrl_2);
 
-	if (!hw->mng_fw_enabled && !hw->wol_enabled &&
+	/* Check to see if MNG FW could be enabled */
+	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM);
+
+	if (((fwsm & IXGBE_FWSM_MODE_MASK) != IXGBE_FWSM_FW_MODE_PT) &&
+	    !hw->wol_enabled &&
 	    ee_ctrl_2 & IXGBE_EEPROM_CCD_BIT) {
 		autoc2_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
 		autoc2_reg |= IXGBE_AUTOC2_LINK_DISABLE_ON_D3_MASK;
