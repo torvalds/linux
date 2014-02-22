@@ -323,6 +323,12 @@ struct ahci_host_priv {
 	u32			em_msg_type;	/* EM message type */
 	struct clk		*clk;		/* Only for platforms supporting clk */
 	void			*plat_data;	/* Other platform data */
+	/*
+	 * Optional ahci_start_engine override, if not set this gets set to the
+	 * default ahci_start_engine during ahci_save_initial_config, this can
+	 * be overridden anytime before the host is activated.
+	 */
+	void			(*start_engine)(struct ata_port *ap);
 };
 
 extern int ahci_ignore_sss;
