@@ -79,15 +79,15 @@ void fsnotify_destroy_event(struct fsnotify_group *group,
 
 /*
  * Add an event to the group notification queue.  The group can later pull this
- * event off the queue to deal with.  If the event is successfully added to the
- * group's notification queue, a reference is taken on event.
+ * event off the queue to deal with.  The function returns 0 if the event was
+ * added to the queue, 1 if the event was merged with some other queued event.
  */
-struct fsnotify_event *fsnotify_add_notify_event(struct fsnotify_group *group,
-						 struct fsnotify_event *event,
-						 struct fsnotify_event *(*merge)(struct list_head *,
-										 struct fsnotify_event *))
+int fsnotify_add_notify_event(struct fsnotify_group *group,
+			      struct fsnotify_event *event,
+			      int (*merge)(struct list_head *,
+					   struct fsnotify_event *))
 {
-	struct fsnotify_event *return_event = NULL;
+	int ret = 0;
 	struct list_head *list = &group->notification_list;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
@@ -98,14 +98,14 @@ struct fsnotify_event *fsnotify_add_notify_event(struct fsnotify_group *group,
 		/* Queue overflow event only if it isn't already queued */
 		if (list_empty(&group->overflow_event.list))
 			event = &group->overflow_event;
-		return_event = event;
+		ret = 1;
 	}
 
 	if (!list_empty(list) && merge) {
-		return_event = merge(list, event);
-		if (return_event) {
+		ret = merge(list, event);
+		if (ret) {
 			mutex_unlock(&group->notification_mutex);
-			return return_event;
+			return ret;
 		}
 	}
 
@@ -115,7 +115,7 @@ struct fsnotify_event *fsnotify_add_notify_event(struct fsnotify_group *group,
 
 	wake_up(&group->notification_waitq);
 	kill_fasync(&group->fsn_fa, SIGIO, POLL_IN);
-	return return_event;
+	return ret;
 }
 
 /*

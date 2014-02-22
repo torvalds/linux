@@ -91,10 +91,10 @@ static void filelayout_reset_write(struct nfs_write_data *data)
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
 		dprintk("%s Reset task %5u for i/o through MDS "
-			"(req %s/%lld, %u bytes @ offset %llu)\n", __func__,
+			"(req %s/%llu, %u bytes @ offset %llu)\n", __func__,
 			data->task.tk_pid,
 			hdr->inode->i_sb->s_id,
-			(long long)NFS_FILEID(hdr->inode),
+			(unsigned long long)NFS_FILEID(hdr->inode),
 			data->args.count,
 			(unsigned long long)data->args.offset);
 
@@ -112,10 +112,10 @@ static void filelayout_reset_read(struct nfs_read_data *data)
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
 		dprintk("%s Reset task %5u for i/o through MDS "
-			"(req %s/%lld, %u bytes @ offset %llu)\n", __func__,
+			"(req %s/%llu, %u bytes @ offset %llu)\n", __func__,
 			data->task.tk_pid,
 			hdr->inode->i_sb->s_id,
-			(long long)NFS_FILEID(hdr->inode),
+			(unsigned long long)NFS_FILEID(hdr->inode),
 			data->args.count,
 			(unsigned long long)data->args.offset);
 
@@ -335,8 +335,10 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
 
 	if (test_bit(NFS_IOHDR_REDO, &rdata->header->flags) &&
-	    task->tk_status == 0)
+	    task->tk_status == 0) {
+		nfs41_sequence_done(task, &rdata->res.seq_res);
 		return;
+	}
 
 	/* Note this may cause RPC to be resent */
 	rdata->header->mds_ops->rpc_call_done(task, data);
@@ -442,8 +444,10 @@ static void filelayout_write_call_done(struct rpc_task *task, void *data)
 	struct nfs_write_data *wdata = data;
 
 	if (test_bit(NFS_IOHDR_REDO, &wdata->header->flags) &&
-	    task->tk_status == 0)
+	    task->tk_status == 0) {
+		nfs41_sequence_done(task, &wdata->res.seq_res);
 		return;
+	}
 
 	/* Note this may cause RPC to be resent */
 	wdata->header->mds_ops->rpc_call_done(task, data);
@@ -1216,17 +1220,17 @@ static void filelayout_recover_commit_reqs(struct list_head *dst,
 	struct pnfs_commit_bucket *b;
 	int i;
 
-	/* NOTE cinfo->lock is NOT held, relying on fact that this is
-	 * only called on single thread per dreq.
-	 * Can't take the lock because need to do pnfs_put_lseg
-	 */
+	spin_lock(cinfo->lock);
 	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
 		if (transfer_commit_list(&b->written, dst, cinfo, 0)) {
+			spin_unlock(cinfo->lock);
 			pnfs_put_lseg(b->wlseg);
 			b->wlseg = NULL;
+			spin_lock(cinfo->lock);
 		}
 	}
 	cinfo->ds->nwritten = 0;
+	spin_unlock(cinfo->lock);
 }
 
 static unsigned int

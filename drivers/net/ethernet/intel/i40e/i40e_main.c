@@ -4440,9 +4440,10 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 	/* Check if APP Table has changed */
 	if (memcmp(&new_cfg->app,
 		   &old_cfg->app,
-		   sizeof(new_cfg->app)))
+		   sizeof(new_cfg->app))) {
 		need_reconfig = true;
 		dev_info(&pf->pdev->dev, "APP Table change detected.\n");
+	}
 
 	return need_reconfig;
 }

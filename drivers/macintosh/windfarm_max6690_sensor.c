@@ -95,7 +95,7 @@ static int wf_max6690_probe(struct i2c_client *client,
 	}
 
 	max->i2c = client;
-	max->sens.name = (char *)name; /* XXX fix constness in structure */
+	max->sens.name = name;
 	max->sens.ops = &wf_max6690_ops;
 	i2c_set_clientdata(client, max);
 

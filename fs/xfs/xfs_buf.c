@@ -445,8 +445,8 @@ _xfs_buf_find(
 	numbytes = BBTOB(numblks);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
-	ASSERT(!(numbytes < (1 << btp->bt_sshift)));
-	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_smask));
+	ASSERT(!(numbytes < btp->bt_meta_sectorsize));
+	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_meta_sectormask));
 
 	/*
 	 * Corrupted block numbers can get through to here, unfortunately, so we
@@ -1240,7 +1240,7 @@ next_chunk:
 
 	bio = bio_alloc(GFP_NOIO, nr_pages);
 	bio->bi_bdev = bp->b_target->bt_bdev;
-	bio->bi_sector = sector;
+	bio->bi_iter.bi_sector = sector;
 	bio->bi_end_io = xfs_buf_bio_end_io;
 	bio->bi_private = bp;
 
@@ -1262,7 +1262,7 @@ next_chunk:
 		total_nr_pages--;
 	}
 
-	if (likely(bio->bi_size)) {
+	if (likely(bio->bi_iter.bi_size)) {
 		if (xfs_buf_is_vmapped(bp)) {
 			flush_kernel_vmap_range(bp->b_addr,
 						xfs_buf_vmap_len(bp));
@@ -1599,9 +1599,9 @@ xfs_setsize_buftarg(
 	unsigned int		blocksize,
 	unsigned int		sectorsize)
 {
-	btp->bt_bsize = blocksize;
-	btp->bt_sshift = ffs(sectorsize) - 1;
-	btp->bt_smask = sectorsize - 1;
+	/* Set up metadata sector size info */
+	btp->bt_meta_sectorsize = sectorsize;
+	btp->bt_meta_sectormask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
 		char name[BDEVNAME_SIZE];
@@ -1613,6 +1613,10 @@ xfs_setsize_buftarg(
 			sectorsize, name);
 		return EINVAL;
 	}
+
+	/* Set up device logical sector size mask */
+	btp->bt_logical_sectorsize = bdev_logical_block_size(btp->bt_bdev);
+	btp->bt_logical_sectormask = bdev_logical_block_size(btp->bt_bdev) - 1;
 
 	return 0;
 }

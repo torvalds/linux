@@ -1,7 +1,7 @@
 /*
  *  pc87427.c - hardware monitoring driver for the
  *              National Semiconductor PC87427 Super-I/O chip
- *  Copyright (C) 2006, 2008, 2010  Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2006, 2008, 2010  Jean Delvare <jdelvare@suse.de>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -1347,7 +1347,7 @@ static void __exit pc87427_exit(void)
 	platform_driver_unregister(&pc87427_driver);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("PC87427 hardware monitoring driver");
 MODULE_LICENSE("GPL");
 

@@ -1088,6 +1088,12 @@ igmpv3_unsolicited_report_interval - INTEGER
 	IGMPv3 report retransmit will take place.
 	Default: 1000 (1 seconds)
 
+promote_secondaries - BOOLEAN
+	When a primary IP address is removed from this interface
+	promote a corresponding secondary IP address instead of
+	removing all the corresponding secondary IP addresses.
+
+
 tag - INTEGER
 	Allows you to write a number, which can be used as required.
 	Default value is 0.

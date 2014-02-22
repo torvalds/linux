@@ -4,7 +4,6 @@
  * Copyright (C) 2002, 2003, 2006 David S. Miller (davem@davemloft.net)
  */
 
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>

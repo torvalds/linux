@@ -220,12 +220,12 @@ int is_vmalloc_or_module_addr(const void *x)
 }
 
 /*
- * Walk a vmap address to the physical pfn it maps to.
+ * Walk a vmap address to the struct page it maps.
  */
-unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+struct page *vmalloc_to_page(const void *vmalloc_addr)
 {
 	unsigned long addr = (unsigned long) vmalloc_addr;
-	unsigned long pfn = 0;
+	struct page *page = NULL;
 	pgd_t *pgd = pgd_offset_k(addr);
 
 	/*
@@ -244,23 +244,23 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
 				ptep = pte_offset_map(pmd, addr);
 				pte = *ptep;
 				if (pte_present(pte))
-					pfn = pte_pfn(pte);
+					page = pte_page(pte);
 				pte_unmap(ptep);
 			}
 		}
 	}
-	return pfn;
-}
-EXPORT_SYMBOL(vmalloc_to_pfn);
-
-/*
- * Map a vmalloc()-space virtual address to the struct page.
- */
-struct page *vmalloc_to_page(const void *vmalloc_addr)
-{
-	return pfn_to_page(vmalloc_to_pfn(vmalloc_addr));
+	return page;
 }
 EXPORT_SYMBOL(vmalloc_to_page);
+
+/*
+ * Map a vmalloc()-space virtual address to the physical page frame number.
+ */
+unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+{
+	return page_to_pfn(vmalloc_to_page(vmalloc_addr));
+}
+EXPORT_SYMBOL(vmalloc_to_pfn);
 
 
 /*** Global kva allocator ***/

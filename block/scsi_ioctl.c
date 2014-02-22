@@ -323,12 +323,14 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 
 	if (hdr->iovec_count) {
 		size_t iov_data_len;
-		struct iovec *iov;
+		struct iovec *iov = NULL;
 
 		ret = rw_copy_check_uvector(-1, hdr->dxferp, hdr->iovec_count,
 					    0, NULL, &iov);
-		if (ret < 0)
+		if (ret < 0) {
+			kfree(iov);
 			goto out;
+		}
 
 		iov_data_len = ret;
 		ret = 0;

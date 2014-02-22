@@ -41,9 +41,9 @@ create_package() {
 	parisc*)
 		debarch=hppa ;;
 	mips*)
-		debarch=mips$(grep -q CPU_LITTLE_ENDIAN=y $KCONFIG_CONFIG && echo el) ;;
+		debarch=mips$(grep -q CPU_LITTLE_ENDIAN=y $KCONFIG_CONFIG && echo el || true) ;;
 	arm*)
-		debarch=arm$(grep -q CONFIG_AEABI=y $KCONFIG_CONFIG && echo el) ;;
+		debarch=arm$(grep -q CONFIG_AEABI=y $KCONFIG_CONFIG && echo el || true) ;;
 	*)
 		echo "" >&2
 		echo "** ** **  WARNING  ** ** **" >&2
@@ -62,7 +62,7 @@ create_package() {
 	fi
 
 	# Create the package
-	dpkg-gencontrol -isp $forcearch -p$pname -P"$pdir"
+	dpkg-gencontrol -isp $forcearch -Vkernel:debarch="${debarch:-$(dpkg --print-architecture)}" -p$pname -P"$pdir"
 	dpkg --build "$pdir" ..
 }
 
@@ -172,8 +172,15 @@ fi
 
 # Install the maintainer scripts
 # Note: hook scripts under /etc/kernel are also executed by official Debian
-# kernel packages, as well as kernel packages built using make-kpkg
+# kernel packages, as well as kernel packages built using make-kpkg.
+# make-kpkg sets $INITRD to indicate whether an initramfs is wanted, and
+# so do we; recent versions of dracut and initramfs-tools will obey this.
 debhookdir=${KDEB_HOOKDIR:-/etc/kernel}
+if grep -q '^CONFIG_BLK_DEV_INITRD=y' $KCONFIG_CONFIG; then
+	want_initrd=Yes
+else
+	want_initrd=No
+fi
 for script in postinst postrm preinst prerm ; do
 	mkdir -p "$tmpdir$debhookdir/$script.d"
 	cat <<EOF > "$tmpdir/DEBIAN/$script"
@@ -183,6 +190,9 @@ set -e
 
 # Pass maintainer script parameters to hook scripts
 export DEB_MAINT_PARAMS="\$*"
+
+# Tell initramfs builder whether it's wanted
+export INITRD=$want_initrd
 
 test -d $debhookdir/$script.d && run-parts --arg="$version" --arg="/$installed_image_path" $debhookdir/$script.d
 exit 0
@@ -288,15 +298,14 @@ mkdir -p "$destdir"
 (cd $objtree; cp $KCONFIG_CONFIG $destdir/.config) # copy .config manually to be where it's expected to be
 ln -sf "/usr/src/linux-headers-$version" "$kernel_headers_dir/lib/modules/$version/build"
 rm -f "$objtree/debian/hdrsrcfiles" "$objtree/debian/hdrobjfiles"
-arch=$(dpkg --print-architecture)
 
 cat <<EOF >> debian/control
 
 Package: $kernel_headers_packagename
 Provides: linux-headers, linux-headers-2.6
-Architecture: $arch
-Description: Linux kernel headers for $KERNELRELEASE on $arch
- This package provides kernel header files for $KERNELRELEASE on $arch
+Architecture: any
+Description: Linux kernel headers for $KERNELRELEASE on \${kernel:debarch}
+ This package provides kernel header files for $KERNELRELEASE on \${kernel:debarch}
  .
  This is useful for people who need to build external modules
 EOF

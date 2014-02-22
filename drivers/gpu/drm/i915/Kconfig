@@ -1,8 +1,10 @@
 config DRM_I915
 	tristate "Intel 8xx/9xx/G3x/G4x/HD Graphics"
 	depends on DRM
-	depends on AGP
-	depends on AGP_INTEL
+	depends on X86 && PCI
+	depends on (AGP || AGP=n)
+	select INTEL_GTT
+	select AGP_INTEL if AGP
 	# we need shmfs for the swappable backing store, and in particular
 	# the shmem_readpage() which depends upon tmpfs
 	select SHMEM
@@ -35,15 +37,14 @@ config DRM_I915
 config DRM_I915_KMS
 	bool "Enable modesetting on intel by default"
 	depends on DRM_I915
+	default y
 	help
-	  Choose this option if you want kernel modesetting enabled by default,
-	  and you have a new enough userspace to support this. Running old
-	  userspaces with this enabled will cause pain.  Note that this causes
-	  the driver to bind to PCI devices, which precludes loading things
-	  like intelfb.
+	  Choose this option if you want kernel modesetting enabled by default.
+
+	  If in doubt, say "Y".
 
 config DRM_I915_FBDEV
-	bool "Enable legacy fbdev support for the modesettting intel driver"
+	bool "Enable legacy fbdev support for the modesetting intel driver"
 	depends on DRM_I915
 	select DRM_KMS_FB_HELPER
 	select FB_CFB_FILLRECT
@@ -55,13 +56,28 @@ config DRM_I915_FBDEV
 	  support. Note that this support also provide the linux console
 	  support on top of the intel modesetting driver.
 
+	  If in doubt, say "Y".
+
 config DRM_I915_PRELIMINARY_HW_SUPPORT
 	bool "Enable preliminary support for prerelease Intel hardware by default"
 	depends on DRM_I915
+	default n
 	help
 	  Choose this option if you have prerelease Intel hardware and want the
 	  i915 driver to support it by default.  You can enable such support at
 	  runtime with the module option i915.preliminary_hw_support=1; this
 	  option changes the default for that module option.
+
+	  If in doubt, say "N".
+
+config DRM_I915_UMS
+	bool "Enable userspace modesetting on Intel hardware (DEPRECATED)"
+	depends on DRM_I915
+	default n
+	help
+	  Choose this option if you still need userspace modesetting.
+
+	  Userspace modesetting is deprecated for quite some time now, so
+	  enable this only if you have ancient versions of the DDX drivers.
 
 	  If in doubt, say "N".

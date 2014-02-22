@@ -178,7 +178,7 @@ static int ipgre_err(struct sk_buff *skb, u32 info,
 	else
 		itn = net_generic(net, ipgre_net_id);
 
-	iph = (const struct iphdr *)skb->data;
+	iph = (const struct iphdr *)(icmp_hdr(skb) + 1);
 	t = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi->flags,
 			     iph->daddr, iph->saddr, tpi->key);
 

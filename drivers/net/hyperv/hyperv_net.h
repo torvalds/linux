@@ -462,7 +462,7 @@ struct nvsp_message {
 
 #define NETVSC_MTU 65536
 
-#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*2)	/* 2MB */
+#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16)	/* 16MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 

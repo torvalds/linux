@@ -8,6 +8,8 @@ listRCU.txt
 	- Using RCU to Protect Read-Mostly Linked Lists
 lockdep.txt
 	- RCU and lockdep checking
+lockdep-splat.txt
+	- RCU Lockdep splats explained.
 NMI-RCU.txt
 	- Using RCU to Protect Dynamic NMI Handlers
 rcubarrier.txt

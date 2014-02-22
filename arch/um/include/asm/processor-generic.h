@@ -25,10 +25,8 @@ struct thread_struct {
 	void *fault_addr;
 	jmp_buf *fault_catcher;
 	struct task_struct *prev_sched;
-	unsigned long temp_stack;
 	struct arch_thread arch;
 	jmp_buf switch_buf;
-	int mm_count;
 	struct {
 		int op;
 		union {
@@ -52,7 +50,6 @@ struct thread_struct {
 	.regs		   	= EMPTY_REGS,	\
 	.fault_addr		= NULL, \
 	.prev_sched		= NULL, \
-	.temp_stack		= 0, \
 	.arch			= INIT_ARCH_THREAD, \
 	.request		= { 0 } \
 }

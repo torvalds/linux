@@ -3400,7 +3400,7 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
 static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 						  struct kmem_cache *s)
 {
-	struct kmem_cache *new;
+	struct kmem_cache *new = NULL;
 	static char *tmp_name = NULL;
 	static DEFINE_MUTEX(mutex);	/* protects tmp_name */
 
@@ -3416,7 +3416,7 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 	if (!tmp_name) {
 		tmp_name = kmalloc(PATH_MAX, GFP_KERNEL);
 		if (!tmp_name)
-			return NULL;
+			goto out;
 	}
 
 	rcu_read_lock();
@@ -3426,12 +3426,11 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 
 	new = kmem_cache_create_memcg(memcg, tmp_name, s->object_size, s->align,
 				      (s->flags & ~SLAB_PANIC), s->ctor, s);
-
 	if (new)
 		new->allocflags |= __GFP_KMEMCG;
 	else
 		new = s;
-
+out:
 	mutex_unlock(&mutex);
 	return new;
 }

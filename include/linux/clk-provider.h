@@ -488,6 +488,8 @@ struct clk_onecell_data {
 	unsigned int clk_num;
 };
 
+extern struct of_device_id __clk_of_table;
+
 #define CLK_OF_DECLARE(name, compat, fn)			\
 	static const struct of_device_id __clk_of_table_##name	\
 		__used __section(__clk_of_table)		\
@@ -542,6 +544,20 @@ static inline const char *of_clk_get_parent_name(struct device_node *np,
  * for improved portability across platforms
  */
 
+#if IS_ENABLED(CONFIG_PPC)
+
+static inline u32 clk_readl(u32 __iomem *reg)
+{
+	return ioread32be(reg);
+}
+
+static inline void clk_writel(u32 val, u32 __iomem *reg)
+{
+	iowrite32be(val, reg);
+}
+
+#else	/* platform dependent I/O accessors */
+
 static inline u32 clk_readl(u32 __iomem *reg)
 {
 	return readl(reg);
@@ -551,6 +567,8 @@ static inline void clk_writel(u32 val, u32 __iomem *reg)
 {
 	writel(val, reg);
 }
+
+#endif	/* platform dependent I/O accessors */
 
 #endif /* CONFIG_COMMON_CLK */
 #endif /* CLK_PROVIDER_H */

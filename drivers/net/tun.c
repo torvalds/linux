@@ -69,6 +69,7 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/sock.h>
+#include <linux/seq_file.h>
 
 #include <asm/uaccess.h>
 
@@ -365,7 +366,7 @@ static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
  * hope the rxq no. may help here.
  */
 static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv)
+			    void *accel_priv, select_queue_fallback_t fallback)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 	struct tun_flow_entry *e;
@@ -2228,6 +2229,27 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
+static int tun_chr_show_fdinfo(struct seq_file *m, struct file *f)
+{
+	struct tun_struct *tun;
+	struct ifreq ifr;
+
+	memset(&ifr, 0, sizeof(ifr));
+
+	rtnl_lock();
+	tun = tun_get(f);
+	if (tun)
+		tun_get_iff(current->nsproxy->net_ns, tun, &ifr);
+	rtnl_unlock();
+
+	if (tun)
+		tun_put(tun);
+
+	return seq_printf(m, "iff:\t%s\n", ifr.ifr_name);
+}
+#endif
+
 static const struct file_operations tun_fops = {
 	.owner	= THIS_MODULE,
 	.llseek = no_llseek,
@@ -2242,7 +2264,10 @@ static const struct file_operations tun_fops = {
 #endif
 	.open	= tun_chr_open,
 	.release = tun_chr_close,
-	.fasync = tun_chr_fasync
+	.fasync = tun_chr_fasync,
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo = tun_chr_show_fdinfo,
+#endif
 };
 
 static struct miscdevice tun_miscdev = {

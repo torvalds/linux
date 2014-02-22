@@ -152,9 +152,23 @@ static void lp5521_load_engine(struct lp55xx_chip *chip)
 	lp5521_wait_opmode_done();
 }
 
-static void lp5521_stop_engine(struct lp55xx_chip *chip)
+static void lp5521_stop_all_engines(struct lp55xx_chip *chip)
 {
 	lp55xx_write(chip, LP5521_REG_OP_MODE, 0);
+	lp5521_wait_opmode_done();
+}
+
+static void lp5521_stop_engine(struct lp55xx_chip *chip)
+{
+	enum lp55xx_engine_index idx = chip->engine_idx;
+	u8 mask[] = {
+		[LP55XX_ENGINE_1] = LP5521_MODE_R_M,
+		[LP55XX_ENGINE_2] = LP5521_MODE_G_M,
+		[LP55XX_ENGINE_3] = LP5521_MODE_B_M,
+	};
+
+	lp55xx_update_bits(chip, LP5521_REG_OP_MODE, mask[idx], 0);
+
 	lp5521_wait_opmode_done();
 }
 
@@ -564,7 +578,7 @@ static int lp5521_remove(struct i2c_client *client)
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
-	lp5521_stop_engine(chip);
+	lp5521_stop_all_engines(chip);
 	lp55xx_unregister_sysfs(chip);
 	lp55xx_unregister_leds(led, chip);
 	lp55xx_deinit_device(chip);

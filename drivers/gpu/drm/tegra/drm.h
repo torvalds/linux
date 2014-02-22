@@ -27,10 +27,12 @@ struct tegra_fb {
 	unsigned int num_planes;
 };
 
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 struct tegra_fbdev {
 	struct drm_fb_helper base;
 	struct tegra_fb *fb;
 };
+#endif
 
 struct tegra_drm {
 	struct drm_device *drm;
@@ -38,7 +40,9 @@ struct tegra_drm {
 	struct mutex clients_lock;
 	struct list_head clients;
 
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_fbdev *fbdev;
+#endif
 };
 
 struct tegra_drm_client;
@@ -84,6 +88,7 @@ extern int tegra_drm_unregister_client(struct tegra_drm *tegra,
 extern int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
 extern int tegra_drm_exit(struct tegra_drm *tegra);
 
+struct tegra_dc_soc_info;
 struct tegra_output;
 
 struct tegra_dc {
@@ -109,6 +114,8 @@ struct tegra_dc {
 
 	/* page-flip handling */
 	struct drm_pending_vblank_event *event;
+
+	const struct tegra_dc_soc_info *soc;
 };
 
 static inline struct tegra_dc *
@@ -177,6 +184,7 @@ struct tegra_output_ops {
 enum tegra_output_type {
 	TEGRA_OUTPUT_RGB,
 	TEGRA_OUTPUT_HDMI,
+	TEGRA_OUTPUT_DSI,
 };
 
 struct tegra_output {
@@ -186,6 +194,7 @@ struct tegra_output {
 	const struct tegra_output_ops *ops;
 	enum tegra_output_type type;
 
+	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
 	const struct edid *edid;
 	unsigned int hpd_irq;
@@ -263,9 +272,12 @@ bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
 bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer);
 extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 extern void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
+#endif
 
 extern struct platform_driver tegra_dc_driver;
+extern struct platform_driver tegra_dsi_driver;
 extern struct platform_driver tegra_hdmi_driver;
 extern struct platform_driver tegra_gr2d_driver;
 extern struct platform_driver tegra_gr3d_driver;

@@ -17,13 +17,29 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/blkdev.h>
-#include <linux/cramfs_fs.h>
 #include <linux/slab.h>
-#include <linux/cramfs_fs_sb.h>
 #include <linux/vfs.h>
 #include <linux/mutex.h>
-
+#include <uapi/linux/cramfs_fs.h>
 #include <asm/uaccess.h>
+
+#include "internal.h"
+
+/*
+ * cramfs super-block data in memory
+ */
+struct cramfs_sb_info {
+	unsigned long magic;
+	unsigned long size;
+	unsigned long blocks;
+	unsigned long files;
+	unsigned long flags;
+};
+
+static inline struct cramfs_sb_info *CRAMFS_SB(struct super_block *sb)
+{
+	return sb->s_fs_info;
+}
 
 static const struct super_operations cramfs_ops;
 static const struct inode_operations cramfs_dir_inode_operations;
@@ -219,10 +235,11 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
 	return read_buffers[buffer] + offset;
 }
 
-static void cramfs_put_super(struct super_block *sb)
+static void cramfs_kill_sb(struct super_block *sb)
 {
-	kfree(sb->s_fs_info);
-	sb->s_fs_info = NULL;
+	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
+	kill_block_super(sb);
+	kfree(sbi);
 }
 
 static int cramfs_remount(struct super_block *sb, int *flags, char *data)
@@ -261,7 +278,7 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 		if (super.magic == CRAMFS_MAGIC_WEND) {
 			if (!silent)
 				printk(KERN_ERR "cramfs: wrong endianness\n");
-			goto out;
+			return -EINVAL;
 		}
 
 		/* check at 512 byte offset */
@@ -273,20 +290,20 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 				printk(KERN_ERR "cramfs: wrong endianness\n");
 			else if (!silent)
 				printk(KERN_ERR "cramfs: wrong magic\n");
-			goto out;
+			return -EINVAL;
 		}
 	}
 
 	/* get feature flags first */
 	if (super.flags & ~CRAMFS_SUPPORTED_FLAGS) {
 		printk(KERN_ERR "cramfs: unsupported filesystem features\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	/* Check that the root inode is in a sane state */
 	if (!S_ISDIR(super.root.mode)) {
 		printk(KERN_ERR "cramfs: root is not a directory\n");
-		goto out;
+		return -EINVAL;
 	}
 	/* correct strange, hard-coded permissions of mkcramfs */
 	super.root.mode |= (S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
@@ -310,22 +327,18 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 		  (root_offset != 512 + sizeof(struct cramfs_super))))
 	{
 		printk(KERN_ERR "cramfs: bad root offset %lu\n", root_offset);
-		goto out;
+		return -EINVAL;
 	}
 
 	/* Set it all up.. */
 	sb->s_op = &cramfs_ops;
 	root = get_cramfs_inode(sb, &super.root, 0);
 	if (IS_ERR(root))
-		goto out;
+		return PTR_ERR(root);
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		goto out;
+		return -ENOMEM;
 	return 0;
-out:
-	kfree(sbi);
-	sb->s_fs_info = NULL;
-	return -EINVAL;
 }
 
 static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -550,7 +563,6 @@ static const struct inode_operations cramfs_dir_inode_operations = {
 };
 
 static const struct super_operations cramfs_ops = {
-	.put_super	= cramfs_put_super,
 	.remount_fs	= cramfs_remount,
 	.statfs		= cramfs_statfs,
 };
@@ -565,7 +577,7 @@ static struct file_system_type cramfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "cramfs",
 	.mount		= cramfs_mount,
-	.kill_sb	= kill_block_super,
+	.kill_sb	= cramfs_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("cramfs");

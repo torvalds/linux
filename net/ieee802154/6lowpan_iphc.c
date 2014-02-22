@@ -678,7 +678,7 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 			hc06_ptr += 3;
 		} else {
 			/* compress nothing */
-			memcpy(hc06_ptr, &hdr, 4);
+			memcpy(hc06_ptr, hdr, 4);
 			/* replace the top byte with new ECN | DSCP format */
 			*hc06_ptr = tmp;
 			hc06_ptr += 4;

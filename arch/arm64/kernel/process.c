@@ -85,11 +85,6 @@ EXPORT_SYMBOL_GPL(pm_power_off);
 void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
 EXPORT_SYMBOL_GPL(arm_pm_restart);
 
-void arch_cpu_idle_prepare(void)
-{
-	local_fiq_enable();
-}
-
 /*
  * This is our default idle handler.
  */
@@ -138,7 +133,6 @@ void machine_restart(char *cmd)
 
 	/* Disable interrupts first */
 	local_irq_disable();
-	local_fiq_disable();
 
 	/* Now call the architecture specific reboot code. */
 	if (arm_pm_restart)

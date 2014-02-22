@@ -28,7 +28,7 @@
  * Based on:
  *	i2c-virtual_cb.c from Brian Kuschak <bkuschak@yahoo.com>
  * and
- *	pca9540.c from Jean Delvare <khali@linux-fr.org>.
+ *	pca9540.c from Jean Delvare <jdelvare@suse.de>.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -40,7 +40,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/i2c/pca954x.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>

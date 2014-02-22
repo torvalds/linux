@@ -133,6 +133,39 @@ static int ar8031_phy_fixup(struct phy_device *dev)
 
 #define PHY_ID_AR8031	0x004dd074
 
+static int ar8035_phy_fixup(struct phy_device *dev)
+{
+	u16 val;
+
+	/* Ar803x phy SmartEEE feature cause link status generates glitch,
+	 * which cause ethernet link down/up issue, so disable SmartEEE
+	 */
+	phy_write(dev, 0xd, 0x3);
+	phy_write(dev, 0xe, 0x805d);
+	phy_write(dev, 0xd, 0x4003);
+
+	val = phy_read(dev, 0xe);
+	phy_write(dev, 0xe, val & ~(1 << 8));
+
+	/*
+	 * Enable 125MHz clock from CLK_25M on the AR8031.  This
+	 * is fed in to the IMX6 on the ENET_REF_CLK (V22) pad.
+	 * Also, introduce a tx clock delay.
+	 *
+	 * This is the same as is the AR8031 fixup.
+	 */
+	ar8031_phy_fixup(dev);
+
+	/*check phy power*/
+	val = phy_read(dev, 0x0);
+	if (val & BMCR_PDOWN)
+		phy_write(dev, 0x0, val & ~BMCR_PDOWN);
+
+	return 0;
+}
+
+#define PHY_ID_AR8035 0x004dd072
+
 static void __init imx6q_enet_phy_init(void)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {
@@ -142,6 +175,8 @@ static void __init imx6q_enet_phy_init(void)
 				ksz9031rn_phy_fixup);
 		phy_register_fixup_for_uid(PHY_ID_AR8031, 0xffffffff,
 				ar8031_phy_fixup);
+		phy_register_fixup_for_uid(PHY_ID_AR8035, 0xffffffef,
+				ar8035_phy_fixup);
 	}
 }
 

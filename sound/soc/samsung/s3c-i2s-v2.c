@@ -729,7 +729,7 @@ int s3c_i2sv2_register_component(struct device *dev, int id,
 			   struct snd_soc_component_driver *cmp_drv,
 			   struct snd_soc_dai_driver *dai_drv)
 {
-	struct snd_soc_dai_ops *ops = drv->ops;
+	struct snd_soc_dai_ops *ops = dai_drv->ops;
 
 	ops->trigger = s3c2412_i2s_trigger;
 	if (!ops->hw_params)
@@ -742,8 +742,8 @@ int s3c_i2sv2_register_component(struct device *dev, int id,
 	if (!ops->delay)
 		ops->delay = s3c2412_i2s_delay;
 
-	drv->suspend = s3c2412_i2s_suspend;
-	drv->resume = s3c2412_i2s_resume;
+	dai_drv->suspend = s3c2412_i2s_suspend;
+	dai_drv->resume = s3c2412_i2s_resume;
 
 	return snd_soc_register_component(dev, cmp_drv, dai_drv, 1);
 }

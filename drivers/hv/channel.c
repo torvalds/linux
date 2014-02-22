@@ -209,7 +209,6 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 {
 	int i;
 	int pagecount;
-	unsigned long long pfn;
 	struct vmbus_channel_gpadl_header *gpadl_header;
 	struct vmbus_channel_gpadl_body *gpadl_body;
 	struct vmbus_channel_msginfo *msgheader;
@@ -219,7 +218,6 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 	int pfnsum, pfncount, pfnleft, pfncurr, pfnsize;
 
 	pagecount = size >> PAGE_SHIFT;
-	pfn = virt_to_phys(kbuffer) >> PAGE_SHIFT;
 
 	/* do we need a gpadl body msg */
 	pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
@@ -248,7 +246,8 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 		gpadl_header->range[0].byte_offset = 0;
 		gpadl_header->range[0].byte_count = size;
 		for (i = 0; i < pfncount; i++)
-			gpadl_header->range[0].pfn_array[i] = pfn+i;
+			gpadl_header->range[0].pfn_array[i] = slow_virt_to_phys(
+				kbuffer + PAGE_SIZE * i) >> PAGE_SHIFT;
 		*msginfo = msgheader;
 		*messagecount = 1;
 
@@ -301,7 +300,9 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 			 * so the hypervisor gurantees that this is ok.
 			 */
 			for (i = 0; i < pfncurr; i++)
-				gpadl_body->pfn[i] = pfn + pfnsum + i;
+				gpadl_body->pfn[i] = slow_virt_to_phys(
+					kbuffer + PAGE_SIZE * (pfnsum + i)) >>
+					PAGE_SHIFT;
 
 			/* add to msg header */
 			list_add_tail(&msgbody->msglistentry,
@@ -327,7 +328,8 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 		gpadl_header->range[0].byte_offset = 0;
 		gpadl_header->range[0].byte_count = size;
 		for (i = 0; i < pagecount; i++)
-			gpadl_header->range[0].pfn_array[i] = pfn+i;
+			gpadl_header->range[0].pfn_array[i] = slow_virt_to_phys(
+				kbuffer + PAGE_SIZE * i) >> PAGE_SHIFT;
 
 		*msginfo = msgheader;
 		*messagecount = 1;
@@ -344,7 +346,7 @@ nomem:
  * vmbus_establish_gpadl - Estabish a GPADL for the specified buffer
  *
  * @channel: a channel
- * @kbuffer: from kmalloc
+ * @kbuffer: from kmalloc or vmalloc
  * @size: page-size multiple
  * @gpadl_handle: some funky thing
  */

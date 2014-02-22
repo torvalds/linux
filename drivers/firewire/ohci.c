@@ -370,6 +370,10 @@ MODULE_PARM_DESC(debug, "Verbose logging (default = 0"
 	", busReset events = "	__stringify(OHCI_PARAM_DEBUG_BUSRESETS)
 	", or a combination, or all = -1)");
 
+static bool param_remote_dma;
+module_param_named(remote_dma, param_remote_dma, bool, 0444);
+MODULE_PARM_DESC(remote_dma, "Enable unfiltered remote DMA (default = N)");
+
 static void log_irqs(struct fw_ohci *ohci, u32 evt)
 {
 	if (likely(!(param_debug &
@@ -2050,10 +2054,10 @@ static void bus_reset_work(struct work_struct *work)
 			  be32_to_cpu(ohci->next_header));
 	}
 
-#ifdef CONFIG_FIREWIRE_OHCI_REMOTE_DMA
-	reg_write(ohci, OHCI1394_PhyReqFilterHiSet, ~0);
-	reg_write(ohci, OHCI1394_PhyReqFilterLoSet, ~0);
-#endif
+	if (param_remote_dma) {
+		reg_write(ohci, OHCI1394_PhyReqFilterHiSet, ~0);
+		reg_write(ohci, OHCI1394_PhyReqFilterLoSet, ~0);
+	}
 
 	spin_unlock_irq(&ohci->lock);
 
@@ -2363,7 +2367,7 @@ static int ohci_enable(struct fw_card *card,
 	reg_write(ohci, OHCI1394_FairnessControl, 0);
 	card->priority_budget_implemented = ohci->pri_req_max != 0;
 
-	reg_write(ohci, OHCI1394_PhyUpperBound, 0x00010000);
+	reg_write(ohci, OHCI1394_PhyUpperBound, FW_MAX_PHYSICAL_RANGE >> 16);
 	reg_write(ohci, OHCI1394_IntEventClear, ~0);
 	reg_write(ohci, OHCI1394_IntMaskClear, ~0);
 
@@ -2587,12 +2591,12 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 static int ohci_enable_phys_dma(struct fw_card *card,
 				int node_id, int generation)
 {
-#ifdef CONFIG_FIREWIRE_OHCI_REMOTE_DMA
-	return 0;
-#else
 	struct fw_ohci *ohci = fw_ohci(card);
 	unsigned long flags;
 	int n, ret = 0;
+
+	if (param_remote_dma)
+		return 0;
 
 	/*
 	 * FIXME:  Make sure this bitmask is cleared when we clear the busReset
@@ -2622,7 +2626,6 @@ static int ohci_enable_phys_dma(struct fw_card *card,
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	return ret;
-#endif /* CONFIG_FIREWIRE_OHCI_REMOTE_DMA */
 }
 
 static u32 ohci_read_csr(struct fw_card *card, int csr_offset)
@@ -3720,9 +3723,11 @@ static int pci_probe(struct pci_dev *dev,
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	ohci_notice(ohci,
 		    "added OHCI v%x.%x device as card %d, "
-		    "%d IR + %d IT contexts, quirks 0x%x\n",
+		    "%d IR + %d IT contexts, quirks 0x%x%s\n",
 		    version >> 16, version & 0xff, ohci->card.index,
-		    ohci->n_ir, ohci->n_it, ohci->quirks);
+		    ohci->n_ir, ohci->n_it, ohci->quirks,
+		    reg_read(ohci, OHCI1394_PhyUpperBound) ?
+			", >4 GB phys DMA" : "");
 
 	return 0;
 

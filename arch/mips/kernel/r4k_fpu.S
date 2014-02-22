@@ -35,7 +35,15 @@
 LEAF(_save_fp_context)
 	cfc1	t1, fcr31
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) || defined(CONFIG_MIPS32_R2)
+	.set	push
+#ifdef CONFIG_MIPS32_R2
+	.set	mips64r2
+	mfc0	t0, CP0_STATUS
+	sll	t0, t0, 5
+	bgez	t0, 1f			# skip storing odd if FR=0
+	 nop
+#endif
 	/* Store the 16 odd double precision registers */
 	EX	sdc1 $f1, SC_FPREGS+8(a0)
 	EX	sdc1 $f3, SC_FPREGS+24(a0)
@@ -53,6 +61,7 @@ LEAF(_save_fp_context)
 	EX	sdc1 $f27, SC_FPREGS+216(a0)
 	EX	sdc1 $f29, SC_FPREGS+232(a0)
 	EX	sdc1 $f31, SC_FPREGS+248(a0)
+1:	.set	pop
 #endif
 
 	/* Store the 16 even double precision registers */
@@ -82,7 +91,31 @@ LEAF(_save_fp_context)
 LEAF(_save_fp_context32)
 	cfc1	t1, fcr31
 
-	EX	sdc1 $f0, SC32_FPREGS+0(a0)
+	mfc0	t0, CP0_STATUS
+	sll	t0, t0, 5
+	bgez	t0, 1f			# skip storing odd if FR=0
+	 nop
+
+	/* Store the 16 odd double precision registers */
+	EX      sdc1 $f1, SC32_FPREGS+8(a0)
+	EX      sdc1 $f3, SC32_FPREGS+24(a0)
+	EX      sdc1 $f5, SC32_FPREGS+40(a0)
+	EX      sdc1 $f7, SC32_FPREGS+56(a0)
+	EX      sdc1 $f9, SC32_FPREGS+72(a0)
+	EX      sdc1 $f11, SC32_FPREGS+88(a0)
+	EX      sdc1 $f13, SC32_FPREGS+104(a0)
+	EX      sdc1 $f15, SC32_FPREGS+120(a0)
+	EX      sdc1 $f17, SC32_FPREGS+136(a0)
+	EX      sdc1 $f19, SC32_FPREGS+152(a0)
+	EX      sdc1 $f21, SC32_FPREGS+168(a0)
+	EX      sdc1 $f23, SC32_FPREGS+184(a0)
+	EX      sdc1 $f25, SC32_FPREGS+200(a0)
+	EX      sdc1 $f27, SC32_FPREGS+216(a0)
+	EX      sdc1 $f29, SC32_FPREGS+232(a0)
+	EX      sdc1 $f31, SC32_FPREGS+248(a0)
+
+	/* Store the 16 even double precision registers */
+1:	EX	sdc1 $f0, SC32_FPREGS+0(a0)
 	EX	sdc1 $f2, SC32_FPREGS+16(a0)
 	EX	sdc1 $f4, SC32_FPREGS+32(a0)
 	EX	sdc1 $f6, SC32_FPREGS+48(a0)
@@ -114,7 +147,16 @@ LEAF(_save_fp_context32)
  */
 LEAF(_restore_fp_context)
 	EX	lw t0, SC_FPC_CSR(a0)
-#ifdef CONFIG_64BIT
+
+#if defined(CONFIG_64BIT) || defined(CONFIG_MIPS32_R2)
+	.set	push
+#ifdef CONFIG_MIPS32_R2
+	.set	mips64r2
+	mfc0	t0, CP0_STATUS
+	sll	t0, t0, 5
+	bgez	t0, 1f			# skip loading odd if FR=0
+	 nop
+#endif
 	EX	ldc1 $f1, SC_FPREGS+8(a0)
 	EX	ldc1 $f3, SC_FPREGS+24(a0)
 	EX	ldc1 $f5, SC_FPREGS+40(a0)
@@ -131,6 +173,7 @@ LEAF(_restore_fp_context)
 	EX	ldc1 $f27, SC_FPREGS+216(a0)
 	EX	ldc1 $f29, SC_FPREGS+232(a0)
 	EX	ldc1 $f31, SC_FPREGS+248(a0)
+1:	.set pop
 #endif
 	EX	ldc1 $f0, SC_FPREGS+0(a0)
 	EX	ldc1 $f2, SC_FPREGS+16(a0)
@@ -157,7 +200,30 @@ LEAF(_restore_fp_context)
 LEAF(_restore_fp_context32)
 	/* Restore an o32 sigcontext.  */
 	EX	lw t0, SC32_FPC_CSR(a0)
-	EX	ldc1 $f0, SC32_FPREGS+0(a0)
+
+	mfc0	t0, CP0_STATUS
+	sll	t0, t0, 5
+	bgez	t0, 1f			# skip loading odd if FR=0
+	 nop
+
+	EX      ldc1 $f1, SC32_FPREGS+8(a0)
+	EX      ldc1 $f3, SC32_FPREGS+24(a0)
+	EX      ldc1 $f5, SC32_FPREGS+40(a0)
+	EX      ldc1 $f7, SC32_FPREGS+56(a0)
+	EX      ldc1 $f9, SC32_FPREGS+72(a0)
+	EX      ldc1 $f11, SC32_FPREGS+88(a0)
+	EX      ldc1 $f13, SC32_FPREGS+104(a0)
+	EX      ldc1 $f15, SC32_FPREGS+120(a0)
+	EX      ldc1 $f17, SC32_FPREGS+136(a0)
+	EX      ldc1 $f19, SC32_FPREGS+152(a0)
+	EX      ldc1 $f21, SC32_FPREGS+168(a0)
+	EX      ldc1 $f23, SC32_FPREGS+184(a0)
+	EX      ldc1 $f25, SC32_FPREGS+200(a0)
+	EX      ldc1 $f27, SC32_FPREGS+216(a0)
+	EX      ldc1 $f29, SC32_FPREGS+232(a0)
+	EX      ldc1 $f31, SC32_FPREGS+248(a0)
+
+1:	EX	ldc1 $f0, SC32_FPREGS+0(a0)
 	EX	ldc1 $f2, SC32_FPREGS+16(a0)
 	EX	ldc1 $f4, SC32_FPREGS+32(a0)
 	EX	ldc1 $f6, SC32_FPREGS+48(a0)

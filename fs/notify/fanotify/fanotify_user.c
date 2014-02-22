@@ -319,7 +319,12 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 			if (IS_ERR(kevent))
 				break;
 			ret = copy_event_to_user(group, kevent, buf);
-			fsnotify_destroy_event(group, kevent);
+			/*
+			 * Permission events get destroyed after we
+			 * receive response
+			 */
+			if (!(kevent->mask & FAN_ALL_PERM_EVENTS))
+				fsnotify_destroy_event(group, kevent);
 			if (ret < 0)
 				break;
 			buf += ret;
@@ -886,9 +891,9 @@ COMPAT_SYSCALL_DEFINE6(fanotify_mark,
 {
 	return sys_fanotify_mark(fanotify_fd, flags,
 #ifdef __BIG_ENDIAN
-				((__u64)mask1 << 32) | mask0,
-#else
 				((__u64)mask0 << 32) | mask1,
+#else
+				((__u64)mask1 << 32) | mask0,
 #endif
 				 dfd, pathname);
 }

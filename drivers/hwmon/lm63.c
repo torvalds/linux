@@ -1,7 +1,7 @@
 /*
  * lm63.c - driver for the National Semiconductor LM63 temperature sensor
  *          with integrated fan control
- * Copyright (C) 2004-2008  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004-2008  Jean Delvare <jdelvare@suse.de>
  * Based on the lm90 driver.
  *
  * The LM63 is a sensor chip made by National Semiconductor. It measures
@@ -1202,6 +1202,6 @@ static struct i2c_driver lm63_driver = {
 
 module_i2c_driver(lm63_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("LM63 driver");
 MODULE_LICENSE("GPL");

@@ -351,7 +351,8 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se,
  * disrupting the schedulability of the system. Otherwise, we should
  * refill the runtime and set the deadline a period in the future,
  * because keeping the current (absolute) deadline of the task would
- * result in breaking guarantees promised to other tasks.
+ * result in breaking guarantees promised to other tasks (refer to
+ * Documentation/scheduler/sched-deadline.txt for more informations).
  *
  * This function returns true if:
  *

@@ -38,7 +38,8 @@ enum nv_subdev_type {
 	NVDEV_SUBDEV_THERM,
 	NVDEV_SUBDEV_CLOCK,
 
-	NVDEV_ENGINE_DMAOBJ,
+	NVDEV_ENGINE_FIRST,
+	NVDEV_ENGINE_DMAOBJ = NVDEV_ENGINE_FIRST,
 	NVDEV_ENGINE_FIFO,
 	NVDEV_ENGINE_SW,
 	NVDEV_ENGINE_GR,
@@ -70,6 +71,7 @@ struct nouveau_device {
 	const char *dbgopt;
 	const char *name;
 	const char *cname;
+	u64 disable_mask;
 
 	enum {
 		NV_04    = 0x04,

@@ -8,10 +8,9 @@ config ARCH_HI3xxx
 	select CLKSRC_OF
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU
-	select HAVE_ARM_TWD
+	select HAVE_ARM_TWD if SMP
 	select HAVE_SMP
 	select PINCTRL
 	select PINCTRL_SINGLE
-	select SMP
 	help
 	  Support for Hisilicon Hi36xx/Hi37xx processor family

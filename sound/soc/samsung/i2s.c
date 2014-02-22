@@ -22,8 +22,6 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <mach/dma.h>
-
 #include <linux/platform_data/asoc-s3c.h>
 
 #include "dma.h"
@@ -1268,7 +1266,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	release_mem_region(regs_base, resource_size(res));
+	if (res)
+		release_mem_region(regs_base, resource_size(res));
 
 	return ret;
 }

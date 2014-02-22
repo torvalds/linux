@@ -82,9 +82,11 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 			goto remove_ea_exit;
 
 		ea_name += XATTR_USER_PREFIX_LEN; /* skip past user. prefix */
-		rc = CIFSSMBSetEA(xid, pTcon, full_path, ea_name, NULL,
-			(__u16)0, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (pTcon->ses->server->ops->set_EA)
+			rc = pTcon->ses->server->ops->set_EA(xid, pTcon,
+				full_path, ea_name, NULL, (__u16)0,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 remove_ea_exit:
 	kfree(full_path);
@@ -149,18 +151,22 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 			cifs_dbg(FYI, "attempt to set cifs inode metadata\n");
 
 		ea_name += XATTR_USER_PREFIX_LEN; /* skip past user. prefix */
-		rc = CIFSSMBSetEA(xid, pTcon, full_path, ea_name, ea_value,
-			(__u16)value_size, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (pTcon->ses->server->ops->set_EA)
+			rc = pTcon->ses->server->ops->set_EA(xid, pTcon,
+				full_path, ea_name, ea_value, (__u16)value_size,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else if (strncmp(ea_name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN)
 		   == 0) {
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
 			goto set_ea_exit;
 
 		ea_name += XATTR_OS2_PREFIX_LEN; /* skip past os2. prefix */
-		rc = CIFSSMBSetEA(xid, pTcon, full_path, ea_name, ea_value,
-			(__u16)value_size, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (pTcon->ses->server->ops->set_EA)
+			rc = pTcon->ses->server->ops->set_EA(xid, pTcon,
+				full_path, ea_name, ea_value, (__u16)value_size,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else if (strncmp(ea_name, CIFS_XATTR_CIFS_ACL,
 			strlen(CIFS_XATTR_CIFS_ACL)) == 0) {
 #ifdef CONFIG_CIFS_ACL
@@ -170,8 +176,12 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 			rc = -ENOMEM;
 		} else {
 			memcpy(pacl, ea_value, value_size);
-			rc = set_cifs_acl(pacl, value_size,
-				direntry->d_inode, full_path, CIFS_ACL_DACL);
+			if (pTcon->ses->server->ops->set_acl)
+				rc = pTcon->ses->server->ops->set_acl(pacl,
+						value_size, direntry->d_inode,
+						full_path, CIFS_ACL_DACL);
+			else
+				rc = -EOPNOTSUPP;
 			if (rc == 0) /* force revalidate of the inode */
 				CIFS_I(direntry->d_inode)->time = 0;
 			kfree(pacl);
@@ -272,17 +282,21 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 			/* revalidate/getattr then populate from inode */
 		} /* BB add else when above is implemented */
 		ea_name += XATTR_USER_PREFIX_LEN; /* skip past user. prefix */
-		rc = CIFSSMBQAllEAs(xid, pTcon, full_path, ea_name, ea_value,
-			buf_size, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (pTcon->ses->server->ops->query_all_EAs)
+			rc = pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
+				full_path, ea_name, ea_value, buf_size,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else if (strncmp(ea_name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
 			goto get_ea_exit;
 
 		ea_name += XATTR_OS2_PREFIX_LEN; /* skip past os2. prefix */
-		rc = CIFSSMBQAllEAs(xid, pTcon, full_path, ea_name, ea_value,
-			buf_size, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (pTcon->ses->server->ops->query_all_EAs)
+			rc = pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
+				full_path, ea_name, ea_value, buf_size,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else if (strncmp(ea_name, POSIX_ACL_XATTR_ACCESS,
 			  strlen(POSIX_ACL_XATTR_ACCESS)) == 0) {
 #ifdef CONFIG_CIFS_POSIX
@@ -313,8 +327,11 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 			u32 acllen;
 			struct cifs_ntsd *pacl;
 
-			pacl = get_cifs_acl(cifs_sb, direntry->d_inode,
-						full_path, &acllen);
+			if (pTcon->ses->server->ops->get_acl == NULL)
+				goto get_ea_exit; /* rc already EOPNOTSUPP */
+
+			pacl = pTcon->ses->server->ops->get_acl(cifs_sb,
+					direntry->d_inode, full_path, &acllen);
 			if (IS_ERR(pacl)) {
 				rc = PTR_ERR(pacl);
 				cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
@@ -400,11 +417,12 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 	/* if proc/fs/cifs/streamstoxattr is set then
 		search server for EAs or streams to
 		returns as xattrs */
-	rc = CIFSSMBQAllEAs(xid, pTcon, full_path, NULL, data,
-				buf_size, cifs_sb->local_nls,
-				cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
 
+	if (pTcon->ses->server->ops->query_all_EAs)
+		rc = pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
+				full_path, NULL, data, buf_size,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 list_ea_exit:
 	kfree(full_path);
 	free_xid(xid);

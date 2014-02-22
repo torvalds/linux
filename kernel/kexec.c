@@ -1537,7 +1537,7 @@ void vmcoreinfo_append_str(const char *fmt, ...)
 	size_t r;
 
 	va_start(args, fmt);
-	r = vsnprintf(buf, sizeof(buf), fmt, args);
+	r = vscnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
 	r = min(r, vmcoreinfo_max_size - vmcoreinfo_size);

@@ -448,8 +448,7 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static int qlcnic_sriov_get_vf_acl(struct qlcnic_adapter *adapter,
-				   struct qlcnic_info *info)
+static int qlcnic_sriov_get_vf_acl(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
 	struct qlcnic_cmd_args cmd;
@@ -494,10 +493,6 @@ static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
 	err = qlcnic_get_nic_info(adapter, &nic_info, ahw->pci_func);
 	if (err)
 		return -EIO;
-
-	err = qlcnic_sriov_get_vf_acl(adapter, &nic_info);
-	if (err)
-		return err;
 
 	if (qlcnic_83xx_get_port_info(adapter))
 		return -EIO;
@@ -552,6 +547,10 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 		goto err_out_disable_bc_intr;
 
 	err = qlcnic_sriov_vf_init_driver(adapter);
+	if (err)
+		goto err_out_send_channel_term;
+
+	err = qlcnic_sriov_get_vf_acl(adapter);
 	if (err)
 		goto err_out_send_channel_term;
 

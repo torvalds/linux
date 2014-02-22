@@ -583,6 +583,7 @@ Currently implemented fanout policies are:
   - PACKET_FANOUT_CPU: schedule to socket by CPU packet arrives on
   - PACKET_FANOUT_RND: schedule to socket by random selection
   - PACKET_FANOUT_ROLLOVER: if one socket is full, rollover to another
+  - PACKET_FANOUT_QM: schedule to socket by skbs recorded queue_mapping
 
 Minimal example code by David S. Miller (try things like "./test eth0 hash",
 "./test eth0 lb", etc.):

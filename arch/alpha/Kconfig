@@ -17,6 +17,7 @@ config ALPHA
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select AUDIT_ARCH
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_STRNCPY_FROM_USER
@@ -77,6 +78,8 @@ config GENERIC_ISA_DMA
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
+config AUDIT_ARCH
+	bool
 
 menu "System setup"
 

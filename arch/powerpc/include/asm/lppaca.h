@@ -132,8 +132,6 @@ struct slb_shadow {
 	} save_area[SLB_NUM_BOLTED];
 } ____cacheline_aligned;
 
-extern struct slb_shadow slb_shadow[];
-
 /*
  * Layout of entries in the hypervisor's dispatch trace log buffer.
  */

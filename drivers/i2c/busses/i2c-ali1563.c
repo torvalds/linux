@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/acpi.h>
 
 #define ALI1563_MAX_TIMEOUT	500

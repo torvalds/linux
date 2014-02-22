@@ -1147,6 +1147,9 @@ static void power_pmu_enable(struct pmu *pmu)
 	mmcr0 = ebb_switch_in(ebb, cpuhw->mmcr[0]);
 
 	mb();
+	if (cpuhw->bhrb_users)
+		ppmu->config_bhrb(cpuhw->bhrb_filter);
+
 	write_mmcr0(cpuhw, mmcr0);
 
 	/*
@@ -1158,8 +1161,6 @@ static void power_pmu_enable(struct pmu *pmu)
 	}
 
  out:
-	if (cpuhw->bhrb_users)
-		ppmu->config_bhrb(cpuhw->bhrb_filter);
 
 	local_irq_restore(flags);
 }

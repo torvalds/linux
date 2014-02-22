@@ -406,7 +406,7 @@
 
 		MSI: ppc4xx-msi@C10000000 {
 			compatible = "amcc,ppc4xx-msi", "ppc4xx-msi";
-			reg = < 0x0 0xEF620000 0x100>;
+			reg = <0xEF620000 0x100>;
 			sdr-base = <0x4B0>;
 			msi-data = <0x00000000>;
 			msi-mask = <0x44440000>;

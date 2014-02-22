@@ -781,6 +781,9 @@ static int fimc_is_debugfs_create(struct fimc_is *is)
 	return is->debugfs_entry == NULL ? -EIO : 0;
 }
 
+static int fimc_is_runtime_resume(struct device *dev);
+static int fimc_is_runtime_suspend(struct device *dev);
+
 static int fimc_is_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -835,14 +838,20 @@ static int fimc_is_probe(struct platform_device *pdev)
 	}
 	pm_runtime_enable(dev);
 
+	if (!pm_runtime_enabled(dev)) {
+		ret = fimc_is_runtime_resume(dev);
+		if (ret < 0)
+			goto err_irq;
+	}
+
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
-		goto err_irq;
+		goto err_pm;
 
 	is->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(is->alloc_ctx)) {
 		ret = PTR_ERR(is->alloc_ctx);
-		goto err_irq;
+		goto err_pm;
 	}
 	/*
 	 * Register FIMC-IS V4L2 subdevs to this driver. The video nodes
@@ -867,10 +876,13 @@ static int fimc_is_probe(struct platform_device *pdev)
 
 err_dfs:
 	fimc_is_debugfs_remove(is);
-err_vb:
-	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 err_sd:
 	fimc_is_unregister_subdevs(is);
+err_vb:
+	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
+err_pm:
+	if (!pm_runtime_enabled(dev))
+		fimc_is_runtime_suspend(dev);
 err_irq:
 	free_irq(is->irq, is);
 err_clk:
@@ -919,10 +931,13 @@ static int fimc_is_suspend(struct device *dev)
 
 static int fimc_is_remove(struct platform_device *pdev)
 {
-	struct fimc_is *is = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+	struct fimc_is *is = dev_get_drvdata(dev);
 
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	if (!pm_runtime_status_suspended(dev))
+		fimc_is_runtime_suspend(dev);
 	free_irq(is->irq, is);
 	fimc_is_unregister_subdevs(is);
 	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);

@@ -5,9 +5,7 @@
  * Note: This file may not modify r9 because r9 is used to carry
  *       information from the decompresser to the kernel
  *
- * Copyright (C) 2000, 2001 Axis Communications AB
- *
- * Authors:  Mikael Starvik (starvik@axis.com)
+ * Copyright (C) 2000-2012 Axis Communications AB
  *
  */
 
@@ -18,16 +16,15 @@
 
 
 	;; WARNING! The registers r8 and r9 are used as parameters carrying
-	;; information from the decompressor (if the kernel was compressed). 
+	;; information from the decompressor (if the kernel was compressed).
 	;; They should not be used in the code below.
 
-#ifndef CONFIG_SVINTO_SIM	
 	move.d   CONFIG_ETRAX_DEF_R_WAITSTATES, $r0
 	move.d   $r0, [R_WAITSTATES]
 
 	move.d   CONFIG_ETRAX_DEF_R_BUS_CONFIG, $r0
 	move.d   $r0, [R_BUS_CONFIG]
-	
+
 #ifndef CONFIG_ETRAX_SDRAM
 	move.d   CONFIG_ETRAX_DEF_R_DRAM_CONFIG, $r0
 	move.d   $r0, [R_DRAM_CONFIG]
@@ -38,14 +35,14 @@
 	;; Samsung SDRAMs seem to require to be initialized twice to work properly.
 	moveq    2, $r6	
 _sdram_init:
-	
+
 	; Refer to ETRAX 100LX Designers Reference for a description of SDRAM initialization
-	
+
 	; Bank configuration
 	move.d   CONFIG_ETRAX_DEF_R_SDRAM_CONFIG, $r0
 	move.d   $r0, [R_SDRAM_CONFIG]
 
-	; Calculate value of mrs_data 
+	; Calculate value of mrs_data
 	; CAS latency = 2 && bus_width = 32 => 0x40
 	; CAS latency = 3 && bus_width = 32 => 0x60
 	; CAS latency = 2 && bus_width = 16 => 0x20
@@ -56,22 +53,22 @@ _sdram_init:
 	and.d    0x00ff0000, $r2
 	bne	 _set_timing
 	lsrq     16, $r2
-	
+
 	move.d   0x40, $r2       ; Assume 32 bits and CAS latency = 2
 	move.d   CONFIG_ETRAX_DEF_R_SDRAM_TIMING, $r1
 	move.d   $r1, $r3
- 	and.d    0x03, $r1       ; Get CAS latency
+	and.d    0x03, $r1       ; Get CAS latency
 	and.d    0x1000, $r3     ; 50 or 100 MHz?
 	beq      _speed_50
 	nop
-_speed_100:		
+_speed_100:
 	cmp.d    0x00, $r1	; CAS latency = 2?
 	beq      _bw_check
 	nop
-	or.d     0x20, $r2	; CAS latency = 3 
+	or.d     0x20, $r2	; CAS latency = 3
 	ba       _bw_check
 	nop
-_speed_50:			
+_speed_50:
 	cmp.d    0x01, $r1	; CAS latency = 2?
 	beq      _bw_check
 	nop
@@ -86,19 +83,19 @@ _bw_check:
 	; Set timing parameters. Starts master clock
 _set_timing:
 	move.d   CONFIG_ETRAX_DEF_R_SDRAM_TIMING, $r1
-	and.d    0x8000f9ff, $r1 ; Make sure mrs data and command is 0 
+	and.d    0x8000f9ff, $r1 ; Make sure mrs data and command is 0
 	or.d     0x80000000, $r1	; Make sure sdram enable bit is set
 	move.d   $r1, $r5
 	or.d     0x0000c000, $r1 ; ref = disable
 	lslq     16, $r2		; mrs data starts at bit 16
-	or.d     $r2, $r1 
-	move.d   $r1, [R_SDRAM_TIMING]	
-		
+	or.d     $r2, $r1
+	move.d   $r1, [R_SDRAM_TIMING]
+
 	; Wait 200us
 	move.d   10000, $r2
 1:	bne      1b
 	subq     1, $r2
-	
+
 	; Issue initialization command sequence
 	move.d   _sdram_commands_start, $r2
 	and.d    0x000fffff, $r2 ; Make sure commands are read from flash
@@ -144,7 +141,6 @@ _sdram_commands_start:
 	.byte   2	; refresh
 	.byte   0	; nop
 	.byte   1	; mrs
-	.byte   0	; nop 
-_sdram_commands_end:		
-#endif
+	.byte   0	; nop
+_sdram_commands_end:
 #endif

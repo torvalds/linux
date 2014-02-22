@@ -471,7 +471,7 @@ sub seed_camelcase_includes {
 
 	$camelcase_seeded = 1;
 
-	if (-d ".git") {
+	if (-e ".git") {
 		my $git_last_include_commit = `git log --no-merges --pretty=format:"%h%n" -1 -- include`;
 		chomp $git_last_include_commit;
 		$camelcase_cache = ".checkpatch-camelcase.git.$git_last_include_commit";
@@ -499,7 +499,7 @@ sub seed_camelcase_includes {
 		return;
 	}
 
-	if (-d ".git") {
+	if (-e ".git") {
 		$files = `git ls-files "include/*.h"`;
 		@include_files = split('\n', $files);
 	}
@@ -2664,6 +2664,15 @@ sub process {
 			     "static char array declaration should probably be static const char\n" .
 				$herecurr);
                }
+
+# check for function declarations without arguments like "int foo()"
+		if ($line =~ /(\b$Type\s+$Ident)\s*\(\s*\)/) {
+			if (ERROR("FUNCTION_WITHOUT_ARGS",
+				  "Bad function definition - $1() should probably be $1(void)\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$linenr - 1] =~ s/(\b($Type)\s+($Ident))\s*\(\s*\)/$2 $3(void)/;
+			}
+		}
 
 # check for uses of DEFINE_PCI_DEVICE_TABLE
 		if ($line =~ /\bDEFINE_PCI_DEVICE_TABLE\s*\(\s*(\w+)\s*\)\s*=/) {

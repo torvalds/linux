@@ -4,7 +4,6 @@
 
 ccflags-y := -Iinclude/drm
 i915-y := i915_drv.o i915_dma.o i915_irq.o \
-	  i915_debugfs.o \
 	  i915_gpu_error.o \
           i915_suspend.o \
 	  i915_gem.o \
@@ -53,6 +52,8 @@ i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 i915-$(CONFIG_ACPI)	+= intel_acpi.o intel_opregion.o
 
 i915-$(CONFIG_DRM_I915_FBDEV) += intel_fbdev.o
+
+i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o
 
 obj-$(CONFIG_DRM_I915)  += i915.o
 

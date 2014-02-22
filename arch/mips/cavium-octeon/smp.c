@@ -6,7 +6,6 @@
  * Copyright (C) 2004-2008, 2009, 2010 Cavium Networks
  */
 #include <linux/cpu.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
