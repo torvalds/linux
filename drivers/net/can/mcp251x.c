@@ -1195,9 +1195,7 @@ static int mcp251x_can_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-
-static int mcp251x_can_suspend(struct device *dev)
+static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
@@ -1227,7 +1225,7 @@ static int mcp251x_can_suspend(struct device *dev)
 	return 0;
 }
 
-static int mcp251x_can_resume(struct device *dev)
+static int __maybe_unused mcp251x_can_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
@@ -1247,7 +1245,6 @@ static int mcp251x_can_resume(struct device *dev)
 	enable_irq(spi->irq);
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(mcp251x_can_pm_ops, mcp251x_can_suspend,
 	mcp251x_can_resume);
