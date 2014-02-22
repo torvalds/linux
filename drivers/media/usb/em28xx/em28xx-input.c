@@ -827,11 +827,48 @@ static int em28xx_ir_fini(struct em28xx *dev)
 	return 0;
 }
 
+static int em28xx_ir_suspend(struct em28xx *dev)
+{
+	struct em28xx_IR *ir = dev->ir;
+
+	if (dev->is_audio_only)
+		return 0;
+
+	em28xx_info("Suspending input extension");
+	if (ir)
+		cancel_delayed_work_sync(&ir->work);
+	cancel_delayed_work_sync(&dev->buttons_query_work);
+	/* is canceling delayed work sufficient or does the rc event
+	   kthread needs stopping? kthread is stopped in
+	   ir_raw_event_unregister() */
+	return 0;
+}
+
+static int em28xx_ir_resume(struct em28xx *dev)
+{
+	struct em28xx_IR *ir = dev->ir;
+
+	if (dev->is_audio_only)
+		return 0;
+
+	em28xx_info("Resuming input extension");
+	/* if suspend calls ir_raw_event_unregister(), the should call
+	   ir_raw_event_register() */
+	if (ir)
+		schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
+	if (dev->num_button_polling_addresses)
+		schedule_delayed_work(&dev->buttons_query_work,
+			       msecs_to_jiffies(dev->button_polling_interval));
+	return 0;
+}
+
 static struct em28xx_ops rc_ops = {
 	.id   = EM28XX_RC,
 	.name = "Em28xx Input Extension",
 	.init = em28xx_ir_init,
 	.fini = em28xx_ir_fini,
+	.suspend = em28xx_ir_suspend,
+	.resume = em28xx_ir_resume,
 };
 
 static int __init em28xx_rc_register(void)
