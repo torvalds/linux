@@ -104,6 +104,7 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 	mac->mcft_size = IXGBE_82598_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_82598_VFT_TBL_SIZE;
 	mac->num_rar_entries = IXGBE_82598_RAR_ENTRIES;
+	mac->rx_pb_size = IXGBE_82598_RX_PB_SIZE;
 	mac->max_rx_queues = IXGBE_82598_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_82598_MAX_TX_QUEUES;
 	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
@@ -204,8 +205,6 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
-
-	hw->mac.rx_pb_size = IXGBE_82598_RX_PB_SIZE;
 
 	/* set the completion timeout for interface */
 	if (ret_val == 0)

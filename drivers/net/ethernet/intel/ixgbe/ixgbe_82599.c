@@ -270,6 +270,7 @@ static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
 	mac->mcft_size = IXGBE_82599_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_82599_VFT_TBL_SIZE;
 	mac->num_rar_entries = IXGBE_82599_RAR_ENTRIES;
+	mac->rx_pb_size = IXGBE_82599_RX_PB_SIZE;
 	mac->max_rx_queues = IXGBE_82599_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_82599_MAX_TX_QUEUES;
 	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
@@ -2025,7 +2026,6 @@ static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;
-	hw->mac.rx_pb_size = IXGBE_82599_RX_PB_SIZE;
 
 	if (ret_val == 0)
 		ret_val = ixgbe_verify_fw_version_82599(hw);
