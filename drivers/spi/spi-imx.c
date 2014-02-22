@@ -885,7 +885,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, spi_imx->irq, spi_imx_isr, 0,
-			       DRIVER_NAME, spi_imx);
+			       dev_name(&pdev->dev), spi_imx);
 	if (ret) {
 		dev_err(&pdev->dev, "can't get irq%d: %d\n", spi_imx->irq, ret);
 		goto out_master_put;
