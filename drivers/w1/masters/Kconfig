@@ -36,7 +36,7 @@ config W1_MASTER_DS2482
 
 config W1_MASTER_MXC
 	tristate "Freescale MXC 1-wire busmaster"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	help
 	  Say Y here to enable MXC 1-wire host
 

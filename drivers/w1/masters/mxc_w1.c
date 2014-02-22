@@ -53,10 +53,10 @@ static u8 mxc_w1_ds2_reset_bus(void *data)
 	unsigned int timeout_cnt = 0;
 	struct mxc_w1_device *dev = data;
 
-	__raw_writeb(MXC_W1_CONTROL_RPP, (dev->regs + MXC_W1_CONTROL));
+	writeb(MXC_W1_CONTROL_RPP, (dev->regs + MXC_W1_CONTROL));
 
 	while (1) {
-		reg_val = __raw_readb(dev->regs + MXC_W1_CONTROL);
+		reg_val = readb(dev->regs + MXC_W1_CONTROL);
 
 		if (!(reg_val & MXC_W1_CONTROL_RPP) ||
 		    timeout_cnt > MXC_W1_RESET_TIMEOUT)
@@ -82,16 +82,16 @@ static u8 mxc_w1_ds2_touch_bit(void *data, u8 bit)
 					 * datasheet.
 					 */
 
-	__raw_writeb(MXC_W1_CONTROL_WR(bit), ctrl_addr);
+	writeb(MXC_W1_CONTROL_WR(bit), ctrl_addr);
 
 	while (timeout_cnt--) {
-		if (!(__raw_readb(ctrl_addr) & MXC_W1_CONTROL_WR(bit)))
+		if (!(readb(ctrl_addr) & MXC_W1_CONTROL_WR(bit)))
 			break;
 
 		udelay(1);
 	}
 
-	return !!(__raw_readb(ctrl_addr) & MXC_W1_CONTROL_RDST);
+	return !!(readb(ctrl_addr) & MXC_W1_CONTROL_RDST);
 }
 
 static int mxc_w1_probe(struct platform_device *pdev)
@@ -131,7 +131,7 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	__raw_writeb(clkdiv - 1, mdev->regs + MXC_W1_TIME_DIVIDER);
+	writeb(clkdiv - 1, mdev->regs + MXC_W1_TIME_DIVIDER);
 
 	mdev->bus_master.data = mdev;
 	mdev->bus_master.reset_bus = mxc_w1_ds2_reset_bus;
