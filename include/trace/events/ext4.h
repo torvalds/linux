@@ -68,6 +68,11 @@ struct extent_status;
 	{ EXTENT_STATUS_DELAYED,	"D" },			\
 	{ EXTENT_STATUS_HOLE,		"H" })
 
+#define show_falloc_mode(mode) __print_flags(mode, "|",		\
+	{ FALLOC_FL_KEEP_SIZE,		"KEEP_SIZE"},		\
+	{ FALLOC_FL_PUNCH_HOLE,		"PUNCH_HOLE"},		\
+	{ FALLOC_FL_NO_HIDE_STALE,	"NO_HIDE_STALE"})
+
 
 TRACE_EVENT(ext4_free_inode,
 	TP_PROTO(struct inode *inode),
@@ -1349,10 +1354,10 @@ TRACE_EVENT(ext4_fallocate_enter,
 		__entry->mode	= mode;
 	),
 
-	TP_printk("dev %d,%d ino %lu pos %lld len %lld mode %d",
+	TP_printk("dev %d,%d ino %lu pos %lld len %lld mode %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino, __entry->pos,
-		  __entry->len, __entry->mode)
+		  __entry->len, show_falloc_mode(__entry->mode))
 );
 
 TRACE_EVENT(ext4_fallocate_exit,
