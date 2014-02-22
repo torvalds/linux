@@ -571,6 +571,20 @@
 				allwinner,drive = <3>;
 				allwinner,pull = <0>;
 			};
+
+			spi1_pins_a: spi1@0 {
+				allwinner,pins = "PI16", "PI17", "PI18", "PI19";
+				allwinner,function = "spi1";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			spi2_pins_a: spi2@0 {
+				allwinner,pins = "PC19", "PC20", "PC21", "PC22";
+				allwinner,function = "spi2";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
 		};
 
 		timer@01c20c00 {
