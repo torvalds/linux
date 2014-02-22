@@ -422,12 +422,12 @@ static irqreturn_t imxdma_err_handler(int irq, void *dev_id)
 		/* Tasklet error handler */
 		tasklet_schedule(&imxdma->channel[i].dma_tasklet);
 
-		printk(KERN_WARNING
-		       "DMA timeout on channel %d -%s%s%s%s\n", i,
-		       errcode & IMX_DMA_ERR_BURST ?    " burst" : "",
-		       errcode & IMX_DMA_ERR_REQUEST ?  " request" : "",
-		       errcode & IMX_DMA_ERR_TRANSFER ? " transfer" : "",
-		       errcode & IMX_DMA_ERR_BUFFER ?   " buffer" : "");
+		dev_warn(imxdma->dev,
+			 "DMA timeout on channel %d -%s%s%s%s\n", i,
+			 errcode & IMX_DMA_ERR_BURST ?    " burst" : "",
+			 errcode & IMX_DMA_ERR_REQUEST ?  " request" : "",
+			 errcode & IMX_DMA_ERR_TRANSFER ? " transfer" : "",
+			 errcode & IMX_DMA_ERR_BUFFER ?   " buffer" : "");
 	}
 	return IRQ_HANDLED;
 }
