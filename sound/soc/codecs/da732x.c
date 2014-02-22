@@ -1471,8 +1471,8 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 
 			da732x_hp_dc_offset_cancellation(codec);
 
-			regcache_cache_only(codec->control_data, false);
-			regcache_sync(codec->control_data);
+			regcache_cache_only(da732x->regmap, false);
+			regcache_sync(da732x->regmap);
 		} else {
 			snd_soc_update_bits(codec, DA732X_REG_BIAS_EN,
 					    DA732X_BIAS_BOOST_MASK,
@@ -1483,7 +1483,7 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(codec->control_data, true);
+		regcache_cache_only(da732x->regmap, true);
 		da732x_set_charge_pump(codec, DA732X_DISABLE_CP);
 		snd_soc_update_bits(codec, DA732X_REG_BIAS_EN, DA732X_BIAS_EN,
 				    DA732X_BIAS_DIS);
