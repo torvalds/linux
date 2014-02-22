@@ -384,7 +384,6 @@ static int ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ahci_platform_data *pdata = dev_get_platdata(dev);
-	const struct ata_port_info *pi_template;
 	struct ahci_host_priv *hpriv;
 	int rc;
 
@@ -408,14 +407,7 @@ static int ahci_probe(struct platform_device *pdev)
 			goto disable_resources;
 	}
 
-	if (pdata && pdata->ata_port_info)
-		pi_template = pdata->ata_port_info;
-	else
-		pi_template = &ahci_port_info;
-
-	rc = ahci_platform_init_host(pdev, hpriv, pi_template,
-				     pdata ? pdata->force_port_map : 0,
-				     pdata ? pdata->mask_port_map  : 0);
+	rc = ahci_platform_init_host(pdev, hpriv, &ahci_port_info, 0, 0);
 	if (rc)
 		goto pdata_exit;
 
