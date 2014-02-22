@@ -28,49 +28,17 @@
 
 static void ahci_host_stop(struct ata_host *host);
 
-enum ahci_type {
-	AHCI,		/* standard platform ahci */
-	IMX53_AHCI,	/* ahci on i.mx53 */
-};
-
-static struct platform_device_id ahci_devtype[] = {
-	{
-		.name = "ahci",
-		.driver_data = AHCI,
-	}, {
-		.name = "imx53-ahci",
-		.driver_data = IMX53_AHCI,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, ahci_devtype);
-
 struct ata_port_operations ahci_platform_ops = {
 	.inherits	= &ahci_ops,
 	.host_stop	= ahci_host_stop,
 };
 EXPORT_SYMBOL_GPL(ahci_platform_ops);
 
-static struct ata_port_operations ahci_platform_retry_srst_ops = {
-	.inherits	= &ahci_pmp_retry_srst_ops,
-	.host_stop	= ahci_host_stop,
-};
-
-static const struct ata_port_info ahci_port_info[] = {
-	/* by features */
-	[AHCI] = {
-		.flags		= AHCI_FLAG_COMMON,
-		.pio_mask	= ATA_PIO4,
-		.udma_mask	= ATA_UDMA6,
-		.port_ops	= &ahci_platform_ops,
-	},
-	[IMX53_AHCI] = {
-		.flags		= AHCI_FLAG_COMMON,
-		.pio_mask	= ATA_PIO4,
-		.udma_mask	= ATA_UDMA6,
-		.port_ops	= &ahci_platform_retry_srst_ops,
-	},
+static const struct ata_port_info ahci_port_info = {
+	.flags		= AHCI_FLAG_COMMON,
+	.pio_mask	= ATA_PIO4,
+	.udma_mask	= ATA_UDMA6,
+	.port_ops	= &ahci_platform_ops,
 };
 
 static struct scsi_host_template ahci_platform_sht = {
@@ -416,7 +384,6 @@ static int ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ahci_platform_data *pdata = dev_get_platdata(dev);
-	const struct platform_device_id *id = platform_get_device_id(pdev);
 	const struct ata_port_info *pi_template;
 	struct ahci_host_priv *hpriv;
 	int rc;
@@ -444,7 +411,7 @@ static int ahci_probe(struct platform_device *pdev)
 	if (pdata && pdata->ata_port_info)
 		pi_template = pdata->ata_port_info;
 	else
-		pi_template = &ahci_port_info[id ? id->driver_data : 0];
+		pi_template = &ahci_port_info;
 
 	rc = ahci_platform_init_host(pdev, hpriv, pi_template,
 				     pdata ? pdata->force_port_map : 0,
@@ -638,7 +605,6 @@ static struct platform_driver ahci_driver = {
 		.of_match_table = ahci_of_match,
 		.pm = &ahci_pm_ops,
 	},
-	.id_table	= ahci_devtype,
 };
 module_platform_driver(ahci_driver);
 
