@@ -107,8 +107,6 @@ eth_fixup_skip:
 
 static void __init kirkwood_dt_init(void)
 {
-	pr_info("Kirkwood: %s.\n", kirkwood_id());
-
 	/*
 	 * Disable propagation of mbus errors to the CPU local bus,
 	 * as this causes mbus errors (which can occur for example
