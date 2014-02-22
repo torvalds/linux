@@ -5,8 +5,9 @@ Each SATA controller should have its own node.
 
 Required properties:
 - compatible        : compatible list, one of "snps,spear-ahci",
-                      "snps,exynos5440-ahci", "ibm,476gtr-ahci", or
-                      "allwinner,sun4i-a10-ahci"
+                      "snps,exynos5440-ahci", "ibm,476gtr-ahci",
+                      "allwinner,sun4i-a10-ahci", "fsl,imx53-ahci" or
+                      "fsl,imx6q-ahci"
 - interrupts        : <interrupt mapping for SATA IRQ>
 - reg               : <registers mapping>
 
@@ -14,6 +15,10 @@ Optional properties:
 - dma-coherent      : Present if dma operations are coherent
 - clocks            : a list of phandle + clock specifier pairs
 - target-supply     : regulator for SATA target power
+
+"fsl,imx53-ahci", "fsl,imx6q-ahci" required properties:
+- clocks            : must contain the sata, sata_ref and ahb clocks
+- clock-names       : must contain "ahb" for the ahb clock
 
 Examples:
         sata@ffe08000 {
