@@ -42,19 +42,6 @@ static void __init kirkwood_map_io(void)
 	iotable_init(kirkwood_io_desc, ARRAY_SIZE(kirkwood_io_desc));
 }
 
-static void __init kirkwood_l2_init(void)
-{
-#ifdef CONFIG_CACHE_FEROCEON_L2
-#ifdef CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH
-	writel(readl(L2_CONFIG_REG) | L2_WRITETHROUGH, L2_CONFIG_REG);
-	feroceon_l2_init(1);
-#else
-	writel(readl(L2_CONFIG_REG) & ~L2_WRITETHROUGH, L2_CONFIG_REG);
-	feroceon_l2_init(0);
-#endif
-#endif
-}
-
 static struct resource kirkwood_cpufreq_resources[] = {
 	[0] = {
 		.start  = CPU_CONTROL_PHYS,
@@ -211,8 +198,9 @@ static void __init kirkwood_dt_init(void)
 
 	BUG_ON(mvebu_mbus_dt_init());
 
-	kirkwood_l2_init();
-
+#ifdef CONFIG_CACHE_FEROCEON_L2
+	feroceon_of_init();
+#endif
 	kirkwood_cpufreq_init();
 	kirkwood_cpuidle_init();
 
