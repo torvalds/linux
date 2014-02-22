@@ -1608,8 +1608,8 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 				msleep(5);
 			}
 
-			regcache_cache_only(codec->control_data, false);
-			regcache_sync(codec->control_data);
+			regcache_cache_only(wm8996->regmap, false);
+			regcache_sync(wm8996->regmap);
 		}
 
 		/* Bypass the MICBIASes for lowest power */
@@ -1620,10 +1620,10 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(codec->control_data, true);
+		regcache_cache_only(wm8996->regmap, true);
 		if (wm8996->pdata.ldo_ena >= 0) {
 			gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
-			regcache_cache_only(codec->control_data, true);
+			regcache_cache_only(wm8996->regmap, true);
 		}
 		regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies),
 				       wm8996->supplies);
