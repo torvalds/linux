@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/libata.h>
 #include <linux/ahci_platform.h>
+#include <linux/phy/phy.h>
 #include "ahci.h"
 
 static void ahci_host_stop(struct ata_host *host);
@@ -140,6 +141,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_disable_clks);
  * following order:
  * 1) Regulator
  * 2) Clocks (through ahci_platform_enable_clks)
+ * 3) Phy
  *
  * If resource enabling fails at any point the previous enabled resources
  * are disabled in reverse order.
@@ -161,7 +163,22 @@ int ahci_platform_enable_resources(struct ahci_host_priv *hpriv)
 	if (rc)
 		goto disable_regulator;
 
+	if (hpriv->phy) {
+		rc = phy_init(hpriv->phy);
+		if (rc)
+			goto disable_clks;
+
+		rc = phy_power_on(hpriv->phy);
+		if (rc) {
+			phy_exit(hpriv->phy);
+			goto disable_clks;
+		}
+	}
+
 	return 0;
+
+disable_clks:
+	ahci_platform_disable_clks(hpriv);
 
 disable_regulator:
 	if (hpriv->target_pwr)
@@ -176,11 +193,17 @@ EXPORT_SYMBOL_GPL(ahci_platform_enable_resources);
  *
  * This function disables all ahci_platform managed resources in the
  * following order:
- * 1) Clocks (through ahci_platform_disable_clks)
- * 2) Regulator
+ * 1) Phy
+ * 2) Clocks (through ahci_platform_disable_clks)
+ * 3) Regulator
  */
 void ahci_platform_disable_resources(struct ahci_host_priv *hpriv)
 {
+	if (hpriv->phy) {
+		phy_power_off(hpriv->phy);
+		phy_exit(hpriv->phy);
+	}
+
 	ahci_platform_disable_clks(hpriv);
 
 	if (hpriv->target_pwr)
@@ -208,6 +231,7 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
  * 2) regulator for controlling the targets power (optional)
  * 3) 0 - AHCI_MAX_CLKS clocks, as specified in the devs devicetree node,
  *    or for non devicetree enabled platforms a single clock
+ *	4) phy (optional)
  *
  * RETURNS:
  * The allocated ahci_host_priv on success, otherwise an ERR_PTR value
@@ -264,6 +288,25 @@ struct ahci_host_priv *ahci_platform_get_resources(
 			break;
 		}
 		hpriv->clks[i] = clk;
+	}
+
+	hpriv->phy = devm_phy_get(dev, "sata-phy");
+	if (IS_ERR(hpriv->phy)) {
+		rc = PTR_ERR(hpriv->phy);
+		switch (rc) {
+		case -ENODEV:
+		case -ENOSYS:
+			/* continue normally */
+			hpriv->phy = NULL;
+			break;
+
+		case -EPROBE_DEFER:
+			goto err_out;
+
+		default:
+			dev_err(dev, "couldn't get sata-phy\n");
+			goto err_out;
+		}
 	}
 
 	devres_remove_group(dev, NULL);
