@@ -481,6 +481,32 @@ nvc0_fifo_sched_reason[] = {
 };
 
 static void
+nvc0_fifo_intr_sched_ctxsw(struct nvc0_fifo_priv *priv)
+{
+	struct nouveau_engine *engine;
+	struct nvc0_fifo_chan *chan;
+	u32 engn;
+
+	for (engn = 0; engn < 6; engn++) {
+		u32 stat = nv_rd32(priv, 0x002640 + (engn * 0x04));
+		u32 busy = (stat & 0x80000000);
+		u32 save = (stat & 0x00100000); /* maybe? */
+		u32 unk0 = (stat & 0x00040000);
+		u32 unk1 = (stat & 0x00001000);
+		u32 chid = (stat & 0x0000007f);
+		(void)save;
+
+		if (busy && unk0 && unk1) {
+			if (!(chan = (void *)priv->base.channel[chid]))
+				continue;
+			if (!(engine = nvc0_fifo_engine(priv, engn)))
+				continue;
+			nvc0_fifo_recover(priv, engine, chan);
+		}
+	}
+}
+
+static void
 nvc0_fifo_intr_sched(struct nvc0_fifo_priv *priv)
 {
 	u32 intr = nv_rd32(priv, 0x00254c);
@@ -493,6 +519,14 @@ nvc0_fifo_intr_sched(struct nvc0_fifo_priv *priv)
 		snprintf(enunk, sizeof(enunk), "UNK%02x", code);
 
 	nv_error(priv, "SCHED_ERROR [ %s ]\n", en ? en->name : enunk);
+
+	switch (code) {
+	case 0x0a:
+		nvc0_fifo_intr_sched_ctxsw(priv);
+		break;
+	default:
+		break;
+	}
 }
 
 static const struct nouveau_enum
