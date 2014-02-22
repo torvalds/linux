@@ -23,6 +23,7 @@
 #include <linux/libata.h>
 #include <linux/ahci_platform.h>
 #include <linux/phy/phy.h>
+#include <linux/pm_runtime.h>
 #include "ahci.h"
 
 static void ahci_host_stop(struct ata_host *host);
@@ -216,6 +217,11 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 	struct ahci_host_priv *hpriv = res;
 	int c;
 
+	if (hpriv->got_runtime_pm) {
+		pm_runtime_put_sync(dev);
+		pm_runtime_disable(dev);
+	}
+
 	for (c = 0; c < AHCI_MAX_CLKS && hpriv->clks[c]; c++)
 		clk_put(hpriv->clks[c]);
 }
@@ -308,6 +314,10 @@ struct ahci_host_priv *ahci_platform_get_resources(
 			goto err_out;
 		}
 	}
+
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+	hpriv->got_runtime_pm = true;
 
 	devres_remove_group(dev, NULL);
 	return hpriv;
@@ -602,6 +612,11 @@ int ahci_platform_resume(struct device *dev)
 	rc = ahci_platform_resume_host(dev);
 	if (rc)
 		goto disable_resources;
+
+	/* We resumed so update PM runtime state */
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 
