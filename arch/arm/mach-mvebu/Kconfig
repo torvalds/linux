@@ -1,5 +1,5 @@
 config ARCH_MVEBU
-	bool "Marvell Engineering Business Unit (MVEBU) SoCs" if ARCH_MULTI_V7
+	bool "Marvell Engineering Business Unit (MVEBU) SoCs" if (ARCH_MULTI_V7 || ARCH_MULTI_V5)
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
 	select COMMON_CLK
@@ -45,6 +45,23 @@ config MACH_ARMADA_XP
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada XP SoC with device tree.
+
+config MACH_KIRKWOOD
+	bool "Marvell Kirkwood boards" if ARCH_MULTI_V5
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select CPU_FEROCEON
+	select KIRKWOOD_CLK
+	select OF_IRQ
+	select ORION_IRQCHIP
+	select ORION_TIMER
+	select PCI
+	select PCI_QUIRKS
+	select PINCTRL_KIRKWOOD
+	select USE_OF
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Kirkwood device tree.
 
 endmenu
 
