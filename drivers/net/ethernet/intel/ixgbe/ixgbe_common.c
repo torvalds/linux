@@ -646,20 +646,17 @@ enum ixgbe_bus_speed ixgbe_convert_bus_speed(u16 link_status)
  **/
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 {
-	struct ixgbe_adapter *adapter = hw->back;
-	struct ixgbe_mac_info *mac = &hw->mac;
 	u16 link_status;
 
 	hw->bus.type = ixgbe_bus_type_pci_express;
 
 	/* Get the negotiated link width and speed from PCI config space */
-	pci_read_config_word(adapter->pdev, IXGBE_PCI_LINK_STATUS,
-	                     &link_status);
+	link_status = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_LINK_STATUS);
 
 	hw->bus.width = ixgbe_convert_bus_width(link_status);
 	hw->bus.speed = ixgbe_convert_bus_speed(link_status);
 
-	mac->ops.set_lan_id(hw);
+	hw->mac.ops.set_lan_id(hw);
 
 	return 0;
 }
@@ -2437,12 +2434,10 @@ out:
  **/
 static u32 ixgbe_pcie_timeout_poll(struct ixgbe_hw *hw)
 {
-	struct ixgbe_adapter *adapter = hw->back;
 	s16 devctl2;
 	u32 pollcnt;
 
-	pci_read_config_word(adapter->pdev, IXGBE_PCI_DEVICE_CONTROL2,
-			     &devctl2);
+	devctl2 = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_DEVICE_CONTROL2);
 	devctl2 &= IXGBE_PCIDEVCTRL2_TIMEO_MASK;
 
 	switch (devctl2) {
