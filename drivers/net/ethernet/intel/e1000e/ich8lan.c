@@ -143,7 +143,9 @@ static void e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index);
 static void e1000_rar_set_pch_lpt(struct e1000_hw *hw, u8 *addr, u32 index);
 static s32 e1000_k1_workaround_lv(struct e1000_hw *hw);
 static void e1000_gate_hw_phy_config_ich8lan(struct e1000_hw *hw, bool gate);
+static s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force);
 static s32 e1000_setup_copper_link_pch_lpt(struct e1000_hw *hw);
+static s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -240,6 +242,47 @@ out:
 }
 
 /**
+ *  e1000_toggle_lanphypc_pch_lpt - toggle the LANPHYPC pin value
+ *  @hw: pointer to the HW structure
+ *
+ *  Toggling the LANPHYPC pin value fully power-cycles the PHY and is
+ *  used to reset the PHY to a quiescent state when necessary.
+ **/
+static void e1000_toggle_lanphypc_pch_lpt(struct e1000_hw *hw)
+{
+	u32 mac_reg;
+
+	/* Set Phy Config Counter to 50msec */
+	mac_reg = er32(FEXTNVM3);
+	mac_reg &= ~E1000_FEXTNVM3_PHY_CFG_COUNTER_MASK;
+	mac_reg |= E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC;
+	ew32(FEXTNVM3, mac_reg);
+
+	/* Toggle LANPHYPC Value bit */
+	mac_reg = er32(CTRL);
+	mac_reg |= E1000_CTRL_LANPHYPC_OVERRIDE;
+	mac_reg &= ~E1000_CTRL_LANPHYPC_VALUE;
+	ew32(CTRL, mac_reg);
+	e1e_flush();
+	usleep_range(10, 20);
+	mac_reg &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
+	ew32(CTRL, mac_reg);
+	e1e_flush();
+
+	if (hw->mac.type < e1000_pch_lpt) {
+		msleep(50);
+	} else {
+		u16 count = 20;
+
+		do {
+			usleep_range(5000, 10000);
+		} while (!(er32(CTRL_EXT) & E1000_CTRL_EXT_LPCD) && count--);
+
+		msleep(30);
+	}
+}
+
+/**
  *  e1000_init_phy_workarounds_pchlan - PHY initialization workarounds
  *  @hw: pointer to the HW structure
  *
@@ -256,6 +299,12 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	 * non-managed 82579 and newer adapters.
 	 */
 	e1000_gate_hw_phy_config_ich8lan(hw, true);
+
+	/* It is not possible to be certain of the current state of ULP
+	 * so forcibly disable it.
+	 */
+	hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_unknown;
+	e1000_disable_ulp_lpt_lp(hw, true);
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
@@ -302,33 +351,9 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 			break;
 		}
 
-		e_dbg("Toggling LANPHYPC\n");
-
-		/* Set Phy Config Counter to 50msec */
-		mac_reg = er32(FEXTNVM3);
-		mac_reg &= ~E1000_FEXTNVM3_PHY_CFG_COUNTER_MASK;
-		mac_reg |= E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC;
-		ew32(FEXTNVM3, mac_reg);
-
 		/* Toggle LANPHYPC Value bit */
-		mac_reg = er32(CTRL);
-		mac_reg |= E1000_CTRL_LANPHYPC_OVERRIDE;
-		mac_reg &= ~E1000_CTRL_LANPHYPC_VALUE;
-		ew32(CTRL, mac_reg);
-		e1e_flush();
-		usleep_range(10, 20);
-		mac_reg &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
-		ew32(CTRL, mac_reg);
-		e1e_flush();
-		if (hw->mac.type < e1000_pch_lpt) {
-			msleep(50);
-		} else {
-			u16 count = 20;
-			do {
-				usleep_range(5000, 10000);
-			} while (!(er32(CTRL_EXT) &
-				   E1000_CTRL_EXT_LPCD) && count--);
-			usleep_range(30000, 60000);
+		e1000_toggle_lanphypc_pch_lpt(hw);
+		if (hw->mac.type >= e1000_pch_lpt) {
 			if (e1000_phy_is_accessible_pchlan(hw))
 				break;
 
@@ -1003,6 +1028,253 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 	ew32(LTRV, reg);
 
 	return 0;
+}
+
+/**
+ *  e1000_enable_ulp_lpt_lp - configure Ultra Low Power mode for LynxPoint-LP
+ *  @hw: pointer to the HW structure
+ *  @to_sx: boolean indicating a system power state transition to Sx
+ *
+ *  When link is down, configure ULP mode to significantly reduce the power
+ *  to the PHY.  If on a Manageability Engine (ME) enabled system, tell the
+ *  ME firmware to start the ULP configuration.  If not on an ME enabled
+ *  system, configure the ULP mode by software.
+ */
+s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
+{
+	u32 mac_reg;
+	s32 ret_val = 0;
+	u16 phy_reg;
+
+	if ((hw->mac.type < e1000_pch_lpt) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPT_I217_LM) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPT_I217_V) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_LM2) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_V2) ||
+	    (hw->dev_spec.ich8lan.ulp_state == e1000_ulp_state_on))
+		return 0;
+
+	if (er32(FWSM) & E1000_ICH_FWSM_FW_VALID) {
+		/* Request ME configure ULP mode in the PHY */
+		mac_reg = er32(H2ME);
+		mac_reg |= E1000_H2ME_ULP | E1000_H2ME_ENFORCE_SETTINGS;
+		ew32(H2ME, mac_reg);
+
+		goto out;
+	}
+
+	if (!to_sx) {
+		int i = 0;
+
+		/* Poll up to 5 seconds for Cable Disconnected indication */
+		while (!(er32(FEXT) & E1000_FEXT_PHY_CABLE_DISCONNECTED)) {
+			/* Bail if link is re-acquired */
+			if (er32(STATUS) & E1000_STATUS_LU)
+				return -E1000_ERR_PHY;
+
+			if (i++ == 100)
+				break;
+
+			msleep(50);
+		}
+		e_dbg("CABLE_DISCONNECTED %s set after %dmsec\n",
+		      (er32(FEXT) &
+		       E1000_FEXT_PHY_CABLE_DISCONNECTED) ? "" : "not", i * 50);
+	}
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
+
+	/* Force SMBus mode in PHY */
+	ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL, &phy_reg);
+	if (ret_val)
+		goto release;
+	phy_reg |= CV_SMB_CTRL_FORCE_SMBUS;
+	e1000_write_phy_reg_hv_locked(hw, CV_SMB_CTRL, phy_reg);
+
+	/* Force SMBus mode in MAC */
+	mac_reg = er32(CTRL_EXT);
+	mac_reg |= E1000_CTRL_EXT_FORCE_SMBUS;
+	ew32(CTRL_EXT, mac_reg);
+
+	/* Set Inband ULP Exit, Reset to SMBus mode and
+	 * Disable SMBus Release on PERST# in PHY
+	 */
+	ret_val = e1000_read_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, &phy_reg);
+	if (ret_val)
+		goto release;
+	phy_reg |= (I218_ULP_CONFIG1_RESET_TO_SMBUS |
+		    I218_ULP_CONFIG1_DISABLE_SMB_PERST);
+	if (to_sx) {
+		if (er32(WUFC) & E1000_WUFC_LNKC)
+			phy_reg |= I218_ULP_CONFIG1_WOL_HOST;
+
+		phy_reg |= I218_ULP_CONFIG1_STICKY_ULP;
+	} else {
+		phy_reg |= I218_ULP_CONFIG1_INBAND_EXIT;
+	}
+	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
+
+	/* Set Disable SMBus Release on PERST# in MAC */
+	mac_reg = er32(FEXTNVM7);
+	mac_reg |= E1000_FEXTNVM7_DISABLE_SMB_PERST;
+	ew32(FEXTNVM7, mac_reg);
+
+	/* Commit ULP changes in PHY by starting auto ULP configuration */
+	phy_reg |= I218_ULP_CONFIG1_START;
+	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
+release:
+	hw->phy.ops.release(hw);
+out:
+	if (ret_val)
+		e_dbg("Error in ULP enable flow: %d\n", ret_val);
+	else
+		hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_on;
+
+	return ret_val;
+}
+
+/**
+ *  e1000_disable_ulp_lpt_lp - unconfigure Ultra Low Power mode for LynxPoint-LP
+ *  @hw: pointer to the HW structure
+ *  @force: boolean indicating whether or not to force disabling ULP
+ *
+ *  Un-configure ULP mode when link is up, the system is transitioned from
+ *  Sx or the driver is unloaded.  If on a Manageability Engine (ME) enabled
+ *  system, poll for an indication from ME that ULP has been un-configured.
+ *  If not on an ME enabled system, un-configure the ULP mode by software.
+ *
+ *  During nominal operation, this function is called when link is acquired
+ *  to disable ULP mode (force=false); otherwise, for example when unloading
+ *  the driver or during Sx->S0 transitions, this is called with force=true
+ *  to forcibly disable ULP.
+ */
+static s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
+{
+	s32 ret_val = 0;
+	u32 mac_reg;
+	u16 phy_reg;
+	int i = 0;
+
+	if ((hw->mac.type < e1000_pch_lpt) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPT_I217_LM) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPT_I217_V) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_LM2) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_V2) ||
+	    (hw->dev_spec.ich8lan.ulp_state == e1000_ulp_state_off))
+		return 0;
+
+	if (er32(FWSM) & E1000_ICH_FWSM_FW_VALID) {
+		if (force) {
+			/* Request ME un-configure ULP mode in the PHY */
+			mac_reg = er32(H2ME);
+			mac_reg &= ~E1000_H2ME_ULP;
+			mac_reg |= E1000_H2ME_ENFORCE_SETTINGS;
+			ew32(H2ME, mac_reg);
+		}
+
+		/* Poll up to 100msec for ME to clear ULP_CFG_DONE */
+		while (er32(FWSM) & E1000_FWSM_ULP_CFG_DONE) {
+			if (i++ == 10) {
+				ret_val = -E1000_ERR_PHY;
+				goto out;
+			}
+
+			usleep_range(10000, 20000);
+		}
+		e_dbg("ULP_CONFIG_DONE cleared after %dmsec\n", i * 10);
+
+		if (force) {
+			mac_reg = er32(H2ME);
+			mac_reg &= ~E1000_H2ME_ENFORCE_SETTINGS;
+			ew32(H2ME, mac_reg);
+		} else {
+			/* Clear H2ME.ULP after ME ULP configuration */
+			mac_reg = er32(H2ME);
+			mac_reg &= ~E1000_H2ME_ULP;
+			ew32(H2ME, mac_reg);
+		}
+
+		goto out;
+	}
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
+
+	if (force)
+		/* Toggle LANPHYPC Value bit */
+		e1000_toggle_lanphypc_pch_lpt(hw);
+
+	/* Unforce SMBus mode in PHY */
+	ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL, &phy_reg);
+	if (ret_val) {
+		/* The MAC might be in PCIe mode, so temporarily force to
+		 * SMBus mode in order to access the PHY.
+		 */
+		mac_reg = er32(CTRL_EXT);
+		mac_reg |= E1000_CTRL_EXT_FORCE_SMBUS;
+		ew32(CTRL_EXT, mac_reg);
+
+		msleep(50);
+
+		ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL,
+						       &phy_reg);
+		if (ret_val)
+			goto release;
+	}
+	phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
+	e1000_write_phy_reg_hv_locked(hw, CV_SMB_CTRL, phy_reg);
+
+	/* Unforce SMBus mode in MAC */
+	mac_reg = er32(CTRL_EXT);
+	mac_reg &= ~E1000_CTRL_EXT_FORCE_SMBUS;
+	ew32(CTRL_EXT, mac_reg);
+
+	/* When ULP mode was previously entered, K1 was disabled by the
+	 * hardware.  Re-Enable K1 in the PHY when exiting ULP.
+	 */
+	ret_val = e1000_read_phy_reg_hv_locked(hw, HV_PM_CTRL, &phy_reg);
+	if (ret_val)
+		goto release;
+	phy_reg |= HV_PM_CTRL_K1_ENABLE;
+	e1000_write_phy_reg_hv_locked(hw, HV_PM_CTRL, phy_reg);
+
+	/* Clear ULP enabled configuration */
+	ret_val = e1000_read_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, &phy_reg);
+	if (ret_val)
+		goto release;
+	phy_reg &= ~(I218_ULP_CONFIG1_IND |
+		     I218_ULP_CONFIG1_STICKY_ULP |
+		     I218_ULP_CONFIG1_RESET_TO_SMBUS |
+		     I218_ULP_CONFIG1_WOL_HOST |
+		     I218_ULP_CONFIG1_INBAND_EXIT |
+		     I218_ULP_CONFIG1_DISABLE_SMB_PERST);
+	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
+
+	/* Commit ULP changes by starting auto ULP configuration */
+	phy_reg |= I218_ULP_CONFIG1_START;
+	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
+
+	/* Clear Disable SMBus Release on PERST# in MAC */
+	mac_reg = er32(FEXTNVM7);
+	mac_reg &= ~E1000_FEXTNVM7_DISABLE_SMB_PERST;
+	ew32(FEXTNVM7, mac_reg);
+
+release:
+	hw->phy.ops.release(hw);
+	if (force) {
+		e1000_phy_hw_reset(hw);
+		msleep(50);
+	}
+out:
+	if (ret_val)
+		e_dbg("Error in ULP disable flow: %d\n", ret_val);
+	else
+		hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_off;
+
+	return ret_val;
 }
 
 /**

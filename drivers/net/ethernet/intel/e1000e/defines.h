@@ -28,9 +28,11 @@
 
 /* Definitions for power management and wakeup registers */
 /* Wake Up Control */
-#define E1000_WUC_APME       0x00000001 /* APM Enable */
-#define E1000_WUC_PME_EN     0x00000002 /* PME Enable */
-#define E1000_WUC_PHY_WAKE   0x00000100 /* if PHY supports wakeup */
+#define E1000_WUC_APME		0x00000001	/* APM Enable */
+#define E1000_WUC_PME_EN	0x00000002	/* PME Enable */
+#define E1000_WUC_PME_STATUS	0x00000004	/* PME Status */
+#define E1000_WUC_APMPME	0x00000008	/* Assert PME on APM Wakeup */
+#define E1000_WUC_PHY_WAKE	0x00000100	/* if PHY supports wakeup */
 
 /* Wake Up Filter Control */
 #define E1000_WUFC_LNKC 0x00000001 /* Link Status Change Wakeup Enable */

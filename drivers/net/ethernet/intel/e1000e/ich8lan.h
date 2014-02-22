@@ -58,10 +58,15 @@
 
 #define E1000_FWSM_WLOCK_MAC_MASK	0x0380
 #define E1000_FWSM_WLOCK_MAC_SHIFT	7
+#define E1000_FWSM_ULP_CFG_DONE		0x00000400	/* Low power cfg done */
 
 /* Shared Receive Address Registers */
 #define E1000_SHRAL_PCH_LPT(_i)		(0x05408 + ((_i) * 8))
 #define E1000_SHRAH_PCH_LPT(_i)		(0x0540C + ((_i) * 8))
+
+#define E1000_H2ME		0x05B50	/* Host to ME */
+#define E1000_H2ME_ULP		0x00000800	/* ULP Indication Bit */
+#define E1000_H2ME_ENFORCE_SETTINGS	0x00001000	/* Enforce Settings */
 
 #define ID_LED_DEFAULT_ICH8LAN	((ID_LED_DEF1_DEF2 << 12) | \
 				 (ID_LED_OFF1_OFF2 <<  8) | \
@@ -75,6 +80,9 @@
 
 #define E1000_ICH8_LAN_INIT_TIMEOUT	1500
 
+/* FEXT register bit definition */
+#define E1000_FEXT_PHY_CABLE_DISCONNECTED	0x00000004
+
 #define E1000_FEXTNVM_SW_CONFIG		1
 #define E1000_FEXTNVM_SW_CONFIG_ICH8M	(1 << 27)	/* different on ICH8M */
 
@@ -87,6 +95,8 @@
 
 #define E1000_FEXTNVM6_REQ_PLL_CLK	0x00000100
 #define E1000_FEXTNVM6_ENABLE_K1_ENTRY_CONDITION	0x00000200
+
+#define E1000_FEXTNVM7_DISABLE_SMB_PERST	0x00000020
 
 #define PCIE_ICH8_SNOOP_ALL	PCIE_NO_SNOOP_ALL
 
@@ -154,6 +164,16 @@
 #define CV_SMB_CTRL		PHY_REG(769, 23)
 #define CV_SMB_CTRL_FORCE_SMBUS	0x0001
 
+/* I218 Ultra Low Power Configuration 1 Register */
+#define I218_ULP_CONFIG1		PHY_REG(779, 16)
+#define I218_ULP_CONFIG1_START		0x0001	/* Start auto ULP config */
+#define I218_ULP_CONFIG1_IND		0x0004	/* Pwr up from ULP indication */
+#define I218_ULP_CONFIG1_STICKY_ULP	0x0010	/* Set sticky ULP mode */
+#define I218_ULP_CONFIG1_INBAND_EXIT	0x0020	/* Inband on ULP exit */
+#define I218_ULP_CONFIG1_WOL_HOST	0x0040	/* WoL Host on ULP exit */
+#define I218_ULP_CONFIG1_RESET_TO_SMBUS	0x0100	/* Reset to SMBus mode */
+#define I218_ULP_CONFIG1_DISABLE_SMB_PERST	0x1000	/* Disable on PERST# */
+
 /* SMBus Address Phy Register */
 #define HV_SMB_ADDR		PHY_REG(768, 26)
 #define HV_SMB_ADDR_MASK	0x007F
@@ -188,6 +208,7 @@
 /* PHY Power Management Control */
 #define HV_PM_CTRL		PHY_REG(770, 17)
 #define HV_PM_CTRL_PLL_STOP_IN_K1_GIGA	0x100
+#define HV_PM_CTRL_K1_ENABLE		0x4000
 
 #define SW_FLAG_TIMEOUT		1000	/* SW Semaphore flag timeout in ms */
 
@@ -262,4 +283,5 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
 s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data);
 s32 e1000_write_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 data);
 s32 e1000_set_eee_pchlan(struct e1000_hw *hw);
+s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx);
 #endif /* _E1000E_ICH8LAN_H_ */
