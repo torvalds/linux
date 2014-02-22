@@ -10,6 +10,7 @@ Required properties:
 
 Optional properties:
 - dma-coherent      : Present if dma operations are coherent
+- clocks            : a list of phandle + clock specifier pairs
 
 Example:
         sata@ffe08000 {
