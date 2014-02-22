@@ -451,7 +451,7 @@ void ath9k_tasklet(unsigned long data)
 		 * interrupts are enabled in the reset routine.
 		 */
 		atomic_inc(&ah->intr_ref_cnt);
-		ath_dbg(common, ANY, "FATAL: Skipping interrupts\n");
+		ath_dbg(common, RESET, "FATAL: Skipping interrupts\n");
 		goto out;
 	}
 
@@ -471,7 +471,7 @@ void ath9k_tasklet(unsigned long data)
 			 * interrupts are enabled in the reset routine.
 			 */
 			atomic_inc(&ah->intr_ref_cnt);
-			ath_dbg(common, ANY,
+			ath_dbg(common, RESET,
 				"BB_WATCHDOG: Skipping interrupts\n");
 			goto out;
 		}
@@ -484,7 +484,7 @@ void ath9k_tasklet(unsigned long data)
 			type = RESET_TYPE_TX_GTT;
 			ath9k_queue_reset(sc, type);
 			atomic_inc(&ah->intr_ref_cnt);
-			ath_dbg(common, ANY,
+			ath_dbg(common, RESET,
 				"GTT: Skipping interrupts\n");
 			goto out;
 		}
