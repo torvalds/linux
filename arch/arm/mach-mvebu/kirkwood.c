@@ -13,19 +13,16 @@
 #include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/mbus.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
-#include <linux/dma-mapping.h>
-#include <linux/irqchip.h>
-#include <linux/kexec.h>
+#include <linux/slab.h>
 #include <asm/hardware/cache-feroceon-l2.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <mach/bridge-regs.h>
-#include <plat/common.h>
-#include <plat/pcie.h>
+#include "kirkwood.h"
 #include "kirkwood-pm.h"
 #include "common.h"
 

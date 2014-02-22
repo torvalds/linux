@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/suspend.h>
 #include <linux/io.h>
-#include <mach/bridge-regs.h>
+#include "kirkwood.h"
 
 static void __iomem *ddr_operation_base;
 static void __iomem *memory_pm_ctrl;
