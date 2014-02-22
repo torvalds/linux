@@ -29,7 +29,7 @@ config MACH_ARMADA_370_XP
 	select CPU_PJ4B
 
 config MACH_ARMADA_370
-	bool "Marvell Armada 370 boards"
+	bool "Marvell Armada 370 boards" if ARCH_MULTI_V7
 	select ARMADA_370_CLK
 	select MACH_ARMADA_370_XP
 	select PINCTRL_ARMADA_370
@@ -38,7 +38,7 @@ config MACH_ARMADA_370
 	  on the Marvell Armada 370 SoC with device tree.
 
 config MACH_ARMADA_XP
-	bool "Marvell Armada XP boards"
+	bool "Marvell Armada XP boards" if ARCH_MULTI_V7
 	select ARMADA_XP_CLK
 	select MACH_ARMADA_370_XP
 	select PINCTRL_ARMADA_XP
