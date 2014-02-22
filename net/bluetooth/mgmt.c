@@ -390,6 +390,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	if (lmp_le_capable(hdev)) {
 		settings |= MGMT_SETTING_LE;
 		settings |= MGMT_SETTING_ADVERTISING;
+		settings |= MGMT_SETTING_PRIVACY;
 	}
 
 	return settings;
@@ -437,6 +438,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 	if (test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags))
 		settings |= MGMT_SETTING_DEBUG_KEYS;
+
+	if (test_bit(HCI_PRIVACY, &hdev->dev_flags))
+		settings |= MGMT_SETTING_PRIVACY;
 
 	return settings;
 }
