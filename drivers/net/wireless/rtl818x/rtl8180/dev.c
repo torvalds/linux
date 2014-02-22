@@ -483,6 +483,13 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 		mapping = (dma_addr_t *)skb->cb;
 		*mapping = pci_map_single(priv->pdev, skb_tail_pointer(skb),
 					  MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
+
+		if (pci_dma_mapping_error(priv->pdev, *mapping)) {
+			kfree_skb(skb);
+			wiphy_err(dev->wiphy, "Cannot map DMA for RX skb\n");
+			return -ENOMEM;
+		}
+
 		entry->rx_buf = cpu_to_le32(*mapping);
 		entry->flags = cpu_to_le32(RTL818X_RX_DESC_FLAG_OWN |
 					   MAX_RX_SIZE);
