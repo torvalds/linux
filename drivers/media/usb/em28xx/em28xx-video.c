@@ -1933,6 +1933,32 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 	return 0;
 }
 
+static int em28xx_v4l2_suspend(struct em28xx *dev)
+{
+	if (dev->is_audio_only)
+		return 0;
+
+	if (!dev->has_video)
+		return 0;
+
+	em28xx_info("Suspending video extension");
+	em28xx_stop_urbs(dev);
+	return 0;
+}
+
+static int em28xx_v4l2_resume(struct em28xx *dev)
+{
+	if (dev->is_audio_only)
+		return 0;
+
+	if (!dev->has_video)
+		return 0;
+
+	em28xx_info("Resuming video extension");
+	/* what do we do here */
+	return 0;
+}
+
 /*
  * em28xx_v4l2_close()
  * stops streaming and deallocates all resources allocated by the v4l2
@@ -2505,6 +2531,8 @@ static struct em28xx_ops v4l2_ops = {
 	.name = "Em28xx v4l2 Extension",
 	.init = em28xx_v4l2_init,
 	.fini = em28xx_v4l2_fini,
+	.suspend = em28xx_v4l2_suspend,
+	.resume = em28xx_v4l2_resume,
 };
 
 static int __init em28xx_video_register(void)
