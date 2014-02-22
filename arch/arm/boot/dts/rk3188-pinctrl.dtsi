@@ -583,7 +583,7 @@
 
 			sd0_cmd: sd0-cmd {
 				rockchip,pins = <MMC0_CMD>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_UP>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
@@ -591,10 +591,16 @@
 
 			sd0_cd: sd0-cd {
 				rockchip,pins = <MMC0_DETN>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_UP>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			sd0_cd_gpio:sd0_cd_gpio{
+				rockchip,pins = <FUNC_TO_GPIO(MMC0_DETN)>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 
 			sd0_wp: sd0-wp {
@@ -615,7 +621,7 @@
 
 			sd0_bus1: sd0-bus-width1 {
 				rockchip,pins = <MMC0_D0>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_UP>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
@@ -626,7 +632,7 @@
 						<MMC0_D1>,
 						<MMC0_D2 >,
 						<MMC0_D3>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_UP>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
@@ -644,7 +650,7 @@
 
 			sd1_cmd: sd1-cmd {
 				rockchip,pins = <MMC1_CMD>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_UP>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
@@ -652,7 +658,7 @@
 
 			sd1_cd: sd1-cd {
 				rockchip,pins = <MMC1_DETN>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_UP>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
@@ -668,7 +674,7 @@
 
 			sd1_bus1: sd1-bus-width1 {
 				rockchip,pins = <MMC1_D0>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_UP>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
@@ -679,7 +685,7 @@
 						<MMC1_D1>,
 						<MMC1_D2>,
 						<MMC1_D3>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_UP>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;

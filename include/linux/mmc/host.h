@@ -196,6 +196,10 @@ struct mmc_supply {
 	struct regulator *vqmmc;	/* Optional Vccq supply */
 };
 
+#define HOST_IS_EMMC(host)  (host->unused)
+#define SDMMC_SUPPORT_EMMC(host)    (host->rk_sdmmc_emmc_used)
+
+
 struct mmc_host {
 	struct device		*parent;
 	struct device		class_dev;
@@ -305,6 +309,8 @@ struct mmc_host {
 	unsigned int		max_blk_size;	/* maximum size of one mmc block */
 	unsigned int		max_blk_count;	/* maximum number of blocks in one req */
 	unsigned int		max_discard_to;	/* max. discard timeout in ms */
+	unsigned short      rk_sdmmc_emmc_used; //rk29_sdmmc driver support emmc
+	int                 host_dev_id;
 
 	/* private data */
 	spinlock_t		lock;		/* lock for claim and bus ops */
@@ -336,7 +342,10 @@ struct mmc_host {
 
 	const struct mmc_bus_ops *bus_ops;	/* current bus driver */
 	unsigned int		bus_refs;	/* reference counter */
-
+    
+    unsigned int        re_initialized_flags; //in order to begin the rescan ;  added by xbw@2011-04-07
+    unsigned int        doneflag; //added by xbw at 2011-08-27
+    int         (*sdmmc_host_hw_init)(void *data);
 	unsigned int		bus_resume_flags;
 #define MMC_BUSRESUME_MANUAL_RESUME	(1 << 0)
 #define MMC_BUSRESUME_NEEDS_RESUME	(1 << 1)

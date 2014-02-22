@@ -3,6 +3,7 @@
 #include "rk3188.dtsi"
 #include "rk3188-clocks.dtsi"
 #include "lcd-b101ew05.dtsi"
+#include "rk3188-mmc.dtsi"
 
 / {
 	memory {
