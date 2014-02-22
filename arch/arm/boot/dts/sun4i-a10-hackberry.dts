@@ -54,16 +54,12 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-
-		reg_emac_3v3: emac-3v3 {
-			compatible = "regulator-fixed";
-			regulator-name = "emac-3v3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			enable-active-high;
-			gpio = <&pio 7 19 0>;
-		};
+	reg_emac_3v3: emac-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "emac-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&pio 7 19 0>;
 	};
 };
