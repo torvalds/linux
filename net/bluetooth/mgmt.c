@@ -81,6 +81,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_SCAN_PARAMS,
 	MGMT_OP_SET_SECURE_CONN,
 	MGMT_OP_SET_DEBUG_KEYS,
+	MGMT_OP_SET_PRIVACY,
 	MGMT_OP_LOAD_IRKS,
 };
 
@@ -4227,6 +4228,51 @@ unlock:
 	return err;
 }
 
+static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
+		       u16 len)
+{
+	struct mgmt_cp_set_privacy *cp = cp_data;
+	bool changed;
+	int err;
+
+	BT_DBG("request for %s", hdev->name);
+
+	if (!lmp_le_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PRIVACY,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (cp->privacy != 0x00 && cp->privacy != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PRIVACY,
+				  MGMT_STATUS_INVALID_PARAMS);
+
+	if (hdev_is_powered(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PRIVACY,
+				  MGMT_STATUS_REJECTED);
+
+	hci_dev_lock(hdev);
+
+	if (cp->privacy) {
+		changed = !test_and_set_bit(HCI_PRIVACY, &hdev->dev_flags);
+		memcpy(hdev->irk, cp->irk, sizeof(hdev->irk));
+		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+	} else {
+		changed = test_and_clear_bit(HCI_PRIVACY, &hdev->dev_flags);
+		memset(hdev->irk, 0, sizeof(hdev->irk));
+		clear_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+	}
+
+	err = send_settings_rsp(sk, MGMT_OP_SET_PRIVACY, hdev);
+	if (err < 0)
+		goto unlock;
+
+	if (changed)
+		err = new_settings(hdev, sk);
+
+unlock:
+	hci_dev_unlock(hdev);
+	return err;
+}
+
 static bool irk_is_valid(struct mgmt_irk_info *irk)
 {
 	switch (irk->addr.type) {
@@ -4441,7 +4487,7 @@ static const struct mgmt_handler {
 	{ set_scan_params,        false, MGMT_SET_SCAN_PARAMS_SIZE },
 	{ set_secure_conn,        false, MGMT_SETTING_SIZE },
 	{ set_debug_keys,         false, MGMT_SETTING_SIZE },
-	{ },
+	{ set_privacy,            false, MGMT_SET_PRIVACY_SIZE },
 	{ load_irks,              true,  MGMT_LOAD_IRKS_SIZE },
 };
 
