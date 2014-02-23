@@ -51,15 +51,7 @@ DECLARE_PER_CPU(struct kernel_cpustat, kernel_cpustat);
 
 extern unsigned long long nr_context_switches(void);
 
-#include <linux/irq.h>
 extern unsigned int kstat_irqs_cpu(unsigned int irq, int cpu);
-
-static inline void kstat_incr_irqs_this_cpu(unsigned int irq, struct irq_desc *desc)
-{
-	__this_cpu_inc(*desc->kstat_irqs);
-	__this_cpu_inc(kstat.irqs_sum);
-}
-
 extern void kstat_incr_irq_this_cpu(unsigned int irq);
 
 static inline void kstat_incr_softirqs_this_cpu(unsigned int irq)
