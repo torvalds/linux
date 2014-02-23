@@ -3567,13 +3567,13 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		if (stat & FW_PORT_CMD_TXPAUSE)
 			fc |= PAUSE_TX;
 		if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100M))
-			speed = SPEED_100;
+			speed = 100;
 		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_1G))
-			speed = SPEED_1000;
+			speed = 1000;
 		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
-			speed = SPEED_10000;
+			speed = 10000;
 		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
-			speed = 40000; /* Need SPEED_40000 in ethtool.h */
+			speed = 40000;
 
 		if (link_ok != lc->link_ok || speed != lc->speed ||
 		    fc != lc->fc) {                    /* something changed */

@@ -427,16 +427,16 @@ static void link_report(struct net_device *dev)
 		const struct port_info *p = netdev_priv(dev);
 
 		switch (p->link_cfg.speed) {
-		case SPEED_10000:
+		case 10000:
 			s = "10Gbps";
 			break;
-		case SPEED_1000:
+		case 1000:
 			s = "1000Mbps";
 			break;
-		case SPEED_100:
+		case 100:
 			s = "100Mbps";
 			break;
-		case 40000: /* Need a SPEED_40000 in ethtool.h */
+		case 40000:
 			s = "40Gbps";
 			break;
 		}
@@ -2274,13 +2274,13 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static unsigned int speed_to_caps(int speed)
 {
-	if (speed == SPEED_100)
+	if (speed == 100)
 		return FW_PORT_CAP_SPEED_100M;
-	if (speed == SPEED_1000)
+	if (speed == 1000)
 		return FW_PORT_CAP_SPEED_1G;
-	if (speed == SPEED_10000)
+	if (speed == 10000)
 		return FW_PORT_CAP_SPEED_10G;
-	if (speed == 40000) /* Need SPEED_40000 in ethtool.h */
+	if (speed == 40000)
 		return FW_PORT_CAP_SPEED_40G;
 	return 0;
 }
@@ -2310,8 +2310,8 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cap = speed_to_caps(speed);
 
 		if (!(lc->supported & cap) ||
-		    (speed == SPEED_1000) ||
-		    (speed == SPEED_10000) ||
+		    (speed == 1000) ||
+		    (speed == 10000) ||
 		    (speed == 40000))
 			return -EINVAL;
 		lc->requested_speed = cap;
