@@ -31,6 +31,10 @@
 		};
 	};
 
+	rtc@101E0000 {
+		status = "okay";
+	};
+
 	mmc@12200000 {
 		status = "okay";
 		broken-cd;
