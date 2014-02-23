@@ -12,6 +12,7 @@
 /dts-v1/;
 #include "exynos5420.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
@@ -348,4 +349,14 @@
 		};
 	};
 
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		wakeup {
+			label = "SW-TACT1";
+			gpios = <&gpx2 7 1>;
+			linux,code = <KEY_WAKEUP>;
+			gpio-key,wakeup;
+		};
+	};
 };
