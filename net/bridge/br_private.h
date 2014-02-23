@@ -46,12 +46,12 @@ typedef __u16 port_id;
 struct bridge_id
 {
 	unsigned char	prio[2];
-	unsigned char	addr[6];
+	unsigned char	addr[ETH_ALEN];
 };
 
 struct mac_addr
 {
-	unsigned char	addr[6];
+	unsigned char	addr[ETH_ALEN];
 };
 
 struct br_ip
