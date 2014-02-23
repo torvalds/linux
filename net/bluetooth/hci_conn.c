@@ -556,16 +556,22 @@ static int hci_create_le_conn(struct hci_conn *conn)
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_le_create_conn cp;
 	struct hci_request req;
+	u8 own_addr_type;
 	int err;
 
 	hci_req_init(&req, hdev);
 
 	memset(&cp, 0, sizeof(cp));
+
+	err = hci_update_random_address(&req, &own_addr_type);
+	if (err < 0)
+		return err;
+
 	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
 	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
 	bacpy(&cp.peer_addr, &conn->dst);
 	cp.peer_addr_type = conn->dst_type;
-	cp.own_address_type = conn->src_type;
+	cp.own_address_type = own_addr_type;
 	cp.conn_interval_min = cpu_to_le16(conn->le_conn_min_interval);
 	cp.conn_interval_max = cpu_to_le16(conn->le_conn_max_interval);
 	cp.supervision_timeout = __constant_cpu_to_le16(0x002a);
