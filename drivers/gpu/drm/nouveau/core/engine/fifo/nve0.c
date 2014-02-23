@@ -404,7 +404,8 @@ out:
 	return ret;
 }
 
-static const struct nouveau_enum nve0_fifo_sched_reason[] = {
+static const struct nouveau_enum
+nve0_fifo_sched_reason[] = {
 	{ 0x0a, "CTXSW_TIMEOUT" },
 	{}
 };
@@ -414,9 +415,14 @@ nve0_fifo_intr_sched(struct nve0_fifo_priv *priv)
 {
 	u32 intr = nv_rd32(priv, 0x00254c);
 	u32 code = intr & 0x000000ff;
-	nv_error(priv, "SCHED_ERROR [");
-	nouveau_enum_print(nve0_fifo_sched_reason, code);
-	pr_cont("]\n");
+	const struct nouveau_enum *en;
+	char enunk[6] = "";
+
+	en = nouveau_enum_find(nve0_fifo_sched_reason, code);
+	if (!en)
+		snprintf(enunk, sizeof(enunk), "UNK%02x", code);
+
+	nv_error(priv, "SCHED_ERROR [ %s ]\n", en ? en->name : enunk);
 }
 
 static void
