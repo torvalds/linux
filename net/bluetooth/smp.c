@@ -124,6 +124,24 @@ bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
 	return !memcmp(bdaddr->b, hash, 3);
 }
 
+int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa)
+{
+	int err;
+
+	get_random_bytes(&rpa->b[3], 3);
+
+	rpa->b[5] &= 0x3f;	/* Clear two most significant bits */
+	rpa->b[5] |= 0x40;	/* Set second most significant bit */
+
+	err = smp_ah(tfm, irk, &rpa->b[3], rpa->b);
+	if (err < 0)
+		return err;
+
+	BT_DBG("RPA %pMR", rpa);
+
+	return 0;
+}
+
 static int smp_c1(struct crypto_blkcipher *tfm, u8 k[16], u8 r[16],
 		  u8 preq[7], u8 pres[7], u8 _iat, bdaddr_t *ia,
 		  u8 _rat, bdaddr_t *ra, u8 res[16])

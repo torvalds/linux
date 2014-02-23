@@ -152,5 +152,6 @@ void smp_chan_destroy(struct l2cap_conn *conn);
 
 bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
 		     bdaddr_t *bdaddr);
+int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa);
 
 #endif /* __SMP_H */
