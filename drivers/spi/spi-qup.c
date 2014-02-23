@@ -709,7 +709,7 @@ static int spi_qup_pm_suspend_runtime(struct device *device)
 
 	/* Enable clocks auto gaiting */
 	config = readl(controller->base + QUP_CONFIG);
-	config |= QUP_CLOCK_AUTO_GATE;
+	config |= QUP_CONFIG_CLOCK_AUTO_GATE;
 	writel_relaxed(config, controller->base + QUP_CONFIG);
 	return 0;
 }
@@ -722,7 +722,7 @@ static int spi_qup_pm_resume_runtime(struct device *device)
 
 	/* Disable clocks auto gaiting */
 	config = readl_relaxed(controller->base + QUP_CONFIG);
-	config &= ~QUP_CLOCK_AUTO_GATE;
+	config &= ~QUP_CONFIG_CLOCK_AUTO_GATE;
 	writel_relaxed(config, controller->base + QUP_CONFIG);
 	return 0;
 }
