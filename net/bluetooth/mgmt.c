@@ -4608,11 +4608,6 @@ static int powered_update_hci(struct hci_dev *hdev)
 	}
 
 	if (lmp_le_capable(hdev)) {
-		/* Set random address to static address if configured */
-		if (bacmp(&hdev->static_addr, BDADDR_ANY))
-			hci_req_add(&req, HCI_OP_LE_SET_RANDOM_ADDR, 6,
-				    &hdev->static_addr);
-
 		/* Make sure the controller has a good default for
 		 * advertising data. This also applies to the case
 		 * where BR/EDR was toggled during the AUTO_OFF phase.
