@@ -1506,23 +1506,8 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
 
-	if (lmp_le_capable(hdev)) {
-		/* If the controller has a public BD_ADDR, then by default
-		 * use that one. If this is a LE only controller without
-		 * a public address, default to the random address.
-		 *
-		 * For debugging purposes it is possible to force
-		 * controllers with a public address to use the
-		 * random address instead.
-		 */
-		if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ||
-		    !bacmp(&hdev->bdaddr, BDADDR_ANY))
-			hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
-		else
-			hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
-
+	if (lmp_le_capable(hdev))
 		hci_set_le_support(req);
-	}
 
 	/* Read features beyond page 1 if available */
 	for (p = 2; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
