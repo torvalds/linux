@@ -2701,6 +2701,11 @@ int cfg80211_get_unii(int freq)
 	return -EINVAL;
 }
 
+bool regulatory_indoor_allowed(void)
+{
+	return reg_is_indoor;
+}
+
 int __init regulatory_init(void)
 {
 	int err = 0;

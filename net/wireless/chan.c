@@ -667,6 +667,8 @@ EXPORT_SYMBOL(cfg80211_chandef_usable);
  * IEEE80211_CHAN_GO_CONCURRENT and there is an additional station interface
  * associated to an AP on the same channel or on the same UNII band
  * (assuming that the AP is an authorized master).
+ * In addition allow the GO to operate on a channel on which indoor operation is
+ * allowed, iff we are currently operating in an indoor environment.
  */
 static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
 					struct ieee80211_channel *chan)
@@ -677,8 +679,14 @@ static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
 	ASSERT_RTNL();
 
 	if (!config_enabled(CONFIG_CFG80211_REG_RELAX_NO_IR) ||
-	    !(wiphy->regulatory_flags & REGULATORY_ENABLE_RELAX_NO_IR) ||
-	    !(chan->flags & IEEE80211_CHAN_GO_CONCURRENT))
+	    !(wiphy->regulatory_flags & REGULATORY_ENABLE_RELAX_NO_IR))
+		return false;
+
+	if (regulatory_indoor_allowed() &&
+	    (chan->flags & IEEE80211_CHAN_INDOOR_ONLY))
+		return true;
+
+	if (!(chan->flags & IEEE80211_CHAN_GO_CONCURRENT))
 		return false;
 
 	/*

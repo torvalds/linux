@@ -117,4 +117,9 @@ void regulatory_hint_disconnect(void);
  */
 int cfg80211_get_unii(int freq);
 
+/**
+ * regulatory_indoor_allowed - is indoor operation allowed
+ */
+bool regulatory_indoor_allowed(void);
+
 #endif  /* __NET_WIRELESS_REG_H */
