@@ -95,6 +95,19 @@ config CFG80211_CERTIFICATION_ONUS
 	  you are a wireless researcher and are working in a controlled
 	  and approved environment by your local regulatory agency.
 
+config CFG80211_REG_CELLULAR_HINTS
+	bool "cfg80211 regulatory support for cellular base station hints"
+	depends on CFG80211_CERTIFICATION_ONUS
+	---help---
+	  This option enables support for parsing regulatory hints
+	  from cellular base stations. If enabled and at least one driver
+	  claims support for parsing cellular base station hints the
+	  regulatory core will allow and parse these regulatory hints.
+	  The regulatory core will only apply these regulatory hints on
+	  drivers that support this feature. You should only enable this
+	  feature if you have tested and validated this feature on your
+	  systems.
+
 config CFG80211_DEFAULT_PS
 	bool "enable powersave by default"
 	depends on CFG80211
