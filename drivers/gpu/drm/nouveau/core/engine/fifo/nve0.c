@@ -60,6 +60,7 @@ static const struct {
 struct nve0_fifo_engn {
 	struct nouveau_gpuobj *runlist[2];
 	int cur_runlist;
+	wait_queue_head_t wait;
 };
 
 struct nve0_fifo_priv {
@@ -647,6 +648,18 @@ nve0_fifo_intr_pbdma(struct nve0_fifo_priv *priv, int unit)
 }
 
 static void
+nve0_fifo_intr_runlist(struct nve0_fifo_priv *priv)
+{
+	u32 mask = nv_rd32(priv, 0x002a00);
+	while (mask) {
+		u32 engn = __ffs(mask);
+		wake_up(&priv->engine[engn].wait);
+		nv_wr32(priv, 0x002a00, 1 << engn);
+		mask &= ~(1 << engn);
+	}
+}
+
+static void
 nve0_fifo_intr_engine(struct nve0_fifo_priv *priv)
 {
 	nouveau_event_trigger(priv->base.uevent, 0);
@@ -731,14 +744,7 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x40000000) {
-		u32 mask = nv_mask(priv, 0x002a00, 0x00000000, 0x00000000);
-
-		while (mask) {
-			u32 engn = ffs(mask) - 1;
-			/* runlist event, not currently used */
-			mask &= ~(1 << engn);
-		}
-
+		nve0_fifo_intr_runlist(priv);
 		stat &= ~0x40000000;
 	}
 
@@ -808,9 +814,8 @@ nve0_fifo_init(struct nouveau_object *object)
 
 	nv_wr32(priv, 0x002254, 0x10000000 | priv->user.bar.offset >> 12);
 
-	nv_wr32(priv, 0x002a00, 0xffffffff);
 	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0x3fffffff);
+	nv_wr32(priv, 0x002140, 0x7fffffff);
 	return 0;
 }
 
@@ -856,6 +861,8 @@ nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 					 0, &priv->engine[i].runlist[1]);
 		if (ret)
 			return ret;
+
+		init_waitqueue_head(&priv->engine[i].wait);
 	}
 
 	ret = nouveau_gpuobj_new(nv_object(priv), NULL, impl->channels * 0x200,
