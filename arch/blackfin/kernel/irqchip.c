@@ -11,6 +11,7 @@
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/seq_file.h>
 #include <asm/irq_handler.h>
 #include <asm/trace.h>
 #include <asm/pda.h>
@@ -33,37 +34,15 @@ static struct irq_desc bad_irq_desc = {
 #endif
 
 #ifdef CONFIG_PROC_FS
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, j;
-	struct irqaction *action;
-	unsigned long flags;
+	int j;
 
-	if (i < NR_IRQS) {
-		struct irq_desc *desc = irq_to_desc(i);
-
-		raw_spin_lock_irqsave(&desc->lock, flags);
-		action = desc->action;
-		if (!action)
-			goto skip;
-		seq_printf(p, "%3d: ", i);
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-		seq_printf(p, " %8s", irq_desc_get_chip(desc)->name);
-		seq_printf(p, "  %s", action->name);
-		for (action = action->next; action; action = action->next)
-			seq_printf(p, "  %s", action->name);
-
-		seq_putc(p, '\n');
- skip:
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == NR_IRQS) {
-		seq_printf(p, "NMI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", cpu_pda[j].__nmi_count);
-		seq_printf(p, "     CORE  Non Maskable Interrupt\n");
-		seq_printf(p, "Err: %10u\n",  atomic_read(&irq_err_count));
-	}
+	seq_printf(p, "%*s: ", prec, "NMI");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", cpu_pda[j].__nmi_count);
+	seq_printf(p, "  CORE  Non Maskable Interrupt\n");
+	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 	return 0;
 }
 #endif
