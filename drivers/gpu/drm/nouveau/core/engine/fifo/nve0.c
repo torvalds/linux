@@ -409,9 +409,35 @@ static const struct nouveau_enum nve0_fifo_sched_reason[] = {
 	{}
 };
 
-static const struct nouveau_enum nve0_fifo_fault_engine[] = {
+static void
+nve0_fifo_intr_sched(struct nve0_fifo_priv *priv)
+{
+	u32 intr = nv_rd32(priv, 0x00254c);
+	u32 code = intr & 0x000000ff;
+	nv_error(priv, "SCHED_ERROR [");
+	nouveau_enum_print(nve0_fifo_sched_reason, code);
+	pr_cont("]\n");
+}
+
+static void
+nve0_fifo_intr_chsw(struct nve0_fifo_priv *priv)
+{
+	u32 stat = nv_rd32(priv, 0x00256c);
+	nv_error(priv, "CHSW_ERROR 0x%08x\n", stat);
+	nv_wr32(priv, 0x00256c, stat);
+}
+
+static void
+nve0_fifo_intr_dropped_fault(struct nve0_fifo_priv *priv)
+{
+	u32 stat = nv_rd32(priv, 0x00259c);
+	nv_error(priv, "DROPPED_MMU_FAULT 0x%08x\n", stat);
+}
+
+static const struct nouveau_enum
+nve0_fifo_fault_engine[] = {
 	{ 0x00, "GR", NULL, NVDEV_ENGINE_GR },
-	{ 0x03, "IFB" },
+	{ 0x03, "IFB", NULL, NVDEV_ENGINE_IFB },
 	{ 0x04, "BAR1", NULL, NVDEV_SUBDEV_BAR },
 	{ 0x05, "BAR3", NULL, NVDEV_SUBDEV_INSTMEM },
 	{ 0x07, "PBDMA0", NULL, NVDEV_ENGINE_FIFO },
@@ -429,7 +455,8 @@ static const struct nouveau_enum nve0_fifo_fault_engine[] = {
 	{}
 };
 
-static const struct nouveau_enum nve0_fifo_fault_reason[] = {
+static const struct nouveau_enum
+nve0_fifo_fault_reason[] = {
 	{ 0x00, "PDE" },
 	{ 0x01, "PDE_SIZE" },
 	{ 0x02, "PTE" },
@@ -449,7 +476,8 @@ static const struct nouveau_enum nve0_fifo_fault_reason[] = {
 	{}
 };
 
-static const struct nouveau_enum nve0_fifo_fault_hubclient[] = {
+static const struct nouveau_enum
+nve0_fifo_fault_hubclient[] = {
 	{ 0x00, "VIP" },
 	{ 0x01, "CE0" },
 	{ 0x02, "CE1" },
@@ -485,7 +513,8 @@ static const struct nouveau_enum nve0_fifo_fault_hubclient[] = {
 	{}
 };
 
-static const struct nouveau_enum nve0_fifo_fault_gpcclient[] = {
+static const struct nouveau_enum
+nve0_fifo_fault_gpcclient[] = {
 	{ 0x00, "L1_0" }, { 0x01, "T1_0" }, { 0x02, "PE_0" },
 	{ 0x03, "L1_1" }, { 0x04, "T1_1" }, { 0x05, "PE_1" },
 	{ 0x06, "L1_2" }, { 0x07, "T1_2" }, { 0x08, "PE_2" },
@@ -511,73 +540,67 @@ static const struct nouveau_enum nve0_fifo_fault_gpcclient[] = {
 };
 
 static void
-nve0_fifo_intr_sched(struct nve0_fifo_priv *priv)
-{
-	u32 intr = nv_rd32(priv, 0x00254c);
-	u32 code = intr & 0x000000ff;
-	nv_error(priv, "SCHED_ERROR [");
-	nouveau_enum_print(nve0_fifo_sched_reason, code);
-	pr_cont("]\n");
-}
-
-static void
-nve0_fifo_intr_chsw(struct nve0_fifo_priv *priv)
-{
-	u32 stat = nv_rd32(priv, 0x00256c);
-	nv_error(priv, "CHSW_ERROR 0x%08x\n", stat);
-	nv_wr32(priv, 0x00256c, stat);
-}
-
-static void
-nve0_fifo_intr_dropped_fault(struct nve0_fifo_priv *priv)
-{
-	u32 stat = nv_rd32(priv, 0x00259c);
-	nv_error(priv, "DROPPED_MMU_FAULT 0x%08x\n", stat);
-}
-
-static void
 nve0_fifo_intr_fault(struct nve0_fifo_priv *priv, int unit)
 {
-	u32 inst = nv_rd32(priv, 0x2800 + (unit * 0x10));
-	u32 valo = nv_rd32(priv, 0x2804 + (unit * 0x10));
-	u32 vahi = nv_rd32(priv, 0x2808 + (unit * 0x10));
-	u32 stat = nv_rd32(priv, 0x280c + (unit * 0x10));
+	u32 inst = nv_rd32(priv, 0x002800 + (unit * 0x10));
+	u32 valo = nv_rd32(priv, 0x002804 + (unit * 0x10));
+	u32 vahi = nv_rd32(priv, 0x002808 + (unit * 0x10));
+	u32 stat = nv_rd32(priv, 0x00280c + (unit * 0x10));
+	u32 gpc    = (stat & 0x1f000000) >> 24;
 	u32 client = (stat & 0x00001f00) >> 8;
-	struct nouveau_engine *engine = NULL;
+	u32 write  = (stat & 0x00000080);
+	u32 hub    = (stat & 0x00000040);
+	u32 reason = (stat & 0x0000000f);
 	struct nouveau_object *engctx = NULL;
-	const struct nouveau_enum *en;
-	const char *name = "unknown";
+	struct nouveau_engine *engine;
+	const struct nouveau_enum *er, *eu, *ec;
+	char erunk[6] = "";
+	char euunk[6] = "";
+	char ecunk[6] = "";
+	char gpcid[3] = "";
 
-	nv_error(priv, "PFIFO: %s fault at 0x%010llx [", (stat & 0x00000080) ?
-		       "write" : "read", (u64)vahi << 32 | valo);
-	nouveau_enum_print(nve0_fifo_fault_reason, stat & 0x0000000f);
-	pr_cont("] from ");
-	en = nouveau_enum_print(nve0_fifo_fault_engine, unit);
-	if (stat & 0x00000040) {
-		pr_cont("/");
-		nouveau_enum_print(nve0_fifo_fault_hubclient, client);
-	} else {
-		pr_cont("/GPC%d/", (stat & 0x1f000000) >> 24);
-		nouveau_enum_print(nve0_fifo_fault_gpcclient, client);
-	}
+	er = nouveau_enum_find(nve0_fifo_fault_reason, reason);
+	if (!er)
+		snprintf(erunk, sizeof(erunk), "UNK%02X", reason);
 
-	if (en && en->data2) {
-		if (en->data2 == NVDEV_SUBDEV_BAR) {
+	eu = nouveau_enum_find(nve0_fifo_fault_engine, unit);
+	if (eu) {
+		switch (eu->data2) {
+		case NVDEV_SUBDEV_BAR:
 			nv_mask(priv, 0x001704, 0x00000000, 0x00000000);
-			name = "BAR1";
-		} else
-		if (en->data2 == NVDEV_SUBDEV_INSTMEM) {
+			break;
+		case NVDEV_SUBDEV_INSTMEM:
 			nv_mask(priv, 0x001714, 0x00000000, 0x00000000);
-			name = "BAR3";
-		} else {
-			engine = nouveau_engine(priv, en->data2);
-			if (engine) {
+			break;
+		case NVDEV_ENGINE_IFB:
+			nv_mask(priv, 0x001718, 0x00000000, 0x00000000);
+			break;
+		default:
+			engine = nouveau_engine(priv, eu->data2);
+			if (engine)
 				engctx = nouveau_engctx_get(engine, inst);
-				name   = nouveau_client_name(engctx);
-			}
+			break;
 		}
+	} else {
+		snprintf(euunk, sizeof(euunk), "UNK%02x", unit);
 	}
-	pr_cont(" on channel 0x%010llx [%s]\n", (u64)inst << 12, name);
+
+	if (hub) {
+		ec = nouveau_enum_find(nve0_fifo_fault_hubclient, client);
+	} else {
+		ec = nouveau_enum_find(nve0_fifo_fault_gpcclient, client);
+		snprintf(gpcid, sizeof(gpcid), "%d", gpc);
+	}
+
+	if (!ec)
+		snprintf(ecunk, sizeof(ecunk), "UNK%02x", client);
+
+	nv_error(priv, "%s fault at 0x%010llx [%s] from %s/%s%s%s%s on "
+		       "channel 0x%010llx [%s]\n", write ? "write" : "read",
+		 (u64)vahi << 32 | valo, er ? er->name : erunk,
+		 eu ? eu->name : euunk, hub ? "" : "GPC", gpcid, hub ? "" : "/",
+		 ec ? ec->name : ecunk, (u64)inst << 12,
+		 nouveau_client_name(engctx));
 
 	nouveau_engctx_put(engctx);
 }
@@ -716,16 +739,13 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x10000000) {
-		u32 units = nv_rd32(priv, 0x00259c);
-		u32 u = units;
-
-		while (u) {
-			int i = ffs(u) - 1;
-			nve0_fifo_intr_fault(priv, i);
-			u &= ~(1 << i);
+		u32 mask = nv_rd32(priv, 0x00259c);
+		while (mask) {
+			u32 unit = __ffs(mask);
+			nve0_fifo_intr_fault(priv, unit);
+			nv_wr32(priv, 0x00259c, (1 << unit));
+			mask &= ~(1 << unit);
 		}
-
-		nv_wr32(priv, 0x00259c, units);
 		stat &= ~0x10000000;
 	}
 
