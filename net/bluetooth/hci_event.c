@@ -3625,6 +3625,26 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 	}
 
+	/* Ensure that the hci_conn contains the identity address type
+	 * regardless of which address the connection was made with.
+	 *
+	 * If the controller has a public BD_ADDR, then by default
+	 * use that one. If this is a LE only controller without
+	 * a public address, default to the static random address.
+	 *
+	 * For debugging purposes it is possible to force
+	 * controllers with a public address to use the static
+	 * random address instead.
+	 */
+	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ||
+	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
+		bacpy(&conn->src, &hdev->static_addr);
+		conn->src_type = ADDR_LE_DEV_RANDOM;
+	} else {
+		bacpy(&conn->src, &hdev->bdaddr);
+		conn->src_type = ADDR_LE_DEV_PUBLIC;
+	}
+
 	/* Lookup the identity address from the stored connection
 	 * address and address type.
 	 *
