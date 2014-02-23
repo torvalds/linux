@@ -584,8 +584,6 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 	return IRQ_HANDLED;
 }
 
-static struct irq_desc *irq_desc_io;
-
 static struct irqaction io_interrupt = {
 	.name	 = "IO",
 	.handler = do_cio_interrupt,
@@ -596,7 +594,6 @@ void __init init_cio_interrupts(void)
 	irq_set_chip_and_handler(IO_INTERRUPT,
 				 &dummy_irq_chip, handle_percpu_irq);
 	setup_irq(IO_INTERRUPT, &io_interrupt);
-	irq_desc_io = irq_to_desc(IO_INTERRUPT);
 }
 
 #ifdef CONFIG_CCW_CONSOLE
@@ -623,7 +620,7 @@ void cio_tsch(struct subchannel *sch)
 		local_bh_disable();
 		irq_enter();
 	}
-	kstat_incr_irqs_this_cpu(IO_INTERRUPT, irq_desc_io);
+	kstat_incr_irq_this_cpu(IO_INTERRUPT);
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(sch);
 	else
