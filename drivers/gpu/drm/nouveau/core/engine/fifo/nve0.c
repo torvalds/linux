@@ -647,6 +647,12 @@ nve0_fifo_intr_pbdma(struct nve0_fifo_priv *priv, int unit)
 }
 
 static void
+nve0_fifo_intr_engine(struct nve0_fifo_priv *priv)
+{
+	nouveau_event_trigger(priv->base.uevent, 0);
+}
+
+static void
 nve0_fifo_intr(struct nouveau_subdev *subdev)
 {
 	struct nve0_fifo_priv *priv = (void *)subdev;
@@ -737,7 +743,7 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x80000000) {
-		nouveau_event_trigger(priv->base.uevent, 0);
+		nve0_fifo_intr_engine(priv);
 		nv_wr32(priv, 0x002100, 0x80000000);
 		stat &= ~0x80000000;
 	}
