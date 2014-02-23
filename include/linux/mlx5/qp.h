@@ -37,6 +37,7 @@
 #include <linux/mlx5/driver.h>
 
 #define MLX5_INVALID_LKEY	0x100
+#define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 5)
 
 enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_ALT_ADDR_PATH		= 1 << 0,

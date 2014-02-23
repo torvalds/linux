@@ -189,6 +189,9 @@ struct mlx5_ib_qp {
 
 	int			create_type;
 	u32			pa_lkey;
+
+	/* Store signature errors */
+	bool			signature_en;
 };
 
 struct mlx5_ib_cq_buf {

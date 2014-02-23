@@ -256,8 +256,11 @@ static int calc_send_wqe(struct ib_qp_init_attr *attr)
 	}
 
 	size += attr->cap.max_send_sge * sizeof(struct mlx5_wqe_data_seg);
-
-	return ALIGN(max_t(int, inl_size, size), MLX5_SEND_WQE_BB);
+	if (attr->create_flags & IB_QP_CREATE_SIGNATURE_EN &&
+	    ALIGN(max_t(int, inl_size, size), MLX5_SEND_WQE_BB) < MLX5_SIG_WQE_SIZE)
+			return MLX5_SIG_WQE_SIZE;
+	else
+		return ALIGN(max_t(int, inl_size, size), MLX5_SEND_WQE_BB);
 }
 
 static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
@@ -283,6 +286,9 @@ static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 	qp->max_inline_data = wqe_size - sq_overhead(attr->qp_type) -
 		sizeof(struct mlx5_wqe_inline_seg);
 	attr->cap.max_inline_data = qp->max_inline_data;
+
+	if (attr->create_flags & IB_QP_CREATE_SIGNATURE_EN)
+		qp->signature_en = true;
 
 	wq_size = roundup_pow_of_two(attr->cap.max_send_wr * wqe_size);
 	qp->sq.wqe_cnt = wq_size / MLX5_SEND_WQE_BB;
@@ -665,7 +671,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	int err;
 
 	uuari = &dev->mdev.priv.uuari;
-	if (init_attr->create_flags)
+	if (init_attr->create_flags & ~IB_QP_CREATE_SIGNATURE_EN)
 		return -EINVAL;
 
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
