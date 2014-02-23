@@ -378,6 +378,32 @@ nve0_fifo_cclass = {
  * PFIFO engine
  ******************************************************************************/
 
+static int
+nve0_fifo_swmthd(struct nve0_fifo_priv *priv, u32 chid, u32 mthd, u32 data)
+{
+	struct nve0_fifo_chan *chan = NULL;
+	struct nouveau_handle *bind;
+	unsigned long flags;
+	int ret = -EINVAL;
+
+	spin_lock_irqsave(&priv->base.lock, flags);
+	if (likely(chid >= priv->base.min && chid <= priv->base.max))
+		chan = (void *)priv->base.channel[chid];
+	if (unlikely(!chan))
+		goto out;
+
+	bind = nouveau_namedb_get_class(nv_namedb(chan), 0x906e);
+	if (likely(bind)) {
+		if (!mthd || !nv_call(bind->object, mthd, data))
+			ret = 0;
+		nouveau_namedb_put(bind);
+	}
+
+out:
+	spin_unlock_irqrestore(&priv->base.lock, flags);
+	return ret;
+}
+
 static const struct nouveau_enum nve0_fifo_sched_reason[] = {
 	{ 0x0a, "CTXSW_TIMEOUT" },
 	{}
@@ -484,40 +510,6 @@ static const struct nouveau_enum nve0_fifo_fault_gpcclient[] = {
 	{}
 };
 
-static const struct nouveau_bitfield nve0_fifo_pbdma_intr[] = {
-	{ 0x00000001, "MEMREQ" },
-	{ 0x00000002, "MEMACK_TIMEOUT" },
-	{ 0x00000004, "MEMACK_EXTRA" },
-	{ 0x00000008, "MEMDAT_TIMEOUT" },
-	{ 0x00000010, "MEMDAT_EXTRA" },
-	{ 0x00000020, "MEMFLUSH" },
-	{ 0x00000040, "MEMOP" },
-	{ 0x00000080, "LBCONNECT" },
-	{ 0x00000100, "LBREQ" },
-	{ 0x00000200, "LBACK_TIMEOUT" },
-	{ 0x00000400, "LBACK_EXTRA" },
-	{ 0x00000800, "LBDAT_TIMEOUT" },
-	{ 0x00001000, "LBDAT_EXTRA" },
-	{ 0x00002000, "GPFIFO" },
-	{ 0x00004000, "GPPTR" },
-	{ 0x00008000, "GPENTRY" },
-	{ 0x00010000, "GPCRC" },
-	{ 0x00020000, "PBPTR" },
-	{ 0x00040000, "PBENTRY" },
-	{ 0x00080000, "PBCRC" },
-	{ 0x00100000, "XBARCONNECT" },
-	{ 0x00200000, "METHOD" },
-	{ 0x00400000, "METHODCRC" },
-	{ 0x00800000, "DEVICE" },
-	{ 0x02000000, "SEMAPHORE" },
-	{ 0x04000000, "ACQUIRE" },
-	{ 0x08000000, "PRI" },
-	{ 0x20000000, "NO_CTXSW_SEG" },
-	{ 0x40000000, "PBSEG" },
-	{ 0x80000000, "SIGNATURE" },
-	{}
-};
-
 static void
 nve0_fifo_intr_sched(struct nve0_fifo_priv *priv)
 {
@@ -590,31 +582,39 @@ nve0_fifo_intr_fault(struct nve0_fifo_priv *priv, int unit)
 	nouveau_engctx_put(engctx);
 }
 
-static int
-nve0_fifo_swmthd(struct nve0_fifo_priv *priv, u32 chid, u32 mthd, u32 data)
-{
-	struct nve0_fifo_chan *chan = NULL;
-	struct nouveau_handle *bind;
-	unsigned long flags;
-	int ret = -EINVAL;
-
-	spin_lock_irqsave(&priv->base.lock, flags);
-	if (likely(chid >= priv->base.min && chid <= priv->base.max))
-		chan = (void *)priv->base.channel[chid];
-	if (unlikely(!chan))
-		goto out;
-
-	bind = nouveau_namedb_get_class(nv_namedb(chan), 0x906e);
-	if (likely(bind)) {
-		if (!mthd || !nv_call(bind->object, mthd, data))
-			ret = 0;
-		nouveau_namedb_put(bind);
-	}
-
-out:
-	spin_unlock_irqrestore(&priv->base.lock, flags);
-	return ret;
-}
+static const struct nouveau_bitfield nve0_fifo_pbdma_intr[] = {
+	{ 0x00000001, "MEMREQ" },
+	{ 0x00000002, "MEMACK_TIMEOUT" },
+	{ 0x00000004, "MEMACK_EXTRA" },
+	{ 0x00000008, "MEMDAT_TIMEOUT" },
+	{ 0x00000010, "MEMDAT_EXTRA" },
+	{ 0x00000020, "MEMFLUSH" },
+	{ 0x00000040, "MEMOP" },
+	{ 0x00000080, "LBCONNECT" },
+	{ 0x00000100, "LBREQ" },
+	{ 0x00000200, "LBACK_TIMEOUT" },
+	{ 0x00000400, "LBACK_EXTRA" },
+	{ 0x00000800, "LBDAT_TIMEOUT" },
+	{ 0x00001000, "LBDAT_EXTRA" },
+	{ 0x00002000, "GPFIFO" },
+	{ 0x00004000, "GPPTR" },
+	{ 0x00008000, "GPENTRY" },
+	{ 0x00010000, "GPCRC" },
+	{ 0x00020000, "PBPTR" },
+	{ 0x00040000, "PBENTRY" },
+	{ 0x00080000, "PBCRC" },
+	{ 0x00100000, "XBARCONNECT" },
+	{ 0x00200000, "METHOD" },
+	{ 0x00400000, "METHODCRC" },
+	{ 0x00800000, "DEVICE" },
+	{ 0x02000000, "SEMAPHORE" },
+	{ 0x04000000, "ACQUIRE" },
+	{ 0x08000000, "PRI" },
+	{ 0x20000000, "NO_CTXSW_SEG" },
+	{ 0x40000000, "PBSEG" },
+	{ 0x80000000, "SIGNATURE" },
+	{}
+};
 
 static void
 nve0_fifo_intr_pbdma(struct nve0_fifo_priv *priv, int unit)
@@ -731,15 +731,12 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 
 	if (stat & 0x20000000) {
 		u32 mask = nv_rd32(priv, 0x0025a0);
-		u32 temp = mask;
-
-		while (temp) {
-			u32 unit = ffs(temp) - 1;
+		while (mask) {
+			u32 unit = __ffs(mask);
 			nve0_fifo_intr_pbdma(priv, unit);
-			temp &= ~(1 << unit);
+			nv_wr32(priv, 0x0025a0, (1 << unit));
+			mask &= ~(1 << unit);
 		}
-
-		nv_wr32(priv, 0x0025a0, mask);
 		stat &= ~0x20000000;
 	}
 
