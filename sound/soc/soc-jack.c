@@ -250,7 +250,7 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 		report = 0;
 
 	if (gpio->jack_status_check)
-		report = gpio->jack_status_check();
+		report = gpio->jack_status_check(gpio->data);
 
 	snd_soc_jack_report(jack, report, gpio->report);
 }
