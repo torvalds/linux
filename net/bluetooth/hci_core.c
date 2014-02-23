@@ -492,6 +492,37 @@ static int idle_timeout_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(idle_timeout_fops, idle_timeout_get,
 			idle_timeout_set, "%llu\n");
 
+static int rpa_timeout_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	/* Require the RPA timeout to be at least 30 seconds and at most
+	 * 24 hours.
+	 */
+	if (val < 30 || val > (60 * 60 * 24))
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->rpa_timeout = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int rpa_timeout_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->rpa_timeout;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(rpa_timeout_fops, rpa_timeout_get,
+			rpa_timeout_set, "%llu\n");
+
 static int sniff_min_interval_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -1612,6 +1643,8 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &random_address_fops);
 		debugfs_create_file("static_address", 0444, hdev->debugfs,
 				    hdev, &static_address_fops);
+		debugfs_create_file("rpa_timeout", 0644, hdev->debugfs,
+				    hdev, &rpa_timeout_fops);
 
 		/* For controllers with a public address, provide a debug
 		 * option to force the usage of the configured static
