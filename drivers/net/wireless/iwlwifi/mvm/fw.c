@@ -369,8 +369,6 @@ out:
 	return ret;
 }
 
-#define UCODE_CALIB_TIMEOUT	(2*HZ)
-
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
 	int ret, i;
