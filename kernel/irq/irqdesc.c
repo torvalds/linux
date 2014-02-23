@@ -489,6 +489,11 @@ void dynamic_irq_cleanup(unsigned int irq)
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
+void kstat_incr_irq_this_cpu(unsigned int irq)
+{
+	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
+}
+
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
