@@ -1074,7 +1074,7 @@ sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
 	struct scatterlist *psg;
 	void *paddr, *addr;
 	unsigned int i, len, left;
-	unsigned int offset = 0;
+	unsigned int offset = sg_off;
 
 	left = sectors * dev->prot_length;
 
@@ -1084,11 +1084,10 @@ sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
 		if (offset >= sg->length) {
 			sg = sg_next(sg);
 			offset = 0;
-			sg_off = sg->offset;
 		}
 
 		paddr = kmap_atomic(sg_page(psg)) + psg->offset;
-		addr = kmap_atomic(sg_page(sg)) + sg_off;
+		addr = kmap_atomic(sg_page(sg)) + sg->offset + offset;
 
 		if (read)
 			memcpy(paddr, addr, len);
