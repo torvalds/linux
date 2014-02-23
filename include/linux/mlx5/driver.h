@@ -401,6 +401,22 @@ struct mlx5_eq {
 	struct mlx5_rsc_debug	*dbg;
 };
 
+struct mlx5_core_psv {
+	u32	psv_idx;
+	struct psv_layout {
+		u32	pd;
+		u16	syndrome;
+		u16	reserved;
+		u16	bg;
+		u16	app_tag;
+		u32	ref_tag;
+	} psv;
+};
+
+struct mlx5_core_sig_ctx {
+	struct mlx5_core_psv	psv_memory;
+	struct mlx5_core_psv	psv_wire;
+};
 
 struct mlx5_core_mr {
 	u64			iova;
@@ -746,6 +762,9 @@ void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 const char *mlx5_command_str(int command);
 int mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);
+int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
+			 int npsvs, u32 *sig_index);
+int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {

@@ -48,6 +48,8 @@ enum {
 	MLX5_MAX_COMMANDS		= 32,
 	MLX5_CMD_DATA_BLOCK_SIZE	= 512,
 	MLX5_PCI_CMD_XPORT		= 7,
+	MLX5_MKEY_BSF_OCTO_SIZE		= 4,
+	MLX5_MAX_PSVS			= 4,
 };
 
 enum {
@@ -934,6 +936,29 @@ struct mlx5_access_reg_mbox_out {
 
 enum {
 	MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO	= 1 <<  0
+};
+
+struct mlx5_allocate_psv_in {
+	struct mlx5_inbox_hdr   hdr;
+	__be32			npsv_pd;
+	__be32			rsvd_psv0;
+};
+
+struct mlx5_allocate_psv_out {
+	struct mlx5_outbox_hdr  hdr;
+	u8			rsvd[8];
+	__be32			psv_idx[4];
+};
+
+struct mlx5_destroy_psv_in {
+	struct mlx5_inbox_hdr	hdr;
+	__be32                  psv_number;
+	u8                      rsvd[4];
+};
+
+struct mlx5_destroy_psv_out {
+	struct mlx5_outbox_hdr  hdr;
+	u8                      rsvd[8];
 };
 
 #endif /* MLX5_DEVICE_H */

@@ -144,3 +144,64 @@ int mlx5_core_dump_fill_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 	return err;
 }
 EXPORT_SYMBOL(mlx5_core_dump_fill_mkey);
+
+int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
+			 int npsvs, u32 *sig_index)
+{
+	struct mlx5_allocate_psv_in in;
+	struct mlx5_allocate_psv_out out;
+	int i, err;
+
+	if (npsvs > MLX5_MAX_PSVS)
+		return -EINVAL;
+
+	memset(&in, 0, sizeof(in));
+	memset(&out, 0, sizeof(out));
+
+	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_PSV);
+	in.npsv_pd = cpu_to_be32((npsvs << 28) | pdn);
+	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	if (err) {
+		mlx5_core_err(dev, "cmd exec failed %d\n", err);
+		return err;
+	}
+
+	if (out.hdr.status) {
+		mlx5_core_err(dev, "create_psv bad status %d\n", out.hdr.status);
+		return mlx5_cmd_status_to_err(&out.hdr);
+	}
+
+	for (i = 0; i < npsvs; i++)
+		sig_index[i] = be32_to_cpu(out.psv_idx[i]) & 0xffffff;
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_core_create_psv);
+
+int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num)
+{
+	struct mlx5_destroy_psv_in in;
+	struct mlx5_destroy_psv_out out;
+	int err;
+
+	memset(&in, 0, sizeof(in));
+	memset(&out, 0, sizeof(out));
+
+	in.psv_number = cpu_to_be32(psv_num);
+	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DESTROY_PSV);
+	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	if (err) {
+		mlx5_core_err(dev, "destroy_psv cmd exec failed %d\n", err);
+		goto out;
+	}
+
+	if (out.hdr.status) {
+		mlx5_core_err(dev, "destroy_psv bad status %d\n", out.hdr.status);
+		err = mlx5_cmd_status_to_err(&out.hdr);
+		goto out;
+	}
+
+out:
+	return err;
+}
+EXPORT_SYMBOL(mlx5_core_destroy_psv);
