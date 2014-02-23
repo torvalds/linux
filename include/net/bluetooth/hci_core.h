@@ -130,6 +130,9 @@ struct oob_data {
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
 
+/* Default LE RPA expiry time, 15 minutes */
+#define HCI_DEFAULT_RPA_TIMEOUT		(15 * 60)
+
 struct amp_assoc {
 	__u16	len;
 	__u16	offset;
@@ -304,6 +307,8 @@ struct hci_dev {
 	__u8			scan_rsp_data_len;
 
 	__u8			irk[16];
+	__u32			rpa_timeout;
+	struct delayed_work	rpa_expired;
 
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);

@@ -2102,6 +2102,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 
 	if (!ret) {
 		hci_dev_hold(hdev);
+		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
 		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
@@ -2199,6 +2200,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		cancel_delayed_work(&hdev->service_cache);
 
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
+	cancel_delayed_work_sync(&hdev->rpa_expired);
 
 	hci_dev_lock(hdev);
 	hci_inquiry_cache_flush(hdev);
@@ -3299,6 +3301,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_scan_window = 0x0030;
 	hdev->le_conn_min_interval = 0x0028;
 	hdev->le_conn_max_interval = 0x0038;
+
+	hdev->rpa_timeout = HCI_DEFAULT_RPA_TIMEOUT;
 
 	mutex_init(&hdev->lock);
 	mutex_init(&hdev->req_lock);

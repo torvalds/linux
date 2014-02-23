@@ -881,12 +881,39 @@ static void service_cache_off(struct work_struct *work)
 	hci_req_run(&req, NULL);
 }
 
+static void rpa_expired(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    rpa_expired.work);
+	struct hci_request req;
+
+	BT_DBG("");
+
+	set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+
+	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags) ||
+	    hci_conn_num(hdev, LE_LINK) > 0)
+		return;
+
+	/* The generation of a new RPA and programming it into the
+	 * controller happens in the enable_advertising() function.
+	 */
+
+	hci_req_init(&req, hdev);
+
+	disable_advertising(&req);
+	enable_advertising(&req);
+
+	hci_req_run(&req, NULL);
+}
+
 static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
 {
 	if (test_and_set_bit(HCI_MGMT, &hdev->dev_flags))
 		return;
 
 	INIT_DELAYED_WORK(&hdev->service_cache, service_cache_off);
+	INIT_DELAYED_WORK(&hdev->rpa_expired, rpa_expired);
 
 	/* Non-mgmt controlled devices get this bit set
 	 * implicitly so that pairing works for them, however
