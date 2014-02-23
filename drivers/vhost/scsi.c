@@ -57,7 +57,7 @@
 #define TCM_VHOST_MAX_CDB_SIZE 32
 #define TCM_VHOST_DEFAULT_TAGS 256
 #define TCM_VHOST_PREALLOC_SGLS 2048
-#define TCM_VHOST_PREALLOC_PAGES 2048
+#define TCM_VHOST_PREALLOC_UPAGES 2048
 
 struct vhost_scsi_inflight {
 	/* Wait for the flush operation to finish */
@@ -767,34 +767,27 @@ vhost_scsi_map_to_sgl(struct tcm_vhost_cmd *tv_cmd,
 		      struct scatterlist *sgl,
 		      unsigned int sgl_count,
 		      struct iovec *iov,
-		      int write)
+		      struct page **pages,
+		      bool write)
 {
 	unsigned int npages = 0, pages_nr, offset, nbytes;
 	struct scatterlist *sg = sgl;
 	void __user *ptr = iov->iov_base;
 	size_t len = iov->iov_len;
-	struct page **pages;
 	int ret, i;
 
-	if (sgl_count > TCM_VHOST_PREALLOC_SGLS) {
-		pr_err("vhost_scsi_map_to_sgl() psgl_count: %u greater than"
-		       " preallocated TCM_VHOST_PREALLOC_SGLS: %u\n",
-			sgl_count, TCM_VHOST_PREALLOC_SGLS);
-		return -ENOBUFS;
-	}
-
 	pages_nr = iov_num_pages(iov);
-	if (pages_nr > sgl_count)
-		return -ENOBUFS;
-
-	if (pages_nr > TCM_VHOST_PREALLOC_PAGES) {
+	if (pages_nr > sgl_count) {
 		pr_err("vhost_scsi_map_to_sgl() pages_nr: %u greater than"
-		       " preallocated TCM_VHOST_PREALLOC_PAGES: %u\n",
-			pages_nr, TCM_VHOST_PREALLOC_PAGES);
+		       " sgl_count: %u\n", pages_nr, sgl_count);
 		return -ENOBUFS;
 	}
-
-	pages = tv_cmd->tvc_upages;
+	if (pages_nr > TCM_VHOST_PREALLOC_UPAGES) {
+		pr_err("vhost_scsi_map_to_sgl() pages_nr: %u greater than"
+		       " preallocated TCM_VHOST_PREALLOC_UPAGES: %u\n",
+			pages_nr, TCM_VHOST_PREALLOC_UPAGES);
+		return -ENOBUFS;
+	}
 
 	ret = get_user_pages_fast((unsigned long)ptr, pages_nr, write, pages);
 	/* No pages were pinned */
@@ -825,33 +818,32 @@ out:
 static int
 vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *cmd,
 			  struct iovec *iov,
-			  unsigned int niov,
-			  int write)
+			  int niov,
+			  bool write)
 {
-	int ret;
-	unsigned int i;
-	u32 sgl_count;
-	struct scatterlist *sg;
+	struct scatterlist *sg = cmd->tvc_sgl;
+	unsigned int sgl_count = 0;
+	int ret, i;
 
-	/*
-	 * Find out how long sglist needs to be
-	 */
-	sgl_count = 0;
 	for (i = 0; i < niov; i++)
 		sgl_count += iov_num_pages(&iov[i]);
 
-	/* TODO overflow checking */
+	if (sgl_count > TCM_VHOST_PREALLOC_SGLS) {
+		pr_err("vhost_scsi_map_iov_to_sgl() sgl_count: %u greater than"
+			" preallocated TCM_VHOST_PREALLOC_SGLS: %u\n",
+			sgl_count, TCM_VHOST_PREALLOC_SGLS);
+		return -ENOBUFS;
+	}
 
-	sg = cmd->tvc_sgl;
 	pr_debug("%s sg %p sgl_count %u\n", __func__, sg, sgl_count);
 	sg_init_table(sg, sgl_count);
-
 	cmd->tvc_sgl_count = sgl_count;
 
-	pr_debug("Mapping %u iovecs for %u pages\n", niov, sgl_count);
+	pr_debug("Mapping iovec %p for %u pages\n", &iov[0], sgl_count);
+
 	for (i = 0; i < niov; i++) {
 		ret = vhost_scsi_map_to_sgl(cmd, sg, sgl_count, &iov[i],
-					    write);
+					    cmd->tvc_upages, write);
 		if (ret < 0) {
 			for (i = 0; i < cmd->tvc_sgl_count; i++)
 				put_page(sg_page(&cmd->tvc_sgl[i]));
@@ -859,7 +851,6 @@ vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *cmd,
 			cmd->tvc_sgl_count = 0;
 			return ret;
 		}
-
 		sg += ret;
 		sgl_count -= ret;
 	}
@@ -1765,7 +1756,7 @@ static int tcm_vhost_make_nexus(struct tcm_vhost_tpg *tpg,
 		}
 
 		tv_cmd->tvc_upages = kzalloc(sizeof(struct page *) *
-					TCM_VHOST_PREALLOC_PAGES, GFP_KERNEL);
+					TCM_VHOST_PREALLOC_UPAGES, GFP_KERNEL);
 		if (!tv_cmd->tvc_upages) {
 			mutex_unlock(&tpg->tv_tpg_mutex);
 			pr_err("Unable to allocate tv_cmd->tvc_upages\n");
