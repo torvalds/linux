@@ -36,11 +36,24 @@
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 
+void mlx5_init_mr_table(struct mlx5_core_dev *dev)
+{
+	struct mlx5_mr_table *table = &dev->priv.mr_table;
+
+	rwlock_init(&table->lock);
+	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
+}
+
+void mlx5_cleanup_mr_table(struct mlx5_core_dev *dev)
+{
+}
+
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 			  struct mlx5_create_mkey_mbox_in *in, int inlen,
 			  mlx5_cmd_cbk_t callback, void *context,
 			  struct mlx5_create_mkey_mbox_out *out)
 {
+	struct mlx5_mr_table *table = &dev->priv.mr_table;
 	struct mlx5_create_mkey_mbox_out lout;
 	int err;
 	u8 key;
@@ -73,14 +86,21 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 	mlx5_core_dbg(dev, "out 0x%x, key 0x%x, mkey 0x%x\n",
 		      be32_to_cpu(lout.mkey), key, mr->key);
 
+	/* connect to MR tree */
+	write_lock_irq(&table->lock);
+	err = radix_tree_insert(&table->tree, mlx5_base_mkey(mr->key), mr);
+	write_unlock_irq(&table->lock);
+
 	return err;
 }
 EXPORT_SYMBOL(mlx5_core_create_mkey);
 
 int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr)
 {
+	struct mlx5_mr_table *table = &dev->priv.mr_table;
 	struct mlx5_destroy_mkey_mbox_in in;
 	struct mlx5_destroy_mkey_mbox_out out;
+	unsigned long flags;
 	int err;
 
 	memset(&in, 0, sizeof(in));
@@ -94,6 +114,10 @@ int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr)
 
 	if (out.hdr.status)
 		return mlx5_cmd_status_to_err(&out.hdr);
+
+	write_lock_irqsave(&table->lock, flags);
+	radix_tree_delete(&table->tree, mlx5_base_mkey(mr->key));
+	write_unlock_irqrestore(&table->lock, flags);
 
 	return err;
 }

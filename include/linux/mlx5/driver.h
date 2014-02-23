@@ -491,6 +491,13 @@ struct mlx5_srq_table {
 	struct radix_tree_root	tree;
 };
 
+struct mlx5_mr_table {
+	/* protect radix tree
+	 */
+	rwlock_t		lock;
+	struct radix_tree_root	tree;
+};
+
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
@@ -519,6 +526,10 @@ struct mlx5_priv {
 	/* start: cq staff */
 	struct mlx5_cq_table	cq_table;
 	/* end: cq staff */
+
+	/* start: mr staff */
+	struct mlx5_mr_table	mr_table;
+	/* end: mr staff */
 
 	/* start: alloc staff */
 	struct mutex            pgdir_mutex;
@@ -667,6 +678,11 @@ static inline void mlx5_vfree(const void *addr)
 		kfree(addr);
 }
 
+static inline u32 mlx5_base_mkey(const u32 key)
+{
+	return key & 0xffffff00u;
+}
+
 int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev);
 void mlx5_dev_cleanup(struct mlx5_core_dev *dev);
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
@@ -701,6 +717,8 @@ int mlx5_core_query_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 			struct mlx5_query_srq_mbox_out *out);
 int mlx5_core_arm_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 		      u16 lwm, int is_srq);
+void mlx5_init_mr_table(struct mlx5_core_dev *dev);
+void mlx5_cleanup_mr_table(struct mlx5_core_dev *dev);
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 			  struct mlx5_create_mkey_mbox_in *in, int inlen,
 			  mlx5_cmd_cbk_t callback, void *context,
