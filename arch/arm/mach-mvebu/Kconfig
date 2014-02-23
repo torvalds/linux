@@ -38,7 +38,7 @@ config MACH_ARMADA_370
 	  on the Marvell Armada 370 SoC with device tree.
 
 config MACH_ARMADA_375
-	bool "Marvell Armada 375 boards"
+	bool "Marvell Armada 375 boards" if ARCH_MULTI_V7
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_753970
 	select ARM_GIC
@@ -52,7 +52,7 @@ config MACH_ARMADA_375
 	  on the Marvell Armada 375 SoC with device tree.
 
 config MACH_ARMADA_38X
-	bool "Marvell Armada 380/385 boards"
+	bool "Marvell Armada 380/385 boards" if ARCH_MULTI_V7
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_753970
 	select ARM_GIC
