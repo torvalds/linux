@@ -567,6 +567,8 @@ static int hci_create_le_conn(struct hci_conn *conn)
 	if (err < 0)
 		return err;
 
+	conn->src_type = own_addr_type;
+
 	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
 	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
 	bacpy(&cp.peer_addr, &conn->dst);
@@ -653,7 +655,6 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		return ERR_PTR(-ENOMEM);
 
 	conn->dst_type = dst_type;
-	conn->src_type = hdev->own_addr_type;
 
 	conn->state = BT_CONNECT;
 	conn->out = true;
