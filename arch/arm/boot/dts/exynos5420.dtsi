@@ -281,6 +281,17 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
+		adma: adma@03880000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x03880000 0x1000>;
+			interrupts = <0 110 0>;
+			clocks = <&clock_audss EXYNOS_ADMA>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <6>;
+			#dma-requests = <16>;
+		};
+
 		pdma0: pdma@121A0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x121A0000 0x1000>;
