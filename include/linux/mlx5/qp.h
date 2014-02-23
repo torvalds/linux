@@ -38,6 +38,8 @@
 
 #define MLX5_INVALID_LKEY	0x100
 #define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 5)
+#define MLX5_DIF_SIZE		8
+#define MLX5_STRIDE_BLOCK_OP	0x400
 
 enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_ALT_ADDR_PATH		= 1 << 0,
@@ -150,6 +152,11 @@ enum {
 enum {
 	MLX5_RCV_DBR	= 0,
 	MLX5_SND_DBR	= 1,
+};
+
+enum {
+	MLX5_FLAGS_INLINE	= 1<<7,
+	MLX5_FLAGS_CHECK_FREE   = 1<<5,
 };
 
 struct mlx5_wqe_fmr_seg {
@@ -277,6 +284,60 @@ struct mlx5_wqe_signature_seg {
 
 struct mlx5_wqe_inline_seg {
 	__be32	byte_count;
+};
+
+struct mlx5_bsf {
+	struct mlx5_bsf_basic {
+		u8		bsf_size_sbs;
+		u8		check_byte_mask;
+		union {
+			u8	copy_byte_mask;
+			u8	bs_selector;
+			u8	rsvd_wflags;
+		} wire;
+		union {
+			u8	bs_selector;
+			u8	rsvd_mflags;
+		} mem;
+		__be32		raw_data_size;
+		__be32		w_bfs_psv;
+		__be32		m_bfs_psv;
+	} basic;
+	struct mlx5_bsf_ext {
+		__be32		t_init_gen_pro_size;
+		__be32		rsvd_epi_size;
+		__be32		w_tfs_psv;
+		__be32		m_tfs_psv;
+	} ext;
+	struct mlx5_bsf_inl {
+		__be32		w_inl_vld;
+		__be32		w_rsvd;
+		__be64		w_block_format;
+		__be32		m_inl_vld;
+		__be32		m_rsvd;
+		__be64		m_block_format;
+	} inl;
+};
+
+struct mlx5_klm {
+	__be32		bcount;
+	__be32		key;
+	__be64		va;
+};
+
+struct mlx5_stride_block_entry {
+	__be16		stride;
+	__be16		bcount;
+	__be32		key;
+	__be64		va;
+};
+
+struct mlx5_stride_block_ctrl_seg {
+	__be32		bcount_per_cycle;
+	__be32		op;
+	__be32		repeat_count;
+	u16		rsvd;
+	__be16		num_entries;
 };
 
 struct mlx5_core_qp {
