@@ -77,8 +77,10 @@ struct pclk_override {
 };
 
 struct pclk_override pclk_override[] = {
-	/* VIC PCLK  AVI_PR INPUTX INPUTY HT   HBP  HFP  HPSW VT   VBP VFP VPSW I  HS VS   override */
+	/*  VIC        PCLK  AVI_PR INPUTX INPUTY HT   HBP  HFP  HPSW  VT  VBP VFP VPSW I  HS VS   override */
 	{ { HDMI_EDID, 146250000, 0, 1680, 1050, 2240, 456, 104, 176, 1089, 36,  3, 6,  0, 0, 1 }, 146000000 },
+	{ { HDMI_EDID,  83500000, 0, 1280,  800, 1680, 328,  72, 128,  831, 28,  3, 6,  0, 0, 1 },  83250000 },
+	{ { HDMI_EDID,  83500000, 0, 1280,  800, 1680, 328,  72, 128,  831, 21, 10, 6,  0, 1, 1 },  83250000 },
 	{ { 0, }, -1 }
 };
 
