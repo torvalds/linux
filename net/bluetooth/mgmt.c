@@ -3294,7 +3294,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 	struct hci_request req;
 	/* General inquiry access code (GIAC) */
 	u8 lap[3] = { 0x33, 0x8b, 0x9e };
-	u8 status;
+	u8 status, own_addr_type;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -3387,10 +3387,19 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		}
 
 		memset(&param_cp, 0, sizeof(param_cp));
+
+		err = hci_update_random_address(&req, &own_addr_type);
+		if (err < 0) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+					 MGMT_STATUS_FAILED);
+			mgmt_pending_remove(cmd);
+			goto failed;
+		}
+
 		param_cp.type = LE_SCAN_ACTIVE;
 		param_cp.interval = cpu_to_le16(DISCOV_LE_SCAN_INT);
 		param_cp.window = cpu_to_le16(DISCOV_LE_SCAN_WIN);
-		param_cp.own_address_type = hdev->own_addr_type;
+		param_cp.own_address_type = own_addr_type;
 		hci_req_add(&req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
 			    &param_cp);
 
