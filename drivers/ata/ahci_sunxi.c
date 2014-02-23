@@ -90,7 +90,7 @@ static int ahci_sunxi_phy_init(struct device *dev, void __iomem *reg_base)
 
 	/* This magic is from the original code */
 	writel(0, reg_base + AHCI_RWCR);
-	mdelay(5);
+	msleep(5);
 
 	sunxi_setbits(reg_base + AHCI_PHYCS1R, BIT(19));
 	sunxi_clrsetbits(reg_base + AHCI_PHYCS0R,
@@ -105,7 +105,7 @@ static int ahci_sunxi_phy_init(struct device *dev, void __iomem *reg_base)
 			 (0x7 << 20), (0x3 << 20));
 	sunxi_clrsetbits(reg_base + AHCI_PHYCS2R,
 			 (0x1f << 5), (0x19 << 5));
-	mdelay(5);
+	msleep(5);
 
 	sunxi_setbits(reg_base + AHCI_PHYCS0R, (0x1 << 19));
 
@@ -137,7 +137,7 @@ static int ahci_sunxi_phy_init(struct device *dev, void __iomem *reg_base)
 		udelay(1);
 	} while (1);
 
-	mdelay(15);
+	msleep(15);
 
 	writel(0x7, reg_base + AHCI_RWCR);
 
