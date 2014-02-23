@@ -82,6 +82,11 @@ struct nve0_fifo_base {
 struct nve0_fifo_chan {
 	struct nouveau_fifo_chan base;
 	u32 engine;
+	enum {
+		STOPPED,
+		RUNNING,
+		KILLED
+	} state;
 };
 
 /*******************************************************************************
@@ -94,7 +99,6 @@ nve0_fifo_runlist_update(struct nve0_fifo_priv *priv, u32 engine)
 	struct nouveau_bar *bar = nouveau_bar(priv);
 	struct nve0_fifo_engn *engn = &priv->engine[engine];
 	struct nouveau_gpuobj *cur;
-	u32 match = (engine << 16) | 0x00000001;
 	int i, p;
 
 	mutex_lock(&nv_subdev(priv)->mutex);
@@ -102,17 +106,18 @@ nve0_fifo_runlist_update(struct nve0_fifo_priv *priv, u32 engine)
 	engn->cur_runlist = !engn->cur_runlist;
 
 	for (i = 0, p = 0; i < priv->base.max; i++) {
-		u32 ctrl = nv_rd32(priv, 0x800004 + (i * 8)) & 0x001f0001;
-		if (ctrl != match)
-			continue;
-		nv_wo32(cur, p + 0, i);
-		nv_wo32(cur, p + 4, 0x00000000);
-		p += 8;
+		struct nve0_fifo_chan *chan = (void *)priv->base.channel[i];
+		if (chan && chan->state == RUNNING && chan->engine == engine) {
+			nv_wo32(cur, p + 0, i);
+			nv_wo32(cur, p + 4, 0x00000000);
+			p += 8;
+		}
 	}
 	bar->flush(bar);
 
 	nv_wr32(priv, 0x002270, cur->addr >> 12);
 	nv_wr32(priv, 0x002274, (engine << 20) | (p >> 3));
+
 	if (!nv_wait(priv, 0x002284 + (engine * 8), 0x00100000, 0x00000000))
 		nv_error(priv, "runlist %d update timeout\n", engine);
 	mutex_unlock(&nv_subdev(priv)->mutex);
@@ -280,9 +285,13 @@ nve0_fifo_chan_init(struct nouveau_object *object)
 
 	nv_mask(priv, 0x800004 + (chid * 8), 0x000f0000, chan->engine << 16);
 	nv_wr32(priv, 0x800000 + (chid * 8), 0x80000000 | base->addr >> 12);
-	nv_mask(priv, 0x800004 + (chid * 8), 0x00000400, 0x00000400);
-	nve0_fifo_runlist_update(priv, chan->engine);
-	nv_mask(priv, 0x800004 + (chid * 8), 0x00000400, 0x00000400);
+
+	if (chan->state == STOPPED && (chan->state = RUNNING) == RUNNING) {
+		nv_mask(priv, 0x800004 + (chid * 8), 0x00000400, 0x00000400);
+		nve0_fifo_runlist_update(priv, chan->engine);
+		nv_mask(priv, 0x800004 + (chid * 8), 0x00000400, 0x00000400);
+	}
+
 	return 0;
 }
 
@@ -293,10 +302,12 @@ nve0_fifo_chan_fini(struct nouveau_object *object, bool suspend)
 	struct nve0_fifo_chan *chan = (void *)object;
 	u32 chid = chan->base.chid;
 
-	nv_mask(priv, 0x800004 + (chid * 8), 0x00000800, 0x00000800);
-	nve0_fifo_runlist_update(priv, chan->engine);
-	nv_wr32(priv, 0x800000 + (chid * 8), 0x00000000);
+	if (chan->state == RUNNING && (chan->state = STOPPED) == STOPPED) {
+		nv_mask(priv, 0x800004 + (chid * 8), 0x00000800, 0x00000800);
+		nve0_fifo_runlist_update(priv, chan->engine);
+	}
 
+	nv_wr32(priv, 0x800000 + (chid * 8), 0x00000000);
 	return nouveau_fifo_channel_fini(&chan->base, suspend);
 }
 
