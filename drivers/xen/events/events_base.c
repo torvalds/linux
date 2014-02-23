@@ -1235,6 +1235,7 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 #ifdef CONFIG_X86
 	exit_idle();
 #endif
+	inc_irq_stat(irq_hv_callback_count);
 
 	__xen_evtchn_do_upcall();
 
