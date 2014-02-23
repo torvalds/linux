@@ -104,4 +104,16 @@ void regulatory_hint_country_ie(struct wiphy *wiphy,
  */
 void regulatory_hint_disconnect(void);
 
+/**
+ * cfg80211_get_unii - get the U-NII band for the frequency
+ * @freq: the frequency for which we want to get the UNII band.
+
+ * Get a value specifying the U-NII band frequency belongs to.
+ * U-NII bands are defined by the FCC in C.F.R 47 part 15.
+ *
+ * Returns -EINVAL if freq is invalid, 0 for UNII-1, 1 for UNII-2A,
+ * 2 for UNII-2B, 3 for UNII-2C and 4 for UNII-3.
+ */
+int cfg80211_get_unii(int freq);
+
 #endif  /* __NET_WIRELESS_REG_H */

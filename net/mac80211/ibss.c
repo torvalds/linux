@@ -262,7 +262,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	/* make a copy of the chandef, it could be modified below. */
 	chandef = *req_chandef;
 	chan = chandef.chan;
-	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef)) {
+	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef,
+				     NL80211_IFTYPE_ADHOC)) {
 		if (chandef.width == NL80211_CHAN_WIDTH_5 ||
 		    chandef.width == NL80211_CHAN_WIDTH_10 ||
 		    chandef.width == NL80211_CHAN_WIDTH_20_NOHT ||
@@ -274,7 +275,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		chandef.width = NL80211_CHAN_WIDTH_20;
 		chandef.center_freq1 = chan->center_freq;
 		/* check again for downgraded chandef */
-		if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef)) {
+		if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef,
+					     NL80211_IFTYPE_ADHOC)) {
 			sdata_info(sdata,
 				   "Failed to join IBSS, beacons forbidden\n");
 			return;
@@ -861,7 +863,8 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		goto disconnect;
 	}
 
-	if (!cfg80211_reg_can_beacon(sdata->local->hw.wiphy, &params.chandef)) {
+	if (!cfg80211_reg_can_beacon(sdata->local->hw.wiphy, &params.chandef,
+				     NL80211_IFTYPE_ADHOC)) {
 		sdata_info(sdata,
 			   "IBSS %pM switches to unsupported channel (%d MHz, width:%d, CF1/2: %d/%d MHz), disconnecting\n",
 			   ifibss->bssid,

@@ -661,15 +661,85 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(cfg80211_chandef_usable);
 
-bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
-			     struct cfg80211_chan_def *chandef)
+/*
+ * For GO only, check if the channel can be used under permissive conditions
+ * mandated by the some regulatory bodies, i.e., the channel is marked with
+ * IEEE80211_CHAN_GO_CONCURRENT and there is an additional station interface
+ * associated to an AP on the same channel or on the same UNII band
+ * (assuming that the AP is an authorized master).
+ */
+static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
+					struct ieee80211_channel *chan)
 {
+	struct wireless_dev *wdev_iter;
+	struct wiphy *wiphy = wiphy_idx_to_wiphy(rdev->wiphy_idx);
+
+	ASSERT_RTNL();
+
+	if (!config_enabled(CONFIG_CFG80211_REG_RELAX_NO_IR) ||
+	    !(wiphy->regulatory_flags & REGULATORY_ENABLE_RELAX_NO_IR) ||
+	    !(chan->flags & IEEE80211_CHAN_GO_CONCURRENT))
+		return false;
+
+	/*
+	 * Generally, it is possible to rely on another device/driver to allow
+	 * the GO concurrent relaxation, however, since the device can further
+	 * enforce the relaxation (by doing a similar verifications as this),
+	 * and thus fail the GO instantiation, consider only the interfaces of
+	 * the current registered device.
+	 */
+	list_for_each_entry(wdev_iter, &rdev->wdev_list, list) {
+		struct ieee80211_channel *other_chan = NULL;
+		int r1, r2;
+
+		if (wdev_iter->iftype != NL80211_IFTYPE_STATION ||
+		    !netif_running(wdev_iter->netdev))
+			continue;
+
+		wdev_lock(wdev_iter);
+		if (wdev_iter->current_bss)
+			other_chan = wdev_iter->current_bss->pub.channel;
+		wdev_unlock(wdev_iter);
+
+		if (!other_chan)
+			continue;
+
+		if (chan == other_chan)
+			return true;
+
+		if (chan->band != IEEE80211_BAND_5GHZ)
+			continue;
+
+		r1 = cfg80211_get_unii(chan->center_freq);
+		r2 = cfg80211_get_unii(other_chan->center_freq);
+
+		if (r1 != -EINVAL && r1 == r2)
+			return true;
+	}
+
+	return false;
+}
+
+bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
+			     struct cfg80211_chan_def *chandef,
+			     enum nl80211_iftype iftype)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	bool res;
 	u32 prohibited_flags = IEEE80211_CHAN_DISABLED |
-			       IEEE80211_CHAN_NO_IR |
 			       IEEE80211_CHAN_RADAR;
 
-	trace_cfg80211_reg_can_beacon(wiphy, chandef);
+	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype);
+
+	/*
+	 * Under certain conditions suggested by the some regulatory bodies
+	 * a GO can operate on channels marked with IEEE80211_NO_IR
+	 * so set this flag only if such relaxations are not enabled and
+	 * the conditions are not met.
+	 */
+	if (iftype != NL80211_IFTYPE_P2P_GO ||
+	    !cfg80211_go_permissive_chan(rdev, chandef->chan))
+		prohibited_flags |= IEEE80211_CHAN_NO_IR;
 
 	if (cfg80211_chandef_dfs_required(wiphy, chandef) > 0 &&
 	    cfg80211_chandef_dfs_available(wiphy, chandef)) {
