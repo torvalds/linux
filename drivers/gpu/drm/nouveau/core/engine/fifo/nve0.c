@@ -743,9 +743,9 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat) {
-		nv_fatal(priv, "unhandled status 0x%08x\n", stat);
+		nv_error(priv, "INTR 0x%08x\n", stat);
+		nv_mask(priv, 0x002140, stat, 0x00000000);
 		nv_wr32(priv, 0x002100, stat);
-		nv_wr32(priv, 0x002140, 0);
 	}
 }
 
