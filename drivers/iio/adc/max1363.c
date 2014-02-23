@@ -1247,7 +1247,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11604] = {
 		.bits = 8,
-		.int_vref_mv = 4098,
+		.int_vref_mv = 4096,
 		.mode_list = max1238_mode_list,
 		.num_modes = ARRAY_SIZE(max1238_mode_list),
 		.default_mode = s0to11,
@@ -1307,7 +1307,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11610] = {
 		.bits = 10,
-		.int_vref_mv = 4098,
+		.int_vref_mv = 4096,
 		.mode_list = max1238_mode_list,
 		.num_modes = ARRAY_SIZE(max1238_mode_list),
 		.default_mode = s0to11,
@@ -1367,7 +1367,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11616] = {
 		.bits = 12,
-		.int_vref_mv = 4098,
+		.int_vref_mv = 4096,
 		.mode_list = max1238_mode_list,
 		.num_modes = ARRAY_SIZE(max1238_mode_list),
 		.default_mode = s0to11,

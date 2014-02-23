@@ -197,6 +197,16 @@ config TWL6030_GPADC
 	  This driver can also be built as a module. If so, the module will be
 	  called twl6030-gpadc.
 
+config VF610_ADC
+	tristate "Freescale vf610 ADC driver"
+	depends on OF
+	help
+	  Say yes here to support for Vybrid board analog-to-digital converter.
+	  Since the IP is used for i.MX6SLX, the driver also support i.MX6SLX.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called vf610_adc.
+
 config VIPERBOARD_ADC
 	tristate "Viperboard ADC support"
 	depends on MFD_VIPERBOARD && USB

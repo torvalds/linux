@@ -1558,7 +1558,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	for (i = 0; i < of_cfg->irq_count; i++) {
 		lradc->irq[i] = platform_get_irq(pdev, i);
 		if (lradc->irq[i] < 0)
-			return -EINVAL;
+			return lradc->irq[i];
 
 		ret = devm_request_irq(dev, lradc->irq[i],
 					mxs_lradc_handle_irq, 0,

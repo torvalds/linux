@@ -46,10 +46,8 @@ struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 	struct iio_channel *chan;
 
 	cb_buff = kzalloc(sizeof(*cb_buff), GFP_KERNEL);
-	if (cb_buff == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (cb_buff == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	iio_buffer_init(&cb_buff->buffer);
 
@@ -91,7 +89,6 @@ error_release_channels:
 	iio_channel_release_all(cb_buff->channels);
 error_free_cb_buff:
 	kfree(cb_buff);
-error_ret:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(iio_channel_get_all_cb);
