@@ -1674,12 +1674,12 @@ for each construct.  These operations all imply certain barriers:
      Memory operations issued after the ACQUIRE will be completed after the
      ACQUIRE operation has completed.
 
-     Memory operations issued before the ACQUIRE may be completed after the
-     ACQUIRE operation has completed.  An smp_mb__before_spinlock(), combined
-     with a following ACQUIRE, orders prior loads against subsequent stores and
-     stores and prior stores against subsequent stores.  Note that this is
-     weaker than smp_mb()!  The smp_mb__before_spinlock() primitive is free on
-     many architectures.
+     Memory operations issued before the ACQUIRE may be completed after
+     the ACQUIRE operation has completed.  An smp_mb__before_spinlock(),
+     combined with a following ACQUIRE, orders prior loads against
+     subsequent loads and stores and also orders prior stores against
+     subsequent stores.  Note that this is weaker than smp_mb()!  The
+     smp_mb__before_spinlock() primitive is free on many architectures.
 
  (2) RELEASE operation implication:
 
@@ -1724,24 +1724,21 @@ may occur as:
 
 	ACQUIRE M, STORE *B, STORE *A, RELEASE M
 
-This same reordering can of course occur if the lock's ACQUIRE and RELEASE are
-to the same lock variable, but only from the perspective of another CPU not
-holding that lock.
+When the ACQUIRE and RELEASE are a lock acquisition and release,
+respectively, this same reordering can occur if the lock's ACQUIRE and
+RELEASE are to the same lock variable, but only from the perspective of
+another CPU not holding that lock.  In short, a ACQUIRE followed by an
+RELEASE may -not- be assumed to be a full memory barrier.
 
-In short, a RELEASE followed by an ACQUIRE may -not- be assumed to be a full
-memory barrier because it is possible for a preceding RELEASE to pass a
-later ACQUIRE from the viewpoint of the CPU, but not from the viewpoint
-of the compiler.  Note that deadlocks cannot be introduced by this
-interchange because if such a deadlock threatened, the RELEASE would
-simply complete.
-
-If it is necessary for a RELEASE-ACQUIRE pair to produce a full barrier, the
-ACQUIRE can be followed by an smp_mb__after_unlock_lock() invocation.  This
-will produce a full barrier if either (a) the RELEASE and the ACQUIRE are
-executed by the same CPU or task, or (b) the RELEASE and ACQUIRE act on the
-same variable.  The smp_mb__after_unlock_lock() primitive is free on many
-architectures.  Without smp_mb__after_unlock_lock(), the critical sections
-corresponding to the RELEASE and the ACQUIRE can cross:
+Similarly, the reverse case of a RELEASE followed by an ACQUIRE does not
+imply a full memory barrier.  If it is necessary for a RELEASE-ACQUIRE
+pair to produce a full barrier, the ACQUIRE can be followed by an
+smp_mb__after_unlock_lock() invocation.  This will produce a full barrier
+if either (a) the RELEASE and the ACQUIRE are executed by the same
+CPU or task, or (b) the RELEASE and ACQUIRE act on the same variable.
+The smp_mb__after_unlock_lock() primitive is free on many architectures.
+Without smp_mb__after_unlock_lock(), the CPU's execution of the critical
+sections corresponding to the RELEASE and the ACQUIRE can cross, so that:
 
 	*A = a;
 	RELEASE M
@@ -1752,7 +1749,36 @@ could occur as:
 
 	ACQUIRE N, STORE *B, STORE *A, RELEASE M
 
-With smp_mb__after_unlock_lock(), they cannot, so that:
+It might appear that this reordering could introduce a deadlock.
+However, this cannot happen because if such a deadlock threatened,
+the RELEASE would simply complete, thereby avoiding the deadlock.
+
+	Why does this work?
+
+	One key point is that we are only talking about the CPU doing
+	the reordering, not the compiler.  If the compiler (or, for
+	that matter, the developer) switched the operations, deadlock
+	-could- occur.
+
+	But suppose the CPU reordered the operations.  In this case,
+	the unlock precedes the lock in the assembly code.  The CPU
+	simply elected to try executing the later lock operation first.
+	If there is a deadlock, this lock operation will simply spin (or
+	try to sleep, but more on that later).	The CPU will eventually
+	execute the unlock operation (which preceded the lock operation
+	in the assembly code), which will unravel the potential deadlock,
+	allowing the lock operation to succeed.
+
+	But what if the lock is a sleeplock?  In that case, the code will
+	try to enter the scheduler, where it will eventually encounter
+	a memory barrier, which will force the earlier unlock operation
+	to complete, again unraveling the deadlock.  There might be
+	a sleep-unlock race, but the locking primitive needs to resolve
+	such races properly in any case.
+
+With smp_mb__after_unlock_lock(), the two critical sections cannot overlap.
+For example, with the following code, the store to *A will always be
+seen by other CPUs before the store to *B:
 
 	*A = a;
 	RELEASE M
@@ -1760,13 +1786,18 @@ With smp_mb__after_unlock_lock(), they cannot, so that:
 	smp_mb__after_unlock_lock();
 	*B = b;
 
-will always occur as either of the following:
+The operations will always occur in one of the following orders:
 
-	STORE *A, RELEASE, ACQUIRE, STORE *B
-	STORE *A, ACQUIRE, RELEASE, STORE *B
+	STORE *A, RELEASE, ACQUIRE, smp_mb__after_unlock_lock(), STORE *B
+	STORE *A, ACQUIRE, RELEASE, smp_mb__after_unlock_lock(), STORE *B
+	ACQUIRE, STORE *A, RELEASE, smp_mb__after_unlock_lock(), STORE *B
 
 If the RELEASE and ACQUIRE were instead both operating on the same lock
-variable, only the first of these two alternatives can occur.
+variable, only the first of these alternatives can occur.  In addition,
+the more strongly ordered systems may rule out some of the above orders.
+But in any case, as noted earlier, the smp_mb__after_unlock_lock()
+ensures that the store to *A will always be seen as happening before
+the store to *B.
 
 Locks and semaphores may not provide any guarantee of ordering on UP compiled
 systems, and so cannot be counted on in such a situation to actually achieve
@@ -2787,7 +2818,7 @@ in that order, but, without intervention, the sequence may have almost any
 combination of elements combined or discarded, provided the program's view of
 the world remains consistent.  Note that ACCESS_ONCE() is -not- optional
 in the above example, as there are architectures where a given CPU might
-interchange successive loads to the same location.  On such architectures,
+reorder successive loads to the same location.  On such architectures,
 ACCESS_ONCE() does whatever is necessary to prevent this, for example, on
 Itanium the volatile casts used by ACCESS_ONCE() cause GCC to emit the
 special ld.acq and st.rel instructions that prevent such reordering.
