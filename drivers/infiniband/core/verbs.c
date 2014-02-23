@@ -1437,3 +1437,11 @@ int ib_destroy_flow(struct ib_flow *flow_id)
 	return err;
 }
 EXPORT_SYMBOL(ib_destroy_flow);
+
+int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
+		       struct ib_mr_status *mr_status)
+{
+	return mr->device->check_mr_status ?
+		mr->device->check_mr_status(mr, check_mask, mr_status) : -ENOSYS;
+}
+EXPORT_SYMBOL(ib_check_mr_status);
