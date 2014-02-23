@@ -1196,9 +1196,14 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 
 		smp_send_cmd(conn, SMP_CMD_IDENT_INFO, sizeof(idinfo), &idinfo);
 
-		/* Just public address */
-		memset(&addrinfo, 0, sizeof(addrinfo));
+		/* The hci_conn contains the local identity address
+		 * after the connection has been established.
+		 *
+		 * This is true even when the connection has been
+		 * established using a resolvable random address.
+		 */
 		bacpy(&addrinfo.bdaddr, &hcon->src);
+		addrinfo.addr_type = hcon->src_type;
 
 		smp_send_cmd(conn, SMP_CMD_IDENT_ADDR_INFO, sizeof(addrinfo),
 			     &addrinfo);
