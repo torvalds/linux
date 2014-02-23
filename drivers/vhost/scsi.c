@@ -80,6 +80,7 @@ struct tcm_vhost_cmd {
 	u64 tvc_tag;
 	/* The number of scatterlists associated with this cmd */
 	u32 tvc_sgl_count;
+	u32 tvc_prot_sgl_count;
 	/* Saved unpacked SCSI LUN for tcm_vhost_submission_work() */
 	u32 tvc_lun;
 	/* Pointer to the SGL formatted memory from virtio-scsi */
@@ -458,11 +459,15 @@ static void tcm_vhost_release_cmd(struct se_cmd *se_cmd)
 	struct tcm_vhost_cmd *tv_cmd = container_of(se_cmd,
 				struct tcm_vhost_cmd, tvc_se_cmd);
 	struct se_session *se_sess = se_cmd->se_sess;
+	int i;
 
 	if (tv_cmd->tvc_sgl_count) {
-		u32 i;
 		for (i = 0; i < tv_cmd->tvc_sgl_count; i++)
 			put_page(sg_page(&tv_cmd->tvc_sgl[i]));
+	}
+	if (tv_cmd->tvc_prot_sgl_count) {
+		for (i = 0; i < tv_cmd->tvc_prot_sgl_count; i++)
+			put_page(sg_page(&tv_cmd->tvc_prot_sgl[i]));
 	}
 
 	tcm_vhost_put_inflight(tv_cmd->inflight);
@@ -857,6 +862,47 @@ vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *cmd,
 		}
 		sg += ret;
 		sgl_count -= ret;
+	}
+	return 0;
+}
+
+static int
+vhost_scsi_map_iov_to_prot(struct tcm_vhost_cmd *cmd,
+			   struct iovec *iov,
+			   int niov,
+			   bool write)
+{
+	struct scatterlist *prot_sg = cmd->tvc_prot_sgl;
+	unsigned int prot_sgl_count = 0;
+	int ret, i;
+
+	for (i = 0; i < niov; i++)
+		prot_sgl_count += iov_num_pages(&iov[i]);
+
+	if (prot_sgl_count > TCM_VHOST_PREALLOC_PROT_SGLS) {
+		pr_err("vhost_scsi_map_iov_to_prot() sgl_count: %u greater than"
+			" preallocated TCM_VHOST_PREALLOC_PROT_SGLS: %u\n",
+			prot_sgl_count, TCM_VHOST_PREALLOC_PROT_SGLS);
+		return -ENOBUFS;
+	}
+
+	pr_debug("%s prot_sg %p prot_sgl_count %u\n", __func__,
+		 prot_sg, prot_sgl_count);
+	sg_init_table(prot_sg, prot_sgl_count);
+	cmd->tvc_prot_sgl_count = prot_sgl_count;
+
+	for (i = 0; i < niov; i++) {
+		ret = vhost_scsi_map_to_sgl(cmd, prot_sg, prot_sgl_count, &iov[i],
+					    cmd->tvc_upages, write);
+		if (ret < 0) {
+			for (i = 0; i < cmd->tvc_prot_sgl_count; i++)
+				put_page(sg_page(&cmd->tvc_prot_sgl[i]));
+
+			cmd->tvc_prot_sgl_count = 0;
+			return ret;
+		}
+		prot_sg += ret;
+		prot_sgl_count -= ret;
 	}
 	return 0;
 }
