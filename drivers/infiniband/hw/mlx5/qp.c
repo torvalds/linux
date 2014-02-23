@@ -1832,7 +1832,7 @@ static u8 get_umr_flags(int acc)
 	       (acc & IB_ACCESS_REMOTE_WRITE  ? MLX5_PERM_REMOTE_WRITE : 0) |
 	       (acc & IB_ACCESS_REMOTE_READ   ? MLX5_PERM_REMOTE_READ  : 0) |
 	       (acc & IB_ACCESS_LOCAL_WRITE   ? MLX5_PERM_LOCAL_WRITE  : 0) |
-		MLX5_PERM_LOCAL_READ | MLX5_PERM_UMR_EN | MLX5_ACCESS_MODE_MTT;
+		MLX5_PERM_LOCAL_READ | MLX5_PERM_UMR_EN;
 }
 
 static void set_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *wr,
@@ -1844,7 +1844,8 @@ static void set_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *wr,
 		return;
 	}
 
-	seg->flags = get_umr_flags(wr->wr.fast_reg.access_flags);
+	seg->flags = get_umr_flags(wr->wr.fast_reg.access_flags) |
+		     MLX5_ACCESS_MODE_MTT;
 	*writ = seg->flags & (MLX5_PERM_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE);
 	seg->qpn_mkey7_0 = cpu_to_be32((wr->wr.fast_reg.rkey & 0xff) | 0xffffff00);
 	seg->flags_pd = cpu_to_be32(MLX5_MKEY_REMOTE_INVAL);
