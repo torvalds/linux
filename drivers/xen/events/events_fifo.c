@@ -235,14 +235,10 @@ static uint32_t clear_linked(volatile event_word_t *word)
 static void handle_irq_for_port(unsigned port)
 {
 	int irq;
-	struct irq_desc *desc;
 
 	irq = get_evtchn_to_irq(port);
-	if (irq != -1) {
-		desc = irq_to_desc(irq);
-		if (desc)
-			generic_handle_irq_desc(irq, desc);
-	}
+	if (irq != -1)
+		generic_handle_irq(irq);
 }
 
 static void consume_one_event(unsigned cpu,
