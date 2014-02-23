@@ -400,6 +400,11 @@ static inline struct mlx5_ib_qp *to_mibqp(struct mlx5_core_qp *mqp)
 	return container_of(mqp, struct mlx5_ib_qp, mqp);
 }
 
+static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mr *mmr)
+{
+	return container_of(mmr, struct mlx5_ib_mr, mmr);
+}
+
 static inline struct mlx5_ib_pd *to_mpd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct mlx5_ib_pd, ibpd);
@@ -537,6 +542,8 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_mr_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift);
 void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context);
+int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
+			    struct ib_mr_status *mr_status);
 
 static inline void init_query_mad(struct ib_smp *mad)
 {

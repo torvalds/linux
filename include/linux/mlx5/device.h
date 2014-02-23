@@ -118,6 +118,7 @@ enum {
 	MLX5_MKEY_MASK_START_ADDR	= 1ull << 6,
 	MLX5_MKEY_MASK_PD		= 1ull << 7,
 	MLX5_MKEY_MASK_EN_RINVAL	= 1ull << 8,
+	MLX5_MKEY_MASK_EN_SIGERR	= 1ull << 9,
 	MLX5_MKEY_MASK_BSF_EN		= 1ull << 12,
 	MLX5_MKEY_MASK_KEY		= 1ull << 13,
 	MLX5_MKEY_MASK_QPN		= 1ull << 14,
@@ -553,6 +554,23 @@ struct mlx5_cqe64 {
 	__be64		timestamp;
 	__be32		sop_drop_qpn;
 	__be16		wqe_counter;
+	u8		signature;
+	u8		op_own;
+};
+
+struct mlx5_sig_err_cqe {
+	u8		rsvd0[16];
+	__be32		expected_trans_sig;
+	__be32		actual_trans_sig;
+	__be32		expected_reftag;
+	__be32		actual_reftag;
+	__be16		syndrome;
+	u8		rsvd22[2];
+	__be32		mkey;
+	__be64		err_offset;
+	u8		rsvd30[8];
+	__be32		qpn;
+	u8		rsvd38[2];
 	u8		signature;
 	u8		op_own;
 };

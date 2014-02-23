@@ -1038,6 +1038,11 @@ struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
 		access_mode = MLX5_ACCESS_MODE_KLM;
 		mr->sig->psv_memory.psv_idx = psv_index[0];
 		mr->sig->psv_wire.psv_idx = psv_index[1];
+
+		mr->sig->sig_status_checked = true;
+		mr->sig->sig_err_exists = false;
+		/* Next UMR, Arm SIGERR */
+		++mr->sig->sigerr_count;
 	}
 
 	in->seg.flags = MLX5_PERM_UMR_EN | access_mode;
@@ -1187,4 +1192,45 @@ void mlx5_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
 			  mfrpl->map);
 	kfree(mfrpl->ibfrpl.page_list);
 	kfree(mfrpl);
+}
+
+int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
+			    struct ib_mr_status *mr_status)
+{
+	struct mlx5_ib_mr *mmr = to_mmr(ibmr);
+	int ret = 0;
+
+	if (check_mask & ~IB_MR_CHECK_SIG_STATUS) {
+		pr_err("Invalid status check mask\n");
+		ret = -EINVAL;
+		goto done;
+	}
+
+	mr_status->fail_status = 0;
+	if (check_mask & IB_MR_CHECK_SIG_STATUS) {
+		if (!mmr->sig) {
+			ret = -EINVAL;
+			pr_err("signature status check requested on a non-signature enabled MR\n");
+			goto done;
+		}
+
+		mmr->sig->sig_status_checked = true;
+		if (!mmr->sig->sig_err_exists)
+			goto done;
+
+		if (ibmr->lkey == mmr->sig->err_item.key)
+			memcpy(&mr_status->sig_err, &mmr->sig->err_item,
+			       sizeof(mr_status->sig_err));
+		else {
+			mr_status->sig_err.err_type = IB_SIG_BAD_GUARD;
+			mr_status->sig_err.sig_err_offset = 0;
+			mr_status->sig_err.key = mmr->sig->err_item.key;
+		}
+
+		mmr->sig->sig_err_exists = false;
+		mr_status->fail_status |= IB_MR_CHECK_SIG_STATUS;
+	}
+
+done:
+	return ret;
 }

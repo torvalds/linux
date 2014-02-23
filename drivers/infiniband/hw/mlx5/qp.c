@@ -1784,6 +1784,7 @@ static __be64 sig_mkey_mask(void)
 	result = MLX5_MKEY_MASK_LEN		|
 		MLX5_MKEY_MASK_PAGE_SIZE	|
 		MLX5_MKEY_MASK_START_ADDR	|
+		MLX5_MKEY_MASK_EN_SIGERR	|
 		MLX5_MKEY_MASK_EN_RINVAL	|
 		MLX5_MKEY_MASK_KEY		|
 		MLX5_MKEY_MASK_LR		|
@@ -2219,13 +2220,14 @@ static void set_sig_mkey_segment(struct mlx5_mkey_seg *seg,
 {
 	struct ib_mr *sig_mr = wr->wr.sig_handover.sig_mr;
 	u32 sig_key = sig_mr->rkey;
+	u8 sigerr = to_mmr(sig_mr)->sig->sigerr_count & 1;
 
 	memset(seg, 0, sizeof(*seg));
 
 	seg->flags = get_umr_flags(wr->wr.sig_handover.access_flags) |
 				   MLX5_ACCESS_MODE_KLM;
 	seg->qpn_mkey7_0 = cpu_to_be32((sig_key & 0xff) | 0xffffff00);
-	seg->flags_pd = cpu_to_be32(MLX5_MKEY_REMOTE_INVAL |
+	seg->flags_pd = cpu_to_be32(MLX5_MKEY_REMOTE_INVAL | sigerr << 26 |
 				    MLX5_MKEY_BSF_EN | pdn);
 	seg->len = cpu_to_be64(length);
 	seg->xlt_oct_size = cpu_to_be32(be16_to_cpu(get_klm_octo(nelements)));
@@ -2255,7 +2257,8 @@ static int set_sig_umr_wr(struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 	if (unlikely(wr->num_sge != 1) ||
 	    unlikely(wr->wr.sig_handover.access_flags &
 		     IB_ACCESS_REMOTE_ATOMIC) ||
-	    unlikely(!sig_mr->sig) || unlikely(!qp->signature_en))
+	    unlikely(!sig_mr->sig) || unlikely(!qp->signature_en) ||
+	    unlikely(!sig_mr->sig->sig_status_checked))
 		return -EINVAL;
 
 	/* length of the protected region, data + protection */
@@ -2286,6 +2289,7 @@ static int set_sig_umr_wr(struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 	if (ret)
 		return ret;
 
+	sig_mr->sig->sig_status_checked = false;
 	return 0;
 }
 

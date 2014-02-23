@@ -416,6 +416,10 @@ struct mlx5_core_psv {
 struct mlx5_core_sig_ctx {
 	struct mlx5_core_psv	psv_memory;
 	struct mlx5_core_psv	psv_wire;
+	struct ib_sig_err       err_item;
+	bool			sig_status_checked;
+	bool			sig_err_exists;
+	u32			sigerr_count;
 };
 
 struct mlx5_core_mr {
