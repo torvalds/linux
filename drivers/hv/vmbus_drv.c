@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
 #include <linux/slab.h>
@@ -558,9 +557,6 @@ static struct bus_type  hv_bus = {
 	.dev_groups =		vmbus_groups,
 };
 
-static const char *driver_name = "hyperv";
-
-
 struct onmessage_work_context {
 	struct work_struct work;
 	struct hv_message msg;
@@ -677,19 +673,6 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 }
 
 /*
- * vmbus interrupt flow handler:
- * vmbus interrupts can concurrently occur on multiple CPUs and
- * can be handled concurrently.
- */
-
-static void vmbus_flow_handler(unsigned int irq, struct irq_desc *desc)
-{
-	kstat_incr_irqs_this_cpu(irq, desc);
-
-	desc->action->handler(irq, desc->action->dev_id);
-}
-
-/*
  * vmbus_bus_init -Main vmbus driver initialization routine.
  *
  * Here, we
@@ -715,25 +698,12 @@ static int vmbus_bus_init(int irq)
 	if (ret)
 		goto err_cleanup;
 
-	ret = request_irq(irq, vmbus_isr, 0, driver_name, hv_acpi_dev);
+	ret = hv_setup_vmbus_irq(irq, vmbus_isr, hv_acpi_dev);
 
 	if (ret != 0) {
-		pr_err("Unable to request IRQ %d\n",
-			   irq);
+		pr_err("Unable to request IRQ %d\n", irq);
 		goto err_unregister;
 	}
-
-	/*
-	 * Vmbus interrupts can be handled concurrently on
-	 * different CPUs. Establish an appropriate interrupt flow
-	 * handler that can support this model.
-	 */
-	irq_set_handler(irq, vmbus_flow_handler);
-
-	/*
-	 * Register our interrupt handler.
-	 */
-	hv_register_vmbus_handler(irq, vmbus_isr);
 
 	ret = hv_synic_alloc();
 	if (ret)
@@ -753,7 +723,7 @@ static int vmbus_bus_init(int irq)
 
 err_alloc:
 	hv_synic_free();
-	free_irq(irq, hv_acpi_dev);
+	hv_remove_vmbus_irq(irq, hv_acpi_dev);
 
 err_unregister:
 	bus_unregister(&hv_bus);
@@ -978,8 +948,7 @@ cleanup:
 
 static void __exit vmbus_exit(void)
 {
-
-	free_irq(irq, hv_acpi_dev);
+	hv_remove_vmbus_irq(irq, hv_acpi_dev);
 	vmbus_free_channels();
 	bus_unregister(&hv_bus);
 	hv_cleanup();

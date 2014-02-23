@@ -2,6 +2,7 @@
 #define _ASM_X86_MSHYPER_H
 
 #include <linux/types.h>
+#include <linux/interrupt.h>
 #include <asm/hyperv.h>
 
 struct ms_hyperv_info {
@@ -16,6 +17,7 @@ void hyperv_callback_vector(void);
 #define trace_hyperv_callback_vector hyperv_callback_vector
 #endif
 void hyperv_vector_handler(struct pt_regs *regs);
-void hv_register_vmbus_handler(int irq, irq_handler_t handler);
+int hv_setup_vmbus_irq(int irq, irq_handler_t handler, void *dev_id);
+void hv_remove_vmbus_irq(int irq, void *dev_id);
 
 #endif

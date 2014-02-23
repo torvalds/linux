@@ -17,6 +17,7 @@
 #include <linux/hardirq.h>
 #include <linux/efi.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv.h>
@@ -29,6 +30,45 @@
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
+
+#ifdef CONFIG_HYPERV
+static irq_handler_t *vmbus_handler;
+
+void hyperv_vector_handler(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	irq_enter();
+	exit_idle();
+
+	inc_irq_stat(irq_hv_callback_count);
+	if (vmbus_handler)
+		vmbus_handler();
+
+	irq_exit();
+	set_irq_regs(old_regs);
+}
+
+int hv_setup_vmbus_irq(int irq, irq_handler_t *handler, void *dev_id)
+{
+	vmbus_handler = handler;
+	/*
+	 * Setup the IDT for hypervisor callback. Prevent reallocation
+	 * at module reload.
+	 */
+	if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
+		alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
+				hyperv_callback_vector);
+}
+
+void hv_remove_vmbus_irq(unsigned int irq, void *dev_id)
+{
+	/* We have no way to deallocate the interrupt gate */
+	vmbus_handler = NULL;
+}
+EXPORT_SYMBOL_GPL(hv_setup_vmbus_irq);
+EXPORT_SYMBOL_GPL(hv_remove_vmbus_irq);
+#endif
 
 static uint32_t  __init ms_hyperv_platform(void)
 {
@@ -113,41 +153,3 @@ const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
 	.init_platform		= ms_hyperv_init_platform,
 };
 EXPORT_SYMBOL(x86_hyper_ms_hyperv);
-
-#if IS_ENABLED(CONFIG_HYPERV)
-static int vmbus_irq = -1;
-static irq_handler_t vmbus_isr;
-
-void hv_register_vmbus_handler(int irq, irq_handler_t handler)
-{
-	/*
-	 * Setup the IDT for hypervisor callback.
-	 */
-	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
-
-	vmbus_irq = irq;
-	vmbus_isr = handler;
-}
-
-void hyperv_vector_handler(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct irq_desc *desc;
-
-	irq_enter();
-	exit_idle();
-
-	desc = irq_to_desc(vmbus_irq);
-
-	if (desc)
-		generic_handle_irq_desc(vmbus_irq, desc);
-
-	irq_exit();
-	set_irq_regs(old_regs);
-}
-#else
-void hv_register_vmbus_handler(int irq, irq_handler_t handler)
-{
-}
-#endif
-EXPORT_SYMBOL_GPL(hv_register_vmbus_handler);
