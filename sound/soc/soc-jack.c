@@ -342,7 +342,8 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 		gpio_export(gpios[i].gpio, false);
 
 		/* Update initial jack status */
-		snd_soc_jack_gpio_detect(&gpios[i]);
+		schedule_delayed_work(&gpios[i].work,
+				      msecs_to_jiffies(gpios[i].debounce_time));
 	}
 
 	return 0;
