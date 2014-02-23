@@ -416,6 +416,14 @@ nve0_fifo_engidx(struct nve0_fifo_priv *priv, u32 engn)
 	return engn;
 }
 
+static inline struct nouveau_engine *
+nve0_fifo_engine(struct nve0_fifo_priv *priv, u32 engn)
+{
+	if (engn >= ARRAY_SIZE(fifo_engine))
+		return NULL;
+	return nouveau_engine(priv, fifo_engine[engn].subdev);
+}
+
 static void
 nve0_fifo_recover_work(struct work_struct *work)
 {
@@ -499,6 +507,34 @@ nve0_fifo_sched_reason[] = {
 };
 
 static void
+nve0_fifo_intr_sched_ctxsw(struct nve0_fifo_priv *priv)
+{
+	struct nouveau_engine *engine;
+	struct nve0_fifo_chan *chan;
+	u32 engn;
+
+	for (engn = 0; engn < ARRAY_SIZE(fifo_engine); engn++) {
+		u32 stat = nv_rd32(priv, 0x002640 + (engn * 0x04));
+		u32 busy = (stat & 0x80000000);
+		u32 next = (stat & 0x07ff0000) >> 16;
+		u32 chsw = (stat & 0x00008000);
+		u32 save = (stat & 0x00004000);
+		u32 load = (stat & 0x00002000);
+		u32 prev = (stat & 0x000007ff);
+		u32 chid = load ? next : prev;
+		(void)save;
+
+		if (busy && chsw) {
+			if (!(chan = (void *)priv->base.channel[chid]))
+				continue;
+			if (!(engine = nve0_fifo_engine(priv, engn)))
+				continue;
+			nve0_fifo_recover(priv, engine, chan);
+		}
+	}
+}
+
+static void
 nve0_fifo_intr_sched(struct nve0_fifo_priv *priv)
 {
 	u32 intr = nv_rd32(priv, 0x00254c);
@@ -511,6 +547,14 @@ nve0_fifo_intr_sched(struct nve0_fifo_priv *priv)
 		snprintf(enunk, sizeof(enunk), "UNK%02x", code);
 
 	nv_error(priv, "SCHED_ERROR [ %s ]\n", en ? en->name : enunk);
+
+	switch (code) {
+	case 0x0a:
+		nve0_fifo_intr_sched_ctxsw(priv);
+		break;
+	default:
+		break;
+	}
 }
 
 static void
