@@ -106,6 +106,7 @@ struct mxs_phy {
 	struct clk *clk;
 	const struct mxs_phy_data *data;
 	struct regmap *regmap_anatop;
+	int port_id;
 };
 
 static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
@@ -249,6 +250,11 @@ static int mxs_phy_probe(struct platform_device *pdev)
 			return PTR_ERR(mxs_phy->regmap_anatop);
 		}
 	}
+
+	ret = of_alias_get_id(np, "usbphy");
+	if (ret < 0)
+		dev_dbg(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+	mxs_phy->port_id = ret;
 
 	mxs_phy->phy.io_priv		= base;
 	mxs_phy->phy.dev		= &pdev->dev;
