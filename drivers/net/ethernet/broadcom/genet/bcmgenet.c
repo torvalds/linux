@@ -2481,10 +2481,9 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!priv->base) {
-		dev_err(&pdev->dev, "can't ioremap\n");
-		err = -EINVAL;
+	priv->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(priv->base)) {
+		err = PTR_ERR(priv->base);
 		goto err;
 	}
 
