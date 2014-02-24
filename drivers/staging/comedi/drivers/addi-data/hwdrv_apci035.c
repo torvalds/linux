@@ -207,23 +207,22 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 		ui_Command =
 			(ui_Command & 0xFFF719E2UL) | ui_Mode << 13UL | 0x10UL;
 
+	} else if (data[0] == ADDIDATA_WATCHDOG) {
+
+		/* Set the mode :             */
+		/* - Disable the hardware     */
+		/* - Disable the counter mode */
+		/* - Disable the warning      */
+		/* - Disable the reset        */
+		/* - Disable the timer mode   */
+
+		ui_Command = ui_Command & 0xFFF819E2UL;
+
 	} else {
-		if (data[0] == ADDIDATA_WATCHDOG) {
-
-			/* Set the mode :             */
-			/* - Disable the hardware     */
-			/* - Disable the counter mode */
-			/* - Disable the warning      */
-			/* - Disable the reset        */
-			/* - Disable the timer mode   */
-
-			ui_Command = ui_Command & 0xFFF819E2UL;
-
-		} else {
-			dev_err(dev->class_dev, "The parameter for Timer/watchdog selection is in error\n");
-			return -EINVAL;
-		}
+		dev_err(dev->class_dev, "The parameter for Timer/watchdog selection is in error\n");
+		return -EINVAL;
 	}
+
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 	ui_Command = 0;
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
@@ -626,11 +625,9 @@ static void v_APCI035_Interrupt(int irq, void *d)
 		/* Read the digital temperature value */
 		ui_DigitalTemperature = inl(devpriv->iobase + 128 + 60);
 		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
-	}
 
-	else {
-		if ((ui_StatusRegister2 & 0x1) == 0x1)
-			send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
+	} else if ((ui_StatusRegister2 & 0x1) == 0x1) {
+		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
 	}
 
 	return;
