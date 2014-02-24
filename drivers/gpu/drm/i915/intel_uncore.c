@@ -516,22 +516,22 @@ gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 static u##x \
 vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	unsigned fwengine = 0; \
-	unsigned *fwcount; \
+	unsigned fwcount; \
 	REG_READ_HEADER(x); \
 	if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg)) {   \
 		fwengine = FORCEWAKE_RENDER;            \
-		fwcount = &dev_priv->uncore.fw_rendercount;    \
+		fwcount = dev_priv->uncore.fw_rendercount;    \
 	}                                               \
 	else if (FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)) {       \
 		fwengine = FORCEWAKE_MEDIA;             \
-		fwcount = &dev_priv->uncore.fw_mediacount;     \
+		fwcount = dev_priv->uncore.fw_mediacount;     \
 	}  \
 	if (fwengine != 0) {		\
-		if ((*fwcount)++ == 0) \
+		if (fwcount == 0) \
 			(dev_priv)->uncore.funcs.force_wake_get(dev_priv, \
 								fwengine); \
 		val = __raw_i915_read##x(dev_priv, reg); \
-		if (--(*fwcount) == 0) \
+		if (fwcount == 0) \
 			(dev_priv)->uncore.funcs.force_wake_put(dev_priv, \
 							fwengine); \
 	} else { \
