@@ -97,6 +97,7 @@ nouveau_abi16_swclass(struct nouveau_drm *drm)
 	case NV_C0:
 	case NV_D0:
 	case NV_E0:
+	case GM100:
 		return 0x906e;
 	}
 

@@ -488,6 +488,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
+			GM107_DISP_CLASS,
 			NVF0_DISP_CLASS,
 			NVE0_DISP_CLASS,
 			NVD0_DISP_CLASS,
