@@ -1123,7 +1123,7 @@ nve0_ram_tidy(struct nouveau_fb *pfb)
 	ram_exec(fuc, false);
 }
 
-static int
+int
 nve0_ram_init(struct nouveau_object *object)
 {
 	struct nouveau_fb *pfb = (void *)object->parent;
@@ -1226,7 +1226,7 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int ret, i;
 	u32 tmp;
 
-	ret = nvc0_ram_create(parent, engine, oclass, &ram);
+	ret = nvc0_ram_create(parent, engine, oclass, 0x022554, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;
