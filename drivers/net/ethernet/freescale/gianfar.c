@@ -480,28 +480,12 @@ static void gfar_ints_enable(struct gfar_private *priv)
 	}
 }
 
-void lock_rx_qs(struct gfar_private *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->num_rx_queues; i++)
-		spin_lock(&priv->rx_queue[i]->rxlock);
-}
-
 void lock_tx_qs(struct gfar_private *priv)
 {
 	int i;
 
 	for (i = 0; i < priv->num_tx_queues; i++)
 		spin_lock(&priv->tx_queue[i]->txlock);
-}
-
-void unlock_rx_qs(struct gfar_private *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->num_rx_queues; i++)
-		spin_unlock(&priv->rx_queue[i]->rxlock);
 }
 
 void unlock_tx_qs(struct gfar_private *priv)
@@ -543,7 +527,6 @@ static int gfar_alloc_rx_queues(struct gfar_private *priv)
 		priv->rx_queue[i]->rx_skbuff = NULL;
 		priv->rx_queue[i]->qindex = i;
 		priv->rx_queue[i]->dev = priv->ndev;
-		spin_lock_init(&(priv->rx_queue[i]->rxlock));
 	}
 	return 0;
 }
@@ -857,18 +840,16 @@ static int gfar_hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		if (priv->hwts_rx_en) {
-			stop_gfar(netdev);
 			priv->hwts_rx_en = 0;
-			startup_gfar(netdev);
+			reset_gfar(netdev);
 		}
 		break;
 	default:
 		if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER))
 			return -ERANGE;
 		if (!priv->hwts_rx_en) {
-			stop_gfar(netdev);
 			priv->hwts_rx_en = 1;
-			startup_gfar(netdev);
+			reset_gfar(netdev);
 		}
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
@@ -1027,7 +1008,7 @@ static void gfar_detect_errata(struct gfar_private *priv)
 			 priv->errata);
 }
 
-static void gfar_mac_reset(struct gfar_private *priv)
+void gfar_mac_reset(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
@@ -1290,6 +1271,8 @@ static int gfar_probe(struct platform_device *ofdev)
 	if (priv->num_tx_queues == 1)
 		priv->prio_sched_en = 1;
 
+	set_bit(GFAR_DOWN, &priv->state);
+
 	gfar_hw_init(priv);
 
 	err = register_netdev(dev);
@@ -1389,7 +1372,6 @@ static int gfar_suspend(struct device *dev)
 
 		local_irq_save(flags);
 		lock_tx_qs(priv);
-		lock_rx_qs(priv);
 
 		gfar_halt_nodisable(priv);
 
@@ -1403,7 +1385,6 @@ static int gfar_suspend(struct device *dev)
 
 		gfar_write(&regs->maccfg1, tempval);
 
-		unlock_rx_qs(priv);
 		unlock_tx_qs(priv);
 		local_irq_restore(flags);
 
@@ -1449,7 +1430,6 @@ static int gfar_resume(struct device *dev)
 	 */
 	local_irq_save(flags);
 	lock_tx_qs(priv);
-	lock_rx_qs(priv);
 
 	tempval = gfar_read(&regs->maccfg2);
 	tempval &= ~MACCFG2_MPEN;
@@ -1457,7 +1437,6 @@ static int gfar_resume(struct device *dev)
 
 	gfar_start(priv);
 
-	unlock_rx_qs(priv);
 	unlock_tx_qs(priv);
 	local_irq_restore(flags);
 
@@ -1718,21 +1697,19 @@ void gfar_halt(struct gfar_private *priv)
 void stop_gfar(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	unsigned long flags;
 
-	phy_stop(priv->phydev);
+	netif_tx_stop_all_queues(dev);
 
+	smp_mb__before_clear_bit();
+	set_bit(GFAR_DOWN, &priv->state);
+	smp_mb__after_clear_bit();
 
-	/* Lock it down */
-	local_irq_save(flags);
-	lock_tx_qs(priv);
-	lock_rx_qs(priv);
+	disable_napi(priv);
 
+	/* disable ints and gracefully shut down Rx/Tx DMA */
 	gfar_halt(priv);
 
-	unlock_rx_qs(priv);
-	unlock_tx_qs(priv);
-	local_irq_restore(flags);
+	phy_stop(priv->phydev);
 
 	free_skb_resources(priv);
 }
@@ -2009,10 +1986,18 @@ int startup_gfar(struct net_device *ndev)
 
 	gfar_init_tx_rx_base(priv);
 
-	/* Start the controller */
+	smp_mb__before_clear_bit();
+	clear_bit(GFAR_DOWN, &priv->state);
+	smp_mb__after_clear_bit();
+
+	/* Start Rx/Tx DMA and enable the interrupts */
 	gfar_start(priv);
 
 	phy_start(priv->phydev);
+
+	enable_napi(priv);
+
+	netif_tx_wake_all_queues(ndev);
 
 	return 0;
 }
@@ -2025,26 +2010,17 @@ static int gfar_enet_open(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	int err;
 
-	enable_napi(priv);
-
 	err = init_phy(dev);
-
-	if (err) {
-		disable_napi(priv);
+	if (err)
 		return err;
-	}
 
 	err = gfar_request_irq(priv);
 	if (err)
 		return err;
 
 	err = startup_gfar(dev);
-	if (err) {
-		disable_napi(priv);
+	if (err)
 		return err;
-	}
-
-	netif_tx_start_all_queues(dev);
 
 	device_set_wakeup_enable(&dev->dev, priv->wol_en);
 
@@ -2369,16 +2345,12 @@ static int gfar_close(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	disable_napi(priv);
-
 	cancel_work_sync(&priv->reset_task);
 	stop_gfar(dev);
 
 	/* Disconnect from the PHY */
 	phy_disconnect(priv->phydev);
 	priv->phydev = NULL;
-
-	netif_tx_stop_all_queues(dev);
 
 	gfar_free_irq(priv);
 
@@ -2403,6 +2375,9 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 	}
 
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
+
 	if (dev->flags & IFF_UP)
 		stop_gfar(dev);
 
@@ -2411,7 +2386,22 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 	if (dev->flags & IFF_UP)
 		startup_gfar(dev);
 
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
+
 	return 0;
+}
+
+void reset_gfar(struct net_device *ndev)
+{
+	struct gfar_private *priv = netdev_priv(ndev);
+
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
+
+	stop_gfar(ndev);
+	startup_gfar(ndev);
+
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
 }
 
 /* gfar_reset_task gets scheduled when a packet has not been
@@ -2423,16 +2413,7 @@ static void gfar_reset_task(struct work_struct *work)
 {
 	struct gfar_private *priv = container_of(work, struct gfar_private,
 						 reset_task);
-	struct net_device *dev = priv->ndev;
-
-	if (dev->flags & IFF_UP) {
-		netif_tx_stop_all_queues(dev);
-		stop_gfar(dev);
-		startup_gfar(dev);
-		netif_tx_start_all_queues(dev);
-	}
-
-	netif_tx_schedule_all(dev);
+	reset_gfar(priv->ndev);
 }
 
 static void gfar_timeout(struct net_device *dev)
@@ -2545,8 +2526,10 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	}
 
 	/* If we freed a buffer, we can restart transmission, if necessary */
-	if (netif_tx_queue_stopped(txq) && tx_queue->num_txbdfree)
-		netif_wake_subqueue(dev, tqi);
+	if (tx_queue->num_txbdfree &&
+	    netif_tx_queue_stopped(txq) &&
+	    !(test_bit(GFAR_DOWN, &priv->state)))
+		netif_wake_subqueue(priv->ndev, tqi);
 
 	/* Update dirty indicators */
 	tx_queue->skb_dirtytx = skb_dirtytx;
@@ -3023,12 +3006,11 @@ static void adjust_link(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	unsigned long flags;
 	struct phy_device *phydev = priv->phydev;
 	int new_state = 0;
 
-	local_irq_save(flags);
-	lock_tx_qs(priv);
+	if (test_bit(GFAR_RESETTING, &priv->state))
+		return;
 
 	if (phydev->link) {
 		u32 tempval1 = gfar_read(&regs->maccfg1);
@@ -3100,8 +3082,6 @@ static void adjust_link(struct net_device *dev)
 
 	if (new_state && netif_msg_link(priv))
 		phy_print_status(phydev);
-	unlock_tx_qs(priv);
-	local_irq_restore(flags);
 }
 
 /* Update the hash table based on the current list of multicast

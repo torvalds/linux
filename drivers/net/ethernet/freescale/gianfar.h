@@ -965,7 +965,6 @@ struct rx_q_stats {
 
 /**
  *	struct gfar_priv_rx_q - per rx queue structure
- *	@rxlock: per queue rx spin lock
  *	@rx_skbuff: skb pointers
  *	@skb_currx: currently use skb pointer
  *	@rx_bd_base: First rx buffer descriptor
@@ -978,8 +977,7 @@ struct rx_q_stats {
  */
 
 struct gfar_priv_rx_q {
-	spinlock_t rxlock __attribute__ ((aligned (SMP_CACHE_BYTES)));
-	struct	sk_buff ** rx_skbuff;
+	struct	sk_buff **rx_skbuff __aligned(SMP_CACHE_BYTES);
 	dma_addr_t rx_bd_dma_base;
 	struct	rxbd8 *rx_bd_base;
 	struct	rxbd8 *cur_rx;
@@ -1040,6 +1038,11 @@ enum gfar_errata {
 	GFAR_ERRATA_12		= 0x08, /* a.k.a errata eTSEC49 */
 };
 
+enum gfar_dev_state {
+	GFAR_DOWN = 1,
+	GFAR_RESETTING
+};
+
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
  * (Ok, that's not so true anymore, but there is a family resemblance)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
@@ -1068,6 +1071,7 @@ struct gfar_private {
 	struct gfar_priv_rx_q *rx_queue[MAX_RX_QS];
 	struct gfar_priv_grp gfargrp[MAXGROUPS];
 
+	unsigned long state;
 	u32 device_flags;
 
 	unsigned int mode;
@@ -1198,13 +1202,11 @@ static inline void gfar_write_isrg(struct gfar_private *priv)
 	}
 }
 
-void lock_rx_qs(struct gfar_private *priv);
-void lock_tx_qs(struct gfar_private *priv);
-void unlock_rx_qs(struct gfar_private *priv);
-void unlock_tx_qs(struct gfar_private *priv);
 irqreturn_t gfar_receive(int irq, void *dev_id);
 int startup_gfar(struct net_device *dev);
 void stop_gfar(struct net_device *dev);
+void reset_gfar(struct net_device *dev);
+void gfar_mac_reset(struct gfar_private *priv);
 void gfar_halt(struct gfar_private *priv);
 void gfar_start(struct gfar_private *priv);
 void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev, int enable,
