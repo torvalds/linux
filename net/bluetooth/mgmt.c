@@ -4842,6 +4842,10 @@ void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 
 void mgmt_advertising(struct hci_dev *hdev, u8 advertising)
 {
+	/* Powering off may stop advertising - don't let that interfere */
+	if (!advertising && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
+		return;
+
 	if (advertising)
 		set_bit(HCI_ADVERTISING, &hdev->dev_flags);
 	else
