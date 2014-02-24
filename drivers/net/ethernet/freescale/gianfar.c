@@ -121,7 +121,6 @@ static irqreturn_t gfar_error(int irq, void *dev_id);
 static irqreturn_t gfar_transmit(int irq, void *dev_id);
 static irqreturn_t gfar_interrupt(int irq, void *dev_id);
 static void adjust_link(struct net_device *dev);
-static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
 static int gfar_probe(struct platform_device *ofdev);
 static int gfar_remove(struct platform_device *ofdev);
@@ -330,18 +329,10 @@ static void gfar_init_tx_rx_base(struct gfar_private *priv)
 	}
 }
 
-static void gfar_init_mac(struct net_device *ndev)
+static void gfar_mac_rx_config(struct gfar_private *priv)
 {
-	struct gfar_private *priv = netdev_priv(ndev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 rctrl = 0;
-	u32 tctrl = 0;
-
-	/* write the tx/rx base registers */
-	gfar_init_tx_rx_base(priv);
-
-	/* Configure the coalescing support */
-	gfar_configure_coalescing_all(priv);
 
 	/* set this when rx hw offload (TOE) functions are being used */
 	priv->uses_rxfcb = 0;
@@ -353,18 +344,16 @@ static void gfar_init_mac(struct net_device *ndev)
 	}
 
 	/* Restore PROMISC mode */
-	if (ndev->flags & IFF_PROMISC)
+	if (priv->ndev->flags & IFF_PROMISC)
 		rctrl |= RCTRL_PROM;
 
-	if (ndev->features & NETIF_F_RXCSUM) {
+	if (priv->ndev->features & NETIF_F_RXCSUM) {
 		rctrl |= RCTRL_CHECKSUMMING;
 		priv->uses_rxfcb = 1;
 	}
 
 	if (priv->extended_hash) {
 		rctrl |= RCTRL_EXTHASH;
-
-		gfar_clear_exact_match(ndev);
 		rctrl |= RCTRL_EMEN;
 	}
 
@@ -379,15 +368,21 @@ static void gfar_init_mac(struct net_device *ndev)
 		priv->uses_rxfcb = 1;
 	}
 
-	if (ndev->features & NETIF_F_HW_VLAN_CTAG_RX) {
+	if (priv->ndev->features & NETIF_F_HW_VLAN_CTAG_RX) {
 		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
 		priv->uses_rxfcb = 1;
 	}
 
 	/* Init rctrl based on our settings */
 	gfar_write(&regs->rctrl, rctrl);
+}
 
-	if (ndev->features & NETIF_F_IP_CSUM)
+static void gfar_mac_tx_config(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+	u32 tctrl = 0;
+
+	if (priv->ndev->features & NETIF_F_IP_CSUM)
 		tctrl |= TCTRL_INIT_CSUM;
 
 	if (priv->prio_sched_en)
@@ -1016,27 +1011,93 @@ static void gfar_detect_errata(struct gfar_private *priv)
 			 priv->errata);
 }
 
-static void gfar_hw_init(struct gfar_private *priv)
+static void gfar_mac_reset(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u32 tempval, attrs;
+	u32 tempval;
 
 	/* Reset MAC layer */
 	gfar_write(&regs->maccfg1, MACCFG1_SOFT_RESET);
 
 	/* We need to delay at least 3 TX clocks */
-	udelay(2);
+	udelay(3);
 
 	/* the soft reset bit is not self-resetting, so we need to
 	 * clear it before resuming normal operation
 	 */
 	gfar_write(&regs->maccfg1, 0);
 
+	udelay(3);
+
+	/* Initialize the max receive buffer length */
+	gfar_write(&regs->mrblr, priv->rx_buffer_size);
+
+	/* Initialize the Minimum Frame Length Register */
+	gfar_write(&regs->minflr, MINFLR_INIT_SETTINGS);
+
 	/* Initialize MACCFG2. */
 	tempval = MACCFG2_INIT_SETTINGS;
 	if (gfar_has_errata(priv, GFAR_ERRATA_74))
 		tempval |= MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK;
 	gfar_write(&regs->maccfg2, tempval);
+
+	/* Clear mac addr hash registers */
+	gfar_write(&regs->igaddr0, 0);
+	gfar_write(&regs->igaddr1, 0);
+	gfar_write(&regs->igaddr2, 0);
+	gfar_write(&regs->igaddr3, 0);
+	gfar_write(&regs->igaddr4, 0);
+	gfar_write(&regs->igaddr5, 0);
+	gfar_write(&regs->igaddr6, 0);
+	gfar_write(&regs->igaddr7, 0);
+
+	gfar_write(&regs->gaddr0, 0);
+	gfar_write(&regs->gaddr1, 0);
+	gfar_write(&regs->gaddr2, 0);
+	gfar_write(&regs->gaddr3, 0);
+	gfar_write(&regs->gaddr4, 0);
+	gfar_write(&regs->gaddr5, 0);
+	gfar_write(&regs->gaddr6, 0);
+	gfar_write(&regs->gaddr7, 0);
+
+	if (priv->extended_hash)
+		gfar_clear_exact_match(priv->ndev);
+
+	gfar_mac_rx_config(priv);
+
+	gfar_mac_tx_config(priv);
+
+	gfar_set_mac_address(priv->ndev);
+
+	gfar_set_multi(priv->ndev);
+
+	/* clear ievent and imask before configuring coalescing */
+	gfar_ints_disable(priv);
+
+	/* Configure the coalescing support */
+	gfar_configure_coalescing_all(priv);
+}
+
+static void gfar_hw_init(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+	u32 attrs;
+
+	/* Stop the DMA engine now, in case it was running before
+	 * (The firmware could have used it, and left it running).
+	 */
+	gfar_halt(priv);
+
+	gfar_mac_reset(priv);
+
+	/* Zero out the rmon mib registers if it has them */
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
+		memset_io(&(regs->rmon), 0, sizeof(struct rmon_mib));
+
+		/* Mask off the CAM interrupts */
+		gfar_write(&regs->rmon.cam1, 0xffffffff);
+		gfar_write(&regs->rmon.cam2, 0xffffffff);
+	}
 
 	/* Initialize ECNTRL */
 	gfar_write(&regs->ecntrl, ECNTRL_INIT_SETTINGS);
@@ -1137,13 +1198,6 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	gfar_detect_errata(priv);
 
-	/* Stop the DMA engine now, in case it was running before
-	 * (The firmware could have used it, and left it running).
-	 */
-	gfar_halt(priv);
-
-	gfar_hw_init(priv);
-
 	/* Set the dev->base_addr to the gfar reg region */
 	dev->base_addr = (unsigned long) priv->gfargrp[0].regs;
 
@@ -1209,8 +1263,7 @@ static int gfar_probe(struct platform_device *ofdev)
 	if (priv->num_tx_queues == 1)
 		priv->prio_sched_en = 1;
 
-	/* Carrier starts down, phylib will bring it up */
-	netif_carrier_off(dev);
+	gfar_hw_init(priv);
 
 	err = register_netdev(dev);
 
@@ -1218,6 +1271,9 @@ static int gfar_probe(struct platform_device *ofdev)
 		pr_err("%s: Cannot register net device, aborting\n", dev->name);
 		goto register_fail;
 	}
+
+	/* Carrier starts down, phylib will bring it up */
+	netif_carrier_off(dev);
 
 	device_init_wakeup(&dev->dev,
 			   priv->device_flags &
@@ -1401,9 +1457,10 @@ static int gfar_restore(struct device *dev)
 		return -ENOMEM;
 	}
 
-	init_registers(ndev);
-	gfar_set_mac_address(ndev);
-	gfar_init_mac(ndev);
+	gfar_mac_reset(priv);
+
+	gfar_init_tx_rx_base(priv);
+
 	gfar_start(priv);
 
 	priv->oldlink = 0;
@@ -1560,48 +1617,6 @@ static void gfar_configure_serdes(struct net_device *dev)
 	phy_write(tbiphy, MII_BMCR,
 		  BMCR_ANENABLE | BMCR_ANRESTART | BMCR_FULLDPLX |
 		  BMCR_SPEED1000);
-}
-
-static void init_registers(struct net_device *dev)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-
-	gfar_ints_disable(priv);
-
-	/* Init hash registers to zero */
-	gfar_write(&regs->igaddr0, 0);
-	gfar_write(&regs->igaddr1, 0);
-	gfar_write(&regs->igaddr2, 0);
-	gfar_write(&regs->igaddr3, 0);
-	gfar_write(&regs->igaddr4, 0);
-	gfar_write(&regs->igaddr5, 0);
-	gfar_write(&regs->igaddr6, 0);
-	gfar_write(&regs->igaddr7, 0);
-
-	gfar_write(&regs->gaddr0, 0);
-	gfar_write(&regs->gaddr1, 0);
-	gfar_write(&regs->gaddr2, 0);
-	gfar_write(&regs->gaddr3, 0);
-	gfar_write(&regs->gaddr4, 0);
-	gfar_write(&regs->gaddr5, 0);
-	gfar_write(&regs->gaddr6, 0);
-	gfar_write(&regs->gaddr7, 0);
-
-	/* Zero out the rmon mib registers if it has them */
-	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
-		memset_io(&(regs->rmon), 0, sizeof (struct rmon_mib));
-
-		/* Mask off the CAM interrupts */
-		gfar_write(&regs->rmon.cam1, 0xffffffff);
-		gfar_write(&regs->rmon.cam2, 0xffffffff);
-	}
-
-	/* Initialize the max receive buffer length */
-	gfar_write(&regs->mrblr, priv->rx_buffer_size);
-
-	/* Initialize the Minimum Frame Length Register */
-	gfar_write(&regs->minflr, MINFLR_INIT_SETTINGS);
 }
 
 static int __gfar_is_rx_idle(struct gfar_private *priv)
@@ -1939,13 +1954,13 @@ int startup_gfar(struct net_device *ndev)
 	struct gfar_private *priv = netdev_priv(ndev);
 	int err, i, j;
 
-	gfar_ints_disable(priv);
+	gfar_mac_reset(priv);
 
 	err = gfar_alloc_skb_resources(ndev);
 	if (err)
 		return err;
 
-	gfar_init_mac(ndev);
+	gfar_init_tx_rx_base(priv);
 
 	for (i = 0; i < priv->num_grps; i++) {
 		err = register_grp_irqs(&priv->gfargrp[i]);
@@ -1960,8 +1975,6 @@ int startup_gfar(struct net_device *ndev)
 	gfar_start(priv);
 
 	phy_start(priv->phydev);
-
-	gfar_configure_coalescing_all(priv);
 
 	return 0;
 
@@ -1979,11 +1992,6 @@ static int gfar_enet_open(struct net_device *dev)
 	int err;
 
 	enable_napi(priv);
-
-	/* Initialize a bunch of registers */
-	init_registers(dev);
-
-	gfar_set_mac_address(dev);
 
 	err = init_phy(dev);
 
