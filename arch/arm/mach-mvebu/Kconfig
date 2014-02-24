@@ -39,7 +39,6 @@ config MACH_ARMADA_375
 	select ARMADA_375_CLK
 	select CPU_V7
 	select MACH_MVEBU_V7
-	select NEON
 	select PINCTRL_ARMADA_375
 	help
 	  Say 'Y' here if you want your kernel to support boards based
@@ -53,7 +52,6 @@ config MACH_ARMADA_38X
 	select ARMADA_38X_CLK
 	select CPU_V7
 	select MACH_MVEBU_V7
-	select NEON
 	select PINCTRL_ARMADA_38X
 	help
 	  Say 'Y' here if you want your kernel to support boards based
