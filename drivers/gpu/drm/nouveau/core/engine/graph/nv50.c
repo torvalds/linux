@@ -539,7 +539,7 @@ nv50_priv_tp_trap(struct nv50_graph_priv *priv, int type, u32 ustatus_old,
 				ustatus &= ~0x04030000;
 			}
 			if (ustatus && display) {
-				nv_error("%s - TP%d:", name, i);
+				nv_error(priv, "%s - TP%d:", name, i);
 				nouveau_bitfield_print(nv50_mpc_traps, ustatus);
 				pr_cont("\n");
 				ustatus = 0;
