@@ -456,9 +456,10 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 	}
 
 	q->num_buffers -= buffers;
-	if (!q->num_buffers)
+	if (!q->num_buffers) {
 		q->memory = 0;
-	INIT_LIST_HEAD(&q->queued_list);
+		INIT_LIST_HEAD(&q->queued_list);
+	}
 	return 0;
 }
 
@@ -833,13 +834,11 @@ static int __reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	}
 
 	/* Finally, allocate buffers and video memory */
-	ret = __vb2_queue_alloc(q, req->memory, num_buffers, num_planes);
-	if (ret == 0) {
+	allocated_buffers = __vb2_queue_alloc(q, req->memory, num_buffers, num_planes);
+	if (allocated_buffers == 0) {
 		dprintk(1, "Memory allocation failed\n");
 		return -ENOMEM;
 	}
-
-	allocated_buffers = ret;
 
 	/*
 	 * Check if driver can handle the allocated number of buffers.
@@ -864,6 +863,10 @@ static int __reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	q->num_buffers = allocated_buffers;
 
 	if (ret < 0) {
+		/*
+		 * Note: __vb2_queue_free() will subtract 'allocated_buffers'
+		 * from q->num_buffers.
+		 */
 		__vb2_queue_free(q, allocated_buffers);
 		return ret;
 	}
@@ -937,20 +940,18 @@ static int __create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create
 	}
 
 	/* Finally, allocate buffers and video memory */
-	ret = __vb2_queue_alloc(q, create->memory, num_buffers,
+	allocated_buffers = __vb2_queue_alloc(q, create->memory, num_buffers,
 				num_planes);
-	if (ret == 0) {
+	if (allocated_buffers == 0) {
 		dprintk(1, "Memory allocation failed\n");
 		return -ENOMEM;
 	}
 
-	allocated_buffers = ret;
-
 	/*
 	 * Check if driver can handle the so far allocated number of buffers.
 	 */
-	if (ret < num_buffers) {
-		num_buffers = ret;
+	if (allocated_buffers < num_buffers) {
+		num_buffers = allocated_buffers;
 
 		/*
 		 * q->num_buffers contains the total number of buffers, that the
@@ -973,6 +974,10 @@ static int __create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create
 	q->num_buffers += allocated_buffers;
 
 	if (ret < 0) {
+		/*
+		 * Note: __vb2_queue_free() will subtract 'allocated_buffers'
+		 * from q->num_buffers.
+		 */
 		__vb2_queue_free(q, allocated_buffers);
 		return -ENOMEM;
 	}
