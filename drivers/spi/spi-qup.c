@@ -123,11 +123,6 @@
 #define SPI_DELAY_THRESHOLD		1
 #define SPI_DELAY_RETRY			10
 
-struct spi_qup_device {
-	int select;
-	u16 mode;
-};
-
 struct spi_qup {
 	void __iomem		*base;
 	struct device		*dev;
@@ -338,14 +333,13 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 
 
 /* set clock freq ... bits per word */
-static int spi_qup_io_config(struct spi_qup *controller,
-			   struct spi_qup_device *chip,
-			   struct spi_transfer *xfer)
+static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 {
+	struct spi_qup *controller = spi_master_get_devdata(spi->master);
 	u32 config, iomode, mode;
 	int ret, n_words, w_size;
 
-	if (chip->mode & SPI_LOOP && xfer->len > controller->in_fifo_sz) {
+	if (spi->mode & SPI_LOOP && xfer->len > controller->in_fifo_sz) {
 		dev_err(controller->dev, "too big size for loopback %d > %d\n",
 			xfer->len, controller->in_fifo_sz);
 		return -EIO;
@@ -399,12 +393,12 @@ static int spi_qup_io_config(struct spi_qup *controller,
 
 	config = readl_relaxed(controller->base + SPI_CONFIG);
 
-	if (chip->mode & SPI_LOOP)
+	if (spi->mode & SPI_LOOP)
 		config |= SPI_CONFIG_LOOPBACK;
 	else
 		config &= ~SPI_CONFIG_LOOPBACK;
 
-	if (chip->mode & SPI_CPHA)
+	if (spi->mode & SPI_CPHA)
 		config &= ~SPI_CONFIG_INPUT_FIRST;
 	else
 		config |= SPI_CONFIG_INPUT_FIRST;
@@ -413,7 +407,7 @@ static int spi_qup_io_config(struct spi_qup *controller,
 	 * HS_MODE improves signal stability for spi-clk high rates,
 	 * but is invalid in loop back mode.
 	 */
-	if ((xfer->speed_hz >= SPI_HS_MIN_RATE) && !(chip->mode & SPI_LOOP))
+	if ((xfer->speed_hz >= SPI_HS_MIN_RATE) && !(spi->mode & SPI_LOOP))
 		config |= SPI_CONFIG_HS_MODE;
 	else
 		config &= ~SPI_CONFIG_HS_MODE;
@@ -433,7 +427,6 @@ static int spi_qup_io_config(struct spi_qup *controller,
 static void spi_qup_set_cs(struct spi_device *spi, bool enable)
 {
 	struct spi_qup *controller = spi_master_get_devdata(spi->master);
-	struct spi_qup_device *chip = spi_get_ctldata(spi);
 
 	u32 iocontol, mask;
 
@@ -444,9 +437,9 @@ static void spi_qup_set_cs(struct spi_device *spi, bool enable)
 	iocontol |= SPI_IO_C_FORCE_CS;
 
 	iocontol &= ~SPI_IO_C_CS_SELECT_MASK;
-	iocontol |= SPI_IO_C_CS_SELECT(chip->select);
+	iocontol |= SPI_IO_C_CS_SELECT(spi->chip_select);
 
-	mask = SPI_IO_C_CS_N_POLARITY_0 << chip->select;
+	mask = SPI_IO_C_CS_N_POLARITY_0 << spi->chip_select;
 
 	if (enable)
 		iocontol |= mask;
@@ -461,11 +454,10 @@ static int spi_qup_transfer_one(struct spi_master *master,
 			      struct spi_transfer *xfer)
 {
 	struct spi_qup *controller = spi_master_get_devdata(master);
-	struct spi_qup_device *chip = spi_get_ctldata(spi);
 	unsigned long timeout, flags;
 	int ret = -EIO;
 
-	ret = spi_qup_io_config(controller, chip, xfer);
+	ret = spi_qup_io_config(spi, xfer);
 	if (ret)
 		return ret;
 
@@ -511,38 +503,6 @@ exit:
 	return ret;
 }
 
-static int spi_qup_setup(struct spi_device *spi)
-{
-	struct spi_qup *controller = spi_master_get_devdata(spi->master);
-	struct spi_qup_device *chip = spi_get_ctldata(spi);
-
-	if (!chip) {
-		/* First setup */
-		chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-		if (!chip) {
-			dev_err(controller->dev, "no memory for chip data\n");
-			return -ENOMEM;
-		}
-
-		chip->mode = spi->mode;
-		chip->select = spi->chip_select;
-		spi_set_ctldata(spi, chip);
-	}
-
-	return 0;
-}
-
-static void spi_qup_cleanup(struct spi_device *spi)
-{
-	struct spi_qup_device *chip = spi_get_ctldata(spi);
-
-	if (!chip)
-		return;
-
-	spi_set_ctldata(spi, NULL);
-	kfree(chip);
-}
-
 static int spi_qup_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
@@ -561,7 +521,6 @@ static int spi_qup_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	irq = platform_get_irq(pdev, 0);
-
 	if (irq < 0)
 		return irq;
 
@@ -617,8 +576,6 @@ static int spi_qup_probe(struct platform_device *pdev)
 	master->num_chipselect = SPI_NUM_CHIPSELECTS;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	master->max_speed_hz = max_freq;
-	master->setup = spi_qup_setup;
-	master->cleanup = spi_qup_cleanup;
 	master->set_cs = spi_qup_set_cs;
 	master->transfer_one = spi_qup_transfer_one;
 	master->dev.of_node = pdev->dev.of_node;
