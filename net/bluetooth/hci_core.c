@@ -3339,26 +3339,25 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	int err;
 
 	/* If privacy is enabled use a resolvable private address. If
-	 * the current RPA has expired or there's something else than an
-	 * RPA currently in use regenerate a new one.
+	 * current RPA has expired or there is something else than
+	 * the current RPA in use, then generate a new one.
 	 */
 	if (test_bit(HCI_PRIVACY, &hdev->dev_flags)) {
-		bdaddr_t rpa;
 		int to;
 
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
 
 		if (!test_and_clear_bit(HCI_RPA_EXPIRED, &hdev->dev_flags) &&
-		    hci_bdaddr_is_rpa(&hdev->random_addr, ADDR_LE_DEV_RANDOM))
+		    !bacmp(&hdev->random_addr, &hdev->rpa))
 			return 0;
 
-		err = smp_generate_rpa(hdev->tfm_aes, hdev->irk, &rpa);
+		err = smp_generate_rpa(hdev->tfm_aes, hdev->irk, &hdev->rpa);
 		if (err < 0) {
 			BT_ERR("%s failed to generate new RPA", hdev->name);
 			return err;
 		}
 
-		hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6, &rpa);
+		hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6, &hdev->rpa);
 
 		to = msecs_to_jiffies(hdev->rpa_timeout * 1000);
 		queue_delayed_work(hdev->workqueue, &hdev->rpa_expired, to);
