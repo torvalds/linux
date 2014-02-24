@@ -13,6 +13,8 @@
  * 	Calculates md5/sha1 file hash, template hash, boot-aggreate hash
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/file.h>
 #include <linux/crypto.h>
@@ -212,7 +214,7 @@ static void __init ima_pcrread(int idx, u8 *pcr)
 		return;
 
 	if (tpm_pcr_read(TPM_ANY_NUM, idx, pcr) != 0)
-		pr_err("IMA: Error Communicating to TPM chip\n");
+		pr_err("Error Communicating to TPM chip\n");
 }
 
 /*

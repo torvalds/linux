@@ -12,6 +12,9 @@
  * File: ima_template.c
  *      Helpers to manage template descriptors.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <crypto/hash_info.h>
 
 #include "ima.h"
@@ -58,7 +61,7 @@ static int __init ima_template_setup(char *str)
 	 */
 	if (template_len == 3 && strcmp(str, IMA_TEMPLATE_IMA_NAME) == 0 &&
 	    ima_hash_algo != HASH_ALGO_SHA1 && ima_hash_algo != HASH_ALGO_MD5) {
-		pr_err("IMA: template does not support hash alg\n");
+		pr_err("template does not support hash alg\n");
 		return 1;
 	}
 

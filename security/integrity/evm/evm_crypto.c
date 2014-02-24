@@ -13,6 +13,8 @@
  *	 Using root's kernel master key (kmk), calculate the HMAC
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>
@@ -221,7 +223,7 @@ int evm_init_hmac(struct inode *inode, const struct xattr *lsm_xattr,
 
 	desc = init_desc(EVM_XATTR_HMAC);
 	if (IS_ERR(desc)) {
-		printk(KERN_INFO "init_desc failed\n");
+		pr_info("init_desc failed\n");
 		return PTR_ERR(desc);
 	}
 
