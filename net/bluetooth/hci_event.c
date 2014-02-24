@@ -991,12 +991,8 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (!status) {
-		if (*sent)
-			set_bit(HCI_ADVERTISING, &hdev->dev_flags);
-		else
-			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
-	}
+	if (!status)
+		mgmt_advertising(hdev, *sent);
 
 	hci_dev_unlock(hdev);
 }

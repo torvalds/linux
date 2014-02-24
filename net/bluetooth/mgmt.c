@@ -4832,6 +4832,14 @@ void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 		new_settings(hdev, NULL);
 }
 
+void mgmt_advertising(struct hci_dev *hdev, u8 advertising)
+{
+	if (advertising)
+		set_bit(HCI_ADVERTISING, &hdev->dev_flags);
+	else
+		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+}
+
 void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
 {
 	u8 mgmt_err = mgmt_status(status);
