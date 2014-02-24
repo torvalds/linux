@@ -32,8 +32,9 @@
 
 #define PINCTRL_STATE_IDLE	"idle"
 
-#define FIMC_MAX_SENSORS	8
+#define FIMC_MAX_SENSORS	4
 #define FIMC_MAX_CAMCLKS	2
+#define DEFAULT_SENSOR_CLK_FREQ	24000000U
 
 /* LCD/ISP Writeback clocks (PIXELASYNCMx) */
 enum {
@@ -79,6 +80,7 @@ struct fimc_camclk_info {
 /**
  * struct fimc_sensor_info - image data source subdev information
  * @pdata: sensor's atrributes passed as media device's platform data
+ * @asd: asynchronous subdev registration data structure
  * @subdev: image sensor v4l2 subdev
  * @host: fimc device the sensor is currently linked to
  *
@@ -86,6 +88,7 @@ struct fimc_camclk_info {
  */
 struct fimc_sensor_info {
 	struct fimc_source_info pdata;
+	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *subdev;
 	struct fimc_dev *host;
 };
@@ -145,6 +148,9 @@ struct fimc_md {
 		int num_clocks;
 	} clk_provider;
 
+	struct v4l2_async_notifier subdev_notifier;
+	struct v4l2_async_subdev *async_subdevs[FIMC_MAX_SENSORS];
+
 	bool user_subdev_api;
 	spinlock_t slock;
 	struct list_head pipelines;
@@ -160,6 +166,11 @@ static inline struct fimc_md *entity_to_fimc_mdev(struct media_entity *me)
 {
 	return me->parent == NULL ? NULL :
 		container_of(me->parent, struct fimc_md, media_dev);
+}
+
+static inline struct fimc_md *notifier_to_fimc_md(struct v4l2_async_notifier *n)
+{
+	return container_of(n, struct fimc_md, subdev_notifier);
 }
 
 static inline void fimc_md_graph_lock(struct exynos_video_entity *ve)
