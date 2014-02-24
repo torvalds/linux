@@ -4,3 +4,9 @@ config MTD_SPI_NOR_BASE
 	help
 	  This is the framework for the SPI NOR which can be used by the SPI
 	  device drivers and the SPI-NOR device driver.
+config SPI_FSL_QUADSPI
+	tristate "Freescale Quad SPI controller"
+	depends on ARCH_MXC && MTD_SPI_NOR_BASE
+	help
+	  This enables support for the Quad SPI controller in master mode.
+	  We only connect the NOR to this controller now.
