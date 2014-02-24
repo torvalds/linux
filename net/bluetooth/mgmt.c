@@ -4790,6 +4790,10 @@ void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev))
 		return;
 
+	/* Powering off may clear the scan mode - don't let that interfere */
+	if (!discoverable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
+		return;
+
 	if (discoverable) {
 		changed = !test_and_set_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
 	} else {
