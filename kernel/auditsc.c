@@ -2051,7 +2051,7 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 	if (!ab)
 		return;
 	audit_log_format(ab, "pid=%d uid=%u"
-			 " old-auid=%u new-auid=%u old-ses=%u new-ses=%u"
+			 " old-auid=%u auid=%u old-ses=%u ses=%u"
 			 " res=%d",
 			 task_pid_nr(current), uid,
 			 oldloginuid, loginuid, oldsessionid, sessionid,
