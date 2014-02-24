@@ -17,7 +17,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
-#include "exynos_drm_connector.h"
 
 #define to_exynos_encoder(x)	container_of(x, struct exynos_drm_encoder,\
 				drm_encoder)

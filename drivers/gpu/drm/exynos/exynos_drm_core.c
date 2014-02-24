@@ -16,7 +16,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_encoder.h"
-#include "exynos_drm_connector.h"
 #include "exynos_drm_fbdev.h"
 
 static LIST_HEAD(exynos_drm_subdrv_list);
@@ -27,7 +26,6 @@ static int exynos_drm_create_enc_conn(struct drm_device *dev,
 					struct exynos_drm_display *display)
 {
 	struct drm_encoder *encoder;
-	struct drm_connector *connector;
 	struct exynos_drm_manager *manager;
 	int ret;
 	unsigned long possible_crtcs = 0;
@@ -44,22 +42,13 @@ static int exynos_drm_create_enc_conn(struct drm_device *dev,
 		return -EFAULT;
 	}
 
-	if (display->ops->create_connector)
-		return display->ops->create_connector(display, encoder);
+	display->encoder = encoder;
 
-	/*
-	 * create and initialize a connector for this sub driver and
-	 * attach the encoder created above to the connector.
-	 */
-	connector = exynos_drm_connector_create(dev, encoder);
-	if (!connector) {
-		DRM_ERROR("failed to create connector\n");
-		ret = -EFAULT;
+	ret = display->ops->create_connector(display, encoder);
+	if (ret) {
+		DRM_ERROR("failed to create connector ret = %d\n", ret);
 		goto err_destroy_encoder;
 	}
-
-	display->encoder = encoder;
-	display->connector = connector;
 
 	return 0;
 
