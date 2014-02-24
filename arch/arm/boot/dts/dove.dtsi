@@ -389,7 +389,9 @@
 
 			pinctrl: pin-ctrl@d0200 {
 				compatible = "marvell,dove-pinctrl";
-				reg = <0xd0200 0x10>;
+				reg = <0xd0200 0x14>,
+				      <0xd0440 0x04>,
+				      <0xd802c 0x08>;
 				clocks = <&gate_clk 22>;
 
 				pmx_gpio_0: pmx-gpio-0 {
