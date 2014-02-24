@@ -183,6 +183,9 @@ static void ccp_crypto_complete(void *data, int err)
 			break;
 
 		/* Error occurred, report it and get the next entry */
+		ctx = crypto_tfm_ctx(held->req->tfm);
+		if (ctx->complete)
+			ret = ctx->complete(held->req, ret);
 		held->req->complete(held->req, ret);
 
 		next = ccp_crypto_cmd_complete(held, &backlog);
