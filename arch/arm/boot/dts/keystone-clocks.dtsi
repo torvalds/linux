@@ -244,7 +244,7 @@ clocks {
 		clock-output-names = "debugss-trc";
 		reg = <0x02350014 0xb00>, <0x02350000 0x400>;
 		reg-names = "control", "domain";
-		domain-id = <0>;
+		domain-id = <1>;
 	};
 
 	clktetbtrc: clktetbtrc {
