@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Texas Instruments, Inc.
+ * Copyright 2013-2014 Texas Instruments, Inc.
  *
  * Keystone 2 Kepler/Hawking EVM device tree
  *
@@ -10,9 +10,11 @@
 /dts-v1/;
 
 #include "keystone.dtsi"
+#include "k2hk.dtsi"
 
 / {
-	compatible =  "ti,keystone-evm";
+	compatible =  "ti,k2hk-evm";
+	model = "Texas Instruments Keystone 2 Kepler/Hawking EVM";
 
 	soc {
 		clocks {
