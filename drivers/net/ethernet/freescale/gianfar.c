@@ -329,13 +329,34 @@ static void gfar_init_tx_rx_base(struct gfar_private *priv)
 	}
 }
 
+static void gfar_rx_buff_size_config(struct gfar_private *priv)
+{
+	int frame_size = priv->ndev->mtu + ETH_HLEN;
+
+	/* set this when rx hw offload (TOE) functions are being used */
+	priv->uses_rxfcb = 0;
+
+	if (priv->ndev->features & (NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX))
+		priv->uses_rxfcb = 1;
+
+	if (priv->hwts_rx_en)
+		priv->uses_rxfcb = 1;
+
+	if (priv->uses_rxfcb)
+		frame_size += GMAC_FCB_LEN;
+
+	frame_size += priv->padding;
+
+	frame_size = (frame_size & ~(INCREMENTAL_BUFFER_SIZE - 1)) +
+		     INCREMENTAL_BUFFER_SIZE;
+
+	priv->rx_buffer_size = frame_size;
+}
+
 static void gfar_mac_rx_config(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 rctrl = 0;
-
-	/* set this when rx hw offload (TOE) functions are being used */
-	priv->uses_rxfcb = 0;
 
 	if (priv->rx_filer_enable) {
 		rctrl |= RCTRL_FILREN;
@@ -347,15 +368,11 @@ static void gfar_mac_rx_config(struct gfar_private *priv)
 	if (priv->ndev->flags & IFF_PROMISC)
 		rctrl |= RCTRL_PROM;
 
-	if (priv->ndev->features & NETIF_F_RXCSUM) {
+	if (priv->ndev->features & NETIF_F_RXCSUM)
 		rctrl |= RCTRL_CHECKSUMMING;
-		priv->uses_rxfcb = 1;
-	}
 
-	if (priv->extended_hash) {
-		rctrl |= RCTRL_EXTHASH;
-		rctrl |= RCTRL_EMEN;
-	}
+	if (priv->extended_hash)
+		rctrl |= RCTRL_EXTHASH | RCTRL_EMEN;
 
 	if (priv->padding) {
 		rctrl &= ~RCTRL_PAL_MASK;
@@ -363,15 +380,11 @@ static void gfar_mac_rx_config(struct gfar_private *priv)
 	}
 
 	/* Enable HW time stamping if requested from user space */
-	if (priv->hwts_rx_en) {
+	if (priv->hwts_rx_en)
 		rctrl |= RCTRL_PRSDEP_INIT | RCTRL_TS_ENABLE;
-		priv->uses_rxfcb = 1;
-	}
 
-	if (priv->ndev->features & NETIF_F_HW_VLAN_CTAG_RX) {
+	if (priv->ndev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
-		priv->uses_rxfcb = 1;
-	}
 
 	/* Init rctrl based on our settings */
 	gfar_write(&regs->rctrl, rctrl);
@@ -392,6 +405,9 @@ static void gfar_mac_tx_config(struct gfar_private *priv)
 		gfar_write(&regs->tr03wt, DEFAULT_WRRS_WEIGHT);
 		gfar_write(&regs->tr47wt, DEFAULT_WRRS_WEIGHT);
 	}
+
+	if (priv->ndev->features & NETIF_F_HW_VLAN_CTAG_TX)
+		tctrl |= TCTRL_VLINS;
 
 	gfar_write(&regs->tctrl, tctrl);
 }
@@ -1029,7 +1045,11 @@ static void gfar_mac_reset(struct gfar_private *priv)
 
 	udelay(3);
 
-	/* Initialize the max receive buffer length */
+	/* Compute rx_buff_size based on config flags */
+	gfar_rx_buff_size_config(priv);
+
+	/* Initialize the max receive frame/buffer lengths */
+	gfar_write(&regs->maxfrm, priv->rx_buffer_size);
 	gfar_write(&regs->mrblr, priv->rx_buffer_size);
 
 	/* Initialize the Minimum Frame Length Register */
@@ -1037,8 +1057,15 @@ static void gfar_mac_reset(struct gfar_private *priv)
 
 	/* Initialize MACCFG2. */
 	tempval = MACCFG2_INIT_SETTINGS;
-	if (gfar_has_errata(priv, GFAR_ERRATA_74))
+
+	/* If the mtu is larger than the max size for standard
+	 * ethernet frames (ie, a jumbo frame), then set maccfg2
+	 * to allow huge frames, and to check the length
+	 */
+	if (priv->rx_buffer_size > DEFAULT_RX_BUFFER_SIZE ||
+	    gfar_has_errata(priv, GFAR_ERRATA_74))
 		tempval |= MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK;
+
 	gfar_write(&regs->maccfg2, tempval);
 
 	/* Clear mac addr hash registers */
@@ -2353,77 +2380,9 @@ static int gfar_set_mac_address(struct net_device *dev)
 	return 0;
 }
 
-/* Check if rx parser should be activated */
-void gfar_check_rx_parser_mode(struct gfar_private *priv)
-{
-	struct gfar __iomem *regs;
-	u32 tempval;
-
-	regs = priv->gfargrp[0].regs;
-
-	tempval = gfar_read(&regs->rctrl);
-	/* If parse is no longer required, then disable parser */
-	if (tempval & RCTRL_REQ_PARSER) {
-		tempval |= RCTRL_PRSDEP_INIT;
-		priv->uses_rxfcb = 1;
-	} else {
-		tempval &= ~RCTRL_PRSDEP_INIT;
-		priv->uses_rxfcb = 0;
-	}
-	gfar_write(&regs->rctrl, tempval);
-}
-
-/* Enables and disables VLAN insertion/extraction */
-void gfar_vlan_mode(struct net_device *dev, netdev_features_t features)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar __iomem *regs = NULL;
-	unsigned long flags;
-	u32 tempval;
-
-	regs = priv->gfargrp[0].regs;
-	local_irq_save(flags);
-	lock_rx_qs(priv);
-
-	if (features & NETIF_F_HW_VLAN_CTAG_TX) {
-		/* Enable VLAN tag insertion */
-		tempval = gfar_read(&regs->tctrl);
-		tempval |= TCTRL_VLINS;
-		gfar_write(&regs->tctrl, tempval);
-	} else {
-		/* Disable VLAN tag insertion */
-		tempval = gfar_read(&regs->tctrl);
-		tempval &= ~TCTRL_VLINS;
-		gfar_write(&regs->tctrl, tempval);
-	}
-
-	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
-		/* Enable VLAN tag extraction */
-		tempval = gfar_read(&regs->rctrl);
-		tempval |= (RCTRL_VLEX | RCTRL_PRSDEP_INIT);
-		gfar_write(&regs->rctrl, tempval);
-		priv->uses_rxfcb = 1;
-	} else {
-		/* Disable VLAN tag extraction */
-		tempval = gfar_read(&regs->rctrl);
-		tempval &= ~RCTRL_VLEX;
-		gfar_write(&regs->rctrl, tempval);
-
-		gfar_check_rx_parser_mode(priv);
-	}
-
-	gfar_change_mtu(dev, dev->mtu);
-
-	unlock_rx_qs(priv);
-	local_irq_restore(flags);
-}
-
 static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int tempsize, tempval;
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	int oldsize = priv->rx_buffer_size;
 	int frame_size = new_mtu + ETH_HLEN;
 
 	if ((frame_size < 64) || (frame_size > JUMBO_FRAME_SIZE)) {
@@ -2431,42 +2390,12 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 	}
 
-	if (priv->uses_rxfcb)
-		frame_size += GMAC_FCB_LEN;
-
-	frame_size += priv->padding;
-
-	tempsize = (frame_size & ~(INCREMENTAL_BUFFER_SIZE - 1)) +
-		   INCREMENTAL_BUFFER_SIZE;
-
-	/* Only stop and start the controller if it isn't already
-	 * stopped, and we changed something
-	 */
-	if ((oldsize != tempsize) && (dev->flags & IFF_UP))
+	if (dev->flags & IFF_UP)
 		stop_gfar(dev);
-
-	priv->rx_buffer_size = tempsize;
 
 	dev->mtu = new_mtu;
 
-	gfar_write(&regs->mrblr, priv->rx_buffer_size);
-	gfar_write(&regs->maxfrm, priv->rx_buffer_size);
-
-	/* If the mtu is larger than the max size for standard
-	 * ethernet frames (ie, a jumbo frame), then set maccfg2
-	 * to allow huge frames, and to check the length
-	 */
-	tempval = gfar_read(&regs->maccfg2);
-
-	if (priv->rx_buffer_size > DEFAULT_RX_BUFFER_SIZE ||
-	    gfar_has_errata(priv, GFAR_ERRATA_74))
-		tempval |= (MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK);
-	else
-		tempval &= ~(MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK);
-
-	gfar_write(&regs->maccfg2, tempval);
-
-	if ((oldsize != tempsize) && (dev->flags & IFF_UP))
+	if (dev->flags & IFF_UP)
 		startup_gfar(dev);
 
 	return 0;
