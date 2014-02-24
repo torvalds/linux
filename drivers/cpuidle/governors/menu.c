@@ -410,6 +410,9 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	if (measured_us > target->exit_latency)
 		measured_us -= target->exit_latency;
 
+	/* Make sure our coefficients do not exceed unity */
+	if (measured_us > data->next_timer_us)
+		measured_us = data->next_timer_us;
 
 	/* Update our correction ratio */
 	new_factor = data->correction_factor[data->bucket];
