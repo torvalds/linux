@@ -261,6 +261,12 @@ ENTRY(efi_enter32)
 	/* We must preserve return value */
 	movl	%eax, %edi
 
+	/*
+	 * Some firmware will return with interrupts enabled. Be sure to
+	 * disable them before we switch GDTs.
+	 */
+	cli
+
 	movl	44(%esp), %eax
 	movl	%eax, 2(%eax)
 	lgdtl	(%eax)
