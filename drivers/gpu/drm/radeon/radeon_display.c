@@ -571,6 +571,8 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 		radeon_crtc->max_cursor_width = CURSOR_WIDTH;
 		radeon_crtc->max_cursor_height = CURSOR_HEIGHT;
 	}
+	dev->mode_config.cursor_width = radeon_crtc->max_cursor_width;
+	dev->mode_config.cursor_height = radeon_crtc->max_cursor_height;
 
 #if 0
 	radeon_crtc->mode_set.crtc = &radeon_crtc->base;
