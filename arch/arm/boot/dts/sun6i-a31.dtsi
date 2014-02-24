@@ -200,7 +200,7 @@
 
 		spi0_clk: clk@01c200a0 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-mod0-clk";
+			compatible = "allwinner,sun4i-a10-mod0-clk";
 			reg = <0x01c200a0 0x4>;
 			clocks = <&osc24M>, <&pll6>;
 			clock-output-names = "spi0";
@@ -208,7 +208,7 @@
 
 		spi1_clk: clk@01c200a4 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-mod0-clk";
+			compatible = "allwinner,sun4i-a10-mod0-clk";
 			reg = <0x01c200a4 0x4>;
 			clocks = <&osc24M>, <&pll6>;
 			clock-output-names = "spi1";
@@ -216,7 +216,7 @@
 
 		spi2_clk: clk@01c200a8 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-mod0-clk";
+			compatible = "allwinner,sun4i-a10-mod0-clk";
 			reg = <0x01c200a8 0x4>;
 			clocks = <&osc24M>, <&pll6>;
 			clock-output-names = "spi2";
@@ -224,7 +224,7 @@
 
 		spi3_clk: clk@01c200ac {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-mod0-clk";
+			compatible = "allwinner,sun4i-a10-mod0-clk";
 			reg = <0x01c200ac 0x4>;
 			clocks = <&osc24M>, <&pll6>;
 			clock-output-names = "spi3";
