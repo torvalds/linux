@@ -1481,7 +1481,8 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	async->cmd.data = NULL;
 	/* load channel/gain list */
 	async->cmd.chanlist = memdup_user(user_chanlist,
-					  async->cmd.chanlist_len * sizeof(int));
+					  async->cmd.chanlist_len *
+					  sizeof(int));
 	if (IS_ERR(async->cmd.chanlist)) {
 		ret = PTR_ERR(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
