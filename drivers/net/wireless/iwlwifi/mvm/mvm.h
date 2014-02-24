@@ -91,8 +91,7 @@ enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_MCAST = 5,
 };
 
-extern struct ieee80211_ops iwl_mvm_hw_ops;
-extern const struct iwl_mvm_power_ops pm_mac_ops;
+extern const struct ieee80211_ops iwl_mvm_hw_ops;
 
 /**
  * struct iwl_mvm_mod_params - module parameters for iwlmvm
@@ -426,6 +425,28 @@ struct iwl_mvm_tt_mgmt {
 	bool throttle;
 };
 
+#define IWL_MVM_NUM_LAST_FRAMES_UCODE_RATES 8
+
+struct iwl_mvm_frame_stats {
+	u32 legacy_frames;
+	u32 ht_frames;
+	u32 vht_frames;
+	u32 bw_20_frames;
+	u32 bw_40_frames;
+	u32 bw_80_frames;
+	u32 bw_160_frames;
+	u32 sgi_frames;
+	u32 ngi_frames;
+	u32 siso_frames;
+	u32 mimo2_frames;
+	u32 agg_frames;
+	u32 ampdu_count;
+	u32 success_frames;
+	u32 fail_frames;
+	u32 last_rates[IWL_MVM_NUM_LAST_FRAMES_UCODE_RATES];
+	int last_frame_idx;
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -519,6 +540,7 @@ struct iwl_mvm {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
+	u32 dbgfs_prph_reg_addr;
 	bool disable_power_off;
 	bool disable_power_off_d3;
 
@@ -526,6 +548,9 @@ struct iwl_mvm {
 	struct debugfs_blob_wrapper nvm_sw_blob;
 	struct debugfs_blob_wrapper nvm_calib_blob;
 	struct debugfs_blob_wrapper nvm_prod_blob;
+
+	struct iwl_mvm_frame_stats drv_rx_stats;
+	spinlock_t drv_stats_lock;
 #endif
 
 	struct iwl_mvm_phy_ctxt phy_ctxts[NUM_PHY_CTX];
@@ -586,8 +611,6 @@ struct iwl_mvm {
 	u8 aux_queue;
 	u8 first_agg_queue;
 	u8 last_agg_queue;
-
-	u8 bound_vif_cnt;
 
 	/* Indicate if device power save is allowed */
 	bool ps_disabled;
@@ -812,6 +835,10 @@ iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 /* rate scaling */
 int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init);
+void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm,
+				struct iwl_mvm_frame_stats *stats,
+				u32 rate, bool agg);
+int rs_pretty_print_rate(char *buf, const u32 rate);
 
 /* power management */
 int iwl_power_legacy_set_cam_mode(struct iwl_mvm *mvm);

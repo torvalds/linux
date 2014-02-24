@@ -304,7 +304,7 @@ struct iwl_trans_pcie {
 	bool bc_table_dword;
 	u32 rx_page_order;
 
-	const char **command_names;
+	const char *const *command_names;
 
 	/* queue watchdog */
 	unsigned long wd_timeout;

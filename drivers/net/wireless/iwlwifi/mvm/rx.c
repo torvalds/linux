@@ -77,6 +77,15 @@ int iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 
 	memcpy(&mvm->last_phy_info, pkt->data, sizeof(mvm->last_phy_info));
 	mvm->ampdu_ref++;
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvm->last_phy_info.phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_AGG)) {
+		spin_lock(&mvm->drv_stats_lock);
+		mvm->drv_rx_stats.ampdu_count++;
+		spin_unlock(&mvm->drv_stats_lock);
+	}
+#endif
+
 	return 0;
 }
 
@@ -368,21 +377,33 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		rx_status.flag |= RX_FLAG_SHORT_GI;
 	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
 		rx_status.flag |= RX_FLAG_HT_GF;
+	if (rate_n_flags & RATE_MCS_LDPC_MSK)
+		rx_status.flag |= RX_FLAG_LDPC;
 	if (rate_n_flags & RATE_MCS_HT_MSK) {
+		u8 stbc = (rate_n_flags & RATE_MCS_HT_STBC_MSK) >>
+				RATE_MCS_STBC_POS;
 		rx_status.flag |= RX_FLAG_HT;
 		rx_status.rate_idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK;
+		rx_status.flag |= stbc << RX_FLAG_STBC_SHIFT;
 	} else if (rate_n_flags & RATE_MCS_VHT_MSK) {
+		u8 stbc = (rate_n_flags & RATE_MCS_VHT_STBC_MSK) >>
+				RATE_MCS_STBC_POS;
 		rx_status.vht_nss =
 			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
 						RATE_VHT_MCS_NSS_POS) + 1;
 		rx_status.rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
 		rx_status.flag |= RX_FLAG_VHT;
+		rx_status.flag |= stbc << RX_FLAG_STBC_SHIFT;
 	} else {
 		rx_status.rate_idx =
 			iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
 							    rx_status.band);
 	}
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_mvm_update_frame_stats(mvm, &mvm->drv_rx_stats, rate_n_flags,
+				   rx_status.flag & RX_FLAG_AMPDU_DETAILS);
+#endif
 	iwl_mvm_pass_packet_to_mac80211(mvm, hdr, len, ampdu_status,
 					rxb, &rx_status);
 	return 0;

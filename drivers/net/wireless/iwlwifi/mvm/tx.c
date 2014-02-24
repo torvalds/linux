@@ -122,7 +122,7 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		 * it
 		 */
 		WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_AMPDU);
-	} else if (skb->protocol == cpu_to_be16(ETH_P_PAE)) {
+	} else if (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO) {
 		tx_cmd->pm_frame_timeout = cpu_to_le16(2);
 	} else {
 		tx_cmd->pm_frame_timeout = 0;
@@ -207,7 +207,7 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(rate_idx);
 
 	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, iwl_fw_valid_tx_ant(mvm->fw),
+		iwl_mvm_next_antenna(mvm, mvm->fw->valid_tx_ant,
 				     mvm->mgmt_last_antenna_idx);
 	rate_flags = BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
 

@@ -109,7 +109,7 @@ extern const struct iwl_dvm_cfg iwl_dvm_6030_cfg;
 
 struct iwl_ucode_capabilities;
 
-extern struct ieee80211_ops iwlagn_hw_ops;
+extern const struct ieee80211_ops iwlagn_hw_ops;
 
 static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 {
@@ -480,7 +480,7 @@ do {									\
 } while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
-extern const char *iwl_dvm_cmd_strings[REPLY_MAX];
+extern const char *const iwl_dvm_cmd_strings[REPLY_MAX];
 
 static inline const char *iwl_dvm_get_cmd_string(u8 cmd)
 {
