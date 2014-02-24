@@ -198,7 +198,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 }
 
 /* run from kstop_machine */
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
 	return 0;
 }
