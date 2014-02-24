@@ -412,6 +412,47 @@ static void gfar_mac_tx_config(struct gfar_private *priv)
 	gfar_write(&regs->tctrl, tctrl);
 }
 
+static void gfar_configure_coalescing(struct gfar_private *priv,
+			       unsigned long tx_mask, unsigned long rx_mask)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+	u32 __iomem *baddr;
+
+	if (priv->mode == MQ_MG_MODE) {
+		int i = 0;
+
+		baddr = &regs->txic0;
+		for_each_set_bit(i, &tx_mask, priv->num_tx_queues) {
+			gfar_write(baddr + i, 0);
+			if (likely(priv->tx_queue[i]->txcoalescing))
+				gfar_write(baddr + i, priv->tx_queue[i]->txic);
+		}
+
+		baddr = &regs->rxic0;
+		for_each_set_bit(i, &rx_mask, priv->num_rx_queues) {
+			gfar_write(baddr + i, 0);
+			if (likely(priv->rx_queue[i]->rxcoalescing))
+				gfar_write(baddr + i, priv->rx_queue[i]->rxic);
+		}
+	} else {
+		/* Backward compatible case -- even if we enable
+		 * multiple queues, there's only single reg to program
+		 */
+		gfar_write(&regs->txic, 0);
+		if (likely(priv->tx_queue[0]->txcoalescing))
+			gfar_write(&regs->txic, priv->tx_queue[0]->txic);
+
+		gfar_write(&regs->rxic, 0);
+		if (unlikely(priv->rx_queue[0]->rxcoalescing))
+			gfar_write(&regs->rxic, priv->rx_queue[0]->rxic);
+	}
+}
+
+void gfar_configure_coalescing_all(struct gfar_private *priv)
+{
+	gfar_configure_coalescing(priv, 0xFF, 0xFF);
+}
+
 static struct net_device_stats *gfar_get_stats(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1837,47 +1878,6 @@ void gfar_start(struct gfar_private *priv)
 	priv->ndev->trans_start = jiffies; /* prevent tx timeout */
 }
 
-static void gfar_configure_coalescing(struct gfar_private *priv,
-			       unsigned long tx_mask, unsigned long rx_mask)
-{
-	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u32 __iomem *baddr;
-
-	if (priv->mode == MQ_MG_MODE) {
-		int i = 0;
-
-		baddr = &regs->txic0;
-		for_each_set_bit(i, &tx_mask, priv->num_tx_queues) {
-			gfar_write(baddr + i, 0);
-			if (likely(priv->tx_queue[i]->txcoalescing))
-				gfar_write(baddr + i, priv->tx_queue[i]->txic);
-		}
-
-		baddr = &regs->rxic0;
-		for_each_set_bit(i, &rx_mask, priv->num_rx_queues) {
-			gfar_write(baddr + i, 0);
-			if (likely(priv->rx_queue[i]->rxcoalescing))
-				gfar_write(baddr + i, priv->rx_queue[i]->rxic);
-		}
-	} else {
-		/* Backward compatible case -- even if we enable
-		 * multiple queues, there's only single reg to program
-		 */
-		gfar_write(&regs->txic, 0);
-		if (likely(priv->tx_queue[0]->txcoalescing))
-			gfar_write(&regs->txic, priv->tx_queue[0]->txic);
-
-		gfar_write(&regs->rxic, 0);
-		if (unlikely(priv->rx_queue[0]->rxcoalescing))
-			gfar_write(&regs->rxic, priv->rx_queue[0]->rxic);
-	}
-}
-
-void gfar_configure_coalescing_all(struct gfar_private *priv)
-{
-	gfar_configure_coalescing(priv, 0xFF, 0xFF);
-}
-
 static void free_grp_irqs(struct gfar_priv_grp *grp)
 {
 	free_irq(gfar_irq(grp, TX)->irq, grp);
@@ -2812,17 +2812,6 @@ static int gfar_poll_sq(struct napi_struct *napi, int budget)
 		gfar_write(&regs->rstat, gfargrp->rstat);
 
 		gfar_write(&regs->imask, IMASK_DEFAULT);
-
-		/* If we are coalescing interrupts, update the timer
-		 * Otherwise, clear it
-		 */
-		gfar_write(&regs->txic, 0);
-		if (likely(tx_queue->txcoalescing))
-			gfar_write(&regs->txic, tx_queue->txic);
-
-		gfar_write(&regs->rxic, 0);
-		if (unlikely(rx_queue->rxcoalescing))
-			gfar_write(&regs->rxic, rx_queue->rxic);
 	}
 
 	return work_done;
@@ -2892,12 +2881,6 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		gfar_write(&regs->rstat, gfargrp->rstat);
 
 		gfar_write(&regs->imask, IMASK_DEFAULT);
-
-		/* If we are coalescing interrupts, update the timer
-		 * Otherwise, clear it
-		 */
-		gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
-					  gfargrp->tx_bit_map);
 	}
 
 	return work_done;

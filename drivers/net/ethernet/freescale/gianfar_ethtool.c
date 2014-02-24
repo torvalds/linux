@@ -360,24 +360,10 @@ static int gfar_scoalesce(struct net_device *dev,
 			  struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	int i = 0;
+	int i, err = 0;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
-
-	/* Set up rx coalescing */
-	/* As of now, we will enable/disable coalescing for all
-	 * queues together in case of eTSEC2, this will be modified
-	 * along with the ethtool interface
-	 */
-	if ((cvals->rx_coalesce_usecs == 0) ||
-	    (cvals->rx_max_coalesced_frames == 0)) {
-		for (i = 0; i < priv->num_rx_queues; i++)
-			priv->rx_queue[i]->rxcoalescing = 0;
-	} else {
-		for (i = 0; i < priv->num_rx_queues; i++)
-			priv->rx_queue[i]->rxcoalescing = 1;
-	}
 
 	if (NULL == priv->phydev)
 		return -ENODEV;
@@ -393,6 +379,32 @@ static int gfar_scoalesce(struct net_device *dev,
 		netdev_info(dev, "Coalescing is limited to %d frames\n",
 			    GFAR_MAX_COAL_FRAMES);
 		return -EINVAL;
+	}
+
+	/* Check the bounds of the values */
+	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
+		netdev_info(dev, "Coalescing is limited to %d microseconds\n",
+			    GFAR_MAX_COAL_USECS);
+		return -EINVAL;
+	}
+
+	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
+		netdev_info(dev, "Coalescing is limited to %d frames\n",
+			    GFAR_MAX_COAL_FRAMES);
+		return -EINVAL;
+	}
+
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
+
+	/* Set up rx coalescing */
+	if ((cvals->rx_coalesce_usecs == 0) ||
+	    (cvals->rx_max_coalesced_frames == 0)) {
+		for (i = 0; i < priv->num_rx_queues; i++)
+			priv->rx_queue[i]->rxcoalescing = 0;
+	} else {
+		for (i = 0; i < priv->num_rx_queues; i++)
+			priv->rx_queue[i]->rxcoalescing = 1;
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
@@ -411,28 +423,22 @@ static int gfar_scoalesce(struct net_device *dev,
 			priv->tx_queue[i]->txcoalescing = 1;
 	}
 
-	/* Check the bounds of the values */
-	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
-		netdev_info(dev, "Coalescing is limited to %d microseconds\n",
-			    GFAR_MAX_COAL_USECS);
-		return -EINVAL;
-	}
-
-	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
-		netdev_info(dev, "Coalescing is limited to %d frames\n",
-			    GFAR_MAX_COAL_FRAMES);
-		return -EINVAL;
-	}
-
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		priv->tx_queue[i]->txic = mk_ic_value(
 			cvals->tx_max_coalesced_frames,
 			gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
 	}
 
-	gfar_configure_coalescing_all(priv);
+	if (dev->flags & IFF_UP) {
+		stop_gfar(dev);
+		err = startup_gfar(dev);
+	} else {
+		gfar_mac_reset(priv);
+	}
 
-	return 0;
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
+
+	return err;
 }
 
 /* Fills in rvals with the current ring parameters.  Currently,
