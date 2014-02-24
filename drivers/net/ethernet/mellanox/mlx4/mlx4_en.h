@@ -737,7 +737,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     int cq, int user_prio);
 void mlx4_en_deactivate_tx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_tx_ring *ring);
-
+void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev);
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring **pring,
 			   u32 size, u16 stride, int node);

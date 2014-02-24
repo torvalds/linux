@@ -274,19 +274,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
 		mlx4_en_init_timestamp(mdev);
 
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		if (!dev->caps.comp_pool) {
-			mdev->profile.prof[i].rx_ring_num =
-				rounddown_pow_of_two(max_t(int, MIN_RX_RINGS,
-							   min_t(int,
-								 dev->caps.num_comp_vectors,
-								 DEF_RX_RINGS)));
-		} else {
-			mdev->profile.prof[i].rx_ring_num = rounddown_pow_of_two(
-				min_t(int, dev->caps.comp_pool/
-				      dev->caps.num_ports - 1 , MAX_MSIX_P_PORT - 1));
-		}
-	}
+	/* Set default number of RX rings*/
+	mlx4_en_set_num_rx_rings(mdev);
 
 	/* Create our own workqueue for reset/multicast tasks
 	 * Note: we cannot use the shared workqueue because of deadlocks caused
