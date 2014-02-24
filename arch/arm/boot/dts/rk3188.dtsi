@@ -544,6 +544,9 @@
 		rockchip,ion-heap@1 { /* CMA HEAP */
 			reg = <1>;
 		};
+		rockchip,ion-heap@3 { /* SYSTEM HEAP */
+			reg = <3>;
+		};
 	};
 
 	dwc_control_usb: dwc-control-usb@0x200080ac {
