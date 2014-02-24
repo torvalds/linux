@@ -54,6 +54,7 @@ enum nouveau_drm_handle {
 	NVDRM_CLIENT  = 0xffffffff,
 	NVDRM_DEVICE  = 0xdddddddd,
 	NVDRM_CONTROL = 0xdddddddc,
+	NVDRM_DISPLAY = 0xd1500000,
 	NVDRM_PUSH    = 0xbbbb0000, /* |= client chid */
 	NVDRM_CHAN    = 0xcccc0000, /* |= client chid */
 	NVDRM_NVSW    = 0x55550000,

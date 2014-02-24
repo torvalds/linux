@@ -835,7 +835,6 @@ int proc_get_all_sta_info(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
 {
-	unsigned long irqL;
 	struct sta_info *psta;
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
@@ -848,7 +847,7 @@ int proc_get_all_sta_info(char *page, char **start,
 
 	len += snprintf(page + len, count - len, "sta_dz_bitmap=0x%x, tim_bitmap=0x%x\n", pstapriv->sta_dz_bitmap, pstapriv->tim_bitmap);
 
-	_enter_critical_bh(&pstapriv->sta_hash_lock, &irqL);
+	spin_lock_bh(&pstapriv->sta_hash_lock);
 
 	for (i = 0; i < NUM_STA; i++) {
 		phead = &(pstapriv->sta_hash[i]);
@@ -882,7 +881,7 @@ int proc_get_all_sta_info(char *page, char **start,
 			}
 		}
 	}
-	_exit_critical_bh(&pstapriv->sta_hash_lock, &irqL);
+	spin_unlock_bh(&pstapriv->sta_hash_lock);
 
 	*eof = 1;
 	return len;

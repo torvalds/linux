@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -249,12 +249,12 @@ static bool iwl_mvm_time_event_response(struct iwl_notif_wait_data *notif_wait,
 		container_of(notif_wait, struct iwl_mvm, notif_wait);
 	struct iwl_mvm_time_event_data *te_data = data;
 	struct iwl_time_event_resp *resp;
-	int resp_len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+	int resp_len = iwl_rx_packet_payload_len(pkt);
 
 	if (WARN_ON(pkt->hdr.cmd != TIME_EVENT_CMD))
 		return true;
 
-	if (WARN_ON_ONCE(resp_len != sizeof(pkt->hdr) + sizeof(*resp))) {
+	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
 		IWL_ERR(mvm, "Invalid TIME_EVENT_CMD response\n");
 		return true;
 	}

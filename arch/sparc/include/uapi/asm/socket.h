@@ -74,6 +74,8 @@
 
 #define SO_MAX_PACING_RATE	0x0031
 
+#define SO_BPF_EXTENSIONS	0x0032
+
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001
 #define SO_SECURITY_ENCRYPTION_TRANSPORT	0x5002

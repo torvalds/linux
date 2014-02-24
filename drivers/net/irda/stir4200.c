@@ -41,7 +41,6 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/time.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>

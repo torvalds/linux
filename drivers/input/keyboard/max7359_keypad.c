@@ -182,7 +182,8 @@ static void max7359_initialize(struct i2c_client *client)
 static int max7359_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	const struct matrix_keymap_data *keymap_data = client->dev.platform_data;
+	const struct matrix_keymap_data *keymap_data =
+			dev_get_platdata(&client->dev);
 	struct max7359_keypad *keypad;
 	struct input_dev *input_dev;
 	int ret;

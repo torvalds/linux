@@ -80,7 +80,7 @@ static int ast_ttm_global_init(struct ast_private *ast)
 	return 0;
 }
 
-void
+static void
 ast_ttm_global_release(struct ast_private *ast)
 {
 	if (ast->ttm.mem_global_ref.release == NULL)
@@ -102,7 +102,7 @@ static void ast_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
-bool ast_ttm_bo_is_ast_bo(struct ttm_buffer_object *bo)
+static bool ast_ttm_bo_is_ast_bo(struct ttm_buffer_object *bo)
 {
 	if (bo->destroy == &ast_bo_ttm_destroy)
 		return true;
@@ -208,7 +208,7 @@ static struct ttm_backend_func ast_tt_backend_func = {
 };
 
 
-struct ttm_tt *ast_ttm_tt_create(struct ttm_bo_device *bdev,
+static struct ttm_tt *ast_ttm_tt_create(struct ttm_bo_device *bdev,
 				 unsigned long size, uint32_t page_flags,
 				 struct page *dummy_read_page)
 {

@@ -29,26 +29,11 @@
 #include <linux/nls.h>
 #include <linux/acpi.h>
 #include <linux/pci-acpi.h>
-#include <acpi/acpi_bus.h>
 #include "pci.h"
 
 #define	DEVICE_LABEL_DSM	0x07
 
-#ifndef CONFIG_DMI
-
-static inline int
-pci_create_smbiosname_file(struct pci_dev *pdev)
-{
-	return -1;
-}
-
-static inline void
-pci_remove_smbiosname_file(struct pci_dev *pdev)
-{
-}
-
-#else
-
+#ifdef CONFIG_DMI
 enum smbios_attr_enum {
 	SMBIOS_ATTR_NONE = 0,
 	SMBIOS_ATTR_LABEL_SHOW,
@@ -156,38 +141,26 @@ pci_remove_smbiosname_file(struct pci_dev *pdev)
 {
 	sysfs_remove_group(&pdev->dev.kobj, &smbios_attr_group);
 }
+#else
+static inline int
+pci_create_smbiosname_file(struct pci_dev *pdev)
+{
+	return -1;
+}
 
+static inline void
+pci_remove_smbiosname_file(struct pci_dev *pdev)
+{
+}
 #endif
 
-#ifndef CONFIG_ACPI
-
-static inline int
-pci_create_acpi_index_label_files(struct pci_dev *pdev)
-{
-	return -1;
-}
-
-static inline int
-pci_remove_acpi_index_label_files(struct pci_dev *pdev)
-{
-	return -1;
-}
-
-static inline bool
-device_has_dsm(struct device *dev)
-{
-	return false;
-}
-
-#else
-
+#ifdef CONFIG_ACPI
 static const char device_label_dsm_uuid[] = {
 	0xD0, 0x37, 0xC9, 0xE5, 0x53, 0x35, 0x7A, 0x4D,
 	0x91, 0x17, 0xEA, 0x4D, 0x19, 0xC3, 0x43, 0x4D
 };
 
 enum acpi_attr_enum {
-	ACPI_ATTR_NONE = 0,
 	ACPI_ATTR_LABEL_SHOW,
 	ACPI_ATTR_INDEX_SHOW,
 };
@@ -195,84 +168,61 @@ enum acpi_attr_enum {
 static void dsm_label_utf16s_to_utf8s(union acpi_object *obj, char *buf)
 {
 	int len;
-	len = utf16s_to_utf8s((const wchar_t *)obj->
-			      package.elements[1].string.pointer,
-			      obj->package.elements[1].string.length,
+	len = utf16s_to_utf8s((const wchar_t *)obj->string.pointer,
+			      obj->string.length,
 			      UTF16_LITTLE_ENDIAN,
 			      buf, PAGE_SIZE);
 	buf[len] = '\n';
 }
 
 static int
-dsm_get_label(acpi_handle handle, int func,
-	      struct acpi_buffer *output,
-	      char *buf, enum acpi_attr_enum attribute)
+dsm_get_label(struct device *dev, char *buf, enum acpi_attr_enum attr)
 {
-	struct acpi_object_list input;
-	union acpi_object params[4];
-	union acpi_object *obj;
-	int len = 0;
+	acpi_handle handle;
+	union acpi_object *obj, *tmp;
+	int len = -1;
 
-	int err;
-
-	input.count = 4;
-	input.pointer = params;
-	params[0].type = ACPI_TYPE_BUFFER;
-	params[0].buffer.length = sizeof(device_label_dsm_uuid);
-	params[0].buffer.pointer = (char *)device_label_dsm_uuid;
-	params[1].type = ACPI_TYPE_INTEGER;
-	params[1].integer.value = 0x02;
-	params[2].type = ACPI_TYPE_INTEGER;
-	params[2].integer.value = func;
-	params[3].type = ACPI_TYPE_PACKAGE;
-	params[3].package.count = 0;
-	params[3].package.elements = NULL;
-
-	err = acpi_evaluate_object(handle, "_DSM", &input, output);
-	if (err)
+	handle = ACPI_HANDLE(dev);
+	if (!handle)
 		return -1;
 
-	obj = (union acpi_object *)output->pointer;
+	obj = acpi_evaluate_dsm(handle, device_label_dsm_uuid, 0x2,
+				DEVICE_LABEL_DSM, NULL);
+	if (!obj)
+		return -1;
 
-	switch (obj->type) {
-	case ACPI_TYPE_PACKAGE:
-		if (obj->package.count != 2)
-			break;
-		len = obj->package.elements[0].integer.value;
-		if (buf) {
-			if (attribute == ACPI_ATTR_INDEX_SHOW)
-				scnprintf(buf, PAGE_SIZE, "%llu\n",
-				obj->package.elements[0].integer.value);
-			else if (attribute == ACPI_ATTR_LABEL_SHOW)
-				dsm_label_utf16s_to_utf8s(obj, buf);
-			kfree(output->pointer);
-			return strlen(buf);
-		}
-		kfree(output->pointer);
-		return len;
-	break;
-	default:
-		kfree(output->pointer);
+	tmp = obj->package.elements;
+	if (obj->type == ACPI_TYPE_PACKAGE && obj->package.count == 2 &&
+	    tmp[0].type == ACPI_TYPE_INTEGER &&
+	    tmp[1].type == ACPI_TYPE_STRING) {
+		/*
+		 * The second string element is optional even when
+		 * this _DSM is implemented; when not implemented,
+		 * this entry must return a null string.
+		 */
+		if (attr == ACPI_ATTR_INDEX_SHOW)
+			scnprintf(buf, PAGE_SIZE, "%llu\n", tmp->integer.value);
+		else if (attr == ACPI_ATTR_LABEL_SHOW)
+			dsm_label_utf16s_to_utf8s(tmp + 1, buf);
+		len = strlen(buf) > 0 ? strlen(buf) : -1;
 	}
-	return -1;
+
+	ACPI_FREE(obj);
+
+	return len;
 }
 
 static bool
 device_has_dsm(struct device *dev)
 {
 	acpi_handle handle;
-	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 
 	handle = ACPI_HANDLE(dev);
-
 	if (!handle)
-		return FALSE;
+		return false;
 
-	if (dsm_get_label(handle, DEVICE_LABEL_DSM, &output, NULL,
-			  ACPI_ATTR_NONE) > 0)
-		return TRUE;
-
-	return FALSE;
+	return !!acpi_check_dsm(handle, device_label_dsm_uuid, 0x2,
+				1 << DEVICE_LABEL_DSM);
 }
 
 static umode_t
@@ -291,44 +241,13 @@ acpi_index_string_exist(struct kobject *kobj, struct attribute *attr, int n)
 static ssize_t
 acpilabel_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_handle handle;
-	int length;
-
-	handle = ACPI_HANDLE(dev);
-
-	if (!handle)
-		return -1;
-
-	length = dsm_get_label(handle, DEVICE_LABEL_DSM,
-			       &output, buf, ACPI_ATTR_LABEL_SHOW);
-
-	if (length < 1)
-		return -1;
-
-	return length;
+	return dsm_get_label(dev, buf, ACPI_ATTR_LABEL_SHOW);
 }
 
 static ssize_t
 acpiindex_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_handle handle;
-	int length;
-
-	handle = ACPI_HANDLE(dev);
-
-	if (!handle)
-		return -1;
-
-	length = dsm_get_label(handle, DEVICE_LABEL_DSM,
-			       &output, buf, ACPI_ATTR_INDEX_SHOW);
-
-	if (length < 0)
-		return -1;
-
-	return length;
-
+	return dsm_get_label(dev, buf, ACPI_ATTR_INDEX_SHOW);
 }
 
 static struct device_attribute acpi_attr_label = {
@@ -363,6 +282,24 @@ pci_remove_acpi_index_label_files(struct pci_dev *pdev)
 {
 	sysfs_remove_group(&pdev->dev.kobj, &acpi_attr_group);
 	return 0;
+}
+#else
+static inline int
+pci_create_acpi_index_label_files(struct pci_dev *pdev)
+{
+	return -1;
+}
+
+static inline int
+pci_remove_acpi_index_label_files(struct pci_dev *pdev)
+{
+	return -1;
+}
+
+static inline bool
+device_has_dsm(struct device *dev)
+{
+	return false;
 }
 #endif
 

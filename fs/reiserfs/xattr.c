@@ -50,6 +50,7 @@
 #include <linux/stat.h>
 #include <linux/quotaops.h>
 #include <linux/security.h>
+#include <linux/posix_acl_xattr.h>
 
 #define PRIVROOT_NAME ".reiserfs_priv"
 #define XAROOT_NAME   "xattrs"
@@ -904,8 +905,8 @@ static const struct xattr_handler *reiserfs_xattr_handlers[] = {
 	&reiserfs_xattr_security_handler,
 #endif
 #ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	&reiserfs_posix_acl_access_handler,
-	&reiserfs_posix_acl_default_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 #endif
 	NULL
 };

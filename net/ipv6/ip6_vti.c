@@ -24,7 +24,6 @@
 #include <linux/if.h>
 #include <linux/in.h>
 #include <linux/ip.h>
-#include <linux/if_tunnel.h>
 #include <linux/net.h>
 #include <linux/in6.h>
 #include <linux/netdevice.h>
@@ -74,26 +73,6 @@ struct vti6_net {
 	struct ip6_tnl __rcu *tnls_wc[1];
 	struct ip6_tnl __rcu **tnls[2];
 };
-
-static struct net_device_stats *vti6_get_stats(struct net_device *dev)
-{
-	struct pcpu_tstats sum = { 0 };
-	int i;
-
-	for_each_possible_cpu(i) {
-		const struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, i);
-
-		sum.rx_packets += tstats->rx_packets;
-		sum.rx_bytes   += tstats->rx_bytes;
-		sum.tx_packets += tstats->tx_packets;
-		sum.tx_bytes   += tstats->tx_bytes;
-	}
-	dev->stats.rx_packets = sum.rx_packets;
-	dev->stats.rx_bytes   = sum.rx_bytes;
-	dev->stats.tx_packets = sum.tx_packets;
-	dev->stats.tx_bytes   = sum.tx_bytes;
-	return &dev->stats;
-}
 
 #define for_each_vti6_tunnel_rcu(start) \
 	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
@@ -312,7 +291,7 @@ static int vti6_rcv(struct sk_buff *skb)
 
 	if ((t = vti6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr,
 				 &ipv6h->daddr)) != NULL) {
-		struct pcpu_tstats *tstats;
+		struct pcpu_sw_netstats *tstats;
 
 		if (t->parms.proto != IPPROTO_IPV6 && t->parms.proto != 0) {
 			rcu_read_unlock();
@@ -331,8 +310,10 @@ static int vti6_rcv(struct sk_buff *skb)
 		}
 
 		tstats = this_cpu_ptr(t->dev->tstats);
+		u64_stats_update_begin(&tstats->syncp);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
+		u64_stats_update_end(&tstats->syncp);
 
 		skb->mark = 0;
 		secpath_reset(skb);
@@ -716,7 +697,7 @@ static const struct net_device_ops vti6_netdev_ops = {
 	.ndo_start_xmit = vti6_tnl_xmit,
 	.ndo_do_ioctl	= vti6_ioctl,
 	.ndo_change_mtu = vti6_change_mtu,
-	.ndo_get_stats	= vti6_get_stats,
+	.ndo_get_stats64 = ip_tunnel_get_stats64,
 };
 
 /**
@@ -750,12 +731,18 @@ static void vti6_dev_setup(struct net_device *dev)
 static inline int vti6_dev_init_gen(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
+	int i;
 
 	t->dev = dev;
 	t->net = dev_net(dev);
-	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+	for_each_possible_cpu(i) {
+		struct pcpu_sw_netstats *stats;
+		stats = per_cpu_ptr(dev->tstats, i);
+		u64_stats_init(&stats->syncp);
+	}
 	return 0;
 }
 

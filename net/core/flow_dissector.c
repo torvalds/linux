@@ -202,12 +202,12 @@ static __always_inline u32 __flow_hash_1word(u32 a)
 }
 
 /*
- * __skb_get_rxhash: calculate a flow hash based on src/dst addresses
+ * __skb_get_hash: calculate a flow hash based on src/dst addresses
  * and src/dst port numbers.  Sets rxhash in skb to non-zero hash value
  * on success, zero indicates no valid hash.  Also, sets l4_rxhash in skb
  * if hash is a canonical 4-tuple hash over transport ports.
  */
-void __skb_get_rxhash(struct sk_buff *skb)
+void __skb_get_hash(struct sk_buff *skb)
 {
 	struct flow_keys keys;
 	u32 hash;
@@ -234,7 +234,7 @@ void __skb_get_rxhash(struct sk_buff *skb)
 
 	skb->rxhash = hash;
 }
-EXPORT_SYMBOL(__skb_get_rxhash);
+EXPORT_SYMBOL(__skb_get_hash);
 
 /*
  * Returns a Tx hash based on the given packet descriptor a Tx queues' number
@@ -395,17 +395,21 @@ u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 EXPORT_SYMBOL(__netdev_pick_tx);
 
 struct netdev_queue *netdev_pick_tx(struct net_device *dev,
-				    struct sk_buff *skb)
+				    struct sk_buff *skb,
+				    void *accel_priv)
 {
 	int queue_index = 0;
 
 	if (dev->real_num_tx_queues != 1) {
 		const struct net_device_ops *ops = dev->netdev_ops;
 		if (ops->ndo_select_queue)
-			queue_index = ops->ndo_select_queue(dev, skb);
+			queue_index = ops->ndo_select_queue(dev, skb,
+							    accel_priv);
 		else
 			queue_index = __netdev_pick_tx(dev, skb);
-		queue_index = dev_cap_txqueue(dev, queue_index);
+
+		if (!accel_priv)
+			queue_index = dev_cap_txqueue(dev, queue_index);
 	}
 
 	skb_set_queue_mapping(skb, queue_index);

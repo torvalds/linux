@@ -28,7 +28,8 @@ u16 RF_ReadReg(struct net_device *dev, u8 offset);
 
 void rtl8180_set_mode(struct net_device *dev, int mode);
 void rtl8180_set_mode(struct net_device *dev, int mode);
-bool SetZebraRFPowerState8185(struct net_device *dev, RT_RF_POWER_STATE  eRFPowerState);
+bool SetZebraRFPowerState8185(struct net_device *dev,
+			      RT_RF_POWER_STATE eRFPowerState);
 void rtl8225z4_rf_sleep(struct net_device *dev);
 void rtl8225z4_rf_wakeup(struct net_device *dev);
 

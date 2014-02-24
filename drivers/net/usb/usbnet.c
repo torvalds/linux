@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -1245,7 +1244,7 @@ static int build_dma_sg(const struct sk_buff *skb, struct urb *urb)
 		return -ENOMEM;
 
 	urb->num_sgs = num_sgs;
-	sg_init_table(urb->sg, urb->num_sgs);
+	sg_init_table(urb->sg, urb->num_sgs + 1);
 
 	sg_set_buf(&urb->sg[s++], skb->data, skb_headlen(skb));
 	total_len += skb_headlen(skb);

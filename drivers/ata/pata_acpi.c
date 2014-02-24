@@ -12,11 +12,10 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gfp.h>
-#include <scsi/scsi_host.h>
-#include <acpi/acpi_bus.h>
-
+#include <linux/acpi.h>
 #include <linux/libata.h>
 #include <linux/ata.h>
+#include <scsi/scsi_host.h>
 
 #define DRV_NAME	"pata_acpi"
 #define DRV_VERSION	"0.2.3"

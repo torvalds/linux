@@ -22,7 +22,6 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -2586,7 +2585,8 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 
 	ep->ep.name = ep->name;
 	ep->ep.ops = &omap_ep_ops;
-	ep->ep.maxpacket = ep->maxpacket = maxp;
+	ep->maxpacket = maxp;
+	usb_ep_set_maxpacket_limit(&ep->ep, ep->maxpacket);
 	list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 
 	return buf;

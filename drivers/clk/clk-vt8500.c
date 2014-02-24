@@ -641,7 +641,7 @@ static unsigned long vtwm_pll_recalc_rate(struct clk_hw *hw,
 	return pll_freq;
 }
 
-const struct clk_ops vtwm_pll_ops = {
+static const struct clk_ops vtwm_pll_ops = {
 	.round_rate = vtwm_pll_round_rate,
 	.set_rate = vtwm_pll_set_rate,
 	.recalc_rate = vtwm_pll_recalc_rate,

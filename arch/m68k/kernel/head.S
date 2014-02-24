@@ -23,7 +23,7 @@
 ** 98/04/25 Phil Blundell: added HP300 support
 ** 1998/08/30 David Kilzer: Added support for font_desc structures
 **            for linux-2.1.115
-** 9/02/11  Richard Zidlicky: added Q40 support (initial vesion 99/01/01)
+** 1999/02/11  Richard Zidlicky: added Q40 support (initial version 99/01/01)
 ** 2004/05/13 Kars de Jong: Finalised HP300 support
 **
 ** This file is subject to the terms and conditions of the GNU General Public
@@ -257,6 +257,12 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-amiga.h>
+#include <asm/bootinfo-atari.h>
+#include <asm/bootinfo-hp300.h>
+#include <asm/bootinfo-mac.h>
+#include <asm/bootinfo-q40.h>
+#include <asm/bootinfo-vme.h>
 #include <asm/setup.h>
 #include <asm/entry.h>
 #include <asm/pgtable.h>
@@ -1532,7 +1538,7 @@ L(cache_done):
 
 /*
  * Find a tag record in the bootinfo structure
- * The bootinfo structure is located right after the kernel bss
+ * The bootinfo structure is located right after the kernel
  * Returns: d0: size (-1 if not found)
  *          a0: data pointer (end-of-records if not found)
  */
@@ -2909,7 +2915,9 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 
 #if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
 	movel	%pc@(L(mac_sccbase)),%a0
-	/* Reset SCC device */
+	/* Reset SCC register pointer */
+	moveb	%a0@(mac_scc_cha_a_ctrl_offset),%d0
+	/* Reset SCC device: write register pointer then register value */
 	moveb	#9,%a0@(mac_scc_cha_a_ctrl_offset)
 	moveb	#0xc0,%a0@(mac_scc_cha_a_ctrl_offset)
 	/* Wait for 5 PCLK cycles, which is about 68 CPU cycles */
@@ -3896,8 +3904,6 @@ BVME_SCC_DATA_A	= 0xffb0000f
 #endif
 
 #if defined(CONFIG_MAC)
-L(mac_booter_data):
-	.long	0
 L(mac_videobase):
 	.long	0
 L(mac_videodepth):

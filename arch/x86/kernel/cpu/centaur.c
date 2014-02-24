@@ -1,6 +1,5 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 
 #include <asm/processor.h>
 #include <asm/e820.h>

@@ -614,6 +614,61 @@ static const struct file_operations fops_htt_stats_mask = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_read_fw_dbglog(struct file *file,
+					    char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	unsigned int len;
+	char buf[32];
+
+	len = scnprintf(buf, sizeof(buf), "0x%08x\n",
+			ar->debug.fw_dbglog_mask);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath10k_write_fw_dbglog(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	unsigned long mask;
+	int ret;
+
+	ret = kstrtoul_from_user(user_buf, count, 0, &mask);
+	if (ret)
+		return ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	ar->debug.fw_dbglog_mask = mask;
+
+	if (ar->state == ATH10K_STATE_ON) {
+		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask);
+		if (ret) {
+			ath10k_warn("dbglog cfg failed from debugfs: %d\n",
+				    ret);
+			goto exit;
+		}
+	}
+
+	ret = count;
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static const struct file_operations fops_fw_dbglog = {
+	.read = ath10k_read_fw_dbglog,
+	.write = ath10k_write_fw_dbglog,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_start(struct ath10k *ar)
 {
 	int ret;
@@ -624,6 +679,14 @@ int ath10k_debug_start(struct ath10k *ar)
 	if (ret)
 		/* continue normally anyway, this isn't serious */
 		ath10k_warn("failed to start htt stats workqueue: %d\n", ret);
+
+	if (ar->debug.fw_dbglog_mask) {
+		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask);
+		if (ret)
+			/* not serious */
+			ath10k_warn("failed to enable dbglog during start: %d",
+				    ret);
+	}
 
 	return 0;
 }
@@ -638,6 +701,86 @@ void ath10k_debug_stop(struct ath10k *ar)
 	if (ar->debug.htt_stats_mask != 0)
 		cancel_delayed_work(&ar->debug.htt_stats_dwork);
 }
+
+static ssize_t ath10k_write_simulate_radar(struct file *file,
+					   const char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+
+	ieee80211_radar_detected(ar->hw);
+
+	return count;
+}
+
+static const struct file_operations fops_simulate_radar = {
+	.write = ath10k_write_simulate_radar,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+#define ATH10K_DFS_STAT(s, p) (\
+	len += scnprintf(buf + len, size - len, "%-28s : %10u\n", s, \
+			 ar->debug.dfs_stats.p))
+
+#define ATH10K_DFS_POOL_STAT(s, p) (\
+	len += scnprintf(buf + len, size - len, "%-28s : %10u\n", s, \
+			 ar->debug.dfs_pool_stats.p))
+
+static ssize_t ath10k_read_dfs_stats(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	int retval = 0, len = 0;
+	const int size = 8000;
+	struct ath10k *ar = file->private_data;
+	char *buf;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	if (!ar->dfs_detector) {
+		len += scnprintf(buf + len, size - len, "DFS not enabled\n");
+		goto exit;
+	}
+
+	ar->debug.dfs_pool_stats =
+			ar->dfs_detector->get_stats(ar->dfs_detector);
+
+	len += scnprintf(buf + len, size - len, "Pulse detector statistics:\n");
+
+	ATH10K_DFS_STAT("reported phy errors", phy_errors);
+	ATH10K_DFS_STAT("pulse events reported", pulses_total);
+	ATH10K_DFS_STAT("DFS pulses detected", pulses_detected);
+	ATH10K_DFS_STAT("DFS pulses discarded", pulses_discarded);
+	ATH10K_DFS_STAT("Radars detected", radar_detected);
+
+	len += scnprintf(buf + len, size - len, "Global Pool statistics:\n");
+	ATH10K_DFS_POOL_STAT("Pool references", pool_reference);
+	ATH10K_DFS_POOL_STAT("Pulses allocated", pulse_allocated);
+	ATH10K_DFS_POOL_STAT("Pulses alloc error", pulse_alloc_error);
+	ATH10K_DFS_POOL_STAT("Pulses in use", pulse_used);
+	ATH10K_DFS_POOL_STAT("Seqs. allocated", pseq_allocated);
+	ATH10K_DFS_POOL_STAT("Seqs. alloc error", pseq_alloc_error);
+	ATH10K_DFS_POOL_STAT("Seqs. in use", pseq_used);
+
+exit:
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static const struct file_operations fops_dfs_stats = {
+	.read = ath10k_read_dfs_stats,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
 
 int ath10k_debug_create(struct ath10k *ar)
 {
@@ -666,6 +809,23 @@ int ath10k_debug_create(struct ath10k *ar)
 
 	debugfs_create_file("htt_stats_mask", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_htt_stats_mask);
+
+	debugfs_create_file("fw_dbglog", S_IRUSR, ar->debug.debugfs_phy,
+			    ar, &fops_fw_dbglog);
+
+	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
+		debugfs_create_file("dfs_simulate_radar", S_IWUSR,
+				    ar->debug.debugfs_phy, ar,
+				    &fops_simulate_radar);
+
+		debugfs_create_bool("dfs_block_radar_events", S_IWUSR,
+				    ar->debug.debugfs_phy,
+				    &ar->dfs_block_radar_events);
+
+		debugfs_create_file("dfs_stats", S_IRUSR,
+				    ar->debug.debugfs_phy, ar,
+				    &fops_dfs_stats);
+	}
 
 	return 0;
 }

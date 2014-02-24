@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "symbol.h"
+#include <strlist.h>
 
 struct thread {
 	union {
@@ -66,4 +67,15 @@ static inline void thread__set_priv(struct thread *thread, void *p)
 {
 	thread->priv = p;
 }
+
+static inline bool thread__is_filtered(struct thread *thread)
+{
+	if (symbol_conf.comm_list &&
+	    !strlist__has_entry(symbol_conf.comm_list, thread__comm_str(thread))) {
+		return true;
+	}
+
+	return false;
+}
+
 #endif	/* __PERF_THREAD_H */

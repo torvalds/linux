@@ -192,7 +192,8 @@ void __init setup_memory(void)
 		start_pfn = memblock_region_memory_base_pfn(reg);
 		end_pfn = memblock_region_memory_end_pfn(reg);
 		memblock_set_node(start_pfn << PAGE_SHIFT,
-					(end_pfn - start_pfn) << PAGE_SHIFT, 0);
+				  (end_pfn - start_pfn) << PAGE_SHIFT,
+				  &memblock.memory, 0);
 	}
 
 	/* free bootmem is whole main memory */

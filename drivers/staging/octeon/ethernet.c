@@ -26,7 +26,6 @@
 **********************************************************************/
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

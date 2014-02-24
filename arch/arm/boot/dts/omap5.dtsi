@@ -49,12 +49,22 @@
 				1000000 1060000
 				1500000 1250000
 			>;
+			/* cooling options */
+			cooling-min-level = <0>;
+			cooling-max-level = <2>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0x1>;
 		};
+	};
+
+	thermal-zones {
+		#include "omap4-cpu-thermal.dtsi"
+		#include "omap5-gpu-thermal.dtsi"
+		#include "omap5-core-thermal.dtsi"
 	};
 
 	timer {
@@ -106,6 +116,58 @@
 		      <0x45000000 0x4000>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+
+		prm: prm@4ae06000 {
+			compatible = "ti,omap5-prm";
+			reg = <0x4ae06000 0x3000>;
+
+			prm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prm_clockdomains: clockdomains {
+			};
+		};
+
+		cm_core_aon: cm_core_aon@4a004000 {
+			compatible = "ti,omap5-cm-core-aon";
+			reg = <0x4a004000 0x2000>;
+
+			cm_core_aon_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			cm_core_aon_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@4ae0a000 {
+			compatible = "ti,omap5-scrm";
+			reg = <0x4ae0a000 0x2000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
+		cm_core: cm_core@4a008000 {
+			compatible = "ti,omap5-cm-core";
+			reg = <0x4a008000 0x3000>;
+
+			cm_core_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			cm_core_clockdomains: clockdomains {
+			};
+		};
 
 		counter32k: counter@4ae04000 {
 			compatible = "ti,omap-counter32k";
@@ -729,13 +791,17 @@
 			};
 		};
 
-		bandgap@4a0021e0 {
+		bandgap: bandgap@4a0021e0 {
 			reg = <0x4a0021e0 0xc
 			       0x4a00232c 0xc
 			       0x4a002380 0x2c
 			       0x4a0023C0 0x3c>;
 			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
 			compatible = "ti,omap5430-bandgap";
+
+			#thermal-sensor-cells = <1>;
 		};
 	};
 };
+
+/include/ "omap54xx-clocks.dtsi"

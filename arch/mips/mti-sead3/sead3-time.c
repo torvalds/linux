@@ -13,8 +13,6 @@
 #include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
 
-unsigned long cpu_khz;
-
 static int mips_cpu_timer_irq;
 static int mips_cpu_perf_irq;
 
@@ -108,8 +106,6 @@ void __init plat_time_init(void)
 
 	pr_debug("CPU frequency %d.%02d MHz\n", (est_freq / 1000000),
 		(est_freq % 1000000) * 100 / 1000000);
-
-	cpu_khz = est_freq / 1000;
 
 	mips_scroll_message();
 

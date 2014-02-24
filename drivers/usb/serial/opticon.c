@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/slab.h>
@@ -139,7 +138,7 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* Clear RTS line */
 	send_control_msg(port, CONTROL_RTS, 0);
 
-	/* clear the halt status of the enpoint */
+	/* clear the halt status of the endpoint */
 	usb_clear_halt(port->serial->dev, port->read_urb->pipe);
 
 	res = usb_serial_generic_open(tty, port);
@@ -200,15 +199,12 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	buffer = kmalloc(count, GFP_ATOMIC);
 	if (!buffer) {
-		dev_err(&port->dev, "out of memory\n");
 		count = -ENOMEM;
-
 		goto error_no_buffer;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		dev_err(&port->dev, "no more free urbs\n");
 		count = -ENOMEM;
 		goto error_no_urb;
 	}
@@ -217,11 +213,10 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 
-	/* The conncected devices do not have a bulk write endpoint,
+	/* The connected devices do not have a bulk write endpoint,
 	 * to transmit data to de barcode device the control endpoint is used */
 	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
 	if (!dr) {
-		dev_err(&port->dev, "out of memory\n");
 		count = -ENOMEM;
 		goto error_no_dr;
 	}
@@ -366,8 +361,6 @@ static int opticon_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-
-	dev_dbg(&port->dev, "%s - cmd = 0x%x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCGSERIAL:

@@ -56,25 +56,26 @@ void update_cr_regs(struct task_struct *task)
 #ifdef CONFIG_64BIT
 	/* Take care of the enable/disable of transactional execution. */
 	if (MACHINE_HAS_TE) {
-		unsigned long cr[3], cr_new[3];
+		unsigned long cr, cr_new;
 
-		__ctl_store(cr, 0, 2);
-		cr_new[1] = cr[1];
+		__ctl_store(cr, 0, 0);
 		/* Set or clear transaction execution TXC bit 8. */
+		cr_new = cr | (1UL << 55);
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
-			cr_new[0] = cr[0] & ~(1UL << 55);
-		else
-			cr_new[0] = cr[0] | (1UL << 55);
+			cr_new &= ~(1UL << 55);
+		if (cr_new != cr)
+			__ctl_load(cr, 0, 0);
 		/* Set or clear transaction execution TDC bits 62 and 63. */
-		cr_new[2] = cr[2] & ~3UL;
+		__ctl_store(cr, 2, 2);
+		cr_new = cr & ~3UL;
 		if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
 			if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND_TEND)
-				cr_new[2] |= 1UL;
+				cr_new |= 1UL;
 			else
-				cr_new[2] |= 2UL;
+				cr_new |= 2UL;
 		}
-		if (memcmp(&cr_new, &cr, sizeof(cr)))
-			__ctl_load(cr_new, 0, 2);
+		if (cr_new != cr)
+			__ctl_load(cr_new, 2, 2);
 	}
 #endif
 	/* Copy user specified PER registers */
@@ -107,15 +108,11 @@ void update_cr_regs(struct task_struct *task)
 void user_enable_single_step(struct task_struct *task)
 {
 	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
-	if (task == current)
-		update_cr_regs(task);
 }
 
 void user_disable_single_step(struct task_struct *task)
 {
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
-	if (task == current)
-		update_cr_regs(task);
 }
 
 /*

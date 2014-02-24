@@ -19,6 +19,10 @@
 #define ALPS_PROTO_V5	5
 #define ALPS_PROTO_V6	6
 
+#define DOLPHIN_COUNT_PER_ELECTRODE	64
+#define DOLPHIN_PROFILE_XOFFSET		8	/* x-electrode offset */
+#define DOLPHIN_PROFILE_YOFFSET		1	/* y-electrode offset */
+
 /**
  * struct alps_model_info - touchpad ID table
  * @signature: E7 response string to match.
@@ -146,7 +150,8 @@ struct alps_data {
 
 	int (*hw_init)(struct psmouse *psmouse);
 	void (*process_packet)(struct psmouse *psmouse);
-	void (*decode_fields)(struct alps_fields *f, unsigned char *p);
+	void (*decode_fields)(struct alps_fields *f, unsigned char *p,
+			      struct psmouse *psmouse);
 	void (*set_abs_params)(struct alps_data *priv, struct input_dev *dev1);
 
 	int prev_fin;

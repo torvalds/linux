@@ -20,6 +20,7 @@ config PPC_PSERIES
 	select PPC_DOORBELL
 	select HAVE_CONTEXT_TRACKING
 	select HOTPLUG_CPU if SMP
+	select ARCH_RANDOM
 	default y
 
 config PPC_SPLPAR
@@ -34,7 +35,7 @@ config PPC_SPLPAR
 
 config PSERIES_MSI
        bool
-       depends on PCI_MSI && EEH
+       depends on PCI_MSI && PPC_PSERIES && EEH
        default y
 
 config PSERIES_ENERGY
@@ -119,12 +120,3 @@ config DTL
 	  which are accessible through a debugfs file.
 
 	  Say N if you are unsure.
-
-config PSERIES_IDLE
-	bool "Cpuidle driver for pSeries platforms"
-	depends on CPU_IDLE
-	depends on PPC_PSERIES
-	default y
-	help
-	  Select this option to enable processor idle state management
-	  through cpuidle subsystem.

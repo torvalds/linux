@@ -16,7 +16,6 @@
 #include <linux/types.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
-#include <plat/map-base.h>
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
@@ -335,7 +334,7 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 	} else {
 		/*
 		 * Getting ippdrv capability by ipp_id.
-		 * some deivce not supported wb, output interface.
+		 * some device not supported wb, output interface.
 		 * so, user application detect correct ipp driver
 		 * using this ioctl.
 		 */
@@ -826,7 +825,7 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 		DRM_DEBUG_KMS("count[%d]e[0x%x]\n", count++, (int)e);
 
 		/*
-		 * quf == NULL condition means all event deletion.
+		 * qbuf == NULL condition means all event deletion.
 		 * stop operations want to delete all event list.
 		 * another case delete only same buf id.
 		 */

@@ -373,7 +373,7 @@ static void __init setup_lowcore(void)
 
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
-	 * restart data to the absolute zero lowcore. This is necesary if
+	 * restart data to the absolute zero lowcore. This is necessary if
 	 * PSW restart is done on an offline CPU that has lowcore zero.
 	 */
 	lc->restart_stack = (unsigned long) restart_stack;
@@ -1023,6 +1023,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_vmcoreinfo();
 	setup_lowcore();
 
+	smp_fill_possible_mask();
         cpu_init();
 	s390_init_cpu_topology();
 

@@ -216,6 +216,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_FUNC_CONFIG			160
 #define OPCODE_COMMON_GET_PROFILE_CONFIG		164
 #define OPCODE_COMMON_SET_PROFILE_CONFIG		165
+#define OPCODE_COMMON_GET_ACTIVE_PROFILE		167
 #define OPCODE_COMMON_SET_HSW_CONFIG			153
 #define OPCODE_COMMON_GET_FN_PRIVILEGES			170
 #define OPCODE_COMMON_READ_OBJECT			171
@@ -452,7 +453,7 @@ struct amap_mcc_context_be {
 	u8 rsvd2[32];
 } __packed;
 
-struct amap_mcc_context_lancer {
+struct amap_mcc_context_v1 {
 	u8 async_cq_id[16];
 	u8 ring_size[4];
 	u8 rsvd0[12];
@@ -476,7 +477,7 @@ struct be_cmd_req_mcc_ext_create {
 	u16 num_pages;
 	u16 cq_id;
 	u32 async_event_bitmap[1];
-	u8 context[sizeof(struct amap_mcc_context_be) / 8];
+	u8 context[sizeof(struct amap_mcc_context_v1) / 8];
 	struct phys_addr pages[8];
 } __packed;
 
@@ -1096,6 +1097,14 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 rsvd[26];
 	u32 function_caps;
 };
+
+/* Is BE in a multi-channel mode */
+static inline bool be_is_mc(struct be_adapter *adapter)
+{
+	return adapter->function_mode & FLEX10_MODE ||
+		adapter->function_mode & VNIC_MODE ||
+		adapter->function_mode & UMC_ENABLED;
+}
 
 /******************** RSS Config ****************************************/
 /* RSS type		Input parameters used to compute RX hash
@@ -1917,6 +1926,17 @@ struct be_cmd_resp_set_profile_config {
 	struct be_cmd_resp_hdr hdr;
 };
 
+struct be_cmd_req_get_active_profile {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd;
+} __packed;
+
+struct be_cmd_resp_get_active_profile {
+	struct be_cmd_resp_hdr hdr;
+	u16 active_profile_id;
+	u16 next_profile_id;
+} __packed;
+
 struct be_cmd_enable_disable_vf {
 	struct be_cmd_req_hdr hdr;
 	u8 enable;
@@ -2037,8 +2057,10 @@ int be_cmd_get_fn_privileges(struct be_adapter *adapter, u32 *privilege,
 int be_cmd_set_fn_privileges(struct be_adapter *adapter, u32 privileges,
 			     u32 vf_num);
 int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
-			     bool *pmac_id_active, u32 *pmac_id, u8 domain);
-int be_cmd_get_active_mac(struct be_adapter *adapter, u32 pmac_id, u8 *mac);
+			     bool *pmac_id_active, u32 *pmac_id,
+			     u32 if_handle, u8 domain);
+int be_cmd_get_active_mac(struct be_adapter *adapter, u32 pmac_id, u8 *mac,
+			  u32 if_handle, bool active, u32 domain);
 int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac);
 int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array, u8 mac_count,
 			u32 domain);
@@ -2048,6 +2070,8 @@ int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid, u32 domain,
 int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid, u32 domain,
 			  u16 intf_id, u8 *mode);
 int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
+int be_cmd_set_fw_log_level(struct be_adapter *adapter, u32 level);
+int be_cmd_get_fw_log_level(struct be_adapter *adapter);
 int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 				   struct be_dma_mem *cmd);
 int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
@@ -2063,6 +2087,7 @@ int be_cmd_get_func_config(struct be_adapter *adapter,
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 domain);
 int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps, u8 domain);
+int be_cmd_get_active_profile(struct be_adapter *adapter, u16 *profile);
 int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
 		     int vf_num);
 int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain);

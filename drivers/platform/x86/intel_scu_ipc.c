@@ -62,12 +62,10 @@
 #define IPC_RWBUF_SIZE    20		/* IPC Read buffer Size */
 #define IPC_IOC	          0x100		/* IPC command register IOC bit */
 
-enum {
-	SCU_IPC_LINCROFT,
-	SCU_IPC_PENWELL,
-	SCU_IPC_CLOVERVIEW,
-	SCU_IPC_TANGIER,
-};
+#define PCI_DEVICE_ID_LINCROFT		0x082a
+#define PCI_DEVICE_ID_PENWELL		0x080e
+#define PCI_DEVICE_ID_CLOVERVIEW	0x08ea
+#define PCI_DEVICE_ID_TANGIER		0x11a0
 
 /* intel scu ipc driver data*/
 struct intel_scu_ipc_pdata_t {
@@ -78,35 +76,29 @@ struct intel_scu_ipc_pdata_t {
 	u8 irq_mode;
 };
 
-static struct intel_scu_ipc_pdata_t intel_scu_ipc_pdata[] = {
-	[SCU_IPC_LINCROFT] = {
-		.ipc_base = 0xff11c000,
-		.i2c_base = 0xff12b000,
-		.ipc_len = 0x100,
-		.i2c_len = 0x10,
-		.irq_mode = 0,
-	},
-	[SCU_IPC_PENWELL] = {
-		.ipc_base = 0xff11c000,
-		.i2c_base = 0xff12b000,
-		.ipc_len = 0x100,
-		.i2c_len = 0x10,
-		.irq_mode = 1,
-	},
-	[SCU_IPC_CLOVERVIEW] = {
-		.ipc_base = 0xff11c000,
-		.i2c_base = 0xff12b000,
-		.ipc_len = 0x100,
-		.i2c_len = 0x10,
-		.irq_mode = 1,
-	},
-	[SCU_IPC_TANGIER] = {
-		.ipc_base = 0xff009000,
-		.i2c_base  = 0xff00d000,
-		.ipc_len  = 0x100,
-		.i2c_len = 0x10,
-		.irq_mode = 0,
-	},
+static struct intel_scu_ipc_pdata_t intel_scu_ipc_lincroft_pdata = {
+	.ipc_base = 0xff11c000,
+	.i2c_base = 0xff12b000,
+	.ipc_len = 0x100,
+	.i2c_len = 0x10,
+	.irq_mode = 0,
+};
+
+/* Penwell and Cloverview */
+static struct intel_scu_ipc_pdata_t intel_scu_ipc_penwell_pdata = {
+	.ipc_base = 0xff11c000,
+	.i2c_base = 0xff12b000,
+	.ipc_len = 0x100,
+	.i2c_len = 0x10,
+	.irq_mode = 1,
+};
+
+static struct intel_scu_ipc_pdata_t intel_scu_ipc_tangier_pdata = {
+	.ipc_base = 0xff009000,
+	.i2c_base  = 0xff00d000,
+	.ipc_len  = 0x100,
+	.i2c_len = 0x10,
+	.irq_mode = 0,
 };
 
 static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id);
@@ -583,15 +575,14 @@ static irqreturn_t ioc(int irq, void *dev_id)
  */
 static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	int err, pid;
+	int err;
 	struct intel_scu_ipc_pdata_t *pdata;
 	resource_size_t pci_resource;
 
 	if (ipcdev.pdev)		/* We support only one SCU */
 		return -EBUSY;
 
-	pid = id->driver_data;
-	pdata = &intel_scu_ipc_pdata[pid];
+	pdata = (struct intel_scu_ipc_pdata_t *)id->driver_data;
 
 	ipcdev.pdev = pci_dev_get(dev);
 	ipcdev.irq_mode = pdata->irq_mode;
@@ -650,11 +641,21 @@ static void ipc_remove(struct pci_dev *pdev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(pci_ids) = {
-	{PCI_VDEVICE(INTEL, 0x082a), SCU_IPC_LINCROFT},
-	{PCI_VDEVICE(INTEL, 0x080e), SCU_IPC_PENWELL},
-	{PCI_VDEVICE(INTEL, 0x08ea), SCU_IPC_CLOVERVIEW},
-	{PCI_VDEVICE(INTEL, 0x11a0), SCU_IPC_TANGIER},
-	{ 0,}
+	{
+		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_LINCROFT),
+		(kernel_ulong_t)&intel_scu_ipc_lincroft_pdata,
+	}, {
+		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PENWELL),
+		(kernel_ulong_t)&intel_scu_ipc_penwell_pdata,
+	}, {
+		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CLOVERVIEW),
+		(kernel_ulong_t)&intel_scu_ipc_penwell_pdata,
+	}, {
+		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_TANGIER),
+		(kernel_ulong_t)&intel_scu_ipc_tangier_pdata,
+	}, {
+		0,
+	}
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);
 

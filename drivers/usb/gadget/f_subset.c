@@ -301,7 +301,6 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	int			status;
 	struct usb_ep		*ep;
 
-#ifndef USB_FSUBSET_INCLUDED
 	struct f_gether_opts	*gether_opts;
 
 	gether_opts = container_of(f->fi, struct f_gether_opts, func_inst);
@@ -322,7 +321,7 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 			return status;
 		gether_opts->bound = true;
 	}
-#endif
+
 	us = usb_gstrings_attach(cdev, geth_strings,
 				 ARRAY_SIZE(geth_string_defs));
 	if (IS_ERR(us))
@@ -392,61 +391,6 @@ fail:
 
 	return status;
 }
-
-#ifdef USB_FSUBSET_INCLUDED
-
-static void
-geth_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	geth_string_defs[0].id = 0;
-	usb_free_all_descriptors(f);
-	kfree(func_to_geth(f));
-}
-
-/**
- * geth_bind_config - add CDC Subset network link to a configuration
- * @c: the configuration to support the network link
- * @ethaddr: a buffer in which the ethernet address of the host side
- *	side of the link was recorded
- * @dev: eth_dev structure
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- *
- * Caller must have called @gether_setup().  Caller is also responsible
- * for calling @gether_cleanup() before module unload.
- */
-int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		struct eth_dev *dev)
-{
-	struct f_gether	*geth;
-	int		status;
-
-	/* allocate and initialize one new instance */
-	geth = kzalloc(sizeof *geth, GFP_KERNEL);
-	if (!geth)
-		return -ENOMEM;
-
-	/* export host's Ethernet address in CDC format */
-	snprintf(geth->ethaddr, sizeof geth->ethaddr, "%pm", ethaddr);
-	geth_string_defs[1].s = geth->ethaddr;
-
-	geth->port.ioport = dev;
-	geth->port.cdc_filter = DEFAULT_FILTER;
-
-	geth->port.func.name = "cdc_subset";
-	geth->port.func.bind = geth_bind;
-	geth->port.func.unbind = geth_old_unbind;
-	geth->port.func.set_alt = geth_set_alt;
-	geth->port.func.disable = geth_disable;
-
-	status = usb_add_function(c, &geth->port.func);
-	if (status)
-		kfree(geth);
-	return status;
-}
-
-#else
 
 static inline struct f_gether_opts *to_f_gether_opts(struct config_item *item)
 {
@@ -573,5 +517,3 @@ static struct usb_function *geth_alloc(struct usb_function_instance *fi)
 DECLARE_USB_FUNCTION_INIT(geth, geth_alloc_inst, geth_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");
-
-#endif

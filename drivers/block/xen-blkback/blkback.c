@@ -299,7 +299,7 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 	BUG_ON(num != 0);
 }
 
-static void unmap_purged_grants(struct work_struct *work)
+void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -375,7 +375,7 @@ static void purge_persistent_gnt(struct xen_blkif *blkif)
 
 	pr_debug(DRV_PFX "Going to purge %u persistent grants\n", num_clean);
 
-	INIT_LIST_HEAD(&blkif->persistent_purge_list);
+	BUG_ON(!list_empty(&blkif->persistent_purge_list));
 	root = &blkif->persistent_gnts;
 purge_list:
 	foreach_grant_safe(persistent_gnt, n, root, node) {
@@ -420,7 +420,6 @@ finished:
 	blkif->vbd.overflow_max_grants = 0;
 
 	/* We can defer this work */
-	INIT_WORK(&blkif->persistent_purge_work, unmap_purged_grants);
 	schedule_work(&blkif->persistent_purge_work);
 	pr_debug(DRV_PFX "Purged %u/%u\n", (total - num_clean), total);
 	return;
@@ -625,16 +624,8 @@ purge_gnt_list:
 			print_stats(blkif);
 	}
 
-	/* Since we are shutting down remove all pages from the buffer */
-	shrink_free_pagepool(blkif, 0 /* All */);
-
-	/* Free all persistent grant pages */
-	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts))
-		free_persistent_gnts(blkif, &blkif->persistent_gnts,
-			blkif->persistent_gnt_c);
-
-	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
-	blkif->persistent_gnt_c = 0;
+	/* Drain pending purge work */
+	flush_work(&blkif->persistent_purge_work);
 
 	if (log_stats)
 		print_stats(blkif);
@@ -643,6 +634,23 @@ purge_gnt_list:
 	xen_blkif_put(blkif);
 
 	return 0;
+}
+
+/*
+ * Remove persistent grants and empty the pool of free pages
+ */
+void xen_blkbk_free_caches(struct xen_blkif *blkif)
+{
+	/* Free all persistent grant pages */
+	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts))
+		free_persistent_gnts(blkif, &blkif->persistent_gnts,
+			blkif->persistent_gnt_c);
+
+	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
+	blkif->persistent_gnt_c = 0;
+
+	/* Since we are shutting down remove all pages from the buffer */
+	shrink_free_pagepool(blkif, 0 /* All */);
 }
 
 /*
@@ -838,7 +846,7 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 	struct grant_page **pages = pending_req->indirect_pages;
 	struct xen_blkif *blkif = pending_req->blkif;
 	int indirect_grefs, rc, n, nseg, i;
-	struct blkif_request_segment_aligned *segments = NULL;
+	struct blkif_request_segment *segments = NULL;
 
 	nseg = pending_req->nr_pages;
 	indirect_grefs = INDIRECT_PAGES(nseg);
@@ -934,9 +942,7 @@ static void xen_blk_drain_io(struct xen_blkif *blkif)
 {
 	atomic_set(&blkif->drain, 1);
 	do {
-		/* The initial value is one, and one refcnt taken at the
-		 * start of the xen_blkif_schedule thread. */
-		if (atomic_read(&blkif->refcnt) <= 2)
+		if (atomic_read(&blkif->inflight) == 0)
 			break;
 		wait_for_completion_interruptible_timeout(
 				&blkif->drain_complete, HZ);
@@ -976,17 +982,30 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	 * the proper response on the ring.
 	 */
 	if (atomic_dec_and_test(&pending_req->pendcnt)) {
-		xen_blkbk_unmap(pending_req->blkif,
+		struct xen_blkif *blkif = pending_req->blkif;
+
+		xen_blkbk_unmap(blkif,
 		                pending_req->segments,
 		                pending_req->nr_pages);
-		make_response(pending_req->blkif, pending_req->id,
+		make_response(blkif, pending_req->id,
 			      pending_req->operation, pending_req->status);
-		xen_blkif_put(pending_req->blkif);
-		if (atomic_read(&pending_req->blkif->refcnt) <= 2) {
-			if (atomic_read(&pending_req->blkif->drain))
-				complete(&pending_req->blkif->drain_complete);
+		free_req(blkif, pending_req);
+		/*
+		 * Make sure the request is freed before releasing blkif,
+		 * or there could be a race between free_req and the
+		 * cleanup done in xen_blkif_free during shutdown.
+		 *
+		 * NB: The fact that we might try to wake up pending_free_wq
+		 * before drain_complete (in case there's a drain going on)
+		 * it's not a problem with our current implementation
+		 * because we can assure there's no thread waiting on
+		 * pending_free_wq if there's a drain going on, but it has
+		 * to be taken into account if the current model is changed.
+		 */
+		if (atomic_dec_and_test(&blkif->inflight) && atomic_read(&blkif->drain)) {
+			complete(&blkif->drain_complete);
 		}
-		free_req(pending_req->blkif, pending_req);
+		xen_blkif_put(blkif);
 	}
 }
 
@@ -1240,6 +1259,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * below (in "!bio") if we are handling a BLKIF_OP_DISCARD.
 	 */
 	xen_blkif_get(blkif);
+	atomic_inc(&blkif->inflight);
 
 	for (i = 0; i < nseg; i++) {
 		while ((bio == NULL) ||
@@ -1257,7 +1277,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 			bio->bi_bdev    = preq.bdev;
 			bio->bi_private = pending_req;
 			bio->bi_end_io  = end_block_io_op;
-			bio->bi_sector  = preq.sector_number;
+			bio->bi_iter.bi_sector  = preq.sector_number;
 		}
 
 		preq.sector_number += seg[i].nsec;

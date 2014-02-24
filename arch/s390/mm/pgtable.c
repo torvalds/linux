@@ -293,7 +293,7 @@ static int gmap_alloc_table(struct gmap *gmap,
  * @addr: address in the guest address space
  * @len: length of the memory area to unmap
  *
- * Returns 0 if the unmap succeded, -EINVAL if not.
+ * Returns 0 if the unmap succeeded, -EINVAL if not.
  */
 int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 {
@@ -344,7 +344,7 @@ EXPORT_SYMBOL_GPL(gmap_unmap_segment);
  * @from: source address in the parent address space
  * @to: target address in the guest address space
  *
- * Returns 0 if the mmap succeded, -EINVAL or -ENOMEM if not.
+ * Returns 0 if the mmap succeeded, -EINVAL or -ENOMEM if not.
  */
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		     unsigned long to, unsigned long len)

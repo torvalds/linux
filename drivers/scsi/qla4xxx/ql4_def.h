@@ -73,6 +73,7 @@
 
 #define QLA_SUCCESS			0
 #define QLA_ERROR			1
+#define STATUS(status)		status == QLA_ERROR ? "FAILED" : "SUCCEEDED"
 
 /*
  * Data bit definitions
@@ -179,6 +180,10 @@
 		n &= ~v;	\
 }
 
+#define OP_STATE(o, f, p) {			\
+	p = (o & f) ? "enable" : "disable";	\
+}
+
 /*
  * Retry & Timeout Values
  */
@@ -206,6 +211,8 @@
 #define MAX_RESET_HA_RETRIES		2
 #define FW_ALIVE_WAIT_TOV		3
 #define IDC_EXTEND_TOV			8
+#define IDC_COMP_TOV			5
+#define LINK_UP_COMP_TOV		30
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
@@ -476,6 +483,34 @@ struct ipaddress_config {
 	uint16_t eth_mtu_size;
 	uint16_t ipv4_port;
 	uint16_t ipv6_port;
+	uint8_t control;
+	uint16_t ipv6_tcp_options;
+	uint8_t tcp_wsf;
+	uint8_t ipv6_tcp_wsf;
+	uint8_t ipv4_tos;
+	uint8_t ipv4_cache_id;
+	uint8_t ipv6_cache_id;
+	uint8_t ipv4_alt_cid_len;
+	uint8_t ipv4_alt_cid[11];
+	uint8_t ipv4_vid_len;
+	uint8_t ipv4_vid[11];
+	uint8_t ipv4_ttl;
+	uint16_t ipv6_flow_lbl;
+	uint8_t ipv6_traffic_class;
+	uint8_t ipv6_hop_limit;
+	uint32_t ipv6_nd_reach_time;
+	uint32_t ipv6_nd_rexmit_timer;
+	uint32_t ipv6_nd_stale_timeout;
+	uint8_t ipv6_dup_addr_detect_count;
+	uint32_t ipv6_gw_advrt_mtu;
+	uint16_t def_timeout;
+	uint8_t abort_timer;
+	uint16_t iscsi_options;
+	uint16_t iscsi_max_pdu_size;
+	uint16_t iscsi_first_burst_len;
+	uint16_t iscsi_max_outstnd_r2t;
+	uint16_t iscsi_max_burst_len;
+	uint8_t iscsi_name[224];
 };
 
 #define QL4_CHAP_MAX_NAME_LEN 256
@@ -790,6 +825,11 @@ struct scsi_qla_host {
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
 	struct addr_ctrl_blk *saved_acb;
+	int notify_idc_comp;
+	int notify_link_up_comp;
+	int idc_extend_tmo;
+	struct completion idc_comp;
+	struct completion link_up_comp;
 };
 
 struct ql4_task_data {

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -297,6 +297,12 @@ struct iwl_mvm_sta {
 	s8 tx_protection;
 	bool tt_tx_protection;
 };
+
+static inline struct iwl_mvm_sta *
+iwl_mvm_sta_from_mac80211(struct ieee80211_sta *sta)
+{
+	return (void *)sta->drv_priv;
+}
 
 /**
  * struct iwl_mvm_int_sta - representation of an internal station (auxiliary or

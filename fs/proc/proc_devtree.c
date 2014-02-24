@@ -74,9 +74,9 @@ __proc_device_tree_add_prop(struct proc_dir_entry *de, struct property *pp,
 		return NULL;
 
 	if (!strncmp(name, "security-", 9))
-		ent->size = 0; /* don't leak number of password chars */
+		proc_set_size(ent, 0); /* don't leak number of password chars */
 	else
-		ent->size = pp->length;
+		proc_set_size(ent, pp->length);
 
 	return ent;
 }
@@ -232,6 +232,7 @@ void __init proc_device_tree_init(void)
 		return;
 	root = of_find_node_by_path("/");
 	if (root == NULL) {
+		remove_proc_entry("device-tree", NULL);
 		pr_debug("/proc/device-tree: can't find root\n");
 		return;
 	}

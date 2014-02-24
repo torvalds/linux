@@ -32,7 +32,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -67,7 +66,7 @@
 #define PCNET_RDC_TIMEOUT (2*HZ/100)	/* Max wait in jiffies for Tx RDC */
 
 static const char *if_names[] = { "auto", "10baseT", "10base2"};
-
+static u32 pcnet_msg_enable;
 
 /*====================================================================*/
 
@@ -558,6 +557,7 @@ static int pcnet_config(struct pcmcia_device *link)
     int start_pg, stop_pg, cm_offset;
     int has_shmem = 0;
     hw_info_t *local_hw_info;
+    struct ei_device *ei_local;
 
     dev_dbg(&link->dev, "pcnet_config\n");
 
@@ -607,6 +607,8 @@ static int pcnet_config(struct pcmcia_device *link)
 	mii_phy_probe(dev);
 
     SET_NETDEV_DEV(dev, &link->dev);
+    ei_local = netdev_priv(dev);
+    ei_local->msg_enable = pcnet_msg_enable;
 
     if (register_netdev(dev) != 0) {
 	pr_notice("register_netdev() failed\n");
@@ -616,7 +618,7 @@ static int pcnet_config(struct pcmcia_device *link)
     if (info->flags & (IS_DL10019|IS_DL10022)) {
 	u_char id = inb(dev->base_addr + 0x1a);
 	netdev_info(dev, "NE2000 (DL100%d rev %02x): ",
-	       (info->flags & IS_DL10022) ? 22 : 19, id);
+		    (info->flags & IS_DL10022) ? 22 : 19, id);
 	if (info->pna_phy)
 	    pr_cont("PNA, ");
     } else {
@@ -1063,9 +1065,9 @@ static void ei_watchdog(u_long arg)
 	    if (info->phy_id == info->eth_phy) {
 		if (p)
 		    netdev_info(dev, "autonegotiation complete: "
-			   "%sbaseT-%cD selected\n",
-			   ((p & 0x0180) ? "100" : "10"),
-			   ((p & 0x0140) ? 'F' : 'H'));
+				"%sbaseT-%cD selected\n",
+				((p & 0x0180) ? "100" : "10"),
+				((p & 0x0140) ? 'F' : 'H'));
 		else
 		    netdev_info(dev, "link partner did not autonegotiate\n");
 	    }
@@ -1081,7 +1083,7 @@ static void ei_watchdog(u_long arg)
 	    mdio_write(mii_addr, info->phy_id, 0, 0x0400);
 	    info->phy_id ^= info->pna_phy ^ info->eth_phy;
 	    netdev_info(dev, "switched to %s transceiver\n",
-		   (info->phy_id == info->eth_phy) ? "ethernet" : "PNA");
+			(info->phy_id == info->eth_phy) ? "ethernet" : "PNA");
 	    mdio_write(mii_addr, info->phy_id, 0,
 		       (info->phy_id == info->eth_phy) ? 0x1000 : 0);
 	    info->link_status = 0;
@@ -1128,9 +1130,9 @@ static void dma_get_8390_hdr(struct net_device *dev,
     unsigned int nic_base = dev->base_addr;
 
     if (ei_status.dmaing) {
-	netdev_notice(dev, "DMAing conflict in dma_block_input."
-	       "[DMAstat:%1x][irqlock:%1x]\n",
-	       ei_status.dmaing, ei_status.irqlock);
+	netdev_err(dev, "DMAing conflict in dma_block_input."
+		   "[DMAstat:%1x][irqlock:%1x]\n",
+		   ei_status.dmaing, ei_status.irqlock);
 	return;
     }
 
@@ -1159,13 +1161,14 @@ static void dma_block_input(struct net_device *dev, int count,
     unsigned int nic_base = dev->base_addr;
     int xfer_count = count;
     char *buf = skb->data;
+    struct ei_device *ei_local = netdev_priv(dev);
 
-    if ((ei_debug > 4) && (count != 4))
+    if ((netif_msg_rx_status(ei_local)) && (count != 4))
 	netdev_dbg(dev, "[bi=%d]\n", count+4);
     if (ei_status.dmaing) {
-	netdev_notice(dev, "DMAing conflict in dma_block_input."
-	       "[DMAstat:%1x][irqlock:%1x]\n",
-	       ei_status.dmaing, ei_status.irqlock);
+	netdev_err(dev, "DMAing conflict in dma_block_input."
+		   "[DMAstat:%1x][irqlock:%1x]\n",
+		   ei_status.dmaing, ei_status.irqlock);
 	return;
     }
     ei_status.dmaing |= 0x01;
@@ -1183,7 +1186,8 @@ static void dma_block_input(struct net_device *dev, int count,
     /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */
 #ifdef PCMCIA_DEBUG
-    if (ei_debug > 4) {		/* DMA termination address check... */
+      /* DMA termination address check... */
+    if (netif_msg_rx_status(ei_local)) {
 	int addr, tries = 20;
 	do {
 	    /* DON'T check for 'inb_p(EN0_ISR) & ENISR_RDC' here
@@ -1196,8 +1200,8 @@ static void dma_block_input(struct net_device *dev, int count,
 	} while (--tries > 0);
 	if (tries <= 0)
 	    netdev_notice(dev, "RX transfer address mismatch,"
-		   "%#4.4x (expected) vs. %#4.4x (actual).\n",
-		   ring_offset + xfer_count, addr);
+			  "%#4.4x (expected) vs. %#4.4x (actual).\n",
+			  ring_offset + xfer_count, addr);
     }
 #endif
     outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
@@ -1213,12 +1217,12 @@ static void dma_block_output(struct net_device *dev, int count,
     pcnet_dev_t *info = PRIV(dev);
 #ifdef PCMCIA_DEBUG
     int retries = 0;
+    struct ei_device *ei_local = netdev_priv(dev);
 #endif
     u_long dma_start;
 
 #ifdef PCMCIA_DEBUG
-    if (ei_debug > 4)
-	netdev_dbg(dev, "[bo=%d]\n", count);
+    netif_dbg(ei_local, tx_queued, dev, "[bo=%d]\n", count);
 #endif
 
     /* Round the count up for word writes.  Do we need to do this?
@@ -1227,9 +1231,9 @@ static void dma_block_output(struct net_device *dev, int count,
     if (count & 0x01)
 	count++;
     if (ei_status.dmaing) {
-	netdev_notice(dev, "DMAing conflict in dma_block_output."
-	       "[DMAstat:%1x][irqlock:%1x]\n",
-	       ei_status.dmaing, ei_status.irqlock);
+	netdev_err(dev, "DMAing conflict in dma_block_output."
+		   "[DMAstat:%1x][irqlock:%1x]\n",
+		   ei_status.dmaing, ei_status.irqlock);
 	return;
     }
     ei_status.dmaing |= 0x01;
@@ -1256,7 +1260,8 @@ static void dma_block_output(struct net_device *dev, int count,
 #ifdef PCMCIA_DEBUG
     /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */
-    if (ei_debug > 4) {	/* DMA termination address check... */
+    /* DMA termination address check... */
+    if (netif_msg_tx_queued(ei_local)) {
 	int addr, tries = 20;
 	do {
 	    int high = inb_p(nic_base + EN0_RSARHI);
@@ -1267,8 +1272,8 @@ static void dma_block_output(struct net_device *dev, int count,
 	} while (--tries > 0);
 	if (tries <= 0) {
 	    netdev_notice(dev, "Tx packet transfer address mismatch,"
-		   "%#4.4x (expected) vs. %#4.4x (actual).\n",
-		   (start_page << 8) + count, addr);
+			  "%#4.4x (expected) vs. %#4.4x (actual).\n",
+			  (start_page << 8) + count, addr);
 	    if (retries++ == 0)
 		goto retry;
 	}
@@ -1277,10 +1282,10 @@ static void dma_block_output(struct net_device *dev, int count,
 
     while ((inb_p(nic_base + EN0_ISR) & ENISR_RDC) == 0)
 	if (time_after(jiffies, dma_start + PCNET_RDC_TIMEOUT)) {
-	    netdev_notice(dev, "timeout waiting for Tx RDC.\n");
-	    pcnet_reset_8390(dev);
-	    NS8390_init(dev, 1);
-	    break;
+		netdev_warn(dev, "timeout waiting for Tx RDC.\n");
+		pcnet_reset_8390(dev);
+		NS8390_init(dev, 1);
+		break;
 	}
 
     outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */

@@ -50,8 +50,8 @@ struct inet6_ifaddr {
 
 	int			state;
 
+	__u32			flags;
 	__u8			dad_probes;
-	__u8			flags;
 
 	__u16			scope;
 
@@ -165,7 +165,6 @@ struct inet6_dev {
 	struct net_device	*dev;
 
 	struct list_head	addr_list;
-	int			valid_ll_addr_cnt;
 
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;

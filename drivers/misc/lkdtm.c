@@ -224,7 +224,7 @@ static int jp_scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 }
 
 #ifdef CONFIG_IDE
-int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
+static int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
 			struct block_device *bdev, unsigned int cmd,
 			unsigned long arg)
 {
@@ -334,9 +334,10 @@ static void execute_location(void *dst)
 
 static void execute_user_location(void *dst)
 {
+	/* Intentionally crossing kernel/user memory boundary. */
 	void (*func)(void) = dst;
 
-	if (copy_to_user(dst, do_nothing, EXEC_SIZE))
+	if (copy_to_user((void __user *)dst, do_nothing, EXEC_SIZE))
 		return;
 	func();
 }
@@ -408,6 +409,8 @@ static void lkdtm_do_action(enum ctype which)
 	case CT_SPINLOCKUP:
 		/* Must be called twice to trigger. */
 		spin_lock(&lock_me_up);
+		/* Let sparse know we intended to exit holding the lock. */
+		__release(&lock_me_up);
 		break;
 	case CT_HUNG_TASK:
 		set_current_state(TASK_UNINTERRUPTIBLE);

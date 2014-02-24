@@ -655,8 +655,8 @@ _func_enter_;
 			SetFwRsvdPagePkt(adapt, false);
 			DLBcnCount++;
 			do {
-				rtw_yield_os();
-				/* rtw_mdelay_os(10); */
+				yield();
+				/* mdelay(10); */
 				/*  check rsvd page download OK. */
 				rtw_hal_get_hwreg(adapt, HW_VAR_BCN_VALID, (u8 *)(&bcn_valid));
 				poll++;

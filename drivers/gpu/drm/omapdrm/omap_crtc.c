@@ -411,7 +411,7 @@ static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	struct drm_crtc *crtc = &omap_crtc->base;
 	DRM_ERROR("%s: errors: %08x\n", omap_crtc->name, irqstatus);
 	/* avoid getting in a flood, unregister the irq until next vblank */
-	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
+	__omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 }
 
 static void omap_crtc_apply_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
@@ -421,13 +421,13 @@ static void omap_crtc_apply_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	struct drm_crtc *crtc = &omap_crtc->base;
 
 	if (!omap_crtc->error_irq.registered)
-		omap_irq_register(crtc->dev, &omap_crtc->error_irq);
+		__omap_irq_register(crtc->dev, &omap_crtc->error_irq);
 
 	if (!dispc_mgr_go_busy(omap_crtc->channel)) {
 		struct omap_drm_private *priv =
 				crtc->dev->dev_private;
 		DBG("%s: apply done", omap_crtc->name);
-		omap_irq_unregister(crtc->dev, &omap_crtc->apply_irq);
+		__omap_irq_unregister(crtc->dev, &omap_crtc->apply_irq);
 		queue_work(priv->wq, &omap_crtc->apply_work);
 	}
 }
@@ -621,6 +621,11 @@ static const char *channel_names[] = {
 void omap_crtc_pre_init(void)
 {
 	dss_install_mgr_ops(&mgr_ops);
+}
+
+void omap_crtc_pre_uninit(void)
+{
+	dss_uninstall_mgr_ops();
 }
 
 /* initialize crtc */

@@ -252,7 +252,7 @@ static void ichx_gpiolib_setup(struct gpio_chip *chip)
 	chip->direction_output = ichx_gpio_direction_output;
 	chip->base = modparam_gpiobase;
 	chip->ngpio = ichx_priv.desc->ngpio;
-	chip->can_sleep = 0;
+	chip->can_sleep = false;
 	chip->dbg_show = NULL;
 }
 

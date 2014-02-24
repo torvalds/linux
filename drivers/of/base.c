@@ -415,6 +415,9 @@ static int __of_device_is_available(const struct device_node *device)
 	const char *status;
 	int statlen;
 
+	if (!device)
+		return 0;
+
 	status = __of_get_property(device, "status", &statlen);
 	if (status == NULL)
 		return 1;
@@ -727,12 +730,48 @@ out:
 }
 EXPORT_SYMBOL(of_find_node_with_property);
 
+static const struct of_device_id *
+of_match_compatible(const struct of_device_id *matches,
+			const struct device_node *node)
+{
+	const char *cp;
+	int cplen, l;
+	const struct of_device_id *m;
+
+	cp = __of_get_property(node, "compatible", &cplen);
+	while (cp && (cplen > 0)) {
+		m = matches;
+		while (m->name[0] || m->type[0] || m->compatible[0]) {
+			/* Only match for the entries without type and name */
+			if (m->name[0] || m->type[0] ||
+				of_compat_cmp(m->compatible, cp,
+					 strlen(m->compatible)))
+				m++;
+			else
+				return m;
+		}
+
+		/* Get node's next compatible string */
+		l = strlen(cp) + 1;
+		cp += l;
+		cplen -= l;
+	}
+
+	return NULL;
+}
+
 static
 const struct of_device_id *__of_match_node(const struct of_device_id *matches,
 					   const struct device_node *node)
 {
+	const struct of_device_id *m;
+
 	if (!matches)
 		return NULL;
+
+	m = of_match_compatible(matches, node);
+	if (m)
+		return m;
 
 	while (matches->name[0] || matches->type[0] || matches->compatible[0]) {
 		int match = 1;
@@ -757,7 +796,12 @@ const struct of_device_id *__of_match_node(const struct of_device_id *matches,
  *	@matches:	array of of device match structures to search in
  *	@node:		the of device structure to match against
  *
- *	Low level utility function used by device matching.
+ *	Low level utility function used by device matching. We have two ways
+ *	of matching:
+ *	- Try to find the best compatible match by comparing each compatible
+ *	  string of device node with all the given matches respectively.
+ *	- If the above method failed, then try to match the compatible by using
+ *	  __of_device_is_compatible() besides the match in type and name.
  */
 const struct of_device_id *of_match_node(const struct of_device_id *matches,
 					 const struct device_node *node)

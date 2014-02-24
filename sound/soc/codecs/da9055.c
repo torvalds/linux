@@ -1058,17 +1058,17 @@ static int da9055_hw_params(struct snd_pcm_substream *substream,
 	u8 aif_ctrl, fs;
 	u32 sysclk;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		aif_ctrl = DA9055_AIF_WORD_S16_LE;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		aif_ctrl = DA9055_AIF_WORD_S20_3LE;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		aif_ctrl = DA9055_AIF_WORD_S24_LE;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		aif_ctrl = DA9055_AIF_WORD_S32_LE;
 		break;
 	default:

@@ -172,7 +172,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 	struct input_dev *key_dev;
 	struct resource *res, *mem;
 	struct device *dev = &pdev->dev;
-	struct davinci_ks_platform_data *pdata = pdev->dev.platform_data;
+	struct davinci_ks_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int error, i;
 
 	if (pdata->device_enable) {

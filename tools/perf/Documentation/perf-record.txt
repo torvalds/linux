@@ -57,6 +57,8 @@ OPTIONS
 -t::
 --tid=::
         Record events on existing thread ID (comma separated list).
+        This option also disables inheritance by default.  Enable it by adding
+        --inherit.
 
 -u::
 --uid=::
@@ -66,8 +68,7 @@ OPTIONS
 --realtime=::
 	Collect data with this RT SCHED_FIFO priority.
 
--D::
---no-delay::
+--no-buffering::
 	Collect data without buffering.
 
 -c::
@@ -201,11 +202,16 @@ abort events and some memory events in precise mode on modern Intel CPUs.
 --transaction::
 Record transaction flags for transaction related events.
 
---force-per-cpu::
-Force the use of per-cpu mmaps.  By default, when tasks are specified (i.e. -p,
--t or -u options) per-thread mmaps are created.  This option overrides that and
-forces per-cpu mmaps.  A side-effect of that is that inheritance is
-automatically enabled.  Add the -i option also to disable inheritance.
+--per-thread::
+Use per-thread mmaps.  By default per-cpu mmaps are created.  This option
+overrides that and uses per-thread mmaps.  A side-effect of that is that
+inheritance is automatically disabled.  --per-thread is ignored with a warning
+if combined with -a or -C options.
+
+-D::
+--delay=::
+After starting the program, wait msecs before measuring. This is useful to
+filter out the startup phase of the program, which is often very different.
 
 SEE ALSO
 --------

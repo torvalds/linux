@@ -30,7 +30,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -285,7 +284,7 @@ static void cyberjack_read_int_callback(struct urb *urb)
 			goto resubmit;
 		}
 
-		/* "+=" is probably more fault tollerant than "=" */
+		/* "+=" is probably more fault tolerant than "=" */
 		priv->rdtodo += size;
 
 		dev_dbg(dev, "%s - rdtodo: %d\n", __func__, priv->rdtodo);

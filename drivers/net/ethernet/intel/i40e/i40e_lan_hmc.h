@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -113,8 +112,8 @@ enum i40e_hmc_lan_object_size {
 #define I40E_HMC_L2OBJ_BASE_ALIGNMENT 512
 #define I40E_HMC_OBJ_SIZE_TXQ         128
 #define I40E_HMC_OBJ_SIZE_RXQ         32
-#define I40E_HMC_OBJ_SIZE_FCOE_CNTX   128
-#define I40E_HMC_OBJ_SIZE_FCOE_FILT   32
+#define I40E_HMC_OBJ_SIZE_FCOE_CNTX   64
+#define I40E_HMC_OBJ_SIZE_FCOE_FILT   64
 
 enum i40e_hmc_lan_rsrc_type {
 	I40E_HMC_LAN_FULL  = 0,

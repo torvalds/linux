@@ -432,6 +432,38 @@ outnl:
 	return rv < 0 ? rv : count;
 }
 
+/*
+ * clear WDM_READ flag and possibly submit the read urb if resp_count
+ * is non-zero.
+ *
+ * Called with desc->iuspin locked
+ */
+static int clear_wdm_read_flag(struct wdm_device *desc)
+{
+	int rv = 0;
+
+	clear_bit(WDM_READ, &desc->flags);
+
+	/* submit read urb only if the device is waiting for it */
+	if (!desc->resp_count || !--desc->resp_count)
+		goto out;
+
+	set_bit(WDM_RESPONDING, &desc->flags);
+	spin_unlock_irq(&desc->iuspin);
+	rv = usb_submit_urb(desc->response, GFP_KERNEL);
+	spin_lock_irq(&desc->iuspin);
+	if (rv) {
+		dev_err(&desc->intf->dev,
+			"usb_submit_urb failed with result %d\n", rv);
+
+		/* make sure the next notification trigger a submit */
+		clear_bit(WDM_RESPONDING, &desc->flags);
+		desc->resp_count = 0;
+	}
+out:
+	return rv;
+}
+
 static ssize_t wdm_read
 (struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
@@ -503,8 +535,10 @@ retry:
 
 		if (!desc->reslength) { /* zero length read */
 			dev_dbg(&desc->intf->dev, "%s: zero length - clearing WDM_READ\n", __func__);
-			clear_bit(WDM_READ, &desc->flags);
+			rv = clear_wdm_read_flag(desc);
 			spin_unlock_irq(&desc->iuspin);
+			if (rv < 0)
+				goto err;
 			goto retry;
 		}
 		cntr = desc->length;
@@ -526,37 +560,9 @@ retry:
 
 	desc->length -= cntr;
 	/* in case we had outstanding data */
-	if (!desc->length) {
-		clear_bit(WDM_READ, &desc->flags);
-
-		if (--desc->resp_count) {
-			set_bit(WDM_RESPONDING, &desc->flags);
-			spin_unlock_irq(&desc->iuspin);
-
-			rv = usb_submit_urb(desc->response, GFP_KERNEL);
-			if (rv) {
-				dev_err(&desc->intf->dev,
-					"%s: usb_submit_urb failed with result %d\n",
-					__func__, rv);
-				spin_lock_irq(&desc->iuspin);
-				clear_bit(WDM_RESPONDING, &desc->flags);
-				spin_unlock_irq(&desc->iuspin);
-
-				if (rv == -ENOMEM) {
-					rv = schedule_work(&desc->rxwork);
-					if (rv)
-						dev_err(&desc->intf->dev, "Cannot schedule work\n");
-				} else {
-					spin_lock_irq(&desc->iuspin);
-					desc->resp_count = 0;
-					spin_unlock_irq(&desc->iuspin);
-				}
-			}
-		} else
-			spin_unlock_irq(&desc->iuspin);
-	} else
-		spin_unlock_irq(&desc->iuspin);
-
+	if (!desc->length)
+		clear_wdm_read_flag(desc);
+	spin_unlock_irq(&desc->iuspin);
 	rv = cntr;
 
 err:

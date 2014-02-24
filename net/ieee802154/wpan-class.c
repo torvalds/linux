@@ -46,7 +46,7 @@ MASTER_SHOW(current_channel, "%d");
 MASTER_SHOW(current_page, "%d");
 MASTER_SHOW_COMPLEX(transmit_power, "%d +- %d dB",
 	((signed char) (phy->transmit_power << 2)) >> 2,
-	(phy->transmit_power >> 6) ? (phy->transmit_power >> 6) * 3 : 1 );
+	(phy->transmit_power >> 6) ? (phy->transmit_power >> 6) * 3 : 1);
 MASTER_SHOW(cca_mode, "%d");
 
 static ssize_t channels_supported_show(struct device *dev,

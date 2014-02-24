@@ -33,7 +33,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/dmi.h>
 #include <linux/fb.h>
-#include <acpi/acpi_bus.h>
+#include <linux/acpi.h>
 
 #include "asus-wmi.h"
 

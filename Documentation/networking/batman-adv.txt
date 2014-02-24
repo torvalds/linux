@@ -66,11 +66,10 @@ All  mesh  wide  settings  can be found in batman's own interface
 folder:
 
 # ls /sys/class/net/bat0/mesh/
-# aggregated_ogms        gw_bandwidth           log_level
-# ap_isolation           gw_mode                orig_interval
-# bonding                gw_sel_class           routing_algo
-# bridge_loop_avoidance  hop_penalty            fragmentation
-
+#aggregated_ogms        distributed_arp_table  gw_sel_class    orig_interval
+#ap_isolation           fragmentation          hop_penalty     routing_algo
+#bonding                gw_bandwidth           isolation_mark  vlan0
+#bridge_loop_avoidance  gw_mode                log_level
 
 There is a special folder for debugging information:
 

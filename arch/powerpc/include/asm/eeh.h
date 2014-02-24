@@ -90,7 +90,8 @@ struct eeh_pe {
 #define EEH_DEV_IRQ_DISABLED	(1 << 3)	/* Interrupt disabled	*/
 #define EEH_DEV_DISCONNECTED	(1 << 4)	/* Removing from PE	*/
 
-#define EEH_DEV_SYSFS		(1 << 8)	/* Sysfs created        */
+#define EEH_DEV_NO_HANDLER	(1 << 8)	/* No error handler	*/
+#define EEH_DEV_SYSFS		(1 << 9)	/* Sysfs created	*/
 
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
@@ -116,6 +117,16 @@ static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
 {
 	return edev ? edev->pdev : NULL;
 }
+
+/* Return values from eeh_ops::next_error */
+enum {
+	EEH_NEXT_ERR_NONE = 0,
+	EEH_NEXT_ERR_INF,
+	EEH_NEXT_ERR_FROZEN_PE,
+	EEH_NEXT_ERR_FENCED_PHB,
+	EEH_NEXT_ERR_DEAD_PHB,
+	EEH_NEXT_ERR_DEAD_IOC
+};
 
 /*
  * The struct is used to trace the registered EEH operation
@@ -157,6 +168,7 @@ struct eeh_ops {
 	int (*read_config)(struct device_node *dn, int where, int size, u32 *val);
 	int (*write_config)(struct device_node *dn, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
+	int (*restore_config)(struct device_node *dn);
 };
 
 extern struct eeh_ops *eeh_ops;

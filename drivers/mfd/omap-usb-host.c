@@ -121,22 +121,22 @@ static u64 usbhs_dmamask = DMA_BIT_MASK(32);
 
 static inline void usbhs_write(void __iomem *base, u32 reg, u32 val)
 {
-	__raw_writel(val, base + reg);
+	writel_relaxed(val, base + reg);
 }
 
 static inline u32 usbhs_read(void __iomem *base, u32 reg)
 {
-	return __raw_readl(base + reg);
+	return readl_relaxed(base + reg);
 }
 
 static inline void usbhs_writeb(void __iomem *base, u8 reg, u8 val)
 {
-	__raw_writeb(val, base + reg);
+	writeb_relaxed(val, base + reg);
 }
 
 static inline u8 usbhs_readb(void __iomem *base, u8 reg)
 {
-	return __raw_readb(base + reg);
+	return readb_relaxed(base + reg);
 }
 
 /*-------------------------------------------------------------------------*/

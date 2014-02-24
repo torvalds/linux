@@ -80,13 +80,14 @@ struct nvme_dev {
 	struct dma_pool *prp_small_pool;
 	int instance;
 	int queue_count;
-	int db_stride;
+	u32 db_stride;
 	u32 ctrl_config;
 	struct msix_entry *entry;
 	struct nvme_bar __iomem *bar;
 	struct list_head namespaces;
 	struct kref kref;
 	struct miscdevice miscdev;
+	struct work_struct reset_work;
 	char name[12];
 	char serial[20];
 	char model[40];
@@ -94,6 +95,8 @@ struct nvme_dev {
 	u32 max_hw_sectors;
 	u32 stripe_size;
 	u16 oncs;
+	u16 abort_limit;
+	u8 initialized;
 };
 
 /*
@@ -165,6 +168,7 @@ int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
 struct sg_io_hdr;
 
 int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr);
+int nvme_sg_io32(struct nvme_ns *ns, unsigned long arg);
 int nvme_sg_get_version_num(int __user *ip);
 
 #endif /* _LINUX_NVME_H */

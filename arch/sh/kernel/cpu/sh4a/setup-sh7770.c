@@ -16,170 +16,210 @@
 #include <linux/io.h>
 
 static struct plat_sci_port scif0_platform_data = {
-	.mapbase	= 0xff923000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x9a0)),
+};
+
+static struct resource scif0_resources[] = {
+	DEFINE_RES_MEM(0xff923000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x9a0)),
 };
 
 static struct platform_device scif0_device = {
 	.name		= "sh-sci",
 	.id		= 0,
+	.resource	= scif0_resources,
+	.num_resources	= ARRAY_SIZE(scif0_resources),
 	.dev		= {
 		.platform_data	= &scif0_platform_data,
 	},
 };
 
 static struct plat_sci_port scif1_platform_data = {
-	.mapbase	= 0xff924000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x9c0)),
+};
+
+static struct resource scif1_resources[] = {
+	DEFINE_RES_MEM(0xff924000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x9c0)),
 };
 
 static struct platform_device scif1_device = {
 	.name		= "sh-sci",
 	.id		= 1,
+	.resource	= scif1_resources,
+	.num_resources	= ARRAY_SIZE(scif1_resources),
 	.dev		= {
 		.platform_data	= &scif1_platform_data,
 	},
 };
 
 static struct plat_sci_port scif2_platform_data = {
-	.mapbase	= 0xff925000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x9e0)),
+};
+
+static struct resource scif2_resources[] = {
+	DEFINE_RES_MEM(0xff925000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x9e0)),
 };
 
 static struct platform_device scif2_device = {
 	.name		= "sh-sci",
 	.id		= 2,
+	.resource	= scif2_resources,
+	.num_resources	= ARRAY_SIZE(scif2_resources),
 	.dev		= {
 		.platform_data	= &scif2_platform_data,
 	},
 };
 
 static struct plat_sci_port scif3_platform_data = {
-	.mapbase	= 0xff926000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xa00)),
+};
+
+static struct resource scif3_resources[] = {
+	DEFINE_RES_MEM(0xff926000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0xa00)),
 };
 
 static struct platform_device scif3_device = {
 	.name		= "sh-sci",
 	.id		= 3,
+	.resource	= scif3_resources,
+	.num_resources	= ARRAY_SIZE(scif3_resources),
 	.dev		= {
 		.platform_data	= &scif3_platform_data,
 	},
 };
 
 static struct plat_sci_port scif4_platform_data = {
-	.mapbase	= 0xff927000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xa20)),
+};
+
+static struct resource scif4_resources[] = {
+	DEFINE_RES_MEM(0xff927000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0xa20)),
 };
 
 static struct platform_device scif4_device = {
 	.name		= "sh-sci",
 	.id		= 4,
+	.resource	= scif4_resources,
+	.num_resources	= ARRAY_SIZE(scif4_resources),
 	.dev		= {
 		.platform_data	= &scif4_platform_data,
 	},
 };
 
 static struct plat_sci_port scif5_platform_data = {
-	.mapbase	= 0xff928000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xa40)),
+};
+
+static struct resource scif5_resources[] = {
+	DEFINE_RES_MEM(0xff928000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0xa40)),
 };
 
 static struct platform_device scif5_device = {
 	.name		= "sh-sci",
 	.id		= 5,
+	.resource	= scif5_resources,
+	.num_resources	= ARRAY_SIZE(scif5_resources),
 	.dev		= {
 		.platform_data	= &scif5_platform_data,
 	},
 };
 
 static struct plat_sci_port scif6_platform_data = {
-	.mapbase	= 0xff929000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xa60)),
+};
+
+static struct resource scif6_resources[] = {
+	DEFINE_RES_MEM(0xff929000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0xa60)),
 };
 
 static struct platform_device scif6_device = {
 	.name		= "sh-sci",
 	.id		= 6,
+	.resource	= scif6_resources,
+	.num_resources	= ARRAY_SIZE(scif6_resources),
 	.dev		= {
 		.platform_data	= &scif6_platform_data,
 	},
 };
 
 static struct plat_sci_port scif7_platform_data = {
-	.mapbase	= 0xff92a000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xa80)),
+};
+
+static struct resource scif7_resources[] = {
+	DEFINE_RES_MEM(0xff92a000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0xa80)),
 };
 
 static struct platform_device scif7_device = {
 	.name		= "sh-sci",
 	.id		= 7,
+	.resource	= scif7_resources,
+	.num_resources	= ARRAY_SIZE(scif7_resources),
 	.dev		= {
 		.platform_data	= &scif7_platform_data,
 	},
 };
 
 static struct plat_sci_port scif8_platform_data = {
-	.mapbase	= 0xff92b000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xaa0)),
+};
+
+static struct resource scif8_resources[] = {
+	DEFINE_RES_MEM(0xff92b000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0xaa0)),
 };
 
 static struct platform_device scif8_device = {
 	.name		= "sh-sci",
 	.id		= 8,
+	.resource	= scif8_resources,
+	.num_resources	= ARRAY_SIZE(scif8_resources),
 	.dev		= {
 		.platform_data	= &scif8_platform_data,
 	},
 };
 
 static struct plat_sci_port scif9_platform_data = {
-	.mapbase	= 0xff92c000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xac0)),
+};
+
+static struct resource scif9_resources[] = {
+	DEFINE_RES_MEM(0xff92c000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0xac0)),
 };
 
 static struct platform_device scif9_device = {
 	.name		= "sh-sci",
 	.id		= 9,
+	.resource	= scif9_resources,
+	.num_resources	= ARRAY_SIZE(scif9_resources),
 	.dev		= {
 		.platform_data	= &scif9_platform_data,
 	},

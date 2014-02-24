@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 //#include <linux/config.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -639,20 +638,20 @@ typedef struct r8180_priv
 		((_ac) == WME_AC_BK) ? BK_PRIORITY : \
 		BE_PRIORITY)
 
-short rtl8180_tx(struct net_device *dev,u8* skbuf, int len,int priority,
-	short morefrag,short fragdesc,int rate);
+short rtl8180_tx(struct net_device *dev, u8 *skbuf, int len, int priority,
+		 short morefrag, short fragdesc, int rate);
 
 u8 read_nic_byte(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);
-u16 read_nic_word(struct net_device *dev, int x) ;
-void write_nic_byte(struct net_device *dev, int x,u8 y);
-void write_nic_word(struct net_device *dev, int x,u16 y);
-void write_nic_dword(struct net_device *dev, int x,u32 y);
+u16 read_nic_word(struct net_device *dev, int x);
+void write_nic_byte(struct net_device *dev, int x, u8 y);
+void write_nic_word(struct net_device *dev, int x, u16 y);
+void write_nic_dword(struct net_device *dev, int x, u32 y);
 void force_pci_posting(struct net_device *dev);
 
 void rtl8180_rtx_disable(struct net_device *);
-void rtl8180_set_anaparam(struct net_device *dev,u32 a);
-void rtl8185_set_anaparam2(struct net_device *dev,u32 a);
+void rtl8180_set_anaparam(struct net_device *dev, u32 a);
+void rtl8185_set_anaparam2(struct net_device *dev, u32 a);
 void rtl8180_set_hw_wep(struct net_device *dev);
 void rtl8180_no_hw_wep(struct net_device *dev);
 void rtl8180_update_msr(struct net_device *dev);
@@ -661,7 +660,7 @@ void rtl8180_beacon_rx_disable(struct net_device *dev);
 int rtl8180_down(struct net_device *dev);
 int rtl8180_up(struct net_device *dev);
 void rtl8180_commit(struct net_device *dev);
-void rtl8180_set_chan(struct net_device *dev,short ch);
+void rtl8180_set_chan(struct net_device *dev, short ch);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
 void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
@@ -671,7 +670,8 @@ void IPSEnter(struct net_device *dev);
 void IPSLeave(struct net_device *dev);
 int get_curr_tx_free_desc(struct net_device *dev, int priority);
 void UpdateInitialGain(struct net_device *dev);
-bool SetAntennaConfig87SE(struct net_device *dev, u8  DefaultAnt, bool bAntDiversity);
+bool SetAntennaConfig87SE(struct net_device *dev, u8 DefaultAnt,
+			  bool bAntDiversity);
 
 //#ifdef CONFIG_RTL8185B
 void rtl8185b_adapter_start(struct net_device *dev);
@@ -684,6 +684,17 @@ void fix_tx_fifo(struct net_device *dev);
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch);
 void rtl8180_rate_adapter(struct work_struct * work);
 //#endif
-bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet, u32 ChangeSource);
+bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
+			 u32 ChangeSource);
 
 #endif
+
+/* fun with the built-in ieee80211 stack... */
+extern int ieee80211_crypto_init(void);
+extern void ieee80211_crypto_deinit(void);
+extern int ieee80211_crypto_tkip_init(void);
+extern void ieee80211_crypto_tkip_exit(void);
+extern int ieee80211_crypto_ccmp_init(void);
+extern void ieee80211_crypto_ccmp_exit(void);
+extern int ieee80211_crypto_wep_init(void);
+extern void ieee80211_crypto_wep_exit(void);

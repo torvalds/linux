@@ -69,49 +69,11 @@
 		};
 	};
 
-	nand@1,0 {
+	ifc_nand: nand@1,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "fsl,ifc-nand";
 		reg = <0x1 0x0 0x10000>;
-
-		partition@0 {
-			/* This location must not be altered  */
-			/* 1MB for u-boot Bootloader Image */
-			reg = <0x0 0x00100000>;
-			label = "NAND U-Boot Image";
-			read-only;
-		};
-
-		partition@100000 {
-			/* 1MB for DTB Image */
-			reg = <0x00100000 0x00100000>;
-			label = "NAND DTB Image";
-		};
-
-		partition@200000 {
-			/* 4MB for Linux Kernel Image */
-			reg = <0x00200000 0x00400000>;
-			label = "NAND Linux Kernel Image";
-		};
-
-		partition@600000 {
-			/* 4MB for Compressed Root file System Image */
-			reg = <0x00600000 0x00400000>;
-			label = "NAND Compressed RFS Image";
-		};
-
-		partition@a00000 {
-			/* 15MB for JFFS2 based Root file System */
-			reg = <0x00a00000 0x00f00000>;
-			label = "NAND JFFS2 Root File System";
-		};
-
-		partition@1900000 {
-			/* 7MB for User Area */
-			reg = <0x01900000 0x00700000>;
-			label = "NAND User area";
-		};
 	};
 
 	cpld@3,0 {
@@ -193,17 +155,14 @@
 
 	mdio@24000 {
 		phy0: ethernet-phy@0 {
-			interrupts = <3 1 0 0>;
 			reg = <0x1>;
 		};
 
 		phy1: ethernet-phy@1 {
-			interrupts = <2 1 0 0>;
 			reg = <0x0>;
 		};
 
 		phy2: ethernet-phy@2 {
-			interrupts = <2 1 0 0>;
 			reg = <0x2>;
 		};
 

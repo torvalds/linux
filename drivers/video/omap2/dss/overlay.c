@@ -113,11 +113,6 @@ void dss_uninit_overlays(struct platform_device *pdev)
 int dss_ovl_simple_check(struct omap_overlay *ovl,
 		const struct omap_overlay_info *info)
 {
-	if (info->paddr == 0) {
-		DSSERR("check_overlay: paddr cannot be 0\n");
-		return -EINVAL;
-	}
-
 	if ((ovl->caps & OMAP_DSS_OVL_CAP_SCALE) == 0) {
 		if (info->out_width != 0 && info->width != info->out_width) {
 			DSSERR("check_overlay: overlay %d doesn't support "

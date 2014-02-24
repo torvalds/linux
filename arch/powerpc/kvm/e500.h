@@ -31,11 +31,13 @@ enum vcpu_ftr {
 #define E500_TLB_NUM   2
 
 /* entry is mapped somewhere in host TLB */
-#define E500_TLB_VALID		(1 << 0)
+#define E500_TLB_VALID		(1 << 31)
 /* TLB1 entry is mapped by host TLB1, tracked by bitmaps */
-#define E500_TLB_BITMAP		(1 << 1)
+#define E500_TLB_BITMAP		(1 << 30)
 /* TLB1 entry is mapped by host TLB0 */
-#define E500_TLB_TLB0		(1 << 2)
+#define E500_TLB_TLB0		(1 << 29)
+/* bits [6-5] MAS2_X1 and MAS2_X0 and [4-0] bits for WIMGE */
+#define E500_TLB_MAS2_ATTR	(0x7f)
 
 struct tlbe_ref {
 	pfn_t pfn;		/* valid only for TLB0, except briefly */

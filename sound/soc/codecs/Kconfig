@@ -163,8 +163,10 @@ config SND_SOC_WM_HUBS
 config SND_SOC_WM_ADSP
 	tristate
 	default y if SND_SOC_WM5102=y
+	default y if SND_SOC_WM5110=y
 	default y if SND_SOC_WM2200=y
 	default m if SND_SOC_WM5102=m
+	default m if SND_SOC_WM5110=m
 	default m if SND_SOC_WM2200=m
 
 config SND_SOC_AB8500_CODEC

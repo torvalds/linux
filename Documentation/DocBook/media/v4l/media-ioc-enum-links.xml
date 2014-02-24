@@ -134,6 +134,15 @@
 	    <entry>Output pad, relative to the entity. Output pads source data
 	    and are origins of links.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>MEDIA_PAD_FL_MUST_CONNECT</constant></entry>
+	    <entry>If this flag is set and the pad is linked to any other
+	    pad, then at least one of those links must be enabled for the
+	    entity to be able to stream. There could be temporary reasons
+	    (e.g. device configuration dependent) for the pad to need
+	    enabled links even when this flag isn't set; the absence of the
+	    flag doesn't imply there is none.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

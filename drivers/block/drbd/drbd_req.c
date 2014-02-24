@@ -77,8 +77,8 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	req->epoch       = 0;
 
 	drbd_clear_interval(&req->i);
-	req->i.sector     = bio_src->bi_sector;
-	req->i.size      = bio_src->bi_size;
+	req->i.sector     = bio_src->bi_iter.bi_sector;
+	req->i.size      = bio_src->bi_iter.bi_size;
 	req->i.local = true;
 	req->i.waiting = false;
 
@@ -1280,7 +1280,7 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
 	/*
 	 * what we "blindly" assume:
 	 */
-	D_ASSERT(IS_ALIGNED(bio->bi_size, 512));
+	D_ASSERT(IS_ALIGNED(bio->bi_iter.bi_size, 512));
 
 	inc_ap_bio(mdev);
 	__drbd_make_request(mdev, bio, start_time);

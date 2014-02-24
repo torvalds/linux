@@ -78,14 +78,19 @@ static void mq_attach(struct Qdisc *sch)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mq_sched *priv = qdisc_priv(sch);
-	struct Qdisc *qdisc;
+	struct Qdisc *qdisc, *old;
 	unsigned int ntx;
 
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		qdisc = priv->qdiscs[ntx];
-		qdisc = dev_graft_qdisc(qdisc->dev_queue, qdisc);
-		if (qdisc)
-			qdisc_destroy(qdisc);
+		old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
+		if (old)
+			qdisc_destroy(old);
+#ifdef CONFIG_NET_SCHED
+		if (ntx < dev->real_num_tx_queues)
+			qdisc_list_add(qdisc);
+#endif
+
 	}
 	kfree(priv->qdiscs);
 	priv->qdiscs = NULL;

@@ -32,8 +32,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 #define PREFIX "ACPI: "
 
@@ -207,7 +206,7 @@ static int acpi_ac_probe(struct platform_device *pdev)
 		goto end;
 
 	result = acpi_install_notify_handler(ACPI_HANDLE(&pdev->dev),
-			ACPI_DEVICE_NOTIFY, acpi_ac_notify_handler, ac);
+			ACPI_ALL_NOTIFY, acpi_ac_notify_handler, ac);
 	if (result) {
 		power_supply_unregister(&ac->charger);
 		goto end;
@@ -255,7 +254,7 @@ static int acpi_ac_remove(struct platform_device *pdev)
 		return -EINVAL;
 
 	acpi_remove_notify_handler(ACPI_HANDLE(&pdev->dev),
-			ACPI_DEVICE_NOTIFY, acpi_ac_notify_handler);
+			ACPI_ALL_NOTIFY, acpi_ac_notify_handler);
 
 	ac = platform_get_drvdata(pdev);
 	if (ac->charger.dev)

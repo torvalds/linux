@@ -30,6 +30,7 @@
 #include "wmi.h"
 #include "../ath.h"
 #include "../regd.h"
+#include "../dfs_pattern_detector.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -43,7 +44,7 @@
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
 
-#define ATH10K_MAX_NUM_MGMT_PENDING 16
+#define ATH10K_MAX_NUM_MGMT_PENDING 128
 
 struct ath10k;
 
@@ -192,6 +193,14 @@ struct ath10k_target_stats {
 
 };
 
+struct ath10k_dfs_stats {
+	u32 phy_errors;
+	u32 pulses_total;
+	u32 pulses_detected;
+	u32 pulses_discarded;
+	u32 radar_detected;
+};
+
 #define ATH10K_MAX_NUM_PEER_IDS (1 << 11) /* htt rx_desc limit */
 
 struct ath10k_peer {
@@ -244,6 +253,9 @@ struct ath10k_vif {
 			u8 bssid[ETH_ALEN];
 		} ibss;
 	} u;
+
+	u8 fixed_rate;
+	u8 fixed_nss;
 };
 
 struct ath10k_vif_iter {
@@ -261,6 +273,10 @@ struct ath10k_debug {
 
 	unsigned long htt_stats_mask;
 	struct delayed_work htt_stats_dwork;
+	struct ath10k_dfs_stats dfs_stats;
+	struct ath_dfs_pool_stats dfs_pool_stats;
+
+	u32 fw_dbglog_mask;
 };
 
 enum ath10k_state {
@@ -295,8 +311,17 @@ enum ath10k_fw_features {
 	/* firmware support tx frame management over WMI, otherwise it's HTT */
 	ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX = 2,
 
+	/* Firmware does not support P2P */
+	ATH10K_FW_FEATURE_NO_P2P = 3,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
+};
+
+enum ath10k_dev_flags {
+	/* Indicates that ath10k device is during CAC phase of DFS */
+	ATH10K_CAC_RUNNING,
+	ATH10K_FLAG_FIRST_BOOT_DONE,
 };
 
 struct ath10k {
@@ -392,6 +417,8 @@ struct ath10k {
 	bool monitor_enabled;
 	bool monitor_present;
 	unsigned int filter_flags;
+	unsigned long dev_flags;
+	u32 dfs_block_radar_events;
 
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
@@ -410,6 +437,9 @@ struct ath10k {
 	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
 
+	/* number of created peers; protected by data_lock */
+	int num_peers;
+
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;
 	struct completion offchan_tx_completed;
@@ -427,6 +457,8 @@ struct ath10k {
 	u32 survey_last_rx_clear_count;
 	u32 survey_last_cycle_count;
 	struct survey_info survey[ATH10K_NUM_CHANS];
+
+	struct dfs_pattern_detector *dfs_detector;
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;

@@ -78,7 +78,7 @@ struct ad5686_state {
 	 */
 
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data[3] ____cacheline_aligned;
 };
@@ -267,7 +267,7 @@ static const struct iio_chan_spec_ext_info ad5686_ext_info[] = {
 	{ },
 };
 
-#define AD5868_CHANNEL(chan, bits, shift) {			\
+#define AD5868_CHANNEL(chan, bits, _shift) {			\
 		.type = IIO_VOLTAGE,				\
 		.indexed = 1,					\
 		.output = 1,					\
@@ -275,7 +275,12 @@ static const struct iio_chan_spec_ext_info ad5686_ext_info[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),\
 		.address = AD5686_ADDR_DAC(chan),		\
-		.scan_type = IIO_ST('u', bits, 16, shift),	\
+		.scan_type = {					\
+			.sign = 'u',				\
+			.realbits = (bits),			\
+			.storagebits = 16,			\
+			.shift = (_shift),			\
+		},						\
 		.ext_info = ad5686_ext_info,			\
 }
 

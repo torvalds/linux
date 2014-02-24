@@ -195,6 +195,7 @@ struct mlx5_ib_cq_buf {
 	struct mlx5_buf		buf;
 	struct ib_umem		*umem;
 	int			cqe_size;
+	int			nent;
 };
 
 enum mlx5_ib_qp_flags {
@@ -220,7 +221,7 @@ struct mlx5_ib_cq {
 	/* protect resize cq
 	 */
 	struct mutex		resize_mutex;
-	struct mlx5_ib_cq_resize *resize_buf;
+	struct mlx5_ib_cq_buf  *resize_buf;
 	struct ib_umem	       *resize_umem;
 	int			cqe_size;
 };
@@ -264,7 +265,6 @@ struct mlx5_ib_mr {
 	enum ib_wc_status	status;
 	struct mlx5_ib_dev     *dev;
 	struct mlx5_create_mkey_mbox_out out;
-	unsigned long		start;
 };
 
 struct mlx5_ib_fast_reg_page_list {

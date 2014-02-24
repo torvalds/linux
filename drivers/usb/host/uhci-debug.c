@@ -20,7 +20,7 @@
 
 static struct dentry *uhci_debugfs_root;
 
-#ifdef DEBUG
+#ifdef CONFIG_DYNAMIC_DEBUG
 
 /* Handle REALLY large printks so we don't overflow buffers */
 static void lprintk(char *buf)
@@ -635,7 +635,7 @@ static const struct file_operations uhci_debug_operations = {
 
 #endif	/* CONFIG_DEBUG_FS */
 
-#else	/* DEBUG */
+#else	/* CONFIG_DYNAMIC_DEBUG*/
 
 static inline void lprintk(char *buf)
 {}

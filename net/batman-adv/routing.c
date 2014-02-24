@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -35,13 +33,32 @@
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);
 
+/**
+ * _batadv_update_route - set the router for this originator
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which is to be configured
+ * @recv_if: the receive interface for which this route is set
+ * @neigh_node: neighbor which should be the next router
+ *
+ * This function does not perform any error checks
+ */
 static void _batadv_update_route(struct batadv_priv *bat_priv,
 				 struct batadv_orig_node *orig_node,
+				 struct batadv_hard_iface *recv_if,
 				 struct batadv_neigh_node *neigh_node)
 {
+	struct batadv_orig_ifinfo *orig_ifinfo;
 	struct batadv_neigh_node *curr_router;
 
-	curr_router = batadv_orig_node_get_router(orig_node);
+	orig_ifinfo = batadv_orig_ifinfo_get(orig_node, recv_if);
+	if (!orig_ifinfo)
+		return;
+
+	rcu_read_lock();
+	curr_router = rcu_dereference(orig_ifinfo->router);
+	if (curr_router && !atomic_inc_not_zero(&curr_router->refcount))
+		curr_router = NULL;
+	rcu_read_unlock();
 
 	/* route deleted */
 	if ((curr_router) && (!neigh_node)) {
@@ -71,16 +88,25 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 		neigh_node = NULL;
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
-	rcu_assign_pointer(orig_node->router, neigh_node);
+	rcu_assign_pointer(orig_ifinfo->router, neigh_node);
 	spin_unlock_bh(&orig_node->neigh_list_lock);
+	batadv_orig_ifinfo_free_ref(orig_ifinfo);
 
 	/* decrease refcount of previous best neighbor */
 	if (curr_router)
 		batadv_neigh_node_free_ref(curr_router);
 }
 
+/**
+ * batadv_update_route - set the router for this originator
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which is to be configured
+ * @recv_if: the receive interface for which this route is set
+ * @neigh_node: neighbor which should be the next router
+ */
 void batadv_update_route(struct batadv_priv *bat_priv,
 			 struct batadv_orig_node *orig_node,
+			 struct batadv_hard_iface *recv_if,
 			 struct batadv_neigh_node *neigh_node)
 {
 	struct batadv_neigh_node *router = NULL;
@@ -88,123 +114,14 @@ void batadv_update_route(struct batadv_priv *bat_priv,
 	if (!orig_node)
 		goto out;
 
-	router = batadv_orig_node_get_router(orig_node);
+	router = batadv_orig_router_get(orig_node, recv_if);
 
 	if (router != neigh_node)
-		_batadv_update_route(bat_priv, orig_node, neigh_node);
+		_batadv_update_route(bat_priv, orig_node, recv_if, neigh_node);
 
 out:
 	if (router)
 		batadv_neigh_node_free_ref(router);
-}
-
-/* caller must hold the neigh_list_lock */
-void batadv_bonding_candidate_del(struct batadv_orig_node *orig_node,
-				  struct batadv_neigh_node *neigh_node)
-{
-	/* this neighbor is not part of our candidate list */
-	if (list_empty(&neigh_node->bonding_list))
-		goto out;
-
-	list_del_rcu(&neigh_node->bonding_list);
-	INIT_LIST_HEAD(&neigh_node->bonding_list);
-	batadv_neigh_node_free_ref(neigh_node);
-	atomic_dec(&orig_node->bond_candidates);
-
-out:
-	return;
-}
-
-/**
- * batadv_bonding_candidate_add - consider a new link for bonding mode towards
- *  the given originator
- * @bat_priv: the bat priv with all the soft interface information
- * @orig_node: the target node
- * @neigh_node: the neighbor representing the new link to consider for bonding
- *  mode
- */
-void batadv_bonding_candidate_add(struct batadv_priv *bat_priv,
-				  struct batadv_orig_node *orig_node,
-				  struct batadv_neigh_node *neigh_node)
-{
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
-	struct batadv_neigh_node *tmp_neigh_node, *router = NULL;
-	uint8_t interference_candidate = 0;
-
-	spin_lock_bh(&orig_node->neigh_list_lock);
-
-	/* only consider if it has the same primary address ...  */
-	if (!batadv_compare_eth(orig_node->orig,
-				neigh_node->orig_node->primary_addr))
-		goto candidate_del;
-
-	router = batadv_orig_node_get_router(orig_node);
-	if (!router)
-		goto candidate_del;
-
-
-	/* ... and is good enough to be considered */
-	if (bao->bat_neigh_is_equiv_or_better(neigh_node, router))
-		goto candidate_del;
-
-	/* check if we have another candidate with the same mac address or
-	 * interface. If we do, we won't select this candidate because of
-	 * possible interference.
-	 */
-	hlist_for_each_entry_rcu(tmp_neigh_node,
-				 &orig_node->neigh_list, list) {
-		if (tmp_neigh_node == neigh_node)
-			continue;
-
-		/* we only care if the other candidate is even
-		 * considered as candidate.
-		 */
-		if (list_empty(&tmp_neigh_node->bonding_list))
-			continue;
-
-		if ((neigh_node->if_incoming == tmp_neigh_node->if_incoming) ||
-		    (batadv_compare_eth(neigh_node->addr,
-					tmp_neigh_node->addr))) {
-			interference_candidate = 1;
-			break;
-		}
-	}
-
-	/* don't care further if it is an interference candidate */
-	if (interference_candidate)
-		goto candidate_del;
-
-	/* this neighbor already is part of our candidate list */
-	if (!list_empty(&neigh_node->bonding_list))
-		goto out;
-
-	if (!atomic_inc_not_zero(&neigh_node->refcount))
-		goto out;
-
-	list_add_rcu(&neigh_node->bonding_list, &orig_node->bond_list);
-	atomic_inc(&orig_node->bond_candidates);
-	goto out;
-
-candidate_del:
-	batadv_bonding_candidate_del(orig_node, neigh_node);
-
-out:
-	spin_unlock_bh(&orig_node->neigh_list_lock);
-
-	if (router)
-		batadv_neigh_node_free_ref(router);
-}
-
-/* copy primary address for bonding */
-void
-batadv_bonding_save_primary(const struct batadv_orig_node *orig_node,
-			    struct batadv_orig_node *orig_neigh_node,
-			    const struct batadv_ogm_packet *batman_ogm_packet)
-{
-	if (!(batman_ogm_packet->flags & BATADV_PRIMARIES_FIRST_HOP))
-		return;
-
-	memcpy(orig_neigh_node->primary_addr, orig_node->orig, ETH_ALEN);
 }
 
 /* checks whether the host restarted and is in the protection time.
@@ -308,7 +225,7 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 		memcpy(icmph->dst, icmph->orig, ETH_ALEN);
 		memcpy(icmph->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 		icmph->msg_type = BATADV_ECHO_REPLY;
-		icmph->header.ttl = BATADV_TTL;
+		icmph->ttl = BATADV_TTL;
 
 		res = batadv_send_skb_to_orig(skb, orig_node, NULL);
 		if (res != NET_XMIT_DROP)
@@ -338,9 +255,9 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 	icmp_packet = (struct batadv_icmp_packet *)skb->data;
 
 	/* send TTL exceeded if packet is an echo request (traceroute) */
-	if (icmp_packet->icmph.msg_type != BATADV_ECHO_REQUEST) {
+	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
 		pr_debug("Warning - can't forward icmp packet from %pM to %pM: ttl exceeded\n",
-			 icmp_packet->icmph.orig, icmp_packet->icmph.dst);
+			 icmp_packet->orig, icmp_packet->dst);
 		goto out;
 	}
 
@@ -349,7 +266,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 		goto out;
 
 	/* get routing information */
-	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->icmph.orig);
+	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->orig);
 	if (!orig_node)
 		goto out;
 
@@ -359,11 +276,11 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 
 	icmp_packet = (struct batadv_icmp_packet *)skb->data;
 
-	memcpy(icmp_packet->icmph.dst, icmp_packet->icmph.orig, ETH_ALEN);
-	memcpy(icmp_packet->icmph.orig, primary_if->net_dev->dev_addr,
+	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
+	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr,
 	       ETH_ALEN);
-	icmp_packet->icmph.msg_type = BATADV_TTL_EXCEEDED;
-	icmp_packet->icmph.header.ttl = BATADV_TTL;
+	icmp_packet->msg_type = BATADV_TTL_EXCEEDED;
+	icmp_packet->ttl = BATADV_TTL;
 
 	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
 		ret = NET_RX_SUCCESS;
@@ -434,7 +351,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 		return batadv_recv_my_icmp_packet(bat_priv, skb);
 
 	/* TTL exceeded */
-	if (icmph->header.ttl < 2)
+	if (icmph->ttl < 2)
 		return batadv_recv_icmp_ttl_exceeded(bat_priv, skb);
 
 	/* get routing information */
@@ -449,7 +366,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	icmph = (struct batadv_icmp_header *)skb->data;
 
 	/* decrement ttl */
-	icmph->header.ttl--;
+	icmph->ttl--;
 
 	/* route it */
 	if (batadv_send_skb_to_orig(skb, orig_node, recv_if) != NET_XMIT_DROP)
@@ -459,114 +376,6 @@ out:
 	if (orig_node)
 		batadv_orig_node_free_ref(orig_node);
 	return ret;
-}
-
-/* In the bonding case, send the packets in a round
- * robin fashion over the remaining interfaces.
- *
- * This method rotates the bonding list and increases the
- * returned router's refcount.
- */
-static struct batadv_neigh_node *
-batadv_find_bond_router(struct batadv_orig_node *primary_orig,
-			const struct batadv_hard_iface *recv_if)
-{
-	struct batadv_neigh_node *tmp_neigh_node;
-	struct batadv_neigh_node *router = NULL, *first_candidate = NULL;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(tmp_neigh_node, &primary_orig->bond_list,
-				bonding_list) {
-		if (!first_candidate)
-			first_candidate = tmp_neigh_node;
-
-		/* recv_if == NULL on the first node. */
-		if (tmp_neigh_node->if_incoming == recv_if)
-			continue;
-
-		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
-			continue;
-
-		router = tmp_neigh_node;
-		break;
-	}
-
-	/* use the first candidate if nothing was found. */
-	if (!router && first_candidate &&
-	    atomic_inc_not_zero(&first_candidate->refcount))
-		router = first_candidate;
-
-	if (!router)
-		goto out;
-
-	/* selected should point to the next element
-	 * after the current router
-	 */
-	spin_lock_bh(&primary_orig->neigh_list_lock);
-	/* this is a list_move(), which unfortunately
-	 * does not exist as rcu version
-	 */
-	list_del_rcu(&primary_orig->bond_list);
-	list_add_rcu(&primary_orig->bond_list,
-		     &router->bonding_list);
-	spin_unlock_bh(&primary_orig->neigh_list_lock);
-
-out:
-	rcu_read_unlock();
-	return router;
-}
-
-/**
- * batadv_find_ifalter_router - find the best of the remaining candidates which
- *  are not using this interface
- * @bat_priv: the bat priv with all the soft interface information
- * @primary_orig: the destination
- * @recv_if: the interface that the router returned by this function has to not
- *  use
- *
- * Returns the best candidate towards primary_orig that is not using recv_if.
- * Increases the returned neighbor's refcount
- */
-static struct batadv_neigh_node *
-batadv_find_ifalter_router(struct batadv_priv *bat_priv,
-			   struct batadv_orig_node *primary_orig,
-			   const struct batadv_hard_iface *recv_if)
-{
-	struct batadv_neigh_node *router = NULL, *first_candidate = NULL;
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
-	struct batadv_neigh_node *tmp_neigh_node;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(tmp_neigh_node, &primary_orig->bond_list,
-				bonding_list) {
-		if (!first_candidate)
-			first_candidate = tmp_neigh_node;
-
-		/* recv_if == NULL on the first node. */
-		if (tmp_neigh_node->if_incoming == recv_if)
-			continue;
-
-		if (router && bao->bat_neigh_cmp(tmp_neigh_node, router))
-			continue;
-
-		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
-			continue;
-
-		/* decrement refcount of previously selected router */
-		if (router)
-			batadv_neigh_node_free_ref(router);
-
-		/* we found a better router (or at least one valid router) */
-		router = tmp_neigh_node;
-	}
-
-	/* use the first candidate if nothing was found. */
-	if (!router && first_candidate &&
-	    atomic_inc_not_zero(&first_candidate->refcount))
-		router = first_candidate;
-
-	rcu_read_unlock();
-	return router;
 }
 
 /**
@@ -606,95 +415,141 @@ static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
 	return 0;
 }
 
-/* find a suitable router for this originator, and use
- * bonding if possible. increases the found neighbors
- * refcount.
+/**
+ * batadv_find_router - find a suitable router for this originator
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: the destination node
+ * @recv_if: pointer to interface this packet was received on
+ *
+ * Returns the router which should be used for this orig_node on
+ * this interface, or NULL if not available.
  */
 struct batadv_neigh_node *
 batadv_find_router(struct batadv_priv *bat_priv,
 		   struct batadv_orig_node *orig_node,
-		   const struct batadv_hard_iface *recv_if)
+		   struct batadv_hard_iface *recv_if)
 {
-	struct batadv_orig_node *primary_orig_node;
-	struct batadv_orig_node *router_orig;
-	struct batadv_neigh_node *router;
-	static uint8_t zero_mac[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
-	int bonding_enabled;
-	uint8_t *primary_addr;
+	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
+	struct batadv_neigh_node *first_candidate_router = NULL;
+	struct batadv_neigh_node *next_candidate_router = NULL;
+	struct batadv_neigh_node *router, *cand_router = NULL;
+	struct batadv_neigh_node *last_cand_router = NULL;
+	struct batadv_orig_ifinfo *cand, *first_candidate = NULL;
+	struct batadv_orig_ifinfo *next_candidate = NULL;
+	struct batadv_orig_ifinfo *last_candidate;
+	bool last_candidate_found = false;
 
 	if (!orig_node)
 		return NULL;
 
-	router = batadv_orig_node_get_router(orig_node);
-	if (!router)
-		goto err;
+	router = batadv_orig_router_get(orig_node, recv_if);
 
-	/* without bonding, the first node should
-	 * always choose the default router.
+	/* only consider bonding for recv_if == BATADV_IF_DEFAULT (first hop)
+	 * and if activated.
 	 */
-	bonding_enabled = atomic_read(&bat_priv->bonding);
+	if (recv_if == BATADV_IF_DEFAULT || !atomic_read(&bat_priv->bonding) ||
+	    !router)
+		return router;
 
+	/* bonding: loop through the list of possible routers found
+	 * for the various outgoing interfaces and find a candidate after
+	 * the last chosen bonding candidate (next_candidate). If no such
+	 * router is found, use the first candidate found (the previously
+	 * chosen bonding candidate might have been the last one in the list).
+	 * If this can't be found either, return the previously choosen
+	 * router - obviously there are no other candidates.
+	 */
 	rcu_read_lock();
-	/* select default router to output */
-	router_orig = router->orig_node;
-	if (!router_orig)
-		goto err_unlock;
+	last_candidate = orig_node->last_bonding_candidate;
+	if (last_candidate)
+		last_cand_router = rcu_dereference(last_candidate->router);
 
-	if ((!recv_if) && (!bonding_enabled))
-		goto return_router;
+	hlist_for_each_entry_rcu(cand, &orig_node->ifinfo_list, list) {
+		/* acquire some structures and references ... */
+		if (!atomic_inc_not_zero(&cand->refcount))
+			continue;
 
-	primary_addr = router_orig->primary_addr;
+		cand_router = rcu_dereference(cand->router);
+		if (!cand_router)
+			goto next;
 
-	/* if we have something in the primary_addr, we can search
-	 * for a potential bonding candidate.
+		if (!atomic_inc_not_zero(&cand_router->refcount)) {
+			cand_router = NULL;
+			goto next;
+		}
+
+		/* alternative candidate should be good enough to be
+		 * considered
+		 */
+		if (!bao->bat_neigh_is_equiv_or_better(cand_router,
+						       cand->if_outgoing,
+						       router, recv_if))
+			goto next;
+
+		/* don't use the same router twice */
+		if (last_cand_router == cand_router)
+			goto next;
+
+		/* mark the first possible candidate */
+		if (!first_candidate) {
+			atomic_inc(&cand_router->refcount);
+			atomic_inc(&cand->refcount);
+			first_candidate = cand;
+			first_candidate_router = cand_router;
+		}
+
+		/* check if the loop has already passed the previously selected
+		 * candidate ... this function should select the next candidate
+		 * AFTER the previously used bonding candidate.
+		 */
+		if (!last_candidate || last_candidate_found) {
+			next_candidate = cand;
+			next_candidate_router = cand_router;
+			break;
+		}
+
+		if (last_candidate == cand)
+			last_candidate_found = true;
+next:
+		/* free references */
+		if (cand_router) {
+			batadv_neigh_node_free_ref(cand_router);
+			cand_router = NULL;
+		}
+		batadv_orig_ifinfo_free_ref(cand);
+	}
+	rcu_read_unlock();
+
+	/* last_bonding_candidate is reset below, remove the old reference. */
+	if (orig_node->last_bonding_candidate)
+		batadv_orig_ifinfo_free_ref(orig_node->last_bonding_candidate);
+
+	/* After finding candidates, handle the three cases:
+	 * 1) there is a next candidate, use that
+	 * 2) there is no next candidate, use the first of the list
+	 * 3) there is no candidate at all, return the default router
 	 */
-	if (batadv_compare_eth(primary_addr, zero_mac))
-		goto return_router;
+	if (next_candidate) {
+		batadv_neigh_node_free_ref(router);
 
-	/* find the orig_node which has the primary interface. might
-	 * even be the same as our router_orig in many cases
-	 */
-	if (batadv_compare_eth(primary_addr, router_orig->orig)) {
-		primary_orig_node = router_orig;
+		/* remove references to first candidate, we don't need it. */
+		if (first_candidate) {
+			batadv_neigh_node_free_ref(first_candidate_router);
+			batadv_orig_ifinfo_free_ref(first_candidate);
+		}
+		router = next_candidate_router;
+		orig_node->last_bonding_candidate = next_candidate;
+	} else if (first_candidate) {
+		batadv_neigh_node_free_ref(router);
+
+		/* refcounting has already been done in the loop above. */
+		router = first_candidate_router;
+		orig_node->last_bonding_candidate = first_candidate;
 	} else {
-		primary_orig_node = batadv_orig_hash_find(bat_priv,
-							  primary_addr);
-		if (!primary_orig_node)
-			goto return_router;
-
-		batadv_orig_node_free_ref(primary_orig_node);
+		orig_node->last_bonding_candidate = NULL;
 	}
 
-	/* with less than 2 candidates, we can't do any
-	 * bonding and prefer the original router.
-	 */
-	if (atomic_read(&primary_orig_node->bond_candidates) < 2)
-		goto return_router;
-
-	/* all nodes between should choose a candidate which
-	 * is is not on the interface where the packet came
-	 * in.
-	 */
-	batadv_neigh_node_free_ref(router);
-
-	if (bonding_enabled)
-		router = batadv_find_bond_router(primary_orig_node, recv_if);
-	else
-		router = batadv_find_ifalter_router(bat_priv, primary_orig_node,
-						    recv_if);
-
-return_router:
-	if (router && router->if_incoming->if_status != BATADV_IF_ACTIVE)
-		goto err_unlock;
-
-	rcu_read_unlock();
 	return router;
-err_unlock:
-	rcu_read_unlock();
-err:
-	if (router)
-		batadv_neigh_node_free_ref(router);
-	return NULL;
 }
 
 static int batadv_route_unicast_packet(struct sk_buff *skb,
@@ -709,7 +564,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 
 	/* TTL exceeded */
-	if (unicast_packet->header.ttl < 2) {
+	if (unicast_packet->ttl < 2) {
 		pr_debug("Warning - can't forward unicast packet from %pM to %pM: ttl exceeded\n",
 			 ethhdr->h_source, unicast_packet->dest);
 		goto out;
@@ -727,9 +582,9 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 
 	/* decrement ttl */
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
-	unicast_packet->header.ttl--;
+	unicast_packet->ttl--;
 
-	switch (unicast_packet->header.packet_type) {
+	switch (unicast_packet->packet_type) {
 	case BATADV_UNICAST_4ADDR:
 		hdr_len = sizeof(struct batadv_unicast_4addr_packet);
 		break;
@@ -970,7 +825,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 	unicast_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
 
-	is4addr = unicast_packet->header.packet_type == BATADV_UNICAST_4ADDR;
+	is4addr = unicast_packet->packet_type == BATADV_UNICAST_4ADDR;
 	/* the caller function should have already pulled 2 bytes */
 	if (is4addr)
 		hdr_size = sizeof(*unicast_4addr_packet);
@@ -1135,6 +990,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	int hdr_size = sizeof(*bcast_packet);
 	int ret = NET_RX_DROP;
 	int32_t seq_diff;
+	uint32_t seqno;
 
 	/* drop packet if it has not necessary minimum size */
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
@@ -1160,7 +1016,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	if (batadv_is_my_mac(bat_priv, bcast_packet->orig))
 		goto out;
 
-	if (bcast_packet->header.ttl < 2)
+	if (bcast_packet->ttl < 2)
 		goto out;
 
 	orig_node = batadv_orig_hash_find(bat_priv, bcast_packet->orig);
@@ -1170,12 +1026,13 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 
 	spin_lock_bh(&orig_node->bcast_seqno_lock);
 
+	seqno = ntohl(bcast_packet->seqno);
 	/* check whether the packet is a duplicate */
 	if (batadv_test_bit(orig_node->bcast_bits, orig_node->last_bcast_seqno,
-			    ntohl(bcast_packet->seqno)))
+			    seqno))
 		goto spin_unlock;
 
-	seq_diff = ntohl(bcast_packet->seqno) - orig_node->last_bcast_seqno;
+	seq_diff = seqno - orig_node->last_bcast_seqno;
 
 	/* check whether the packet is old and the host just restarted. */
 	if (batadv_window_protected(bat_priv, seq_diff,
@@ -1186,7 +1043,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	 * if required.
 	 */
 	if (batadv_bit_get_packet(bat_priv, orig_node->bcast_bits, seq_diff, 1))
-		orig_node->last_bcast_seqno = ntohl(bcast_packet->seqno);
+		orig_node->last_bcast_seqno = seqno;
 
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 

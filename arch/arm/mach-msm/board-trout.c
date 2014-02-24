@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  *
  */
+#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -68,12 +69,11 @@ static void __init trout_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-#ifdef CONFIG_MMC
-        rc = trout_init_mmc(system_rev);
-        if (rc)
-                printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
-#endif
-
+	if (IS_ENABLED(CONFIG_MMC)) {
+		rc = trout_init_mmc(system_rev);
+		if (rc)
+			pr_crit("MMC init failure (%d)\n", rc);
+	}
 }
 
 static struct map_desc trout_io_desc[] __initdata = {

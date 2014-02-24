@@ -265,7 +265,7 @@ struct ad_slave_info {
 
 // ================= AD Exported functions to the main bonding code ==================
 void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution);
-int  bond_3ad_bind_slave(struct slave *slave);
+void  bond_3ad_bind_slave(struct slave *slave);
 void bond_3ad_unbind_slave(struct slave *slave);
 void bond_3ad_state_machine_handler(struct work_struct *);
 void bond_3ad_initiate_agg_selection(struct bonding *bond, int timeout);

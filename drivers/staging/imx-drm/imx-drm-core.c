@@ -88,9 +88,9 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 
 	imx_drm_device_put();
 
-	drm_vblank_cleanup(imxdrm->drm);
-	drm_kms_helper_poll_fini(imxdrm->drm);
-	drm_mode_config_cleanup(imxdrm->drm);
+	drm_vblank_cleanup(drm);
+	drm_kms_helper_poll_fini(drm);
+	drm_mode_config_cleanup(drm);
 
 	return 0;
 }
@@ -142,19 +142,19 @@ EXPORT_SYMBOL_GPL(imx_drm_crtc_panel_format);
 
 int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
 {
-	return drm_vblank_get(imx_drm_crtc->imxdrm->drm, imx_drm_crtc->pipe);
+	return drm_vblank_get(imx_drm_crtc->crtc->dev, imx_drm_crtc->pipe);
 }
 EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_get);
 
 void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc)
 {
-	drm_vblank_put(imx_drm_crtc->imxdrm->drm, imx_drm_crtc->pipe);
+	drm_vblank_put(imx_drm_crtc->crtc->dev, imx_drm_crtc->pipe);
 }
 EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_put);
 
 void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
 {
-	drm_handle_vblank(imx_drm_crtc->imxdrm->drm, imx_drm_crtc->pipe);
+	drm_handle_vblank(imx_drm_crtc->crtc->dev, imx_drm_crtc->pipe);
 }
 EXPORT_SYMBOL_GPL(imx_drm_handle_vblank);
 
@@ -370,29 +370,6 @@ static void imx_drm_connector_unregister(
 }
 
 /*
- * register a crtc to the drm core
- */
-static int imx_drm_crtc_register(struct imx_drm_crtc *imx_drm_crtc)
-{
-	struct imx_drm_device *imxdrm = __imx_drm_device();
-	int ret;
-
-	ret = drm_mode_crtc_set_gamma_size(imx_drm_crtc->crtc, 256);
-	if (ret)
-		return ret;
-
-	drm_crtc_helper_add(imx_drm_crtc->crtc,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
-
-	drm_crtc_init(imxdrm->drm, imx_drm_crtc->crtc,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
-
-	drm_mode_group_reinit(imxdrm->drm);
-
-	return 0;
-}
-
-/*
  * Called by the CRTC driver when all CRTCs are registered. This
  * puts all the pieces together and initializes the driver.
  * Once this is called no more CRTCs can be registered since
@@ -424,15 +401,15 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 
 	mutex_lock(&imxdrm->mutex);
 
-	drm_kms_helper_poll_init(imxdrm->drm);
+	drm_kms_helper_poll_init(drm);
 
 	/* setup the grouping for the legacy output */
-	ret = drm_mode_group_init_legacy_group(imxdrm->drm,
-			&imxdrm->drm->primary->mode_group);
+	ret = drm_mode_group_init_legacy_group(drm,
+			&drm->primary->mode_group);
 	if (ret)
 		goto err_kms;
 
-	ret = drm_vblank_init(imxdrm->drm, MAX_CRTC);
+	ret = drm_vblank_init(drm, MAX_CRTC);
 	if (ret)
 		goto err_kms;
 
@@ -441,13 +418,14 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 * by drm timer once a current process gives up ownership of
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
-	imxdrm->drm->vblank_disable_allowed = true;
+	drm->vblank_disable_allowed = true;
 
 	if (!imx_drm_device_get()) {
 		ret = -EINVAL;
 		goto err_vblank;
 	}
 
+	platform_set_drvdata(drm->platformdev, drm);
 	mutex_unlock(&imxdrm->mutex);
 	return 0;
 
@@ -535,9 +513,17 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 
 	*new_crtc = imx_drm_crtc;
 
-	ret = imx_drm_crtc_register(imx_drm_crtc);
+	ret = drm_mode_crtc_set_gamma_size(imx_drm_crtc->crtc, 256);
 	if (ret)
 		goto err_register;
+
+	drm_crtc_helper_add(crtc,
+			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
+
+	drm_crtc_init(imxdrm->drm, crtc,
+			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
+
+	drm_mode_group_reinit(imxdrm->drm);
 
 	imx_drm_update_possible_crtcs();
 
@@ -848,7 +834,7 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 
 static int imx_drm_platform_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&imx_drm_driver, pdev);
+	drm_put_dev(platform_get_drvdata(pdev));
 
 	return 0;
 }

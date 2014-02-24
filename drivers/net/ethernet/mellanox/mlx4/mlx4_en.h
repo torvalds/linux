@@ -45,6 +45,7 @@
 #include <linux/dcbnl.h>
 #endif
 #include <linux/cpu_rmap.h>
+#include <linux/ptp_clock_kernel.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/qp.h>
@@ -255,6 +256,8 @@ struct mlx4_en_tx_ring {
 	u16 poll_cnt;
 	struct mlx4_en_tx_info *tx_info;
 	u8 *bounce_buf;
+	u8 queue_index;
+	cpumask_t affinity_mask;
 	u32 last_nr_txbb;
 	struct mlx4_qp qp;
 	struct mlx4_qp_context context;
@@ -373,10 +376,14 @@ struct mlx4_en_dev {
 	u32                     priv_pdn;
 	spinlock_t              uar_lock;
 	u8			mac_removed[MLX4_MAX_PORTS + 1];
+	rwlock_t		clock_lock;
+	u32			nominal_c_mult;
 	struct cyclecounter	cycles;
 	struct timecounter	clock;
 	unsigned long		last_overflow_check;
 	unsigned long		overflow_period;
+	struct ptp_clock	*ptp_clock;
+	struct ptp_clock_info	ptp_clock_info;
 };
 
 
@@ -434,6 +441,7 @@ struct mlx4_en_mc_list {
 	enum mlx4_en_mclist_act	action;
 	u8			addr[ETH_ALEN];
 	u64			reg_id;
+	u64			tunnel_reg_id;
 };
 
 struct mlx4_en_frag_info {
@@ -565,7 +573,7 @@ struct mlx4_en_priv {
 	struct list_head filters;
 	struct hlist_head filter_hash[1 << MLX4_EN_FILTER_HASH_SHIFT];
 #endif
-
+	u64 tunnel_reg_id;
 };
 
 enum mlx4_en_wol {
@@ -653,7 +661,7 @@ static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
 }
 
 /* true if a socket is polling, even if it did not get the lock */
-static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
+static inline bool mlx4_en_cq_busy_polling(struct mlx4_en_cq *cq)
 {
 	WARN_ON(!(cq->state & MLX4_CQ_LOCKED));
 	return cq->state & CQ_USER_PEND;
@@ -683,7 +691,7 @@ static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
 	return false;
 }
 
-static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
+static inline bool mlx4_en_cq_busy_polling(struct mlx4_en_cq *cq)
 {
 	return false;
 }
@@ -714,12 +722,14 @@ int mlx4_en_set_cq_moder(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
-u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb);
+u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
+			 void *accel_priv);
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring,
-			   int qpn, u32 size, u16 stride, int node);
+			   int qpn, u32 size, u16 stride,
+			   int node, int queue_index);
 void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring **pring);
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
@@ -741,6 +751,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev,
 			  struct mlx4_en_cq *cq,
 			  int budget);
 int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget);
+int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget);
 void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 		int is_tx, int rss, int qpn, int cqn, int user_prio,
 		struct mlx4_qp_context *context);
@@ -786,6 +797,7 @@ void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
 			    struct skb_shared_hwtstamps *hwts,
 			    u64 timestamp);
 void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev);
+void mlx4_en_remove_timestamp(struct mlx4_en_dev *mdev);
 int mlx4_en_timestamp_config(struct net_device *dev,
 			     int tx_type,
 			     int rx_filter);

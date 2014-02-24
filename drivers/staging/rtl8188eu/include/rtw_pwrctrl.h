@@ -99,12 +99,7 @@ struct reportpwrstate_parm {
 
 static inline void _init_pwrlock(struct semaphore  *plock)
 {
-	_rtw_init_sema(plock, 1);
-}
-
-static inline void _free_pwrlock(struct semaphore  *plock)
-{
-	_rtw_free_sema(plock);
+	sema_init(plock, 1);
 }
 
 static inline void _enter_pwrlock(struct semaphore  *plock)
@@ -114,7 +109,7 @@ static inline void _enter_pwrlock(struct semaphore  *plock)
 
 static inline void _exit_pwrlock(struct semaphore  *plock)
 {
-	_rtw_up_sema(plock);
+	up(plock);
 }
 
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
@@ -251,7 +246,6 @@ struct pwrctrl_priv {
 				       (pwrctrl)->pwr_state_check_interval)
 
 void rtw_init_pwrctrl_priv(struct adapter *adapter);
-void rtw_free_pwrctrl_priv(struct adapter *adapter);
 
 void rtw_set_ps_mode(struct adapter *adapter, u8 ps_mode, u8 smart_ps,
 		     u8 bcn_ant_mode);

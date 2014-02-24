@@ -68,6 +68,8 @@ struct perf_evsel {
 	u32			ids;
 	struct hists		hists;
 	char			*name;
+	double			scale;
+	const char		*unit;
 	struct event_format	*tp_format;
 	union {
 		void		*priv;
@@ -94,7 +96,7 @@ struct perf_evsel {
 struct cpu_map;
 struct thread_map;
 struct perf_evlist;
-struct perf_record_opts;
+struct record_opts;
 
 struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
 
@@ -118,7 +120,7 @@ void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 void perf_evsel__config(struct perf_evsel *evsel,
-			struct perf_record_opts *opts);
+			struct record_opts *opts);
 
 int __perf_evsel__sample_size(u64 sample_type);
 void perf_evsel__calc_id_pos(struct perf_evsel *evsel);
@@ -138,6 +140,7 @@ extern const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX];
 int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
 					    char *bf, size_t size);
 const char *perf_evsel__name(struct perf_evsel *evsel);
+
 const char *perf_evsel__group_name(struct perf_evsel *evsel);
 int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size);
 

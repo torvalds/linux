@@ -66,9 +66,11 @@ static void led_pwm_set(struct led_classdev *led_cdev,
 	struct led_pwm_data *led_dat =
 		container_of(led_cdev, struct led_pwm_data, cdev);
 	unsigned int max = led_dat->cdev.max_brightness;
-	unsigned int period =  led_dat->period;
+	unsigned long long duty =  led_dat->period;
 
-	led_dat->duty = brightness * period / max;
+	duty *= brightness;
+	do_div(duty, max);
+	led_dat->duty = duty;
 
 	if (led_dat->can_sleep)
 		schedule_work(&led_dat->work);
@@ -85,11 +87,10 @@ static inline size_t sizeof_pwm_leds_priv(int num_leds)
 static int led_pwm_create_of(struct platform_device *pdev,
 			     struct led_pwm_priv *priv)
 {
-	struct device_node *node = pdev->dev.of_node;
 	struct device_node *child;
 	int ret;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_node(pdev->dev.of_node, child) {
 		struct led_pwm_data *led_dat = &priv->leds[priv->num_leds];
 
 		led_dat->cdev.name = of_get_property(child, "label",

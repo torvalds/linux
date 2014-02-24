@@ -430,10 +430,11 @@ static int msm_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id msm_gpio_of_match[] = {
+static const struct of_device_id msm_gpio_of_match[] = {
 	{ .compatible = "qcom,msm-gpio", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, msm_gpio_of_match);
 
 static int msm_gpio_remove(struct platform_device *dev)
 {

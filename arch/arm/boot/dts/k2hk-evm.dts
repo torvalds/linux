@@ -1,0 +1,63 @@
+/*
+ * Copyright 2013 Texas Instruments, Inc.
+ *
+ * Keystone 2 Kepler/Hawking EVM device tree
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "keystone.dtsi"
+
+/ {
+	compatible =  "ti,keystone-evm";
+
+	soc {
+		clock {
+			refclksys: refclksys {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <122880000>;
+				clock-output-names = "refclk-sys";
+			};
+
+			refclkpass: refclkpass {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <122880000>;
+				clock-output-names = "refclk-pass";
+			};
+
+			refclkarm: refclkarm {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <125000000>;
+				clock-output-names = "refclk-arm";
+			};
+
+			refclkddr3a: refclkddr3a {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <100000000>;
+				clock-output-names = "refclk-ddr3a";
+			};
+
+			refclkddr3b: refclkddr3b {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <100000000>;
+				clock-output-names = "refclk-ddr3b";
+			};
+		};
+	};
+};
+
+&usb_phy {
+	status = "okay";
+};
+
+&usb {
+	status = "okay";
+};

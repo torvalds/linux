@@ -107,7 +107,7 @@ static struct comedi_driver labpc_pci_comedi_driver = {
 	.detach		= labpc_pci_detach,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
+static const struct pci_device_id labpc_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x161), BOARD_NI_PCI1200 },
 	{ 0 }
 };

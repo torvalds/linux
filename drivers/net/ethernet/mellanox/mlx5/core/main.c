@@ -460,7 +460,10 @@ disable_msix:
 
 err_stop_poll:
 	mlx5_stop_health_poll(dev);
-	mlx5_cmd_teardown_hca(dev);
+	if (mlx5_cmd_teardown_hca(dev)) {
+		dev_err(&dev->pdev->dev, "tear_down_hca failed, skip cleanup\n");
+		return err;
+	}
 
 err_pagealloc_stop:
 	mlx5_pagealloc_stop(dev);
@@ -503,7 +506,10 @@ void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 	mlx5_eq_cleanup(dev);
 	mlx5_disable_msix(dev);
 	mlx5_stop_health_poll(dev);
-	mlx5_cmd_teardown_hca(dev);
+	if (mlx5_cmd_teardown_hca(dev)) {
+		dev_err(&dev->pdev->dev, "tear_down_hca failed, skip cleanup\n");
+		return;
+	}
 	mlx5_pagealloc_stop(dev);
 	mlx5_reclaim_startup_pages(dev);
 	mlx5_core_disable_hca(dev);

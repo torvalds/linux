@@ -33,7 +33,7 @@
 
 #include "wm8994.h"
 
-static struct mfd_cell wm8994_regulator_devs[] = {
+static const struct mfd_cell wm8994_regulator_devs[] = {
 	{
 		.name = "wm8994-ldo",
 		.id = 1,
@@ -62,7 +62,7 @@ static struct resource wm8994_gpio_resources[] = {
 	},
 };
 
-static struct mfd_cell wm8994_devs[] = {
+static const struct mfd_cell wm8994_devs[] = {
 	{
 		.name = "wm8994-codec",
 		.num_resources = ARRAY_SIZE(wm8994_codec_resources),

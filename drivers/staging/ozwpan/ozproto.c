@@ -4,11 +4,11 @@
  * -----------------------------------------------------------------------------
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/errno.h>
 #include <linux/ieee80211.h>
 #include "ozdbg.h"
@@ -180,7 +180,7 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 		spin_lock_bh(&g_polling_lock);
 		list_for_each(e, &g_pd_list) {
 			pd2 = container_of(e, struct oz_pd, link);
-			if (memcmp(pd2->mac_addr, pd_addr, ETH_ALEN) == 0) {
+			if (ether_addr_equal(pd2->mac_addr, pd_addr)) {
 				free_pd = pd;
 				pd = pd2;
 				break;
@@ -337,7 +337,7 @@ static void oz_rx_frame(struct sk_buff *skb)
 	oz_dbg(RX_FRAMES, "RX frame PN=0x%x LPN=0x%x control=0x%x\n",
 	       oz_hdr->pkt_num, oz_hdr->last_pkt_num, oz_hdr->control);
 	mac_hdr = skb_mac_header(skb);
-	src_addr = &mac_hdr[ETH_ALEN] ;
+	src_addr = &mac_hdr[ETH_ALEN];
 	length = skb->len;
 
 	/* Check the version field */
@@ -597,7 +597,7 @@ struct oz_pd *oz_pd_find(const u8 *mac_addr)
 	spin_lock_bh(&g_polling_lock);
 	list_for_each(e, &g_pd_list) {
 		pd = container_of(e, struct oz_pd, link);
-		if (memcmp(pd->mac_addr, mac_addr, ETH_ALEN) == 0) {
+		if (ether_addr_equal(pd->mac_addr, mac_addr)) {
 			atomic_inc(&pd->ref_count);
 			spin_unlock_bh(&g_polling_lock);
 			return pd;
@@ -668,8 +668,8 @@ void oz_binding_add(const char *net_dev)
 	if (binding) {
 		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
 		binding->ptype.func = oz_pkt_recv;
-		memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
 		if (net_dev && *net_dev) {
+			memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
 			oz_dbg(ON, "Adding binding: %s\n", net_dev);
 			binding->ptype.dev =
 				dev_get_by_name(&init_net, net_dev);
@@ -680,6 +680,7 @@ void oz_binding_add(const char *net_dev)
 			}
 		} else {
 			oz_dbg(ON, "Binding to all netcards\n");
+			memset(binding->name, 0, OZ_MAX_BINDING_LEN);
 			binding->ptype.dev = NULL;
 		}
 		if (binding) {

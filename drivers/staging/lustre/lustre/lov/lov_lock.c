@@ -71,7 +71,7 @@ static struct lov_sublock_env *lov_sublock_env_get(const struct lu_env *env,
 	/*
 	 * FIXME: We tend to use the subio's env & io to call the sublock
 	 * lock operations because osc lock sometimes stores some control
-	 * variables in thread's IO infomation(Now only lockless information).
+	 * variables in thread's IO information(Now only lockless information).
 	 * However, if the lock's host(object) is different from the object
 	 * for current IO, we have no way to get the subenv and subio because
 	 * they are not initialized at all. As a temp fix, in this case,

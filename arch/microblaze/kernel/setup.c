@@ -9,6 +9,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
@@ -136,7 +137,7 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	lockdep_init();
 
 /* initialize device tree for usage in early_printk */
-	early_init_devtree((void *)_fdt_start);
+	early_init_devtree(_fdt_start);
 
 #ifdef CONFIG_EARLY_PRINTK
 	setup_early_printk(NULL);
@@ -152,8 +153,7 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	if (fdt)
 		pr_info("FDT at 0x%08x\n", fdt);
 	else
-		pr_info("Compiled-in FDT at 0x%08x\n",
-					(unsigned int)_fdt_start);
+		pr_info("Compiled-in FDT at %p\n", _fdt_start);
 
 #ifdef CONFIG_MTD_UCLINUX
 	pr_info("Found romfs @ 0x%08x (0x%08x)\n",
@@ -175,7 +175,7 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 #else
 	if (!msr) {
 		pr_info("!!!Your kernel not setup MSR instruction but ");
-		pr_cont"CPU have it %x\n", msr);
+		pr_cont("CPU have it %x\n", msr);
 	}
 #endif
 
@@ -196,6 +196,8 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 
 void __init time_init(void)
 {
+	of_clk_init(NULL);
+	setup_cpuinfo_clk();
 	clocksource_of_init();
 }
 

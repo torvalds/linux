@@ -187,10 +187,8 @@ struct tile_net_priv {
 	int echannel;
 	/* mPIPE instance, 0 or 1. */
 	int instance;
-#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
 	/* The timestamp config. */
 	struct hwtstamp_config stamp_cfg;
-#endif
 };
 
 static struct mpipe_data {
@@ -229,14 +227,12 @@ static struct mpipe_data {
 	int first_bucket;
 	int num_buckets;
 
-#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
 	/* PTP-specific data. */
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info caps;
 
 	/* Lock for ptp accessors. */
 	struct mutex ptp_lock;
-#endif
 
 } mpipe_data[NR_MPIPE_MAX] = {
 	[0 ... (NR_MPIPE_MAX - 1)] {
@@ -451,20 +447,17 @@ static void tile_net_provide_needed_buffers(void)
 static void tile_rx_timestamp(struct tile_net_priv *priv, struct sk_buff *skb,
 			      gxio_mpipe_idesc_t *idesc)
 {
-#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
 	if (unlikely(priv->stamp_cfg.rx_filter != HWTSTAMP_FILTER_NONE)) {
 		struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
 		memset(shhwtstamps, 0, sizeof(*shhwtstamps));
 		shhwtstamps->hwtstamp = ktime_set(idesc->time_stamp_sec,
 						  idesc->time_stamp_ns);
 	}
-#endif
 }
 
 /* Get TX timestamp, and store it in the skb. */
 static void tile_tx_timestamp(struct sk_buff *skb, int instance)
 {
-#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
 	struct skb_shared_info *shtx = skb_shinfo(skb);
 	if (unlikely((shtx->tx_flags & SKBTX_HW_TSTAMP) != 0)) {
 		struct mpipe_data *md = &mpipe_data[instance];
@@ -477,14 +470,11 @@ static void tile_tx_timestamp(struct sk_buff *skb, int instance)
 		shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
 		skb_tstamp_tx(skb, &shhwtstamps);
 	}
-#endif
 }
 
 /* Use ioctl() to enable or disable TX or RX timestamping. */
-static int tile_hwtstamp_ioctl(struct net_device *dev, struct ifreq *rq,
-			       int cmd)
+static int tile_hwtstamp_set(struct net_device *dev, struct ifreq *rq)
 {
-#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
 	struct hwtstamp_config config;
 	struct tile_net_priv *priv = netdev_priv(dev);
 
@@ -530,9 +520,17 @@ static int tile_hwtstamp_ioctl(struct net_device *dev, struct ifreq *rq,
 
 	priv->stamp_cfg = config;
 	return 0;
-#else
-	return -EOPNOTSUPP;
-#endif
+}
+
+static int tile_hwtstamp_get(struct net_device *dev, struct ifreq *rq)
+{
+	struct tile_net_priv *priv = netdev_priv(dev);
+
+	if (copy_to_user(rq->ifr_data, &priv->stamp_cfg,
+			 sizeof(priv->stamp_cfg)))
+		return -EFAULT;
+
+	return 0;
 }
 
 static inline bool filter_packet(struct net_device *dev, void *buf)
@@ -814,8 +812,6 @@ static enum hrtimer_restart tile_net_handle_egress_timer(struct hrtimer *t)
 	return HRTIMER_NORESTART;
 }
 
-#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
-
 /* PTP clock operations. */
 
 static int ptp_mpipe_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
@@ -882,12 +878,9 @@ static struct ptp_clock_info ptp_mpipe_caps = {
 	.enable		= ptp_mpipe_enable,
 };
 
-#endif /* CONFIG_PTP_1588_CLOCK_TILEGX */
-
 /* Sync mPIPE's timestamp up with Linux system time and register PTP clock. */
 static void register_ptp_clock(struct net_device *dev, struct mpipe_data *md)
 {
-#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
 	struct timespec ts;
 
 	getnstimeofday(&ts);
@@ -899,16 +892,13 @@ static void register_ptp_clock(struct net_device *dev, struct mpipe_data *md)
 	if (IS_ERR(md->ptp_clock))
 		netdev_err(dev, "ptp_clock_register failed %ld\n",
 			   PTR_ERR(md->ptp_clock));
-#endif
 }
 
 /* Initialize PTP fields in a new device. */
 static void init_ptp_dev(struct tile_net_priv *priv)
 {
-#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
 	priv->stamp_cfg.rx_filter = HWTSTAMP_FILTER_NONE;
 	priv->stamp_cfg.tx_type = HWTSTAMP_TX_OFF;
-#endif
 }
 
 /* Helper functions for "tile_net_update()". */
@@ -2080,7 +2070,8 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* Return subqueue id on this core (one per core). */
-static u16 tile_net_select_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 tile_net_select_queue(struct net_device *dev, struct sk_buff *skb,
+				 void *accel_priv)
 {
 	return smp_processor_id();
 }
@@ -2098,7 +2089,9 @@ static void tile_net_tx_timeout(struct net_device *dev)
 static int tile_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	if (cmd == SIOCSHWTSTAMP)
-		return tile_hwtstamp_ioctl(dev, rq, cmd);
+		return tile_hwtstamp_set(dev, rq);
+	if (cmd == SIOCGHWTSTAMP)
+		return tile_hwtstamp_get(dev, rq);
 
 	return -EOPNOTSUPP;
 }

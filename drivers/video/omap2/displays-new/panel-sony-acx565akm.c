@@ -346,12 +346,9 @@ static int acx565akm_get_actual_brightness(struct panel_drv_data *ddata)
 static int acx565akm_bl_update_status(struct backlight_device *dev)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&dev->dev);
-	int r;
 	int level;
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
-
-	mutex_lock(&ddata->mutex);
 
 	if (dev->props.fb_blank == FB_BLANK_UNBLANK &&
 			dev->props.power == FB_BLANK_UNBLANK)
@@ -359,15 +356,12 @@ static int acx565akm_bl_update_status(struct backlight_device *dev)
 	else
 		level = 0;
 
-	r = 0;
 	if (ddata->has_bc)
 		acx565akm_set_brightness(ddata, level);
 	else
-		r = -ENODEV;
+		return -ENODEV;
 
-	mutex_unlock(&ddata->mutex);
-
-	return r;
+	return 0;
 }
 
 static int acx565akm_bl_get_intensity(struct backlight_device *dev)
@@ -390,9 +384,33 @@ static int acx565akm_bl_get_intensity(struct backlight_device *dev)
 	return 0;
 }
 
+static int acx565akm_bl_update_status_locked(struct backlight_device *dev)
+{
+	struct panel_drv_data *ddata = dev_get_drvdata(&dev->dev);
+	int r;
+
+	mutex_lock(&ddata->mutex);
+	r = acx565akm_bl_update_status(dev);
+	mutex_unlock(&ddata->mutex);
+
+	return r;
+}
+
+static int acx565akm_bl_get_intensity_locked(struct backlight_device *dev)
+{
+	struct panel_drv_data *ddata = dev_get_drvdata(&dev->dev);
+	int r;
+
+	mutex_lock(&ddata->mutex);
+	r = acx565akm_bl_get_intensity(dev);
+	mutex_unlock(&ddata->mutex);
+
+	return r;
+}
+
 static const struct backlight_ops acx565akm_bl_ops = {
-	.get_brightness = acx565akm_bl_get_intensity,
-	.update_status  = acx565akm_bl_update_status,
+	.get_brightness = acx565akm_bl_get_intensity_locked,
+	.update_status  = acx565akm_bl_update_status_locked,
 };
 
 /*--------------------Auto Brightness control via Sysfs---------------------*/
@@ -526,8 +544,6 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 	struct omap_dss_device *in = ddata->in;
 	int r;
 
-	mutex_lock(&ddata->mutex);
-
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
 	in->ops.sdi->set_timings(in, &ddata->videomode);
@@ -567,8 +583,6 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 	usleep_range(5000, 10000);
 	set_display_state(ddata, 1);
 	set_cabc_mode(ddata, ddata->cabc_mode);
-
-	mutex_unlock(&ddata->mutex);
 
 	return acx565akm_bl_update_status(ddata->bl_dev);
 }
@@ -616,7 +630,9 @@ static int acx565akm_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
+	mutex_lock(&ddata->mutex);
 	r = acx565akm_panel_power_on(dssdev);
+	mutex_unlock(&ddata->mutex);
 	if (r)
 		return r;
 

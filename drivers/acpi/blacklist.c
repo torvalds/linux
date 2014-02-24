@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
 #include <linux/dmi.h>
 
 #include "internal.h"
@@ -321,6 +320,56 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		     DMI_MATCH(DMI_PRODUCT_VERSION, "2349D15"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP ProBook 2013 models",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP ProBook "),
+		     DMI_MATCH(DMI_PRODUCT_NAME, " G1"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP EliteBook 2013 models",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP EliteBook "),
+		     DMI_MATCH(DMI_PRODUCT_NAME, " G1"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP ZBook 14",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP ZBook 14"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP ZBook 15",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP ZBook 15"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP ZBook 17",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP ZBook 17"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "HP EliteBook 8780w",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP EliteBook 8780w"),
 		},
 	},
 

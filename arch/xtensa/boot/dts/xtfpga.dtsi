@@ -35,6 +35,13 @@
 		interrupt-controller;
 	};
 
+	clocks {
+		osc: main-oscillator {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+		};
+	};
+
 	serial0: serial@fd050020 {
 		device_type = "serial";
 		compatible = "ns16550a";
@@ -42,9 +49,7 @@
 		reg = <0xfd050020 0x20>;
 		reg-shift = <2>;
 		interrupts = <0 1>; /* external irq 0 */
-		/* Filled in by platform_setup from FPGA register
-		 * clock-frequency = <100000000>;
-		 */
+		clocks = <&osc>;
 	};
 
 	enet0: ethoc@fd030000 {
@@ -52,5 +57,6 @@
 		reg = <0xfd030000 0x4000 0xfd800000 0x4000>;
 		interrupts = <1 1>; /* external irq 1 */
 		local-mac-address = [00 50 c2 13 6f 00];
+		clocks = <&osc>;
 	};
 };

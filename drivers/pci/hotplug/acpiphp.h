@@ -77,6 +77,8 @@ struct acpiphp_bridge {
 
 	/* PCI-to-PCI bridge device */
 	struct pci_dev *pci_dev;
+
+	bool is_going_away;
 };
 
 
@@ -150,6 +152,7 @@ struct acpiphp_attention_info
 /* slot flags */
 
 #define SLOT_ENABLED		(0x00000001)
+#define SLOT_IS_GOING_AWAY	(0x00000002)
 
 /* function flags */
 
@@ -169,7 +172,7 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
 
 int acpiphp_enable_slot(struct acpiphp_slot *slot);
-int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot);
+int acpiphp_disable_slot(struct acpiphp_slot *slot);
 u8 acpiphp_get_power_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_attention_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_latch_status(struct acpiphp_slot *slot);

@@ -56,7 +56,6 @@
 #include <linux/cuda.h>
 #include <asm/io.h>
 #ifdef CONFIG_MAC
-#include <asm/bootinfo.h>
 #include <asm/macintosh.h>
 #else
 #include <asm/prom.h>

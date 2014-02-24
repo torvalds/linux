@@ -798,6 +798,15 @@ repoll:
 			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 13;
 		else
 			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 12;
+		if (be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_VLAN_PRESENT_MASK) {
+			wc->vlan_id = be16_to_cpu(cqe->sl_vid) &
+				MLX4_CQE_VID_MASK;
+		} else {
+			wc->vlan_id = 0xffff;
+		}
+		wc->wc_flags |= IB_WC_WITH_VLAN;
+		memcpy(wc->smac, cqe->smac, ETH_ALEN);
+		wc->wc_flags |= IB_WC_WITH_SMAC;
 	}
 
 	return 0;
