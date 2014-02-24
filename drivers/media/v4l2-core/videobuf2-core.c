@@ -1159,9 +1159,8 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	if (!q->start_streaming_called) {
 		if (WARN_ON(state != VB2_BUF_STATE_QUEUED))
 			state = VB2_BUF_STATE_QUEUED;
-	} else if (!WARN_ON(!q->start_streaming_called)) {
-		if (WARN_ON(state != VB2_BUF_STATE_DONE &&
-			    state != VB2_BUF_STATE_ERROR))
+	} else if (WARN_ON(state != VB2_BUF_STATE_DONE &&
+			   state != VB2_BUF_STATE_ERROR)) {
 			state = VB2_BUF_STATE_ERROR;
 	}
 
