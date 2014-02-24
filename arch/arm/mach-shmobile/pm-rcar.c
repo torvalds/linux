@@ -15,8 +15,6 @@
 #include <asm/io.h>
 #include <mach/pm-rcar.h>
 
-static void __iomem *rcar_sysc_base;
-
 /* SYSC */
 #define SYSCSR 0x00
 #define SYSCISR 0x04
@@ -35,6 +33,7 @@ static void __iomem *rcar_sysc_base;
 
 #if defined(CONFIG_PM) || defined(CONFIG_SMP)
 
+static void __iomem *rcar_sysc_base;
 static DEFINE_SPINLOCK(rcar_sysc_lock); /* SMP CPUs + I/O devices */
 
 static int rcar_sysc_pwr_on_off(struct rcar_sysc_ch *sysc_ch,
