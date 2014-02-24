@@ -2109,7 +2109,7 @@ static void rcu_init_one_nocb(struct rcu_node *rnp)
 }
 
 #ifndef CONFIG_RCU_NOCB_CPU_ALL
-/* Is the specified CPU a no-CPUs CPU? */
+/* Is the specified CPU a no-CBs CPU? */
 bool rcu_is_nocb_cpu(int cpu)
 {
 	if (have_rcu_nocb_mask)
