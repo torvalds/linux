@@ -461,6 +461,34 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 
+static void hci_cc_write_sc_support(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	u8 status = *((u8 *) skb->data);
+	struct hci_cp_write_sc_support *sent;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SC_SUPPORT);
+	if (!sent)
+		return;
+
+	if (!status) {
+		if (sent->support)
+			hdev->features[1][0] |= LMP_HOST_SC;
+		else
+			hdev->features[1][0] &= ~LMP_HOST_SC;
+	}
+
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_sc_enable_complete(hdev, sent->support, status);
+	else if (!status) {
+		if (sent->support)
+			set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		else
+			clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+	}
+}
+
 static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_rp_read_local_version *rp = (void *) skb->data;
@@ -904,16 +932,50 @@ static void hci_cc_user_passkey_neg_reply(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
-static void hci_cc_read_local_oob_data_reply(struct hci_dev *hdev,
-					     struct sk_buff *skb)
+static void hci_cc_read_local_oob_data(struct hci_dev *hdev,
+				       struct sk_buff *skb)
 {
 	struct hci_rp_read_local_oob_data *rp = (void *) skb->data;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
 
 	hci_dev_lock(hdev);
-	mgmt_read_local_oob_data_reply_complete(hdev, rp->hash,
-						rp->randomizer, rp->status);
+	mgmt_read_local_oob_data_complete(hdev, rp->hash, rp->randomizer,
+					  NULL, NULL, rp->status);
+	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_read_local_oob_ext_data(struct hci_dev *hdev,
+					   struct sk_buff *skb)
+{
+	struct hci_rp_read_local_oob_ext_data *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	hci_dev_lock(hdev);
+	mgmt_read_local_oob_data_complete(hdev, rp->hash192, rp->randomizer192,
+					  rp->hash256, rp->randomizer256,
+					  rp->status);
+	hci_dev_unlock(hdev);
+}
+
+
+static void hci_cc_le_set_random_addr(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+	bdaddr_t *sent;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_RANDOM_ADDR);
+	if (!sent)
+		return;
+
+	hci_dev_lock(hdev);
+
+	if (!status)
+		bacpy(&hdev->random_addr, sent);
+
 	hci_dev_unlock(hdev);
 }
 
@@ -1185,9 +1247,12 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 		return 0;
 
 	/* Only request authentication for SSP connections or non-SSP
-	 * devices with sec_level HIGH or if MITM protection is requested */
+	 * devices with sec_level MEDIUM or HIGH or if MITM protection
+	 * is requested.
+	 */
 	if (!hci_conn_ssp_enabled(conn) && !(conn->auth_type & 0x01) &&
-	    conn->pending_sec_level != BT_SECURITY_HIGH)
+	    conn->pending_sec_level != BT_SECURITY_HIGH &&
+	    conn->pending_sec_level != BT_SECURITY_MEDIUM)
 		return 0;
 
 	return 1;
@@ -1659,7 +1724,7 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	} else {
 		conn->state = BT_CLOSED;
 		if (conn->type == ACL_LINK)
-			mgmt_connect_failed(hdev, &ev->bdaddr, conn->type,
+			mgmt_connect_failed(hdev, &conn->dst, conn->type,
 					    conn->dst_type, ev->status);
 	}
 
@@ -1943,34 +2008,45 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
-	if (conn) {
-		if (!ev->status) {
-			if (ev->encrypt) {
-				/* Encryption implies authentication */
-				conn->link_mode |= HCI_LM_AUTH;
-				conn->link_mode |= HCI_LM_ENCRYPT;
-				conn->sec_level = conn->pending_sec_level;
-			} else
-				conn->link_mode &= ~HCI_LM_ENCRYPT;
+	if (!conn)
+		goto unlock;
+
+	if (!ev->status) {
+		if (ev->encrypt) {
+			/* Encryption implies authentication */
+			conn->link_mode |= HCI_LM_AUTH;
+			conn->link_mode |= HCI_LM_ENCRYPT;
+			conn->sec_level = conn->pending_sec_level;
+
+			/* P-256 authentication key implies FIPS */
+			if (conn->key_type == HCI_LK_AUTH_COMBINATION_P256)
+				conn->link_mode |= HCI_LM_FIPS;
+
+			if ((conn->type == ACL_LINK && ev->encrypt == 0x02) ||
+			    conn->type == LE_LINK)
+				set_bit(HCI_CONN_AES_CCM, &conn->flags);
+		} else {
+			conn->link_mode &= ~HCI_LM_ENCRYPT;
+			clear_bit(HCI_CONN_AES_CCM, &conn->flags);
 		}
-
-		clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
-
-		if (ev->status && conn->state == BT_CONNECTED) {
-			hci_disconnect(conn, HCI_ERROR_AUTH_FAILURE);
-			hci_conn_drop(conn);
-			goto unlock;
-		}
-
-		if (conn->state == BT_CONFIG) {
-			if (!ev->status)
-				conn->state = BT_CONNECTED;
-
-			hci_proto_connect_cfm(conn, ev->status);
-			hci_conn_drop(conn);
-		} else
-			hci_encrypt_cfm(conn, ev->status, ev->encrypt);
 	}
+
+	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
+
+	if (ev->status && conn->state == BT_CONNECTED) {
+		hci_disconnect(conn, HCI_ERROR_AUTH_FAILURE);
+		hci_conn_drop(conn);
+		goto unlock;
+	}
+
+	if (conn->state == BT_CONFIG) {
+		if (!ev->status)
+			conn->state = BT_CONNECTED;
+
+		hci_proto_connect_cfm(conn, ev->status);
+		hci_conn_drop(conn);
+	} else
+		hci_encrypt_cfm(conn, ev->status, ev->encrypt);
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -2144,6 +2220,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_cc_write_ssp_mode(hdev, skb);
 		break;
 
+	case HCI_OP_WRITE_SC_SUPPORT:
+		hci_cc_write_sc_support(hdev, skb);
+		break;
+
 	case HCI_OP_READ_LOCAL_VERSION:
 		hci_cc_read_local_version(hdev, skb);
 		break;
@@ -2213,7 +2293,11 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 
 	case HCI_OP_READ_LOCAL_OOB_DATA:
-		hci_cc_read_local_oob_data_reply(hdev, skb);
+		hci_cc_read_local_oob_data(hdev, skb);
+		break;
+
+	case HCI_OP_READ_LOCAL_OOB_EXT_DATA:
+		hci_cc_read_local_oob_ext_data(hdev, skb);
 		break;
 
 	case HCI_OP_LE_READ_BUFFER_SIZE:
@@ -2242,6 +2326,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_USER_PASSKEY_NEG_REPLY:
 		hci_cc_user_passkey_neg_reply(hdev, skb);
+		break;
+
+	case HCI_OP_LE_SET_RANDOM_ADDR:
+		hci_cc_le_set_random_addr(hdev, skb);
 		break;
 
 	case HCI_OP_LE_SET_ADV_ENABLE:
@@ -2630,7 +2718,8 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn) {
-		if (key->type == HCI_LK_UNAUTH_COMBINATION &&
+		if ((key->type == HCI_LK_UNAUTH_COMBINATION_P192 ||
+		     key->type == HCI_LK_UNAUTH_COMBINATION_P256) &&
 		    conn->auth_type != 0xff && (conn->auth_type & 0x01)) {
 			BT_DBG("%s ignoring unauthenticated key", hdev->name);
 			goto not_found;
@@ -2844,6 +2933,9 @@ static void hci_remote_ext_features_evt(struct hci_dev *hdev,
 			 * features do not indicate SSP support */
 			clear_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 		}
+
+		if (ev->features[0] & LMP_HOST_SC)
+			set_bit(HCI_CONN_SC_ENABLED, &conn->flags);
 	}
 
 	if (conn->state != BT_CONFIG)
@@ -3337,20 +3429,36 @@ static void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 
 	data = hci_find_remote_oob_data(hdev, &ev->bdaddr);
 	if (data) {
-		struct hci_cp_remote_oob_data_reply cp;
+		if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+			struct hci_cp_remote_oob_ext_data_reply cp;
 
-		bacpy(&cp.bdaddr, &ev->bdaddr);
-		memcpy(cp.hash, data->hash, sizeof(cp.hash));
-		memcpy(cp.randomizer, data->randomizer, sizeof(cp.randomizer));
+			bacpy(&cp.bdaddr, &ev->bdaddr);
+			memcpy(cp.hash192, data->hash192, sizeof(cp.hash192));
+			memcpy(cp.randomizer192, data->randomizer192,
+			       sizeof(cp.randomizer192));
+			memcpy(cp.hash256, data->hash256, sizeof(cp.hash256));
+			memcpy(cp.randomizer256, data->randomizer256,
+			       sizeof(cp.randomizer256));
 
-		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_REPLY, sizeof(cp),
-			     &cp);
+			hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_EXT_DATA_REPLY,
+				     sizeof(cp), &cp);
+		} else {
+			struct hci_cp_remote_oob_data_reply cp;
+
+			bacpy(&cp.bdaddr, &ev->bdaddr);
+			memcpy(cp.hash, data->hash192, sizeof(cp.hash));
+			memcpy(cp.randomizer, data->randomizer192,
+			       sizeof(cp.randomizer));
+
+			hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_REPLY,
+				     sizeof(cp), &cp);
+		}
 	} else {
 		struct hci_cp_remote_oob_data_neg_reply cp;
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
-		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_NEG_REPLY, sizeof(cp),
-			     &cp);
+		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_NEG_REPLY,
+			     sizeof(cp), &cp);
 	}
 
 unlock:
@@ -3484,6 +3592,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_conn_complete *ev = (void *) skb->data;
 	struct hci_conn *conn;
+	struct smp_irk *irk;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
 
@@ -3516,6 +3625,21 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 	}
 
+	/* Lookup the identity address from the stored connection
+	 * address and address type.
+	 *
+	 * When establishing connections to an identity address, the
+	 * connection procedure will store the resolvable random
+	 * address first. Now if it can be converted back into the
+	 * identity address, start using the identity address from
+	 * now on.
+	 */
+	irk = hci_get_irk(hdev, &conn->dst, conn->dst_type);
+	if (irk) {
+		bacpy(&conn->dst, &irk->bdaddr);
+		conn->dst_type = irk->addr_type;
+	}
+
 	if (ev->status) {
 		mgmt_connect_failed(hdev, &conn->dst, conn->type,
 				    conn->dst_type, ev->status);
@@ -3526,7 +3650,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	if (!test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
-		mgmt_device_connected(hdev, &ev->bdaddr, conn->type,
+		mgmt_device_connected(hdev, &conn->dst, conn->type,
 				      conn->dst_type, 0, NULL, 0, NULL);
 
 	conn->sec_level = BT_SECURITY_LOW;
@@ -3577,7 +3701,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn == NULL)
 		goto not_found;
 
-	ltk = hci_find_ltk(hdev, ev->ediv, ev->random);
+	ltk = hci_find_ltk(hdev, ev->ediv, ev->random, conn->out);
 	if (ltk == NULL)
 		goto not_found;
 

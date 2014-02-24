@@ -117,11 +117,16 @@ enum {
 	HCI_SERVICE_CACHE,
 	HCI_DEBUG_KEYS,
 	HCI_DUT_MODE,
+	HCI_FORCE_SC,
+	HCI_FORCE_STATIC_ADDR,
 	HCI_UNREGISTER,
 	HCI_USER_CHANNEL,
 
 	HCI_LE_SCAN,
 	HCI_SSP_ENABLED,
+	HCI_SC_ENABLED,
+	HCI_SC_ONLY,
+	HCI_RPA_RESOLVING,
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
 	HCI_ADVERTISING,
@@ -282,10 +287,14 @@ enum {
 #define LMP_SYNC_TRAIN	0x04
 #define LMP_SYNC_SCAN	0x08
 
+#define LMP_SC		0x01
+#define LMP_PING	0x02
+
 /* Host features */
 #define LMP_HOST_SSP		0x01
 #define LMP_HOST_LE		0x02
 #define LMP_HOST_LE_BREDR	0x04
+#define LMP_HOST_SC		0x08
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -307,6 +316,7 @@ enum {
 #define HCI_LM_TRUSTED	0x0008
 #define HCI_LM_RELIABLE	0x0010
 #define HCI_LM_SECURE	0x0020
+#define HCI_LM_FIPS	0x0040
 
 /* Authentication types */
 #define HCI_AT_NO_BONDING		0x00
@@ -327,14 +337,20 @@ enum {
 #define HCI_LK_LOCAL_UNIT		0x01
 #define HCI_LK_REMOTE_UNIT		0x02
 #define HCI_LK_DEBUG_COMBINATION	0x03
-#define HCI_LK_UNAUTH_COMBINATION	0x04
-#define HCI_LK_AUTH_COMBINATION		0x05
+#define HCI_LK_UNAUTH_COMBINATION_P192	0x04
+#define HCI_LK_AUTH_COMBINATION_P192	0x05
 #define HCI_LK_CHANGED_COMBINATION	0x06
+#define HCI_LK_UNAUTH_COMBINATION_P256	0x07
+#define HCI_LK_AUTH_COMBINATION_P256	0x08
 /* The spec doesn't define types for SMP keys, the _MASTER suffix is implied */
 #define HCI_SMP_STK			0x80
 #define HCI_SMP_STK_SLAVE		0x81
 #define HCI_SMP_LTK			0x82
 #define HCI_SMP_LTK_SLAVE		0x83
+
+/* Long Term Key types */
+#define HCI_LTK_UNAUTH			0x00
+#define HCI_LTK_AUTH			0x01
 
 /* ---- HCI Error Codes ---- */
 #define HCI_ERROR_AUTH_FAILURE		0x05
@@ -660,6 +676,15 @@ struct hci_rp_set_csb {
 
 #define HCI_OP_START_SYNC_TRAIN		0x0443
 
+#define HCI_OP_REMOTE_OOB_EXT_DATA_REPLY	0x0445
+struct hci_cp_remote_oob_ext_data_reply {
+	bdaddr_t bdaddr;
+	__u8     hash192[16];
+	__u8     randomizer192[16];
+	__u8     hash256[16];
+	__u8     randomizer256[16];
+} __packed;
+
 #define HCI_OP_SNIFF_MODE		0x0803
 struct hci_cp_sniff_mode {
 	__le16   handle;
@@ -931,6 +956,26 @@ struct hci_cp_write_sync_train_params {
 struct hci_rp_write_sync_train_params {
 	__u8	status;
 	__le16	sync_train_int;
+} __packed;
+
+#define HCI_OP_READ_SC_SUPPORT		0x0c79
+struct hci_rp_read_sc_support {
+	__u8	status;
+	__u8	support;
+} __packed;
+
+#define HCI_OP_WRITE_SC_SUPPORT		0x0c7a
+struct hci_cp_write_sc_support {
+	__u8	support;
+} __packed;
+
+#define HCI_OP_READ_LOCAL_OOB_EXT_DATA	0x0c7d
+struct hci_rp_read_local_oob_ext_data {
+	__u8     status;
+	__u8     hash192[16];
+	__u8     randomizer192[16];
+	__u8     hash256[16];
+	__u8     randomizer256[16];
 } __packed;
 
 #define HCI_OP_READ_LOCAL_VERSION	0x1001

@@ -94,6 +94,8 @@ struct mgmt_rp_read_index_list {
 #define MGMT_SETTING_HS			0x00000100
 #define MGMT_SETTING_LE			0x00000200
 #define MGMT_SETTING_ADVERTISING	0x00000400
+#define MGMT_SETTING_SECURE_CONN	0x00000800
+#define MGMT_SETTING_DEBUG_KEYS		0x00001000
 
 #define MGMT_OP_READ_INFO		0x0004
 #define MGMT_READ_INFO_SIZE		0
@@ -180,7 +182,7 @@ struct mgmt_cp_load_link_keys {
 
 struct mgmt_ltk_info {
 	struct mgmt_addr_info addr;
-	__u8	authenticated;
+	__u8	type;
 	__u8	master;
 	__u8	enc_size;
 	__le16	ediv;
@@ -294,6 +296,12 @@ struct mgmt_rp_read_local_oob_data {
 	__u8	hash[16];
 	__u8	randomizer[16];
 } __packed;
+struct mgmt_rp_read_local_oob_ext_data {
+	__u8	hash192[16];
+	__u8	randomizer192[16];
+	__u8	hash256[16];
+	__u8	randomizer256[16];
+} __packed;
 
 #define MGMT_OP_ADD_REMOTE_OOB_DATA	0x0021
 struct mgmt_cp_add_remote_oob_data {
@@ -302,6 +310,14 @@ struct mgmt_cp_add_remote_oob_data {
 	__u8	randomizer[16];
 } __packed;
 #define MGMT_ADD_REMOTE_OOB_DATA_SIZE	(MGMT_ADDR_INFO_SIZE + 32)
+struct mgmt_cp_add_remote_oob_ext_data {
+	struct mgmt_addr_info addr;
+	__u8	hash192[16];
+	__u8	randomizer192[16];
+	__u8	hash256[16];
+	__u8	randomizer256[16];
+} __packed;
+#define MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE (MGMT_ADDR_INFO_SIZE + 64)
 
 #define MGMT_OP_REMOVE_REMOTE_OOB_DATA	0x0022
 struct mgmt_cp_remove_remote_oob_data {
@@ -368,6 +384,22 @@ struct mgmt_cp_set_scan_params {
 	__le16	window;
 } __packed;
 #define MGMT_SET_SCAN_PARAMS_SIZE	4
+
+#define MGMT_OP_SET_SECURE_CONN		0x002D
+
+#define MGMT_OP_SET_DEBUG_KEYS		0x002E
+
+struct mgmt_irk_info {
+	struct mgmt_addr_info addr;
+	__u8 val[16];
+} __packed;
+
+#define MGMT_OP_LOAD_IRKS		0x0030
+struct mgmt_cp_load_irks {
+	__le16 irk_count;
+	struct mgmt_irk_info irks[0];
+} __packed;
+#define MGMT_LOAD_IRKS_SIZE		2
 
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
@@ -503,4 +535,11 @@ struct mgmt_ev_passkey_notify {
 	struct mgmt_addr_info addr;
 	__le32	passkey;
 	__u8	entered;
+} __packed;
+
+#define MGMT_EV_NEW_IRK			0x0018
+struct mgmt_ev_new_irk {
+	__u8     store_hint;
+	bdaddr_t rpa;
+	struct mgmt_irk_info irk;
 } __packed;

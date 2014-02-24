@@ -359,7 +359,7 @@ static const struct file_operations vhci_fops = {
 static struct miscdevice vhci_miscdev= {
 	.name	= "vhci",
 	.fops	= &vhci_fops,
-	.minor	= MISC_DYNAMIC_MINOR,
+	.minor	= VHCI_MINOR,
 };
 
 static int __init vhci_init(void)
@@ -385,3 +385,4 @@ MODULE_DESCRIPTION("Bluetooth virtual HCI driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("devname:vhci");
+MODULE_ALIAS_MISCDEV(VHCI_MINOR);

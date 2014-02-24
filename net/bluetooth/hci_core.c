@@ -29,10 +29,13 @@
 #include <linux/idr.h>
 #include <linux/rfkill.h>
 #include <linux/debugfs.h>
+#include <linux/crypto.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+
+#include "smp.h"
 
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);
@@ -285,24 +288,6 @@ static const struct file_operations link_keys_fops = {
 	.release	= single_release,
 };
 
-static ssize_t use_debug_keys_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[3];
-
-	buf[0] = test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags) ? 'Y': 'N';
-	buf[1] = '\n';
-	buf[2] = '\0';
-	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
-}
-
-static const struct file_operations use_debug_keys_fops = {
-	.open		= simple_open,
-	.read		= use_debug_keys_read,
-	.llseek		= default_llseek,
-};
-
 static int dev_class_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
@@ -415,6 +400,70 @@ static int ssp_debug_mode_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(ssp_debug_mode_fops, ssp_debug_mode_get,
 			ssp_debug_mode_set, "%llu\n");
 
+static ssize_t force_sc_support_read(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_FORCE_SC, &hdev->dev_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t force_sc_support_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[32];
+	size_t buf_size = min(count, (sizeof(buf)-1));
+	bool enable;
+
+	if (test_bit(HCI_UP, &hdev->flags))
+		return -EBUSY;
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+	if (strtobool(buf, &enable))
+		return -EINVAL;
+
+	if (enable == test_bit(HCI_FORCE_SC, &hdev->dev_flags))
+		return -EALREADY;
+
+	change_bit(HCI_FORCE_SC, &hdev->dev_flags);
+
+	return count;
+}
+
+static const struct file_operations force_sc_support_fops = {
+	.open		= simple_open,
+	.read		= force_sc_support_read,
+	.write		= force_sc_support_write,
+	.llseek		= default_llseek,
+};
+
+static ssize_t sc_only_mode_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_SC_ONLY, &hdev->dev_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static const struct file_operations sc_only_mode_fops = {
+	.open		= simple_open,
+	.read		= sc_only_mode_read,
+	.llseek		= default_llseek,
+};
+
 static int idle_timeout_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -499,6 +548,29 @@ static int sniff_max_interval_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(sniff_max_interval_fops, sniff_max_interval_get,
 			sniff_max_interval_set, "%llu\n");
 
+static int random_address_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+
+	hci_dev_lock(hdev);
+	seq_printf(f, "%pMR\n", &hdev->random_addr);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int random_address_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, random_address_show, inode->i_private);
+}
+
+static const struct file_operations random_address_fops = {
+	.open		= random_address_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int static_address_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
@@ -522,33 +594,82 @@ static const struct file_operations static_address_fops = {
 	.release	= single_release,
 };
 
-static int own_address_type_set(void *data, u64 val)
+static ssize_t force_static_address_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
 {
-	struct hci_dev *hdev = data;
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
 
-	if (val != 0 && val != 1)
+	buf[0] = test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t force_static_address_write(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[32];
+	size_t buf_size = min(count, (sizeof(buf)-1));
+	bool enable;
+
+	if (test_bit(HCI_UP, &hdev->flags))
+		return -EBUSY;
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+	if (strtobool(buf, &enable))
 		return -EINVAL;
 
-	hci_dev_lock(hdev);
-	hdev->own_addr_type = val;
-	hci_dev_unlock(hdev);
+	if (enable == test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags))
+		return -EALREADY;
 
-	return 0;
+	change_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags);
+
+	return count;
 }
 
-static int own_address_type_get(void *data, u64 *val)
+static const struct file_operations force_static_address_fops = {
+	.open		= simple_open,
+	.read		= force_static_address_read,
+	.write		= force_static_address_write,
+	.llseek		= default_llseek,
+};
+
+static int identity_resolving_keys_show(struct seq_file *f, void *ptr)
 {
-	struct hci_dev *hdev = data;
+	struct hci_dev *hdev = f->private;
+	struct list_head *p, *n;
 
 	hci_dev_lock(hdev);
-	*val = hdev->own_addr_type;
+	list_for_each_safe(p, n, &hdev->identity_resolving_keys) {
+		struct smp_irk *irk = list_entry(p, struct smp_irk, list);
+		seq_printf(f, "%pMR (type %u) %*phN %pMR\n",
+			   &irk->bdaddr, irk->addr_type,
+			   16, irk->val, &irk->rpa);
+	}
 	hci_dev_unlock(hdev);
 
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(own_address_type_fops, own_address_type_get,
-			own_address_type_set, "%llu\n");
+static int identity_resolving_keys_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, identity_resolving_keys_show,
+			   inode->i_private);
+}
+
+static const struct file_operations identity_resolving_keys_fops = {
+	.open		= identity_resolving_keys_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static int long_term_keys_show(struct seq_file *f, void *ptr)
 {
@@ -556,9 +677,9 @@ static int long_term_keys_show(struct seq_file *f, void *ptr)
 	struct list_head *p, *n;
 
 	hci_dev_lock(hdev);
-	list_for_each_safe(p, n, &hdev->link_keys) {
+	list_for_each_safe(p, n, &hdev->long_term_keys) {
 		struct smp_ltk *ltk = list_entry(p, struct smp_ltk, list);
-		seq_printf(f, "%pMR (type %u) %u %u %u %.4x %*phN %*phN\\n",
+		seq_printf(f, "%pMR (type %u) %u 0x%02x %u %.4x %*phN %*phN\n",
 			   &ltk->bdaddr, ltk->bdaddr_type, ltk->authenticated,
 			   ltk->type, ltk->enc_size, __le16_to_cpu(ltk->ediv),
 			   8, ltk->rand, 16, ltk->val);
@@ -635,6 +756,34 @@ static int conn_max_interval_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(conn_max_interval_fops, conn_max_interval_get,
 			conn_max_interval_set, "%llu\n");
+
+static int adv_channel_map_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x01 || val > 0x07)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_adv_channel_map = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int adv_channel_map_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_adv_channel_map;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(adv_channel_map_fops, adv_channel_map_get,
+			adv_channel_map_set, "%llu\n");
 
 static ssize_t lowpan_read(struct file *file, char __user *user_buf,
 			   size_t count, loff_t *ppos)
@@ -1288,6 +1437,10 @@ static void hci_set_event_mask_page_2(struct hci_request *req)
 		events[2] |= 0x08;	/* Truncated Page Complete */
 	}
 
+	/* Enable Authenticated Payload Timeout Expired event if supported */
+	if (lmp_ping_capable(hdev))
+		events[2] |= 0x80;
+
 	hci_req_add(req, HCI_OP_SET_EVENT_MASK_PAGE_2, sizeof(events), events);
 }
 
@@ -1323,17 +1476,19 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		hci_setup_link_policy(req);
 
 	if (lmp_le_capable(hdev)) {
-		if (test_bit(HCI_SETUP, &hdev->dev_flags)) {
-			/* If the controller has a public BD_ADDR, then
-			 * by default use that one. If this is a LE only
-			 * controller without a public address, default
-			 * to the random address.
-			 */
-			if (bacmp(&hdev->bdaddr, BDADDR_ANY))
-				hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
-			else
-				hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
-		}
+		/* If the controller has a public BD_ADDR, then by default
+		 * use that one. If this is a LE only controller without
+		 * a public address, default to the random address.
+		 *
+		 * For debugging purposes it is possible to force
+		 * controllers with a public address to use the
+		 * random address instead.
+		 */
+		if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ||
+		    !bacmp(&hdev->bdaddr, BDADDR_ANY))
+			hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
+		else
+			hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
 
 		hci_set_le_support(req);
 	}
@@ -1359,6 +1514,15 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 	/* Check for Synchronization Train support */
 	if (lmp_sync_train_capable(hdev))
 		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
+
+	/* Enable Secure Connections if supported and configured */
+	if ((lmp_sc_capable(hdev) ||
+	     test_bit(HCI_FORCE_SC, &hdev->dev_flags)) &&
+	    test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+		u8 support = 0x01;
+		hci_req_add(req, HCI_OP_WRITE_SC_SUPPORT,
+			    sizeof(support), &support);
+	}
 }
 
 static int __hci_init(struct hci_dev *hdev)
@@ -1417,8 +1581,6 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &inquiry_cache_fops);
 		debugfs_create_file("link_keys", 0400, hdev->debugfs,
 				    hdev, &link_keys_fops);
-		debugfs_create_file("use_debug_keys", 0444, hdev->debugfs,
-				    hdev, &use_debug_keys_fops);
 		debugfs_create_file("dev_class", 0444, hdev->debugfs,
 				    hdev, &dev_class_fops);
 		debugfs_create_file("voice_setting", 0444, hdev->debugfs,
@@ -1430,6 +1592,10 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &auto_accept_delay_fops);
 		debugfs_create_file("ssp_debug_mode", 0644, hdev->debugfs,
 				    hdev, &ssp_debug_mode_fops);
+		debugfs_create_file("force_sc_support", 0644, hdev->debugfs,
+				    hdev, &force_sc_support_fops);
+		debugfs_create_file("sc_only_mode", 0444, hdev->debugfs,
+				    hdev, &sc_only_mode_fops);
 	}
 
 	if (lmp_sniff_capable(hdev)) {
@@ -1442,18 +1608,33 @@ static int __hci_init(struct hci_dev *hdev)
 	}
 
 	if (lmp_le_capable(hdev)) {
+		debugfs_create_file("random_address", 0444, hdev->debugfs,
+				    hdev, &random_address_fops);
+		debugfs_create_file("static_address", 0444, hdev->debugfs,
+				    hdev, &static_address_fops);
+
+		/* For controllers with a public address, provide a debug
+		 * option to force the usage of the configured static
+		 * address. By default the public address is used.
+		 */
+		if (bacmp(&hdev->bdaddr, BDADDR_ANY))
+			debugfs_create_file("force_static_address", 0644,
+					    hdev->debugfs, hdev,
+					    &force_static_address_fops);
+
 		debugfs_create_u8("white_list_size", 0444, hdev->debugfs,
 				  &hdev->le_white_list_size);
-		debugfs_create_file("static_address", 0444, hdev->debugfs,
-				   hdev, &static_address_fops);
-		debugfs_create_file("own_address_type", 0644, hdev->debugfs,
-				    hdev, &own_address_type_fops);
+		debugfs_create_file("identity_resolving_keys", 0400,
+				    hdev->debugfs, hdev,
+				    &identity_resolving_keys_fops);
 		debugfs_create_file("long_term_keys", 0400, hdev->debugfs,
 				    hdev, &long_term_keys_fops);
 		debugfs_create_file("conn_min_interval", 0644, hdev->debugfs,
 				    hdev, &conn_min_interval_fops);
 		debugfs_create_file("conn_max_interval", 0644, hdev->debugfs,
 				    hdev, &conn_max_interval_fops);
+		debugfs_create_file("adv_channel_map", 0644, hdev->debugfs,
+				    hdev, &adv_channel_map_fops);
 		debugfs_create_file("6lowpan", 0644, hdev->debugfs, hdev,
 				    &lowpan_debugfs_fops);
 	}
@@ -1876,10 +2057,15 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		 * be able to determine if there is a public address
 		 * or not.
 		 *
+		 * In case of user channel usage, it is not important
+		 * if a public address or static random address is
+		 * available.
+		 *
 		 * This check is only valid for BR/EDR controllers
 		 * since AMP controllers do not have an address.
 		 */
-		if (hdev->dev_type == HCI_BREDR &&
+		if (!test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) &&
+		    hdev->dev_type == HCI_BREDR &&
 		    !bacmp(&hdev->bdaddr, BDADDR_ANY) &&
 		    !bacmp(&hdev->static_addr, BDADDR_ANY)) {
 			ret = -EADDRNOTAVAIL;
@@ -2074,6 +2260,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	memset(hdev->eir, 0, sizeof(hdev->eir));
 	memset(hdev->dev_class, 0, sizeof(hdev->dev_class));
+	bacpy(&hdev->random_addr, BDADDR_ANY);
 
 	hci_req_unlock(hdev);
 
@@ -2437,7 +2624,7 @@ static void hci_discov_off(struct work_struct *work)
 	mgmt_discoverable_timeout(hdev);
 }
 
-int hci_uuids_clear(struct hci_dev *hdev)
+void hci_uuids_clear(struct hci_dev *hdev)
 {
 	struct bt_uuid *uuid, *tmp;
 
@@ -2445,11 +2632,9 @@ int hci_uuids_clear(struct hci_dev *hdev)
 		list_del(&uuid->list);
 		kfree(uuid);
 	}
-
-	return 0;
 }
 
-int hci_link_keys_clear(struct hci_dev *hdev)
+void hci_link_keys_clear(struct hci_dev *hdev)
 {
 	struct list_head *p, *n;
 
@@ -2461,11 +2646,9 @@ int hci_link_keys_clear(struct hci_dev *hdev)
 		list_del(p);
 		kfree(key);
 	}
-
-	return 0;
 }
 
-int hci_smp_ltks_clear(struct hci_dev *hdev)
+void hci_smp_ltks_clear(struct hci_dev *hdev)
 {
 	struct smp_ltk *k, *tmp;
 
@@ -2473,8 +2656,16 @@ int hci_smp_ltks_clear(struct hci_dev *hdev)
 		list_del(&k->list);
 		kfree(k);
 	}
+}
 
-	return 0;
+void hci_smp_irks_clear(struct hci_dev *hdev)
+{
+	struct smp_irk *k, *tmp;
+
+	list_for_each_entry_safe(k, tmp, &hdev->identity_resolving_keys, list) {
+		list_del(&k->list);
+		kfree(k);
+	}
 }
 
 struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
@@ -2524,13 +2715,25 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	return false;
 }
 
-struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8])
+static bool ltk_type_master(u8 type)
+{
+	if (type == HCI_SMP_STK || type == HCI_SMP_LTK)
+		return true;
+
+	return false;
+}
+
+struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8],
+			     bool master)
 {
 	struct smp_ltk *k;
 
 	list_for_each_entry(k, &hdev->long_term_keys, list) {
 		if (k->ediv != ediv ||
 		    memcmp(rand, k->rand, sizeof(k->rand)))
+			continue;
+
+		if (ltk_type_master(k->type) != master)
 			continue;
 
 		return k;
@@ -2540,14 +2743,52 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8])
 }
 
 struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 addr_type)
+				     u8 addr_type, bool master)
 {
 	struct smp_ltk *k;
 
 	list_for_each_entry(k, &hdev->long_term_keys, list)
 		if (addr_type == k->bdaddr_type &&
-		    bacmp(bdaddr, &k->bdaddr) == 0)
+		    bacmp(bdaddr, &k->bdaddr) == 0 &&
+		    ltk_type_master(k->type) == master)
 			return k;
+
+	return NULL;
+}
+
+struct smp_irk *hci_find_irk_by_rpa(struct hci_dev *hdev, bdaddr_t *rpa)
+{
+	struct smp_irk *irk;
+
+	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
+		if (!bacmp(&irk->rpa, rpa))
+			return irk;
+	}
+
+	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
+		if (smp_irk_matches(hdev->tfm_aes, irk->val, rpa)) {
+			bacpy(&irk->rpa, rpa);
+			return irk;
+		}
+	}
+
+	return NULL;
+}
+
+struct smp_irk *hci_find_irk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				     u8 addr_type)
+{
+	struct smp_irk *irk;
+
+	/* Identity Address must be public or static random */
+	if (addr_type == ADDR_LE_DEV_RANDOM && (bdaddr->b[5] & 0xc0) != 0xc0)
+		return NULL;
+
+	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
+		if (addr_type == irk->addr_type &&
+		    bacmp(bdaddr, &irk->bdaddr) == 0)
+			return irk;
+	}
 
 	return NULL;
 }
@@ -2565,7 +2806,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		key = old_key;
 	} else {
 		old_key_type = conn ? conn->key_type : 0xff;
-		key = kzalloc(sizeof(*key), GFP_ATOMIC);
+		key = kzalloc(sizeof(*key), GFP_KERNEL);
 		if (!key)
 			return -ENOMEM;
 		list_add(&key->list, &hdev->link_keys);
@@ -2605,22 +2846,20 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 	return 0;
 }
 
-int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
-		int new_key, u8 authenticated, u8 tk[16], u8 enc_size, __le16
-		ediv, u8 rand[8])
+struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			    u8 addr_type, u8 type, u8 authenticated,
+			    u8 tk[16], u8 enc_size, __le16 ediv, u8 rand[8])
 {
 	struct smp_ltk *key, *old_key;
+	bool master = ltk_type_master(type);
 
-	if (!(type & HCI_SMP_STK) && !(type & HCI_SMP_LTK))
-		return 0;
-
-	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type);
+	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type, master);
 	if (old_key)
 		key = old_key;
 	else {
-		key = kzalloc(sizeof(*key), GFP_ATOMIC);
+		key = kzalloc(sizeof(*key), GFP_KERNEL);
 		if (!key)
-			return -ENOMEM;
+			return NULL;
 		list_add(&key->list, &hdev->long_term_keys);
 	}
 
@@ -2633,13 +2872,30 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 	key->type = type;
 	memcpy(key->rand, rand, sizeof(key->rand));
 
-	if (!new_key)
-		return 0;
+	return key;
+}
 
-	if (type & HCI_SMP_LTK)
-		mgmt_new_ltk(hdev, key, 1);
+struct smp_irk *hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			    u8 addr_type, u8 val[16], bdaddr_t *rpa)
+{
+	struct smp_irk *irk;
 
-	return 0;
+	irk = hci_find_irk_by_addr(hdev, bdaddr, addr_type);
+	if (!irk) {
+		irk = kzalloc(sizeof(*irk), GFP_KERNEL);
+		if (!irk)
+			return NULL;
+
+		bacpy(&irk->bdaddr, bdaddr);
+		irk->addr_type = addr_type;
+
+		list_add(&irk->list, &hdev->identity_resolving_keys);
+	}
+
+	memcpy(irk->val, val, 16);
+	bacpy(&irk->rpa, rpa);
+
+	return irk;
 }
 
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
@@ -2658,12 +2914,31 @@ int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return 0;
 }
 
-int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 bdaddr_type)
 {
 	struct smp_ltk *k, *tmp;
+	int removed = 0;
 
 	list_for_each_entry_safe(k, tmp, &hdev->long_term_keys, list) {
-		if (bacmp(bdaddr, &k->bdaddr))
+		if (bacmp(bdaddr, &k->bdaddr) || k->bdaddr_type != bdaddr_type)
+			continue;
+
+		BT_DBG("%s removing %pMR", hdev->name, bdaddr);
+
+		list_del(&k->list);
+		kfree(k);
+		removed++;
+	}
+
+	return removed ? 0 : -ENOENT;
+}
+
+void hci_remove_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type)
+{
+	struct smp_irk *k, *tmp;
+
+	list_for_each_entry_safe(k, tmp, &hdev->identity_resolving_keys, list) {
+		if (bacmp(bdaddr, &k->bdaddr) || k->addr_type != addr_type)
 			continue;
 
 		BT_DBG("%s removing %pMR", hdev->name, bdaddr);
@@ -2671,8 +2946,6 @@ int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr)
 		list_del(&k->list);
 		kfree(k);
 	}
-
-	return 0;
 }
 
 /* HCI command timer function */
@@ -2721,7 +2994,7 @@ int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return 0;
 }
 
-int hci_remote_oob_data_clear(struct hci_dev *hdev)
+void hci_remote_oob_data_clear(struct hci_dev *hdev)
 {
 	struct oob_data *data, *n;
 
@@ -2729,19 +3002,16 @@ int hci_remote_oob_data_clear(struct hci_dev *hdev)
 		list_del(&data->list);
 		kfree(data);
 	}
-
-	return 0;
 }
 
-int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
-			    u8 *randomizer)
+int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			    u8 *hash, u8 *randomizer)
 {
 	struct oob_data *data;
 
 	data = hci_find_remote_oob_data(hdev, bdaddr);
-
 	if (!data) {
-		data = kmalloc(sizeof(*data), GFP_ATOMIC);
+		data = kmalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
 
@@ -2749,8 +3019,38 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 		list_add(&data->list, &hdev->remote_oob_data);
 	}
 
-	memcpy(data->hash, hash, sizeof(data->hash));
-	memcpy(data->randomizer, randomizer, sizeof(data->randomizer));
+	memcpy(data->hash192, hash, sizeof(data->hash192));
+	memcpy(data->randomizer192, randomizer, sizeof(data->randomizer192));
+
+	memset(data->hash256, 0, sizeof(data->hash256));
+	memset(data->randomizer256, 0, sizeof(data->randomizer256));
+
+	BT_DBG("%s for %pMR", hdev->name, bdaddr);
+
+	return 0;
+}
+
+int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				u8 *hash192, u8 *randomizer192,
+				u8 *hash256, u8 *randomizer256)
+{
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, bdaddr);
+	if (!data) {
+		data = kmalloc(sizeof(*data), GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+
+		bacpy(&data->bdaddr, bdaddr);
+		list_add(&data->list, &hdev->remote_oob_data);
+	}
+
+	memcpy(data->hash192, hash192, sizeof(data->hash192));
+	memcpy(data->randomizer192, randomizer192, sizeof(data->randomizer192));
+
+	memcpy(data->hash256, hash256, sizeof(data->hash256));
+	memcpy(data->randomizer256, randomizer256, sizeof(data->randomizer256));
 
 	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 
@@ -2770,7 +3070,7 @@ struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
-int hci_blacklist_clear(struct hci_dev *hdev)
+void hci_blacklist_clear(struct hci_dev *hdev)
 {
 	struct list_head *p, *n;
 
@@ -2780,8 +3080,6 @@ int hci_blacklist_clear(struct hci_dev *hdev)
 		list_del(p);
 		kfree(b);
 	}
-
-	return 0;
 }
 
 int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
@@ -2810,8 +3108,10 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
 
-	if (!bacmp(bdaddr, BDADDR_ANY))
-		return hci_blacklist_clear(hdev);
+	if (!bacmp(bdaddr, BDADDR_ANY)) {
+		hci_blacklist_clear(hdev);
+		return 0;
+	}
 
 	entry = hci_blacklist_lookup(hdev, bdaddr, type);
 	if (!entry)
@@ -2821,6 +3121,81 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 	kfree(entry);
 
 	return mgmt_device_unblocked(hdev, bdaddr, type);
+}
+
+/* This function requires the caller holds hdev->lock */
+struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
+					       bdaddr_t *addr, u8 addr_type)
+{
+	struct hci_conn_params *params;
+
+	list_for_each_entry(params, &hdev->le_conn_params, list) {
+		if (bacmp(&params->addr, addr) == 0 &&
+		    params->addr_type == addr_type) {
+			return params;
+		}
+	}
+
+	return NULL;
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
+			 u16 conn_min_interval, u16 conn_max_interval)
+{
+	struct hci_conn_params *params;
+
+	params = hci_conn_params_lookup(hdev, addr, addr_type);
+	if (params) {
+		params->conn_min_interval = conn_min_interval;
+		params->conn_max_interval = conn_max_interval;
+		return;
+	}
+
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params) {
+		BT_ERR("Out of memory");
+		return;
+	}
+
+	bacpy(&params->addr, addr);
+	params->addr_type = addr_type;
+	params->conn_min_interval = conn_min_interval;
+	params->conn_max_interval = conn_max_interval;
+
+	list_add(&params->list, &hdev->le_conn_params);
+
+	BT_DBG("addr %pMR (type %u) conn_min_interval 0x%.4x "
+	       "conn_max_interval 0x%.4x", addr, addr_type, conn_min_interval,
+	       conn_max_interval);
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
+{
+	struct hci_conn_params *params;
+
+	params = hci_conn_params_lookup(hdev, addr, addr_type);
+	if (!params)
+		return;
+
+	list_del(&params->list);
+	kfree(params);
+
+	BT_DBG("addr %pMR (type %u)", addr, addr_type);
+}
+
+/* This function requires the caller holds hdev->lock */
+void hci_conn_params_clear(struct hci_dev *hdev)
+{
+	struct hci_conn_params *params, *tmp;
+
+	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
+		list_del(&params->list);
+		kfree(params);
+	}
+
+	BT_DBG("All LE connection parameters were removed");
 }
 
 static void inquiry_complete(struct hci_dev *hdev, u8 status)
@@ -2919,6 +3294,7 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
 
+	hdev->le_adv_channel_map = 0x07;
 	hdev->le_scan_interval = 0x0060;
 	hdev->le_scan_window = 0x0030;
 	hdev->le_conn_min_interval = 0x0028;
@@ -2932,7 +3308,9 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_LIST_HEAD(&hdev->uuids);
 	INIT_LIST_HEAD(&hdev->link_keys);
 	INIT_LIST_HEAD(&hdev->long_term_keys);
+	INIT_LIST_HEAD(&hdev->identity_resolving_keys);
 	INIT_LIST_HEAD(&hdev->remote_oob_data);
+	INIT_LIST_HEAD(&hdev->le_conn_params);
 	INIT_LIST_HEAD(&hdev->conn_hash.list);
 
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
@@ -3017,9 +3395,18 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	dev_set_name(&hdev->dev, "%s", hdev->name);
 
+	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
+					       CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hdev->tfm_aes)) {
+		BT_ERR("Unable to create crypto context");
+		error = PTR_ERR(hdev->tfm_aes);
+		hdev->tfm_aes = NULL;
+		goto err_wqueue;
+	}
+
 	error = device_add(&hdev->dev);
 	if (error < 0)
-		goto err_wqueue;
+		goto err_tfm;
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				    RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops,
@@ -3055,6 +3442,8 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	return id;
 
+err_tfm:
+	crypto_free_blkcipher(hdev->tfm_aes);
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
 	destroy_workqueue(hdev->req_workqueue);
@@ -3105,6 +3494,9 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_destroy(hdev->rfkill);
 	}
 
+	if (hdev->tfm_aes)
+		crypto_free_blkcipher(hdev->tfm_aes);
+
 	device_del(&hdev->dev);
 
 	debugfs_remove_recursive(hdev->debugfs);
@@ -3117,7 +3509,9 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_uuids_clear(hdev);
 	hci_link_keys_clear(hdev);
 	hci_smp_ltks_clear(hdev);
+	hci_smp_irks_clear(hdev);
 	hci_remote_oob_data_clear(hdev);
+	hci_conn_params_clear(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);

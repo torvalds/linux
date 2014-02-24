@@ -235,7 +235,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 			BT_DBG("chan %p state %s", chan,
 			       state_to_string(chan->state));
 
-			if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP)
+			if (chan->scid == L2CAP_CID_A2MP)
 				continue;
 
 			l2cap_chan_lock(chan);
@@ -726,7 +726,11 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
 
 	BT_DBG("chan %p", chan);
 
-	chan->chan_type = L2CAP_CHAN_CONN_FIX_A2MP;
+	chan->chan_type = L2CAP_CHAN_FIXED;
+	chan->scid = L2CAP_CID_A2MP;
+	chan->dcid = L2CAP_CID_A2MP;
+	chan->omtu = L2CAP_A2MP_DEFAULT_MTU;
+	chan->imtu = L2CAP_A2MP_DEFAULT_MTU;
 	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 
 	chan->ops = &a2mp_chan_ops;
