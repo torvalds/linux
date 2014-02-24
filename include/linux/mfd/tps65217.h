@@ -252,7 +252,7 @@ struct tps65217_board {
 struct tps65217 {
 	struct device *dev;
 	struct tps65217_board *pdata;
-	unsigned int id;
+	unsigned long id;
 	struct regulator_desc desc[TPS65217_NUM_REGULATOR];
 	struct regulator_dev *rdev[TPS65217_NUM_REGULATOR];
 	struct regmap *regmap;
@@ -263,7 +263,7 @@ static inline struct tps65217 *dev_to_tps65217(struct device *dev)
 	return dev_get_drvdata(dev);
 }
 
-static inline int tps65217_chip_id(struct tps65217 *tps65217)
+static inline unsigned long tps65217_chip_id(struct tps65217 *tps65217)
 {
 	return tps65217->id;
 }
