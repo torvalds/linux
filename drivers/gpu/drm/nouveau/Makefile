@@ -77,6 +77,7 @@ nouveau-y += core/subdev/devinit/nv98.o
 nouveau-y += core/subdev/devinit/nva3.o
 nouveau-y += core/subdev/devinit/nvaf.o
 nouveau-y += core/subdev/devinit/nvc0.o
+nouveau-y += core/subdev/devinit/gm107.o
 nouveau-y += core/subdev/fb/base.o
 nouveau-y += core/subdev/fb/nv04.o
 nouveau-y += core/subdev/fb/nv10.o

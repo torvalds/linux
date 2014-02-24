@@ -15,4 +15,6 @@ int  nv50_devinit_pll_set(struct nouveau_devinit *, u32, u32);
 
 int  nva3_devinit_pll_set(struct nouveau_devinit *, u32, u32);
 
+int  nvc0_devinit_pll_set(struct nouveau_devinit *, u32, u32);
+
 #endif
