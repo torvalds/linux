@@ -171,6 +171,7 @@ nouveau-y += core/subdev/therm/nva3.o
 nouveau-y += core/subdev/therm/nvd0.o
 nouveau-y += core/subdev/timer/base.o
 nouveau-y += core/subdev/timer/nv04.o
+nouveau-y += core/subdev/timer/gk20a.o
 nouveau-y += core/subdev/vm/base.o
 nouveau-y += core/subdev/vm/nv04.o
 nouveau-y += core/subdev/vm/nv41.o
