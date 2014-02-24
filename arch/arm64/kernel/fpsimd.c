@@ -87,6 +87,26 @@ void fpsimd_flush_thread(void)
 	preempt_enable();
 }
 
+/*
+ * Save the userland FPSIMD state of 'current' to memory
+ */
+void fpsimd_preserve_current_state(void)
+{
+	preempt_disable();
+	fpsimd_save_state(&current->thread.fpsimd_state);
+	preempt_enable();
+}
+
+/*
+ * Load an updated userland FPSIMD state for 'current' from memory
+ */
+void fpsimd_update_current_state(struct fpsimd_state *state)
+{
+	preempt_disable();
+	fpsimd_load_state(state);
+	preempt_enable();
+}
+
 #ifdef CONFIG_KERNEL_MODE_NEON
 
 /*

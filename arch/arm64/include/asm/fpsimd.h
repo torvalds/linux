@@ -58,6 +58,9 @@ extern void fpsimd_load_state(struct fpsimd_state *state);
 extern void fpsimd_thread_switch(struct task_struct *next);
 extern void fpsimd_flush_thread(void);
 
+extern void fpsimd_preserve_current_state(void);
+extern void fpsimd_update_current_state(struct fpsimd_state *state);
+
 #endif
 
 #endif
