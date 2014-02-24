@@ -536,56 +536,60 @@ static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 					  loff_t *ppos,
 					  struct iwl_mvm_frame_stats *stats)
 {
-	char *buff;
-	int pos = 0, idx, i;
+	char *buff, *pos, *endpos;
+	int idx, i;
 	int ret;
-	size_t bufsz = 1024;
+	static const size_t bufsz = 1024;
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
 	if (!buff)
 		return -ENOMEM;
 
 	spin_lock_bh(&mvm->drv_stats_lock);
-	pos += scnprintf(buff + pos, bufsz - pos,
+
+	pos = buff;
+	endpos = pos + bufsz;
+
+	pos += scnprintf(pos, endpos - pos,
 			 "Legacy/HT/VHT\t:\t%d/%d/%d\n",
 			 stats->legacy_frames,
 			 stats->ht_frames,
 			 stats->vht_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "20/40/80\t:\t%d/%d/%d\n",
+	pos += scnprintf(pos, endpos - pos, "20/40/80\t:\t%d/%d/%d\n",
 			 stats->bw_20_frames,
 			 stats->bw_40_frames,
 			 stats->bw_80_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "NGI/SGI\t\t:\t%d/%d\n",
+	pos += scnprintf(pos, endpos - pos, "NGI/SGI\t\t:\t%d/%d\n",
 			 stats->ngi_frames,
 			 stats->sgi_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "SISO/MIMO2\t:\t%d/%d\n",
+	pos += scnprintf(pos, endpos - pos, "SISO/MIMO2\t:\t%d/%d\n",
 			 stats->siso_frames,
 			 stats->mimo2_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "FAIL/SCSS\t:\t%d/%d\n",
+	pos += scnprintf(pos, endpos - pos, "FAIL/SCSS\t:\t%d/%d\n",
 			 stats->fail_frames,
 			 stats->success_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "MPDUs agg\t:\t%d\n",
+	pos += scnprintf(pos, endpos - pos, "MPDUs agg\t:\t%d\n",
 			 stats->agg_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "A-MPDUs\t\t:\t%d\n",
+	pos += scnprintf(pos, endpos - pos, "A-MPDUs\t\t:\t%d\n",
 			 stats->ampdu_count);
-	pos += scnprintf(buff + pos, bufsz - pos, "Avg MPDUs/A-MPDU:\t%d\n",
+	pos += scnprintf(pos, endpos - pos, "Avg MPDUs/A-MPDU:\t%d\n",
 			 stats->ampdu_count > 0 ?
 			 (stats->agg_frames / stats->ampdu_count) : 0);
 
-	pos += scnprintf(buff + pos, bufsz - pos, "Last Rates\n");
+	pos += scnprintf(pos, endpos - pos, "Last Rates\n");
 
 	idx = stats->last_frame_idx - 1;
 	for (i = 0; i < ARRAY_SIZE(stats->last_rates); i++) {
 		idx = (idx + 1) % ARRAY_SIZE(stats->last_rates);
 		if (stats->last_rates[idx] == 0)
 			continue;
-		pos += scnprintf(buff + pos, bufsz - pos, "Rate[%d]: ",
+		pos += scnprintf(pos, endpos - pos, "Rate[%d]: ",
 				 (int)(ARRAY_SIZE(stats->last_rates) - i));
-		pos += rs_pretty_print_rate(buff + pos, stats->last_rates[idx]);
+		pos += rs_pretty_print_rate(pos, stats->last_rates[idx]);
 	}
 	spin_unlock_bh(&mvm->drv_stats_lock);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos - buff);
 	kfree(buff);
 
 	return ret;
