@@ -565,7 +565,9 @@ static int i_APCI035_Reset(struct comedi_device *dev)
 
 	for (i_Count = 1; i_Count <= 4; i_Count++) {
 		i_WatchdogNbr = i_Count;
-		outl(0x0, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);	/* stop all timers */
+
+		/* stop all timers */
+		outl(0x0, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);
 	}
 	outl(0x0, devpriv->iobase + 128 + 12);	/* Disable the warning delay */
 
@@ -624,10 +626,13 @@ static void v_APCI035_Interrupt(int irq, void *d)
 
 		/* Read the digital temperature value */
 		ui_DigitalTemperature = inl(devpriv->iobase + 128 + 60);
-		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
+
+		/*  send signal to the sample */
+		send_sig(SIGIO, devpriv->tsk_Current, 0);
 
 	} else if ((ui_StatusRegister2 & 0x1) == 0x1) {
-		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
+		/*  send signal to the sample */
+		send_sig(SIGIO, devpriv->tsk_Current, 0);
 	}
 
 	return;
