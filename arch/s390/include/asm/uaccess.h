@@ -344,6 +344,5 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 }
 
 int copy_to_user_real(void __user *dest, void *src, unsigned long count);
-int copy_from_user_real(void *dest, void __user *src, unsigned long count);
 
 #endif /* __S390_UACCESS_H */
