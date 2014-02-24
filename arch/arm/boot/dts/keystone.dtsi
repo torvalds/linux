@@ -173,6 +173,8 @@
 			clock-names = "usb";
 			interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
 			ranges;
+			dma-coherent;
+			dma-ranges;
 			status = "disabled";
 
 			dwc3@2690000 {
