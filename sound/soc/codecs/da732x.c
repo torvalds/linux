@@ -1538,7 +1538,6 @@ static struct snd_soc_codec_driver soc_codec_dev_da732x = {
 	.dapm_routes		= da732x_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(da732x_dapm_routes),
 	.set_pll		= da732x_set_dai_pll,
-	.reg_cache_size		= ARRAY_SIZE(da732x_reg_cache),
 };
 
 static int da732x_i2c_probe(struct i2c_client *i2c,
