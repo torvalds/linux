@@ -8,6 +8,8 @@
  * Some chunks also taken from the old x86-specific nmi watchdog code, thanks
  * to those contributors as well.
  */
+ // NMI == Non-maskable interrupt	不可屏蔽中断
+ //	其实这个功能就是一个内核的软看门狗,防止某个进程死锁
 
 #define pr_fmt(fmt) "NMI watchdog: " fmt
 
