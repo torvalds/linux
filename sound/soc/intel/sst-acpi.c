@@ -243,9 +243,26 @@ static struct sst_acpi_desc sst_acpi_broadwell_desc = {
 	.dma_size = SST_LPT_DSP_DMA_SIZE,
 };
 
+static struct sst_acpi_mach baytrail_machines[] = {
+	{ "10EC5640", "byt-rt5640", "intel/fw_sst_0f28.bin-i2s_master" },
+	{}
+};
+
+static struct sst_acpi_desc sst_acpi_baytrail_desc = {
+	.drv_name = "baytrail-pcm-audio",
+	.machines = baytrail_machines,
+	.resindex_lpe_base = 0,
+	.resindex_pcicfg_base = 1,
+	.resindex_fw_base = 2,
+	.irqindex_host_ipc = 5,
+	.sst_id = SST_DEV_ID_BYT,
+	.resindex_dma_base = -1,
+};
+
 static struct acpi_device_id sst_acpi_match[] = {
 	{ "INT33C8", (unsigned long)&sst_acpi_haswell_desc },
 	{ "INT3438", (unsigned long)&sst_acpi_broadwell_desc },
+	{ "80860F28", (unsigned long)&sst_acpi_baytrail_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, sst_acpi_match);
