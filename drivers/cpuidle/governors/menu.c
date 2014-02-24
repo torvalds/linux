@@ -122,7 +122,7 @@ struct menu_device {
 	int		last_state_idx;
 	int             needs_update;
 
-	unsigned int	expected_us;
+	unsigned int	next_timer_us;
 	unsigned int	predicted_us;
 	unsigned int	exit_us;
 	unsigned int	bucket;
@@ -257,7 +257,7 @@ again:
 		stddev = int_sqrt(stddev);
 		if (((avg > stddev * 6) && (divisor * 4 >= INTERVALS * 3))
 							|| stddev <= 20) {
-			if (data->expected_us > avg)
+			if (data->next_timer_us > avg)
 				data->predicted_us = avg;
 			return;
 		}
@@ -306,11 +306,11 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 	/* determine the expected residency time, round up */
 	t = ktime_to_timespec(tick_nohz_get_sleep_length());
-	data->expected_us =
+	data->next_timer_us =
 		t.tv_sec * USEC_PER_SEC + t.tv_nsec / NSEC_PER_USEC;
 
 
-	data->bucket = which_bucket(data->expected_us);
+	data->bucket = which_bucket(data->next_timer_us);
 
 	multiplier = performance_multiplier();
 
@@ -326,7 +326,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * operands are 32 bits.
 	 * Make sure to round up for half microseconds.
 	 */
-	data->predicted_us = div_round64((uint64_t)data->expected_us *
+	data->predicted_us = div_round64((uint64_t)data->next_timer_us *
 					 data->correction_factor[data->bucket],
 					 RESOLUTION * DECAY);
 
@@ -336,7 +336,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * We want to default to C1 (hlt), not to busy polling
 	 * unless the timer is happening really really soon.
 	 */
-	if (data->expected_us > 5 &&
+	if (data->next_timer_us > 5 &&
 	    !drv->states[CPUIDLE_DRIVER_STATE_START].disabled &&
 		dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable == 0)
 		data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
@@ -401,7 +401,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * for the whole expected time.
 	 */
 	if (unlikely(!(target->flags & CPUIDLE_FLAG_TIME_VALID)))
-		last_idle_us = data->expected_us;
+		last_idle_us = data->next_timer_us;
 
 
 	measured_us = last_idle_us;
@@ -418,8 +418,8 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	new_factor = data->correction_factor[data->bucket];
 	new_factor -= new_factor / DECAY;
 
-	if (data->expected_us > 0 && measured_us < MAX_INTERESTING)
-		new_factor += RESOLUTION * measured_us / data->expected_us;
+	if (data->next_timer_us > 0 && measured_us < MAX_INTERESTING)
+		new_factor += RESOLUTION * measured_us / data->next_timer_us;
 	else
 		/*
 		 * we were idle so long that we count it as a perfect
