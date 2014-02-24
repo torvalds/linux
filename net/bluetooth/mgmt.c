@@ -4257,6 +4257,11 @@ static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 
 	hci_dev_lock(hdev);
 
+	/* If user space supports this command it is also expected to
+	 * handle IRKs. Therefore, set the HCI_RPA_RESOLVING flag.
+	 */
+	set_bit(HCI_RPA_RESOLVING, &hdev->dev_flags);
+
 	if (cp->privacy) {
 		changed = !test_and_set_bit(HCI_PRIVACY, &hdev->dev_flags);
 		memcpy(hdev->irk, cp->irk, sizeof(hdev->irk));
