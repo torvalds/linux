@@ -2257,7 +2257,9 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		cancel_delayed_work(&hdev->service_cache);
 
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
-	cancel_delayed_work_sync(&hdev->rpa_expired);
+
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		cancel_delayed_work_sync(&hdev->rpa_expired);
 
 	hci_dev_lock(hdev);
 	hci_inquiry_cache_flush(hdev);
