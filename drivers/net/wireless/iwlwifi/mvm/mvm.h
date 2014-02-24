@@ -656,6 +656,12 @@ iwl_mvm_sta_from_staid_protected(struct iwl_mvm *mvm, u8 sta_id)
 	return iwl_mvm_sta_from_mac80211(sta);
 }
 
+static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
+{
+	return mvm->trans->cfg->d0i3 &&
+	       (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
+}
+
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
 
 struct iwl_rate_info {

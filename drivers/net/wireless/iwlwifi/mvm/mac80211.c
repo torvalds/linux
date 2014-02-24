@@ -205,7 +205,7 @@ static const struct iwl_fw_bcast_filter iwl_mvm_default_bcast_filters[] = {
 
 void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 {
-	if (!mvm->trans->cfg->d0i3)
+	if (!iwl_mvm_is_d0i3_supported(mvm))
 		return;
 
 	IWL_DEBUG_RPM(mvm, "Take mvm reference - type %d\n", ref_type);
@@ -215,7 +215,7 @@ void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 
 void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 {
-	if (!mvm->trans->cfg->d0i3)
+	if (!iwl_mvm_is_d0i3_supported(mvm))
 		return;
 
 	IWL_DEBUG_RPM(mvm, "Leave mvm reference - type %d\n", ref_type);
@@ -228,7 +228,7 @@ iwl_mvm_unref_all_except(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref)
 {
 	int i;
 
-	if (!mvm->trans->cfg->d0i3)
+	if (!iwl_mvm_is_d0i3_supported(mvm))
 		return;
 
 	for_each_set_bit(i, mvm->ref_bitmap, IWL_MVM_REF_COUNT) {
