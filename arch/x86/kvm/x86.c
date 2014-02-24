@@ -3084,9 +3084,7 @@ static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
 		 * CPUID leaf 0xD, index 0, EDX:EAX.  This is for compatibility
 		 * with old userspace.
 		 */
-		if (xstate_bv & ~KVM_SUPPORTED_XCR0)
-			return -EINVAL;
-		if (xstate_bv & ~host_xcr0)
+		if (xstate_bv & ~kvm_supported_xcr0())
 			return -EINVAL;
 		memcpy(&vcpu->arch.guest_fpu.state->xsave,
 			guest_xsave->region, vcpu->arch.guest_xstate_size);

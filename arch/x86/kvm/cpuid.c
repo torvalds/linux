@@ -43,6 +43,16 @@ static u32 xstate_required_size(u64 xstate_bv)
 	return ret;
 }
 
+u64 kvm_supported_xcr0(void)
+{
+	u64 xcr0 = KVM_SUPPORTED_XCR0 & host_xcr0;
+
+	if (!kvm_x86_ops->mpx_supported || !kvm_x86_ops->mpx_supported())
+		xcr0 &= ~(XSTATE_BNDREGS | XSTATE_BNDCSR);
+
+	return xcr0;
+}
+
 void kvm_update_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
@@ -73,7 +83,7 @@ void kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	} else {
 		vcpu->arch.guest_supported_xcr0 =
 			(best->eax | ((u64)best->edx << 32)) &
-			host_xcr0 & KVM_SUPPORTED_XCR0;
+			kvm_supported_xcr0();
 		vcpu->arch.guest_xstate_size = best->ebx =
 			xstate_required_size(vcpu->arch.xcr0);
 	}
@@ -208,13 +218,6 @@ static void do_cpuid_1_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	cpuid_count(entry->function, entry->index,
 		    &entry->eax, &entry->ebx, &entry->ecx, &entry->edx);
 	entry->flags = 0;
-}
-
-static bool supported_xcr0_bit(unsigned bit)
-{
-	u64 mask = ((u64)1 << bit);
-
-	return mask & KVM_SUPPORTED_XCR0 & host_xcr0;
 }
 
 #define F(x) bit(X86_FEATURE_##x)
@@ -439,16 +442,18 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	}
 	case 0xd: {
 		int idx, i;
+		u64 supported = kvm_supported_xcr0();
 
-		entry->eax &= host_xcr0 & KVM_SUPPORTED_XCR0;
-		entry->edx &= (host_xcr0 & KVM_SUPPORTED_XCR0) >> 32;
+		entry->eax &= supported;
+		entry->edx &= supported >> 32;
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		for (idx = 1, i = 1; idx < 64; ++idx) {
+			u64 mask = ((u64)1 << idx);
 			if (*nent >= maxnent)
 				goto out;
 
 			do_cpuid_1_ent(&entry[i], function, idx);
-			if (entry[i].eax == 0 || !supported_xcr0_bit(idx))
+			if (entry[i].eax == 0 || !(supported & mask))
 				continue;
 			entry[i].flags |=
 			       KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
