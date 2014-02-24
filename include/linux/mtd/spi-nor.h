@@ -182,4 +182,16 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 			enum read_mode mode);
 extern const struct spi_device_id spi_nor_ids[];
 
+/**
+ * spi_nor_match_id() - find the spi_device_id by the name
+ * @name:	the name of the spi_device_id
+ *
+ * The drivers use this function to find the spi_device_id
+ * specified by the @name.
+ *
+ * Return: returns the right spi_device_id pointer on success,
+ *         and returns NULL on failure.
+ */
+const struct spi_device_id *spi_nor_match_id(char *name);
+
 #endif
