@@ -1703,7 +1703,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    const struct mce *m)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
-	char *type, *optype, *err;
+	char *optype, *err;
 	enum hw_event_mc_err_type tp_event;
 	unsigned long error = m->status & 0x1ff0000l;
 	bool uncorrected_error = m->mcgstatus & 1ll << 61;
@@ -1716,15 +1716,11 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	u32 errnum = find_first_bit(&error, 32);
 
 	if (uncorrected_error) {
-		if (ripv) {
-			type = "FATAL";
+		if (ripv)
 			tp_event = HW_EVENT_ERR_FATAL;
-		} else {
-			type = "NON_FATAL";
+		else
 			tp_event = HW_EVENT_ERR_UNCORRECTED;
-		}
 	} else {
-		type = "CORRECTED";
 		tp_event = HW_EVENT_ERR_CORRECTED;
 	}
 
