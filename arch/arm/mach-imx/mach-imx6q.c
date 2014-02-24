@@ -228,6 +228,39 @@ put_node:
 	of_node_put(np);
 }
 
+static void __init imx6q_axi_init(void)
+{
+	struct regmap *gpr;
+	unsigned int mask;
+
+	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
+	if (!IS_ERR(gpr)) {
+		/*
+		 * Enable the cacheable attribute of VPU and IPU
+		 * AXI transactions.
+		 */
+		mask = IMX6Q_GPR4_VPU_WR_CACHE_SEL |
+			IMX6Q_GPR4_VPU_RD_CACHE_SEL |
+			IMX6Q_GPR4_VPU_P_WR_CACHE_VAL |
+			IMX6Q_GPR4_VPU_P_RD_CACHE_VAL_MASK |
+			IMX6Q_GPR4_IPU_WR_CACHE_CTL |
+			IMX6Q_GPR4_IPU_RD_CACHE_CTL;
+		regmap_update_bits(gpr, IOMUXC_GPR4, mask, mask);
+
+		/* Increase IPU read QoS priority */
+		regmap_update_bits(gpr, IOMUXC_GPR6,
+				IMX6Q_GPR6_IPU1_ID00_RD_QOS_MASK |
+				IMX6Q_GPR6_IPU1_ID01_RD_QOS_MASK,
+				(0xf << 16) | (0x7 << 20));
+		regmap_update_bits(gpr, IOMUXC_GPR7,
+				IMX6Q_GPR7_IPU2_ID00_RD_QOS_MASK |
+				IMX6Q_GPR7_IPU2_ID01_RD_QOS_MASK,
+				(0xf << 16) | (0x7 << 20));
+	} else {
+		pr_warn("failed to find fsl,imx6q-iomuxc-gpr regmap\n");
+	}
+}
+
 static void __init imx6q_init_machine(void)
 {
 	struct device *parent;
@@ -248,6 +281,7 @@ static void __init imx6q_init_machine(void)
 	imx_anatop_init();
 	cpu_is_imx6q() ?  imx6q_pm_init() : imx6dl_pm_init();
 	imx6q_1588_init();
+	imx6q_axi_init();
 }
 
 #define OCOTP_CFG3			0x440
