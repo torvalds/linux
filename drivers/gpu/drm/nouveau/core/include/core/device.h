@@ -85,6 +85,7 @@ struct nouveau_device {
 		NV_C0    = 0xc0,
 		NV_D0    = 0xd0,
 		NV_E0    = 0xe0,
+		GM100    = 0x110,
 	} card_type;
 	u32 chipset;
 	u32 crystal;

@@ -211,6 +211,7 @@ nouveau-y += core/engine/device/nv40.o
 nouveau-y += core/engine/device/nv50.o
 nouveau-y += core/engine/device/nvc0.o
 nouveau-y += core/engine/device/nve0.o
+nouveau-y += core/engine/device/gm100.o
 nouveau-y += core/engine/disp/base.o
 nouveau-y += core/engine/disp/nv04.o
 nouveau-y += core/engine/disp/nv50.o

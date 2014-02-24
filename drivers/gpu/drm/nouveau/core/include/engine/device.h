@@ -17,6 +17,7 @@ int nv40_identify(struct nouveau_device *);
 int nv50_identify(struct nouveau_device *);
 int nvc0_identify(struct nouveau_device *);
 int nve0_identify(struct nouveau_device *);
+int gm100_identify(struct nouveau_device *);
 
 struct nouveau_device *nouveau_device_find(u64 name);
 
