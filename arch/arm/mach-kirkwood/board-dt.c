@@ -19,7 +19,6 @@
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/irqchip.h>
-#include <linux/kexec.h>
 #include <asm/hardware/cache-feroceon-l2.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -206,10 +205,6 @@ static void __init kirkwood_dt_init(void)
 
 	kirkwood_pm_init();
 	kirkwood_dt_eth_fixup();
-
-#ifdef CONFIG_KEXEC
-	kexec_reinit = kirkwood_enable_pcie;
-#endif
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
