@@ -139,6 +139,8 @@ struct exynos_drm_display;
 struct exynos_drm_display_ops {
 	int (*initialize)(struct exynos_drm_display *display,
 				struct drm_device *drm_dev);
+	int (*create_connector)(struct exynos_drm_display *display,
+				struct drm_encoder *encoder);
 	void (*remove)(struct exynos_drm_display *display);
 	bool (*is_connected)(struct exynos_drm_display *display);
 	void (*get_max_resol)(struct exynos_drm_display *display,

@@ -44,6 +44,9 @@ static int exynos_drm_create_enc_conn(struct drm_device *dev,
 		return -EFAULT;
 	}
 
+	if (display->ops->create_connector)
+		return display->ops->create_connector(display, encoder);
+
 	/*
 	 * create and initialize a connector for this sub driver and
 	 * attach the encoder created above to the connector.
