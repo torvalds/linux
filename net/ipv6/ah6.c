@@ -346,6 +346,10 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct ip_auth_hdr *ah;
 	struct ah_data *ahp;
 	struct tmp_ext *iph_ext;
+	int seqhi_len = 0;
+	__be32 *seqhi;
+	int sglists = 0;
+	struct scatterlist *seqhisg;
 
 	ahp = x->data;
 	ahash = ahp->ahash;
@@ -359,15 +363,22 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (extlen)
 		extlen += sizeof(*iph_ext);
 
+	if (x->props.flags & XFRM_STATE_ESN) {
+		sglists = 1;
+		seqhi_len = sizeof(*seqhi);
+	}
 	err = -ENOMEM;
-	iph_base = ah_alloc_tmp(ahash, nfrags, IPV6HDR_BASELEN + extlen);
+	iph_base = ah_alloc_tmp(ahash, nfrags + sglists, IPV6HDR_BASELEN +
+				extlen + seqhi_len);
 	if (!iph_base)
 		goto out;
 
 	iph_ext = ah_tmp_ext(iph_base);
-	icv = ah_tmp_icv(ahash, iph_ext, extlen);
+	seqhi = (__be32 *)((char *)iph_ext + extlen);
+	icv = ah_tmp_icv(ahash, seqhi, seqhi_len);
 	req = ah_tmp_req(ahash, icv);
 	sg = ah_req_sg(ahash, req);
+	seqhisg = sg + nfrags;
 
 	ah = ip_auth_hdr(skb);
 	memset(ah->auth_data, 0, ahp->icv_trunc_len);
@@ -411,10 +422,15 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	ah->spi = x->id.spi;
 	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
-	sg_init_table(sg, nfrags);
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	sg_init_table(sg, nfrags + sglists);
+	skb_to_sgvec_nomark(skb, sg, 0, skb->len);
 
-	ahash_request_set_crypt(req, sg, icv, skb->len);
+	if (x->props.flags & XFRM_STATE_ESN) {
+		/* Attach seqhi sg right after packet payload */
+		*seqhi = htonl(XFRM_SKB_CB(skb)->seq.output.hi);
+		sg_set_buf(seqhisg, seqhi, seqhi_len);
+	}
+	ahash_request_set_crypt(req, sg, icv, skb->len + seqhi_len);
 	ahash_request_set_callback(req, 0, ah6_output_done, skb);
 
 	AH_SKB_CB(skb)->tmp = iph_base;
@@ -514,6 +530,10 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	int nexthdr;
 	int nfrags;
 	int err = -ENOMEM;
+	int seqhi_len = 0;
+	__be32 *seqhi;
+	int sglists = 0;
+	struct scatterlist *seqhisg;
 
 	if (!pskb_may_pull(skb, sizeof(struct ip_auth_hdr)))
 		goto out;
@@ -550,14 +570,22 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_push(skb, hdr_len);
 
-	work_iph = ah_alloc_tmp(ahash, nfrags, hdr_len + ahp->icv_trunc_len);
+	if (x->props.flags & XFRM_STATE_ESN) {
+		sglists = 1;
+		seqhi_len = sizeof(*seqhi);
+	}
+
+	work_iph = ah_alloc_tmp(ahash, nfrags + sglists, hdr_len +
+				ahp->icv_trunc_len + seqhi_len);
 	if (!work_iph)
 		goto out;
 
-	auth_data = ah_tmp_auth(work_iph, hdr_len);
-	icv = ah_tmp_icv(ahash, auth_data, ahp->icv_trunc_len);
+	auth_data = ah_tmp_auth((u8 *)work_iph, hdr_len);
+	seqhi = (__be32 *)(auth_data + ahp->icv_trunc_len);
+	icv = ah_tmp_icv(ahash, seqhi, seqhi_len);
 	req = ah_tmp_req(ahash, icv);
 	sg = ah_req_sg(ahash, req);
+	seqhisg = sg + nfrags;
 
 	memcpy(work_iph, ip6h, hdr_len);
 	memcpy(auth_data, ah->auth_data, ahp->icv_trunc_len);
@@ -572,10 +600,16 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	ip6h->flow_lbl[2] = 0;
 	ip6h->hop_limit   = 0;
 
-	sg_init_table(sg, nfrags);
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	sg_init_table(sg, nfrags + sglists);
+	skb_to_sgvec_nomark(skb, sg, 0, skb->len);
 
-	ahash_request_set_crypt(req, sg, icv, skb->len);
+	if (x->props.flags & XFRM_STATE_ESN) {
+		/* Attach seqhi sg right after packet payload */
+		*seqhi = XFRM_SKB_CB(skb)->seq.input.hi;
+		sg_set_buf(seqhisg, seqhi, seqhi_len);
+	}
+
+	ahash_request_set_crypt(req, sg, icv, skb->len + seqhi_len);
 	ahash_request_set_callback(req, 0, ah6_input_done, skb);
 
 	AH_SKB_CB(skb)->tmp = work_iph;

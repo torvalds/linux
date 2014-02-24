@@ -161,6 +161,7 @@ static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 int __xfrm_state_delete(struct xfrm_state *x);
 
 int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
+bool km_is_alive(const struct km_event *c);
 void km_state_expired(struct xfrm_state *x, int hard, u32 portid);
 
 static DEFINE_SPINLOCK(xfrm_type_lock);
@@ -788,6 +789,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 	struct xfrm_state *best = NULL;
 	u32 mark = pol->mark.v & pol->mark.m;
 	unsigned short encap_family = tmpl->encap_family;
+	struct km_event c;
 
 	to_put = NULL;
 
@@ -832,6 +834,17 @@ found:
 			error = -EEXIST;
 			goto out;
 		}
+
+		c.net = net;
+		/* If the KMs have no listeners (yet...), avoid allocating an SA
+		 * for each and every packet - garbage collection might not
+		 * handle the flood.
+		 */
+		if (!km_is_alive(&c)) {
+			error = -ESRCH;
+			goto out;
+		}
+
 		x = xfrm_state_alloc(net);
 		if (x == NULL) {
 			error = -ENOMEM;
@@ -1135,10 +1148,9 @@ out:
 EXPORT_SYMBOL(xfrm_state_add);
 
 #ifdef CONFIG_XFRM_MIGRATE
-static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
+static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig)
 {
 	struct net *net = xs_net(orig);
-	int err = -ENOMEM;
 	struct xfrm_state *x = xfrm_state_alloc(net);
 	if (!x)
 		goto out;
@@ -1187,15 +1199,13 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	}
 
 	if (orig->replay_esn) {
-		err = xfrm_replay_clone(x, orig);
-		if (err)
+		if (xfrm_replay_clone(x, orig))
 			goto error;
 	}
 
 	memcpy(&x->mark, &orig->mark, sizeof(x->mark));
 
-	err = xfrm_init_state(x);
-	if (err)
+	if (xfrm_init_state(x) < 0)
 		goto error;
 
 	x->props.flags = orig->props.flags;
@@ -1210,8 +1220,6 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
  error:
 	xfrm_state_put(x);
 out:
-	if (errp)
-		*errp = err;
 	return NULL;
 }
 
@@ -1263,9 +1271,8 @@ struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 				      struct xfrm_migrate *m)
 {
 	struct xfrm_state *xc;
-	int err;
 
-	xc = xfrm_state_clone(x, &err);
+	xc = xfrm_state_clone(x);
 	if (!xc)
 		return NULL;
 
@@ -1278,7 +1285,7 @@ struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 		   state is to be updated as it is a part of triplet */
 		xfrm_state_insert(xc);
 	} else {
-		if ((err = xfrm_state_add(xc)) < 0)
+		if (xfrm_state_add(xc) < 0)
 			goto error;
 	}
 
@@ -1590,6 +1597,23 @@ unlock:
 }
 EXPORT_SYMBOL(xfrm_alloc_spi);
 
+static bool __xfrm_state_filter_match(struct xfrm_state *x,
+				      struct xfrm_filter *filter)
+{
+	if (filter) {
+		if ((filter->family == AF_INET ||
+		     filter->family == AF_INET6) &&
+		    x->props.family != filter->family)
+			return false;
+
+		return addr_match(&x->props.saddr, &filter->saddr,
+				  filter->splen) &&
+		       addr_match(&x->id.daddr, &filter->daddr,
+				  filter->dplen);
+	}
+	return true;
+}
+
 int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 		    int (*func)(struct xfrm_state *, int, void*),
 		    void *data)
@@ -1612,6 +1636,8 @@ int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 		state = container_of(x, struct xfrm_state, km);
 		if (!xfrm_id_proto_match(state->id.proto, walk->proto))
 			continue;
+		if (!__xfrm_state_filter_match(state, walk->filter))
+			continue;
 		err = func(state, walk->seq, data);
 		if (err) {
 			list_move_tail(&walk->all, &x->all);
@@ -1630,17 +1656,21 @@ out:
 }
 EXPORT_SYMBOL(xfrm_state_walk);
 
-void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
+void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto,
+			  struct xfrm_filter *filter)
 {
 	INIT_LIST_HEAD(&walk->all);
 	walk->proto = proto;
 	walk->state = XFRM_STATE_DEAD;
 	walk->seq = 0;
+	walk->filter = filter;
 }
 EXPORT_SYMBOL(xfrm_state_walk_init);
 
 void xfrm_state_walk_done(struct xfrm_state_walk *walk, struct net *net)
 {
+	kfree(walk->filter);
+
 	if (list_empty(&walk->all))
 		return;
 
@@ -1792,6 +1822,24 @@ int km_report(struct net *net, u8 proto, struct xfrm_selector *sel, xfrm_address
 	return err;
 }
 EXPORT_SYMBOL(km_report);
+
+bool km_is_alive(const struct km_event *c)
+{
+	struct xfrm_mgr *km;
+	bool is_alive = false;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(km, &xfrm_km_list, list) {
+		if (km->is_alive && km->is_alive(c)) {
+			is_alive = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return is_alive;
+}
+EXPORT_SYMBOL(km_is_alive);
 
 int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
 {

@@ -142,7 +142,8 @@ static inline int verify_replay(struct xfrm_usersa_info *p,
 	if (!rt)
 		return 0;
 
-	if (p->id.proto != IPPROTO_ESP)
+	/* As only ESP and AH support ESN feature. */
+	if ((p->id.proto != IPPROTO_ESP) && (p->id.proto != IPPROTO_AH))
 		return -EINVAL;
 
 	if (p->replay_window != 0)
@@ -886,6 +887,7 @@ static int xfrm_dump_sa_done(struct netlink_callback *cb)
 	return 0;
 }
 
+static const struct nla_policy xfrma_policy[XFRMA_MAX+1];
 static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -901,8 +903,31 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 	info.nlmsg_flags = NLM_F_MULTI;
 
 	if (!cb->args[0]) {
+		struct nlattr *attrs[XFRMA_MAX+1];
+		struct xfrm_filter *filter = NULL;
+		u8 proto = 0;
+		int err;
+
 		cb->args[0] = 1;
-		xfrm_state_walk_init(walk, 0);
+
+		err = nlmsg_parse(cb->nlh, 0, attrs, XFRMA_MAX,
+				  xfrma_policy);
+		if (err < 0)
+			return err;
+
+		if (attrs[XFRMA_FILTER]) {
+			filter = kmalloc(sizeof(*filter), GFP_KERNEL);
+			if (filter == NULL)
+				return -ENOMEM;
+
+			memcpy(filter, nla_data(attrs[XFRMA_FILTER]),
+			       sizeof(*filter));
+		}
+
+		if (attrs[XFRMA_PROTO])
+			proto = nla_get_u8(attrs[XFRMA_PROTO]);
+
+		xfrm_state_walk_init(walk, proto, filter);
 	}
 
 	(void) xfrm_state_walk(net, walk, dump_one_state, &info);
@@ -2308,6 +2333,8 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_TFCPAD]		= { .type = NLA_U32 },
 	[XFRMA_REPLAY_ESN_VAL]	= { .len = sizeof(struct xfrm_replay_state_esn) },
 	[XFRMA_SA_EXTRA_FLAGS]	= { .type = NLA_U32 },
+	[XFRMA_PROTO]		= { .type = NLA_U8 },
+	[XFRMA_FILTER]		= { .len = sizeof(struct xfrm_filter) },
 };
 
 static const struct xfrm_link {
@@ -2981,6 +3008,11 @@ static int xfrm_send_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr,
 	return nlmsg_multicast(net->xfrm.nlsk, skb, 0, XFRMNLGRP_MAPPING, GFP_ATOMIC);
 }
 
+static bool xfrm_is_alive(const struct km_event *c)
+{
+	return (bool)xfrm_acquire_is_on(c->net);
+}
+
 static struct xfrm_mgr netlink_mgr = {
 	.id		= "netlink",
 	.notify		= xfrm_send_state_notify,
@@ -2990,6 +3022,7 @@ static struct xfrm_mgr netlink_mgr = {
 	.report		= xfrm_send_report,
 	.migrate	= xfrm_send_migrate,
 	.new_mapping	= xfrm_send_mapping,
+	.is_alive	= xfrm_is_alive,
 };
 
 static int __net_init xfrm_user_net_init(struct net *net)

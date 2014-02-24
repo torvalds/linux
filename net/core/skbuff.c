@@ -3281,6 +3281,32 @@ __skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 	return elt;
 }
 
+/* As compared with skb_to_sgvec, skb_to_sgvec_nomark only map skb to given
+ * sglist without mark the sg which contain last skb data as the end.
+ * So the caller can mannipulate sg list as will when padding new data after
+ * the first call without calling sg_unmark_end to expend sg list.
+ *
+ * Scenario to use skb_to_sgvec_nomark:
+ * 1. sg_init_table
+ * 2. skb_to_sgvec_nomark(payload1)
+ * 3. skb_to_sgvec_nomark(payload2)
+ *
+ * This is equivalent to:
+ * 1. sg_init_table
+ * 2. skb_to_sgvec(payload1)
+ * 3. sg_unmark_end
+ * 4. skb_to_sgvec(payload2)
+ *
+ * When mapping mutilple payload conditionally, skb_to_sgvec_nomark
+ * is more preferable.
+ */
+int skb_to_sgvec_nomark(struct sk_buff *skb, struct scatterlist *sg,
+			int offset, int len)
+{
+	return __skb_to_sgvec(skb, sg, offset, len);
+}
+EXPORT_SYMBOL_GPL(skb_to_sgvec_nomark);
+
 int skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 {
 	int nsg = __skb_to_sgvec(skb, sg, offset, len);
