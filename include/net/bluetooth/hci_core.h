@@ -561,6 +561,13 @@ static inline unsigned int hci_conn_num(struct hci_dev *hdev, __u8 type)
 	}
 }
 
+static inline unsigned int hci_conn_count(struct hci_dev *hdev)
+{
+	struct hci_conn_hash *c = &hdev->conn_hash;
+
+	return c->acl_num + c->amp_num + c->sco_num + c->le_num;
+}
+
 static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
 								__u16 handle)
 {
