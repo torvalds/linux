@@ -145,6 +145,12 @@ config GPIO_EP93XX
 	depends on ARCH_EP93XX
 	select GPIO_GENERIC
 
+config GPIO_ZEVIO
+	bool "LSI ZEVIO SoC memory mapped GPIOs"
+	depends on OF
+	help
+	  Say yes here to support the GPIO controller in LSI ZEVIO SoCs.
+
 config GPIO_MM_LANTIQ
 	bool "Lantiq Memory mapped GPIOs"
 	depends on LANTIQ && SOC_XWAY
