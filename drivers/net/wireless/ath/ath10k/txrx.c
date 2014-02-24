@@ -259,7 +259,7 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 	status->freq = ch->center_freq;
 
 	ath10k_dbg(ATH10K_DBG_DATA,
-		   "rx skb %p len %u %s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u\n",
+		   "rx skb %p len %u %s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i\n",
 		   info->skb,
 		   info->skb->len,
 		   status->flag == 0 ? "legacy" : "",
@@ -271,7 +271,7 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 		   status->rate_idx,
 		   status->vht_nss,
 		   status->freq,
-		   status->band);
+		   status->band, status->flag, info->fcs_err);
 	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "rx skb: ",
 			info->skb->data, info->skb->len);
 

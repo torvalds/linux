@@ -460,9 +460,9 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 					   DMA_TO_DEVICE);
 	}
 
-	ath10k_dbg(ATH10K_DBG_HTT, "msdu 0x%llx\n",
+	ath10k_dbg(ATH10K_DBG_HTT, "tx-msdu 0x%llx\n",
 		   (unsigned long long) ATH10K_SKB_CB(msdu)->paddr);
-	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "msdu: ",
+	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "tx-msdu: ",
 			msdu->data, msdu->len);
 
 	skb_put(txdesc, desc_len);

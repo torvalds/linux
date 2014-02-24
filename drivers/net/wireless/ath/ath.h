@@ -63,7 +63,7 @@ enum ath_bus_type {
 };
 
 struct reg_dmn_pair_mapping {
-	u16 regDmnEnum;
+	u16 reg_domain;
 	u16 reg_5ghz_ctl;
 	u16 reg_2ghz_ctl;
 };
