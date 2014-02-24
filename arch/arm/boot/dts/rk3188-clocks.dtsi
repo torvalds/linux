@@ -1014,6 +1014,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>;
 						clock-output-names = "aclk_lcdc0";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					aclk_lcdc1_pre_div: aclk_lcdc1_pre_div {
@@ -1035,6 +1036,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>;
 						clock-output-names = "aclk_lcdc1";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 

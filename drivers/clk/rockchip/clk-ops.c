@@ -220,83 +220,114 @@ static long clk_div_round_rate_even(struct clk_hw *hw, unsigned long rate,
 	struct clk_divider *divider =to_clk_divider(hw);
 	int max_div = 1 << divider->width;
 
-	for (i = 1; i < max_div; i++) {
+	for (i = 1; i <= max_div; i++) {
 		if (i > 1 && (i % 2 != 0))
 			continue;
-		if (rate >= *prate / i)
+		if (rate >= (*prate / i))
 			return *prate / i;
 	}
-	return -EINVAL;
-}
 
-static int clk_div_set_rate_even(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
-{
-	return clk_divider_ops.set_rate(hw, rate, parent_rate);
+	return (*prate / max_div);
 }
 
 const struct clk_ops clkops_rate_evendiv = {
 	.recalc_rate	= clk_divider_recalc_rate,
 	.round_rate	= clk_div_round_rate_even,
-	.set_rate	= clk_div_set_rate_even,
+	.set_rate	= clk_divider_set_rate,
 };
+
+static long clk_mux_with_evendiv_determine_rate(struct clk_hw *div_hw, unsigned long rate,
+		unsigned long *best_parent_rate,
+		struct clk **best_parent_p)
+{
+	struct clk *clk = div_hw->clk, *parent = NULL, *best_parent = NULL;
+	int i, num_parents;
+	unsigned long parent_rate = 0, best_prate = 0, best = 0, now = 0;
+
+
+	parent = __clk_get_parent(clk);
+	if(!parent){
+		best = __clk_get_rate(clk);
+		goto out;
+	}
+
+	/* if NO_REPARENT flag set, pass through to current parent */
+	if (clk->flags & CLK_SET_RATE_NO_REPARENT) {
+		best_prate = __clk_get_rate(parent);
+		best = clk_div_round_rate_even(div_hw, rate, &best_prate);
+		goto out;
+	}
+
+	/* find the parent that can provide the fastest rate <= rate */
+	num_parents = clk->num_parents;
+	for (i = 0; i < num_parents; i++) {
+		parent = clk_get_parent_by_index(clk, i);
+		if (!parent)
+			continue;
+
+		parent_rate = __clk_get_rate(parent);
+		now = clk_div_round_rate_even(div_hw, rate, &parent_rate);
+
+		if (now <= rate && now > best) {
+			best_parent = parent;
+			best_prate = parent_rate;
+			best = now;
+		}
+	}
+
+out:
+	if(best_prate)
+		*best_parent_rate = best_prate;
+
+	if (best_parent)
+		*best_parent_p = best_parent;
+
+	clk_debug("clk name = %s, determine rate = %lu, best = %lu\n"
+			"\tbest_parent name = %s, best_prate = %lu\n",
+			clk->name, rate, best,
+			__clk_get_name(*best_parent_p), *best_parent_rate);
+
+	return best;
+}
 
 static long dclk_lcdc_round_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long *prate)
 {
-	long ret = 0;
-	if (rate == 27 * MHZ) {
-		ret = clk_divider_round_rate(hw, rate, prate);
-	} else {
-		ret = clk_divider_round_rate(hw, rate, prate);
-	}
-	return ret;
-}
-
-static int dclk_lcdc_set_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
-{
-	return clk_divider_set_rate(hw, rate, parent_rate);
+	return clk_div_round_rate_even(hw, rate, prate);
 }
 
 const struct clk_ops clkops_rate_dclk_lcdc = {
 	.recalc_rate	= clk_divider_recalc_rate,
+	.set_rate	= clk_divider_set_rate,
 	.round_rate	= dclk_lcdc_round_rate,
-	.set_rate	= dclk_lcdc_set_rate,
-	.determine_rate = clk_mux_with_div_determine_rate,
+	.determine_rate = clk_mux_with_evendiv_determine_rate,
 };
 
-#if 0
 static int clk_i2s_fracdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
 	u32 numerator, denominator;
-	struct clk *clk_parent;
-	int i = 10;
 	struct clk_divider *div = to_clk_divider(hw);
+	int i = 10;
 
-	clk_parent = hw->clk->parent;
+
 	if(clk_fracdiv_get_config(rate, parent_rate,
 				&numerator, &denominator) == 0) {
-
-		clk_parent->ops->set_rate(clk_parent->hw,
-				clk_parent->parent->rate,
-				clk_parent->parent->rate);
 		while (i--) {
 			writel((numerator - 1) << 16 | denominator, div->reg);
 			mdelay(1);
 			writel(numerator << 16 | denominator, div->reg);
 			mdelay(1);
 		}
-		clk_err("%s set rate=%lu,is ok\n", hw->clk->name, rate);
-
+		clk_debug("%s set rate=%lu,is ok\n", hw->clk->name, rate);
 	} else {
-		clk_err("%s: can't get rate=%lu,%s\n", __func__, rate, hw->clk->name);
-		return -ENOENT;
+		clk_err("clk_frac_div name=%s can't get rate=%lu\n",
+				hw->clk->name, rate);
+		return -EINVAL;
 	}
+
 	return 0;
 }
-#endif
 
 const struct clk_ops clkops_rate_frac = {
 	.recalc_rate	= clk_fracdiv_recalc,
@@ -307,7 +338,7 @@ const struct clk_ops clkops_rate_frac = {
 const struct clk_ops clkops_rate_i2s_frac = {
 	.recalc_rate	= clk_fracdiv_recalc,
 	.round_rate	= clk_fracdiv_round_rate,
-	.set_rate	= clk_fracdiv_set_rate,
+	.set_rate	= clk_i2s_fracdiv_set_rate,
 };
 
 static unsigned long clk_core_recalc_rate(struct clk_hw *hw,

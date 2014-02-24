@@ -372,7 +372,8 @@
 			<&hclk_cpu 96000000>,	<&pclk_cpu 48000000>,
 			<&pclk_ahb2apb 48000000>,	<&aclk_peri 192000000>,
 			<&hclk_peri 96000000>,	<&pclk_peri 48000000>,
-			<&clk_gpu 200000000>;
+			<&clk_gpu 200000000>, <&aclk_lcdc0 300000000>,
+			<&aclk_lcdc1 300000000>;
 	};
 
 	fb: fb{
