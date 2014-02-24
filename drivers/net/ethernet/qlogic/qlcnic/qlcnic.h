@@ -38,8 +38,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 55
-#define QLCNIC_LINUX_VERSIONID  "5.3.55"
+#define _QLCNIC_LINUX_SUBVERSION 56
+#define QLCNIC_LINUX_VERSIONID  "5.3.56"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -394,7 +394,7 @@ struct qlcnic_nic_intr_coalesce {
 	u32	timer_out;
 };
 
-struct qlcnic_dump_template_hdr {
+struct qlcnic_83xx_dump_template_hdr {
 	u32	type;
 	u32	offset;
 	u32	size;
@@ -411,15 +411,42 @@ struct qlcnic_dump_template_hdr {
 	u32	rsvd[0];
 };
 
+struct qlcnic_82xx_dump_template_hdr {
+	u32	type;
+	u32	offset;
+	u32	size;
+	u32	cap_mask;
+	u32	num_entries;
+	u32	version;
+	u32	timestamp;
+	u32	checksum;
+	u32	drv_cap_mask;
+	u32	sys_info[3];
+	u32	saved_state[16];
+	u32	cap_sizes[8];
+	u32	rsvd[7];
+	u32	capabilities;
+	u32	rsvd1[0];
+};
+
 struct qlcnic_fw_dump {
 	u8	clr;	/* flag to indicate if dump is cleared */
 	bool	enable; /* enable/disable dump */
 	u32	size;	/* total size of the dump */
+	u32	cap_mask; /* Current capture mask */
 	void	*data;	/* dump data area */
-	struct	qlcnic_dump_template_hdr *tmpl_hdr;
+	void	*tmpl_hdr;
 	dma_addr_t phys_addr;
 	void	*dma_buffer;
 	bool	use_pex_dma;
+	/* Read only elements which are common between 82xx and 83xx
+	 * template header. Update these values immediately after we read
+	 * template header from Firmware
+	 */
+	u32	tmpl_hdr_size;
+	u32	version;
+	u32	num_entries;
+	u32	offset;
 };
 
 /*
@@ -1769,6 +1796,12 @@ struct qlcnic_hardware_ops {
 				struct qlcnic_host_tx_ring *);
 	void (*disable_tx_intr) (struct qlcnic_adapter *,
 				 struct qlcnic_host_tx_ring *);
+	u32 (*get_saved_state)(void *, u32);
+	void (*set_saved_state)(void *, u32, u32);
+	void (*cache_tmpl_hdr_values)(struct qlcnic_fw_dump *);
+	u32 (*get_cap_size)(void *, int);
+	void (*set_sys_info)(void *, int, u32);
+	void (*store_cap_mask)(void *, u32);
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
@@ -2005,6 +2038,42 @@ static inline void qlcnic_read_phys_port_id(struct qlcnic_adapter *adapter)
 {
 	if (adapter->ahw->hw_ops->read_phys_port_id)
 		adapter->ahw->hw_ops->read_phys_port_id(adapter);
+}
+
+static inline u32 qlcnic_get_saved_state(struct qlcnic_adapter *adapter,
+					 void *t_hdr, u32 index)
+{
+	return adapter->ahw->hw_ops->get_saved_state(t_hdr, index);
+}
+
+static inline void qlcnic_set_saved_state(struct qlcnic_adapter *adapter,
+					  void *t_hdr, u32 index, u32 value)
+{
+	adapter->ahw->hw_ops->set_saved_state(t_hdr, index, value);
+}
+
+static inline void qlcnic_cache_tmpl_hdr_values(struct qlcnic_adapter *adapter,
+						struct qlcnic_fw_dump *fw_dump)
+{
+	adapter->ahw->hw_ops->cache_tmpl_hdr_values(fw_dump);
+}
+
+static inline u32 qlcnic_get_cap_size(struct qlcnic_adapter *adapter,
+				      void *tmpl_hdr, int index)
+{
+	return adapter->ahw->hw_ops->get_cap_size(tmpl_hdr, index);
+}
+
+static inline void qlcnic_set_sys_info(struct qlcnic_adapter *adapter,
+				       void *tmpl_hdr, int idx, u32 value)
+{
+	adapter->ahw->hw_ops->set_sys_info(tmpl_hdr, idx, value);
+}
+
+static inline void qlcnic_store_cap_mask(struct qlcnic_adapter *adapter,
+					 void *tmpl_hdr, u32 mask)
+{
+	adapter->ahw->hw_ops->store_cap_mask(tmpl_hdr, mask);
 }
 
 static inline void qlcnic_dev_request_reset(struct qlcnic_adapter *adapter,
