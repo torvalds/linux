@@ -39,6 +39,7 @@ struct ion_heap_desc {
 
 extern struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
  						int id);
+extern int ion_handle_put(struct ion_handle *handle);
 
 static struct ion_heap_desc ion_heap_meta[] = {
 	{
@@ -186,6 +187,7 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 
 		ret = ion_phys(client, handle, &data.phys, (size_t *)&data.size);
 		pr_info("ret=%d, phys=0x%X\n", ret, data.phys);
+		ion_handle_put(handle);
 		if(ret < 0)
 			return ret;
 		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_phys_data)))
