@@ -174,6 +174,10 @@ static void ccp_crypto_complete(void *data, int err)
 
 	/* Submit the next cmd */
 	while (held) {
+		/* Since we have already queued the cmd, we must indicate that
+		 * we can backlog so as not to "lose" this request.
+		 */
+		held->cmd->flags |= CCP_CMD_MAY_BACKLOG;
 		ret = ccp_enqueue_cmd(held->cmd);
 		if (ccp_crypto_success(ret))
 			break;
