@@ -276,18 +276,18 @@ EXPORT_SYMBOL_GPL(smp_call_function_any);
 /**
  * __smp_call_function_single(): Run a function on a specific CPU
  * @cpu: The CPU to run on.
- * @data: Pre-allocated and setup data structure
+ * @csd: Pre-allocated and setup data structure
  * @wait: If true, wait until function has completed on specified CPU.
  *
  * Like smp_call_function_single(), but allow caller to pass in a
  * pre-allocated data structure. Useful for embedding @data inside
  * other structures, for instance.
  */
-void __smp_call_function_single(int cpu, struct call_single_data *csd,
-				int wait)
+int __smp_call_function_single(int cpu, struct call_single_data *csd, int wait)
 {
 	unsigned int this_cpu;
 	unsigned long flags;
+	int err = 0;
 
 	this_cpu = get_cpu();
 	/*
@@ -303,11 +303,14 @@ void __smp_call_function_single(int cpu, struct call_single_data *csd,
 		local_irq_save(flags);
 		csd->func(csd->info);
 		local_irq_restore(flags);
-	} else {
+	} else if ((unsigned)cpu < nr_cpu_ids && cpu_online(cpu)) {
 		csd_lock(csd);
 		generic_exec_single(cpu, csd, wait);
+	} else {
+		err = -ENXIO;	/* CPU not online */
 	}
 	put_cpu();
+	return err;
 }
 EXPORT_SYMBOL_GPL(__smp_call_function_single);
 

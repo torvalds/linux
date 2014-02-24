@@ -50,8 +50,7 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 		smp_call_func_t func, void *info, bool wait,
 		gfp_t gfp_flags);
 
-void __smp_call_function_single(int cpuid, struct call_single_data *data,
-				int wait);
+int __smp_call_function_single(int cpu, struct call_single_data *csd, int wait);
 
 #ifdef CONFIG_SMP
 

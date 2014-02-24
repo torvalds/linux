@@ -22,14 +22,15 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 }
 EXPORT_SYMBOL(smp_call_function_single);
 
-void __smp_call_function_single(int cpu, struct call_single_data *csd,
-				int wait)
+int __smp_call_function_single(int cpu, struct call_single_data *csd,
+			       int wait)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
 	csd->func(csd->info);
 	local_irq_restore(flags);
+	return 0;
 }
 EXPORT_SYMBOL(__smp_call_function_single);
 
