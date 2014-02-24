@@ -1,0 +1,55 @@
+/*
+ * Copyright 2014 Texas Instruments, Inc.
+ *
+ * Keystone 2 Lamarr SoC specific device tree
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&gic>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <1>;
+		};
+	};
+
+	soc {
+
+		/include/ "k2l-clocks.dtsi"
+
+		uart2: serial@02348400 {
+			compatible = "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02348400 0x100>;
+			clocks	= <&clkuart2>;
+			interrupts = <GIC_SPI 432 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		uart3:	serial@02348800 {
+			compatible = "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02348800 0x100>;
+			clocks	= <&clkuart3>;
+			interrupts = <GIC_SPI 435 IRQ_TYPE_EDGE_RISING>;
+		};
+	};
+};
