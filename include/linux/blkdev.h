@@ -99,6 +99,7 @@ struct request {
 	union {
 		struct call_single_data csd;
 		struct work_struct mq_flush_work;
+		unsigned long fifo_time;
 	};
 
 	struct request_queue *q;
