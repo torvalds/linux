@@ -90,10 +90,16 @@ nouveau_bios_shadow_pramin(struct nouveau_bios *bios)
 	int i;
 
 	if (device->card_type >= NV_50) {
-		if (  device->card_type < NV_C0 ||
-		    !(nv_rd32(bios, 0x022500) & 0x00000001))
-			addr = (u64)(nv_rd32(bios, 0x619f04) & 0xffffff00) << 8;
+		if (device->card_type >= NV_C0 && device->card_type < GM100) {
+			if (nv_rd32(bios, 0x022500) & 0x00000001)
+				return;
+		} else
+		if (device->card_type >= GM100) {
+			if (nv_rd32(bios, 0x021c04) & 0x00000001)
+				return;
+		}
 
+		addr = (u64)(nv_rd32(bios, 0x619f04) & 0xffffff00) << 8;
 		if (!addr) {
 			addr  = (u64)nv_rd32(bios, 0x001700) << 16;
 			addr += 0xf0000;
