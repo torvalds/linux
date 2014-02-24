@@ -184,9 +184,9 @@ static long __init sclp_hsa_size_init(struct sdias_sccb *sccb)
 	sccb_init_eq_size(sccb);
 	if (sclp_cmd_early(SCLP_CMDW_WRITE_EVENT_DATA, sccb))
 		return -EIO;
-	if (sccb->evbuf.blk_cnt != 0)
-		return (sccb->evbuf.blk_cnt - 1) * PAGE_SIZE;
-	return 0;
+	if (sccb->evbuf.blk_cnt == 0)
+		return 0;
+	return (sccb->evbuf.blk_cnt - 1) * PAGE_SIZE;
 }
 
 static long __init sclp_hsa_copy_wait(struct sccb_header *sccb)
@@ -195,6 +195,8 @@ static long __init sclp_hsa_copy_wait(struct sccb_header *sccb)
 	sccb->length = PAGE_SIZE;
 	if (sclp_cmd_early(SCLP_CMDW_READ_EVENT_DATA, sccb))
 		return -EIO;
+	if (((struct sdias_sccb *) sccb)->evbuf.blk_cnt == 0)
+		return 0;
 	return (((struct sdias_sccb *) sccb)->evbuf.blk_cnt - 1) * PAGE_SIZE;
 }
 
