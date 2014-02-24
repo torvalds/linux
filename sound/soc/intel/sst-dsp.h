@@ -24,6 +24,7 @@
 /* SST Device IDs  */
 #define SST_DEV_ID_LYNX_POINT		0x33C8
 #define SST_DEV_ID_WILDCAT_POINT	0x3438
+#define SST_DEV_ID_BYT			0x0F28
 
 /* Supported SST DMA Devices */
 #define SST_DMA_TYPE_DW		1
@@ -72,10 +73,15 @@
 #define SST_CSR_S0IOCS		(0x1 << 21)
 #define SST_CSR_S1IOCS		(0x1 << 23)
 #define SST_CSR_LPCS		(0x1 << 31)
+#define SST_BYT_CSR_RST		(0x1 << 0)
+#define SST_BYT_CSR_VECTOR_SEL	(0x1 << 1)
+#define SST_BYT_CSR_STALL	(0x1 << 2)
+#define SST_BYT_CSR_PWAITMODE	(0x1 << 3)
 
 /*  ISRX / ISC */
 #define SST_ISRX_BUSY		(0x1 << 1)
 #define SST_ISRX_DONE		(0x1 << 0)
+#define SST_BYT_ISRX_REQUEST	(0x1 << 1)
 
 /*  ISRD / ISD */
 #define SST_ISRD_BUSY		(0x1 << 1)
@@ -84,14 +90,19 @@
 /* IMRX / IMC */
 #define SST_IMRX_BUSY		(0x1 << 1)
 #define SST_IMRX_DONE		(0x1 << 0)
+#define SST_BYT_IMRX_REQUEST	(0x1 << 1)
 
 /*  IPCX / IPCC */
 #define	SST_IPCX_DONE		(0x1 << 30)
 #define	SST_IPCX_BUSY		(0x1 << 31)
+#define SST_BYT_IPCX_DONE	((u64)0x1 << 62)
+#define SST_BYT_IPCX_BUSY	((u64)0x1 << 63)
 
 /*  IPCD */
 #define	SST_IPCD_DONE		(0x1 << 30)
 #define	SST_IPCD_BUSY		(0x1 << 31)
+#define SST_BYT_IPCD_DONE	((u64)0x1 << 62)
+#define SST_BYT_IPCD_BUSY	((u64)0x1 << 63)
 
 /* CLKCTL */
 #define SST_CLKCTL_SMOS(x)	(x << 24)
