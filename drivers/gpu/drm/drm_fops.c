@@ -39,7 +39,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-/* from BKL pushdown: note that nothing else serializes idr_find() */
+/* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
 EXPORT_SYMBOL(drm_global_mutex);
 
@@ -91,11 +91,6 @@ int drm_open(struct inode *inode, struct file *filp)
 		return PTR_ERR(minor);
 
 	dev = minor->dev;
-	if (drm_device_is_unplugged(dev)) {
-		retcode = -ENODEV;
-		goto err_release;
-	}
-
 	if (!dev->open_count++)
 		need_setup = 1;
 	mutex_lock(&dev->struct_mutex);
@@ -127,7 +122,6 @@ err_undo:
 	dev->dev_mapping = old_mapping;
 	mutex_unlock(&dev->struct_mutex);
 	dev->open_count--;
-err_release:
 	drm_minor_release(minor);
 	return retcode;
 }
@@ -157,9 +151,6 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 		goto out_unlock;
 
 	dev = minor->dev;
-	if (drm_device_is_unplugged(dev))
-		goto out_release;
-
 	new_fops = fops_get(dev->driver->fops);
 	if (!new_fops)
 		goto out_release;

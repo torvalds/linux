@@ -70,6 +70,7 @@ module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
 module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
+static DEFINE_SPINLOCK(drm_minor_lock);
 struct idr drm_minors_idr;
 
 struct class *drm_class;
@@ -240,6 +241,19 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/*
+ * DRM Minors
+ * A DRM device can provide several char-dev interfaces on the DRM-Major. Each
+ * of them is represented by a drm_minor object. Depending on the capabilities
+ * of the device-driver, different interfaces are registered.
+ *
+ * Minors can be accessed via dev->$minor_name. This pointer is either
+ * NULL or a valid drm_minor pointer and stays valid as long as the device is
+ * valid. This means, DRM minors have the same life-time as the underlying
+ * device. However, this doesn't mean that the minor is active. Minors are
+ * registered and unregistered dynamically according to device-state.
+ */
+
 static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 					     unsigned int type)
 {
@@ -285,6 +299,7 @@ static void drm_minor_free(struct drm_device *dev, unsigned int type)
 static int drm_minor_register(struct drm_device *dev, unsigned int type)
 {
 	struct drm_minor *new_minor;
+	unsigned long flags;
 	int ret;
 	int minor_id;
 
@@ -294,18 +309,20 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	if (!new_minor)
 		return 0;
 
+	idr_preload(GFP_KERNEL);
+	spin_lock_irqsave(&drm_minor_lock, flags);
 	minor_id = idr_alloc(&drm_minors_idr,
 			     NULL,
 			     64 * type,
 			     64 * (type + 1),
-			     GFP_KERNEL);
+			     GFP_NOWAIT);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+	idr_preload_end();
 
 	if (minor_id < 0)
 		return minor_id;
 
 	new_minor->index = minor_id;
-
-	idr_replace(&drm_minors_idr, new_minor, minor_id);
 
 	ret = drm_debugfs_init(new_minor, minor_id, drm_debugfs_root);
 	if (ret) {
@@ -319,27 +336,40 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 		goto err_debugfs;
 	}
 
+	/* replace NULL with @minor so lookups will succeed from now on */
+	spin_lock_irqsave(&drm_minor_lock, flags);
+	idr_replace(&drm_minors_idr, new_minor, new_minor->index);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+
 	DRM_DEBUG("new minor assigned %d\n", minor_id);
 	return 0;
 
 err_debugfs:
 	drm_debugfs_cleanup(new_minor);
 err_id:
+	spin_lock_irqsave(&drm_minor_lock, flags);
 	idr_remove(&drm_minors_idr, minor_id);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+	new_minor->index = 0;
 	return ret;
 }
 
 static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 {
 	struct drm_minor *minor;
+	unsigned long flags;
 
 	minor = *drm_minor_get_slot(dev, type);
 	if (!minor || !minor->kdev)
 		return;
 
+	spin_lock_irqsave(&drm_minor_lock, flags);
+	idr_remove(&drm_minors_idr, minor->index);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
+	minor->index = 0;
+
 	drm_debugfs_cleanup(minor);
 	drm_sysfs_device_remove(minor);
-	idr_remove(&drm_minors_idr, minor->index);
 }
 
 /**
@@ -361,12 +391,21 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 struct drm_minor *drm_minor_acquire(unsigned int minor_id)
 {
 	struct drm_minor *minor;
+	unsigned long flags;
 
+	spin_lock_irqsave(&drm_minor_lock, flags);
 	minor = idr_find(&drm_minors_idr, minor_id);
-	if (!minor)
-		return ERR_PTR(-ENODEV);
+	if (minor)
+		drm_dev_ref(minor->dev);
+	spin_unlock_irqrestore(&drm_minor_lock, flags);
 
-	drm_dev_ref(minor->dev);
+	if (!minor) {
+		return ERR_PTR(-ENODEV);
+	} else if (drm_device_is_unplugged(minor->dev)) {
+		drm_dev_unref(minor->dev);
+		return ERR_PTR(-ENODEV);
+	}
+
 	return minor;
 }
 
