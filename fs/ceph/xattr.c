@@ -12,6 +12,9 @@
 #define XATTR_CEPH_PREFIX "ceph."
 #define XATTR_CEPH_PREFIX_LEN (sizeof (XATTR_CEPH_PREFIX) - 1)
 
+static int __remove_xattr(struct ceph_inode_info *ci,
+			  struct ceph_inode_xattr *xattr);
+
 /*
  * List of handlers for synthetic system.* attributes. Other
  * attributes are handled directly.
@@ -319,8 +322,7 @@ static struct ceph_vxattr *ceph_match_vxattr(struct inode *inode,
 static int __set_xattr(struct ceph_inode_info *ci,
 			   const char *name, int name_len,
 			   const char *val, int val_len,
-			   int dirty,
-			   int should_free_name, int should_free_val,
+			   int flags, int update_xattr,
 			   struct ceph_inode_xattr **newxattr)
 {
 	struct rb_node **p;
@@ -349,12 +351,31 @@ static int __set_xattr(struct ceph_inode_info *ci,
 		xattr = NULL;
 	}
 
+	if (update_xattr) {
+		int err = 0;
+		if (xattr && (flags & XATTR_CREATE))
+			err = -EEXIST;
+		else if (!xattr && (flags & XATTR_REPLACE))
+			err = -ENODATA;
+		if (err) {
+			kfree(name);
+			kfree(val);
+			return err;
+		}
+		if (update_xattr < 0) {
+			if (xattr)
+				__remove_xattr(ci, xattr);
+			kfree(name);
+			return 0;
+		}
+	}
+
 	if (!xattr) {
 		new = 1;
 		xattr = *newxattr;
 		xattr->name = name;
 		xattr->name_len = name_len;
-		xattr->should_free_name = should_free_name;
+		xattr->should_free_name = update_xattr;
 
 		ci->i_xattrs.count++;
 		dout("__set_xattr count=%d\n", ci->i_xattrs.count);
@@ -364,7 +385,7 @@ static int __set_xattr(struct ceph_inode_info *ci,
 		if (xattr->should_free_val)
 			kfree((void *)xattr->val);
 
-		if (should_free_name) {
+		if (update_xattr) {
 			kfree((void *)name);
 			name = xattr->name;
 		}
@@ -379,8 +400,8 @@ static int __set_xattr(struct ceph_inode_info *ci,
 		xattr->val = "";
 
 	xattr->val_len = val_len;
-	xattr->dirty = dirty;
-	xattr->should_free_val = (val && should_free_val);
+	xattr->dirty = update_xattr;
+	xattr->should_free_val = (val && update_xattr);
 
 	if (new) {
 		rb_link_node(&xattr->node, parent, p);
@@ -442,7 +463,7 @@ static int __remove_xattr(struct ceph_inode_info *ci,
 			  struct ceph_inode_xattr *xattr)
 {
 	if (!xattr)
-		return -EOPNOTSUPP;
+		return -ENODATA;
 
 	rb_erase(&xattr->node, &ci->i_xattrs.index);
 
@@ -588,7 +609,7 @@ start:
 			p += len;
 
 			err = __set_xattr(ci, name, namelen, val, len,
-					  0, 0, 0, &xattrs[numattr]);
+					  0, 0, &xattrs[numattr]);
 
 			if (err < 0)
 				goto bad;
@@ -850,6 +871,9 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 
 	dout("setxattr value=%.*s\n", (int)size, value);
 
+	if (!value)
+		flags |= CEPH_XATTR_REMOVE;
+
 	/* do request */
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SETXATTR,
 				       USE_AUTH_MDS);
@@ -892,7 +916,7 @@ int __ceph_setxattr(struct dentry *dentry, const char *name,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int issued;
 	int err;
-	int dirty;
+	int dirty = 0;
 	int name_len = strlen(name);
 	int val_len = size;
 	char *newname = NULL;
@@ -953,12 +977,14 @@ retry:
 		goto retry;
 	}
 
-	err = __set_xattr(ci, newname, name_len, newval,
-			  val_len, 1, 1, 1, &xattr);
+	err = __set_xattr(ci, newname, name_len, newval, val_len,
+			  flags, value ? 1 : -1, &xattr);
 
-	dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
-	ci->i_xattrs.dirty = true;
-	inode->i_ctime = CURRENT_TIME;
+	if (!err) {
+		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
+		ci->i_xattrs.dirty = true;
+		inode->i_ctime = CURRENT_TIME;
+	}
 
 	spin_unlock(&ci->i_ceph_lock);
 	if (dirty)
