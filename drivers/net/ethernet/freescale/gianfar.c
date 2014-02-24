@@ -1715,18 +1715,10 @@ void gfar_halt(struct gfar_private *priv)
 	gfar_write(&regs->maccfg1, tempval);
 }
 
-static void free_grp_irqs(struct gfar_priv_grp *grp)
-{
-	free_irq(gfar_irq(grp, TX)->irq, grp);
-	free_irq(gfar_irq(grp, RX)->irq, grp);
-	free_irq(gfar_irq(grp, ER)->irq, grp);
-}
-
 void stop_gfar(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
-	int i;
 
 	phy_stop(priv->phydev);
 
@@ -1741,16 +1733,6 @@ void stop_gfar(struct net_device *dev)
 	unlock_rx_qs(priv);
 	unlock_tx_qs(priv);
 	local_irq_restore(flags);
-
-	/* Free the IRQs */
-	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
-		for (i = 0; i < priv->num_grps; i++)
-			free_grp_irqs(&priv->gfargrp[i]);
-	} else {
-		for (i = 0; i < priv->num_grps; i++)
-			free_irq(gfar_irq(&priv->gfargrp[i], TX)->irq,
-				 &priv->gfargrp[i]);
-	}
 
 	free_skb_resources(priv);
 }
@@ -1919,6 +1901,13 @@ void gfar_configure_coalescing_all(struct gfar_private *priv)
 	gfar_configure_coalescing(priv, 0xFF, 0xFF);
 }
 
+static void free_grp_irqs(struct gfar_priv_grp *grp)
+{
+	free_irq(gfar_irq(grp, TX)->irq, grp);
+	free_irq(gfar_irq(grp, RX)->irq, grp);
+	free_irq(gfar_irq(grp, ER)->irq, grp);
+}
+
 static int register_grp_irqs(struct gfar_priv_grp *grp)
 {
 	struct gfar_private *priv = grp->priv;
@@ -1975,11 +1964,42 @@ err_irq_fail:
 
 }
 
+static void gfar_free_irq(struct gfar_private *priv)
+{
+	int i;
+
+	/* Free the IRQs */
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
+		for (i = 0; i < priv->num_grps; i++)
+			free_grp_irqs(&priv->gfargrp[i]);
+	} else {
+		for (i = 0; i < priv->num_grps; i++)
+			free_irq(gfar_irq(&priv->gfargrp[i], TX)->irq,
+				 &priv->gfargrp[i]);
+	}
+}
+
+static int gfar_request_irq(struct gfar_private *priv)
+{
+	int err, i, j;
+
+	for (i = 0; i < priv->num_grps; i++) {
+		err = register_grp_irqs(&priv->gfargrp[i]);
+		if (err) {
+			for (j = 0; j < i; j++)
+				free_grp_irqs(&priv->gfargrp[j]);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 /* Bring the controller up and running */
 int startup_gfar(struct net_device *ndev)
 {
 	struct gfar_private *priv = netdev_priv(ndev);
-	int err, i, j;
+	int err;
 
 	gfar_mac_reset(priv);
 
@@ -1989,25 +2009,12 @@ int startup_gfar(struct net_device *ndev)
 
 	gfar_init_tx_rx_base(priv);
 
-	for (i = 0; i < priv->num_grps; i++) {
-		err = register_grp_irqs(&priv->gfargrp[i]);
-		if (err) {
-			for (j = 0; j < i; j++)
-				free_grp_irqs(&priv->gfargrp[j]);
-			goto irq_fail;
-		}
-	}
-
 	/* Start the controller */
 	gfar_start(priv);
 
 	phy_start(priv->phydev);
 
 	return 0;
-
-irq_fail:
-	free_skb_resources(priv);
-	return err;
 }
 
 /* Called when something needs to use the ethernet device
@@ -2026,6 +2033,10 @@ static int gfar_enet_open(struct net_device *dev)
 		disable_napi(priv);
 		return err;
 	}
+
+	err = gfar_request_irq(priv);
+	if (err)
+		return err;
 
 	err = startup_gfar(dev);
 	if (err) {
@@ -2368,6 +2379,8 @@ static int gfar_close(struct net_device *dev)
 	priv->phydev = NULL;
 
 	netif_tx_stop_all_queues(dev);
+
+	gfar_free_irq(priv);
 
 	return 0;
 }
