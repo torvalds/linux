@@ -117,26 +117,6 @@ void drm_ut_debug_printk(unsigned int request_level,
 }
 EXPORT_SYMBOL(drm_ut_debug_printk);
 
-static int drm_minor_get_id(struct drm_device *dev, int type)
-{
-	int ret;
-	int base = 0, limit = 63;
-
-	if (type == DRM_MINOR_CONTROL) {
-		base += 64;
-		limit = base + 63;
-	} else if (type == DRM_MINOR_RENDER) {
-		base += 128;
-		limit = base + 63;
-	}
-
-	mutex_lock(&dev->struct_mutex);
-	ret = idr_alloc(&drm_minors_idr, NULL, base, limit, GFP_KERNEL);
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret == -ENOSPC ? -EINVAL : ret;
-}
-
 struct drm_master *drm_master_create(struct drm_minor *minor)
 {
 	struct drm_master *master;
@@ -314,7 +294,12 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	if (!new_minor)
 		return 0;
 
-	minor_id = drm_minor_get_id(dev, type);
+	minor_id = idr_alloc(&drm_minors_idr,
+			     NULL,
+			     64 * type,
+			     64 * (type + 1),
+			     GFP_KERNEL);
+
 	if (minor_id < 0)
 		return minor_id;
 
