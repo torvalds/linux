@@ -4129,7 +4129,7 @@ static void net_rps_action_and_irq_enable(struct softnet_data *sd)
 
 			if (cpu_online(remsd->cpu))
 				__smp_call_function_single(remsd->cpu,
-							   &remsd->csd, 0);
+							   &remsd->csd);
 			remsd = next;
 		}
 	} else

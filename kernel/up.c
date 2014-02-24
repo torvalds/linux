@@ -22,8 +22,7 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 }
 EXPORT_SYMBOL(smp_call_function_single);
 
-int __smp_call_function_single(int cpu, struct call_single_data *csd,
-			       int wait)
+int __smp_call_function_single(int cpu, struct call_single_data *csd)
 {
 	unsigned long flags;
 

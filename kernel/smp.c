@@ -241,29 +241,18 @@ EXPORT_SYMBOL(smp_call_function_single);
  * __smp_call_function_single(): Run a function on a specific CPU
  * @cpu: The CPU to run on.
  * @csd: Pre-allocated and setup data structure
- * @wait: If true, wait until function has completed on specified CPU.
  *
  * Like smp_call_function_single(), but allow caller to pass in a
  * pre-allocated data structure. Useful for embedding @data inside
  * other structures, for instance.
  */
-int __smp_call_function_single(int cpu, struct call_single_data *csd, int wait)
+int __smp_call_function_single(int cpu, struct call_single_data *csd)
 {
 	int err = 0;
-	int this_cpu;
 
-	this_cpu = get_cpu();
-	/*
-	 * Can deadlock when called with interrupts disabled.
-	 * We allow cpu's that are not yet online though, as no one else can
-	 * send smp call function interrupt to this cpu and as such deadlocks
-	 * can't happen.
-	 */
-	WARN_ON_ONCE(cpu_online(this_cpu) && wait && irqs_disabled()
-		     && !oops_in_progress);
-
-	err = generic_exec_single(cpu, csd, csd->func, csd->info, wait);
-	put_cpu();
+	preempt_disable();
+	err = generic_exec_single(cpu, csd, csd->func, csd->info, 0);
+	preempt_enable();
 
 	return err;
 }
