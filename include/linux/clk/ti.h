@@ -283,6 +283,7 @@ unsigned long omap2_dpllcore_recalc(struct clk_hw *hw,
 int omap2_reprogram_dpllcore(struct clk_hw *clk, unsigned long rate,
 			     unsigned long parent_rate);
 void omap2xxx_clkt_dpllcore_init(struct clk_hw *hw);
+void omap2xxx_clkt_vps_init(void);
 
 void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index);
 void ti_dt_clocks_register(struct ti_dt_clk *oclks);
