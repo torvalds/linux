@@ -325,23 +325,21 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	ret = drm_debugfs_init(new_minor, minor_id, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		goto err_mem;
+		goto err_id;
 	}
 
 	ret = drm_sysfs_device_add(new_minor);
 	if (ret) {
-		printk(KERN_ERR
-		       "DRM: Error sysfs_device_add.\n");
+		DRM_ERROR("DRM: Error sysfs_device_add.\n");
 		goto err_debugfs;
 	}
 
 	DRM_DEBUG("new minor assigned %d\n", minor_id);
 	return 0;
 
-
 err_debugfs:
 	drm_debugfs_cleanup(new_minor);
-err_mem:
+err_id:
 	idr_remove(&drm_minors_idr, minor_id);
 	return ret;
 }
