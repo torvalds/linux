@@ -151,7 +151,8 @@ static void generic_exec_single(int cpu, struct call_single_data *csd, int wait)
  */
 void generic_smp_call_function_single_interrupt(void)
 {
-	struct llist_node *entry, *next;
+	struct llist_node *entry;
+	struct call_single_data *csd, *csd_next;
 
 	/*
 	 * Shouldn't receive this interrupt on a cpu that is not yet online.
@@ -161,16 +162,9 @@ void generic_smp_call_function_single_interrupt(void)
 	entry = llist_del_all(&__get_cpu_var(call_single_queue));
 	entry = llist_reverse_order(entry);
 
-	while (entry) {
-		struct call_single_data *csd;
-
-		next = entry->next;
-
-		csd = llist_entry(entry, struct call_single_data, llist);
+	llist_for_each_entry_safe(csd, csd_next, entry, llist) {
 		csd->func(csd->info);
 		csd_unlock(csd);
-
-		entry = next;
 	}
 }
 
