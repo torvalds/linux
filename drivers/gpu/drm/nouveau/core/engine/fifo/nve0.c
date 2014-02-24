@@ -501,6 +501,32 @@ out:
 }
 
 static const struct nouveau_enum
+nve0_fifo_bind_reason[] = {
+	{ 0x01, "BIND_NOT_UNBOUND" },
+	{ 0x02, "SNOOP_WITHOUT_BAR1" },
+	{ 0x03, "UNBIND_WHILE_RUNNING" },
+	{ 0x05, "INVALID_RUNLIST" },
+	{ 0x06, "INVALID_CTX_TGT" },
+	{ 0x0b, "UNBIND_WHILE_PARKED" },
+	{}
+};
+
+static void
+nve0_fifo_intr_bind(struct nve0_fifo_priv *priv)
+{
+	u32 intr = nv_rd32(priv, 0x00252c);
+	u32 code = intr & 0x000000ff;
+	const struct nouveau_enum *en;
+	char enunk[6] = "";
+
+	en = nouveau_enum_find(nve0_fifo_bind_reason, code);
+	if (!en)
+		snprintf(enunk, sizeof(enunk), "UNK%02x", code);
+
+	nv_error(priv, "BIND_ERROR [ %s ]\n", en ? en->name : enunk);
+}
+
+static const struct nouveau_enum
 nve0_fifo_sched_reason[] = {
 	{ 0x0a, "CTXSW_TIMEOUT" },
 	{}
@@ -844,8 +870,7 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	u32 stat = nv_rd32(priv, 0x002100) & mask;
 
 	if (stat & 0x00000001) {
-		u32 stat = nv_rd32(priv, 0x00252c);
-		nv_error(priv, "BIND_ERROR 0x%08x\n", stat);
+		nve0_fifo_intr_bind(priv);
 		nv_wr32(priv, 0x002100, 0x00000001);
 		stat &= ~0x00000001;
 	}
