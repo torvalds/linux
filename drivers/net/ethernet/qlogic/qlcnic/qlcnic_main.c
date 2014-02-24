@@ -818,7 +818,7 @@ static int qlcnic_82xx_setup_intr(struct qlcnic_adapter *adapter)
 			qlcnic_disable_multi_tx(adapter);
 
 			err = qlcnic_enable_msi_legacy(adapter);
-			if (!err)
+			if (err)
 				return err;
 		}
 	}
