@@ -31,6 +31,9 @@
 #define HW_USBPHY_CTRL_SET			0x34
 #define HW_USBPHY_CTRL_CLR			0x38
 
+#define HW_USBPHY_DEBUG_SET			0x54
+#define HW_USBPHY_DEBUG_CLR			0x58
+
 #define HW_USBPHY_IP				0x90
 #define HW_USBPHY_IP_SET			0x94
 #define HW_USBPHY_IP_CLR			0x98
@@ -39,6 +42,9 @@
 #define BM_USBPHY_CTRL_CLKGATE			BIT(30)
 #define BM_USBPHY_CTRL_ENAUTOSET_USBCLKS	BIT(26)
 #define BM_USBPHY_CTRL_ENAUTOCLR_USBCLKGATE	BIT(25)
+#define BM_USBPHY_CTRL_ENVBUSCHG_WKUP		BIT(23)
+#define BM_USBPHY_CTRL_ENIDCHG_WKUP		BIT(22)
+#define BM_USBPHY_CTRL_ENDPDMCHG_WKUP		BIT(21)
 #define BM_USBPHY_CTRL_ENAUTOCLR_PHY_PWD	BIT(20)
 #define BM_USBPHY_CTRL_ENAUTOCLR_CLKGATE	BIT(19)
 #define BM_USBPHY_CTRL_ENAUTO_PWRON_PLL		BIT(18)
@@ -47,6 +53,25 @@
 #define BM_USBPHY_CTRL_ENHOSTDISCONDETECT	BIT(1)
 
 #define BM_USBPHY_IP_FIX                       (BIT(17) | BIT(18))
+
+#define BM_USBPHY_DEBUG_CLKGATE			BIT(30)
+
+/* Anatop Registers */
+#define ANADIG_USB1_VBUS_DET_STAT		0x1c0
+#define ANADIG_USB2_VBUS_DET_STAT		0x220
+
+#define ANADIG_USB1_LOOPBACK_SET		0x1e4
+#define ANADIG_USB1_LOOPBACK_CLR		0x1e8
+#define ANADIG_USB2_LOOPBACK_SET		0x244
+#define ANADIG_USB2_LOOPBACK_CLR		0x248
+
+#define BM_ANADIG_USB1_VBUS_DET_STAT_VBUS_VALID	BIT(3)
+#define BM_ANADIG_USB2_VBUS_DET_STAT_VBUS_VALID	BIT(3)
+
+#define BM_ANADIG_USB1_LOOPBACK_UTMI_DIG_TST1	BIT(2)
+#define BM_ANADIG_USB1_LOOPBACK_TSTI_TX_EN	BIT(5)
+#define BM_ANADIG_USB2_LOOPBACK_UTMI_DIG_TST1	BIT(2)
+#define BM_ANADIG_USB2_LOOPBACK_TSTI_TX_EN	BIT(5)
 
 #define to_mxs_phy(p) container_of((p), struct mxs_phy, phy)
 
@@ -141,6 +166,79 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 	return 0;
 }
 
+/* Return true if the vbus is there */
+static bool mxs_phy_get_vbus_status(struct mxs_phy *mxs_phy)
+{
+	unsigned int vbus_value;
+
+	if (mxs_phy->port_id == 0)
+		regmap_read(mxs_phy->regmap_anatop,
+			ANADIG_USB1_VBUS_DET_STAT,
+			&vbus_value);
+	else if (mxs_phy->port_id == 1)
+		regmap_read(mxs_phy->regmap_anatop,
+			ANADIG_USB2_VBUS_DET_STAT,
+			&vbus_value);
+
+	if (vbus_value & BM_ANADIG_USB1_VBUS_DET_STAT_VBUS_VALID)
+		return true;
+	else
+		return false;
+}
+
+static void __mxs_phy_disconnect_line(struct mxs_phy *mxs_phy, bool disconnect)
+{
+	void __iomem *base = mxs_phy->phy.io_priv;
+	u32 reg;
+
+	if (disconnect)
+		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
+			base + HW_USBPHY_DEBUG_CLR);
+
+	if (mxs_phy->port_id == 0) {
+		reg = disconnect ? ANADIG_USB1_LOOPBACK_SET
+			: ANADIG_USB1_LOOPBACK_CLR;
+		regmap_write(mxs_phy->regmap_anatop, reg,
+			BM_ANADIG_USB1_LOOPBACK_UTMI_DIG_TST1 |
+			BM_ANADIG_USB1_LOOPBACK_TSTI_TX_EN);
+	} else if (mxs_phy->port_id == 1) {
+		reg = disconnect ? ANADIG_USB2_LOOPBACK_SET
+			: ANADIG_USB2_LOOPBACK_CLR;
+		regmap_write(mxs_phy->regmap_anatop, reg,
+			BM_ANADIG_USB2_LOOPBACK_UTMI_DIG_TST1 |
+			BM_ANADIG_USB2_LOOPBACK_TSTI_TX_EN);
+	}
+
+	if (!disconnect)
+		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
+			base + HW_USBPHY_DEBUG_SET);
+
+	/* Delay some time, and let Linestate be SE0 for controller */
+	if (disconnect)
+		usleep_range(500, 1000);
+}
+
+static void mxs_phy_disconnect_line(struct mxs_phy *mxs_phy, bool on)
+{
+	bool vbus_is_on = false;
+
+	/* If the SoCs don't need to disconnect line without vbus, quit */
+	if (!(mxs_phy->data->flags & MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS))
+		return;
+
+	/* If the SoCs don't have anatop, quit */
+	if (!mxs_phy->regmap_anatop)
+		return;
+
+	vbus_is_on = mxs_phy_get_vbus_status(mxs_phy);
+
+	if (on && !vbus_is_on)
+		__mxs_phy_disconnect_line(mxs_phy, true);
+	else
+		__mxs_phy_disconnect_line(mxs_phy, false);
+
+}
+
 static int mxs_phy_init(struct usb_phy *phy)
 {
 	int ret;
@@ -180,6 +278,23 @@ static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 		writel(BM_USBPHY_CTRL_CLKGATE,
 		       x->io_priv + HW_USBPHY_CTRL_CLR);
 		writel(0, x->io_priv + HW_USBPHY_PWD);
+	}
+
+	return 0;
+}
+
+static int mxs_phy_set_wakeup(struct usb_phy *x, bool enabled)
+{
+	struct mxs_phy *mxs_phy = to_mxs_phy(x);
+	u32 value = BM_USBPHY_CTRL_ENVBUSCHG_WKUP |
+			BM_USBPHY_CTRL_ENDPDMCHG_WKUP |
+				BM_USBPHY_CTRL_ENIDCHG_WKUP;
+	if (enabled) {
+		mxs_phy_disconnect_line(mxs_phy, true);
+		writel_relaxed(value, x->io_priv + HW_USBPHY_CTRL_SET);
+	} else {
+		writel_relaxed(value, x->io_priv + HW_USBPHY_CTRL_CLR);
+		mxs_phy_disconnect_line(mxs_phy, false);
 	}
 
 	return 0;
@@ -265,6 +380,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	mxs_phy->phy.notify_connect	= mxs_phy_on_connect;
 	mxs_phy->phy.notify_disconnect	= mxs_phy_on_disconnect;
 	mxs_phy->phy.type		= USB_PHY_TYPE_USB2;
+	mxs_phy->phy.set_wakeup		= mxs_phy_set_wakeup;
 
 	mxs_phy->clk = clk;
 	mxs_phy->data = of_id->data;
