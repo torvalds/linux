@@ -17,8 +17,13 @@ Optional properties:
 - clock-frequency : The oscillator frequency driving the flexcan device
 
 - xceiver-supply: Regulator that powers the CAN transceiver
-- gpr: phandle to general purpose register node. The remote wakeup control
-	bits is stored here.
+- stop-mode: register bits of stop mode control, the format is
+  <&gpr req_gpr req_bit ack_gpr ack_bit>.
+  gpr is the phandle to general purpose register node.
+  req_gpr is the gpr register offset of CAN stop request.
+  req_bit is the bit offset of CAN stop request.
+  ack_gpr is the gpr register offset of CAN stop acknowledge.
+  ack_bit is the bit offset of CAN stop acknowledge.
 - trx_en_gpio : enable gpio
 - trx_stby_gpio : standby gpio
 - trx_nerr_gpio : NERR gpio

@@ -503,6 +503,7 @@
 				clocks = <&clks IMX6QDL_CLK_CAN1_IPG>,
 					 <&clks IMX6QDL_CLK_CAN1_SERIAL>;
 				clock-names = "ipg", "per";
+				stop-mode = <&gpr 0x34 28 0x10 17>;
 				status = "disabled";
 			};
 
@@ -513,6 +514,7 @@
 				clocks = <&clks IMX6QDL_CLK_CAN2_IPG>,
 					 <&clks IMX6QDL_CLK_CAN2_SERIAL>;
 				clock-names = "ipg", "per";
+				stop-mode = <&gpr 0x34 29 0x10 18>;
 				status = "disabled";
 			};
 
