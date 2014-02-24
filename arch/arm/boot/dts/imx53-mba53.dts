@@ -43,6 +43,12 @@
 		status = "disabled";
 	};
 
+	imx-drm {
+		compatible = "fsl,imx-drm";
+		crtcs = <&ipu 1>;
+		connectors = <&disp1>, <&tve>;
+	};
+
 	reg_3p2v: 3p2v {
 		compatible = "regulator-fixed";
 		regulator-name = "3P2V";

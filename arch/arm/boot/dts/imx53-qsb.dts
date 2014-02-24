@@ -21,7 +21,7 @@
 		reg = <0x70000000 0x40000000>;
 	};
 
-	display@di0 {
+	display0: display@di0 {
 		compatible = "fsl,imx-parallel-display";
 		crtcs = <&ipu 0>;
 		interface-pix-fmt = "rgb565";
@@ -70,6 +70,12 @@
 			linux,code = <114>; /* KEY_VOLUMEDOWN */
 			gpio-key,wakeup;
 		};
+	};
+
+	imx-drm {
+		compatible = "fsl,imx-drm";
+		crtcs = <&ipu 0>;
+		connectors = <&display0>;
 	};
 
 	leds {
