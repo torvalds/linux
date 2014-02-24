@@ -205,6 +205,7 @@ static int ccp_crypto_enqueue_cmd(struct ccp_crypto_cmd *crypto_cmd)
 {
 	struct ccp_crypto_cmd *active = NULL, *tmp;
 	unsigned long flags;
+	bool free_cmd = true;
 	int ret;
 
 	spin_lock_irqsave(&req_queue_lock, flags);
@@ -231,7 +232,10 @@ static int ccp_crypto_enqueue_cmd(struct ccp_crypto_cmd *crypto_cmd)
 	if (!active) {
 		ret = ccp_enqueue_cmd(crypto_cmd->cmd);
 		if (!ccp_crypto_success(ret))
-			goto e_lock;
+			goto e_lock;	/* Error, don't queue it */
+		if ((ret == -EBUSY) &&
+		    !(crypto_cmd->cmd->flags & CCP_CMD_MAY_BACKLOG))
+			goto e_lock;	/* Not backlogging, don't queue it */
 	}
 
 	if (req_queue.cmd_count >= CCP_CRYPTO_MAX_QLEN) {
@@ -244,8 +248,13 @@ static int ccp_crypto_enqueue_cmd(struct ccp_crypto_cmd *crypto_cmd)
 	req_queue.cmd_count++;
 	list_add_tail(&crypto_cmd->entry, &req_queue.cmds);
 
+	free_cmd = false;
+
 e_lock:
 	spin_unlock_irqrestore(&req_queue_lock, flags);
+
+	if (free_cmd)
+		kfree(crypto_cmd);
 
 	return ret;
 }
@@ -262,7 +271,6 @@ int ccp_crypto_enqueue_request(struct crypto_async_request *req,
 {
 	struct ccp_crypto_cmd *crypto_cmd;
 	gfp_t gfp;
-	int ret;
 
 	gfp = req->flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL : GFP_ATOMIC;
 
@@ -287,11 +295,7 @@ int ccp_crypto_enqueue_request(struct crypto_async_request *req,
 	else
 		cmd->flags &= ~CCP_CMD_MAY_BACKLOG;
 
-	ret = ccp_crypto_enqueue_cmd(crypto_cmd);
-	if (!ccp_crypto_success(ret))
-		kfree(crypto_cmd);
-
-	return ret;
+	return ccp_crypto_enqueue_cmd(crypto_cmd);
 }
 
 struct scatterlist *ccp_crypto_sg_table_add(struct sg_table *table,
