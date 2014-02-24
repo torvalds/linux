@@ -206,11 +206,13 @@ static void dma_cleanup_tables(struct zpci_dev *zdev)
 	zdev->dma_table = NULL;
 }
 
-static unsigned long __dma_alloc_iommu(struct zpci_dev *zdev, unsigned long start,
-				   int size)
+static unsigned long __dma_alloc_iommu(struct zpci_dev *zdev,
+				       unsigned long start, int size)
 {
-	unsigned long boundary_size = 0x1000000;
+	unsigned long boundary_size;
 
+	boundary_size = ALIGN(dma_get_seg_boundary(&zdev->pdev->dev) + 1,
+			      PAGE_SIZE) >> PAGE_SHIFT;
 	return iommu_area_alloc(zdev->iommu_bitmap, zdev->iommu_pages,
 				start, size, 0, boundary_size, 0);
 }
