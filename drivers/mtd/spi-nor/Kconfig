@@ -1,0 +1,6 @@
+config MTD_SPI_NOR_BASE
+	bool "the framework for SPI-NOR support"
+	depends on MTD
+	help
+	  This is the framework for the SPI NOR which can be used by the SPI
+	  device drivers and the SPI-NOR device driver.

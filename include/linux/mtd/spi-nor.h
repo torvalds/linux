@@ -162,4 +162,24 @@ struct spi_nor {
 
 	void *priv;
 };
+
+/**
+ * spi_nor_scan() - scan the SPI NOR
+ * @nor:	the spi_nor structure
+ * @id:		the spi_device_id provided by the driver
+ * @mode:	the read mode supported by the driver
+ *
+ * The drivers can use this fuction to scan the SPI NOR.
+ * In the scanning, it will try to get all the necessary information to
+ * fill the mtd_info{} and the spi_nor{}.
+ *
+ * The board may assigns a spi_device_id with @id which be used to compared with
+ * the spi_device_id detected by the scanning.
+ *
+ * Return: 0 for success, others for failure.
+ */
+int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
+			enum read_mode mode);
+extern const struct spi_device_id spi_nor_ids[];
+
 #endif
