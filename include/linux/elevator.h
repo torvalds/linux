@@ -203,10 +203,7 @@ enum {
 #define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)
 
 #define rq_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
-#define rq_fifo_clear(rq)	do {		\
-	list_del_init(&(rq)->queuelist);	\
-	INIT_LIST_HEAD(&(rq)->csd.list);	\
-	} while (0)
+#define rq_fifo_clear(rq)	list_del_init(&(rq)->queuelist)
 
 #else /* CONFIG_BLOCK */
 
