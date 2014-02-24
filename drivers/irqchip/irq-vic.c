@@ -509,6 +509,7 @@ int __init vic_init_cascaded(void __iomem *base, unsigned int parent_irq,
 	/* Return out acquired base */
 	return v->irq;
 }
+EXPORT_SYMBOL_GPL(vic_init_cascaded);
 
 #ifdef CONFIG_OF
 int __init vic_of_init(struct device_node *node, struct device_node *parent)
