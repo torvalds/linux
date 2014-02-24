@@ -94,7 +94,26 @@ struct dpll_data {
 	u8			flags;
 };
 
-struct clk_hw_omap_ops;
+struct clk_hw_omap;
+
+/**
+ * struct clk_hw_omap_ops - OMAP clk ops
+ * @find_idlest: find idlest register information for a clock
+ * @find_companion: find companion clock register information for a clock,
+ *		    basically converts CM_ICLKEN* <-> CM_FCLKEN*
+ * @allow_idle: enables autoidle hardware functionality for a clock
+ * @deny_idle: prevent autoidle hardware functionality for a clock
+ */
+struct clk_hw_omap_ops {
+	void	(*find_idlest)(struct clk_hw_omap *oclk,
+			       void __iomem **idlest_reg,
+			       u8 *idlest_bit, u8 *idlest_val);
+	void	(*find_companion)(struct clk_hw_omap *oclk,
+				  void __iomem **other_reg,
+				  u8 *other_bit);
+	void	(*allow_idle)(struct clk_hw_omap *oclk);
+	void	(*deny_idle)(struct clk_hw_omap *oclk);
+};
 
 /**
  * struct clk_hw_omap - OMAP struct clk
