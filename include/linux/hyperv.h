@@ -1167,8 +1167,7 @@ int hv_vss_init(struct hv_util_service *);
 void hv_vss_deinit(void);
 void hv_vss_onchannelcallback(void *);
 
-extern u64 hyperv_mmio_start;
-extern u64 hyperv_mmio_size;
+extern struct resource hyperv_mmio;
 
 /*
  * Negotiated version with the Host.
