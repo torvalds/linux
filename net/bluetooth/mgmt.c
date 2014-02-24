@@ -844,7 +844,7 @@ static void enable_advertising(struct hci_request *req)
 
 	memset(&cp, 0, sizeof(cp));
 
-	if (hci_update_random_address(req, &own_addr_type) < 0)
+	if (hci_update_random_address(req, false, &own_addr_type) < 0)
 		return;
 
 	cp.min_interval = __constant_cpu_to_le16(0x0800);
@@ -3389,7 +3389,11 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 
 		memset(&param_cp, 0, sizeof(param_cp));
 
-		err = hci_update_random_address(&req, &own_addr_type);
+		/* All active scans will be done with either a resolvable
+		 * private address (when privacy feature has been enabled)
+		 * or unresolvable private address.
+		 */
+		err = hci_update_random_address(&req, true, &own_addr_type);
 		if (err < 0) {
 			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
 					 MGMT_STATUS_FAILED);

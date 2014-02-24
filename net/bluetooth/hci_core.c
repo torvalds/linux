@@ -3332,7 +3332,8 @@ static void le_scan_disable_work(struct work_struct *work)
 		BT_ERR("Disable LE scanning request failed: err %d", err);
 }
 
-int hci_update_random_address(struct hci_request *req, u8 *own_addr_type)
+int hci_update_random_address(struct hci_request *req, bool require_privacy,
+			      u8 *own_addr_type)
 {
 	struct hci_dev *hdev = req->hdev;
 	int err;
@@ -3362,6 +3363,21 @@ int hci_update_random_address(struct hci_request *req, u8 *own_addr_type)
 		to = msecs_to_jiffies(hdev->rpa_timeout * 1000);
 		queue_delayed_work(hdev->workqueue, &hdev->rpa_expired, to);
 
+		return 0;
+	}
+
+	/* In case of required privacy without resolvable private address,
+	 * use an unresolvable private address. This is useful for active
+	 * scanning and non-connectable advertising.
+	 */
+	if (require_privacy) {
+		bdaddr_t urpa;
+
+		get_random_bytes(&urpa, 6);
+		urpa.b[5] &= 0x3f;	/* Clear two most significant bits */
+
+		*own_addr_type = ADDR_LE_DEV_RANDOM;
+		hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6, &urpa);
 		return 0;
 	}
 

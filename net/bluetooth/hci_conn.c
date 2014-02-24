@@ -563,7 +563,10 @@ static int hci_create_le_conn(struct hci_conn *conn)
 
 	memset(&cp, 0, sizeof(cp));
 
-	err = hci_update_random_address(&req, &own_addr_type);
+	/* Update random address, but set require_privacy to false so
+	 * that we never connect with an unresolvable address.
+	 */
+	err = hci_update_random_address(&req, false, &own_addr_type);
 	if (err < 0)
 		return err;
 
