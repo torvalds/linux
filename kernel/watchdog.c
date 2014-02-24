@@ -505,7 +505,6 @@ static void restart_watchdog_hrtimer(void *info)
 
 static void update_timers(int cpu)
 {
-	struct call_single_data data = {.func = restart_watchdog_hrtimer};
 	/*
 	 * Make sure that perf event counter will adopt to a new
 	 * sampling period. Updating the sampling period directly would
@@ -515,7 +514,7 @@ static void update_timers(int cpu)
 	 * might be late already so we have to restart the timer as well.
 	 */
 	watchdog_nmi_disable(cpu);
-	__smp_call_function_single(cpu, &data, 1);
+	smp_call_function_single(cpu, restart_watchdog_hrtimer, NULL, 1);
 	watchdog_nmi_enable(cpu);
 }
 
