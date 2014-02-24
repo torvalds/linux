@@ -52,7 +52,8 @@ static const struct snd_dmaengine_pcm_config rockchip_dmaengine_pcm_config = {
 int rockchip_pcm_platform_register(struct device *dev)
 {
 	return snd_dmaengine_pcm_register(dev, &rockchip_dmaengine_pcm_config,
-			SND_DMAENGINE_PCM_FLAG_COMPAT);
+			SND_DMAENGINE_PCM_FLAG_COMPAT|
+			SND_DMAENGINE_PCM_FLAG_NO_RESIDUE);
 }
 EXPORT_SYMBOL_GPL(rockchip_pcm_platform_register);
 
