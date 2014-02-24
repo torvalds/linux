@@ -841,12 +841,14 @@ static void enable_advertising(struct hci_request *req)
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_adv_param cp;
 	u8 own_addr_type, enable = 0x01;
+	bool require_privacy;
 
-	memset(&cp, 0, sizeof(cp));
+	require_privacy = !test_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 
-	if (hci_update_random_address(req, false, &own_addr_type) < 0)
+	if (hci_update_random_address(req, require_privacy, &own_addr_type) < 0)
 		return;
 
+	memset(&cp, 0, sizeof(cp));
 	cp.min_interval = __constant_cpu_to_le16(0x0800);
 	cp.max_interval = __constant_cpu_to_le16(0x0800);
 	cp.type = get_adv_type(hdev);
