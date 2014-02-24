@@ -533,11 +533,6 @@ void arch_ftrace_update_code(int command)
 
 int __init ftrace_dyn_arch_init(void *data)
 {
-	/* caller expects data to be zero */
-	unsigned long *p = data;
-
-	*p = 0;
-
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */

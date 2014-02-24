@@ -132,7 +132,6 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 
 int __init ftrace_dyn_arch_init(void *data)
 {
-	*(unsigned long *) data = 0;
 	return 0;
 }
 

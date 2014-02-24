@@ -4379,11 +4379,9 @@ void __init ftrace_init(void)
 	addr = (unsigned long)ftrace_stub;
 
 	local_irq_save(flags);
-	ftrace_dyn_arch_init(&addr);
+	ret = ftrace_dyn_arch_init(&addr);
 	local_irq_restore(flags);
-
-	/* ftrace_dyn_arch_init places the return code in addr */
-	if (addr)
+	if (ret)
 		goto failed;
 
 	count = __stop_mcount_loc - __start_mcount_loc;

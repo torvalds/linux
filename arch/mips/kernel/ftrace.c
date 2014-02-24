@@ -206,9 +206,6 @@ int __init ftrace_dyn_arch_init(void *data)
 	/* Remove "b ftrace_stub" to ensure ftrace_caller() is executed */
 	ftrace_modify_code(MCOUNT_ADDR, INSN_NOP);
 
-	/* The return code is retured via data */
-	*(unsigned long *)data = 0;
-
 	return 0;
 }
 #endif	/* CONFIG_DYNAMIC_FTRACE */

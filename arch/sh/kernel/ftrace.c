@@ -274,9 +274,6 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 int __init ftrace_dyn_arch_init(void *data)
 {
-	/* The return code is retured via data */
-	__raw_writel(0, (unsigned long)data);
-
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */

@@ -173,9 +173,6 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 int __init ftrace_dyn_arch_init(void *data)
 {
-	/* The return code is retured via data */
-	*(unsigned long *)data = 0;
-
 	return 0;
 }
 

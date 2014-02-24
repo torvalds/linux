@@ -158,8 +158,6 @@ int ftrace_make_nop(struct module *mod,
 
 int __init ftrace_dyn_arch_init(void *data)
 {
-	*(unsigned long *)data = 0;
-
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
