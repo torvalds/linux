@@ -425,7 +425,7 @@ static int remove_breakpoint(struct dyn_ftrace *rec)
 
 	/* If this does not have a breakpoint, we are done */
 	if (ins[0] != brk)
-		return -1;
+		return 0;
 
 	nop = ftrace_nop_replace();
 
@@ -625,7 +625,12 @@ void ftrace_replace_code(int enable)
 	printk(KERN_WARNING "Failed on %s (%d):\n", report, count);
 	for_ftrace_rec_iter(iter) {
 		rec = ftrace_rec_iter_record(iter);
-		remove_breakpoint(rec);
+		/*
+		 * Breakpoints are handled only when this function is in
+		 * progress. The system could not work with them.
+		 */
+		if (remove_breakpoint(rec))
+			BUG();
 	}
 	run_sync();
 }
@@ -649,12 +654,19 @@ ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
 	run_sync();
 
 	ret = ftrace_write(ip, new_code, 1);
+	/*
+	 * The breakpoint is handled only when this function is in progress.
+	 * The system could not work if we could not remove it.
+	 */
+	BUG_ON(ret);
  out:
 	run_sync();
 	return ret;
 
  fail_update:
-	ftrace_write(ip, old_code, 1);
+	/* Also here the system could not work with the breakpoint */
+	if (ftrace_write(ip, old_code, 1))
+		BUG();
 	goto out;
 }
 
