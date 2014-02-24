@@ -1,0 +1,4 @@
+config DRM_PTN3460
+	tristate "PTN3460 DP/LVDS bridge"
+	depends on DRM && I2C
+	---help---
