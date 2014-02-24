@@ -4827,6 +4827,10 @@ void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 	if (mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev))
 		return;
 
+	/* Powering off may clear the scan mode - don't let that interfere */
+	if (!connectable && mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
+		return;
+
 	if (connectable)
 		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 	else
