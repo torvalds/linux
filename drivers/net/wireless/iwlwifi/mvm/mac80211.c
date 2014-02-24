@@ -1746,14 +1746,16 @@ out:
 	return ret;
 }
 
-static void iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
-					struct ieee80211_vif *vif)
+static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_sched_scan_stop(mvm);
 	mutex_unlock(&mvm->mutex);
+
+	return 0;
 }
 
 static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,

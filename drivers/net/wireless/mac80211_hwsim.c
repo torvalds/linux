@@ -411,6 +411,7 @@ struct mac80211_hwsim_data {
 
 	struct mac_address addresses[2];
 	int channels, idx;
+	bool use_chanctx;
 
 	struct ieee80211_channel *tmp_chan;
 	struct delayed_work roc_done;
@@ -1088,7 +1089,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 		return;
 	}
 
-	if (data->channels == 1) {
+	if (!data->use_chanctx) {
 		channel = data->channel;
 	} else if (txi->hw_queue == 4) {
 		channel = data->tmp_chan;
@@ -1354,7 +1355,7 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 
 	data->channel = conf->chandef.chan;
 
-	WARN_ON(data->channel && data->channels > 1);
+	WARN_ON(data->channel && data->use_chanctx);
 
 	data->power_level = conf->power_level;
 	if (!data->started || !data->beacon_int)
@@ -1940,7 +1941,8 @@ static struct ieee80211_ops mac80211_hwsim_mchan_ops;
 
 static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 				       const struct ieee80211_regdomain *regd,
-				       bool reg_strict, bool p2p_device)
+				       bool reg_strict, bool p2p_device,
+				       bool use_chanctx)
 {
 	int err;
 	u8 addr[ETH_ALEN];
@@ -1950,11 +1952,14 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 	const struct ieee80211_ops *ops = &mac80211_hwsim_ops;
 	int idx;
 
+	if (WARN_ON(channels > 1 && !use_chanctx))
+		return -EINVAL;
+
 	spin_lock_bh(&hwsim_radio_lock);
 	idx = hwsim_radio_idx++;
 	spin_unlock_bh(&hwsim_radio_lock);
 
-	if (channels > 1)
+	if (use_chanctx)
 		ops = &mac80211_hwsim_mchan_ops;
 	hw = ieee80211_alloc_hw(sizeof(*data), ops);
 	if (!hw) {
@@ -1995,20 +2000,21 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 	hw->wiphy->addresses = data->addresses;
 
 	data->channels = channels;
+	data->use_chanctx = use_chanctx;
 	data->idx = idx;
 
-	if (data->channels > 1) {
+	if (data->use_chanctx) {
 		hw->wiphy->max_scan_ssids = 255;
 		hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 		hw->wiphy->max_remain_on_channel_duration = 1000;
 		/* For channels > 1 DFS is not allowed */
 		hw->wiphy->n_iface_combinations = 1;
 		hw->wiphy->iface_combinations = &data->if_combination;
-		data->if_combination.num_different_channels = data->channels;
 		if (p2p_device)
 			data->if_combination = hwsim_if_comb_p2p_dev[0];
 		else
 			data->if_combination = hwsim_if_comb[0];
+		data->if_combination.num_different_channels = data->channels;
 	} else if (p2p_device) {
 		hw->wiphy->iface_combinations = hwsim_if_comb_p2p_dev;
 		hw->wiphy->n_iface_combinations =
@@ -2156,7 +2162,7 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 	debugfs_create_file("ps", 0666, data->debugfs, data, &hwsim_fops_ps);
 	debugfs_create_file("group", 0666, data->debugfs, data,
 			    &hwsim_fops_group);
-	if (data->channels == 1)
+	if (!data->use_chanctx)
 		debugfs_create_file("dfs_simulate_radar", 0222,
 				    data->debugfs,
 				    data, &hwsim_simulate_radar);
@@ -2423,9 +2429,15 @@ static int hwsim_create_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	const struct ieee80211_regdomain *regd = NULL;
 	bool reg_strict = info->attrs[HWSIM_ATTR_REG_STRICT_REG];
 	bool p2p_device = info->attrs[HWSIM_ATTR_SUPPORT_P2P_DEVICE];
+	bool use_chanctx;
 
 	if (info->attrs[HWSIM_ATTR_CHANNELS])
 		chans = nla_get_u32(info->attrs[HWSIM_ATTR_CHANNELS]);
+
+	if (info->attrs[HWSIM_ATTR_USE_CHANCTX])
+		use_chanctx = true;
+	else
+		use_chanctx = (chans > 1);
 
 	if (info->attrs[HWSIM_ATTR_REG_HINT_ALPHA2])
 		alpha2 = nla_data(info->attrs[HWSIM_ATTR_REG_HINT_ALPHA2]);
@@ -2439,7 +2451,7 @@ static int hwsim_create_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	}
 
 	return mac80211_hwsim_create_radio(chans, alpha2, regd, reg_strict,
-					   p2p_device);
+					   p2p_device, use_chanctx);
 }
 
 static int hwsim_destroy_radio_nl(struct sk_buff *msg, struct genl_info *info)
@@ -2658,7 +2670,8 @@ static int __init init_mac80211_hwsim(void)
 
 		err = mac80211_hwsim_create_radio(channels, reg_alpha2,
 						  regd, reg_strict,
-						  support_p2p_device);
+						  support_p2p_device,
+						  channels > 1);
 		if (err < 0)
 			goto out_free_radios;
 	}
