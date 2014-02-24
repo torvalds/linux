@@ -1842,6 +1842,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	struct hci_ev_disconn_complete *ev = (void *) skb->data;
 	u8 reason = hci_to_mgmt_reason(ev->reason);
 	struct hci_conn *conn;
+	bool mgmt_connected;
 	u8 type;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
@@ -1860,9 +1861,9 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn->state = BT_CLOSED;
 
-	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
-		mgmt_device_disconnected(hdev, &conn->dst, conn->type,
-					 conn->dst_type, reason);
+	mgmt_connected = test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags);
+	mgmt_device_disconnected(hdev, &conn->dst, conn->type, conn->dst_type,
+				reason, mgmt_connected);
 
 	if (conn->type == ACL_LINK && conn->flush_key)
 		hci_remove_link_key(hdev, &conn->dst);

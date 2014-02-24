@@ -5012,10 +5012,14 @@ static void unpair_device_rsp(struct pending_cmd *cmd, void *data)
 }
 
 void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			      u8 link_type, u8 addr_type, u8 reason)
+			      u8 link_type, u8 addr_type, u8 reason,
+			      bool mgmt_connected)
 {
 	struct mgmt_ev_device_disconnected ev;
 	struct sock *sk = NULL;
+
+	if (!mgmt_connected)
+		return;
 
 	if (link_type != ACL_LINK && link_type != LE_LINK)
 		return;

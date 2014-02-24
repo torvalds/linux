@@ -1182,7 +1182,8 @@ void mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			   u8 addr_type, u32 flags, u8 *name, u8 name_len,
 			   u8 *dev_class);
 void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			      u8 link_type, u8 addr_type, u8 reason);
+			      u8 link_type, u8 addr_type, u8 reason,
+			      bool mgmt_connected);
 void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 link_type, u8 addr_type, u8 status);
 void mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
