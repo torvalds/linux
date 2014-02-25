@@ -1,12 +1,22 @@
 Renesas MSIOF spi controller
 
 Required properties:
-- compatible : 	"renesas,sh-msiof" for SuperH or
-		"renesas,sh-mobile-msiof" for SH Mobile series
-- reg : Offset and length of the register set for the device
-- interrupts : interrupt line used by MSIOF
+- compatible           : "renesas,sh-msiof" for SuperH, or
+			 "renesas,sh-mobile-msiof" for SH Mobile series.
+- reg                  : Offset and length of the register set for the device
+- interrupt-parent     : The phandle for the interrupt controller that
+			 services interrupts for this device
+- interrupts           : Interrupt specifier
+- #address-cells       : Must be <1>
+- #size-cells          : Must be <0>
 
 Optional properties:
-- num-cs		: total number of chip-selects
-- renesas,tx-fifo-size	: Overrides the default tx fifo size given in words
-- renesas,rx-fifo-size	: Overrides the default rx fifo size given in words
+- clocks               : Must contain a reference to the functional clock.
+- num-cs               : Total number of chip-selects (default is 1)
+- renesas,tx-fifo-size : Overrides the default tx fifo size given in words
+			 (default is 64)
+- renesas,rx-fifo-size : Overrides the default rx fifo size given in words
+			 (default is 64)
+
+Pinctrl properties might be needed, too.  See
+Documentation/devicetree/bindings/pinctrl/renesas,*.
