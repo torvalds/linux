@@ -1718,6 +1718,7 @@ static void rbd_osd_req_format_write(struct rbd_obj_request *obj_request)
 static struct ceph_osd_request *rbd_osd_req_create(
 					struct rbd_device *rbd_dev,
 					bool write_request,
+					unsigned int num_ops,
 					struct rbd_obj_request *obj_request)
 {
 	struct ceph_snap_context *snapc = NULL;
@@ -1733,10 +1734,13 @@ static struct ceph_osd_request *rbd_osd_req_create(
 			snapc = img_request->snapc;
 	}
 
-	/* Allocate and initialize the request, for the single op */
+	rbd_assert(num_ops == 1);
+
+	/* Allocate and initialize the request, for the num_ops ops */
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
-	osd_req = ceph_osdc_alloc_request(osdc, snapc, 1, false, GFP_ATOMIC);
+	osd_req = ceph_osdc_alloc_request(osdc, snapc, num_ops, false,
+					  GFP_ATOMIC);
 	if (!osd_req)
 		return NULL;	/* ENOMEM */
 
@@ -2220,8 +2224,8 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 			pages += page_count;
 		}
 
-		osd_req = rbd_osd_req_create(rbd_dev, write_request,
-						obj_request);
+		osd_req = rbd_osd_req_create(rbd_dev, write_request, 1,
+					     obj_request);
 		if (!osd_req)
 			goto out_unwind;
 		obj_request->osd_req = osd_req;
@@ -2602,8 +2606,8 @@ static int rbd_img_obj_exists_submit(struct rbd_obj_request *obj_request)
 
 	rbd_assert(obj_request->img_request);
 	rbd_dev = obj_request->img_request->rbd_dev;
-	stat_request->osd_req = rbd_osd_req_create(rbd_dev, false,
-						stat_request);
+	stat_request->osd_req = rbd_osd_req_create(rbd_dev, false, 1,
+						   stat_request);
 	if (!stat_request->osd_req)
 		goto out;
 	stat_request->callback = rbd_img_obj_exists_callback;
@@ -2806,7 +2810,8 @@ static int rbd_obj_notify_ack_sync(struct rbd_device *rbd_dev, u64 notify_id)
 		return -ENOMEM;
 
 	ret = -ENOMEM;
-	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false, obj_request);
+	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false, 1,
+						  obj_request);
 	if (!obj_request->osd_req)
 		goto out;
 
@@ -2869,7 +2874,8 @@ static int __rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, bool start)
 	if (!obj_request)
 		goto out_cancel;
 
-	obj_request->osd_req = rbd_osd_req_create(rbd_dev, true, obj_request);
+	obj_request->osd_req = rbd_osd_req_create(rbd_dev, true, 1,
+						  obj_request);
 	if (!obj_request->osd_req)
 		goto out_cancel;
 
@@ -2977,7 +2983,8 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	obj_request->pages = pages;
 	obj_request->page_count = page_count;
 
-	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false, obj_request);
+	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false, 1,
+						  obj_request);
 	if (!obj_request->osd_req)
 		goto out;
 
@@ -3210,7 +3217,8 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	obj_request->pages = pages;
 	obj_request->page_count = page_count;
 
-	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false, obj_request);
+	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false, 1,
+						  obj_request);
 	if (!obj_request->osd_req)
 		goto out;
 
