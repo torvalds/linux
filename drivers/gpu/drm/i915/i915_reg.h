@@ -1260,6 +1260,10 @@ enum punit_power_well {
 #define   MI_ARB_DISPLAY_PRIORITY_A_B		(0 << 0)	/* display A > display B */
 #define   MI_ARB_DISPLAY_PRIORITY_B_A		(1 << 0)	/* display B > display A */
 
+#define MI_STATE	0x020e4 /* gen2 only */
+#define   MI_AGPBUSY_INT_EN			(1 << 1) /* 85x only */
+#define   MI_AGPBUSY_830_MODE			(1 << 0) /* 85x only */
+
 #define CACHE_MODE_0	0x02120 /* 915+ only */
 #define   CM0_PIPELINED_RENDER_FLUSH_DISABLE (1<<8)
 #define   CM0_IZ_OPT_DISABLE      (1<<6)
