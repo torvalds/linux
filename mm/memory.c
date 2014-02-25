@@ -3348,6 +3348,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		if (ret & VM_FAULT_LOCKED)
 			unlock_page(vmf.page);
 		ret = VM_FAULT_HWPOISON;
+		page_cache_release(vmf.page);
 		goto uncharge_out;
 	}
 
