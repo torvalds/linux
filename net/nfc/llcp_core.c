@@ -609,14 +609,16 @@ u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *general_bytes_len)
 
 int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 {
-	struct nfc_llcp_local *local = nfc_llcp_find_local(dev);
+	struct nfc_llcp_local *local;
 
+	if (gb_len < 3 || gb_len > NFC_MAX_GT_LEN)
+		return -EINVAL;
+
+	local = nfc_llcp_find_local(dev);
 	if (local == NULL) {
 		pr_err("No LLCP device\n");
 		return -ENODEV;
 	}
-	if (gb_len < 3)
-		return -EINVAL;
 
 	memset(local->remote_gb, 0, NFC_MAX_GT_LEN);
 	memcpy(local->remote_gb, gb, gb_len);

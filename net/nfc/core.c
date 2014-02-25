@@ -652,9 +652,6 @@ int nfc_set_remote_general_bytes(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 {
 	pr_debug("dev_name=%s gb_len=%d\n", dev_name(&dev->dev), gb_len);
 
-	if (gb_len > NFC_MAX_GT_LEN)
-		return -EINVAL;
-
 	return nfc_llcp_set_remote_gb(dev, gb, gb_len);
 }
 EXPORT_SYMBOL(nfc_set_remote_general_bytes);
