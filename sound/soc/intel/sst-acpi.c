@@ -139,6 +139,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	sst_pdata = &sst_acpi->sst_pdata;
 	sst_pdata->id = desc->sst_id;
 	sst_acpi->desc = desc;
+	sst_acpi->mach = mach;
 
 	if (desc->resindex_dma_base >= 0) {
 		sst_pdata->dma_engine = desc->dma_engine;
