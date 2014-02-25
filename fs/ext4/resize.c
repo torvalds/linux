@@ -695,7 +695,7 @@ static int verify_reserved_gdb(struct super_block *sb,
 			       struct buffer_head *primary)
 {
 	const ext4_fsblk_t blk = primary->b_blocknr;
-	unsigned three = 1;
+	unsigned three = 3;
 	unsigned five = 5;
 	unsigned seven = 7;
 	unsigned grp;
