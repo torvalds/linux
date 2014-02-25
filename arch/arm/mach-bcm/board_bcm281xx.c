@@ -56,7 +56,7 @@ static void bcm281xx_restart(enum reboot_mode mode, const char *cmd)
 	while (1);
 }
 
-static void __init board_init(void)
+static void __init bcm281xx_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL,
 		&platform_bus);
@@ -69,7 +69,7 @@ static const char * const bcm281xx_dt_compat[] = {
 };
 
 DT_MACHINE_START(BCM281XX_DT, "BCM281xx Broadcom Application Processor")
-	.init_machine = board_init,
+	.init_machine = bcm281xx_init,
 	.restart = bcm281xx_restart,
 	.dt_compat = bcm281xx_dt_compat,
 MACHINE_END
