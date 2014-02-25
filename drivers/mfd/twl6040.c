@@ -703,7 +703,6 @@ static int twl6040_probe(struct i2c_client *client,
 	}
 
 	/* dual-access registers controlled by I2C only */
-	twl6040_set_bits(twl6040, TWL6040_REG_ACCCTL, TWL6040_I2CSEL);
 	regmap_register_patch(twl6040->regmap, twl6040_patch,
 			      ARRAY_SIZE(twl6040_patch));
 
