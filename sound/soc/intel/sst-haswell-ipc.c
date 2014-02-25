@@ -617,7 +617,7 @@ static void hsw_notification_work(struct work_struct *work)
 	case IPC_POSITION_CHANGED:
 		trace_ipc_notification("DSP stream position changed for",
 			stream->reply.stream_hw_id);
-		sst_dsp_inbox_read(hsw->dsp, pos, sizeof(&pos));
+		sst_dsp_inbox_read(hsw->dsp, pos, sizeof(pos));
 
 		if (stream->notify_position)
 			stream->notify_position(stream, stream->pdata);
