@@ -469,13 +469,9 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 {
 	struct vnt_rcb *pRCB = (struct vnt_rcb *)urb->context;
 	struct vnt_private *pDevice = pRCB->pDevice;
-	unsigned long   bytesRead;
-	int bIndicateReceive = false;
 	int bReAllocSkb = false;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
-
-    bytesRead = urb->actual_length;
 
     if (urb->status) {
         pDevice->ulBulkInError++;
@@ -489,15 +485,13 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 //            MP_SET_FLAG(pDevice, fMP_DISCONNECTED);
 //        }
     } else {
-	if (bytesRead)
-		bIndicateReceive = true;
         pDevice->ulBulkInContCRCError = 0;
-        pDevice->ulBulkInBytesRead += bytesRead;
+	pDevice->ulBulkInBytesRead += urb->actual_length;
     }
 
-    if (bIndicateReceive) {
+    if (urb->actual_length) {
         spin_lock(&pDevice->lock);
-        if (RXbBulkInProcessData(pDevice, pRCB, bytesRead) == true)
+	if (RXbBulkInProcessData(pDevice, pRCB, urb->actual_length) == true)
             bReAllocSkb = true;
         spin_unlock(&pDevice->lock);
     }
