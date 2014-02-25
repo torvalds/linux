@@ -5306,6 +5306,8 @@ static s32 brcmf_update_wiphybands(struct brcmf_cfg80211_info *cfg)
 	u32 band_list[3];
 	u32 nmode;
 	u32 bw_cap[2] = { 0, 0 };
+	u32 rxchain;
+	u32 nchain;
 	s8 phy;
 	s32 err;
 	u32 nband;
@@ -5342,6 +5344,16 @@ static s32 brcmf_update_wiphybands(struct brcmf_cfg80211_info *cfg)
 	brcmf_dbg(INFO, "nmode=%d, bw_cap=(%d, %d)\n", nmode,
 		  bw_cap[IEEE80211_BAND_2GHZ], bw_cap[IEEE80211_BAND_5GHZ]);
 
+	err = brcmf_fil_iovar_int_get(ifp, "rxchain", &rxchain);
+	if (err) {
+		brcmf_err("rxchain error (%d)\n", err);
+		nchain = 1;
+	} else {
+		for (nchain = 0; rxchain; nchain++)
+			rxchain = rxchain & (rxchain - 1);
+	}
+	brcmf_dbg(INFO, "nchain=%d\n", nchain);
+
 	err = brcmf_construct_reginfo(cfg, bw_cap);
 	if (err) {
 		brcmf_err("brcmf_construct_reginfo failed (%d)\n", err);
@@ -5370,10 +5382,7 @@ static s32 brcmf_update_wiphybands(struct brcmf_cfg80211_info *cfg)
 		band->ht_cap.ht_supported = true;
 		band->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 		band->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16;
-		/* An HT shall support all EQM rates for one spatial
-		 * stream
-		 */
-		band->ht_cap.mcs.rx_mask[0] = 0xff;
+		memset(band->ht_cap.mcs.rx_mask, 0xff, nchain);
 		band->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 		bands[band->band] = band;
 	}
