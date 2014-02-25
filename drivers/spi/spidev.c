@@ -374,7 +374,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case SPI_IOC_WR_MODE:
 		retval = __get_user(tmp, (u8 __user *)arg);
 		if (retval == 0) {
-			u8	save = spi->mode;
+			u32	save = spi->mode;
 
 			if (tmp & ~SPI_MODE_MASK) {
 				retval = -EINVAL;
@@ -393,7 +393,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case SPI_IOC_WR_LSB_FIRST:
 		retval = __get_user(tmp, (__u8 __user *)arg);
 		if (retval == 0) {
-			u8	save = spi->mode;
+			u32	save = spi->mode;
 
 			if (tmp)
 				spi->mode |= SPI_LSB_FIRST;
