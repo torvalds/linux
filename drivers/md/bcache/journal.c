@@ -287,9 +287,13 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 		     k < bset_bkey_last(&i->j);
 		     k = bkey_next(k)) {
 			unsigned j;
+			struct bucket *g;
 
 			for (j = 0; j < KEY_PTRS(k); j++) {
-				struct bucket *g = PTR_BUCKET(c, k, j);
+				if (!ptr_available(c, k, j))
+					continue;
+
+				g = PTR_BUCKET(c, k, j);
 				atomic_inc(&g->pin);
 
 				if (g->prio == BTREE_PRIO &&
