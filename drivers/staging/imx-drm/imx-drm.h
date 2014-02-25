@@ -1,10 +1,6 @@
 #ifndef _IMX_DRM_H_
 #define _IMX_DRM_H_
 
-#include <linux/videodev2.h>
-
-#define IPU_PIX_FMT_GBR24	v4l2_fourcc('G', 'B', 'R', '3')
-
 struct device_node;
 struct drm_crtc;
 struct drm_connector;

@@ -31,6 +31,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
+#include "ipu-v3/imx-ipu-v3.h"
 #include "imx-drm.h"
 
 #define TVE_COM_CONF_REG	0x00
