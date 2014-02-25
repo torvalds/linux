@@ -561,6 +561,26 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 
+	/* Attach a block device to an UBI volume */
+	case UBI_IOCVOLATTBLK:
+	{
+		struct ubi_volume_info vi;
+
+		ubi_get_volume_info(desc, &vi);
+		err = ubiblock_add(&vi);
+		break;
+	}
+
+	/* Dettach a block device from an UBI volume */
+	case UBI_IOCVOLDETBLK:
+	{
+		struct ubi_volume_info vi;
+
+		ubi_get_volume_info(desc, &vi);
+		err = ubiblock_del(&vi);
+		break;
+	}
+
 	default:
 		err = -ENOTTY;
 		break;

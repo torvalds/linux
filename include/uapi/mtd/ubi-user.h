@@ -134,6 +134,13 @@
  * used. A pointer to a &struct ubi_set_vol_prop_req object is expected to be
  * passed. The object describes which property should be set, and to which value
  * it should be set.
+ *
+ * Block devices on UBI volumes
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * To attach or detach a block device from an UBI volume the %UBI_IOCVOLATTBLK
+ * and %UBI_IOCVOLDETBLK ioctl commands should be used, respectively.
+ * These commands take no arguments.
  */
 
 /*
@@ -191,6 +198,10 @@
 /* Set an UBI volume property */
 #define UBI_IOCSETVOLPROP _IOW(UBI_VOL_IOC_MAGIC, 6, \
 			       struct ubi_set_vol_prop_req)
+/* Attach a block device to an UBI volume */
+#define UBI_IOCVOLATTBLK _IO(UBI_VOL_IOC_MAGIC, 7)
+/* Detach a block device from an UBI volume */
+#define UBI_IOCVOLDETBLK _IO(UBI_VOL_IOC_MAGIC, 8)
 
 /* Maximum MTD device name length supported by UBI */
 #define MAX_UBI_MTD_NAME_LEN 127
