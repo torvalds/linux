@@ -360,7 +360,7 @@ struct drm_i915_error_state {
 			int page_count;
 			u32 gtt_offset;
 			u32 *pages[0];
-		} *ringbuffer, *batchbuffer, *ctx, *hws_page;
+		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
 
 		struct drm_i915_error_request {
 			long jiffies;
@@ -375,6 +375,9 @@ struct drm_i915_error_state {
 				u32 pp_dir_base;
 			};
 		} vm_info;
+
+		pid_t pid;
+		char comm[TASK_COMM_LEN];
 	} ring[I915_NUM_RINGS];
 	struct drm_i915_error_buffer {
 		u32 size;
@@ -1797,6 +1800,7 @@ struct drm_i915_gem_request {
 
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;
+	struct drm_file *file;
 
 	struct {
 		spinlock_t lock;

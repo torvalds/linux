@@ -301,13 +301,28 @@ void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
 	va_end(args);
 }
 
+static void print_error_obj(struct drm_i915_error_state_buf *m,
+			    struct drm_i915_error_object *obj)
+{
+	int page, offset, elt;
+
+	for (page = offset = 0; page < obj->page_count; page++) {
+		for (elt = 0; elt < PAGE_SIZE/4; elt++) {
+			err_printf(m, "%08x :  %08x\n", offset,
+				   obj->pages[page][elt]);
+			offset += 4;
+		}
+	}
+}
+
 int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
 	struct drm_device *dev = error_priv->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error = error_priv->error;
-	int i, j, page, offset, elt;
+	int i, j, offset, elt;
+	int max_hangcheck_score;
 
 	if (!error) {
 		err_printf(m, "no error state collected\n");
@@ -317,6 +332,20 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
+	max_hangcheck_score = 0;
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		if (error->ring[i].hangcheck_score > max_hangcheck_score)
+			max_hangcheck_score = error->ring[i].hangcheck_score;
+	}
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		if (error->ring[i].hangcheck_score == max_hangcheck_score &&
+		    error->ring[i].pid != -1) {
+			err_printf(m, "Active process (on ring %s): %s [%d]\n",
+				   ring_str(i),
+				   error->ring[i].comm,
+				   error->ring[i].pid);
+		}
+	}
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
@@ -359,18 +388,23 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		struct drm_i915_error_object *obj;
 
-		if ((obj = error->ring[i].batchbuffer)) {
-			err_printf(m, "%s --- gtt_offset = 0x%08x\n",
-				   dev_priv->ring[i].name,
+		obj = error->ring[i].batchbuffer;
+		if (obj) {
+			err_puts(m, dev_priv->ring[i].name);
+			if (error->ring[i].pid != -1)
+				err_printf(m, " (submitted by %s [%d])",
+					   error->ring[i].comm,
+					   error->ring[i].pid);
+			err_printf(m, " --- gtt_offset = 0x%08x\n",
 				   obj->gtt_offset);
-			offset = 0;
-			for (page = 0; page < obj->page_count; page++) {
-				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
-					err_printf(m, "%08x :  %08x\n", offset,
-						   obj->pages[page][elt]);
-					offset += 4;
-				}
-			}
+			print_error_obj(m, obj);
+		}
+
+		obj = error->ring[i].wa_batchbuffer;
+		if (obj) {
+			err_printf(m, "%s (w/a) --- gtt_offset = 0x%08x\n",
+				   dev_priv->ring[i].name, obj->gtt_offset);
+			print_error_obj(m, obj);
 		}
 
 		if (error->ring[i].num_requests) {
@@ -389,15 +423,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
-			offset = 0;
-			for (page = 0; page < obj->page_count; page++) {
-				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
-					err_printf(m, "%08x :  %08x\n",
-						   offset,
-						   obj->pages[page][elt]);
-					offset += 4;
-				}
-			}
+			print_error_obj(m, obj);
 		}
 
 		if ((obj = error->ring[i].hws_page)) {
@@ -713,39 +739,6 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
-static struct drm_i915_error_object *
-i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
-			     struct intel_ring_buffer *ring)
-{
-	struct drm_i915_gem_request *request;
-
-	if (HAS_BROKEN_CS_TLB(dev_priv->dev)) {
-		struct drm_i915_gem_object *obj;
-		u32 acthd = I915_READ(ACTHD);
-
-		if (WARN_ON(ring->id != RCS))
-			return NULL;
-
-		obj = ring->scratch.obj;
-		if (obj != NULL &&
-		    acthd >= i915_gem_obj_ggtt_offset(obj) &&
-		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
-			return i915_error_ggtt_object_create(dev_priv, obj);
-	}
-
-	request = i915_gem_find_active_request(ring);
-	if (request == NULL)
-		return NULL;
-
-	/* We need to copy these to an anonymous buffer as the simplest
-	 * method to avoid being overwritten by userspace.
-	 */
-	return i915_error_object_create(dev_priv, request->batch_obj,
-					request->ctx ?
-					request->ctx->vm :
-					&dev_priv->gtt.base);
-}
-
 static void i915_record_ring_state(struct drm_device *dev,
 				   struct intel_ring_buffer *ring,
 				   struct drm_i915_error_ring *ering)
@@ -894,8 +887,39 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		i915_record_ring_state(dev, ring, &error->ring[i]);
 
-		error->ring[i].batchbuffer =
-			i915_error_first_batchbuffer(dev_priv, ring);
+		error->ring[i].pid = -1;
+		request = i915_gem_find_active_request(ring);
+		if (request) {
+			/* We need to copy these to an anonymous buffer
+			 * as the simplest method to avoid being overwritten
+			 * by userspace.
+			 */
+			error->ring[i].batchbuffer =
+				i915_error_object_create(dev_priv,
+							 request->batch_obj,
+							 request->ctx ?
+							 request->ctx->vm :
+							 &dev_priv->gtt.base);
+
+			if (HAS_BROKEN_CS_TLB(dev_priv->dev) &&
+			    ring->scratch.obj)
+				error->ring[i].wa_batchbuffer =
+					i915_error_ggtt_object_create(dev_priv,
+							     ring->scratch.obj);
+
+			if (request->file_priv) {
+				struct task_struct *task;
+
+				rcu_read_lock();
+				task = pid_task(request->file_priv->file->pid,
+						PIDTYPE_PID);
+				if (task) {
+					strcpy(error->ring[i].comm, task->comm);
+					error->ring[i].pid = task->pid;
+				}
+				rcu_read_unlock();
+			}
+		}
 
 		error->ring[i].ringbuffer =
 			i915_error_ggtt_object_create(dev_priv, ring->obj);
