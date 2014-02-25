@@ -5507,6 +5507,9 @@ static void gen3_init_clock_gating(struct drm_device *dev)
 
 	/* interrupts should cause a wake up from C3 */
 	I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_AGPBUSY_INT_EN));
+
+	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
+	I915_WRITE(MI_ARB_STATE, _MASKED_BIT_ENABLE(MI_ARB_C3_LP_WRITE_ENABLE));
 }
 
 static void i85x_init_clock_gating(struct drm_device *dev)

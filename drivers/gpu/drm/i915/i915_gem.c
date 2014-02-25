@@ -4756,7 +4756,7 @@ i915_gem_load(struct drm_device *dev)
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
 	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
-	if (IS_GEN3(dev)) {
+	if (!drm_core_check_feature(dev, DRIVER_MODESET) && IS_GEN3(dev)) {
 		I915_WRITE(MI_ARB_STATE,
 			   _MASKED_BIT_ENABLE(MI_ARB_C3_LP_WRITE_ENABLE));
 	}
