@@ -473,21 +473,22 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
 
-    if (urb->status) {
-        pDevice->ulBulkInError++;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK In failed %d\n", urb->status);
-//todo...xxxxxx
-//        if (status == USBD_STATUS_CRC) {
-//            pDevice->ulBulkInContCRCError++;
-//        }
-//        if (status == STATUS_DEVICE_NOT_CONNECTED )
-//        {
-//            MP_SET_FLAG(pDevice, fMP_DISCONNECTED);
-//        }
-    } else {
-        pDevice->ulBulkInContCRCError = 0;
-	pDevice->ulBulkInBytesRead += urb->actual_length;
-    }
+	switch (urb->status) {
+	case 0:
+		pDevice->ulBulkInContCRCError = 0;
+		pDevice->ulBulkInBytesRead += urb->actual_length;
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		return;
+	case -ETIMEDOUT:
+	default:
+		pDevice->ulBulkInError++;
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				"BULK In failed %d\n", urb->status);
+		break;
+	}
 
     if (urb->actual_length) {
         spin_lock(&pDevice->lock);
