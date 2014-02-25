@@ -404,51 +404,6 @@ static const struct ath_bus_ops ath9k_usb_bus_ops = {
 	.eeprom_read = ath_usb_eeprom_read,
 };
 
-static void setup_ht_cap(struct ath9k_htc_priv *priv,
-			 struct ieee80211_sta_ht_cap *ht_info)
-{
-	struct ath_common *common = ath9k_hw_common(priv->ah);
-	u8 tx_streams, rx_streams;
-	int i;
-
-	ht_info->ht_supported = true;
-	ht_info->cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
-		       IEEE80211_HT_CAP_SM_PS |
-		       IEEE80211_HT_CAP_SGI_40 |
-		       IEEE80211_HT_CAP_DSSSCCK40;
-
-	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_SGI_20)
-		ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
-
-	ht_info->cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
-
-	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
-
-	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-
-	/* ath9k_htc supports only 1 or 2 stream devices */
-	tx_streams = ath9k_cmn_count_streams(priv->ah->txchainmask, 2);
-	rx_streams = ath9k_cmn_count_streams(priv->ah->rxchainmask, 2);
-
-	ath_dbg(common, CONFIG, "TX streams %d, RX streams: %d\n",
-		tx_streams, rx_streams);
-
-	if (tx_streams >= 2)
-		ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
-
-	if (tx_streams != rx_streams) {
-		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
-		ht_info->mcs.tx_params |= ((tx_streams - 1) <<
-					   IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
-	}
-
-	for (i = 0; i < rx_streams; i++)
-		ht_info->mcs.rx_mask[i] = 0xff;
-
-	ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
-}
-
 static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
@@ -611,6 +566,7 @@ static const struct ieee80211_iface_combination if_comb = {
 static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 			       struct ieee80211_hw *hw)
 {
+	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct base_eep_header *pBase;
 
@@ -662,10 +618,10 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
-			setup_ht_cap(priv,
+			ath9k_cmn_setup_ht_cap(ah,
 				     &common->sbands[IEEE80211_BAND_2GHZ].ht_cap);
 		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
-			setup_ht_cap(priv,
+			ath9k_cmn_setup_ht_cap(ah,
 				     &common->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
 
