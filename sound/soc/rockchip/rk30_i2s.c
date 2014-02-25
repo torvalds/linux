@@ -192,11 +192,7 @@ static void rockchip_snd_rxctrl(struct rk30_i2s_info *i2s, int on)
 	}
 
 	spin_unlock_irqrestore(&lock, flags);
-#ifdef CONFIG_SND_SOC_RT5631
-//bard 7-16 s
-		schedule_delayed_work(&rt5631_delay_cap,HZ/4);
-//bard 7-16 e
-#endif
+
 	if (is_need_delay){
 		while(readl(&(pheadi2s->I2S_CLR)) && clr_error_count){
 			udelay(1);
