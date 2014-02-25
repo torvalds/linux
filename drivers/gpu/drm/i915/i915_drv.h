@@ -550,8 +550,6 @@ struct i915_gtt {
 
 	int mtrr;
 
-	int mtrr;
-
 	/* global gtt ops */
 	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
 			  size_t *stolen, phys_addr_t *mappable_base,
