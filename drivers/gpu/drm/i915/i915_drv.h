@@ -305,6 +305,7 @@ struct drm_i915_error_state {
 
 	char error_msg[128];
 	u32 reset_count;
+	u32 suspend_count;
 
 	/* Generic register state */
 	u32 eir;
@@ -1606,6 +1607,8 @@ typedef struct drm_i915_private {
 	struct i915_dri1_state dri1;
 	/* Old ums support infrastructure, same warning applies. */
 	struct i915_ums_state ums;
+
+	u32 suspend_count;
 } drm_i915_private_t;
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)

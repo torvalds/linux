@@ -348,6 +348,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		}
 	}
 	err_printf(m, "Reset count: %u\n", error->reset_count);
+	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
@@ -1125,6 +1126,7 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
 {
 	error->reset_count = i915_reset_count(&dev_priv->gpu_error);
+	error->suspend_count = dev_priv->suspend_count;
 }
 
 /**
