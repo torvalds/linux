@@ -527,7 +527,7 @@ static int ipc_tx_message(struct sst_hsw *hsw, u32 header, void *tx_data,
 
 	msg = msg_get_empty(hsw);
 	if (msg == NULL) {
-		spin_unlock(&hsw->dsp->spinlock);
+		spin_unlock_irqrestore(&hsw->dsp->spinlock, flags);
 		return -EBUSY;
 	}
 
