@@ -2428,13 +2428,13 @@ fail1:
 	return -ENODEV;
 
 }
-//EXPORT_SYMBOL(rtl_pci_probe);
+/* EXPORT_SYMBOL(rtl_pci_probe); */
 
 struct ieee80211_hw *rtl_pci_get_hw_pointer(void)
 {
 	return hw_export;
 }
-//EXPORT_SYMBOL(rtl_pci_get_hw_pointer);
+/* EXPORT_SYMBOL(rtl_pci_get_hw_pointer); */
 
 void rtl_pci_disconnect(struct pci_dev *pdev)
 {
@@ -2491,7 +2491,7 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 
 	ieee80211_free_hw(hw);
 }
-//EXPORT_SYMBOL(rtl_pci_disconnect);
+/* EXPORT_SYMBOL(rtl_pci_disconnect); */
 
 /***************************************
 kernel pci power state define:
@@ -2519,7 +2519,7 @@ int rtl_pci_suspend(struct device *dev)
 
 	return 0;
 }
-//EXPORT_SYMBOL(rtl_pci_suspend);
+/* EXPORT_SYMBOL(rtl_pci_suspend); */
 
 int rtl_pci_resume(struct device *dev)
 {
@@ -2532,7 +2532,7 @@ int rtl_pci_resume(struct device *dev)
 
 	return 0;
 }
-//EXPORT_SYMBOL(rtl_pci_resume);
+/* EXPORT_SYMBOL(rtl_pci_resume); */
 
 struct rtl_intf_ops rtl_pci_ops = {
 	.read_efuse_byte = read_efuse_byte,
