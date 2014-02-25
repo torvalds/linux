@@ -291,16 +291,30 @@ void  rsnd_dma_quit(struct rsnd_priv *priv,
 /*
  *	rsnd_dai functions
  */
-#define rsnd_dai_call(rdai, io, fn)			\
-({							\
-	struct rsnd_mod *mod, *n;			\
-	int ret = 0;					\
-	for_each_rsnd_mod(mod, n, io) {			\
-		ret = rsnd_mod_call(mod, fn, rdai, io);	\
-		if (ret < 0)				\
-			break;				\
-	}						\
-	ret;						\
+#define __rsnd_mod_call(mod, func, rdai, io)			\
+({								\
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
+	struct device *dev = rsnd_priv_to_dev(priv);		\
+	dev_dbg(dev, "%s [%d] %s\n",				\
+		rsnd_mod_name(mod), rsnd_mod_id(mod), #func);	\
+	(mod)->ops->func(mod, rdai, io);			\
+})
+
+#define rsnd_mod_call(mod, func, rdai, io)	\
+	(!(mod) ? -ENODEV :			\
+	 !((mod)->ops->func) ? 0 :		\
+	 __rsnd_mod_call(mod, func, (rdai), (io)))
+
+#define rsnd_dai_call(rdai, io, fn)				\
+({								\
+	struct rsnd_mod *mod, *n;				\
+	int ret = 0;						\
+	for_each_rsnd_mod(mod, n, (io)) {			\
+		ret = rsnd_mod_call(mod, fn, (rdai), (io));	\
+		if (ret < 0)					\
+			break;					\
+	}							\
+	ret;							\
 })
 
 int rsnd_dai_connect(struct rsnd_dai *rdai,
