@@ -548,7 +548,10 @@ int PIPEnsSendBulkOut(struct vnt_private *pDevice,
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_nsSendBulkOut\n");
 
-    if (MP_IS_READY(pDevice) && (pDevice->Flags & fMP_POST_WRITES)) {
+	if (!(MP_IS_READY(pDevice) && pDevice->Flags & fMP_POST_WRITES)) {
+		pContext->bBoolInUse = false;
+		return STATUS_RESOURCES;
+	}
 
         pUrb = pContext->pUrb;
         pDevice->ulBulkOutPosted++;
@@ -570,11 +573,6 @@ int PIPEnsSendBulkOut(struct vnt_private *pDevice,
     		return STATUS_FAILURE;
     	}
         return STATUS_PENDING;
-    }
-    else {
-        pContext->bBoolInUse = false;
-        return STATUS_RESOURCES;
-    }
 }
 
 /*
