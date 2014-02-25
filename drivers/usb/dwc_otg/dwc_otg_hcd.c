@@ -751,7 +751,8 @@ int  dwc_otg_hcd_init(struct device *dev)
 		goto error1;
 	}
 	hcd->regs = otg_dev->base;
-	hcd->self.otg_port = 1;	 
+	hcd->self.otg_port = 1;
+	hcd->has_tt = 1;
 
 	/* Initialize the DWC OTG HCD. */
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
@@ -1082,7 +1083,8 @@ int host20_hcd_init(struct device *dev)
 		goto error1;
 	}
 	hcd->regs = otg_dev->base;
-	hcd->self.otg_port = 1;	 
+	hcd->self.otg_port = 1;
+	hcd->has_tt = 1;
 
 	/* Initialize the DWC OTG HCD. */
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
