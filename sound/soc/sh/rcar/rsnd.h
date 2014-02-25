@@ -202,10 +202,10 @@ struct rsnd_dai {
 	unsigned int data_alignment:1;
 };
 
-#define rsnd_dai_nr(priv) ((priv)->dai_nr)
+#define rsnd_rdai_nr(priv) ((priv)->rdai_nr)
 #define for_each_rsnd_dai(rdai, priv, i)		\
 	for (i = 0;					\
-	     (i < rsnd_dai_nr(priv)) &&			\
+	     (i < rsnd_rdai_nr(priv)) &&		\
 	     ((rdai) = rsnd_dai_get(priv, i));		\
 	     i++)
 
@@ -299,7 +299,7 @@ struct rsnd_priv {
 	 */
 	struct snd_soc_dai_driver *daidrv;
 	struct rsnd_dai *rdai;
-	int dai_nr;
+	int rdai_nr;
 };
 
 #define rsnd_priv_to_dev(priv)	((priv)->dev)

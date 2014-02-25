@@ -352,7 +352,7 @@ int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
 {
 	int id = rdai - priv->rdai;
 
-	if ((id < 0) || (id >= rsnd_dai_nr(priv)))
+	if ((id < 0) || (id >= rsnd_rdai_nr(priv)))
 		return -EINVAL;
 
 	return id;
@@ -360,7 +360,7 @@ int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
 
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id)
 {
-	if ((id < 0) || (id >= rsnd_dai_nr(priv)))
+	if ((id < 0) || (id >= rsnd_rdai_nr(priv)))
 		return NULL;
 
 	return priv->rdai + id;
@@ -607,7 +607,7 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	priv->dai_nr	= dai_nr;
+	priv->rdai_nr	= dai_nr;
 	priv->daidrv	= drv;
 	priv->rdai	= rdai;
 
@@ -802,7 +802,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	}
 
 	ret = snd_soc_register_component(dev, &rsnd_soc_component,
-					 priv->daidrv, rsnd_dai_nr(priv));
+					 priv->daidrv, rsnd_rdai_nr(priv));
 	if (ret < 0) {
 		dev_err(dev, "cannot snd dai register\n");
 		goto exit_snd_soc;
