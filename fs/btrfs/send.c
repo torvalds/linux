@@ -346,6 +346,9 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 	if (p->buf_len >= len)
 		return 0;
 
+	path_len = p->end - p->start;
+	old_buf_len = p->buf_len;
+
 	/*
 	 * First time the inline_buf does not suffice
 	 */
@@ -367,9 +370,6 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 		p->buf = tmp;
 		p->buf_len = ksize(p->buf);
 	}
-
-	path_len = p->end - p->start;
-	old_buf_len = p->buf_len;
 
 	if (p->reversed) {
 		tmp_buf = p->buf + old_buf_len - path_len - 1;
