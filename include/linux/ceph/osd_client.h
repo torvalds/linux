@@ -103,6 +103,10 @@ struct ceph_osd_req_op {
 			u32 timeout;
 			__u8 flag;
 		} watch;
+		struct {
+			u64 expected_object_size;
+			u64 expected_write_size;
+		} alloc_hint;
 	};
 };
 
@@ -294,6 +298,10 @@ extern void osd_req_op_cls_init(struct ceph_osd_request *osd_req,
 extern void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
 					u64 cookie, u64 version, int flag);
+extern void osd_req_op_alloc_hint_init(struct ceph_osd_request *osd_req,
+				       unsigned int which,
+				       u64 expected_object_size,
+				       u64 expected_write_size);
 
 extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 					       struct ceph_snap_context *snapc,

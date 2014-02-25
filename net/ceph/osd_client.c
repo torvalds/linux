@@ -436,6 +436,7 @@ static bool osd_req_opcode_valid(u16 opcode)
 	case CEPH_OSD_OP_OMAPCLEAR:
 	case CEPH_OSD_OP_OMAPRMKEYS:
 	case CEPH_OSD_OP_OMAP_CMP:
+	case CEPH_OSD_OP_SETALLOCHINT:
 	case CEPH_OSD_OP_CLONERANGE:
 	case CEPH_OSD_OP_ASSERT_SRC_VERSION:
 	case CEPH_OSD_OP_SRC_CMPXATTR:
@@ -591,6 +592,26 @@ void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 }
 EXPORT_SYMBOL(osd_req_op_watch_init);
 
+void osd_req_op_alloc_hint_init(struct ceph_osd_request *osd_req,
+				unsigned int which,
+				u64 expected_object_size,
+				u64 expected_write_size)
+{
+	struct ceph_osd_req_op *op = _osd_req_op_init(osd_req, which,
+						      CEPH_OSD_OP_SETALLOCHINT);
+
+	op->alloc_hint.expected_object_size = expected_object_size;
+	op->alloc_hint.expected_write_size = expected_write_size;
+
+	/*
+	 * CEPH_OSD_OP_SETALLOCHINT op is advisory and therefore deemed
+	 * not worth a feature bit.  Set FAILOK per-op flag to make
+	 * sure older osds don't trip over an unsupported opcode.
+	 */
+	op->flags |= CEPH_OSD_OP_FLAG_FAILOK;
+}
+EXPORT_SYMBOL(osd_req_op_alloc_hint_init);
+
 static void ceph_osdc_msg_data_add(struct ceph_msg *msg,
 				struct ceph_osd_data *osd_data)
 {
@@ -680,6 +701,12 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 		dst->watch.cookie = cpu_to_le64(src->watch.cookie);
 		dst->watch.ver = cpu_to_le64(src->watch.ver);
 		dst->watch.flag = src->watch.flag;
+		break;
+	case CEPH_OSD_OP_SETALLOCHINT:
+		dst->alloc_hint.expected_object_size =
+		    cpu_to_le64(src->alloc_hint.expected_object_size);
+		dst->alloc_hint.expected_write_size =
+		    cpu_to_le64(src->alloc_hint.expected_write_size);
 		break;
 	default:
 		pr_err("unsupported osd opcode %s\n",
