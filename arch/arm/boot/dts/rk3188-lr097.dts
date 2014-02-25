@@ -1,0 +1,369 @@
+/dts-v1/;
+
+#include "rk3188.dtsi"
+#include "rk3188-clocks.dtsi"
+#include "lcd-LP097Qx1.dtsi"
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x60000000 0x80000000>;
+	};
+
+	chosen {
+		bootargs = "clk_ignore_unused";
+	};
+
+	fiq-debugger {
+		status = "okay";
+	};
+
+	backlight {
+        	compatible = "pwm-backlight";
+	        pwms = <&pwm3 0 5000000>;
+        	brightness-levels = <0 4 8 16 32 64 128 255>;
+	        default-brightness-level = <6>;
+        	gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+	};
+
+	codec-hdmi-i2s {
+		compatible = "hdmi-i2s";
+	};
+
+	codec-hdmi-spdif {
+		compatible = "hdmi-spdif";
+	};
+
+	rockchip-rt5631 {
+		compatible = "rockchip-rt5631";
+		dais {
+			dai0 {
+				codec-name = "rt5631.0-001a";
+				cpu-dai-name = "rockchip-i2s.1";
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+
+	rockchip-hdmi-i2s {
+		compatible = "rockchip-hdmi-i2s";
+		dais {
+			dai0 {
+				codec-name = "hdmi-i2s";
+				cpu-dai-name = "rockchip-i2s.1";
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+
+	rockchip-hdmi-spdif {
+		compatible = "rockchip-hdmi-spdif";
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+	codec@1a {
+		compatible = "rt5631";
+		reg = <0x1a>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+	
+	act8846: act8846@5a {
+		reg = <0x5a>;
+		status = "okay";
+	};
+	rk808: rk808@1b {
+		reg = <0x1b>;
+		status = "okay";
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	edp@39 {
+		compatible = "analogix,anx6345";
+		reg = <0x39>;
+		dvdd33-gpio = <&gpio0 GPIO_B0 GPIO_ACTIVE_LOW>;
+		dvdd18-gpio = <&gpio3 GPIO_D4 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&fb {
+	rockchip,disp-mode = <DUAL>;
+};
+
+&lcdc0 {
+	status = "okay";
+	power_ctr = <&disp_power_ctr>;
+	display-timings = <&disp_timings>;
+};
+
+&lcdc1 {
+	status = "okay";
+};
+&pwm3 {
+        status = "okay";
+};
+
+&clk_core_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		312000 1100000
+		504000 1100000
+		816000 1100000
+		1008000 1100000
+		1200000 1200000
+		1416000 1300000
+		1608000 1350000
+		>;
+};
+
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1200000
+		300000 1200000
+		400000 1300000
+		>;
+};
+
+&clk_ddr_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1200000
+		300000 1200000
+		400000 1300000
+		>;
+};
+
+/include/ "act8846.dtsi"
+&act8846 {
+	gpios =<&gpio3 GPIO_D3 GPIO_ACTIVE_LOW>; 
+
+regulators {
+		
+		 dcdc1_reg: regulator@0{
+			regulator-name= "act_dcdc1";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		dcdc2_reg: regulator@1 {
+			regulator-name= "vdd_logic";
+			regulator-always-on;
+			regulator-boot-on;			
+		};
+
+		dcdc3_reg: regulator@2 {
+			regulator-name= "vdd_arm";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		dcdc4_reg: regulator@3 {
+			regulator-name= "act_dcdc4";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo1_reg: regulator@4 {
+			regulator-name= "act_ldo1";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo2_reg: regulator@5 {
+			regulator-name= "act_ldo2";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo3_reg: regulator@6 {
+			regulator-name= "act_ldo3";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo4_reg:regulator@7 {
+			regulator-name= "act_ldo4";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo5_reg: regulator@8 {
+			regulator-name= "act_ldo5";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo6_reg: regulator@9 {
+			regulator-name= "act_ldo6";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo7_reg: regulator@10 {
+			regulator-name= "act_ldo7";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo8_reg: regulator@11 {
+			regulator-name= "act_ldo8";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	};
+};
+/include/ "rk808.dtsi"
+&rk808{
+	gpios =<&gpio0 GPIO_B3 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_A1 GPIO_ACTIVE_LOW>; 
+
+regulators {
+		
+		 rk808_dcdc1_reg: regulator@0{
+			regulator-name= "vdd_arm";	
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_dcdc2_reg: regulator@1 {
+			regulator-name= "vdd_logic";
+			regulator-always-on;
+			regulator-boot-on;		
+		};
+
+		rk808_dcdc3_reg: regulator@2 {
+			regulator-name= "rk_dcdc3";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_dcdc4_reg: regulator@3 {
+			regulator-name= "rk_dcdc4";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo1_reg: regulator@4 {
+			regulator-name= "rk_ldo1";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo2_reg: regulator@5 {
+			regulator-name= "rk_ldo2";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo3_reg: regulator@6 {
+			regulator-name= "rk_ldo3";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo4_reg:regulator@7 {
+			regulator-name= "rk_ldo4";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo5_reg: regulator@8 {
+			regulator-name= "rk_ldo5";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo6_reg: regulator@9 {
+			regulator-name= "rk_ldo6";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo7_reg: regulator@10 {
+			regulator-name= "rk_ldo7";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo8_reg: regulator@11 {
+			regulator-name= "rk_ldo8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	};
+};
+
+
