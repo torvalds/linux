@@ -28,6 +28,7 @@
 #include "prm-regbits-34xx.h"
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
+#include "control.h"
 
 static const struct omap_prcm_irq omap3_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("wkup",	0,	0),
@@ -327,6 +328,50 @@ static u32 omap3xxx_prm_read_reset_sources(void)
 	}
 
 	return r;
+}
+
+/**
+ * omap3xxx_prm_iva_idle - ensure IVA is in idle so it can be put into retention
+ *
+ * In cases where IVA2 is activated by bootcode, it may prevent
+ * full-chip retention or off-mode because it is not idle.  This
+ * function forces the IVA2 into idle state so it can go
+ * into retention/off and thus allow full-chip retention/off.
+ */
+void omap3xxx_prm_iva_idle(void)
+{
+	/* ensure IVA2 clock is disabled */
+	omap2_cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
+
+	/* if no clock activity, nothing else to do */
+	if (!(omap2_cm_read_mod_reg(OMAP3430_IVA2_MOD, OMAP3430_CM_CLKSTST) &
+	      OMAP3430_CLKACTIVITY_IVA2_MASK))
+		return;
+
+	/* Reset IVA2 */
+	omap2_prm_write_mod_reg(OMAP3430_RST1_IVA2_MASK |
+				OMAP3430_RST2_IVA2_MASK |
+				OMAP3430_RST3_IVA2_MASK,
+				OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+
+	/* Enable IVA2 clock */
+	omap2_cm_write_mod_reg(OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_MASK,
+			       OMAP3430_IVA2_MOD, CM_FCLKEN);
+
+	/* Set IVA2 boot mode to 'idle' */
+	omap3_ctrl_set_iva_bootmode_idle();
+
+	/* Un-reset IVA2 */
+	omap2_prm_write_mod_reg(0, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+
+	/* Disable IVA2 clock */
+	omap2_cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
+
+	/* Reset IVA2 */
+	omap2_prm_write_mod_reg(OMAP3430_RST1_IVA2_MASK |
+				OMAP3430_RST2_IVA2_MASK |
+				OMAP3430_RST3_IVA2_MASK,
+				OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 }
 
 /* Powerdomain low-level functions */
