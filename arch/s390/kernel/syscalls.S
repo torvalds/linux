@@ -24,7 +24,7 @@ SYSCALL(sys_chdir,sys_chdir,sys32_chdir_wrapper)
 SYSCALL(sys_time,sys_ni_syscall,sys32_time_wrapper)		/* old time syscall */
 SYSCALL(sys_mknod,sys_mknod,sys32_mknod_wrapper)
 SYSCALL(sys_chmod,sys_chmod,sys32_chmod_wrapper)		/* 15 */
-SYSCALL(sys_lchown16,sys_ni_syscall,sys32_lchown16_wrapper)	/* old lchown16 syscall*/
+SYSCALL(sys_lchown16,sys_ni_syscall,compat_sys_s390_lchown16)	/* old lchown16 syscall*/
 NI_SYSCALL							/* old break syscall holder */
 NI_SYSCALL							/* old stat syscall holder */
 SYSCALL(sys_lseek,sys_lseek,compat_sys_lseek)
@@ -54,7 +54,7 @@ SYSCALL(sys_pipe,sys_pipe,sys32_pipe_wrapper)
 SYSCALL(sys_times,sys_times,compat_sys_times_wrapper)
 NI_SYSCALL							/* old prof syscall */
 SYSCALL(sys_brk,sys_brk,sys32_brk_wrapper)			/* 45 */
-SYSCALL(sys_setgid16,sys_ni_syscall,sys32_setgid16_wrapper)	/* old setgid16 syscall*/
+SYSCALL(sys_setgid16,sys_ni_syscall,compat_sys_s390_setgid16)	/* old setgid16 syscall*/
 SYSCALL(sys_getgid16,sys_ni_syscall,sys32_getgid16)		/* old getgid16 syscall*/
 SYSCALL(sys_signal,sys_signal,sys32_signal_wrapper)
 SYSCALL(sys_geteuid16,sys_ni_syscall,sys32_geteuid16)		/* old geteuid16 syscall */
@@ -79,7 +79,7 @@ SYSCALL(sys_sigaction,sys_sigaction,compat_sys_sigaction)
 NI_SYSCALL							/* old sgetmask syscall*/
 NI_SYSCALL							/* old ssetmask syscall*/
 SYSCALL(sys_setreuid16,sys_ni_syscall,sys32_setreuid16_wrapper)	/* old setreuid16 syscall */
-SYSCALL(sys_setregid16,sys_ni_syscall,sys32_setregid16_wrapper)	/* old setregid16 syscall */
+SYSCALL(sys_setregid16,sys_ni_syscall,compat_sys_s390_setregid16) /* old setregid16 syscall */
 SYSCALL(sys_sigsuspend,sys_sigsuspend,sys_sigsuspend_wrapper)
 SYSCALL(sys_sigpending,sys_sigpending,compat_sys_sigpending_wrapper)
 SYSCALL(sys_sethostname,sys_sethostname,sys32_sethostname_wrapper)
@@ -103,7 +103,7 @@ SYSCALL(sys_munmap,sys_munmap,sys32_munmap_wrapper)
 SYSCALL(sys_truncate,sys_truncate,compat_sys_truncate)
 SYSCALL(sys_ftruncate,sys_ftruncate,compat_sys_ftruncate)
 SYSCALL(sys_fchmod,sys_fchmod,sys32_fchmod_wrapper)
-SYSCALL(sys_fchown16,sys_ni_syscall,sys32_fchown16_wrapper)	/* 95 old fchown16 syscall*/
+SYSCALL(sys_fchown16,sys_ni_syscall,compat_sys_s390_fchown16)	/* 95 old fchown16 syscall*/
 SYSCALL(sys_getpriority,sys_getpriority,sys32_getpriority_wrapper)
 SYSCALL(sys_setpriority,sys_setpriority,sys32_setpriority_wrapper)
 NI_SYSCALL							/* old profil syscall */
@@ -190,7 +190,7 @@ SYSCALL(sys_rt_sigqueueinfo,sys_rt_sigqueueinfo,compat_sys_rt_sigqueueinfo)
 SYSCALL(sys_rt_sigsuspend,sys_rt_sigsuspend,compat_sys_rt_sigsuspend)
 SYSCALL(sys_pread64,sys_pread64,sys32_pread64_wrapper)		/* 180 */
 SYSCALL(sys_pwrite64,sys_pwrite64,sys32_pwrite64_wrapper)
-SYSCALL(sys_chown16,sys_ni_syscall,sys32_chown16_wrapper)	/* old chown16 syscall */
+SYSCALL(sys_chown16,sys_ni_syscall,compat_sys_s390_chown16)	/* old chown16 syscall */
 SYSCALL(sys_getcwd,sys_getcwd,sys32_getcwd_wrapper)
 SYSCALL(sys_capget,sys_capget,sys32_capget_wrapper)
 SYSCALL(sys_capset,sys_capset,sys32_capset_wrapper)		/* 185 */

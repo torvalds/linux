@@ -61,12 +61,6 @@ ENTRY(sys32_chmod_wrapper)
 	llgfr	%r3,%r3			# mode_t
 	jg	sys_chmod		# branch to system call
 
-ENTRY(sys32_lchown16_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# __kernel_old_uid_emu31_t
-	llgfr	%r4,%r4			# __kernel_old_uid_emu31_t
-	jg	sys32_lchown16		# branch to system call
-
 #sys32_getpid_wrapper				# void
 
 ENTRY(sys32_mount_wrapper)
@@ -149,10 +143,6 @@ ENTRY(sys32_brk_wrapper)
 	llgtr	%r2,%r2			# unsigned long
 	jg	sys_brk			# branch to system call
 
-ENTRY(sys32_setgid16_wrapper)
-	llgfr	%r2,%r2			# __kernel_old_gid_emu31_t
-	jg	sys32_setgid16		# branch to system call
-
 #sys32_getgid16_wrapper			# void
 
 ENTRY(sys32_signal_wrapper)
@@ -218,11 +208,6 @@ ENTRY(sys32_setreuid16_wrapper)
 	llgfr	%r2,%r2			# __kernel_old_uid_emu31_t
 	llgfr	%r3,%r3			# __kernel_old_uid_emu31_t
 	jg	sys32_setreuid16	# branch to system call
-
-ENTRY(sys32_setregid16_wrapper)
-	llgfr	%r2,%r2			# __kernel_old_gid_emu31_t
-	llgfr	%r3,%r3			# __kernel_old_gid_emu31_t
-	jg	sys32_setregid16	# branch to system call
 
 ENTRY(sys_sigsuspend_wrapper)
 	lgfr	%r2,%r2			# int
@@ -324,12 +309,6 @@ ENTRY(sys32_fchmod_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgfr	%r3,%r3			# mode_t
 	jg	sys_fchmod		# branch to system call
-
-ENTRY(sys32_fchown16_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# compat_uid_t
-	llgfr	%r4,%r4			# compat_uid_t
-	jg	sys32_fchown16		# branch to system call
 
 ENTRY(sys32_getpriority_wrapper)
 	lgfr	%r2,%r2			# int
@@ -631,12 +610,6 @@ ENTRY(sys32_pwrite64_wrapper)
 	llgfr	%r5,%r5			# u32
 	llgfr	%r6,%r6			# u32
 	jg	sys32_pwrite64		# branch to system call
-
-ENTRY(sys32_chown16_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# __kernel_old_uid_emu31_t
-	llgfr	%r4,%r4			# __kernel_old_gid_emu31_t
-	jg	sys32_chown16		# branch to system call
 
 ENTRY(sys32_getcwd_wrapper)
 	llgtr	%r2,%r2			# char *

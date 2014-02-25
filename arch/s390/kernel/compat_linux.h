@@ -76,11 +76,11 @@ struct stat64_emu31;
 struct mmap_arg_struct_emu31;
 struct fadvise64_64_args;
 
-long sys32_chown16(const char __user * filename, u16 user, u16 group);
-long sys32_lchown16(const char __user * filename, u16 user, u16 group);
-long sys32_fchown16(unsigned int fd, u16 user, u16 group);
-long sys32_setregid16(u16 rgid, u16 egid);
-long sys32_setgid16(u16 gid);
+long compat_sys_s390_chown16(const char __user *filename, u16 user, u16 group);
+long compat_sys_s390_lchown16(const char __user *filename, u16 user, u16 group);
+long compat_sys_s390_fchown16(unsigned int fd, u16 user, u16 group);
+long compat_sys_s390_setregid16(u16 rgid, u16 egid);
+long compat_sys_s390_setgid16(u16 gid);
 long sys32_setreuid16(u16 ruid, u16 euid);
 long sys32_setuid16(u16 uid);
 long sys32_setresuid16(u16 ruid, u16 euid, u16 suid);

@@ -86,27 +86,29 @@
 #define SET_STAT_UID(stat, uid)		(stat).st_uid = high2lowuid(uid)
 #define SET_STAT_GID(stat, gid)		(stat).st_gid = high2lowgid(gid)
 
-asmlinkage long sys32_chown16(const char __user * filename, u16 user, u16 group)
+COMPAT_SYSCALL_DEFINE3(s390_chown16, const char __user *, filename,
+		       u16, user, u16, group)
 {
 	return sys_chown(filename, low2highuid(user), low2highgid(group));
 }
 
-asmlinkage long sys32_lchown16(const char __user * filename, u16 user, u16 group)
+COMPAT_SYSCALL_DEFINE3(s390_lchown16, const char __user *,
+		       filename, u16, user, u16, group)
 {
 	return sys_lchown(filename, low2highuid(user), low2highgid(group));
 }
 
-asmlinkage long sys32_fchown16(unsigned int fd, u16 user, u16 group)
+COMPAT_SYSCALL_DEFINE3(s390_fchown16, unsigned int, fd, u16, user, u16, group)
 {
 	return sys_fchown(fd, low2highuid(user), low2highgid(group));
 }
 
-asmlinkage long sys32_setregid16(u16 rgid, u16 egid)
+COMPAT_SYSCALL_DEFINE2(s390_setregid16, u16, rgid, u16, egid)
 {
 	return sys_setregid(low2highgid(rgid), low2highgid(egid));
 }
 
-asmlinkage long sys32_setgid16(u16 gid)
+COMPAT_SYSCALL_DEFINE1(s390_setgid16, u16, gid)
 {
 	return sys_setgid((gid_t)gid);
 }
