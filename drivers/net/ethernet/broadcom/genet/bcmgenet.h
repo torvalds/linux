@@ -524,7 +524,6 @@ struct bcmgenet_priv {
 	enum bcmgenet_version version;
 	struct net_device *dev;
 	spinlock_t lock;
-	spinlock_t bh_lock;
 	u32 int0_mask;
 	u32 int1_mask;
 
