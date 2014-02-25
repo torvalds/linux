@@ -187,7 +187,7 @@ struct rtl8192_tx_ring {
 };
 
 struct rtl8192_rx_ring {
-	struct rtl_rx_desc *desc;/*for old trx flow, not uesd in new trx*/
+	struct rtl_rx_desc *desc;/*for old trx flow, not used in new trx*/
 	/*dma matches either 'desc' or 'buffer_desc'*/
 	dma_addr_t dma;
 	unsigned int idx;

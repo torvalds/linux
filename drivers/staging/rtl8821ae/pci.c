@@ -583,7 +583,7 @@ static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 		(rtlpriv->buddy_priv &&
 		 rtlpriv->buddy_priv->easy_concurrent_ctl.bswitch_in_process)))
 		return;
-	/* we juse use em for BE/BK/VI/VO */
+	/* we just use em for BE/BK/VI/VO */
 	for (tid = 7; tid >= 0; tid--) {
 		u8 hw_queue = ac_to_hwq[rtl_tid_to_ac(hw, tid)];
 		struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
@@ -672,7 +672,7 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 		}
 
 		/* for sw LPS, just after NULL skb send out, we can
-		 * sure AP kown we are sleeped, our we should not let
+		 * sure AP known we are slept, our we should not let
 		 * rf to sleep*/
 		fc = rtl_get_fc(skb);
 		if (ieee80211_is_nullfunc(fc)) {
@@ -772,7 +772,7 @@ static int _rtl_pci_init_one_rxdesc(struct ieee80211_hw *hw,
 	return 1;
 }
 
-/* inorder to receive 8K AMSDU we have set skb to
+/* In order to receive 8K AMSDU we have set skb to
  * 9100bytes in init rx ring, but if this packet is
  * not a AMSDU, this so big packet will be sent to
  * TCP/IP directly, this cause big packet ping fail
@@ -783,7 +783,7 @@ static int _rtl_pci_init_one_rxdesc(struct ieee80211_hw *hw,
 /* but some platform will fail when alloc skb sometimes.
  * in this condition, we will send the old skb to
  * mac80211 directly, this will not cause any other
- * issues, but only be losted by TCP/IP */
+ * issues, but only be lost by TCP/IP */
 static void _rtl_pci_rx_to_mac80211(struct ieee80211_hw *hw,
 	struct sk_buff *skb, struct ieee80211_rx_status rx_status)
 {
@@ -1029,7 +1029,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	rtlpriv->cfg->ops->interrupt_recognized(hw, &inta, &intb);
 
 
-	/*Shared IRQ or HW disappared */
+	/*Shared IRQ or HW disappeared */
 	if (!inta || inta == 0xffff)
 		goto done;
 	/*<1> beacon related */
@@ -1936,7 +1936,7 @@ void rtl_pci_stop(struct ieee80211_hw *hw)
 	u8 RFInProgressTimeOut = 0;
 
 	/*
-	 *should before disable interrrupt&adapter
+	 *should before disable interrupt&adapter
 	 *and will do it immediately.
 	 */
 	set_hal_stop(rtlhal);
@@ -2293,7 +2293,7 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	/*
 	 *init dbgp flags before all
 	 *other functions, because we will
-	 *use it in other funtions like
+	 *use it in other functions like
 	 *RT_TRACE/RT_PRINT/RTL_PRINT_DATA
 	 *you can not use these macro
 	 *before this

@@ -373,7 +373,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			/* sleep here is must, or we may recv the beacon and
 			 * cause mac80211 into wrong ps state, this will cause
 			 * power save nullfunc send fail, and further cause
-			 * pkt loss, So sleep must quickly but not immediatly
+			 * pkt loss, So sleep must quickly but not immediately
 			 * because that will cause nullfunc send by mac80211
 			 * fail, and cause pkt loss, we have tested that 5mA
 			 * is worked very well */
@@ -1200,8 +1200,8 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		key_type = AESCMAC_ENCRYPTION;
 		RT_TRACE(COMP_SEC, DBG_DMESG, ("alg:CMAC\n"));
 		RT_TRACE(COMP_SEC, DBG_DMESG,
-				("HW don't support CMAC encrypiton, "
-				"use software CMAC encrypiton\n"));
+				("HW don't support CMAC encryption, "
+				"use software CMAC encryption\n"));
 		err = -EOPNOTSUPP;
 		goto out_unlock;
 	default:
@@ -1235,8 +1235,8 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		key_type = AESCMAC_ENCRYPTION;
 		RT_TRACE(COMP_SEC, DBG_DMESG, ("alg:CMAC\n"));
 		RT_TRACE(COMP_SEC, DBG_DMESG,
-			 ("HW don't support CMAC encrypiton, "
-			  "use software CMAC encrypiton\n"));
+			 ("HW don't support CMAC encryption, "
+			  "use software CMAC encryption\n"));
 		err = -EOPNOTSUPP;
 		goto out_unlock;
 	default:
@@ -1411,7 +1411,7 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
 }
 
 /* this function is called by mac80211 to flush tx buffer
- * before switch channle or power save, or tx buffer packet
+ * before switch channel or power save, or tx buffer packet
  * maybe send after offchannel or rf sleep, this may cause
  * dis-association by AP */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))

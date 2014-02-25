@@ -39,10 +39,10 @@
 #include "pci.h"
 
 /*
- *NOTICE!!!: This file will be very big, we hsould
- *keep it clear under follwing roles:
+ *NOTICE!!!: This file will be very big, we should
+ *keep it clear under following roles:
  *
- *This file include follwing part, so, if you add new
+ *This file include following part, so, if you add new
  *functions into this file, please check which part it
  *should includes. or check if you should add new part
  *for this file:
@@ -662,7 +662,7 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 
 	if (rtlpriv->dm.b_useramask) {
 		tcb_desc->ratr_index = ratr_index;
-		/* TODO we will differentiate adhoc and station futrue  */
+		/* TODO we will differentiate adhoc and station future  */
 		if (mac->opmode == NL80211_IFTYPE_STATION ||
 			mac->opmode == NL80211_IFTYPE_MESH_POINT) {
 			tcb_desc->mac_id = 0;
@@ -772,10 +772,10 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 			tcb_desc->disable_ratefallback = 1;
 		} else {
 			/*
-			 *because hw will nerver use hw_rate
+			 *because hw will never use hw_rate
 			 *when tcb_desc->use_driver_rate = false
 			 *so we never set highest N rate here,
-			 *and N rate will all be controled by FW
+			 *and N rate will all be controlled by FW
 			 *when tcb_desc->use_driver_rate = false
 			 */
 			if (sta && (sta->ht_cap.ht_supported)) {
@@ -1671,7 +1671,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 		(memcmp(mac->bssid, ap4_2, 3) == 0) ||
 		(memcmp(mac->bssid, ap4_3, 3) == 0) ||
 		vendor == PEER_RAL) {
-		RT_TRACE(COMP_MAC80211, DBG_LOUD, ("=>ral findn\n"));
+		RT_TRACE(COMP_MAC80211, DBG_LOUD, ("=>ral find\n"));
 		vendor = PEER_RAL;
 	} else if (memcmp(mac->bssid, ap6_1, 3) == 0 ||
 		vendor == PEER_CISCO) {

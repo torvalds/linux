@@ -76,7 +76,7 @@
 #define RTL_SLOT_TIME_20		20
 
 /*related with tcp/ip. */
-/*if_ehther.h*/
+/*if_ether.h*/
 #define ETH_P_PAE			0x888E	/*Port Access Entity
 						 *(IEEE 802.1X) */
 #define ETH_P_IP			0x0800	/*Internet Protocol packet */
@@ -112,7 +112,7 @@
 #define MAX_NUM_RATES			264
 
 /*for 88E use*/
-/*It must always set to 4, otherwise read efuse table secquence will be wrong.*/
+/*It must always set to 4, otherwise read efuse table sequence will be wrong.*/
 #define MAX_TX_COUNT			4
 #define	MAX_RF_PATH			4
 #define	MAX_CHNL_GROUP_24G		6
@@ -435,7 +435,7 @@ enum ht_channel_width {
 	HT_CHANNEL_WIDTH_80 = 2,
 };
 
-/* Ref: 802.11i sepc D10.0 7.3.2.25.1
+/* Ref: 802.11i spec D10.0 7.3.2.25.1
 Cipher Suites Encryption Algorithms */
 enum rt_enc_alg {
 	NO_ENCRYPTION = 0,
@@ -499,14 +499,14 @@ enum rtl_var_map {
 	RTL_IMR_BCNDMAINT3,	/*Beacon DMA Interrupt 3 */
 	RTL_IMR_BCNDMAINT2,	/*Beacon DMA Interrupt 2 */
 	RTL_IMR_BCNDMAINT1,	/*Beacon DMA Interrupt 1 */
-	RTL_IMR_BCNDOK8,	/*Beacon Queue DMA OK Interrup 8 */
-	RTL_IMR_BCNDOK7,	/*Beacon Queue DMA OK Interrup 7 */
-	RTL_IMR_BCNDOK6,	/*Beacon Queue DMA OK Interrup 6 */
-	RTL_IMR_BCNDOK5,	/*Beacon Queue DMA OK Interrup 5 */
-	RTL_IMR_BCNDOK4,	/*Beacon Queue DMA OK Interrup 4 */
-	RTL_IMR_BCNDOK3,	/*Beacon Queue DMA OK Interrup 3 */
-	RTL_IMR_BCNDOK2,	/*Beacon Queue DMA OK Interrup 2 */
-	RTL_IMR_BCNDOK1,	/*Beacon Queue DMA OK Interrup 1 */
+	RTL_IMR_BCNDOK8,	/*Beacon Queue DMA OK Interrupt 8 */
+	RTL_IMR_BCNDOK7,	/*Beacon Queue DMA OK Interrupt 7 */
+	RTL_IMR_BCNDOK6,	/*Beacon Queue DMA OK Interrupt 6 */
+	RTL_IMR_BCNDOK5,	/*Beacon Queue DMA OK Interrupt 5 */
+	RTL_IMR_BCNDOK4,	/*Beacon Queue DMA OK Interrupt 4 */
+	RTL_IMR_BCNDOK3,	/*Beacon Queue DMA OK Interrupt 3 */
+	RTL_IMR_BCNDOK2,	/*Beacon Queue DMA OK Interrupt 2 */
+	RTL_IMR_BCNDOK1,	/*Beacon Queue DMA OK Interrupt 1 */
 	RTL_IMR_TIMEOUT2,	/*Timeout interrupt 2 */
 	RTL_IMR_TIMEOUT1,	/*Timeout interrupt 1 */
 	RTL_IMR_TXFOVW,		/*Transmit FIFO Overflow */
@@ -515,10 +515,10 @@ enum rtl_var_map {
 	RTL_IMR_RXFOVW,		/*Receive FIFO Overflow */
 	RTL_IMR_RDU,		/*Receive Descriptor Unavailable */
 	RTL_IMR_ATIMEND,	/*For 92C,ATIM Window End Interrupt */
-	RTL_IMR_BDOK,		/*Beacon Queue DMA OK Interrup */
+	RTL_IMR_BDOK,		/*Beacon Queue DMA OK Interrupt */
 	RTL_IMR_HIGHDOK,	/*High Queue DMA OK Interrupt */
 	RTL_IMR_COMDOK,		/*Command Queue DMA OK Interrupt*/
-	RTL_IMR_TBDOK,		/*Transmit Beacon OK interrup */
+	RTL_IMR_TBDOK,		/*Transmit Beacon OK interrupt */
 	RTL_IMR_MGNTDOK,	/*Management Queue DMA OK Interrupt */
 	RTL_IMR_TBDER,		/*For 92C,Transmit Beacon Error Interrupt */
 	RTL_IMR_BKDOK,		/*AC_BK DMA OK Interrupt */
@@ -1256,7 +1256,7 @@ struct rtl_security {
 	bool use_defaultkey;
 	/*Encryption Algorithm for Unicast Packet */
 	enum rt_enc_alg pairwise_enc_algorithm;
-	/*Encryption Algorithm for Brocast/Multicast */
+	/*Encryption Algorithm for Broadcast/Multicast */
 	enum rt_enc_alg group_enc_algorithm;
 	/*Cam Entry Bitmap */
 	u32 hwsec_cam_bitmap;
@@ -1691,7 +1691,7 @@ struct rtl_stats {
 };
 
 struct rt_link_detect {
-	/* count for raoming */
+	/* count for roaming */
 	u32 bcn_rx_inperiod;
 	u32 roam_times;
 
@@ -2089,7 +2089,7 @@ struct rtl_priv {
 
 	/*
 	 *hal_cfg : for diff cards
-	 *intf_ops : for diff interrface usb/pcie
+	 *intf_ops : for diff interface usb/pcie
 	 */
 	struct rtl_hal_cfg *cfg;
 	struct rtl_intf_ops *intf_ops;
@@ -2107,7 +2107,7 @@ struct rtl_priv {
 	/*for bt coexist use*/
 	struct rtl_bt_coexist btcoexist;
 
-	/* seperate 92ee from other ICs,
+	/* separate 92ee from other ICs,
 	  * 92ee use new trx flow. */
 	bool use_new_trx_flow;
 	/*This must be the last item so
@@ -2385,7 +2385,7 @@ Set subfield of little-endian 4-byte value to specified value.	*/
 #define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT(6)
 /* no matter RFOFF or SLEEP we set PS_ASPM_LEVL*/
 #define	RT_PS_LEVEL_ASPM		BIT(7)
-/*When LPS is on, disable 2R if no packet is received or transmittd.*/
+/*When LPS is on, disable 2R if no packet is received or transmitted.*/
 #define	RT_RF_LPS_DISALBE_2R		BIT(30)
 #define	RT_RF_LPS_LEVEL_ASPM		BIT(31)	/*LPS with ASPM */
 #define	RT_IN_PS_LEVEL(ppsc, _ps_flg)		\

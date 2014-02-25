@@ -2,20 +2,20 @@
  *
  * Copyright(c) 2009-2010  Realtek Corporation.
  *
- * Tmis program is free software; you can redistribute it and/or modify it
+ * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * Tmis program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * tmis program; if not, write to the Free Software Foundation, Inc.,
+ * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- * Tme full GNU General Public License is included in this distribution in the
+ * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
@@ -1120,7 +1120,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 bwrite, u8 pwrstate)
 		{
 			rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_ACCESS], 0x69);
 
-			// 1.2V Power: From VDDON with Power Cut(0x0000h[15]), defualt valid
+			// 1.2V Power: From VDDON with Power Cut(0x0000h[15]), default valid
 			tmpV16 = rtl_read_word(rtlpriv,
 					       rtlpriv->cfg->maps[SYS_ISO_CTRL]);
 
