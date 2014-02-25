@@ -229,7 +229,7 @@ static int rk_adc_probe(struct platform_device *pdev)
 	}
 	
 	//clk enable
-	info->pclk = clk_get(&pdev->dev, "pclk_saradc");
+	info->pclk = devm_clk_get(&pdev->dev, "pclk_saradc");
 	if (IS_ERR(info->pclk)) {
 	    dev_err(&pdev->dev, "failed to get adc pclk\n");
 	    ret = PTR_ERR(info->pclk);
@@ -237,7 +237,7 @@ static int rk_adc_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(info->pclk);
 	
-	info->clk = clk_get(&pdev->dev, "saradc");
+	info->clk = devm_clk_get(&pdev->dev, "saradc");
 	if (IS_ERR(info->clk)) {
 	    dev_err(&pdev->dev, "failed to get adc clock\n");
 	    ret = PTR_ERR(info->clk);
@@ -246,13 +246,13 @@ static int rk_adc_probe(struct platform_device *pdev)
 
 	if(of_property_read_u32(np, "clock-frequency", &rate)) {
         dev_err(&pdev->dev, "Missing clock-frequency property in the DT.\n");
-	    goto err_clk2;
+	    goto err_pclk;
 	}
 
 	ret = clk_set_rate(info->clk, rate);
 	    if(ret < 0) {
 	    dev_err(&pdev->dev, "failed to set adc clk\n");
-	    goto err_clk2;
+	    goto err_pclk;
 	}
 	clk_prepare_enable(info->clk);
 
@@ -290,12 +290,10 @@ err_iio_dev:
 	iio_device_unregister(indio_dev);
 	
 err_clk:
-	clk_disable(info->clk);
-err_clk2:
-	clk_put(info->clk);
+	clk_disable_unprepare(info->clk);
+
 err_pclk:
-	clk_disable(info->pclk);
-	clk_put(info->pclk);
+	clk_disable_unprepare(info->pclk);
 	
 err_iio:
 	iio_device_free(indio_dev);
@@ -309,10 +307,8 @@ static int rk_adc_remove(struct platform_device *pdev)
 
 	device_for_each_child(&pdev->dev, NULL,
 				rk_adc_remove_devices);
-	clk_disable(info->clk);
-	clk_put(info->clk);
-	clk_disable(info->pclk);
-	clk_put(info->pclk);
+	clk_disable_unprepare(info->clk);
+	clk_disable_unprepare(info->pclk);
 	iio_device_unregister(indio_dev);
 	free_irq(info->irq, info);
 	iio_device_free(indio_dev);
