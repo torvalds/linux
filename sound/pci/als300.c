@@ -661,7 +661,7 @@ static int snd_als300_create(struct snd_card *card,
 
 	if (pci_set_dma_mask(pci, DMA_BIT_MASK(28)) < 0 ||
 		pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(28)) < 0) {
-		printk(KERN_ERR "error setting 28bit DMA mask\n");
+		dev_err(card->dev, "error setting 28bit DMA mask\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -693,7 +693,7 @@ static int snd_als300_create(struct snd_card *card,
 
 	if (request_irq(pci->irq, irq_handler, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
 		snd_als300_free(chip);
 		return -EBUSY;
 	}
@@ -704,13 +704,13 @@ static int snd_als300_create(struct snd_card *card,
 
 	err = snd_als300_ac97(chip);
 	if (err < 0) {
-		snd_printk(KERN_WARNING "Could not create ac97\n");
+		dev_err(card->dev, "Could not create ac97\n");
 		snd_als300_free(chip);
 		return err;
 	}
 
 	if ((err = snd_als300_new_pcm(chip)) < 0) {
-		snd_printk(KERN_WARNING "Could not create PCM\n");
+		dev_err(card->dev, "Could not create PCM\n");
 		snd_als300_free(chip);
 		return err;
 	}
@@ -751,8 +751,7 @@ static int snd_als300_resume(struct device *dev)
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
-		printk(KERN_ERR "als300: pci_enable_device failed, "
-		       "disabling device\n");
+		dev_err(dev, "pci_enable_device failed, disabling device\n");
 		snd_card_disconnect(card);
 		return -EIO;
 	}
