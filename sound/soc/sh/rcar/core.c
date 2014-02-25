@@ -577,7 +577,6 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 };
 
 static int rsnd_dai_probe(struct platform_device *pdev,
-			  struct rcar_snd_info *info,
 			  struct rsnd_priv *priv)
 {
 	struct snd_soc_dai_driver *drv;
@@ -773,23 +772,23 @@ static int rsnd_probe(struct platform_device *pdev)
 	/*
 	 *	init each module
 	 */
-	ret = rsnd_gen_probe(pdev, info, priv);
+	ret = rsnd_gen_probe(pdev, priv);
 	if (ret)
 		return ret;
 
-	ret = rsnd_ssi_probe(pdev, info, priv);
+	ret = rsnd_ssi_probe(pdev, priv);
 	if (ret)
 		return ret;
 
-	ret = rsnd_scu_probe(pdev, info, priv);
+	ret = rsnd_scu_probe(pdev, priv);
 	if (ret)
 		return ret;
 
-	ret = rsnd_adg_probe(pdev, info, priv);
+	ret = rsnd_adg_probe(pdev, priv);
 	if (ret)
 		return ret;
 
-	ret = rsnd_dai_probe(pdev, info, priv);
+	ret = rsnd_dai_probe(pdev, priv);
 	if (ret)
 		return ret;
 

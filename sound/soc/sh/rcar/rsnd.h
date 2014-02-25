@@ -226,7 +226,6 @@ int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
  *	R-Car Gen1/Gen2
  */
 int rsnd_gen_probe(struct platform_device *pdev,
-		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv);
 void rsnd_gen_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
@@ -248,7 +247,6 @@ void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod);
 int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate);
 int rsnd_adg_probe(struct platform_device *pdev,
-		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv);
 void rsnd_adg_remove(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
@@ -305,6 +303,7 @@ struct rsnd_priv {
 };
 
 #define rsnd_priv_to_dev(priv)	((priv)->dev)
+#define rsnd_priv_to_info(priv)	((priv)->info)
 #define rsnd_lock(priv, flags) spin_lock_irqsave(&priv->lock, flags)
 #define rsnd_unlock(priv, flags) spin_unlock_irqrestore(&priv->lock, flags)
 
@@ -312,7 +311,6 @@ struct rsnd_priv {
  *	R-Car SCU
  */
 int rsnd_scu_probe(struct platform_device *pdev,
-		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv);
 void rsnd_scu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
@@ -327,7 +325,6 @@ unsigned int rsnd_scu_get_ssi_rate(struct rsnd_priv *priv,
  *	R-Car SSI
  */
 int rsnd_ssi_probe(struct platform_device *pdev,
-		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv);
 void rsnd_ssi_remove(struct platform_device *pdev,
 		   struct rsnd_priv *priv);

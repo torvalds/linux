@@ -511,9 +511,9 @@ static void rsnd_ssi_parent_clk_setup(struct rsnd_priv *priv, struct rsnd_ssi *s
 }
 
 int rsnd_ssi_probe(struct platform_device *pdev,
-		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv)
 {
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct rsnd_ssi_platform_info *pinfo;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod_ops *ops;

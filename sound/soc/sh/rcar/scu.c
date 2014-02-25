@@ -604,9 +604,9 @@ struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id)
 }
 
 int rsnd_scu_probe(struct platform_device *pdev,
-		   struct rcar_snd_info *info,
 		   struct rsnd_priv *priv)
 {
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_scu *scu;
 	struct rsnd_mod_ops *ops;
