@@ -14,6 +14,7 @@
 
 #include <asm-generic/io-64-nonatomic-lo-hi.h>
 
+#define TIMEOUT_100_MS	100
 #define MASK(n)		DMA_BIT_MASK(n)
 #define MN_WIN(addr)	(((addr & 0x1fc0000) >> 1) | ((addr >> 25) & 0x3ff))
 #define OCM_WIN(addr)	(((addr & 0x1ff0000) >> 1) | ((addr >> 25) & 0x3ff))
@@ -1714,6 +1715,101 @@ void qla4_82xx_rom_lock_recovery(struct scsi_qla_host *ha)
 	qla4_82xx_rom_unlock(ha);
 }
 
+static uint32_t ql4_84xx_poll_wait_for_ready(struct scsi_qla_host *ha,
+					     uint32_t addr1, uint32_t mask)
+{
+	unsigned long timeout;
+	uint32_t rval = QLA_SUCCESS;
+	uint32_t temp;
+
+	timeout = jiffies + msecs_to_jiffies(TIMEOUT_100_MS);
+	do {
+		ha->isp_ops->rd_reg_indirect(ha, addr1, &temp);
+		if ((temp & mask) != 0)
+			break;
+
+		if (time_after_eq(jiffies, timeout)) {
+			ql4_printk(KERN_INFO, ha, "Error in processing rdmdio entry\n");
+			return QLA_ERROR;
+		}
+	} while (1);
+
+	return rval;
+}
+
+uint32_t ql4_84xx_ipmdio_rd_reg(struct scsi_qla_host *ha, uint32_t addr1,
+				uint32_t addr3, uint32_t mask, uint32_t addr,
+				uint32_t *data_ptr)
+{
+	int rval = QLA_SUCCESS;
+	uint32_t temp;
+	uint32_t data;
+
+	rval = ql4_84xx_poll_wait_for_ready(ha, addr1, mask);
+	if (rval)
+		goto exit_ipmdio_rd_reg;
+
+	temp = (0x40000000 | addr);
+	ha->isp_ops->wr_reg_indirect(ha, addr1, temp);
+
+	rval = ql4_84xx_poll_wait_for_ready(ha, addr1, mask);
+	if (rval)
+		goto exit_ipmdio_rd_reg;
+
+	ha->isp_ops->rd_reg_indirect(ha, addr3, &data);
+	*data_ptr = data;
+
+exit_ipmdio_rd_reg:
+	return rval;
+}
+
+
+static uint32_t ql4_84xx_poll_wait_ipmdio_bus_idle(struct scsi_qla_host *ha,
+						    uint32_t addr1,
+						    uint32_t addr2,
+						    uint32_t addr3,
+						    uint32_t mask)
+{
+	unsigned long timeout;
+	uint32_t temp;
+	uint32_t rval = QLA_SUCCESS;
+
+	timeout = jiffies + msecs_to_jiffies(TIMEOUT_100_MS);
+	do {
+		ql4_84xx_ipmdio_rd_reg(ha, addr1, addr3, mask, addr2, &temp);
+		if ((temp & 0x1) != 1)
+			break;
+		if (time_after_eq(jiffies, timeout)) {
+			ql4_printk(KERN_INFO, ha, "Error in processing mdiobus idle\n");
+			return QLA_ERROR;
+		}
+	} while (1);
+
+	return rval;
+}
+
+static int ql4_84xx_ipmdio_wr_reg(struct scsi_qla_host *ha,
+				  uint32_t addr1, uint32_t addr3,
+				  uint32_t mask, uint32_t addr,
+				  uint32_t value)
+{
+	int rval = QLA_SUCCESS;
+
+	rval = ql4_84xx_poll_wait_for_ready(ha, addr1, mask);
+	if (rval)
+		goto exit_ipmdio_wr_reg;
+
+	ha->isp_ops->wr_reg_indirect(ha, addr3, value);
+	ha->isp_ops->wr_reg_indirect(ha, addr1, addr);
+
+	rval = ql4_84xx_poll_wait_for_ready(ha, addr1, mask);
+	if (rval)
+		goto exit_ipmdio_wr_reg;
+
+exit_ipmdio_wr_reg:
+	return rval;
+}
+
 static void qla4_8xxx_minidump_process_rdcrb(struct scsi_qla_host *ha,
 				struct qla8xxx_minidump_entry_hdr *entry_hdr,
 				uint32_t **d_ptr)
@@ -2440,6 +2536,227 @@ exit_process_pollrd:
 	return rval;
 }
 
+static uint32_t qla4_84xx_minidump_process_rddfe(struct scsi_qla_host *ha,
+				struct qla8xxx_minidump_entry_hdr *entry_hdr,
+				uint32_t **d_ptr)
+{
+	int loop_cnt;
+	uint32_t addr1, addr2, value, data, temp, wrval;
+	uint8_t stride, stride2;
+	uint16_t count;
+	uint32_t poll, mask, data_size, modify_mask;
+	uint32_t wait_count = 0;
+	uint32_t *data_ptr = *d_ptr;
+	struct qla8044_minidump_entry_rddfe *rddfe;
+	uint32_t rval = QLA_SUCCESS;
+
+	rddfe = (struct qla8044_minidump_entry_rddfe *)entry_hdr;
+	addr1 = le32_to_cpu(rddfe->addr_1);
+	value = le32_to_cpu(rddfe->value);
+	stride = le32_to_cpu(rddfe->stride);
+	stride2 = le32_to_cpu(rddfe->stride2);
+	count = le32_to_cpu(rddfe->count);
+
+	poll = le32_to_cpu(rddfe->poll);
+	mask = le32_to_cpu(rddfe->mask);
+	modify_mask = le32_to_cpu(rddfe->modify_mask);
+	data_size = le32_to_cpu(rddfe->data_size);
+
+	addr2 = addr1 + stride;
+
+	for (loop_cnt = 0x0; loop_cnt < count; loop_cnt++) {
+		ha->isp_ops->wr_reg_indirect(ha, addr1, (0x40000000 | value));
+
+		wait_count = 0;
+		while (wait_count < poll) {
+			ha->isp_ops->rd_reg_indirect(ha, addr1, &temp);
+			if ((temp & mask) != 0)
+				break;
+			wait_count++;
+		}
+
+		if (wait_count == poll) {
+			ql4_printk(KERN_ERR, ha, "%s: TIMEOUT\n", __func__);
+			rval = QLA_ERROR;
+			goto exit_process_rddfe;
+		} else {
+			ha->isp_ops->rd_reg_indirect(ha, addr2, &temp);
+			temp = temp & modify_mask;
+			temp = (temp | ((loop_cnt << 16) | loop_cnt));
+			wrval = ((temp << 16) | temp);
+
+			ha->isp_ops->wr_reg_indirect(ha, addr2, wrval);
+			ha->isp_ops->wr_reg_indirect(ha, addr1, value);
+
+			wait_count = 0;
+			while (wait_count < poll) {
+				ha->isp_ops->rd_reg_indirect(ha, addr1, &temp);
+				if ((temp & mask) != 0)
+					break;
+				wait_count++;
+			}
+			if (wait_count == poll) {
+				ql4_printk(KERN_ERR, ha, "%s: TIMEOUT\n",
+					   __func__);
+				rval = QLA_ERROR;
+				goto exit_process_rddfe;
+			}
+
+			ha->isp_ops->wr_reg_indirect(ha, addr1,
+						     ((0x40000000 | value) +
+						     stride2));
+			wait_count = 0;
+			while (wait_count < poll) {
+				ha->isp_ops->rd_reg_indirect(ha, addr1, &temp);
+				if ((temp & mask) != 0)
+					break;
+				wait_count++;
+			}
+
+			if (wait_count == poll) {
+				ql4_printk(KERN_ERR, ha, "%s: TIMEOUT\n",
+					   __func__);
+				rval = QLA_ERROR;
+				goto exit_process_rddfe;
+			}
+
+			ha->isp_ops->rd_reg_indirect(ha, addr2, &data);
+
+			*data_ptr++ = cpu_to_le32(wrval);
+			*data_ptr++ = cpu_to_le32(data);
+		}
+	}
+
+	*d_ptr = data_ptr;
+exit_process_rddfe:
+	return rval;
+}
+
+static uint32_t qla4_84xx_minidump_process_rdmdio(struct scsi_qla_host *ha,
+				struct qla8xxx_minidump_entry_hdr *entry_hdr,
+				uint32_t **d_ptr)
+{
+	int rval = QLA_SUCCESS;
+	uint32_t addr1, addr2, value1, value2, data, selval;
+	uint8_t stride1, stride2;
+	uint32_t addr3, addr4, addr5, addr6, addr7;
+	uint16_t count, loop_cnt;
+	uint32_t poll, mask;
+	uint32_t *data_ptr = *d_ptr;
+	struct qla8044_minidump_entry_rdmdio *rdmdio;
+
+	rdmdio = (struct qla8044_minidump_entry_rdmdio *)entry_hdr;
+	addr1 = le32_to_cpu(rdmdio->addr_1);
+	addr2 = le32_to_cpu(rdmdio->addr_2);
+	value1 = le32_to_cpu(rdmdio->value_1);
+	stride1 = le32_to_cpu(rdmdio->stride_1);
+	stride2 = le32_to_cpu(rdmdio->stride_2);
+	count = le32_to_cpu(rdmdio->count);
+
+	poll = le32_to_cpu(rdmdio->poll);
+	mask = le32_to_cpu(rdmdio->mask);
+	value2 = le32_to_cpu(rdmdio->value_2);
+
+	addr3 = addr1 + stride1;
+
+	for (loop_cnt = 0; loop_cnt < count; loop_cnt++) {
+		rval = ql4_84xx_poll_wait_ipmdio_bus_idle(ha, addr1, addr2,
+							 addr3, mask);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		addr4 = addr2 - stride1;
+		rval = ql4_84xx_ipmdio_wr_reg(ha, addr1, addr3, mask, addr4,
+					     value2);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		addr5 = addr2 - (2 * stride1);
+		rval = ql4_84xx_ipmdio_wr_reg(ha, addr1, addr3, mask, addr5,
+					     value1);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		addr6 = addr2 - (3 * stride1);
+		rval = ql4_84xx_ipmdio_wr_reg(ha, addr1, addr3, mask,
+					     addr6, 0x2);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		rval = ql4_84xx_poll_wait_ipmdio_bus_idle(ha, addr1, addr2,
+							 addr3, mask);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		addr7 = addr2 - (4 * stride1);
+		rval = ql4_84xx_ipmdio_rd_reg(ha, addr1, addr3,
+						      mask, addr7, &data);
+		if (rval)
+			goto exit_process_rdmdio;
+
+		selval = (value2 << 18) | (value1 << 2) | 2;
+
+		stride2 = le32_to_cpu(rdmdio->stride_2);
+		*data_ptr++ = cpu_to_le32(selval);
+		*data_ptr++ = cpu_to_le32(data);
+
+		value1 = value1 + stride2;
+		*d_ptr = data_ptr;
+	}
+
+exit_process_rdmdio:
+	return rval;
+}
+
+static uint32_t qla4_84xx_minidump_process_pollwr(struct scsi_qla_host *ha,
+				struct qla8xxx_minidump_entry_hdr *entry_hdr,
+				uint32_t **d_ptr)
+{
+	uint32_t addr1, addr2, value1, value2, poll, mask, r_value;
+	struct qla8044_minidump_entry_pollwr *pollwr_hdr;
+	uint32_t wait_count = 0;
+	uint32_t rval = QLA_SUCCESS;
+
+	pollwr_hdr = (struct qla8044_minidump_entry_pollwr *)entry_hdr;
+	addr1 = le32_to_cpu(pollwr_hdr->addr_1);
+	addr2 = le32_to_cpu(pollwr_hdr->addr_2);
+	value1 = le32_to_cpu(pollwr_hdr->value_1);
+	value2 = le32_to_cpu(pollwr_hdr->value_2);
+
+	poll = le32_to_cpu(pollwr_hdr->poll);
+	mask = le32_to_cpu(pollwr_hdr->mask);
+
+	while (wait_count < poll) {
+		ha->isp_ops->rd_reg_indirect(ha, addr1, &r_value);
+
+		if ((r_value & poll) != 0)
+			break;
+
+		wait_count++;
+	}
+
+	if (wait_count == poll) {
+		ql4_printk(KERN_ERR, ha, "%s: TIMEOUT\n", __func__);
+		rval = QLA_ERROR;
+		goto exit_process_pollwr;
+	}
+
+	ha->isp_ops->wr_reg_indirect(ha, addr2, value2);
+	ha->isp_ops->wr_reg_indirect(ha, addr1, value1);
+
+	wait_count = 0;
+	while (wait_count < poll) {
+		ha->isp_ops->rd_reg_indirect(ha, addr1, &r_value);
+
+		if ((r_value & poll) != 0)
+			break;
+		wait_count++;
+	}
+
+exit_process_pollwr:
+	return rval;
+}
+
 static void qla83xx_minidump_process_rdmux2(struct scsi_qla_host *ha,
 				struct qla8xxx_minidump_entry_hdr *entry_hdr,
 				uint32_t **d_ptr)
@@ -2750,6 +3067,24 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 			}
 			rval = qla83xx_minidump_process_pollrdmwr(ha, entry_hdr,
 								  &data_ptr);
+			if (rval != QLA_SUCCESS)
+				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
+			break;
+		case QLA8044_RDDFE:
+			rval = qla4_84xx_minidump_process_rddfe(ha, entry_hdr,
+								&data_ptr);
+			if (rval != QLA_SUCCESS)
+				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
+			break;
+		case QLA8044_RDMDIO:
+			rval = qla4_84xx_minidump_process_rdmdio(ha, entry_hdr,
+								 &data_ptr);
+			if (rval != QLA_SUCCESS)
+				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
+			break;
+		case QLA8044_POLLWR:
+			rval = qla4_84xx_minidump_process_pollwr(ha, entry_hdr,
+								 &data_ptr);
 			if (rval != QLA_SUCCESS)
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 			break;
