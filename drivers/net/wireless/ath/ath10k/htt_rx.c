@@ -852,6 +852,20 @@ static bool ath10k_htt_rx_has_mic_err(struct sk_buff *skb)
 	return false;
 }
 
+static bool ath10k_htt_rx_is_mgmt(struct sk_buff *skb)
+{
+	struct htt_rx_desc *rxd;
+	u32 flags;
+
+	rxd = (void *)skb->data - sizeof(*rxd);
+	flags = __le32_to_cpu(rxd->attention.flags);
+
+	if (flags & RX_ATTENTION_FLAGS_MGMT_TYPE)
+		return true;
+
+	return false;
+}
+
 static int ath10k_htt_rx_get_csum_state(struct sk_buff *skb)
 {
 	struct htt_rx_desc *rxd;
@@ -946,7 +960,8 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			status = info.status;
 
 			/* Skip mgmt frames while we handle this in WMI */
-			if (status == HTT_RX_IND_MPDU_STATUS_MGMT_CTRL) {
+			if (status == HTT_RX_IND_MPDU_STATUS_MGMT_CTRL ||
+			    ath10k_htt_rx_is_mgmt(msdu_head)) {
 				ath10k_dbg(ATH10K_DBG_HTT, "htt rx mgmt ctrl\n");
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
 				continue;
