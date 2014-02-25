@@ -2053,7 +2053,7 @@ static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 		ah->rxchainmask = fill_chainmask(ah->caps.rx_chainmask, rx_ant);
 
 	ah->txchainmask = fill_chainmask(ah->caps.tx_chainmask, tx_ant);
-	ath9k_reload_chainmask_settings(sc);
+	ath9k_cmn_reload_chainmask(ah);
 
 	return 0;
 }

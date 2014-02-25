@@ -642,20 +642,6 @@ static void ath9k_init_txpower_limits(struct ath_softc *sc)
 	ah->curchan = curchan;
 }
 
-void ath9k_reload_chainmask_settings(struct ath_softc *sc)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_HT))
-		return;
-
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
-		ath9k_cmn_setup_ht_cap(ah, &common->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
-		ath9k_cmn_setup_ht_cap(ah, &common->sbands[IEEE80211_BAND_5GHZ].ht_cap);
-}
-
 static const struct ieee80211_iface_limit if_limits[] = {
 	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
@@ -772,7 +758,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			&common->sbands[IEEE80211_BAND_5GHZ];
 
 	ath9k_init_wow(hw);
-	ath9k_reload_chainmask_settings(sc);
+	ath9k_cmn_reload_chainmask(ah);
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 }

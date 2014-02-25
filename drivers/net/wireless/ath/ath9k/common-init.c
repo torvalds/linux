@@ -226,3 +226,19 @@ void ath9k_cmn_setup_ht_cap(struct ath_hw *ah,
 	ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
 }
 EXPORT_SYMBOL(ath9k_cmn_setup_ht_cap);
+
+void ath9k_cmn_reload_chainmask(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_HT))
+		return;
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
+		ath9k_cmn_setup_ht_cap(ah,
+			&common->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
+		ath9k_cmn_setup_ht_cap(ah,
+			&common->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+}
+EXPORT_SYMBOL(ath9k_cmn_reload_chainmask);
