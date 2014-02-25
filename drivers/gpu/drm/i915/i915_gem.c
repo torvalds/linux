@@ -2298,11 +2298,13 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 	kfree(request);
 }
 
-static struct drm_i915_gem_request *
-i915_gem_find_first_non_complete(struct intel_ring_buffer *ring)
+struct drm_i915_gem_request *
+i915_gem_find_active_request(struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_request *request;
-	const u32 completed_seqno = ring->get_seqno(ring, false);
+	u32 completed_seqno;
+
+	completed_seqno = ring->get_seqno(ring, false);
 
 	list_for_each_entry(request, &ring->request_list, list) {
 		if (i915_seqno_passed(completed_seqno, request->seqno))
@@ -2320,7 +2322,7 @@ static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
 	struct drm_i915_gem_request *request;
 	bool ring_hung;
 
-	request = i915_gem_find_first_non_complete(ring);
+	request = i915_gem_find_active_request(ring);
 
 	if (request == NULL)
 		return;

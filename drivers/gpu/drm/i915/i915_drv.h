@@ -2161,6 +2161,9 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 	}
 }
 
+struct drm_i915_gem_request *
+i915_gem_find_active_request(struct intel_ring_buffer *ring);
+
 bool i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_requests_ring(struct intel_ring_buffer *ring);
 int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,

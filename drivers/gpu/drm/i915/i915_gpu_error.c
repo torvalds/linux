@@ -713,46 +713,14 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
-/* This assumes all batchbuffers are executed from the PPGTT. It might have to
- * change in the future. */
-static bool is_active_vm(struct i915_address_space *vm,
-			 struct intel_ring_buffer *ring)
-{
-	struct drm_device *dev = vm->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_hw_ppgtt *ppgtt;
-
-	if (INTEL_INFO(dev)->gen < 7)
-		return i915_is_ggtt(vm);
-
-	/* FIXME: This ignores that the global gtt vm is also on this list. */
-	ppgtt = container_of(vm, struct i915_hw_ppgtt, base);
-
-	if (INTEL_INFO(dev)->gen >= 8) {
-		u64 pdp0 = (u64)I915_READ(GEN8_RING_PDP_UDW(ring, 0)) << 32;
-		pdp0 |=  I915_READ(GEN8_RING_PDP_LDW(ring, 0));
-		return pdp0 == ppgtt->pd_dma_addr[0];
-	} else {
-		u32 pp_db;
-		pp_db = I915_READ(RING_PP_DIR_BASE(ring));
-		return (pp_db >> 10) == ppgtt->pd_offset;
-	}
-}
-
 static struct drm_i915_error_object *
 i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			     struct intel_ring_buffer *ring)
 {
-	struct i915_address_space *vm;
-	struct i915_vma *vma;
-	struct drm_i915_gem_object *obj;
-	bool found_active = false;
-	u32 seqno;
-
-	if (!ring->get_seqno)
-		return NULL;
+	struct drm_i915_gem_request *request;
 
 	if (HAS_BROKEN_CS_TLB(dev_priv->dev)) {
+		struct drm_i915_gem_object *obj;
 		u32 acthd = I915_READ(ACTHD);
 
 		if (WARN_ON(ring->id != RCS))
@@ -765,33 +733,17 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			return i915_error_ggtt_object_create(dev_priv, obj);
 	}
 
-	seqno = ring->get_seqno(ring, false);
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
-		if (!is_active_vm(vm, ring))
-			continue;
+	request = i915_gem_find_active_request(ring);
+	if (request == NULL)
+		return NULL;
 
-		found_active = true;
-
-		list_for_each_entry(vma, &vm->active_list, mm_list) {
-			obj = vma->obj;
-			if (obj->ring != ring)
-				continue;
-
-			if (i915_seqno_passed(seqno, obj->last_read_seqno))
-				continue;
-
-			if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
-				continue;
-
-			/* We need to copy these to an anonymous buffer as the simplest
-			 * method to avoid being overwritten by userspace.
-			 */
-			return i915_error_object_create(dev_priv, obj, vm);
-		}
-	}
-
-	WARN_ON(!found_active);
-	return NULL;
+	/* We need to copy these to an anonymous buffer as the simplest
+	 * method to avoid being overwritten by userspace.
+	 */
+	return i915_error_object_create(dev_priv, request->batch_obj,
+					request->ctx ?
+					request->ctx->vm :
+					&dev_priv->gtt.base);
 }
 
 static void i915_record_ring_state(struct drm_device *dev,
