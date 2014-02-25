@@ -391,7 +391,7 @@ dt3155_open(struct file *filp)
 			goto err_alloc_queue;
 		}
 		pd->q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		pd->q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		pd->q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		pd->q->io_modes = VB2_READ | VB2_MMAP;
 		pd->q->ops = &q_ops;
 		pd->q->mem_ops = &vb2_dma_contig_memops;

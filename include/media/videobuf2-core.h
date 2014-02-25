@@ -342,7 +342,7 @@ struct vb2_queue {
 	const struct vb2_mem_ops	*mem_ops;
 	void				*drv_priv;
 	unsigned int			buf_struct_size;
-	u32				timestamp_type;
+	u32				timestamp_flags;
 	gfp_t				gfp_flags;
 
 /* private: internal use only */

@@ -1664,7 +1664,7 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		q->buf_struct_size = sizeof(struct s2255_buffer);
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->ops = &s2255_video_qops;
-		q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		ret = vb2_queue_init(q);
 		if (ret != 0) {
 			dev_err(&dev->udev->dev,

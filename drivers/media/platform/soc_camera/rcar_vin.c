@@ -1360,7 +1360,7 @@ static int rcar_vin_init_videobuf2(struct vb2_queue *vq,
 	vq->ops = &rcar_vin_vb2_ops;
 	vq->mem_ops = &vb2_dma_contig_memops;
 	vq->buf_struct_size = sizeof(struct rcar_vin_buffer);
-	vq->timestamp_type  = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->timestamp_flags  = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	return vb2_queue_init(vq);
 }

@@ -965,7 +965,7 @@ static struct qcam *qcam_init(struct parport *port)
 	q->drv_priv = qcam;
 	q->ops = &qcam_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	err = vb2_queue_init(q);
 	if (err < 0) {
 		v4l2_err(v4l2_dev, "couldn't init vb2_queue for %s.\n", port->name);

@@ -1851,7 +1851,7 @@ static int msi3101_probe(struct usb_interface *intf,
 	s->vb_queue.buf_struct_size = sizeof(struct msi3101_frame_buf);
 	s->vb_queue.ops = &msi3101_vb2_ops;
 	s->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	s->vb_queue.timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	s->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	ret = vb2_queue_init(&s->vb_queue);
 	if (ret < 0) {
 		dev_err(&s->udev->dev, "Could not initialize vb2 queue\n");

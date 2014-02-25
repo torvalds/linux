@@ -488,7 +488,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 	 * Clear any buffer state related flags.
 	 */
 	b->flags &= ~V4L2_BUFFER_MASK_FLAGS;
-	b->flags |= q->timestamp_type;
+	b->flags |= q->timestamp_flags;
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_QUEUED:
@@ -1473,7 +1473,7 @@ static int vb2_internal_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		 * For output buffers copy the timestamp if needed,
 		 * and the timecode field and flag if needed.
 		 */
-		if (q->timestamp_type == V4L2_BUF_FLAG_TIMESTAMP_COPY)
+		if (q->timestamp_flags == V4L2_BUF_FLAG_TIMESTAMP_COPY)
 			vb->v4l2_buf.timestamp = b->timestamp;
 		vb->v4l2_buf.flags |= b->flags & V4L2_BUF_FLAG_TIMECODE;
 		if (b->flags & V4L2_BUF_FLAG_TIMECODE)
@@ -2226,11 +2226,11 @@ int vb2_queue_init(struct vb2_queue *q)
 	    WARN_ON(!q->io_modes)	  ||
 	    WARN_ON(!q->ops->queue_setup) ||
 	    WARN_ON(!q->ops->buf_queue)   ||
-	    WARN_ON(q->timestamp_type & ~V4L2_BUF_FLAG_TIMESTAMP_MASK))
+	    WARN_ON(q->timestamp_flags & ~V4L2_BUF_FLAG_TIMESTAMP_MASK))
 		return -EINVAL;
 
 	/* Warn that the driver should choose an appropriate timestamp type */
-	WARN_ON(q->timestamp_type == V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN);
+	WARN_ON(q->timestamp_flags == V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN);
 
 	INIT_LIST_HEAD(&q->queued_list);
 	INIT_LIST_HEAD(&q->done_list);

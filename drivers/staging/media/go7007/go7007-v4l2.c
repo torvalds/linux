@@ -989,7 +989,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	go->vidq.mem_ops = &vb2_vmalloc_memops;
 	go->vidq.drv_priv = go;
 	go->vidq.buf_struct_size = sizeof(struct go7007_buffer);
-	go->vidq.timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	go->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	go->vidq.lock = &go->queue_lock;
 	rv = vb2_queue_init(&go->vidq);
 	if (rv)

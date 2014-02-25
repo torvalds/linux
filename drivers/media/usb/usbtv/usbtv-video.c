@@ -679,7 +679,7 @@ int usbtv_video_init(struct usbtv *usbtv)
 	usbtv->vb2q.buf_struct_size = sizeof(struct usbtv_buf);
 	usbtv->vb2q.ops = &usbtv_vb2_ops;
 	usbtv->vb2q.mem_ops = &vb2_vmalloc_memops;
-	usbtv->vb2q.timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	usbtv->vb2q.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	usbtv->vb2q.lock = &usbtv->vb2q_lock;
 	ret = vb2_queue_init(&usbtv->vb2q);
 	if (ret < 0) {
