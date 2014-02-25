@@ -663,7 +663,6 @@ int rsnd_scu_probe(struct platform_device *pdev,
 
 		dev_dbg(dev, "SCU%d probed\n", i);
 	}
-	dev_dbg(dev, "scu probed\n");
 
 	return 0;
 }

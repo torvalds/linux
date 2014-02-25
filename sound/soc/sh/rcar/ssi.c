@@ -589,8 +589,6 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		rsnd_ssi_parent_clk_setup(priv, ssi);
 	}
 
-	dev_dbg(dev, "ssi probed\n");
-
 	return 0;
 }
 
