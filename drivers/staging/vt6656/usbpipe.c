@@ -409,45 +409,43 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
  *
  */
 
-int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, struct vnt_rcb *pRCB)
+int PIPEnsBulkInUsbRead(struct vnt_private *priv, struct vnt_rcb *rcb)
 {
-	int ntStatus = 0;
-	struct urb *pUrb;
+	int status = 0;
+	struct urb *urb;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartBulkInUsbRead\n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartBulkInUsbRead\n");
 
-    if (pDevice->Flags & fMP_DISCONNECTED)
-        return STATUS_FAILURE;
+	if (priv->Flags & fMP_DISCONNECTED)
+		return STATUS_FAILURE;
 
-    pDevice->ulBulkInPosted++;
+	priv->ulBulkInPosted++;
 
-	pUrb = pRCB->pUrb;
-    //
-    // Now that we have created the urb, we will send a
-    // request to the USB device object.
-    //
-    if (pRCB->skb == NULL) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pRCB->skb is null \n");
-        return ntStatus;
-    }
+	urb = rcb->pUrb;
+	if (rcb->skb == NULL) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"rcb->skb is null\n");
+		return status;
+	}
 
-	usb_fill_bulk_urb(pUrb,
-		pDevice->usb,
-		usb_rcvbulkpipe(pDevice->usb, 2),
-		(void *) (pRCB->skb->data),
+	usb_fill_bulk_urb(urb,
+		priv->usb,
+		usb_rcvbulkpipe(priv->usb, 2),
+		(void *) (rcb->skb->data),
 		MAX_TOTAL_SIZE_WITH_ALL_HEADERS,
 		s_nsBulkInUsbIoCompleteRead,
-		pRCB);
+		rcb);
 
-	ntStatus = usb_submit_urb(pUrb, GFP_ATOMIC);
-	if (ntStatus != 0) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit Rx URB failed %d\n", ntStatus);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
+	if (status != 0) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				"Submit Rx URB failed %d\n", status);
 		return STATUS_FAILURE ;
 	}
-    pRCB->Ref = 1;
-    pRCB->bBoolInUse= true;
 
-    return ntStatus;
+	rcb->Ref = 1;
+	rcb->bBoolInUse = true;
+
+	return status;
 }
 
 /*
