@@ -162,6 +162,7 @@ extern void omap3xxx_prm_dpll3_reset(void);
 
 extern int __init omap3xxx_prm_init(void);
 extern u32 omap3xxx_prm_get_reset_sources(void);
+int omap3xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 ignore_bits);
 
 #endif /* __ASSEMBLER */
 
