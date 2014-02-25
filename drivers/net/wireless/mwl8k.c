@@ -81,6 +81,9 @@ MODULE_PARM_DESC(ap_mode_default,
  */
 
 #define	MWL8K_HW_TIMER_REGISTER			0x0000a600
+#define BBU_RXRDY_CNT_REG			0x0000a860
+#define NOK_CCA_CNT_REG				0x0000a6a0
+#define BBU_AVG_NOISE_VAL			0x67
 
 #define MWL8K_A2H_EVENTS	(MWL8K_A2H_INT_DUMMY | \
 				 MWL8K_A2H_INT_CHNL_SWITCHED | \
@@ -289,6 +292,9 @@ struct mwl8k_priv {
 
 	/* bitmap of running BSSes */
 	u32 running_bsses;
+
+	/* ACS related */
+	bool sw_scan_start;
 };
 
 #define MAX_WEP_KEY_LEN         13
@@ -5448,6 +5454,38 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return rc;
 }
 
+static void mwl8k_sw_scan_start(struct ieee80211_hw *hw)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	u8 tmp;
+
+	if (!priv->ap_fw)
+		return;
+
+	/* clear all stats */
+	ioread32(priv->regs + BBU_RXRDY_CNT_REG);
+	ioread32(priv->regs + NOK_CCA_CNT_REG);
+	mwl8k_cmd_bbp_reg_access(priv->hw, 0, BBU_AVG_NOISE_VAL, &tmp);
+
+	priv->sw_scan_start = true;
+}
+
+static void mwl8k_sw_scan_complete(struct ieee80211_hw *hw)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	u8 tmp;
+
+	if (!priv->ap_fw)
+		return;
+
+	priv->sw_scan_start = false;
+
+	/* clear all stats */
+	ioread32(priv->regs + BBU_RXRDY_CNT_REG);
+	ioread32(priv->regs + NOK_CCA_CNT_REG);
+	mwl8k_cmd_bbp_reg_access(priv->hw, 0, BBU_AVG_NOISE_VAL, &tmp);
+}
+
 static const struct ieee80211_ops mwl8k_ops = {
 	.tx			= mwl8k_tx,
 	.start			= mwl8k_start,
@@ -5466,6 +5504,8 @@ static const struct ieee80211_ops mwl8k_ops = {
 	.get_stats		= mwl8k_get_stats,
 	.get_survey		= mwl8k_get_survey,
 	.ampdu_action		= mwl8k_ampdu_action,
+	.sw_scan_start		= mwl8k_sw_scan_start,
+	.sw_scan_complete	= mwl8k_sw_scan_complete,
 };
 
 static void mwl8k_finalize_join_worker(struct work_struct *work)
