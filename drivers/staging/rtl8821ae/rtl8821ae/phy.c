@@ -86,7 +86,7 @@ void rtl8812ae_fixspur(
 			/* 0x8AC[11:10] = 2'b10*/
 
 
-		/* <20120914, Kordan> A workarould to resolve
+		/* <20120914, Kordan> A workaround to resolve
 		2480Mhz spur by setting ADC clock as 160M. (Asked by Binson)*/
 		if (band_width == HT_CHANNEL_WIDTH_20 &&
 			(channel == 13 || channel == 14)) {
@@ -107,7 +107,7 @@ void rtl8812ae_fixspur(
 	}
 	else if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE)
 	{
-		/* <20120914, Kordan> A workarould to resolve
+		/* <20120914, Kordan> A workaround to resolve
 		2480Mhz spur by setting ADC clock as 160M. (Asked by Binson)*/
 		if (band_width == HT_CHANNEL_WIDTH_20 &&
 			(channel == 13 || channel == 14))

@@ -157,7 +157,7 @@ bool rtl8821ae_dm_bt_is_same_coexist_state(struct ieee80211_hw *hw)
 		&&(rtlpcipriv->btcoexist.previous_state_h
 		== rtlpcipriv->btcoexist.current_state_h)) {
 		RT_TRACE(COMP_BT_COEXIST, DBG_DMESG,
-				("[DM][BT], Coexist state do not chang!!\n"));
+				("[DM][BT], Coexist state do not change!!\n"));
 		return true;
 	} else {
 		RT_TRACE(COMP_BT_COEXIST, DBG_DMESG,
@@ -902,7 +902,7 @@ void rtl8821ae_dm_bt_set_bt_dm(struct ieee80211_hw *hw, struct btdm_8821ae *p_bt
 
 	/*
 	 * Note:
-	 * We should add delay for making sure sw DacSwing can be set sucessfully.
+	 * We should add delay for making sure sw DacSwing can be set successfully.
 	 * because of that rtl8821ae_dm_bt_set_fw_2_ant_hid() and rtl8821ae_dm_bt_set_fw_tdma_ctrl()
 	 * will overwrite the reg 0x880.
 	*/

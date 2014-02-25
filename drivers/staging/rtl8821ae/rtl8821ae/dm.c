@@ -731,7 +731,7 @@ void rtl8821ae_dm_find_minimum_rssi(struct ieee80211_hw *hw)
 		rtl_dm_dig->min_undecorated_pwdb_for_dm =
 		    rtlpriv->dm.entry_min_undecoratedsmoothed_pwdb;
 		RT_TRACE(COMP_BB_POWERSAVING, DBG_LOUD,
-			 ("AP Ext Port or disconnet PWDB = 0x%x \n",
+			 ("AP Ext Port or disconnect PWDB = 0x%x \n",
 			  rtl_dm_dig->min_undecorated_pwdb_for_dm));
 	}
 	RT_TRACE(COMP_DIG, DBG_LOUD, ("MinUndecoratedPWDBForDM =%d\n",
@@ -925,7 +925,7 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
 		RT_TRACE(COMP_DIG, DBG_LOUD,
-			("rtl8821ae_dm_dig(): Abnornally false alarm case. \n"));
+			("rtl8821ae_dm_dig(): Abnormally false alarm case. \n"));
 
 		if (dm_digtable.large_fa_hit != 3)
 		        dm_digtable.large_fa_hit++;
@@ -1087,7 +1087,7 @@ static void rtl8821ae_dm_false_alarm_counter_statistics(struct ieee80211_hw *hw)
 	else
 		falsealm_cnt->cnt_all = falsealm_cnt->cnt_ofdm_fail;
 
-	/*reset OFDM FA coutner*/
+	/*reset OFDM FA counter*/
 	rtl_set_bbreg(hw, ODM_REG_OFDM_FA_RST_11AC, BIT(17), 1);
 	rtl_set_bbreg(hw, ODM_REG_OFDM_FA_RST_11AC, BIT(17), 0);
 	/* reset CCK FA counter*/
@@ -1316,7 +1316,7 @@ u8 rtl8812ae_hw_rate_to_mrate(
 /*-----------------------------------------------------------------------------
  * Function:	odm_TxPwrTrackSetPwr88E()
  *
- * Overview:	88E change all channel tx power accordign to flag.
+ * Overview:	88E change all channel tx power according to flag.
  *				OFDM & CCK are all different.
  *
  * Input:		NONE
@@ -1537,7 +1537,7 @@ void rtl8812ae_dm_txpwr_track_set_pwr(struct ieee80211_hw *hw,
 					rtldm->modify_txagc_flag_path_b = false;
 
 					RT_TRACE(COMP_POWER_TRACKING, DBG_LOUD,
-						("******Path_B pDM_Odm->Modify_TxAGC_Flag = FALSE \n"));
+						("******Path_B dm_Odm->Modify_TxAGC_Flag = FALSE \n"));
 				}
 			}
 		}
@@ -1654,7 +1654,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter
 
 	if (delta > 0 && rtldm->txpower_track_control)
 	{
-		/*"delta" here is used to record the absolute value of differrence.*/
+		/*"delta" here is used to record the absolute value of difference.*/
 	    	delta = thermal_value > rtlefuse->eeprom_thermalmeter ? \
 		    	(thermal_value - rtlefuse->eeprom_thermalmeter) : \
 		    	(rtlefuse->eeprom_thermalmeter - thermal_value);
@@ -1976,7 +1976,7 @@ void rtl8821ae_phy_lccalibrate(
 /*-----------------------------------------------------------------------------
  * Function:	odm_TxPwrTrackSetPwr88E()
  *
- * Overview:	88E change all channel tx power accordign to flag.
+ * Overview:	88E change all channel tx power according to flag.
  *				OFDM & CCK are all different.
  *
  * Input:		NONE
@@ -2159,7 +2159,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter
 	u8 *delta_swing_table_idx_tup_b;
 	u8 *delta_swing_table_idx_tdown_b;
 
-	/*2. Initilization ( 7 steps in total )*/
+	/*2. Initialization ( 7 steps in total )*/
 	rtl8821ae_get_delta_swing_table(hw, (u8**)&delta_swing_table_idx_tup_a,
 									(u8**)&delta_swing_table_idx_tdown_a,
 									  (u8**)&delta_swing_table_idx_tup_b,
@@ -2244,7 +2244,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter
 
 	if (delta > 0 && rtldm->txpower_track_control)
 	{
-		/*"delta" here is used to record the absolute value of differrence.*/
+		/*"delta" here is used to record the absolute value of difference.*/
 	    	delta = thermal_value > rtlefuse->eeprom_thermalmeter ? \
 		    	(thermal_value - rtlefuse->eeprom_thermalmeter) : \
 		    	(rtlefuse->eeprom_thermalmeter - thermal_value);
@@ -2613,11 +2613,11 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	RT_TRACE(COMP_TURBO, DBG_LOUD,
 		("rtl8821ae_dm_check_edca_turbo=====>"));
 	RT_TRACE(COMP_TURBO, DBG_LOUD,
-		("Orginial BE PARAM: 0x%x\n",
+		("Original BE PARAM: 0x%x\n",
 		rtl_read_dword(rtlpriv, DM_REG_EDCA_BE_11N)));
 
 	/*===============================
-	list paramter for different platform
+	list parameter for different platform
 	===============================*/
 	b_last_is_cur_rdl_state = rtlpriv->dm.bis_cur_rdlstate;
 	pb_is_cur_rdl_state = &( rtlpriv->dm.bis_cur_rdlstate);
@@ -2963,7 +2963,7 @@ void rtl8821ae_dm_dynamic_atc_switch(struct ieee80211_hw *hw)
 			"Crystal cap = 0x%x, Crystal cap offset = %d\n",
 			rtldm->crystal_cap, adjust_xtal));
 
-		/*3.Adjudt Crystal Cap.*/
+		/*3.Adjust Crystal Cap.*/
 		if (adjust_xtal != 0){
 			rtldm->is_freeze = 0;
 			rtldm->crystal_cap += adjust_xtal;
