@@ -2112,7 +2112,7 @@ static int brcmf_sdio_txpkt_prep_sg(struct brcmf_sdio *bus,
 		memcpy(pkt_pad->data,
 		       pkt->data + pkt->len - tail_chop,
 		       tail_chop);
-		*(u32 *)(pkt_pad->cb) = ALIGN_SKB_FLAG + tail_chop;
+		*(u16 *)(pkt_pad->cb) = ALIGN_SKB_FLAG + tail_chop;
 		skb_trim(pkt, pkt->len - tail_chop);
 		__skb_queue_after(pktq, pkt, pkt_pad);
 	} else {
@@ -2159,7 +2159,7 @@ brcmf_sdio_txpkt_prep(struct brcmf_sdio *bus, struct sk_buff_head *pktq,
 		 * already properly aligned and does not
 		 * need an sdpcm header.
 		 */
-		if (*(u32 *)(pkt_next->cb) & ALIGN_SKB_FLAG)
+		if (*(u16 *)(pkt_next->cb) & ALIGN_SKB_FLAG)
 			continue;
 
 		/* align packet data pointer */
@@ -2223,11 +2223,11 @@ brcmf_sdio_txpkt_postp(struct brcmf_sdio *bus, struct sk_buff_head *pktq)
 	u8 *hdr;
 	u32 dat_offset;
 	u16 tail_pad;
-	u32 dummy_flags, chop_len;
+	u16 dummy_flags, chop_len;
 	struct sk_buff *pkt_next, *tmp, *pkt_prev;
 
 	skb_queue_walk_safe(pktq, pkt_next, tmp) {
-		dummy_flags = *(u32 *)(pkt_next->cb);
+		dummy_flags = *(u16 *)(pkt_next->cb);
 		if (dummy_flags & ALIGN_SKB_FLAG) {
 			chop_len = dummy_flags & ALIGN_SKB_CHOP_LEN_MASK;
 			if (chop_len) {
@@ -2709,6 +2709,8 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 
 	/* Priority based enq */
 	spin_lock_irqsave(&bus->txqlock, flags);
+	/* reset bus_flags in packet cb */
+	*(u16 *)(pkt->cb) = 0;
 	if (!brcmf_c_prec_enq(bus->sdiodev->dev, &bus->txq, pkt, prec)) {
 		skb_pull(pkt, bus->tx_hdrlen);
 		brcmf_err("out of bus->txq !!!\n");
