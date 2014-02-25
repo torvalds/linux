@@ -1521,13 +1521,16 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
 
-	if (rdev->pm.dpm_enabled) {
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
 		/* do dpm late init */
 		r = radeon_pm_late_init(rdev);
 		if (r) {
 			rdev->pm.dpm_enabled = false;
 			DRM_ERROR("radeon_pm_late_init failed, disabling dpm\n");
 		}
+	} else {
+		/* resume old pm late */
+		radeon_pm_resume(rdev);
 	}
 
 	radeon_restore_bios_scratch_regs(rdev);
