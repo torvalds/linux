@@ -3190,9 +3190,8 @@ i915_wedged_set(void *data, u64 val)
 {
 	struct drm_device *dev = data;
 
-	DRM_INFO("Manually setting wedged to %llu\n", val);
-	i915_handle_error(dev, val);
-
+	i915_handle_error(dev, val,
+			  "Manually setting wedged to %llu", val);
 	return 0;
 }
 

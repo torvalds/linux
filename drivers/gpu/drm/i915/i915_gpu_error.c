@@ -1094,16 +1094,30 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 }
 
 static void i915_error_capture_msg(struct drm_device *dev,
-				   struct drm_i915_error_state *error)
+				   struct drm_i915_error_state *error,
+				   bool wedged,
+				   const char *error_msg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 ecode;
-	int ring_id = -1;
+	int ring_id = -1, len;
 
 	ecode = i915_error_generate_code(dev_priv, error, &ring_id);
 
-	scnprintf(error->error_msg, sizeof(error->error_msg),
-		  "GPU HANG: ecode %d:0x%08x", ring_id, ecode);
+	len = scnprintf(error->error_msg, sizeof(error->error_msg),
+			"GPU HANG: ecode %d:0x%08x", ring_id, ecode);
+
+	if (ring_id != -1 && error->ring[ring_id].pid != -1)
+		len += scnprintf(error->error_msg + len,
+				 sizeof(error->error_msg) - len,
+				 ", in %s [%d]",
+				 error->ring[ring_id].comm,
+				 error->ring[ring_id].pid);
+
+	scnprintf(error->error_msg + len, sizeof(error->error_msg) - len,
+		  ", reason: %s, action: %s",
+		  error_msg,
+		  wedged ? "reset" : "continue");
 }
 
 /**
@@ -1115,7 +1129,8 @@ static void i915_error_capture_msg(struct drm_device *dev,
  * out a structure which becomes available in debugfs for user level tools
  * to pick up.
  */
-void i915_capture_error_state(struct drm_device *dev)
+void i915_capture_error_state(struct drm_device *dev, bool wedged,
+			      const char *error_msg)
 {
 	static bool warned;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1141,7 +1156,7 @@ void i915_capture_error_state(struct drm_device *dev)
 	error->overlay = intel_overlay_capture_error_state(dev);
 	error->display = intel_display_capture_error_state(dev);
 
-	i915_error_capture_msg(dev, error);
+	i915_error_capture_msg(dev, error, wedged, error_msg);
 	DRM_INFO("%s\n", error->error_msg);
 
 	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
