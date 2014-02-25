@@ -2215,15 +2215,11 @@ int dw_mci_probe(struct dw_mci *host)
 		}
 	}
 
-#if 1
-    //test, modify by xbw
-    host->bus_hz = 50000000;
-#else
 	if (IS_ERR(host->ciu_clk))
 		host->bus_hz = host->pdata->bus_hz;
 	else
 		host->bus_hz = clk_get_rate(host->ciu_clk);
-#endif
+
 	if (drv_data && drv_data->setup_clock) {
 		ret = drv_data->setup_clock(host);
 		if (ret) {
