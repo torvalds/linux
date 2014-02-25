@@ -347,7 +347,7 @@ int PIPEnsInterruptRead(struct vnt_private *priv)
 
 static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 {
-	struct vnt_private *priv = (struct vnt_private *)urb->context;
+	struct vnt_private *priv = urb->context;
 	int status;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
@@ -465,7 +465,7 @@ int PIPEnsBulkInUsbRead(struct vnt_private *priv, struct vnt_rcb *rcb)
 
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 {
-	struct vnt_rcb *rcb = (struct vnt_rcb *)urb->context;
+	struct vnt_rcb *rcb = urb->context;
 	struct vnt_private *priv = rcb->pDevice;
 	int re_alloc_skb = false;
 
@@ -592,8 +592,7 @@ int PIPEnsSendBulkOut(struct vnt_private *priv,
 
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 {
-	struct vnt_usb_send_context *context =
-			(struct vnt_usb_send_context *)urb->context;
+	struct vnt_usb_send_context *context = urb->context;
 	struct vnt_private *priv = context->pDevice;
 	u8 context_type = context->type;
 	unsigned long buf_len = context->uBufLen;
