@@ -75,10 +75,6 @@ ENTRY(sys32_oldumount_wrapper)
 	llgtr	%r2,%r2			# char *
 	jg	sys_oldumount		# branch to system call
 
-ENTRY(sys32_setuid16_wrapper)
-	llgfr	%r2,%r2			# __kernel_old_uid_emu31_t
-	jg	sys32_setuid16		# branch to system call
-
 #sys32_getuid16_wrapper			# void
 
 ENTRY(sys32_ptrace_wrapper)
@@ -203,11 +199,6 @@ ENTRY(sys32_dup2_wrapper)
 #sys32_getpgrp_wrapper			# void
 
 #sys32_setsid_wrapper			# void
-
-ENTRY(sys32_setreuid16_wrapper)
-	llgfr	%r2,%r2			# __kernel_old_uid_emu31_t
-	llgfr	%r3,%r3			# __kernel_old_uid_emu31_t
-	jg	sys32_setreuid16	# branch to system call
 
 ENTRY(sys_sigsuspend_wrapper)
 	lgfr	%r2,%r2			# int
@@ -555,29 +546,11 @@ ENTRY(sys32_mremap_wrapper)
 	llgfr	%r6,%r6			# unsigned long
 	jg	sys_mremap		# branch to system call
 
-ENTRY(sys32_setresuid16_wrapper)
-	llgfr	%r2,%r2			# __kernel_old_uid_emu31_t
-	llgfr	%r3,%r3			# __kernel_old_uid_emu31_t
-	llgfr	%r4,%r4			# __kernel_old_uid_emu31_t
-	jg	sys32_setresuid16	# branch to system call
-
-ENTRY(sys32_getresuid16_wrapper)
-	llgtr	%r2,%r2			# __kernel_old_uid_emu31_t *
-	llgtr	%r3,%r3			# __kernel_old_uid_emu31_t *
-	llgtr	%r4,%r4			# __kernel_old_uid_emu31_t *
-	jg	sys32_getresuid16	# branch to system call
-
 ENTRY(sys32_poll_wrapper)
 	llgtr	%r2,%r2			# struct pollfd *
 	llgfr	%r3,%r3			# unsigned int
 	lgfr	%r4,%r4			# int
 	jg	sys_poll		# branch to system call
-
-ENTRY(sys32_setresgid16_wrapper)
-	llgfr	%r2,%r2			# __kernel_old_gid_emu31_t
-	llgfr	%r3,%r3			# __kernel_old_gid_emu31_t
-	llgfr	%r4,%r4			# __kernel_old_gid_emu31_t
-	jg	sys32_setresgid16	# branch to system call
 
 ENTRY(sys32_getresgid16_wrapper)
 	llgtr	%r2,%r2			# __kernel_old_gid_emu31_t *

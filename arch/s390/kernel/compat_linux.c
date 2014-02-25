@@ -113,23 +113,24 @@ COMPAT_SYSCALL_DEFINE1(s390_setgid16, u16, gid)
 	return sys_setgid((gid_t)gid);
 }
 
-asmlinkage long sys32_setreuid16(u16 ruid, u16 euid)
+COMPAT_SYSCALL_DEFINE2(s390_setreuid16, u16, ruid, u16, euid)
 {
 	return sys_setreuid(low2highuid(ruid), low2highuid(euid));
 }
 
-asmlinkage long sys32_setuid16(u16 uid)
+COMPAT_SYSCALL_DEFINE1(s390_setuid16, u16, uid)
 {
 	return sys_setuid((uid_t)uid);
 }
 
-asmlinkage long sys32_setresuid16(u16 ruid, u16 euid, u16 suid)
+COMPAT_SYSCALL_DEFINE3(s390_setresuid16, u16, ruid, u16, euid, u16, suid)
 {
 	return sys_setresuid(low2highuid(ruid), low2highuid(euid),
-		low2highuid(suid));
+			     low2highuid(suid));
 }
 
-asmlinkage long sys32_getresuid16(u16 __user *ruidp, u16 __user *euidp, u16 __user *suidp)
+COMPAT_SYSCALL_DEFINE3(s390_getresuid16, u16 __user *, ruidp,
+		       u16 __user *, euidp, u16 __user *, suidp)
 {
 	const struct cred *cred = current_cred();
 	int retval;
@@ -146,10 +147,10 @@ asmlinkage long sys32_getresuid16(u16 __user *ruidp, u16 __user *euidp, u16 __us
 	return retval;
 }
 
-asmlinkage long sys32_setresgid16(u16 rgid, u16 egid, u16 sgid)
+COMPAT_SYSCALL_DEFINE3(s390_setresgid16, u16, rgid, u16, egid, u16, sgid)
 {
 	return sys_setresgid(low2highgid(rgid), low2highgid(egid),
-		low2highgid(sgid));
+			     low2highgid(sgid));
 }
 
 asmlinkage long sys32_getresgid16(u16 __user *rgidp, u16 __user *egidp, u16 __user *sgidp)

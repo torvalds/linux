@@ -31,7 +31,7 @@ SYSCALL(sys_lseek,sys_lseek,compat_sys_lseek)
 SYSCALL(sys_getpid,sys_getpid,sys_getpid)			/* 20 */
 SYSCALL(sys_mount,sys_mount,sys32_mount_wrapper)
 SYSCALL(sys_oldumount,sys_oldumount,sys32_oldumount_wrapper)
-SYSCALL(sys_setuid16,sys_ni_syscall,sys32_setuid16_wrapper)	/* old setuid16 syscall*/
+SYSCALL(sys_setuid16,sys_ni_syscall,compat_sys_s390_setuid16)	/* old setuid16 syscall*/
 SYSCALL(sys_getuid16,sys_ni_syscall,sys32_getuid16)		/* old getuid16 syscall*/
 SYSCALL(sys_stime,sys_ni_syscall,sys32_stime_wrapper)		/* 25 old stime syscall */
 SYSCALL(sys_ptrace,sys_ptrace,sys32_ptrace_wrapper)
@@ -78,7 +78,7 @@ SYSCALL(sys_setsid,sys_setsid,sys_setsid)
 SYSCALL(sys_sigaction,sys_sigaction,compat_sys_sigaction)
 NI_SYSCALL							/* old sgetmask syscall*/
 NI_SYSCALL							/* old ssetmask syscall*/
-SYSCALL(sys_setreuid16,sys_ni_syscall,sys32_setreuid16_wrapper)	/* old setreuid16 syscall */
+SYSCALL(sys_setreuid16,sys_ni_syscall,compat_sys_s390_setreuid16) /* old setreuid16 syscall */
 SYSCALL(sys_setregid16,sys_ni_syscall,compat_sys_s390_setregid16) /* old setregid16 syscall */
 SYSCALL(sys_sigsuspend,sys_sigsuspend,sys_sigsuspend_wrapper)
 SYSCALL(sys_sigpending,sys_sigpending,compat_sys_sigpending_wrapper)
@@ -172,13 +172,13 @@ SYSCALL(sys_sched_get_priority_min,sys_sched_get_priority_min,sys32_sched_get_pr
 SYSCALL(sys_sched_rr_get_interval,sys_sched_rr_get_interval,compat_sys_sched_rr_get_interval)
 SYSCALL(sys_nanosleep,sys_nanosleep,compat_sys_nanosleep_wrapper)
 SYSCALL(sys_mremap,sys_mremap,sys32_mremap_wrapper)
-SYSCALL(sys_setresuid16,sys_ni_syscall,sys32_setresuid16_wrapper)	/* old setresuid16 syscall */
-SYSCALL(sys_getresuid16,sys_ni_syscall,sys32_getresuid16_wrapper)	/* 165 old getresuid16 syscall */
+SYSCALL(sys_setresuid16,sys_ni_syscall,compat_sys_s390_setresuid16)	/* old setresuid16 syscall */
+SYSCALL(sys_getresuid16,sys_ni_syscall,compat_sys_s390_getresuid16)	/* 165 old getresuid16 syscall */
 NI_SYSCALL							/* for vm86 */
 NI_SYSCALL							/* old sys_query_module */
 SYSCALL(sys_poll,sys_poll,sys32_poll_wrapper)
 NI_SYSCALL							/* old nfsservctl */
-SYSCALL(sys_setresgid16,sys_ni_syscall,sys32_setresgid16_wrapper)	/* 170 old setresgid16 syscall */
+SYSCALL(sys_setresgid16,sys_ni_syscall,compat_sys_s390_setresgid16)	/* 170 old setresgid16 syscall */
 SYSCALL(sys_getresgid16,sys_ni_syscall,sys32_getresgid16_wrapper)	/* old getresgid16 syscall */
 SYSCALL(sys_prctl,sys_prctl,sys32_prctl_wrapper)
 SYSCALL(sys_rt_sigreturn,sys_rt_sigreturn,sys32_rt_sigreturn)
