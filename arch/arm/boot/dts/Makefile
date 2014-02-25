@@ -142,13 +142,17 @@ dtb-$(CONFIG_ARCH_MOXART) += moxart-uc7112lx.dtb
 dtb-$(CONFIG_ARCH_MSM) += qcom-msm8660-surf.dtb \
 	qcom-msm8960-cdp.dtb \
 	qcom-apq8074-dragonboard.dtb
-dtb-$(CONFIG_ARCH_MVEBU) += armada-370-db.dtb \
+dtb-$(CONFIG_MACH_ARMADA_370) += \
+	armada-370-db.dtb \
 	armada-370-mirabox.dtb \
 	armada-370-netgear-rn102.dtb \
 	armada-370-netgear-rn104.dtb \
-	armada-370-rd.dtb \
-	armada-375-db.dtb \
-	armada-385-db.dtb \
+	armada-370-rd.dtb
+dtb-$(CONFIG_MACH_ARMADA_375) += \
+	armada-375-db.dtb
+dtb-$(CONFIG_MACH_ARMADA_38X) += \
+	armada-385-db.dtb
+dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
 	armada-xp-db.dtb \
 	armada-xp-gp.dtb \
