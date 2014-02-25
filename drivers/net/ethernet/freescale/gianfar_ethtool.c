@@ -360,24 +360,10 @@ static int gfar_scoalesce(struct net_device *dev,
 			  struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	int i = 0;
+	int i, err = 0;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
-
-	/* Set up rx coalescing */
-	/* As of now, we will enable/disable coalescing for all
-	 * queues together in case of eTSEC2, this will be modified
-	 * along with the ethtool interface
-	 */
-	if ((cvals->rx_coalesce_usecs == 0) ||
-	    (cvals->rx_max_coalesced_frames == 0)) {
-		for (i = 0; i < priv->num_rx_queues; i++)
-			priv->rx_queue[i]->rxcoalescing = 0;
-	} else {
-		for (i = 0; i < priv->num_rx_queues; i++)
-			priv->rx_queue[i]->rxcoalescing = 1;
-	}
 
 	if (NULL == priv->phydev)
 		return -ENODEV;
@@ -393,6 +379,32 @@ static int gfar_scoalesce(struct net_device *dev,
 		netdev_info(dev, "Coalescing is limited to %d frames\n",
 			    GFAR_MAX_COAL_FRAMES);
 		return -EINVAL;
+	}
+
+	/* Check the bounds of the values */
+	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
+		netdev_info(dev, "Coalescing is limited to %d microseconds\n",
+			    GFAR_MAX_COAL_USECS);
+		return -EINVAL;
+	}
+
+	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
+		netdev_info(dev, "Coalescing is limited to %d frames\n",
+			    GFAR_MAX_COAL_FRAMES);
+		return -EINVAL;
+	}
+
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
+
+	/* Set up rx coalescing */
+	if ((cvals->rx_coalesce_usecs == 0) ||
+	    (cvals->rx_max_coalesced_frames == 0)) {
+		for (i = 0; i < priv->num_rx_queues; i++)
+			priv->rx_queue[i]->rxcoalescing = 0;
+	} else {
+		for (i = 0; i < priv->num_rx_queues; i++)
+			priv->rx_queue[i]->rxcoalescing = 1;
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
@@ -411,28 +423,22 @@ static int gfar_scoalesce(struct net_device *dev,
 			priv->tx_queue[i]->txcoalescing = 1;
 	}
 
-	/* Check the bounds of the values */
-	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
-		netdev_info(dev, "Coalescing is limited to %d microseconds\n",
-			    GFAR_MAX_COAL_USECS);
-		return -EINVAL;
-	}
-
-	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
-		netdev_info(dev, "Coalescing is limited to %d frames\n",
-			    GFAR_MAX_COAL_FRAMES);
-		return -EINVAL;
-	}
-
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		priv->tx_queue[i]->txic = mk_ic_value(
 			cvals->tx_max_coalesced_frames,
 			gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
 	}
 
-	gfar_configure_coalescing_all(priv);
+	if (dev->flags & IFF_UP) {
+		stop_gfar(dev);
+		err = startup_gfar(dev);
+	} else {
+		gfar_mac_reset(priv);
+	}
 
-	return 0;
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
+
+	return err;
 }
 
 /* Fills in rvals with the current ring parameters.  Currently,
@@ -487,6 +493,9 @@ static int gfar_sringparam(struct net_device *dev,
 		return -EINVAL;
 	}
 
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
+
 	if (dev->flags & IFF_UP)
 		stop_gfar(dev);
 
@@ -498,10 +507,11 @@ static int gfar_sringparam(struct net_device *dev,
 		priv->tx_queue[i]->tx_ring_size = rvals->tx_pending;
 
 	/* Rebuild the rings with the new size */
-	if (dev->flags & IFF_UP) {
+	if (dev->flags & IFF_UP)
 		err = startup_gfar(dev);
-		netif_tx_wake_all_queues(dev);
-	}
+
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
+
 	return err;
 }
 
@@ -580,23 +590,28 @@ static int gfar_spauseparam(struct net_device *dev,
 int gfar_set_features(struct net_device *dev, netdev_features_t features)
 {
 	netdev_features_t changed = dev->features ^ features;
+	struct gfar_private *priv = netdev_priv(dev);
 	int err = 0;
 
-	if (changed & (NETIF_F_HW_VLAN_CTAG_TX|NETIF_F_HW_VLAN_CTAG_RX))
-		gfar_vlan_mode(dev, features);
-
-	if (!(changed & NETIF_F_RXCSUM))
+	if (!(changed & (NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+			 NETIF_F_RXCSUM)))
 		return 0;
+
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
+
+	dev->features = features;
 
 	if (dev->flags & IFF_UP) {
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
-
-		dev->features = features;
-
 		err = startup_gfar(dev);
-		netif_tx_wake_all_queues(dev);
+	} else {
+		gfar_mac_reset(priv);
 	}
+
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
+
 	return err;
 }
 
@@ -1562,9 +1577,6 @@ static int gfar_write_filer_table(struct gfar_private *priv,
 	if (tab->index > MAX_FILER_IDX - 1)
 		return -EBUSY;
 
-	/* Avoid inconsistent filer table to be processed */
-	lock_rx_qs(priv);
-
 	/* Fill regular entries */
 	for (; i < MAX_FILER_IDX - 1 && (tab->fe[i].ctrl | tab->fe[i].ctrl);
 	     i++)
@@ -1576,8 +1588,6 @@ static int gfar_write_filer_table(struct gfar_private *priv,
 	 * because that's what people expect
 	 */
 	gfar_write_filer(priv, i, 0x20, 0x0);
-
-	unlock_rx_qs(priv);
 
 	return 0;
 }
@@ -1782,6 +1792,9 @@ static int gfar_set_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	int ret = 0;
+
+	if (test_bit(GFAR_RESETTING, &priv->state))
+		return -EBUSY;
 
 	mutex_lock(&priv->rx_queue_access);
 
