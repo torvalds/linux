@@ -306,11 +306,7 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 
 	/* check each transfer's parameters */
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		u8 bits_per_word = t->bits_per_word;
-
 		if (!t->tx_buf && !t->rx_buf && t->len)
-			return -EINVAL;
-		if (t->len & ((bits_per_word >> 3) - 1))
 			return -EINVAL;
 	}
 
