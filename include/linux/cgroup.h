@@ -350,6 +350,7 @@ struct css_set {
 	 * List of csets participating in the on-going migration either as
 	 * source or destination.  Protected by cgroup_mutex.
 	 */
+	struct list_head mg_preload_node;
 	struct list_head mg_node;
 
 	/*
