@@ -282,6 +282,25 @@ qla4xxx_wait_for_ip_config(struct scsi_qla_host *ha)
 	return ipv4_wait|ipv6_wait;
 }
 
+static int qla4_80xx_is_minidump_dma_capable(struct scsi_qla_host *ha,
+		struct qla4_8xxx_minidump_template_hdr *md_hdr)
+{
+	int offset = (is_qla8022(ha)) ? QLA8022_TEMPLATE_CAP_OFFSET :
+					QLA83XX_TEMPLATE_CAP_OFFSET;
+	int rval = 1;
+	uint32_t *cap_offset;
+
+	cap_offset = (uint32_t *)((char *)md_hdr + offset);
+
+	if (!(le32_to_cpu(*cap_offset) & BIT_0)) {
+		ql4_printk(KERN_INFO, ha, "PEX DMA Not supported %d\n",
+			   *cap_offset);
+		rval = 0;
+	}
+
+	return rval;
+}
+
 /**
  * qla4xxx_alloc_fw_dump - Allocate memory for minidump data.
  * @ha: pointer to host adapter structure.
@@ -294,6 +313,7 @@ void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha)
 	void *md_tmp;
 	dma_addr_t md_tmp_dma;
 	struct qla4_8xxx_minidump_template_hdr *md_hdr;
+	int dma_capable;
 
 	if (ha->fw_dump) {
 		ql4_printk(KERN_WARNING, ha,
@@ -326,13 +346,19 @@ void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha)
 
 	md_hdr = (struct qla4_8xxx_minidump_template_hdr *)md_tmp;
 
+	dma_capable = qla4_80xx_is_minidump_dma_capable(ha, md_hdr);
+
 	capture_debug_level = md_hdr->capture_debug_level;
 
 	/* Get capture mask based on module loadtime setting. */
-	if (ql4xmdcapmask >= 0x3 && ql4xmdcapmask <= 0x7F)
+	if ((ql4xmdcapmask >= 0x3 && ql4xmdcapmask <= 0x7F) ||
+	    (ql4xmdcapmask == 0xFF && dma_capable))  {
 		ha->fw_dump_capture_mask = ql4xmdcapmask;
-	else
+	} else {
+		if (ql4xmdcapmask == 0xFF)
+			ql4_printk(KERN_INFO, ha, "Falling back to default capture mask, as PEX DMA is not supported\n");
 		ha->fw_dump_capture_mask = capture_debug_level;
+	}
 
 	md_hdr->driver_capture_mask = ha->fw_dump_capture_mask;
 
