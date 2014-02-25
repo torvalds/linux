@@ -1,8 +1,13 @@
 Renesas MSIOF spi controller
 
 Required properties:
-- compatible           : "renesas,sh-msiof" for SuperH, or
+- compatible           : "renesas,msiof-<soctype>" for SoCs,
+			 "renesas,sh-msiof" for SuperH, or
 			 "renesas,sh-mobile-msiof" for SH Mobile series.
+			 Examples with soctypes are:
+			 "renesas,msiof-sh7724" (SH)
+			 "renesas,msiof-r8a7790" (R-Car H2)
+			 "renesas,msiof-r8a7791" (R-Car M2)
 - reg                  : Offset and length of the register set for the device
 - interrupt-parent     : The phandle for the interrupt controller that
 			 services interrupts for this device
@@ -13,10 +18,24 @@ Required properties:
 Optional properties:
 - clocks               : Must contain a reference to the functional clock.
 - num-cs               : Total number of chip-selects (default is 1)
+
+Optional properties, deprecated for soctype-specific bindings:
 - renesas,tx-fifo-size : Overrides the default tx fifo size given in words
 			 (default is 64)
 - renesas,rx-fifo-size : Overrides the default rx fifo size given in words
-			 (default is 64)
+			 (default is 64, or 256 on R-Car H2 and M2)
 
 Pinctrl properties might be needed, too.  See
 Documentation/devicetree/bindings/pinctrl/renesas,*.
+
+Example:
+
+	msiof0: spi@e6e20000 {
+		compatible = "renesas,msiof-r8a7791";
+		reg = <0 0xe6e20000 0 0x0064>;
+		interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7791_CLK_MSIOF0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};

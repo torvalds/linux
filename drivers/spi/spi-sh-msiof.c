@@ -35,6 +35,7 @@
 struct sh_msiof_chipdata {
 	u16 tx_fifo_size;
 	u16 rx_fifo_size;
+	u16 master_flags;
 };
 
 struct sh_msiof_spi_priv {
@@ -215,7 +216,8 @@ static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
 	k = min_t(int, k, ARRAY_SIZE(sh_msiof_spi_clk_table) - 1);
 
 	sh_msiof_write(p, TSCR, sh_msiof_spi_clk_table[k].scr);
-	sh_msiof_write(p, RSCR, sh_msiof_spi_clk_table[k].scr);
+	if (!(p->chipdata->master_flags & SPI_MASTER_MUST_TX))
+		sh_msiof_write(p, RSCR, sh_msiof_spi_clk_table[k].scr);
 }
 
 static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
@@ -238,6 +240,10 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	tmp |= !cs_high << MDR1_SYNCAC_SHIFT;
 	tmp |= lsb_first << MDR1_BITLSB_SHIFT;
 	sh_msiof_write(p, TMDR1, tmp | MDR1_TRMD | TMDR1_PCON);
+	if (p->chipdata->master_flags & SPI_MASTER_MUST_TX) {
+		/* These bits are reserved if RX needs TX */
+		tmp &= ~0x0000ffff;
+	}
 	sh_msiof_write(p, RMDR1, tmp);
 
 	tmp = 0;
@@ -258,7 +264,7 @@ static void sh_msiof_spi_set_mode_regs(struct sh_msiof_spi_priv *p,
 {
 	u32 dr2 = MDR2_BITLEN1(bits) | MDR2_WDLEN1(words);
 
-	if (tx_buf)
+	if (tx_buf || (p->chipdata->master_flags & SPI_MASTER_MUST_TX))
 		sh_msiof_write(p, TMDR2, dr2);
 	else
 		sh_msiof_write(p, TMDR2, dr2 | MDR2_GRPMASK1);
@@ -666,11 +672,20 @@ static u32 sh_msiof_spi_txrx_word(struct spi_device *spi, unsigned nsecs,
 static const struct sh_msiof_chipdata sh_data = {
 	.tx_fifo_size = 64,
 	.rx_fifo_size = 64,
+	.master_flags = 0,
+};
+
+static const struct sh_msiof_chipdata r8a779x_data = {
+	.tx_fifo_size = 64,
+	.rx_fifo_size = 256,
+	.master_flags = SPI_MASTER_MUST_TX,
 };
 
 static const struct of_device_id sh_msiof_match[] = {
 	{ .compatible = "renesas,sh-msiof",        .data = &sh_data },
 	{ .compatible = "renesas,sh-mobile-msiof", .data = &sh_data },
+	{ .compatible = "renesas,msiof-r8a7790",   .data = &r8a779x_data },
+	{ .compatible = "renesas,msiof-r8a7791",   .data = &r8a779x_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_msiof_match);
@@ -790,7 +805,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	/* init master and bitbang code */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->mode_bits |= SPI_LSB_FIRST | SPI_3WIRE;
-	master->flags = 0;
+	master->flags = p->chipdata->master_flags;
 	master->bus_num = pdev->id;
 	master->dev.of_node = pdev->dev.of_node;
 	master->num_chipselect = p->info->num_chipselect;
@@ -833,6 +848,8 @@ static int sh_msiof_spi_remove(struct platform_device *pdev)
 
 static struct platform_device_id spi_driver_ids[] = {
 	{ "spi_sh_msiof",	(kernel_ulong_t)&sh_data },
+	{ "spi_r8a7790_msiof",	(kernel_ulong_t)&r8a779x_data },
+	{ "spi_r8a7791_msiof",	(kernel_ulong_t)&r8a779x_data },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, spi_driver_ids);
