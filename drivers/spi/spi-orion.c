@@ -296,17 +296,6 @@ static int orion_spi_transfer_one_message(struct spi_master *master,
 		goto msg_done;
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		/* make sure buffer length is even when working in 16
-		 * bit mode*/
-		if ((t->bits_per_word == 16) && (t->len & 1)) {
-			dev_err(&spi->dev,
-				"message rejected : "
-				"odd data length %d while in 16 bit mode\n",
-				t->len);
-			status = -EIO;
-			goto msg_done;
-		}
-
 		if (par_override || t->speed_hz || t->bits_per_word) {
 			par_override = 1;
 			status = orion_spi_setup_transfer(spi, t);
