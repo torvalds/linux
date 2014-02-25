@@ -355,9 +355,9 @@ void store_cpu_topology(unsigned int cpuid)
 {
 	struct cputopo_arm *cpuid_topo = &cpu_topology[cpuid];
 
-	/* DT should have been parsed by the time we get here */
+	/* Something should have picked a topology by the time we get here */
 	if (cpuid_topo->core_id == -1)
-		pr_info("CPU%u: No topology information configured\n", cpuid);
+		pr_warn("CPU%u: No topology information configured\n", cpuid);
 	else
 		update_siblings_masks(cpuid);
 
