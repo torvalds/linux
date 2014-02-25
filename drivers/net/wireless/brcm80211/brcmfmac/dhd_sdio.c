@@ -2686,15 +2686,13 @@ static struct pktq *brcmf_sdio_bus_gettxq(struct device *dev)
 static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 {
 	int ret = -EBADE;
-	uint datalen, prec;
+	uint prec;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
 	ulong flags;
 
-	brcmf_dbg(TRACE, "Enter\n");
-
-	datalen = pkt->len;
+	brcmf_dbg(TRACE, "Enter: pkt: data %p len %d\n", pkt->data, pkt->len);
 
 	/* Add space for the header */
 	skb_push(pkt, bus->tx_hdrlen);
