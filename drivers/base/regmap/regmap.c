@@ -1576,6 +1576,26 @@ out:
 }
 EXPORT_SYMBOL_GPL(regmap_bulk_write);
 
+static int _regmap_multi_reg_write(struct regmap *map,
+				   const struct reg_default *regs,
+				   int num_regs)
+{
+	int i, ret;
+
+	for (i = 0; i < num_regs; i++) {
+		if (regs[i].reg % map->reg_stride)
+			return -EINVAL;
+		ret = _regmap_write(map, regs[i].reg, regs[i].def);
+		if (ret != 0) {
+			dev_err(map->dev, "Failed to write %x = %x: %d\n",
+				regs[i].reg, regs[i].def, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * regmap_multi_reg_write(): Write multiple registers to the device
  *
@@ -1595,27 +1615,56 @@ EXPORT_SYMBOL_GPL(regmap_bulk_write);
 int regmap_multi_reg_write(struct regmap *map, const struct reg_default *regs,
 			   int num_regs)
 {
-	int ret = 0, i;
-
-	for (i = 0; i < num_regs; i++) {
-		int reg = regs[i].reg;
-		if (reg % map->reg_stride)
-			return -EINVAL;
-	}
+	int ret;
 
 	map->lock(map->lock_arg);
 
-	for (i = 0; i < num_regs; i++) {
-		ret = _regmap_write(map, regs[i].reg, regs[i].def);
-		if (ret != 0)
-			goto out;
-	}
-out:
+	ret = _regmap_multi_reg_write(map, regs, num_regs);
+
 	map->unlock(map->lock_arg);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_multi_reg_write);
+
+/*
+ * regmap_multi_reg_write_bypassed(): Write multiple registers to the
+ *                                    device but not the cache
+ *
+ * where the set of register are supplied in any order
+ *
+ * @map: Register map to write to
+ * @regs: Array of structures containing register,value to be written
+ * @num_regs: Number of registers to write
+ *
+ * This function is intended to be used for writing a large block of data
+ * atomically to the device in single transfer for those I2C client devices
+ * that implement this alternative block write mode.
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_multi_reg_write_bypassed(struct regmap *map,
+				    const struct reg_default *regs,
+				    int num_regs)
+{
+	int ret;
+	bool bypass;
+
+	map->lock(map->lock_arg);
+
+	bypass = map->cache_bypass;
+	map->cache_bypass = true;
+
+	ret = _regmap_multi_reg_write(map, regs, num_regs);
+
+	map->cache_bypass = bypass;
+
+	map->unlock(map->lock_arg);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regmap_multi_reg_write_bypassed);
 
 /**
  * regmap_raw_write_async(): Write raw values to one or more registers
