@@ -19,7 +19,6 @@ struct dma_iommu_mapping {
 	size_t			bitmap_size;	/* size of a single bitmap */
 	size_t			bits;		/* per bitmap */
 	unsigned int		size;		/* per bitmap */
-	unsigned int		order;
 	dma_addr_t		base;
 
 	spinlock_t		lock;
@@ -27,8 +26,7 @@ struct dma_iommu_mapping {
 };
 
 struct dma_iommu_mapping *
-arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size,
-			 int order);
+arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size);
 
 void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping);
 
