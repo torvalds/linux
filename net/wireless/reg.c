@@ -91,10 +91,6 @@ static struct regulatory_request __rcu *last_request =
 /* To trigger userspace events */
 static struct platform_device *reg_pdev;
 
-static const struct device_type reg_device_type = {
-	.uevent = reg_device_uevent,
-};
-
 /*
  * Central wireless core regulatory domains, we only need two,
  * the current one and a world regulatory domain in case we have no
@@ -487,11 +483,16 @@ static inline void reg_regdb_query(const char *alpha2) {}
 
 /*
  * This lets us keep regulatory code which is updated on a regulatory
- * basis in userspace. Country information is filled in by
- * reg_device_uevent
+ * basis in userspace.
  */
 static int call_crda(const char *alpha2)
 {
+	char country[12];
+	char *env[] = { country, NULL };
+
+	snprintf(country, sizeof(country), "COUNTRY=%c%c",
+		 alpha2[0], alpha2[1]);
+
 	if (!is_world_regdom((char *) alpha2))
 		pr_info("Calling CRDA for country: %c%c\n",
 			alpha2[0], alpha2[1]);
@@ -501,7 +502,7 @@ static int call_crda(const char *alpha2)
 	/* query internal regulatory database (if it exists) */
 	reg_regdb_query(alpha2);
 
-	return kobject_uevent(&reg_pdev->dev.kobj, KOBJ_CHANGE);
+	return kobject_uevent_env(&reg_pdev->dev.kobj, KOBJ_CHANGE, env);
 }
 
 static enum reg_request_treatment
@@ -2544,26 +2545,6 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	return 0;
 }
 
-int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	struct regulatory_request *lr;
-	u8 alpha2[2];
-	bool add = false;
-
-	rcu_read_lock();
-	lr = get_last_request();
-	if (lr && !lr->processed) {
-		memcpy(alpha2, lr->alpha2, 2);
-		add = true;
-	}
-	rcu_read_unlock();
-
-	if (add)
-		return add_uevent_var(env, "COUNTRY=%c%c",
-				      alpha2[0], alpha2[1]);
-	return 0;
-}
-
 void wiphy_regulatory_register(struct wiphy *wiphy)
 {
 	struct regulatory_request *lr;
@@ -2613,8 +2594,6 @@ int __init regulatory_init(void)
 	reg_pdev = platform_device_register_simple("regulatory", 0, NULL, 0);
 	if (IS_ERR(reg_pdev))
 		return PTR_ERR(reg_pdev);
-
-	reg_pdev->dev.type = &reg_device_type;
 
 	spin_lock_init(&reg_requests_lock);
 	spin_lock_init(&reg_pending_beacons_lock);
