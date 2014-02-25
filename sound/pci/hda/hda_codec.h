@@ -271,6 +271,7 @@ struct hda_pcm {
 
 /* codec information */
 struct hda_codec {
+	struct device dev;
 	struct hda_bus *bus;
 	unsigned int addr;	/* codec addr*/
 	struct list_head list;	/* list point */

@@ -1368,7 +1368,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	kfree(codec->modelname);
 	kfree(codec->wcaps);
 	codec->bus->num_codecs--;
-	kfree(codec);
+	put_device(&codec->dev);
 }
 
 static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
@@ -1377,10 +1377,31 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
 static unsigned int hda_set_power_state(struct hda_codec *codec,
 				unsigned int power_state);
 
+static int snd_hda_codec_dev_register(struct snd_device *device)
+{
+	struct hda_codec *codec = device->device_data;
+
+	return device_add(&codec->dev);
+}
+
+static int snd_hda_codec_dev_disconnect(struct snd_device *device)
+{
+	struct hda_codec *codec = device->device_data;
+
+	device_del(&codec->dev);
+	return 0;
+}
+
 static int snd_hda_codec_dev_free(struct snd_device *device)
 {
 	snd_hda_codec_free(device->device_data);
 	return 0;
+}
+
+/* just free the container */
+static void snd_hda_codec_dev_release(struct device *dev)
+{
+	kfree(container_of(dev, struct hda_codec, dev));
 }
 
 /**
@@ -1400,6 +1421,8 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	hda_nid_t fg;
 	int err;
 	static struct snd_device_ops dev_ops = {
+		.dev_register = snd_hda_codec_dev_register,
+		.dev_disconnect = snd_hda_codec_dev_disconnect,
 		.dev_free = snd_hda_codec_dev_free,
 	};
 
@@ -1419,6 +1442,13 @@ int snd_hda_codec_new(struct hda_bus *bus,
 		snd_printk(KERN_ERR "can't allocate struct hda_codec\n");
 		return -ENOMEM;
 	}
+
+	device_initialize(&codec->dev);
+	codec->dev.parent = &bus->card->card_dev;
+	codec->dev.class = sound_class;
+	codec->dev.release = snd_hda_codec_dev_release;
+	dev_set_name(&codec->dev, "hdaudioC%dD%d", bus->card->number,
+		     codec_addr);
 
 	codec->bus = bus;
 	codec->addr = codec_addr;
@@ -1453,8 +1483,8 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	if (codec->bus->modelname) {
 		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
 		if (!codec->modelname) {
-			snd_hda_codec_free(codec);
-			return -ENODEV;
+			err = -ENODEV;
+			goto error;
 		}
 	}
 
