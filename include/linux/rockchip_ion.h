@@ -70,9 +70,9 @@ struct ion_phys_data {
 	unsigned long size;
 };
 
-struct ion_share_obj_data {
+struct ion_share_id_data {
 	int fd;
-	void *obj;
+	unsigned int id;
 };
 
 #define ION_IOC_ROCKCHIP_MAGIC 'R'
@@ -102,13 +102,13 @@ struct ion_share_obj_data {
 /**
  * Get share object of the fd specified.
  */
-#define ION_IOC_GET_SHARE	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 4, \
-						struct ion_share_obj_data)
+#define ION_IOC_GET_SHARE_ID	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 4, \
+						struct ion_share_id_data)
 
 /**
  * Set share object and associate new fd.
  */
-#define ION_IOC_SET_SHARE	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 5, \
-						struct ion_share_obj_data)
+#define ION_IOC_SHARE_BY_ID	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 5, \
+						struct ion_share_id_data)
 
 #endif
