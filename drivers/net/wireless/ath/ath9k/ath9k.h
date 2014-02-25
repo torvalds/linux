@@ -753,7 +753,6 @@ struct ath_softc {
 	struct ath_rx rx;
 	struct ath_tx tx;
 	struct ath_beacon beacon;
-	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 #ifdef CONFIG_MAC80211_LEDS
 	bool led_registered;

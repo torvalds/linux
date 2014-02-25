@@ -51,7 +51,8 @@ ath9k_hw-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += btcoex.o \
 obj-$(CONFIG_ATH9K_HW) += ath9k_hw.o
 
 obj-$(CONFIG_ATH9K_COMMON) += ath9k_common.o
-ath9k_common-y:=	common.o
+ath9k_common-y:=	common.o \
+			common-init.o
 
 ath9k_htc-y +=	htc_hst.o \
 		hif_usb.o \

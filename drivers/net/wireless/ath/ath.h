@@ -163,6 +163,7 @@ struct ath_common {
 	bool bt_ant_diversity;
 
 	int last_rssi;
+	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 };
 
 struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,
