@@ -65,11 +65,26 @@
 #define REG_DBG_PRINT(args...)
 #endif
 
+/**
+ * enum reg_request_treatment - regulatory request treatment
+ *
+ * @REG_REQ_OK: continue processing the regulatory request
+ * @REG_REQ_IGNORE: ignore the regulatory request
+ * @REG_REQ_INTERSECT: the regulatory domain resulting from this request should
+ *	be intersected with the current one.
+ * @REG_REQ_ALREADY_SET: the regulatory request will not change the current
+ *	regulatory settings, and no further processing is required.
+ * @REG_REQ_USER_HINT_HANDLED: a non alpha2  user hint was handled and no
+ *	further processing is required, i.e., not need to update last_request
+ *	etc. This should be used for user hints that do not provide an alpha2
+ *	but some other type of regulatory hint, i.e., indoor operation.
+ */
 enum reg_request_treatment {
 	REG_REQ_OK,
 	REG_REQ_IGNORE,
 	REG_REQ_INTERSECT,
 	REG_REQ_ALREADY_SET,
+	REG_REQ_USER_HINT_HANDLED,
 };
 
 static struct regulatory_request core_request_world = {
@@ -105,6 +120,14 @@ const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
  * (protected by RTNL)
  */
 static int reg_num_devs_support_basehint;
+
+/*
+ * State variable indicating if the platform on which the devices
+ * are attached is operating in an indoor environment. The state variable
+ * is relevant for all registered devices.
+ * (protected by RTNL)
+ */
+static bool reg_is_indoor;
 
 static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 {
@@ -1128,6 +1151,13 @@ static bool reg_request_cell_base(struct regulatory_request *request)
 	return request->user_reg_hint_type == NL80211_USER_REG_HINT_CELL_BASE;
 }
 
+static bool reg_request_indoor(struct regulatory_request *request)
+{
+	if (request->initiator != NL80211_REGDOM_SET_BY_USER)
+		return false;
+	return request->user_reg_hint_type == NL80211_USER_REG_HINT_INDOOR;
+}
+
 bool reg_last_request_cell_base(void)
 {
 	return reg_request_cell_base(get_last_request());
@@ -1570,6 +1600,11 @@ __reg_process_hint_user(struct regulatory_request *user_request)
 {
 	struct regulatory_request *lr = get_last_request();
 
+	if (reg_request_indoor(user_request)) {
+		reg_is_indoor = true;
+		return REG_REQ_USER_HINT_HANDLED;
+	}
+
 	if (reg_request_cell_base(user_request))
 		return reg_ignore_cell_hint(user_request);
 
@@ -1617,7 +1652,8 @@ reg_process_hint_user(struct regulatory_request *user_request)
 
 	treatment = __reg_process_hint_user(user_request);
 	if (treatment == REG_REQ_IGNORE ||
-	    treatment == REG_REQ_ALREADY_SET) {
+	    treatment == REG_REQ_ALREADY_SET ||
+	    treatment == REG_REQ_USER_HINT_HANDLED) {
 		kfree(user_request);
 		return treatment;
 	}
@@ -1678,6 +1714,7 @@ reg_process_hint_driver(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
+	case REG_REQ_USER_HINT_HANDLED:
 		kfree(driver_request);
 		return treatment;
 	case REG_REQ_INTERSECT:
@@ -1777,6 +1814,7 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
+	case REG_REQ_USER_HINT_HANDLED:
 		/* fall through */
 	case REG_REQ_ALREADY_SET:
 		kfree(country_ie_request);
@@ -1969,6 +2007,22 @@ int regulatory_hint_user(const char *alpha2,
 	return 0;
 }
 
+int regulatory_hint_indoor_user(void)
+{
+	struct regulatory_request *request;
+
+	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	request->wiphy_idx = WIPHY_IDX_INVALID;
+	request->initiator = NL80211_REGDOM_SET_BY_USER;
+	request->user_reg_hint_type = NL80211_USER_REG_HINT_INDOOR;
+	queue_regulatory_request(request);
+
+	return 0;
+}
+
 /* Driver hints */
 int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 {
@@ -2135,6 +2189,8 @@ static void restore_regulatory_settings(bool reset_user)
 	struct cfg80211_registered_device *rdev;
 
 	ASSERT_RTNL();
+
+	reg_is_indoor = false;
 
 	reset_regdomains(true, &world_regdom);
 	restore_alpha2(alpha2, reset_user);
