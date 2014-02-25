@@ -88,6 +88,11 @@ struct vmw_resource *vmw_resource_reference(struct vmw_resource *res)
 	return res;
 }
 
+struct vmw_resource *
+vmw_resource_reference_unless_doomed(struct vmw_resource *res)
+{
+	return kref_get_unless_zero(&res->kref) ? res : NULL;
+}
 
 /**
  * vmw_resource_release_id - release a resource id to the id manager.
@@ -136,8 +141,12 @@ static void vmw_resource_release(struct kref *kref)
 		vmw_dmabuf_unreference(&res->backup);
 	}
 
-	if (likely(res->hw_destroy != NULL))
+	if (likely(res->hw_destroy != NULL)) {
 		res->hw_destroy(res);
+		mutex_lock(&dev_priv->binding_mutex);
+		vmw_context_binding_res_list_kill(&res->binding_head);
+		mutex_unlock(&dev_priv->binding_mutex);
+	}
 
 	id = res->id;
 	if (res->res_free != NULL)

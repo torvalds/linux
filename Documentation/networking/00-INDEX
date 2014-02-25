@@ -6,8 +6,14 @@
 	- information on the 3Com Etherlink III Series Ethernet cards.
 6pack.txt
 	- info on the 6pack protocol, an alternative to KISS for AX.25
-DLINK.txt
-	- info on the D-Link DE-600/DE-620 parallel port pocket adapters
+LICENSE.qla3xxx
+	- GPLv2 for QLogic Linux Networking HBA Driver
+LICENSE.qlge
+	- GPLv2 for QLogic Linux qlge NIC Driver
+LICENSE.qlcnic
+	- GPLv2 for QLogic Linux qlcnic NIC Driver
+Makefile
+	- Makefile for docsrc.
 PLIP.txt
 	- PLIP: The Parallel Line Internet Protocol device driver
 README.ipw2100
@@ -17,7 +23,7 @@ README.ipw2200
 README.sb1000
 	- info on General Instrument/NextLevel SURFboard1000 cable modem.
 alias.txt
-	- info on using alias network devices 
+	- info on using alias network devices.
 arcnet-hardware.txt
 	- tons of info on ARCnet, hubs, jumper settings for ARCnet cards, etc.
 arcnet.txt
@@ -80,7 +86,7 @@ framerelay.txt
 	- info on using Frame Relay/Data Link Connection Identifier (DLCI).
 gen_stats.txt
 	- Generic networking statistics for netlink users.
-generic_hdlc.txt
+generic-hdlc.txt
 	- The generic High Level Data Link Control (HDLC) layer.
 generic_netlink.txt
 	- info on Generic Netlink
@@ -88,6 +94,8 @@ gianfar.txt
 	- Gianfar Ethernet Driver.
 i40e.txt
 	- README for the Intel Ethernet Controller XL710 Driver (i40e).
+i40evf.txt
+	- Short note on the Driver for the Intel(R) XL710 X710 Virtual Function
 ieee802154.txt
 	- Linux IEEE 802.15.4 implementation, API and drivers
 igb.txt
@@ -102,6 +110,8 @@ ipddp.txt
 	- AppleTalk-IP Decapsulation and AppleTalk-IP Encapsulation
 iphase.txt
 	- Interphase PCI ATM (i)Chip IA Linux driver info.
+ipsec.txt
+	- Note on not compressing IPSec payload and resulting failed policy check.
 ipv6.txt
 	- Options to the ipv6 kernel module.
 ipvs-sysctl.txt
@@ -120,6 +130,8 @@ lapb-module.txt
 	- programming information of the LAPB module.
 ltpc.txt
 	- the Apple or Farallon LocalTalk PC card driver
+mac80211-auth-assoc-deauth.txt
+	- authentication and association / deauth-disassoc with max80211
 mac80211-injection.txt
 	- HOWTO use packet injection with mac80211
 multiqueue.txt
@@ -134,6 +146,10 @@ netdevices.txt
 	- info on network device driver functions exported to the kernel.
 netif-msg.txt
 	- Design of the network interface message level setting (NETIF_MSG_*).
+netlink_mmap.txt
+	- memory mapped I/O with netlink
+nf_conntrack-sysctl.txt
+	- list of netfilter-sysctl knobs.
 nfc.txt
 	- The Linux Near Field Communication (NFS) subsystem.
 openvswitch.txt
@@ -176,7 +192,7 @@ skfp.txt
 	- SysKonnect FDDI (SK-5xxx, Compaq Netelligent) driver info.
 smc9.txt
 	- the driver for SMC's 9000 series of Ethernet cards
-spider-net.txt
+spider_net.txt
 	- README for the Spidernet Driver (as found in PS3 / Cell BE).
 stmmac.txt
 	- README for the STMicro Synopsys Ethernet driver.
@@ -188,6 +204,8 @@ tcp.txt
 	- short blurb on how TCP output takes place.
 tcp-thin.txt
 	- kernel tuning options for low rate 'thin' TCP streams.
+team.txt
+	- pointer to information for ethernet teaming devices.
 tlan.txt
 	- ThunderLAN (Compaq Netelligent 10/100, Olicom OC-2xxx) driver info.
 tproxy.txt
@@ -200,6 +218,8 @@ vortex.txt
 	- info on using 3Com Vortex (3c590, 3c592, 3c595, 3c597) Ethernet cards.
 vxge.txt
 	- README for the Neterion X3100 PCIe Server Adapter.
+vxlan.txt
+	- Virtual extensible LAN overview
 x25.txt
 	- general info on X.25 development.
 x25-iface.txt
