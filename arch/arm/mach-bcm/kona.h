@@ -11,8 +11,4 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/reboot.h>
-
 void __init kona_l2_cache_init(void);
-void bcm_kona_setup_restart(void);
-void bcm_kona_restart(enum reboot_mode mode, const char *cmd);
