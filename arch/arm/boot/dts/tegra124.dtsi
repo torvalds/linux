@@ -388,7 +388,7 @@
 		clocks = <&tegra_car TEGRA124_CLK_SDMMC1>;
 		resets = <&tegra_car 14>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@700b0200 {
@@ -398,7 +398,7 @@
 		clocks = <&tegra_car TEGRA124_CLK_SDMMC2>;
 		resets = <&tegra_car 9>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@700b0400 {
@@ -408,7 +408,7 @@
 		clocks = <&tegra_car TEGRA124_CLK_SDMMC3>;
 		resets = <&tegra_car 69>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@700b0600 {
@@ -418,7 +418,7 @@
 		clocks = <&tegra_car TEGRA124_CLK_SDMMC4>;
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	ahub@70300000 {
