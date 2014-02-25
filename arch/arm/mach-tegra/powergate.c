@@ -484,6 +484,7 @@ int tegra_io_rail_power_on(int id)
 
 	return 0;
 }
+EXPORT_SYMBOL(tegra_io_rail_power_on);
 
 int tegra_io_rail_power_off(int id)
 {
@@ -511,3 +512,4 @@ int tegra_io_rail_power_off(int id)
 
 	return 0;
 }
+EXPORT_SYMBOL(tegra_io_rail_power_off);
