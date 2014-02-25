@@ -346,7 +346,6 @@ config X86_EXTENDED_PLATFORM
 	  for the following (non-PC) 32 bit x86 platforms:
 		Goldfish (Android emulator)
 		AMD Elan
-		NUMAQ (IBM/Sequent)
 		RDC R-321x SoC
 		SGI 320/540 (Visual Workstation)
 		STA2X11-based (e.g. Northville)
@@ -487,32 +486,18 @@ config X86_32_NON_STANDARD
 	depends on X86_32 && SMP
 	depends on X86_EXTENDED_PLATFORM
 	---help---
-	  This option compiles in the NUMAQ, bigsmp, and STA2X11 default
-	  subarchitectures.  It is intended for a generic binary kernel. If you
-	  select them all, kernel will probe it one by one and will fallback to
-	  default.
+	  This option compiles in the bigsmp and STA2X11 default
+	  subarchitectures.  It is intended for a generic binary
+	  kernel. If you select them all, kernel will probe it one by
+	  one and will fallback to default.
 
 # Alphabetically sorted list of Non standard 32 bit platforms
-
-config X86_NUMAQ
-	bool "NUMAQ (IBM/Sequent)"
-	depends on X86_32_NON_STANDARD
-	depends on PCI
-	select NUMA
-	select X86_MPPARSE
-	---help---
-	  This option is used for getting Linux to run on a NUMAQ (IBM/Sequent)
-	  NUMA multiquad box. This changes the way that processors are
-	  bootstrapped, and uses Clustered Logical APIC addressing mode instead
-	  of Flat Logical.  You will need a new lynxer.elf file to flash your
-	  firmware with - send email to <Martin.Bligh@us.ibm.com>.
 
 config X86_SUPPORTS_MEMORY_FAILURE
 	def_bool y
 	# MCE code calls memory_failure():
 	depends on X86_MCE
 	# On 32-bit this adds too big of NODES_SHIFT and we run out of page flags:
-	depends on !X86_NUMAQ
 	# On 32-bit SPARSEMEM adds too big of SECTIONS_WIDTH:
 	depends on X86_64 || !SPARSEMEM
 	select ARCH_SUPPORTS_MEMORY_FAILURE
@@ -783,7 +768,7 @@ config NR_CPUS
 	range 2 8192 if SMP && !MAXSMP && CPUMASK_OFFSTACK && X86_64
 	default "1" if !SMP
 	default "8192" if MAXSMP
-	default "32" if SMP && (X86_NUMAQ || X86_BIGSMP)
+	default "32" if SMP && X86_BIGSMP
 	default "8" if SMP
 	---help---
 	  This allows you to specify the maximum number of CPUs which this
@@ -1064,13 +1049,11 @@ config X86_CPUID
 
 choice
 	prompt "High Memory Support"
-	default HIGHMEM64G if X86_NUMAQ
 	default HIGHMEM4G
 	depends on X86_32
 
 config NOHIGHMEM
 	bool "off"
-	depends on !X86_NUMAQ
 	---help---
 	  Linux can use up to 64 Gigabytes of physical memory on x86 systems.
 	  However, the address space of 32-bit x86 processors is only 4
@@ -1107,7 +1090,6 @@ config NOHIGHMEM
 
 config HIGHMEM4G
 	bool "4GB"
-	depends on !X86_NUMAQ
 	---help---
 	  Select this if you have a 32-bit processor and between 1 and 4
 	  gigabytes of physical RAM.
@@ -1199,8 +1181,8 @@ config DIRECT_GBPAGES
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support"
 	depends on SMP
-	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_BIGSMP))
-	default y if (X86_NUMAQ || X86_BIGSMP)
+	depends on X86_64 || (X86_32 && HIGHMEM64G && X86_BIGSMP)
+	default y if X86_BIGSMP
 	---help---
 	  Enable NUMA (Non Uniform Memory Access) support.
 
@@ -1211,8 +1193,7 @@ config NUMA
 	  For 64-bit this is recommended if the system is Intel Core i7
 	  (or later), AMD Opteron, or EM64T NUMA.
 
-	  For 32-bit this is only needed on (rare) 32-bit-only platforms
-	  that support NUMA topologies, such as NUMAQ, or if you boot a 32-bit
+	  For 32-bit this is only needed if you boot a 32-bit
 	  kernel on a 64-bit NUMA platform.
 
 	  Otherwise, you should say N.
@@ -1258,7 +1239,6 @@ config NODES_SHIFT
 	range 1 10
 	default "10" if MAXSMP
 	default "6" if X86_64
-	default "4" if X86_NUMAQ
 	default "3"
 	depends on NEED_MULTIPLE_NODES
 	---help---

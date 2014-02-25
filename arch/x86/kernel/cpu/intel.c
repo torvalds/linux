@@ -267,10 +267,6 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 	}
 #endif
 
-#ifdef CONFIG_X86_NUMAQ
-	numaq_tsc_disable();
-#endif
-
 	intel_smp_check(c);
 }
 #else
