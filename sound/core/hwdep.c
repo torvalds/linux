@@ -416,6 +416,7 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 {
 	struct snd_hwdep *hwdep = device->device_data;
 	struct snd_card *card = hwdep->card;
+	struct device *dev;
 	int err;
 	char name[32];
 
@@ -426,10 +427,14 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 	}
 	list_add_tail(&hwdep->list, &snd_hwdep_devices);
 	sprintf(name, "hwC%iD%i", hwdep->card->number, hwdep->device);
-	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_HWDEP,
-				       hwdep->card, hwdep->device,
-				       &snd_hwdep_f_ops, hwdep, name)) < 0) {
-		dev_err(card->dev,
+	dev = hwdep->dev;
+	if (!dev)
+		dev = snd_card_get_device_link(hwdep->card);
+	err = snd_register_device_for_dev(SNDRV_DEVICE_TYPE_HWDEP,
+					  hwdep->card, hwdep->device,
+					  &snd_hwdep_f_ops, hwdep, name, dev);
+	if (err < 0) {
+		dev_err(dev,
 			"unable to register hardware dependent device %i:%i\n",
 			card->number, hwdep->device);
 		list_del(&hwdep->list);
@@ -445,7 +450,7 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 				dev_set_drvdata(d, hwdep->private_data);
 			err = sysfs_create_groups(&d->kobj, hwdep->groups);
 			if (err < 0)
-				dev_warn(card->dev,
+				dev_warn(dev,
 					 "hwdep %d:%d: cannot create sysfs groups\n",
 					 card->number, hwdep->device);
 			put_device(d);
@@ -456,13 +461,13 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 	hwdep->ossreg = 0;
 	if (hwdep->oss_type >= 0) {
 		if ((hwdep->oss_type == SNDRV_OSS_DEVICE_TYPE_DMFM) && (hwdep->device != 0)) {
-			dev_warn(card->dev,
+			dev_warn(dev,
 				 "only hwdep device 0 can be registered as OSS direct FM device!\n");
 		} else {
 			if (snd_register_oss_device(hwdep->oss_type,
 						    card, hwdep->device,
 						    &snd_hwdep_f_ops, hwdep) < 0) {
-				dev_err(card->dev,
+				dev_err(dev,
 					"unable to register OSS compatibility device %i:%i\n",
 					card->number, hwdep->device);
 			} else
