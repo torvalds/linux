@@ -283,7 +283,7 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 
 /* AP */
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		     struct net_device *dev);
+		     struct net_device *dev, bool notify);
 
 /* MLME */
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
