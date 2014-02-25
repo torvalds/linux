@@ -2176,7 +2176,7 @@ static void watch_dog_adaptive(unsigned long data)
 	add_timer(&priv->watch_dog_timer);
 }
 
-static CHANNEL_LIST ChannelPlan[] = {
+static struct rtl8187se_channel_list channel_plan_list[] = {
 	{{1,2,3,4,5,6,7,8,9,10,11,36,40,44,48,52,56,60,64},19},		/* FCC */
 	{{1,2,3,4,5,6,7,8,9,10,11},11},					/* IC */
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13,36,40,44,48,52,56,60,64},21},	/* ETSI */
@@ -2212,13 +2212,13 @@ static void rtl8180_set_channel_map(u8 channel_plan,
 		{
 			Dot11d_Init(ieee);
 			ieee->bGlobalDomain = false;
-			if (ChannelPlan[channel_plan].Len != 0) {
+			if (channel_plan_list[channel_plan].len != 0) {
 				/* Clear old channel map */
 				memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
 				/* Set new channel map */
-				for (i = 0; i < ChannelPlan[channel_plan].Len; i++) {
-					if (ChannelPlan[channel_plan].Channel[i] <= 14)
-						GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
+				for (i = 0; i < channel_plan_list[channel_plan].len; i++) {
+					if (channel_plan_list[channel_plan].channel[i] <= 14)
+						GET_DOT11D_INFO(ieee)->channel_map[channel_plan_list[channel_plan].channel[i]] = 1;
 				}
 			}
 			break;
