@@ -31,7 +31,28 @@
 #include "coherency.h"
 #include "mvebu-soc-id.h"
 
-static void __init armada_370_xp_timer_and_clk_init(void)
+/*
+ * Early versions of Armada 375 SoC have a bug where the BootROM
+ * leaves an external data abort pending. The kernel is hit by this
+ * data abort as soon as it enters userspace, because it unmasks the
+ * data aborts at this moment. We register a custom abort handler
+ * below to ignore the first data abort to work around this
+ * problem.
+ */
+static int armada_375_external_abort_wa(unsigned long addr, unsigned int fsr,
+					struct pt_regs *regs)
+{
+	static int ignore_first;
+
+	if (!ignore_first && fsr == 0x1406) {
+		ignore_first = 1;
+		return 0;
+	}
+
+	return 1;
+}
+
+static void __init mvebu_timer_and_clk_init(void)
 {
 	of_clk_init(NULL);
 	clocksource_of_init();
@@ -40,6 +61,10 @@ static void __init armada_370_xp_timer_and_clk_init(void)
 #ifdef CONFIG_CACHE_L2X0
 	l2x0_of_init(0, ~0UL);
 #endif
+
+	if (of_machine_is_compatible("marvell,armada375"))
+		hook_fault_code(16 + 6, armada_375_external_abort_wa, SIGBUS, 0,
+				"imprecise external abort");
 }
 
 static void __init i2c_quirk(void)
@@ -70,7 +95,7 @@ static void __init i2c_quirk(void)
 	return;
 }
 
-static void __init armada_370_xp_dt_init(void)
+static void __init mvebu_dt_init(void)
 {
 	if (of_machine_is_compatible("plathome,openblocks-ax3-4"))
 		i2c_quirk();
@@ -82,10 +107,33 @@ static const char * const armada_370_xp_dt_compat[] = {
 	NULL,
 };
 
-DT_MACHINE_START(ARMADA_XP_DT, "Marvell Armada 370/XP (Device Tree)")
+DT_MACHINE_START(ARMADA_370_XP_DT, "Marvell Armada 370/XP (Device Tree)")
 	.smp		= smp_ops(armada_xp_smp_ops),
-	.init_machine	= armada_370_xp_dt_init,
-	.init_time	= armada_370_xp_timer_and_clk_init,
+	.init_machine	= mvebu_dt_init,
+	.init_time	= mvebu_timer_and_clk_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_370_xp_dt_compat,
+MACHINE_END
+
+static const char * const armada_375_dt_compat[] = {
+	"marvell,armada375",
+	NULL,
+};
+
+DT_MACHINE_START(ARMADA_375_DT, "Marvell Armada 375 (Device Tree)")
+	.init_time	= mvebu_timer_and_clk_init,
+	.restart	= mvebu_restart,
+	.dt_compat	= armada_375_dt_compat,
+MACHINE_END
+
+static const char * const armada_38x_dt_compat[] = {
+	"marvell,armada380",
+	"marvell,armada385",
+	NULL,
+};
+
+DT_MACHINE_START(ARMADA_38X_DT, "Marvell Armada 380/385 (Device Tree)")
+	.init_time	= mvebu_timer_and_clk_init,
+	.restart	= mvebu_restart,
+	.dt_compat	= armada_38x_dt_compat,
 MACHINE_END
