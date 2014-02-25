@@ -268,7 +268,6 @@ extern const struct clk_hw_omap_ops clkhwops_omap3430es2_hsotgusb_wait;
 extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_module_wait;
 extern const struct clk_hw_omap_ops clkhwops_apll54;
 extern const struct clk_hw_omap_ops clkhwops_apll96;
-extern const struct clk_hw_omap_ops clkhwops_omap2430_i2chs_wait;
 
 /* clksel_rate blocks shared between OMAP44xx and AM33xx */
 extern const struct clksel_rate div_1_0_rates[];

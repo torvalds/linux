@@ -312,6 +312,7 @@ static inline void of_ti_clk_deny_autoidle_all(void) { }
 #endif
 
 extern const struct clk_hw_omap_ops clkhwops_omap2xxx_dpll;
+extern const struct clk_hw_omap_ops clkhwops_omap2430_i2chs_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3_dpll;
 extern const struct clk_hw_omap_ops clkhwops_omap4_dpllmx;
 extern const struct clk_hw_omap_ops clkhwops_wait;
