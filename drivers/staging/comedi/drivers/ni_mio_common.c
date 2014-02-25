@@ -4407,6 +4407,9 @@ static int ni_E_init(struct comedi_device *dev)
 							&ni_gpct_read_register,
 							counter_variant,
 							NUM_GPCT);
+	if (!devpriv->counter_dev)
+		return -ENOMEM;
+
 	/* General purpose counters */
 	for (j = 0; j < NUM_GPCT; ++j) {
 		s = &dev->subdevices[NI_GPCT_SUBDEV(j)];
