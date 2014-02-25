@@ -2763,7 +2763,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 
 	if (em_cached && *em_cached) {
 		em = *em_cached;
-		if (em->in_tree && start >= em->start &&
+		if (extent_map_in_tree(em) && start >= em->start &&
 		    start < extent_map_end(em)) {
 			atomic_inc(&em->refs);
 			return em;

@@ -33,7 +33,6 @@ struct extent_map {
 	unsigned long flags;
 	struct block_device *bdev;
 	atomic_t refs;
-	unsigned int in_tree;
 	unsigned int compress_type;
 	struct list_head list;
 };
@@ -43,6 +42,11 @@ struct extent_map_tree {
 	struct list_head modified_extents;
 	rwlock_t lock;
 };
+
+static inline int extent_map_in_tree(const struct extent_map *em)
+{
+	return !RB_EMPTY_NODE(&em->rb_node);
+}
 
 static inline u64 extent_map_end(struct extent_map *em)
 {
