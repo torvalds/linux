@@ -1342,8 +1342,12 @@ static void cgroup_enable_task_cg_lists(void)
 		 * racing against cgroup_exit().
 		 */
 		spin_lock_irq(&p->sighand->siglock);
-		if (!(p->flags & PF_EXITING))
-			list_add(&p->cg_list, &task_css_set(p)->tasks);
+		if (!(p->flags & PF_EXITING)) {
+			struct css_set *cset = task_css_set(p);
+
+			list_add(&p->cg_list, &cset->tasks);
+			get_css_set(cset);
+		}
 		spin_unlock_irq(&p->sighand->siglock);
 
 		task_unlock(p);
@@ -1909,6 +1913,10 @@ static int cgroup_migrate(struct cgroup *cgrp, struct task_struct *leader,
 	do {
 		/* @task either already exited or can't exit until the end */
 		if (task->flags & PF_EXITING)
+			goto next;
+
+		/* leave @task alone if post_fork() hasn't linked it yet */
+		if (list_empty(&task->cg_list))
 			goto next;
 
 		cset = task_css_set(task);
@@ -2815,6 +2823,12 @@ void css_task_iter_end(struct css_task_iter *it)
  * cgroup_trasnsfer_tasks - move tasks from one cgroup to another
  * @to: cgroup to which the tasks will be moved
  * @from: cgroup in which the tasks currently reside
+ *
+ * Locking rules between cgroup_post_fork() and the migration path
+ * guarantee that, if a task is forking while being migrated, the new child
+ * is guaranteed to be either visible in the source cgroup after the
+ * parent's migration is complete or put into the target cgroup.  No task
+ * can slip out of migration through forking.
  */
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 {
@@ -4243,27 +4257,16 @@ static const struct file_operations proc_cgroupstats_operations = {
 };
 
 /**
- * cgroup_fork - attach newly forked task to its parents cgroup.
+ * cgroup_fork - initialize cgroup related fields during copy_process()
  * @child: pointer to task_struct of forking parent process.
  *
- * Description: A task inherits its parent's cgroup at fork().
- *
- * A pointer to the shared css_set was automatically copied in
- * fork.c by dup_task_struct().  However, we ignore that copy, since
- * it was not made under the protection of RCU or cgroup_mutex, so
- * might no longer be a valid cgroup pointer.  cgroup_attach_task() might
- * have already changed current->cgroups, allowing the previously
- * referenced cgroup group to be removed and freed.
- *
- * At the point that cgroup_fork() is called, 'current' is the parent
- * task, and the passed argument 'child' points to the child task.
+ * A task is associated with the init_css_set until cgroup_post_fork()
+ * attaches it to the parent's css_set.  Empty cg_list indicates that
+ * @child isn't holding reference to its css_set.
  */
 void cgroup_fork(struct task_struct *child)
 {
-	task_lock(current);
-	get_css_set(task_css_set(current));
-	child->cgroups = current->cgroups;
-	task_unlock(current);
+	RCU_INIT_POINTER(child->cgroups, &init_css_set);
 	INIT_LIST_HEAD(&child->cg_list);
 }
 
@@ -4283,21 +4286,38 @@ void cgroup_post_fork(struct task_struct *child)
 	int i;
 
 	/*
-	 * use_task_css_set_links is set to 1 before we walk the tasklist
-	 * under the tasklist_lock and we read it here after we added the child
-	 * to the tasklist under the tasklist_lock as well. If the child wasn't
-	 * yet in the tasklist when we walked through it from
-	 * cgroup_enable_task_cg_lists(), then use_task_css_set_links value
-	 * should be visible now due to the paired locking and barriers implied
-	 * by LOCK/UNLOCK: it is written before the tasklist_lock unlock
-	 * in cgroup_enable_task_cg_lists() and read here after the tasklist_lock
-	 * lock on fork.
+	 * This may race against cgroup_enable_task_cg_links().  As that
+	 * function sets use_task_css_set_links before grabbing
+	 * tasklist_lock and we just went through tasklist_lock to add
+	 * @child, it's guaranteed that either we see the set
+	 * use_task_css_set_links or cgroup_enable_task_cg_lists() sees
+	 * @child during its iteration.
+	 *
+	 * If we won the race, @child is associated with %current's
+	 * css_set.  Grabbing css_set_rwsem guarantees both that the
+	 * association is stable, and, on completion of the parent's
+	 * migration, @child is visible in the source of migration or
+	 * already in the destination cgroup.  This guarantee is necessary
+	 * when implementing operations which need to migrate all tasks of
+	 * a cgroup to another.
+	 *
+	 * Note that if we lose to cgroup_enable_task_cg_links(), @child
+	 * will remain in init_css_set.  This is safe because all tasks are
+	 * in the init_css_set before cg_links is enabled and there's no
+	 * operation which transfers all tasks out of init_css_set.
 	 */
 	if (use_task_css_set_links) {
+		struct css_set *cset;
+
 		down_write(&css_set_rwsem);
+		cset = task_css_set_check(current,
+					  lockdep_is_held(&css_set_rwsem));
 		task_lock(child);
-		if (list_empty(&child->cg_list))
-			list_add(&child->cg_list, &task_css_set(child)->tasks);
+		if (list_empty(&child->cg_list)) {
+			rcu_assign_pointer(child->cgroups, cset);
+			list_add(&child->cg_list, &cset->tasks);
+			get_css_set(cset);
+		}
 		task_unlock(child);
 		up_write(&css_set_rwsem);
 	}
@@ -4353,6 +4373,7 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 {
 	struct cgroup_subsys *ss;
 	struct css_set *cset;
+	bool put_cset = false;
 	int i;
 
 	/*
@@ -4361,8 +4382,10 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 	 */
 	if (!list_empty(&tsk->cg_list)) {
 		down_write(&css_set_rwsem);
-		if (!list_empty(&tsk->cg_list))
+		if (!list_empty(&tsk->cg_list)) {
 			list_del_init(&tsk->cg_list);
+			put_cset = true;
+		}
 		up_write(&css_set_rwsem);
 	}
 
@@ -4384,7 +4407,8 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 	}
 	task_unlock(tsk);
 
-	put_css_set(cset, true);
+	if (put_cset)
+		put_css_set(cset, true);
 }
 
 static void check_for_release(struct cgroup *cgrp)
