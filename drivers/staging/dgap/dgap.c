@@ -197,9 +197,6 @@ static void dgap_remove_ports_sysfiles(struct board_t *bd);
 static void dgap_create_driver_sysfiles(struct pci_driver *);
 static void dgap_remove_driver_sysfiles(struct pci_driver *);
 
-static int dgap_tty_class_init(void);
-static int dgap_tty_class_destroy(void);
-
 static void dgap_create_tty_sysfs(struct un_t *un, struct device *c);
 static void dgap_remove_tty_sysfs(struct device *c);
 
@@ -210,12 +207,10 @@ static int dgap_parsefile(char **in, int Remove);
 static struct cnode *dgap_find_config(int type, int bus, int slot);
 static uint dgap_config_get_number_of_ports(struct board_t *bd);
 static char *dgap_create_config_string(struct board_t *bd, char *string);
-static char *dgap_get_config_letters(struct board_t *bd, char *string);
 static uint dgap_config_get_useintr(struct board_t *bd);
 static uint dgap_config_get_altpin(struct board_t *bd);
 
 static int	dgap_ms_sleep(ulong ms);
-static char	*dgap_ioctl_name(int cmd);
 static void	dgap_do_bios_load(struct board_t *brd, uchar __user *ubios, int len);
 static void	dgap_do_fep_load(struct board_t *brd, uchar __user *ufep, int len);
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
@@ -390,29 +385,6 @@ static struct firmware_info fw_info[] = {
 	{0,}
 };
 
-static char *dgap_state_text[] = {
-	"Board Failed",
-	"Configuration for board not found.\n\t\t\tRun mpi to configure board.",
-	"Board Found",
-	"Need Reset",
-	"Finished Reset",
-	"Need Config",
-	"Finished Config",
-	"Need Device Creation",
-	"Requested Device Creation",
-	"Finished Device Creation",
-	"Need BIOS Load",
-	"Requested BIOS",
-	"Doing BIOS Load",
-	"Finished BIOS Load",
-	"Need FEP Load",
-	"Requested FEP",
-	"Doing FEP Load",
-	"Finished FEP Load",
-	"Requested PROC creation",
-	"Finished PROC creation",
-	"Board READY",
-};
 
 static char *dgap_driver_state_text[] = {
 	"Driver Initialized",
@@ -1421,57 +1393,6 @@ static int dgap_ms_sleep(ulong ms)
 
 
 
-/*
- *      dgap_ioctl_name() : Returns a text version of each ioctl value.
- */
-static char *dgap_ioctl_name(int cmd)
-{
-	switch(cmd) {
-
-	case TCGETA:		return("TCGETA");
-	case TCGETS:		return("TCGETS");
-	case TCSETA:		return("TCSETA");
-	case TCSETS:		return("TCSETS");
-	case TCSETAW:		return("TCSETAW");
-	case TCSETSW:		return("TCSETSW");
-	case TCSETAF:		return("TCSETAF");
-	case TCSETSF:		return("TCSETSF");
-	case TCSBRK:		return("TCSBRK");
-	case TCXONC:		return("TCXONC");
-	case TCFLSH:		return("TCFLSH");
-	case TIOCGSID:		return("TIOCGSID");
-
-	case TIOCGETD:		return("TIOCGETD");
-	case TIOCSETD:		return("TIOCSETD");
-	case TIOCGWINSZ:	return("TIOCGWINSZ");
-	case TIOCSWINSZ:	return("TIOCSWINSZ");
-
-	case TIOCMGET:		return("TIOCMGET");
-	case TIOCMSET:		return("TIOCMSET");
-	case TIOCMBIS:		return("TIOCMBIS");
-	case TIOCMBIC:		return("TIOCMBIC");
-
-	/* from digi.h */
-	case DIGI_SETA:		return("DIGI_SETA");
-	case DIGI_SETAW:	return("DIGI_SETAW");
-	case DIGI_SETAF:	return("DIGI_SETAF");
-	case DIGI_SETFLOW:	return("DIGI_SETFLOW");
-	case DIGI_SETAFLOW:	return("DIGI_SETAFLOW");
-	case DIGI_GETFLOW:	return("DIGI_GETFLOW");
-	case DIGI_GETAFLOW:	return("DIGI_GETAFLOW");
-	case DIGI_GETA:		return("DIGI_GETA");
-	case DIGI_GEDELAY:	return("DIGI_GEDELAY");
-	case DIGI_SEDELAY:	return("DIGI_SEDELAY");
-	case DIGI_GETCUSTOMBAUD: return("DIGI_GETCUSTOMBAUD");
-	case DIGI_SETCUSTOMBAUD: return("DIGI_SETCUSTOMBAUD");
-	case TIOCMODG:		return("TIOCMODG");
-	case TIOCMODS:		return("TIOCMODS");
-	case TIOCSDTR:		return("TIOCSDTR");
-	case TIOCCDTR:		return("TIOCCDTR");
-
-	default:		return("unknown");
-	}
-}
 
 /************************************************************************
  *
@@ -8557,71 +8478,5 @@ static char *dgap_create_config_string(struct board_t *bd, char *string)
 	}
 
 	*ptr = 0xff;
-	return string;
-}
-
-
-
-static char *dgap_get_config_letters(struct board_t *bd, char *string)
-{
-	int found = FALSE;
-	char *ptr = string;
-	struct cnode *cptr = NULL;
-	int len = 0;
-	int left = MAXTTYNAMELEN;
-
-	if (!bd) {
-		return "<NULL>";
-	}
-
-	for (cptr = bd->bd_config; cptr; cptr = cptr->next) {
-
-		if ((cptr->type == BNODE) &&
-		     ((cptr->u.board.type == APORT2_920P) || (cptr->u.board.type == APORT4_920P) ||
-		     (cptr->u.board.type == APORT8_920P) || (cptr->u.board.type == PAPORT4) ||
-		     (cptr->u.board.type == PAPORT8))) {
-
-			found = TRUE;
-		}
-
-		if (cptr->type == TNODE && found == TRUE) {
-			char *ptr1;
-			if (strstr(cptr->u.ttyname, "tty")) {
-				ptr1 = cptr->u.ttyname;
-				ptr1 += 3;
-			}
-			else {
-				ptr1 = cptr->u.ttyname;
-			}
-			if (ptr1) {
-				len = snprintf(ptr, left, "%s", ptr1);
-				left -= len;
-				ptr  += len;
-				if (left <= 0)
-					break;
-			}
-		}
-
-		if (cptr->type == CNODE) {
-			if (cptr->u.conc.id) {
-				len = snprintf(ptr, left, "%s", cptr->u.conc.id);
-				left -= len;
-				ptr  += len;
-				if (left <= 0)
-					break;
-			}
-                }
-
-		if (cptr->type == MNODE) {
-			if (cptr->u.module.id) {
-				len = snprintf(ptr, left, "%s", cptr->u.module.id);
-				left -= len;
-				ptr  += len;
-				if (left <= 0)
-					break;
-			}
-		}
-	}
-
 	return string;
 }
