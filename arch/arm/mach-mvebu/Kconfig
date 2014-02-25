@@ -63,6 +63,13 @@ config MACH_KIRKWOOD
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Kirkwood device tree.
 
+config MACH_T5325
+	bool "HP T5325 thin client"
+	depends on MACH_KIRKWOOD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  HP T5325 Thin client
+
 endmenu
 
 endif
