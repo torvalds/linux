@@ -441,6 +441,8 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 		struct device *d = snd_get_device(SNDRV_DEVICE_TYPE_HWDEP,
 						  hwdep->card, hwdep->device);
 		if (d) {
+			if (hwdep->private_data)
+				dev_set_drvdata(d, hwdep->private_data);
 			err = sysfs_create_groups(&d->kobj, hwdep->groups);
 			if (err < 0)
 				dev_warn(card->dev,
