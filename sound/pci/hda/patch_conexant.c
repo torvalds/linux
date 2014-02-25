@@ -1900,7 +1900,8 @@ static void cxt5066_update_speaker(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	unsigned int pinctl;
 
-	snd_printdd("CXT5066: update speaker, hp_present=%d, cur_eapd=%d\n",
+	codec_dbg(codec,
+		  "CXT5066: update speaker, hp_present=%d, cur_eapd=%d\n",
 		    spec->hp_present, spec->cur_eapd);
 
 	/* Port A (HP) */
@@ -1969,10 +1970,10 @@ static void cxt5066_vostro_automic(struct hda_codec *codec)
 
 	present = snd_hda_jack_detect(codec, 0x1a);
 	if (present) {
-		snd_printdd("CXT5066: external microphone detected\n");
+		codec_dbg(codec, "CXT5066: external microphone detected\n");
 		snd_hda_sequence_write(codec, ext_mic_present);
 	} else {
-		snd_printdd("CXT5066: external microphone absent\n");
+		codec_dbg(codec, "CXT5066: external microphone absent\n");
 		snd_hda_sequence_write(codec, ext_mic_absent);
 	}
 }
@@ -1997,10 +1998,10 @@ static void cxt5066_ideapad_automic(struct hda_codec *codec)
 
 	present = snd_hda_jack_detect(codec, 0x1b);
 	if (present) {
-		snd_printdd("CXT5066: external microphone detected\n");
+		codec_dbg(codec, "CXT5066: external microphone detected\n");
 		snd_hda_sequence_write(codec, ext_mic_present);
 	} else {
-		snd_printdd("CXT5066: external microphone absent\n");
+		codec_dbg(codec, "CXT5066: external microphone absent\n");
 		snd_hda_sequence_write(codec, ext_mic_absent);
 	}
 }
@@ -2012,7 +2013,7 @@ static void cxt5066_asus_automic(struct hda_codec *codec)
 	unsigned int present;
 
 	present = snd_hda_jack_detect(codec, 0x1b);
-	snd_printdd("CXT5066: external microphone present=%d\n", present);
+	codec_dbg(codec, "CXT5066: external microphone present=%d\n", present);
 	snd_hda_codec_write(codec, 0x17, 0, AC_VERB_SET_CONNECT_SEL,
 			    present ? 1 : 0);
 }
@@ -2024,7 +2025,7 @@ static void cxt5066_hp_laptop_automic(struct hda_codec *codec)
 	unsigned int present;
 
 	present = snd_hda_jack_detect(codec, 0x1b);
-	snd_printdd("CXT5066: external microphone present=%d\n", present);
+	codec_dbg(codec, "CXT5066: external microphone present=%d\n", present);
 	snd_hda_codec_write(codec, 0x17, 0, AC_VERB_SET_CONNECT_SEL,
 			    present ? 1 : 3);
 }
@@ -2063,13 +2064,13 @@ static void cxt5066_thinkpad_automic(struct hda_codec *codec)
 	ext_present = snd_hda_jack_detect(codec, 0x1b);
 	dock_present = snd_hda_jack_detect(codec, 0x1a);
 	if (ext_present) {
-		snd_printdd("CXT5066: external microphone detected\n");
+		codec_dbg(codec, "CXT5066: external microphone detected\n");
 		snd_hda_sequence_write(codec, ext_mic_present);
 	} else if (dock_present) {
-		snd_printdd("CXT5066: dock microphone detected\n");
+		codec_dbg(codec, "CXT5066: dock microphone detected\n");
 		snd_hda_sequence_write(codec, dock_mic_present);
 	} else {
-		snd_printdd("CXT5066: external microphone absent\n");
+		codec_dbg(codec, "CXT5066: external microphone absent\n");
 		snd_hda_sequence_write(codec, ext_mic_absent);
 	}
 }
@@ -2088,7 +2089,7 @@ static void cxt5066_hp_automute(struct hda_codec *codec)
 
 	spec->hp_present = portA ? HP_PRESENT_PORT_A : 0;
 	spec->hp_present |= portD ? HP_PRESENT_PORT_D : 0;
-	snd_printdd("CXT5066: hp automute portA=%x portD=%x present=%d\n",
+	codec_dbg(codec, "CXT5066: hp automute portA=%x portD=%x present=%d\n",
 		portA, portD, spec->hp_present);
 	cxt5066_update_speaker(codec);
 }
@@ -2113,7 +2114,7 @@ static void cxt5066_automic(struct hda_codec *codec)
 /* unsolicited event for jack sensing */
 static void cxt5066_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	snd_printdd("CXT5066: unsol event %x (%x)\n", res, res >> 26);
+	codec_dbg(codec, "CXT5066: unsol event %x (%x)\n", res, res >> 26);
 	switch (res >> 26) {
 	case CONEXANT_HP_EVENT:
 		cxt5066_hp_automute(codec);
@@ -2509,7 +2510,7 @@ static const struct hda_verb cxt5066_init_verbs_hp_laptop[] = {
 /* initialize jack-sensing, too */
 static int cxt5066_init(struct hda_codec *codec)
 {
-	snd_printdd("CXT5066: init\n");
+	codec_dbg(codec, "CXT5066: init\n");
 	conexant_init(codec);
 	if (codec->patch_ops.unsol_event) {
 		cxt5066_hp_automute(codec);
@@ -3401,8 +3402,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	struct conexant_spec *spec;
 	int err;
 
-	printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-	       codec->chip_name);
+	codec_info(codec, "%s: BIOS auto-probing.\n", codec->chip_name);
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -3474,7 +3474,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	 * Better to make reset, then.
 	 */
 	if (!codec->bus->sync_write) {
-		snd_printd("hda_codec: "
+		codec_info(codec,
 			   "Enable sync_write for stable communication\n");
 		codec->bus->sync_write = 1;
 		codec->bus->allow_bus_reset = 1;

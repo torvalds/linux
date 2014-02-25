@@ -201,7 +201,7 @@ make_codec_cmd(struct hda_codec *codec, hda_nid_t nid, int flags,
 
 	if ((codec->addr & ~0xf) || (nid & ~0x7f) ||
 	    (verb & ~0xfff) || (parm & ~0xffff)) {
-		printk(KERN_ERR "hda-codec: out of range cmd %x:%x:%x:%x\n",
+		codec_err(codec, "hda-codec: out of range cmd %x:%x:%x:%x\n",
 		       codec->addr, nid, verb, parm);
 		return ~0;
 	}
@@ -249,8 +249,8 @@ static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
 	snd_hda_power_down(codec);
 	if (!codec_in_pm(codec) && res && *res == -1 && bus->rirb_error) {
 		if (bus->response_reset) {
-			snd_printd("hda_codec: resetting BUS due to "
-				   "fatal communication error\n");
+			codec_dbg(codec,
+				  "resetting BUS due to fatal communication error\n");
 			trace_hda_bus_reset(bus);
 			bus->ops.bus_reset(bus);
 		}
@@ -475,8 +475,7 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 
 	if (len > 0 && conn_list) {
 		if (len > max_conns) {
-			snd_printk(KERN_ERR "hda_codec: "
-				   "Too many connections %d for NID 0x%x\n",
+			codec_err(codec, "Too many connections %d for NID 0x%x\n",
 				   len, nid);
 			return -EINVAL;
 		}
@@ -574,8 +573,8 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
 		if (val == 0 && null_count++) {  /* no second chance */
-			snd_printdd("hda_codec: "
-				   "invalid CONNECT_LIST verb %x[%i]:%x\n",
+			codec_dbg(codec,
+				  "invalid CONNECT_LIST verb %x[%i]:%x\n",
 				    nid, i, parm);
 			return 0;
 		}
@@ -583,7 +582,7 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 		if (range_val) {
 			/* ranges between the previous and this one */
 			if (!prev_nid || prev_nid >= val) {
-				snd_printk(KERN_WARNING "hda_codec: "
+				codec_warn(codec,
 					   "invalid dep_range_val %x:%x\n",
 					   prev_nid, val);
 				continue;
@@ -660,7 +659,7 @@ int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 	if (!recursive)
 		return -1;
 	if (recursive > 10) {
-		snd_printd("hda_codec: too deep connection for 0x%x\n", nid);
+		codec_dbg(codec, "too deep connection for 0x%x\n", nid);
 		return -1;
 	}
 	recursive++;
@@ -808,8 +807,7 @@ static int init_unsol_queue(struct hda_bus *bus)
 
 	unsol = kzalloc(sizeof(*unsol), GFP_KERNEL);
 	if (!unsol) {
-		snd_printk(KERN_ERR "hda_codec: "
-			   "can't allocate unsolicited queue\n");
+		dev_err(bus->card->dev, "can't allocate unsolicited queue\n");
 		return -ENOMEM;
 	}
 	INIT_WORK(&unsol->work, process_unsol_events);
@@ -881,7 +879,7 @@ int snd_hda_bus_new(struct snd_card *card,
 
 	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL) {
-		snd_printk(KERN_ERR "can't allocate struct hda_bus\n");
+		dev_err(card->dev, "can't allocate struct hda_bus\n");
 		return -ENOMEM;
 	}
 
@@ -900,7 +898,7 @@ int snd_hda_bus_new(struct snd_card *card,
 		 "hd-audio%d", card->number);
 	bus->workq = create_singlethread_workqueue(bus->workq_name);
 	if (!bus->workq) {
-		snd_printk(KERN_ERR "cannot create workqueue %s\n",
+		dev_err(card->dev, "cannot create workqueue %s\n",
 			   bus->workq_name);
 		kfree(bus);
 		return -ENOMEM;
@@ -944,7 +942,7 @@ find_codec_preset(struct hda_codec *codec)
 	mutex_lock(&preset_mutex);
 	list_for_each_entry(tbl, &hda_preset_tables, list) {
 		if (!try_module_get(tbl->owner)) {
-			snd_printk(KERN_ERR "hda_codec: cannot module_get\n");
+			codec_err(codec, "cannot module_get\n");
 			continue;
 		}
 		for (preset = tbl->preset; preset->id; preset++) {
@@ -1433,14 +1431,15 @@ int snd_hda_codec_new(struct hda_bus *bus,
 		return -EINVAL;
 
 	if (bus->caddr_tbl[codec_addr]) {
-		snd_printk(KERN_ERR "hda_codec: "
-			   "address 0x%x is already occupied\n", codec_addr);
+		dev_err(bus->card->dev,
+			"address 0x%x is already occupied\n",
+			codec_addr);
 		return -EBUSY;
 	}
 
 	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
 	if (codec == NULL) {
-		snd_printk(KERN_ERR "can't allocate struct hda_codec\n");
+		dev_err(bus->card->dev, "can't allocate struct hda_codec\n");
 		return -ENOMEM;
 	}
 
@@ -1513,7 +1512,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 
 	setup_fg_nodes(codec);
 	if (!codec->afg && !codec->mfg) {
-		snd_printdd("hda_codec: no AFG or MFG node found\n");
+		dev_err(bus->card->dev, "no AFG or MFG node found\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -1521,7 +1520,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	fg = codec->afg ? codec->afg : codec->mfg;
 	err = read_widget_caps(codec, fg);
 	if (err < 0) {
-		snd_printk(KERN_ERR "hda_codec: cannot malloc\n");
+		dev_err(bus->card->dev, "cannot malloc\n");
 		goto error;
 	}
 	err = read_pin_defaults(codec);
@@ -1583,7 +1582,7 @@ int snd_hda_codec_update_widgets(struct hda_codec *codec)
 	fg = codec->afg ? codec->afg : codec->mfg;
 	err = read_widget_caps(codec, fg);
 	if (err < 0) {
-		snd_printk(KERN_ERR "hda_codec: cannot malloc\n");
+		codec_err(codec, "cannot malloc\n");
 		return err;
 	}
 
@@ -1660,7 +1659,7 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 #endif
 		}
 		if (!patch) {
-			printk(KERN_ERR "hda-codec: No codec parser is available\n");
+			codec_err(codec, "No codec parser is available\n");
 			return -ENODEV;
 		}
 	}
@@ -1744,9 +1743,9 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	if (!nid)
 		return;
 
-	snd_printdd("hda_codec_setup_stream: "
-		    "NID=0x%x, stream=0x%x, channel=%d, format=0x%x\n",
-		    nid, stream_tag, channel_id, format);
+	codec_dbg(codec,
+		  "hda_codec_setup_stream: NID=0x%x, stream=0x%x, channel=%d, format=0x%x\n",
+		  nid, stream_tag, channel_id, format);
 	p = get_hda_cvt_setup(codec, nid);
 	if (!p)
 		return;
@@ -1793,7 +1792,7 @@ void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
 	if (codec->no_sticky_stream)
 		do_now = 1;
 
-	snd_printdd("hda_codec_cleanup_stream: NID=0x%x\n", nid);
+	codec_dbg(codec, "hda_codec_cleanup_stream: NID=0x%x\n", nid);
 	p = get_hda_cvt_setup(codec, nid);
 	if (p) {
 		/* here we just clear the active flag when do_now isn't set;
@@ -2315,9 +2314,9 @@ int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = get_amp_max_value(codec, nid, dir, ofs);
 	if (!uinfo->value.integer.max) {
-		printk(KERN_WARNING "hda_codec: "
-		       "num_steps = 0 for NID=0x%x (ctl = %s)\n", nid,
-		       kcontrol->id.name);
+		codec_warn(codec,
+			   "num_steps = 0 for NID=0x%x (ctl = %s)\n",
+			   nid, kcontrol->id.name);
 		return -EINVAL;
 	}
 	return 0;
@@ -2591,8 +2590,8 @@ int snd_hda_add_nid(struct hda_codec *codec, struct snd_kcontrol *kctl,
 		item->nid = nid;
 		return 0;
 	}
-	printk(KERN_ERR "hda-codec: no NID for mapping control %s:%d:%d\n",
-	       kctl->id.name, kctl->id.index, index);
+	codec_err(codec, "no NID for mapping control %s:%d:%d\n",
+		  kctl->id.name, kctl->id.index, index);
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_hda_add_nid);
@@ -2784,7 +2783,7 @@ static int get_kctl_0dB_offset(struct snd_kcontrol *kctl, int *step_to_check)
 			return -1;
 		if (*step_to_check && *step_to_check != step) {
 			snd_printk(KERN_ERR "hda_codec: Mismatching dB step for vmaster slave (%d!=%d)\n",
-				   *step_to_check, step);
+-				   *step_to_check, step);
 			return -1;
 		}
 		*step_to_check = step;
@@ -2854,7 +2853,7 @@ int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 
 	err = map_slaves(codec, slaves, suffix, check_slave_present, NULL);
 	if (err != 1) {
-		snd_printdd("No slave found for %s\n", name);
+		codec_dbg(codec, "No slave found for %s\n", name);
 		return 0;
 	}
 	kctl = snd_ctl_make_virtual_master(name, tlv);
@@ -3520,7 +3519,7 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 
 	idx = find_empty_mixer_ctl_idx(codec, "IEC958 Playback Switch", idx);
 	if (idx < 0) {
-		printk(KERN_ERR "hda_codec: too many IEC958 outputs\n");
+		codec_err(codec, "too many IEC958 outputs\n");
 		return -EBUSY;
 	}
 	spdif = snd_array_new(&codec->spdif_out);
@@ -3724,7 +3723,7 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 
 	idx = find_empty_mixer_ctl_idx(codec, "IEC958 Capture Switch", 0);
 	if (idx < 0) {
-		printk(KERN_ERR "hda_codec: too many IEC958 inputs\n");
+		codec_err(codec, "too many IEC958 inputs\n");
 		return -EBUSY;
 	}
 	for (dig_mix = dig_in_ctls; dig_mix->name; dig_mix++) {
@@ -4151,12 +4150,13 @@ int snd_hda_build_controls(struct hda_bus *bus)
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		int err = snd_hda_codec_build_controls(codec);
 		if (err < 0) {
-			printk(KERN_ERR "hda_codec: cannot build controls "
-			       "for #%d (error %d)\n", codec->addr, err);
+			codec_err(codec,
+				  "cannot build controls for #%d (error %d)\n",
+				  codec->addr, err);
 			err = snd_hda_codec_reset(codec);
 			if (err < 0) {
-				printk(KERN_ERR
-				       "hda_codec: cannot revert codec\n");
+				codec_err(codec,
+					  "cannot revert codec\n");
 				return err;
 			}
 		}
@@ -4327,7 +4327,7 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 		break;
 	default:
 		snd_printdd("invalid format width %d\n",
-			    snd_pcm_format_width(format));
+			  snd_pcm_format_width(format));
 		return 0;
 	}
 
@@ -4403,10 +4403,10 @@ int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 				rates |= rate_bits[i].alsa_bits;
 		}
 		if (rates == 0) {
-			snd_printk(KERN_ERR "hda_codec: rates == 0 "
-				   "(nid=0x%x, val=0x%x, ovrd=%i)\n",
-					nid, val,
-					(wcaps & AC_WCAP_FORMAT_OVRD) ? 1 : 0);
+			codec_err(codec,
+				  "rates == 0 (nid=0x%x, val=0x%x, ovrd=%i)\n",
+				  nid, val,
+				  (wcaps & AC_WCAP_FORMAT_OVRD) ? 1 : 0);
 			return -EIO;
 		}
 		*ratesp = rates;
@@ -4466,12 +4466,11 @@ int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 			bps = 8;
 		}
 		if (formats == 0) {
-			snd_printk(KERN_ERR "hda_codec: formats == 0 "
-				   "(nid=0x%x, val=0x%x, ovrd=%i, "
-				   "streams=0x%x)\n",
-					nid, val,
-					(wcaps & AC_WCAP_FORMAT_OVRD) ? 1 : 0,
-					streams);
+			codec_err(codec,
+				  "formats == 0 (nid=0x%x, val=0x%x, ovrd=%i, streams=0x%x)\n",
+				  nid, val,
+				  (wcaps & AC_WCAP_FORMAT_OVRD) ? 1 : 0,
+				  streams);
 			return -EIO;
 		}
 		if (formatsp)
@@ -4662,7 +4661,7 @@ static int get_empty_pcm_device(struct hda_bus *bus, unsigned int type)
 	int i;
 
 	if (type >= HDA_PCM_NTYPES) {
-		snd_printk(KERN_WARNING "Invalid PCM type %d\n", type);
+		dev_err(bus->card->dev, "Invalid PCM type %d\n", type);
 		return -EINVAL;
 	}
 
@@ -4683,10 +4682,11 @@ static int get_empty_pcm_device(struct hda_bus *bus, unsigned int type)
 	}
 #endif
 
-	snd_printk(KERN_WARNING "Too many %s devices\n",
+	dev_warn(bus->card->dev, "Too many %s devices\n",
 		snd_hda_pcm_type_name[type]);
 #ifndef CONFIG_SND_DYNAMIC_MINORS
-	snd_printk(KERN_WARNING "Consider building the kernel with CONFIG_SND_DYNAMIC_MINORS=y\n");
+	dev_warn(bus->card->dev,
+		 "Consider building the kernel with CONFIG_SND_DYNAMIC_MINORS=y\n");
 #endif
 	return -EAGAIN;
 }
@@ -4724,12 +4724,13 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 			return 0;
 		err = codec->patch_ops.build_pcms(codec);
 		if (err < 0) {
-			printk(KERN_ERR "hda_codec: cannot build PCMs"
-			       "for #%d (error %d)\n", codec->addr, err);
+			codec_err(codec,
+				  "cannot build PCMs for #%d (error %d)\n",
+				  codec->addr, err);
 			err = snd_hda_codec_reset(codec);
 			if (err < 0) {
-				printk(KERN_ERR
-				       "hda_codec: cannot revert codec\n");
+				codec_err(codec,
+					  "cannot revert codec\n");
 				return err;
 			}
 		}
@@ -4748,9 +4749,9 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 			cpcm->device = dev;
 			err = snd_hda_attach_pcm(codec, cpcm);
 			if (err < 0) {
-				printk(KERN_ERR "hda_codec: cannot attach "
-				       "PCM stream %d for codec #%d\n",
-				       dev, codec->addr);
+				codec_err(codec,
+					  "cannot attach PCM stream %d for codec #%d\n",
+					  dev, codec->addr);
 				continue; /* no fatal error */
 			}
 		}
@@ -4819,8 +4820,8 @@ int snd_hda_check_board_config(struct hda_codec *codec,
 		for (i = 0; i < num_configs; i++) {
 			if (models[i] &&
 			    !strcmp(codec->modelname, models[i])) {
-				snd_printd(KERN_INFO "hda_codec: model '%s' is "
-					   "selected\n", models[i]);
+				codec_info(codec, "model '%s' is selected\n",
+					   models[i]);
 				return i;
 			}
 		}
@@ -4842,10 +4843,9 @@ int snd_hda_check_board_config(struct hda_codec *codec,
 			sprintf(tmp, "#%d", tbl->value);
 			model = tmp;
 		}
-		snd_printdd(KERN_INFO "hda_codec: model '%s' is selected "
-			    "for config %x:%x (%s)\n",
-			    model, tbl->subvendor, tbl->subdevice,
-			    (tbl->name ? tbl->name : "Unknown device"));
+		codec_info(codec, "model '%s' is selected for config %x:%x (%s)\n",
+			   model, tbl->subvendor, tbl->subdevice,
+			   (tbl->name ? tbl->name : "Unknown device"));
 #endif
 		return tbl->value;
 	}
@@ -4903,10 +4903,9 @@ int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
 			sprintf(tmp, "#%d", tbl->value);
 			model = tmp;
 		}
-		snd_printdd(KERN_INFO "hda_codec: model '%s' is selected "
-			    "for config %x:%x (%s)\n",
-			    model, tbl->subvendor, tbl->subdevice,
-			    (tbl->name ? tbl->name : "Unknown device"));
+		codec_info(codec, "model '%s' is selected for config %x:%x (%s)\n",
+			   model, tbl->subvendor, tbl->subdevice,
+			   (tbl->name ? tbl->name : "Unknown device"));
 #endif
 		return tbl->value;
 	}

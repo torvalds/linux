@@ -119,7 +119,7 @@ static int clear_codec(struct hda_codec *codec)
 
 	err = snd_hda_codec_reset(codec);
 	if (err < 0) {
-		snd_printk(KERN_ERR "The codec is being used, can't free.\n");
+		codec_err(codec, "The codec is being used, can't free.\n");
 		return err;
 	}
 	snd_hda_sysfs_clear(codec);
@@ -131,10 +131,10 @@ static int reconfig_codec(struct hda_codec *codec)
 	int err;
 
 	snd_hda_power_up(codec);
-	snd_printk(KERN_INFO "hda-codec: reconfiguring\n");
+	codec_info(codec, "hda-codec: reconfiguring\n");
 	err = snd_hda_codec_reset(codec);
 	if (err < 0) {
-		snd_printk(KERN_ERR
+		codec_err(codec,
 			   "The codec is being used, can't reconfigure.\n");
 		goto error;
 	}

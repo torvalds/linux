@@ -758,4 +758,11 @@ void snd_hdmi_write_eld_info(struct hdmi_eld *eld,
 #define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
 void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen);
 
+/*
+ */
+#define codec_err(codec, fmt, args...) dev_err(&(codec)->dev, fmt, ##args)
+#define codec_warn(codec, fmt, args...) dev_warn(&(codec)->dev, fmt, ##args)
+#define codec_info(codec, fmt, args...) dev_info(&(codec)->dev, fmt, ##args)
+#define codec_dbg(codec, fmt, args...) dev_dbg(&(codec)->dev, fmt, ##args)
+
 #endif /* __SOUND_HDA_LOCAL_H */

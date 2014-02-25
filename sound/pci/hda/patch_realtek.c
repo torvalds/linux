@@ -407,8 +407,8 @@ static int alc_auto_parse_customize_define(struct hda_codec *codec)
 	ass = snd_hda_codec_get_pincfg(codec, nid);
 
 	if (!(ass & 1)) {
-		printk(KERN_INFO "hda_codec: %s: SKU not ready 0x%08x\n",
-		       codec->chip_name, ass);
+		codec_info(codec, "%s: SKU not ready 0x%08x\n",
+			   codec->chip_name, ass);
 		return -1;
 	}
 
@@ -432,17 +432,17 @@ do_sku:
 	spec->cdefine.swap = (ass & 0x2) >> 1;
 	spec->cdefine.override = ass & 0x1;
 
-	snd_printd("SKU: Nid=0x%x sku_cfg=0x%08x\n",
+	codec_dbg(codec, "SKU: Nid=0x%x sku_cfg=0x%08x\n",
 		   nid, spec->cdefine.sku_cfg);
-	snd_printd("SKU: port_connectivity=0x%x\n",
+	codec_dbg(codec, "SKU: port_connectivity=0x%x\n",
 		   spec->cdefine.port_connectivity);
-	snd_printd("SKU: enable_pcbeep=0x%x\n", spec->cdefine.enable_pcbeep);
-	snd_printd("SKU: check_sum=0x%08x\n", spec->cdefine.check_sum);
-	snd_printd("SKU: customization=0x%08x\n", spec->cdefine.customization);
-	snd_printd("SKU: external_amp=0x%x\n", spec->cdefine.external_amp);
-	snd_printd("SKU: platform_type=0x%x\n", spec->cdefine.platform_type);
-	snd_printd("SKU: swap=0x%x\n", spec->cdefine.swap);
-	snd_printd("SKU: override=0x%x\n", spec->cdefine.override);
+	codec_dbg(codec, "SKU: enable_pcbeep=0x%x\n", spec->cdefine.enable_pcbeep);
+	codec_dbg(codec, "SKU: check_sum=0x%08x\n", spec->cdefine.check_sum);
+	codec_dbg(codec, "SKU: customization=0x%08x\n", spec->cdefine.customization);
+	codec_dbg(codec, "SKU: external_amp=0x%x\n", spec->cdefine.external_amp);
+	codec_dbg(codec, "SKU: platform_type=0x%x\n", spec->cdefine.platform_type);
+	codec_dbg(codec, "SKU: swap=0x%x\n", spec->cdefine.swap);
+	codec_dbg(codec, "SKU: override=0x%x\n", spec->cdefine.override);
 
 	return 0;
 }
@@ -502,8 +502,8 @@ static int alc_subsystem_id(struct hda_codec *codec, const hda_nid_t *ports)
 	if (codec->vendor_id == 0x10ec0260)
 		nid = 0x17;
 	ass = snd_hda_codec_get_pincfg(codec, nid);
-	snd_printd("realtek: No valid SSID, "
-		   "checking pincfg 0x%08x for NID 0x%x\n",
+	codec_dbg(codec,
+		  "realtek: No valid SSID, checking pincfg 0x%08x for NID 0x%x\n",
 		   ass, nid);
 	if (!(ass & 1))
 		return 0;
@@ -519,7 +519,7 @@ static int alc_subsystem_id(struct hda_codec *codec, const hda_nid_t *ports)
 	if (((ass >> 16) & 0xf) != tmp)
 		return 0;
 do_sku:
-	snd_printd("realtek: Enabling init ASM_ID=0x%04x CODEC_ID=%08x\n",
+	codec_dbg(codec, "realtek: Enabling init ASM_ID=0x%04x CODEC_ID=%08x\n",
 		   ass & 0xffff, codec->vendor_id);
 	/*
 	 * 0 : override
@@ -577,8 +577,8 @@ static void alc_ssid_check(struct hda_codec *codec, const hda_nid_t *ports)
 {
 	if (!alc_subsystem_id(codec, ports)) {
 		struct alc_spec *spec = codec->spec;
-		snd_printd("realtek: "
-			   "Enable default setup for auto mode as fallback\n");
+		codec_dbg(codec,
+			  "realtek: Enable default setup for auto mode as fallback\n");
 		spec->init_amp = ALC_INIT_DEFAULT;
 	}
 }
@@ -3170,7 +3170,8 @@ static void alc269_fixup_hp_mute_led(struct hda_codec *codec,
 		spec->gen.vmaster_mute.hook = alc269_fixup_mic_mute_hook;
 		spec->gen.vmaster_mute_enum = 1;
 		codec->power_filter = led_power_filter;
-		snd_printd("Detected mute LED for %x:%d\n", spec->mute_led_nid,
+		codec_dbg(codec,
+			  "Detected mute LED for %x:%d\n", spec->mute_led_nid,
 			   spec->mute_led_polarity);
 		break;
 	}
@@ -3296,7 +3297,7 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 		alc_write_coef_idx(codec, 0xb7, 0x802b);
 		break;
 	}
-	snd_printdd("Headset jack set to unplugged mode.\n");
+	codec_dbg(codec, "Headset jack set to unplugged mode.\n");
 }
 
 
@@ -3339,7 +3340,7 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
 		break;
 	}
-	snd_printdd("Headset jack set to mic-in mode.\n");
+	codec_dbg(codec, "Headset jack set to mic-in mode.\n");
 }
 
 static void alc_headset_mode_default(struct hda_codec *codec)
@@ -3367,7 +3368,7 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 		alc_write_coef_idx(codec, 0xb7, 0x802b);
 		break;
 	}
-	snd_printdd("Headset jack set to headphone (default) mode.\n");
+	codec_dbg(codec, "Headset jack set to headphone (default) mode.\n");
 }
 
 /* Iphone type */
@@ -3396,7 +3397,7 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 		alc_write_coef_idx(codec, 0xc3, 0x0000);
 		break;
 	}
-	snd_printdd("Headset jack set to iPhone-style headset mode.\n");
+	codec_dbg(codec, "Headset jack set to iPhone-style headset mode.\n");
 }
 
 /* Nokia type */
@@ -3425,7 +3426,7 @@ static void alc_headset_mode_omtp(struct hda_codec *codec)
 		alc_write_coef_idx(codec, 0xc3, 0x0000);
 		break;
 	}
-	snd_printdd("Headset jack set to Nokia-style headset mode.\n");
+	codec_dbg(codec, "Headset jack set to Nokia-style headset mode.\n");
 }
 
 static void alc_determine_headset_type(struct hda_codec *codec)
@@ -3467,7 +3468,7 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		break;
 	}
 
-	snd_printdd("Headset jack detected iPhone-style headset: %s\n",
+	codec_dbg(codec, "Headset jack detected iPhone-style headset: %s\n",
 		    is_ctia ? "yes" : "no");
 	spec->current_headset_type = is_ctia ? ALC_HEADSET_TYPE_CTIA : ALC_HEADSET_TYPE_OMTP;
 }
@@ -4901,8 +4902,7 @@ static void alc272_fixup_mario(struct hda_codec *codec,
 				      (0x3b << AC_AMPCAP_NUM_STEPS_SHIFT) |
 				      (0x03 << AC_AMPCAP_STEP_SIZE_SHIFT) |
 				      (0 << AC_AMPCAP_MUTE_SHIFT)))
-		printk(KERN_WARNING
-		       "hda_codec: failed to override amp caps for NID 0x2\n");
+		codec_warn(codec, "failed to override amp caps for NID 0x2\n");
 }
 
 static const struct snd_pcm_chmap_elem asus_pcm_2_1_chmaps[] = {
