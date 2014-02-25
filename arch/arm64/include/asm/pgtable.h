@@ -227,36 +227,36 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 #define __HAVE_ARCH_PTE_SPECIAL
 
-/*
- * Software PMD bits for THP
- */
+static inline pte_t pmd_pte(pmd_t pmd)
+{
+	return __pte(pmd_val(pmd));
+}
 
-#define PMD_SECT_DIRTY		(_AT(pmdval_t, 1) << 55)
-#define PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 57)
+static inline pmd_t pte_pmd(pte_t pte)
+{
+	return __pmd(pte_val(pte));
+}
 
 /*
  * THP definitions.
  */
-#define pmd_young(pmd)		(pmd_val(pmd) & PMD_SECT_AF)
-
-#define __HAVE_ARCH_PMD_WRITE
-#define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-#define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
+#define pmd_trans_splitting(pmd)	pte_special(pmd_pte(pmd))
 #endif
 
-#define PMD_BIT_FUNC(fn,op) \
-static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
+#define pmd_young(pmd)		pte_young(pmd_pte(pmd))
+#define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
+#define pmd_mksplitting(pmd)	pte_pmd(pte_mkspecial(pmd_pte(pmd)))
+#define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
+#define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
+#define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
+#define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
+#define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) &= ~PMD_TYPE_MASK))
 
-PMD_BIT_FUNC(wrprotect,	|= PMD_SECT_RDONLY);
-PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
-PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
-PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
-PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
-PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
-PMD_BIT_FUNC(mknotpresent, &= ~PMD_TYPE_MASK);
+#define __HAVE_ARCH_PMD_WRITE
+#define pmd_write(pmd)		pte_write(pmd_pte(pmd))
 
 #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
 
@@ -265,15 +265,6 @@ PMD_BIT_FUNC(mknotpresent, &= ~PMD_TYPE_MASK);
 #define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
 
 #define pmd_page(pmd)           pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
-
-static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
-{
-	const pmdval_t mask = PMD_SECT_USER | PMD_SECT_PXN | PMD_SECT_UXN |
-			      PMD_SECT_RDONLY | PMD_SECT_PROT_NONE |
-			      PMD_SECT_VALID;
-	pmd_val(pmd) = (pmd_val(pmd) & ~mask) | (pgprot_val(newprot) & mask);
-	return pmd;
-}
 
 #define set_pmd_at(mm, addr, pmdp, pmd)	set_pmd(pmdp, pmd)
 
@@ -381,6 +372,11 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE;
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
 	return pte;
+}
+
+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+{
+	return pte_pmd(pte_modify(pmd_pte(pmd), newprot));
 }
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
