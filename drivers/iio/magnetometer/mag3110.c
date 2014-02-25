@@ -194,7 +194,6 @@ static int mag3110_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		i = data->ctrl_reg1 >> MAG3110_CTRL_DR_SHIFT;
 		*val = mag3110_samp_freq[i][0];
