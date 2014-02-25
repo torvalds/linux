@@ -2280,17 +2280,10 @@ static int bcmgenet_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
-static u16 bcmgenet_select_queue(struct net_device *dev,
-		struct sk_buff *skb, void *accel_priv)
-{
-	return netif_is_multiqueue(dev) ? skb->queue_mapping : 0;
-}
-
 static const struct net_device_ops bcmgenet_netdev_ops = {
 	.ndo_open		= bcmgenet_open,
 	.ndo_stop		= bcmgenet_close,
 	.ndo_start_xmit		= bcmgenet_xmit,
-	.ndo_select_queue	= bcmgenet_select_queue,
 	.ndo_tx_timeout		= bcmgenet_timeout,
 	.ndo_set_rx_mode	= bcmgenet_set_rx_mode,
 	.ndo_set_mac_address	= bcmgenet_set_mac_addr,
