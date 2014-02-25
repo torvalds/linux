@@ -181,13 +181,13 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	/* make sure bottom-up buffers are properly displayed */
 	if (tegra_fb_is_bottom_up(fb)) {
 		value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
-		value |= INVERT_V;
+		value |= V_DIRECTION;
 		tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
 
 		v_offset += fb->height - 1;
 	} else {
 		value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
-		value &= ~INVERT_V;
+		value &= ~V_DIRECTION;
 		tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
 	}
 
@@ -578,7 +578,7 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	}
 
 	if (window->bottom_up)
-		value |= INVERT_V;
+		value |= V_DIRECTION;
 
 	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
 
