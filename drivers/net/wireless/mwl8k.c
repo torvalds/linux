@@ -396,6 +396,7 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 #define MWL8K_CMD_SET_HW_SPEC		0x0004
 #define MWL8K_CMD_MAC_MULTICAST_ADR	0x0010
 #define MWL8K_CMD_GET_STAT		0x0014
+#define MWL8K_CMD_BBP_REG_ACCESS	0x001a
 #define MWL8K_CMD_RADIO_CONTROL		0x001c
 #define MWL8K_CMD_RF_TX_POWER		0x001e
 #define MWL8K_CMD_TX_POWER		0x001f
@@ -2981,6 +2982,47 @@ static int mwl8k_cmd_set_pre_scan(struct ieee80211_hw *hw)
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
+	kfree(cmd);
+
+	return rc;
+}
+
+/*
+ * CMD_BBP_REG_ACCESS.
+ */
+struct mwl8k_cmd_bbp_reg_access {
+	struct mwl8k_cmd_pkt header;
+	__le16 action;
+	__le16 offset;
+	u8 value;
+	u8 rsrv[3];
+} __packed;
+
+static int
+mwl8k_cmd_bbp_reg_access(struct ieee80211_hw *hw,
+			 u16 action,
+			 u16 offset,
+			 u8 *value)
+{
+	struct mwl8k_cmd_bbp_reg_access *cmd;
+	int rc;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_BBP_REG_ACCESS);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+	cmd->action = cpu_to_le16(action);
+	cmd->offset = cpu_to_le16(offset);
+
+	rc = mwl8k_post_cmd(hw, &cmd->header);
+
+	if (!rc)
+		*value = cmd->value;
+	else
+		*value = 0;
+
 	kfree(cmd);
 
 	return rc;
