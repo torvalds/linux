@@ -778,6 +778,11 @@ static __init void davinci_evm_init(void)
 		/* only one device will be jumpered and detected */
 		if (HAS_NAND) {
 			platform_device_register(&davinci_evm_nandflash_device);
+
+			if (davinci_aemif_setup(&davinci_evm_nandflash_device))
+				pr_warn("%s: Cannot configure AEMIF.\n",
+					__func__);
+
 			evm_leds[7].default_trigger = "nand-disk";
 			if (HAS_NOR)
 				pr_warning("WARNING: both NAND and NOR flash "
