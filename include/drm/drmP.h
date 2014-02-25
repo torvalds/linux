@@ -405,7 +405,8 @@ struct drm_prime_file_private {
 struct drm_file {
 	unsigned always_authenticated :1;
 	unsigned authenticated :1;
-	unsigned is_master :1; /* this file private is a master for a minor */
+	/* Whether we're master for a minor. Protected by master_mutex */
+	unsigned is_master :1;
 	/* true when the client has asked us to expose stereo 3D mode flags */
 	unsigned stereo_allowed :1;
 
@@ -684,28 +685,29 @@ struct drm_gem_object {
 
 #include <drm/drm_crtc.h>
 
-/* per-master structure */
+/**
+ * struct drm_master - drm master structure
+ *
+ * @refcount: Refcount for this master object.
+ * @minor: Link back to minor char device we are master for. Immutable.
+ * @unique: Unique identifier: e.g. busid. Protected by drm_global_mutex.
+ * @unique_len: Length of unique field. Protected by drm_global_mutex.
+ * @unique_size: Amount allocated. Protected by drm_global_mutex.
+ * @magiclist: Hash of used authentication tokens. Protected by struct_mutex.
+ * @magicfree: List of used authentication tokens. Protected by struct_mutex.
+ * @lock: DRI lock information.
+ * @driver_priv: Pointer to driver-private information.
+ */
 struct drm_master {
-
-	struct kref refcount; /* refcount for this master */
-
-	struct drm_minor *minor; /**< link back to minor we are a master for */
-
-	char *unique;			/**< Unique identifier: e.g., busid */
-	int unique_len;			/**< Length of unique field */
-	int unique_size;		/**< amount allocated */
-
-	int blocked;			/**< Blocked due to VC switch? */
-
-	/** \name Authentication */
-	/*@{ */
+	struct kref refcount;
+	struct drm_minor *minor;
+	char *unique;
+	int unique_len;
+	int unique_size;
 	struct drm_open_hash magiclist;
 	struct list_head magicfree;
-	/*@} */
-
-	struct drm_lock_data lock;	/**< Information on hardware lock */
-
-	void *driver_priv; /**< Private structure for driver to use */
+	struct drm_lock_data lock;
+	void *driver_priv;
 };
 
 /* Size of ringbuffer for vblank timestamps. Just double-buffer
@@ -1020,7 +1022,8 @@ struct drm_minor {
 	struct list_head debugfs_list;
 	struct mutex debugfs_lock; /* Protects debugfs_list. */
 
-	struct drm_master *master; /* currently active master for this node */
+	/* currently active master for this node. Protected by master_mutex */
+	struct drm_master *master;
 	struct drm_mode_group mode_group;
 };
 
@@ -1070,6 +1073,7 @@ struct drm_device {
 	/*@{ */
 	spinlock_t count_lock;		/**< For inuse, drm_device::open_count, drm_device::buf_use */
 	struct mutex struct_mutex;	/**< For others */
+	struct mutex master_mutex;      /**< For drm_minor::master and drm_file::is_master */
 	/*@} */
 
 	/** \name Usage Counters */

@@ -144,6 +144,7 @@ static void drm_master_destroy(struct kref *kref)
 	struct drm_device *dev = master->minor->dev;
 	struct drm_map_list *r_list, *list_temp;
 
+	mutex_lock(&dev->struct_mutex);
 	if (dev->driver->master_destroy)
 		dev->driver->master_destroy(dev, master);
 
@@ -171,6 +172,7 @@ static void drm_master_destroy(struct kref *kref)
 
 	drm_ht_remove(&master->magiclist);
 
+	mutex_unlock(&dev->struct_mutex);
 	kfree(master);
 }
 
@@ -186,19 +188,20 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 {
 	int ret = 0;
 
+	mutex_lock(&dev->master_mutex);
 	if (file_priv->is_master)
-		return 0;
+		goto out_unlock;
 
-	if (file_priv->minor->master && file_priv->minor->master != file_priv->master)
-		return -EINVAL;
+	if (file_priv->minor->master) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
-	if (!file_priv->master)
-		return -EINVAL;
+	if (!file_priv->master) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
-	if (file_priv->minor->master)
-		return -EINVAL;
-
-	mutex_lock(&dev->struct_mutex);
 	file_priv->minor->master = drm_master_get(file_priv->master);
 	file_priv->is_master = 1;
 	if (dev->driver->master_set) {
@@ -208,27 +211,33 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			drm_master_put(&file_priv->minor->master);
 		}
 	}
-	mutex_unlock(&dev->struct_mutex);
 
+out_unlock:
+	mutex_unlock(&dev->master_mutex);
 	return ret;
 }
 
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
+	int ret = -EINVAL;
+
+	mutex_lock(&dev->master_mutex);
 	if (!file_priv->is_master)
-		return -EINVAL;
+		goto out_unlock;
 
 	if (!file_priv->minor->master)
-		return -EINVAL;
+		goto out_unlock;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = 0;
 	if (dev->driver->master_drop)
 		dev->driver->master_drop(dev, file_priv, false);
 	drm_master_put(&file_priv->minor->master);
 	file_priv->is_master = 0;
-	mutex_unlock(&dev->struct_mutex);
-	return 0;
+
+out_unlock:
+	mutex_unlock(&dev->master_mutex);
+	return ret;
 }
 
 /*
@@ -559,6 +568,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	spin_lock_init(&dev->event_lock);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);
+	mutex_init(&dev->master_mutex);
 
 	dev->anon_inode = drm_fs_inode_new();
 	if (IS_ERR(dev->anon_inode)) {
@@ -612,6 +622,7 @@ err_minors:
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
+	mutex_destroy(&dev->master_mutex);
 	kfree(dev);
 	return NULL;
 }
@@ -633,6 +644,8 @@ static void drm_dev_release(struct kref *ref)
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
 	kfree(dev->devname);
+
+	mutex_destroy(&dev->master_mutex);
 	kfree(dev);
 }
 
