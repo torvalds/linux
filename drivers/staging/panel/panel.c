@@ -171,8 +171,8 @@ struct logical_input {
 
 	union {
 		struct {	/* valid when type == INPUT_TYPE_STD */
-			void (*press_fct) (int);
-			void (*release_fct) (int);
+			void (*press_fct)(int);
+			void (*release_fct)(int);
 			int press_data;
 			int release_data;
 		} std;
@@ -417,9 +417,9 @@ static char lcd_must_clear;
 static char lcd_left_shift;
 static char init_in_progress;
 
-static void (*lcd_write_cmd) (int);
-static void (*lcd_write_data) (int);
-static void (*lcd_clear_fast) (void);
+static void (*lcd_write_cmd)(int);
+static void (*lcd_write_data)(int);
+static void (*lcd_clear_fast)(void);
 
 static DEFINE_SPINLOCK(pprt_lock);
 static struct timer_list scan_timer;
@@ -2017,9 +2017,9 @@ static struct logical_input *panel_bind_key(const char *name, const char *press,
  * be bound.
  */
 static struct logical_input *panel_bind_callback(char *name,
-						 void (*press_fct) (int),
+						 void (*press_fct)(int),
 						 int press_data,
-						 void (*release_fct) (int),
+						 void (*release_fct)(int),
 						 int release_data)
 {
 	struct logical_input *callback;
