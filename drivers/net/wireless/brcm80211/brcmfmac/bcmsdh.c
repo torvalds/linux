@@ -1101,9 +1101,7 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	int ret = 0;
 
-	brcmf_dbg(SDIO, "\n");
-
-	atomic_set(&sdiodev->suspend, true);
+	brcmf_dbg(SDIO, "Enter\n");
 
 	sdio_flags = sdio_get_host_pm_caps(sdiodev->func[1]);
 	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
@@ -1111,9 +1109,12 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 		return -EINVAL;
 	}
 
+	atomic_set(&sdiodev->suspend, true);
+
 	ret = sdio_set_host_pm_flags(sdiodev->func[1], MMC_PM_KEEP_POWER);
 	if (ret) {
 		brcmf_err("Failed to set pm_flags\n");
+		atomic_set(&sdiodev->suspend, false);
 		return ret;
 	}
 
@@ -1127,6 +1128,7 @@ static int brcmf_ops_sdio_resume(struct device *dev)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
+	brcmf_dbg(SDIO, "Enter\n");
 	brcmf_sdio_wd_timer(sdiodev->bus, BRCMF_WD_POLL_MS);
 	atomic_set(&sdiodev->suspend, false);
 	return 0;
