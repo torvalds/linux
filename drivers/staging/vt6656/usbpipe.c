@@ -467,16 +467,16 @@ int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, struct vnt_rcb *pRCB)
 
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 {
-	struct vnt_rcb *pRCB = (struct vnt_rcb *)urb->context;
-	struct vnt_private *pDevice = pRCB->pDevice;
-	int bReAllocSkb = false;
+	struct vnt_rcb *rcb = (struct vnt_rcb *)urb->context;
+	struct vnt_private *priv = rcb->pDevice;
+	int re_alloc_skb = false;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
 
 	switch (urb->status) {
 	case 0:
-		pDevice->ulBulkInContCRCError = 0;
-		pDevice->ulBulkInBytesRead += urb->actual_length;
+		priv->ulBulkInContCRCError = 0;
+		priv->ulBulkInBytesRead += urb->actual_length;
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
@@ -484,28 +484,33 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 		return;
 	case -ETIMEDOUT:
 	default:
-		pDevice->ulBulkInError++;
+		priv->ulBulkInError++;
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"BULK In failed %d\n", urb->status);
 		break;
 	}
 
-    if (urb->actual_length) {
-        spin_lock(&pDevice->lock);
-	if (RXbBulkInProcessData(pDevice, pRCB, urb->actual_length) == true)
-            bReAllocSkb = true;
-        spin_unlock(&pDevice->lock);
-    }
-    pRCB->Ref--;
-    if (pRCB->Ref == 0)
-    {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RxvFreeNormal %d \n",pDevice->NumRecvFreeList);
-        spin_lock(&pDevice->lock);
-        RXvFreeRCB(pRCB, bReAllocSkb);
-        spin_unlock(&pDevice->lock);
-    }
+	if (urb->actual_length) {
+		spin_lock(&priv->lock);
 
-    return;
+		if (RXbBulkInProcessData(priv, rcb, urb->actual_length) == true)
+			re_alloc_skb = true;
+
+		spin_unlock(&priv->lock);
+	}
+
+	rcb->Ref--;
+	if (rcb->Ref == 0) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RxvFreeNormal %d\n",
+							priv->NumRecvFreeList);
+		spin_lock(&priv->lock);
+
+		RXvFreeRCB(rcb, re_alloc_skb);
+
+		spin_unlock(&priv->lock);
+	}
+
+	return;
 }
 
 /*
