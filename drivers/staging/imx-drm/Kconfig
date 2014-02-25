@@ -20,6 +20,7 @@ config DRM_IMX_FB_HELPER
 
 config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
+	select DRM_PANEL
 	depends on DRM_IMX
 	select VIDEOMODE_HELPERS
 
