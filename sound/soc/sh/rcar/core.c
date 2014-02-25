@@ -594,6 +594,10 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
+	priv->dai_nr	= dai_nr;
+	priv->daidrv	= drv;
+	priv->rdai	= rdai;
+
 	for (i = 0; i < dai_nr; i++) {
 
 		pmod = rsnd_ssi_mod_get_frm_dai(priv, i, 1);
@@ -629,10 +633,6 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			pmod ? "play"    : " -- ",
 			cmod ? "capture" : "  --   ");
 	}
-
-	priv->dai_nr	= dai_nr;
-	priv->daidrv	= drv;
-	priv->rdai	= rdai;
 
 	return 0;
 }
