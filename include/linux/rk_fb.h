@@ -354,7 +354,7 @@ extern int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				struct rk_lcdc_win *win, int id);
 extern int rk_fb_unregister(struct rk_lcdc_driver *dev_drv);
 extern struct rk_lcdc_driver *rk_get_lcdc_drv(char *name);
-extern struct rk_screen *rk_fb_get_prmry_screen(void);
+extern int rk_fb_get_prmry_screen( struct rk_screen *screen);
 extern u32 rk_fb_get_prmry_screen_pixclock(void);
 extern int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv);
 extern int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv);

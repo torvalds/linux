@@ -1,9 +1,8 @@
 #ifndef __ANX6345_H_
 #define __ANX6345_H_
 
-#include<linux/rk_screen.h>
-#include<linux/earlysuspend.h>
-#include<linux/anx9805.h>
+#include<linux/rk_fb.h>
+#include "anx9805.h"
 
 #define ANX6345_SCL_RATE (100*1000)
 
@@ -323,26 +322,26 @@
 
 #define SP_TX_VID_CTRL3_REG           	0x0A
 
-#define SP_TX_VID_CTRL4_REG           	0x0B
+#define SP_TX_VID_CTRL4_REG           		0x0B
 #define SP_TX_VID_CTRL4_E_SYNC_EN	  	0x80	  //bit position
-#define SP_TX_VID_CTRL4_EX_E_SYNC    0x40    // bit position
+#define SP_TX_VID_CTRL4_EX_E_SYNC    		0x40    // bit position
 #define SP_TX_VID_CTRL4_BIST          		0x08    // bit position
-#define SP_TX_VID_CTRL4_BIST_WIDTH   0x04        // bit position
+#define SP_TX_VID_CTRL4_BIST_WIDTH   		0x04        // bit position
 
 #define SP_TX_VID_CTRL5_REG           		0x0C
 
 #define SP_TX_VID_CTRL6_REG           		0x0D
-#define SP_TX_VID_UPSAMPLE					0x02//bit position
+#define SP_TX_VID_UPSAMPLE			0x02//bit position
 
 #define SP_TX_VID_CTRL7_REG           		0x0E
 #define SP_TX_VID_CTRL8_REG           		0x0F
 #define SP_TX_VID_CTRL9_REG           		0x10
 
-#define SP_TX_VID_CTRL10_REG           	0x11
-#define SP_TX_VID_CTRL10_INV_F         	0x08    // bit position
-#define SP_TX_VID_CTRL10_I_SCAN        	0x04    // bit position
-#define SP_TX_VID_CTRL10_VSYNC_POL   0x02    // bit position
-#define SP_TX_VID_CTRL10_HSYNC_POL   0x01    // bit position
+#define SP_TX_VID_CTRL10_REG           		0x11
+#define SP_TX_VID_CTRL10_INV_F         		0x08    // bit position
+#define SP_TX_VID_CTRL10_I_SCAN        		0x04    // bit position
+#define SP_TX_VID_CTRL10_VSYNC_POL   		0x02    // bit position
+#define SP_TX_VID_CTRL10_HSYNC_POL   		0x01    // bit position
 
 #define SP_TX_TOTAL_LINEL_REG         0x12
 #define SP_TX_TOTAL_LINEH_REG         0x13
@@ -687,13 +686,13 @@ struct  anx6345_platform_data {
 	unsigned int dvdd18_en_pin;
 	int 	     dvdd18_en_val;
 	unsigned int edp_rst_pin;
-	int (*power_ctl)(void);
+	int (*power_ctl)(struct anx6345_platform_data *pdata);
 };
 
 struct edp_anx6345 {
 	struct i2c_client *client;
 	struct anx6345_platform_data *pdata;
-	rk_screen screen;
+	struct rk_screen screen;
 	struct dentry *debugfs_dir;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;

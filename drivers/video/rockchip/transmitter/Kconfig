@@ -26,11 +26,15 @@ config RK616_LVDS
 		
 
 config DP_ANX6345
-	bool "RGB to Display Port transmitter anx6345,anx9804,anx9805 support"
+	bool "RGB to DisplayPort transmitter anx6345,anx9804,anx9805 support"
 	depends on RK_TRSM
 
 config DP501
-	bool"RGB to Display Port transmitter dp501 support"
+	bool"RGB to DisplayPort transmitter dp501 support"
+	depends on RK_TRSM
+
+config RK32_DP
+	bool "RK32 RGB to DisplayPort transmitter support "
 	depends on RK_TRSM
 
 config MIPI_DSI

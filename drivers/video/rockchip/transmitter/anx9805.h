@@ -100,7 +100,7 @@ struct rk_edp_platform_data {
 struct rk_edp {
 	struct i2c_client *client;
 	struct rk_edp_platform_data *pdata;
-	rk_screen screen;
+	struct rk_screen screen;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif 
