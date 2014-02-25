@@ -61,10 +61,9 @@ static void bnx2x_add_all_napi(struct bnx2x *bp)
 
 static int bnx2x_calc_num_queues(struct bnx2x *bp)
 {
-	return  bnx2x_num_queues ?
-		 min_t(int, bnx2x_num_queues, BNX2X_MAX_QUEUES(bp)) :
-		 min_t(int, netif_get_num_default_rss_queues(),
-		       BNX2X_MAX_QUEUES(bp));
+	int nq = bnx2x_num_queues ? : netif_get_num_default_rss_queues();
+	nq = clamp(nq, 1, BNX2X_MAX_QUEUES(bp));
+	return nq;
 }
 
 /**
