@@ -39,9 +39,10 @@ config CPU_S3C2410
 
 config CPU_S3C2412
 	bool "SAMSUNG S3C2412"
-	depends on SAMSUNG_CLOCK
+	select COMMON_CLK
 	select CPU_ARM926T
 	select CPU_LLSERIAL_S3C2440
+	select S3C2412_COMMON_CLK
 	select S3C2412_DMA if S3C24XX_DMA
 	select S3C2412_PM if PM
 	help
@@ -362,6 +363,11 @@ config S3C2412_PM_SLEEP
 	  sleep procedure.
 
 if CPU_S3C2412
+
+config S3C2412_COMMON_CLK
+	bool
+	help
+	  Build the s3c2412 clock driver based on the common clock framework.
 
 config CPU_S3C2412_ONLY
 	bool

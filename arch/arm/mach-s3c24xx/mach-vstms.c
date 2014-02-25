@@ -142,9 +142,14 @@ static void __init vstms_fixup(struct tag *tags, char **cmdline,
 static void __init vstms_map_io(void)
 {
 	s3c24xx_init_io(vstms_iodesc, ARRAY_SIZE(vstms_iodesc));
-	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(vstms_uartcfgs, ARRAY_SIZE(vstms_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init vstms_init_time(void)
+{
+	s3c2412_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init vstms_init(void)
@@ -162,6 +167,6 @@ MACHINE_START(VSTMS, "VSTMS")
 	.init_irq	= s3c2412_init_irq,
 	.init_machine	= vstms_init,
 	.map_io		= vstms_map_io,
-	.init_time	= samsung_timer_init,
+	.init_time	= vstms_init_time,
 	.restart	= s3c2412_restart,
 MACHINE_END
