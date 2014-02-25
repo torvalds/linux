@@ -457,14 +457,12 @@ MODULE_PARM_DESC(keypad_enabled, "Deprecated option, use keypad_type instead");
 static int lcd_type = -1;
 module_param(lcd_type, int, 0000);
 MODULE_PARM_DESC(lcd_type,
-		 "LCD type: 0=none, 1=old //, 2=serial ks0074, "
-		 "3=hantronix //, 4=nexcom //, 5=compiled-in");
+		 "LCD type: 0=none, 1=old //, 2=serial ks0074, 3=hantronix //, 4=nexcom //, 5=compiled-in");
 
 static int lcd_proto = -1;
 module_param(lcd_proto, int, 0000);
 MODULE_PARM_DESC(lcd_proto,
-		"LCD communication: 0=parallel (//), 1=serial,"
-		"2=TI LCD Interface");
+		"LCD communication: 0=parallel (//), 1=serial, 2=TI LCD Interface");
 
 static int lcd_charset = -1;
 module_param(lcd_charset, int, 0000);
@@ -473,8 +471,7 @@ MODULE_PARM_DESC(lcd_charset, "LCD character set: 0=standard, 1=KS0074");
 static int keypad_type = -1;
 module_param(keypad_type, int, 0000);
 MODULE_PARM_DESC(keypad_type,
-		 "Keypad type: 0=none, 1=old 6 keys, 2=new 6+1 keys, "
-		 "3=nexcom 4 keys");
+		 "Keypad type: 0=none, 1=old 6 keys, 2=new 6+1 keys, 3=nexcom 4 keys");
 
 static int profile = DEFAULT_PROFILE;
 module_param(profile, int, 0000);
@@ -494,38 +491,32 @@ MODULE_PARM_DESC(profile,
 static int lcd_e_pin  = PIN_NOT_SET;
 module_param(lcd_e_pin, int, 0000);
 MODULE_PARM_DESC(lcd_e_pin,
-		 "# of the // port pin connected to LCD 'E' signal, "
-		 "with polarity (-17..17)");
+		 "# of the // port pin connected to LCD 'E' signal, with polarity (-17..17)");
 
 static int lcd_rs_pin = PIN_NOT_SET;
 module_param(lcd_rs_pin, int, 0000);
 MODULE_PARM_DESC(lcd_rs_pin,
-		 "# of the // port pin connected to LCD 'RS' signal, "
-		 "with polarity (-17..17)");
+		 "# of the // port pin connected to LCD 'RS' signal, with polarity (-17..17)");
 
 static int lcd_rw_pin = PIN_NOT_SET;
 module_param(lcd_rw_pin, int, 0000);
 MODULE_PARM_DESC(lcd_rw_pin,
-		 "# of the // port pin connected to LCD 'RW' signal, "
-		 "with polarity (-17..17)");
+		 "# of the // port pin connected to LCD 'RW' signal, with polarity (-17..17)");
 
 static int lcd_bl_pin = PIN_NOT_SET;
 module_param(lcd_bl_pin, int, 0000);
 MODULE_PARM_DESC(lcd_bl_pin,
-		 "# of the // port pin connected to LCD backlight, "
-		 "with polarity (-17..17)");
+		 "# of the // port pin connected to LCD backlight, with polarity (-17..17)");
 
 static int lcd_da_pin = PIN_NOT_SET;
 module_param(lcd_da_pin, int, 0000);
 MODULE_PARM_DESC(lcd_da_pin,
-		 "# of the // port pin connected to serial LCD 'SDA' "
-		 "signal, with polarity (-17..17)");
+		 "# of the // port pin connected to serial LCD 'SDA' signal, with polarity (-17..17)");
 
 static int lcd_cl_pin = PIN_NOT_SET;
 module_param(lcd_cl_pin, int, 0000);
 MODULE_PARM_DESC(lcd_cl_pin,
-		 "# of the // port pin connected to serial LCD 'SCL' "
-		 "signal, with polarity (-17..17)");
+		 "# of the // port pin connected to serial LCD 'SCL' signal, with polarity (-17..17)");
 
 static const unsigned char *lcd_char_conv;
 
