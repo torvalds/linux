@@ -661,6 +661,11 @@ static int twl6040_probe(struct i2c_client *client,
 	init_completion(&twl6040->ready);
 
 	twl6040->rev = twl6040_reg_read(twl6040, TWL6040_REG_ASICREV);
+	if (twl6040->rev < 0) {
+		dev_err(&client->dev, "Failed to read revision register: %d\n",
+			twl6040->rev);
+		goto gpio_err;
+	}
 
 	/* ERRATA: Automatic power-up is not possible in ES1.0 */
 	if (twl6040_get_revid(twl6040) > TWL6040_REV_ES1_0)
