@@ -517,19 +517,6 @@ config X86_SUPPORTS_MEMORY_FAILURE
 	depends on X86_64 || !SPARSEMEM
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 
-config X86_VISWS
-	bool "SGI 320/540 (Visual Workstation)"
-	depends on X86_32 && PCI && X86_MPPARSE && PCI_GODIRECT
-	depends on X86_32_NON_STANDARD
-	---help---
-	  The SGI Visual Workstation series is an IA32-based workstation
-	  based on SGI systems chips with some legacy PC hardware attached.
-
-	  Say Y here to create a kernel to run on the SGI 320 or 540.
-
-	  A kernel compiled for the Visual Workstation will run on general
-	  PCs as well. See <file:Documentation/sgi-visws.txt> for details.
-
 config STA2X11
 	bool "STA2X11 Companion Chip Support"
 	depends on X86_32_NON_STANDARD && PCI
@@ -859,10 +846,6 @@ config X86_LOCAL_APIC
 config X86_IO_APIC
 	def_bool y
 	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_IOAPIC || PCI_MSI
-
-config X86_VISWS_APIC
-	def_bool y
-	depends on X86_32 && X86_VISWS
 
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 	bool "Reroute for broken boot IRQs"

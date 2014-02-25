@@ -802,18 +802,9 @@ config FB_HGA
 	  As this card technology is at least 25 years old,
 	  most people will answer N here.
 
-config FB_SGIVW
-	tristate "SGI Visual Workstation framebuffer support"
-	depends on FB && X86_VISWS
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  SGI Visual Workstation support for framebuffer graphics.
-
 config FB_GBE
 	bool "SGI Graphics Backend frame buffer support"
-	depends on (FB = y) && (SGI_IP32 || X86_VISWS)
+	depends on (FB = y) && SGI_IP32
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

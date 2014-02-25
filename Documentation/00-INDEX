@@ -401,8 +401,6 @@ serial-console.txt
 	- how to set up Linux with a serial line console as the default.
 sgi-ioc4.txt
 	- description of the SGI IOC4 PCI (multi function) device.
-sgi-visws.txt
-	- short blurb on the SGI Visual Workstations.
 sh/
 	- directory with info on porting Linux to a new architecture.
 smsc_ece1099.txt

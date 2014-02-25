@@ -2132,7 +2132,6 @@ int generic_processor_info(int apicid, int version)
 	 *
 	 * - arch/x86/kernel/mpparse.c: MP_processor_info()
 	 * - arch/x86/mm/amdtopology.c: amd_numa_init()
-	 * - arch/x86/platform/visws/visws_quirks.c: MP_processor_info()
 	 *
 	 * This function is executed with the modified
 	 * boot_cpu_physical_apicid. So, disabled_cpu_apicid kernel

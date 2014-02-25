@@ -9,5 +9,4 @@ obj-y	+= olpc/
 obj-y	+= scx200/
 obj-y	+= sfi/
 obj-y	+= ts5500/
-obj-y	+= visws/
 obj-y	+= uv/

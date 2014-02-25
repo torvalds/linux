@@ -561,7 +561,6 @@ char * __init pcibios_setup(char *str)
 		pci_probe |= PCI_PROBE_NOEARLY;
 		return NULL;
 	}
-#ifndef CONFIG_X86_VISWS
 	else if (!strcmp(str, "usepirqmask")) {
 		pci_probe |= PCI_USE_PIRQ_MASK;
 		return NULL;
@@ -571,9 +570,7 @@ char * __init pcibios_setup(char *str)
 	} else if (!strncmp(str, "lastbus=", 8)) {
 		pcibios_last_bus = simple_strtol(str+8, NULL, 0);
 		return NULL;
-	}
-#endif
-	else if (!strcmp(str, "rom")) {
+	} else if (!strcmp(str, "rom")) {
 		pci_probe |= PCI_ASSIGN_ROMS;
 		return NULL;
 	} else if (!strcmp(str, "norom")) {
