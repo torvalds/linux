@@ -1349,14 +1349,15 @@ static int snd_rme32_create(struct rme32 *rme32)
 
 	rme32->iobase = ioremap_nocache(rme32->port, RME32_IO_SIZE);
 	if (!rme32->iobase) {
-		snd_printk(KERN_ERR "unable to remap memory region 0x%lx-0x%lx\n",
+		dev_err(rme32->card->dev,
+			"unable to remap memory region 0x%lx-0x%lx\n",
 			   rme32->port, rme32->port + RME32_IO_SIZE - 1);
 		return -ENOMEM;
 	}
 
 	if (request_irq(pci->irq, snd_rme32_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, rme32)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		dev_err(rme32->card->dev, "unable to grab IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 	rme32->irq = pci->irq;
