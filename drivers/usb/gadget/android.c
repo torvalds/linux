@@ -1347,6 +1347,7 @@ static int android_bind(struct usb_composite_dev *cdev)
 		return id;
 	strings_dev[STRING_SERIAL_IDX].id = id;
 	device_desc.iSerialNumber = id;
+	device_desc.bcdDevice = cpu_to_le16(get_default_bcdDevice());
 
 	usb_gadget_set_selfpowered(gadget);
 	dev->cdev = cdev;
