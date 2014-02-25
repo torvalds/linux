@@ -186,7 +186,7 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 			     const char *name)
 {
 	const struct clk_div_table *table = NULL;
-	const char *parent_name = "main";
+	const char *parent_name;
 	unsigned int shift;
 	unsigned int mult = 1;
 	unsigned int div = 1;
@@ -201,23 +201,31 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 		 * the multiplier value.
 		 */
 		u32 value = clk_readl(cpg->reg + CPG_PLL0CR);
+		parent_name = "main";
 		mult = ((value >> 24) & ((1 << 7) - 1)) + 1;
 	} else if (!strcmp(name, "pll1")) {
+		parent_name = "main";
 		mult = config->pll1_mult / 2;
 	} else if (!strcmp(name, "pll3")) {
+		parent_name = "main";
 		mult = config->pll3_mult;
 	} else if (!strcmp(name, "lb")) {
+		parent_name = "pll1_div2";
 		div = cpg_mode & BIT(18) ? 36 : 24;
 	} else if (!strcmp(name, "qspi")) {
+		parent_name = "pll1_div2";
 		div = (cpg_mode & (BIT(3) | BIT(2) | BIT(1))) == BIT(2)
-		    ? 16 : 20;
+		    ? 8 : 10;
 	} else if (!strcmp(name, "sdh")) {
+		parent_name = "pll1_div2";
 		table = cpg_sdh_div_table;
 		shift = 8;
 	} else if (!strcmp(name, "sd0")) {
+		parent_name = "pll1_div2";
 		table = cpg_sd01_div_table;
 		shift = 4;
 	} else if (!strcmp(name, "sd1")) {
+		parent_name = "pll1_div2";
 		table = cpg_sd01_div_table;
 		shift = 0;
 	} else if (!strcmp(name, "z")) {

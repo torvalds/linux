@@ -54,11 +54,6 @@ static inline struct posix_acl *ceph_get_cached_acl(struct inode *inode,
 	return acl;
 }
 
-void ceph_forget_all_cached_acls(struct inode *inode)
-{
-	forget_all_cached_acls(inode);
-}
-
 struct posix_acl *ceph_get_acl(struct inode *inode, int type)
 {
 	int size;
@@ -160,11 +155,7 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			goto out_dput;
 	}
 
-	if (value)
-		ret = __ceph_setxattr(dentry, name, value, size, 0);
-	else
-		ret = __ceph_removexattr(dentry, name);
-
+	ret = __ceph_setxattr(dentry, name, value, size, 0);
 	if (ret) {
 		if (new_mode != old_mode) {
 			newattrs.ia_mode = old_mode;

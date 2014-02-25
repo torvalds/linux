@@ -24,7 +24,7 @@
 
 #include "nv04.h"
 
-static int
+int
 nv44_mc_init(struct nouveau_object *object)
 {
 	struct nv04_mc_priv *priv = (void *)object;
