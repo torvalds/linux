@@ -688,7 +688,9 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 
 		return 0;
 	}
+
 	dst->op = cpu_to_le16(src->op);
+	dst->flags = cpu_to_le32(src->flags);
 	dst->payload_len = cpu_to_le32(src->payload_len);
 
 	return request_data_len;

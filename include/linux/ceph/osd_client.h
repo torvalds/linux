@@ -76,6 +76,7 @@ struct ceph_osd_data {
 
 struct ceph_osd_req_op {
 	u16 op;           /* CEPH_OSD_OP_* */
+	u32 flags;        /* CEPH_OSD_OP_FLAG_* */
 	u32 payload_len;
 	union {
 		struct ceph_osd_data raw_data_in;
