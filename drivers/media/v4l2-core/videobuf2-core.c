@@ -2125,14 +2125,14 @@ static int vb2_internal_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
 		return -EINVAL;
 	}
 
-	if (!q->streaming) {
-		dprintk(3, "streamoff successful: not streaming\n");
-		return 0;
-	}
-
 	/*
 	 * Cancel will pause streaming and remove all buffers from the driver
 	 * and videobuf, effectively returning control over them to userspace.
+	 *
+	 * Note that we do this even if q->streaming == 0: if you prepare or
+	 * queue buffers, and then call streamoff without ever having called
+	 * streamon, you would still expect those buffers to be returned to
+	 * their normal dequeued state.
 	 */
 	__vb2_queue_cancel(q);
 
