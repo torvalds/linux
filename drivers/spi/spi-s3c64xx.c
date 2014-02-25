@@ -697,13 +697,6 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	bpw = xfer->bits_per_word;
 	speed = xfer->speed_hz ? : spi->max_speed_hz;
 
-	if (xfer->len % (bpw / 8)) {
-		dev_err(&spi->dev,
-			"Xfer length(%u) not a multiple of word size(%u)\n",
-			xfer->len, bpw / 8);
-		return -EIO;
-	}
-
 	if (bpw != sdd->cur_bpw || speed != sdd->cur_speed) {
 		sdd->cur_bpw = bpw;
 		sdd->cur_speed = speed;
