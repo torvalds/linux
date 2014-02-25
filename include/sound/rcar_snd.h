@@ -34,9 +34,6 @@
  * B : SSI direction
  */
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
-#define RSND_SSI_SYNC			(1 << 29) /* SSI34_sync etc */
-#define RSND_SSI_CLK_FROM_ADG		(1 << 30) /* clock parent is master */
-
 #define RSND_SSI_PLAY			(1 << 24)
 
 #define RSND_SSI_SET(_dai_id, _dma_id, _pio_irq, _flags)	\
