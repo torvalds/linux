@@ -616,14 +616,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&common->sbands[IEEE80211_BAND_5GHZ];
 
-	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
-			ath9k_cmn_setup_ht_cap(ah,
-				     &common->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
-			ath9k_cmn_setup_ht_cap(ah,
-				     &common->sbands[IEEE80211_BAND_5GHZ].ht_cap);
-	}
+	ath9k_cmn_reload_chainmask(ah);
 
 	pBase = ath9k_htc_get_eeprom_base(priv);
 	if (pBase) {
