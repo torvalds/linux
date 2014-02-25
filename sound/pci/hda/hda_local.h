@@ -597,6 +597,11 @@ int snd_hda_create_hwdep(struct hda_codec *codec);
 static inline int snd_hda_create_hwdep(struct hda_codec *codec) { return 0; }
 #endif
 
+void snd_hda_sysfs_init(struct hda_codec *codec);
+void snd_hda_sysfs_clear(struct hda_codec *codec);
+
+extern const struct attribute_group *snd_hda_dev_attr_groups[];
+
 #ifdef CONFIG_SND_HDA_RECONFIG
 const char *snd_hda_get_hint(struct hda_codec *codec, const char *key);
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key);

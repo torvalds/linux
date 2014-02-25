@@ -2,7 +2,7 @@ snd-hda-intel-objs := hda_intel.o
 # for haswell power well
 snd-hda-intel-$(CONFIG_SND_HDA_I915) +=	hda_i915.o
 
-snd-hda-codec-y := hda_codec.o hda_jack.o hda_auto_parser.o
+snd-hda-codec-y := hda_codec.o hda_jack.o hda_auto_parser.o hda_sysfs.o
 snd-hda-codec-$(CONFIG_PROC_FS) += hda_proc.o
 snd-hda-codec-$(CONFIG_SND_HDA_HWDEP) += hda_hwdep.o
 snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o

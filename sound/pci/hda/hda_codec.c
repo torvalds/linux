@@ -1170,7 +1170,7 @@ unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hda_pincfg *pin;
 
-#ifdef CONFIG_SND_HDA_HWDEP
+#ifdef CONFIG_SND_HDA_RECONFIG
 	{
 		unsigned int cfg = 0;
 		mutex_lock(&codec->user_mutex);
@@ -1285,7 +1285,7 @@ static void free_hda_cache(struct hda_cache_rec *cache);
 static void free_init_pincfgs(struct hda_codec *codec)
 {
 	snd_array_free(&codec->driver_pins);
-#ifdef CONFIG_SND_HDA_HWDEP
+#ifdef CONFIG_SND_HDA_RECONFIG
 	snd_array_free(&codec->user_pins);
 #endif
 	snd_array_free(&codec->init_pins);
@@ -1359,6 +1359,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
 	hda_call_pm_notify(codec, false); /* cancel leftover refcounts */
+	snd_hda_sysfs_clear(codec);
 	unload_parser(codec);
 	module_put(codec->owner);
 	free_hda_cache(&codec->amp_cache);
@@ -1447,8 +1448,10 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	codec->dev.parent = &bus->card->card_dev;
 	codec->dev.class = sound_class;
 	codec->dev.release = snd_hda_codec_dev_release;
+	codec->dev.groups = snd_hda_dev_attr_groups;
 	dev_set_name(&codec->dev, "hdaudioC%dD%d", bus->card->number,
 		     codec_addr);
+	dev_set_drvdata(&codec->dev, codec); /* for sysfs */
 
 	codec->bus = bus;
 	codec->addr = codec_addr;
@@ -1479,6 +1482,8 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	 */
 	hda_keep_power_on(codec);
 #endif
+
+	snd_hda_sysfs_init(codec);
 
 	if (codec->bus->modelname) {
 		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
@@ -4038,7 +4043,7 @@ static void sync_power_up_states(struct hda_codec *codec)
 	}
 }
 
-#ifdef CONFIG_SND_HDA_HWDEP
+#ifdef CONFIG_SND_HDA_RECONFIG
 /* execute additional init verbs */
 static void hda_exec_init_verbs(struct hda_codec *codec)
 {
