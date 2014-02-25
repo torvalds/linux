@@ -20,7 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 
-#include "dw_mmc.h"
+#include "rk_sdmmc.h"
 #include "dw_mmc-pltfm.h"
 
 #include "rk_sdmmc_of.h"
@@ -223,6 +223,6 @@ static struct platform_driver dw_mci_rockchip_pltfm_driver = {
 module_platform_driver(dw_mci_rockchip_pltfm_driver);
 
 MODULE_DESCRIPTION("Rockchip Specific DW-SDMMC Driver Extension");
-MODULE_AUTHOR("Bangwang Xie < xbw@rock-chips.com");
+MODULE_AUTHOR("Bangwang Xie < xbw@rock-chips.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:dwmmc-rockchip");

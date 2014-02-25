@@ -39,11 +39,14 @@ obj-$(CONFIG_MMC_SDHI)		+= sh_mobile_sdhi.o
 obj-$(CONFIG_MMC_CB710)		+= cb710-mmc.o
 obj-$(CONFIG_MMC_VIA_SDMMC)	+= via-sdmmc.o
 obj-$(CONFIG_SDH_BFIN)		+= bfin_sdh.o
-obj-$(CONFIG_MMC_DW)		+= dw_mmc.o
+
+#obj-$(CONFIG_MMC_DW)		+= dw_mmc.o
+obj-$(CONFIG_MMC_DW)           += rk_sdmmc.o
+
 obj-$(CONFIG_MMC_DW_PLTFM)	+= dw_mmc-pltfm.o
 
-# added by XBW to Specific Extensions for Synopsys DW Multimedia Card Interface in Rockchip Soc.
-obj-$(CONFIG_MMC_DW_RK)         += dw_mmc-rockchip.o rk_sdmmc_of.o
+# To Specific Extensions for Synopsys DW Multimedia Card Interface in Rockchip Soc. Added by XBW.
+obj-$(CONFIG_MMC_DW_ROCKCHIP)         += dw_mmc-rockchip.o rk_sdmmc_of.o
 
 obj-$(CONFIG_MMC_DW_EXYNOS)	+= dw_mmc-exynos.o
 obj-$(CONFIG_MMC_DW_PCI)	+= dw_mmc-pci.o

@@ -547,7 +547,7 @@ config MMC_DW_PLTFM
 
 	  If unsure, say Y.
 
-config MMC_DW_RK
+config MMC_DW_ROCKCHIP
 	tristate "Rockchip specific extensions for Synopsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
