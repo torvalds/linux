@@ -439,22 +439,6 @@ static u32 sh_msiof_spi_hz(struct spi_device *spi, struct spi_transfer *t)
 	return hz;
 }
 
-static int sh_msiof_spi_setup_transfer(struct spi_device *spi,
-				       struct spi_transfer *t)
-{
-	int bits;
-
-	/* noting to check hz values against since parent clock is disabled */
-
-	bits = sh_msiof_spi_bits(spi, t);
-	if (bits < 8)
-		return -EINVAL;
-	if (bits > 32)
-		return -EINVAL;
-
-	return spi_bitbang_setup_transfer(spi, t);
-}
-
 static int sh_msiof_spi_setup(struct spi_device *spi)
 {
 	struct device_node	*np = spi->master->dev.of_node;
@@ -826,10 +810,11 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	master->cleanup = spi_bitbang_cleanup;
 	master->prepare_message = sh_msiof_prepare_message;
 	master->unprepare_message = sh_msiof_unprepare_message;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
 
 	p->bitbang.master = master;
 	p->bitbang.chipselect = sh_msiof_spi_chipselect;
-	p->bitbang.setup_transfer = sh_msiof_spi_setup_transfer;
+	p->bitbang.setup_transfer = spi_bitbang_setup_transfer;
 	p->bitbang.txrx_bufs = sh_msiof_spi_txrx;
 	p->bitbang.txrx_word[SPI_MODE_0] = sh_msiof_spi_txrx_word;
 	p->bitbang.txrx_word[SPI_MODE_1] = sh_msiof_spi_txrx_word;
