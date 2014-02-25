@@ -2227,7 +2227,7 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 			  int num_regs)
 {
 	struct reg_default *p;
-	int i, ret;
+	int ret;
 	bool bypass;
 
 	if (WARN_ONCE(num_regs <= 0, "invalid registers number (%d)\n",
@@ -2241,19 +2241,9 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	map->cache_bypass = true;
 	map->async = true;
 
-	/* Write out first; it's useful to apply even if we fail later. */
-	for (i = 0; i < num_regs; i++) {
-		if (regs[i].reg % map->reg_stride) {
-			ret = -EINVAL;
-			goto out;
-		}
-		ret = _regmap_write(map, regs[i].reg, regs[i].def);
-		if (ret != 0) {
-			dev_err(map->dev, "Failed to write %x = %x: %d\n",
-				regs[i].reg, regs[i].def, ret);
-			goto out;
-		}
-	}
+	ret = _regmap_multi_reg_write(map, regs, num_regs);
+	if (ret != 0)
+		goto out;
 
 	p = krealloc(map->patch,
 		     sizeof(struct reg_default) * (map->patch_regs + num_regs),
