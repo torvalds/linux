@@ -347,6 +347,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				   error->ring[i].pid);
 		}
 	}
+	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
@@ -1120,6 +1121,12 @@ static void i915_error_capture_msg(struct drm_device *dev,
 		  wedged ? "reset" : "continue");
 }
 
+static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
+				   struct drm_i915_error_state *error)
+{
+	error->reset_count = i915_reset_count(&dev_priv->gpu_error);
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -1146,6 +1153,7 @@ void i915_capture_error_state(struct drm_device *dev, bool wedged,
 
 	kref_init(&error->ref);
 
+	i915_capture_gen_state(dev_priv, error);
 	i915_capture_reg_state(dev_priv, error);
 	i915_gem_capture_buffers(dev_priv, error);
 	i915_gem_record_fences(dev, error);

@@ -304,6 +304,7 @@ struct drm_i915_error_state {
 	struct timeval time;
 
 	char error_msg[128];
+	u32 reset_count;
 
 	/* Generic register state */
 	u32 eir;
