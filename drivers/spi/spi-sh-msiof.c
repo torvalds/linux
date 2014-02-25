@@ -46,7 +46,6 @@ struct sh_msiof_spi_priv {
 	const struct sh_msiof_chipdata *chipdata;
 	struct sh_msiof_spi_info *info;
 	struct completion done;
-	unsigned long flags;
 	int tx_fifo_size;
 	int rx_fifo_size;
 };
@@ -459,6 +458,7 @@ static int sh_msiof_spi_setup_transfer(struct spi_device *spi,
 static int sh_msiof_spi_setup(struct spi_device *spi)
 {
 	struct device_node	*np = spi->master->dev.of_node;
+	struct sh_msiof_spi_priv *p = spi_master_get_devdata(spi->master);
 
 	if (!np) {
 		/*
@@ -468,12 +468,46 @@ static int sh_msiof_spi_setup(struct spi_device *spi)
 		spi->cs_gpio = (uintptr_t)spi->controller_data;
 	}
 
+	/* Configure pins before deasserting CS */
+	sh_msiof_spi_set_pin_regs(p, !!(spi->mode & SPI_CPOL),
+				  !!(spi->mode & SPI_CPHA),
+				  !!(spi->mode & SPI_3WIRE),
+				  !!(spi->mode & SPI_LSB_FIRST),
+				  !!(spi->mode & SPI_CS_HIGH));
+
 	return spi_bitbang_setup(spi);
+}
+
+static int sh_msiof_prepare_message(struct spi_master *master,
+				    struct spi_message *msg)
+{
+	struct sh_msiof_spi_priv *p = spi_master_get_devdata(master);
+	const struct spi_device *spi = msg->spi;
+
+	pm_runtime_get_sync(&p->pdev->dev);
+	clk_enable(p->clk);
+
+	/* Configure pins before asserting CS */
+	sh_msiof_spi_set_pin_regs(p, !!(spi->mode & SPI_CPOL),
+				  !!(spi->mode & SPI_CPHA),
+				  !!(spi->mode & SPI_3WIRE),
+				  !!(spi->mode & SPI_LSB_FIRST),
+				  !!(spi->mode & SPI_CS_HIGH));
+	return 0;
+}
+
+static int sh_msiof_unprepare_message(struct spi_master *master,
+				      struct spi_message *msg)
+{
+	struct sh_msiof_spi_priv *p = spi_master_get_devdata(master);
+
+	clk_disable(p->clk);
+	pm_runtime_put(&p->pdev->dev);
+	return 0;
 }
 
 static void sh_msiof_spi_chipselect(struct spi_device *spi, int is_on)
 {
-	struct sh_msiof_spi_priv *p = spi_master_get_devdata(spi->master);
 	int value;
 
 	/* chip select is active low unless SPI_CS_HIGH is set */
@@ -482,29 +516,8 @@ static void sh_msiof_spi_chipselect(struct spi_device *spi, int is_on)
 	else
 		value = (is_on == BITBANG_CS_ACTIVE) ? 0 : 1;
 
-	if (is_on == BITBANG_CS_ACTIVE) {
-		if (!test_and_set_bit(0, &p->flags)) {
-			pm_runtime_get_sync(&p->pdev->dev);
-			clk_enable(p->clk);
-		}
-
-		/* Configure pins before asserting CS */
-		sh_msiof_spi_set_pin_regs(p, !!(spi->mode & SPI_CPOL),
-					  !!(spi->mode & SPI_CPHA),
-					  !!(spi->mode & SPI_3WIRE),
-					  !!(spi->mode & SPI_LSB_FIRST),
-					  !!(spi->mode & SPI_CS_HIGH));
-	}
-
 	if (spi->cs_gpio >= 0)
 		gpio_set_value(spi->cs_gpio, value);
-
-	if (is_on == BITBANG_CS_INACTIVE) {
-		if (test_and_clear_bit(0, &p->flags)) {
-			clk_disable(p->clk);
-			pm_runtime_put(&p->pdev->dev);
-		}
-	}
 }
 
 static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
@@ -811,6 +824,8 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = p->info->num_chipselect;
 	master->setup = sh_msiof_spi_setup;
 	master->cleanup = spi_bitbang_cleanup;
+	master->prepare_message = sh_msiof_prepare_message;
+	master->unprepare_message = sh_msiof_unprepare_message;
 
 	p->bitbang.master = master;
 	p->bitbang.chipselect = sh_msiof_spi_chipselect;
