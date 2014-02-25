@@ -684,20 +684,18 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	}
 	trace_gfs2_log_flush(sdp, 1);
 
+	sdp->sd_log_flush_head = sdp->sd_log_head;
+	sdp->sd_log_flush_wrapped = 0;
 	tr = sdp->sd_log_tr;
 	if (tr) {
 		sdp->sd_log_tr = NULL;
 		INIT_LIST_HEAD(&tr->tr_ail1_list);
 		INIT_LIST_HEAD(&tr->tr_ail2_list);
+		tr->tr_first = sdp->sd_log_flush_head;
 	}
 
 	gfs2_assert_withdraw(sdp,
 			sdp->sd_log_num_revoke == sdp->sd_log_commited_revoke);
-
-	sdp->sd_log_flush_head = sdp->sd_log_head;
-	sdp->sd_log_flush_wrapped = 0;
-	if (tr)
-		tr->tr_first = sdp->sd_log_flush_head;
 
 	gfs2_ordered_write(sdp);
 	lops_before_commit(sdp, tr);
