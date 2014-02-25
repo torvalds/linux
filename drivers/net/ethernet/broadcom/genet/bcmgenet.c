@@ -1145,10 +1145,6 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
-	/* reclaim xmited skb every 8 packets. */
-	/*if (ring->free_bds < ring->size - 8)*/
-		/*__bcmgenet_tx_reclaim(dev, ring);*/
-
 	/* set the SKB transmit checksum */
 	if (priv->desc_64b_en) {
 		ret = bcmgenet_put_tx_csum(dev, skb);
