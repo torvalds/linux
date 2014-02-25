@@ -1613,55 +1613,6 @@ static int rtl8180_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-/* longpre 144+48 shortpre 72+24 */
-u16 rtl8180_len2duration(u32 len, short rate, short *ext)
-{
-	u16 duration;
-	u16 drift;
-	*ext = 0;
-
-	switch (rate) {
-	case 0: /* 1mbps */
-		*ext = 0;
-		duration = ((len+4)<<4) / 0x2;
-		drift = ((len+4)<<4) % 0x2;
-		if (drift == 0)
-			break;
-		duration++;
-		break;
-	case 1: /* 2mbps */
-		*ext = 0;
-		duration = ((len+4)<<4) / 0x4;
-		drift = ((len+4)<<4) % 0x4;
-		if (drift == 0)
-			break;
-		duration++;
-		break;
-	case 2: /* 5.5mbps */
-		*ext = 0;
-		duration = ((len+4)<<4) / 0xb;
-		drift = ((len+4)<<4) % 0xb;
-		if (drift == 0)
-			break;
-		duration++;
-		break;
-	default:
-	case 3: /* 11mbps */
-		*ext = 0;
-		duration = ((len+4)<<4) / 0x16;
-		drift = ((len+4)<<4) % 0x16;
-		if (drift == 0)
-			break;
-		duration++;
-		if (drift > 6)
-			break;
-		*ext = 1;
-		break;
-	}
-
-	return duration;
-}
-
 static void rtl8180_prepare_beacon(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
