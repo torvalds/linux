@@ -528,50 +528,41 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
  *
  */
 
-int PIPEnsSendBulkOut(struct vnt_private *pDevice,
-				struct vnt_usb_send_context *pContext)
+int PIPEnsSendBulkOut(struct vnt_private *priv,
+				struct vnt_usb_send_context *context)
 {
 	int status;
-	struct urb          *pUrb;
+	struct urb *urb;
 
-    pDevice->bPWBitOn = false;
+	priv->bPWBitOn = false;
 
-/*
-    if (pDevice->pPendingBulkOutContext != NULL) {
-        pDevice->NumContextsQueued++;
-        EnqueueContext(pDevice->FirstTxContextQueue, pDevice->LastTxContextQueue, pContext);
-        status = STATUS_PENDING;
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Send pending!\n");
-        return status;
-    }
-*/
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_nsSendBulkOut\n");
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_nsSendBulkOut\n");
-
-	if (!(MP_IS_READY(pDevice) && pDevice->Flags & fMP_POST_WRITES)) {
-		pContext->bBoolInUse = false;
+	if (!(MP_IS_READY(priv) && priv->Flags & fMP_POST_WRITES)) {
+		context->bBoolInUse = false;
 		return STATUS_RESOURCES;
 	}
 
-        pUrb = pContext->pUrb;
-        pDevice->ulBulkOutPosted++;
-//        pDevice->pPendingBulkOutContext = pContext;
-	usb_fill_bulk_urb(pUrb,
-			pDevice->usb,
-			usb_sndbulkpipe(pDevice->usb, 3),
-			pContext->Data,
-			pContext->uBufLen,
-			s_nsBulkOutIoCompleteWrite,
-			pContext);
+	urb = context->pUrb;
+	priv->ulBulkOutPosted++;
 
-    	status = usb_submit_urb(pUrb, GFP_ATOMIC);
-    	if (status != 0)
-    	{
-    		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit Tx URB failed %d\n", status);
-		pContext->bBoolInUse = false;
-    		return STATUS_FAILURE;
-    	}
-        return STATUS_PENDING;
+	usb_fill_bulk_urb(urb,
+			priv->usb,
+			usb_sndbulkpipe(priv->usb, 3),
+			context->Data,
+			context->uBufLen,
+			s_nsBulkOutIoCompleteWrite,
+			context);
+
+	status = usb_submit_urb(urb, GFP_ATOMIC);
+	if (status != 0) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				"Submit Tx URB failed %d\n", status);
+		context->bBoolInUse = false;
+		return STATUS_FAILURE;
+	}
+
+	return STATUS_PENDING;
 }
 
 /*
