@@ -732,8 +732,7 @@ static void bcmgenet_power_down(struct bcmgenet_priv *priv,
 
 	switch (mode) {
 	case GENET_POWER_CABLE_SENSE:
-		if (priv->phydev)
-			phy_detach(priv->phydev);
+		phy_detach(priv->phydev);
 		break;
 
 	case GENET_POWER_PASSIVE:
@@ -1811,9 +1810,8 @@ static void bcmgenet_irq_task(struct work_struct *work)
 	/* Link UP/DOWN event */
 	if ((priv->hw_params->flags & GENET_HAS_MDIO_INTR) &&
 		(priv->irq0_stat & (UMAC_IRQ_LINK_UP|UMAC_IRQ_LINK_DOWN))) {
-		if (priv->phydev)
-			phy_mac_interrupt(priv->phydev,
-				(priv->irq0_stat & UMAC_IRQ_LINK_UP));
+		phy_mac_interrupt(priv->phydev,
+			priv->irq0_stat & UMAC_IRQ_LINK_UP);
 		priv->irq0_stat &= ~(UMAC_IRQ_LINK_UP|UMAC_IRQ_LINK_DOWN);
 	}
 }
@@ -1931,8 +1929,7 @@ static int bcmgenet_wol_resume(struct bcmgenet_priv *priv)
 	if (ret)
 		return ret;
 
-	if (priv->phydev)
-		phy_init_hw(priv->phydev);
+	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
 	bcmgenet_mii_config(priv->dev);
 
@@ -2058,8 +2055,7 @@ static int bcmgenet_open(struct net_device *dev)
 
 	netif_tx_start_all_queues(dev);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
+	phy_start(priv->phydev);
 
 	return 0;
 
@@ -2134,8 +2130,7 @@ static int bcmgenet_close(struct net_device *dev)
 
 	netif_dbg(priv, ifdown, dev, "bcmgenet_close\n");
 
-	if (priv->phydev)
-		phy_stop(priv->phydev);
+	phy_stop(priv->phydev);
 
 	/* Disable MAC receive */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
