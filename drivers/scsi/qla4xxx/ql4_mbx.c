@@ -2381,7 +2381,7 @@ int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config)
 			ql4_printk(KERN_ERR, ha, "%s: Unable to alloc acb\n",
 				   __func__);
 			rval = QLA_ERROR;
-			goto exit_config_acb;
+			goto exit_free_acb;
 		}
 		memcpy(ha->saved_acb, acb, acb_len);
 		break;
