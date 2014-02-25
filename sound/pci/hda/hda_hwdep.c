@@ -124,6 +124,8 @@ static void hwdep_free(struct snd_hwdep *hwdep)
 	clear_hwdep_elements(hwdep->private_data);
 }
 
+static const struct attribute_group *snd_hda_dev_attr_groups[];
+
 int snd_hda_create_hwdep(struct hda_codec *codec)
 {
 	char hwname[16];
@@ -140,6 +142,7 @@ int snd_hda_create_hwdep(struct hda_codec *codec)
 	hwdep->private_data = codec;
 	hwdep->private_free = hwdep_free;
 	hwdep->exclusive = 1;
+	hwdep->groups = snd_hda_dev_attr_groups;
 
 	hwdep->ops.open = hda_hwdep_open;
 	hwdep->ops.ioctl = hda_hwdep_ioctl;
@@ -176,21 +179,8 @@ static ssize_t power_off_acct_show(struct device *dev,
 	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_off_acct));
 }
 
-static struct device_attribute power_attrs[] = {
-	__ATTR_RO(power_on_acct),
-	__ATTR_RO(power_off_acct),
-};
-
-int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec)
-{
-	struct snd_hwdep *hwdep = codec->hwdep;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(power_attrs); i++)
-		snd_add_device_sysfs_file(SNDRV_DEVICE_TYPE_HWDEP, hwdep->card,
-					  hwdep->device, &power_attrs[i]);
-	return 0;
-}
+static DEVICE_ATTR_RO(power_on_acct);
+static DEVICE_ATTR_RO(power_off_acct);
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_SND_HDA_RECONFIG
@@ -568,44 +558,21 @@ static ssize_t user_pin_configs_store(struct device *dev,
 	return count;
 }
 
-#define CODEC_ATTR_RW(type) \
-	__ATTR(type, 0644, type##_show, type##_store)
-#define CODEC_ATTR_RO(type) \
-	__ATTR_RO(type)
-#define CODEC_ATTR_WO(type) \
-	__ATTR(type, 0200, NULL, type##_store)
-
-static struct device_attribute codec_attrs[] = {
-	CODEC_ATTR_RW(vendor_id),
-	CODEC_ATTR_RW(subsystem_id),
-	CODEC_ATTR_RW(revision_id),
-	CODEC_ATTR_RO(afg),
-	CODEC_ATTR_RO(mfg),
-	CODEC_ATTR_RW(vendor_name),
-	CODEC_ATTR_RW(chip_name),
-	CODEC_ATTR_RW(modelname),
-	CODEC_ATTR_RW(init_verbs),
-	CODEC_ATTR_RW(hints),
-	CODEC_ATTR_RO(init_pin_configs),
-	CODEC_ATTR_RW(user_pin_configs),
-	CODEC_ATTR_RO(driver_pin_configs),
-	CODEC_ATTR_WO(reconfig),
-	CODEC_ATTR_WO(clear),
-};
-
-/*
- * create sysfs files on hwdep directory
- */
-int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
-{
-	struct snd_hwdep *hwdep = codec->hwdep;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(codec_attrs); i++)
-		snd_add_device_sysfs_file(SNDRV_DEVICE_TYPE_HWDEP, hwdep->card,
-					  hwdep->device, &codec_attrs[i]);
-	return 0;
-}
+static DEVICE_ATTR_RW(vendor_id);
+static DEVICE_ATTR_RW(subsystem_id);
+static DEVICE_ATTR_RW(revision_id);
+static DEVICE_ATTR_RO(afg);
+static DEVICE_ATTR_RO(mfg);
+static DEVICE_ATTR_RW(vendor_name);
+static DEVICE_ATTR_RW(chip_name);
+static DEVICE_ATTR_RW(modelname);
+static DEVICE_ATTR_RW(init_verbs);
+static DEVICE_ATTR_RW(hints);
+static DEVICE_ATTR_RO(init_pin_configs);
+static DEVICE_ATTR_RW(user_pin_configs);
+static DEVICE_ATTR_RO(driver_pin_configs);
+static DEVICE_ATTR_WO(reconfig);
+static DEVICE_ATTR_WO(clear);
 
 /*
  * Look for hint string
@@ -884,3 +851,40 @@ int snd_hda_load_patch(struct hda_bus *bus, size_t fw_size, const void *fw_buf)
 }
 EXPORT_SYMBOL_GPL(snd_hda_load_patch);
 #endif /* CONFIG_SND_HDA_PATCH_LOADER */
+
+/*
+ * sysfs entries
+ */
+static struct attribute *hda_dev_attrs[] = {
+#ifdef CONFIG_PM
+	&dev_attr_power_on_acct.attr,
+	&dev_attr_power_off_acct.attr,
+#endif
+#ifdef CONFIG_SND_HDA_RECONFIG
+	&dev_attr_vendor_id.attr,
+	&dev_attr_subsystem_id.attr,
+	&dev_attr_revision_id.attr,
+	&dev_attr_afg.attr,
+	&dev_attr_mfg.attr,
+	&dev_attr_vendor_name.attr,
+	&dev_attr_chip_name.attr,
+	&dev_attr_modelname.attr,
+	&dev_attr_init_verbs.attr,
+	&dev_attr_hints.attr,
+	&dev_attr_init_pin_configs.attr,
+	&dev_attr_user_pin_configs.attr,
+	&dev_attr_driver_pin_configs.attr,
+	&dev_attr_reconfig.attr,
+	&dev_attr_clear.attr,
+#endif
+	NULL
+};
+
+static struct attribute_group hda_dev_attr_group = {
+	.attrs	= hda_dev_attrs,
+};
+
+static const struct attribute_group *snd_hda_dev_attr_groups[] = {
+	&hda_dev_attr_group,
+	NULL
+};

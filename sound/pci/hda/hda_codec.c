@@ -852,21 +852,6 @@ static int snd_hda_bus_dev_free(struct snd_device *device)
 	return snd_hda_bus_free(bus);
 }
 
-#ifdef CONFIG_SND_HDA_HWDEP
-static int snd_hda_bus_dev_register(struct snd_device *device)
-{
-	struct hda_bus *bus = device->device_data;
-	struct hda_codec *codec;
-	list_for_each_entry(codec, &bus->codec_list, list) {
-		snd_hda_hwdep_add_sysfs(codec);
-		snd_hda_hwdep_add_power_sysfs(codec);
-	}
-	return 0;
-}
-#else
-#define snd_hda_bus_dev_register	NULL
-#endif
-
 /**
  * snd_hda_bus_new - create a HDA bus
  * @card: the card entry
@@ -882,7 +867,6 @@ int snd_hda_bus_new(struct snd_card *card,
 	struct hda_bus *bus;
 	int err;
 	static struct snd_device_ops dev_ops = {
-		.dev_register = snd_hda_bus_dev_register,
 		.dev_free = snd_hda_bus_dev_free,
 	};
 

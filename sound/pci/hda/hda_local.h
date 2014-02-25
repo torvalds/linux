@@ -597,24 +597,6 @@ int snd_hda_create_hwdep(struct hda_codec *codec);
 static inline int snd_hda_create_hwdep(struct hda_codec *codec) { return 0; }
 #endif
 
-#if defined(CONFIG_PM) && defined(CONFIG_SND_HDA_HWDEP)
-int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec);
-#else
-static inline int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec)
-{
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_SND_HDA_RECONFIG
-int snd_hda_hwdep_add_sysfs(struct hda_codec *codec);
-#else
-static inline int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
-{
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_SND_HDA_RECONFIG
 const char *snd_hda_get_hint(struct hda_codec *codec, const char *key);
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key);

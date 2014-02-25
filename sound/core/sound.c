@@ -355,22 +355,25 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 
 EXPORT_SYMBOL(snd_unregister_device);
 
-int snd_add_device_sysfs_file(int type, struct snd_card *card, int dev,
-			      struct device_attribute *attr)
+/* get the assigned device to the given type and device number;
+ * the caller needs to release it via put_device() after using it
+ */
+struct device *snd_get_device(int type, struct snd_card *card, int dev)
 {
-	int minor, ret = -EINVAL;
-	struct device *d;
+	int minor;
+	struct device *d = NULL;
 
 	mutex_lock(&sound_mutex);
 	minor = find_snd_minor(type, card, dev);
-	if (minor >= 0 && (d = snd_minors[minor]->dev) != NULL)
-		ret = device_create_file(d, attr);
+	if (minor >= 0) {
+		d = snd_minors[minor]->dev;
+		if (d)
+			get_device(d);
+	}
 	mutex_unlock(&sound_mutex);
-	return ret;
-
+	return d;
 }
-
-EXPORT_SYMBOL(snd_add_device_sysfs_file);
+EXPORT_SYMBOL(snd_get_device);
 
 #ifdef CONFIG_PROC_FS
 /*

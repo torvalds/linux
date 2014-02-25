@@ -1018,8 +1018,20 @@ static ssize_t show_pcm_class(struct device *dev,
         return snprintf(buf, PAGE_SIZE, "%s\n", str);
 }
 
-static struct device_attribute pcm_attrs =
-	__ATTR(pcm_class, S_IRUGO, show_pcm_class, NULL);
+static DEVICE_ATTR(pcm_class, S_IRUGO, show_pcm_class, NULL);
+static struct attribute *pcm_dev_attrs[] = {
+	&dev_attr_pcm_class.attr,
+	NULL
+};
+
+static struct attribute_group pcm_dev_attr_group = {
+	.attrs	= pcm_dev_attrs,
+};
+
+static const struct attribute_group *pcm_dev_attr_groups[] = {
+	&pcm_dev_attr_group,
+	NULL
+};
 
 static int snd_pcm_dev_register(struct snd_device *device)
 {
@@ -1069,8 +1081,18 @@ static int snd_pcm_dev_register(struct snd_device *device)
 			mutex_unlock(&register_mutex);
 			return err;
 		}
-		snd_add_device_sysfs_file(devtype, pcm->card, pcm->device,
-					  &pcm_attrs);
+
+		dev = snd_get_device(devtype, pcm->card, pcm->device);
+		if (dev) {
+			err = sysfs_create_groups(&dev->kobj,
+						  pcm_dev_attr_groups);
+			if (err < 0)
+				dev_warn(dev,
+					 "pcm %d:%d: cannot create sysfs groups\n",
+					 pcm->card->number, pcm->device);
+			put_device(dev);
+		}
+
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
 			snd_pcm_timer_init(substream);
 	}

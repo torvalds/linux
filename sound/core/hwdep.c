@@ -436,6 +436,20 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 		mutex_unlock(&register_mutex);
 		return err;
 	}
+
+	if (hwdep->groups) {
+		struct device *d = snd_get_device(SNDRV_DEVICE_TYPE_HWDEP,
+						  hwdep->card, hwdep->device);
+		if (d) {
+			err = sysfs_create_groups(&d->kobj, hwdep->groups);
+			if (err < 0)
+				dev_warn(card->dev,
+					 "hwdep %d:%d: cannot create sysfs groups\n",
+					 card->number, hwdep->device);
+			put_device(d);
+		}
+	}
+
 #ifdef CONFIG_SND_OSSEMUL
 	hwdep->ossreg = 0;
 	if (hwdep->oss_type >= 0) {
