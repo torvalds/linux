@@ -80,8 +80,7 @@ static const struct reg_default wm5102_revb_patch[] = {
 int wm5102_patch(struct arizona *arizona)
 {
 	const struct reg_default *wm5102_patch;
-	int ret = 0;
-	int i, patch_size;
+	int patch_size;
 
 	switch (arizona->rev) {
 	case 0:
@@ -92,21 +91,9 @@ int wm5102_patch(struct arizona *arizona)
 		patch_size = ARRAY_SIZE(wm5102_revb_patch);
 	}
 
-	regcache_cache_bypass(arizona->regmap, true);
-
-	for (i = 0; i < patch_size; i++) {
-		ret = regmap_write(arizona->regmap, wm5102_patch[i].reg,
-				   wm5102_patch[i].def);
-		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to write %x = %x: %d\n",
-				wm5102_patch[i].reg, wm5102_patch[i].def, ret);
-			goto out;
-		}
-	}
-
-out:
-	regcache_cache_bypass(arizona->regmap, false);
-	return ret;
+	return regmap_multi_reg_write_bypassed(arizona->regmap,
+					       wm5102_patch,
+					       patch_size);
 }
 
 static const struct regmap_irq wm5102_aod_irqs[ARIZONA_NUM_IRQ] = {
