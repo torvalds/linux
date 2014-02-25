@@ -2739,7 +2739,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	i915_gem_gtt_finish_object(obj);
 
-	list_del(&vma->mm_list);
+	list_del_init(&vma->mm_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
 	if (i915_is_ggtt(vma->vm))
 		obj->map_and_fenceable = true;
