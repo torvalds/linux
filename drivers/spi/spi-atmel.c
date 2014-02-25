@@ -1087,14 +1087,6 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 		}
 	}
 
-	if (xfer->bits_per_word > 8) {
-		if (xfer->len % 2) {
-			dev_dbg(&spi->dev,
-			"buffer len should be 16 bits aligned\n");
-			return -EINVAL;
-		}
-	}
-
 	/*
 	 * DMA map early, for performance (empties dcache ASAP) and
 	 * better fault reporting.
