@@ -591,7 +591,6 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 		clear_bit(EXTENT_FLAG_LOGGING, &flags);
 		modified = !list_empty(&em->list);
-		remove_extent_mapping(em_tree, em);
 		if (no_splits)
 			goto next;
 
@@ -622,8 +621,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split->bdev = em->bdev;
 			split->flags = flags;
 			split->compress_type = em->compress_type;
-			ret = add_extent_mapping(em_tree, split, modified);
-			BUG_ON(ret); /* Logic error */
+			replace_extent_mapping(em_tree, em, split, modified);
 			free_extent_map(split);
 			split = split2;
 			split2 = NULL;
@@ -661,12 +659,20 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 				split->orig_block_len = 0;
 			}
 
-			ret = add_extent_mapping(em_tree, split, modified);
-			BUG_ON(ret); /* Logic error */
+			if (extent_map_in_tree(em)) {
+				replace_extent_mapping(em_tree, em, split,
+						       modified);
+			} else {
+				ret = add_extent_mapping(em_tree, split,
+							 modified);
+				ASSERT(ret == 0); /* Logic error */
+			}
 			free_extent_map(split);
 			split = NULL;
 		}
 next:
+		if (extent_map_in_tree(em))
+			remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
 
 		/* once for us */

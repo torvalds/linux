@@ -318,6 +318,20 @@ void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em)
 		try_merge_map(tree, em);
 }
 
+static inline void setup_extent_mapping(struct extent_map_tree *tree,
+					struct extent_map *em,
+					int modified)
+{
+	atomic_inc(&em->refs);
+	em->mod_start = em->start;
+	em->mod_len = em->len;
+
+	if (modified)
+		list_move(&em->list, &tree->modified_extents);
+	else
+		try_merge_map(tree, em);
+}
+
 /**
  * add_extent_mapping - add new extent map to the extent tree
  * @tree:	tree to insert new map in
@@ -337,15 +351,7 @@ int add_extent_mapping(struct extent_map_tree *tree,
 	if (ret)
 		goto out;
 
-	atomic_inc(&em->refs);
-
-	em->mod_start = em->start;
-	em->mod_len = em->len;
-
-	if (modified)
-		list_move(&em->list, &tree->modified_extents);
-	else
-		try_merge_map(tree, em);
+	setup_extent_mapping(tree, em, modified);
 out:
 	return ret;
 }
@@ -431,4 +437,19 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 		list_del_init(&em->list);
 	RB_CLEAR_NODE(&em->rb_node);
 	return ret;
+}
+
+void replace_extent_mapping(struct extent_map_tree *tree,
+			    struct extent_map *cur,
+			    struct extent_map *new,
+			    int modified)
+{
+	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &cur->flags));
+	ASSERT(extent_map_in_tree(cur));
+	if (!test_bit(EXTENT_FLAG_LOGGING, &cur->flags))
+		list_del_init(&cur->list);
+	rb_replace_node(&cur->rb_node, &new->rb_node, &tree->map);
+	RB_CLEAR_NODE(&cur->rb_node);
+
+	setup_extent_mapping(tree, new, modified);
 }

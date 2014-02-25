@@ -68,6 +68,10 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 int add_extent_mapping(struct extent_map_tree *tree,
 		       struct extent_map *em, int modified);
 int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em);
+void replace_extent_mapping(struct extent_map_tree *tree,
+			    struct extent_map *cur,
+			    struct extent_map *new,
+			    int modified);
 
 struct extent_map *alloc_extent_map(void);
 void free_extent_map(struct extent_map *em);
