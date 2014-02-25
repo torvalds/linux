@@ -556,14 +556,13 @@ int PIPEnsSendBulkOut(struct vnt_private *pDevice,
         pUrb = pContext->pUrb;
         pDevice->ulBulkOutPosted++;
 //        pDevice->pPendingBulkOutContext = pContext;
-        usb_fill_bulk_urb(
-        	    pUrb,
-        		pDevice->usb,
-		    usb_sndbulkpipe(pDevice->usb, 3),
-		    (void *) &(pContext->Data[0]),
-        		pContext->uBufLen,
-        		s_nsBulkOutIoCompleteWrite,
-        		pContext);
+	usb_fill_bulk_urb(pUrb,
+			pDevice->usb,
+			usb_sndbulkpipe(pDevice->usb, 3),
+			pContext->Data,
+			pContext->uBufLen,
+			s_nsBulkOutIoCompleteWrite,
+			pContext);
 
     	status = usb_submit_urb(pUrb, GFP_ATOMIC);
     	if (status != 0)
