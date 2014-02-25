@@ -153,7 +153,8 @@ COMPAT_SYSCALL_DEFINE3(s390_setresgid16, u16, rgid, u16, egid, u16, sgid)
 			     low2highgid(sgid));
 }
 
-asmlinkage long sys32_getresgid16(u16 __user *rgidp, u16 __user *egidp, u16 __user *sgidp)
+COMPAT_SYSCALL_DEFINE3(s390_getresgid16, u16 __user *, rgidp,
+		       u16 __user *, egidp, u16 __user *, sgidp)
 {
 	const struct cred *cred = current_cred();
 	int retval;
@@ -170,12 +171,12 @@ asmlinkage long sys32_getresgid16(u16 __user *rgidp, u16 __user *egidp, u16 __us
 	return retval;
 }
 
-asmlinkage long sys32_setfsuid16(u16 uid)
+COMPAT_SYSCALL_DEFINE1(s390_setfsuid16, u16, uid)
 {
 	return sys_setfsuid((uid_t)uid);
 }
 
-asmlinkage long sys32_setfsgid16(u16 gid)
+COMPAT_SYSCALL_DEFINE1(s390_setfsgid16, u16, gid)
 {
 	return sys_setfsgid((gid_t)gid);
 }
@@ -218,7 +219,7 @@ static int groups16_from_user(struct group_info *group_info, u16 __user *groupli
 	return 0;
 }
 
-asmlinkage long sys32_getgroups16(int gidsetsize, u16 __user *grouplist)
+COMPAT_SYSCALL_DEFINE2(s390_getgroups16, int, gidsetsize, u16 __user *, grouplist)
 {
 	const struct cred *cred = current_cred();
 	int i;
@@ -243,7 +244,7 @@ out:
 	return i;
 }
 
-asmlinkage long sys32_setgroups16(int gidsetsize, u16 __user *grouplist)
+COMPAT_SYSCALL_DEFINE2(s390_setgroups16, int, gidsetsize, u16 __user *, grouplist)
 {
 	struct group_info *group_info;
 	int retval;

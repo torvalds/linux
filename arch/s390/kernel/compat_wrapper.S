@@ -244,16 +244,6 @@ ENTRY(compat_sys_settimeofday_wrapper)
 	llgtr	%r3,%r3			# struct timezone *
 	jg	compat_sys_settimeofday	# branch to system call
 
-ENTRY(sys32_getgroups16_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# __kernel_old_gid_emu31_t *
-	jg	sys32_getgroups16	# branch to system call
-
-ENTRY(sys32_setgroups16_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# __kernel_old_gid_emu31_t *
-	jg	sys32_setgroups16	# branch to system call
-
 ENTRY(sys32_symlink_wrapper)
 	llgtr	%r2,%r2			# const char *
 	llgtr	%r3,%r3			# const char *
@@ -426,14 +416,6 @@ ENTRY(sys32_personality_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	jg	sys_s390_personality	# branch to system call
 
-ENTRY(sys32_setfsuid16_wrapper)
-	llgfr	%r2,%r2			# __kernel_old_uid_emu31_t
-	jg	sys32_setfsuid16	# branch to system call
-
-ENTRY(sys32_setfsgid16_wrapper)
-	llgfr	%r2,%r2			# __kernel_old_gid_emu31_t
-	jg	sys32_setfsgid16	# branch to system call
-
 ENTRY(sys32_llseek_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgfr	%r3,%r3			# unsigned long
@@ -551,12 +533,6 @@ ENTRY(sys32_poll_wrapper)
 	llgfr	%r3,%r3			# unsigned int
 	lgfr	%r4,%r4			# int
 	jg	sys_poll		# branch to system call
-
-ENTRY(sys32_getresgid16_wrapper)
-	llgtr	%r2,%r2			# __kernel_old_gid_emu31_t *
-	llgtr	%r3,%r3			# __kernel_old_gid_emu31_t *
-	llgtr	%r4,%r4			# __kernel_old_gid_emu31_t *
-	jg	sys32_getresgid16	# branch to system call
 
 ENTRY(sys32_prctl_wrapper)
 	lgfr	%r2,%r2			# int

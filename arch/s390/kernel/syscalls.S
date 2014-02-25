@@ -88,8 +88,8 @@ SYSCALL(sys_old_getrlimit,sys_getrlimit,compat_sys_old_getrlimit_wrapper)
 SYSCALL(sys_getrusage,sys_getrusage,compat_sys_getrusage)
 SYSCALL(sys_gettimeofday,sys_gettimeofday,compat_sys_gettimeofday_wrapper)
 SYSCALL(sys_settimeofday,sys_settimeofday,compat_sys_settimeofday_wrapper)
-SYSCALL(sys_getgroups16,sys_ni_syscall,sys32_getgroups16_wrapper)	/* 80 old getgroups16 syscall */
-SYSCALL(sys_setgroups16,sys_ni_syscall,sys32_setgroups16_wrapper)	/* old setgroups16 syscall */
+SYSCALL(sys_getgroups16,sys_ni_syscall,compat_sys_s390_getgroups16)	/* 80 old getgroups16 syscall */
+SYSCALL(sys_setgroups16,sys_ni_syscall,compat_sys_s390_setgroups16)	/* old setgroups16 syscall */
 NI_SYSCALL							/* old select syscall */
 SYSCALL(sys_symlink,sys_symlink,sys32_symlink_wrapper)
 NI_SYSCALL							/* old lstat syscall */
@@ -146,8 +146,8 @@ SYSCALL(sys_bdflush,sys_bdflush,sys32_bdflush_wrapper)
 SYSCALL(sys_sysfs,sys_sysfs,sys32_sysfs_wrapper)		/* 135 */
 SYSCALL(sys_personality,sys_s390_personality,sys32_personality_wrapper)
 NI_SYSCALL							/* for afs_syscall */
-SYSCALL(sys_setfsuid16,sys_ni_syscall,sys32_setfsuid16_wrapper)	/* old setfsuid16 syscall */
-SYSCALL(sys_setfsgid16,sys_ni_syscall,sys32_setfsgid16_wrapper)	/* old setfsgid16 syscall */
+SYSCALL(sys_setfsuid16,sys_ni_syscall,compat_sys_s390_setfsuid16)	/* old setfsuid16 syscall */
+SYSCALL(sys_setfsgid16,sys_ni_syscall,compat_sys_s390_setfsgid16)	/* old setfsgid16 syscall */
 SYSCALL(sys_llseek,sys_llseek,sys32_llseek_wrapper)		/* 140 */
 SYSCALL(sys_getdents,sys_getdents,sys32_getdents_wrapper)
 SYSCALL(sys_select,sys_select,compat_sys_select_wrapper)
@@ -179,7 +179,7 @@ NI_SYSCALL							/* old sys_query_module */
 SYSCALL(sys_poll,sys_poll,sys32_poll_wrapper)
 NI_SYSCALL							/* old nfsservctl */
 SYSCALL(sys_setresgid16,sys_ni_syscall,compat_sys_s390_setresgid16)	/* 170 old setresgid16 syscall */
-SYSCALL(sys_getresgid16,sys_ni_syscall,sys32_getresgid16_wrapper)	/* old getresgid16 syscall */
+SYSCALL(sys_getresgid16,sys_ni_syscall,compat_sys_s390_getresgid16)	/* old getresgid16 syscall */
 SYSCALL(sys_prctl,sys_prctl,sys32_prctl_wrapper)
 SYSCALL(sys_rt_sigreturn,sys_rt_sigreturn,sys32_rt_sigreturn)
 SYSCALL(sys_rt_sigaction,sys_rt_sigaction,compat_sys_rt_sigaction)
