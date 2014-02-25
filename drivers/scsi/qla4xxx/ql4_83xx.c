@@ -250,7 +250,7 @@ void qla4_83xx_rom_lock_recovery(struct scsi_qla_host *ha)
 }
 
 /**
- * qla4_83xx_ms_mem_write_128b - Writes data to MS/off-chip memory
+ * qla4_8xxx_ms_mem_write_128b - Writes data to MS/off-chip memory
  * @ha: Pointer to adapter structure
  * @addr: Flash address to write to
  * @data: Data to be written
@@ -259,7 +259,7 @@ void qla4_83xx_rom_lock_recovery(struct scsi_qla_host *ha)
  * Return: On success return QLA_SUCCESS
  *	   On error return QLA_ERROR
  **/
-int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
+int qla4_8xxx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
 				uint32_t *data, uint32_t count)
 {
 	int i, j;
@@ -276,7 +276,7 @@ int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
 	write_lock_irqsave(&ha->hw_lock, flags);
 
 	/* Write address */
-	ret_val = qla4_83xx_wr_reg_indirect(ha, MD_MIU_TEST_AGT_ADDR_HI, 0);
+	ret_val = ha->isp_ops->wr_reg_indirect(ha, MD_MIU_TEST_AGT_ADDR_HI, 0);
 	if (ret_val == QLA_ERROR) {
 		ql4_printk(KERN_ERR, ha, "%s: write to AGT_ADDR_HI failed\n",
 			   __func__);
@@ -292,19 +292,20 @@ int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
 			goto exit_ms_mem_write_unlock;
 		}
 
-		ret_val = qla4_83xx_wr_reg_indirect(ha, MD_MIU_TEST_AGT_ADDR_LO,
-						    addr);
+		ret_val = ha->isp_ops->wr_reg_indirect(ha,
+						       MD_MIU_TEST_AGT_ADDR_LO,
+						       addr);
 		/* Write data */
-		ret_val |= qla4_83xx_wr_reg_indirect(ha,
-						     MD_MIU_TEST_AGT_WRDATA_LO,
-						     *data++);
-		ret_val |= qla4_83xx_wr_reg_indirect(ha,
-						     MD_MIU_TEST_AGT_WRDATA_HI,
-						     *data++);
-		ret_val |= qla4_83xx_wr_reg_indirect(ha,
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
+						      MD_MIU_TEST_AGT_WRDATA_LO,
+						      *data++);
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
+						      MD_MIU_TEST_AGT_WRDATA_HI,
+						      *data++);
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
 						     MD_MIU_TEST_AGT_WRDATA_ULO,
 						     *data++);
-		ret_val |= qla4_83xx_wr_reg_indirect(ha,
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
 						     MD_MIU_TEST_AGT_WRDATA_UHI,
 						     *data++);
 		if (ret_val == QLA_ERROR) {
@@ -314,10 +315,11 @@ int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
 		}
 
 		/* Check write status */
-		ret_val = qla4_83xx_wr_reg_indirect(ha, MD_MIU_TEST_AGT_CTRL,
-						    MIU_TA_CTL_WRITE_ENABLE);
-		ret_val |= qla4_83xx_wr_reg_indirect(ha, MD_MIU_TEST_AGT_CTRL,
-						     MIU_TA_CTL_WRITE_START);
+		ret_val = ha->isp_ops->wr_reg_indirect(ha, MD_MIU_TEST_AGT_CTRL,
+						       MIU_TA_CTL_WRITE_ENABLE);
+		ret_val |= ha->isp_ops->wr_reg_indirect(ha,
+							MD_MIU_TEST_AGT_CTRL,
+							MIU_TA_CTL_WRITE_START);
 		if (ret_val == QLA_ERROR) {
 			ql4_printk(KERN_ERR, ha, "%s: write to AGT_CTRL failed\n",
 				   __func__);
@@ -325,9 +327,9 @@ int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
 		}
 
 		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			ret_val = qla4_83xx_rd_reg_indirect(ha,
-							MD_MIU_TEST_AGT_CTRL,
-							&agt_ctrl);
+			ret_val = ha->isp_ops->rd_reg_indirect(ha,
+							  MD_MIU_TEST_AGT_CTRL,
+							  &agt_ctrl);
 			if (ret_val == QLA_ERROR) {
 				ql4_printk(KERN_ERR, ha, "%s: failed to read MD_MIU_TEST_AGT_CTRL\n",
 					   __func__);
@@ -760,7 +762,7 @@ static int qla4_83xx_copy_bootloader(struct scsi_qla_host *ha)
 			  __func__));
 
 	/* 128 bit/16 byte write to MS memory */
-	ret_val = qla4_83xx_ms_mem_write_128b(ha, dest, (uint32_t *)p_cache,
+	ret_val = qla4_8xxx_ms_mem_write_128b(ha, dest, (uint32_t *)p_cache,
 					      count);
 	if (ret_val == QLA_ERROR) {
 		ql4_printk(KERN_ERR, ha, "%s: Error writing firmware to MS\n",

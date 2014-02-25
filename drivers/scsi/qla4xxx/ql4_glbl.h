@@ -274,7 +274,7 @@ int qla4xxx_set_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 int qla4xxx_get_acb(struct scsi_qla_host *ha, dma_addr_t acb_dma,
 		    uint32_t acb_type, uint32_t len);
 int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config);
-int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha,
+int qla4_8xxx_ms_mem_write_128b(struct scsi_qla_host *ha,
 				uint64_t addr, uint32_t *data, uint32_t count);
 uint8_t qla4xxx_set_ipaddr_state(uint8_t fw_ipaddr_state);
 int qla4_83xx_get_port_config(struct scsi_qla_host *ha, uint32_t *config);

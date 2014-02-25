@@ -1918,7 +1918,7 @@ error_exit:
 	return rval;
 }
 
-static int qla4_83xx_minidump_pex_dma_read(struct scsi_qla_host *ha,
+static int qla4_8xxx_minidump_pex_dma_read(struct scsi_qla_host *ha,
 				struct qla8xxx_minidump_entry_hdr *entry_hdr,
 				uint32_t **d_ptr)
 {
@@ -1995,7 +1995,7 @@ static int qla4_83xx_minidump_pex_dma_read(struct scsi_qla_host *ha,
 		dma_desc.cmd.read_data_size = size;
 
 		/* Prepare: Write pex-dma descriptor to MS memory. */
-		rval = qla4_83xx_ms_mem_write_128b(ha,
+		rval = qla4_8xxx_ms_mem_write_128b(ha,
 			      (uint64_t)m_hdr->desc_card_addr,
 			      (uint32_t *)&dma_desc,
 			      (sizeof(struct qla4_83xx_pex_dma_descriptor)/16));
@@ -2455,17 +2455,10 @@ static int qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
 	uint32_t *data_ptr = *d_ptr;
 	int rval = QLA_SUCCESS;
 
-	if (is_qla8032(ha) || is_qla8042(ha)) {
-		rval = qla4_83xx_minidump_pex_dma_read(ha, entry_hdr,
-						       &data_ptr);
-		if (rval != QLA_SUCCESS) {
-			rval = __qla4_8xxx_minidump_process_rdmem(ha, entry_hdr,
-								  &data_ptr);
-		}
-	} else {
+	rval = qla4_8xxx_minidump_pex_dma_read(ha, entry_hdr, &data_ptr);
+	if (rval != QLA_SUCCESS)
 		rval = __qla4_8xxx_minidump_process_rdmem(ha, entry_hdr,
 							  &data_ptr);
-	}
 	*d_ptr = data_ptr;
 	return rval;
 }
