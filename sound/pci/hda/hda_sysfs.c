@@ -48,6 +48,65 @@ static DEVICE_ATTR_RO(power_on_acct);
 static DEVICE_ATTR_RO(power_off_acct);
 #endif /* CONFIG_PM */
 
+#define CODEC_INFO_SHOW(type)					\
+static ssize_t type##_show(struct device *dev,			\
+			   struct device_attribute *attr,	\
+			   char *buf)				\
+{								\
+	struct hda_codec *codec = dev_get_drvdata(dev);		\
+	return sprintf(buf, "0x%x\n", codec->type);		\
+}
+
+#define CODEC_INFO_STR_SHOW(type)				\
+static ssize_t type##_show(struct device *dev,			\
+			     struct device_attribute *attr,	\
+					char *buf)		\
+{								\
+	struct hda_codec *codec = dev_get_drvdata(dev);		\
+	return sprintf(buf, "%s\n",				\
+		       codec->type ? codec->type : "");		\
+}
+
+CODEC_INFO_SHOW(vendor_id);
+CODEC_INFO_SHOW(subsystem_id);
+CODEC_INFO_SHOW(revision_id);
+CODEC_INFO_SHOW(afg);
+CODEC_INFO_SHOW(mfg);
+CODEC_INFO_STR_SHOW(vendor_name);
+CODEC_INFO_STR_SHOW(chip_name);
+CODEC_INFO_STR_SHOW(modelname);
+
+static ssize_t pin_configs_show(struct hda_codec *codec,
+				struct snd_array *list,
+				char *buf)
+{
+	int i, len = 0;
+	mutex_lock(&codec->user_mutex);
+	for (i = 0; i < list->used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(list, i);
+		len += sprintf(buf + len, "0x%02x 0x%08x\n",
+			       pin->nid, pin->cfg);
+	}
+	mutex_unlock(&codec->user_mutex);
+	return len;
+}
+
+static ssize_t init_pin_configs_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct hda_codec *codec = dev_get_drvdata(dev);
+	return pin_configs_show(codec, &codec->init_pins, buf);
+}
+
+static ssize_t driver_pin_configs_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct hda_codec *codec = dev_get_drvdata(dev);
+	return pin_configs_show(codec, &codec->driver_pins, buf);
+}
+
 #ifdef CONFIG_SND_HDA_RECONFIG
 
 /*
@@ -110,34 +169,6 @@ static char *kstrndup_noeol(const char *src, size_t len)
 		*p = 0;
 	return s;
 }
-
-#define CODEC_INFO_SHOW(type)					\
-static ssize_t type##_show(struct device *dev,			\
-			   struct device_attribute *attr,	\
-			   char *buf)				\
-{								\
-	struct hda_codec *codec = dev_get_drvdata(dev);		\
-	return sprintf(buf, "0x%x\n", codec->type);		\
-}
-
-#define CODEC_INFO_STR_SHOW(type)				\
-static ssize_t type##_show(struct device *dev,			\
-			     struct device_attribute *attr,	\
-					char *buf)		\
-{								\
-	struct hda_codec *codec = dev_get_drvdata(dev);		\
-	return sprintf(buf, "%s\n",				\
-		       codec->type ? codec->type : "");		\
-}
-
-CODEC_INFO_SHOW(vendor_id);
-CODEC_INFO_SHOW(subsystem_id);
-CODEC_INFO_SHOW(revision_id);
-CODEC_INFO_SHOW(afg);
-CODEC_INFO_SHOW(mfg);
-CODEC_INFO_STR_SHOW(vendor_name);
-CODEC_INFO_STR_SHOW(chip_name);
-CODEC_INFO_STR_SHOW(modelname);
 
 #define CODEC_INFO_STORE(type)					\
 static ssize_t type##_store(struct device *dev,			\
@@ -344,43 +375,12 @@ static ssize_t hints_store(struct device *dev,
 	return count;
 }
 
-static ssize_t pin_configs_show(struct hda_codec *codec,
-				struct snd_array *list,
-				char *buf)
-{
-	int i, len = 0;
-	mutex_lock(&codec->user_mutex);
-	for (i = 0; i < list->used; i++) {
-		struct hda_pincfg *pin = snd_array_elem(list, i);
-		len += sprintf(buf + len, "0x%02x 0x%08x\n",
-			       pin->nid, pin->cfg);
-	}
-	mutex_unlock(&codec->user_mutex);
-	return len;
-}
-
-static ssize_t init_pin_configs_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
-{
-	struct hda_codec *codec = dev_get_drvdata(dev);
-	return pin_configs_show(codec, &codec->init_pins, buf);
-}
-
 static ssize_t user_pin_configs_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
 	struct hda_codec *codec = dev_get_drvdata(dev);
 	return pin_configs_show(codec, &codec->user_pins, buf);
-}
-
-static ssize_t driver_pin_configs_show(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf)
-{
-	struct hda_codec *codec = dev_get_drvdata(dev);
-	return pin_configs_show(codec, &codec->driver_pins, buf);
 }
 
 #define MAX_PIN_CONFIGS		32
@@ -410,19 +410,10 @@ static ssize_t user_pin_configs_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR_RW(vendor_id);
-static DEVICE_ATTR_RW(subsystem_id);
-static DEVICE_ATTR_RW(revision_id);
-static DEVICE_ATTR_RO(afg);
-static DEVICE_ATTR_RO(mfg);
-static DEVICE_ATTR_RW(vendor_name);
-static DEVICE_ATTR_RW(chip_name);
-static DEVICE_ATTR_RW(modelname);
+/* sysfs attributes exposed only when CONFIG_SND_HDA_RECONFIG=y */
 static DEVICE_ATTR_RW(init_verbs);
 static DEVICE_ATTR_RW(hints);
-static DEVICE_ATTR_RO(init_pin_configs);
 static DEVICE_ATTR_RW(user_pin_configs);
-static DEVICE_ATTR_RO(driver_pin_configs);
 static DEVICE_ATTR_WO(reconfig);
 static DEVICE_ATTR_WO(clear);
 
@@ -483,6 +474,26 @@ int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_int_hint);
 #endif /* CONFIG_SND_HDA_RECONFIG */
+
+/*
+ * common sysfs attributes
+ */
+#ifdef CONFIG_SND_HDA_RECONFIG
+#define RECONFIG_DEVICE_ATTR(name)	DEVICE_ATTR_RW(name)
+#else
+#define RECONFIG_DEVICE_ATTR(name)	DEVICE_ATTR_RO(name)
+#endif
+static RECONFIG_DEVICE_ATTR(vendor_id);
+static RECONFIG_DEVICE_ATTR(subsystem_id);
+static RECONFIG_DEVICE_ATTR(revision_id);
+static DEVICE_ATTR_RO(afg);
+static DEVICE_ATTR_RO(mfg);
+static RECONFIG_DEVICE_ATTR(vendor_name);
+static RECONFIG_DEVICE_ATTR(chip_name);
+static RECONFIG_DEVICE_ATTR(modelname);
+static DEVICE_ATTR_RO(init_pin_configs);
+static DEVICE_ATTR_RO(driver_pin_configs);
+
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 
@@ -708,11 +719,6 @@ EXPORT_SYMBOL_GPL(snd_hda_load_patch);
  * sysfs entries
  */
 static struct attribute *hda_dev_attrs[] = {
-#ifdef CONFIG_PM
-	&dev_attr_power_on_acct.attr,
-	&dev_attr_power_off_acct.attr,
-#endif
-#ifdef CONFIG_SND_HDA_RECONFIG
 	&dev_attr_vendor_id.attr,
 	&dev_attr_subsystem_id.attr,
 	&dev_attr_revision_id.attr,
@@ -721,11 +727,16 @@ static struct attribute *hda_dev_attrs[] = {
 	&dev_attr_vendor_name.attr,
 	&dev_attr_chip_name.attr,
 	&dev_attr_modelname.attr,
+	&dev_attr_init_pin_configs.attr,
+	&dev_attr_driver_pin_configs.attr,
+#ifdef CONFIG_PM
+	&dev_attr_power_on_acct.attr,
+	&dev_attr_power_off_acct.attr,
+#endif
+#ifdef CONFIG_SND_HDA_RECONFIG
 	&dev_attr_init_verbs.attr,
 	&dev_attr_hints.attr,
-	&dev_attr_init_pin_configs.attr,
 	&dev_attr_user_pin_configs.attr,
-	&dev_attr_driver_pin_configs.attr,
 	&dev_attr_reconfig.attr,
 	&dev_attr_clear.attr,
 #endif
@@ -743,8 +754,8 @@ const struct attribute_group *snd_hda_dev_attr_groups[] = {
 
 void snd_hda_sysfs_init(struct hda_codec *codec)
 {
-#ifdef CONFIG_SND_HDA_RECONFIG
 	mutex_init(&codec->user_mutex);
+#ifdef CONFIG_SND_HDA_RECONFIG
 	snd_array_init(&codec->init_verbs, sizeof(struct hda_verb), 32);
 	snd_array_init(&codec->hints, sizeof(struct hda_hint), 32);
 	snd_array_init(&codec->user_pins, sizeof(struct hda_pincfg), 16);

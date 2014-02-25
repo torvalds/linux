@@ -333,8 +333,8 @@ struct hda_codec {
 	struct snd_array driver_pins;	/* pin configs set by codec parser */
 	struct snd_array cvt_setups;	/* audio convert setups */
 
-#ifdef CONFIG_SND_HDA_RECONFIG
 	struct mutex user_mutex;
+#ifdef CONFIG_SND_HDA_RECONFIG
 	struct snd_array init_verbs;	/* additional init verbs */
 	struct snd_array hints;		/* additional hints */
 	struct snd_array user_pins;	/* default pin configs to override */
