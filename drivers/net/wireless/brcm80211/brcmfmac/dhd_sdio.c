@@ -3758,8 +3758,8 @@ static void brcmf_sdio_dataworker(struct work_struct *work)
 					      datawork);
 
 	while (atomic_read(&bus->dpc_tskcnt)) {
+		atomic_set(&bus->dpc_tskcnt, 0);
 		brcmf_sdio_dpc(bus);
-		atomic_dec(&bus->dpc_tskcnt);
 	}
 }
 
