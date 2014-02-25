@@ -387,4 +387,17 @@ void __init init_cpu_topology(void)
 	smp_wmb();
 
 	parse_dt_topology();
+
+	/*
+	 * Assign all remaining CPUs to a cluster so the scheduler
+	 * doesn't get confused.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct cputopo_arm *cpu_topo = &cpu_topology[cpu];
+
+		if (cpu_topo->socket_id == -1) {
+			cpu_topo->socket_id = INT_MAX;
+			cpu_topo->core_id = cpu;
+		}
+	}
 }
