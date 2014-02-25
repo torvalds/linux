@@ -149,7 +149,7 @@ u8 efuse_read_1byte(struct ieee80211_hw *hw, u16 address)
 		return 0xFF;
 
 }
-//EXPORT_SYMBOL(efuse_read_1byte);
+/* EXPORT_SYMBOL(efuse_read_1byte); */
 
 void efuse_write_1byte(struct ieee80211_hw *hw, u16 address, u8 value)
 {
@@ -517,7 +517,7 @@ void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw)
 			rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE]);
 
 }
-//EXPORT_SYMBOL(rtl_efuse_shadow_map_update);
+/* EXPORT_SYMBOL(rtl_efuse_shadow_map_update); */
 
 void efuse_force_write_vendor_Id(struct ieee80211_hw *hw)
 {
@@ -628,7 +628,7 @@ int efuse_one_byte_read(struct ieee80211_hw *hw, u16 addr, u8 *data)
 	}
 	return bresult;
 }
-//EXPORT_SYMBOL(efuse_one_byte_read);
+/* EXPORT_SYMBOL(efuse_one_byte_read); */
 
 static int efuse_one_byte_write(struct ieee80211_hw *hw, u16 addr, u8 data)
 {
@@ -1120,16 +1120,16 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 bwrite, u8 pwrstate)
 		{
 			rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_ACCESS], 0x69);
 
-			// 1.2V Power: From VDDON with Power Cut(0x0000h[15]), default valid
+			/* 1.2V Power: From VDDON with Power Cut(0x0000h[15]), default valid */
 			tmpV16 = rtl_read_word(rtlpriv,
 					       rtlpriv->cfg->maps[SYS_ISO_CTRL]);
 
 			printk("SYS_ISO_CTRL=%04x.\n",tmpV16);
 			if( ! (tmpV16 & PWC_EV12V ) ){
 				tmpV16 |= PWC_EV12V ;
-				 //PlatformEFIOWrite2Byte(pAdapter,REG_SYS_ISO_CTRL,tmpV16);
+				 /* PlatformEFIOWrite2Byte(pAdapter,REG_SYS_ISO_CTRL,tmpV16); */
 			}
-			// Reset: 0x0000h[28], default valid
+			/* Reset: 0x0000h[28], default valid */
  			tmpV16 = rtl_read_word(rtlpriv,  rtlpriv->cfg->maps[SYS_FUNC_EN]);
 			printk("SYS_FUNC_EN=%04x.\n",tmpV16);
 			if( !(tmpV16 & FEN_ELDR) ){
@@ -1137,7 +1137,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 bwrite, u8 pwrstate)
 				rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN], tmpV16);
 			}
 
-			// Clock: Gated(0x0008h[5]) 8M(0x0008h[1]) clock from ANA, default valid
+			/* Clock: Gated(0x0008h[5]) 8M(0x0008h[1]) clock from ANA, default valid */
 			tmpV16 = rtl_read_word(rtlpriv,  rtlpriv->cfg->maps[SYS_CLK] );
 			printk("SYS_CLK=%04x.\n",tmpV16);
 			if( (!(tmpV16 & LOADER_CLK_EN) )  ||(!(tmpV16 & ANA8M) ) )
@@ -1148,7 +1148,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 bwrite, u8 pwrstate)
 
 			if(bwrite == true)
 			{
-				// Enable LDO 2.5V before read/write action
+				/* Enable LDO 2.5V before read/write action */
 				tempval = rtl_read_word(rtlpriv,  rtlpriv->cfg->maps[EFUSE_TEST] + 3);
 				printk("EFUSE_TEST=%04x.\n",tmpV16);
 				tempval &= ~(BIT(3) | BIT(4) |BIT(5) | BIT(6));
@@ -1161,7 +1161,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 bwrite, u8 pwrstate)
 		{
 			rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_ACCESS], 0x00);
 			if(bwrite == true){
-				// Disable LDO 2.5V after read/write action
+				/* Disable LDO 2.5V after read/write action */
 				tempval = rtl_read_word(rtlpriv,  rtlpriv->cfg->maps[EFUSE_TEST] + 3);
 				rtl_write_byte(rtlpriv,  rtlpriv->cfg->maps[EFUSE_TEST] + 3, (tempval & 0x7F));
 			}
