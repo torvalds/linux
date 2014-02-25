@@ -215,7 +215,6 @@ struct kvm_s390_float_interrupt {
 	int next_rr_cpu;
 	unsigned long idle_mask[(KVM_MAX_VCPUS + sizeof(long) - 1)
 				/ sizeof(long)];
-	struct kvm_s390_local_interrupt *local_int[KVM_MAX_VCPUS];
 	unsigned int irq_count;
 };
 
