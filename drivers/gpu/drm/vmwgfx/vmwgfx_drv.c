@@ -667,6 +667,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->memory_size = 512*1024*1024;
 	}
 	dev_priv->max_mob_pages = 0;
+	dev_priv->max_mob_size = 0;
 	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
 		uint64_t mem_size =
 			vmw_read(dev_priv,
@@ -676,6 +677,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->prim_bb_mem =
 			vmw_read(dev_priv,
 				 SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM);
+		dev_priv->max_mob_size =
+			vmw_read(dev_priv, SVGA_REG_MOB_MAX_SIZE);
 	} else
 		dev_priv->prim_bb_mem = dev_priv->vram_size;
 

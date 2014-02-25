@@ -53,17 +53,25 @@ static int da9055_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+/*
+ * DO NOT change the device Ids. The naming is intentionally specific as both
+ * the PMIC and CODEC parts of this chip are instantiated separately as I2C
+ * devices (both have configurable I2C addresses, and are to all intents and
+ * purposes separate). As a result there are specific DA9055 ids for PMIC
+ * and CODEC, which must be different to operate together.
+ */
 static struct i2c_device_id da9055_i2c_id[] = {
-	{"da9055", 0},
+	{"da9055-pmic", 0},
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, da9055_i2c_id);
 
 static struct i2c_driver da9055_i2c_driver = {
 	.probe = da9055_i2c_probe,
 	.remove = da9055_i2c_remove,
 	.id_table = da9055_i2c_id,
 	.driver = {
-		.name = "da9055",
+		.name = "da9055-pmic",
 		.owner = THIS_MODULE,
 	},
 };

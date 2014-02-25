@@ -63,6 +63,10 @@ static int sr_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	int offset = 0;
 
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len)
+		return 0;
+
 	while (offset + sizeof(u32) < skb->len) {
 		struct sk_buff *sr_skb;
 		u16 size;
@@ -823,7 +827,7 @@ static int sr9800_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->rx_urb_size =
 			SR9800_BULKIN_SIZE[SR9800_MAX_BULKIN_2K].size;
 	}
-	netdev_dbg(dev->net, "%s : setting rx_urb_size with : %ld\n", __func__,
+	netdev_dbg(dev->net, "%s : setting rx_urb_size with : %zu\n", __func__,
 		   dev->rx_urb_size);
 	return 0;
 
