@@ -25,7 +25,8 @@
 #include "pmcc4.h"
 
 #if defined(CONFIG_SBE_HDLC_V7) || defined(CONFIG_SBE_WAN256T3_HDLC_V7) || \
-defined(CONFIG_SBE_HDLC_V7_MODULE) || defined(CONFIG_SBE_WAN256T3_HDLC_V7_MODULE)
+defined(CONFIG_SBE_HDLC_V7_MODULE) || \
+defined(CONFIG_SBE_WAN256T3_HDLC_V7_MODULE)
 #define _v7_hdlc_  1
 #else
 #define _v7_hdlc_  0
@@ -111,14 +112,16 @@ watchdog_func(unsigned long arg)
 
 	if (drvr_state != SBE_DRVR_AVAILABLE) {
 		if (cxt1e1_log_level >= LOG_MONITOR)
-			pr_warning("%s: drvr not available (%x)\n", __func__, drvr_state);
+			pr_warning("%s: drvr not available (%x)\n",
+				   __func__, drvr_state);
 		return;
 	}
 	schedule_work(&wd->work);
 	mod_timer(&wd->h, jiffies + wd->ticks);
 }
 
-int OS_init_watchdog(struct watchdog *wdp, void (*f) (void *), void *c, int usec)
+int OS_init_watchdog(struct watchdog *wdp, void (*f) (void *),
+		     void *c, int usec)
 {
 	wdp->func = f;
 	wdp->softc = c;
