@@ -329,6 +329,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		goto out;
 	}
 
+	err_printf(m, "%s\n", error->error_msg);
 	err_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
@@ -689,7 +690,8 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
  * It's only a small step better than a random number in its current form.
  */
 static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
-					 struct drm_i915_error_state *error)
+					 struct drm_i915_error_state *error,
+					 int *ring_id)
 {
 	uint32_t error_code = 0;
 	int i;
@@ -699,9 +701,14 @@ static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
 	 * synchronization commands which almost always appear in the case
 	 * strictly a client bug. Use instdone to differentiate those some.
 	 */
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		if (error->ring[i].hangcheck_action == HANGCHECK_HUNG)
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		if (error->ring[i].hangcheck_action == HANGCHECK_HUNG) {
+			if (ring_id)
+				*ring_id = i;
+
 			return error->ring[i].ipehr ^ error->ring[i].instdone;
+		}
+	}
 
 	return error_code;
 }
@@ -1086,6 +1093,19 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	i915_get_extra_instdone(dev, error->extra_instdone);
 }
 
+static void i915_error_capture_msg(struct drm_device *dev,
+				   struct drm_i915_error_state *error)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 ecode;
+	int ring_id = -1;
+
+	ecode = i915_error_generate_code(dev_priv, error, &ring_id);
+
+	scnprintf(error->error_msg, sizeof(error->error_msg),
+		  "GPU HANG: ecode %d:0x%08x", ring_id, ecode);
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -1101,13 +1121,6 @@ void i915_capture_error_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
 	unsigned long flags;
-	uint32_t ecode;
-
-	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
-	error = dev_priv->gpu_error.first_error;
-	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
-	if (error)
-		return;
 
 	/* Account for pipe specific data like PIPE*STAT */
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);
@@ -1116,29 +1129,20 @@ void i915_capture_error_state(struct drm_device *dev)
 		return;
 	}
 
-	DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
-		 dev->primary->index);
 	kref_init(&error->ref);
 
 	i915_capture_reg_state(dev_priv, error);
 	i915_gem_capture_buffers(dev_priv, error);
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
-	ecode = i915_error_generate_code(dev_priv, error);
-
-	if (!warned) {
-		DRM_INFO("GPU HANG [%x]\n", ecode);
-		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
-		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
-		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
-		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
-		warned = true;
-	}
 
 	do_gettimeofday(&error->time);
 
 	error->overlay = intel_overlay_capture_error_state(dev);
 	error->display = intel_display_capture_error_state(dev);
+
+	i915_error_capture_msg(dev, error);
+	DRM_INFO("%s\n", error->error_msg);
 
 	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
 	if (dev_priv->gpu_error.first_error == NULL) {
@@ -1147,8 +1151,19 @@ void i915_capture_error_state(struct drm_device *dev)
 	}
 	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 
-	if (error)
+	if (error) {
 		i915_error_state_free(&error->ref);
+		return;
+	}
+
+	if (!warned) {
+		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
+		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
+		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
+		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
+		DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n", dev->primary->index);
+		warned = true;
+	}
 }
 
 void i915_error_state_get(struct drm_device *dev,

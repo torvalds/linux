@@ -303,6 +303,8 @@ struct drm_i915_error_state {
 	struct kref ref;
 	struct timeval time;
 
+	char error_msg[128];
+
 	/* Generic register state */
 	u32 eir;
 	u32 pgtbl_er;
