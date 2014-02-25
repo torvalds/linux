@@ -1592,8 +1592,8 @@ EXPORT_SYMBOL_GPL(regmap_bulk_write);
  * A value of zero will be returned on success, a negative errno will
  * be returned in error cases.
  */
-int regmap_multi_reg_write(struct regmap *map, struct reg_default *regs,
-				int num_regs)
+int regmap_multi_reg_write(struct regmap *map, const struct reg_default *regs,
+			   int num_regs)
 {
 	int ret = 0, i;
 
