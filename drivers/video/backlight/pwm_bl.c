@@ -20,8 +20,7 @@
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/slab.h>
-#include <linux/of_gpio.h>
-#include <linux/gpio.h>
+
 struct pwm_bl_data {
 	struct pwm_device	*pwm;
 	struct device		*dev;
@@ -102,9 +101,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	struct property *prop;
 	int length;
 	u32 value;
-	int gpio,ret;
-	 enum of_gpio_flags flags;
-
+	int ret;
 
 	if (!node)
 		return -ENODEV;
@@ -136,25 +133,6 @@ static int pwm_backlight_parse_dt(struct device *dev,
 					   &value);
 		if (ret < 0)
 			return ret;
-		data->gpio = devm_kzalloc(dev,
-				sizeof(struct gpio) * 1,
-				GFP_KERNEL);
-		gpio = of_get_named_gpio_flags(node, "gpios", 0, &flags);
-		data->gpio->gpio = gpio;
-
-
-		if (gpio != -1) {
-			ret = devm_gpio_request(dev, gpio, "gpio_pwm_bl_en");
-			if(ret){
-				data->gpio->gpio = -1;
-				printk("PWM_BL_EN  request ERROR");
-			}
-			ret = gpio_direction_output(data->gpio->gpio , !flags);
-			if(ret){
-				printk("PWM_BL_EN  request ERROR");
-			}
-
-		}
 
 		data->dft_brightness = value;
 		data->max_brightness--;
