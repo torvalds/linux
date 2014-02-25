@@ -2193,10 +2193,10 @@ brcmf_sdio_txpkt_prep(struct brcmf_sdio *bus, struct sk_buff_head *pktq,
 		if (BRCMF_BYTES_ON() &&
 		    ((BRCMF_CTL_ON() && chan == SDPCM_CONTROL_CHANNEL) ||
 		     (BRCMF_DATA_ON() && chan != SDPCM_CONTROL_CHANNEL)))
-			brcmf_dbg_hex_dump(true, pkt_next, hd_info.len,
+			brcmf_dbg_hex_dump(true, pkt_next->data, hd_info.len,
 					   "Tx Frame:\n");
 		else if (BRCMF_HDRS_ON())
-			brcmf_dbg_hex_dump(true, pkt_next,
+			brcmf_dbg_hex_dump(true, pkt_next->data,
 					   head_pad + bus->tx_hdrlen,
 					   "Tx Header:\n");
 	}
