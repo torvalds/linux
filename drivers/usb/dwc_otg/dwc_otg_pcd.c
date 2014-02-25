@@ -2077,8 +2077,7 @@ void dwc_otg_pcd_remove( struct device *dev )
 					 pcd->driver->driver.name);
 		usb_gadget_unregister_driver( pcd->driver);
 	}
-	device_unregister(&pcd->gadget.dev);
-		
+	usb_del_gadget_udc(&pcd->gadget);
 	if (GET_CORE_IF(pcd)->dma_enable) 
 	{
 		dma_free_coherent (NULL, sizeof (*pcd->setup_pkt) * 5, pcd->setup_pkt, pcd->setup_pkt_dma_handle);
