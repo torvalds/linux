@@ -890,6 +890,8 @@ int qla4xxx_start_firmware(struct scsi_qla_host *ha)
 	if (status == QLA_SUCCESS) {
 		if (test_and_clear_bit(AF_GET_CRASH_RECORD, &ha->flags))
 			qla4xxx_get_crash_record(ha);
+
+		qla4xxx_init_rings(ha);
 	} else {
 		DEBUG(printk("scsi%ld: %s: Firmware has NOT started\n",
 			     ha->host_no, __func__));
