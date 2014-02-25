@@ -22,7 +22,7 @@ config POWER_RESET_GPIO
 
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
-	depends on POWER_RESET && ARCH_MSM
+	depends on POWER_RESET && ARCH_QCOM
 	help
 	  Power off and restart support for Qualcomm boards.
 
