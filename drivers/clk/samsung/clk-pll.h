@@ -28,6 +28,9 @@ enum samsung_pll_type {
 	pll_6552,
 	pll_6552_s3c2416,
 	pll_6553,
+	pll_s3c2410_mpll,
+	pll_s3c2410_upll,
+	pll_s3c2440_mpll,
 };
 
 #define PLL_35XX_RATE(_rate, _m, _p, _s)			\
