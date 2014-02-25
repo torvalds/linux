@@ -402,7 +402,6 @@ struct brcmf_cfg80211_info {
 	bool ibss_starter;
 	bool pwr_save;
 	bool dongle_up;
-	bool roam_on;
 	bool scan_tried;
 	u8 *dcmd_buf;
 	u8 *extra_buf;
