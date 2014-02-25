@@ -47,25 +47,25 @@ ENTRY(__raw_readsl)
 		strb	ip, [r1], #1
 
 4:		subs	r2, r2, #1
-		mov	ip, r3, pull #24
+		mov	ip, r3, lspull #24
 		ldrne	r3, [r0]
-		orrne	ip, ip, r3, push #8
+		orrne	ip, ip, r3, lspush #8
 		strne	ip, [r1], #4
 		bne	4b
 		b	8f
 
 5:		subs	r2, r2, #1
-		mov	ip, r3, pull #16
+		mov	ip, r3, lspull #16
 		ldrne	r3, [r0]
-		orrne	ip, ip, r3, push #16
+		orrne	ip, ip, r3, lspush #16
 		strne	ip, [r1], #4
 		bne	5b
 		b	7f
 
 6:		subs	r2, r2, #1
-		mov	ip, r3, pull #8
+		mov	ip, r3, lspull #8
 		ldrne	r3, [r0]
-		orrne	ip, ip, r3, push #24
+		orrne	ip, ip, r3, lspush #24
 		strne	ip, [r1], #4
 		bne	6b
 
