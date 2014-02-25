@@ -304,7 +304,6 @@ struct rte_console {
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
 
-#define BRCMF_IDLE_IMMEDIATE	(-1)	/* Enter idle immediately */
 #define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
 					 * when idle
 					 */
@@ -2662,16 +2661,6 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 		    data_ok(bus)) || PKT_AVAILABLE()) {
 		atomic_inc(&bus->dpc_tskcnt);
 	}
-
-	/* If we're done for now, turn off clock request. */
-	if ((bus->clkstate != CLK_PENDING)
-	    && bus->idletime == BRCMF_IDLE_IMMEDIATE) {
-		bus->activity = false;
-		brcmf_dbg(SDIO, "idle state\n");
-		sdio_claim_host(bus->sdiodev->func[1]);
-		brcmf_sdio_bus_sleep(bus, true, false);
-		sdio_release_host(bus->sdiodev->func[1]);
-	}
 }
 
 static struct pktq *brcmf_sdio_bus_gettxq(struct device *dev)
@@ -2946,15 +2935,6 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 			ret = brcmf_sdio_tx_frame(bus, frame, len);
 			sdio_release_host(bus->sdiodev->func[1]);
 		} while (ret < 0 && retries++ < TXRETRIES);
-	}
-
-	if ((bus->idletime == BRCMF_IDLE_IMMEDIATE) &&
-	    atomic_read(&bus->dpc_tskcnt) == 0) {
-		bus->activity = false;
-		sdio_claim_host(bus->sdiodev->func[1]);
-		brcmf_dbg(INFO, "idle\n");
-		brcmf_sdio_clkctl(bus, CLK_NONE, true);
-		sdio_release_host(bus->sdiodev->func[1]);
 	}
 
 	if (ret)
