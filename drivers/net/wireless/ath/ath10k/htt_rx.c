@@ -632,6 +632,12 @@ struct amsdu_subframe_hdr {
 	__be16 len;
 } __packed;
 
+static int ath10k_htt_rx_nwifi_hdrlen(struct ieee80211_hdr *hdr)
+{
+	/* nwifi header is padded to 4 bytes. this fixes 4addr rx */
+	return round_up(ieee80211_hdrlen(hdr->frame_control), 4);
+}
+
 static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 				struct htt_rx_info *info)
 {
@@ -681,7 +687,7 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 		case RX_MSDU_DECAP_NATIVE_WIFI:
 			/* pull decapped header and copy DA */
 			hdr = (struct ieee80211_hdr *)skb->data;
-			hdr_len = ieee80211_hdrlen(hdr->frame_control);
+			hdr_len = ath10k_htt_rx_nwifi_hdrlen(hdr);
 			memcpy(addr, ieee80211_get_DA(hdr), ETH_ALEN);
 			skb_pull(skb, hdr_len);
 
@@ -768,7 +774,7 @@ static void ath10k_htt_rx_msdu(struct ath10k_htt *htt, struct htt_rx_info *info)
 	case RX_MSDU_DECAP_NATIVE_WIFI:
 		/* Pull decapped header */
 		hdr = (struct ieee80211_hdr *)skb->data;
-		hdr_len = ieee80211_hdrlen(hdr->frame_control);
+		hdr_len = ath10k_htt_rx_nwifi_hdrlen(hdr);
 		skb_pull(skb, hdr_len);
 
 		/* Push original header */
