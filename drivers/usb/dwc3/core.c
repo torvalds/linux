@@ -314,7 +314,25 @@ static int dwc3_core_init(struct dwc3 *dwc)
 
 	switch (DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams1)) {
 	case DWC3_GHWPARAMS1_EN_PWROPT_CLK:
-		reg &= ~DWC3_GCTL_DSBLCLKGTNG;
+		/**
+		 * WORKAROUND: DWC3 revisions between 2.10a and 2.50a have an
+		 * issue which would cause xHCI compliance tests to fail.
+		 *
+		 * Because of that we cannot enable clock gating on such
+		 * configurations.
+		 *
+		 * Refers to:
+		 *
+		 * STAR#9000588375: Clock Gating, SOF Issues when ref_clk-Based
+		 * SOF/ITP Mode Used
+		 */
+		if ((dwc->dr_mode == USB_DR_MODE_HOST ||
+				dwc->dr_mode == USB_DR_MODE_OTG) &&
+				(dwc->revision >= DWC3_REVISION_210A &&
+				dwc->revision <= DWC3_REVISION_250A))
+			reg |= DWC3_GCTL_DSBLCLKGTNG | DWC3_GCTL_SOFITPSYNC;
+		else
+			reg &= ~DWC3_GCTL_DSBLCLKGTNG;
 		break;
 	default:
 		dev_dbg(dwc->dev, "No power optimization available\n");
@@ -479,6 +497,14 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
+	if (IS_ENABLED(CONFIG_USB_DWC3_HOST))
+		dwc->dr_mode = USB_DR_MODE_HOST;
+	else if (IS_ENABLED(CONFIG_USB_DWC3_GADGET))
+		dwc->dr_mode = USB_DR_MODE_PERIPHERAL;
+
+	if (dwc->dr_mode == USB_DR_MODE_UNKNOWN)
+		dwc->dr_mode = USB_DR_MODE_OTG;
+
 	ret = dwc3_core_init(dwc);
 	if (ret) {
 		dev_err(dev, "failed to initialize core\n");
@@ -493,14 +519,6 @@ static int dwc3_probe(struct platform_device *pdev)
 		dev_err(dwc->dev, "failed to setup event buffers\n");
 		goto err1;
 	}
-
-	if (IS_ENABLED(CONFIG_USB_DWC3_HOST))
-		dwc->dr_mode = USB_DR_MODE_HOST;
-	else if (IS_ENABLED(CONFIG_USB_DWC3_GADGET))
-		dwc->dr_mode = USB_DR_MODE_PERIPHERAL;
-
-	if (dwc->dr_mode == USB_DR_MODE_UNKNOWN)
-		dwc->dr_mode = USB_DR_MODE_OTG;
 
 	switch (dwc->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
