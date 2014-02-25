@@ -117,6 +117,7 @@ kirkwood := \
 	kirkwood-ts219-6281.dtb \
 	kirkwood-ts219-6282.dtb
 dtb-$(CONFIG_ARCH_KIRKWOOD) += $(kirkwood)
+dtb-$(CONFIG_MACH_KIRKWOOD) += $(kirkwood)
 dtb-$(CONFIG_ARCH_LPC32XX) += ea3250.dtb phy3250.dtb
 dtb-$(CONFIG_ARCH_MARCO) += marco-evb.dtb
 dtb-$(CONFIG_ARCH_MOXART) += moxart-uc7112lx.dtb
@@ -133,8 +134,7 @@ dtb-$(CONFIG_ARCH_MVEBU) += armada-370-db.dtb \
 	armada-xp-gp.dtb \
 	armada-xp-netgear-rn2120.dtb \
 	armada-xp-matrix.dtb \
-	armada-xp-openblocks-ax3-4.dtb \
-	$(kirkwood)
+	armada-xp-openblocks-ax3-4.dtb
 dtb-$(CONFIG_ARCH_MXC) += \
 	imx25-karo-tx25.dtb \
 	imx25-pdk.dtb \
