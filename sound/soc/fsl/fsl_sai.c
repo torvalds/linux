@@ -105,35 +105,47 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 	else
 		val_cr4 |= FSL_SAI_CR4_MF;
 
+	/* DAI mode */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		val_cr4 |= FSL_SAI_CR4_FSE;
+		/* Data on rising edge of bclk, frame low, 1clk before data */
+		val_cr2 &= ~FSL_SAI_CR2_BCP;
+		val_cr4 |= FSL_SAI_CR4_FSE | FSL_SAI_CR4_FSP;
 		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		/* Data on rising edge of bclk, frame high, 0clk before data */
+		val_cr2 &= ~FSL_SAI_CR2_BCP;
+		val_cr4 &= ~(FSL_SAI_CR4_FSE | FSL_SAI_CR4_FSP);
+		break;
+	case SND_SOC_DAIFMT_RIGHT_J:
+		/* To be done */
 	default:
 		return -EINVAL;
 	}
 
+	/* DAI clock inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_IB_IF:
-		val_cr4 |= FSL_SAI_CR4_FSP;
-		val_cr2 &= ~FSL_SAI_CR2_BCP;
+		/* Invert both clocks */
+		val_cr2 ^= FSL_SAI_CR2_BCP;
+		val_cr4 ^= FSL_SAI_CR4_FSP;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		val_cr4 &= ~FSL_SAI_CR4_FSP;
-		val_cr2 &= ~FSL_SAI_CR2_BCP;
+		/* Invert bit clock */
+		val_cr2 ^= FSL_SAI_CR2_BCP;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		val_cr4 |= FSL_SAI_CR4_FSP;
-		val_cr2 |= FSL_SAI_CR2_BCP;
+		/* Invert frame clock */
+		val_cr4 ^= FSL_SAI_CR4_FSP;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
-		val_cr4 &= ~FSL_SAI_CR4_FSP;
-		val_cr2 |= FSL_SAI_CR2_BCP;
+		/* Nothing to do for both normal cases */
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	/* DAI clock master masks */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		val_cr2 |= FSL_SAI_CR2_BCD_MSTR;
@@ -142,6 +154,14 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_CBM_CFM:
 		val_cr2 &= ~FSL_SAI_CR2_BCD_MSTR;
 		val_cr4 &= ~FSL_SAI_CR4_FSD_MSTR;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFM:
+		val_cr2 |= FSL_SAI_CR2_BCD_MSTR;
+		val_cr4 &= ~FSL_SAI_CR4_FSD_MSTR;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+		val_cr2 &= ~FSL_SAI_CR2_BCD_MSTR;
+		val_cr4 |= FSL_SAI_CR4_FSD_MSTR;
 		break;
 	default:
 		return -EINVAL;
