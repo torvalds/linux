@@ -65,6 +65,8 @@ struct rk30_i2s_info {
 	bool i2s_rx_status;
 };
 
+#define I2S_CLR_ERROR_COUNT 10// check I2S_CLR reg 
+
 #if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
 extern int hdmi_get_hotplug(void);
 #else
@@ -83,7 +85,8 @@ static void rockchip_snd_txctrl(struct rk30_i2s_info *i2s, int on)
 {
 	u32 opr, xfer, clr;
 	unsigned long flags;
-	int is_need_delay = false;
+	bool is_need_delay = false;
+	int clr_error_count = I2S_CLR_ERROR_COUNT;
 
 	spin_lock_irqsave(&lock, flags);
 
@@ -129,15 +132,22 @@ static void rockchip_snd_txctrl(struct rk30_i2s_info *i2s, int on)
 
 	spin_unlock_irqrestore(&lock, flags);
 
-	if (is_need_delay)
-		udelay(1);
+	if (is_need_delay){
+		while(readl(&(pheadi2s->I2S_CLR)) && clr_error_count){
+			udelay(1);
+			clr_error_count --;
+			if(clr_error_count == 0)
+				printk("%s: i2s clr reg warning =%d",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
+		}
+	}	
 }
 
 static void rockchip_snd_rxctrl(struct rk30_i2s_info *i2s, int on)
 {
 	u32 opr, xfer, clr;
 	unsigned long flags;
-	int is_need_delay = false;
+	bool is_need_delay = false;
+	int clr_error_count = I2S_CLR_ERROR_COUNT;
 
 	spin_lock_irqsave(&lock, flags);
 
@@ -182,9 +192,19 @@ static void rockchip_snd_rxctrl(struct rk30_i2s_info *i2s, int on)
 	}
 
 	spin_unlock_irqrestore(&lock, flags);
-
-	if (is_need_delay)
-		udelay(1);
+#ifdef CONFIG_SND_SOC_RT5631
+//bard 7-16 s
+		schedule_delayed_work(&rt5631_delay_cap,HZ/4);
+//bard 7-16 e
+#endif
+	if (is_need_delay){
+		while(readl(&(pheadi2s->I2S_CLR)) && clr_error_count){
+			udelay(1);
+			clr_error_count --;
+			if(clr_error_count == 0)
+				printk("%s: i2s clr reg warning =%d",__FUNCTION__,readl(&(pheadi2s->I2S_CLR)));
+		}
+	}
 }
 
 /*
@@ -291,6 +311,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
+//	writel((16<<24) |(16<<18)|(16<<12)|(16<<6)|16, &(pheadi2s->I2S_FIFOLR));
 	dmarc = readl(&(pheadi2s->I2S_DMACR));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
