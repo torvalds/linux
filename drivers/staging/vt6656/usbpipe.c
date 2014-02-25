@@ -472,15 +472,14 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 	unsigned long   bytesRead;
 	int bIndicateReceive = false;
 	int bReAllocSkb = false;
-	int status;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
-    status = urb->status;
+
     bytesRead = urb->actual_length;
 
-    if (status) {
+    if (urb->status) {
         pDevice->ulBulkInError++;
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK In failed %d\n", status);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK In failed %d\n", urb->status);
 //todo...xxxxxx
 //        if (status == USBD_STATUS_CRC) {
 //            pDevice->ulBulkInContCRCError++;
