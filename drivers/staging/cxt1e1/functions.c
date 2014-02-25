@@ -33,9 +33,9 @@ defined(CONFIG_SBE_HDLC_V7_MODULE) || defined(CONFIG_SBE_WAN256T3_HDLC_V7_MODULE
 
 #if _v7_hdlc_
 #define V7(x) (x ## _v7)
-extern int  hdlc_netif_rx_v7 (hdlc_device *, struct sk_buff *);
-extern int  register_hdlc_device_v7 (hdlc_device *);
-extern int  unregister_hdlc_device_v7 (hdlc_device *);
+extern int  hdlc_netif_rx_v7(hdlc_device *, struct sk_buff *);
+extern int  register_hdlc_device_v7(hdlc_device *);
+extern int  unregister_hdlc_device_v7(hdlc_device *);
 
 #else
 #define V7(x) x
@@ -53,31 +53,31 @@ extern int  drvr_state;
 
 #if 1
 u_int32_t
-pci_read_32 (u_int32_t *p)
+pci_read_32(u_int32_t *p)
 {
 #ifdef FLOW_DEBUG
 	u_int32_t   v;
 
-	FLUSH_PCI_READ ();
-	v = le32_to_cpu (*p);
+	FLUSH_PCI_READ();
+	v = le32_to_cpu(*p);
 	if (cxt1e1_log_level >= LOG_DEBUG)
 		pr_info("pci_read : %x = %x\n", (u_int32_t) p, v);
 	return v;
 #else
-	FLUSH_PCI_READ ();              /* */
-	return le32_to_cpu (*p);
+	FLUSH_PCI_READ();              /* */
+	return le32_to_cpu(*p);
 #endif
 }
 
 void
-pci_write_32 (u_int32_t *p, u_int32_t v)
+pci_write_32(u_int32_t *p, u_int32_t v)
 {
 #ifdef FLOW_DEBUG
 	if (cxt1e1_log_level >= LOG_DEBUG)
 		pr_info("pci_write: %x = %x\n", (u_int32_t) p, v);
 #endif
 	*p = cpu_to_le32 (v);
-	FLUSH_PCI_WRITE ();             /* This routine is called from routines
+	FLUSH_PCI_WRITE();             /* This routine is called from routines
 					* which do multiple register writes
 					* which themselves need flushing between
 					* writes in order to guarantee write
@@ -90,7 +90,7 @@ pci_write_32 (u_int32_t *p, u_int32_t v)
 
 
 void
-pci_flush_write (ci_t *ci)
+pci_flush_write(ci_t *ci)
 {
 	volatile u_int32_t v;
 
@@ -105,7 +105,7 @@ pci_flush_write (ci_t *ci)
 
 
 static void
-watchdog_func (unsigned long arg)
+watchdog_func(unsigned long arg)
 {
 	struct watchdog *wd = (void *) arg;
 
@@ -114,8 +114,8 @@ watchdog_func (unsigned long arg)
 			pr_warning("%s: drvr not available (%x)\n", __func__, drvr_state);
 		return;
 	}
-	schedule_work (&wd->work);
-	mod_timer (&wd->h, jiffies + wd->ticks);
+	schedule_work(&wd->work);
+	mod_timer(&wd->h, jiffies + wd->ticks);
 }
 
 int OS_init_watchdog(struct watchdog *wdp, void (*f) (void *), void *c, int usec)
@@ -124,7 +124,7 @@ int OS_init_watchdog(struct watchdog *wdp, void (*f) (void *), void *c, int usec
 	wdp->softc = c;
 	wdp->ticks = (HZ) * (usec / 1000) / 1000;
 	INIT_WORK(&wdp->work, (void *)f);
-	init_timer (&wdp->h);
+	init_timer(&wdp->h);
 	{
 		ci_t       *ci = (ci_t *) c;
 
@@ -135,20 +135,20 @@ int OS_init_watchdog(struct watchdog *wdp, void (*f) (void *), void *c, int usec
 }
 
 void
-OS_uwait (int usec, char *description)
+OS_uwait(int usec, char *description)
 {
 	int         tmp;
 
 	if (usec >= 1000) {
-		mdelay (usec / 1000);
+		mdelay(usec / 1000);
 		/* now delay residual */
 		tmp = (usec / 1000) * 1000; /* round */
 		tmp = usec - tmp;           /* residual */
 		if (tmp) {                           /* wait on residual */
-			udelay (tmp);
+			udelay(tmp);
 		}
 	} else {
-		udelay (usec);
+		udelay(usec);
 	}
 }
 
@@ -157,18 +157,18 @@ OS_uwait (int usec, char *description)
  */
 
 void
-OS_uwait_dummy (void)
+OS_uwait_dummy(void)
 {
 #ifndef USE_MAX_INT_DELAY
 	dummy++;
 #else
-	udelay (1);
+	udelay(1);
 #endif
 }
 
 
 void
-OS_sem_init (void *sem, int state)
+OS_sem_init(void *sem, int state)
 {
 	switch (state) {
 	case SEM_TAKEN:
@@ -179,62 +179,62 @@ OS_sem_init (void *sem, int state)
 	    break;
 	default:                        /* otherwise, set sem.count to state's
 					* value */
-	    sema_init (sem, state);
+	    sema_init(sem, state);
 	    break;
 	}
 }
 
 
 int
-sd_line_is_ok (void *user)
+sd_line_is_ok(void *user)
 {
 	struct net_device *ndev = (struct net_device *) user;
 
-	return netif_carrier_ok (ndev);
+	return netif_carrier_ok(ndev);
 }
 
 void
-sd_line_is_up (void *user)
+sd_line_is_up(void *user)
 {
 	struct net_device *ndev = (struct net_device *) user;
 
-	netif_carrier_on (ndev);
+	netif_carrier_on(ndev);
 	return;
 }
 
 void
-sd_line_is_down (void *user)
+sd_line_is_down(void *user)
 {
 	struct net_device *ndev = (struct net_device *) user;
 
-	netif_carrier_off (ndev);
+	netif_carrier_off(ndev);
 	return;
 }
 
 void
-sd_disable_xmit (void *user)
+sd_disable_xmit(void *user)
 {
 	struct net_device *dev = (struct net_device *) user;
 
-	netif_stop_queue (dev);
+	netif_stop_queue(dev);
 	return;
 }
 
 void
-sd_enable_xmit (void *user)
+sd_enable_xmit(void *user)
 {
 	struct net_device *dev = (struct net_device *) user;
 
-	netif_wake_queue (dev);
+	netif_wake_queue(dev);
 	return;
 }
 
 int
-sd_queue_stopped (void *user)
+sd_queue_stopped(void *user)
 {
 	struct net_device *ndev = (struct net_device *) user;
 
-	return netif_queue_stopped (ndev);
+	return netif_queue_stopped(ndev);
 }
 
 void sd_recv_consume(void *token, size_t len, void *user)
@@ -243,7 +243,7 @@ void sd_recv_consume(void *token, size_t len, void *user)
 	struct sk_buff *skb = token;
 
 	skb->dev = ndev;
-	skb_put (skb, len);
+	skb_put(skb, len);
 	skb->protocol = hdlc_type_trans(skb, ndev);
 	netif_rx(skb);
 }
@@ -258,7 +258,7 @@ void sd_recv_consume(void *token, size_t len, void *user)
 
 extern ci_t *CI;                /* dummy pointer to board ZERO's data */
 void
-VMETRO_TRIGGER (ci_t *ci, int x)
+VMETRO_TRIGGER(ci_t *ci, int x)
 {
 	struct s_comet_reg    *comet;
 	volatile u_int32_t data;
@@ -268,64 +268,64 @@ VMETRO_TRIGGER (ci_t *ci, int x)
 	switch (x) {
 	default:
 	case 0:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res24);     /* 0x90 */
+	    data = pci_read_32((u_int32_t *) &comet->__res24);     /* 0x90 */
 	    break;
 	case 1:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res25);     /* 0x94 */
+	    data = pci_read_32((u_int32_t *) &comet->__res25);     /* 0x94 */
 	    break;
 	case 2:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res26);     /* 0x98 */
+	    data = pci_read_32((u_int32_t *) &comet->__res26);     /* 0x98 */
 	    break;
 	case 3:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res27);     /* 0x9C */
+	    data = pci_read_32((u_int32_t *) &comet->__res27);     /* 0x9C */
 	    break;
 	case 4:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res88);     /* 0x220 */
+	    data = pci_read_32((u_int32_t *) &comet->__res88);     /* 0x220 */
 	    break;
 	case 5:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res89);     /* 0x224 */
+	    data = pci_read_32((u_int32_t *) &comet->__res89);     /* 0x224 */
 	    break;
 	case 6:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res8A);     /* 0x228 */
+	    data = pci_read_32((u_int32_t *) &comet->__res8A);     /* 0x228 */
 	    break;
 	case 7:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res8B);     /* 0x22C */
+	    data = pci_read_32((u_int32_t *) &comet->__res8B);     /* 0x22C */
 	    break;
 	case 8:
-	    data = pci_read_32 ((u_int32_t *) &comet->__resA0);     /* 0x280 */
+	    data = pci_read_32((u_int32_t *) &comet->__resA0);     /* 0x280 */
 	    break;
 	case 9:
-	    data = pci_read_32 ((u_int32_t *) &comet->__resA1);     /* 0x284 */
+	    data = pci_read_32((u_int32_t *) &comet->__resA1);     /* 0x284 */
 	    break;
 	case 10:
-	    data = pci_read_32 ((u_int32_t *) &comet->__resA2);     /* 0x288 */
+	    data = pci_read_32((u_int32_t *) &comet->__resA2);     /* 0x288 */
 	    break;
 	case 11:
-	    data = pci_read_32 ((u_int32_t *) &comet->__resA3);     /* 0x28C */
+	    data = pci_read_32((u_int32_t *) &comet->__resA3);     /* 0x28C */
 	    break;
 	case 12:
-	    data = pci_read_32 ((u_int32_t *) &comet->__resA4);     /* 0x290 */
+	    data = pci_read_32((u_int32_t *) &comet->__resA4);     /* 0x290 */
 	    break;
 	case 13:
-	    data = pci_read_32 ((u_int32_t *) &comet->__resA5);     /* 0x294 */
+	    data = pci_read_32((u_int32_t *) &comet->__resA5);     /* 0x294 */
 	    break;
 	case 14:
-	    data = pci_read_32 ((u_int32_t *) &comet->__resA6);     /* 0x298 */
+	    data = pci_read_32((u_int32_t *) &comet->__resA6);     /* 0x298 */
 	    break;
 	case 15:
-	    data = pci_read_32 ((u_int32_t *) &comet->__resA7);     /* 0x29C */
+	    data = pci_read_32((u_int32_t *) &comet->__resA7);     /* 0x29C */
 	    break;
 	case 16:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res74);     /* 0x1D0 */
+	    data = pci_read_32((u_int32_t *) &comet->__res74);     /* 0x1D0 */
 	    break;
 	case 17:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res75);     /* 0x1D4 */
+	    data = pci_read_32((u_int32_t *) &comet->__res75);     /* 0x1D4 */
 	    break;
 	case 18:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res76);     /* 0x1D8 */
+	    data = pci_read_32((u_int32_t *) &comet->__res76);     /* 0x1D8 */
 	    break;
 	case 19:
-	    data = pci_read_32 ((u_int32_t *) &comet->__res77);     /* 0x1DC */
+	    data = pci_read_32((u_int32_t *) &comet->__res77);     /* 0x1DC */
 	    break;
 	}
 }
