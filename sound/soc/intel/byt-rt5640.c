@@ -57,18 +57,7 @@ static int byt_rt5640_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	unsigned int fmt;
 	int ret;
-
-	fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-	      SND_SOC_DAIFMT_CBS_CFS;
-
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0) {
-		dev_err(codec_dai->dev,
-			"can't set codec DAI configuration %d\n", ret);
-		return ret;
-	}
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, RT5640_SCLK_S_PLL1,
 				     params_rate(params) * 256,
@@ -132,6 +121,8 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 		.codec_dai_name = "rt5640-aif1",
 		.codec_name = "i2c-10EC5640:00",
 		.platform_name = "baytrail-pcm-audio",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBS_CFS,
 		.init = byt_rt5640_init,
 		.ignore_suspend = 1,
 		.ops = &byt_rt5640_ops,
@@ -143,6 +134,8 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 		.codec_dai_name = "rt5640-aif1",
 		.codec_name = "i2c-10EC5640:00",
 		.platform_name = "baytrail-pcm-audio",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBS_CFS,
 		.init = NULL,
 		.ignore_suspend = 1,
 		.ops = &byt_rt5640_ops,
