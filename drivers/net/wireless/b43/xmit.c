@@ -337,7 +337,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			/* iv16 */
 			memcpy(txhdr->iv + 10, ((u8 *) wlhdr) + wlhdr_len, 3);
 		} else {
-			iv_len = min((size_t) info->control.hw_key->iv_len,
+			iv_len = min_t(size_t, info->control.hw_key->iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
 		}

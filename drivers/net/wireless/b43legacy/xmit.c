@@ -254,7 +254,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 				   B43legacy_TX4_MAC_KEYALG_SHIFT) &
 				   B43legacy_TX4_MAC_KEYALG;
 			wlhdr_len = ieee80211_hdrlen(wlhdr->frame_control);
-			iv_len = min((size_t)info->control.hw_key->iv_len,
+			iv_len = min_t(size_t, info->control.hw_key->iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *)wlhdr) + wlhdr_len, iv_len);
 		} else {
