@@ -24,7 +24,7 @@
 	        pwms = <&pwm3 0 5000000>;
         	brightness-levels = <0 4 8 16 32 64 128 255>;
 	        default-brightness-level = <6>;
-        	gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
 	};
 
 	codec-hdmi-i2s {
