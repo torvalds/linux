@@ -644,6 +644,7 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	atomic_set(&cset->refcount, 1);
 	INIT_LIST_HEAD(&cset->cgrp_links);
 	INIT_LIST_HEAD(&cset->tasks);
+	INIT_LIST_HEAD(&cset->mg_tasks);
 	INIT_HLIST_NODE(&cset->hlist);
 
 	/* Copy the set of subsystem state objects generated in
@@ -2590,9 +2591,14 @@ static void css_advance_task_iter(struct css_task_iter *it)
 		}
 		link = list_entry(l, struct cgrp_cset_link, cset_link);
 		cset = link->cset;
-	} while (list_empty(&cset->tasks));
+	} while (list_empty(&cset->tasks) && list_empty(&cset->mg_tasks));
+
 	it->cset_link = l;
-	it->task = cset->tasks.next;
+
+	if (!list_empty(&cset->tasks))
+		it->task = cset->tasks.next;
+	else
+		it->task = cset->mg_tasks.next;
 }
 
 /**
@@ -2636,24 +2642,29 @@ struct task_struct *css_task_iter_next(struct css_task_iter *it)
 {
 	struct task_struct *res;
 	struct list_head *l = it->task;
-	struct cgrp_cset_link *link;
+	struct cgrp_cset_link *link = list_entry(it->cset_link,
+					struct cgrp_cset_link, cset_link);
 
 	/* If the iterator cg is NULL, we have no tasks */
 	if (!it->cset_link)
 		return NULL;
 	res = list_entry(l, struct task_struct, cg_list);
-	/* Advance iterator to find next entry */
+
+	/*
+	 * Advance iterator to find next entry.  cset->tasks is consumed
+	 * first and then ->mg_tasks.  After ->mg_tasks, we move onto the
+	 * next cset.
+	 */
 	l = l->next;
-	link = list_entry(it->cset_link, struct cgrp_cset_link, cset_link);
-	if (l == &link->cset->tasks) {
-		/*
-		 * We reached the end of this task list - move on to the
-		 * next cgrp_cset_link.
-		 */
+
+	if (l == &link->cset->tasks)
+		l = link->cset->mg_tasks.next;
+
+	if (l == &link->cset->mg_tasks)
 		css_advance_task_iter(it);
-	} else {
+	else
 		it->task = l;
-	}
+
 	return res;
 }
 
@@ -4502,16 +4513,23 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 		struct css_set *cset = link->cset;
 		struct task_struct *task;
 		int count = 0;
+
 		seq_printf(seq, "css_set %p\n", cset);
+
 		list_for_each_entry(task, &cset->tasks, cg_list) {
-			if (count++ > MAX_TASKS_SHOWN_PER_CSS) {
-				seq_puts(seq, "  ...\n");
-				break;
-			} else {
-				seq_printf(seq, "  task %d\n",
-					   task_pid_vnr(task));
-			}
+			if (count++ > MAX_TASKS_SHOWN_PER_CSS)
+				goto overflow;
+			seq_printf(seq, "  task %d\n", task_pid_vnr(task));
 		}
+
+		list_for_each_entry(task, &cset->mg_tasks, cg_list) {
+			if (count++ > MAX_TASKS_SHOWN_PER_CSS)
+				goto overflow;
+			seq_printf(seq, "  task %d\n", task_pid_vnr(task));
+		}
+		continue;
+	overflow:
+		seq_puts(seq, "  ...\n");
 	}
 	up_read(&css_set_rwsem);
 	return 0;
