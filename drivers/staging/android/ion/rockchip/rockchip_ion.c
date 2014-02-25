@@ -20,6 +20,7 @@
 #include <linux/rockchip_ion.h>
 #include <linux/uaccess.h>
 #include "../ion_priv.h"
+#include <linux/dma-buf.h>
 
 #ifdef CONFIG_OF
 #include <linux/of.h>
@@ -192,6 +193,47 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			return ret;
 		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_phys_data)))
 			return -EFAULT;
+		break;
+	}
+	case ION_IOC_GET_SHARE:
+	{
+		struct ion_share_obj_data data;
+		struct dma_buf *dmabuf = NULL;
+
+		if (copy_from_user(&data, (void __user *)arg,
+					sizeof(struct ion_share_obj_data)))
+			return -EFAULT;
+
+		dmabuf = dma_buf_get(data.fd);
+		if (IS_ERR(dmabuf))
+			return PTR_ERR(dmabuf);
+
+		data.obj = (void*)dmabuf;
+		dma_buf_put(dmabuf);
+
+		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_share_obj_data)))
+			return -EFAULT;
+
+		break;
+	}
+	case ION_IOC_SET_SHARE:
+	{
+		struct ion_share_obj_data data;
+		int fd = 0;
+
+		if (copy_from_user(&data, (void __user *)arg,
+					sizeof(struct ion_share_obj_data)))
+			return -EFAULT;
+
+		fd = dma_buf_fd((struct dma_buf*)data.obj, O_CLOEXEC);
+		if (fd < 0)
+			return fd;
+
+		data.fd = fd;
+
+		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_share_obj_data)))
+			return -EFAULT;
+
 		break;
 	}
 	default:
