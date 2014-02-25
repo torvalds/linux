@@ -2105,7 +2105,7 @@ static int qla4_8xxx_minidump_pex_dma_read(struct scsi_qla_host *ha,
 			      (uint64_t)m_hdr->desc_card_addr,
 			      (uint32_t *)&dma_desc,
 			      (sizeof(struct qla4_83xx_pex_dma_descriptor)/16));
-		if (rval == -1) {
+		if (rval != QLA_SUCCESS) {
 			ql4_printk(KERN_INFO, ha,
 				   "%s: Error writing rdmem-dma-init to MS !!!\n",
 				   __func__);
