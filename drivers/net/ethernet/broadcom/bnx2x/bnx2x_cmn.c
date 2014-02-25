@@ -62,6 +62,11 @@ static void bnx2x_add_all_napi(struct bnx2x *bp)
 static int bnx2x_calc_num_queues(struct bnx2x *bp)
 {
 	int nq = bnx2x_num_queues ? : netif_get_num_default_rss_queues();
+
+	/* Reduce memory usage in kdump environment by using only one queue */
+	if (reset_devices)
+		nq = 1;
+
 	nq = clamp(nq, 1, BNX2X_MAX_QUEUES(bp));
 	return nq;
 }
