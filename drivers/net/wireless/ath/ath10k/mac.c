@@ -3539,7 +3539,8 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 		}), ATH10K_FLUSH_TIMEOUT_HZ);
 
 	if (ret <= 0 || skip)
-		ath10k_warn("tx not flushed\n");
+		ath10k_warn("tx not flushed (skip %i ar-state %i): %i\n",
+			    skip, ar->state, ret);
 
 skip:
 	mutex_unlock(&ar->conf_mutex);

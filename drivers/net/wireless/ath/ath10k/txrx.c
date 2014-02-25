@@ -378,7 +378,8 @@ void ath10k_peer_unmap_event(struct ath10k_htt *htt,
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, ev->peer_id);
 	if (!peer) {
-		ath10k_warn("unknown peer id %d\n", ev->peer_id);
+		ath10k_warn("peer-unmap-event: unknown peer id %d\n",
+			    ev->peer_id);
 		goto exit;
 	}
 
