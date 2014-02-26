@@ -1150,6 +1150,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status);
 
 void hci_req_add_le_scan_disable(struct hci_request *req);
+void hci_req_add_le_passive_scan(struct hci_request *req);
 
 struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 			       const void *param, u32 timeout);
