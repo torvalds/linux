@@ -256,6 +256,25 @@ static void ath9k_multi_regread(void *hw_priv, u32 *addr,
        }
 }
 
+static void ath9k_regwrite_multi(struct ath_common *common)
+{
+	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	u32 rsp_status;
+	int r;
+
+	r = ath9k_wmi_cmd(priv->wmi, WMI_REG_WRITE_CMDID,
+			  (u8 *) &priv->wmi->multi_write,
+			  sizeof(struct register_write) * priv->wmi->multi_write_idx,
+			  (u8 *) &rsp_status, sizeof(rsp_status),
+			  100);
+	if (unlikely(r)) {
+		ath_dbg(common, WMI,
+			"REGISTER WRITE FAILED, multi len: %d\n",
+			priv->wmi->multi_write_idx);
+	}
+	priv->wmi->multi_write_idx = 0;
+}
+
 static void ath9k_regwrite_single(void *hw_priv, u32 val, u32 reg_offset)
 {
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
@@ -282,8 +301,6 @@ static void ath9k_regwrite_buffer(void *hw_priv, u32 val, u32 reg_offset)
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
-	u32 rsp_status;
-	int r;
 
 	mutex_lock(&priv->wmi->multi_write_mutex);
 
@@ -296,19 +313,8 @@ static void ath9k_regwrite_buffer(void *hw_priv, u32 val, u32 reg_offset)
 	priv->wmi->multi_write_idx++;
 
 	/* If the buffer is full, send it out. */
-	if (priv->wmi->multi_write_idx == MAX_CMD_NUMBER) {
-		r = ath9k_wmi_cmd(priv->wmi, WMI_REG_WRITE_CMDID,
-			  (u8 *) &priv->wmi->multi_write,
-			  sizeof(struct register_write) * priv->wmi->multi_write_idx,
-			  (u8 *) &rsp_status, sizeof(rsp_status),
-			  100);
-		if (unlikely(r)) {
-			ath_dbg(common, WMI,
-				"REGISTER WRITE FAILED, multi len: %d\n",
-				priv->wmi->multi_write_idx);
-		}
-		priv->wmi->multi_write_idx = 0;
-	}
+	if (priv->wmi->multi_write_idx == MAX_CMD_NUMBER)
+		ath9k_regwrite_multi(common);
 
 	mutex_unlock(&priv->wmi->multi_write_mutex);
 }
@@ -339,26 +345,13 @@ static void ath9k_regwrite_flush(void *hw_priv)
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
-	u32 rsp_status;
-	int r;
 
 	atomic_dec(&priv->wmi->mwrite_cnt);
 
 	mutex_lock(&priv->wmi->multi_write_mutex);
 
-	if (priv->wmi->multi_write_idx) {
-		r = ath9k_wmi_cmd(priv->wmi, WMI_REG_WRITE_CMDID,
-			  (u8 *) &priv->wmi->multi_write,
-			  sizeof(struct register_write) * priv->wmi->multi_write_idx,
-			  (u8 *) &rsp_status, sizeof(rsp_status),
-			  100);
-		if (unlikely(r)) {
-			ath_dbg(common, WMI,
-				"REGISTER WRITE FAILED, multi len: %d\n",
-				priv->wmi->multi_write_idx);
-		}
-		priv->wmi->multi_write_idx = 0;
-	}
+	if (priv->wmi->multi_write_idx)
+		ath9k_regwrite_multi(common);
 
 	mutex_unlock(&priv->wmi->multi_write_mutex);
 }
