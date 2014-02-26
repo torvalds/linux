@@ -3200,6 +3200,23 @@ struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
+static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
+{
+	struct hci_conn *conn;
+
+	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, addr);
+	if (!conn)
+		return false;
+
+	if (conn->dst_type != type)
+		return false;
+
+	if (conn->state != BT_CONNECTED)
+		return false;
+
+	return true;
+}
+
 /* This function requires the caller holds hdev->lock */
 void hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 			 u8 auto_connect, u16 conn_min_interval,
@@ -3208,12 +3225,8 @@ void hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 	struct hci_conn_params *params;
 
 	params = hci_conn_params_lookup(hdev, addr, addr_type);
-	if (params) {
-		params->conn_min_interval = conn_min_interval;
-		params->conn_max_interval = conn_max_interval;
-		params->auto_connect = auto_connect;
-		return;
-	}
+	if (params)
+		goto update;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params) {
@@ -3223,11 +3236,24 @@ void hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 
 	bacpy(&params->addr, addr);
 	params->addr_type = addr_type;
+
+	list_add(&params->list, &hdev->le_conn_params);
+
+update:
 	params->conn_min_interval = conn_min_interval;
 	params->conn_max_interval = conn_max_interval;
 	params->auto_connect = auto_connect;
 
-	list_add(&params->list, &hdev->le_conn_params);
+	switch (auto_connect) {
+	case HCI_AUTO_CONN_DISABLED:
+	case HCI_AUTO_CONN_LINK_LOSS:
+		hci_pend_le_conn_del(hdev, addr, addr_type);
+		break;
+	case HCI_AUTO_CONN_ALWAYS:
+		if (!is_connected(hdev, addr, addr_type))
+			hci_pend_le_conn_add(hdev, addr, addr_type);
+		break;
+	}
 
 	BT_DBG("addr %pMR (type %u) auto_connect %u conn_min_interval 0x%.4x "
 	       "conn_max_interval 0x%.4x", addr, addr_type, auto_connect,
@@ -3242,6 +3268,8 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 	params = hci_conn_params_lookup(hdev, addr, addr_type);
 	if (!params)
 		return;
+
+	hci_pend_le_conn_del(hdev, addr, addr_type);
 
 	list_del(&params->list);
 	kfree(params);
