@@ -450,3 +450,21 @@ long drm_ioctl(struct file *filp,
 	return retcode;
 }
 EXPORT_SYMBOL(drm_ioctl);
+
+/**
+ * drm_ioctl_flags - Check for core ioctl and return ioctl permission flags
+ *
+ * @nr: Ioctl number.
+ * @flags: Where to return the ioctl permission flags
+ */
+bool drm_ioctl_flags(unsigned int nr, unsigned int *flags)
+{
+	if ((nr >= DRM_COMMAND_END && nr < DRM_CORE_IOCTL_COUNT) ||
+	    (nr < DRM_COMMAND_BASE)) {
+		*flags = drm_ioctls[nr].flags;
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_ioctl_flags);

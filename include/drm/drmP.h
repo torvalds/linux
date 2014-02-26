@@ -1229,6 +1229,7 @@ extern long drm_ioctl(struct file *filp,
 extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
 extern int drm_lastclose(struct drm_device *dev);
+extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
 				/* Device support (drm_fops.h) */
 extern struct mutex drm_global_mutex;
