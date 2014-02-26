@@ -70,6 +70,8 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 
 	if (imxpd->mode_valid) {
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		if (!mode)
+			return -EINVAL;
 		drm_mode_copy(mode, &imxpd->mode);
 		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 		drm_mode_probed_add(connector, mode);
@@ -78,6 +80,8 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 
 	if (np) {
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		if (!mode)
+			return -EINVAL;
 		of_get_drm_display_mode(np, &imxpd->mode, OF_USE_NATIVE_MODE);
 		drm_mode_copy(mode, &imxpd->mode);
 		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
