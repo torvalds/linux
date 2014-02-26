@@ -223,7 +223,7 @@ static void dgap_get_vpd(struct board_t *brd);
 static void dgap_do_reset_board(struct board_t *brd);
 static void dgap_do_wait_for_bios(struct board_t *brd);
 static void dgap_do_wait_for_fep(struct board_t *brd);
-static void dgap_sysfs_create(struct board_t *brd);
+static int dgap_tty_register_ports(struct board_t *brd);
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type);
 
 /* Driver load/unload functions */
@@ -1098,7 +1098,9 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		return ret;
 	}
 
-	dgap_sysfs_create(brd);
+	ret = dgap_tty_register_ports(brd);
+	if (ret)
+		return ret;
 
 	brd->state = BOARD_READY;
 	brd->dpastatus = BD_RUNNING;
@@ -1730,6 +1732,7 @@ static void dgap_tty_uninit(struct board_t *brd)
 		dgap_BoardsByMajor[brd->SerialDriver->major] = NULL;
 		brd->dgap_Serial_Major = 0;
 		for (i = 0; i < brd->nasync; i++) {
+			tty_port_destroy(&brd->SerialPorts[i]);
 			dgap_remove_tty_sysfs(brd->channels[i]->ch_tun.un_sysfs);
 			tty_unregister_device(brd->SerialDriver, i);
 		}
@@ -1737,6 +1740,7 @@ static void dgap_tty_uninit(struct board_t *brd)
 		kfree(brd->SerialDriver->ttys);
 		brd->SerialDriver->ttys = NULL;
 		put_tty_driver(brd->SerialDriver);
+		kfree(brd->SerialPorts);
 		brd->dgap_Major_Serial_Registered = FALSE;
 	}
 
@@ -1744,6 +1748,7 @@ static void dgap_tty_uninit(struct board_t *brd)
 		dgap_BoardsByMajor[brd->PrintDriver->major] = NULL;
 		brd->dgap_TransparentPrint_Major = 0;
 		for (i = 0; i < brd->nasync; i++) {
+			tty_port_destroy(&brd->PrinterPorts[i]);
 			dgap_remove_tty_sysfs(brd->channels[i]->ch_pun.un_sysfs);
 			tty_unregister_device(brd->PrintDriver, i);
 		}
@@ -1751,6 +1756,7 @@ static void dgap_tty_uninit(struct board_t *brd)
 		kfree(brd->PrintDriver->ttys);
 		brd->PrintDriver->ttys = NULL;
 		put_tty_driver(brd->PrintDriver);
+		kfree(brd->PrinterPorts);
 		brd->dgap_Major_TransparentPrint_Registered = FALSE;
 	}
 }
@@ -4813,25 +4819,49 @@ static int dgap_after_config_loaded(int board)
 /*
  * Create pr and tty device entries
  */
-static void dgap_sysfs_create(struct board_t *brd)
+static int dgap_tty_register_ports(struct board_t *brd)
 {
 	struct channel_t *ch;
-	int j = 0;
+	int i;
+
+	brd->SerialPorts = kcalloc(brd->nasync, sizeof(*brd->SerialPorts),
+					GFP_KERNEL);
+	if (brd->SerialPorts == NULL)
+		return -ENOMEM;
+	for (i = 0; i < brd->nasync; i++)
+		tty_port_init(&brd->SerialPorts[i]);
+
+	brd->PrinterPorts = kcalloc(brd->nasync, sizeof(*brd->PrinterPorts),
+					GFP_KERNEL);
+	if (brd->PrinterPorts == NULL) {
+		kfree(brd->SerialPorts);
+		return -ENOMEM;
+	}
+	for (i = 0; i < brd->nasync; i++)
+		tty_port_init(&brd->PrinterPorts[i]);
 
 	ch = brd->channels[0];
-	for (j = 0; j < brd->nasync; j++, ch = brd->channels[j]) {
-		struct device *classp;
-		classp = tty_register_device(brd->SerialDriver, j,
-						&(ch->ch_bd->pdev->dev));
-		ch->ch_tun.un_sysfs = classp;
-		dgap_create_tty_sysfs(&ch->ch_tun, classp);
+	for (i = 0; i < brd->nasync; i++, ch = brd->channels[i]) {
 
-		classp = tty_register_device(brd->PrintDriver, j,
-						&(ch->ch_bd->pdev->dev));
-		ch->ch_pun.un_sysfs = classp;
+		struct device *classp;
+
+		classp = tty_port_register_device(&brd->SerialPorts[i],
+					brd->SerialDriver,
+					brd->firstminor + i, NULL);
+
+		dgap_create_tty_sysfs(&ch->ch_tun, classp);
+		ch->ch_tun.un_sysfs = classp;
+
+		classp = tty_port_register_device(&brd->PrinterPorts[i],
+					brd->PrintDriver,
+					brd->firstminor + i, NULL);
+
 		dgap_create_tty_sysfs(&ch->ch_pun, classp);
+		ch->ch_pun.un_sysfs = classp;
 	}
 	dgap_create_ports_sysfiles(brd);
+
+	return 0;
 }
 
 

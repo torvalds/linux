@@ -703,7 +703,6 @@ struct macounter
 #define	BD_FEP5PLUS	0x0001          /* Supports FEP5 Plus commands */
 #define BD_HAS_VPD	0x0002		/* Board has VPD info available */
 
-
 /*
  *	Per-board information
  */
@@ -761,8 +760,10 @@ struct board_t
 	struct channel_t *channels[MAXPORTS]; /* array of pointers to our channels. */
 
 	struct tty_driver	*SerialDriver;
+	struct tty_port *SerialPorts;
 	char		SerialName[200];
 	struct tty_driver	*PrintDriver;
+	struct tty_port *PrinterPorts;
 	char		PrintName[200];
 
 	u32		dgap_Major_Serial_Registered;
