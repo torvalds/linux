@@ -199,5 +199,5 @@ then
 fi
 
 cp $builddir/console.log $resdir
-parse-${TORTURE_SUITE}torture.sh $resdir/console.log $title
+parse-torture.sh $resdir/console.log $title
 parse-console.sh $resdir/console.log $title

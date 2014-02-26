@@ -41,7 +41,7 @@ do
 		kvm-recheck-${TORTURE_SUITE}.sh $i
 		configcheck.sh $i/.config $i/ConfigFragment
 		parse-build.sh $i/Make.out $configfile
-		parse-rcutorture.sh $i/console.log $configfile
+		parse-torture.sh $i/console.log $configfile
 		parse-console.sh $i/console.log $configfile
 		if test -r $i/Warnings
 		then
