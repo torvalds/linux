@@ -99,7 +99,17 @@ nouveau_bios_shadow_pramin(struct nouveau_bios *bios)
 				return;
 		}
 
-		addr = (u64)(nv_rd32(bios, 0x619f04) & 0xffffff00) << 8;
+		addr = nv_rd32(bios, 0x619f04);
+		if (!(addr & 0x00000008)) {
+			nv_debug(bios, "... not enabled\n");
+			return;
+		}
+		if ( (addr & 0x00000003) != 1) {
+			nv_debug(bios, "... not in vram\n");
+			return;
+		}
+
+		addr = (u64)(addr >> 8) << 8;
 		if (!addr) {
 			addr  = (u64)nv_rd32(bios, 0x001700) << 16;
 			addr += 0xf0000;
