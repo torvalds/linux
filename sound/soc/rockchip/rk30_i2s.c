@@ -66,6 +66,7 @@ struct rk30_i2s_info {
 };
 
 #define I2S_CLR_ERROR_COUNT 10// check I2S_CLR reg 
+static struct rk30_i2s_info *rk30_i2s;
 
 #if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
 extern int hdmi_get_hotplug(void);
@@ -598,6 +599,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, i2s);
 
+	rk30_i2s = i2s;
 	return 0;
 
 err_unregister_component:
@@ -651,3 +653,82 @@ module_platform_driver(rockchip_i2s_driver);
 MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP IIS ASoC Interface");
 MODULE_LICENSE("GPL");
+
+
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+static int proc_i2s_show(struct seq_file *s, void *v)
+{
+
+	struct rk30_i2s_info *i2s = rk30_i2s;
+
+	printk("========Show I2S reg========\n");
+        
+	printk("I2S_TXCR = 0x%08X\n", readl(&(pheadi2s->I2S_TXCR)));
+	printk("I2S_RXCR = 0x%08X\n", readl(&(pheadi2s->I2S_RXCR)));
+	printk("I2S_CKR = 0x%08X\n", readl(&(pheadi2s->I2S_CKR)));
+	printk("I2S_DMACR = 0x%08X\n", readl(&(pheadi2s->I2S_DMACR)));
+	printk("I2S_INTCR = 0x%08X\n", readl(&(pheadi2s->I2S_INTCR)));
+	printk("I2S_INTSR = 0x%08X\n", readl(&(pheadi2s->I2S_INTSR)));
+	printk("I2S_XFER = 0x%08X\n", readl(&(pheadi2s->I2S_XFER)));
+
+	printk("========Show I2S reg========\n");
+#if 0
+	writel(0x0000000F, &(pheadi2s->I2S_TXCR));
+	writel(0x0000000F, &(pheadi2s->I2S_RXCR));
+	writel(0x00071f1F, &(pheadi2s->I2S_CKR));
+	writel(0x001F0110, &(pheadi2s->I2S_DMACR));
+	writel(0x00000003, &(pheadi2s->I2S_XFER));
+	while(1)
+	{
+		writel(0x5555aaaa, &(pheadi2s->I2S_TXDR));
+	}		
+#endif	
+	return 0;
+}
+
+static ssize_t i2s_reg_write(struct file *file,
+		const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	struct rk30_i2s_info *i2s=rk30_i2s;
+
+	char buf[32];
+	size_t buf_size;
+	char *start = buf;
+	unsigned long value;
+
+	buf_size = min(count, (sizeof(buf)-1));
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	buf[buf_size] = 0;
+
+	while (*start == ' ')
+		start++;
+	value = simple_strtoul(start, &start, 10);
+
+	printk("test --- freq = %ld ret=%d\n",value,clk_set_rate(i2s->i2s_clk, value));
+	return buf_size;
+}
+
+static int proc_i2s_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_i2s_show, NULL);
+}
+
+static const struct file_operations proc_i2s_fops = {
+	.open		= proc_i2s_open,
+	.read		= seq_read,
+	.write = i2s_reg_write,	
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init i2s_proc_init(void)
+{
+	proc_create("i2s_reg", 0, NULL, &proc_i2s_fops);
+	return 0;
+}
+late_initcall(i2s_proc_init);
+#endif /* CONFIG_PROC_FS */
+
