@@ -1,31 +1,31 @@
 /*
-   This is part of rtl818x pci OpenSource driver - v 0.1
-   Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
-   Released under the terms of GPL (General Public License)
-
-   Parts of this driver are based on the GPL part of the official
-   Realtek driver.
-
-   Parts of this driver are based on the rtl8180 driver skeleton
-   from Patric Schenke & Andres Salomon.
-
-   Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
-
-   Parts of BB/RF code are derived from David Young rtl8180 netbsd driver.
-
-   RSSI calc function from 'The Deuce'
-
-   Some ideas borrowed from the 8139too.c driver included in linux kernel.
-
-   We (I?) want to thanks the Authors of those projecs and also the
-   Ndiswrapper's project Authors.
-
-   A big big thanks goes also to Realtek corp. for their help in my attempt to
-   add RTL8185 and RTL8225 support, and to David Young also.
-
-   Power management interface routines.
-   Written by Mariusz Matuszek.
-*/
+ * This is part of rtl818x pci OpenSource driver - v 0.1
+ * Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
+ * Released under the terms of GPL (General Public License)
+ *
+ * Parts of this driver are based on the GPL part of the official
+ * Realtek driver.
+ *
+ * Parts of this driver are based on the rtl8180 driver skeleton
+ * from Patric Schenke & Andres Salomon.
+ *
+ * Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
+ *
+ * Parts of BB/RF code are derived from David Young rtl8180 netbsd driver.
+ *
+ * RSSI calc function from 'The Deuce'
+ *
+ * Some ideas borrowed from the 8139too.c driver included in linux kernel.
+ *
+ * We (I?) want to thanks the Authors of those projecs and also the
+ * Ndiswrapper's project Authors.
+ *
+ * A big big thanks goes also to Realtek corp. for their help in my attempt to
+ * add RTL8185 and RTL8225 support, and to David Young also.
+ *
+ * Power management interface routines.
+ * Written by Mariusz Matuszek.
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -347,9 +347,9 @@ static void rtl8180_proc_init_one(struct net_device *dev)
 }
 
 /*
-  FIXME: check if we can use some standard already-existent
-  data type+functions in kernel
-*/
+ * FIXME: check if we can use some standard already-existent
+ * data type+functions in kernel.
+ */
 
 static short buffer_add(struct buffer **buffer, u32 *buf, dma_addr_t dma,
 			struct buffer **bufferhead)
@@ -1206,8 +1206,9 @@ static void rtl8180_rx(struct net_device *dev)
 	rx_desc_size = 8;
 
 	if ((*(priv->rxringtail)) & (1<<31)) {
-		/* we have got an RX int, but the descriptor
-		 * we are pointing is empty */
+		/* we have got an RX int, but the descriptor. we are pointing
+		 * is empty.
+		 */
 
 		priv->stats.rxnodata++;
 		priv->ieee80211->stats.rx_errors++;
@@ -1254,10 +1255,9 @@ static void rtl8180_rx(struct net_device *dev)
 		if (last) {
 			lastlen = ((*priv->rxringtail) & 0xfff);
 
-			/* if the last descriptor (that should
-			 * tell us the total packet len) tell
-			 * us something less than the descriptors
-			 * len we had until now, then there is some
+			/* if the last descriptor (that should tell us the total
+			 * packet len) tell us something less than the
+			 * descriptors len we had until now, then there is some
 			 * problem..
 			 * workaround to prevent kernel panic
 			 */
@@ -1293,11 +1293,11 @@ static void rtl8180_rx(struct net_device *dev)
 		priv->rx_prevlen += len;
 
 		if (priv->rx_prevlen > MAX_FRAG_THRESHOLD + 100) {
-			/* HW is probably passing several buggy frames
-			* without FD or LD flag set.
-			* Throw this garbage away to prevent skb
-			* memory exhausting
-			*/
+			/* HW is probably passing several buggy frames without
+			 * FD or LD flag set.
+			 * Throw this garbage away to prevent skb memory
+			 * exhausting
+			 */
 			if (!priv->rx_skb_complete)
 				dev_kfree_skb_any(priv->rx_skb);
 			priv->rx_skb_complete = 1;
@@ -1361,7 +1361,9 @@ static void rtl8180_rx(struct net_device *dev)
 			quality = 127 - quality;
 		priv->SignalQuality = quality;
 
-		stats.signal = (u8)quality; /*priv->wstats.qual.level = priv->SignalStrength; */
+		stats.signal = (u8)quality; /* priv->wstats.qual.level = priv->
+					     * SignalStrength;
+					     */
 		stats.signalstrength = RXAGC;
 		if (stats.signalstrength > 100)
 			stats.signalstrength = 100;
@@ -1402,14 +1404,17 @@ static void rtl8180_rx(struct net_device *dev)
 
 			priv->LastSignalStrengthInPercent = SignalStrengthIndex;
 			priv->Stats_SignalStrength = TranslateToDbm8185((u8)SignalStrengthIndex);
-		/*
-		 * We need more correct power of received packets and the  "SignalStrength" of RxStats is beautified,
-		 * so we record the correct power here.
-		 */
+			/*
+			 * We need more correct power of received packets and
+			 * the "SignalStrength" of RxStats is beautified,
+			 * so we record the correct power here.
+			 */
 			priv->Stats_SignalQuality = (long)(priv->Stats_SignalQuality * 5 + (long)priv->SignalQuality + 5) / 6;
 			priv->Stats_RecvSignalPower = (long)(priv->Stats_RecvSignalPower * 5 + priv->RecvSignalPower - 1) / 6;
 
-		/* Figure out which antenna that received the last packet. */
+			/* Figure out which antenna that received the last
+			 * packet.
+			 */
 			priv->LastRxPktAntenna = Antenna ? 1 : 0; /* 0: aux, 1: main. */
 			SwAntennaDiversityRxOk8185(dev, priv->SignalStrength);
 		}
@@ -1417,7 +1422,8 @@ static void rtl8180_rx(struct net_device *dev)
 		if (first) {
 			if (!priv->rx_skb_complete) {
 				/* seems that HW sometimes fails to receive and
-				   doesn't provide the last descriptor */
+				 * doesn't provide the last descriptor.
+				 */
 				dev_kfree_skb_any(priv->rx_skb);
 				priv->stats.rxnolast++;
 			}
@@ -1428,12 +1434,12 @@ static void rtl8180_rx(struct net_device *dev)
 			priv->rx_skb_complete = 0;
 			priv->rx_skb->dev = dev;
 		} else {
-			/* if we are here we should have already RXed
-			* the first frame.
-			* If we get here and the skb is not allocated then
-			* we have just throw out garbage (skb not allocated)
-			* and we are still rxing garbage....
-			*/
+			/* if we are here we should have already RXed the first
+			 * frame.
+			 * If we get here and the skb is not allocated then
+			 * we have just throw out garbage (skb not allocated)
+			 * and we are still rxing garbage....
+			 */
 			if (!priv->rx_skb_complete) {
 
 				tmp_skb = dev_alloc_skb(priv->rx_skb->len+len+2);
@@ -1547,11 +1553,10 @@ static void rtl8180_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	rate = ieeerate2rtlrate(rate);
 	/*
-	 * This function doesn't require lock because we make
-	 * sure it's called with the tx_lock already acquired.
-	 * this come from the kernel's hard_xmit callback (through
-	 * the ieee stack, or from the try_wake_queue (again through
-	 * the ieee stack.
+	 * This function doesn't require lock because we make sure it's called
+	 * with the tx_lock already acquired.
+	 * This come from the kernel's hard_xmit callback (through the ieee
+	 * stack, or from the try_wake_queue (again through the ieee stack.
 	 */
 	priority = AC2Q(skb->priority);
 	spin_lock_irqsave(&priv->tx_lock, flags);
@@ -1632,9 +1637,9 @@ static void rtl8180_prepare_beacon(struct net_device *dev)
 }
 
 /*
- * This function do the real dirty work: it enqueues a TX command
- * descriptor in the ring buffer, copyes the frame in a TX buffer
- * and kicks the NIC to ensure it does the DMA transfer.
+ * This function do the real dirty work: it enqueues a TX command descriptor in
+ * the ring buffer, copyes the frame in a TX buffer and kicks the NIC to ensure
+ * it does the DMA transfer.
  */
 short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
 		 short morefrag, short descfrag, int rate)
@@ -2763,9 +2768,9 @@ void rtl8180_start_tx_beacon(struct net_device *dev)
 	word  = read_nic_word(dev, BintrItv);
 	word &= ~BintrItv_BintrItv;
 	word |= 1000; /* priv->ieee80211->current_network.beacon_interval *
-		((priv->txbeaconcount > 1)?(priv->txbeaconcount-1):1);
-	// FIXME: check if correct ^^ worked with 0x3e8;
-	*/
+		       * ((priv->txbeaconcount > 1)?(priv->txbeaconcount-1):1);
+		       * FIXME: check if correct ^^ worked with 0x3e8;
+		       */
 	write_nic_word(dev, BintrItv, word);
 
 	rtl8180_set_mode(dev, EPROM_CMD_NORMAL);
