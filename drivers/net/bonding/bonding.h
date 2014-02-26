@@ -335,6 +335,19 @@ static inline void bond_slave_state_change(struct bonding *bond)
 	}
 }
 
+static inline void bond_slave_state_notify(struct bonding *bond)
+{
+	struct list_head *iter;
+	struct slave *tmp;
+
+	bond_for_each_slave(bond, tmp, iter) {
+		if (tmp->should_notify) {
+			rtmsg_ifinfo(RTM_NEWLINK, tmp->dev, 0, GFP_KERNEL);
+			tmp->should_notify = 0;
+		}
+	}
+}
+
 static inline int bond_slave_state(struct slave *slave)
 {
 	return slave->backup;

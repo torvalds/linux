@@ -2623,17 +2623,17 @@ do_failover:
 
 /*
  * Send ARP probes for active-backup mode ARP monitor.
+ *
+ * Called with rcu_read_lock hold.
  */
 static bool bond_ab_arp_probe(struct bonding *bond)
 {
 	struct slave *slave, *before = NULL, *new_slave = NULL,
-		     *curr_arp_slave, *curr_active_slave;
+		     *curr_arp_slave = rcu_dereference(bond->current_arp_slave),
+		     *curr_active_slave = rcu_dereference(bond->curr_active_slave);
 	struct list_head *iter;
 	bool found = false;
-
-	rcu_read_lock();
-	curr_arp_slave = rcu_dereference(bond->current_arp_slave);
-	curr_active_slave = rcu_dereference(bond->curr_active_slave);
+	bool should_notify_rtnl = BOND_SLAVE_NOTIFY_LATER;
 
 	if (curr_arp_slave && curr_active_slave)
 		pr_info("PROBE: c_arp %s && cas %s BAD\n",
@@ -2642,32 +2642,23 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 
 	if (curr_active_slave) {
 		bond_arp_send_all(bond, curr_active_slave);
-		rcu_read_unlock();
-		return true;
+		return should_notify_rtnl;
 	}
-	rcu_read_unlock();
 
 	/* if we don't have a curr_active_slave, search for the next available
 	 * backup slave from the current_arp_slave and make it the candidate
 	 * for becoming the curr_active_slave
 	 */
 
-	if (!rtnl_trylock())
-		return false;
-	/* curr_arp_slave might have gone away */
-	curr_arp_slave = ACCESS_ONCE(bond->current_arp_slave);
-
 	if (!curr_arp_slave) {
-		curr_arp_slave = bond_first_slave(bond);
-		if (!curr_arp_slave) {
-			rtnl_unlock();
-			return true;
-		}
+		curr_arp_slave = bond_first_slave_rcu(bond);
+		if (!curr_arp_slave)
+			return should_notify_rtnl;
 	}
 
-	bond_set_slave_inactive_flags(curr_arp_slave, BOND_SLAVE_NOTIFY_NOW);
+	bond_set_slave_inactive_flags(curr_arp_slave, BOND_SLAVE_NOTIFY_LATER);
 
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (!found && !before && IS_UP(slave->dev))
 			before = slave;
 
@@ -2686,7 +2677,7 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 				slave->link_failure_count++;
 
 			bond_set_slave_inactive_flags(slave,
-						      BOND_SLAVE_NOTIFY_NOW);
+						      BOND_SLAVE_NOTIFY_LATER);
 
 			pr_info("%s: backup interface %s is now down.\n",
 				bond->dev->name, slave->dev->name);
@@ -2698,26 +2689,31 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 	if (!new_slave && before)
 		new_slave = before;
 
-	if (!new_slave) {
-		rtnl_unlock();
-		return true;
-	}
+	if (!new_slave)
+		goto check_state;
 
 	new_slave->link = BOND_LINK_BACK;
-	bond_set_slave_active_flags(new_slave, BOND_SLAVE_NOTIFY_NOW);
+	bond_set_slave_active_flags(new_slave, BOND_SLAVE_NOTIFY_LATER);
 	bond_arp_send_all(bond, new_slave);
 	new_slave->jiffies = jiffies;
 	rcu_assign_pointer(bond->current_arp_slave, new_slave);
-	rtnl_unlock();
 
-	return true;
+check_state:
+	bond_for_each_slave_rcu(bond, slave, iter) {
+		if (slave->should_notify) {
+			should_notify_rtnl = BOND_SLAVE_NOTIFY_NOW;
+			break;
+		}
+	}
+	return should_notify_rtnl;
 }
 
 static void bond_activebackup_arp_mon(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    arp_work.work);
-	bool should_notify_peers = false, should_commit = false;
+	bool should_notify_peers = false;
+	bool should_notify_rtnl = false;
 	int delta_in_ticks;
 
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
@@ -2726,11 +2722,12 @@ static void bond_activebackup_arp_mon(struct work_struct *work)
 		goto re_arm;
 
 	rcu_read_lock();
-	should_notify_peers = bond_should_notify_peers(bond);
-	should_commit = bond_ab_arp_inspect(bond);
-	rcu_read_unlock();
 
-	if (should_commit) {
+	should_notify_peers = bond_should_notify_peers(bond);
+
+	if (bond_ab_arp_inspect(bond)) {
+		rcu_read_unlock();
+
 		/* Race avoidance with bond_close flush of workqueue */
 		if (!rtnl_trylock()) {
 			delta_in_ticks = 1;
@@ -2739,23 +2736,28 @@ static void bond_activebackup_arp_mon(struct work_struct *work)
 		}
 
 		bond_ab_arp_commit(bond);
+
 		rtnl_unlock();
+		rcu_read_lock();
 	}
 
-	if (!bond_ab_arp_probe(bond)) {
-		/* rtnl locking failed, re-arm */
-		delta_in_ticks = 1;
-		should_notify_peers = false;
-	}
+	should_notify_rtnl = bond_ab_arp_probe(bond);
+	rcu_read_unlock();
 
 re_arm:
 	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
 
-	if (should_notify_peers) {
+	if (should_notify_peers || should_notify_rtnl) {
 		if (!rtnl_trylock())
 			return;
-		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
+
+		if (should_notify_peers)
+			call_netdevice_notifiers(NETDEV_NOTIFY_PEERS,
+						 bond->dev);
+		if (should_notify_rtnl)
+			bond_slave_state_notify(bond);
+
 		rtnl_unlock();
 	}
 }

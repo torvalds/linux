@@ -2130,13 +2130,7 @@ re_arm:
 	read_unlock(&bond->lock);
 
 	if (should_notify_rtnl && rtnl_trylock()) {
-		bond_for_each_slave(bond, slave, iter) {
-			if (slave->should_notify) {
-				rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0,
-					     GFP_KERNEL);
-				slave->should_notify = 0;
-			}
-		}
+		bond_slave_state_notify(bond);
 		rtnl_unlock();
 	}
 	queue_delayed_work(bond->wq, &bond->ad_work, ad_delta_in_ticks);
