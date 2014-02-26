@@ -207,13 +207,30 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 	 * this predefined name. Either one return value is expected, or none,
 	 * for both methods and other objects.
 	 *
-	 * Exit now if there is no return object. Warning if one was expected.
+	 * Try to fix if there was no return object. Warning if failed to fix.
 	 */
 	if (!return_object) {
 		if (expected_btypes && (!(expected_btypes & ACPI_RTYPE_NONE))) {
-			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-					      ACPI_WARN_ALWAYS,
-					      "Missing expected return value"));
+			if (package_index != ACPI_NOT_PACKAGE_ELEMENT) {
+				ACPI_WARN_PREDEFINED((AE_INFO,
+						      info->full_pathname,
+						      ACPI_WARN_ALWAYS,
+						      "Found unexpected NULL package element"));
+
+				status =
+				    acpi_ns_repair_null_element(info,
+								expected_btypes,
+								package_index,
+								return_object_ptr);
+				if (ACPI_SUCCESS(status)) {
+					return (AE_OK);	/* Repair was successful */
+				}
+			} else {
+				ACPI_WARN_PREDEFINED((AE_INFO,
+						      info->full_pathname,
+						      ACPI_WARN_ALWAYS,
+						      "Missing expected return value"));
+			}
 
 			return (AE_AML_NO_RETURN_VALUE);
 		}
