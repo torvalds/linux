@@ -4502,3 +4502,20 @@ exit:
 	qla82xx_idc_unlock(ha);
 	return rval;
 }
+
+void
+qla82xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!ha->allow_cna_fw_dump)
+		return;
+
+	scsi_block_requests(vha->host);
+	ha->flags.isp82xx_no_md_cap = 1;
+	qla82xx_idc_lock(ha);
+	qla82xx_set_reset_owner(vha);
+	qla82xx_idc_unlock(ha);
+	qla2x00_wait_for_chip_reset(vha);
+	scsi_unblock_requests(vha->host);
+}
