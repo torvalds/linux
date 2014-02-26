@@ -64,6 +64,7 @@ static const char * scsi_debug_version_date = "20100324";
 /* Additional Sense Code (ASC) */
 #define NO_ADDITIONAL_SENSE 0x0
 #define LOGICAL_UNIT_NOT_READY 0x4
+#define LOGICAL_UNIT_COMMUNICATION_FAILURE 0x8
 #define UNRECOVERED_READ_ERR 0x11
 #define PARAMETER_LIST_LENGTH_ERR 0x1a
 #define INVALID_OPCODE 0x20
@@ -2318,8 +2319,11 @@ static int resp_xdwriteread(struct scsi_cmnd *scp, unsigned long long lba,
 
 	/* better not to use temporary buffer. */
 	buf = kmalloc(scsi_bufflen(scp), GFP_ATOMIC);
-	if (!buf)
-		return ret;
+	if (!buf) {
+		mk_sense_buffer(devip, NOT_READY,
+				LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
+		return check_condition_result;
+	}
 
 	scsi_sg_copy_to_buffer(scp, buf, scsi_bufflen(scp));
 
