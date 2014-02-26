@@ -284,6 +284,7 @@ struct hci_dev {
 	struct list_head	identity_resolving_keys;
 	struct list_head	remote_oob_data;
 	struct list_head	le_conn_params;
+	struct list_head	pend_le_conns;
 
 	struct hci_dev_stats	stat;
 
@@ -798,6 +799,12 @@ void hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 			 u16 conn_min_interval, u16 conn_max_interval);
 void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
 void hci_conn_params_clear(struct hci_dev *hdev);
+
+struct bdaddr_list *hci_pend_le_conn_lookup(struct hci_dev *hdev,
+					    bdaddr_t *addr, u8 addr_type);
+void hci_pend_le_conn_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
+void hci_pend_le_conn_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
+void hci_pend_le_conns_clear(struct hci_dev *hdev);
 
 void hci_uuids_clear(struct hci_dev *hdev);
 
