@@ -77,7 +77,7 @@ do
 	case "$1" in
 	--bootargs)
 		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
-		RCU_BOOTARGS="$2"
+		TORTURE_BOOTARGS="$2"
 		shift
 		;;
 	--buildonly)
@@ -275,7 +275,7 @@ awk < $T/cfgcpu.pack \
 	-v rd=$resdir/$ds/ \
 	-v dur=$dur \
 	-v RCU_QEMU_ARG=$RCU_QEMU_ARG \
-	-v RCU_BOOTARGS=$RCU_BOOTARGS \
+	-v TORTURE_BOOTARGS=$TORTURE_BOOTARGS \
 'BEGIN {
 	i = 0;
 }
@@ -312,7 +312,7 @@ function dump(first, pastlast)
 		print "touch " builddir ".wait";
 		print "mkdir " builddir " > /dev/null 2>&1 || :";
 		print "mkdir " rd cfr[jn] " || :";
-		print "kvm-test-1-run.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" RCU_QEMU_ARG "\" \"" RCU_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
+		print "kvm-test-1-run.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" RCU_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date`";
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` >> " rd "/log";
 		print "while test -f " builddir ".wait"
