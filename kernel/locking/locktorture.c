@@ -219,7 +219,8 @@ static int lock_torture_writer(void *arg)
 	set_user_nice(current, 19);
 
 	do {
-		schedule_timeout_uninterruptible(1);
+		if ((torture_random(&rand) & 0xfffff) == 0)
+			schedule_timeout_uninterruptible(1);
 		cur_ops->writelock();
 		if (WARN_ON_ONCE(lock_is_write_held))
 			lwsp->n_write_lock_fail++;
