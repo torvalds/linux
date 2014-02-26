@@ -1747,10 +1747,10 @@ static void write_cinfo(__be32 **p, struct nfsd4_change_info *c)
 }
 
 #define RESERVE_SPACE(nbytes)	do {				\
-	p = resp->xdr.p;						\
-	BUG_ON(p + XDR_QUADLEN(nbytes) > resp->xdr.end);		\
+	p = xdr_reserve_space(&resp->xdr, nbytes);		\
+	BUG_ON(!p);						\
 } while (0)
-#define ADJUST_ARGS()		resp->xdr.p = p
+#define ADJUST_ARGS()		WARN_ON_ONCE(p != resp->xdr.p)	\
 
 /* Encode as an array of strings the string given with components
  * separated @sep, escaped with esc_enter and esc_exit.
@@ -3056,8 +3056,11 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 			read->rd_offset, resp->rqstp->rq_vec, read->rd_vlen,
 			&maxcount);
 
-	if (nfserr)
+	if (nfserr) {
+		xdr->p -= 2;
+		xdr->iov->iov_len -= 8;
 		return nfserr;
+	}
 	eof = (read->rd_offset + maxcount >=
 	       read->rd_fhp->fh_dentry->d_inode->i_size);
 
@@ -3110,9 +3113,12 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	 */
 	nfserr = nfsd_readlink(readlink->rl_rqstp, readlink->rl_fhp, page, &maxcount);
 	if (nfserr == nfserr_isdir)
-		return nfserr_inval;
-	if (nfserr)
+		nfserr = nfserr_inval;
+	if (nfserr) {
+		xdr->p--;
+		xdr->iov->iov_len -= 4;
 		return nfserr;
+	}
 
 	WRITE32(maxcount);
 	ADJUST_ARGS();
@@ -3213,8 +3219,9 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 
 	return 0;
 err_no_verf:
-	p = savep;
-	ADJUST_ARGS();
+	xdr->p = savep;
+	xdr->iov->iov_len = ((char *)resp->xdr.p)
+				- (char *)resp->xdr.buf->head[0].iov_base;
 	return nfserr;
 }
 

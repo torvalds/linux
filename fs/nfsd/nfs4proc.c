@@ -1284,7 +1284,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	svcxdr_init_encode(rqstp, resp);
 	resp->tagp = resp->xdr.p;
 	/* reserve space for: taglen, tag, and opcnt */
-	resp->xdr.p += 2 + XDR_QUADLEN(args->taglen);
+	xdr_reserve_space(&resp->xdr, 8 + args->taglen);
 	resp->taglen = args->taglen;
 	resp->tag = args->tag;
 	resp->opcnt = 0;
