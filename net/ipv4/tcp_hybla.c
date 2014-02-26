@@ -21,7 +21,7 @@ struct hybla {
 	u32   rho2;	      /* Rho * Rho, integer part */
 	u32   rho_3ls;	      /* Rho parameter, <<3 */
 	u32   rho2_7ls;	      /* Rho^2, <<7	*/
-	u32   minrtt;	      /* Minimum smoothed round trip time value seen */
+	u32   minrtt_us;      /* Minimum smoothed round trip time value seen */
 };
 
 /* Hybla reference round trip time (default= 1/40 sec = 25 ms), in ms */
@@ -35,7 +35,9 @@ static inline void hybla_recalc_param (struct sock *sk)
 {
 	struct hybla *ca = inet_csk_ca(sk);
 
-	ca->rho_3ls = max_t(u32, tcp_sk(sk)->srtt / msecs_to_jiffies(rtt0), 8);
+	ca->rho_3ls = max_t(u32,
+			    tcp_sk(sk)->srtt_us / (rtt0 * USEC_PER_MSEC),
+			    8U);
 	ca->rho = ca->rho_3ls >> 3;
 	ca->rho2_7ls = (ca->rho_3ls * ca->rho_3ls) << 1;
 	ca->rho2 = ca->rho2_7ls >> 7;
@@ -59,7 +61,7 @@ static void hybla_init(struct sock *sk)
 	hybla_recalc_param(sk);
 
 	/* set minimum rtt as this is the 1st ever seen */
-	ca->minrtt = tp->srtt;
+	ca->minrtt_us = tp->srtt_us;
 	tp->snd_cwnd = ca->rho;
 }
 
@@ -94,9 +96,9 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 acked,
 	int is_slowstart = 0;
 
 	/*  Recalculate rho only if this srtt is the lowest */
-	if (tp->srtt < ca->minrtt){
+	if (tp->srtt_us < ca->minrtt_us) {
 		hybla_recalc_param(sk);
-		ca->minrtt = tp->srtt;
+		ca->minrtt_us = tp->srtt_us;
 	}
 
 	if (!tcp_is_cwnd_limited(sk, in_flight))
