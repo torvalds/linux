@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -174,6 +175,8 @@ static void pm8xxx_irq_handler(unsigned int irq, struct irq_desc *desc)
 	u8	root;
 	int	i, ret, masters = 0;
 
+	chained_irq_enter(irq_chip, desc);
+
 	ret = pm8xxx_read_root_irq(chip, &root);
 	if (ret) {
 		pr_err("Can't read root status ret=%d\n", ret);
@@ -188,7 +191,7 @@ static void pm8xxx_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if (masters & (1 << i))
 			pm8xxx_irq_master_handler(chip, i);
 
-	irq_chip->irq_ack(&desc->irq_data);
+	chained_irq_exit(irq_chip, desc);
 }
 
 static void pm8xxx_irq_mask_ack(struct irq_data *d)
@@ -367,7 +370,7 @@ static struct pm_irq_chip *pm8xxx_irq_init(struct device *dev,
 	irq_set_irq_type(devirq, pdata->irq_trigger_flag);
 	irq_set_handler_data(devirq, chip);
 	irq_set_chained_handler(devirq, pm8xxx_irq_handler);
-	set_irq_wake(devirq, 1);
+	irq_set_irq_wake(devirq, 1);
 
 	return chip;
 }
