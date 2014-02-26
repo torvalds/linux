@@ -808,7 +808,7 @@ struct mbx_cmd_32 {
 					   Notification */
 #define MBA_FW_POLL_STATE	0x8600  /* Firmware in poll diagnostic state */
 #define MBA_FW_RESET_FCT	0x8502	/* Firmware reset factory defaults */
-
+#define MBA_FW_INIT_INPROGRESS	0x8500	/* Firmware boot in progress */
 /* 83XX FCoE specific */
 #define MBA_IDC_AEN		0x8200  /* FCoE: NIC Core state change AEN */
 

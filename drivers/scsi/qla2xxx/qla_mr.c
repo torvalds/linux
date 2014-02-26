@@ -997,6 +997,9 @@ qlafx00_init_fw_ready(scsi_qla_host_t *vha)
 			break;
 
 		default:
+			if ((aenmbx & 0xFF00) == MBA_FW_INIT_INPROGRESS)
+				break;
+
 			/* If fw is apparently not ready. In order to continue,
 			 * we might need to issue Mbox cmd, but the problem is
 			 * that the DoorBell vector values that come with the
