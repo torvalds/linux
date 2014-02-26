@@ -65,8 +65,8 @@ struct rt_sigframe {
 	struct siginfo __user *pinfo;
 	void __user *puc;
 	struct siginfo info;
-	/* 64 bit ABI allows for 288 bytes below sp before decrementing it. */
-	char abigap[288];
+	/* New 64 bit little-endian ABI allows redzone of 512 bytes below sp */
+	char abigap[USER_REDZONE_SIZE];
 } __attribute__ ((aligned (16)));
 
 static const char fmt32[] = KERN_INFO \
