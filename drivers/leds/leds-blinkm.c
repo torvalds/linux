@@ -443,7 +443,7 @@ static void led_work(struct work_struct *work)
 {
 	int ret;
 	struct blinkm_led *led;
-	struct blinkm_data *data ;
+	struct blinkm_data *data;
 	struct blinkm_work *blm_work = work_to_blmwork(work);
 
 	led = blm_work->blinkm_led;
