@@ -659,12 +659,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	if (conn)
 		return ERR_PTR(-EBUSY);
 
-	/* Convert from L2CAP channel address type to HCI address type */
-	if (dst_type == BDADDR_LE_PUBLIC)
-		dst_type = ADDR_LE_DEV_PUBLIC;
-	else
-		dst_type = ADDR_LE_DEV_RANDOM;
-
 	/* When given an identity address with existing identity
 	 * resolving key, the connection needs to be established
 	 * to a resolvable random address.

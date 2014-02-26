@@ -7108,11 +7108,19 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	auth_type = l2cap_get_auth_type(chan);
 
-	if (bdaddr_type_is_le(dst_type))
+	if (bdaddr_type_is_le(dst_type)) {
+		/* Convert from L2CAP channel address type to HCI address type
+		 */
+		if (dst_type == BDADDR_LE_PUBLIC)
+			dst_type = ADDR_LE_DEV_PUBLIC;
+		else
+			dst_type = ADDR_LE_DEV_RANDOM;
+
 		hcon = hci_connect_le(hdev, dst, dst_type, chan->sec_level,
 				      auth_type);
-	else
+	} else {
 		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type);
+	}
 
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);

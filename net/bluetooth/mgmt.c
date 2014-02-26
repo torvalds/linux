@@ -2815,12 +2815,22 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	else
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 
-	if (cp->addr.type == BDADDR_BREDR)
+	if (cp->addr.type == BDADDR_BREDR) {
 		conn = hci_connect_acl(hdev, &cp->addr.bdaddr, sec_level,
 				       auth_type);
-	else
-		conn = hci_connect_le(hdev, &cp->addr.bdaddr, cp->addr.type,
+	} else {
+		u8 addr_type;
+
+		/* Convert from L2CAP channel address type to HCI address type
+		 */
+		if (cp->addr.type == BDADDR_LE_PUBLIC)
+			addr_type = ADDR_LE_DEV_PUBLIC;
+		else
+			addr_type = ADDR_LE_DEV_RANDOM;
+
+		conn = hci_connect_le(hdev, &cp->addr.bdaddr, addr_type,
 				      sec_level, auth_type);
+	}
 
 	if (IS_ERR(conn)) {
 		int status;
