@@ -472,8 +472,7 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 	u32 m_nScreenStride;
 
 	dev_dbg(&sfb->pdev->dev,
-		"sfb->width=%d sfb->height=%d "
-		"sfb->fb.var.bits_per_pixel=%d sfb->hz=%d\n",
+		"sfb->width=%d sfb->height=%d sfb->fb.var.bits_per_pixel=%d sfb->hz=%d\n",
 		sfb->width, sfb->height, sfb->fb.var.bits_per_pixel, sfb->hz);
 
 	for (j = 0; j < numVGAModes; j++) {
@@ -483,8 +482,7 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 		    VGAMode[j].hz == sfb->hz) {
 
 			dev_dbg(&sfb->pdev->dev,
-				"VGAMode[j].mmSizeX=%d VGAMode[j].mmSizeY=%d "
-				"VGAMode[j].bpp=%d VGAMode[j].hz=%d\n",
+				"VGAMode[j].mmSizeX=%d VGAMode[j].mmSizeY=%d VGAMode[j].bpp=%d VGAMode[j].hz=%d\n",
 				VGAMode[j].mmSizeX, VGAMode[j].mmSizeY,
 				VGAMode[j].bpp, VGAMode[j].hz);
 
