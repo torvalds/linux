@@ -116,7 +116,6 @@ void imx_enable_cpu(int cpu, bool enable);
 void imx_set_cpu_jump(int cpu, void *jump_addr);
 u32 imx_get_cpu_arg(int cpu);
 void imx_set_cpu_arg(int cpu, u32 arg);
-void v7_cpu_resume(void);
 #ifdef CONFIG_SMP
 void v7_secondary_startup(void);
 void imx_scu_map_io(void);
@@ -145,7 +144,14 @@ void imx6sl_set_wait_clk(bool enter);
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
 
+#ifdef CONFIG_SUSPEND
+void v7_cpu_resume(void);
 void imx6_suspend(void __iomem *ocram_vbase);
+#else
+static inline void v7_cpu_resume(void) {}
+static inline void imx6_suspend(void __iomem *ocram_vbase) {}
+#endif
+
 void imx6q_pm_init(void);
 void imx6dl_pm_init(void);
 void imx6sl_pm_init(void);
