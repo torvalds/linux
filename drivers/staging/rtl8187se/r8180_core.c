@@ -2261,10 +2261,10 @@ static void rtl8180_statistics_init(struct stats *pstats)
 	memset(pstats, 0, sizeof(struct stats));
 }
 
-static void rtl8180_link_detect_init(plink_detect_t plink_detect)
+static void rtl8180_link_detect_init(struct link_detect_t *plink_detect)
 {
-	memset(plink_detect, 0, sizeof(link_detect_t));
-	plink_detect->SlotNum = DEFAULT_SLOT_NUM;
+	memset(plink_detect, 0, sizeof(struct link_detect_t));
+	plink_detect->slot_num = DEFAULT_SLOT_NUM;
 }
 
 /* YJ,add,080828,end */
@@ -2846,23 +2846,23 @@ static void MgntLinkKeepAlive(struct r8180_priv *priv)
 		 */
 
 		if ((priv->keepAliveLevel == 2) ||
-			(priv->link_detect.LastNumTxUnicast == priv->NumTxUnicast &&
-			priv->link_detect.LastNumRxUnicast == priv->ieee80211->NumRxUnicast)
+			(priv->link_detect.last_num_tx_unicast == priv->NumTxUnicast &&
+			priv->link_detect.last_num_rx_unicast == priv->ieee80211->NumRxUnicast)
 			) {
-			priv->link_detect.IdleCount++;
+			priv->link_detect.idle_count++;
 
 			/*
 			 * Send a Keep-Alive packet packet to AP if we had been idle for a while.
 			 */
-			if (priv->link_detect.IdleCount >= ((KEEP_ALIVE_INTERVAL / CHECK_FOR_HANG_PERIOD)-1)) {
-				priv->link_detect.IdleCount = 0;
+			if (priv->link_detect.idle_count >= ((KEEP_ALIVE_INTERVAL / CHECK_FOR_HANG_PERIOD)-1)) {
+				priv->link_detect.idle_count = 0;
 				ieee80211_sta_ps_send_null_frame(priv->ieee80211, false);
 			}
 		} else {
-			priv->link_detect.IdleCount = 0;
+			priv->link_detect.idle_count = 0;
 		}
-		priv->link_detect.LastNumTxUnicast = priv->NumTxUnicast;
-		priv->link_detect.LastNumRxUnicast = priv->ieee80211->NumRxUnicast;
+		priv->link_detect.last_num_tx_unicast = priv->NumTxUnicast;
+		priv->link_detect.last_num_rx_unicast = priv->ieee80211->NumRxUnicast;
 	}
 }
 
@@ -2883,10 +2883,10 @@ void rtl8180_watch_dog(struct net_device *dev)
 	}
 	/* YJ,add,080828,for link state check */
 	if ((priv->ieee80211->state == IEEE80211_LINKED) && (priv->ieee80211->iw_mode == IW_MODE_INFRA)) {
-		SlotIndex = (priv->link_detect.SlotIndex++) % priv->link_detect.SlotNum;
-		priv->link_detect.RxFrameNum[SlotIndex] = priv->ieee80211->NumRxDataInPeriod + priv->ieee80211->NumRxBcnInPeriod;
-		for (i = 0; i < priv->link_detect.SlotNum; i++)
-			TotalRxNum += priv->link_detect.RxFrameNum[i];
+		SlotIndex = (priv->link_detect.slot_index++) % priv->link_detect.slot_num;
+		priv->link_detect.rx_frame_num[SlotIndex] = priv->ieee80211->NumRxDataInPeriod + priv->ieee80211->NumRxBcnInPeriod;
+		for (i = 0; i < priv->link_detect.slot_num; i++)
+			TotalRxNum += priv->link_detect.rx_frame_num[i];
 
 		if (TotalRxNum == 0) {
 			priv->ieee80211->state = IEEE80211_ASSOCIATING;
@@ -2901,13 +2901,13 @@ void rtl8180_watch_dog(struct net_device *dev)
 	LeisurePSLeave(priv);
 
 	if (priv->ieee80211->state == IEEE80211_LINKED) {
-		priv->link_detect.NumRxOkInPeriod = priv->ieee80211->NumRxDataInPeriod;
-		if (priv->link_detect.NumRxOkInPeriod > 666 ||
-			priv->link_detect.NumTxOkInPeriod > 666) {
+		priv->link_detect.num_rx_ok_in_period = priv->ieee80211->NumRxDataInPeriod;
+		if (priv->link_detect.num_rx_ok_in_period > 666 ||
+			priv->link_detect.num_tx_ok_in_period > 666) {
 			bBusyTraffic = true;
 		}
-		if (((priv->link_detect.NumRxOkInPeriod + priv->link_detect.NumTxOkInPeriod) > 8)
-			|| (priv->link_detect.NumRxOkInPeriod > 2)) {
+		if (((priv->link_detect.num_rx_ok_in_period + priv->link_detect.num_tx_ok_in_period) > 8)
+			|| (priv->link_detect.num_rx_ok_in_period > 2)) {
 			bEnterPS = false;
 		} else
 			bEnterPS = true;
@@ -2918,9 +2918,9 @@ void rtl8180_watch_dog(struct net_device *dev)
 			LeisurePSLeave(priv);
 	} else
 		LeisurePSLeave(priv);
-	priv->link_detect.bBusyTraffic = bBusyTraffic;
-	priv->link_detect.NumRxOkInPeriod = 0;
-	priv->link_detect.NumTxOkInPeriod = 0;
+	priv->link_detect.b_busy_traffic = bBusyTraffic;
+	priv->link_detect.num_rx_ok_in_period = 0;
+	priv->link_detect.num_tx_ok_in_period = 0;
 	priv->ieee80211->NumRxDataInPeriod = 0;
 	priv->ieee80211->NumRxBcnInPeriod = 0;
 }
@@ -3542,7 +3542,7 @@ static irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 	}
 
 	if (inta & ISR_THPDOK) { /* High priority tx ok */
-		priv->link_detect.NumTxOkInPeriod++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
 		priv->stats.txhpokint++;
 		rtl8180_tx_isr(dev, HI_PRIORITY, 0);
 	}
@@ -3605,14 +3605,14 @@ static irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 		priv->stats.txoverflow++;
 
 	if (inta & ISR_TNPDOK) { /* Normal priority tx ok */
-		priv->link_detect.NumTxOkInPeriod++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
 		priv->stats.txnpokint++;
 		rtl8180_tx_isr(dev, NORM_PRIORITY, 0);
 		rtl8180_try_wake_queue(dev, NORM_PRIORITY);
 	}
 
 	if (inta & ISR_TLPDOK) { /* Low priority tx ok */
-		priv->link_detect.NumTxOkInPeriod++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
 		priv->stats.txlpokint++;
 		rtl8180_tx_isr(dev, LOW_PRIORITY, 0);
 		rtl8180_try_wake_queue(dev, LOW_PRIORITY);
@@ -3620,14 +3620,14 @@ static irqreturn_t rtl8180_interrupt(int irq, void *netdev)
 
 	if (inta & ISR_TBKDOK) { /* corresponding to BK_PRIORITY */
 		priv->stats.txbkpokint++;
-		priv->link_detect.NumTxOkInPeriod++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
 		rtl8180_tx_isr(dev, BK_PRIORITY, 0);
 		rtl8180_try_wake_queue(dev, BE_PRIORITY);
 	}
 
 	if (inta & ISR_TBEDOK) { /* corresponding to BE_PRIORITY */
 		priv->stats.txbeperr++;
-		priv->link_detect.NumTxOkInPeriod++; /* YJ,add,080828 */
+		priv->link_detect.num_tx_ok_in_period++; /* YJ,add,080828 */
 		rtl8180_tx_isr(dev, BE_PRIORITY, 0);
 		rtl8180_try_wake_queue(dev, BE_PRIORITY);
 	}

@@ -337,7 +337,7 @@ static int r8180_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		}	else	{
 			/* prevent scan in BusyTraffic */
 			/* FIXME: Need to consider last scan time */
-			if ((priv->link_detect.bBusyTraffic) && (true))	{
+			if ((priv->link_detect.b_busy_traffic) && (true)) {
 				ret = 0;
 				printk("Now traffic is busy, please try later!\n");
 			}	else

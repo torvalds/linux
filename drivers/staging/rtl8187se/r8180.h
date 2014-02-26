@@ -217,27 +217,27 @@ struct stats {
 #define POWER_PROFILE_AC 0
 #define POWER_PROFILE_BATTERY 1
 
-typedef struct _link_detect_t {
-	u32 RxFrameNum[MAX_LD_SLOT_NUM]; /* number of Rx Frame.
-					  * CheckForHang_period  to determine
-					  * link status.
-					  */
-	u16 SlotNum; /* number of CheckForHang period to determine link status,
-		      * default is 2.
-		      */
-	u16 SlotIndex;
+struct link_detect_t {
+	u32 rx_frame_num[MAX_LD_SLOT_NUM]; /* number of Rx Frame.
+					    * CheckForHang_period  to determine
+					    * link status.
+					    */
+	u16 slot_num; /* number of CheckForHang period to determine link status,
+		       * default is 2.
+		       */
+	u16 slot_index;
+	u32 num_tx_ok_in_period; /* number of packet transmitted during
+				  * CheckForHang.
+				  */
+	u32 num_rx_ok_in_period; /* number of packet received during
+				  * CheckForHang.
+				  */
+	u8 idle_count; /* (KEEP_ALIVE_INTERVAL / CHECK_FOR_HANG_PERIOD) */
+	u32 last_num_tx_unicast;
+	u32 last_num_rx_unicast;
 
-	u32 NumTxOkInPeriod; /* number of packet transmitted during
-			      * CheckForHang.
-			      */
-	u32 NumRxOkInPeriod; /* number of packet received during CheckForHang */
-
-	u8 IdleCount; /* (KEEP_ALIVE_INTERVAL / CHECK_FOR_HANG_PERIOD) */
-	u32 LastNumTxUnicast;
-	u32 LastNumRxUnicast;
-
-	bool bBusyTraffic; /* when it is set to 1, UI cann't scan at will. */
-} link_detect_t, *plink_detect_t;
+	bool b_busy_traffic; /* when it is set to 1, UI cann't scan at will. */
+};
 
 /* YJ,modified,080828,end */
 
@@ -373,7 +373,7 @@ typedef struct r8180_priv {
 	short promisc;
 	/* stats */
 	struct stats stats;
-	struct _link_detect_t link_detect; /* YJ,add,080828 */
+	struct link_detect_t link_detect; /* YJ,add,080828 */
 	struct iw_statistics wstats;
 
 	/* RX stuff. */
