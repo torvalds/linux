@@ -343,9 +343,15 @@ int pci_enable_resources(struct pci_dev *dev, int mask)
 				(!(r->flags & IORESOURCE_ROM_ENABLE)))
 			continue;
 
+		if (r->flags & IORESOURCE_UNSET) {
+			dev_err(&dev->dev, "can't enable device: BAR %d %pR not assigned\n",
+				i, r);
+			return -EINVAL;
+		}
+
 		if (!r->parent) {
-			dev_err(&dev->dev, "device not available "
-				"(can't reserve %pR)\n", r);
+			dev_err(&dev->dev, "can't enable device: BAR %d %pR not claimed\n",
+				i, r);
 			return -EINVAL;
 		}
 
