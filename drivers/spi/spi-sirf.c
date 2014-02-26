@@ -718,9 +718,8 @@ static int spi_sirfsoc_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops spi_sirfsoc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(spi_sirfsoc_suspend, spi_sirfsoc_resume)
-};
+static SIMPLE_DEV_PM_OPS(spi_sirfsoc_pm_ops, spi_sirfsoc_suspend,
+			 spi_sirfsoc_resume);
 
 static const struct of_device_id spi_sirfsoc_of_match[] = {
 	{ .compatible = "sirf,prima2-spi", },
