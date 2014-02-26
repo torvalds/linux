@@ -379,7 +379,8 @@ then
 elif test "$dryrun" = sched
 then
 	# Extract the test run schedule from the script.
-	egrep 'start batch|Starting build\.' $T/script |
+	egrep 'Start batch|Starting build\.' $T/script |
+		grep -v ">>" |
 		sed -e 's/:.*$//' -e 's/^echo //'
 	exit 0
 else
