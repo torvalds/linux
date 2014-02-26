@@ -655,8 +655,8 @@ static int i2o_iop_activate(struct i2o_controller *c)
 static void i2o_res_alloc(struct i2o_controller *c, unsigned long flags)
 {
 	i2o_status_block *sb = c->status_block.virt;
-	struct resource *root, *res = &c->mem_resource;
-	resource_size_t size, min, max, align;
+	struct resource *res = &c->mem_resource;
+	resource_size_t size, align;
 	int err;
 
 	res->name = c->pdev->bus->name;
@@ -664,21 +664,17 @@ static void i2o_res_alloc(struct i2o_controller *c, unsigned long flags)
 	res->start = 0;
 	res->end = 0;
 	osm_info("%s: requires private memory resources.\n", c->name);
-	root = pci_find_parent_resource(c->pdev, res);
-	if (root == NULL) {
-		osm_warn("%s: Can't find parent resource!\n", c->name);
-		return;
-	}
 
 	if (flags & IORESOURCE_MEM) {
-		size = min = max = sb->desired_mem_size;
+		size = sb->desired_mem_size;
 		align = 1 << 20;	/* unspecified, use 1Mb and play safe */
 	} else {
-		size = min = max = sb->desired_io_size;
+		size = sb->desired_io_size;
 		align = 1 << 12;	/* unspecified, use 4Kb and play safe */
 	}
 
-	err = allocate_resource(root, res, size, min, max, align, NULL, NULL);
+	err = pci_bus_alloc_resource(c->pdev->bus, res, size, align, 0, 0,
+				     NULL, NULL);
 	if (err < 0)
 		return;
 
