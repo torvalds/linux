@@ -358,13 +358,8 @@ static int txx9spi_probe(struct platform_device *dev)
 	master->max_speed_hz = c->baseclk / (SPI_MIN_DIVIDER + 1);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!res)
-		goto exit_busy;
-	if (!devm_request_mem_region(&dev->dev, res->start, resource_size(res),
-				     "spi_txx9"))
-		goto exit_busy;
-	c->membase = devm_ioremap(&dev->dev, res->start, resource_size(res));
-	if (!c->membase)
+	c->membase = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(c->membase))
 		goto exit_busy;
 
 	/* enter config mode */
