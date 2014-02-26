@@ -3677,8 +3677,37 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_proto_connect_cfm(conn, ev->status);
 
+	hci_pend_le_conn_del(hdev, &conn->dst, conn->dst_type);
+
 unlock:
 	hci_dev_unlock(hdev);
+}
+
+/* This function requires the caller holds hdev->lock */
+static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
+				  u8 addr_type)
+{
+	struct hci_conn *conn;
+
+	if (!hci_pend_le_conn_lookup(hdev, addr, addr_type))
+		return;
+
+	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
+			      HCI_AT_NO_BONDING);
+	if (!IS_ERR(conn))
+		return;
+
+	switch (PTR_ERR(conn)) {
+	case -EBUSY:
+		/* If hci_connect() returns -EBUSY it means there is already
+		 * an LE connection attempt going on. Since controllers don't
+		 * support more than one connection attempt at the time, we
+		 * don't consider this an error case.
+		 */
+		break;
+	default:
+		BT_DBG("Failed to connect: err %ld", PTR_ERR(conn));
+	}
 }
 
 static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3687,8 +3716,15 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	void *ptr = &skb->data[1];
 	s8 rssi;
 
+	hci_dev_lock(hdev);
+
 	while (num_reports--) {
 		struct hci_ev_le_advertising_info *ev = ptr;
+
+		if (ev->evt_type == LE_ADV_IND ||
+		    ev->evt_type == LE_ADV_DIRECT_IND)
+			check_pending_le_conn(hdev, &ev->bdaddr,
+					      ev->bdaddr_type);
 
 		rssi = ev->data[ev->length];
 		mgmt_device_found(hdev, &ev->bdaddr, LE_LINK, ev->bdaddr_type,
@@ -3696,6 +3732,8 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)

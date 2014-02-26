@@ -527,6 +527,11 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	hci_proto_connect_cfm(conn, status);
 
 	hci_conn_del(conn);
+
+	/* Since we may have temporarily stopped the background scanning in
+	 * favor of connection establishment, we should restart it.
+	 */
+	hci_update_background_scan(hdev);
 }
 
 static void create_le_conn_complete(struct hci_dev *hdev, u8 status)

@@ -806,6 +806,8 @@ void hci_pend_le_conn_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
 void hci_pend_le_conn_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
 void hci_pend_le_conns_clear(struct hci_dev *hdev);
 
+void hci_update_background_scan(struct hci_dev *hdev);
+
 void hci_uuids_clear(struct hci_dev *hdev);
 
 void hci_link_keys_clear(struct hci_dev *hdev);
