@@ -32,6 +32,12 @@
 #include <drm/drmP.h>
 
 #if defined(CONFIG_X86)
+
+/*
+ * clflushopt is an unordered instruction which needs fencing with mfence or
+ * sfence to avoid ordering issues.  For drm_clflush_page this fencing happens
+ * in the caller.
+ */
 static void
 drm_clflush_page(struct page *page)
 {
@@ -44,7 +50,7 @@ drm_clflush_page(struct page *page)
 
 	page_virtual = kmap_atomic(page);
 	for (i = 0; i < PAGE_SIZE; i += size)
-		clflush(page_virtual + i);
+		clflushopt(page_virtual + i);
 	kunmap_atomic(page_virtual);
 }
 
