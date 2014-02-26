@@ -374,6 +374,12 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 				 "%s set to dynamic mode\n", opt.name);
 			adapter->itr = 20000;
 			break;
+		case 2:
+			dev_info(&adapter->pdev->dev,
+				 "%s Invalid mode - setting default\n",
+				 opt.name);
+			adapter->itr_setting = opt.def;
+			/* fall-through */
 		case 3:
 			dev_info(&adapter->pdev->dev,
 				 "%s set to dynamic conservative mode\n",
