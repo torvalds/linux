@@ -960,7 +960,7 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 			  rp->ediv, rp->rand);
 	smp->ltk = ltk;
 	if (!(smp->remote_key_dist & SMP_DIST_ID_KEY))
-		smp_distribute_keys(conn, 1);
+		smp_distribute_keys(conn);
 	hci_dev_unlock(hdev);
 
 	return 0;
@@ -1018,7 +1018,7 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	 */
 	if (!bacmp(&info->bdaddr, BDADDR_ANY)) {
 		BT_ERR("Ignoring IRK with no identity address");
-		smp_distribute_keys(conn, 1);
+		smp_distribute_keys(conn);
 		return 0;
 	}
 
@@ -1039,7 +1039,7 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 
 	l2cap_conn_update_id_addr(hcon);
 
-	smp_distribute_keys(conn, 1);
+	smp_distribute_keys(conn);
 
 	return 0;
 }
@@ -1168,7 +1168,7 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	}
 }
 
-int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
+int smp_distribute_keys(struct l2cap_conn *conn)
 {
 	struct smp_cmd_pairing *req, *rsp;
 	struct smp_chan *smp = conn->smp_chan;
@@ -1176,7 +1176,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 	struct hci_dev *hdev = hcon->hdev;
 	__u8 *keydist;
 
-	BT_DBG("conn %p force %d", conn, force);
+	BT_DBG("conn %p", conn);
 
 	if (!test_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
 		return 0;

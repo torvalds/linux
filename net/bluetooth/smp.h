@@ -145,7 +145,7 @@ struct smp_chan {
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
 int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb);
-int smp_distribute_keys(struct l2cap_conn *conn, __u8 force);
+int smp_distribute_keys(struct l2cap_conn *conn);
 int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
 void smp_chan_destroy(struct l2cap_conn *conn);

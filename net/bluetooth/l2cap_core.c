@@ -7267,7 +7267,7 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 	if (hcon->type == LE_LINK) {
 		if (!status && encrypt)
-			smp_distribute_keys(conn, 0);
+			smp_distribute_keys(conn);
 		cancel_delayed_work(&conn->security_timer);
 	}
 
