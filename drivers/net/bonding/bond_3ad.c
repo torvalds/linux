@@ -181,7 +181,7 @@ static inline int __agg_has_partner(struct aggregator *agg)
  */
 static inline void __disable_port(struct port *port)
 {
-	bond_set_slave_inactive_flags(port->slave);
+	bond_set_slave_inactive_flags(port->slave, BOND_SLAVE_NOTIFY_LATER);
 }
 
 /**
@@ -193,7 +193,7 @@ static inline void __enable_port(struct port *port)
 	struct slave *slave = port->slave;
 
 	if ((slave->link == BOND_LINK_UP) && IS_UP(slave->dev))
-		bond_set_slave_active_flags(slave);
+		bond_set_slave_active_flags(slave, BOND_SLAVE_NOTIFY_LATER);
 }
 
 /**
@@ -2062,6 +2062,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	struct list_head *iter;
 	struct slave *slave;
 	struct port *port;
+	bool should_notify_rtnl = BOND_SLAVE_NOTIFY_LATER;
 
 	read_lock(&bond->lock);
 	rcu_read_lock();
@@ -2119,8 +2120,25 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	}
 
 re_arm:
+	bond_for_each_slave_rcu(bond, slave, iter) {
+		if (slave->should_notify) {
+			should_notify_rtnl = BOND_SLAVE_NOTIFY_NOW;
+			break;
+		}
+	}
 	rcu_read_unlock();
 	read_unlock(&bond->lock);
+
+	if (should_notify_rtnl && rtnl_trylock()) {
+		bond_for_each_slave(bond, slave, iter) {
+			if (slave->should_notify) {
+				rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0,
+					     GFP_KERNEL);
+				slave->should_notify = 0;
+			}
+		}
+		rtnl_unlock();
+	}
 	queue_delayed_work(bond->wq, &bond->ad_work, ad_delta_in_ticks);
 }
 
