@@ -13,3 +13,17 @@ menuconfig MCB
 	   for these devices.
 
 	   If build as a module, the module is called mcb.ko
+
+if MCB
+config MCB_PCI
+	   tristate "PCI based MCB carrier"
+	   default m
+	   help
+
+	   This is a MCB carrier on a PCI device. Both PCI attached on-board
+	   FPGAs as well as CompactPCI attached MCB FPGAs are supported with
+	   this driver.
+
+	   If build as a module, the module is called mcb-pci.ko
+
+endif # MCB

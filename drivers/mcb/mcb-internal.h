@@ -3,6 +3,8 @@
 
 #include <linux/types.h>
 
+#define PCI_VENDOR_ID_MEN		0x1a88
+#define PCI_DEVICE_ID_MEN_CHAMELEON	0x4d45
 #define CHAMELEON_FILENAME_LEN		12
 #define CHAMELEONV2_MAGIC		0xabce
 
