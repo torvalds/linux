@@ -867,6 +867,23 @@ static void vfio_iommu_type1_release(void *iommu_data)
 	kfree(iommu);
 }
 
+static int vfio_domains_have_iommu_cache(struct vfio_iommu *iommu)
+{
+	struct vfio_domain *domain;
+	int ret = 1;
+
+	mutex_lock(&iommu->lock);
+	list_for_each_entry(domain, &iommu->domain_list, next) {
+		if (!(domain->prot & IOMMU_CACHE)) {
+			ret = 0;
+			break;
+		}
+	}
+	mutex_unlock(&iommu->lock);
+
+	return ret;
+}
+
 static long vfio_iommu_type1_ioctl(void *iommu_data,
 				   unsigned int cmd, unsigned long arg)
 {
@@ -878,6 +895,10 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 		case VFIO_TYPE1_IOMMU:
 		case VFIO_TYPE1v2_IOMMU:
 			return 1;
+		case VFIO_DMA_CC_IOMMU:
+			if (!iommu)
+				return 0;
+			return vfio_domains_have_iommu_cache(iommu);
 		default:
 			return 0;
 		}
