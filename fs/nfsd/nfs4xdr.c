@@ -3046,6 +3046,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (nfserr) {
 		xdr->p -= 2;
 		xdr->iov->iov_len -= 8;
+		xdr->buf->len -= 8;
 		return nfserr;
 	}
 	eof = (read->rd_offset + maxcount >=
@@ -3053,9 +3054,10 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	WRITE32(eof);
 	WRITE32(maxcount);
-	resp->xdr.buf->head[0].iov_len = (char *)p
-				- (char *)resp->xdr.buf->head[0].iov_base;
+	WARN_ON_ONCE(resp->xdr.buf->head[0].iov_len != (char *)p
+				- (char *)resp->xdr.buf->head[0].iov_base);
 	resp->xdr.buf->page_len = maxcount;
+	xdr->buf->len += maxcount;
 	xdr->iov = xdr->buf->tail;
 
 	/* Use rest of head for padding and remaining ops: */
@@ -3066,6 +3068,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 		WRITE32(0);
 		resp->xdr.buf->tail[0].iov_base += maxcount&3;
 		resp->xdr.buf->tail[0].iov_len = 4 - (maxcount&3);
+		xdr->buf->len -= (maxcount&3);
 	}
 	return 0;
 }
@@ -3102,6 +3105,7 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	if (nfserr) {
 		xdr->p--;
 		xdr->iov->iov_len -= 4;
+		xdr->buf->len -= 4;
 		return nfserr;
 	}
 
@@ -3109,6 +3113,7 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	resp->xdr.buf->head[0].iov_len = (char *)p
 				- (char *)resp->xdr.buf->head[0].iov_base;
 	resp->xdr.buf->page_len = maxcount;
+	xdr->buf->len += maxcount;
 	xdr->iov = xdr->buf->tail;
 
 	/* Use rest of head for padding and remaining ops: */
@@ -3189,6 +3194,7 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	*p++ = htonl(readdir->common.err == nfserr_eof);
 	resp->xdr.buf->page_len = ((char *)p) -
 		(char*)page_address(*(resp->rqstp->rq_next_page-1));
+	xdr->buf->len += xdr->buf->page_len;
 
 	xdr->iov = xdr->buf->tail;
 
@@ -3204,6 +3210,7 @@ err_no_verf:
 	xdr->p = savep;
 	xdr->iov->iov_len = ((char *)resp->xdr.p)
 				- (char *)resp->xdr.buf->head[0].iov_base;
+	xdr->buf->len = xdr->iov->iov_len;
 	return nfserr;
 }
 
@@ -3789,6 +3796,10 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 	 * All that remains is to write the tag and operation count...
 	 */
 	struct nfsd4_compound_state *cs = &resp->cstate;
+	struct xdr_buf *buf = resp->xdr.buf;
+
+	WARN_ON_ONCE(buf->len != buf->head[0].iov_len + buf->page_len +
+				 buf->tail[0].iov_len);
 
 	p = resp->tagp;
 	*p++ = htonl(resp->taglen);
