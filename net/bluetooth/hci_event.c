@@ -3706,6 +3706,16 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 				  u8 addr_type)
 {
 	struct hci_conn *conn;
+	struct smp_irk *irk;
+
+	/* If this is a resolvable address, we should resolve it and then
+	 * update address and address type variables.
+	 */
+	irk = hci_get_irk(hdev, addr, addr_type);
+	if (irk) {
+		addr = &irk->bdaddr;
+		addr_type = irk->addr_type;
+	}
 
 	if (!hci_pend_le_conn_lookup(hdev, addr, addr_type))
 		return;
