@@ -437,9 +437,7 @@ static int dspi_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static const struct dev_pm_ops dspi_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(dspi_suspend, dspi_resume)
-};
+static SIMPLE_DEV_PM_OPS(dspi_pm, dspi_suspend, dspi_resume);
 
 static struct regmap_config dspi_regmap_config = {
 	.reg_bits = 32,
