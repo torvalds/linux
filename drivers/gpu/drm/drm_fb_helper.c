@@ -809,8 +809,6 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
 	struct fb_var_screeninfo *var = &info->var;
-	int ret;
-	int i;
 
 	if (var->pixclock != 0) {
 		DRM_ERROR("PIXEL CLOCK SET\n");
@@ -818,13 +816,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	}
 
 	drm_modeset_lock_all(dev);
-	for (i = 0; i < fb_helper->crtc_count; i++) {
-		ret = drm_mode_set_config_internal(&fb_helper->crtc_info[i].mode_set);
-		if (ret) {
-			drm_modeset_unlock_all(dev);
-			return ret;
-		}
-	}
+	drm_fb_helper_restore_fbdev_mode(fb_helper);
 	drm_modeset_unlock_all(dev);
 
 	if (fb_helper->delayed_hotplug) {
