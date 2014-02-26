@@ -239,7 +239,7 @@
 			};
 
 			adc0: adc@f8018000 {
-				compatible = "atmel,at91sam9260-adc";
+				compatible = "atmel,at91sam9x5-adc";
 				reg = <0xf8018000 0x100>;
 				interrupts = <29 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
@@ -293,18 +293,6 @@
 					trigger-name = "continuous";
 					trigger-value = <0x6>;
 				};
-			};
-
-			tsadcc: tsadcc@f8018000 {
-				compatible = "atmel,at91sam9x5-tsadcc";
-				reg = <0xf8018000 0x4000>;
-				interrupts = <29 IRQ_TYPE_LEVEL_HIGH 5>;
-				atmel,tsadcc_clock = <300000>;
-				atmel,filtering_average = <0x03>;
-				atmel,pendet_debounce = <0x08>;
-				atmel,pendet_sensitivity = <0x02>;
-				atmel,ts_sample_hold_time = <0x0a>;
-				status = "disabled";
 			};
 
 			i2c2: i2c@f801c000 {
