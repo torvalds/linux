@@ -188,8 +188,8 @@ SYSCALL(sys_rt_sigpending,sys_rt_sigpending,compat_sys_rt_sigpending)
 SYSCALL(sys_rt_sigtimedwait,sys_rt_sigtimedwait,compat_sys_rt_sigtimedwait)
 SYSCALL(sys_rt_sigqueueinfo,sys_rt_sigqueueinfo,compat_sys_rt_sigqueueinfo)
 SYSCALL(sys_rt_sigsuspend,sys_rt_sigsuspend,compat_sys_rt_sigsuspend)
-SYSCALL(sys_pread64,sys_pread64,sys32_pread64_wrapper)		/* 180 */
-SYSCALL(sys_pwrite64,sys_pwrite64,sys32_pwrite64_wrapper)
+SYSCALL(sys_pread64,sys_pread64,compat_sys_s390_pread64)		/* 180 */
+SYSCALL(sys_pwrite64,sys_pwrite64,compat_sys_s390_pwrite64)
 SYSCALL(sys_chown16,sys_ni_syscall,compat_sys_s390_chown16)	/* old chown16 syscall */
 SYSCALL(sys_getcwd,sys_getcwd,sys32_getcwd_wrapper)
 SYSCALL(sys_capget,sys_capget,sys32_capget_wrapper)
@@ -202,8 +202,8 @@ SYSCALL(sys_vfork,sys_vfork,sys_vfork)				/* 190 */
 SYSCALL(sys_getrlimit,sys_getrlimit,compat_sys_getrlimit_wrapper)
 SYSCALL(sys_mmap2,sys_mmap2,sys32_mmap2_wrapper)
 SYSCALL(sys_truncate64,sys_ni_syscall,compat_sys_s390_truncate64)
-SYSCALL(sys_ftruncate64,sys_ni_syscall,sys32_ftruncate64_wrapper)
-SYSCALL(sys_stat64,sys_ni_syscall,sys32_stat64_wrapper)		/* 195 */
+SYSCALL(sys_ftruncate64,sys_ni_syscall,compat_sys_s390_ftruncate64)
+SYSCALL(sys_stat64,sys_ni_syscall,compat_sys_s390_stat64)		/* 195 */
 SYSCALL(sys_lstat64,sys_ni_syscall,sys32_lstat64_wrapper)
 SYSCALL(sys_fstat64,sys_ni_syscall,sys32_fstat64_wrapper)
 SYSCALL(sys_lchown,sys_lchown,sys32_lchown_wrapper)
@@ -230,7 +230,7 @@ SYSCALL(sys_mincore,sys_mincore,sys32_mincore_wrapper)
 SYSCALL(sys_madvise,sys_madvise,sys32_madvise_wrapper)
 SYSCALL(sys_getdents64,sys_getdents64,sys32_getdents64_wrapper)	/* 220 */
 SYSCALL(sys_fcntl64,sys_ni_syscall,compat_sys_fcntl64_wrapper)
-SYSCALL(sys_readahead,sys_readahead,sys32_readahead_wrapper)
+SYSCALL(sys_readahead,sys_readahead,compat_sys_s390_readahead)
 SYSCALL(sys_sendfile64,sys_ni_syscall,compat_sys_sendfile64)
 SYSCALL(sys_setxattr,sys_setxattr,sys32_setxattr_wrapper)
 SYSCALL(sys_lsetxattr,sys_lsetxattr,sys32_lsetxattr_wrapper)	/* 225 */

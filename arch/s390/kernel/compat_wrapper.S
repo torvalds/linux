@@ -536,22 +536,6 @@ ENTRY(sys32_prctl_wrapper)
 
 #sys32_rt_sigreturn_wrapper		# done in rt_sigreturn_glue
 
-ENTRY(sys32_pread64_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgtr	%r3,%r3			# char *
-	llgfr	%r4,%r4			# size_t
-	llgfr	%r5,%r5			# u32
-	llgfr	%r6,%r6			# u32
-	jg	sys32_pread64		# branch to system call
-
-ENTRY(sys32_pwrite64_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgtr	%r3,%r3			# const char *
-	llgfr	%r4,%r4			# size_t
-	llgfr	%r5,%r5			# u32
-	llgfr	%r6,%r6			# u32
-	jg	sys32_pwrite64		# branch to system call
-
 ENTRY(sys32_getcwd_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgfr	%r3,%r3			# unsigned long
@@ -568,12 +552,6 @@ ENTRY(sys32_capset_wrapper)
 	jg	sys_capset		# branch to system call
 
 #sys32_vfork_wrapper			# done in vfork_glue
-
-ENTRY(sys32_ftruncate64_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned long
-	llgfr	%r4,%r4			# unsigned long
-	jg	sys32_ftruncate64	# branch to system call
 
 ENTRY(sys32_lchown_wrapper)
 	llgtr	%r2,%r2			# const char *
@@ -686,11 +664,6 @@ ENTRY(compat_sys_fcntl64_wrapper)
 	llgfr	%r3,%r3			# unsigned int
 	llgfr	%r4,%r4			# unsigned long
 	jg	compat_sys_fcntl64	# branch to system call
-
-ENTRY(sys32_stat64_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# struct stat64 *
-	jg	sys32_stat64		# branch to system call
 
 ENTRY(sys32_lstat64_wrapper)
 	llgtr	%r2,%r2			# char *
@@ -1200,13 +1173,6 @@ ENTRY(sys_dup3_wrapper)
 ENTRY(sys_epoll_create1_wrapper)
 	lgfr	%r2,%r2			# int
 	jg	sys_epoll_create1	# branch to system call
-
-ENTRY(sys32_readahead_wrapper)
-	lgfr	%r2,%r2			# int
-	llgfr	%r3,%r3			# u32
-	llgfr	%r4,%r4			# u32
-	lgfr	%r5,%r5			# s32
-	jg	sys32_readahead		# branch to system call
 
 ENTRY(sys_tkill_wrapper)
 	lgfr	%r2,%r2			# pid_t

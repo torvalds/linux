@@ -96,16 +96,14 @@ long compat_sys_s390_geteuid16(void);
 long compat_sys_s390_getgid16(void);
 long compat_sys_s390_getegid16(void);
 long compat_sys_s390_truncate64(const char __user *path, u32 high, u32 low);
-long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low);
+long compat_sys_s390_ftruncate64(unsigned int fd, u32 high, u32 low);
 long sys32_init_module(void __user *umod, unsigned long len,
 		       const char __user *uargs);
 long sys32_delete_module(const char __user *name_user, unsigned int flags);
-long sys32_pread64(unsigned int fd, char __user *ubuf, size_t count,
-		   u32 poshi, u32 poslo);
-long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
-		    size_t count, u32 poshi, u32 poslo);
-compat_ssize_t sys32_readahead(int fd, u32 offhi, u32 offlo, s32 count);
-long sys32_stat64(const char __user * filename, struct stat64_emu31 __user * statbuf);
+long compat_sys_s390_pread64(unsigned int fd, char __user *ubuf, compat_size_t count, u32 high, u32 low);
+long compat_sys_s390_pwrite64(unsigned int fd, const char __user *ubuf, compat_size_t count, u32 high, u32 low);
+long compat_sys_s390_readahead(int fd, u32 high, u32 low, s32 count);
+long compat_sys_s390_stat64(const char __user *filename, struct stat64_emu31 __user *statbuf);
 long sys32_lstat64(const char __user * filename,
 		   struct stat64_emu31 __user * statbuf);
 long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * statbuf);
