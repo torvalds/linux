@@ -97,9 +97,6 @@ long compat_sys_s390_getgid16(void);
 long compat_sys_s390_getegid16(void);
 long compat_sys_s390_truncate64(const char __user *path, u32 high, u32 low);
 long compat_sys_s390_ftruncate64(unsigned int fd, u32 high, u32 low);
-long sys32_init_module(void __user *umod, unsigned long len,
-		       const char __user *uargs);
-long sys32_delete_module(const char __user *name_user, unsigned int flags);
 long compat_sys_s390_pread64(unsigned int fd, char __user *ubuf, compat_size_t count, u32 high, u32 low);
 long compat_sys_s390_pwrite64(unsigned int fd, const char __user *ubuf, compat_size_t count, u32 high, u32 low);
 long compat_sys_s390_readahead(int fd, u32 high, u32 low, s32 count);
@@ -109,8 +106,8 @@ long compat_sys_s390_fstat64(unsigned int fd, struct stat64_emu31 __user *statbu
 long compat_sys_s390_fstatat64(unsigned int dfd, const char __user *filename, struct stat64_emu31 __user *statbuf, int flag);
 long compat_sys_s390_old_mmap(struct mmap_arg_struct_emu31 __user *arg);
 long compat_sys_s390_mmap2(struct mmap_arg_struct_emu31 __user *arg);
-long sys32_read(unsigned int fd, char __user * buf, size_t count);
-long sys32_write(unsigned int fd, const char __user * buf, size_t count);
-long sys32_fadvise64(int fd, loff_t offset, size_t len, int advise);
-long sys32_fadvise64_64(struct fadvise64_64_args __user *args);
+long compat_sys_s390_read(unsigned int fd, char __user * buf, compat_size_t count);
+long compat_sys_s390_write(unsigned int fd, const char __user * buf, compat_size_t count);
+long compat_sys_s390_fadvise64(int fd, u32 high, u32 low, compat_size_t len, int advise);
+long compat_sys_s390_fadvise64_64(struct fadvise64_64_args __user *args);
 #endif /* _ASM_S390X_S390_H */

@@ -12,18 +12,6 @@ ENTRY(sys32_exit_wrapper)
 	lgfr	%r2,%r2			# int
 	jg	sys_exit		# branch to sys_exit
 
-ENTRY(sys32_read_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgtr	%r3,%r3			# char *
-	llgfr	%r4,%r4			# size_t
-	jg	sys32_read		# branch to sys_read
-
-ENTRY(sys32_write_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgtr	%r3,%r3			# const char *
-	llgfr	%r4,%r4			# size_t
-	jg	sys32_write		# branch to system call
-
 ENTRY(sys32_close_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	jg	sys_close		# branch to system call
@@ -776,18 +764,6 @@ ENTRY(sys_epoll_wait_wrapper)
 	lgfr	%r4,%r4			# int
 	lgfr	%r5,%r5			# int
 	jg	sys_epoll_wait		# branch to system call
-
-ENTRY(sys32_fadvise64_wrapper)
-	lgfr	%r2,%r2			# int
-	sllg	%r3,%r3,32		# get high word of 64bit loff_t
-	or	%r3,%r4			# get low word of 64bit loff_t
-	llgfr	%r4,%r5			# size_t (unsigned long)
-	lgfr	%r5,%r6			# int
-	jg	sys32_fadvise64
-
-ENTRY(sys32_fadvise64_64_wrapper)
-	llgtr	%r2,%r2			# struct fadvise64_64_args *
-	jg	sys32_fadvise64_64
 
 ENTRY(sys32_clock_settime_wrapper)
 	lgfr	%r2,%r2			# clockid_t (int)

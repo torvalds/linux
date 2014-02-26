@@ -454,7 +454,7 @@ COMPAT_SYSCALL_DEFINE1(s390_mmap2, struct mmap_arg_struct_emu31 __user *, arg)
 	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
 }
 
-asmlinkage long sys32_read(unsigned int fd, char __user * buf, size_t count)
+COMPAT_SYSCALL_DEFINE3(s390_read, unsigned int, fd, char __user *, buf, compat_size_t, count)
 {
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL; 
@@ -462,7 +462,7 @@ asmlinkage long sys32_read(unsigned int fd, char __user * buf, size_t count)
 	return sys_read(fd, buf, count);
 }
 
-asmlinkage long sys32_write(unsigned int fd, const char __user * buf, size_t count)
+COMPAT_SYSCALL_DEFINE3(s390_write, unsigned int, fd, const char __user *, buf, compat_size_t, count)
 {
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL; 
@@ -476,14 +476,13 @@ asmlinkage long sys32_write(unsigned int fd, const char __user * buf, size_t cou
  * because the 31 bit values differ from the 64 bit values.
  */
 
-asmlinkage long
-sys32_fadvise64(int fd, loff_t offset, size_t len, int advise)
+COMPAT_SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, high, u32, low, compat_size_t, len, int, advise)
 {
 	if (advise == 4)
 		advise = POSIX_FADV_DONTNEED;
 	else if (advise == 5)
 		advise = POSIX_FADV_NOREUSE;
-	return sys_fadvise64(fd, offset, len, advise);
+	return sys_fadvise64(fd, (unsigned long)high << 32 | low, len, advise);
 }
 
 struct fadvise64_64_args {
@@ -493,8 +492,7 @@ struct fadvise64_64_args {
 	int advice;
 };
 
-asmlinkage long
-sys32_fadvise64_64(struct fadvise64_64_args __user *args)
+COMPAT_SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, args)
 {
 	struct fadvise64_64_args a;
 
