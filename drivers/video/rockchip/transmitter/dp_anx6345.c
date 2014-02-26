@@ -13,7 +13,7 @@
 #include <linux/of_gpio.h>
 #endif
 #include "anx6345.h"
-
+#include "dpcd_edid.h"
 #if defined(CONFIG_DEBUG_FS)
 #include <linux/fs.h>
 #include <linux/debugfs.h>
@@ -169,8 +169,8 @@ static int get_dp_chip_id(struct i2c_client *client)
 {
 	char c1,c2;
 	int id;
-	anx6345_i2c_read_p1_reg(client,SP_TX_DEV_IDL_REG,&c1);
-    	anx6345_i2c_read_p1_reg(client,SP_TX_DEV_IDH_REG,&c2);
+	anx6345_i2c_read_p1_reg(client,DEV_IDL_REG,&c1);
+    	anx6345_i2c_read_p1_reg(client,DEV_IDH_REG,&c2);
 	id = c2;
 	return (id<<8)|c1;
 }
@@ -624,119 +624,459 @@ static int anx980x_init(struct i2c_client *client)
 	return 0;
 }
 
-#if 1
+
 static int anx6345_bist_mode(struct i2c_client *client)
 {
 	struct edp_anx6345 *anx6345 = i2c_get_clientdata(client);
 	struct rk_screen *screen = &anx6345->screen;
-	u16 x_total ,y_total;
-	u32 total, act_total;
+	u16 x_total ,y_total, x_act;
 	char val = 0x00;
 	//these register are for bist mode
 	x_total = screen->mode.left_margin + screen->mode.right_margin +
 			screen->mode.xres + screen->mode.hsync_len;
 	y_total = screen->mode.upper_margin + screen->mode.lower_margin +
 			screen->mode.yres + screen->mode.vsync_len;
-	total = x_total * y_total;
-	printk("%s>>>>total:0x%08x\n",__func__, total);
-	act_total = screen->mode.xres * screen->mode.yres;
+	x_total >>= 1;
+	x_act = screen->mode.xres >> 1;
 	val = y_total & 0xff;
-	anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_LINEL_REG,&val);
+	anx6345_i2c_write_p1_reg(client,TOTAL_LINEL_REG,&val);
 	val = (y_total >> 8);
-	anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_LINEH_REG,&val);
+	anx6345_i2c_write_p1_reg(client,TOTAL_LINEH_REG,&val);
 	val = (screen->mode.yres & 0xff);
-	anx6345_i2c_write_p1_reg(client,SP_TX_ACT_LINEL_REG,&val);
+	anx6345_i2c_write_p1_reg(client,ACT_LINEL_REG,&val);
 	val = (screen->mode.yres >> 8);
-	anx6345_i2c_write_p1_reg(client,SP_TX_ACT_LINEH_REG,&val);
+	anx6345_i2c_write_p1_reg(client,ACT_LINEH_REG,&val);
 	val = screen->mode.lower_margin;
-	anx6345_i2c_write_p1_reg(client,SP_TX_VF_PORCH_REG,&val);
+	anx6345_i2c_write_p1_reg(client,VF_PORCH_REG,&val);
 	val = screen->mode.vsync_len;
-	anx6345_i2c_write_p1_reg(client,SP_TX_VSYNC_CFG_REG,&val);
+	anx6345_i2c_write_p1_reg(client,VSYNC_CFG_REG,&val);
 	val = screen->mode.upper_margin;
-	anx6345_i2c_write_p1_reg(client,SP_TX_VB_PORCH_REG,&val);
-	val = total & 0xff;
-	val = 0x50;
-	anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_PIXELL_REG,&val);
-	val = total >> 8;
-	val = 0x04;
-	anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_PIXELH_REG,&val);
-	val = (act_total & 0xff);
-	val = 0x00;
-	anx6345_i2c_write_p1_reg(client,SP_TX_ACT_PIXELL_REG,&val);
-	val = (act_total >> 8);
-	val = 0x04;
-	anx6345_i2c_write_p1_reg(client,SP_TX_ACT_PIXELH_REG,&val);
+	anx6345_i2c_write_p1_reg(client,VB_PORCH_REG,&val);
+	val = x_total & 0xff;
+	anx6345_i2c_write_p1_reg(client,TOTAL_PIXELL_REG,&val);
+	val = x_total >> 8;
+	anx6345_i2c_write_p1_reg(client,TOTAL_PIXELH_REG,&val);
+	val = (x_act & 0xff);
+	anx6345_i2c_write_p1_reg(client,ACT_PIXELL_REG,&val);
+	val = (x_act >> 8);
+	anx6345_i2c_write_p1_reg(client,ACT_PIXELH_REG,&val);
 	val = screen->mode.right_margin & 0xff;
-	anx6345_i2c_write_p1_reg(client,SP_TX_HF_PORCHL_REG,&val);
+	anx6345_i2c_write_p1_reg(client,HF_PORCHL_REG,&val);
 	val = screen->mode.right_margin >> 8;
-	anx6345_i2c_write_p1_reg(client,SP_TX_HF_PORCHH_REG,&val);
+	anx6345_i2c_write_p1_reg(client,HF_PORCHH_REG,&val);
 	val = screen->mode.hsync_len & 0xff;
-	anx6345_i2c_write_p1_reg(client,SP_TX_HSYNC_CFGL_REG,&val);
+	anx6345_i2c_write_p1_reg(client,HSYNC_CFGL_REG,&val);
 	val = screen->mode.hsync_len >> 8;
-	anx6345_i2c_write_p1_reg(client,SP_TX_HSYNC_CFGH_REG,&val);
+	anx6345_i2c_write_p1_reg(client,HSYNC_CFGH_REG,&val);
 	val = screen->mode.left_margin & 0xff;
-	anx6345_i2c_write_p1_reg(client,SP_TX_HB_PORCHL_REG,&val);
+	anx6345_i2c_write_p1_reg(client,HB_PORCHL_REG,&val);
 	val = screen->mode.left_margin  >> 8;
-	anx6345_i2c_write_p1_reg(client,SP_TX_HB_PORCHH_REG,&val);
+	anx6345_i2c_write_p1_reg(client,HB_PORCHH_REG,&val);
 	val = 0x13;
-	anx6345_i2c_write_p1_reg(client,SP_TX_VID_CTRL10_REG,&val);
+	anx6345_i2c_write_p1_reg(client,VID_CTRL10_REG,&val);
 
 
        //enable BIST. In normal mode, don't need to config this reg
 	val = 0x08;
-	anx6345_i2c_write_p1_reg(client, SP_TX_VID_CTRL4_REG, &val);
+	anx6345_i2c_write_p1_reg(client, VID_CTRL4_REG, &val);
 	printk("anx6345 enter bist mode\n");
 
 	return 0;
 }
-#else
-static int anx6345_bist_mode(struct i2c_client *client)
+
+
+int anx6345_start_aux_transaction(struct i2c_client  *client)
 {
-        char val = 0x00;
-        //these register are for bist mode
-        val = 0x2c;
-        anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_LINEL_REG,&val);
-        val = 0x06;
-        anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_LINEH_REG,&val);
-        val = 0x00;
-        anx6345_i2c_write_p1_reg(client,SP_TX_ACT_LINEL_REG,&val);
-        val = 0x06;
-        anx6345_i2c_write_p1_reg(client,SP_TX_ACT_LINEH_REG,&val);
-        val = 0x02;
-        anx6345_i2c_write_p1_reg(client,SP_TX_VF_PORCH_REG,&val);
-        val = 0x04;
-        anx6345_i2c_write_p1_reg(client,SP_TX_VSYNC_CFG_REG,&val);
-        val = 0x26;
-        anx6345_i2c_write_p1_reg(client,SP_TX_VB_PORCH_REG,&val);
-        val = 0x50;
-        anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_PIXELL_REG,&val);
-        val = 0x04;
-        anx6345_i2c_write_p1_reg(client,SP_TX_TOTAL_PIXELH_REG,&val);
-        val = 0x00;
-        anx6345_i2c_write_p1_reg(client,SP_TX_ACT_PIXELL_REG,&val);
-        val = 0x04;
-        anx6345_i2c_write_p1_reg(client,SP_TX_ACT_PIXELH_REG,&val);
-        val = 0x18;
-        anx6345_i2c_write_p1_reg(client,SP_TX_HF_PORCHL_REG,&val);
-        val = 0x00;
-        anx6345_i2c_write_p1_reg(client,SP_TX_HF_PORCHH_REG,&val);
-        val = 0x10;
-        anx6345_i2c_write_p1_reg(client,SP_TX_HSYNC_CFGL_REG,&val);
-        val = 0x00;
-        anx6345_i2c_write_p1_reg(client,SP_TX_HSYNC_CFGH_REG,&val);
-        val = 0x28;
-        anx6345_i2c_write_p1_reg(client,SP_TX_HB_PORCHL_REG,&val);
-        val = 0x13;
-        anx6345_i2c_write_p1_reg(client,SP_TX_VID_CTRL10_REG,&val);
-	 //enable BIST. In normal mode, don't need to config this reg
-	val = 0x08;
-	anx6345_i2c_write_p1_reg(client, SP_TX_VID_CTRL4_REG, &val);
-	printk("anx6345 enter bist mode\n");
+	char val;
+	int retval = 0;
+	int timeout_loop = 0;
+	int aux_timeout = 0;
+	
 
-	return 0;
+	anx6345_i2c_read_p0_reg(client, DP_AUX_CH_CTL_2, &val);
+	val |= AUX_EN;
+	anx6345_i2c_write_p0_reg(client, DP_AUX_CH_CTL_2, &val);
+
+	anx6345_i2c_read_p0_reg(client, DP_AUX_CH_CTL_2, &val);
+	while (val & AUX_EN) {
+		aux_timeout++;
+		if ((DP_TIMEOUT_LOOP_CNT * 10) < aux_timeout) {
+			dev_err(&client->dev, "AUX CH enable timeout!\n");
+			return -ETIMEDOUT;
+		}
+		anx6345_i2c_read_p0_reg(client, DP_AUX_CH_CTL_2, &val);
+		udelay(100);
+	}
+
+	/* Is AUX CH command redply received? */
+	anx6345_i2c_read_p1_reg(client, DP_INT_STA, &val);
+	while (!(val & RPLY_RECEIV)) {
+		timeout_loop++;
+		if (DP_TIMEOUT_LOOP_CNT < timeout_loop) {
+			dev_err(&client->dev, "AUX CH command redply failed!\n");
+			return -ETIMEDOUT;
+		}
+		anx6345_i2c_read_p1_reg(client, DP_INT_STA, &val);
+		udelay(10);
+	}
+
+	/* Clear interrupt source for AUX CH command redply */
+	anx6345_i2c_write_p1_reg(client, DP_INT_STA, &val);
+
+	/* Check AUX CH error access status */
+	anx6345_i2c_read_p0_reg(client, AUX_CH_STA, &val);
+	if ((val & AUX_STATUS_MASK) != 0) {
+		dev_err(&client->dev, "AUX CH error happens: %d\n\n",
+			val & AUX_STATUS_MASK);
+		return -EREMOTEIO;
+	}
+
+	return retval;
 }
 
-#endif
+int anx6345_dpcd_write_bytes(struct i2c_client *client,
+				unsigned int val_addr,
+				unsigned int count,
+				unsigned char data[])
+{
+	char val;
+	unsigned int start_offset;
+	unsigned int cur_data_count;
+	unsigned int cur_data_idx;
+	int retval = 0;
+
+	start_offset = 0;
+	while (start_offset < count) {
+		/* Buffer size of AUX CH is 16 * 4bytes */
+		if ((count - start_offset) > 16)
+			cur_data_count = 16;
+		else
+			cur_data_count = count - start_offset;
+
+		val = BUF_CLR;
+		anx6345_i2c_write_p0_reg(client, BUF_DATA_CTL, &val);
+		
+		val = AUX_ADDR_7_0(val_addr + start_offset);
+		anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_7_0, &val);
+		val = AUX_ADDR_15_8(val_addr + start_offset);
+		anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_15_8, &val);
+		val = AUX_ADDR_19_16(val_addr + start_offset);
+		anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_19_16, &val);
+
+		for (cur_data_idx = 0; cur_data_idx < cur_data_count;
+		     cur_data_idx++) {
+			val = data[start_offset + cur_data_idx];
+			anx6345_i2c_write_p0_reg(client, BUF_DATA_0 + cur_data_idx, &val);
+		}
+
+		/*
+		 * Set DisplayPort transaction and write
+		 * If bit 3 is 1, DisplayPort transaction.
+		 * If Bit 3 is 0, I2C transaction.
+		 */
+		val = AUX_LENGTH(cur_data_count) |
+			AUX_TX_COMM_DP_TRANSACTION | AUX_TX_COMM_WRITE;
+		anx6345_i2c_write_p0_reg(client, DP_AUX_CH_CTL_1, &val);
+
+		/* Start AUX transaction */
+		retval = anx6345_start_aux_transaction(client);
+		if (retval == 0)
+			break;
+		else
+			dev_dbg(&client->dev, "Aux Transaction fail!\n");
+		
+
+		start_offset += cur_data_count;
+	}
+
+	return retval;
+}
+
+
+int anx6345_dpcd_read_bytes(struct i2c_client *client,
+				unsigned int val_addr,
+				unsigned int count,
+				unsigned char data[])
+{
+	char val;
+	unsigned int start_offset;
+	unsigned int cur_data_count;
+	unsigned int cur_data_idx;
+	int i;
+	int retval = 0;
+
+	start_offset = 0;
+	while (start_offset < count) {
+		/* Buffer size of AUX CH is 16 * 4bytes */
+		if ((count - start_offset) > 16)
+			cur_data_count = 16;
+		else
+			cur_data_count = count - start_offset;
+
+		/* AUX CH Request Transaction process */
+		for (i = 0; i < 10; i++) {
+			/* Select DPCD device address */
+			val = AUX_ADDR_7_0(val_addr + start_offset);
+			anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_7_0, &val);
+			val = AUX_ADDR_15_8(val_addr + start_offset);
+			anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_15_8, &val);
+			val = AUX_ADDR_19_16(val_addr + start_offset);
+			anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_19_16, &val);
+
+			/*
+			 * Set DisplayPort transaction and read
+			 * If bit 3 is 1, DisplayPort transaction.
+			 * If Bit 3 is 0, I2C transaction.
+			 */
+			val = AUX_LENGTH(cur_data_count) |
+				AUX_TX_COMM_DP_TRANSACTION | AUX_TX_COMM_READ;
+			anx6345_i2c_write_p0_reg(client, DP_AUX_CH_CTL_1, &val);
+
+			val = BUF_CLR;
+			anx6345_i2c_write_p0_reg(client, BUF_DATA_CTL, &val);
+
+			/* Start AUX transaction */
+			retval = anx6345_start_aux_transaction(client);
+			if (retval == 0)
+				break;
+			else
+				dev_dbg(&client->dev, "Aux Transaction fail!\n");
+		}
+
+		for (cur_data_idx = 0; cur_data_idx < cur_data_count;
+		    cur_data_idx++) {
+			anx6345_i2c_read_p0_reg(client, BUF_DATA_0 + cur_data_idx, &val);
+			data[start_offset + cur_data_idx] = val;
+			dev_dbg(&client->dev, "0x%05x :0x%02x\n",cur_data_idx, val);
+		}
+
+		start_offset += cur_data_count;
+	}
+
+	return retval;
+}
+
+
+int anx6345_select_i2c_device(struct i2c_client *client,
+				unsigned int device_addr,
+				char val_addr)
+{
+	char val;
+	int retval;
+
+	/* Set normal AUX CH command */
+	anx6345_i2c_read_p0_reg(client, DP_AUX_CH_CTL_2, &val);
+	val &= ~ADDR_ONLY;
+	anx6345_i2c_write_p0_reg(client, DP_AUX_CH_CTL_2, &val);
+	/* Set EDID device address */
+	val = device_addr;
+	anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_7_0, &val);
+	val = 0;
+	anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_15_8, &val);
+	anx6345_i2c_write_p0_reg(client, DP_AUX_ADDR_19_16, &val);
+
+	/* Set offset from base address of EDID device */
+	anx6345_i2c_write_p0_reg(client, BUF_DATA_0, &val_addr);
+
+	/*
+	 * Set I2C transaction and write address
+	 * If bit 3 is 1, DisplayPort transaction.
+	 * If Bit 3 is 0, I2C transaction.
+	 */
+	val = AUX_TX_COMM_I2C_TRANSACTION | AUX_TX_COMM_MOT |
+		AUX_TX_COMM_WRITE;
+	anx6345_i2c_write_p0_reg(client, DP_AUX_CH_CTL_1, &val);
+
+	/* Start AUX transaction */
+	retval = anx6345_start_aux_transaction(client);
+	if (retval != 0)
+		dev_dbg(&client->dev, "Aux Transaction fail!\n");
+
+	return retval;
+}
+
+int anx6345_edid_read_bytes(struct i2c_client *client,
+				unsigned int device_addr,
+				unsigned int val_addr,
+				unsigned char count,
+				unsigned char edid[])
+{
+	char val;
+	unsigned int i;
+	unsigned int start_offset;
+	unsigned int cur_data_idx;
+	unsigned int cur_data_cnt;
+	unsigned int defer = 0;
+	int retval = 0;
+
+	for (i = 0; i < count; i += 16) {
+		start_offset = i;
+		if ((count - start_offset) > 16)
+				cur_data_cnt = 16;
+			else
+				cur_data_cnt = count - start_offset;
+		/*
+		 * If Rx sends defer, Tx sends only reads
+		 * request without sending addres
+		 */
+		if (!defer)
+			retval = anx6345_select_i2c_device(client,
+					device_addr, val_addr + i);
+		else
+			defer = 0;
+
+		/*
+		 * Set I2C transaction and write data
+		 * If bit 3 is 1, DisplayPort transaction.
+		 * If Bit 3 is 0, I2C transaction.
+		 */
+		val = AUX_LENGTH(cur_data_cnt) | AUX_TX_COMM_I2C_TRANSACTION |
+			AUX_TX_COMM_READ;
+		anx6345_i2c_write_p0_reg(client, DP_AUX_CH_CTL_1, &val);
+
+		/* Start AUX transaction */
+		retval = anx6345_start_aux_transaction(client);
+		if (retval < 0)
+			dev_dbg(&client->dev, "Aux Transaction fail!\n");
+
+		/* Check if Rx sends defer */
+		anx6345_i2c_read_p0_reg(client, DP_AUX_RX_COMM, &val);
+		if (val == AUX_RX_COMM_AUX_DEFER ||
+			val == AUX_RX_COMM_I2C_DEFER) {
+			dev_err(&client->dev, "Defer: %d\n\n", val);
+			defer = 1;
+		}
+		
+
+		for (cur_data_idx = 0; cur_data_idx < cur_data_cnt; cur_data_idx++) {
+			anx6345_i2c_read_p0_reg(client, BUF_DATA_0 + cur_data_idx, &val);
+			edid[i + cur_data_idx] = val;
+			dev_dbg(&client->dev, "0x%02x : 0x%02x\n", i + cur_data_idx, val);
+		}
+	}
+
+	return retval;
+}
+
+static int anx6345_read_edid(struct i2c_client *client)
+{
+	unsigned char edid[EDID_LENGTH * 2];
+	unsigned char extend_block = 0;
+	unsigned char sum;
+	unsigned char test_vector;
+	int retval;
+	char addr;
+	struct edp_anx6345 *anx6345 = i2c_get_clientdata(client);
+	
+
+	/* Read Extension Flag, Number of 128-byte EDID extension blocks */
+	retval = anx6345_edid_read_bytes(client, EDID_ADDR,
+				EDID_EXTENSION_FLAG,1,&extend_block);
+	if (retval < 0) {
+		dev_err(&client->dev, "EDID extension flag failed!\n");
+		return -EIO;
+	}
+
+	if (extend_block > 0) {
+		dev_dbg(&client->dev, "EDID data includes a single extension!\n");
+
+		/* Read EDID data */
+		retval = anx6345_edid_read_bytes(client, EDID_ADDR,
+						EDID_HEADER,
+						EDID_LENGTH,
+						&edid[EDID_HEADER]);
+		if (retval != 0) {
+			dev_err(&client->dev, "EDID Read failed!\n");
+			return -EIO;
+		}
+		sum = edp_calc_edid_check_sum(edid);
+		if (sum != 0) {
+			dev_warn(&client->dev, "EDID bad checksum!\n");
+			return 0;
+		}
+
+		/* Read additional EDID data */
+		retval = anx6345_edid_read_bytes(client, EDID_ADDR, EDID_LENGTH,
+							EDID_LENGTH, &edid[EDID_LENGTH]);
+		if (retval != 0) {
+			dev_err(&client->dev, "EDID Read failed!\n");
+			return -EIO;
+		}
+		sum = edp_calc_edid_check_sum(&edid[EDID_LENGTH]);
+		if (sum != 0) {
+			dev_warn(&client->dev, "EDID bad checksum!\n");
+			return 0;
+		}
+
+		retval = anx6345_dpcd_read_bytes(client, DPCD_TEST_REQUEST,
+						1, &test_vector);
+		if (retval < 0) {
+			dev_err(&client->dev, "DPCD EDID Read failed!\n");
+			return retval;
+		}
+
+		if (test_vector & DPCD_TEST_EDID_READ) {
+			retval = anx6345_dpcd_write_bytes(client,
+					DPCD_TEST_EDID_CHECKSUM,1,
+					&edid[EDID_LENGTH + EDID_CHECKSUM]);
+			if (retval < 0) {
+				dev_err(&client->dev, "DPCD EDID Write failed!\n");
+				return retval;
+			}
+
+			addr = DPCD_TEST_EDID_CHECKSUM_WRITE;
+			retval = anx6345_dpcd_write_bytes(client,
+					DPCD_TEST_RESPONSE, 1, &addr);
+			if (retval < 0) {
+				dev_err(&client->dev, "DPCD EDID checksum failed!\n");
+				return retval;
+			}
+		}
+	} else {
+		dev_info(&client->dev, "EDID data does not include any extensions.\n");
+
+		/* Read EDID data */
+		retval = anx6345_edid_read_bytes(client, EDID_ADDR, EDID_HEADER,
+				          EDID_LENGTH, &edid[EDID_HEADER]);
+		if (retval != 0) {
+			dev_err(&client->dev, "EDID Read failed!\n");
+			return -EIO;
+		}
+		
+		sum = edp_calc_edid_check_sum(edid);
+		if (sum != 0) {
+			dev_warn(&client->dev, "EDID bad checksum!\n");
+			return 0;
+		}
+
+		retval = anx6345_dpcd_read_bytes(client, DPCD_TEST_REQUEST,
+						1,&test_vector);
+		if (retval < 0) {
+			dev_err(&client->dev, "DPCD EDID Read failed!\n");
+			return retval;
+		}
+
+		if (test_vector & DPCD_TEST_EDID_READ) {
+			retval = anx6345_dpcd_write_bytes(client,
+					DPCD_TEST_EDID_CHECKSUM, 1,
+					&edid[EDID_CHECKSUM]);
+			if (retval < 0) {
+				dev_err(&client->dev, "DPCD EDID Write failed!\n");
+				return retval;
+			}
+			addr = DPCD_TEST_EDID_CHECKSUM_WRITE;
+			retval = anx6345_dpcd_write_bytes(client, DPCD_TEST_RESPONSE,
+					1, &addr);
+			if (retval < 0) {
+				dev_err(&client->dev, "DPCD EDID checksum failed!\n");
+				return retval;
+			}
+		}
+	}
+	fb_edid_to_monspecs(edid, &anx6345->specs);
+	dev_info(&client->dev, "EDID Read success!\n");
+	return 0;
+}
 
 static int anx6345_init(struct i2c_client *client)
 {
@@ -744,7 +1084,8 @@ static int anx6345_init(struct i2c_client *client)
 	char i = 0;
 	char lc,bw;
 	char cnt = 50;
-
+	u8 buf[12];
+	
 	val = 0x30;	
 	anx6345_i2c_write_p1_reg(client,SP_POWERD_CTRL_REG,&val);
 
@@ -752,10 +1093,10 @@ static int anx6345_init(struct i2c_client *client)
 	for(i=0;i<50;i++)
 	{
 		
-		anx6345_i2c_read_p0_reg(client, SP_TX_SYS_CTRL1_REG, &val);
-		anx6345_i2c_write_p0_reg(client, SP_TX_SYS_CTRL1_REG, &val);
-		anx6345_i2c_read_p0_reg(client, SP_TX_SYS_CTRL1_REG, &val);
-		if((val&SP_TX_SYS_CTRL1_DET_STA)!=0)
+		anx6345_i2c_read_p0_reg(client, SYS_CTRL1_REG, &val);
+		anx6345_i2c_write_p0_reg(client, SYS_CTRL1_REG, &val);
+		anx6345_i2c_read_p0_reg(client, SYS_CTRL1_REG, &val);
+		if((val&SYS_CTRL1_DET_STA)!=0)
 		{
 			break;
 		}
@@ -768,10 +1109,10 @@ static int anx6345_init(struct i2c_client *client)
 	//check whether clock is stable
 	for(i=0;i<50;i++)
 	{
-		anx6345_i2c_read_p0_reg(client, SP_TX_SYS_CTRL2_REG, &val);
-		anx6345_i2c_write_p0_reg(client,SP_TX_SYS_CTRL2_REG, &val);
-		anx6345_i2c_read_p0_reg(client, SP_TX_SYS_CTRL2_REG, &val);
-		if((val&SP_TX_SYS_CTRL2_CHA_STA)==0)
+		anx6345_i2c_read_p0_reg(client, SYS_CTRL2_REG, &val);
+		anx6345_i2c_write_p0_reg(client,SYS_CTRL2_REG, &val);
+		anx6345_i2c_read_p0_reg(client, SYS_CTRL2_REG, &val);
+		if((val&SYS_CTRL2_CHA_STA)==0)
 		{
 			break;
 		}
@@ -779,49 +1120,52 @@ static int anx6345_init(struct i2c_client *client)
 	}
 	if(i>49)
 		printk("clk is not stable\n");
+
+	anx6345_dpcd_read_bytes(client, DPCD_REV, 12, buf);
+	anx6345_read_edid(client);
 	
     	//VESA range, 6bits BPC, RGB 
 	val = 0x00;
-	anx6345_i2c_write_p1_reg(client, SP_TX_VID_CTRL2_REG, &val);
+	anx6345_i2c_write_p1_reg(client, VID_CTRL2_REG, &val);
 	
 	//ANX6345 chip pll setting 
 	val = 0x00;
-	anx6345_i2c_write_p0_reg(client, SP_TX_PLL_CTRL_REG, &val);                  //UPDATE: FROM 0X07 TO 0X00
+	anx6345_i2c_write_p0_reg(client, PLL_CTRL_REG, &val);                  //UPDATE: FROM 0X07 TO 0X00
 	
 	
 	//ANX chip analog setting
 	val = 0x70;
 	anx6345_i2c_write_p1_reg(client, ANALOG_DEBUG_REG1, &val);               //UPDATE: FROM 0XF0 TO 0X70
 	val = 0x30;
-	anx6345_i2c_write_p0_reg(client, SP_TX_LINK_DEBUG_REG, &val);
+	anx6345_i2c_write_p0_reg(client, LINK_DEBUG_REG, &val);
 
 	//force HPD
-	//anx6345_i2c_write_p0_reg(client, SP_TX_SYS_CTRL3_REG, &val);
+	//anx6345_i2c_write_p0_reg(client, SYS_CTRL3_REG, &val);
 
 	
 	//reset AUX
-	anx6345_i2c_read_p1_reg(client, SP_TX_RST_CTRL2_REG, &val);
-	val |= SP_TX_AUX_RST;
-	anx6345_i2c_write_p1_reg(client, SP_TX_RST_CTRL2_REG, &val);
-	val &= ~SP_TX_AUX_RST;
-	anx6345_i2c_write_p1_reg(client, SP_TX_RST_CTRL2_REG, &val);
+	anx6345_i2c_read_p1_reg(client, RST_CTRL2_REG, &val);
+	val |= AUX_RST;
+	anx6345_i2c_write_p1_reg(client, RST_CTRL2_REG, &val);
+	val &= ~AUX_RST;
+	anx6345_i2c_write_p1_reg(client, RST_CTRL2_REG, &val);
 	
 	//Select 2.7G
 	val = 0x0a;
-	anx6345_i2c_write_p0_reg(client, SP_TX_LINK_BW_SET_REG, &val);  
+	anx6345_i2c_write_p0_reg(client, LINK_BW_SET_REG, &val);  
 	//Select 2 lanes
 	val = 0x02;
-	anx6345_i2c_write_p0_reg(client,SP_TX_LANE_COUNT_SET_REG,&val);
+	anx6345_i2c_write_p0_reg(client,LANE_COUNT_SET_REG,&val);
 	
-	val = SP_TX_LINK_TRAINING_CTRL_EN;  
-	anx6345_i2c_write_p0_reg(client, SP_TX_LINK_TRAINING_CTRL_REG, &val);
+	val = LINK_TRAINING_CTRL_EN;  
+	anx6345_i2c_write_p0_reg(client, LINK_TRAINING_CTRL_REG, &val);
 	mdelay(5);
-	anx6345_i2c_read_p0_reg(client, SP_TX_LINK_TRAINING_CTRL_REG, &val);
+	anx6345_i2c_read_p0_reg(client, LINK_TRAINING_CTRL_REG, &val);
 	while((val&0x80)&&(cnt))                                                                                //UPDATE: FROM 0X01 TO 0X80
 	{
 		printk("Waiting...\n");
 		mdelay(5);
-		anx6345_i2c_read_p0_reg(client,SP_TX_LINK_TRAINING_CTRL_REG,&val);
+		anx6345_i2c_read_p0_reg(client,LINK_TRAINING_CTRL_REG,&val);
 		cnt--;
 	} 
 	if(cnt <= 0)
@@ -842,15 +1186,15 @@ static int anx6345_init(struct i2c_client *client)
 #else
 	val = 0x81;
 #endif
-	anx6345_i2c_write_p1_reg(client,SP_TX_VID_CTRL1_REG,&val);
+	anx6345_i2c_write_p1_reg(client,VID_CTRL1_REG,&val);
 
 	anx_video_map_config(client);
 	//force HPD and stream valid
 	val = 0x33;
-	anx6345_i2c_write_p0_reg(client,SP_TX_SYS_CTRL3_REG,&val);
+	anx6345_i2c_write_p0_reg(client,SYS_CTRL3_REG,&val);
 
-	anx6345_i2c_read_p0_reg(client,SP_TX_LANE_COUNT_SET_REG, &lc);
-	anx6345_i2c_read_p0_reg(client,SP_TX_LINK_BW_SET_REG, &bw);
+	anx6345_i2c_read_p0_reg(client,LANE_COUNT_SET_REG, &lc);
+	anx6345_i2c_read_p0_reg(client,LINK_BW_SET_REG, &bw);
 	printk("%s..lc:%d--bw:%d\n",__func__,lc,bw);
 
 	return 0;
