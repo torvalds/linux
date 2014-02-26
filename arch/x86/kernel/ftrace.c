@@ -308,7 +308,10 @@ static int ftrace_write(unsigned long ip, const char *val, int size)
 	if (within(ip, (unsigned long)_text, (unsigned long)_etext))
 		ip = (unsigned long)__va(__pa_symbol(ip));
 
-	return probe_kernel_write((void *)ip, val, size);
+	if (probe_kernel_write((void *)ip, val, size))
+		return -EPERM;
+
+	return 0;
 }
 
 static int add_break(unsigned long ip, const char *old)
@@ -323,10 +326,7 @@ static int add_break(unsigned long ip, const char *old)
 	if (memcmp(replaced, old, MCOUNT_INSN_SIZE) != 0)
 		return -EINVAL;
 
-	if (ftrace_write(ip, &brk, 1))
-		return -EPERM;
-
-	return 0;
+	return ftrace_write(ip, &brk, 1);
 }
 
 static int add_brk_on_call(struct dyn_ftrace *rec, unsigned long addr)
@@ -463,9 +463,7 @@ static int add_update_code(unsigned long ip, unsigned const char *new)
 	/* skip breakpoint */
 	ip++;
 	new++;
-	if (ftrace_write(ip, new, MCOUNT_INSN_SIZE - 1))
-		return -EPERM;
-	return 0;
+	return ftrace_write(ip, new, MCOUNT_INSN_SIZE - 1);
 }
 
 static int add_update_call(struct dyn_ftrace *rec, unsigned long addr)
@@ -520,10 +518,7 @@ static int finish_update_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	new = ftrace_call_replace(ip, addr);
 
-	if (ftrace_write(ip, new, 1))
-		return -EPERM;
-
-	return 0;
+	return ftrace_write(ip, new, 1);
 }
 
 static int finish_update_nop(struct dyn_ftrace *rec)
@@ -533,9 +528,7 @@ static int finish_update_nop(struct dyn_ftrace *rec)
 
 	new = ftrace_nop_replace();
 
-	if (ftrace_write(ip, new, 1))
-		return -EPERM;
-	return 0;
+	return ftrace_write(ip, new, 1);
 }
 
 static int finish_update(struct dyn_ftrace *rec, int enable)
@@ -656,10 +649,6 @@ ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
 	run_sync();
 
 	ret = ftrace_write(ip, new_code, 1);
-	if (ret) {
-		ret = -EPERM;
-		goto out;
-	}
  out:
 	run_sync();
 	return ret;
