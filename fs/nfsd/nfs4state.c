@@ -1618,6 +1618,7 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 			 struct nfsd4_sequence *seq)
 {
 	struct nfsd4_slot *slot = resp->cstate.slot;
+	struct kvec *head = resp->xdr.iov;
 	__be32 status;
 
 	dprintk("--> %s slot %p\n", __func__, slot);
@@ -1631,6 +1632,8 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 
 	resp->opcnt = slot->sl_opcnt;
 	resp->xdr.p = resp->cstate.datap + XDR_QUADLEN(slot->sl_datalen);
+	head->iov_len = (void *)resp->xdr.p - head->iov_base;
+	resp->xdr.buf->len = head->iov_len;
 	status = slot->sl_status;
 
 	return status;
