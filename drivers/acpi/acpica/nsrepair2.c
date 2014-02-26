@@ -620,12 +620,16 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 	top_object_list = package_object->package.elements;
 	element_count = package_object->package.count;
 
-	for (index = 0; index < element_count; index++) {
+	/* Examine each subpackage */
+
+	for (index = 0; index < element_count; index++, top_object_list++) {
 		sub_package = *top_object_list;
 		sub_object_list = sub_package->package.elements;
 
-		if (sub_package->package.count < 4) {	/* Minimum required element count */
-			return (AE_OK);
+		/* Check for minimum required element count */
+
+		if (sub_package->package.count < 4) {
+			continue;
 		}
 
 		/*
@@ -640,15 +644,12 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 			sub_object_list[2] = obj_desc;
 			info->return_flags |= ACPI_OBJECT_REPAIRED;
 
-			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+			ACPI_WARN_PREDEFINED((AE_INFO,
+					      info->full_pathname,
 					      info->node_flags,
 					      "PRT[%X]: Fixed reversed SourceName and SourceIndex",
 					      index));
 		}
-
-		/* Point to the next union acpi_operand_object in the top level package */
-
-		top_object_list++;
 	}
 
 	return (AE_OK);
