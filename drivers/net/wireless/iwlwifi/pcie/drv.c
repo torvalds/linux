@@ -448,7 +448,8 @@ static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 
 	pxsx_handle = ACPI_HANDLE(&pdev->dev);
 	if (!pxsx_handle) {
-		IWL_ERR(trans, "Could not retrieve root port ACPI handle");
+		IWL_DEBUG_INFO(trans,
+			       "Could not retrieve root port ACPI handle");
 		return;
 	}
 
