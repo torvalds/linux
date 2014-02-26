@@ -575,6 +575,7 @@ struct mwifiex_rx_reorder_tbl {
 	struct list_head list;
 	int tid;
 	u8 ta[ETH_ALEN];
+	int init_win;
 	int start_win;
 	int win_size;
 	void **rx_reorder_ptr;
