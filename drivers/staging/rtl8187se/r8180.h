@@ -1,19 +1,18 @@
 /*
-   This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
-   Released under the terms of GPL (General Public Licence)
-
-   Parts of this driver are based on the GPL part of the
-   official realtek driver
-
-   Parts of this driver are based on the rtl8180 driver skeleton
-   from Patric Schenke & Andres Salomon
-
-   Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver
-
-   We want to thanks the Authors of those projects and the Ndiswrapper
-   project Authors.
-*/
+ * This is part of rtl8180 OpenSource driver.
+ * Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
+ * Released under the terms of GPL (General Public Licence)
+ *
+ * Parts of this driver are based on the GPL part of the official realtek driver
+ *
+ * Parts of this driver are based on the rtl8180 driver skeleton from Patric
+ * Schenke & Andres Salomon
+ *
+ * Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver
+ *
+ * We want to thanks the Authors of those projects and the Ndiswrapper project
+ * Authors.
+ */
 
 #ifndef R8180H
 #define R8180H
@@ -27,7 +26,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-//#include <linux/config.h>
+/* #include <linux/config.h> */
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -36,14 +35,14 @@
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
-#include <linux/rtnetlink.h>	//for rtnl_lock()
+#include <linux/rtnetlink.h> /* for rtnl_lock() */
 #include <linux/wireless.h>
 #include <linux/timer.h>
-#include <linux/proc_fs.h>	// Necessary because we use the proc fs
+#include <linux/proc_fs.h> /* Necessary because we use the proc fs. */
 #include <linux/if_arp.h>
 #include "ieee80211/ieee80211.h"
 #include <asm/io.h>
-//#include <asm/semaphore.h>
+/* #include <asm/semaphore.h> */
 
 #define EPROM_93c46 0
 #define EPROM_93c56 1
@@ -65,8 +64,8 @@
 #define aSifsTime 10
 
 #define sCrcLng 4
-#define sAckCtsLng 112		// bits in ACK and CTS frames
-//+by amy 080312
+#define sAckCtsLng 112 /* bits in ACK and CTS frames. */
+/* +by amy 080312. */
 #define RATE_ADAPTIVE_TIMER_PERIOD 300
 
 typedef enum _WIRELESS_MODE {
@@ -92,29 +91,30 @@ typedef enum {
 	} nic_t;
 
 typedef u32 AC_CODING;
-#define AC0_BE	0 // ACI: 0x00	// Best Effort
-#define AC1_BK	1 // ACI: 0x01	// Background
-#define AC2_VI	2 // ACI: 0x10	// Video
-#define AC3_VO	3 // ACI: 0x11	// Voice
-#define AC_MAX	4 // Max: define total number; Should not to be used as a real enum.
+#define AC0_BE	0 /* ACI: 0x00 */ /* Best Effort. */
+#define AC1_BK	1 /* ACI: 0x01 */ /* Background. */
+#define AC2_VI	2 /* ACI: 0x10 */ /* Video. */
+#define AC3_VO	3 /* ACI: 0x11 */ /* Voice. */
+#define AC_MAX	4 /* Max: define total number; Should not to be used as a real
+		   * enum.
+		   */
 
-//
-// ECWmin/ECWmax field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
-//
+/*
+ * ECWmin/ECWmax field.
+ * Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
+ */
 typedef union _ECW {
 	u8 charData;
 	struct
 	{
 		u8 ECWmin:4;
 		u8 ECWmax:4;
-	} f;	// Field
+	} f;	/* Field */
 } ECW, *PECW;
 
-//
-// ACI/AIFSN Field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
+/*
+ * ACI/AIFSN Field. Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
+ */
 typedef union _ACI_AIFSN {
 	u8 charData;
 
@@ -124,13 +124,13 @@ typedef union _ACI_AIFSN {
 		u8 ACM:1;
 		u8 ACI:2;
 		u8 Reserved:1;
-	} f;	// Field
+	} f;	/* Field */
 } ACI_AIFSN, *PACI_AIFSN;
 
-//
-// AC Parameters Record Format.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
+/*
+ * AC Parameters Record Format.
+ * Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
+ */
 typedef union _AC_PARAM {
 	u32 longData;
 	u8 charData[4];
@@ -140,20 +140,20 @@ typedef union _AC_PARAM {
 		ACI_AIFSN AciAifsn;
 		ECW Ecw;
 		u16 TXOPLimit;
-	} f;	// Field
+	} f;	/* Field */
 } AC_PARAM, *PAC_PARAM;
 
 /* it is a wrong definition. -xiong-2006-11-17
-typedef struct ThreeWireReg {
-	u16	longData;
-	struct {
-		u8 enableB;
-		u8 data;
-		u8 clk;
-		u8 read_write;
-	} struc;
-} ThreeWireReg;
-*/
+ * typedef struct ThreeWireReg {
+ *	u16	longData;
+ *	struct {
+ *		u8 enableB;
+ *		u8 data;
+ *		u8 clk;
+ *		u8 read_write;
+ *	} struc;
+ * } ThreeWireReg;
+ */
 
 typedef union _ThreeWire {
 	struct _ThreeWireStruc {
@@ -162,9 +162,9 @@ typedef union _ThreeWire {
 		u16 enableB:1;
 		u16 read_write:1;
 		u16 resv1:12;
-//		u2Byte resv2:14;
-//		u2Byte ThreeWireEnable:1;
-//		u2Byte resv3:1;
+		/* u2Byte resv2:14; */
+		/* u2Byte ThreeWireEnable:1; */
+		/* u2Byte resv3:1; */
 	} struc;
 	u16 longData;
 } ThreeWireReg;
@@ -177,15 +177,15 @@ typedef struct buffer
 	dma_addr_t dma;
 } buffer;
 
-//YJ,modified,080828
+/* YJ,modified,080828. */
 typedef struct Stats
 {
 	unsigned long txrdu;
 	unsigned long rxrdu;
 	unsigned long rxnolast;
 	unsigned long rxnodata;
-//	unsigned long rxreset;
-//	unsigned long rxwrkaround;
+	/* unsigned long rxreset; */
+	/* unsigned long rxwrkaround; */
 	unsigned long rxnopointer;
 	unsigned long txnperr;
 	unsigned long txresumed;
@@ -207,16 +207,16 @@ typedef struct Stats
 	unsigned long txbeaconerr;
 	unsigned long txlpokint;
 	unsigned long txlperr;
-	unsigned long txretry;//retry number  tony 20060601
-	unsigned long rxcrcerrmin;//crc error (0-500)
-	unsigned long rxcrcerrmid;//crc error (500-1000)
-	unsigned long rxcrcerrmax;//crc error (>1000)
-	unsigned long rxicverr;//ICV error
+	unsigned long txretry; /* retry number tony 20060601 */
+	unsigned long rxcrcerrmin; /* crc error (0-500) */
+	unsigned long rxcrcerrmid; /* crc error (500-1000) */
+	unsigned long rxcrcerrmax; /* crc error (>1000) */
+	unsigned long rxicverr; /* ICV error */
 } Stats;
 
 #define MAX_LD_SLOT_NUM 10
-#define KEEP_ALIVE_INTERVAL 20 // in seconds.
-#define CHECK_FOR_HANG_PERIOD 2 //be equal to watchdog check time
+#define KEEP_ALIVE_INTERVAL 20 /* in seconds. */
+#define CHECK_FOR_HANG_PERIOD 2 /* be equal to watchdog check time. */
 #define DEFAULT_KEEP_ALIVE_LEVEL 1
 #define DEFAULT_SLOT_NUM 2
 #define POWER_PROFILE_AC 0
@@ -224,34 +224,42 @@ typedef struct Stats
 
 typedef struct _link_detect_t
 {
-	u32 RxFrameNum[MAX_LD_SLOT_NUM];	// number of Rx Frame / CheckForHang_period  to determine link status
-	u16 SlotNum;	// number of CheckForHang period to determine link status, default is 2
+	u32 RxFrameNum[MAX_LD_SLOT_NUM]; /* number of Rx Frame.
+					  * CheckForHang_period  to determine
+					  * link status.
+					  */
+	u16 SlotNum; /* number of CheckForHang period to determine link status,
+		      * default is 2.
+		      */
 	u16 SlotIndex;
 
-	u32 NumTxOkInPeriod;  //number of packet transmitted during CheckForHang
-	u32 NumRxOkInPeriod;  //number of packet received during CheckForHang
+	u32 NumTxOkInPeriod; /* number of packet transmitted during
+			      * CheckForHang.
+			      */
+	u32 NumRxOkInPeriod; /* number of packet received during CheckForHang */
 
-	u8 IdleCount;     // (KEEP_ALIVE_INTERVAL / CHECK_FOR_HANG_PERIOD)
+	u8 IdleCount; /* (KEEP_ALIVE_INTERVAL / CHECK_FOR_HANG_PERIOD) */
 	u32 LastNumTxUnicast;
 	u32 LastNumRxUnicast;
 
-	bool bBusyTraffic;    //when it is set to 1, UI cann't scan at will.
+	bool bBusyTraffic; /* when it is set to 1, UI cann't scan at will. */
 } link_detect_t, *plink_detect_t;
 
-//YJ,modified,080828,end
+/* YJ,modified,080828,end */
 
-//by amy for led
-//================================================================================
-// LED customization.
-//================================================================================
-
+/* by amy for led
+ * ==========================================================================
+ * LED customization.
+ * ==========================================================================
+ */
 typedef enum _LED_STRATEGY_8185 {
-	SW_LED_MODE0, //
-	SW_LED_MODE1, //
-	HW_LED, // HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes)
+	SW_LED_MODE0,
+	SW_LED_MODE1,
+	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different
+		 * control modes). */
 } LED_STRATEGY_8185, *PLED_STRATEGY_8185;
-//by amy for led
-//by amy for power save
+/* by amy for led. */
+/* by amy for power save. */
 typedef enum _LED_CTL_MODE {
 	LED_CTL_POWER_ON = 1,
 	LED_CTL_LINK = 2,
@@ -280,11 +288,11 @@ enum _ReasonCode {
 	disas_lv_ss = 0x8,
 	asoc_not_auth = 0x9,
 
-	//----MIC_CHECK
+	/* ----MIC_CHECK */
 	mic_failure = 0xe,
-	//----END MIC_CHECK
+	/* ----END MIC_CHECK */
 
-	// Reason code defined in 802.11i D10.0 p.28.
+	/* Reason code defined in 802.11i D10.0 p.28. */
 	invalid_IE = 0x0d,
 	four_way_tmout = 0x0f,
 	two_way_tmout = 0x10,
@@ -297,27 +305,29 @@ enum _ReasonCode {
 	auth_802_1x_fail = 0x17,
 	ciper_reject = 0x18,
 
-	// Reason code defined in 7.3.1.7, 802.1e D13.0, p.42. Added by Annie, 2005-11-15.
-	QoS_unspec = 0x20,	// 32
-	QAP_bandwidth = 0x21,	// 33
-	poor_condition = 0x22,	// 34
-	no_facility = 0x23,	// 35
-							// Where is 36???
-	req_declined = 0x25,	// 37
-	invalid_param = 0x26,	// 38
-	req_not_honored = 0x27,	// 39
-	TS_not_created = 0x2F,	// 47
-	DL_not_allowed = 0x30,	// 48
-	dest_not_exist = 0x31,	// 49
-	dest_not_QSTA = 0x32,	// 50
+	/* Reason code defined in 7.3.1.7, 802.1e D13.0, p.42. Added by Annie,
+	 * 2005-11-15.
+	 */
+	QoS_unspec = 0x20, /* 32 */
+	QAP_bandwidth = 0x21, /* 33 */
+	poor_condition = 0x22, /* 34 */
+	no_facility = 0x23, /* 35 */
+	/* Where is 36??? */
+	req_declined = 0x25, /* 37 */
+	invalid_param = 0x26, /* 38 */
+	req_not_honored = 0x27, /* 39 */
+	TS_not_created = 0x2F, /* 47 */
+	DL_not_allowed = 0x30, /* 48 */
+	dest_not_exist = 0x31, /* 49 */
+	dest_not_QSTA = 0x32, /* 50 */
 };
 typedef enum _RT_PS_MODE
 {
-	eActive,	// Active/Continuous access.
-	eMaxPs,		// Max power save mode.
-	eFastPs		// Fast power save mode.
+	eActive, /* Active/Continuous access. */
+	eMaxPs,	/* Max power save mode. */
+	eFastPs /* Fast power save mode. */
 } RT_PS_MODE;
-//by amy for power save
+/* by amy for power save. */
 typedef struct r8180_priv
 {
 	struct pci_dev *pdev;
@@ -326,7 +336,7 @@ typedef struct r8180_priv
 	int irq;
 	struct ieee80211_device *ieee80211;
 
-	short plcp_preamble_mode; // 0:auto 1:short 2:long
+	short plcp_preamble_mode; /* 0:auto 1:short 2:long */
 
 	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
@@ -339,19 +349,20 @@ typedef struct r8180_priv
 	short chan;
 	short sens;
 	short max_sens;
-	u8 chtxpwr[15]; //channels from 1 to 14, 0 not used
-	u8 chtxpwr_ofdm[15]; //channels from 1 to 14, 0 not used
-	//u8 challow[15]; //channels from 1 to 14, 0 not used
-	u8 channel_plan;  // it's the channel plan index
+	u8 chtxpwr[15]; /* channels from 1 to 14, 0 not used. */
+	u8 chtxpwr_ofdm[15]; /* channels from 1 to 14, 0 not used. */
+	/* u8 challow[15]; */ /* channels from 1 to 14, 0 not used. */
+	u8 channel_plan;  /* it's the channel plan index. */
 	short up;
-	short crcmon; //if 1 allow bad crc frame reception in monitor mode
+	short crcmon; /* if 1 allow bad crc frame reception in monitor mode. */
 
 	struct timer_list scan_timer;
-	/*short scanpending;
-	short stopscan;*/
+	/* short scanpending;
+	 * short stopscan;
+	 */
 	spinlock_t scan_lock;
 	u8 active_probe;
-	//u8 active_scan_num;
+	/* u8 active_scan_num; */
 	struct semaphore wx_sem;
 	short hw_wep;
 
@@ -365,14 +376,14 @@ typedef struct r8180_priv
 	void (*rf_init)(struct net_device *dev);
 	void (*rf_sleep)(struct net_device *dev);
 	void (*rf_wakeup)(struct net_device *dev);
-	//short rate;
+	/* short rate; */
 	short promisc;
-	/*stats*/
+	/* stats */
 	struct Stats stats;
-	struct _link_detect_t link_detect;  //YJ,add,080828
+	struct _link_detect_t link_detect; /* YJ,add,080828 */
 	struct iw_statistics wstats;
 
-	/*RX stuff*/
+	/* RX stuff. */
 	u32 *rxring;
 	u32 *rxringtail;
 	dma_addr_t rxringdma;
@@ -387,27 +398,27 @@ typedef struct r8180_priv
 
 	u32 rx_prevlen;
 
-	/*TX stuff*/
-/*
-	u32 *txlpring;
-	u32 *txhpring;
-	u32 *txnpring;
-	dma_addr_t txlpringdma;
-	dma_addr_t txhpringdma;
-	dma_addr_t txnpringdma;
-	u32 *txlpringtail;
-	u32 *txhpringtail;
-	u32 *txnpringtail;
-	u32 *txlpringhead;
-	u32 *txhpringhead;
-	u32 *txnpringhead;
-	struct buffer *txlpbufs;
-	struct buffer *txhpbufs;
-	struct buffer *txnpbufs;
-	struct buffer *txlpbufstail;
-	struct buffer *txhpbufstail;
-	struct buffer *txnpbufstail;
-*/
+	/* TX stuff */
+	/*
+	 * u32 *txlpring;
+	 * u32 *txhpring;
+	 * u32 *txnpring;
+	 * dma_addr_t txlpringdma;
+	 * dma_addr_t txhpringdma;
+	 * dma_addr_t txnpringdma;
+	 * u32 *txlpringtail;
+	 * u32 *txhpringtail;
+	 * u32 *txnpringtail;
+	 * u32 *txlpringhead;
+	 * u32 *txhpringhead;
+	 * u32 *txnpringhead;
+	 * struct buffer *txlpbufs;
+	 * struct buffer *txhpbufs;
+	 * struct buffer *txnpbufs;
+	 * struct buffer *txlpbufstail;
+	 * struct buffer *txhpbufstail;
+	 * struct buffer *txnpbufstail;
+	 */
 	u32 *txmapring;
 	u32 *txbkpring;
 	u32 *txbepring;
@@ -447,33 +458,33 @@ typedef struct r8180_priv
 
 	int txringcount;
 	int txbuffsize;
-	//struct tx_pendingbuf txnp_pending;
-	//struct tasklet_struct irq_tx_tasklet;
+	/* struct tx_pendingbuf txnp_pending; */
+	/* struct tasklet_struct irq_tx_tasklet; */
 	struct tasklet_struct irq_rx_tasklet;
 	u8 dma_poll_mask;
-	//short tx_suspend;
+	/* short tx_suspend; */
 
-	/* adhoc/master mode stuff */
+	/* adhoc/master mode stuff. */
 	u32 *txbeaconringtail;
 	dma_addr_t txbeaconringdma;
 	u32 *txbeaconring;
 	int txbeaconcount;
 	struct buffer *txbeaconbufs;
 	struct buffer *txbeaconbufstail;
-	//char *master_essid;
-	//u16 master_beaconinterval;
-	//u32 master_beaconsize;
-	//u16 beacon_interval;
+	/* char *master_essid; */
+	/* u16 master_beaconinterval; */
+	/* u32 master_beaconsize; */
+	/* u16 beacon_interval; */
 
 	u8 retry_data;
 	u8 retry_rts;
 	u16 rts;
 
-//by amy for led
+	/* by amy for led. */
 	LED_STRATEGY_8185 LedStrategy;
-//by amy for led
+	/* by amy for led. */
 
-//by amy for power save
+	/* by amy for power save. */
 	struct timer_list watch_dog_timer;
 	bool bInactivePs;
 	bool bSwRfProcessing;
@@ -485,16 +496,18 @@ typedef struct r8180_priv
 	u8 RFProgType;
 	bool bLeisurePs;
 	RT_PS_MODE dot11PowerSaveMode;
-	//u32 NumRxOkInPeriod;   //YJ,del,080828
-	//u32 NumTxOkInPeriod;   //YJ,del,080828
+	/* u32 NumRxOkInPeriod;*/ /* YJ,del,080828 */
+	/* u32 NumTxOkInPeriod;*/ /* YJ,del,080828 */
 	u8 TxPollingTimes;
 
-	bool bApBufOurFrame;// TRUE if AP buffer our unicast data , we will keep eAwake until receive data or timeout.
+	bool bApBufOurFrame; /* TRUE if AP buffer our unicast data , we will
+			      * keep eAwake until receive data or timeout.
+			      */
 	u8 WaitBufDataBcnCount;
 	u8 WaitBufDataTimeOut;
 
-//by amy for power save
-//by amy for antenna
+	/* by amy for power save. */
+	/* by amy for antenna. */
 	u8 EEPROMSwAntennaDiversity;
 	bool EEPROMDefaultAntenna1;
 	u8 RegSwAntennaDiversityMechanism;
@@ -503,83 +516,101 @@ typedef struct r8180_priv
 	bool bDefaultAntenna1;
 	u8 SignalStrength;
 	long Stats_SignalStrength;
-	long LastSignalStrengthInPercent; // In percentage, used for smoothing, e.g. Moving Average.
-	u8 SignalQuality; // in 0-100 index.
+	long LastSignalStrengthInPercent; /* In percentage, used for smoothing,
+					   * e.g. Moving Average.
+					   */
+	u8 SignalQuality; /* in 0-100 index. */
 	long Stats_SignalQuality;
-	long RecvSignalPower; // in dBm.
+	long RecvSignalPower; /* in dBm. */
 	long Stats_RecvSignalPower;
-	u8 LastRxPktAntenna;	// +by amy 080312 Antenna which received the lasted packet. 0: Aux, 1:Main. Added by Roger, 2008.01.25.
+	u8 LastRxPktAntenna; /* +by amy 080312 Antenna which received the lasted
+			      * packet. 0: Aux, 1:Main. Added by Roger,
+			      * 2008.01.25.
+			      */
 	u32 AdRxOkCnt;
 	long AdRxSignalStrength;
-	u8 CurrAntennaIndex;			// Index to current Antenna (both Tx and Rx).
-	u8 AdTickCount;				// Times of SwAntennaDiversityTimer happened.
-	u8 AdCheckPeriod;				// # of period SwAntennaDiversityTimer to check Rx signal strength for SW Antenna Diversity.
-	u8 AdMinCheckPeriod;			// Min value of AdCheckPeriod.
-	u8 AdMaxCheckPeriod;			// Max value of AdCheckPeriod.
-	long AdRxSsThreshold;			// Signal strength threshold to switch antenna.
-	long AdMaxRxSsThreshold;			// Max value of AdRxSsThreshold.
-	bool bAdSwitchedChecking;		// TRUE if we shall shall check Rx signal strength for last time switching antenna.
-	long AdRxSsBeforeSwitched;		// Rx signal strength before we switched antenna.
+	u8 CurrAntennaIndex; /* Index to current Antenna (both Tx and Rx). */
+	u8 AdTickCount; /* Times of SwAntennaDiversityTimer happened. */
+	u8 AdCheckPeriod; /* # of period SwAntennaDiversityTimer to check Rx
+			   * signal strength for SW Antenna Diversity.
+			   */
+	u8 AdMinCheckPeriod; /* Min value of AdCheckPeriod. */
+	u8 AdMaxCheckPeriod; /* Max value of AdCheckPeriod. */
+	long AdRxSsThreshold; /* Signal strength threshold to switch antenna. */
+	long AdMaxRxSsThreshold; /* Max value of AdRxSsThreshold. */
+	bool bAdSwitchedChecking; /* TRUE if we shall shall check Rx signal
+				   * strength for last time switching antenna.
+				   */
+	long AdRxSsBeforeSwitched; /* Rx signal strength before we switched
+				    * antenna.
+				    */
 	struct timer_list SwAntennaDiversityTimer;
-//by amy for antenna
-//{by amy 080312
-//
-	// Crystal calibration.
-	// Added by Roger, 2007.12.11.
-	//
-	bool bXtalCalibration; // Crystal calibration.
-	u8 XtalCal_Xin; // Crystal calibration for Xin. 0~7.5pF
-	u8 XtalCal_Xout; // Crystal calibration for Xout. 0~7.5pF
-	//
-	// Tx power tracking with thermal meter indication.
-	// Added by Roger, 2007.12.11.
-	//
-	bool bTxPowerTrack; // Tx Power tracking.
-	u8 ThermalMeter; // Thermal meter reference indication.
-	//
-	// Dynamic Initial Gain Adjustment Mechanism. Added by Bruce, 2007-02-14.
-	//
-	bool bDigMechanism; // TRUE if DIG is enabled, FALSE ow.
-	bool bRegHighPowerMechanism; // For High Power Mechanism. 061010, by rcnjko.
+	/* by amy for antenna {by amy 080312 */
+
+	/* Crystal calibration. Added by Roger, 2007.12.11. */
+
+	bool bXtalCalibration; /* Crystal calibration.*/
+	u8 XtalCal_Xin; /* Crystal calibration for Xin. 0~7.5pF */
+	u8 XtalCal_Xout; /* Crystal calibration for Xout. 0~7.5pF */
+
+	/* Tx power tracking with thermal meter indication.
+	 * Added by Roger, 2007.12.11.
+	 */
+
+	bool bTxPowerTrack; /* Tx Power tracking. */
+	u8 ThermalMeter; /* Thermal meter reference indication. */
+
+	/* Dynamic Initial Gain Adjustment Mechanism. Added by Bruce,
+	 * 2007-02-14.
+	 */
+	bool bDigMechanism; /* TRUE if DIG is enabled, FALSE ow. */
+	bool bRegHighPowerMechanism; /* For High Power Mechanism. 061010,
+				      * by rcnjko.
+				      */
 	u32 FalseAlarmRegValue;
-	u8 RegDigOfdmFaUpTh; // Upper threshold of OFDM false alarm, which is used in DIG.
+	u8 RegDigOfdmFaUpTh; /* Upper threshold of OFDM false alarm, which is
+			      * used in DIG.
+			      */
 	u8 DIG_NumberFallbackVote;
 	u8 DIG_NumberUpgradeVote;
-	// For HW antenna diversity, added by Roger, 2008.01.30.
-	u32 AdMainAntennaRxOkCnt;		// Main antenna Rx OK count.
-	u32 AdAuxAntennaRxOkCnt;		// Aux antenna Rx OK count.
-	bool bHWAdSwitched;				// TRUE if we has switched default antenna by HW evaluation.
-	// RF High Power upper/lower threshold.
+	/* For HW antenna diversity, added by Roger, 2008.01.30. */
+	u32 AdMainAntennaRxOkCnt; /* Main antenna Rx OK count. */
+	u32 AdAuxAntennaRxOkCnt; /* Aux antenna Rx OK count. */
+	bool bHWAdSwitched; /* TRUE if we has switched default antenna by HW
+			     * evaluation.
+			     */
+	/* RF High Power upper/lower threshold. */
 	u8 RegHiPwrUpperTh;
 	u8 RegHiPwrLowerTh;
-	// RF RSSI High Power upper/lower Threshold.
+	/* RF RSSI High Power upper/lower Threshold. */
 	u8 RegRSSIHiPwrUpperTh;
 	u8 RegRSSIHiPwrLowerTh;
-	// Current CCK RSSI value to determine CCK high power, asked by SD3 DZ, by Bruce, 2007-04-12.
+	/* Current CCK RSSI value to determine CCK high power, asked by SD3 DZ,
+	 * by Bruce, 2007-04-12.
+	 */
 	u8 CurCCKRSSI;
 	bool bCurCCKPkt;
-	//
-	// High Power Mechanism. Added by amy, 080312.
-	//
+	/* High Power Mechanism. Added by amy, 080312. */
 	bool bToUpdateTxPwr;
 	long UndecoratedSmoothedSS;
 	long UndercorateSmoothedRxPower;
 	u8 RSSI;
 	char RxPower;
 	u8 InitialGain;
-	 //For adjust Dig Threshold during Legacy/Leisure Power Save Mode
+	/* For adjust Dig Threshold during Legacy/Leisure Power Save Mode. */
 	u32 DozePeriodInPast2Sec;
-	 // Don't access BB/RF under disable PLL situation.
+	/* Don't access BB/RF under disable PLL situation. */
 	u8 InitialGainBackUp;
 	u8 RegBModeGainStage;
-//by amy for rate adaptive
+	/* by amy for rate adaptive */
 	struct timer_list rateadapter_timer;
 	u32 RateAdaptivePeriod;
 	bool bEnhanceTxPwr;
 	bool bUpdateARFR;
-	int ForcedDataRate; // Force Data Rate. 0: Auto, 0x02: 1M ~ 0x6C: 54M.)
-	u32 NumTxUnicast; //YJ,add,080828,for keep alive
-	u8 keepAliveLevel; //YJ,add,080828,for KeepAlive
+	int ForcedDataRate; /* Force Data Rate. 0: Auto, 0x02: 1M ~ 0x6C: 54M.)
+			     */
+	u32 NumTxUnicast; /* YJ,add,080828,for keep alive. */
+	u8 keepAliveLevel; /*YJ,add,080828,for KeepAlive. */
 	unsigned long NumTxOkTotal;
 	u16 LastRetryCnt;
 	u16 LastRetryRate;
@@ -592,26 +623,26 @@ typedef struct r8180_priv
 	long LastFailTxRateSS;
 	u8 FailTxRateCount;
 	u32 LastTxThroughput;
-	//for up rate
+	/* for up rate. */
 	unsigned short bTryuping;
-	u8 CurrTxRate; //the rate before up
+	u8 CurrTxRate; /* the rate before up. */
 	u16 CurrRetryRate;
 	u16 TryupingCount;
 	u8 TryDownCountLowData;
 	u8 TryupingCountNoData;
 
 	u8 CurrentOperaRate;
-//by amy for rate adaptive
-//by amy 080312}
-//	short wq_hurryup;
-//	struct workqueue_struct *workqueue;
+	/* by amy for rate adaptive. */
+	/* by amy 080312} */
+	/* short wq_hurryup; */
+	/* struct workqueue_struct *workqueue; */
 	struct work_struct reset_wq;
 	struct work_struct watch_dog_wq;
 	short ack_tx_to_ieee;
 
 	u8 dma_poll_stop_mask;
 
-	//u8 RegThreeWireMode;
+	/* u8 RegThreeWireMode; */
 	u16 ShortRetryLimit;
 	u16 LongRetryLimit;
 	u16 EarlyRxThreshold;
@@ -632,7 +663,7 @@ typedef struct r8180_priv
 
 #define LOW_PRIORITY VI_PRIORITY
 #define NORM_PRIORITY VO_PRIORITY
-//AC2Queue mapping
+/* AC2Queue mapping. */
 #define AC2Q(_ac) (((_ac) == WME_AC_VO) ? VO_PRIORITY : \
 		((_ac) == WME_AC_VI) ? VI_PRIORITY : \
 		((_ac) == WME_AC_BK) ? BK_PRIORITY : \
@@ -673,7 +704,7 @@ void UpdateInitialGain(struct net_device *dev);
 bool SetAntennaConfig87SE(struct net_device *dev, u8 DefaultAnt,
 			  bool bAntDiversity);
 
-//#ifdef CONFIG_RTL8185B
+/* #ifdef CONFIG_RTL8185B */
 void rtl8185b_adapter_start(struct net_device *dev);
 void rtl8185b_rx_enable(struct net_device *dev);
 void rtl8185b_tx_enable(struct net_device *dev);
@@ -683,7 +714,7 @@ void fix_rx_fifo(struct net_device *dev);
 void fix_tx_fifo(struct net_device *dev);
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch);
 void rtl8180_rate_adapter(struct work_struct * work);
-//#endif
+/* #endif */
 bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
 			 u32 ChangeSource);
 
