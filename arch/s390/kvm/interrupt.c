@@ -505,6 +505,7 @@ enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 	struct kvm_vcpu *vcpu;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
+	vcpu->preempted = true;
 	tasklet_schedule(&vcpu->arch.tasklet);
 
 	return HRTIMER_NORESTART;
@@ -732,6 +733,7 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
 	if (waitqueue_active(li->wq))
 		wake_up_interruptible(li->wq);
+	kvm_get_vcpu(kvm, sigcpu)->preempted = true;
 	spin_unlock_bh(&li->lock);
 unlock_fi:
 	spin_unlock(&fi->lock);
@@ -877,6 +879,7 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
 	if (waitqueue_active(&vcpu->wq))
 		wake_up_interruptible(&vcpu->wq);
+	vcpu->preempted = true;
 	spin_unlock_bh(&li->lock);
 	mutex_unlock(&vcpu->kvm->lock);
 	return 0;
