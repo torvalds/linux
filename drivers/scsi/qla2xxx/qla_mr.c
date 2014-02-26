@@ -2017,7 +2017,8 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		memcpy(vha->hw->gid_list, pinfo, QLAFX00_TGT_NODE_LIST_SIZE);
 	} else if (fx_type == FXDISC_ABORT_IOCTL)
 		fdisc->u.fxiocb.result =
-		    (fdisc->u.fxiocb.result == cpu_to_le32(0x68)) ?
+		    (fdisc->u.fxiocb.result ==
+			cpu_to_le32(QLAFX00_IOCTL_ICOB_ABORT_SUCCESS)) ?
 		    cpu_to_le32(QLA_SUCCESS) : cpu_to_le32(QLA_FUNCTION_FAILED);
 
 	rval = le32_to_cpu(fdisc->u.fxiocb.result);

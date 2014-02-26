@@ -548,4 +548,7 @@ struct mr_data_fx00 {
 /* Max conncurrent IOs that can be queued */
 #define QLAFX00_MAX_CANQUEUE		1024
 
+/* IOCTL IOCB abort success */
+#define QLAFX00_IOCTL_ICOB_ABORT_SUCCESS	0x68
+
 #endif
