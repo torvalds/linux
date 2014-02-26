@@ -2271,7 +2271,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 	}
 
 	if (IS_QLA82XX(ha))
-		ha->port_no = !(ha->portnum & 1);
+		ha->port_no = ha->portnum & 1;
 	else {
 		/* Get adapter physical port no from interrupt pin register. */
 		pci_read_config_byte(ha->pdev, PCI_INTERRUPT_PIN, &ha->port_no);
