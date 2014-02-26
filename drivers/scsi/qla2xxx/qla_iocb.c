@@ -2585,6 +2585,29 @@ queuing_error:
 	return QLA_FUNCTION_FAILED;
 }
 
+void
+qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
+{
+	struct srb_iocb *aio = &sp->u.iocb_cmd;
+	scsi_qla_host_t *vha = sp->fcport->vha;
+	struct req_que *req = vha->req;
+
+	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
+	abt_iocb->entry_type = ABORT_IOCB_TYPE;
+	abt_iocb->entry_count = 1;
+	abt_iocb->handle = cpu_to_le32(MAKE_HANDLE(req->id, sp->handle));
+	abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	abt_iocb->handle_to_abort =
+	    cpu_to_le32(MAKE_HANDLE(req->id, aio->u.abt.cmd_hndl));
+	abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
+	abt_iocb->port_id[1] = sp->fcport->d_id.b.area;
+	abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	abt_iocb->vp_index = vha->vp_idx;
+	abt_iocb->req_que_no = cpu_to_le16(req->id);
+	/* Send the command to the firmware */
+	wmb();
+}
+
 int
 qla2x00_start_sp(srb_t *sp)
 {
@@ -2638,7 +2661,9 @@ qla2x00_start_sp(srb_t *sp)
 		qlafx00_fxdisc_iocb(sp, pkt);
 		break;
 	case SRB_ABT_CMD:
-		qlafx00_abort_iocb(sp, pkt);
+		IS_QLAFX00(ha) ?
+			qlafx00_abort_iocb(sp, pkt) :
+			qla24xx_abort_iocb(sp, pkt);
 		break;
 	default:
 		break;
