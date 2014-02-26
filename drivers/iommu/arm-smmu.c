@@ -1026,9 +1026,8 @@ static void arm_smmu_free_pgtables(struct arm_smmu_domain *smmu_domain)
 
 	/*
 	 * Recursively free the page tables for this domain. We don't
-	 * care about speculative TLB filling, because the TLB will be
-	 * nuked next time this context bank is re-allocated and no devices
-	 * currently map to these tables.
+	 * care about speculative TLB filling because the tables should
+	 * not be active in any context bank at this point (SCTLR.M is 0).
 	 */
 	pgd = pgd_base;
 	for (i = 0; i < PTRS_PER_PGD; ++i) {
