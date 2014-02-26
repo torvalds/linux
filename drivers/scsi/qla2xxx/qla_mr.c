@@ -2794,7 +2794,7 @@ qlafx00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp,
 	srb_t *sp;
 	struct qla_hw_data *ha = vha->hw;
 	const char func[] = "ERROR-IOCB";
-	uint16_t que = MSW(pkt->handle);
+	uint16_t que = 0;
 	struct req_que *req = NULL;
 	int res = DID_ERROR << 16;
 
