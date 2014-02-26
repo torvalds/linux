@@ -1049,6 +1049,8 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	struct dentry *bcast_dir __maybe_unused;
 	char buf[100];
 
+	spin_lock_init(&mvm->drv_stats_lock);
+
 	mvm->debugfs_dir = dbgfs_dir;
 
 	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, S_IWUSR);
