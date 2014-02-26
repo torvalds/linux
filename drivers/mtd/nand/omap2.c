@@ -1211,15 +1211,15 @@ static int omap3_calculate_ecc_bch8(struct mtd_info *mtd, const u_char *dat,
 
 #ifdef CONFIG_MTD_NAND_OMAP_BCH
 /**
- * omap3_calculate_ecc_bch - Generate bytes of ECC bytes
+ * omap_calculate_ecc_bch - Generate bytes of ECC bytes
  * @mtd:	MTD device structure
  * @dat:	The pointer to data on which ecc is computed
  * @ecc_code:	The ecc_code buffer
  *
  * Support calculating of BCH4/8 ecc vectors for the page
  */
-static int omap3_calculate_ecc_bch(struct mtd_info *mtd, const u_char *dat,
-				    u_char *ecc_code)
+static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
+					const u_char *dat, u_char *ecc_code)
 {
 	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
 						   mtd);
@@ -1873,7 +1873,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->ecc.strength		= 4;
 		nand_chip->ecc.hwctl		= omap3_enable_hwecc_bch;
 		nand_chip->ecc.correct		= omap_elm_correct_data;
-		nand_chip->ecc.calculate	= omap3_calculate_ecc_bch;
+		nand_chip->ecc.calculate	= omap_calculate_ecc_bch;
 		nand_chip->ecc.read_page	= omap_read_page_bch;
 		nand_chip->ecc.write_page	= omap_write_page_bch;
 		/* define ECC layout */
@@ -1949,7 +1949,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->ecc.strength		= 8;
 		nand_chip->ecc.hwctl		= omap3_enable_hwecc_bch;
 		nand_chip->ecc.correct		= omap_elm_correct_data;
-		nand_chip->ecc.calculate	= omap3_calculate_ecc_bch;
+		nand_chip->ecc.calculate	= omap_calculate_ecc_bch;
 		nand_chip->ecc.read_page	= omap_read_page_bch;
 		nand_chip->ecc.write_page	= omap_write_page_bch;
 		/* This ECC scheme requires ELM H/W block */
