@@ -44,6 +44,8 @@
 #ifndef __ACPREDEF_H__
 #define __ACPREDEF_H__
 
+#pragma pack(push)		/* Set default struct packing */
+
 /******************************************************************************
  *
  * Return Package types
@@ -1079,5 +1081,7 @@ static const union acpi_predefined_info acpi_gbl_scope_names[] = {
 #else
 extern const union acpi_predefined_info acpi_gbl_resource_names[];
 #endif
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif

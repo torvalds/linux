@@ -44,6 +44,8 @@
 #ifndef __ACTABLES_H__
 #define __ACTABLES_H__
 
+#pragma pack(push)		/* Set default struct packing */
+
 acpi_status acpi_allocate_root_table(u32 initial_table_count);
 
 /*
@@ -128,5 +130,7 @@ acpi_tb_install_table(acpi_physical_address address,
 		      char *signature, u32 table_index);
 
 acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACTABLES_H__ */

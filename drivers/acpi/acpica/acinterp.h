@@ -44,6 +44,8 @@
 #ifndef __ACINTERP_H__
 #define __ACINTERP_H__
 
+#pragma pack(push)		/* Set default struct packing */
+
 #define ACPI_WALK_OPERANDS          (&(walk_state->operands [walk_state->num_operands -1]))
 
 /* Macros for tables used for debug output */
@@ -530,5 +532,7 @@ acpi_ex_data_table_space_handler(u32 function,
 				 u32 bit_width,
 				 u64 *value,
 				 void *handler_context, void *region_context);
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __INTERP_H__ */

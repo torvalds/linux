@@ -44,6 +44,8 @@
 #ifndef __ACLOCAL_H__
 #define __ACLOCAL_H__
 
+#pragma pack(push)		/* Set default struct packing */
+
 /* acpisrc:struct_defs -- for acpisrc conversion */
 
 #define ACPI_SERIALIZED                 0xFF
@@ -1146,5 +1148,7 @@ struct ah_predefined_name {
 	char *action;
 #endif
 };
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACLOCAL_H__ */

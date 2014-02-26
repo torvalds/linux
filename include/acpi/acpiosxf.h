@@ -49,6 +49,8 @@
 #include <acpi/platform/acenv.h>
 #include <acpi/actypes.h>
 
+#pragma pack(push)		/* Set default struct packing */
+
 /* Types for acpi_os_execute */
 
 typedef enum {
@@ -398,5 +400,7 @@ char *acpi_os_get_next_filename(void *dir_handle);
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
 void acpi_os_close_directory(void *dir_handle);
 #endif
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACPIOSXF_H__ */

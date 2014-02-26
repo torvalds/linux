@@ -44,6 +44,8 @@
 #ifndef _ACDISPAT_H_
 #define _ACDISPAT_H_
 
+#pragma pack(push)		/* Set default struct packing */
+
 #define NAMEOF_LOCAL_NTE    "__L0"
 #define NAMEOF_ARG_NTE      "__A0"
 
@@ -350,5 +352,7 @@ acpi_ds_result_pop(union acpi_operand_object **object,
 acpi_status
 acpi_ds_result_push(union acpi_operand_object *object,
 		    struct acpi_walk_state *walk_state);
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* _ACDISPAT_H_ */

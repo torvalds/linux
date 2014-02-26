@@ -44,6 +44,8 @@
 #ifndef _ACUTILS_H
 #define _ACUTILS_H
 
+#pragma pack(push)		/* Set default struct packing */
+
 extern const u8 acpi_gbl_resource_aml_sizes[];
 extern const u8 acpi_gbl_resource_aml_serial_bus_sizes[];
 
@@ -736,5 +738,7 @@ acpi_ut_method_error(const char *module_name,
 		     const char *message,
 		     struct acpi_namespace_node *node,
 		     const char *path, acpi_status lookup_status);
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* _ACUTILS_H */

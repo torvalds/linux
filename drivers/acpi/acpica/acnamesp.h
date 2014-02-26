@@ -44,6 +44,8 @@
 #ifndef __ACNAMESP_H__
 #define __ACNAMESP_H__
 
+#pragma pack(push)		/* Set default struct packing */
+
 /* To search the entire name space, pass this as search_base */
 
 #define ACPI_NS_ALL                 ((acpi_handle)0)
@@ -403,5 +405,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle);
 
 void acpi_ns_terminate(void);
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACNAMESP_H__ */

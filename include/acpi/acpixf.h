@@ -55,6 +55,8 @@
 
 extern u8 acpi_gbl_permanent_mmap;
 
+#pragma pack(push)		/* Set default struct packing */
+
 /*
  * Globals that are publically available
  */
@@ -579,5 +581,7 @@ acpi_debug_print_raw(u32 requested_debug_level,
 		     const char *module_name,
 		     u32 component_id, const char *format, ...);
 #endif
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACXFACE_H__ */

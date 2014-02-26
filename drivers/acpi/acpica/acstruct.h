@@ -44,6 +44,8 @@
 #ifndef __ACSTRUCT_H__
 #define __ACSTRUCT_H__
 
+#pragma pack(push)		/* Set default struct packing */
+
 /* acpisrc:struct_defs -- for acpisrc conversion */
 
 /*****************************************************************************
@@ -240,5 +242,7 @@ struct acpi_walk_info {
 #define ACPI_DISPLAY_MASK           (u8) 1
 
 #define ACPI_DISPLAY_SHORT          (u8) 2
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif

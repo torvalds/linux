@@ -44,6 +44,8 @@
 #ifndef __ACHWARE_H__
 #define __ACHWARE_H__
 
+#pragma pack(push)		/* Set default struct packing */
+
 /* Values for the _SST predefined method */
 
 #define ACPI_SST_INDICATOR_OFF  0
@@ -146,5 +148,7 @@ acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 acpi_status
 acpi_hw_derive_pci_id(struct acpi_pci_id *pci_id,
 		      acpi_handle root_pci_device, acpi_handle pci_region);
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACHWARE_H__ */

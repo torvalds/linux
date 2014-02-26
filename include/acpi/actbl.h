@@ -44,6 +44,8 @@
 #ifndef __ACTBL_H__
 #define __ACTBL_H__
 
+#pragma pack(push)		/* Set default struct packing */
+
 /*******************************************************************************
  *
  * Fundamental ACPI tables
@@ -403,5 +405,7 @@ struct acpi_table_desc {
 #define ACPI_FADT_V2_SIZE       (u32) (ACPI_FADT_OFFSET (reserved4[0]) + 3)
 #define ACPI_FADT_V3_SIZE       (u32) (ACPI_FADT_OFFSET (sleep_control))
 #define ACPI_FADT_V5_SIZE       (u32) (sizeof (struct acpi_table_fadt))
+
+#pragma pack(pop)		/* Restore original struct packing */
 
 #endif				/* __ACTBL_H__ */
