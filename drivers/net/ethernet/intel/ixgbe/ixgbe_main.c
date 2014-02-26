@@ -2630,9 +2630,12 @@ static irqreturn_t ixgbe_msix_other(int irq, void *data)
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		if (eicr & IXGBE_EICR_ECC)
-			e_info(link, "Received unrecoverable ECC Err, please "
-			       "reboot\n");
+		if (eicr & IXGBE_EICR_ECC) {
+			e_info(link, "Received ECC Err, initiating reset\n");
+			adapter->flags2 |= IXGBE_FLAG2_RESET_REQUESTED;
+			ixgbe_service_event_schedule(adapter);
+			IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_ECC);
+		}
 		/* Handle Flow Director Full threshold interrupt */
 		if (eicr & IXGBE_EICR_FLOW_DIR) {
 			int reinit_count = 0;
@@ -2846,9 +2849,12 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 		ixgbe_check_sfp_event(adapter, eicr);
 		/* Fall through */
 	case ixgbe_mac_X540:
-		if (eicr & IXGBE_EICR_ECC)
-			e_info(link, "Received unrecoverable ECC err, please "
-				     "reboot\n");
+		if (eicr & IXGBE_EICR_ECC) {
+			e_info(link, "Received ECC Err, initiating reset\n");
+			adapter->flags2 |= IXGBE_FLAG2_RESET_REQUESTED;
+			ixgbe_service_event_schedule(adapter);
+			IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_ECC);
+		}
 		ixgbe_check_overtemp_event(adapter, eicr);
 		break;
 	default:
