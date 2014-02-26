@@ -97,6 +97,15 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config SATA_AHCI_ST
+	tristate "ST SATA support"
+	depends on SATA_AHCI_PLATFORM
+	select GENERIC_PHY
+	help
+	  This option enables support for ST SATA controller.
+
+	  If unsure, say N.
+
 config AHCI_IMX
 	tristate "Freescale i.MX AHCI SATA support"
 	depends on SATA_AHCI_PLATFORM && MFD_SYSCON
