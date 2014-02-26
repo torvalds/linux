@@ -382,8 +382,7 @@ out:
 	return ret;
 }
 
-static int __init imx6q_ocram_suspend_init(const struct imx6_pm_socdata
-					*socdata)
+static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 {
 	phys_addr_t ocram_pbase;
 	struct device_node *node;
@@ -393,6 +392,8 @@ static int __init imx6q_ocram_suspend_init(const struct imx6_pm_socdata
 	unsigned long ocram_base;
 	int i, ret = 0;
 	const u32 *mmdc_offset_array;
+
+	suspend_set_ops(&imx6q_pm_ops);
 
 	if (!socdata) {
 		pr_warn("%s: invalid argument!\n", __func__);
@@ -515,9 +516,9 @@ static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 
 	WARN_ON(!ccm_base);
 
-	ret = imx6q_ocram_suspend_init(socdata);
+	ret = imx6q_suspend_init(socdata);
 	if (ret)
-		pr_warn("%s: failed to initialize ocram suspend %d!\n",
+		pr_warn("%s: No DDR LPM support with suspend %d!\n",
 			__func__, ret);
 
 	/*
@@ -531,9 +532,6 @@ static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 	if (!IS_ERR(gpr))
 		regmap_update_bits(gpr, IOMUXC_GPR1, IMX6Q_GPR1_GINT,
 				   IMX6Q_GPR1_GINT);
-
-
-	suspend_set_ops(&imx6q_pm_ops);
 }
 
 void __init imx6q_pm_init(void)
