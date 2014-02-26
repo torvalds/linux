@@ -240,19 +240,21 @@ static char user_alpha2[2];
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
-static void reg_kfree_last_request(void)
+static void reg_free_request(struct regulatory_request *lr)
 {
-	struct regulatory_request *lr;
-
-	lr = get_last_request();
-
 	if (lr != &core_request_world && lr)
 		kfree_rcu(lr, rcu_head);
 }
 
 static void reg_update_last_request(struct regulatory_request *request)
 {
-	reg_kfree_last_request();
+	struct regulatory_request *lr;
+
+	lr = get_last_request();
+	if (lr == request)
+		return;
+
+	reg_free_request(lr);
 	rcu_assign_pointer(last_request, request);
 }
 
