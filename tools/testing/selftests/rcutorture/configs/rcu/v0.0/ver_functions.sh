@@ -20,27 +20,14 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-# rcutorture_param_n_barrier_cbs bootparam-string
+# per_version_boot_params bootparam-string config-file seconds
 #
-# Adds n_barrier_cbs rcutorture module parameter to kernels having it.
-rcutorture_param_n_barrier_cbs () {
-	if echo $1 | grep -q "rcutorture\.n_barrier_cbs"
-	then
-		echo $1
-	else
-		echo $1 rcutorture.n_barrier_cbs=4
-	fi
-}
-
-# rcutorture_param_onoff bootparam-string config-file
-#
-# Adds onoff rcutorture module parameters to kernels having it.
-rcutorture_param_onoff () {
-	if ! bootparam_hotplug_cpu "$1" && configfrag_hotplug_cpu "$2"
-	then
-		echo CPU-hotplug kernel, adding rcutorture onoff. 1>&2
-		echo $1 rcutorture.onoff_interval=3 rcutorture.onoff_holdoff=30
-	else
-		echo $1
-	fi
+# Adds per-version torture-module parameters to kernels supporting them.
+# Which old kernels do not.
+per_version_boot_params () {
+	echo	rcutorture.stat_interval=15 \
+		rcutorture.shutdown_secs=$3 \
+		rcutorture.rcutorture_runnable=1 \
+		rcutorture.test_no_idle_hz=1 \
+		rcutorture.verbose=1
 }
