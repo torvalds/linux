@@ -33,27 +33,4 @@ struct pm8xxx_irq_platform_data {
 	int				irq_trigger_flag;
 };
 
-struct pm_irq_chip;
-
-#ifdef CONFIG_MFD_PM8XXX_IRQ
-int pm8xxx_get_irq_stat(struct pm_irq_chip *chip, int irq);
-struct pm_irq_chip *pm8xxx_irq_init(struct device *dev,
-				const struct pm8xxx_irq_platform_data *pdata);
-int pm8xxx_irq_exit(struct pm_irq_chip *chip);
-#else
-static inline int pm8xxx_get_irq_stat(struct pm_irq_chip *chip, int irq)
-{
-	return -ENXIO;
-}
-static inline struct pm_irq_chip *pm8xxx_irq_init(
-				const struct device *dev,
-				const struct pm8xxx_irq_platform_data *pdata)
-{
-	return ERR_PTR(-ENXIO);
-}
-static inline int pm8xxx_irq_exit(struct pm_irq_chip *chip)
-{
-	return -ENXIO;
-}
-#endif /* CONFIG_MFD_PM8XXX_IRQ */
 #endif /* __MFD_PM8XXX_IRQ_H */
