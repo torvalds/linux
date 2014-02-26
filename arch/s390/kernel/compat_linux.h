@@ -91,12 +91,11 @@ long compat_sys_s390_setfsuid16(u16 uid);
 long compat_sys_s390_setfsgid16(u16 gid);
 long compat_sys_s390_getgroups16(int gidsetsize, u16 __user *grouplist);
 long compat_sys_s390_setgroups16(int gidsetsize, u16 __user *grouplist);
-long sys32_getuid16(void);
-long sys32_geteuid16(void);
-long sys32_getgid16(void);
-long sys32_getegid16(void);
-long sys32_truncate64(const char __user * path, unsigned long high,
-		      unsigned long low);
+long compat_sys_s390_getuid16(void);
+long compat_sys_s390_geteuid16(void);
+long compat_sys_s390_getgid16(void);
+long compat_sys_s390_getegid16(void);
+long compat_sys_s390_truncate64(const char __user *path, u32 high, u32 low);
 long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low);
 long sys32_init_module(void __user *umod, unsigned long len,
 		       const char __user *uargs);

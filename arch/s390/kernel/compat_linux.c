@@ -269,22 +269,22 @@ COMPAT_SYSCALL_DEFINE2(s390_setgroups16, int, gidsetsize, u16 __user *, grouplis
 	return retval;
 }
 
-asmlinkage long sys32_getuid16(void)
+COMPAT_SYSCALL_DEFINE0(s390_getuid16)
 {
 	return high2lowuid(from_kuid_munged(current_user_ns(), current_uid()));
 }
 
-asmlinkage long sys32_geteuid16(void)
+COMPAT_SYSCALL_DEFINE0(s390_geteuid16)
 {
 	return high2lowuid(from_kuid_munged(current_user_ns(), current_euid()));
 }
 
-asmlinkage long sys32_getgid16(void)
+COMPAT_SYSCALL_DEFINE0(s390_getgid16)
 {
 	return high2lowgid(from_kgid_munged(current_user_ns(), current_gid()));
 }
 
-asmlinkage long sys32_getegid16(void)
+COMPAT_SYSCALL_DEFINE0(s390_getegid16)
 {
 	return high2lowgid(from_kgid_munged(current_user_ns(), current_egid()));
 }
@@ -299,12 +299,9 @@ COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, compat_ulong_t, second,
 }
 #endif
 
-asmlinkage long sys32_truncate64(const char __user * path, unsigned long high, unsigned long low)
+COMPAT_SYSCALL_DEFINE3(s390_truncate64, const char __user *, path, u32, high, u32, low)
 {
-	if ((int)high < 0)
-		return -EINVAL;
-	else
-		return sys_truncate(path, (high << 32) | low);
+	return sys_truncate(path, (unsigned long)high << 32 | low);
 }
 
 asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low)

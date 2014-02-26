@@ -32,7 +32,7 @@ SYSCALL(sys_getpid,sys_getpid,sys_getpid)			/* 20 */
 SYSCALL(sys_mount,sys_mount,sys32_mount_wrapper)
 SYSCALL(sys_oldumount,sys_oldumount,sys32_oldumount_wrapper)
 SYSCALL(sys_setuid16,sys_ni_syscall,compat_sys_s390_setuid16)	/* old setuid16 syscall*/
-SYSCALL(sys_getuid16,sys_ni_syscall,sys32_getuid16)		/* old getuid16 syscall*/
+SYSCALL(sys_getuid16,sys_ni_syscall,compat_sys_s390_getuid16)	/* old getuid16 syscall*/
 SYSCALL(sys_stime,sys_ni_syscall,sys32_stime_wrapper)		/* 25 old stime syscall */
 SYSCALL(sys_ptrace,sys_ptrace,sys32_ptrace_wrapper)
 SYSCALL(sys_alarm,sys_alarm,sys32_alarm_wrapper)
@@ -55,10 +55,10 @@ SYSCALL(sys_times,sys_times,compat_sys_times_wrapper)
 NI_SYSCALL							/* old prof syscall */
 SYSCALL(sys_brk,sys_brk,sys32_brk_wrapper)			/* 45 */
 SYSCALL(sys_setgid16,sys_ni_syscall,compat_sys_s390_setgid16)	/* old setgid16 syscall*/
-SYSCALL(sys_getgid16,sys_ni_syscall,sys32_getgid16)		/* old getgid16 syscall*/
+SYSCALL(sys_getgid16,sys_ni_syscall,compat_sys_s390_getgid16)	/* old getgid16 syscall*/
 SYSCALL(sys_signal,sys_signal,sys32_signal_wrapper)
-SYSCALL(sys_geteuid16,sys_ni_syscall,sys32_geteuid16)		/* old geteuid16 syscall */
-SYSCALL(sys_getegid16,sys_ni_syscall,sys32_getegid16)		/* 50 old getegid16 syscall */
+SYSCALL(sys_geteuid16,sys_ni_syscall,compat_sys_s390_geteuid16)	/* old geteuid16 syscall */
+SYSCALL(sys_getegid16,sys_ni_syscall,compat_sys_s390_getegid16)	/* 50 old getegid16 syscall */
 SYSCALL(sys_acct,sys_acct,sys32_acct_wrapper)
 SYSCALL(sys_umount,sys_umount,sys32_umount_wrapper)
 NI_SYSCALL							/* old lock syscall */
@@ -201,7 +201,7 @@ NI_SYSCALL							/* streams2 */
 SYSCALL(sys_vfork,sys_vfork,sys_vfork)				/* 190 */
 SYSCALL(sys_getrlimit,sys_getrlimit,compat_sys_getrlimit_wrapper)
 SYSCALL(sys_mmap2,sys_mmap2,sys32_mmap2_wrapper)
-SYSCALL(sys_truncate64,sys_ni_syscall,sys32_truncate64_wrapper)
+SYSCALL(sys_truncate64,sys_ni_syscall,compat_sys_s390_truncate64)
 SYSCALL(sys_ftruncate64,sys_ni_syscall,sys32_ftruncate64_wrapper)
 SYSCALL(sys_stat64,sys_ni_syscall,sys32_stat64_wrapper)		/* 195 */
 SYSCALL(sys_lstat64,sys_ni_syscall,sys32_lstat64_wrapper)

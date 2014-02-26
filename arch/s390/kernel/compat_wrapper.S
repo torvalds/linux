@@ -75,8 +75,6 @@ ENTRY(sys32_oldumount_wrapper)
 	llgtr	%r2,%r2			# char *
 	jg	sys_oldumount		# branch to system call
 
-#sys32_getuid16_wrapper			# void
-
 ENTRY(sys32_ptrace_wrapper)
 	lgfr	%r2,%r2			# long
 	lgfr	%r3,%r3			# long
@@ -139,16 +137,10 @@ ENTRY(sys32_brk_wrapper)
 	llgtr	%r2,%r2			# unsigned long
 	jg	sys_brk			# branch to system call
 
-#sys32_getgid16_wrapper			# void
-
 ENTRY(sys32_signal_wrapper)
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# __sighandler_t
 	jg	sys_signal
-
-#sys32_geteuid16_wrapper		# void
-
-#sys32_getegid16_wrapper		# void
 
 ENTRY(sys32_acct_wrapper)
 	llgtr	%r2,%r2			# char *
@@ -576,12 +568,6 @@ ENTRY(sys32_capset_wrapper)
 	jg	sys_capset		# branch to system call
 
 #sys32_vfork_wrapper			# done in vfork_glue
-
-ENTRY(sys32_truncate64_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# unsigned long
-	llgfr	%r4,%r4			# unsigned long
-	jg	sys32_truncate64	# branch to system call
 
 ENTRY(sys32_ftruncate64_wrapper)
 	llgfr	%r2,%r2			# unsigned int
