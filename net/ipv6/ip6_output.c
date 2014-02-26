@@ -1234,8 +1234,10 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 			      sizeof(struct frag_hdr) : 0) +
 			     rt->rt6i_nfheader_len;
 
-		maxnonfragsize = (np->pmtudisc >= IPV6_PMTUDISC_DO) ?
-				 mtu : sizeof(struct ipv6hdr) + IPV6_MAXPLEN;
+		if (ip6_sk_local_df(sk))
+			maxnonfragsize = sizeof(struct ipv6hdr) + IPV6_MAXPLEN;
+		else
+			maxnonfragsize = mtu;
 
 		/* dontfrag active */
 		if ((cork->length + length > mtu - headersize) && dontfrag &&
@@ -1543,8 +1545,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	}
 
 	/* Allow local fragmentation. */
-	if (np->pmtudisc < IPV6_PMTUDISC_DO)
-		skb->local_df = 1;
+	skb->local_df = ip6_sk_local_df(sk);
 
 	*final_dst = fl6->daddr;
 	__skb_pull(skb, skb_network_header_len(skb));
