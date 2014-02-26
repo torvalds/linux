@@ -473,8 +473,11 @@ static int mcfqspi_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
+	int ret;
 
-	spi_master_suspend(master);
+	ret = spi_master_suspend(master);
+	if (ret)
+		return ret;
 
 	clk_disable(mcfqspi->clk);
 
@@ -486,11 +489,9 @@ static int mcfqspi_resume(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
 
-	spi_master_resume(master);
-
 	clk_enable(mcfqspi->clk);
 
-	return 0;
+	return spi_master_resume(master);
 }
 #endif
 
