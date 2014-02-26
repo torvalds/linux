@@ -1266,9 +1266,8 @@ static int sep_lock_user_pages(struct sep_device *sep,
 	/* Check the number of pages locked - if not all then exit with error */
 	if (result != num_pages) {
 		dev_warn(&sep->pdev->dev,
-			"[PID%d] not all pages locked by get_user_pages, "
-			"result 0x%X, num_pages 0x%X\n",
-				current->pid, result, num_pages);
+			"[PID%d] not all pages locked by get_user_pages, result 0x%X, num_pages 0x%X\n",
+			current->pid, result, num_pages);
 		error = -ENOMEM;
 		goto end_function_with_error3;
 	}
@@ -1293,9 +1292,9 @@ static int sep_lock_user_pages(struct sep_device *sep,
 		lli_array[count].block_size = PAGE_SIZE;
 
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] lli_array[%x].bus_address is %08lx, "
-			"lli_array[%x].block_size is (hex) %x\n", current->pid,
-			count, (unsigned long)lli_array[count].bus_address,
+			"[PID%d] lli_array[%x].bus_address is %08lx, lli_array[%x].block_size is (hex) %x\n",
+			current->pid, count,
+			(unsigned long)lli_array[count].bus_address,
 			count, lli_array[count].block_size);
 	}
 
@@ -1314,8 +1313,7 @@ static int sep_lock_user_pages(struct sep_device *sep,
 			"[PID%d] After check if page 0 has all data\n",
 			current->pid);
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] lli_array[0].bus_address is (hex) %08lx, "
-			"lli_array[0].block_size is (hex) %x\n",
+			"[PID%d] lli_array[0].bus_address is (hex) %08lx, lli_array[0].block_size is (hex) %x\n",
 			current->pid,
 			(unsigned long)lli_array[0].bus_address,
 			lli_array[0].block_size);
@@ -1332,8 +1330,7 @@ static int sep_lock_user_pages(struct sep_device *sep,
 			"[PID%d] After last page size adjustment\n",
 			current->pid);
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] lli_array[%x].bus_address is (hex) %08lx, "
-			"lli_array[%x].block_size is (hex) %x\n",
+			"[PID%d] lli_array[%x].bus_address is (hex) %08lx, lli_array[%x].block_size is (hex) %x\n",
 			current->pid,
 			num_pages - 1,
 			(unsigned long)lli_array[num_pages - 1].bus_address,
@@ -1449,8 +1446,7 @@ static int sep_lli_table_secure_dma(struct sep_device *sep,
 		start_page += PAGE_SIZE;
 
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] lli_array[%x].bus_address is %08lx, "
-			"lli_array[%x].block_size is (hex) %x\n",
+			"[PID%d] lli_array[%x].bus_address is %08lx, lli_array[%x].block_size is (hex) %x\n",
 			current->pid,
 			count, (unsigned long)lli_array[count].bus_address,
 			count, lli_array[count].block_size);
@@ -1469,8 +1465,7 @@ static int sep_lli_table_secure_dma(struct sep_device *sep,
 
 	dev_dbg(&sep->pdev->dev,
 		"[PID%d] After check if page 0 has all data\n"
-		"lli_array[0].bus_address is (hex) %08lx, "
-		"lli_array[0].block_size is (hex) %x\n",
+		"lli_array[0].bus_address is (hex) %08lx, lli_array[0].block_size is (hex) %x\n",
 		current->pid,
 		(unsigned long)lli_array[0].bus_address,
 		lli_array[0].block_size);
@@ -1484,8 +1479,7 @@ static int sep_lli_table_secure_dma(struct sep_device *sep,
 
 		dev_dbg(&sep->pdev->dev,
 			"[PID%d] After last page size adjustment\n"
-			"lli_array[%x].bus_address is (hex) %08lx, "
-			"lli_array[%x].block_size is (hex) %x\n",
+			"lli_array[%x].bus_address is (hex) %08lx, lli_array[%x].block_size is (hex) %x\n",
 			current->pid, num_pages - 1,
 			(unsigned long)lli_array[num_pages - 1].bus_address,
 			num_pages - 1,
@@ -1745,9 +1739,8 @@ static void sep_debug_print_lli_tables(struct sep_device *sep,
 
 	while ((unsigned long) lli_table_ptr->bus_address != 0xffffffff) {
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] lli table %08lx, "
-			"table_data_size is (hex) %lx\n",
-				current->pid, table_count, table_data_size);
+			"[PID%d] lli table %08lx, table_data_size is (hex) %lx\n",
+			current->pid, table_count, table_data_size);
 		dev_dbg(&sep->pdev->dev,
 			"[PID%d] num_table_entries is (hex) %lx\n",
 				current->pid, num_table_entries);
@@ -1762,8 +1755,8 @@ static void sep_debug_print_lli_tables(struct sep_device *sep,
 				(unsigned long) lli_table_ptr);
 
 			dev_dbg(&sep->pdev->dev,
-				"[PID%d] phys address is %08lx "
-				"block size is (hex) %x\n", current->pid,
+				"[PID%d] phys address is %08lx block size is (hex) %x\n",
+				current->pid,
 				(unsigned long)lli_table_ptr->bus_address,
 				lli_table_ptr->block_size);
 		}
@@ -1772,14 +1765,12 @@ static void sep_debug_print_lli_tables(struct sep_device *sep,
 		lli_table_ptr--;
 
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] phys lli_table_ptr->block_size "
-			"is (hex) %x\n",
+			"[PID%d] phys lli_table_ptr->block_size is (hex) %x\n",
 			current->pid,
 			lli_table_ptr->block_size);
 
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] phys lli_table_ptr->physical_address "
-			"is %08lx\n",
+			"[PID%d] phys lli_table_ptr->physical_address is %08lx\n",
 			current->pid,
 			(unsigned long)lli_table_ptr->bus_address);
 
@@ -1788,13 +1779,11 @@ static void sep_debug_print_lli_tables(struct sep_device *sep,
 		num_table_entries = (lli_table_ptr->block_size >> 24) & 0xff;
 
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] phys table_data_size is "
-			"(hex) %lx num_table_entries is"
-			" %lx bus_address is%lx\n",
-				current->pid,
-				table_data_size,
-				num_table_entries,
-				(unsigned long)lli_table_ptr->bus_address);
+			"[PID%d] phys table_data_size is (hex) %lx num_table_entries is %lx bus_address is%lx\n",
+			current->pid,
+			table_data_size,
+			num_table_entries,
+			(unsigned long)lli_table_ptr->bus_address);
 
 		if ((unsigned long)lli_table_ptr->bus_address != 0xffffffff)
 			lli_table_ptr = (struct sep_lli_entry *)
@@ -2244,14 +2233,12 @@ static int sep_construct_dma_tables_from_lli(
 			table_data_size = out_table_data_size;
 
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] construct tables from lli"
-			" in_table_data_size is (hex) %x\n", current->pid,
-			in_table_data_size);
+			"[PID%d] construct tables from lli in_table_data_size is (hex) %x\n",
+			current->pid, in_table_data_size);
 
 		dev_dbg(&sep->pdev->dev,
-			"[PID%d] construct tables from lli"
-			"out_table_data_size is (hex) %x\n", current->pid,
-			out_table_data_size);
+			"[PID%d] construct tables from lli out_table_data_size is (hex) %x\n",
+			current->pid, out_table_data_size);
 
 		/* Construct input lli table */
 		sep_build_lli_table(sep, &lli_in_array[current_in_entry],
@@ -2316,8 +2303,7 @@ static int sep_construct_dma_tables_from_lli(
 				info_in_entry_ptr->block_size);
 
 			dev_dbg(&sep->pdev->dev,
-				"[PID%d] output lli_table_out_ptr:"
-				"%08lx  %08x\n",
+				"[PID%d] output lli_table_out_ptr: %08lx  %08x\n",
 				current->pid,
 				(unsigned long)info_out_entry_ptr->bus_address,
 				info_out_entry_ptr->block_size);
@@ -2446,8 +2432,8 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 				dma_ctx);
 		if (error) {
 			dev_warn(&sep->pdev->dev,
-				"[PID%d] sep_lock_kernel_pages for input "
-				"virtual buffer failed\n", current->pid);
+				"[PID%d] sep_lock_kernel_pages for input virtual buffer failed\n",
+				current->pid);
 
 			goto end_function;
 		}
@@ -2460,8 +2446,8 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 
 		if (error) {
 			dev_warn(&sep->pdev->dev,
-				"[PID%d] sep_lock_kernel_pages for output "
-				"virtual buffer failed\n", current->pid);
+				"[PID%d] sep_lock_kernel_pages for output virtual buffer failed\n",
+				current->pid);
 
 			goto end_function_free_lli_in;
 		}
@@ -2476,8 +2462,8 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 				dma_ctx);
 		if (error) {
 			dev_warn(&sep->pdev->dev,
-				"[PID%d] sep_lock_user_pages for input "
-				"virtual buffer failed\n", current->pid);
+				"[PID%d] sep_lock_user_pages for input virtual buffer failed\n",
+				current->pid);
 
 			goto end_function;
 		}
@@ -2491,8 +2477,7 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 				SEP_DRIVER_OUT_FLAG, dma_ctx);
 			if (error) {
 				dev_warn(&sep->pdev->dev,
-					"[PID%d] secure dma table setup "
-					" for output virtual buffer failed\n",
+					"[PID%d] secure dma table setup for output virtual buffer failed\n",
 					current->pid);
 
 				goto end_function_free_lli_in;
@@ -2512,8 +2497,7 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 
 			if (error) {
 				dev_warn(&sep->pdev->dev,
-					"[PID%d] sep_lock_user_pages"
-					" for output virtual buffer failed\n",
+					"[PID%d] sep_lock_user_pages for output virtual buffer failed\n",
 					current->pid);
 
 				goto end_function_free_lli_in;
@@ -2826,8 +2810,7 @@ int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 
 	if (error) {
 		dev_warn(&sep->pdev->dev,
-			"prepare DMA table call failed "
-			"from prepare DCB call\n");
+			"prepare DMA table call failed from prepare DCB call\n");
 		goto end_function_error;
 	}
 
@@ -3762,8 +3745,7 @@ static inline ssize_t sep_fastcall_args_get(struct sep_device *sep,
 
 	if (actual_count != count_user) {
 		dev_warn(&sep->pdev->dev,
-			 "[PID%d] inconsistent message "
-			 "sizes 0x%08zX vs 0x%08zX\n",
+			 "[PID%d] inconsistent message sizes 0x%08zX vs 0x%08zX\n",
 			 current->pid, actual_count, count_user);
 		error = -EMSGSIZE;
 		goto end_function;
