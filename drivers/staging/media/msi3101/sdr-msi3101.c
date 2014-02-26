@@ -831,7 +831,7 @@ static int msi3101_queue_setup(struct vb2_queue *vq,
 	dev_dbg(&s->udev->dev, "%s: *nbuffers=%d\n", __func__, *nbuffers);
 
 	/* Absolute min and max number of buffers available for mmap() */
-	*nbuffers = 32;
+	*nbuffers = clamp_t(unsigned int, *nbuffers, 8, 32);
 	*nplanes = 1;
 	/*
 	 *   3, wMaxPacketSize 3x 1024 bytes
