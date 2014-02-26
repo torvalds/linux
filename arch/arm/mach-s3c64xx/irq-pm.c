@@ -55,7 +55,13 @@ static struct irq_grp_save {
 	u32	mask;
 } eint_grp_save[5];
 
-static u32 irq_uart_mask[CONFIG_SERIAL_SAMSUNG_UARTS];
+#ifndef CONFIG_SERIAL_SAMSUNG_UARTS
+#define SERIAL_SAMSUNG_UARTS 0
+#else
+#define	SERIAL_SAMSUNG_UARTS CONFIG_SERIAL_SAMSUNG_UARTS
+#endif
+
+static u32 irq_uart_mask[SERIAL_SAMSUNG_UARTS];
 
 static int s3c64xx_irq_pm_suspend(void)
 {
@@ -66,7 +72,7 @@ static int s3c64xx_irq_pm_suspend(void)
 
 	s3c_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
 
-	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++)
+	for (i = 0; i < SERIAL_SAMSUNG_UARTS; i++)
 		irq_uart_mask[i] = __raw_readl(S3C_VA_UARTx(i) + S3C64XX_UINTM);
 
 	for (i = 0; i < ARRAY_SIZE(eint_grp_save); i++, grp++) {
@@ -87,7 +93,7 @@ static void s3c64xx_irq_pm_resume(void)
 
 	s3c_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
 
-	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++)
+	for (i = 0; i < SERIAL_SAMSUNG_UARTS; i++)
 		__raw_writel(irq_uart_mask[i], S3C_VA_UARTx(i) + S3C64XX_UINTM);
 
 	for (i = 0; i < ARRAY_SIZE(eint_grp_save); i++, grp++) {
