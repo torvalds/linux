@@ -222,10 +222,6 @@ ENTRY(compat_sys_getrlimit_wrapper)
 	llgtr	%r3,%r3			# struct rlimit_emu31 *
 	jg	compat_sys_getrlimit	# branch to system call
 
-ENTRY(sys32_mmap2_wrapper)
-	llgtr	%r2,%r2			# struct mmap_arg_struct_emu31 *
-	jg	sys32_mmap2			# branch to system call
-
 ENTRY(compat_sys_gettimeofday_wrapper)
 	llgtr	%r2,%r2			# struct timeval_emu31 *
 	llgtr	%r3,%r3			# struct timezone *
@@ -268,10 +264,6 @@ ENTRY(old32_readdir_wrapper)
 	llgtr	%r3,%r3			# void *
 	llgfr	%r4,%r4			# unsigned int
 	jg	compat_sys_old_readdir	# branch to system call
-
-ENTRY(old32_mmap_wrapper)
-	llgtr	%r2,%r2			# struct mmap_arg_struct_emu31 *
-	jg	old32_mmap		# branch to system call
 
 ENTRY(sys32_munmap_wrapper)
 	llgfr	%r2,%r2			# unsigned long
@@ -665,19 +657,9 @@ ENTRY(compat_sys_fcntl64_wrapper)
 	llgfr	%r4,%r4			# unsigned long
 	jg	compat_sys_fcntl64	# branch to system call
 
-ENTRY(sys32_lstat64_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgtr	%r3,%r3			# struct stat64 *
-	jg	sys32_lstat64		# branch to system call
-
 ENTRY(sys32_stime_wrapper)
 	llgtr	%r2,%r2			# long *
 	jg	compat_sys_stime	# branch to system call
-
-ENTRY(sys32_fstat64_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgtr	%r3,%r3			# struct stat64 *
-	jg	sys32_fstat64		# branch to system call
 
 ENTRY(sys32_setxattr_wrapper)
 	llgtr	%r2,%r2			# char *
@@ -1012,13 +994,6 @@ ENTRY(compat_sys_futimesat_wrapper)
 	llgtr	%r3,%r3			# char *
 	llgtr	%r4,%r4			# struct timeval *
 	jg	compat_sys_futimesat
-
-ENTRY(sys32_fstatat64_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgtr	%r3,%r3			# char *
-	llgtr	%r4,%r4			# struct stat64 *
-	lgfr	%r5,%r5			# int
-	jg	sys32_fstatat64
 
 ENTRY(sys_unlinkat_wrapper)
 	lgfr	%r2,%r2			# int

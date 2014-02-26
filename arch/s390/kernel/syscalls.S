@@ -98,7 +98,7 @@ SYSCALL(sys_uselib,sys_uselib,sys32_uselib_wrapper)
 SYSCALL(sys_swapon,sys_swapon,sys32_swapon_wrapper)
 SYSCALL(sys_reboot,sys_reboot,sys32_reboot_wrapper)
 SYSCALL(sys_ni_syscall,sys_ni_syscall,old32_readdir_wrapper)	/* old readdir syscall */
-SYSCALL(sys_old_mmap,sys_old_mmap,old32_mmap_wrapper)		/* 90 */
+SYSCALL(sys_old_mmap,sys_old_mmap,compat_sys_s390_old_mmap)	/* 90 */
 SYSCALL(sys_munmap,sys_munmap,sys32_munmap_wrapper)
 SYSCALL(sys_truncate,sys_truncate,compat_sys_truncate)
 SYSCALL(sys_ftruncate,sys_ftruncate,compat_sys_ftruncate)
@@ -200,12 +200,12 @@ NI_SYSCALL							/* streams1 */
 NI_SYSCALL							/* streams2 */
 SYSCALL(sys_vfork,sys_vfork,sys_vfork)				/* 190 */
 SYSCALL(sys_getrlimit,sys_getrlimit,compat_sys_getrlimit_wrapper)
-SYSCALL(sys_mmap2,sys_mmap2,sys32_mmap2_wrapper)
+SYSCALL(sys_mmap2,sys_mmap2,compat_sys_s390_mmap2)
 SYSCALL(sys_truncate64,sys_ni_syscall,compat_sys_s390_truncate64)
 SYSCALL(sys_ftruncate64,sys_ni_syscall,compat_sys_s390_ftruncate64)
 SYSCALL(sys_stat64,sys_ni_syscall,compat_sys_s390_stat64)		/* 195 */
-SYSCALL(sys_lstat64,sys_ni_syscall,sys32_lstat64_wrapper)
-SYSCALL(sys_fstat64,sys_ni_syscall,sys32_fstat64_wrapper)
+SYSCALL(sys_lstat64,sys_ni_syscall,compat_sys_s390_lstat64)
+SYSCALL(sys_fstat64,sys_ni_syscall,compat_sys_s390_fstat64)
 SYSCALL(sys_lchown,sys_lchown,sys32_lchown_wrapper)
 SYSCALL(sys_getuid,sys_getuid,sys_getuid)
 SYSCALL(sys_getgid,sys_getgid,sys_getgid)			/* 200 */
@@ -301,7 +301,7 @@ SYSCALL(sys_mkdirat,sys_mkdirat,sys_mkdirat_wrapper)
 SYSCALL(sys_mknodat,sys_mknodat,sys_mknodat_wrapper)	/* 290 */
 SYSCALL(sys_fchownat,sys_fchownat,sys_fchownat_wrapper)
 SYSCALL(sys_futimesat,sys_futimesat,compat_sys_futimesat_wrapper)
-SYSCALL(sys_fstatat64,sys_newfstatat,sys32_fstatat64_wrapper)
+SYSCALL(sys_fstatat64,sys_newfstatat,compat_sys_s390_fstatat64)
 SYSCALL(sys_unlinkat,sys_unlinkat,sys_unlinkat_wrapper)
 SYSCALL(sys_renameat,sys_renameat,sys_renameat_wrapper)	/* 295 */
 SYSCALL(sys_linkat,sys_linkat,sys_linkat_wrapper)

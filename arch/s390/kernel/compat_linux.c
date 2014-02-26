@@ -388,7 +388,7 @@ COMPAT_SYSCALL_DEFINE2(s390_stat64, const char __user *, filename, struct stat64
 	return ret;
 }
 
-asmlinkage long sys32_lstat64(const char __user * filename, struct stat64_emu31 __user * statbuf)
+COMPAT_SYSCALL_DEFINE2(s390_lstat64, const char __user *, filename, struct stat64_emu31 __user *, statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_lstat(filename, &stat);
@@ -397,7 +397,7 @@ asmlinkage long sys32_lstat64(const char __user * filename, struct stat64_emu31 
 	return ret;
 }
 
-asmlinkage long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * statbuf)
+COMPAT_SYSCALL_DEFINE2(s390_fstat64, unsigned int, fd, struct stat64_emu31 __user *, statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_fstat(fd, &stat);
@@ -406,8 +406,8 @@ asmlinkage long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * sta
 	return ret;
 }
 
-asmlinkage long sys32_fstatat64(unsigned int dfd, const char __user *filename,
-				struct stat64_emu31 __user* statbuf, int flag)
+COMPAT_SYSCALL_DEFINE4(s390_fstatat64, unsigned int, dfd, const char __user *, filename,
+		       struct stat64_emu31 __user *, statbuf, int, flag)
 {
 	struct kstat stat;
 	int error;
@@ -433,7 +433,7 @@ struct mmap_arg_struct_emu31 {
 	compat_ulong_t offset;
 };
 
-asmlinkage unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
+COMPAT_SYSCALL_DEFINE1(s390_old_mmap, struct mmap_arg_struct_emu31 __user *, arg)
 {
 	struct mmap_arg_struct_emu31 a;
 
@@ -445,7 +445,7 @@ asmlinkage unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
 			      a.offset >> PAGE_SHIFT);
 }
 
-asmlinkage long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
+COMPAT_SYSCALL_DEFINE1(s390_mmap2, struct mmap_arg_struct_emu31 __user *, arg)
 {
 	struct mmap_arg_struct_emu31 a;
 

@@ -104,13 +104,11 @@ long compat_sys_s390_pread64(unsigned int fd, char __user *ubuf, compat_size_t c
 long compat_sys_s390_pwrite64(unsigned int fd, const char __user *ubuf, compat_size_t count, u32 high, u32 low);
 long compat_sys_s390_readahead(int fd, u32 high, u32 low, s32 count);
 long compat_sys_s390_stat64(const char __user *filename, struct stat64_emu31 __user *statbuf);
-long sys32_lstat64(const char __user * filename,
-		   struct stat64_emu31 __user * statbuf);
-long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * statbuf);
-long sys32_fstatat64(unsigned int dfd, const char __user *filename,
-		     struct stat64_emu31 __user* statbuf, int flag);
-unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg);
-long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg);
+long compat_sys_s390_lstat64(const char __user *filename, struct stat64_emu31 __user *statbuf);
+long compat_sys_s390_fstat64(unsigned int fd, struct stat64_emu31 __user *statbuf);
+long compat_sys_s390_fstatat64(unsigned int dfd, const char __user *filename, struct stat64_emu31 __user *statbuf, int flag);
+long compat_sys_s390_old_mmap(struct mmap_arg_struct_emu31 __user *arg);
+long compat_sys_s390_mmap2(struct mmap_arg_struct_emu31 __user *arg);
 long sys32_read(unsigned int fd, char __user * buf, size_t count);
 long sys32_write(unsigned int fd, const char __user * buf, size_t count);
 long sys32_fadvise64(int fd, loff_t offset, size_t len, int advise);
