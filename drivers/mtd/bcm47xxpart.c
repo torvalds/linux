@@ -91,7 +91,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		if (offset >= 0x2000000)
 			break;
 
-		if (curr_part > BCM47XXPART_MAX_PARTS) {
+		if (curr_part >= BCM47XXPART_MAX_PARTS) {
 			pr_warn("Reached maximum number of partitions, scanning stopped!\n");
 			break;
 		}
@@ -212,7 +212,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 
 	/* Look for NVRAM at the end of the last block. */
 	for (i = 0; i < ARRAY_SIZE(possible_nvram_sizes); i++) {
-		if (curr_part > BCM47XXPART_MAX_PARTS) {
+		if (curr_part >= BCM47XXPART_MAX_PARTS) {
 			pr_warn("Reached maximum number of partitions, scanning stopped!\n");
 			break;
 		}
