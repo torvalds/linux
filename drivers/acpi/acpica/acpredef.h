@@ -700,6 +700,12 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Refs) */
 	PACKAGE_INFO(ACPI_PTYPE1_VAR, ACPI_RTYPE_REFERENCE, 0, 0, 0, 0),
 
+	{{"_PRP", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Pkgs) each: 1 Str, 1 Int/Str/Pkg */
+	PACKAGE_INFO(ACPI_PTYPE2, ACPI_RTYPE_STRING, 1,
+		     ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING |
+		     ACPI_RTYPE_PACKAGE, 1, 0),
+
 	{{"_PRS", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
 
