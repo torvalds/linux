@@ -56,7 +56,8 @@ static DEFINE_SPINLOCK(lock);
 struct rk30_i2s_info {
 	void __iomem	*regs;
 
-	struct clk *i2s_clk;
+	struct clk *i2s_clk;// i2s clk ,is bclk lrck
+	struct clk *i2s_mclk;//i2s mclk,rk32xx can different i2s clk.
 
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
@@ -523,14 +524,22 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	i2s->i2s_clk= clk_get(&pdev->dev, NULL);
+	i2s->i2s_clk= clk_get(&pdev->dev, "i2s_clk");
 	if (IS_ERR(i2s->i2s_clk)) {
 		dev_err(&pdev->dev, "Can't retrieve i2s clock\n");
 		ret = PTR_ERR(i2s->i2s_clk);
 		goto err;
 	}
-	clk_prepare_enable(i2s->i2s_clk);
 	clk_set_rate(i2s->i2s_clk, 11289600);
+	clk_prepare_enable(i2s->i2s_clk);
+
+	i2s->i2s_mclk= clk_get(&pdev->dev, "i2s_mclk");
+	if(IS_ERR(i2s->i2s_mclk) ) {
+		printk("This platfrom have not i2s_mclk,no need to set i2s_mclk.\n");
+	}else{
+		clk_set_rate(i2s->i2s_mclk, 11289600);
+		clk_prepare_enable(i2s->i2s_mclk);
+	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {

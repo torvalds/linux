@@ -438,6 +438,7 @@
 		reg = <0x1011a000 0x2000>;
 		i2s-id = <1>;
 		clocks = <&clk_i2s>;
+		clock-names = "i2s_clk";
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&pdma0 6>,
 			<&pdma0 7>;
