@@ -1,0 +1,14 @@
+/dts-v1/;
+#include "bcm7445.dtsi"
+
+/ {
+	model = "Broadcom STB (bcm7445), SVMB reference board";
+	compatible = "brcm,bcm7445", "brcm,brcmstb";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00 0x00000000 0x00 0x40000000>,
+		      <0x00 0x40000000 0x00 0x40000000>,
+		      <0x00 0x80000000 0x00 0x40000000>;
+	};
+};
