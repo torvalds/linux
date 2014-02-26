@@ -4244,6 +4244,7 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 				"Rounding up size of resource #%d to %#llx.\n",
 				i, (unsigned long long)size);
 		}
+		r->flags |= IORESOURCE_UNSET;
 		r->end = size - 1;
 		r->start = 0;
 	}
@@ -4257,6 +4258,7 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 			r = &dev->resource[i];
 			if (!(r->flags & IORESOURCE_MEM))
 				continue;
+			r->flags |= IORESOURCE_UNSET;
 			r->end = resource_size(r) - 1;
 			r->start = 0;
 		}
