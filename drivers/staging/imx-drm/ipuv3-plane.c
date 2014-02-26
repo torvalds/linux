@@ -72,8 +72,8 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 		return -EFAULT;
 	}
 
-	dev_dbg(ipu_plane->base.dev->dev, "phys = 0x%x, x = %d, y = %d",
-		cma_obj->paddr, x, y);
+	dev_dbg(ipu_plane->base.dev->dev, "phys = %pad, x = %d, y = %d",
+		&cma_obj->paddr, x, y);
 
 	cpmem = ipu_get_cpmem(ipu_plane->ipu_ch);
 	ipu_cpmem_set_stride(cpmem, fb->pitches[0]);
