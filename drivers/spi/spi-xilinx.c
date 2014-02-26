@@ -88,10 +88,10 @@ struct xilinx_spi {
 	const u8 *tx_ptr;	/* pointer in the Rx buffer */
 	int remaining_bytes;	/* the number of bytes left to transfer */
 	u8 bits_per_word;
-	unsigned int (*read_fn) (void __iomem *);
-	void (*write_fn) (u32, void __iomem *);
-	void (*tx_fn) (struct xilinx_spi *);
-	void (*rx_fn) (struct xilinx_spi *);
+	unsigned int (*read_fn)(void __iomem *);
+	void (*write_fn)(u32, void __iomem *);
+	void (*tx_fn)(struct xilinx_spi *);
+	void (*rx_fn)(struct xilinx_spi *);
 };
 
 static void xspi_write32(u32 val, void __iomem *addr)
