@@ -86,7 +86,7 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 	return 0;
 }
 
-struct imx_drm_crtc *imx_drm_find_crtc(struct drm_crtc *crtc)
+static struct imx_drm_crtc *imx_drm_find_crtc(struct drm_crtc *crtc)
 {
 	struct imx_drm_device *imxdrm = crtc->dev->dev_private;
 	unsigned i;
