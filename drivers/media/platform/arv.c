@@ -109,7 +109,7 @@ extern struct cpuinfo_m32r	boot_cpu_data;
 struct ar {
 	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
-	unsigned int start_capture;	/* duaring capture in INT. mode. */
+	int start_capture;	/* duaring capture in INT. mode. */
 #if USE_INT
 	unsigned char *line_buff;	/* DMA line buffer */
 #endif
@@ -307,11 +307,11 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	/*
 	 * Okay, kick AR LSI to invoke an interrupt
 	 */
-	ar->start_capture = 0;
+	ar->start_capture = -1;
 	ar_outl(arvcr1 | ARVCR1_HIEN, ARVCR1);
 	local_irq_restore(flags);
 	/* .... AR interrupts .... */
-	interruptible_sleep_on(&ar->wait);
+	wait_event_interruptible(ar->wait, ar->start_capture == 0);
 	if (signal_pending(current)) {
 		printk(KERN_ERR "arv: interrupted while get frame data.\n");
 		ret = -EINTR;
