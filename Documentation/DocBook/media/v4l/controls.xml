@@ -5013,8 +5013,27 @@ defines possible values for de-emphasis. Here they are:</entry>
     <section id="rf-tuner-controls">
       <title>RF Tuner Control Reference</title>
 
-      <para>The RF Tuner (RF_TUNER) class includes controls for common features
-of devices having RF tuner.</para>
+      <para>
+The RF Tuner (RF_TUNER) class includes controls for common features of devices
+having RF tuner.
+      </para>
+      <para>
+In this context, RF tuner is radio receiver circuit between antenna and
+demodulator. It receives radio frequency (RF) from the antenna and converts that
+received signal to lower intermediate frequency (IF) or baseband frequency (BB).
+Tuners that could do baseband output are often called Zero-IF tuners. Older
+tuners were typically simple PLL tuners inside a metal box, whilst newer ones
+are highly integrated chips without a metal box "silicon tuners". These controls
+are mostly applicable for new feature rich silicon tuners, just because older
+tuners does not have much adjustable features.
+      </para>
+      <para>
+For more information about RF tuners see
+<ulink url="http://en.wikipedia.org/wiki/Tuner_%28radio%29">Tuner (radio)</ulink>
+and
+<ulink url="http://en.wikipedia.org/wiki/RF_front_end">RF front end</ulink>
+from Wikipedia.
+      </para>
 
       <table pgwide="1" frame="none" id="rf-tuner-control-id">
         <title>RF_TUNER Control IDs</title>
