@@ -1664,10 +1664,10 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 	/* Mapping of IO base pointer */
 	if (IS_QLA8044(ha)) {
 		ha->iobase =
-		    (device_reg_t __iomem *)((uint8_t *)ha->nx_pcibase);
+		    (device_reg_t *)((uint8_t *)ha->nx_pcibase);
 	} else if (IS_QLA82XX(ha)) {
 		ha->iobase =
-		    (device_reg_t __iomem *)((uint8_t *)ha->nx_pcibase +
+		    (device_reg_t *)((uint8_t *)ha->nx_pcibase +
 			0xbc000 + (ha->pdev->devfn << 11));
 	}
 
