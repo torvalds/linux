@@ -182,11 +182,9 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 	else
 		ui_Mode = 0;
 
-/* ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12); */
 	ui_Command = 0;
-/* ui_Command = ui_Command & 0xFFFFF9FEUL; */
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	ui_Command = 0;
+
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 
 	/* Set the reload value */
@@ -224,7 +222,7 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 	}
 
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	ui_Command = 0;
+
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 
 	/* Disable the hardware trigger */
@@ -235,7 +233,7 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 		ui_Command = ui_Command | (data[5] << 5);
 	}
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	ui_Command = 0;
+
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 
 	/* Disable the hardware gate */
@@ -246,7 +244,7 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 		ui_Command = ui_Command | (data[7] << 7);
 	}
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	ui_Command = 0;
+
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 
 	/* Disable the hardware output */
@@ -266,7 +264,6 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 28);
 	}
 
-	ui_Command = 0;
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 
 	/* Disable the hardware output */
@@ -277,7 +274,6 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 
 	/* Enable the watchdog interrupt */
-	ui_Command = 0;
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 
 	/* Set the interrupt selection */
