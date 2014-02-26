@@ -836,10 +836,10 @@ out:
 static __inline__ int neigh_max_probes(struct neighbour *n)
 {
 	struct neigh_parms *p = n->parms;
-	return (n->nud_state & NUD_PROBE) ?
-		NEIGH_VAR(p, UCAST_PROBES) :
-		NEIGH_VAR(p, UCAST_PROBES) + NEIGH_VAR(p, APP_PROBES) +
-		NEIGH_VAR(p, MCAST_PROBES);
+	int max_probes = NEIGH_VAR(p, UCAST_PROBES) + NEIGH_VAR(p, APP_PROBES);
+	if (!(n->nud_state & NUD_PROBE))
+		max_probes += NEIGH_VAR(p, MCAST_PROBES);
+	return max_probes;
 }
 
 static void neigh_invalidate(struct neighbour *neigh)
