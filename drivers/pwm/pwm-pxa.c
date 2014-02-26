@@ -140,8 +140,6 @@ static struct of_device_id pwm_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pwm_of_match);
-#else
-#define pwm_of_match NULL
 #endif
 
 static const struct platform_device_id *pxa_pwm_get_id_dt(struct device *dev)
@@ -228,7 +226,7 @@ static struct platform_driver pwm_driver = {
 	.driver		= {
 		.name	= "pxa25x-pwm",
 		.owner	= THIS_MODULE,
-		.of_match_table = pwm_of_match,
+		.of_match_table = of_match_ptr(pwm_of_match),
 	},
 	.probe		= pwm_probe,
 	.remove		= pwm_remove,
