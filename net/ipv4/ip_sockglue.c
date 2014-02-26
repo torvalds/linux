@@ -643,7 +643,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		inet->nodefrag = val ? 1 : 0;
 		break;
 	case IP_MTU_DISCOVER:
-		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_INTERFACE)
+		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
 			goto e_inval;
 		inet->pmtudisc = val;
 		break;

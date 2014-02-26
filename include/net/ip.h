@@ -266,12 +266,19 @@ int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 
 static inline bool ip_sk_accept_pmtu(const struct sock *sk)
 {
-	return inet_sk(sk)->pmtudisc != IP_PMTUDISC_INTERFACE;
+	return inet_sk(sk)->pmtudisc != IP_PMTUDISC_INTERFACE &&
+	       inet_sk(sk)->pmtudisc != IP_PMTUDISC_OMIT;
 }
 
 static inline bool ip_sk_use_pmtu(const struct sock *sk)
 {
 	return inet_sk(sk)->pmtudisc < IP_PMTUDISC_PROBE;
+}
+
+static inline bool ip_sk_local_df(const struct sock *sk)
+{
+	return inet_sk(sk)->pmtudisc < IP_PMTUDISC_DO ||
+	       inet_sk(sk)->pmtudisc == IP_PMTUDISC_OMIT;
 }
 
 static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
