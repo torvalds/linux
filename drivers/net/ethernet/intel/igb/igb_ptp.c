@@ -75,6 +75,8 @@
 #define INCVALUE_82576			(16 << IGB_82576_TSYNC_SHIFT)
 #define IGB_NBITS_82580			40
 
+static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
+
 /* SYSTIM read access for the 82576 */
 static cycle_t igb_ptp_read_82576(const struct cyclecounter *cc)
 {
@@ -372,7 +374,7 @@ static int igb_ptp_enable(struct ptp_clock_info *ptp,
  * This work function polls the TSYNCTXCTL valid bit to determine when a
  * timestamp has been taken for the current stored skb.
  **/
-void igb_ptp_tx_work(struct work_struct *work)
+static void igb_ptp_tx_work(struct work_struct *work)
 {
 	struct igb_adapter *adapter = container_of(work, struct igb_adapter,
 						   ptp_tx_work);
@@ -466,7 +468,7 @@ void igb_ptp_rx_hang(struct igb_adapter *adapter)
  * available, then it must have been for this skb here because we only
  * allow only one such packet into the queue.
  **/
-void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
+static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct skb_shared_hwtstamps shhwtstamps;
