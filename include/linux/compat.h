@@ -27,6 +27,9 @@
 #define __SC_DELOUSE(t,v) ((t)(unsigned long)(v))
 #endif
 
+#define COMPAT_SYSCALL_DEFINE0(name) \
+	asmlinkage long compat_sys_##name(void)
+
 #define COMPAT_SYSCALL_DEFINE1(name, ...) \
         COMPAT_SYSCALL_DEFINEx(1, _##name, __VA_ARGS__)
 #define COMPAT_SYSCALL_DEFINE2(name, ...) \
