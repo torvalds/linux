@@ -1917,8 +1917,8 @@ F:	drivers/bcma/
 F:	include/linux/bcma/
 
 BROCADE BFA FC SCSI DRIVER
-M:	Anil Gurumurthy <agurumur@brocade.com>
-M:	Vijaya Mohan Guvva <vmohan@brocade.com>
+M:	Anil Gurumurthy <anil.gurumurthy@qlogic.com>
+M:	Sudarsana Kalluru <sudarsana.kalluru@qlogic.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bfa/
