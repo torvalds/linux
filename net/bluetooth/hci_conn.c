@@ -594,12 +594,86 @@ static int hci_create_le_conn(struct hci_conn *conn)
 	return 0;
 }
 
+static void hci_req_add_le_create_conn(struct hci_request *req,
+				       struct hci_conn *conn)
+{
+	struct hci_cp_le_create_conn cp;
+	struct hci_dev *hdev = conn->hdev;
+	u8 own_addr_type;
+
+	memset(&cp, 0, sizeof(cp));
+
+	/* Update random address, but set require_privacy to false so
+	 * that we never connect with an unresolvable address.
+	 */
+	if (hci_update_random_address(req, false, &own_addr_type))
+		return;
+
+	/* Save the address type used for this connnection attempt so we able
+	 * to retrieve this information if we need it.
+	 */
+	conn->src_type = own_addr_type;
+
+	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
+	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
+	bacpy(&cp.peer_addr, &conn->dst);
+	cp.peer_addr_type = conn->dst_type;
+	cp.own_address_type = own_addr_type;
+	cp.conn_interval_min = cpu_to_le16(conn->le_conn_min_interval);
+	cp.conn_interval_max = cpu_to_le16(conn->le_conn_max_interval);
+	cp.supervision_timeout = __constant_cpu_to_le16(0x002a);
+	cp.min_ce_len = __constant_cpu_to_le16(0x0000);
+	cp.max_ce_len = __constant_cpu_to_le16(0x0000);
+
+	hci_req_add(req, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
+}
+
+static void stop_scan_complete(struct hci_dev *hdev, u8 status)
+{
+	struct hci_request req;
+	struct hci_conn *conn;
+	int err;
+
+	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+	if (!conn)
+		return;
+
+	if (status) {
+		BT_DBG("HCI request failed to stop scanning: status 0x%2.2x",
+		       status);
+
+		hci_dev_lock(hdev);
+		hci_le_conn_failed(conn, status);
+		hci_dev_unlock(hdev);
+		return;
+	}
+
+	/* Since we may have prematurely stopped discovery procedure, we should
+	 * update discovery state.
+	 */
+	cancel_delayed_work(&hdev->le_scan_disable);
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+
+	hci_req_init(&req, hdev);
+
+	hci_req_add_le_create_conn(&req, conn);
+
+	err = hci_req_run(&req, create_le_conn_complete);
+	if (err) {
+		hci_dev_lock(hdev);
+		hci_le_conn_failed(conn, HCI_ERROR_MEMORY_EXCEEDED);
+		hci_dev_unlock(hdev);
+		return;
+	}
+}
+
 static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				    u8 dst_type, u8 sec_level, u8 auth_type)
 {
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
 	struct smp_irk *irk;
+	struct hci_request req;
 	int err;
 
 	if (test_bit(HCI_ADVERTISING, &hdev->flags))
@@ -675,9 +749,23 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		conn->le_conn_max_interval = hdev->le_conn_max_interval;
 	}
 
-	err = hci_create_le_conn(conn);
-	if (err)
+	hci_req_init(&req, hdev);
+
+	/* If controller is scanning, we stop it since some controllers are
+	 * not able to scan and connect at the same time.
+	 */
+	if (test_bit(HCI_LE_SCAN, &hdev->dev_flags)) {
+		hci_req_add_le_scan_disable(&req);
+		err = hci_req_run(&req, stop_scan_complete);
+	} else {
+		hci_req_add_le_create_conn(&req, conn);
+		err = hci_req_run(&req, create_le_conn_complete);
+	}
+
+	if (err) {
+		hci_conn_del(conn);
 		return ERR_PTR(err);
+	}
 
 done:
 	hci_conn_hold(conn);
