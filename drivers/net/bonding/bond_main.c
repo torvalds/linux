@@ -1197,6 +1197,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		return -EBUSY;
 	}
 
+	if (bond_dev == slave_dev) {
+		pr_err("%s: cannot enslave bond to itself.\n", bond_dev->name);
+		return -EPERM;
+	}
+
 	/* vlan challenged mutual exclusion */
 	/* no need to lock since we're protected by rtnl_lock */
 	if (slave_dev->features & NETIF_F_VLAN_CHALLENGED) {
