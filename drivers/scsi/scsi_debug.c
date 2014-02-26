@@ -1888,17 +1888,19 @@ static int resp_read(struct scsi_cmnd *SCpnt, unsigned long long lba,
 		return check_condition_result;
 	}
 
+	read_lock_irqsave(&atomic_rw, iflags);
+
 	/* DIX + T10 DIF */
 	if (scsi_debug_dix && scsi_prot_sg_count(SCpnt)) {
 		int prot_ret = prot_verify_read(SCpnt, lba, num, ei_lba);
 
 		if (prot_ret) {
+			read_unlock_irqrestore(&atomic_rw, iflags);
 			mk_sense_buffer(devip, ABORTED_COMMAND, 0x10, prot_ret);
 			return illegal_condition_result;
 		}
 	}
 
-	read_lock_irqsave(&atomic_rw, iflags);
 	ret = do_device_access(SCpnt, devip, lba, num, 0);
 	read_unlock_irqrestore(&atomic_rw, iflags);
 	if (ret == -1)
@@ -2098,17 +2100,19 @@ static int resp_write(struct scsi_cmnd *SCpnt, unsigned long long lba,
 	if (ret)
 		return ret;
 
+	write_lock_irqsave(&atomic_rw, iflags);
+
 	/* DIX + T10 DIF */
 	if (scsi_debug_dix && scsi_prot_sg_count(SCpnt)) {
 		int prot_ret = prot_verify_write(SCpnt, lba, num, ei_lba);
 
 		if (prot_ret) {
+			write_unlock_irqrestore(&atomic_rw, iflags);
 			mk_sense_buffer(devip, ILLEGAL_REQUEST, 0x10, prot_ret);
 			return illegal_condition_result;
 		}
 	}
 
-	write_lock_irqsave(&atomic_rw, iflags);
 	ret = do_device_access(SCpnt, devip, lba, num, 1);
 	if (scsi_debug_lbp())
 		map_region(lba, num);
@@ -2187,6 +2191,7 @@ static int resp_unmap(struct scsi_cmnd * scmd, struct sdebug_dev_info * devip)
 	struct unmap_block_desc *desc;
 	unsigned int i, payload_len, descriptors;
 	int ret;
+	unsigned long iflags;
 
 	ret = check_readiness(scmd, 1, devip);
 	if (ret)
@@ -2208,6 +2213,8 @@ static int resp_unmap(struct scsi_cmnd * scmd, struct sdebug_dev_info * devip)
 
 	desc = (void *)&buf[8];
 
+	write_lock_irqsave(&atomic_rw, iflags);
+
 	for (i = 0 ; i < descriptors ; i++) {
 		unsigned long long lba = get_unaligned_be64(&desc[i].lba);
 		unsigned int num = get_unaligned_be32(&desc[i].blocks);
@@ -2222,6 +2229,7 @@ static int resp_unmap(struct scsi_cmnd * scmd, struct sdebug_dev_info * devip)
 	ret = 0;
 
 out:
+	write_unlock_irqrestore(&atomic_rw, iflags);
 	kfree(buf);
 
 	return ret;
