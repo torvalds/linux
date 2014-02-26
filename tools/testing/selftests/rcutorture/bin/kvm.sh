@@ -38,7 +38,7 @@ dur=30
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
-RCU_INITRD="$KVM/initrd"; export RCU_INITRD
+TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
 RCU_KMAKE_ARG=""; export RCU_KMAKE_ARG
 TORTURE_SUITE=rcu
 resdir=""
@@ -125,7 +125,7 @@ do
 		shift
 		;;
 	--no-initrd)
-		RCU_INITRD=""; export RCU_INITRD
+		TORTURE_INITRD=""; export TORTURE_INITRD
 		;;
 	--qemu-args)
 		checkarg --qemu-args "-qemu args" $# "$2" '^-' '^error'
@@ -367,7 +367,7 @@ then
 	echo KVPATH="$KVPATH; export KVPATH"
 	echo PATH="$PATH; export PATH"
 	echo RCU_BUILDONLY="$RCU_BUILDONLY; export RCU_BUILDONLY"
-	echo RCU_INITRD="$RCU_INITRD; export RCU_INITRD"
+	echo TORTURE_INITRD="$TORTURE_INITRD; export TORTURE_INITRD"
 	echo RCU_KMAKE_ARG="$RCU_KMAKE_ARG; export RCU_KMAKE_ARG"
 	echo RCU_QEMU_CMD="$RCU_QEMU_CMD; export RCU_QEMU_CMD"
 	echo RCU_QEMU_INTERACTIVE="$RCU_QEMU_INTERACTIVE; export RCU_QEMU_INTERACTIVE"
