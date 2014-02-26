@@ -38,7 +38,6 @@ dur=30
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
-builddir="${KVM}/b1"
 RCU_INITRD="$KVM/initrd"; export RCU_INITRD
 RCU_KMAKE_ARG=""; export RCU_KMAKE_ARG
 TORTURE_SUITE=rcu
@@ -53,7 +52,6 @@ kversion=""
 usage () {
 	echo "Usage: $scriptname optional arguments:"
 	echo "       --bootargs kernel-boot-arguments"
-	echo "       --builddir absolute-pathname"
 	echo "       --buildonly"
 	echo "       --configs \"config-file list\""
 	echo "       --cpus N"
@@ -67,7 +65,6 @@ usage () {
 	echo "       --no-initrd"
 	echo "       --qemu-args qemu-system-..."
 	echo "       --qemu-cmd qemu-system-..."
-	echo "       --relbuilddir relative-pathname"
 	echo "       --results absolute-pathname"
 	echo "       --torture rcu"
 	exit 1
@@ -79,12 +76,6 @@ do
 	--bootargs)
 		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
 		RCU_BOOTARGS="$2"
-		shift
-		;;
-	--builddir)
-		checkarg --builddir "(absolute pathname)" "$#" "$2" '^/' '^error'
-		builddir=$2
-		gotbuilddir=1
 		shift
 		;;
 	--buildonly)
@@ -144,13 +135,6 @@ do
 	--qemu-cmd)
 		checkarg --qemu-cmd "(qemu-system-...)" $# "$2" 'qemu-system-' '^--'
 		RCU_QEMU_CMD="$2"; export RCU_QEMU_CMD
-		shift
-		;;
-	--relbuilddir)
-		checkarg --relbuilddir "(relative pathname)" "$#" "$2" '^[^/]*$' '^--'
-		relbuilddir=$2
-		gotrelbuilddir=1
-		builddir=${KVM}/${relbuilddir}
 		shift
 		;;
 	--results)
