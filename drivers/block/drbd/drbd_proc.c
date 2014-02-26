@@ -188,16 +188,6 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 	}
 }
 
-static void resync_dump_detail(struct seq_file *seq, struct lc_element *e)
-{
-	struct bm_extent *bme = lc_entry(e, struct bm_extent, lce);
-
-	seq_printf(seq, "%5d %s %s\n", bme->rs_left,
-		   bme->flags & BME_NO_WRITES ? "NO_WRITES" : "---------",
-		   bme->flags & BME_LOCKED ? "LOCKED" : "------"
-		   );
-}
-
 static int drbd_seq_show(struct seq_file *seq, void *v)
 {
 	int i, prev_i = -1;
@@ -297,13 +287,6 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			lc_seq_printf_stats(seq, device->resync);
 			lc_seq_printf_stats(seq, device->act_log);
 			put_ldev(device);
-		}
-
-		if (proc_details >= 2) {
-			if (device->resync) {
-				lc_seq_dump_details(seq, device->resync, "rs_left",
-					resync_dump_detail);
-			}
 		}
 	}
 	rcu_read_unlock();
