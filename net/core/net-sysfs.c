@@ -104,6 +104,7 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 }
 
 NETDEVICE_SHOW_RO(dev_id, fmt_hex);
+NETDEVICE_SHOW_RO(dev_port, fmt_dec);
 NETDEVICE_SHOW_RO(addr_assign_type, fmt_dec);
 NETDEVICE_SHOW_RO(addr_len, fmt_dec);
 NETDEVICE_SHOW_RO(iflink, fmt_dec);
@@ -373,6 +374,7 @@ static struct attribute *net_class_attrs[] = {
 	&dev_attr_netdev_group.attr,
 	&dev_attr_type.attr,
 	&dev_attr_dev_id.attr,
+	&dev_attr_dev_port.attr,
 	&dev_attr_iflink.attr,
 	&dev_attr_ifindex.attr,
 	&dev_attr_addr_assign_type.attr,

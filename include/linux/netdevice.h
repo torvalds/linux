@@ -1279,6 +1279,10 @@ struct net_device {
 						 * that share the same link
 						 * layer address
 						 */
+	unsigned short          dev_port;	/* Used to differentiate
+						 * devices that share the same
+						 * function
+						 */
 	spinlock_t		addr_list_lock;
 	struct netdev_hw_addr_list	uc;	/* Unicast mac addresses */
 	struct netdev_hw_addr_list	mc;	/* Multicast mac addresses */
