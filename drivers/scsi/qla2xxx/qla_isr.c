@@ -1498,8 +1498,7 @@ logio_done:
 }
 
 static void
-qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
-    struct tsk_mgmt_entry *tsk)
+qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 {
 	const char func[] = "TMF-IOCB";
 	const char *type;
@@ -1507,7 +1506,6 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	srb_t *sp;
 	struct srb_iocb *iocb;
 	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)tsk;
-	int error = 1;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, tsk);
 	if (!sp)
@@ -1516,37 +1514,35 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	iocb = &sp->u.iocb_cmd;
 	type = sp->name;
 	fcport = sp->fcport;
+	iocb->u.tmf.data = QLA_SUCCESS;
 
 	if (sts->entry_status) {
 		ql_log(ql_log_warn, fcport->vha, 0x5038,
 		    "Async-%s error - hdl=%x entry-status(%x).\n",
 		    type, sp->handle, sts->entry_status);
+		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
 	} else if (sts->comp_status != __constant_cpu_to_le16(CS_COMPLETE)) {
 		ql_log(ql_log_warn, fcport->vha, 0x5039,
 		    "Async-%s error - hdl=%x completion status(%x).\n",
 		    type, sp->handle, sts->comp_status);
-	} else if (!(le16_to_cpu(sts->scsi_status) &
+		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
+	} else if ((le16_to_cpu(sts->scsi_status) &
 	    SS_RESPONSE_INFO_LEN_VALID)) {
-		ql_log(ql_log_warn, fcport->vha, 0x503a,
-		    "Async-%s error - hdl=%x no response info(%x).\n",
-		    type, sp->handle, sts->scsi_status);
-	} else if (le32_to_cpu(sts->rsp_data_len) < 4) {
-		ql_log(ql_log_warn, fcport->vha, 0x503b,
-		    "Async-%s error - hdl=%x not enough response(%d).\n",
-		    type, sp->handle, sts->rsp_data_len);
-	} else if (sts->data[3]) {
-		ql_log(ql_log_warn, fcport->vha, 0x503c,
-		    "Async-%s error - hdl=%x response(%x).\n",
-		    type, sp->handle, sts->data[3]);
-	} else {
-		error = 0;
+		if (le32_to_cpu(sts->rsp_data_len) < 4) {
+			ql_log(ql_log_warn, fcport->vha, 0x503b,
+			    "Async-%s error - hdl=%x not enough response(%d).\n",
+			    type, sp->handle, sts->rsp_data_len);
+		} else if (sts->data[3]) {
+			ql_log(ql_log_warn, fcport->vha, 0x503c,
+			    "Async-%s error - hdl=%x response(%x).\n",
+			    type, sp->handle, sts->data[3]);
+		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
+		}
 	}
 
-	if (error) {
-		iocb->u.tmf.data = error;
+	if (iocb->u.tmf.data != QLA_SUCCESS)
 		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5055,
 		    (uint8_t *)sts, sizeof(*sts));
-	}
 
 	sp->done(vha, sp, 0);
 }
@@ -2026,6 +2022,12 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		return;
 	}
 
+	/* Task Management completion. */
+	if (sp->type == SRB_TM_CMD) {
+		qla24xx_tm_iocb_entry(vha, req, pkt);
+		return;
+	}
+
 	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
 		qla2x00_process_completed_request(vha, req, handle);
@@ -2474,10 +2476,6 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		case LOGINOUT_PORT_IOCB_TYPE:
 			qla24xx_logio_entry(vha, rsp->req,
 			    (struct logio_entry_24xx *)pkt);
-			break;
-		case TSK_MGMT_IOCB_TYPE:
-			qla24xx_tm_iocb_entry(vha, rsp->req,
-			    (struct tsk_mgmt_entry *)pkt);
 			break;
                 case CT_IOCB_TYPE:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, CT_IOCB_TYPE);

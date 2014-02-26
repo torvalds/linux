@@ -34,6 +34,7 @@
  * |                              |                    | 0x5047,0x5052  |
  * |                              |                    | 0x5084,0x5075	|
  * |                              |                    | 0x503d,0x5044  |
+ * |                              |                    | 0x507b		|
  * | Timer Routines               |       0x6012       |                |
  * | User Space Interactions      |       0x70e2       | 0x7018,0x702e  |
  * |				  |		       | 0x7020,0x7024  |

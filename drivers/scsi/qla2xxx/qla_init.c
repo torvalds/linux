@@ -271,56 +271,46 @@ done:
 }
 
 static void
-qla2x00_async_tm_cmd_done(void *data, void *ptr, int res)
+qla2x00_tmf_iocb_timeout(void *data)
+{
+	srb_t *sp = (srb_t *)data;
+	struct srb_iocb *tmf = &sp->u.iocb_cmd;
+
+	tmf->u.tmf.comp_status = CS_TIMEOUT;
+	complete(&tmf->u.tmf.comp);
+}
+
+static void
+qla2x00_tmf_sp_done(void *data, void *ptr, int res)
 {
 	srb_t *sp = (srb_t *)ptr;
-	struct srb_iocb *iocb = &sp->u.iocb_cmd;
-	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
-	uint32_t flags;
-	uint16_t lun;
-	int rval;
-
-	if (!test_bit(UNLOADING, &vha->dpc_flags)) {
-		flags = iocb->u.tmf.flags;
-		lun = (uint16_t)iocb->u.tmf.lun;
-
-		/* Issue Marker IOCB */
-		rval = qla2x00_marker(vha, vha->hw->req_q_map[0],
-			vha->hw->rsp_q_map[0], sp->fcport->loop_id, lun,
-			flags == TCF_LUN_RESET ? MK_SYNC_ID_LUN : MK_SYNC_ID);
-
-		if ((rval != QLA_SUCCESS) || iocb->u.tmf.data) {
-			ql_dbg(ql_dbg_taskm, vha, 0x8030,
-			    "TM IOCB failed (%x).\n", rval);
-		}
-	}
-	sp->free(sp->fcport->vha, sp);
+	struct srb_iocb *tmf = &sp->u.iocb_cmd;
+	complete(&tmf->u.tmf.comp);
 }
 
 int
-qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t tm_flags, uint32_t lun,
+qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
 	uint32_t tag)
 {
 	struct scsi_qla_host *vha = fcport->vha;
+	struct srb_iocb *tm_iocb;
 	srb_t *sp;
-	struct srb_iocb *tcf;
-	int rval;
+	int rval = QLA_FUNCTION_FAILED;
 
-	rval = QLA_FUNCTION_FAILED;
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
 
+	tm_iocb = &sp->u.iocb_cmd;
 	sp->type = SRB_TM_CMD;
 	sp->name = "tmf";
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
-
-	tcf = &sp->u.iocb_cmd;
-	tcf->u.tmf.flags = tm_flags;
-	tcf->u.tmf.lun = lun;
-	tcf->u.tmf.data = tag;
-	tcf->timeout = qla2x00_async_iocb_timeout;
-	sp->done = qla2x00_async_tm_cmd_done;
+	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha));
+	tm_iocb->u.tmf.flags = flags;
+	tm_iocb->u.tmf.lun = lun;
+	tm_iocb->u.tmf.data = tag;
+	sp->done = qla2x00_tmf_sp_done;
+	tm_iocb->timeout = qla2x00_tmf_iocb_timeout;
+	init_completion(&tm_iocb->u.tmf.comp);
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS)
@@ -330,10 +320,29 @@ qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t tm_flags, uint32_t lun,
 	    "Async-tmf hdl=%x loop-id=%x portid=%02x%02x%02x.\n",
 	    sp->handle, fcport->loop_id, fcport->d_id.b.domain,
 	    fcport->d_id.b.area, fcport->d_id.b.al_pa);
-	return rval;
+
+	wait_for_completion(&tm_iocb->u.tmf.comp);
+
+	rval = tm_iocb->u.tmf.comp_status == CS_COMPLETE ?
+	    QLA_SUCCESS : QLA_FUNCTION_FAILED;
+
+	if ((rval != QLA_SUCCESS) || tm_iocb->u.tmf.data) {
+		ql_dbg(ql_dbg_taskm, vha, 0x8030,
+		    "TM IOCB failed (%x).\n", rval);
+	}
+
+	if (!test_bit(UNLOADING, &vha->dpc_flags) && !IS_QLAFX00(vha->hw)) {
+		flags = tm_iocb->u.tmf.flags;
+		lun = (uint16_t)tm_iocb->u.tmf.lun;
+
+		/* Issue Marker IOCB */
+		qla2x00_marker(vha, vha->hw->req_q_map[0],
+		    vha->hw->rsp_q_map[0], sp->fcport->loop_id, lun,
+		    flags == TCF_LUN_RESET ? MK_SYNC_ID_LUN : MK_SYNC_ID);
+	}
 
 done_free_sp:
-	sp->free(fcport->vha, sp);
+	sp->free(vha, sp);
 done:
 	return rval;
 }

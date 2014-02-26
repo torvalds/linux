@@ -685,78 +685,16 @@ qlafx00_disable_intrs(struct qla_hw_data *ha)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
-static void
-qlafx00_tmf_iocb_timeout(void *data)
-{
-	srb_t *sp = (srb_t *)data;
-	struct srb_iocb *tmf = &sp->u.iocb_cmd;
-
-	tmf->u.tmf.comp_status = cpu_to_le16((uint16_t)CS_TIMEOUT);
-	complete(&tmf->u.tmf.comp);
-}
-
-static void
-qlafx00_tmf_sp_done(void *data, void *ptr, int res)
-{
-	srb_t *sp = (srb_t *)ptr;
-	struct srb_iocb *tmf = &sp->u.iocb_cmd;
-
-	complete(&tmf->u.tmf.comp);
-}
-
-static int
-qlafx00_async_tm_cmd(fc_port_t *fcport, uint32_t flags,
-		     uint32_t lun, uint32_t tag)
-{
-	scsi_qla_host_t *vha = fcport->vha;
-	struct srb_iocb *tm_iocb;
-	srb_t *sp;
-	int rval = QLA_FUNCTION_FAILED;
-
-	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
-	if (!sp)
-		goto done;
-
-	tm_iocb = &sp->u.iocb_cmd;
-	sp->type = SRB_TM_CMD;
-	sp->name = "tmf";
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha));
-	tm_iocb->u.tmf.flags = flags;
-	tm_iocb->u.tmf.lun = lun;
-	tm_iocb->u.tmf.data = tag;
-	sp->done = qlafx00_tmf_sp_done;
-	tm_iocb->timeout = qlafx00_tmf_iocb_timeout;
-	init_completion(&tm_iocb->u.tmf.comp);
-
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
-
-	ql_dbg(ql_dbg_async, vha, 0x507b,
-	    "Task management command issued target_id=%x\n",
-	    fcport->tgt_id);
-
-	wait_for_completion(&tm_iocb->u.tmf.comp);
-
-	rval = tm_iocb->u.tmf.comp_status == CS_COMPLETE ?
-	    QLA_SUCCESS : QLA_FUNCTION_FAILED;
-
-done_free_sp:
-	sp->free(vha, sp);
-done:
-	return rval;
-}
-
 int
 qlafx00_abort_target(fc_port_t *fcport, unsigned int l, int tag)
 {
-	return qlafx00_async_tm_cmd(fcport, TCF_TARGET_RESET, l, tag);
+	return qla2x00_async_tm_cmd(fcport, TCF_TARGET_RESET, l, tag);
 }
 
 int
 qlafx00_lun_reset(fc_port_t *fcport, unsigned int l, int tag)
 {
-	return qlafx00_async_tm_cmd(fcport, TCF_LUN_RESET, l, tag);
+	return qla2x00_async_tm_cmd(fcport, TCF_LUN_RESET, l, tag);
 }
 
 int
