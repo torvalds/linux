@@ -152,7 +152,7 @@ boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
 boot_args="`per_version_boot_params "$boot_args" $builddir/.config $seconds`"
 
 echo $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
-if test -n "$RCU_BUILDONLY"
+if test -n "$TORTURE_BUILDONLY"
 then
 	echo Build-only run specified, boot/test omitted.
 	exit 0

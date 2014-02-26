@@ -81,7 +81,7 @@ do
 		shift
 		;;
 	--buildonly)
-		RCU_BUILDONLY=1; export RCU_BUILDONLY
+		TORTURE_BUILDONLY=1
 		;;
 	--configs)
 		checkarg --configs "(list of config files)" "$#" "$2" '^[^/]*$' '^--'
@@ -374,7 +374,7 @@ then
 	echo KVM="$KVM; export KVM"
 	echo KVPATH="$KVPATH; export KVPATH"
 	echo PATH="$PATH; export PATH"
-	echo RCU_BUILDONLY="$RCU_BUILDONLY; export RCU_BUILDONLY"
+	echo TORTURE_BUILDONLY="$TORTURE_BUILDONLY; export TORTURE_BUILDONLY"
 	echo TORTURE_INITRD="$TORTURE_INITRD; export TORTURE_INITRD"
 	echo TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG; export TORTURE_KMAKE_ARG"
 	echo RCU_QEMU_CMD="$RCU_QEMU_CMD; export RCU_QEMU_CMD"
@@ -402,4 +402,7 @@ echo
 echo
 echo " --- `date` Test summary:"
 echo Results directory: $resdir/$ds
-kvm-recheck.sh $resdir/$ds
+if test -n "$TORTURE_BUILDONLY"
+then
+	kvm-recheck.sh $resdir/$ds
+fi
