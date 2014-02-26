@@ -26,6 +26,7 @@
 #include <asm/mmu.h>
 #include <asm/rtas.h>
 #include <asm/topology.h>
+#include "../../kernel/cacheinfo.h"
 
 static u64 stream_id;
 static struct device suspend_dev;
@@ -76,6 +77,23 @@ static int pseries_suspend_cpu(void)
 	if (atomic_read(&suspending))
 		return rtas_suspend_cpu(&suspend_data);
 	return 0;
+}
+
+/**
+ * pseries_suspend_enable_irqs
+ *
+ * Post suspend configuration updates
+ *
+ **/
+static void pseries_suspend_enable_irqs(void)
+{
+	/*
+	 * Update configuration which can be modified based on device tree
+	 * changes during resume.
+	 */
+	cacheinfo_cpu_offline(smp_processor_id());
+	post_mobility_fixup();
+	cacheinfo_cpu_online(smp_processor_id());
 }
 
 /**
@@ -235,6 +253,7 @@ static int __init pseries_suspend_init(void)
 		return rc;
 
 	ppc_md.suspend_disable_cpu = pseries_suspend_cpu;
+	ppc_md.suspend_enable_irqs = pseries_suspend_enable_irqs;
 	suspend_set_ops(&pseries_suspend_ops);
 	return 0;
 }
