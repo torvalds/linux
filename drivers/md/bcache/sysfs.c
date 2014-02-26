@@ -761,7 +761,9 @@ SHOW(__bch_cache)
 		int cmp(const void *l, const void *r)
 		{	return *((uint16_t *) r) - *((uint16_t *) l); }
 
-		size_t n = ca->sb.nbuckets, i, unused, btree;
+		struct bucket *b;
+		size_t n = ca->sb.nbuckets, i;
+		size_t unused = 0, available = 0, dirty = 0, meta = 0;
 		uint64_t sum = 0;
 		/* Compute 31 quantiles */
 		uint16_t q[31], *p, *cached;
@@ -772,6 +774,17 @@ SHOW(__bch_cache)
 			return -ENOMEM;
 
 		mutex_lock(&ca->set->bucket_lock);
+		for_each_bucket(b, ca) {
+			if (!GC_SECTORS_USED(b))
+				unused++;
+			if (GC_MARK(b) == GC_MARK_RECLAIMABLE)
+				available++;
+			if (GC_MARK(b) == GC_MARK_DIRTY)
+				dirty++;
+			if (GC_MARK(b) == GC_MARK_METADATA)
+				meta++;
+		}
+
 		for (i = ca->sb.first_bucket; i < n; i++)
 			p[i] = ca->buckets[i].prio;
 		mutex_unlock(&ca->set->bucket_lock);
@@ -786,10 +799,7 @@ SHOW(__bch_cache)
 
 		while (cached < p + n &&
 		       *cached == BTREE_PRIO)
-			cached++;
-
-		btree = cached - p;
-		n -= btree;
+			cached++, n--;
 
 		for (i = 0; i < n; i++)
 			sum += INITIAL_PRIO - cached[i];
@@ -805,12 +815,16 @@ SHOW(__bch_cache)
 
 		ret = scnprintf(buf, PAGE_SIZE,
 				"Unused:		%zu%%\n"
+				"Clean:		%zu%%\n"
+				"Dirty:		%zu%%\n"
 				"Metadata:	%zu%%\n"
 				"Average:	%llu\n"
 				"Sectors per Q:	%zu\n"
 				"Quantiles:	[",
 				unused * 100 / (size_t) ca->sb.nbuckets,
-				btree * 100 / (size_t) ca->sb.nbuckets, sum,
+				available * 100 / (size_t) ca->sb.nbuckets,
+				dirty * 100 / (size_t) ca->sb.nbuckets,
+				meta * 100 / (size_t) ca->sb.nbuckets, sum,
 				n * ca->sb.bucket_size / (ARRAY_SIZE(q) + 1));
 
 		for (i = 0; i < ARRAY_SIZE(q); i++)
