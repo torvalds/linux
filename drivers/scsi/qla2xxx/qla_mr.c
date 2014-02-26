@@ -3014,6 +3014,7 @@ qlafx00_intr_handler(int irq, void *dev_id)
 	struct rsp_que *rsp;
 	unsigned long	flags;
 	uint32_t clr_intr = 0;
+	uint32_t intr_stat = 0;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -3035,34 +3036,26 @@ qlafx00_intr_handler(int irq, void *dev_id)
 		stat = QLAFX00_RD_INTR_REG(ha);
 		if (qla2x00_check_reg_for_disconnect(vha, stat))
 			break;
-		if ((stat & QLAFX00_HST_INT_STS_BITS) == 0)
+		intr_stat = stat & QLAFX00_HST_INT_STS_BITS;
+		if (!intr_stat)
 			break;
 
-		switch (stat & QLAFX00_HST_INT_STS_BITS) {
-		case QLAFX00_INTR_MB_CMPLT:
-		case QLAFX00_INTR_MB_RSP_CMPLT:
-		case QLAFX00_INTR_MB_ASYNC_CMPLT:
-		case QLAFX00_INTR_ALL_CMPLT:
+		if (stat & QLAFX00_INTR_MB_CMPLT) {
 			mb[0] = RD_REG_WORD(&reg->mailbox16);
 			qlafx00_mbx_completion(vha, mb[0]);
 			status |= MBX_INTERRUPT;
 			clr_intr |= QLAFX00_INTR_MB_CMPLT;
-			break;
-		case QLAFX00_INTR_ASYNC_CMPLT:
-		case QLAFX00_INTR_RSP_ASYNC_CMPLT:
+		}
+		if (intr_stat & QLAFX00_INTR_ASYNC_CMPLT) {
 			ha->aenmb[0] = RD_REG_WORD(&reg->aenmailbox0);
 			qlafx00_async_event(vha);
 			clr_intr |= QLAFX00_INTR_ASYNC_CMPLT;
-			break;
-		case QLAFX00_INTR_RSP_CMPLT:
+		}
+		if (intr_stat & QLAFX00_INTR_RSP_CMPLT) {
 			qlafx00_process_response_queue(vha, rsp);
 			clr_intr |= QLAFX00_INTR_RSP_CMPLT;
-			break;
-		default:
-			ql_dbg(ql_dbg_async, vha, 0x507a,
-			    "Unrecognized interrupt type (%d).\n", stat);
-			break;
 		}
+
 		QLAFX00_CLR_INTR_REG(ha, clr_intr);
 		QLAFX00_RD_INTR_REG(ha);
 	}
