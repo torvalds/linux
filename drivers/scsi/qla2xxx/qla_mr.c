@@ -2821,16 +2821,22 @@ qlafx00_process_response_queue(struct scsi_qla_host *vha,
 {
 	struct sts_entry_fx00 *pkt;
 	response_t *lptr;
+	uint16_t lreq_q_in = 0;
+	uint16_t lreq_q_out = 0;
 
-	while (RD_REG_DWORD((void __iomem *)&(rsp->ring_ptr->signature)) !=
-	    RESPONSE_PROCESSED) {
+	lreq_q_in = RD_REG_DWORD(rsp->rsp_q_in);
+	lreq_q_out = RD_REG_DWORD(rsp->rsp_q_out);
+
+	while (lreq_q_in != lreq_q_out) {
 		lptr = rsp->ring_ptr;
 		memcpy_fromio(rsp->rsp_pkt, (void __iomem *)lptr,
 		    sizeof(rsp->rsp_pkt));
 		pkt = (struct sts_entry_fx00 *)rsp->rsp_pkt;
 
 		rsp->ring_index++;
+		lreq_q_out++;
 		if (rsp->ring_index == rsp->length) {
+			lreq_q_out = 0;
 			rsp->ring_index = 0;
 			rsp->ring_ptr = rsp->ring;
 		} else {
@@ -2842,7 +2848,6 @@ qlafx00_process_response_queue(struct scsi_qla_host *vha,
 			qlafx00_error_entry(vha, rsp,
 			    (struct sts_entry_fx00 *)pkt, pkt->entry_status,
 			    pkt->entry_type);
-			goto next_iter;
 			continue;
 		}
 
@@ -2876,10 +2881,6 @@ qlafx00_process_response_queue(struct scsi_qla_host *vha,
 			    pkt->entry_type, pkt->entry_status);
 			break;
 		}
-next_iter:
-		WRT_REG_DWORD((void __iomem *)&lptr->signature,
-		    RESPONSE_PROCESSED);
-		wmb();
 	}
 
 	/* Adjust ring index */
