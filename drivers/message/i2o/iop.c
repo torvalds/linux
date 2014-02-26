@@ -704,7 +704,7 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 					      NULL, NULL) >= 0) {
 			c->io_alloc = 1;
 			sb->current_io_size = resource_size(res);
-			sb->current_mem_base = res->start;
+			sb->current_io_base = res->start;
 			osm_info("%s: allocated %llu bytes of PCI I/O at "
 				"0x%016llX.\n", c->name,
 				(unsigned long long)resource_size(res),
