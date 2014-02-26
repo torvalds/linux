@@ -38,6 +38,7 @@ dur=30
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
+TORTURE_DEFCONFIG=defconfig
 TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
 RCU_KMAKE_ARG=""; export RCU_KMAKE_ARG
 TORTURE_SUITE=rcu
@@ -56,6 +57,7 @@ usage () {
 	echo "       --configs \"config-file list\""
 	echo "       --cpus N"
 	echo "       --datestamp string"
+	echo "       --defconfig string"
 	echo "       --dryrun sched|script"
 	echo "       --duration minutes"
 	echo "       --interactive"
@@ -94,6 +96,11 @@ do
 	--datestamp)
 		checkarg --datestamp "(relative pathname)" "$#" "$2" '^[^/]*$' '^--'
 		ds=$2
+		shift
+		;;
+	--defconfig)
+		checkarg --defconfig "defconfigtype" "$#" "$2" '^[^/][^/]*$' '^--'
+		TORTURE_DEFCONFIG=$2
 		shift
 		;;
 	--dryrun)
@@ -259,6 +266,7 @@ END {
 # Generate a script to execute the tests in appropriate batches.
 cat << ___EOF___ > $T/script
 TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
+TORTURE_DEFCONFIG="$TORTURE_DEFCONFIG"; export TORTURE_DEFCONFIG
 ___EOF___
 awk < $T/cfgcpu.pack \
 	-v CONFIGDIR="$CONFIGFRAG/$kversion/" \
