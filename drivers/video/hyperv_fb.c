@@ -679,6 +679,8 @@ static int hvfb_getmem(struct fb_info *info)
 	if (gen2vm) {
 		info->apertures->ranges[0].base = screen_info.lfb_base;
 		info->apertures->ranges[0].size = screen_info.lfb_size;
+		remove_conflicting_framebuffers(info->apertures,
+						KBUILD_MODNAME, false);
 	} else {
 		info->apertures->ranges[0].base = pci_resource_start(pdev, 0);
 		info->apertures->ranges[0].size = pci_resource_len(pdev, 0);
