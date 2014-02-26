@@ -174,7 +174,7 @@ typedef struct buffer {
 } buffer;
 
 /* YJ,modified,080828. */
-typedef struct Stats {
+struct stats {
 	unsigned long txrdu;
 	unsigned long rxrdu;
 	unsigned long rxnolast;
@@ -207,7 +207,7 @@ typedef struct Stats {
 	unsigned long rxcrcerrmid; /* crc error (500-1000) */
 	unsigned long rxcrcerrmax; /* crc error (>1000) */
 	unsigned long rxicverr; /* ICV error */
-} Stats;
+};
 
 #define MAX_LD_SLOT_NUM 10
 #define KEEP_ALIVE_INTERVAL 20 /* in seconds. */
@@ -372,7 +372,7 @@ typedef struct r8180_priv {
 	/* short rate; */
 	short promisc;
 	/* stats */
-	struct Stats stats;
+	struct stats stats;
 	struct _link_detect_t link_detect; /* YJ,add,080828 */
 	struct iw_statistics wstats;
 

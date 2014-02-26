@@ -2256,9 +2256,9 @@ static void rtl8180_set_channel_map(u8 channel_plan,
 void GPIOChangeRFWorkItemCallBack(struct work_struct *work);
 
 /* YJ,add,080828 */
-static void rtl8180_statistics_init(struct Stats *pstats)
+static void rtl8180_statistics_init(struct stats *pstats)
 {
-	memset(pstats, 0, sizeof(struct Stats));
+	memset(pstats, 0, sizeof(struct stats));
 }
 
 static void rtl8180_link_detect_init(plink_detect_t plink_detect)
