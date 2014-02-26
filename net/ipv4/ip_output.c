@@ -449,7 +449,6 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 	__be16 not_last_frag;
 	struct rtable *rt = skb_rtable(skb);
 	int err = 0;
-	bool forwarding = IPCB(skb)->flags & IPSKB_FORWARDED;
 
 	dev = rt->dst.dev;
 
@@ -459,7 +458,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 	iph = ip_hdr(skb);
 
-	mtu = ip_dst_mtu_maybe_forward(&rt->dst, forwarding);
+	mtu = ip_skb_dst_mtu(skb);
 	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->local_df) ||
 		     (IPCB(skb)->frag_max_size &&
 		      IPCB(skb)->frag_max_size > mtu))) {
