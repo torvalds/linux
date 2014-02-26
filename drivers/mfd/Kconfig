@@ -482,6 +482,7 @@ config MFD_PM8921_CORE
 	select IRQ_DOMAIN
 	select MFD_CORE
 	select MFD_PM8XXX
+	select REGMAP
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in PM8921 PMIC chip.
