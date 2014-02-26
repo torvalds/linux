@@ -4457,7 +4457,8 @@ int ath10k_mac_register(struct ath10k *ar)
 			IEEE80211_HW_HAS_RATE_CONTROL |
 			IEEE80211_HW_SUPPORTS_STATIC_SMPS |
 			IEEE80211_HW_WANT_MONITOR_VIF |
-			IEEE80211_HW_AP_LINK_PS;
+			IEEE80211_HW_AP_LINK_PS |
+			IEEE80211_HW_SPECTRUM_MGMT;
 
 	/* MSDU can have HTT TX fragment pushed in front. The additional 4
 	 * bytes is used for padding/alignment if necessary. */
