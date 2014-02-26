@@ -105,8 +105,7 @@ typedef u32 AC_CODING;
  */
 typedef union _ECW {
 	u8 charData;
-	struct
-	{
+	struct {
 		u8 ECWmin:4;
 		u8 ECWmax:4;
 	} f;	/* Field */
@@ -118,8 +117,7 @@ typedef union _ECW {
 typedef union _ACI_AIFSN {
 	u8 charData;
 
-	struct
-	{
+	struct {
 		u8 AIFSN:4;
 		u8 ACM:1;
 		u8 ACI:2;
@@ -135,8 +133,7 @@ typedef union _AC_PARAM {
 	u32 longData;
 	u8 charData[4];
 
-	struct
-	{
+	struct {
 		ACI_AIFSN AciAifsn;
 		ECW Ecw;
 		u16 TXOPLimit;
@@ -170,16 +167,14 @@ typedef union _ThreeWire {
 } ThreeWireReg;
 
 
-typedef struct buffer
-{
+typedef struct buffer {
 	struct buffer *next;
 	u32 *buf;
 	dma_addr_t dma;
 } buffer;
 
 /* YJ,modified,080828. */
-typedef struct Stats
-{
+typedef struct Stats {
 	unsigned long txrdu;
 	unsigned long rxrdu;
 	unsigned long rxnolast;
@@ -222,8 +217,7 @@ typedef struct Stats
 #define POWER_PROFILE_AC 0
 #define POWER_PROFILE_BATTERY 1
 
-typedef struct _link_detect_t
-{
+typedef struct _link_detect_t {
 	u32 RxFrameNum[MAX_LD_SLOT_NUM]; /* number of Rx Frame.
 					  * CheckForHang_period  to determine
 					  * link status.
@@ -270,8 +264,7 @@ typedef enum _LED_CTL_MODE {
 	LED_CTL_POWER_OFF = 7
 } LED_CTL_MODE;
 
-typedef enum _RT_RF_POWER_STATE
-{
+typedef enum _RT_RF_POWER_STATE {
 	eRfOn,
 	eRfSleep,
 	eRfOff
@@ -321,15 +314,15 @@ enum _ReasonCode {
 	dest_not_exist = 0x31, /* 49 */
 	dest_not_QSTA = 0x32, /* 50 */
 };
-typedef enum _RT_PS_MODE
-{
+
+typedef enum _RT_PS_MODE {
 	eActive, /* Active/Continuous access. */
 	eMaxPs,	/* Max power save mode. */
 	eFastPs /* Fast power save mode. */
 } RT_PS_MODE;
+
 /* by amy for power save. */
-typedef struct r8180_priv
-{
+typedef struct r8180_priv {
 	struct pci_dev *pdev;
 
 	short epromtype;
