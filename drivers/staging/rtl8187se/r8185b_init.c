@@ -873,7 +873,7 @@ static u8 GetSupportedWirelessMode8185(struct net_device *dev)
 static void
 ActUpdateChannelAccessSetting(struct net_device *dev,
 			      WIRELESS_MODE WirelessMode,
-			      PCHANNEL_ACCESS_SETTING ChnlAccessSetting)
+			      struct chnl_access_setting *chnl_access_setting)
 {
 	AC_CODING	eACI;
 
@@ -890,25 +890,25 @@ ActUpdateChannelAccessSetting(struct net_device *dev,
 	 */
 
 	/* Suggested by Jong, 2005.12.08. */
-	ChnlAccessSetting->SIFS_Timer = 0x22;
-	ChnlAccessSetting->DIFS_Timer = 0x1C; /* 2006.06.02, by rcnjko. */
-	ChnlAccessSetting->SlotTimeTimer = 9; /* 2006.06.02, by rcnjko. */
+	chnl_access_setting->sifs_timer = 0x22;
+	chnl_access_setting->difs_timer = 0x1C; /* 2006.06.02, by rcnjko. */
+	chnl_access_setting->slot_time_timer = 9; /* 2006.06.02, by rcnjko. */
 	/*
 	 * Suggested by wcchu, it is the default value of EIFS register,
 	 * 2005.12.08.
 	 */
-	ChnlAccessSetting->EIFS_Timer = 0x5B;
-	ChnlAccessSetting->CWminIndex = 3; /* 2006.06.02, by rcnjko. */
-	ChnlAccessSetting->CWmaxIndex = 7; /* 2006.06.02, by rcnjko. */
+	chnl_access_setting->eifs_timer = 0x5B;
+	chnl_access_setting->cwmin_index = 3; /* 2006.06.02, by rcnjko. */
+	chnl_access_setting->cwmax_index = 7; /* 2006.06.02, by rcnjko. */
 
-	write_nic_byte(dev, SIFS, ChnlAccessSetting->SIFS_Timer);
+	write_nic_byte(dev, SIFS, chnl_access_setting->sifs_timer);
 	/*
 	 * Rewrited from directly use PlatformEFIOWrite1Byte(),
 	 * by Annie, 2006-03-29.
 	 */
-	write_nic_byte(dev, SLOT, ChnlAccessSetting->SlotTimeTimer);
+	write_nic_byte(dev, SLOT, chnl_access_setting->slot_time_timer);
 
-	write_nic_byte(dev, EIFS, ChnlAccessSetting->EIFS_Timer);
+	write_nic_byte(dev, EIFS, chnl_access_setting->eifs_timer);
 
 	/*
 	 * <RJ_EXPR_QOS> Suggested by wcchu, it is the default value of EIFS

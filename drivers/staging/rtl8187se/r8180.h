@@ -76,14 +76,14 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_AUTO = 0x08,
 } WIRELESS_MODE;
 
-typedef struct ChnlAccessSetting {
-	u16 SIFS_Timer;
-	u16 DIFS_Timer;
-	u16 SlotTimeTimer;
-	u16 EIFS_Timer;
-	u16 CWminIndex;
-	u16 CWmaxIndex;
-} *PCHANNEL_ACCESS_SETTING, CHANNEL_ACCESS_SETTING;
+struct chnl_access_setting {
+	u16 sifs_timer;
+	u16 difs_timer;
+	u16 slot_time_timer;
+	u16 eifs_timer;
+	u16 cwmin_index;
+	u16 cwmax_index;
+};
 
 typedef enum {
 	NIC_8185 = 1,
@@ -643,7 +643,7 @@ typedef struct r8180_priv {
 	u32 ReceiveConfig;
 	u32 IntrMask;
 
-	struct ChnlAccessSetting ChannelAccessSetting;
+	struct chnl_access_setting ChannelAccessSetting;
 } r8180_priv;
 
 #define MANAGE_PRIORITY 0
