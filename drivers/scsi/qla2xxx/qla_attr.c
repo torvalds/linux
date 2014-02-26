@@ -241,12 +241,17 @@ qla2x00_sysfs_read_optrom(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	ssize_t rval = 0;
 
 	if (ha->optrom_state != QLA_SREADING)
 		return 0;
 
-	return memory_read_from_buffer(buf, count, &off, ha->optrom_buffer,
-					ha->optrom_region_size);
+	mutex_lock(&ha->optrom_mutex);
+	rval = memory_read_from_buffer(buf, count, &off, ha->optrom_buffer,
+	    ha->optrom_region_size);
+	mutex_unlock(&ha->optrom_mutex);
+
+	return rval;
 }
 
 static ssize_t
@@ -265,7 +270,9 @@ qla2x00_sysfs_write_optrom(struct file *filp, struct kobject *kobj,
 	if (off + count > ha->optrom_region_size)
 		count = ha->optrom_region_size - off;
 
+	mutex_lock(&ha->optrom_mutex);
 	memcpy(&ha->optrom_buffer[off], buf, count);
+	mutex_unlock(&ha->optrom_mutex);
 
 	return count;
 }
@@ -288,10 +295,10 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
-
 	uint32_t start = 0;
 	uint32_t size = ha->optrom_size;
 	int val, valid;
+	ssize_t rval = count;
 
 	if (off)
 		return -EINVAL;
@@ -304,12 +311,14 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 	if (start > ha->optrom_size)
 		return -EINVAL;
 
+	mutex_lock(&ha->optrom_mutex);
 	switch (val) {
 	case 0:
 		if (ha->optrom_state != QLA_SREADING &&
-		    ha->optrom_state != QLA_SWRITING)
-			return -EINVAL;
-
+		    ha->optrom_state != QLA_SWRITING) {
+			rval =  -EINVAL;
+			goto out;
+		}
 		ha->optrom_state = QLA_SWAITING;
 
 		ql_dbg(ql_dbg_user, vha, 0x7061,
@@ -320,8 +329,10 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		ha->optrom_buffer = NULL;
 		break;
 	case 1:
-		if (ha->optrom_state != QLA_SWAITING)
-			return -EINVAL;
+		if (ha->optrom_state != QLA_SWAITING) {
+			rval = -EINVAL;
+			goto out;
+		}
 
 		ha->optrom_region_start = start;
 		ha->optrom_region_size = start + size > ha->optrom_size ?
@@ -335,13 +346,15 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 			    "(%x).\n", ha->optrom_region_size);
 
 			ha->optrom_state = QLA_SWAITING;
-			return -ENOMEM;
+			rval = -ENOMEM;
+			goto out;
 		}
 
 		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7063,
 			    "HBA not online, failing NVRAM update.\n");
-			return -EAGAIN;
+			rval = -EAGAIN;
+			goto out;
 		}
 
 		ql_dbg(ql_dbg_user, vha, 0x7064,
@@ -353,8 +366,10 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		    ha->optrom_region_start, ha->optrom_region_size);
 		break;
 	case 2:
-		if (ha->optrom_state != QLA_SWAITING)
-			return -EINVAL;
+		if (ha->optrom_state != QLA_SWAITING) {
+			rval = -EINVAL;
+			goto out;
+		}
 
 		/*
 		 * We need to be more restrictive on which FLASH regions are
@@ -388,7 +403,8 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		if (!valid) {
 			ql_log(ql_log_warn, vha, 0x7065,
 			    "Invalid start region 0x%x/0x%x.\n", start, size);
-			return -EINVAL;
+			rval = -EINVAL;
+			goto out;
 		}
 
 		ha->optrom_region_start = start;
@@ -403,7 +419,8 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 			    "(%x)\n", ha->optrom_region_size);
 
 			ha->optrom_state = QLA_SWAITING;
-			return -ENOMEM;
+			rval = -ENOMEM;
+			goto out;
 		}
 
 		ql_dbg(ql_dbg_user, vha, 0x7067,
@@ -413,13 +430,16 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		memset(ha->optrom_buffer, 0, ha->optrom_region_size);
 		break;
 	case 3:
-		if (ha->optrom_state != QLA_SWRITING)
-			return -EINVAL;
+		if (ha->optrom_state != QLA_SWRITING) {
+			rval = -EINVAL;
+			goto out;
+		}
 
 		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7068,
 			    "HBA not online, failing flash update.\n");
-			return -EAGAIN;
+			rval = -EAGAIN;
+			goto out;
 		}
 
 		ql_dbg(ql_dbg_user, vha, 0x7069,
@@ -430,9 +450,12 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		    ha->optrom_region_start, ha->optrom_region_size);
 		break;
 	default:
-		return -EINVAL;
+		rval = -EINVAL;
 	}
-	return count;
+
+out:
+	mutex_unlock(&ha->optrom_mutex);
+	return rval;
 }
 
 static struct bin_attribute sysfs_optrom_ctl_attr = {

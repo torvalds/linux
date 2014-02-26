@@ -1437,9 +1437,12 @@ qla2x00_read_optrom(struct fc_bsg_job *bsg_job)
 	if (ha->flags.nic_core_reset_hdlr_active)
 		return -EBUSY;
 
+	mutex_lock(&ha->optrom_mutex);
 	rval = qla2x00_optrom_setup(bsg_job, vha, 0);
-	if (rval)
+	if (rval) {
+		mutex_unlock(&ha->optrom_mutex);
 		return rval;
+	}
 
 	ha->isp_ops->read_optrom(vha, ha->optrom_buffer,
 	    ha->optrom_region_start, ha->optrom_region_size);
@@ -1453,6 +1456,7 @@ qla2x00_read_optrom(struct fc_bsg_job *bsg_job)
 	vfree(ha->optrom_buffer);
 	ha->optrom_buffer = NULL;
 	ha->optrom_state = QLA_SWAITING;
+	mutex_unlock(&ha->optrom_mutex);
 	bsg_job->job_done(bsg_job);
 	return rval;
 }
@@ -1465,9 +1469,12 @@ qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
 	struct qla_hw_data *ha = vha->hw;
 	int rval = 0;
 
+	mutex_lock(&ha->optrom_mutex);
 	rval = qla2x00_optrom_setup(bsg_job, vha, 1);
-	if (rval)
+	if (rval) {
+		mutex_unlock(&ha->optrom_mutex);
 		return rval;
+	}
 
 	/* Set the isp82xx_no_md_cap not to capture minidump */
 	ha->flags.isp82xx_no_md_cap = 1;
@@ -1483,6 +1490,7 @@ qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
 	vfree(ha->optrom_buffer);
 	ha->optrom_buffer = NULL;
 	ha->optrom_state = QLA_SWAITING;
+	mutex_unlock(&ha->optrom_mutex);
 	bsg_job->job_done(bsg_job);
 	return rval;
 }

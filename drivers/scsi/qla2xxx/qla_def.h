@@ -3183,6 +3183,7 @@ struct qla_hw_data {
 #define QLA_SWRITING	2
 	uint32_t	optrom_region_start;
 	uint32_t	optrom_region_size;
+	struct mutex	optrom_mutex;
 
 /* PCI expansion ROM image information. */
 #define ROM_CODE_TYPE_BIOS	0
