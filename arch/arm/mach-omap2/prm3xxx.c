@@ -409,6 +409,15 @@ int omap3xxx_prm_clear_global_cold_reset(void)
 	return 0;
 }
 
+void omap3_prm_save_scratchpad_contents(u32 *ptr)
+{
+	*ptr++ = omap2_prm_read_mod_reg(OMAP3430_GR_MOD,
+					OMAP3_PRM_CLKSRC_CTRL_OFFSET);
+
+	*ptr++ = omap2_prm_read_mod_reg(OMAP3430_GR_MOD,
+					OMAP3_PRM_CLKSEL_OFFSET);
+}
+
 /* Powerdomain low-level functions */
 
 static int omap3_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
