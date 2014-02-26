@@ -44,6 +44,9 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 	if (!res->flags)
 		return;
 
+	if (res->flags & IORESOURCE_UNSET)
+		return;
+
 	/*
 	 * Ignore non-moveable resources.  This might be legacy resources for
 	 * which no functional BAR register exists or another important
