@@ -15,7 +15,6 @@
 
 	.section ".text.head", "ax"
 
-#ifdef CONFIG_SMP
 diag_reg_offset:
 	.word	g_diag_reg - .
 
@@ -32,4 +31,3 @@ ENTRY(v7_secondary_startup)
 	set_diag_reg
 	b	secondary_startup
 ENDPROC(v7_secondary_startup)
-#endif
