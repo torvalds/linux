@@ -3,8 +3,8 @@
 #include "../../edid.h"
 
 #define DPCD_REV					0x00
-#define DPCD_MAX_LINK_RATE					0x01
-#define DPCD_MAX_LANE_CNT					0x02	
+#define DPCD_MAX_LINK_RATE				0x01
+#define DPCD_MAX_LANE_CNT				0x02	
 
 #define DPCD_MAX_DOWNSPREAD				0x03
 #define DPCD_NORP					0x04
@@ -120,7 +120,7 @@
 #define EDID_EXTENSION_FLAG				0x7e
 #define EDID_CHECKSUM					0x7f	
 
-static unsigned char edp_calc_edid_check_sum(unsigned char *edid_data)
+static unsigned char inline edp_calc_edid_check_sum(unsigned char *edid_data)
 {
 	int i;
 	unsigned char sum = 0;

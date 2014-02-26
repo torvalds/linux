@@ -170,6 +170,7 @@
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
+	
 
    i2c5: i2c@ff170000 {
        compatible = "rockchip,rk30-i2c";
@@ -186,6 +187,12 @@
        status = "disabled";
     };
 
+	edp: edp@ff970000 {
+                compatible = "rockchip,rk32-edp";
+                reg = <0xff970000 0x4000>;
+                interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+                status = "disabled";
+        }
     adc: adc@ff100000 {
         compatible = "rockchip,saradc";
         reg = <0xff100000 0x100>;
@@ -202,7 +209,7 @@
 		compatible = "rockchip,rga";
 		reg = <0xff920000 0x1000>;
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
-    clock-names = "hclk_rga", "aclk_rga"; 
+		clock-names = "hclk_rga", "aclk_rga"; 
 		status = "disabled";
         };
 

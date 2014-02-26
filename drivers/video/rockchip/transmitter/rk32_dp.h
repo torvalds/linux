@@ -1,5 +1,7 @@
 #ifndef __RK32_DP_H
 #define __RK32_DP_H
+#include <linux/rk_fb.h>
+#include "dpcd_edid.h"
 
 #define DP_VERSION				0x10
 
@@ -67,6 +69,24 @@
 #define INTERACE_SCAN_CFG			(0x1 << 2)
 #define VSYNC_POLARITY_CFG			(0x1 << 1)
 #define HSYNC_POLARITY_CFG			(0x1 << 0)
+
+#define TOTAL_LINE_CFG_L			0x48
+#define TOTAL_LINE_CFG_H			0x4c
+#define ATV_LINE_CFG_L				0x50
+#define ATV_LINE_CFG_H				0x54
+#define VF_PORCH_REG            		0x58
+#define VSYNC_CFG_REG           		0x5c
+#define VB_PORCH_REG            		0x60
+#define TOTAL_PIXELL_REG        		0x64
+#define TOTAL_PIXELH_REG        		0x68
+#define ATV_PIXELL_REG          		0x6c
+#define ATV_PIXELH_REG          		0x70
+#define HF_PORCHL_REG           		0x74
+#define HF_PORCHH_REG           		0x78
+#define HSYNC_CFGL_REG          		0x7c
+#define HSYNC_CFGH_REG          		0x80
+#define HB_PORCHL_REG           		0x84
+#define HB_PORCHH_REG           		0x88
 
 #define PLL_REG_1				0xfc
 #define REF_CLK_24M				(0x01 << 1)
@@ -212,6 +232,7 @@
 #define LN3_LINK_TRAINING_CTL			0x698
 
 #define HW_LT_CTL				0x6a0
+#define HW_LT_ERR_CODE_MASK			0x70
 #define HW_LT_EN				(0x1 << 0)
 
 #define DEBUG_CTL				0x6C0
@@ -247,9 +268,6 @@
 #define DEFER_COUNT(x)				(((x) & 0x7f) << 0)
 
 #define AUX_RX_COMM				0x78C
-#define AUX_RX_COMM_I2C_DEFER			(0x2 << 2)
-#define AUX_RX_COMM_AUX_DEFER			(0x2 << 0)
-
 #define BUFFER_DATA_CTL				0x790
 #define BUF_CLR					(0x1 << 7)
 #define BUF_HAVE_DATA				(0x1 << 4)
@@ -338,90 +356,9 @@
 
 
 
-/* AUX_ADDR_7_0 */
-#define AUX_ADDR_7_0(x)				(((x) >> 0) & 0xff)
-
-/* AUX_ADDR_15_8 */
-#define AUX_ADDR_15_8(x)			(((x) >> 8) & 0xff)
-
-/* AUX_ADDR_19_16 */
-#define AUX_ADDR_19_16(x)			(((x) >> 16) & 0x0f)
 
 
-/* I2C EDID Chip ID, Slave Address */
-#define I2C_EDID_DEVICE_ADDR			0x50
-#define I2C_E_EDID_DEVICE_ADDR			0x30
 
-#define EDID_BLOCK_LENGTH			0x80
-#define EDID_HEADER_PATTERN			0x00
-#define EDID_EXTENSION_FLAG			0x7e
-#define EDID_CHECKSUM				0x7f
-
-
-/* Definition for DPCD Register */
-#define DPCD_ADDR_DPCD_REV			0x0000
-#define DPCD_ADDR_MAX_LINK_RATE			0x0001
-#define DPCD_ADDR_MAX_LANE_COUNT		0x0002
-#define DPCD_ADDR_LINK_BW_SET			0x0100
-#define DPCD_ADDR_LANE_COUNT_SET		0x0101
-#define DPCD_ADDR_TRAINING_PATTERN_SET		0x0102
-#define DPCD_ADDR_TRAINING_LANE0_SET		0x0103
-#define DPCD_ADDR_LANE0_1_STATUS		0x0202
-#define DPCD_ADDR_LANE_ALIGN_STATUS_UPDATED	0x0204
-#define DPCD_ADDR_ADJUST_REQUEST_LANE0_1	0x0206
-#define DPCD_ADDR_ADJUST_REQUEST_LANE2_3	0x0207
-#define DPCD_ADDR_TEST_REQUEST			0x0218
-#define DPCD_ADDR_TEST_RESPONSE			0x0260
-#define DPCD_ADDR_TEST_EDID_CHECKSUM		0x0261
-#define DPCD_ADDR_SINK_POWER_STATE		0x0600
-
-/* DPCD_ADDR_MAX_LANE_COUNT */
-#define DPCD_ENHANCED_FRAME_CAP(x)		(((x) >> 7) & 0x1)
-#define DPCD_MAX_LANE_COUNT(x)			((x) & 0x1f)
-
-/* DPCD_ADDR_LANE_COUNT_SET */
-#define DPCD_ENHANCED_FRAME_EN			(0x1 << 7)
-#define DPCD_LANE_COUNT_SET(x)			((x) & 0x1f)
-
-/* DPCD_ADDR_TRAINING_PATTERN_SET */
-#define DPCD_SCRAMBLING_DISABLED		(0x1 << 5)
-#define DPCD_SCRAMBLING_ENABLED			(0x0 << 5)
-#define DPCD_TRAINING_PATTERN_2			(0x2 << 0)
-#define DPCD_TRAINING_PATTERN_1			(0x1 << 0)
-#define DPCD_TRAINING_PATTERN_DISABLED		(0x0 << 0)
-
-/* DPCD_ADDR_TRAINING_LANE0_SET */
-#define DPCD_MAX_PRE_EMPHASIS_REACHED		(0x1 << 5)
-#define DPCD_PRE_EMPHASIS_SET(x)		(((x) & 0x3) << 3)
-#define DPCD_PRE_EMPHASIS_GET(x)		(((x) >> 3) & 0x3)
-#define DPCD_PRE_EMPHASIS_PATTERN2_LEVEL0	(0x0 << 3)
-#define DPCD_MAX_SWING_REACHED			(0x1 << 2)
-#define DPCD_VOLTAGE_SWING_SET(x)		(((x) & 0x3) << 0)
-#define DPCD_VOLTAGE_SWING_GET(x)		(((x) >> 0) & 0x3)
-#define DPCD_VOLTAGE_SWING_PATTERN1_LEVEL0	(0x0 << 0)
-
-/* DPCD_ADDR_LANE0_1_STATUS */
-#define DPCD_LANE_SYMBOL_LOCKED			(0x1 << 2)
-#define DPCD_LANE_CHANNEL_EQ_DONE		(0x1 << 1)
-#define DPCD_LANE_CR_DONE			(0x1 << 0)
-#define DPCD_CHANNEL_EQ_BITS			(DPCD_LANE_CR_DONE|	\
-						 DPCD_LANE_CHANNEL_EQ_DONE|\
-						 DPCD_LANE_SYMBOL_LOCKED)
-
-/* DPCD_ADDR_LANE_ALIGN__STATUS_UPDATED */
-#define DPCD_LINK_STATUS_UPDATED		(0x1 << 7)
-#define DPCD_DOWNSTREAM_PORT_STATUS_CHANGED	(0x1 << 6)
-#define DPCD_INTERLANE_ALIGN_DONE		(0x1 << 0)
-
-/* DPCD_ADDR_TEST_REQUEST */
-#define DPCD_TEST_EDID_READ			(0x1 << 2)
-
-/* DPCD_ADDR_TEST_RESPONSE */
-#define DPCD_TEST_EDID_CHECKSUM_WRITE		(0x1 << 2)
-
-/* DPCD_ADDR_SINK_POWER_STATE */
-#define DPCD_SET_POWER_STATE_D0			(0x1 << 0)
-#define DPCD_SET_POWER_STATE_D4			(0x2 << 0)
 
 #define DP_TIMEOUT_LOOP_CNT 100
 #define MAX_CR_LOOP 5
@@ -549,10 +486,12 @@ struct link_train {
 struct rk32_edp {
 	struct device 		*dev;
 	void __iomem  		*regs;
+	unsigned int  		irq;
 	struct clk    		*clk_edp;
 	struct clk    		*clk_24m;
 	struct link_train	link_train;
 	struct video_info	video_info;
+	struct rk_screen	screen;
 	int 			enabled;
 };
 
@@ -644,6 +583,8 @@ void rk32_edp_config_video_slave_mode(struct rk32_edp *edp,
 void rk32_edp_enable_scrambling(struct rk32_edp *edp);
 void rk32_edp_disable_scrambling(struct rk32_edp *edp);
 void rk32_edp_rx_control(struct rk32_edp *edp, bool enable);
-
-
+int rk32_edp_bist_cfg(struct rk32_edp *edp);
+void rk32_edp_hw_link_training_en(struct rk32_edp * edp);
+int rk32_edp_get_hw_lt_status(struct rk32_edp *edp);
+int rk32_edp_wait_hw_lt_done(struct rk32_edp *edp);
 #endif

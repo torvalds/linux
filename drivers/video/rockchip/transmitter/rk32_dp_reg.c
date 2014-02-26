@@ -70,7 +70,7 @@ void rk32_edp_init_analog_param(struct rk32_edp *edp)
 
 #ifndef CONFIG_RK_FPGA
 	val = (REF_CLK_FROM_INTER << 16) | REF_CLK_FROM_INTER;
-	writel_relaxed(val,RK_GRF_VIRT + GRF_SOC_CON12);
+	writel_relaxed(val,RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
 #endif
 
 	val = SEL_24M;
@@ -764,6 +764,36 @@ void rk32_edp_get_link_bandwidth(struct rk32_edp *edp, u32 *bwtype)
 	*bwtype = val;
 }
 
+void rk32_edp_hw_link_training_en(struct rk32_edp * edp)
+{
+	u32 val;
+	val = HW_LT_EN;
+	writel(val, edp->regs + HW_LT_CTL);
+}
+
+int rk32_edp_wait_hw_lt_done(struct rk32_edp *edp)
+{
+	u32 val;
+#if 0
+	val = readl(edp->regs + HW_LT_CTL);
+	return val&0x01;
+#else
+	val = readl(edp->regs + DP_INT_STA);
+	if (val&HW_LT_DONE) {
+		writel(val,edp->regs + DP_INT_STA);
+		return 0;
+	}
+	else
+		return 1;
+#endif
+}
+
+int rk32_edp_get_hw_lt_status(struct rk32_edp * edp)
+{
+	u32 val;
+	val = readl(edp->regs + HW_LT_CTL);
+	return (val & HW_LT_ERR_CODE_MASK) >> 4;
+}
 void rk32_edp_set_lane_count(struct rk32_edp *edp, u32 count)
 {
 	u32 val;
@@ -1017,6 +1047,7 @@ int rk32_edp_is_slave_video_stream_clock_on(struct rk32_edp *edp)
 	return 0;
 }
 
+
 void rk32_edp_set_video_cr_mn(struct rk32_edp *edp,
 		enum clock_recovery_m_value_type type,
 		u32 m_value,
@@ -1067,6 +1098,70 @@ void rk32_edp_set_video_timing_mode(struct rk32_edp *edp, u32 type)
 	}
 }
 
+int rk32_edp_bist_cfg(struct rk32_edp *edp)
+{
+	struct video_info *video_info = &edp->video_info;
+	struct rk_screen *screen = &edp->screen;
+	u16 x_total ,y_total, x_act;
+	u32 val;
+	x_total = screen->mode.left_margin + screen->mode.right_margin +
+			screen->mode.xres + screen->mode.hsync_len;
+	y_total = screen->mode.upper_margin + screen->mode.lower_margin +
+			screen->mode.yres + screen->mode.vsync_len;
+	x_act = screen->mode.xres;
+	rk32_edp_set_video_cr_mn(edp, CALCULATED_M, 0, 0);
+	rk32_edp_set_video_color_format(edp, video_info->color_depth,
+					video_info->color_space,
+					video_info->dynamic_range,
+					video_info->ycbcr_coeff);
+	val = y_total & 0xff;
+	writel(val, edp->regs + TOTAL_LINE_CFG_L);
+	val = (y_total >> 8);
+	writel(val, edp->regs + TOTAL_LINE_CFG_H);
+	val = (screen->mode.yres & 0xff);
+	writel(val, edp->regs + ATV_LINE_CFG_L);
+	val = (screen->mode.yres >> 8);
+	writel(val, edp->regs + ATV_LINE_CFG_H);
+	val = screen->mode.lower_margin;
+	writel(val, edp->regs + VF_PORCH_REG);
+	val = screen->mode.vsync_len;
+	writel(val, edp->regs + VSYNC_CFG_REG);
+	val = screen->mode.upper_margin;
+	writel(val, edp->regs + VB_PORCH_REG);
+	val = x_total & 0xff;
+	writel(val, edp->regs + TOTAL_PIXELL_REG);
+	val = x_total >> 8;
+	writel(val, edp->regs + TOTAL_PIXELH_REG);
+	val = (x_act & 0xff);
+	writel(val, edp->regs + ATV_PIXELL_REG);
+	val = (x_act >> 8);
+	writel(val, edp->regs + ATV_PIXELH_REG);
+	val = screen->mode.right_margin & 0xff;
+	writel(val, edp->regs + HF_PORCHL_REG);
+	val = screen->mode.right_margin >> 8;
+	writel(val, edp->regs + HF_PORCHH_REG);
+	val = screen->mode.hsync_len & 0xff;
+	writel(val, edp->regs + HSYNC_CFGL_REG);
+	val = screen->mode.hsync_len >> 8;
+	writel(val, edp->regs + HSYNC_CFGH_REG);
+	val = screen->mode.left_margin & 0xff;
+	writel(val, edp->regs + HB_PORCHL_REG);
+	val = screen->mode.left_margin  >> 8;
+	writel(val, edp->regs + HB_PORCHH_REG);
+
+	val = BIST_EN;
+	writel(val, edp->regs + VIDEO_CTL_4);
+
+	val = readl(edp->regs + VIDEO_CTL_10);
+	val &= ~F_SEL;
+	writel(val, edp->regs + VIDEO_CTL_10);
+
+	rk32_edp_start_video(edp);
+	
+	return 0;
+	
+}
+
 void rk32_edp_enable_video_master(struct rk32_edp *edp, bool enable)
 {
 	/*u32 val;
@@ -1115,7 +1210,7 @@ void rk32_edp_config_video_slave_mode(struct rk32_edp *edp,
 	u32 val;
 
 	val = readl(edp->regs + FUNC_EN_1);
-	val &= ~(VID_FIFO_FUNC_EN_N);
+	val &= ~(VID_FIFO_FUNC_EN_N | VID_CAP_FUNC_EN_N);
 	writel(val, edp->regs + FUNC_EN_1);
 
 	val = readl(edp->regs + VIDEO_CTL_10);
