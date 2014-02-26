@@ -21,7 +21,7 @@ config ANDROID_BINDER_IPC
 	  between said processes.
 
 config ANDROID_BINDER_IPC_32BIT
-	bool "Use old (Android 4.4 and earlier) 32-bit binder API"
+	bool
 	depends on !64BIT && ANDROID_BINDER_IPC
 	default y
 	---help---
