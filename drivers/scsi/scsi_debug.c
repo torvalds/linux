@@ -1832,7 +1832,7 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 	struct sd_dif_tuple *sdt;
 	sector_t sector;
 
-	for (i = 0; i < sectors; i++) {
+	for (i = 0; i < sectors; i++, ei_lba++) {
 		int ret;
 
 		sector = start_sec + i;
@@ -1846,8 +1846,6 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			dif_errors++;
 			return ret;
 		}
-
-		ei_lba++;
 	}
 
 	dif_copy_prot(SCpnt, start_sec, sectors, true);
