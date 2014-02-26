@@ -611,6 +611,7 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 	union acpi_operand_object **top_object_list;
 	union acpi_operand_object **sub_object_list;
 	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *sub_package;
 	u32 element_count;
 	u32 index;
 
@@ -620,7 +621,12 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 	element_count = package_object->package.count;
 
 	for (index = 0; index < element_count; index++) {
-		sub_object_list = (*top_object_list)->package.elements;
+		sub_package = *top_object_list;
+		sub_object_list = sub_package->package.elements;
+
+		if (sub_package->package.count < 4) {	/* Minimum required element count */
+			return (AE_OK);
+		}
 
 		/*
 		 * If the BIOS has erroneously reversed the _PRT source_name (index 2)
