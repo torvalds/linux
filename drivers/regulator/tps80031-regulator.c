@@ -115,7 +115,7 @@ static int tps80031_reg_is_enabled(struct regulator_dev *rdev)
 			ri->rinfo->state_reg, ret);
 		return ret;
 	}
-	return ((reg_val & TPS80031_STATE_MASK) == TPS80031_STATE_ON);
+	return (reg_val & TPS80031_STATE_MASK) == TPS80031_STATE_ON;
 }
 
 static int tps80031_reg_enable(struct regulator_dev *rdev)
