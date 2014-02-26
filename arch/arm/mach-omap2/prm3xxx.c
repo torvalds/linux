@@ -389,6 +389,26 @@ void omap3xxx_prm_iva_idle(void)
 				OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 }
 
+/**
+ * omap3xxx_prm_clear_global_cold_reset - checks the global cold reset status
+ *					  and clears it if asserted
+ *
+ * Checks if cold-reset has occurred and clears the status bit if yes. Returns
+ * 1 if cold-reset has occurred, 0 otherwise.
+ */
+int omap3xxx_prm_clear_global_cold_reset(void)
+{
+	if (omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
+	    OMAP3430_GLOBAL_COLD_RST_MASK) {
+		omap2_prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
+					   OMAP3430_GR_MOD,
+					   OMAP3_PRM_RSTST_OFFSET);
+		return 1;
+	}
+
+	return 0;
+}
+
 /* Powerdomain low-level functions */
 
 static int omap3_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)

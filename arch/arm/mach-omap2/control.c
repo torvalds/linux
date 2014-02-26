@@ -282,13 +282,9 @@ void omap3_clear_scratchpad_contents(void)
 	void __iomem *v_addr;
 	u32 offset = 0;
 	v_addr = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD_ROM);
-	if (omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
-	    OMAP3430_GLOBAL_COLD_RST_MASK) {
+	if (omap3xxx_prm_clear_global_cold_reset()) {
 		for ( ; offset <= max_offset; offset += 0x4)
 			writel_relaxed(0x0, (v_addr + offset));
-		omap2_prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
-					   OMAP3430_GR_MOD,
-					   OMAP3_PRM_RSTST_OFFSET);
 	}
 }
 
