@@ -57,7 +57,7 @@ struct at86rf230_local {
 	int rssi_base_val;
 };
 
-static inline int is_rf212(struct at86rf230_local *local)
+static bool is_rf212(struct at86rf230_local *local)
 {
 	return local->part == 7;
 }
