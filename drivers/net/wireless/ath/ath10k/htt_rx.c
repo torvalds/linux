@@ -996,6 +996,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			info.rate.info0 = rx->ppdu.info0;
 			info.rate.info1 = __le32_to_cpu(rx->ppdu.info1);
 			info.rate.info2 = __le32_to_cpu(rx->ppdu.info2);
+			info.tsf = __le32_to_cpu(rx->ppdu.tsf);
 
 			hdr = ath10k_htt_rx_skb_get_hdr(msdu_head);
 

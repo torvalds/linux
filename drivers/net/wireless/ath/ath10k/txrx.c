@@ -258,6 +258,12 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 	status->band = ch->band;
 	status->freq = ch->center_freq;
 
+	if (info->rate.info0 & HTT_RX_INDICATION_INFO0_END_VALID) {
+		/* TSF available only in 32-bit */
+		status->mactime = info->tsf & 0xffffffff;
+		status->flag |= RX_FLAG_MACTIME_END;
+	}
+
 	ath10k_dbg(ATH10K_DBG_DATA,
 		   "rx skb %p len %u %s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i\n",
 		   info->skb,

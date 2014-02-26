@@ -1181,6 +1181,8 @@ struct htt_rx_info {
 		u32 info1;
 		u32 info2;
 	} rate;
+
+	u32 tsf;
 	bool fcs_err;
 	bool amsdu_more;
 	bool mic_err;
