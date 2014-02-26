@@ -111,18 +111,23 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 	struct resource *res = &dev->resource[resource];
 	struct resource *root, *conflict;
 
+	if (res->flags & IORESOURCE_UNSET) {
+		dev_info(&dev->dev, "can't claim BAR %d %pR: no address assigned\n",
+			 resource, res);
+		return -EINVAL;
+	}
+
 	root = pci_find_parent_resource(dev, res);
 	if (!root) {
-		dev_info(&dev->dev, "no compatible bridge window for %pR\n",
-			 res);
+		dev_info(&dev->dev, "can't claim BAR %d %pR: no compatible bridge window\n",
+			 resource, res);
 		return -EINVAL;
 	}
 
 	conflict = request_resource_conflict(root, res);
 	if (conflict) {
-		dev_info(&dev->dev,
-			 "address space collision: %pR conflicts with %s %pR\n",
-			 res, conflict->name, conflict);
+		dev_info(&dev->dev, "can't claim BAR %d %pR: address conflict with %s %pR\n",
+			 resource, res, conflict->name, conflict);
 		return -EBUSY;
 	}
 
