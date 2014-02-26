@@ -2026,31 +2026,33 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 			pr_err("%s(): no endpoint nodes specified for %s\n",
 			       __func__, parent->full_name);
 		of_node_put(node);
-	} else {
-		port = of_get_parent(prev);
-		if (WARN_ONCE(!port, "%s(): endpoint %s has no parent node\n",
-			      __func__, prev->full_name))
-			return NULL;
 
-		/* Avoid dropping prev node refcount to 0. */
-		of_node_get(prev);
-		endpoint = of_get_next_child(port, prev);
-		if (endpoint) {
-			of_node_put(port);
-			return endpoint;
-		}
-
-		/* No more endpoints under this port, try the next one. */
-		do {
-			port = of_get_next_child(parent, port);
-			if (!port)
-				return NULL;
-		} while (of_node_cmp(port->name, "port"));
-
-		/* Pick up the first endpoint in this port. */
-		endpoint = of_get_next_child(port, NULL);
-		of_node_put(port);
+		return endpoint;
 	}
+
+	port = of_get_parent(prev);
+	if (WARN_ONCE(!port, "%s(): endpoint %s has no parent node\n",
+		      __func__, prev->full_name))
+		return NULL;
+
+	/* Avoid dropping prev node refcount to 0. */
+	of_node_get(prev);
+	endpoint = of_get_next_child(port, prev);
+	if (endpoint) {
+		of_node_put(port);
+		return endpoint;
+	}
+
+	/* No more endpoints under this port, try the next one. */
+	do {
+		port = of_get_next_child(parent, port);
+		if (!port)
+			return NULL;
+	} while (of_node_cmp(port->name, "port"));
+
+	/* Pick up the first endpoint in this port. */
+	endpoint = of_get_next_child(port, NULL);
+	of_node_put(port);
 
 	return endpoint;
 }
