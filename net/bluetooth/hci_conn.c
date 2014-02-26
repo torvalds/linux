@@ -624,8 +624,8 @@ static void stop_scan_complete(struct hci_dev *hdev, u8 status)
 	}
 }
 
-static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
-				    u8 dst_type, u8 sec_level, u8 auth_type)
+struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
+				u8 dst_type, u8 sec_level, u8 auth_type)
 {
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
@@ -729,8 +729,8 @@ done:
 	return conn;
 }
 
-static struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
-						u8 sec_level, u8 auth_type)
+struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
+				 u8 sec_level, u8 auth_type)
 {
 	struct hci_conn *acl;
 
@@ -797,22 +797,6 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	}
 
 	return sco;
-}
-
-/* Create SCO, ACL or LE connection. */
-struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
-			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
-{
-	BT_DBG("%s dst %pMR type 0x%x", hdev->name, dst, type);
-
-	switch (type) {
-	case LE_LINK:
-		return hci_connect_le(hdev, dst, dst_type, sec_level, auth_type);
-	case ACL_LINK:
-		return hci_connect_acl(hdev, dst, sec_level, auth_type);
-	}
-
-	return ERR_PTR(-EINVAL);
 }
 
 /* Check link security requirement */

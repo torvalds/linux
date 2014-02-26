@@ -7109,11 +7109,10 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	auth_type = l2cap_get_auth_type(chan);
 
 	if (bdaddr_type_is_le(dst_type))
-		hcon = hci_connect(hdev, LE_LINK, dst, dst_type,
-				   chan->sec_level, auth_type);
+		hcon = hci_connect_le(hdev, dst, dst_type, chan->sec_level,
+				      auth_type);
 	else
-		hcon = hci_connect(hdev, ACL_LINK, dst, dst_type,
-				   chan->sec_level, auth_type);
+		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type);
 
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);

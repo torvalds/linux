@@ -2816,11 +2816,11 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 
 	if (cp->addr.type == BDADDR_BREDR)
-		conn = hci_connect(hdev, ACL_LINK, &cp->addr.bdaddr,
-				   cp->addr.type, sec_level, auth_type);
+		conn = hci_connect_acl(hdev, &cp->addr.bdaddr, sec_level,
+				       auth_type);
 	else
-		conn = hci_connect(hdev, LE_LINK, &cp->addr.bdaddr,
-				   cp->addr.type, sec_level, auth_type);
+		conn = hci_connect_le(hdev, &cp->addr.bdaddr, cp->addr.type,
+				      sec_level, auth_type);
 
 	if (IS_ERR(conn)) {
 		int status;
