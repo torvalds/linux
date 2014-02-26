@@ -94,14 +94,10 @@ static pid_t perf_event__get_comm_tgid(pid_t pid, char *comm, size_t len)
 
 static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 					 union perf_event *event, pid_t pid,
-					 int full,
 					 perf_event__handler_t process,
 					 struct machine *machine)
 {
-	char filename[PATH_MAX];
 	size_t size;
-	DIR *tasks;
-	struct dirent dirent, *next;
 	pid_t tgid;
 
 	memset(&event->comm, 0, sizeof(event->comm));
@@ -124,53 +120,11 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 	event->comm.header.size = (sizeof(event->comm) -
 				(sizeof(event->comm.comm) - size) +
 				machine->id_hdr_size);
-	if (!full) {
-		event->comm.tid = pid;
+	event->comm.tid = pid;
 
-		if (process(tool, event, &synth_sample, machine) != 0)
-			return -1;
+	if (process(tool, event, &synth_sample, machine) != 0)
+		return -1;
 
-		goto out;
-	}
-
-	if (machine__is_default_guest(machine))
-		return 0;
-
-	snprintf(filename, sizeof(filename), "%s/proc/%d/task",
-		 machine->root_dir, pid);
-
-	tasks = opendir(filename);
-	if (tasks == NULL) {
-		pr_debug("couldn't open %s\n", filename);
-		return 0;
-	}
-
-	while (!readdir_r(tasks, &dirent, &next) && next) {
-		char *end;
-		pid = strtol(dirent.d_name, &end, 10);
-		if (*end)
-			continue;
-
-		/* already have tgid; jut want to update the comm */
-		(void) perf_event__get_comm_tgid(pid, event->comm.comm,
-					 sizeof(event->comm.comm));
-
-		size = strlen(event->comm.comm) + 1;
-		size = PERF_ALIGN(size, sizeof(u64));
-		memset(event->comm.comm + size, 0, machine->id_hdr_size);
-		event->comm.header.size = (sizeof(event->comm) -
-					  (sizeof(event->comm.comm) - size) +
-					  machine->id_hdr_size);
-
-		event->comm.tid = pid;
-
-		if (process(tool, event, &synth_sample, machine) != 0) {
-			tgid = -1;
-			break;
-		}
-	}
-
-	closedir(tasks);
 out:
 	return tgid;
 }
@@ -329,12 +283,59 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 				      struct perf_tool *tool,
 				      struct machine *machine, bool mmap_data)
 {
-	pid_t tgid = perf_event__synthesize_comm(tool, comm_event, pid, full,
-						 process, machine);
-	if (tgid == -1)
-		return -1;
-	return perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-						  process, machine, mmap_data);
+	char filename[PATH_MAX];
+	DIR *tasks;
+	struct dirent dirent, *next;
+	pid_t tgid;
+
+	/* special case: only send one comm event using passed in pid */
+	if (!full) {
+		tgid = perf_event__synthesize_comm(tool, comm_event, pid,
+						   process, machine);
+
+		if (tgid == -1)
+			return -1;
+
+		return perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
+							  process, machine, mmap_data);
+	}
+
+	if (machine__is_default_guest(machine))
+		return 0;
+
+	snprintf(filename, sizeof(filename), "%s/proc/%d/task",
+		 machine->root_dir, pid);
+
+	tasks = opendir(filename);
+	if (tasks == NULL) {
+		pr_debug("couldn't open %s\n", filename);
+		return 0;
+	}
+
+	while (!readdir_r(tasks, &dirent, &next) && next) {
+		char *end;
+		int rc = 0;
+		pid_t _pid;
+
+		_pid = strtol(dirent.d_name, &end, 10);
+		if (*end)
+			continue;
+
+		tgid = perf_event__synthesize_comm(tool, comm_event, _pid,
+						   process, machine);
+		if (tgid == -1)
+			return -1;
+
+		/* process the thread's maps too */
+		rc = perf_event__synthesize_mmap_events(tool, mmap_event, _pid, tgid,
+							process, machine, mmap_data);
+
+		if (rc)
+			return rc;
+	}
+
+	closedir(tasks);
+	return 0;
 }
 
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
