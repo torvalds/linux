@@ -1219,33 +1219,25 @@ static int omap3_calculate_ecc_bch8(struct mtd_info *mtd, const u_char *dat,
  * Support calculating of BCH4/8 ecc vectors for the page
  */
 static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
-					const u_char *dat, u_char *ecc_code)
+					const u_char *dat, u_char *ecc_calc)
 {
 	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
 						   mtd);
+	int eccbytes	= info->nand.ecc.bytes;
+	struct gpmc_nand_regs	*gpmc_regs = &info->reg;
+	u8 *ecc_code;
 	unsigned long nsectors, bch_val1, bch_val2, bch_val3, bch_val4;
-	int i, eccbchtsel;
+	int i;
 
 	nsectors = ((readl(info->reg.gpmc_ecc_config) >> 4) & 0x7) + 1;
-	/*
-	 * find BCH scheme used
-	 * 0 -> BCH4
-	 * 1 -> BCH8
-	 */
-	eccbchtsel = ((readl(info->reg.gpmc_ecc_config) >> 12) & 0x3);
-
 	for (i = 0; i < nsectors; i++) {
-
-		/* Read hw-computed remainder */
-		bch_val1 = readl(info->reg.gpmc_bch_result0[i]);
-		bch_val2 = readl(info->reg.gpmc_bch_result1[i]);
-		if (eccbchtsel) {
-			bch_val3 = readl(info->reg.gpmc_bch_result2[i]);
-			bch_val4 = readl(info->reg.gpmc_bch_result3[i]);
-		}
-
-		if (eccbchtsel) {
-			/* BCH8 ecc scheme */
+		ecc_code = ecc_calc;
+		switch (info->ecc_opt) {
+		case OMAP_ECC_BCH8_CODE_HW:
+			bch_val1 = readl(gpmc_regs->gpmc_bch_result0[i]);
+			bch_val2 = readl(gpmc_regs->gpmc_bch_result1[i]);
+			bch_val3 = readl(gpmc_regs->gpmc_bch_result2[i]);
+			bch_val4 = readl(gpmc_regs->gpmc_bch_result3[i]);
 			*ecc_code++ = (bch_val4 & 0xFF);
 			*ecc_code++ = ((bch_val3 >> 24) & 0xFF);
 			*ecc_code++ = ((bch_val3 >> 16) & 0xFF);
@@ -1259,14 +1251,10 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 			*ecc_code++ = ((bch_val1 >> 16) & 0xFF);
 			*ecc_code++ = ((bch_val1 >> 8) & 0xFF);
 			*ecc_code++ = (bch_val1 & 0xFF);
-			/*
-			 * Setting 14th byte to zero to handle
-			 * erased page & maintain compatibility
-			 * with RBL
-			 */
-			*ecc_code++ = 0x0;
-		} else {
-			/* BCH4 ecc scheme */
+			break;
+		case OMAP_ECC_BCH4_CODE_HW:
+			bch_val1 = readl(gpmc_regs->gpmc_bch_result0[i]);
+			bch_val2 = readl(gpmc_regs->gpmc_bch_result1[i]);
 			*ecc_code++ = ((bch_val2 >> 12) & 0xFF);
 			*ecc_code++ = ((bch_val2 >> 4) & 0xFF);
 			*ecc_code++ = ((bch_val2 & 0xF) << 4) |
@@ -1275,12 +1263,26 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 			*ecc_code++ = ((bch_val1 >> 12) & 0xFF);
 			*ecc_code++ = ((bch_val1 >> 4) & 0xFF);
 			*ecc_code++ = ((bch_val1 & 0xF) << 4);
-			/*
-			 * Setting 8th byte to zero to handle
-			 * erased page
-			 */
-			*ecc_code++ = 0x0;
+			break;
+		default:
+			return -EINVAL;
 		}
+
+		/* ECC scheme specific syndrome customizations */
+		switch (info->ecc_opt) {
+		case OMAP_ECC_BCH4_CODE_HW:
+			/* Set  8th ECC byte as 0x0 for ROM compatibility */
+			ecc_calc[eccbytes - 1] = 0x0;
+			break;
+		case OMAP_ECC_BCH8_CODE_HW:
+			/* Set 14th ECC byte as 0x0 for ROM compatibility */
+			ecc_calc[eccbytes - 1] = 0x0;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+	ecc_calc += eccbytes;
 	}
 
 	return 0;
