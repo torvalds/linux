@@ -1578,8 +1578,8 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 		do {
 			if (time_after_eq(jiffies, dev_init_timeout)) {
 				ql_log(ql_log_info, vha, 0xb0c4,
-				    "%s: Non Reset owner DEV INIT "
-				    "TIMEOUT!\n", __func__);
+				    "%s: Non Reset owner: Reset Ack Timeout!\n",
+				    __func__);
 				break;
 			}
 
