@@ -607,4 +607,9 @@ struct rio_device_id {
 	__u16 asm_did, asm_vid;
 };
 
+struct mcb_device_id {
+	__u16 device;
+	kernel_ulong_t driver_data;
+};
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

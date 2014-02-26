@@ -1,0 +1,15 @@
+#
+# MEN Chameleon Bus (MCB) support
+#
+
+menuconfig MCB
+	   tristate "MCB support"
+	   default m
+	   help
+
+	   The MCB (MEN Chameleon Bus) is a Bus specific to MEN Mikroelektronik
+	   FPGA based devices. It is used to identify MCB based IP-Cores within
+	   an FPGA and provide the necessary framework for instantiating drivers
+	   for these devices.
+
+	   If build as a module, the module is called mcb.ko
