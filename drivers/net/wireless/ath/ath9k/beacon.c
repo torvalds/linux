@@ -519,7 +519,7 @@ static void ath9k_beacon_config_sta(struct ath_softc *sc,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_beacon_state bs;
-	int dtim_intval, sleepduration;
+	int dtim_intval;
 	u32 nexttbtt = 0, intval;
 	u64 tsf;
 
@@ -538,7 +538,6 @@ static void ath9k_beacon_config_sta(struct ath_softc *sc,
 	 * last beacon we received (which may be none).
 	 */
 	dtim_intval = intval * conf->dtim_period;
-	sleepduration = conf->listen_interval * intval;
 
 	/*
 	 * Pull nexttbtt forward to reflect the current
@@ -560,16 +559,11 @@ static void ath9k_beacon_config_sta(struct ath_softc *sc,
 	 * need calculate based	on the beacon interval.  Note that we clamp the
 	 * result to at most 15 beacons.
 	 */
-	if (sleepduration > intval) {
-		bs.bs_bmissthreshold = conf->listen_interval *
-			ATH_DEFAULT_BMISS_LIMIT / 2;
-	} else {
-		bs.bs_bmissthreshold = DIV_ROUND_UP(conf->bmiss_timeout, intval);
-		if (bs.bs_bmissthreshold > 15)
-			bs.bs_bmissthreshold = 15;
-		else if (bs.bs_bmissthreshold <= 0)
-			bs.bs_bmissthreshold = 1;
-	}
+	bs.bs_bmissthreshold = DIV_ROUND_UP(conf->bmiss_timeout, intval);
+	if (bs.bs_bmissthreshold > 15)
+		bs.bs_bmissthreshold = 15;
+	else if (bs.bs_bmissthreshold <= 0)
+		bs.bs_bmissthreshold = 1;
 
 	/*
 	 * Calculate sleep duration. The configuration is given in ms.
@@ -581,7 +575,7 @@ static void ath9k_beacon_config_sta(struct ath_softc *sc,
 	 */
 
 	bs.bs_sleepduration = TU_TO_USEC(roundup(IEEE80211_MS_TO_TU(100),
-						 sleepduration));
+						 intval));
 	if (bs.bs_sleepduration > bs.bs_dtimperiod)
 		bs.bs_sleepduration = bs.bs_dtimperiod;
 
@@ -677,7 +671,6 @@ static void ath9k_cache_beacon_config(struct ath_softc *sc,
 
 	cur_conf->beacon_interval = bss_conf->beacon_int;
 	cur_conf->dtim_period = bss_conf->dtim_period;
-	cur_conf->listen_interval = 1;
 	cur_conf->dtim_count = 1;
 	cur_conf->ibss_creator = bss_conf->ibss_creator;
 	cur_conf->bmiss_timeout =
