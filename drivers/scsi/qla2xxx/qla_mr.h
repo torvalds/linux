@@ -47,30 +47,6 @@ struct cmd_type_7_fx00 {
 	uint32_t dseg_0_len;		/* Data segment 0 length. */
 };
 
-/*
- * ISP queue - marker entry structure definition.
- */
-struct mrk_entry_fx00 {
-	uint8_t entry_type;		/* Entry type. */
-	uint8_t entry_count;		/* Entry count. */
-	uint8_t handle_count;		/* Handle count. */
-	uint8_t entry_status;		/* Entry Status. */
-
-	uint32_t handle;		/* System handle. */
-	uint32_t handle_hi;		/* System handle. */
-
-	uint16_t tgt_id;		/* Target ID. */
-
-	uint8_t modifier;		/* Modifier (7-0). */
-	uint8_t reserved_1;
-
-	uint8_t reserved_2[5];
-
-	uint8_t lun[8];			/* FCP LUN (BE). */
-	uint8_t reserved_3[36];
-};
-
-
 #define	STATUS_TYPE_FX00	0x01		/* Status entry. */
 struct sts_entry_fx00 {
 	uint8_t entry_type;		/* Entry type. */

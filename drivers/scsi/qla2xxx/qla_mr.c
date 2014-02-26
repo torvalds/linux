@@ -2140,7 +2140,6 @@ qlafx00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->device_flags = DFLG_NO_CABLE;
 	vha->dpc_flags = 0;
 	vha->flags.management_server_logged_in = 0;
-	vha->marker_needed = 0;
 	ha->isp_abort_cnt = 0;
 	ha->beacon_blink_led = 0;
 
@@ -3212,17 +3211,6 @@ qlafx00_start_scsi(srb_t *sp)
 
 	/* So we know we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
-
-	/* Forcing marker needed for now */
-	vha->marker_needed = 0;
-
-	/* Send marker if required */
-	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
-		    QLA_SUCCESS)
-			return QLA_FUNCTION_FAILED;
-		vha->marker_needed = 0;
-	}
 
 	/* Acquire ring specific lock */
 	spin_lock_irqsave(&ha->hardware_lock, flags);

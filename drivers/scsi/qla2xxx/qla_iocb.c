@@ -524,7 +524,6 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 {
 	mrk_entry_t *mrk;
 	struct mrk_entry_24xx *mrk24 = NULL;
-	struct mrk_entry_fx00 *mrkfx = NULL;
 
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
@@ -541,15 +540,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 	mrk->entry_type = MARKER_TYPE;
 	mrk->modifier = type;
 	if (type != MK_SYNC_ALL) {
-		if (IS_QLAFX00(ha)) {
-			mrkfx = (struct mrk_entry_fx00 *) mrk;
-			mrkfx->handle = MAKE_HANDLE(req->id, mrkfx->handle);
-			mrkfx->handle_hi = 0;
-			mrkfx->tgt_id = cpu_to_le16(loop_id);
-			mrkfx->lun[1] = LSB(lun);
-			mrkfx->lun[2] = MSB(lun);
-			host_to_fcp_swap(mrkfx->lun, sizeof(mrkfx->lun));
-		} else if (IS_FWI2_CAPABLE(ha)) {
+		if (IS_FWI2_CAPABLE(ha)) {
 			mrk24 = (struct mrk_entry_24xx *) mrk;
 			mrk24->nport_handle = cpu_to_le16(loop_id);
 			mrk24->lun[1] = LSB(lun);
