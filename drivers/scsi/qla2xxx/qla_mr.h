@@ -22,13 +22,16 @@ struct cmd_type_7_fx00 {
 	uint8_t entry_status;		/* Entry Status. */
 
 	uint32_t handle;		/* System handle. */
-	uint32_t handle_hi;
+	uint8_t reserved_0;
+	uint8_t port_path_ctrl;
+	uint16_t reserved_1;
 
 	__le16 tgt_idx;		/* Target Idx. */
 	uint16_t timeout;		/* Command timeout. */
 
 	__le16 dseg_count;		/* Data segment count. */
-	uint16_t scsi_rsp_dsd_len;
+	uint8_t	scsi_rsp_dsd_len;
+	uint8_t reserved_2;
 
 	struct scsi_lun lun;		/* LUN (LE). */
 
@@ -55,7 +58,7 @@ struct sts_entry_fx00 {
 	uint8_t entry_status;		/* Entry Status. */
 
 	uint32_t handle;		/* System handle. */
-	uint32_t handle_hi;		/* System handle. */
+	uint32_t reserved_3;		/* System handle. */
 
 	__le16 comp_status;		/* Completion status. */
 	uint16_t reserved_0;		/* OX_ID used by the firmware. */
@@ -78,7 +81,7 @@ struct sts_entry_fx00 {
 
 struct multi_sts_entry_fx00 {
 	uint8_t entry_type;		/* Entry type. */
-	uint8_t sys_define;		/* System defined. */
+	uint8_t entry_count;		/* Entry count. */
 	uint8_t handle_count;
 	uint8_t entry_status;
 
@@ -94,15 +97,13 @@ struct tsk_mgmt_entry_fx00 {
 
 	__le32 handle;		/* System handle. */
 
-	uint32_t handle_hi;		/* System handle. */
+	uint32_t reserved_0;
 
 	__le16 tgt_id;		/* Target Idx. */
 
 	uint16_t reserved_1;
-
-	uint16_t delay;			/* Activity delay in seconds. */
-
-	__le16 timeout;		/* Command timeout. */
+	uint16_t reserved_3;
+	uint16_t reserved_4;
 
 	struct scsi_lun lun;		/* LUN (LE). */
 
@@ -120,13 +121,13 @@ struct abort_iocb_entry_fx00 {
 	uint8_t entry_status;		/* Entry Status. */
 
 	__le32 handle;		/* System handle. */
-	__le32 handle_hi;		/* System handle. */
+	__le32 reserved_0;
 
 	__le16 tgt_id_sts;		/* Completion status. */
 	__le16 options;
 
 	__le32 abort_handle;		/* System handle. */
-	__le32 abort_handle_hi;	/* System handle. */
+	__le32 reserved_2;
 
 	__le16 req_que_no;
 	uint8_t reserved_1[38];
@@ -147,8 +148,7 @@ struct ioctl_iocb_entry_fx00 {
 
 	__le32 dataword_r;		/* Data word returned */
 	uint32_t adapid;		/* Adapter ID */
-	uint32_t adapid_hi;		/* Adapter ID high */
-	uint32_t reserved_1;
+	uint32_t dataword_r_extra;
 
 	__le32 seq_no;
 	uint8_t reserved_2[20];
