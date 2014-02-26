@@ -391,8 +391,8 @@ ENTRY(pgm_check_handler)
 	jz	pgm_kprobe
 	oi	__TI_flags+3(%r12),_TIF_PER_TRAP
 	mvc	__THREAD_per_address(4,%r1),__LC_PER_ADDRESS
-	mvc	__THREAD_per_cause(2,%r1),__LC_PER_CAUSE
-	mvc	__THREAD_per_paid(1,%r1),__LC_PER_PAID
+	mvc	__THREAD_per_cause(2,%r1),__LC_PER_CODE
+	mvc	__THREAD_per_paid(1,%r1),__LC_PER_ACCESS_ID
 0:	REENABLE_IRQS
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
 	l	%r1,BASED(.Ljump_table)
