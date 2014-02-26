@@ -598,9 +598,8 @@ static int pwm_samsung_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops pwm_samsung_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pwm_samsung_suspend, pwm_samsung_resume)
-};
+static SIMPLE_DEV_PM_OPS(pwm_samsung_pm_ops, pwm_samsung_suspend,
+			 pwm_samsung_resume);
 
 static struct platform_driver pwm_samsung_driver = {
 	.driver		= {
