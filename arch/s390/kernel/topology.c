@@ -451,7 +451,6 @@ static int __init topology_init(void)
 	}
 	set_topology_timer();
 out:
-	update_cpu_masks();
 	return device_create_file(cpu_subsys.dev_root, &dev_attr_dispatching);
 }
 device_initcall(topology_init);
