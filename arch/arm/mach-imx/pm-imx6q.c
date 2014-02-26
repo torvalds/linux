@@ -516,10 +516,12 @@ static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 
 	WARN_ON(!ccm_base);
 
-	ret = imx6q_suspend_init(socdata);
-	if (ret)
-		pr_warn("%s: No DDR LPM support with suspend %d!\n",
-			__func__, ret);
+	if (IS_ENABLED(CONFIG_SUSPEND)) {
+		ret = imx6q_suspend_init(socdata);
+		if (ret)
+			pr_warn("%s: No DDR LPM support with suspend %d!\n",
+				__func__, ret);
+	}
 
 	/*
 	 * This is for SW workaround step #1 of ERR007265, see comments
