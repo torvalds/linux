@@ -706,7 +706,7 @@ void rtl8185b_irq_enable(struct net_device *dev);
 void fix_rx_fifo(struct net_device *dev);
 void fix_tx_fifo(struct net_device *dev);
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch);
-void rtl8180_rate_adapter(struct work_struct * work);
+void rtl8180_rate_adapter(struct work_struct *work);
 /* #endif */
 bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
 			 u32 ChangeSource);
