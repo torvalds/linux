@@ -700,7 +700,7 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 		root = pci_find_parent_resource(c->pdev, res);
 		if (root == NULL)
 			osm_warn("%s: Can't find parent resource!\n", c->name);
-		if (root && allocate_resource(root, res, sb->desired_io_size, sb->desired_io_size, sb->desired_io_size, 1 << 20,	/* Unspecified, so use 1Mb and play safe */
+		if (root && allocate_resource(root, res, sb->desired_io_size, sb->desired_io_size, sb->desired_io_size, 1 << 12,	/* Unspecified, so use 4Kb and play safe */
 					      NULL, NULL) >= 0) {
 			c->io_alloc = 1;
 			sb->current_io_size = resource_size(res);
