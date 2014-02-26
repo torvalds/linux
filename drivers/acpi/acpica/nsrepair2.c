@@ -432,8 +432,8 @@ acpi_ns_repair_CID(struct acpi_evaluate_info *info,
  * DESCRIPTION: Repair for the _CST object:
  *              1. Sort the list ascending by C state type
  *              2. Ensure type cannot be zero
- *              3. A sub-package count of zero means _CST is meaningless
- *              4. Count must match the number of C state sub-packages
+ *              3. A subpackage count of zero means _CST is meaningless
+ *              4. Count must match the number of C state subpackages
  *
  *****************************************************************************/
 
@@ -686,7 +686,7 @@ acpi_ns_repair_PSS(struct acpi_evaluate_info *info,
 	u32 i;
 
 	/*
-	 * Entries (sub-packages) in the _PSS Package must be sorted by power
+	 * Entries (subpackages) in the _PSS Package must be sorted by power
 	 * dissipation, in descending order. If it appears that the list is
 	 * incorrectly sorted, sort it. We sort by cpu_frequency, since this
 	 * should be proportional to the power.
@@ -774,9 +774,9 @@ acpi_ns_repair_TSS(struct acpi_evaluate_info *info,
  *
  * PARAMETERS:  info                - Method execution information block
  *              return_object       - Pointer to the top-level returned object
- *              start_index         - Index of the first sub-package
- *              expected_count      - Minimum length of each sub-package
- *              sort_index          - Sub-package entry to sort on
+ *              start_index         - Index of the first subpackage
+ *              expected_count      - Minimum length of each subpackage
+ *              sort_index          - Subpackage entry to sort on
  *              sort_direction      - Ascending or descending
  *              sort_key_name       - Name of the sort_index field
  *
@@ -812,7 +812,7 @@ acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * NOTE: assumes list of sub-packages contains no NULL elements.
+	 * NOTE: assumes list of subpackages contains no NULL elements.
 	 * Any NULL elements should have been removed by earlier call
 	 * to acpi_ns_remove_null_elements.
 	 */
@@ -839,7 +839,7 @@ acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 			return (AE_AML_OPERAND_TYPE);
 		}
 
-		/* Each sub-package must have the minimum length */
+		/* Each subpackage must have the minimum length */
 
 		if ((*outer_elements)->package.count < expected_count) {
 			return (AE_AML_PACKAGE_LIMIT);

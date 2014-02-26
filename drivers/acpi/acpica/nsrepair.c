@@ -465,7 +465,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info * info,
  * RETURN:      None.
  *
  * DESCRIPTION: Remove all NULL package elements from packages that contain
- *              a variable number of sub-packages. For these types of
+ *              a variable number of subpackages. For these types of
  *              packages, NULL elements can be safely removed.
  *
  *****************************************************************************/
@@ -486,7 +486,7 @@ acpi_ns_remove_null_elements(struct acpi_evaluate_info *info,
 	/*
 	 * We can safely remove all NULL elements from these package types:
 	 * PTYPE1_VAR packages contain a variable number of simple data types.
-	 * PTYPE2 packages contain a variable number of sub-packages.
+	 * PTYPE2 packages contain a variable number of subpackages.
 	 */
 	switch (package_type) {
 	case ACPI_PTYPE1_VAR:

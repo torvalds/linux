@@ -273,7 +273,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		 */
 		user_prt->length = (sizeof(struct acpi_pci_routing_table) - 4);
 
-		/* Each sub-package must be of length 4 */
+		/* Each subpackage must be of length 4 */
 
 		if ((*top_object_list)->package.count != 4) {
 			ACPI_ERROR((AE_INFO,
@@ -283,7 +283,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		}
 
 		/*
-		 * Dereference the sub-package.
+		 * Dereference the subpackage.
 		 * The sub_object_list will now point to an array of the four IRQ
 		 * elements: [Address, Pin, Source, source_index]
 		 */
