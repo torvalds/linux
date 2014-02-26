@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2008
  *
@@ -58,8 +58,6 @@
 #include <linux/suspend.h>
 
 #include "tree.h"
-#include <trace/events/rcu.h>
-
 #include "rcu.h"
 
 MODULE_ALIAS("rcutree");
@@ -837,7 +835,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
 	 * to the next.  Only do this for the primary flavor of RCU.
 	 */
 	if (rdp->rsp == rcu_state &&
-	    ULONG_CMP_GE(ACCESS_ONCE(jiffies), rdp->rsp->jiffies_resched)) {
+	    ULONG_CMP_GE(jiffies, rdp->rsp->jiffies_resched)) {
 		rdp->rsp->jiffies_resched += 5;
 		resched_cpu(rdp->cpu);
 	}
@@ -847,7 +845,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
 
 static void record_gp_stall_check_time(struct rcu_state *rsp)
 {
-	unsigned long j = ACCESS_ONCE(jiffies);
+	unsigned long j = jiffies;
 	unsigned long j1;
 
 	rsp->gp_start = j;
@@ -1005,7 +1003,7 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	if (rcu_cpu_stall_suppress || !rcu_gp_in_progress(rsp))
 		return;
-	j = ACCESS_ONCE(jiffies);
+	j = jiffies;
 
 	/*
 	 * Lots of memory barriers to reject false positives.
@@ -2304,7 +2302,7 @@ static void force_quiescent_state(struct rcu_state *rsp)
 		if (rnp_old != NULL)
 			raw_spin_unlock(&rnp_old->fqslock);
 		if (ret) {
-			rsp->n_force_qs_lh++;
+			ACCESS_ONCE(rsp->n_force_qs_lh)++;
 			return;
 		}
 		rnp_old = rnp;
@@ -2316,7 +2314,7 @@ static void force_quiescent_state(struct rcu_state *rsp)
 	smp_mb__after_unlock_lock();
 	raw_spin_unlock(&rnp_old->fqslock);
 	if (ACCESS_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS) {
-		rsp->n_force_qs_lh++;
+		ACCESS_ONCE(rsp->n_force_qs_lh)++;
 		raw_spin_unlock_irqrestore(&rnp_old->lock, flags);
 		return;  /* Someone beat us to it. */
 	}
@@ -2880,7 +2878,7 @@ static int rcu_pending(int cpu)
  * non-NULL, store an indication of whether all callbacks are lazy.
  * (If there are no callbacks, all of them are deemed to be lazy.)
  */
-static int rcu_cpu_has_callbacks(int cpu, bool *all_lazy)
+static int __maybe_unused rcu_cpu_has_callbacks(int cpu, bool *all_lazy)
 {
 	bool al = true;
 	bool hc = false;

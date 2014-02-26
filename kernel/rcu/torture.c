@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright (C) IBM Corporation, 2005, 2006
  *
@@ -1352,7 +1352,7 @@ rcu_torture_shutdown(void *arg)
 	unsigned long jiffies_snap;
 
 	VERBOSE_PRINTK_STRING("rcu_torture_shutdown task started");
-	jiffies_snap = ACCESS_ONCE(jiffies);
+	jiffies_snap = jiffies;
 	while (ULONG_CMP_LT(jiffies_snap, shutdown_time) &&
 	       !kthread_should_stop()) {
 		delta = shutdown_time - jiffies_snap;
@@ -1361,7 +1361,7 @@ rcu_torture_shutdown(void *arg)
 				 "rcu_torture_shutdown task: %lu jiffies remaining\n",
 				 torture_type, delta);
 		schedule_timeout_interruptible(delta);
-		jiffies_snap = ACCESS_ONCE(jiffies);
+		jiffies_snap = jiffies;
 	}
 	if (kthread_should_stop()) {
 		VERBOSE_PRINTK_STRING("rcu_torture_shutdown task stopping");
