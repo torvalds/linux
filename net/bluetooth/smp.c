@@ -1184,7 +1184,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 	rsp = (void *) &smp->prsp[1];
 
 	/* The responder sends its keys first */
-	if (!force && hcon->out && (rsp->resp_key_dist & 0x07))
+	if (hcon->out && (smp->remote_key_dist & 0x07))
 		return 0;
 
 	req = (void *) &smp->preq[1];
@@ -1259,13 +1259,16 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 		*keydist &= ~SMP_DIST_SIGN;
 	}
 
-	if (hcon->out || force || !(rsp->init_key_dist & 0x07)) {
-		clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags);
-		cancel_delayed_work_sync(&conn->security_timer);
-		set_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
-		smp_notify_keys(conn);
-		smp_chan_destroy(conn);
-	}
+	/* If there are still keys to be received wait for them */
+	if ((smp->remote_key_dist & 0x07))
+		return 0;
+
+	clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags);
+	cancel_delayed_work_sync(&conn->security_timer);
+	set_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
+	smp_notify_keys(conn);
+
+	smp_chan_destroy(conn);
 
 	return 0;
 }
