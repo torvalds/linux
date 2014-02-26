@@ -1122,54 +1122,8 @@ static void omap3_enable_hwecc_bch(struct mtd_info *mtd, int mode)
 }
 #endif
 static u8  bch4_polynomial[] = {0x28, 0x13, 0xcc, 0x39, 0x96, 0xac, 0x7f};
-
-#ifdef CONFIG_MTD_NAND_ECC_BCH
-/**
- * omap3_calculate_ecc_bch8 - Generate 13 bytes of ECC bytes
- * @mtd: MTD device structure
- * @dat: The pointer to data on which ecc is computed
- * @ecc_code: The ecc_code buffer
- */
-static int omap3_calculate_ecc_bch8(struct mtd_info *mtd, const u_char *dat,
-				    u_char *ecc_code)
-{
-	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
-						   mtd);
-	unsigned long nsectors, val1, val2, val3, val4;
-	int i;
-
-	nsectors = ((readl(info->reg.gpmc_ecc_config) >> 4) & 0x7) + 1;
-
-	for (i = 0; i < nsectors; i++) {
-
-		/* Read hw-computed remainder */
-		val1 = readl(info->reg.gpmc_bch_result0[i]);
-		val2 = readl(info->reg.gpmc_bch_result1[i]);
-		val3 = readl(info->reg.gpmc_bch_result2[i]);
-		val4 = readl(info->reg.gpmc_bch_result3[i]);
-
-		/*
-		 * Add constant polynomial to remainder, in order to get an ecc
-		 * sequence of 0xFFs for a buffer filled with 0xFFs.
-		 */
-		*ecc_code++ = 0xef ^ (val4 & 0xFF);
-		*ecc_code++ = 0x51 ^ ((val3 >> 24) & 0xFF);
-		*ecc_code++ = 0x2e ^ ((val3 >> 16) & 0xFF);
-		*ecc_code++ = 0x09 ^ ((val3 >> 8) & 0xFF);
-		*ecc_code++ = 0xed ^ (val3 & 0xFF);
-		*ecc_code++ = 0x93 ^ ((val2 >> 24) & 0xFF);
-		*ecc_code++ = 0x9a ^ ((val2 >> 16) & 0xFF);
-		*ecc_code++ = 0xc2 ^ ((val2 >> 8) & 0xFF);
-		*ecc_code++ = 0x97 ^ (val2 & 0xFF);
-		*ecc_code++ = 0x79 ^ ((val1 >> 24) & 0xFF);
-		*ecc_code++ = 0xe5 ^ ((val1 >> 16) & 0xFF);
-		*ecc_code++ = 0x24 ^ ((val1 >> 8) & 0xFF);
-		*ecc_code++ = 0xb5 ^ (val1 & 0xFF);
-	}
-
-	return 0;
-}
-#endif /* CONFIG_MTD_NAND_ECC_BCH */
+static u8  bch8_polynomial[] = {0xef, 0x51, 0x2e, 0x09, 0xed, 0x93, 0x9a, 0xc2,
+				0x97, 0x79, 0xe5, 0x24, 0xb5};
 
 /**
  * omap_calculate_ecc_bch - Generate bytes of ECC bytes
@@ -1194,6 +1148,7 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 	for (i = 0; i < nsectors; i++) {
 		ecc_code = ecc_calc;
 		switch (info->ecc_opt) {
+		case OMAP_ECC_BCH8_CODE_HW_DETECTION_SW:
 		case OMAP_ECC_BCH8_CODE_HW:
 			bch_val1 = readl(gpmc_regs->gpmc_bch_result0[i]);
 			bch_val2 = readl(gpmc_regs->gpmc_bch_result1[i]);
@@ -1241,6 +1196,12 @@ static int __maybe_unused omap_calculate_ecc_bch(struct mtd_info *mtd,
 		case OMAP_ECC_BCH4_CODE_HW:
 			/* Set  8th ECC byte as 0x0 for ROM compatibility */
 			ecc_calc[eccbytes - 1] = 0x0;
+			break;
+		case OMAP_ECC_BCH8_CODE_HW_DETECTION_SW:
+			/* Add constant polynomial to remainder, so that
+			 * ECC of blank pages results in 0x0 on reading back */
+			for (i = 0; i < eccbytes; i++)
+				ecc_calc[i] ^= bch8_polynomial[i];
 			break;
 		case OMAP_ECC_BCH8_CODE_HW:
 			/* Set 14th ECC byte as 0x0 for ROM compatibility */
@@ -1879,7 +1840,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->ecc.strength		= 8;
 		nand_chip->ecc.hwctl		= omap3_enable_hwecc_bch;
 		nand_chip->ecc.correct		= nand_bch_correct_data;
-		nand_chip->ecc.calculate	= omap3_calculate_ecc_bch8;
+		nand_chip->ecc.calculate	= omap_calculate_ecc_bch;
 		/* define ECC layout */
 		ecclayout->eccbytes		= nand_chip->ecc.bytes *
 							(mtd->writesize /
