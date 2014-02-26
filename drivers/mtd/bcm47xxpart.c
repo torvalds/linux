@@ -147,6 +147,11 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 
 		/* TRX */
 		if (buf[0x000 / 4] == TRX_MAGIC) {
+			if (BCM47XXPART_MAX_PARTS - curr_part < 4) {
+				pr_warn("Not enough partitions left to register trx, scanning stopped!\n");
+				break;
+			}
+
 			trx = (struct trx_header *)buf;
 
 			trx_part = curr_part;
