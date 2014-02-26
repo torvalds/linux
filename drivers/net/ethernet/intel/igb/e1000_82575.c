@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -2720,7 +2719,7 @@ static const u8 e1000_emc_therm_limit[4] = {
  *
  *  Updates the temperatures in mac.thermal_sensor_data
  **/
-s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
+static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 {
 	s32 status = E1000_SUCCESS;
 	u16 ets_offset;
@@ -2774,7 +2773,7 @@ s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
  *  Sets the thermal sensor thresholds according to the NVM map
  *  and save off the threshold and location values into mac.thermal_sensor_data
  **/
-s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
+static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 {
 	s32 status = E1000_SUCCESS;
 	u16 ets_offset;
