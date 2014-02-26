@@ -467,7 +467,12 @@ struct nfs_lockt_res {
 };
 
 struct nfs_release_lockowner_args {
+	struct nfs4_sequence_args	seq_args;
 	struct nfs_lowner	lock_owner;
+};
+
+struct nfs_release_lockowner_res {
+	struct nfs4_sequence_res	seq_res;
 };
 
 struct nfs4_delegreturnargs {
