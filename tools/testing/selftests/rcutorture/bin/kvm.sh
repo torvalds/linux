@@ -40,7 +40,7 @@ KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
 TORTURE_DEFCONFIG=defconfig
 TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
-RCU_KMAKE_ARG=""; export RCU_KMAKE_ARG
+TORTURE_KMAKE_ARG=""
 TORTURE_SUITE=rcu
 resdir=""
 configs=""
@@ -118,7 +118,7 @@ do
 		;;
 	--kmake-arg)
 		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
-		RCU_KMAKE_ARG="$2"; export RCU_KMAKE_ARG
+		TORTURE_KMAKE_ARG="$2"
 		shift
 		;;
 	--kversion)
@@ -376,7 +376,7 @@ then
 	echo PATH="$PATH; export PATH"
 	echo RCU_BUILDONLY="$RCU_BUILDONLY; export RCU_BUILDONLY"
 	echo TORTURE_INITRD="$TORTURE_INITRD; export TORTURE_INITRD"
-	echo RCU_KMAKE_ARG="$RCU_KMAKE_ARG; export RCU_KMAKE_ARG"
+	echo TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG; export TORTURE_KMAKE_ARG"
 	echo RCU_QEMU_CMD="$RCU_QEMU_CMD; export RCU_QEMU_CMD"
 	echo RCU_QEMU_INTERACTIVE="$RCU_QEMU_INTERACTIVE; export RCU_QEMU_INTERACTIVE"
 	echo RCU_QEMU_MAC="$RCU_QEMU_MAC; export RCU_QEMU_MAC"
