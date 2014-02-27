@@ -102,7 +102,7 @@ struct iwl_rxq {
 	u32 write_actual;
 	struct list_head rx_free;
 	struct list_head rx_used;
-	int need_update;
+	bool need_update;
 	struct iwl_rb_status *rb_stts;
 	dma_addr_t rb_stts_dma;
 	spinlock_t lock;

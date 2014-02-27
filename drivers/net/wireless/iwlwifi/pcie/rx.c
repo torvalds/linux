@@ -145,15 +145,13 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans)
 /*
  * iwl_pcie_rxq_inc_wr_ptr - Update the write pointer for the RX queue
  */
-static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
-				    struct iwl_rxq *rxq)
+static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	u32 reg;
 
-	spin_lock(&rxq->lock);
-
-	if (rxq->need_update == 0)
-		goto exit_unlock;
+	lockdep_assert_held(&rxq->lock);
 
 	/*
 	 * explicitly wake up the NIC if:
@@ -169,13 +167,27 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 				       reg);
 			iwl_set_bit(trans, CSR_GP_CNTRL,
 				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-			goto exit_unlock;
+			rxq->need_update = true;
+			return;
 		}
 	}
 
 	rxq->write_actual = round_down(rxq->write, 8);
 	iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
-	rxq->need_update = 0;
+}
+
+static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rxq *rxq = &trans_pcie->rxq;
+
+	spin_lock(&rxq->lock);
+
+	if (!rxq->need_update)
+		goto exit_unlock;
+
+	iwl_pcie_rxq_inc_wr_ptr(trans);
+	rxq->need_update = false;
 
  exit_unlock:
 	spin_unlock(&rxq->lock);
@@ -236,9 +248,8 @@ static void iwl_pcie_rxq_restock(struct iwl_trans *trans)
 	 * Increment device's write pointer in multiples of 8. */
 	if (rxq->write_actual != (rxq->write & ~0x7)) {
 		spin_lock(&rxq->lock);
-		rxq->need_update = 1;
+		iwl_pcie_rxq_inc_wr_ptr(trans);
 		spin_unlock(&rxq->lock);
-		iwl_pcie_rxq_inc_wr_ptr(trans, rxq);
 	}
 }
 
@@ -364,13 +375,9 @@ static void iwl_pcie_rxq_free_rbs(struct iwl_trans *trans)
  */
 static void iwl_pcie_rx_replenish(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
 	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL);
 
-	spin_lock(&trans_pcie->irq_lock);
 	iwl_pcie_rxq_restock(trans);
-	spin_unlock(&trans_pcie->irq_lock);
 }
 
 static void iwl_pcie_rx_replenish_now(struct iwl_trans *trans)
@@ -525,10 +532,9 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 
 	iwl_pcie_rx_hw_init(trans, rxq);
 
-	spin_lock(&trans_pcie->irq_lock);
-	rxq->need_update = 1;
-	iwl_pcie_rxq_inc_wr_ptr(trans, rxq);
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_lock(&rxq->lock);
+	iwl_pcie_rxq_inc_wr_ptr(trans);
+	spin_unlock(&rxq->lock);
 
 	return 0;
 }
@@ -1035,7 +1041,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	/* uCode wakes up after power-down sleep */
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
-		iwl_pcie_rxq_inc_wr_ptr(trans, &trans_pcie->rxq);
+		iwl_pcie_rxq_check_wrptr(trans);
 		for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
 			iwl_pcie_txq_inc_wr_ptr(trans, &trans_pcie->txq[i]);
 
