@@ -2328,9 +2328,12 @@ static int get_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case HV_X64_MSR_VP_INDEX: {
 		int r;
 		struct kvm_vcpu *v;
-		kvm_for_each_vcpu(r, v, vcpu->kvm)
-			if (v == vcpu)
+		kvm_for_each_vcpu(r, v, vcpu->kvm) {
+			if (v == vcpu) {
 				data = r;
+				break;
+			}
+		}
 		break;
 	}
 	case HV_X64_MSR_EOI:
