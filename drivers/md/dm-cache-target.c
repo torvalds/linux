@@ -671,15 +671,16 @@ static void remap_to_cache(struct cache *cache, struct bio *bio,
 			   dm_cblock_t cblock)
 {
 	sector_t bi_sector = bio->bi_iter.bi_sector;
+	sector_t block = from_cblock(cblock);
 
 	bio->bi_bdev = cache->cache_dev->bdev;
 	if (!block_size_is_power_of_two(cache))
 		bio->bi_iter.bi_sector =
-			(from_cblock(cblock) * cache->sectors_per_block) +
+			(block * cache->sectors_per_block) +
 			sector_div(bi_sector, cache->sectors_per_block);
 	else
 		bio->bi_iter.bi_sector =
-			(from_cblock(cblock) << cache->sectors_per_block_shift) |
+			(block << cache->sectors_per_block_shift) |
 			(bi_sector & (cache->sectors_per_block - 1));
 }
 
