@@ -46,8 +46,6 @@
 /* SPSR */
 #define RXFL	(1 << 2)
 
-#define hspi2info(h)	(h->dev->platform_data)
-
 struct hspi_priv {
 	void __iomem *addr;
 	struct spi_master *master;
@@ -230,14 +228,6 @@ static int hspi_transfer_one_message(struct spi_master *master,
 	return ret;
 }
 
-static void hspi_cleanup(struct spi_device *spi)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
-	struct device *dev = hspi->dev;
-
-	dev_dbg(dev, "%s cleanup\n", spi->modalias);
-}
-
 static int hspi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -285,7 +275,6 @@ static int hspi_probe(struct platform_device *pdev)
 
 	master->num_chipselect	= 1;
 	master->bus_num		= pdev->id;
-	master->cleanup		= hspi_cleanup;
 	master->mode_bits	= SPI_CPOL | SPI_CPHA;
 	master->dev.of_node	= pdev->dev.of_node;
 	master->auto_runtime_pm = true;
