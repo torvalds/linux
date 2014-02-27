@@ -190,7 +190,7 @@ more:
 		if (last) {
 			/* remember our position */
 			fi->dentry = last;
-			fi->next_offset = di->offset;
+			fi->next_offset = fpos_off(di->offset);
 		}
 		dput(dentry);
 		return 0;
@@ -369,9 +369,9 @@ more:
 				fi->next_offset = 0;
 			off = fi->next_offset;
 		}
+		fi->frag = frag;
 		fi->offset = fi->next_offset;
 		fi->last_readdir = req;
-		fi->frag = frag;
 
 		if (req->r_reply_info.dir_end) {
 			kfree(fi->last_name);
@@ -474,7 +474,7 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct ceph_file_info *fi = file->private_data;
 	struct inode *inode = file->f_mapping->host;
-	loff_t old_offset = offset;
+	loff_t old_offset = ceph_make_fpos(fi->frag, fi->next_offset);
 	loff_t retval;
 
 	mutex_lock(&inode->i_mutex);
@@ -491,7 +491,7 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 		goto out;
 	}
 
-	if (offset >= 0 && offset <= inode->i_sb->s_maxbytes) {
+	if (offset >= 0) {
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
 			file->f_version = 0;
@@ -504,14 +504,14 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 		 * seek to new frag, or seek prior to current chunk.
 		 */
 		if (offset == 0 ||
-		    fpos_frag(offset) != fpos_frag(old_offset) ||
+		    fpos_frag(offset) != fi->frag ||
 		    fpos_off(offset) < fi->offset) {
 			dout("dir_llseek dropping %p content\n", file);
 			reset_readdir(fi);
 		}
 
 		/* bump dir_release_count if we did a forward seek */
-		if (offset > old_offset)
+		if (fpos_cmp(offset, old_offset) > 0)
 			fi->dir_release_count--;
 	}
 out:
