@@ -1411,7 +1411,7 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 	int ret;
 
 	lockstart = round_down(pos, root->sectorsize);
-	lockend = lockstart + round_up(*write_bytes, root->sectorsize) - 1;
+	lockend = round_up(pos + *write_bytes, root->sectorsize) - 1;
 
 	while (1) {
 		lock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
@@ -1434,7 +1434,8 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
 				 EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG, 0, 0,
 				 NULL, GFP_NOFS);
-		*write_bytes = min_t(size_t, *write_bytes, num_bytes);
+		*write_bytes = min_t(size_t, *write_bytes ,
+				     num_bytes - pos + lockstart);
 	}
 
 	unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
