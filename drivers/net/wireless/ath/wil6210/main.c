@@ -53,38 +53,69 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 		__raw_writel(*s++, d++);
 }
 
+static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
+{
+	uint i;
+	struct wil_sta_info *sta = &wil->sta[cid];
+	for (i = 0; i < WIL_STA_TID_NUM; i++) {
+		struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+		sta->tid_rx[i] = NULL;
+		wil_tid_ampdu_rx_free(wil, r);
+	}
+	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
+		if (wil->vring2cid_tid[i][0] == cid)
+			wil_vring_fini_tx(wil, i);
+	}
+	memset(&sta->stats, 0, sizeof(sta->stats));
+}
+
 static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 {
-	uint i, cid;
+	int cid = -ENOENT;
 	struct net_device *ndev = wil_to_ndev(wil);
+	struct wireless_dev *wdev = wil->wdev;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	might_sleep();
+	if (bssid) {
+		cid = wil_find_cid(wil, bssid);
+		wil_dbg_misc(wil, "%s(%pM, CID %d)\n", __func__, bssid, cid);
+	} else {
+		wil_dbg_misc(wil, "%s(all)\n", __func__);
+	}
 
-	for (cid = 0; cid < WIL6210_MAX_CID; cid++) {
-		struct wil_sta_info *sta = &wil->sta[cid];
-		for (i = 0; i < WIL_STA_TID_NUM; i++) {
-			struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
-			sta->tid_rx[i] = NULL;
-			wil_tid_ampdu_rx_free(wil, r);
+	if (cid >= 0) /* disconnect 1 peer */
+		wil_disconnect_cid(wil, cid);
+	else /* disconnect all */
+		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
+			wil_disconnect_cid(wil, cid);
+
+	/* link state */
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		wil_link_off(wil);
+		if (test_bit(wil_status_fwconnected, &wil->status)) {
+			clear_bit(wil_status_fwconnected, &wil->status);
+			cfg80211_disconnected(ndev,
+					      WLAN_STATUS_UNSPECIFIED_FAILURE,
+					      NULL, 0, GFP_KERNEL);
+		} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
+			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
+						WLAN_STATUS_UNSPECIFIED_FAILURE,
+						GFP_KERNEL);
 		}
+		clear_bit(wil_status_fwconnecting, &wil->status);
+		wil_dbg_misc(wil, "clear_bit(wil_status_dontscan)\n");
+		clear_bit(wil_status_dontscan, &wil->status);
+		break;
+	default:
+		/* AP-like interface and monitor:
+		 * never scan, always connected
+		 */
+		if (bssid)
+			cfg80211_del_sta(ndev, bssid, GFP_KERNEL);
+		break;
 	}
-
-	wil_link_off(wil);
-	if (test_bit(wil_status_fwconnected, &wil->status)) {
-		clear_bit(wil_status_fwconnected, &wil->status);
-		cfg80211_disconnected(ndev,
-				      WLAN_STATUS_UNSPECIFIED_FAILURE,
-				      NULL, 0, GFP_KERNEL);
-	} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
-		cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
-					WLAN_STATUS_UNSPECIFIED_FAILURE,
-					GFP_KERNEL);
-	}
-	clear_bit(wil_status_fwconnecting, &wil->status);
-	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++)
-		wil_vring_fini_tx(wil, i);
-
-	clear_bit(wil_status_dontscan, &wil->status);
 }
 
 static void wil_disconnect_worker(struct work_struct *work)
