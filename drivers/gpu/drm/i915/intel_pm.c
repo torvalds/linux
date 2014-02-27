@@ -4867,6 +4867,9 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	 */
 	I915_WRITE(GEN7_GT_MODE,
 		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+
+	I915_WRITE(GEN6_RC_SLEEP_PSMI_CONTROL,
+		   _MASKED_BIT_ENABLE(GEN8_RC_SEMA_IDLE_MSG_DISABLE));
 }
 
 static void haswell_init_clock_gating(struct drm_device *dev)
