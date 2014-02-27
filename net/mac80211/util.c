@@ -2808,7 +2808,7 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_iftype iftype = sdata->wdev.iftype;
 	int num[NUM_NL80211_IFTYPES];
 	struct ieee80211_chanctx *ctx;
-	int num_different_channels = 1;
+	int num_different_channels = 0;
 	int total = 1;
 
 	lockdep_assert_held(&local->chanctx_mtx);
@@ -2816,8 +2816,12 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(hweight32(radar_detect) > 1))
 		return -EINVAL;
 
-	if (WARN_ON(chanmode == IEEE80211_CHANCTX_SHARED && !chandef->chan))
+	if (WARN_ON(chandef && chanmode == IEEE80211_CHANCTX_SHARED &&
+		    !chandef->chan))
 		return -EINVAL;
+
+	if (chandef)
+		num_different_channels = 1;
 
 	if (WARN_ON(iftype >= NUM_NL80211_IFTYPES))
 		return -EINVAL;
@@ -2841,7 +2845,7 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 			num_different_channels++;
 			continue;
 		}
-		if ((chanmode == IEEE80211_CHANCTX_SHARED) &&
+		if (chandef && chanmode == IEEE80211_CHANCTX_SHARED &&
 		    cfg80211_chandef_compatible(chandef,
 						&ctx->conf.def))
 			continue;

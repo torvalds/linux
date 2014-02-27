@@ -412,28 +412,6 @@ unsigned int
 cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
 			      const struct cfg80211_chan_def *chandef);
 
-static inline int
-cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
-			      struct wireless_dev *wdev,
-			      enum nl80211_iftype iftype)
-{
-	/* TODO: For this function, we'll probably need to keep some
-	 * kind of interface combination check in cfg80211...
-	 */
-	return cfg80211_can_use_iftype_chan(rdev, wdev, iftype, NULL,
-					    CHAN_MODE_UNDEFINED, 0);
-}
-
-static inline int
-cfg80211_can_add_interface(struct cfg80211_registered_device *rdev,
-			   enum nl80211_iftype iftype)
-{
-	if (rfkill_blocked(rdev->rfkill))
-		return -ERFKILL;
-
-	return cfg80211_can_change_interface(rdev, NULL, iftype);
-}
-
 static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 {
 	unsigned long end = jiffies;

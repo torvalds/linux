@@ -439,10 +439,7 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 		for (j = 0; j < c->n_limits; j++) {
 			u16 types = c->limits[j].types;
 
-			/*
-			 * interface types shouldn't overlap, this is
-			 * used in cfg80211_can_change_interface()
-			 */
+			/* interface types shouldn't overlap */
 			if (WARN_ON(types & all_iftypes))
 				return -EINVAL;
 			all_iftypes |= types;
@@ -840,7 +837,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev;
-	int ret;
 
 	if (!wdev)
 		return NOTIFY_DONE;
@@ -1003,9 +999,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))
 			return notifier_from_errno(-EOPNOTSUPP);
-		ret = cfg80211_can_add_interface(rdev, wdev->iftype);
-		if (ret)
-			return notifier_from_errno(ret);
+		if (rfkill_blocked(rdev->rfkill))
+			return notifier_from_errno(-ERFKILL);
 		break;
 	}
 

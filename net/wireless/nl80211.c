@@ -8969,9 +8969,8 @@ static int nl80211_start_p2p_device(struct sk_buff *skb, struct genl_info *info)
 	if (wdev->p2p_started)
 		return 0;
 
-	err = cfg80211_can_add_interface(rdev, wdev->iftype);
-	if (err)
-		return err;
+	if (rfkill_blocked(rdev->rfkill))
+		return -ERFKILL;
 
 	err = rdev_start_p2p_device(rdev, wdev);
 	if (err)
