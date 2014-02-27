@@ -391,10 +391,10 @@ static void xen_irq_init(unsigned irq)
 	list_add_tail(&info->list, &xen_irq_list_head);
 }
 
-static int __must_check xen_allocate_irq_dynamic(void)
+static int __must_check xen_allocate_irqs_dynamic(int nvec)
 {
 	int first = 0;
-	int irq;
+	int i, irq;
 
 #ifdef CONFIG_X86_IO_APIC
 	/*
@@ -408,12 +408,20 @@ static int __must_check xen_allocate_irq_dynamic(void)
 		first = get_nr_irqs_gsi();
 #endif
 
-	irq = irq_alloc_desc_from(first, -1);
+	irq = irq_alloc_descs_from(first, nvec, -1);
 
-	if (irq >= 0)
-		xen_irq_init(irq);
+	if (irq >= 0) {
+		for (i = 0; i < nvec; i++)
+			xen_irq_init(irq + i);
+	}
 
 	return irq;
+}
+
+static inline int __must_check xen_allocate_irq_dynamic(void)
+{
+
+	return xen_allocate_irqs_dynamic(1);
 }
 
 static int __must_check xen_allocate_irq_gsi(unsigned gsi)
@@ -738,22 +746,25 @@ int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc)
 }
 
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, const char *name, domid_t domid)
+			     int pirq, int nvec, const char *name, domid_t domid)
 {
-	int irq, ret;
+	int i, irq, ret;
 
 	mutex_lock(&irq_mapping_update_lock);
 
-	irq = xen_allocate_irq_dynamic();
+	irq = xen_allocate_irqs_dynamic(nvec);
 	if (irq < 0)
 		goto out;
 
-	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_edge_irq,
-			name);
+	for (i = 0; i < nvec; i++) {
+		irq_set_chip_and_handler_name(irq + i, &xen_pirq_chip, handle_edge_irq, name);
 
-	ret = xen_irq_info_pirq_setup(irq, 0, pirq, 0, domid, 0);
-	if (ret < 0)
-		goto error_irq;
+		ret = xen_irq_info_pirq_setup(irq + i, 0, pirq + i, 0, domid,
+					      i == 0 ? 0 : PIRQ_MSI_GROUP);
+		if (ret < 0)
+			goto error_irq;
+	}
+
 	ret = irq_set_msi_desc(irq, msidesc);
 	if (ret < 0)
 		goto error_irq;
@@ -761,7 +772,8 @@ out:
 	mutex_unlock(&irq_mapping_update_lock);
 	return irq;
 error_irq:
-	__unbind_from_irq(irq);
+	for (; i >= 0; i--)
+		__unbind_from_irq(irq + i);
 	mutex_unlock(&irq_mapping_update_lock);
 	return ret;
 }
@@ -780,7 +792,12 @@ int xen_destroy_irq(int irq)
 	if (!desc)
 		goto out;
 
-	if (xen_initial_domain()) {
+	/*
+	 * If trying to remove a vector in a MSI group different
+	 * than the first one skip the PIRQ unmap unless this vector
+	 * is the first one in the group.
+	 */
+	if (xen_initial_domain() && !(info->u.pirq.flags & PIRQ_MSI_GROUP)) {
 		unmap_irq.pirq = info->u.pirq.pirq;
 		unmap_irq.domid = info->u.pirq.domid;
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);

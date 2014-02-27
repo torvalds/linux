@@ -2,6 +2,9 @@
 #define _XEN_EVENTS_H
 
 #include <linux/interrupt.h>
+#ifdef CONFIG_PCI_MSI
+#include <linux/msi.h>
+#endif
 
 #include <xen/interface/event_channel.h>
 #include <asm/xen/hypercall.h>
@@ -101,7 +104,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc);
 /* Bind an PSI pirq to an irq. */
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, const char *name, domid_t domid);
+			     int pirq, int nvec, const char *name, domid_t domid);
 #endif
 
 /* De-allocates the above mentioned physical interrupt. */
