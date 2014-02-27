@@ -1427,16 +1427,11 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 
 	num_bytes = lockend - lockstart + 1;
 	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, NULL, NULL);
-	if (ret <= 0) {
+	if (ret <= 0)
 		ret = 0;
-	} else {
-		clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-				 EXTENT_DIRTY | EXTENT_DELALLOC |
-				 EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG, 0, 0,
-				 NULL, GFP_NOFS);
+	else
 		*write_bytes = min_t(size_t, *write_bytes ,
 				     num_bytes - pos + lockstart);
-	}
 
 	unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
 
