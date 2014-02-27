@@ -108,14 +108,43 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 	/* DAI mode */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		/* Data on rising edge of bclk, frame low, 1clk before data */
+		/*
+		 * Frame low, 1clk before data, one word length for frame sync,
+		 * frame sync starts one serial clock cycle earlier,
+		 * that is, together with the last bit of the previous
+		 * data word.
+		 */
 		val_cr2 &= ~FSL_SAI_CR2_BCP;
 		val_cr4 |= FSL_SAI_CR4_FSE | FSL_SAI_CR4_FSP;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		/* Data on rising edge of bclk, frame high, 0clk before data */
+		/*
+		 * Frame high, one word length for frame sync,
+		 * frame sync asserts with the first bit of the frame.
+		 */
 		val_cr2 &= ~FSL_SAI_CR2_BCP;
 		val_cr4 &= ~(FSL_SAI_CR4_FSE | FSL_SAI_CR4_FSP);
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		/*
+		 * Frame high, 1clk before data, one bit for frame sync,
+		 * frame sync starts one serial clock cycle earlier,
+		 * that is, together with the last bit of the previous
+		 * data word.
+		 */
+		val_cr2 &= ~FSL_SAI_CR2_BCP;
+		val_cr4 &= ~FSL_SAI_CR4_FSP;
+		val_cr4 |= FSL_SAI_CR4_FSE;
+		sai->is_dsp_mode = true;
+		break;
+	case SND_SOC_DAIFMT_DSP_B:
+		/*
+		 * Frame high, one bit for frame sync,
+		 * frame sync asserts with the first bit of the frame.
+		 */
+		val_cr2 &= ~FSL_SAI_CR2_BCP;
+		val_cr4 &= ~(FSL_SAI_CR4_FSE | FSL_SAI_CR4_FSP);
+		sai->is_dsp_mode = true;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
 		/* To be done */
@@ -219,7 +248,9 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	val_cr5 &= ~FSL_SAI_CR5_W0W_MASK;
 	val_cr5 &= ~FSL_SAI_CR5_FBT_MASK;
 
-	val_cr4 |= FSL_SAI_CR4_SYWD(word_width);
+	if (!sai->is_dsp_mode)
+		val_cr4 |= FSL_SAI_CR4_SYWD(word_width);
+
 	val_cr5 |= FSL_SAI_CR5_WNW(word_width);
 	val_cr5 |= FSL_SAI_CR5_W0W(word_width);
 
@@ -245,6 +276,10 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	u32 tcsr, rcsr;
 
+	/*
+	 * The transmitter bit clock and frame sync are to be
+	 * used by both the transmitter and receiver.
+	 */
 	regmap_update_bits(sai->regmap, FSL_SAI_TCR2, FSL_SAI_CR2_SYNC,
 			   ~FSL_SAI_CR2_SYNC);
 	regmap_update_bits(sai->regmap, FSL_SAI_RCR2, FSL_SAI_CR2_SYNC,
@@ -261,6 +296,10 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		tcsr &= ~FSL_SAI_CSR_FRDE;
 	}
 
+	/*
+	 * It is recommended that the transmitter is the last enabled
+	 * and the first disabled.
+	 */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:

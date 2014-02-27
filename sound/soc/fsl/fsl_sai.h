@@ -103,6 +103,7 @@ struct fsl_sai {
 
 	bool big_endian_regs;
 	bool big_endian_data;
+	bool is_dsp_mode;
 
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
