@@ -260,7 +260,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 */
 #ifndef DRXDAP_SINGLE_MASTER
-#define DRXDAP_SINGLE_MASTER 0
+#define DRXDAP_SINGLE_MASTER 1
 #endif
 
 /**
