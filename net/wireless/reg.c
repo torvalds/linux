@@ -1700,7 +1700,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		return;
 	case NL80211_REGDOM_SET_BY_USER:
 		treatment = reg_process_hint_user(reg_request);
-		if (treatment == REG_REQ_OK ||
+		if (treatment == REG_REQ_IGNORE ||
 		    treatment == REG_REQ_ALREADY_SET)
 			return;
 		schedule_delayed_work(&reg_timeout, msecs_to_jiffies(3142));
