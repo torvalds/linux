@@ -372,7 +372,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 		"s_nsInterruptUsbIoCompleteRead Status %d\n", status);
 
 	if (status != STATUS_SUCCESS) {
-		priv->ulBulkInError++;
 		priv->int_buf.in_use = false;
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
@@ -418,8 +417,6 @@ int PIPEnsBulkInUsbRead(struct vnt_private *priv, struct vnt_rcb *rcb)
 
 	if (priv->Flags & fMP_DISCONNECTED)
 		return STATUS_FAILURE;
-
-	priv->ulBulkInPosted++;
 
 	urb = rcb->pUrb;
 	if (rcb->skb == NULL) {
@@ -473,8 +470,6 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 
 	switch (urb->status) {
 	case 0:
-		priv->ulBulkInContCRCError = 0;
-		priv->ulBulkInBytesRead += urb->actual_length;
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
@@ -482,7 +477,6 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 		return;
 	case -ETIMEDOUT:
 	default:
-		priv->ulBulkInError++;
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"BULK In failed %d\n", urb->status);
 		break;
@@ -541,7 +535,6 @@ int PIPEnsSendBulkOut(struct vnt_private *priv,
 	}
 
 	urb = context->pUrb;
-	priv->ulBulkOutPosted++;
 
 	usb_fill_bulk_urb(urb,
 			priv->usb,
@@ -622,12 +615,9 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	if (status == STATUS_SUCCESS) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"Write %d bytes\n", (int)buf_len);
-		priv->ulBulkOutBytesWrite += buf_len;
-		priv->ulBulkOutContCRCError = 0;
 	} else {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"BULK Out failed %d\n", status);
-		priv->ulBulkOutError++;
 	}
 
 

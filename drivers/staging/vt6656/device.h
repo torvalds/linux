@@ -424,16 +424,6 @@ struct vnt_private {
 	DEFAULT_CONFIG config_file;
 
 	/* Statistic for USB */
-	unsigned long ulBulkInPosted;
-	unsigned long ulBulkInError;
-	unsigned long ulBulkInContCRCError;
-	unsigned long ulBulkInBytesRead;
-
-	unsigned long ulBulkOutPosted;
-	unsigned long ulBulkOutError;
-	unsigned long ulBulkOutContCRCError;
-	unsigned long ulBulkOutBytesWrite;
-
 	unsigned long ulIntInPosted;
 	unsigned long ulIntInError;
 	unsigned long ulIntInContCRCError;
