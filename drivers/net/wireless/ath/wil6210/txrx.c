@@ -472,7 +472,7 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
  * Pass Rx packet to the netif. Update statistics.
  * Called in softirq context (NAPI poll).
  */
-static void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
+void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 {
 	int rc;
 	unsigned int len = skb->len;
@@ -515,12 +515,12 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			skb->pkt_type = PACKET_OTHERHOST;
 			skb->protocol = htons(ETH_P_802_2);
-
+			wil_netif_rx_any(skb, ndev);
 		} else {
 			skb->protocol = eth_type_trans(skb, ndev);
+			wil_rx_reorder(wil, skb);
 		}
 
-		wil_netif_rx_any(skb, ndev);
 	}
 	wil_rx_refill(wil, v->size);
 }

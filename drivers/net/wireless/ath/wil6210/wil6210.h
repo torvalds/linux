@@ -215,6 +215,46 @@ enum { /* for wil6210_priv.status */
 
 struct pci_dev;
 
+/**
+ * struct tid_ampdu_rx - TID aggregation information (Rx).
+ *
+ * @reorder_buf: buffer to reorder incoming aggregated MPDUs
+ * @reorder_time: jiffies when skb was added
+ * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
+ * @reorder_timer: releases expired frames from the reorder buffer.
+ * @last_rx: jiffies of last rx activity
+ * @head_seq_num: head sequence number in reordering buffer.
+ * @stored_mpdu_num: number of MPDUs in reordering buffer
+ * @ssn: Starting Sequence Number expected to be aggregated.
+ * @buf_size: buffer size for incoming A-MPDUs
+ * @timeout: reset timer value (in TUs).
+ * @dialog_token: dialog token for aggregation session
+ * @rcu_head: RCU head used for freeing this struct
+ * @reorder_lock: serializes access to reorder buffer, see below.
+ *
+ * This structure's lifetime is managed by RCU, assignments to
+ * the array holding it must hold the aggregation mutex.
+ *
+ * The @reorder_lock is used to protect the members of this
+ * struct, except for @timeout, @buf_size and @dialog_token,
+ * which are constant across the lifetime of the struct (the
+ * dialog token being used only for debugging).
+ */
+struct wil_tid_ampdu_rx {
+	spinlock_t reorder_lock; /* see above */
+	struct sk_buff **reorder_buf;
+	unsigned long *reorder_time;
+	struct timer_list session_timer;
+	struct timer_list reorder_timer;
+	unsigned long last_rx;
+	u16 head_seq_num;
+	u16 stored_mpdu_num;
+	u16 ssn;
+	u16 buf_size;
+	u16 timeout;
+	u8 dialog_token;
+};
+
 struct wil6210_stats {
 	u64 tsf;
 	u32 snr;
@@ -231,6 +271,9 @@ enum wil_sta_status {
 	wil_sta_conn_pending = 1,
 	wil_sta_connected = 2,
 };
+
+#define WIL_STA_TID_NUM (16)
+
 /**
  * struct wil_sta_info - data for peer
  *
@@ -242,6 +285,10 @@ enum wil_sta_status {
 struct wil_sta_info {
 	u8 addr[ETH_ALEN];
 	enum wil_sta_status status;
+	/* Rx BACK */
+	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
+	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(WIL_STA_TID_NUM)];
+	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 };
 
 struct wil6210_priv {

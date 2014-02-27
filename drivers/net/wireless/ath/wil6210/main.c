@@ -18,6 +18,7 @@
 #include <linux/if_arp.h>
 
 #include "wil6210.h"
+#include "txrx.h"
 
 /*
  * Due to a hardware issue,
@@ -54,10 +55,19 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 
 static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 {
-	uint i;
+	uint i, cid;
 	struct net_device *ndev = wil_to_ndev(wil);
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	for (cid = 0; cid < WIL6210_MAX_CID; cid++) {
+		struct wil_sta_info *sta = &wil->sta[cid];
+		for (i = 0; i < WIL_STA_TID_NUM; i++) {
+			struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+			sta->tid_rx[i] = NULL;
+			wil_tid_ampdu_rx_free(wil, r);
+		}
+	}
 
 	wil_link_off(wil);
 	if (test_bit(wil_status_fwconnected, &wil->status)) {

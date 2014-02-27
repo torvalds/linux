@@ -598,11 +598,24 @@ static const struct file_operations fops_temp = {
 };
 
 /*---------Station matrix------------*/
+static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
+{
+	int i;
+	u16 index = ((r->head_seq_num - r->ssn) & 0xfff) % r->buf_size;
+	seq_printf(s, "0x%03x [", r->head_seq_num);
+	for (i = 0; i < r->buf_size; i++) {
+		if (i == index)
+			seq_printf(s, "%c", r->reorder_buf[i] ? 'O' : '|');
+		else
+			seq_printf(s, "%c", r->reorder_buf[i] ? '*' : '_');
+	}
+	seq_puts(s, "]\n");
+}
 
 static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	int i;
+	int i, tid;
 
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
@@ -619,6 +632,16 @@ static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 			break;
 		}
 		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
+
+		if (p->status == wil_sta_connected) {
+			for (tid = 0; tid < WIL_STA_TID_NUM; tid++) {
+				struct wil_tid_ampdu_rx *r = p->tid_rx[tid];
+				if (r) {
+					seq_printf(s, "[%2d] ", tid);
+					wil_print_rxtid(s, r);
+				}
+			}
+		}
 	}
 
 	return 0;

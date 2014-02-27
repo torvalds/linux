@@ -563,10 +563,27 @@ static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
 			      int len)
 {
 	struct wmi_vring_ba_status_event *evt = d;
+	uint cid, i;
 
 	wil_dbg_wmi(wil, "BACK[%d] %s {%d} timeout %d\n",
-		    evt->ringid, evt->status ? "N/A" : "OK", evt->agg_wsize,
-		    __le16_to_cpu(evt->ba_timeout));
+		    evt->ringid, evt->status == WMI_BA_AGREED ? "OK" : "N/A",
+		    evt->agg_wsize, __le16_to_cpu(evt->ba_timeout));
+	for (cid = 0; cid < WIL6210_MAX_CID; cid++) {
+		struct wil_sta_info *sta = &wil->sta[cid];
+
+		if (sta->status == wil_sta_unused)
+			continue;
+		wil_dbg_wmi(wil, "Init BACK for CID %d %pM\n", cid, sta->addr);
+		for (i = 0; i < WIL_STA_TID_NUM; i++) {
+			struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+			sta->tid_rx[i] = NULL;
+			wil_tid_ampdu_rx_free(wil, r);
+			if ((evt->status == WMI_BA_AGREED) && evt->agg_wsize)
+				sta->tid_rx[i] = wil_tid_ampdu_rx_alloc(wil,
+							evt->agg_wsize, 0);
+		}
+	}
+
 }
 
 static const struct {
@@ -949,6 +966,7 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 		},
 		.mid = 0, /* TODO - what is it? */
 		.decap_trans_type = WMI_DECAP_TYPE_802_3,
+		.reorder_type = WMI_RX_SW_REORDER,
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;
