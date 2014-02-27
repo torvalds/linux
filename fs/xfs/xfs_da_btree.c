@@ -185,8 +185,8 @@ xfs_da3_node_write_verify(
 	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
 	if (!xfs_da3_node_verify(bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_verifier_error(bp);
 		return;
 	}
 
@@ -209,17 +209,20 @@ static void
 xfs_da3_node_read_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_da_blkinfo	*info = bp->b_addr;
 
 	switch (be16_to_cpu(info->magic)) {
 		case XFS_DA3_NODE_MAGIC:
-			if (!xfs_buf_verify_cksum(bp, XFS_DA3_NODE_CRC_OFF))
+			if (!xfs_buf_verify_cksum(bp, XFS_DA3_NODE_CRC_OFF)) {
+				xfs_buf_ioerror(bp, EFSBADCRC);
 				break;
+			}
 			/* fall through */
 		case XFS_DA_NODE_MAGIC:
-			if (!xfs_da3_node_verify(bp))
+			if (!xfs_da3_node_verify(bp)) {
+				xfs_buf_ioerror(bp, EFSCORRUPTED);
 				break;
+			}
 			return;
 		case XFS_ATTR_LEAF_MAGIC:
 		case XFS_ATTR3_LEAF_MAGIC:
@@ -236,8 +239,7 @@ xfs_da3_node_read_verify(
 	}
 
 	/* corrupt block */
-	XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-	xfs_buf_ioerror(bp, EFSCORRUPTED);
+	xfs_verifier_error(bp);
 }
 
 const struct xfs_buf_ops xfs_da3_node_buf_ops = {

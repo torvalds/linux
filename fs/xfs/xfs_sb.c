@@ -614,7 +614,7 @@ xfs_sb_read_verify(
 			/* Only fail bad secondaries on a known V5 filesystem */
 			if (bp->b_bn == XFS_SB_DADDR ||
 			    xfs_sb_version_hascrc(&mp->m_sb)) {
-				error = EFSCORRUPTED;
+				error = EFSBADCRC;
 				goto out_error;
 			}
 		}
@@ -623,10 +623,9 @@ xfs_sb_read_verify(
 
 out_error:
 	if (error) {
-		if (error == EFSCORRUPTED)
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
-					     mp, bp->b_addr);
 		xfs_buf_ioerror(bp, error);
+		if (error == EFSCORRUPTED || error == EFSBADCRC)
+			xfs_verifier_error(bp);
 	}
 }
 
@@ -661,9 +660,8 @@ xfs_sb_write_verify(
 
 	error = xfs_sb_verify(bp, false);
 	if (error) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
-				     mp, bp->b_addr);
 		xfs_buf_ioerror(bp, error);
+		xfs_verifier_error(bp);
 		return;
 	}
 

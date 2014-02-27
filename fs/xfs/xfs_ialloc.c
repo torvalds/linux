@@ -1568,18 +1568,17 @@ xfs_agi_read_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
-	int		agi_ok = 1;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		agi_ok = xfs_buf_verify_cksum(bp, XFS_AGI_CRC_OFF);
-
-	agi_ok = agi_ok && xfs_agi_verify(bp);
-
-	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IALLOC_READ_AGI,
-			XFS_RANDOM_IALLOC_READ_AGI))) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	    !xfs_buf_verify_cksum(bp, XFS_AGI_CRC_OFF))
+		xfs_buf_ioerror(bp, EFSBADCRC);
+	else if (XFS_TEST_ERROR(!xfs_agi_verify(bp), mp,
+				XFS_ERRTAG_IALLOC_READ_AGI,
+				XFS_RANDOM_IALLOC_READ_AGI))
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	}
+
+	if (bp->b_error)
+		xfs_verifier_error(bp);
 }
 
 static void
@@ -1590,8 +1589,8 @@ xfs_agi_write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
 	if (!xfs_agi_verify(bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_verifier_error(bp);
 		return;
 	}
 
