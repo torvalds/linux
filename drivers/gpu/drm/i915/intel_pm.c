@@ -4805,6 +4805,11 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN8_ROW_CHICKEN,
 		   _MASKED_BIT_ENABLE(PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE));
 
+	/* WaDisableThreadStallDopClockGating:bdw */
+	/* FIXME: Unclear whether we really need this on production bdw. */
+	I915_WRITE(GEN8_ROW_CHICKEN,
+		   _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
+
 	/*
 	 * This GEN8_CENTROID_PIXEL_OPT_DIS W/A is only needed for
 	 * pre-production hardware
