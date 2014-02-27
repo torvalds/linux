@@ -151,20 +151,20 @@ SYSCALL(sys_setfsgid16,sys_ni_syscall,compat_sys_s390_setfsgid16)	/* old setfsgi
 SYSCALL(sys_llseek,sys_llseek,compat_sys_llseek)		/* 140 */
 SYSCALL(sys_getdents,sys_getdents,sys32_getdents_wrapper)
 SYSCALL(sys_select,sys_select,compat_sys_select_wrapper)
-SYSCALL(sys_flock,sys_flock,sys32_flock_wrapper)
-SYSCALL(sys_msync,sys_msync,sys32_msync_wrapper)
+SYSCALL(sys_flock,sys_flock,compat_sys_flock)
+SYSCALL(sys_msync,sys_msync,compat_sys_msync)
 SYSCALL(sys_readv,sys_readv,compat_sys_readv_wrapper)		/* 145 */
 SYSCALL(sys_writev,sys_writev,compat_sys_writev_wrapper)
-SYSCALL(sys_getsid,sys_getsid,sys32_getsid_wrapper)
-SYSCALL(sys_fdatasync,sys_fdatasync,sys32_fdatasync_wrapper)
+SYSCALL(sys_getsid,sys_getsid,compat_sys_getsid)
+SYSCALL(sys_fdatasync,sys_fdatasync,compat_sys_fdatasync)
 SYSCALL(sys_sysctl,sys_sysctl,compat_sys_sysctl)
-SYSCALL(sys_mlock,sys_mlock,sys32_mlock_wrapper)		/* 150 */
-SYSCALL(sys_munlock,sys_munlock,sys32_munlock_wrapper)
-SYSCALL(sys_mlockall,sys_mlockall,sys32_mlockall_wrapper)
+SYSCALL(sys_mlock,sys_mlock,compat_sys_mlock)			/* 150 */
+SYSCALL(sys_munlock,sys_munlock,compat_sys_munlock)
+SYSCALL(sys_mlockall,sys_mlockall,compat_sys_mlockall)
 SYSCALL(sys_munlockall,sys_munlockall,sys_munlockall)
-SYSCALL(sys_sched_setparam,sys_sched_setparam,sys32_sched_setparam_wrapper)
-SYSCALL(sys_sched_getparam,sys_sched_getparam,sys32_sched_getparam_wrapper)	/* 155 */
-SYSCALL(sys_sched_setscheduler,sys_sched_setscheduler,sys32_sched_setscheduler_wrapper)
+SYSCALL(sys_sched_setparam,sys_sched_setparam,compat_sys_sched_setparam)
+SYSCALL(sys_sched_getparam,sys_sched_getparam,compat_sys_sched_getparam)	/* 155 */
+SYSCALL(sys_sched_setscheduler,sys_sched_setscheduler,compat_sys_sched_setscheduler)
 SYSCALL(sys_sched_getscheduler,sys_sched_getscheduler,sys32_sched_getscheduler_wrapper)
 SYSCALL(sys_sched_yield,sys_sched_yield,sys_sched_yield)
 SYSCALL(sys_sched_get_priority_max,sys_sched_get_priority_max,sys32_sched_get_priority_max_wrapper)

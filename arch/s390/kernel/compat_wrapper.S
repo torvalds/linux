@@ -142,17 +142,6 @@ ENTRY(compat_sys_select_wrapper)
 	llgtr	%r6,%r6			# struct compat_timeval *
 	jg	compat_sys_select	# branch to system call
 
-ENTRY(sys32_flock_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned int
-	jg	sys_flock		# branch to system call
-
-ENTRY(sys32_msync_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgfr	%r3,%r3			# size_t
-	lgfr	%r4,%r4			# int
-	jg	sys_msync		# branch to system call
-
 ENTRY(compat_sys_readv_wrapper)
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# const struct compat_iovec *
@@ -164,46 +153,6 @@ ENTRY(compat_sys_writev_wrapper)
 	llgtr	%r3,%r3			# const struct compat_iovec *
 	llgfr	%r4,%r4			# unsigned long
 	jg	compat_sys_writev	# branch to system call
-
-ENTRY(sys32_getsid_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	jg	sys_getsid		# branch to system call
-
-ENTRY(sys32_fdatasync_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	jg	sys_fdatasync		# branch to system call
-
-ENTRY(sys32_mlock_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgfr	%r3,%r3			# size_t
-	jg	sys_mlock		# branch to system call
-
-ENTRY(sys32_munlock_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgfr	%r3,%r3			# size_t
-	jg	sys_munlock		# branch to system call
-
-ENTRY(sys32_mlockall_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_mlockall		# branch to system call
-
-#sys32_munlockall_wrapper		# void
-
-ENTRY(sys32_sched_setparam_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	llgtr	%r3,%r3			# struct sched_param *
-	jg	sys_sched_setparam	# branch to system call
-
-ENTRY(sys32_sched_getparam_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	llgtr	%r3,%r3			# struct sched_param *
-	jg	sys_sched_getparam	# branch to system call
-
-ENTRY(sys32_sched_setscheduler_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	lgfr	%r3,%r3			# int
-	llgtr	%r4,%r4			# struct sched_param *
-	jg	sys_sched_setscheduler	# branch to system call
 
 ENTRY(sys32_sched_getscheduler_wrapper)
 	lgfr	%r2,%r2			# pid_t
