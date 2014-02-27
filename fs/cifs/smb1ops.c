@@ -948,6 +948,14 @@ struct smb_version_operations smb1_operations = {
 	.mand_lock = cifs_mand_lock,
 	.mand_unlock_range = cifs_unlock_range,
 	.push_mand_locks = cifs_push_mandatory_locks,
+#ifdef CONFIG_CIFS_XATTR
+	.query_all_EAs = CIFSSMBQAllEAs,
+	.set_EA = CIFSSMBSetEA,
+#endif /* CIFS_XATTR */
+#ifdef CONFIG_CIFS_ACL
+	.get_acl = get_cifs_acl,
+	.set_acl = set_cifs_acl,
+#endif /* CIFS_ACL */
 };
 
 struct smb_version_values smb1_values = {
