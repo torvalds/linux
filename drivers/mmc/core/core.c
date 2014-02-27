@@ -440,6 +440,24 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 		wait_for_completion(&mrq->completion);
 
 		cmd = mrq->cmd;
+
+		/*
+		 * If host has timed out waiting for the sanitize
+		 * to complete, card might be still in programming state
+		 * so let's try to bring the card out of programming
+		 * state.
+		 */
+		if (cmd->sanitize_busy && cmd->error == -ETIMEDOUT) {
+			if (!mmc_interrupt_hpi(host->card)) {
+				pr_warning("%s: %s: Interrupted sanitize\n",
+					   mmc_hostname(host), __func__);
+				cmd->error = 0;
+				break;
+			} else {
+				pr_err("%s: %s: Failed to interrupt sanitize\n",
+				       mmc_hostname(host), __func__);
+			}
+		}
 		if (!cmd->error || !cmd->retries ||
 		    mmc_card_removed(host->card))
 			break;
@@ -958,6 +976,29 @@ void mmc_release_host(struct mmc_host *host)
 	}
 }
 EXPORT_SYMBOL(mmc_release_host);
+
+/*
+ * This is a helper function, which fetches a runtime pm reference for the
+ * card device and also claims the host.
+ */
+void mmc_get_card(struct mmc_card *card)
+{
+	pm_runtime_get_sync(&card->dev);
+	mmc_claim_host(card->host);
+}
+EXPORT_SYMBOL(mmc_get_card);
+
+/*
+ * This is a helper function, which releases the host and drops the runtime
+ * pm reference for the card device.
+ */
+void mmc_put_card(struct mmc_card *card)
+{
+	mmc_release_host(card->host);
+	pm_runtime_mark_last_busy(&card->dev);
+	pm_runtime_put_autosuspend(&card->dev);
+}
+EXPORT_SYMBOL(mmc_put_card);
 
 /*
  * Internal function that does the actual ios call to the host driver,
