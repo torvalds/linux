@@ -1,0 +1,9 @@
+config RTL8192DU
+	tristate "Realtek 8192DU USB WiFi Support"
+	depends on USB
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select IEEE80211
+	---help---
+	  Help message of RTL8192DU
+
