@@ -114,7 +114,7 @@ do
 		shift
 		;;
 	--interactive)
-		RCU_QEMU_INTERACTIVE=1; export RCU_QEMU_INTERACTIVE
+		TORTURE_QEMU_INTERACTIVE=1; export TORTURE_QEMU_INTERACTIVE
 		;;
 	--kmake-arg)
 		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
@@ -378,7 +378,7 @@ then
 	echo TORTURE_INITRD="$TORTURE_INITRD; export TORTURE_INITRD"
 	echo TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG; export TORTURE_KMAKE_ARG"
 	echo RCU_QEMU_CMD="$RCU_QEMU_CMD; export RCU_QEMU_CMD"
-	echo RCU_QEMU_INTERACTIVE="$RCU_QEMU_INTERACTIVE; export RCU_QEMU_INTERACTIVE"
+	echo TORTURE_QEMU_INTERACTIVE="$TORTURE_QEMU_INTERACTIVE; export TORTURE_QEMU_INTERACTIVE"
 	echo RCU_QEMU_MAC="$RCU_QEMU_MAC; export RCU_QEMU_MAC"
 	echo "mkdir -p "$resdir" || :"
 	echo "mkdir $resdir/$ds"
