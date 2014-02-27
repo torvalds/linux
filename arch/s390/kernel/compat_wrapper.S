@@ -50,49 +50,14 @@ ENTRY(compat_sys_fcntl_wrapper)
 	llgfr	%r4,%r4			# unsigned long
 	jg	compat_sys_fcntl	# branch to system call
 
-ENTRY(sys32_setpgid_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	lgfr	%r3,%r3			# pid_t
-	jg	sys_setpgid		# branch to system call
-
-ENTRY(sys32_umask_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_umask		# branch to system call
-
-ENTRY(sys32_chroot_wrapper)
-	llgtr	%r2,%r2			# char *
-	jg	sys_chroot		# branch to system call
-
 ENTRY(sys32_ustat_wrapper)
 	llgfr	%r2,%r2			# dev_t
 	llgtr	%r3,%r3			# struct ustat *
 	jg	compat_sys_ustat
 
-ENTRY(sys32_dup2_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned int
-	jg	sys_dup2		# branch to system call
-
-#sys32_getppid_wrapper			# void
-
-#sys32_getpgrp_wrapper			# void
-
-#sys32_setsid_wrapper			# void
-
-ENTRY(sys_sigsuspend_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgfr	%r4,%r4			# old_sigset_t
-	jg	sys_sigsuspend
-
 ENTRY(compat_sys_sigpending_wrapper)
 	llgtr	%r2,%r2			# compat_old_sigset_t *
 	jg	compat_sys_sigpending	# branch to system call
-
-ENTRY(sys32_sethostname_wrapper)
-	llgtr	%r2,%r2			# char *
-	lgfr	%r3,%r3			# int
-	jg	sys_sethostname		# branch to system call
 
 ENTRY(compat_sys_setrlimit_wrapper)
 	llgfr	%r2,%r2			# unsigned int
@@ -118,26 +83,6 @@ ENTRY(compat_sys_settimeofday_wrapper)
 	llgtr	%r2,%r2			# struct timeval_emu31 *
 	llgtr	%r3,%r3			# struct timezone *
 	jg	compat_sys_settimeofday	# branch to system call
-
-ENTRY(sys32_symlink_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgtr	%r3,%r3			# const char *
-	jg	sys_symlink		# branch to system call
-
-ENTRY(sys32_readlink_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgtr	%r3,%r3			# char *
-	lgfr	%r4,%r4			# int
-	jg	sys_readlink		# branch to system call
-
-ENTRY(sys32_uselib_wrapper)
-	llgtr	%r2,%r2			# const char *
-	jg	sys_uselib		# branch to system call
-
-ENTRY(sys32_swapon_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# int
-	jg	sys_swapon		# branch to system call
 
 ENTRY(sys32_reboot_wrapper)
 	lgfr	%r2,%r2			# int

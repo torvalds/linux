@@ -65,13 +65,13 @@ NI_SYSCALL							/* old lock syscall */
 SYSCALL(sys_ioctl,sys_ioctl,compat_sys_ioctl_wrapper)
 SYSCALL(sys_fcntl,sys_fcntl,compat_sys_fcntl_wrapper)		/* 55 */
 NI_SYSCALL							/* intel mpx syscall */
-SYSCALL(sys_setpgid,sys_setpgid,sys32_setpgid_wrapper)
+SYSCALL(sys_setpgid,sys_setpgid,compat_sys_setpgid)
 NI_SYSCALL							/* old ulimit syscall */
 NI_SYSCALL							/* old uname syscall */
-SYSCALL(sys_umask,sys_umask,sys32_umask_wrapper)		/* 60 */
-SYSCALL(sys_chroot,sys_chroot,sys32_chroot_wrapper)
+SYSCALL(sys_umask,sys_umask,compat_sys_umask)			/* 60 */
+SYSCALL(sys_chroot,sys_chroot,compat_sys_chroot)
 SYSCALL(sys_ustat,sys_ustat,sys32_ustat_wrapper)
-SYSCALL(sys_dup2,sys_dup2,sys32_dup2_wrapper)
+SYSCALL(sys_dup2,sys_dup2,compat_sys_dup2)
 SYSCALL(sys_getppid,sys_getppid,sys_getppid)
 SYSCALL(sys_getpgrp,sys_getpgrp,sys_getpgrp)			/* 65 */
 SYSCALL(sys_setsid,sys_setsid,sys_setsid)
@@ -80,9 +80,9 @@ NI_SYSCALL							/* old sgetmask syscall*/
 NI_SYSCALL							/* old ssetmask syscall*/
 SYSCALL(sys_setreuid16,sys_ni_syscall,compat_sys_s390_setreuid16) /* old setreuid16 syscall */
 SYSCALL(sys_setregid16,sys_ni_syscall,compat_sys_s390_setregid16) /* old setregid16 syscall */
-SYSCALL(sys_sigsuspend,sys_sigsuspend,sys_sigsuspend_wrapper)
+SYSCALL(sys_sigsuspend,sys_sigsuspend,compat_sys_sigsuspend)
 SYSCALL(sys_sigpending,sys_sigpending,compat_sys_sigpending_wrapper)
-SYSCALL(sys_sethostname,sys_sethostname,sys32_sethostname_wrapper)
+SYSCALL(sys_sethostname,sys_sethostname,compat_sys_sethostname)
 SYSCALL(sys_setrlimit,sys_setrlimit,compat_sys_setrlimit_wrapper)	/* 75 */
 SYSCALL(sys_old_getrlimit,sys_getrlimit,compat_sys_old_getrlimit_wrapper)
 SYSCALL(sys_getrusage,sys_getrusage,compat_sys_getrusage)
@@ -91,11 +91,11 @@ SYSCALL(sys_settimeofday,sys_settimeofday,compat_sys_settimeofday_wrapper)
 SYSCALL(sys_getgroups16,sys_ni_syscall,compat_sys_s390_getgroups16)	/* 80 old getgroups16 syscall */
 SYSCALL(sys_setgroups16,sys_ni_syscall,compat_sys_s390_setgroups16)	/* old setgroups16 syscall */
 NI_SYSCALL							/* old select syscall */
-SYSCALL(sys_symlink,sys_symlink,sys32_symlink_wrapper)
+SYSCALL(sys_symlink,sys_symlink,compat_sys_symlink)
 NI_SYSCALL							/* old lstat syscall */
-SYSCALL(sys_readlink,sys_readlink,sys32_readlink_wrapper)	/* 85 */
-SYSCALL(sys_uselib,sys_uselib,sys32_uselib_wrapper)
-SYSCALL(sys_swapon,sys_swapon,sys32_swapon_wrapper)
+SYSCALL(sys_readlink,sys_readlink,compat_sys_readlink)		/* 85 */
+SYSCALL(sys_uselib,sys_uselib,compat_sys_uselib)
+SYSCALL(sys_swapon,sys_swapon,compat_sys_swapon)
 SYSCALL(sys_reboot,sys_reboot,sys32_reboot_wrapper)
 SYSCALL(sys_ni_syscall,sys_ni_syscall,old32_readdir_wrapper)	/* old readdir syscall */
 SYSCALL(sys_old_mmap,sys_old_mmap,compat_sys_s390_old_mmap)	/* 90 */
