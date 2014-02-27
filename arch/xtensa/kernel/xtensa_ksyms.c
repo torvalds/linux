@@ -105,6 +105,7 @@ EXPORT_SYMBOL(csum_partial_copy_generic);
  * Architecture-specific symbols
  */
 EXPORT_SYMBOL(__xtensa_copy_user);
+EXPORT_SYMBOL(__invalidate_icache_range);
 
 /*
  * Kernel hacking ...
