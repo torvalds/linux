@@ -4111,8 +4111,12 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 
 			did_new_scheme = true;
 			retval = hub_enable_device(udev);
-			if (retval < 0)
+			if (retval < 0) {
+				dev_err(&udev->dev,
+					"hub failed to enable device, error %d\n",
+					retval);
 				goto fail;
+			}
 
 #define GET_DESCRIPTOR_BUFSIZE	64
 			buf = kmalloc(GET_DESCRIPTOR_BUFSIZE, GFP_NOIO);
