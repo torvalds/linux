@@ -395,6 +395,7 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 		*rhwdep = hwdep;
 	return 0;
 }
+EXPORT_SYMBOL(snd_hwdep_new);
 
 static int snd_hwdep_free(struct snd_hwdep *hwdep)
 {
@@ -567,5 +568,3 @@ static void __exit alsa_hwdep_exit(void)
 
 module_init(alsa_hwdep_init)
 module_exit(alsa_hwdep_exit)
-
-EXPORT_SYMBOL(snd_hwdep_new);
