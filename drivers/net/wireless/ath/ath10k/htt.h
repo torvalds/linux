@@ -1283,6 +1283,12 @@ struct ath10k_htt {
 	 * used to avoid further failures */
 	bool rx_confused;
 	struct tasklet_struct rx_replenish_task;
+
+	/* This is used to group tx/rx completions separately and process them
+	 * in batches to reduce cache stalls */
+	struct tasklet_struct txrx_compl_task;
+	struct sk_buff_head tx_compl_q;
+	struct sk_buff_head rx_compl_q;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1354,4 +1360,5 @@ int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *);
 int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *);
+
 #endif
