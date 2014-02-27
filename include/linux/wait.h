@@ -195,7 +195,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 ({									\
 	__label__ __out;						\
 	wait_queue_t __wait;						\
-	long ___ret = ret;						\
+	long __ret = ret;						\
 									\
 	INIT_LIST_HEAD(&__wait.task_list);				\
 	if (exclusive)							\
@@ -210,7 +210,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 			break;						\
 									\
 		if (___wait_is_interruptible(state) && __int) {		\
-			___ret = __int;					\
+			__ret = __int;					\
 			if (exclusive) {				\
 				abort_exclusive_wait(&wq, &__wait,	\
 						     state, NULL);	\
@@ -222,7 +222,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 		cmd;							\
 	}								\
 	finish_wait(&wq, &__wait);					\
-__out:	___ret;								\
+__out:	__ret;								\
 })
 
 #define __wait_event(wq, condition)					\
