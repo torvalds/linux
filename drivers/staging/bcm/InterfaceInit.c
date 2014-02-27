@@ -1,5 +1,5 @@
 #include "headers.h"
-
+#include <linux/usb/ch9.h>
 static struct usb_device_id InterfaceUsbtable[] = {
 	{ USB_DEVICE(BCM_USB_VENDOR_ID_T3, BCM_USB_PRODUCT_ID_T3) },
 	{ USB_DEVICE(BCM_USB_VENDOR_ID_T3, BCM_USB_PRODUCT_ID_T3B) },
@@ -347,81 +347,6 @@ static int device_run(struct bcm_interface_adapter *psIntfAdapter)
 	return 0;
 }
 
-
-static inline int bcm_usb_endpoint_num(const struct usb_endpoint_descriptor *epd)
-{
-	return epd->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
-}
-
-static inline int bcm_usb_endpoint_type(const struct usb_endpoint_descriptor *epd)
-{
-	return epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
-}
-
-static inline int bcm_usb_endpoint_dir_in(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN);
-}
-
-static inline int bcm_usb_endpoint_dir_out(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT);
-}
-
-static inline int bcm_usb_endpoint_xfer_bulk(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_BULK);
-}
-
-static inline int bcm_usb_endpoint_xfer_control(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_CONTROL);
-}
-
-static inline int bcm_usb_endpoint_xfer_int(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_INT);
-}
-
-static inline int bcm_usb_endpoint_xfer_isoc(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_ISOC);
-}
-
-static inline int bcm_usb_endpoint_is_bulk_in(const struct usb_endpoint_descriptor *epd)
-{
-	return bcm_usb_endpoint_xfer_bulk(epd) && bcm_usb_endpoint_dir_in(epd);
-}
-
-static inline int bcm_usb_endpoint_is_bulk_out(const struct usb_endpoint_descriptor *epd)
-{
-	return bcm_usb_endpoint_xfer_bulk(epd) && bcm_usb_endpoint_dir_out(epd);
-}
-
-static inline int bcm_usb_endpoint_is_int_in(const struct usb_endpoint_descriptor *epd)
-{
-	return bcm_usb_endpoint_xfer_int(epd) && bcm_usb_endpoint_dir_in(epd);
-}
-
-static inline int bcm_usb_endpoint_is_int_out(const struct usb_endpoint_descriptor *epd)
-{
-	return bcm_usb_endpoint_xfer_int(epd) && bcm_usb_endpoint_dir_out(epd);
-}
-
-static inline int bcm_usb_endpoint_is_isoc_in(const struct usb_endpoint_descriptor *epd)
-{
-	return bcm_usb_endpoint_xfer_isoc(epd) && bcm_usb_endpoint_dir_in(epd);
-}
-
-static inline int bcm_usb_endpoint_is_isoc_out(const struct usb_endpoint_descriptor *epd)
-{
-	return bcm_usb_endpoint_xfer_isoc(epd) && bcm_usb_endpoint_dir_out(epd);
-}
-
 static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 {
 	struct usb_host_interface *iface_desc;
@@ -481,8 +406,8 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 				 * If Modem is high speed device EP2 should be INT OUT End point
 				 * If Mode is FS then EP2 should be bulk end point
 				 */
-				if (((psIntfAdapter->bHighSpeedDevice == TRUE) && (bcm_usb_endpoint_is_int_out(endpoint) == false))
-					|| ((psIntfAdapter->bHighSpeedDevice == false) && (bcm_usb_endpoint_is_bulk_out(endpoint) == false))) {
+				if (((psIntfAdapter->bHighSpeedDevice == TRUE) && (usb_endpoint_is_int_out(endpoint) == false))
+					|| ((psIntfAdapter->bHighSpeedDevice == false) && (usb_endpoint_is_bulk_out(endpoint) == false))) {
 					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
 						"Configuring the EEPROM\n");
 					/* change the EP2, EP4 to INT OUT end point */
@@ -501,7 +426,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 					}
 
 				}
-				if ((psIntfAdapter->bHighSpeedDevice == false) && bcm_usb_endpoint_is_bulk_out(endpoint)) {
+				if ((psIntfAdapter->bHighSpeedDevice == false) && usb_endpoint_is_bulk_out(endpoint)) {
 					/* Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail. */
 					UINT _uiData = ntohl(EP2_CFG_INT);
 					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
@@ -513,7 +438,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 				endpoint = &iface_desc->endpoint[EP4].desc;
 				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
 					"Choosing AltSetting as a default setting.\n");
-				if (bcm_usb_endpoint_is_int_out(endpoint) == false) {
+				if (usb_endpoint_is_int_out(endpoint) == false) {
 					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
 						"Dongle does not have BCM16 Fix.\n");
 					/* change the EP2, EP4 to INT OUT end point and use EP4 in altsetting */
@@ -541,7 +466,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 	for (value = 0; value < iface_desc->desc.bNumEndpoints; ++value) {
 		endpoint = &iface_desc->endpoint[value].desc;
 
-		if (!psIntfAdapter->sBulkIn.bulk_in_endpointAddr && bcm_usb_endpoint_is_bulk_in(endpoint)) {
+		if (!psIntfAdapter->sBulkIn.bulk_in_endpointAddr && usb_endpoint_is_bulk_in(endpoint)) {
 			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 			psIntfAdapter->sBulkIn.bulk_in_size = buffer_size;
 			psIntfAdapter->sBulkIn.bulk_in_endpointAddr = endpoint->bEndpointAddress;
@@ -550,14 +475,14 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 								psIntfAdapter->sBulkIn.bulk_in_endpointAddr);
 		}
 
-		if (!psIntfAdapter->sBulkOut.bulk_out_endpointAddr && bcm_usb_endpoint_is_bulk_out(endpoint)) {
+		if (!psIntfAdapter->sBulkOut.bulk_out_endpointAddr && usb_endpoint_is_bulk_out(endpoint)) {
 			psIntfAdapter->sBulkOut.bulk_out_endpointAddr = endpoint->bEndpointAddress;
 			psIntfAdapter->sBulkOut.bulk_out_pipe =
 				usb_sndbulkpipe(psIntfAdapter->udev,
 					psIntfAdapter->sBulkOut.bulk_out_endpointAddr);
 		}
 
-		if (!psIntfAdapter->sIntrIn.int_in_endpointAddr && bcm_usb_endpoint_is_int_in(endpoint)) {
+		if (!psIntfAdapter->sIntrIn.int_in_endpointAddr && usb_endpoint_is_int_in(endpoint)) {
 			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 			psIntfAdapter->sIntrIn.int_in_size = buffer_size;
 			psIntfAdapter->sIntrIn.int_in_endpointAddr = endpoint->bEndpointAddress;
@@ -568,7 +493,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 				return -EINVAL;
 		}
 
-		if (!psIntfAdapter->sIntrOut.int_out_endpointAddr && bcm_usb_endpoint_is_int_out(endpoint)) {
+		if (!psIntfAdapter->sIntrOut.int_out_endpointAddr && usb_endpoint_is_int_out(endpoint)) {
 			if (!psIntfAdapter->sBulkOut.bulk_out_endpointAddr &&
 				(psIntfAdapter->psAdapter->chip_id == T3B) && (value == usedIntOutForBulkTransfer)) {
 				/* use first intout end point as a bulk out end point */
