@@ -1914,6 +1914,12 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		i++;
 	}
 
+	if (i == 0) {
+		dev_err(&pdev->dev, "of_probe: no endpoint specified\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
 	return eps;
 err:
 	return ERR_PTR(ret);
