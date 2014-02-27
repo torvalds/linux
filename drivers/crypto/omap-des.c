@@ -535,7 +535,7 @@ static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
 	return err;
 }
 
-int omap_des_copy_needed(struct scatterlist *sg)
+static int omap_des_copy_needed(struct scatterlist *sg)
 {
 	while (sg) {
 		if (!IS_ALIGNED(sg->offset, 4))
@@ -547,7 +547,7 @@ int omap_des_copy_needed(struct scatterlist *sg)
 	return 0;
 }
 
-int omap_des_copy_sgs(struct omap_des_dev *dd)
+static int omap_des_copy_sgs(struct omap_des_dev *dd)
 {
 	void *buf_in, *buf_out;
 	int pages;
