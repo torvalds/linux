@@ -417,7 +417,6 @@ struct vnt_private {
 
 	/* Variables to track resources for the Interrupt In Pipe */
 	struct vnt_interrupt_buffer int_buf;
-	int bEventAvailable;
 
 	/* default config from file by user setting */
 	DEFAULT_CONFIG config_file;

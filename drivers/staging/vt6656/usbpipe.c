@@ -376,7 +376,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"IntUSBIoCompleteControl STATUS = %d\n", status);
 	} else {
-		priv->bEventAvailable = true;
 		INTnsProcessData(priv);
 	}
 

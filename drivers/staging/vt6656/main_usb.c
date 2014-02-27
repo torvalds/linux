@@ -998,7 +998,6 @@ static int  device_open(struct net_device *dev)
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
     pDevice->bIsRxWorkItemQueued = true;
-    pDevice->bEventAvailable = false;
 
    pDevice->bWPADEVUp = false;
      pDevice->bwextstep0 = false;
