@@ -274,6 +274,16 @@ enum wil_sta_status {
 
 #define WIL_STA_TID_NUM (16)
 
+struct wil_net_stats {
+	unsigned long	rx_packets;
+	unsigned long	tx_packets;
+	unsigned long	rx_bytes;
+	unsigned long	tx_bytes;
+	unsigned long	tx_errors;
+	unsigned long	rx_dropped;
+	u16 last_mcs_rx;
+};
+
 /**
  * struct wil_sta_info - data for peer
  *
@@ -285,6 +295,7 @@ enum wil_sta_status {
 struct wil_sta_info {
 	u8 addr[ETH_ALEN];
 	enum wil_sta_status status;
+	struct wil_net_stats stats;
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(WIL_STA_TID_NUM)];

@@ -344,6 +344,9 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	u16 dmalen;
 	u8 ftype;
 	u8 ds_bits;
+	int cid;
+	struct wil_net_stats *stats;
+
 
 	BUILD_BUG_ON(sizeof(struct vring_rx_desc) > sizeof(skb->cb));
 
@@ -383,8 +386,10 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 			  skb->data, skb_headlen(skb), false);
 
-
-	wil->stats.last_mcs_rx = wil_rxdesc_mcs(d);
+	cid = wil_rxdesc_cid(d);
+	stats = &wil->sta[cid].stats;
+	stats->last_mcs_rx = wil_rxdesc_mcs(d);
+	wil->stats.last_mcs_rx = stats->last_mcs_rx;
 
 	/* use radiotap header only if required */
 	if (ndev->type == ARPHRD_IEEE80211_RADIOTAP)
@@ -475,7 +480,11 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 {
 	int rc;
+	struct wil6210_priv *wil = ndev_to_wil(ndev);
 	unsigned int len = skb->len;
+	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
+	int cid = wil_rxdesc_cid(d);
+	struct wil_net_stats *stats = &wil->sta[cid].stats;
 
 	skb_orphan(skb);
 
@@ -483,10 +492,13 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 
 	if (likely(rc == NET_RX_SUCCESS)) {
 		ndev->stats.rx_packets++;
+		stats->rx_packets++;
 		ndev->stats.rx_bytes += len;
+		stats->rx_bytes += len;
 
 	} else {
 		ndev->stats.rx_dropped++;
+		stats->rx_dropped++;
 	}
 }
 
@@ -968,6 +980,8 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 	struct device *dev = wil_to_dev(wil);
 	struct vring *vring = &wil->vring_tx[ringid];
 	int done = 0;
+	int cid = wil->vring2cid_tid[ringid][0];
+	struct wil_net_stats *stats = &wil->sta[cid].stats;
 
 	if (!vring->va) {
 		wil_err(wil, "Tx irq[%d]: vring not initialized\n", ringid);
@@ -1009,9 +1023,12 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		if (skb) {
 			if (d->dma.error == 0) {
 				ndev->stats.tx_packets++;
+				stats->tx_packets++;
 				ndev->stats.tx_bytes += skb->len;
+				stats->tx_bytes += skb->len;
 			} else {
 				ndev->stats.tx_errors++;
+				stats->tx_errors++;
 			}
 
 			dev_kfree_skb_any(skb);

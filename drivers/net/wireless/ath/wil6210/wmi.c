@@ -510,9 +510,15 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 	int sz = eapol_len + ETH_HLEN;
 	struct sk_buff *skb;
 	struct ethhdr *eth;
+	int cid;
+	struct wil_net_stats *stats = NULL;
 
 	wil_dbg_wmi(wil, "EAPOL len %d from %pM\n", eapol_len,
 		    evt->src_mac);
+
+	cid = wil_find_cid(wil, evt->src_mac);
+	if (cid >= 0)
+		stats = &wil->sta[cid].stats;
 
 	if (eapol_len > 196) { /* TODO: revisit size limit */
 		wil_err(wil, "EAPOL too large\n");
@@ -524,6 +530,7 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 		wil_err(wil, "Failed to allocate skb\n");
 		return;
 	}
+
 	eth = (struct ethhdr *)skb_put(skb, ETH_HLEN);
 	memcpy(eth->h_dest, ndev->dev_addr, ETH_ALEN);
 	memcpy(eth->h_source, evt->src_mac, ETH_ALEN);
@@ -532,9 +539,15 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 	skb->protocol = eth_type_trans(skb, ndev);
 	if (likely(netif_rx_ni(skb) == NET_RX_SUCCESS)) {
 		ndev->stats.rx_packets++;
-		ndev->stats.rx_bytes += skb->len;
+		ndev->stats.rx_bytes += sz;
+		if (stats) {
+			stats->rx_packets++;
+			stats->rx_bytes += sz;
+		}
 	} else {
 		ndev->stats.rx_dropped++;
+		if (stats)
+			stats->rx_dropped++;
 	}
 }
 

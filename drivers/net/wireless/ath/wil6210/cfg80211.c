@@ -115,6 +115,7 @@ static int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 		struct wil6210_mbox_hdr_wmi wmi;
 		struct wmi_notify_req_done_event evt;
 	} __packed reply;
+	struct wil_net_stats *stats = &wil->sta[cid].stats;
 	int rc;
 
 	rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, &cmd, sizeof(cmd),
@@ -122,14 +123,43 @@ static int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 	if (rc)
 		return rc;
 
+	wil_dbg_wmi(wil, "Link status for CID %d: {\n"
+		    "  MCS %d TSF 0x%016llx\n"
+		    "  BF status 0x%08x SNR 0x%08x\n"
+		    "  Tx Tpt %d goodput %d Rx goodput %d\n"
+		    "  Sectors(rx:tx) my %d:%d peer %d:%d\n""}\n",
+		    cid, le16_to_cpu(reply.evt.bf_mcs),
+		    le64_to_cpu(reply.evt.tsf), reply.evt.status,
+		    le32_to_cpu(reply.evt.snr_val),
+		    le32_to_cpu(reply.evt.tx_tpt),
+		    le32_to_cpu(reply.evt.tx_goodput),
+		    le32_to_cpu(reply.evt.rx_goodput),
+		    le16_to_cpu(reply.evt.my_rx_sector),
+		    le16_to_cpu(reply.evt.my_tx_sector),
+		    le16_to_cpu(reply.evt.other_rx_sector),
+		    le16_to_cpu(reply.evt.other_tx_sector));
+
 	sinfo->generation = wil->sinfo_gen;
 
-	sinfo->filled |= STATION_INFO_TX_BITRATE;
+	sinfo->filled = STATION_INFO_RX_BYTES |
+			STATION_INFO_TX_BYTES |
+			STATION_INFO_RX_PACKETS |
+			STATION_INFO_TX_PACKETS |
+			STATION_INFO_RX_BITRATE |
+			STATION_INFO_TX_BITRATE |
+			STATION_INFO_RX_DROP_MISC |
+			STATION_INFO_TX_FAILED;
+
 	sinfo->txrate.flags = RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_60G;
 	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
-	sinfo->filled |= STATION_INFO_RX_BITRATE;
 	sinfo->rxrate.flags = RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_60G;
-	sinfo->rxrate.mcs = wil->stats.last_mcs_rx;
+	sinfo->rxrate.mcs = stats->last_mcs_rx;
+	sinfo->rx_bytes = stats->rx_bytes;
+	sinfo->rx_packets = stats->rx_packets;
+	sinfo->rx_dropped_misc = stats->rx_dropped;
+	sinfo->tx_bytes = stats->tx_bytes;
+	sinfo->tx_packets = stats->tx_packets;
+	sinfo->tx_failed = stats->tx_errors;
 
 	if (test_bit(wil_status_fwconnected, &wil->status)) {
 		sinfo->filled |= STATION_INFO_SIGNAL;
