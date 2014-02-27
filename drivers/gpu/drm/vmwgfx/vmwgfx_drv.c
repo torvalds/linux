@@ -606,6 +606,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
 	rwlock_init(&dev_priv->resource_lock);
+	ttm_lock_init(&dev_priv->reservation_sem);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i) {
 		idr_init(&dev_priv->res_idr[i]);
@@ -1175,12 +1176,11 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 {
 	struct vmw_private *dev_priv =
 		container_of(nb, struct vmw_private, pm_nb);
-	struct vmw_master *vmaster = dev_priv->active_master;
 
 	switch (val) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		ttm_suspend_lock(&vmaster->lock);
+		ttm_suspend_lock(&dev_priv->reservation_sem);
 
 		/**
 		 * This empties VRAM and unbinds all GMR bindings.
@@ -1194,7 +1194,7 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
 	case PM_POST_RESTORE:
-		ttm_suspend_unlock(&vmaster->lock);
+		ttm_suspend_unlock(&dev_priv->reservation_sem);
 
 		break;
 	case PM_RESTORE_PREPARE:

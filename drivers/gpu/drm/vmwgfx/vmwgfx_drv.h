@@ -487,6 +487,11 @@ struct vmw_private {
 	uint32_t num_3d_resources;
 
 	/*
+	 * Replace this with an rwsem as soon as we have down_xx_interruptible()
+	 */
+	struct ttm_lock reservation_sem;
+
+	/*
 	 * Query processing. These members
 	 * are protected by the cmdbuf mutex.
 	 */

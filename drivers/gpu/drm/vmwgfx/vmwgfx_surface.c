@@ -697,7 +697,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct vmw_surface_offset *cur_offset;
 	uint32_t num_sizes;
 	uint32_t size;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	const struct svga3d_surface_desc *desc;
 
 	if (unlikely(vmw_user_surface_size == 0))
@@ -723,7 +722,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -862,7 +861,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	rep->sid = user_srf->prime.base.hash.key;
 	vmw_resource_unreference(&res);
 
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return 0;
 out_no_copy:
 	kfree(srf->offsets);
@@ -873,7 +872,7 @@ out_no_sizes:
 out_no_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -1173,7 +1172,6 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	int ret;
 	uint32_t size;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	const struct svga3d_surface_desc *desc;
 	uint32_t backup_handle;
 
@@ -1189,7 +1187,7 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1283,12 +1281,12 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	vmw_resource_unreference(&res);
 
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return 0;
 out_no_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
