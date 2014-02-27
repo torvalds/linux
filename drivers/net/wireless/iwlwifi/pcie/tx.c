@@ -293,7 +293,7 @@ void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 	u32 reg = 0;
 	int txq_id = txq->q.id;
 
-	if (txq->need_update == 0)
+	if (!txq->need_update)
 		return;
 
 	/*
@@ -328,7 +328,7 @@ void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->q.write_ptr);
 	iwl_write32(trans, HBUS_TARG_WRPTR, txq->q.write_ptr | (txq_id << 8));
 
-	txq->need_update = 0;
+	txq->need_update = false;
 }
 
 static inline dma_addr_t iwl_pcie_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
@@ -542,7 +542,7 @@ static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 {
 	int ret;
 
-	txq->need_update = 0;
+	txq->need_update = false;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
 	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
@@ -1393,7 +1393,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		kfree(txq->entries[idx].free_buf);
 	txq->entries[idx].free_buf = dup_buf;
 
-	txq->need_update = 1;
+	txq->need_update = true;
 
 	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size, &out_cmd->hdr);
 
@@ -1664,7 +1664,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	dma_addr_t tb0_phys, tb1_phys, scratch_phys;
 	void *tb1_addr;
 	u16 len, tb1_len, tb2_len;
-	u8 wait_write_ptr = 0;
+	bool wait_write_ptr = false;
 	__le16 fc = hdr->frame_control;
 	u8 hdr_len = ieee80211_hdrlen(fc);
 	u16 wifi_seq;
@@ -1766,10 +1766,10 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 				  skb->data + hdr_len, tb2_len);
 
 	if (!ieee80211_has_morefrags(fc)) {
-		txq->need_update = 1;
+		txq->need_update = true;
 	} else {
-		wait_write_ptr = 1;
-		txq->need_update = 0;
+		wait_write_ptr = true;
+		txq->need_update = false;
 	}
 
 	/* start timer if queue currently empty */
@@ -1783,13 +1783,11 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/*
 	 * At this point the frame is "transmitted" successfully
-	 * and we will get a TX status notification eventually,
-	 * regardless of the value of ret. "ret" only indicates
-	 * whether or not we should update the write pointer.
+	 * and we will get a TX status notification eventually.
 	 */
 	if (iwl_queue_space(q) < q->high_mark) {
 		if (wait_write_ptr) {
-			txq->need_update = 1;
+			txq->need_update = true;
 			iwl_pcie_txq_inc_wr_ptr(trans, txq);
 		} else {
 			iwl_stop_queue(trans, txq);

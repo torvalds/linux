@@ -231,7 +231,7 @@ struct iwl_txq {
 	spinlock_t lock;
 	struct timer_list stuck_timer;
 	struct iwl_trans_pcie *trans_pcie;
-	u8 need_update;
+	bool need_update;
 	u8 active;
 	bool ampdu;
 };
