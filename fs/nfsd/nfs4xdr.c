@@ -2053,7 +2053,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	struct svc_fh *tempfh = NULL;
 	struct kstatfs statfs;
 	__be32 *p;
-	__be32 *start = xdr->p;
+	int starting_len = xdr->buf->len;
 	__be32 *attrlenp;
 	u32 dummy;
 	u64 dummy64;
@@ -2547,13 +2547,8 @@ out:
 		fh_put(tempfh);
 		kfree(tempfh);
 	}
-	if (status) {
-		int nbytes = (char *)xdr->p - (char *)start;
-		/* open code what *should* be xdr_truncate(xdr, len); */
-		xdr->iov->iov_len -= nbytes;
-		xdr->buf->len -= nbytes;
-		xdr->p = start;
-	}
+	if (status)
+		xdr_truncate_encode(xdr, starting_len);
 	return status;
 out_nfserr:
 	status = nfserrno(err);
@@ -3008,6 +3003,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct page *page;
 	unsigned long maxcount; 
 	struct xdr_stream *xdr = &resp->xdr;
+	int starting_len = xdr->buf->len;
 	long len;
 	__be32 *p;
 
@@ -3044,9 +3040,13 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 			&maxcount);
 
 	if (nfserr) {
-		xdr->p -= 2;
-		xdr->iov->iov_len -= 8;
-		xdr->buf->len -= 8;
+		/*
+		 * nfsd_splice_actor may have already messed with the
+		 * page length; reset it so as not to confuse
+		 * xdr_truncate_encode:
+		 */
+		xdr->buf->page_len = 0;
+		xdr_truncate_encode(xdr, starting_len);
 		return nfserr;
 	}
 	eof = (read->rd_offset + maxcount >=
@@ -3079,6 +3079,7 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	int maxcount;
 	struct xdr_stream *xdr = &resp->xdr;
 	char *page;
+	int length_offset = xdr->buf->len;
 	__be32 *p;
 
 	if (nfserr)
@@ -3103,9 +3104,7 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	if (nfserr == nfserr_isdir)
 		nfserr = nfserr_inval;
 	if (nfserr) {
-		xdr->p--;
-		xdr->iov->iov_len -= 4;
-		xdr->buf->len -= 4;
+		xdr_truncate_encode(xdr, length_offset);
 		return nfserr;
 	}
 
@@ -3134,7 +3133,8 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	int maxcount;
 	loff_t offset;
 	struct xdr_stream *xdr = &resp->xdr;
-	__be32 *page, *savep, *tailbase;
+	int starting_len = xdr->buf->len;
+	__be32 *page, *tailbase;
 	__be32 *p;
 
 	if (nfserr)
@@ -3145,7 +3145,6 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 		return nfserr_resource;
 
 	RESERVE_SPACE(NFS4_VERIFIER_SIZE);
-	savep = p;
 
 	/* XXX: Following NFSv3, we ignore the READDIR verifier for now. */
 	WRITE32(0);
@@ -3207,10 +3206,7 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 
 	return 0;
 err_no_verf:
-	xdr->p = savep;
-	xdr->iov->iov_len = ((char *)resp->xdr.p)
-				- (char *)resp->xdr.buf->head[0].iov_base;
-	xdr->buf->len = xdr->iov->iov_len;
+	xdr_truncate_encode(xdr, starting_len);
 	return nfserr;
 }
 
