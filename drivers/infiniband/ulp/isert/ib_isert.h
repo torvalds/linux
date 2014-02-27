@@ -6,6 +6,7 @@
 
 #define ISERT_RDMA_LISTEN_BACKLOG	10
 #define ISCSI_ISER_SG_TABLESIZE		256
+#define ISER_FASTREG_LI_WRID		0xffffffffffffffffULL
 
 enum isert_desc_type {
 	ISCSI_TX_CONTROL,

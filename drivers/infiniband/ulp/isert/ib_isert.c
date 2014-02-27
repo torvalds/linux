@@ -1751,8 +1751,10 @@ isert_cq_tx_work(struct work_struct *work)
 			pr_debug("TX wc.status: 0x%08x\n", wc.status);
 			pr_debug("TX wc.vendor_err: 0x%08x\n", wc.vendor_err);
 
-			atomic_dec(&isert_conn->post_send_buf_count);
-			isert_cq_tx_comp_err(tx_desc, isert_conn);
+			if (wc.wr_id != ISER_FASTREG_LI_WRID) {
+				atomic_dec(&isert_conn->post_send_buf_count);
+				isert_cq_tx_comp_err(tx_desc, isert_conn);
+			}
 		}
 	}
 
@@ -2213,6 +2215,7 @@ isert_fast_reg_mr(struct fast_reg_descriptor *fr_desc,
 
 	if (!fr_desc->valid) {
 		memset(&inv_wr, 0, sizeof(inv_wr));
+		inv_wr.wr_id = ISER_FASTREG_LI_WRID;
 		inv_wr.opcode = IB_WR_LOCAL_INV;
 		inv_wr.ex.invalidate_rkey = fr_desc->data_mr->rkey;
 		wr = &inv_wr;
@@ -2223,6 +2226,7 @@ isert_fast_reg_mr(struct fast_reg_descriptor *fr_desc,
 
 	/* Prepare FASTREG WR */
 	memset(&fr_wr, 0, sizeof(fr_wr));
+	fr_wr.wr_id = ISER_FASTREG_LI_WRID;
 	fr_wr.opcode = IB_WR_FAST_REG_MR;
 	fr_wr.wr.fast_reg.iova_start =
 		fr_desc->data_frpl->page_list[0] + page_off;
