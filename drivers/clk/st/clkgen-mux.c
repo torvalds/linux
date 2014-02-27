@@ -570,6 +570,17 @@ static struct clkgen_mux_data clkgen_mux_c_vcc_sd_416 = {
 	.lock = &clkgenf_lock,
 };
 
+static struct clkgen_mux_data stih415_a9_mux_data = {
+	.offset = 0,
+	.shift = 1,
+	.width = 2,
+};
+static struct clkgen_mux_data stih416_a9_mux_data = {
+	.offset = 0,
+	.shift = 0,
+	.width = 2,
+};
+
 static struct of_device_id mux_of_match[] = {
 	{
 		.compatible = "st,stih416-clkgenc-vcc-hd",
@@ -590,6 +601,14 @@ static struct of_device_id mux_of_match[] = {
 	{
 		.compatible = "st,stih416-clkgenf-vcc-sd",
 		.data = &clkgen_mux_c_vcc_sd_416,
+	},
+	{
+		.compatible = "st,stih415-clkgen-a9-mux",
+		.data = &stih415_a9_mux_data,
+	},
+	{
+		.compatible = "st,stih416-clkgen-a9-mux",
+		.data = &stih416_a9_mux_data,
 	},
 	{}
 };
