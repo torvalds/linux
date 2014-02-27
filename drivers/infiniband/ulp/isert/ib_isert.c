@@ -1308,6 +1308,7 @@ isert_completion_rdma_read(struct iser_tx_desc *tx_desc,
 	}
 
 	cmd->write_data_done = se_cmd->data_length;
+	wr->send_wr_num = 0;
 
 	pr_debug("isert_do_rdma_read_comp, calling target_execute_cmd\n");
 	spin_lock_bh(&cmd->istate_lock);
@@ -1367,6 +1368,7 @@ isert_response_completion(struct iser_tx_desc *tx_desc,
 			  struct ib_device *ib_dev)
 {
 	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
+	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 
 	if (cmd->i_state == ISTATE_SEND_TASKMGTRSP ||
 	    cmd->i_state == ISTATE_SEND_LOGOUTRSP ||
@@ -1377,7 +1379,7 @@ isert_response_completion(struct iser_tx_desc *tx_desc,
 		queue_work(isert_comp_wq, &isert_cmd->comp_work);
 		return;
 	}
-	atomic_dec(&isert_conn->post_send_buf_count);
+	atomic_sub(wr->send_wr_num + 1, &isert_conn->post_send_buf_count);
 
 	cmd->i_state = ISTATE_SENT_STATUS;
 	isert_completion_put(tx_desc, isert_cmd, ib_dev);
@@ -1415,7 +1417,7 @@ isert_send_completion(struct iser_tx_desc *tx_desc,
 	case ISER_IB_RDMA_READ:
 		pr_debug("isert_send_completion: Got ISER_IB_RDMA_READ:\n");
 
-		atomic_dec(&isert_conn->post_send_buf_count);
+		atomic_sub(wr->send_wr_num, &isert_conn->post_send_buf_count);
 		isert_completion_rdma_read(tx_desc, isert_cmd);
 		break;
 	default:
@@ -1834,12 +1836,12 @@ isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 	isert_init_tx_hdrs(isert_conn, &isert_cmd->tx_desc);
 	isert_init_send_wr(isert_cmd, &isert_cmd->tx_desc.send_wr);
 
-	atomic_inc(&isert_conn->post_send_buf_count);
+	atomic_add(wr->send_wr_num + 1, &isert_conn->post_send_buf_count);
 
 	rc = ib_post_send(isert_conn->conn_qp, wr->send_wr, &wr_failed);
 	if (rc) {
 		pr_warn("ib_post_send() failed for IB_WR_RDMA_WRITE\n");
-		atomic_dec(&isert_conn->post_send_buf_count);
+		atomic_sub(wr->send_wr_num + 1, &isert_conn->post_send_buf_count);
 	}
 	pr_debug("Posted RDMA_WRITE + Response for iSER Data READ\n");
 	return 1;
@@ -1942,12 +1944,12 @@ isert_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd, bool recovery)
 		data_left -= data_len;
 	}
 
-	atomic_inc(&isert_conn->post_send_buf_count);
+	atomic_add(wr->send_wr_num, &isert_conn->post_send_buf_count);
 
 	rc = ib_post_send(isert_conn->conn_qp, wr->send_wr, &wr_failed);
 	if (rc) {
 		pr_warn("ib_post_send() failed for IB_WR_RDMA_READ\n");
-		atomic_dec(&isert_conn->post_send_buf_count);
+		atomic_sub(wr->send_wr_num, &isert_conn->post_send_buf_count);
 	}
 	pr_debug("Posted RDMA_READ memory for ISER Data WRITE\n");
 	return 0;
