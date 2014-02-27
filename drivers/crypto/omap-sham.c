@@ -2022,9 +2022,7 @@ static int omap_sham_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops omap_sham_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(omap_sham_suspend, omap_sham_resume)
-};
+static SIMPLE_DEV_PM_OPS(omap_sham_pm_ops, omap_sham_suspend, omap_sham_resume);
 
 static struct platform_driver omap_sham_driver = {
 	.probe	= omap_sham_probe,
