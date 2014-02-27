@@ -3627,15 +3627,17 @@ static int confirm_name(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	if (!hci_discovery_active(hdev)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
-				 MGMT_STATUS_FAILED);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
+				   MGMT_STATUS_FAILED, &cp->addr,
+				   sizeof(cp->addr));
 		goto failed;
 	}
 
 	e = hci_inquiry_cache_lookup_unknown(hdev, &cp->addr.bdaddr);
 	if (!e) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
-				 MGMT_STATUS_INVALID_PARAMS);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_CONFIRM_NAME,
+				   MGMT_STATUS_INVALID_PARAMS, &cp->addr,
+				   sizeof(cp->addr));
 		goto failed;
 	}
 
