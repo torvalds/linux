@@ -257,16 +257,16 @@ void vlv_force_wake_get(struct drm_i915_private *dev_priv,
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-	if (FORCEWAKE_RENDER & fw_engine) {
-		if (dev_priv->uncore.fw_rendercount++ == 0)
-			dev_priv->uncore.funcs.force_wake_get(dev_priv,
-							FORCEWAKE_RENDER);
-	}
-	if (FORCEWAKE_MEDIA & fw_engine) {
-		if (dev_priv->uncore.fw_mediacount++ == 0)
-			dev_priv->uncore.funcs.force_wake_get(dev_priv,
-							FORCEWAKE_MEDIA);
-	}
+
+	if (fw_engine & FORCEWAKE_RENDER &&
+	    dev_priv->uncore.fw_rendercount++ != 0)
+		fw_engine &= ~FORCEWAKE_RENDER;
+	if (fw_engine & FORCEWAKE_MEDIA &&
+	    dev_priv->uncore.fw_mediacount++ != 0)
+		fw_engine &= ~FORCEWAKE_MEDIA;
+
+	if (fw_engine)
+		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_engine);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -278,19 +278,15 @@ void vlv_force_wake_put(struct drm_i915_private *dev_priv,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (FORCEWAKE_RENDER & fw_engine) {
-		WARN_ON(dev_priv->uncore.fw_rendercount == 0);
-		if (--dev_priv->uncore.fw_rendercount == 0)
-			dev_priv->uncore.funcs.force_wake_put(dev_priv,
-							FORCEWAKE_RENDER);
-	}
+	if (fw_engine & FORCEWAKE_RENDER &&
+	    --dev_priv->uncore.fw_rendercount != 0)
+		fw_engine &= ~FORCEWAKE_RENDER;
+	if (fw_engine & FORCEWAKE_MEDIA &&
+	    --dev_priv->uncore.fw_mediacount != 0)
+		fw_engine &= ~FORCEWAKE_MEDIA;
 
-	if (FORCEWAKE_MEDIA & fw_engine) {
-		WARN_ON(dev_priv->uncore.fw_mediacount == 0);
-		if (--dev_priv->uncore.fw_mediacount == 0)
-			dev_priv->uncore.funcs.force_wake_put(dev_priv,
-							FORCEWAKE_MEDIA);
-	}
+	if (fw_engine)
+		dev_priv->uncore.funcs.force_wake_put(dev_priv, fw_engine);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -516,27 +512,19 @@ gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 static u##x \
 vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	unsigned fwengine = 0; \
-	unsigned fwcount; \
 	REG_READ_HEADER(x); \
-	if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg)) {   \
-		fwengine = FORCEWAKE_RENDER;            \
-		fwcount = dev_priv->uncore.fw_rendercount;    \
-	}                                               \
-	else if (FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)) {       \
-		fwengine = FORCEWAKE_MEDIA;             \
-		fwcount = dev_priv->uncore.fw_mediacount;     \
+	if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg)) { \
+		if (dev_priv->uncore.fw_rendercount == 0) \
+			fwengine = FORCEWAKE_RENDER; \
+	} else if (FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)) { \
+		if (dev_priv->uncore.fw_mediacount == 0) \
+			fwengine = FORCEWAKE_MEDIA; \
 	}  \
-	if (fwengine != 0) {		\
-		if (fwcount == 0) \
-			(dev_priv)->uncore.funcs.force_wake_get(dev_priv, \
-								fwengine); \
-		val = __raw_i915_read##x(dev_priv, reg); \
-		if (fwcount == 0) \
-			(dev_priv)->uncore.funcs.force_wake_put(dev_priv, \
-							fwengine); \
-	} else { \
-		val = __raw_i915_read##x(dev_priv, reg); \
-	} \
+	if (fwengine) \
+		dev_priv->uncore.funcs.force_wake_get(dev_priv, fwengine); \
+	val = __raw_i915_read##x(dev_priv, reg); \
+	if (fwengine) \
+		dev_priv->uncore.funcs.force_wake_put(dev_priv, fwengine); \
 	REG_READ_FOOTER; \
 }
 
