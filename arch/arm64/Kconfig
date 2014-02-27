@@ -86,7 +86,7 @@ config GENERIC_CSUM
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
-config ZONE_DMA32
+config ZONE_DMA
 	def_bool y
 
 config ARCH_DMA_ADDR_T_64BIT
