@@ -1091,7 +1091,8 @@ tlb_load_linear:
 	ld	r11,PACATOC(r13)
 	ld	r11,linear_map_top@got(r11)
 	ld	r10,0(r11)
-	cmpld	cr0,r10,r16
+	tovirt(10,10)
+	cmpld	cr0,r16,r10
 	bge	tlb_load_linear_fault
 
 	/* MAS1 need whole new setup. */
