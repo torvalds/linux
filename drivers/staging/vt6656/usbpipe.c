@@ -584,37 +584,28 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	struct vnt_usb_send_context *context = urb->context;
 	struct vnt_private *priv = context->pDevice;
 	u8 context_type = context->type;
-	int status;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkOutIoCompleteWrite\n");
 
 	switch (urb->status) {
 	case 0:
-	case -ETIMEDOUT:
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"Write %d bytes\n", context->uBufLen);
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
 		context->bBoolInUse = false;
 		return;
+	case -ETIMEDOUT:
 	default:
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				"BULK Out failed %d\n", urb->status);
 		break;
 	}
 
 	if (!netif_device_present(priv->dev))
 		return;
-
-
-	status = urb->status;
-
-	if (status == STATUS_SUCCESS) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"Write %d bytes\n", context->uBufLen);
-	} else {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				"BULK Out failed %d\n", status);
-	}
-
 
 	if (CONTEXT_DATA_PACKET == context_type) {
 		if (context->pPacket != NULL) {
@@ -625,11 +616,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 		}
 
 		priv->dev->trans_start = jiffies;
-
-		if (status != STATUS_SUCCESS) {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				"Send USB error! [%08xh]\n", status);
-		}
 	}
 
 	if (priv->bLinkPass == true) {
