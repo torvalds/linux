@@ -72,4 +72,6 @@ long sys_rt_sigreturn(void);
 long sys32_sigreturn(void);
 long sys32_rt_sigreturn(void);
 
+long sys_s390_personality(unsigned int personality);
+
 #endif /* _ENTRY_H */

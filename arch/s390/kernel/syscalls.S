@@ -133,22 +133,22 @@ SYSCALL(sys_setdomainname,sys_setdomainname,compat_sys_setdomainname)
 SYSCALL(sys_newuname,sys_newuname,compat_sys_newuname)
 NI_SYSCALL							/* modify_ldt for i386 */
 SYSCALL(sys_adjtimex,sys_adjtimex,compat_sys_adjtimex_wrapper)
-SYSCALL(sys_mprotect,sys_mprotect,sys32_mprotect_wrapper)	/* 125 */
+SYSCALL(sys_mprotect,sys_mprotect,compat_sys_mprotect)		/* 125 */
 SYSCALL(sys_sigprocmask,sys_sigprocmask,compat_sys_sigprocmask)
 NI_SYSCALL							/* old "create module" */
-SYSCALL(sys_init_module,sys_init_module,sys_init_module_wrapper)
-SYSCALL(sys_delete_module,sys_delete_module,sys_delete_module_wrapper)
+SYSCALL(sys_init_module,sys_init_module,compat_sys_init_module)
+SYSCALL(sys_delete_module,sys_delete_module,compat_sys_delete_module)
 NI_SYSCALL							/* 130: old get_kernel_syms */
-SYSCALL(sys_quotactl,sys_quotactl,sys32_quotactl_wrapper)
-SYSCALL(sys_getpgid,sys_getpgid,sys32_getpgid_wrapper)
-SYSCALL(sys_fchdir,sys_fchdir,sys32_fchdir_wrapper)
-SYSCALL(sys_bdflush,sys_bdflush,sys32_bdflush_wrapper)
-SYSCALL(sys_sysfs,sys_sysfs,sys32_sysfs_wrapper)		/* 135 */
-SYSCALL(sys_personality,sys_s390_personality,sys32_personality_wrapper)
+SYSCALL(sys_quotactl,sys_quotactl,compat_sys_quotactl)
+SYSCALL(sys_getpgid,sys_getpgid,compat_sys_getpgid)
+SYSCALL(sys_fchdir,sys_fchdir,compat_sys_fchdir)
+SYSCALL(sys_bdflush,sys_bdflush,compat_sys_bdflush)
+SYSCALL(sys_sysfs,sys_sysfs,compat_sys_sysfs)		/* 135 */
+SYSCALL(sys_personality,sys_s390_personality,compat_sys_s390_personality)
 NI_SYSCALL							/* for afs_syscall */
 SYSCALL(sys_setfsuid16,sys_ni_syscall,compat_sys_s390_setfsuid16)	/* old setfsuid16 syscall */
 SYSCALL(sys_setfsgid16,sys_ni_syscall,compat_sys_s390_setfsgid16)	/* old setfsgid16 syscall */
-SYSCALL(sys_llseek,sys_llseek,sys32_llseek_wrapper)		/* 140 */
+SYSCALL(sys_llseek,sys_llseek,compat_sys_llseek)		/* 140 */
 SYSCALL(sys_getdents,sys_getdents,sys32_getdents_wrapper)
 SYSCALL(sys_select,sys_select,compat_sys_select_wrapper)
 SYSCALL(sys_flock,sys_flock,sys32_flock_wrapper)

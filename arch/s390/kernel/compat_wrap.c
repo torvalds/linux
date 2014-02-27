@@ -1,5 +1,6 @@
 #include <linux/syscalls.h>
 #include <linux/compat.h>
+#include "entry.h"
 
 #define COMPAT_SYSCALL_WRAP1(name, ...) \
 	COMPAT_SYSCALL_WRAPx(1, _##name, __VA_ARGS__)
@@ -63,3 +64,13 @@ COMPAT_SYSCALL_WRAP1(swapoff, const char __user *, specialfile);
 COMPAT_SYSCALL_WRAP1(fsync, unsigned int, fd);
 COMPAT_SYSCALL_WRAP2(setdomainname, char __user *, name, int, len);
 COMPAT_SYSCALL_WRAP1(newuname, struct new_utsname __user *, name);
+COMPAT_SYSCALL_WRAP3(mprotect, compat_ulong_t, start, compat_size_t, len, compat_ulong_t, prot);
+COMPAT_SYSCALL_WRAP3(init_module, void __user *, umod, compat_ulong_t, len, const char __user *, uargs);
+COMPAT_SYSCALL_WRAP2(delete_module, const char __user *, name_user, unsigned int, flags);
+COMPAT_SYSCALL_WRAP4(quotactl, unsigned int, cmd, const char __user *, special, qid_t, id, void __user *, addr);
+COMPAT_SYSCALL_WRAP1(getpgid, compat_pid_t, pid);
+COMPAT_SYSCALL_WRAP1(fchdir, unsigned int, fd);
+COMPAT_SYSCALL_WRAP2(bdflush, int, func, compat_long_t, data);
+COMPAT_SYSCALL_WRAP3(sysfs, int, option, compat_ulong_t, arg1, compat_ulong_t, arg2);
+COMPAT_SYSCALL_WRAP1(s390_personality, unsigned int, personality);
+COMPAT_SYSCALL_WRAP5(llseek, unsigned int, fd, u32, high, u32, low, loff_t __user *, result, unsigned int, whence);

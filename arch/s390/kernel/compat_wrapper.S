@@ -128,61 +128,6 @@ ENTRY(compat_sys_adjtimex_wrapper)
 	llgtr	%r2,%r2			# struct compat_timex *
 	jg	compat_sys_adjtimex	# branch to system call
 
-ENTRY(sys32_mprotect_wrapper)
-	llgtr	%r2,%r2			# unsigned long (actually pointer
-	llgfr	%r3,%r3			# size_t
-	llgfr	%r4,%r4			# unsigned long
-	jg	sys_mprotect		# branch to system call
-
-ENTRY(sys_init_module_wrapper)
-	llgtr	%r2,%r2			# void *
-	llgfr	%r3,%r3			# unsigned long
-	llgtr	%r4,%r4			# char *
-	jg	sys_init_module		# branch to system call
-
-ENTRY(sys_delete_module_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# unsigned int
-	jg	sys_delete_module	# branch to system call
-
-ENTRY(sys32_quotactl_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgtr	%r3,%r3			# const char *
-	llgfr	%r4,%r4			# qid_t
-	llgtr	%r5,%r5			# caddr_t
-	jg	sys_quotactl		# branch to system call
-
-ENTRY(sys32_getpgid_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	jg	sys_getpgid		# branch to system call
-
-ENTRY(sys32_fchdir_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	jg	sys_fchdir		# branch to system call
-
-ENTRY(sys32_bdflush_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# long
-	jg	sys_bdflush		# branch to system call
-
-ENTRY(sys32_sysfs_wrapper)
-	lgfr	%r2,%r2			# int
-	llgfr	%r3,%r3			# unsigned long
-	llgfr	%r4,%r4			# unsigned long
-	jg	sys_sysfs		# branch to system call
-
-ENTRY(sys32_personality_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	jg	sys_s390_personality	# branch to system call
-
-ENTRY(sys32_llseek_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned long
-	llgfr	%r4,%r4			# unsigned long
-	llgtr	%r5,%r5			# loff_t *
-	llgfr	%r6,%r6			# unsigned int
-	jg	sys_llseek		# branch to system call
-
 ENTRY(sys32_getdents_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# void *
