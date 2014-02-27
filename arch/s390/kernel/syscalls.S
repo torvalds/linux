@@ -96,22 +96,22 @@ NI_SYSCALL							/* old lstat syscall */
 SYSCALL(sys_readlink,sys_readlink,compat_sys_readlink)		/* 85 */
 SYSCALL(sys_uselib,sys_uselib,compat_sys_uselib)
 SYSCALL(sys_swapon,sys_swapon,compat_sys_swapon)
-SYSCALL(sys_reboot,sys_reboot,sys32_reboot_wrapper)
+SYSCALL(sys_reboot,sys_reboot,compat_sys_reboot)
 SYSCALL(sys_ni_syscall,sys_ni_syscall,old32_readdir_wrapper)	/* old readdir syscall */
 SYSCALL(sys_old_mmap,sys_old_mmap,compat_sys_s390_old_mmap)	/* 90 */
-SYSCALL(sys_munmap,sys_munmap,sys32_munmap_wrapper)
+SYSCALL(sys_munmap,sys_munmap,compat_sys_munmap)
 SYSCALL(sys_truncate,sys_truncate,compat_sys_truncate)
 SYSCALL(sys_ftruncate,sys_ftruncate,compat_sys_ftruncate)
-SYSCALL(sys_fchmod,sys_fchmod,sys32_fchmod_wrapper)
+SYSCALL(sys_fchmod,sys_fchmod,compat_sys_fchmod)
 SYSCALL(sys_fchown16,sys_ni_syscall,compat_sys_s390_fchown16)	/* 95 old fchown16 syscall*/
-SYSCALL(sys_getpriority,sys_getpriority,sys32_getpriority_wrapper)
-SYSCALL(sys_setpriority,sys_setpriority,sys32_setpriority_wrapper)
+SYSCALL(sys_getpriority,sys_getpriority,compat_sys_getpriority)
+SYSCALL(sys_setpriority,sys_setpriority,compat_sys_setpriority)
 NI_SYSCALL							/* old profil syscall */
 SYSCALL(sys_statfs,sys_statfs,compat_sys_statfs_wrapper)
 SYSCALL(sys_fstatfs,sys_fstatfs,compat_sys_fstatfs_wrapper)	/* 100 */
 NI_SYSCALL							/* ioperm for i386 */
 SYSCALL(sys_socketcall,sys_socketcall,compat_sys_socketcall_wrapper)
-SYSCALL(sys_syslog,sys_syslog,sys32_syslog_wrapper)
+SYSCALL(sys_syslog,sys_syslog,compat_sys_syslog)
 SYSCALL(sys_setitimer,sys_setitimer,compat_sys_setitimer)
 SYSCALL(sys_getitimer,sys_getitimer,compat_sys_getitimer)	/* 105 */
 SYSCALL(sys_newstat,sys_newstat,compat_sys_newstat_wrapper)
@@ -123,14 +123,14 @@ SYSCALL(sys_vhangup,sys_vhangup,sys_vhangup)
 NI_SYSCALL							/* old "idle" system call */
 NI_SYSCALL							/* vm86old for i386 */
 SYSCALL(sys_wait4,sys_wait4,compat_sys_wait4)
-SYSCALL(sys_swapoff,sys_swapoff,sys32_swapoff_wrapper)		/* 115 */
+SYSCALL(sys_swapoff,sys_swapoff,compat_sys_swapoff)		/* 115 */
 SYSCALL(sys_sysinfo,sys_sysinfo,compat_sys_sysinfo_wrapper)
 SYSCALL(sys_s390_ipc,sys_s390_ipc,compat_sys_s390_ipc)
-SYSCALL(sys_fsync,sys_fsync,sys32_fsync_wrapper)
+SYSCALL(sys_fsync,sys_fsync,compat_sys_fsync)
 SYSCALL(sys_sigreturn,sys_sigreturn,sys32_sigreturn)
 SYSCALL(sys_clone,sys_clone,sys_clone_wrapper)			/* 120 */
-SYSCALL(sys_setdomainname,sys_setdomainname,sys32_setdomainname_wrapper)
-SYSCALL(sys_newuname,sys_newuname,sys32_newuname_wrapper)
+SYSCALL(sys_setdomainname,sys_setdomainname,compat_sys_setdomainname)
+SYSCALL(sys_newuname,sys_newuname,compat_sys_newuname)
 NI_SYSCALL							/* modify_ldt for i386 */
 SYSCALL(sys_adjtimex,sys_adjtimex,compat_sys_adjtimex_wrapper)
 SYSCALL(sys_mprotect,sys_mprotect,sys32_mprotect_wrapper)	/* 125 */

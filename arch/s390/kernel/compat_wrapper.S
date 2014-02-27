@@ -84,39 +84,11 @@ ENTRY(compat_sys_settimeofday_wrapper)
 	llgtr	%r3,%r3			# struct timezone *
 	jg	compat_sys_settimeofday	# branch to system call
 
-ENTRY(sys32_reboot_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgfr	%r4,%r4			# unsigned int
-	llgtr	%r5,%r5			# void *
-	jg	sys_reboot		# branch to system call
-
 ENTRY(old32_readdir_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# void *
 	llgfr	%r4,%r4			# unsigned int
 	jg	compat_sys_old_readdir	# branch to system call
-
-ENTRY(sys32_munmap_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgfr	%r3,%r3			# size_t
-	jg	sys_munmap		# branch to system call
-
-ENTRY(sys32_fchmod_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# mode_t
-	jg	sys_fchmod		# branch to system call
-
-ENTRY(sys32_getpriority_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	jg	sys_getpriority		# branch to system call
-
-ENTRY(sys32_setpriority_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	lgfr	%r4,%r4			# int
-	jg	sys_setpriority		# branch to system call
 
 ENTRY(compat_sys_statfs_wrapper)
 	llgtr	%r2,%r2			# char *
@@ -133,12 +105,6 @@ ENTRY(compat_sys_socketcall_wrapper)
 	llgtr	%r3,%r3			# u32 *
 	jg	compat_sys_socketcall	# branch to system call
 
-ENTRY(sys32_syslog_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# char *
-	lgfr	%r4,%r4			# int
-	jg	sys_syslog		# branch to system call
-
 ENTRY(compat_sys_newstat_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct stat_emu31 *
@@ -154,32 +120,9 @@ ENTRY(compat_sys_newfstat_wrapper)
 	llgtr	%r3,%r3			# struct stat_emu31 *
 	jg	compat_sys_newfstat	# branch to system call
 
-#sys32_vhangup_wrapper			# void
-
-ENTRY(sys32_swapoff_wrapper)
-	llgtr	%r2,%r2			# const char *
-	jg	sys_swapoff		# branch to system call
-
 ENTRY(compat_sys_sysinfo_wrapper)
 	llgtr	%r2,%r2			# struct sysinfo_emu31 *
 	jg	compat_sys_sysinfo	# branch to system call
-
-ENTRY(sys32_fsync_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	jg	sys_fsync		# branch to system call
-
-#sys32_sigreturn_wrapper		# done in sigreturn_glue
-
-#sys32_clone_wrapper			# done in clone_glue
-
-ENTRY(sys32_setdomainname_wrapper)
-	llgtr	%r2,%r2			# char *
-	lgfr	%r3,%r3			# int
-	jg	sys_setdomainname	# branch to system call
-
-ENTRY(sys32_newuname_wrapper)
-	llgtr	%r2,%r2			# struct new_utsname *
-	jg	sys_newuname		# branch to system call
 
 ENTRY(compat_sys_adjtimex_wrapper)
 	llgtr	%r2,%r2			# struct compat_timex *

@@ -53,3 +53,13 @@ COMPAT_SYSCALL_WRAP2(symlink, const char __user *, old, const char __user *, new
 COMPAT_SYSCALL_WRAP3(readlink, const char __user *, path, char __user *, buf, int, bufsiz);
 COMPAT_SYSCALL_WRAP1(uselib, const char __user *, library);
 COMPAT_SYSCALL_WRAP2(swapon, const char __user *, specialfile, int, swap_flags);
+COMPAT_SYSCALL_WRAP4(reboot, int, magic1, int, magic2, unsigned int, cmd, void __user *, arg);
+COMPAT_SYSCALL_WRAP2(munmap, compat_ulong_t, addr, compat_size_t, len);
+COMPAT_SYSCALL_WRAP2(fchmod, unsigned int, fd, umode_t, mode);
+COMPAT_SYSCALL_WRAP2(getpriority, int, which, int, who);
+COMPAT_SYSCALL_WRAP3(setpriority, int, which, int, who, int, niceval);
+COMPAT_SYSCALL_WRAP3(syslog, int, type, char __user *, buf, int, len);
+COMPAT_SYSCALL_WRAP1(swapoff, const char __user *, specialfile);
+COMPAT_SYSCALL_WRAP1(fsync, unsigned int, fd);
+COMPAT_SYSCALL_WRAP2(setdomainname, char __user *, name, int, len);
+COMPAT_SYSCALL_WRAP1(newuname, struct new_utsname __user *, name);
