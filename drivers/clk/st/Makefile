@@ -1,1 +1,1 @@
-obj-y += clkgen-mux.o
+obj-y += clkgen-mux.o clkgen-pll.o
