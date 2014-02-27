@@ -32,6 +32,7 @@
  */
 
 #include <linux/hash.h>
+#include <linux/init.h>
 
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
@@ -55,17 +56,16 @@ static u32 intel_crc4_2_hash(const void *data, u32 len, u32 seed)
 	for (i = 0; i < len / 4; i++)
 		seed = crc32_u32(seed, *p32++);
 
-	switch (3 - (len & 0x03)) {
-	case 0:
+	switch (len & 3) {
+	case 3:
 		tmp |= *((const u8 *) p32 + 2) << 16;
 		/* fallthrough */
-	case 1:
+	case 2:
 		tmp |= *((const u8 *) p32 + 1) << 8;
 		/* fallthrough */
-	case 2:
+	case 1:
 		tmp |= *((const u8 *) p32);
 		seed = crc32_u32(seed, tmp);
-	default:
 		break;
 	}
 
@@ -83,7 +83,7 @@ static u32 intel_crc4_2_hash2(const u32 *data, u32 len, u32 seed)
 	return seed;
 }
 
-void setup_arch_fast_hash(struct fast_hash_ops *ops)
+void __init setup_arch_fast_hash(struct fast_hash_ops *ops)
 {
 	if (cpu_has_xmm4_2) {
 		ops->hash  = intel_crc4_2_hash;
