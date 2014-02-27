@@ -1,5 +1,6 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "skeleton.dtsi"
+#include "rk3288-pinctrl.dtsi"
 
 / {
 	compatible = "rockchip,rk3288";

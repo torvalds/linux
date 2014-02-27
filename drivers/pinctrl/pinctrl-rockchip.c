@@ -40,8 +40,6 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/clk.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include <dt-bindings/pinctrl/rockchip-rk3188.h>
-
 
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -63,7 +61,7 @@
 /* GPIO control registers */
 #define GPIO_SWPORT_DR		0x00
 #define GPIO_SWPORT_DDR		0x04
-#define GPIO_INTEN		0x30
+#define GPIO_INTEN			0x30
 #define GPIO_INTMASK		0x34
 #define GPIO_INTTYPE_LEVEL	0x38
 #define GPIO_INT_POLARITY	0x3c
@@ -78,6 +76,7 @@ enum rockchip_pinctrl_type {
 	RK2928,
 	RK3066B,
 	RK3188,
+	RK3288,
 };
 
 enum rockchip_pin_bank_type {
@@ -2294,8 +2293,33 @@ static struct rockchip_pin_ctrl rk3188_pin_ctrl = {
 		.label			= "RK3188-GPIO",
 		.type			= RK3188,
 		.mux_offset		= 0x60,
-		.pull_calc_reg		= rk3188_calc_pull_reg_and_bit,
+		.pull_calc_reg	= rk3188_calc_pull_reg_and_bit,
 };
+
+
+static struct rockchip_pin_bank rk3288_pin_banks[] = {
+	PIN_BANK(0, 32, "gpio0"),
+	PIN_BANK(1, 32, "gpio1"),
+	PIN_BANK(2, 32, "gpio2"),
+	PIN_BANK(3, 32, "gpio3"),
+	PIN_BANK(4, 32, "gpio4"),
+	PIN_BANK(5, 32, "gpio5"),
+	PIN_BANK(6, 32, "gpio6"),
+	PIN_BANK(7, 32, "gpio7"),
+	PIN_BANK(8, 32, "gpio8"),
+
+	
+	PIN_BANK(15, 32, "gpio15"),//virtual bank
+};
+
+static struct rockchip_pin_ctrl rk3288_pin_ctrl = {
+		.pin_banks		= rk3288_pin_banks,
+		.nr_banks		= ARRAY_SIZE(rk3288_pin_banks),
+		.label			= "RK3288-GPIO",
+		.type			= RK3288,
+		.mux_offset		= 0x60,
+};
+
 
 static const struct of_device_id rockchip_pinctrl_dt_match[] = {
 	{ .compatible = "rockchip,rk2928-pinctrl",
@@ -2306,6 +2330,8 @@ static const struct of_device_id rockchip_pinctrl_dt_match[] = {
 		.data = (void *)&rk3066b_pin_ctrl },
 	{ .compatible = "rockchip,rk3188-pinctrl",
 		.data = (void *)&rk3188_pin_ctrl },
+	{ .compatible = "rockchip,rk3288-pinctrl",
+		.data = (void *)&rk3288_pin_ctrl },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_pinctrl_dt_match);
