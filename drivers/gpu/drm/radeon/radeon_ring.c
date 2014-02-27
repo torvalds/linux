@@ -342,13 +342,17 @@ bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
  */
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	ring->rptr = radeon_ring_get_rptr(rdev, ring);
+	uint32_t rptr = radeon_ring_get_rptr(rdev, ring);
+
 	/* This works because ring_size is a power of 2 */
-	ring->ring_free_dw = (ring->rptr + (ring->ring_size / 4));
+	ring->ring_free_dw = rptr + (ring->ring_size / 4);
 	ring->ring_free_dw -= ring->wptr;
 	ring->ring_free_dw &= ring->ptr_mask;
 	if (!ring->ring_free_dw) {
+		/* this is an empty ring */
 		ring->ring_free_dw = ring->ring_size / 4;
+		/*  update lockup info to avoid false positive */
+		radeon_ring_lockup_update(rdev, ring);
 	}
 }
 
@@ -372,12 +376,6 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
 	radeon_ring_free_size(rdev, ring);
-	if (ring->ring_free_dw == (ring->ring_size / 4)) {
-		/* This is an empty ring update lockup info to avoid
-		 * false positive.
-		 */
-		radeon_ring_lockup_update(ring);
-	}
 	ndw = (ndw + ring->align_mask) & ~ring->align_mask;
 	while (ndw > (ring->ring_free_dw - 1)) {
 		radeon_ring_free_size(rdev, ring);
@@ -478,38 +476,16 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *rin
 }
 
 /**
- * radeon_ring_force_activity - add some nop packets to the ring
- *
- * @rdev: radeon_device pointer
- * @ring: radeon_ring structure holding ring information
- *
- * Add some nop packets to the ring to force activity (all asics).
- * Used for lockup detection to see if the rptr is advancing.
- */
-void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring)
-{
-	int r;
-
-	radeon_ring_free_size(rdev, ring);
-	if (ring->rptr == ring->wptr) {
-		r = radeon_ring_alloc(rdev, ring, 1);
-		if (!r) {
-			radeon_ring_write(ring, ring->nop);
-			radeon_ring_commit(rdev, ring);
-		}
-	}
-}
-
-/**
  * radeon_ring_lockup_update - update lockup variables
  *
  * @ring: radeon_ring structure holding ring information
  *
  * Update the last rptr value and timestamp (all asics).
  */
-void radeon_ring_lockup_update(struct radeon_ring *ring)
+void radeon_ring_lockup_update(struct radeon_device *rdev,
+			       struct radeon_ring *ring)
 {
-	ring->last_rptr = ring->rptr;
+	ring->last_rptr = radeon_ring_get_rptr(rdev, ring);
 	ring->last_activity = jiffies;
 }
 
@@ -518,35 +494,21 @@ void radeon_ring_lockup_update(struct radeon_ring *ring)
  * @rdev:       radeon device structure
  * @ring:       radeon_ring structure holding ring information
  *
- * We don't need to initialize the lockup tracking information as we will either
- * have CP rptr to a different value of jiffies wrap around which will force
- * initialization of the lockup tracking informations.
- *
- * A possible false positivie is if we get call after while and last_cp_rptr ==
- * the current CP rptr, even if it's unlikely it might happen. To avoid this
- * if the elapsed time since last call is bigger than 2 second than we return
- * false and update the tracking information. Due to this the caller must call
- * radeon_ring_test_lockup several time in less than 2sec for lockup to be reported
- * the fencing code should be cautious about that.
- *
- * Caller should write to the ring to force CP to do something so we don't get
- * false positive when CP is just gived nothing to do.
- *
- **/
+ */
 bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
+	uint32_t rptr = radeon_ring_get_rptr(rdev, ring);
 	unsigned long cjiffies, elapsed;
 
 	cjiffies = jiffies;
 	if (!time_after(cjiffies, ring->last_activity)) {
 		/* likely a wrap around */
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	ring->rptr = radeon_ring_get_rptr(rdev, ring);
-	if (ring->rptr != ring->last_rptr) {
+	if (rptr != ring->last_rptr) {
 		/* CP is still working no lockup */
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
 	elapsed = jiffies_to_msecs(cjiffies - ring->last_activity);
@@ -709,7 +671,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	if (radeon_debugfs_ring_init(rdev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
-	radeon_ring_lockup_update(ring);
+	radeon_ring_lockup_update(rdev, ring);
 	return 0;
 }
 
@@ -780,8 +742,6 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n",
 		   ring->wptr, ring->wptr);
-	seq_printf(m, "driver's copy of the rptr: 0x%08x [%5d]\n",
-		   ring->rptr, ring->rptr);
 	seq_printf(m, "last semaphore signal addr : 0x%016llx\n",
 		   ring->last_semaphore_signal_addr);
 	seq_printf(m, "last semaphore wait addr   : 0x%016llx\n",
@@ -814,6 +774,8 @@ static int cayman_cp2_index = CAYMAN_RING_TYPE_CP2_INDEX;
 static int radeon_dma1_index = R600_RING_TYPE_DMA_INDEX;
 static int radeon_dma2_index = CAYMAN_RING_TYPE_DMA1_INDEX;
 static int r600_uvd_index = R600_RING_TYPE_UVD_INDEX;
+static int si_vce1_index = TN_RING_TYPE_VCE1_INDEX;
+static int si_vce2_index = TN_RING_TYPE_VCE2_INDEX;
 
 static struct drm_info_list radeon_debugfs_ring_info_list[] = {
 	{"radeon_ring_gfx", radeon_debugfs_ring_info, 0, &radeon_gfx_index},
@@ -822,6 +784,8 @@ static struct drm_info_list radeon_debugfs_ring_info_list[] = {
 	{"radeon_ring_dma1", radeon_debugfs_ring_info, 0, &radeon_dma1_index},
 	{"radeon_ring_dma2", radeon_debugfs_ring_info, 0, &radeon_dma2_index},
 	{"radeon_ring_uvd", radeon_debugfs_ring_info, 0, &r600_uvd_index},
+	{"radeon_ring_vce1", radeon_debugfs_ring_info, 0, &si_vce1_index},
+	{"radeon_ring_vce2", radeon_debugfs_ring_info, 0, &si_vce2_index},
 };
 
 static int radeon_debugfs_sa_info(struct seq_file *m, void *data)

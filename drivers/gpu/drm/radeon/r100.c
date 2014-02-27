@@ -1193,7 +1193,6 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 
 	WREG32(RADEON_CP_RB_CNTL, tmp);
 	udelay(10);
-	ring->rptr = RREG32(RADEON_CP_RB_RPTR);
 	/* Set cp mode to bus mastering & enable cp*/
 	WREG32(RADEON_CP_CSQ_MODE,
 	       REG_SET(RADEON_INDIRECT2_START, indirect2_start) |
@@ -2523,11 +2522,9 @@ bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 
 	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
 	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 

@@ -919,6 +919,7 @@ struct drm_radeon_gem_va {
 #define RADEON_CS_RING_COMPUTE      1
 #define RADEON_CS_RING_DMA          2
 #define RADEON_CS_RING_UVD          3
+#define RADEON_CS_RING_VCE          4
 /* The third dword of RADEON_CHUNK_ID_FLAGS is a sint32 that sets the priority */
 /* 0 = normal, + = higher priority, - = lower priority */
 
@@ -987,6 +988,10 @@ struct drm_radeon_cs {
 #define RADEON_INFO_SI_BACKEND_ENABLED_MASK	0x19
 /* max engine clock - needed for OpenCL */
 #define RADEON_INFO_MAX_SCLK		0x1a
+/* version of VCE firmware */
+#define RADEON_INFO_VCE_FW_VERSION	0x1b
+/* version of VCE feedback */
+#define RADEON_INFO_VCE_FB_VERSION	0x1c
 
 
 struct drm_radeon_info {

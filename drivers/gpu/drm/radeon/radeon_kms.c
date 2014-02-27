@@ -433,6 +433,9 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		case RADEON_CS_RING_UVD:
 			*value = rdev->ring[R600_RING_TYPE_UVD_INDEX].ready;
 			break;
+		case RADEON_CS_RING_VCE:
+			*value = rdev->ring[TN_RING_TYPE_VCE1_INDEX].ready;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -476,6 +479,12 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			*value = rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk * 10;
 		else
 			*value = rdev->pm.default_sclk * 10;
+		break;
+	case RADEON_INFO_VCE_FW_VERSION:
+		*value = rdev->vce.fw_version;
+		break;
+	case RADEON_INFO_VCE_FB_VERSION:
+		*value = rdev->vce.fb_version;
 		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
@@ -610,6 +619,7 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 	if (rdev->cmask_filp == file_priv)
 		rdev->cmask_filp = NULL;
 	radeon_uvd_free_handles(rdev, file_priv);
+	radeon_vce_free_handles(rdev, file_priv);
 }
 
 /*
