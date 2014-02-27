@@ -222,10 +222,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 
 		//Checking classifier validity
 		if (!pstClassifierRule->bUsed || pstClassifierRule->ucDirection == DOWNLINK_DIR)
-		{
-			bClassificationSucceed = false;
 			break;
-		}
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "is IPv6 check!");
 		if (pstClassifierRule->bIpv6Protocol)
