@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
 
 
 static int debug;
-module_param(debug, int, 0);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 struct tvp5150 {
