@@ -2877,7 +2877,7 @@ void drbd_delete_device(struct drbd_device *device)
 	kref_sub(&device->kref, refs, drbd_destroy_device);
 }
 
-int __init drbd_init(void)
+static int __init drbd_init(void)
 {
 	int err;
 

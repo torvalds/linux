@@ -169,7 +169,7 @@ out_fail:
 	return NULL;
 }
 
-void lc_free_by_index(struct lru_cache *lc, unsigned i)
+static void lc_free_by_index(struct lru_cache *lc, unsigned i)
 {
 	void *p = lc->lc_element[i];
 	WARN_ON(!p);

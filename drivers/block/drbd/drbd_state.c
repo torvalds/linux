@@ -410,7 +410,7 @@ _drbd_request_state(struct drbd_device *device, union drbd_state mask,
 	return rv;
 }
 
-static void print_st(struct drbd_device *device, char *name, union drbd_state ns)
+static void print_st(struct drbd_device *device, const char *name, union drbd_state ns)
 {
 	drbd_err(device, " %s = { cs:%s ro:%s/%s ds:%s/%s %c%c%c%c%c%c }\n",
 	    name,
@@ -1606,7 +1606,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	return 0;
 }
 
-void conn_old_common_state(struct drbd_connection *connection, union drbd_state *pcs, enum chg_state_flags *pf)
+static void conn_old_common_state(struct drbd_connection *connection, union drbd_state *pcs, enum chg_state_flags *pf)
 {
 	enum chg_state_flags flags = ~0;
 	struct drbd_peer_device *peer_device;
@@ -1695,7 +1695,7 @@ conn_is_valid_transition(struct drbd_connection *connection, union drbd_state ma
 	return rv;
 }
 
-void
+static void
 conn_set_state(struct drbd_connection *connection, union drbd_state mask, union drbd_state val,
 	       union drbd_state *pns_min, union drbd_state *pns_max, enum chg_state_flags flags)
 {
