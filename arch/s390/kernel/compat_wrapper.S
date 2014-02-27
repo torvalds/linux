@@ -8,46 +8,9 @@
 
 #include <linux/linkage.h>
 
-ENTRY(sys32_exit_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_exit		# branch to sys_exit
-
-ENTRY(sys32_close_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	jg	sys_close		# branch to system call
-
-ENTRY(sys32_creat_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# int
-	jg	sys_creat		# branch to system call
-
-ENTRY(sys32_link_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgtr	%r3,%r3			# const char *
-	jg	sys_link		# branch to system call
-
-ENTRY(sys32_unlink_wrapper)
-	llgtr	%r2,%r2			# const char *
-	jg	sys_unlink		# branch to system call
-
-ENTRY(sys32_chdir_wrapper)
-	llgtr	%r2,%r2			# const char *
-	jg	sys_chdir		# branch to system call
-
 ENTRY(sys32_time_wrapper)
 	llgtr	%r2,%r2			# int *
 	jg	compat_sys_time		# branch to system call
-
-ENTRY(sys32_mknod_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# int
-	llgfr	%r4,%r4			# dev
-	jg	sys_mknod		# branch to system call
-
-ENTRY(sys32_chmod_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# mode_t
-	jg	sys_chmod		# branch to system call
 
 #sys32_getpid_wrapper				# void
 
@@ -59,10 +22,6 @@ ENTRY(sys32_mount_wrapper)
 	llgtr	%r6,%r6			# void *
 	jg	compat_sys_mount	# branch to system call
 
-ENTRY(sys32_oldumount_wrapper)
-	llgtr	%r2,%r2			# char *
-	jg	sys_oldumount		# branch to system call
-
 ENTRY(sys32_ptrace_wrapper)
 	lgfr	%r2,%r2			# long
 	lgfr	%r3,%r3			# long
@@ -70,25 +29,10 @@ ENTRY(sys32_ptrace_wrapper)
 	llgfr	%r5,%r5			# long
 	jg	compat_sys_ptrace	# branch to system call
 
-ENTRY(sys32_alarm_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	jg	sys_alarm		# branch to system call
-
 ENTRY(compat_sys_utime_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct compat_utimbuf *
 	jg	compat_sys_utime	# branch to system call
-
-ENTRY(sys32_access_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# int
-	jg	sys_access		# branch to system call
-
-ENTRY(sys32_nice_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_nice		# branch to system call
-
-#sys32_sync_wrapper			# void
 
 ENTRY(sys32_kill_wrapper)
 	lgfr	%r2,%r2			# int

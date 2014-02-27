@@ -9,40 +9,40 @@
 #define NI_SYSCALL SYSCALL(sys_ni_syscall,sys_ni_syscall,sys_ni_syscall)
 
 NI_SYSCALL							/* 0 */
-SYSCALL(sys_exit,sys_exit,sys32_exit_wrapper)
+SYSCALL(sys_exit,sys_exit,compat_sys_exit)
 SYSCALL(sys_fork,sys_fork,sys_fork)
 SYSCALL(sys_read,sys_read,compat_sys_s390_read)
 SYSCALL(sys_write,sys_write,compat_sys_s390_write)
 SYSCALL(sys_open,sys_open,compat_sys_open)			/* 5 */
-SYSCALL(sys_close,sys_close,sys32_close_wrapper)
+SYSCALL(sys_close,sys_close,compat_sys_close)
 SYSCALL(sys_restart_syscall,sys_restart_syscall,sys_restart_syscall)
-SYSCALL(sys_creat,sys_creat,sys32_creat_wrapper)
-SYSCALL(sys_link,sys_link,sys32_link_wrapper)
-SYSCALL(sys_unlink,sys_unlink,sys32_unlink_wrapper)		/* 10 */
+SYSCALL(sys_creat,sys_creat,compat_sys_creat)
+SYSCALL(sys_link,sys_link,compat_sys_link)
+SYSCALL(sys_unlink,sys_unlink,compat_sys_unlink)		/* 10 */
 SYSCALL(sys_execve,sys_execve,sys32_execve_wrapper)
-SYSCALL(sys_chdir,sys_chdir,sys32_chdir_wrapper)
+SYSCALL(sys_chdir,sys_chdir,compat_sys_chdir)
 SYSCALL(sys_time,sys_ni_syscall,sys32_time_wrapper)		/* old time syscall */
-SYSCALL(sys_mknod,sys_mknod,sys32_mknod_wrapper)
-SYSCALL(sys_chmod,sys_chmod,sys32_chmod_wrapper)		/* 15 */
+SYSCALL(sys_mknod,sys_mknod,compat_sys_mknod)
+SYSCALL(sys_chmod,sys_chmod,compat_sys_chmod)			/* 15 */
 SYSCALL(sys_lchown16,sys_ni_syscall,compat_sys_s390_lchown16)	/* old lchown16 syscall*/
 NI_SYSCALL							/* old break syscall holder */
 NI_SYSCALL							/* old stat syscall holder */
 SYSCALL(sys_lseek,sys_lseek,compat_sys_lseek)
 SYSCALL(sys_getpid,sys_getpid,sys_getpid)			/* 20 */
 SYSCALL(sys_mount,sys_mount,sys32_mount_wrapper)
-SYSCALL(sys_oldumount,sys_oldumount,sys32_oldumount_wrapper)
+SYSCALL(sys_oldumount,sys_oldumount,compat_sys_oldumount)
 SYSCALL(sys_setuid16,sys_ni_syscall,compat_sys_s390_setuid16)	/* old setuid16 syscall*/
 SYSCALL(sys_getuid16,sys_ni_syscall,compat_sys_s390_getuid16)	/* old getuid16 syscall*/
 SYSCALL(sys_stime,sys_ni_syscall,sys32_stime_wrapper)		/* 25 old stime syscall */
 SYSCALL(sys_ptrace,sys_ptrace,sys32_ptrace_wrapper)
-SYSCALL(sys_alarm,sys_alarm,sys32_alarm_wrapper)
+SYSCALL(sys_alarm,sys_alarm,compat_sys_alarm)
 NI_SYSCALL							/* old fstat syscall */
 SYSCALL(sys_pause,sys_pause,sys_pause)
 SYSCALL(sys_utime,sys_utime,compat_sys_utime_wrapper)		/* 30 */
 NI_SYSCALL							/* old stty syscall */
 NI_SYSCALL							/* old gtty syscall */
-SYSCALL(sys_access,sys_access,sys32_access_wrapper)
-SYSCALL(sys_nice,sys_nice,sys32_nice_wrapper)
+SYSCALL(sys_access,sys_access,compat_sys_access)
+SYSCALL(sys_nice,sys_nice,compat_sys_nice)
 NI_SYSCALL							/* 35 old ftime syscall */
 SYSCALL(sys_sync,sys_sync,sys_sync)
 SYSCALL(sys_kill,sys_kill,sys32_kill_wrapper)
