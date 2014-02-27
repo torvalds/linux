@@ -636,6 +636,8 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 	struct virtqueue *vq;
 	struct virtio_driver *drv;
 
+	if (!vcdev)
+		return;
 	/* Check if it's a notification from the host. */
 	if ((intparm == 0) &&
 	    (scsw_stctl(&irb->scsw) ==
@@ -734,23 +736,37 @@ static int virtio_ccw_probe(struct ccw_device *cdev)
 	return 0;
 }
 
+static struct virtio_ccw_device *virtio_grab_drvdata(struct ccw_device *cdev)
+{
+	unsigned long flags;
+	struct virtio_ccw_device *vcdev;
+
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	vcdev = dev_get_drvdata(&cdev->dev);
+	if (!vcdev) {
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+		return NULL;
+	}
+	dev_set_drvdata(&cdev->dev, NULL);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+	return vcdev;
+}
+
 static void virtio_ccw_remove(struct ccw_device *cdev)
 {
-	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
+	struct virtio_ccw_device *vcdev = virtio_grab_drvdata(cdev);
 
-	if (cdev->online) {
+	if (vcdev && cdev->online)
 		unregister_virtio_device(&vcdev->vdev);
-		dev_set_drvdata(&cdev->dev, NULL);
-	}
 	cdev->handler = NULL;
 }
 
 static int virtio_ccw_offline(struct ccw_device *cdev)
 {
-	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
+	struct virtio_ccw_device *vcdev = virtio_grab_drvdata(cdev);
 
-	unregister_virtio_device(&vcdev->vdev);
-	dev_set_drvdata(&cdev->dev, NULL);
+	if (vcdev)
+		unregister_virtio_device(&vcdev->vdev);
 	return 0;
 }
 
@@ -759,6 +775,7 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 {
 	int ret;
 	struct virtio_ccw_device *vcdev;
+	unsigned long flags;
 
 	vcdev = kzalloc(sizeof(*vcdev), GFP_KERNEL);
 	if (!vcdev) {
@@ -786,7 +803,9 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	INIT_LIST_HEAD(&vcdev->virtqueues);
 	spin_lock_init(&vcdev->lock);
 
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	dev_set_drvdata(&cdev->dev, vcdev);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	vcdev->vdev.id.vendor = cdev->id.cu_type;
 	vcdev->vdev.id.device = cdev->id.cu_model;
 	ret = register_virtio_device(&vcdev->vdev);
@@ -797,7 +816,9 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	}
 	return 0;
 out_put:
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	dev_set_drvdata(&cdev->dev, NULL);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	put_device(&vcdev->vdev.dev);
 	return ret;
 out_free:
