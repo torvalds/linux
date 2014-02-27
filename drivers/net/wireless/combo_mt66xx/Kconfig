@@ -1,0 +1,25 @@
+menuconfig MTK_COMBO_MT66XX
+	bool "MediaTek combo_mt66xx WiFi Config"
+	help
+	  Config MTK combo chip mt6628&mt6620
+
+if MTK_COMBO_MT66XX
+
+config MTK_COMBO_WIFI
+	tristate "MediaTek Combo Chip Wi-Fi support"
+	default y
+	#depends on MTK_COMBO_WMT
+	depends on MMC
+	depends on IPV6
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  This module adds support for wireless adapters based on
+	  MTK MT66XX chipset.
+
+	  This driver uses the kernel's wireless extensions subsystem.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+
+endif

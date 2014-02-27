@@ -1,0 +1,31 @@
+menuconfig MTK_MT5931
+	bool "MediaTek MT5931 Config"
+	help
+	  Config MTK WLAN chip mt5931
+
+
+config MTK_MT5931_WIFI
+	tristate "MT5931 Wi-Fi"
+	depends on MTK_MT5931
+	depends on MMC
+	depends on IPV6
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select NL80211_TESTMODE
+	default y
+	help
+	  This module adds support for wireless adapters based on
+	  MTK MT5931 chipset.
+
+	  This driver uses the kernel's wireless extensions subsystem.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+
+config MTK_MT5931_POWER
+	tristate "MT5931 power"
+	depends on MTK_MT5931
+	default y
+	help
+	  MT5931 power control
+
