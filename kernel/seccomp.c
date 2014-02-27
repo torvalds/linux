@@ -293,7 +293,7 @@ fail:
  *
  * Returns 0 on success and non-zero otherwise.
  */
-long seccomp_attach_user_filter(char __user *user_filter)
+static long seccomp_attach_user_filter(char __user *user_filter)
 {
 	struct sock_fprog fprog;
 	long ret = -EFAULT;
