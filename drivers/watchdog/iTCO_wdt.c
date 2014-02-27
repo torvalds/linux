@@ -347,15 +347,15 @@ static const struct watchdog_info ident = {
 static const struct watchdog_ops iTCO_wdt_ops = {
 	.owner =		THIS_MODULE,
 	.start =		iTCO_wdt_start,
-	.stop = 		iTCO_wdt_stop,
-	.ping = 		iTCO_wdt_ping,
+	.stop =			iTCO_wdt_stop,
+	.ping =			iTCO_wdt_ping,
 	.set_timeout =		iTCO_wdt_set_timeout,
 	.get_timeleft =		iTCO_wdt_get_timeleft,
 };
 
 static struct watchdog_device iTCO_wdt_watchdog_dev = {
 	.info =		&ident,
-	.ops = 		&iTCO_wdt_ops,
+	.ops =		&iTCO_wdt_ops,
 };
 
 /*
