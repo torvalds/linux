@@ -16,6 +16,7 @@
 
 #include <linux/moduleparam.h>
 #include <linux/if_arp.h>
+#include <linux/etherdevice.h>
 
 #include "wil6210.h"
 #include "txrx.h"
@@ -436,7 +437,7 @@ int wil_find_cid(struct wil6210_priv *wil, const u8 *mac)
 
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		if ((wil->sta[i].status != wil_sta_unused) &&
-		    (0 == memcmp(wil->sta[i].addr, mac, ETH_ALEN))) {
+		    ether_addr_equal(wil->sta[i].addr, mac)) {
 			rc = i;
 			break;
 		}
