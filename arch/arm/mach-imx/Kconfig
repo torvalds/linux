@@ -777,43 +777,37 @@ config	SOC_IMX53
 	help
 	  This enables support for Freescale i.MX53 processor.
 
-config SOC_IMX6Q
-	bool "i.MX6 Quad/DualLite support"
+config SOC_IMX6
+	bool
 	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369 if SMP
 	select ARM_ERRATA_775420
 	select ARM_GIC
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
 	select MFD_SYSCON
-	select MIGHT_HAVE_PCI
-	select PCI_DOMAINS if PCI
-	select PINCTRL_IMX6Q
 	select PL310_ERRATA_588369 if CACHE_PL310
 	select PL310_ERRATA_727915 if CACHE_PL310
 	select PL310_ERRATA_769419 if CACHE_PL310
+
+config SOC_IMX6Q
+	bool "i.MX6 Quad/DualLite support"
+	select ARM_ERRATA_764369 if SMP
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select MIGHT_HAVE_PCI
+	select PCI_DOMAINS if PCI
+	select PINCTRL_IMX6Q
+	select SOC_IMX6
 
 	help
 	  This enables support for Freescale i.MX6 Quad processor.
 
 config SOC_IMX6SL
 	bool "i.MX6 SoloLite support"
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_775420
-	select ARM_GIC
-	select HAVE_IMX_ANATOP
-	select HAVE_IMX_GPC
-	select HAVE_IMX_MMDC
-	select HAVE_IMX_SRC
-	select MFD_SYSCON
 	select PINCTRL_IMX6SL
-	select PL310_ERRATA_588369 if CACHE_PL310
-	select PL310_ERRATA_727915 if CACHE_PL310
-	select PL310_ERRATA_769419 if CACHE_PL310
+	select SOC_IMX6
 
 	help
 	  This enables support for Freescale i.MX6 SoloLite processor.
