@@ -166,7 +166,7 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 	input_dev->evbit[0] = BIT_MASK(EV_SND);
 	input_dev->sndbit[0] = BIT_MASK(SND_BELL) | BIT_MASK(SND_TONE);
 	input_dev->event = snd_hda_beep_event;
-	input_dev->dev.parent = codec->bus->card->dev;
+	input_dev->dev.parent = &codec->dev;
 	input_set_drvdata(input_dev, beep);
 
 	err = input_register_device(input_dev);
