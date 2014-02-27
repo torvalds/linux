@@ -14,8 +14,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/platform_device.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <asm/mach/map.h>
 #include <asm/cti.h>
 #include <asm/pmu.h>
@@ -23,20 +24,40 @@
 #include "core.h"
 #include "socfpga_cti.h"
 
-#define SOCFPGA_NUM_CTI	2
+#define SOCFPGA_MAX_NUM_CTI	8
 
-struct cti socfpga_cti_data[SOCFPGA_NUM_CTI];
+struct socfpga_cti {
+	struct cti socfpga_cti_data;
+	void __iomem *cti_addr;
+	int irq;
+};
+
+struct socfpga_cti_device {
+	struct device *dev;
+	struct socfpga_cti *socfpga_cti[SOCFPGA_MAX_NUM_CTI];
+	int socfpga_ncores;
+};
 
 irqreturn_t socfpga_pmu_handler(int irq, void *dev, irq_handler_t handler)
 {
+	struct arm_pmu *armpmu = (struct arm_pmu *)dev;
+	struct platform_device *pdev = armpmu->plat_device;
+	struct socfpga_cti_device *socfpga_cti_device =
+					platform_get_drvdata(pdev);
+	int ncores = socfpga_cti_device->socfpga_ncores;
+	struct cti *cti;
+	int irq_local;
 	unsigned int handled = 0;
 	int i;
 
-	for (i = 0; i < SOCFPGA_NUM_CTI; i++)
-		if (irq == socfpga_cti_data[i].irq) {
-			cti_irq_ack(&socfpga_cti_data[i]);
-			handled = handler(irq, dev);
-		}
+	for (i = 0; i < ncores; i++) {
+		irq_local = socfpga_cti_device->socfpga_cti[i]->irq;
+		cti = &socfpga_cti_device->socfpga_cti[i]->socfpga_cti_data;
+		if (irq == irq_local)
+			cti_irq_ack(cti);
+	}
+
+	handled = handler(irq, dev);
 
 	return IRQ_RETVAL(handled);
 }
@@ -44,82 +65,79 @@ irqreturn_t socfpga_pmu_handler(int irq, void *dev, irq_handler_t handler)
 int socfpga_init_cti(struct platform_device *pdev)
 {
 	struct device_node *np, *np2;
-	void __iomem *cti0_addr;
-	void __iomem *cti1_addr;
-	u32 irq0, irq1;
+	struct socfpga_cti_device *socfpga_cti_device;
+	struct socfpga_cti *socfpga_cti, *socfpga_cti_error;
+	void __iomem *cti_addr;
+	int ncores;
+	int i;
+
+	socfpga_cti_device = devm_kzalloc(&pdev->dev,
+					sizeof(*socfpga_cti_device),
+					GFP_KERNEL);
+	if (!socfpga_cti_device)
+		return -ENOMEM;
+
+	ncores = num_online_cpus();
+	socfpga_cti_device->socfpga_ncores = ncores;
+
+	socfpga_cti_device->dev = &pdev->dev;
 
 	np = pdev->dev.of_node;
-	np2 = of_find_compatible_node(np, NULL, "arm,coresight-cti");
-	if (!np2) {
-		dev_err(&pdev->dev, "PMU: Unable to find coresight-cti\n");
-		return -1;
+
+	socfpga_cti = kzalloc(sizeof(socfpga_cti) * ncores, GFP_KERNEL);
+	if (!socfpga_cti)
+		return -ENOMEM;
+	socfpga_cti_error = socfpga_cti;
+
+	for (i = 0; i < socfpga_cti_device->socfpga_ncores; i++) {
+		np2 = of_find_compatible_node(np, NULL, "arm,coresight-cti");
+
+		cti_addr = of_iomap(np2, 0);
+		if (!cti_addr) {
+			dev_err(&pdev->dev, "PMU: ioremap for CTI failed\n");
+			kfree(socfpga_cti_error);
+			return -ENOMEM;
+		}
+		socfpga_cti->cti_addr = cti_addr;
+
+		socfpga_cti->irq = platform_get_irq(pdev, i);
+
+		/*configure CTI0 for pmu irq routing*/
+		cti_init(&socfpga_cti->socfpga_cti_data, socfpga_cti->cti_addr,
+				socfpga_cti->irq, CTI_MPU_IRQ_TRIG_OUT);
+		cti_unlock(&socfpga_cti->socfpga_cti_data);
+		cti_map_trigger(&socfpga_cti->socfpga_cti_data,
+			CTI_MPU_IRQ_TRIG_IN, CTI_MPU_IRQ_TRIG_OUT,
+			PMU_CHANNEL_0);
+
+		socfpga_cti_device->socfpga_cti[i] = socfpga_cti;
+		socfpga_cti += sizeof(socfpga_cti);
 	}
-	cti0_addr = of_iomap(np2, 0);
-	if (!cti0_addr) {
-		dev_err(&pdev->dev, "PMU: ioremap for CTI failed\n");
-		return -1;
-	}
+	platform_set_drvdata(pdev, socfpga_cti_device);
 
-	irq0 = platform_get_irq(pdev, 0);
-	if (irq0 < 0)
-		goto free_irq0;
-
-	np2 = of_find_compatible_node(np2, NULL, "arm,coresight-cti");
-	if (!np2) {
-		dev_err(&pdev->dev, "PMU: Unable to find coresight-cti\n");
-		goto err_iounmap;
-	}
-	cti1_addr = of_iomap(np2, 0);
-	if (!cti1_addr)
-		goto err_iounmap;
-
-	irq1 = platform_get_irq(pdev, 1);
-	if (irq1 < 0)
-		goto free_irq1;
-
-	/*configure CTI0 for pmu irq routing*/
-	cti_init(&socfpga_cti_data[0], cti0_addr,
-		irq0, CTI_MPU_IRQ_TRIG_OUT);
-	cti_unlock(&socfpga_cti_data[0]);
-	cti_map_trigger(&socfpga_cti_data[0],
-		CTI_MPU_IRQ_TRIG_IN, CTI_MPU_IRQ_TRIG_OUT, PMU_CHANNEL_0);
-
-	/*configure CTI1 for pmu irq routing*/
-	cti_init(&socfpga_cti_data[1], cti1_addr,
-		irq1, CTI_MPU_IRQ_TRIG_OUT);
-	cti_unlock(&socfpga_cti_data[1]);
-	cti_map_trigger(&socfpga_cti_data[1],
-		CTI_MPU_IRQ_TRIG_IN, CTI_MPU_IRQ_TRIG_OUT, PMU_CHANNEL_1);
-
-	dev_info(&pdev->dev, "PMU:CTI successfully enabled\n");
+	dev_info(&pdev->dev, "PMU:CTI successfully enabled for %d cores\n",
+				socfpga_cti_device->socfpga_ncores);
 	return 0;
-
-free_irq1:
-	iounmap(cti1_addr);
-err_iounmap:
-	free_irq(irq0, pdev);
-free_irq0:
-	iounmap(cti0_addr);
-	return -1;
 }
 
 int socfpga_start_cti(struct platform_device *pdev)
 {
+	struct socfpga_cti_device *cti_dev = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < SOCFPGA_NUM_CTI; i++)
-		cti_enable(&socfpga_cti_data[i]);
+	for (i = 0; i < cti_dev->socfpga_ncores; i++)
+		 cti_enable(&cti_dev->socfpga_cti[i]->socfpga_cti_data);
 
 	return 0;
 }
 
 int socfpga_stop_cti(struct platform_device *pdev)
 {
+	struct socfpga_cti_device *cti_dev = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < SOCFPGA_NUM_CTI; i++)
-		cti_disable(&socfpga_cti_data[i]);
+	for (i = 0; i < cti_dev->socfpga_ncores; i++)
+		cti_disable(&cti_dev->socfpga_cti[i]->socfpga_cti_data);
 
 	return 0;
 }
-
