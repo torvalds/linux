@@ -125,6 +125,7 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 {
 	struct ath10k_htc_ep *ep = &htc->endpoint[eid];
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
+	struct ath10k_hif_sg_item sg_item;
 	struct device *dev = htc->ar->dev;
 	int credits = 0;
 	int ret;
@@ -166,8 +167,13 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 	if (ret)
 		goto err_credits;
 
-	ret = ath10k_hif_send_head(htc->ar, ep->ul_pipe_id, ep->eid,
-				   skb->len, skb);
+	sg_item.transfer_id = ep->eid;
+	sg_item.transfer_context = skb;
+	sg_item.vaddr = skb->data;
+	sg_item.paddr = skb_cb->paddr;
+	sg_item.len = skb->len;
+
+	ret = ath10k_hif_tx_sg(htc->ar, ep->ul_pipe_id, &sg_item, 1);
 	if (ret)
 		goto err_unmap;
 

@@ -714,6 +714,9 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 	while (ath10k_ce_completed_send_next(ce_state, &transfer_context,
 					     &ce_data, &nbytes,
 					     &transfer_id) == 0) {
+		if (transfer_context == NULL)
+			continue;
+
 		compl = get_free_compl(pipe_info);
 		if (!compl)
 			break;
@@ -781,39 +784,64 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 	ath10k_pci_process_ce(ar);
 }
 
-/* Send the first nbytes bytes of the buffer */
-static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
-				    unsigned int transfer_id,
-				    unsigned int bytes, struct sk_buff *nbuf)
+static int ath10k_pci_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
+				struct ath10k_hif_sg_item *items, int n_items)
 {
-	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(nbuf);
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ath10k_pci_pipe *pipe_info = &(ar_pci->pipe_info[pipe_id]);
-	struct ath10k_ce_pipe *ce_hdl = pipe_info->ce_hdl;
-	unsigned int len;
-	u32 flags = 0;
-	int ret;
+	struct ath10k_pci_pipe *pci_pipe = &ar_pci->pipe_info[pipe_id];
+	struct ath10k_ce_pipe *ce_pipe = pci_pipe->ce_hdl;
+	struct ath10k_ce_ring *src_ring = ce_pipe->src_ring;
+	unsigned int nentries_mask = src_ring->nentries_mask;
+	unsigned int sw_index = src_ring->sw_index;
+	unsigned int write_index = src_ring->write_index;
+	int err, i;
 
-	len = min(bytes, nbuf->len);
-	bytes -= len;
+	spin_lock_bh(&ar_pci->ce_lock);
 
-	if (len & 3)
-		ath10k_warn("skb not aligned to 4-byte boundary (%d)\n", len);
+	if (unlikely(CE_RING_DELTA(nentries_mask,
+				   write_index, sw_index - 1) < n_items)) {
+		err = -ENOBUFS;
+		goto unlock;
+	}
+
+	for (i = 0; i < n_items - 1; i++) {
+		ath10k_dbg(ATH10K_DBG_PCI,
+			   "pci tx item %d paddr 0x%08x len %d n_items %d\n",
+			   i, items[i].paddr, items[i].len, n_items);
+		ath10k_dbg_dump(ATH10K_DBG_PCI_DUMP, NULL, "item data: ",
+				items[i].vaddr, items[i].len);
+
+		err = ath10k_ce_send_nolock(ce_pipe,
+					    items[i].transfer_context,
+					    items[i].paddr,
+					    items[i].len,
+					    items[i].transfer_id,
+					    CE_SEND_FLAG_GATHER);
+		if (err)
+			goto unlock;
+	}
+
+	/* `i` is equal to `n_items -1` after for() */
 
 	ath10k_dbg(ATH10K_DBG_PCI,
-		   "pci send data vaddr %p paddr 0x%llx len %d as %d bytes\n",
-		   nbuf->data, (unsigned long long) skb_cb->paddr,
-		   nbuf->len, len);
-	ath10k_dbg_dump(ATH10K_DBG_PCI_DUMP, NULL,
-			"ath10k tx: data: ",
-			nbuf->data, nbuf->len);
+		   "pci tx item %d paddr 0x%08x len %d n_items %d\n",
+		   i, items[i].paddr, items[i].len, n_items);
+	ath10k_dbg_dump(ATH10K_DBG_PCI_DUMP, NULL, "item data: ",
+			items[i].vaddr, items[i].len);
 
-	ret = ath10k_ce_send(ce_hdl, nbuf, skb_cb->paddr, len, transfer_id,
-			     flags);
-	if (ret)
-		ath10k_warn("failed to send sk_buff to CE: %p\n", nbuf);
+	err = ath10k_ce_send_nolock(ce_pipe,
+				    items[i].transfer_context,
+				    items[i].paddr,
+				    items[i].len,
+				    items[i].transfer_id,
+				    0);
+	if (err)
+		goto unlock;
 
-	return ret;
+	err = 0;
+unlock:
+	spin_unlock_bh(&ar_pci->ce_lock);
+	return err;
 }
 
 static u16 ath10k_pci_hif_get_free_queue_number(struct ath10k *ar, u8 pipe)
@@ -2249,7 +2277,7 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 #endif
 
 static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
-	.send_head		= ath10k_pci_hif_send_head,
+	.tx_sg			= ath10k_pci_hif_tx_sg,
 	.exchange_bmi_msg	= ath10k_pci_hif_exchange_bmi_msg,
 	.start			= ath10k_pci_hif_start,
 	.stop			= ath10k_pci_hif_stop,
