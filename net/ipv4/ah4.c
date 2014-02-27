@@ -428,7 +428,7 @@ out:
 	return err;
 }
 
-static void ah4_err(struct sk_buff *skb, u32 info)
+static int ah4_err(struct sk_buff *skb, u32 info)
 {
 	struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
@@ -438,23 +438,25 @@ static void ah4_err(struct sk_buff *skb, u32 info)
 	switch (icmp_hdr(skb)->type) {
 	case ICMP_DEST_UNREACH:
 		if (icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
-			return;
+			return 0;
 	case ICMP_REDIRECT:
 		break;
 	default:
-		return;
+		return 0;
 	}
 
 	x = xfrm_state_lookup(net, skb->mark, (const xfrm_address_t *)&iph->daddr,
 			      ah->spi, IPPROTO_AH, AF_INET);
 	if (!x)
-		return;
+		return 0;
 
 	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
 		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_AH, 0);
 	else
 		ipv4_redirect(skb, net, 0, 0, IPPROTO_AH, 0);
 	xfrm_state_put(x);
+
+	return 0;
 }
 
 static int ah_init_state(struct xfrm_state *x)
@@ -536,6 +538,10 @@ static void ah_destroy(struct xfrm_state *x)
 	kfree(ahp);
 }
 
+static int ah4_rcv_cb(struct sk_buff *skb, int err)
+{
+	return 0;
+}
 
 static const struct xfrm_type ah_type =
 {
@@ -549,11 +555,12 @@ static const struct xfrm_type ah_type =
 	.output		= ah_output
 };
 
-static const struct net_protocol ah4_protocol = {
+static struct xfrm4_protocol ah4_protocol = {
 	.handler	=	xfrm4_rcv,
+	.input_handler	=	xfrm_input,
+	.cb_handler	=	ah4_rcv_cb,
 	.err_handler	=	ah4_err,
-	.no_policy	=	1,
-	.netns_ok	=	1,
+	.priority	=	0,
 };
 
 static int __init ah4_init(void)
@@ -562,7 +569,7 @@ static int __init ah4_init(void)
 		pr_info("%s: can't add xfrm type\n", __func__);
 		return -EAGAIN;
 	}
-	if (inet_add_protocol(&ah4_protocol, IPPROTO_AH) < 0) {
+	if (xfrm4_protocol_register(&ah4_protocol, IPPROTO_AH) < 0) {
 		pr_info("%s: can't add protocol\n", __func__);
 		xfrm_unregister_type(&ah_type, AF_INET);
 		return -EAGAIN;
@@ -572,7 +579,7 @@ static int __init ah4_init(void)
 
 static void __exit ah4_fini(void)
 {
-	if (inet_del_protocol(&ah4_protocol, IPPROTO_AH) < 0)
+	if (xfrm4_protocol_deregister(&ah4_protocol, IPPROTO_AH) < 0)
 		pr_info("%s: can't remove protocol\n", __func__);
 	if (xfrm_unregister_type(&ah_type, AF_INET) < 0)
 		pr_info("%s: can't remove xfrm type\n", __func__);
