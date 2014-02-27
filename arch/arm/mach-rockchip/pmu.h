@@ -25,6 +25,48 @@
 #define RK3188_PMU_GPIO0A_PULL          0x64
 #define RK3188_PMU_GPIO0B_PULL          0x68
 
+#define RK3288_PMU_WAKEUP_CFG0          0x00
+#define RK3288_PMU_WAKEUP_CFG1          0x04
+#define RK3288_PMU_PWRDN_CON            0x08
+#define RK3288_PMU_PWRDN_ST             0x0c
+#define RK3288_PMU_IDLE_REQ             0x10
+#define RK3288_PMU_IDLE_ST              0x14
+#define RK3288_PMU_PWRMODE_CON          0x18
+#define RK3288_PMU_PWR_STATE            0x1c
+#define RK3288_PMU_OSC_CNT              0x20
+#define RK3288_PMU_PLL_CNT              0x24
+#define RK3288_PMU_STABL_CNT            0x28
+#define RK3288_PMU_DDR0IO_PWRON_CNT     0x2c
+#define RK3288_PMU_DDR1IO_PWRON_CNT     0x30
+#define RK3288_PMU_CORE_PWRDWN_CNT      0x34
+#define RK3288_PMU_CORE_PWRUP_CNT       0x38
+#define RK3288_PMU_GPU_PWRDWN_CNT       0x3c
+#define RK3288_PMU_GPU_PWRUP_CNT        0x40
+#define RK3288_PMU_WAKEUP_RST_CLR_CNT   0x44
+#define RK3288_PMU_SFT_CON              0x48
+#define RK3288_PMU_DDR_SREF_ST          0x4c
+#define RK3288_PMU_INT_CON              0x50
+#define RK3288_PMU_INT_ST               0x54
+#define RK3288_PMU_BOOT_ADDR_SEL        0x58
+#define RK3288_PMU_GRF_CON              0x5c
+#define RK3288_PMU_GPIO_SR              0x60
+#define RK3288_PMU_GPIO0_A_PULL         0x64
+#define RK3288_PMU_GPIO0_B_PULL         0x68
+#define RK3288_PMU_GPIO0_C_PULL         0x6c
+#define RK3288_PMU_GPIO0_A_DRV          0x70
+#define RK3288_PMU_GPIO0_B_DRV          0x74
+#define RK3288_PMU_GPIO0_C_DRV          0x78
+#define RK3288_PMU_GPIO_OP              0x7c
+#define RK3288_PMU_GPIO0_SEL18          0x80
+#define RK3288_PMU_GPIO0_A_IOMUX        0x84
+#define RK3288_PMU_GPIO0_B_IOMUX        0x88
+#define RK3288_PMU_GPIO0_C_IOMUX        0x8c
+#define RK3288_PMU_GPIO0_D_IOMUX        0x90
+#define RK3288_PMU_SYS_REG0             0x94
+#define RK3288_PMU_SYS_REG1             0x98
+#define RK3288_PMU_SYS_REG2             0x9c
+#define RK3288_PMU_SYS_REG3             0xa0
+
 enum pmu_power_domain {
 	PD_BCPU,
 	PD_BDSP,

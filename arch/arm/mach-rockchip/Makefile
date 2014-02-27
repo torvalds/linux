@@ -1,6 +1,7 @@
 obj-y += common.o
 obj-y += cpu.o
 obj-y += rk3188.o
+obj-y += rk3288.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_RK_FPGA) += fpga.o
 obj-$(CONFIG_CPU_IDLE) += cpuidle.o
