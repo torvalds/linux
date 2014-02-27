@@ -143,7 +143,7 @@ xfs_dir3_free_write_verify(
 	if (bip)
 		hdr3->lsn = cpu_to_be64(bip->bli_item.li_lsn);
 
-	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length), XFS_DIR3_FREE_CRC_OFF);
+	xfs_buf_update_cksum(bp, XFS_DIR3_FREE_CRC_OFF);
 }
 
 const struct xfs_buf_ops xfs_dir3_free_buf_ops = {

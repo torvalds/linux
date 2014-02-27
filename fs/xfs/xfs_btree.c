@@ -234,8 +234,7 @@ xfs_btree_lblock_calc_crc(
 		return;
 	if (bip)
 		block->bb_u.l.bb_lsn = cpu_to_be64(bip->bli_item.li_lsn);
-	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length),
-			 XFS_BTREE_LBLOCK_CRC_OFF);
+	xfs_buf_update_cksum(bp, XFS_BTREE_LBLOCK_CRC_OFF);
 }
 
 bool
@@ -267,8 +266,7 @@ xfs_btree_sblock_calc_crc(
 		return;
 	if (bip)
 		block->bb_u.s.bb_lsn = cpu_to_be64(bip->bli_item.li_lsn);
-	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length),
-			 XFS_BTREE_SBLOCK_CRC_OFF);
+	xfs_buf_update_cksum(bp, XFS_BTREE_SBLOCK_CRC_OFF);
 }
 
 bool

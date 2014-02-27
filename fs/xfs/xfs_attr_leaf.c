@@ -224,7 +224,7 @@ xfs_attr3_leaf_write_verify(
 	if (bip)
 		hdr3->info.lsn = cpu_to_be64(bip->bli_item.li_lsn);
 
-	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length), XFS_ATTR3_LEAF_CRC_OFF);
+	xfs_buf_update_cksum(bp, XFS_ATTR3_LEAF_CRC_OFF);
 }
 
 /*
