@@ -423,12 +423,6 @@ struct vnt_private {
 	/* default config from file by user setting */
 	DEFAULT_CONFIG config_file;
 
-	/* Statistic for USB */
-	unsigned long ulIntInPosted;
-	unsigned long ulIntInError;
-	unsigned long ulIntInContCRCError;
-	unsigned long ulIntInBytesRead;
-
 	/* Version control */
 	u16 wFirmwareVersion;
 	u8 byLocalID;

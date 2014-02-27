@@ -306,7 +306,6 @@ int PIPEnsInterruptRead(struct vnt_private *priv)
 		return STATUS_FAILURE;
 
 	priv->int_buf.in_use = true;
-	priv->ulIntInPosted++;
 
 	usb_fill_int_urb(priv->pInterruptURB,
 		priv->usb,
@@ -377,8 +376,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"IntUSBIoCompleteControl STATUS = %d\n", status);
 	} else {
-		priv->ulIntInBytesRead += (unsigned long)urb->actual_length;
-		priv->ulIntInContCRCError = 0;
 		priv->bEventAvailable = true;
 		INTnsProcessData(priv);
 	}
