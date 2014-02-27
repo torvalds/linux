@@ -982,12 +982,70 @@ out_no_tfile:
 	return ret;
 }
 
-static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
-			       unsigned long arg)
+static struct vmw_master *vmw_master_check(struct drm_device *dev,
+					   struct drm_file *file_priv,
+					   unsigned int flags)
+{
+	int ret;
+	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
+	struct vmw_master *vmaster;
+
+	if (file_priv->minor->type != DRM_MINOR_LEGACY ||
+	    !(flags & DRM_AUTH))
+		return NULL;
+
+	ret = mutex_lock_interruptible(&dev->master_mutex);
+	if (unlikely(ret != 0))
+		return ERR_PTR(-ERESTARTSYS);
+
+	if (file_priv->is_master) {
+		mutex_unlock(&dev->master_mutex);
+		return NULL;
+	}
+
+	/*
+	 * Check if we were previously master, but now dropped.
+	 */
+	if (vmw_fp->locked_master) {
+		mutex_unlock(&dev->master_mutex);
+		DRM_ERROR("Dropped master trying to access ioctl that "
+			  "requires authentication.\n");
+		return ERR_PTR(-EACCES);
+	}
+	mutex_unlock(&dev->master_mutex);
+
+	/*
+	 * Taking the drm_global_mutex after the TTM lock might deadlock
+	 */
+	if (!(flags & DRM_UNLOCKED)) {
+		DRM_ERROR("Refusing locked ioctl access.\n");
+		return ERR_PTR(-EDEADLK);
+	}
+
+	/*
+	 * Take the TTM lock. Possibly sleep waiting for the authenticating
+	 * master to become master again, or for a SIGTERM if the
+	 * authenticating master exits.
+	 */
+	vmaster = vmw_master(file_priv->master);
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		vmaster = ERR_PTR(ret);
+
+	return vmaster;
+}
+
+static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long arg,
+			      long (*ioctl_func)(struct file *, unsigned int,
+						 unsigned long))
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
 	unsigned int nr = DRM_IOCTL_NR(cmd);
+	struct vmw_master *vmaster;
+	unsigned int flags;
+	long ret;
 
 	/*
 	 * Do extra checking on driver private ioctls.
@@ -996,17 +1054,43 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
 	    && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
 		const struct drm_ioctl_desc *ioctl =
-		    &vmw_ioctls[nr - DRM_COMMAND_BASE];
+			&vmw_ioctls[nr - DRM_COMMAND_BASE];
 
 		if (unlikely(ioctl->cmd_drv != cmd)) {
 			DRM_ERROR("Invalid command format, ioctl %d\n",
 				  nr - DRM_COMMAND_BASE);
 			return -EINVAL;
 		}
+		flags = ioctl->flags;
+	} else if (!drm_ioctl_flags(nr, &flags))
+		return -EINVAL;
+
+	vmaster = vmw_master_check(dev, file_priv, flags);
+	if (unlikely(IS_ERR(vmaster))) {
+		DRM_INFO("IOCTL ERROR %d\n", nr);
+		return PTR_ERR(vmaster);
 	}
 
-	return drm_ioctl(filp, cmd, arg);
+	ret = ioctl_func(filp, cmd, arg);
+	if (vmaster)
+		ttm_read_unlock(&vmaster->lock);
+
+	return ret;
 }
+
+static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
+			       unsigned long arg)
+{
+	return vmw_generic_ioctl(filp, cmd, arg, &drm_ioctl);
+}
+
+#ifdef CONFIG_COMPAT
+static long vmw_compat_ioctl(struct file *filp, unsigned int cmd,
+			     unsigned long arg)
+{
+	return vmw_generic_ioctl(filp, cmd, arg, &drm_compat_ioctl);
+}
+#endif
 
 static void vmw_lastclose(struct drm_device *dev)
 {
@@ -1315,7 +1399,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.poll = vmw_fops_poll,
 	.read = vmw_fops_read,
 #if defined(CONFIG_COMPAT)
-	.compat_ioctl = drm_compat_ioctl,
+	.compat_ioctl = vmw_compat_ioctl,
 #endif
 	.llseek = noop_llseek,
 };
