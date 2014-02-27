@@ -916,7 +916,7 @@ static int audit_tree_handle_event(struct fsnotify_group *group,
 				   struct fsnotify_mark *inode_mark,
 				   struct fsnotify_mark *vfsmount_mark,
 				   u32 mask, void *data, int data_type,
-				   const unsigned char *file_name)
+				   const unsigned char *file_name, u32 cookie)
 {
 	return 0;
 }
