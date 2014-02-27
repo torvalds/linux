@@ -457,7 +457,6 @@ struct brcmf_sdio {
 
 	u8 tx_hdrlen;		/* sdio bus header length for tx packet */
 	bool txglom;		/* host tx glomming enable flag */
-	struct sk_buff *txglom_sgpad;	/* scatter-gather padding buffer */
 	u16 head_align;		/* buffer pointer alignment */
 	u16 sgentry_align;	/* scatter-gather buffer alignment */
 };
@@ -1944,9 +1943,8 @@ static int brcmf_sdio_txpkt_prep_sg(struct brcmf_sdio *bus,
 	if (lastfrm && chain_pad)
 		tail_pad += blksize - chain_pad;
 	if (skb_tailroom(pkt) < tail_pad && pkt->len > blksize) {
-		pkt_pad = bus->txglom_sgpad;
-		if (pkt_pad == NULL)
-			  brcmu_pkt_buf_get_skb(tail_pad + tail_chop);
+		pkt_pad = brcmu_pkt_buf_get_skb(tail_pad + tail_chop +
+						bus->head_align);
 		if (pkt_pad == NULL)
 			return -ENOMEM;
 		ret = brcmf_sdio_txpkt_hdalign(bus, pkt_pad);
@@ -1957,6 +1955,7 @@ static int brcmf_sdio_txpkt_prep_sg(struct brcmf_sdio *bus,
 		       tail_chop);
 		*(u32 *)(pkt_pad->cb) = ALIGN_SKB_FLAG + tail_chop;
 		skb_trim(pkt, pkt->len - tail_chop);
+		skb_trim(pkt_pad, tail_pad + tail_chop);
 		__skb_queue_after(pktq, pkt, pkt_pad);
 	} else {
 		ntail = pkt->data_len + tail_pad -
@@ -2011,7 +2010,7 @@ brcmf_sdio_txpkt_prep(struct brcmf_sdio *bus, struct sk_buff_head *pktq,
 			return ret;
 		head_pad = (u16)ret;
 		if (head_pad)
-			memset(pkt_next->data, 0, head_pad + bus->tx_hdrlen);
+			memset(pkt_next->data + bus->tx_hdrlen, 0, head_pad);
 
 		total_len += pkt_next->len;
 
@@ -3486,10 +3485,6 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 		bus->txglom = false;
 		value = 1;
 		pad_size = bus->sdiodev->func[2]->cur_blksize << 1;
-		bus->txglom_sgpad = brcmu_pkt_buf_get_skb(pad_size);
-		if (!bus->txglom_sgpad)
-			brcmf_err("allocating txglom padding skb failed, reduced performance\n");
-
 		err = brcmf_iovar_data_set(bus->sdiodev->dev, "bus:rxglom",
 					   &value, sizeof(u32));
 		if (err < 0) {
@@ -4053,7 +4048,6 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 			brcmf_sdio_chip_detach(&bus->ci);
 		}
 
-		brcmu_pkt_buf_free_skb(bus->txglom_sgpad);
 		kfree(bus->rxbuf);
 		kfree(bus->hdrbuf);
 		kfree(bus);

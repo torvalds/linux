@@ -3753,6 +3753,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 		if (WARN_ON(!chanctx_conf)) {
 			rcu_read_unlock();
+			sta_info_free(local, new_sta);
 			return -EINVAL;
 		}
 		rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
