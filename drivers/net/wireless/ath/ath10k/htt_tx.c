@@ -125,9 +125,7 @@ static void ath10k_htt_tx_cleanup_pending(struct ath10k_htt *htt)
 	struct htt_tx_done tx_done = {0};
 	int msdu_id;
 
-	/* No locks needed. Called after communication with the device has
-	 * been stopped. */
-
+	spin_lock_bh(&htt->tx_lock);
 	for (msdu_id = 0; msdu_id < htt->max_num_pending_tx; msdu_id++) {
 		if (!test_bit(msdu_id, htt->used_msdu_ids))
 			continue;
@@ -140,6 +138,7 @@ static void ath10k_htt_tx_cleanup_pending(struct ath10k_htt *htt)
 
 		ath10k_txrx_tx_unref(htt, &tx_done);
 	}
+	spin_unlock_bh(&htt->tx_lock);
 }
 
 void ath10k_htt_tx_detach(struct ath10k_htt *htt)

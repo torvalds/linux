@@ -274,7 +274,7 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	int idx;
 	struct sk_buff *msdu;
 
-	spin_lock_bh(&htt->rx_ring.lock);
+	lockdep_assert_held(&htt->rx_ring.lock);
 
 	if (ath10k_htt_rx_ring_elems(htt) == 0)
 		ath10k_warn("htt rx ring is empty!\n");
@@ -287,7 +287,6 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	htt->rx_ring.sw_rd_idx.msdu_payld = idx;
 	htt->rx_ring.fill_cnt--;
 
-	spin_unlock_bh(&htt->rx_ring.lock);
 	return msdu;
 }
 
@@ -310,6 +309,8 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	int msdu_len, msdu_chaining = 0;
 	struct sk_buff *msdu;
 	struct htt_rx_desc *rx_desc;
+
+	lockdep_assert_held(&htt->rx_ring.lock);
 
 	if (ath10k_htt_rx_ring_elems(htt) == 0)
 		ath10k_warn("htt rx ring is empty!\n");
@@ -918,6 +919,8 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	u8 *fw_desc;
 	int i, j;
 
+	lockdep_assert_held(&htt->rx_ring.lock);
+
 	memset(&info, 0, sizeof(info));
 
 	fw_desc_len = __le16_to_cpu(rx->prefix.fw_rx_desc_bytes);
@@ -1055,8 +1058,11 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 
 	msdu_head = NULL;
 	msdu_tail = NULL;
+
+	spin_lock_bh(&htt->rx_ring.lock);
 	msdu_chaining = ath10k_htt_rx_amsdu_pop(htt, &fw_desc, &fw_desc_len,
 						&msdu_head, &msdu_tail);
+	spin_unlock_bh(&htt->rx_ring.lock);
 
 	ath10k_dbg(ATH10K_DBG_HTT_DUMP, "htt rx frag ahead\n");
 
@@ -1158,6 +1164,8 @@ static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
 	__le16 msdu_id;
 	int i;
 
+	lockdep_assert_held(&htt->tx_lock);
+
 	switch (status) {
 	case HTT_DATA_TX_STATUS_NO_ACK:
 		tx_done.no_ack = true;
@@ -1204,7 +1212,9 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IND:
-		skb_queue_tail(&htt->rx_compl_q, skb);
+		spin_lock_bh(&htt->rx_ring.lock);
+		__skb_queue_tail(&htt->rx_compl_q, skb);
+		spin_unlock_bh(&htt->rx_ring.lock);
 		tasklet_schedule(&htt->txrx_compl_task);
 		return;
 	case HTT_T2H_MSG_TYPE_PEER_MAP: {
@@ -1298,14 +1308,18 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	struct htt_resp *resp;
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(&htt->tx_compl_q))) {
+	spin_lock_bh(&htt->tx_lock);
+	while ((skb = __skb_dequeue(&htt->tx_compl_q))) {
 		ath10k_htt_rx_frm_tx_compl(htt->ar, skb);
 		dev_kfree_skb_any(skb);
 	}
+	spin_unlock_bh(&htt->tx_lock);
 
-	while ((skb = skb_dequeue(&htt->rx_compl_q))) {
+	spin_lock_bh(&htt->rx_ring.lock);
+	while ((skb = __skb_dequeue(&htt->rx_compl_q))) {
 		resp = (struct htt_resp *)skb->data;
 		ath10k_htt_rx_handler(htt, &resp->rx_ind);
 		dev_kfree_skb_any(skb);
 	}
+	spin_unlock_bh(&htt->rx_ring.lock);
 }
