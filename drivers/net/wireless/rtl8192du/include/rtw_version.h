@@ -1,1 +1,0 @@
-#define DRIVERVERSION	"v4.0.2_9377.20131025_beta"
