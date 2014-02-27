@@ -159,62 +159,6 @@ ENTRY(compat_sys_nanosleep_wrapper)
 	llgtr	%r3,%r3			# struct compat_timespec *
 	jg	compat_sys_nanosleep		# branch to system call
 
-ENTRY(sys32_setreuid_wrapper)
-	llgfr	%r2,%r2			# uid_t
-	llgfr	%r3,%r3			# uid_t
-	jg	sys_setreuid		# branch to system call
-
-ENTRY(sys32_setregid_wrapper)
-	llgfr	%r2,%r2			# gid_t
-	llgfr	%r3,%r3			# gid_t
-	jg	sys_setregid		# branch to system call
-
-ENTRY(sys32_getgroups_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# gid_t *
-	jg	sys_getgroups		# branch to system call
-
-ENTRY(sys32_setgroups_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# gid_t *
-	jg	sys_setgroups		# branch to system call
-
-ENTRY(sys32_fchown_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# uid_t
-	llgfr	%r4,%r4			# gid_t
-	jg	sys_fchown		# branch to system call
-
-ENTRY(sys32_setresuid_wrapper)
-	llgfr	%r2,%r2			# uid_t
-	llgfr	%r3,%r3			# uid_t
-	llgfr	%r4,%r4			# uid_t
-	jg	sys_setresuid		# branch to system call
-
-ENTRY(sys32_getresuid_wrapper)
-	llgtr	%r2,%r2			# uid_t *
-	llgtr	%r3,%r3			# uid_t *
-	llgtr	%r4,%r4			# uid_t *
-	jg	sys_getresuid		# branch to system call
-
-ENTRY(sys32_setresgid_wrapper)
-	llgfr	%r2,%r2			# gid_t
-	llgfr	%r3,%r3			# gid_t
-	llgfr	%r4,%r4			# gid_t
-	jg	sys_setresgid		# branch to system call
-
-ENTRY(sys32_getresgid_wrapper)
-	llgtr	%r2,%r2			# gid_t *
-	llgtr	%r3,%r3			# gid_t *
-	llgtr	%r4,%r4			# gid_t *
-	jg	sys_getresgid		# branch to system call
-
-ENTRY(sys32_chown_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# uid_t
-	llgfr	%r4,%r4			# gid_t
-	jg	sys_chown		# branch to system call
-
 ENTRY(sys32_setuid_wrapper)
 	llgfr	%r2,%r2			# uid_t
 	jg	sys_setuid		# branch to system call

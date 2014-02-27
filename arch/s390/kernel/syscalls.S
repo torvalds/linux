@@ -211,16 +211,16 @@ SYSCALL(sys_getuid,sys_getuid,sys_getuid)
 SYSCALL(sys_getgid,sys_getgid,sys_getgid)			/* 200 */
 SYSCALL(sys_geteuid,sys_geteuid,sys_geteuid)
 SYSCALL(sys_getegid,sys_getegid,sys_getegid)
-SYSCALL(sys_setreuid,sys_setreuid,sys32_setreuid_wrapper)
-SYSCALL(sys_setregid,sys_setregid,sys32_setregid_wrapper)
-SYSCALL(sys_getgroups,sys_getgroups,sys32_getgroups_wrapper)	/* 205 */
-SYSCALL(sys_setgroups,sys_setgroups,sys32_setgroups_wrapper)
-SYSCALL(sys_fchown,sys_fchown,sys32_fchown_wrapper)
-SYSCALL(sys_setresuid,sys_setresuid,sys32_setresuid_wrapper)
-SYSCALL(sys_getresuid,sys_getresuid,sys32_getresuid_wrapper)
-SYSCALL(sys_setresgid,sys_setresgid,sys32_setresgid_wrapper)	/* 210 */
-SYSCALL(sys_getresgid,sys_getresgid,sys32_getresgid_wrapper)
-SYSCALL(sys_chown,sys_chown,sys32_chown_wrapper)
+SYSCALL(sys_setreuid,sys_setreuid,compat_sys_setreuid)
+SYSCALL(sys_setregid,sys_setregid,compat_sys_setregid)
+SYSCALL(sys_getgroups,sys_getgroups,compat_sys_getgroups)	/* 205 */
+SYSCALL(sys_setgroups,sys_setgroups,compat_sys_setgroups)
+SYSCALL(sys_fchown,sys_fchown,compat_sys_fchown)
+SYSCALL(sys_setresuid,sys_setresuid,compat_sys_setresuid)
+SYSCALL(sys_getresuid,sys_getresuid,compat_sys_getresuid)
+SYSCALL(sys_setresgid,sys_setresgid,compat_sys_setresgid)	/* 210 */
+SYSCALL(sys_getresgid,sys_getresgid,compat_sys_getresgid)
+SYSCALL(sys_chown,sys_chown,compat_sys_chown)
 SYSCALL(sys_setuid,sys_setuid,sys32_setuid_wrapper)
 SYSCALL(sys_setgid,sys_setgid,sys32_setgid_wrapper)
 SYSCALL(sys_setfsuid,sys_setfsuid,sys32_setfsuid_wrapper)	/* 215 */
