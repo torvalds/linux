@@ -1360,7 +1360,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 	struct wmi_bcn_info *bcn_info;
 	struct ath10k_vif *arvif;
 	struct sk_buff *bcn;
-	int vdev_id = 0;
+	int ret, vdev_id = 0;
 
 	ath10k_dbg(ATH10K_DBG_MGMT, "WMI_HOST_SWBA_EVENTID\n");
 
@@ -1435,16 +1435,27 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 				ath10k_warn("SWBA overrun on vdev %d\n",
 					    arvif->vdev_id);
 
-			ath10k_skb_unmap(ar->dev, arvif->beacon);
+			dma_unmap_single(arvif->ar->dev,
+					 ATH10K_SKB_CB(arvif->beacon)->paddr,
+					 arvif->beacon->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(arvif->beacon);
 		}
 
-		ath10k_skb_map(ar->dev, bcn);
+		ATH10K_SKB_CB(bcn)->paddr = dma_map_single(arvif->ar->dev,
+							   bcn->data, bcn->len,
+							   DMA_TO_DEVICE);
+		ret = dma_mapping_error(arvif->ar->dev,
+					ATH10K_SKB_CB(bcn)->paddr);
+		if (ret) {
+			ath10k_warn("failed to map beacon: %d\n", ret);
+			goto skip;
+		}
 
 		arvif->beacon = bcn;
 		arvif->beacon_sent = false;
 
 		ath10k_wmi_tx_beacon_nowait(arvif);
+skip:
 		spin_unlock_bh(&ar->data_lock);
 	}
 }

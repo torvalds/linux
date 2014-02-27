@@ -62,7 +62,6 @@ struct ath10k;
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
-	bool is_mapped;
 	bool is_aborted;
 	u8 vdev_id;
 
@@ -85,32 +84,6 @@ static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
 	BUILD_BUG_ON(sizeof(struct ath10k_skb_cb) >
 		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 	return (struct ath10k_skb_cb *)&IEEE80211_SKB_CB(skb)->driver_data;
-}
-
-static inline int ath10k_skb_map(struct device *dev, struct sk_buff *skb)
-{
-	if (ATH10K_SKB_CB(skb)->is_mapped)
-		return -EINVAL;
-
-	ATH10K_SKB_CB(skb)->paddr = dma_map_single(dev, skb->data, skb->len,
-						   DMA_TO_DEVICE);
-
-	if (unlikely(dma_mapping_error(dev, ATH10K_SKB_CB(skb)->paddr)))
-		return -EIO;
-
-	ATH10K_SKB_CB(skb)->is_mapped = true;
-	return 0;
-}
-
-static inline int ath10k_skb_unmap(struct device *dev, struct sk_buff *skb)
-{
-	if (!ATH10K_SKB_CB(skb)->is_mapped)
-		return -EINVAL;
-
-	dma_unmap_single(dev, ATH10K_SKB_CB(skb)->paddr, skb->len,
-			 DMA_TO_DEVICE);
-	ATH10K_SKB_CB(skb)->is_mapped = false;
-	return 0;
 }
 
 static inline u32 host_interest_item_address(u32 item_offset)

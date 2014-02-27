@@ -51,7 +51,6 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	struct ieee80211_tx_info *info;
 	struct ath10k_skb_cb *skb_cb;
 	struct sk_buff *msdu;
-	int ret;
 
 	ath10k_dbg(ATH10K_DBG_HTT, "htt tx completion msdu_id %u discard %d no_ack %d\n",
 		   tx_done->msdu_id, !!tx_done->discard, !!tx_done->no_ack);
@@ -65,9 +64,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	msdu = htt->pending_tx[tx_done->msdu_id];
 	skb_cb = ATH10K_SKB_CB(msdu);
 
-	ret = ath10k_skb_unmap(dev, msdu);
-	if (ret)
-		ath10k_warn("data skb unmap failed (%d)\n", ret);
+	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 
 	if (skb_cb->htt.frag_len)
 		skb_pull(msdu, skb_cb->htt.frag_len + skb_cb->htt.pad_len);

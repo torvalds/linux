@@ -334,7 +334,9 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		goto err_free_msdu_id;
 	}
 
-	res = ath10k_skb_map(dev, msdu);
+	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
+				       DMA_TO_DEVICE);
+	res = dma_mapping_error(dev, skb_cb->paddr);
 	if (res)
 		goto err_free_txdesc;
 
@@ -358,7 +360,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	return 0;
 
 err_unmap_msdu:
-	ath10k_skb_unmap(dev, msdu);
+	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 err_free_txdesc:
 	dev_kfree_skb_any(txdesc);
 err_free_msdu_id:
@@ -437,7 +439,9 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		skb_cb->htt.pad_len = 0;
 	}
 
-	res = ath10k_skb_map(dev, msdu);
+	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
+				       DMA_TO_DEVICE);
+	res = dma_mapping_error(dev, skb_cb->paddr);
 	if (res)
 		goto err_pull_txfrag;
 
@@ -509,7 +513,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	return 0;
 
 err_unmap_msdu:
-	ath10k_skb_unmap(dev, msdu);
+	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 err_pull_txfrag:
 	skb_pull(msdu, skb_cb->htt.frag_len + skb_cb->htt.pad_len);
 err_free_txdesc:

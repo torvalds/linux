@@ -839,7 +839,9 @@ static void ath10k_control_beaconing(struct ath10k_vif *arvif,
 
 		spin_lock_bh(&arvif->ar->data_lock);
 		if (arvif->beacon) {
-			ath10k_skb_unmap(arvif->ar->dev, arvif->beacon);
+			dma_unmap_single(arvif->ar->dev,
+					 ATH10K_SKB_CB(arvif->beacon)->paddr,
+					 arvif->beacon->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(arvif->beacon);
 
 			arvif->beacon = NULL;
