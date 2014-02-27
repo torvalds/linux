@@ -101,6 +101,7 @@ static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 static struct usbip_exported_device *usbip_exported_device_new(char *sdevpath)
 {
 	struct usbip_exported_device *edev = NULL;
+	struct usbip_exported_device *edev_old;
 	size_t size;
 	int i;
 
@@ -126,8 +127,10 @@ static struct usbip_exported_device *usbip_exported_device_new(char *sdevpath)
 	size = sizeof(*edev) + edev->udev.bNumInterfaces *
 		sizeof(struct usbip_usb_interface);
 
+	edev_old = edev;
 	edev = realloc(edev, size);
 	if (!edev) {
+		edev = edev_old;
 		dbg("realloc failed");
 		goto err;
 	}
