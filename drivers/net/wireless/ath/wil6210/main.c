@@ -58,6 +58,12 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 {
 	uint i;
 	struct wil_sta_info *sta = &wil->sta[cid];
+
+	if (sta->status != wil_sta_unused) {
+		wmi_disconnect_sta(wil, sta->addr, WLAN_REASON_DEAUTH_LEAVING);
+		sta->status = wil_sta_unused;
+	}
+
 	for (i = 0; i < WIL_STA_TID_NUM; i++) {
 		struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
 		sta->tid_rx[i] = NULL;

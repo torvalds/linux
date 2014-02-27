@@ -657,6 +657,14 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	return rc;
 }
 
+static int wil_cfg80211_del_station(struct wiphy *wiphy,
+				    struct net_device *dev, u8 *mac)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	wil6210_disconnect(wil, mac);
+	return 0;
+}
+
 static struct cfg80211_ops wil_cfg80211_ops = {
 	.scan = wil_cfg80211_scan,
 	.connect = wil_cfg80211_connect,
@@ -674,6 +682,7 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	/* AP mode */
 	.start_ap = wil_cfg80211_start_ap,
 	.stop_ap = wil_cfg80211_stop_ap,
+	.del_station = wil_cfg80211_del_station,
 };
 
 static void wil_wiphy_init(struct wiphy *wiphy)

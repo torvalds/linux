@@ -455,19 +455,14 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 			       void *d, int len)
 {
 	struct wmi_disconnect_event *evt = d;
-	int cid = wil_find_cid(wil, evt->bssid);
 
-	wil_dbg_wmi(wil, "Disconnect %pM CID %d reason %d proto %d wmi\n",
-		    evt->bssid, cid,
+	wil_dbg_wmi(wil, "Disconnect %pM reason %d proto %d wmi\n",
+		    evt->bssid,
 		    evt->protocol_reason_status, evt->disconnect_reason);
 
 	wil->sinfo_gen++;
 
-	/* TODO: fix for multiple connections */
-
 	wil6210_disconnect(wil, evt->bssid);
-	if (cid >= 0)
-		wil->sta[cid].status = wil_sta_unused;
 }
 
 static void wmi_evt_notify(struct wil6210_priv *wil, int id, void *d, int len)
@@ -1060,6 +1055,18 @@ int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r)
 		*t_r = le32_to_cpu(reply.evt.marlon_r_t1000);
 
 	return 0;
+}
+
+int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason)
+{
+	struct wmi_disconnect_sta_cmd cmd = {
+		.disconnect_reason = cpu_to_le16(reason),
+	};
+	memcpy(cmd.dst_mac, mac, ETH_ALEN);
+
+	wil_dbg_wmi(wil, "%s(%pM, reason %d)\n", __func__, mac, reason);
+
+	return wmi_send(wil, WMI_DISCONNECT_STA_CMDID, &cmd, sizeof(cmd));
 }
 
 void wmi_event_flush(struct wil6210_priv *wil)
