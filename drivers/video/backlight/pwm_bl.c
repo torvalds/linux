@@ -144,7 +144,6 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	int length;
 	u32 value;
 	int ret;
-	bool status;
 
 	if (!node)
 		return -ENODEV;
@@ -180,13 +179,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		data->dft_brightness = value;
 		data->max_brightness--;
 	}
-	status = of_property_read_bool(node,"pwm_period");
-	if(status){
-		of_property_read_u32(node, "pwm_period", &value);
-		data->pwm_period_ns = 1000000000/value/2;
-		if(data->pwm_period_ns > 25000)
-			data->pwm_period_ns = 25000;
-	}
+
 	data->enable_gpio = of_get_named_gpio_flags(node, "enable-gpios", 0,
 						    &flags);
 	if (data->enable_gpio == -EPROBE_DEFER)
