@@ -107,12 +107,23 @@ static void wil_connect_timer_fn(ulong x)
 	schedule_work(&wil->disconnect_worker);
 }
 
+static int wil_find_free_vring(struct wil6210_priv *wil)
+{
+	int i;
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		if (!wil->vring_tx[i].va)
+			return i;
+	}
+	return -EINVAL;
+}
+
 static void wil_connect_worker(struct work_struct *work)
 {
 	int rc;
 	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
 						connect_worker);
 	int cid = wil->pending_connect_cid;
+	int ringid = wil_find_free_vring(wil);
 
 	if (cid < 0) {
 		wil_err(wil, "No connection pending\n");
@@ -121,7 +132,7 @@ static void wil_connect_worker(struct work_struct *work)
 
 	wil_dbg_wmi(wil, "Configure for connection CID %d\n", cid);
 
-	rc = wil_vring_init_tx(wil, 0, WIL6210_TX_RING_SIZE, cid, 0);
+	rc = wil_vring_init_tx(wil, ringid, WIL6210_TX_RING_SIZE, cid, 0);
 	wil->pending_connect_cid = -1;
 	if (rc == 0) {
 		wil->sta[cid].status = wil_sta_connected;
