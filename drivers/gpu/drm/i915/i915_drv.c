@@ -38,134 +38,30 @@
 #include <linux/module.h>
 #include <drm/drm_crtc_helper.h>
 
-static int i915_modeset __read_mostly = -1;
-module_param_named(modeset, i915_modeset, int, 0400);
-MODULE_PARM_DESC(modeset,
-		"Use kernel modesetting [KMS] (0=DRM_I915_KMS from .config, "
-		"1=on, -1=force vga console preference [default])");
-
-unsigned int i915_fbpercrtc __always_unused = 0;
-module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
-
-int i915_panel_ignore_lid __read_mostly = 1;
-module_param_named(panel_ignore_lid, i915_panel_ignore_lid, int, 0600);
-MODULE_PARM_DESC(panel_ignore_lid,
-		"Override lid status (0=autodetect, 1=autodetect disabled [default], "
-		"-1=force lid closed, -2=force lid open)");
-
-unsigned int i915_powersave __read_mostly = 1;
-module_param_named(powersave, i915_powersave, int, 0600);
-MODULE_PARM_DESC(powersave,
-		"Enable powersavings, fbc, downclocking, etc. (default: true)");
-
-int i915_semaphores __read_mostly = -1;
-module_param_named(semaphores, i915_semaphores, int, 0400);
-MODULE_PARM_DESC(semaphores,
-		"Use semaphores for inter-ring sync (default: -1 (use per-chip defaults))");
-
-int i915_enable_rc6 __read_mostly = -1;
-module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0400);
-MODULE_PARM_DESC(i915_enable_rc6,
-		"Enable power-saving render C-state 6. "
-		"Different stages can be selected via bitmask values "
-		"(0 = disable; 1 = enable rc6; 2 = enable deep rc6; 4 = enable deepest rc6). "
-		"For example, 3 would enable rc6 and deep rc6, and 7 would enable everything. "
-		"default: -1 (use per-chip default)");
-
-int i915_enable_fbc __read_mostly = -1;
-module_param_named(i915_enable_fbc, i915_enable_fbc, int, 0600);
-MODULE_PARM_DESC(i915_enable_fbc,
-		"Enable frame buffer compression for power savings "
-		"(default: -1 (use per-chip default))");
-
-unsigned int i915_lvds_downclock __read_mostly = 0;
-module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
-MODULE_PARM_DESC(lvds_downclock,
-		"Use panel (LVDS/eDP) downclocking for power savings "
-		"(default: false)");
-
-int i915_lvds_channel_mode __read_mostly;
-module_param_named(lvds_channel_mode, i915_lvds_channel_mode, int, 0600);
-MODULE_PARM_DESC(lvds_channel_mode,
-		 "Specify LVDS channel mode "
-		 "(0=probe BIOS [default], 1=single-channel, 2=dual-channel)");
-
-int i915_panel_use_ssc __read_mostly = -1;
-module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
-MODULE_PARM_DESC(lvds_use_ssc,
-		"Use Spread Spectrum Clock with panels [LVDS/eDP] "
-		"(default: auto from VBT)");
-
-int i915_vbt_sdvo_panel_type __read_mostly = -1;
-module_param_named(vbt_sdvo_panel_type, i915_vbt_sdvo_panel_type, int, 0600);
-MODULE_PARM_DESC(vbt_sdvo_panel_type,
-		"Override/Ignore selection of SDVO panel mode in the VBT "
-		"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
-
-static bool i915_try_reset __read_mostly = true;
-module_param_named(reset, i915_try_reset, bool, 0600);
-MODULE_PARM_DESC(reset, "Attempt GPU resets (default: true)");
-
-bool i915_enable_hangcheck __read_mostly = true;
-module_param_named(enable_hangcheck, i915_enable_hangcheck, bool, 0644);
-MODULE_PARM_DESC(enable_hangcheck,
-		"Periodically check GPU activity for detecting hangs. "
-		"WARNING: Disabling this can cause system wide hangs. "
-		"(default: true)");
-
-int i915_enable_ppgtt __read_mostly = -1;
-module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, int, 0400);
-MODULE_PARM_DESC(i915_enable_ppgtt,
-		"Enable PPGTT (default: true)");
-
-int i915_enable_psr __read_mostly = 0;
-module_param_named(enable_psr, i915_enable_psr, int, 0600);
-MODULE_PARM_DESC(enable_psr, "Enable PSR (default: false)");
-
-unsigned int i915_preliminary_hw_support __read_mostly = IS_ENABLED(CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT);
-module_param_named(preliminary_hw_support, i915_preliminary_hw_support, int, 0600);
-MODULE_PARM_DESC(preliminary_hw_support,
-		"Enable preliminary hardware support.");
-
-int i915_disable_power_well __read_mostly = 1;
-module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
-MODULE_PARM_DESC(disable_power_well,
-		 "Disable the power well when possible (default: true)");
-
-int i915_enable_ips __read_mostly = 1;
-module_param_named(enable_ips, i915_enable_ips, int, 0600);
-MODULE_PARM_DESC(enable_ips, "Enable IPS (default: true)");
-
-bool i915_fastboot __read_mostly = 0;
-module_param_named(fastboot, i915_fastboot, bool, 0600);
-MODULE_PARM_DESC(fastboot, "Try to skip unnecessary mode sets at boot time "
-		 "(default: false)");
-
-int i915_enable_pc8 __read_mostly = 1;
-module_param_named(enable_pc8, i915_enable_pc8, int, 0600);
-MODULE_PARM_DESC(enable_pc8, "Enable support for low power package C states (PC8+) (default: true)");
-
-int i915_pc8_timeout __read_mostly = 5000;
-module_param_named(pc8_timeout, i915_pc8_timeout, int, 0600);
-MODULE_PARM_DESC(pc8_timeout, "Number of msecs of idleness required to enter PC8+ (default: 5000)");
-
-bool i915_prefault_disable __read_mostly;
-module_param_named(prefault_disable, i915_prefault_disable, bool, 0600);
-MODULE_PARM_DESC(prefault_disable,
-		"Disable page prefaulting for pread/pwrite/reloc (default:false). For developers only.");
-
 static struct drm_driver driver;
+
+#define GEN_DEFAULT_PIPEOFFSETS \
+	.pipe_offsets = { PIPE_A_OFFSET, PIPE_B_OFFSET, \
+			  PIPE_C_OFFSET, PIPE_EDP_OFFSET }, \
+	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
+			   TRANSCODER_C_OFFSET, TRANSCODER_EDP_OFFSET }, \
+	.dpll_offsets = { DPLL_A_OFFSET, DPLL_B_OFFSET }, \
+	.dpll_md_offsets = { DPLL_A_MD_OFFSET, DPLL_B_MD_OFFSET }, \
+	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET }
+
 
 static const struct intel_device_info intel_i830_info = {
 	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_845g_info = {
 	.gen = 2, .num_pipes = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_i85x_info = {
@@ -174,18 +70,21 @@ static const struct intel_device_info intel_i85x_info = {
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_i865g_info = {
 	.gen = 2, .num_pipes = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_i915g_info = {
 	.gen = 3, .is_i915g = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 static const struct intel_device_info intel_i915gm_info = {
 	.gen = 3, .is_mobile = 1, .num_pipes = 2,
@@ -194,11 +93,13 @@ static const struct intel_device_info intel_i915gm_info = {
 	.supports_tv = 1,
 	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 static const struct intel_device_info intel_i945g_info = {
 	.gen = 3, .has_hotplug = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 static const struct intel_device_info intel_i945gm_info = {
 	.gen = 3, .is_i945gm = 1, .is_mobile = 1, .num_pipes = 2,
@@ -207,6 +108,7 @@ static const struct intel_device_info intel_i945gm_info = {
 	.supports_tv = 1,
 	.has_fbc = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_i965g_info = {
@@ -214,6 +116,7 @@ static const struct intel_device_info intel_i965g_info = {
 	.has_hotplug = 1,
 	.has_overlay = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
@@ -222,6 +125,7 @@ static const struct intel_device_info intel_i965gm_info = {
 	.has_overlay = 1,
 	.supports_tv = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_g33_info = {
@@ -229,12 +133,14 @@ static const struct intel_device_info intel_g33_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
 	.ring_mask = RENDER_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_g45_info = {
 	.gen = 4, .is_g4x = 1, .need_gfx_hws = 1, .num_pipes = 2,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_gm45_info = {
@@ -243,18 +149,21 @@ static const struct intel_device_info intel_gm45_info = {
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
 	.supports_tv = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_pineview_info = {
 	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_ironlake_d_info = {
 	.gen = 5, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
@@ -262,6 +171,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_sandybridge_d_info = {
@@ -270,6 +180,7 @@ static const struct intel_device_info intel_sandybridge_d_info = {
 	.has_fbc = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
 	.has_llc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_sandybridge_m_info = {
@@ -278,6 +189,7 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_fbc = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
 	.has_llc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 #define GEN7_FEATURES  \
@@ -290,18 +202,21 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 static const struct intel_device_info intel_ivybridge_d_info = {
 	GEN7_FEATURES,
 	.is_ivybridge = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_ivybridge_m_info = {
 	GEN7_FEATURES,
 	.is_ivybridge = 1,
 	.is_mobile = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_ivybridge_q_info = {
 	GEN7_FEATURES,
 	.is_ivybridge = 1,
 	.num_pipes = 0, /* legal, last one wins */
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_valleyview_m_info = {
@@ -312,6 +227,7 @@ static const struct intel_device_info intel_valleyview_m_info = {
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	.has_fbc = 0, /* legal, last one wins */
 	.has_llc = 0, /* legal, last one wins */
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
@@ -321,6 +237,7 @@ static const struct intel_device_info intel_valleyview_d_info = {
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	.has_fbc = 0, /* legal, last one wins */
 	.has_llc = 0, /* legal, last one wins */
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_haswell_d_info = {
@@ -329,6 +246,7 @@ static const struct intel_device_info intel_haswell_d_info = {
 	.has_ddi = 1,
 	.has_fpga_dbg = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
@@ -338,6 +256,7 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.has_ddi = 1,
 	.has_fpga_dbg = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_broadwell_d_info = {
@@ -346,6 +265,7 @@ static const struct intel_device_info intel_broadwell_d_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 static const struct intel_device_info intel_broadwell_m_info = {
@@ -354,6 +274,7 @@ static const struct intel_device_info intel_broadwell_m_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
 };
 
 /*
@@ -482,12 +403,12 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 
 	/* Until we get further testing... */
 	if (IS_GEN8(dev)) {
-		WARN_ON(!i915_preliminary_hw_support);
+		WARN_ON(!i915.preliminary_hw_support);
 		return false;
 	}
 
-	if (i915_semaphores >= 0)
-		return i915_semaphores;
+	if (i915.semaphores >= 0)
+		return i915.semaphores;
 
 #ifdef CONFIG_INTEL_IOMMU
 	/* Enable semaphores on SNB when IO remapping is off */
@@ -643,6 +564,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_init_pch_refclk(dev);
+		drm_mode_config_reset(dev);
 
 		mutex_lock(&dev->struct_mutex);
 
@@ -655,7 +577,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		intel_modeset_init_hw(dev);
 
 		drm_modeset_lock_all(dev);
-		drm_mode_config_reset(dev);
 		intel_modeset_setup_hw_state(dev, true);
 		drm_modeset_unlock_all(dev);
 
@@ -752,7 +673,7 @@ int i915_reset(struct drm_device *dev)
 	bool simulated;
 	int ret;
 
-	if (!i915_try_reset)
+	if (!i915.reset)
 		return 0;
 
 	mutex_lock(&dev->struct_mutex);
@@ -807,6 +728,17 @@ int i915_reset(struct drm_device *dev)
 
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
+
+		/* rps/rc6 re-init is necessary to restore state lost after the
+		 * reset and the re-install of drm irq. Skip for ironlake per
+		 * previous concerns that it doesn't respond well to some forms
+		 * of re-init after reset. */
+		if (INTEL_INFO(dev)->gen > 5) {
+			mutex_lock(&dev->struct_mutex);
+			intel_enable_gt_powersave(dev);
+			mutex_unlock(&dev->struct_mutex);
+		}
+
 		intel_hpd_init(dev);
 	} else {
 		mutex_unlock(&dev->struct_mutex);
@@ -820,7 +752,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
 
-	if (IS_PRELIMINARY_HW(intel_info) && !i915_preliminary_hw_support) {
+	if (IS_PRELIMINARY_HW(intel_info) && !i915.preliminary_hw_support) {
 		DRM_INFO("This hardware requires preliminary hardware support.\n"
 			 "See CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT, and/or modparam preliminary_hw_support\n");
 		return -ENODEV;
@@ -1051,14 +983,14 @@ static int __init i915_init(void)
 	 * the default behavior.
 	 */
 #if defined(CONFIG_DRM_I915_KMS)
-	if (i915_modeset != 0)
+	if (i915.modeset != 0)
 		driver.driver_features |= DRIVER_MODESET;
 #endif
-	if (i915_modeset == 1)
+	if (i915.modeset == 1)
 		driver.driver_features |= DRIVER_MODESET;
 
 #ifdef CONFIG_VGA_CONSOLE
-	if (vgacon_text_force() && i915_modeset == -1)
+	if (vgacon_text_force() && i915.modeset == -1)
 		driver.driver_features &= ~DRIVER_MODESET;
 #endif
 

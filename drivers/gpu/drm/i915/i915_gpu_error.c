@@ -238,50 +238,61 @@ static const char *hangcheck_action_to_str(enum intel_ring_hangcheck_action a)
 
 static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 				  struct drm_device *dev,
-				  struct drm_i915_error_state *error,
-				  unsigned ring)
+				  struct drm_i915_error_ring *ring)
 {
-	BUG_ON(ring >= I915_NUM_RINGS); /* shut up confused gcc */
-	if (!error->ring[ring].valid)
+	if (!ring->valid)
 		return;
 
-	err_printf(m, "%s command stream:\n", ring_str(ring));
-	err_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
-	err_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
-	err_printf(m, "  CTL: 0x%08x\n", error->ctl[ring]);
-	err_printf(m, "  ACTHD: 0x%08x\n", error->acthd[ring]);
-	err_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
-	err_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
-	err_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
+	err_printf(m, "  HEAD: 0x%08x\n", ring->head);
+	err_printf(m, "  TAIL: 0x%08x\n", ring->tail);
+	err_printf(m, "  CTL: 0x%08x\n", ring->ctl);
+	err_printf(m, "  HWS: 0x%08x\n", ring->hws);
+	err_printf(m, "  ACTHD: 0x%08x\n", ring->acthd);
+	err_printf(m, "  IPEIR: 0x%08x\n", ring->ipeir);
+	err_printf(m, "  IPEHR: 0x%08x\n", ring->ipehr);
+	err_printf(m, "  INSTDONE: 0x%08x\n", ring->instdone);
 	if (INTEL_INFO(dev)->gen >= 4) {
-		err_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr[ring]);
-		err_printf(m, "  BB_STATE: 0x%08x\n", error->bbstate[ring]);
-		err_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
+		err_printf(m, "  BBADDR: 0x%08llx\n", ring->bbaddr);
+		err_printf(m, "  BB_STATE: 0x%08x\n", ring->bbstate);
+		err_printf(m, "  INSTPS: 0x%08x\n", ring->instps);
 	}
-	err_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
-	err_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
+	err_printf(m, "  INSTPM: 0x%08x\n", ring->instpm);
+	err_printf(m, "  FADDR: 0x%08x\n", ring->faddr);
 	if (INTEL_INFO(dev)->gen >= 6) {
-		err_printf(m, "  RC PSMI: 0x%08x\n", error->rc_psmi[ring]);
-		err_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
+		err_printf(m, "  RC PSMI: 0x%08x\n", ring->rc_psmi);
+		err_printf(m, "  FAULT_REG: 0x%08x\n", ring->fault_reg);
 		err_printf(m, "  SYNC_0: 0x%08x [last synced 0x%08x]\n",
-			   error->semaphore_mboxes[ring][0],
-			   error->semaphore_seqno[ring][0]);
+			   ring->semaphore_mboxes[0],
+			   ring->semaphore_seqno[0]);
 		err_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
-			   error->semaphore_mboxes[ring][1],
-			   error->semaphore_seqno[ring][1]);
+			   ring->semaphore_mboxes[1],
+			   ring->semaphore_seqno[1]);
 		if (HAS_VEBOX(dev)) {
 			err_printf(m, "  SYNC_2: 0x%08x [last synced 0x%08x]\n",
-				   error->semaphore_mboxes[ring][2],
-				   error->semaphore_seqno[ring][2]);
+				   ring->semaphore_mboxes[2],
+				   ring->semaphore_seqno[2]);
 		}
 	}
-	err_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
-	err_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));
-	err_printf(m, "  ring->head: 0x%08x\n", error->cpu_ring_head[ring]);
-	err_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
+	if (USES_PPGTT(dev)) {
+		err_printf(m, "  GFX_MODE: 0x%08x\n", ring->vm_info.gfx_mode);
+
+		if (INTEL_INFO(dev)->gen >= 8) {
+			int i;
+			for (i = 0; i < 4; i++)
+				err_printf(m, "  PDP%d: 0x%016llx\n",
+					   i, ring->vm_info.pdp[i]);
+		} else {
+			err_printf(m, "  PP_DIR_BASE: 0x%08x\n",
+				   ring->vm_info.pp_dir_base);
+		}
+	}
+	err_printf(m, "  seqno: 0x%08x\n", ring->seqno);
+	err_printf(m, "  waiting: %s\n", yesno(ring->waiting));
+	err_printf(m, "  ring->head: 0x%08x\n", ring->cpu_ring_head);
+	err_printf(m, "  ring->tail: 0x%08x\n", ring->cpu_ring_tail);
 	err_printf(m, "  hangcheck: %s [%d]\n",
-		   hangcheck_action_to_str(error->hangcheck_action[ring]),
-		   error->hangcheck_score[ring]);
+		   hangcheck_action_to_str(ring->hangcheck_action),
+		   ring->hangcheck_score);
 }
 
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
@@ -333,8 +344,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	if (INTEL_INFO(dev)->gen == 7)
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
-	for (i = 0; i < ARRAY_SIZE(error->ring); i++)
-		i915_ring_error_state(m, dev, error, i);
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		err_printf(m, "%s command stream:\n", ring_str(i));
+		i915_ring_error_state(m, dev, &error->ring[i]);
+	}
 
 	if (error->active_bo)
 		print_error_buffers(m, "Active",
@@ -387,6 +400,22 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 						   obj->pages[page][elt]);
 					offset += 4;
 				}
+			}
+		}
+
+		if ((obj = error->ring[i].hws_page)) {
+			err_printf(m, "%s --- HW Status = 0x%08x\n",
+				   dev_priv->ring[i].name,
+				   obj->gtt_offset);
+			offset = 0;
+			for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
+				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
+					   offset,
+					   obj->pages[0][elt],
+					   obj->pages[0][elt+1],
+					   obj->pages[0][elt+2],
+					   obj->pages[0][elt+3]);
+					offset += 16;
 			}
 		}
 
@@ -472,6 +501,7 @@ static void i915_error_state_free(struct kref *error_ref)
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		i915_error_object_free(error->ring[i].batchbuffer);
 		i915_error_object_free(error->ring[i].ringbuffer);
+		i915_error_object_free(error->ring[i].hws_page);
 		i915_error_object_free(error->ring[i].ctx);
 		kfree(error->ring[i].requests);
 	}
@@ -485,6 +515,7 @@ static void i915_error_state_free(struct kref *error_ref)
 static struct drm_i915_error_object *
 i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 			       struct drm_i915_gem_object *src,
+			       struct i915_address_space *vm,
 			       const int num_pages)
 {
 	struct drm_i915_error_object *dst;
@@ -498,7 +529,7 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 	if (dst == NULL)
 		return NULL;
 
-	reloc_offset = dst->gtt_offset = i915_gem_obj_ggtt_offset(src);
+	reloc_offset = dst->gtt_offset = i915_gem_obj_offset(src, vm);
 	for (i = 0; i < num_pages; i++) {
 		unsigned long flags;
 		void *d;
@@ -508,8 +539,10 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		local_irq_save(flags);
-		if (reloc_offset < dev_priv->gtt.mappable_end &&
-		    src->has_global_gtt_mapping) {
+		if (src->cache_level == I915_CACHE_NONE &&
+		    reloc_offset < dev_priv->gtt.mappable_end &&
+		    src->has_global_gtt_mapping &&
+		    i915_is_ggtt(vm)) {
 			void __iomem *s;
 
 			/* Simply ignore tiling or any overlapping fence.
@@ -559,8 +592,12 @@ unwind:
 	kfree(dst);
 	return NULL;
 }
-#define i915_error_object_create(dev_priv, src) \
-	i915_error_object_create_sized((dev_priv), (src), \
+#define i915_error_object_create(dev_priv, src, vm) \
+	i915_error_object_create_sized((dev_priv), (src), (vm), \
+				       (src)->base.size>>PAGE_SHIFT)
+
+#define i915_error_ggtt_object_create(dev_priv, src) \
+	i915_error_object_create_sized((dev_priv), (src), &(dev_priv)->gtt.base, \
 				       (src)->base.size>>PAGE_SHIFT)
 
 static void capture_bo(struct drm_i915_error_buffer *err,
@@ -575,7 +612,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = obj->fence_reg;
 	err->pinned = 0;
-	if (obj->pin_count > 0)
+	if (i915_gem_obj_is_pinned(obj))
 		err->pinned = 1;
 	if (obj->user_pin_count > 0)
 		err->pinned = -1;
@@ -608,7 +645,7 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 	int i = 0;
 
 	list_for_each_entry(obj, head, global_list) {
-		if (obj->pin_count == 0)
+		if (!i915_gem_obj_is_pinned(obj))
 			continue;
 
 		capture_bo(err++, obj);
@@ -617,6 +654,33 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 	}
 
 	return i;
+}
+
+/* Generate a semi-unique error code. The code is not meant to have meaning, The
+ * code's only purpose is to try to prevent false duplicated bug reports by
+ * grossly estimating a GPU error state.
+ *
+ * TODO Ideally, hashing the batchbuffer would be a very nice way to determine
+ * the hang if we could strip the GTT offset information from it.
+ *
+ * It's only a small step better than a random number in its current form.
+ */
+static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
+					 struct drm_i915_error_state *error)
+{
+	uint32_t error_code = 0;
+	int i;
+
+	/* IPEHR would be an ideal way to detect errors, as it's the gross
+	 * measure of "the command that hung." However, has some very common
+	 * synchronization commands which almost always appear in the case
+	 * strictly a client bug. Use instdone to differentiate those some.
+	 */
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		if (error->ring[i].hangcheck_action == HANGCHECK_HUNG)
+			return error->ring[i].ipehr ^ error->ring[i].instdone;
+
+	return error_code;
 }
 
 static void i915_gem_record_fences(struct drm_device *dev,
@@ -652,6 +716,32 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
+/* This assumes all batchbuffers are executed from the PPGTT. It might have to
+ * change in the future. */
+static bool is_active_vm(struct i915_address_space *vm,
+			 struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = vm->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt;
+
+	if (INTEL_INFO(dev)->gen < 7)
+		return i915_is_ggtt(vm);
+
+	/* FIXME: This ignores that the global gtt vm is also on this list. */
+	ppgtt = container_of(vm, struct i915_hw_ppgtt, base);
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		u64 pdp0 = (u64)I915_READ(GEN8_RING_PDP_UDW(ring, 0)) << 32;
+		pdp0 |=  I915_READ(GEN8_RING_PDP_LDW(ring, 0));
+		return pdp0 == ppgtt->pd_dma_addr[0];
+	} else {
+		u32 pp_db;
+		pp_db = I915_READ(RING_PP_DIR_BASE(ring));
+		return (pp_db >> 10) == ppgtt->pd_offset;
+	}
+}
+
 static struct drm_i915_error_object *
 i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			     struct intel_ring_buffer *ring)
@@ -659,6 +749,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	struct i915_address_space *vm;
 	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
+	bool found_active = false;
 	u32 seqno;
 
 	if (!ring->get_seqno)
@@ -674,11 +765,16 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 		if (obj != NULL &&
 		    acthd >= i915_gem_obj_ggtt_offset(obj) &&
 		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
-			return i915_error_object_create(dev_priv, obj);
+			return i915_error_ggtt_object_create(dev_priv, obj);
 	}
 
 	seqno = ring->get_seqno(ring, false);
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+		if (!is_active_vm(vm, ring))
+			continue;
+
+		found_active = true;
+
 		list_for_each_entry(vma, &vm->active_list, mm_list) {
 			obj = vma->obj;
 			if (obj->ring != ring)
@@ -693,66 +789,120 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			/* We need to copy these to an anonymous buffer as the simplest
 			 * method to avoid being overwritten by userspace.
 			 */
-			return i915_error_object_create(dev_priv, obj);
+			return i915_error_object_create(dev_priv, obj, vm);
 		}
 	}
 
+	WARN_ON(!found_active);
 	return NULL;
 }
 
 static void i915_record_ring_state(struct drm_device *dev,
-				   struct drm_i915_error_state *error,
-				   struct intel_ring_buffer *ring)
+				   struct intel_ring_buffer *ring,
+				   struct drm_i915_error_ring *ering)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		error->rc_psmi[ring->id] = I915_READ(ring->mmio_base + 0x50);
-		error->fault_reg[ring->id] = I915_READ(RING_FAULT_REG(ring));
-		error->semaphore_mboxes[ring->id][0]
+		ering->rc_psmi = I915_READ(ring->mmio_base + 0x50);
+		ering->fault_reg = I915_READ(RING_FAULT_REG(ring));
+		ering->semaphore_mboxes[0]
 			= I915_READ(RING_SYNC_0(ring->mmio_base));
-		error->semaphore_mboxes[ring->id][1]
+		ering->semaphore_mboxes[1]
 			= I915_READ(RING_SYNC_1(ring->mmio_base));
-		error->semaphore_seqno[ring->id][0] = ring->sync_seqno[0];
-		error->semaphore_seqno[ring->id][1] = ring->sync_seqno[1];
+		ering->semaphore_seqno[0] = ring->sync_seqno[0];
+		ering->semaphore_seqno[1] = ring->sync_seqno[1];
 	}
 
 	if (HAS_VEBOX(dev)) {
-		error->semaphore_mboxes[ring->id][2] =
+		ering->semaphore_mboxes[2] =
 			I915_READ(RING_SYNC_2(ring->mmio_base));
-		error->semaphore_seqno[ring->id][2] = ring->sync_seqno[2];
+		ering->semaphore_seqno[2] = ring->sync_seqno[2];
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
-		error->ipeir[ring->id] = I915_READ(RING_IPEIR(ring->mmio_base));
-		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
-		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
-		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
-		error->bbaddr[ring->id] = I915_READ(RING_BBADDR(ring->mmio_base));
+		ering->faddr = I915_READ(RING_DMA_FADD(ring->mmio_base));
+		ering->ipeir = I915_READ(RING_IPEIR(ring->mmio_base));
+		ering->ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
+		ering->instdone = I915_READ(RING_INSTDONE(ring->mmio_base));
+		ering->instps = I915_READ(RING_INSTPS(ring->mmio_base));
+		ering->bbaddr = I915_READ(RING_BBADDR(ring->mmio_base));
 		if (INTEL_INFO(dev)->gen >= 8)
-			error->bbaddr[ring->id] |= (u64) I915_READ(RING_BBADDR_UDW(ring->mmio_base)) << 32;
-		error->bbstate[ring->id] = I915_READ(RING_BBSTATE(ring->mmio_base));
+			ering->bbaddr |= (u64) I915_READ(RING_BBADDR_UDW(ring->mmio_base)) << 32;
+		ering->bbstate = I915_READ(RING_BBSTATE(ring->mmio_base));
 	} else {
-		error->faddr[ring->id] = I915_READ(DMA_FADD_I8XX);
-		error->ipeir[ring->id] = I915_READ(IPEIR);
-		error->ipehr[ring->id] = I915_READ(IPEHR);
-		error->instdone[ring->id] = I915_READ(INSTDONE);
+		ering->faddr = I915_READ(DMA_FADD_I8XX);
+		ering->ipeir = I915_READ(IPEIR);
+		ering->ipehr = I915_READ(IPEHR);
+		ering->instdone = I915_READ(INSTDONE);
 	}
 
-	error->waiting[ring->id] = waitqueue_active(&ring->irq_queue);
-	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
-	error->seqno[ring->id] = ring->get_seqno(ring, false);
-	error->acthd[ring->id] = intel_ring_get_active_head(ring);
-	error->head[ring->id] = I915_READ_HEAD(ring);
-	error->tail[ring->id] = I915_READ_TAIL(ring);
-	error->ctl[ring->id] = I915_READ_CTL(ring);
+	ering->waiting = waitqueue_active(&ring->irq_queue);
+	ering->instpm = I915_READ(RING_INSTPM(ring->mmio_base));
+	ering->seqno = ring->get_seqno(ring, false);
+	ering->acthd = intel_ring_get_active_head(ring);
+	ering->head = I915_READ_HEAD(ring);
+	ering->tail = I915_READ_TAIL(ring);
+	ering->ctl = I915_READ_CTL(ring);
 
-	error->cpu_ring_head[ring->id] = ring->head;
-	error->cpu_ring_tail[ring->id] = ring->tail;
+	if (I915_NEED_GFX_HWS(dev)) {
+		int mmio;
 
-	error->hangcheck_score[ring->id] = ring->hangcheck.score;
-	error->hangcheck_action[ring->id] = ring->hangcheck.action;
+		if (IS_GEN7(dev)) {
+			switch (ring->id) {
+			default:
+			case RCS:
+				mmio = RENDER_HWS_PGA_GEN7;
+				break;
+			case BCS:
+				mmio = BLT_HWS_PGA_GEN7;
+				break;
+			case VCS:
+				mmio = BSD_HWS_PGA_GEN7;
+				break;
+			case VECS:
+				mmio = VEBOX_HWS_PGA_GEN7;
+				break;
+			}
+		} else if (IS_GEN6(ring->dev)) {
+			mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
+		} else {
+			/* XXX: gen8 returns to sanity */
+			mmio = RING_HWS_PGA(ring->mmio_base);
+		}
+
+		ering->hws = I915_READ(mmio);
+	}
+
+	ering->cpu_ring_head = ring->head;
+	ering->cpu_ring_tail = ring->tail;
+
+	ering->hangcheck_score = ring->hangcheck.score;
+	ering->hangcheck_action = ring->hangcheck.action;
+
+	if (USES_PPGTT(dev)) {
+		int i;
+
+		ering->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(ring));
+
+		switch (INTEL_INFO(dev)->gen) {
+		case 8:
+			for (i = 0; i < 4; i++) {
+				ering->vm_info.pdp[i] =
+					I915_READ(GEN8_RING_PDP_UDW(ring, i));
+				ering->vm_info.pdp[i] <<= 32;
+				ering->vm_info.pdp[i] |=
+					I915_READ(GEN8_RING_PDP_LDW(ring, i));
+			}
+			break;
+		case 7:
+			ering->vm_info.pp_dir_base = RING_PP_DIR_BASE(ring);
+			break;
+		case 6:
+			ering->vm_info.pp_dir_base = RING_PP_DIR_BASE_READ(ring);
+			break;
+		}
+	}
 }
 
 
@@ -770,7 +920,9 @@ static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
 			ering->ctx = i915_error_object_create_sized(dev_priv,
-								    obj, 1);
+								    obj,
+								    &dev_priv->gtt.base,
+								    1);
 			break;
 		}
 	}
@@ -791,14 +943,17 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		error->ring[i].valid = true;
 
-		i915_record_ring_state(dev, error, ring);
+		i915_record_ring_state(dev, ring, &error->ring[i]);
 
 		error->ring[i].batchbuffer =
 			i915_error_first_batchbuffer(dev_priv, ring);
 
 		error->ring[i].ringbuffer =
-			i915_error_object_create(dev_priv, ring->obj);
+			i915_error_ggtt_object_create(dev_priv, ring->obj);
 
+		if (ring->status_page.obj)
+			error->ring[i].hws_page =
+				i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
 
 		i915_gem_record_active_context(ring, error, &error->ring[i]);
 
@@ -845,7 +1000,7 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 		i++;
 	error->active_bo_count[ndx] = i;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
-		if (obj->pin_count)
+		if (i915_gem_obj_is_pinned(obj))
 			i++;
 	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];
 
@@ -879,11 +1034,6 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
 		cnt++;
 
-	if (WARN(cnt > 1, "Multiple VMs not yet supported\n"))
-		cnt = 1;
-
-	vm = &dev_priv->gtt.base;
-
 	error->active_bo = kcalloc(cnt, sizeof(*error->active_bo), GFP_ATOMIC);
 	error->pinned_bo = kcalloc(cnt, sizeof(*error->pinned_bo), GFP_ATOMIC);
 	error->active_bo_count = kcalloc(cnt, sizeof(*error->active_bo_count),
@@ -893,6 +1043,74 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
 		i915_gem_capture_vm(dev_priv, error, vm, i++);
+}
+
+/* Capture all registers which don't fit into another category. */
+static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
+				   struct drm_i915_error_state *error)
+{
+	struct drm_device *dev = dev_priv->dev;
+	int pipe;
+
+	/* General organization
+	 * 1. Registers specific to a single generation
+	 * 2. Registers which belong to multiple generations
+	 * 3. Feature specific registers.
+	 * 4. Everything else
+	 * Please try to follow the order.
+	 */
+
+	/* 1: Registers specific to a single generation */
+	if (IS_VALLEYVIEW(dev)) {
+		error->ier = I915_READ(GTIER) | I915_READ(VLV_IER);
+		error->forcewake = I915_READ(FORCEWAKE_VLV);
+	}
+
+	if (IS_GEN7(dev))
+		error->err_int = I915_READ(GEN7_ERR_INT);
+
+	if (IS_GEN6(dev)) {
+		error->forcewake = I915_READ(FORCEWAKE);
+		error->gab_ctl = I915_READ(GAB_CTL);
+		error->gfx_mode = I915_READ(GFX_MODE);
+	}
+
+	if (IS_GEN2(dev))
+		error->ier = I915_READ16(IER);
+
+	/* 2: Registers which belong to multiple generations */
+	if (INTEL_INFO(dev)->gen >= 7)
+		error->forcewake = I915_READ(FORCEWAKE_MT);
+
+	if (INTEL_INFO(dev)->gen >= 6) {
+		error->derrmr = I915_READ(DERRMR);
+		error->error = I915_READ(ERROR_GEN6);
+		error->done_reg = I915_READ(DONE_REG);
+	}
+
+	/* 3: Feature specific registers */
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
+		error->gam_ecochk = I915_READ(GAM_ECOCHK);
+		error->gac_eco = I915_READ(GAC_ECO_BITS);
+	}
+
+	/* 4: Everything else */
+	if (HAS_HW_CONTEXTS(dev))
+		error->ccid = I915_READ(CCID);
+
+	if (HAS_PCH_SPLIT(dev))
+		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
+	else {
+		error->ier = I915_READ(IER);
+		for_each_pipe(pipe)
+			error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
+	}
+
+	/* 4: Everything else */
+	error->eir = I915_READ(EIR);
+	error->pgtbl_er = I915_READ(PGTBL_ER);
+
+	i915_get_extra_instdone(dev, error->extra_instdone);
 }
 
 /**
@@ -906,10 +1124,11 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
  */
 void i915_capture_error_state(struct drm_device *dev)
 {
+	static bool warned;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
 	unsigned long flags;
-	int pipe;
+	uint32_t ecode;
 
 	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
 	error = dev_priv->gpu_error.first_error;
@@ -926,53 +1145,22 @@ void i915_capture_error_state(struct drm_device *dev)
 
 	DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
 		 dev->primary->index);
-	DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
-	DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
-	DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
-	DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
-
 	kref_init(&error->ref);
-	error->eir = I915_READ(EIR);
-	error->pgtbl_er = I915_READ(PGTBL_ER);
-	if (HAS_HW_CONTEXTS(dev))
-		error->ccid = I915_READ(CCID);
 
-	if (HAS_PCH_SPLIT(dev))
-		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
-	else if (IS_VALLEYVIEW(dev))
-		error->ier = I915_READ(GTIER) | I915_READ(VLV_IER);
-	else if (IS_GEN2(dev))
-		error->ier = I915_READ16(IER);
-	else
-		error->ier = I915_READ(IER);
-
-	if (INTEL_INFO(dev)->gen >= 6)
-		error->derrmr = I915_READ(DERRMR);
-
-	if (IS_VALLEYVIEW(dev))
-		error->forcewake = I915_READ(FORCEWAKE_VLV);
-	else if (INTEL_INFO(dev)->gen >= 7)
-		error->forcewake = I915_READ(FORCEWAKE_MT);
-	else if (INTEL_INFO(dev)->gen == 6)
-		error->forcewake = I915_READ(FORCEWAKE);
-
-	if (!HAS_PCH_SPLIT(dev))
-		for_each_pipe(pipe)
-			error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
-
-	if (INTEL_INFO(dev)->gen >= 6) {
-		error->error = I915_READ(ERROR_GEN6);
-		error->done_reg = I915_READ(DONE_REG);
-	}
-
-	if (INTEL_INFO(dev)->gen == 7)
-		error->err_int = I915_READ(GEN7_ERR_INT);
-
-	i915_get_extra_instdone(dev, error->extra_instdone);
-
+	i915_capture_reg_state(dev_priv, error);
 	i915_gem_capture_buffers(dev_priv, error);
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
+	ecode = i915_error_generate_code(dev_priv, error);
+
+	if (!warned) {
+		DRM_INFO("GPU HANG [%x]\n", ecode);
+		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
+		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
+		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
+		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
+		warned = true;
+	}
 
 	do_gettimeofday(&error->time);
 

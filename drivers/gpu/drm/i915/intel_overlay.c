@@ -293,7 +293,7 @@ static void intel_overlay_release_old_vid_tail(struct intel_overlay *overlay)
 {
 	struct drm_i915_gem_object *obj = overlay->old_vid_bo;
 
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 
 	overlay->old_vid_bo = NULL;
@@ -306,7 +306,7 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 	/* never have the overlay hw on without showing a frame */
 	BUG_ON(!overlay->vid_bo);
 
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 	overlay->vid_bo = NULL;
 
@@ -782,7 +782,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	return 0;
 
 out_unpin:
-	i915_gem_object_unpin(new_bo);
+	i915_gem_object_ggtt_unpin(new_bo);
 	return ret;
 }
 
@@ -1386,7 +1386,7 @@ void intel_setup_overlay(struct drm_device *dev)
 
 out_unpin_bo:
 	if (!OVERLAY_NEEDS_PHYSICAL(dev))
-		i915_gem_object_unpin(reg_bo);
+		i915_gem_object_ggtt_unpin(reg_bo);
 out_free_bo:
 	drm_gem_object_unreference(&reg_bo->base);
 out_free:

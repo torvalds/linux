@@ -857,4 +857,6 @@ void intel_crt_init(struct drm_device *dev)
 
 		dev_priv->fdi_rx_config = I915_READ(_FDI_RXA_CTL) & fdi_config;
 	}
+
+	intel_crt_reset(connector);
 }

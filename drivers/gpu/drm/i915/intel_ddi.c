@@ -633,6 +633,97 @@ static void wrpll_update_rnp(uint64_t freq2k, unsigned budget,
 	/* Otherwise a < c && b >= d, do nothing */
 }
 
+static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
+				     int reg)
+{
+	int refclk = LC_FREQ;
+	int n, p, r;
+	u32 wrpll;
+
+	wrpll = I915_READ(reg);
+	switch (wrpll & SPLL_PLL_REF_MASK) {
+	case SPLL_PLL_SSC:
+	case SPLL_PLL_NON_SSC:
+		/*
+		 * We could calculate spread here, but our checking
+		 * code only cares about 5% accuracy, and spread is a max of
+		 * 0.5% downspread.
+		 */
+		refclk = 135;
+		break;
+	case SPLL_PLL_LCPLL:
+		refclk = LC_FREQ;
+		break;
+	default:
+		WARN(1, "bad wrpll refclk\n");
+		return 0;
+	}
+
+	r = wrpll & WRPLL_DIVIDER_REF_MASK;
+	p = (wrpll & WRPLL_DIVIDER_POST_MASK) >> WRPLL_DIVIDER_POST_SHIFT;
+	n = (wrpll & WRPLL_DIVIDER_FB_MASK) >> WRPLL_DIVIDER_FB_SHIFT;
+
+	/* Convert to KHz, p & r have a fixed point portion */
+	return (refclk * n * 100) / (p * r);
+}
+
+static void intel_ddi_clock_get(struct intel_encoder *encoder,
+				struct intel_crtc_config *pipe_config)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	enum port port = intel_ddi_get_encoder_port(encoder);
+	int link_clock = 0;
+	u32 val, pll;
+
+	val = I915_READ(PORT_CLK_SEL(port));
+	switch (val & PORT_CLK_SEL_MASK) {
+	case PORT_CLK_SEL_LCPLL_810:
+		link_clock = 81000;
+		break;
+	case PORT_CLK_SEL_LCPLL_1350:
+		link_clock = 135000;
+		break;
+	case PORT_CLK_SEL_LCPLL_2700:
+		link_clock = 270000;
+		break;
+	case PORT_CLK_SEL_WRPLL1:
+		link_clock = intel_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL1);
+		break;
+	case PORT_CLK_SEL_WRPLL2:
+		link_clock = intel_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL2);
+		break;
+	case PORT_CLK_SEL_SPLL:
+		pll = I915_READ(SPLL_CTL) & SPLL_PLL_FREQ_MASK;
+		if (pll == SPLL_PLL_FREQ_810MHz)
+			link_clock = 81000;
+		else if (pll == SPLL_PLL_FREQ_1350MHz)
+			link_clock = 135000;
+		else if (pll == SPLL_PLL_FREQ_2700MHz)
+			link_clock = 270000;
+		else {
+			WARN(1, "bad spll freq\n");
+			return;
+		}
+		break;
+	default:
+		WARN(1, "bad port clock sel\n");
+		return;
+	}
+
+	pipe_config->port_clock = link_clock * 2;
+
+	if (pipe_config->has_pch_encoder)
+		pipe_config->adjusted_mode.crtc_clock =
+			intel_dotclock_calculate(pipe_config->port_clock,
+						 &pipe_config->fdi_m_n);
+	else if (pipe_config->has_dp_encoder)
+		pipe_config->adjusted_mode.crtc_clock =
+			intel_dotclock_calculate(pipe_config->port_clock,
+						 &pipe_config->dp_m_n);
+	else
+		pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+}
+
 static void
 intel_ddi_calculate_wrpll(int clock /* in Hz */,
 			  unsigned *r2_out, unsigned *n2_out, unsigned *p_out)
@@ -1200,7 +1291,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		ironlake_edp_panel_on(intel_dp);
+		intel_edp_panel_on(intel_dp);
 	}
 
 	WARN_ON(intel_crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
@@ -1244,7 +1335,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
-		ironlake_edp_panel_off(intel_dp);
+		intel_edp_panel_off(intel_dp);
 	}
 
 	I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
@@ -1279,7 +1370,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 		if (port == PORT_A)
 			intel_dp_stop_link_train(intel_dp);
 
-		ironlake_edp_backlight_on(intel_dp);
+		intel_edp_backlight_on(intel_dp);
 		intel_edp_psr_enable(intel_dp);
 	}
 
@@ -1312,7 +1403,7 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		intel_edp_psr_disable(intel_dp);
-		ironlake_edp_backlight_off(intel_dp);
+		intel_edp_backlight_off(intel_dp);
 	}
 }
 
@@ -1509,6 +1600,8 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 			      pipe_config->pipe_bpp, dev_priv->vbt.edp_bpp);
 		dev_priv->vbt.edp_bpp = pipe_config->pipe_bpp;
 	}
+
+	intel_ddi_clock_get(encoder, pipe_config);
 }
 
 static void intel_ddi_destroy(struct drm_encoder *encoder)

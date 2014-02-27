@@ -990,7 +990,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = HAS_WT(dev);
 		break;
 	case I915_PARAM_HAS_ALIASING_PPGTT:
-		value = dev_priv->mm.aliasing_ppgtt ? 1 : 0;
+		value = dev_priv->mm.aliasing_ppgtt || USES_FULL_PPGTT(dev);
 		break;
 	case I915_PARAM_HAS_WAIT_TIMEOUT:
 		value = 1;
@@ -1374,7 +1374,7 @@ cleanup_gem:
 	i915_gem_cleanup_ringbuffer(dev);
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
-	i915_gem_cleanup_aliasing_ppgtt(dev);
+	WARN_ON(dev_priv->mm.aliasing_ppgtt);
 	drm_mm_takedown(&dev_priv->gtt.base.mm);
 cleanup_power:
 	intel_display_power_put(dev, POWER_DOMAIN_VGA);
@@ -1776,8 +1776,8 @@ int i915_driver_unload(struct drm_device *dev)
 		i915_gem_free_all_phys_object(dev);
 		i915_gem_cleanup_ringbuffer(dev);
 		i915_gem_context_fini(dev);
+		WARN_ON(dev_priv->mm.aliasing_ppgtt);
 		mutex_unlock(&dev->struct_mutex);
-		i915_gem_cleanup_aliasing_ppgtt(dev);
 		i915_gem_cleanup_stolen(dev);
 
 		if (!I915_NEED_GFX_HWS(dev))

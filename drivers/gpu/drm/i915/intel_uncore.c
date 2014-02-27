@@ -852,6 +852,7 @@ int i915_get_reset_stats_ioctl(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_reset_stats *args = data;
 	struct i915_ctx_hang_stats *hs;
+	struct i915_hw_context *ctx;
 	int ret;
 
 	if (args->flags || args->pad)
@@ -864,11 +865,12 @@ int i915_get_reset_stats_ioctl(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	hs = i915_gem_context_get_hang_stats(dev, file, args->ctx_id);
-	if (IS_ERR(hs)) {
+	ctx = i915_gem_context_get(file->driver_priv, args->ctx_id);
+	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
-		return PTR_ERR(hs);
+		return PTR_ERR(ctx);
 	}
+	hs = &ctx->hang_stats;
 
 	if (capable(CAP_SYS_ADMIN))
 		args->reset_count = i915_reset_count(&dev_priv->gpu_error);

@@ -41,6 +41,8 @@ enum intel_ring_hangcheck_action {
 	HANGCHECK_HUNG,
 };
 
+#define HANGCHECK_SCORE_RING_HUNG 31
+
 struct intel_ring_hangcheck {
 	bool deadlock;
 	u32 seqno;

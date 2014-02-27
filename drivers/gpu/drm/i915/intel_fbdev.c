@@ -104,7 +104,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	return 0;
 
 out_unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 out_unref:
 	drm_gem_object_unreference(&obj->base);
 out:
@@ -208,7 +208,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	return 0;
 
 out_unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);

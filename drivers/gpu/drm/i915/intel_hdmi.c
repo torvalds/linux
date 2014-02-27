@@ -113,7 +113,8 @@ static u32 hsw_infoframe_enable(enum hdmi_infoframe_type type)
 }
 
 static u32 hsw_infoframe_data_reg(enum hdmi_infoframe_type type,
-				  enum transcoder cpu_transcoder)
+				  enum transcoder cpu_transcoder,
+				  struct drm_i915_private *dev_priv)
 {
 	switch (type) {
 	case HDMI_INFOFRAME_TYPE_AVI:
@@ -296,7 +297,8 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 	u32 val = I915_READ(ctl_reg);
 
 	data_reg = hsw_infoframe_data_reg(type,
-					  intel_crtc->config.cpu_transcoder);
+					  intel_crtc->config.cpu_transcoder,
+					  dev_priv);
 	if (data_reg == 0)
 		return;
 

@@ -259,7 +259,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 			downclock = dvo_timing->clock;
 	}
 
-	if (downclock < panel_dvo_timing->clock && i915_lvds_downclock) {
+	if (downclock < panel_dvo_timing->clock && i915.lvds_downclock) {
 		dev_priv->lvds_downclock_avail = 1;
 		dev_priv->lvds_downclock = downclock * 10;
 		DRM_DEBUG_KMS("LVDS downclock is found in VBT. "
@@ -318,7 +318,7 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	struct drm_display_mode *panel_fixed_mode;
 	int index;
 
-	index = i915_vbt_sdvo_panel_type;
+	index = i915.vbt_sdvo_panel_type;
 	if (index == -2) {
 		DRM_DEBUG_KMS("Ignore SDVO panel mode from BIOS VBT tables.\n");
 		return;
