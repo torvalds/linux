@@ -62,13 +62,13 @@
 	    mmc,ocr =  <(MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
 			         MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
 			         MMC_VDD_33_34 | MMC_VDD_34_35 )>;
-		mmc,use_dma = <MMC_USE_DMA 1>;
-		mmc,dma_ch = <SDIO_DMA_CHN>;
-		mmc,int = <CONTROLLER_INT_DETECT>;
-	  //mmc,int = <GPIO_INT_DETECT>;
-	    //OOB pin?
-	    mmc,emmc_is_selected = <0>;
-	    status = "disabled";
+		//mmc,use_dma = <MMC_USE_DMA 1>;
+		//mmc,dma_ch = <SDIO_DMA_CHN>;
+		//mmc,int = <CONTROLLER_INT_DETECT>;
+	  ////mmc,int = <GPIO_INT_DETECT>;
+	    ////OOB pin?
+	    //mmc,emmc_is_selected = <0>;
+	    status = "okay";
 	};
 
     emmc: rksdmmc@1021C000 {

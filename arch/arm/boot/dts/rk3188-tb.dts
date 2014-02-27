@@ -19,6 +19,35 @@
 		status = "okay";
 	};
 
+    wireless-wlan {
+        compatible = "wlan-platdata";
+        wifi_chip_type = "";
+        sdio_vref = <28000>;
+
+        wlan_ctrl_pmic {
+           power_ctrl_by_pmu = "false";
+           pmu_regulator = "act_ldo3";
+           pmu_enable_level = <1>; //1->HIGH, 0->LOW
+        };
+
+        wlan_ctrl_gpios {
+            gpio0 {
+                pin-func = "wlan_poweren";
+                gpios = <&gpio3 GPIO_D0 GPIO_ACTIVE_HIGH>;
+            };
+
+            gpio1 {
+                pin-func = "wlan_reset";
+                #gpios = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
+            };
+
+            gpio2 {
+                pin-func = "wlan_wake_host_irq";
+                gpios = <&gpio3 GPIO_D2 GPIO_ACTIVE_HIGH>;
+            };
+        };
+    };
+
 	backlight {
         	compatible = "pwm-backlight";
 	        pwms = <&pwm3 0 25000>;
