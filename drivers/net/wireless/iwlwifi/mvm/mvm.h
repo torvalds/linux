@@ -658,6 +658,9 @@ struct iwl_mvm {
 	bool ps_disabled;
 
 	struct ieee80211_vif *csa_vif;
+
+	/* system time of last beacon (for AP/GO interface) */
+	u32 ap_last_beacon_gp2;
 };
 
 /* Extract MVM priv from op_mode and _hw */

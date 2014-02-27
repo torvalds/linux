@@ -1465,6 +1465,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 
 	mvmvif->ap_ibss_active = false;
+	mvm->ap_last_beacon_gp2 = 0;
 
 	iwl_mvm_bt_coex_vif_change(mvm);
 
