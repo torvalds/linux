@@ -136,7 +136,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 
 	/* get node pages in the current segment */
 	curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
-	blkaddr = START_BLOCK(sbi, curseg->segno) + curseg->next_blkoff;
+	blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
 	/* read node page */
 	page = alloc_page(GFP_F2FS_ZERO);
