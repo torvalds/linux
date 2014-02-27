@@ -1830,7 +1830,7 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 #endif
 
 	seq_printf(seq, "driver_version           : %s\n", slic_proc_version);
-	seq_puts(seq, "Microcode versions:           \n");
+	seq_puts(seq, "Microcode versions:\n");
 	seq_printf(seq, "    Gigabit (gb)         : %s %s\n",
 		    MOJAVE_UCODE_VERS_STRING, MOJAVE_UCODE_VERS_DATE);
 	seq_printf(seq, "    Gigabit Receiver     : %s %s\n",
@@ -2634,7 +2634,7 @@ static void slic_interrupt_card_up(u32 isr, struct adapter *adapter,
 				}
 			} else if (isr & ISR_XDROP) {
 				dev_err(&dev->dev,
-						"isr & ISR_ERR [%x] ISR_XDROP \n", isr);
+						"isr & ISR_ERR [%x] ISR_XDROP\n", isr);
 			} else {
 				dev_err(&dev->dev,
 						"isr & ISR_ERR [%x]\n",
