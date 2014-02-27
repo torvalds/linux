@@ -1288,13 +1288,13 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 
 	entries = (clock / 1000) * pixel_size;
 	*plane_prec_mult = (entries > 256) ?
-		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_16;
+		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
 	*plane_dl = (64 * (*plane_prec_mult) * 4) / ((clock / 1000) *
 						     pixel_size);
 
 	entries = (clock / 1000) * 4;	/* BPP is always 4 for cursor */
 	*cursor_prec_mult = (entries > 256) ?
-		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_16;
+		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
 	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / ((clock / 1000) * 4);
 
 	return true;
@@ -1320,9 +1320,9 @@ static void vlv_update_drain_latency(struct drm_device *dev)
 	if (vlv_compute_drain_latency(dev, 0, &plane_prec_mult, &planea_dl,
 				      &cursor_prec_mult, &cursora_dl)) {
 		cursora_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_CURSORA_PRECISION_32 : DDL_CURSORA_PRECISION_16;
+			DDL_CURSORA_PRECISION_32 : DDL_CURSORA_PRECISION_64;
 		planea_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_PLANEA_PRECISION_32 : DDL_PLANEA_PRECISION_16;
+			DDL_PLANEA_PRECISION_32 : DDL_PLANEA_PRECISION_64;
 
 		I915_WRITE(VLV_DDL1, cursora_prec |
 				(cursora_dl << DDL_CURSORA_SHIFT) |
@@ -1333,9 +1333,9 @@ static void vlv_update_drain_latency(struct drm_device *dev)
 	if (vlv_compute_drain_latency(dev, 1, &plane_prec_mult, &planeb_dl,
 				      &cursor_prec_mult, &cursorb_dl)) {
 		cursorb_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_CURSORB_PRECISION_32 : DDL_CURSORB_PRECISION_16;
+			DDL_CURSORB_PRECISION_32 : DDL_CURSORB_PRECISION_64;
 		planeb_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_PLANEB_PRECISION_32 : DDL_PLANEB_PRECISION_16;
+			DDL_PLANEB_PRECISION_32 : DDL_PLANEB_PRECISION_64;
 
 		I915_WRITE(VLV_DDL2, cursorb_prec |
 				(cursorb_dl << DDL_CURSORB_SHIFT) |
