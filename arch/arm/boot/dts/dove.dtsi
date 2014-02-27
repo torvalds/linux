@@ -186,6 +186,11 @@
 				reg = <0x20000 0x80>, <0x800100 0x8>;
 			};
 
+			sysc: system-ctrl@20000 {
+				compatible = "marvell,orion-system-controller";
+				reg = <0x20000 0x110>;
+			};
+
 			bridge_intc: bridge-interrupt-ctrl@20110 {
 				compatible = "marvell,orion-bridge-intc";
 				interrupt-controller;
