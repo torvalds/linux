@@ -584,7 +584,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	struct vnt_usb_send_context *context = urb->context;
 	struct vnt_private *priv = context->pDevice;
 	u8 context_type = context->type;
-	unsigned long buf_len = context->uBufLen;
 	int status;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkOutIoCompleteWrite\n");
@@ -610,7 +609,7 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 
 	if (status == STATUS_SUCCESS) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"Write %d bytes\n", (int)buf_len);
+			"Write %d bytes\n", context->uBufLen);
 	} else {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"BULK Out failed %d\n", status);
@@ -622,7 +621,7 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 			dev_kfree_skb_irq(context->pPacket);
 			context->pPacket = NULL;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				"tx  %d bytes\n", (int)buf_len);
+				"tx  %d bytes\n", context->uBufLen);
 		}
 
 		priv->dev->trans_start = jiffies;
