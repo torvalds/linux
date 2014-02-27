@@ -104,9 +104,7 @@ obj-$(CONFIG_SOC_IMX6SL) += clk-imx6sl.o mach-imx6sl.o
 
 AFLAGS_suspend-imx6.o :=-Wa,-march=armv7-a
 obj-$(CONFIG_SUSPEND) += suspend-imx6.o
-obj-$(CONFIG_SOC_IMX6Q) += pm-imx6q.o
-# i.MX6SL reuses i.MX6Q code
-obj-$(CONFIG_SOC_IMX6SL) += pm-imx6q.o
+obj-$(CONFIG_SOC_IMX6) += pm-imx6.o
 
 # i.MX5 based machines
 obj-$(CONFIG_MACH_MX51_BABBAGE) += mach-mx51_babbage.o
