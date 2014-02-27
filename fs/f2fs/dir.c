@@ -21,12 +21,12 @@ static unsigned long dir_blocks(struct inode *inode)
 							>> PAGE_CACHE_SHIFT;
 }
 
-static unsigned int dir_buckets(unsigned int level)
+static unsigned int dir_buckets(unsigned int level, int dir_level)
 {
 	if (level < MAX_DIR_HASH_DEPTH / 2)
-		return 1 << level;
+		return 1 << (level + dir_level);
 	else
-		return 1 << ((MAX_DIR_HASH_DEPTH / 2) - 1);
+		return 1 << ((MAX_DIR_HASH_DEPTH / 2 + dir_level) - 1);
 }
 
 static unsigned int bucket_blocks(unsigned int level)
@@ -65,13 +65,14 @@ static void set_de_type(struct f2fs_dir_entry *de, struct inode *inode)
 	de->file_type = f2fs_type_by_mode[(mode & S_IFMT) >> S_SHIFT];
 }
 
-static unsigned long dir_block_index(unsigned int level, unsigned int idx)
+static unsigned long dir_block_index(unsigned int level,
+				int dir_level, unsigned int idx)
 {
 	unsigned long i;
 	unsigned long bidx = 0;
 
 	for (i = 0; i < level; i++)
-		bidx += dir_buckets(i) * bucket_blocks(i);
+		bidx += dir_buckets(i, dir_level) * bucket_blocks(i);
 	bidx += idx * bucket_blocks(level);
 	return bidx;
 }
@@ -143,10 +144,11 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 
 	f2fs_bug_on(level > MAX_DIR_HASH_DEPTH);
 
-	nbucket = dir_buckets(level);
+	nbucket = dir_buckets(level, F2FS_I(dir)->i_dir_level);
 	nblock = bucket_blocks(level);
 
-	bidx = dir_block_index(level, le32_to_cpu(namehash) % nbucket);
+	bidx = dir_block_index(level, F2FS_I(dir)->i_dir_level,
+					le32_to_cpu(namehash) % nbucket);
 	end_block = bidx + nblock;
 
 	for (; bidx < end_block; bidx++) {
@@ -467,10 +469,11 @@ start:
 	if (level == current_depth)
 		++current_depth;
 
-	nbucket = dir_buckets(level);
+	nbucket = dir_buckets(level, F2FS_I(dir)->i_dir_level);
 	nblock = bucket_blocks(level);
 
-	bidx = dir_block_index(level, (le32_to_cpu(dentry_hash) % nbucket));
+	bidx = dir_block_index(level, F2FS_I(dir)->i_dir_level,
+				(le32_to_cpu(dentry_hash) % nbucket));
 
 	for (block = bidx; block <= (bidx + nblock - 1); block++) {
 		dentry_page = get_new_data_page(dir, NULL, block, true);
