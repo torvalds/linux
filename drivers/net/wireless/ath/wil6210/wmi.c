@@ -307,14 +307,14 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 	u32 freq = ieee80211_channel_to_frequency(ch_no,
 			IEEE80211_BAND_60GHZ);
 	struct ieee80211_channel *channel = ieee80211_get_channel(wiphy, freq);
-	/* TODO convert LE to CPU */
-	s32 signal = 0; /* TODO */
+	s32 signal = data->info.sqi;
 	__le16 fc = rx_mgmt_frame->frame_control;
 	u32 d_len = le32_to_cpu(data->info.len);
 	u16 d_status = le16_to_cpu(data->info.status);
 
-	wil_dbg_wmi(wil, "MGMT: channel %d MCS %d SNR %d\n",
-		    data->info.channel, data->info.mcs, data->info.snr);
+	wil_dbg_wmi(wil, "MGMT: channel %d MCS %d SNR %d SQI %d%%\n",
+		    data->info.channel, data->info.mcs, data->info.snr,
+		    data->info.sqi);
 	wil_dbg_wmi(wil, "status 0x%04x len %d fc 0x%04x\n", d_status, d_len,
 		    le16_to_cpu(fc));
 	wil_dbg_wmi(wil, "qid %d mid %d cid %d\n",
@@ -487,11 +487,11 @@ static void wmi_evt_notify(struct wil6210_priv *wil, int id, void *d, int len)
 	wil->stats.peer_rx_sector = le16_to_cpu(evt->other_rx_sector);
 	wil->stats.peer_tx_sector = le16_to_cpu(evt->other_tx_sector);
 	wil_dbg_wmi(wil, "Link status, MCS %d TSF 0x%016llx\n"
-		    "BF status 0x%08x SNR 0x%08x\n"
+		    "BF status 0x%08x SNR 0x%08x SQI %d%%\n"
 		    "Tx Tpt %d goodput %d Rx goodput %d\n"
 		    "Sectors(rx:tx) my %d:%d peer %d:%d\n",
 		    wil->stats.bf_mcs, wil->stats.tsf, evt->status,
-		    wil->stats.snr, le32_to_cpu(evt->tx_tpt),
+		    wil->stats.snr, evt->sqi, le32_to_cpu(evt->tx_tpt),
 		    le32_to_cpu(evt->tx_goodput), le32_to_cpu(evt->rx_goodput),
 		    wil->stats.my_rx_sector, wil->stats.my_tx_sector,
 		    wil->stats.peer_rx_sector, wil->stats.peer_tx_sector);

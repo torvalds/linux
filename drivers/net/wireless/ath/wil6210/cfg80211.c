@@ -125,12 +125,13 @@ static int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 
 	wil_dbg_wmi(wil, "Link status for CID %d: {\n"
 		    "  MCS %d TSF 0x%016llx\n"
-		    "  BF status 0x%08x SNR 0x%08x\n"
+		    "  BF status 0x%08x SNR 0x%08x SQI %d%%\n"
 		    "  Tx Tpt %d goodput %d Rx goodput %d\n"
 		    "  Sectors(rx:tx) my %d:%d peer %d:%d\n""}\n",
 		    cid, le16_to_cpu(reply.evt.bf_mcs),
 		    le64_to_cpu(reply.evt.tsf), reply.evt.status,
 		    le32_to_cpu(reply.evt.snr_val),
+		    reply.evt.sqi,
 		    le32_to_cpu(reply.evt.tx_tpt),
 		    le32_to_cpu(reply.evt.tx_goodput),
 		    le32_to_cpu(reply.evt.rx_goodput),
@@ -163,7 +164,7 @@ static int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 
 	if (test_bit(wil_status_fwconnected, &wil->status)) {
 		sinfo->filled |= STATION_INFO_SIGNAL;
-		sinfo->signal = 12; /* TODO: provide real value */
+		sinfo->signal = reply.evt.sqi;
 	}
 
 	return rc;
@@ -698,7 +699,7 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 	wiphy->bands[IEEE80211_BAND_60GHZ] = &wil_band_60ghz;
 
 	/* TODO: figure this out */
-	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
 
 	wiphy->cipher_suites = wil_cipher_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(wil_cipher_suites);
