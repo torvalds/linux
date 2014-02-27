@@ -80,6 +80,7 @@ sil	Silicon Image
 silabs	Silicon Laboratories
 simtek
 sirf	SiRF Technology, Inc.
+smsc	Standard Microsystems Corporation
 snps 	Synopsys, Inc.
 spansion	Spansion Inc.
 st	STMicroelectronics
