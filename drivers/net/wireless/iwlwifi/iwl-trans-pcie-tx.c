@@ -677,10 +677,12 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	struct iwl_cmd_meta *out_meta;
 	dma_addr_t phys_addr;
 	u32 idx;
-	u16 copy_size, cmd_size;
+	u16 copy_size, cmd_size, dma_size;
 	bool had_nocopy = false;
 	int i;
 	u8 *cmd_dest;
+	const u8 *cmddata[IWL_MAX_CMD_TFDS];
+	u16 cmdlen[IWL_MAX_CMD_TFDS];
 #ifdef CONFIG_IWLWIFI_DEVICE_TRACING
 	const void *trace_bufs[IWL_MAX_CMD_TFDS + 1] = {};
 	int trace_lens[IWL_MAX_CMD_TFDS + 1] = {};
@@ -699,15 +701,30 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	BUILD_BUG_ON(IWL_MAX_CMD_TFDS > IWL_NUM_OF_TBS - 1);
 
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
+		cmddata[i] = cmd->data[i];
+		cmdlen[i] = cmd->len[i];
+
 		if (!cmd->len[i])
 			continue;
+
+		/* need at least IWL_HCMD_MIN_COPY_SIZE copied */
+		if (copy_size < IWL_HCMD_MIN_COPY_SIZE) {
+			int copy = IWL_HCMD_MIN_COPY_SIZE - copy_size;
+
+			if (copy > cmdlen[i])
+				copy = cmdlen[i];
+			cmdlen[i] -= copy;
+			cmddata[i] += copy;
+			copy_size += copy;
+		}
+
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY) {
 			had_nocopy = true;
 		} else {
 			/* NOCOPY must not be followed by normal! */
 			if (WARN_ON(had_nocopy))
 				return -EINVAL;
-			copy_size += cmd->len[i];
+			copy_size += cmdlen[i];
 		}
 		cmd_size += cmd->len[i];
 	}
@@ -750,13 +767,30 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	/* and copy the data that needs to be copied */
 
 	cmd_dest = out_cmd->payload;
+	copy_size = sizeof(out_cmd->hdr);
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
-		if (!cmd->len[i])
+		int copy = 0;
+
+		if (!cmd->len)
 			continue;
-		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY)
-			break;
-		memcpy(cmd_dest, cmd->data[i], cmd->len[i]);
-		cmd_dest += cmd->len[i];
+
+		/* need at least IWL_HCMD_MIN_COPY_SIZE copied */
+		if (copy_size < IWL_HCMD_MIN_COPY_SIZE) {
+			copy = IWL_HCMD_MIN_COPY_SIZE - copy_size;
+
+			if (copy > cmd->len[i])
+				copy = cmd->len[i];
+		}
+
+		/* copy everything if not nocopy/dup */
+		if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
+			copy = cmd->len[i];
+
+		if (copy) {
+			memcpy(cmd_dest, cmd->data[i], copy);
+			cmd_dest += copy;
+			copy_size += copy;
+		}
 	}
 
 	IWL_DEBUG_HC(trans, "Sending command %s (#%x), seq: 0x%04X, "
@@ -766,7 +800,14 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			le16_to_cpu(out_cmd->hdr.sequence), cmd_size,
 			q->write_ptr, idx, trans_pcie->cmd_queue);
 
-	phys_addr = dma_map_single(trans->dev, &out_cmd->hdr, copy_size,
+	/*
+	 * If the entire command is smaller than IWL_HCMD_MIN_COPY_SIZE, we must
+	 * still map at least that many bytes for the hardware to write back to.
+	 * We have enough space, so that's not a problem.
+	 */
+	dma_size = max_t(u16, copy_size, IWL_HCMD_MIN_COPY_SIZE);
+
+	phys_addr = dma_map_single(trans->dev, &out_cmd->hdr, dma_size,
 				DMA_BIDIRECTIONAL);
 	if (unlikely(dma_mapping_error(trans->dev, phys_addr))) {
 		idx = -ENOMEM;
@@ -774,7 +815,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	}
 
 	dma_unmap_addr_set(out_meta, mapping, phys_addr);
-	dma_unmap_len_set(out_meta, len, copy_size);
+	dma_unmap_len_set(out_meta, len, dma_size);
 
 	iwlagn_txq_attach_buf_to_tfd(trans, txq,
 					phys_addr, copy_size, 1);
@@ -801,10 +842,10 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		}
 
 		iwlagn_txq_attach_buf_to_tfd(trans, txq, phys_addr,
-					     cmd->len[i], 0);
+					     cmdlen[i], 0);
 #ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-		trace_bufs[trace_idx] = cmd->data[i];
-		trace_lens[trace_idx] = cmd->len[i];
+		trace_bufs[trace_idx] = cmddata[i];
+		trace_lens[trace_idx] = cmdlen[i];
 		trace_idx++;
 #endif
 	}
