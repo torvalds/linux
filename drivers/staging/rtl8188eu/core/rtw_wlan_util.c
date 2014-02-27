@@ -1050,7 +1050,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	}
 
 	if (cur_network->BcnInfo.encryp_protocol != encryp_protocol) {
-		DBG_88E("%s(): enctyp is not match , return FAIL\n", __func__);
+		DBG_88E("%s(): encryption protocol is not match , return FAIL\n", __func__);
 		goto _mismatch;
 	}
 

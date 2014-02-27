@@ -407,7 +407,7 @@ s32 mp_start_test(struct adapter *padapter)
 		goto end_of_mp_start_test;
 	}
 
-	/* 3 3. join psudo AdHoc */
+	/* 3 3. join pseudo AdHoc */
 	tgt_network->join_res = 1;
 	tgt_network->aid = 1;
 	psta->aid = 1;
@@ -443,7 +443,7 @@ void mp_stop_test(struct adapter *padapter)
 		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)
 			goto end_of_mp_stop_test;
 
-		/* 3 1. disconnect psudo AdHoc */
+		/* 3 1. disconnect pseudo AdHoc */
 		rtw_indicate_disconnect(padapter);
 
 		/* 3 2. clear psta used in mp test mode. */

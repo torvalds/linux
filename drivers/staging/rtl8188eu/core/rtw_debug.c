@@ -233,7 +233,7 @@ int proc_get_rf_info(char *page, char **start,
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	int len = 0;
 
-	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offet=%d\n",
+	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offset=%d\n",
 					pmlmeext->cur_channel, pmlmeext->cur_bwmode, pmlmeext->cur_ch_offset);
 	*eof = 1;
 	return len;

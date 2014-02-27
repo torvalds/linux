@@ -1123,7 +1123,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 				if (psta->sleepq_len == 0) {
 					pstapriv->tim_bitmap &= ~BIT(psta->aid);
 
-					/* upate BCN for TIM IE */
+					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
 					update_beacon(padapter, _TIM_IE_, NULL, false);
 				}
@@ -1141,7 +1141,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 
 					pstapriv->tim_bitmap &= ~BIT(psta->aid);
 
-					/* upate BCN for TIM IE */
+					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
 					update_beacon(padapter, _TIM_IE_, NULL, false);
 				}
@@ -2236,13 +2236,13 @@ void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS)
 	} else {
 		if (recvpriv->signal_strength_data.update_req == 0) {/*  update_req is clear, means we got rx */
 			avg_signal_strength = recvpriv->signal_strength_data.avg_val;
-			/*  after avg_vals are accquired, we can re-stat the signal values */
+			/*  after avg_vals are acquired, we can re-stat the signal values */
 			recvpriv->signal_strength_data.update_req = 1;
 		}
 
 		if (recvpriv->signal_qual_data.update_req == 0) {/*  update_req is clear, means we got rx */
 			avg_signal_qual = recvpriv->signal_qual_data.avg_val;
-			/*  after avg_vals are accquired, we can re-stat the signal values */
+			/*  after avg_vals are acquired, we can re-stat the signal values */
 			recvpriv->signal_qual_data.update_req = 1;
 		}
 
