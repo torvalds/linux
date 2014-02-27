@@ -108,7 +108,7 @@ static int picoxcell_trng_probe(struct platform_device *pdev)
 	if (IS_ERR(rng_base))
 		return PTR_ERR(rng_base);
 
-	rng_clk = clk_get(&pdev->dev, NULL);
+	rng_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rng_clk)) {
 		dev_warn(&pdev->dev, "no clk\n");
 		return PTR_ERR(rng_clk);
@@ -117,7 +117,7 @@ static int picoxcell_trng_probe(struct platform_device *pdev)
 	ret = clk_enable(rng_clk);
 	if (ret) {
 		dev_warn(&pdev->dev, "unable to enable clk\n");
-		goto err_enable;
+		return ret;
 	}
 
 	picoxcell_trng_start();
@@ -132,9 +132,6 @@ static int picoxcell_trng_probe(struct platform_device *pdev)
 
 err_register:
 	clk_disable(rng_clk);
-err_enable:
-	clk_put(rng_clk);
-
 	return ret;
 }
 
@@ -142,7 +139,6 @@ static int picoxcell_trng_remove(struct platform_device *pdev)
 {
 	hwrng_unregister(&picoxcell_trng);
 	clk_disable(rng_clk);
-	clk_put(rng_clk);
 
 	return 0;
 }
