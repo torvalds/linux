@@ -112,6 +112,7 @@ struct send_ctx {
 	int cur_inode_deleted;
 	u64 cur_inode_size;
 	u64 cur_inode_mode;
+	u64 cur_inode_rdev;
 	u64 cur_inode_last_extent;
 
 	u64 send_progress;
@@ -2439,10 +2440,16 @@ verbose_printk("btrfs: send_create_inode %llu\n", ino);
 	if (!p)
 		return -ENOMEM;
 
-	ret = get_inode_info(sctx->send_root, ino, NULL, &gen, &mode, NULL,
-			NULL, &rdev);
-	if (ret < 0)
-		goto out;
+	if (ino != sctx->cur_ino) {
+		ret = get_inode_info(sctx->send_root, ino, NULL, &gen, &mode,
+				     NULL, NULL, &rdev);
+		if (ret < 0)
+			goto out;
+	} else {
+		gen = sctx->cur_inode_gen;
+		mode = sctx->cur_inode_mode;
+		rdev = sctx->cur_inode_rdev;
+	}
 
 	if (S_ISREG(mode)) {
 		cmd = BTRFS_SEND_C_MKFILE;
@@ -5027,6 +5034,8 @@ static int changed_inode(struct send_ctx *sctx,
 				sctx->left_path->nodes[0], left_ii);
 		sctx->cur_inode_mode = btrfs_inode_mode(
 				sctx->left_path->nodes[0], left_ii);
+		sctx->cur_inode_rdev = btrfs_inode_rdev(
+				sctx->left_path->nodes[0], left_ii);
 		if (sctx->cur_ino != BTRFS_FIRST_FREE_OBJECTID)
 			ret = send_create_inode_if_needed(sctx);
 	} else if (result == BTRFS_COMPARE_TREE_DELETED) {
@@ -5070,6 +5079,8 @@ static int changed_inode(struct send_ctx *sctx,
 			sctx->cur_inode_size = btrfs_inode_size(
 					sctx->left_path->nodes[0], left_ii);
 			sctx->cur_inode_mode = btrfs_inode_mode(
+					sctx->left_path->nodes[0], left_ii);
+			sctx->cur_inode_rdev = btrfs_inode_rdev(
 					sctx->left_path->nodes[0], left_ii);
 			ret = send_create_inode_if_needed(sctx);
 			if (ret < 0)
