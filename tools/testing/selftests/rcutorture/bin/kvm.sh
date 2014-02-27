@@ -141,7 +141,7 @@ do
 		;;
 	--qemu-cmd)
 		checkarg --qemu-cmd "(qemu-system-...)" $# "$2" 'qemu-system-' '^--'
-		RCU_QEMU_CMD="$2"; export RCU_QEMU_CMD
+		TORTURE_QEMU_CMD="$2"
 		shift
 		;;
 	--results)
@@ -377,7 +377,7 @@ then
 	echo TORTURE_BUILDONLY="$TORTURE_BUILDONLY; export TORTURE_BUILDONLY"
 	echo TORTURE_INITRD="$TORTURE_INITRD; export TORTURE_INITRD"
 	echo TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG; export TORTURE_KMAKE_ARG"
-	echo RCU_QEMU_CMD="$RCU_QEMU_CMD; export RCU_QEMU_CMD"
+	echo TORTURE_QEMU_CMD="$TORTURE_QEMU_CMD; export TORTURE_QEMU_CMD"
 	echo TORTURE_QEMU_INTERACTIVE="$TORTURE_QEMU_INTERACTIVE; export TORTURE_QEMU_INTERACTIVE"
 	echo TORTURE_QEMU_MAC="$TORTURE_QEMU_MAC; export TORTURE_QEMU_MAC"
 	echo "mkdir -p "$resdir" || :"

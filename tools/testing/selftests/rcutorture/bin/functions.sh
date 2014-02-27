@@ -79,12 +79,12 @@ configfrag_hotplug_cpu () {
 # identify_qemu builddir
 #
 # Returns our best guess as to which qemu command is appropriate for
-# the kernel at hand.  Override with the RCU_QEMU_CMD environment variable.
+# the kernel at hand.  Override with the TORTURE_QEMU_CMD environment variable.
 identify_qemu () {
 	local u="`file "$1"`"
-	if test -n "$RCU_QEMU_CMD"
+	if test -n "$TORTURE_QEMU_CMD"
 	then
-		echo $RCU_QEMU_CMD
+		echo $TORTURE_QEMU_CMD
 	elif echo $u | grep -q x86-64
 	then
 		echo qemu-system-x86_64
@@ -98,7 +98,7 @@ identify_qemu () {
 		echo Cannot figure out what qemu command to use! 1>&2
 		echo file $1 output: $u
 		# Usually this will be one of /usr/bin/qemu-system-*
-		# Use RCU_QEMU_CMD environment variable or appropriate
+		# Use TORTURE_QEMU_CMD environment variable or appropriate
 		# argument to top-level script.
 		exit 1
 	fi
