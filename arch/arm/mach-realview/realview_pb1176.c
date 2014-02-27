@@ -367,6 +367,7 @@ static void __init realview_pb1176_init(void)
 	realview_usb_register(realview_pb1176_isp1761_resources);
 	platform_device_register(&pmu_device);
 	platform_device_register(&char_lcd_device);
+	platform_device_register(&realview_leds_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

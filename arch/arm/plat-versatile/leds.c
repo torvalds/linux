@@ -7,22 +7,14 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
-
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
-#ifdef VERSATILE_SYS_BASE
-#define LEDREG	(__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_LED_OFFSET)
-#endif
-
-#ifdef REALVIEW_SYS_BASE
-#define LEDREG	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_LED_OFFSET)
-#endif
+#include <linux/platform_device.h>
 
 struct versatile_led {
+	void __iomem		*base;
 	struct led_classdev	cdev;
 	u8			mask;
 };
@@ -50,30 +42,37 @@ static void versatile_led_set(struct led_classdev *cdev,
 {
 	struct versatile_led *led = container_of(cdev,
 						 struct versatile_led, cdev);
-	u32 reg = readl(LEDREG);
+	u32 reg = readl(led->base);
 
 	if (b != LED_OFF)
 		reg |= led->mask;
 	else
 		reg &= ~led->mask;
-	writel(reg, LEDREG);
+	writel(reg, led->base);
 }
 
 static enum led_brightness versatile_led_get(struct led_classdev *cdev)
 {
 	struct versatile_led *led = container_of(cdev,
 						 struct versatile_led, cdev);
-	u32 reg = readl(LEDREG);
+	u32 reg = readl(led->base);
 
 	return (reg & led->mask) ? LED_FULL : LED_OFF;
 }
 
-static int __init versatile_leds_init(void)
+static int versatile_leds_probe(struct platform_device *dev)
 {
 	int i;
+	struct resource *res;
+	void __iomem *base;
+
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	/* All off */
-	writel(0, LEDREG);
+	writel(0, base);
 	for (i = 0; i < ARRAY_SIZE(versatile_leds); i++) {
 		struct versatile_led *led;
 
@@ -81,6 +80,7 @@ static int __init versatile_leds_init(void)
 		if (!led)
 			break;
 
+		led->base = base;
 		led->cdev.name = versatile_leds[i].name;
 		led->cdev.brightness_set = versatile_led_set;
 		led->cdev.brightness_get = versatile_led_get;
@@ -96,8 +96,15 @@ static int __init versatile_leds_init(void)
 	return 0;
 }
 
-/*
- * Since we may have triggers on any subsystem, defer registration
- * until after subsystem_init.
- */
-fs_initcall(versatile_leds_init);
+static struct platform_driver versatile_leds_driver = {
+	.driver = {
+		.name   = "versatile-leds",
+	},
+	.probe = versatile_leds_probe,
+};
+
+module_platform_driver(versatile_leds_driver);
+
+MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
+MODULE_DESCRIPTION("ARM Versatile LED driver");
+MODULE_LICENSE("GPL v2");

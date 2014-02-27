@@ -347,6 +347,7 @@ static void __init realview_pb11mp_init(void)
 	realview_eth_register(NULL, realview_pb11mp_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&realview_cf_device);
+	platform_device_register(&realview_leds_device);
 	realview_usb_register(realview_pb11mp_isp1761_resources);
 	platform_device_register(&pmu_device);
 
