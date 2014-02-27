@@ -1,0 +1,8 @@
+
+obj-$(CONFIG_MV8686)		+= mv8686.o wifi_power.o wifi_config.o
+
+$(obj)/mv8686.o: $(obj)/mv8686.uu
+	@echo "UUDE    mv8686.uu"
+	@uudecode $(obj)/mv8686.uu -o $(obj)/mv8686.o
+
+

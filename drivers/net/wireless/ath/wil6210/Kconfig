@@ -1,0 +1,29 @@
+config WIL6210
+	tristate "Wilocity 60g WiFi card wil6210 support"
+	depends on CFG80211
+	depends on PCI
+	default n
+	---help---
+	  This module adds support for wireless adapter based on
+	  wil6210 chip by Wilocity. It supports operation on the
+	  60 GHz band, covered by the IEEE802.11ad standard.
+
+	  http://wireless.kernel.org/en/users/Drivers/wil6210
+
+	  If you choose to build it as a module, it will be called
+	  wil6210
+
+config WIL6210_ISR_COR
+	bool "Use Clear-On-Read mode for ISR registers for wil6210"
+	depends on WIL6210
+	default y
+	---help---
+	  ISR registers on wil6210 chip may operate in either
+	  COR (Clear-On-Read) or W1C (Write-1-to-Clear) mode.
+	  For production code, use COR (say y); is default since
+	  it saves extra target transaction;
+	  For ISR debug, use W1C (say n); is allows to monitor ISR
+	  registers with debugfs. If COR were used, ISR would
+	  self-clear when accessed for debug purposes, it makes
+	  such monitoring impossible.
+	  Say y unless you debug interrupts

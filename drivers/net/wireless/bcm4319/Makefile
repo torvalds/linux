@@ -1,0 +1,24 @@
+# bcm4319
+DHDCFLAGS = -DLINUX -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2         \
+	-DUNRELEASEDCHIP -Dlinux -DDHD_SDALIGN=64 -DMAX_HDR_READ=64           \
+	-DDHD_FIRSTREAD=64 -DDHD_GPL -DDHD_SCHED -DBDC -DTOE -DDHD_BCMEVENTS  \
+	-DSHOW_EVENTS -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC -DBCMPLATFORM_BUS      \
+	-Wall -Wstrict-prototypes -Werror -DCUSTOMER_HW2      \
+	-DDHD_USE_STATIC_BUF -DDHD_DEBUG_TRAP -DSOFTAP -DSDIO_ISR_THREAD      \
+	-DEMBEDDED_PLATFORM -DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT        \
+	-DGET_CUSTOM_MAC_ENABLE -DSET_RANDOM_MAC_SOFTAP -DCSCAN   \
+        -DKEEP_ALIVE -DCONFIG_US_NON_DFS_CHANNELS_ONLY   \
+	-Idrivers/net/wireless/bcm4319 -Idrivers/net/wireless/bcm4319/include
+
+#options defines dependent on platform board and applicantion requirements: 
+#-DOOB_INTR_ONLY -DMMC_SDIO_ABORT -DHW_OOB
+
+DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o \
+	wl_iw.o siutils.o sbutils.o aiutils.o hndpmu.o bcmwifi.o dhd_sdio.o   \
+	dhd_linux_sched.o dhd_cdc.o bcmsdh_sdmmc.o bcmsdh.o bcmsdh_linux.o    \
+	bcmsdh_sdmmc_linux.o
+
+obj-$(CONFIG_BCM4319) += bcm4319.o
+bcm4319-objs += $(DHDOFILES)
+EXTRA_CFLAGS = $(DHDCFLAGS)
+EXTRA_LDFLAGS += --strip-debug

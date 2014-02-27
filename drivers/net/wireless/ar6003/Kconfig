@@ -1,0 +1,9 @@
+	config AR6003
+	  depends on WLAN_80211 && MMC
+	  select WIRELESS_EXT
+	  select IEEE80211
+	  select FW_LOADER
+	  bool "Atheros AR6003/AR6302 SDIO"
+	  ---help---
+	    Atheros ROC AR6003/AR6302.
+

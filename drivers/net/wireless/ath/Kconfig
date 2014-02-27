@@ -1,0 +1,35 @@
+config ATH_COMMON
+	tristate
+
+menuconfig ATH_CARDS
+	tristate "Atheros Wireless Cards"
+	depends on CFG80211 && (!UML || BROKEN)
+	---help---
+	  This will enable the support for the Atheros wireless drivers.
+	  ath5k, ath9k, ath9k_htc and ar9170 drivers share some common code, this option
+	  enables the common ath.ko module which shares common helpers.
+
+	  For more information and documentation on this module you can visit:
+
+	  http://wireless.kernel.org/en/users/Drivers/ath
+
+	  For information on all Atheros wireless drivers visit:
+
+	  http://wireless.kernel.org/en/users/Drivers/Atheros
+
+if ATH_CARDS
+
+config ATH_DEBUG
+	bool "Atheros wireless debugging"
+	---help---
+	  Say Y, if you want to debug atheros wireless drivers.
+	  Right now only ath9k makes use of this.
+
+source "drivers/net/wireless/ath/ath5k/Kconfig"
+source "drivers/net/wireless/ath/ath9k/Kconfig"
+source "drivers/net/wireless/ath/carl9170/Kconfig"
+source "drivers/net/wireless/ath/ath6kl/Kconfig"
+source "drivers/net/wireless/ath/ar5523/Kconfig"
+source "drivers/net/wireless/ath/wil6210/Kconfig"
+
+endif

@@ -1,0 +1,716 @@
+#
+# Created by Yongle Lai in 2010-09-08
+#
+
+#****************************************************************************#
+
+1. 可以通过如下命令查看当前睡眠锁的情况：
+     echo android_power_print_locks,0xf > /sys/scu/24m/active
+   或
+     cat /proc/wakelocks
+
+#****************************************************************************#
+
+==============================================================================
+=== Version 2.35 @ 2010-12-31 ===
+==============================================================================
+
+1. 将启动函数和卸载函数，目前是为RK28和RK29分为2套，可以将其合为一套。
+   =>在RK29中，需要在board-rk29sdk.c中的一个函数：
+     rk29sdk_wifi_set_carddetect
+     设为非static，并用EXPORT_SYMBOL抛出。
+
+2. 在wext.c中去除：#if (ANDROID_POWER_SAVE == 1) 相关的所有内容。
+
+3. 去除wext.c中的
+     lbs_do_ioctl
+     lbs_ioctl_setget_oneint
+     lbs_auto_deep_sleep
+     lbs_deepsleep_ioctl
+     lbs_set_deepsleep
+     lbs_is_command_allowed
+   接口函数。
+
+4. 
+==============================================================================
+=== Version 2.34 @ 2010-12-23 ===
+==============================================================================
+
+1. 当WIFI驱动以模块方式加载和编译时，GPIO相关的函数因为没有抛出而调用不到。
+   在wifi_power_ops.c中将GPIO相关操作修改如下：
+     gpio_direction_output(gpio->gpio_id, GPIO_OUT);
+	 __gpio_set(gpio->gpio_id, sensitive);
+
+2. 需要添加对2.6.32内核的支持，因为RK29使用的是2.6.32内核的Linux。
+
+3. 在电源管理机制中，将定时器设置为10秒，
+   #define TIMER_INTERVAL	10000
+   会引起的一个问题是，在IDLE时，去点击网页，由于是在省电机制下，所以网络相当
+   慢，看来从IDLE变为BUSY，需要有较快的反应速度。
+   
+   而从IDLE转为BUSY，则需要长一些的反应时间。
+   
+   现将这个时间间隔改为3秒，即从IDLE变为BUSY，只需要3秒，反过来我们设为15秒。
+
+4. 发现了一个BUG：当连接AP时会发生掉线重连，这种情况下锁的状态机不正确。
+   (1)在power_save_suspend / resume中，并没有成对出现。
+   (2)在Power save SUSPEND中，去掉加锁的操作。
+   (3)在建立连接开始的状态SYN_SENT，我们也需要认为网络开始忙了，关闭省电模式。
+   (4)当网络状态为空闲，这时检查到UDP连接，在打开网页情况下，为DNS请求，我们
+      在这种情况下，应该马上将网络转换为忙状态。
+   
+==============================================================================
+=== Version 2.33 @ 2010-12-23 ===
+==============================================================================
+
+1. 有用户需要将MAC地址设定成自已的段，这就要求我们驱动可以获取客户的MAC地址，
+   并将其设定到FW和HOST DRIVER中。
+   (1)需要使用特定的Loader：Bootloader version: 2010-12-22#90.04
+   (2)需要合并美友提供了drivers/scu/rk28_kld.c文件，添加读MAC地址的功能：
+      添加MAC对应的Magic数和数据结构，添加一个读MAC的函数。
+   (3)修改wifi_config.c，添加从KLD中读取MAC接口的函数，即让用户可以自定义MAC
+      地址的接口函数，给出一个可自定义的接口。
+   (4)在main.c的lbs_setup_firmware函数末尾，我们设定新的MAC地址。
+   
+   发现通过PING包，第一次起来时我们看不到使用新的MAC地址，
+   =>将这一操作放到lbs_setup_firmware之前进行。也不行，看来不是位置问题。
+   =>lbs_set_mac_address函数的addr参数并不是简单的MAC，而是struct sockaddr *。
+   =>在set_macaddress后加如下2句则也没问题：
+     //memcpy(priv->current_addr, mac, ETH_ALEN);
+     //memcpy(priv->dev->dev_addr, mac, ETH_ALEN);
+   =>正确的用法应该如下：
+	{
+		struct sockaddr addr;
+		u8 * mac = (u8 *)(addr.sa_data);
+		
+		if (wifi_customized_mac_addr(mac) == 1)
+		{
+			lbs_set_mac_address(priv->dev, &addr);
+		}
+	}
+
+==============================================================================
+=== Version 2.32 @ 2010-12-18 ===
+==============================================================================
+
+==============================================================================
+=== Version 2.31 @ 2010-12-17 ===
+==============================================================================
+
+1. 添加多播Multicast的支持。
+   从2.6.31的代码中直接拷贝过来。
+   (1)在目标板上执行mcast_client：
+      setsockopt:   IP_ADD_MEMBERSHIP : No such device
+      
+      =>在内核里加上[*]   IP: multicasting选项。
+        仍然报同样的错误。(这个选项不打开，仍然可以收到多播包。)
+        
+      =>route add default gw 192.168.1.1
+        就可以正常运行了。
+   
+   (2)发现多播包有几个特点：
+      A. 容易丢包，在省电模式情况下，非常容易丢包。
+      B. 在多播应用中，由于没有固定的连接，因而无法确定网络处于忙的状态。
+   
+2. 针对多播进行的省电机制测试：
+   (1)当有多播连接，且有数据流量时，我们认为网络是忙的。
+      =>原来我认为只要单向没有数据流，即可认为网络不是忙的，这是因为之前遇
+        到无法休眠的问题时，会有收到广播包或是ARP包等，影响了我们的判断。
+      =>在多播的客户端工作时，只会有接收，不会有发送，所以针对这种情况我们需
+        要修改判断机制，即流量不能简单地区分有和无，也不能以单向为依据。
+      =>从多播的测试情况来看，在服务端以1秒钟发送一个包的速率，在WIFI这端，如
+        果是在PS-POLL打开的情况下，则在10秒内收到2个包的概率较大，收到3个包的
+        概率较小。目前将这个阀值设定为3，值较小则怕与广播包和ARP包混在一起。
+        
+   (2)多播客户端开启时，会有如下连接：
+      udp        0      0 0.0.0.0:9000           0.0.0.0:* 
+
+==============================================================================
+=== Version 2.30 @ 2010-12-14 ===
+==============================================================================
+
+1. 添加并验证对ADHOC网络的支持。
+   (1)通过iwlist是可以扫描到ADHOC类型的AP的，但是关联不上。
+   -EINVAL;
+   (2)可能是软件更新的问题，关联命令没有问题。
+      iwlist wlan0 scanning
+      iwconfig wlan0 mode ad-hoc
+      iwconfig wlan0 essid adhoclai
+      这是从我们这一端去关联另一端。
+      
+      iwconfig wlan0 mode ad-hoc
+      iwconfig wlan0 essid lai
+      这样就可以让别人搜索到一个名为lai的ADHOC名称了。
+      
+   (3)验证ADHOC网络在WEP加密方式下的应用。
+      A. 将adhoclai设置为WEP OPEN的方式，密钥是12345，没有问题，可正常PING通。
+         =>有加密方式下，会丢包，但丢包率不大。
+      B. 将adhoclai设置为WEP SHARED的方式，密钥是12345，没有问题。
+           iwconfig wlan0 key s:12345
+           iwconfig wlan0 key restricted
+
+   (4)验证支持通过wpa_supplicant关联ADHOC网络。
+      =>wpa_supplicant总是会将网络接口类型更改为Managed，而不是ad-hoc类型。
+      =>在wpa_supplicant中，在遍历AP列表时，总是将IBSS类型的AP忽略掉。
+        修改events.c中的wpa_supplicant_select_bss函数:
+          如果是IBSS类型的AP，同时要选择的模式不是IBSS时，才将这个AP忽略。
+        
+        成功: 可以关联上IBSS的AP了。
+   
+==============================================================================
+=== Version 2.29 @ 2010-12-07 ===
+==============================================================================
+
+不知道为什么，记录没有保存下来。
+
+==============================================================================
+=== Version 2.28 @ 2010-12-03 ===
+==============================================================================
+
+1. 只有在TCP有有效连接时，我们才去统计流量。当UDP有连接时，我们就认为网络处于
+   忙状态，不去统计流量。
+
+2. 在scan.c中将ADHOC相关的信号语句去掉时，不小心将
+     start = iwe_stream_add_event(start, stop, &iwe, IW_EV_QUAL_LEN);
+   也注释掉了，造成了在扫描列表中显示的信号值不准确，为全0值。
+
+==============================================================================
+=== Version 2.27 @ 2010-11-25 ===
+==============================================================================
+
+1. 世健Apple报告一个问题：
+   在WIFI休眠后，将AP关闭或是走到WIFI没有信号的地方，唤醒后或是回到服务区后，
+   WIFI的信号指示没有改变，而且显示的状态为连接，但无法连接网络。
+   =>因为现在睡眠时会将网络断开，而唤醒后第一件事是让其信号消失，
+   =>所以这个问题是不存在的。
+
+2. 发现有睡眠不了的情况：
+     74.125.153.188:5228    ESTABLISHED  这是Google的网站，在美国。
+   通过ifconfig查看，每隔几秒钟会有数据包由到，但没有发送。
+     tcp    0      1 192.168.0.245:56599    64.233.181.100:443     CLOSE_WAIT
+     tcp    0      1 192.168.0.245:58436    64.233.181.100:80      CLOSE_WAIT
+     tcp    0      1 192.168.0.245:60600    64.233.181.138:443     CLOSE_WAIT
+     tcp    0      0 192.168.0.245:49446    74.125.153.188:5228    ESTABLISHED
+   前3个要在经历3分钟左右才会断开连接，而最后一个则总是不肯断开连接。
+   =>过了一个晚上都没有断开连接。会有数据包收发，但是很少。
+   =>鉴于这种情况，我们需要监控网络收发数据包流量，当流量小于一定值时，将其视
+     为空闲状态，释放睡眠锁。
+   =>对于这个IP地址的连接，发现很长时间都只有接收，而没有发送，像是服务端一样，
+     不管如何，只要不是双向有数据，一段时间后我们就会将其认为是IDLE连接。
+   
+   =>现在的处理方式如下，如果在30秒内没有TX或RX，则我们认为WIFI可以被置为IDLE
+     了，释放睡眠锁，以让系统可以进入二级睡眠。
+   
+==============================================================================
+=== Version 2.26 @ 2010-11-19 ===
+==============================================================================
+
+解决SSID中含有中文字符的显示及关联问题。
+
+1. 机台不能显示含有中文命名的路由器，而且机台也连接不上含有中文命名的网络。
+   =>通过iwlist可以扫描到带有中文的AP。
+   =>在WIFI设置界面中，AP名称中的中文被显示成下划线。
+   =>WPA_SUPP中的列表为：
+     d8:5d:4c:38:86:48      2437    232     [WEP]           tplink__
+   =>这说明在驱动中并没有对扫描列表中的AP名称做限制，问题在WPA_SUPP上。
+   =>修改WPA_SUPP中common.c中的wpa_ssid_txt函数，不做字符类型的限制。
+     WPA_SUPP中可以显示中文名了。
+   =>但在Android中将显示成了tplink5了，应该是本地化的问题，在Android中可能使用
+     的是UNICODE，这需要做转换。
+   =>在驱动中将含中文的SSID打印出来：
+     tplink赖 = SSID=74 70 6c 69 6e 6b c0 b5
+     其中C0 B5是赖的GB2312编码，当然GBK也是这个编码。
+   =>在驱动中，直接将"tplink赖"转换为UTF-8编码，在Android中就可以显示中文了。
+     //UTF-8
+     bss->ssid[6] = 0xE8;
+     bss->ssid[7] = 0xB5;
+     bss->ssid[8] = 0x96;
+   =>在驱动中直接使用Unicode编码：不行。
+     //Unicode
+     bss->ssid[6] = 0x8D;
+     bss->ssid[7] = 0x56;
+   =>看来只能使用UTF-8编码了。
+
+2. 为了不改变Android，暂时将对GB2312的支持放到MV8686的驱动中实现，等功能验证完
+   成后将适机放到WPA_SUPP中实现，以避免WIFI变得太多，这种功能本身在应用层实现
+   较为合适，因为驱动需要运行很快。
+   (1)对扫描到的AP，需要将其SSID进行转换。
+      =>这里涉及到一个比较麻烦的问题是，80211协议栈对SSID的长度限制为32个字符。
+        在TPLINK WR941N中，限制的是32个字符，也是32个汉字，共64字节。
+        而IEEE80211_MAX_SSID_LEN的限制为32字节。还有一个变量IW_ESSID_MAX_SIZE。
+        所以要支持
+      =>由于一个汉字最多对应6个字节的UTF-8编码，所以共需要: 32 * 8 = 256 字节。
+   (2)在set_ssid中，需要将UTF-8编码的SSID转换为GB2312编码的SSID。
+      network={
+        ssid=e4b880e4ba8ce4b889
+        key_mgmt=NONE
+        priority=168
+      }
+      =>wpa_supplicant会将SSID的UTF-8存储为如上的格式。
+      =>在set_ssid中收到的设置确实为e4 b8 80 e4 ba 8c e4 b8 89，这是正确的。
+   (3)修改如下头文件，以保证支持最大的SSID本地化：
+      =>修改include/linux/ieee80211.h: IEEE80211_MAX_SSID_LEN = 256
+      =>修改include/linux/wireless.h: IW_ESSID_MAX_SIZE = 256
+      =======
+      由于驱动不涉及到本地化，所以实际上我们没有必要设这么大，最大32个汉字的
+      话，只需要64字节。
+      =>修改include/linux/ieee80211.h: IEEE80211_MAX_SSID_LEN = 64
+      =>修改include/linux/wireless.h: IW_ESSID_MAX_SIZE = 64
+
+3. 通过第2点中的实验证明在驱动中实现本地化，是不合适的，会很复杂，因为即使可以
+   正确转换，仍然需要修改wpa_supplicant，因为其存储时使用了BLOB的方式，而从其
+   配置文件读出来后，没有将其转换为GB2312，而是当成串来处理，所以Android的显示
+   是不正确的，所以最终决定将本地化的支持放到WPA_SUPP中实现。
+   =>在wpa_supplicant_ctrl_iface_scan_results中将搜索到的AP的SSID改为UTF8的形
+     式，以保证汉字在Android中可以被正确显示。
+   =>在从配置文件中读取网络配置中，将SSID从BLOB的方式转换为GB2312的方式。
+     这其实应该从Android设置到WPA_SUPP时，将其转换为GB2312。
+
+4. 通过wireless tools无法正确操作有中文字符的SSID的AP。
+   (1)iwlist可以正确显示有中文的SSID的AP。
+   (2)通过iwconfig wlan0 essid无法成功关联上AP。
+      =>assoc_req->mode == IW_MODE_INFRA
+        由于我们将MODE的设置方式改掉了，所以在下ESSID命令时，需要先设置MODE。
+        iwconfig wlan0 mode managed
+   (3)iwconfig可以正确显示已经关联上的有中文字符的AP名字。
+   (4)PING无法成功。--是因为ETH0的存在，而且还为其配置了相同网段的IP地址。
+   =>wireless tools可以正确操作有中文字符的AP。
+
+5. 测试wpa_supplicant对中文的支持。
+   (1)手动添加一个网络。
+      add_network
+      set_network 0 ssid "tplink赖"
+      save_config
+      =>其会被当成BLOB的方式进行保存。
+        ssid=74706c696e6bc0b5
+        我们需要让其保存为GB2312的方式，而不是BLOB的方式。
+      =>添加针对SSID的parser和writer，独立解析SSID字段。
+   (2)手动设置网络需要添加key_mgmt=NONE字段。
+
+==============================================================================
+=== Version 2.25 @ 2010-11-16 ===
+==============================================================================
+
+1. 打开WIFI后扫描列表出得较慢。
+
+2. 当连接WPA的AP，如果输错密码的话，则其返回的事件为：
+     [13586] EVENT: disassociated
+   当前的处理中对于这一事件就会去进行重联，其实没有必要。
+
+     [58] lbs_ret_80211_associate: association successfully.
+     [59] EVENT: disassociated: connected=0
+     [59] Trying to re-associate to previous AP.
+     [59] lbs_cmd_80211_deauthenticate: enter...
+     [59] lbs_mac_event_disconnected: enter........connect=0
+   =>以上为当前关联时的处理流程。
+     (1)即使发送的关联密码不正确，关联命令仍然会返回成功。
+     (2)随后会有一个DISASSOCIATED的事件从FW送上来。
+     (3)由于第一步中我们认为关联已经成功，因而这时会进行重新连接。
+     (4)重新连接时会调用deauthenticated进行连接断开，清除连接参数。
+        并在其中会调用disconnected清除驱动中的相关设置。
+        
+   =>由以上的分析中，我们可以看出问题所在：
+     (1)实际的关联结果与关联命令的返回值未必一致。这应是27中遇到问题的原因。
+     
+     [196] lbs_ret_80211_associate: association successfully.
+     [197] EVENT: disassociated: connected=0
+     [197] lbs_mac_event_disconnected: enter........connect=0
+     [202] lbs_ret_80211_associate: association successfully.
+     [203] EVENT: disassociated: connected=0
+     [203] lbs_mac_event_disconnected: enter........connect=0
+   =>点击一次连接，会发送2次关联命令，这让弹出密码错误框的速度变慢不少。
+   
+   =>在收到disassociation事件时，我们不必进行重联，因为在出错超时断开等问题
+     时，收到的是disconnected事件。而且在我们当前的睡眠处理方式中，应该不容易
+     出现这个事件。除非异常发生。
+   
+3. 在WEXT中，很多设定参数接口都会触发关联操作，这是没必要的：
+     [557] lbs_set_mode: call lbs_postpone_association_work
+     [558] lbs_set_auth: call lbs_postpone_association_work
+     [558] lbs_set_encodeext: call lbs_postpone_association_work
+           ......
+     [558] lbs_set_encodeext: call lbs_postpone_association_work
+     [558] lbs_set_auth: call lbs_postpone_association_work
+           ......
+     [559] lbs_set_auth: call lbs_postpone_association_work
+     [559] lbs_set_mode: call lbs_postpone_association_work
+     [559] lbs_set_genie: call lbs_postpone_association_work
+     [559] lbs_set_auth: call lbs_postpone_association_work
+           ......
+     [559] lbs_set_auth: call lbs_postpone_association_work
+     [559] lbs_set_freq: call lbs_postpone_association_work
+     [559] lbs_set_essid: call lbs_postpone_association_work
+     [559] lbs_set_wap: call lbs_postpone_association_work
+     [560] lbs_ret_80211_associate: association successfully.
+
+   =>只留下ESSID和WAP两者。
+     (1)连接没有加密的AP，没有问题。
+     (2)连接OPEN WEP加密的AP，正确密码下没有问题，错误密码下，关联成功，会一
+        直停在获取IP处，不会提示错误，由于Android超时后下断开命令。
+     (3)连接SHARED WEP加密的AP，正确密码下没有问题，错误密码下，发送的关联
+        命令会失败，但我们会进行切换模式然后重新关联。不会获取IP，最终断开。
+     (4)连接WPA加密的AP，正确密码下有问题，
+        lbs_set_encodeext中调用lbs_do_association_work的地方不能少。
+        密码错误的情况下，因为一直在重新连接，只有等待Android超时，所以密码
+        错误提示框不会出来。密码错误可能返回disassociation和disauthenciated。
+
+4. 改善AP扫描的问题：
+   (1)在WIFI设置页面中，当打开WIFI时，AP列表的显示。
+      =>发现打开WIFI后，驱动已经加载完成，但需要3秒多时间才会收到扫描命令，这
+        将引起WIFI打开后AP列表需要7秒钟才能出现，太慢了。
+          E/WifiHW  (  713): Unable to open connection to supplicant on 
+                 "wlan0": No such file or directory
+          D/        ( 1119): @@@WPA_SUPPLICANT@@@: main
+          D/WPA_SUPP( 1119): Setting scan request: 0 sec 100000 usec
+          D/WPA_SUPP( 1119): wpa_supplicant_scan: ap_scan=1
+          D/WPA_SUPP( 1119): Starting AP scan (broadcast SSID)
+          D/WPA_SUPP( 1119): Trying to get current scan results first without 
+                             requesting a new scan to speed up initial association
+          D/WPA_SUPP( 1119): Setting scan request: 0 sec 0 usec
+          D/WPA_SUPP( 1119): wpa_supplicant_scan: ap_scan=1
+          D/WPA_SUPP( 1119): No enabled networks - do not scan
+      =>上面的LOG显示在WPA_SUPP还没有启动完成前，WIFIHW就去进行连接，但会失败
+        这将引起流程上的失败，从而使得启动变慢。
+      =>这个问题之前已经有解决过，但是在最新的服务器分支中没有更新。
+      =>在WIFI设置界面下，WIFI成功打开后到AP列表出现，需要2-3秒。
+      
+      A. AP列表的有效时间是DEFAULT_MAX_SCAN_AGE，为15秒。
+      B. 在驱动加载时触发一次扫描操作。这可能会使得关联操作变慢。
+      C. 第一次收到扫描命令时，让其立即返回，以便AP列表能快速产生。
+      D. 较长时间后，从无线设置界面进入WIFI设置界面，则直接送结果。
+      
+      =>当增加了3个手动的AP后，在WIFI打开后，需要较长的时间才能出AP列表。
+        为此，在驱动加载时，触发一个扫描操作。
+      =>但在一段时间后，扫描列表仍然会消失掉。
+      
+   (2)在无线设置页面中，打开WIFI后，进入WIFI设置页面时AP列表的显示。
+   (3)从WIFI设置页面退出到无线设置页面，再进到WIFI设置页面时，AP列表的显示。
+   (4)页面中保存了多个已经记忆的，非手动添加的AP时，AP列表的显示。
+   (5)页面中保存了多个已经记忆的，由手动添加的AP时，AP列表的显示。
+   
+   =>除了更新WIFIHW外，没有改变，因为无法改变。
+
+5. 关联测试：
+   (1)WPA加密测试，
+      A. 正确密码下，可以成功连接。
+      B. 错误密码下，会收到disauthenticated事件，这时会进行重联。总共会关联
+         4次，因为会进行3次重联，这将使得密码错误提示框会较慢提示。
+
+6. 一个关健的问题是，如何确定关联确实是成功的，从应用层角度来说是DHCP已经成
+   功，但在驱动里呢？
+   =>对于WPA_SUPP来说，WPA协议会涉及到4次握手，关联基本都能成功，但4次握手就
+     未必能够成功了。所以不能单纯从ASSOCIATION命令的结果来确定连接是否成功。
+   =>起一个8秒的定时器，如果定时器超时时，仍然为CONNECTED状态，则表示关联成功
+     否则表示关联失败，成功情况下我们会进行重联。
+   =>关联HHY时会遇到  lbs_ret_80211_associate: association fail.
+     发现是HHY的AP搜索不到了。
+
+7. 第一次启动时，关联AP可能会失败。
+     [38] lbs_ret_80211_associate: association successfully.
+     [41] EVENT: deauthenticated: reassoc_count=0
+     [41] disconnected status.
+     [41] lbs_mac_event_disconnected: enter........connect=0
+     [44] lbs_ret_80211_associate: association successfully.
+   =>由于在WEXT中，在设置每个参数时都会触发关联操作，虽然不一定会触发实际的关
+     联，但不排除多次进行实际触发的可能。
+
+8. 修改lbs_get_sense，我们只返回RSSI的Signal值，而不管噪声。
+   =>同时修改wpa_supplicant，不必进行level值与Noise值的SNR计算。
+   =>lbs_get_sense中：
+       signal level 223  noise 162  rssi 223
+     这使得信号显示的值正确，这时IWCONFIG查看的结果为：
+       Link Quality=100/100  Signal level=-32 dBm  Noise level=-94 dBm
+     应该使用lbs_get_wireless_stats中的计算方法。
+   =>实际上我们看到的LEVEL值是负值，但被以正数方式打出来了，而LEVEL的值会有一
+     个范围，在MV8686中是256，所以实际上信号值为：-(256 - level)
+     如上值中LEVEL为223，则信号值为: -(256 - 223) = -33dBm
+
+9. HHY AP在陈长海处，较远，在25米处。关联时会有错：
+     lbs_ret_80211_associate: association fail.status_code=2
+     ASSOC_RESP: internal timer expired while waiting for the AP.
+   =>发现在连接信号差的AP时，容易出现这个问题。
+       Quality=77/100  Signal level=-71 dBm  Noise level=-91 dBm
+   =>将MRVDRV_DEFAULT_LISTEN_INTERVAL的值由原来的10改为50试一下。不行，将其改
+     为500试一下。还是没用，看来与这个参数无关。
+   =>将beacon_period设置为900，连接HHY时会报invalid parameters。
+     将其改为100，仍然是相同的错误。
+     这个参数应该是在ADHOC时才被使用。INFRA网络中这个值由AP决定。
+   =>
+
+10.有时在关联WPA的AP时，会意外弹出密码错误框，即使肯定其之前保存的密码是正确的。
+
+宇星从天鹏盛处拿到的测试报告：
+
+11.机台不能显示含有中文命名的路由器，而且机台也连接不上含有中文命名的网络。
+12.把两个路由器设为相同的命名,机台只能进入一个WI-FI连接,另一个连接失败.
+13.在关联的流程上，始终有不合理的地方：
+     [65] lbs_cmd_80211_deauthenticate: enter...
+     [66] lbs_ret_80211_associate: association fail.status_code=1
+     [66] lbs_mac_event_disconnected: enter........connect=0
+     [73] lbs_ret_80211_associate: association successfully.
+   =>实际上会触发两次关联操作。
+     (1)去掉lbs_set_freq中触发关联的操作，没问题。
+     (2)去掉lbs_set_mode中触发关联的操作，没问题。
+     实际上并不是触发关联操作，因为只有BSSID和ESSID的设置操作才会引起实际的关
+     联动作，其余的只是设置相关的参数。
+     [239] lbs_set_essid: call lbs_postpone_association_work
+     [239] lbs_set_wap: call lbs_postpone_association_work
+   (1)彻底去除ASSOC_FLAG_MODE标志，因为它可能引起Deauthenticated。
+
+14.会出现不去取IP参数的情况：
+   inet addr:192.168.1.100  Bcast:192.168.1.255  Mask:255.255.255.0
+   实际上在Android显示的IP却是192.168.0.105。
+   =>原因应该是lbs_cmd_80211_deauthenticate中没有送lbs_mac_event_disconnected。
+
+15.连接tplinklai (WEP & SHARED)，有时获取IP会很长时间，或是失败。
+
+==============================================================================
+=== Version 2.24 @ 2010-11-16 ===
+==============================================================================
+
+1. 易方报告说扫描AP的能力减弱。
+   =>将PS模式的切换关闭，验证一下。问题依旧，但在除易方外的京华、世健和我这里
+     都没有发现这个问题。
+
+2. 在已经连接上一个AP后，切换到另一个AP，密码错误时不会弹出提示框：
+
+3. 京华报告说：唤醒后WIFI信号显示正常，但是刷网页失败。
+   (1)与AR6002类似的做法是系统睡眠时将WIFI断开，唤醒时再让Android进行重联。
+   
+==============================================================================
+=== Version 2.23 @ 2010-11-15 ===
+==============================================================================
+
+1. 京华报告说：唤醒后WIFI信号显示正常，但是刷网页失败。
+   (1)与AR6002类似的做法是系统睡眠时将WIFI断开，唤醒时再让Android进行重联。
+
+2. 遇到一个情况：在出现LOG
+     EVENT: deauthenticated
+   后没有去进行重新连接。之后出现一次：
+     [2402] mv8686: command 0x0021 timed out
+     [2402] mv8686: requeueing command 0x0021 due to timeout (#1)
+     [2402] mv8686: Received result 0 to command 21 after 1 retries
+   但会从这里恢复。0x0021是CMD_802_11_PS_MODE。
+     [1390] mv8686: command 0x001f timed out
+     [1390] mv8686: requeueing command 0x001f due to timeout (#1)
+     [1390] CMD: 52 <arg=10004000> FAIL raw_ints: 134 masked ints: 4
+   0x001F是CMD_802_11_RSSI。
+   
+   =>这个情况的出现，是因为WIFI处于深度睡眠时，向其发送命令。
+   =>在lbs_thread中，打开原来的语句，如果priv->deepsleep == true
+     则主线程仍然睡眠，而不发送任何命令和数据。
+
+3. 可以通过如下命令查看当前睡眠锁的情况：
+     echo android_power_print_locks,0xf > /sys/scu/24m/active
+   
+4. 在函数lbs_process_event中发现一个BUG，对于变量reassoc_count的处理有点问题：
+   (1)static int reassoc_count = 0; 以静态方式定义。
+   (2)if ((priv->connect_status == LBS_CONNECTED) &&
+			(reassoc_count < 3))
+	  这个条件满足时进行重联，同时reassoc_count会被加1。
+   (3)考虑到一个可能出错的情况是：当遇到这个事件，然后重联，并且成功了，但是
+      这个值仍然会被加1，这就造成，第三次收到这个事件时就不会进行重联了。
+   
+   =>将这个变量放到lbs_private的数据结构中，在关联成功后会将这个变量清0。
+   
+   =>可以重现这个问题。但在AP连接顺畅的情况下，关联速度很快。京华出现的应该是
+     其关联AP的速度较慢，便得由Android发起的重联需要较长时间，但他们报要几分
+     钟的时间，这很意外。
+     
+   =>这个问题可以解决。
+
+5. 世健 - AppleChen  15:57:16
+     1.设置选项中打开方向功能（重力感应）
+     2.打开WIFI连接某个AP
+     3.选择已连接AP并执行忘记操作
+     4.WIFI状态提示为已断开连接
+     5.旋转设备激活重力感应功能
+     6.WIFI状态变为正在扫描
+     7.执行其他操作后正常
+   =>经确认AP列表会出现，不影响使用。
+   
+==============================================================================
+=== Version 2.22 @ 2010-11-11 ===
+==============================================================================
+
+1. 连接WPA方式的AP时，如果密码错误，需要能够弹出重新输入密码的提示框：
+   A. 在之前没有任何连接的情况下，输入错误的密码，会弹出提示框。
+   B. 先关联上一个AP，然后连接输入错误密码的AP，也会弹出提示框。
+
+2. 未连接AP情况下关闭WIFI的测试情况还应该有，连接上AP后，将这个AP断电，或是
+   离开这个AP的信号覆盖范围。
+   =>AP找不到后，软件会尝试找另一个已经记忆的AP。如果另一个AP可以找到并关联上
+     自然不会关闭WIFI，否则应该会关闭WIFI。
+   =>这种情况下我们都可以让系统进入二级睡眠，只要网络没有被使用到。
+
+3. 系统进入二级睡眠时，我们也将让WIFI进入二级睡眠。
+   =>wifi_suspend中让WIFI进入深度睡眠；在wifi_resume中则让WIFI退出深度睡眠。
+   
+4. 另一个想考虑的省电机制是，如果WIFI闲了，我们可以启动PS机制，忙了，则关闭省
+   电机制。不使用DEEP SLEEP机制，因为这种机制下驱动的状态和应用层的状态会不一
+   致，这将导致客户对这一情况不满意。
+   (1)考虑到的一种方式是在TX/RX中监控流量状态，如果小于一定值则打开PS方式，
+      如果大于一定值则关闭PS方式。由于流量统计会涉及到乘除运算，会在数据流路
+      上耗资源，最好能避免这种方式。
+   (2)现在有一个10秒钟的定时器，用于检查是否需要关闭WIFI，可以用这个定时器。
+      =>在RX/TX通路上统计RX/TX的数据包数，如果在定时器的10秒期间没有数据传输，
+        则打开PS方式，反之关闭PS方式。
+   (3)可以跟Android的睡眠锁绑定在一起，即Android锁上时，我们关闭PS方式，反之
+      打开PS方式，由POWER SAVE模块回调来实现。
+
+5. 在POWER SAVE的回调中调用PS，会有:
+     BUG: scheduling while atomic
+   因为POWER SAVE是在定时器回调中，处于中断上下文，不能有睡眠。
+   =>在回调函数中通过WORK QUEUE来完成PS方式的切换。
+
+==============================================================================
+=== Version 2.21 ===
+==============================================================================
+
+1. 添加wifi_power_save_init和wifi_power_save_exit的钩子，启用新的省电机制。
+
+2. PS模式时，默认的DTIM的值为1，defs.h中：
+     #define MRVDRV_DEFAULT_MULTIPLE_DTIM		3
+   现将其改为3进行测试，目的是不会丢包，且PING延迟不会太大。
+   =>DTIM为1时，PING丢包很严重，10个包会丢3个左右。
+   =>将DTIM改为3时，就不存在丢包了，100个PING包测试。但是延迟相当厉害。
+     min/avg/max = 1.976/147.693/300.576 ms
+     当前最大的DTIM值支持的最大值为5，这是指睡眠时间的长短。
+     min/avg/max = 3.748/253.482/500.708 ms
+     即这个值越大，PING延迟就越大。
+     在DTIM为5的情况下，TCP TX吞吐率为11.45Mbps，RX吞吐率为13.28Mbps。
+   =>在DTIM为3的情况下，TCP TX吞吐率为11.82Mbps，RX吞吐率为13.22Mbps。
+
+3. 重新关联上后，原来的PS状态会丢失，变成没有PS了。灯没闪，但PING的延迟是有。
+   =>这之后用iwconfig wlan0 power off，PING的延迟也不正常了。
+   =>看来FW或是驱动在处理PS问题上仍然存在缺陷。
+
+4. WiFi打开，没有连接上AP，可能是：
+   (1)没有选择AP，
+   (2)也可能要连接的AP不存在，
+   (3)或是连接失败。
+   (4)离开AP的信号覆盖范围，或是AP下电了。
+   这种情况下，应该通知Android，将WiFi关闭。
+   =>考虑使用priv->connect_status这个变量来区分状态。
+     A. lbs_ret_80211_associate: 根据关联结果会更新变量的值。
+     B. lbs_mac_event_disconnected会将其置为断开值。
+     C. lbs_init_adapter初始为断开值。
+   =>增加一个定时器来监视连接的情况:
+     A. 在init_adapter时初始化定时器turnoff_timer。
+     B. 在connect_status被置为CONNECTED时，删除定时器。
+     C. 在connect_status被置为DISCONNECTED时，启动定时器。
+     D. 在定时器里发送事件告诉WPA_SUPP，驱动要求关闭WIFI。
+     E. WPA_SUPP发送事件给Android，要求关闭WIFI。
+     F. Android接收到关闭请求后，下发命令关闭WIFI。
+   =>定时器工作方式修改：
+     A. 系统启动时初始化定时器，lbs_thread主线程工作时启动定时器。
+     B. 定时器时隔为10秒，每次检查连接情况，如果在一定时间内都是为断开状态，
+        则会向应用层上报事件：
+        memset(wrqu.ap_addr.sa_data, 0xAB, ETH_ALEN);
+		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
+     C. 任何情况下定时器都在工作，只有驱动退出时驱动才会被删除。
+   =>修改wpa_supplicant的driver_wext.c，添加对全为0xAB的AP地址的判断：
+     else if (os_memcmp(iwe->u.ap_addr.sa_data,
+              "\xAB\xAB\xAB\xAB\xAB\xAB", ETH_ALEN) == 0)
+     {
+         wpa_msg(ctx, MSG_INFO, WPA_EVENT_DRIVER_STATE "TURNOFF");
+     }
+   =>Android中增加对TURNOFF事件的处理：
+     frameworks/base/wifi/java/android/net/wifi:
+     (1)WifiMonitor.java，handleDriverEvent函数中添加如下处理：
+        } else if (state.equals("TURNOFF")) {
+            mWifiStateTracker.notifyDriverTurnoff();
+     (2)WifiStateTracker.java
+        A. 首先在DRIVER_HUNG后添加：
+           private static final int DRIVER_TURNOFF = 3;
+        B. 添加notifyDriverTurnoff函数，发送DRIVER_TURNOFF事件。
+        C. 在handleMessage函数函数中添加对DRIVER_TURNOFF事件的处理。
+           case DRIVER_TURNOFF:
+               Log.e(TAG, "Wifi Driver reports turn off.");
+               mWM.setWifiEnabled(false);
+               break;
+
+5. 增加MV8686_SUPPORT_ADHOC宏来控制ADHOC的代码，暂时没用，所以不需要。
+
+6. 当一个AP连接上，然后将其断开后，在WIFI驱动中:
+   priv->connect_status的值始终是LBS_CONNECTED，不会改变。
+   =>需要添加对SIOCSIWMLME命令的支持，在原版驱动中是有的。
+   =>为了断开连接，WPA_SUPP会送IW_MLME_DEAUTH命令给驱动。
+   =>驱动将调用lbs_cmd_80211_deauthenticate函数断开连接。
+
+==============================================================
+Version 2.20
+=============
+
+1. 加入wifi_power_save模块，准备在MV8686中启用新的休眠机制。
+
+2. 驱动将有较大改动，版本号改为2.20，以示区别。
+
+3. 关闭原来的睡眠机制：
+     #define ANDROID_POWER_SAVE      0
+   =>在SDK板上测试，打开WIFI时并没有找到SDIO设备。
+
+4. 当WIFI没有关联上时，PS模式并不会被打开，这时应该是在SLEEP
+   模式，通过IWCONFIG查看，在非关联情况下为OFF，即使已经通过
+     iwconfig wlan0 power on
+   打开省电模式。
+   =>修改lbs_get_power，在查看PS状态时，不需要将关联条件绑定。
+   =>将打印信息：EVENT: ps awake: Media is LBS_CONNECTED.去掉。
+
+==============================================================
+Version 2.13
+=============
+1. 在新版本SDK中，如果没有将Android的锁去掉，则会出现和AR6002
+   一样，导致系统死掉。
+   =>查看驱动，没现在驱动卸载时，本身就有销毁Android锁的操作，
+     所以应该不是这个问题。
+
+2. 版本号使用wifi_version.h中的定义。
+   
+==============================================================
+Version 2.12
+=============
+1. 修改了wifi_power_ops.c，将AR6002和上电时序和MV8686的上电时序
+   分开来控制，这要求他们在调用turn_on接口时指定芯片的类型。
+   
+==============================================================
+Version 2.11
+=============
+1. 修改了模组的上电及下电规则：
+   A. 原来的上电规则:
+      PWN DOWN -> POWER DOWN
+      PWN UP   -> POWER UP
+      RESET
+      =>现在的上电规则：
+      PWN UP   -> POWER UP
+      RESET
+
+   B. 原来的下电规则：
+      PWN UP
+      POWER DOWN
+      PWN DOWN
+      RESET DOWN
+      =>新的下电规则：
+      RESET DOWN
+      PWN DOWN
+      POWER DOWN 
+  
+  修改的依据是重新检查了MV8686的DS及AR6002的DS，发现两者上电
+  及下电的时序要求是不一样的。
+  
+  在NX7007上通宵测试没有问题。
+      
+==============================================================
+Version 2.10
+=============
+1. 改正了当ANDROID_POWER_SAVE被定义为0时，编译不过，有些地方
+   没有加正确的宏保护的错误。
+2. 
+
+==============================================================
+Version 2.08
+
+==============================================================
+Version 2.07
+
