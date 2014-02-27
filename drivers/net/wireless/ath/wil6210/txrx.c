@@ -610,6 +610,9 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	if (rc)
 		goto out;
 
+	wil->vring2cid_tid[id][0] = cid;
+	wil->vring2cid_tid[id][1] = tid;
+
 	cmd.vring_cfg.tx_sw_ring.ring_mem_base = cpu_to_le64(vring->pa);
 
 	rc = wmi_call(wil, WMI_VRING_CFG_CMDID, &cmd, sizeof(cmd),
@@ -624,9 +627,6 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		goto out_free;
 	}
 	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
-
-	wil->vring2cid_tid[id][0] = cid;
-	wil->vring2cid_tid[id][1] = tid;
 
 	return 0;
  out_free:
