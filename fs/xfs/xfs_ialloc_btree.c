@@ -261,6 +261,7 @@ xfs_inobt_write_verify(
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
 				     bp->b_target->bt_mount, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		return;
 	}
 	xfs_btree_sblock_calc_crc(bp);
 
