@@ -352,6 +352,40 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 	return rc;
 }
 
+static int wil_cfg80211_mgmt_tx(struct wiphy *wiphy,
+				struct wireless_dev *wdev,
+				struct cfg80211_mgmt_tx_params *params,
+				u64 *cookie)
+{
+	const u8 *buf = params->buf;
+	size_t len = params->len;
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int rc;
+	struct ieee80211_mgmt *mgmt_frame = (void *)buf;
+	struct wmi_sw_tx_req_cmd *cmd;
+	struct {
+		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_sw_tx_complete_event evt;
+	} __packed evt;
+
+	cmd = kmalloc(sizeof(*cmd) + len, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memcpy(cmd->dst_mac, mgmt_frame->da, WMI_MAC_LEN);
+	cmd->len = cpu_to_le16(len);
+	memcpy(cmd->payload, buf, len);
+
+	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, cmd, sizeof(*cmd) + len,
+		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
+	if (rc == 0)
+		rc = evt.evt.status;
+
+	kfree(cmd);
+
+	return rc;
+}
+
 static int wil_cfg80211_set_channel(struct wiphy *wiphy,
 				    struct cfg80211_chan_def *chandef)
 {
@@ -400,6 +434,41 @@ static int wil_cfg80211_set_default_key(struct wiphy *wiphy,
 					bool multicast)
 {
 	return 0;
+}
+
+static int wil_remain_on_channel(struct wiphy *wiphy,
+				 struct wireless_dev *wdev,
+				 struct ieee80211_channel *chan,
+				 unsigned int duration,
+				 u64 *cookie)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int rc;
+
+	/* TODO: handle duration */
+	wil_info(wil, "%s(%d, %d ms)\n", __func__, chan->center_freq, duration);
+
+	rc = wmi_set_channel(wil, chan->hw_value);
+	if (rc)
+		return rc;
+
+	rc = wmi_rxon(wil, true);
+
+	return rc;
+}
+
+static int wil_cancel_remain_on_channel(struct wiphy *wiphy,
+					struct wireless_dev *wdev,
+					u64 cookie)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int rc;
+
+	wil_info(wil, "%s()\n", __func__);
+
+	rc = wmi_rxon(wil, false);
+
+	return rc;
 }
 
 static int wil_fix_bcon(struct wil6210_priv *wil,
@@ -510,6 +579,9 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	.disconnect = wil_cfg80211_disconnect,
 	.change_virtual_intf = wil_cfg80211_change_iface,
 	.get_station = wil_cfg80211_get_station,
+	.remain_on_channel = wil_remain_on_channel,
+	.cancel_remain_on_channel = wil_cancel_remain_on_channel,
+	.mgmt_tx = wil_cfg80211_mgmt_tx,
 	.set_monitor_channel = wil_cfg80211_set_channel,
 	.add_key = wil_cfg80211_add_key,
 	.del_key = wil_cfg80211_del_key,
