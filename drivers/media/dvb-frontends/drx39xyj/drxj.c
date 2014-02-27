@@ -19876,8 +19876,15 @@ int drxj_open(struct drx_demod_instance *demod)
 		goto rw_error;
 	}
 
-	/* Soft reset of sys- and osc-clockdomain */
-	rc = drxj_dap_write_reg16(dev_addr, SIO_CC_SOFT_RST__A, (SIO_CC_SOFT_RST_SYS__M | SIO_CC_SOFT_RST_OSC__M), 0);
+	/*
+	 * Soft reset of sys- and osc-clockdomain
+	 *
+	 * HACK: On windows, it writes a 0x07 here, instead of just 0x03.
+	 * As we didn't load the firmware here yet, we should do the same.
+	 * Btw, this is coherent with DRX-K, where we send reset codes
+	 * for modulation (OFTM, in DRX-k), SYS and OSC clock domains.
+	 */
+	rc = drxj_dap_write_reg16(dev_addr, SIO_CC_SOFT_RST__A, (0x04 | SIO_CC_SOFT_RST_SYS__M | SIO_CC_SOFT_RST_OSC__M), 0);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
 		goto rw_error;
