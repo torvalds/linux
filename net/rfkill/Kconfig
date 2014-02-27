@@ -47,3 +47,9 @@ config RFKILL_GPIO
 	  If you say yes here you get support of a generic gpio RFKILL
 	  driver. The platform should fill in the appropriate fields in the
 	  rfkill_gpio_platform_data structure and pass that to the driver.
+
+config RFKILL_RK
+    bool "Rockchips RFKILL driver"
+    depends on RFKILL
+    help
+      rockchips rfkill driver for rk29/rk3X
