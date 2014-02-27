@@ -21,6 +21,8 @@
 #include <linux/seq_file.h>
 #include <linux/time.h>
 
+#include "timekeeping_internal.h"
+
 static unsigned int sleep_time_bin[32] = {0};
 
 static int tk_debug_show_sleep_time(struct seq_file *s, void *data)
