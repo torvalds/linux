@@ -124,7 +124,7 @@ identify_qemu_append () {
 
 # identify_qemu_args qemu-cmd serial-file
 #
-# Output arguments for qemu arguments based on the RCU_QEMU_MAC
+# Output arguments for qemu arguments based on the TORTURE_QEMU_MAC
 # and TORTURE_QEMU_INTERACTIVE environment variables.
 identify_qemu_args () {
 	case "$1" in
@@ -133,9 +133,9 @@ identify_qemu_args () {
 	qemu-system-ppc64)
 		echo -enable-kvm -M pseries -cpu POWER7 -nodefaults
 		echo -device spapr-vscsi
-		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$RCU_QEMU_MAC"
+		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then
-			echo -device spapr-vlan,netdev=net0,mac=$RCU_QEMU_MAC
+			echo -device spapr-vlan,netdev=net0,mac=$TORTURE_QEMU_MAC
 			echo -netdev bridge,br=br0,id=net0
 		elif test -n "$TORTURE_QEMU_INTERACTIVE"
 		then
