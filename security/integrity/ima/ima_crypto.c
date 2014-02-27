@@ -87,16 +87,20 @@ static int ima_calc_file_hash_tfm(struct file *file,
 	if (rc != 0)
 		return rc;
 
-	rbuf = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!rbuf) {
-		rc = -ENOMEM;
+	i_size = i_size_read(file_inode(file));
+
+	if (i_size == 0)
 		goto out;
-	}
+
+	rbuf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!rbuf)
+		return -ENOMEM;
+
 	if (!(file->f_mode & FMODE_READ)) {
 		file->f_mode |= FMODE_READ;
 		read = 1;
 	}
-	i_size = i_size_read(file_inode(file));
+
 	while (offset < i_size) {
 		int rbuf_len;
 
@@ -113,12 +117,12 @@ static int ima_calc_file_hash_tfm(struct file *file,
 		if (rc)
 			break;
 	}
-	kfree(rbuf);
-	if (!rc)
-		rc = crypto_shash_final(&desc.shash, hash->digest);
 	if (read)
 		file->f_mode &= ~FMODE_READ;
+	kfree(rbuf);
 out:
+	if (!rc)
+		rc = crypto_shash_final(&desc.shash, hash->digest);
 	return rc;
 }
 
