@@ -2444,7 +2444,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
     pContext->uBufLen = (u16)BytesToWrite + 4 ; //USB header
 
     s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),
-			&pContext->sEthHeader.h_dest[0],
+			&pDevice->sTxEthHeader.h_dest[0],
 			(u16)(BytesToWrite-uHeaderLen),
 			pTX_Buffer->fifo_head.wFIFOCtl);
 
@@ -2598,7 +2598,7 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
     pContext->uBufLen = (u16)BytesToWrite + 4 ; //USB header
 
     s_vSaveTxPktInfo(pDevice, (u8)(pTX_Buffer->byPKTNO & 0x0F),
-		&pContext->sEthHeader.h_dest[0],
+		&pDevice->sTxEthHeader.h_dest[0],
 		(u16)(BytesToWrite - uHeaderLen),
 		pTX_Buffer->fifo_head.wFIFOCtl);
 

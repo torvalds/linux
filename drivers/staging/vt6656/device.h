@@ -179,7 +179,6 @@ struct vnt_usb_send_context {
 	void *pDevice;
 	struct sk_buff *pPacket;
 	struct urb *pUrb;
-	struct ethhdr sEthHeader;
 	unsigned int uBufLen;
 	u8 type;
 	bool bBoolInUse;
