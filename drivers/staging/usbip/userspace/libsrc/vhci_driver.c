@@ -545,7 +545,7 @@ int usbip_vhci_attach_device2(uint8_t port, int sockfd, uint32_t devid,
 		return -1;
 	}
 
-	snprintf(buff, sizeof(buff), "%u %u %u %u",
+	snprintf(buff, sizeof(buff), "%u %d %u %u",
 			port, sockfd, devid, speed);
 	dbg("writing: %s", buff);
 
