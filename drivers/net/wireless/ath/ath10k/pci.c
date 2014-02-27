@@ -63,7 +63,6 @@ static int ath10k_pci_post_rx(struct ath10k *ar);
 static int ath10k_pci_post_rx_pipe(struct ath10k_pci_pipe *pipe_info,
 					     int num);
 static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info);
-static void ath10k_pci_stop_ce(struct ath10k *ar);
 static int ath10k_pci_cold_reset(struct ath10k *ar);
 static int ath10k_pci_warm_reset(struct ath10k *ar);
 static int ath10k_pci_wait_for_target_init(struct ath10k *ar);
@@ -993,22 +992,6 @@ static void ath10k_pci_kill_tasklet(struct ath10k *ar)
 		tasklet_kill(&ar_pci->pipe_info[i].intr);
 }
 
-static void ath10k_pci_stop_ce(struct ath10k *ar)
-{
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ath10k_pci_compl *compl;
-	struct sk_buff *skb;
-
-	/* Mark pending completions as aborted, so that upper layers free up
-	 * their associated resources */
-	spin_lock_bh(&ar_pci->compl_lock);
-	list_for_each_entry(compl, &ar_pci->compl_process, list) {
-		skb = compl->skb;
-		ATH10K_SKB_CB(skb)->is_aborted = true;
-	}
-	spin_unlock_bh(&ar_pci->compl_lock);
-}
-
 static void ath10k_pci_cleanup_ce(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -1339,7 +1322,6 @@ err_stop:
 	ath10k_ce_disable_interrupts(ar);
 	ath10k_pci_free_irq(ar);
 	ath10k_pci_kill_tasklet(ar);
-	ath10k_pci_stop_ce(ar);
 	ath10k_pci_process_ce(ar);
 err_free_compl:
 	ath10k_pci_cleanup_ce(ar);
@@ -1424,7 +1406,6 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 			continue;
 		}
 
-		ATH10K_SKB_CB(netbuf)->is_aborted = true;
 		ar_pci->msg_callbacks_current.tx_completion(ar,
 							    netbuf,
 							    id);
@@ -1482,7 +1463,6 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 
 	ath10k_pci_free_irq(ar);
 	ath10k_pci_kill_tasklet(ar);
-	ath10k_pci_stop_ce(ar);
 
 	ret = ath10k_pci_request_early_irq(ar);
 	if (ret)

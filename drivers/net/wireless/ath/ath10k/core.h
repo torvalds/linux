@@ -62,7 +62,6 @@ struct ath10k;
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
-	bool is_aborted;
 	u8 vdev_id;
 
 	struct {
