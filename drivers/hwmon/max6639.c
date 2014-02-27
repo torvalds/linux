@@ -592,9 +592,7 @@ static const struct i2c_device_id max6639_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, max6639_id);
 
-static const struct dev_pm_ops max6639_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(max6639_suspend, max6639_resume)
-};
+static SIMPLE_DEV_PM_OPS(max6639_pm_ops, max6639_suspend, max6639_resume);
 
 static struct i2c_driver max6639_driver = {
 	.class = I2C_CLASS_HWMON,
