@@ -627,14 +627,10 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 
 		priv->dev->trans_start = jiffies;
 
-		if (status == STATUS_SUCCESS) {
-			priv->packetsSent++;
-		} else {
+		if (status != STATUS_SUCCESS) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"Send USB error! [%08xh]\n", status);
-			priv->packetsSentDropped++;
 		}
-
 	}
 
 	if (priv->bLinkPass == true) {

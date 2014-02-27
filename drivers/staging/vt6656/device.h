@@ -441,11 +441,6 @@ struct vnt_private {
 	int bExistSWNetAddr;
 
 	/* Maintain statistical debug info. */
-	unsigned long packetsReceived;
-	unsigned long packetsReceivedDropped;
-	unsigned long packetsReceivedOverflow;
-	unsigned long packetsSent;
-	unsigned long packetsSentDropped;
 	unsigned long SendContextsInUse;
 	unsigned long RcvBuffersInUse;
 
