@@ -124,8 +124,6 @@ void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 		samsung_bl_data->pwm_period_ns = bl_data->pwm_period_ns;
 	if (bl_data->enable_gpio >= 0)
 		samsung_bl_data->enable_gpio = bl_data->enable_gpio;
-	if (bl_data->enable_gpio_flags)
-		samsung_bl_data->enable_gpio_flags = bl_data->enable_gpio_flags;
 	if (bl_data->init)
 		samsung_bl_data->init = bl_data->init;
 	if (bl_data->notify)
