@@ -485,8 +485,7 @@ xfs_agfl_read_verify(
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return;
 
-	agfl_ok = xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
-				   XFS_AGFL_CRC_OFF);
+	agfl_ok = xfs_buf_verify_cksum(bp, XFS_AGFL_CRC_OFF);
 
 	agfl_ok = agfl_ok && xfs_agfl_verify(bp);
 
@@ -2240,8 +2239,7 @@ xfs_agf_read_verify(
 	int		agf_ok = 1;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb))
-		agf_ok = xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
-					  XFS_AGF_CRC_OFF);
+		agf_ok = xfs_buf_verify_cksum(bp, XFS_AGF_CRC_OFF);
 
 	agf_ok = agf_ok && xfs_agf_verify(mp, bp);
 

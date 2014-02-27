@@ -1571,8 +1571,8 @@ xfs_agi_read_verify(
 	int		agi_ok = 1;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb))
-		agi_ok = xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
-					  XFS_AGI_CRC_OFF);
+		agi_ok = xfs_buf_verify_cksum(bp, XFS_AGI_CRC_OFF);
+
 	agi_ok = agi_ok && xfs_agi_verify(bp);
 
 	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IALLOC_READ_AGI,

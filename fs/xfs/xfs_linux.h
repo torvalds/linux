@@ -119,6 +119,7 @@ typedef __uint64_t __psunsigned_t;
 #include "xfs_iops.h"
 #include "xfs_aops.h"
 #include "xfs_super.h"
+#include "xfs_cksum.h"
 #include "xfs_buf.h"
 #include "xfs_message.h"
 
