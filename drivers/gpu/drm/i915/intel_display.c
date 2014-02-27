@@ -6161,7 +6161,7 @@ int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
 	 * is 2.5%; use 5% for safety's sake.
 	 */
 	u32 bps = target_clock * bpp * 21 / 20;
-	return bps / (link_bw * 8) + 1;
+	return DIV_ROUND_UP(bps, link_bw * 8);
 }
 
 static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
