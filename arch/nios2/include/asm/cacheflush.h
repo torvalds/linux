@@ -12,6 +12,8 @@
 #ifndef _ASM_NIOS2_CACHEFLUSH_H
 #define _ASM_NIOS2_CACHEFLUSH_H
 
+#include <linux/mm_types.h>
+
 struct mm_struct;
 
 extern void flush_cache_all(void);

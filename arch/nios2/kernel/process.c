@@ -24,7 +24,6 @@
 
 #include <asm/unistd.h>
 #include <asm/traps.h>
-#include <asm/cacheflush.h>
 #include <asm/cpuinfo.h>
 
 asmlinkage void ret_from_fork(void);
