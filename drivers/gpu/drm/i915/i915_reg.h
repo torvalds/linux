@@ -4906,6 +4906,9 @@
 #define GEN7_UCGCTL4				0x940c
 #define  GEN7_L3BANK2X_CLOCK_GATE_DISABLE	(1<<25)
 
+#define GEN8_UCGCTL6				0x9430
+#define   GEN8_SDEUNIT_CLOCK_GATE_DISABLE	(1<<14)
+
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
 #define   GEN6_FREQUENCY(x)			((x)<<25)

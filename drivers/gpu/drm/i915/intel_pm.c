@@ -4870,6 +4870,10 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RC_SLEEP_PSMI_CONTROL,
 		   _MASKED_BIT_ENABLE(GEN8_RC_SEMA_IDLE_MSG_DISABLE));
+
+	/* WaDisableSDEUnitClockGating:bdw */
+	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
+		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 }
 
 static void haswell_init_clock_gating(struct drm_device *dev)
