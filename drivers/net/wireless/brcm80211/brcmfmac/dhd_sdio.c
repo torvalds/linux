@@ -113,8 +113,6 @@ struct rte_console {
 #define BRCMF_TXBOUND	20	/* Default for max tx frames in
 				 one scheduling */
 
-#define BRCMF_DEFAULT_TXGLOM_SIZE	32  /* max tx frames in glom chain */
-
 #define BRCMF_TXMINMAX	1	/* Max tx frames if rx still pending */
 
 #define MEMBLOCK	2048	/* Block size used for downloading
@@ -510,10 +508,6 @@ static const uint retry_limit = 2;
 static const uint max_roundup = 512;
 
 #define ALIGNMENT  4
-
-static int brcmf_sdio_txglomsz = BRCMF_DEFAULT_TXGLOM_SIZE;
-module_param_named(txglomsz, brcmf_sdio_txglomsz, int, 0);
-MODULE_PARM_DESC(txglomsz, "maximum tx packet chain size [SDIO]");
 
 enum brcmf_sdio_frmtype {
 	BRCMF_SDIO_FT_NORMAL,
@@ -2321,7 +2315,7 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 		__skb_queue_head_init(&pktq);
 		if (bus->txglom)
 			pkt_num = min_t(u8, bus->tx_max - bus->tx_seq,
-					brcmf_sdio_txglomsz);
+					bus->sdiodev->txglomsz);
 		pkt_num = min_t(u32, pkt_num,
 				brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol));
 		spin_lock_bh(&bus->txqlock);

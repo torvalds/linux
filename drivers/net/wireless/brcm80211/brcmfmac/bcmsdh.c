@@ -53,6 +53,12 @@
 /* Maximum milliseconds to wait for F2 to come up */
 #define SDIO_WAIT_F2RDY	3000
 
+#define BRCMF_DEFAULT_TXGLOM_SIZE	32  /* max tx frames in glom chain */
+#define BRCMF_DEFAULT_RXGLOM_SIZE	32  /* max rx frames in glom chain */
+
+static int brcmf_sdiod_txglomsz = BRCMF_DEFAULT_TXGLOM_SIZE;
+module_param_named(txglomsz, brcmf_sdiod_txglomsz, int, 0);
+MODULE_PARM_DESC(txglomsz, "maximum tx packet chain size [SDIO]");
 
 static irqreturn_t brcmf_sdiod_oob_irqhandler(int irq, void *dev_id)
 {
@@ -487,7 +493,6 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	struct mmc_request mmc_req;
 	struct mmc_command mmc_cmd;
 	struct mmc_data mmc_dat;
-	struct sg_table st;
 	struct scatterlist *sgl;
 	int ret = 0;
 
@@ -532,16 +537,11 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	pkt_offset = 0;
 	pkt_next = target_list->next;
 
-	if (sg_alloc_table(&st, max_seg_cnt, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto exit;
-	}
-
 	memset(&mmc_req, 0, sizeof(struct mmc_request));
 	memset(&mmc_cmd, 0, sizeof(struct mmc_command));
 	memset(&mmc_dat, 0, sizeof(struct mmc_data));
 
-	mmc_dat.sg = st.sgl;
+	mmc_dat.sg = sdiodev->sgtable.sgl;
 	mmc_dat.blksz = func_blk_sz;
 	mmc_dat.flags = write ? MMC_DATA_WRITE : MMC_DATA_READ;
 	mmc_cmd.opcode = SD_IO_RW_EXTENDED;
@@ -557,7 +557,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	while (seg_sz) {
 		req_sz = 0;
 		sg_cnt = 0;
-		sgl = st.sgl;
+		sgl = sdiodev->sgtable.sgl;
 		/* prep sg table */
 		while (pkt_next != (struct sk_buff *)target_list) {
 			pkt_data = pkt_next->data + pkt_offset;
@@ -639,7 +639,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	}
 
 exit:
-	sg_free_table(&st);
+	sg_init_table(sdiodev->sgtable.sgl, sdiodev->sgtable.orig_nents);
 	while ((pkt_next = __skb_dequeue(&local_list)) != NULL)
 		brcmu_pkt_buf_free_skb(pkt_next);
 
@@ -863,6 +863,29 @@ int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 	return 0;
 }
 
+static void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev)
+{
+	uint nents;
+	int err;
+
+	if (!sdiodev->sg_support)
+		return;
+
+	nents = max_t(uint, BRCMF_DEFAULT_RXGLOM_SIZE, brcmf_sdiod_txglomsz);
+	nents += (nents >> 4) + 1;
+
+	WARN_ON(nents > sdiodev->max_segment_count);
+
+	brcmf_dbg(TRACE, "nents=%d\n", nents);
+	err = sg_alloc_table(&sdiodev->sgtable, nents, GFP_KERNEL);
+	if (err < 0) {
+		brcmf_err("allocation failed: disable scatter-gather");
+		sdiodev->sg_support = false;
+	}
+
+	sdiodev->txglomsz = brcmf_sdiod_txglomsz;
+}
+
 static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 {
 	if (sdiodev->bus) {
@@ -880,6 +903,7 @@ static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 	sdio_disable_func(sdiodev->func[1]);
 	sdio_release_host(sdiodev->func[1]);
 
+	sg_free_table(&sdiodev->sgtable);
 	sdiodev->sbwad = 0;
 
 	return 0;
@@ -934,6 +958,11 @@ static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->max_segment_count = min_t(uint, host->max_segs,
 					   SG_MAX_SINGLE_ALLOC);
 	sdiodev->max_segment_size = host->max_seg_size;
+
+	/* allocate scatter-gather table. sg support
+	 * will be disabled upon allocation failure.
+	 */
+	brcmf_sdiod_sgtable_alloc(sdiodev);
 
 	/* try to attach to the target device */
 	sdiodev->bus = brcmf_sdio_probe(sdiodev);

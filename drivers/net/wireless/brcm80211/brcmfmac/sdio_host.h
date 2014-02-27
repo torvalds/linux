@@ -180,6 +180,8 @@ struct brcmf_sdio_dev {
 	uint max_request_size;
 	ushort max_segment_count;
 	uint max_segment_size;
+	uint txglomsz;
+	struct sg_table sgtable;
 };
 
 /* sdio core registers */
