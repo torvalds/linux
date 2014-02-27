@@ -1078,6 +1078,25 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 	}
 }
 
+static void hci_cc_set_adv_param(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_cp_le_set_adv_param *cp;
+	u8 status = *((u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_ADV_PARAM);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+	hdev->adv_addr_type = cp->own_address_type;
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cc_write_remote_amp_assoc(struct hci_dev *hdev,
 					  struct sk_buff *skb)
 {
@@ -2365,6 +2384,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_WRITE_LE_HOST_SUPPORTED:
 		hci_cc_write_le_host_supported(hdev, skb);
+		break;
+
+	case HCI_OP_LE_SET_ADV_PARAM:
+		hci_cc_set_adv_param(hdev, skb);
 		break;
 
 	case HCI_OP_WRITE_REMOTE_AMP_ASSOC:
