@@ -563,27 +563,42 @@ static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
 			      int len)
 {
 	struct wmi_vring_ba_status_event *evt = d;
-	uint cid, i;
+	struct wil_sta_info *sta;
+	uint i, cid;
+
+	/* TODO: use Rx BA status, not Tx one */
 
 	wil_dbg_wmi(wil, "BACK[%d] %s {%d} timeout %d\n",
-		    evt->ringid, evt->status == WMI_BA_AGREED ? "OK" : "N/A",
+		    evt->ringid,
+		    evt->status == WMI_BA_AGREED ? "OK" : "N/A",
 		    evt->agg_wsize, __le16_to_cpu(evt->ba_timeout));
-	for (cid = 0; cid < WIL6210_MAX_CID; cid++) {
-		struct wil_sta_info *sta = &wil->sta[cid];
 
-		if (sta->status == wil_sta_unused)
-			continue;
-		wil_dbg_wmi(wil, "Init BACK for CID %d %pM\n", cid, sta->addr);
-		for (i = 0; i < WIL_STA_TID_NUM; i++) {
-			struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
-			sta->tid_rx[i] = NULL;
-			wil_tid_ampdu_rx_free(wil, r);
-			if ((evt->status == WMI_BA_AGREED) && evt->agg_wsize)
-				sta->tid_rx[i] = wil_tid_ampdu_rx_alloc(wil,
-							evt->agg_wsize, 0);
-		}
+	if (evt->ringid >= WIL6210_MAX_TX_RINGS) {
+		wil_err(wil, "invalid ring id %d\n", evt->ringid);
+		return;
 	}
 
+	cid = wil->vring2cid_tid[evt->ringid][0];
+	if (cid >= WIL6210_MAX_CID) {
+		wil_err(wil, "invalid CID %d for vring %d\n", cid, evt->ringid);
+		return;
+	}
+
+	sta = &wil->sta[cid];
+	if (sta->status == wil_sta_unused) {
+		wil_err(wil, "CID %d unused\n", cid);
+		return;
+	}
+
+	wil_dbg_wmi(wil, "BACK for CID %d %pM\n", cid, sta->addr);
+	for (i = 0; i < WIL_STA_TID_NUM; i++) {
+		struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+		sta->tid_rx[i] = NULL;
+		wil_tid_ampdu_rx_free(wil, r);
+		if ((evt->status == WMI_BA_AGREED) && evt->agg_wsize)
+			sta->tid_rx[i] = wil_tid_ampdu_rx_alloc(wil,
+						evt->agg_wsize, 0);
+	}
 }
 
 static const struct {
