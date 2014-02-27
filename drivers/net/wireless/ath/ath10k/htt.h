@@ -20,6 +20,7 @@
 
 #include <linux/bug.h>
 #include <linux/interrupt.h>
+#include <linux/dmapool.h>
 
 #include "htc.h"
 #include "rx_desc.h"
@@ -1188,6 +1189,13 @@ struct htt_rx_info {
 	bool mic_err;
 };
 
+struct ath10k_htt_txbuf {
+	struct htt_data_tx_desc_frag frags[2];
+	struct ath10k_htc_hdr htc_hdr;
+	struct htt_cmd_hdr cmd_hdr;
+	struct htt_data_tx_desc cmd_tx;
+} __packed;
+
 struct ath10k_htt {
 	struct ath10k *ar;
 	enum ath10k_htc_ep_id eid;
@@ -1269,6 +1277,7 @@ struct ath10k_htt {
 	struct sk_buff **pending_tx;
 	unsigned long *used_msdu_ids; /* bitmap */
 	wait_queue_head_t empty_tx_wq;
+	struct dma_pool *tx_pool;
 
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */

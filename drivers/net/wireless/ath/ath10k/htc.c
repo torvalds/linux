@@ -202,10 +202,8 @@ static int ath10k_htc_tx_completion_handler(struct ath10k *ar,
 	struct ath10k_htc *htc = &ar->htc;
 	struct ath10k_htc_ep *ep = &htc->endpoint[eid];
 
-	if (!skb) {
-		ath10k_warn("invalid sk_buff completion - NULL pointer. firmware crashed?\n");
+	if (WARN_ON_ONCE(!skb))
 		return 0;
-	}
 
 	ath10k_htc_notify_tx_completion(ep, skb);
 	/* the skb now belongs to the completion handler */

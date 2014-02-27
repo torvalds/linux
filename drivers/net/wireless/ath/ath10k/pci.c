@@ -714,6 +714,7 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 	while (ath10k_ce_completed_send_next(ce_state, &transfer_context,
 					     &ce_data, &nbytes,
 					     &transfer_id) == 0) {
+		/* no need to call tx completion for NULL pointers */
 		if (transfer_context == NULL)
 			continue;
 
@@ -1423,16 +1424,9 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 
 	while (ath10k_ce_cancel_send_next(ce_hdl, (void **)&netbuf,
 					  &ce_data, &nbytes, &id) == 0) {
-		/*
-		 * Indicate the completion to higer layer to free
-		 * the buffer
-		 */
-
-		if (!netbuf) {
-			ath10k_warn("invalid sk_buff on CE %d - NULL pointer. firmware crashed?\n",
-				    ce_hdl->id);
+		/* no need to call tx completion for NULL pointers */
+		if (!netbuf)
 			continue;
-		}
 
 		ar_pci->msg_callbacks_current.tx_completion(ar,
 							    netbuf,

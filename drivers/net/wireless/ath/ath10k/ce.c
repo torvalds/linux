@@ -1067,9 +1067,9 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 	 *
 	 * For the lack of a better place do the check here.
 	 */
-	BUILD_BUG_ON(TARGET_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2*TARGET_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
-	BUILD_BUG_ON(TARGET_10X_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2*TARGET_10X_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 
 	ret = ath10k_pci_wake(ar);
