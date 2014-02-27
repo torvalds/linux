@@ -45,22 +45,22 @@ SYSCALL(sys_access,sys_access,compat_sys_access)
 SYSCALL(sys_nice,sys_nice,compat_sys_nice)
 NI_SYSCALL							/* 35 old ftime syscall */
 SYSCALL(sys_sync,sys_sync,sys_sync)
-SYSCALL(sys_kill,sys_kill,sys32_kill_wrapper)
-SYSCALL(sys_rename,sys_rename,sys32_rename_wrapper)
-SYSCALL(sys_mkdir,sys_mkdir,sys32_mkdir_wrapper)
-SYSCALL(sys_rmdir,sys_rmdir,sys32_rmdir_wrapper)		/* 40 */
-SYSCALL(sys_dup,sys_dup,sys32_dup_wrapper)
-SYSCALL(sys_pipe,sys_pipe,sys32_pipe_wrapper)
+SYSCALL(sys_kill,sys_kill,compat_sys_kill)
+SYSCALL(sys_rename,sys_rename,compat_sys_rename)
+SYSCALL(sys_mkdir,sys_mkdir,compat_sys_mkdir)
+SYSCALL(sys_rmdir,sys_rmdir,compat_sys_rmdir)		/* 40 */
+SYSCALL(sys_dup,sys_dup,compat_sys_dup)
+SYSCALL(sys_pipe,sys_pipe,compat_sys_pipe)
 SYSCALL(sys_times,sys_times,compat_sys_times_wrapper)
 NI_SYSCALL							/* old prof syscall */
-SYSCALL(sys_brk,sys_brk,sys32_brk_wrapper)			/* 45 */
+SYSCALL(sys_brk,sys_brk,compat_sys_brk)				/* 45 */
 SYSCALL(sys_setgid16,sys_ni_syscall,compat_sys_s390_setgid16)	/* old setgid16 syscall*/
 SYSCALL(sys_getgid16,sys_ni_syscall,compat_sys_s390_getgid16)	/* old getgid16 syscall*/
-SYSCALL(sys_signal,sys_signal,sys32_signal_wrapper)
+SYSCALL(sys_signal,sys_signal,compat_sys_signal)
 SYSCALL(sys_geteuid16,sys_ni_syscall,compat_sys_s390_geteuid16)	/* old geteuid16 syscall */
 SYSCALL(sys_getegid16,sys_ni_syscall,compat_sys_s390_getegid16)	/* 50 old getegid16 syscall */
-SYSCALL(sys_acct,sys_acct,sys32_acct_wrapper)
-SYSCALL(sys_umount,sys_umount,sys32_umount_wrapper)
+SYSCALL(sys_acct,sys_acct,compat_sys_acct)
+SYSCALL(sys_umount,sys_umount,compat_sys_umount)
 NI_SYSCALL							/* old lock syscall */
 SYSCALL(sys_ioctl,sys_ioctl,compat_sys_ioctl_wrapper)
 SYSCALL(sys_fcntl,sys_fcntl,compat_sys_fcntl_wrapper)		/* 55 */

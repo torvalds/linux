@@ -34,54 +34,9 @@ ENTRY(compat_sys_utime_wrapper)
 	llgtr	%r3,%r3			# struct compat_utimbuf *
 	jg	compat_sys_utime	# branch to system call
 
-ENTRY(sys32_kill_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	jg	sys_kill		# branch to system call
-
-ENTRY(sys32_rename_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgtr	%r3,%r3			# const char *
-	jg	sys_rename		# branch to system call
-
-ENTRY(sys32_mkdir_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# int
-	jg	sys_mkdir		# branch to system call
-
-ENTRY(sys32_rmdir_wrapper)
-	llgtr	%r2,%r2			# const char *
-	jg	sys_rmdir		# branch to system call
-
-ENTRY(sys32_dup_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	jg	sys_dup			# branch to system call
-
-ENTRY(sys32_pipe_wrapper)
-	llgtr	%r2,%r2			# u32 *
-	jg	sys_pipe		# branch to system call
-
 ENTRY(compat_sys_times_wrapper)
 	llgtr	%r2,%r2			# struct compat_tms *
 	jg	compat_sys_times	# branch to system call
-
-ENTRY(sys32_brk_wrapper)
-	llgtr	%r2,%r2			# unsigned long
-	jg	sys_brk			# branch to system call
-
-ENTRY(sys32_signal_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# __sighandler_t
-	jg	sys_signal
-
-ENTRY(sys32_acct_wrapper)
-	llgtr	%r2,%r2			# char *
-	jg	sys_acct		# branch to system call
-
-ENTRY(sys32_umount_wrapper)
-	llgtr	%r2,%r2			# char *
-	lgfr	%r3,%r3			# int
-	jg	sys_umount		# branch to system call
 
 ENTRY(compat_sys_ioctl_wrapper)
 	llgfr	%r2,%r2			# unsigned int
