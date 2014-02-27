@@ -217,7 +217,7 @@ static int line6_send_raw_message_async_part(struct message *msg,
 	Setup and start timer.
 */
 void line6_start_timer(struct timer_list *timer, unsigned int msecs,
-		       void (*function) (unsigned long), unsigned long data)
+		       void (*function)(unsigned long), unsigned long data)
 {
 	setup_timer(timer, function, data);
 	timer->expires = jiffies + msecs * HZ / 1000;
