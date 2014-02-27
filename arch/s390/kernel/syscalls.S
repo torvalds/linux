@@ -165,22 +165,22 @@ SYSCALL(sys_munlockall,sys_munlockall,sys_munlockall)
 SYSCALL(sys_sched_setparam,sys_sched_setparam,compat_sys_sched_setparam)
 SYSCALL(sys_sched_getparam,sys_sched_getparam,compat_sys_sched_getparam)	/* 155 */
 SYSCALL(sys_sched_setscheduler,sys_sched_setscheduler,compat_sys_sched_setscheduler)
-SYSCALL(sys_sched_getscheduler,sys_sched_getscheduler,sys32_sched_getscheduler_wrapper)
+SYSCALL(sys_sched_getscheduler,sys_sched_getscheduler,compat_sys_sched_getscheduler)
 SYSCALL(sys_sched_yield,sys_sched_yield,sys_sched_yield)
-SYSCALL(sys_sched_get_priority_max,sys_sched_get_priority_max,sys32_sched_get_priority_max_wrapper)
-SYSCALL(sys_sched_get_priority_min,sys_sched_get_priority_min,sys32_sched_get_priority_min_wrapper)	/* 160 */
+SYSCALL(sys_sched_get_priority_max,sys_sched_get_priority_max,compat_sys_sched_get_priority_max)
+SYSCALL(sys_sched_get_priority_min,sys_sched_get_priority_min,compat_sys_sched_get_priority_min)	/* 160 */
 SYSCALL(sys_sched_rr_get_interval,sys_sched_rr_get_interval,compat_sys_sched_rr_get_interval)
 SYSCALL(sys_nanosleep,sys_nanosleep,compat_sys_nanosleep_wrapper)
-SYSCALL(sys_mremap,sys_mremap,sys32_mremap_wrapper)
+SYSCALL(sys_mremap,sys_mremap,compat_sys_mremap)
 SYSCALL(sys_setresuid16,sys_ni_syscall,compat_sys_s390_setresuid16)	/* old setresuid16 syscall */
 SYSCALL(sys_getresuid16,sys_ni_syscall,compat_sys_s390_getresuid16)	/* 165 old getresuid16 syscall */
 NI_SYSCALL							/* for vm86 */
 NI_SYSCALL							/* old sys_query_module */
-SYSCALL(sys_poll,sys_poll,sys32_poll_wrapper)
+SYSCALL(sys_poll,sys_poll,compat_sys_poll)
 NI_SYSCALL							/* old nfsservctl */
 SYSCALL(sys_setresgid16,sys_ni_syscall,compat_sys_s390_setresgid16)	/* 170 old setresgid16 syscall */
 SYSCALL(sys_getresgid16,sys_ni_syscall,compat_sys_s390_getresgid16)	/* old getresgid16 syscall */
-SYSCALL(sys_prctl,sys_prctl,sys32_prctl_wrapper)
+SYSCALL(sys_prctl,sys_prctl,compat_sys_prctl)
 SYSCALL(sys_rt_sigreturn,sys_rt_sigreturn,sys32_rt_sigreturn)
 SYSCALL(sys_rt_sigaction,sys_rt_sigaction,compat_sys_rt_sigaction)
 SYSCALL(sys_rt_sigprocmask,sys_rt_sigprocmask,compat_sys_rt_sigprocmask) /* 175 */
@@ -191,9 +191,9 @@ SYSCALL(sys_rt_sigsuspend,sys_rt_sigsuspend,compat_sys_rt_sigsuspend)
 SYSCALL(sys_pread64,sys_pread64,compat_sys_s390_pread64)		/* 180 */
 SYSCALL(sys_pwrite64,sys_pwrite64,compat_sys_s390_pwrite64)
 SYSCALL(sys_chown16,sys_ni_syscall,compat_sys_s390_chown16)	/* old chown16 syscall */
-SYSCALL(sys_getcwd,sys_getcwd,sys32_getcwd_wrapper)
-SYSCALL(sys_capget,sys_capget,sys32_capget_wrapper)
-SYSCALL(sys_capset,sys_capset,sys32_capset_wrapper)		/* 185 */
+SYSCALL(sys_getcwd,sys_getcwd,compat_sys_getcwd)
+SYSCALL(sys_capget,sys_capget,compat_sys_capget)
+SYSCALL(sys_capset,sys_capset,compat_sys_capset)		/* 185 */
 SYSCALL(sys_sigaltstack,sys_sigaltstack,compat_sys_sigaltstack)
 SYSCALL(sys_sendfile,sys_sendfile64,compat_sys_sendfile)
 NI_SYSCALL							/* streams1 */
@@ -206,7 +206,7 @@ SYSCALL(sys_ftruncate64,sys_ni_syscall,compat_sys_s390_ftruncate64)
 SYSCALL(sys_stat64,sys_ni_syscall,compat_sys_s390_stat64)		/* 195 */
 SYSCALL(sys_lstat64,sys_ni_syscall,compat_sys_s390_lstat64)
 SYSCALL(sys_fstat64,sys_ni_syscall,compat_sys_s390_fstat64)
-SYSCALL(sys_lchown,sys_lchown,sys32_lchown_wrapper)
+SYSCALL(sys_lchown,sys_lchown,compat_sys_lchown)
 SYSCALL(sys_getuid,sys_getuid,sys_getuid)
 SYSCALL(sys_getgid,sys_getgid,sys_getgid)			/* 200 */
 SYSCALL(sys_geteuid,sys_geteuid,sys_geteuid)

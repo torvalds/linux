@@ -154,76 +154,10 @@ ENTRY(compat_sys_writev_wrapper)
 	llgfr	%r4,%r4			# unsigned long
 	jg	compat_sys_writev	# branch to system call
 
-ENTRY(sys32_sched_getscheduler_wrapper)
-	lgfr	%r2,%r2			# pid_t
-	jg	sys_sched_getscheduler	# branch to system call
-
-#sys32_sched_yield_wrapper		# void
-
-ENTRY(sys32_sched_get_priority_max_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_sched_get_priority_max	# branch to system call
-
-ENTRY(sys32_sched_get_priority_min_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_sched_get_priority_min	# branch to system call
-
 ENTRY(compat_sys_nanosleep_wrapper)
 	llgtr	%r2,%r2			# struct compat_timespec *
 	llgtr	%r3,%r3			# struct compat_timespec *
 	jg	compat_sys_nanosleep		# branch to system call
-
-ENTRY(sys32_mremap_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgfr	%r3,%r3			# unsigned long
-	llgfr	%r4,%r4			# unsigned long
-	llgfr	%r5,%r5			# unsigned long
-	llgfr	%r6,%r6			# unsigned long
-	jg	sys_mremap		# branch to system call
-
-ENTRY(sys32_poll_wrapper)
-	llgtr	%r2,%r2			# struct pollfd *
-	llgfr	%r3,%r3			# unsigned int
-	lgfr	%r4,%r4			# int
-	jg	sys_poll		# branch to system call
-
-ENTRY(sys32_prctl_wrapper)
-	lgfr	%r2,%r2			# int
-	llgfr	%r3,%r3			# unsigned long
-	llgfr	%r4,%r4			# unsigned long
-	llgfr	%r5,%r5			# unsigned long
-	llgfr	%r6,%r6			# unsigned long
-	jg	sys_prctl		# branch to system call
-
-#sys32_rt_sigreturn_wrapper		# done in rt_sigreturn_glue
-
-ENTRY(sys32_getcwd_wrapper)
-	llgtr	%r2,%r2			# char *
-	llgfr	%r3,%r3			# unsigned long
-	jg	sys_getcwd		# branch to system call
-
-ENTRY(sys32_capget_wrapper)
-	llgtr	%r2,%r2			# cap_user_header_t
-	llgtr	%r3,%r3			# cap_user_data_t
-	jg	sys_capget		# branch to system call
-
-ENTRY(sys32_capset_wrapper)
-	llgtr	%r2,%r2			# cap_user_header_t
-	llgtr	%r3,%r3			# const cap_user_data_t
-	jg	sys_capset		# branch to system call
-
-#sys32_vfork_wrapper			# done in vfork_glue
-
-ENTRY(sys32_lchown_wrapper)
-	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# uid_t
-	llgfr	%r4,%r4			# gid_t
-	jg	sys_lchown		# branch to system call
-
-#sys32_getuid_wrapper			# void
-#sys32_getgid_wrapper			# void
-#sys32_geteuid_wrapper			# void
-#sys32_getegid_wrapper			# void
 
 ENTRY(sys32_setreuid_wrapper)
 	llgfr	%r2,%r2			# uid_t
