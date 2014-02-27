@@ -168,6 +168,27 @@ static void ieee80211_change_chanctx(struct ieee80211_local *local,
 	}
 }
 
+static bool ieee80211_chanctx_is_reserved(struct ieee80211_local *local,
+					  struct ieee80211_chanctx *ctx)
+{
+	struct ieee80211_sub_if_data *sdata;
+	bool ret = false;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (!ieee80211_sdata_running(sdata))
+			continue;
+		if (sdata->reserved_chanctx == ctx) {
+			ret = true;
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+	return ret;
+}
+
 static struct ieee80211_chanctx *
 ieee80211_find_chanctx(struct ieee80211_local *local,
 		       const struct cfg80211_chan_def *chandef,
@@ -183,7 +204,12 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
 		const struct cfg80211_chan_def *compat;
 
-		if (ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE)
+		/* We don't support chanctx reservation for multiple
+		 * vifs yet, so don't allow reserved chanctxs to be
+		 * reused.
+		 */
+		if ((ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE) ||
+		    ieee80211_chanctx_is_reserved(local, ctx))
 			continue;
 
 		compat = cfg80211_chandef_compatible(&ctx->conf.def, chandef);
@@ -718,11 +744,20 @@ int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 	/* try to find another context with the chandef we want */
 	new_ctx = ieee80211_find_chanctx(local, chandef, mode);
 	if (!new_ctx) {
-		/* create a new context */
-		new_ctx = ieee80211_new_chanctx(local, chandef, mode);
-		if (IS_ERR(new_ctx)) {
-			ret = PTR_ERR(new_ctx);
-			goto out;
+		if (curr_ctx->refcount == 1 &&
+		    (local->hw.flags & IEEE80211_HW_CHANGE_RUNNING_CHANCTX)) {
+			/* if we're the only users of the chanctx and
+			 * the driver supports changing a running
+			 * context, reserve our current context
+			 */
+			new_ctx = curr_ctx;
+		} else {
+			/* create a new context and reserve it */
+			new_ctx = ieee80211_new_chanctx(local, chandef, mode);
+			if (IS_ERR(new_ctx)) {
+				ret = PTR_ERR(new_ctx);
+				goto out;
+			}
 		}
 	}
 
@@ -770,22 +805,30 @@ int ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.bss_conf.chandef = sdata->reserved_chandef;
 
-	/* unref our reservation before assigning */
+	/* unref our reservation */
 	ctx->refcount--;
 	sdata->reserved_chanctx = NULL;
 
-	ret = ieee80211_assign_vif_chanctx(sdata, ctx);
-	if (old_ctx->refcount == 0)
-		ieee80211_free_chanctx(local, old_ctx);
-	if (ret) {
-		/* if assign fails refcount stays the same */
-		if (ctx->refcount == 0)
-			ieee80211_free_chanctx(local, ctx);
-		goto out;
-	}
+	if (old_ctx == ctx) {
+		/* This is our own context, just change it */
+		ret = __ieee80211_vif_change_channel(sdata, old_ctx,
+						     &tmp_changed);
+		if (ret)
+			goto out;
+	} else {
+		ret = ieee80211_assign_vif_chanctx(sdata, ctx);
+		if (old_ctx->refcount == 0)
+			ieee80211_free_chanctx(local, old_ctx);
+		if (ret) {
+			/* if assign fails refcount stays the same */
+			if (ctx->refcount == 0)
+				ieee80211_free_chanctx(local, ctx);
+			goto out;
+		}
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP)
-		__ieee80211_vif_copy_chanctx_to_vlans(sdata, false);
+		if (sdata->vif.type == NL80211_IFTYPE_AP)
+			__ieee80211_vif_copy_chanctx_to_vlans(sdata, false);
+	}
 
 	*changed = tmp_changed;
 
