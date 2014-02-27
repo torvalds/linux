@@ -299,7 +299,7 @@ static int drbd_proc_open(struct inode *inode, struct file *file)
 	int err;
 
 	if (try_module_get(THIS_MODULE)) {
-		err = single_open(file, drbd_seq_show, PDE_DATA(inode));
+		err = single_open(file, drbd_seq_show, NULL);
 		if (err)
 			module_put(THIS_MODULE);
 		return err;

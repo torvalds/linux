@@ -2125,20 +2125,6 @@ Enomem:
 	return -ENOMEM;
 }
 
-static int drbd_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	/* just so we have it.  you never know what interesting things we
-	 * might want to do here some day...
-	 */
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block drbd_notifier = {
-	.notifier_call = drbd_notify_sys,
-};
-
 static void drbd_release_all_peer_reqs(struct drbd_device *device)
 {
 	int rr;
@@ -2313,8 +2299,6 @@ static void drbd_cleanup(void)
 	unsigned int i;
 	struct drbd_device *device;
 	struct drbd_resource *resource, *tmp;
-
-	unregister_reboot_notifier(&drbd_notifier);
 
 	/* first remove proc,
 	 * drbdsetup uses it's presence to detect
@@ -2898,8 +2882,6 @@ static int __init drbd_init(void)
 		       DRBD_MAJOR);
 		return err;
 	}
-
-	register_reboot_notifier(&drbd_notifier);
 
 	/*
 	 * allocate all necessary structs
