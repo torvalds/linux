@@ -56,6 +56,15 @@ enum ath_device_state {
 	ATH_HW_INITIALIZED,
 };
 
+enum ath_op_flags {
+	ATH_OP_INVALID,
+	ATH_OP_BEACONS,
+	ATH_OP_ANI_RUN,
+	ATH_OP_PRIM_STA_VIF,
+	ATH_OP_HW_RESET,
+	ATH_OP_SCANNING,
+};
+
 enum ath_bus_type {
 	ATH_PCI,
 	ATH_AHB,
@@ -130,6 +139,7 @@ struct ath_common {
 	struct ieee80211_hw *hw;
 	int debug_mask;
 	enum ath_device_state state;
+	unsigned long op_flags;
 
 	struct ath_ani ani;
 

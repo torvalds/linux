@@ -328,7 +328,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int slot;
 
-	if (test_bit(SC_OP_HW_RESET, &sc->sc_flags)) {
+	if (test_bit(ATH_OP_HW_RESET, &common->op_flags)) {
 		ath_dbg(common, RESET,
 			"reset work is pending, skip beaconing now\n");
 		return;
@@ -524,7 +524,7 @@ static void ath9k_beacon_config_sta(struct ath_softc *sc,
 	u64 tsf;
 
 	/* No need to configure beacon if we are not associated */
-	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
+	if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
 		ath_dbg(common, BEACON,
 			"STA is not yet associated..skipping beacon config\n");
 		return;
@@ -629,7 +629,7 @@ static void ath9k_beacon_config_adhoc(struct ath_softc *sc,
 	 * joiner case in IBSS mode.
 	 */
 	if (!conf->ibss_creator && conf->enable_beacon)
-		set_bit(SC_OP_BEACONS, &sc->sc_flags);
+		set_bit(ATH_OP_BEACONS, &common->op_flags);
 }
 
 static bool ath9k_allow_beacon_config(struct ath_softc *sc,
@@ -649,7 +649,7 @@ static bool ath9k_allow_beacon_config(struct ath_softc *sc,
 
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION) {
 		if ((vif->type == NL80211_IFTYPE_STATION) &&
-		    test_bit(SC_OP_BEACONS, &sc->sc_flags) &&
+		    test_bit(ATH_OP_BEACONS, &common->op_flags) &&
 		    !avp->primary_sta_vif) {
 			ath_dbg(common, CONFIG,
 				"Beacon already configured for a station interface\n");
@@ -700,6 +700,8 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 {
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+        struct ath_hw *ah = sc->sc_ah;
+        struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long flags;
 	bool skip_beacon = false;
 
@@ -712,7 +714,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION) {
 		ath9k_cache_beacon_config(sc, bss_conf);
 		ath9k_set_beacon(sc);
-		set_bit(SC_OP_BEACONS, &sc->sc_flags);
+		set_bit(ATH_OP_BEACONS, &common->op_flags);
 		return;
 	}
 
@@ -751,13 +753,13 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 		}
 
 		/*
-		 * Do not set the SC_OP_BEACONS flag for IBSS joiner mode
+		 * Do not set the ATH_OP_BEACONS flag for IBSS joiner mode
 		 * here, it is done in ath9k_beacon_config_adhoc().
 		 */
 		if (cur_conf->enable_beacon && !skip_beacon)
-			set_bit(SC_OP_BEACONS, &sc->sc_flags);
+			set_bit(ATH_OP_BEACONS, &common->op_flags);
 		else
-			clear_bit(SC_OP_BEACONS, &sc->sc_flags);
+			clear_bit(ATH_OP_BEACONS, &common->op_flags);
 	}
 }
 

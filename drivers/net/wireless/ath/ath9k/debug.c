@@ -208,7 +208,7 @@ static ssize_t write_file_ani(struct file *file,
 	common->disable_ani = !ani;
 
 	if (common->disable_ani) {
-		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+		clear_bit(ATH_OP_ANI_RUN, &common->op_flags);
 		ath_stop_ani(sc);
 	} else {
 		ath_check_ani(sc);
