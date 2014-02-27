@@ -53,7 +53,7 @@ static u32 intel_crc4_2_hash(const void *data, u32 len, u32 seed)
 	u32 i, tmp = 0;
 
 	for (i = 0; i < len / 4; i++)
-		seed = crc32_u32(*p32++, seed);
+		seed = crc32_u32(seed, *p32++);
 
 	switch (3 - (len & 0x03)) {
 	case 0:
@@ -64,7 +64,7 @@ static u32 intel_crc4_2_hash(const void *data, u32 len, u32 seed)
 		/* fallthrough */
 	case 2:
 		tmp |= *((const u8 *) p32);
-		seed = crc32_u32(tmp, seed);
+		seed = crc32_u32(seed, tmp);
 	default:
 		break;
 	}
@@ -78,7 +78,7 @@ static u32 intel_crc4_2_hash2(const u32 *data, u32 len, u32 seed)
 	u32 i;
 
 	for (i = 0; i < len; i++)
-		seed = crc32_u32(*p32++, seed);
+		seed = crc32_u32(seed, *p32++);
 
 	return seed;
 }
