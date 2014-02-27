@@ -34,8 +34,10 @@
 
 #define SAMPLE_COUNT		3
 
-#define BYT_RATIOS	0x66a
-#define BYT_VIDS        0x66b
+#define BYT_RATIOS		0x66a
+#define BYT_VIDS		0x66b
+#define BYT_TURBO_RATIOS	0x66c
+
 
 #define FRAC_BITS 8
 #define int_tofp(X) ((int64_t)(X) << FRAC_BITS)
@@ -50,8 +52,6 @@ static inline int32_t div_fp(int32_t x, int32_t y)
 {
 	return div_s64((int64_t)x << FRAC_BITS, (int64_t)y);
 }
-
-static u64 energy_divisor;
 
 struct sample {
 	int32_t core_pct_busy;
@@ -359,7 +359,7 @@ static int byt_get_min_pstate(void)
 {
 	u64 value;
 	rdmsrl(BYT_RATIOS, value);
-	return value & 0xFF;
+	return (value >> 8) & 0xFF;
 }
 
 static int byt_get_max_pstate(void)
@@ -367,6 +367,13 @@ static int byt_get_max_pstate(void)
 	u64 value;
 	rdmsrl(BYT_RATIOS, value);
 	return (value >> 16) & 0xFF;
+}
+
+static int byt_get_turbo_pstate(void)
+{
+	u64 value;
+	rdmsrl(BYT_TURBO_RATIOS, value);
+	return value & 0x3F;
 }
 
 static void byt_set_pstate(struct cpudata *cpudata, int pstate)
@@ -471,7 +478,7 @@ static struct cpu_defaults byt_params = {
 	.funcs = {
 		.get_max = byt_get_max_pstate,
 		.get_min = byt_get_min_pstate,
-		.get_turbo = byt_get_max_pstate,
+		.get_turbo = byt_get_turbo_pstate,
 		.set = byt_set_pstate,
 		.get_vid = byt_get_vid,
 	},
@@ -630,12 +637,10 @@ static void intel_pstate_timer_func(unsigned long __data)
 {
 	struct cpudata *cpu = (struct cpudata *) __data;
 	struct sample *sample;
-	u64 energy;
 
 	intel_pstate_sample(cpu);
 
 	sample = &cpu->samples[cpu->sample_ptr];
-	rdmsrl(MSR_PKG_ENERGY_STATUS, energy);
 
 	intel_pstate_adjust_busy_pstate(cpu);
 
@@ -644,7 +649,6 @@ static void intel_pstate_timer_func(unsigned long __data)
 			cpu->pstate.current_pstate,
 			sample->mperf,
 			sample->aperf,
-			div64_u64(energy, energy_divisor),
 			sample->freq);
 
 	intel_pstate_set_sample_time(cpu);
@@ -926,7 +930,6 @@ static int __init intel_pstate_init(void)
 	int cpu, rc = 0;
 	const struct x86_cpu_id *id;
 	struct cpu_defaults *cpu_info;
-	u64 units;
 
 	if (no_load)
 		return -ENODEV;
@@ -959,9 +962,6 @@ static int __init intel_pstate_init(void)
 	rc = cpufreq_register_driver(&intel_pstate_driver);
 	if (rc)
 		goto out;
-
-	rdmsrl(MSR_RAPL_POWER_UNIT, units);
-	energy_divisor = 1 << ((units >> 8) & 0x1f); /* bits{12:8} */
 
 	intel_pstate_debug_expose_params();
 	intel_pstate_sysfs_expose_params();

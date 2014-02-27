@@ -2009,7 +2009,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	unsigned char isid_buf[PR_REG_ISID_LEN], *isid_ptr = NULL;
 	sense_reason_t ret = TCM_NO_SENSE;
-	int pr_holder = 0;
+	int pr_holder = 0, type;
 
 	if (!se_sess || !se_lun) {
 		pr_err("SPC-3 PR: se_sess || struct se_lun is NULL!\n");
@@ -2131,6 +2131,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 			ret = TCM_RESERVATION_CONFLICT;
 			goto out;
 		}
+		type = pr_reg->pr_res_type;
 
 		spin_lock(&pr_tmpl->registration_lock);
 		/*
@@ -2161,6 +2162,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		 * Release the calling I_T Nexus registration now..
 		 */
 		__core_scsi3_free_registration(cmd->se_dev, pr_reg, NULL, 1);
+		pr_reg = NULL;
 
 		/*
 		 * From spc4r17, section 5.7.11.3 Unregistering
@@ -2174,8 +2176,8 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		 * RESERVATIONS RELEASED.
 		 */
 		if (pr_holder &&
-		    (pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_REGONLY ||
-		     pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_REGONLY)) {
+		    (type == PR_TYPE_WRITE_EXCLUSIVE_REGONLY ||
+		     type == PR_TYPE_EXCLUSIVE_ACCESS_REGONLY)) {
 			list_for_each_entry(pr_reg_p,
 					&pr_tmpl->registration_list,
 					pr_reg_list) {
@@ -2194,7 +2196,8 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	ret = core_scsi3_update_and_write_aptpl(dev, aptpl);
 
 out:
-	core_scsi3_put_pr_reg(pr_reg);
+	if (pr_reg)
+		core_scsi3_put_pr_reg(pr_reg);
 	return ret;
 }
 

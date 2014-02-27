@@ -3839,7 +3839,6 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 			rb_erase(&ref->rb_node, &head->ref_root);
 			atomic_dec(&delayed_refs->num_entries);
 			btrfs_put_delayed_ref(ref);
-			cond_resched_lock(&head->lock);
 		}
 		if (head->must_insert_reserved)
 			pin_bytes = true;

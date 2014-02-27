@@ -307,13 +307,14 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 		return 0;
 	}
 
-	temp_64 = readq(&xhci->op_regs->cmd_ring);
+	temp_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
 	if (!(temp_64 & CMD_RING_RUNNING)) {
 		xhci_dbg(xhci, "Command ring had been stopped\n");
 		return 0;
 	}
 	xhci->cmd_ring_state = CMD_RING_STATE_ABORTED;
-	writeq(temp_64 | CMD_RING_ABORT, &xhci->op_regs->cmd_ring);
+	xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
+			&xhci->op_regs->cmd_ring);
 
 	/* Section 4.6.1.2 of xHCI 1.0 spec says software should
 	 * time the completion od all xHCI commands, including
@@ -2864,8 +2865,9 @@ hw_died:
 		/* Clear the event handler busy flag (RW1C);
 		 * the event ring should be empty.
 		 */
-		temp_64 = readq(&xhci->ir_set->erst_dequeue);
-		writeq(temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
+		temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+		xhci_write_64(xhci, temp_64 | ERST_EHB,
+				&xhci->ir_set->erst_dequeue);
 		spin_unlock(&xhci->lock);
 
 		return IRQ_HANDLED;
@@ -2877,7 +2879,7 @@ hw_died:
 	 */
 	while (xhci_handle_event(xhci) > 0) {}
 
-	temp_64 = readq(&xhci->ir_set->erst_dequeue);
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	/* If necessary, update the HW's version of the event ring deq ptr. */
 	if (event_ring_deq != xhci->event_ring->dequeue) {
 		deq = xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,
@@ -2892,7 +2894,7 @@ hw_died:
 
 	/* Clear the event handler busy flag (RW1C); event ring is empty. */
 	temp_64 |= ERST_EHB;
-	writeq(temp_64, &xhci->ir_set->erst_dequeue);
+	xhci_write_64(xhci, temp_64, &xhci->ir_set->erst_dequeue);
 
 	spin_unlock(&xhci->lock);
 
@@ -2965,58 +2967,8 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	}
 
 	while (1) {
-		if (room_on_ring(xhci, ep_ring, num_trbs)) {
-			union xhci_trb *trb = ep_ring->enqueue;
-			unsigned int usable = ep_ring->enq_seg->trbs +
-					TRBS_PER_SEGMENT - 1 - trb;
-			u32 nop_cmd;
-
-			/*
-			 * Section 4.11.7.1 TD Fragments states that a link
-			 * TRB must only occur at the boundary between
-			 * data bursts (eg 512 bytes for 480M).
-			 * While it is possible to split a large fragment
-			 * we don't know the size yet.
-			 * Simplest solution is to fill the trb before the
-			 * LINK with nop commands.
-			 */
-			if (num_trbs == 1 || num_trbs <= usable || usable == 0)
-				break;
-
-			if (ep_ring->type != TYPE_BULK)
-				/*
-				 * While isoc transfers might have a buffer that
-				 * crosses a 64k boundary it is unlikely.
-				 * Since we can't add NOPs without generating
-				 * gaps in the traffic just hope it never
-				 * happens at the end of the ring.
-				 * This could be fixed by writing a LINK TRB
-				 * instead of the first NOP - however the
-				 * TRB_TYPE_LINK_LE32() calls would all need
-				 * changing to check the ring length.
-				 */
-				break;
-
-			if (num_trbs >= TRBS_PER_SEGMENT) {
-				xhci_err(xhci, "Too many fragments %d, max %d\n",
-						num_trbs, TRBS_PER_SEGMENT - 1);
-				return -EINVAL;
-			}
-
-			nop_cmd = cpu_to_le32(TRB_TYPE(TRB_TR_NOOP) |
-					ep_ring->cycle_state);
-			ep_ring->num_trbs_free -= usable;
-			do {
-				trb->generic.field[0] = 0;
-				trb->generic.field[1] = 0;
-				trb->generic.field[2] = 0;
-				trb->generic.field[3] = nop_cmd;
-				trb++;
-			} while (--usable);
-			ep_ring->enqueue = trb;
-			if (room_on_ring(xhci, ep_ring, num_trbs))
-				break;
-		}
+		if (room_on_ring(xhci, ep_ring, num_trbs))
+			break;
 
 		if (ep_ring == xhci->cmd_ring) {
 			xhci_err(xhci, "Do not support expand command ring\n");

@@ -1223,9 +1223,19 @@ typedef enum {
 #define SVGA_3D_CMD_INVALIDATE_GB_IMAGE_PARTIAL 1129
 
 #define SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE  1130
-
+#define SVGA_3D_CMD_GB_SCREEN_DMA               1131
+#define SVGA_3D_CMD_BIND_GB_SURFACE_WITH_PITCH  1132
+#define SVGA_3D_CMD_GB_MOB_FENCE                1133
+#define SVGA_3D_CMD_DEFINE_GB_SURFACE_V2        1134
 #define SVGA_3D_CMD_DEFINE_GB_MOB64          1135
 #define SVGA_3D_CMD_REDEFINE_GB_MOB64        1136
+#define SVGA_3D_CMD_NOP_ERROR                1137
+
+#define SVGA_3D_CMD_RESERVED1                1138
+#define SVGA_3D_CMD_RESERVED2                1139
+#define SVGA_3D_CMD_RESERVED3                1140
+#define SVGA_3D_CMD_RESERVED4                1141
+#define SVGA_3D_CMD_RESERVED5                1142
 
 #define SVGA_3D_CMD_MAX                      1142
 #define SVGA_3D_CMD_FUTURE_MAX               3000
@@ -1973,8 +1983,7 @@ struct {
    uint32 sizeInBytes;
    uint32 validSizeInBytes;
    SVGAMobFormat ptDepth;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdSetOTableBase;  /* SVGA_3D_CMD_SET_OTABLE_BASE */
 
 typedef
@@ -1984,15 +1993,13 @@ struct {
    uint32 sizeInBytes;
    uint32 validSizeInBytes;
    SVGAMobFormat ptDepth;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdSetOTableBase64;  /* SVGA_3D_CMD_SET_OTABLE_BASE64 */
 
 typedef
 struct {
    SVGAOTableType type;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdReadbackOTable;  /* SVGA_3D_CMD_READBACK_OTABLE */
 
 /*
@@ -2005,8 +2012,7 @@ struct SVGA3dCmdDefineGBMob {
    SVGAMobFormat ptDepth;
    PPN base;
    uint32 sizeInBytes;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdDefineGBMob;   /* SVGA_3D_CMD_DEFINE_GB_MOB */
 
 
@@ -2017,8 +2023,7 @@ SVGA3dCmdDefineGBMob;   /* SVGA_3D_CMD_DEFINE_GB_MOB */
 typedef
 struct SVGA3dCmdDestroyGBMob {
    SVGAMobId mobid;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdDestroyGBMob;   /* SVGA_3D_CMD_DESTROY_GB_MOB */
 
 /*
@@ -2031,8 +2036,7 @@ struct SVGA3dCmdRedefineGBMob {
    SVGAMobFormat ptDepth;
    PPN base;
    uint32 sizeInBytes;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdRedefineGBMob;   /* SVGA_3D_CMD_REDEFINE_GB_MOB */
 
 /*
@@ -2045,8 +2049,7 @@ struct SVGA3dCmdDefineGBMob64 {
    SVGAMobFormat ptDepth;
    PPN64 base;
    uint32 sizeInBytes;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdDefineGBMob64;   /* SVGA_3D_CMD_DEFINE_GB_MOB64 */
 
 /*
@@ -2059,8 +2062,7 @@ struct SVGA3dCmdRedefineGBMob64 {
    SVGAMobFormat ptDepth;
    PPN64 base;
    uint32 sizeInBytes;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdRedefineGBMob64;   /* SVGA_3D_CMD_REDEFINE_GB_MOB64 */
 
 /*
@@ -2070,8 +2072,7 @@ SVGA3dCmdRedefineGBMob64;   /* SVGA_3D_CMD_REDEFINE_GB_MOB64 */
 typedef
 struct SVGA3dCmdUpdateGBMobMapping {
    SVGAMobId mobid;
-}
-__attribute__((__packed__))
+} __packed
 SVGA3dCmdUpdateGBMobMapping;   /* SVGA_3D_CMD_UPDATE_GB_MOB_MAPPING */
 
 /*
@@ -2087,7 +2088,8 @@ struct SVGA3dCmdDefineGBSurface {
    uint32 multisampleCount;
    SVGA3dTextureFilter autogenFilter;
    SVGA3dSize size;
-} SVGA3dCmdDefineGBSurface;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE */
+} __packed
+SVGA3dCmdDefineGBSurface;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE */
 
 /*
  * Destroy a guest-backed surface.
@@ -2096,7 +2098,8 @@ struct SVGA3dCmdDefineGBSurface {
 typedef
 struct SVGA3dCmdDestroyGBSurface {
    uint32 sid;
-} SVGA3dCmdDestroyGBSurface;   /* SVGA_3D_CMD_DESTROY_GB_SURFACE */
+} __packed
+SVGA3dCmdDestroyGBSurface;   /* SVGA_3D_CMD_DESTROY_GB_SURFACE */
 
 /*
  * Bind a guest-backed surface to an object.
@@ -2106,7 +2109,8 @@ typedef
 struct SVGA3dCmdBindGBSurface {
    uint32 sid;
    SVGAMobId mobid;
-} SVGA3dCmdBindGBSurface;   /* SVGA_3D_CMD_BIND_GB_SURFACE */
+} __packed
+SVGA3dCmdBindGBSurface;   /* SVGA_3D_CMD_BIND_GB_SURFACE */
 
 /*
  * Conditionally bind a mob to a guest backed surface if testMobid
@@ -2123,7 +2127,7 @@ struct{
    SVGAMobId testMobid;
    SVGAMobId mobid;
    uint32 flags;
-}
+} __packed
 SVGA3dCmdCondBindGBSurface;          /* SVGA_3D_CMD_COND_BIND_GB_SURFACE */
 
 /*
@@ -2135,7 +2139,8 @@ typedef
 struct SVGA3dCmdUpdateGBImage {
    SVGA3dSurfaceImageId image;
    SVGA3dBox box;
-} SVGA3dCmdUpdateGBImage;   /* SVGA_3D_CMD_UPDATE_GB_IMAGE */
+} __packed
+SVGA3dCmdUpdateGBImage;   /* SVGA_3D_CMD_UPDATE_GB_IMAGE */
 
 /*
  * Update an entire guest-backed surface.
@@ -2145,7 +2150,8 @@ struct SVGA3dCmdUpdateGBImage {
 typedef
 struct SVGA3dCmdUpdateGBSurface {
    uint32 sid;
-} SVGA3dCmdUpdateGBSurface;   /* SVGA_3D_CMD_UPDATE_GB_SURFACE */
+} __packed
+SVGA3dCmdUpdateGBSurface;   /* SVGA_3D_CMD_UPDATE_GB_SURFACE */
 
 /*
  * Readback an image in a guest-backed surface.
@@ -2155,7 +2161,8 @@ struct SVGA3dCmdUpdateGBSurface {
 typedef
 struct SVGA3dCmdReadbackGBImage {
    SVGA3dSurfaceImageId image;
-} SVGA3dCmdReadbackGBImage;   /* SVGA_3D_CMD_READBACK_GB_IMAGE*/
+} __packed
+SVGA3dCmdReadbackGBImage;   /* SVGA_3D_CMD_READBACK_GB_IMAGE*/
 
 /*
  * Readback an entire guest-backed surface.
@@ -2165,7 +2172,8 @@ struct SVGA3dCmdReadbackGBImage {
 typedef
 struct SVGA3dCmdReadbackGBSurface {
    uint32 sid;
-} SVGA3dCmdReadbackGBSurface;   /* SVGA_3D_CMD_READBACK_GB_SURFACE */
+} __packed
+SVGA3dCmdReadbackGBSurface;   /* SVGA_3D_CMD_READBACK_GB_SURFACE */
 
 /*
  * Readback a sub rect of an image in a guest-backed surface.  After
@@ -2179,7 +2187,7 @@ struct SVGA3dCmdReadbackGBImagePartial {
    SVGA3dSurfaceImageId image;
    SVGA3dBox box;
    uint32 invertBox;
-}
+} __packed
 SVGA3dCmdReadbackGBImagePartial; /* SVGA_3D_CMD_READBACK_GB_IMAGE_PARTIAL */
 
 /*
@@ -2190,7 +2198,8 @@ SVGA3dCmdReadbackGBImagePartial; /* SVGA_3D_CMD_READBACK_GB_IMAGE_PARTIAL */
 typedef
 struct SVGA3dCmdInvalidateGBImage {
    SVGA3dSurfaceImageId image;
-} SVGA3dCmdInvalidateGBImage;   /* SVGA_3D_CMD_INVALIDATE_GB_IMAGE */
+} __packed
+SVGA3dCmdInvalidateGBImage;   /* SVGA_3D_CMD_INVALIDATE_GB_IMAGE */
 
 /*
  * Invalidate an entire guest-backed surface.
@@ -2200,7 +2209,8 @@ struct SVGA3dCmdInvalidateGBImage {
 typedef
 struct SVGA3dCmdInvalidateGBSurface {
    uint32 sid;
-} SVGA3dCmdInvalidateGBSurface; /* SVGA_3D_CMD_INVALIDATE_GB_SURFACE */
+} __packed
+SVGA3dCmdInvalidateGBSurface; /* SVGA_3D_CMD_INVALIDATE_GB_SURFACE */
 
 /*
  * Invalidate a sub rect of an image in a guest-backed surface.  After
@@ -2214,7 +2224,7 @@ struct SVGA3dCmdInvalidateGBImagePartial {
    SVGA3dSurfaceImageId image;
    SVGA3dBox box;
    uint32 invertBox;
-}
+} __packed
 SVGA3dCmdInvalidateGBImagePartial; /* SVGA_3D_CMD_INVALIDATE_GB_IMAGE_PARTIAL */
 
 /*
@@ -2224,7 +2234,8 @@ SVGA3dCmdInvalidateGBImagePartial; /* SVGA_3D_CMD_INVALIDATE_GB_IMAGE_PARTIAL */
 typedef
 struct SVGA3dCmdDefineGBContext {
    uint32 cid;
-} SVGA3dCmdDefineGBContext;   /* SVGA_3D_CMD_DEFINE_GB_CONTEXT */
+} __packed
+SVGA3dCmdDefineGBContext;   /* SVGA_3D_CMD_DEFINE_GB_CONTEXT */
 
 /*
  * Destroy a guest-backed context.
@@ -2233,7 +2244,8 @@ struct SVGA3dCmdDefineGBContext {
 typedef
 struct SVGA3dCmdDestroyGBContext {
    uint32 cid;
-} SVGA3dCmdDestroyGBContext;   /* SVGA_3D_CMD_DESTROY_GB_CONTEXT */
+} __packed
+SVGA3dCmdDestroyGBContext;   /* SVGA_3D_CMD_DESTROY_GB_CONTEXT */
 
 /*
  * Bind a guest-backed context.
@@ -2252,7 +2264,8 @@ struct SVGA3dCmdBindGBContext {
    uint32 cid;
    SVGAMobId mobid;
    uint32 validContents;
-} SVGA3dCmdBindGBContext;   /* SVGA_3D_CMD_BIND_GB_CONTEXT */
+} __packed
+SVGA3dCmdBindGBContext;   /* SVGA_3D_CMD_BIND_GB_CONTEXT */
 
 /*
  * Readback a guest-backed context.
@@ -2262,7 +2275,8 @@ struct SVGA3dCmdBindGBContext {
 typedef
 struct SVGA3dCmdReadbackGBContext {
    uint32 cid;
-} SVGA3dCmdReadbackGBContext;   /* SVGA_3D_CMD_READBACK_GB_CONTEXT */
+} __packed
+SVGA3dCmdReadbackGBContext;   /* SVGA_3D_CMD_READBACK_GB_CONTEXT */
 
 /*
  * Invalidate a guest-backed context.
@@ -2270,7 +2284,8 @@ struct SVGA3dCmdReadbackGBContext {
 typedef
 struct SVGA3dCmdInvalidateGBContext {
    uint32 cid;
-} SVGA3dCmdInvalidateGBContext;   /* SVGA_3D_CMD_INVALIDATE_GB_CONTEXT */
+} __packed
+SVGA3dCmdInvalidateGBContext;   /* SVGA_3D_CMD_INVALIDATE_GB_CONTEXT */
 
 /*
  * Define a guest-backed shader.
@@ -2281,7 +2296,8 @@ struct SVGA3dCmdDefineGBShader {
    uint32 shid;
    SVGA3dShaderType type;
    uint32 sizeInBytes;
-} SVGA3dCmdDefineGBShader;   /* SVGA_3D_CMD_DEFINE_GB_SHADER */
+} __packed
+SVGA3dCmdDefineGBShader;   /* SVGA_3D_CMD_DEFINE_GB_SHADER */
 
 /*
  * Bind a guest-backed shader.
@@ -2291,7 +2307,8 @@ typedef struct SVGA3dCmdBindGBShader {
    uint32 shid;
    SVGAMobId mobid;
    uint32 offsetInBytes;
-} SVGA3dCmdBindGBShader;   /* SVGA_3D_CMD_BIND_GB_SHADER */
+} __packed
+SVGA3dCmdBindGBShader;   /* SVGA_3D_CMD_BIND_GB_SHADER */
 
 /*
  * Destroy a guest-backed shader.
@@ -2299,7 +2316,8 @@ typedef struct SVGA3dCmdBindGBShader {
 
 typedef struct SVGA3dCmdDestroyGBShader {
    uint32 shid;
-} SVGA3dCmdDestroyGBShader;   /* SVGA_3D_CMD_DESTROY_GB_SHADER */
+} __packed
+SVGA3dCmdDestroyGBShader;   /* SVGA_3D_CMD_DESTROY_GB_SHADER */
 
 typedef
 struct {
@@ -2314,14 +2332,16 @@ struct {
     * Note that FLOAT and INT constants are 4-dwords in length, while
     * BOOL constants are 1-dword in length.
     */
-} SVGA3dCmdSetGBShaderConstInline;
+} __packed
+SVGA3dCmdSetGBShaderConstInline;
 /* SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE */
 
 typedef
 struct {
    uint32               cid;
    SVGA3dQueryType      type;
-} SVGA3dCmdBeginGBQuery;           /* SVGA_3D_CMD_BEGIN_GB_QUERY */
+} __packed
+SVGA3dCmdBeginGBQuery;           /* SVGA_3D_CMD_BEGIN_GB_QUERY */
 
 typedef
 struct {
@@ -2329,7 +2349,8 @@ struct {
    SVGA3dQueryType      type;
    SVGAMobId mobid;
    uint32 offset;
-} SVGA3dCmdEndGBQuery;                  /* SVGA_3D_CMD_END_GB_QUERY */
+} __packed
+SVGA3dCmdEndGBQuery;                  /* SVGA_3D_CMD_END_GB_QUERY */
 
 
 /*
@@ -2346,21 +2367,22 @@ struct {
    SVGA3dQueryType      type;
    SVGAMobId mobid;
    uint32 offset;
-} SVGA3dCmdWaitForGBQuery;          /* SVGA_3D_CMD_WAIT_FOR_GB_QUERY */
+} __packed
+SVGA3dCmdWaitForGBQuery;          /* SVGA_3D_CMD_WAIT_FOR_GB_QUERY */
 
 typedef
 struct {
    SVGAMobId mobid;
    uint32 fbOffset;
    uint32 initalized;
-}
+} __packed
 SVGA3dCmdEnableGart;              /* SVGA_3D_CMD_ENABLE_GART */
 
 typedef
 struct {
    SVGAMobId mobid;
    uint32 gartOffset;
-}
+} __packed
 SVGA3dCmdMapMobIntoGart;          /* SVGA_3D_CMD_MAP_MOB_INTO_GART */
 
 
@@ -2368,7 +2390,7 @@ typedef
 struct {
    uint32 gartOffset;
    uint32 numPages;
-}
+} __packed
 SVGA3dCmdUnmapGartRange;          /* SVGA_3D_CMD_UNMAP_GART_RANGE */
 
 
@@ -2385,27 +2407,27 @@ struct {
    int32 xRoot;
    int32 yRoot;
    uint32 flags;
-}
+} __packed
 SVGA3dCmdDefineGBScreenTarget;    /* SVGA_3D_CMD_DEFINE_GB_SCREENTARGET */
 
 typedef
 struct {
    uint32 stid;
-}
+} __packed
 SVGA3dCmdDestroyGBScreenTarget;  /* SVGA_3D_CMD_DESTROY_GB_SCREENTARGET */
 
 typedef
 struct {
    uint32 stid;
    SVGA3dSurfaceImageId image;
-}
+} __packed
 SVGA3dCmdBindGBScreenTarget;  /* SVGA_3D_CMD_BIND_GB_SCREENTARGET */
 
 typedef
 struct {
    uint32 stid;
    SVGA3dBox box;
-}
+} __packed
 SVGA3dCmdUpdateGBScreenTarget;  /* SVGA_3D_CMD_UPDATE_GB_SCREENTARGET */
 
 /*

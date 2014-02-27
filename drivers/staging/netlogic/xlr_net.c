@@ -307,7 +307,7 @@ static netdev_tx_t xlr_net_start_xmit(struct sk_buff *skb,
 }
 
 static u16 xlr_net_select_queue(struct net_device *ndev, struct sk_buff *skb,
-				void *accel_priv)
+				void *accel_priv, select_queue_fallback_t fallback)
 {
 	return (u16)smp_processor_id();
 }
@@ -892,6 +892,11 @@ static int xlr_setup_mdio(struct xlr_net_priv *priv,
 	priv->mii_bus->write = xlr_mii_write;
 	priv->mii_bus->parent = &pdev->dev;
 	priv->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	if (priv->mii_bus->irq == NULL) {
+		pr_err("irq alloc failed\n");
+		mdiobus_free(priv->mii_bus);
+		return -ENOMEM;
+	}
 	priv->mii_bus->irq[priv->phy_addr] = priv->ndev->irq;
 
 	/* Scan only the enabled address */

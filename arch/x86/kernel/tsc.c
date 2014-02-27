@@ -209,7 +209,7 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 	 * dance when its actually needed.
 	 */
 
-	preempt_disable();
+	preempt_disable_notrace();
 	data = this_cpu_read(cyc2ns.head);
 	tail = this_cpu_read(cyc2ns.tail);
 
@@ -229,7 +229,7 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 		if (!--data->__count)
 			this_cpu_write(cyc2ns.tail, data);
 	}
-	preempt_enable();
+	preempt_enable_notrace();
 
 	return ns;
 }
@@ -653,13 +653,10 @@ unsigned long native_calibrate_tsc(void)
 
 	/* Calibrate TSC using MSR for Intel Atom SoCs */
 	local_irq_save(flags);
-	i = try_msr_calibrate_tsc(&fast_calibrate);
+	fast_calibrate = try_msr_calibrate_tsc();
 	local_irq_restore(flags);
-	if (i >= 0) {
-		if (i == 0)
-			pr_warn("Fast TSC calibration using MSR failed\n");
+	if (fast_calibrate)
 		return fast_calibrate;
-	}
 
 	local_irq_save(flags);
 	fast_calibrate = quick_pit_calibrate();

@@ -453,6 +453,7 @@ isert_conn_create_fastreg_pool(struct isert_conn *isert_conn)
 		if (ret) {
 			pr_err("Failed to create fastreg descriptor err=%d\n",
 			       ret);
+			kfree(fr_desc);
 			goto err;
 		}
 

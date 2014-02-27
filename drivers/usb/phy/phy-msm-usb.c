@@ -159,32 +159,6 @@ put_3p3:
 	return rc;
 }
 
-#ifdef CONFIG_PM_SLEEP
-#define USB_PHY_SUSP_DIG_VOL  500000
-static int msm_hsusb_config_vddcx(int high)
-{
-	int max_vol = USB_PHY_VDD_DIG_VOL_MAX;
-	int min_vol;
-	int ret;
-
-	if (high)
-		min_vol = USB_PHY_VDD_DIG_VOL_MIN;
-	else
-		min_vol = USB_PHY_SUSP_DIG_VOL;
-
-	ret = regulator_set_voltage(hsusb_vddcx, min_vol, max_vol);
-	if (ret) {
-		pr_err("%s: unable to set the voltage for regulator "
-			"HSUSB_VDDCX\n", __func__);
-		return ret;
-	}
-
-	pr_debug("%s: min_vol:%d max_vol:%d\n", __func__, min_vol, max_vol);
-
-	return ret;
-}
-#endif
-
 static int msm_hsusb_ldo_set_mode(int on)
 {
 	int ret = 0;
@@ -440,7 +414,32 @@ static int msm_otg_reset(struct usb_phy *phy)
 #define PHY_SUSPEND_TIMEOUT_USEC	(500 * 1000)
 #define PHY_RESUME_TIMEOUT_USEC	(100 * 1000)
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
+
+#define USB_PHY_SUSP_DIG_VOL  500000
+static int msm_hsusb_config_vddcx(int high)
+{
+	int max_vol = USB_PHY_VDD_DIG_VOL_MAX;
+	int min_vol;
+	int ret;
+
+	if (high)
+		min_vol = USB_PHY_VDD_DIG_VOL_MIN;
+	else
+		min_vol = USB_PHY_SUSP_DIG_VOL;
+
+	ret = regulator_set_voltage(hsusb_vddcx, min_vol, max_vol);
+	if (ret) {
+		pr_err("%s: unable to set the voltage for regulator "
+			"HSUSB_VDDCX\n", __func__);
+		return ret;
+	}
+
+	pr_debug("%s: min_vol:%d max_vol:%d\n", __func__, min_vol, max_vol);
+
+	return ret;
+}
+
 static int msm_otg_suspend(struct msm_otg *motg)
 {
 	struct usb_phy *phy = &motg->phy;
@@ -1733,22 +1732,18 @@ static int msm_otg_pm_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
 static const struct dev_pm_ops msm_otg_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(msm_otg_pm_suspend, msm_otg_pm_resume)
 	SET_RUNTIME_PM_OPS(msm_otg_runtime_suspend, msm_otg_runtime_resume,
 				msm_otg_runtime_idle)
 };
-#endif
 
 static struct platform_driver msm_otg_driver = {
 	.remove = msm_otg_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm = &msm_otg_dev_pm_ops,
-#endif
 	},
 };
 

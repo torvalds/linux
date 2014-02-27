@@ -157,6 +157,7 @@ struct mousevsc_dev {
 	u32			report_desc_size;
 	struct hv_input_dev_info hid_dev_info;
 	struct hid_device       *hid_device;
+	u8			input_buf[HID_MAX_BUFFER_SIZE];
 };
 
 
@@ -256,6 +257,7 @@ static void mousevsc_on_receive(struct hv_device *device,
 	struct synthhid_msg *hid_msg;
 	struct mousevsc_dev *input_dev = hv_get_drvdata(device);
 	struct synthhid_input_report *input_report;
+	size_t len;
 
 	pipe_msg = (struct pipe_prt_msg *)((unsigned long)packet +
 						(packet->offset8 << 3));
@@ -300,9 +302,12 @@ static void mousevsc_on_receive(struct hv_device *device,
 			(struct synthhid_input_report *)pipe_msg->data;
 		if (!input_dev->init_complete)
 			break;
-		hid_input_report(input_dev->hid_device,
-				HID_INPUT_REPORT, input_report->buffer,
-				input_report->header.size, 1);
+
+		len = min(input_report->header.size,
+			  (u32)sizeof(input_dev->input_buf));
+		memcpy(input_dev->input_buf, input_report->buffer, len);
+		hid_input_report(input_dev->hid_device, HID_INPUT_REPORT,
+				 input_dev->input_buf, len, 1);
 		break;
 	default:
 		pr_err("unsupported hid msg type - type %d len %d",

@@ -124,6 +124,10 @@
 			nand-on-flash-bbt;
 			status = "okay";
 		};
+
+		usb0: ohci@00500000 {
+			status = "okay";
+		};
 	};
 
 	leds {

@@ -2609,13 +2609,14 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 
 	tg3_writephy(tp, MII_CTRL1000, phy9_orig);
 
-	if (!tg3_readphy(tp, MII_TG3_EXT_CTRL, &reg32)) {
-		reg32 &= ~0x3000;
-		tg3_writephy(tp, MII_TG3_EXT_CTRL, reg32);
-	} else if (!err)
-		err = -EBUSY;
+	err = tg3_readphy(tp, MII_TG3_EXT_CTRL, &reg32);
+	if (err)
+		return err;
 
-	return err;
+	reg32 &= ~0x3000;
+	tg3_writephy(tp, MII_TG3_EXT_CTRL, reg32);
+
+	return 0;
 }
 
 static void tg3_carrier_off(struct tg3 *tp)
@@ -14113,11 +14114,11 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 
 	tg3_netif_stop(tp);
 
+	tg3_set_mtu(dev, tp, new_mtu);
+
 	tg3_full_lock(tp, 1);
 
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-
-	tg3_set_mtu(dev, tp, new_mtu);
 
 	/* Reset PHY, otherwise the read DMA engine will be in a mode that
 	 * breaks all requests to 256 bytes.

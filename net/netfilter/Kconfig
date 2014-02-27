@@ -513,13 +513,17 @@ config NFT_QUEUE
 
 config NFT_REJECT
 	depends on NF_TABLES
-	depends on NF_TABLES_IPV6 || !NF_TABLES_IPV6
 	default m if NETFILTER_ADVANCED=n
 	tristate "Netfilter nf_tables reject support"
 	help
 	  This option adds the "reject" expression that you can use to
 	  explicitly deny and notify via TCP reset/ICMP informational errors
 	  unallowed traffic.
+
+config NFT_REJECT_INET
+	depends on NF_TABLES_INET
+	default NFT_REJECT
+	tristate
 
 config NFT_COMPAT
 	depends on NF_TABLES

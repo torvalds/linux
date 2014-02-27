@@ -273,7 +273,7 @@ static int __init ic_open_devs(void)
 
 		msleep(1);
 
-		if time_before(jiffies, next_msg)
+		if (time_before(jiffies, next_msg))
 			continue;
 
 		elapsed = jiffies_to_msecs(jiffies - start);

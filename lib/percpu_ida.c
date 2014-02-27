@@ -54,9 +54,7 @@ static inline void move_tags(unsigned *dst, unsigned *dst_nr,
 /*
  * Try to steal tags from a remote cpu's percpu freelist.
  *
- * We first check how many percpu freelists have tags - we don't steal tags
- * unless enough percpu freelists have tags on them that it's possible more than
- * half the total tags could be stuck on remote percpu freelists.
+ * We first check how many percpu freelists have tags
  *
  * Then we iterate through the cpus until we find some tags - we don't attempt
  * to find the "best" cpu to steal from, to keep cacheline bouncing to a
@@ -69,8 +67,7 @@ static inline void steal_tags(struct percpu_ida *pool,
 	struct percpu_ida_cpu *remote;
 
 	for (cpus_have_tags = cpumask_weight(&pool->cpus_have_tags);
-	     cpus_have_tags * pool->percpu_max_size > pool->nr_tags / 2;
-	     cpus_have_tags--) {
+	     cpus_have_tags; cpus_have_tags--) {
 		cpu = cpumask_next(cpu, &pool->cpus_have_tags);
 
 		if (cpu >= nr_cpu_ids) {

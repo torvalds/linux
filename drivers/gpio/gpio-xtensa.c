@@ -40,6 +40,8 @@
 #error GPIO32 option is not enabled for your xtensa core variant
 #endif
 
+#if XCHAL_HAVE_CP
+
 static inline unsigned long enable_cp(unsigned long *cpenable)
 {
 	unsigned long flags;
@@ -56,6 +58,20 @@ static inline void disable_cp(unsigned long flags, unsigned long cpenable)
 	WSR_CPENABLE(cpenable);
 	local_irq_restore(flags);
 }
+
+#else
+
+static inline unsigned long enable_cp(unsigned long *cpenable)
+{
+	*cpenable = 0; /* avoid uninitialized value warning */
+	return 0;
+}
+
+static inline void disable_cp(unsigned long flags, unsigned long cpenable)
+{
+}
+
+#endif /* XCHAL_HAVE_CP */
 
 static int xtensa_impwire_get_direction(struct gpio_chip *gc, unsigned offset)
 {

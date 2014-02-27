@@ -504,6 +504,7 @@ struct iwl_scan_offload_profile {
  * @match_notify:	clients waiting for match found notification
  * @pass_match:		clients waiting for the results
  * @active_clients:	active clients bitmap - enum scan_framework_client
+ * @any_beacon_notify:	clients waiting for match notification without match
  */
 struct iwl_scan_offload_profile_cfg {
 	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES];
@@ -512,7 +513,8 @@ struct iwl_scan_offload_profile_cfg {
 	u8 match_notify;
 	u8 pass_match;
 	u8 active_clients;
-	u8 reserved[3];
+	u8 any_beacon_notify;
+	u8 reserved[2];
 } __packed;
 
 /**

@@ -1061,7 +1061,7 @@ static int wireless_set_essid(struct net_device *dev, struct iw_request_info *in
 		goto out;
 	}
 
-	if (data->flags != 0 && data->length > HCF_MAX_NAME_LEN + 1) {
+	if (data->flags != 0 && data->length > HCF_MAX_NAME_LEN) {
 		ret = -EINVAL;
 		goto out;
 	}

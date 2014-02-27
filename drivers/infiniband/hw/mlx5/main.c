@@ -261,8 +261,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->device_cap_flags    = IB_DEVICE_CHANGE_PHY_PORT |
 		IB_DEVICE_PORT_ACTIVE_EVENT		|
 		IB_DEVICE_SYS_IMAGE_GUID		|
-		IB_DEVICE_RC_RNR_NAK_GEN		|
-		IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
+		IB_DEVICE_RC_RNR_NAK_GEN;
 	flags = dev->mdev.caps.flags;
 	if (flags & MLX5_DEV_CAP_FLAG_BAD_PKEY_CNTR)
 		props->device_cap_flags |= IB_DEVICE_BAD_PKEY_CNTR;
@@ -536,23 +535,37 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 						  struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_ib_alloc_ucontext_req req;
+	struct mlx5_ib_alloc_ucontext_req_v2 req;
 	struct mlx5_ib_alloc_ucontext_resp resp;
 	struct mlx5_ib_ucontext *context;
 	struct mlx5_uuar_info *uuari;
 	struct mlx5_uar *uars;
 	int gross_uuars;
 	int num_uars;
+	int ver;
 	int uuarn;
 	int err;
 	int i;
+	int reqlen;
 
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
 
-	err = ib_copy_from_udata(&req, udata, sizeof(req));
+	memset(&req, 0, sizeof(req));
+	reqlen = udata->inlen - sizeof(struct ib_uverbs_cmd_hdr);
+	if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req))
+		ver = 0;
+	else if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req_v2))
+		ver = 2;
+	else
+		return ERR_PTR(-EINVAL);
+
+	err = ib_copy_from_udata(&req, udata, reqlen);
 	if (err)
 		return ERR_PTR(err);
+
+	if (req.flags || req.reserved)
+		return ERR_PTR(-EINVAL);
 
 	if (req.total_num_uuars > MLX5_MAX_UUARS)
 		return ERR_PTR(-ENOMEM);
@@ -626,6 +639,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (err)
 		goto out_uars;
 
+	uuari->ver = ver;
 	uuari->num_low_latency_uuars = req.num_low_latency_uuars;
 	uuari->uars = uars;
 	uuari->num_uars = num_uars;

@@ -371,13 +371,13 @@ int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
 					 TTM_REF_USAGE);
 }
 
-int vmw_shader_alloc(struct vmw_private *dev_priv,
-		     struct vmw_dma_buffer *buffer,
-		     size_t shader_size,
-		     size_t offset,
-		     SVGA3dShaderType shader_type,
-		     struct ttm_object_file *tfile,
-		     u32 *handle)
+static int vmw_shader_alloc(struct vmw_private *dev_priv,
+			    struct vmw_dma_buffer *buffer,
+			    size_t shader_size,
+			    size_t offset,
+			    SVGA3dShaderType shader_type,
+			    struct ttm_object_file *tfile,
+			    u32 *handle)
 {
 	struct vmw_user_shader *ushader;
 	struct vmw_resource *res, *tmp;
@@ -779,6 +779,8 @@ vmw_compat_shader_man_create(struct vmw_private *dev_priv)
 	int ret;
 
 	man = kzalloc(sizeof(*man), GFP_KERNEL);
+	if (man == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	man->dev_priv = dev_priv;
 	INIT_LIST_HEAD(&man->list);

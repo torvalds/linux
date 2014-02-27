@@ -374,7 +374,7 @@ static size_t rtnl_link_get_slave_info_data_size(const struct net_device *dev)
 	if (!master_dev)
 		return 0;
 	ops = master_dev->rtnl_link_ops;
-	if (!ops->get_slave_size)
+	if (!ops || !ops->get_slave_size)
 		return 0;
 	/* IFLA_INFO_SLAVE_DATA + nested data */
 	return nla_total_size(sizeof(struct nlattr)) +
@@ -1963,16 +1963,21 @@ replay:
 
 		dev->ifindex = ifm->ifi_index;
 
-		if (ops->newlink)
+		if (ops->newlink) {
 			err = ops->newlink(net, dev, tb, data);
-		else
+			/* Drivers should call free_netdev() in ->destructor
+			 * and unregister it on failure so that device could be
+			 * finally freed in rtnl_unlock.
+			 */
+			if (err < 0)
+				goto out;
+		} else {
 			err = register_netdevice(dev);
-
-		if (err < 0) {
-			free_netdev(dev);
-			goto out;
+			if (err < 0) {
+				free_netdev(dev);
+				goto out;
+			}
 		}
-
 		err = rtnl_configure_link(dev, ifm);
 		if (err < 0)
 			unregister_netdevice(dev);

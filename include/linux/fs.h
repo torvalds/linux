@@ -2274,7 +2274,13 @@ extern int filemap_fdatawrite_range(struct address_space *mapping,
 extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
 			   int datasync);
 extern int vfs_fsync(struct file *file, int datasync);
-extern int generic_write_sync(struct file *file, loff_t pos, loff_t count);
+static inline int generic_write_sync(struct file *file, loff_t pos, loff_t count)
+{
+	if (!(file->f_flags & O_DSYNC) && !IS_SYNC(file->f_mapping->host))
+		return 0;
+	return vfs_fsync_range(file, pos, pos + count - 1,
+			       (file->f_flags & __O_SYNC) ? 0 : 1);
+}
 extern void emergency_sync(void);
 extern void emergency_remount(void);
 #ifdef CONFIG_BLOCK

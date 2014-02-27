@@ -125,8 +125,11 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	blkif->persistent_gnts.rb_node = NULL;
 	spin_lock_init(&blkif->free_pages_lock);
 	INIT_LIST_HEAD(&blkif->free_pages);
+	INIT_LIST_HEAD(&blkif->persistent_purge_list);
 	blkif->free_pages_num = 0;
 	atomic_set(&blkif->persistent_gnt_in_use, 0);
+	atomic_set(&blkif->inflight, 0);
+	INIT_WORK(&blkif->persistent_purge_work, xen_blkbk_unmap_purged_grants);
 
 	INIT_LIST_HEAD(&blkif->pending_free);
 
@@ -258,6 +261,17 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
+
+	/* Remove all persistent grants and the cache of ballooned pages. */
+	xen_blkbk_free_caches(blkif);
+
+	/* Make sure everything is drained before shutting down */
+	BUG_ON(blkif->persistent_gnt_c != 0);
+	BUG_ON(atomic_read(&blkif->persistent_gnt_in_use) != 0);
+	BUG_ON(blkif->free_pages_num != 0);
+	BUG_ON(!list_empty(&blkif->persistent_purge_list));
+	BUG_ON(!list_empty(&blkif->free_pages));
+	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
 
 	/* Check that there is no request in use */
 	list_for_each_entry_safe(req, n, &blkif->pending_free, free_list) {

@@ -619,6 +619,8 @@ struct drm_gem_open {
 #define  DRM_PRIME_CAP_EXPORT		0x2
 #define DRM_CAP_TIMESTAMP_MONOTONIC	0x6
 #define DRM_CAP_ASYNC_PAGE_FLIP		0x7
+#define DRM_CAP_CURSOR_WIDTH		0x8
+#define DRM_CAP_CURSOR_HEIGHT		0x9
 
 /** DRM_IOCTL_GET_CAP ioctl argument type */
 struct drm_get_cap {

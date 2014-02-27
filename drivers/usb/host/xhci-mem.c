@@ -1958,7 +1958,7 @@ static void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
 		xhci_warn(xhci, "WARN something wrong with SW event ring "
 				"dequeue ptr.\n");
 	/* Update HC event ring dequeue pointer */
-	temp = readq(&xhci->ir_set->erst_dequeue);
+	temp = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	temp &= ERST_PTR_MASK;
 	/* Don't clear the EHB bit (which is RW1C) because
 	 * there might be more events to service.
@@ -1967,7 +1967,7 @@ static void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Write event ring dequeue pointer, "
 			"preserving EHB bit");
-	writeq(((u64) deq & (u64) ~ERST_PTR_MASK) | temp,
+	xhci_write_64(xhci, ((u64) deq & (u64) ~ERST_PTR_MASK) | temp,
 			&xhci->ir_set->erst_dequeue);
 }
 
@@ -2269,7 +2269,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Device context base array address = 0x%llx (DMA), %p (virt)",
 			(unsigned long long)xhci->dcbaa->dma, xhci->dcbaa);
-	writeq(dma, &xhci->op_regs->dcbaa_ptr);
+	xhci_write_64(xhci, dma, &xhci->op_regs->dcbaa_ptr);
 
 	/*
 	 * Initialize the ring segment pool.  The ring must be a contiguous
@@ -2312,13 +2312,13 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 			(unsigned long long)xhci->cmd_ring->first_seg->dma);
 
 	/* Set the address in the Command Ring Control register */
-	val_64 = readq(&xhci->op_regs->cmd_ring);
+	val_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
 	val_64 = (val_64 & (u64) CMD_RING_RSVD_BITS) |
 		(xhci->cmd_ring->first_seg->dma & (u64) ~CMD_RING_RSVD_BITS) |
 		xhci->cmd_ring->cycle_state;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Setting command ring address to 0x%x", val);
-	writeq(val_64, &xhci->op_regs->cmd_ring);
+	xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
 	xhci_dbg_cmd_ptrs(xhci);
 
 	xhci->lpm_command = xhci_alloc_command(xhci, true, true, flags);
@@ -2396,10 +2396,10 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Set ERST base address for ir_set 0 = 0x%llx",
 			(unsigned long long)xhci->erst.erst_dma_addr);
-	val_64 = readq(&xhci->ir_set->erst_base);
+	val_64 = xhci_read_64(xhci, &xhci->ir_set->erst_base);
 	val_64 &= ERST_PTR_MASK;
 	val_64 |= (xhci->erst.erst_dma_addr & (u64) ~ERST_PTR_MASK);
-	writeq(val_64, &xhci->ir_set->erst_base);
+	xhci_write_64(xhci, val_64, &xhci->ir_set->erst_base);
 
 	/* Set the event ring dequeue address */
 	xhci_set_hc_event_deq(xhci);

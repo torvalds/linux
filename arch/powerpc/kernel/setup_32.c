@@ -247,7 +247,12 @@ static void __init exc_lvl_early_init(void)
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
 	 * as the memblock is limited to lowmem by MEMBLOCK_REAL_LIMIT */
 	for_each_possible_cpu(i) {
+#ifdef CONFIG_SMP
 		hw_cpu = get_hard_smp_processor_id(i);
+#else
+		hw_cpu = 0;
+#endif
+
 		critirq_ctx[hw_cpu] = (struct thread_info *)
 			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 #ifdef CONFIG_BOOKE

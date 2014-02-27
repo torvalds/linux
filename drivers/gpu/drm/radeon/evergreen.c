@@ -1680,7 +1680,7 @@ bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 	case RADEON_HPD_6:
 		if (RREG32(DC_HPD6_INT_STATUS) & DC_HPDx_SENSE)
 			connected = true;
-			break;
+		break;
 	default:
 		break;
 	}

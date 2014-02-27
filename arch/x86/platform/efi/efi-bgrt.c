@@ -42,7 +42,7 @@ void __init efi_bgrt_init(void)
 
 	if (bgrt_tab->header.length < sizeof(*bgrt_tab))
 		return;
-	if (bgrt_tab->version != 1)
+	if (bgrt_tab->version != 1 || bgrt_tab->status != 1)
 		return;
 	if (bgrt_tab->image_type != 0 || !bgrt_tab->image_address)
 		return;

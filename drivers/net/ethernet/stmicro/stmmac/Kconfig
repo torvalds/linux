@@ -37,6 +37,17 @@ config DWMAC_SUNXI
 	  stmmac device driver. This driver is used for A20/A31
 	  GMAC 	  ethernet controller.
 
+config DWMAC_STI
+	bool "STi GMAC support"
+	depends on STMMAC_PLATFORM && ARCH_STI
+	default y
+	---help---
+	  Support for ethernet controller on STi SOCs.
+
+	  This selects STi SoC glue layer support for the stmmac
+	  device driver. This driver is used on for the STi series
+	  SOCs GMAC ethernet controller.
+
 config STMMAC_PCI
 	bool "STMMAC PCI bus support"
 	depends on STMMAC_ETH && PCI

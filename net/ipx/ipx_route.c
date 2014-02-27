@@ -20,15 +20,11 @@ DEFINE_RWLOCK(ipx_routes_lock);
 
 extern struct ipx_interface *ipx_internal_net;
 
-extern __be16 ipx_cksum(struct ipxhdr *packet, int length);
 extern struct ipx_interface *ipxitf_find_using_net(__be32 net);
 extern int ipxitf_demux_socket(struct ipx_interface *intrfc,
 			       struct sk_buff *skb, int copy);
 extern int ipxitf_demux_socket(struct ipx_interface *intrfc,
 			       struct sk_buff *skb, int copy);
-extern int ipxitf_send(struct ipx_interface *intrfc, struct sk_buff *skb,
-		       char *node);
-extern struct ipx_interface *ipxitf_find_using_net(__be32 net);
 
 struct ipx_route *ipxrtr_lookup(__be32 net)
 {

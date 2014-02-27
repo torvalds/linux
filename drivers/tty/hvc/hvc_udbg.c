@@ -80,14 +80,7 @@ static int __init hvc_udbg_init(void)
 
 	return 0;
 }
-module_init(hvc_udbg_init);
-
-static void __exit hvc_udbg_exit(void)
-{
-	if (hvc_udbg_dev)
-		hvc_remove(hvc_udbg_dev);
-}
-module_exit(hvc_udbg_exit);
+device_initcall(hvc_udbg_init);
 
 static int __init hvc_udbg_console_init(void)
 {
