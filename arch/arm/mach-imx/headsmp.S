@@ -13,8 +13,6 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-	.section ".text.head", "ax"
-
 diag_reg_offset:
 	.word	g_diag_reg - .
 
