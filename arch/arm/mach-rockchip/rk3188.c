@@ -49,48 +49,13 @@ static struct map_desc rk3188_io_desc[] __initdata = {
 	RK3188_DEVICE(ROM),
 	RK3188_DEVICE(EFUSE),
 	RK3188_DEVICE(CPU_AXI_BUS),
-	{
-		.virtual	= (unsigned long) RK_DDR_VIRT,
-		.pfn		= __phys_to_pfn(RK3188_DDR_PCTL_PHYS),
-		.length		= RK3188_DDR_PCTL_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= (unsigned long) RK_DDR_VIRT + RK3188_DDR_PCTL_SIZE,
-		.pfn		= __phys_to_pfn(RK3188_DDR_PUBL_PHYS),
-		.length		= RK3188_DDR_PUBL_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= (unsigned long) RK_GPIO_VIRT(0),
-		.pfn		= __phys_to_pfn(RK3188_GPIO0_PHYS),
-		.length		= RK3188_GPIO_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= (unsigned long) RK_GPIO_VIRT(1),
-		.pfn		= __phys_to_pfn(RK3188_GPIO1_PHYS),
-		.length		= RK3188_GPIO_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= (unsigned long) RK_GPIO_VIRT(2),
-		.pfn		= __phys_to_pfn(RK3188_GPIO2_PHYS),
-		.length		= RK3188_GPIO_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= (unsigned long) RK_GPIO_VIRT(3),
-		.pfn		= __phys_to_pfn(RK3188_GPIO3_PHYS),
-		.length		= RK3188_GPIO_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= (unsigned long) RK_DEBUG_UART_VIRT,
-		.pfn		= __phys_to_pfn(RK3188_UART2_PHYS),
-		.length		= RK3188_UART_SIZE,
-		.type		= MT_DEVICE,
-	},
+	RK_DEVICE(RK_DDR_VIRT, RK3188_DDR_PCTL_PHYS, RK3188_DDR_PCTL_SIZE),
+	RK_DEVICE(RK_DDR_VIRT + RK3188_DDR_PCTL_SIZE, RK3188_DDR_PUBL_PHYS, RK3188_DDR_PUBL_SIZE),
+	RK_DEVICE(RK_GPIO_VIRT(0), RK3188_GPIO0_PHYS, RK3188_GPIO_SIZE),
+	RK_DEVICE(RK_GPIO_VIRT(1), RK3188_GPIO1_PHYS, RK3188_GPIO_SIZE),
+	RK_DEVICE(RK_GPIO_VIRT(2), RK3188_GPIO2_PHYS, RK3188_GPIO_SIZE),
+	RK_DEVICE(RK_GPIO_VIRT(3), RK3188_GPIO3_PHYS, RK3188_GPIO_SIZE),
+	RK_DEVICE(RK_DEBUG_UART_VIRT, RK3188_UART2_PHYS, RK3188_UART_SIZE),
 };
 
 static void __init rk3188_boot_mode_init(void)

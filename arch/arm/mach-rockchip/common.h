@@ -1,6 +1,14 @@
 #ifndef __MACH_ROCKCHIP_COMMON_H
 #define __MACH_ROCKCHIP_COMMON_H
 
+#define RK_DEVICE(VIRT,PHYS,SIZE) \
+	{ \
+		.virtual	= (unsigned long)(VIRT), \
+		.pfn		= __phys_to_pfn(PHYS), \
+		.length		= SIZE, \
+		.type		= MT_DEVICE, \
+	}
+
 extern unsigned long rockchip_boot_fn;
 extern struct smp_operations rockchip_smp_ops;
 
