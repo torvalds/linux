@@ -88,15 +88,10 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 			       int addr_bits, int data_bits,
 			       enum snd_soc_control_type control)
 {
-	struct regmap_config config;
 	int ret;
 
-	memset(&config, 0, sizeof(config));
 	codec->write = hw_write;
 	codec->read = hw_read;
-
-	config.reg_bits = addr_bits;
-	config.val_bits = data_bits;
 
 	switch (control) {
 	case SND_SOC_REGMAP:
