@@ -182,6 +182,8 @@ typedef struct xfs_sb {
 	/* must be padded to 64 bit alignment */
 } xfs_sb_t;
 
+#define XFS_SB_CRC_OFF		offsetof(struct xfs_sb, sb_crc)
+
 /*
  * Superblock - on disk version.  Must match the in core version above.
  * Must be padded to 64 bit alignment.

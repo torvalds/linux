@@ -306,7 +306,7 @@ xfs_dinode_verify(
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return false;
 	if (!xfs_verify_cksum((char *)dip, mp->m_sb.sb_inodesize,
-			      offsetof(struct xfs_dinode, di_crc)))
+			      XFS_DINODE_CRC_OFF))
 		return false;
 	if (be64_to_cpu(dip->di_ino) != ip->i_ino)
 		return false;
@@ -327,7 +327,7 @@ xfs_dinode_calc_crc(
 
 	ASSERT(xfs_sb_version_hascrc(&mp->m_sb));
 	crc = xfs_start_cksum((char *)dip, mp->m_sb.sb_inodesize,
-			      offsetof(struct xfs_dinode, di_crc));
+			      XFS_DINODE_CRC_OFF);
 	dip->di_crc = xfs_end_cksum(crc);
 }
 
