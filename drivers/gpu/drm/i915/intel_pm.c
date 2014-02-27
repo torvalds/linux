@@ -4801,6 +4801,10 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	/* FIXME(BDW): Check all the w/a, some might only apply to
 	 * pre-production hw. */
 
+	/* WaDisablePartialInstShootdown:bdw */
+	I915_WRITE(GEN8_ROW_CHICKEN,
+		   _MASKED_BIT_ENABLE(PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE));
+
 	/*
 	 * This GEN8_CENTROID_PIXEL_OPT_DIS W/A is only needed for
 	 * pre-production hardware
