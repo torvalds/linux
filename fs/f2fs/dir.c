@@ -93,16 +93,20 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 			f2fs_hash_t namehash, struct page **res_page)
 {
 	struct f2fs_dir_entry *de;
-	unsigned long bit_pos, end_pos, next_pos;
+	unsigned long bit_pos = 0;
 	struct f2fs_dentry_block *dentry_blk = kmap(dentry_page);
-	int slots;
+	int max_len = 0;
 
-	bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
-					NR_DENTRY_IN_BLOCK, 0);
 	while (bit_pos < NR_DENTRY_IN_BLOCK) {
 		de = &dentry_blk->dentry[bit_pos];
-		slots = GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
-
+		if (!test_bit_le(bit_pos, &dentry_blk->dentry_bitmap)) {
+			if (bit_pos == 0)
+				max_len = 1;
+			else if (!test_bit_le(bit_pos - 1, &dentry_blk->dentry_bitmap))
+				max_len++;
+			bit_pos++;
+			continue;
+		}
 		if (early_match_name(name, namelen, namehash, de)) {
 			if (!memcmp(dentry_blk->filename[bit_pos],
 							name, namelen)) {
@@ -110,20 +114,18 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 				goto found;
 			}
 		}
-		next_pos = bit_pos + slots;
-		bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
-				NR_DENTRY_IN_BLOCK, next_pos);
-		if (bit_pos >= NR_DENTRY_IN_BLOCK)
-			end_pos = NR_DENTRY_IN_BLOCK;
-		else
-			end_pos = bit_pos;
-		if (*max_slots < end_pos - next_pos)
-			*max_slots = end_pos - next_pos;
+		if (max_len > *max_slots) {
+			*max_slots = max_len;
+			max_len = 0;
+		}
+		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
 	}
 
 	de = NULL;
 	kunmap(dentry_page);
 found:
+	if (max_len > *max_slots)
+		*max_slots = max_len;
 	return de;
 }
 
