@@ -63,13 +63,13 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	if (IS_ERR(trng->base))
 		return PTR_ERR(trng->base);
 
-	trng->clk = clk_get(&pdev->dev, NULL);
+	trng->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(trng->clk))
 		return PTR_ERR(trng->clk);
 
 	ret = clk_enable(trng->clk);
 	if (ret)
-		goto err_enable;
+		return ret;
 
 	writel(TRNG_KEY | 1, trng->base + TRNG_CR);
 	trng->rng.name = pdev->name;
@@ -85,9 +85,6 @@ static int atmel_trng_probe(struct platform_device *pdev)
 
 err_register:
 	clk_disable(trng->clk);
-err_enable:
-	clk_put(trng->clk);
-
 	return ret;
 }
 
@@ -99,7 +96,6 @@ static int atmel_trng_remove(struct platform_device *pdev)
 
 	writel(TRNG_KEY, trng->base + TRNG_CR);
 	clk_disable(trng->clk);
-	clk_put(trng->clk);
 
 	return 0;
 }
