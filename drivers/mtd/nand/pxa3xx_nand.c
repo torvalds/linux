@@ -1530,7 +1530,7 @@ KEEP_CONFIG:
 	if (!ret) {
 		dev_err(&info->pdev->dev,
 			"ECC strength %d at page size %d is not supported\n",
-			chip->ecc_strength_ds, mtd->writesize);
+			ecc_strength, mtd->writesize);
 		return -ENODEV;
 	}
 
