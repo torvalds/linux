@@ -613,6 +613,9 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	}
 	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
+	wil->vring2cid_tid[id][0] = cid;
+	wil->vring2cid_tid[id][1] = tid;
+
 	return 0;
  out_free:
 	wil_vring_free(wil, vring, 1);
@@ -634,10 +637,27 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 static struct vring *wil_find_tx_vring(struct wil6210_priv *wil,
 				       struct sk_buff *skb)
 {
-	struct vring *v = &wil->vring_tx[0];
+	int i;
+	struct ethhdr *eth = (void *)skb->data;
+	int cid = wil_find_cid(wil, eth->h_dest);
 
-	if (v->va)
-		return v;
+	if (cid < 0)
+		return NULL;
+
+	/* TODO: fix for multiple TID */
+	for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++) {
+		if (wil->vring2cid_tid[i][0] == cid) {
+			struct vring *v = &wil->vring_tx[i];
+			wil_dbg_txrx(wil, "%s(%pM) -> [%d]\n",
+				     __func__, eth->h_dest, i);
+			if (v->va) {
+				return v;
+			} else {
+				wil_dbg_txrx(wil, "vring[%d] not valid\n", i);
+				return NULL;
+			}
+		}
+	}
 
 	return NULL;
 }
@@ -740,9 +760,6 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	}
 	_d = &(vring->va[i].tx);
 
-	/* FIXME FW can accept only unicast frames for the peer */
-	memcpy(skb->data, wil->dst_addr[vring_index], ETH_ALEN);
-
 	pa = dma_map_single(dev, skb->data,
 			skb_headlen(skb), DMA_TO_DEVICE);
 
@@ -836,6 +853,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
+	struct ethhdr *eth = (void *)skb->data;
 	struct vring *vring;
 	int rc;
 
@@ -854,9 +872,22 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	/* find vring */
-	vring = wil_find_tx_vring(wil, skb);
+	if (is_unicast_ether_addr(eth->h_dest)) {
+		vring = wil_find_tx_vring(wil, skb);
+	} else {
+		int i = 0;
+		/* TODO: duplicate for all CID's */
+		vring = &wil->vring_tx[i];
+		if (vring->va) {
+			int cid = wil->vring2cid_tid[i][0];
+			/* FIXME FW can accept only unicast frames */
+			memcpy(skb->data, wil->sta[cid].addr, ETH_ALEN);
+		} else {
+			vring = NULL;
+		}
+	}
 	if (!vring) {
-		wil_err(wil, "No Tx VRING available\n");
+		wil_err(wil, "No Tx VRING found for %pM\n", eth->h_dest);
 		goto drop;
 	}
 	/* set up vring entry */

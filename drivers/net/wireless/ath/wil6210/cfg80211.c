@@ -110,15 +110,19 @@ static int wil_cfg80211_get_station(struct wiphy *wiphy,
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int rc;
+
+	int cid = wil_find_cid(wil, mac);
 	struct wmi_notify_req_cmd cmd = {
-		.cid = 0,
+		.cid = cid,
 		.interval_usec = 0,
 	};
 
-	if (memcmp(mac, wil->dst_addr[0], ETH_ALEN))
+	wil_info(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
+	if (cid < 0)
 		return -ENOENT;
 
 	/* WMI_NOTIFY_REQ_DONE_EVENTID handler fills wil->stats.bf_mcs */
+	/* TODO: keep stats per CID */
 	rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, &cmd, sizeof(cmd),
 		      WMI_NOTIFY_REQ_DONE_EVENTID, NULL, 0, 20);
 	if (rc)

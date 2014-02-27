@@ -71,8 +71,13 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
 		struct vring *vring = &(wil->vring_tx[i]);
 		if (vring->va) {
+			int cid = wil->vring2cid_tid[i][0];
+			int tid = wil->vring2cid_tid[i][1];
 			char name[10];
 			snprintf(name, sizeof(name), "tx_%2d", i);
+
+			seq_printf(s, "\n%pM CID %d TID %d\n",
+				   wil->sta[cid].addr, cid, tid);
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
 	}
@@ -592,6 +597,45 @@ static const struct file_operations fops_temp = {
 	.llseek		= seq_lseek,
 };
 
+/*---------Station matrix------------*/
+
+static int wil_sta_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		struct wil_sta_info *p = &wil->sta[i];
+		char *status = "unknown";
+		switch (p->status) {
+		case wil_sta_unused:
+			status = "unused   ";
+			break;
+		case wil_sta_conn_pending:
+			status = "pending  ";
+			break;
+		case wil_sta_connected:
+			status = "connected";
+			break;
+		}
+		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
+	}
+
+	return 0;
+}
+
+static int wil_sta_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_sta_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_sta = {
+	.open		= wil_sta_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
 /*----------------*/
 int wil6210_debugfs_init(struct wil6210_priv *wil)
 {
@@ -603,6 +647,7 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 
 	debugfs_create_file("mbox", S_IRUGO, dbg, wil, &fops_mbox);
 	debugfs_create_file("vrings", S_IRUGO, dbg, wil, &fops_vring);
+	debugfs_create_file("stations", S_IRUGO, dbg, wil, &fops_sta);
 	debugfs_create_file("desc", S_IRUGO, dbg, wil, &fops_txdesc);
 	debugfs_create_u32("desc_index", S_IRUGO | S_IWUSR, dbg,
 			   &dbg_txdesc_index);

@@ -113,13 +113,19 @@ static void wil_connect_worker(struct work_struct *work)
 
 	rc = wil_vring_init_tx(wil, 0, WIL6210_TX_RING_SIZE, cid, 0);
 	wil->pending_connect_cid = -1;
-	if (rc == 0)
+	if (rc == 0) {
+		wil->sta[cid].status = wil_sta_connected;
 		wil_link_on(wil);
+	} else {
+		wil->sta[cid].status = wil_sta_unused;
+	}
 }
 
 int wil_priv_init(struct wil6210_priv *wil)
 {
 	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	memset(wil->sta, 0, sizeof(wil->sta));
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->wmi_mutex);
@@ -367,6 +373,22 @@ int wil_down(struct wil6210_priv *wil)
 	mutex_lock(&wil->mutex);
 	rc = __wil_down(wil);
 	mutex_unlock(&wil->mutex);
+
+	return rc;
+}
+
+int wil_find_cid(struct wil6210_priv *wil, const u8 *mac)
+{
+	int i;
+	int rc = -ENOENT;
+
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		if ((wil->sta[i].status != wil_sta_unused) &&
+		    (0 == memcmp(wil->sta[i].addr, mac, ETH_ALEN))) {
+			rc = i;
+			break;
+		}
+	}
 
 	return rc;
 }

@@ -384,6 +384,11 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 			evt->assoc_req_len, evt->assoc_resp_len);
 		return;
 	}
+	if (evt->cid >= WIL6210_MAX_CID) {
+		wil_err(wil, "Connect CID invalid : %d\n", evt->cid);
+		return;
+	}
+
 	ch = evt->channel + 1;
 	wil_dbg_wmi(wil, "Connect %pM channel [%d] cid %d\n",
 		    evt->bssid, ch, evt->cid);
@@ -439,7 +444,8 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 	/* FIXME FW can transmit only ucast frames to peer */
 	/* FIXME real ring_id instead of hard coded 0 */
-	memcpy(wil->dst_addr[0], evt->bssid, ETH_ALEN);
+	memcpy(wil->sta[evt->cid].addr, evt->bssid, ETH_ALEN);
+	wil->sta[evt->cid].status = wil_sta_conn_pending;
 
 	wil->pending_connect_cid = evt->cid;
 	queue_work(wil->wmi_wq_conn, &wil->connect_worker);
@@ -449,14 +455,19 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 			       void *d, int len)
 {
 	struct wmi_disconnect_event *evt = d;
+	int cid = wil_find_cid(wil, evt->bssid);
 
-	wil_dbg_wmi(wil, "Disconnect %pM reason %d proto %d wmi\n",
-		    evt->bssid,
+	wil_dbg_wmi(wil, "Disconnect %pM CID %d reason %d proto %d wmi\n",
+		    evt->bssid, cid,
 		    evt->protocol_reason_status, evt->disconnect_reason);
 
 	wil->sinfo_gen++;
 
+	/* TODO: fix for multiple connections */
+
 	wil6210_disconnect(wil, evt->bssid);
+	if (cid >= 0)
+		wil->sta[cid].status = wil_sta_unused;
 }
 
 static void wmi_evt_notify(struct wil6210_priv *wil, int id, void *d, int len)

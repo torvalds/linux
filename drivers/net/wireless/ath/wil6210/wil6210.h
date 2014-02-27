@@ -226,6 +226,24 @@ struct wil6210_stats {
 	u16 peer_tx_sector;
 };
 
+enum wil_sta_status {
+	wil_sta_unused = 0,
+	wil_sta_conn_pending = 1,
+	wil_sta_connected = 2,
+};
+/**
+ * struct wil_sta_info - data for peer
+ *
+ * Peer identified by its CID (connection ID)
+ * NIC performs beam forming for each peer;
+ * if no beam forming done, frame exchange is not
+ * possible.
+ */
+struct wil_sta_info {
+	u8 addr[ETH_ALEN];
+	enum wil_sta_status status;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	int n_msi;
@@ -267,7 +285,8 @@ struct wil6210_priv {
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
-	u8 dst_addr[WIL6210_MAX_TX_RINGS][ETH_ALEN];
+	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
+	struct wil_sta_info sta[WIL6210_MAX_CID];
 	/* scan */
 	struct cfg80211_scan_request *scan_request;
 
@@ -334,6 +353,7 @@ void wil_link_off(struct wil6210_priv *wil);
 int wil_up(struct wil6210_priv *wil);
 int wil_down(struct wil6210_priv *wil);
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r);
+int wil_find_cid(struct wil6210_priv *wil, const u8 *mac);
 
 void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr);
 void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr);
