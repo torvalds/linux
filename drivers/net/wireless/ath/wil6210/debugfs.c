@@ -30,7 +30,8 @@ static u32 dbg_vring_index; /* 25 for Rx, 0..24 for Tx */
 #define WIL_DBG_VRING_INDEX_RX (WIL6210_MAX_TX_RINGS + 1)
 
 static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
-			    const char *name, struct vring *vring)
+			    const char *name, struct vring *vring,
+			    char _s, char _h)
 {
 	void __iomem *x = wmi_addr(wil, vring->hwtail);
 
@@ -52,8 +53,8 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 			volatile struct vring_tx_desc *d = &vring->va[i].tx;
 			if ((i % 64) == 0 && (i != 0))
 				seq_printf(s, "\n");
-			seq_printf(s, "%s", (d->dma.status & BIT(0)) ?
-					"S" : (vring->ctx[i].skb ? "H" : "h"));
+			seq_printf(s, "%c", (d->dma.status & BIT(0)) ?
+					_s : (vring->ctx[i].skb ? _h : 'h'));
 		}
 		seq_printf(s, "\n");
 	}
@@ -65,14 +66,14 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 	uint i;
 	struct wil6210_priv *wil = s->private;
 
-	wil_print_vring(s, wil, "rx", &wil->vring_rx);
+	wil_print_vring(s, wil, "rx", &wil->vring_rx, 'S', '_');
 
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
 		struct vring *vring = &(wil->vring_tx[i]);
 		if (vring->va) {
 			char name[10];
 			snprintf(name, sizeof(name), "tx_%2d", i);
-			wil_print_vring(s, wil, name, vring);
+			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
 	}
 
