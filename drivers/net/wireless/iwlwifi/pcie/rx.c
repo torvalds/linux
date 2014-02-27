@@ -1042,8 +1042,11 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
 		iwl_pcie_rxq_check_wrptr(trans);
-		for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
+		for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
+			spin_lock(&trans_pcie->txq[i].lock);
 			iwl_pcie_txq_inc_wr_ptr(trans, &trans_pcie->txq[i]);
+			spin_unlock(&trans_pcie->txq[i].lock);
+		}
 
 		isr_stats->wakeup++;
 
