@@ -93,11 +93,17 @@ static struct dma_map_ops coherent_swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
 };
 
-void __init arm64_swiotlb_init(void)
+extern int swiotlb_late_init_with_default_size(size_t default_size);
+
+static int __init swiotlb_late_init(void)
 {
+	size_t swiotlb_size = min(SZ_64M, MAX_ORDER_NR_PAGES << PAGE_SHIFT);
+
 	dma_ops = &coherent_swiotlb_dma_ops;
-	swiotlb_init(1);
+
+	return swiotlb_late_init_with_default_size(swiotlb_size);
 }
+subsys_initcall(swiotlb_late_init);
 
 #define PREALLOC_DMA_DEBUG_ENTRIES	4096
 

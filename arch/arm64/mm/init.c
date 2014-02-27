@@ -262,8 +262,6 @@ static void __init free_unused_memmap(void)
  */
 void __init mem_init(void)
 {
-	arm64_swiotlb_init();
-
 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
