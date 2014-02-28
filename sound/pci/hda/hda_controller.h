@@ -21,8 +21,6 @@
 #include "hda_priv.h"
 
 /* PCM setup */
-int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
-			  struct hda_pcm *cpcm);
 static inline struct azx_dev *get_azx_dev(struct snd_pcm_substream *substream)
 {
 	return substream->runtime->private_data;
@@ -34,30 +32,22 @@ unsigned int azx_get_position(struct azx *chip,
 /* Stream control. */
 void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev);
 
-#ifdef CONFIG_SND_HDA_DSP_LOADER
-int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
-			 unsigned int byte_size,
-			 struct snd_dma_buffer *bufp);
-void azx_load_dsp_trigger(struct hda_bus *bus, bool start);
-void azx_load_dsp_cleanup(struct hda_bus *bus,
-			  struct snd_dma_buffer *dmab);
-#endif
-
 /* Allocation functions. */
 int azx_alloc_stream_pages(struct azx *chip);
 void azx_free_stream_pages(struct azx *chip);
-
-/*
- * CORB / RIRB interface
- */
-int azx_send_cmd(struct hda_bus *bus, unsigned int val);
-unsigned int azx_get_response(struct hda_bus *bus,
-			      unsigned int addr);
 
 /* Low level azx interface */
 void azx_init_chip(struct azx *chip, int full_reset);
 void azx_stop_chip(struct azx *chip);
 void azx_enter_link_reset(struct azx *chip);
 irqreturn_t azx_interrupt(int irq, void *dev_id);
+
+/* Codec interface */
+int azx_codec_create(struct azx *chip, const char *model,
+		     unsigned int max_slots,
+		     int *power_save_to);
+int azx_codec_configure(struct azx *chip);
+int azx_mixer_create(struct azx *chip);
+int azx_init_stream(struct azx *chip);
 
 #endif /* __SOUND_HDA_CONTROLLER_H */
