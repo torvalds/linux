@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
+ * Copyright (C) 2014 Fujitsu.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -21,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
+#include <linux/workqueue.h>
 #include "async-thread.h"
 
 #define WORK_QUEUED_BIT 0
@@ -726,4 +728,139 @@ void btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work)
 	if (wake)
 		wake_up_process(worker->task);
 	spin_unlock_irqrestore(&worker->lock, flags);
+}
+
+struct btrfs_workqueue_struct {
+	struct workqueue_struct *normal_wq;
+	/* List head pointing to ordered work list */
+	struct list_head ordered_list;
+
+	/* Spinlock for ordered_list */
+	spinlock_t list_lock;
+};
+
+struct btrfs_workqueue_struct *btrfs_alloc_workqueue(char *name,
+						     int flags,
+						     int max_active)
+{
+	struct btrfs_workqueue_struct *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+
+	if (unlikely(!ret))
+		return NULL;
+
+	ret->normal_wq = alloc_workqueue("%s-%s", flags, max_active,
+					 "btrfs", name);
+	if (unlikely(!ret->normal_wq)) {
+		kfree(ret);
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&ret->ordered_list);
+	spin_lock_init(&ret->list_lock);
+	return ret;
+}
+
+static void run_ordered_work(struct btrfs_workqueue_struct *wq)
+{
+	struct list_head *list = &wq->ordered_list;
+	struct btrfs_work_struct *work;
+	spinlock_t *lock = &wq->list_lock;
+	unsigned long flags;
+
+	while (1) {
+		spin_lock_irqsave(lock, flags);
+		if (list_empty(list))
+			break;
+		work = list_entry(list->next, struct btrfs_work_struct,
+				  ordered_list);
+		if (!test_bit(WORK_DONE_BIT, &work->flags))
+			break;
+
+		/*
+		 * we are going to call the ordered done function, but
+		 * we leave the work item on the list as a barrier so
+		 * that later work items that are done don't have their
+		 * functions called before this one returns
+		 */
+		if (test_and_set_bit(WORK_ORDER_DONE_BIT, &work->flags))
+			break;
+		spin_unlock_irqrestore(lock, flags);
+		work->ordered_func(work);
+
+		/* now take the lock again and drop our item from the list */
+		spin_lock_irqsave(lock, flags);
+		list_del(&work->ordered_list);
+		spin_unlock_irqrestore(lock, flags);
+
+		/*
+		 * we don't want to call the ordered free functions
+		 * with the lock held though
+		 */
+		work->ordered_free(work);
+	}
+	spin_unlock_irqrestore(lock, flags);
+}
+
+static void normal_work_helper(struct work_struct *arg)
+{
+	struct btrfs_work_struct *work;
+	struct btrfs_workqueue_struct *wq;
+	int need_order = 0;
+
+	work = container_of(arg, struct btrfs_work_struct, normal_work);
+	/*
+	 * We should not touch things inside work in the following cases:
+	 * 1) after work->func() if it has no ordered_free
+	 *    Since the struct is freed in work->func().
+	 * 2) after setting WORK_DONE_BIT
+	 *    The work may be freed in other threads almost instantly.
+	 * So we save the needed things here.
+	 */
+	if (work->ordered_func)
+		need_order = 1;
+	wq = work->wq;
+
+	work->func(work);
+	if (need_order) {
+		set_bit(WORK_DONE_BIT, &work->flags);
+		run_ordered_work(wq);
+	}
+}
+
+void btrfs_init_work(struct btrfs_work_struct *work,
+		     void (*func)(struct btrfs_work_struct *),
+		     void (*ordered_func)(struct btrfs_work_struct *),
+		     void (*ordered_free)(struct btrfs_work_struct *))
+{
+	work->func = func;
+	work->ordered_func = ordered_func;
+	work->ordered_free = ordered_free;
+	INIT_WORK(&work->normal_work, normal_work_helper);
+	INIT_LIST_HEAD(&work->ordered_list);
+	work->flags = 0;
+}
+
+void btrfs_queue_work(struct btrfs_workqueue_struct *wq,
+		      struct btrfs_work_struct *work)
+{
+	unsigned long flags;
+
+	work->wq = wq;
+	if (work->ordered_func) {
+		spin_lock_irqsave(&wq->list_lock, flags);
+		list_add_tail(&work->ordered_list, &wq->ordered_list);
+		spin_unlock_irqrestore(&wq->list_lock, flags);
+	}
+	queue_work(wq->normal_wq, &work->normal_work);
+}
+
+void btrfs_destroy_workqueue(struct btrfs_workqueue_struct *wq)
+{
+	destroy_workqueue(wq->normal_wq);
+	kfree(wq);
+}
+
+void btrfs_workqueue_set_max(struct btrfs_workqueue_struct *wq, int max)
+{
+	workqueue_set_max_active(wq->normal_wq, max);
 }
