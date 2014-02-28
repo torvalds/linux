@@ -1,0 +1,21 @@
+#
+# TI SOC drivers
+#
+menuconfig SOC_TI
+	bool "TI SOC drivers support"
+
+if SOC_TI
+
+config KEYSTONE_NAVIGATOR_QMSS
+	tristate "Keystone Queue Manager Sub System"
+	depends on ARCH_KEYSTONE
+	help
+	  Say y here to support the Keystone multicore Navigator Queue
+	  Manager support. The Queue Manager is a hardware module that
+	  is responsible for accelerating management of the packet queues.
+	  Packets are queued/de-queued by writing/reading descriptor address
+	  to a particular memory mapped location in the Queue Manager module.
+
+	  If unsure, say N.
+
+endif # SOC_TI
