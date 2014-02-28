@@ -26,6 +26,8 @@ struct rcar_gen2_cpg {
 	void __iomem *reg;
 };
 
+#define CPG_FRQCRB			0x00000004
+#define CPG_FRQCRB_KICK			BIT(31)
 #define CPG_SDCKCR			0x00000074
 #define CPG_PLL0CR			0x000000d8
 #define CPG_FRQCRC			0x000000e0
@@ -45,6 +47,7 @@ struct rcar_gen2_cpg {
 struct cpg_z_clk {
 	struct clk_hw hw;
 	void __iomem *reg;
+	void __iomem *kick_reg;
 };
 
 #define to_z_clk(_hw)	container_of(_hw, struct cpg_z_clk, hw)
@@ -83,17 +86,45 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct cpg_z_clk *zclk = to_z_clk(hw);
 	unsigned int mult;
-	u32 val;
+	u32 val, kick;
+	unsigned int i;
 
 	mult = div_u64((u64)rate * 32, parent_rate);
 	mult = clamp(mult, 1U, 32U);
+
+	if (clk_readl(zclk->kick_reg) & CPG_FRQCRB_KICK)
+		return -EBUSY;
 
 	val = clk_readl(zclk->reg);
 	val &= ~CPG_FRQCRC_ZFC_MASK;
 	val |= (32 - mult) << CPG_FRQCRC_ZFC_SHIFT;
 	clk_writel(val, zclk->reg);
 
-	return 0;
+	/*
+	 * Set KICK bit in FRQCRB to update hardware setting and wait for
+	 * clock change completion.
+	 */
+	kick = clk_readl(zclk->kick_reg);
+	kick |= CPG_FRQCRB_KICK;
+	clk_writel(kick, zclk->kick_reg);
+
+	/*
+	 * Note: There is no HW information about the worst case latency.
+	 *
+	 * Using experimental measurements, it seems that no more than
+	 * ~10 iterations are needed, independently of the CPU rate.
+	 * Since this value might be dependant of external xtal rate, pll1
+	 * rate or even the other emulation clocks rate, use 1000 as a
+	 * "super" safe value.
+	 */
+	for (i = 1000; i; i--) {
+		if (!(clk_readl(zclk->kick_reg) & CPG_FRQCRB_KICK))
+			return 0;
+
+		cpu_relax();
+	}
+
+	return -ETIMEDOUT;
 }
 
 static const struct clk_ops cpg_z_clk_ops = {
@@ -120,6 +151,7 @@ static struct clk * __init cpg_z_clk_register(struct rcar_gen2_cpg *cpg)
 	init.num_parents = 1;
 
 	zclk->reg = cpg->reg + CPG_FRQCRC;
+	zclk->kick_reg = cpg->reg + CPG_FRQCRB;
 	zclk->hw.init = &init;
 
 	clk = clk_register(NULL, &zclk->hw);
