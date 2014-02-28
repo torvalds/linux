@@ -1018,6 +1018,11 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		break;
 
 	case LE_SCAN_DISABLE:
+		/* Cancel this timer so that we don't try to disable scanning
+		 * when it's already disabled.
+		 */
+		cancel_delayed_work(&hdev->le_scan_disable);
+
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
 		break;
 

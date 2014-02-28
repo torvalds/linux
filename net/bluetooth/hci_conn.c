@@ -628,7 +628,6 @@ static void stop_scan_complete(struct hci_dev *hdev, u8 status)
 	/* Since we may have prematurely stopped discovery procedure, we should
 	 * update discovery state.
 	 */
-	cancel_delayed_work(&hdev->le_scan_disable);
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 
 	hci_req_init(&req, hdev);
