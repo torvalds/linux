@@ -97,7 +97,6 @@
 #define SRC			(1 << 25)
 #define SRD			(1 << 26)
 #define SOFTRESET		(1 << 1)
-#define RESETDONE		(1 << 0)
 
 /* Interrupt masks for IE and ISE register */
 #define CC_EN			(1 << 0)
@@ -631,9 +630,6 @@ static int omap_hsmmc_context_restore(struct omap_hsmmc_host *host)
 	struct mmc_ios *ios = &host->mmc->ios;
 	u32 hctl, capa;
 	unsigned long timeout;
-
-	if (!OMAP_HSMMC_READ(host->base, SYSSTATUS) & RESETDONE)
-		return 1;
 
 	if (host->con == OMAP_HSMMC_READ(host->base, CON) &&
 	    host->hctl == OMAP_HSMMC_READ(host->base, HCTL) &&
