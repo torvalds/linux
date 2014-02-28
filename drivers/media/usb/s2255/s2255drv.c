@@ -2175,11 +2175,6 @@ static int s2255_stop_acquire(struct s2255_vc *vc)
 
 	mutex_lock(&dev->cmdlock);
 	chn_rev = G_chnmap[vc->idx];
-	buffer = kzalloc(512, GFP_KERNEL);
-	if (buffer == NULL) {
-		dev_err(&dev->udev->dev, "out of mem\n");
-		return -ENOMEM;
-	}
 	/* send the stop command */
 	buffer[0] = IN_DATA_TOKEN;
 	buffer[1] = (__le32) cpu_to_le32(chn_rev);
