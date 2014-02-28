@@ -1344,8 +1344,7 @@ static const char *adc_mux_text[] = {
 	"DMIC",
 };
 
-static SOC_ENUM_SINGLE_DECL(adc_enum,
-			    0, 0, adc_mux_text);
+static SOC_ENUM_SINGLE_VIRT_DECL(adc_enum, adc_mux_text);
 
 static const struct snd_kcontrol_new adcl_mux =
 	SOC_DAPM_ENUM_VIRT("ADCL Mux", adc_enum);
