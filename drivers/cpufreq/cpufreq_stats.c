@@ -180,13 +180,18 @@ static void cpufreq_stats_free_table(unsigned int cpu)
 	cpufreq_cpu_put(policy);
 }
 
-static int __cpufreq_stats_create_table(struct cpufreq_policy *policy,
-		struct cpufreq_frequency_table *table)
+static int __cpufreq_stats_create_table(struct cpufreq_policy *policy)
 {
 	unsigned int i, j, count = 0, ret = 0;
 	struct cpufreq_stats *stat;
 	unsigned int alloc_size;
 	unsigned int cpu = policy->cpu;
+	struct cpufreq_frequency_table *table;
+
+	table = cpufreq_frequency_get_table(cpu);
+	if (unlikely(!table))
+		return 0;
+
 	if (per_cpu(cpufreq_stats_table, cpu))
 		return -EBUSY;
 	stat = kzalloc(sizeof(*stat), GFP_KERNEL);
@@ -248,7 +253,6 @@ error_out:
 static void cpufreq_stats_create_table(unsigned int cpu)
 {
 	struct cpufreq_policy *policy;
-	struct cpufreq_frequency_table *table;
 
 	/*
 	 * "likely(!policy)" because normally cpufreq_stats will be registered
@@ -258,9 +262,7 @@ static void cpufreq_stats_create_table(unsigned int cpu)
 	if (likely(!policy))
 		return;
 
-	table = cpufreq_frequency_get_table(policy->cpu);
-	if (likely(table))
-		__cpufreq_stats_create_table(policy, table);
+	__cpufreq_stats_create_table(policy);
 
 	cpufreq_cpu_put(policy);
 }
@@ -283,20 +285,14 @@ static int cpufreq_stat_notifier_policy(struct notifier_block *nb,
 {
 	int ret = 0;
 	struct cpufreq_policy *policy = data;
-	struct cpufreq_frequency_table *table;
-	unsigned int cpu = policy->cpu;
 
 	if (val == CPUFREQ_UPDATE_POLICY_CPU) {
 		cpufreq_stats_update_policy_cpu(policy);
 		return 0;
 	}
 
-	table = cpufreq_frequency_get_table(cpu);
-	if (!table)
-		return 0;
-
 	if (val == CPUFREQ_CREATE_POLICY)
-		ret = __cpufreq_stats_create_table(policy, table);
+		ret = __cpufreq_stats_create_table(policy);
 	else if (val == CPUFREQ_REMOVE_POLICY)
 		__cpufreq_stats_free_table(policy);
 
