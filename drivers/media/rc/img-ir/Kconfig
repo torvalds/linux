@@ -52,3 +52,10 @@ config IR_IMG_SHARP
 	help
 	   Say Y here to enable support for the Sharp protocol in the ImgTec
 	   infrared decoder block.
+
+config IR_IMG_SANYO
+	bool "Sanyo protocol support"
+	depends on IR_IMG_HW
+	help
+	   Say Y here to enable support for the Sanyo protocol (used by Sanyo,
+	   Aiwa, Chinon remotes) in the ImgTec infrared decoder block.
