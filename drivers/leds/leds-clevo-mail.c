@@ -19,7 +19,7 @@ MODULE_AUTHOR("Márton Németh <nm127@freemail.hu>");
 MODULE_DESCRIPTION("Clevo mail LED driver");
 MODULE_LICENSE("GPL");
 
-static bool __initdata nodetect;
+static bool nodetect;
 module_param_named(nodetect, nodetect, bool, 0);
 MODULE_PARM_DESC(nodetect, "Skip DMI hardware detection");
 
