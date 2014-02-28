@@ -160,6 +160,28 @@ struct rc_dev {
 
 #define to_rc_dev(d) container_of(d, struct rc_dev, dev)
 
+static inline bool rc_protocols_allowed(struct rc_dev *rdev, u64 protos)
+{
+	return rdev->allowed_protos & protos;
+}
+
+/* should be called prior to registration or with mutex held */
+static inline void rc_set_allowed_protocols(struct rc_dev *rdev, u64 protos)
+{
+	rdev->allowed_protos = protos;
+}
+
+static inline bool rc_protocols_enabled(struct rc_dev *rdev, u64 protos)
+{
+	return rdev->enabled_protocols & protos;
+}
+
+/* should be called prior to registration or with mutex held */
+static inline void rc_set_enabled_protocols(struct rc_dev *rdev, u64 protos)
+{
+	rdev->enabled_protocols = protos;
+}
+
 /*
  * From rc-main.c
  * Those functions can be used on any type of Remote Controller. They
