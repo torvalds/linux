@@ -234,6 +234,17 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		priv->codec_dai.fmt,
 		priv->codec_dai.sysclk);
 
+	/*
+	 * soc_bind_dai_link() will check cpu name
+	 * after of_node matching if dai_link has cpu_dai_name.
+	 * but, it will never match if name was created by fmt_single_name()
+	 * remove cpu_dai_name to escape name matching.
+	 * see
+	 *	fmt_single_name()
+	 *	fmt_multiple_name()
+	 */
+	dai_link->cpu_dai_name = NULL;
+
 	return 0;
 }
 
