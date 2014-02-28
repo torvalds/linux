@@ -1005,8 +1005,6 @@ static int  device_open(struct net_device *dev)
 
     vMgrObjectInit(pDevice);
 
-    tasklet_init(&pDevice->EventWorkItem, (void *)INTvWorkItem, (unsigned long)pDevice);
-
 	schedule_delayed_work(&pDevice->second_callback_work, HZ);
 
 	pDevice->int_interval = 100;  /* max 100 microframes */
@@ -1107,8 +1105,6 @@ static int device_close(struct net_device *dev)
 
 	cancel_work_sync(&pDevice->rx_mng_work_item);
 	cancel_work_sync(&pDevice->read_work_item);
-
-    tasklet_kill(&pDevice->EventWorkItem);
 
    pDevice->bRoaming = false;
    pDevice->bIsRoaming = false;

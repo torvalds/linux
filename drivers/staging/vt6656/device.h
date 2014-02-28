@@ -355,8 +355,6 @@ struct vnt_private {
 
 	OPTIONS sOpts;
 
-	struct tasklet_struct CmdWorkItem;
-	struct tasklet_struct EventWorkItem;
 	struct work_struct read_work_item;
 	struct work_struct rx_mng_work_item;
 
