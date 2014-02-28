@@ -66,7 +66,7 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	ret = drm_create_iommu_mapping(dev);
 	if (ret < 0) {
 		DRM_ERROR("failed to create iommu mapping.\n");
-		goto err_crtc;
+		goto err_free_private;
 	}
 
 	drm_mode_config_init(dev);
@@ -136,8 +136,7 @@ err_manager_cleanup:
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(dev);
 	drm_release_iommu_mapping(dev);
-err_crtc:
-	drm_mode_config_cleanup(dev);
+err_free_private:
 	kfree(private);
 
 	return ret;
