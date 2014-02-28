@@ -398,29 +398,31 @@ static int multipath_map(struct dm_target *ti, struct request *clone,
 
 	pgpath = m->current_pgpath;
 
-	if (pgpath) {
-		if (pg_ready(m)) {
-			if (set_mapinfo(m, map_context) < 0)
-				/* ENOMEM, requeue */
-				goto out_unlock;
-
-			bdev = pgpath->path.dev->bdev;
-			clone->q = bdev_get_queue(bdev);
-			clone->rq_disk = bdev->bd_disk;
-			clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
-			mpio = map_context->ptr;
-			mpio->pgpath = pgpath;
-			mpio->nr_bytes = nr_bytes;
-			if (pgpath->pg->ps.type->start_io)
-				pgpath->pg->ps.type->start_io(&pgpath->pg->ps,
-							      &pgpath->path,
-							      nr_bytes);
-			r = DM_MAPIO_REMAPPED;
-			goto out_unlock;
-		}
+	if (!pgpath) {
+		if (!__must_push_back(m))
+			r = -EIO;	/* Failed */
+		goto out_unlock;
+	}
+	if (!pg_ready(m)) {
 		__pg_init_all_paths(m);
-	} else if (!__must_push_back(m))
-		r = -EIO;	/* Failed */
+		goto out_unlock;
+	}
+	if (set_mapinfo(m, map_context) < 0)
+		/* ENOMEM, requeue */
+		goto out_unlock;
+
+	bdev = pgpath->path.dev->bdev;
+	clone->q = bdev_get_queue(bdev);
+	clone->rq_disk = bdev->bd_disk;
+	clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
+	mpio = map_context->ptr;
+	mpio->pgpath = pgpath;
+	mpio->nr_bytes = nr_bytes;
+	if (pgpath->pg->ps.type->start_io)
+		pgpath->pg->ps.type->start_io(&pgpath->pg->ps,
+					      &pgpath->path,
+					      nr_bytes);
+	r = DM_MAPIO_REMAPPED;
 
 out_unlock:
 	spin_unlock_irqrestore(&m->lock, flags);
