@@ -167,6 +167,8 @@ struct wa_xfer {
 
 static void __wa_populate_dto_urb_isoc(struct wa_xfer *xfer,
 	struct wa_seg *seg, int curr_iso_frame);
+static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
+		int starting_index, enum wa_seg_status status);
 
 static inline void wa_xfer_init(struct wa_xfer *xfer)
 {
@@ -416,12 +418,51 @@ out:
 
 struct wa_xfer_abort_buffer {
 	struct urb urb;
+	struct wahc *wa;
 	struct wa_xfer_abort cmd;
 };
 
 static void __wa_xfer_abort_cb(struct urb *urb)
 {
 	struct wa_xfer_abort_buffer *b = urb->context;
+	struct wahc *wa = b->wa;
+
+	/*
+	 * If the abort request URB failed, then the HWA did not get the abort
+	 * command.  Forcibly clean up the xfer without waiting for a Transfer
+	 * Result from the HWA.
+	 */
+	if (urb->status < 0) {
+		struct wa_xfer *xfer;
+		struct device *dev = &wa->usb_iface->dev;
+
+		xfer = wa_xfer_get_by_id(wa, le32_to_cpu(b->cmd.dwTransferID));
+		dev_err(dev, "%s: Transfer Abort request failed. result: %d\n",
+			__func__, urb->status);
+		if (xfer) {
+			unsigned long flags;
+			int done;
+			struct wa_rpipe *rpipe = xfer->ep->hcpriv;
+
+			dev_err(dev, "%s: cleaning up xfer %p ID 0x%08X.\n",
+				__func__, xfer, wa_xfer_id(xfer));
+			spin_lock_irqsave(&xfer->lock, flags);
+			/* mark all segs as aborted. */
+			wa_complete_remaining_xfer_segs(xfer, 0,
+				WA_SEG_ABORTED);
+			done = __wa_xfer_is_done(xfer);
+			spin_unlock_irqrestore(&xfer->lock, flags);
+			if (done)
+				wa_xfer_completion(xfer);
+			wa_xfer_delayed_run(rpipe);
+			wa_xfer_put(xfer);
+		} else {
+			dev_err(dev, "%s: xfer ID 0x%08X already gone.\n",
+				 __func__, le32_to_cpu(b->cmd.dwTransferID));
+		}
+	}
+
+	wa_put(wa);	/* taken in __wa_xfer_abort */
 	usb_put_urb(&b->urb);
 }
 
@@ -449,6 +490,7 @@ static int __wa_xfer_abort(struct wa_xfer *xfer)
 	b->cmd.bRequestType = WA_XFER_ABORT;
 	b->cmd.wRPipe = rpipe->descr.wRPipeIndex;
 	b->cmd.dwTransferID = wa_xfer_id_le32(xfer);
+	b->wa = wa_get(xfer->wa);
 
 	usb_init_urb(&b->urb);
 	usb_fill_bulk_urb(&b->urb, xfer->wa->usb_dev,
@@ -462,6 +504,7 @@ static int __wa_xfer_abort(struct wa_xfer *xfer)
 
 
 error_submit:
+	wa_put(xfer->wa);
 	if (printk_ratelimit())
 		dev_err(dev, "xfer %p: Can't submit abort request: %d\n",
 			xfer, result);
@@ -2036,15 +2079,17 @@ static int wa_xfer_status_to_errno(u8 status)
  * no other segment transfer results will be returned from the device.
  * Mark the remaining submitted or pending xfers as completed so that
  * the xfer will complete cleanly.
+ *
+ * xfer->lock must be held
+ *
  */
 static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
-		struct wa_seg *incoming_seg, enum wa_seg_status status)
+		int starting_index, enum wa_seg_status status)
 {
 	int index;
 	struct wa_rpipe *rpipe = xfer->ep->hcpriv;
 
-	for (index = incoming_seg->index + 1; index < xfer->segs_submitted;
-		index++) {
+	for (index = starting_index; index < xfer->segs_submitted; index++) {
 		struct wa_seg *current_seg = xfer->seg[index];
 
 		BUG_ON(current_seg == NULL);
@@ -2202,7 +2247,8 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 	 * transfers with data or below for no data, the xfer will complete.
 	 */
 	if (xfer_result->bTransferSegment & 0x80)
-		wa_complete_remaining_xfer_segs(xfer, seg, WA_SEG_DONE);
+		wa_complete_remaining_xfer_segs(xfer, seg->index + 1,
+			WA_SEG_DONE);
 	if (usb_pipeisoc(xfer->urb->pipe)
 		&& (le32_to_cpu(xfer_result->dwNumOfPackets) > 0)) {
 		/* set up WA state to read the isoc packet status next. */
@@ -2253,7 +2299,7 @@ error_buf_in_populate:
 error_complete:
 	xfer->segs_done++;
 	rpipe_ready = rpipe_avail_inc(rpipe);
-	wa_complete_remaining_xfer_segs(xfer, seg, seg->status);
+	wa_complete_remaining_xfer_segs(xfer, seg->index + 1, seg->status);
 	done = __wa_xfer_is_done(xfer);
 	/*
 	 * queue work item to clear STALL for control endpoints.
