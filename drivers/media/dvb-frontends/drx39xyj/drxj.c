@@ -1551,14 +1551,23 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 	}
 
 #ifdef DJH_DEBUG
-	struct drx39xxj_state *state = w_dev_addr->user_data;
+	if (w_dev_addr == NULL || r_dev_addr == NULL)
+		return 0;
 
-	struct i2c_msg msg[2] = {
-		{.addr = w_dev_addr->i2c_addr,
-		 .flags = 0, .buf = wData, .len = w_count},
-		{.addr = r_dev_addr->i2c_addr,
-		 .flags = I2C_M_RD, .buf = r_data, .len = r_count},
-	};
+	state = w_dev_addr->user_data;
+
+	if (state->i2c == NULL)
+		return 0;
+
+	msg[0].addr = w_dev_addr->i2c_addr;
+	msg[0].flags = 0;
+	msg[0].buf = wData;
+	msg[0].len = w_count;
+	msg[1].addr = r_dev_addr->i2c_addr;
+	msg[1].flags = I2C_M_RD;
+	msg[1].buf = r_data;
+	msg[1].len = r_count;
+	num_msgs = 2;
 
 	pr_debug("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
 	       w_dev_addr->i2c_addr, state->i2c, w_count, r_count);
