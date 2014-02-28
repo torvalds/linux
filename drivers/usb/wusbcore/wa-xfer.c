@@ -2159,7 +2159,7 @@ static void __wa_populate_buf_in_urb_isoc(struct wahc *wa, struct wa_xfer *xfer,
 	wa->buf_in_urb->transfer_dma = xfer->urb->transfer_dma +
 		xfer->urb->iso_frame_desc[curr_iso_frame].offset;
 	wa->buf_in_urb->transfer_buffer_length =
-		xfer->urb->iso_frame_desc[curr_iso_frame].length;
+		xfer->urb->iso_frame_desc[curr_iso_frame].actual_length;
 	wa->buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	wa->buf_in_urb->transfer_buffer = NULL;
 	wa->buf_in_urb->sg = NULL;
