@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/sizes.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -450,7 +451,7 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 	phys_addr_t base, size;
 	unsigned long len;
 	__be32 *prop;
-	int nomap;
+	int nomap, first = 1;
 
 	prop = of_get_flat_dt_prop(node, "reg", &len);
 	if (!prop)
@@ -477,6 +478,10 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 				uname, &base, (unsigned long)size / SZ_1M);
 
 		len -= t_len;
+		if (first) {
+			fdt_reserved_mem_save_node(node, uname, base, size);
+			first = 0;
+		}
 	}
 	return 0;
 }
@@ -512,6 +517,7 @@ static int __init __fdt_scan_reserved_mem(unsigned long node, const char *uname,
 {
 	static int found;
 	const char *status;
+	int err;
 
 	if (!found && depth == 1 && strcmp(uname, "reserved-memory") == 0) {
 		if (__reserved_mem_check_root(node) != 0) {
@@ -534,7 +540,9 @@ static int __init __fdt_scan_reserved_mem(unsigned long node, const char *uname,
 	if (status && strcmp(status, "okay") != 0 && strcmp(status, "ok") != 0)
 		return 0;
 
-	__reserved_mem_reserve_reg(node, uname);
+	err = __reserved_mem_reserve_reg(node, uname);
+	if (err == -ENOENT && of_get_flat_dt_prop(node, "size", NULL))
+		fdt_reserved_mem_save_node(node, uname, 0, 0);
 
 	/* scan next node */
 	return 0;
@@ -550,6 +558,7 @@ static int __init __fdt_scan_reserved_mem(unsigned long node, const char *uname,
 void __init early_init_fdt_scan_reserved_mem(void)
 {
 	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
+	fdt_init_reserved_mem();
 }
 
 /**
