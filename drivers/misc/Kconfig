@@ -526,4 +526,5 @@ source "drivers/misc/mei/Kconfig"
 source "drivers/misc/vmw_vmci/Kconfig"
 source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
+source "drivers/misc/echo/Kconfig"
 endmenu

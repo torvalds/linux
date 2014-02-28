@@ -9,7 +9,6 @@ obj-$(CONFIG_SLICOSS)		+= slicoss/
 obj-$(CONFIG_USBIP_CORE)	+= usbip/
 obj-$(CONFIG_W35UND)		+= winbond/
 obj-$(CONFIG_PRISM2_USB)	+= wlan-ng/
-obj-$(CONFIG_ECHO)		+= echo/
 obj-$(CONFIG_COMEDI)		+= comedi/
 obj-$(CONFIG_FB_OLPC_DCON)	+= olpc_dcon/
 obj-$(CONFIG_PANEL)		+= panel/
