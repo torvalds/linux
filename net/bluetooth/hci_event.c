@@ -1678,6 +1678,16 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, u8 status)
 	conn->resp_addr_type = cp->peer_addr_type;
 	bacpy(&conn->resp_addr, &cp->peer_addr);
 
+	/* We don't want the connection attempt to stick around
+	 * indefinitely since LE doesn't have a page timeout concept
+	 * like BR/EDR. Set a timer for any connection that doesn't use
+	 * the white list for connecting.
+	 */
+	if (cp->filter_policy == HCI_LE_USE_PEER_ADDR)
+		queue_delayed_work(conn->hdev->workqueue,
+				   &conn->le_conn_timeout,
+				   HCI_LE_CONN_TIMEOUT);
+
 unlock:
 	hci_dev_unlock(hdev);
 }
@@ -3794,6 +3804,8 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->init_addr_type = ev->bdaddr_type;
 			bacpy(&conn->init_addr, &ev->bdaddr);
 		}
+	} else {
+		cancel_delayed_work(&conn->le_conn_timeout);
 	}
 
 	/* Ensure that the hci_conn contains the identity address type
