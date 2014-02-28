@@ -12,3 +12,4 @@ obj-$(CONFIG_CPU_FREQ) += rk3188-cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
 obj-$(CONFIG_RK29_VPU) += vpu_service.o
 obj-$(CONFIG_RK_PL330_DMA_TEST) += dma_memcpy_test.o
+obj-$(CONFIG_DDR_FREQ) += ddr_freq.o

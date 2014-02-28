@@ -337,8 +337,13 @@ arch_initcall(rk3188_pie_init);
 
 static int __init rk3188_ddr_init(void)
 {
+	ddr_change_freq = _ddr_change_freq;
+	ddr_round_rate = _ddr_round_rate;
+	ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
+	
 	if (cpu_is_rk3188())
 		ddr_init(DDR3_DEFAULT, 300);
+
 	return 0;
 }
 arch_initcall_sync(rk3188_ddr_init);

@@ -37,6 +37,11 @@ config DVFS
 	select PM_OPP
 	select CPU_FREQ
 
+config DDR_FREQ
+	bool "Enable DDR frequency scaling"
+	default y
+	select DVFS
+
 config RK29_VPU
 	tristate "VPU (Video Processing Unit) service driver in kernel"
 	depends on ARCH_RK29 || ARCH_RK30 || ARCH_RK2928 || ARCH_RK3026 || ARCH_RK3188 || ARCH_RK319X || ARCH_ROCKCHIP

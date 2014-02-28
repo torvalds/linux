@@ -16,9 +16,10 @@
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <linux/cpu.h>
+#include <dt-bindings/clock/ddr.h>
 
 #include "cru.h"
-#include "ddr.h"
 
 typedef uint32_t uint32;
 
@@ -81,6 +82,13 @@ typedef uint32_t uint32;
 #define pd_vio_pwr_st    (1<<7)
 #define pd_video_pwr_st    (1<<8)
 #define pd_gpu_pwr_st    (1<<9)
+
+struct ddr_freq_t {
+    unsigned long screen_ft_us;
+    unsigned long long t0;
+    unsigned long long t1;
+    unsigned long t2;
+};
 
 //PMU registers
 typedef volatile struct tagPMU_FILE
@@ -3526,7 +3534,7 @@ static noinline uint32_t ddr_change_freq_sram(uint32_t nMHz , struct ddr_freq_t 
     param.dqstr_value = dqstr_value;
     call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_change_freq_sram)),
                     &param,
-                    rockchip_sram_stack);
+                    rockchip_sram_stack-(NR_CPUS-1)*PAUSE_CPU_STACK_SZIE);
 
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
 end:
@@ -3592,19 +3600,126 @@ if rk3188 DPLL is bad,use GPLL
 500MHz-800MHz          2:250MHz-400MHz
 200MHz-500MHz          1:200MHz-500MHz
 ******************************************/
+#if 0
 static noinline uint32_t ddr_change_freq(uint32_t nMHz)
 {
     struct ddr_freq_t ddr_freq_t;
     ddr_freq_t.screen_ft_us = 0;
-
+    
 #if defined(ENABLE_DDR_CLCOK_GPLL_PATH) && (defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK319X))
     return ddr_change_freq_gpll_dpll(nMHz);
 #else
     return ddr_change_freq_sram(nMHz,ddr_freq_t);
 #endif
 }
+#endif
 
-static void ddr_set_auto_self_refresh(bool en)
+bool DEFINE_PIE_DATA(cpu_pause[NR_CPUS]);
+volatile bool *p_cpu_pause;
+static inline bool is_cpu0_paused(unsigned int cpu) { smp_rmb(); return DATA(cpu_pause)[0]; }
+static inline void set_cpuX_paused(unsigned int cpu, bool pause) { DATA(cpu_pause)[cpu] = pause; smp_wmb(); }
+static inline bool is_cpuX_paused(unsigned int cpu) { smp_rmb(); return p_cpu_pause[cpu]; }
+static inline void set_cpu0_paused(bool pause) { p_cpu_pause[0] = pause; smp_wmb();}
+
+#define MAX_TIMEOUT (16000000UL << 6) //>0.64s
+
+/* Do not use stack, safe on SMP */
+void PIE_FUNC(_pause_cpu)(void *arg)
+{	
+	unsigned int cpu = (unsigned int)arg;
+	
+	set_cpuX_paused(cpu, true);
+	while (is_cpu0_paused(cpu));
+	set_cpuX_paused(cpu, false);
+}
+
+static void pause_cpu(void *info)
+{
+	unsigned int cpu = raw_smp_processor_id();
+
+	call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(_pause_cpu)),
+			(void *)cpu,
+			rockchip_sram_stack-(cpu-1)*PAUSE_CPU_STACK_SZIE);
+}
+
+static void wait_cpu(void *info)
+{
+}
+
+static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
+{
+	u32 timeout = MAX_TIMEOUT;
+	unsigned int cpu;
+	unsigned int this_cpu = smp_processor_id();
+	int ret = 0;
+
+	cpu_maps_update_begin();
+	local_bh_disable();
+	set_cpu0_paused(true);
+	smp_call_function((smp_call_func_t)pause_cpu, NULL, 0);
+
+	for_each_online_cpu(cpu) {
+		if (cpu == this_cpu)
+			continue;
+		while (!is_cpuX_paused(cpu) && --timeout);
+		if (timeout == 0) {
+			pr_err("pause cpu %d timeout\n", cpu);
+			goto out;
+		}
+	}
+
+	ret = ddr_change_freq_sram(nMHz, ddr_freq_t);
+
+out:
+	set_cpu0_paused(false);
+	local_bh_enable();
+	smp_call_function(wait_cpu, NULL, true);
+	cpu_maps_update_done();
+
+	return ret;
+}
+
+static int _ddr_change_freq(uint32_t nMHz)
+{
+	struct ddr_freq_t ddr_freq_t;
+	//int test_count=0;
+
+	ddr_freq_t.screen_ft_us = 0;
+	ddr_freq_t.t0 = 0;
+	ddr_freq_t.t1 = 0;
+#if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
+	do
+	{
+		if(rk_fb_poll_wait_frame_complete() == true)
+		{
+			ddr_freq_t.t0 = cpu_clock(0);
+			ddr_freq_t.screen_ft_us = rk_fb_get_prmry_screen_ft();
+
+			test_count++;
+                        if(test_count > 10) //test 10 times
+                        {
+				ddr_freq_t.screen_ft_us = 0xfefefefe;
+				dprintk(DEBUG_DDR,"%s:test_count exceed maximum!\n",__func__);
+                        }
+			dprintk(DEBUG_VERBOSE,"%s:test_count=%d\n",__func__,test_count);
+			usleep_range(ddr_freq_t.screen_ft_us-test_count*1000,ddr_freq_t.screen_ft_us-test_count*1000);
+
+			flush_cache_all();
+			outer_flush_all();
+			flush_tlb_all();
+		}
+	}while(__ddr_change_freq(nMHz, ddr_freq_t)==0);
+#else
+	return __ddr_change_freq(nMHz, ddr_freq_t);
+#endif
+}
+
+static long _ddr_round_rate(uint32_t nMHz)
+{
+	return p_ddr_set_pll(nMHz, 0);
+}
+
+static void _ddr_set_auto_self_refresh(bool en)
 {
     //set auto self-refresh idle
     *kern_to_pie(rockchip_pie_chunk, &DATA(ddr_sr_idle)) = en ? SR_IDLE : 0;
@@ -3803,12 +3918,13 @@ static int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t gsr,dqstr;
     struct clk *clk;
 
-    ddr_print("version 1.00 20131223 \n");
+    ddr_print("version 1.00 20140228 \n");
 
     p_ddr_reg = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_reg));
     p_ddr_select_gpll_div = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_select_gpll_div));
     p_mem_type = kern_to_pie(rockchip_pie_chunk, &DATA(mem_type));
     p_ddr_set_pll = fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_set_pll));
+    p_cpu_pause = kern_to_pie(rockchip_pie_chunk, &DATA(cpu_pause[0]));
 
     *p_mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
@@ -3876,7 +3992,7 @@ static int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
                                                                     (ddr_get_cap()>>20));
     ddr_adjust_config(*p_mem_type);
 
-    clk = clk_get(NULL, "ddr");
+    clk = clk_get(NULL, "clk_ddr");
     if (IS_ERR(clk)) {
         ddr_print("failed to get ddr clk\n");
         clk = NULL;
@@ -3884,11 +4000,10 @@ static int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     if(ddr_rk3188_dpll_is_good == true)
     {
         if(freq != 0)
-            value=ddr_change_freq(freq);
+            value = clk_set_rate(clk, 1000*1000*freq);
         else
-            value=ddr_change_freq(clk_get_rate(clk)/1000000);
+            value = clk_set_rate(clk, clk_get_rate(clk));
     }
-    clk_set_rate(clk, 0);
     ddr_print("init success!!! freq=%luMHz\n", clk ? clk_get_rate(clk)/1000000 : freq);
 
     for(value=0;value<4;value++)

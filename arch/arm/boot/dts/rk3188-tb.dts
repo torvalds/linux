@@ -4,8 +4,7 @@
 #include "rk3188-clocks.dtsi"
 #include "lcd-b101ew05.dtsi"
 #include "rk3188-mmc.dtsi"
-
-
+#include <dt-bindings/clock/ddr.h>
 / {
 	memory {
 		device_type = "memory";
@@ -240,7 +239,7 @@
 		/* KHz    uV */
 		200000 1200000
 		300000 1200000
-		400000 1300000
+		400000 1200000
 		>;
 };
 
@@ -249,7 +248,15 @@
 		/* KHz    uV */
 		200000 1200000
 		300000 1200000
-		400000 1300000
+		400000 1200000
+		>;
+
+	freq_table = <
+		/*status		freq(KHz)*/
+		SYS_STATUS_NORMAL	400000
+		SYS_STATUS_SUSPEND	200000
+		SYS_STATUS_VIDEO	300000
+		SYS_STATUS_DUALVIEW	500000
 		>;
 };
 

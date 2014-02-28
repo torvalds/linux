@@ -12,6 +12,10 @@
 extern unsigned long rockchip_boot_fn;
 extern struct smp_operations rockchip_smp_ops;
 
+extern int (*ddr_change_freq)(uint32_t nMHz);
+extern long (*ddr_round_rate)(uint32_t nMHz);
+extern void (*ddr_set_auto_self_refresh)(bool en);
+
 extern int rockchip_cpu_kill(unsigned int cpu);
 extern void rockchip_cpu_die(unsigned int cpu);
 extern int rockchip_cpu_disable(unsigned int cpu);
