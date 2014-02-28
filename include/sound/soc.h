@@ -195,11 +195,7 @@
 	.get = snd_soc_get_enum_double, .put = snd_soc_put_enum_double, \
 	.private_value = (unsigned long)&xenum }
 #define SOC_VALUE_ENUM(xname, xenum) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
-	.info = snd_soc_info_enum_double, \
-	.get = snd_soc_get_value_enum_double, \
-	.put = snd_soc_put_value_enum_double, \
-	.private_value = (unsigned long)&xenum }
+	SOC_ENUM(xname, xenum)
 #define SOC_SINGLE_EXT(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
@@ -509,10 +505,6 @@ int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 int snd_soc_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_get_value_enum_double(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
@@ -1180,6 +1172,30 @@ static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
 	 * stereo (bits in one register or in two registers)
 	 */
 	return 1;
+}
+
+static inline unsigned int snd_soc_enum_val_to_item(struct soc_enum *e,
+	unsigned int val)
+{
+	unsigned int i;
+
+	if (!e->values)
+		return val;
+
+	for (i = 0; i < e->items; i++)
+		if (val == e->values[i])
+			return i;
+
+	return 0;
+}
+
+static inline unsigned int snd_soc_enum_item_to_val(struct soc_enum *e,
+	unsigned int item)
+{
+	if (!e->values)
+		return item;
+
+	return e->values[item];
 }
 
 int snd_soc_util_init(void);
