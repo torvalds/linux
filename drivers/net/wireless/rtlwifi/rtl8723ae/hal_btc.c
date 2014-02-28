@@ -32,6 +32,7 @@
 #include "phy.h"
 #include "../rtl8723com/phy_common.h"
 #include "fw.h"
+#include "../rtl8723com/fw_common.h"
 #include "reg.h"
 #include "def.h"
 

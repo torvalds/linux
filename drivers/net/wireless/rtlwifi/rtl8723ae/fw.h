@@ -34,7 +34,7 @@
 #define FW_8192C_END_ADDRESS			0x3FFF
 #define FW_8192C_PAGE_SIZE			4096
 #define FW_8192C_POLLING_DELAY			5
-#define FW_8192C_POLLING_TIMEOUT_COUNT		1000
+#define FW_8192C_POLLING_TIMEOUT_COUNT		6000
 
 #define BEACON_PG				0
 #define PSPOLL_PG				2
@@ -65,21 +65,9 @@ struct rtl8723ae_firmware_header {
 	u32 rsvd5;
 };
 
-enum rtl8192c_h2c_cmd {
-	H2C_AP_OFFLOAD = 0,
-	H2C_SETPWRMODE = 1,
-	H2C_JOINBSSRPT = 2,
-	H2C_RSVDPAGE = 3,
-	H2C_RSSI_REPORT = 4,
-	H2C_P2P_PS_CTW_CMD = 5,
-	H2C_P2P_PS_OFFLOAD = 6,
-	H2C_RA_MASK = 7,
-	MAX_H2CCMD
-};
-
 #define SET_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd, __val)			\
 	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
-#define SET_H2CCMD_PWRMODE_PARM_SMART_PS(__ph2ccmd, __val)		\
+#define SET_H2CCMD_PWRMODE_PARM_SMART_PS_23A(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+1, 0, 8, __val)
 #define SET_H2CCMD_PWRMODE_PARM_BCN_PASS_TIME(__ph2ccmd, __val)	\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
@@ -92,10 +80,8 @@ enum rtl8192c_h2c_cmd {
 #define SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
 
-int rtl8723ae_download_fw(struct ieee80211_hw *hw);
 void rtl8723ae_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
 			    u32 cmd_len, u8 *p_cmdbuffer);
-void rtl8723ae_firmware_selfreset(struct ieee80211_hw *hw);
 void rtl8723ae_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
 void rtl8723ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
 void rtl8723ae_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw, u8 mstatus);

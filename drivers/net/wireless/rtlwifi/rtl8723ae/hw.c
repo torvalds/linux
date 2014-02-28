@@ -39,6 +39,7 @@
 #include "phy.h"
 #include "dm.h"
 #include "fw.h"
+#include "../rtl8723com/fw_common.h"
 #include "led.h"
 #include "hw.h"
 #include "pwrseqcmd.h"
@@ -890,7 +891,7 @@ int rtl8723ae_hw_init(struct ieee80211_hw *hw)
 		return err;
 	}
 
-	err = rtl8723ae_download_fw(hw);
+	err = rtl8723_download_fw(hw, false);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Failed to download FW. Init HW without FW now..\n");

@@ -40,6 +40,8 @@
 #include "../rtl8723com/phy_common.h"
 #include "dm.h"
 #include "hw.h"
+#include "fw.h"
+#include "../rtl8723com/fw_common.h"
 #include "sw.h"
 #include "trx.h"
 #include "led.h"
@@ -194,6 +196,11 @@ void rtl8723ae_deinit_sw_vars(struct ieee80211_hw *hw)
 	}
 }
 
+static bool is_fw_header(struct rtl92c_firmware_header *hdr)
+{
+	return (hdr->signature & 0xfff0) == 0x2300;
+}
+
 static struct rtl_hal_ops rtl8723ae_hal_ops = {
 	.init_sw_vars = rtl8723ae_init_sw_vars,
 	.deinit_sw_vars = rtl8723ae_deinit_sw_vars,
@@ -239,6 +246,7 @@ static struct rtl_hal_ops rtl8723ae_hal_ops = {
 	.c2h_command_handle = rtl_8723e_c2h_command_handle,
 	.bt_wifi_media_status_notify = rtl_8723e_bt_wifi_media_status_notify,
 	.bt_coex_off_before_lps = rtl8723ae_bt_coex_off_before_lps,
+	.is_fw_header = is_fw_header,
 };
 
 static struct rtl_mod_params rtl8723ae_mod_params = {
