@@ -1559,56 +1559,17 @@ static int buffer_unmapped(handle_t *handle, struct buffer_head *bh)
 }
 
 /*
- * Note that we always start a transaction even if we're not journalling
- * data.  This is to preserve ordering: any hole instantiation within
- * __block_write_full_page -> ext3_get_block() should be journalled
- * along with the data so we don't crash and then get metadata which
+ * Note that whenever we need to map blocks we start a transaction even if
+ * we're not journalling data.  This is to preserve ordering: any hole
+ * instantiation within __block_write_full_page -> ext3_get_block() should be
+ * journalled along with the data so we don't crash and then get metadata which
  * refers to old data.
  *
  * In all journalling modes block_write_full_page() will start the I/O.
  *
- * Problem:
- *
- *	ext3_writepage() -> kmalloc() -> __alloc_pages() -> page_launder() ->
- *		ext3_writepage()
- *
- * Similar for:
- *
- *	ext3_file_write() -> generic_file_write() -> __alloc_pages() -> ...
- *
- * Same applies to ext3_get_block().  We will deadlock on various things like
- * lock_journal and i_truncate_mutex.
- *
- * Setting PF_MEMALLOC here doesn't work - too many internal memory
- * allocations fail.
- *
- * 16May01: If we're reentered then journal_current_handle() will be
- *	    non-zero. We simply *return*.
- *
- * 1 July 2001: @@@ FIXME:
- *   In journalled data mode, a data buffer may be metadata against the
- *   current transaction.  But the same file is part of a shared mapping
- *   and someone does a writepage() on it.
- *
- *   We will move the buffer onto the async_data list, but *after* it has
- *   been dirtied. So there's a small window where we have dirty data on
- *   BJ_Metadata.
- *
- *   Note that this only applies to the last partial page in the file.  The
- *   bit which block_write_full_page() uses prepare/commit for.  (That's
- *   broken code anyway: it's wrong for msync()).
- *
- *   It's a rare case: affects the final partial page, for journalled data
- *   where the file is subject to bith write() and writepage() in the same
- *   transction.  To fix it we'll need a custom block_write_full_page().
- *   We'll probably need that anyway for journalling writepage() output.
- *
  * We don't honour synchronous mounts for writepage().  That would be
  * disastrous.  Any write() or metadata operation will sync the fs for
  * us.
- *
- * AKPM2: if all the page's buffers are mapped to disk and !data=journal,
- * we don't need to open a transaction here.
  */
 static int ext3_ordered_writepage(struct page *page,
 				struct writeback_control *wbc)
