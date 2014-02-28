@@ -31,3 +31,10 @@ config IR_IMG_NEC
 	help
 	   Say Y here to enable support for the NEC, extended NEC, and 32-bit
 	   NEC protocols in the ImgTec infrared decoder block.
+
+config IR_IMG_JVC
+	bool "JVC protocol support"
+	depends on IR_IMG_HW
+	help
+	   Say Y here to enable support for the JVC protocol in the ImgTec
+	   infrared decoder block.
