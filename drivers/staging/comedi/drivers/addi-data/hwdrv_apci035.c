@@ -169,9 +169,9 @@ static int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev,
 					 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Status = 0;
-	unsigned int ui_Command = 0;
-	unsigned int ui_Mode = 0;
+	unsigned int ui_Status;
+	unsigned int ui_Command;
+	unsigned int ui_Mode;
 
 	i_Temp = 0;
 	devpriv->tsk_Current = current;
@@ -318,8 +318,8 @@ static int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 						 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Command = 0;
-	int i_Count = 0;
+	unsigned int ui_Command;
+	int i_Count;
 
 	if (data[0] == 1) {
 		ui_Command =
@@ -433,7 +433,7 @@ static int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev,
 				       unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Status = 0;	/*  Status register */
+	unsigned int ui_Status;	/*  Status register */
 
 	i_WatchdogNbr = insn->unused[0];
 
@@ -526,7 +526,7 @@ static int i_APCI035_ReadAnalogInput(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_CommandRegister = 0;
+	unsigned int ui_CommandRegister;
 
 	/*  Set the start */
 	ui_CommandRegister = 0x80000;
@@ -557,7 +557,7 @@ static int i_APCI035_ReadAnalogInput(struct comedi_device *dev,
 static int i_APCI035_Reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
-	int i_Count = 0;
+	int i_Count;
 
 	for (i_Count = 1; i_Count <= 4; i_Count++) {
 		i_WatchdogNbr = i_Count;
@@ -591,11 +591,11 @@ static void v_APCI035_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_StatusRegister1 = 0;
-	unsigned int ui_StatusRegister2 = 0;
-	unsigned int ui_ReadCommand = 0;
-	unsigned int ui_ChannelNumber = 0;
-	unsigned int ui_DigitalTemperature = 0;
+	unsigned int ui_StatusRegister1;
+	unsigned int ui_StatusRegister2;
+	unsigned int ui_ReadCommand;
+	unsigned int ui_ChannelNumber;
+	unsigned int ui_DigitalTemperature;
 
 	if (i_Temp == 1) {
 		i_WatchdogNbr = i_Flag;
