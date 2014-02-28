@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include "../../../../drivers/clk/rockchip/clkops-dtsi.h"
+#include <dt-bindings/clock/rockchip,rk3188.h>
 
 /{
 	clocks {
@@ -83,7 +83,7 @@
 					clock-frequency = <24000000>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_apll";
-					rockchip,pll-id = <APLL_ID>;
+					rockchip,pll-id = <RK3188_APLL_ID>;
 					#clock-cells = <0>;
 				};
 
@@ -93,7 +93,7 @@
 					reg = <0x0010 0x10>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_dpll";
-					rockchip,pll-id = <DPLL_ID>;
+					rockchip,pll-id = <RK3188_DPLL_ID>;
 					#clock-cells = <0>;
 				};
 
@@ -103,7 +103,7 @@
 					reg = <0x0020 0x10>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_cpll";
-					rockchip,pll-id = <CPLL_ID>;
+					rockchip,pll-id = <RK3188_CPLL_ID>;
 					#clock-cells = <0>;
 					#clock-init-cells = <1>;
 				};
@@ -114,7 +114,7 @@
 					reg = <0x0030 0x10>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_gpll";
-					rockchip,pll-id = <GPLL_ID>;
+					rockchip,pll-id = <RK3188_GPLL_ID>;
 					#clock-cells = <0>;
 					#clock-init-cells = <1>;
 				};

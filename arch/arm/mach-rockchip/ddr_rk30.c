@@ -17,6 +17,7 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
+#include "cru.h"
 #include "ddr.h"
 
 typedef uint32_t uint32;
@@ -3608,12 +3609,6 @@ static void ddr_set_auto_self_refresh(bool en)
     //set auto self-refresh idle
     *kern_to_pie(rockchip_pie_chunk, &DATA(ddr_sr_idle)) = en ? SR_IDLE : 0;
 }
-
-
-#define CRU_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
-#define CRU_SET_BITS(val,bits_shift, msk)	(((val)&(msk)) << (bits_shift))
-
-#define CRU_W_MSK_SETBITS(val,bits_shift,msk) (CRU_W_MSK(bits_shift, msk)|CRU_SET_BITS(val,bits_shift, msk))
 
 #define PERI_ACLK_DIV_MASK 0x1f
 #define PERI_ACLK_DIV_OFF 0

@@ -1,0 +1,29 @@
+#ifndef _DT_BINDINGS_CLOCK_ROCKCHIP_RK3188_H
+#define _DT_BINDINGS_CLOCK_ROCKCHIP_RK3188_H
+
+#include "rockchip.h"
+
+/* pll id */
+#define RK3188_APLL_ID		0
+#define RK3188_DPLL_ID 		1
+#define RK3188_CPLL_ID 		2
+#define RK3188_GPLL_ID 		3
+#define RK3188_END_PLL_ID	4
+
+/* rate_ops index */
+#define CLKOPS_RATE_MUX_DIV		1
+#define CLKOPS_RATE_EVENDIV		2
+#define CLKOPS_RATE_DCLK_LCDC		3
+#define CLKOPS_RATE_I2S_FRAC		4
+#define CLKOPS_RATE_FRAC		5
+#define CLKOPS_RATE_I2S			6
+#define CLKOPS_RATE_CIFOUT		7
+#define CLKOPS_RATE_UART		8
+#define CLKOPS_RATE_HSADC		9
+#define CLKOPS_RATE_MAC_REF		10
+#define CLKOPS_RATE_CORE		11
+#define CLKOPS_RATE_CORE_PERI		12
+#define CLKOPS_TABLE_END		(~0)
+
+
+#endif /* _DT_BINDINGS_CLOCK_ROCKCHIP_RK3188_H */

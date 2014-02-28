@@ -1,14 +1,17 @@
 #ifndef __MACH_ROCKCHIP_CRU_H
 #define __MACH_ROCKCHIP_CRU_H
 
-enum {
-	RK3188_APLL_ID = 0,
-	RK3188_DPLL_ID,
-	RK3188_CPLL_ID,
-	RK3188_GPLL_ID,
-	RK3188_END_PLL_ID,
-};
+#include <dt-bindings/clock/rockchip,rk3188.h>
 
+
+/*******************CRU BITS*******************************/
+#define CRU_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
+#define CRU_SET_BITS(val, bits_shift, msk)	(((val)&(msk)) << (bits_shift))
+#define CRU_W_MSK_SETBITS(val, bits_shift,msk) \
+	(CRU_W_MSK(bits_shift, msk) | CRU_SET_BITS(val, bits_shift, msk))
+
+/*******************RK3188********************************/
+/*******************CRU OFFSET*********************/
 #define RK3188_CRU_MODE_CON		0x40
 #define RK3188_CRU_CLKSEL_CON		0x44
 #define RK3188_CRU_CLKGATE_CON		0xd0
@@ -30,8 +33,7 @@ enum {
 #define RK3188_CRU_MISC_CON		(0x134)
 #define RK3188_CRU_GLB_CNT_TH		(0x140)
 
-/*******************MODE BITS***************************/
-
+/******************PLL MODE BITS*******************/
 #define RK3188_PLL_MODE_MSK(id)		(0x3 << ((id) * 4))
 #define RK3188_PLL_MODE_SLOW(id)	((0x0<<((id)*4))|(0x3<<(16+(id)*4)))
 #define RK3188_PLL_MODE_NORM(id)	((0x1<<((id)*4))|(0x3<<(16+(id)*4)))

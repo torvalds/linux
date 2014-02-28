@@ -1,6 +1,6 @@
 #ifndef __RK_CLK_OPS_H
 #define __RK_CLK_OPS_H
-#include "clkops-dtsi.h"
+#include <dt-bindings/clock/rockchip,rk3188.h>
 #include "../../../arch/arm/mach-rockchip/iomap.h"
 #include "../../../arch/arm/mach-rockchip/grf.h"
 
