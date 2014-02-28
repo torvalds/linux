@@ -95,7 +95,7 @@ struct btrfs_device {
 	/* per-device scrub information */
 	struct scrub_ctx *scrub_device;
 
-	struct btrfs_work work;
+	struct btrfs_work_struct work;
 	struct rcu_head rcu;
 	struct work_struct rcu_work;
 

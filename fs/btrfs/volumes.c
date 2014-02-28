@@ -415,7 +415,8 @@ loop_lock:
 			device->running_pending = 1;
 
 			spin_unlock(&device->io_lock);
-			btrfs_requeue_work(&device->work);
+			btrfs_queue_work(fs_info->submit_workers,
+					 &device->work);
 			goto done;
 		}
 		/* unplug every 64 requests just for good measure */
@@ -439,7 +440,7 @@ done:
 	blk_finish_plug(&plug);
 }
 
-static void pending_bios_fn(struct btrfs_work *work)
+static void pending_bios_fn(struct btrfs_work_struct *work)
 {
 	struct btrfs_device *device;
 
@@ -5379,8 +5380,8 @@ static noinline void btrfs_schedule_bio(struct btrfs_root *root,
 	spin_unlock(&device->io_lock);
 
 	if (should_queue)
-		btrfs_queue_worker(&root->fs_info->submit_workers,
-				   &device->work);
+		btrfs_queue_work(root->fs_info->submit_workers,
+				 &device->work);
 }
 
 static int bio_size_ok(struct block_device *bdev, struct bio *bio,
@@ -5668,7 +5669,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 	else
 		generate_random_uuid(dev->uuid);
 
-	dev->work.func = pending_bios_fn;
+	btrfs_init_work(&dev->work, pending_bios_fn, NULL, NULL);
 
 	return dev;
 }

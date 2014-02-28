@@ -2006,7 +2006,7 @@ static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->endio_freespace_worker);
-	btrfs_stop_workers(&fs_info->submit_workers);
+	btrfs_destroy_workqueue(fs_info->submit_workers);
 	btrfs_stop_workers(&fs_info->delayed_workers);
 	btrfs_stop_workers(&fs_info->caching_workers);
 	btrfs_stop_workers(&fs_info->readahead_workers);
@@ -2486,18 +2486,19 @@ int open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->flush_workers, "flush_delalloc",
 			   fs_info->thread_pool_size, NULL);
 
-	btrfs_init_workers(&fs_info->submit_workers, "submit",
-			   min_t(u64, fs_devices->num_devices,
-			   fs_info->thread_pool_size), NULL);
 
 	btrfs_init_workers(&fs_info->caching_workers, "cache",
 			   fs_info->thread_pool_size, NULL);
 
-	/* a higher idle thresh on the submit workers makes it much more
+	/*
+	 * a higher idle thresh on the submit workers makes it much more
 	 * likely that bios will be send down in a sane order to the
 	 * devices
 	 */
-	fs_info->submit_workers.idle_thresh = 64;
+	fs_info->submit_workers =
+		btrfs_alloc_workqueue("submit", flags,
+				      min_t(u64, fs_devices->num_devices,
+					    max_active), 64);
 
 	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1,
 			   &fs_info->generic_worker);
@@ -2548,7 +2549,6 @@ int open_ctree(struct super_block *sb,
 	 * return -ENOMEM if any of these fail.
 	 */
 	ret = btrfs_start_workers(&fs_info->generic_worker);
-	ret |= btrfs_start_workers(&fs_info->submit_workers);
 	ret |= btrfs_start_workers(&fs_info->fixup_workers);
 	ret |= btrfs_start_workers(&fs_info->endio_workers);
 	ret |= btrfs_start_workers(&fs_info->endio_meta_workers);
@@ -2566,7 +2566,8 @@ int open_ctree(struct super_block *sb,
 		err = -ENOMEM;
 		goto fail_sb_buffer;
 	}
-	if (!(fs_info->workers && fs_info->delalloc_workers)) {
+	if (!(fs_info->workers && fs_info->delalloc_workers &&
+	      fs_info->submit_workers)) {
 		err = -ENOMEM;
 		goto fail_sb_buffer;
 	}
