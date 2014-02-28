@@ -408,8 +408,7 @@ static const char * const adcl_enum_text[] = {
 	"MC1L", "RXINL",
 };
 
-static SOC_ENUM_SINGLE_DECL(adcl_enum,
-			    0, 0, adcl_enum_text);
+static SOC_ENUM_SINGLE_VIRT_DECL(adcl_enum, adcl_enum_text);
 
 static const struct snd_kcontrol_new left_input_mux =
 	SOC_DAPM_ENUM_VIRT("Route", adcl_enum);
@@ -418,8 +417,7 @@ static const char * const adcr_enum_text[] = {
 	"MC1R", "MC2", "RXINR", "TXIN",
 };
 
-static SOC_ENUM_SINGLE_DECL(adcr_enum,
-			    0, 0, adcr_enum_text);
+static SOC_ENUM_SINGLE_VIRT_DECL(adcr_enum, adcr_enum_text);
 
 static const struct snd_kcontrol_new right_input_mux =
 	SOC_DAPM_ENUM_VIRT("Route", adcr_enum);
