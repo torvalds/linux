@@ -142,6 +142,10 @@ static inline void io_insl(unsigned int addr, void *buf, int len)
 #define readw_relaxed(addr)	readw(addr)
 #define readl_relaxed(addr)	readl(addr)
 
+#define writeb_relaxed(x, addr)	writeb(x, addr)
+#define writew_relaxed(x, addr)	writew(x, addr)
+#define writel_relaxed(x, addr)	writel(x, addr)
+
 #define outsb(a, b, l)		io_outsb(a, b, l)
 #define outsw(a, b, l)		io_outsw(a, b, l)
 #define outsl(a, b, l)		io_outsl(a, b, l)
