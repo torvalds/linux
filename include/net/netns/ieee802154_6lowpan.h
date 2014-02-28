@@ -7,7 +7,16 @@
 #ifndef __NETNS_IEEE802154_6LOWPAN_H__
 #define __NETNS_IEEE802154_6LOWPAN_H__
 
+struct netns_sysctl_lowpan {
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_header *frags_hdr;
+#endif
+};
+
 struct netns_ieee802154_lowpan {
+	struct netns_sysctl_lowpan sysctl;
+	struct netns_frags	frags;
+	u16			max_dsize;
 };
 
 #endif
