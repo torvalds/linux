@@ -763,7 +763,7 @@
 					ams,enable-tracking;
 				};
 
-				ldo4 {
+				vdd_run_cam: ldo4 {
 					regulator-name = "+3.3V_RUN_CAM";
 					regulator-min-microvolt = <2800000>;
 					regulator-max-microvolt = <2800000>;
@@ -952,6 +952,33 @@
 		i2s@70301100 {
 			status = "okay";
 		};
+	};
+
+	usb@7d000000 {
+		status = "okay";
+	};
+
+	usb-phy@7d000000 {
+		status = "okay";
+		vbus-supply = <&vdd_usb1_vbus>;
+	};
+
+	usb@7d004000 {
+		status = "okay";
+	};
+
+	usb-phy@7d004000 {
+		status = "okay";
+		vbus-supply = <&vdd_run_cam>;
+	};
+
+	usb@7d008000 {
+		status = "okay";
+	};
+
+	usb-phy@7d008000 {
+		status = "okay";
+		vbus-supply = <&vdd_usb3_vbus>;
 	};
 
 	backlight: backlight {
