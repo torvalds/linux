@@ -1324,8 +1324,13 @@ static void azx_bus_reset(struct hda_bus *bus)
 
 static int get_jackpoll_interval(struct azx *chip)
 {
-	int i = jackpoll_ms[chip->dev_index];
+	int i;
 	unsigned int j;
+
+	if (!chip->jackpoll_ms)
+		return 0;
+
+	i = chip->jackpoll_ms[chip->dev_index];
 	if (i == 0)
 		return 0;
 	if (i < 50 || i > 60000)
@@ -3172,6 +3177,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->driver_type = driver_caps & 0xff;
 	check_msi(chip);
 	chip->dev_index = dev;
+	chip->jackpoll_ms = jackpoll_ms;
 	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 	INIT_LIST_HEAD(&chip->pcm_list);
 	INIT_LIST_HEAD(&chip->list);
