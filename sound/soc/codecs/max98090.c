@@ -871,7 +871,7 @@ static const struct snd_kcontrol_new max98090_mic2_mux =
 
 static const char *dmic_mux_text[] = { "ADC", "DMIC" };
 
-static SOC_ENUM_SINGLE_EXT_DECL(dmic_mux_enum, dmic_mux_text);
+static SOC_ENUM_SINGLE_VIRT_DECL(dmic_mux_enum, dmic_mux_text);
 
 static const struct snd_kcontrol_new max98090_dmic_mux =
 	SOC_DAPM_ENUM_VIRT("DMIC Mux", dmic_mux_enum);
