@@ -2437,6 +2437,55 @@ out:
 }
 
 /**
+ * ixgbe_pcie_timeout_poll - Return number of times to poll for completion
+ * @hw: pointer to hardware structure
+ *
+ * System-wide timeout range is encoded in PCIe Device Control2 register.
+ *
+ *  Add 10% to specified maximum and return the number of times to poll for
+ *  completion timeout, in units of 100 microsec.  Never return less than
+ *  800 = 80 millisec.
+ **/
+static u32 ixgbe_pcie_timeout_poll(struct ixgbe_hw *hw)
+{
+	struct ixgbe_adapter *adapter = hw->back;
+	s16 devctl2;
+	u32 pollcnt;
+
+	pci_read_config_word(adapter->pdev, IXGBE_PCI_DEVICE_CONTROL2,
+			     &devctl2);
+	devctl2 &= IXGBE_PCIDEVCTRL2_TIMEO_MASK;
+
+	switch (devctl2) {
+	case IXGBE_PCIDEVCTRL2_65_130ms:
+		 pollcnt = 1300;         /* 130 millisec */
+		break;
+	case IXGBE_PCIDEVCTRL2_260_520ms:
+		pollcnt = 5200;         /* 520 millisec */
+		break;
+	case IXGBE_PCIDEVCTRL2_1_2s:
+		pollcnt = 20000;        /* 2 sec */
+		break;
+	case IXGBE_PCIDEVCTRL2_4_8s:
+		pollcnt = 80000;        /* 8 sec */
+		break;
+	case IXGBE_PCIDEVCTRL2_17_34s:
+		pollcnt = 34000;        /* 34 sec */
+		break;
+	case IXGBE_PCIDEVCTRL2_50_100us:        /* 100 microsecs */
+	case IXGBE_PCIDEVCTRL2_1_2ms:           /* 2 millisecs */
+	case IXGBE_PCIDEVCTRL2_16_32ms:         /* 32 millisec */
+	case IXGBE_PCIDEVCTRL2_16_32ms_def:     /* 32 millisec default */
+	default:
+		pollcnt = 800;          /* 80 millisec minimum */
+		break;
+	}
+
+	/* add 10% to spec maximum */
+	return (pollcnt * 11) / 10;
+}
+
+/**
  *  ixgbe_disable_pcie_master - Disable PCI-express master access
  *  @hw: pointer to hardware structure
  *
@@ -2449,7 +2498,7 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 {
 	struct ixgbe_adapter *adapter = hw->back;
 	s32 status = 0;
-	u32 i;
+	u32 i, poll;
 	u16 value;
 
 	/* Always set this bit to ensure any future transactions are blocked */
@@ -2481,7 +2530,8 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	 * Before proceeding, make sure that the PCIe block does not have
 	 * transactions pending.
 	 */
-	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
+	poll = ixgbe_pcie_timeout_poll(hw);
+	for (i = 0; i < poll; i++) {
 		udelay(100);
 		pci_read_config_word(adapter->pdev, IXGBE_PCI_DEVICE_STATUS,
 							 &value);
