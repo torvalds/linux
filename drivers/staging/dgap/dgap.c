@@ -61,7 +61,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>	/* For udelay */
 #include <linux/slab.h>
-#include <asm/uaccess.h>	/* For copy_from_user/copy_to_user */
+#include <linux/uaccess.h>
 #include <linux/sched.h>
 
 #include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
@@ -69,7 +69,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_reg.h>
-#include <asm/io.h>		/* For read[bwl]/write[bwl] */
+#include <linux/io.h>		/* For read[bwl]/write[bwl] */
 
 #include <linux/string.h>
 #include <linux/device.h>
