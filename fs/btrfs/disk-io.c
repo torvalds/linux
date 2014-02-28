@@ -55,7 +55,7 @@
 #endif
 
 static struct extent_io_ops btree_extent_io_ops;
-static void end_workqueue_fn(struct btrfs_work_struct *work);
+static void end_workqueue_fn(struct btrfs_work *work);
 static void free_fs_root(struct btrfs_root *root);
 static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 				    int read_only);
@@ -86,7 +86,7 @@ struct end_io_wq {
 	int error;
 	int metadata;
 	struct list_head list;
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 };
 
 /*
@@ -108,7 +108,7 @@ struct async_submit_bio {
 	 * can't tell us where in the file the bio should go
 	 */
 	u64 bio_offset;
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 	int error;
 };
 
@@ -742,7 +742,7 @@ unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info)
 	return 256 * limit;
 }
 
-static void run_one_async_start(struct btrfs_work_struct *work)
+static void run_one_async_start(struct btrfs_work *work)
 {
 	struct async_submit_bio *async;
 	int ret;
@@ -755,7 +755,7 @@ static void run_one_async_start(struct btrfs_work_struct *work)
 		async->error = ret;
 }
 
-static void run_one_async_done(struct btrfs_work_struct *work)
+static void run_one_async_done(struct btrfs_work *work)
 {
 	struct btrfs_fs_info *fs_info;
 	struct async_submit_bio *async;
@@ -782,7 +782,7 @@ static void run_one_async_done(struct btrfs_work_struct *work)
 			       async->bio_offset);
 }
 
-static void run_one_async_free(struct btrfs_work_struct *work)
+static void run_one_async_free(struct btrfs_work *work)
 {
 	struct async_submit_bio *async;
 
@@ -1668,7 +1668,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
  * called by the kthread helper functions to finally call the bio end_io
  * functions.  This is where read checksum verification actually happens
  */
-static void end_workqueue_fn(struct btrfs_work_struct *work)
+static void end_workqueue_fn(struct btrfs_work *work)
 {
 	struct bio *bio;
 	struct end_io_wq *end_io_wq;

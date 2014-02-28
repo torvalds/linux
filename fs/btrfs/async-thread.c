@@ -32,7 +32,7 @@
 #define NO_THRESHOLD (-1)
 #define DFT_THRESHOLD (32)
 
-struct __btrfs_workqueue_struct {
+struct __btrfs_workqueue {
 	struct workqueue_struct *normal_wq;
 	/* List head pointing to ordered work list */
 	struct list_head ordered_list;
@@ -49,15 +49,15 @@ struct __btrfs_workqueue_struct {
 	spinlock_t thres_lock;
 };
 
-struct btrfs_workqueue_struct {
-	struct __btrfs_workqueue_struct *normal;
-	struct __btrfs_workqueue_struct *high;
+struct btrfs_workqueue {
+	struct __btrfs_workqueue *normal;
+	struct __btrfs_workqueue *high;
 };
 
-static inline struct __btrfs_workqueue_struct
+static inline struct __btrfs_workqueue
 *__btrfs_alloc_workqueue(char *name, int flags, int max_active, int thresh)
 {
-	struct __btrfs_workqueue_struct *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
 
 	if (unlikely(!ret))
 		return NULL;
@@ -95,14 +95,14 @@ static inline struct __btrfs_workqueue_struct
 }
 
 static inline void
-__btrfs_destroy_workqueue(struct __btrfs_workqueue_struct *wq);
+__btrfs_destroy_workqueue(struct __btrfs_workqueue *wq);
 
-struct btrfs_workqueue_struct *btrfs_alloc_workqueue(char *name,
-						     int flags,
-						     int max_active,
-						     int thresh)
+struct btrfs_workqueue *btrfs_alloc_workqueue(char *name,
+					      int flags,
+					      int max_active,
+					      int thresh)
 {
-	struct btrfs_workqueue_struct *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+	struct btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
 
 	if (unlikely(!ret))
 		return NULL;
@@ -131,7 +131,7 @@ struct btrfs_workqueue_struct *btrfs_alloc_workqueue(char *name,
  * This hook WILL be called in IRQ handler context,
  * so workqueue_set_max_active MUST NOT be called in this hook
  */
-static inline void thresh_queue_hook(struct __btrfs_workqueue_struct *wq)
+static inline void thresh_queue_hook(struct __btrfs_workqueue *wq)
 {
 	if (wq->thresh == NO_THRESHOLD)
 		return;
@@ -143,7 +143,7 @@ static inline void thresh_queue_hook(struct __btrfs_workqueue_struct *wq)
  * This hook is called in kthread content.
  * So workqueue_set_max_active is called here.
  */
-static inline void thresh_exec_hook(struct __btrfs_workqueue_struct *wq)
+static inline void thresh_exec_hook(struct __btrfs_workqueue *wq)
 {
 	int new_max_active;
 	long pending;
@@ -186,10 +186,10 @@ out:
 	}
 }
 
-static void run_ordered_work(struct __btrfs_workqueue_struct *wq)
+static void run_ordered_work(struct __btrfs_workqueue *wq)
 {
 	struct list_head *list = &wq->ordered_list;
-	struct btrfs_work_struct *work;
+	struct btrfs_work *work;
 	spinlock_t *lock = &wq->list_lock;
 	unsigned long flags;
 
@@ -197,7 +197,7 @@ static void run_ordered_work(struct __btrfs_workqueue_struct *wq)
 		spin_lock_irqsave(lock, flags);
 		if (list_empty(list))
 			break;
-		work = list_entry(list->next, struct btrfs_work_struct,
+		work = list_entry(list->next, struct btrfs_work,
 				  ordered_list);
 		if (!test_bit(WORK_DONE_BIT, &work->flags))
 			break;
@@ -229,11 +229,11 @@ static void run_ordered_work(struct __btrfs_workqueue_struct *wq)
 
 static void normal_work_helper(struct work_struct *arg)
 {
-	struct btrfs_work_struct *work;
-	struct __btrfs_workqueue_struct *wq;
+	struct btrfs_work *work;
+	struct __btrfs_workqueue *wq;
 	int need_order = 0;
 
-	work = container_of(arg, struct btrfs_work_struct, normal_work);
+	work = container_of(arg, struct btrfs_work, normal_work);
 	/*
 	 * We should not touch things inside work in the following cases:
 	 * 1) after work->func() if it has no ordered_free
@@ -254,10 +254,10 @@ static void normal_work_helper(struct work_struct *arg)
 	}
 }
 
-void btrfs_init_work(struct btrfs_work_struct *work,
-		     void (*func)(struct btrfs_work_struct *),
-		     void (*ordered_func)(struct btrfs_work_struct *),
-		     void (*ordered_free)(struct btrfs_work_struct *))
+void btrfs_init_work(struct btrfs_work *work,
+		     void (*func)(struct btrfs_work *),
+		     void (*ordered_func)(struct btrfs_work *),
+		     void (*ordered_free)(struct btrfs_work *))
 {
 	work->func = func;
 	work->ordered_func = ordered_func;
@@ -267,8 +267,8 @@ void btrfs_init_work(struct btrfs_work_struct *work,
 	work->flags = 0;
 }
 
-static inline void __btrfs_queue_work(struct __btrfs_workqueue_struct *wq,
-				      struct btrfs_work_struct *work)
+static inline void __btrfs_queue_work(struct __btrfs_workqueue *wq,
+				      struct btrfs_work *work)
 {
 	unsigned long flags;
 
@@ -282,10 +282,10 @@ static inline void __btrfs_queue_work(struct __btrfs_workqueue_struct *wq,
 	queue_work(wq->normal_wq, &work->normal_work);
 }
 
-void btrfs_queue_work(struct btrfs_workqueue_struct *wq,
-		      struct btrfs_work_struct *work)
+void btrfs_queue_work(struct btrfs_workqueue *wq,
+		      struct btrfs_work *work)
 {
-	struct __btrfs_workqueue_struct *dest_wq;
+	struct __btrfs_workqueue *dest_wq;
 
 	if (test_bit(WORK_HIGH_PRIO_BIT, &work->flags) && wq->high)
 		dest_wq = wq->high;
@@ -295,13 +295,13 @@ void btrfs_queue_work(struct btrfs_workqueue_struct *wq,
 }
 
 static inline void
-__btrfs_destroy_workqueue(struct __btrfs_workqueue_struct *wq)
+__btrfs_destroy_workqueue(struct __btrfs_workqueue *wq)
 {
 	destroy_workqueue(wq->normal_wq);
 	kfree(wq);
 }
 
-void btrfs_destroy_workqueue(struct btrfs_workqueue_struct *wq)
+void btrfs_destroy_workqueue(struct btrfs_workqueue *wq)
 {
 	if (!wq)
 		return;
@@ -310,14 +310,14 @@ void btrfs_destroy_workqueue(struct btrfs_workqueue_struct *wq)
 	__btrfs_destroy_workqueue(wq->normal);
 }
 
-void btrfs_workqueue_set_max(struct btrfs_workqueue_struct *wq, int max)
+void btrfs_workqueue_set_max(struct btrfs_workqueue *wq, int max)
 {
 	wq->normal->max_active = max;
 	if (wq->high)
 		wq->high->max_active = max;
 }
 
-void btrfs_set_work_high_priority(struct btrfs_work_struct *work)
+void btrfs_set_work_high_priority(struct btrfs_work *work)
 {
 	set_bit(WORK_HIGH_PRIO_BIT, &work->flags);
 }

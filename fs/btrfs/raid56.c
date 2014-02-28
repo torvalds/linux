@@ -87,7 +87,7 @@ struct btrfs_raid_bio {
 	/*
 	 * for scheduling work in the helper threads
 	 */
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 
 	/*
 	 * bio list and bio_list_lock are used
@@ -166,8 +166,8 @@ struct btrfs_raid_bio {
 
 static int __raid56_parity_recover(struct btrfs_raid_bio *rbio);
 static noinline void finish_rmw(struct btrfs_raid_bio *rbio);
-static void rmw_work(struct btrfs_work_struct *work);
-static void read_rebuild_work(struct btrfs_work_struct *work);
+static void rmw_work(struct btrfs_work *work);
+static void read_rebuild_work(struct btrfs_work *work);
 static void async_rmw_stripe(struct btrfs_raid_bio *rbio);
 static void async_read_rebuild(struct btrfs_raid_bio *rbio);
 static int fail_bio_stripe(struct btrfs_raid_bio *rbio, struct bio *bio);
@@ -1588,7 +1588,7 @@ struct btrfs_plug_cb {
 	struct blk_plug_cb cb;
 	struct btrfs_fs_info *info;
 	struct list_head rbio_list;
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 };
 
 /*
@@ -1652,7 +1652,7 @@ static void run_plug(struct btrfs_plug_cb *plug)
  * if the unplug comes from schedule, we have to push the
  * work off to a helper thread
  */
-static void unplug_work(struct btrfs_work_struct *work)
+static void unplug_work(struct btrfs_work *work)
 {
 	struct btrfs_plug_cb *plug;
 	plug = container_of(work, struct btrfs_plug_cb, work);
@@ -2079,7 +2079,7 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 
 }
 
-static void rmw_work(struct btrfs_work_struct *work)
+static void rmw_work(struct btrfs_work *work)
 {
 	struct btrfs_raid_bio *rbio;
 
@@ -2087,7 +2087,7 @@ static void rmw_work(struct btrfs_work_struct *work)
 	raid56_rmw_stripe(rbio);
 }
 
-static void read_rebuild_work(struct btrfs_work_struct *work)
+static void read_rebuild_work(struct btrfs_work *work)
 {
 	struct btrfs_raid_bio *rbio;
 

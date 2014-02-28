@@ -1318,10 +1318,10 @@ void btrfs_remove_delayed_node(struct inode *inode)
 struct btrfs_async_delayed_work {
 	struct btrfs_delayed_root *delayed_root;
 	int nr;
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 };
 
-static void btrfs_async_run_delayed_root(struct btrfs_work_struct *work)
+static void btrfs_async_run_delayed_root(struct btrfs_work *work)
 {
 	struct btrfs_async_delayed_work *async_work;
 	struct btrfs_delayed_root *delayed_root;

@@ -20,33 +20,33 @@
 #ifndef __BTRFS_ASYNC_THREAD_
 #define __BTRFS_ASYNC_THREAD_
 
-struct btrfs_workqueue_struct;
+struct btrfs_workqueue;
 /* Internal use only */
-struct __btrfs_workqueue_struct;
+struct __btrfs_workqueue;
 
-struct btrfs_work_struct {
-	void (*func)(struct btrfs_work_struct *arg);
-	void (*ordered_func)(struct btrfs_work_struct *arg);
-	void (*ordered_free)(struct btrfs_work_struct *arg);
+struct btrfs_work {
+	void (*func)(struct btrfs_work *arg);
+	void (*ordered_func)(struct btrfs_work *arg);
+	void (*ordered_free)(struct btrfs_work *arg);
 
 	/* Don't touch things below */
 	struct work_struct normal_work;
 	struct list_head ordered_list;
-	struct __btrfs_workqueue_struct *wq;
+	struct __btrfs_workqueue *wq;
 	unsigned long flags;
 };
 
-struct btrfs_workqueue_struct *btrfs_alloc_workqueue(char *name,
+struct btrfs_workqueue *btrfs_alloc_workqueue(char *name,
 						     int flags,
 						     int max_active,
 						     int thresh);
-void btrfs_init_work(struct btrfs_work_struct *work,
-		     void (*func)(struct btrfs_work_struct *),
-		     void (*ordered_func)(struct btrfs_work_struct *),
-		     void (*ordered_free)(struct btrfs_work_struct *));
-void btrfs_queue_work(struct btrfs_workqueue_struct *wq,
-		      struct btrfs_work_struct *work);
-void btrfs_destroy_workqueue(struct btrfs_workqueue_struct *wq);
-void btrfs_workqueue_set_max(struct btrfs_workqueue_struct *wq, int max);
-void btrfs_set_work_high_priority(struct btrfs_work_struct *work);
+void btrfs_init_work(struct btrfs_work *work,
+		     void (*func)(struct btrfs_work *),
+		     void (*ordered_func)(struct btrfs_work *),
+		     void (*ordered_free)(struct btrfs_work *));
+void btrfs_queue_work(struct btrfs_workqueue *wq,
+		      struct btrfs_work *work);
+void btrfs_destroy_workqueue(struct btrfs_workqueue *wq);
+void btrfs_workqueue_set_max(struct btrfs_workqueue *wq, int max);
+void btrfs_set_work_high_priority(struct btrfs_work *work);
 #endif

@@ -440,7 +440,7 @@ done:
 	blk_finish_plug(&plug);
 }
 
-static void pending_bios_fn(struct btrfs_work_struct *work)
+static void pending_bios_fn(struct btrfs_work *work)
 {
 	struct btrfs_device *device;
 

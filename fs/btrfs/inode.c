@@ -324,7 +324,7 @@ struct async_cow {
 	u64 start;
 	u64 end;
 	struct list_head extents;
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 };
 
 static noinline int add_async_extent(struct async_cow *cow,
@@ -1000,7 +1000,7 @@ out_unlock:
 /*
  * work queue call back to started compression on a file and pages
  */
-static noinline void async_cow_start(struct btrfs_work_struct *work)
+static noinline void async_cow_start(struct btrfs_work *work)
 {
 	struct async_cow *async_cow;
 	int num_added = 0;
@@ -1018,7 +1018,7 @@ static noinline void async_cow_start(struct btrfs_work_struct *work)
 /*
  * work queue call back to submit previously compressed pages
  */
-static noinline void async_cow_submit(struct btrfs_work_struct *work)
+static noinline void async_cow_submit(struct btrfs_work *work)
 {
 	struct async_cow *async_cow;
 	struct btrfs_root *root;
@@ -1039,7 +1039,7 @@ static noinline void async_cow_submit(struct btrfs_work_struct *work)
 		submit_compressed_extents(async_cow->inode, async_cow);
 }
 
-static noinline void async_cow_free(struct btrfs_work_struct *work)
+static noinline void async_cow_free(struct btrfs_work *work)
 {
 	struct async_cow *async_cow;
 	async_cow = container_of(work, struct async_cow, work);
@@ -1748,10 +1748,10 @@ int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
 /* see btrfs_writepage_start_hook for details on why this is required */
 struct btrfs_writepage_fixup {
 	struct page *page;
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 };
 
-static void btrfs_writepage_fixup_worker(struct btrfs_work_struct *work)
+static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 {
 	struct btrfs_writepage_fixup *fixup;
 	struct btrfs_ordered_extent *ordered;
@@ -2750,7 +2750,7 @@ out:
 	return ret;
 }
 
-static void finish_ordered_fn(struct btrfs_work_struct *work)
+static void finish_ordered_fn(struct btrfs_work *work)
 {
 	struct btrfs_ordered_extent *ordered_extent;
 	ordered_extent = container_of(work, struct btrfs_ordered_extent, work);
@@ -2763,7 +2763,7 @@ static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 	struct inode *inode = page->mapping->host;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ordered_extent *ordered_extent = NULL;
-	struct btrfs_workqueue_struct *workers;
+	struct btrfs_workqueue *workers;
 
 	trace_btrfs_writepage_end_io_hook(page, start, end, uptodate);
 
@@ -8384,7 +8384,7 @@ out_notrans:
 	return ret;
 }
 
-static void btrfs_run_delalloc_work(struct btrfs_work_struct *work)
+static void btrfs_run_delalloc_work(struct btrfs_work *work)
 {
 	struct btrfs_delalloc_work *delalloc_work;
 	struct inode *inode;

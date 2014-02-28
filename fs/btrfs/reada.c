@@ -91,8 +91,7 @@ struct reada_zone {
 };
 
 struct reada_machine_work {
-	struct btrfs_work_struct
-				work;
+	struct btrfs_work	work;
 	struct btrfs_fs_info	*fs_info;
 };
 
@@ -734,7 +733,7 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 
 }
 
-static void reada_start_machine_worker(struct btrfs_work_struct *work)
+static void reada_start_machine_worker(struct btrfs_work *work)
 {
 	struct reada_machine_work *rmw;
 	struct btrfs_fs_info *fs_info;

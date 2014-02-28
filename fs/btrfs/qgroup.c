@@ -1984,7 +1984,7 @@ out:
 	return ret;
 }
 
-static void btrfs_qgroup_rescan_worker(struct btrfs_work_struct *work)
+static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 {
 	struct btrfs_fs_info *fs_info = container_of(work, struct btrfs_fs_info,
 						     qgroup_rescan_work);

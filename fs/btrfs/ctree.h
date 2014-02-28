@@ -1221,7 +1221,7 @@ struct btrfs_caching_control {
 	struct list_head list;
 	struct mutex mutex;
 	wait_queue_head_t wait;
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 	struct btrfs_block_group_cache *block_group;
 	u64 progress;
 	atomic_t count;
@@ -1504,27 +1504,27 @@ struct btrfs_fs_info {
 	 * A third pool does submit_bio to avoid deadlocking with the other
 	 * two
 	 */
-	struct btrfs_workqueue_struct *workers;
-	struct btrfs_workqueue_struct *delalloc_workers;
-	struct btrfs_workqueue_struct *flush_workers;
-	struct btrfs_workqueue_struct *endio_workers;
-	struct btrfs_workqueue_struct *endio_meta_workers;
-	struct btrfs_workqueue_struct *endio_raid56_workers;
-	struct btrfs_workqueue_struct *rmw_workers;
-	struct btrfs_workqueue_struct *endio_meta_write_workers;
-	struct btrfs_workqueue_struct *endio_write_workers;
-	struct btrfs_workqueue_struct *endio_freespace_worker;
-	struct btrfs_workqueue_struct *submit_workers;
-	struct btrfs_workqueue_struct *caching_workers;
-	struct btrfs_workqueue_struct *readahead_workers;
+	struct btrfs_workqueue *workers;
+	struct btrfs_workqueue *delalloc_workers;
+	struct btrfs_workqueue *flush_workers;
+	struct btrfs_workqueue *endio_workers;
+	struct btrfs_workqueue *endio_meta_workers;
+	struct btrfs_workqueue *endio_raid56_workers;
+	struct btrfs_workqueue *rmw_workers;
+	struct btrfs_workqueue *endio_meta_write_workers;
+	struct btrfs_workqueue *endio_write_workers;
+	struct btrfs_workqueue *endio_freespace_worker;
+	struct btrfs_workqueue *submit_workers;
+	struct btrfs_workqueue *caching_workers;
+	struct btrfs_workqueue *readahead_workers;
 
 	/*
 	 * fixup workers take dirty pages that didn't properly go through
 	 * the cow mechanism and make them safe to write.  It happens
 	 * for the sys_munmap function call path
 	 */
-	struct btrfs_workqueue_struct *fixup_workers;
-	struct btrfs_workqueue_struct *delayed_workers;
+	struct btrfs_workqueue *fixup_workers;
+	struct btrfs_workqueue *delayed_workers;
 	struct task_struct *transaction_kthread;
 	struct task_struct *cleaner_kthread;
 	int thread_pool_size;
@@ -1604,9 +1604,9 @@ struct btrfs_fs_info {
 	atomic_t scrub_cancel_req;
 	wait_queue_head_t scrub_pause_wait;
 	int scrub_workers_refcnt;
-	struct btrfs_workqueue_struct *scrub_workers;
-	struct btrfs_workqueue_struct *scrub_wr_completion_workers;
-	struct btrfs_workqueue_struct *scrub_nocow_workers;
+	struct btrfs_workqueue *scrub_workers;
+	struct btrfs_workqueue *scrub_wr_completion_workers;
+	struct btrfs_workqueue *scrub_nocow_workers;
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	u32 check_integrity_print_mask;
@@ -1647,9 +1647,9 @@ struct btrfs_fs_info {
 	/* qgroup rescan items */
 	struct mutex qgroup_rescan_lock; /* protects the progress item */
 	struct btrfs_key qgroup_rescan_progress;
-	struct btrfs_workqueue_struct *qgroup_rescan_workers;
+	struct btrfs_workqueue *qgroup_rescan_workers;
 	struct completion qgroup_rescan_completion;
-	struct btrfs_work_struct qgroup_rescan_work;
+	struct btrfs_work qgroup_rescan_work;
 
 	/* filesystem state */
 	unsigned long fs_state;
@@ -3680,7 +3680,7 @@ struct btrfs_delalloc_work {
 	int delay_iput;
 	struct completion completion;
 	struct list_head list;
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 };
 
 struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,

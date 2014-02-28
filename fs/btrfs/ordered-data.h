@@ -130,10 +130,10 @@ struct btrfs_ordered_extent {
 	/* a per root list of all the pending ordered extents */
 	struct list_head root_extent_list;
 
-	struct btrfs_work_struct work;
+	struct btrfs_work work;
 
 	struct completion completion;
-	struct btrfs_work_struct flush_work;
+	struct btrfs_work flush_work;
 	struct list_head work_list;
 };
 

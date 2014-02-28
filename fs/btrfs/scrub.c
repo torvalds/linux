@@ -96,8 +96,7 @@ struct scrub_bio {
 #endif
 	int			page_count;
 	int			next_free;
-	struct btrfs_work_struct
-				work;
+	struct btrfs_work	work;
 };
 
 struct scrub_block {
@@ -155,8 +154,7 @@ struct scrub_fixup_nodatasum {
 	struct btrfs_device	*dev;
 	u64			logical;
 	struct btrfs_root	*root;
-	struct btrfs_work_struct
-				work;
+	struct btrfs_work	work;
 	int			mirror_num;
 };
 
@@ -174,8 +172,7 @@ struct scrub_copy_nocow_ctx {
 	int			mirror_num;
 	u64			physical_for_dev_replace;
 	struct list_head	inodes;
-	struct btrfs_work_struct
-				work;
+	struct btrfs_work	work;
 };
 
 struct scrub_warning {
@@ -234,7 +231,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 		       u64 gen, int mirror_num, u8 *csum, int force,
 		       u64 physical_for_dev_replace);
 static void scrub_bio_end_io(struct bio *bio, int err);
-static void scrub_bio_end_io_worker(struct btrfs_work_struct *work);
+static void scrub_bio_end_io_worker(struct btrfs_work *work);
 static void scrub_block_complete(struct scrub_block *sblock);
 static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 			       u64 extent_logical, u64 extent_len,
@@ -251,14 +248,14 @@ static int scrub_add_page_to_wr_bio(struct scrub_ctx *sctx,
 				    struct scrub_page *spage);
 static void scrub_wr_submit(struct scrub_ctx *sctx);
 static void scrub_wr_bio_end_io(struct bio *bio, int err);
-static void scrub_wr_bio_end_io_worker(struct btrfs_work_struct *work);
+static void scrub_wr_bio_end_io_worker(struct btrfs_work *work);
 static int write_page_nocow(struct scrub_ctx *sctx,
 			    u64 physical_for_dev_replace, struct page *page);
 static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 				      struct scrub_copy_nocow_ctx *ctx);
 static int copy_nocow_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 			    int mirror_num, u64 physical_for_dev_replace);
-static void copy_nocow_pages_worker(struct btrfs_work_struct *work);
+static void copy_nocow_pages_worker(struct btrfs_work *work);
 static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 
@@ -737,7 +734,7 @@ out:
 	return -EIO;
 }
 
-static void scrub_fixup_nodatasum(struct btrfs_work_struct *work)
+static void scrub_fixup_nodatasum(struct btrfs_work *work)
 {
 	int ret;
 	struct scrub_fixup_nodatasum *fixup;
@@ -1622,7 +1619,7 @@ static void scrub_wr_bio_end_io(struct bio *bio, int err)
 	btrfs_queue_work(fs_info->scrub_wr_completion_workers, &sbio->work);
 }
 
-static void scrub_wr_bio_end_io_worker(struct btrfs_work_struct *work)
+static void scrub_wr_bio_end_io_worker(struct btrfs_work *work)
 {
 	struct scrub_bio *sbio = container_of(work, struct scrub_bio, work);
 	struct scrub_ctx *sctx = sbio->sctx;
@@ -2090,7 +2087,7 @@ static void scrub_bio_end_io(struct bio *bio, int err)
 	btrfs_queue_work(fs_info->scrub_workers, &sbio->work);
 }
 
-static void scrub_bio_end_io_worker(struct btrfs_work_struct *work)
+static void scrub_bio_end_io_worker(struct btrfs_work *work)
 {
 	struct scrub_bio *sbio = container_of(work, struct scrub_bio, work);
 	struct scrub_ctx *sctx = sbio->sctx;
@@ -3161,7 +3158,7 @@ static int record_inode_for_nocow(u64 inum, u64 offset, u64 root, void *ctx)
 
 #define COPY_COMPLETE 1
 
-static void copy_nocow_pages_worker(struct btrfs_work_struct *work)
+static void copy_nocow_pages_worker(struct btrfs_work *work)
 {
 	struct scrub_copy_nocow_ctx *nocow_ctx =
 		container_of(work, struct scrub_copy_nocow_ctx, work);

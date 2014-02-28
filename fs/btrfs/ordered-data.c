@@ -576,7 +576,7 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 	wake_up(&entry->wait);
 }
 
-static void btrfs_run_ordered_extent_work(struct btrfs_work_struct *work)
+static void btrfs_run_ordered_extent_work(struct btrfs_work *work)
 {
 	struct btrfs_ordered_extent *ordered;
 
