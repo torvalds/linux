@@ -1014,5 +1014,48 @@ int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(azx_attach_pcm_stream);
 
+int azx_alloc_stream_pages(struct azx *chip)
+{
+	int i, err;
+	struct snd_card *card = chip->card;
+
+	for (i = 0; i < chip->num_streams; i++) {
+		dsp_lock_init(&chip->azx_dev[i]);
+		/* allocate memory for the BDL for each stream */
+		err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
+						 BDL_SIZE,
+						 &chip->azx_dev[i].bdl);
+		if (err < 0) {
+			dev_err(card->dev, "cannot allocate BDL\n");
+			return -ENOMEM;
+		}
+	}
+	/* allocate memory for the position buffer */
+	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
+					 chip->num_streams * 8, &chip->posbuf);
+	if (err < 0) {
+		dev_err(card->dev, "cannot allocate posbuf\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(azx_alloc_stream_pages);
+
+void azx_free_stream_pages(struct azx *chip)
+{
+	int i;
+	if (chip->azx_dev) {
+		for (i = 0; i < chip->num_streams; i++)
+			if (chip->azx_dev[i].bdl.area)
+				chip->ops->dma_free_pages(
+					chip, &chip->azx_dev[i].bdl);
+	}
+	if (chip->rb.area)
+		chip->ops->dma_free_pages(chip, &chip->rb);
+	if (chip->posbuf.area)
+		chip->ops->dma_free_pages(chip, &chip->posbuf);
+}
+EXPORT_SYMBOL_GPL(azx_free_stream_pages);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Common HDA driver funcitons");

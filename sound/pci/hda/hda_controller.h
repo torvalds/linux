@@ -54,4 +54,8 @@ int setup_bdle(struct azx *chip,
 #define dsp_is_locked(dev)	0
 #endif
 
+/* Allocation functions. */
+int azx_alloc_stream_pages(struct azx *chip);
+void azx_free_stream_pages(struct azx *chip);
+
 #endif /* __SOUND_HDA_CONTROLLER_H */

@@ -1864,16 +1864,7 @@ static int azx_free(struct azx *chip)
 	if (chip->remap_addr)
 		iounmap(chip->remap_addr);
 
-	if (chip->azx_dev) {
-		for (i = 0; i < chip->num_streams; i++)
-			if (chip->azx_dev[i].bdl.area)
-				chip->ops->dma_free_pages(
-					chip, &chip->azx_dev[i].bdl);
-	}
-	if (chip->rb.area)
-		chip->ops->dma_free_pages(chip, &chip->rb);
-	if (chip->posbuf.area)
-		chip->ops->dma_free_pages(chip, &chip->posbuf);
+	azx_free_stream_pages(chip);
 	if (chip->region_requested)
 		pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
@@ -2210,7 +2201,7 @@ static int azx_first_init(struct azx *chip)
 	int dev = chip->dev_index;
 	struct pci_dev *pci = chip->pci;
 	struct snd_card *card = chip->card;
-	int i, err;
+	int err;
 	unsigned short gcap;
 
 #if BITS_PER_LONG != 64
@@ -2322,24 +2313,9 @@ static int azx_first_init(struct azx *chip)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < chip->num_streams; i++) {
-		dsp_lock_init(&chip->azx_dev[i]);
-		/* allocate memory for the BDL for each stream */
-		err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
-						 BDL_SIZE,
-						 &chip->azx_dev[i].bdl);
-		if (err < 0) {
-			dev_err(card->dev, "cannot allocate BDL\n");
-			return -ENOMEM;
-		}
-	}
-	/* allocate memory for the position buffer */
-	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
-					 chip->num_streams * 8, &chip->posbuf);
-	if (err < 0) {
-		dev_err(card->dev, "cannot allocate posbuf\n");
-		return -ENOMEM;
-	}
+	err = azx_alloc_stream_pages(chip);
+	if (err < 0)
+		return err;
 	/* allocate CORB/RIRB */
 	err = azx_alloc_cmd_io(chip);
 	if (err < 0)
