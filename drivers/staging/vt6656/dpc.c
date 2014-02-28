@@ -1227,14 +1227,13 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
     if (is_multicast_ether_addr((u8 *)(skb->data+cbHeaderOffset))) {
        if (pMgmt->sNodeDBTable[0].bPSEnable) {
 
-           skbcpy = dev_alloc_skb((int)pDevice->rx_buf_sz);
+	    skbcpy = netdev_alloc_skb(pDevice->dev, pDevice->rx_buf_sz);
 
         // if any node in PS mode, buffer packet until DTIM.
            if (skbcpy == NULL) {
                DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available \n");
            }
            else {
-               skbcpy->dev = pDevice->dev;
                skbcpy->len = FrameSize;
                memcpy(skbcpy->data, skb->data+cbHeaderOffset, FrameSize);
                skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), skbcpy);
@@ -1335,13 +1334,11 @@ void RXvFreeRCB(struct vnt_rcb *rcb, int re_alloc_skb)
 	}
 
 	if (re_alloc_skb == true) {
-		rcb->skb = dev_alloc_skb((int)priv->rx_buf_sz);
+		rcb->skb = netdev_alloc_skb(priv->dev, priv->rx_buf_sz);
 		/* TODO error handling */
-		if (rcb->skb == NULL) {
+		if (!rcb->skb) {
 			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
 				" Failed to re-alloc rx skb\n");
-		} else {
-			rcb->skb->dev = priv->dev;
 		}
 	}
 

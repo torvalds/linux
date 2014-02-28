@@ -855,12 +855,11 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
             DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to alloc rx urb\n");
             goto free_rx_tx;
         }
-        pRCB->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
+	pRCB->skb = netdev_alloc_skb(pDevice->dev, pDevice->rx_buf_sz);
         if (pRCB->skb == NULL) {
             DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to alloc rx skb\n");
             goto free_rx_tx;
         }
-        pRCB->skb->dev = pDevice->dev;
         pRCB->bBoolInUse = false;
         EnqueueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList, pRCB);
         pDevice->NumRecvFreeList++;
@@ -931,13 +930,11 @@ static void device_free_frag_bufs(struct vnt_private *pDevice)
 int device_alloc_frag_buf(struct vnt_private *pDevice,
 		PSDeFragControlBlock pDeF)
 {
+	pDeF->skb = netdev_alloc_skb(pDevice->dev, pDevice->rx_buf_sz);
+	if (!pDeF->skb)
+		return false;
 
-    pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-    if (pDeF->skb == NULL)
-        return false;
-    pDeF->skb->dev = pDevice->dev;
-
-    return true;
+	return true;
 }
 
 static int  device_open(struct net_device *dev)
