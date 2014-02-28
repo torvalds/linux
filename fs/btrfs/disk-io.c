@@ -1995,7 +1995,7 @@ static noinline int next_root_backup(struct btrfs_fs_info *info,
 static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 {
 	btrfs_stop_workers(&fs_info->generic_worker);
-	btrfs_stop_workers(&fs_info->fixup_workers);
+	btrfs_destroy_workqueue(fs_info->fixup_workers);
 	btrfs_destroy_workqueue(fs_info->delalloc_workers);
 	btrfs_destroy_workqueue(fs_info->workers);
 	btrfs_destroy_workqueue(fs_info->endio_workers);
@@ -2498,8 +2498,8 @@ int open_ctree(struct super_block *sb,
 				      min_t(u64, fs_devices->num_devices,
 					    max_active), 64);
 
-	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1,
-			   &fs_info->generic_worker);
+	fs_info->fixup_workers =
+		btrfs_alloc_workqueue("fixup", flags, 1, 0);
 
 	/*
 	 * endios are largely parallel and should have a very
@@ -2532,7 +2532,6 @@ int open_ctree(struct super_block *sb,
 	 * return -ENOMEM if any of these fail.
 	 */
 	ret = btrfs_start_workers(&fs_info->generic_worker);
-	ret |= btrfs_start_workers(&fs_info->fixup_workers);
 	ret |= btrfs_start_workers(&fs_info->delayed_workers);
 	ret |= btrfs_start_workers(&fs_info->qgroup_rescan_workers);
 	if (ret) {
@@ -2545,7 +2544,8 @@ int open_ctree(struct super_block *sb,
 	      fs_info->endio_meta_write_workers &&
 	      fs_info->endio_write_workers && fs_info->endio_raid56_workers &&
 	      fs_info->endio_freespace_worker && fs_info->rmw_workers &&
-	      fs_info->caching_workers && fs_info->readahead_workers)) {
+	      fs_info->caching_workers && fs_info->readahead_workers &&
+	      fs_info->fixup_workers)) {
 		err = -ENOMEM;
 		goto fail_sb_buffer;
 	}

@@ -1524,7 +1524,7 @@ struct btrfs_fs_info {
 	 * the cow mechanism and make them safe to write.  It happens
 	 * for the sys_munmap function call path
 	 */
-	struct btrfs_workers fixup_workers;
+	struct btrfs_workqueue_struct *fixup_workers;
 	struct btrfs_workers delayed_workers;
 	struct task_struct *transaction_kthread;
 	struct task_struct *cleaner_kthread;
