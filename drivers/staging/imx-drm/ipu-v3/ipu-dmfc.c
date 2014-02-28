@@ -161,9 +161,6 @@ static int ipu_dmfc_setup_channel(struct dmfc_channel *dmfc, int slots,
 			"dmfc: using %d slots starting from segment %d for IPU channel %d\n",
 			slots, segment, dmfc->data->ipu_channel);
 
-	if (!dmfc)
-		return -EINVAL;
-
 	switch (slots) {
 	case 1:
 		field = DMFC_FIFO_SIZE_64;
