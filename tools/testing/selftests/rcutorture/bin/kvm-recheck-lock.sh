@@ -1,6 +1,8 @@
 #!/bin/bash
 #
-# Kernel-version-dependent shell functions for the rest of the scripts.
+# Analyze a given results directory for locktorture progress.
+#
+# Usage: sh kvm-recheck-lock.sh resdir
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,31 +18,34 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2013
+# Copyright (C) IBM Corporation, 2014
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-# rcutorture_param_n_barrier_cbs bootparam-string
-#
-# Adds n_barrier_cbs rcutorture module parameter to kernels having it.
-rcutorture_param_n_barrier_cbs () {
-	if echo $1 | grep -q "rcutorture\.n_barrier_cbs"
-	then
-		echo $1
-	else
-		echo $1 rcutorture.n_barrier_cbs=4
-	fi
-}
+i="$1"
+if test -d $i
+then
+	:
+else
+	echo Unreadable results directory: $i
+	exit 1
+fi
 
-# rcutorture_param_onoff bootparam-string config-file
-#
-# Adds onoff rcutorture module parameters to kernels having it.
-rcutorture_param_onoff () {
-	if ! bootparam_hotplug_cpu "$1" && configfrag_hotplug_cpu "$2"
+configfile=`echo $i | sed -e 's/^.*\///'`
+ncs=`grep "Writes:  Total:" $i/console.log 2> /dev/null | tail -1 | sed -e 's/^.* Total: //' -e 's/ .*$//'`
+if test -z "$ncs"
+then
+	echo $configfile
+else
+	title="$configfile ------- $ncs acquisitions/releases"
+	dur=`sed -e 's/^.* locktorture.shutdown_secs=//' -e 's/ .*$//' < $i/qemu-cmd 2> /dev/null`
+	if test -z "$dur"
 	then
-		echo CPU-hotplug kernel, adding rcutorture onoff.
-		echo $1 rcutorture.onoff_interval=3 rcutorture.onoff_holdoff=30
+		:
 	else
-		echo $1
+		ncsps=`awk -v ncs=$ncs -v dur=$dur '
+			BEGIN { print ncs / dur }' < /dev/null`
+		title="$title ($ncsps per second)"
 	fi
-}
+	echo $title
+fi
