@@ -589,6 +589,24 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 	complete = test_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
 	mgmt_smp_complete(conn->hcon, complete);
 
+	/* If pairing failed clean up any keys we might have */
+	if (!complete) {
+		if (smp->ltk) {
+			list_del(&smp->ltk->list);
+			kfree(smp->ltk);
+		}
+
+		if (smp->slave_ltk) {
+			list_del(&smp->slave_ltk->list);
+			kfree(smp->slave_ltk);
+		}
+
+		if (smp->remote_irk) {
+			list_del(&smp->remote_irk->list);
+			kfree(smp->remote_irk);
+		}
+	}
+
 	kfree(smp);
 	conn->smp_chan = NULL;
 	conn->hcon->smp_conn = NULL;
