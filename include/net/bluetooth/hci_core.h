@@ -284,6 +284,7 @@ struct hci_dev {
 	struct list_head	long_term_keys;
 	struct list_head	identity_resolving_keys;
 	struct list_head	remote_oob_data;
+	struct list_head	le_white_list;
 	struct list_head	le_conn_params;
 	struct list_head	pend_le_conns;
 
@@ -798,6 +799,12 @@ struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
 					 bdaddr_t *bdaddr, u8 type);
 int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
+
+struct bdaddr_list *hci_white_list_lookup(struct hci_dev *hdev,
+					  bdaddr_t *bdaddr, u8 type);
+void hci_white_list_clear(struct hci_dev *hdev);
+int hci_white_list_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
+int hci_white_list_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 
 struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 					       bdaddr_t *addr, u8 addr_type);
