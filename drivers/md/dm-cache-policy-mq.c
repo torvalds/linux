@@ -872,7 +872,7 @@ static void mq_destroy(struct dm_cache_policy *p)
 {
 	struct mq_policy *mq = to_mq_policy(p);
 
-	kfree(mq->table);
+	vfree(mq->table);
 	epool_exit(&mq->cache_pool);
 	epool_exit(&mq->pre_cache_pool);
 	kfree(mq);
@@ -1245,7 +1245,7 @@ static struct dm_cache_policy *mq_create(dm_cblock_t cache_size,
 
 	mq->nr_buckets = next_power(from_cblock(cache_size) / 2, 16);
 	mq->hash_bits = ffs(mq->nr_buckets) - 1;
-	mq->table = kzalloc(sizeof(*mq->table) * mq->nr_buckets, GFP_KERNEL);
+	mq->table = vzalloc(sizeof(*mq->table) * mq->nr_buckets);
 	if (!mq->table)
 		goto bad_alloc_table;
 
