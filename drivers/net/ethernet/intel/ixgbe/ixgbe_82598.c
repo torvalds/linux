@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -61,6 +61,9 @@ static void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
 	u32 gcr = IXGBE_READ_REG(hw, IXGBE_GCR);
 	u16 pcie_devctl2;
 
+	if (ixgbe_removed(hw->hw_addr))
+		return;
+
 	/* only take action if timeout value is defaulted to 0 */
 	if (gcr & IXGBE_GCR_CMPL_TMOUT_MASK)
 		goto out;
@@ -79,8 +82,9 @@ static void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
 	 * directly in order to set the completion timeout value for
 	 * 16ms to 55ms
 	 */
-	pci_read_config_word(adapter->pdev,
-	                     IXGBE_PCI_DEVICE_CONTROL2, &pcie_devctl2);
+	pcie_devctl2 = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_DEVICE_CONTROL2);
+	if (ixgbe_removed(hw->hw_addr))
+		return;
 	pcie_devctl2 |= IXGBE_PCI_DEVICE_CONTROL2_16ms;
 	pci_write_config_word(adapter->pdev,
 	                      IXGBE_PCI_DEVICE_CONTROL2, pcie_devctl2);

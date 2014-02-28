@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -2487,7 +2487,6 @@ static u32 ixgbe_pcie_timeout_poll(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 {
-	struct ixgbe_adapter *adapter = hw->back;
 	s32 status = 0;
 	u32 i, poll;
 	u16 value;
@@ -2496,7 +2495,8 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, IXGBE_CTRL_GIO_DIS);
 
 	/* Exit if master requests are blocked */
-	if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO))
+	if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO) ||
+	    ixgbe_removed(hw->hw_addr))
 		goto out;
 
 	/* Poll for master request bit to clear */
@@ -2524,8 +2524,9 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	poll = ixgbe_pcie_timeout_poll(hw);
 	for (i = 0; i < poll; i++) {
 		udelay(100);
-		pci_read_config_word(adapter->pdev, IXGBE_PCI_DEVICE_STATUS,
-							 &value);
+		value = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_DEVICE_STATUS);
+		if (ixgbe_removed(hw->hw_addr))
+			goto out;
 		if (!(value & IXGBE_PCI_DEVICE_STATUS_TRANSACTION_PENDING))
 			goto out;
 	}
@@ -2867,7 +2868,6 @@ san_mac_addr_clr:
  **/
 u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw)
 {
-	struct ixgbe_adapter *adapter = hw->back;
 	u16 msix_count = 1;
 	u16 max_msix_count;
 	u16 pcie_offset;
@@ -2886,7 +2886,9 @@ u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw)
 		return msix_count;
 	}
 
-	pci_read_config_word(adapter->pdev, pcie_offset, &msix_count);
+	msix_count = ixgbe_read_pci_cfg_word(hw, pcie_offset);
+	if (ixgbe_removed(hw->hw_addr))
+		msix_count = 0;
 	msix_count &= IXGBE_PCIE_MSIX_TBL_SZ_MASK;
 
 	/* MSI-X count is zero-based in HW */

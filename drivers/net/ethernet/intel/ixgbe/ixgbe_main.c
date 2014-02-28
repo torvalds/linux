@@ -151,6 +151,8 @@ MODULE_DESCRIPTION("Intel(R) 10 Gigabit PCI Express Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+static bool ixgbe_check_cfg_remove(struct ixgbe_hw *hw, struct pci_dev *pdev);
+
 static int ixgbe_read_pci_cfg_word_parent(struct ixgbe_adapter *adapter,
 					  u32 reg, u16 *value)
 {
@@ -169,6 +171,9 @@ static int ixgbe_read_pci_cfg_word_parent(struct ixgbe_adapter *adapter,
 		return -1;
 
 	pcie_capability_read_word(parent_dev, reg, value);
+	if (*value == IXGBE_FAILED_READ_CFG_WORD &&
+	    ixgbe_check_cfg_remove(&adapter->hw, parent_dev))
+		return -1;
 	return 0;
 }
 
@@ -312,6 +317,48 @@ void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg)
 	if (value == IXGBE_FAILED_READ_REG)
 		ixgbe_remove_adapter(hw);
 }
+
+static bool ixgbe_check_cfg_remove(struct ixgbe_hw *hw, struct pci_dev *pdev)
+{
+	u16 value;
+
+	pci_read_config_word(pdev, PCI_VENDOR_ID, &value);
+	if (value == IXGBE_FAILED_READ_CFG_WORD) {
+		ixgbe_remove_adapter(hw);
+		return true;
+	}
+	return false;
+}
+
+u16 ixgbe_read_pci_cfg_word(struct ixgbe_hw *hw, u32 reg)
+{
+	struct ixgbe_adapter *adapter = hw->back;
+	u16 value;
+
+	if (ixgbe_removed(hw->hw_addr))
+		return IXGBE_FAILED_READ_CFG_WORD;
+	pci_read_config_word(adapter->pdev, reg, &value);
+	if (value == IXGBE_FAILED_READ_CFG_WORD &&
+	    ixgbe_check_cfg_remove(hw, adapter->pdev))
+		return IXGBE_FAILED_READ_CFG_WORD;
+	return value;
+}
+
+#ifdef CONFIG_PCI_IOV
+static u32 ixgbe_read_pci_cfg_dword(struct ixgbe_hw *hw, u32 reg)
+{
+	struct ixgbe_adapter *adapter = hw->back;
+	u32 value;
+
+	if (ixgbe_removed(hw->hw_addr))
+		return IXGBE_FAILED_READ_CFG_DWORD;
+	pci_read_config_dword(adapter->pdev, reg, &value);
+	if (value == IXGBE_FAILED_READ_CFG_DWORD &&
+	    ixgbe_check_cfg_remove(hw, adapter->pdev))
+		return IXGBE_FAILED_READ_CFG_DWORD;
+	return value;
+}
+#endif /* CONFIG_PCI_IOV */
 
 static void ixgbe_service_event_complete(struct ixgbe_adapter *adapter)
 {
@@ -8339,6 +8386,7 @@ static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
 	struct net_device *netdev = adapter->netdev;
 
 #ifdef CONFIG_PCI_IOV
+	struct ixgbe_hw *hw = &adapter->hw;
 	struct pci_dev *bdev, *vfdev;
 	u32 dw0, dw1, dw2, dw3;
 	int vf, pos;
@@ -8359,10 +8407,12 @@ static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
 	if (!pos)
 		goto skip_bad_vf_detection;
 
-	pci_read_config_dword(bdev, pos + PCI_ERR_HEADER_LOG, &dw0);
-	pci_read_config_dword(bdev, pos + PCI_ERR_HEADER_LOG + 4, &dw1);
-	pci_read_config_dword(bdev, pos + PCI_ERR_HEADER_LOG + 8, &dw2);
-	pci_read_config_dword(bdev, pos + PCI_ERR_HEADER_LOG + 12, &dw3);
+	dw0 = ixgbe_read_pci_cfg_dword(hw, pos + PCI_ERR_HEADER_LOG);
+	dw1 = ixgbe_read_pci_cfg_dword(hw, pos + PCI_ERR_HEADER_LOG + 4);
+	dw2 = ixgbe_read_pci_cfg_dword(hw, pos + PCI_ERR_HEADER_LOG + 8);
+	dw3 = ixgbe_read_pci_cfg_dword(hw, pos + PCI_ERR_HEADER_LOG + 12);
+	if (ixgbe_removed(hw->hw_addr))
+		goto skip_bad_vf_detection;
 
 	req_id = dw1 >> 16;
 	/* On the 82599 if bit 7 of the requestor ID is set then it's a VF */
