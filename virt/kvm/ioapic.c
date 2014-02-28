@@ -328,7 +328,6 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
 	irq_level = __kvm_irq_line_state(&ioapic->irq_states[irq],
 					 irq_source_id, level);
 	entry = ioapic->redirtbl[irq];
-	irq_level ^= entry.fields.polarity;
 	if (!irq_level) {
 		ioapic->irr &= ~mask;
 		ret = 1;
