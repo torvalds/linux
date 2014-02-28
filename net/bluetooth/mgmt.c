@@ -1031,8 +1031,10 @@ static void clean_up_hci_complete(struct hci_dev *hdev, u8 status)
 {
 	BT_DBG("%s status 0x%02x", hdev->name, status);
 
-	if (hci_conn_count(hdev) == 0)
+	if (hci_conn_count(hdev) == 0) {
+		cancel_delayed_work(&hdev->power_off);
 		queue_work(hdev->req_workqueue, &hdev->power_off.work);
+	}
 }
 
 static int clean_up_hci_state(struct hci_dev *hdev)
@@ -1139,9 +1141,13 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 	} else {
 		/* Disconnect connections, stop scans, etc */
 		err = clean_up_hci_state(hdev);
+		if (!err)
+			queue_delayed_work(hdev->req_workqueue, &hdev->power_off,
+					   HCI_POWER_OFF_TIMEOUT);
 
 		/* ENODATA means there were no HCI commands queued */
 		if (err == -ENODATA) {
+			cancel_delayed_work(&hdev->power_off);
 			queue_work(hdev->req_workqueue, &hdev->power_off.work);
 			err = 0;
 		}
@@ -5147,8 +5153,10 @@ void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		/* The connection is still in hci_conn_hash so test for 1
 		 * instead of 0 to know if this is the last one.
 		 */
-		if (!cp->val && hci_conn_count(hdev) == 1)
+		if (!cp->val && hci_conn_count(hdev) == 1) {
+			cancel_delayed_work(&hdev->power_off);
 			queue_work(hdev->req_workqueue, &hdev->power_off.work);
+		}
 	}
 
 	if (!mgmt_connected)
@@ -5217,8 +5225,10 @@ void mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		/* The connection is still in hci_conn_hash so test for 1
 		 * instead of 0 to know if this is the last one.
 		 */
-		if (!cp->val && hci_conn_count(hdev) == 1)
+		if (!cp->val && hci_conn_count(hdev) == 1) {
+			cancel_delayed_work(&hdev->power_off);
 			queue_work(hdev->req_workqueue, &hdev->power_off.work);
+		}
 	}
 
 	bacpy(&ev.addr.bdaddr, bdaddr);
