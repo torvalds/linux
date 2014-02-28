@@ -749,22 +749,23 @@ err_nomem:
 	return rc;
 }
 
-static void device_free_tx_bufs(struct vnt_private *pDevice)
+static void device_free_tx_bufs(struct vnt_private *priv)
 {
-	struct vnt_usb_send_context *pTxContext;
-    int ii;
+	struct vnt_usb_send_context *tx_context;
+	int ii;
 
-    for (ii = 0; ii < pDevice->cbTD; ii++) {
+	for (ii = 0; ii < priv->cbTD; ii++) {
+		tx_context = priv->apTD[ii];
+		/* deallocate URBs */
+		if (tx_context->pUrb) {
+			usb_kill_urb(tx_context->pUrb);
+			usb_free_urb(tx_context->pUrb);
+		}
 
-        pTxContext = pDevice->apTD[ii];
-	/* deallocate URBs */
-        if (pTxContext->pUrb) {
-            usb_kill_urb(pTxContext->pUrb);
-            usb_free_urb(pTxContext->pUrb);
-        }
-        kfree(pTxContext);
-    }
-    return;
+		kfree(tx_context);
+	}
+
+	return;
 }
 
 static void device_free_rx_bufs(struct vnt_private *priv)
