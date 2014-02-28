@@ -8,7 +8,7 @@
 	compatible = "nvidia,venice2", "nvidia,tegra124";
 
 	aliases {
-		rtc0 = "/i2c@7000d000/as3722@40";
+		rtc0 = "/i2c@7000d000/pmic@40";
 		rtc1 = "/rtc@7000e000";
 	};
 
@@ -617,7 +617,7 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		as3722: as3722@40 {
+		pmic: pmic@40 {
 			compatible = "ams,as3722";
 			reg = <0x40>;
 			interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -1067,7 +1067,7 @@
 			regulator-name = "+3.3V_RUN";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			gpio = <&as3722 1 GPIO_ACTIVE_HIGH>;
+			gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			vin-supply = <&vdd_3v3_sys>;
 		};
@@ -1132,7 +1132,7 @@
 			regulator-name = "+3.3V_PANEL";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			gpio = <&as3722 4 GPIO_ACTIVE_HIGH>;
+			gpio = <&pmic 4 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			vin-supply = <&vdd_3v3_run>;
 		};
@@ -1148,7 +1148,7 @@
 			 * controllers so that it can be enabled on demand.
 			 */
 			regulator-always-on;
-			gpio = <&as3722 2 GPIO_ACTIVE_HIGH>;
+			gpio = <&pmic 2 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			vin-supply = <&vdd_3v3_sys>;
 		};
