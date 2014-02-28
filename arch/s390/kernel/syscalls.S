@@ -302,21 +302,21 @@ SYSCALL(sys_mknodat,sys_mknodat,compat_sys_mknodat)	/* 290 */
 SYSCALL(sys_fchownat,sys_fchownat,compat_sys_fchownat)
 SYSCALL(sys_futimesat,sys_futimesat,compat_sys_futimesat_wrapper)
 SYSCALL(sys_fstatat64,sys_newfstatat,compat_sys_s390_fstatat64)
-SYSCALL(sys_unlinkat,sys_unlinkat,sys_unlinkat_wrapper)
-SYSCALL(sys_renameat,sys_renameat,sys_renameat_wrapper)	/* 295 */
-SYSCALL(sys_linkat,sys_linkat,sys_linkat_wrapper)
-SYSCALL(sys_symlinkat,sys_symlinkat,sys_symlinkat_wrapper)
-SYSCALL(sys_readlinkat,sys_readlinkat,sys_readlinkat_wrapper)
-SYSCALL(sys_fchmodat,sys_fchmodat,sys_fchmodat_wrapper)
-SYSCALL(sys_faccessat,sys_faccessat,sys_faccessat_wrapper)	/* 300 */
+SYSCALL(sys_unlinkat,sys_unlinkat,compat_sys_unlinkat)
+SYSCALL(sys_renameat,sys_renameat,compat_sys_renameat)	/* 295 */
+SYSCALL(sys_linkat,sys_linkat,compat_sys_linkat)
+SYSCALL(sys_symlinkat,sys_symlinkat,compat_sys_symlinkat)
+SYSCALL(sys_readlinkat,sys_readlinkat,compat_sys_readlinkat)
+SYSCALL(sys_fchmodat,sys_fchmodat,compat_sys_fchmodat)
+SYSCALL(sys_faccessat,sys_faccessat,compat_sys_faccessat)	/* 300 */
 SYSCALL(sys_pselect6,sys_pselect6,compat_sys_pselect6_wrapper)
 SYSCALL(sys_ppoll,sys_ppoll,compat_sys_ppoll_wrapper)
-SYSCALL(sys_unshare,sys_unshare,sys_unshare_wrapper)
+SYSCALL(sys_unshare,sys_unshare,compat_sys_unshare)
 SYSCALL(sys_set_robust_list,sys_set_robust_list,compat_sys_set_robust_list)
 SYSCALL(sys_get_robust_list,sys_get_robust_list,compat_sys_get_robust_list)
-SYSCALL(sys_splice,sys_splice,sys_splice_wrapper)
+SYSCALL(sys_splice,sys_splice,compat_sys_splice)
 SYSCALL(sys_sync_file_range,sys_sync_file_range,sys_sync_file_range_wrapper)
-SYSCALL(sys_tee,sys_tee,sys_tee_wrapper)
+SYSCALL(sys_tee,sys_tee,compat_sys_tee)
 SYSCALL(sys_vmsplice,sys_vmsplice,compat_sys_vmsplice)
 NI_SYSCALL							/* 310 sys_move_pages */
 SYSCALL(sys_getcpu,sys_getcpu,sys_getcpu_wrapper)

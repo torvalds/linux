@@ -299,52 +299,6 @@ ENTRY(compat_sys_futimesat_wrapper)
 	llgtr	%r4,%r4			# struct timeval *
 	jg	compat_sys_futimesat
 
-ENTRY(sys_unlinkat_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const char *
-	lgfr	%r4,%r4			# int
-	jg	sys_unlinkat
-
-ENTRY(sys_renameat_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const char *
-	lgfr	%r4,%r4			# int
-	llgtr	%r5,%r5			# const char *
-	jg	sys_renameat
-
-ENTRY(sys_linkat_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const char *
-	lgfr	%r4,%r4			# int
-	llgtr	%r5,%r5			# const char *
-	lgfr	%r6,%r6			# int
-	jg	sys_linkat
-
-ENTRY(sys_symlinkat_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# int
-	llgtr	%r4,%r4			# const char *
-	jg	sys_symlinkat
-
-ENTRY(sys_readlinkat_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const char *
-	llgtr	%r4,%r4			# char *
-	lgfr	%r5,%r5			# int
-	jg	sys_readlinkat
-
-ENTRY(sys_fchmodat_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const char *
-	llgfr	%r4,%r4			# mode_t
-	jg	sys_fchmodat
-
-ENTRY(sys_faccessat_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const char *
-	lgfr	%r4,%r4			# int
-	jg	sys_faccessat
-
 ENTRY(compat_sys_pselect6_wrapper)
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# fd_set *
@@ -363,20 +317,6 @@ ENTRY(compat_sys_ppoll_wrapper)
 	llgfr	%r6,%r6			# size_t
 	jg	compat_sys_ppoll
 
-ENTRY(sys_unshare_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	jg	sys_unshare
-
-ENTRY(sys_splice_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# loff_t *
-	lgfr	%r4,%r4			# int
-	llgtr	%r5,%r5			# loff_t *
-	llgfr	%r6,%r6			# size_t
-	llgf	%r0,164(%r15)		# unsigned int
-	stg	%r0,160(%r15)
-	jg	sys_splice
-
 ENTRY(sys_sync_file_range_wrapper)
 	lgfr	%r2,%r2			# int
 	sllg	%r3,%r3,32		# get high word of 64bit loff_t
@@ -385,13 +325,6 @@ ENTRY(sys_sync_file_range_wrapper)
 	or	%r4,%r6			# get low word of 64bit loff_t
 	llgf	%r5,164(%r15)		# unsigned int
 	jg	sys_sync_file_range
-
-ENTRY(sys_tee_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgfr	%r4,%r4			# size_t
-	llgfr	%r5,%r5			# unsigned int
-	jg	sys_tee
 
 ENTRY(sys_getcpu_wrapper)
 	llgtr	%r2,%r2			# unsigned *
