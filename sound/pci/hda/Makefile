@@ -1,4 +1,5 @@
-snd-hda-intel-objs := hda_controller.o hda_intel.o
+snd-hda-intel-objs := hda_intel.o
+snd-hda-controller-objs := hda_controller.o
 # for haswell power well
 snd-hda-intel-$(CONFIG_SND_HDA_I915) +=	hda_i915.o
 
@@ -25,7 +26,8 @@ snd-hda-codec-via-objs :=	patch_via.o
 snd-hda-codec-hdmi-objs :=	patch_hdmi.o hda_eld.o
 
 # common driver
-obj-$(CONFIG_SND_HDA_INTEL) := snd-hda-codec.o
+obj-$(CONFIG_SND_HDA) := snd-hda-codec.o
+obj-$(CONFIG_SND_HDA) += snd-hda-controller.o
 
 # codec drivers
 obj-$(CONFIG_SND_HDA_GENERIC) += snd-hda-codec-generic.o
