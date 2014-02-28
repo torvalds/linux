@@ -3155,7 +3155,7 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	tso = ixgbevf_tso(tx_ring, first, &hdr_len);
 	if (tso < 0)
 		goto out_drop;
-	else
+	else if (!tso)
 		ixgbevf_tx_csum(tx_ring, first);
 
 	ixgbevf_tx_map(tx_ring, first, hdr_len);
