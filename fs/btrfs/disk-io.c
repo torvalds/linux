@@ -55,7 +55,7 @@
 #endif
 
 static struct extent_io_ops btree_extent_io_ops;
-static void end_workqueue_fn(struct btrfs_work *work);
+static void end_workqueue_fn(struct btrfs_work_struct *work);
 static void free_fs_root(struct btrfs_root *root);
 static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 				    int read_only);
@@ -86,7 +86,7 @@ struct end_io_wq {
 	int error;
 	int metadata;
 	struct list_head list;
-	struct btrfs_work work;
+	struct btrfs_work_struct work;
 };
 
 /*
@@ -678,32 +678,31 @@ static void end_workqueue_bio(struct bio *bio, int err)
 
 	fs_info = end_io_wq->info;
 	end_io_wq->error = err;
-	end_io_wq->work.func = end_workqueue_fn;
-	end_io_wq->work.flags = 0;
+	btrfs_init_work(&end_io_wq->work, end_workqueue_fn, NULL, NULL);
 
 	if (bio->bi_rw & REQ_WRITE) {
 		if (end_io_wq->metadata == BTRFS_WQ_ENDIO_METADATA)
-			btrfs_queue_worker(&fs_info->endio_meta_write_workers,
-					   &end_io_wq->work);
+			btrfs_queue_work(fs_info->endio_meta_write_workers,
+					 &end_io_wq->work);
 		else if (end_io_wq->metadata == BTRFS_WQ_ENDIO_FREE_SPACE)
-			btrfs_queue_worker(&fs_info->endio_freespace_worker,
-					   &end_io_wq->work);
+			btrfs_queue_work(fs_info->endio_freespace_worker,
+					 &end_io_wq->work);
 		else if (end_io_wq->metadata == BTRFS_WQ_ENDIO_RAID56)
-			btrfs_queue_worker(&fs_info->endio_raid56_workers,
-					   &end_io_wq->work);
+			btrfs_queue_work(fs_info->endio_raid56_workers,
+					 &end_io_wq->work);
 		else
-			btrfs_queue_worker(&fs_info->endio_write_workers,
-					   &end_io_wq->work);
+			btrfs_queue_work(fs_info->endio_write_workers,
+					 &end_io_wq->work);
 	} else {
 		if (end_io_wq->metadata == BTRFS_WQ_ENDIO_RAID56)
-			btrfs_queue_worker(&fs_info->endio_raid56_workers,
-					   &end_io_wq->work);
+			btrfs_queue_work(fs_info->endio_raid56_workers,
+					 &end_io_wq->work);
 		else if (end_io_wq->metadata)
-			btrfs_queue_worker(&fs_info->endio_meta_workers,
-					   &end_io_wq->work);
+			btrfs_queue_work(fs_info->endio_meta_workers,
+					 &end_io_wq->work);
 		else
-			btrfs_queue_worker(&fs_info->endio_workers,
-					   &end_io_wq->work);
+			btrfs_queue_work(fs_info->endio_workers,
+					 &end_io_wq->work);
 	}
 }
 
@@ -1669,7 +1668,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
  * called by the kthread helper functions to finally call the bio end_io
  * functions.  This is where read checksum verification actually happens
  */
-static void end_workqueue_fn(struct btrfs_work *work)
+static void end_workqueue_fn(struct btrfs_work_struct *work)
 {
 	struct bio *bio;
 	struct end_io_wq *end_io_wq;
@@ -1999,13 +1998,13 @@ static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 	btrfs_stop_workers(&fs_info->fixup_workers);
 	btrfs_destroy_workqueue(fs_info->delalloc_workers);
 	btrfs_destroy_workqueue(fs_info->workers);
-	btrfs_stop_workers(&fs_info->endio_workers);
-	btrfs_stop_workers(&fs_info->endio_meta_workers);
-	btrfs_stop_workers(&fs_info->endio_raid56_workers);
+	btrfs_destroy_workqueue(fs_info->endio_workers);
+	btrfs_destroy_workqueue(fs_info->endio_meta_workers);
+	btrfs_destroy_workqueue(fs_info->endio_raid56_workers);
 	btrfs_stop_workers(&fs_info->rmw_workers);
-	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
-	btrfs_stop_workers(&fs_info->endio_write_workers);
-	btrfs_stop_workers(&fs_info->endio_freespace_worker);
+	btrfs_destroy_workqueue(fs_info->endio_meta_write_workers);
+	btrfs_destroy_workqueue(fs_info->endio_write_workers);
+	btrfs_destroy_workqueue(fs_info->endio_freespace_worker);
 	btrfs_destroy_workqueue(fs_info->submit_workers);
 	btrfs_stop_workers(&fs_info->delayed_workers);
 	btrfs_stop_workers(&fs_info->caching_workers);
@@ -2501,26 +2500,26 @@ int open_ctree(struct super_block *sb,
 
 	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1,
 			   &fs_info->generic_worker);
-	btrfs_init_workers(&fs_info->endio_workers, "endio",
-			   fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
-	btrfs_init_workers(&fs_info->endio_meta_workers, "endio-meta",
-			   fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
-	btrfs_init_workers(&fs_info->endio_meta_write_workers,
-			   "endio-meta-write", fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
-	btrfs_init_workers(&fs_info->endio_raid56_workers,
-			   "endio-raid56", fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
+
+	/*
+	 * endios are largely parallel and should have a very
+	 * low idle thresh
+	 */
+	fs_info->endio_workers =
+		btrfs_alloc_workqueue("endio", flags, max_active, 4);
+	fs_info->endio_meta_workers =
+		btrfs_alloc_workqueue("endio-meta", flags, max_active, 4);
+	fs_info->endio_meta_write_workers =
+		btrfs_alloc_workqueue("endio-meta-write", flags, max_active, 2);
+	fs_info->endio_raid56_workers =
+		btrfs_alloc_workqueue("endio-raid56", flags, max_active, 4);
 	btrfs_init_workers(&fs_info->rmw_workers,
 			   "rmw", fs_info->thread_pool_size,
 			   &fs_info->generic_worker);
-	btrfs_init_workers(&fs_info->endio_write_workers, "endio-write",
-			   fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
-	btrfs_init_workers(&fs_info->endio_freespace_worker, "freespace-write",
-			   1, &fs_info->generic_worker);
+	fs_info->endio_write_workers =
+		btrfs_alloc_workqueue("endio-write", flags, max_active, 2);
+	fs_info->endio_freespace_worker =
+		btrfs_alloc_workqueue("freespace-write", flags, max_active, 0);
 	btrfs_init_workers(&fs_info->delayed_workers, "delayed-meta",
 			   fs_info->thread_pool_size,
 			   &fs_info->generic_worker);
@@ -2530,17 +2529,8 @@ int open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->qgroup_rescan_workers, "qgroup-rescan", 1,
 			   &fs_info->generic_worker);
 
-	/*
-	 * endios are largely parallel and should have a very
-	 * low idle thresh
-	 */
-	fs_info->endio_workers.idle_thresh = 4;
-	fs_info->endio_meta_workers.idle_thresh = 4;
-	fs_info->endio_raid56_workers.idle_thresh = 4;
 	fs_info->rmw_workers.idle_thresh = 2;
 
-	fs_info->endio_write_workers.idle_thresh = 2;
-	fs_info->endio_meta_write_workers.idle_thresh = 2;
 	fs_info->readahead_workers.idle_thresh = 2;
 
 	/*
@@ -2549,13 +2539,7 @@ int open_ctree(struct super_block *sb,
 	 */
 	ret = btrfs_start_workers(&fs_info->generic_worker);
 	ret |= btrfs_start_workers(&fs_info->fixup_workers);
-	ret |= btrfs_start_workers(&fs_info->endio_workers);
-	ret |= btrfs_start_workers(&fs_info->endio_meta_workers);
 	ret |= btrfs_start_workers(&fs_info->rmw_workers);
-	ret |= btrfs_start_workers(&fs_info->endio_raid56_workers);
-	ret |= btrfs_start_workers(&fs_info->endio_meta_write_workers);
-	ret |= btrfs_start_workers(&fs_info->endio_write_workers);
-	ret |= btrfs_start_workers(&fs_info->endio_freespace_worker);
 	ret |= btrfs_start_workers(&fs_info->delayed_workers);
 	ret |= btrfs_start_workers(&fs_info->caching_workers);
 	ret |= btrfs_start_workers(&fs_info->readahead_workers);
@@ -2565,7 +2549,11 @@ int open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 	if (!(fs_info->workers && fs_info->delalloc_workers &&
-	      fs_info->submit_workers && fs_info->flush_workers)) {
+	      fs_info->submit_workers && fs_info->flush_workers &&
+	      fs_info->endio_workers && fs_info->endio_meta_workers &&
+	      fs_info->endio_meta_write_workers &&
+	      fs_info->endio_write_workers && fs_info->endio_raid56_workers &&
+	      fs_info->endio_freespace_worker)) {
 		err = -ENOMEM;
 		goto fail_sb_buffer;
 	}
