@@ -20,8 +20,13 @@
 /* Decoders lock (only modified to preprocess them) */
 static DEFINE_SPINLOCK(img_ir_decoders_lock);
 
+extern struct img_ir_decoder img_ir_nec;
+
 static bool img_ir_decoders_preprocessed;
 static struct img_ir_decoder *img_ir_decoders[] = {
+#ifdef CONFIG_IR_IMG_NEC
+	&img_ir_nec,
+#endif
 	NULL
 };
 

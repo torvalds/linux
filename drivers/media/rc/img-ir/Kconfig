@@ -24,3 +24,10 @@ config IR_IMG_HW
 	   signals in hardware. This is more reliable, consumes less processing
 	   power since only a single interrupt is received for each scancode,
 	   and allows an IR scancode to be used as a wake event.
+
+config IR_IMG_NEC
+	bool "NEC protocol support"
+	depends on IR_IMG_HW
+	help
+	   Say Y here to enable support for the NEC, extended NEC, and 32-bit
+	   NEC protocols in the ImgTec infrared decoder block.
