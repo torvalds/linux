@@ -113,6 +113,7 @@ struct can_priv *safe_candev_priv(struct net_device *dev);
 
 int open_candev(struct net_device *dev);
 void close_candev(struct net_device *dev);
+int can_change_mtu(struct net_device *dev, int new_mtu);
 
 int register_candev(struct net_device *dev);
 void unregister_candev(struct net_device *dev);

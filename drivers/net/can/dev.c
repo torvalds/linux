@@ -595,6 +595,39 @@ void free_candev(struct net_device *dev)
 EXPORT_SYMBOL_GPL(free_candev);
 
 /*
+ * changing MTU and control mode for CAN/CANFD devices
+ */
+int can_change_mtu(struct net_device *dev, int new_mtu)
+{
+	struct can_priv *priv = netdev_priv(dev);
+
+	/* Do not allow changing the MTU while running */
+	if (dev->flags & IFF_UP)
+		return -EBUSY;
+
+	/* allow change of MTU according to the CANFD ability of the device */
+	switch (new_mtu) {
+	case CAN_MTU:
+		priv->ctrlmode &= ~CAN_CTRLMODE_FD;
+		break;
+
+	case CANFD_MTU:
+		if (!(priv->ctrlmode_supported & CAN_CTRLMODE_FD))
+			return -EINVAL;
+
+		priv->ctrlmode |= CAN_CTRLMODE_FD;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	dev->mtu = new_mtu;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(can_change_mtu);
+
+/*
  * Common open function when the device gets opened.
  *
  * This function should be called in the open function of the device
@@ -693,6 +726,12 @@ static int can_changelink(struct net_device *dev,
 			return -EOPNOTSUPP;
 		priv->ctrlmode &= ~cm->mask;
 		priv->ctrlmode |= cm->flags;
+
+		/* CAN_CTRLMODE_FD can only be set when driver supports FD */
+		if (priv->ctrlmode & CAN_CTRLMODE_FD)
+			dev->mtu = CANFD_MTU;
+		else
+			dev->mtu = CAN_MTU;
 	}
 
 	if (data[IFLA_CAN_RESTART_MS]) {
