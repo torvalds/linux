@@ -1081,11 +1081,6 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 		azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 	}
 
-#if 0
-	/* clear state status int */
-	if (azx_readw(chip, STATESTS) & 0x04)
-		azx_writew(chip, STATESTS, 0x04);
-#endif
 	spin_unlock(&chip->reg_lock);
 	
 	return IRQ_HANDLED;
