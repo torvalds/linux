@@ -49,10 +49,9 @@ show_two (hdw_info_t *hi, int brdno)
     ci_t       *ci;
     struct pci_dev *pdev;
     char       *bid;
-    char       *bp, banner[80];
+    char       banner[80];
     char        sn[6];
 
-    bp = banner;
     memset (banner, 0, 80);         /* clear print buffer */
 
     ci = (ci_t *)(netdev_priv(hi->ndev));
