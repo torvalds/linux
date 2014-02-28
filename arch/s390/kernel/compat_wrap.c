@@ -124,3 +124,13 @@ COMPAT_SYSCALL_WRAP3(flistxattr, int, fd, char __user *, list, compat_size_t, si
 COMPAT_SYSCALL_WRAP2(removexattr, const char __user *, path, const char __user *, name);
 COMPAT_SYSCALL_WRAP2(lremovexattr, const char __user *, path, const char __user *, name);
 COMPAT_SYSCALL_WRAP2(fremovexattr, int, fd, const char __user *, name);
+COMPAT_SYSCALL_WRAP1(exit_group, int, error_code);
+COMPAT_SYSCALL_WRAP1(set_tid_address, int __user *, tidptr);
+COMPAT_SYSCALL_WRAP1(epoll_create, int, size);
+COMPAT_SYSCALL_WRAP4(epoll_ctl, int, epfd, int, op, int, fd, struct epoll_event __user *, event);
+COMPAT_SYSCALL_WRAP4(epoll_wait, int, epfd, struct epoll_event __user *, events, int, maxevents, int, timeout);
+COMPAT_SYSCALL_WRAP1(timer_getoverrun, timer_t, timer_id);
+COMPAT_SYSCALL_WRAP1(timer_delete, compat_timer_t, compat_timer_id);
+COMPAT_SYSCALL_WRAP1(io_destroy, compat_aio_context_t, ctx);
+COMPAT_SYSCALL_WRAP3(io_cancel, compat_aio_context_t, ctx_id, struct iocb __user *, iocb, struct io_event __user *, result);
+COMPAT_SYSCALL_WRAP1(mq_unlink, const char __user *, name);

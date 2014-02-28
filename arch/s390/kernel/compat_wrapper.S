@@ -181,32 +181,6 @@ ENTRY(sys32_sched_getaffinity_wrapper)
 	llgtr	%r4,%r4			# unsigned long *
 	jg	compat_sys_sched_getaffinity
 
-ENTRY(sys32_exit_group_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_exit_group		# branch to system call
-
-ENTRY(sys32_set_tid_address_wrapper)
-	llgtr	%r2,%r2			# int *
-	jg	sys_set_tid_address	# branch to system call
-
-ENTRY(sys_epoll_create_wrapper)
-	lgfr	%r2,%r2			# int
-	jg	sys_epoll_create	# branch to system call
-
-ENTRY(sys_epoll_ctl_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	lgfr	%r4,%r4			# int
-	llgtr	%r5,%r5			# struct epoll_event *
-	jg	sys_epoll_ctl		# branch to system call
-
-ENTRY(sys_epoll_wait_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct epoll_event *
-	lgfr	%r4,%r4			# int
-	lgfr	%r5,%r5			# int
-	jg	sys_epoll_wait		# branch to system call
-
 ENTRY(sys32_clock_settime_wrapper)
 	lgfr	%r2,%r2			# clockid_t (int)
 	llgtr	%r3,%r3			# struct compat_timespec *
@@ -247,22 +221,10 @@ ENTRY(sys32_timer_gettime_wrapper)
 	llgtr	%r3,%r3			# struct compat_itimerspec *
 	jg	compat_sys_timer_gettime
 
-ENTRY(sys32_timer_getoverrun_wrapper)
-	lgfr	%r2,%r2			# timer_t (int)
-	jg	sys_timer_getoverrun
-
-ENTRY(sys32_timer_delete_wrapper)
-	lgfr	%r2,%r2			# timer_t (int)
-	jg	sys_timer_delete
-
 ENTRY(sys32_io_setup_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# u32 *
 	jg	compat_sys_io_setup
-
-ENTRY(sys32_io_destroy_wrapper)
-	llgfr	%r2,%r2			# (aio_context_t) u32
-	jg	sys_io_destroy
 
 ENTRY(sys32_io_getevents_wrapper)
 	llgfr	%r2,%r2			# (aio_context_t) u32
@@ -277,12 +239,6 @@ ENTRY(sys32_io_submit_wrapper)
 	lgfr	%r3,%r3			# long
 	llgtr	%r4,%r4			# struct iocb **
 	jg	compat_sys_io_submit
-
-ENTRY(sys32_io_cancel_wrapper)
-	llgfr	%r2,%r2			# (aio_context_t) u32
-	llgtr	%r3,%r3			# struct iocb *
-	llgtr	%r4,%r4			# struct io_event *
-	jg	sys_io_cancel
 
 ENTRY(compat_sys_statfs64_wrapper)
 	llgtr	%r2,%r2			# const char *
@@ -302,10 +258,6 @@ ENTRY(compat_sys_mq_open_wrapper)
 	llgfr	%r4,%r4			# mode_t
 	llgtr	%r5,%r5			# struct compat_mq_attr *
 	jg	compat_sys_mq_open
-
-ENTRY(sys32_mq_unlink_wrapper)
-	llgtr	%r2,%r2			# const char *
-	jg	sys_mq_unlink
 
 ENTRY(compat_sys_mq_timedsend_wrapper)
 	lgfr	%r2,%r2			# mqd_t
