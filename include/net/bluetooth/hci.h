@@ -1182,6 +1182,9 @@ struct hci_cp_le_set_scan_enable {
 	__u8     filter_dup;
 } __packed;
 
+#define HCI_LE_USE_PEER_ADDR		0x00
+#define HCI_LE_USE_WHITELIST		0x01
+
 #define HCI_OP_LE_CREATE_CONN		0x200d
 struct hci_cp_le_create_conn {
 	__le16   scan_interval;
