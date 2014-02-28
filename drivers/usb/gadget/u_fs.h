@@ -206,15 +206,13 @@ struct ffs_data {
 
 	/* filled by __ffs_data_got_descs() */
 	/*
-	 * Real descriptors are 16 bytes after raw_descs (so you need
-	 * to skip 16 bytes (ie. ffs->raw_descs + 16) to get to the
-	 * first full speed descriptor).
-	 * raw_fs_hs_descs_length does not have those 16 bytes added.
-	 * ss_descs are 8 bytes (ss_magic + count) pass the hs_descs
+	 * raw_descs is what you kfree, real_descs points inside of raw_descs,
+	 * where full speed, high speed and super speed descriptors start.
+	 * real_descs_length is the length of all those descriptors.
 	 */
+	const void			*raw_descs_data;
 	const void			*raw_descs;
-	unsigned			raw_fs_hs_descs_length;
-	unsigned			raw_ss_descs_length;
+	unsigned			raw_descs_length;
 	unsigned			fs_descs_count;
 	unsigned			hs_descs_count;
 	unsigned			ss_descs_count;
