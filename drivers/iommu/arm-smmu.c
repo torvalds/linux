@@ -1499,7 +1499,7 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 
 	ret = arm_smmu_handle_mapping(smmu_domain, iova, 0, size, 0);
 	arm_smmu_tlb_inv_context(&smmu_domain->root_cfg);
-	return ret ? ret : size;
+	return ret ? 0 : size;
 }
 
 static phys_addr_t arm_smmu_iova_to_phys(struct iommu_domain *domain,
