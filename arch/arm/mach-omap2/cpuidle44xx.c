@@ -23,6 +23,8 @@
 #include "prm.h"
 #include "clockdomain.h"
 
+#define MAX_CPUS	2
+
 /* Machine specific information */
 struct idle_statedata {
 	u32 cpu_state;
@@ -48,11 +50,11 @@ static struct idle_statedata omap4_idle_data[] = {
 	},
 };
 
-static struct powerdomain *mpu_pd, *cpu_pd[NR_CPUS];
-static struct clockdomain *cpu_clkdm[NR_CPUS];
+static struct powerdomain *mpu_pd, *cpu_pd[MAX_CPUS];
+static struct clockdomain *cpu_clkdm[MAX_CPUS];
 
 static atomic_t abort_barrier;
-static bool cpu_done[NR_CPUS];
+static bool cpu_done[MAX_CPUS];
 static struct idle_statedata *state_ptr = &omap4_idle_data[0];
 
 /* Private functions */
