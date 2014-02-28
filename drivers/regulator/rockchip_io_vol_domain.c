@@ -17,7 +17,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/regulator/rk_io_vol_domain.h>
+#include <linux/regulator/rockchip_io_vol_domain.h>
 
 struct io_domain_port *g_uap;
 
