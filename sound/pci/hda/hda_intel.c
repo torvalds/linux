@@ -1809,10 +1809,6 @@ static int azx_first_init(struct azx *chip)
 	err = azx_alloc_stream_pages(chip);
 	if (err < 0)
 		return err;
-	/* allocate CORB/RIRB */
-	err = azx_alloc_cmd_io(chip);
-	if (err < 0)
-		return err;
 
 	/* initialize streams */
 	azx_init_stream(chip);

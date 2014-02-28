@@ -50,7 +50,6 @@ void azx_free_stream_pages(struct azx *chip);
 /*
  * CORB / RIRB interface
  */
-int azx_alloc_cmd_io(struct azx *chip);
 void azx_init_cmd_io(struct azx *chip);
 void azx_free_cmd_io(struct azx *chip);
 void azx_update_rirb(struct azx *chip);
