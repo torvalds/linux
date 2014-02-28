@@ -1316,6 +1316,8 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.get_thermal_sensor_data = NULL,
 	.init_thermal_sensor_thresh = NULL,
 	.mng_fw_enabled		= NULL,
+	.prot_autoc_read	= &prot_autoc_read_generic,
+	.prot_autoc_write	= &prot_autoc_write_generic,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82598 = {

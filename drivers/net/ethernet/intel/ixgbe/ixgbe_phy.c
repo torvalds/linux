@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -98,6 +98,32 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 }
 
 /**
+ * ixgbe_check_reset_blocked - check status of MNG FW veto bit
+ * @hw: pointer to the hardware structure
+ *
+ * This function checks the MMNGC.MNG_VETO bit to see if there are
+ * any constraints on link from manageability.  For MAC's that don't
+ * have this bit just return false since the link can not be blocked
+ * via this method.
+ **/
+s32 ixgbe_check_reset_blocked(struct ixgbe_hw *hw)
+{
+	u32 mmngc;
+
+	/* If we don't have this bit, it can't be blocking */
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return false;
+
+	mmngc = IXGBE_READ_REG(hw, IXGBE_MMNGC);
+	if (mmngc & IXGBE_MMNGC_MNG_VETO) {
+		hw_dbg(hw, "MNG_VETO bit detected.\n");
+		return true;
+	}
+
+	return false;
+}
+
+/**
  *  ixgbe_get_phy_id - Get the phy type
  *  @hw: pointer to hardware structure
  *
@@ -170,6 +196,10 @@ s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
 	/* Don't reset PHY if it's shut down due to overtemp. */
 	if (!hw->phy.reset_if_overtemp &&
 	    (IXGBE_ERR_OVERTEMP == hw->phy.ops.check_overtemp(hw)))
+		goto out;
+
+	/* Blocked by MNG FW so bail */
+	if (ixgbe_check_reset_blocked(hw))
 		goto out;
 
 	/*
@@ -476,6 +506,10 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 				      autoneg_reg);
 	}
 
+	/* Blocked by MNG FW so don't reset PHY */
+	if (ixgbe_check_reset_blocked(hw))
+		return status;
+
 	/* Restart PHY autonegotiation and wait for completion */
 	hw->phy.ops.read_reg(hw, MDIO_CTRL1,
 			     MDIO_MMD_AN, &autoneg_reg);
@@ -682,6 +716,10 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 				      autoneg_reg);
 	}
 
+	/* Blocked by MNG FW so don't reset PHY */
+	if (ixgbe_check_reset_blocked(hw))
+		return status;
+
 	/* Restart PHY autonegotiation and wait for completion */
 	hw->phy.ops.read_reg(hw, MDIO_CTRL1,
 			     MDIO_MMD_AN, &autoneg_reg);
@@ -758,6 +796,10 @@ s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 	u16 phy_data = 0;
 	s32 ret_val = 0;
 	u32 i;
+
+	/* Blocked by MNG FW so bail */
+	if (ixgbe_check_reset_blocked(hw))
+		goto out;
 
 	hw->phy.ops.read_reg(hw, MDIO_CTRL1, MDIO_MMD_PHYXS, &phy_data);
 

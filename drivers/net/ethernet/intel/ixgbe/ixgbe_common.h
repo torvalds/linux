@@ -98,6 +98,10 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw,
                                  bool *link_up, bool link_up_wait_to_complete);
 s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
                                  u16 *wwpn_prefix);
+
+s32 prot_autoc_read_generic(struct ixgbe_hw *hw, bool *, u32 *reg_val);
+s32 prot_autoc_write_generic(struct ixgbe_hw *hw, u32 reg_val, bool locked);
+
 s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
 void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int pf);
@@ -109,7 +113,6 @@ void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);
 
 void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw, int num_pb,
 			     u32 headroom, int strategy);
-s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw);
 
 #define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define IXGBE_EMC_INTERNAL_DATA		0x00
