@@ -1994,7 +1994,6 @@ static noinline int next_root_backup(struct btrfs_fs_info *info,
 /* helper to cleanup workers */
 static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 {
-	btrfs_stop_workers(&fs_info->generic_worker);
 	btrfs_destroy_workqueue(fs_info->fixup_workers);
 	btrfs_destroy_workqueue(fs_info->delalloc_workers);
 	btrfs_destroy_workqueue(fs_info->workers);
@@ -2472,8 +2471,6 @@ int open_ctree(struct super_block *sb,
 	}
 
 	max_active = fs_info->thread_pool_size;
-	btrfs_init_workers(&fs_info->generic_worker,
-			   "genwork", 1, NULL);
 
 	fs_info->workers =
 		btrfs_alloc_workqueue("worker", flags | WQ_HIGHPRI,
@@ -2526,15 +2523,6 @@ int open_ctree(struct super_block *sb,
 	fs_info->qgroup_rescan_workers =
 		btrfs_alloc_workqueue("qgroup-rescan", flags, 1, 0);
 
-	/*
-	 * btrfs_start_workers can really only fail because of ENOMEM so just
-	 * return -ENOMEM if any of these fail.
-	 */
-	ret = btrfs_start_workers(&fs_info->generic_worker);
-	if (ret) {
-		err = -ENOMEM;
-		goto fail_sb_buffer;
-	}
 	if (!(fs_info->workers && fs_info->delalloc_workers &&
 	      fs_info->submit_workers && fs_info->flush_workers &&
 	      fs_info->endio_workers && fs_info->endio_meta_workers &&
