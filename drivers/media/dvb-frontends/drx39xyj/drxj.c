@@ -1562,7 +1562,7 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 		 .flags = I2C_M_RD, .buf = r_data, .len = r_count},
 	};
 
-	pr_dbg("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
+	pr_debug("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
 	       w_dev_addr->i2c_addr, state->i2c, w_count, r_count);
 
 	if (i2c_transfer(state->i2c, msg, 2) != 2) {
@@ -20640,7 +20640,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	for (i = 0; i < 2000; i++) {
 		fe_status_t status;
 		drx39xxj_read_status(fe, &status);
-		pr_dbg("i=%d status=%d\n", i, status);
+		pr_debug("i=%d status=%d\n", i, status);
 		msleep(100);
 		i += 100;
 	}
@@ -20663,7 +20663,7 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	int result;
 
 #ifdef DJH_DEBUG
-	pr_dbg("i2c gate call: enable=%d state=%d\n", enable,
+	pr_debug("i2c gate call: enable=%d state=%d\n", enable,
 	       state->i2c_gate_open);
 #endif
 
