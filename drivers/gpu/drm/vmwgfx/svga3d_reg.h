@@ -261,12 +261,7 @@ typedef enum SVGA3dSurfaceFormat {
    /* Planar video formats. */
    SVGA3D_YV12                         = 121,
 
-   /* Shader constant formats. */
-   SVGA3D_SURFACE_SHADERCONST_FLOAT    = 122,
-   SVGA3D_SURFACE_SHADERCONST_INT      = 123,
-   SVGA3D_SURFACE_SHADERCONST_BOOL     = 124,
-
-   SVGA3D_FORMAT_MAX                   = 125,
+   SVGA3D_FORMAT_MAX                   = 122,
 } SVGA3dSurfaceFormat;
 
 typedef uint32 SVGA3dColor; /* a, r, g, b */
