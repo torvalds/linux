@@ -108,20 +108,6 @@ static int sdhci_probe(struct platform_device *pdev)
 	struct device *dev;
 	int ret;
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iomem) {
-		ret = -ENOMEM;
-		dev_dbg(&pdev->dev, "memory resource not defined\n");
-		goto err;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, iomem->start,
-				resource_size(iomem), "spear-sdhci")) {
-		ret = -EBUSY;
-		dev_dbg(&pdev->dev, "cannot request region\n");
-		goto err;
-	}
-
 	dev = pdev->dev.parent ? pdev->dev.parent : &pdev->dev;
 	host = sdhci_alloc_host(dev, sizeof(*sdhci));
 	if (IS_ERR(host)) {
@@ -129,6 +115,19 @@ static int sdhci_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "cannot allocate memory for sdhci\n");
 		goto err;
 	}
+
+	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	host->ioaddr = devm_ioremap_resource(&pdev->dev, iomem);
+	if (IS_ERR(host->ioaddr)) {
+		ret = PTR_ERR(host->ioaddr);
+		dev_dbg(&pdev->dev, "unable to map iomem: %d\n", ret);
+		goto err_host;
+	}
+
+	host->hw_name = "sdhci";
+	host->ops = &sdhci_pltfm_ops;
+	host->irq = platform_get_irq(pdev, 0);
+	host->quirks = SDHCI_QUIRK_BROKEN_ADMA;
 
 	sdhci = sdhci_priv(host);
 
@@ -159,19 +158,6 @@ static int sdhci_probe(struct platform_device *pdev)
 		}
 	} else {
 		sdhci->data = dev_get_platdata(&pdev->dev);
-	}
-
-	host->hw_name = "sdhci";
-	host->ops = &sdhci_pltfm_ops;
-	host->irq = platform_get_irq(pdev, 0);
-	host->quirks = SDHCI_QUIRK_BROKEN_ADMA;
-
-	host->ioaddr = devm_ioremap(&pdev->dev, iomem->start,
-			resource_size(iomem));
-	if (!host->ioaddr) {
-		ret = -ENOMEM;
-		dev_dbg(&pdev->dev, "failed to remap registers\n");
-		goto disable_clk;
 	}
 
 	ret = sdhci_add_host(host);
