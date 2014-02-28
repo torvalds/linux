@@ -313,7 +313,7 @@ static u32 rcar_thermal_had_changed(struct rcar_thermal_priv *priv, u32 status)
 
 	status = (status >> rcar_id_to_shift(priv)) & 0x3;
 
-	if (status & 0x3) {
+	if (status) {
 		dev_dbg(dev, "thermal%d %s%s\n",
 			priv->id,
 			(status & 0x2) ? "Rising " : "",
