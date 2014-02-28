@@ -190,6 +190,7 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		card->pcie.firmware = data->firmware;
 		card->pcie.reg = data->reg;
 		card->pcie.blksz_fw_dl = data->blksz_fw_dl;
+		card->pcie.tx_buf_size = data->tx_buf_size;
 	}
 
 	if (mwifiex_add_card(card, &add_remove_card_sem, &pcie_ops,
@@ -2320,6 +2321,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	}
 
 	adapter->dev = &pdev->dev;
+	adapter->tx_buf_size = card->pcie.tx_buf_size;
 	strcpy(adapter->fw_name, card->pcie.firmware);
 
 	return 0;

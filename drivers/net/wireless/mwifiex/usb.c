@@ -776,11 +776,13 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	switch (le16_to_cpu(card->udev->descriptor.idProduct)) {
 	case USB8897_PID_1:
 	case USB8897_PID_2:
+		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 		strcpy(adapter->fw_name, USB8897_DEFAULT_FW_NAME);
 		break;
 	case USB8797_PID_1:
 	case USB8797_PID_2:
 	default:
+		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 		strcpy(adapter->fw_name, USB8797_DEFAULT_FW_NAME);
 		break;
 	}
