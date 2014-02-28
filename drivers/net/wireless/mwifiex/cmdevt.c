@@ -1592,6 +1592,7 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 
 	adapter->hw_dot_11n_dev_cap = le32_to_cpu(hw_spec->dot_11n_dev_cap);
 	adapter->hw_dev_mcs_support = hw_spec->dev_mcs_support;
+	adapter->user_dev_mcs_support = adapter->hw_dev_mcs_support;
 
 	if (adapter->if_ops.update_mp_end_port)
 		adapter->if_ops.update_mp_end_port(adapter,
