@@ -123,8 +123,8 @@ static int dgap_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retin
 static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
 static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info);
-static int dgap_tty_write_room(struct tty_struct* tty);
-static int dgap_tty_chars_in_buffer(struct tty_struct* tty);
+static int dgap_tty_write_room(struct tty_struct *tty);
+static int dgap_tty_chars_in_buffer(struct tty_struct *tty);
 static void dgap_tty_start(struct tty_struct *tty);
 static void dgap_tty_stop(struct tty_struct *tty);
 static void dgap_tty_throttle(struct tty_struct *tty);
