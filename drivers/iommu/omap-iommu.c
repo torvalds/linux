@@ -863,7 +863,7 @@ static int device_match_by_alias(struct device *dev, void *data)
  **/
 static struct omap_iommu *omap_iommu_attach(const char *name, u32 *iopgd)
 {
-	int err = -ENOMEM;
+	int err;
 	struct device *dev;
 	struct omap_iommu *obj;
 
@@ -871,7 +871,7 @@ static struct omap_iommu *omap_iommu_attach(const char *name, u32 *iopgd)
 				(void *)name,
 				device_match_by_alias);
 	if (!dev)
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	obj = to_iommu(dev);
 
@@ -890,8 +890,10 @@ static struct omap_iommu *omap_iommu_attach(const char *name, u32 *iopgd)
 		goto err_enable;
 	flush_iotlb_all(obj);
 
-	if (!try_module_get(obj->owner))
+	if (!try_module_get(obj->owner)) {
+		err = -ENODEV;
 		goto err_module;
+	}
 
 	spin_unlock(&obj->iommu_lock);
 
