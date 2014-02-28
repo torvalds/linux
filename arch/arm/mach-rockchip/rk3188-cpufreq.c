@@ -26,12 +26,12 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/string.h>
+#include <linux/rockchip/dvfs.h>
 #include <asm/smp_plat.h>
 #include <asm/cpu.h>
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
 
-#include "dvfs.h"
 #include "cpu.h"
 
 #define VERSION "2.2"

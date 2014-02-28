@@ -19,7 +19,7 @@
 #include <linux/stat.h>
 #include <linux/of.h>
 #include <linux/opp.h>
-#include "dvfs.h"
+#include <linux/rockchip/dvfs.h>
 
 #define MHz	(1000 * 1000)
 static LIST_HEAD(rk_dvfs_tree);

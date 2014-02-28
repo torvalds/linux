@@ -16,9 +16,9 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <linux/vmalloc.h>
+#include <linux/rockchip/dvfs.h>
 #include <dt-bindings/clock/ddr.h>
 
-#include "dvfs.h"
 #include "common.h"
 
 enum {

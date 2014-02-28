@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/rockchip/dvfs.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include "common.h"
@@ -32,7 +33,6 @@
 #include "loader.h"
 #include "pmu.h"
 #include "sram.h"
-#include "dvfs.h"
 
 #define RK3188_DEVICE(name) \
 	{ \
