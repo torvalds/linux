@@ -241,8 +241,18 @@ END {
 
 # Generate a script to execute the tests in appropriate batches.
 cat << ___EOF___ > $T/script
-TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
+CONFIGFRAG="$CONFIGFRAG"; export CONFIGFRAG
+KVM="$KVM"; export KVM
+KVPATH="$KVPATH"; export KVPATH
+PATH="$PATH"; export PATH
+TORTURE_BUILDONLY="$TORTURE_BUILDONLY"; export TORTURE_BUILDONLY
 TORTURE_DEFCONFIG="$TORTURE_DEFCONFIG"; export TORTURE_DEFCONFIG
+TORTURE_INITRD="$TORTURE_INITRD"; export TORTURE_INITRD
+TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG"; export TORTURE_KMAKE_ARG
+TORTURE_QEMU_CMD="$TORTURE_QEMU_CMD"; export TORTURE_QEMU_CMD
+TORTURE_QEMU_INTERACTIVE="$TORTURE_QEMU_INTERACTIVE"; export TORTURE_QEMU_INTERACTIVE
+TORTURE_QEMU_MAC="$TORTURE_QEMU_MAC"; export TORTURE_QEMU_MAC
+TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
 if ! test -e $resdir
 then
 	mkdir -p "$resdir" || :
@@ -371,20 +381,6 @@ ___EOF___
 
 if test "$dryrun" = script
 then
-	# Dump out the script, but define the environment variables that
-	# it needs to run standalone.
-	echo CONFIGFRAG="$CONFIGFRAG; export CONFIGFRAG"
-	echo KVM="$KVM; export KVM"
-	echo KVPATH="$KVPATH; export KVPATH"
-	echo PATH="$PATH; export PATH"
-	echo TORTURE_BUILDONLY="$TORTURE_BUILDONLY; export TORTURE_BUILDONLY"
-	echo TORTURE_INITRD="$TORTURE_INITRD; export TORTURE_INITRD"
-	echo TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG; export TORTURE_KMAKE_ARG"
-	echo TORTURE_QEMU_CMD="$TORTURE_QEMU_CMD; export TORTURE_QEMU_CMD"
-	echo TORTURE_QEMU_INTERACTIVE="$TORTURE_QEMU_INTERACTIVE; export TORTURE_QEMU_INTERACTIVE"
-	echo TORTURE_QEMU_MAC="$TORTURE_QEMU_MAC; export TORTURE_QEMU_MAC"
-	echo "mkdir -p "$resdir" || :"
-	echo "mkdir $resdir/$ds"
 	cat $T/script
 	exit 0
 elif test "$dryrun" = sched
