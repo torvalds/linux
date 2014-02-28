@@ -901,9 +901,9 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 	mwifiex_get_active_data_rates(priv, adhoc_start->data_rate);
 	if ((adapter->adhoc_start_band & BAND_G) &&
 	    (priv->curr_pkt_filter & HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON)) {
-		if (mwifiex_send_cmd_async(priv, HostCmd_CMD_MAC_CONTROL,
-					   HostCmd_ACT_GEN_SET, 0,
-					   &priv->curr_pkt_filter)) {
+		if (mwifiex_send_cmd(priv, HostCmd_CMD_MAC_CONTROL,
+				     HostCmd_ACT_GEN_SET, 0,
+				     &priv->curr_pkt_filter, false)) {
 			dev_err(adapter->dev,
 				"ADHOC_S_CMD: G Protection config failed\n");
 			return -1;
@@ -1073,9 +1073,9 @@ mwifiex_cmd_802_11_ad_hoc_join(struct mwifiex_private *priv,
 			priv->
 			curr_pkt_filter | HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON;
 
-		if (mwifiex_send_cmd_async(priv, HostCmd_CMD_MAC_CONTROL,
-					   HostCmd_ACT_GEN_SET, 0,
-					   &curr_pkt_filter)) {
+		if (mwifiex_send_cmd(priv, HostCmd_CMD_MAC_CONTROL,
+				     HostCmd_ACT_GEN_SET, 0,
+				     &curr_pkt_filter, false)) {
 			dev_err(priv->adapter->dev,
 				"ADHOC_J_CMD: G Protection config failed\n");
 			return -1;
@@ -1312,8 +1312,8 @@ int mwifiex_associate(struct mwifiex_private *priv,
 	   retrieval */
 	priv->assoc_rsp_size = 0;
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_ASSOCIATE,
-				    HostCmd_ACT_GEN_SET, 0, bss_desc);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_ASSOCIATE,
+				HostCmd_ACT_GEN_SET, 0, bss_desc, true);
 }
 
 /*
@@ -1338,8 +1338,8 @@ mwifiex_adhoc_start(struct mwifiex_private *priv,
 	else
 		mwifiex_set_ba_params(priv);
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_AD_HOC_START,
-				    HostCmd_ACT_GEN_SET, 0, adhoc_ssid);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_AD_HOC_START,
+				HostCmd_ACT_GEN_SET, 0, adhoc_ssid, true);
 }
 
 /*
@@ -1383,8 +1383,8 @@ int mwifiex_adhoc_join(struct mwifiex_private *priv,
 	dev_dbg(priv->adapter->dev, "info: curr_bss_params.band = %c\n",
 		priv->curr_bss_params.band);
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_AD_HOC_JOIN,
-				    HostCmd_ACT_GEN_SET, 0, bss_desc);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_AD_HOC_JOIN,
+				HostCmd_ACT_GEN_SET, 0, bss_desc, true);
 }
 
 /*
@@ -1403,8 +1403,8 @@ static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv, u8 *mac)
 	else
 		memcpy(mac_address, mac, ETH_ALEN);
 
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_DEAUTHENTICATE,
-				    HostCmd_ACT_GEN_SET, 0, mac_address);
+	ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_DEAUTHENTICATE,
+			       HostCmd_ACT_GEN_SET, 0, mac_address, true);
 
 	return ret;
 }
@@ -1432,12 +1432,11 @@ int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 					      GFP_KERNEL);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		return mwifiex_send_cmd_sync(priv,
-					     HostCmd_CMD_802_11_AD_HOC_STOP,
-					     HostCmd_ACT_GEN_SET, 0, NULL);
+		return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_AD_HOC_STOP,
+					HostCmd_ACT_GEN_SET, 0, NULL, true);
 	case NL80211_IFTYPE_AP:
-		return mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
-					     HostCmd_ACT_GEN_SET, 0, NULL);
+		return mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
+					HostCmd_ACT_GEN_SET, 0, NULL, true);
 	default:
 		break;
 	}

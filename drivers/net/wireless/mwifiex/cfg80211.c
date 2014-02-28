@@ -252,9 +252,9 @@ mwifiex_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
 
 	if (mask != priv->mgmt_frame_mask) {
 		priv->mgmt_frame_mask = mask;
-		mwifiex_send_cmd_async(priv, HostCmd_CMD_MGMT_FRAME_REG,
-				       HostCmd_ACT_GEN_SET, 0,
-				       &priv->mgmt_frame_mask);
+		mwifiex_send_cmd(priv, HostCmd_CMD_MGMT_FRAME_REG,
+				 HostCmd_ACT_GEN_SET, 0,
+				 &priv->mgmt_frame_mask, false);
 		wiphy_dbg(wiphy, "info: mgmt frame registered\n");
 	}
 }
@@ -515,8 +515,8 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
-	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
-				   HostCmd_ACT_GEN_SET, 0, NULL)) {
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
+			     HostCmd_ACT_GEN_SET, 0, NULL, false)) {
 		wiphy_err(wiphy, "11D: setting domain info in FW\n");
 		return -1;
 	}
@@ -580,9 +580,9 @@ mwifiex_set_frag(struct mwifiex_private *priv, u32 frag_thr)
 	    frag_thr > MWIFIEX_FRAG_MAX_VALUE)
 		frag_thr = MWIFIEX_FRAG_MAX_VALUE;
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-				     HostCmd_ACT_GEN_SET, FRAG_THRESH_I,
-				     &frag_thr);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				HostCmd_ACT_GEN_SET, FRAG_THRESH_I,
+				&frag_thr, true);
 }
 
 /*
@@ -597,9 +597,9 @@ mwifiex_set_rts(struct mwifiex_private *priv, u32 rts_thr)
 	if (rts_thr < MWIFIEX_RTS_MIN_VALUE || rts_thr > MWIFIEX_RTS_MAX_VALUE)
 		rts_thr = MWIFIEX_RTS_MAX_VALUE;
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-				    HostCmd_ACT_GEN_SET, RTS_THRESH_I,
-				    &rts_thr);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				HostCmd_ACT_GEN_SET, RTS_THRESH_I,
+				&rts_thr, true);
 }
 
 /*
@@ -637,20 +637,19 @@ mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 
 			bss_started = priv->bss_started;
 
-			ret = mwifiex_send_cmd_sync(priv,
-						    HostCmd_CMD_UAP_BSS_STOP,
-						    HostCmd_ACT_GEN_SET, 0,
-						    NULL);
+			ret = mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
+					       HostCmd_ACT_GEN_SET, 0,
+					       NULL, true);
 			if (ret) {
 				wiphy_err(wiphy, "Failed to stop the BSS\n");
 				kfree(bss_cfg);
 				return ret;
 			}
 
-			ret = mwifiex_send_cmd_async(priv,
-						     HostCmd_CMD_UAP_SYS_CONFIG,
-						     HostCmd_ACT_GEN_SET,
-						     UAP_BSS_PARAMS_I, bss_cfg);
+			ret = mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
+					       HostCmd_ACT_GEN_SET,
+					       UAP_BSS_PARAMS_I, bss_cfg,
+					       false);
 
 			kfree(bss_cfg);
 
@@ -662,10 +661,9 @@ mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 			if (!bss_started)
 				break;
 
-			ret = mwifiex_send_cmd_async(priv,
-						     HostCmd_CMD_UAP_BSS_START,
-						     HostCmd_ACT_GEN_SET, 0,
-						     NULL);
+			ret = mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_START,
+					       HostCmd_ACT_GEN_SET, 0,
+					       NULL, false);
 			if (ret) {
 				wiphy_err(wiphy, "Failed to start BSS\n");
 				return ret;
@@ -700,8 +698,8 @@ mwifiex_cfg80211_deinit_p2p(struct mwifiex_private *priv)
 	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_STA)
 		mwifiex_set_bss_role(priv, MWIFIEX_BSS_ROLE_STA);
 
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
-				  HostCmd_ACT_GEN_SET, 0, &mode))
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_P2P_MODE_CFG,
+			     HostCmd_ACT_GEN_SET, 0, &mode, true))
 		return -1;
 
 	return 0;
@@ -721,13 +719,13 @@ mwifiex_cfg80211_init_p2p_client(struct mwifiex_private *priv)
 		return -1;
 
 	mode = P2P_MODE_DEVICE;
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
-				  HostCmd_ACT_GEN_SET, 0, &mode))
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_P2P_MODE_CFG,
+			     HostCmd_ACT_GEN_SET, 0, &mode, true))
 		return -1;
 
 	mode = P2P_MODE_CLIENT;
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
-				  HostCmd_ACT_GEN_SET, 0, &mode))
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_P2P_MODE_CFG,
+			     HostCmd_ACT_GEN_SET, 0, &mode, true))
 		return -1;
 
 	return 0;
@@ -747,13 +745,13 @@ mwifiex_cfg80211_init_p2p_go(struct mwifiex_private *priv)
 		return -1;
 
 	mode = P2P_MODE_DEVICE;
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
-				  HostCmd_ACT_GEN_SET, 0, &mode))
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_P2P_MODE_CFG,
+			     HostCmd_ACT_GEN_SET, 0, &mode, true))
 		return -1;
 
 	mode = P2P_MODE_GO;
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
-				  HostCmd_ACT_GEN_SET, 0, &mode))
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_P2P_MODE_CFG,
+			     HostCmd_ACT_GEN_SET, 0, &mode, true))
 		return -1;
 
 	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_UAP)
@@ -853,8 +851,8 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 
 	priv->sec_info.authentication_mode = NL80211_AUTHTYPE_OPEN_SYSTEM;
 
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_SET_BSS_MODE,
-				    HostCmd_ACT_GEN_SET, 0, NULL);
+	ret = mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
+			       HostCmd_ACT_GEN_SET, 0, NULL, true);
 
 	return ret;
 }
@@ -942,8 +940,8 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
 
 	/* Get signal information from the firmware */
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_RSSI_INFO,
-				  HostCmd_ACT_GEN_GET, 0, NULL)) {
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
+			     HostCmd_ACT_GEN_GET, 0, NULL, true)) {
 		dev_err(priv->adapter->dev, "failed to get signal information\n");
 		return -EFAULT;
 	}
@@ -954,9 +952,9 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 	}
 
 	/* Get DTIM period information from firmware */
-	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-			      HostCmd_ACT_GEN_GET, DTIM_PERIOD_I,
-			      &priv->dtim_period);
+	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			 HostCmd_ACT_GEN_GET, DTIM_PERIOD_I,
+			 &priv->dtim_period, true);
 
 	mwifiex_parse_htinfo(priv, priv->tx_htinfo, &sinfo->txrate);
 
@@ -1186,8 +1184,8 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 	if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2)
 		bitmap_rates[2] |= mask->control[band].ht_mcs[1] << 8;
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TX_RATE_CFG,
-				     HostCmd_ACT_GEN_SET, 0, bitmap_rates);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TX_RATE_CFG,
+				HostCmd_ACT_GEN_SET, 0, bitmap_rates, true);
 }
 
 /*
@@ -1216,14 +1214,14 @@ static int mwifiex_cfg80211_set_cqm_rssi_config(struct wiphy *wiphy,
 		subsc_evt.bcn_h_rssi_cfg.abs_value = abs(rssi_thold);
 		subsc_evt.bcn_l_rssi_cfg.evt_freq = 1;
 		subsc_evt.bcn_h_rssi_cfg.evt_freq = 1;
-		return mwifiex_send_cmd_sync(priv,
-					     HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
-					     0, 0, &subsc_evt);
+		return mwifiex_send_cmd(priv,
+					HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+					0, 0, &subsc_evt, true);
 	} else {
 		subsc_evt.action = HostCmd_ACT_BITWISE_CLR;
-		return mwifiex_send_cmd_sync(priv,
-					     HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
-					     0, 0, &subsc_evt);
+		return mwifiex_send_cmd(priv,
+					HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+					0, 0, &subsc_evt, true);
 	}
 
 	return 0;
@@ -1276,10 +1274,9 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!mac || is_broadcast_ether_addr(mac)) {
 		wiphy_dbg(wiphy, "%s: NULL/broadcast mac address\n", __func__);
 		list_for_each_entry(sta_node, &priv->sta_list, list) {
-			if (mwifiex_send_cmd_sync(priv,
-						  HostCmd_CMD_UAP_STA_DEAUTH,
-						  HostCmd_ACT_GEN_SET, 0,
-						  sta_node->mac_addr))
+			if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_STA_DEAUTH,
+					     HostCmd_ACT_GEN_SET, 0,
+					     sta_node->mac_addr, true))
 				return -1;
 			mwifiex_uap_del_sta_data(priv, sta_node);
 		}
@@ -1289,10 +1286,9 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 		sta_node = mwifiex_get_sta_entry(priv, mac);
 		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		if (sta_node) {
-			if (mwifiex_send_cmd_sync(priv,
-						  HostCmd_CMD_UAP_STA_DEAUTH,
-						  HostCmd_ACT_GEN_SET, 0,
-						  sta_node->mac_addr))
+			if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_STA_DEAUTH,
+					     HostCmd_ACT_GEN_SET, 0,
+					     sta_node->mac_addr, true))
 				return -1;
 			mwifiex_uap_del_sta_data(priv, sta_node);
 		}
@@ -1333,8 +1329,8 @@ mwifiex_cfg80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
 	ant_cfg.tx_ant = tx_ant;
 	ant_cfg.rx_ant = rx_ant;
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_RF_ANTENNA,
-				     HostCmd_ACT_GEN_SET, 0, &ant_cfg);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_RF_ANTENNA,
+				HostCmd_ACT_GEN_SET, 0, &ant_cfg, true);
 }
 
 /* cfg80211 operation handler for stop ap.
@@ -1349,8 +1345,8 @@ static int mwifiex_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
 	priv->ap_11n_enabled = 0;
 
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
-				  HostCmd_ACT_GEN_SET, 0, NULL)) {
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
 		wiphy_err(wiphy, "Failed to stop the BSS\n");
 		return -1;
 	}
@@ -1461,16 +1457,16 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		bss_cfg->ps_sta_ao_timer = 10 * params->inactivity_timeout;
 	}
 
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
-				  HostCmd_ACT_GEN_SET, 0, NULL)) {
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
 		wiphy_err(wiphy, "Failed to stop the BSS\n");
 		kfree(bss_cfg);
 		return -1;
 	}
 
-	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
-				   HostCmd_ACT_GEN_SET,
-				   UAP_BSS_PARAMS_I, bss_cfg)) {
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
+			     HostCmd_ACT_GEN_SET,
+			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
 		wiphy_err(wiphy, "Failed to set the SSID\n");
 		kfree(bss_cfg);
 		return -1;
@@ -1478,8 +1474,8 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	kfree(bss_cfg);
 
-	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_BSS_START,
-				   HostCmd_ACT_GEN_SET, 0, NULL)) {
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_START,
+			     HostCmd_ACT_GEN_SET, 0, NULL, false)) {
 		wiphy_err(wiphy, "Failed to start the BSS\n");
 		return -1;
 	}
@@ -1489,9 +1485,9 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	else
 		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;
 
-	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_MAC_CONTROL,
-				  HostCmd_ACT_GEN_SET, 0,
-				  &priv->curr_pkt_filter))
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_MAC_CONTROL,
+			     HostCmd_ACT_GEN_SET, 0,
+			     &priv->curr_pkt_filter, true))
 		return -1;
 
 	return 0;
@@ -2459,9 +2455,8 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 				   MWIFIEX_CRITERIA_UNICAST |
 				   MWIFIEX_CRITERIA_MULTICAST;
 
-	ret =  mwifiex_send_cmd_sync(priv, HostCmd_CMD_MEF_CFG,
-				     HostCmd_ACT_GEN_SET, 0,
-				     &mef_cfg);
+	ret = mwifiex_send_cmd(priv, HostCmd_CMD_MEF_CFG,
+			       HostCmd_ACT_GEN_SET, 0, &mef_cfg, true);
 
 	kfree(mef_entry);
 	return ret;
@@ -2573,9 +2568,9 @@ static int mwifiex_cfg80211_set_coalesce(struct wiphy *wiphy,
 	if (!coalesce) {
 		dev_dbg(adapter->dev,
 			"Disable coalesce and reset all previous rules\n");
-		return mwifiex_send_cmd_sync(priv, HostCmd_CMD_COALESCE_CFG,
-					     HostCmd_ACT_GEN_SET, 0,
-					     &coalesce_cfg);
+		return mwifiex_send_cmd(priv, HostCmd_CMD_COALESCE_CFG,
+					HostCmd_ACT_GEN_SET, 0,
+					&coalesce_cfg, true);
 	}
 
 	coalesce_cfg.num_of_rules = coalesce->n_rules;
@@ -2590,8 +2585,8 @@ static int mwifiex_cfg80211_set_coalesce(struct wiphy *wiphy,
 		}
 	}
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_COALESCE_CFG,
-				     HostCmd_ACT_GEN_SET, 0, &coalesce_cfg);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_COALESCE_CFG,
+				HostCmd_ACT_GEN_SET, 0, &coalesce_cfg, true);
 }
 
 /* cfg80211 ops handler for tdls_mgmt.
@@ -2940,17 +2935,17 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 				   country_code);
 	}
 
-	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-			      HostCmd_ACT_GEN_GET, FRAG_THRESH_I, &thr);
+	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			 HostCmd_ACT_GEN_GET, FRAG_THRESH_I, &thr, true);
 	wiphy->frag_threshold = thr;
-	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-			      HostCmd_ACT_GEN_GET, RTS_THRESH_I, &thr);
+	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			 HostCmd_ACT_GEN_GET, RTS_THRESH_I, &thr, true);
 	wiphy->rts_threshold = thr;
-	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-			      HostCmd_ACT_GEN_GET, SHORT_RETRY_LIM_I, &retry);
+	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			 HostCmd_ACT_GEN_GET, SHORT_RETRY_LIM_I, &retry, true);
 	wiphy->retry_short = (u8) retry;
-	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-			      HostCmd_ACT_GEN_GET, LONG_RETRY_LIM_I, &retry);
+	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			 HostCmd_ACT_GEN_GET, LONG_RETRY_LIM_I, &retry, true);
 	wiphy->retry_long = (u8) retry;
 
 	adapter->wiphy = wiphy;

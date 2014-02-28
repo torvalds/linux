@@ -738,8 +738,8 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		else
 			cmd_no = HostCmd_CMD_802_11_SCAN;
 
-		ret = mwifiex_send_cmd_async(priv, cmd_no, HostCmd_ACT_GEN_SET,
-					     0, scan_cfg_out);
+		ret = mwifiex_send_cmd(priv, cmd_no, HostCmd_ACT_GEN_SET,
+				       0, scan_cfg_out, false);
 
 		/* rate IE is updated per scan command but same starting
 		 * pointer is used each time so that rate IE from earlier

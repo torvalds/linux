@@ -864,8 +864,8 @@ mwifiex_tdls_process_config_link(struct mwifiex_private *priv, u8 *peer)
 
 	memcpy(&tdls_oper.peer_mac, peer, ETH_ALEN);
 	tdls_oper.tdls_action = MWIFIEX_TDLS_CONFIG_LINK;
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TDLS_OPER,
-				     HostCmd_ACT_GEN_SET, 0, &tdls_oper);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_OPER,
+				HostCmd_ACT_GEN_SET, 0, &tdls_oper, true);
 }
 
 static int
@@ -891,8 +891,8 @@ mwifiex_tdls_process_create_link(struct mwifiex_private *priv, u8 *peer)
 	mwifiex_hold_tdls_packets(priv, peer);
 	memcpy(&tdls_oper.peer_mac, peer, ETH_ALEN);
 	tdls_oper.tdls_action = MWIFIEX_TDLS_CREATE_LINK;
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TDLS_OPER,
-				     HostCmd_ACT_GEN_SET, 0, &tdls_oper);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_OPER,
+				HostCmd_ACT_GEN_SET, 0, &tdls_oper, true);
 }
 
 static int
@@ -920,8 +920,8 @@ mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, u8 *peer)
 	mwifiex_restore_tdls_packets(priv, peer, TDLS_LINK_TEARDOWN);
 	memcpy(&tdls_oper.peer_mac, peer, ETH_ALEN);
 	tdls_oper.tdls_action = MWIFIEX_TDLS_DISABLE_LINK;
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TDLS_OPER,
-				     HostCmd_ACT_GEN_SET, 0, &tdls_oper);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_OPER,
+				HostCmd_ACT_GEN_SET, 0, &tdls_oper, true);
 }
 
 static int
@@ -1033,8 +1033,8 @@ void mwifiex_disable_all_tdls_links(struct mwifiex_private *priv)
 					     TDLS_LINK_TEARDOWN);
 		memcpy(&tdls_oper.peer_mac, sta_ptr->mac_addr, ETH_ALEN);
 		tdls_oper.tdls_action = MWIFIEX_TDLS_DISABLE_LINK;
-		if (mwifiex_send_cmd_async(priv, HostCmd_CMD_TDLS_OPER,
-					   HostCmd_ACT_GEN_SET, 0, &tdls_oper))
+		if (mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_OPER,
+				     HostCmd_ACT_GEN_SET, 0, &tdls_oper, false))
 			dev_warn(priv->adapter->dev,
 				 "Disable link failed for TDLS peer %pM",
 				 sta_ptr->mac_addr);

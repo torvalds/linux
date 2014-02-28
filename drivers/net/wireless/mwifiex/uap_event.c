@@ -150,9 +150,9 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 	case EVENT_ADDBA:
 		dev_dbg(adapter->dev, "event: ADDBA Request\n");
 		if (priv->media_connected)
-			mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_ADDBA_RSP,
-					       HostCmd_ACT_GEN_SET, 0,
-					       adapter->event_body);
+			mwifiex_send_cmd(priv, HostCmd_CMD_11N_ADDBA_RSP,
+					 HostCmd_ACT_GEN_SET, 0,
+					 adapter->event_body, false);
 		break;
 	case EVENT_DELBA:
 		dev_dbg(adapter->dev, "event: DELBA Request\n");
