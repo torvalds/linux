@@ -598,6 +598,7 @@ struct kvm_arch {
 	bool use_master_clock;
 	u64 master_kernel_ns;
 	cycle_t master_cycle_now;
+	struct delayed_work kvmclock_update_work;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 
