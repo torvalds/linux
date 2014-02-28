@@ -1295,28 +1295,32 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
 
 void RXvWorkItem(struct work_struct *work)
 {
-	struct vnt_private *pDevice =
+	struct vnt_private *priv =
 		container_of(work, struct vnt_private, read_work_item);
-	int ntStatus;
-	struct vnt_rcb *pRCB = NULL;
+	int status;
+	struct vnt_rcb *rcb = NULL;
 
-	if (pDevice->Flags & fMP_DISCONNECTED)
+	if (priv->Flags & fMP_DISCONNECTED)
 		return;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
-    spin_lock_irq(&pDevice->lock);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
 
-    while ((pDevice->Flags & fMP_POST_READS) &&
-            MP_IS_READY(pDevice) &&
-            (pDevice->NumRecvFreeList != 0) ) {
-        pRCB = pDevice->FirstRecvFreeList;
-        pDevice->NumRecvFreeList--;
-        DequeueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList);
-        ntStatus = PIPEnsBulkInUsbRead(pDevice, pRCB);
-    }
-    pDevice->bIsRxWorkItemQueued = false;
-    spin_unlock_irq(&pDevice->lock);
+	spin_lock_irq(&priv->lock);
 
+	while ((priv->Flags & fMP_POST_READS) && MP_IS_READY(priv) &&
+			(priv->NumRecvFreeList != 0)) {
+		rcb = priv->FirstRecvFreeList;
+
+		priv->NumRecvFreeList--;
+
+		DequeueRCB(priv->FirstRecvFreeList, priv->LastRecvFreeList);
+
+		status = PIPEnsBulkInUsbRead(priv, rcb);
+	}
+
+	priv->bIsRxWorkItemQueued = false;
+
+	spin_unlock_irq(&priv->lock);
 }
 
 void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb)
