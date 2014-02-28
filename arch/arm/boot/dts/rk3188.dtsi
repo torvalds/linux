@@ -2,6 +2,7 @@
 #include "skeleton.dtsi"
 #include "rk3188-pinctrl.dtsi"
 #include <dt-bindings/rkfb/rk_fb.h>
+#include "rk3188_io_vol_domain.dtsi"
 
 
 / {

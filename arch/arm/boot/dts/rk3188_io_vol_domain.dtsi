@@ -1,0 +1,76 @@
+
+ / { 
+
+ vccio{
+			compatible = "rockchip,io_vol_domain";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&ap1_vcc &vccio0_vcc &vccio1_vcc &lcdc1_vcc>;
+			pinctrl-1 = <&ap1_vcc_18 &vccio0_vcc_18 &vccio1_vcc_18 &lcdc1_vcc_18>;
+			pinctrl-2 = <&ap1_vcc_33 &vccio0_vcc_33 &vccio1_vcc_33 &lcdc1_vcc_33>;
+			
+			regulator_name{
+				regulator-name= "vccio";	
+			};
+	};
+	vccio_wl{
+			compatible = "rockchip,io_vol_domain";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&ap0_vcc>;
+			pinctrl-1 = <&ap0_vcc_18>;
+			pinctrl-2 = <&ap0_vcc_33>;
+			
+			regulator_name{
+				regulator-name= "vccio_wl";	
+			};	
+	};
+	vcc18_cif{
+			compatible = "rockchip,io_vol_domain";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&cif_vcc>;
+			pinctrl-1 = <&cif_vcc_18>;
+			pinctrl-2 = <&cif_vcc_33>;
+			
+			regulator_name{
+				regulator-name= "vcc18_cif";	
+			};	
+	};
+	vcc_flash{
+			compatible = "rockchip,io_vol_domain";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&flash_vcc>;
+			pinctrl-1 = <&flash_vcc_18>;
+			pinctrl-2 = <&flash_vcc_33>;	
+			
+			regulator_name{
+				regulator-name= "vcc_flash";	
+			};
+	};
+	vcc_lcd{
+			compatible = "rockchip,io_vol_domain";
+			#address-cells = <1>;
+			#size-cells = <0>;
+				
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&lcdc0_vcc>;
+			pinctrl-1 = <&lcdc0_vcc_18>;
+			pinctrl-2 = <&lcdc0_vcc_33>;
+			
+			regulator_name{
+				regulator-name= "vcc_lcd";	
+			};
+	};
+	
+};
+

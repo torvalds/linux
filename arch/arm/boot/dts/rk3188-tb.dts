@@ -5,6 +5,7 @@
 #include "lcd-b101ew05.dtsi"
 #include "rk3188-mmc.dtsi"
 
+
 / {
 	memory {
 		device_type = "memory";
@@ -279,8 +280,8 @@ regulators {
 		};
 
 		dcdc4_reg: regulator@3 {
-			regulator-name= "act_dcdc4";
-			regulator-min-microvolt = <3300000>;
+			regulator-name= "vccio";
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
@@ -378,8 +379,8 @@ regulators {
 		};
 
 		rk808_dcdc4_reg: regulator@3 {
-			regulator-name= "rk_dcdc4";
-			regulator-min-microvolt = <3300000>;
+			regulator-name= "vccio";
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
