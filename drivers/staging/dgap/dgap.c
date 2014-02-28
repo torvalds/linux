@@ -80,7 +80,7 @@
 
 #define init_MUTEX(sem)         sema_init(sem, 1)
 #define DECLARE_MUTEX(name)     \
-        struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
+	struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Digi International, http://www.digi.com");
@@ -180,8 +180,8 @@ static int dgap_checknode(struct cnode *p);
 static void dgap_err(char *s);
 
 /*
- * Function prototypes from dgap_sysfs.h 
- */ 
+ * Function prototypes from dgap_sysfs.h
+ */
 struct board_t;
 struct channel_t;
 struct un_t;
@@ -421,7 +421,7 @@ static struct ktermios DgapDefaultTermios =
 	.c_cflag =	(DEFAULT_CFLAGS),	/* cflags */
 	.c_lflag =	(DEFAULT_LFLAGS),	/* lflags */
 	.c_cc =		INIT_C_CC,
-	.c_line = 	0,
+	.c_line =	0,
 };
 
 static const struct tty_operations dgap_tty_ops = {
@@ -576,8 +576,11 @@ static int dgap_start(void)
 
 		dgap_driver_start = TRUE;
 
-	        /* make sure that the globals are init'd before we do anything else */
-	        dgap_init_globals();
+		/*
+		 * make sure that the globals are
+		 * init'd before we do anything else
+		 */
+		dgap_init_globals();
 
 		dgap_NumBoards = 0;
 
@@ -726,7 +729,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 {
 	int i = 0;
 
-        if(!brd || brd->magic != DGAP_BOARD_MAGIC)
+	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
 		return;
 
 	if (brd->intr_used && brd->irq)
@@ -746,16 +749,16 @@ static void dgap_cleanup_board(struct board_t *brd)
 		brd->re_map_membase = NULL;
 	}
 
-        if (brd->msgbuf_head) {
-                unsigned long flags;
+	if (brd->msgbuf_head) {
+		unsigned long flags;
 
-                DGAP_LOCK(dgap_global_lock, flags);
-                brd->msgbuf = NULL;
-                printk("%s", brd->msgbuf_head);
-                kfree(brd->msgbuf_head);
-                brd->msgbuf_head = NULL;
-                DGAP_UNLOCK(dgap_global_lock, flags);
-        }
+		DGAP_LOCK(dgap_global_lock, flags);
+		brd->msgbuf = NULL;
+		printk("%s", brd->msgbuf_head);
+		kfree(brd->msgbuf_head);
+		brd->msgbuf_head = NULL;
+		DGAP_UNLOCK(dgap_global_lock, flags);
+	}
 
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++) {
@@ -770,7 +773,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 
 	dgap_Board[brd->boardnum] = NULL;
 
-        kfree(brd);
+	kfree(brd);
 }
 
 
@@ -910,7 +913,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 
 static int dgap_finalize_board_init(struct board_t *brd) {
 
-        int rc;
+	int rc;
 
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
 		return -ENODEV;
@@ -1095,7 +1098,7 @@ static int dgap_do_remap(struct board_t *brd)
 	if (!request_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000, "dgap")) {
 		release_mem_region(brd->membase, 0x200000);
 		return -ENOMEM;
-        }
+	}
 
 	brd->re_map_membase = ioremap(brd->membase, 0x200000);
 	if (!brd->re_map_membase) {
@@ -1145,8 +1148,8 @@ static int dgap_do_remap(struct board_t *brd)
 static void dgap_poll_handler(ulong dummy)
 {
 	int i;
-        struct board_t *brd;
-        unsigned long lock_flags;
+	struct board_t *brd;
+	unsigned long lock_flags;
 	ulong new_time;
 
 	dgap_poll_counter++;
@@ -1346,7 +1349,7 @@ static int dgap_tty_preinit(void)
 		return -ENOMEM;
 	}
 
-        DGAP_UNLOCK(dgap_global_lock, flags);
+	DGAP_UNLOCK(dgap_global_lock, flags);
 	return 0;
 }
 
@@ -1425,7 +1428,7 @@ static int dgap_tty_register(struct board_t *brd)
 
 	if (!brd->dgap_Major_TransparentPrint_Registered) {
 		/* Register Transparent Print devices */
- 		rc = tty_register_driver(brd->PrintDriver);
+		rc = tty_register_driver(brd->PrintDriver);
 		if (rc < 0)
 			return rc;
 		brd->dgap_Major_TransparentPrint_Registered = TRUE;
@@ -1847,8 +1850,10 @@ static void dgap_input(struct channel_t *ch)
 	 * If the device is not open, or CREAD is off, flush
 	 * input data and return immediately.
 	 */
-	if ((bd->state != BOARD_READY) || !tp  || (tp->magic != TTY_MAGIC) ||
-            !(ch->ch_tun.un_flags & UN_ISOPEN) || !(tp->termios.c_cflag & CREAD) ||
+	if ((bd->state != BOARD_READY) || !tp  ||
+	    (tp->magic != TTY_MAGIC) ||
+	    !(ch->ch_tun.un_flags & UN_ISOPEN) ||
+	    !(tp->termios.c_cflag & CREAD) ||
 	    (ch->ch_tun.un_flags & UN_CLOSING)) {
 
 		writew(head, &(bs->rx_tail));
@@ -1995,8 +2000,8 @@ static void dgap_carrier(struct channel_t *ch)
 {
 	struct board_t *bd;
 
-        int virt_carrier = 0;
-        int phys_carrier = 0;
+	int virt_carrier = 0;
+	int phys_carrier = 0;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
@@ -2203,7 +2208,7 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(brd->bd_lock, lock_flags);
 		return -ENXIO;
-        }
+	}
 
 	/*
 	 * Initialize tty's
@@ -2494,8 +2499,8 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 
 	if (ch->ch_open_count && un->un_open_count) {
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
-                return;
-        }
+		return;
+	}
 
 	/* OK, its the last close on the unit */
 
@@ -2505,7 +2510,7 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 
 	/*
 	 * Only officially close channel if count is 0 and
-         * DIGI_PRINTER bit is not set.
+	 * DIGI_PRINTER bit is not set.
 	 */
 	if ((ch->ch_open_count == 0) && !(ch->ch_digi.digi_flags & DIGI_PRINTER)) {
 
@@ -2604,7 +2609,7 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return 0;
 
-        bs = ch->ch_bs;
+	bs = ch->ch_bs;
 	if (!bs)
 		return 0;
 
@@ -2633,7 +2638,7 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 	 * 1) Transmit head and tail are equal (empty).
 	 * 2) Command queue head and tail are equal (empty).
 	 * 3) The "TBUSY" flag is 0. (Transmitter not busy).
- 	 */
+	 */
 
 	if ((ttail == thead) && (tbusy == 0) && (chead == ctail)) {
 		chars = 0;
@@ -2690,7 +2695,7 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return ret;
 
-        bs = ch->ch_bs;
+	bs = ch->ch_bs;
 	if (!bs)
 		return ret;
 
@@ -2794,7 +2799,7 @@ static inline void dgap_set_firmware_event(struct un_t *un, unsigned int event)
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
-        bs = ch->ch_bs;
+	bs = ch->ch_bs;
 	if (!bs)
 		return;
 
@@ -2838,7 +2843,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return 0;
 
-        bs = ch->ch_bs;
+	bs = ch->ch_bs;
 	if (!bs)
 		return 0;
 
@@ -2848,8 +2853,9 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	head = readw(&(bs->tx_head)) & tmask;
 	tail = readw(&(bs->tx_tail)) & tmask;
 
-        if ((ret = tail - head - 1) < 0)
-                ret += ch->ch_tsize;
+	ret = tail - head - 1;
+	if (ret < 0)
+		ret += ch->ch_tsize;
 
 	/* Limit printer to maxcps */
 	ret = dgap_maxcps_room(tty, ret);
@@ -2931,7 +2937,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return 0;
 
-        bs = ch->ch_bs;
+	bs = ch->ch_bs;
 	if (!bs)
 		return 0;
 
@@ -3103,7 +3109,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	/* Update printer buffer empty time. */
 	if ((un->un_type == DGAP_PRINT) && (ch->ch_digi.digi_maxcps > 0)
 	    && (ch->ch_digi.digi_bufsize > 0)) {
-                ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
+		ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
 	}
 
 	if (from_user) {
@@ -3144,8 +3150,8 @@ static int dgap_tty_tiocmget(struct tty_struct *tty)
 	DGAP_LOCK(ch->ch_lock, lock_flags);
 
 	mstat = readb(&(ch->ch_bs->m_stat));
-        /* Append any outbound signals that might be pending... */
-        mstat |= ch->ch_mostat;
+	/* Append any outbound signals that might be pending... */
+	mstat |= ch->ch_mostat;
 
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
@@ -3175,7 +3181,7 @@ static int dgap_tty_tiocmget(struct tty_struct *tty)
  */
 
 static int dgap_tty_tiocmset(struct tty_struct *tty,
-                unsigned int set, unsigned int clear)
+		unsigned int set, unsigned int clear)
 {
 	struct board_t *bd;
 	struct channel_t *ch;
@@ -3205,22 +3211,22 @@ static int dgap_tty_tiocmset(struct tty_struct *tty,
 	if (set & TIOCM_RTS) {
 		ch->ch_mforce |= D_RTS(ch);
 		ch->ch_mval   |= D_RTS(ch);
-        }
+	}
 
 	if (set & TIOCM_DTR) {
 		ch->ch_mforce |= D_DTR(ch);
 		ch->ch_mval   |= D_DTR(ch);
-        }
+	}
 
 	if (clear & TIOCM_RTS) {
 		ch->ch_mforce |= D_RTS(ch);
 		ch->ch_mval   &= ~(D_RTS(ch));
-        }
+	}
 
 	if (clear & TIOCM_DTR) {
 		ch->ch_mforce |= D_DTR(ch);
 		ch->ch_mval   &= ~(D_DTR(ch));
-        }
+	}
 
 	dgap_param(tty);
 
@@ -3443,12 +3449,12 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 		if (arg & TIOCM_RTS) {
 			ch->ch_mforce |= D_RTS(ch);
 			ch->ch_mval   |= D_RTS(ch);
-        	}
+		}
 
 		if (arg & TIOCM_DTR) {
 			ch->ch_mforce |= D_DTR(ch);
 			ch->ch_mval   |= D_DTR(ch);
-        	}
+		}
 
 		break;
 
@@ -3456,28 +3462,28 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 		if (arg & TIOCM_RTS) {
 			ch->ch_mforce |= D_RTS(ch);
 			ch->ch_mval   &= ~(D_RTS(ch));
-        	}
+		}
 
 		if (arg & TIOCM_DTR) {
 			ch->ch_mforce |= D_DTR(ch);
 			ch->ch_mval   &= ~(D_DTR(ch));
-        	}
+		}
 
 		break;
 
-        case TIOCMSET:
+	case TIOCMSET:
 		ch->ch_mforce = D_DTR(ch)|D_RTS(ch);
 
 		if (arg & TIOCM_RTS) {
 			ch->ch_mval |= D_RTS(ch);
-        	}
+		}
 		else {
 			ch->ch_mval &= ~(D_RTS(ch));
 		}
 
 		if (arg & TIOCM_DTR) {
 			ch->ch_mval |= (D_DTR(ch));
-        	}
+		}
 		else {
 			ch->ch_mval &= ~(D_DTR(ch));
 		}
@@ -3849,8 +3855,8 @@ static void dgap_tty_throttle(struct tty_struct *tty)
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
 
 	bd = ch->ch_bd;
@@ -3886,8 +3892,8 @@ static void dgap_tty_unthrottle(struct tty_struct *tty)
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
 
 	bd = ch->ch_bd;
@@ -3923,8 +3929,8 @@ static void dgap_tty_start(struct tty_struct *tty)
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
 
 	bd = ch->ch_bd;
@@ -3957,8 +3963,8 @@ static void dgap_tty_stop(struct tty_struct *tty)
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
 
 	bd = ch->ch_bd;
@@ -4004,8 +4010,8 @@ static void dgap_tty_flush_chars(struct tty_struct *tty)
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
 
 	bd = ch->ch_bd;
@@ -4044,8 +4050,8 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
 
 	bd = ch->ch_bd;
@@ -4163,7 +4169,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 
 	case TCSBRKP:
- 		/* support for POSIX tcsendbreak()
+		/* support for POSIX tcsendbreak()
 
 		 * According to POSIX.1 spec (7.2.2.1.2) breaks should be
 		 * between 0.25 and 0.5 seconds so we'll ask for something
@@ -4190,7 +4196,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		return 0;
 
-        case TIOCSBRK:
+	case TIOCSBRK:
 		/*
 		 * FEP5 doesn't support turning on a break unconditionally.
 		 * The FEP5 device will stop sending a break automatically
@@ -4218,7 +4224,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		return 0;
 
-        case TIOCCBRK:
+	case TIOCCBRK:
 		/*
 		 * FEP5 doesn't support turning off a break unconditionally.
 		 * The FEP5 device will stop sending a break automatically
@@ -6803,7 +6809,7 @@ static ssize_t dgap_tty_name_show(struct device *d, struct device_attribute *att
 	if (bd->state != BOARD_READY)
 		return 0;
 
-        bn = bd->boardnum;
+	bn = bd->boardnum;
 	cn = ch->ch_portnum;
 
 	for (cptr = bd->bd_config; cptr; cptr = cptr->next) {
@@ -7740,7 +7746,7 @@ static char *dgap_getword(char **in)
 {
 	char *ret_ptr = *in;
 
-        char *ptr = dgap_sindex(*in, " \t\n");
+	char *ptr = dgap_sindex(*in, " \t\n");
 
 	/* If no word found, return null */
 	if (!ptr)
