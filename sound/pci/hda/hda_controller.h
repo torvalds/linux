@@ -32,26 +32,15 @@ unsigned int azx_get_position(struct azx *chip,
 			      bool with_check);
 
 /* Stream control. */
-void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev);
 void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev);
-void azx_stream_reset(struct azx *chip, struct azx_dev *azx_dev);
-int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev);
-int setup_bdle(struct azx *chip,
-	       struct snd_dma_buffer *dmab,
-	       struct azx_dev *azx_dev, u32 **bdlp,
-	       int ofs, int size, int with_ioc);
 
-/* DSP lock helpers */
 #ifdef CONFIG_SND_HDA_DSP_LOADER
-#define dsp_lock_init(dev)	mutex_init(&(dev)->dsp_mutex)
-#define dsp_lock(dev)		mutex_lock(&(dev)->dsp_mutex)
-#define dsp_unlock(dev)		mutex_unlock(&(dev)->dsp_mutex)
-#define dsp_is_locked(dev)	((dev)->locked)
-#else
-#define dsp_lock_init(dev)	do {} while (0)
-#define dsp_lock(dev)		do {} while (0)
-#define dsp_unlock(dev)		do {} while (0)
-#define dsp_is_locked(dev)	0
+int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
+			 unsigned int byte_size,
+			 struct snd_dma_buffer *bufp);
+void azx_load_dsp_trigger(struct hda_bus *bus, bool start);
+void azx_load_dsp_cleanup(struct hda_bus *bus,
+			  struct snd_dma_buffer *dmab);
 #endif
 
 /* Allocation functions. */

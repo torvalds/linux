@@ -33,12 +33,25 @@
 #define CREATE_TRACE_POINTS
 #include "hda_intel_trace.h"
 
+/* DSP lock helpers */
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+#define dsp_lock_init(dev)	mutex_init(&(dev)->dsp_mutex)
+#define dsp_lock(dev)		mutex_lock(&(dev)->dsp_mutex)
+#define dsp_unlock(dev)		mutex_unlock(&(dev)->dsp_mutex)
+#define dsp_is_locked(dev)	((dev)->locked)
+#else
+#define dsp_lock_init(dev)	do {} while (0)
+#define dsp_lock(dev)		do {} while (0)
+#define dsp_unlock(dev)		do {} while (0)
+#define dsp_is_locked(dev)	0
+#endif
+
 /*
  * AZX stream operations.
  */
 
 /* start a stream */
-void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
+static void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
 {
 	/*
 	 * Before stream start, initialize parameter
@@ -53,7 +66,6 @@ void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
 		      azx_sd_readb(chip, azx_dev, SD_CTL) |
 		      SD_CTL_DMA_START | SD_INT_MASK);
 }
-EXPORT_SYMBOL_GPL(azx_stream_start);
 
 /* stop DMA */
 static void azx_stream_clear(struct azx *chip, struct azx_dev *azx_dev)
@@ -75,7 +87,7 @@ void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev)
 EXPORT_SYMBOL_GPL(azx_stream_stop);
 
 /* reset stream */
-void azx_stream_reset(struct azx *chip, struct azx_dev *azx_dev)
+static void azx_stream_reset(struct azx *chip, struct azx_dev *azx_dev)
 {
 	unsigned char val;
 	int timeout;
@@ -103,12 +115,11 @@ void azx_stream_reset(struct azx *chip, struct azx_dev *azx_dev)
 	/* reset first position - may not be synced with hw at this time */
 	*azx_dev->posbuf = 0;
 }
-EXPORT_SYMBOL_GPL(azx_stream_reset);
 
 /*
  * set up the SD for streaming
  */
-int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
+static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 {
 	unsigned int val;
 	/* make sure the run bit is zero for SD */
@@ -152,7 +163,6 @@ int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(azx_setup_controller);
 
 /* assign a stream for the PCM */
 static inline struct azx_dev *
@@ -267,10 +277,10 @@ static u64 azx_adjust_codec_delay(struct snd_pcm_substream *substream,
 /*
  * set up a BDL entry
  */
-int setup_bdle(struct azx *chip,
-	       struct snd_dma_buffer *dmab,
-	       struct azx_dev *azx_dev, u32 **bdlp,
-	       int ofs, int size, int with_ioc)
+static int setup_bdle(struct azx *chip,
+		      struct snd_dma_buffer *dmab,
+		      struct azx_dev *azx_dev, u32 **bdlp,
+		      int ofs, int size, int with_ioc)
 {
 	u32 *bdl = *bdlp;
 
@@ -306,7 +316,6 @@ int setup_bdle(struct azx *chip,
 	*bdlp = bdl;
 	return ofs;
 }
-EXPORT_SYMBOL_GPL(setup_bdle);
 
 /*
  * set up BDL entries
@@ -1013,6 +1022,124 @@ int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(azx_attach_pcm_stream);
+
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+/*
+ * DSP loading code (e.g. for CA0132)
+ */
+
+/* use the first stream for loading DSP */
+static struct azx_dev *
+azx_get_dsp_loader_dev(struct azx *chip)
+{
+	return &chip->azx_dev[chip->playback_index_offset];
+}
+
+int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
+			 unsigned int byte_size,
+			 struct snd_dma_buffer *bufp)
+{
+	u32 *bdl;
+	struct azx *chip = bus->private_data;
+	struct azx_dev *azx_dev;
+	int err;
+
+	azx_dev = azx_get_dsp_loader_dev(chip);
+
+	dsp_lock(azx_dev);
+	spin_lock_irq(&chip->reg_lock);
+	if (azx_dev->running || azx_dev->locked) {
+		spin_unlock_irq(&chip->reg_lock);
+		err = -EBUSY;
+		goto unlock;
+	}
+	azx_dev->prepared = 0;
+	chip->saved_azx_dev = *azx_dev;
+	azx_dev->locked = 1;
+	spin_unlock_irq(&chip->reg_lock);
+
+	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV_SG,
+					 byte_size, bufp);
+	if (err < 0)
+		goto err_alloc;
+
+	azx_dev->bufsize = byte_size;
+	azx_dev->period_bytes = byte_size;
+	azx_dev->format_val = format;
+
+	azx_stream_reset(chip, azx_dev);
+
+	/* reset BDL address */
+	azx_sd_writel(chip, azx_dev, SD_BDLPL, 0);
+	azx_sd_writel(chip, azx_dev, SD_BDLPU, 0);
+
+	azx_dev->frags = 0;
+	bdl = (u32 *)azx_dev->bdl.area;
+	err = setup_bdle(chip, bufp, azx_dev, &bdl, 0, byte_size, 0);
+	if (err < 0)
+		goto error;
+
+	azx_setup_controller(chip, azx_dev);
+	dsp_unlock(azx_dev);
+	return azx_dev->stream_tag;
+
+ error:
+	chip->ops->dma_free_pages(chip, bufp);
+ err_alloc:
+	spin_lock_irq(&chip->reg_lock);
+	if (azx_dev->opened)
+		*azx_dev = chip->saved_azx_dev;
+	azx_dev->locked = 0;
+	spin_unlock_irq(&chip->reg_lock);
+ unlock:
+	dsp_unlock(azx_dev);
+	return err;
+}
+EXPORT_SYMBOL_GPL(azx_load_dsp_prepare);
+
+void azx_load_dsp_trigger(struct hda_bus *bus, bool start)
+{
+	struct azx *chip = bus->private_data;
+	struct azx_dev *azx_dev = azx_get_dsp_loader_dev(chip);
+
+	if (start)
+		azx_stream_start(chip, azx_dev);
+	else
+		azx_stream_stop(chip, azx_dev);
+	azx_dev->running = start;
+}
+EXPORT_SYMBOL_GPL(azx_load_dsp_trigger);
+
+void azx_load_dsp_cleanup(struct hda_bus *bus,
+			  struct snd_dma_buffer *dmab)
+{
+	struct azx *chip = bus->private_data;
+	struct azx_dev *azx_dev = azx_get_dsp_loader_dev(chip);
+
+	if (!dmab->area || !azx_dev->locked)
+		return;
+
+	dsp_lock(azx_dev);
+	/* reset BDL address */
+	azx_sd_writel(chip, azx_dev, SD_BDLPL, 0);
+	azx_sd_writel(chip, azx_dev, SD_BDLPU, 0);
+	azx_sd_writel(chip, azx_dev, SD_CTL, 0);
+	azx_dev->bufsize = 0;
+	azx_dev->period_bytes = 0;
+	azx_dev->format_val = 0;
+
+	chip->ops->dma_free_pages(chip, dmab);
+	dmab->area = NULL;
+
+	spin_lock_irq(&chip->reg_lock);
+	if (azx_dev->opened)
+		*azx_dev = chip->saved_azx_dev;
+	azx_dev->locked = 0;
+	spin_unlock_irq(&chip->reg_lock);
+	dsp_unlock(azx_dev);
+}
+EXPORT_SYMBOL_GPL(azx_load_dsp_cleanup);
+#endif /* CONFIG_SND_HDA_DSP_LOADER */
 
 int azx_alloc_stream_pages(struct azx *chip)
 {
