@@ -8,3 +8,7 @@ obj-$(CONFIG_OF_IDLE_STATES)		  += of_idle_states.o
 
 obj-$(CONFIG_CPU_IDLE_CALXEDA) += cpuidle-calxeda.o
 obj-$(CONFIG_ARCH_KIRKWOOD) += cpuidle-kirkwood.o
+
+###############################################################################
+# ARM64 drivers
+obj-$(CONFIG_ARM64_CPUIDLE)		+= cpuidle-arm64.o
