@@ -1221,7 +1221,7 @@ struct btrfs_caching_control {
 	struct list_head list;
 	struct mutex mutex;
 	wait_queue_head_t wait;
-	struct btrfs_work work;
+	struct btrfs_work_struct work;
 	struct btrfs_block_group_cache *block_group;
 	u64 progress;
 	atomic_t count;
@@ -1516,7 +1516,7 @@ struct btrfs_fs_info {
 	struct btrfs_workqueue_struct *endio_write_workers;
 	struct btrfs_workqueue_struct *endio_freespace_worker;
 	struct btrfs_workqueue_struct *submit_workers;
-	struct btrfs_workers caching_workers;
+	struct btrfs_workqueue_struct *caching_workers;
 	struct btrfs_workers readahead_workers;
 
 	/*
