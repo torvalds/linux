@@ -1505,7 +1505,7 @@ struct btrfs_fs_info {
 	 * two
 	 */
 	struct btrfs_workers generic_worker;
-	struct btrfs_workers workers;
+	struct btrfs_workqueue_struct *workers;
 	struct btrfs_workers delalloc_workers;
 	struct btrfs_workers flush_workers;
 	struct btrfs_workers endio_workers;

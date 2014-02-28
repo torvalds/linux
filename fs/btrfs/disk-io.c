@@ -108,7 +108,7 @@ struct async_submit_bio {
 	 * can't tell us where in the file the bio should go
 	 */
 	u64 bio_offset;
-	struct btrfs_work work;
+	struct btrfs_work_struct work;
 	int error;
 };
 
@@ -738,12 +738,12 @@ int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info)
 {
 	unsigned long limit = min_t(unsigned long,
-				    info->workers.max_workers,
+				    info->thread_pool_size,
 				    info->fs_devices->open_devices);
 	return 256 * limit;
 }
 
-static void run_one_async_start(struct btrfs_work *work)
+static void run_one_async_start(struct btrfs_work_struct *work)
 {
 	struct async_submit_bio *async;
 	int ret;
@@ -756,7 +756,7 @@ static void run_one_async_start(struct btrfs_work *work)
 		async->error = ret;
 }
 
-static void run_one_async_done(struct btrfs_work *work)
+static void run_one_async_done(struct btrfs_work_struct *work)
 {
 	struct btrfs_fs_info *fs_info;
 	struct async_submit_bio *async;
@@ -783,7 +783,7 @@ static void run_one_async_done(struct btrfs_work *work)
 			       async->bio_offset);
 }
 
-static void run_one_async_free(struct btrfs_work *work)
+static void run_one_async_free(struct btrfs_work_struct *work)
 {
 	struct async_submit_bio *async;
 
@@ -811,11 +811,9 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	async->submit_bio_start = submit_bio_start;
 	async->submit_bio_done = submit_bio_done;
 
-	async->work.func = run_one_async_start;
-	async->work.ordered_func = run_one_async_done;
-	async->work.ordered_free = run_one_async_free;
+	btrfs_init_work(&async->work, run_one_async_start,
+			run_one_async_done, run_one_async_free);
 
-	async->work.flags = 0;
 	async->bio_flags = bio_flags;
 	async->bio_offset = bio_offset;
 
@@ -824,9 +822,9 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	atomic_inc(&fs_info->nr_async_submits);
 
 	if (rw & REQ_SYNC)
-		btrfs_set_work_high_prio(&async->work);
+		btrfs_set_work_high_priority(&async->work);
 
-	btrfs_queue_worker(&fs_info->workers, &async->work);
+	btrfs_queue_work(fs_info->workers, &async->work);
 
 	while (atomic_read(&fs_info->async_submit_draining) &&
 	      atomic_read(&fs_info->nr_async_submits)) {
@@ -2000,7 +1998,7 @@ static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 	btrfs_stop_workers(&fs_info->generic_worker);
 	btrfs_stop_workers(&fs_info->fixup_workers);
 	btrfs_stop_workers(&fs_info->delalloc_workers);
-	btrfs_stop_workers(&fs_info->workers);
+	btrfs_destroy_workqueue(fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_workers);
 	btrfs_stop_workers(&fs_info->endio_raid56_workers);
@@ -2104,6 +2102,8 @@ int open_ctree(struct super_block *sb,
 	int err = -EINVAL;
 	int num_backups_tried = 0;
 	int backup_index = 0;
+	int max_active;
+	int flags = WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_UNBOUND;
 	bool create_uuid_tree;
 	bool check_uuid_tree;
 
@@ -2472,12 +2472,13 @@ int open_ctree(struct super_block *sb,
 		goto fail_alloc;
 	}
 
+	max_active = fs_info->thread_pool_size;
 	btrfs_init_workers(&fs_info->generic_worker,
 			   "genwork", 1, NULL);
 
-	btrfs_init_workers(&fs_info->workers, "worker",
-			   fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
+	fs_info->workers =
+		btrfs_alloc_workqueue("worker", flags | WQ_HIGHPRI,
+				      max_active, 16);
 
 	btrfs_init_workers(&fs_info->delalloc_workers, "delalloc",
 			   fs_info->thread_pool_size, NULL);
@@ -2497,9 +2498,6 @@ int open_ctree(struct super_block *sb,
 	 * devices
 	 */
 	fs_info->submit_workers.idle_thresh = 64;
-
-	fs_info->workers.idle_thresh = 16;
-	fs_info->workers.ordered = 1;
 
 	fs_info->delalloc_workers.idle_thresh = 2;
 	fs_info->delalloc_workers.ordered = 1;
@@ -2552,8 +2550,7 @@ int open_ctree(struct super_block *sb,
 	 * btrfs_start_workers can really only fail because of ENOMEM so just
 	 * return -ENOMEM if any of these fail.
 	 */
-	ret = btrfs_start_workers(&fs_info->workers);
-	ret |= btrfs_start_workers(&fs_info->generic_worker);
+	ret = btrfs_start_workers(&fs_info->generic_worker);
 	ret |= btrfs_start_workers(&fs_info->submit_workers);
 	ret |= btrfs_start_workers(&fs_info->delalloc_workers);
 	ret |= btrfs_start_workers(&fs_info->fixup_workers);
@@ -2570,6 +2567,10 @@ int open_ctree(struct super_block *sb,
 	ret |= btrfs_start_workers(&fs_info->flush_workers);
 	ret |= btrfs_start_workers(&fs_info->qgroup_rescan_workers);
 	if (ret) {
+		err = -ENOMEM;
+		goto fail_sb_buffer;
+	}
+	if (!(fs_info->workers)) {
 		err = -ENOMEM;
 		goto fail_sb_buffer;
 	}
