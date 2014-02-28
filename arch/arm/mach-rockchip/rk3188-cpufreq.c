@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  *
  */
-
 #define pr_fmt(fmt) "cpufreq: " fmt
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
@@ -78,22 +77,22 @@ static unsigned int suspend_volt = 1000000; // 1V
 static unsigned int low_battery_freq = 600 * 1000;
 //static unsigned int low_battery_capacity = 5; // 5%
 static bool is_booting = true;
-
 static struct workqueue_struct *freq_wq;
-static struct clk *cpu_clk;
-
 static DEFINE_MUTEX(cpufreq_mutex);
-
-static struct clk *gpu_clk;
 static bool gpu_is_mali400;
-static struct clk *ddr_clk;
+struct dvfs_node *clk_cpu_dvfs_node = NULL;
+struct dvfs_node *clk_gpu_dvfs_node = NULL;
+struct dvfs_node *clk_ddr_dvfs_node = NULL;
 
-static int cpufreq_scale_rate_for_dvfs(struct clk_hw *hw, unsigned long rate, dvfs_set_rate_callback set_rate);
+static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate);
 
 /*******************************************************/
 static unsigned int rk3188_cpufreq_get(unsigned int cpu)
 {
-	return clk_get_rate(cpu_clk) / 1000;
+	if (clk_cpu_dvfs_node)
+		return clk_get_rate(clk_cpu_dvfs_node->clk) / 1000;
+
+	return 0;
 }
 
 static bool cpufreq_is_ondemand(struct cpufreq_policy *policy)
@@ -384,31 +383,35 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	//struct cpufreq_frequency_table *table_adjust;
 
 	gpu_is_mali400 = cpu_is_rk3188();
-	gpu_clk = clk_get(NULL, "clk_gpu");
-	if (IS_ERR(gpu_clk))
-		return PTR_ERR(gpu_clk);
 
-	ddr_clk = clk_get(NULL, "clk_ddr");
-	if (IS_ERR(ddr_clk))
-		return PTR_ERR(ddr_clk);
+	clk_gpu_dvfs_node = clk_get_dvfs_node("clk_gpu");
+	if (!clk_gpu_dvfs_node){
+		return -EINVAL;
+	}
 
-	cpu_clk = clk_get(NULL, "clk_core");
-	if (IS_ERR(cpu_clk))
-		return PTR_ERR(cpu_clk);
+	clk_ddr_dvfs_node = clk_get_dvfs_node("clk_ddr");
+	if (!clk_ddr_dvfs_node){
+		return -EINVAL;
+	}
+
+	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");
+	if (!clk_cpu_dvfs_node){
+		return -EINVAL;
+	}
 
 	//table_adjust = dvfs_get_freq_volt_table(cpu_clk);
 	//dvfs_adjust_table_lmtvolt(cpu_clk, table_adjust);
 	//table_adjust = dvfs_get_freq_volt_table(gpu_clk);
 	//dvfs_adjust_table_lmtvolt(gpu_clk, table_adjust);
 
-	clk_enable_dvfs(gpu_clk);
+	clk_enable_dvfs(clk_gpu_dvfs_node);
 	if (gpu_is_mali400)
-		clk_dvfs_enable_limit(gpu_clk, 133000000, 600000000);
+		dvfs_clk_enable_limit(clk_gpu_dvfs_node, 133000000, 600000000);
 
-	clk_enable_dvfs(ddr_clk);
+	clk_enable_dvfs(clk_ddr_dvfs_node);
 
-	clk_dvfs_register_set_rate_callback(cpu_clk, cpufreq_scale_rate_for_dvfs);
-	freq_table = dvfs_get_freq_volt_table(cpu_clk);
+	dvfs_clk_register_set_rate_callback(clk_cpu_dvfs_node, cpufreq_scale_rate_for_dvfs);
+	freq_table = dvfs_get_freq_volt_table(clk_cpu_dvfs_node);
 	if (freq_table == NULL) {
 		freq_table = default_freq_table;
 	} else {
@@ -421,7 +424,7 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 		}
 	}
 	low_battery_freq = get_freq_from_table(low_battery_freq);
-	clk_enable_dvfs(cpu_clk);
+	clk_enable_dvfs(clk_cpu_dvfs_node);
 	/*if(rk_tflag()){
 #define RK3188_T_LIMIT_FREQ	(1416 * 1000)
 		dvfs_clk_enable_limit(cpu_clk, 0, RK3188_T_LIMIT_FREQ * 1000);
@@ -445,11 +448,14 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 
 static int rk3188_cpufreq_init(struct cpufreq_policy *policy)
 {
+	static int cpu0_err;
+	
 	if (policy->cpu == 0) {
-		int err = rk3188_cpufreq_init_cpu0(policy);
-		if (err)
-			return err;
+		cpu0_err = rk3188_cpufreq_init_cpu0(policy);
 	}
+	
+	if (cpu0_err)
+		return cpu0_err;
 	
 	//set freq min max
 	cpufreq_frequency_table_cpuinfo(policy, freq_table);
@@ -481,7 +487,7 @@ static int rk3188_cpufreq_exit(struct cpufreq_policy *policy)
 		return 0;
 
 	cpufreq_frequency_table_cpuinfo(policy, freq_table);
-	clk_put(cpu_clk);
+//	clk_put(clk_cpu_dvfs_node->clk);
 	rk3188_cpufreq_temp_limit_exit();
 	if (freq_wq) {
 		flush_workqueue(freq_wq);
@@ -547,12 +553,11 @@ static unsigned int cpufreq_scale_limit(unsigned int target_freq, struct cpufreq
 	return target_freq;
 }
 
-static int cpufreq_scale_rate_for_dvfs(struct clk_hw *hw, unsigned long rate, dvfs_set_rate_callback set_rate)
+static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate)
 {
 
 	unsigned int i;
 	int ret;
-	struct clk *clk = hw->clk;
 	struct cpufreq_freqs freqs;
 	struct cpufreq_policy *policy;
 	
@@ -567,7 +572,7 @@ static int cpufreq_scale_rate_for_dvfs(struct clk_hw *hw, unsigned long rate, dv
 	
 	FREQ_DBG("cpufreq_scale_rate_for_dvfs(%lu)\n", rate);
 	
-	ret = set_rate(hw, rate, rate);
+	ret = clk_set_rate(clk, rate);
 
 #ifdef CONFIG_SMP
 	/*
@@ -630,11 +635,11 @@ static int rk3188_cpufreq_target(struct cpufreq_policy *policy, unsigned int tar
 		new_freq = cpufreq_scale_limit(new_freq, policy, is_private);
 
 	new_rate = new_freq * 1000;
-	cur_rate = clk_get_rate(cpu_clk);
+	cur_rate = clk_get_rate(clk_cpu_dvfs_node->clk);
 	FREQ_LOG("req = %7u new = %7u (was = %7u)\n", target_freq, new_freq, cur_rate / 1000);
 	if (new_rate == cur_rate)
 		goto out;
-	ret = clk_set_rate(cpu_clk, new_rate);
+	ret = dvfs_clk_set_rate(clk_cpu_dvfs_node, new_rate);
 
 out:
 	FREQ_DBG("set freq (%7u) end, ret %d\n", new_freq, ret);
