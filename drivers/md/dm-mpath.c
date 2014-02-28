@@ -375,9 +375,13 @@ static int __must_push_back(struct multipath *m)
 
 #define pg_ready(m) (!(m)->queue_io && !(m)->pg_init_required)
 
-static int map_io(struct multipath *m, struct request *clone,
-		  union map_info *map_context)
+/*
+ * Map cloned requests
+ */
+static int multipath_map(struct dm_target *ti, struct request *clone,
+			 union map_info *map_context)
 {
+	struct multipath *m = (struct multipath *) ti->private;
 	int r = DM_MAPIO_REQUEUE;
 	size_t nr_bytes = blk_rq_bytes(clone);
 	unsigned long flags;
@@ -906,17 +910,6 @@ static void multipath_dtr(struct dm_target *ti)
 
 	flush_multipath_work(m);
 	free_multipath(m);
-}
-
-/*
- * Map cloned requests
- */
-static int multipath_map(struct dm_target *ti, struct request *clone,
-			 union map_info *map_context)
-{
-	struct multipath *m = (struct multipath *) ti->private;
-
-	return map_io(m, clone, map_context);
 }
 
 /*
