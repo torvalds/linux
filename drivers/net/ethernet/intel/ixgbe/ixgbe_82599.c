@@ -2395,7 +2395,8 @@ static s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw)
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 
 	/* Write AUTOC register with toggled LMS[2] bit and Restart_AN */
-	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg ^ IXGBE_AUTOC_LMS_1G_AN);
+	IXGBE_WRITE_REG(hw, IXGBE_AUTOC,
+			autoc_reg ^ (0x4 << IXGBE_AUTOC_LMS_SHIFT));
 
 	/* Wait for AN to leave state 0 */
 	for (i = 0; i < 10; i++) {
