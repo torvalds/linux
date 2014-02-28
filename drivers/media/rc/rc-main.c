@@ -633,12 +633,18 @@ EXPORT_SYMBOL_GPL(rc_repeat);
 static void ir_do_keydown(struct rc_dev *dev, int scancode,
 			  u32 keycode, u8 toggle)
 {
+	struct rc_scancode_filter *filter;
 	bool new_event = !dev->keypressed ||
 			 dev->last_scancode != scancode ||
 			 dev->last_toggle != toggle;
 
 	if (new_event && dev->keypressed)
 		ir_do_keyup(dev, false);
+
+	/* Generic scancode filtering */
+	filter = &dev->scancode_filters[RC_FILTER_NORMAL];
+	if (filter->mask && ((scancode ^ filter->data) & filter->mask))
+		return;
 
 	input_event(dev->input_dev, EV_MSC, MSC_SCAN, scancode);
 
@@ -1019,9 +1025,7 @@ static ssize_t show_filter(struct device *device,
 		return -EINVAL;
 
 	mutex_lock(&dev->lock);
-	if (!dev->s_filter)
-		val = 0;
-	else if (fattr->mask)
+	if (fattr->mask)
 		val = dev->scancode_filters[fattr->type].mask;
 	else
 		val = dev->scancode_filters[fattr->type].data;
@@ -1069,7 +1073,7 @@ static ssize_t store_filter(struct device *device,
 		return ret;
 
 	/* Scancode filter not supported (but still accept 0) */
-	if (!dev->s_filter)
+	if (!dev->s_filter && fattr->type != RC_FILTER_NORMAL)
 		return val ? -EINVAL : count;
 
 	mutex_lock(&dev->lock);
@@ -1081,9 +1085,11 @@ static ssize_t store_filter(struct device *device,
 		local_filter.mask = val;
 	else
 		local_filter.data = val;
-	ret = dev->s_filter(dev, fattr->type, &local_filter);
-	if (ret < 0)
-		goto unlock;
+	if (dev->s_filter) {
+		ret = dev->s_filter(dev, fattr->type, &local_filter);
+		if (ret < 0)
+			goto unlock;
+	}
 
 	/* Success, commit the new filter */
 	*filter = local_filter;
