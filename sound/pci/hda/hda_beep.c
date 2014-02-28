@@ -139,7 +139,10 @@ static void turn_off_beep(struct hda_beep *beep)
 
 static void snd_hda_do_detach(struct hda_beep *beep)
 {
-	input_unregister_device(beep->dev);
+	if (beep->registered)
+		input_unregister_device(beep->dev);
+	else
+		input_free_device(beep->dev);
 	beep->dev = NULL;
 	turn_off_beep(beep);
 }
@@ -148,7 +151,6 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 {
 	struct input_dev *input_dev;
 	struct hda_codec *codec = beep->codec;
-	int err;
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
@@ -169,12 +171,6 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 	input_dev->dev.parent = &codec->dev;
 	input_set_drvdata(input_dev, beep);
 
-	err = input_register_device(input_dev);
-	if (err < 0) {
-		input_free_device(input_dev);
-		codec_err(codec, "hda_beep: unable to register input device\n");
-		return err;
-	}
 	beep->dev = input_dev;
 	return 0;
 }
@@ -243,6 +239,27 @@ void snd_hda_detach_beep_device(struct hda_codec *codec)
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hda_detach_beep_device);
+
+int snd_hda_register_beep_device(struct hda_codec *codec)
+{
+	struct hda_beep *beep = codec->beep;
+	int err;
+
+	if (!beep || !beep->dev)
+		return 0;
+
+	err = input_register_device(beep->dev);
+	if (err < 0) {
+		codec_err(codec, "hda_beep: unable to register input device\n");
+		input_free_device(beep->dev);
+		codec->beep = NULL;
+		kfree(beep);
+		return err;
+	}
+	beep->registered = true;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hda_register_beep_device);
 
 static bool ctl_has_mute(struct snd_kcontrol *kcontrol)
 {

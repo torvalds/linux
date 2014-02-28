@@ -5350,7 +5350,6 @@ EXPORT_SYMBOL_GPL(snd_hda_gen_init);
 void snd_hda_gen_free(struct hda_codec *codec)
 {
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_FREE);
-	snd_hda_detach_beep_device(codec);
 	snd_hda_gen_spec_free(codec->spec);
 	kfree(codec->spec);
 	codec->spec = NULL;

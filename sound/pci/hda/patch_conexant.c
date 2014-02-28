@@ -445,9 +445,7 @@ static int conexant_init(struct hda_codec *codec)
 
 static void conexant_free(struct hda_codec *codec)
 {
-	struct conexant_spec *spec = codec->spec;
-	snd_hda_detach_beep_device(codec);
-	kfree(spec);
+	kfree(codec->spec);
 }
 
 static const struct snd_kcontrol_new cxt_capture_mixers[] = {

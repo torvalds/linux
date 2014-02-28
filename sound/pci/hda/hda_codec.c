@@ -1379,14 +1379,19 @@ static unsigned int hda_set_power_state(struct hda_codec *codec,
 static int snd_hda_codec_dev_register(struct snd_device *device)
 {
 	struct hda_codec *codec = device->device_data;
+	int err = device_add(&codec->dev);
 
-	return device_add(&codec->dev);
+	if (err < 0)
+		return err;
+	snd_hda_register_beep_device(codec);
+	return 0;
 }
 
 static int snd_hda_codec_dev_disconnect(struct snd_device *device)
 {
 	struct hda_codec *codec = device->device_data;
 
+	snd_hda_detach_beep_device(codec);
 	device_del(&codec->dev);
 	return 0;
 }
@@ -2692,6 +2697,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 				  bus->pcm_dev_bits);
 		}
 	}
+	snd_hda_detach_beep_device(codec);
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
 	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
