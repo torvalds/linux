@@ -1178,8 +1178,8 @@ static uint8_t __bch_btree_mark_key(struct cache_set *c, int level,
 
 		g = PTR_BUCKET(c, k, i);
 
-		if (gen_after(g->gc_gen, PTR_GEN(k, i)))
-			g->gc_gen = PTR_GEN(k, i);
+		if (gen_after(g->last_gc, PTR_GEN(k, i)))
+			g->last_gc = PTR_GEN(k, i);
 
 		if (ptr_stale(c, k, i)) {
 			stale = max(stale, ptr_stale(c, k, i));
@@ -1631,7 +1631,7 @@ static void btree_gc_start(struct cache_set *c)
 
 	for_each_cache(ca, c, i)
 		for_each_bucket(b, ca) {
-			b->gc_gen = b->gen;
+			b->last_gc = b->gen;
 			if (!atomic_read(&b->pin)) {
 				SET_GC_MARK(b, 0);
 				SET_GC_SECTORS_USED(b, 0);
@@ -1693,7 +1693,6 @@ static size_t bch_btree_gc_finish(struct cache_set *c)
 			SET_GC_MARK(ca->buckets + *i, GC_MARK_METADATA);
 
 		for_each_bucket(b, ca) {
-			b->last_gc	= b->gc_gen;
 			c->need_gc	= max(c->need_gc, bucket_gc_gen(b));
 
 			if (atomic_read(&b->pin))

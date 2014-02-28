@@ -635,7 +635,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 		}
 
 		b->prio = le16_to_cpu(d->prio);
-		b->gen = b->last_gc = b->gc_gen = d->gen;
+		b->gen = b->last_gc = d->gen;
 	}
 }
 

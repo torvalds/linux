@@ -194,9 +194,9 @@ err:
 	mutex_unlock(&b->c->bucket_lock);
 	bch_extent_to_text(buf, sizeof(buf), k);
 	btree_bug(b,
-"inconsistent btree pointer %s: bucket %zi pin %i prio %i gen %i last_gc %i mark %llu gc_gen %i",
+"inconsistent btree pointer %s: bucket %zi pin %i prio %i gen %i last_gc %i mark %llu",
 		  buf, PTR_BUCKET_NR(b->c, k, i), atomic_read(&g->pin),
-		  g->prio, g->gen, g->last_gc, GC_MARK(g), g->gc_gen);
+		  g->prio, g->gen, g->last_gc, GC_MARK(g));
 	return true;
 }
 
@@ -515,9 +515,9 @@ err:
 	mutex_unlock(&b->c->bucket_lock);
 	bch_extent_to_text(buf, sizeof(buf), k);
 	btree_bug(b,
-"inconsistent extent pointer %s:\nbucket %zu pin %i prio %i gen %i last_gc %i mark %llu gc_gen %i",
+"inconsistent extent pointer %s:\nbucket %zu pin %i prio %i gen %i last_gc %i mark %llu",
 		  buf, PTR_BUCKET_NR(b->c, k, ptr), atomic_read(&g->pin),
-		  g->prio, g->gen, g->last_gc, GC_MARK(g), g->gc_gen);
+		  g->prio, g->gen, g->last_gc, GC_MARK(g));
 	return true;
 }
 

@@ -196,7 +196,6 @@ struct bucket {
 	uint16_t	prio;
 	uint8_t		gen;
 	uint8_t		last_gc; /* Most out of date gen in the btree */
-	uint8_t		gc_gen;
 	uint16_t	gc_mark; /* Bitfield used by GC. See below for field */
 };
 
@@ -588,7 +587,7 @@ struct cache_set {
 	uint16_t		min_prio;
 
 	/*
-	 * max(gen - gc_gen) for all buckets. When it gets too big we have to gc
+	 * max(gen - last_gc) for all buckets. When it gets too big we have to gc
 	 * to keep gens from wrapping around.
 	 */
 	uint8_t			need_gc;
