@@ -93,7 +93,7 @@
 #define __NR_settimeofday	79 /* ok */
 #define __NR_getgroups		80 /* ok */
 #define __NR_setgroups		81 /* ok */
-#define __NR_select		82 /* obsolete -> sys_pselect7 */
+#define __NR_select		82 /* obsolete -> sys_pselect6 */
 #define __NR_symlink		83 /* symlinkat */
 #define __NR_oldlstat		84 /* remove */
 #define __NR_readlink		85 /* obsolete -> sys_readlinkat */
@@ -320,7 +320,7 @@
 #define __NR_readlinkat		305 /* ok */
 #define __NR_fchmodat		306 /* ok */
 #define __NR_faccessat		307 /* ok */
-#define __NR_pselect6		308 /* obsolete -> sys_pselect7 */
+#define __NR_pselect6		308 /* ok */
 #define __NR_ppoll		309 /* ok */
 #define __NR_unshare		310 /* ok */
 #define __NR_set_robust_list	311 /* ok */
