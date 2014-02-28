@@ -413,7 +413,6 @@ static void azx_init_pci(struct azx *chip)
         }
 }
 
-
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev);
 
 /* called from IRQ */
@@ -431,70 +430,6 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 		queue_work(chip->bus->workq, &chip->irq_pending_work);
 	}
 	return 0;
-}
-
-/*
- * interrupt handler
- */
-static irqreturn_t azx_interrupt(int irq, void *dev_id)
-{
-	struct azx *chip = dev_id;
-	struct azx_dev *azx_dev;
-	u32 status;
-	u8 sd_status;
-	int i;
-
-#ifdef CONFIG_PM_RUNTIME
-	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
-		if (chip->card->dev->power.runtime_status != RPM_ACTIVE)
-			return IRQ_NONE;
-#endif
-
-	spin_lock(&chip->reg_lock);
-
-	if (chip->disabled) {
-		spin_unlock(&chip->reg_lock);
-		return IRQ_NONE;
-	}
-
-	status = azx_readl(chip, INTSTS);
-	if (status == 0 || status == 0xffffffff) {
-		spin_unlock(&chip->reg_lock);
-		return IRQ_NONE;
-	}
-	
-	for (i = 0; i < chip->num_streams; i++) {
-		azx_dev = &chip->azx_dev[i];
-		if (status & azx_dev->sd_int_sta_mask) {
-			sd_status = azx_sd_readb(chip, azx_dev, SD_STS);
-			azx_sd_writeb(chip, azx_dev, SD_STS, SD_INT_MASK);
-			if (!azx_dev->substream || !azx_dev->running ||
-			    !(sd_status & SD_INT_COMPLETE))
-				continue;
-			/* check whether this IRQ is really acceptable */
-			if (!chip->ops->position_check ||
-			    chip->ops->position_check(chip, azx_dev)) {
-				spin_unlock(&chip->reg_lock);
-				snd_pcm_period_elapsed(azx_dev->substream);
-				spin_lock(&chip->reg_lock);
-			}
-		}
-	}
-
-	/* clear rirb int */
-	status = azx_readb(chip, RIRBSTS);
-	if (status & RIRB_INT_MASK) {
-		if (status & RIRB_INT_RESPONSE) {
-			if (chip->driver_caps & AZX_DCAPS_RIRB_PRE_DELAY)
-				udelay(80);
-			azx_update_rirb(chip);
-		}
-		azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
-	}
-
-	spin_unlock(&chip->reg_lock);
-	
-	return IRQ_HANDLED;
 }
 
 /*

@@ -50,7 +50,6 @@ void azx_free_stream_pages(struct azx *chip);
 /*
  * CORB / RIRB interface
  */
-void azx_update_rirb(struct azx *chip);
 int azx_send_cmd(struct hda_bus *bus, unsigned int val);
 unsigned int azx_get_response(struct hda_bus *bus,
 			      unsigned int addr);
@@ -59,5 +58,6 @@ unsigned int azx_get_response(struct hda_bus *bus,
 void azx_init_chip(struct azx *chip, int full_reset);
 void azx_stop_chip(struct azx *chip);
 void azx_enter_link_reset(struct azx *chip);
+irqreturn_t azx_interrupt(int irq, void *dev_id);
 
 #endif /* __SOUND_HDA_CONTROLLER_H */
