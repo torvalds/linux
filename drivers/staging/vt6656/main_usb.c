@@ -767,26 +767,28 @@ static void device_free_tx_bufs(struct vnt_private *pDevice)
     return;
 }
 
-static void device_free_rx_bufs(struct vnt_private *pDevice)
+static void device_free_rx_bufs(struct vnt_private *priv)
 {
-	struct vnt_rcb *pRCB;
+	struct vnt_rcb *rcb;
 	int ii;
 
-    for (ii = 0; ii < pDevice->cbRD; ii++) {
+	for (ii = 0; ii < priv->cbRD; ii++) {
+		rcb = priv->apRCB[ii];
 
-        pRCB = pDevice->apRCB[ii];
-	/* deallocate URBs */
-        if (pRCB->pUrb) {
-            usb_kill_urb(pRCB->pUrb);
-            usb_free_urb(pRCB->pUrb);
-        }
-	/* deallocate skb */
-        if (pRCB->skb)
-            dev_kfree_skb(pRCB->skb);
-    }
-    kfree(pDevice->pRCBMem);
+		/* deallocate URBs */
+		if (rcb->pUrb) {
+			usb_kill_urb(rcb->pUrb);
+			usb_free_urb(rcb->pUrb);
+		}
 
-    return;
+		/* deallocate skb */
+		if (rcb->skb)
+			dev_kfree_skb(rcb->skb);
+	}
+
+	kfree(priv->pRCBMem);
+
+	return;
 }
 
 static void usb_device_reset(struct vnt_private *pDevice)
