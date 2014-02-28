@@ -16,13 +16,11 @@
 #define _RK30_DVFS_H_
 
 #include <linux/device.h>
-#include <linux/clk-private.h>
+#include <linux/clk-provider.h>
 
-typedef int (*dvfs_set_rate_callback)(struct clk_hw *hw, unsigned long rate,
-				unsigned long parent_rate);
-typedef int (*clk_dvfs_target_callback)(struct clk_hw *hw, unsigned long rate,
-                                        dvfs_set_rate_callback set_rate);
-typedef int (*clk_dvfs_node_disable_callback)(struct clk *clk,int on);
+struct dvfs_node;
+typedef int (*dvfs_set_rate_callback)(struct dvfs_node *clk_dvfs_node, unsigned long rate);
+typedef int (*clk_set_rate_callback)(struct clk *clk, unsigned long rate);
 
 /**
  * struct vd_node:	To Store All Voltage Domains' info
@@ -51,11 +49,9 @@ struct vd_node {
 	struct regulator	*regulator;
 	struct list_head	node;
 	struct list_head	pd_list;
-	struct list_head	req_volt_list;
-	//struct mutex		dvfs_mutex;
-	clk_dvfs_node_disable_callback	vd_clk_disable_target;
-	dvfs_set_rate_callback      vd_dvfs_target;
-	unsigned n_voltages;
+	struct mutex		mutex;
+	dvfs_set_rate_callback	vd_dvfs_target;
+	unsigned int 		n_voltages;
 	int volt_list[VD_VOL_LIST_CNT];
 };
 
@@ -78,10 +74,6 @@ struct pd_node {
 	struct list_head	clk_list;
 };
 
-struct clk_list{
-	struct dvfs_node		*clk_dvfs_node;
-	struct list_head	node;
-};
 /**
  * struct dvfs_node:	To Store All dvfs clocks' info
  * @name:		Dvfs clock's Name
@@ -100,7 +92,7 @@ struct dvfs_node {
 	const char		*name;
 	int			set_freq;	//KHZ
 	int			set_volt;	//MV
-	int			enable_dvfs;
+	int			enable_count;
 	int			freq_limit_en;	//sign if use limit frequency
 	unsigned int		min_rate;	//limit min frequency
 	unsigned int		max_rate;	//limit max frequency
@@ -108,13 +100,14 @@ struct dvfs_node {
 	struct clk 		*clk;
 	struct pd_node		*pd;
 	struct vd_node		*vd;
-	struct clk_list		clk_list;
+	struct list_head	node;
 	struct notifier_block	*dvfs_nb;
 	struct cpufreq_frequency_table	*dvfs_table;
-	struct clk_disable_ctr 		*disable_ctr;
-	const struct clk_ops		*origin_clk_ops;
-	clk_dvfs_target_callback 	clk_dvfs_target;
+	struct cpufreq_frequency_table	*condition_freq_table;
+	clk_set_rate_callback 	clk_dvfs_target;
 };
+
+
 
 #define DVFS_MHZ (1000*1000)
 #define DVFS_KHZ (1000)
@@ -122,7 +115,7 @@ struct dvfs_node {
 #define DVFS_V (1000*1000)
 #define DVFS_MV (1000)
 #if 0
-#define DVFS_DBG(fmt, args...) printk(KERN_DEBUG "DVFS DBG:\t"fmt, ##args)
+#define DVFS_DBG(fmt, args...) printk(KERN_INFO "DVFS DBG:\t"fmt, ##args)
 #else
 #define DVFS_DBG(fmt, args...) {while(0);}
 #endif
@@ -131,11 +124,8 @@ struct dvfs_node {
 #define DVFS_LOG(fmt, args...) printk(KERN_DEBUG "DVFS LOG:\t"fmt, ##args)
 #define DVFS_WARNING(fmt, args...) printk(KERN_WARNING "DVFS WARNING:\t"fmt, ##args)
 
-
-
 #define DVFS_SET_VOLT_FAILURE 	1
 #define DVFS_SET_VOLT_SUCCESS	0
-
 
 #define dvfs_regulator_get(dev,id) regulator_get((dev),(id))
 #define dvfs_regulator_put(regu) regulator_put((regu))
@@ -151,9 +141,6 @@ struct dvfs_node {
 #define clk_dvfs_node_get_rate_kz(a) (clk_get_rate((a))/1000)
 #define clk_dvfs_node_set_rate(a,b) clk_set_rate((a),(b))
 
-
-
-
 typedef void (*avs_init_fn)(void);
 typedef u8 (*avs_get_val_fn)(void);
 struct avs_ctr_st {
@@ -162,70 +149,47 @@ struct avs_ctr_st {
 };
 
 #ifdef CONFIG_DVFS
-int of_dvfs_init(void);
-int clk_dvfs_node_get_ref_volt(struct dvfs_node *clk_dvfs_node, int rate_khz,
-		struct cpufreq_frequency_table *clk_fv);
-int dvfs_reset_volt(struct vd_node *dvfs_vd);
-int dvfs_vd_get_newvolt_byclk(struct dvfs_node *clk_dvfs_node);
-int dvfs_vd_get_newvolt_bypd(struct vd_node *vd);
-int dvfs_scale_volt_bystep(struct vd_node *vd_clk, struct vd_node *vd_dep, int volt_new, int volt_dep_new,
-		int cur_clk_biger_than_dep, int cur_dep_biger_than_clk, int new_clk_biger_than_dep, int new_dep_biger_than_clk);
+struct dvfs_node *clk_get_dvfs_node(char *clk_name);
+void clk_put_dvfs_node(struct dvfs_node *clk_dvfs_node);
+unsigned long dvfs_clk_get_rate(struct dvfs_node *clk_dvfs_node);
+int dvfs_clk_set_rate(struct dvfs_node *clk_dvfs_node, unsigned long rate);
+int dvfs_clk_enable(struct dvfs_node *clk_dvfs_node);
+void dvfs_clk_disable(struct dvfs_node *clk_dvfs_node);
+int dvfs_clk_prepare_enable(struct dvfs_node *clk_dvfs_node);
+void dvfs_clk_disable_unprepare(struct dvfs_node *clk_dvfs_node);
+int dvfs_set_freq_volt_table(struct dvfs_node *clk_dvfs_node, struct cpufreq_frequency_table *table);
+int dvfs_clk_register_set_rate_callback(struct dvfs_node *clk_dvfs_node, clk_set_rate_callback clk_dvfs_target);
+int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate, unsigned max_rate);
+int dvfs_clk_disable_limit(struct dvfs_node *clk_dvfs_node);
+int clk_disable_dvfs(struct dvfs_node *clk_dvfs_node);
+int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node);
+struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct dvfs_node *clk_dvfs_node);
 int rk_regist_vd(struct vd_node *vd);
 int rk_regist_pd(struct pd_node *pd);
 int rk_regist_clk(struct dvfs_node *clk_dvfs_node);
-struct dvfs_node *dvfs_get_clk_dvfs_node_byname(char *name);
-int vd_regulator_round_volt(struct vd_node *vd, int volt,int flags);
-/*********************************if not define dvfs ,the following function is need defined func{}******************************/
-int dvfs_vd_clk_set_rate(struct clk_hw *hw, unsigned long rate,
-			    unsigned long parent_rate);
-int clk_enable_dvfs(struct clk *clk);
-int clk_disable_dvfs(struct clk *clk);
-void clk_dvfs_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target);
-struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk);
-int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table);
-struct regulator* dvfs_get_regulator(char *regulator_name);
-int clk_dvfs_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate);
-int clk_dvfs_disable_limit(struct clk *clk);
-int dvfs_scale_volt_direct(struct vd_node *vd_clk, int volt_new);
-/******************************** inline *******************************/
-static inline struct dvfs_node *clk_get_dvfs_info(struct clk *clk)
-{
-    return clk->private_data;
-}
-static inline bool dvfs_support_clk_set_rate(struct dvfs_node *dvfs_info)
-{
-	return (dvfs_info&&dvfs_info->enable_dvfs);
-}
-static inline bool dvfs_support_clk_disable(struct dvfs_node *dvfs_info)
-{
-	return (dvfs_info&&dvfs_info->disable_ctr&&dvfs_info->enable_dvfs);
-}
-/********************************avs*******************************/
-void avs_init(void);
-void avs_init_val_get(int index,int vol,char *s);
-int avs_set_scal_val(u8 avs_base);
-void avs_board_init(struct avs_ctr_st *data);
+int of_dvfs_init(void);
 
 #else
-static inline int of_dvfs_init(void){ return 0; };
-static inline bool dvfs_support_clk_set_rate(struct dvfs_node *dvfs_info) { return 0; }
-static inline bool dvfs_support_clk_disable(struct dvfs_node *dvfs_info) { return 0; }
-static inline int dvfs_vd_clk_set_rate(struct clk *clk, unsigned long rate) { return 0; }
-static inline int dvfs_vd_clk_disable(struct clk *clk, int on) { return 0; }
-static inline int clk_enable_dvfs(struct clk *clk) { return 0; }
-static inline int clk_disable_dvfs(struct clk *clk) { return 0; }
-static inline void clk_dvfs_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target) {}
-static inline struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk) { return NULL; }
-static inline int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table) { return 0; }
-static inline struct regulator* dvfs_get_regulator(char *regulator_name){ return NULL; }
-static inline int clk_dvfs_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate){ return 0; }
-static inline int clk_dvfs_disable_limit(struct clk *clk){ return 0; };
-static inline int dvfs_scale_volt_direct(struct vd_node *vd_clk, int volt_new){ return 0; };
 
-static inline void avs_init(void){};
-static inline void avs_init_val_get(int index, int vol, char *s){};
-static inline int avs_set_scal_val(u8 avs_base){ return 0; };
-static inline void avs_board_init(struct avs_ctr_st *data){ return 0; };
+static inline struct dvfs_node *clk_get_dvfs_node(char *clk_name){ return NULL; };
+static inline void clk_put_dvfs_node(struct dvfs_node *clk_dvfs_node){ return; };
+static inline unsigned long dvfs_clk_get_rate(struct dvfs_node *clk_dvfs_node){ return 0; };
+static inline int dvfs_clk_set_rate(struct dvfs_node *clk_dvfs_node, unsigned long rate){ return 0; };
+static inline int dvfs_clk_enable(struct dvfs_node *clk_dvfs_node){ return 0; };
+static inline void dvfs_clk_disable(struct dvfs_node *clk_dvfs_node){ };
+static inline int dvfs_clk_prepare_enable(struct dvfs_node *clk_dvfs_node){ return 0; };
+static inline void dvfs_clk_disable_unprepare(struct dvfs_node *clk_dvfs_node){ };
+static inline int dvfs_set_freq_volt_table(struct dvfs_node *clk_dvfs_node, struct cpufreq_frequency_table *table){ return 0; };
+static inline int dvfs_clk_register_set_rate_callback(struct dvfs_node *clk_dvfs_node, clk_set_rate_callback clk_dvfs_target){ return 0; };
+static inline int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate, unsigned max_rate){ return 0; };
+static inline int dvfs_clk_disable_limit(struct dvfs_node *clk_dvfs_node){ return 0; };
+static inline int clk_disable_dvfs(struct dvfs_node *clk_dvfs_node){ return 0; };
+static inline int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node){ return 0; };
+static inline struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct dvfs_node *clk_dvfs_node){ return NULL; };
+static inline int rk_regist_vd(struct vd_node *vd){ return 0; };
+static inline int rk_regist_pd(struct pd_node *pd){ return 0; };
+static inline int rk_regist_clk(struct dvfs_node *clk_dvfs_node){ return 0; };
+static inline int of_dvfs_init(void){ return 0; };
 #endif
 
 #endif
