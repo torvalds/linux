@@ -1641,6 +1641,47 @@ static void hci_cs_accept_phylink(struct hci_dev *hdev, u8 status)
 	amp_write_remote_assoc(hdev, cp->phy_handle);
 }
 
+static void hci_cs_le_create_conn(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_le_create_conn *cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	/* All connection failure handling is taken care of by the
+	 * hci_le_conn_failed function which is triggered by the HCI
+	 * request completion callbacks used for connecting.
+	 */
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_CREATE_CONN);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->peer_addr);
+	if (!conn)
+		goto unlock;
+
+	/* Store the initiator and responder address information which
+	 * is needed for SMP. These values will not change during the
+	 * lifetime of the connection.
+	 */
+	conn->init_addr_type = cp->own_address_type;
+	if (cp->own_address_type == ADDR_LE_DEV_RANDOM)
+		bacpy(&conn->init_addr, &hdev->random_addr);
+	else
+		bacpy(&conn->init_addr, &hdev->bdaddr);
+
+	conn->resp_addr_type = cp->peer_addr_type;
+	bacpy(&conn->resp_addr, &cp->peer_addr);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
 static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
@@ -2530,6 +2571,10 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_ACCEPT_PHY_LINK:
 		hci_cs_accept_phylink(hdev, ev->status);
+		break;
+
+	case HCI_OP_LE_CREATE_CONN:
+		hci_cs_le_create_conn(hdev, ev->status);
 		break;
 
 	default:
@@ -3715,6 +3760,39 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		if (ev->role == LE_CONN_ROLE_MASTER) {
 			conn->out = true;
 			conn->link_mode |= HCI_LM_MASTER;
+		}
+
+		/* If we didn't have a hci_conn object previously
+		 * but we're in master role this must be something
+		 * initiated using a white list. Since white list based
+		 * connections are not "first class citizens" we don't
+		 * have full tracking of them. Therefore, we go ahead
+		 * with a "best effort" approach of determining the
+		 * initiator address based on the HCI_PRIVACY flag.
+		 */
+		if (conn->out) {
+			conn->resp_addr_type = ev->bdaddr_type;
+			bacpy(&conn->resp_addr, &ev->bdaddr);
+			if (test_bit(HCI_PRIVACY, &hdev->dev_flags)) {
+				conn->init_addr_type = ADDR_LE_DEV_RANDOM;
+				bacpy(&conn->init_addr, &hdev->rpa);
+			} else {
+				hci_copy_identity_address(hdev,
+							  &conn->init_addr,
+							  &conn->init_addr_type);
+			}
+		} else {
+			/* Set the responder (our side) address type based on
+			 * the advertising address type.
+			 */
+			conn->resp_addr_type = hdev->adv_addr_type;
+			if (hdev->adv_addr_type == ADDR_LE_DEV_RANDOM)
+				bacpy(&conn->resp_addr, &hdev->random_addr);
+			else
+				bacpy(&conn->resp_addr, &hdev->bdaddr);
+
+			conn->init_addr_type = ev->bdaddr_type;
+			bacpy(&conn->init_addr, &ev->bdaddr);
 		}
 	}
 
