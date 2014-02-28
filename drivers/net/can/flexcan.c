@@ -1184,9 +1184,10 @@ static int flexcan_probe(struct platform_device *pdev)
 static int flexcan_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
+	struct flexcan_priv *priv = netdev_priv(dev);
 
 	unregister_flexcandev(dev);
-
+	netif_napi_del(&priv->napi);
 	free_candev(dev);
 
 	return 0;
