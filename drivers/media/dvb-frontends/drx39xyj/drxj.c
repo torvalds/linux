@@ -1550,8 +1550,6 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 		return -EREMOTEIO;
 	}
 
-	return 0;
-
 #ifdef DJH_DEBUG
 	struct drx39xxj_state *state = w_dev_addr->user_data;
 
