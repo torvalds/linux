@@ -276,16 +276,6 @@ typedef struct tagSPMKIDCandidateEvent {
     PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
 } SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
 
-/*++ 802.11h related */
-#define MAX_QUIET_COUNT     8
-
-typedef struct tagSQuietControl {
-    bool        bEnable;
-    u32       dwStartTime;
-    u8        byPeriod;
-    u16        wDuration;
-} SQuietControl, *PSQuietControl;
-
 /* The receive duplicate detection cache entry */
 typedef struct tagSCacheEntry{
     u16        wFmSequence;
