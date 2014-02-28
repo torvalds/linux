@@ -1525,7 +1525,7 @@ struct btrfs_fs_info {
 	 * for the sys_munmap function call path
 	 */
 	struct btrfs_workqueue_struct *fixup_workers;
-	struct btrfs_workers delayed_workers;
+	struct btrfs_workqueue_struct *delayed_workers;
 	struct task_struct *transaction_kthread;
 	struct task_struct *cleaner_kthread;
 	int thread_pool_size;
