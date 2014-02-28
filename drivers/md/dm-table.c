@@ -1618,6 +1618,25 @@ struct mapped_device *dm_table_get_md(struct dm_table *t)
 }
 EXPORT_SYMBOL(dm_table_get_md);
 
+void dm_table_run_md_queue_async(struct dm_table *t)
+{
+	struct mapped_device *md;
+	struct request_queue *queue;
+	unsigned long flags;
+
+	if (!dm_table_request_based(t))
+		return;
+
+	md = dm_table_get_md(t);
+	queue = dm_get_md_queue(md);
+	if (queue) {
+		spin_lock_irqsave(queue->queue_lock, flags);
+		blk_run_queue_async(queue);
+		spin_unlock_irqrestore(queue->queue_lock, flags);
+	}
+}
+EXPORT_SYMBOL(dm_table_run_md_queue_async);
+
 static int device_discard_capable(struct dm_target *ti, struct dm_dev *dev,
 				  sector_t start, sector_t len, void *data)
 {

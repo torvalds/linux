@@ -468,6 +468,11 @@ sector_t dm_get_size(struct mapped_device *md)
 	return get_capacity(md->disk);
 }
 
+struct request_queue *dm_get_md_queue(struct mapped_device *md)
+{
+	return md->queue;
+}
+
 struct dm_stats *dm_get_stats(struct mapped_device *md)
 {
 	return &md->stats;

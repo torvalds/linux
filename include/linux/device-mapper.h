@@ -463,6 +463,11 @@ struct mapped_device *dm_table_get_md(struct dm_table *t);
 void dm_table_event(struct dm_table *t);
 
 /*
+ * Run the queue for request-based targets.
+ */
+void dm_table_run_md_queue_async(struct dm_table *t);
+
+/*
  * The device must be suspended before calling this method.
  * Returns the previous table, which the caller must destroy.
  */
