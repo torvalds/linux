@@ -369,13 +369,13 @@ static unsigned __wa_xfer_is_done(struct wa_xfer *xfer)
 			break;
 		case WA_SEG_ERROR:
 			xfer->result = seg->result;
-			dev_dbg(dev, "xfer %p ID %08X#%u: ERROR result %zu(0x%08zX)\n",
+			dev_dbg(dev, "xfer %p ID %08X#%u: ERROR result %zi(0x%08zX)\n",
 				xfer, wa_xfer_id(xfer), seg->index, seg->result,
 				seg->result);
 			goto out;
 		case WA_SEG_ABORTED:
 			xfer->result = seg->result;
-			dev_dbg(dev, "xfer %p ID %08X#%u: ABORTED result %zu(0x%08zX)\n",
+			dev_dbg(dev, "xfer %p ID %08X#%u: ABORTED result %zi(0x%08zX)\n",
 				xfer, wa_xfer_id(xfer), seg->index, seg->result,
 				seg->result);
 			goto out;
@@ -2262,7 +2262,7 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 	}
 	if (usb_status & 0x80) {
 		seg->result = wa_xfer_status_to_errno(usb_status);
-		dev_err(dev, "DTI: xfer %p#:%08X:%u failed (0x%02x)\n",
+		dev_err(dev, "DTI: xfer %p 0x%08X:#%u failed (0x%02x)\n",
 			xfer, xfer->id, seg->index, usb_status);
 		seg->status = ((usb_status & 0x7F) == WA_XFER_STATUS_ABORTED) ?
 			WA_SEG_ABORTED : WA_SEG_ERROR;
@@ -2556,8 +2556,10 @@ static void wa_buf_in_cb(struct urb *urb)
 			}
 		} else {
 			rpipe = xfer->ep->hcpriv;
-			dev_dbg(dev, "xfer %p#%u: data in done (%zu bytes)\n",
-				xfer, seg->index, seg->result);
+			dev_dbg(dev,
+				"xfer %p 0x%08X#%u: data in done (%zu bytes)\n",
+				xfer, wa_xfer_id(xfer), seg->index,
+				seg->result);
 			rpipe_ready = rpipe_avail_inc(rpipe);
 			done = __wa_xfer_mark_seg_as_done(xfer, seg,
 					WA_SEG_DONE);
@@ -2575,8 +2577,9 @@ static void wa_buf_in_cb(struct urb *urb)
 		spin_lock_irqsave(&xfer->lock, flags);
 		rpipe = xfer->ep->hcpriv;
 		if (printk_ratelimit())
-			dev_err(dev, "xfer %p#%u: data in error %d\n",
-				xfer, seg->index, urb->status);
+			dev_err(dev, "xfer %p 0x%08X#%u: data in error %d\n",
+				xfer, wa_xfer_id(xfer), seg->index,
+				urb->status);
 		if (edc_inc(&wa->nep_edc, EDC_MAX_ERRORS,
 			    EDC_ERROR_TIMEFRAME)){
 			dev_err(dev, "DTO: URB max acceptable errors "
@@ -2670,11 +2673,15 @@ static void wa_dti_cb(struct urb *urb)
 					xfer_result->hdr.bNotifyType);
 				break;
 			}
-			usb_status = xfer_result->bTransferStatus & 0x3f;
-			if (usb_status == WA_XFER_STATUS_NOT_FOUND)
-				/* taken care of already */
-				break;
 			xfer_id = le32_to_cpu(xfer_result->dwTransferID);
+			usb_status = xfer_result->bTransferStatus & 0x3f;
+			if (usb_status == WA_XFER_STATUS_NOT_FOUND) {
+				/* taken care of already */
+				dev_dbg(dev, "%s: xfer 0x%08X#%u not found.\n",
+					__func__, xfer_id,
+					xfer_result->bTransferSegment & 0x7f);
+				break;
+			}
 			xfer = wa_xfer_get_by_id(wa, xfer_id);
 			if (xfer == NULL) {
 				/* FIXME: transaction not found. */
