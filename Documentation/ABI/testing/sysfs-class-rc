@@ -61,6 +61,25 @@ Description:
 		an error.
 		This value may be reset to 0 if the current protocol is altered.
 
+What:		/sys/class/rc/rcN/wakeup_protocols
+Date:		Feb 2014
+KernelVersion:	3.15
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Description:
+		Reading this file returns a list of available protocols to use
+		for the wakeup filter, something like:
+		    "rc5 rc6 nec jvc [sony]"
+		The enabled wakeup protocol is shown in [] brackets.
+		Writing "+proto" will add a protocol to the list of enabled
+		wakeup protocols.
+		Writing "-proto" will remove a protocol from the list of enabled
+		wakeup protocols.
+		Writing "proto" will use "proto" for wakeup events.
+		Writing "none" will disable wakeup.
+		Write fails with EINVAL if an invalid protocol combination or
+		unknown protocol name is used, or if wakeup is not supported by
+		the hardware.
+
 What:		/sys/class/rc/rcN/wakeup_filter
 Date:		Jan 2014
 KernelVersion:	3.15
@@ -74,7 +93,7 @@ Description:
 		scancodes which match the filter will wake the system from e.g.
 		suspend to RAM or power off.
 		Otherwise the write will fail with an error.
-		This value may be reset to 0 if the current protocol is altered.
+		This value may be reset to 0 if the wakeup protocol is altered.
 
 What:		/sys/class/rc/rcN/wakeup_filter_mask
 Date:		Jan 2014
@@ -89,4 +108,4 @@ Description:
 		scancodes which match the filter will wake the system from e.g.
 		suspend to RAM or power off.
 		Otherwise the write will fail with an error.
-		This value may be reset to 0 if the current protocol is altered.
+		This value may be reset to 0 if the wakeup protocol is altered.

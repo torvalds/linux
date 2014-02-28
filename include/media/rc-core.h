@@ -97,6 +97,8 @@ enum rc_filter_type {
  * @tx_resolution: resolution (in ns) of output sampler
  * @scancode_filters: scancode filters (indexed by enum rc_filter_type)
  * @change_protocol: allow changing the protocol used on hardware decoders
+ * @change_wakeup_protocol: allow changing the protocol used for wakeup
+ *	filtering
  * @open: callback to allow drivers to enable polling/irq when IR input device
  *	is opened.
  * @close: callback to allow drivers to disable polling/irq when IR input device
@@ -145,6 +147,7 @@ struct rc_dev {
 	u32				tx_resolution;
 	struct rc_scancode_filter	scancode_filters[RC_FILTER_MAX];
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	int				(*change_wakeup_protocol)(struct rc_dev *dev, u64 *rc_type);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);
 	int				(*s_tx_mask)(struct rc_dev *dev, u32 mask);

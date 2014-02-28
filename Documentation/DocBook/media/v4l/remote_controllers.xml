@@ -102,6 +102,22 @@ an error.</para>
 <para>This value may be reset to 0 if the current protocol is altered.</para>
 
 </section>
+<section id="sys_class_rc_rcN_wakeup_protocols">
+<title>/sys/class/rc/rcN/wakeup_protocols</title>
+<para>Reading this file returns a list of available protocols to use for the
+wakeup filter, something like:</para>
+<para><constant>rc5 rc6 nec jvc [sony]</constant></para>
+<para>The enabled wakeup protocol is shown in [] brackets.</para>
+<para>Writing "+proto" will add a protocol to the list of enabled wakeup
+protocols.</para>
+<para>Writing "-proto" will remove a protocol from the list of enabled wakeup
+protocols.</para>
+<para>Writing "proto" will use "proto" for wakeup events.</para>
+<para>Writing "none" will disable wakeup.</para>
+<para>Write fails with EINVAL if an invalid protocol combination or unknown
+protocol name is used, or if wakeup is not supported by the hardware.</para>
+
+</section>
 <section id="sys_class_rc_rcN_wakeup_filter">
 <title>/sys/class/rc/rcN/wakeup_filter</title>
 <para>Sets the scancode wakeup filter expected value.
@@ -112,7 +128,7 @@ to trigger a system wake event.</para>
 scancodes which match the filter will wake the system from e.g.
 suspend to RAM or power off.
 Otherwise the write will fail with an error.</para>
-<para>This value may be reset to 0 if the current protocol is altered.</para>
+<para>This value may be reset to 0 if the wakeup protocol is altered.</para>
 
 </section>
 <section id="sys_class_rc_rcN_wakeup_filter_mask">
@@ -125,7 +141,7 @@ expected value to trigger a system wake event.</para>
 scancodes which match the filter will wake the system from e.g.
 suspend to RAM or power off.
 Otherwise the write will fail with an error.</para>
-<para>This value may be reset to 0 if the current protocol is altered.</para>
+<para>This value may be reset to 0 if the wakeup protocol is altered.</para>
 </section>
 </section>
 
