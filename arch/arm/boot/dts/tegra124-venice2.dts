@@ -761,12 +761,10 @@
 					regulator-max-microvolt = <1200000>;
 				};
 
-				ldo6 {
+				vddio_sdmmc3: ldo6 {
 					regulator-name = "+VDDIO_SDMMC3";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <3300000>;
-					regulator-boot-on;
-					regulator-always-on;
 				};
 
 				ldo7 {
@@ -928,6 +926,7 @@
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 		status = "okay";
 		bus-width = <4>;
+		vmmc-supply = <&vddio_sdmmc3>;
 	};
 
 	sdhci@700b0600 {
