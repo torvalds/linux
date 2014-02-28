@@ -378,12 +378,12 @@ static int __must_push_back(struct multipath *m)
 static int map_io(struct multipath *m, struct request *clone,
 		  union map_info *map_context)
 {
-	int r = DM_MAPIO_REMAPPED;
+	int r = DM_MAPIO_REQUEUE;
 	size_t nr_bytes = blk_rq_bytes(clone);
 	unsigned long flags;
 	struct pgpath *pgpath;
 	struct block_device *bdev;
-	struct dm_mpath_io *mpio = map_context->ptr;
+	struct dm_mpath_io *mpio;
 
 	spin_lock_irqsave(&m->lock, flags);
 
@@ -396,27 +396,29 @@ static int map_io(struct multipath *m, struct request *clone,
 
 	if (pgpath) {
 		if (pg_ready(m)) {
+			if (set_mapinfo(m, map_context) < 0)
+				/* ENOMEM, requeue */
+				goto out_unlock;
+
 			bdev = pgpath->path.dev->bdev;
 			clone->q = bdev_get_queue(bdev);
 			clone->rq_disk = bdev->bd_disk;
+			clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
+			mpio = map_context->ptr;
 			mpio->pgpath = pgpath;
 			mpio->nr_bytes = nr_bytes;
 			if (pgpath->pg->ps.type->start_io)
 				pgpath->pg->ps.type->start_io(&pgpath->pg->ps,
 							      &pgpath->path,
 							      nr_bytes);
-		} else {
-			__pg_init_all_paths(m);
-			r = DM_MAPIO_REQUEUE;
+			r = DM_MAPIO_REMAPPED;
+			goto out_unlock;
 		}
-	} else {
-		/* No path */
-		if (__must_push_back(m))
-			r = DM_MAPIO_REQUEUE;
-		else
-			r = -EIO;	/* Failed */
-	}
+		__pg_init_all_paths(m);
+	} else if (!__must_push_back(m))
+		r = -EIO;	/* Failed */
 
+out_unlock:
 	spin_unlock_irqrestore(&m->lock, flags);
 
 	return r;
@@ -912,19 +914,9 @@ static void multipath_dtr(struct dm_target *ti)
 static int multipath_map(struct dm_target *ti, struct request *clone,
 			 union map_info *map_context)
 {
-	int r;
 	struct multipath *m = (struct multipath *) ti->private;
 
-	if (set_mapinfo(m, map_context) < 0)
-		/* ENOMEM, requeue */
-		return DM_MAPIO_REQUEUE;
-
-	clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
-	r = map_io(m, clone, map_context);
-	if (r < 0 || r == DM_MAPIO_REQUEUE)
-		clear_mapinfo(m, map_context);
-
-	return r;
+	return map_io(m, clone, map_context);
 }
 
 /*
