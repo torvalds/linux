@@ -45,3 +45,10 @@ config IR_IMG_SONY
 	help
 	   Say Y here to enable support for the Sony protocol in the ImgTec
 	   infrared decoder block.
+
+config IR_IMG_SHARP
+	bool "Sharp protocol support"
+	depends on IR_IMG_HW
+	help
+	   Say Y here to enable support for the Sharp protocol in the ImgTec
+	   infrared decoder block.

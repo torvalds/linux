@@ -23,6 +23,7 @@ static DEFINE_SPINLOCK(img_ir_decoders_lock);
 extern struct img_ir_decoder img_ir_nec;
 extern struct img_ir_decoder img_ir_jvc;
 extern struct img_ir_decoder img_ir_sony;
+extern struct img_ir_decoder img_ir_sharp;
 
 static bool img_ir_decoders_preprocessed;
 static struct img_ir_decoder *img_ir_decoders[] = {
@@ -34,6 +35,9 @@ static struct img_ir_decoder *img_ir_decoders[] = {
 #endif
 #ifdef CONFIG_IR_IMG_SONY
 	&img_ir_sony,
+#endif
+#ifdef CONFIG_IR_IMG_SHARP
+	&img_ir_sharp,
 #endif
 	NULL
 };
