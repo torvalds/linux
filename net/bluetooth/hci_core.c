@@ -765,10 +765,10 @@ static int long_term_keys_show(struct seq_file *f, void *ptr)
 	hci_dev_lock(hdev);
 	list_for_each_safe(p, n, &hdev->long_term_keys) {
 		struct smp_ltk *ltk = list_entry(p, struct smp_ltk, list);
-		seq_printf(f, "%pMR (type %u) %u 0x%02x %u %.4x %*phN %*phN\n",
+		seq_printf(f, "%pMR (type %u) %u 0x%02x %u %.4x %.16llx %*phN\n",
 			   &ltk->bdaddr, ltk->bdaddr_type, ltk->authenticated,
 			   ltk->type, ltk->enc_size, __le16_to_cpu(ltk->ediv),
-			   8, ltk->rand, 16, ltk->val);
+			   __le64_to_cpu(ltk->rand), 16, ltk->val);
 	}
 	hci_dev_unlock(hdev);
 
@@ -2921,14 +2921,13 @@ static bool ltk_type_master(u8 type)
 	return false;
 }
 
-struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8],
+struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
 			     bool master)
 {
 	struct smp_ltk *k;
 
 	list_for_each_entry(k, &hdev->long_term_keys, list) {
-		if (k->ediv != ediv ||
-		    memcmp(rand, k->rand, sizeof(k->rand)))
+		if (k->ediv != ediv || k->rand != rand)
 			continue;
 
 		if (ltk_type_master(k->type) != master)
@@ -3046,7 +3045,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 
 struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 addr_type, u8 type, u8 authenticated,
-			    u8 tk[16], u8 enc_size, __le16 ediv, u8 rand[8])
+			    u8 tk[16], u8 enc_size, __le16 ediv, __le64 rand)
 {
 	struct smp_ltk *key, *old_key;
 	bool master = ltk_type_master(type);
@@ -3066,9 +3065,9 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	memcpy(key->val, tk, sizeof(key->val));
 	key->authenticated = authenticated;
 	key->ediv = ediv;
+	key->rand = rand;
 	key->enc_size = enc_size;
 	key->type = type;
-	memcpy(key->rand, rand, sizeof(key->rand));
 
 	return key;
 }

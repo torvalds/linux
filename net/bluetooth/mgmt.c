@@ -5025,11 +5025,11 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key)
 	ev.key.type = key->authenticated;
 	ev.key.enc_size = key->enc_size;
 	ev.key.ediv = key->ediv;
+	ev.key.rand = key->rand;
 
 	if (key->type == HCI_SMP_LTK)
 		ev.key.master = 1;
 
-	memcpy(ev.key.rand, key->rand, sizeof(key->rand));
 	memcpy(ev.key.val, key->val, sizeof(key->val));
 
 	mgmt_event(MGMT_EV_NEW_LONG_TERM_KEY, hdev, &ev, sizeof(ev), NULL);

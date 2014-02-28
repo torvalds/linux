@@ -1234,7 +1234,7 @@ struct hci_cp_le_conn_update {
 #define HCI_OP_LE_START_ENC		0x2019
 struct hci_cp_le_start_enc {
 	__le16	handle;
-	__u8	rand[8];
+	__le64	rand;
 	__le16	ediv;
 	__u8	ltk[16];
 } __packed;
@@ -1646,7 +1646,7 @@ struct hci_ev_le_conn_complete {
 #define HCI_EV_LE_LTK_REQ		0x05
 struct hci_ev_le_ltk_req {
 	__le16	handle;
-	__u8	random[8];
+	__le64	rand;
 	__le16	ediv;
 } __packed;
 

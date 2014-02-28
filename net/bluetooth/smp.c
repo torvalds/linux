@@ -517,11 +517,9 @@ static void random_work(struct work_struct *work)
 	}
 
 	if (hcon->out) {
-		u8 stk[16], rand[8];
-		__le16 ediv;
-
-		memset(rand, 0, sizeof(rand));
-		ediv = 0;
+		u8 stk[16];
+		__le64 rand = 0;
+		__le16 ediv = 0;
 
 		smp_s1(tfm, smp->tk, smp->rrnd, smp->prnd, key);
 		swap128(key, stk);
@@ -537,11 +535,9 @@ static void random_work(struct work_struct *work)
 		hci_le_start_enc(hcon, ediv, rand, stk);
 		hcon->enc_key_size = smp->enc_key_size;
 	} else {
-		u8 stk[16], r[16], rand[8];
-		__le16 ediv;
-
-		memset(rand, 0, sizeof(rand));
-		ediv = 0;
+		u8 stk[16], r[16];
+		__le64 rand = 0;
+		__le16 ediv = 0;
 
 		swap128(smp->prnd, r);
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(r), r);
@@ -1205,20 +1201,22 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 		struct smp_ltk *ltk;
 		u8 authenticated;
 		__le16 ediv;
+		__le64 rand;
 
 		get_random_bytes(enc.ltk, sizeof(enc.ltk));
 		get_random_bytes(&ediv, sizeof(ediv));
-		get_random_bytes(ident.rand, sizeof(ident.rand));
+		get_random_bytes(&rand, sizeof(rand));
 
 		smp_send_cmd(conn, SMP_CMD_ENCRYPT_INFO, sizeof(enc), &enc);
 
 		authenticated = hcon->sec_level == BT_SECURITY_HIGH;
 		ltk = hci_add_ltk(hdev, &hcon->dst, hcon->dst_type,
 				  HCI_SMP_LTK_SLAVE, authenticated, enc.ltk,
-				  smp->enc_key_size, ediv, ident.rand);
+				  smp->enc_key_size, ediv, rand);
 		smp->slave_ltk = ltk;
 
 		ident.ediv = ediv;
+		ident.rand = rand;
 
 		smp_send_cmd(conn, SMP_CMD_MASTER_IDENT, sizeof(ident), &ident);
 

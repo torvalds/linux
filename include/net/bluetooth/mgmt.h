@@ -187,7 +187,7 @@ struct mgmt_ltk_info {
 	__u8	master;
 	__u8	enc_size;
 	__le16	ediv;
-	__u8	rand[8];
+	__le64	rand;
 	__u8	val[16];
 } __packed;
 
