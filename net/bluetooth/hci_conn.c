@@ -588,6 +588,8 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	cp.max_ce_len = __constant_cpu_to_le16(0x0000);
 
 	hci_req_add(req, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
+
+	conn->state = BT_CONNECT;
 }
 
 static void stop_scan_complete(struct hci_dev *hdev, u8 status)
@@ -689,7 +691,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 
 	conn->dst_type = dst_type;
 
-	conn->state = BT_CONNECT;
 	conn->out = true;
 	conn->link_mode |= HCI_LM_MASTER;
 	conn->sec_level = BT_SECURITY_LOW;
