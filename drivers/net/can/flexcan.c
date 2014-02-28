@@ -363,6 +363,21 @@ static int flexcan_chip_unfreeze(struct flexcan_priv *priv)
 	return 0;
 }
 
+static int flexcan_chip_softreset(struct flexcan_priv *priv)
+{
+	struct flexcan_regs __iomem *regs = priv->base;
+	unsigned int timeout = FLEXCAN_TIMEOUT_US / 10;
+
+	flexcan_write(FLEXCAN_MCR_SOFTRST, &regs->mcr);
+	while (timeout-- && (flexcan_read(&regs->mcr) & FLEXCAN_MCR_SOFTRST))
+		usleep_range(10, 20);
+
+	if (flexcan_read(&regs->mcr) & FLEXCAN_MCR_SOFTRST)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
 static int flexcan_get_berr_counter(const struct net_device *dev,
 				    struct can_berr_counter *bec)
 {
@@ -786,16 +801,9 @@ static int flexcan_chip_start(struct net_device *dev)
 		return err;
 
 	/* soft reset */
-	flexcan_write(FLEXCAN_MCR_SOFTRST, &regs->mcr);
-	udelay(10);
-
-	reg_mcr = flexcan_read(&regs->mcr);
-	if (reg_mcr & FLEXCAN_MCR_SOFTRST) {
-		netdev_err(dev, "Failed to softreset can module (mcr=0x%08x)\n",
-			   reg_mcr);
-		err = -ENODEV;
+	err = flexcan_chip_softreset(priv);
+	if (err)
 		goto out_chip_disable;
-	}
 
 	flexcan_set_bittiming(dev);
 
