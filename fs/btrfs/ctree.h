@@ -1511,7 +1511,7 @@ struct btrfs_fs_info {
 	struct btrfs_workqueue_struct *endio_workers;
 	struct btrfs_workqueue_struct *endio_meta_workers;
 	struct btrfs_workqueue_struct *endio_raid56_workers;
-	struct btrfs_workers rmw_workers;
+	struct btrfs_workqueue_struct *rmw_workers;
 	struct btrfs_workqueue_struct *endio_meta_write_workers;
 	struct btrfs_workqueue_struct *endio_write_workers;
 	struct btrfs_workqueue_struct *endio_freespace_worker;
