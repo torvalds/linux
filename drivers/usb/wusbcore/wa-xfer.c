@@ -1471,6 +1471,8 @@ static int __wa_xfer_delayed_run(struct wa_rpipe *rpipe, int *dto_waiting)
 			xfer, wa_xfer_id(xfer), seg->index,
 			atomic_read(&rpipe->segs_available), result);
 		if (unlikely(result < 0)) {
+			int done;
+
 			spin_unlock_irqrestore(&rpipe->seg_lock, flags);
 			spin_lock_irqsave(&xfer->lock, flags);
 			__wa_xfer_abort(xfer);
@@ -1479,7 +1481,10 @@ static int __wa_xfer_delayed_run(struct wa_rpipe *rpipe, int *dto_waiting)
 			 * the RPIPE seg_list.  Mark it done.
 			 */
 			xfer->segs_done++;
+			done = __wa_xfer_is_done(xfer);
 			spin_unlock_irqrestore(&xfer->lock, flags);
+			if (done)
+				wa_xfer_completion(xfer);
 			spin_lock_irqsave(&rpipe->seg_lock, flags);
 		}
 		wa_xfer_put(xfer);
@@ -1915,20 +1920,20 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 	/* check if it is safe to unlink. */
 	spin_lock_irqsave(&wa->xfer_list_lock, flags);
 	result = usb_hcd_check_unlink_urb(&(wa->wusb->usb_hcd), urb, status);
+	if ((result == 0) && urb->hcpriv) {
+		/*
+		 * Get a xfer ref to prevent a race with wa_xfer_giveback
+		 * cleaning up the xfer while we are working with it.
+		 */
+		wa_xfer_get(urb->hcpriv);
+	}
 	spin_unlock_irqrestore(&wa->xfer_list_lock, flags);
 	if (result)
 		return result;
 
 	xfer = urb->hcpriv;
-	if (xfer == NULL) {
-		/*
-		 * Nothing setup yet enqueue will see urb->status !=
-		 * -EINPROGRESS (by hcd layer) and bail out with
-		 * error, no need to do completion
-		 */
-		BUG_ON(urb->status == -EINPROGRESS);
-		goto out;
-	}
+	if (xfer == NULL)
+		return -ENOENT;
 	spin_lock_irqsave(&xfer->lock, flags);
 	pr_debug("%s: DEQUEUE xfer id 0x%08X\n", __func__, wa_xfer_id(xfer));
 	rpipe = xfer->ep->hcpriv;
@@ -1936,6 +1941,16 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 		pr_debug("%s: xfer %p id 0x%08X has no RPIPE.  %s",
 			__func__, xfer, wa_xfer_id(xfer),
 			"Probably already aborted.\n" );
+		result = -ENOENT;
+		goto out_unlock;
+	}
+	/*
+	 * Check for done to avoid racing with wa_xfer_giveback and completing
+	 * twice.
+	 */
+	if (__wa_xfer_is_done(xfer)) {
+		pr_debug("%s: xfer %p id 0x%08X already done.\n", __func__,
+			xfer, wa_xfer_id(xfer));
 		result = -ENOENT;
 		goto out_unlock;
 	}
@@ -2007,11 +2022,12 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 		wa_xfer_completion(xfer);
 	if (rpipe_ready)
 		wa_xfer_delayed_run(rpipe);
+	wa_xfer_put(xfer);
 	return result;
 
 out_unlock:
 	spin_unlock_irqrestore(&xfer->lock, flags);
-out:
+	wa_xfer_put(xfer);
 	return result;
 
 dequeue_delayed:
@@ -2020,6 +2036,7 @@ dequeue_delayed:
 	xfer->result = urb->status;
 	spin_unlock_irqrestore(&xfer->lock, flags);
 	wa_xfer_giveback(xfer);
+	wa_xfer_put(xfer);
 	usb_put_urb(urb);		/* we got a ref in enqueue() */
 	return 0;
 }
