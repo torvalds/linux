@@ -1634,7 +1634,6 @@ int radeon_uvd_send_upll_ctlreq(struct radeon_device *rdev,
 
 struct radeon_vce {
 	struct radeon_bo	*vcpu_bo;
-	void			*cpu_addr;
 	uint64_t		gpu_addr;
 	unsigned		fw_version;
 	unsigned		fb_version;

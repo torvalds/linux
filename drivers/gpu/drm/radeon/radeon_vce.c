@@ -119,7 +119,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 	if (rdev->vce.fw_version != ((40 << 24) | (2 << 16) | (2 << 8)))
 		return -EINVAL;
 
-	/* load firmware into VRAM */
+	/* allocate firmware, stack and heap BO */
 
 	size = RADEON_GPU_PAGE_ALIGN(rdev->vce_fw->size) +
 	       RADEON_VCE_STACK_SIZE + RADEON_VCE_HEAP_SIZE;
@@ -130,16 +130,21 @@ int radeon_vce_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_vce_resume(rdev);
-	if (r)
+	r = radeon_bo_reserve(rdev->vce.vcpu_bo, false);
+	if (r) {
+		radeon_bo_unref(&rdev->vce.vcpu_bo);
+		dev_err(rdev->dev, "(%d) failed to reserve VCE bo\n", r);
 		return r;
+	}
 
-	memset(rdev->vce.cpu_addr, 0, size);
-	memcpy(rdev->vce.cpu_addr, rdev->vce_fw->data, rdev->vce_fw->size);
-
-	r = radeon_vce_suspend(rdev);
-	if (r)
+	r = radeon_bo_pin(rdev->vce.vcpu_bo, RADEON_GEM_DOMAIN_VRAM,
+			  &rdev->vce.gpu_addr);
+	radeon_bo_unreserve(rdev->vce.vcpu_bo);
+	if (r) {
+		radeon_bo_unref(&rdev->vce.vcpu_bo);
+		dev_err(rdev->dev, "(%d) VCE bo pin failed\n", r);
 		return r;
+	}
 
 	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i) {
 		atomic_set(&rdev->vce.handles[i], 0);
@@ -158,8 +163,12 @@ int radeon_vce_init(struct radeon_device *rdev)
  */
 void radeon_vce_fini(struct radeon_device *rdev)
 {
-	radeon_vce_suspend(rdev);
+	if (rdev->vce.vcpu_bo == NULL)
+		return;
+
 	radeon_bo_unref(&rdev->vce.vcpu_bo);
+
+	release_firmware(rdev->vce_fw);
 }
 
 /**
@@ -167,22 +176,23 @@ void radeon_vce_fini(struct radeon_device *rdev)
  *
  * @rdev: radeon_device pointer
  *
- * TODO: Test VCE suspend/resume
  */
 int radeon_vce_suspend(struct radeon_device *rdev)
 {
-	int r;
+	int i;
 
 	if (rdev->vce.vcpu_bo == NULL)
 		return 0;
 
-	r = radeon_bo_reserve(rdev->vce.vcpu_bo, false);
-	if (!r) {
-		radeon_bo_kunmap(rdev->vce.vcpu_bo);
-		radeon_bo_unpin(rdev->vce.vcpu_bo);
-		radeon_bo_unreserve(rdev->vce.vcpu_bo);
-	}
-	return r;
+	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i)
+		if (atomic_read(&rdev->vce.handles[i]))
+			break;
+
+	if (i == RADEON_MAX_VCE_HANDLES)
+		return 0;
+
+	/* TODO: suspending running encoding sessions isn't supported */
+	return -EINVAL;
 }
 
 /**
@@ -190,10 +200,10 @@ int radeon_vce_suspend(struct radeon_device *rdev)
  *
  * @rdev: radeon_device pointer
  *
- * TODO: Test VCE suspend/resume
  */
 int radeon_vce_resume(struct radeon_device *rdev)
 {
+	void *cpu_addr;
 	int r;
 
 	if (rdev->vce.vcpu_bo == NULL)
@@ -201,25 +211,20 @@ int radeon_vce_resume(struct radeon_device *rdev)
 
 	r = radeon_bo_reserve(rdev->vce.vcpu_bo, false);
 	if (r) {
-		radeon_bo_unref(&rdev->vce.vcpu_bo);
 		dev_err(rdev->dev, "(%d) failed to reserve VCE bo\n", r);
 		return r;
 	}
 
-	r = radeon_bo_pin(rdev->vce.vcpu_bo, RADEON_GEM_DOMAIN_VRAM,
-			  &rdev->vce.gpu_addr);
+	r = radeon_bo_kmap(rdev->vce.vcpu_bo, &cpu_addr);
 	if (r) {
 		radeon_bo_unreserve(rdev->vce.vcpu_bo);
-		radeon_bo_unref(&rdev->vce.vcpu_bo);
-		dev_err(rdev->dev, "(%d) VCE bo pin failed\n", r);
-		return r;
-	}
-
-	r = radeon_bo_kmap(rdev->vce.vcpu_bo, &rdev->vce.cpu_addr);
-	if (r) {
 		dev_err(rdev->dev, "(%d) VCE map failed\n", r);
 		return r;
 	}
+
+	memcpy(cpu_addr, rdev->vce_fw->data, rdev->vce_fw->size);
+
+	radeon_bo_kunmap(rdev->vce.vcpu_bo);
 
 	radeon_bo_unreserve(rdev->vce.vcpu_bo);
 
