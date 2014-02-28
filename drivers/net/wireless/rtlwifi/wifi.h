@@ -49,6 +49,7 @@
 
 #define IQK_ADDA_REG_NUM			16
 #define IQK_MAC_REG_NUM				4
+#define IQK_THRESHOLD				8
 
 #define MAX_KEY_LEN				61
 #define KEY_BUF_SIZE				5
@@ -96,6 +97,7 @@
 #define CHANNEL_MAX_NUMBER_2G		14
 #define AVG_THERMAL_NUM			8
 #define AVG_THERMAL_NUM_88E		4
+#define AVG_THERMAL_NUM_8723BE		4
 #define MAX_TID_COUNT			9
 
 /* for early mode */
@@ -115,6 +117,8 @@ struct txpower_info_2g {
 	u8 ofdm_diff[MAX_RF_PATH][MAX_TX_COUNT];
 	u8 bw20_diff[MAX_RF_PATH][MAX_TX_COUNT];
 	u8 bw40_diff[MAX_RF_PATH][MAX_TX_COUNT];
+	u8 bw80_diff[MAX_RF_PATH][MAX_TX_COUNT];
+	u8 bw160_diff[MAX_RF_PATH][MAX_TX_COUNT];
 };
 
 struct txpower_info_5g {
@@ -158,6 +162,7 @@ enum hardware_type {
 	HARDWARE_TYPE_RTL8192DU,
 	HARDWARE_TYPE_RTL8723AE,
 	HARDWARE_TYPE_RTL8723U,
+	HARDWARE_TYPE_RTL8723BE,
 	HARDWARE_TYPE_RTL8188EE,
 
 	/* keep it last */
@@ -1986,6 +1991,44 @@ struct rtl_global_var {
 	spinlock_t glb_list_lock;
 };
 
+struct rtl_btc_info {
+	u8 bt_type;
+	u8 btcoexist;
+	u8 ant_num;
+};
+
+struct rtl_bt_coexist {
+	struct rtl_btc_ops *btc_ops;
+	struct rtl_btc_info btc_info;
+};
+
+struct rtl_btc_ops {
+	void (*btc_init_variables) (struct rtl_priv *rtlpriv);
+	void (*btc_init_hal_vars) (struct rtl_priv *rtlpriv);
+	void (*btc_init_hw_config) (struct rtl_priv *rtlpriv);
+	void (*btc_ips_notify) (struct rtl_priv *rtlpriv, u8 type);
+	void (*btc_scan_notify) (struct rtl_priv *rtlpriv, u8 scantype);
+	void (*btc_connect_notify) (struct rtl_priv *rtlpriv, u8 action);
+	void (*btc_mediastatus_notify) (struct rtl_priv *rtlpriv,
+					enum _RT_MEDIA_STATUS mstatus);
+	void (*btc_periodical) (struct rtl_priv *rtlpriv);
+	void (*btc_halt_notify) (void);
+	void (*btc_btinfo_notify) (struct rtl_priv *rtlpriv,
+				   u8 *tmp_buf, u8 length);
+	bool (*btc_is_limited_dig) (struct rtl_priv *rtlpriv);
+	bool (*btc_is_disable_edca_turbo) (struct rtl_priv *rtlpriv);
+	bool (*btc_is_bt_disabled) (struct rtl_priv *rtlpriv);
+};
+
+struct proxim {
+	bool proxim_on;
+
+	void *proximity_priv;
+	int (*proxim_rx)(struct ieee80211_hw *hw, struct rtl_stats *status,
+			 struct sk_buff *skb);
+	u8  (*proxim_get_var)(struct ieee80211_hw *hw, u8 type);
+};
+
 struct rtl_priv {
 	struct ieee80211_hw *hw;
 	struct completion firmware_loading_complete;
@@ -2048,6 +2091,20 @@ struct rtl_priv {
 	bool enter_ps;	/* true when entering PS */
 	u8 rate_mask[5];
 
+	/* intel Proximity, should be alloc mem
+	 * in intel Proximity module and can only
+	 * be used in intel Proximity mode
+	 */
+	struct proxim proximity;
+
+	/*for bt coexist use*/
+	struct rtl_bt_coexist btcoexist;
+
+	/* separate 92ee from other ICs,
+	 * 92ee use new trx flow.
+	 */
+	bool use_new_trx_flow;
+
 	/*This must be the last item so
 	   that it points to the data allocated
 	   beyond  this structure like:
@@ -2079,6 +2136,9 @@ enum bt_co_type {
 	BT_CSR_BC8 = 4,
 	BT_RTL8756 = 5,
 	BT_RTL8723A = 6,
+	BT_RTL8821 = 7,
+	BT_RTL8723B = 8,
+	BT_RTL8192E = 9,
 };
 
 enum bt_cur_state {
