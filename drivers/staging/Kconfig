@@ -82,8 +82,6 @@ source "drivers/staging/wlags49_h2/Kconfig"
 
 source "drivers/staging/wlags49_h25/Kconfig"
 
-source "drivers/staging/sm7xxfb/Kconfig"
-
 source "drivers/staging/crystalhd/Kconfig"
 
 source "drivers/staging/cxt1e1/Kconfig"
