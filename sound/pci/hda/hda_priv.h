@@ -357,6 +357,7 @@ struct azx {
 
 	/* flags */
 	int position_fix[2]; /* for both playback/capture streams */
+	const int *bdl_pos_adj;
 	int poll_count;
 	unsigned int running:1;
 	unsigned int initialized:1;

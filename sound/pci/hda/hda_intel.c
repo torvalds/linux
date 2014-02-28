@@ -1147,7 +1147,7 @@ static int azx_setup_periods(struct azx *chip,
 {
 	u32 *bdl;
 	int i, ofs, periods, period_bytes;
-	int pos_adj;
+	int pos_adj = 0;
 
 	/* reset BDL address */
 	azx_sd_writel(chip, azx_dev, SD_BDLPL, 0);
@@ -1160,7 +1160,9 @@ static int azx_setup_periods(struct azx *chip,
 	bdl = (u32 *)azx_dev->bdl.area;
 	ofs = 0;
 	azx_dev->frags = 0;
-	pos_adj = bdl_pos_adj[chip->dev_index];
+
+	if (chip->bdl_pos_adj)
+		pos_adj = chip->bdl_pos_adj[chip->dev_index];
 	if (!azx_dev->no_period_wakeup && pos_adj > 0) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
 		int pos_align = pos_adj;
@@ -1173,7 +1175,7 @@ static int azx_setup_periods(struct azx *chip,
 		pos_adj = frames_to_bytes(runtime, pos_adj);
 		if (pos_adj >= period_bytes) {
 			dev_warn(chip->card->dev,"Too big adjustment %d\n",
-				 bdl_pos_adj[chip->dev_index]);
+				 pos_adj);
 			pos_adj = 0;
 		} else {
 			ofs = setup_bdle(chip, snd_pcm_get_dma_buf(substream),
@@ -1184,6 +1186,7 @@ static int azx_setup_periods(struct azx *chip,
 		}
 	} else
 		pos_adj = 0;
+
 	for (i = 0; i < periods; i++) {
 		if (i == periods - 1 && pos_adj)
 			ofs = setup_bdle(chip, snd_pcm_get_dma_buf(substream),
@@ -2143,7 +2146,7 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 	if (wallclk < (azx_dev->period_wallclk * 5) / 4 &&
 	    pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
 		/* NG - it's below the first next period boundary */
-		return bdl_pos_adj[chip->dev_index] ? 0 : -1;
+		return chip->bdl_pos_adj[chip->dev_index] ? 0 : -1;
 	azx_dev->start_wallclk += wallclk;
 	return 1; /* OK, it's fine */
 }
@@ -3207,6 +3210,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 			break;
 		}
 	}
+	chip->bdl_pos_adj = bdl_pos_adj;
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0) {
