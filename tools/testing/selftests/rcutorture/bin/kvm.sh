@@ -175,30 +175,6 @@ then
 	resdir=$KVM/res
 fi
 
-if test "$dryrun" = ""
-then
-	if ! test -e $resdir
-	then
-		mkdir -p "$resdir" || :
-	fi
-	mkdir $resdir/$ds
-
-	# Be noisy only if running the script.
-	echo Results directory: $resdir/$ds
-	echo $scriptname $args
-
-	touch $resdir/$ds/log
-	echo $scriptname $args >> $resdir/$ds/log
-	echo ${TORTURE_SUITE} > $resdir/$ds/TORTURE_SUITE
-
-	pwd > $resdir/$ds/testid.txt
-	if test -d .git
-	then
-		git status >> $resdir/$ds/testid.txt
-		git rev-parse HEAD >> $resdir/$ds/testid.txt
-	fi
-fi
-
 # Create a file of test-name/#cpus pairs, sorted by decreasing #cpus.
 touch $T/cfgcpu
 for CF in $configs
@@ -267,6 +243,22 @@ END {
 cat << ___EOF___ > $T/script
 TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
 TORTURE_DEFCONFIG="$TORTURE_DEFCONFIG"; export TORTURE_DEFCONFIG
+if ! test -e $resdir
+then
+	mkdir -p "$resdir" || :
+fi
+mkdir $resdir/$ds
+echo Results directory: $resdir/$ds
+echo $scriptname $args
+touch $resdir/$ds/log
+echo $scriptname $args >> $resdir/$ds/log
+echo ${TORTURE_SUITE} > $resdir/$ds/TORTURE_SUITE
+pwd > $resdir/$ds/testid.txt
+if test -d .git
+then
+	git status >> $resdir/$ds/testid.txt
+	git rev-parse HEAD >> $resdir/$ds/testid.txt
+fi
 ___EOF___
 awk < $T/cfgcpu.pack \
 	-v CONFIGDIR="$CONFIGFRAG/$kversion/" \
@@ -366,6 +358,17 @@ END {
 		dump(first, i);
 }' >> $T/script
 
+cat << ___EOF___ >> $T/script
+echo
+echo
+echo " --- `date` Test summary:"
+echo Results directory: $resdir/$ds
+if test -z "$TORTURE_BUILDONLY"
+then
+	kvm-recheck.sh $resdir/$ds
+fi
+___EOF___
+
 if test "$dryrun" = script
 then
 	# Dump out the script, but define the environment variables that
@@ -397,12 +400,3 @@ else
 fi
 
 # Tracing: trace_event=rcu:rcu_grace_period,rcu:rcu_future_grace_period,rcu:rcu_grace_period_init,rcu:rcu_nocb_wake,rcu:rcu_preempt_task,rcu:rcu_unlock_preempted_task,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_kfree_callback,rcu:rcu_batch_start,rcu:rcu_invoke_callback,rcu:rcu_invoke_kfree_callback,rcu:rcu_batch_end,rcu:rcu_torture_read,rcu:rcu_barrier
-
-echo
-echo
-echo " --- `date` Test summary:"
-echo Results directory: $resdir/$ds
-if test -n "$TORTURE_BUILDONLY"
-then
-	kvm-recheck.sh $resdir/$ds
-fi
