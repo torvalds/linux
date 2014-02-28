@@ -140,3 +140,6 @@ config VF_PIT_TIMER
 	bool
 	help
 	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.
+
+config CLKSRC_QCOM
+	bool
