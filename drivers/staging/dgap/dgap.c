@@ -535,7 +535,7 @@ int dgap_init_module(void)
 	rc = dgap_start();
 
 	if (rc < 0) {
-		return(rc);
+		return rc;
 	}
 
 	/*
@@ -560,7 +560,7 @@ int dgap_init_module(void)
 		dgap_driver_state = DRIVER_READY;
 	}
 
-	return (rc);
+	return rc;
 }
 
 
@@ -594,7 +594,7 @@ static int dgap_start(void)
 			 */
 			rc = register_chrdev(DIGI_DGAP_MAJOR, "dgap", &DgapBoardFops);
 			if (rc < 0)
-				return (rc);
+				return rc;
 
 			dgap_class = class_create(THIS_MODULE, "dgap_mgmt");
 			device_create(dgap_class, NULL,
@@ -609,7 +609,7 @@ static int dgap_start(void)
 		rc = dgap_tty_preinit();
 
 		if (rc < 0)
-			return(rc);
+			return rc;
 
 		/* Start the poller */
 		DGAP_LOCK(dgap_poll_lock, flags);
@@ -625,7 +625,7 @@ static int dgap_start(void)
 		dgap_driver_state = DRIVER_NEED_CONFIG_LOAD;
 	}
 
-	return (rc);
+	return rc;
 }
 
 
@@ -727,7 +727,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 	int i = 0;
 
         if(!brd || brd->magic != DGAP_BOARD_MAGIC)
-                return;
+		return;
 
 	if (brd->intr_used && brd->irq)
 		free_irq(brd->irq, brd);
@@ -790,14 +790,14 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	brd = dgap_Board[dgap_NumBoards] =
 	(struct board_t *) kzalloc(sizeof(struct board_t), GFP_KERNEL);
 	if (!brd)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 	/* make a temporary message buffer for the boot messages */
 	brd->msgbuf = brd->msgbuf_head =
 		(char *) kzalloc(sizeof(char) * 8192, GFP_KERNEL);
 	if(!brd->msgbuf) {
 		kfree(brd);
-		return(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	/* store the info for the board we've found */
@@ -904,7 +904,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	else
 		brd->state = NEED_RESET;
 
-        return(0);
+	return 0;
 }
 
 
@@ -913,7 +913,7 @@ static int dgap_finalize_board_init(struct board_t *brd) {
         int rc;
 
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
-                return(-ENODEV);
+		return -ENODEV;
 
 	brd->use_interrupts = dgap_config_get_useintr(brd);
 
@@ -932,7 +932,7 @@ static int dgap_finalize_board_init(struct board_t *brd) {
 		brd->intr_used = 0;
 	}
 
-	return(0);
+	return 0;
 }
 
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
@@ -1310,7 +1310,7 @@ static int dgap_ms_sleep(ulong ms)
 {
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout((ms * HZ) / 1000);
-	return (signal_pending(current));
+	return signal_pending(current);
 }
 
 
@@ -1343,11 +1343,11 @@ static int dgap_tty_preinit(void)
 
 	if (!dgap_TmpWriteBuf) {
 		DGAP_UNLOCK(dgap_global_lock, flags);
-		return (-ENOMEM);
+		return -ENOMEM;
 	}
 
         DGAP_UNLOCK(dgap_global_lock, flags);
-        return(0);
+	return 0;
 }
 
 
@@ -1376,7 +1376,7 @@ static int dgap_tty_register(struct board_t *brd)
 	/* The kernel wants space to store pointers to tty_structs */
 	brd->SerialDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->SerialDriver->ttys)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 	/*
 	 * Entry points for driver.  Called by the kernel from
@@ -1405,7 +1405,7 @@ static int dgap_tty_register(struct board_t *brd)
 	/* The kernel wants space to store pointers to tty_structs */
 	brd->PrintDriver->ttys = kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->PrintDriver->ttys)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 	/*
 	 * Entry points for driver.  Called by the kernel from
@@ -1417,7 +1417,7 @@ static int dgap_tty_register(struct board_t *brd)
 		/* Register tty devices */
 		rc = tty_register_driver(brd->SerialDriver);
 		if (rc < 0)
-			return(rc);
+			return rc;
 		brd->dgap_Major_Serial_Registered = TRUE;
 		dgap_BoardsByMajor[brd->SerialDriver->major] = brd;
 		brd->dgap_Serial_Major = brd->SerialDriver->major;
@@ -1427,13 +1427,13 @@ static int dgap_tty_register(struct board_t *brd)
 		/* Register Transparent Print devices */
  		rc = tty_register_driver(brd->PrintDriver);
 		if (rc < 0)
-			return(rc);
+			return rc;
 		brd->dgap_Major_TransparentPrint_Registered = TRUE;
 		dgap_BoardsByMajor[brd->PrintDriver->major] = brd;
 		brd->dgap_TransparentPrint_Major = brd->PrintDriver->major;
 	}
 
-	return (rc);
+	return rc;
 }
 
 
@@ -1455,7 +1455,7 @@ static int dgap_tty_init(struct board_t *brd)
 	struct cm_t *cm;
 
 	if (!brd)
-		return (-ENXIO);
+		return -ENXIO;
 
 	/*
 	 * Initialize board structure elements.
@@ -1491,7 +1491,7 @@ static int dgap_tty_init(struct board_t *brd)
 		if (!brd->nasync) {
 			brd->state = BOARD_FAILED;
 			brd->dpastatus = BD_NOFEP;
-			return(-ENXIO);
+			return -ENXIO;
 		}
 	}
 
@@ -1602,7 +1602,7 @@ static int dgap_tty_init(struct board_t *brd)
 		writeb(1, &(ch->ch_bs->idata));
 	}
 
-	return (0);
+	return 0;
 }
 
 
@@ -2269,7 +2269,7 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	un->un_flags |= (UN_ISOPEN);
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-	return (rc);
+	return rc;
 }
 
 
@@ -2287,12 +2287,12 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 	int sleep_on_un_flags = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC || !file || !ch || ch->magic != DGAP_CHANNEL_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	DGAP_LOCK(ch->ch_lock, lock_flags);
@@ -2402,9 +2402,9 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struc
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
 	if (retval)
-		return(retval);
+		return retval;
 
-	return(0);
+	return 0;
 }
 
 
@@ -2590,23 +2590,23 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 	ulong   lock_flags2 = 0;
 
 	if (tty == NULL)
-		return(0);
+		return 0;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 
         bs = ch->ch_bs;
 	if (!bs)
-		return (0);
+		return 0;
 
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -2666,7 +2666,7 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 		}
 	}
 
-        return(chars);
+	return chars;
 }
 
 
@@ -2722,7 +2722,7 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 	un->un_flags &= ~(UN_EMPTY);
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-	return (ret);
+	return ret;
 }
 
 
@@ -2740,22 +2740,22 @@ static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 	struct un_t *un = NULL;
 
 	if (tty == NULL)
-		return (bytes_available);
+		return bytes_available;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (bytes_available);
+		return bytes_available;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (bytes_available);
+		return bytes_available;
 
 	/*
 	 * If its not the Transparent print device, return
 	 * the full data amount.
 	 */
 	if (un->un_type != DGAP_PRINT)
-		return (bytes_available);
+		return bytes_available;
 
 	if (ch->ch_digi.digi_maxcps > 0 && ch->ch_digi.digi_bufsize > 0 ) {
 		int cps_limit = 0;
@@ -2780,7 +2780,7 @@ static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 		bytes_available = min(cps_limit, bytes_available);
 	}
 
-	return (bytes_available);
+	return bytes_available;
 }
 
 
@@ -2828,19 +2828,19 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	ulong   lock_flags = 0;
 
 	if (tty == NULL || dgap_TmpWriteBuf == NULL)
-		return(0);
+		return 0;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 
         bs = ch->ch_bs;
 	if (!bs)
-		return (0);
+		return 0;
 
 	DGAP_LOCK(ch->ch_lock, lock_flags);
 
@@ -2881,7 +2881,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
-        return(ret);
+	return ret;
 }
 
 
@@ -2921,22 +2921,22 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	int from_user = 0;
 
 	if (tty == NULL || dgap_TmpWriteBuf == NULL)
-		return(0);
+		return 0;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return(0);
+		return 0;
 
         bs = ch->ch_bs;
 	if (!bs)
-		return(0);
+		return 0;
 
 	if (!count)
-		return(0);
+		return 0;
 
 	/*
 	 * Store original amount of characters passed in.
@@ -2973,7 +2973,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	if (count <= 0) {
 		dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -3004,7 +3004,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 	if (count <= 0) {
 		dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
-		return(0);
+		return 0;
 	}
 
 	if (from_user) {
@@ -3020,7 +3020,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 		 */
 		/* we're allowed to block if it's from_user */
 		if (down_interruptible(&dgap_TmpWriteSem)) {
-			return (-EINTR);
+			return -EINTR;
 		}
 
 		if (copy_from_user(dgap_TmpWriteBuf, (const uchar __user *) buf, count)) {
@@ -3114,7 +3114,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf, int 
 		DGAP_UNLOCK(ch->ch_lock, lock_flags);
 	}
 
-	return (count);
+	return count;
 }
 
 
@@ -3227,7 +3227,7 @@ static int dgap_tty_tiocmset(struct tty_struct *tty,
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	return (0);
+	return 0;
 }
 
 
@@ -3283,7 +3283,7 @@ static int dgap_tty_send_break(struct tty_struct *tty, int msec)
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	return (0);
+	return 0;
 }
 
 
@@ -3373,7 +3373,7 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	int rc = 0;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return(-ENXIO);
+		return -ENXIO;
 
 	DGAP_LOCK(ch->ch_lock, lock_flags);
 
@@ -3400,7 +3400,7 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 
 	rc = put_user(result, value);
 
-	return(rc);
+	return rc;
 }
 
 
@@ -3436,7 +3436,7 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 
 	ret = get_user(arg, value);
 	if (ret)
-		return(ret);
+		return ret;
 
 	switch (command) {
 	case TIOCMBIS:
@@ -3485,7 +3485,7 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 		break;
 
 	default:
-		return(-EINVAL);
+		return -EINVAL;
 	}
 
 	DGAP_LOCK(bd->bd_lock, lock_flags);
@@ -3496,7 +3496,7 @@ static int dgap_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	return (0);
+	return 0;
 }
 
 
@@ -3516,18 +3516,18 @@ static int dgap_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retin
 	ulong lock_flags;
 
 	if (!retinfo)
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
 
@@ -3536,9 +3536,9 @@ static int dgap_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retin
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return (-EFAULT);
+		return -EFAULT;
 
-	return (0);
+	return 0;
 }
 
 
@@ -3560,19 +3560,19 @@ static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 	unsigned long lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t)))
 		return -EFAULT;
@@ -3608,7 +3608,7 @@ static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	return(0);
+	return 0;
 }
 
 
@@ -3628,18 +3628,18 @@ static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo)
 	ulong lock_flags;
 
 	if (!retinfo)
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
 
@@ -3648,9 +3648,9 @@ static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo)
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return (-EFAULT);
+		return -EFAULT;
 
-	return (0);
+	return 0;
 }
 
 
@@ -3670,19 +3670,19 @@ static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info)
 	ulong lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (copy_from_user(&new_digi, new_info, sizeof(int)))
 		return -EFAULT;
@@ -3697,7 +3697,7 @@ static int dgap_tty_digisetedelay(struct tty_struct *tty, int __user *new_info)
 	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 	DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-	return(0);
+	return 0;
 }
 
 
@@ -3714,18 +3714,18 @@ static int dgap_tty_digigetcustombaud(struct tty_struct *tty, int __user *retinf
 	ulong lock_flags;
 
 	if (!retinfo)
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
 
@@ -3734,9 +3734,9 @@ static int dgap_tty_digigetcustombaud(struct tty_struct *tty, int __user *retinf
 	DGAP_UNLOCK(ch->ch_lock, lock_flags);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return (-EFAULT);
+		return -EFAULT;
 
-	return (0);
+	return 0;
 }
 
 
@@ -3755,23 +3755,23 @@ static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_in
 	ulong lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 
 	if (copy_from_user(&new_rate, new_info, sizeof(unsigned int)))
-		return(-EFAULT);
+		return -EFAULT;
 
 	if (bd->bd_flags & BD_FEP5PLUS) {
 
@@ -3786,7 +3786,7 @@ static int dgap_tty_digisetcustombaud(struct tty_struct *tty, int __user *new_in
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 	}
 
-	return(0);
+	return 0;
 }
 
 
@@ -3851,7 +3851,7 @@ static void dgap_tty_throttle(struct tty_struct *tty)
 
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-                return;
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
@@ -3888,7 +3888,7 @@ static void dgap_tty_unthrottle(struct tty_struct *tty)
 
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-                return;
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
@@ -3925,7 +3925,7 @@ static void dgap_tty_start(struct tty_struct *tty)
 
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-                return;
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
@@ -3959,7 +3959,7 @@ static void dgap_tty_stop(struct tty_struct *tty)
 
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-                return;
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
@@ -4006,7 +4006,7 @@ static void dgap_tty_flush_chars(struct tty_struct *tty)
 
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-                return;
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
@@ -4046,7 +4046,7 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 
         ch = un->un_ch;
         if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-                return;
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
@@ -4101,19 +4101,19 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	void __user *uarg = (void __user *) arg;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-ENODEV);
+		return -ENODEV;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (-ENODEV);
+		return -ENODEV;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (-ENODEV);
+		return -ENODEV;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (-ENODEV);
+		return -ENODEV;
 
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4121,7 +4121,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	if (un->un_open_count <= 0) {
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(-EIO);
+		return -EIO;
 	}
 
 	switch (cmd) {
@@ -4141,13 +4141,13 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		if (rc) {
-			return(rc);
+			return rc;
 		}
 
 		rc = dgap_wait_for_drain(tty);
 
 		if (rc)
-			return(-EINTR);
+			return -EINTR;
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4159,7 +4159,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-                return(0);
+		return 0;
 
 
 	case TCSBRKP:
@@ -4173,12 +4173,12 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		if (rc) {
-			return(rc);
+			return rc;
 		}
 
 		rc = dgap_wait_for_drain(tty);
 		if (rc)
-			return(-EINTR);
+			return -EINTR;
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4188,7 +4188,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		return(0);
+		return 0;
 
         case TIOCSBRK:
 		/*
@@ -4201,12 +4201,12 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		if (rc) {
-			return(rc);
+			return rc;
 		}
 
 		rc = dgap_wait_for_drain(tty);
 		if (rc)
-			return(-EINTR);
+			return -EINTR;
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4235,7 +4235,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
 		rc = put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long __user *) arg);
-		return(rc);
+		return rc;
 
 	case TIOCSSOFTCAR:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
@@ -4243,7 +4243,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		rc = get_user(arg, (unsigned long __user *) arg);
 		if (rc)
-			return(rc);
+			return rc;
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
@@ -4252,19 +4252,19 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		return(0);
+		return 0;
 
 	case TIOCMGET:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-                return(dgap_get_modem_info(ch, uarg));
+		return dgap_get_modem_info(ch, uarg);
 
 	case TIOCMBIS:
 	case TIOCMBIC:
 	case TIOCMSET:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(dgap_set_modem_info(tty, cmd, uarg));
+		return dgap_set_modem_info(tty, cmd, uarg);
 
 		/*
 		 * Here are any additional ioctl's that we want to implement
@@ -4284,7 +4284,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		if (rc) {
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
-			return(rc);
+			return rc;
 		}
 
 		if ((arg == TCIFLUSH) || (arg == TCIOFLUSH)) {
@@ -4323,7 +4323,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 
 	case TCSETSF:
 	case TCSETSW:
@@ -4348,10 +4348,10 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		rc = dgap_wait_for_drain(tty);
 		if (rc)
-			return(-EINTR);
+			return -EINTR;
 
 		/* pretend we didn't recognize this */
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 
 	case TCSETAW:
 
@@ -4359,10 +4359,10 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		rc = dgap_wait_for_drain(tty);
 		if (rc)
-			return(-EINTR);
+			return -EINTR;
 
 		/* pretend we didn't recognize this */
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 
 	case TCXONC:
 		/*
@@ -4376,7 +4376,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		if (rc) {
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
-			return(rc);
+			return rc;
 		}
 
 		switch (arg) {
@@ -4385,33 +4385,33 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
 			dgap_tty_start(tty);
-			return(0);
+			return 0;
 		case TCOOFF:
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
 			dgap_tty_stop(tty);
-			return(0);
+			return 0;
 		case TCION:
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
 			/* Make the ld do it */
-			return(-ENOIOCTLCMD);
+			return -ENOIOCTLCMD;
 		case TCIOFF:
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
 			/* Make the ld do it */
-			return(-ENOIOCTLCMD);
+			return -ENOIOCTLCMD;
 		default:
 			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
-			return(-EINVAL);
+			return -EINVAL;
 		}
 
 	case DIGI_GETA:
 		/* get information for ditty */
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(dgap_tty_digigeta(tty, uarg));
+		return dgap_tty_digigeta(tty, uarg);
 
 	case DIGI_SETAW:
 	case DIGI_SETAF:
@@ -4423,7 +4423,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			DGAP_UNLOCK(bd->bd_lock, lock_flags);
 			rc = dgap_wait_for_drain(tty);
 			if (rc)
-				return(-EINTR);
+				return -EINTR;
 			DGAP_LOCK(bd->bd_lock, lock_flags);
 			DGAP_LOCK(ch->ch_lock, lock_flags2);
 		}
@@ -4435,27 +4435,27 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	case DIGI_SETA:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(dgap_tty_digiseta(tty, uarg));
+		return dgap_tty_digiseta(tty, uarg);
 
 	case DIGI_GEDELAY:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(dgap_tty_digigetedelay(tty, uarg));
+		return dgap_tty_digigetedelay(tty, uarg);
 
 	case DIGI_SEDELAY:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(dgap_tty_digisetedelay(tty, uarg));
+		return dgap_tty_digisetedelay(tty, uarg);
 
 	case DIGI_GETCUSTOMBAUD:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(dgap_tty_digigetcustombaud(tty, uarg));
+		return dgap_tty_digigetcustombaud(tty, uarg);
 
 	case DIGI_SETCUSTOMBAUD:
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-		return(dgap_tty_digisetcustombaud(tty, uarg));
+		return dgap_tty_digisetcustombaud(tty, uarg);
 
 	case DIGI_RESET_PORT:
 		dgap_firmware_reset_port(ch);
@@ -4468,7 +4468,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 	}
 }
 
@@ -6286,13 +6286,13 @@ static void dgap_remove_driver_sysfiles(struct pci_driver *dgap_driver)
 
 #define DGAP_VERIFY_BOARD(p, bd)			\
 	if (!p)						\
-		return (0);				\
+		return 0;				\
 							\
 	bd = dev_get_drvdata(p);			\
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)	\
-		return (0);				\
+		return 0;				\
 	if (bd->state != BOARD_READY)			\
-		return (0);				\
+		return 0;				\
 
 
 static ssize_t dgap_ports_state_show(struct device *p, struct device_attribute *attr, char *buf)
@@ -6524,18 +6524,18 @@ static ssize_t dgap_tty_state_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%s", un->un_open_count ? "Open" : "Closed");
 }
@@ -6549,18 +6549,18 @@ static ssize_t dgap_tty_baud_show(struct device *d, struct device_attribute *att
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ch->ch_baud_info);
 }
@@ -6574,18 +6574,18 @@ static ssize_t dgap_tty_msignals_show(struct device *d, struct device_attribute 
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	if (ch->ch_open_count) {
 		return snprintf(buf, PAGE_SIZE, "%s %s %s %s %s %s\n",
@@ -6608,18 +6608,18 @@ static ssize_t dgap_tty_iflag_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_c_iflag);
 }
@@ -6633,18 +6633,18 @@ static ssize_t dgap_tty_cflag_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_c_cflag);
 }
@@ -6658,18 +6658,18 @@ static ssize_t dgap_tty_oflag_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_c_oflag);
 }
@@ -6683,18 +6683,18 @@ static ssize_t dgap_tty_lflag_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_c_lflag);
 }
@@ -6708,18 +6708,18 @@ static ssize_t dgap_tty_digi_flag_show(struct device *d, struct device_attribute
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_digi.digi_flags);
 }
@@ -6733,18 +6733,18 @@ static ssize_t dgap_tty_rxcount_show(struct device *d, struct device_attribute *
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%ld\n", ch->ch_rxcount);
 }
@@ -6758,18 +6758,18 @@ static ssize_t dgap_tty_txcount_show(struct device *d, struct device_attribute *
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%ld\n", ch->ch_txcount);
 }
@@ -6790,18 +6790,18 @@ static ssize_t dgap_tty_name_show(struct device *d, struct device_attribute *att
 	int i = 0;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = dev_get_drvdata(d);
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
         bn = bd->boardnum;
 	cn = ch->ch_portnum;
@@ -6944,7 +6944,7 @@ static int	dgap_parsefile(char **in, int Remove)
 	while ( (rc = dgap_gettok(in,p)) != BEGIN ) {
 		if (rc == 0) {
 			dgap_err("unexpected EOF");
-			return(-1);
+			return -1;
 		}
 	}
 
@@ -6952,27 +6952,27 @@ static int	dgap_parsefile(char **in, int Remove)
 		rc = dgap_gettok(in,p);
 		if (rc == 0) {
 			dgap_err("unexpected EOF");
-			return(-1);
+			return -1;
 		}
 
 		switch (rc) {
 		case 0:
 			dgap_err("unexpected end of file");
-			return(-1);
+			return -1;
 
 		case BEGIN:	/* should only be 1 begin */
 			dgap_err("unexpected config_begin\n");
-			return(-1);
+			return -1;
 
 		case END:
-			return(0);
+			return 0;
 
 		case BOARD:	/* board info */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(BNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 
@@ -6985,7 +6985,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case APORT2_920P:	/* AccelePort_4 */
 			if (p->type != BNODE) {
 				dgap_err("unexpected Digi_2r_920 string");
-				return(-1);
+				return -1;
 			}
 			p->u.board.type = APORT2_920P;
 			p->u.board.v_type = 1;
@@ -6994,7 +6994,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case APORT4_920P:	/* AccelePort_4 */
 			if (p->type != BNODE) {
 				dgap_err("unexpected Digi_4r_920 string");
-				return(-1);
+				return -1;
 			}
 			p->u.board.type = APORT4_920P;
 			p->u.board.v_type = 1;
@@ -7003,7 +7003,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case APORT8_920P:	/* AccelePort_8 */
 			if (p->type != BNODE) {
 				dgap_err("unexpected Digi_8r_920 string");
-				return(-1);
+				return -1;
 			}
 			p->u.board.type = APORT8_920P;
 			p->u.board.v_type = 1;
@@ -7012,7 +7012,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case PAPORT4:	/* AccelePort_4 PCI */
 			if (p->type != BNODE) {
 				dgap_err("unexpected Digi_4r(PCI) string");
-				return(-1);
+				return -1;
 			}
 			p->u.board.type = PAPORT4;
 			p->u.board.v_type = 1;
@@ -7021,7 +7021,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case PAPORT8:	/* AccelePort_8 PCI */
 			if (p->type != BNODE) {
 				dgap_err("unexpected Digi_8r string");
-				return(-1);
+				return -1;
 			}
 			p->u.board.type = PAPORT8;
 			p->u.board.v_type = 1;
@@ -7030,7 +7030,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case PCX:	/* PCI C/X */
 			if (p->type != BNODE) {
 				dgap_err("unexpected Digi_C/X_(PCI) string");
-				return(-1);
+				return -1;
 			}
 			p->u.board.type = PCX;
 			p->u.board.v_type = 1;
@@ -7043,7 +7043,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case PEPC:	/* PCI EPC/X */
 			if (p->type != BNODE) {
 				dgap_err("unexpected \"Digi_EPC/X_(PCI)\" string");
-				return(-1);
+				return -1;
 			}
 			p->u.board.type = PEPC;
 			p->u.board.v_type = 1;
@@ -7056,7 +7056,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case PPCM:	/* PCI/Xem */
 			if (p->type != BNODE) {
 				dgap_err("unexpected PCI/Xem string");
-				return(-1);
+				return -1;
 			}
 			p->u.board.type = PPCM;
 			p->u.board.v_type = 1;
@@ -7067,18 +7067,18 @@ static int	dgap_parsefile(char **in, int Remove)
 		case IO:	/* i/o port */
 			if (p->type != BNODE) {
 				dgap_err("IO port only vaild for boards");
-				return(-1);
+				return -1;
 			}
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.board.portstr = dgap_savestring(s);
 			p->u.board.port = (short)simple_strtol(s, &s2, 0);
 			if ((short)strlen(s) > (short)(s2 - s)) {
 				dgap_err("bad number for IO port");
-				return(-1);
+				return -1;
 			}
 			p->u.board.v_port = 1;
 			break;
@@ -7086,18 +7086,18 @@ static int	dgap_parsefile(char **in, int Remove)
 		case MEM:	/* memory address */
 			if (p->type != BNODE) {
 				dgap_err("memory address only vaild for boards");
-				return(-1);
+				return -1;
 			}
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.board.addrstr = dgap_savestring(s);
 			p->u.board.addr = simple_strtoul(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for memory address");
-				return(-1);
+				return -1;
 			}
 			p->u.board.v_addr = 1;
 			break;
@@ -7105,30 +7105,30 @@ static int	dgap_parsefile(char **in, int Remove)
 		case PCIINFO:	/* pci information */
 			if (p->type != BNODE) {
 				dgap_err("memory address only vaild for boards");
-				return(-1);
+				return -1;
 			}
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.board.pcibusstr = dgap_savestring(s);
 			p->u.board.pcibus = simple_strtoul(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for pci bus");
-				return(-1);
+				return -1;
 			}
 			p->u.board.v_pcibus = 1;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.board.pcislotstr = dgap_savestring(s);
 			p->u.board.pcislot = simple_strtoul(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for pci slot");
-				return(-1);
+				return -1;
 			}
 			p->u.board.v_pcislot = 1;
 			break;
@@ -7136,12 +7136,12 @@ static int	dgap_parsefile(char **in, int Remove)
 		case METHOD:
 			if (p->type != BNODE) {
 				dgap_err("install method only vaild for boards");
-				return(-1);
+				return -1;
 			}
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.board.method = dgap_savestring(s);
 			p->u.board.v_method = 1;
@@ -7150,12 +7150,12 @@ static int	dgap_parsefile(char **in, int Remove)
 		case STATUS:
 			if (p->type != BNODE) {
 				dgap_err("config status only vaild for boards");
-				return(-1);
+				return -1;
 			}
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.board.status = dgap_savestring(s);
 			break;
@@ -7165,41 +7165,41 @@ static int	dgap_parsefile(char **in, int Remove)
 				s = dgap_getword(in);
 				if (s == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.board.nport = (char)simple_strtol(s, &s2, 0);
 				if ((int)strlen(s) > (int)(s2 - s)) {
 					dgap_err("bad number for number of ports");
-					return(-1);
+					return -1;
 				}
 				p->u.board.v_nport = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
 				if (s == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.conc.nport = (char)simple_strtol(s, &s2, 0);
 				if ((int)strlen(s) > (int)(s2 - s)) {
 					dgap_err("bad number for number of ports");
-					return(-1);
+					return -1;
 				}
 				p->u.conc.v_nport = 1;
 			} else if (p->type == MNODE) {
 				s = dgap_getword(in);
 				if (s == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.module.nport = (char)simple_strtol(s, &s2, 0);
 				if ((int)strlen(s) > (int)(s2 - s)) {
 					dgap_err("bad number for number of ports");
-					return(-1);
+					return -1;
 				}
 				p->u.module.v_nport = 1;
 			} else {
 				dgap_err("nports only valid for concentrators or modules");
-				return(-1);
+				return -1;
 			}
 			break;
 
@@ -7207,7 +7207,7 @@ static int	dgap_parsefile(char **in, int Remove)
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 
 			p->u.board.status = dgap_savestring(s);
@@ -7220,7 +7220,7 @@ static int	dgap_parsefile(char **in, int Remove)
 				p->u.module.v_id = 1;
 			} else {
 				dgap_err("id only valid for concentrators or modules");
-				return(-1);
+				return -1;
 			}
 			break;
 
@@ -7229,95 +7229,95 @@ static int	dgap_parsefile(char **in, int Remove)
 				s = dgap_getword(in);
 				if (s == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.board.start = simple_strtol(s, &s2, 0);
 				if ((int)strlen(s) > (int)(s2 - s)) {
 					dgap_err("bad number for start of tty count");
-					return(-1);
+					return -1;
 				}
 				p->u.board.v_start = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
 				if (s == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.conc.start = simple_strtol(s, &s2, 0);
 				if ((int)strlen(s) > (int)(s2 - s)) {
 					dgap_err("bad number for start of tty count");
-					return(-1);
+					return -1;
 				}
 				p->u.conc.v_start = 1;
 			} else if (p->type == MNODE) {
 				s = dgap_getword(in);
 				if (s == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.module.start = simple_strtol(s, &s2, 0);
 				if ((int)strlen(s) > (int)(s2 - s)) {
 					dgap_err("bad number for start of tty count");
-					return(-1);
+					return -1;
 				}
 				p->u.module.v_start = 1;
 			} else {
 				dgap_err("start only valid for concentrators or modules");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case TTYN:	/* tty name prefix */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(TNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			if ( (s = dgap_getword(in)) == NULL ) {
 				dgap_err("unexpeced end of file");
-				return(-1);
+				return -1;
 			}
 			if ( (p->u.ttyname = dgap_savestring(s)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case CU:	/* cu name prefix */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(CUNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			if ( (s = dgap_getword(in)) == NULL ) {
 				dgap_err("unexpeced end of file");
-				return(-1);
+				return -1;
 			}
 			if ( (p->u.cuname = dgap_savestring(s)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case LINE:	/* line information */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if (brd == NULL) {
 				dgap_err("must specify board before line info");
-				return(-1);
+				return -1;
 			}
 			switch (brd->u.board.type) {
 			case PPCM:
 				dgap_err("line not vaild for PC/em");
-				return(-1);
+				return -1;
 			}
 			if ( (p->next = dgap_newnode(LNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			conc = NULL;
@@ -7327,14 +7327,14 @@ static int	dgap_parsefile(char **in, int Remove)
 
 		case CONC:	/* concentrator information */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if (line == NULL) {
 				dgap_err("must specify line info before concentrator");
-				return(-1);
+				return -1;
 			}
 			if ( (p->next = dgap_newnode(CNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			conc = p;
@@ -7348,7 +7348,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case CX:	/* c/x type concentrator */
 			if (p->type != CNODE) {
 				dgap_err("cx only valid for concentrators");
-				return(-1);
+				return -1;
 			}
 			p->u.conc.type = CX;
 			p->u.conc.v_type = 1;
@@ -7357,7 +7357,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case EPC:	/* epc type concentrator */
 			if (p->type != CNODE) {
 				dgap_err("cx only valid for concentrators");
-				return(-1);
+				return -1;
 			}
 			p->u.conc.type = EPC;
 			p->u.conc.v_type = 1;
@@ -7365,10 +7365,10 @@ static int	dgap_parsefile(char **in, int Remove)
 
 		case MOD:	/* EBI module */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if (brd == NULL) {
 				dgap_err("must specify board info before EBI modules");
-				return(-1);
+				return -1;
 			}
 			switch (brd->u.board.type) {
 			case PPCM:
@@ -7377,12 +7377,12 @@ static int	dgap_parsefile(char **in, int Remove)
 			default:
 				if (conc == NULL) {
 					dgap_err("must specify concentrator info before EBI module");
-					return(-1);
+					return -1;
 				}
 			}
 			if ( (p->next = dgap_newnode(MNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			if (linecnt)
@@ -7395,7 +7395,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case PORTS:	/* ports type EBI module */
 			if (p->type != MNODE) {
 				dgap_err("ports only valid for EBI modules");
-				return(-1);
+				return -1;
 			}
 			p->u.module.type = PORTS;
 			p->u.module.v_type = 1;
@@ -7404,7 +7404,7 @@ static int	dgap_parsefile(char **in, int Remove)
 		case MODEM:	/* ports type EBI module */
 			if (p->type != MNODE) {
 				dgap_err("modem only valid for modem modules");
-				return(-1);
+				return -1;
 			}
 			p->u.module.type = MODEM;
 			p->u.module.v_type = 1;
@@ -7414,7 +7414,7 @@ static int	dgap_parsefile(char **in, int Remove)
 			if (p->type == LNODE) {
 				if ((s = dgap_getword(in)) == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.line.cable = dgap_savestring(s);
 				p->u.line.v_cable = 1;
@@ -7426,29 +7426,29 @@ static int	dgap_parsefile(char **in, int Remove)
 				s = dgap_getword(in);
 				if (s == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.line.speed = (char)simple_strtol(s, &s2, 0);
 				if ((short)strlen(s) > (short)(s2 - s)) {
 					dgap_err("bad number for line speed");
-					return(-1);
+					return -1;
 				}
 				p->u.line.v_speed = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
 				if (s == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.conc.speed = (char)simple_strtol(s, &s2, 0);
 				if ((short)strlen(s) > (short)(s2 - s)) {
 					dgap_err("bad number for line speed");
-					return(-1);
+					return -1;
 				}
 				p->u.conc.v_speed = 1;
 			} else {
 				dgap_err("speed valid only for lines or concentrators.");
-				return(-1);
+				return -1;
 			}
 			break;
 
@@ -7456,7 +7456,7 @@ static int	dgap_parsefile(char **in, int Remove)
 			if (p->type == CNODE) {
 				if ((s = dgap_getword(in)) == NULL) {
 					dgap_err("unexpected end of file");
-					return(-1);
+					return -1;
 				}
 				p->u.conc.connect = dgap_savestring(s);
 				p->u.conc.v_connect = 1;
@@ -7464,199 +7464,199 @@ static int	dgap_parsefile(char **in, int Remove)
 			break;
 		case PRINT:	/* transparent print name prefix */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(PNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			if ( (s = dgap_getword(in)) == NULL ) {
 				dgap_err("unexpeced end of file");
-				return(-1);
+				return -1;
 			}
 			if ( (p->u.printname = dgap_savestring(s)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case CMAJOR:	/* major number */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(JNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.majornumber = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for major number");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case ALTPIN:	/* altpin setting */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(ANODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.altpin = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for altpin");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case USEINTR:		/* enable interrupt setting */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(INTRNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.useintr = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for useintr");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case TTSIZ:	/* size of tty structure */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(TSNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.ttysize = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for ttysize");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case CHSIZ:	/* channel structure size */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(CSNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.chsize = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for chsize");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case BSSIZ:	/* board structure size */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(BSNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.bssize = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for bssize");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case UNTSIZ:	/* sched structure size */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(USNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.unsize = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for schedsize");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case F2SIZ:	/* f2200 structure size */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(FSNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.f2size = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for f2200size");
-				return(-1);
+				return -1;
 			}
 			break;
 
 		case VPSIZ:	/* vpix structure size */
 			if (dgap_checknode(p))
-				return(-1);
+				return -1;
 			if ( (p->next = dgap_newnode(VSNODE)) == NULL ) {
 				dgap_err("out of memory");
-				return(-1);
+				return -1;
 			}
 			p = p->next;
 			s = dgap_getword(in);
 			if (s == NULL) {
 				dgap_err("unexpected end of file");
-				return(-1);
+				return -1;
 			}
 			p->u.vpixsize = simple_strtol(s, &s2, 0);
 			if ((int)strlen(s) > (int)(s2 - s)) {
 				dgap_err("bad number for vpixsize");
-				return(-1);
+				return -1;
 			}
 			break;
 		}
@@ -7713,21 +7713,21 @@ static int dgap_gettok(char **in, struct cnode *p)
 		snprintf(dgap_cword, MAXCWORD, "%s", w);
 		for (t = dgap_tlist; t->token != 0; t++) {
 			if ( !strcmp(w, t->string)) {
-				return(t->token);
+				return t->token;
 			}
 		}
 		dgap_err("board !!type not specified");
-		return(1);
+		return 1;
 	}
 	else {
 		while ( (w = dgap_getword(in)) != NULL ) {
 			snprintf(dgap_cword, MAXCWORD, "%s", w);
 			for (t = dgap_tlist; t->token != 0; t++) {
 				if ( !strcmp(w, t->string) )
-					return(t->token);
+					return t->token;
 			}
 		}
-		return(0);
+		return 0;
 	}
 }
 
@@ -7782,7 +7782,7 @@ static struct cnode *dgap_newnode(int t)
 		memset((char *)n, 0, sizeof(struct cnode));
 		n->type = t;
 	}
-	return(n);
+	return n;
 }
 
 
@@ -7796,53 +7796,53 @@ static int dgap_checknode(struct cnode *p)
 	case BNODE:
 		if (p->u.board.v_type == 0) {
 			dgap_err("board type !not specified");
-			return(1);
+			return 1;
 		}
 
-		return(0);
+		return 0;
 
 	case LNODE:
 		if (p->u.line.v_speed == 0) {
 			dgap_err("line speed not specified");
-			return(1);
+			return 1;
 		}
-		return(0);
+		return 0;
 
 	case CNODE:
 		if (p->u.conc.v_type == 0) {
 			dgap_err("concentrator type not specified");
-			return(1);
+			return 1;
 		}
 		if (p->u.conc.v_speed == 0) {
 			dgap_err("concentrator line speed not specified");
-			return(1);
+			return 1;
 		}
 		if (p->u.conc.v_nport == 0) {
 			dgap_err("number of ports on concentrator not specified");
-			return(1);
+			return 1;
 		}
 		if (p->u.conc.v_id == 0) {
 			dgap_err("concentrator id letter not specified");
-			return(1);
+			return 1;
 		}
-		return(0);
+		return 0;
 
 	case MNODE:
 		if (p->u.module.v_type == 0) {
 			dgap_err("EBI module type not specified");
-			return(1);
+			return 1;
 		}
 		if (p->u.module.v_nport == 0) {
 			dgap_err("number of ports on EBI module not specified");
-			return(1);
+			return 1;
 		}
 		if (p->u.module.v_id == 0) {
 			dgap_err("EBI module id letter not specified");
-			return(1);
+			return 1;
 		}
-		return(0);
+		return 0;
 	}
-	return(0);
+	return 0;
 }
 
 /*
@@ -7854,7 +7854,7 @@ static char	*dgap_savestring(char *s)
 	if ( (p = kmalloc(strlen(s) + 1, GFP_ATOMIC) ) != NULL) {
 		strcpy(p, s);
 	}
-	return(p);
+	return p;
 }
 
 
@@ -7866,7 +7866,7 @@ static uint dgap_config_get_useintr(struct board_t *bd)
 	struct cnode *p = NULL;
 
 	if (!bd)
-		return(0);
+		return 0;
 
 	for (p = bd->bd_config; p; p = p->next) {
 		switch (p->type) {
@@ -7893,7 +7893,7 @@ static uint dgap_config_get_altpin(struct board_t *bd)
 	struct cnode *p = NULL;
 
 	if (!bd)
-		return(0);
+		return 0;
 
 	for (p = bd->bd_config; p; p = p->next) {
 		switch (p->type) {
@@ -7983,7 +7983,7 @@ static uint dgap_config_get_number_of_ports(struct board_t *bd)
 	struct cnode *p = NULL;
 
 	if (!bd)
-		return(0);
+		return 0;
 
 	for (p = bd->bd_config; p; p = p->next) {
 
@@ -8003,7 +8003,7 @@ static uint dgap_config_get_number_of_ports(struct board_t *bd)
 			break;
 		}
 	}
-	return (count);
+	return count;
 }
 
 static char *dgap_create_config_string(struct board_t *bd, char *string)
