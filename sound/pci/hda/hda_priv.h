@@ -285,6 +285,8 @@ struct azx_rb {
 	u32 res[AZX_MAX_CODECS];	/* last read value */
 };
 
+struct azx;
+
 /* Functions to read/write to hda registers. */
 struct hda_controller_ops {
 	/* Register Access */
@@ -294,6 +296,8 @@ struct hda_controller_ops {
 	u16 (*readw)(u16 *addr);
 	void (*writeb)(u8 value, u8 *addr);
 	u8 (*readb)(u8 *addr);
+	/* Disable msi if supported, PCI only */
+	int (*disable_msi_reset_irq)(struct azx *);
 };
 
 struct azx_pcm {
