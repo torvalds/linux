@@ -48,6 +48,32 @@
 
 			nvidia,head = <1>;
 		};
+
+		sor@54540000 {
+			compatible = "nvidia,tegra124-sor";
+			reg = <0x54540000 0x00040000>;
+			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA124_CLK_SOR0>,
+				 <&tegra_car TEGRA124_CLK_PLL_D_OUT0>,
+				 <&tegra_car TEGRA124_CLK_PLL_DP>,
+				 <&tegra_car TEGRA124_CLK_CLK_M>;
+			clock-names = "sor", "parent", "dp", "safe";
+			resets = <&tegra_car 182>;
+			reset-names = "sor";
+			status = "disabled";
+		};
+
+		dpaux@545c0000 {
+			compatible = "nvidia,tegra124-dpaux";
+			reg = <0x545c0000 0x00040000>;
+			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA124_CLK_DPAUX>,
+				 <&tegra_car TEGRA124_CLK_PLL_DP>;
+			clock-names = "dpaux", "parent";
+			resets = <&tegra_car 181>;
+			reset-names = "dpaux";
+			status = "disabled";
+		};
 	};
 
 	gic: interrupt-controller@50041000 {
