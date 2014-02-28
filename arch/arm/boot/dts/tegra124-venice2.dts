@@ -16,6 +16,20 @@
 		reg = <0x80000000 0x80000000>;
 	};
 
+	host1x@50000000 {
+		sor@54540000 {
+			status = "okay";
+
+			nvidia,dpaux = <&dpaux>;
+			nvidia,panel = <&panel>;
+		};
+
+		dpaux: dpaux@545c0000 {
+			vdd-supply = <&vdd_3v3_panel>;
+			status = "okay";
+		};
+	};
+
 	pinmux: pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
@@ -940,6 +954,17 @@
 		};
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+
+		enable-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
+		power-supply = <&vdd_led>;
+		pwms = <&pwm 1 1000000>;
+
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -963,6 +988,13 @@
 			debounce-interval = <10>;
 			gpio-key,wakeup;
 		};
+	};
+
+	panel: panel {
+		compatible = "lg,lp129qe", "simple-panel";
+
+		backlight = <&backlight>;
+		ddc-i2c-bus = <&dpaux>;
 	};
 
 	regulators {
