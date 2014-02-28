@@ -1,10 +1,8 @@
-/*
- * Copyright 2011, Siemens AG
+/* Copyright 2011, Siemens AG
  * written by Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  */
 
-/*
- * Based on patches from Jon Smirl <jonsmirl@gmail.com>
+/* Based on patches from Jon Smirl <jonsmirl@gmail.com>
  * Copyright (c) 2011 Jon Smirl <jonsmirl@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /* Jon's code is based on 6lowpan implementation for Contiki which is:
@@ -124,13 +118,11 @@ static int lowpan_header_create(struct sk_buff *skb,
 
 	lowpan_header_compress(skb, dev, type, daddr, saddr, len);
 
-	/*
-	 * NOTE1: I'm still unsure about the fact that compression and WPAN
+	/* NOTE1: I'm still unsure about the fact that compression and WPAN
 	 * header are created here and not later in the xmit. So wait for
 	 * an opinion of net maintainers.
 	 */
-	/*
-	 * NOTE2: to be absolutely correct, we must derive PANid information
+	/* NOTE2: to be absolutely correct, we must derive PANid information
 	 * from MAC subif of the 'dev' and 'real_dev' network devices, but
 	 * this isn't implemented in mainline yet, so currently we assign 0xff
 	 */
@@ -145,8 +137,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 	/* intra-PAN communications */
 	da.pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
 
-	/*
-	 * if the destination address is the broadcast address, use the
+	/* if the destination address is the broadcast address, use the
 	 * corresponding short address
 	 */
 	if (lowpan_is_addr_broadcast(daddr)) {
@@ -386,7 +377,7 @@ static int lowpan_set_address(struct net_device *dev, void *p)
 
 static int
 lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
-			int mlen, int plen, int offset, int type)
+		     int mlen, int plen, int offset, int type)
 {
 	struct sk_buff *frag;
 	int hlen;
@@ -478,8 +469,8 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 		err = lowpan_fragment_xmit(skb, head, header_length, len,
 					   offset, LOWPAN_DISPATCH_FRAGN);
 		if (err) {
-			pr_debug("%s unable to send a subsequent FRAGN packet "
-				 "(tag: %d, offset: %d", __func__, tag, offset);
+			pr_debug("%s unable to send a FRAGN packet. (tag: %d, offset: %d)\n",
+				 __func__, tag, offset);
 			goto exit;
 		}
 
@@ -686,7 +677,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	lowpan_dev_info(dev)->fragment_tag = 0;
 	mutex_init(&lowpan_dev_info(dev)->dev_list_mtx);
 
-	entry = kzalloc(sizeof(struct lowpan_dev_record), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		dev_put(real_dev);
 		lowpan_dev_info(dev)->real_dev = NULL;
