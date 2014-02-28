@@ -1517,7 +1517,7 @@ struct btrfs_fs_info {
 	struct btrfs_workqueue_struct *endio_freespace_worker;
 	struct btrfs_workqueue_struct *submit_workers;
 	struct btrfs_workqueue_struct *caching_workers;
-	struct btrfs_workers readahead_workers;
+	struct btrfs_workqueue_struct *readahead_workers;
 
 	/*
 	 * fixup workers take dirty pages that didn't properly go through

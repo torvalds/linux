@@ -2008,7 +2008,7 @@ static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 	btrfs_destroy_workqueue(fs_info->submit_workers);
 	btrfs_stop_workers(&fs_info->delayed_workers);
 	btrfs_destroy_workqueue(fs_info->caching_workers);
-	btrfs_stop_workers(&fs_info->readahead_workers);
+	btrfs_destroy_workqueue(fs_info->readahead_workers);
 	btrfs_destroy_workqueue(fs_info->flush_workers);
 	btrfs_stop_workers(&fs_info->qgroup_rescan_workers);
 }
@@ -2522,13 +2522,10 @@ int open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->delayed_workers, "delayed-meta",
 			   fs_info->thread_pool_size,
 			   &fs_info->generic_worker);
-	btrfs_init_workers(&fs_info->readahead_workers, "readahead",
-			   fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
+	fs_info->readahead_workers =
+		btrfs_alloc_workqueue("readahead", flags, max_active, 2);
 	btrfs_init_workers(&fs_info->qgroup_rescan_workers, "qgroup-rescan", 1,
 			   &fs_info->generic_worker);
-
-	fs_info->readahead_workers.idle_thresh = 2;
 
 	/*
 	 * btrfs_start_workers can really only fail because of ENOMEM so just
@@ -2537,7 +2534,6 @@ int open_ctree(struct super_block *sb,
 	ret = btrfs_start_workers(&fs_info->generic_worker);
 	ret |= btrfs_start_workers(&fs_info->fixup_workers);
 	ret |= btrfs_start_workers(&fs_info->delayed_workers);
-	ret |= btrfs_start_workers(&fs_info->readahead_workers);
 	ret |= btrfs_start_workers(&fs_info->qgroup_rescan_workers);
 	if (ret) {
 		err = -ENOMEM;
@@ -2549,7 +2545,7 @@ int open_ctree(struct super_block *sb,
 	      fs_info->endio_meta_write_workers &&
 	      fs_info->endio_write_workers && fs_info->endio_raid56_workers &&
 	      fs_info->endio_freespace_worker && fs_info->rmw_workers &&
-	      fs_info->caching_workers)) {
+	      fs_info->caching_workers && fs_info->readahead_workers)) {
 		err = -ENOMEM;
 		goto fail_sb_buffer;
 	}
