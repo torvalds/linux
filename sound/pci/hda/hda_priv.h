@@ -298,6 +298,17 @@ struct hda_controller_ops {
 	u8 (*readb)(u8 *addr);
 	/* Disable msi if supported, PCI only */
 	int (*disable_msi_reset_irq)(struct azx *);
+	/* Allocation ops */
+	int (*dma_alloc_pages)(struct azx *chip,
+			       int type,
+			       size_t size,
+			       struct snd_dma_buffer *buf);
+	void (*dma_free_pages)(struct azx *chip, struct snd_dma_buffer *buf);
+	int (*substream_alloc_pages)(struct azx *chip,
+				     struct snd_pcm_substream *substream,
+				     size_t size);
+	int (*substream_free_pages)(struct azx *chip,
+				    struct snd_pcm_substream *substream);
 };
 
 struct azx_pcm {
