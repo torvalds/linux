@@ -389,11 +389,11 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 		spin_unlock(&cfs_wi_data.wi_glock);
 
 		if (sched->ws_cptab != NULL && sched->ws_cpt >= 0) {
-			snprintf(name, sizeof(name), "%s_%02d_%02d",
+			snprintf(name, sizeof(name), "%s_%02d_%02u",
 				 sched->ws_name, sched->ws_cpt,
 				 sched->ws_nthreads);
 		} else {
-			snprintf(name, sizeof(name), "%s_%02d",
+			snprintf(name, sizeof(name), "%s_%02u",
 				 sched->ws_name, sched->ws_nthreads);
 		}
 
