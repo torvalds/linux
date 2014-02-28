@@ -549,6 +549,20 @@ error:
 	smp_failure(conn, reason);
 }
 
+static void smp_reencrypt(struct work_struct *work)
+{
+	struct smp_chan *smp = container_of(work, struct smp_chan,
+					    reencrypt.work);
+	struct l2cap_conn *conn = smp->conn;
+	struct hci_conn *hcon = conn->hcon;
+	struct smp_ltk *ltk = smp->ltk;
+
+	BT_DBG("");
+
+	hci_le_start_enc(hcon, ltk->ediv, ltk->rand, ltk->val);
+	hcon->enc_key_size = ltk->enc_size;
+}
+
 static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 {
 	struct smp_chan *smp;
@@ -559,6 +573,7 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 
 	INIT_WORK(&smp->confirm, confirm_work);
 	INIT_WORK(&smp->random, random_work);
+	INIT_DELAYED_WORK(&smp->reencrypt, smp_reencrypt);
 
 	smp->conn = conn;
 	conn->smp_chan = smp;
@@ -575,6 +590,8 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 	bool complete;
 
 	BUG_ON(!smp);
+
+	cancel_delayed_work_sync(&smp->reencrypt);
 
 	complete = test_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
 	mgmt_smp_complete(conn->hcon, complete);
@@ -1287,9 +1304,8 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 
 	/* Re-encrypt the link with LTK if possible */
 	if (ltk_encrypt && hcon->out) {
-		struct smp_ltk *ltk = smp->ltk;
-		hci_le_start_enc(hcon, ltk->ediv, ltk->rand, ltk->val);
-		hcon->enc_key_size = ltk->enc_size;
+		queue_delayed_work(hdev->req_workqueue, &smp->reencrypt,
+				   SMP_REENCRYPT_TIMEOUT);
 	} else {
 		clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags);
 		cancel_delayed_work_sync(&conn->security_timer);
